@@ -564,8 +564,9 @@ static void toggle_full_screen(DisplayState *ds)
         } else {
             do_sdl_resize(ds_get_width(ds), ds_get_height(ds), 0);
         }
-        if (!gui_saved_grab)
+        if (!gui_saved_grab || !is_graphic_console()) {
             sdl_grab_end();
+        }
     }
     vga_hw_invalidate();
     vga_hw_update();
@@ -689,8 +690,10 @@ static void sdl_refresh(DisplayState *ds)
                                    'SDL_WM_GrabInput(SDL_GRAB_ON)'
                                    from blocking all the application
                                    (SDL bug). */
-                                if (SDL_GetAppState() & SDL_APPACTIVE)
+                                if (is_graphic_console() &&
+                                    SDL_GetAppState() & SDL_APPACTIVE) {
                                     sdl_grab_start();
+                                }
                             } else {
                                 sdl_grab_end();
                             }
@@ -721,7 +724,7 @@ static void sdl_refresh(DisplayState *ds)
             break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
-            {
+            if (is_graphic_console()) {
                 SDL_MouseButtonEvent *bev = &ev->button;
                 if (!gui_grab && !kbd_mouse_is_absolute()) {
                     if (ev->type == SDL_MOUSEBUTTONDOWN &&
