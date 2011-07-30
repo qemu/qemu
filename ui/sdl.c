@@ -589,6 +589,7 @@ static void sdl_refresh(DisplayState *ds)
                             vga_hw_invalidate();
                             vga_hw_update();
                         }
+                        gui_keysym = 1;
                         break;
                     case 0x02 ... 0x0a: /* '1' to '9' keys */
                         /* Reset the modifiers sent to the current console */
