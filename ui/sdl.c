@@ -672,8 +672,10 @@ static void sdl_refresh(DisplayState *ds)
                 sdl_process_key(&ev->key);
             break;
         case SDL_QUIT:
-            if (!no_quit)
+            if (!no_quit) {
+                no_shutdown = 0;
                 qemu_system_shutdown_request();
+            }
             break;
         case SDL_MOUSEMOTION:
             if (gui_grab || kbd_mouse_is_absolute() ||
