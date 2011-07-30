@@ -318,7 +318,8 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
 #if defined(TCG_TARGET_HAS_not_i32) || defined(TCG_TARGET_HAS_not_i64)
 #ifdef TCG_TARGET_HAS_not_i32
     case INDEX_op_not_i32:
-#else
+#endif
+#ifdef TCG_TARGET_HAS_not_i64
     case INDEX_op_not_i64:
 #endif
         return ~x;
@@ -327,7 +328,8 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
 #if defined(TCG_TARGET_HAS_ext8s_i32) || defined(TCG_TARGET_HAS_ext8s_i64)
 #ifdef TCG_TARGET_HAS_ext8s_i32
     case INDEX_op_ext8s_i32:
-#else
+#endif
+#ifdef TCG_TARGET_HAS_ext8s_i64
     case INDEX_op_ext8s_i64:
 #endif
         return (int8_t)x;
@@ -336,7 +338,8 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
 #if defined(TCG_TARGET_HAS_ext16s_i32) || defined(TCG_TARGET_HAS_ext16s_i64)
 #ifdef TCG_TARGET_HAS_ext16s_i32
     case INDEX_op_ext16s_i32:
-#else
+#endif
+#ifdef TCG_TARGET_HAS_ext16s_i64
     case INDEX_op_ext16s_i64:
 #endif
         return (int16_t)x;
@@ -345,7 +348,8 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
 #if defined(TCG_TARGET_HAS_ext8u_i32) || defined(TCG_TARGET_HAS_ext8u_i64)
 #ifdef TCG_TARGET_HAS_ext8u_i32
     case INDEX_op_ext8u_i32:
-#else
+#endif
+#ifdef TCG_TARGET_HAS_ext8u_i64
     case INDEX_op_ext8u_i64:
 #endif
         return (uint8_t)x;
@@ -354,19 +358,20 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
 #if defined(TCG_TARGET_HAS_ext16u_i32) || defined(TCG_TARGET_HAS_ext16u_i64)
 #ifdef TCG_TARGET_HAS_ext16u_i32
     case INDEX_op_ext16u_i32:
-#else
+#endif
+#ifdef TCG_TARGET_HAS_ext16u_i64
     case INDEX_op_ext16u_i64:
 #endif
         return (uint16_t)x;
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
-#ifdef TCG_TARGET_HAS_ext32s_i32
+#ifdef TCG_TARGET_HAS_ext32s_i64
     case INDEX_op_ext32s_i64:
         return (int32_t)x;
 #endif
 
-#ifdef TCG_TARGET_HAS_ext32u_i32
+#ifdef TCG_TARGET_HAS_ext32u_i64
     case INDEX_op_ext32u_i64:
         return (uint32_t)x;
 #endif
