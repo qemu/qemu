@@ -87,13 +87,13 @@ static void reset_temp(TCGArg temp, int nb_temps, int nb_globals)
     }
 }
 
-static int op_bits(enum TCGOpcode op)
+static int op_bits(TCGOpcode op)
 {
     const TCGOpDef *def = &tcg_op_defs[op];
     return def->flags & TCG_OPF_64BIT ? 64 : 32;
 }
 
-static int op_to_movi(int op)
+static TCGOpcode op_to_movi(TCGOpcode op)
 {
     switch (op_bits(op)) {
     case 32:
@@ -143,7 +143,7 @@ static void tcg_opt_gen_movi(TCGArg *gen_args, TCGArg dst, TCGArg val,
         gen_args[1] = val;
 }
 
-static int op_to_mov(int op)
+static TCGOpcode op_to_mov(TCGOpcode op)
 {
     switch (op_bits(op)) {
     case 32:
@@ -157,7 +157,7 @@ static int op_to_mov(int op)
     }
 }
 
-static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
+static TCGArg do_constant_folding_2(TCGOpcode op, TCGArg x, TCGArg y)
 {
     switch (op) {
     CASE_OP_32_64(add):
@@ -258,7 +258,7 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
     }
 }
 
-static TCGArg do_constant_folding(int op, TCGArg x, TCGArg y)
+static TCGArg do_constant_folding(TCGOpcode op, TCGArg x, TCGArg y)
 {
     TCGArg res = do_constant_folding_2(op, x, y);
     if (op_bits(op) == 32) {
@@ -271,7 +271,8 @@ static TCGArg do_constant_folding(int op, TCGArg x, TCGArg y)
 static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                                     TCGArg *args, TCGOpDef *tcg_op_defs)
 {
-    int i, nb_ops, op_index, op, nb_temps, nb_globals, nb_call_args;
+    int i, nb_ops, op_index, nb_temps, nb_globals, nb_call_args;
+    TCGOpcode op;
     const TCGOpDef *def;
     TCGArg *gen_args;
     TCGArg tmp;
@@ -376,6 +377,8 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
                 }
                 continue;
             }
+            break;
+        default:
             break;
         }
 
