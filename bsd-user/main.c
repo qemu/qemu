@@ -856,9 +856,6 @@ int main(int argc, char **argv)
             usage();
         }
     }
-    if (optind >= argc)
-        usage();
-    filename = argv[optind];
 
     /* init debug */
     cpu_set_log_filename(log_file);
@@ -876,6 +873,11 @@ int main(int argc, char **argv)
         }
         cpu_set_log(mask);
     }
+
+    if (optind >= argc) {
+        usage();
+    }
+    filename = argv[optind];
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));

@@ -48,7 +48,7 @@
 
 typedef struct {
     SysBusDevice busdev;
-    NANDFlashState *nand;
+    DeviceState *nand;
     uint8_t ctl;
     uint8_t manf_id;
     uint8_t chip_id;
@@ -169,11 +169,13 @@ static void sl_flash_register(PXA2xxState *cpu, int size)
 static int sl_nand_init(SysBusDevice *dev) {
     int iomemtype;
     SLNANDState *s;
+    DriveInfo *nand;
 
     s = FROM_SYSBUS(SLNANDState, dev);
 
     s->ctl = 0;
-    s->nand = nand_init(s->manf_id, s->chip_id);
+    nand = drive_get(IF_MTD, 0, 0);
+    s->nand = nand_init(nand ? nand->bdrv : NULL, s->manf_id, s->chip_id);
 
     iomemtype = cpu_register_io_memory(sl_readfn,
                     sl_writefn, s, DEVICE_NATIVE_ENDIAN);

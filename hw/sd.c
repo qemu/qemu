@@ -393,9 +393,7 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     } else {
         sect = 0;
     }
-    sect <<= 9;
-
-    size = sect + 1;
+    size = sect << 9;
 
     sect = (size >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT)) + 1;
 

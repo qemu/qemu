@@ -3087,11 +3087,6 @@ int main(int argc, char **argv, char **envp)
             usage();
         }
     }
-    if (optind >= argc)
-        usage();
-    filename = argv[optind];
-    exec_path = argv[optind];
-
     /* init debug */
     cpu_set_log_filename(log_file);
     if (log_mask) {
@@ -3108,6 +3103,12 @@ int main(int argc, char **argv, char **envp)
         }
         cpu_set_log(mask);
     }
+
+    if (optind >= argc) {
+        usage();
+    }
+    filename = argv[optind];
+    exec_path = argv[optind];
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));

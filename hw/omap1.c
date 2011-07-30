@@ -27,6 +27,7 @@
 #include "pc.h"
 #include "blockdev.h"
 #include "range.h"
+#include "sysbus.h"
 
 /* Should signal the TCMI/GPMC */
 uint32_t omap_badwidth_read8(void *opaque, target_phys_addr_t addr)
@@ -3585,7 +3586,6 @@ static void omap1_mpu_reset(void *opaque)
     omap_uart_reset(mpu->uart[2]);
     omap_mmc_reset(mpu->mmc);
     omap_mpuio_reset(mpu->mpuio);
-    omap_gpio_reset(mpu->gpio);
     omap_uwire_reset(mpu->microwire);
     omap_pwl_reset(mpu);
     omap_pwt_reset(mpu);
@@ -3845,8 +3845,12 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
                     s->irq[1][OMAP_INT_KEYBOARD], s->irq[1][OMAP_INT_MPUIO],
                     s->wakeup, omap_findclk(s, "clk32-kHz"));
 
-    s->gpio = omap_gpio_init(0xfffce000, s->irq[0][OMAP_INT_GPIO_BANK1],
-                    omap_findclk(s, "arm_gpio_ck"));
+    s->gpio = qdev_create(NULL, "omap-gpio");
+    qdev_prop_set_int32(s->gpio, "mpu_model", s->mpu_model);
+    qdev_init_nofail(s->gpio);
+    sysbus_connect_irq(sysbus_from_qdev(s->gpio), 0,
+                    s->irq[0][OMAP_INT_GPIO_BANK1]);
+    sysbus_mmio_map(sysbus_from_qdev(s->gpio), 0, 0xfffce000);
 
     s->microwire = omap_uwire_init(0xfffb3000, &s->irq[1][OMAP_INT_uWireTX],
                     s->drq[OMAP_DMA_UWIRE_TX], omap_findclk(s, "mpuper_ck"));

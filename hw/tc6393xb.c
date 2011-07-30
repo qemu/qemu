@@ -12,6 +12,7 @@
 #include "flash.h"
 #include "console.h"
 #include "pixel_ops.h"
+#include "blockdev.h"
 
 #define IRQ_TC6393_NAND		0
 #define IRQ_TC6393_MMC		1
@@ -117,7 +118,7 @@ struct TC6393xbState {
     } nand;
     int nand_enable;
     uint32_t nand_phys;
-    NANDFlashState *flash;
+    DeviceState *flash;
     ECCState ecc;
 
     DisplayState *ds;
@@ -566,6 +567,7 @@ TC6393xbState *tc6393xb_init(uint32_t base, qemu_irq irq)
 {
     int iomemtype;
     TC6393xbState *s;
+    DriveInfo *nand;
     CPUReadMemoryFunc * const tc6393xb_readfn[] = {
         tc6393xb_readb,
         tc6393xb_readw,
@@ -586,7 +588,8 @@ TC6393xbState *tc6393xb_init(uint32_t base, qemu_irq irq)
 
     s->sub_irqs = qemu_allocate_irqs(tc6393xb_sub_irq, s, TC6393XB_NR_IRQS);
 
-    s->flash = nand_init(NAND_MFR_TOSHIBA, 0x76);
+    nand = drive_get(IF_MTD, 0, 0);
+    s->flash = nand_init(nand ? nand->bdrv : NULL, NAND_MFR_TOSHIBA, 0x76);
 
     iomemtype = cpu_register_io_memory(tc6393xb_readfn,
                     tc6393xb_writefn, s, DEVICE_NATIVE_ENDIAN);
