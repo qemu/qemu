@@ -67,9 +67,9 @@ typedef void * host_reg_t;
 #endif
 
 #if defined(AREG0)
-# define DECLARE_QEMU_ENV(s) register struct s *env asm(AREG0)
+register CPUState *env asm(AREG0);
 #else
-# define DECLARE_QEMU_ENV(s) extern struct s *env
+extern CPUState *env;
 #endif
 
 #define xglue(x, y) x ## y

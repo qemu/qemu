@@ -421,13 +421,14 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
 }
 
 /* Interpret pseudo code in tb. */
-unsigned long tcg_qemu_tb_exec(CPUState *env, uint8_t *tb_ptr)
+unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
 {
     unsigned long next_tb = 0;
 
     TRACE();
 
-    tci_reg[TCG_AREG0] = (tcg_target_ulong)env;
+    env = cpustate;
+    tci_reg[TCG_AREG0] = (tcg_target_ulong)cpustate;
 
     for (;;) {
 #ifdef NEEDS_TB_PTR

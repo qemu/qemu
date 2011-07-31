@@ -1,5 +1,6 @@
 #include <assert.h>
-#include "exec.h"
+#include "cpu.h"
+#include "dyngen-exec.h"
 #include "helper.h"
 #include "host-utils.h"
 

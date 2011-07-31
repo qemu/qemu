@@ -502,6 +502,9 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
 void tcg_gen_shifti_i64(TCGv_i64 ret, TCGv_i64 arg1,
                         int c, int right, int arith);
 
+TCGArg *tcg_optimize(TCGContext *s, uint16_t *tcg_opc_ptr, TCGArg *args,
+                     TCGOpDef *tcg_op_def);
+
 /* only used for debugging purposes */
 void tcg_register_helper(void *func, const char *name);
 const char *tcg_helper_get_name(TCGContext *s, void *func);

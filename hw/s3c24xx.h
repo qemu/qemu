@@ -83,6 +83,6 @@ i2c_bus *s3c24xx_i2c_bus(struct s3c24xx_i2c_state_s *s);
 struct s3c24xx_nand_state_s *s3c24xx_nand_init(target_phys_addr_t base_addr);
 
 /* set nand controller context */
-void s3c24xx_nand_attach(struct s3c24xx_nand_state_s *s, NANDFlashState *nand);
+void s3c24xx_nand_attach(struct s3c24xx_nand_state_s *s, DeviceState *nand);
 
 #endif /* S3C24XX_H */

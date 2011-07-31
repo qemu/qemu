@@ -18,7 +18,7 @@
  */
 
 #include "qemu-common.h"
-#include "exec.h"
+#include "dyngen-exec.h"
 #include "helpers.h"
 
 #if defined(CONFIG_USER_ONLY)
@@ -35,6 +35,8 @@ void do_interrupt_m68k_hardirq(CPUState *env1)
 #else
 
 extern int semihosting_enabled;
+
+#include "softmmu_exec.h"
 
 #define MMUSUFFIX _mmu
 

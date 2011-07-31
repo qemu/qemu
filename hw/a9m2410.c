@@ -38,7 +38,7 @@ static int bigendian = 0;
 
 typedef struct {
     S3CState *soc;
-    NANDFlashState *nand[4];
+    DeviceState *nand[4];
     uint8_t cpld_ctrl2;
 } STCBState;
 
@@ -514,7 +514,7 @@ static void stcb_init(ram_addr_t _ram_size,
     if (!dinfo) {
         stcb->nand[2] = NULL;
     } else {
-        stcb->nand[2] = nand_init(0xEC, 0x79); /* 128MiB small-page */
+        stcb->nand[2] = nand_init(NULL, 0xEC, 0x79); /* 128MiB small-page */
     }
 
     chr = qemu_chr_open("uart0", "vc:80Cx24C", NULL);

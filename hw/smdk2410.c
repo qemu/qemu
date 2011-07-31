@@ -25,7 +25,7 @@
 typedef struct {
     S3CState *soc;
     unsigned char cpld_ctrl2;
-    NANDFlashState *nand[4];
+    DeviceState *nand[4];
 } SMDK2410State;
 
 /* Bits in a byte */
@@ -116,7 +116,7 @@ static void smdk2410_init(ram_addr_t _ram_size,
     if (!dinfo) {
         stcb->nand[2] = NULL;
     } else {
-        stcb->nand[2] = nand_init(0xEC, 0x79); /* 128MiB small-page */
+        stcb->nand[2] = nand_init(NULL, 0xEC, 0x79); /* 128MiB small-page */
     }
 }
 

@@ -25,7 +25,7 @@
 struct s3c24xx_nand_state_s {
     uint32_t nand_reg[13];
 
-    NANDFlashState *nand;
+    DeviceState *nand;
 };
 
 static void
@@ -137,7 +137,7 @@ s3c24xx_nand_init(target_phys_addr_t base_addr)
 }
 
 void
-s3c24xx_nand_attach(struct s3c24xx_nand_state_s *s, NANDFlashState *nand)
+s3c24xx_nand_attach(struct s3c24xx_nand_state_s *s, DeviceState *nand)
 {
     if (s->nand != NULL) {
         /* Detach current nand device */

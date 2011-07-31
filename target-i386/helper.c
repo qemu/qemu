@@ -1022,8 +1022,6 @@ int check_hw_breakpoints(CPUState *env, int force_dr6_update)
 
 static CPUDebugExcpHandler *prev_debug_excp_handler;
 
-void raise_exception_env(int exception_index, CPUState *env);
-
 static void breakpoint_handler(CPUState *env)
 {
     CPUBreakpoint *bp;

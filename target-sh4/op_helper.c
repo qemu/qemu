@@ -18,7 +18,7 @@
  */
 
 #include "qemu-common.h"
-#include "exec.h"
+#include "dyngen-exec.h"
 #include "helper.h"
 
 static void cpu_restore_state_from_retaddr(void *retaddr)
@@ -38,6 +38,7 @@ static void cpu_restore_state_from_retaddr(void *retaddr)
 }
 
 #ifndef CONFIG_USER_ONLY
+#include "softmmu_exec.h"
 
 #define MMUSUFFIX _mmu
 
