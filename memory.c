@@ -245,6 +245,10 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
 
 static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
 {
+    if (fr->dirty_log_mask) {
+        cpu_physical_sync_dirty_bitmap(fr->addr.start,
+                                       fr->addr.start + fr->addr.size);
+    }
     cpu_register_physical_memory(fr->addr.start, fr->addr.size,
                                  IO_MEM_UNASSIGNED);
 }
