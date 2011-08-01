@@ -64,6 +64,24 @@
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
 
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#define MMUSUFFIX _mmu
+#define ALIGNED_ONLY
+
+#define SHIFT 0
+#include "softmmu_template.h"
+
+#define SHIFT 1
+#include "softmmu_template.h"
+
+#define SHIFT 2
+#include "softmmu_template.h"
+
+#define SHIFT 3
+#include "softmmu_template.h"
+#endif
+
 #if defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
 /* Calculates TSB pointer value for fault page size 8k or 64k */
 static uint64_t ultrasparc_tsb_pointer(uint64_t tsb_register,
@@ -523,17 +541,17 @@ uint64_t helper_ld_asi(CPUSPARCState *env, target_ulong addr, int asi, int size,
     case 9: /* Supervisor code access */
         switch (size) {
         case 1:
-            ret = ldub_code(addr);
+            ret = cpu_ldub_code(env, addr);
             break;
         case 2:
-            ret = lduw_code(addr);
+            ret = cpu_lduw_code(env, addr);
             break;
         default:
         case 4:
-            ret = ldl_code(addr);
+            ret = cpu_ldl_code(env, addr);
             break;
         case 8:
-            ret = ldq_code(addr);
+            ret = cpu_ldq_code(env, addr);
             break;
         }
         break;
@@ -2354,4 +2372,51 @@ void cpu_unassigned_access(CPUSPARCState *env, target_phys_addr_t addr,
     }
 }
 #endif
+#endif
+
+#if !defined(CONFIG_USER_ONLY)
+/* XXX: make it generic ? */
+static void cpu_restore_state2(CPUSPARCState *env, void *retaddr)
+{
+    TranslationBlock *tb;
+    unsigned long pc;
+
+    if (retaddr) {
+        /* now we have a real cpu fault */
+        pc = (unsigned long)retaddr;
+        tb = tb_find_pc(pc);
+        if (tb) {
+            /* the PC is inside the translated code. It means that we have
+               a virtual CPU fault */
+            cpu_restore_state(tb, env, pc);
+        }
+    }
+}
+
+void do_unaligned_access(CPUSPARCState *env, target_ulong addr, int is_write,
+                         int is_user, void *retaddr)
+{
+#ifdef DEBUG_UNALIGNED
+    printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx
+           "\n", addr, env->pc);
+#endif
+    cpu_restore_state2(env, retaddr);
+    helper_raise_exception(env, TT_UNALIGNED);
+}
+
+/* try to fill the TLB and return an exception if error. If retaddr is
+   NULL, it means that the function was called in C code (i.e. not
+   from generated code or from helper.c) */
+/* XXX: fix it to restore all registers */
+void tlb_fill(CPUSPARCState *env, target_ulong addr, int is_write, int mmu_idx,
+              void *retaddr)
+{
+    int ret;
+
+    ret = cpu_sparc_handle_mmu_fault(env, addr, is_write, mmu_idx);
+    if (ret) {
+        cpu_restore_state2(env, retaddr);
+        cpu_loop_exit(env);
+    }
+}
 #endif

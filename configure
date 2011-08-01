@@ -3606,6 +3606,13 @@ case "$target_arch2" in
     exit 1
   ;;
 esac
+
+case "$target_arch2" in
+  sparc*)
+    echo "CONFIG_TCG_PASS_AREG0=y" >> $config_target_mak
+  ;;
+esac
+
 echo "TARGET_SHORT_ALIGNMENT=$target_short_alignment" >> $config_target_mak
 echo "TARGET_INT_ALIGNMENT=$target_int_alignment" >> $config_target_mak
 echo "TARGET_LONG_ALIGNMENT=$target_long_alignment" >> $config_target_mak

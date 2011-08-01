@@ -2373,9 +2373,9 @@ static void gen_faligndata(TCGv dst, TCGv gsr, TCGv s1, TCGv s2)
         goto nfpu_insn;
 
 /* before an instruction, dc->pc must be static */
-static void disas_sparc_insn(DisasContext * dc)
+static void disas_sparc_insn(DisasContext * dc, unsigned int insn)
 {
-    unsigned int insn, opc, rs1, rs2, rd;
+    unsigned int opc, rs1, rs2, rd;
     TCGv cpu_src1, cpu_src2, cpu_tmp1, cpu_tmp2;
     TCGv_i32 cpu_src1_32, cpu_src2_32, cpu_dst_32;
     TCGv_i64 cpu_src1_64, cpu_src2_64, cpu_dst_64;
@@ -2383,7 +2383,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
     if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP)))
         tcg_gen_debug_insn_start(dc->pc);
-    insn = ldl_code(dc->pc);
+
     opc = GET_FIELD(insn, 0, 1);
 
     rd = GET_FIELD(insn, 2, 6);
@@ -5240,6 +5240,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     int j, lj = -1;
     int num_insns;
     int max_insns;
+    unsigned int insn;
 
     memset(dc, 0, sizeof(DisasContext));
     dc->tb = tb;
@@ -5299,7 +5300,8 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
         last_pc = dc->pc;
-        disas_sparc_insn(dc);
+        insn = cpu_ldl_code(env, dc->pc);
+        disas_sparc_insn(dc, insn);
         num_insns++;
 
         if (dc->is_br)
