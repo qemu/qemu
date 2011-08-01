@@ -1022,7 +1022,7 @@ void cpu_ppc_close (CPUPPCState *s);
 int cpu_ppc_signal_handler (int host_signum, void *pinfo,
                             void *puc);
 int cpu_ppc_handle_mmu_fault (CPUPPCState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu);
+                              int mmu_idx);
 #define cpu_handle_mmu_fault cpu_ppc_handle_mmu_fault
 #if !defined(CONFIG_USER_ONLY)
 int get_physical_address (CPUPPCState *env, mmu_ctx_t *ctx, target_ulong vaddr,

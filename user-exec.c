@@ -102,7 +102,7 @@ static inline int handle_cpu_signal(unsigned long pc, unsigned long address,
     }
 
     /* see if it is an MMU fault */
-    ret = cpu_handle_mmu_fault(env, address, is_write, MMU_USER_IDX, 0);
+    ret = cpu_handle_mmu_fault(env, address, is_write, MMU_USER_IDX);
     if (ret < 0) {
         return 0; /* not an MMU fault */
     }

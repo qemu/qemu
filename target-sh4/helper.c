@@ -34,7 +34,7 @@ void do_interrupt (CPUState *env)
 }
 
 int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
-			     int mmu_idx, int is_softmmu)
+                             int mmu_idx)
 {
     env->tea = address;
     env->exception_index = -1;
@@ -440,7 +440,7 @@ static int get_physical_address(CPUState * env, target_ulong * physical,
 }
 
 int cpu_sh4_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
-			     int mmu_idx, int is_softmmu)
+                             int mmu_idx)
 {
     target_ulong physical;
     int prot, ret, access_type;

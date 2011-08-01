@@ -64,7 +64,7 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    ret = cpu_sh4_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
+    ret = cpu_sh4_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (ret) {
         /* now we have a real cpu fault */
         cpu_restore_state_from_retaddr(retaddr);

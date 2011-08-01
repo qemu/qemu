@@ -280,7 +280,7 @@ void do_interrupt (CPUState *env);
 int cpu_s390x_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmuu);
+                                int mmu_idx);
 #define cpu_handle_mmu_fault cpu_s390x_handle_mmu_fault
 
 

@@ -542,7 +542,7 @@ void do_interrupt (CPUState *env)
 }
 
 int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu)
+                              int mmu_idx)
 {
     if (rw == 2) {
         env->exception_index = EXCP_PREFETCH_ABORT;
@@ -1254,7 +1254,7 @@ static inline int get_phys_addr(CPUState *env, uint32_t address,
 }
 
 int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address,
-                              int access_type, int mmu_idx, int is_softmmu)
+                              int access_type, int mmu_idx)
 {
     uint32_t phys_addr;
     target_ulong page_size;

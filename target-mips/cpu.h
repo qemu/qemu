@@ -636,7 +636,7 @@ void cpu_mips_soft_irq(CPUState *env, int irq, int level);
 
 /* helper.c */
 int cpu_mips_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                               int mmu_idx, int is_softmmu);
+                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_mips_handle_mmu_fault
 void do_interrupt (CPUState *env);
 #if !defined(CONFIG_USER_ONLY)

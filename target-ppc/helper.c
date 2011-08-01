@@ -78,7 +78,7 @@ void (*cpu_ppc_hypercall)(CPUState *);
 
 #if defined(CONFIG_USER_ONLY)
 int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu)
+                              int mmu_idx)
 {
     int exception, error_code;
 
@@ -1658,7 +1658,7 @@ static void booke206_update_mas_tlb_miss(CPUState *env, target_ulong address,
 
 /* Perform address translation */
 int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu)
+                              int mmu_idx)
 {
     mmu_ctx_t ctx;
     int access_type;

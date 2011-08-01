@@ -3725,7 +3725,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
+    ret = cpu_ppc_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {
             /* now we have a real cpu fault */
