@@ -11,7 +11,6 @@
 //#define DEBUG_UNALIGNED
 //#define DEBUG_UNASSIGNED
 //#define DEBUG_ASI
-//#define DEBUG_PSTATE
 //#define DEBUG_CACHE_CONTROL
 
 #ifdef DEBUG_MMU
@@ -33,13 +32,6 @@
     do { printf("ASI: " fmt , ## __VA_ARGS__); } while (0)
 #endif
 
-#ifdef DEBUG_PSTATE
-#define DPRINTF_PSTATE(fmt, ...)                                \
-    do { printf("PSTATE: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF_PSTATE(fmt, ...) do {} while (0)
-#endif
-
 #ifdef DEBUG_CACHE_CONTROL
 #define DPRINTF_CACHE_CONTROL(fmt, ...)                                 \
     do { printf("CACHE_CONTROL: " fmt , ## __VA_ARGS__); } while (0)
@@ -59,27 +51,6 @@
 #define DT1 (env->dt1)
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
-
-/* Leon3 cache control */
-
-/* Cache control: emulate the behavior of cache control registers but without
-   any effect on the emulated */
-
-#define CACHE_STATE_MASK 0x3
-#define CACHE_DISABLED   0x0
-#define CACHE_FROZEN     0x1
-#define CACHE_ENABLED    0x3
-
-/* Cache Control register fields */
-
-#define CACHE_CTRL_IF (1 <<  4)  /* Instruction Cache Freeze on Interrupt */
-#define CACHE_CTRL_DF (1 <<  5)  /* Data Cache Freeze on Interrupt */
-#define CACHE_CTRL_DP (1 << 14)  /* Data cache flush pending */
-#define CACHE_CTRL_IP (1 << 15)  /* Instruction cache flush pending */
-#define CACHE_CTRL_IB (1 << 16)  /* Instruction burst fetch */
-#define CACHE_CTRL_FI (1 << 21)  /* Flush Instruction cache (Write only) */
-#define CACHE_CTRL_FD (1 << 22)  /* Flush Data cache (Write only) */
-#define CACHE_CTRL_DS (1 << 23)  /* Data cache snoop enable */
 
 #if !defined(CONFIG_USER_ONLY)
 static void do_unassigned_access(target_phys_addr_t addr, int is_write,
@@ -384,35 +355,6 @@ static void dump_asi(const char *txt, target_ulong addr, int asi, int size,
 
 /* Leon3 cache control */
 
-static void leon3_cache_control_int(void)
-{
-    uint32_t state = 0;
-
-    if (env->cache_control & CACHE_CTRL_IF) {
-        /* Instruction cache state */
-        state = env->cache_control & CACHE_STATE_MASK;
-        if (state == CACHE_ENABLED) {
-            state = CACHE_FROZEN;
-            DPRINTF_CACHE_CONTROL("Instruction cache: freeze\n");
-        }
-
-        env->cache_control &= ~CACHE_STATE_MASK;
-        env->cache_control |= state;
-    }
-
-    if (env->cache_control & CACHE_CTRL_DF) {
-        /* Data cache state */
-        state = (env->cache_control >> 2) & CACHE_STATE_MASK;
-        if (state == CACHE_ENABLED) {
-            state = CACHE_FROZEN;
-            DPRINTF_CACHE_CONTROL("Data cache: freeze\n");
-        }
-
-        env->cache_control &= ~(CACHE_STATE_MASK << 2);
-        env->cache_control |= (state << 2);
-    }
-}
-
 static void leon3_cache_control_st(target_ulong addr, uint64_t val, int size)
 {
     DPRINTF_CACHE_CONTROL("st addr:%08x, val:%" PRIx64 ", size:%d\n",
@@ -475,12 +417,6 @@ static uint64_t leon3_cache_control_ld(target_ulong addr, int size)
     DPRINTF_CACHE_CONTROL("ld addr:%08x, ret:0x%" PRIx64 ", size:%d\n",
                           addr, ret, size);
     return ret;
-}
-
-void leon3_irq_manager(void *irq_manager, int intno)
-{
-    leon3_irq_ack(irq_manager, intno);
-    leon3_cache_control_int();
 }
 
 uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
@@ -2454,36 +2390,6 @@ void helper_stqf(target_ulong addr, int mem_idx)
     stq_raw(address_mask(env, addr + 8), u.ll.lower);
 #endif
 }
-
-#ifdef TARGET_SPARC64
-static void do_modify_softint(const char *operation, uint32_t value)
-{
-    if (env->softint != value) {
-        env->softint = value;
-        DPRINTF_PSTATE(": %s new %08x\n", operation, env->softint);
-#if !defined(CONFIG_USER_ONLY)
-        if (cpu_interrupts_enabled(env)) {
-            cpu_check_irqs(env);
-        }
-#endif
-    }
-}
-
-void helper_set_softint(uint64_t value)
-{
-    do_modify_softint("helper_set_softint", env->softint | (uint32_t)value);
-}
-
-void helper_clear_softint(uint64_t value)
-{
-    do_modify_softint("helper_clear_softint", env->softint & (uint32_t)~value);
-}
-
-void helper_write_softint(uint64_t value)
-{
-    do_modify_softint("helper_write_softint", (uint32_t)value);
-}
-#endif
 
 #if !defined(CONFIG_USER_ONLY)
 

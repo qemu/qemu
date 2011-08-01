@@ -18,8 +18,17 @@
  */
 
 #include "cpu.h"
+#include "helper.h"
 
 //#define DEBUG_PCALL
+//#define DEBUG_PSTATE
+
+#ifdef DEBUG_PSTATE
+#define DPRINTF_PSTATE(fmt, ...)                                \
+    do { printf("PSTATE: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF_PSTATE(fmt, ...) do {} while (0)
+#endif
 
 #ifdef DEBUG_PCALL
 static const char * const excp_names[0x80] = {
@@ -161,4 +170,35 @@ void do_interrupt(CPUState *env)
 trap_state *cpu_tsptr(CPUState* env)
 {
     return &env->ts[env->tl & MAXTL_MASK];
+}
+
+static void do_modify_softint(CPUState *env, const char *operation,
+                              uint32_t value)
+{
+    if (env->softint != value) {
+        env->softint = value;
+        DPRINTF_PSTATE(": %s new %08x\n", operation, env->softint);
+#if !defined(CONFIG_USER_ONLY)
+        if (cpu_interrupts_enabled(env)) {
+            cpu_check_irqs(env);
+        }
+#endif
+    }
+}
+
+void helper_set_softint(CPUState *env, uint64_t value)
+{
+    do_modify_softint(env, "helper_set_softint",
+                      env->softint | (uint32_t)value);
+}
+
+void helper_clear_softint(CPUState *env, uint64_t value)
+{
+    do_modify_softint(env, "helper_clear_softint",
+                      env->softint & (uint32_t)~value);
+}
+
+void helper_write_softint(CPUState *env, uint64_t value)
+{
+    do_modify_softint(env, "helper_write_softint", (uint32_t)value);
 }

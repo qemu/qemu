@@ -20,6 +20,14 @@
 #include "cpu.h"
 
 //#define DEBUG_PCALL
+//#define DEBUG_CACHE_CONTROL
+
+#ifdef DEBUG_CACHE_CONTROL
+#define DPRINTF_CACHE_CONTROL(fmt, ...)                                 \
+    do { printf("CACHE_CONTROL: " fmt , ## __VA_ARGS__); } while (0)
+#else
+#define DPRINTF_CACHE_CONTROL(fmt, ...) do {} while (0)
+#endif
 
 #ifdef DEBUG_PCALL
 static const char * const excp_names[0x80] = {
@@ -119,7 +127,44 @@ void do_interrupt(CPUState *env)
 #if !defined(CONFIG_USER_ONLY)
     /* IRQ acknowledgment */
     if ((intno & ~15) == TT_EXTINT && env->qemu_irq_ack != NULL) {
-        env->qemu_irq_ack(env->irq_manager, intno);
+        env->qemu_irq_ack(env, env->irq_manager, intno);
     }
 #endif
 }
+
+#if !defined(CONFIG_USER_ONLY)
+static void leon3_cache_control_int(CPUState *env)
+{
+    uint32_t state = 0;
+
+    if (env->cache_control & CACHE_CTRL_IF) {
+        /* Instruction cache state */
+        state = env->cache_control & CACHE_STATE_MASK;
+        if (state == CACHE_ENABLED) {
+            state = CACHE_FROZEN;
+            DPRINTF_CACHE_CONTROL("Instruction cache: freeze\n");
+        }
+
+        env->cache_control &= ~CACHE_STATE_MASK;
+        env->cache_control |= state;
+    }
+
+    if (env->cache_control & CACHE_CTRL_DF) {
+        /* Data cache state */
+        state = (env->cache_control >> 2) & CACHE_STATE_MASK;
+        if (state == CACHE_ENABLED) {
+            state = CACHE_FROZEN;
+            DPRINTF_CACHE_CONTROL("Data cache: freeze\n");
+        }
+
+        env->cache_control &= ~(CACHE_STATE_MASK << 2);
+        env->cache_control |= (state << 2);
+    }
+}
+
+void leon3_irq_manager(CPUState *env, void *irq_manager, int intno)
+{
+    leon3_irq_ack(irq_manager, intno);
+    leon3_cache_control_int(env);
+}
+#endif

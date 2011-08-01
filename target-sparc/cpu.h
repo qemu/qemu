@@ -335,6 +335,27 @@ enum {
 #define SFSR_CT_NOTRANS     (3ULL <<  4)
 #define SFSR_CT_MASK        (3ULL <<  4)
 
+/* Leon3 cache control */
+
+/* Cache control: emulate the behavior of cache control registers but without
+   any effect on the emulated */
+
+#define CACHE_STATE_MASK 0x3
+#define CACHE_DISABLED   0x0
+#define CACHE_FROZEN     0x1
+#define CACHE_ENABLED    0x3
+
+/* Cache Control register fields */
+
+#define CACHE_CTRL_IF (1 <<  4)  /* Instruction Cache Freeze on Interrupt */
+#define CACHE_CTRL_DF (1 <<  5)  /* Data Cache Freeze on Interrupt */
+#define CACHE_CTRL_DP (1 << 14)  /* Data cache flush pending */
+#define CACHE_CTRL_IP (1 << 15)  /* Instruction cache flush pending */
+#define CACHE_CTRL_IB (1 << 16)  /* Instruction burst fetch */
+#define CACHE_CTRL_FI (1 << 21)  /* Flush Instruction cache (Write only) */
+#define CACHE_CTRL_FD (1 << 22)  /* Flush Data cache (Write only) */
+#define CACHE_CTRL_DS (1 << 23)  /* Data cache snoop enable */
+
 typedef struct SparcTLBEntry {
     uint64_t tag;
     uint64_t tte;
@@ -478,7 +499,7 @@ typedef struct CPUSPARCState {
     sparc_def_t *def;
 
     void *irq_manager;
-    void (*qemu_irq_ack) (void *irq_manager, int intno);
+    void (*qemu_irq_ack)(CPUState *env, void *irq_manager, int intno);
 
     /* Leon3 cache control */
     uint32_t cache_control;
@@ -523,8 +544,9 @@ int cpu_cwp_inc(CPUState *env1, int cwp);
 int cpu_cwp_dec(CPUState *env1, int cwp);
 void cpu_set_cwp(CPUState *env1, int new_cwp);
 
-/* op_helper.c */
-void leon3_irq_manager(void *irq_manager, int intno);
+/* int_helper.c */
+void do_interrupt(CPUState *env);
+void leon3_irq_manager(CPUState *env, void *irq_manager, int intno);
 
 /* sun4m.c, sun4u.c */
 void cpu_check_irqs(CPUSPARCState *env);
@@ -720,9 +742,6 @@ static inline bool tb_am_enabled(int tb_flags)
     return tb_flags & TB_FLAG_AM_ENABLED;
 #endif
 }
-
-/* helper.c */
-void do_interrupt(CPUState *env);
 
 static inline bool cpu_has_work(CPUState *env1)
 {
