@@ -692,55 +692,63 @@ void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
     }
 }
 
-/* output the IP packet to the ethernet device */
-void if_encap(Slirp *slirp, const uint8_t *ip_data, int ip_data_len)
+/* Output the IP packet to the ethernet device. Returns 0 if the packet must be
+ * re-queued.
+ */
+int if_encap(Slirp *slirp, struct mbuf *ifm)
 {
     uint8_t buf[1600];
     struct ethhdr *eh = (struct ethhdr *)buf;
     uint8_t ethaddr[ETH_ALEN];
-    const struct ip *iph = (const struct ip *)ip_data;
+    const struct ip *iph = (const struct ip *)ifm->m_data;
 
-    if (ip_data_len + ETH_HLEN > sizeof(buf))
-        return;
+    if (ifm->m_len + ETH_HLEN > sizeof(buf)) {
+        return 1;
+    }
 
     if (!arp_table_search(slirp, iph->ip_dst.s_addr, ethaddr)) {
         uint8_t arp_req[ETH_HLEN + sizeof(struct arphdr)];
         struct ethhdr *reh = (struct ethhdr *)arp_req;
         struct arphdr *rah = (struct arphdr *)(arp_req + ETH_HLEN);
 
-        /* If the client addr is not known, there is no point in
-           sending the packet to it. Normally the sender should have
-           done an ARP request to get its MAC address. Here we do it
-           in place of sending the packet and we hope that the sender
-           will retry sending its packet. */
-        memset(reh->h_dest, 0xff, ETH_ALEN);
-        memcpy(reh->h_source, special_ethaddr, ETH_ALEN - 4);
-        memcpy(&reh->h_source[2], &slirp->vhost_addr, 4);
-        reh->h_proto = htons(ETH_P_ARP);
-        rah->ar_hrd = htons(1);
-        rah->ar_pro = htons(ETH_P_IP);
-        rah->ar_hln = ETH_ALEN;
-        rah->ar_pln = 4;
-        rah->ar_op = htons(ARPOP_REQUEST);
-        /* source hw addr */
-        memcpy(rah->ar_sha, special_ethaddr, ETH_ALEN - 4);
-        memcpy(&rah->ar_sha[2], &slirp->vhost_addr, 4);
-        /* source IP */
-        rah->ar_sip = slirp->vhost_addr.s_addr;
-        /* target hw addr (none) */
-        memset(rah->ar_tha, 0, ETH_ALEN);
-        /* target IP */
-        rah->ar_tip = iph->ip_dst.s_addr;
-        slirp->client_ipaddr = iph->ip_dst;
-        slirp_output(slirp->opaque, arp_req, sizeof(arp_req));
+        if (!ifm->arp_requested) {
+            /* If the client addr is not known, send an ARP request */
+            memset(reh->h_dest, 0xff, ETH_ALEN);
+            memcpy(reh->h_source, special_ethaddr, ETH_ALEN - 4);
+            memcpy(&reh->h_source[2], &slirp->vhost_addr, 4);
+            reh->h_proto = htons(ETH_P_ARP);
+            rah->ar_hrd = htons(1);
+            rah->ar_pro = htons(ETH_P_IP);
+            rah->ar_hln = ETH_ALEN;
+            rah->ar_pln = 4;
+            rah->ar_op = htons(ARPOP_REQUEST);
+
+            /* source hw addr */
+            memcpy(rah->ar_sha, special_ethaddr, ETH_ALEN - 4);
+            memcpy(&rah->ar_sha[2], &slirp->vhost_addr, 4);
+
+            /* source IP */
+            rah->ar_sip = slirp->vhost_addr.s_addr;
+
+            /* target hw addr (none) */
+            memset(rah->ar_tha, 0, ETH_ALEN);
+
+            /* target IP */
+            rah->ar_tip = iph->ip_dst.s_addr;
+            slirp->client_ipaddr = iph->ip_dst;
+            slirp_output(slirp->opaque, arp_req, sizeof(arp_req));
+            ifm->arp_requested = true;
+        }
+        return 0;
     } else {
         memcpy(eh->h_dest, ethaddr, ETH_ALEN);
         memcpy(eh->h_source, special_ethaddr, ETH_ALEN - 4);
         /* XXX: not correct */
         memcpy(&eh->h_source[2], &slirp->vhost_addr, 4);
         eh->h_proto = htons(ETH_P_IP);
-        memcpy(buf + sizeof(struct ethhdr), ip_data, ip_data_len);
-        slirp_output(slirp->opaque, buf, ip_data_len + ETH_HLEN);
+        memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
+        slirp_output(slirp->opaque, buf, ifm->m_len + ETH_HLEN);
+        return 1;
     }
 }
 
