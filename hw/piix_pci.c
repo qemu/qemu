@@ -142,6 +142,7 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
     int i, r;
     uint32_t smram;
 
+    memory_region_transaction_begin();
     update_pam(d, 0xf0000, 0x100000, (d->dev.config[I440FX_PAM] >> 4) & 3,
                &d->pam_regions[0]);
     for(i = 0; i < 12; i++) {
@@ -162,6 +163,7 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
             d->smram_enabled = false;
         }
     }
+    memory_region_transaction_commit();
 }
 
 static void i440fx_set_smm(int val, void *arg)
