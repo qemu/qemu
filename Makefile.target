@@ -74,10 +74,11 @@ libobj-y += op_helper.o helper.o
 ifeq ($(TARGET_BASE_ARCH), i386)
 libobj-y += cpuid.o
 endif
+libobj-$(TARGET_SPARC64) += vis_helper.o
 libobj-$(CONFIG_NEED_MMU) += mmu.o
 libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
 ifeq ($(TARGET_BASE_ARCH), sparc)
-libobj-y += cpu_init.o
+libobj-y += fop_helper.o cpu_init.o
 endif
 libobj-$(TARGET_SPARC) += int32_helper.o
 libobj-$(TARGET_SPARC64) += int64_helper.o
@@ -96,7 +97,7 @@ tcg/tcg.o: cpu.h
 
 # HELPER_CFLAGS is used for all the code compiled with static register
 # variables
-op_helper.o user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
+op_helper.o fop_helper.o vis_helper.o user-exec.o: QEMU_CFLAGS += $(HELPER_CFLAGS)
 
 # Note: this is a workaround. The real fix is to avoid compiling
 # cpu_signal_handler() in user-exec.c.
