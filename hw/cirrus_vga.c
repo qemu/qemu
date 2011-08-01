@@ -2424,6 +2424,7 @@ static void cirrus_update_memory_access(CirrusVGAState *s)
 {
     unsigned mode;
 
+    memory_region_transaction_begin();
     if ((s->vga.sr[0x17] & 0x44) == 0x44) {
         goto generic_io;
     } else if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
@@ -2443,6 +2444,7 @@ static void cirrus_update_memory_access(CirrusVGAState *s)
             unmap_linear_vram(s);
         }
     }
+    memory_region_transaction_commit();
 }
 
 
