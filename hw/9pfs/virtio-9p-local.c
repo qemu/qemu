@@ -647,6 +647,7 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
 
 static int local_init(FsContext *ctx)
 {
+    ctx->flags |= PATHNAME_FSCONTEXT;
     return 0;
 }
 

@@ -50,12 +50,18 @@ typedef struct FsCred
 
 struct xattr_operations;
 
+/* FsContext flag values */
+#define PATHNAME_FSCONTEXT 0x1
+
 typedef struct FsContext
 {
+    int flags;
     char *fs_root;
     SecModel fs_sm;
     uid_t uid;
     struct xattr_operations **xops;
+    /* fs driver specific data */
+    void *private;
 } FsContext;
 
 typedef struct V9fsPath {

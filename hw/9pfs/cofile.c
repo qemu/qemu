@@ -21,7 +21,7 @@ int v9fs_co_lstat(V9fsState *s, V9fsPath *path, struct stat *stbuf)
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->lstat(&s->ctx, path, stbuf);
@@ -29,7 +29,7 @@ int v9fs_co_lstat(V9fsState *s, V9fsPath *path, struct stat *stbuf)
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -51,7 +51,7 @@ int v9fs_co_open(V9fsState *s, V9fsFidState *fidp, int flags)
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             fidp->fs.fd = s->ops->open(&s->ctx, &fidp->path, flags);
@@ -61,7 +61,7 @@ int v9fs_co_open(V9fsState *s, V9fsFidState *fidp, int flags)
                 err = 0;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     if (!err) {
         total_open_fd++;
         if (total_open_fd > open_fd_hw) {
@@ -88,7 +88,7 @@ int v9fs_co_open2(V9fsState *s, V9fsFidState *fidp, V9fsString *name, gid_t gid,
      * don't change. Read lock is fine because this fid cannot
      * be used by any other operation.
      */
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             fidp->fs.fd = s->ops->open2(&s->ctx, &fidp->path,
@@ -112,7 +112,7 @@ int v9fs_co_open2(V9fsState *s, V9fsFidState *fidp, V9fsString *name, gid_t gid,
                 v9fs_path_free(&path);
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     if (!err) {
         total_open_fd++;
         if (total_open_fd > open_fd_hw) {
@@ -160,7 +160,7 @@ int v9fs_co_link(V9fsState *s, V9fsFidState *oldfid,
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->link(&s->ctx, &oldfid->path,
@@ -169,7 +169,7 @@ int v9fs_co_link(V9fsState *s, V9fsFidState *oldfid,
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 

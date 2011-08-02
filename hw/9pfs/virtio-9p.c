@@ -2332,6 +2332,7 @@ out_nofid:
     complete_pdu(s, pdu, err);
 }
 
+/* Only works with path name based fid */
 static void v9fs_remove(void *opaque)
 {
     int32_t fid;
@@ -2346,6 +2347,11 @@ static void v9fs_remove(void *opaque)
     if (fidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
+    }
+    /* if fs driver is not path based, return EOPNOTSUPP */
+    if (!pdu->s->ctx.flags & PATHNAME_FSCONTEXT) {
+        err = -EOPNOTSUPP;
+        goto out_err;
     }
     /*
      * IF the file is unlinked, we cannot reopen
@@ -2467,6 +2473,7 @@ out_nofid:
     return err;
 }
 
+/* Only works with path name based fid */
 static void v9fs_rename(void *opaque)
 {
     int32_t fid;
@@ -2486,13 +2493,18 @@ static void v9fs_rename(void *opaque)
         goto out_nofid;
     }
     BUG_ON(fidp->fid_type != P9_FID_NONE);
-
-    qemu_co_rwlock_wrlock(&s->rename_lock);
+    /* if fs driver is not path based, return EOPNOTSUPP */
+    if (!pdu->s->ctx.flags & PATHNAME_FSCONTEXT) {
+        err = -EOPNOTSUPP;
+        goto out;
+    }
+    v9fs_path_write_lock(s);
     err = v9fs_complete_rename(s, fidp, newdirfid, &name);
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     if (!err) {
         err = offset;
     }
+out:
     put_fid(s, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
@@ -2553,9 +2565,11 @@ static int v9fs_complete_renameat(V9fsState *s, int32_t olddirfid,
     if (err < 0) {
         goto out;
     }
-    /* Only for path based fid  we need to do the below fixup */
-    v9fs_fix_fid_paths(s, &olddirfidp->path, old_name,
-                       &newdirfidp->path, new_name);
+    if (s->ctx.flags & PATHNAME_FSCONTEXT) {
+        /* Only for path based fid  we need to do the below fixup */
+        v9fs_fix_fid_paths(s, &olddirfidp->path, old_name,
+                           &newdirfidp->path, new_name);
+    }
 out:
     if (olddirfidp) {
         put_fid(s, olddirfidp);
@@ -2578,9 +2592,9 @@ static void v9fs_renameat(void *opaque)
     pdu_unmarshal(pdu, offset, "dsds", &olddirfid,
                   &old_name, &newdirfid, &new_name);
 
-    qemu_co_rwlock_wrlock(&s->rename_lock);
+    v9fs_path_write_lock(s);
     err = v9fs_complete_renameat(s, olddirfid, &old_name, newdirfid, &new_name);
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     if (!err) {
         err = offset;
     }

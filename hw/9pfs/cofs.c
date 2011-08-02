@@ -23,8 +23,7 @@ int v9fs_co_readlink(V9fsState *s, V9fsPath *path, V9fsString *buf)
     ssize_t len;
 
     buf->data = g_malloc(PATH_MAX);
-    qemu_co_rwlock_rdlock(&s->rename_lock);
-
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             len = s->ops->readlink(&s->ctx, path,
@@ -37,7 +36,7 @@ int v9fs_co_readlink(V9fsState *s, V9fsPath *path, V9fsString *buf)
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     if (err) {
         g_free(buf->data);
         buf->data = NULL;
@@ -50,7 +49,7 @@ int v9fs_co_statfs(V9fsState *s, V9fsPath *path, struct statfs *stbuf)
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->statfs(&s->ctx, path, stbuf);
@@ -58,7 +57,7 @@ int v9fs_co_statfs(V9fsState *s, V9fsPath *path, struct statfs *stbuf)
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -69,7 +68,7 @@ int v9fs_co_chmod(V9fsState *s, V9fsPath *path, mode_t mode)
 
     cred_init(&cred);
     cred.fc_mode = mode;
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->chmod(&s->ctx, path, &cred);
@@ -77,7 +76,7 @@ int v9fs_co_chmod(V9fsState *s, V9fsPath *path, mode_t mode)
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -86,7 +85,7 @@ int v9fs_co_utimensat(V9fsState *s, V9fsPath *path,
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->utimensat(&s->ctx, path, times);
@@ -94,7 +93,7 @@ int v9fs_co_utimensat(V9fsState *s, V9fsPath *path,
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -106,7 +105,7 @@ int v9fs_co_chown(V9fsState *s, V9fsPath *path, uid_t uid, gid_t gid)
     cred_init(&cred);
     cred.fc_uid = uid;
     cred.fc_gid = gid;
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->chown(&s->ctx, path, &cred);
@@ -114,7 +113,7 @@ int v9fs_co_chown(V9fsState *s, V9fsPath *path, uid_t uid, gid_t gid)
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -122,7 +121,7 @@ int v9fs_co_truncate(V9fsState *s, V9fsPath *path, off_t size)
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->truncate(&s->ctx, path, size);
@@ -130,7 +129,7 @@ int v9fs_co_truncate(V9fsState *s, V9fsPath *path, off_t size)
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -146,7 +145,7 @@ int v9fs_co_mknod(V9fsState *s, V9fsFidState *fidp, V9fsString *name, uid_t uid,
     cred.fc_gid  = gid;
     cred.fc_mode = mode;
     cred.fc_rdev = dev;
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->mknod(&s->ctx, &fidp->path, name->data, &cred);
@@ -164,7 +163,7 @@ int v9fs_co_mknod(V9fsState *s, V9fsFidState *fidp, V9fsString *name, uid_t uid,
                 v9fs_path_free(&path);
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -173,7 +172,7 @@ int v9fs_co_remove(V9fsState *s, V9fsPath *path)
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->remove(&s->ctx, path->data);
@@ -181,7 +180,7 @@ int v9fs_co_remove(V9fsState *s, V9fsPath *path)
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -189,7 +188,7 @@ int v9fs_co_unlinkat(V9fsState *s, V9fsPath *path, V9fsString *name, int flags)
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->unlinkat(&s->ctx, path, name->data, flags);
@@ -197,7 +196,7 @@ int v9fs_co_unlinkat(V9fsState *s, V9fsPath *path, V9fsString *name, int flags)
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -244,7 +243,7 @@ int v9fs_co_symlink(V9fsState *s, V9fsFidState *dfidp, V9fsString *name,
     cred.fc_uid = dfidp->uid;
     cred.fc_gid = gid;
     cred.fc_mode = 0777;
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->symlink(&s->ctx, oldpath, &dfidp->path,
@@ -263,7 +262,7 @@ int v9fs_co_symlink(V9fsState *s, V9fsFidState *dfidp, V9fsString *name,
                 v9fs_path_free(&path);
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -275,9 +274,20 @@ int v9fs_co_name_to_path(V9fsState *s, V9fsPath *dirpath,
                          const char *name, V9fsPath *path)
 {
     int err;
-    err = s->ops->name_to_path(&s->ctx, dirpath, name, path);
-    if (err < 0) {
-        err = -errno;
+
+    if (s->ctx.flags & PATHNAME_FSCONTEXT) {
+        err = s->ops->name_to_path(&s->ctx, dirpath, name, path);
+        if (err < 0) {
+            err = -errno;
+        }
+    } else {
+        v9fs_co_run_in_worker(
+            {
+                err = s->ops->name_to_path(&s->ctx, dirpath, name, path);
+                if (err < 0) {
+                    err = -errno;
+                }
+            });
     }
     return err;
 }

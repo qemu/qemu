@@ -124,6 +124,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     memcpy(s->tag, conf->tag, len);
     s->tag_len = len;
     s->ctx.uid = -1;
+    s->ctx.flags = 0;
 
     s->ops = fse->ops;
     s->vdev.get_features = virtio_9p_get_features;

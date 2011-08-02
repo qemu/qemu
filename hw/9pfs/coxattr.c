@@ -21,7 +21,7 @@ int v9fs_co_llistxattr(V9fsState *s, V9fsPath *path, void *value, size_t size)
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->llistxattr(&s->ctx, path, value, size);
@@ -29,7 +29,7 @@ int v9fs_co_llistxattr(V9fsState *s, V9fsPath *path, void *value, size_t size)
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -39,7 +39,7 @@ int v9fs_co_lgetxattr(V9fsState *s, V9fsPath *path,
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->lgetxattr(&s->ctx, path,
@@ -49,7 +49,7 @@ int v9fs_co_lgetxattr(V9fsState *s, V9fsPath *path,
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -59,7 +59,7 @@ int v9fs_co_lsetxattr(V9fsState *s, V9fsPath *path,
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->lsetxattr(&s->ctx, path,
@@ -69,7 +69,7 @@ int v9fs_co_lsetxattr(V9fsState *s, V9fsPath *path,
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
 
@@ -78,7 +78,7 @@ int v9fs_co_lremovexattr(V9fsState *s, V9fsPath *path,
 {
     int err;
 
-    qemu_co_rwlock_rdlock(&s->rename_lock);
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
             err = s->ops->lremovexattr(&s->ctx, path, xattr_name->data);
@@ -86,6 +86,6 @@ int v9fs_co_lremovexattr(V9fsState *s, V9fsPath *path,
                 err = -errno;
             }
         });
-    qemu_co_rwlock_unlock(&s->rename_lock);
+    v9fs_path_unlock(s);
     return err;
 }
