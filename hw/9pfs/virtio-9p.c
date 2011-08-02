@@ -543,6 +543,7 @@ static void stat_to_qid(const struct stat *stbuf, V9fsQID *qidp)
 {
     size_t size;
 
+    memset(&qidp->path, 0, sizeof(qidp->path));
     size = MIN(sizeof(stbuf->st_ino), sizeof(qidp->path));
     memcpy(&qidp->path, &stbuf->st_ino, size);
     qidp->version = stbuf->st_mtime ^ (stbuf->st_size << 8);
