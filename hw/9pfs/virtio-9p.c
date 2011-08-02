@@ -235,6 +235,27 @@ static size_t v9fs_string_size(V9fsString *str)
     return str->size;
 }
 
+/*
+ * returns 0 if fid got re-opened, 1 if not, < 0 on error */
+static int v9fs_reopen_fid(V9fsState *s, V9fsFidState *f)
+{
+    int err = 1;
+    if (f->fid_type == P9_FID_FILE) {
+        if (f->fs.fd == -1) {
+            do {
+                err = v9fs_co_open(s, f, f->open_flags);
+            } while (err == -EINTR);
+        }
+    } else if (f->fid_type == P9_FID_DIR) {
+        if (f->fs.dir == NULL) {
+            do {
+                err = v9fs_co_opendir(s, f);
+            } while (err == -EINTR);
+        }
+    }
+    return err;
+}
+
 static V9fsFidState *get_fid(V9fsState *s, int32_t fid)
 {
     int err;
@@ -249,34 +270,17 @@ static V9fsFidState *get_fid(V9fsState *s, int32_t fid)
              * in open later.
              */
             f->ref++;
-
             /*
              * check whether we need to reopen the
              * file. We might have closed the fd
              * while trying to free up some file
              * descriptors.
              */
-            if (f->fid_type == P9_FID_FILE) {
-                if (f->fs.fd == -1) {
-                    do {
-                        err = v9fs_co_open(s, f, f->open_flags);
-                    } while (err == -EINTR);
-                    if (err < 0) {
-                        f->ref--;
-                        return NULL;
-                    }
-                }
-            } else if (f->fid_type == P9_FID_DIR) {
-                if (f->fs.dir == NULL) {
-                    do {
-                        err = v9fs_co_opendir(s, f);
-                    } while (err == -EINTR);
-                    if (err < 0) {
-                        f->ref--;
-                        return NULL;
-                    }
-                }
-             }
+            err = v9fs_reopen_fid(s, f);
+            if (err < 0) {
+                f->ref--;
+                return NULL;
+            }
             /*
              * Mark the fid as referenced so that the LRU
              * reclaim won't close the file descriptor
@@ -490,19 +494,18 @@ static int v9fs_mark_fids_unreclaim(V9fsState *s, V9fsString *str)
         if (!strcmp(fidp->path.data, str->data)) {
             /* Mark the fid non reclaimable. */
             fidp->flags |= FID_NON_RECLAIMABLE;
-            /* reopen the file if already closed */
-            if (fidp->fs.fd == -1) {
-                do {
-                    err = v9fs_co_open(s, fidp, fidp->open_flags);
-                } while (err == -EINTR);
-                if (err < 0) {
-                    return -1;
-                }
-                /*
-                 * Go back to head of fid list because
-                 * the list could have got updated when
-                 * switched to the worker thread
-                 */
+
+            /* reopen the file/dir if already closed */
+            err = v9fs_reopen_fid(s, fidp);
+            if (err < 0) {
+                return -1;
+            }
+            /*
+             * Go back to head of fid list because
+             * the list could have got updated when
+             * switched to the worker thread
+             */
+            if (err == 0) {
                 fidp = &head_fid;
             }
         }
