@@ -417,7 +417,7 @@ static void put_fid(V9fsState *s, V9fsFidState *fidp)
     }
 }
 
-static int clunk_fid(V9fsState *s, int32_t fid)
+static V9fsFidState *clunk_fid(V9fsState *s, int32_t fid)
 {
     V9fsFidState **fidpp, *fidp;
 
@@ -426,14 +426,13 @@ static int clunk_fid(V9fsState *s, int32_t fid)
             break;
         }
     }
-
     if (*fidpp == NULL) {
-        return -ENOENT;
+        return NULL;
     }
     fidp = *fidpp;
     *fidpp = fidp->next;
     fidp->clunked = 1;
-    return 0;
+    return fidp;
 }
 
 void v9fs_reclaim_fd(V9fsState *s)
@@ -1700,17 +1699,18 @@ static void v9fs_clunk(void *opaque)
 
     pdu_unmarshal(pdu, offset, "d", &fid);
 
-    fidp = get_fid(s, fid);
+    fidp = clunk_fid(s, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
-    err = clunk_fid(s, fidp->fid);
-    if (err < 0) {
-        goto out;
-    }
+    /*
+     * Bump the ref so that put_fid will
+     * free the fid.
+     */
+    fidp->ref++;
     err = offset;
-out:
+
     put_fid(s, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
