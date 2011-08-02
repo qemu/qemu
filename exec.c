@@ -570,20 +570,29 @@ static void code_gen_alloc(unsigned long tb_size)
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
    (in bytes) allocated to the translation buffer. Zero means default
    size. */
-void cpu_exec_init_all(unsigned long tb_size)
+void tcg_exec_init(unsigned long tb_size)
 {
     cpu_gen_init();
     code_gen_alloc(tb_size);
     code_gen_ptr = code_gen_buffer;
     page_init();
-#if !defined(CONFIG_USER_ONLY)
-    memory_map_init();
-    io_mem_init();
-#endif
 #if !defined(CONFIG_USER_ONLY) || !defined(CONFIG_USE_GUEST_BASE)
     /* There's no guest base to take into account, so go ahead and
        initialize the prologue now.  */
     tcg_prologue_init(&tcg_ctx);
+#endif
+}
+
+bool tcg_enabled(void)
+{
+    return code_gen_buffer != NULL;
+}
+
+void cpu_exec_init_all(void)
+{
+#if !defined(CONFIG_USER_ONLY)
+    memory_map_init();
+    io_mem_init();
 #endif
 }
 

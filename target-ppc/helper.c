@@ -3091,7 +3091,9 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
 
     env = qemu_mallocz(sizeof(CPUPPCState));
     cpu_exec_init(env);
-    ppc_translate_init();
+    if (tcg_enabled()) {
+        ppc_translate_init();
+    }
     env->cpu_model_str = cpu_model;
     cpu_ppc_register_internal(env, def);
 

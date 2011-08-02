@@ -81,7 +81,7 @@ CPUS390XState *cpu_s390x_init(const char *cpu_model)
 
     env = qemu_mallocz(sizeof(CPUS390XState));
     cpu_exec_init(env);
-    if (!inited) {
+    if (tcg_enabled() && !inited) {
         inited = 1;
         s390x_translate_init();
     }
