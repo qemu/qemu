@@ -36,6 +36,7 @@ static bool qdev_hot_removed = false;
 
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 static BusState *main_system_bus;
+static void main_system_bus_create(void);
 
 DeviceInfo *device_info_list;
 
@@ -328,8 +329,7 @@ static int qdev_reset_one(DeviceState *dev, void *opaque)
 BusState *sysbus_get_default(void)
 {
     if (!main_system_bus) {
-        main_system_bus = qbus_create(&system_bus_info, NULL,
-                                      "main-system-bus");
+        main_system_bus_create();
     }
     return main_system_bus;
 }
@@ -782,6 +782,16 @@ BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
     bus->qdev_allocated = 1;
     qbus_create_inplace(bus, info, parent, name);
     return bus;
+}
+
+static void main_system_bus_create(void)
+{
+    /* assign main_system_bus before qbus_create_inplace()
+     * in order to make "if (bus != main_system_bus)" work */
+    main_system_bus = qemu_mallocz(system_bus_info.size);
+    main_system_bus->qdev_allocated = 1;
+    qbus_create_inplace(main_system_bus, &system_bus_info, NULL,
+                        "main-system-bus");
 }
 
 void qbus_free(BusState *bus)
