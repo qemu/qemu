@@ -19,6 +19,7 @@
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/vfs.h>
+
 #define SM_LOCAL_MODE_BITS    0600
 #define SM_LOCAL_DIR_MODE_BITS    0700
 
@@ -66,6 +67,7 @@ void cred_init(FsCred *);
 
 typedef struct FileOperations
 {
+    int (*init)(struct FsContext *);
     int (*lstat)(FsContext *, V9fsPath *, struct stat *);
     ssize_t (*readlink)(FsContext *, V9fsPath *, char *, size_t);
     int (*chmod)(FsContext *, V9fsPath *, FsCred *);

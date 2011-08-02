@@ -45,7 +45,7 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
 }
 
 VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
- {
+{
     V9fsState *s;
     int i, len;
     struct stat stat;
@@ -133,6 +133,11 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     s->fid_list = NULL;
     qemu_co_rwlock_init(&s->rename_lock);
 
+    if (s->ops->init(&s->ctx) < 0) {
+        fprintf(stderr, "Virtio-9p Failed to initialize fs-driver with id:%s"
+                " and export path:%s\n", conf->fsdev_id, s->ctx.fs_root);
+        exit(1);
+    }
     if (v9fs_init_worker_threads() < 0) {
         fprintf(stderr, "worker thread initialization failed\n");
         exit(1);

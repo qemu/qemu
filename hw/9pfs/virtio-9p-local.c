@@ -21,7 +21,6 @@
 #include <sys/un.h>
 #include <attr/xattr.h>
 
-
 static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
 {
     int err;
@@ -646,7 +645,13 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
     return ret;
 }
 
+static int local_init(FsContext *ctx)
+{
+    return 0;
+}
+
 FileOperations local_ops = {
+    .init  = local_init,
     .lstat = local_lstat,
     .readlink = local_readlink,
     .close = local_close,
