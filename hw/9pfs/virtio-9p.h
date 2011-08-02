@@ -131,6 +131,8 @@ struct V9fsPDU
     uint32_t size;
     uint16_t tag;
     uint8_t id;
+    uint8_t cancelled;
+    CoQueue complete;
     VirtQueueElement elem;
     struct V9fsState *s;
     QLIST_ENTRY(V9fsPDU) next;
@@ -231,6 +233,7 @@ typedef struct V9fsState
     VirtQueue *vq;
     V9fsPDU pdus[MAX_REQ];
     QLIST_HEAD(, V9fsPDU) free_list;
+    QLIST_HEAD(, V9fsPDU) active_list;
     V9fsFidState *fid_list;
     FileOperations *ops;
     FsContext ctx;
@@ -409,9 +412,14 @@ static inline void v9fs_path_unlock(V9fsState *s)
     }
 }
 
+static inline uint8_t v9fs_request_cancelled(V9fsPDU *pdu)
+{
+    return pdu->cancelled;
+}
+
 extern void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq);
 extern void virtio_9p_set_fd_limit(void);
-extern void v9fs_reclaim_fd(V9fsState *s);
+extern void v9fs_reclaim_fd(V9fsPDU *pdu);
 extern void v9fs_string_init(V9fsString *str);
 extern void v9fs_string_free(V9fsString *str);
 extern void v9fs_string_null(V9fsString *str);

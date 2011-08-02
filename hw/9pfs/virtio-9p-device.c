@@ -58,6 +58,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
                                     sizeof(V9fsState));
     /* initialize pdu allocator */
     QLIST_INIT(&s->free_list);
+    QLIST_INIT(&s->active_list);
     for (i = 0; i < (MAX_REQ - 1); i++) {
         QLIST_INSERT_HEAD(&s->free_list, &s->pdus[i], next);
     }

@@ -17,11 +17,15 @@
 #include "qemu-coroutine.h"
 #include "virtio-9p-coth.h"
 
-int v9fs_co_readlink(V9fsState *s, V9fsPath *path, V9fsString *buf)
+int v9fs_co_readlink(V9fsPDU *pdu, V9fsPath *path, V9fsString *buf)
 {
     int err;
     ssize_t len;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     buf->data = g_malloc(PATH_MAX);
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
@@ -45,10 +49,14 @@ int v9fs_co_readlink(V9fsState *s, V9fsPath *path, V9fsString *buf)
     return err;
 }
 
-int v9fs_co_statfs(V9fsState *s, V9fsPath *path, struct statfs *stbuf)
+int v9fs_co_statfs(V9fsPDU *pdu, V9fsPath *path, struct statfs *stbuf)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -61,11 +69,15 @@ int v9fs_co_statfs(V9fsState *s, V9fsPath *path, struct statfs *stbuf)
     return err;
 }
 
-int v9fs_co_chmod(V9fsState *s, V9fsPath *path, mode_t mode)
+int v9fs_co_chmod(V9fsPDU *pdu, V9fsPath *path, mode_t mode)
 {
     int err;
     FsCred cred;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     cred_init(&cred);
     cred.fc_mode = mode;
     v9fs_path_read_lock(s);
@@ -80,11 +92,15 @@ int v9fs_co_chmod(V9fsState *s, V9fsPath *path, mode_t mode)
     return err;
 }
 
-int v9fs_co_utimensat(V9fsState *s, V9fsPath *path,
+int v9fs_co_utimensat(V9fsPDU *pdu, V9fsPath *path,
                       struct timespec times[2])
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -97,11 +113,15 @@ int v9fs_co_utimensat(V9fsState *s, V9fsPath *path,
     return err;
 }
 
-int v9fs_co_chown(V9fsState *s, V9fsPath *path, uid_t uid, gid_t gid)
+int v9fs_co_chown(V9fsPDU *pdu, V9fsPath *path, uid_t uid, gid_t gid)
 {
     int err;
     FsCred cred;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     cred_init(&cred);
     cred.fc_uid = uid;
     cred.fc_gid = gid;
@@ -117,10 +137,14 @@ int v9fs_co_chown(V9fsState *s, V9fsPath *path, uid_t uid, gid_t gid)
     return err;
 }
 
-int v9fs_co_truncate(V9fsState *s, V9fsPath *path, off_t size)
+int v9fs_co_truncate(V9fsPDU *pdu, V9fsPath *path, off_t size)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -133,13 +157,17 @@ int v9fs_co_truncate(V9fsState *s, V9fsPath *path, off_t size)
     return err;
 }
 
-int v9fs_co_mknod(V9fsState *s, V9fsFidState *fidp, V9fsString *name, uid_t uid,
+int v9fs_co_mknod(V9fsPDU *pdu, V9fsFidState *fidp, V9fsString *name, uid_t uid,
                   gid_t gid, dev_t dev, mode_t mode, struct stat *stbuf)
 {
     int err;
     V9fsPath path;
     FsCred cred;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     cred_init(&cred);
     cred.fc_uid  = uid;
     cred.fc_gid  = gid;
@@ -168,10 +196,14 @@ int v9fs_co_mknod(V9fsState *s, V9fsFidState *fidp, V9fsString *name, uid_t uid,
 }
 
 /* Only works with path name based fid */
-int v9fs_co_remove(V9fsState *s, V9fsPath *path)
+int v9fs_co_remove(V9fsPDU *pdu, V9fsPath *path)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -184,10 +216,14 @@ int v9fs_co_remove(V9fsState *s, V9fsPath *path)
     return err;
 }
 
-int v9fs_co_unlinkat(V9fsState *s, V9fsPath *path, V9fsString *name, int flags)
+int v9fs_co_unlinkat(V9fsPDU *pdu, V9fsPath *path, V9fsString *name, int flags)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -201,10 +237,14 @@ int v9fs_co_unlinkat(V9fsState *s, V9fsPath *path, V9fsString *name, int flags)
 }
 
 /* Only work with path name based fid */
-int v9fs_co_rename(V9fsState *s, V9fsPath *oldpath, V9fsPath *newpath)
+int v9fs_co_rename(V9fsPDU *pdu, V9fsPath *oldpath, V9fsPath *newpath)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_co_run_in_worker(
         {
             err = s->ops->rename(&s->ctx, oldpath->data, newpath->data);
@@ -215,11 +255,15 @@ int v9fs_co_rename(V9fsState *s, V9fsPath *oldpath, V9fsPath *newpath)
     return err;
 }
 
-int v9fs_co_renameat(V9fsState *s, V9fsPath *olddirpath, V9fsString *oldname,
+int v9fs_co_renameat(V9fsPDU *pdu, V9fsPath *olddirpath, V9fsString *oldname,
                      V9fsPath *newdirpath, V9fsString *newname)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_co_run_in_worker(
         {
             err = s->ops->renameat(&s->ctx, olddirpath, oldname->data,
@@ -231,14 +275,17 @@ int v9fs_co_renameat(V9fsState *s, V9fsPath *olddirpath, V9fsString *oldname,
     return err;
 }
 
-int v9fs_co_symlink(V9fsState *s, V9fsFidState *dfidp, V9fsString *name,
+int v9fs_co_symlink(V9fsPDU *pdu, V9fsFidState *dfidp, V9fsString *name,
                     const char *oldpath, gid_t gid, struct stat *stbuf)
 {
     int err;
     FsCred cred;
     V9fsPath path;
+    V9fsState *s = pdu->s;
 
-
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     cred_init(&cred);
     cred.fc_uid = dfidp->uid;
     cred.fc_gid = gid;
@@ -270,10 +317,11 @@ int v9fs_co_symlink(V9fsState *s, V9fsFidState *dfidp, V9fsString *name,
  * For path name based fid we don't block. So we can
  * directly call the fs driver ops.
  */
-int v9fs_co_name_to_path(V9fsState *s, V9fsPath *dirpath,
+int v9fs_co_name_to_path(V9fsPDU *pdu, V9fsPath *dirpath,
                          const char *name, V9fsPath *path)
 {
     int err;
+    V9fsState *s = pdu->s;
 
     if (s->ctx.flags & PATHNAME_FSCONTEXT) {
         err = s->ops->name_to_path(&s->ctx, dirpath, name, path);
@@ -281,6 +329,9 @@ int v9fs_co_name_to_path(V9fsState *s, V9fsPath *dirpath,
             err = -errno;
         }
     } else {
+        if (v9fs_request_cancelled(pdu)) {
+            return -EINTR;
+        }
         v9fs_co_run_in_worker(
             {
                 err = s->ops->name_to_path(&s->ctx, dirpath, name, path);

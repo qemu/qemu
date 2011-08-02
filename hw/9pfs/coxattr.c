@@ -17,10 +17,14 @@
 #include "qemu-coroutine.h"
 #include "virtio-9p-coth.h"
 
-int v9fs_co_llistxattr(V9fsState *s, V9fsPath *path, void *value, size_t size)
+int v9fs_co_llistxattr(V9fsPDU *pdu, V9fsPath *path, void *value, size_t size)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -33,12 +37,16 @@ int v9fs_co_llistxattr(V9fsState *s, V9fsPath *path, void *value, size_t size)
     return err;
 }
 
-int v9fs_co_lgetxattr(V9fsState *s, V9fsPath *path,
+int v9fs_co_lgetxattr(V9fsPDU *pdu, V9fsPath *path,
                       V9fsString *xattr_name,
                       void *value, size_t size)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -53,12 +61,16 @@ int v9fs_co_lgetxattr(V9fsState *s, V9fsPath *path,
     return err;
 }
 
-int v9fs_co_lsetxattr(V9fsState *s, V9fsPath *path,
+int v9fs_co_lsetxattr(V9fsPDU *pdu, V9fsPath *path,
                       V9fsString *xattr_name, void *value,
                       size_t size, int flags)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -73,11 +85,15 @@ int v9fs_co_lsetxattr(V9fsState *s, V9fsPath *path,
     return err;
 }
 
-int v9fs_co_lremovexattr(V9fsState *s, V9fsPath *path,
+int v9fs_co_lremovexattr(V9fsPDU *pdu, V9fsPath *path,
                          V9fsString *xattr_name)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {

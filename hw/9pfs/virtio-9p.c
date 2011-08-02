@@ -269,29 +269,30 @@ static size_t v9fs_string_size(V9fsString *str)
 
 /*
  * returns 0 if fid got re-opened, 1 if not, < 0 on error */
-static int v9fs_reopen_fid(V9fsState *s, V9fsFidState *f)
+static int v9fs_reopen_fid(V9fsPDU *pdu, V9fsFidState *f)
 {
     int err = 1;
     if (f->fid_type == P9_FID_FILE) {
         if (f->fs.fd == -1) {
             do {
-                err = v9fs_co_open(s, f, f->open_flags);
-            } while (err == -EINTR);
+                err = v9fs_co_open(pdu, f, f->open_flags);
+            } while (err == -EINTR && !pdu->cancelled);
         }
     } else if (f->fid_type == P9_FID_DIR) {
         if (f->fs.dir == NULL) {
             do {
-                err = v9fs_co_opendir(s, f);
-            } while (err == -EINTR);
+                err = v9fs_co_opendir(pdu, f);
+            } while (err == -EINTR && !pdu->cancelled);
         }
     }
     return err;
 }
 
-static V9fsFidState *get_fid(V9fsState *s, int32_t fid)
+static V9fsFidState *get_fid(V9fsPDU *pdu, int32_t fid)
 {
     int err;
     V9fsFidState *f;
+    V9fsState *s = pdu->s;
 
     for (f = s->fid_list; f; f = f->next) {
         BUG_ON(f->clunked);
@@ -308,7 +309,7 @@ static V9fsFidState *get_fid(V9fsState *s, int32_t fid)
              * while trying to free up some file
              * descriptors.
              */
-            err = v9fs_reopen_fid(s, f);
+            err = v9fs_reopen_fid(pdu, f);
             if (err < 0) {
                 f->ref--;
                 return NULL;
@@ -350,7 +351,7 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
     return f;
 }
 
-static int v9fs_xattr_fid_clunk(V9fsState *s, V9fsFidState *fidp)
+static int v9fs_xattr_fid_clunk(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     int retval = 0;
 
@@ -368,12 +369,12 @@ static int v9fs_xattr_fid_clunk(V9fsState *s, V9fsFidState *fidp)
         goto free_out;
     }
     if (fidp->fs.xattr.len) {
-        retval = v9fs_co_lsetxattr(s, &fidp->path, &fidp->fs.xattr.name,
+        retval = v9fs_co_lsetxattr(pdu, &fidp->path, &fidp->fs.xattr.name,
                                    fidp->fs.xattr.value,
                                    fidp->fs.xattr.len,
                                    fidp->fs.xattr.flags);
     } else {
-        retval = v9fs_co_lremovexattr(s, &fidp->path, &fidp->fs.xattr.name);
+        retval = v9fs_co_lremovexattr(pdu, &fidp->path, &fidp->fs.xattr.name);
     }
 free_out:
     v9fs_string_free(&fidp->fs.xattr.name);
@@ -384,28 +385,28 @@ free_value:
     return retval;
 }
 
-static int free_fid(V9fsState *s, V9fsFidState *fidp)
+static int free_fid(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     int retval = 0;
 
     if (fidp->fid_type == P9_FID_FILE) {
         /* If we reclaimed the fd no need to close */
         if (fidp->fs.fd != -1) {
-            retval = v9fs_co_close(s, fidp->fs.fd);
+            retval = v9fs_co_close(pdu, fidp->fs.fd);
         }
     } else if (fidp->fid_type == P9_FID_DIR) {
         if (fidp->fs.dir != NULL) {
-            retval = v9fs_co_closedir(s, fidp->fs.dir);
+            retval = v9fs_co_closedir(pdu, fidp->fs.dir);
         }
     } else if (fidp->fid_type == P9_FID_XATTR) {
-        retval = v9fs_xattr_fid_clunk(s, fidp);
+        retval = v9fs_xattr_fid_clunk(pdu, fidp);
     }
     v9fs_path_free(&fidp->path);
     g_free(fidp);
     return retval;
 }
 
-static void put_fid(V9fsState *s, V9fsFidState *fidp)
+static void put_fid(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     BUG_ON(!fidp->ref);
     fidp->ref--;
@@ -413,7 +414,7 @@ static void put_fid(V9fsState *s, V9fsFidState *fidp)
      * Don't free the fid if it is in reclaim list
      */
     if (!fidp->ref && fidp->clunked) {
-        free_fid(s, fidp);
+        free_fid(pdu, fidp);
     }
 }
 
@@ -435,9 +436,10 @@ static V9fsFidState *clunk_fid(V9fsState *s, int32_t fid)
     return fidp;
 }
 
-void v9fs_reclaim_fd(V9fsState *s)
+void v9fs_reclaim_fd(V9fsPDU *pdu)
 {
     int reclaim_count = 0;
+    V9fsState *s = pdu->s;
     V9fsFidState *f, *reclaim_list = NULL;
 
     for (f = s->fid_list; f; f = f->next) {
@@ -502,22 +504,23 @@ void v9fs_reclaim_fd(V9fsState *s)
         f = reclaim_list;
         reclaim_list = f->rclm_lst;
         if (f->fid_type == P9_FID_FILE) {
-            v9fs_co_close(s, f->fs_reclaim.fd);
+            v9fs_co_close(pdu, f->fs_reclaim.fd);
         } else if (f->fid_type == P9_FID_DIR) {
-            v9fs_co_closedir(s, f->fs_reclaim.dir);
+            v9fs_co_closedir(pdu, f->fs_reclaim.dir);
         }
         f->rclm_lst = NULL;
         /*
          * Now drop the fid reference, free it
          * if clunked.
          */
-        put_fid(s, f);
+        put_fid(pdu, f);
     }
 }
 
-static int v9fs_mark_fids_unreclaim(V9fsState *s, V9fsPath *path)
+static int v9fs_mark_fids_unreclaim(V9fsPDU *pdu, V9fsPath *path)
 {
     int err;
+    V9fsState *s = pdu->s;
     V9fsFidState *fidp, head_fid;
 
     head_fid.next = s->fid_list;
@@ -530,7 +533,7 @@ static int v9fs_mark_fids_unreclaim(V9fsState *s, V9fsPath *path)
             fidp->flags |= FID_NON_RECLAIMABLE;
 
             /* reopen the file/dir if already closed */
-            err = v9fs_reopen_fid(s, fidp);
+            err = v9fs_reopen_fid(pdu, fidp);
             if (err < 0) {
                 return -1;
             }
@@ -590,12 +593,12 @@ static void stat_to_qid(const struct stat *stbuf, V9fsQID *qidp)
     }
 }
 
-static int fid_to_qid(V9fsState *s, V9fsFidState *fidp, V9fsQID *qidp)
+static int fid_to_qid(V9fsPDU *pdu, V9fsFidState *fidp, V9fsQID *qidp)
 {
     struct stat stbuf;
     int err;
 
-    err = v9fs_co_lstat(s, &fidp->path, &stbuf);
+    err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
     if (err < 0) {
         return err;
     }
@@ -608,8 +611,9 @@ static V9fsPDU *alloc_pdu(V9fsState *s)
     V9fsPDU *pdu = NULL;
 
     if (!QLIST_EMPTY(&s->free_list)) {
-	pdu = QLIST_FIRST(&s->free_list);
-	QLIST_REMOVE(pdu, next);
+        pdu = QLIST_FIRST(&s->free_list);
+        QLIST_REMOVE(pdu, next);
+        QLIST_INSERT_HEAD(&s->active_list, pdu, next);
     }
     return pdu;
 }
@@ -620,7 +624,14 @@ static void free_pdu(V9fsState *s, V9fsPDU *pdu)
         if (debug_9p_pdu) {
             pprint_pdu(pdu);
         }
-        QLIST_INSERT_HEAD(&s->free_list, pdu, next);
+        /*
+         * Cancelled pdu are added back to the freelist
+         * by flush request .
+         */
+        if (!pdu->cancelled) {
+            QLIST_REMOVE(pdu, next);
+            QLIST_INSERT_HEAD(&s->free_list, pdu, next);
+        }
     }
 }
 
@@ -913,6 +924,9 @@ static void complete_pdu(V9fsState *s, V9fsPDU *pdu, ssize_t len)
     /* FIXME: we should batch these completions */
     virtio_notify(&s->vdev, s->vq);
 
+    /* Now wakeup anybody waiting in flush for this request */
+    qemu_co_queue_next(&pdu->complete);
+
     free_pdu(s, pdu);
 }
 
@@ -1032,7 +1046,7 @@ static uint32_t stat_to_v9mode(const struct stat *stbuf)
     return mode;
 }
 
-static int stat_to_v9stat(V9fsState *s, V9fsPath *name,
+static int stat_to_v9stat(V9fsPDU *pdu, V9fsPath *name,
                             const struct stat *stbuf,
                             V9fsStat *v9stat)
 {
@@ -1058,7 +1072,7 @@ static int stat_to_v9stat(V9fsState *s, V9fsPath *name,
     v9fs_string_null(&v9stat->extension);
 
     if (v9stat->mode & P9_STAT_MODE_SYMLINK) {
-        err = v9fs_co_readlink(s, name, &v9stat->extension);
+        err = v9fs_co_readlink(pdu, name, &v9stat->extension);
         if (err < 0) {
             return err;
         }
@@ -1239,13 +1253,13 @@ static void v9fs_attach(void *opaque)
         goto out_nofid;
     }
     fidp->uid = n_uname;
-    err = v9fs_co_name_to_path(s, NULL, "/", &fidp->path);
+    err = v9fs_co_name_to_path(pdu, NULL, "/", &fidp->path);
     if (err < 0) {
         err = -EINVAL;
         clunk_fid(s, fid);
         goto out;
     }
-    err = fid_to_qid(s, fidp, &qid);
+    err = fid_to_qid(pdu, fidp, &qid);
     if (err < 0) {
         err = -EINVAL;
         clunk_fid(s, fid);
@@ -1254,7 +1268,7 @@ static void v9fs_attach(void *opaque)
     offset += pdu_marshal(pdu, offset, "Q", &qid);
     err = offset;
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
     v9fs_string_free(&uname);
@@ -1274,16 +1288,16 @@ static void v9fs_stat(void *opaque)
 
     pdu_unmarshal(pdu, offset, "d", &fid);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_lstat(s, &fidp->path, &stbuf);
+    err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
     if (err < 0) {
         goto out;
     }
-    err = stat_to_v9stat(s, &fidp->path, &stbuf, &v9stat);
+    err = stat_to_v9stat(pdu, &fidp->path, &stbuf, &v9stat);
     if (err < 0) {
         goto out;
     }
@@ -1291,7 +1305,7 @@ static void v9fs_stat(void *opaque)
     err = offset;
     v9fs_stat_free(&v9stat);
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
 }
@@ -1310,7 +1324,7 @@ static void v9fs_getattr(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dq", &fid, &request_mask);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         retval = -ENOENT;
         goto out_nofid;
@@ -1319,7 +1333,7 @@ static void v9fs_getattr(void *opaque)
      * Currently we only support BASIC fields in stat, so there is no
      * need to look at request_mask.
      */
-    retval = v9fs_co_lstat(s, &fidp->path, &stbuf);
+    retval = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
     if (retval < 0) {
         goto out;
     }
@@ -1327,7 +1341,7 @@ static void v9fs_getattr(void *opaque)
     retval = offset;
     retval += pdu_marshal(pdu, offset, "A", &v9stat_dotl);
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, retval);
 }
@@ -1356,13 +1370,13 @@ static void v9fs_setattr(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dI", &fid, &v9iattr);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
     }
     if (v9iattr.valid & ATTR_MODE) {
-        err = v9fs_co_chmod(s, &fidp->path, v9iattr.mode);
+        err = v9fs_co_chmod(pdu, &fidp->path, v9iattr.mode);
         if (err < 0) {
             goto out;
         }
@@ -1389,7 +1403,7 @@ static void v9fs_setattr(void *opaque)
         } else {
             times[1].tv_nsec = UTIME_OMIT;
         }
-        err = v9fs_co_utimensat(s, &fidp->path, times);
+        err = v9fs_co_utimensat(pdu, &fidp->path, times);
         if (err < 0) {
             goto out;
         }
@@ -1407,21 +1421,21 @@ static void v9fs_setattr(void *opaque)
         if (!(v9iattr.valid & ATTR_GID)) {
             v9iattr.gid = -1;
         }
-        err = v9fs_co_chown(s, &fidp->path, v9iattr.uid,
+        err = v9fs_co_chown(pdu, &fidp->path, v9iattr.uid,
                             v9iattr.gid);
         if (err < 0) {
             goto out;
         }
     }
     if (v9iattr.valid & (ATTR_SIZE)) {
-        err = v9fs_co_truncate(s, &fidp->path, v9iattr.size);
+        err = v9fs_co_truncate(pdu, &fidp->path, v9iattr.size);
         if (err < 0) {
             goto out;
         }
     }
     err = offset;
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
 }
@@ -1466,7 +1480,7 @@ static void v9fs_walk(void *opaque)
         err = -EINVAL;
         goto out_nofid;
     }
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
@@ -1480,11 +1494,11 @@ static void v9fs_walk(void *opaque)
     v9fs_path_copy(&dpath, &fidp->path);
     v9fs_path_copy(&path, &fidp->path);
     for (name_idx = 0; name_idx < nwnames; name_idx++) {
-        err = v9fs_co_name_to_path(s, &dpath, wnames[name_idx].data, &path);
+        err = v9fs_co_name_to_path(pdu, &dpath, wnames[name_idx].data, &path);
         if (err < 0) {
             goto out;
         }
-        err = v9fs_co_lstat(s, &path, &stbuf);
+        err = v9fs_co_lstat(pdu, &path, &stbuf);
         if (err < 0) {
             goto out;
         }
@@ -1505,9 +1519,9 @@ static void v9fs_walk(void *opaque)
     }
     err = v9fs_walk_marshal(pdu, nwnames, qids);
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
     if (newfidp) {
-        put_fid(s, newfidp);
+        put_fid(pdu, newfidp);
     }
     v9fs_path_free(&dpath);
     v9fs_path_free(&path);
@@ -1523,16 +1537,17 @@ out_nofid:
     return;
 }
 
-static int32_t get_iounit(V9fsState *s, V9fsPath *path)
+static int32_t get_iounit(V9fsPDU *pdu, V9fsPath *path)
 {
     struct statfs stbuf;
     int32_t iounit = 0;
+    V9fsState *s = pdu->s;
 
     /*
      * iounit should be multiples of f_bsize (host filesystem block size
      * and as well as less than (client msize - P9_IOHDRSZ))
      */
-    if (!v9fs_co_statfs(s, path, &stbuf)) {
+    if (!v9fs_co_statfs(pdu, path, &stbuf)) {
         iounit = stbuf.f_bsize;
         iounit *= (s->msize - P9_IOHDRSZ)/stbuf.f_bsize;
     }
@@ -1561,20 +1576,20 @@ static void v9fs_open(void *opaque)
     } else {
         pdu_unmarshal(pdu, offset, "db", &fid, &mode);
     }
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
     BUG_ON(fidp->fid_type != P9_FID_NONE);
 
-    err = v9fs_co_lstat(s, &fidp->path, &stbuf);
+    err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
     if (err < 0) {
         goto out;
     }
     stat_to_qid(&stbuf, &qid);
     if (S_ISDIR(stbuf.st_mode)) {
-        err = v9fs_co_opendir(s, fidp);
+        err = v9fs_co_opendir(pdu, fidp);
         if (err < 0) {
             goto out;
         }
@@ -1590,7 +1605,7 @@ static void v9fs_open(void *opaque)
         } else {
             flags = omode_to_uflags(mode);
         }
-        err = v9fs_co_open(s, fidp, flags);
+        err = v9fs_co_open(pdu, fidp, flags);
         if (err < 0) {
             goto out;
         }
@@ -1603,12 +1618,12 @@ static void v9fs_open(void *opaque)
              */
             fidp->flags |= FID_NON_RECLAIMABLE;
         }
-        iounit = get_iounit(s, &fidp->path);
+        iounit = get_iounit(pdu, &fidp->path);
         offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
         err = offset;
     }
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
 }
@@ -1629,7 +1644,7 @@ static void v9fs_lcreate(void *opaque)
     pdu_unmarshal(pdu, offset, "dsddd", &dfid, &name, &flags,
                   &mode, &gid);
 
-    fidp = get_fid(pdu->s, dfid);
+    fidp = get_fid(pdu, dfid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
@@ -1637,8 +1652,7 @@ static void v9fs_lcreate(void *opaque)
 
     /* Ignore direct disk access hint until the server supports it. */
     flags &= ~O_DIRECT;
-
-    err = v9fs_co_open2(pdu->s, fidp, &name, gid,
+    err = v9fs_co_open2(pdu, fidp, &name, gid,
                         flags | O_CREAT, mode, &stbuf);
     if (err < 0) {
         goto out;
@@ -1652,12 +1666,12 @@ static void v9fs_lcreate(void *opaque)
          */
         fidp->flags |= FID_NON_RECLAIMABLE;
     }
-    iounit =  get_iounit(pdu->s, &fidp->path);
+    iounit =  get_iounit(pdu, &fidp->path);
     stat_to_qid(&stbuf, &qid);
     offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
     err = offset;
 out:
-    put_fid(pdu->s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(pdu->s, pdu, err);
     v9fs_string_free(&name);
@@ -1674,16 +1688,16 @@ static void v9fs_fsync(void *opaque)
     V9fsState *s = pdu->s;
 
     pdu_unmarshal(pdu, offset, "dd", &fid, &datasync);
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_fsync(s, fidp, datasync);
+    err = v9fs_co_fsync(pdu, fidp, datasync);
     if (!err) {
         err = offset;
     }
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
 }
@@ -1711,7 +1725,7 @@ static void v9fs_clunk(void *opaque)
     fidp->ref++;
     err = offset;
 
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
 }
@@ -1740,7 +1754,7 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu,
     return offset;
 }
 
-static int v9fs_do_readdir_with_stat(V9fsState *s, V9fsPDU *pdu,
+static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
                                      V9fsFidState *fidp, int32_t max_count)
 {
     V9fsPath path;
@@ -1752,7 +1766,7 @@ static int v9fs_do_readdir_with_stat(V9fsState *s, V9fsPDU *pdu,
     struct dirent *dent, *result;
 
     /* save the directory position */
-    saved_dir_pos = v9fs_co_telldir(s, fidp);
+    saved_dir_pos = v9fs_co_telldir(pdu, fidp);
     if (saved_dir_pos < 0) {
         return saved_dir_pos;
     }
@@ -1761,19 +1775,19 @@ static int v9fs_do_readdir_with_stat(V9fsState *s, V9fsPDU *pdu,
 
     while (1) {
         v9fs_path_init(&path);
-        err = v9fs_co_readdir_r(s, fidp, dent, &result);
+        err = v9fs_co_readdir_r(pdu, fidp, dent, &result);
         if (err || !result) {
             break;
         }
-        err = v9fs_co_name_to_path(s, &fidp->path, dent->d_name, &path);
+        err = v9fs_co_name_to_path(pdu, &fidp->path, dent->d_name, &path);
         if (err < 0) {
             goto out;
         }
-        err = v9fs_co_lstat(s, &path, &stbuf);
+        err = v9fs_co_lstat(pdu, &path, &stbuf);
         if (err < 0) {
             goto out;
         }
-        err = stat_to_v9stat(s, &path, &stbuf, &v9stat);
+        err = stat_to_v9stat(pdu, &path, &stbuf, &v9stat);
         if (err < 0) {
             goto out;
         }
@@ -1781,7 +1795,7 @@ static int v9fs_do_readdir_with_stat(V9fsState *s, V9fsPDU *pdu,
         len = pdu_marshal(pdu, 11 + count, "S", &v9stat);
         if ((len != (v9stat.size + 2)) || ((count + len) > max_count)) {
             /* Ran out of buffer. Set dir back to old position and return */
-            v9fs_co_seekdir(s, fidp, saved_dir_pos);
+            v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_stat_free(&v9stat);
             v9fs_path_free(&path);
             g_free(dent);
@@ -1815,7 +1829,7 @@ static void v9fs_read(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dqd", &fid, &off, &max_count);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
@@ -1823,9 +1837,9 @@ static void v9fs_read(void *opaque)
     if (fidp->fid_type == P9_FID_DIR) {
 
         if (off == 0) {
-            v9fs_co_rewinddir(s, fidp);
+            v9fs_co_rewinddir(pdu, fidp);
         }
-        count = v9fs_do_readdir_with_stat(s, pdu, fidp, max_count);
+        count = v9fs_do_readdir_with_stat(pdu, fidp, max_count);
         if (count < 0) {
             err = count;
             goto out;
@@ -1848,12 +1862,12 @@ static void v9fs_read(void *opaque)
             }
             /* Loop in case of EINTR */
             do {
-                len = v9fs_co_preadv(s, fidp, sg, cnt, off);
+                len = v9fs_co_preadv(pdu, fidp, sg, cnt, off);
                 if (len >= 0) {
                     off   += len;
                     count += len;
                 }
-            } while (len == -EINTR);
+            } while (len == -EINTR && !pdu->cancelled);
             if (len < 0) {
                 /* IO error return the error */
                 err = len;
@@ -1870,7 +1884,7 @@ static void v9fs_read(void *opaque)
         err = -EINVAL;
     }
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
 }
@@ -1884,7 +1898,7 @@ static size_t v9fs_readdir_data_size(V9fsString *name)
     return 24 + v9fs_string_size(name);
 }
 
-static int v9fs_do_readdir(V9fsState *s, V9fsPDU *pdu,
+static int v9fs_do_readdir(V9fsPDU *pdu,
                            V9fsFidState *fidp, int32_t max_count)
 {
     size_t size;
@@ -1896,7 +1910,7 @@ static int v9fs_do_readdir(V9fsState *s, V9fsPDU *pdu,
     struct dirent *dent, *result;
 
     /* save the directory position */
-    saved_dir_pos = v9fs_co_telldir(s, fidp);
+    saved_dir_pos = v9fs_co_telldir(pdu, fidp);
     if (saved_dir_pos < 0) {
         return saved_dir_pos;
     }
@@ -1904,7 +1918,7 @@ static int v9fs_do_readdir(V9fsState *s, V9fsPDU *pdu,
     dent = g_malloc(sizeof(struct dirent));
 
     while (1) {
-        err = v9fs_co_readdir_r(s, fidp, dent, &result);
+        err = v9fs_co_readdir_r(pdu, fidp, dent, &result);
         if (err || !result) {
             break;
         }
@@ -1912,7 +1926,7 @@ static int v9fs_do_readdir(V9fsState *s, V9fsPDU *pdu,
         v9fs_string_sprintf(&name, "%s", dent->d_name);
         if ((count + v9fs_readdir_data_size(&name)) > max_count) {
             /* Ran out of buffer. Set dir back to old position and return */
-            v9fs_co_seekdir(s, fidp, saved_dir_pos);
+            v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
             v9fs_string_free(&name);
             g_free(dent);
             return count;
@@ -1956,7 +1970,7 @@ static void v9fs_readdir(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dqd", &fid, &initial_offset, &max_count);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         retval = -EINVAL;
         goto out_nofid;
@@ -1966,11 +1980,11 @@ static void v9fs_readdir(void *opaque)
         goto out;
     }
     if (initial_offset == 0) {
-        v9fs_co_rewinddir(s, fidp);
+        v9fs_co_rewinddir(pdu, fidp);
     } else {
-        v9fs_co_seekdir(s, fidp, initial_offset);
+        v9fs_co_seekdir(pdu, fidp, initial_offset);
     }
-    count = v9fs_do_readdir(s, pdu, fidp, max_count);
+    count = v9fs_do_readdir(pdu, fidp, max_count);
     if (count < 0) {
         retval = count;
         goto out;
@@ -1979,7 +1993,7 @@ static void v9fs_readdir(void *opaque)
     retval += pdu_marshal(pdu, offset, "d", count);
     retval += count;
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, retval);
 }
@@ -2046,7 +2060,7 @@ static void v9fs_write(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dqdv", &fid, &off, &count, sg, &cnt);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
@@ -2073,12 +2087,12 @@ static void v9fs_write(void *opaque)
         }
         /* Loop in case of EINTR */
         do {
-            len = v9fs_co_pwritev(s, fidp, sg, cnt, off);
+            len = v9fs_co_pwritev(pdu, fidp, sg, cnt, off);
             if (len >= 0) {
                 off   += len;
                 total += len;
             }
-        } while (len == -EINTR);
+        } while (len == -EINTR && !pdu->cancelled);
         if (len < 0) {
             /* IO error return the error */
             err = len;
@@ -2089,7 +2103,7 @@ static void v9fs_write(void *opaque)
     offset += pdu_marshal(pdu, offset, "d", total);
     err = offset;
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
 }
@@ -2115,57 +2129,57 @@ static void v9fs_create(void *opaque)
     pdu_unmarshal(pdu, offset, "dsdbs", &fid, &name,
                   &perm, &mode, &extension);
 
-    fidp = get_fid(pdu->s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
     }
     if (perm & P9_STAT_MODE_DIR) {
-        err = v9fs_co_mkdir(pdu->s, fidp, &name, perm & 0777,
+        err = v9fs_co_mkdir(pdu, fidp, &name, perm & 0777,
                             fidp->uid, -1, &stbuf);
         if (err < 0) {
             goto out;
         }
-        err = v9fs_co_name_to_path(pdu->s, &fidp->path, name.data, &path);
+        err = v9fs_co_name_to_path(pdu, &fidp->path, name.data, &path);
         if (err < 0) {
             goto out;
         }
         v9fs_path_copy(&fidp->path, &path);
-        err = v9fs_co_opendir(pdu->s, fidp);
+        err = v9fs_co_opendir(pdu, fidp);
         if (err < 0) {
             goto out;
         }
         fidp->fid_type = P9_FID_DIR;
     } else if (perm & P9_STAT_MODE_SYMLINK) {
-        err = v9fs_co_symlink(pdu->s, fidp, &name,
+        err = v9fs_co_symlink(pdu, fidp, &name,
                               extension.data, -1 , &stbuf);
         if (err < 0) {
             goto out;
         }
-        err = v9fs_co_name_to_path(pdu->s, &fidp->path, name.data, &path);
+        err = v9fs_co_name_to_path(pdu, &fidp->path, name.data, &path);
         if (err < 0) {
             goto out;
         }
         v9fs_path_copy(&fidp->path, &path);
     } else if (perm & P9_STAT_MODE_LINK) {
         int32_t ofid = atoi(extension.data);
-        V9fsFidState *ofidp = get_fid(pdu->s, ofid);
+        V9fsFidState *ofidp = get_fid(pdu, ofid);
         if (ofidp == NULL) {
             err = -EINVAL;
             goto out;
         }
-        err = v9fs_co_link(pdu->s, ofidp, fidp, &name);
-        put_fid(pdu->s, ofidp);
+        err = v9fs_co_link(pdu, ofidp, fidp, &name);
+        put_fid(pdu, ofidp);
         if (err < 0) {
             goto out;
         }
-        err = v9fs_co_name_to_path(pdu->s, &fidp->path, name.data, &path);
+        err = v9fs_co_name_to_path(pdu, &fidp->path, name.data, &path);
         if (err < 0) {
             fidp->fid_type = P9_FID_NONE;
             goto out;
         }
         v9fs_path_copy(&fidp->path, &path);
-        err = v9fs_co_lstat(pdu->s, &fidp->path, &stbuf);
+        err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
         if (err < 0) {
             fidp->fid_type = P9_FID_NONE;
             goto out;
@@ -2193,40 +2207,40 @@ static void v9fs_create(void *opaque)
         }
 
         nmode |= perm & 0777;
-        err = v9fs_co_mknod(pdu->s, fidp, &name, fidp->uid, -1,
+        err = v9fs_co_mknod(pdu, fidp, &name, fidp->uid, -1,
                             makedev(major, minor), nmode, &stbuf);
         if (err < 0) {
             goto out;
         }
-        err = v9fs_co_name_to_path(pdu->s, &fidp->path, name.data, &path);
+        err = v9fs_co_name_to_path(pdu, &fidp->path, name.data, &path);
         if (err < 0) {
             goto out;
         }
         v9fs_path_copy(&fidp->path, &path);
     } else if (perm & P9_STAT_MODE_NAMED_PIPE) {
-        err = v9fs_co_mknod(pdu->s, fidp, &name, fidp->uid, -1,
+        err = v9fs_co_mknod(pdu, fidp, &name, fidp->uid, -1,
                             0, S_IFIFO | (perm & 0777), &stbuf);
         if (err < 0) {
             goto out;
         }
-        err = v9fs_co_name_to_path(pdu->s, &fidp->path, name.data, &path);
+        err = v9fs_co_name_to_path(pdu, &fidp->path, name.data, &path);
         if (err < 0) {
             goto out;
         }
         v9fs_path_copy(&fidp->path, &path);
     } else if (perm & P9_STAT_MODE_SOCKET) {
-        err = v9fs_co_mknod(pdu->s, fidp, &name, fidp->uid, -1,
+        err = v9fs_co_mknod(pdu, fidp, &name, fidp->uid, -1,
                             0, S_IFSOCK | (perm & 0777), &stbuf);
         if (err < 0) {
             goto out;
         }
-        err = v9fs_co_name_to_path(pdu->s, &fidp->path, name.data, &path);
+        err = v9fs_co_name_to_path(pdu, &fidp->path, name.data, &path);
         if (err < 0) {
             goto out;
         }
         v9fs_path_copy(&fidp->path, &path);
     } else {
-        err = v9fs_co_open2(pdu->s, fidp, &name, -1,
+        err = v9fs_co_open2(pdu, fidp, &name, -1,
                             omode_to_uflags(mode)|O_CREAT, perm, &stbuf);
         if (err < 0) {
             goto out;
@@ -2241,12 +2255,12 @@ static void v9fs_create(void *opaque)
             fidp->flags |= FID_NON_RECLAIMABLE;
         }
     }
-    iounit = get_iounit(pdu->s, &fidp->path);
+    iounit = get_iounit(pdu, &fidp->path);
     stat_to_qid(&stbuf, &qid);
     offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
     err = offset;
 out:
-    put_fid(pdu->s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
    complete_pdu(pdu->s, pdu, err);
    v9fs_string_free(&name);
@@ -2269,12 +2283,12 @@ static void v9fs_symlink(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dssd", &dfid, &name, &symname, &gid);
 
-    dfidp = get_fid(pdu->s, dfid);
+    dfidp = get_fid(pdu, dfid);
     if (dfidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
     }
-    err = v9fs_co_symlink(pdu->s, dfidp, &name, symname.data, gid, &stbuf);
+    err = v9fs_co_symlink(pdu, dfidp, &name, symname.data, gid, &stbuf);
     if (err < 0) {
         goto out;
     }
@@ -2282,7 +2296,7 @@ static void v9fs_symlink(void *opaque)
     offset += pdu_marshal(pdu, offset, "Q", &qid);
     err = offset;
 out:
-    put_fid(pdu->s, dfidp);
+    put_fid(pdu, dfidp);
 out_nofid:
     complete_pdu(pdu->s, pdu, err);
     v9fs_string_free(&name);
@@ -2291,9 +2305,28 @@ out_nofid:
 
 static void v9fs_flush(void *opaque)
 {
+    int16_t tag;
+    size_t offset = 7;
+    V9fsPDU *cancel_pdu;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    /* A nop call with no return */
+
+    pdu_unmarshal(pdu, offset, "w", &tag);
+
+    QLIST_FOREACH(cancel_pdu, &s->active_list, next) {
+        if (cancel_pdu->tag == tag) {
+            break;
+        }
+    }
+    if (cancel_pdu) {
+        cancel_pdu->cancelled = 1;
+        /*
+         * Wait for pdu to complete.
+         */
+        qemu_co_queue_wait(&cancel_pdu->complete);
+        cancel_pdu->cancelled = 0;
+        free_pdu(pdu->s, cancel_pdu);
+    }
     complete_pdu(s, pdu, 7);
     return;
 }
@@ -2310,23 +2343,23 @@ static void v9fs_link(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dds", &dfid, &oldfid, &name);
 
-    dfidp = get_fid(s, dfid);
+    dfidp = get_fid(pdu, dfid);
     if (dfidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
 
-    oldfidp = get_fid(s, oldfid);
+    oldfidp = get_fid(pdu, oldfid);
     if (oldfidp == NULL) {
         err = -ENOENT;
         goto out;
     }
-    err = v9fs_co_link(s, oldfidp, dfidp, &name);
+    err = v9fs_co_link(pdu, oldfidp, dfidp, &name);
     if (!err) {
         err = offset;
     }
 out:
-    put_fid(s, dfidp);
+    put_fid(pdu, dfidp);
 out_nofid:
     v9fs_string_free(&name);
     complete_pdu(s, pdu, err);
@@ -2343,7 +2376,7 @@ static void v9fs_remove(void *opaque)
 
     pdu_unmarshal(pdu, offset, "d", &fid);
 
-    fidp = get_fid(pdu->s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
@@ -2357,18 +2390,18 @@ static void v9fs_remove(void *opaque)
      * IF the file is unlinked, we cannot reopen
      * the file later. So don't reclaim fd
      */
-    err = v9fs_mark_fids_unreclaim(pdu->s, &fidp->path);
+    err = v9fs_mark_fids_unreclaim(pdu, &fidp->path);
     if (err < 0) {
         goto out_err;
     }
-    err = v9fs_co_remove(pdu->s, &fidp->path);
+    err = v9fs_co_remove(pdu, &fidp->path);
     if (!err) {
         err = offset;
     }
 out_err:
     /* For TREMOVE we need to clunk the fid even on failed remove */
     clunk_fid(pdu->s, fidp->fid);
-    put_fid(pdu->s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(pdu->s, pdu, err);
 }
@@ -2385,7 +2418,7 @@ static void v9fs_unlinkat(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dsd", &dfid, &name, &flags);
 
-    dfidp = get_fid(pdu->s, dfid);
+    dfidp = get_fid(pdu, dfid);
     if (dfidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
@@ -2395,20 +2428,20 @@ static void v9fs_unlinkat(void *opaque)
      * the file later. So don't reclaim fd
      */
     v9fs_path_init(&path);
-    err = v9fs_co_name_to_path(pdu->s, &dfidp->path, name.data, &path);
+    err = v9fs_co_name_to_path(pdu, &dfidp->path, name.data, &path);
     if (err < 0) {
         goto out_err;
     }
-    err = v9fs_mark_fids_unreclaim(pdu->s, &path);
+    err = v9fs_mark_fids_unreclaim(pdu, &path);
     if (err < 0) {
         goto out_err;
     }
-    err = v9fs_co_unlinkat(pdu->s, &dfidp->path, &name, flags);
+    err = v9fs_co_unlinkat(pdu, &dfidp->path, &name, flags);
     if (!err) {
         err = offset;
     }
 out_err:
-    put_fid(pdu->s, dfidp);
+    put_fid(pdu, dfidp);
     v9fs_path_free(&path);
 out_nofid:
     complete_pdu(pdu->s, pdu, err);
@@ -2417,25 +2450,26 @@ out_nofid:
 
 
 /* Only works with path name based fid */
-static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
+static int v9fs_complete_rename(V9fsPDU *pdu, V9fsFidState *fidp,
                                 int32_t newdirfid, V9fsString *name)
 {
     char *end;
     int err = 0;
     V9fsPath new_path;
     V9fsFidState *tfidp;
+    V9fsState *s = pdu->s;
     V9fsFidState *dirfidp = NULL;
     char *old_name, *new_name;
 
     v9fs_path_init(&new_path);
     if (newdirfid != -1) {
-        dirfidp = get_fid(s, newdirfid);
+        dirfidp = get_fid(pdu, newdirfid);
         if (dirfidp == NULL) {
             err = -ENOENT;
             goto out_nofid;
         }
         BUG_ON(dirfidp->fid_type != P9_FID_NONE);
-        v9fs_co_name_to_path(s, &dirfidp->path, name->data, &new_path);
+        v9fs_co_name_to_path(pdu, &dirfidp->path, name->data, &new_path);
     } else {
         old_name = fidp->path.data;
         end = strrchr(old_name, '/');
@@ -2447,10 +2481,10 @@ static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
         new_name = g_malloc0(end - old_name + name->size + 1);
         strncat(new_name, old_name, end - old_name);
         strncat(new_name + (end - old_name), name->data, name->size);
-        v9fs_co_name_to_path(s, NULL, new_name, &new_path);
+        v9fs_co_name_to_path(pdu, NULL, new_name, &new_path);
         g_free(new_name);
     }
-    err = v9fs_co_rename(s, &fidp->path, &new_path);
+    err = v9fs_co_rename(pdu, &fidp->path, &new_path);
     if (err < 0) {
         goto out;
     }
@@ -2466,7 +2500,7 @@ static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
     }
 out:
     if (dirfidp) {
-        put_fid(s, dirfidp);
+        put_fid(pdu, dirfidp);
     }
     v9fs_path_free(&new_path);
 out_nofid:
@@ -2487,7 +2521,7 @@ static void v9fs_rename(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dds", &fid, &newdirfid, &name);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
@@ -2499,30 +2533,31 @@ static void v9fs_rename(void *opaque)
         goto out;
     }
     v9fs_path_write_lock(s);
-    err = v9fs_complete_rename(s, fidp, newdirfid, &name);
+    err = v9fs_complete_rename(pdu, fidp, newdirfid, &name);
     v9fs_path_unlock(s);
     if (!err) {
         err = offset;
     }
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
     v9fs_string_free(&name);
 }
 
-static void v9fs_fix_fid_paths(V9fsState *s, V9fsPath *olddir,
+static void v9fs_fix_fid_paths(V9fsPDU *pdu, V9fsPath *olddir,
                                V9fsString *old_name, V9fsPath *newdir,
                                V9fsString *new_name)
 {
     V9fsFidState *tfidp;
     V9fsPath oldpath, newpath;
+    V9fsState *s = pdu->s;
 
 
     v9fs_path_init(&oldpath);
     v9fs_path_init(&newpath);
-    v9fs_co_name_to_path(s, olddir, old_name->data, &oldpath);
-    v9fs_co_name_to_path(s, newdir, new_name->data, &newpath);
+    v9fs_co_name_to_path(pdu, olddir, old_name->data, &oldpath);
+    v9fs_co_name_to_path(pdu, newdir, new_name->data, &newpath);
 
     /*
      * Fixup fid's pointing to the old name to
@@ -2538,44 +2573,45 @@ static void v9fs_fix_fid_paths(V9fsState *s, V9fsPath *olddir,
     v9fs_path_free(&newpath);
 }
 
-static int v9fs_complete_renameat(V9fsState *s, int32_t olddirfid,
+static int v9fs_complete_renameat(V9fsPDU *pdu, int32_t olddirfid,
                                   V9fsString *old_name, int32_t newdirfid,
                                   V9fsString *new_name)
 {
     int err = 0;
+    V9fsState *s = pdu->s;
     V9fsFidState *newdirfidp = NULL, *olddirfidp = NULL;
 
-    olddirfidp = get_fid(s, olddirfid);
+    olddirfidp = get_fid(pdu, olddirfid);
     if (olddirfidp == NULL) {
         err = -ENOENT;
         goto out;
     }
     if (newdirfid != -1) {
-        newdirfidp = get_fid(s, newdirfid);
+        newdirfidp = get_fid(pdu, newdirfid);
         if (newdirfidp == NULL) {
             err = -ENOENT;
             goto out;
         }
     } else {
-        newdirfidp = get_fid(s, olddirfid);
+        newdirfidp = get_fid(pdu, olddirfid);
     }
 
-    err = v9fs_co_renameat(s, &olddirfidp->path, old_name,
+    err = v9fs_co_renameat(pdu, &olddirfidp->path, old_name,
                            &newdirfidp->path, new_name);
     if (err < 0) {
         goto out;
     }
     if (s->ctx.flags & PATHNAME_FSCONTEXT) {
         /* Only for path based fid  we need to do the below fixup */
-        v9fs_fix_fid_paths(s, &olddirfidp->path, old_name,
+        v9fs_fix_fid_paths(pdu, &olddirfidp->path, old_name,
                            &newdirfidp->path, new_name);
     }
 out:
     if (olddirfidp) {
-        put_fid(s, olddirfidp);
+        put_fid(pdu, olddirfidp);
     }
     if (newdirfidp) {
-        put_fid(s, newdirfidp);
+        put_fid(pdu, newdirfidp);
     }
     return err;
 }
@@ -2593,7 +2629,8 @@ static void v9fs_renameat(void *opaque)
                   &old_name, &newdirfid, &new_name);
 
     v9fs_path_write_lock(s);
-    err = v9fs_complete_renameat(s, olddirfid, &old_name, newdirfid, &new_name);
+    err = v9fs_complete_renameat(pdu, olddirfid,
+                                 &old_name, newdirfid, &new_name);
     v9fs_path_unlock(s);
     if (!err) {
         err = offset;
@@ -2617,19 +2654,19 @@ static void v9fs_wstat(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dwS", &fid, &unused, &v9stat);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
     }
     /* do we need to sync the file? */
     if (donttouch_stat(&v9stat)) {
-        err = v9fs_co_fsync(s, fidp, 0);
+        err = v9fs_co_fsync(pdu, fidp, 0);
         goto out;
     }
     if (v9stat.mode != -1) {
         uint32_t v9_mode;
-        err = v9fs_co_lstat(s, &fidp->path, &stbuf);
+        err = v9fs_co_lstat(pdu, &fidp->path, &stbuf);
         if (err < 0) {
             goto out;
         }
@@ -2640,7 +2677,7 @@ static void v9fs_wstat(void *opaque)
             err = -EIO;
             goto out;
         }
-        err = v9fs_co_chmod(s, &fidp->path,
+        err = v9fs_co_chmod(pdu, &fidp->path,
                             v9mode_to_mode(v9stat.mode,
                                            &v9stat.extension));
         if (err < 0) {
@@ -2661,32 +2698,32 @@ static void v9fs_wstat(void *opaque)
         } else {
             times[1].tv_nsec = UTIME_OMIT;
         }
-        err = v9fs_co_utimensat(s, &fidp->path, times);
+        err = v9fs_co_utimensat(pdu, &fidp->path, times);
         if (err < 0) {
             goto out;
         }
     }
     if (v9stat.n_gid != -1 || v9stat.n_uid != -1) {
-        err = v9fs_co_chown(s, &fidp->path, v9stat.n_uid, v9stat.n_gid);
+        err = v9fs_co_chown(pdu, &fidp->path, v9stat.n_uid, v9stat.n_gid);
         if (err < 0) {
             goto out;
         }
     }
     if (v9stat.name.size != 0) {
-        err = v9fs_complete_rename(s, fidp, -1, &v9stat.name);
+        err = v9fs_complete_rename(pdu, fidp, -1, &v9stat.name);
         if (err < 0) {
             goto out;
         }
     }
     if (v9stat.length != -1) {
-        err = v9fs_co_truncate(s, &fidp->path, v9stat.length);
+        err = v9fs_co_truncate(pdu, &fidp->path, v9stat.length);
         if (err < 0) {
             goto out;
         }
     }
     err = offset;
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     v9fs_stat_free(&v9stat);
     complete_pdu(s, pdu, err);
@@ -2748,19 +2785,19 @@ static void v9fs_statfs(void *opaque)
     V9fsState *s = pdu->s;
 
     pdu_unmarshal(pdu, offset, "d", &fid);
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         retval = -ENOENT;
         goto out_nofid;
     }
-    retval = v9fs_co_statfs(s, &fidp->path, &stbuf);
+    retval = v9fs_co_statfs(pdu, &fidp->path, &stbuf);
     if (retval < 0) {
         goto out;
     }
     retval = offset;
     retval += v9fs_fill_statfs(s, pdu, &stbuf);
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, retval);
     return;
@@ -2785,12 +2822,12 @@ static void v9fs_mknod(void *opaque)
     pdu_unmarshal(pdu, offset, "dsdddd", &fid, &name, &mode,
                   &major, &minor, &gid);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_mknod(s, fidp, &name, fidp->uid, gid,
+    err = v9fs_co_mknod(pdu, fidp, &name, fidp->uid, gid,
                         makedev(major, minor), mode, &stbuf);
     if (err < 0) {
         goto out;
@@ -2799,7 +2836,7 @@ static void v9fs_mknod(void *opaque)
     err = offset;
     err += pdu_marshal(pdu, offset, "Q", &qid);
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
     v9fs_string_free(&name);
@@ -2835,18 +2872,18 @@ static void v9fs_lock(void *opaque)
         err = -EINVAL;
         goto out_nofid;
     }
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_fstat(s, fidp->fs.fd, &stbuf);
+    err = v9fs_co_fstat(pdu, fidp->fs.fd, &stbuf);
     if (err < 0) {
         goto out;
     }
     status = P9_LOCK_SUCCESS;
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     err = offset;
     err += pdu_marshal(pdu, offset, "b", status);
@@ -2874,12 +2911,12 @@ static void v9fs_getlock(void *opaque)
                   &glock->start, &glock->length, &glock->proc_id,
                   &glock->client_id);
 
-    fidp = get_fid(s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_fstat(s, fidp->fs.fd, &stbuf);
+    err = v9fs_co_fstat(pdu, fidp->fs.fd, &stbuf);
     if (err < 0) {
         goto out;
     }
@@ -2889,7 +2926,7 @@ static void v9fs_getlock(void *opaque)
                           &glock->client_id);
     err = offset;
 out:
-    put_fid(s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
     v9fs_string_free(&glock->client_id);
@@ -2911,12 +2948,12 @@ static void v9fs_mkdir(void *opaque)
 
     pdu_unmarshal(pdu, offset, "dsdd", &fid, &name, &mode, &gid);
 
-    fidp = get_fid(pdu->s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_mkdir(pdu->s, fidp, &name, mode, fidp->uid, gid, &stbuf);
+    err = v9fs_co_mkdir(pdu, fidp, &name, mode, fidp->uid, gid, &stbuf);
     if (err < 0) {
         goto out;
     }
@@ -2924,7 +2961,7 @@ static void v9fs_mkdir(void *opaque)
     offset += pdu_marshal(pdu, offset, "Q", &qid);
     err = offset;
 out:
-    put_fid(pdu->s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(pdu->s, pdu, err);
     v9fs_string_free(&name);
@@ -2943,7 +2980,7 @@ static void v9fs_xattrwalk(void *opaque)
     V9fsState *s = pdu->s;
 
     pdu_unmarshal(pdu, offset, "dds", &fid, &newfid, &name);
-    file_fidp = get_fid(s, fid);
+    file_fidp = get_fid(pdu, fid);
     if (file_fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
@@ -2958,7 +2995,7 @@ static void v9fs_xattrwalk(void *opaque)
         /*
          * listxattr request. Get the size first
          */
-        size = v9fs_co_llistxattr(s, &xattr_fidp->path, NULL, 0);
+        size = v9fs_co_llistxattr(pdu, &xattr_fidp->path, NULL, 0);
         if (size < 0) {
             err = size;
             clunk_fid(s, xattr_fidp->fid);
@@ -2972,7 +3009,7 @@ static void v9fs_xattrwalk(void *opaque)
         xattr_fidp->fs.xattr.copied_len = -1;
         if (size) {
             xattr_fidp->fs.xattr.value = g_malloc(size);
-            err = v9fs_co_llistxattr(s, &xattr_fidp->path,
+            err = v9fs_co_llistxattr(pdu, &xattr_fidp->path,
                                      xattr_fidp->fs.xattr.value,
                                      xattr_fidp->fs.xattr.len);
             if (err < 0) {
@@ -2987,7 +3024,7 @@ static void v9fs_xattrwalk(void *opaque)
          * specific xattr fid. We check for xattr
          * presence also collect the xattr size
          */
-        size = v9fs_co_lgetxattr(s, &xattr_fidp->path,
+        size = v9fs_co_lgetxattr(pdu, &xattr_fidp->path,
                                  &name, NULL, 0);
         if (size < 0) {
             err = size;
@@ -3002,7 +3039,7 @@ static void v9fs_xattrwalk(void *opaque)
         xattr_fidp->fs.xattr.copied_len = -1;
         if (size) {
             xattr_fidp->fs.xattr.value = g_malloc(size);
-            err = v9fs_co_lgetxattr(s, &xattr_fidp->path,
+            err = v9fs_co_lgetxattr(pdu, &xattr_fidp->path,
                                     &name, xattr_fidp->fs.xattr.value,
                                     xattr_fidp->fs.xattr.len);
             if (err < 0) {
@@ -3014,9 +3051,9 @@ static void v9fs_xattrwalk(void *opaque)
         err = offset;
     }
 out:
-    put_fid(s, file_fidp);
+    put_fid(pdu, file_fidp);
     if (xattr_fidp) {
-        put_fid(s, xattr_fidp);
+        put_fid(pdu, xattr_fidp);
     }
 out_nofid:
     complete_pdu(s, pdu, err);
@@ -3039,7 +3076,7 @@ static void v9fs_xattrcreate(void *opaque)
     pdu_unmarshal(pdu, offset, "dsqd",
                   &fid, &name, &size, &flags);
 
-    file_fidp = get_fid(s, fid);
+    file_fidp = get_fid(pdu, fid);
     if (file_fidp == NULL) {
         err = -EINVAL;
         goto out_nofid;
@@ -3058,7 +3095,7 @@ static void v9fs_xattrcreate(void *opaque)
         xattr_fidp->fs.xattr.value = NULL;
     }
     err = offset;
-    put_fid(s, file_fidp);
+    put_fid(pdu, file_fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
     v9fs_string_free(&name);
@@ -3074,14 +3111,14 @@ static void v9fs_readlink(void *opaque)
     V9fsFidState *fidp;
 
     pdu_unmarshal(pdu, offset, "d", &fid);
-    fidp = get_fid(pdu->s, fid);
+    fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out_nofid;
     }
 
     v9fs_string_init(&target);
-    err = v9fs_co_readlink(pdu->s, &fidp->path, &target);
+    err = v9fs_co_readlink(pdu, &fidp->path, &target);
     if (err < 0) {
         goto out;
     }
@@ -3089,7 +3126,7 @@ static void v9fs_readlink(void *opaque)
     err = offset;
     v9fs_string_free(&target);
 out:
-    put_fid(pdu->s, fidp);
+    put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(pdu->s, pdu, err);
 }
@@ -3173,6 +3210,7 @@ void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
         memcpy(&pdu->size, ptr, 4);
         pdu->id = ptr[4];
         memcpy(&pdu->tag, ptr + 5, 2);
+        qemu_co_queue_init(&pdu->complete);
         submit_pdu(s, pdu);
     }
     free_pdu(s, pdu);

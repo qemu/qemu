@@ -17,10 +17,14 @@
 #include "qemu-coroutine.h"
 #include "virtio-9p-coth.h"
 
-int v9fs_co_lstat(V9fsState *s, V9fsPath *path, struct stat *stbuf)
+int v9fs_co_lstat(V9fsPDU *pdu, V9fsPath *path, struct stat *stbuf)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -33,10 +37,14 @@ int v9fs_co_lstat(V9fsState *s, V9fsPath *path, struct stat *stbuf)
     return err;
 }
 
-int v9fs_co_fstat(V9fsState *s, int fd, struct stat *stbuf)
+int v9fs_co_fstat(V9fsPDU *pdu, int fd, struct stat *stbuf)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_co_run_in_worker(
         {
             err = s->ops->fstat(&s->ctx, fd, stbuf);
@@ -47,10 +55,14 @@ int v9fs_co_fstat(V9fsState *s, int fd, struct stat *stbuf)
     return err;
 }
 
-int v9fs_co_open(V9fsState *s, V9fsFidState *fidp, int flags)
+int v9fs_co_open(V9fsPDU *pdu, V9fsFidState *fidp, int flags)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -65,20 +77,23 @@ int v9fs_co_open(V9fsState *s, V9fsFidState *fidp, int flags)
     if (!err) {
         total_open_fd++;
         if (total_open_fd > open_fd_hw) {
-            v9fs_reclaim_fd(s);
+            v9fs_reclaim_fd(pdu);
         }
     }
     return err;
 }
 
-int v9fs_co_open2(V9fsState *s, V9fsFidState *fidp, V9fsString *name, gid_t gid,
+int v9fs_co_open2(V9fsPDU *pdu, V9fsFidState *fidp, V9fsString *name, gid_t gid,
                   int flags, int mode, struct stat *stbuf)
 {
     int err;
     FsCred cred;
     V9fsPath path;
+    V9fsState *s = pdu->s;
 
-
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     cred_init(&cred);
     cred.fc_mode = mode & 07777;
     cred.fc_uid = fidp->uid;
@@ -116,16 +131,20 @@ int v9fs_co_open2(V9fsState *s, V9fsFidState *fidp, V9fsString *name, gid_t gid,
     if (!err) {
         total_open_fd++;
         if (total_open_fd > open_fd_hw) {
-            v9fs_reclaim_fd(s);
+            v9fs_reclaim_fd(pdu);
         }
     }
     return err;
 }
 
-int v9fs_co_close(V9fsState *s, int fd)
+int v9fs_co_close(V9fsPDU *pdu, int fd)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_co_run_in_worker(
         {
             err = s->ops->close(&s->ctx, fd);
@@ -139,11 +158,14 @@ int v9fs_co_close(V9fsState *s, int fd)
     return err;
 }
 
-int v9fs_co_fsync(V9fsState *s, V9fsFidState *fidp, int datasync)
+int v9fs_co_fsync(V9fsPDU *pdu, V9fsFidState *fidp, int datasync)
 {
-    int fd;
-    int err;
+    int fd, err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     fd = fidp->fs.fd;
     v9fs_co_run_in_worker(
         {
@@ -155,11 +177,15 @@ int v9fs_co_fsync(V9fsState *s, V9fsFidState *fidp, int datasync)
     return err;
 }
 
-int v9fs_co_link(V9fsState *s, V9fsFidState *oldfid,
+int v9fs_co_link(V9fsPDU *pdu, V9fsFidState *oldfid,
                  V9fsFidState *newdirfid, V9fsString *name)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
@@ -173,12 +199,15 @@ int v9fs_co_link(V9fsState *s, V9fsFidState *oldfid,
     return err;
 }
 
-int v9fs_co_pwritev(V9fsState *s, V9fsFidState *fidp,
+int v9fs_co_pwritev(V9fsPDU *pdu, V9fsFidState *fidp,
                     struct iovec *iov, int iovcnt, int64_t offset)
 {
-    int fd;
-    int err;
+    int fd, err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     fd = fidp->fs.fd;
     v9fs_co_run_in_worker(
         {
@@ -190,12 +219,15 @@ int v9fs_co_pwritev(V9fsState *s, V9fsFidState *fidp,
     return err;
 }
 
-int v9fs_co_preadv(V9fsState *s, V9fsFidState *fidp,
+int v9fs_co_preadv(V9fsPDU *pdu, V9fsFidState *fidp,
                    struct iovec *iov, int iovcnt, int64_t offset)
 {
-    int fd;
-    int err;
+    int fd, err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     fd = fidp->fs.fd;
     v9fs_co_run_in_worker(
         {
