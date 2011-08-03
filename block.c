@@ -1753,8 +1753,7 @@ void bdrv_flush_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        if (bs->drv && !bdrv_is_read_only(bs) &&
-            (!bdrv_is_removable(bs) || bdrv_is_inserted(bs))) {
+        if (!bdrv_is_read_only(bs) && bdrv_is_inserted(bs)) {
             bdrv_flush(bs);
         }
     }
