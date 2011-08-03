@@ -61,40 +61,7 @@ struct SCSIGenericState
     SCSIDevice qdev;
     BlockDriverState *bs;
     int lun;
-    int driver_status;
-    uint8_t sensebuf[SCSI_SENSE_BUF_SIZE];
-    uint8_t senselen;
 };
-
-static void scsi_set_sense(SCSIGenericState *s, SCSISense sense)
-{
-    s->senselen = scsi_build_sense(sense, s->sensebuf, SCSI_SENSE_BUF_SIZE, 0);
-    s->driver_status = SG_ERR_DRIVER_SENSE;
-}
-
-static void scsi_clear_sense(SCSIGenericState *s)
-{
-    memset(s->sensebuf, 0, SCSI_SENSE_BUF_SIZE);
-    s->senselen = 0;
-    s->driver_status = 0;
-}
-
-static int scsi_get_sense(SCSIRequest *req, uint8_t *outbuf, int len)
-{
-    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, req->dev);
-    int size = SCSI_SENSE_BUF_SIZE;
-
-    if (!(s->driver_status & SG_ERR_DRIVER_SENSE)) {
-        size = scsi_build_sense(SENSE_CODE(NO_SENSE), s->sensebuf,
-                                SCSI_SENSE_BUF_SIZE, 0);
-    }
-    if (size > len) {
-        size = len;
-    }
-    memcpy(outbuf, s->sensebuf, size);
-
-    return size;
-}
 
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
                                      void *hba_private)
@@ -117,12 +84,10 @@ static void scsi_command_complete(void *opaque, int ret)
 {
     int status;
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
-    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
 
     r->req.aiocb = NULL;
-    s->driver_status = r->io_header.driver_status;
-    if (s->driver_status & SG_ERR_DRIVER_SENSE)
-        s->senselen = r->io_header.sb_len_wr;
+    if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE)
+        r->req.sense_len = r->io_header.sb_len_wr;
 
     if (ret != 0) {
         switch (ret) {
@@ -131,24 +96,24 @@ static void scsi_command_complete(void *opaque, int ret)
             break;
         case -EINVAL:
             status = CHECK_CONDITION;
-            scsi_set_sense(s, SENSE_CODE(INVALID_FIELD));
+            scsi_req_build_sense(&r->req, SENSE_CODE(INVALID_FIELD));
             break;
         case -ENOMEM:
             status = CHECK_CONDITION;
-            scsi_set_sense(s, SENSE_CODE(TARGET_FAILURE));
+            scsi_req_build_sense(&r->req, SENSE_CODE(TARGET_FAILURE));
             break;
         default:
             status = CHECK_CONDITION;
-            scsi_set_sense(s, SENSE_CODE(IO_ERROR));
+            scsi_req_build_sense(&r->req, SENSE_CODE(IO_ERROR));
             break;
         }
     } else {
-        if (s->driver_status & SG_ERR_DRIVER_TIMEOUT) {
+        if (r->io_header.driver_status & SG_ERR_DRIVER_TIMEOUT) {
             status = BUSY;
             BADF("Driver Timeout\n");
         } else if (r->io_header.status) {
             status = r->io_header.status;
-        } else if (s->driver_status & SG_ERR_DRIVER_SENSE) {
+        } else if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) {
             status = CHECK_CONDITION;
         } else {
             status = GOOD;
@@ -176,16 +141,14 @@ static int execute_command(BlockDriverState *bdrv,
                            SCSIGenericReq *r, int direction,
 			   BlockDriverCompletionFunc *complete)
 {
-    SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
-
     r->io_header.interface_id = 'S';
     r->io_header.dxfer_direction = direction;
     r->io_header.dxferp = r->buf;
     r->io_header.dxfer_len = r->buflen;
     r->io_header.cmdp = r->req.cmd.buf;
     r->io_header.cmd_len = r->req.cmd.len;
-    r->io_header.mx_sb_len = sizeof(s->sensebuf);
-    r->io_header.sbp = s->sensebuf;
+    r->io_header.mx_sb_len = sizeof(r->req.sense);
+    r->io_header.sbp = r->req.sense;
     r->io_header.timeout = MAX_UINT;
     r->io_header.usr_ptr = r;
     r->io_header.flags |= SG_FLAG_DIRECT_IO;
@@ -234,21 +197,19 @@ static void scsi_read_data(SCSIRequest *req)
         return;
     }
 
-    if (r->req.cmd.buf[0] == REQUEST_SENSE && s->driver_status & SG_ERR_DRIVER_SENSE)
-    {
-        s->senselen = MIN(r->len, s->senselen);
-        memcpy(r->buf, s->sensebuf, s->senselen);
+    if (r->req.cmd.buf[0] == REQUEST_SENSE) {
         r->io_header.driver_status = 0;
         r->io_header.status = 0;
-        r->io_header.dxfer_len  = s->senselen;
+        r->io_header.dxfer_len =
+            scsi_device_get_sense(&s->qdev, r->buf, r->req.cmd.xfer,
+                                  (r->req.cmd.buf[1] & 1) == 0);
         r->len = -1;
-        DPRINTF("Data ready tag=0x%x len=%d\n", r->req.tag, s->senselen);
+        DPRINTF("Data ready tag=0x%x len=%d\n", r->req.tag, r->io_header.dxfer_len);
         DPRINTF("Sense: %d %d %d %d %d %d %d %d\n",
                 r->buf[0], r->buf[1], r->buf[2], r->buf[3],
                 r->buf[4], r->buf[5], r->buf[6], r->buf[7]);
-        scsi_req_data(&r->req, s->senselen);
-        /* Clear sensebuf after REQUEST_SENSE */
-        scsi_clear_sense(s);
+        scsi_req_data(&r->req, r->io_header.dxfer_len);
+        /* The sense buffer is cleared when we return GOOD */
         return;
     }
 
@@ -342,7 +303,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
 
     if (cmd[0] != REQUEST_SENSE && req->lun != s->lun) {
         DPRINTF("Unimplemented LUN %d\n", req->lun);
-        scsi_set_sense(s, SENSE_CODE(LUN_NOT_SUPPORTED));
+        scsi_req_build_sense(&r->req, SENSE_CODE(LUN_NOT_SUPPORTED));
         scsi_req_complete(&r->req, CHECK_CONDITION);
         return 0;
     }
@@ -533,8 +494,6 @@ static int scsi_generic_initfn(SCSIDevice *dev)
         }
     }
     DPRINTF("block size %d\n", s->qdev.blocksize);
-    s->driver_status = 0;
-    memset(s->sensebuf, 0, sizeof(s->sensebuf));
     bdrv_set_removable(s->bs, 0);
     return 0;
 }
@@ -553,7 +512,6 @@ static SCSIDeviceInfo scsi_generic_info = {
     .write_data   = scsi_write_data,
     .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
-    .get_sense    = scsi_get_sense,
     .qdev.props   = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(SCSIGenericState, qdev.conf),
         DEFINE_PROP_END_OF_LIST(),

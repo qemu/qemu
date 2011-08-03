@@ -27,6 +27,8 @@ typedef struct SCSISense {
     uint8_t ascq;
 } SCSISense;
 
+#define SCSI_SENSE_BUF_SIZE 96
+
 struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
@@ -42,6 +44,8 @@ struct SCSIRequest {
         enum SCSIXferMode mode;
     } cmd;
     BlockDriverAIOCB  *aiocb;
+    uint8_t sense[SCSI_SENSE_BUF_SIZE];
+    uint32_t sense_len;
     bool enqueued;
     void *hba_private;
     QTAILQ_ENTRY(SCSIRequest) next;
@@ -53,6 +57,8 @@ struct SCSIDevice
     uint32_t id;
     BlockConf conf;
     SCSIDeviceInfo *info;
+    uint8_t sense[SCSI_SENSE_BUF_SIZE];
+    uint32_t sense_len;
     QTAILQ_HEAD(, SCSIRequest) requests;
     int blocksize;
     int type;
@@ -76,7 +82,6 @@ struct SCSIDeviceInfo {
     void (*write_data)(SCSIRequest *req);
     void (*cancel_io)(SCSIRequest *req);
     uint8_t *(*get_buf)(SCSIRequest *req);
-    int (*get_sense)(SCSIRequest *req, uint8_t *buf, int len);
 };
 
 struct SCSIBusOps {
@@ -137,7 +142,6 @@ extern const struct SCSISense sense_code_LUN_FAILURE;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
-int scsi_build_sense(SCSISense sense, uint8_t *buf, int len, int fixed);
 int scsi_sense_valid(SCSISense sense);
 
 SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag,
@@ -149,6 +153,7 @@ void scsi_req_free(SCSIRequest *req);
 SCSIRequest *scsi_req_ref(SCSIRequest *req);
 void scsi_req_unref(SCSIRequest *req);
 
+void scsi_req_build_sense(SCSIRequest *req, SCSISense sense);
 int scsi_req_parse(SCSIRequest *req, uint8_t *buf);
 void scsi_req_print(SCSIRequest *req);
 void scsi_req_continue(SCSIRequest *req);
@@ -159,5 +164,6 @@ int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len);
 void scsi_req_abort(SCSIRequest *req, int status);
 void scsi_req_cancel(SCSIRequest *req);
 void scsi_device_purge_requests(SCSIDevice *sdev);
+int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
 
 #endif

@@ -7,6 +7,8 @@
 #include "trace.h"
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
+static int scsi_build_sense(uint8_t *in_buf, int in_len,
+                            uint8_t *buf, int len, bool fixed);
 
 static struct BusInfo scsi_bus_info = {
     .name  = "SCSI",
@@ -144,6 +146,7 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag,
     req->lun = lun;
     req->hba_private = hba_private;
     req->status = -1;
+    req->sense_len = 0;
     trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     return req;
 }
@@ -161,11 +164,28 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req)
 
 int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len)
 {
-    if (req->dev->info->get_sense) {
-        return req->dev->info->get_sense(req, buf, len);
-    } else {
+    assert(len >= 14);
+    if (!req->sense_len) {
         return 0;
     }
+    return scsi_build_sense(req->sense, req->sense_len, buf, len, true);
+}
+
+int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed)
+{
+    return scsi_build_sense(dev->sense, dev->sense_len, buf, len, fixed);
+}
+
+void scsi_req_build_sense(SCSIRequest *req, SCSISense sense)
+{
+    trace_scsi_req_build_sense(req->dev->id, req->lun, req->tag,
+                               sense.key, sense.asc, sense.ascq);
+    memset(req->sense, 0, 18);
+    req->sense[0] = 0xf0;
+    req->sense[2] = sense.key;
+    req->sense[12] = sense.asc;
+    req->sense[13] = sense.ascq;
+    req->sense_len = 18;
 }
 
 int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf)
@@ -484,12 +504,38 @@ const struct SCSISense sense_code_LUN_FAILURE = {
 /*
  * scsi_build_sense
  *
- * Build a sense buffer
+ * Convert between fixed and descriptor sense buffers
  */
-int scsi_build_sense(SCSISense sense, uint8_t *buf, int len, int fixed)
+int scsi_build_sense(uint8_t *in_buf, int in_len,
+                     uint8_t *buf, int len, bool fixed)
 {
+    bool fixed_in;
+    SCSISense sense;
     if (!fixed && len < 8) {
         return 0;
+    }
+
+    if (in_len == 0) {
+        sense.key = NO_SENSE;
+        sense.asc = 0;
+        sense.ascq = 0;
+    } else {
+        fixed_in = (in_buf[0] & 2) == 0;
+
+        if (fixed == fixed_in) {
+            memcpy(buf, in_buf, MIN(len, in_len));
+            return MIN(len, in_len);
+        }
+
+        if (fixed_in) {
+            sense.key = in_buf[2];
+            sense.asc = in_buf[12];
+            sense.ascq = in_buf[13];
+        } else {
+            sense.key = in_buf[1];
+            sense.asc = in_buf[2];
+            sense.ascq = in_buf[3];
+        }
     }
 
     memset(buf, 0, len);
@@ -686,6 +732,17 @@ void scsi_req_complete(SCSIRequest *req, int status)
 {
     assert(req->status == -1);
     req->status = status;
+
+    assert(req->sense_len < sizeof(req->sense));
+    if (status == GOOD) {
+        req->sense_len = 0;
+    }
+
+    if (req->sense_len) {
+        memcpy(req->dev->sense, req->sense, req->sense_len);
+    }
+    req->dev->sense_len = req->sense_len;
+
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->bus->ops->complete(req, req->status);
