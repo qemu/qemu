@@ -535,30 +535,11 @@ static CPUWriteMemoryFunc * const fdctrl_mem_write_strict[3] = {
     NULL,
 };
 
-static void fdrive_media_changed_pre_save(void *opaque)
-{
-    FDrive *drive = opaque;
-
-    drive->media_changed = drive->bs->media_changed;
-}
-
-static int fdrive_media_changed_post_load(void *opaque, int version_id)
-{
-    FDrive *drive = opaque;
-
-    if (drive->bs != NULL) {
-        drive->bs->media_changed = drive->media_changed;
-    }
-
-    /* User ejected the floppy when drive->bs == NULL */
-    return 0;
-}
-
 static bool fdrive_media_changed_needed(void *opaque)
 {
     FDrive *drive = opaque;
 
-    return (drive->bs != NULL && drive->bs->media_changed != 1);
+    return (drive->bs != NULL && drive->media_changed != 1);
 }
 
 static const VMStateDescription vmstate_fdrive_media_changed = {
@@ -566,8 +547,6 @@ static const VMStateDescription vmstate_fdrive_media_changed = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .pre_save = fdrive_media_changed_pre_save,
-    .post_load = fdrive_media_changed_post_load,
     .fields      = (VMStateField[]) {
         VMSTATE_UINT8(media_changed, FDrive),
         VMSTATE_END_OF_LIST()
@@ -920,6 +899,10 @@ static int fdctrl_media_changed(FDrive *drv)
     if (!drv->bs)
         return 0;
     ret = bdrv_media_changed(drv->bs);
+    if (ret < 0) {
+        ret = drv->media_changed;
+    }
+    drv->media_changed = 0;
     if (ret) {
         fd_revalidate(drv);
     }
@@ -1791,6 +1774,17 @@ static void fdctrl_result_timer(void *opaque)
     fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
 }
 
+static void fdctrl_change_cb(void *opaque)
+{
+    FDrive *drive = opaque;
+
+    drive->media_changed = 1;
+}
+
+static const BlockDevOps fdctrl_block_ops = {
+    .change_media_cb = fdctrl_change_cb,
+};
+
 /* Init functions */
 static int fdctrl_connect_drives(FDCtrl *fdctrl)
 {
@@ -1814,7 +1808,9 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
         fd_init(drive);
         fd_revalidate(drive);
         if (drive->bs) {
+            drive->media_changed = 1;
             bdrv_set_removable(drive->bs, 1);
+            bdrv_set_dev_ops(drive->bs, &fdctrl_block_ops, drive);
         }
     }
     return 0;

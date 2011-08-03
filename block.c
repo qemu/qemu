@@ -689,7 +689,6 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
     }
 
     if (!bdrv_key_required(bs)) {
-        bs->media_changed = 1;
         bdrv_dev_change_media_cb(bs);
     }
 
@@ -726,7 +725,6 @@ void bdrv_close(BlockDriverState *bs)
             bdrv_close(bs->file);
         }
 
-        bs->media_changed = 1;
         bdrv_dev_change_media_cb(bs);
     }
 }
@@ -1665,7 +1663,6 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     } else if (!bs->valid_key) {
         bs->valid_key = 1;
         /* call the change callback now, we skipped it on open */
-        bs->media_changed = 1;
         bdrv_dev_change_media_cb(bs);
     }
     return ret;
@@ -3040,22 +3037,17 @@ int bdrv_is_inserted(BlockDriverState *bs)
 }
 
 /**
- * Return TRUE if the media changed since the last call to this
- * function. It is currently only used for floppy disks
+ * Return whether the media changed since the last call to this
+ * function, or -ENOTSUP if we don't know.  Most drivers don't know.
  */
 int bdrv_media_changed(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
-    int ret;
 
-    if (!drv || !drv->bdrv_media_changed)
-        ret = -ENOTSUP;
-    else
-        ret = drv->bdrv_media_changed(bs);
-    if (ret == -ENOTSUP)
-        ret = bs->media_changed;
-    bs->media_changed = 0;
-    return ret;
+    if (drv && drv->bdrv_media_changed) {
+        return drv->bdrv_media_changed(bs);
+    }
+    return -ENOTSUP;
 }
 
 /**

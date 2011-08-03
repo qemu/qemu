@@ -175,7 +175,6 @@ struct BlockDriverState {
                                 this file image */
     char backing_format[16]; /* if non-zero and backing_file exists */
     int is_temporary;
-    int media_changed;
 
     BlockDriverState *backing_hd;
     BlockDriverState *file;
