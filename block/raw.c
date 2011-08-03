@@ -75,6 +75,11 @@ static int raw_is_inserted(BlockDriverState *bs)
     return bdrv_is_inserted(bs->file);
 }
 
+static int raw_media_changed(BlockDriverState *bs)
+{
+    return bdrv_media_changed(bs->file);
+}
+
 static void raw_eject(BlockDriverState *bs, int eject_flag)
 {
     bdrv_eject(bs->file, eject_flag);
@@ -137,8 +142,10 @@ static BlockDriver bdrv_raw = {
     .bdrv_discard       = raw_discard,
 
     .bdrv_is_inserted   = raw_is_inserted,
+    .bdrv_media_changed = raw_media_changed,
     .bdrv_eject         = raw_eject,
     .bdrv_set_locked    = raw_set_locked,
+
     .bdrv_ioctl         = raw_ioctl,
     .bdrv_aio_ioctl     = raw_aio_ioctl,
 
