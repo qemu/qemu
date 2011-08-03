@@ -57,6 +57,8 @@
 #define MAX_CPUS                256
 #define XICS_IRQS		1024
 
+#define PHANDLE_XICP            0x00001111
+
 sPAPREnvironment *spapr;
 
 static void *spapr_create_fdt_skel(const char *cpu_model,
@@ -202,6 +204,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_property(fdt, "ibm,interrupt-server-ranges",
                        interrupt_server_ranges_prop,
                        sizeof(interrupt_server_ranges_prop))));
+    _FDT((fdt_property_cell(fdt, "#interrupt-cells", 2)));
+    _FDT((fdt_property_cell(fdt, "linux,phandle", PHANDLE_XICP)));
+    _FDT((fdt_property_cell(fdt, "phandle", PHANDLE_XICP)));
 
     _FDT((fdt_end_node(fdt)));
 
