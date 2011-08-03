@@ -491,6 +491,12 @@ static int scsi_generic_initfn(SCSIDevice *dev)
 
 static SCSIReqOps scsi_generic_req_ops = {
     .size         = sizeof(SCSIGenericReq),
+    .free_req     = scsi_free_request,
+    .send_command = scsi_send_command,
+    .read_data    = scsi_read_data,
+    .write_data   = scsi_write_data,
+    .cancel_io    = scsi_cancel_io,
+    .get_buf      = scsi_get_buf,
 };
 
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
@@ -510,12 +516,6 @@ static SCSIDeviceInfo scsi_generic_info = {
     .init         = scsi_generic_initfn,
     .destroy      = scsi_destroy,
     .alloc_req    = scsi_new_request,
-    .free_req     = scsi_free_request,
-    .send_command = scsi_send_command,
-    .read_data    = scsi_read_data,
-    .write_data   = scsi_write_data,
-    .cancel_io    = scsi_cancel_io,
-    .get_buf      = scsi_get_buf,
     .qdev.props   = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(SCSIGenericState, qdev.conf),
         DEFINE_PROP_END_OF_LIST(),

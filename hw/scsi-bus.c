@@ -160,7 +160,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
 
 uint8_t *scsi_req_get_buf(SCSIRequest *req)
 {
-    return req->dev->info->get_buf(req);
+    return req->ops->get_buf(req);
 }
 
 int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len)
@@ -199,7 +199,7 @@ int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf)
     QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
 
     scsi_req_ref(req);
-    rc = req->dev->info->send_command(req, buf);
+    rc = req->ops->send_command(req, buf);
     scsi_req_unref(req);
     return rc;
 }
@@ -673,8 +673,8 @@ SCSIRequest *scsi_req_ref(SCSIRequest *req)
 void scsi_req_unref(SCSIRequest *req)
 {
     if (--req->refcount == 0) {
-        if (req->dev->info->free_req) {
-            req->dev->info->free_req(req);
+        if (req->ops->free_req) {
+            req->ops->free_req(req);
         }
         qemu_free(req);
     }
@@ -686,9 +686,9 @@ void scsi_req_continue(SCSIRequest *req)
 {
     trace_scsi_req_continue(req->dev->id, req->lun, req->tag);
     if (req->cmd.mode == SCSI_XFER_TO_DEV) {
-        req->dev->info->write_data(req);
+        req->ops->write_data(req);
     } else {
-        req->dev->info->read_data(req);
+        req->ops->read_data(req);
     }
 }
 
@@ -752,8 +752,8 @@ void scsi_req_complete(SCSIRequest *req, int status)
 
 void scsi_req_cancel(SCSIRequest *req)
 {
-    if (req->dev && req->dev->info->cancel_io) {
-        req->dev->info->cancel_io(req);
+    if (req->ops->cancel_io) {
+        req->ops->cancel_io(req);
     }
     scsi_req_ref(req);
     scsi_req_dequeue(req);
@@ -765,8 +765,8 @@ void scsi_req_cancel(SCSIRequest *req)
 
 void scsi_req_abort(SCSIRequest *req, int status)
 {
-    if (req->dev && req->dev->info->cancel_io) {
-        req->dev->info->cancel_io(req);
+    if (req->ops->cancel_io) {
+        req->ops->cancel_io(req);
     }
     scsi_req_complete(req, status);
 }

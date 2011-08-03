@@ -73,6 +73,12 @@ int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num);
 /* scsi-bus.c */
 struct SCSIReqOps {
     size_t size;
+    void (*free_req)(SCSIRequest *req);
+    int32_t (*send_command)(SCSIRequest *req, uint8_t *buf);
+    void (*read_data)(SCSIRequest *req);
+    void (*write_data)(SCSIRequest *req);
+    void (*cancel_io)(SCSIRequest *req);
+    uint8_t *(*get_buf)(SCSIRequest *req);
 };
 
 typedef int (*scsi_qdev_initfn)(SCSIDevice *dev);
@@ -82,12 +88,7 @@ struct SCSIDeviceInfo {
     void (*destroy)(SCSIDevice *s);
     SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun,
                               void *hba_private);
-    void (*free_req)(SCSIRequest *req);
-    int32_t (*send_command)(SCSIRequest *req, uint8_t *buf);
-    void (*read_data)(SCSIRequest *req);
-    void (*write_data)(SCSIRequest *req);
-    void (*cancel_io)(SCSIRequest *req);
-    uint8_t *(*get_buf)(SCSIRequest *req);
+    SCSIReqOps reqops;
 };
 
 struct SCSIBusOps {
