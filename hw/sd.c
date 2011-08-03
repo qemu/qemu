@@ -449,6 +449,7 @@ SDState *sd_init(BlockDriverState *bs, int is_spi)
     sd->enable = 1;
     sd_reset(sd, bs);
     if (sd->bdrv) {
+        bdrv_attach_dev_nofail(sd->bdrv, sd);
         bdrv_set_change_cb(sd->bdrv, sd_cardchange, sd);
     }
     return sd;

@@ -74,9 +74,10 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
 int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv);
 void bdrv_close(BlockDriverState *bs);
-int bdrv_attach(BlockDriverState *bs, DeviceState *qdev);
-void bdrv_detach(BlockDriverState *bs, DeviceState *qdev);
-DeviceState *bdrv_get_attached(BlockDriverState *bs);
+int bdrv_attach_dev(BlockDriverState *bs, void *dev);
+void bdrv_attach_dev_nofail(BlockDriverState *bs, void *dev);
+void bdrv_detach_dev(BlockDriverState *bs, void *dev);
+void *bdrv_get_attached_dev(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,

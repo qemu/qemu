@@ -1890,6 +1890,7 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
                 error_report("Can't set up IDE drive %s", dinfo->id);
                 exit(1);
             }
+            bdrv_attach_dev_nofail(dinfo->bdrv, &bus->ifs[i]);
         } else {
             ide_reset(&bus->ifs[i]);
         }

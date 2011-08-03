@@ -620,6 +620,7 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
             g_free(pfl);
             return NULL;
         }
+        bdrv_attach_dev_nofail(pfl->bs, pfl);
     }
 #if 0 /* XXX: there should be a bit to set up read-only,
        *      the same way the hardware does (with WP pin).

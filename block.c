@@ -755,7 +755,7 @@ void bdrv_make_anon(BlockDriverState *bs)
 
 void bdrv_delete(BlockDriverState *bs)
 {
-    assert(!bs->peer);
+    assert(!bs->dev);
 
     /* remove from list, if necessary */
     bdrv_make_anon(bs);
@@ -769,26 +769,37 @@ void bdrv_delete(BlockDriverState *bs)
     g_free(bs);
 }
 
-int bdrv_attach(BlockDriverState *bs, DeviceState *qdev)
+int bdrv_attach_dev(BlockDriverState *bs, void *dev)
+/* TODO change to DeviceState *dev when all users are qdevified */
 {
-    if (bs->peer) {
+    if (bs->dev) {
         return -EBUSY;
     }
-    bs->peer = qdev;
+    bs->dev = dev;
     return 0;
 }
 
-void bdrv_detach(BlockDriverState *bs, DeviceState *qdev)
+/* TODO qdevified devices don't use this, remove when devices are qdevified */
+void bdrv_attach_dev_nofail(BlockDriverState *bs, void *dev)
 {
-    assert(bs->peer == qdev);
-    bs->peer = NULL;
+    if (bdrv_attach_dev(bs, dev) < 0) {
+        abort();
+    }
+}
+
+void bdrv_detach_dev(BlockDriverState *bs, void *dev)
+/* TODO change to DeviceState *dev when all users are qdevified */
+{
+    assert(bs->dev == dev);
+    bs->dev = NULL;
     bs->change_cb = NULL;
     bs->change_opaque = NULL;
 }
 
-DeviceState *bdrv_get_attached(BlockDriverState *bs)
+/* TODO change to return DeviceState * when all users are qdevified */
+void *bdrv_get_attached_dev(BlockDriverState *bs)
 {
-    return bs->peer;
+    return bs->dev;
 }
 
 /*

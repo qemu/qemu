@@ -518,7 +518,7 @@ static int usb_msd_initfn(USBDevice *dev)
      *
      * The hack is probably a bad idea.
      */
-    bdrv_detach(bs, &s->dev.qdev);
+    bdrv_detach_dev(bs, &s->dev.qdev);
     s->conf.bs = NULL;
 
     if (!s->serial) {
