@@ -11,6 +11,7 @@
 
 typedef struct SCSIBus SCSIBus;
 typedef struct SCSIBusOps SCSIBusOps;
+typedef struct SCSICommand SCSICommand;
 typedef struct SCSIDevice SCSIDevice;
 typedef struct SCSIDeviceInfo SCSIDeviceInfo;
 typedef struct SCSIRequest SCSIRequest;
@@ -30,6 +31,14 @@ typedef struct SCSISense {
 
 #define SCSI_SENSE_BUF_SIZE 96
 
+struct SCSICommand {
+    uint8_t buf[SCSI_CMD_BUF_SIZE];
+    int len;
+    size_t xfer;
+    uint64_t lba;
+    enum SCSIXferMode mode;
+};
+
 struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
@@ -38,13 +47,7 @@ struct SCSIRequest {
     uint32_t          tag;
     uint32_t          lun;
     uint32_t          status;
-    struct {
-        uint8_t buf[SCSI_CMD_BUF_SIZE];
-        int len;
-        size_t xfer;
-        uint64_t lba;
-        enum SCSIXferMode mode;
-    } cmd;
+    SCSICommand       cmd;
     BlockDriverAIOCB  *aiocb;
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;

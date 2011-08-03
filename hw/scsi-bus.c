@@ -217,35 +217,35 @@ static void scsi_req_dequeue(SCSIRequest *req)
     }
 }
 
-static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
+static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
 {
-    switch (cmd[0] >> 5) {
+    switch (buf[0] >> 5) {
     case 0:
-        req->cmd.xfer = cmd[4];
-        req->cmd.len = 6;
+        cmd->xfer = buf[4];
+        cmd->len = 6;
         /* length 0 means 256 blocks */
-        if (req->cmd.xfer == 0)
-            req->cmd.xfer = 256;
+        if (cmd->xfer == 0) {
+            cmd->xfer = 256;
+        }
         break;
     case 1:
     case 2:
-        req->cmd.xfer = cmd[8] | (cmd[7] << 8);
-        req->cmd.len = 10;
+        cmd->xfer = buf[8] | (buf[7] << 8);
+        cmd->len = 10;
         break;
     case 4:
-        req->cmd.xfer = cmd[13] | (cmd[12] << 8) | (cmd[11] << 16) | (cmd[10] << 24);
-        req->cmd.len = 16;
+        cmd->xfer = buf[13] | (buf[12] << 8) | (buf[11] << 16) | (buf[10] << 24);
+        cmd->len = 16;
         break;
     case 5:
-        req->cmd.xfer = cmd[9] | (cmd[8] << 8) | (cmd[7] << 16) | (cmd[6] << 24);
-        req->cmd.len = 12;
+        cmd->xfer = buf[9] | (buf[8] << 8) | (buf[7] << 16) | (buf[6] << 24);
+        cmd->len = 12;
         break;
     default:
-        trace_scsi_req_parse_bad(req->dev->id, req->lun, req->tag, cmd[0]);
         return -1;
     }
 
-    switch(cmd[0]) {
+    switch (buf[0]) {
     case TEST_UNIT_READY:
     case REWIND:
     case START_STOP:
@@ -266,27 +266,27 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
     case WRITE_LONG_10:
     case MOVE_MEDIUM:
     case UPDATE_BLOCK:
-        req->cmd.xfer = 0;
+        cmd->xfer = 0;
         break;
     case MODE_SENSE:
         break;
     case WRITE_SAME_10:
-        req->cmd.xfer = 1;
+        cmd->xfer = 1;
         break;
     case READ_CAPACITY_10:
-        req->cmd.xfer = 8;
+        cmd->xfer = 8;
         break;
     case READ_BLOCK_LIMITS:
-        req->cmd.xfer = 6;
+        cmd->xfer = 6;
         break;
     case READ_POSITION:
-        req->cmd.xfer = 20;
+        cmd->xfer = 20;
         break;
     case SEND_VOLUME_TAG:
-        req->cmd.xfer *= 40;
+        cmd->xfer *= 40;
         break;
     case MEDIUM_SCAN:
-        req->cmd.xfer *= 8;
+        cmd->xfer *= 8;
         break;
     case WRITE_10:
     case WRITE_VERIFY_10:
@@ -295,7 +295,7 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
     case WRITE_VERIFY_12:
     case WRITE_16:
     case WRITE_VERIFY_16:
-        req->cmd.xfer *= req->dev->blocksize;
+        cmd->xfer *= dev->blocksize;
         break;
     case READ_10:
     case READ_6:
@@ -303,50 +303,51 @@ static int scsi_req_length(SCSIRequest *req, uint8_t *cmd)
     case RECOVER_BUFFERED_DATA:
     case READ_12:
     case READ_16:
-        req->cmd.xfer *= req->dev->blocksize;
+        cmd->xfer *= dev->blocksize;
         break;
     case INQUIRY:
-        req->cmd.xfer = cmd[4] | (cmd[3] << 8);
+        cmd->xfer = buf[4] | (buf[3] << 8);
         break;
     case MAINTENANCE_OUT:
     case MAINTENANCE_IN:
-        if (req->dev->type == TYPE_ROM) {
+        if (dev->type == TYPE_ROM) {
             /* GPCMD_REPORT_KEY and GPCMD_SEND_KEY from multi media commands */
-            req->cmd.xfer = cmd[9] | (cmd[8] << 8);
+            cmd->xfer = buf[9] | (buf[8] << 8);
         }
         break;
     }
     return 0;
 }
 
-static int scsi_req_stream_length(SCSIRequest *req, uint8_t *cmd)
+static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
 {
-    switch(cmd[0]) {
+    switch (buf[0]) {
     /* stream commands */
     case READ_6:
     case READ_REVERSE:
     case RECOVER_BUFFERED_DATA:
     case WRITE_6:
-        req->cmd.len = 6;
-        req->cmd.xfer = cmd[4] | (cmd[3] << 8) | (cmd[2] << 16);
-        if (cmd[1] & 0x01) /* fixed */
-            req->cmd.xfer *= req->dev->blocksize;
+        cmd->len = 6;
+        cmd->xfer = buf[4] | (buf[3] << 8) | (buf[2] << 16);
+        if (buf[1] & 0x01) { /* fixed */
+            cmd->xfer *= dev->blocksize;
+        }
         break;
     case REWIND:
     case START_STOP:
-        req->cmd.len = 6;
-        req->cmd.xfer = 0;
+        cmd->len = 6;
+        cmd->xfer = 0;
         break;
     /* generic commands */
     default:
-        return scsi_req_length(req, cmd);
+        return scsi_req_length(cmd, dev, buf);
     }
     return 0;
 }
 
-static void scsi_req_xfer_mode(SCSIRequest *req)
+static void scsi_cmd_xfer_mode(SCSICommand *cmd)
 {
-    switch (req->cmd.buf[0]) {
+    switch (cmd->buf[0]) {
     case WRITE_6:
     case WRITE_10:
     case WRITE_VERIFY_10:
@@ -378,21 +379,21 @@ static void scsi_req_xfer_mode(SCSIRequest *req)
     case SEND_VOLUME_TAG:
     case PERSISTENT_RESERVE_OUT:
     case MAINTENANCE_OUT:
-        req->cmd.mode = SCSI_XFER_TO_DEV;
+        cmd->mode = SCSI_XFER_TO_DEV;
         break;
     default:
-        if (req->cmd.xfer)
-            req->cmd.mode = SCSI_XFER_FROM_DEV;
+        if (cmd->xfer)
+            cmd->mode = SCSI_XFER_FROM_DEV;
         else {
-            req->cmd.mode = SCSI_XFER_NONE;
+            cmd->mode = SCSI_XFER_NONE;
         }
         break;
     }
 }
 
-static uint64_t scsi_req_lba(SCSIRequest *req)
+static uint64_t scsi_cmd_lba(SCSICommand *cmd)
 {
-    uint8_t *buf = req->cmd.buf;
+    uint8_t *buf = cmd->buf;
     uint64_t lba;
 
     switch (buf[0] >> 5) {
@@ -427,16 +428,16 @@ int scsi_req_parse(SCSIRequest *req, uint8_t *buf)
     int rc;
 
     if (req->dev->type == TYPE_TAPE) {
-        rc = scsi_req_stream_length(req, buf);
+        rc = scsi_req_stream_length(&req->cmd, req->dev, buf);
     } else {
-        rc = scsi_req_length(req, buf);
+        rc = scsi_req_length(&req->cmd, req->dev, buf);
     }
     if (rc != 0)
         return rc;
 
     assert(buf == req->cmd.buf);
-    scsi_req_xfer_mode(req);
-    req->cmd.lba = scsi_req_lba(req);
+    scsi_cmd_xfer_mode(&req->cmd);
+    req->cmd.lba = scsi_cmd_lba(&req->cmd);
     trace_scsi_req_parsed(req->dev->id, req->lun, req->tag, buf[0],
                           req->cmd.mode, req->cmd.xfer);
     if (req->cmd.lba != -1) {
