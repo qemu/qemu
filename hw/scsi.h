@@ -144,12 +144,24 @@ extern const struct SCSISense sense_code_LBA_OUT_OF_RANGE;
 extern const struct SCSISense sense_code_INVALID_FIELD;
 /* Illegal request, LUN not supported */
 extern const struct SCSISense sense_code_LUN_NOT_SUPPORTED;
+/* Illegal request, Saving parameters not supported */
+extern const struct SCSISense sense_code_SAVING_PARAMS_NOT_SUPPORTED;
+/* Illegal request, Incompatible format */
+extern const struct SCSISense sense_code_INCOMPATIBLE_FORMAT;
 /* Command aborted, I/O process terminated */
 extern const struct SCSISense sense_code_IO_ERROR;
 /* Command aborted, I_T Nexus loss occurred */
 extern const struct SCSISense sense_code_I_T_NEXUS_LOSS;
 /* Command aborted, Logical Unit failure */
 extern const struct SCSISense sense_code_LUN_FAILURE;
+/* Unit attention, Power on, reset or bus device reset occurred */
+extern const struct SCSISense sense_code_RESET;
+/* Unit attention, Medium may have changed*/
+extern const struct SCSISense sense_code_MEDIUM_CHANGED;
+/* Unit attention, Reported LUNs data has changed */
+extern const struct SCSISense sense_code_REPORTED_LUNS_CHANGED;
+/* Unit attention, Device internal reset */
+extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
 
 #define SENSE_CODE(x) sense_code_ ## x
 
