@@ -80,7 +80,6 @@ typedef struct vscsi_req {
     int                     active;
     long                    data_len;
     int                     writing;
-    int                     sensing;
     int                     senselen;
     uint8_t                 sense[SCSI_SENSE_BUF_SIZE];
 
@@ -436,40 +435,6 @@ static int vscsi_preprocess_desc(vscsi_req *req)
     return 0;
 }
 
-static void vscsi_send_request_sense(VSCSIState *s, vscsi_req *req)
-{
-    uint8_t *cdb = req->iu.srp.cmd.cdb;
-    int n;
-
-    n = scsi_req_get_sense(req->sreq, req->sense, sizeof(req->sense));
-    if (n) {
-        req->senselen = n;
-        vscsi_send_rsp(s, req, CHECK_CONDITION, 0, 0);
-        vscsi_put_req(req);
-        return;
-    }
-
-    dprintf("VSCSI: Got CHECK_CONDITION, requesting sense...\n");
-    cdb[0] = 3;
-    cdb[1] = 0;
-    cdb[2] = 0;
-    cdb[3] = 0;
-    cdb[4] = 96;
-    cdb[5] = 0;
-    req->sensing = 1;
-    n = scsi_req_enqueue(req->sreq, cdb);
-    dprintf("VSCSI: Queued request sense tag 0x%x\n", req->qtag);
-    if (n < 0) {
-        fprintf(stderr, "VSCSI: REQUEST_SENSE wants write data !?!?!?\n");
-        vscsi_makeup_sense(s, req, HARDWARE_ERROR, 0, 0);
-        scsi_req_abort(req->sreq, CHECK_CONDITION);
-        return;
-    } else if (n == 0) {
-        return;
-    }
-    scsi_req_continue(req->sreq);
-}
-
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
 static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 {
@@ -482,23 +447,6 @@ static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
             sreq->tag, len, req);
     if (req == NULL) {
         fprintf(stderr, "VSCSI: Can't find request for tag 0x%x\n", sreq->tag);
-        return;
-    }
-
-    if (req->sensing) {
-        uint8_t *buf = scsi_req_get_buf(sreq);
-
-        len = MIN(len, SCSI_SENSE_BUF_SIZE);
-        dprintf("VSCSI: Sense data, %d bytes:\n", len);
-        dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
-                buf[0], buf[1], buf[2], buf[3],
-                buf[4], buf[5], buf[6], buf[7]);
-        dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
-                buf[8], buf[9], buf[10], buf[11],
-                buf[12], buf[13], buf[14], buf[15]);
-        memcpy(req->sense, buf, len);
-        req->senselen = len;
-        scsi_req_continue(req->sreq);
         return;
     }
 
@@ -532,28 +480,31 @@ static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status)
         return;
     }
 
-    if (!req->sensing && status == CHECK_CONDITION) {
-        vscsi_send_request_sense(s, req);
-        return;
+    if (status == CHECK_CONDITION) {
+        req->senselen = scsi_req_get_sense(req->sreq, req->sense,
+                                           sizeof(req->sense));
+        status = 0;
+        dprintf("VSCSI: Sense data, %d bytes:\n", len);
+        dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
+                req->sense[0], req->sense[1], req->sense[2], req->sense[3],
+                req->sense[4], req->sense[5], req->sense[6], req->sense[7]);
+        dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
+                req->sense[8], req->sense[9], req->sense[10], req->sense[11],
+                req->sense[12], req->sense[13], req->sense[14], req->sense[15]);
     }
 
-    if (req->sensing) {
-        dprintf("VSCSI: Sense done !\n");
-        status = CHECK_CONDITION;
-    } else {
-        dprintf("VSCSI: Command complete err=%d\n", status);
-        if (status == 0) {
-            /* We handle overflows, not underflows for normal commands,
-             * but hopefully nobody cares
-             */
-            if (req->writing) {
-                res_out = req->data_len;
-            } else {
-                res_in = req->data_len;
-            }
+    dprintf("VSCSI: Command complete err=%d\n", status);
+    if (status == 0) {
+        /* We handle overflows, not underflows for normal commands,
+         * but hopefully nobody cares
+         */
+        if (req->writing) {
+            res_out = req->data_len;
+        } else {
+            res_in = req->data_len;
         }
     }
-    vscsi_send_rsp(s, req, 0, res_in, res_out);
+    vscsi_send_rsp(s, req, status, res_in, res_out);
     vscsi_put_req(req);
 }
 
