@@ -50,6 +50,7 @@ typedef struct {
     uint32_t den;
     uint32_t cr;
     uint32_t float_high;
+    uint32_t amsel;
     qemu_irq irq;
     qemu_irq out[8];
     const unsigned char *id;
@@ -57,7 +58,7 @@ typedef struct {
 
 static const VMStateDescription vmstate_pl061 = {
     .name = "pl061",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(locked, pl061_state),
@@ -80,6 +81,7 @@ static const VMStateDescription vmstate_pl061 = {
         VMSTATE_UINT32(den, pl061_state),
         VMSTATE_UINT32(cr, pl061_state),
         VMSTATE_UINT32(float_high, pl061_state),
+        VMSTATE_UINT32_V(amsel, pl061_state, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -157,6 +159,8 @@ static uint32_t pl061_read(void *opaque, target_phys_addr_t offset)
         return s->locked;
     case 0x524: /* Commit */
         return s->cr;
+    case 0x528: /* Analog mode select */
+        return s->amsel;
     default:
         hw_error("pl061_read: Bad offset %x\n", (int)offset);
         return 0;
@@ -228,6 +232,9 @@ static void pl061_write(void *opaque, target_phys_addr_t offset,
     case 0x524: /* Commit */
         if (!s->locked)
             s->cr = value & 0xff;
+        break;
+    case 0x528:
+        s->amsel = value & 0xff;
         break;
     default:
         hw_error("pl061_write: Bad offset %x\n", (int)offset);
