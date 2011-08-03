@@ -30,30 +30,59 @@ static const uint8_t pl061_id_luminary[12] =
 
 typedef struct {
     SysBusDevice busdev;
-    int locked;
-    uint8_t data;
-    uint8_t old_data;
-    uint8_t dir;
-    uint8_t isense;
-    uint8_t ibe;
-    uint8_t iev;
-    uint8_t im;
-    uint8_t istate;
-    uint8_t afsel;
-    uint8_t dr2r;
-    uint8_t dr4r;
-    uint8_t dr8r;
-    uint8_t odr;
-    uint8_t pur;
-    uint8_t pdr;
-    uint8_t slr;
-    uint8_t den;
-    uint8_t cr;
-    uint8_t float_high;
+    uint32_t locked;
+    uint32_t data;
+    uint32_t old_data;
+    uint32_t dir;
+    uint32_t isense;
+    uint32_t ibe;
+    uint32_t iev;
+    uint32_t im;
+    uint32_t istate;
+    uint32_t afsel;
+    uint32_t dr2r;
+    uint32_t dr4r;
+    uint32_t dr8r;
+    uint32_t odr;
+    uint32_t pur;
+    uint32_t pdr;
+    uint32_t slr;
+    uint32_t den;
+    uint32_t cr;
+    uint32_t float_high;
     qemu_irq irq;
     qemu_irq out[8];
     const unsigned char *id;
 } pl061_state;
+
+static const VMStateDescription vmstate_pl061 = {
+    .name = "pl061",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(locked, pl061_state),
+        VMSTATE_UINT32(data, pl061_state),
+        VMSTATE_UINT32(old_data, pl061_state),
+        VMSTATE_UINT32(dir, pl061_state),
+        VMSTATE_UINT32(isense, pl061_state),
+        VMSTATE_UINT32(ibe, pl061_state),
+        VMSTATE_UINT32(iev, pl061_state),
+        VMSTATE_UINT32(im, pl061_state),
+        VMSTATE_UINT32(istate, pl061_state),
+        VMSTATE_UINT32(afsel, pl061_state),
+        VMSTATE_UINT32(dr2r, pl061_state),
+        VMSTATE_UINT32(dr4r, pl061_state),
+        VMSTATE_UINT32(dr8r, pl061_state),
+        VMSTATE_UINT32(odr, pl061_state),
+        VMSTATE_UINT32(pur, pl061_state),
+        VMSTATE_UINT32(pdr, pl061_state),
+        VMSTATE_UINT32(slr, pl061_state),
+        VMSTATE_UINT32(den, pl061_state),
+        VMSTATE_UINT32(cr, pl061_state),
+        VMSTATE_UINT32(float_high, pl061_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void pl061_update(pl061_state *s)
 {
@@ -148,19 +177,19 @@ static void pl061_write(void *opaque, target_phys_addr_t offset,
     }
     switch (offset) {
     case 0x400: /* Direction */
-        s->dir = value;
+        s->dir = value & 0xff;
         break;
     case 0x404: /* Interrupt sense */
-        s->isense = value;
+        s->isense = value & 0xff;
         break;
     case 0x408: /* Interrupt both edges */
-        s->ibe = value;
+        s->ibe = value & 0xff;
         break;
     case 0x40c: /* Interrupt event */
-        s->iev = value;
+        s->iev = value & 0xff;
         break;
     case 0x410: /* Interrupt mask */
-        s->im = value;
+        s->im = value & 0xff;
         break;
     case 0x41c: /* Interrupt clear */
         s->istate &= ~value;
@@ -170,35 +199,35 @@ static void pl061_write(void *opaque, target_phys_addr_t offset,
         s->afsel = (s->afsel & ~mask) | (value & mask);
         break;
     case 0x500: /* 2mA drive */
-        s->dr2r = value;
+        s->dr2r = value & 0xff;
         break;
     case 0x504: /* 4mA drive */
-        s->dr4r = value;
+        s->dr4r = value & 0xff;
         break;
     case 0x508: /* 8mA drive */
-        s->dr8r = value;
+        s->dr8r = value & 0xff;
         break;
     case 0x50c: /* Open drain */
-        s->odr = value;
+        s->odr = value & 0xff;
         break;
     case 0x510: /* Pull-up */
-        s->pur = value;
+        s->pur = value & 0xff;
         break;
     case 0x514: /* Pull-down */
-        s->pdr = value;
+        s->pdr = value & 0xff;
         break;
     case 0x518: /* Slew rate control */
-        s->slr = value;
+        s->slr = value & 0xff;
         break;
     case 0x51c: /* Digital enable */
-        s->den = value;
+        s->den = value & 0xff;
         break;
     case 0x520: /* Lock */
         s->locked = (value != 0xacce551);
         break;
     case 0x524: /* Commit */
         if (!s->locked)
-            s->cr = value;
+            s->cr = value & 0xff;
         break;
     default:
         hw_error("pl061_write: Bad offset %x\n", (int)offset);
@@ -238,62 +267,6 @@ static CPUWriteMemoryFunc * const pl061_writefn[] = {
    pl061_write
 };
 
-static void pl061_save(QEMUFile *f, void *opaque)
-{
-    pl061_state *s = (pl061_state *)opaque;
-
-    qemu_put_be32(f, s->locked);
-    qemu_put_be32(f, s->data);
-    qemu_put_be32(f, s->old_data);
-    qemu_put_be32(f, s->dir);
-    qemu_put_be32(f, s->isense);
-    qemu_put_be32(f, s->ibe);
-    qemu_put_be32(f, s->iev);
-    qemu_put_be32(f, s->im);
-    qemu_put_be32(f, s->istate);
-    qemu_put_be32(f, s->afsel);
-    qemu_put_be32(f, s->dr2r);
-    qemu_put_be32(f, s->dr4r);
-    qemu_put_be32(f, s->dr8r);
-    qemu_put_be32(f, s->odr);
-    qemu_put_be32(f, s->pur);
-    qemu_put_be32(f, s->pdr);
-    qemu_put_be32(f, s->slr);
-    qemu_put_be32(f, s->den);
-    qemu_put_be32(f, s->cr);
-    qemu_put_be32(f, s->float_high);
-}
-
-static int pl061_load(QEMUFile *f, void *opaque, int version_id)
-{
-    pl061_state *s = (pl061_state *)opaque;
-    if (version_id != 1)
-        return -EINVAL;
-
-    s->locked = qemu_get_be32(f);
-    s->data = qemu_get_be32(f);
-    s->old_data = qemu_get_be32(f);
-    s->dir = qemu_get_be32(f);
-    s->isense = qemu_get_be32(f);
-    s->ibe = qemu_get_be32(f);
-    s->iev = qemu_get_be32(f);
-    s->im = qemu_get_be32(f);
-    s->istate = qemu_get_be32(f);
-    s->afsel = qemu_get_be32(f);
-    s->dr2r = qemu_get_be32(f);
-    s->dr4r = qemu_get_be32(f);
-    s->dr8r = qemu_get_be32(f);
-    s->odr = qemu_get_be32(f);
-    s->pur = qemu_get_be32(f);
-    s->pdr = qemu_get_be32(f);
-    s->slr = qemu_get_be32(f);
-    s->den = qemu_get_be32(f);
-    s->cr = qemu_get_be32(f);
-    s->float_high = qemu_get_be32(f);
-
-    return 0;
-}
-
 static int pl061_init(SysBusDevice *dev, const unsigned char *id)
 {
     int iomemtype;
@@ -307,7 +280,6 @@ static int pl061_init(SysBusDevice *dev, const unsigned char *id)
     qdev_init_gpio_in(&dev->qdev, pl061_set_irq, 8);
     qdev_init_gpio_out(&dev->qdev, s->out, 8);
     pl061_reset(s);
-    register_savevm(&dev->qdev, "pl061_gpio", -1, 1, pl061_save, pl061_load, s);
     return 0;
 }
 
@@ -321,12 +293,24 @@ static int pl061_init_arm(SysBusDevice *dev)
     return pl061_init(dev, pl061_id);
 }
 
+static SysBusDeviceInfo pl061_info = {
+    .init = pl061_init_arm,
+    .qdev.name = "pl061",
+    .qdev.size = sizeof(pl061_state),
+    .qdev.vmsd = &vmstate_pl061,
+};
+
+static SysBusDeviceInfo pl061_luminary_info = {
+    .init = pl061_init_luminary,
+    .qdev.name = "pl061_luminary",
+    .qdev.size = sizeof(pl061_state),
+    .qdev.vmsd = &vmstate_pl061,
+};
+
 static void pl061_register_devices(void)
 {
-    sysbus_register_dev("pl061", sizeof(pl061_state),
-                        pl061_init_arm);
-    sysbus_register_dev("pl061_luminary", sizeof(pl061_state),
-                        pl061_init_luminary);
+    sysbus_register_withprop(&pl061_info);
+    sysbus_register_withprop(&pl061_luminary_info);
 }
 
 device_init(pl061_register_devices)
