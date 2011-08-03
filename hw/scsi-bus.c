@@ -270,6 +270,13 @@ static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
             goto illegal_request;
         }
         break;
+    case REQUEST_SENSE:
+        if (req->cmd.xfer < 4) {
+            goto illegal_request;
+        }
+        r->len = scsi_device_get_sense(r->req.dev, r->buf, req->cmd.xfer,
+                                       (req->cmd.buf[1] & 1) == 0);
+        break;
     default:
         scsi_req_build_sense(req, SENSE_CODE(LUN_NOT_SUPPORTED));
         scsi_req_complete(req, CHECK_CONDITION);
@@ -351,8 +358,9 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                                       cmd.lba);
         }
 
-        if ((lun != d->lun && buf[0] != REQUEST_SENSE) ||
-            buf[0] == REPORT_LUNS) {
+        if (lun != d->lun ||
+            buf[0] == REPORT_LUNS ||
+            buf[0] == REQUEST_SENSE) {
             req = scsi_req_alloc(&reqops_target_command, d, tag, lun,
                                  hba_private);
         } else {

@@ -183,22 +183,6 @@ static void scsi_read_data(SCSIRequest *req)
         return;
     }
 
-    if (r->req.cmd.buf[0] == REQUEST_SENSE) {
-        r->io_header.driver_status = 0;
-        r->io_header.status = 0;
-        r->io_header.dxfer_len =
-            scsi_device_get_sense(&s->qdev, r->buf, r->req.cmd.xfer,
-                                  (r->req.cmd.buf[1] & 1) == 0);
-        r->len = -1;
-        DPRINTF("Data ready tag=0x%x len=%d\n", r->req.tag, r->io_header.dxfer_len);
-        DPRINTF("Sense: %d %d %d %d %d %d %d %d\n",
-                r->buf[0], r->buf[1], r->buf[2], r->buf[3],
-                r->buf[4], r->buf[5], r->buf[6], r->buf[7]);
-        scsi_req_data(&r->req, r->io_header.dxfer_len);
-        /* The sense buffer is cleared when we return GOOD */
-        return;
-    }
-
     ret = execute_command(s->bs, r, SG_DXFER_FROM_DEV, scsi_read_complete);
     if (ret < 0) {
         scsi_command_complete(r, ret);

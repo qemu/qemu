@@ -788,12 +788,6 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         if (!bdrv_is_inserted(s->bs))
             goto not_ready;
         break;
-    case REQUEST_SENSE:
-        if (req->cmd.xfer < 4)
-            goto illegal_request;
-        buflen = scsi_device_get_sense(&s->qdev, outbuf, req->cmd.xfer,
-                                       (req->cmd.buf[1] & 1) == 0);
-        break;
     case INQUIRY:
         buflen = scsi_disk_emulate_inquiry(req, outbuf);
         if (buflen < 0)
@@ -964,7 +958,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
 
     switch (command) {
     case TEST_UNIT_READY:
-    case REQUEST_SENSE:
     case INQUIRY:
     case MODE_SENSE:
     case MODE_SENSE_10:
@@ -1063,6 +1056,8 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         }
 
         break;
+    case REQUEST_SENSE:
+        abort();
     default:
         DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
