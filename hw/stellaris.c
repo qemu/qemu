@@ -332,6 +332,7 @@ typedef struct {
     uint32_t int_mask;
     uint32_t resc;
     uint32_t rcc;
+    uint32_t rcc2;
     uint32_t rcgc[3];
     uint32_t scgc[3];
     uint32_t dcgc[3];
@@ -386,6 +387,32 @@ static uint32_t pllcfg_fury[16] = {
     0xb11c /* 8.192 Mhz */
 };
 
+#define DID0_VER_MASK        0x70000000
+#define DID0_VER_0           0x00000000
+#define DID0_VER_1           0x10000000
+
+#define DID0_CLASS_MASK      0x00FF0000
+#define DID0_CLASS_SANDSTORM 0x00000000
+#define DID0_CLASS_FURY      0x00010000
+
+static int ssys_board_class(const ssys_state *s)
+{
+    uint32_t did0 = s->board->did0;
+    switch (did0 & DID0_VER_MASK) {
+    case DID0_VER_0:
+        return DID0_CLASS_SANDSTORM;
+    case DID0_VER_1:
+        switch (did0 & DID0_CLASS_MASK) {
+        case DID0_CLASS_SANDSTORM:
+        case DID0_CLASS_FURY:
+            return did0 & DID0_CLASS_MASK;
+        }
+        /* for unknown classes, fall through */
+    default:
+        hw_error("ssys_board_class: Unknown class 0x%08x\n", did0);
+    }
+}
+
 static uint32_t ssys_read(void *opaque, target_phys_addr_t offset)
 {
     ssys_state *s = (ssys_state *)opaque;
@@ -429,12 +456,18 @@ static uint32_t ssys_read(void *opaque, target_phys_addr_t offset)
         {
             int xtal;
             xtal = (s->rcc >> 6) & 0xf;
-            if (s->board->did0 & (1 << 16)) {
+            switch (ssys_board_class(s)) {
+            case DID0_CLASS_FURY:
                 return pllcfg_fury[xtal];
-            } else {
+            case DID0_CLASS_SANDSTORM:
                 return pllcfg_sandstorm[xtal];
+            default:
+                hw_error("ssys_read: Unhandled class for PLLCFG read.\n");
+                return 0;
             }
         }
+    case 0x070: /* RCC2 */
+        return s->rcc2;
     case 0x100: /* RCGC0 */
         return s->rcgc[0];
     case 0x104: /* RCGC1 */
@@ -467,9 +500,21 @@ static uint32_t ssys_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
+static bool ssys_use_rcc2(ssys_state *s)
+{
+    return (s->rcc2 >> 31) & 0x1;
+}
+
+/*
+ * Caculate the sys. clock period in ms.
+ */
 static void ssys_calculate_system_clock(ssys_state *s)
 {
-    system_clock_scale = 5 * (((s->rcc >> 23) & 0xf) + 1);
+    if (ssys_use_rcc2(s)) {
+        system_clock_scale = 5 * (((s->rcc2 >> 23) & 0x3f) + 1);
+    } else {
+        system_clock_scale = 5 * (((s->rcc >> 23) & 0xf) + 1);
+    }
 }
 
 static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
@@ -503,6 +548,18 @@ static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
             s->int_status |= (1 << 6);
         }
         s->rcc = value;
+        ssys_calculate_system_clock(s);
+        break;
+    case 0x070: /* RCC2 */
+        if (ssys_board_class(s) == DID0_CLASS_SANDSTORM) {
+            break;
+        }
+
+        if ((s->rcc2 & (1 << 13)) != 0 && (value & (1 << 13)) == 0) {
+            /* PLL enable.  */
+            s->int_status |= (1 << 6);
+        }
+        s->rcc2 = value;
         ssys_calculate_system_clock(s);
         break;
     case 0x100: /* RCGC0 */
@@ -562,6 +619,12 @@ static void ssys_reset(void *opaque)
 
     s->pborctl = 0x7ffd;
     s->rcc = 0x078e3ac0;
+
+    if (ssys_board_class(s) == DID0_CLASS_SANDSTORM) {
+        s->rcc2 = 0;
+    } else {
+        s->rcc2 = 0x07802810;
+    }
     s->rcgc[0] = 1;
     s->scgc[0] = 1;
     s->dcgc[0] = 1;
@@ -578,7 +641,7 @@ static int stellaris_sys_post_load(void *opaque, int version_id)
 
 static const VMStateDescription vmstate_stellaris_sys = {
     .name = "stellaris_sys",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .post_load = stellaris_sys_post_load,
@@ -589,6 +652,7 @@ static const VMStateDescription vmstate_stellaris_sys = {
         VMSTATE_UINT32(int_status, ssys_state),
         VMSTATE_UINT32(resc, ssys_state),
         VMSTATE_UINT32(rcc, ssys_state),
+        VMSTATE_UINT32_V(rcc2, ssys_state, 2),
         VMSTATE_UINT32_ARRAY(rcgc, ssys_state, 3),
         VMSTATE_UINT32_ARRAY(scgc, ssys_state, 3),
         VMSTATE_UINT32_ARRAY(dcgc, ssys_state, 3),
