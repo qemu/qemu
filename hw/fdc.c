@@ -898,11 +898,15 @@ static int fdctrl_media_changed(FDrive *drv)
 
     if (!drv->bs)
         return 0;
-    ret = bdrv_media_changed(drv->bs);
-    if (ret < 0) {
-        ret = drv->media_changed;
+    if (drv->media_changed) {
+        drv->media_changed = 0;
+        ret = 1;
+    } else {
+        ret = bdrv_media_changed(drv->bs);
+        if (ret < 0) {
+            ret = 0;            /* we don't know, assume no */
+        }
     }
-    drv->media_changed = 0;
     if (ret) {
         fd_revalidate(drv);
     }
