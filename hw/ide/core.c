@@ -2010,7 +2010,7 @@ static bool ide_error_needed(void *opaque)
 }
 
 /* Fields for GET_EVENT_STATUS_NOTIFICATION ATAPI command */
-const VMStateDescription vmstate_ide_atapi_gesn_state = {
+static const VMStateDescription vmstate_ide_atapi_gesn_state = {
     .name ="ide_drive/atapi/gesn_state",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -2022,7 +2022,7 @@ const VMStateDescription vmstate_ide_atapi_gesn_state = {
     }
 };
 
-const VMStateDescription vmstate_ide_drive_pio_state = {
+static const VMStateDescription vmstate_ide_drive_pio_state = {
     .name = "ide_drive/pio_state",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -2084,7 +2084,7 @@ const VMStateDescription vmstate_ide_drive = {
     }
 };
 
-const VMStateDescription vmstate_ide_error_status = {
+static const VMStateDescription vmstate_ide_error_status = {
     .name ="ide_bus/error",
     .version_id = 1,
     .minimum_version_id = 1,
