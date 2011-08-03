@@ -482,11 +482,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
     memset(outbuf, 0, buflen);
 
-    if (req->lun) {
-        outbuf[0] = 0x7f;       /* LUN not supported */
-        return buflen;
-    }
-
     outbuf[0] = s->qdev.type & 0x1f;
     if (s->qdev.type == TYPE_ROM) {
         outbuf[1] = 0x80;
@@ -918,13 +913,6 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         }
         DPRINTF("Unsupported Service Action In\n");
         goto illegal_request;
-    case REPORT_LUNS:
-        if (req->cmd.xfer < 16)
-            goto illegal_request;
-        memset(outbuf, 0, 16);
-        outbuf[3] = 8;
-        buflen = 16;
-        break;
     case VERIFY_10:
         break;
     default:
@@ -974,14 +962,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     }
 #endif
 
-    if (req->lun) {
-        /* Only LUN 0 supported.  */
-        DPRINTF("Unimplemented LUN %d\n", req->lun);
-        if (command != REQUEST_SENSE && command != INQUIRY) {
-            scsi_check_condition(r, SENSE_CODE(LUN_NOT_SUPPORTED));
-            return 0;
-        }
-    }
     switch (command) {
     case TEST_UNIT_READY:
     case REQUEST_SENSE:
@@ -999,7 +979,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case READ_TOC:
     case GET_CONFIGURATION:
     case SERVICE_ACTION_IN:
-    case REPORT_LUNS:
     case VERIFY_10:
         rc = scsi_disk_emulate_command(r, outbuf);
         if (rc < 0) {

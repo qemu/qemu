@@ -149,6 +149,172 @@ struct SCSIReqOps reqops_invalid_opcode = {
     .send_command = scsi_invalid_command
 };
 
+/* SCSIReqOps implementation for REPORT LUNS and for commands sent to
+   an invalid LUN.  */
+
+typedef struct SCSITargetReq SCSITargetReq;
+
+struct SCSITargetReq {
+    SCSIRequest req;
+    int len;
+    uint8_t buf[64];
+};
+
+static void store_lun(uint8_t *outbuf, int lun)
+{
+    if (lun < 256) {
+        outbuf[1] = lun;
+        return;
+    }
+    outbuf[1] = (lun & 255);
+    outbuf[0] = (lun >> 8) | 0x40;
+}
+
+static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
+{
+    int len;
+    if (r->req.cmd.xfer < 16) {
+        return false;
+    }
+    if (r->req.cmd.buf[2] > 2) {
+        return false;
+    }
+    len = MIN(sizeof r->buf, r->req.cmd.xfer);
+    memset(r->buf, 0, len);
+    if (r->req.dev->lun != 0) {
+        r->buf[3] = 16;
+        r->len = 24;
+        store_lun(&r->buf[16], r->req.dev->lun);
+    } else {
+        r->buf[3] = 8;
+        r->len = 16;
+    }
+    return true;
+}
+
+static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
+{
+    assert(r->req.dev->lun != r->req.lun);
+    if (r->req.cmd.buf[1] & 0x2) {
+        /* Command support data - optional, not implemented */
+        return false;
+    }
+
+    if (r->req.cmd.buf[1] & 0x1) {
+        /* Vital product data */
+        uint8_t page_code = r->req.cmd.buf[2];
+        if (r->req.cmd.xfer < 4) {
+            return false;
+        }
+
+        r->buf[r->len++] = page_code ; /* this page */
+        r->buf[r->len++] = 0x00;
+
+        switch (page_code) {
+        case 0x00: /* Supported page codes, mandatory */
+        {
+            int pages;
+            pages = r->len++;
+            r->buf[r->len++] = 0x00; /* list of supported pages (this page) */
+            r->buf[pages] = r->len - pages - 1; /* number of pages */
+            break;
+        }
+        default:
+            return false;
+        }
+        /* done with EVPD */
+        assert(r->len < sizeof(r->buf));
+        r->len = MIN(r->req.cmd.xfer, r->len);
+        return true;
+    }
+
+    /* Standard INQUIRY data */
+    if (r->req.cmd.buf[2] != 0) {
+        return false;
+    }
+
+    /* PAGE CODE == 0 */
+    if (r->req.cmd.xfer < 5) {
+        return -1;
+    }
+
+    r->len = MIN(r->req.cmd.xfer, 36);
+    memset(r->buf, 0, r->len);
+    if (r->req.lun != 0) {
+        r->buf[0] = TYPE_NO_LUN;
+    } else {
+        r->buf[0] = TYPE_NOT_PRESENT | TYPE_INACTIVE;
+        r->buf[2] = 5; /* Version */
+        r->buf[3] = 2 | 0x10; /* HiSup, response data format */
+        r->buf[4] = r->len - 5; /* Additional Length = (Len - 1) - 4 */
+        r->buf[7] = 0x10 | (r->req.bus->tcq ? 0x02 : 0); /* Sync, TCQ.  */
+        memcpy(&r->buf[8], "QEMU    ", 8);
+        memcpy(&r->buf[16], "QEMU TARGET     ", 16);
+        strncpy((char *) &r->buf[32], QEMU_VERSION, 4);
+    }
+    return true;
+}
+
+static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
+{
+    SCSITargetReq *r = DO_UPCAST(SCSITargetReq, req, req);
+
+    switch (buf[0]) {
+    case REPORT_LUNS:
+        if (!scsi_target_emulate_report_luns(r)) {
+            goto illegal_request;
+        }
+        break;
+    case INQUIRY:
+        if (!scsi_target_emulate_inquiry(r)) {
+            goto illegal_request;
+        }
+        break;
+    default:
+        scsi_req_build_sense(req, SENSE_CODE(LUN_NOT_SUPPORTED));
+        scsi_req_complete(req, CHECK_CONDITION);
+        return 0;
+    illegal_request:
+        scsi_req_build_sense(req, SENSE_CODE(INVALID_FIELD));
+        scsi_req_complete(req, CHECK_CONDITION);
+        return 0;
+    }
+
+    if (!r->len) {
+        scsi_req_complete(req, GOOD);
+    }
+    return r->len;
+}
+
+static void scsi_target_read_data(SCSIRequest *req)
+{
+    SCSITargetReq *r = DO_UPCAST(SCSITargetReq, req, req);
+    uint32_t n;
+
+    n = r->len;
+    if (n > 0) {
+        r->len = 0;
+        scsi_req_data(&r->req, n);
+    } else {
+        scsi_req_complete(&r->req, GOOD);
+    }
+}
+
+static uint8_t *scsi_target_get_buf(SCSIRequest *req)
+{
+    SCSITargetReq *r = DO_UPCAST(SCSITargetReq, req, req);
+
+    return r->buf;
+}
+
+struct SCSIReqOps reqops_target_command = {
+    .size         = sizeof(SCSITargetReq),
+    .send_command = scsi_target_send_command,
+    .read_data    = scsi_target_read_data,
+    .get_buf      = scsi_target_get_buf,
+};
+
+
 SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
                             uint32_t lun, void *hba_private)
 {
@@ -184,7 +350,14 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
             trace_scsi_req_parsed_lba(d->id, lun, tag, buf[0],
                                       cmd.lba);
         }
-        req = d->info->alloc_req(d, tag, lun, hba_private);
+
+        if ((lun != d->lun && buf[0] != REQUEST_SENSE) ||
+            buf[0] == REPORT_LUNS) {
+            req = scsi_req_alloc(&reqops_target_command, d, tag, lun,
+                                 hba_private);
+        } else {
+            req = d->info->alloc_req(d, tag, lun, hba_private);
+        }
     }
 
     req->cmd = cmd;

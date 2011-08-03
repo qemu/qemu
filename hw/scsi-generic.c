@@ -287,13 +287,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
     int ret;
 
-    if (cmd[0] != REQUEST_SENSE && req->lun != s->qdev.lun) {
-        DPRINTF("Unimplemented LUN %d\n", req->lun);
-        scsi_req_build_sense(&r->req, SENSE_CODE(LUN_NOT_SUPPORTED));
-        scsi_req_complete(&r->req, CHECK_CONDITION);
-        return 0;
-    }
-
     scsi_req_fixup(&r->req);
 
     DPRINTF("Command: lun=%d tag=0x%x len %zd data=0x%02x", lun, tag,
