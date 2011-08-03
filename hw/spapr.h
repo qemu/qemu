@@ -10,6 +10,7 @@ typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     struct icp_state *icp;
 
+    target_phys_addr_t ram_limit;
     void *htab;
     long htab_size;
     target_phys_addr_t fdt_addr, rtas_addr;

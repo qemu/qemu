@@ -99,6 +99,8 @@ static target_ulong h_enter(CPUState *env, sPAPREnvironment *spapr,
     target_ulong pte_index = args[1];
     target_ulong pteh = args[2];
     target_ulong ptel = args[3];
+    target_ulong page_shift = 12;
+    target_ulong raddr;
     target_ulong i;
     uint8_t *hpte;
 
@@ -111,6 +113,7 @@ static target_ulong h_enter(CPUState *env, sPAPREnvironment *spapr,
 #endif
         if ((ptel & 0xff000) == 0) {
             /* 16M page */
+            page_shift = 24;
             /* lowest AVA bit must be 0 for 16M pages */
             if (pteh & 0x80) {
                 return H_PARAMETER;
@@ -120,12 +123,23 @@ static target_ulong h_enter(CPUState *env, sPAPREnvironment *spapr,
         }
     }
 
-    /* FIXME: bounds check the pa? */
+    raddr = (ptel & HPTE_R_RPN) & ~((1ULL << page_shift) - 1);
 
-    /* Check WIMG */
-    if ((ptel & HPTE_R_WIMG) != HPTE_R_M) {
-        return H_PARAMETER;
+    if (raddr < spapr->ram_limit) {
+        /* Regular RAM - should have WIMG=0010 */
+        if ((ptel & HPTE_R_WIMG) != HPTE_R_M) {
+            return H_PARAMETER;
+        }
+    } else {
+        /* Looks like an IO address */
+        /* FIXME: What WIMG combinations could be sensible for IO?
+         * For now we allow WIMG=010x, but are there others? */
+        /* FIXME: Should we check against registered IO addresses? */
+        if ((ptel & (HPTE_R_W | HPTE_R_I | HPTE_R_M)) != HPTE_R_I) {
+            return H_PARAMETER;
+        }
     }
+
     pteh &= ~0x60ULL;
 
     if ((pte_index * HASH_PTE_SIZE_64) & ~env->htab_mask) {

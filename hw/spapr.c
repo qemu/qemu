@@ -336,7 +336,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     /* allocate RAM */
-    ram_offset = qemu_ram_alloc(NULL, "ppc_spapr.ram", ram_size);
+    spapr->ram_limit = ram_size;
+    ram_offset = qemu_ram_alloc(NULL, "ppc_spapr.ram", spapr->ram_limit);
     cpu_register_physical_memory(0, ram_size, ram_offset);
 
     /* allocate hash page table.  For now we always make this 16mb,
