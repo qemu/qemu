@@ -28,8 +28,18 @@ typedef struct QEMUSnapshotInfo {
     uint64_t vm_clock_nsec; /* VM clock relative to boot */
 } QEMUSnapshotInfo;
 
+/* Callbacks for block device models */
 typedef struct BlockDevOps {
-    void (*change_cb)(void *opaque, int reason);
+    /*
+     * Runs when virtual media changed (monitor commands eject, change)
+     * Beware: doesn't run when a host device's physical media
+     * changes.  Sure would be useful if it did.
+     */
+    void (*change_media_cb)(void *opaque);
+    /*
+     * Runs when the size changed (e.g. monitor command block_resize)
+     */
+    void (*resize_cb)(void *opaque);
 } BlockDevOps;
 
 #define BDRV_O_RDWR        0x0002

@@ -543,17 +543,15 @@ static int virtio_blk_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void virtio_blk_change_cb(void *opaque, int reason)
+static void virtio_blk_resize(void *opaque)
 {
     VirtIOBlock *s = opaque;
 
-    if (reason & CHANGE_SIZE) {
-        virtio_notify_config(&s->vdev);
-    }
+    virtio_notify_config(&s->vdev);
 }
 
 static const BlockDevOps virtio_block_ops = {
-    .change_cb = virtio_blk_change_cb,
+    .resize_cb = virtio_blk_resize,
 };
 
 VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,

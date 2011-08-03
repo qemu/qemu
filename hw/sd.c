@@ -420,13 +420,9 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     sd->pwd_len = 0;
 }
 
-static void sd_cardchange(void *opaque, int reason)
+static void sd_cardchange(void *opaque)
 {
     SDState *sd = opaque;
-
-    if (!(reason & CHANGE_MEDIA)) {
-        return;
-    }
 
     qemu_set_irq(sd->inserted_cb, bdrv_is_inserted(sd->bdrv));
     if (bdrv_is_inserted(sd->bdrv)) {
@@ -436,7 +432,7 @@ static void sd_cardchange(void *opaque, int reason)
 }
 
 static const BlockDevOps sd_block_ops = {
-    .change_cb = sd_cardchange,
+    .change_media_cb = sd_cardchange,
 };
 
 /* We do not model the chip select pin, so allow the board to select
