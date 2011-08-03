@@ -194,12 +194,11 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_end_node(fdt)));
 
     /* interrupt controller */
-    _FDT((fdt_begin_node(fdt, "interrupt-controller@0")));
+    _FDT((fdt_begin_node(fdt, "interrupt-controller")));
 
     _FDT((fdt_property_string(fdt, "device_type",
                               "PowerPC-External-Interrupt-Presentation")));
     _FDT((fdt_property_string(fdt, "compatible", "IBM,ppc-xicp")));
-    _FDT((fdt_property_cell(fdt, "reg", 0)));
     _FDT((fdt_property(fdt, "interrupt-controller", NULL, 0)));
     _FDT((fdt_property(fdt, "ibm,interrupt-server-ranges",
                        interrupt_server_ranges_prop,
