@@ -1742,6 +1742,10 @@ void ide_bus_reset(IDEBus *bus)
     bus->dma->ops->reset(bus->dma);
 }
 
+static const BlockDevOps ide_cd_block_ops = {
+    .change_cb = cdrom_change_cb,
+};
+
 int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
                    const char *version, const char *serial)
 {
@@ -1776,7 +1780,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     s->smart_errors = 0;
     s->smart_selftest_count = 0;
     if (kind == IDE_CD) {
-        bdrv_set_change_cb(bs, cdrom_change_cb, s);
+        bdrv_set_dev_ops(bs, &ide_cd_block_ops, s);
         bs->buffer_alignment = 2048;
     } else {
         if (!bdrv_is_inserted(s->bs)) {

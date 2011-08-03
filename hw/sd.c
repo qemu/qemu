@@ -435,6 +435,10 @@ static void sd_cardchange(void *opaque, int reason)
     }
 }
 
+static const BlockDevOps sd_block_ops = {
+    .change_cb = sd_cardchange,
+};
+
 /* We do not model the chip select pin, so allow the board to select
    whether card should be in SSI or MMC/SD mode.  It is also up to the
    board to ensure that ssi transfers only occur when the chip select
@@ -450,7 +454,7 @@ SDState *sd_init(BlockDriverState *bs, int is_spi)
     sd_reset(sd, bs);
     if (sd->bdrv) {
         bdrv_attach_dev_nofail(sd->bdrv, sd);
-        bdrv_set_change_cb(sd->bdrv, sd_cardchange, sd);
+        bdrv_set_dev_ops(sd->bdrv, &sd_block_ops, sd);
     }
     return sd;
 }

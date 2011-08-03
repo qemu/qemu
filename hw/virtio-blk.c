@@ -552,6 +552,10 @@ static void virtio_blk_change_cb(void *opaque, int reason)
     }
 }
 
+static const BlockDevOps virtio_block_ops = {
+    .change_cb = virtio_blk_change_cb,
+};
+
 VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
                               char **serial)
 {
@@ -598,7 +602,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
     register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
     bdrv_set_removable(s->bs, 0);
-    bdrv_set_change_cb(s->bs, virtio_blk_change_cb, s);
+    bdrv_set_dev_ops(s->bs, &virtio_block_ops, s);
     s->bs->buffer_alignment = conf->logical_block_size;
 
     add_boot_device_path(conf->bootindex, dev, "/disk@0,0");

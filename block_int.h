@@ -161,15 +161,14 @@ struct BlockDriverState {
     int encrypted; /* if true, the media is encrypted */
     int valid_key; /* if true, a valid encryption key has been set */
     int sg;        /* if true, the device is a /dev/sg* */
-    /* event callback when inserting/removing */
-    void (*change_cb)(void *opaque, int reason);
-    void *change_opaque;
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
 
     void *dev;                  /* attached device model, if any */
     /* TODO change to DeviceState when all users are qdevified */
+    const BlockDevOps *dev_ops;
+    void *dev_opaque;
 
     char filename[1024];
     char backing_file[1024]; /* if non zero, the image is a diff of
