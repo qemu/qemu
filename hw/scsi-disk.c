@@ -102,21 +102,15 @@ static void scsi_disk_clear_sense(SCSIDiskState *s)
     memset(&s->sense, 0, sizeof(s->sense));
 }
 
-static void scsi_req_set_status(SCSIDiskReq *r, int status, SCSISense sense)
-{
-    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
-
-    r->req.status = status;
-    s->sense = sense;
-}
-
 /* Helper function for command completion.  */
 static void scsi_command_complete(SCSIDiskReq *r, int status, SCSISense sense)
 {
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
     DPRINTF("Command complete tag=0x%x status=%d sense=%d/%d/%d\n",
             r->req.tag, status, sense.key, sense.asc, sense.ascq);
-    scsi_req_set_status(r, status, sense);
-    scsi_req_complete(&r->req);
+    s->sense = sense;
+    scsi_req_complete(&r->req, status);
 }
 
 /* Cancel a pending data transfer.  */
@@ -969,7 +963,6 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         scsi_command_complete(r, CHECK_CONDITION, SENSE_CODE(INVALID_OPCODE));
         return -1;
     }
-    scsi_req_set_status(r, GOOD, SENSE_CODE(NO_SENSE));
     return buflen;
 
 not_ready:

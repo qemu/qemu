@@ -682,9 +682,10 @@ void scsi_req_print(SCSIRequest *req)
     }
 }
 
-void scsi_req_complete(SCSIRequest *req)
+void scsi_req_complete(SCSIRequest *req, int status)
 {
-    assert(req->status != -1);
+    assert(req->status == -1);
+    req->status = status;
     scsi_req_ref(req);
     scsi_req_dequeue(req);
     req->bus->ops->complete(req, req->status);
@@ -706,11 +707,10 @@ void scsi_req_cancel(SCSIRequest *req)
 
 void scsi_req_abort(SCSIRequest *req, int status)
 {
-    req->status = status;
     if (req->dev && req->dev->info->cancel_io) {
         req->dev->info->cancel_io(req);
     }
-    scsi_req_complete(req);
+    scsi_req_complete(req, status);
 }
 
 void scsi_device_purge_requests(SCSIDevice *sdev)

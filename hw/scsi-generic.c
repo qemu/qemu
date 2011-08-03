@@ -115,6 +115,7 @@ static void scsi_free_request(SCSIRequest *req)
 /* Helper function for command completion.  */
 static void scsi_command_complete(void *opaque, int ret)
 {
+    int status;
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, r->req.dev);
 
@@ -126,36 +127,37 @@ static void scsi_command_complete(void *opaque, int ret)
     if (ret != 0) {
         switch (ret) {
         case -EDOM:
-            r->req.status = TASK_SET_FULL;
+            status = TASK_SET_FULL;
             break;
         case -EINVAL:
-            r->req.status = CHECK_CONDITION;
+            status = CHECK_CONDITION;
             scsi_set_sense(s, SENSE_CODE(INVALID_FIELD));
             break;
         case -ENOMEM:
-            r->req.status = CHECK_CONDITION;
+            status = CHECK_CONDITION;
             scsi_set_sense(s, SENSE_CODE(TARGET_FAILURE));
             break;
         default:
-            r->req.status = CHECK_CONDITION;
+            status = CHECK_CONDITION;
             scsi_set_sense(s, SENSE_CODE(IO_ERROR));
             break;
         }
     } else {
         if (s->driver_status & SG_ERR_DRIVER_TIMEOUT) {
-            r->req.status = BUSY;
+            status = BUSY;
             BADF("Driver Timeout\n");
-        } else if (r->io_header.status)
-            r->req.status = r->io_header.status;
-        else if (s->driver_status & SG_ERR_DRIVER_SENSE)
-            r->req.status = CHECK_CONDITION;
-        else
-            r->req.status = GOOD;
+        } else if (r->io_header.status) {
+            status = r->io_header.status;
+        } else if (s->driver_status & SG_ERR_DRIVER_SENSE) {
+            status = CHECK_CONDITION;
+        } else {
+            status = GOOD;
+        }
     }
     DPRINTF("Command complete 0x%p tag=0x%x status=%d\n",
-            r, r->req.tag, r->req.status);
+            r, r->req.tag, status);
 
-    scsi_req_complete(&r->req);
+    scsi_req_complete(&r->req, status);
 }
 
 /* Cancel a pending data transfer.  */
@@ -341,8 +343,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     if (cmd[0] != REQUEST_SENSE && req->lun != s->lun) {
         DPRINTF("Unimplemented LUN %d\n", req->lun);
         scsi_set_sense(s, SENSE_CODE(LUN_NOT_SUPPORTED));
-        r->req.status = CHECK_CONDITION;
-        scsi_req_complete(&r->req);
+        scsi_req_complete(&r->req, CHECK_CONDITION);
         return 0;
     }
 
