@@ -381,14 +381,14 @@ static void scsi_generic_reset(DeviceState *dev)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev.qdev, dev);
 
-    scsi_device_purge_requests(&s->qdev);
+    scsi_device_purge_requests(&s->qdev, SENSE_CODE(RESET));
 }
 
 static void scsi_destroy(SCSIDevice *d)
 {
     SCSIGenericState *s = DO_UPCAST(SCSIGenericState, qdev, d);
 
-    scsi_device_purge_requests(&s->qdev);
+    scsi_device_purge_requests(&s->qdev, SENSE_CODE(NO_SENSE));
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 

@@ -1099,7 +1099,7 @@ void scsi_req_abort(SCSIRequest *req, int status)
     scsi_req_complete(req, status);
 }
 
-void scsi_device_purge_requests(SCSIDevice *sdev)
+void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
 {
     SCSIRequest *req;
 
@@ -1107,6 +1107,7 @@ void scsi_device_purge_requests(SCSIDevice *sdev)
         req = QTAILQ_FIRST(&sdev->requests);
         scsi_req_cancel(req);
     }
+    sdev->unit_attention = sense;
 }
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev)
