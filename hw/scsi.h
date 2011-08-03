@@ -165,7 +165,6 @@ SCSIRequest *scsi_req_ref(SCSIRequest *req);
 void scsi_req_unref(SCSIRequest *req);
 
 void scsi_req_build_sense(SCSIRequest *req, SCSISense sense);
-int scsi_req_parse(SCSIRequest *req, uint8_t *buf);
 void scsi_req_print(SCSIRequest *req);
 void scsi_req_continue(SCSIRequest *req);
 void scsi_req_data(SCSIRequest *req, int len);

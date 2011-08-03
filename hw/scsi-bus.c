@@ -7,6 +7,7 @@
 #include "trace.h"
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
+static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
 static int scsi_build_sense(uint8_t *in_buf, int in_len,
                             uint8_t *buf, int len, bool fixed);
 
@@ -134,6 +135,20 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     return res;
 }
 
+/* SCSIReqOps implementation for invalid commands.  */
+
+static int32_t scsi_invalid_command(SCSIRequest *req, uint8_t *buf)
+{
+    scsi_req_build_sense(req, SENSE_CODE(INVALID_OPCODE));
+    scsi_req_complete(req, CHECK_CONDITION);
+    return 0;
+}
+
+struct SCSIReqOps reqops_invalid_opcode = {
+    .size         = sizeof(SCSIRequest),
+    .send_command = scsi_invalid_command
+};
+
 SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
                             uint32_t lun, void *hba_private)
 {
@@ -157,8 +172,22 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                           uint8_t *buf, void *hba_private)
 {
     SCSIRequest *req;
-    req = d->info->alloc_req(d, tag, lun, hba_private);
-    memcpy(req->cmd.buf, buf, 16);
+    SCSICommand cmd;
+
+    if (scsi_req_parse(&cmd, d, buf) != 0) {
+        trace_scsi_req_parse_bad(d->id, lun, tag, buf[0]);
+        req = scsi_req_alloc(&reqops_invalid_opcode, d, tag, lun, hba_private);
+    } else {
+        trace_scsi_req_parsed(d->id, lun, tag, buf[0],
+                              cmd.mode, cmd.xfer);
+        if (req->cmd.lba != -1) {
+            trace_scsi_req_parsed_lba(d->id, lun, tag, buf[0],
+                                      cmd.lba);
+        }
+        req = d->info->alloc_req(d, tag, lun, hba_private);
+    }
+
+    req->cmd = cmd;
     return req;
 }
 
@@ -424,27 +453,21 @@ static uint64_t scsi_cmd_lba(SCSICommand *cmd)
     return lba;
 }
 
-int scsi_req_parse(SCSIRequest *req, uint8_t *buf)
+int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
 {
     int rc;
 
-    if (req->dev->type == TYPE_TAPE) {
-        rc = scsi_req_stream_length(&req->cmd, req->dev, buf);
+    if (dev->type == TYPE_TAPE) {
+        rc = scsi_req_stream_length(cmd, dev, buf);
     } else {
-        rc = scsi_req_length(&req->cmd, req->dev, buf);
+        rc = scsi_req_length(cmd, dev, buf);
     }
     if (rc != 0)
         return rc;
 
-    assert(buf == req->cmd.buf);
-    scsi_cmd_xfer_mode(&req->cmd);
-    req->cmd.lba = scsi_cmd_lba(&req->cmd);
-    trace_scsi_req_parsed(req->dev->id, req->lun, req->tag, buf[0],
-                          req->cmd.mode, req->cmd.xfer);
-    if (req->cmd.lba != -1) {
-        trace_scsi_req_parsed_lba(req->dev->id, req->lun, req->tag, buf[0],
-                              req->cmd.lba);
-    }
+    memcpy(cmd->buf, buf, cmd->len);
+    scsi_cmd_xfer_mode(cmd);
+    cmd->lba = scsi_cmd_lba(cmd);
     return 0;
 }
 

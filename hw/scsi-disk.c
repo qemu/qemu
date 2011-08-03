@@ -964,11 +964,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     outbuf = (uint8_t *)r->iov.iov_base;
     DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", req->lun, req->tag, buf[0]);
 
-    if (scsi_req_parse(&r->req, buf) != 0) {
-        BADF("Unsupported command length, command %x\n", command);
-        scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
-        return 0;
-    }
 #ifdef DEBUG_SCSI
     {
         int i;

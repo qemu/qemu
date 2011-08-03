@@ -84,10 +84,6 @@ static void scsi_command_complete(void *opaque, int ret)
         case -EDOM:
             status = TASK_SET_FULL;
             break;
-        case -EINVAL:
-            status = CHECK_CONDITION;
-            scsi_req_build_sense(&r->req, SENSE_CODE(INVALID_FIELD));
-            break;
         case -ENOMEM:
             status = CHECK_CONDITION;
             scsi_req_build_sense(&r->req, SENSE_CODE(TARGET_FAILURE));
@@ -298,11 +294,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
         return 0;
     }
 
-    if (-1 == scsi_req_parse(&r->req, cmd)) {
-        BADF("Unsupported command length, command %x\n", cmd[0]);
-        scsi_command_complete(r, -EINVAL);
-        return 0;
-    }
     scsi_req_fixup(&r->req);
 
     DPRINTF("Command: lun=%d tag=0x%x len %zd data=0x%02x", lun, tag,
