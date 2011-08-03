@@ -22,12 +22,17 @@ unsigned memory_region_transaction_depth = 0;
 
 typedef struct AddrRange AddrRange;
 
+/*
+ * Note using signed integers limits us to physical addresses at most
+ * 63 bits wide.  They are needed for negative offsetting in aliases
+ * (large MemoryRegion::alias_offset).
+ */
 struct AddrRange {
-    uint64_t start;
-    uint64_t size;
+    int64_t start;
+    int64_t size;
 };
 
-static AddrRange addrrange_make(uint64_t start, uint64_t size)
+static AddrRange addrrange_make(int64_t start, int64_t size)
 {
     return (AddrRange) { start, size };
 }
@@ -37,7 +42,7 @@ static bool addrrange_equal(AddrRange r1, AddrRange r2)
     return r1.start == r2.start && r1.size == r2.size;
 }
 
-static uint64_t addrrange_end(AddrRange r)
+static int64_t addrrange_end(AddrRange r)
 {
     return r.start + r.size;
 }
@@ -56,9 +61,9 @@ static bool addrrange_intersects(AddrRange r1, AddrRange r2)
 
 static AddrRange addrrange_intersection(AddrRange r1, AddrRange r2)
 {
-    uint64_t start = MAX(r1.start, r2.start);
+    int64_t start = MAX(r1.start, r2.start);
     /* off-by-one arithmetic to prevent overflow */
-    uint64_t end = MIN(addrrange_end(r1) - 1, addrrange_end(r2) - 1);
+    int64_t end = MIN(addrrange_end(r1) - 1, addrrange_end(r2) - 1);
     return addrrange_make(start, end - start + 1);
 }
 
@@ -411,8 +416,8 @@ static void render_memory_region(FlatView *view,
     MemoryRegion *subregion;
     unsigned i;
     target_phys_addr_t offset_in_region;
-    uint64_t remain;
-    uint64_t now;
+    int64_t remain;
+    int64_t now;
     FlatRange fr;
     AddrRange tmp;
 
@@ -486,7 +491,7 @@ static FlatView generate_memory_topology(MemoryRegion *mr)
 
     flatview_init(&view);
 
-    render_memory_region(&view, mr, 0, addrrange_make(0, UINT64_MAX));
+    render_memory_region(&view, mr, 0, addrrange_make(0, INT64_MAX));
     flatview_simplify(&view);
 
     return view;
