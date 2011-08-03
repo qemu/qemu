@@ -979,7 +979,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
         break;
-	case WIN_READ_EXT:
+    case WIN_READ_EXT:
 	lba48 = 1;
     case WIN_READ:
     case WIN_READ_ONCE:
@@ -989,7 +989,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         s->req_nb_sectors = 1;
         ide_sector_read(s);
         break;
-	case WIN_WRITE_EXT:
+    case WIN_WRITE_EXT:
 	lba48 = 1;
     case WIN_WRITE:
     case WIN_WRITE_ONCE:
@@ -1002,7 +1002,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
         s->media_changed = 1;
         break;
-	case WIN_MULTREAD_EXT:
+    case WIN_MULTREAD_EXT:
 	lba48 = 1;
     case WIN_MULTREAD:
         if (!s->mult_sectors)
@@ -1027,7 +1027,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
         s->media_changed = 1;
         break;
-	case WIN_READDMA_EXT:
+    case WIN_READDMA_EXT:
 	lba48 = 1;
     case WIN_READDMA:
     case WIN_READDMA_ONCE:
@@ -1036,7 +1036,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 	ide_cmd_lba48_transform(s, lba48);
         ide_sector_start_dma(s, IDE_DMA_READ);
         break;
-	case WIN_WRITEDMA_EXT:
+    case WIN_WRITEDMA_EXT:
 	lba48 = 1;
     case WIN_WRITEDMA:
     case WIN_WRITEDMA_ONCE:
@@ -1261,7 +1261,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_set_irq(s->bus);
         break;
 
-	case WIN_SMART:
+    case WIN_SMART:
 	if (s->drive_kind == IDE_CD)
 		goto abort_cmd;
 	if (s->hcyl != 0xc2 || s->lcyl != 0x4f)
