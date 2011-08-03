@@ -62,6 +62,7 @@ struct SCSIDevice
     uint32_t id;
     BlockConf conf;
     SCSIDeviceInfo *info;
+    SCSISense unit_attention;
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     QTAILQ_HEAD(, SCSIRequest) requests;
@@ -105,6 +106,7 @@ struct SCSIBus {
     BusState qbus;
     int busnr;
 
+    SCSISense unit_attention;
     int tcq, ndev;
     const SCSIBusOps *ops;
 

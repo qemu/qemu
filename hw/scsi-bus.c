@@ -149,6 +149,24 @@ struct SCSIReqOps reqops_invalid_opcode = {
     .send_command = scsi_invalid_command
 };
 
+/* SCSIReqOps implementation for unit attention conditions.  */
+
+static int32_t scsi_unit_attention(SCSIRequest *req, uint8_t *buf)
+{
+    if (req->dev && req->dev->unit_attention.key == UNIT_ATTENTION) {
+        scsi_req_build_sense(req, req->dev->unit_attention);
+    } else if (req->bus->unit_attention.key == UNIT_ATTENTION) {
+        scsi_req_build_sense(req, req->bus->unit_attention);
+    }
+    scsi_req_complete(req, CHECK_CONDITION);
+    return 0;
+}
+
+struct SCSIReqOps reqops_unit_attention = {
+    .size         = sizeof(SCSIRequest),
+    .send_command = scsi_unit_attention
+};
+
 /* SCSIReqOps implementation for REPORT LUNS and for commands sent to
    an invalid LUN.  */
 
@@ -344,6 +362,7 @@ SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                           uint8_t *buf, void *hba_private)
 {
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, d->qdev.parent_bus);
     SCSIRequest *req;
     SCSICommand cmd;
 
@@ -358,7 +377,15 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                                       cmd.lba);
         }
 
-        if (lun != d->lun ||
+        if ((d->unit_attention.key == UNIT_ATTENTION ||
+             bus->unit_attention.key == UNIT_ATTENTION) &&
+            (buf[0] != INQUIRY &&
+             buf[0] != REPORT_LUNS &&
+             buf[0] != GET_CONFIGURATION &&
+             buf[0] != GET_EVENT_STATUS_NOTIFICATION)) {
+            req = scsi_req_alloc(&reqops_unit_attention, d, tag, lun,
+                                 hba_private);
+        } else if (lun != d->lun ||
             buf[0] == REPORT_LUNS ||
             buf[0] == REQUEST_SENSE) {
             req = scsi_req_alloc(&reqops_target_command, d, tag, lun,
@@ -377,13 +404,68 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req)
     return req->ops->get_buf(req);
 }
 
+static void scsi_clear_unit_attention(SCSIRequest *req)
+{
+    SCSISense *ua;
+    if (req->dev->unit_attention.key != UNIT_ATTENTION &&
+        req->bus->unit_attention.key != UNIT_ATTENTION) {
+        return;
+    }
+
+    /*
+     * If an INQUIRY command enters the enabled command state,
+     * the device server shall [not] clear any unit attention condition;
+     * See also MMC-6, paragraphs 6.5 and 6.6.2.
+     */
+    if (req->cmd.buf[0] == INQUIRY ||
+        req->cmd.buf[0] == GET_CONFIGURATION ||
+        req->cmd.buf[0] == GET_EVENT_STATUS_NOTIFICATION) {
+        return;
+    }
+
+    if (req->dev->unit_attention.key == UNIT_ATTENTION) {
+        ua = &req->dev->unit_attention;
+    } else {
+        ua = &req->bus->unit_attention;
+    }
+
+    /*
+     * If a REPORT LUNS command enters the enabled command state, [...]
+     * the device server shall clear any pending unit attention condition
+     * with an additional sense code of REPORTED LUNS DATA HAS CHANGED.
+     */
+    if (req->cmd.buf[0] == REPORT_LUNS &&
+        !(ua->asc == SENSE_CODE(REPORTED_LUNS_CHANGED).asc &&
+          ua->ascq == SENSE_CODE(REPORTED_LUNS_CHANGED).ascq)) {
+        return;
+    }
+
+    *ua = SENSE_CODE(NO_SENSE);
+}
+
 int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len)
 {
+    int ret;
+
     assert(len >= 14);
     if (!req->sense_len) {
         return 0;
     }
-    return scsi_build_sense(req->sense, req->sense_len, buf, len, true);
+
+    ret = scsi_build_sense(req->sense, req->sense_len, buf, len, true);
+
+    /*
+     * FIXME: clearing unit attention conditions upon autosense should be done
+     * only if the UA_INTLCK_CTRL field in the Control mode page is set to 00b
+     * (SAM-5, 5.14).
+     *
+     * We assume UA_INTLCK_CTRL to be 00b for HBAs that support autosense, and
+     * 10b for HBAs that do not support it (do not call scsi_req_get_sense).
+     * In the latter case, scsi_req_complete clears unit attention conditions
+     * after moving them to the device's sense buffer.
+     */
+    scsi_clear_unit_attention(req);
+    return ret;
 }
 
 int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed)
@@ -982,6 +1064,13 @@ void scsi_req_complete(SCSIRequest *req, int status)
         memcpy(req->dev->sense, req->sense, req->sense_len);
     }
     req->dev->sense_len = req->sense_len;
+
+    /*
+     * Unit attention state is now stored in the device's sense buffer
+     * if the HBA didn't do autosense.  Clear the pending unit attention
+     * flags.
+     */
+    scsi_clear_unit_attention(req);
 
     scsi_req_ref(req);
     scsi_req_dequeue(req);

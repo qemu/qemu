@@ -78,6 +78,7 @@
 #define READ_TOC              0x43
 #define REPORT_DENSITY_SUPPORT 0x44
 #define GET_CONFIGURATION     0x46
+#define GET_EVENT_STATUS_NOTIFICATION 0x4a
 #define LOG_SELECT            0x4c
 #define LOG_SENSE             0x4d
 #define MODE_SELECT_10        0x55
