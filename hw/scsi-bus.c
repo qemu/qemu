@@ -153,9 +153,12 @@ SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
 }
 
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
-                          void *hba_private)
+                          uint8_t *buf, void *hba_private)
 {
-    return d->info->alloc_req(d, tag, lun, hba_private);
+    SCSIRequest *req;
+    req = d->info->alloc_req(d, tag, lun, hba_private);
+    memcpy(req->cmd.buf, buf, 16);
+    return req;
 }
 
 uint8_t *scsi_req_get_buf(SCSIRequest *req)
@@ -189,7 +192,7 @@ void scsi_req_build_sense(SCSIRequest *req, SCSISense sense)
     req->sense_len = 18;
 }
 
-int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf)
+int32_t scsi_req_enqueue(SCSIRequest *req)
 {
     int32_t rc;
 
@@ -199,7 +202,7 @@ int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf)
     QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
 
     scsi_req_ref(req);
-    rc = req->ops->send_command(req, buf);
+    rc = req->ops->send_command(req, req->cmd.buf);
     scsi_req_unref(req);
     return rc;
 }
@@ -431,7 +434,7 @@ int scsi_req_parse(SCSIRequest *req, uint8_t *buf)
     if (rc != 0)
         return rc;
 
-    memcpy(req->cmd.buf, buf, req->cmd.len);
+    assert(buf == req->cmd.buf);
     scsi_req_xfer_mode(req);
     req->cmd.lba = scsi_req_lba(req);
     trace_scsi_req_parsed(req->dev->id, req->lun, req->tag, buf[0],

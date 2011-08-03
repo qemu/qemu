@@ -154,8 +154,8 @@ int scsi_sense_valid(SCSISense sense);
 SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
                             uint32_t lun, void *hba_private);
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
-                          void *hba_private);
-int32_t scsi_req_enqueue(SCSIRequest *req, uint8_t *buf);
+                          uint8_t *buf, void *hba_private);
+int32_t scsi_req_enqueue(SCSIRequest *req);
 void scsi_req_free(SCSIRequest *req);
 SCSIRequest *scsi_req_ref(SCSIRequest *req);
 void scsi_req_unref(SCSIRequest *req);

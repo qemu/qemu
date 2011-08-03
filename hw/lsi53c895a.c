@@ -781,10 +781,10 @@ static void lsi_do_command(LSIState *s)
     assert(s->current == NULL);
     s->current = qemu_mallocz(sizeof(lsi_request));
     s->current->tag = s->select_tag;
-    s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun,
+    s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun, buf,
                                    s->current);
 
-    n = scsi_req_enqueue(s->current->req, buf);
+    n = scsi_req_enqueue(s->current->req);
     if (n) {
         if (n > 0) {
             lsi_set_phase(s, PHASE_DI);
