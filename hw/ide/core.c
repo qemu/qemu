@@ -1129,7 +1129,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     case WIN_STANDBYNOW1:
     case WIN_STANDBYNOW2:
     case WIN_IDLEIMMEDIATE:
-    case CFA_IDLEIMMEDIATE:
+    case WIN_IDLEIMMEDIATE2:
     case WIN_SETIDLE1:
     case WIN_SETIDLE2:
     case WIN_SLEEPNOW1:
@@ -1168,7 +1168,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
                           */
         ide_set_irq(s->bus);
         break;
-    case WIN_SRST:
+    case WIN_DEVICE_RESET:
         if (s->drive_kind != IDE_CD)
             goto abort_cmd;
         ide_set_signature(s);
