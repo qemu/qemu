@@ -133,12 +133,12 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     return res;
 }
 
-SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag,
+SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
                             uint32_t lun, void *hba_private)
 {
     SCSIRequest *req;
 
-    req = qemu_mallocz(size);
+    req = qemu_mallocz(reqops->size);
     req->refcount = 1;
     req->bus = scsi_bus_from_device(d);
     req->dev = d;
@@ -147,6 +147,7 @@ SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag,
     req->hba_private = hba_private;
     req->status = -1;
     req->sense_len = 0;
+    req->ops = reqops;
     trace_scsi_req_alloc(req->dev->id, req->lun, req->tag);
     return req;
 }

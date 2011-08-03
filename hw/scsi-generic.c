@@ -63,15 +63,6 @@ struct SCSIGenericState
     int lun;
 };
 
-static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
-                                     void *hba_private)
-{
-    SCSIRequest *req;
-
-    req = scsi_req_alloc(sizeof(SCSIGenericReq), d, tag, lun, hba_private);
-    return req;
-}
-
 static void scsi_free_request(SCSIRequest *req)
 {
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
@@ -496,6 +487,19 @@ static int scsi_generic_initfn(SCSIDevice *dev)
     DPRINTF("block size %d\n", s->qdev.blocksize);
     bdrv_set_removable(s->bs, 0);
     return 0;
+}
+
+static SCSIReqOps scsi_generic_req_ops = {
+    .size         = sizeof(SCSIGenericReq),
+};
+
+static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
+                                     void *hba_private)
+{
+    SCSIRequest *req;
+
+    req = scsi_req_alloc(&scsi_generic_req_ops, d, tag, lun, hba_private);
+    return req;
 }
 
 static SCSIDeviceInfo scsi_generic_info = {

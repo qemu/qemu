@@ -14,6 +14,7 @@ typedef struct SCSIBusOps SCSIBusOps;
 typedef struct SCSIDevice SCSIDevice;
 typedef struct SCSIDeviceInfo SCSIDeviceInfo;
 typedef struct SCSIRequest SCSIRequest;
+typedef struct SCSIReqOps SCSIReqOps;
 
 enum SCSIXferMode {
     SCSI_XFER_NONE,      /*  TEST_UNIT_READY, ...            */
@@ -32,6 +33,7 @@ typedef struct SCSISense {
 struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
+    SCSIReqOps        *ops;
     uint32_t          refcount;
     uint32_t          tag;
     uint32_t          lun;
@@ -69,6 +71,10 @@ int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track);
 int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num);
 
 /* scsi-bus.c */
+struct SCSIReqOps {
+    size_t size;
+};
+
 typedef int (*scsi_qdev_initfn)(SCSIDevice *dev);
 struct SCSIDeviceInfo {
     DeviceInfo qdev;
@@ -144,7 +150,7 @@ extern const struct SCSISense sense_code_LUN_FAILURE;
 
 int scsi_sense_valid(SCSISense sense);
 
-SCSIRequest *scsi_req_alloc(size_t size, SCSIDevice *d, uint32_t tag,
+SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
                             uint32_t lun, void *hba_private);
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                           void *hba_private);
