@@ -396,6 +396,23 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
     }
 
     req->cmd = cmd;
+    switch (buf[0]) {
+    case INQUIRY:
+        trace_scsi_inquiry(d->id, lun, tag, cmd.buf[1], cmd.buf[2]);
+        break;
+    case TEST_UNIT_READY:
+        trace_scsi_test_unit_ready(d->id, lun, tag);
+        break;
+    case REPORT_LUNS:
+        trace_scsi_report_luns(d->id, lun, tag);
+        break;
+    case REQUEST_SENSE:
+        trace_scsi_request_sense(d->id, lun, tag);
+        break;
+    default:
+        break;
+    }
+
     return req;
 }
 

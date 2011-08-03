@@ -252,6 +252,10 @@ disable scsi_req_parsed(int target, int lun, int tag, int cmd, int mode, int xfe
 disable scsi_req_parsed_lba(int target, int lun, int tag, int cmd, uint64_t lba) "target %d lun %d tag %d command %d lba %"PRIu64""
 disable scsi_req_parse_bad(int target, int lun, int tag, int cmd) "target %d lun %d tag %d command %d"
 disable scsi_req_build_sense(int target, int lun, int tag, int key, int asc, int ascq) "target %d lun %d tag %d key %#02x asc %#02x ascq %#02x"
+disable scsi_report_luns(int target, int lun, int tag) "target %d lun %d tag %d"
+disable scsi_inquiry(int target, int lun, int tag, int cdb1, int cdb2) "target %d lun %d tag %d page %#02x/%#02x"
+disable scsi_test_unit_ready(int target, int lun, int tag) "target %d lun %d tag %d"
+disable scsi_request_sense(int target, int lun, int tag) "target %d lun %d tag %d"
 
 # vl.c
 disable vm_state_notify(int running, int reason) "running %d reason %d"
