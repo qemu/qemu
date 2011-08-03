@@ -65,6 +65,7 @@ struct SCSIDevice
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     QTAILQ_HEAD(, SCSIRequest) requests;
+    uint32_t lun;
     int blocksize;
     int type;
 };

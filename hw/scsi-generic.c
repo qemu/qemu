@@ -60,7 +60,6 @@ struct SCSIGenericState
 {
     SCSIDevice qdev;
     BlockDriverState *bs;
-    int lun;
 };
 
 static void scsi_free_request(SCSIRequest *req)
@@ -292,7 +291,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
     int ret;
 
-    if (cmd[0] != REQUEST_SENSE && req->lun != s->lun) {
+    if (cmd[0] != REQUEST_SENSE && req->lun != s->qdev.lun) {
         DPRINTF("Unimplemented LUN %d\n", req->lun);
         scsi_req_build_sense(&r->req, SENSE_CODE(LUN_NOT_SUPPORTED));
         scsi_req_complete(&r->req, CHECK_CONDITION);
@@ -466,8 +465,6 @@ static int scsi_generic_initfn(SCSIDevice *dev)
     }
 
     /* define device state */
-    s->lun = scsiid.lun;
-    DPRINTF("LUN %d\n", s->lun);
     s->qdev.type = scsiid.scsi_type;
     DPRINTF("device type %d\n", s->qdev.type);
     if (s->qdev.type == TYPE_TAPE) {

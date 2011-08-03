@@ -16,6 +16,7 @@ static struct BusInfo scsi_bus_info = {
     .get_fw_dev_path = scsibus_get_fw_dev_path,
     .props = (Property[]) {
         DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
+        DEFINE_PROP_UINT32("lun", SCSIDevice, lun, 0),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
