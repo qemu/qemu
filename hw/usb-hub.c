@@ -394,11 +394,12 @@ static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
         if (p->devep == 1) {
             USBHubPort *port;
             unsigned int status;
+            uint8_t buf[4];
             int i, n;
             n = (NUM_PORTS + 1 + 7) / 8;
-            if (p->len == 1) { /* FreeBSD workaround */
+            if (p->iov.size == 1) { /* FreeBSD workaround */
                 n = 1;
-            } else if (n > p->len) {
+            } else if (n > p->iov.size) {
                 return USB_RET_BABBLE;
             }
             status = 0;
@@ -409,8 +410,9 @@ static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
             }
             if (status != 0) {
                 for(i = 0; i < n; i++) {
-                    p->data[i] = status >> (8 * i);
+                    buf[i] = status >> (8 * i);
                 }
+                usb_packet_copy(p, buf, n);
                 ret = n;
             } else {
                 ret = USB_RET_NAK; /* usb11 11.13.1 */
