@@ -725,7 +725,7 @@ void scsi_device_purge_requests(SCSIDevice *sdev)
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev)
 {
-    SCSIDevice *d = (SCSIDevice*)dev;
+    SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
     SCSIBus *bus = scsi_bus_from_device(d);
     char path[100];
     int i;
