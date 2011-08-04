@@ -32,6 +32,7 @@
 #include "qemu-log.h"
 #include "loader.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 #define BIOS_FILENAME "ppc405_rom.bin"
 #define BIOS_SIZE (2048 * 1024)
@@ -181,7 +182,8 @@ static void ref405ep_init (ram_addr_t ram_size,
     ppc4xx_bd_info_t bd;
     CPUPPCState *env;
     qemu_irq *pic;
-    ram_addr_t sram_offset, bios_offset, bdloc;
+    MemoryRegion *bios;
+    ram_addr_t sram_offset, bdloc;
     MemoryRegion *ram_memories = g_malloc(2 * sizeof(*ram_memories));
     target_phys_addr_t ram_bases[2], ram_sizes[2];
     target_ulong sram_size;
@@ -224,15 +226,15 @@ static void ref405ep_init (ram_addr_t ram_size,
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
     if (dinfo) {
         bios_size = bdrv_getlength(dinfo->bdrv);
-        bios_offset = qemu_ram_alloc(NULL, "ef405ep.bios", bios_size);
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size %lx"
-               " at offset %08lx addr %lx '%s' %d\n",
-               fl_idx, bios_size, bios_offset, -bios_size,
+               " at addr %lx '%s' %d\n",
+               fl_idx, bios_size, -bios_size,
                bdrv_get_device_name(dinfo->bdrv), fl_sectors);
 #endif
-        pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
+        pflash_cfi02_register((uint32_t)(-bios_size),
+                              NULL, "ef405ep.bios", bios_size,
                               dinfo->bdrv, 65536, fl_sectors, 1,
                               2, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
                               1);
@@ -243,12 +245,13 @@ static void ref405ep_init (ram_addr_t ram_size,
 #ifdef DEBUG_BOARD_INIT
         printf("Load BIOS from file\n");
 #endif
-        bios_offset = qemu_ram_alloc(NULL, "ef405ep.bios", BIOS_SIZE);
+        bios = g_new(MemoryRegion, 1);
+        memory_region_init_ram(bios, NULL, "ef405ep.bios", BIOS_SIZE);
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
-            bios_size = load_image(filename, qemu_get_ram_ptr(bios_offset));
+            bios_size = load_image(filename, memory_region_get_ram_ptr(bios));
             g_free(filename);
         } else {
             bios_size = -1;
@@ -259,8 +262,9 @@ static void ref405ep_init (ram_addr_t ram_size,
             exit(1);
         }
         bios_size = (bios_size + 0xfff) & ~0xfff;
-        cpu_register_physical_memory((uint32_t)(-bios_size),
-                                     bios_size, bios_offset | IO_MEM_ROM);
+        memory_region_set_readonly(bios, true);
+        memory_region_add_subregion(get_system_memory(),
+                                    (uint32_t)(-bios_size), bios);
     }
     /* Register FPGA */
 #ifdef DEBUG_BOARD_INIT
@@ -507,7 +511,7 @@ static void taihu_405ep_init(ram_addr_t ram_size,
 {
     char *filename;
     qemu_irq *pic;
-    ram_addr_t bios_offset;
+    MemoryRegion *bios;
     MemoryRegion *ram_memories = g_malloc(2 * sizeof(*ram_memories));
     target_phys_addr_t ram_bases[2], ram_sizes[2];
     long bios_size;
@@ -544,14 +548,14 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         /* XXX: should check that size is 2MB */
         //        bios_size = 2 * 1024 * 1024;
         fl_sectors = (bios_size + 65535) >> 16;
-        bios_offset = qemu_ram_alloc(NULL, "taihu_405ep.bios", bios_size);
 #ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size %lx"
-               " at offset %08lx addr %lx '%s' %d\n",
-               fl_idx, bios_size, bios_offset, -bios_size,
+               " at addr %lx '%s' %d\n",
+               fl_idx, bios_size, -bios_size,
                bdrv_get_device_name(dinfo->bdrv), fl_sectors);
 #endif
-        pflash_cfi02_register((uint32_t)(-bios_size), bios_offset,
+        pflash_cfi02_register((uint32_t)(-bios_size),
+                              NULL, "taihu_405ep.bios", bios_size,
                               dinfo->bdrv, 65536, fl_sectors, 1,
                               4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
                               1);
@@ -564,10 +568,11 @@ static void taihu_405ep_init(ram_addr_t ram_size,
 #endif
         if (bios_name == NULL)
             bios_name = BIOS_FILENAME;
-        bios_offset = qemu_ram_alloc(NULL, "taihu_405ep.bios", BIOS_SIZE);
+        bios = g_new(MemoryRegion, 1);
+        memory_region_init_ram(bios, NULL, "taihu_405ep.bios", BIOS_SIZE);
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
-            bios_size = load_image(filename, qemu_get_ram_ptr(bios_offset));
+            bios_size = load_image(filename, memory_region_get_ram_ptr(bios));
             g_free(filename);
         } else {
             bios_size = -1;
@@ -578,8 +583,9 @@ static void taihu_405ep_init(ram_addr_t ram_size,
             exit(1);
         }
         bios_size = (bios_size + 0xfff) & ~0xfff;
-        cpu_register_physical_memory((uint32_t)(-bios_size),
-                                     bios_size, bios_offset | IO_MEM_ROM);
+        memory_region_set_readonly(bios, true);
+        memory_region_add_subregion(get_system_memory(), (uint32_t)(-bios_size),
+                                    bios);
     }
     /* Register Linux flash */
     dinfo = drive_get(IF_PFLASH, 0, fl_idx);
@@ -590,12 +596,11 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         fl_sectors = (bios_size + 65535) >> 16;
 #ifdef DEBUG_BOARD_INIT
         printf("Register parallel flash %d size %lx"
-               " at offset %08lx  addr " TARGET_FMT_lx " '%s'\n",
-               fl_idx, bios_size, bios_offset, (target_ulong)0xfc000000,
+               " at addr " TARGET_FMT_lx " '%s'\n",
+               fl_idx, bios_size, (target_ulong)0xfc000000,
                bdrv_get_device_name(dinfo->bdrv));
 #endif
-        bios_offset = qemu_ram_alloc(NULL, "taihu_405ep.flash", bios_size);
-        pflash_cfi02_register(0xfc000000, bios_offset,
+        pflash_cfi02_register(0xfc000000, NULL, "taihu_405ep.flash", bios_size,
                               dinfo->bdrv, 65536, fl_sectors, 1,
                               4, 0x0001, 0x22DA, 0x0000, 0x0000, 0x555, 0x2AA,
                               1);

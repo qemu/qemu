@@ -126,10 +126,9 @@ static void mainstone_common_init(ram_addr_t ram_size,
             exit(1);
         }
 
-        if (!pflash_cfi01_register(mainstone_flash_base[i],
-                                   qemu_ram_alloc(NULL, i ? "mainstone.flash1" :
-                                                  "mainstone.flash0",
-                                                  MAINSTONE_FLASH),
+        if (!pflash_cfi01_register(mainstone_flash_base[i], NULL,
+                                   i ? "mainstone.flash1" : "mainstone.flash0",
+                                   MAINSTONE_FLASH,
                                    dinfo->bdrv, sector_len,
                                    MAINSTONE_FLASH / sector_len, 4, 0, 0, 0, 0,
                                    be)) {
