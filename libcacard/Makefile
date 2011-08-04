@@ -55,9 +55,8 @@ install-libcacard: libcacard.pc libcacard.la vscclient
 	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
 	libtool --mode=install $(INSTALL_PROG) vscclient "$(DESTDIR)$(bindir)"
 	libtool --mode=install $(INSTALL_PROG) libcacard.la "$(DESTDIR)$(libdir)"
-	libtool --mode=install $(INSTALL_PROG) libcacard.pc "$(DESTDIR)$(libdir)/pkgconfig"
+	libtool --mode=install $(INSTALL_DATA) libcacard.pc "$(DESTDIR)$(libdir)/pkgconfig"
 	for inc in *.h; do \
-		libtool --mode=install $(INSTALL_PROG) $(libcacard_srcpath)/$$inc "$(DESTDIR)$(libcacard_includedir)"; \
+		libtool --mode=install $(INSTALL_DATA) $(libcacard_srcpath)/$$inc "$(DESTDIR)$(libcacard_includedir)"; \
 	done
-
 endif
