@@ -87,6 +87,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
     while (offset < end_offset) {
 
 #ifdef DEBUG_EXT
+        BDRVQcowState *s = bs->opaque;
         /* Sanity check */
         if (offset > s->cluster_size)
             printf("qcow2_read_extension: suspicious offset %lu\n", offset);
@@ -280,7 +281,10 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     qemu_co_mutex_init(&s->lock);
 
 #ifdef DEBUG_ALLOC
-    qcow2_check_refcounts(bs);
+    {
+        BdrvCheckResult result = {0};
+        qcow2_check_refcounts(bs, &result);
+    }
 #endif
     return ret;
 
