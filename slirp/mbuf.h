@@ -86,6 +86,8 @@ struct mbuf {
 		char	m_dat_[1]; /* ANSI don't like 0 sized arrays */
 		char	*m_ext_;
 	} M_dat;
+    bool     arp_requested;
+    uint64_t expiration_date;
 };
 
 #define m_next		m_hdr.mh_next

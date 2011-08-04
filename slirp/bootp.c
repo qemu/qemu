@@ -149,6 +149,7 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
     struct in_addr preq_addr;
     int dhcp_msg_type, val;
     uint8_t *q;
+    uint8_t client_ethaddr[ETH_ALEN];
 
     /* extract exact DHCP msg type */
     dhcp_decode(bp, &dhcp_msg_type, &preq_addr);
@@ -164,8 +165,9 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
     if (dhcp_msg_type != DHCPDISCOVER &&
         dhcp_msg_type != DHCPREQUEST)
         return;
-    /* XXX: this is a hack to get the client mac address */
-    memcpy(slirp->client_ethaddr, bp->bp_hwaddr, 6);
+
+    /* Get client's hardware address from bootp request */
+    memcpy(client_ethaddr, bp->bp_hwaddr, ETH_ALEN);
 
     m = m_get(slirp);
     if (!m) {
@@ -178,25 +180,25 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
 
     if (dhcp_msg_type == DHCPDISCOVER) {
         if (preq_addr.s_addr != htonl(0L)) {
-            bc = request_addr(slirp, &preq_addr, slirp->client_ethaddr);
+            bc = request_addr(slirp, &preq_addr, client_ethaddr);
             if (bc) {
                 daddr.sin_addr = preq_addr;
             }
         }
         if (!bc) {
          new_addr:
-            bc = get_new_addr(slirp, &daddr.sin_addr, slirp->client_ethaddr);
+            bc = get_new_addr(slirp, &daddr.sin_addr, client_ethaddr);
             if (!bc) {
                 DPRINTF("no address left\n");
                 return;
             }
         }
-        memcpy(bc->macaddr, slirp->client_ethaddr, 6);
+        memcpy(bc->macaddr, client_ethaddr, ETH_ALEN);
     } else if (preq_addr.s_addr != htonl(0L)) {
-        bc = request_addr(slirp, &preq_addr, slirp->client_ethaddr);
+        bc = request_addr(slirp, &preq_addr, client_ethaddr);
         if (bc) {
             daddr.sin_addr = preq_addr;
-            memcpy(bc->macaddr, slirp->client_ethaddr, 6);
+            memcpy(bc->macaddr, client_ethaddr, ETH_ALEN);
         } else {
             daddr.sin_addr.s_addr = 0;
         }
@@ -209,6 +211,9 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
         }
     }
 
+    /* Update ARP table for this IP address */
+    arp_table_add(slirp, daddr.sin_addr.s_addr, client_ethaddr);
+
     saddr.sin_addr = slirp->vhost_addr;
     saddr.sin_port = htons(BOOTP_SERVER);
 
@@ -218,7 +223,7 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
     rbp->bp_xid = bp->bp_xid;
     rbp->bp_htype = 1;
     rbp->bp_hlen = 6;
-    memcpy(rbp->bp_hwaddr, bp->bp_hwaddr, 6);
+    memcpy(rbp->bp_hwaddr, bp->bp_hwaddr, ETH_ALEN);
 
     rbp->bp_yiaddr = daddr.sin_addr; /* Client IP address */
     rbp->bp_siaddr = saddr.sin_addr; /* Server IP address */
