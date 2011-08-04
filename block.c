@@ -448,6 +448,8 @@ int bdrv_parse_cache_flags(const char *mode, int *flags)
 
     if (!strcmp(mode, "off") || !strcmp(mode, "none")) {
         *flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
+    } else if (!strcmp(mode, "directsync")) {
+        *flags |= BDRV_O_NOCACHE;
     } else if (!strcmp(mode, "writeback")) {
         *flags |= BDRV_O_CACHE_WB;
     } else if (!strcmp(mode, "unsafe")) {
@@ -1188,8 +1190,8 @@ int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
         return ret;
     }
 
-    /* No flush needed for cache=writethrough, it uses O_DSYNC */
-    if ((bs->open_flags & BDRV_O_CACHE_MASK) != 0) {
+    /* No flush needed for cache modes that use O_DSYNC */
+    if ((bs->open_flags & BDRV_O_CACHE_WB) != 0) {
         bdrv_flush(bs);
     }
 
