@@ -834,6 +834,7 @@ void virtio_cleanup(VirtIODevice *vdev)
     if (vdev->config)
         qemu_free(vdev->config);
     qemu_free(vdev->vq);
+    qemu_free(vdev);
 }
 
 static void virtio_vmstate_change(void *opaque, int running, int reason)
