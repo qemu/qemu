@@ -393,41 +393,6 @@ static int hdev_open(BlockDriverState *bs, const char *filename, int flags)
     return 0;
 }
 
-#if 0
-/***********************************************/
-/* removable device additional commands */
-
-static int raw_is_inserted(BlockDriverState *bs)
-{
-    return 1;
-}
-
-static int raw_media_changed(BlockDriverState *bs)
-{
-    return -ENOTSUP;
-}
-
-static int raw_eject(BlockDriverState *bs, int eject_flag)
-{
-    DWORD ret_count;
-
-    if (s->type == FTYPE_FILE)
-        return -ENOTSUP;
-    if (eject_flag) {
-        DeviceIoControl(s->hfile, IOCTL_STORAGE_EJECT_MEDIA,
-                        NULL, 0, NULL, 0, &lpBytesReturned, NULL);
-    } else {
-        DeviceIoControl(s->hfile, IOCTL_STORAGE_LOAD_MEDIA,
-                        NULL, 0, NULL, 0, &lpBytesReturned, NULL);
-    }
-}
-
-static int raw_set_locked(BlockDriverState *bs, int locked)
-{
-    return -ENOTSUP;
-}
-#endif
-
 static int hdev_has_zero_init(BlockDriverState *bs)
 {
     return 0;

@@ -156,6 +156,7 @@ static int vpc_open(BlockDriverState *bs, int flags)
     struct vhd_dyndisk_header* dyndisk_header;
     uint8_t buf[HEADER_SIZE];
     uint32_t checksum;
+    int err = -1;
 
     if (bdrv_pread(bs->file, 0, s->footer_buf, HEADER_SIZE) != HEADER_SIZE)
         goto fail;
@@ -175,6 +176,11 @@ static int vpc_open(BlockDriverState *bs, int flags)
     // is too large usually)
     bs->total_sectors = (int64_t)
         be16_to_cpu(footer->cyls) * footer->heads * footer->secs_per_cyl;
+
+    if (bs->total_sectors >= 65535 * 16 * 255) {
+        err = -EFBIG;
+        goto fail;
+    }
 
     if (bdrv_pread(bs->file, be64_to_cpu(footer->data_offset), buf, HEADER_SIZE)
             != HEADER_SIZE)
@@ -222,7 +228,7 @@ static int vpc_open(BlockDriverState *bs, int flags)
 
     return 0;
  fail:
-    return -1;
+    return err;
 }
 
 /*

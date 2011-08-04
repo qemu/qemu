@@ -75,15 +75,14 @@ static int raw_is_inserted(BlockDriverState *bs)
     return bdrv_is_inserted(bs->file);
 }
 
-static int raw_eject(BlockDriverState *bs, int eject_flag)
+static void raw_eject(BlockDriverState *bs, int eject_flag)
 {
-    return bdrv_eject(bs->file, eject_flag);
+    bdrv_eject(bs->file, eject_flag);
 }
 
-static int raw_set_locked(BlockDriverState *bs, int locked)
+static void raw_set_locked(BlockDriverState *bs, int locked)
 {
     bdrv_set_locked(bs->file, locked);
-    return 0;
 }
 
 static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)

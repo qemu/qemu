@@ -2557,6 +2557,20 @@ EOF
 fi
 
 ##########################################
+# check if we have makecontext
+
+ucontext_coroutine=no
+if test "$darwin" != "yes"; then
+  cat > $TMPC << EOF
+#include <ucontext.h>
+int main(void) { makecontext(0, 0, 0); }
+EOF
+  if compile_prog "" "" ; then
+      ucontext_coroutine=yes
+  fi
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -3032,6 +3046,10 @@ if test "$zero_malloc" = "yes" ; then
 fi
 if test "$rbd" = "yes" ; then
   echo "CONFIG_RBD=y" >> $config_host_mak
+fi
+
+if test "$ucontext_coroutine" = "yes" ; then
+  echo "CONFIG_UCONTEXT_COROUTINE=y" >> $config_host_mak
 fi
 
 # USB host support

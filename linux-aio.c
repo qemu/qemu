@@ -31,7 +31,6 @@ struct qemu_laiocb {
     struct iocb iocb;
     ssize_t ret;
     size_t nbytes;
-    int async_context_id;
     QLIST_ENTRY(qemu_laiocb) node;
 };
 
@@ -39,7 +38,6 @@ struct qemu_laio_state {
     io_context_t ctx;
     int efd;
     int count;
-    QLIST_HEAD(, qemu_laiocb) completed_reqs;
 };
 
 static inline ssize_t io_event_ret(struct io_event *ev)
@@ -49,7 +47,6 @@ static inline ssize_t io_event_ret(struct io_event *ev)
 
 /*
  * Completes an AIO request (calls the callback and frees the ACB).
- * Be sure to be in the right AsyncContext before calling this function.
  */
 static void qemu_laio_process_completion(struct qemu_laio_state *s,
     struct qemu_laiocb *laiocb)
@@ -72,42 +69,12 @@ static void qemu_laio_process_completion(struct qemu_laio_state *s,
 }
 
 /*
- * Processes all queued AIO requests, i.e. requests that have return from OS
- * but their callback was not called yet. Requests that cannot have their
- * callback called in the current AsyncContext, remain in the queue.
- *
- * Returns 1 if at least one request could be completed, 0 otherwise.
+ * All requests are directly processed when they complete, so there's nothing
+ * left to do during qemu_aio_wait().
  */
 static int qemu_laio_process_requests(void *opaque)
 {
-    struct qemu_laio_state *s = opaque;
-    struct qemu_laiocb *laiocb, *next;
-    int res = 0;
-
-    QLIST_FOREACH_SAFE (laiocb, &s->completed_reqs, node, next) {
-        if (laiocb->async_context_id == get_async_context_id()) {
-            qemu_laio_process_completion(s, laiocb);
-            QLIST_REMOVE(laiocb, node);
-            res = 1;
-        }
-    }
-
-    return res;
-}
-
-/*
- * Puts a request in the completion queue so that its callback is called the
- * next time when it's possible. If we already are in the right AsyncContext,
- * the request is completed immediately instead.
- */
-static void qemu_laio_enqueue_completed(struct qemu_laio_state *s,
-    struct qemu_laiocb* laiocb)
-{
-    if (laiocb->async_context_id == get_async_context_id()) {
-        qemu_laio_process_completion(s, laiocb);
-    } else {
-        QLIST_INSERT_HEAD(&s->completed_reqs, laiocb, node);
-    }
+    return 0;
 }
 
 static void qemu_laio_completion_cb(void *opaque)
@@ -141,7 +108,7 @@ static void qemu_laio_completion_cb(void *opaque)
                     container_of(iocb, struct qemu_laiocb, iocb);
 
             laiocb->ret = io_event_ret(&events[i]);
-            qemu_laio_enqueue_completed(s, laiocb);
+            qemu_laio_process_completion(s, laiocb);
         }
     }
 }
@@ -204,7 +171,6 @@ BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
     laiocb->nbytes = nb_sectors * 512;
     laiocb->ctx = s;
     laiocb->ret = -EINPROGRESS;
-    laiocb->async_context_id = get_async_context_id();
 
     iocbs = &laiocb->iocb;
 
@@ -239,7 +205,6 @@ void *laio_init(void)
     struct qemu_laio_state *s;
 
     s = qemu_mallocz(sizeof(*s));
-    QLIST_INIT(&s->completed_reqs);
     s->efd = eventfd(0, 0);
     if (s->efd == -1)
         goto out_free_state;
