@@ -129,7 +129,8 @@ static void sx1_init(ram_addr_t ram_size,
     DriveInfo *dinfo;
     int fl_idx;
     uint32_t flash_size = flash0_size;
-    int be;
+    const MemoryRegionOps *flash_ops;
+    MemoryRegion *flash = g_new(MemoryRegion, 2);
 
     if (version == 2) {
         flash_size = flash2_size;
@@ -155,17 +156,18 @@ static void sx1_init(ram_addr_t ram_size,
 
     fl_idx = 0;
 #ifdef TARGET_WORDS_BIGENDIAN
-    be = 1;
+    flash_ops = &pflash_cfi01_ops_be;
 #else
-    be = 0;
+    flash_ops = &pflash_cfi01_ops_le;
 #endif
 
     if ((dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
-        if (!pflash_cfi01_register(OMAP_CS0_BASE, qemu_ram_alloc(NULL,
-                                   "omap_sx1.flash0-1", flash_size),
+        memory_region_init_rom_device(&flash[0], flash_ops,
+                                      NULL, "omap_sx1.flash0-1", flash_size);
+        if (!pflash_cfi01_register(OMAP_CS0_BASE, &flash[0],
                                    dinfo->bdrv, sector_size,
                                    flash_size / sector_size,
-                                   4, 0, 0, 0, 0, be)) {
+                                   4, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);
         }
@@ -182,11 +184,12 @@ static void sx1_init(ram_addr_t ram_size,
         cpu_register_physical_memory(OMAP_CS1_BASE + flash1_size,
                         OMAP_CS1_SIZE - flash1_size, io);
 
-        if (!pflash_cfi01_register(OMAP_CS1_BASE, qemu_ram_alloc(NULL,
-                                   "omap_sx1.flash1-1", flash1_size),
+        memory_region_init_rom_device(&flash[1], flash_ops,
+                                      NULL, "omap_sx1.flash1-1", flash1_size);
+        if (!pflash_cfi01_register(OMAP_CS1_BASE, &flash[1],
                                    dinfo->bdrv, sector_size,
                                    flash1_size / sector_size,
-                                   4, 0, 0, 0, 0, be)) {
+                                   4, 0, 0, 0, 0)) {
             fprintf(stderr, "qemu: Error registering flash memory %d.\n",
                            fl_idx);
         }

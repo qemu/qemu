@@ -101,7 +101,8 @@ static void mainstone_common_init(ram_addr_t ram_size,
     DeviceState *mst_irq;
     DriveInfo *dinfo;
     int i;
-    int be;
+    MemoryRegion *flashes = g_new(MemoryRegion, 2);
+    const MemoryRegionOps *flash_ops;
 
     if (!cpu_model)
         cpu_model = "pxa270-c5";
@@ -113,9 +114,9 @@ static void mainstone_common_init(ram_addr_t ram_size,
                                    MAINSTONE_ROM) | IO_MEM_ROM);
 
 #ifdef TARGET_WORDS_BIGENDIAN
-    be = 1;
+    flash_ops = &pflash_cfi01_ops_be;
 #else
-    be = 0;
+    flash_ops = &pflash_cfi01_ops_le;
 #endif
     /* There are two 32MiB flash devices on the board */
     for (i = 0; i < 2; i ++) {
@@ -126,13 +127,14 @@ static void mainstone_common_init(ram_addr_t ram_size,
             exit(1);
         }
 
+        memory_region_init_rom_device(&flashes[i], flash_ops,
+                                      NULL, (i ? "mainstone.flash1"
+                                               : "mainstone.flash0"),
+                                      MAINSTONE_FLASH);
         if (!pflash_cfi01_register(mainstone_flash_base[i],
-                                   qemu_ram_alloc(NULL, i ? "mainstone.flash1" :
-                                                  "mainstone.flash0",
-                                                  MAINSTONE_FLASH),
-                                   dinfo->bdrv, sector_len,
-                                   MAINSTONE_FLASH / sector_len, 4, 0, 0, 0, 0,
-                                   be)) {
+                                   &flashes[i], dinfo->bdrv, sector_len,
+                                   MAINSTONE_FLASH / sector_len, 4, 0, 0, 0,
+                                   0)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
             exit(1);
         }

@@ -1502,6 +1502,7 @@ static void musicpal_init(ram_addr_t ram_size,
     unsigned long flash_size;
     DriveInfo *dinfo;
     ram_addr_t sram_off;
+    MemoryRegion *flash = g_new(MemoryRegion, 1);
 
     if (!cpu_model) {
         cpu_model = "arm926";
@@ -1565,21 +1566,23 @@ static void musicpal_init(ram_addr_t ram_size,
          * image is smaller than 32 MB.
          */
 #ifdef TARGET_WORDS_BIGENDIAN
-        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, qemu_ram_alloc(NULL,
-                              "musicpal.flash", flash_size),
+        memory_region_init_rom_device(flash, &pflash_cfi02_ops_be,
+                                      NULL, "musicpal.flash", flash_size);
+        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, flash,
                               dinfo->bdrv, 0x10000,
                               (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
-                              0x5555, 0x2AAA, 1);
+                              0x5555, 0x2AAA);
 #else
-        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, qemu_ram_alloc(NULL,
-                              "musicpal.flash", flash_size),
+        memory_region_init_rom_device(flash, &pflash_cfi02_ops_le,
+                                      NULL, "musicpal.flash", flash_size);
+        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, flash,
                               dinfo->bdrv, 0x10000,
                               (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
-                              0x5555, 0x2AAA, 0);
+                              0x5555, 0x2AAA);
 #endif
 
     }

@@ -1,21 +1,27 @@
+#include "memory.h"
+
 /* NOR flash devices */
 typedef struct pflash_t pflash_t;
 
 /* pflash_cfi01.c */
-pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
+extern const MemoryRegionOps pflash_cfi01_ops_be;
+extern const MemoryRegionOps pflash_cfi01_ops_le;
+extern const MemoryRegionOps pflash_cfi02_ops_be;
+extern const MemoryRegionOps pflash_cfi02_ops_le;
+
+pflash_t *pflash_cfi01_register(target_phys_addr_t base, MemoryRegion *mem,
                                 BlockDriverState *bs,
                                 uint32_t sector_len, int nb_blocs, int width,
                                 uint16_t id0, uint16_t id1,
-                                uint16_t id2, uint16_t id3, int be);
+                                uint16_t id2, uint16_t id3);
 
 /* pflash_cfi02.c */
-pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
+pflash_t *pflash_cfi02_register(target_phys_addr_t base, MemoryRegion *mem,
                                 BlockDriverState *bs, uint32_t sector_len,
                                 int nb_blocs, int nb_mappings, int width,
                                 uint16_t id0, uint16_t id1,
                                 uint16_t id2, uint16_t id3,
-                                uint16_t unlock_addr0, uint16_t unlock_addr1,
-                                int be);
+                                uint16_t unlock_addr0, uint16_t unlock_addr1);
 
 /* nand.c */
 DeviceState *nand_init(BlockDriverState *bdrv, int manf_id, int chip_id);
