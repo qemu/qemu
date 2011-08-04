@@ -321,18 +321,9 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     }
 
     if ((buf = qemu_opt_get(opts, "cache")) != NULL) {
-        if (!strcmp(buf, "off") || !strcmp(buf, "none")) {
-            bdrv_flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
-        } else if (!strcmp(buf, "writeback")) {
-            bdrv_flags |= BDRV_O_CACHE_WB;
-        } else if (!strcmp(buf, "unsafe")) {
-            bdrv_flags |= BDRV_O_CACHE_WB;
-            bdrv_flags |= BDRV_O_NO_FLUSH;
-        } else if (!strcmp(buf, "writethrough")) {
-            /* this is the default */
-        } else {
-           error_report("invalid cache option");
-           return NULL;
+        if (bdrv_parse_cache_flags(buf, &bdrv_flags) != 0) {
+            error_report("invalid cache option");
+            return NULL;
         }
     }
 

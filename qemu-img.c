@@ -183,27 +183,6 @@ static int read_password(char *buf, int buf_size)
 }
 #endif
 
-static int set_cache_flag(const char *mode, int *flags)
-{
-    *flags &= ~BDRV_O_CACHE_MASK;
-
-    if (!strcmp(mode, "none") || !strcmp(mode, "off")) {
-        *flags |= BDRV_O_CACHE_WB;
-        *flags |= BDRV_O_NOCACHE;
-    } else if (!strcmp(mode, "writeback")) {
-        *flags |= BDRV_O_CACHE_WB;
-    } else if (!strcmp(mode, "unsafe")) {
-        *flags |= BDRV_O_CACHE_WB;
-        *flags |= BDRV_O_NO_FLUSH;
-    } else if (!strcmp(mode, "writethrough")) {
-        /* this is the default */
-    } else {
-        return -1;
-    }
-
-    return 0;
-}
-
 static int print_block_option_help(const char *filename, const char *fmt)
 {
     BlockDriver *drv, *proto_drv;
@@ -495,7 +474,7 @@ static int img_commit(int argc, char **argv)
     filename = argv[optind++];
 
     flags = BDRV_O_RDWR;
-    ret = set_cache_flag(cache, &flags);
+    ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
         return -1;
@@ -819,7 +798,7 @@ static int img_convert(int argc, char **argv)
     }
 
     flags = BDRV_O_RDWR;
-    ret = set_cache_flag(cache, &flags);
+    ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
         return -1;
@@ -1291,7 +1270,7 @@ static int img_rebase(int argc, char **argv)
     qemu_progress_print(0, 100);
 
     flags = BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
-    ret = set_cache_flag(cache, &flags);
+    ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
         return -1;
