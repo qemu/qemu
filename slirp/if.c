@@ -106,9 +106,6 @@ if_output(struct socket *so, struct mbuf *ifm)
 	ifs_init(ifm);
 	insque(ifm, ifq);
 
-        /* Expiration date = Now + 1 second */
-        ifm->expiration_date = qemu_get_clock_ns(rt_clock) + 1000000000ULL;
-
 diddit:
 	slirp->if_queued++;
 
