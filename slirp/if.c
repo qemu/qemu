@@ -106,9 +106,6 @@ if_output(struct socket *so, struct mbuf *ifm)
 	ifs_init(ifm);
 	insque(ifm, ifq);
 
-        /* Expiration date = Now + 1 second */
-        ifm->expiration_date = qemu_get_clock_ns(rt_clock) + 1000000000ULL;
-
 diddit:
 	slirp->if_queued++;
 
@@ -157,9 +154,8 @@ diddit:
 void
 if_start(Slirp *slirp)
 {
+    uint64_t now = qemu_get_clock_ns(rt_clock);
     int requeued = 0;
-    uint64_t now;
-
 	struct mbuf *ifm, *ifqt;
 
 	DEBUG_CALL("if_start");
@@ -171,8 +167,6 @@ if_start(Slirp *slirp)
         /* check if we can really output */
         if (!slirp_can_output(slirp->opaque))
             return;
-
-        now = qemu_get_clock_ns(rt_clock);
 
 	/*
 	 * See which queue to get next packet from

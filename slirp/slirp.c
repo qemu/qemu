@@ -738,6 +738,9 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
             slirp->client_ipaddr = iph->ip_dst;
             slirp_output(slirp->opaque, arp_req, sizeof(arp_req));
             ifm->arp_requested = true;
+
+            /* Expire request and drop outgoing packet after 1 second */
+            ifm->expiration_date = qemu_get_clock_ns(rt_clock) + 1000000000ULL;
         }
         return 0;
     } else {
