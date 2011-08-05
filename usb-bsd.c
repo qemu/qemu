@@ -62,7 +62,6 @@ typedef struct USBHostDevice {
 } USBHostDevice;
 
 
-#if 0
 static int ensure_ep_open(USBHostDevice *dev, int ep, int mode)
 {
     char buf[32];
@@ -110,7 +109,6 @@ static void ensure_eps_closed(USBHostDevice *dev)
         epnum++;
     }
 }
-#endif
 
 static void usb_host_handle_reset(USBDevice *dev)
 {
@@ -119,7 +117,6 @@ static void usb_host_handle_reset(USBDevice *dev)
 #endif
 }
 
-#if 0
 /* XXX:
  * -check device states against transfer requests
  *  and return appropriate response
@@ -256,9 +253,9 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     }
 
     if (p->pid == USB_TOKEN_IN)
-        ret = read(fd, p->data, p->len);
+        ret = readv(fd, p->iov.iov, p->iov.niov);
     else
-        ret = write(fd, p->data, p->len);
+        ret = writev(fd, p->iov.iov, p->iov.niov);
 
     sigprocmask(SIG_SETMASK, &old_mask, NULL);
 
@@ -278,7 +275,6 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
         return ret;
     }
 }
-#endif
 
 static void usb_host_handle_destroy(USBDevice *opaque)
 {
@@ -305,8 +301,8 @@ static int usb_host_initfn(USBDevice *dev)
 USBDevice *usb_host_device_open(const char *devname)
 {
     struct usb_device_info bus_info, dev_info;
-    USBDevice *d = NULL;
-    USBHostDevice *dev, *ret = NULL;
+    USBDevice *d = NULL, *ret = NULL;
+    USBHostDevice *dev;
     char ctlpath[PATH_MAX + 1];
     char buspath[PATH_MAX + 1];
     int bfd, dfd, bus, address, i;
@@ -408,10 +404,8 @@ static struct USBDeviceInfo usb_host_dev_info = {
     .init           = usb_host_initfn,
     .handle_packet  = usb_generic_handle_packet,
     .handle_reset   = usb_host_handle_reset,
-#if 0
     .handle_control = usb_host_handle_control,
     .handle_data    = usb_host_handle_data,
-#endif
     .handle_destroy = usb_host_handle_destroy,
 };
 

@@ -1311,8 +1311,6 @@ show virtual to physical memory mappings (i386, SH4 and SPARC only)
 show the active virtual memory mappings (i386 only)
 @item info jit
 show dynamic compiler info
-@item info kvm
-show KVM information
 @item info numa
 show NUMA information
 @item info kvm

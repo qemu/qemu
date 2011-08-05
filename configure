@@ -113,7 +113,6 @@ curl=""
 curses=""
 docs=""
 fdt=""
-kvm=""
 nptl=""
 sdl=""
 vnc="yes"
@@ -130,9 +129,10 @@ xen=""
 xen_ctrl_version=""
 linux_aio=""
 attr=""
-vhost_net=""
 xfs=""
 
+vhost_net="no"
+kvm="no"
 gprof="no"
 debug_tcg="no"
 debug_mon="no"
@@ -184,6 +184,7 @@ smartcard_nss=""
 usb_redir=""
 opengl=""
 zlib="yes"
+guest_agent="yes"
 
 # parse CC options first
 for opt do
@@ -222,14 +223,14 @@ done
 # Using uname is really, really broken.  Once we have the right set of checks
 # we can eliminate it's usage altogether
 
-cc="${cross_prefix}${CC-gcc}"
-ar="${cross_prefix}${AR-ar}"
-objcopy="${cross_prefix}${OBJCOPY-objcopy}"
-ld="${cross_prefix}${LD-ld}"
-strip="${cross_prefix}${STRIP-strip}"
-windres="${cross_prefix}${WINDRES-windres}"
-pkg_config="${cross_prefix}${PKG_CONFIG-pkg-config}"
-sdl_config="${cross_prefix}${SDL_CONFIG-sdl-config}"
+cc="${CC-${cross_prefix}gcc}"
+ar="${AR-${cross_prefix}ar}"
+objcopy="${OBJCOPY-${cross_prefix}objcopy}"
+ld="${LD-${cross_prefix}ld}"
+strip="${STRIP-${cross_prefix}strip}"
+windres="${WINDRES-${cross_prefix}windres}"
+pkg_config="${PKG_CONFIG-${cross_prefix}pkg-config}"
+sdl_config="${SDL_CONFIG-${cross_prefix}sdl-config}"
 
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
@@ -784,6 +785,10 @@ for opt do
   ;;
   --disable-zlib-test) zlib="no"
   ;;
+  --enable-guest-agent) guest_agent="yes"
+  ;;
+  --disable-guest-agent) guest_agent="no"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -873,7 +878,6 @@ if [ "$softmmu" = "yes" ] ; then
     default_target_list="\
 i386-softmmu \
 x86_64-softmmu \
-alpha-softmmu \
 arm-softmmu \
 cris-softmmu \
 lm32-softmmu \
@@ -1063,6 +1067,8 @@ echo "  --disable-smartcard-nss  disable smartcard nss support"
 echo "  --enable-smartcard-nss   enable smartcard nss support"
 echo "  --disable-usb-redir      disable usb network redirection support"
 echo "  --enable-usb-redir       enable usb network redirection support"
+echo "  --disable-guest-agent    disable building of the QEMU Guest Agent"
+echo "  --enable-guest-agent     enable building of the QEMU Guest Agent"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -1123,11 +1129,13 @@ if test "$solaris" = "yes" ; then
   fi
 fi
 
-if has $python; then
-  :
-else
-  echo "Python not found. Use --python=/path/to/python"
-  exit 1
+if test "$guest_agent" != "no" ; then
+  if has $python; then
+    :
+  else
+    echo "Python not found. Use --python=/path/to/python"
+    exit 1
+  fi
 fi
 
 if test -z "$target_list" ; then
@@ -1554,11 +1562,17 @@ int main(void) {
     return 0;
 }
 EOF
+  if $pkg_config libpng --modversion >/dev/null 2>&1; then
+    vnc_png_cflags=`$pkg_config libpng --cflags 2> /dev/null`
+    vnc_png_libs=`$pkg_config libpng --libs 2> /dev/null`
+  else
     vnc_png_cflags=""
     vnc_png_libs="-lpng"
+  fi
   if compile_prog "$vnc_png_cflags" "$vnc_png_libs" ; then
     vnc_png=yes
     libs_softmmu="$vnc_png_libs $libs_softmmu"
+    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_png_cflags"
   else
     if test "$vnc_png" = "yes" ; then
       feature_not_found "vnc-png"
@@ -1874,16 +1888,16 @@ fi
 
 ##########################################
 # glib support probe
-if $pkg_config --modversion glib-2.0 > /dev/null 2>&1 ; then
-    glib_cflags=`$pkg_config --cflags glib-2.0 2>/dev/null`
-    glib_libs=`$pkg_config --libs glib-2.0 2>/dev/null`
-    libs_softmmu="$glib_libs $libs_softmmu"
-    libs_tools="$glib_libs $libs_tools"
-elif test "$mingw32" = "yes" ; then
-    echo "mingw32 without glib-2.0"
-else
-    echo "glib-2.0 required to compile QEMU, trying without it"
-    #~ exit 1
+if test "$guest_agent" != "no" ; then
+    if $pkg_config --modversion glib-2.0 > /dev/null 2>&1 ; then
+        glib_cflags=`$pkg_config --cflags glib-2.0 2>/dev/null`
+        glib_libs=`$pkg_config --libs glib-2.0 2>/dev/null`
+        libs_softmmu="$glib_libs $libs_softmmu"
+        libs_tools="$glib_libs $libs_tools"
+    else
+        echo "glib-2.0 required to compile QEMU"
+        exit 1
+    fi
 fi
 
 ##########################################
@@ -2600,6 +2614,20 @@ EOF
 fi
 
 ##########################################
+# check if we have makecontext
+
+ucontext_coroutine=no
+if test "$darwin" != "yes"; then
+  cat > $TMPC << EOF
+#include <ucontext.h>
+int main(void) { makecontext(0, 0, 0); }
+EOF
+  if compile_prog "" "" ; then
+      ucontext_coroutine=yes
+  fi
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -2656,7 +2684,9 @@ if test "$softmmu" = yes ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
       tools="qemu-nbd\$(EXESUF) $tools"
+    if [ "$guest_agent" = "yes" ]; then
       tools="qemu-ga\$(EXESUF) $tools"
+    fi
     if [ "$check_utests" = "yes" ]; then
       tools="check-qint check-qstring check-qdict check-qlist $tools"
       tools="check-qfloat check-qjson $tools"
@@ -2760,6 +2790,7 @@ echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
 echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
+echo "build guest agent $guest_agent"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3094,6 +3125,10 @@ if test "$zero_malloc" = "yes" ; then
 fi
 if test "$rbd" = "yes" ; then
   echo "CONFIG_RBD=y" >> $config_host_mak
+fi
+
+if test "$ucontext_coroutine" = "yes" ; then
+  echo "CONFIG_UCONTEXT_COROUTINE=y" >> $config_host_mak
 fi
 
 # USB host support

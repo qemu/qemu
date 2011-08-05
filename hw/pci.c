@@ -1145,8 +1145,7 @@ uint32_t pci_default_read_config(PCIDevice *d,
                                  uint32_t address, int len)
 {
     uint32_t val = 0;
-    assert(len == 1 || len == 2 || len == 4);
-    len = MIN(len, pci_config_size(d) - address);
+
     memcpy(&val, d->config + address, len);
     return le32_to_cpu(val);
 }
@@ -1154,9 +1153,8 @@ uint32_t pci_default_read_config(PCIDevice *d,
 void pci_default_write_config(PCIDevice *d, uint32_t addr, uint32_t val, int l)
 {
     int i, was_irq_disabled = pci_irq_disabled(d);
-    uint32_t config_size = pci_config_size(d);
 
-    for (i = 0; i < l && addr + i < config_size; val >>= 8, ++i) {
+    for (i = 0; i < l; val >>= 8, ++i) {
         uint8_t wmask = d->wmask[addr + i];
         uint8_t w1cmask = d->w1cmask[addr + i];
         assert(!(wmask & w1cmask));

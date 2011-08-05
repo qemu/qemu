@@ -150,16 +150,21 @@ void qemu_macaddr_default_if_unset(MACAddr *macaddr)
 static char *assign_name(VLANClientState *vc1, const char *model)
 {
     VLANState *vlan;
+    VLANClientState *vc;
     char buf[256];
     int id = 0;
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
-        VLANClientState *vc;
-
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
             if (vc != vc1 && strcmp(vc->model, model) == 0) {
                 id++;
             }
+        }
+    }
+
+    QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
+        if (vc != vc1 && strcmp(vc->model, model) == 0) {
+            id++;
         }
     }
 
@@ -653,6 +658,8 @@ VLANClientState *qemu_find_netdev(const char *id)
     VLANClientState *vc;
 
     QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
+        if (vc->info->type == NET_CLIENT_TYPE_NIC)
+            continue;
         if (!strcmp(vc->name, id)) {
             return vc;
         }
@@ -1212,7 +1219,7 @@ int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     VLANClientState *vc;
 
     vc = qemu_find_netdev(id);
-    if (!vc || vc->info->type == NET_CLIENT_TYPE_NIC) {
+    if (!vc) {
         qerror_report(QERR_DEVICE_NOT_FOUND, id);
         return -1;
     }
@@ -1270,7 +1277,11 @@ int do_set_link(Monitor *mon, const QDict *qdict, QObject **ret_data)
             }
         }
     }
-    vc = qemu_find_netdev(name);
+    QTAILQ_FOREACH(vc, &non_vlan_clients, next) {
+        if (!strcmp(vc->name, name)) {
+            goto done;
+        }
+    }
 done:
 
     if (!vc) {

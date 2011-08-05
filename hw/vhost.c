@@ -120,7 +120,6 @@ static void vhost_dev_unassign_memory(struct vhost_dev *dev,
         if (start_addr <= reg->guest_phys_addr && memlast >= reglast) {
             --dev->mem->nregions;
             --to;
-            assert(to >= 0);
             ++overlap_middle;
             continue;
         }

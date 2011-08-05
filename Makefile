@@ -161,7 +161,7 @@ qemu-test$(EXESUF): qemu-test.o qemu-tool.o qemu-error.o $(oslib-obj-y) $(trace-
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $@")
 
-check-qint.o check-qstring.o check-qdict.o check-qlist.o check-qfloat.o check-qjson.o check-coroutine.o: $(GENERATED_HEADERS)
+check-qint.o check-qstring.o check-qdict.o check-qlist.o check-qfloat.o check-qjson.o test-coroutine.o: $(GENERATED_HEADERS)
 
 CHECK_PROG_DEPS = qemu-malloc.o $(oslib-obj-y) $(trace-obj-y) qemu-tool.o
 
@@ -171,7 +171,7 @@ check-qdict: check-qdict.o qdict.o qfloat.o qint.o qstring.o qbool.o qlist.o $(C
 check-qlist: check-qlist.o qlist.o qint.o $(CHECK_PROG_DEPS)
 check-qfloat: check-qfloat.o qfloat.o $(CHECK_PROG_DEPS)
 check-qjson: check-qjson.o qfloat.o qint.o qdict.o qstring.o qlist.o qbool.o qjson.o json-streamer.o json-lexer.o json-parser.o error.o qerror.o qemu-error.o $(CHECK_PROG_DEPS)
-check-coroutine: check-coroutine.o $(coroutine-obj-y) $(CHECK_PROG_DEPS)
+test-coroutine: test-coroutine.o qemu-timer-common.o async.o $(coroutine-obj-y) $(CHECK_PROG_DEPS)
 
 $(qapi-obj-y): $(GENERATED_HEADERS)
 qapi-dir := qapi-generated
@@ -237,6 +237,7 @@ distclean: clean
 	rm -f qemu-doc.fn qemu-doc.fns qemu-doc.info qemu-doc.ky qemu-doc.kys
 	rm -f qemu-doc.log qemu-doc.pdf qemu-doc.pg qemu-doc.toc qemu-doc.tp
 	rm -f qemu-doc.vr
+	rm -f config.log
 	rm -f qemu-tech.info qemu-tech.aux qemu-tech.cp qemu-tech.dvi qemu-tech.fn qemu-tech.info qemu-tech.ky qemu-tech.log qemu-tech.pdf qemu-tech.pg qemu-tech.toc qemu-tech.tp qemu-tech.vr
 	for d in $(TARGET_DIRS) $(QEMULIBS); do \
 	rm -rf $$d || exit 1 ; \

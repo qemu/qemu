@@ -25,6 +25,7 @@
  */
 #include "qemu-common.h"
 #include "usb.h"
+#include "iov.h"
 
 void usb_attach(USBPort *port, USBDevice *dev)
 {
@@ -72,10 +73,11 @@ static int do_token_setup(USBDevice *s, USBPacket *p)
     int request, value, index;
     int ret = 0;
 
-    if (p->len != 8)
+    if (p->iov.size != 8) {
         return USB_RET_STALL;
- 
-    memcpy(s->setup_buf, p->data, 8);
+    }
+
+    usb_packet_copy(p, s->setup_buf, p->iov.size);
     s->setup_len   = (s->setup_buf[7] << 8) | s->setup_buf[6];
     s->setup_index = 0;
 
@@ -144,9 +146,10 @@ static int do_token_in(USBDevice *s, USBPacket *p)
     case SETUP_STATE_DATA:
         if (s->setup_buf[0] & USB_DIR_IN) {
             int len = s->setup_len - s->setup_index;
-            if (len > p->len)
-                len = p->len;
-            memcpy(p->data, s->data_buf + s->setup_index, len);
+            if (len > p->iov.size) {
+                len = p->iov.size;
+            }
+            usb_packet_copy(p, s->data_buf + s->setup_index, len);
             s->setup_index += len;
             if (s->setup_index >= s->setup_len)
                 s->setup_state = SETUP_STATE_ACK;
@@ -179,9 +182,10 @@ static int do_token_out(USBDevice *s, USBPacket *p)
     case SETUP_STATE_DATA:
         if (!(s->setup_buf[0] & USB_DIR_IN)) {
             int len = s->setup_len - s->setup_index;
-            if (len > p->len)
-                len = p->len;
-            memcpy(s->data_buf + s->setup_index, p->data, len);
+            if (len > p->iov.size) {
+                len = p->iov.size;
+            }
+            usb_packet_copy(p, s->data_buf + s->setup_index, len);
             s->setup_index += len;
             if (s->setup_index >= s->setup_len)
                 s->setup_state = SETUP_STATE_ACK;
@@ -251,22 +255,22 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
    usb_packet_complete to complete their async control packets. */
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p)
 {
-    if (p->len < 0) {
+    if (p->result < 0) {
         s->setup_state = SETUP_STATE_IDLE;
     }
 
     switch (s->setup_state) {
     case SETUP_STATE_SETUP:
-        if (p->len < s->setup_len) {
-            s->setup_len = p->len;
+        if (p->result < s->setup_len) {
+            s->setup_len = p->result;
         }
         s->setup_state = SETUP_STATE_DATA;
-        p->len = 8;
+        p->result = 8;
         break;
 
     case SETUP_STATE_ACK:
         s->setup_state = SETUP_STATE_IDLE;
-        p->len = 0;
+        p->result = 0;
         break;
 
     default:
@@ -346,4 +350,58 @@ void usb_cancel_packet(USBPacket * p)
     assert(p->owner != NULL);
     p->owner->info->cancel_packet(p->owner, p);
     p->owner = NULL;
+}
+
+
+void usb_packet_init(USBPacket *p)
+{
+    qemu_iovec_init(&p->iov, 1);
+}
+
+void usb_packet_setup(USBPacket *p, int pid, uint8_t addr, uint8_t ep)
+{
+    p->pid = pid;
+    p->devaddr = addr;
+    p->devep = ep;
+    p->result = 0;
+    qemu_iovec_reset(&p->iov);
+}
+
+void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len)
+{
+    qemu_iovec_add(&p->iov, ptr, len);
+}
+
+void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes)
+{
+    assert(p->result >= 0);
+    assert(p->result + bytes <= p->iov.size);
+    switch (p->pid) {
+    case USB_TOKEN_SETUP:
+    case USB_TOKEN_OUT:
+        iov_to_buf(p->iov.iov, p->iov.niov, ptr, p->result, bytes);
+        break;
+    case USB_TOKEN_IN:
+        iov_from_buf(p->iov.iov, p->iov.niov, ptr, p->result, bytes);
+        break;
+    default:
+        fprintf(stderr, "%s: invalid pid: %x\n", __func__, p->pid);
+        abort();
+    }
+    p->result += bytes;
+}
+
+void usb_packet_skip(USBPacket *p, size_t bytes)
+{
+    assert(p->result >= 0);
+    assert(p->result + bytes <= p->iov.size);
+    if (p->pid == USB_TOKEN_IN) {
+        iov_clear(p->iov.iov, p->iov.niov, p->result, bytes);
+    }
+    p->result += bytes;
+}
+
+void usb_packet_cleanup(USBPacket *p)
+{
+    qemu_iovec_destroy(&p->iov);
 }

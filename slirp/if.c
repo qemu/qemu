@@ -6,6 +6,7 @@
  */
 
 #include <slirp.h>
+#include "qemu-timer.h"
 
 #define ifs_init(ifm) ((ifm)->ifs_next = (ifm)->ifs_prev = (ifm))
 
@@ -153,6 +154,8 @@ diddit:
 void
 if_start(Slirp *slirp)
 {
+    uint64_t now = qemu_get_clock_ns(rt_clock);
+    int requeued = 0;
 	struct mbuf *ifm, *ifqt;
 
 	DEBUG_CALL("if_start");
@@ -199,11 +202,22 @@ if_start(Slirp *slirp)
 		   ifm->ifq_so->so_nqueued = 0;
 	}
 
-	/* Encapsulate the packet for sending */
-        if_encap(slirp, (uint8_t *)ifm->m_data, ifm->m_len);
-
-        m_free(ifm);
+        if (ifm->expiration_date < now) {
+            /* Expired */
+            m_free(ifm);
+        } else {
+            /* Encapsulate the packet for sending */
+            if (if_encap(slirp, ifm)) {
+                m_free(ifm);
+            } else {
+                /* re-queue */
+                insque(ifm, ifqt);
+                requeued++;
+            }
+        }
 
 	if (slirp->if_queued)
 	   goto again;
+
+        slirp->if_queued = requeued;
 }

@@ -777,18 +777,17 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     }
 
     if (completion) {
-        ret = ohci->usb_packet.len;
+        ret = ohci->usb_packet.result;
     } else {
         ret = USB_RET_NODEV;
         for (i = 0; i < ohci->num_ports; i++) {
             dev = ohci->rhport[i].port.dev;
             if ((ohci->rhport[i].ctrl & OHCI_PORT_PES) == 0)
                 continue;
-            ohci->usb_packet.pid = pid;
-            ohci->usb_packet.devaddr = OHCI_BM(ed->flags, ED_FA);
-            ohci->usb_packet.devep = OHCI_BM(ed->flags, ED_EN);
-            ohci->usb_packet.data = ohci->usb_buf;
-            ohci->usb_packet.len = len;
+            usb_packet_setup(&ohci->usb_packet, pid,
+                             OHCI_BM(ed->flags, ED_FA),
+                             OHCI_BM(ed->flags, ED_EN));
+            usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
             ret = usb_handle_packet(dev, &ohci->usb_packet);
             if (ret != USB_RET_NODEV)
                 break;
@@ -959,7 +958,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     }
 #endif
     if (completion) {
-        ret = ohci->usb_packet.len;
+        ret = ohci->usb_packet.result;
         ohci->async_td = 0;
         ohci->async_complete = 0;
     } else {
@@ -980,11 +979,10 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 #endif
                 return 1;
             }
-            ohci->usb_packet.pid = pid;
-            ohci->usb_packet.devaddr = OHCI_BM(ed->flags, ED_FA);
-            ohci->usb_packet.devep = OHCI_BM(ed->flags, ED_EN);
-            ohci->usb_packet.data = ohci->usb_buf;
-            ohci->usb_packet.len = len;
+            usb_packet_setup(&ohci->usb_packet, pid,
+                             OHCI_BM(ed->flags, ED_FA),
+                             OHCI_BM(ed->flags, ED_EN));
+            usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
             ret = usb_handle_packet(dev, &ohci->usb_packet);
             if (ret != USB_RET_NODEV)
                 break;
@@ -1761,6 +1759,7 @@ static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
     ohci->localmem_base = localmem_base;
 
     ohci->name = dev->info->name;
+    usb_packet_init(&ohci->usb_packet);
 
     ohci->async_td = 0;
     qemu_register_reset(ohci_reset, ohci);

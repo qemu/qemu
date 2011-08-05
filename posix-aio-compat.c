@@ -49,8 +49,6 @@ struct qemu_paiocb {
     ssize_t ret;
     int active;
     struct qemu_paiocb *next;
-
-    int async_context_id;
 };
 
 typedef struct PosixAioState {
@@ -200,6 +198,12 @@ static ssize_t handle_aiocb_rw_vector(struct qemu_paiocb *aiocb)
     return len;
 }
 
+/*
+ * Read/writes the data to/from a given linear buffer.
+ *
+ * Returns the number of bytes handles or -errno in case of an error. Short
+ * reads are only returned if the end of the file is reached.
+ */
 static ssize_t handle_aiocb_rw_linear(struct qemu_paiocb *aiocb, char *buf)
 {
     ssize_t offset = 0;
@@ -336,6 +340,19 @@ static void *aio_thread(void *unused)
 
         switch (aiocb->aio_type & QEMU_AIO_TYPE_MASK) {
         case QEMU_AIO_READ:
+            ret = handle_aiocb_rw(aiocb);
+            if (ret >= 0 && ret < aiocb->aio_nbytes && aiocb->common.bs->growable) {
+                /* A short read means that we have reached EOF. Pad the buffer
+                 * with zeros for bytes after EOF. */
+                QEMUIOVector qiov;
+
+                qemu_iovec_init_external(&qiov, aiocb->aio_iov,
+                                         aiocb->aio_niov);
+                qemu_iovec_memset_skip(&qiov, 0, aiocb->aio_nbytes - ret, ret);
+
+                ret = aiocb->aio_nbytes;
+            }
+            break;
         case QEMU_AIO_WRITE:
             ret = handle_aiocb_rw(aiocb);
             break;
@@ -420,7 +437,6 @@ static int posix_aio_process_queue(void *opaque)
     struct qemu_paiocb *acb, **pacb;
     int ret;
     int result = 0;
-    int async_context_id = get_async_context_id();
 
     for(;;) {
         pacb = &s->first_aio;
@@ -428,12 +444,6 @@ static int posix_aio_process_queue(void *opaque)
             acb = *pacb;
             if (!acb)
                 return result;
-
-            /* we're only interested in requests in the right context */
-            if (acb->async_context_id != async_context_id) {
-                pacb = &acb->next;
-                continue;
-            }
 
             ret = qemu_paio_error(acb);
             if (ret == ECANCELED) {
@@ -575,7 +585,6 @@ BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
     acb->aio_type = type;
     acb->aio_fildes = fd;
     acb->ev_signo = SIGUSR2;
-    acb->async_context_id = get_async_context_id();
 
     if (qiov) {
         acb->aio_iov = qiov->iov;
@@ -604,7 +613,6 @@ BlockDriverAIOCB *paio_ioctl(BlockDriverState *bs, int fd,
     acb->aio_type = QEMU_AIO_IOCTL;
     acb->aio_fildes = fd;
     acb->ev_signo = SIGUSR2;
-    acb->async_context_id = get_async_context_id();
     acb->aio_offset = 0;
     acb->aio_ioctl_buf = buf;
     acb->aio_ioctl_cmd = req;

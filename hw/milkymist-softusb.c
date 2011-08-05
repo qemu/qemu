@@ -234,11 +234,11 @@ static void softusb_usbdev_datain(void *opaque)
 
     USBPacket p;
 
-    p.pid = USB_TOKEN_IN;
-    p.devep = 1;
-    p.data = s->kbd_usb_buffer;
-    p.len = sizeof(s->kbd_usb_buffer);
+    usb_packet_init(&p);
+    usb_packet_setup(&p, USB_TOKEN_IN, 0, 1);
+    usb_packet_addbuf(&p, s->kbd_usb_buffer, sizeof(s->kbd_usb_buffer));
     s->usbdev->info->handle_data(s->usbdev, &p);
+    usb_packet_cleanup(&p);
 
     softusb_kbd_changed(s);
 }
@@ -310,10 +310,12 @@ static int milkymist_softusb_init(SysBusDevice *dev)
     usb_bus_new(&s->usbbus, &softusb_bus_ops, NULL);
 
     /* our two ports */
+    /* FIXME: claim to support full speed devices. qemu mouse and keyboard
+     * report themselves as full speed devices. */
     usb_register_port(&s->usbbus, &s->usbport[0], NULL, 0, &softusb_ops,
-            USB_SPEED_MASK_LOW);
+            USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
     usb_register_port(&s->usbbus, &s->usbport[1], NULL, 1, &softusb_ops,
-            USB_SPEED_MASK_LOW);
+            USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
 
     /* and finally create an usb keyboard */
     s->usbdev = usb_create_simple(&s->usbbus, "usb-kbd");

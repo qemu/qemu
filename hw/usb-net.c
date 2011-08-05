@@ -29,6 +29,7 @@
 #include "net.h"
 #include "qemu-queue.h"
 #include "sysemu.h"
+#include "iov.h"
 
 /*#define TRAFFIC_DEBUG*/
 /* Thanks to NetChip Technologies for donating this product ID.
@@ -1121,28 +1122,23 @@ static int usb_net_handle_control(USBDevice *dev, USBPacket *p,
 
 static int usb_net_handle_statusin(USBNetState *s, USBPacket *p)
 {
+    le32 buf[2];
     int ret = 8;
 
-    if (p->len < 8)
+    if (p->iov.size < 8) {
         return USB_RET_STALL;
+    }
 
-    ((le32 *) p->data)[0] = cpu_to_le32(1);
-    ((le32 *) p->data)[1] = cpu_to_le32(0);
+    buf[0] = cpu_to_le32(1);
+    buf[1] = cpu_to_le32(0);
+    usb_packet_copy(p, buf, 8);
     if (!s->rndis_resp.tqh_first)
         ret = USB_RET_NAK;
 
 #ifdef TRAFFIC_DEBUG
-    fprintf(stderr, "usbnet: interrupt poll len %u return %d", p->len, ret);
-    {
-        int i;
-        fprintf(stderr, ":");
-        for (i = 0; i < ret; i++) {
-            if (!(i & 15))
-                fprintf(stderr, "\n%04x:", i);
-            fprintf(stderr, " %02x", p->data[i]);
-        }
-        fprintf(stderr, "\n\n");
-    }
+    fprintf(stderr, "usbnet: interrupt poll len %zu return %d",
+            p->iov.size, ret);
+    iov_hexdump(p->iov.iov, p->iov.niov, stderr, "usbnet", ret);
 #endif
 
     return ret;
@@ -1162,9 +1158,10 @@ static int usb_net_handle_datain(USBNetState *s, USBPacket *p)
         return ret;
     }
     ret = s->in_len - s->in_ptr;
-    if (ret > p->len)
-        ret = p->len;
-    memcpy(p->data, &s->in_buf[s->in_ptr], ret);
+    if (ret > p->iov.size) {
+        ret = p->iov.size;
+    }
+    usb_packet_copy(p, &s->in_buf[s->in_ptr], ret);
     s->in_ptr += ret;
     if (s->in_ptr >= s->in_len &&
                     (is_rndis(s) || (s->in_len & (64 - 1)) || !ret)) {
@@ -1173,17 +1170,8 @@ static int usb_net_handle_datain(USBNetState *s, USBPacket *p)
     }
 
 #ifdef TRAFFIC_DEBUG
-    fprintf(stderr, "usbnet: data in len %u return %d", p->len, ret);
-    {
-        int i;
-        fprintf(stderr, ":");
-        for (i = 0; i < ret; i++) {
-            if (!(i & 15))
-                fprintf(stderr, "\n%04x:", i);
-            fprintf(stderr, " %02x", p->data[i]);
-        }
-        fprintf(stderr, "\n\n");
-    }
+    fprintf(stderr, "usbnet: data in len %zu return %d", p->iov.size, ret);
+    iov_hexdump(p->iov.iov, p->iov.niov, stderr, "usbnet", ret);
 #endif
 
     return ret;
@@ -1191,29 +1179,20 @@ static int usb_net_handle_datain(USBNetState *s, USBPacket *p)
 
 static int usb_net_handle_dataout(USBNetState *s, USBPacket *p)
 {
-    int ret = p->len;
+    int ret = p->iov.size;
     int sz = sizeof(s->out_buf) - s->out_ptr;
     struct rndis_packet_msg_type *msg =
             (struct rndis_packet_msg_type *) s->out_buf;
     uint32_t len;
 
 #ifdef TRAFFIC_DEBUG
-    fprintf(stderr, "usbnet: data out len %u\n", p->len);
-    {
-        int i;
-        fprintf(stderr, ":");
-        for (i = 0; i < p->len; i++) {
-            if (!(i & 15))
-                fprintf(stderr, "\n%04x:", i);
-            fprintf(stderr, " %02x", p->data[i]);
-        }
-        fprintf(stderr, "\n\n");
-    }
+    fprintf(stderr, "usbnet: data out len %zu\n", p->iov.size);
+    iov_hexdump(p->iov.iov, p->iov.niov, stderr, "usbnet", p->iov.size);
 #endif
 
     if (sz > ret)
         sz = ret;
-    memcpy(&s->out_buf[s->out_ptr], p->data, sz);
+    usb_packet_copy(p, &s->out_buf[s->out_ptr], sz);
     s->out_ptr += sz;
 
     if (!is_rndis(s)) {
@@ -1277,8 +1256,8 @@ static int usb_net_handle_data(USBDevice *dev, USBPacket *p)
     }
     if (ret == USB_RET_STALL)
         fprintf(stderr, "usbnet: failed data transaction: "
-                        "pid 0x%x ep 0x%x len 0x%x\n",
-                        p->pid, p->devep, p->len);
+                        "pid 0x%x ep 0x%x len 0x%zx\n",
+                        p->pid, p->devep, p->iov.size);
     return ret;
 }
 
