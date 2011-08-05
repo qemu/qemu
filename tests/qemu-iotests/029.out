@@ -1,0 +1,10 @@
+QA output created by 029
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 cluster_size=65536 
+wrote 4096/4096 bytes at offset 0
+4 KiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=16777216 cluster_size=1024 
+wrote 4194304/4194304 bytes at offset 0
+4 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+No errors were found on the image.
+*** done
