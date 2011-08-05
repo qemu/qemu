@@ -175,6 +175,14 @@ static void hotplug_event_notify(PCIDevice *dev)
     }
 }
 
+static void hotplug_event_clear(PCIDevice *dev)
+{
+    hotplug_event_update_event_status(dev);
+    if (!msix_enabled(dev) && !msi_enabled(dev) && !dev->exp.hpev_notified) {
+        qemu_set_irq(dev->irq[dev->exp.hpev_intx], 0);
+    }
+}
+
 /*
  * A PCI Express Hot-Plug Event has occurred, so update slot status register
  * and notify OS of the event if necessary.
@@ -319,6 +327,10 @@ void pcie_cap_slot_write_config(PCIDevice *dev,
     uint32_t pos = dev->exp.exp_cap;
     uint8_t *exp_cap = dev->config + pos;
     uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
+
+    if (ranges_overlap(addr, len, pos + PCI_EXP_SLTSTA, 2)) {
+        hotplug_event_clear(dev);
+    }
 
     if (!ranges_overlap(addr, len, pos + PCI_EXP_SLTCTL, 2)) {
         return;
