@@ -464,14 +464,45 @@ QemuOptsList qemu_option_rom_opts = {
 
 static QemuOptsList qemu_machine_opts = {
     .name = "machine",
+    .implied_opt_name = "type",
     .head = QTAILQ_HEAD_INITIALIZER(qemu_machine_opts.head),
     .desc = {
         {
+            .name = "type",
+            .type = QEMU_OPT_STRING,
+            .help = "emulated machine"
+        }, {
             .name = "accel",
             .type = QEMU_OPT_STRING,
             .help = "accelerator list",
         },
         { /* End of list */ }
+    },
+};
+
+QemuOptsList qemu_boot_opts = {
+    .name = "boot-opts",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_boot_opts.head),
+    .desc = {
+        /* the three names below are not used now */
+        {
+            .name = "order",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "once",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "menu",
+            .type = QEMU_OPT_STRING,
+        /* following are really used */
+        }, {
+            .name = "splash",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "splash-time",
+            .type = QEMU_OPT_STRING,
+        },
+        { /*End of list */ }
     },
 };
 
@@ -490,6 +521,7 @@ static QemuOptsList *vm_config_groups[32] = {
 #endif
     &qemu_option_rom_opts,
     &qemu_machine_opts,
+    &qemu_boot_opts,
     NULL,
 };
 

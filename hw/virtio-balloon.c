@@ -1,7 +1,9 @@
 /*
- * Virtio Block Device
+ * Virtio Balloon Device
  *
  * Copyright IBM, Corp. 2008
+ * Copyright (C) 2011 Red Hat, Inc.
+ * Copyright (C) 2011 Amit Shah <amit.shah@redhat.com>
  *
  * Authors:
  *  Anthony Liguori   <aliguori@us.ibm.com>
@@ -43,6 +45,7 @@ typedef struct VirtIOBalloon
     size_t stats_vq_offset;
     MonitorCompletion *stats_callback;
     void *stats_opaque_callback_data;
+    DeviceState *qdev;
 } VirtIOBalloon;
 
 static VirtIOBalloon *to_virtio_balloon(VirtIODevice *vdev)
@@ -199,36 +202,44 @@ static uint32_t virtio_balloon_get_features(VirtIODevice *vdev, uint32_t f)
     return f;
 }
 
-static void virtio_balloon_to_target(void *opaque, ram_addr_t target,
-                                     MonitorCompletion cb, void *cb_data)
+static void virtio_balloon_stat(void *opaque, MonitorCompletion cb,
+                                void *cb_data)
 {
     VirtIOBalloon *dev = opaque;
 
-    if (target > ram_size)
-        target = ram_size;
+    /* For now, only allow one request at a time.  This restriction can be
+     * removed later by queueing callback and data pairs.
+     */
+    if (dev->stats_callback != NULL) {
+        return;
+    }
+    dev->stats_callback = cb;
+    dev->stats_opaque_callback_data = cb_data;
 
+    if (ENABLE_GUEST_STATS
+        && (dev->vdev.guest_features & (1 << VIRTIO_BALLOON_F_STATS_VQ))) {
+        virtqueue_push(dev->svq, &dev->stats_vq_elem, dev->stats_vq_offset);
+        virtio_notify(&dev->vdev, dev->svq);
+        return;
+    }
+
+    /* Stats are not supported.  Clear out any stale values that might
+     * have been set by a more featureful guest kernel.
+     */
+    reset_stats(dev);
+    complete_stats_request(dev);
+}
+
+static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
+{
+    VirtIOBalloon *dev = opaque;
+
+    if (target > ram_size) {
+        target = ram_size;
+    }
     if (target) {
         dev->num_pages = (ram_size - target) >> VIRTIO_BALLOON_PFN_SHIFT;
         virtio_notify_config(&dev->vdev);
-    } else {
-        /* For now, only allow one request at a time.  This restriction can be
-         * removed later by queueing callback and data pairs.
-         */
-        if (dev->stats_callback != NULL) {
-            return;
-        }
-        dev->stats_callback = cb;
-        dev->stats_opaque_callback_data = cb_data; 
-        if (ENABLE_GUEST_STATS && (dev->vdev.guest_features & (1 << VIRTIO_BALLOON_F_STATS_VQ))) {
-            virtqueue_push(dev->svq, &dev->stats_vq_elem, dev->stats_vq_offset);
-            virtio_notify(&dev->vdev, dev->svq);
-        } else {
-            /* Stats are not supported.  Clear out any stale values that might
-             * have been set by a more featureful guest kernel.
-             */
-            reset_stats(dev);
-            complete_stats_request(dev);
-        }
     }
 }
 
@@ -259,6 +270,7 @@ static int virtio_balloon_load(QEMUFile *f, void *opaque, int version_id)
 VirtIODevice *virtio_balloon_init(DeviceState *dev)
 {
     VirtIOBalloon *s;
+    int ret;
 
     s = (VirtIOBalloon *)virtio_common_init("virtio-balloon",
                                             VIRTIO_ID_BALLOON,
@@ -268,15 +280,29 @@ VirtIODevice *virtio_balloon_init(DeviceState *dev)
     s->vdev.set_config = virtio_balloon_set_config;
     s->vdev.get_features = virtio_balloon_get_features;
 
+    ret = qemu_add_balloon_handler(virtio_balloon_to_target,
+                                   virtio_balloon_stat, s);
+    if (ret < 0) {
+        virtio_cleanup(&s->vdev);
+        return NULL;
+    }
+
     s->ivq = virtio_add_queue(&s->vdev, 128, virtio_balloon_handle_output);
     s->dvq = virtio_add_queue(&s->vdev, 128, virtio_balloon_handle_output);
     s->svq = virtio_add_queue(&s->vdev, 128, virtio_balloon_receive_stats);
 
     reset_stats(s);
-    qemu_add_balloon_handler(virtio_balloon_to_target, s);
 
+    s->qdev = dev;
     register_savevm(dev, "virtio-balloon", -1, 1,
                     virtio_balloon_save, virtio_balloon_load, s);
 
     return &s->vdev;
+}
+
+void virtio_balloon_exit(VirtIODevice *vdev)
+{
+    VirtIOBalloon *s = DO_UPCAST(VirtIOBalloon, vdev, vdev);
+    unregister_savevm(s->qdev, "virtio-balloon", s);
+    virtio_cleanup(vdev);
 }

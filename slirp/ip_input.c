@@ -58,6 +58,7 @@ ip_init(Slirp *slirp)
     slirp->ipq.ip_link.next = slirp->ipq.ip_link.prev = &slirp->ipq.ip_link;
     udp_init(slirp);
     tcp_init(slirp);
+    icmp_init(slirp);
 }
 
 /*
@@ -117,27 +118,6 @@ ip_input(struct mbuf *m)
 	if (m->m_len < ip->ip_len) {
 		goto bad;
 	}
-
-    if (slirp->restricted) {
-        if ((ip->ip_dst.s_addr & slirp->vnetwork_mask.s_addr) ==
-            slirp->vnetwork_addr.s_addr) {
-            if (ip->ip_dst.s_addr == 0xffffffff && ip->ip_p != IPPROTO_UDP)
-                goto bad;
-        } else {
-            uint32_t inv_mask = ~slirp->vnetwork_mask.s_addr;
-            struct ex_list *ex_ptr;
-
-            if ((ip->ip_dst.s_addr & inv_mask) == inv_mask) {
-                goto bad;
-            }
-            for (ex_ptr = slirp->exec_list; ex_ptr; ex_ptr = ex_ptr->ex_next)
-                if (ex_ptr->ex_addr.s_addr == ip->ip_dst.s_addr)
-                    break;
-
-            if (!ex_ptr)
-                goto bad;
-        }
-    }
 
 	/* Should drop packet if mbuf too long? hmmm... */
 	if (m->m_len > ip->ip_len)
@@ -225,7 +205,7 @@ ip_input(struct mbuf *m)
 	}
 	return;
 bad:
-	m_freem(m);
+	m_free(m);
 	return;
 }
 
@@ -318,7 +298,7 @@ ip_reass(Slirp *slirp, struct ip *ip, struct ipq *fp)
 			break;
 		}
 		q = q->ipf_next;
-		m_freem(dtom(slirp, q->ipf_prev));
+		m_free(dtom(slirp, q->ipf_prev));
 		ip_deq(q->ipf_prev);
 	}
 
@@ -384,7 +364,7 @@ insert:
 	return ip;
 
 dropfrag:
-	m_freem(m);
+	m_free(m);
         return NULL;
 }
 
@@ -400,7 +380,7 @@ ip_freef(Slirp *slirp, struct ipq *fp)
 	for (q = fp->frag_link.next; q != (struct ipasfrag*)&fp->frag_link; q = p) {
 		p = q->ipf_next;
 		ip_deq(q);
-		m_freem(dtom(slirp, q));
+		m_free(dtom(slirp, q));
 	}
 	remque(&fp->ip_link);
 	(void) m_free(dtom(slirp, fp));
@@ -531,7 +511,7 @@ typedef uint32_t n_time;
 				 */
 				break;
 			}
-			off--;			/ * 0 origin *  /
+                        off--; /* 0 origin */
 			if (off > optlen - sizeof(struct in_addr)) {
 				/*
 				 * End of source route.  Should be for us.
@@ -574,7 +554,7 @@ typedef uint32_t n_time;
 			/*
 			 * If no space remains, ignore.
 			 */
-			off--;			 * 0 origin *
+                        off--; /* 0 origin */
 			if (off > optlen - sizeof(struct in_addr))
 				break;
 			bcopy((caddr_t)(&ip->ip_dst), (caddr_t)&ipaddr.sin_addr,

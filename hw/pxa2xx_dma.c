@@ -5,7 +5,7 @@
  * Copyright (c) 2006 Thorsten Zitterell
  * Written by Andrzej Zaborowski <balrog@zabor.org>
  *
- * This code is licenced under the GPL.
+ * This code is licensed under the GPL.
  */
 
 #include "hw.h"

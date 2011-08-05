@@ -258,7 +258,7 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
     s->irq = irq;
 
     if (nd) {
-        memcpy(s->conf.macaddr.a, nd->macaddr, sizeof(nd->macaddr));
+        s->conf.macaddr = nd->macaddr;
         s->conf.vlan = nd->vlan;
         s->conf.peer = nd->netdev;
 

@@ -179,15 +179,11 @@ int qed_read_l1_table_sync(BDRVQEDState *s)
 {
     int ret = -EINPROGRESS;
 
-    async_context_push();
-
     qed_read_table(s, s->header.l1_table_offset,
                    s->l1_table, qed_sync_cb, &ret);
     while (ret == -EINPROGRESS) {
         qemu_aio_wait();
     }
-
-    async_context_pop();
 
     return ret;
 }
@@ -205,14 +201,10 @@ int qed_write_l1_table_sync(BDRVQEDState *s, unsigned int index,
 {
     int ret = -EINPROGRESS;
 
-    async_context_push();
-
     qed_write_l1_table(s, index, n, qed_sync_cb, &ret);
     while (ret == -EINPROGRESS) {
         qemu_aio_wait();
     }
-
-    async_context_pop();
 
     return ret;
 }
@@ -282,14 +274,11 @@ int qed_read_l2_table_sync(BDRVQEDState *s, QEDRequest *request, uint64_t offset
 {
     int ret = -EINPROGRESS;
 
-    async_context_push();
-
     qed_read_l2_table(s, request, offset, qed_sync_cb, &ret);
     while (ret == -EINPROGRESS) {
         qemu_aio_wait();
     }
 
-    async_context_pop();
     return ret;
 }
 
@@ -307,13 +296,10 @@ int qed_write_l2_table_sync(BDRVQEDState *s, QEDRequest *request,
 {
     int ret = -EINPROGRESS;
 
-    async_context_push();
-
     qed_write_l2_table(s, request, index, n, flush, qed_sync_cb, &ret);
     while (ret == -EINPROGRESS) {
         qemu_aio_wait();
     }
 
-    async_context_pop();
     return ret;
 }

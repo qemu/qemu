@@ -319,7 +319,7 @@ static int get_char(GDBState *s)
     int ret;
 
     for(;;) {
-        ret = recv(s->fd, &ch, 1, 0);
+        ret = qemu_recv(s->fd, &ch, 1, 0);
         if (ret < 0) {
             if (errno == ECONNRESET)
                 s->fd = -1;

@@ -33,10 +33,17 @@
 #include "vreader.h"
 #include "vevent.h"
 
+typedef enum {
+    VCardEmulUnknown = -1,
+    VCardEmulFalse = 0,
+    VCardEmulTrue = 1
+} VCardEmulTriState;
+
 struct VCardKeyStruct {
     CERTCertificate *cert;
     PK11SlotInfo *slot;
     SECKEYPrivateKey *key;
+    VCardEmulTriState failedX509;
 };
 
 
@@ -140,6 +147,7 @@ vcard_emul_make_key(PK11SlotInfo *slot, CERTCertificate *cert)
     /* NOTE: the cert is a temp cert, not necessarily the cert in the token,
      * use the DER version of this function */
     key->key = PK11_FindKeyByDERCert(slot, cert, NULL);
+    key->failedX509 = VCardEmulUnknown;
     return key;
 }
 
@@ -208,13 +216,23 @@ vcard_emul_rsa_op(VCard *card, VCardKey *key,
 {
     SECKEYPrivateKey *priv_key;
     unsigned signature_len;
+    PK11SlotInfo *slot;
     SECStatus rv;
+    unsigned char buf[2048];
+    unsigned char *bp = NULL;
+    int pad_len;
+    vcard_7816_status_t ret = VCARD7816_STATUS_SUCCESS;
 
     if ((!nss_emul_init) || (key == NULL)) {
         /* couldn't get the key, indicate that we aren't logged in */
         return VCARD7816_STATUS_ERROR_CONDITION_NOT_SATISFIED;
     }
     priv_key = vcard_emul_get_nss_key(key);
+    if (priv_key == NULL) {
+        /* couldn't get the key, indicate that we aren't logged in */
+        return VCARD7816_STATUS_ERROR_CONDITION_NOT_SATISFIED;
+    }
+    slot = vcard_emul_card_get_slot(card);
 
     /*
      * this is only true of the rsa signature
@@ -223,13 +241,116 @@ vcard_emul_rsa_op(VCard *card, VCardKey *key,
     if (buffer_size != signature_len) {
         return  VCARD7816_STATUS_ERROR_DATA_INVALID;
     }
-    rv = PK11_PrivDecryptRaw(priv_key, buffer, &signature_len, signature_len,
-                             buffer, buffer_size);
-    if (rv != SECSuccess) {
-        return vcard_emul_map_error(PORT_GetError());
+    /* be able to handle larger keys if necessariy */
+    bp = &buf[0];
+    if (sizeof(buf) < signature_len) {
+        bp = qemu_malloc(signature_len);
     }
-    assert(buffer_size == signature_len);
-    return VCARD7816_STATUS_SUCCESS;
+
+    /*
+     * do the raw operations. Some tokens claim to do CKM_RSA_X_509, but then
+     * choke when they try to do the actual operations. Try to detect
+     * those cases and treat them as if the token didn't claim support for
+     * X_509.
+     */
+    if (key->failedX509 != VCardEmulTrue
+                              && PK11_DoesMechanism(slot, CKM_RSA_X_509)) {
+        rv = PK11_PrivDecryptRaw(priv_key, bp, &signature_len, signature_len,
+                                 buffer, buffer_size);
+        if (rv == SECSuccess) {
+            assert(buffer_size == signature_len);
+            memcpy(buffer, bp, signature_len);
+            key->failedX509 = VCardEmulFalse;
+            goto cleanup;
+        }
+        /*
+         * we've had a successful X509 operation, this failure must be
+         * somethine else
+         */
+        if (key->failedX509 == VCardEmulFalse) {
+            ret = vcard_emul_map_error(PORT_GetError());
+            goto cleanup;
+        }
+        /*
+         * key->failedX509 must be Unknown at this point, try the
+         * non-x_509 case
+         */
+    }
+    /* token does not support CKM_RSA_X509, emulate that with CKM_RSA_PKCS */
+    /* is this a PKCS #1 formatted signature? */
+    if ((buffer[0] == 0) && (buffer[1] == 1)) {
+        int i;
+
+        for (i = 2; i < buffer_size; i++) {
+            /* rsa signature pad */
+            if (buffer[i] != 0xff) {
+                break;
+            }
+        }
+        if ((i < buffer_size) && (buffer[i] == 0)) {
+            /* yes, we have a properly formated PKCS #1 signature */
+            /*
+             * NOTE: even if we accidentally got an encrypt buffer, which
+             * through shear luck started with 00, 01, ff, 00, it won't matter
+             * because the resulting Sign operation will effectively decrypt
+             * the real buffer.
+             */
+            SECItem signature;
+            SECItem hash;
+
+            i++;
+            hash.data = &buffer[i];
+            hash.len = buffer_size - i;
+            signature.data = bp;
+            signature.len = signature_len;
+            rv = PK11_Sign(priv_key,  &signature, &hash);
+            if (rv != SECSuccess) {
+                ret = vcard_emul_map_error(PORT_GetError());
+                goto cleanup;
+            }
+            assert(buffer_size == signature.len);
+            memcpy(buffer, bp, signature.len);
+            /*
+             * we got here because either the X509 attempt failed, or the
+             * token couldn't do the X509 operation, in either case stay
+             * with the PKCS version for future operations on this key
+             */
+            key->failedX509 = VCardEmulTrue;
+            goto cleanup;
+        }
+    }
+    pad_len = buffer_size - signature_len;
+    assert(pad_len < 4);
+    /*
+     * OK now we've decrypted the payload, package it up in PKCS #1 for the
+     * upper layer.
+     */
+    buffer[0] = 0;
+    buffer[1] = 2; /* RSA_encrypt  */
+    pad_len -= 3; /* format is 0 || 2 || pad || 0 || data */
+    /*
+     * padding for PKCS #1 encrypted data is a string of random bytes. The
+     * random butes protect against potential decryption attacks against RSA.
+     * Since PrivDecrypt has already stripped those bytes, we can't reconstruct
+     * them. This shouldn't matter to the upper level code which should just
+     * strip this code out anyway, so We'll pad with a constant 3.
+     */
+    memset(&buffer[2], 0x03, pad_len);
+    pad_len += 2; /* index to the end of the pad */
+    buffer[pad_len] = 0;
+    pad_len++; /* index to the start of the data */
+    memcpy(&buffer[pad_len], bp, signature_len);
+    /*
+     * we got here because either the X509 attempt failed, or the
+     * token couldn't do the X509 operation, in either case stay
+     * with the PKCS version for future operations on this key
+     */
+    key->failedX509 = VCardEmulTrue;
+cleanup:
+    if (bp != buf) {
+        qemu_free(bp);
+    }
+    return ret;
 }
 
 /*
@@ -476,6 +597,7 @@ vcard_emul_mirror_card(VReader *vreader)
     VCardKey **keys;
     PK11SlotInfo *slot;
     PRBool ret;
+    VCard *card;
 
     slot = vcard_emul_reader_get_slot(vreader);
     if (slot == NULL) {
@@ -535,7 +657,12 @@ vcard_emul_mirror_card(VReader *vreader)
     }
 
     /* now create the card */
-    return vcard_emul_make_card(vreader, certs, cert_len, keys, cert_count);
+    card = vcard_emul_make_card(vreader, certs, cert_len, keys, cert_count);
+    qemu_free(certs);
+    qemu_free(cert_len);
+    qemu_free(keys);
+
+    return card;
 }
 
 static VCardEmulType default_card_type = VCARD_EMUL_NONE;
@@ -820,6 +947,9 @@ vcard_emul_init(const VCardEmulOptions *options)
             vreader_free(vreader);
             has_readers = PR_TRUE;
         }
+        qemu_free(certs);
+        qemu_free(cert_len);
+        qemu_free(keys);
     }
 
     /* if we aren't suppose to use hw, skip looking up hardware tokens */
@@ -925,17 +1055,6 @@ vcard_emul_replay_insertion_events(void)
 /*
  *  Silly little functions to help parsing our argument string
  */
-static char *
-copy_string(const char *str, int str_len)
-{
-    char *new_str;
-
-    new_str = qemu_malloc(str_len+1);
-    memcpy(new_str, str, str_len);
-    new_str[str_len] = 0;
-    return new_str;
-}
-
 static int
 count_tokens(const char *str, char token, char token_end)
 {
@@ -975,13 +1094,31 @@ find_blank(const char *str)
 static VCardEmulOptions options;
 #define READER_STEP 4
 
+/* Expects "args" to be at the beginning of a token (ie right after the ','
+ * ending the previous token), and puts the next token start in "token",
+ * and its length in "token_length". "token" will not be nul-terminated.
+ * After calling the macro, "args" will be advanced to the beginning of
+ * the next token.
+ * This macro may call continue or break.
+ */
+#define NEXT_TOKEN(token) \
+            (token) = args; \
+            args = strpbrk(args, ",)"); \
+            if (*args == 0) { \
+                break; \
+            } \
+            if (*args == ')') { \
+                args++; \
+                continue; \
+            } \
+            (token##_length) = args - (token); \
+            args = strip(args+1);
+
 VCardEmulOptions *
 vcard_emul_options(const char *args)
 {
     int reader_count = 0;
     VCardEmulOptions *opts;
-    char type_str[100];
-    int type_len;
 
     /* Allow the future use of allocating the options structure on the fly */
     memcpy(&options, &default_options, sizeof(options));
@@ -996,63 +1133,32 @@ vcard_emul_options(const char *args)
          *       cert_2,cert_3...) */
         if (strncmp(args, "soft=", 5) == 0) {
             const char *name;
+            size_t name_length;
             const char *vname;
+            size_t vname_length;
             const char *type_params;
+            size_t type_params_length;
+            char type_str[100];
             VCardEmulType type;
-            int name_length, vname_length, type_params_length, count, i;
+            int count, i;
             VirtualReaderOptions *vreaderOpt = NULL;
 
             args = strip(args + 5);
             if (*args != '(') {
                 continue;
             }
-            name = args;
-            args = strpbrk(args + 1, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
             args = strip(args+1);
-            name_length = args - name - 2;
-            vname = args;
-            args = strpbrk(args + 1, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
-            vname_length = args - name - 2;
-            args = strip(args+1);
-            type_len = strpbrk(args, ",)") - args;
-            assert(sizeof(type_str) > type_len);
-            strncpy(type_str, args, type_len);
-            type_str[type_len] = 0;
+
+            NEXT_TOKEN(name)
+            NEXT_TOKEN(vname)
+            NEXT_TOKEN(type_params)
+            type_params_length = MIN(type_params_length, sizeof(type_str)-1);
+            strncpy(type_str, type_params, type_params_length);
+            type_str[type_params_length] = 0;
             type = vcard_emul_type_from_string(type_str);
-            args = strpbrk(args, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
-            args = strip(args++);
-            type_params = args;
-            args = strpbrk(args + 1, ",)");
-            if (*args == 0) {
-                break;
-            }
-            if (*args == ')') {
-                args++;
-                continue;
-            }
-            type_params_length = args - name;
-            args = strip(args++);
+
+            NEXT_TOKEN(type_params)
+
             if (*args == 0) {
                 break;
             }
@@ -1067,18 +1173,19 @@ vcard_emul_options(const char *args)
             }
             opts->vreader = vreaderOpt;
             vreaderOpt = &vreaderOpt[opts->vreader_count];
-            vreaderOpt->name = copy_string(name, name_length);
-            vreaderOpt->vname = copy_string(vname, vname_length);
+            vreaderOpt->name = qemu_strndup(name, name_length);
+            vreaderOpt->vname = qemu_strndup(vname, vname_length);
             vreaderOpt->card_type = type;
             vreaderOpt->type_params =
-                copy_string(type_params, type_params_length);
-            count = count_tokens(args, ',', ')');
+                qemu_strndup(type_params, type_params_length);
+            count = count_tokens(args, ',', ')') + 1;
             vreaderOpt->cert_count = count;
             vreaderOpt->cert_name = (char **)qemu_malloc(count*sizeof(char *));
             for (i = 0; i < count; i++) {
-                const char *cert = args + 1;
-                args = strpbrk(args + 1, ",)");
-                vreaderOpt->cert_name[i] = copy_string(cert, args - cert);
+                const char *cert = args;
+                args = strpbrk(args, ",)");
+                vreaderOpt->cert_name[i] = qemu_strndup(cert, args - cert);
+                args = strip(args+1);
             }
             if (*args == ')') {
                 args++;
@@ -1104,7 +1211,7 @@ vcard_emul_options(const char *args)
             args = strip(args+10);
             params = args;
             args = find_blank(args);
-            opts->hw_type_params = copy_string(params, args-params);
+            opts->hw_type_params = qemu_strndup(params, args-params);
         /* db="/data/base/path" */
         } else if (strncmp(args, "db=", 3) == 0) {
             const char *db;
@@ -1115,7 +1222,7 @@ vcard_emul_options(const char *args)
             args++;
             db = args;
             args = strpbrk(args, "\"\n");
-            opts->nss_db = copy_string(db, args-db);
+            opts->nss_db = qemu_strndup(db, args-db);
             if (*args != 0) {
                 args++;
             }

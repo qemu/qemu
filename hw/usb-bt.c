@@ -294,9 +294,9 @@ static inline int usb_bt_fifo_dequeue(struct usb_hci_in_fifo_s *fifo,
     if (likely(!fifo->len))
         return USB_RET_STALL;
 
-    len = MIN(p->len, fifo->fifo[fifo->start].len);
-    memcpy(p->data, fifo->fifo[fifo->start].data, len);
-    if (len == p->len) {
+    len = MIN(p->iov.size, fifo->fifo[fifo->start].len);
+    usb_packet_copy(p, fifo->fifo[fifo->start].data, len);
+    if (len == p->iov.size) {
         fifo->fifo[fifo->start].len -= len;
         fifo->fifo[fifo->start].data += len;
     } else {
@@ -319,20 +319,13 @@ static inline void usb_bt_fifo_out_enqueue(struct USBBtState *s,
                 struct usb_hci_out_fifo_s *fifo,
                 void (*send)(struct HCIInfo *, const uint8_t *, int),
                 int (*complete)(const uint8_t *, int),
-                const uint8_t *data, int len)
+                USBPacket *p)
 {
-    if (fifo->len) {
-        memcpy(fifo->data + fifo->len, data, len);
-        fifo->len += len;
-        if (complete(fifo->data, fifo->len)) {
-            send(s->hci, fifo->data, fifo->len);
-            fifo->len = 0;
-        }
-    } else if (complete(data, len))
-        send(s->hci, data, len);
-    else {
-        memcpy(fifo->data, data, len);
-        fifo->len = len;
+    usb_packet_copy(p, fifo->data + fifo->len, p->iov.size);
+    fifo->len += p->iov.size;
+    if (complete(fifo->data, fifo->len)) {
+        send(s->hci, fifo->data, fifo->len);
+        fifo->len = 0;
     }
 
     /* TODO: do we need to loop? */
@@ -432,7 +425,7 @@ static int usb_bt_handle_control(USBDevice *dev, USBPacket *p,
     case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_DEVICE) << 8):
         if (s->config)
             usb_bt_fifo_out_enqueue(s, &s->outcmd, s->hci->cmd_send,
-                            usb_bt_hci_cmd_complete, data, length);
+                            usb_bt_hci_cmd_complete, p);
         break;
     default:
     fail:
@@ -474,12 +467,12 @@ static int usb_bt_handle_data(USBDevice *dev, USBPacket *p)
         switch (p->devep & 0xf) {
         case USB_ACL_EP:
             usb_bt_fifo_out_enqueue(s, &s->outacl, s->hci->acl_send,
-                            usb_bt_hci_acl_complete, p->data, p->len);
+                            usb_bt_hci_acl_complete, p);
             break;
 
         case USB_SCO_EP:
             usb_bt_fifo_out_enqueue(s, &s->outsco, s->hci->sco_send,
-                            usb_bt_hci_sco_complete, p->data, p->len);
+                            usb_bt_hci_sco_complete, p);
             break;
 
         default:
@@ -548,10 +541,16 @@ USBDevice *usb_bt_init(HCIInfo *hci)
     return dev;
 }
 
+static const VMStateDescription vmstate_usb_bt = {
+    .name = "usb-bt",
+    .unmigratable = 1,
+};
+
 static struct USBDeviceInfo bt_info = {
     .product_desc   = "QEMU BT dongle",
     .qdev.name      = "usb-bt-dongle",
     .qdev.size      = sizeof(struct USBBtState),
+    .qdev.vmsd      = &vmstate_usb_bt,
     .usb_desc       = &desc_bluetooth,
     .init           = usb_bt_initfn,
     .handle_packet  = usb_generic_handle_packet,

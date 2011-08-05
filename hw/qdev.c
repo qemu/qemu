@@ -289,6 +289,9 @@ int qdev_init(DeviceState *dev)
                                        dev->alias_required_for_version);
     }
     dev->state = DEV_STATE_INITIALIZED;
+    if (dev->hotplugged && dev->info->reset) {
+        dev->info->reset(dev);
+    }
     return 0;
 }
 
@@ -459,7 +462,7 @@ void qdev_connect_gpio_out(DeviceState * dev, int n, qemu_irq pin)
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd)
 {
-    qdev_prop_set_macaddr(dev, "mac", nd->macaddr);
+    qdev_prop_set_macaddr(dev, "mac", nd->macaddr.a);
     if (nd->vlan)
         qdev_prop_set_vlan(dev, "vlan", nd->vlan);
     if (nd->netdev)

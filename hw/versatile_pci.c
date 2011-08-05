@@ -4,12 +4,13 @@
  * Copyright (c) 2006-2009 CodeSourcery.
  * Written by Paul Brook
  *
- * This code is licenced under the LGPL.
+ * This code is licensed under the LGPL.
  */
 
 #include "sysbus.h"
 #include "pci.h"
 #include "pci_host.h"
+#include "exec-memory.h"
 
 typedef struct {
     SysBusDevice busdev;
@@ -111,6 +112,7 @@ static int pci_vpb_init(SysBusDevice *dev)
     }
     bus = pci_register_bus(&dev->qdev, "pci",
                            pci_vpb_set_irq, pci_vpb_map_irq, s->irq,
+                           get_system_memory(),
                            PCI_DEVFN(11, 0), 4);
 
     /* ??? Register memory space.  */

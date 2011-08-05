@@ -27,13 +27,28 @@ STEXI
 Display version information and exit
 ETEXI
 
-DEF("M", HAS_ARG, QEMU_OPTION_M,
-    "-M machine      select emulated machine (-M ? for list)\n", QEMU_ARCH_ALL)
+DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
+    "-machine [type=]name[,prop[=value][,...]]\n"
+    "                selects emulated machine (-machine ? for list)\n"
+    "                property accel=accel1[:accel2[:...]] selects accelerator\n"
+    "                supported accelerators are kvm, xen, tcg (default: tcg)\n",
+    QEMU_ARCH_ALL)
 STEXI
-@item -M @var{machine}
-@findex -M
-Select the emulated @var{machine} (@code{-M ?} for list)
+@item -machine [type=]@var{name}[,prop=@var{value}[,...]]
+@findex -machine
+Select the emulated machine by @var{name}. Use @code{-machine ?} to list
+available machines. Supported machine properties are:
+@table @option
+@item accel=@var{accels1}[:@var{accels2}[:...]]
+This is used to enable an accelerator. Depending on the target architecture,
+kvm, xen, or tcg can be available. By default, tcg is used. If there is more
+than one accelerator specified, the next one is used if the previous one fails
+to initialize.
+@end table
 ETEXI
+
+HXCOMM Deprecated by -machine
+DEF("M", HAS_ARG, QEMU_OPTION_M, "", QEMU_ARCH_ALL)
 
 DEF("cpu", HAS_ARG, QEMU_OPTION_cpu,
     "-cpu cpu        select CPU (-cpu ? for list)\n", QEMU_ARCH_ALL)
@@ -288,10 +303,13 @@ ETEXI
 
 DEF("boot", HAS_ARG, QEMU_OPTION_boot,
     "-boot [order=drives][,once=drives][,menu=on|off]\n"
-    "                'drives': floppy (a), hard disk (c), CD-ROM (d), network (n)\n",
+    "      [,splash=sp_name][,splash-time=sp_time]\n"
+    "                'drives': floppy (a), hard disk (c), CD-ROM (d), network (n)\n"
+    "                'sp_name': the file's name that would be passed to bios as logo picture, if menu=on\n"
+    "                'sp_time': the period that splash picture last if menu=on, unit is ms\n",
     QEMU_ARCH_ALL)
 STEXI
-@item -boot [order=@var{drives}][,once=@var{drives}][,menu=on|off]
+@item -boot [order=@var{drives}][,once=@var{drives}][,menu=on|off][,splash=@var{sp_name}][,splash-time=@var{sp_time}]
 @findex -boot
 Specify boot order @var{drives} as a string of drive letters. Valid
 drive letters depend on the target achitecture. The x86 PC uses: a, b
@@ -303,11 +321,20 @@ particular boot order only on the first startup, specify it via
 Interactive boot menus/prompts can be enabled via @option{menu=on} as far
 as firmware/BIOS supports them. The default is non-interactive boot.
 
+A splash picture could be passed to bios, enabling user to show it as logo,
+when option splash=@var{sp_name} is given and menu=on, If firmware/BIOS
+supports them. Currently Seabios for X86 system support it.
+limitation: The splash file could be a jpeg file or a BMP file in 24 BPP
+format(true color). The resolution should be supported by the SVGA mode, so
+the recommended is 320x240, 640x480, 800x640.
+
 @example
 # try to boot from network first, then from hard disk
 qemu -boot order=nc
 # boot from CD-ROM first, switch back to default order after reboot
 qemu -boot once=d
+# boot with a splash picture for 5 seconds.
+qemu -boot menu=on,splash=/root/boot.bmp,splash-time=5000
 @end example
 
 Note: The legacy format '-boot @var{drives}' is still supported but its
@@ -1047,12 +1074,17 @@ Enable virtio balloon device (default), optionally with PCI address
 ETEXI
 
 DEF("acpitable", HAS_ARG, QEMU_OPTION_acpitable,
-    "-acpitable [sig=str][,rev=n][,oem_id=str][,oem_table_id=str][,oem_rev=n][,asl_compiler_id=str][,asl_compiler_rev=n][,data=file1[:file2]...]\n"
+    "-acpitable [sig=str][,rev=n][,oem_id=str][,oem_table_id=str][,oem_rev=n][,asl_compiler_id=str][,asl_compiler_rev=n][,{data|file}=file1[:file2]...]\n"
     "                ACPI table description\n", QEMU_ARCH_I386)
 STEXI
 @item -acpitable [sig=@var{str}][,rev=@var{n}][,oem_id=@var{str}][,oem_table_id=@var{str}][,oem_rev=@var{n}] [,asl_compiler_id=@var{str}][,asl_compiler_rev=@var{n}][,data=@var{file1}[:@var{file2}]...]
 @findex -acpitable
 Add ACPI table with specified header fields and context from specified files.
+For file=, take whole ACPI table from the specified files, including all
+ACPI headers (possible overridden by other options).
+For data=, only data
+portion of the table is used, all header information is specified in the
+command line.
 ETEXI
 
 DEF("smbios", HAS_ARG, QEMU_OPTION_smbios,
@@ -1100,7 +1132,7 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net nic[,vlan=n][,macaddr=mac][,model=type][,name=str][,addr=str][,vectors=v]\n"
     "                create a new Network Interface Card and connect it to VLAN 'n'\n"
 #ifdef CONFIG_SLIRP
-    "-net user[,vlan=n][,name=str][,net=addr[/mask]][,host=addr][,restrict=y|n]\n"
+    "-net user[,vlan=n][,name=str][,net=addr[/mask]][,host=addr][,restrict=on|off]\n"
     "         [,hostname=host][,dhcpstart=addr][,dns=addr][,tftp=dir][,bootfile=f]\n"
     "         [,hostfwd=rule][,guestfwd=rule]"
 #ifndef _WIN32
@@ -1193,7 +1225,7 @@ either in the form a.b.c.d or as number of valid top-most bits. Default is
 Specify the guest-visible address of the host. Default is the 2nd IP in the
 guest network, i.e. x.x.x.2.
 
-@item restrict=y|yes|n|no
+@item restrict=on|off
 If this option is enabled, the guest will be isolated, i.e. it will not be
 able to contact the host and no guest IP packets will be routed over the host
 to the outside. This option does not affect any explicitly set forwarding rules.
@@ -2072,16 +2104,6 @@ STEXI
 @findex -enable-kvm
 Enable KVM full virtualization support. This option is only available
 if KVM support is enabled when compiling.
-ETEXI
-
-DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
-    "-machine accel=accel1[:accel2]    use an accelerator (kvm,xen,tcg), default is tcg\n", QEMU_ARCH_ALL)
-STEXI
-@item -machine accel=@var{accels}
-@findex -machine
-This is use to enable an accelerator, in kvm,xen,tcg.
-By default, it use only tcg. If there a more than one accelerator
-specified, the next one is used if the first don't work.
 ETEXI
 
 DEF("xen-domid", HAS_ARG, QEMU_OPTION_xen_domid,

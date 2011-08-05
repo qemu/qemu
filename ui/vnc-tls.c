@@ -89,7 +89,7 @@ static ssize_t vnc_tls_pull(gnutls_transport_ptr_t transport,
     int ret;
 
  retry:
-    ret = recv(vs->csock, data, len, 0);
+    ret = qemu_recv(vs->csock, data, len, 0);
     if (ret < 0) {
         if (errno == EINTR)
             goto retry;

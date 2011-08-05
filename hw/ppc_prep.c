@@ -38,6 +38,7 @@
 #include "loader.h"
 #include "mc146818rtc.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 //#define HARD_DEBUG_PPC_IO
 //#define DEBUG_PPC_IO
@@ -648,7 +649,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
         hw_error("Only 6xx bus is supported on PREP machine\n");
     }
     i8259 = i8259_init(first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
-    pci_bus = pci_prep_init(i8259);
+    pci_bus = pci_prep_init(i8259, get_system_memory());
     /* Hmm, prep has no pci-isa bridge ??? */
     isa_bus_new(NULL);
     isa_bus_irqs(i8259);

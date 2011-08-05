@@ -228,6 +228,9 @@ int ctrl_grab = 0;
 unsigned int nb_prom_envs = 0;
 const char *prom_envs[MAX_PROM_ENVS];
 int boot_menu;
+uint8_t *boot_splash_filedata;
+int boot_splash_filedata_size;
+uint8_t qemu_extra_params_fw[2];
 
 typedef struct FWBootEntry FWBootEntry;
 
@@ -292,6 +295,14 @@ static struct {
     { .driver = "isa-vga",              .flag = &default_vga       },
     { .driver = "qxl-vga",              .flag = &default_vga       },
 };
+
+static void res_free(void)
+{
+    if (boot_splash_filedata != NULL) {
+        qemu_free(boot_splash_filedata);
+        boot_splash_filedata = NULL;
+    }
+}
 
 static int default_driver_check(QemuOpts *opts, void *opaque)
 {
@@ -1398,7 +1409,6 @@ static void main_loop(void)
             monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
             if (no_shutdown) {
                 vm_stop(VMSTOP_SHUTDOWN);
-                no_shutdown = 0;
             } else
                 break;
         }
@@ -1899,6 +1909,27 @@ static int debugcon_parse(const char *devname)
     return 0;
 }
 
+static QEMUMachine *machine_parse(const char *name)
+{
+    QEMUMachine *m, *machine = NULL;
+
+    if (name) {
+        machine = find_machine(name);
+    }
+    if (machine) {
+        return machine;
+    }
+    printf("Supported machines are:\n");
+    for (m = first_machine; m != NULL; m = m->next) {
+        if (m->alias) {
+            printf("%-10s %s (alias of %s)\n", m->alias, m->desc, m->name);
+        }
+        printf("%-10s %s%s\n", m->name, m->desc,
+               m->is_default ? " (default)" : "");
+    }
+    exit(!name || *name != '?');
+}
+
 static int tcg_init(void)
 {
     return 0;
@@ -1989,7 +2020,7 @@ void qemu_remove_exit_notifier(Notifier *notify)
 
 static void qemu_run_exit_notifiers(void)
 {
-    notifier_list_notify(&exit_notifiers);
+    notifier_list_notify(&exit_notifiers, NULL);
 }
 
 void qemu_add_machine_init_done_notifier(Notifier *notify)
@@ -1999,7 +2030,7 @@ void qemu_add_machine_init_done_notifier(Notifier *notify)
 
 static void qemu_run_machine_init_done_notifiers(void)
 {
-    notifier_list_notify(&machine_init_done_notifiers);
+    notifier_list_notify(&machine_init_done_notifiers, NULL);
 }
 
 static const QEMUOption *lookup_opt(int argc, char **argv,
@@ -2155,20 +2186,7 @@ int main(int argc, char **argv, char **envp)
             }
             switch(popt->index) {
             case QEMU_OPTION_M:
-                machine = find_machine(optarg);
-                if (!machine) {
-                    QEMUMachine *m;
-                    printf("Supported machines are:\n");
-                    for(m = first_machine; m != NULL; m = m->next) {
-                        if (m->alias)
-                            printf("%-10s %s (alias of %s)\n",
-                                   m->alias, m->desc, m->name);
-                        printf("%-10s %s%s\n",
-                               m->name, m->desc,
-                               m->is_default ? " (default)" : "");
-                    }
-                    exit(*optarg != '?');
-                }
+                machine = machine_parse(optarg);
                 break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
@@ -2323,7 +2341,8 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_boot:
                 {
                     static const char * const params[] = {
-                        "order", "once", "menu", NULL
+                        "order", "once", "menu",
+                        "splash", "splash-time", NULL
                     };
                     char buf[sizeof(boot_devices)];
                     char *standard_boot_devices;
@@ -2366,6 +2385,8 @@ int main(int argc, char **argv, char **envp)
                                 exit(1);
                             }
                         }
+                        qemu_opts_parse(qemu_find_opts("boot-opts"),
+                                        optarg, 0);
                     }
                 }
                 break;
@@ -2433,11 +2454,6 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
 
-                /* On 32-bit hosts, QEMU is limited by virtual address space */
-                if (value > (2047 << 20) && HOST_LONG_BITS == 32) {
-                    fprintf(stderr, "qemu: at most 2047 MB RAM can be simulated\n");
-                    exit(1);
-                }
                 if (value != (uint64_t)(ram_addr_t)value) {
                     fprintf(stderr, "qemu: ram size too large\n");
                     exit(1);
@@ -2698,10 +2714,14 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_machine:
                 olist = qemu_find_opts("machine");
                 qemu_opts_reset(olist);
-                opts = qemu_opts_parse(olist, optarg, 0);
+                opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
                     fprintf(stderr, "parse error: %s\n", optarg);
                     exit(1);
+                }
+                optarg = qemu_opt_get(opts, "type");
+                if (optarg) {
+                    machine = machine_parse(optarg);
                 }
                 break;
             case QEMU_OPTION_usb:
@@ -2976,8 +2996,8 @@ int main(int argc, char **argv, char **envp)
             p = qemu_opt_get(QTAILQ_FIRST(&list->head), "accel");
         }
         if (p == NULL) {
-            opts = qemu_opts_parse(qemu_find_opts("machine"),
-                                   machine->default_machine_opts, 0);
+            qemu_opts_reset(list);
+            opts = qemu_opts_parse(list, machine->default_machine_opts, 0);
             if (!opts) {
                 fprintf(stderr, "parse error for machine %s: %s\n",
                         machine->name, machine->default_machine_opts);
@@ -3091,8 +3111,17 @@ int main(int argc, char **argv, char **envp)
         exit(1);
 
     /* init the memory */
-    if (ram_size == 0)
+    if (ram_size == 0) {
         ram_size = DEFAULT_RAM_SIZE * 1024 * 1024;
+    }
+
+    if (!xen_enabled()) {
+        /* On 32-bit hosts, QEMU is limited by virtual address space */
+        if (ram_size > (2047 << 20) && HOST_LONG_BITS == 32) {
+            fprintf(stderr, "qemu: at most 2047 MB RAM can be simulated\n");
+            exit(1);
+        }
+    }
 
     /* init the dynamic translator */
     cpu_exec_init_all(tb_size * 1024 * 1024);
@@ -3120,8 +3149,8 @@ int main(int argc, char **argv, char **envp)
     if (nb_numa_nodes > 0) {
         int i;
 
-        if (nb_numa_nodes > smp_cpus) {
-            nb_numa_nodes = smp_cpus;
+        if (nb_numa_nodes > MAX_NODES) {
+            nb_numa_nodes = MAX_NODES;
         }
 
         /* If no memory size if given for any node, assume the default case
@@ -3327,6 +3356,7 @@ int main(int argc, char **argv, char **envp)
     main_loop();
     quit_timers();
     net_cleanup();
+    res_free();
 
     return 0;
 }

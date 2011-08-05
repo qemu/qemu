@@ -56,23 +56,39 @@ static void pcie_mmcfg_data_write(PCIBus *s,
                                   uint32_t mmcfg_addr, uint32_t val, int len)
 {
     PCIDevice *pci_dev = pcie_dev_find_by_mmcfg_addr(s, mmcfg_addr);
+    uint32_t addr;
+    uint32_t limit;
 
-    if (!pci_dev)
+    if (!pci_dev) {
         return;
-
-    pci_dev->config_write(pci_dev,
-                          PCIE_MMCFG_CONFOFFSET(mmcfg_addr), val, len);
+    }
+    addr = PCIE_MMCFG_CONFOFFSET(mmcfg_addr);
+    limit = pci_config_size(pci_dev);
+    if (limit <= addr) {
+        /* conventional pci device can be behind pcie-to-pci bridge.
+           256 <= addr < 4K has no effects. */
+        return;
+    }
+    pci_host_config_write_common(pci_dev, addr, limit, val, len);
 }
 
-static uint32_t pcie_mmcfg_data_read(PCIBus *s, uint32_t addr, int len)
+static uint32_t pcie_mmcfg_data_read(PCIBus *s, uint32_t mmcfg_addr, int len)
 {
-    PCIDevice *pci_dev = pcie_dev_find_by_mmcfg_addr(s, addr);
+    PCIDevice *pci_dev = pcie_dev_find_by_mmcfg_addr(s, mmcfg_addr);
+    uint32_t addr;
+    uint32_t limit;
 
-    assert(len == 1 || len == 2 || len == 4);
     if (!pci_dev) {
         return ~0x0;
     }
-    return pci_dev->config_read(pci_dev, PCIE_MMCFG_CONFOFFSET(addr), len);
+    addr = PCIE_MMCFG_CONFOFFSET(mmcfg_addr);
+    limit = pci_config_size(pci_dev);
+    if (limit <= addr) {
+        /* conventional pci device can be behind pcie-to-pci bridge.
+           256 <= addr < 4K has no effects. */
+        return ~0x0;
+    }
+    return pci_host_config_read_common(pci_dev, addr, limit, len);
 }
 
 static void pcie_mmcfg_data_writeb(void *opaque,

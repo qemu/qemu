@@ -198,6 +198,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Could not set password",
     },
     {
+        .error_fmt = QERR_ADD_CLIENT_FAILED,
+        .desc      = "Could not add client",
+    },
+    {
         .error_fmt = QERR_TOO_MANY_FILES,
         .desc      = "Too many open files",
     },

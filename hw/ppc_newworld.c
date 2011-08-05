@@ -67,6 +67,7 @@
 #include "kvm_ppc.h"
 #include "hw/usb.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 #define MAX_IDE_BUS 2
 #define CFG_ADDR 0xf0000510
@@ -317,10 +318,10 @@ static void ppc_core99_init (ram_addr_t ram_size,
     pic = openpic_init(NULL, &pic_mem_index, smp_cpus, openpic_irqs, NULL);
     if (PPC_INPUT(env) == PPC_FLAGS_INPUT_970) {
         /* 970 gets a U3 bus */
-        pci_bus = pci_pmac_u3_init(pic);
+        pci_bus = pci_pmac_u3_init(pic, get_system_memory());
         machine_arch = ARCH_MAC99_U3;
     } else {
-        pci_bus = pci_pmac_init(pic);
+        pci_bus = pci_pmac_init(pic, get_system_memory());
         machine_arch = ARCH_MAC99;
     }
     /* init basic PC hardware */

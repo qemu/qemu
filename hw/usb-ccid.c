@@ -934,16 +934,16 @@ static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
 {
     CCID_Header *ccid_header;
 
-    if (p->len + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
+    if (p->iov.size + s->bulk_out_pos > BULK_OUT_DATA_SIZE) {
         return USB_RET_STALL;
     }
     ccid_header = (CCID_Header *)s->bulk_out_data;
-    memcpy(s->bulk_out_data + s->bulk_out_pos, p->data, p->len);
-    s->bulk_out_pos += p->len;
-    if (p->len == CCID_MAX_PACKET_SIZE) {
+    usb_packet_copy(p, s->bulk_out_data + s->bulk_out_pos, p->iov.size);
+    s->bulk_out_pos += p->iov.size;
+    if (p->iov.size == CCID_MAX_PACKET_SIZE) {
         DPRINTF(s, D_VERBOSE,
-            "usb-ccid: bulk_in: expecting more packets (%d/%d)\n",
-            p->len, ccid_header->dwLength);
+            "usb-ccid: bulk_in: expecting more packets (%zd/%d)\n",
+            p->iov.size, ccid_header->dwLength);
         return 0;
     }
     if (s->bulk_out_pos < 10) {
@@ -1006,15 +1006,17 @@ static int ccid_handle_bulk_out(USBCCIDState *s, USBPacket *p)
     return 0;
 }
 
-static int ccid_bulk_in_copy_to_guest(USBCCIDState *s, uint8_t *data, int len)
+static int ccid_bulk_in_copy_to_guest(USBCCIDState *s, USBPacket *p)
 {
     int ret = 0;
 
-    assert(len > 0);
+    assert(p->iov.size > 0);
     ccid_bulk_in_get(s);
     if (s->current_bulk_in != NULL) {
-        ret = MIN(s->current_bulk_in->len - s->current_bulk_in->pos, len);
-        memcpy(data, s->current_bulk_in->data + s->current_bulk_in->pos, ret);
+        ret = MIN(s->current_bulk_in->len - s->current_bulk_in->pos,
+                  p->iov.size);
+        usb_packet_copy(p, s->current_bulk_in->data +
+                        s->current_bulk_in->pos, ret);
         s->current_bulk_in->pos += ret;
         if (s->current_bulk_in->pos == s->current_bulk_in->len) {
             ccid_bulk_in_release(s);
@@ -1025,11 +1027,13 @@ static int ccid_bulk_in_copy_to_guest(USBCCIDState *s, uint8_t *data, int len)
     }
     if (ret > 0) {
         DPRINTF(s, D_MORE_INFO,
-                "%s: %d/%d req/act to guest (BULK_IN)\n", __func__, len, ret);
+                "%s: %zd/%d req/act to guest (BULK_IN)\n",
+                __func__, p->iov.size, ret);
     }
-    if (ret != USB_RET_NAK && ret < len) {
+    if (ret != USB_RET_NAK && ret < p->iov.size) {
         DPRINTF(s, 1,
-            "%s: returning short (EREMOTEIO) %d < %d\n", __func__, ret, len);
+                "%s: returning short (EREMOTEIO) %d < %zd\n",
+                __func__, ret, p->iov.size);
     }
     return ret;
 }
@@ -1038,8 +1042,7 @@ static int ccid_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
     int ret = 0;
-    uint8_t *data = p->data;
-    int len = p->len;
+    uint8_t buf[2];
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
@@ -1049,24 +1052,25 @@ static int ccid_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         switch (p->devep & 0xf) {
         case CCID_BULK_IN_EP:
-            if (!len) {
+            if (!p->iov.size) {
                 ret = USB_RET_NAK;
             } else {
-                ret = ccid_bulk_in_copy_to_guest(s, data, len);
+                ret = ccid_bulk_in_copy_to_guest(s, p);
             }
             break;
         case CCID_INT_IN_EP:
             if (s->notify_slot_change) {
                 /* page 56, RDR_to_PC_NotifySlotChange */
-                data[0] = CCID_MESSAGE_TYPE_RDR_to_PC_NotifySlotChange;
-                data[1] = s->bmSlotICCState;
+                buf[0] = CCID_MESSAGE_TYPE_RDR_to_PC_NotifySlotChange;
+                buf[1] = s->bmSlotICCState;
+                usb_packet_copy(p, buf, 2);
                 ret = 2;
                 s->notify_slot_change = false;
                 s->bmSlotICCState &= ~SLOT_0_CHANGED_MASK;
                 DPRINTF(s, D_INFO,
                         "handle_data: int_in: notify_slot_change %X, "
-                        "requested len %d\n",
-                        s->bmSlotICCState, len);
+                        "requested len %zd\n",
+                        s->bmSlotICCState, p->iov.size);
             }
             break;
         default:
@@ -1104,20 +1108,9 @@ static Answer *ccid_peek_next_answer(USBCCIDState *s)
         : &s->pending_answers[s->pending_answers_start % PENDING_ANSWERS_NUM];
 }
 
-static void ccid_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
-{
-    CCIDCardState *card = DO_UPCAST(CCIDCardState, qdev, qdev);
-    CCIDCardInfo *info = DO_UPCAST(CCIDCardInfo, qdev, qdev->info);
-
-    if (info->print) {
-        info->print(mon, card, indent);
-    }
-}
-
 static struct BusInfo ccid_bus_info = {
     .name = "ccid-bus",
     .size = sizeof(CCIDBus),
-    .print_dev = ccid_bus_dev_print,
     .props = (Property[]) {
         DEFINE_PROP_UINT32("slot", struct CCIDCardState, slot, 0),
         DEFINE_PROP_END_OF_LIST(),

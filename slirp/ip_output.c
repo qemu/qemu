@@ -159,7 +159,7 @@ sendorfree:
 		if (error == 0)
 			if_output(so, m);
 		else
-			m_freem(m);
+			m_free(m);
 	}
     }
 
@@ -167,6 +167,6 @@ done:
 	return (error);
 
 bad:
-	m_freem(m0);
+	m_free(m0);
 	goto done;
 }

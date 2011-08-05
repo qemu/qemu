@@ -123,6 +123,9 @@ extern int no_shutdown;
 extern int semihosting_enabled;
 extern int old_param;
 extern int boot_menu;
+extern uint8_t *boot_splash_filedata;
+extern int boot_splash_filedata_size;
+extern uint8_t qemu_extra_params_fw[2];
 extern QEMUClock *rtc_clock;
 
 #define MAX_NODES 64

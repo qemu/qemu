@@ -194,7 +194,7 @@ static int socket_get_buffer(void *opaque, uint8_t *buf, int64_t pos, int size)
     ssize_t len;
 
     do {
-        len = recv(s->fd, (void *)buf, size, 0);
+        len = qemu_recv(s->fd, buf, size, 0);
     } while (len == -1 && socket_error() == EINTR);
 
     if (len == -1)
@@ -1234,6 +1234,7 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
     se->opaque = opaque;
     se->vmsd = vmsd;
     se->alias_id = alias_id;
+    se->no_migrate = vmsd->unmigratable;
 
     if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
         char *id = dev->parent_bus->info->get_dev_path(dev);

@@ -153,11 +153,12 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 		return 0;
 
 	 case 0:
+                setsid();
+
 		/* Set the DISPLAY */
 		if (do_pty == 2) {
 			(void) close(master);
 #ifdef TIOCSCTTY /* XXXXX */
-			(void) setsid();
 			ioctl(s, TIOCSCTTY, (char *)NULL);
 #endif
 		} else {
@@ -404,6 +405,19 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
                        ntohs(src.sin_port));
         monitor_printf(mon, "%15s %5d %5d %5d\n",
                        inet_ntoa(dst_addr), ntohs(dst_port),
+                       so->so_rcv.sb_cc, so->so_snd.sb_cc);
+    }
+
+    for (so = slirp->icmp.so_next; so != &slirp->icmp; so = so->so_next) {
+        n = snprintf(buf, sizeof(buf), "  ICMP[%d sec]",
+                     (so->so_expire - curtime) / 1000);
+        src.sin_addr = so->so_laddr;
+        dst_addr = so->so_faddr;
+        memset(&buf[n], ' ', 19 - n);
+        buf[19] = 0;
+        monitor_printf(mon, "%s %3d %15s  -    ", buf, so->s,
+                       src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*");
+        monitor_printf(mon, "%15s  -    %5d %5d\n", inet_ntoa(dst_addr),
                        so->so_rcv.sb_cc, so->so_snd.sb_cc);
     }
 }

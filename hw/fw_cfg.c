@@ -26,6 +26,7 @@
 #include "isa.h"
 #include "fw_cfg.h"
 #include "sysbus.h"
+#include "qemu-error.h"
 
 /* debug firmware config */
 //#define DEBUG_FW_CFG
@@ -55,6 +56,143 @@ struct FWCfgState {
     uint32_t cur_offset;
     Notifier machine_ready;
 };
+
+#define JPG_FILE 0
+#define BMP_FILE 1
+
+static FILE *probe_splashfile(char *filename, int *file_sizep, int *file_typep)
+{
+    FILE *fp = NULL;
+    int fop_ret;
+    int file_size;
+    int file_type = -1;
+    unsigned char buf[2] = {0, 0};
+    unsigned int filehead_value = 0;
+    int bmp_bpp;
+
+    fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        error_report("failed to open file '%s'.", filename);
+        return fp;
+    }
+    /* check file size */
+    fseek(fp, 0L, SEEK_END);
+    file_size = ftell(fp);
+    if (file_size < 2) {
+        error_report("file size is less than 2 bytes '%s'.", filename);
+        fclose(fp);
+        fp = NULL;
+        return fp;
+    }
+    /* check magic ID */
+    fseek(fp, 0L, SEEK_SET);
+    fop_ret = fread(buf, 1, 2, fp);
+    filehead_value = (buf[0] + (buf[1] << 8)) & 0xffff;
+    if (filehead_value == 0xd8ff) {
+        file_type = JPG_FILE;
+    } else {
+        if (filehead_value == 0x4d42) {
+            file_type = BMP_FILE;
+        }
+    }
+    if (file_type < 0) {
+        error_report("'%s' not jpg/bmp file,head:0x%x.",
+                         filename, filehead_value);
+        fclose(fp);
+        fp = NULL;
+        return fp;
+    }
+    /* check BMP bpp */
+    if (file_type == BMP_FILE) {
+        fseek(fp, 28, SEEK_SET);
+        fop_ret = fread(buf, 1, 2, fp);
+        bmp_bpp = (buf[0] + (buf[1] << 8)) & 0xffff;
+        if (bmp_bpp != 24) {
+            error_report("only 24bpp bmp file is supported.");
+            fclose(fp);
+            fp = NULL;
+            return fp;
+        }
+    }
+    /* return values */
+    *file_sizep = file_size;
+    *file_typep = file_type;
+    return fp;
+}
+
+static void fw_cfg_bootsplash(FWCfgState *s)
+{
+    int boot_splash_time = -1;
+    const char *boot_splash_filename = NULL;
+    char *p;
+    char *filename;
+    FILE *fp;
+    int fop_ret;
+    int file_size;
+    int file_type = -1;
+    const char *temp;
+
+    /* get user configuration */
+    QemuOptsList *plist = qemu_find_opts("boot-opts");
+    QemuOpts *opts = QTAILQ_FIRST(&plist->head);
+    if (opts != NULL) {
+        temp = qemu_opt_get(opts, "splash");
+        if (temp != NULL) {
+            boot_splash_filename = temp;
+        }
+        temp = qemu_opt_get(opts, "splash-time");
+        if (temp != NULL) {
+            p = (char *)temp;
+            boot_splash_time = strtol(p, (char **)&p, 10);
+        }
+    }
+
+    /* insert splash time if user configurated */
+    if (boot_splash_time >= 0) {
+        /* validate the input */
+        if (boot_splash_time > 0xffff) {
+            error_report("splash time is big than 65535, force it to 65535.");
+            boot_splash_time = 0xffff;
+        }
+        /* use little endian format */
+        qemu_extra_params_fw[0] = (uint8_t)(boot_splash_time & 0xff);
+        qemu_extra_params_fw[1] = (uint8_t)((boot_splash_time >> 8) & 0xff);
+        fw_cfg_add_file(s, "etc/boot-menu-wait", qemu_extra_params_fw, 2);
+    }
+
+    /* insert splash file if user configurated */
+    if (boot_splash_filename != NULL) {
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, boot_splash_filename);
+        if (filename == NULL) {
+            error_report("failed to find file '%s'.", boot_splash_filename);
+            return;
+        }
+        /* probing the file */
+        fp = probe_splashfile(filename, &file_size, &file_type);
+        if (fp == NULL) {
+            qemu_free(filename);
+            return;
+        }
+        /* loading file data */
+        if (boot_splash_filedata != NULL) {
+            qemu_free(boot_splash_filedata);
+        }
+        boot_splash_filedata = qemu_malloc(file_size);
+        boot_splash_filedata_size = file_size;
+        fseek(fp, 0L, SEEK_SET);
+        fop_ret = fread(boot_splash_filedata, 1, file_size, fp);
+        fclose(fp);
+        /* insert data */
+        if (file_type == JPG_FILE) {
+            fw_cfg_add_file(s, "bootsplash.jpg",
+                    boot_splash_filedata, boot_splash_filedata_size);
+        } else {
+            fw_cfg_add_file(s, "bootsplash.bmp",
+                    boot_splash_filedata, boot_splash_filedata_size);
+        }
+        qemu_free(filename);
+    }
+}
 
 static void fw_cfg_write(FWCfgState *s, uint8_t value)
 {
@@ -316,7 +454,7 @@ int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
     return 1;
 }
 
-static void fw_cfg_machine_ready(struct Notifier* n)
+static void fw_cfg_machine_ready(struct Notifier *n, void *data)
 {
     uint32_t len;
     FWCfgState *s = container_of(n, FWCfgState, machine_ready);
@@ -352,7 +490,7 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
     fw_cfg_add_i16(s, FW_CFG_NB_CPUS, (uint16_t)smp_cpus);
     fw_cfg_add_i16(s, FW_CFG_MAX_CPUS, (uint16_t)max_cpus);
     fw_cfg_add_i16(s, FW_CFG_BOOT_MENU, (uint16_t)boot_menu);
-
+    fw_cfg_bootsplash(s);
 
     s->machine_ready.notify = fw_cfg_machine_ready;
     qemu_add_machine_init_done_notifier(&s->machine_ready);

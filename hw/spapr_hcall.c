@@ -1,9 +1,9 @@
 #include "sysemu.h"
 #include "cpu.h"
+#include "dyngen-exec.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "qemu-char.h"
-#include "exec.h"
 #include "helper_regs.h"
 #include "hw/spapr.h"
 

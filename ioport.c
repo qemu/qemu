@@ -146,7 +146,7 @@ int register_ioport_read(pio_addr_t start, int length, int size,
         hw_error("register_ioport_read: invalid size");
         return -1;
     }
-    for(i = start; i < start + length; i += size) {
+    for(i = start; i < start + length; ++i) {
         ioport_read_table[bsize][i] = func;
         if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
             hw_error("register_ioport_read: invalid opaque for address 0x%x",
@@ -166,7 +166,7 @@ int register_ioport_write(pio_addr_t start, int length, int size,
         hw_error("register_ioport_write: invalid size");
         return -1;
     }
-    for(i = start; i < start + length; i += size) {
+    for(i = start; i < start + length; ++i) {
         ioport_write_table[bsize][i] = func;
         if (ioport_opaque[i] != NULL && ioport_opaque[i] != opaque)
             hw_error("register_ioport_write: invalid opaque for address 0x%x",
@@ -245,16 +245,23 @@ void isa_unassign_ioport(pio_addr_t start, int length)
     int i;
 
     for(i = start; i < start + length; i++) {
-        ioport_read_table[0][i] = default_ioport_readb;
-        ioport_read_table[1][i] = default_ioport_readw;
-        ioport_read_table[2][i] = default_ioport_readl;
+        ioport_read_table[0][i] = NULL;
+        ioport_read_table[1][i] = NULL;
+        ioport_read_table[2][i] = NULL;
 
-        ioport_write_table[0][i] = default_ioport_writeb;
-        ioport_write_table[1][i] = default_ioport_writew;
-        ioport_write_table[2][i] = default_ioport_writel;
+        ioport_write_table[0][i] = NULL;
+        ioport_write_table[1][i] = NULL;
+        ioport_write_table[2][i] = NULL;
 
         ioport_opaque[i] = NULL;
     }
+}
+
+bool isa_is_ioport_assigned(pio_addr_t start)
+{
+    return (ioport_read_table[0][start] || ioport_write_table[0][start] ||
+	    ioport_read_table[1][start] || ioport_write_table[1][start] ||
+	    ioport_read_table[2][start] || ioport_write_table[2][start]);
 }
 
 /***********************************************************/

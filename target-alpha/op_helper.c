@@ -17,11 +17,14 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "exec.h"
+#include "cpu.h"
+#include "dyngen-exec.h"
 #include "host-utils.h"
 #include "softfloat.h"
 #include "helper.h"
 #include "qemu-timer.h"
+
+#define FP_STATUS (env->fp_status)
 
 /*****************************************************************************/
 /* Exceptions processing helpers */
@@ -1310,6 +1313,8 @@ void QEMU_NORETURN cpu_unassigned_access(CPUState *env1,
     env->trap_arg1 = is_write;
     dynamic_excp(EXCP_MCHK, 0);
 }
+
+#include "softmmu_exec.h"
 
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY

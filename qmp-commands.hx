@@ -42,7 +42,7 @@ and we're going to establish a deprecation policy for badly defined commands.
 
 If you're planning to adopt QMP, please observe the following:
 
-    1. The deprecation policy will take efect and be documented soon, please
+    1. The deprecation policy will take effect and be documented soon, please
        check the documentation of each used command as soon as a new release of
        QEMU is available
 
@@ -918,6 +918,33 @@ Example:
 
 EQMP
 
+    {
+        .name       = "add_client",
+        .args_type  = "protocol:s,fdname:s,skipauth:b?",
+        .params     = "protocol fdname skipauth",
+        .help       = "add a graphics client",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = add_graphics_client,
+    },
+
+SQMP
+add_client
+----------
+
+Add a graphics client
+
+Arguments:
+
+- "protocol": protocol name (json-string)
+- "fdname": file descriptor name (json-string)
+
+Example:
+
+-> { "execute": "add_client", "arguments": { "protocol": "vnc",
+                                             "fdname": "myclient" } }
+<- { "return": {} }
+
+EQMP
     {
         .name       = "qmp_capabilities",
         .args_type  = "",

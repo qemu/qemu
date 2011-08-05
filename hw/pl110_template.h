@@ -4,7 +4,7 @@
  * Copyright (c) 2005 CodeSourcery, LLC.
  * Written by Paul Brook
  *
- * This code is licenced under the GNU LGPL
+ * This code is licensed under the GNU LGPL
  *
  * Framebuffer format conversion routines.
  */

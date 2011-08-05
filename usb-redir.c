@@ -365,12 +365,12 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
         }
 
         len = isop->len;
-        if (len > p->len) {
+        if (len > p->iov.size) {
             ERROR("received iso data is larger then packet ep %02X\n", ep);
             bufp_free(dev, isop, ep);
             return USB_RET_NAK;
         }
-        memcpy(p->data, isop->data, len);
+        usb_packet_copy(p, isop->data, len);
         bufp_free(dev, isop, ep);
         return len;
     } else {
@@ -379,18 +379,20 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
         if (dev->endpoint[EP2I(ep)].iso_started) {
             struct usb_redir_iso_packet_header iso_packet = {
                 .endpoint = ep,
-                .length = p->len
+                .length = p->iov.size
             };
+            uint8_t buf[p->iov.size];
             /* No id, we look at the ep when receiving a status back */
+            usb_packet_copy(p, buf, p->iov.size);
             usbredirparser_send_iso_packet(dev->parser, 0, &iso_packet,
-                                           p->data, p->len);
+                                           buf, p->iov.size);
             usbredirparser_do_write(dev->parser);
         }
         status = dev->endpoint[EP2I(ep)].iso_error;
         dev->endpoint[EP2I(ep)].iso_error = 0;
-        DPRINTF2("iso-token-out ep %02X status %d len %d\n", ep, status,
-                 p->len);
-        return usbredir_handle_status(dev, status, p->len);
+        DPRINTF2("iso-token-out ep %02X status %d len %zd\n", ep, status,
+                 p->iov.size);
+        return usbredir_handle_status(dev, status, p->iov.size);
     }
 }
 
@@ -413,10 +415,11 @@ static int usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
     AsyncURB *aurb = async_alloc(dev, p);
     struct usb_redir_bulk_packet_header bulk_packet;
 
-    DPRINTF("bulk-out ep %02X len %d id %u\n", ep, p->len, aurb->packet_id);
+    DPRINTF("bulk-out ep %02X len %zd id %u\n", ep,
+            p->iov.size, aurb->packet_id);
 
     bulk_packet.endpoint  = ep;
-    bulk_packet.length    = p->len;
+    bulk_packet.length    = p->iov.size;
     bulk_packet.stream_id = 0;
     aurb->bulk_packet = bulk_packet;
 
@@ -424,9 +427,11 @@ static int usbredir_handle_bulk_data(USBRedirDevice *dev, USBPacket *p,
         usbredirparser_send_bulk_packet(dev->parser, aurb->packet_id,
                                         &bulk_packet, NULL, 0);
     } else {
-        usbredir_log_data(dev, "bulk data out:", p->data, p->len);
+        uint8_t buf[p->iov.size];
+        usb_packet_copy(p, buf, p->iov.size);
+        usbredir_log_data(dev, "bulk data out:", buf, p->iov.size);
         usbredirparser_send_bulk_packet(dev->parser, aurb->packet_id,
-                                        &bulk_packet, p->data, p->len);
+                                        &bulk_packet, buf, p->iov.size);
     }
     usbredirparser_do_write(dev->parser);
     return USB_RET_ASYNC;
@@ -471,29 +476,31 @@ static int usbredir_handle_interrupt_data(USBRedirDevice *dev,
         }
 
         len = intp->len;
-        if (len > p->len) {
+        if (len > p->iov.size) {
             ERROR("received int data is larger then packet ep %02X\n", ep);
             bufp_free(dev, intp, ep);
             return USB_RET_NAK;
         }
-        memcpy(p->data, intp->data, len);
+        usb_packet_copy(p, intp->data, len);
         bufp_free(dev, intp, ep);
         return len;
     } else {
         /* Output interrupt endpoint, normal async operation */
         AsyncURB *aurb = async_alloc(dev, p);
         struct usb_redir_interrupt_packet_header interrupt_packet;
+        uint8_t buf[p->iov.size];
 
-        DPRINTF("interrupt-out ep %02X len %d id %u\n", ep, p->len,
+        DPRINTF("interrupt-out ep %02X len %zd id %u\n", ep, p->iov.size,
                 aurb->packet_id);
 
         interrupt_packet.endpoint  = ep;
-        interrupt_packet.length    = p->len;
+        interrupt_packet.length    = p->iov.size;
         aurb->interrupt_packet     = interrupt_packet;
 
-        usbredir_log_data(dev, "interrupt data out:", p->data, p->len);
+        usb_packet_copy(p, buf, p->iov.size);
+        usbredir_log_data(dev, "interrupt data out:", buf, p->iov.size);
         usbredirparser_send_interrupt_packet(dev->parser, aurb->packet_id,
-                                        &interrupt_packet, p->data, p->len);
+                                        &interrupt_packet, buf, p->iov.size);
         usbredirparser_do_write(dev->parser);
         return USB_RET_ASYNC;
     }
@@ -959,7 +966,7 @@ static void usbredir_configuration_status(void *priv, uint32_t id,
             dev->dev.data_buf[0] = config_status->configuration;
             len = 1;
         }
-        aurb->packet->len =
+        aurb->packet->result =
             usbredir_handle_status(dev, config_status->status, len);
         usb_generic_async_ctrl_complete(&dev->dev, aurb->packet);
     }
@@ -987,7 +994,7 @@ static void usbredir_alt_setting_status(void *priv, uint32_t id,
             dev->dev.data_buf[0] = alt_setting_status->alt;
             len = 1;
         }
-        aurb->packet->len =
+        aurb->packet->result =
             usbredir_handle_status(dev, alt_setting_status->status, len);
         usb_generic_async_ctrl_complete(&dev->dev, aurb->packet);
     }
@@ -1070,7 +1077,7 @@ static void usbredir_control_packet(void *priv, uint32_t id,
                 len = USB_RET_STALL;
             }
         }
-        aurb->packet->len = len;
+        aurb->packet->result = len;
         usb_generic_async_ctrl_complete(&dev->dev, aurb->packet);
     }
     async_free(dev, aurb);
@@ -1105,15 +1112,15 @@ static void usbredir_bulk_packet(void *priv, uint32_t id,
         len = usbredir_handle_status(dev, bulk_packet->status, len);
         if (len > 0) {
             usbredir_log_data(dev, "bulk data in:", data, data_len);
-            if (data_len <= aurb->packet->len) {
-                memcpy(aurb->packet->data, data, data_len);
+            if (data_len <= aurb->packet->iov.size) {
+                usb_packet_copy(aurb->packet, data, data_len);
             } else {
-                ERROR("bulk buffer too small (%d > %d)\n", data_len,
-                      aurb->packet->len);
+                ERROR("bulk buffer too small (%d > %zd)\n", data_len,
+                      aurb->packet->iov.size);
                 len = USB_RET_STALL;
             }
         }
-        aurb->packet->len = len;
+        aurb->packet->result = len;
         usb_packet_complete(&dev->dev, aurb->packet);
     }
     async_free(dev, aurb);
@@ -1185,7 +1192,7 @@ static void usbredir_interrupt_packet(void *priv, uint32_t id,
         }
 
         if (aurb->packet) {
-            aurb->packet->len = usbredir_handle_status(dev,
+            aurb->packet->result = usbredir_handle_status(dev,
                                                interrupt_packet->status, len);
             usb_packet_complete(&dev->dev, aurb->packet);
         }

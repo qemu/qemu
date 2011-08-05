@@ -241,7 +241,9 @@ static int i440fx_initfn(PCIDevice *dev)
 static PCIBus *i440fx_common_init(const char *device_name,
                                   PCII440FXState **pi440fx_state,
                                   int *piix3_devfn,
-                                  qemu_irq *pic, ram_addr_t ram_size)
+                                  qemu_irq *pic,
+                                  MemoryRegion *address_space,
+                                  ram_addr_t ram_size)
 {
     DeviceState *dev;
     PCIBus *b;
@@ -251,7 +253,8 @@ static PCIBus *i440fx_common_init(const char *device_name,
 
     dev = qdev_create(NULL, "i440FX-pcihost");
     s = FROM_SYSBUS(I440FXState, sysbus_from_qdev(dev));
-    b = pci_bus_new(&s->busdev.qdev, NULL, 0);
+    s->address_space = address_space;
+    b = pci_bus_new(&s->busdev.qdev, NULL, s->address_space, 0);
     s->bus = b;
     qdev_init_nofail(dev);
 
@@ -288,11 +291,13 @@ static PCIBus *i440fx_common_init(const char *device_name,
 }
 
 PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn,
-                    qemu_irq *pic, ram_addr_t ram_size)
+                    qemu_irq *pic, MemoryRegion *address_space,
+                    ram_addr_t ram_size)
 {
     PCIBus *b;
 
-    b = i440fx_common_init("i440FX", pi440fx_state, piix3_devfn, pic, ram_size);
+    b = i440fx_common_init("i440FX", pi440fx_state, piix3_devfn, pic,
+                           address_space, ram_size);
     return b;
 }
 

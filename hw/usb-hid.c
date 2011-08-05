@@ -27,6 +27,7 @@
 #include "usb.h"
 #include "usb-desc.h"
 #include "qemu-timer.h"
+#include "hid.h"
 
 /* HID interface requests */
 #define GET_REPORT   0xa101
@@ -41,46 +42,9 @@
 #define USB_DT_REPORT 0x22
 #define USB_DT_PHY    0x23
 
-#define USB_MOUSE     1
-#define USB_TABLET    2
-#define USB_KEYBOARD  3
-
-typedef struct USBPointerEvent {
-    int32_t xdx, ydy; /* relative iff it's a mouse, otherwise absolute */
-    int32_t dz, buttons_state;
-} USBPointerEvent;
-
-#define QUEUE_LENGTH    16 /* should be enough for a triple-click */
-#define QUEUE_MASK      (QUEUE_LENGTH-1u)
-#define QUEUE_INCR(v)   ((v)++, (v) &= QUEUE_MASK)
-
-typedef struct USBMouseState {
-    USBPointerEvent queue[QUEUE_LENGTH];
-    int mouse_grabbed;
-    QEMUPutMouseEntry *eh_entry;
-} USBMouseState;
-
-typedef struct USBKeyboardState {
-    uint32_t keycodes[QUEUE_LENGTH];
-    uint16_t modifiers;
-    uint8_t leds;
-    uint8_t key[16];
-    int32_t keys;
-} USBKeyboardState;
-
 typedef struct USBHIDState {
     USBDevice dev;
-    union {
-        USBMouseState ptr;
-        USBKeyboardState kbd;
-    };
-    uint32_t head; /* index into circular queue */
-    uint32_t n;
-    int kind;
-    int32_t protocol;
-    uint8_t idle;
-    int64_t next_idle_clock;
-    int changed;
+    HIDState hid;
     void *datain_opaque;
     void (*datain)(void *);
 } USBHIDState;
@@ -394,339 +358,29 @@ static const uint8_t qemu_keyboard_hid_report_descriptor[] = {
     0xc0,		/* End Collection */
 };
 
-#define USB_HID_USAGE_ERROR_ROLLOVER	0x01
-#define USB_HID_USAGE_POSTFAIL		0x02
-#define USB_HID_USAGE_ERROR_UNDEFINED	0x03
-
-/* Indices are QEMU keycodes, values are from HID Usage Table.  Indices
- * above 0x80 are for keys that come after 0xe0 or 0xe1+0x1d or 0xe1+0x9d.  */
-static const uint8_t usb_hid_usage_keys[0x100] = {
-    0x00, 0x29, 0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23,
-    0x24, 0x25, 0x26, 0x27, 0x2d, 0x2e, 0x2a, 0x2b,
-    0x14, 0x1a, 0x08, 0x15, 0x17, 0x1c, 0x18, 0x0c,
-    0x12, 0x13, 0x2f, 0x30, 0x28, 0xe0, 0x04, 0x16,
-    0x07, 0x09, 0x0a, 0x0b, 0x0d, 0x0e, 0x0f, 0x33,
-    0x34, 0x35, 0xe1, 0x31, 0x1d, 0x1b, 0x06, 0x19,
-    0x05, 0x11, 0x10, 0x36, 0x37, 0x38, 0xe5, 0x55,
-    0xe2, 0x2c, 0x32, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e,
-    0x3f, 0x40, 0x41, 0x42, 0x43, 0x53, 0x47, 0x5f,
-    0x60, 0x61, 0x56, 0x5c, 0x5d, 0x5e, 0x57, 0x59,
-    0x5a, 0x5b, 0x62, 0x63, 0x00, 0x00, 0x00, 0x44,
-    0x45, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e,
-    0xe8, 0xe9, 0x71, 0x72, 0x73, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x85, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0xe3, 0xe7, 0x65,
-
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x58, 0xe4, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x00, 0x46,
-    0xe6, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x48, 0x00, 0x4a,
-    0x52, 0x4b, 0x00, 0x50, 0x00, 0x4f, 0x00, 0x4d,
-    0x51, 0x4e, 0x49, 0x4c, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0xe3, 0xe7, 0x65, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-
-static void usb_hid_changed(USBHIDState *hs)
+static void usb_hid_changed(HIDState *hs)
 {
-    hs->changed = 1;
+    USBHIDState *us = container_of(hs, USBHIDState, hid);
 
-    if (hs->datain)
-        hs->datain(hs->datain_opaque);
-
-    usb_wakeup(&hs->dev);
-}
-
-static void usb_pointer_event_clear(USBPointerEvent *e, int buttons) {
-    e->xdx = e->ydy = e->dz = 0;
-    e->buttons_state = buttons;
-}
-
-static void usb_pointer_event_combine(USBPointerEvent *e, int xyrel,
-                                      int x1, int y1, int z1) {
-    if (xyrel) {
-        e->xdx += x1;
-        e->ydy += y1;
-    } else {
-        e->xdx = x1;
-        e->ydy = y1;
-    }
-    e->dz += z1;
-}
-
-static void usb_pointer_event(void *opaque,
-                              int x1, int y1, int z1, int buttons_state)
-{
-    USBHIDState *hs = opaque;
-    USBMouseState *s = &hs->ptr;
-    unsigned use_slot = (hs->head + hs->n - 1) & QUEUE_MASK;
-    unsigned previous_slot = (use_slot - 1) & QUEUE_MASK;
-
-    /* We combine events where feasible to keep the queue small.  We shouldn't
-     * combine anything with the first event of a particular button state, as
-     * that would change the location of the button state change.  When the
-     * queue is empty, a second event is needed because we don't know if
-     * the first event changed the button state.  */
-    if (hs->n == QUEUE_LENGTH) {
-        /* Queue full.  Discard old button state, combine motion normally.  */
-        s->queue[use_slot].buttons_state = buttons_state;
-    } else if (hs->n < 2 ||
-               s->queue[use_slot].buttons_state != buttons_state ||
-               s->queue[previous_slot].buttons_state != s->queue[use_slot].buttons_state) {
-        /* Cannot or should not combine, so add an empty item to the queue.  */
-        QUEUE_INCR(use_slot);
-        hs->n++;
-        usb_pointer_event_clear(&s->queue[use_slot], buttons_state);
-    }
-    usb_pointer_event_combine(&s->queue[use_slot],
-                              hs->kind == USB_MOUSE,
-                              x1, y1, z1);
-    usb_hid_changed(hs);
-}
-
-static void usb_keyboard_event(void *opaque, int keycode)
-{
-    USBHIDState *hs = opaque;
-    USBKeyboardState *s = &hs->kbd;
-    int slot;
-
-    if (hs->n == QUEUE_LENGTH) {
-        fprintf(stderr, "usb-kbd: warning: key event queue full\n");
-        return;
-    }
-    slot = (hs->head + hs->n) & QUEUE_MASK; hs->n++;
-    s->keycodes[slot] = keycode;
-    usb_hid_changed(hs);
-}
-
-static void usb_keyboard_process_keycode(USBHIDState *hs)
-{
-    USBKeyboardState *s = &hs->kbd;
-    uint8_t hid_code, key;
-    int i, keycode, slot;
-
-    if (hs->n == 0) {
-        return;
-    }
-    slot = hs->head & QUEUE_MASK; QUEUE_INCR(hs->head); hs->n--;
-    keycode = s->keycodes[slot];
-
-    key = keycode & 0x7f;
-    hid_code = usb_hid_usage_keys[key | ((s->modifiers >> 1) & (1 << 7))];
-    s->modifiers &= ~(1 << 8);
-
-    switch (hid_code) {
-    case 0x00:
-        return;
-
-    case 0xe0:
-        if (s->modifiers & (1 << 9)) {
-            s->modifiers ^= 3 << 8;
-            return;
-        }
-    case 0xe1 ... 0xe7:
-        if (keycode & (1 << 7)) {
-            s->modifiers &= ~(1 << (hid_code & 0x0f));
-            return;
-        }
-    case 0xe8 ... 0xef:
-        s->modifiers |= 1 << (hid_code & 0x0f);
-        return;
+    if (us->datain) {
+        us->datain(us->datain_opaque);
     }
 
-    if (keycode & (1 << 7)) {
-        for (i = s->keys - 1; i >= 0; i --)
-            if (s->key[i] == hid_code) {
-                s->key[i] = s->key[-- s->keys];
-                s->key[s->keys] = 0x00;
-                break;
-            }
-        if (i < 0)
-            return;
-    } else {
-        for (i = s->keys - 1; i >= 0; i --)
-            if (s->key[i] == hid_code)
-                break;
-        if (i < 0) {
-            if (s->keys < sizeof(s->key))
-                s->key[s->keys ++] = hid_code;
-        } else
-            return;
-    }
+    usb_wakeup(&us->dev);
 }
 
-static inline int int_clamp(int val, int vmin, int vmax)
+static void usb_hid_handle_reset(USBDevice *dev)
 {
-    if (val < vmin)
-        return vmin;
-    else if (val > vmax)
-        return vmax;
-    else
-        return val;
-}
+    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
 
-static int usb_pointer_poll(USBHIDState *hs, uint8_t *buf, int len)
-{
-    int dx, dy, dz, b, l;
-    int index;
-    USBMouseState *s = &hs->ptr;
-    USBPointerEvent *e;
-
-    if (!s->mouse_grabbed) {
-        qemu_activate_mouse_event_handler(s->eh_entry);
-        s->mouse_grabbed = 1;
-    }
-
-    /* When the buffer is empty, return the last event.  Relative
-       movements will all be zero.  */
-    index = (hs->n ? hs->head : hs->head - 1);
-    e = &s->queue[index & QUEUE_MASK];
-
-    if (hs->kind == USB_MOUSE) {
-        dx = int_clamp(e->xdx, -127, 127);
-        dy = int_clamp(e->ydy, -127, 127);
-        e->xdx -= dx;
-        e->ydy -= dy;
-    } else {
-        dx = e->xdx;
-        dy = e->ydy;
-    }
-    dz = int_clamp(e->dz, -127, 127);
-    e->dz -= dz;
-
-    b = 0;
-    if (e->buttons_state & MOUSE_EVENT_LBUTTON)
-        b |= 0x01;
-    if (e->buttons_state & MOUSE_EVENT_RBUTTON)
-        b |= 0x02;
-    if (e->buttons_state & MOUSE_EVENT_MBUTTON)
-        b |= 0x04;
-
-    if (hs->n &&
-        !e->dz &&
-        (hs->kind == USB_TABLET || (!e->xdx && !e->ydy))) {
-        /* that deals with this event */
-        QUEUE_INCR(hs->head);
-        hs->n--;
-    }
-
-    /* Appears we have to invert the wheel direction */
-    dz = 0 - dz;
-    l = 0;
-    switch (hs->kind) {
-    case USB_MOUSE:
-        if (len > l)
-            buf[l++] = b;
-        if (len > l)
-            buf[l++] = dx;
-        if (len > l)
-            buf[l++] = dy;
-        if (len > l)
-            buf[l++] = dz;
-        break;
-
-    case USB_TABLET:
-        if (len > l)
-            buf[l++] = b;
-        if (len > l)
-            buf[l++] = dx & 0xff;
-        if (len > l)
-            buf[l++] = dx >> 8;
-        if (len > l)
-            buf[l++] = dy & 0xff;
-        if (len > l)
-            buf[l++] = dy >> 8;
-        if (len > l)
-            buf[l++] = dz;
-        break;
-
-    default:
-        abort();
-    }
-
-    return l;
-}
-
-static int usb_keyboard_poll(USBHIDState *hs, uint8_t *buf, int len)
-{
-    USBKeyboardState *s = &hs->kbd;
-    if (len < 2)
-        return 0;
-
-    usb_keyboard_process_keycode(hs);
-
-    buf[0] = s->modifiers & 0xff;
-    buf[1] = 0;
-    if (s->keys > 6)
-        memset(buf + 2, USB_HID_USAGE_ERROR_ROLLOVER, MIN(8, len) - 2);
-    else
-        memcpy(buf + 2, s->key, MIN(8, len) - 2);
-
-    return MIN(8, len);
-}
-
-static int usb_keyboard_write(USBKeyboardState *s, uint8_t *buf, int len)
-{
-    if (len > 0) {
-        int ledstate = 0;
-        /* 0x01: Num Lock LED
-         * 0x02: Caps Lock LED
-         * 0x04: Scroll Lock LED
-         * 0x08: Compose LED
-         * 0x10: Kana LED */
-        s->leds = buf[0];
-        if (s->leds & 0x04)
-            ledstate |= QEMU_SCROLL_LOCK_LED;
-        if (s->leds & 0x01)
-            ledstate |= QEMU_NUM_LOCK_LED;
-        if (s->leds & 0x02)
-            ledstate |= QEMU_CAPS_LOCK_LED;
-        kbd_put_ledstate(ledstate);
-    }
-    return 0;
-}
-
-static void usb_mouse_handle_reset(USBDevice *dev)
-{
-    USBHIDState *s = (USBHIDState *)dev;
-
-    memset(s->ptr.queue, 0, sizeof (s->ptr.queue));
-    s->head = 0;
-    s->n = 0;
-    s->protocol = 1;
-}
-
-static void usb_keyboard_handle_reset(USBDevice *dev)
-{
-    USBHIDState *s = (USBHIDState *)dev;
-
-    qemu_add_kbd_event_handler(usb_keyboard_event, s);
-    memset(s->kbd.keycodes, 0, sizeof (s->kbd.keycodes));
-    s->head = 0;
-    s->n = 0;
-    memset(s->kbd.key, 0, sizeof (s->kbd.key));
-    s->kbd.keys = 0;
-    s->protocol = 1;
-}
-
-static void usb_hid_set_next_idle(USBHIDState *s, int64_t curtime)
-{
-    s->next_idle_clock = curtime + (get_ticks_per_sec() * s->idle * 4) / 1000;
+    hid_reset(&us->hid);
 }
 
 static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
-    USBHIDState *s = (USBHIDState *)dev;
+    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
+    HIDState *hs = &us->hid;
     int ret;
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
@@ -735,7 +389,7 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
     }
 
     ret = 0;
-    switch(request) {
+    switch (request) {
     case DeviceRequest | USB_REQ_GET_INTERFACE:
         data[0] = 0;
         ret = 1;
@@ -745,17 +399,17 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         break;
         /* hid specific requests */
     case InterfaceRequest | USB_REQ_GET_DESCRIPTOR:
-        switch(value >> 8) {
+        switch (value >> 8) {
         case 0x22:
-	    if (s->kind == USB_MOUSE) {
+            if (hs->kind == HID_MOUSE) {
 		memcpy(data, qemu_mouse_hid_report_descriptor,
 		       sizeof(qemu_mouse_hid_report_descriptor));
 		ret = sizeof(qemu_mouse_hid_report_descriptor);
-	    } else if (s->kind == USB_TABLET) {
-		memcpy(data, qemu_tablet_hid_report_descriptor,
+            } else if (hs->kind == HID_TABLET) {
+                memcpy(data, qemu_tablet_hid_report_descriptor,
 		       sizeof(qemu_tablet_hid_report_descriptor));
 		ret = sizeof(qemu_tablet_hid_report_descriptor);
-            } else if (s->kind == USB_KEYBOARD) {
+            } else if (hs->kind == HID_KEYBOARD) {
                 memcpy(data, qemu_keyboard_hid_report_descriptor,
                        sizeof(qemu_keyboard_hid_report_descriptor));
                 ret = sizeof(qemu_keyboard_hid_report_descriptor);
@@ -766,38 +420,40 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
         }
         break;
     case GET_REPORT:
-        if (s->kind == USB_MOUSE || s->kind == USB_TABLET) {
-            ret = usb_pointer_poll(s, data, length);
-        } else if (s->kind == USB_KEYBOARD) {
-            ret = usb_keyboard_poll(s, data, length);
+        if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
+            ret = hid_pointer_poll(hs, data, length);
+        } else if (hs->kind == HID_KEYBOARD) {
+            ret = hid_keyboard_poll(hs, data, length);
         }
-        s->changed = s->n > 0;
         break;
     case SET_REPORT:
-        if (s->kind == USB_KEYBOARD)
-            ret = usb_keyboard_write(&s->kbd, data, length);
-        else
+        if (hs->kind == HID_KEYBOARD) {
+            ret = hid_keyboard_write(hs, data, length);
+        } else {
             goto fail;
+        }
         break;
     case GET_PROTOCOL:
-        if (s->kind != USB_KEYBOARD && s->kind != USB_MOUSE)
+        if (hs->kind != HID_KEYBOARD && hs->kind != HID_MOUSE) {
             goto fail;
+        }
         ret = 1;
-        data[0] = s->protocol;
+        data[0] = hs->protocol;
         break;
     case SET_PROTOCOL:
-        if (s->kind != USB_KEYBOARD && s->kind != USB_MOUSE)
+        if (hs->kind != HID_KEYBOARD && hs->kind != HID_MOUSE) {
             goto fail;
+        }
         ret = 0;
-        s->protocol = value;
+        hs->protocol = value;
         break;
     case GET_IDLE:
         ret = 1;
-        data[0] = s->idle;
+        data[0] = hs->idle;
         break;
     case SET_IDLE:
-        s->idle = (uint8_t) (value >> 8);
-        usb_hid_set_next_idle(s, qemu_get_clock_ns(vm_clock));
+        hs->idle = (uint8_t) (value >> 8);
+        hid_set_next_idle(hs, qemu_get_clock_ns(vm_clock));
         ret = 0;
         break;
     default:
@@ -810,23 +466,26 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
 
 static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
 {
-    USBHIDState *s = (USBHIDState *)dev;
+    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
+    HIDState *hs = &us->hid;
+    uint8_t buf[p->iov.size];
     int ret = 0;
 
-    switch(p->pid) {
+    switch (p->pid) {
     case USB_TOKEN_IN:
         if (p->devep == 1) {
             int64_t curtime = qemu_get_clock_ns(vm_clock);
-            if (!s->changed && (!s->idle || s->next_idle_clock - curtime > 0))
+            if (!hid_has_events(hs) &&
+                (!hs->idle || hs->next_idle_clock - curtime > 0)) {
                 return USB_RET_NAK;
-            usb_hid_set_next_idle(s, curtime);
-            if (s->kind == USB_MOUSE || s->kind == USB_TABLET) {
-                ret = usb_pointer_poll(s, p->data, p->len);
             }
-            else if (s->kind == USB_KEYBOARD) {
-                ret = usb_keyboard_poll(s, p->data, p->len);
+            hid_set_next_idle(hs, curtime);
+            if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
+                ret = hid_pointer_poll(hs, buf, p->iov.size);
+            } else if (hs->kind == HID_KEYBOARD) {
+                ret = hid_keyboard_poll(hs, buf, p->iov.size);
             }
-            s->changed = s->n > 0;
+            usb_packet_copy(p, buf, ret);
         } else {
             goto fail;
         }
@@ -842,50 +501,33 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
 
 static void usb_hid_handle_destroy(USBDevice *dev)
 {
-    USBHIDState *s = (USBHIDState *)dev;
+    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
 
-    switch(s->kind) {
-    case USB_KEYBOARD:
-        qemu_remove_kbd_event_handler();
-        break;
-    default:
-        qemu_remove_mouse_event_handler(s->ptr.eh_entry);
-    }
+    hid_free(&us->hid);
 }
 
 static int usb_hid_initfn(USBDevice *dev, int kind)
 {
-    USBHIDState *s = DO_UPCAST(USBHIDState, dev, dev);
+    USBHIDState *us = DO_UPCAST(USBHIDState, dev, dev);
 
     usb_desc_init(dev);
-    s->kind = kind;
-
-    if (s->kind == USB_MOUSE) {
-        s->ptr.eh_entry = qemu_add_mouse_event_handler(usb_pointer_event, s,
-                                                       0, "QEMU USB Mouse");
-    } else if (s->kind == USB_TABLET) {
-        s->ptr.eh_entry = qemu_add_mouse_event_handler(usb_pointer_event, s,
-                                                       1, "QEMU USB Tablet");
-    }
-
-    /* Force poll routine to be run and grab input the first time.  */
-    s->changed = 1;
+    hid_init(&us->hid, kind, usb_hid_changed);
     return 0;
 }
 
 static int usb_tablet_initfn(USBDevice *dev)
 {
-    return usb_hid_initfn(dev, USB_TABLET);
+    return usb_hid_initfn(dev, HID_TABLET);
 }
 
 static int usb_mouse_initfn(USBDevice *dev)
 {
-    return usb_hid_initfn(dev, USB_MOUSE);
+    return usb_hid_initfn(dev, HID_MOUSE);
 }
 
 static int usb_keyboard_initfn(USBDevice *dev)
 {
-    return usb_hid_initfn(dev, USB_KEYBOARD);
+    return usb_hid_initfn(dev, HID_KEYBOARD);
 }
 
 void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *))
@@ -900,8 +542,8 @@ static int usb_hid_post_load(void *opaque, int version_id)
 {
     USBHIDState *s = opaque;
 
-    if (s->idle) {
-        usb_hid_set_next_idle(s, qemu_get_clock_ns(vm_clock));
+    if (s->hid.idle) {
+        hid_set_next_idle(&s->hid, qemu_get_clock_ns(vm_clock));
     }
     return 0;
 }
@@ -911,10 +553,10 @@ static const VMStateDescription vmstate_usb_ptr_queue = {
     .version_id = 1,
     .minimum_version_id = 1,
     .fields = (VMStateField []) {
-        VMSTATE_INT32(xdx, USBPointerEvent),
-        VMSTATE_INT32(ydy, USBPointerEvent),
-        VMSTATE_INT32(dz, USBPointerEvent),
-        VMSTATE_INT32(buttons_state, USBPointerEvent),
+        VMSTATE_INT32(xdx, HIDPointerEvent),
+        VMSTATE_INT32(ydy, HIDPointerEvent),
+        VMSTATE_INT32(dz, HIDPointerEvent),
+        VMSTATE_INT32(buttons_state, HIDPointerEvent),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -925,12 +567,12 @@ static const VMStateDescription vmstate_usb_ptr = {
     .post_load = usb_hid_post_load,
     .fields = (VMStateField []) {
         VMSTATE_USB_DEVICE(dev, USBHIDState),
-        VMSTATE_STRUCT_ARRAY(ptr.queue, USBHIDState, QUEUE_LENGTH, 0,
-                             vmstate_usb_ptr_queue, USBPointerEvent),
-        VMSTATE_UINT32(head, USBHIDState),
-        VMSTATE_UINT32(n, USBHIDState),
-        VMSTATE_INT32(protocol, USBHIDState),
-        VMSTATE_UINT8(idle, USBHIDState),
+        VMSTATE_STRUCT_ARRAY(hid.ptr.queue, USBHIDState, QUEUE_LENGTH, 0,
+                             vmstate_usb_ptr_queue, HIDPointerEvent),
+        VMSTATE_UINT32(hid.head, USBHIDState),
+        VMSTATE_UINT32(hid.n, USBHIDState),
+        VMSTATE_INT32(hid.protocol, USBHIDState),
+        VMSTATE_UINT8(hid.idle, USBHIDState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -942,15 +584,15 @@ static const VMStateDescription vmstate_usb_kbd = {
     .post_load = usb_hid_post_load,
     .fields = (VMStateField []) {
         VMSTATE_USB_DEVICE(dev, USBHIDState),
-        VMSTATE_UINT32_ARRAY(kbd.keycodes, USBHIDState, QUEUE_LENGTH),
-        VMSTATE_UINT32(head, USBHIDState),
-        VMSTATE_UINT32(n, USBHIDState),
-        VMSTATE_UINT16(kbd.modifiers, USBHIDState),
-        VMSTATE_UINT8(kbd.leds, USBHIDState),
-        VMSTATE_UINT8_ARRAY(kbd.key, USBHIDState, 16),
-        VMSTATE_INT32(kbd.keys, USBHIDState),
-        VMSTATE_INT32(protocol, USBHIDState),
-        VMSTATE_UINT8(idle, USBHIDState),
+        VMSTATE_UINT32_ARRAY(hid.kbd.keycodes, USBHIDState, QUEUE_LENGTH),
+        VMSTATE_UINT32(hid.head, USBHIDState),
+        VMSTATE_UINT32(hid.n, USBHIDState),
+        VMSTATE_UINT16(hid.kbd.modifiers, USBHIDState),
+        VMSTATE_UINT8(hid.kbd.leds, USBHIDState),
+        VMSTATE_UINT8_ARRAY(hid.kbd.key, USBHIDState, 16),
+        VMSTATE_INT32(hid.kbd.keys, USBHIDState),
+        VMSTATE_INT32(hid.protocol, USBHIDState),
+        VMSTATE_UINT8(hid.idle, USBHIDState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -965,7 +607,7 @@ static struct USBDeviceInfo hid_info[] = {
         .usb_desc       = &desc_tablet,
         .init           = usb_tablet_initfn,
         .handle_packet  = usb_generic_handle_packet,
-        .handle_reset   = usb_mouse_handle_reset,
+        .handle_reset   = usb_hid_handle_reset,
         .handle_control = usb_hid_handle_control,
         .handle_data    = usb_hid_handle_data,
         .handle_destroy = usb_hid_handle_destroy,
@@ -978,7 +620,7 @@ static struct USBDeviceInfo hid_info[] = {
         .usb_desc       = &desc_mouse,
         .init           = usb_mouse_initfn,
         .handle_packet  = usb_generic_handle_packet,
-        .handle_reset   = usb_mouse_handle_reset,
+        .handle_reset   = usb_hid_handle_reset,
         .handle_control = usb_hid_handle_control,
         .handle_data    = usb_hid_handle_data,
         .handle_destroy = usb_hid_handle_destroy,
@@ -991,7 +633,7 @@ static struct USBDeviceInfo hid_info[] = {
         .usb_desc       = &desc_keyboard,
         .init           = usb_keyboard_initfn,
         .handle_packet  = usb_generic_handle_packet,
-        .handle_reset   = usb_keyboard_handle_reset,
+        .handle_reset   = usb_hid_handle_reset,
         .handle_control = usb_hid_handle_control,
         .handle_data    = usb_hid_handle_data,
         .handle_destroy = usb_hid_handle_destroy,

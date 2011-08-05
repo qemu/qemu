@@ -31,11 +31,13 @@ typedef struct NICConf {
 typedef enum {
     NET_CLIENT_TYPE_NONE,
     NET_CLIENT_TYPE_NIC,
-    NET_CLIENT_TYPE_SLIRP,
+    NET_CLIENT_TYPE_USER,
     NET_CLIENT_TYPE_TAP,
     NET_CLIENT_TYPE_SOCKET,
     NET_CLIENT_TYPE_VDE,
-    NET_CLIENT_TYPE_DUMP
+    NET_CLIENT_TYPE_DUMP,
+
+    NET_CLIENT_TYPE_MAX
 } net_client_type;
 
 typedef void (NetPoll)(VLANClientState *, bool enable);
@@ -127,7 +129,7 @@ int do_set_link(Monitor *mon, const QDict *qdict, QObject **ret_data);
 #define MAX_NICS 8
 
 struct NICInfo {
-    uint8_t macaddr[6];
+    MACAddr macaddr;
     char *model;
     char *name;
     char *devaddr;

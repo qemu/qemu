@@ -149,6 +149,42 @@ static int pci_piix_ide_initfn(PCIDevice *dev)
     return 0;
 }
 
+static int pci_piix3_xen_ide_unplug(DeviceState *dev)
+{
+    PCIDevice *pci_dev;
+    PCIIDEState *pci_ide;
+    DriveInfo *di;
+    int i = 0;
+
+    pci_dev = DO_UPCAST(PCIDevice, qdev, dev);
+    pci_ide = DO_UPCAST(PCIIDEState, dev, pci_dev);
+
+    for (; i < 3; i++) {
+        di = drive_get_by_index(IF_IDE, i);
+        if (di != NULL && di->bdrv != NULL && !di->bdrv->removable) {
+            DeviceState *ds = bdrv_get_attached(di->bdrv);
+            if (ds) {
+                bdrv_detach(di->bdrv, ds);
+            }
+            bdrv_close(di->bdrv);
+            pci_ide->bus[di->bus].ifs[di->unit].bs = NULL;
+            drive_put_ref(di);
+        }
+    }
+    qdev_reset_all(&(pci_ide->dev.qdev));
+    return 0;
+}
+
+PCIDevice *pci_piix3_xen_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
+{
+    PCIDevice *dev;
+
+    dev = pci_create_simple(bus, devfn, "piix3-ide-xen");
+    dev->qdev.info->unplug = pci_piix3_xen_ide_unplug;
+    pci_ide_create_devs(dev, hd_table);
+    return dev;
+}
+
 /* hd_table must contain 4 block drivers */
 /* NOTE: for the PIIX3, the IRQs and IOports are hardcoded */
 PCIDevice *pci_piix3_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
@@ -177,6 +213,14 @@ static PCIDeviceInfo piix_ide_info[] = {
         .qdev.size    = sizeof(PCIIDEState),
         .qdev.no_user = 1,
         .no_hotplug   = 1,
+        .init         = pci_piix_ide_initfn,
+        .vendor_id    = PCI_VENDOR_ID_INTEL,
+        .device_id    = PCI_DEVICE_ID_INTEL_82371SB_1,
+        .class_id     = PCI_CLASS_STORAGE_IDE,
+    },{
+        .qdev.name    = "piix3-ide-xen",
+        .qdev.size    = sizeof(PCIIDEState),
+        .qdev.no_user = 1,
         .init         = pci_piix_ide_initfn,
         .vendor_id    = PCI_VENDOR_ID_INTEL,
         .device_id    = PCI_DEVICE_ID_INTEL_82371SB_1,

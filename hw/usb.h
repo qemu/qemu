@@ -285,11 +285,20 @@ struct USBPacket {
     int pid;
     uint8_t devaddr;
     uint8_t devep;
-    uint8_t *data;
-    int len;
+    QEMUIOVector iov;
+    int result; /* transfer length or USB_RET_* status code */
     /* Internal use by the USB layer.  */
     USBDevice *owner;
 };
+
+void usb_packet_init(USBPacket *p);
+void usb_packet_setup(USBPacket *p, int pid, uint8_t addr, uint8_t ep);
+void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len);
+int usb_packet_map(USBPacket *p, QEMUSGList *sgl);
+void usb_packet_unmap(USBPacket *p);
+void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes);
+void usb_packet_skip(USBPacket *p, size_t bytes);
+void usb_packet_cleanup(USBPacket *p);
 
 int usb_handle_packet(USBDevice *dev, USBPacket *p);
 void usb_packet_complete(USBDevice *dev, USBPacket *p);

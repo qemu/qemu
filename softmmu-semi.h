@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2007 CodeSourcery.
  *
- * This code is licenced under the GPL
+ * This code is licensed under the GPL
  */
 
 static inline uint32_t softmmu_tget32(CPUState *env, uint32_t addr)

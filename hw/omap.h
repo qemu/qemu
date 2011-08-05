@@ -93,6 +93,8 @@ struct omap_target_agent_s *omap_l4ta_get(
     int cs);
 target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
                 int iotype);
+target_phys_addr_t omap_l4_region_base(struct omap_target_agent_s *ta,
+                                       int region);
 int l4_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                 CPUWriteMemoryFunc * const *mem_write, void *opaque);
 
@@ -681,22 +683,6 @@ qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s);
 void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler);
 void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down);
 
-/* omap1 gpio module interface */
-struct omap_gpio_s;
-struct omap_gpio_s *omap_gpio_init(target_phys_addr_t base,
-                qemu_irq irq, omap_clk clk);
-void omap_gpio_reset(struct omap_gpio_s *s);
-qemu_irq *omap_gpio_in_get(struct omap_gpio_s *s);
-void omap_gpio_out_set(struct omap_gpio_s *s, int line, qemu_irq handler);
-
-/* omap2 gpio interface */
-struct omap_gpif_s;
-struct omap_gpif_s *omap2_gpio_init(struct omap_target_agent_s *ta,
-                qemu_irq *irq, omap_clk *fclk, omap_clk iclk, int modules);
-void omap_gpif_reset(struct omap_gpif_s *s);
-qemu_irq *omap2_gpio_in_get(struct omap_gpif_s *s, int start);
-void omap2_gpio_out_set(struct omap_gpif_s *s, int line, qemu_irq handler);
-
 struct uWireSlave {
     uint16_t (*receive)(void *opaque);
     void (*send)(void *opaque, uint16_t data);
@@ -850,7 +836,7 @@ struct omap_mpu_state_s {
     /* MPUI-TIPB peripherals */
     struct omap_uart_s *uart[3];
 
-    struct omap_gpio_s *gpio;
+    DeviceState *gpio;
 
     struct omap_mcbsp_s *mcbsp1;
     struct omap_mcbsp_s *mcbsp3;
@@ -947,8 +933,6 @@ struct omap_mpu_state_s {
     struct omap_sdrc_s *sdrc;
     struct omap_gpmc_s *gpmc;
     struct omap_sysctl_s *sysc;
-
-    struct omap_gpif_s *gpif;
 
     struct omap_mcspi_s *mcspi[2];
 

@@ -481,7 +481,7 @@ static void sdl_grab_end(void)
     sdl_update_caption();
 }
 
-static void sdl_mouse_mode_change(Notifier *notify)
+static void sdl_mouse_mode_change(Notifier *notify, void *data)
 {
     if (kbd_mouse_is_absolute()) {
         if (!absolute_enabled) {

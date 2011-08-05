@@ -3,10 +3,6 @@
 
 /* CPU interfaces that are target indpendent.  */
 
-#if defined(__arm__) || defined(__sparc__) || defined(__mips__) || defined(__hppa__) || defined(__ia64__)
-#define WORDS_ALIGNED
-#endif
-
 #ifdef TARGET_PHYS_ADDR_BITS
 #include "targphys.h"
 #endif
@@ -27,7 +23,15 @@ enum device_endian {
 };
 
 /* address in the RAM (different from a physical address) */
+#if defined(CONFIG_XEN_BACKEND) && TARGET_PHYS_ADDR_BITS == 64
+typedef uint64_t ram_addr_t;
+#  define RAM_ADDR_MAX UINT64_MAX
+#  define RAM_ADDR_FMT "%" PRIx64
+#else
 typedef unsigned long ram_addr_t;
+#  define RAM_ADDR_MAX ULONG_MAX
+#  define RAM_ADDR_FMT "%lx"
+#endif
 
 /* memory API */
 

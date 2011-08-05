@@ -113,7 +113,6 @@ curl=""
 curses=""
 docs=""
 fdt=""
-kvm=""
 nptl=""
 sdl=""
 vnc="yes"
@@ -129,9 +128,10 @@ xen=""
 xen_ctrl_version=""
 linux_aio=""
 attr=""
-vhost_net=""
 xfs=""
 
+vhost_net="no"
+kvm="no"
 gprof="no"
 debug_tcg="no"
 debug_mon="no"
@@ -146,6 +146,7 @@ datadir="\${prefix}/share/qemu"
 docdir="\${prefix}/share/doc/qemu"
 bindir="\${prefix}/bin"
 libdir="\${prefix}/lib"
+includedir="\${prefix}/include"
 sysconfdir="\${prefix}/etc"
 confsuffix="/qemu"
 slirp="yes"
@@ -179,6 +180,8 @@ smartcard=""
 smartcard_nss=""
 usb_redir=""
 opengl=""
+zlib="yes"
+guest_agent="yes"
 
 # parse CC options first
 for opt do
@@ -233,7 +236,7 @@ QEMU_CFLAGS="-Wall -Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
-QEMU_INCLUDES="-I. -I\$(SRC_PATH)"
+QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/fpu"
 LDFLAGS="-g $LDFLAGS"
 
 # make source path absolute
@@ -475,6 +478,7 @@ fi
 
 : ${make=${MAKE-make}}
 : ${install=${INSTALL-install}}
+: ${python=${PYTHON-python}}
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
@@ -516,6 +520,8 @@ for opt do
   ;;
   --install=*) install="$optarg"
   ;;
+  --python=*) python="$optarg"
+  ;;
   --extra-cflags=*)
   ;;
   --extra-ldflags=*)
@@ -539,6 +545,8 @@ for opt do
   --bindir=*) bindir="$optarg"
   ;;
   --libdir=*) libdir="$optarg"
+  ;;
+  --includedir=*) includedir="$optarg"
   ;;
   --datadir=*) datadir="$optarg"
   ;;
@@ -748,6 +756,12 @@ for opt do
   ;;
   --enable-usb-redir) usb_redir="yes"
   ;;
+  --disable-zlib-test) zlib="no"
+  ;;
+  --enable-guest-agent) guest_agent="yes"
+  ;;
+  --disable-guest-agent) guest_agent="no"
+  ;;
   *) echo "ERROR: unknown option $opt"; show_help="yes"
   ;;
   esac
@@ -837,7 +851,6 @@ if [ "$softmmu" = "yes" ] ; then
     default_target_list="\
 i386-softmmu \
 x86_64-softmmu \
-alpha-softmmu \
 arm-softmmu \
 cris-softmmu \
 lm32-softmmu \
@@ -924,6 +937,7 @@ echo "  --extra-cflags=CFLAGS    append extra C compiler flags QEMU_CFLAGS"
 echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
+echo "  --python=PYTHON          use specified python [$python]"
 echo "  --static                 enable static build [$static]"
 echo "  --mandir=PATH            install man pages in PATH"
 echo "  --datadir=PATH           install firmware in PATH"
@@ -1025,6 +1039,8 @@ echo "  --disable-smartcard-nss  disable smartcard nss support"
 echo "  --enable-smartcard-nss   enable smartcard nss support"
 echo "  --disable-usb-redir      disable usb network redirection support"
 echo "  --enable-usb-redir       enable usb network redirection support"
+echo "  --disable-guest-agent    disable building of the QEMU Guest Agent"
+echo "  --enable-guest-agent     enable building of the QEMU Guest Agent"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -1080,6 +1096,15 @@ if test "$solaris" = "yes" ; then
     if test -f /usr/ccs/bin/ar ; then
       echo "Add /usr/ccs/bin to your path and rerun configure"
     fi
+    exit 1
+  fi
+fi
+
+if test "$guest_agent" != "no" ; then
+  if has $python; then
+    :
+  else
+    echo "Python not found. Use --python=/path/to/python"
     exit 1
   fi
 fi
@@ -1179,18 +1204,20 @@ fi
 ##########################################
 # zlib check
 
-cat > $TMPC << EOF
+if test "$zlib" != "no" ; then
+    cat > $TMPC << EOF
 #include <zlib.h>
 int main(void) { zlibVersion(); return 0; }
 EOF
-if compile_prog "" "-lz" ; then
-    :
-else
-    echo
-    echo "Error: zlib check failed"
-    echo "Make sure to have the zlib libs and headers installed."
-    echo
-    exit 1
+    if compile_prog "" "-lz" ; then
+        :
+    else
+        echo
+        echo "Error: zlib check failed"
+        echo "Make sure to have the zlib libs and headers installed."
+        echo
+        exit 1
+    fi
 fi
 
 ##########################################
@@ -1494,11 +1521,17 @@ int main(void) {
     return 0;
 }
 EOF
+  if $pkg_config libpng --modversion >/dev/null 2>&1; then
+    vnc_png_cflags=`$pkg_config libpng --cflags 2> /dev/null`
+    vnc_png_libs=`$pkg_config libpng --libs 2> /dev/null`
+  else
     vnc_png_cflags=""
     vnc_png_libs="-lpng"
+  fi
   if compile_prog "$vnc_png_cflags" "$vnc_png_libs" ; then
     vnc_png=yes
     libs_softmmu="$vnc_png_libs $libs_softmmu"
+    QEMU_CFLAGS="$QEMU_CFLAGS $vnc_png_cflags"
   else
     if test "$vnc_png" = "yes" ; then
       feature_not_found "vnc-png"
@@ -1811,14 +1844,16 @@ fi
 
 ##########################################
 # glib support probe
-if $pkg_config --modversion gthread-2.0 gio-2.0 > /dev/null 2>&1 ; then
-    glib_cflags=`$pkg_config --cflags gthread-2.0 gio-2.0 2>/dev/null`
-    glib_libs=`$pkg_config --libs gthread-2.0 gio-2.0 2>/dev/null`
-    libs_softmmu="$glib_libs $libs_softmmu"
-    libs_tools="$glib_libs $libs_tools"
-else
-    echo "glib-2.0 required to compile QEMU"
-    exit 1
+if test "$guest_agent" != "no" ; then
+    if $pkg_config --modversion glib-2.0 > /dev/null 2>&1 ; then
+        glib_cflags=`$pkg_config --cflags glib-2.0 2>/dev/null`
+        glib_libs=`$pkg_config --libs glib-2.0 2>/dev/null`
+        libs_softmmu="$glib_libs $libs_softmmu"
+        libs_tools="$glib_libs $libs_tools"
+    else
+        echo "glib-2.0 required to compile QEMU"
+        exit 1
+    fi
 fi
 
 ##########################################
@@ -2499,6 +2534,43 @@ if test "$trace_backend" = "dtrace"; then
 fi
 
 ##########################################
+# __sync_fetch_and_and requires at least -march=i486. Many toolchains
+# use i686 as default anyway, but for those that don't, an explicit
+# specification is necessary
+if test "$vhost_net" = "yes" && test "$cpu" = "i386"; then
+  cat > $TMPC << EOF
+int sfaa(unsigned *ptr)
+{
+  return __sync_fetch_and_and(ptr, 0);
+}
+
+int main(int argc, char **argv)
+{
+  int val = 42;
+  sfaa(&val);
+  return val;
+}
+EOF
+  if ! compile_prog "" "" ; then
+    CFLAGS+="-march=i486"
+  fi
+fi
+
+##########################################
+# check if we have makecontext
+
+ucontext_coroutine=no
+if test "$darwin" != "yes"; then
+  cat > $TMPC << EOF
+#include <ucontext.h>
+int main(void) { makecontext(0, 0, 0); }
+EOF
+  if compile_prog "" "" ; then
+      ucontext_coroutine=yes
+  fi
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -2555,7 +2627,9 @@ if test "$softmmu" = yes ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
       tools="qemu-nbd\$(EXESUF) $tools"
+    if [ "$guest_agent" = "yes" ]; then
       tools="qemu-ga\$(EXESUF) $tools"
+    fi
     if [ "$check_utests" = "yes" ]; then
       tools="check-qint check-qstring check-qdict check-qlist $tools"
       tools="check-qfloat check-qjson $tools"
@@ -2578,6 +2652,7 @@ echo "Install prefix    $prefix"
 echo "BIOS directory    `eval echo $datadir`"
 echo "binary directory  `eval echo $bindir`"
 echo "library directory `eval echo $libdir`"
+echo "include directory `eval echo $includedir`"
 echo "config directory  `eval echo $sysconfdir`"
 if test "$mingw32" = "no" ; then
 echo "Manual directory  `eval echo $mandir`"
@@ -2591,6 +2666,7 @@ echo "QEMU_CFLAGS       $QEMU_CFLAGS"
 echo "LDFLAGS           $LDFLAGS"
 echo "make              $make"
 echo "install           $install"
+echo "python            $python"
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -2655,8 +2731,9 @@ echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
 echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
+echo "build guest agent $guest_agent"
 
-if test $sdl_too_old = "yes"; then
+if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
 fi
 
@@ -2672,6 +2749,7 @@ echo all: >> $config_host_mak
 echo "prefix=$prefix" >> $config_host_mak
 echo "bindir=$bindir" >> $config_host_mak
 echo "libdir=$libdir" >> $config_host_mak
+echo "includedir=$includedir" >> $config_host_mak
 echo "mandir=$mandir" >> $config_host_mak
 echo "datadir=$datadir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
@@ -2743,7 +2821,7 @@ fi
 if test "$static" = "yes" ; then
   echo "CONFIG_STATIC=y" >> $config_host_mak
 fi
-if test $profiler = "yes" ; then
+if test "$profiler" = "yes" ; then
   echo "CONFIG_PROFILER=y" >> $config_host_mak
 fi
 if test "$slirp" = "yes" ; then
@@ -2970,6 +3048,10 @@ if test "$rbd" = "yes" ; then
   echo "CONFIG_RBD=y" >> $config_host_mak
 fi
 
+if test "$ucontext_coroutine" = "yes" ; then
+  echo "CONFIG_UCONTEXT_COROUTINE=y" >> $config_host_mak
+fi
+
 # USB host support
 case "$usb" in
 linux)
@@ -3003,6 +3085,7 @@ echo "INSTALL=$install" >> $config_host_mak
 echo "INSTALL_DIR=$install -d -m0755 -p" >> $config_host_mak
 echo "INSTALL_DATA=$install -m0644 -p" >> $config_host_mak
 echo "INSTALL_PROG=$install -m0755 -p" >> $config_host_mak
+echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak
 echo "HOST_CC=$host_cc" >> $config_host_mak
@@ -3277,10 +3360,12 @@ case "$target_arch2" in
     if test "$xen" = "yes" -a "$target_softmmu" = "yes" ; then
       target_phys_bits=64
       echo "CONFIG_XEN=y" >> $config_target_mak
-      if test "$cpu" = "i386" -o "$cpu" = "x86_64"; then
-          echo "CONFIG_XEN_MAPCACHE=y" >> $config_target_mak
-      fi
+    else
+      echo "CONFIG_NO_XEN=y" >> $config_target_mak
     fi
+    ;;
+  *)
+    echo "CONFIG_NO_XEN=y" >> $config_target_mak
 esac
 case "$target_arch2" in
   i386|x86_64|ppcemb|ppc|ppc64|s390x)
@@ -3294,7 +3379,7 @@ case "$target_arch2" in
       \( "$target_arch2" = "x86_64" -a "$cpu" = "i386"   \) -o \
       \( "$target_arch2" = "i386"   -a "$cpu" = "x86_64" \) \) ; then
       echo "CONFIG_KVM=y" >> $config_target_mak
-      if test $vhost_net = "yes" ; then
+      if test "$vhost_net" = "yes" ; then
         echo "CONFIG_VHOST_NET=y" >> $config_target_mak
       fi
     fi
@@ -3361,7 +3446,6 @@ else
   includes="-I\$(SRC_PATH)/tcg/\$(ARCH) $includes"
 fi
 includes="-I\$(SRC_PATH)/tcg $includes"
-includes="-I\$(SRC_PATH)/fpu $includes"
 
 if test "$target_user_only" = "yes" ; then
     libdis_config_mak=libdis-user/config.mak

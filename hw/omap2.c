@@ -27,6 +27,7 @@
 #include "qemu-char.h"
 #include "flash.h"
 #include "soc_dma.h"
+#include "sysbus.h"
 #include "audio/audio.h"
 
 /* Enhanced Audio Controller (CODEC only) */
@@ -2203,7 +2204,6 @@ static void omap2_mpu_reset(void *opaque)
     omap_uart_reset(mpu->uart[1]);
     omap_uart_reset(mpu->uart[2]);
     omap_mmc_reset(mpu->mmc);
-    omap_gpif_reset(mpu->gpif);
     omap_mcspi_reset(mpu->mcspi[0]);
     omap_mcspi_reset(mpu->mcspi[1]);
     omap_i2c_reset(mpu->i2c[0]);
@@ -2232,9 +2232,10 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
     ram_addr_t sram_base, q2_base;
     qemu_irq *cpu_irq;
     qemu_irq dma_irqs[4];
-    omap_clk gpio_clks[4];
     DriveInfo *dinfo;
     int i;
+    SysBusDevice *busdev;
+    struct omap_target_agent_s *ta;
 
     /* Core */
     s->mpu_model = omap2420;
@@ -2377,13 +2378,28 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "i2c2.fclk"),
                     omap_findclk(s, "i2c2.iclk"));
 
-    gpio_clks[0] = omap_findclk(s, "gpio1_dbclk");
-    gpio_clks[1] = omap_findclk(s, "gpio2_dbclk");
-    gpio_clks[2] = omap_findclk(s, "gpio3_dbclk");
-    gpio_clks[3] = omap_findclk(s, "gpio4_dbclk");
-    s->gpif = omap2_gpio_init(omap_l4ta(s->l4, 3),
-                    &s->irq[0][OMAP_INT_24XX_GPIO_BANK1],
-                    gpio_clks, omap_findclk(s, "gpio_iclk"), 4);
+    s->gpio = qdev_create(NULL, "omap2-gpio");
+    qdev_prop_set_int32(s->gpio, "mpu_model", s->mpu_model);
+    qdev_prop_set_ptr(s->gpio, "iclk", omap_findclk(s, "gpio_iclk"));
+    qdev_prop_set_ptr(s->gpio, "fclk0", omap_findclk(s, "gpio1_dbclk"));
+    qdev_prop_set_ptr(s->gpio, "fclk1", omap_findclk(s, "gpio2_dbclk"));
+    qdev_prop_set_ptr(s->gpio, "fclk2", omap_findclk(s, "gpio3_dbclk"));
+    qdev_prop_set_ptr(s->gpio, "fclk3", omap_findclk(s, "gpio4_dbclk"));
+    if (s->mpu_model == omap2430) {
+        qdev_prop_set_ptr(s->gpio, "fclk4", omap_findclk(s, "gpio5_dbclk"));
+    }
+    qdev_init_nofail(s->gpio);
+    busdev = sysbus_from_qdev(s->gpio);
+    sysbus_connect_irq(busdev, 0, s->irq[0][OMAP_INT_24XX_GPIO_BANK1]);
+    sysbus_connect_irq(busdev, 3, s->irq[0][OMAP_INT_24XX_GPIO_BANK2]);
+    sysbus_connect_irq(busdev, 6, s->irq[0][OMAP_INT_24XX_GPIO_BANK3]);
+    sysbus_connect_irq(busdev, 9, s->irq[0][OMAP_INT_24XX_GPIO_BANK4]);
+    ta = omap_l4ta(s->l4, 3);
+    sysbus_mmio_map(busdev, 0, omap_l4_region_base(ta, 1));
+    sysbus_mmio_map(busdev, 1, omap_l4_region_base(ta, 0));
+    sysbus_mmio_map(busdev, 2, omap_l4_region_base(ta, 2));
+    sysbus_mmio_map(busdev, 3, omap_l4_region_base(ta, 4));
+    sysbus_mmio_map(busdev, 4, omap_l4_region_base(ta, 5));
 
     s->sdrc = omap_sdrc_init(0x68009000);
     s->gpmc = omap_gpmc_init(0x6800a000, s->irq[0][OMAP_INT_24XX_GPMC_IRQ]);

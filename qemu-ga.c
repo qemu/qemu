@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <glib.h>
-#include <gio/gio.h>
 #include <getopt.h>
 #include <termios.h>
 #include <syslog.h>
@@ -37,9 +36,7 @@
 struct GAState {
     JSONMessageParser parser;
     GMainLoop *main_loop;
-    GSocket *conn_sock;
     GIOChannel *conn_channel;
-    GSocket *listen_sock;
     GIOChannel *listen_channel;
     const char *path;
     const char *method;
@@ -412,18 +409,20 @@ static gboolean listen_channel_accept(GIOChannel *channel,
                                       GIOCondition condition, gpointer data)
 {
     GAState *s = data;
-    GError *err = NULL;
     g_assert(channel != NULL);
-    int ret;
+    int ret, conn_fd;
     bool accepted = false;
+    struct sockaddr_un addr;
+    socklen_t addrlen = sizeof(addr);
 
-    s->conn_sock = g_socket_accept(s->listen_sock, NULL, &err);
-    if (err != NULL) {
-        g_warning("error converting fd to gsocket: %s", err->message);
-        g_error_free(err);
+    conn_fd = qemu_accept(g_io_channel_unix_get_fd(s->listen_channel),
+                             (struct sockaddr *)&addr, &addrlen);
+    if (conn_fd == -1) {
+        g_warning("error converting fd to gsocket: %s", strerror(errno));
         goto out;
     }
-    ret = conn_channel_add(s, g_socket_get_fd(s->conn_sock));
+    fcntl(conn_fd, F_SETFL, O_NONBLOCK);
+    ret = conn_channel_add(s, conn_fd);
     if (ret) {
         g_warning("error setting up connection");
         goto out;
@@ -440,19 +439,8 @@ out:
  */
 static int listen_channel_add(GAState *s, int listen_fd, bool new)
 {
-    GError *err = NULL;
-
     if (new) {
         s->listen_channel = g_io_channel_unix_new(listen_fd);
-        if (s->listen_sock) {
-            g_object_unref(s->listen_sock);
-        }
-        s->listen_sock = g_socket_new_from_fd(listen_fd, &err);
-        if (err != NULL) {
-            g_warning("error converting fd to gsocket: %s", err->message);
-            g_error_free(err);
-            return -1;
-        }
     }
     g_io_add_watch(s->listen_channel, G_IO_IN,
                    listen_channel_accept, s);
@@ -466,8 +454,6 @@ static void conn_channel_close(GAState *s)
 {
     if (strcmp(s->method, "unix-listen") == 0) {
         g_io_channel_shutdown(s->conn_channel, true, NULL);
-        g_object_unref(s->conn_sock);
-        s->conn_sock = NULL;
         listen_channel_add(s, 0, false);
     } else if (strcmp(s->method, "virtio-serial") == 0) {
         /* we spin on EOF for virtio-serial, so back off a bit. also,
@@ -623,9 +609,6 @@ int main(int argc, char **argv)
         g_debug("starting daemon");
         become_daemon(pidfile);
     }
-
-    g_type_init();
-    g_thread_init(NULL);
 
     s = qemu_mallocz(sizeof(GAState));
     s->conn_channel = NULL;

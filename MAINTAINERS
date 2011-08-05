@@ -431,9 +431,10 @@ S: Maintained
 F: net/
 
 SLIRP
-M: qemu-devel@nongnu.org
-S: Orphan
+M: Jan Kiszka <jan.kiszka@siemens.com>
+S: Maintained
 F: slirp/
+T: git://git.kiszka.org/qemu.git queues/slirp
 
 Usermode Emulation
 ------------------

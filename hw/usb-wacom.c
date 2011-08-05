@@ -308,6 +308,7 @@ static int usb_wacom_handle_control(USBDevice *dev, USBPacket *p,
 static int usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBWacomState *s = (USBWacomState *) dev;
+    uint8_t buf[p->iov.size];
     int ret = 0;
 
     switch (p->pid) {
@@ -317,9 +318,10 @@ static int usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
                 return USB_RET_NAK;
             s->changed = 0;
             if (s->mode == WACOM_MODE_HID)
-                ret = usb_mouse_poll(s, p->data, p->len);
+                ret = usb_mouse_poll(s, buf, p->iov.size);
             else if (s->mode == WACOM_MODE_WACOM)
-                ret = usb_wacom_poll(s, p->data, p->len);
+                ret = usb_wacom_poll(s, buf, p->iov.size);
+            usb_packet_copy(p, buf, ret);
             break;
         }
         /* Fall through.  */
@@ -349,6 +351,11 @@ static int usb_wacom_initfn(USBDevice *dev)
     return 0;
 }
 
+static const VMStateDescription vmstate_usb_wacom = {
+    .name = "usb-wacom",
+    .unmigratable = 1,
+};
+
 static struct USBDeviceInfo wacom_info = {
     .product_desc   = "QEMU PenPartner Tablet",
     .qdev.name      = "usb-wacom-tablet",
@@ -356,6 +363,7 @@ static struct USBDeviceInfo wacom_info = {
     .usbdevice_name = "wacom-tablet",
     .usb_desc       = &desc_wacom,
     .qdev.size      = sizeof(USBWacomState),
+    .qdev.vmsd      = &vmstate_usb_wacom,
     .init           = usb_wacom_initfn,
     .handle_packet  = usb_generic_handle_packet,
     .handle_reset   = usb_wacom_handle_reset,

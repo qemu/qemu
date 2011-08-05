@@ -23,6 +23,7 @@
 #include "acpi.h"
 #include "sysemu.h"
 #include "range.h"
+#include "ioport.h"
 
 //#define DEBUG
 
@@ -63,6 +64,7 @@ typedef struct PIIX4PMState {
     qemu_irq irq;
     qemu_irq smi_irq;
     int kvm_enabled;
+    Notifier machine_ready;
 
     /* for pci hotplug */
     ACPIGPE gpe;
@@ -311,6 +313,19 @@ static void piix4_powerdown(void *opaque, int irq, int power_failing)
     acpi_pm1_evt_power_down(pm1a, tmr);
 }
 
+static void piix4_pm_machine_ready(Notifier *n, void *opaque)
+{
+    PIIX4PMState *s = container_of(n, PIIX4PMState, machine_ready);
+    uint8_t *pci_conf;
+
+    pci_conf = s->dev.config;
+    pci_conf[0x5f] = (isa_is_ioport_assigned(0x378) ? 0x80 : 0) | 0x10;
+    pci_conf[0x63] = 0x60;
+    pci_conf[0x67] = (isa_is_ioport_assigned(0x3f8) ? 0x08 : 0) |
+	(isa_is_ioport_assigned(0x2f8) ? 0x90 : 0);
+
+}
+
 static int piix4_pm_initfn(PCIDevice *dev)
 {
     PIIX4PMState *s = DO_UPCAST(PIIX4PMState, dev, dev);
@@ -337,11 +352,6 @@ static int piix4_pm_initfn(PCIDevice *dev)
 
     /* XXX: which specification is used ? The i82731AB has different
        mappings */
-    pci_conf[0x5f] = (parallel_hds[0] != NULL ? 0x80 : 0) | 0x10;
-    pci_conf[0x63] = 0x60;
-    pci_conf[0x67] = (serial_hds[0] != NULL ? 0x08 : 0) |
-	(serial_hds[1] != NULL ? 0x90 : 0);
-
     pci_conf[0x90] = s->smb_io_base | 1;
     pci_conf[0x91] = s->smb_io_base >> 8;
     pci_conf[0xd2] = 0x09;
@@ -354,6 +364,8 @@ static int piix4_pm_initfn(PCIDevice *dev)
     qemu_system_powerdown = *qemu_allocate_irqs(piix4_powerdown, s, 1);
 
     pm_smbus_init(&s->dev.qdev, &s->smb);
+    s->machine_ready.notify = piix4_pm_machine_ready;
+    qemu_add_machine_init_done_notifier(&s->machine_ready);
     qemu_register_reset(piix4_reset, s);
     piix4_acpi_system_hot_add_init(dev->bus, s);
 

@@ -5,6 +5,10 @@
 #include "compiler.h"
 #include "config-host.h"
 
+#if defined(__arm__) || defined(__sparc__) || defined(__mips__) || defined(__hppa__) || defined(__ia64__)
+#define WORDS_ALIGNED
+#endif
+
 #define TFR(expr) do { if ((expr) != -1) break; } while (errno == EINTR)
 
 typedef struct QEMUTimer QEMUTimer;
@@ -111,10 +115,6 @@ int qemu_main(int argc, char **argv, char **envp);
 /* bottom halves */
 typedef void QEMUBHFunc(void *opaque);
 
-void async_context_push(void);
-void async_context_pop(void);
-int get_async_context_id(void);
-
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
 void qemu_bh_schedule(QEMUBH *bh);
 /* Bottom halfs that are scheduled from a bottom half handler are instantly
@@ -200,6 +200,12 @@ int qemu_eventfd(int pipefd[2]);
 int qemu_pipe(int pipefd[2]);
 #endif
 
+#ifdef _WIN32
+#define qemu_recv(sockfd, buf, len, flags) recv(sockfd, (void *)buf, len, flags)
+#else
+#define qemu_recv(sockfd, buf, len, flags) recv(sockfd, buf, len, flags)
+#endif
+
 /* Error handling.  */
 
 void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
@@ -260,6 +266,7 @@ typedef struct I2SCodec I2SCodec;
 typedef struct SSIBus SSIBus;
 typedef struct EventNotifier EventNotifier;
 typedef struct VirtIODevice VirtIODevice;
+typedef struct QEMUSGList QEMUSGList;
 
 typedef uint64_t pcibus_t;
 

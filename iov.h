@@ -17,3 +17,7 @@ size_t iov_from_buf(struct iovec *iov, unsigned int iov_cnt,
 size_t iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
                   void *buf, size_t iov_off, size_t size);
 size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt);
+size_t iov_clear(const struct iovec *iov, const unsigned int iov_cnt,
+                 size_t iov_off, size_t size);
+void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
+                 FILE *fp, const char *prefix, size_t limit);

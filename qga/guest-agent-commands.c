@@ -10,15 +10,17 @@
  * See the COPYING file in the top-level directory.
  */
 
-#if defined(__linux__)
-#define CONFIG_FSFREEZE
-#endif
-
 #include <glib.h>
-#if defined(CONFIG_FSFREEZE)
+
+#if defined(__linux__)
 #include <mntent.h>
 #include <linux/fs.h>
+
+#if defined(__linux__) && defined(FIFREEZE)
+#define CONFIG_FSFREEZE
 #endif
+#endif
+
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include "qga/guest-agent-core.h"
@@ -521,7 +523,7 @@ static void guest_fsfreeze_cleanup(void)
  */
 GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
 {
-    error_set(err, QERR_COMMAND_NOT_FOUND, "guest_fsfreeze_status");
+    error_set(err, QERR_UNSUPPORTED);
 
     return 0;
 }
@@ -532,7 +534,7 @@ GuestFsfreezeStatus qmp_guest_fsfreeze_status(Error **err)
  */
 int64_t qmp_guest_fsfreeze_freeze(Error **err)
 {
-    error_set(err, QERR_COMMAND_NOT_FOUND, "guest_fsfreeze_freeze");
+    error_set(err, QERR_UNSUPPORTED);
 
     return 0;
 }
@@ -542,7 +544,7 @@ int64_t qmp_guest_fsfreeze_freeze(Error **err)
  */
 int64_t qmp_guest_fsfreeze_thaw(Error **err)
 {
-    error_set(err, QERR_COMMAND_NOT_FOUND, "guest_fsfreeze_thaw");
+    error_set(err, QERR_UNSUPPORTED);
 
     return 0;
 }

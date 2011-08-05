@@ -119,7 +119,7 @@ static void *writeout_thread(void *opaque)
     TraceRecord record;
     unsigned int writeout_idx = 0;
     unsigned int num_available, idx;
-    size_t unused;
+    size_t unused __attribute__ ((unused));
 
     for (;;) {
         wait_for_trace_records_available();

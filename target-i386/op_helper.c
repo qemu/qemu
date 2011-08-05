@@ -18,12 +18,20 @@
  */
 
 #include <math.h>
-#include "exec.h"
+#include "cpu.h"
+#include "dyngen-exec.h"
 #include "host-utils.h"
 #include "ioport.h"
+#include "qemu-common.h"
+#include "qemu-log.h"
+#include "cpu-defs.h"
+#include "helper.h"
+
+#if !defined(CONFIG_USER_ONLY)
+#include "softmmu_exec.h"
+#endif /* !defined(CONFIG_USER_ONLY) */
 
 //#define DEBUG_PCALL
-
 
 #ifdef DEBUG_PCALL
 #  define LOG_PCALL(...) qemu_log_mask(CPU_LOG_PCALL, ## __VA_ARGS__)
@@ -34,6 +42,101 @@
 #  define LOG_PCALL_STATE(env) do { } while (0)
 #endif
 
+/* n must be a constant to be efficient */
+static inline target_long lshift(target_long x, int n)
+{
+    if (n >= 0) {
+        return x << n;
+    } else {
+        return x >> (-n);
+    }
+}
+
+#define RC_MASK         0xc00
+#define RC_NEAR         0x000
+#define RC_DOWN         0x400
+#define RC_UP           0x800
+#define RC_CHOP         0xc00
+
+#define MAXTAN 9223372036854775808.0
+
+/* the following deal with x86 long double-precision numbers */
+#define MAXEXPD 0x7fff
+#define EXPBIAS 16383
+#define EXPD(fp)        (fp.l.upper & 0x7fff)
+#define SIGND(fp)       ((fp.l.upper) & 0x8000)
+#define MANTD(fp)       (fp.l.lower)
+#define BIASEXPONENT(fp) fp.l.upper = (fp.l.upper & ~(0x7fff)) | EXPBIAS
+
+static inline void fpush(void)
+{
+    env->fpstt = (env->fpstt - 1) & 7;
+    env->fptags[env->fpstt] = 0; /* validate stack entry */
+}
+
+static inline void fpop(void)
+{
+    env->fptags[env->fpstt] = 1; /* invvalidate stack entry */
+    env->fpstt = (env->fpstt + 1) & 7;
+}
+
+static inline floatx80 helper_fldt(target_ulong ptr)
+{
+    CPU_LDoubleU temp;
+
+    temp.l.lower = ldq(ptr);
+    temp.l.upper = lduw(ptr + 8);
+    return temp.d;
+}
+
+static inline void helper_fstt(floatx80 f, target_ulong ptr)
+{
+    CPU_LDoubleU temp;
+
+    temp.d = f;
+    stq(ptr, temp.l.lower);
+    stw(ptr + 8, temp.l.upper);
+}
+
+#define FPUS_IE (1 << 0)
+#define FPUS_DE (1 << 1)
+#define FPUS_ZE (1 << 2)
+#define FPUS_OE (1 << 3)
+#define FPUS_UE (1 << 4)
+#define FPUS_PE (1 << 5)
+#define FPUS_SF (1 << 6)
+#define FPUS_SE (1 << 7)
+#define FPUS_B  (1 << 15)
+
+#define FPUC_EM 0x3f
+
+static inline uint32_t compute_eflags(void)
+{
+    return env->eflags | helper_cc_compute_all(CC_OP) | (DF & DF_MASK);
+}
+
+/* NOTE: CC_OP must be modified manually to CC_OP_EFLAGS */
+static inline void load_eflags(int eflags, int update_mask)
+{
+    CC_SRC = eflags & (CC_O | CC_S | CC_Z | CC_A | CC_P | CC_C);
+    DF = 1 - (2 * ((eflags >> 10) & 1));
+    env->eflags = (env->eflags & ~update_mask) |
+        (eflags & update_mask) | 0x2;
+}
+
+/* load efer and update the corresponding hflags. XXX: do consistency
+   checks with cpuid bits ? */
+static inline void cpu_load_efer(CPUState *env, uint64_t val)
+{
+    env->efer = val;
+    env->hflags &= ~(HF_LMA_MASK | HF_SVME_MASK);
+    if (env->efer & MSR_EFER_LMA) {
+        env->hflags |= HF_LMA_MASK;
+    }
+    if (env->efer & MSR_EFER_SVME) {
+        env->hflags |= HF_SVME_MASK;
+    }
+}
 
 #if 0
 #define raise_exception_err(a, b)\
@@ -42,6 +145,9 @@ do {\
     (raise_exception_err)(a, b);\
 } while (0)
 #endif
+
+static void QEMU_NORETURN raise_exception_err(int exception_index,
+                                              int error_code);
 
 static const uint8_t parity_table[256] = {
     CC_P, 0, 0, CC_P, 0, CC_P, CC_P, 0,
@@ -1381,12 +1487,20 @@ static void QEMU_NORETURN raise_interrupt(int intno, int is_int, int error_code,
 
 /* shortcuts to generate exceptions */
 
-void raise_exception_err(int exception_index, int error_code)
+static void QEMU_NORETURN raise_exception_err(int exception_index,
+                                              int error_code)
 {
     raise_interrupt(exception_index, 0, error_code, 0);
 }
 
-void raise_exception(int exception_index)
+void raise_exception_err_env(CPUState *nenv, int exception_index,
+                             int error_code)
+{
+    env = nenv;
+    raise_interrupt(exception_index, 0, error_code, 0);
+}
+
+static void QEMU_NORETURN raise_exception(int exception_index)
 {
     raise_interrupt(exception_index, 0, 0, 0);
 }
@@ -4425,6 +4539,49 @@ void helper_frstor(target_ulong ptr, int data32)
         ptr += 10;
     }
 }
+
+
+#if defined(CONFIG_USER_ONLY)
+void cpu_x86_load_seg(CPUX86State *s, int seg_reg, int selector)
+{
+    CPUX86State *saved_env;
+
+    saved_env = env;
+    env = s;
+    if (!(env->cr[0] & CR0_PE_MASK) || (env->eflags & VM_MASK)) {
+        selector &= 0xffff;
+        cpu_x86_load_seg_cache(env, seg_reg, selector,
+                               (selector << 4), 0xffff, 0);
+    } else {
+        helper_load_seg(seg_reg, selector);
+    }
+    env = saved_env;
+}
+
+void cpu_x86_fsave(CPUX86State *s, target_ulong ptr, int data32)
+{
+    CPUX86State *saved_env;
+
+    saved_env = env;
+    env = s;
+
+    helper_fsave(ptr, data32);
+
+    env = saved_env;
+}
+
+void cpu_x86_frstor(CPUX86State *s, target_ulong ptr, int data32)
+{
+    CPUX86State *saved_env;
+
+    saved_env = env;
+    env = s;
+
+    helper_frstor(ptr, data32);
+
+    env = saved_env;
+}
+#endif
 
 void helper_fxsave(target_ulong ptr, int data64)
 {

@@ -393,9 +393,7 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     } else {
         sect = 0;
     }
-    sect <<= 9;
-
-    size = sect + 1;
+    size = sect << 9;
 
     sect = (size >> (HWBLOCK_SHIFT + SECTOR_SHIFT + WPGROUP_SHIFT)) + 1;
 
@@ -1450,14 +1448,8 @@ void sd_write_data(SDState *sd, uint8_t value)
         break;
 
     case 25:	/* CMD25:  WRITE_MULTIPLE_BLOCK */
-        sd->data[sd->data_offset ++] = value;
-        if (sd->data_offset >= sd->blk_len) {
-            /* TODO: Check CRC before committing */
-            sd->state = sd_programming_state;
-            BLK_WRITE_BLOCK(sd->data_start, sd->data_offset);
-            sd->blk_written ++;
-            sd->data_start += sd->blk_len;
-            sd->data_offset = 0;
+        if (sd->data_offset == 0) {
+            /* Start of the block - lets check the address is valid */
             if (sd->data_start + sd->blk_len > sd->size) {
                 sd->card_status |= ADDRESS_ERROR;
                 break;
@@ -1466,6 +1458,15 @@ void sd_write_data(SDState *sd, uint8_t value)
                 sd->card_status |= WP_VIOLATION;
                 break;
             }
+        }
+        sd->data[sd->data_offset++] = value;
+        if (sd->data_offset >= sd->blk_len) {
+            /* TODO: Check CRC before committing */
+            sd->state = sd_programming_state;
+            BLK_WRITE_BLOCK(sd->data_start, sd->data_offset);
+            sd->blk_written++;
+            sd->data_start += sd->blk_len;
+            sd->data_offset = 0;
             sd->csd[14] |= 0x40;
 
             /* Bzzzzzzztt .... Operation complete.  */

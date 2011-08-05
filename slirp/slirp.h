@@ -152,6 +152,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "tcp_var.h"
 #include "tcpip.h"
 #include "udp.h"
+#include "ip_icmp.h"
 #include "mbuf.h"
 #include "sbuf.h"
 #include "socket.h"
@@ -169,6 +170,48 @@ int inet_aton(const char *cp, struct in_addr *ia);
 /* osdep.c */
 int qemu_socket(int domain, int type, int protocol);
 
+#define ETH_ALEN 6
+#define ETH_HLEN 14
+
+#define ETH_P_IP  0x0800        /* Internet Protocol packet  */
+#define ETH_P_ARP 0x0806        /* Address Resolution packet */
+
+#define ARPOP_REQUEST 1         /* ARP request */
+#define ARPOP_REPLY   2         /* ARP reply   */
+
+struct ethhdr {
+    unsigned char  h_dest[ETH_ALEN];   /* destination eth addr */
+    unsigned char  h_source[ETH_ALEN]; /* source ether addr    */
+    unsigned short h_proto;            /* packet type ID field */
+};
+
+struct arphdr {
+    unsigned short ar_hrd;      /* format of hardware address */
+    unsigned short ar_pro;      /* format of protocol address */
+    unsigned char  ar_hln;      /* length of hardware address */
+    unsigned char  ar_pln;      /* length of protocol address */
+    unsigned short ar_op;       /* ARP opcode (command)       */
+
+    /*
+     *  Ethernet looks like this : This bit is variable sized however...
+     */
+    unsigned char ar_sha[ETH_ALEN]; /* sender hardware address */
+    uint32_t      ar_sip;           /* sender IP address       */
+    unsigned char ar_tha[ETH_ALEN]; /* target hardware address */
+    uint32_t      ar_tip;           /* target IP address       */
+} __attribute__((packed));
+
+#define ARP_TABLE_SIZE 16
+
+typedef struct ArpTable {
+    struct arphdr table[ARP_TABLE_SIZE];
+    int next_victim;
+} ArpTable;
+
+void arp_table_add(Slirp *slirp, int ip_addr, uint8_t ethaddr[ETH_ALEN]);
+
+bool arp_table_search(Slirp *slirp, int in_ip_addr,
+                      uint8_t out_ethaddr[ETH_ALEN]);
 
 struct Slirp {
     QTAILQ_ENTRY(Slirp) entry;
@@ -179,9 +222,6 @@ struct Slirp {
     struct in_addr vhost_addr;
     struct in_addr vdhcp_startaddr;
     struct in_addr vnameserver_addr;
-
-    /* ARP cache for the guest IP addresses (XXX: allow many entries) */
-    uint8_t client_ethaddr[6];
 
     struct in_addr client_ipaddr;
     char client_hostname[33];
@@ -218,9 +258,15 @@ struct Slirp {
     struct socket udb;
     struct socket *udp_last_so;
 
+    /* icmp states */
+    struct socket icmp;
+    struct socket *icmp_last_so;
+
     /* tftp states */
     char *tftp_prefix;
     struct tftp_session tftp_sessions[TFTP_SESSIONS_MAX];
+
+    ArpTable arp_table;
 
     void *opaque;
 };
