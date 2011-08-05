@@ -58,7 +58,7 @@ static BlockDriverAIOCB *fvd_aio_readv (BlockDriverState * bs,
      * synchronous I/O.  Doing copy-on-read in emulated synchronous I/O may
      * leave the copy-on-read callbacks never being processed due to
      * mismatching contextid. */
-    const int copy_on_read = s->copy_on_read && (get_async_context_id () == 0);
+    const int copy_on_read = s->copy_on_read;
 
     if (first_sec_in_fvd < 0 && !copy_on_read) {
         /* A simple case: all requested data are in the base image and no need
@@ -335,7 +335,7 @@ static void finish_read (FvdAIOCB * acb)
             acb->read.ret);
     acb->common.cb (acb->common.opaque, acb->read.ret);
 
-    if (!s->copy_on_read || get_async_context_id () != 0) {
+    if (!s->copy_on_read) {
         /* Do copy-on-read only if the context id is 0, i.e., it is not
          * emulating synchronous I/O.  Doing copy-on-read in emulated
          * synchronous I/O may leave the copy-on-read callbacks never being
