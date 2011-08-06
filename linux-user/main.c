@@ -39,12 +39,19 @@
 char *exec_path;
 
 int singlestep;
+const char *filename;
+const char *argv0;
+int gdbstub_port;
+envlist_t *envlist;
+const char *cpu_model;
 unsigned long mmap_min_addr;
 #if defined(CONFIG_USE_GUEST_BASE)
 unsigned long guest_base;
 int have_guest_base;
 unsigned long reserved_va;
 #endif
+
+static void usage(void);
 
 static const char *interp_prefix = CONFIG_QEMU_INTERP_PREFIX;
 const char *qemu_uname_release = CONFIG_UNAME_RELEASE;
@@ -2879,57 +2886,6 @@ void cpu_loop(CPUS390XState *env)
 
 #endif /* TARGET_S390X */
 
-static void version(void)
-{
-    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION QEMU_PKGVERSION
-           ", Copyright (c) 2003-2008 Fabrice Bellard\n");
-}
-
-static void usage(void)
-{
-    version();
-    printf("usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
-           "Linux CPU emulator (compiled for %s emulation)\n"
-           "\n"
-           "Standard options:\n"
-           "-h                print this help\n"
-           "-version          display version information and exit\n"
-           "-g port           wait gdb connection to port\n"
-           "-L path           set the elf interpreter prefix (default=%s)\n"
-           "-s size           set the stack size in bytes (default=%ld)\n"
-           "-cpu model        select CPU (-cpu ? for list)\n"
-           "-drop-ld-preload  drop LD_PRELOAD for target process\n"
-           "-E var=value      sets/modifies targets environment variable(s)\n"
-           "-U var            unsets targets environment variable(s)\n"
-           "-0 argv0          forces target process argv[0] to be argv0\n"
-#if defined(CONFIG_USE_GUEST_BASE)
-           "-B address        set guest_base address to address\n"
-           "-R size           reserve size bytes for guest virtual address space\n"
-#endif
-           "\n"
-           "Debug options:\n"
-           "-d options   activate log (logfile=%s)\n"
-           "-p pagesize  set the host page size to 'pagesize'\n"
-           "-singlestep  always run in singlestep mode\n"
-           "-strace      log system calls\n"
-           "\n"
-           "Environment variables:\n"
-           "QEMU_STRACE       Print system calls and arguments similar to the\n"
-           "                  'strace' program.  Enable by setting to any value.\n"
-           "You can use -E and -U options to set/unset environment variables\n"
-           "for target process.  It is possible to provide several variables\n"
-           "by repeating the option.  For example:\n"
-           "    -E var1=val2 -E var2=val2 -U LD_PRELOAD -U LD_DEBUG\n"
-           "Note that if you provide several changes to single variable\n"
-           "last change will stay in effect.\n"
-           ,
-           TARGET_ARCH,
-           interp_prefix,
-           guest_stack_size,
-           DEBUG_LOGFILE);
-    exit(1);
-}
-
 THREAD CPUState *thread_env;
 
 void task_settid(TaskState *ts)
@@ -2965,26 +2921,358 @@ void init_task_state(TaskState *ts)
     }
     ts->sigqueue_table[i].next = NULL;
 }
- 
+
+static void handle_arg_help(const char *arg)
+{
+    usage();
+}
+
+static void handle_arg_log(const char *arg)
+{
+    int mask;
+    const CPULogItem *item;
+
+    mask = cpu_str_to_log_mask(arg);
+    if (!mask) {
+        printf("Log items (comma separated):\n");
+        for (item = cpu_log_items; item->mask != 0; item++) {
+            printf("%-10s %s\n", item->name, item->help);
+        }
+        exit(1);
+    }
+    cpu_set_log(mask);
+}
+
+static void handle_arg_set_env(const char *arg)
+{
+    char *r, *p, *token;
+    r = p = strdup(arg);
+    while ((token = strsep(&p, ",")) != NULL) {
+        if (envlist_setenv(envlist, token) != 0) {
+            usage();
+        }
+    }
+    free(r);
+}
+
+static void handle_arg_unset_env(const char *arg)
+{
+    char *r, *p, *token;
+    r = p = strdup(arg);
+    while ((token = strsep(&p, ",")) != NULL) {
+        if (envlist_unsetenv(envlist, token) != 0) {
+            usage();
+        }
+    }
+    free(r);
+}
+
+static void handle_arg_argv0(const char *arg)
+{
+    argv0 = strdup(arg);
+}
+
+static void handle_arg_stack_size(const char *arg)
+{
+    char *p;
+    guest_stack_size = strtoul(arg, &p, 0);
+    if (guest_stack_size == 0) {
+        usage();
+    }
+
+    if (*p == 'M') {
+        guest_stack_size *= 1024 * 1024;
+    } else if (*p == 'k' || *p == 'K') {
+        guest_stack_size *= 1024;
+    }
+}
+
+static void handle_arg_ld_prefix(const char *arg)
+{
+    interp_prefix = strdup(arg);
+}
+
+static void handle_arg_pagesize(const char *arg)
+{
+    qemu_host_page_size = atoi(arg);
+    if (qemu_host_page_size == 0 ||
+        (qemu_host_page_size & (qemu_host_page_size - 1)) != 0) {
+        fprintf(stderr, "page size must be a power of two\n");
+        exit(1);
+    }
+}
+
+static void handle_arg_gdb(const char *arg)
+{
+    gdbstub_port = atoi(arg);
+}
+
+static void handle_arg_uname(const char *arg)
+{
+    qemu_uname_release = strdup(arg);
+}
+
+static void handle_arg_cpu(const char *arg)
+{
+    cpu_model = strdup(arg);
+    if (cpu_model == NULL || strcmp(cpu_model, "?") == 0) {
+        /* XXX: implement xxx_cpu_list for targets that still miss it */
+#if defined(cpu_list_id)
+        cpu_list_id(stdout, &fprintf, "");
+#elif defined(cpu_list)
+        cpu_list(stdout, &fprintf); /* deprecated */
+#endif
+        exit(1);
+    }
+}
+
+#if defined(CONFIG_USE_GUEST_BASE)
+static void handle_arg_guest_base(const char *arg)
+{
+    guest_base = strtol(arg, NULL, 0);
+    have_guest_base = 1;
+}
+
+static void handle_arg_reserved_va(const char *arg)
+{
+    char *p;
+    int shift = 0;
+    reserved_va = strtoul(arg, &p, 0);
+    switch (*p) {
+    case 'k':
+    case 'K':
+        shift = 10;
+        break;
+    case 'M':
+        shift = 20;
+        break;
+    case 'G':
+        shift = 30;
+        break;
+    }
+    if (shift) {
+        unsigned long unshifted = reserved_va;
+        p++;
+        reserved_va <<= shift;
+        if (((reserved_va >> shift) != unshifted)
+#if HOST_LONG_BITS > TARGET_VIRT_ADDR_SPACE_BITS
+            || (reserved_va > (1ul << TARGET_VIRT_ADDR_SPACE_BITS))
+#endif
+            ) {
+            fprintf(stderr, "Reserved virtual address too big\n");
+            exit(1);
+        }
+    }
+    if (*p) {
+        fprintf(stderr, "Unrecognised -R size suffix '%s'\n", p);
+        exit(1);
+    }
+}
+#endif
+
+static void handle_arg_singlestep(const char *arg)
+{
+    singlestep = 1;
+}
+
+static void handle_arg_strace(const char *arg)
+{
+    do_strace = 1;
+}
+
+static void handle_arg_version(const char *arg)
+{
+    printf("qemu-" TARGET_ARCH " version " QEMU_VERSION QEMU_PKGVERSION
+           ", Copyright (c) 2003-2008 Fabrice Bellard\n");
+}
+
+struct qemu_argument {
+    const char *argv;
+    const char *env;
+    bool has_arg;
+    void (*handle_opt)(const char *arg);
+    const char *example;
+    const char *help;
+};
+
+struct qemu_argument arg_table[] = {
+    {"h",          "",                 false, handle_arg_help,
+     "",           "print this help"},
+    {"g",          "QEMU_GDB",         true,  handle_arg_gdb,
+     "port",       "wait gdb connection to 'port'"},
+    {"L",          "QEMU_LD_PREFIX",   true,  handle_arg_ld_prefix,
+     "path",       "set the elf interpreter prefix to 'path'"},
+    {"s",          "QEMU_STACK_SIZE",  true,  handle_arg_stack_size,
+     "size",       "set the stack size to 'size' bytes"},
+    {"cpu",        "QEMU_CPU",         true,  handle_arg_cpu,
+     "model",      "select CPU (-cpu ? for list)"},
+    {"E",          "QEMU_SET_ENV",     true,  handle_arg_set_env,
+     "var=value",  "sets targets environment variable (see below)"},
+    {"U",          "QEMU_UNSET_ENV",   true,  handle_arg_unset_env,
+     "var",        "unsets targets environment variable (see below)"},
+    {"0",          "QEMU_ARGV0",       true,  handle_arg_argv0,
+     "argv0",      "forces target process argv[0] to be 'argv0'"},
+    {"r",          "QEMU_UNAME",       true,  handle_arg_uname,
+     "uname",      "set qemu uname release string to 'uname'"},
+#if defined(CONFIG_USE_GUEST_BASE)
+    {"B",          "QEMU_GUEST_BASE",  true,  handle_arg_guest_base,
+     "address",    "set guest_base address to 'address'"},
+    {"R",          "QEMU_RESERVED_VA", true,  handle_arg_reserved_va,
+     "size",       "reserve 'size' bytes for guest virtual address space"},
+#endif
+    {"d",          "QEMU_LOG",         true,  handle_arg_log,
+     "options",    "activate log"},
+    {"p",          "QEMU_PAGESIZE",    true,  handle_arg_pagesize,
+     "pagesize",   "set the host page size to 'pagesize'"},
+    {"singlestep", "QEMU_SINGLESTEP",  false, handle_arg_singlestep,
+     "",           "run in singlestep mode"},
+    {"strace",     "QEMU_STRACE",      false, handle_arg_strace,
+     "",           "log system calls"},
+    {"version",    "QEMU_VERSION",     false, handle_arg_version,
+     "",           "log system calls"},
+    {NULL, NULL, false, NULL, NULL, NULL}
+};
+
+static void usage(void)
+{
+    struct qemu_argument *arginfo;
+    int maxarglen;
+    int maxenvlen;
+
+    printf("usage: qemu-" TARGET_ARCH " [options] program [arguments...]\n"
+           "Linux CPU emulator (compiled for " TARGET_ARCH " emulation)\n"
+           "\n"
+           "Options and associated environment variables:\n"
+           "\n");
+
+    maxarglen = maxenvlen = 0;
+
+    for (arginfo = arg_table; arginfo->handle_opt != NULL; arginfo++) {
+        if (strlen(arginfo->env) > maxenvlen) {
+            maxenvlen = strlen(arginfo->env);
+        }
+        if (strlen(arginfo->argv) > maxarglen) {
+            maxarglen = strlen(arginfo->argv);
+        }
+    }
+
+    printf("%-*s%-*sDescription\n", maxarglen+3, "Argument",
+            maxenvlen+1, "Env-variable");
+
+    for (arginfo = arg_table; arginfo->handle_opt != NULL; arginfo++) {
+        if (arginfo->has_arg) {
+            printf("-%s %-*s %-*s %s\n", arginfo->argv,
+                    (int)(maxarglen-strlen(arginfo->argv)), arginfo->example,
+                    maxenvlen, arginfo->env, arginfo->help);
+        } else {
+            printf("-%-*s %-*s %s\n", maxarglen+1, arginfo->argv,
+                    maxenvlen, arginfo->env,
+                    arginfo->help);
+        }
+    }
+
+    printf("\n"
+           "Defaults:\n"
+           "QEMU_LD_PREFIX  = %s\n"
+           "QEMU_STACK_SIZE = %ld byte\n"
+           "QEMU_LOG        = %s\n",
+           interp_prefix,
+           guest_stack_size,
+           DEBUG_LOGFILE);
+
+    printf("\n"
+           "You can use -E and -U options or the QEMU_SET_ENV and\n"
+           "QEMU_UNSET_ENV environment variables to set and unset\n"
+           "environment variables for the target process.\n"
+           "It is possible to provide several variables by separating them\n"
+           "by commas in getsubopt(3) style. Additionally it is possible to\n"
+           "provide the -E and -U options multiple times.\n"
+           "The following lines are equivalent:\n"
+           "    -E var1=val2 -E var2=val2 -U LD_PRELOAD -U LD_DEBUG\n"
+           "    -E var1=val2,var2=val2 -U LD_PRELOAD,LD_DEBUG\n"
+           "    QEMU_SET_ENV=var1=val2,var2=val2 QEMU_UNSET_ENV=LD_PRELOAD,LD_DEBUG\n"
+           "Note that if you provide several changes to a single variable\n"
+           "the last change will stay in effect.\n");
+
+    exit(1);
+}
+
+static int parse_args(int argc, char **argv)
+{
+    const char *r;
+    int optind;
+    struct qemu_argument *arginfo;
+
+    for (arginfo = arg_table; arginfo->handle_opt != NULL; arginfo++) {
+        if (arginfo->env == NULL) {
+            continue;
+        }
+
+        r = getenv(arginfo->env);
+        if (r != NULL) {
+            arginfo->handle_opt(r);
+        }
+    }
+
+    optind = 1;
+    for (;;) {
+        if (optind >= argc) {
+            break;
+        }
+        r = argv[optind];
+        if (r[0] != '-') {
+            break;
+        }
+        optind++;
+        r++;
+        if (!strcmp(r, "-")) {
+            break;
+        }
+
+        for (arginfo = arg_table; arginfo->handle_opt != NULL; arginfo++) {
+            if (!strcmp(r, arginfo->argv)) {
+                if (optind >= argc) {
+                    usage();
+                }
+
+                arginfo->handle_opt(argv[optind]);
+
+                if (arginfo->has_arg) {
+                    optind++;
+                }
+
+                break;
+            }
+        }
+
+        /* no option matched the current argv */
+        if (arginfo->handle_opt == NULL) {
+            usage();
+        }
+    }
+
+    if (optind >= argc) {
+        usage();
+    }
+
+    filename = argv[optind];
+    exec_path = argv[optind];
+
+    return optind;
+}
+
 int main(int argc, char **argv, char **envp)
 {
-    const char *filename;
-    const char *cpu_model;
     const char *log_file = DEBUG_LOGFILE;
-    const char *log_mask = NULL;
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     struct linux_binprm bprm;
     TaskState *ts;
     CPUState *env;
     int optind;
-    const char *r;
-    int gdbstub_port = 0;
     char **target_environ, **wrk;
     char **target_argv;
     int target_argc;
-    envlist_t *envlist = NULL;
-    const char *argv0 = NULL;
     int i;
     int ret;
 
@@ -3019,156 +3307,9 @@ int main(int argc, char **argv, char **envp)
     cpudef_setup(); /* parse cpu definitions in target config file (TBD) */
 #endif
 
-    optind = 1;
-    for(;;) {
-        if (optind >= argc)
-            break;
-        r = argv[optind];
-        if (r[0] != '-')
-            break;
-        optind++;
-        r++;
-        if (!strcmp(r, "-")) {
-            break;
-        } else if (!strcmp(r, "d")) {
-            if (optind >= argc) {
-		break;
-            }
-            log_mask = argv[optind++];
-        } else if (!strcmp(r, "D")) {
-            if (optind >= argc) {
-                break;
-            }
-            log_file = argv[optind++];
-        } else if (!strcmp(r, "E")) {
-            r = argv[optind++];
-            if (envlist_setenv(envlist, r) != 0)
-                usage();
-        } else if (!strcmp(r, "ignore-environment")) {
-            envlist_free(envlist);
-            if ((envlist = envlist_create()) == NULL) {
-                (void) fprintf(stderr, "Unable to allocate envlist\n");
-                exit(1);
-            }
-        } else if (!strcmp(r, "U")) {
-            r = argv[optind++];
-            if (envlist_unsetenv(envlist, r) != 0)
-                usage();
-        } else if (!strcmp(r, "0")) {
-            r = argv[optind++];
-            argv0 = r;
-        } else if (!strcmp(r, "s")) {
-            if (optind >= argc)
-                break;
-            r = argv[optind++];
-            guest_stack_size = strtoul(r, (char **)&r, 0);
-            if (guest_stack_size == 0)
-                usage();
-            if (*r == 'M')
-                guest_stack_size *= 1024 * 1024;
-            else if (*r == 'k' || *r == 'K')
-                guest_stack_size *= 1024;
-        } else if (!strcmp(r, "L")) {
-            interp_prefix = argv[optind++];
-        } else if (!strcmp(r, "p")) {
-            if (optind >= argc)
-                break;
-            qemu_host_page_size = atoi(argv[optind++]);
-            if (qemu_host_page_size == 0 ||
-                (qemu_host_page_size & (qemu_host_page_size - 1)) != 0) {
-                fprintf(stderr, "page size must be a power of two\n");
-                exit(1);
-            }
-        } else if (!strcmp(r, "g")) {
-            if (optind >= argc)
-                break;
-            gdbstub_port = atoi(argv[optind++]);
-	} else if (!strcmp(r, "r")) {
-	    qemu_uname_release = argv[optind++];
-        } else if (!strcmp(r, "cpu")) {
-            cpu_model = argv[optind++];
-            if (cpu_model == NULL || strcmp(cpu_model, "?") == 0) {
-/* XXX: implement xxx_cpu_list for targets that still miss it */
-#if defined(cpu_list_id)
-                cpu_list_id(stdout, &fprintf, "");
-#elif defined(cpu_list)
-                cpu_list(stdout, &fprintf); /* deprecated */
-#endif
-                exit(1);
-            }
-#if defined(CONFIG_USE_GUEST_BASE)
-        } else if (!strcmp(r, "B")) {
-           guest_base = strtol(argv[optind++], NULL, 0);
-           have_guest_base = 1;
-        } else if (!strcmp(r, "R")) {
-            char *p;
-            int shift = 0;
-            reserved_va = strtoul(argv[optind++], &p, 0);
-            switch (*p) {
-            case 'k':
-            case 'K':
-                shift = 10;
-                break;
-            case 'M':
-                shift = 20;
-                break;
-            case 'G':
-                shift = 30;
-                break;
-            }
-            if (shift) {
-                unsigned long unshifted = reserved_va;
-                p++;
-                reserved_va <<= shift;
-                if (((reserved_va >> shift) != unshifted)
-#if HOST_LONG_BITS > TARGET_VIRT_ADDR_SPACE_BITS
-                    || (reserved_va > (1ul << TARGET_VIRT_ADDR_SPACE_BITS))
-#endif
-                    ) {
-                    fprintf(stderr, "Reserved virtual address too big\n");
-                    exit(1);
-                }
-            }
-            if (*p) {
-                fprintf(stderr, "Unrecognised -R size suffix '%s'\n", p);
-                exit(1);
-            }
-#endif
-        } else if (!strcmp(r, "drop-ld-preload")) {
-            (void) envlist_unsetenv(envlist, "LD_PRELOAD");
-        } else if (!strcmp(r, "singlestep")) {
-            singlestep = 1;
-        } else if (!strcmp(r, "strace")) {
-            do_strace = 1;
-        } else if (!strcmp(r, "version")) {
-            version();
-            exit(0);
-        } else {
-            usage();
-        }
-    }
     /* init debug */
     cpu_set_log_filename(log_file);
-    if (log_mask) {
-        int mask;
-        const CPULogItem *item;
-
-        mask = cpu_str_to_log_mask(log_mask);
-        if (!mask) {
-            printf("Log items (comma separated):\n");
-            for (item = cpu_log_items; item->mask != 0; item++) {
-                printf("%-10s %s\n", item->name, item->help);
-            }
-            exit(1);
-        }
-        cpu_set_log(mask);
-    }
-
-    if (optind >= argc) {
-        usage();
-    }
-    filename = argv[optind];
-    exec_path = argv[optind];
+    optind = parse_args(argc, argv);
 
     /* Zero out regs */
     memset(regs, 0, sizeof(struct target_pt_regs));
