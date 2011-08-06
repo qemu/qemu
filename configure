@@ -493,6 +493,7 @@ if test "$mingw32" = "yes" ; then
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
   confsuffix=""
+  guest_agent="no"
 fi
 
 werror=""
