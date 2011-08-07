@@ -108,18 +108,19 @@ typedef struct {
 #define SERIAL_REGS 16
 typedef struct ChannelState {
     qemu_irq irq;
-    uint32_t reg;
     uint32_t rxint, txint, rxint_under_svc, txint_under_svc;
-    ChnID chn; // this channel, A (base+4) or B (base+0)
-    ChnType type;
     struct ChannelState *otherchn;
-    uint8_t rx, tx, wregs[SERIAL_REGS], rregs[SERIAL_REGS];
+    uint32_t reg;
+    uint8_t wregs[SERIAL_REGS], rregs[SERIAL_REGS];
     SERIOQueue queue;
     CharDriverState *chr;
     int e0_mode, led_mode, caps_lock_mode, num_lock_mode;
     int disabled;
     int clock;
     uint32_t vmstate_dummy;
+    ChnID chn; // this channel, A (base+4) or B (base+0)
+    ChnType type;
+    uint8_t rx, tx;
 } ChannelState;
 
 struct SerialState {
