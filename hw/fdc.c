@@ -374,13 +374,13 @@ enum {
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
 struct FDCtrl {
+    qemu_irq irq;
+    /* Controller state */
+    QEMUTimer *result_timer;
+    int dma_chann;
     /* Controller's identification */
     uint8_t version;
     /* HW */
-    qemu_irq irq;
-    int dma_chann;
-    /* Controller state */
-    QEMUTimer *result_timer;
     uint8_t sra;
     uint8_t srb;
     uint8_t dor;
@@ -401,21 +401,21 @@ struct FDCtrl {
     uint8_t data_dir;
     uint8_t eot; /* last wanted sector */
     /* States kept only to be returned back */
-    /* Timers state */
-    uint8_t timer0;
-    uint8_t timer1;
     /* precompensation */
     uint8_t precomp_trk;
     uint8_t config;
     uint8_t lock;
     /* Power down config (also with status regB access mode */
     uint8_t pwrd;
-    /* Sun4m quirks? */
-    int sun4m;
     /* Floppy drives */
     uint8_t num_floppies;
+    /* Sun4m quirks? */
+    int sun4m;
     FDrive drives[MAX_FD];
     int reset_sensei;
+    /* Timers state */
+    uint8_t timer0;
+    uint8_t timer1;
 };
 
 typedef struct FDCtrlSysBus {
