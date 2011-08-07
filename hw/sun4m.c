@@ -97,12 +97,12 @@ struct sun4m_hwdef {
         target_phys_addr_t reg_base, vram_base;
     } vsimm[MAX_VSIMMS];
     target_phys_addr_t ecc_base;
-    uint32_t ecc_version;
-    uint8_t nvram_machine_id;
-    uint16_t machine_id;
-    uint32_t iommu_version;
     uint64_t max_mem;
     const char * const default_cpu_model;
+    uint32_t ecc_version;
+    uint32_t iommu_version;
+    uint16_t machine_id;
+    uint8_t nvram_machine_id;
 };
 
 #define MAX_IOUNITS 5
@@ -115,11 +115,11 @@ struct sun4d_hwdef {
     target_phys_addr_t ledma_base, le_base;
     target_phys_addr_t tcx_base;
     target_phys_addr_t sbi_base;
-    uint8_t nvram_machine_id;
-    uint16_t machine_id;
-    uint32_t iounit_version;
     uint64_t max_mem;
     const char * const default_cpu_model;
+    uint32_t iounit_version;
+    uint16_t machine_id;
+    uint8_t nvram_machine_id;
 };
 
 struct sun4c_hwdef {
@@ -128,11 +128,11 @@ struct sun4c_hwdef {
     target_phys_addr_t serial_base, fd_base;
     target_phys_addr_t idreg_base, dma_base, esp_base, le_base;
     target_phys_addr_t tcx_base, aux1_base;
-    uint8_t nvram_machine_id;
-    uint16_t machine_id;
-    uint32_t iommu_version;
     uint64_t max_mem;
     const char * const default_cpu_model;
+    uint32_t iommu_version;
+    uint16_t machine_id;
+    uint8_t nvram_machine_id;
 };
 
 int DMA_get_channel_mode (int nchan)
