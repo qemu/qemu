@@ -231,7 +231,7 @@ static inline int cpu_mmu_index (CPUState *env)
 }
 
 int cpu_m68k_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu);
+                              int mmu_idx);
 #define cpu_handle_mmu_fault cpu_m68k_handle_mmu_fault
 
 #if defined(CONFIG_USER_ONLY)

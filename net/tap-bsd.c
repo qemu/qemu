@@ -28,6 +28,8 @@
 #include "qemu-error.h"
 
 #ifdef __NetBSD__
+#include <sys/ioctl.h>
+#include <net/if.h>
 #include <net/if_tap.h>
 #endif
 
@@ -40,8 +42,12 @@
 int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required)
 {
     int fd;
+#ifdef TAPGIFNAME
+    struct ifreq ifr;
+#else
     char *dev;
     struct stat s;
+#endif
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)
     /* if no ifname is given, always start the search from tap0/tun0. */
@@ -77,14 +83,30 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
 #else
     TFR(fd = open("/dev/tap", O_RDWR));
     if (fd < 0) {
-        fprintf(stderr, "warning: could not open /dev/tap: no virtual network emulation\n");
+        fprintf(stderr,
+            "warning: could not open /dev/tap: no virtual network emulation: %s\n",
+            strerror(errno));
         return -1;
     }
 #endif
 
-    fstat(fd, &s);
+#ifdef TAPGIFNAME
+    if (ioctl(fd, TAPGIFNAME, (void *)&ifr) < 0) {
+        fprintf(stderr, "warning: could not get tap name: %s\n",
+            strerror(errno));
+        return -1;
+    }
+    pstrcpy(ifname, ifname_size, ifr.ifr_name);
+#else
+    if (fstat(fd, &s) < 0) {
+        fprintf(stderr,
+            "warning: could not stat /dev/tap: no virtual network emulation: %s\n",
+            strerror(errno));
+        return -1;
+    }
     dev = devname(s.st_rdev, S_IFCHR);
     pstrcpy(ifname, ifname_size, dev);
+#endif
 
     if (*vnet_hdr) {
         /* BSD doesn't have IFF_VNET_HDR */

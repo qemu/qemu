@@ -160,7 +160,7 @@ void cpu_alpha_store_fpcr (CPUState *env, uint64_t val)
 
 #if defined(CONFIG_USER_ONLY)
 int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                                int mmu_idx, int is_softmmu)
+                                int mmu_idx)
 {
     env->exception_index = EXCP_MMFAULT;
     env->trap_arg0 = address;
@@ -316,7 +316,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 }
 
 int cpu_alpha_handle_mmu_fault(CPUState *env, target_ulong addr, int rw,
-                               int mmu_idx, int is_softmmu)
+                               int mmu_idx)
 {
     target_ulong phys;
     int prot, fail;

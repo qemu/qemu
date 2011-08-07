@@ -110,10 +110,10 @@ void do_interrupt (CPUState *env)
 }
 
 int cpu_s390x_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu)
+                                int mmu_idx)
 {
-    /* fprintf(stderr,"%s: address 0x%lx rw %d mmu_idx %d is_softmmu %d\n",
-            __FUNCTION__, address, rw, mmu_idx, is_softmmu); */
+    /* fprintf(stderr,"%s: address 0x%lx rw %d mmu_idx %d\n",
+            __FUNCTION__, address, rw, mmu_idx); */
     env->exception_index = EXCP_ADDR;
     env->__excp_addr = address; /* FIXME: find out how this works on a real machine */
     return 1;
@@ -394,14 +394,14 @@ out:
 }
 
 int cpu_s390x_handle_mmu_fault (CPUState *env, target_ulong _vaddr, int rw,
-                                int mmu_idx, int is_softmmu)
+                                int mmu_idx)
 {
     uint64_t asc = env->psw.mask & PSW_MASK_ASC;
     target_ulong vaddr, raddr;
     int prot;
 
-    DPRINTF("%s: address 0x%" PRIx64 " rw %d mmu_idx %d is_softmmu %d\n",
-            __FUNCTION__, _vaddr, rw, mmu_idx, is_softmmu);
+    DPRINTF("%s: address 0x%" PRIx64 " rw %d mmu_idx %d\n",
+            __FUNCTION__, _vaddr, rw, mmu_idx);
 
     _vaddr &= TARGET_PAGE_MASK;
     vaddr = _vaddr;

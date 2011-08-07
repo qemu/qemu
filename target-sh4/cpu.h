@@ -194,7 +194,7 @@ int cpu_sh4_exec(CPUSH4State * s);
 int cpu_sh4_signal_handler(int host_signum, void *pinfo,
                            void *puc);
 int cpu_sh4_handle_mmu_fault(CPUSH4State * env, target_ulong address, int rw,
-			     int mmu_idx, int is_softmmu);
+                             int mmu_idx);
 #define cpu_handle_mmu_fault cpu_sh4_handle_mmu_fault
 void do_interrupt(CPUSH4State * env);
 

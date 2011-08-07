@@ -37,7 +37,7 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
 #if defined(CONFIG_USER_ONLY)
 
 int cpu_sparc_handle_mmu_fault(CPUState *env1, target_ulong address, int rw,
-                               int mmu_idx, int is_softmmu)
+                               int mmu_idx)
 {
     if (rw & 2)
         env1->exception_index = TT_TFAULT;
@@ -207,7 +207,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
 
 /* Perform address translation */
 int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu)
+                              int mmu_idx)
 {
     target_phys_addr_t paddr;
     target_ulong vaddr;
@@ -633,7 +633,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
 
 /* Perform address translation */
 int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmmu)
+                              int mmu_idx)
 {
     target_ulong virt_addr, vaddr;
     target_phys_addr_t paddr;

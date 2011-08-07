@@ -319,7 +319,6 @@ static void setup_frame(int sig, struct emulated_sigaction *ka,
 			void *set, CPUState *env)
 {
 	void *frame;
-	int i, err = 0;
 
     fprintf(stderr, "setup_frame %d\n", sig);
 	frame = get_sigframe(ka, env, sizeof(*frame));

@@ -1344,7 +1344,7 @@ void tlb_fill (target_ulong addr, int is_write, int mmu_idx, void *retaddr)
        generated code */
     saved_env = env;
     env = cpu_single_env;
-    ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx, 1);
+    ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
         do_restore_state(retaddr);
         /* Exception index and error code are already set */

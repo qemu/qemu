@@ -1281,7 +1281,6 @@ static inline void gen_cond_reg(TCGv r_dst, int cond, TCGv r_src)
 }
 #endif
 
-/* XXX: potentially incorrect if dynamic npc */
 static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
                       TCGv r_cond)
 {
@@ -1316,13 +1315,17 @@ static void do_branch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
         } else {
             dc->pc = dc->npc;
             dc->jump_pc[0] = target;
-            dc->jump_pc[1] = dc->npc + 4;
-            dc->npc = JUMP_PC;
+            if (unlikely(dc->npc == DYNAMIC_PC)) {
+                dc->jump_pc[1] = DYNAMIC_PC;
+                tcg_gen_addi_tl(cpu_pc, cpu_npc, 4);
+            } else {
+                dc->jump_pc[1] = dc->npc + 4;
+                dc->npc = JUMP_PC;
+            }
         }
     }
 }
 
-/* XXX: potentially incorrect if dynamic npc */
 static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
                       TCGv r_cond)
 {
@@ -1357,14 +1360,18 @@ static void do_fbranch(DisasContext *dc, int32_t offset, uint32_t insn, int cc,
         } else {
             dc->pc = dc->npc;
             dc->jump_pc[0] = target;
-            dc->jump_pc[1] = dc->npc + 4;
-            dc->npc = JUMP_PC;
+            if (unlikely(dc->npc == DYNAMIC_PC)) {
+                dc->jump_pc[1] = DYNAMIC_PC;
+                tcg_gen_addi_tl(cpu_pc, cpu_npc, 4);
+            } else {
+                dc->jump_pc[1] = dc->npc + 4;
+                dc->npc = JUMP_PC;
+            }
         }
     }
 }
 
 #ifdef TARGET_SPARC64
-/* XXX: potentially incorrect if dynamic npc */
 static void do_branch_reg(DisasContext *dc, int32_t offset, uint32_t insn,
                           TCGv r_cond, TCGv r_reg)
 {
@@ -1379,8 +1386,13 @@ static void do_branch_reg(DisasContext *dc, int32_t offset, uint32_t insn,
     } else {
         dc->pc = dc->npc;
         dc->jump_pc[0] = target;
-        dc->jump_pc[1] = dc->npc + 4;
-        dc->npc = JUMP_PC;
+        if (unlikely(dc->npc == DYNAMIC_PC)) {
+            dc->jump_pc[1] = DYNAMIC_PC;
+            tcg_gen_addi_tl(cpu_pc, cpu_npc, 4);
+        } else {
+            dc->jump_pc[1] = dc->npc + 4;
+            dc->npc = JUMP_PC;
+        }
     }
 }
 
