@@ -526,7 +526,8 @@ static void code_gen_alloc(unsigned long tb_size)
         }
     }
 #elif defined(__FreeBSD__) || defined(__FreeBSD_kernel__) \
-    || defined(__DragonFly__) || defined(__OpenBSD__)
+    || defined(__DragonFly__) || defined(__OpenBSD__) \
+    || defined(__NetBSD__)
     {
         int flags;
         void *addr = NULL;
