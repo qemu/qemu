@@ -881,18 +881,6 @@ static int pci_unregister_device(DeviceState *dev)
     return 0;
 }
 
-static void pci_simple_bar_mapfunc_region(PCIDevice *pci_dev, int region_num,
-                                          pcibus_t addr, pcibus_t size,
-                                          int type)
-{
-    PCIIORegion *r = &pci_dev->io_regions[region_num];
-
-    memory_region_add_subregion_overlap(r->address_space,
-                                        addr,
-                                        r->memory,
-                                        1);
-}
-
 void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
                              uint8_t type, MemoryRegion *memory)
 {
@@ -914,7 +902,6 @@ void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
     r->size = size;
     r->filtered_size = size;
     r->type = type;
-    r->map_func = pci_simple_bar_mapfunc_region;
     r->memory = NULL;
 
     wmask = ~(size - 1);
@@ -1102,10 +1089,16 @@ static void pci_update_mappings(PCIDevice *d)
              * addr & (size - 1) != 0.
              */
             if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
-                r->map_func(d, i, r->addr, r->filtered_size, r->type);
+                memory_region_add_subregion_overlap(r->address_space,
+                                                    r->addr,
+                                                    r->memory,
+                                                    1);
             } else {
-                r->map_func(d, i, pci_to_cpu_addr(d->bus, r->addr),
-                            r->filtered_size, r->type);
+                memory_region_add_subregion_overlap(r->address_space,
+                                                    pci_to_cpu_addr(d->bus,
+                                                                    r->addr),
+                                                    r->memory,
+                                                    1);
             }
         }
     }

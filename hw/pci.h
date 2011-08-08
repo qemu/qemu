@@ -92,7 +92,6 @@ typedef struct PCIIORegion {
     pcibus_t size;
     pcibus_t filtered_size;
     uint8_t type;
-    PCIMapIORegionFunc *map_func;
     MemoryRegion *memory;
     MemoryRegion *address_space;
 } PCIIORegion;
