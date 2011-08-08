@@ -848,18 +848,7 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
         r = &pci_dev->io_regions[i];
         if (!r->size || r->addr == PCI_BAR_UNMAPPED)
             continue;
-        if (r->memory) {
-            memory_region_del_subregion(r->address_space, r->memory);
-        } else {
-            if (r->type == PCI_BASE_ADDRESS_SPACE_IO) {
-                isa_unassign_ioport(r->addr, r->filtered_size);
-            } else {
-                cpu_register_physical_memory(pci_to_cpu_addr(pci_dev->bus,
-                                                             r->addr),
-                                             r->filtered_size,
-                                             IO_MEM_UNASSIGNED);
-            }
-        }
+        memory_region_del_subregion(r->address_space, r->memory);
     }
 }
 
@@ -1058,25 +1047,7 @@ static void pci_update_mappings(PCIDevice *d)
 
         /* now do the real mapping */
         if (r->addr != PCI_BAR_UNMAPPED) {
-            if (r->memory) {
-                memory_region_del_subregion(r->address_space, r->memory);
-            } else if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
-                int class;
-                /* NOTE: specific hack for IDE in PC case:
-                   only one byte must be mapped. */
-                class = pci_get_word(d->config + PCI_CLASS_DEVICE);
-                if (class == 0x0101 && r->size == 4) {
-                    isa_unassign_ioport(r->addr + 2, 1);
-                } else {
-                    isa_unassign_ioport(r->addr, r->filtered_size);
-                }
-            } else {
-                cpu_register_physical_memory(pci_to_cpu_addr(d->bus,
-                                                             r->addr),
-                                             r->filtered_size,
-                                             IO_MEM_UNASSIGNED);
-                qemu_unregister_coalesced_mmio(r->addr, r->filtered_size);
-            }
+            memory_region_del_subregion(r->address_space, r->memory);
         }
         r->addr = new_addr;
         r->filtered_size = filtered_size;
