@@ -1844,16 +1844,14 @@ fi
 
 ##########################################
 # glib support probe
-if test "$guest_agent" != "no" ; then
-    if $pkg_config --modversion glib-2.0 > /dev/null 2>&1 ; then
-        glib_cflags=`$pkg_config --cflags glib-2.0 2>/dev/null`
-        glib_libs=`$pkg_config --libs glib-2.0 2>/dev/null`
-        libs_softmmu="$glib_libs $libs_softmmu"
-        libs_tools="$glib_libs $libs_tools"
-    else
-        echo "glib-2.0 required to compile QEMU"
-        exit 1
-    fi
+if $pkg_config --modversion gthread-2.0 > /dev/null 2>&1 ; then
+    glib_cflags=`$pkg_config --cflags gthread-2.0 2>/dev/null`
+    glib_libs=`$pkg_config --libs gthread-2.0 2>/dev/null`
+    libs_softmmu="$glib_libs $libs_softmmu"
+    libs_tools="$glib_libs $libs_tools"
+else
+    echo "glib-2.0 required to compile QEMU"
+    exit 1
 fi
 
 ##########################################
