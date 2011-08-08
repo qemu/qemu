@@ -113,6 +113,7 @@ struct MemoryRegion {
     ram_addr_t ram_addr;
     IORange iorange;
     bool terminates;
+    bool readable;
     MemoryRegion *alias;
     target_phys_addr_t alias_offset;
     unsigned priority;
@@ -219,6 +220,25 @@ void memory_region_init_alias(MemoryRegion *mr,
                               MemoryRegion *orig,
                               target_phys_addr_t offset,
                               uint64_t size);
+
+/**
+ * memory_region_init_rom_device:  Initialize a ROM memory region.  Writes are
+ *                                 handled via callbacks.
+ *
+ * @mr: the #MemoryRegion to be initialized.
+ * @ops: callbacks for write access handling.
+ * @dev: a device associated with the region; may be %NULL.
+ * @name: the name of the region; the pair (@dev, @name) must be globally
+ *        unique.  The name is part of the save/restore ABI and so cannot be
+ *        changed.
+ * @size: size of the region.
+ */
+void memory_region_init_rom_device(MemoryRegion *mr,
+                                   const MemoryRegionOps *ops,
+                                   DeviceState *dev, /* FIXME: layering violation */
+                                   const char *name,
+                                   uint64_t size);
+
 /**
  * memory_region_destroy: Destroy a memory region and relaim all resources.
  *
@@ -329,6 +349,20 @@ void memory_region_reset_dirty(MemoryRegion *mr, target_phys_addr_t addr,
  * @readonly: whether rhe region is to be ROM or RAM.
  */
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly);
+
+/**
+ * memory_region_rom_device_set_readable: enable/disable ROM readability
+ *
+ * Allows a ROM device (initialized with memory_region_init_rom_device() to
+ * to be marked as readable (default) or not readable.  When it is readable,
+ * the device is mapped to guest memory.  When not readable, reads are
+ * forwarded to the #MemoryRegion.read function.
+ *
+ * @mr: the memory region to be updated
+ * @readable: whether reads are satisified directly (%true) or via callbacks
+ *            (%false)
+ */
+void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable);
 
 /**
  * memory_region_set_coalescing: Enable memory coalescing for the region.

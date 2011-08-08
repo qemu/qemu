@@ -125,6 +125,7 @@ struct FlatRange {
     target_phys_addr_t offset_in_region;
     AddrRange addr;
     uint8_t dirty_log_mask;
+    bool readable;
 };
 
 /* Flattened global view of current active memory hierarchy.  Kept in sorted
@@ -164,7 +165,8 @@ static bool flatrange_equal(FlatRange *a, FlatRange *b)
 {
     return a->mr == b->mr
         && addrrange_equal(a->addr, b->addr)
-        && a->offset_in_region == b->offset_in_region;
+        && a->offset_in_region == b->offset_in_region
+        && a->readable == b->readable;
 }
 
 static void flatview_init(FlatView *view)
@@ -200,7 +202,8 @@ static bool can_merge(FlatRange *r1, FlatRange *r2)
     return addrrange_end(r1->addr) == r2->addr.start
         && r1->mr == r2->mr
         && r1->offset_in_region + r1->addr.size == r2->offset_in_region
-        && r1->dirty_log_mask == r2->dirty_log_mask;
+        && r1->dirty_log_mask == r2->dirty_log_mask
+        && r1->readable == r2->readable;
 }
 
 /* Attempt to simplify a view by merging ajacent ranges */
@@ -239,6 +242,10 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
     if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM) {
         phys_offset += region_offset;
         region_offset = 0;
+    }
+
+    if (!fr->readable) {
+        phys_offset &= TARGET_PAGE_MASK;
     }
 
     cpu_register_physical_memory_log(fr->addr.start,
@@ -462,6 +469,7 @@ static void render_memory_region(FlatView *view,
             fr.offset_in_region = offset_in_region;
             fr.addr = addrrange_make(base, now);
             fr.dirty_log_mask = mr->dirty_log_mask;
+            fr.readable = mr->readable;
             flatview_insert(view, i, &fr);
             ++i;
             base += now;
@@ -480,6 +488,7 @@ static void render_memory_region(FlatView *view,
         fr.offset_in_region = offset_in_region;
         fr.addr = addrrange_make(base, remain);
         fr.dirty_log_mask = mr->dirty_log_mask;
+        fr.readable = mr->readable;
         flatview_insert(view, i, &fr);
     }
 }
@@ -680,6 +689,12 @@ static void memory_region_destructor_iomem(MemoryRegion *mr)
     cpu_unregister_io_memory(mr->ram_addr);
 }
 
+static void memory_region_destructor_rom_device(MemoryRegion *mr)
+{
+    qemu_ram_free(mr->ram_addr & TARGET_PAGE_MASK);
+    cpu_unregister_io_memory(mr->ram_addr & ~(TARGET_PAGE_MASK | IO_MEM_ROMD));
+}
+
 void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size)
@@ -690,6 +705,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->addr = 0;
     mr->offset = 0;
     mr->terminates = false;
+    mr->readable = true;
     mr->destructor = memory_region_destructor_none;
     mr->priority = 0;
     mr->may_overlap = false;
@@ -910,6 +926,24 @@ void memory_region_init_alias(MemoryRegion *mr,
     mr->alias_offset = offset;
 }
 
+void memory_region_init_rom_device(MemoryRegion *mr,
+                                   const MemoryRegionOps *ops,
+                                   DeviceState *dev,
+                                   const char *name,
+                                   uint64_t size)
+{
+    memory_region_init(mr, name, size);
+    mr->terminates = true;
+    mr->destructor = memory_region_destructor_rom_device;
+    mr->ram_addr = qemu_ram_alloc(dev, name, size);
+    mr->ram_addr |= cpu_register_io_memory(memory_region_read_thunk,
+                                           memory_region_write_thunk,
+                                           mr,
+                                           mr->ops->endianness);
+    mr->ram_addr |= IO_MEM_ROMD;
+    mr->backend_registered = true;
+}
+
 void memory_region_destroy(MemoryRegion *mr)
 {
     assert(QTAILQ_EMPTY(&mr->subregions));
@@ -965,6 +999,14 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
 {
     /* FIXME */
+}
+
+void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable)
+{
+    if (mr->readable != readable) {
+        mr->readable = readable;
+        memory_region_update_topology();
+    }
 }
 
 void memory_region_reset_dirty(MemoryRegion *mr, target_phys_addr_t addr,
