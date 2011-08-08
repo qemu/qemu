@@ -474,7 +474,6 @@ typedef struct RTL8139State {
 
     NICState *nic;
     NICConf conf;
-    int rtl8139_mmio_io_addr;
 
     /* C ring mode */
     uint32_t   currTxDesc;
@@ -505,6 +504,9 @@ typedef struct RTL8139State {
     /* PCI interrupt timer */
     QEMUTimer *timer;
     int64_t TimerExpire;
+
+    MemoryRegion bar_io;
+    MemoryRegion bar_mem;
 
     /* Support migration to/from old versions */
     int rtl8139_mmio_io_addr_dummy;
@@ -3283,7 +3285,7 @@ static void rtl8139_pre_save(void *opaque)
     rtl8139_set_next_tctr_time(s, current_time);
     s->TCTR = muldiv64(current_time - s->TCTR_base, PCI_FREQUENCY,
                        get_ticks_per_sec());
-    s->rtl8139_mmio_io_addr_dummy = s->rtl8139_mmio_io_addr;
+    s->rtl8139_mmio_io_addr_dummy = 0;
 }
 
 static const VMStateDescription vmstate_rtl8139 = {
@@ -3379,31 +3381,35 @@ static const VMStateDescription vmstate_rtl8139 = {
 /***********************************************************/
 /* PCI RTL8139 definitions */
 
-static void rtl8139_ioport_map(PCIDevice *pci_dev, int region_num,
-                       pcibus_t addr, pcibus_t size, int type)
-{
-    RTL8139State *s = DO_UPCAST(RTL8139State, dev, pci_dev);
-
-    register_ioport_write(addr, 0x100, 1, rtl8139_ioport_writeb, s);
-    register_ioport_read( addr, 0x100, 1, rtl8139_ioport_readb,  s);
-
-    register_ioport_write(addr, 0x100, 2, rtl8139_ioport_writew, s);
-    register_ioport_read( addr, 0x100, 2, rtl8139_ioport_readw,  s);
-
-    register_ioport_write(addr, 0x100, 4, rtl8139_ioport_writel, s);
-    register_ioport_read( addr, 0x100, 4, rtl8139_ioport_readl,  s);
-}
-
-static CPUReadMemoryFunc * const rtl8139_mmio_read[3] = {
-    rtl8139_mmio_readb,
-    rtl8139_mmio_readw,
-    rtl8139_mmio_readl,
+static const MemoryRegionPortio rtl8139_portio[] = {
+    { 0, 0x100, 1, .read = rtl8139_ioport_readb, },
+    { 0, 0x100, 1, .write = rtl8139_ioport_writeb, },
+    { 0, 0x100, 2, .read = rtl8139_ioport_readw, },
+    { 0, 0x100, 2, .write = rtl8139_ioport_writew, },
+    { 0, 0x100, 4, .read = rtl8139_ioport_readl, },
+    { 0, 0x100, 4, .write = rtl8139_ioport_writel, },
+    PORTIO_END_OF_LIST()
 };
 
-static CPUWriteMemoryFunc * const rtl8139_mmio_write[3] = {
-    rtl8139_mmio_writeb,
-    rtl8139_mmio_writew,
-    rtl8139_mmio_writel,
+static const MemoryRegionOps rtl8139_io_ops = {
+    .old_portio = rtl8139_portio,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+static const MemoryRegionOps rtl8139_mmio_ops = {
+    .old_mmio = {
+        .read = {
+            rtl8139_mmio_readb,
+            rtl8139_mmio_readw,
+            rtl8139_mmio_readl,
+        },
+        .write = {
+            rtl8139_mmio_writeb,
+            rtl8139_mmio_writew,
+            rtl8139_mmio_writel,
+        },
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void rtl8139_timer(void *opaque)
@@ -3432,7 +3438,8 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
 {
     RTL8139State *s = DO_UPCAST(RTL8139State, dev, dev);
 
-    cpu_unregister_io_memory(s->rtl8139_mmio_io_addr);
+    memory_region_destroy(&s->bar_io);
+    memory_region_destroy(&s->bar_mem);
     if (s->cplus_txbuffer) {
         qemu_free(s->cplus_txbuffer);
         s->cplus_txbuffer = NULL;
@@ -3462,15 +3469,12 @@ static int pci_rtl8139_init(PCIDevice *dev)
      * list bit in status register, and offset 0xdc seems unused. */
     pci_conf[PCI_CAPABILITY_LIST] = 0xdc;
 
-    /* I/O handler for memory-mapped I/O */
-    s->rtl8139_mmio_io_addr =
-        cpu_register_io_memory(rtl8139_mmio_read, rtl8139_mmio_write, s,
-                               DEVICE_LITTLE_ENDIAN);
-
-    pci_register_bar(&s->dev, 0, 0x100,
-                           PCI_BASE_ADDRESS_SPACE_IO,  rtl8139_ioport_map);
-
-    pci_register_bar_simple(&s->dev, 1, 0x100, 0, s->rtl8139_mmio_io_addr);
+    memory_region_init_io(&s->bar_io, &rtl8139_io_ops, s, "rtl8139", 0x100);
+    memory_region_init_io(&s->bar_mem, &rtl8139_mmio_ops, s, "rtl8139", 0x100);
+    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
+                            &s->bar_io);
+    pci_register_bar_region(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &s->bar_mem);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
