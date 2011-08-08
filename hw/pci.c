@@ -271,7 +271,8 @@ void pci_bus_new_inplace(PCIBus *bus, DeviceState *parent,
     qbus_create_inplace(&bus->qbus, &pci_bus_info, parent, name);
     assert(PCI_FUNC(devfn_min) == 0);
     bus->devfn_min = devfn_min;
-    bus->address_space = address_space_mem;
+    bus->address_space_mem = address_space_mem;
+    bus->address_space_io = address_space_io;
 
     /* host bridge */
     QLIST_INIT(&bus->child);
@@ -847,12 +848,11 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
         r = &pci_dev->io_regions[i];
         if (!r->size || r->addr == PCI_BAR_UNMAPPED)
             continue;
-        if (r->type == PCI_BASE_ADDRESS_SPACE_IO) {
-            isa_unassign_ioport(r->addr, r->filtered_size);
+        if (r->memory) {
+            memory_region_del_subregion(r->address_space, r->memory);
         } else {
-            if (r->memory) {
-                memory_region_del_subregion(pci_dev->bus->address_space,
-                                            r->memory);
+            if (r->type == PCI_BASE_ADDRESS_SPACE_IO) {
+                isa_unassign_ioport(r->addr, r->filtered_size);
             } else {
                 cpu_register_physical_memory(pci_to_cpu_addr(pci_dev->bus,
                                                              r->addr),
@@ -934,9 +934,11 @@ static void pci_simple_bar_mapfunc_region(PCIDevice *pci_dev, int region_num,
                                           pcibus_t addr, pcibus_t size,
                                           int type)
 {
-    memory_region_add_subregion_overlap(pci_dev->bus->address_space,
+    PCIIORegion *r = &pci_dev->io_regions[region_num];
+
+    memory_region_add_subregion_overlap(r->address_space,
                                         addr,
-                                        pci_dev->io_regions[region_num].memory,
+                                        r->memory,
                                         1);
 }
 
@@ -953,9 +955,13 @@ void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
                              uint8_t attr, MemoryRegion *memory)
 {
     pci_register_bar(pci_dev, region_num, memory_region_size(memory),
-                     PCI_BASE_ADDRESS_SPACE_MEMORY | attr,
+                     attr,
                      pci_simple_bar_mapfunc_region);
     pci_dev->io_regions[region_num].memory = memory;
+    pci_dev->io_regions[region_num].address_space
+        = attr & PCI_BASE_ADDRESS_SPACE_IO
+        ? pci_dev->bus->address_space_io
+        : pci_dev->bus->address_space_mem;
 }
 
 pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num)
@@ -1090,7 +1096,9 @@ static void pci_update_mappings(PCIDevice *d)
 
         /* now do the real mapping */
         if (r->addr != PCI_BAR_UNMAPPED) {
-            if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
+            if (r->memory) {
+                memory_region_del_subregion(r->address_space, r->memory);
+            } else if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
                 int class;
                 /* NOTE: specific hack for IDE in PC case:
                    only one byte must be mapped. */
@@ -1101,16 +1109,11 @@ static void pci_update_mappings(PCIDevice *d)
                     isa_unassign_ioport(r->addr, r->filtered_size);
                 }
             } else {
-                if (r->memory) {
-                    memory_region_del_subregion(d->bus->address_space,
-                                                r->memory);
-                } else {
-                    cpu_register_physical_memory(pci_to_cpu_addr(d->bus,
-                                                                 r->addr),
-                                                 r->filtered_size,
-                                                 IO_MEM_UNASSIGNED);
-                    qemu_unregister_coalesced_mmio(r->addr, r->filtered_size);
-                }
+                cpu_register_physical_memory(pci_to_cpu_addr(d->bus,
+                                                             r->addr),
+                                             r->filtered_size,
+                                             IO_MEM_UNASSIGNED);
+                qemu_unregister_coalesced_mmio(r->addr, r->filtered_size);
             }
         }
         r->addr = new_addr;
