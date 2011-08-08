@@ -211,11 +211,6 @@ static int v9fs_do_utimensat(V9fsState *s, V9fsString *path,
     return s->ops->utimensat(&s->ctx, path->data, times);
 }
 
-static int v9fs_do_remove(V9fsState *s, V9fsString *path)
-{
-    return s->ops->remove(&s->ctx, path->data);
-}
-
 static int v9fs_do_fsync(V9fsState *s, int fd, int datasync)
 {
     return s->ops->fsync(&s->ctx, fd, datasync);
@@ -2579,49 +2574,30 @@ out:
     complete_pdu(s, pdu, err);
 }
 
-static void v9fs_remove_post_remove(V9fsState *s, V9fsRemoveState *vs,
-                                                                int err)
-{
-    if (err < 0) {
-        err = -errno;
-    } else {
-        err = vs->offset;
-    }
-
-    /* For TREMOVE we need to clunk the fid even on failed remove */
-    free_fid(s, vs->fidp->fid);
-
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
-}
-
 static void v9fs_remove(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
     int32_t fid;
-    V9fsRemoveState *vs;
     int err = 0;
+    size_t offset = 7;
+    V9fsFidState *fidp;
+    V9fsPDU *pdu = opaque;
 
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
+    pdu_unmarshal(pdu, offset, "d", &fid);
 
-    pdu_unmarshal(vs->pdu, vs->offset, "d", &fid);
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
+    fidp = lookup_fid(pdu->s, fid);
+    if (fidp == NULL) {
         err = -EINVAL;
         goto out;
     }
+    err = v9fs_co_remove(pdu->s, &fidp->path);
+    if (!err) {
+        err = offset;
+    }
 
-    err = v9fs_do_remove(s, &vs->fidp->path);
-    v9fs_remove_post_remove(s, vs, err);
-    return;
-
+    /* For TREMOVE we need to clunk the fid even on failed remove */
+    free_fid(pdu->s, fidp->fid);
 out:
-    complete_pdu(s, pdu, err);
-    qemu_free(vs);
+    complete_pdu(pdu->s, pdu, err);
 }
 
 static void v9fs_wstat_post_truncate(V9fsState *s, V9fsWstatState *vs, int err)

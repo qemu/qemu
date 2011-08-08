@@ -333,12 +333,6 @@ typedef struct V9fsWriteState {
     int cnt;
 } V9fsWriteState;
 
-typedef struct V9fsRemoveState {
-    V9fsPDU *pdu;
-    size_t offset;
-    V9fsFidState *fidp;
-} V9fsRemoveState;
-
 typedef struct V9fsWstatState
 {
     V9fsPDU *pdu;
