@@ -42,8 +42,8 @@ static struct _loaderparams {
     const char *initrd_filename;
 } loaderparams;
 
-static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
-			      uint32_t val)
+static void mips_qemu_write (void *opaque, target_phys_addr_t addr,
+                             uint64_t val, unsigned size)
 {
     if ((addr & 0xffff) == 0 && val == 42)
         qemu_system_reset_request ();
@@ -51,24 +51,17 @@ static void mips_qemu_writel (void *opaque, target_phys_addr_t addr,
         qemu_system_shutdown_request ();
 }
 
-static uint32_t mips_qemu_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t mips_qemu_read (void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
     return 0;
 }
 
-static CPUWriteMemoryFunc * const mips_qemu_write[] = {
-    &mips_qemu_writel,
-    &mips_qemu_writel,
-    &mips_qemu_writel,
+static const MemoryRegionOps mips_qemu_ops = {
+    .read = mips_qemu_read,
+    .write = mips_qemu_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
-
-static CPUReadMemoryFunc * const mips_qemu_read[] = {
-    &mips_qemu_readl,
-    &mips_qemu_readl,
-    &mips_qemu_readl,
-};
-
-static int mips_qemu_iomemtype = 0;
 
 typedef struct ResetData {
     CPUState *env;
@@ -163,8 +156,10 @@ void mips_r4k_init (ram_addr_t ram_size,
                     const char *initrd_filename, const char *cpu_model)
 {
     char *filename;
-    ram_addr_t ram_offset;
+    MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *bios;
+    MemoryRegion *iomem = g_new(MemoryRegion, 1);
     int bios_size;
     CPUState *env;
     ResetData *reset_info;
@@ -199,16 +194,12 @@ void mips_r4k_init (ram_addr_t ram_size,
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    ram_offset = qemu_ram_alloc(NULL, "mips_r4k.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "mips_r4k.ram", ram_size);
 
-    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
+    memory_region_add_subregion(address_space_mem, 0, ram);
 
-    if (!mips_qemu_iomemtype) {
-        mips_qemu_iomemtype = cpu_register_io_memory(mips_qemu_read,
-                                                     mips_qemu_write, NULL,
-                                                     DEVICE_NATIVE_ENDIAN);
-    }
-    cpu_register_physical_memory(0x1fbf0000, 0x10000, mips_qemu_iomemtype);
+    memory_region_init_io(iomem, &mips_qemu_ops, NULL, "mips-qemu", 0x10000);
+    memory_region_add_subregion(address_space_mem, 0x1fbf0000, iomem);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
        but initialize the hardware ourselves. When a kernel gets
