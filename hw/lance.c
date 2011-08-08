@@ -55,8 +55,8 @@ static void parent_lance_reset(void *opaque, int irq, int level)
         pcnet_h_reset(&d->state);
 }
 
-static void lance_mem_writew(void *opaque, target_phys_addr_t addr,
-                             uint32_t val)
+static void lance_mem_write(void *opaque, target_phys_addr_t addr,
+                            uint64_t val, unsigned size)
 {
     SysBusPCNetState *d = opaque;
 
@@ -64,7 +64,8 @@ static void lance_mem_writew(void *opaque, target_phys_addr_t addr,
     pcnet_ioport_writew(&d->state, addr, val & 0xffff);
 }
 
-static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
+static uint64_t lance_mem_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     SysBusPCNetState *d = opaque;
     uint32_t val;
@@ -74,16 +75,14 @@ static uint32_t lance_mem_readw(void *opaque, target_phys_addr_t addr)
     return val & 0xffff;
 }
 
-static CPUReadMemoryFunc * const lance_mem_read[3] = {
-    NULL,
-    lance_mem_readw,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const lance_mem_write[3] = {
-    NULL,
-    lance_mem_writew,
-    NULL,
+static const MemoryRegionOps lance_mem_ops = {
+    .read = lance_mem_read,
+    .write = lance_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 2,
+        .max_access_size = 2,
+    },
 };
 
 static void lance_cleanup(VLANClientState *nc)
@@ -117,13 +116,11 @@ static int lance_init(SysBusDevice *dev)
     SysBusPCNetState *d = FROM_SYSBUS(SysBusPCNetState, dev);
     PCNetState *s = &d->state;
 
-    s->mmio_index =
-        cpu_register_io_memory(lance_mem_read, lance_mem_write, d,
-                               DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->mmio, &lance_mem_ops, s, "lance-mmio", 4);
 
     qdev_init_gpio_in(&dev->qdev, parent_lance_reset, 1);
 
-    sysbus_init_mmio(dev, 4, s->mmio_index);
+    sysbus_init_mmio_region(dev, &s->mmio);
 
     sysbus_init_irq(dev, &s->irq);
 

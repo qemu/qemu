@@ -4,6 +4,7 @@
 #define PCNET_LOOPTEST_CRC	1
 #define PCNET_LOOPTEST_NOCRC	2
 
+#include "memory.h"
 
 typedef struct PCNetState_st PCNetState;
 
@@ -17,7 +18,8 @@ struct PCNetState_st {
     uint16_t csr[128];
     uint16_t bcr[32];
     uint64_t timer;
-    int mmio_index, xmit_pos;
+    MemoryRegion mmio;
+    int xmit_pos;
     uint8_t buffer[4096];
     int tx_busy;
     qemu_irq irq;
