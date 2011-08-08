@@ -2446,37 +2446,23 @@ static void cirrus_linear_write(void *opaque, target_phys_addr_t addr,
  ***************************************/
 
 
-static uint32_t cirrus_linear_bitblt_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t cirrus_linear_bitblt_read(void *opaque,
+                                          target_phys_addr_t addr,
+                                          unsigned size)
 {
+    CirrusVGAState *s = opaque;
     uint32_t ret;
 
     /* XXX handle bitblt */
+    (void)s;
     ret = 0xff;
     return ret;
 }
 
-static uint32_t cirrus_linear_bitblt_readw(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-
-    v = cirrus_linear_bitblt_readb(opaque, addr);
-    v |= cirrus_linear_bitblt_readb(opaque, addr + 1) << 8;
-    return v;
-}
-
-static uint32_t cirrus_linear_bitblt_readl(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-
-    v = cirrus_linear_bitblt_readb(opaque, addr);
-    v |= cirrus_linear_bitblt_readb(opaque, addr + 1) << 8;
-    v |= cirrus_linear_bitblt_readb(opaque, addr + 2) << 16;
-    v |= cirrus_linear_bitblt_readb(opaque, addr + 3) << 24;
-    return v;
-}
-
-static void cirrus_linear_bitblt_writeb(void *opaque, target_phys_addr_t addr,
-				 uint32_t val)
+static void cirrus_linear_bitblt_write(void *opaque,
+                                       target_phys_addr_t addr,
+                                       uint64_t val,
+                                       unsigned size)
 {
     CirrusVGAState *s = opaque;
 
@@ -2489,55 +2475,14 @@ static void cirrus_linear_bitblt_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void cirrus_linear_bitblt_writew(void *opaque, target_phys_addr_t addr,
-				 uint32_t val)
-{
-    cirrus_linear_bitblt_writeb(opaque, addr, val & 0xff);
-    cirrus_linear_bitblt_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-}
-
-static void cirrus_linear_bitblt_writel(void *opaque, target_phys_addr_t addr,
-				 uint32_t val)
-{
-    cirrus_linear_bitblt_writeb(opaque, addr, val & 0xff);
-    cirrus_linear_bitblt_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-    cirrus_linear_bitblt_writeb(opaque, addr + 2, (val >> 16) & 0xff);
-    cirrus_linear_bitblt_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-}
-
-static uint64_t cirrus_linear_bitblt_read(void *opaque,
-                                          target_phys_addr_t addr,
-                                          unsigned size)
-{
-    CirrusVGAState *s = opaque;
-
-    switch (size) {
-    case 1: return cirrus_linear_bitblt_readb(s, addr);
-    case 2: return cirrus_linear_bitblt_readw(s, addr);
-    case 4: return cirrus_linear_bitblt_readl(s, addr);
-    default: abort();
-    }
-};
-
-static void cirrus_linear_bitblt_write(void *opaque,
-                                       target_phys_addr_t addr,
-                                       uint64_t data,
-                                       unsigned size)
-{
-    CirrusVGAState *s = opaque;
-
-    switch (size) {
-    case 1: return cirrus_linear_bitblt_writeb(s, addr, data);
-    case 2: return cirrus_linear_bitblt_writew(s, addr, data);
-    case 4: return cirrus_linear_bitblt_writel(s, addr, data);
-    default: abort();
-    }
-};
-
 static const MemoryRegionOps cirrus_linear_bitblt_io_ops = {
     .read = cirrus_linear_bitblt_read,
     .write = cirrus_linear_bitblt_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static void unmap_bank(CirrusVGAState *s, unsigned bank)
