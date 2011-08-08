@@ -661,6 +661,25 @@ void memory_region_transaction_commit(void)
     memory_region_update_topology();
 }
 
+static void memory_region_destructor_none(MemoryRegion *mr)
+{
+}
+
+static void memory_region_destructor_ram(MemoryRegion *mr)
+{
+    qemu_ram_free(mr->ram_addr);
+}
+
+static void memory_region_destructor_ram_from_ptr(MemoryRegion *mr)
+{
+    qemu_ram_free_from_ptr(mr->ram_addr);
+}
+
+static void memory_region_destructor_iomem(MemoryRegion *mr)
+{
+    cpu_unregister_io_memory(mr->ram_addr);
+}
+
 void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size)
@@ -671,6 +690,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->addr = 0;
     mr->offset = 0;
     mr->terminates = false;
+    mr->destructor = memory_region_destructor_none;
     mr->priority = 0;
     mr->may_overlap = false;
     mr->alias = NULL;
@@ -833,6 +853,7 @@ static void memory_region_prepare_ram_addr(MemoryRegion *mr)
         return;
     }
 
+    mr->destructor = memory_region_destructor_iomem;
     mr->ram_addr = cpu_register_io_memory(memory_region_read_thunk,
                                           memory_region_write_thunk,
                                           mr,
@@ -860,6 +881,7 @@ void memory_region_init_ram(MemoryRegion *mr,
 {
     memory_region_init(mr, name, size);
     mr->terminates = true;
+    mr->destructor = memory_region_destructor_ram;
     mr->ram_addr = qemu_ram_alloc(dev, name, size);
     mr->backend_registered = true;
 }
@@ -872,6 +894,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
 {
     memory_region_init(mr, name, size);
     mr->terminates = true;
+    mr->destructor = memory_region_destructor_ram_from_ptr;
     mr->ram_addr = qemu_ram_alloc_from_ptr(dev, name, size, ptr);
     mr->backend_registered = true;
 }
@@ -890,6 +913,7 @@ void memory_region_init_alias(MemoryRegion *mr,
 void memory_region_destroy(MemoryRegion *mr)
 {
     assert(QTAILQ_EMPTY(&mr->subregions));
+    mr->destructor(mr);
     memory_region_clear_coalescing(mr);
     qemu_free((char *)mr->name);
     qemu_free(mr->ioeventfds);

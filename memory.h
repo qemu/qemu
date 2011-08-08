@@ -109,6 +109,7 @@ struct MemoryRegion {
     target_phys_addr_t addr;
     target_phys_addr_t offset;
     bool backend_registered;
+    void (*destructor)(MemoryRegion *mr);
     ram_addr_t ram_addr;
     IORange iorange;
     bool terminates;
