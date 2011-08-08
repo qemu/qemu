@@ -4,6 +4,7 @@
 /* ISA bus */
 
 #include "ioport.h"
+#include "memory.h"
 #include "qdev.h"
 
 typedef struct ISABus ISABus;
@@ -37,6 +38,7 @@ ISADevice *isa_create_simple(const char *name);
 
 extern target_phys_addr_t isa_mem_base;
 
+void isa_mmio_setup(MemoryRegion *mr, target_phys_addr_t size);
 void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size);
 
 /* dma.c */
