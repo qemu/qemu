@@ -65,6 +65,7 @@ typedef struct IVShmemState {
      */
     MemoryRegion bar;
     MemoryRegion ivshmem;
+    MemoryRegion msix_bar;
     uint64_t ivshmem_size; /* size of shared memory region */
     int shm_fd; /* shared memory file descriptor */
 
@@ -540,11 +541,11 @@ static void ivshmem_setup_msi(IVShmemState * s) {
 
     /* allocate the MSI-X vectors */
 
-    if (!msix_init(&s->dev, s->vectors, 1, 0)) {
-        pci_register_bar(&s->dev, 1,
-                         msix_bar_size(&s->dev),
-                         PCI_BASE_ADDRESS_SPACE_MEMORY,
-                         msix_mmio_map);
+    memory_region_init(&s->msix_bar, "ivshmem-msix", 4096);
+    if (!msix_init(&s->dev, s->vectors, &s->msix_bar, 1, 0)) {
+        pci_register_bar_region(&s->dev, 1,
+                                PCI_BASE_ADDRESS_SPACE_MEMORY,
+                                &s->msix_bar);
         IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
     } else {
         IVSHMEM_DPRINTF("msix initialization failed\n");

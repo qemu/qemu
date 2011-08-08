@@ -641,11 +641,12 @@ void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev)
     pci_set_word(config + 0x2e, vdev->device_id);
     config[0x3d] = 1;
 
-    if (vdev->nvectors && !msix_init(&proxy->pci_dev, vdev->nvectors, 1, 0)) {
-        pci_register_bar(&proxy->pci_dev, 1,
-                         msix_bar_size(&proxy->pci_dev),
-                         PCI_BASE_ADDRESS_SPACE_MEMORY,
-                         msix_mmio_map);
+    memory_region_init(&proxy->msix_bar, "virtio-msix", 4096);
+    if (vdev->nvectors && !msix_init(&proxy->pci_dev, vdev->nvectors,
+                                     &proxy->msix_bar, 1, 0)) {
+        pci_register_bar_region(&proxy->pci_dev, 1,
+                                PCI_BASE_ADDRESS_SPACE_MEMORY,
+                                &proxy->msix_bar);
     } else
         vdev->nvectors = 0;
 
@@ -694,9 +695,12 @@ static int virtio_blk_init_pci(PCIDevice *pci_dev)
 static int virtio_exit_pci(PCIDevice *pci_dev)
 {
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+    int r;
 
     memory_region_destroy(&proxy->bar);
-    return msix_uninit(pci_dev);
+    r = msix_uninit(pci_dev, &proxy->msix_bar);
+    memory_region_destroy(&proxy->msix_bar);
+    return r;
 }
 
 static int virtio_blk_exit_pci(PCIDevice *pci_dev)
