@@ -117,18 +117,6 @@ static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
     return s->ops->chmod(&s->ctx, path->data, &cred);
 }
 
-static int v9fs_do_symlink(V9fsState *s, V9fsFidState *fidp,
-        const char *oldpath, const char *newpath, gid_t gid)
-{
-    FsCred cred;
-    cred_init(&cred);
-    cred.fc_uid = fidp->uid;
-    cred.fc_gid = gid;
-    cred.fc_mode = 0777;
-
-    return s->ops->symlink(&s->ctx, oldpath, newpath, &cred);
-}
-
 static int v9fs_do_link(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
 {
     return s->ops->link(&s->ctx, oldpath->data, newpath->data);
@@ -2029,10 +2017,9 @@ static void v9fs_create(void *opaque)
         }
         fidp->fid_type = P9_FID_DIR;
     } else if (perm & P9_STAT_MODE_SYMLINK) {
-        err = v9fs_do_symlink(pdu->s, fidp, extension.data,
+        err = v9fs_co_symlink(pdu->s, fidp, extension.data,
                               fullname.data, -1);
         if (err < 0) {
-            err = -errno;
             goto out;
         }
     } else if (perm & P9_STAT_MODE_LINK) {
@@ -2115,69 +2102,46 @@ out:
    v9fs_string_free(&fullname);
 }
 
-static void v9fs_post_symlink(V9fsState *s, V9fsSymlinkState *vs, int err)
-{
-    if (err == 0) {
-        stat_to_qid(&vs->stbuf, &vs->qid);
-        vs->offset += pdu_marshal(vs->pdu, vs->offset, "Q", &vs->qid);
-        err = vs->offset;
-    } else {
-        err = -errno;
-    }
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->name);
-    v9fs_string_free(&vs->symname);
-    v9fs_string_free(&vs->fullname);
-    g_free(vs);
-}
-
-static void v9fs_symlink_post_do_symlink(V9fsState *s, V9fsSymlinkState *vs,
-        int err)
-{
-    if (err) {
-        goto out;
-    }
-    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
-out:
-    v9fs_post_symlink(s, vs, err);
-}
-
 static void v9fs_symlink(void *opaque)
 {
     V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
+    V9fsString name;
+    V9fsString symname;
+    V9fsString fullname;
+    V9fsFidState *dfidp;
+    V9fsQID qid;
+    struct stat stbuf;
     int32_t dfid;
-    V9fsSymlinkState *vs;
     int err = 0;
     gid_t gid;
+    size_t offset = 7;
 
-    vs = g_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
+    v9fs_string_init(&fullname);
+    pdu_unmarshal(pdu, offset, "dssd", &dfid, &name, &symname, &gid);
 
-    v9fs_string_init(&vs->fullname);
-
-    pdu_unmarshal(vs->pdu, vs->offset, "dssd", &dfid, &vs->name,
-            &vs->symname, &gid);
-
-    vs->dfidp = lookup_fid(s, dfid);
-    if (vs->dfidp == NULL) {
+    dfidp = lookup_fid(pdu->s, dfid);
+    if (dfidp == NULL) {
         err = -EINVAL;
         goto out;
     }
 
-    v9fs_string_sprintf(&vs->fullname, "%s/%s", vs->dfidp->path.data,
-            vs->name.data);
-    err = v9fs_do_symlink(s, vs->dfidp, vs->symname.data,
-            vs->fullname.data, gid);
-    v9fs_symlink_post_do_symlink(s, vs, err);
-    return;
-
+    v9fs_string_sprintf(&fullname, "%s/%s", dfidp->path.data, name.data);
+    err = v9fs_co_symlink(pdu->s, dfidp, symname.data, fullname.data, gid);
+    if (err < 0) {
+        goto out;
+    }
+    err = v9fs_co_lstat(pdu->s, &fullname, &stbuf);
+    if (err < 0) {
+        goto out;
+    }
+    stat_to_qid(&stbuf, &qid);
+    offset += pdu_marshal(pdu, offset, "Q", &qid);
+    err = offset;
 out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->name);
-    v9fs_string_free(&vs->symname);
-    g_free(vs);
+    complete_pdu(pdu->s, pdu, err);
+    v9fs_string_free(&name);
+    v9fs_string_free(&symname);
+    v9fs_string_free(&fullname);
 }
 
 static void v9fs_flush(void *opaque)

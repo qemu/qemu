@@ -305,18 +305,6 @@ typedef struct V9fsWstatState
     struct stat stbuf;
 } V9fsWstatState;
 
-typedef struct V9fsSymlinkState
-{
-    V9fsPDU *pdu;
-    size_t offset;
-    V9fsString name;
-    V9fsString symname;
-    V9fsString fullname;
-    V9fsFidState *dfidp;
-    V9fsQID qid;
-    struct stat stbuf;
-} V9fsSymlinkState;
-
 typedef struct V9fsIattr
 {
     int32_t valid;
