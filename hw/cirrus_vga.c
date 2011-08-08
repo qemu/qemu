@@ -2250,7 +2250,8 @@ static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
  *
  ***************************************/
 
-static uint32_t cirrus_linear_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t cirrus_linear_read(void *opaque, target_phys_addr_t addr,
+                                   unsigned size)
 {
     CirrusVGAState *s = opaque;
     uint32_t ret;
@@ -2278,28 +2279,8 @@ static uint32_t cirrus_linear_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static uint32_t cirrus_linear_readw(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-
-    v = cirrus_linear_readb(opaque, addr);
-    v |= cirrus_linear_readb(opaque, addr + 1) << 8;
-    return v;
-}
-
-static uint32_t cirrus_linear_readl(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-
-    v = cirrus_linear_readb(opaque, addr);
-    v |= cirrus_linear_readb(opaque, addr + 1) << 8;
-    v |= cirrus_linear_readb(opaque, addr + 2) << 16;
-    v |= cirrus_linear_readb(opaque, addr + 3) << 24;
-    return v;
-}
-
-static void cirrus_linear_writeb(void *opaque, target_phys_addr_t addr,
-				 uint32_t val)
+static void cirrus_linear_write(void *opaque, target_phys_addr_t addr,
+                                uint64_t val, unsigned size)
 {
     CirrusVGAState *s = opaque;
     unsigned mode;
@@ -2336,49 +2317,6 @@ static void cirrus_linear_writeb(void *opaque, target_phys_addr_t addr,
 		cirrus_mem_writeb_mode4and5_16bpp(s, mode, addr, val);
 	    }
 	}
-    }
-}
-
-static void cirrus_linear_writew(void *opaque, target_phys_addr_t addr,
-				 uint32_t val)
-{
-    cirrus_linear_writeb(opaque, addr, val & 0xff);
-    cirrus_linear_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-}
-
-static void cirrus_linear_writel(void *opaque, target_phys_addr_t addr,
-				 uint32_t val)
-{
-    cirrus_linear_writeb(opaque, addr, val & 0xff);
-    cirrus_linear_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-    cirrus_linear_writeb(opaque, addr + 2, (val >> 16) & 0xff);
-    cirrus_linear_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-}
-
-
-static uint64_t cirrus_linear_read(void *opaque, target_phys_addr_t addr,
-                                   unsigned size)
-{
-    CirrusVGAState *s = opaque;
-
-    switch (size) {
-    case 1: return cirrus_linear_readb(s, addr);
-    case 2: return cirrus_linear_readw(s, addr);
-    case 4: return cirrus_linear_readl(s, addr);
-    default: abort();
-    }
-}
-
-static void cirrus_linear_write(void *opaque, target_phys_addr_t addr,
-                                uint64_t data, unsigned size)
-{
-    CirrusVGAState *s = opaque;
-
-    switch (size) {
-    case 1: return cirrus_linear_writeb(s, addr, data);
-    case 2: return cirrus_linear_writew(s, addr, data);
-    case 4: return cirrus_linear_writel(s, addr, data);
-    default: abort();
     }
 }
 
@@ -2859,6 +2797,10 @@ static const MemoryRegionOps cirrus_linear_io_ops = {
     .read = cirrus_linear_read,
     .write = cirrus_linear_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
