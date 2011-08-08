@@ -370,8 +370,7 @@ struct EHCIState {
     PCIDevice dev;
     USBBus bus;
     qemu_irq irq;
-    target_phys_addr_t mem_base;
-    int mem;
+    MemoryRegion mem;
     int companion_count;
 
     /* properties */
@@ -2179,28 +2178,14 @@ static void ehci_frame_timer(void *opaque)
     qemu_mod_timer(ehci->frame_timer, expire_time);
 }
 
-static CPUReadMemoryFunc *ehci_readfn[3]={
-    ehci_mem_readb,
-    ehci_mem_readw,
-    ehci_mem_readl
+
+static const MemoryRegionOps ehci_mem_ops = {
+    .old_mmio = {
+        .read = { ehci_mem_readb, ehci_mem_readw, ehci_mem_readl },
+        .write = { ehci_mem_writeb, ehci_mem_writew, ehci_mem_writel },
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
-
-static CPUWriteMemoryFunc *ehci_writefn[3]={
-    ehci_mem_writeb,
-    ehci_mem_writew,
-    ehci_mem_writel
-};
-
-static void ehci_map(PCIDevice *pci_dev, int region_num,
-                     pcibus_t addr, pcibus_t size, int type)
-{
-    EHCIState *s =(EHCIState *)pci_dev;
-
-    DPRINTF("ehci_map: region %d, addr %08" PRIx64 ", size %" PRId64 ", s->mem %08X\n",
-            region_num, addr, size, s->mem);
-    s->mem_base = addr;
-    cpu_register_physical_memory(addr, size, s->mem);
-}
 
 static int usb_ehci_initfn(PCIDevice *dev);
 
@@ -2316,11 +2301,8 @@ static int usb_ehci_initfn(PCIDevice *dev)
 
     qemu_register_reset(ehci_reset, s);
 
-    s->mem = cpu_register_io_memory(ehci_readfn, ehci_writefn, s,
-                                    DEVICE_LITTLE_ENDIAN);
-
-    pci_register_bar(&s->dev, 0, MMIO_SIZE, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                                                            ehci_map);
+    memory_region_init_io(&s->mem, &ehci_mem_ops, s, "ehci", MMIO_SIZE);
+    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
     fprintf(stderr, "*** EHCI support is under development ***\n");
 
