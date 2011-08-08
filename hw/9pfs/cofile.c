@@ -113,3 +113,17 @@ int v9fs_co_fsync(V9fsState *s, V9fsFidState *fidp, int datasync)
         });
     return err;
 }
+
+int v9fs_co_link(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->link(&s->ctx, oldpath->data, newpath->data);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
