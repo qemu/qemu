@@ -52,8 +52,6 @@ struct vmsvga_state_s {
         int on;
     } cursor;
 
-    target_phys_addr_t vram_base;
-
     int index;
     int scratch_size;
     uint32_t *scratch;
@@ -761,8 +759,11 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
     case SVGA_REG_BYTES_PER_LINE:
         return ((s->depth + 7) >> 3) * s->new_width;
 
-    case SVGA_REG_FB_START:
-        return s->vram_base;
+    case SVGA_REG_FB_START: {
+        struct pci_vmsvga_state_s *pci_vmsvga
+            = container_of(s, struct pci_vmsvga_state_s, chip);
+        return pci_get_bar_addr(&pci_vmsvga->card, 1);
+    }
 
     case SVGA_REG_FB_OFFSET:
         return 0x0;
@@ -1247,14 +1248,13 @@ static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
     struct vmsvga_state_s *s = &d->chip;
     ram_addr_t iomemtype;
 
-    s->vram_base = addr;
 #ifdef DIRECT_VRAM
     iomemtype = cpu_register_io_memory(vmsvga_vram_read,
                     vmsvga_vram_write, s, DEVICE_NATIVE_ENDIAN);
 #else
     iomemtype = s->vga.vram_offset | IO_MEM_RAM;
 #endif
-    cpu_register_physical_memory(s->vram_base, s->vga.vram_size,
+    cpu_register_physical_memory(addr, s->vga.vram_size,
                     iomemtype);
 
     s->vga.map_addr = addr;
