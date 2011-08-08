@@ -176,7 +176,7 @@ struct PCIDevice {
     /* Space to store MSIX table */
     uint8_t *msix_table_page;
     /* MMIO index used to map MSIX table and pending bit entries. */
-    int msix_mmio_index;
+    MemoryRegion msix_mmio;
     /* Reference-count for entries actually in use by driver. */
     unsigned *msix_entry_used;
     /* Region including the MSI-X table */

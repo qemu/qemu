@@ -22,6 +22,7 @@ typedef struct {
     PCIDevice pci_dev;
     VirtIODevice *vdev;
     MemoryRegion bar;
+    MemoryRegion msix_bar;
     uint32_t flags;
     uint32_t class_code;
     uint32_t nvectors;
