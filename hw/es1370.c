@@ -1009,7 +1009,7 @@ static int es1370_initfn (PCIDevice *dev)
     c[PCI_MAX_LAT] = 0x80;
 
     memory_region_init_io (&s->io, &es1370_io_ops, s, "es1370", 256);
-    pci_register_bar_region (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
+    pci_register_bar (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io);
     qemu_register_reset (es1370_on_reset, s);
 
     AUD_register_card ("es1370", &s->card);

@@ -1291,13 +1291,13 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     memory_region_init_io(&s->io_bar, &vmsvga_io_ops, &s->chip,
                           "vmsvga-io", 0x10);
-    pci_register_bar_region(&s->card, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
+    pci_register_bar(&s->card, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);
 
-    pci_register_bar_region(&s->card, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, iomem);
-    pci_register_bar_region(&s->card, 2, PCI_BASE_ADDRESS_MEM_PREFETCH,
-                            &s->chip.fifo_ram);
+    pci_register_bar(&s->card, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, iomem);
+    pci_register_bar(&s->card, 2, PCI_BASE_ADDRESS_MEM_PREFETCH,
+                     &s->chip.fifo_ram);
 
     if (!dev->rom_bar) {
         /* compatibility with pc-0.13 and older */

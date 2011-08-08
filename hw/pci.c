@@ -881,8 +881,8 @@ static int pci_unregister_device(DeviceState *dev)
     return 0;
 }
 
-void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
-                             uint8_t type, MemoryRegion *memory)
+void pci_register_bar(PCIDevice *pci_dev, int region_num,
+                      uint8_t type, MemoryRegion *memory)
 {
     PCIIORegion *r;
     uint32_t addr;
@@ -1956,7 +1956,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
 
     qemu_put_ram_ptr(ptr);
 
-    pci_register_bar_region(pdev, PCI_ROM_SLOT, 0, &pdev->rom);
+    pci_register_bar(pdev, PCI_ROM_SLOT, 0, &pdev->rom);
 
     return 0;
 }

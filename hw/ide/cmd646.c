@@ -270,16 +270,12 @@ static int pci_cmd646_ide_initfn(PCIDevice *dev)
 
     setup_cmd646_bar(d, 0);
     setup_cmd646_bar(d, 1);
-    pci_register_bar_region(dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
-                            &d->cmd646_bar[0].data);
-    pci_register_bar_region(dev, 1, PCI_BASE_ADDRESS_SPACE_IO,
-                            &d->cmd646_bar[0].cmd);
-    pci_register_bar_region(dev, 2, PCI_BASE_ADDRESS_SPACE_IO,
-                            &d->cmd646_bar[1].data);
-    pci_register_bar_region(dev, 3, PCI_BASE_ADDRESS_SPACE_IO,
-                            &d->cmd646_bar[1].cmd);
+    pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd646_bar[0].data);
+    pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd646_bar[0].cmd);
+    pci_register_bar(dev, 2, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd646_bar[1].data);
+    pci_register_bar(dev, 3, PCI_BASE_ADDRESS_SPACE_IO, &d->cmd646_bar[1].cmd);
     bmdma_setup_bar(d);
-    pci_register_bar_region(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
+    pci_register_bar(dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
     /* TODO: RST# value should be 0 */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01; // interrupt on pin 1

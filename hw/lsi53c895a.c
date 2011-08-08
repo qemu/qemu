@@ -2118,10 +2118,9 @@ static int lsi_scsi_init(PCIDevice *dev)
     memory_region_init_io(&s->ram_io, &lsi_ram_ops, s, "lsi-ram", 0x2000);
     memory_region_init_io(&s->io_io, &lsi_io_ops, s, "lsi-io", 256);
 
-    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
-    pci_register_bar_region(&s->dev, 1, 0, &s->mmio_io);
-    pci_register_bar_region(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                            &s->ram_io);
+    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_io);
+    pci_register_bar(&s->dev, 1, 0, &s->mmio_io);
+    pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
     scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, &lsi_scsi_ops);

@@ -60,8 +60,7 @@ static int pci_vga_initfn(PCIDevice *dev)
                                   s->screen_dump, s->text_update, s);
 
      /* XXX: VGA_RAM_SIZE must be a power of two */
-     pci_register_bar_region(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH,
-                             &s->vram);
+     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->vram);
 
      if (!dev->rom_bar) {
          /* compatibility with pc-0.13 and older */

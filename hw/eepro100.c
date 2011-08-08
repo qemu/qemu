@@ -1879,15 +1879,14 @@ static int e100_nic_init(PCIDevice *pci_dev)
     /* Handler for memory-mapped I/O */
     memory_region_init_io(&s->mmio_bar, &eepro100_ops, s, "eepro100-mmio",
                           PCI_MEM_SIZE);
-    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH,
-                            &s->mmio_bar);
+    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->mmio_bar);
     memory_region_init_io(&s->io_bar, &eepro100_ops, s, "eepro100-io",
                           PCI_IO_SIZE);
-    pci_register_bar_region(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
+    pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
     /* FIXME: flash aliases to mmio?! */
     memory_region_init_io(&s->flash_bar, &eepro100_ops, s, "eepro100-flash",
                           PCI_FLASH_SIZE);
-    pci_register_bar_region(&s->dev, 2, 0, &s->flash_bar);
+    pci_register_bar(&s->dev, 2, 0, &s->flash_bar);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     logout("macaddr: %s\n", nic_dump(&s->conf.macaddr.a[0], 6));

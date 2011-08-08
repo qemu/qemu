@@ -405,7 +405,7 @@ static int i6300esb_init(PCIDevice *dev)
     d->previous_reboot_flag = 0;
 
     memory_region_init_io(&d->io_mem, &i6300esb_ops, d, "i6300esb", 0x10);
-    pci_register_bar_region(&d->dev, 0, 0, &d->io_mem);
+    pci_register_bar(&d->dev, 0, 0, &d->io_mem);
     /* qemu_register_coalesced_mmio (addr, 0x10); ? */
 
     return 0;

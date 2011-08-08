@@ -353,13 +353,12 @@ static int xen_platform_initfn(PCIDevice *dev)
     pci_conf[PCI_INTERRUPT_PIN] = 1;
 
     platform_ioport_bar_setup(d);
-    pci_register_bar_region(&d->pci_dev, 0,
-                            PCI_BASE_ADDRESS_SPACE_IO, &d->bar);
+    pci_register_bar(&d->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->bar);
 
     /* reserve 16MB mmio address for share memory*/
     platform_mmio_setup(d);
-    pci_register_bar_region(&d->pci_dev, 1,
-                            PCI_BASE_ADDRESS_MEM_PREFETCH, &d->mmio_bar);
+    pci_register_bar(&d->pci_dev, 1, PCI_BASE_ADDRESS_MEM_PREFETCH,
+                     &d->mmio_bar);
 
     platform_fixed_ioport_init(d);
 

@@ -1564,17 +1564,17 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     }
 
 
-    pci_register_bar_region(&qxl->pci, QXL_IO_RANGE_INDEX,
-                            PCI_BASE_ADDRESS_SPACE_IO, &qxl->io_bar);
+    pci_register_bar(&qxl->pci, QXL_IO_RANGE_INDEX,
+                     PCI_BASE_ADDRESS_SPACE_IO, &qxl->io_bar);
 
-    pci_register_bar_region(&qxl->pci, QXL_ROM_RANGE_INDEX,
-                            PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->rom_bar);
+    pci_register_bar(&qxl->pci, QXL_ROM_RANGE_INDEX,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->rom_bar);
 
-    pci_register_bar_region(&qxl->pci, QXL_RAM_RANGE_INDEX,
-                            PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vga.vram);
+    pci_register_bar(&qxl->pci, QXL_RAM_RANGE_INDEX,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vga.vram);
 
-    pci_register_bar_region(&qxl->pci, QXL_VRAM_RANGE_INDEX,
-                            PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vram_bar);
+    pci_register_bar(&qxl->pci, QXL_VRAM_RANGE_INDEX,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vram_bar);
 
     qxl->ssd.qxl.base.sif = &qxl_interface.base;
     qxl->ssd.qxl.id = qxl->id;

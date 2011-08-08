@@ -1136,7 +1136,7 @@ static int intel_hda_init(PCIDevice *pci)
 
     memory_region_init_io(&d->mmio, &intel_hda_mmio_ops, d,
                           "intel-hda", 0x4000);
-    pci_register_bar_region(&d->pci, 0, 0, &d->mmio);
+    pci_register_bar(&d->pci, 0, 0, &d->mmio);
     if (d->msi) {
         msi_init(&d->pci, 0x50, 1, true, false);
     }
