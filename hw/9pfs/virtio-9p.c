@@ -149,19 +149,6 @@ static int v9fs_do_mknod(V9fsState *s, char *name,
     return s->ops->mknod(&s->ctx, name, &cred);
 }
 
-static int v9fs_do_mkdir(V9fsState *s, char *name, mode_t mode,
-                uid_t uid, gid_t gid)
-{
-    FsCred cred;
-
-    cred_init(&cred);
-    cred.fc_uid = uid;
-    cred.fc_gid = gid;
-    cred.fc_mode = mode;
-
-    return s->ops->mkdir(&s->ctx, name, &cred);
-}
-
 static int v9fs_do_fstat(V9fsState *s, int fd, struct stat *stbuf)
 {
     return s->ops->fstat(&s->ctx, fd, stbuf);
@@ -2329,8 +2316,7 @@ out:
 
 static void v9fs_create_post_mkdir(V9fsState *s, V9fsCreateState *vs, int err)
 {
-    if (err) {
-        err = -errno;
+    if (err < 0) {
         goto out;
     }
 
@@ -2379,7 +2365,7 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
     }
 
     if (vs->perm & P9_STAT_MODE_DIR) {
-        err = v9fs_do_mkdir(s, vs->fullname.data, vs->perm & 0777,
+        err = v9fs_co_mkdir(s, vs->fullname.data, vs->perm & 0777,
                 vs->fidp->uid, -1);
         v9fs_create_post_mkdir(s, vs, err);
     } else if (vs->perm & P9_STAT_MODE_SYMLINK) {
@@ -3157,75 +3143,43 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_mkdir_post_lstat(V9fsState *s, V9fsMkState *vs, int err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    stat_to_qid(&vs->stbuf, &vs->qid);
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Q", &vs->qid);
-    err = vs->offset;
-out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->fullname);
-    v9fs_string_free(&vs->name);
-    qemu_free(vs);
-}
-
-static void v9fs_mkdir_post_mkdir(V9fsState *s, V9fsMkState *vs, int err)
-{
-    if (err == -1) {
-        err = -errno;
-        goto out;
-    }
-
-    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
-    v9fs_mkdir_post_lstat(s, vs, err);
-    return;
-out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->fullname);
-    v9fs_string_free(&vs->name);
-    qemu_free(vs);
-}
-
 static void v9fs_mkdir(void *opaque)
 {
     V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
+    size_t offset = 7;
     int32_t fid;
-    V9fsMkState *vs;
-    int err = 0;
+    struct stat stbuf;
+    V9fsString name, fullname;
+    V9fsQID qid;
     V9fsFidState *fidp;
     gid_t gid;
     int mode;
+    int err = 0;
 
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
+    v9fs_string_init(&fullname);
+    pdu_unmarshal(pdu, offset, "dsdd", &fid, &name, &mode, &gid);
 
-    v9fs_string_init(&vs->fullname);
-    pdu_unmarshal(vs->pdu, vs->offset, "dsdd", &fid, &vs->name, &mode,
-        &gid);
-
-    fidp = lookup_fid(s, fid);
+    fidp = lookup_fid(pdu->s, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out;
     }
-
-    v9fs_string_sprintf(&vs->fullname, "%s/%s", fidp->path.data, vs->name.data);
-    err = v9fs_do_mkdir(s, vs->fullname.data, mode, fidp->uid, gid);
-    v9fs_mkdir_post_mkdir(s, vs, err);
-    return;
-
+    v9fs_string_sprintf(&fullname, "%s/%s", fidp->path.data, name.data);
+    err = v9fs_co_mkdir(pdu->s, fullname.data, mode, fidp->uid, gid);
+    if (err < 0) {
+        goto out;
+    }
+    err = v9fs_co_lstat(pdu->s, &fullname, &stbuf);
+    if (err < 0) {
+        goto out;
+    }
+    stat_to_qid(&stbuf, &qid);
+    offset += pdu_marshal(pdu, offset, "Q", &qid);
+    err = offset;
 out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->fullname);
-    v9fs_string_free(&vs->name);
-    qemu_free(vs);
+    complete_pdu(pdu->s, pdu, err);
+    v9fs_string_free(&fullname);
+    v9fs_string_free(&name);
 }
 
 static void v9fs_xattrwalk(void *opaque)
