@@ -133,7 +133,7 @@ struct MemoryRegionPortio {
     IOPortWriteFunc *write;
 };
 
-#define PORTIO_END { }
+#define PORTIO_END_OF_LIST() { }
 
 /**
  * memory_region_init: Initialize a memory region
