@@ -1,6 +1,6 @@
 /* escc.c */
 #define ESCC_SIZE 4
-int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
+MemoryRegion *escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
               CharDriverState *chrA, CharDriverState *chrB,
               int clock, int it_shift);
 

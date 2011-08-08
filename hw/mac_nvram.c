@@ -39,7 +39,7 @@
 
 struct MacIONVRAMState {
     uint32_t size;
-    int mem_index;
+    MemoryRegion mem;
     unsigned int it_shift;
     uint8_t *data;
 };
@@ -71,8 +71,8 @@ void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val)
 }
 
 /* macio style NVRAM device */
-static void macio_nvram_writeb (void *opaque,
-                                target_phys_addr_t addr, uint32_t value)
+static void macio_nvram_writeb(void *opaque, target_phys_addr_t addr,
+                               uint64_t value, unsigned size)
 {
     MacIONVRAMState *s = opaque;
 
@@ -81,7 +81,8 @@ static void macio_nvram_writeb (void *opaque,
     NVR_DPRINTF("writeb addr %04x val %x\n", (int)addr, value);
 }
 
-static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
+static uint64_t macio_nvram_readb(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
 {
     MacIONVRAMState *s = opaque;
     uint32_t value;
@@ -93,16 +94,10 @@ static uint32_t macio_nvram_readb (void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUWriteMemoryFunc * const nvram_write[] = {
-    &macio_nvram_writeb,
-    &macio_nvram_writeb,
-    &macio_nvram_writeb,
-};
-
-static CPUReadMemoryFunc * const nvram_read[] = {
-    &macio_nvram_readb,
-    &macio_nvram_readb,
-    &macio_nvram_readb,
+static const MemoryRegionOps macio_nvram_ops = {
+    .read = macio_nvram_readb,
+    .write = macio_nvram_writeb,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_macio_nvram = {
@@ -121,7 +116,7 @@ static void macio_nvram_reset(void *opaque)
 {
 }
 
-MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size,
+MacIONVRAMState *macio_nvram_init (target_phys_addr_t size,
                                    unsigned int it_shift)
 {
     MacIONVRAMState *s;
@@ -131,22 +126,18 @@ MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size,
     s->size = size;
     s->it_shift = it_shift;
 
-    s->mem_index = cpu_register_io_memory(nvram_read, nvram_write, s,
-                                          DEVICE_NATIVE_ENDIAN);
-    *mem_index = s->mem_index;
+    memory_region_init_io(&s->mem, &macio_nvram_ops, s, "macio-nvram",
+                          size << it_shift);
     vmstate_register(NULL, -1, &vmstate_macio_nvram, s);
     qemu_register_reset(macio_nvram_reset, s);
 
     return s;
 }
 
-void macio_nvram_map (void *opaque, target_phys_addr_t mem_base)
+void macio_nvram_setup_bar(MacIONVRAMState *s, MemoryRegion *bar,
+                           target_phys_addr_t mem_base)
 {
-    MacIONVRAMState *s;
-
-    s = opaque;
-    cpu_register_physical_memory(mem_base, s->size << s->it_shift,
-                                 s->mem_index);
+    memory_region_add_subregion(bar, mem_base, &s->mem);
 }
 
 /* Set up a system OpenBIOS NVRAM partition */

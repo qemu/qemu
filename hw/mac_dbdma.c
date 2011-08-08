@@ -166,6 +166,7 @@ typedef struct DBDMA_channel {
 } DBDMA_channel;
 
 typedef struct {
+    MemoryRegion mem;
     DBDMA_channel channels[DBDMA_CHANNELS];
 } DBDMAState;
 
@@ -703,8 +704,8 @@ dbdma_control_write(DBDMA_channel *ch)
         ch->flush(&ch->io);
 }
 
-static void dbdma_writel (void *opaque,
-                          target_phys_addr_t addr, uint32_t value)
+static void dbdma_write(void *opaque, target_phys_addr_t addr,
+                        uint64_t value, unsigned size)
 {
     int channel = addr >> DBDMA_CHANNEL_SHIFT;
     DBDMAState *s = opaque;
@@ -753,7 +754,8 @@ static void dbdma_writel (void *opaque,
     }
 }
 
-static uint32_t dbdma_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t dbdma_read(void *opaque, target_phys_addr_t addr,
+                           unsigned size)
 {
     uint32_t value;
     int channel = addr >> DBDMA_CHANNEL_SHIFT;
@@ -798,16 +800,14 @@ static uint32_t dbdma_readl (void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUWriteMemoryFunc * const dbdma_write[] = {
-    NULL,
-    NULL,
-    dbdma_writel,
-};
-
-static CPUReadMemoryFunc * const dbdma_read[] = {
-    NULL,
-    NULL,
-    dbdma_readl,
+static const MemoryRegionOps dbdma_ops = {
+    .read = dbdma_read,
+    .write = dbdma_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static const VMStateDescription vmstate_dbdma_channel = {
@@ -842,14 +842,14 @@ static void dbdma_reset(void *opaque)
         memset(s->channels[i].regs, 0, DBDMA_SIZE);
 }
 
-void* DBDMA_init (int *dbdma_mem_index)
+void* DBDMA_init (MemoryRegion **dbdma_mem)
 {
     DBDMAState *s;
 
     s = qemu_mallocz(sizeof(DBDMAState));
 
-    *dbdma_mem_index = cpu_register_io_memory(dbdma_read, dbdma_write, s,
-                                              DEVICE_LITTLE_ENDIAN);
+    memory_region_init_io(&s->mem, &dbdma_ops, s, "dbdma", 0x1000);
+    *dbdma_mem = &s->mem;
     vmstate_register(NULL, -1, &vmstate_dbdma, s);
     qemu_register_reset(dbdma_reset, s);
 

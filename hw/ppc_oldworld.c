@@ -82,8 +82,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     PCIBus *pci_bus;
     MacIONVRAMState *nvr;
     int bios_size;
-    int pic_mem_index, nvram_mem_index, dbdma_mem_index, cuda_mem_index;
-    int escc_mem_index, ide_mem_index[2];
+    MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem;
+    MemoryRegion *escc_mem, *ide_mem[2];
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
@@ -233,13 +233,13 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         hw_error("Only 6xx bus is supported on heathrow machine\n");
     }
-    pic = heathrow_pic_init(&pic_mem_index, 1, heathrow_irqs);
+    pic = heathrow_pic_init(&pic_mem, 1, heathrow_irqs);
     pci_bus = pci_grackle_init(0xfec00000, pic,
                                get_system_memory(),
                                get_system_io());
     pci_vga_init(pci_bus);
 
-    escc_mem_index = escc_init(0x80013000, pic[0x0f], pic[0x10], serial_hds[0],
+    escc_mem = escc_init(0x80013000, pic[0x0f], pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);
 
     for(i = 0; i < nb_nics; i++)
@@ -249,9 +249,9 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     ide_drive_get(hd, MAX_IDE_BUS);
 
     /* First IDE channel is a MAC IDE on the MacIO bus */
-    dbdma = DBDMA_init(&dbdma_mem_index);
-    ide_mem_index[0] = -1;
-    ide_mem_index[1] = pmac_ide_init(hd, pic[0x0D], dbdma, 0x16, pic[0x02]);
+    dbdma = DBDMA_init(&dbdma_mem);
+    ide_mem[0] = NULL;
+    ide_mem[1] = pmac_ide_init(hd, pic[0x0D], dbdma, 0x16, pic[0x02]);
 
     /* Second IDE channel is a CMD646 on the PCI bus */
     hd[0] = hd[MAX_IDE_DEVS];
@@ -260,17 +260,16 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     pci_cmd646_ide_init(pci_bus, hd, 0);
 
     /* cuda also initialize ADB */
-    cuda_init(&cuda_mem_index, pic[0x12]);
+    cuda_init(&cuda_mem, pic[0x12]);
 
     adb_kbd_init(&adb_bus);
     adb_mouse_init(&adb_bus);
 
-    nvr = macio_nvram_init(&nvram_mem_index, 0x2000, 4);
+    nvr = macio_nvram_init(0x2000, 4);
     pmac_format_nvram_partition(nvr, 0x2000);
 
-    macio_init(pci_bus, PCI_DEVICE_ID_APPLE_343S1201, 1, pic_mem_index,
-               dbdma_mem_index, cuda_mem_index, nvr, 2, ide_mem_index,
-               escc_mem_index);
+    macio_init(pci_bus, PCI_DEVICE_ID_APPLE_343S1201, 1, pic_mem,
+               dbdma_mem, cuda_mem, nvr, 2, ide_mem, escc_mem);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, -1);

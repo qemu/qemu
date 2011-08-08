@@ -205,7 +205,7 @@ typedef struct IRQ_dst_t {
 
 typedef struct openpic_t {
     PCIDevice pci_dev;
-    int mem_index;
+    MemoryRegion mem;
     /* Global registers */
     uint32_t frep; /* Feature reporting register */
     uint32_t glbc; /* Global configuration register  */
@@ -984,46 +984,33 @@ static uint32_t openpic_readl (void *opaque,target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc * const openpic_write[] = {
-    &openpic_buggy_write,
-    &openpic_buggy_write,
-    &openpic_writel,
-};
-
-static CPUReadMemoryFunc * const openpic_read[] = {
-    &openpic_buggy_read,
-    &openpic_buggy_read,
-    &openpic_readl,
-};
-
-static void openpic_map(PCIDevice *pci_dev, int region_num,
-                        pcibus_t addr, pcibus_t size, int type)
+static uint64_t openpic_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
 {
-    openpic_t *opp;
+    openpic_t *opp = opaque;
 
-    DPRINTF("Map OpenPIC\n");
-    opp = (openpic_t *)pci_dev;
-    /* Global registers */
-    DPRINTF("Register OPENPIC gbl   %08x => %08x\n",
-            addr + 0x1000, addr + 0x1000 + 0x100);
-    /* Timer registers */
-    DPRINTF("Register OPENPIC timer %08x => %08x\n",
-            addr + 0x1100, addr + 0x1100 + 0x40 * MAX_TMR);
-    /* Interrupt source registers */
-    DPRINTF("Register OPENPIC src   %08x => %08x\n",
-            addr + 0x10000, addr + 0x10000 + 0x20 * (OPENPIC_EXT_IRQ + 2));
-    /* Per CPU registers */
-    DPRINTF("Register OPENPIC dst   %08x => %08x\n",
-            addr + 0x20000, addr + 0x20000 + 0x1000 * MAX_CPU);
-    cpu_register_physical_memory(addr, 0x40000, opp->mem_index);
-#if 0 // Don't implement ISU for now
-    opp_io_memory = cpu_register_io_memory(openpic_src_read,
-                                           openpic_src_write, NULL
-                                           DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(isu_base, 0x20 * (EXT_IRQ + 2),
-                                 opp_io_memory);
-#endif
+    switch (size) {
+    case 4: return openpic_readl(opp, addr);
+    default: return openpic_buggy_read(opp, addr);
+    }
 }
+
+static void openpic_write(void *opaque, target_phys_addr_t addr,
+                          uint64_t data, unsigned size)
+{
+    openpic_t *opp = opaque;
+
+    switch (size) {
+    case 4: return openpic_writel(opp, addr, data);
+    default: return openpic_buggy_write(opp, addr, data);
+    }
+}
+
+static const MemoryRegionOps openpic_ops = {
+    .read = openpic_read,
+    .write = openpic_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 static void openpic_save_IRQ_queue(QEMUFile* f, IRQ_queue_t *q)
 {
@@ -1161,7 +1148,7 @@ static void openpic_irq_raise(openpic_t *opp, int n_CPU, IRQ_src_t *src)
     qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
 }
 
-qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
+qemu_irq *openpic_init (PCIBus *bus, MemoryRegion **pmem, int nb_cpus,
                         qemu_irq **irqs, qemu_irq irq_out)
 {
     openpic_t *opp;
@@ -1180,14 +1167,22 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
         pci_config_set_class(pci_conf, PCI_CLASS_SYSTEM_OTHER); // FIXME?
         pci_conf[0x3d] = 0x00; // no interrupt pin
 
+        memory_region_init_io(&opp->mem, &openpic_ops, opp, "openpic", 0x40000);
+#if 0 // Don't implement ISU for now
+        opp_io_memory = cpu_register_io_memory(openpic_src_read,
+                                               openpic_src_write, NULL
+                                               DEVICE_NATIVE_ENDIAN);
+        cpu_register_physical_memory(isu_base, 0x20 * (EXT_IRQ + 2),
+                                     opp_io_memory);
+#endif
+
         /* Register I/O spaces */
-        pci_register_bar(&opp->pci_dev, 0, 0x40000,
-                               PCI_BASE_ADDRESS_SPACE_MEMORY, &openpic_map);
+        pci_register_bar_region(&opp->pci_dev, 0,
+                                PCI_BASE_ADDRESS_SPACE_MEMORY, &opp->mem);
     } else {
         opp = qemu_mallocz(sizeof(openpic_t));
+        memory_region_init_io(&opp->mem, &openpic_ops, opp, "openpic", 0x40000);
     }
-    opp->mem_index = cpu_register_io_memory(openpic_read, openpic_write, opp,
-                                            DEVICE_LITTLE_ENDIAN);
 
     //    isu_base &= 0xFFFC0000;
     opp->nb_cpus = nb_cpus;
@@ -1223,8 +1218,8 @@ qemu_irq *openpic_init (PCIBus *bus, int *pmem_index, int nb_cpus,
     opp->irq_raise = openpic_irq_raise;
     opp->reset = openpic_reset;
 
-    if (pmem_index)
-        *pmem_index = opp->mem_index;
+    if (pmem)
+        *pmem = &opp->mem;
 
     return qemu_allocate_irqs(openpic_set_irq, opp, opp->max_irq);
 }
