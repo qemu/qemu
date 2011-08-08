@@ -177,7 +177,7 @@ struct IntelHDAState {
     IntelHDAStream st[8];
 
     /* state */
-    int mmio_addr;
+    MemoryRegion mmio;
     uint32_t rirb_count;
     int64_t wall_base_ns;
 
@@ -1084,16 +1084,20 @@ static uint32_t intel_hda_mmio_readl(void *opaque, target_phys_addr_t addr)
     return intel_hda_reg_read(d, reg, 0xffffffff);
 }
 
-static CPUReadMemoryFunc * const intel_hda_mmio_read[3] = {
-    intel_hda_mmio_readb,
-    intel_hda_mmio_readw,
-    intel_hda_mmio_readl,
-};
-
-static CPUWriteMemoryFunc * const intel_hda_mmio_write[3] = {
-    intel_hda_mmio_writeb,
-    intel_hda_mmio_writew,
-    intel_hda_mmio_writel,
+static const MemoryRegionOps intel_hda_mmio_ops = {
+    .old_mmio = {
+        .read = {
+            intel_hda_mmio_readb,
+            intel_hda_mmio_readw,
+            intel_hda_mmio_readl,
+        },
+        .write = {
+            intel_hda_mmio_writeb,
+            intel_hda_mmio_writew,
+            intel_hda_mmio_writel,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* --------------------------------------------------------------------- */
@@ -1130,10 +1134,9 @@ static int intel_hda_init(PCIDevice *pci)
     /* HDCTL off 0x40 bit 0 selects signaling mode (1-HDA, 0 - Ac97) 18.1.19 */
     conf[0x40] = 0x01;
 
-    d->mmio_addr = cpu_register_io_memory(intel_hda_mmio_read,
-                                          intel_hda_mmio_write, d,
-                                          DEVICE_NATIVE_ENDIAN);
-    pci_register_bar_simple(&d->pci, 0, 0x4000, 0, d->mmio_addr);
+    memory_region_init_io(&d->mmio, &intel_hda_mmio_ops, d,
+                          "intel-hda", 0x4000);
+    pci_register_bar_region(&d->pci, 0, 0, &d->mmio);
     if (d->msi) {
         msi_init(&d->pci, 0x50, 1, true, false);
     }
@@ -1149,7 +1152,7 @@ static int intel_hda_exit(PCIDevice *pci)
     IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
 
     msi_uninit(&d->pci);
-    cpu_unregister_io_memory(d->mmio_addr);
+    memory_region_destroy(&d->mmio);
     return 0;
 }
 
