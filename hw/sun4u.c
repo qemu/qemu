@@ -91,6 +91,12 @@ struct hwdef {
     uint64_t console_serial_base;
 };
 
+typedef struct EbusState {
+    PCIDevice pci_dev;
+    MemoryRegion bar0;
+    MemoryRegion bar1;
+} EbusState;
+
 int DMA_get_channel_mode (int nchan)
 {
     return 0;
@@ -518,21 +524,6 @@ void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
     }
 }
 
-static void ebus_mmio_mapfunc(PCIDevice *pci_dev, int region_num,
-                              pcibus_t addr, pcibus_t size, int type)
-{
-    EBUS_DPRINTF("Mapping region %d registers at %" FMT_PCIBUS "\n",
-                 region_num, addr);
-    switch (region_num) {
-    case 0:
-        isa_mmio_init(addr, 0x1000000);
-        break;
-    case 1:
-        isa_mmio_init(addr, 0x800000);
-        break;
-    }
-}
-
 static void dummy_isa_irq_handler(void *opaque, int n, int level)
 {
 }
@@ -549,27 +540,31 @@ pci_ebus_init(PCIBus *bus, int devfn)
 }
 
 static int
-pci_ebus_init1(PCIDevice *s)
+pci_ebus_init1(PCIDevice *pci_dev)
 {
-    isa_bus_new(&s->qdev);
+    EbusState *s = DO_UPCAST(EbusState, pci_dev, pci_dev);
 
-    s->config[0x04] = 0x06; // command = bus master, pci mem
-    s->config[0x05] = 0x00;
-    s->config[0x06] = 0xa0; // status = fast back-to-back, 66MHz, no error
-    s->config[0x07] = 0x03; // status = medium devsel
-    s->config[0x09] = 0x00; // programming i/f
-    s->config[0x0D] = 0x0a; // latency_timer
+    isa_bus_new(&pci_dev->qdev);
 
-    pci_register_bar(s, 0, 0x1000000, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                           ebus_mmio_mapfunc);
-    pci_register_bar(s, 1, 0x800000,  PCI_BASE_ADDRESS_SPACE_MEMORY,
-                           ebus_mmio_mapfunc);
+    pci_dev->config[0x04] = 0x06; // command = bus master, pci mem
+    pci_dev->config[0x05] = 0x00;
+    pci_dev->config[0x06] = 0xa0; // status = fast back-to-back, 66MHz, no error
+    pci_dev->config[0x07] = 0x03; // status = medium devsel
+    pci_dev->config[0x09] = 0x00; // programming i/f
+    pci_dev->config[0x0D] = 0x0a; // latency_timer
+
+    isa_mmio_setup(&s->bar0, 0x1000000);
+    pci_register_bar_region(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &s->bar0);
+    isa_mmio_setup(&s->bar1, 0x800000);
+    pci_register_bar_region(pci_dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &s->bar1);
     return 0;
 }
 
 static PCIDeviceInfo ebus_info = {
     .qdev.name = "ebus",
-    .qdev.size = sizeof(PCIDevice),
+    .qdev.size = sizeof(EbusState),
     .init = pci_ebus_init1,
     .vendor_id = PCI_VENDOR_ID_SUN,
     .device_id = PCI_DEVICE_ID_SUN_EBUS,
