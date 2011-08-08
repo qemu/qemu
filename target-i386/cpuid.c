@@ -224,6 +224,7 @@ typedef struct x86_def_t {
     int family;
     int model;
     int stepping;
+    int tsc_khz;
     uint32_t features, ext_features, ext2_features, ext3_features;
     uint32_t kvm_features, svm_features;
     uint32_t xlevel;
@@ -704,6 +705,17 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
             } else if (!strcmp(featurestr, "model_id")) {
                 pstrcpy(x86_cpu_def->model_id, sizeof(x86_cpu_def->model_id),
                         val);
+            } else if (!strcmp(featurestr, "tsc_freq")) {
+                int64_t tsc_freq;
+                char *err;
+
+                tsc_freq = strtosz_suffix_unit(val, &err,
+                                               STRTOSZ_DEFSUFFIX_B, 1000);
+                if (!*val || *err) {
+                    fprintf(stderr, "bad numerical value %s\n", val);
+                    goto error;
+                }
+                x86_cpu_def->tsc_khz = tsc_freq / 1000;
             } else {
                 fprintf(stderr, "unrecognized feature %s\n", featurestr);
                 goto error;
@@ -872,6 +884,7 @@ int cpu_x86_register (CPUX86State *env, const char *cpu_model)
     env->cpuid_svm_features = def->svm_features;
     env->cpuid_ext4_features = def->ext4_features;
     env->cpuid_xlevel2 = def->xlevel2;
+    env->tsc_khz = def->tsc_khz;
     if (!kvm_enabled()) {
         env->cpuid_features &= TCG_FEATURES;
         env->cpuid_ext_features &= TCG_EXT_FEATURES;
