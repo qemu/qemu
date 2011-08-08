@@ -65,10 +65,9 @@ struct vmsvga_state_s {
     int syncing;
     int fb_size;
 
-    ram_addr_t fifo_offset;
+    MemoryRegion fifo_ram;
     uint8_t *fifo_ptr;
     unsigned int fifo_size;
-    target_phys_addr_t fifo_base;
 
     union {
         uint32_t *fifo;
@@ -92,6 +91,7 @@ struct vmsvga_state_s {
 struct pci_vmsvga_state_s {
     PCIDevice card;
     struct vmsvga_state_s chip;
+    MemoryRegion io_bar;
 };
 
 #define SVGA_MAGIC		0x900000UL
@@ -789,8 +789,11 @@ static uint32_t vmsvga_value_read(void *opaque, uint32_t address)
 #endif
         return caps;
 
-    case SVGA_REG_MEM_START:
-        return s->fifo_base;
+    case SVGA_REG_MEM_START: {
+        struct pci_vmsvga_state_s *pci_vmsvga
+            = container_of(s, struct pci_vmsvga_state_s, chip);
+        return pci_get_bar_addr(&pci_vmsvga->card, 2);
+    }
 
     case SVGA_REG_MEM_SIZE:
         return s->fifo_size;
@@ -1135,17 +1138,22 @@ static void vmsvga_vram_writel(void *opaque, target_phys_addr_t addr,
         *(uint32_t *) (s->vram_ptr + addr) = value;
 }
 
-static CPUReadMemoryFunc * const vmsvga_vram_read[] = {
-    vmsvga_vram_readb,
-    vmsvga_vram_readw,
-    vmsvga_vram_readl,
-};
+static const MemoryRegionOps vmsvga_vram_io_ops = {
+    .old_mmio = {
+        .read = {
+            vmsvga_vram_readb,
+            vmsvga_vram_readw,
+            vmsvga_vram_readl,
+        },
+        .write = {
+            vmsvga_vram_writeb,
+            vmsvga_vram_writew,
+            vmsvga_vram_writel,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
+}
 
-static CPUWriteMemoryFunc * const vmsvga_vram_write[] = {
-    vmsvga_vram_writeb,
-    vmsvga_vram_writew,
-    vmsvga_vram_writel,
-};
 #endif
 
 static int vmsvga_post_load(void *opaque, int version_id)
@@ -1211,8 +1219,8 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 
 
     s->fifo_size = SVGA_FIFO_SIZE;
-    s->fifo_offset = qemu_ram_alloc(NULL, "vmsvga.fifo", s->fifo_size);
-    s->fifo_ptr = qemu_get_ram_ptr(s->fifo_offset);
+    memory_region_init_ram(&s->fifo_ram, NULL, "vmsvga.fifo", s->fifo_size);
+    s->fifo_ptr = memory_region_get_ram_ptr(&s->fifo_ram);
 
     vga_common_init(&s->vga, vga_ram_size);
     vga_init(&s->vga);
@@ -1221,78 +1229,75 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
     vmsvga_reset(s);
 }
 
-static void pci_vmsvga_map_ioport(PCIDevice *pci_dev, int region_num,
-                pcibus_t addr, pcibus_t size, int type)
+static uint64_t vmsvga_io_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
-    struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
-    struct vmsvga_state_s *s = &d->chip;
+    struct vmsvga_state_s *s = opaque;
 
-    register_ioport_read(addr + SVGA_IO_MUL * SVGA_INDEX_PORT,
-                    1, 4, vmsvga_index_read, s);
-    register_ioport_write(addr + SVGA_IO_MUL * SVGA_INDEX_PORT,
-                    1, 4, vmsvga_index_write, s);
-    register_ioport_read(addr + SVGA_IO_MUL * SVGA_VALUE_PORT,
-                    1, 4, vmsvga_value_read, s);
-    register_ioport_write(addr + SVGA_IO_MUL * SVGA_VALUE_PORT,
-                    1, 4, vmsvga_value_write, s);
-    register_ioport_read(addr + SVGA_IO_MUL * SVGA_BIOS_PORT,
-                    1, 4, vmsvga_bios_read, s);
-    register_ioport_write(addr + SVGA_IO_MUL * SVGA_BIOS_PORT,
-                    1, 4, vmsvga_bios_write, s);
+    switch (addr) {
+    case SVGA_IO_MUL * SVGA_INDEX_PORT: return vmsvga_index_read(s, addr);
+    case SVGA_IO_MUL * SVGA_VALUE_PORT: return vmsvga_value_read(s, addr);
+    case SVGA_IO_MUL * SVGA_BIOS_PORT: return vmsvga_bios_read(s, addr);
+    default: return -1u;
+    }
 }
 
-static void pci_vmsvga_map_mem(PCIDevice *pci_dev, int region_num,
-                pcibus_t addr, pcibus_t size, int type)
+static void vmsvga_io_write(void *opaque, target_phys_addr_t addr,
+                            uint64_t data, unsigned size)
 {
-    struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
-    struct vmsvga_state_s *s = &d->chip;
-    ram_addr_t iomemtype;
+    struct vmsvga_state_s *s = opaque;
 
-#ifdef DIRECT_VRAM
-    iomemtype = cpu_register_io_memory(vmsvga_vram_read,
-                    vmsvga_vram_write, s, DEVICE_NATIVE_ENDIAN);
-#else
-    iomemtype = s->vga.vram_offset | IO_MEM_RAM;
-#endif
-    cpu_register_physical_memory(addr, s->vga.vram_size,
-                    iomemtype);
-
-    s->vga.map_addr = addr;
-    s->vga.map_end = addr + s->vga.vram_size;
-    vga_dirty_log_restart(&s->vga);
+    switch (addr) {
+    case SVGA_IO_MUL * SVGA_INDEX_PORT:
+        return vmsvga_index_write(s, addr, data);
+    case SVGA_IO_MUL * SVGA_VALUE_PORT:
+        return vmsvga_value_write(s, addr, data);
+    case SVGA_IO_MUL * SVGA_BIOS_PORT:
+        return vmsvga_bios_write(s, addr, data);
+    }
 }
 
-static void pci_vmsvga_map_fifo(PCIDevice *pci_dev, int region_num,
-                pcibus_t addr, pcibus_t size, int type)
-{
-    struct pci_vmsvga_state_s *d = (struct pci_vmsvga_state_s *) pci_dev;
-    struct vmsvga_state_s *s = &d->chip;
-    ram_addr_t iomemtype;
-
-    s->fifo_base = addr;
-    iomemtype = s->fifo_offset | IO_MEM_RAM;
-    cpu_register_physical_memory(s->fifo_base, s->fifo_size,
-                    iomemtype);
-}
+static const MemoryRegionOps vmsvga_io_ops = {
+    .read = vmsvga_io_read,
+    .write = vmsvga_io_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
 
 static int pci_vmsvga_initfn(PCIDevice *dev)
 {
     struct pci_vmsvga_state_s *s =
         DO_UPCAST(struct pci_vmsvga_state_s, card, dev);
+    MemoryRegion *iomem;
+
+#ifdef DIRECT_VRAM
+    DirectMem *directmem = qemu_malloc(sizeof(*directmem));
+
+    iomem = &directmem->mr;
+    memory_region_init_io(iomem, &vmsvga_vram_io_ops, &s->chip, "vmsvga",
+                          memory_region_size(&s->chip.vga.vram));
+#else
+    iomem = &s->chip.vga.vram;
+#endif
+
+    vga_dirty_log_restart(&s->chip.vga);
 
     s->card.config[PCI_CACHE_LINE_SIZE]	= 0x08;		/* Cache line size */
     s->card.config[PCI_LATENCY_TIMER] = 0x40;		/* Latency timer */
     s->card.config[PCI_INTERRUPT_LINE] = 0xff;		/* End */
 
-    pci_register_bar(&s->card, 0, 0x10,
-                    PCI_BASE_ADDRESS_SPACE_IO, pci_vmsvga_map_ioport);
-    pci_register_bar(&s->card, 1, VGA_RAM_SIZE,
-                    PCI_BASE_ADDRESS_MEM_PREFETCH, pci_vmsvga_map_mem);
-
-    pci_register_bar(&s->card, 2, SVGA_FIFO_SIZE,
-                    PCI_BASE_ADDRESS_MEM_PREFETCH, pci_vmsvga_map_fifo);
+    memory_region_init_io(&s->io_bar, &vmsvga_io_ops, &s->chip,
+                          "vmsvga-io", 0x10);
+    pci_register_bar_region(&s->card, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
 
     vmsvga_init(&s->chip, VGA_RAM_SIZE);
+
+    pci_register_bar_region(&s->card, 1, PCI_BASE_ADDRESS_MEM_PREFETCH, iomem);
+    pci_register_bar_region(&s->card, 2, PCI_BASE_ADDRESS_MEM_PREFETCH,
+                            &s->chip.fifo_ram);
 
     if (!dev->rom_bar) {
         /* compatibility with pc-0.13 and older */

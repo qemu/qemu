@@ -27,6 +27,7 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
+#include "exec-memory.h"
 
 typedef struct ISAVGAMMState {
     VGACommonState vga;
@@ -79,35 +80,44 @@ static void vga_mm_writel (void *opaque,
     vga_ioport_write(&s->vga, addr >> s->it_shift, value);
 }
 
-static CPUReadMemoryFunc * const vga_mm_read_ctrl[] = {
-    &vga_mm_readb,
-    &vga_mm_readw,
-    &vga_mm_readl,
-};
-
-static CPUWriteMemoryFunc * const vga_mm_write_ctrl[] = {
-    &vga_mm_writeb,
-    &vga_mm_writew,
-    &vga_mm_writel,
+static const MemoryRegionOps vga_mm_ctrl_ops = {
+    .old_mmio = {
+        .read = {
+            vga_mm_readb,
+            vga_mm_readw,
+            vga_mm_readl,
+        },
+        .write = {
+            vga_mm_writeb,
+            vga_mm_writew,
+            vga_mm_writel,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void vga_mm_init(ISAVGAMMState *s, target_phys_addr_t vram_base,
                         target_phys_addr_t ctrl_base, int it_shift)
 {
-    int s_ioport_ctrl, vga_io_memory;
+    MemoryRegion *s_ioport_ctrl, *vga_io_memory;
 
     s->it_shift = it_shift;
-    s_ioport_ctrl = cpu_register_io_memory(vga_mm_read_ctrl, vga_mm_write_ctrl, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    vga_io_memory = cpu_register_io_memory(vga_mem_read, vga_mem_write, s,
-                                           DEVICE_NATIVE_ENDIAN);
+    s_ioport_ctrl = qemu_malloc(sizeof(*s_ioport_ctrl));
+    memory_region_init_io(s_ioport_ctrl, &vga_mm_ctrl_ops, s,
+                          "vga-mm-ctrl", 0x100000);
+
+    vga_io_memory = qemu_malloc(sizeof(*vga_io_memory));
+    /* XXX: endianness? */
+    memory_region_init_io(vga_io_memory, &vga_mem_ops, &s->vga,
+                          "vga-mem", 0x20000);
 
     vmstate_register(NULL, 0, &vmstate_vga_common, s);
 
-    cpu_register_physical_memory(ctrl_base, 0x100000, s_ioport_ctrl);
+    memory_region_add_subregion(get_system_memory(), ctrl_base, s_ioport_ctrl);
     s->vga.bank_offset = 0;
-    cpu_register_physical_memory(vram_base + 0x000a0000, 0x20000, vga_io_memory);
-    qemu_register_coalesced_mmio(vram_base + 0x000a0000, 0x20000);
+    memory_region_add_subregion(get_system_memory(),
+                                vram_base + 0x000a0000, vga_io_memory);
+    memory_region_set_coalescing(vga_io_memory);
 }
 
 int isa_vga_mm_init(target_phys_addr_t vram_base,

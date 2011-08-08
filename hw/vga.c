@@ -28,6 +28,7 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
+#include "exec-memory.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
@@ -825,7 +826,7 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             printf("vga: chain4: [0x" TARGET_FMT_plx "]\n", addr);
 #endif
             s->plane_updated |= mask; /* only used to detect font change */
-            cpu_physical_memory_set_dirty(s->vram_offset + addr);
+            memory_region_set_dirty(&s->vram, addr);
         }
     } else if (s->gr[5] & 0x10) {
         /* odd/even mode (aka text mode mapping) */
@@ -838,7 +839,7 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
             printf("vga: odd/even: [0x" TARGET_FMT_plx "]\n", addr);
 #endif
             s->plane_updated |= mask; /* only used to detect font change */
-            cpu_physical_memory_set_dirty(s->vram_offset + addr);
+            memory_region_set_dirty(&s->vram, addr);
         }
     } else {
         /* standard VGA latched access */
@@ -912,7 +913,7 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
         printf("vga: latch: [0x" TARGET_FMT_plx "] mask=0x%08x val=0x%08x\n",
                addr * 4, write_mask, val);
 #endif
-        cpu_physical_memory_set_dirty(s->vram_offset + (addr << 2));
+        memory_region_set_dirty(&s->vram, addr << 2);
     }
 }
 
@@ -1553,57 +1554,17 @@ void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2)
 
 static void vga_sync_dirty_bitmap(VGACommonState *s)
 {
-    if (s->map_addr)
-        cpu_physical_sync_dirty_bitmap(s->map_addr, s->map_end);
-
-    if (s->lfb_vram_mapped) {
-        cpu_physical_sync_dirty_bitmap(isa_mem_base + 0xa0000, 0xa8000);
-        cpu_physical_sync_dirty_bitmap(isa_mem_base + 0xa8000, 0xb0000);
-    }
-
-#ifdef CONFIG_BOCHS_VBE
-    if (s->vbe_mapped) {
-        cpu_physical_sync_dirty_bitmap(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                       VBE_DISPI_LFB_PHYSICAL_ADDRESS + s->vram_size);
-    }
-#endif
-
+    memory_region_sync_dirty_bitmap(&s->vram);
 }
 
 void vga_dirty_log_start(VGACommonState *s)
 {
-    if (s->map_addr) {
-        cpu_physical_log_start(s->map_addr, s->map_end - s->map_addr);
-    }
-
-    if (s->lfb_vram_mapped) {
-        cpu_physical_log_start(isa_mem_base + 0xa0000, 0x8000);
-        cpu_physical_log_start(isa_mem_base + 0xa8000, 0x8000);
-    }
-
-#ifdef CONFIG_BOCHS_VBE
-    if (s->vbe_mapped) {
-        cpu_physical_log_start(VBE_DISPI_LFB_PHYSICAL_ADDRESS, s->vram_size);
-    }
-#endif
+    memory_region_set_log(&s->vram, true, DIRTY_MEMORY_VGA);
 }
 
 void vga_dirty_log_stop(VGACommonState *s)
 {
-    if (s->map_addr) {
-        cpu_physical_log_stop(s->map_addr, s->map_end - s->map_addr);
-    }
-
-    if (s->lfb_vram_mapped) {
-        cpu_physical_log_stop(isa_mem_base + 0xa0000, 0x8000);
-        cpu_physical_log_stop(isa_mem_base + 0xa8000, 0x8000);
-    }
-
-#ifdef CONFIG_BOCHS_VBE
-    if (s->vbe_mapped) {
-        cpu_physical_log_stop(VBE_DISPI_LFB_PHYSICAL_ADDRESS, s->vram_size);
-    }
-#endif
+    memory_region_set_log(&s->vram, false, DIRTY_MEMORY_VGA);
 }
 
 void vga_dirty_log_restart(VGACommonState *s)
@@ -1773,15 +1734,16 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         if (!(s->cr[0x17] & 2)) {
             addr = (addr & ~0x8000) | ((y1 & 2) << 14);
         }
-        page0 = s->vram_offset + (addr & TARGET_PAGE_MASK);
-        page1 = s->vram_offset + ((addr + bwidth - 1) & TARGET_PAGE_MASK);
+        page0 = addr & TARGET_PAGE_MASK;
+        page1 = (addr + bwidth - 1) & TARGET_PAGE_MASK;
         update = full_update |
-            cpu_physical_memory_get_dirty(page0, VGA_DIRTY_FLAG) |
-            cpu_physical_memory_get_dirty(page1, VGA_DIRTY_FLAG);
+            memory_region_get_dirty(&s->vram, page0, DIRTY_MEMORY_VGA) |
+            memory_region_get_dirty(&s->vram, page1, DIRTY_MEMORY_VGA);
         if ((page1 - page0) > TARGET_PAGE_SIZE) {
             /* if wide line, can use another page */
-            update |= cpu_physical_memory_get_dirty(page0 + TARGET_PAGE_SIZE,
-                                                    VGA_DIRTY_FLAG);
+            update |= memory_region_get_dirty(&s->vram,
+                                              page0 + TARGET_PAGE_SIZE,
+                                              DIRTY_MEMORY_VGA);
         }
         /* explicit invalidation for the hardware cursor */
         update |= (s->invalidated_y_table[y >> 5] >> (y & 0x1f)) & 1;
@@ -1826,8 +1788,10 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     }
     /* reset modified pages */
     if (page_max >= page_min) {
-        cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE,
-                                        VGA_DIRTY_FLAG);
+        memory_region_reset_dirty(&s->vram,
+                                  page_min,
+                                  page_max + TARGET_PAGE_SIZE - page_min,
+                                  DIRTY_MEMORY_VGA);
     }
     memset(s->invalidated_y_table, 0, ((height + 31) >> 5) * 4);
 }
@@ -1906,11 +1870,6 @@ static void vga_invalidate_display(void *opaque)
 
 void vga_common_reset(VGACommonState *s)
 {
-    s->lfb_addr = 0;
-    s->lfb_end = 0;
-    s->map_addr = 0;
-    s->map_end = 0;
-    s->lfb_vram_mapped = 0;
     s->sr_index = 0;
     memset(s->sr, '\0', sizeof(s->sr));
     s->gr_index = 0;
@@ -2141,16 +2100,36 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     dpy_update(s->ds, 0, 0, s->last_width, height);
 }
 
-CPUReadMemoryFunc * const vga_mem_read[3] = {
-    vga_mem_readb,
-    vga_mem_readw,
-    vga_mem_readl,
-};
+static uint64_t vga_mem_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
+{
+    VGACommonState *s = opaque;
 
-CPUWriteMemoryFunc * const vga_mem_write[3] = {
-    vga_mem_writeb,
-    vga_mem_writew,
-    vga_mem_writel,
+    switch (size) {
+    case 1: return vga_mem_readb(s, addr);
+    case 2: return vga_mem_readw(s, addr);
+    case 4: return vga_mem_readl(s, addr);
+    default: abort();
+    }
+}
+
+static void vga_mem_write(void *opaque, target_phys_addr_t addr,
+                          uint64_t data, unsigned size)
+{
+    VGACommonState *s = opaque;
+
+    switch (size) {
+    case 1: return vga_mem_writeb(s, addr, data);
+    case 2: return vga_mem_writew(s, addr, data);
+    case 4: return vga_mem_writel(s, addr, data);
+    default: abort();
+    }
+}
+
+const MemoryRegionOps vga_mem_ops = {
+    .read = vga_mem_read,
+    .write = vga_mem_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int vga_common_post_load(void *opaque, int version_id)
@@ -2236,8 +2215,8 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
 #else
     s->is_vbe_vmstate = 0;
 #endif
-    s->vram_offset = qemu_ram_alloc(NULL, "vga.vram", vga_ram_size);
-    s->vram_ptr = qemu_get_ram_ptr(s->vram_offset);
+    memory_region_init_ram(&s->vram, NULL, "vga.vram", vga_ram_size);
+    s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
     s->vram_size = vga_ram_size;
     s->get_bpp = vga_get_bpp;
     s->get_offsets = vga_get_offsets;
@@ -2257,11 +2236,14 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
         s->update_retrace_info = vga_precise_update_retrace_info;
         break;
     }
+    vga_dirty_log_start(s);
 }
 
 /* used by both ISA and PCI */
-int vga_init_io(VGACommonState *s)
+MemoryRegion *vga_init_io(VGACommonState *s)
 {
+    MemoryRegion *vga_mem;
+
     register_ioport_write(0x3c0, 16, 1, vga_ioport_write, s);
 
     register_ioport_write(0x3b4, 2, 1, vga_ioport_write, s);
@@ -2292,30 +2274,36 @@ int vga_init_io(VGACommonState *s)
 #endif
 #endif /* CONFIG_BOCHS_VBE */
 
-    return cpu_register_io_memory(vga_mem_read, vga_mem_write, s,
-                                  DEVICE_LITTLE_ENDIAN);
+    vga_mem = qemu_malloc(sizeof(*vga_mem));
+    memory_region_init_io(vga_mem, &vga_mem_ops, s,
+                          "vga-lowmem", 0x20000);
+
+    return vga_mem;
 }
 
 void vga_init(VGACommonState *s)
 {
-    int vga_io_memory;
+    MemoryRegion *vga_io_memory;
 
     qemu_register_reset(vga_reset, s);
 
     s->bank_offset = 0;
 
     vga_io_memory = vga_init_io(s);
-    cpu_register_physical_memory(isa_mem_base + 0x000a0000, 0x20000,
-                                 vga_io_memory);
-    qemu_register_coalesced_mmio(isa_mem_base + 0x000a0000, 0x20000);
+    memory_region_add_subregion_overlap(get_system_memory(),
+                                        isa_mem_base + 0x000a0000,
+                                        vga_io_memory,
+                                        1);
+    memory_region_set_coalescing(vga_io_memory);
 }
 
 void vga_init_vbe(VGACommonState *s)
 {
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
-    cpu_register_physical_memory(VBE_DISPI_LFB_PHYSICAL_ADDRESS,
-                                 VGA_RAM_SIZE, s->vram_offset);
+    memory_region_add_subregion(get_system_memory(),
+                                VBE_DISPI_LFB_PHYSICAL_ADDRESS,
+                                &s->vram);
     s->vbe_mapped = 1;
 #endif 
 }

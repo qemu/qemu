@@ -23,6 +23,7 @@
  */
 
 #include <hw/hw.h>
+#include "memory.h"
 
 #define MSR_COLOR_EMULATION 0x01
 #define MSR_PAGE_SELECT     0x20
@@ -105,11 +106,7 @@ typedef void (* vga_update_retrace_info_fn)(struct VGACommonState *s);
 
 typedef struct VGACommonState {
     uint8_t *vram_ptr;
-    ram_addr_t vram_offset;
-    target_phys_addr_t lfb_addr;
-    target_phys_addr_t lfb_end;
-    target_phys_addr_t map_addr;
-    target_phys_addr_t map_end;
+    MemoryRegion vram;
     uint32_t vram_size;
     uint32_t latch;
     uint32_t lfb_vram_mapped; /* whether 0xa0000 is mapped as ram */
@@ -134,7 +131,7 @@ typedef struct VGACommonState {
     int dac_8bit;
     uint8_t palette[768];
     int32_t bank_offset;
-    int vga_io_memory;
+    MemoryRegion *vga_io_memory;
     int (*get_bpp)(struct VGACommonState *s);
     void (*get_offsets)(struct VGACommonState *s,
                         uint32_t *pline_offset,
@@ -191,7 +188,7 @@ static inline int c6_to_8(int v)
 
 void vga_common_init(VGACommonState *s, int vga_ram_size);
 void vga_init(VGACommonState *s);
-int vga_init_io(VGACommonState *s);
+MemoryRegion *vga_init_io(VGACommonState *s);
 void vga_common_reset(VGACommonState *s);
 
 void vga_dirty_log_start(VGACommonState *s);
@@ -229,5 +226,4 @@ extern const uint8_t gr_mask[16];
 #define VGABIOS_FILENAME "vgabios.bin"
 #define VGABIOS_CIRRUS_FILENAME "vgabios-cirrus.bin"
 
-extern CPUReadMemoryFunc * const vga_mem_read[3];
-extern CPUWriteMemoryFunc * const vga_mem_write[3];
+extern const MemoryRegionOps vga_mem_ops;
