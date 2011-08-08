@@ -62,7 +62,8 @@ static void pci_grackle_reset(void *opaque)
 }
 
 PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
-                         MemoryRegion *address_space)
+                         MemoryRegion *address_space_mem,
+                         MemoryRegion *address_space_io)
 {
     DeviceState *dev;
     SysBusDevice *s;
@@ -75,7 +76,10 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_grackle_set_irq,
                                          pci_grackle_map_irq,
-                                         pic, address_space, 0, 4);
+                                         pic,
+                                         address_space_mem,
+                                         address_space_io,
+                                         0, 4);
 
     pci_create_simple(d->host_state.bus, 0, "grackle");
 
