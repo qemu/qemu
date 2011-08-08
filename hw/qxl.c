@@ -263,7 +263,7 @@ static ram_addr_t qxl_rom_size(void)
 
 static void init_qxl_rom(PCIQXLDevice *d)
 {
-    QXLRom *rom = qemu_get_ram_ptr(d->rom_offset);
+    QXLRom *rom = memory_region_get_ram_ptr(&d->rom_bar);
     QXLModes *modes = (QXLModes *)(rom + 1);
     uint32_t ram_header_size;
     uint32_t surface0_area_size;
@@ -339,39 +339,37 @@ static void init_qxl_ram(PCIQXLDevice *d)
 }
 
 /* can be called from spice server thread context */
-static void qxl_set_dirty(ram_addr_t addr, ram_addr_t end)
+static void qxl_set_dirty(MemoryRegion *mr, ram_addr_t addr, ram_addr_t end)
 {
     while (addr < end) {
-        cpu_physical_memory_set_dirty(addr);
+        memory_region_set_dirty(mr, addr);
         addr += TARGET_PAGE_SIZE;
     }
 }
 
 static void qxl_rom_set_dirty(PCIQXLDevice *qxl)
 {
-    ram_addr_t addr = qxl->rom_offset;
-    qxl_set_dirty(addr, addr + qxl->rom_size);
+    qxl_set_dirty(&qxl->rom_bar, 0, qxl->rom_size);
 }
 
 /* called from spice server thread context only */
 static void qxl_ram_set_dirty(PCIQXLDevice *qxl, void *ptr)
 {
-    ram_addr_t addr = qxl->vga.vram_offset;
     void *base = qxl->vga.vram_ptr;
     intptr_t offset;
 
     offset = ptr - base;
     offset &= ~(TARGET_PAGE_SIZE-1);
     assert(offset < qxl->vga.vram_size);
-    qxl_set_dirty(addr + offset, addr + offset + TARGET_PAGE_SIZE);
+    qxl_set_dirty(&qxl->vga.vram, offset, offset + TARGET_PAGE_SIZE);
 }
 
 /* can be called from spice server thread context */
 static void qxl_ring_set_dirty(PCIQXLDevice *qxl)
 {
-    ram_addr_t addr = qxl->vga.vram_offset + qxl->shadow_rom.ram_header_offset;
-    ram_addr_t end  = qxl->vga.vram_offset + qxl->vga.vram_size;
-    qxl_set_dirty(addr, end);
+    ram_addr_t addr = qxl->shadow_rom.ram_header_offset;
+    ram_addr_t end  = qxl->vga.vram_size;
+    qxl_set_dirty(&qxl->vga.vram, addr, end);
 }
 
 /*
@@ -819,20 +817,6 @@ static void qxl_set_irq(PCIQXLDevice *d)
     qxl_ring_set_dirty(d);
 }
 
-static void qxl_write_config(PCIDevice *d, uint32_t address,
-                             uint32_t val, int len)
-{
-    PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, d);
-    VGACommonState *vga = &qxl->vga;
-
-    vga_dirty_log_stop(vga);
-    pci_default_write_config(d, address, val, len);
-    if (vga->map_addr && qxl->pci.io_regions[0].addr == -1) {
-        vga->map_addr = 0;
-    }
-    vga_dirty_log_start(vga);
-}
-
 static void qxl_check_state(PCIQXLDevice *d)
 {
     QXLRam *ram = d->ram;
@@ -959,10 +943,10 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
 
     switch (pci_region) {
     case QXL_RAM_RANGE_INDEX:
-        virt_start = (intptr_t)qemu_get_ram_ptr(d->vga.vram_offset);
+        virt_start = (intptr_t)memory_region_get_ram_ptr(&d->vga.vram);
         break;
     case QXL_VRAM_RANGE_INDEX:
-        virt_start = (intptr_t)qemu_get_ram_ptr(d->vram_offset);
+        virt_start = (intptr_t)memory_region_get_ram_ptr(&d->vram_bar);
         break;
     default:
         /* should not happen */
@@ -1132,10 +1116,11 @@ static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
     qxl_rom_set_dirty(d);
 }
 
-static void ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void ioport_write(void *opaque, target_phys_addr_t addr,
+                         uint64_t val, unsigned size)
 {
     PCIQXLDevice *d = opaque;
-    uint32_t io_port = addr - d->io_base;
+    uint32_t io_port = addr;
     qxl_async_io async = QXL_SYNC;
 #if SPICE_INTERFACE_QXL_MINOR >= 1
     uint32_t orig_io_port = io_port;
@@ -1241,7 +1226,7 @@ async_common:
         d->oom_running = 0;
         break;
     case QXL_IO_SET_MODE:
-        dprint(d, 1, "QXL_SET_MODE %d\n", val);
+        dprint(d, 1, "QXL_SET_MODE %d\n", (int)val);
         qxl_set_mode(d, val, 0);
         break;
     case QXL_IO_LOG:
@@ -1348,7 +1333,8 @@ cancel_async:
 #endif
 }
 
-static uint32_t ioport_read(void *opaque, uint32_t addr)
+static uint64_t ioport_read(void *opaque, target_phys_addr_t addr,
+                            unsigned size)
 {
     PCIQXLDevice *d = opaque;
 
@@ -1356,42 +1342,14 @@ static uint32_t ioport_read(void *opaque, uint32_t addr)
     return 0xff;
 }
 
-static void qxl_map(PCIDevice *pci, int region_num,
-                    pcibus_t addr, pcibus_t size, int type)
-{
-    static const char *names[] = {
-        [ QXL_IO_RANGE_INDEX ]   = "ioports",
-        [ QXL_RAM_RANGE_INDEX ]  = "devram",
-        [ QXL_ROM_RANGE_INDEX ]  = "rom",
-        [ QXL_VRAM_RANGE_INDEX ] = "vram",
-    };
-    PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, pci);
-
-    dprint(qxl, 1, "%s: bar %d [%s] addr 0x%lx size 0x%lx\n", __FUNCTION__,
-            region_num, names[region_num], addr, size);
-
-    switch (region_num) {
-    case QXL_IO_RANGE_INDEX:
-        register_ioport_write(addr, size, 1, ioport_write, pci);
-        register_ioport_read(addr, size, 1, ioport_read, pci);
-        qxl->io_base = addr;
-        break;
-    case QXL_RAM_RANGE_INDEX:
-        cpu_register_physical_memory(addr, size, qxl->vga.vram_offset | IO_MEM_RAM);
-        qxl->vga.map_addr = addr;
-        qxl->vga.map_end = addr + size;
-        if (qxl->id == 0) {
-            vga_dirty_log_start(&qxl->vga);
-        }
-        break;
-    case QXL_ROM_RANGE_INDEX:
-        cpu_register_physical_memory(addr, size, qxl->rom_offset | IO_MEM_ROM);
-        break;
-    case QXL_VRAM_RANGE_INDEX:
-        cpu_register_physical_memory(addr, size, qxl->vram_offset | IO_MEM_RAM);
-        break;
-    }
-}
+static const MemoryRegionOps qxl_io_ops = {
+    .read = ioport_read,
+    .write = ioport_write,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
 
 static void pipe_read(void *opaque)
 {
@@ -1511,10 +1469,9 @@ static void qxl_vm_change_state_handler(void *opaque, int running, int reason)
          * to make sure they are saved */
         /* FIXME #1: should go out during "live" stage */
         /* FIXME #2: we only need to save the areas which are actually used */
-        ram_addr_t vram_addr = qxl->vram_offset;
-        ram_addr_t surface0_addr = qxl->vga.vram_offset + qxl->shadow_rom.draw_area_offset;
-        qxl_set_dirty(vram_addr, vram_addr + qxl->vram_size);
-        qxl_set_dirty(surface0_addr, surface0_addr + qxl->shadow_rom.surface0_area_size);
+        qxl_set_dirty(&qxl->vram_bar, 0, qxl->vram_size);
+        qxl_set_dirty(&qxl->vga.vram, qxl->shadow_rom.draw_area_offset,
+                      qxl->shadow_rom.surface0_area_size);
     }
 }
 
@@ -1580,7 +1537,8 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     pci_set_byte(&config[PCI_INTERRUPT_PIN], 1);
 
     qxl->rom_size = qxl_rom_size();
-    qxl->rom_offset = qemu_ram_alloc(&qxl->pci.qdev, "qxl.vrom", qxl->rom_size);
+    memory_region_init_ram(&qxl->rom_bar, &qxl->pci.qdev, "qxl.vrom",
+                           qxl->rom_size);
     init_qxl_rom(qxl);
     init_qxl_ram(qxl);
 
@@ -1591,26 +1549,32 @@ static int qxl_init_common(PCIQXLDevice *qxl)
         qxl->vram_size = 4096;
     }
     qxl->vram_size = msb_mask(qxl->vram_size * 2 - 1);
-    qxl->vram_offset = qemu_ram_alloc(&qxl->pci.qdev, "qxl.vram", qxl->vram_size);
+    memory_region_init_ram(&qxl->vram_bar, &qxl->pci.qdev, "qxl.vram",
+                           qxl->vram_size);
 
     io_size = msb_mask(QXL_IO_RANGE_SIZE * 2 - 1);
     if (qxl->revision == 1) {
         io_size = 8;
     }
 
-    pci_register_bar(&qxl->pci, QXL_IO_RANGE_INDEX,
-                     io_size, PCI_BASE_ADDRESS_SPACE_IO, qxl_map);
+    memory_region_init_io(&qxl->io_bar, &qxl_io_ops, qxl,
+                          "qxl-ioports", io_size);
+    if (qxl->id == 0) {
+        vga_dirty_log_start(&qxl->vga);
+    }
 
-    pci_register_bar(&qxl->pci, QXL_ROM_RANGE_INDEX,
-                     qxl->rom_size, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                     qxl_map);
 
-    pci_register_bar(&qxl->pci, QXL_RAM_RANGE_INDEX,
-                     qxl->vga.vram_size, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                     qxl_map);
+    pci_register_bar_region(&qxl->pci, QXL_IO_RANGE_INDEX,
+                            PCI_BASE_ADDRESS_SPACE_IO, &qxl->io_bar);
 
-    pci_register_bar(&qxl->pci, QXL_VRAM_RANGE_INDEX, qxl->vram_size,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, qxl_map);
+    pci_register_bar_region(&qxl->pci, QXL_ROM_RANGE_INDEX,
+                            PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->rom_bar);
+
+    pci_register_bar_region(&qxl->pci, QXL_RAM_RANGE_INDEX,
+                            PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vga.vram);
+
+    pci_register_bar_region(&qxl->pci, QXL_VRAM_RANGE_INDEX,
+                            PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vram_bar);
 
     qxl->ssd.qxl.base.sif = &qxl_interface.base;
     qxl->ssd.qxl.id = qxl->id;
@@ -1664,9 +1628,9 @@ static int qxl_init_secondary(PCIDevice *dev)
         ram_size = 16 * 1024 * 1024;
     }
     qxl->vga.vram_size = ram_size;
-    qxl->vga.vram_offset = qemu_ram_alloc(&qxl->pci.qdev, "qxl.vgavram",
-                                          qxl->vga.vram_size);
-    qxl->vga.vram_ptr = qemu_get_ram_ptr(qxl->vga.vram_offset);
+    memory_region_init_ram(&qxl->vga.vram, &qxl->pci.qdev, "qxl.vgavram",
+                           qxl->vga.vram_size);
+    qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
 
     return qxl_init_common(qxl);
 }
@@ -1829,7 +1793,6 @@ static PCIDeviceInfo qxl_info_primary = {
     .qdev.vmsd    = &qxl_vmstate,
     .no_hotplug   = 1,
     .init         = qxl_init_primary,
-    .config_write = qxl_write_config,
     .romfile      = "vgabios-qxl.bin",
     .vendor_id    = REDHAT_PCI_VENDOR_ID,
     .device_id    = QXL_DEVICE_ID_STABLE,

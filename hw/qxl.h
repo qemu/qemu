@@ -79,14 +79,14 @@ typedef struct PCIQXLDevice {
     QXLRom             *rom;
     QXLModes           *modes;
     uint32_t           rom_size;
-    uint64_t           rom_offset;
+    MemoryRegion       rom_bar;
 
     /* vram pci bar */
     uint32_t           vram_size;
-    uint64_t           vram_offset;
+    MemoryRegion       vram_bar;
 
     /* io bar */
-    uint32_t           io_base;
+    MemoryRegion       io_bar;
 } PCIQXLDevice;
 
 #define PANIC_ON(x) if ((x)) {                         \

@@ -86,7 +86,7 @@ void qxl_render_update(PCIQXLDevice *qxl)
         }
         qemu_free_displaysurface(vga->ds);
 
-        qxl->guest_primary.data = qemu_get_ram_ptr(qxl->vga.vram_offset);
+        qxl->guest_primary.data = memory_region_get_ram_ptr(&qxl->vga.vram);
         if (qxl->guest_primary.stride < 0) {
             /* spice surface is upside down -> need extra buffer to flip */
             qxl->guest_primary.stride = -qxl->guest_primary.stride;

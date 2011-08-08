@@ -47,29 +47,6 @@ static const VMStateDescription vmstate_vga_pci = {
     }
 };
 
-static void vga_map(PCIDevice *pci_dev, int region_num,
-                    pcibus_t addr, pcibus_t size, int type)
-{
-    PCIVGAState *d = (PCIVGAState *)pci_dev;
-    VGACommonState *s = &d->vga;
-
-    cpu_register_physical_memory(addr, s->vram_size, s->vram_offset);
-    s->map_addr = addr;
-    s->map_end = addr + s->vram_size;
-    vga_dirty_log_start(s);
-}
-
-static void pci_vga_write_config(PCIDevice *d,
-                                 uint32_t address, uint32_t val, int len)
-{
-    PCIVGAState *pvs = container_of(d, PCIVGAState, dev);
-    VGACommonState *s = &pvs->vga;
-
-    pci_default_write_config(d, address, val, len);
-    if (s->map_addr && pvs->dev.io_regions[0].addr == -1)
-        s->map_addr = 0;
-}
-
 static int pci_vga_initfn(PCIDevice *dev)
 {
      PCIVGAState *d = DO_UPCAST(PCIVGAState, dev, dev);
@@ -83,8 +60,8 @@ static int pci_vga_initfn(PCIDevice *dev)
                                   s->screen_dump, s->text_update, s);
 
      /* XXX: VGA_RAM_SIZE must be a power of two */
-     pci_register_bar(&d->dev, 0, VGA_RAM_SIZE,
-                      PCI_BASE_ADDRESS_MEM_PREFETCH, vga_map);
+     pci_register_bar_region(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH,
+                             &s->vram);
 
      if (!dev->rom_bar) {
          /* compatibility with pc-0.13 and older */
@@ -106,7 +83,6 @@ static PCIDeviceInfo vga_info = {
     .qdev.vmsd    = &vmstate_vga_pci,
     .no_hotplug   = 1,
     .init         = pci_vga_initfn,
-    .config_write = pci_vga_write_config,
     .romfile      = "vgabios-stdvga.bin",
 
     /* dummy VGA (same as Bochs ID) */
