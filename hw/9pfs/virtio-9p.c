@@ -2696,6 +2696,7 @@ out_nofid:
     err = offset;
     err += pdu_marshal(pdu, offset, "b", status);
     complete_pdu(s, pdu, err);
+    v9fs_string_free(&flock->client_id);
     g_free(flock);
 }
 
@@ -2736,6 +2737,7 @@ out:
     put_fid(s, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
+    v9fs_string_free(&glock->client_id);
     g_free(glock);
 }
 
