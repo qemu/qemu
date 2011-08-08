@@ -4,6 +4,7 @@
 #define NE2000_MEM_SIZE     NE2000_PMEM_END
 
 typedef struct NE2000State {
+    MemoryRegion io;
     uint8_t cmd;
     uint32_t start;
     uint32_t stop;
@@ -27,12 +28,7 @@ typedef struct NE2000State {
     uint8_t mem[NE2000_MEM_SIZE];
 } NE2000State;
 
-void ne2000_ioport_write(void *opaque, uint32_t addr, uint32_t val);
-uint32_t ne2000_ioport_read(void *opaque, uint32_t addr);
-void ne2000_asic_ioport_write(void *opaque, uint32_t addr, uint32_t val);
-uint32_t ne2000_asic_ioport_read(void *opaque, uint32_t addr);
-void ne2000_reset_ioport_write(void *opaque, uint32_t addr, uint32_t val);
-uint32_t ne2000_reset_ioport_read(void *opaque, uint32_t addr);
+void ne2000_setup_io(NE2000State *s, unsigned size);
 extern const VMStateDescription vmstate_ne2000;
 void ne2000_reset(NE2000State *s);
 int ne2000_can_receive(VLANClientState *vc);
