@@ -289,7 +289,7 @@ struct AHCIDevice {
 typedef struct AHCIState {
     AHCIDevice *dev;
     AHCIControlRegs control_regs;
-    int mem;
+    MemoryRegion mem;
     int ports;
     qemu_irq irq;
 } AHCIState;

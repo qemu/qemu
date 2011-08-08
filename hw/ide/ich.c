@@ -98,8 +98,7 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     msi_init(dev, 0x50, 1, true, false);
     d->ahci.irq = d->card.irq[0];
 
-    /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
-    pci_register_bar_simple(&d->card, 5, 0x1000, 0, d->ahci.mem);
+    pci_register_bar_region(&d->card, 5, 0, &d->ahci.mem);
 
     return 0;
 }
