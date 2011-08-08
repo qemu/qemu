@@ -207,6 +207,7 @@ void pci_register_bar_simple(PCIDevice *pci_dev, int region_num,
                              pcibus_t size, uint8_t attr, ram_addr_t ram_addr);
 void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
                              uint8_t attr, MemoryRegion *memory);
+pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num);
 
 int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size);
