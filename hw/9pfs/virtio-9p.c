@@ -82,11 +82,6 @@ static int v9fs_do_lstat(V9fsState *s, V9fsString *path, struct stat *stbuf)
     return s->ops->lstat(&s->ctx, path->data, stbuf);
 }
 
-static DIR *v9fs_do_opendir(V9fsState *s, V9fsString *path)
-{
-    return s->ops->opendir(&s->ctx, path->data);
-}
-
 static void v9fs_do_rewinddir(V9fsState *s, DIR *dir)
 {
     return s->ops->rewinddir(&s->ctx, dir);
@@ -120,23 +115,6 @@ static int v9fs_do_chmod(V9fsState *s, V9fsString *path, mode_t mode)
     cred_init(&cred);
     cred.fc_mode = mode;
     return s->ops->chmod(&s->ctx, path->data, &cred);
-}
-
-static int v9fs_do_mknod(V9fsState *s, char *name,
-        mode_t mode, dev_t dev, uid_t uid, gid_t gid)
-{
-    FsCred cred;
-    cred_init(&cred);
-    cred.fc_uid = uid;
-    cred.fc_gid = gid;
-    cred.fc_mode = mode;
-    cred.fc_rdev = dev;
-    return s->ops->mknod(&s->ctx, name, &cred);
-}
-
-static int v9fs_do_fstat(V9fsState *s, int fd, struct stat *stbuf)
-{
-    return s->ops->fstat(&s->ctx, fd, stbuf);
 }
 
 static int v9fs_do_symlink(V9fsState *s, V9fsFidState *fidp,
@@ -2004,146 +1982,79 @@ out:
     g_free(vs);
 }
 
-static void v9fs_create_post_getiounit(V9fsState *s, V9fsCreateState *vs)
+static void v9fs_create(void *opaque)
 {
-    int err;
-    v9fs_string_copy(&vs->fidp->path, &vs->fullname);
-    stat_to_qid(&vs->stbuf, &vs->qid);
+    int32_t fid;
+    int err = 0;
+    size_t offset = 7;
+    V9fsFidState *fidp;
+    V9fsQID qid;
+    int32_t perm;
+    int8_t mode;
+    struct stat stbuf;
+    V9fsString name;
+    V9fsString extension;
+    V9fsString fullname;
+    int iounit;
+    V9fsPDU *pdu = opaque;
 
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, vs->iounit);
-    err = vs->offset;
+    v9fs_string_init(&fullname);
 
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->name);
-    v9fs_string_free(&vs->extension);
-    v9fs_string_free(&vs->fullname);
-    g_free(vs);
-}
+    pdu_unmarshal(pdu, offset, "dsdbs", &fid, &name,
+                  &perm, &mode, &extension);
 
-static void v9fs_post_create(V9fsState *s, V9fsCreateState *vs, int err)
-{
-    if (err == 0) {
-        vs->iounit = get_iounit(s, &vs->fidp->path);
-        v9fs_create_post_getiounit(s, vs);
-        return;
-    }
-
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->name);
-    v9fs_string_free(&vs->extension);
-    v9fs_string_free(&vs->fullname);
-    g_free(vs);
-}
-
-static void v9fs_create_post_perms(V9fsState *s, V9fsCreateState *vs, int err)
-{
-    if (err) {
-        err = -errno;
-    }
-    v9fs_post_create(s, vs, err);
-}
-
-static void v9fs_create_post_opendir(V9fsState *s, V9fsCreateState *vs,
-                                                                    int err)
-{
-    if (!vs->fidp->fs.dir) {
-        err = -errno;
-    }
-    vs->fidp->fid_type = P9_FID_DIR;
-    v9fs_post_create(s, vs, err);
-}
-
-static void v9fs_create_post_dir_lstat(V9fsState *s, V9fsCreateState *vs,
-                                                                    int err)
-{
-    if (err) {
-        err = -errno;
+    fidp = lookup_fid(pdu->s, fid);
+    if (fidp == NULL) {
+        err = -EINVAL;
         goto out;
     }
 
-    vs->fidp->fs.dir = v9fs_do_opendir(s, &vs->fullname);
-    v9fs_create_post_opendir(s, vs, err);
-    return;
-
-out:
-    v9fs_post_create(s, vs, err);
-}
-
-static void v9fs_create_post_mkdir(V9fsState *s, V9fsCreateState *vs, int err)
-{
-    if (err < 0) {
+    v9fs_string_sprintf(&fullname, "%s/%s", fidp->path.data, name.data);
+    err = v9fs_co_lstat(pdu->s, &fullname, &stbuf);
+    if (!err) {
+        err = -EEXIST;
+        goto out;
+    } else if (err != -ENOENT) {
         goto out;
     }
-
-    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
-    v9fs_create_post_dir_lstat(s, vs, err);
-    return;
-
-out:
-    v9fs_post_create(s, vs, err);
-}
-
-static void v9fs_create_post_fstat(V9fsState *s, V9fsCreateState *vs, int err)
-{
-    if (err) {
-        vs->fidp->fid_type = P9_FID_NONE;
-        close(vs->fidp->fs.fd);
-        err = -errno;
-    }
-    v9fs_post_create(s, vs, err);
-    return;
-}
-
-static void v9fs_create_post_open2(V9fsState *s, V9fsCreateState *vs, int err)
-{
-    if (err < 0) {
-        goto out;
-    }
-    vs->fidp->fid_type = P9_FID_FILE;
-    err = v9fs_do_fstat(s, vs->fidp->fs.fd, &vs->stbuf);
-    v9fs_create_post_fstat(s, vs, err);
-
-    return;
-
-out:
-    v9fs_post_create(s, vs, err);
-
-}
-
-static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
-{
-
-    if (err == 0 || errno != ENOENT) {
-        err = -errno;
-        goto out;
-    }
-
-    if (vs->perm & P9_STAT_MODE_DIR) {
-        err = v9fs_co_mkdir(s, vs->fullname.data, vs->perm & 0777,
-                vs->fidp->uid, -1);
-        v9fs_create_post_mkdir(s, vs, err);
-    } else if (vs->perm & P9_STAT_MODE_SYMLINK) {
-        err = v9fs_do_symlink(s, vs->fidp, vs->extension.data,
-                vs->fullname.data, -1);
-        v9fs_create_post_perms(s, vs, err);
-    } else if (vs->perm & P9_STAT_MODE_LINK) {
-        int32_t nfid = atoi(vs->extension.data);
-        V9fsFidState *nfidp = lookup_fid(s, nfid);
-        if (nfidp == NULL) {
-            err = -errno;
-            v9fs_post_create(s, vs, err);
+    if (perm & P9_STAT_MODE_DIR) {
+        err = v9fs_co_mkdir(pdu->s, fullname.data, perm & 0777,
+                            fidp->uid, -1);
+        if (err < 0) {
+            goto out;
         }
-        err = v9fs_do_link(s, &nfidp->path, &vs->fullname);
-        v9fs_create_post_perms(s, vs, err);
-    } else if (vs->perm & P9_STAT_MODE_DEVICE) {
+        err = v9fs_co_opendir(pdu->s, fidp);
+        if (err < 0) {
+            goto out;
+        }
+        fidp->fid_type = P9_FID_DIR;
+    } else if (perm & P9_STAT_MODE_SYMLINK) {
+        err = v9fs_do_symlink(pdu->s, fidp, extension.data,
+                              fullname.data, -1);
+        if (err < 0) {
+            err = -errno;
+            goto out;
+        }
+    } else if (perm & P9_STAT_MODE_LINK) {
+        int32_t nfid = atoi(extension.data);
+        V9fsFidState *nfidp = lookup_fid(pdu->s, nfid);
+        if (nfidp == NULL) {
+            err = -EINVAL;
+            goto out;
+        }
+        err = v9fs_do_link(pdu->s, &nfidp->path, &fullname);
+        if (err < 0) {
+            err = -errno;
+            goto out;
+        }
+    } else if (perm & P9_STAT_MODE_DEVICE) {
         char ctype;
         uint32_t major, minor;
         mode_t nmode = 0;
 
-        if (sscanf(vs->extension.data, "%c %u %u", &ctype, &major,
-                                        &minor) != 3) {
+        if (sscanf(extension.data, "%c %u %u", &ctype, &major, &minor) != 3) {
             err = -errno;
-            v9fs_post_create(s, vs, err);
+            goto out;
         }
 
         switch (ctype) {
@@ -2155,69 +2066,53 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
             break;
         default:
             err = -EIO;
-            v9fs_post_create(s, vs, err);
+            goto out;
         }
 
-        nmode |= vs->perm & 0777;
-        err = v9fs_do_mknod(s, vs->fullname.data, nmode,
-                makedev(major, minor), vs->fidp->uid, -1);
-        v9fs_create_post_perms(s, vs, err);
-    } else if (vs->perm & P9_STAT_MODE_NAMED_PIPE) {
-        err = v9fs_do_mknod(s, vs->fullname.data, S_IFIFO | (vs->perm & 0777),
-                0, vs->fidp->uid, -1);
-        v9fs_post_create(s, vs, err);
-    } else if (vs->perm & P9_STAT_MODE_SOCKET) {
-        err = v9fs_do_mknod(s, vs->fullname.data, S_IFSOCK | (vs->perm & 0777),
-                0, vs->fidp->uid, -1);
-        v9fs_post_create(s, vs, err);
+        nmode |= perm & 0777;
+        err = v9fs_co_mknod(pdu->s, &fullname, fidp->uid, -1,
+                            makedev(major, minor), nmode);
+        if (err < 0) {
+            goto out;
+        }
+    } else if (perm & P9_STAT_MODE_NAMED_PIPE) {
+        err = v9fs_co_mknod(pdu->s, &fullname, fidp->uid, -1,
+                            0, S_IFIFO | (perm & 0777));
+        if (err < 0) {
+            goto out;
+        }
+    } else if (perm & P9_STAT_MODE_SOCKET) {
+        err = v9fs_co_mknod(pdu->s, &fullname, fidp->uid, -1,
+                            0, S_IFSOCK | (perm & 0777));
+        if (err < 0) {
+            goto out;
+        }
     } else {
-        err = v9fs_co_open2(s, vs->fidp, vs->fullname.data, -1,
-                omode_to_uflags(vs->mode)|O_CREAT, vs->perm);
-
-        v9fs_create_post_open2(s, vs, err);
+        err = v9fs_co_open2(pdu->s, fidp, fullname.data, -1,
+                            omode_to_uflags(mode)|O_CREAT, perm);
+        if (err < 0) {
+            goto out;
+        }
+        fidp->fid_type = P9_FID_FILE;
     }
-
-    return;
-
-out:
-    v9fs_post_create(s, vs, err);
-}
-
-static void v9fs_create(void *opaque)
-{
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
-    int32_t fid;
-    V9fsCreateState *vs;
-    int err = 0;
-
-    vs = g_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-
-    v9fs_string_init(&vs->fullname);
-
-    pdu_unmarshal(vs->pdu, vs->offset, "dsdbs", &fid, &vs->name,
-                                &vs->perm, &vs->mode, &vs->extension);
-
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
-        err = -EINVAL;
+    err = v9fs_co_lstat(pdu->s, &fullname, &stbuf);
+    if (err < 0) {
+        fidp->fid_type = P9_FID_NONE;
+        if (fidp->fs.fd) {
+            close(fidp->fs.fd);
+        }
         goto out;
     }
-
-    v9fs_string_sprintf(&vs->fullname, "%s/%s", vs->fidp->path.data,
-                                                        vs->name.data);
-
-    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
-    v9fs_create_post_lstat(s, vs, err);
-    return;
-
+    iounit = get_iounit(pdu->s, &fidp->path);
+    v9fs_string_copy(&fidp->path, &fullname);
+    stat_to_qid(&stbuf, &qid);
+    offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
+    err = offset;
 out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->name);
-    v9fs_string_free(&vs->extension);
-    g_free(vs);
+   complete_pdu(pdu->s, pdu, err);
+   v9fs_string_free(&name);
+   v9fs_string_free(&extension);
+   v9fs_string_free(&fullname);
 }
 
 static void v9fs_post_symlink(V9fsState *s, V9fsSymlinkState *vs, int err)
