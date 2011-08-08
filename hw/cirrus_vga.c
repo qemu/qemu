@@ -1956,7 +1956,9 @@ static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
  *
  ***************************************/
 
-static uint32_t cirrus_vga_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t cirrus_vga_mem_read(void *opaque,
+                                    target_phys_addr_t addr,
+                                    uint32_t size)
 {
     CirrusVGAState *s = opaque;
     unsigned bank_index;
@@ -1966,8 +1968,6 @@ static uint32_t cirrus_vga_mem_readb(void *opaque, target_phys_addr_t addr)
     if ((s->vga.sr[0x07] & 0x01) == 0) {
 	return vga_mem_readb(s, addr);
     }
-
-    addr &= 0x1ffff;
 
     if (addr < 0x10000) {
 	/* XXX handle bitblt */
@@ -2000,28 +2000,10 @@ static uint32_t cirrus_vga_mem_readb(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t cirrus_vga_mem_readw(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-
-    v = cirrus_vga_mem_readb(opaque, addr);
-    v |= cirrus_vga_mem_readb(opaque, addr + 1) << 8;
-    return v;
-}
-
-static uint32_t cirrus_vga_mem_readl(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-
-    v = cirrus_vga_mem_readb(opaque, addr);
-    v |= cirrus_vga_mem_readb(opaque, addr + 1) << 8;
-    v |= cirrus_vga_mem_readb(opaque, addr + 2) << 16;
-    v |= cirrus_vga_mem_readb(opaque, addr + 3) << 24;
-    return v;
-}
-
-static void cirrus_vga_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                  uint32_t mem_value)
+static void cirrus_vga_mem_write(void *opaque,
+                                 target_phys_addr_t addr,
+                                 uint64_t mem_value,
+                                 uint32_t size)
 {
     CirrusVGAState *s = opaque;
     unsigned bank_index;
@@ -2032,8 +2014,6 @@ static void cirrus_vga_mem_writeb(void *opaque, target_phys_addr_t addr,
 	vga_mem_writeb(s, addr, mem_value);
         return;
     }
-
-    addr &= 0x1ffff;
 
     if (addr < 0x10000) {
 	if (s->cirrus_srcptr != s->cirrus_srcptr_end) {
@@ -2084,51 +2064,14 @@ static void cirrus_vga_mem_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static void cirrus_vga_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    cirrus_vga_mem_writeb(opaque, addr, val & 0xff);
-    cirrus_vga_mem_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-}
-
-static void cirrus_vga_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    cirrus_vga_mem_writeb(opaque, addr, val & 0xff);
-    cirrus_vga_mem_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-    cirrus_vga_mem_writeb(opaque, addr + 2, (val >> 16) & 0xff);
-    cirrus_vga_mem_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-}
-
-static uint64_t cirrus_vga_mem_read(void *opaque,
-                                    target_phys_addr_t addr,
-                                    uint32_t size)
-{
-    CirrusVGAState *s = opaque;
-
-    switch (size) {
-    case 1: return cirrus_vga_mem_readb(s, addr);
-    case 2: return cirrus_vga_mem_readw(s, addr);
-    case 4: return cirrus_vga_mem_readl(s, addr);
-    default: abort();
-    }
-}
-
-static void cirrus_vga_mem_write(void *opaque, target_phys_addr_t addr,
-                                 uint64_t data, unsigned size)
-{
-    CirrusVGAState *s = opaque;
-
-    switch (size) {
-    case 1: return cirrus_vga_mem_writeb(s, addr, data);
-    case 2: return cirrus_vga_mem_writew(s, addr, data);
-    case 4: return cirrus_vga_mem_writel(s, addr, data);
-    default: abort();
-    }
-};
-
 static const MemoryRegionOps cirrus_vga_mem_ops = {
     .read = cirrus_vga_mem_read,
     .write = cirrus_vga_mem_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 /***************************************
