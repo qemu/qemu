@@ -952,6 +952,11 @@ void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
     pci_dev->io_regions[region_num].memory = memory;
 }
 
+pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num)
+{
+    return pci_dev->io_regions[region_num].addr;
+}
+
 static void pci_bridge_filter(PCIDevice *d, pcibus_t *addr, pcibus_t *size,
                               uint8_t type)
 {
