@@ -228,13 +228,14 @@ typedef struct {
     PCIDevice dev;
     /* Hash register (multicast mask array, multiple individual addresses). */
     uint8_t mult[8];
-    int mmio_index;
+    MemoryRegion mmio_bar;
+    MemoryRegion io_bar;
+    MemoryRegion flash_bar;
     NICState *nic;
     NICConf conf;
     uint8_t scb_stat;           /* SCB stat/ack byte */
     uint8_t int_stat;           /* PCI interrupt status */
     /* region must not be saved by nic_save. */
-    uint32_t region1;           /* PCI region 1 address */
     uint16_t mdimem[32];
     eeprom_t *eeprom;
     uint32_t device;            /* device variant */
@@ -1584,147 +1585,36 @@ static void eepro100_write4(EEPRO100State * s, uint32_t addr, uint32_t val)
     }
 }
 
-/*****************************************************************************
- *
- * Port mapped I/O.
- *
- ****************************************************************************/
-
-static uint32_t ioport_read1(void *opaque, uint32_t addr)
+static uint64_t eepro100_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     EEPRO100State *s = opaque;
-#if 0
-    logout("addr=%s\n", regname(addr));
-#endif
-    return eepro100_read1(s, addr - s->region1);
+
+    switch (size) {
+    case 1: return eepro100_read1(s, addr);
+    case 2: return eepro100_read2(s, addr);
+    case 4: return eepro100_read4(s, addr);
+    default: abort();
+    }
 }
 
-static uint32_t ioport_read2(void *opaque, uint32_t addr)
+static void eepro100_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t data, unsigned size)
 {
     EEPRO100State *s = opaque;
-    return eepro100_read2(s, addr - s->region1);
+
+    switch (size) {
+    case 1: return eepro100_write1(s, addr, data);
+    case 2: return eepro100_write2(s, addr, data);
+    case 4: return eepro100_write4(s, addr, data);
+    default: abort();
+    }
 }
 
-static uint32_t ioport_read4(void *opaque, uint32_t addr)
-{
-    EEPRO100State *s = opaque;
-    return eepro100_read4(s, addr - s->region1);
-}
-
-static void ioport_write1(void *opaque, uint32_t addr, uint32_t val)
-{
-    EEPRO100State *s = opaque;
-#if 0
-    logout("addr=%s val=0x%02x\n", regname(addr), val);
-#endif
-    eepro100_write1(s, addr - s->region1, val);
-}
-
-static void ioport_write2(void *opaque, uint32_t addr, uint32_t val)
-{
-    EEPRO100State *s = opaque;
-    eepro100_write2(s, addr - s->region1, val);
-}
-
-static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
-{
-    EEPRO100State *s = opaque;
-    eepro100_write4(s, addr - s->region1, val);
-}
-
-/***********************************************************/
-/* PCI EEPRO100 definitions */
-
-static void pci_map(PCIDevice * pci_dev, int region_num,
-                    pcibus_t addr, pcibus_t size, int type)
-{
-    EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
-
-    TRACE(OTHER, logout("region %d, addr=0x%08"FMT_PCIBUS", "
-          "size=0x%08"FMT_PCIBUS", type=%d\n",
-          region_num, addr, size, type));
-
-    assert(region_num == 1);
-    register_ioport_write(addr, size, 1, ioport_write1, s);
-    register_ioport_read(addr, size, 1, ioport_read1, s);
-    register_ioport_write(addr, size, 2, ioport_write2, s);
-    register_ioport_read(addr, size, 2, ioport_read2, s);
-    register_ioport_write(addr, size, 4, ioport_write4, s);
-    register_ioport_read(addr, size, 4, ioport_read4, s);
-
-    s->region1 = addr;
-}
-
-/*****************************************************************************
- *
- * Memory mapped I/O.
- *
- ****************************************************************************/
-
-static void pci_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    EEPRO100State *s = opaque;
-#if 0
-    logout("addr=%s val=0x%02x\n", regname(addr), val);
-#endif
-    eepro100_write1(s, addr, val);
-}
-
-static void pci_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    EEPRO100State *s = opaque;
-#if 0
-    logout("addr=%s val=0x%02x\n", regname(addr), val);
-#endif
-    eepro100_write2(s, addr, val);
-}
-
-static void pci_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    EEPRO100State *s = opaque;
-#if 0
-    logout("addr=%s val=0x%02x\n", regname(addr), val);
-#endif
-    eepro100_write4(s, addr, val);
-}
-
-static uint32_t pci_mmio_readb(void *opaque, target_phys_addr_t addr)
-{
-    EEPRO100State *s = opaque;
-#if 0
-    logout("addr=%s\n", regname(addr));
-#endif
-    return eepro100_read1(s, addr);
-}
-
-static uint32_t pci_mmio_readw(void *opaque, target_phys_addr_t addr)
-{
-    EEPRO100State *s = opaque;
-#if 0
-    logout("addr=%s\n", regname(addr));
-#endif
-    return eepro100_read2(s, addr);
-}
-
-static uint32_t pci_mmio_readl(void *opaque, target_phys_addr_t addr)
-{
-    EEPRO100State *s = opaque;
-#if 0
-    logout("addr=%s\n", regname(addr));
-#endif
-    return eepro100_read4(s, addr);
-}
-
-static CPUWriteMemoryFunc * const pci_mmio_write[] = {
-    pci_mmio_writeb,
-    pci_mmio_writew,
-    pci_mmio_writel
-};
-
-static CPUReadMemoryFunc * const pci_mmio_read[] = {
-    pci_mmio_readb,
-    pci_mmio_readw,
-    pci_mmio_readl
+static const MemoryRegionOps eepro100_ops = {
+    .read = eepro100_read,
+    .write = eepro100_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int nic_can_receive(VLANClientState *nc)
@@ -1953,7 +1843,9 @@ static int pci_nic_uninit(PCIDevice *pci_dev)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
 
-    cpu_unregister_io_memory(s->mmio_index);
+    memory_region_destroy(&s->mmio_bar);
+    memory_region_destroy(&s->io_bar);
+    memory_region_destroy(&s->flash_bar);
     vmstate_unregister(&pci_dev->qdev, s->vmstate, s);
     eeprom93xx_free(&pci_dev->qdev, s->eeprom);
     qemu_del_vlan_client(&s->nic->nc);
@@ -1985,20 +1877,20 @@ static int e100_nic_init(PCIDevice *pci_dev)
     s->eeprom = eeprom93xx_new(&pci_dev->qdev, EEPROM_SIZE);
 
     /* Handler for memory-mapped I/O */
-    s->mmio_index =
-        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s,
-                               DEVICE_LITTLE_ENDIAN);
-
-    pci_register_bar_simple(&s->dev, 0, PCI_MEM_SIZE,
-                            PCI_BASE_ADDRESS_MEM_PREFETCH, s->mmio_index);
-
-    pci_register_bar(&s->dev, 1, PCI_IO_SIZE, PCI_BASE_ADDRESS_SPACE_IO,
-                           pci_map);
-    pci_register_bar_simple(&s->dev, 2, PCI_FLASH_SIZE, 0, s->mmio_index);
+    memory_region_init_io(&s->mmio_bar, &eepro100_ops, s, "eepro100-mmio",
+                          PCI_MEM_SIZE);
+    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH,
+                            &s->mmio_bar);
+    memory_region_init_io(&s->io_bar, &eepro100_ops, s, "eepro100-io",
+                          PCI_IO_SIZE);
+    pci_register_bar_region(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
+    /* FIXME: flash aliases to mmio?! */
+    memory_region_init_io(&s->flash_bar, &eepro100_ops, s, "eepro100-flash",
+                          PCI_FLASH_SIZE);
+    pci_register_bar_region(&s->dev, 2, 0, &s->flash_bar);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     logout("macaddr: %s\n", nic_dump(&s->conf.macaddr.a[0], 6));
-    assert(s->region1 == 0);
 
     nic_reset(s);
 
