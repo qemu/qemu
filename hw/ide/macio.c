@@ -35,6 +35,7 @@
 /* MacIO based PowerPC IDE */
 
 typedef struct MACIOIDEState {
+    MemoryRegion mem;
     IDEBus bus;
     BlockDriverAIOCB *aiocb;
 } MACIOIDEState;
@@ -281,16 +282,20 @@ static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc * const pmac_ide_write[] = {
-    pmac_ide_writeb,
-    pmac_ide_writew,
-    pmac_ide_writel,
-};
-
-static CPUReadMemoryFunc * const pmac_ide_read[] = {
-    pmac_ide_readb,
-    pmac_ide_readw,
-    pmac_ide_readl,
+static MemoryRegionOps pmac_ide_ops = {
+    .old_mmio = {
+        .write = {
+            pmac_ide_writeb,
+            pmac_ide_writew,
+            pmac_ide_writel,
+        },
+        .read = {
+            pmac_ide_readb,
+            pmac_ide_readw,
+            pmac_ide_readl,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_pmac = {
@@ -315,11 +320,10 @@ static void pmac_ide_reset(void *opaque)
 /* hd_table must contain 4 block drivers */
 /* PowerMac uses memory mapped registers, not I/O. Return the memory
    I/O index to access the ide. */
-int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
-		   void *dbdma, int channel, qemu_irq dma_irq)
+MemoryRegion *pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
+                             void *dbdma, int channel, qemu_irq dma_irq)
 {
     MACIOIDEState *d;
-    int pmac_ide_memory;
 
     d = qemu_mallocz(sizeof(MACIOIDEState));
     ide_init2_with_non_qdev_drives(&d->bus, hd_table[0], hd_table[1], irq);
@@ -327,11 +331,9 @@ int pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
     if (dbdma)
         DBDMA_register_channel(dbdma, channel, dma_irq, pmac_ide_transfer, pmac_ide_flush, d);
 
-    pmac_ide_memory = cpu_register_io_memory(pmac_ide_read,
-                                             pmac_ide_write, d,
-                                             DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&d->mem, &pmac_ide_ops, d, "pmac-ide", 0x1000);
     vmstate_register(NULL, 0, &vmstate_pmac, d);
     qemu_register_reset(pmac_ide_reset, d);
 
-    return pmac_ide_memory;
+    return &d->mem;
 }

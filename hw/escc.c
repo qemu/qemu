@@ -126,7 +126,7 @@ struct SerialState {
     SysBusDevice busdev;
     struct ChannelState chn[2];
     uint32_t it_shift;
-    int mmio_index;
+    MemoryRegion mmio;
     uint32_t disabled;
     uint32_t frequency;
 };
@@ -490,7 +490,8 @@ static void escc_update_parameters(ChannelState *s)
     qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 }
 
-static void escc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void escc_mem_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned size)
 {
     SerialState *serial = opaque;
     ChannelState *s;
@@ -592,7 +593,8 @@ static void escc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static uint32_t escc_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t escc_mem_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     SerialState *serial = opaque;
     ChannelState *s;
@@ -626,6 +628,16 @@ static uint32_t escc_mem_readb(void *opaque, target_phys_addr_t addr)
     }
     return 0;
 }
+
+static const MemoryRegionOps escc_mem_ops = {
+    .read = escc_mem_read,
+    .write = escc_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
 
 static int serial_can_receive(void *opaque)
 {
@@ -668,18 +680,6 @@ static void serial_event(void *opaque, int event)
         serial_receive_break(s);
 }
 
-static CPUReadMemoryFunc * const escc_mem_read[3] = {
-    escc_mem_readb,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const escc_mem_write[3] = {
-    escc_mem_writeb,
-    NULL,
-    NULL,
-};
-
 static const VMStateDescription vmstate_escc_chn = {
     .name ="escc_chn",
     .version_id = 2,
@@ -712,7 +712,7 @@ static const VMStateDescription vmstate_escc = {
     }
 };
 
-int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
+MemoryRegion *escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
               CharDriverState *chrA, CharDriverState *chrB,
               int clock, int it_shift)
 {
@@ -737,7 +737,7 @@ int escc_init(target_phys_addr_t base, qemu_irq irqA, qemu_irq irqB,
     }
 
     d = FROM_SYSBUS(SerialState, s);
-    return d->mmio_index;
+    return &d->mmio;
 }
 
 static const uint8_t keycodes[128] = {
@@ -901,7 +901,6 @@ void slavio_serial_ms_kbd_init(target_phys_addr_t base, qemu_irq irq,
 static int escc_init1(SysBusDevice *dev)
 {
     SerialState *s = FROM_SYSBUS(SerialState, dev);
-    int io;
     unsigned int i;
 
     s->chn[0].disabled = s->disabled;
@@ -918,10 +917,9 @@ static int escc_init1(SysBusDevice *dev)
     s->chn[0].otherchn = &s->chn[1];
     s->chn[1].otherchn = &s->chn[0];
 
-    io = cpu_register_io_memory(escc_mem_read, escc_mem_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, ESCC_SIZE << s->it_shift, io);
-    s->mmio_index = io;
+    memory_region_init_io(&s->mmio, &escc_mem_ops, s, "escc",
+                          ESCC_SIZE << s->it_shift);
+    sysbus_init_mmio_region(dev, &s->mmio);
 
     if (s->chn[0].type == mouse) {
         qemu_add_mouse_event_handler(sunmouse_event, &s->chn[0], 0,

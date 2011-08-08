@@ -42,15 +42,16 @@
 #define ESCC_CLOCK 3686400
 
 /* Cuda */
-void cuda_init (int *cuda_mem_index, qemu_irq irq);
+void cuda_init (MemoryRegion **cuda_mem, qemu_irq irq);
 
 /* MacIO */
-void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
-                 int dbdma_mem_index, int cuda_mem_index, void *nvram,
-                 int nb_ide, int *ide_mem_index, int escc_mem_index);
+void macio_init (PCIBus *bus, int device_id, int is_oldworld,
+                 MemoryRegion *pic_mem, MemoryRegion *dbdma_mem,
+                 MemoryRegion *cuda_mem, void *nvram,
+                 int nb_ide, MemoryRegion **ide_mem, MemoryRegion *escc_mem);
 
 /* Heathrow PIC */
-qemu_irq *heathrow_pic_init(int *pmem_index,
+qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
                             int nb_cpus, qemu_irq **irqs);
 
 /* Grackle PCI */
@@ -69,9 +70,10 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
 /* Mac NVRAM */
 typedef struct MacIONVRAMState MacIONVRAMState;
 
-MacIONVRAMState *macio_nvram_init (int *mem_index, target_phys_addr_t size,
+MacIONVRAMState *macio_nvram_init (target_phys_addr_t size,
                                    unsigned int it_shift);
-void macio_nvram_map (void *opaque, target_phys_addr_t mem_base);
+void macio_nvram_setup_bar(MacIONVRAMState *s, MemoryRegion *bar,
+                           target_phys_addr_t mem_base);
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
 uint32_t macio_nvram_read (void *opaque, uint32_t addr);
 void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val);

@@ -43,6 +43,7 @@ typedef struct HeathrowPIC {
 } HeathrowPIC;
 
 typedef struct HeathrowPICS {
+    MemoryRegion mem;
     HeathrowPIC pics[2];
     qemu_irq *irqs;
 } HeathrowPICS;
@@ -62,7 +63,8 @@ static void heathrow_pic_update(HeathrowPICS *s)
     }
 }
 
-static void pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void pic_write(void *opaque, target_phys_addr_t addr,
+                      uint64_t value, unsigned size)
 {
     HeathrowPICS *s = opaque;
     HeathrowPIC *pic;
@@ -89,7 +91,8 @@ static void pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t pic_read(void *opaque, target_phys_addr_t addr,
+                         unsigned size)
 {
     HeathrowPICS *s = opaque;
     HeathrowPIC *pic;
@@ -120,18 +123,11 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUWriteMemoryFunc * const pic_write[] = {
-    &pic_writel,
-    &pic_writel,
-    &pic_writel,
+static const MemoryRegionOps heathrow_pic_ops = {
+    .read = pic_read,
+    .write = pic_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
-
-static CPUReadMemoryFunc * const pic_read[] = {
-    &pic_readl,
-    &pic_readl,
-    &pic_readl,
-};
-
 
 static void heathrow_pic_set_irq(void *opaque, int num, int level)
 {
@@ -201,7 +197,7 @@ static void heathrow_pic_reset(void *opaque)
     s->pics[1].level_triggered = 0x1ff00000;
 }
 
-qemu_irq *heathrow_pic_init(int *pmem_index,
+qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
                             int nb_cpus, qemu_irq **irqs)
 {
     HeathrowPICS *s;
@@ -209,8 +205,9 @@ qemu_irq *heathrow_pic_init(int *pmem_index,
     s = qemu_mallocz(sizeof(HeathrowPICS));
     /* only 1 CPU */
     s->irqs = irqs[0];
-    *pmem_index = cpu_register_io_memory(pic_read, pic_write, s,
-                                         DEVICE_LITTLE_ENDIAN);
+    memory_region_init_io(&s->mem, &heathrow_pic_ops, s,
+                          "heathrow-pic", 0x1000);
+    *pmem = &s->mem;
 
     vmstate_register(NULL, -1, &vmstate_heathrow_pic, s);
     qemu_register_reset(heathrow_pic_reset, s);

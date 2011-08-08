@@ -30,58 +30,55 @@
 typedef struct macio_state_t macio_state_t;
 struct macio_state_t {
     int is_oldworld;
-    int pic_mem_index;
-    int dbdma_mem_index;
-    int cuda_mem_index;
-    int escc_mem_index;
+    MemoryRegion bar;
+    MemoryRegion *pic_mem;
+    MemoryRegion *dbdma_mem;
+    MemoryRegion *cuda_mem;
+    MemoryRegion *escc_mem;
     void *nvram;
     int nb_ide;
-    int ide_mem_index[4];
+    MemoryRegion *ide_mem[4];
 };
 
-static void macio_map (PCIDevice *pci_dev, int region_num,
-                       pcibus_t addr, pcibus_t size, int type)
+static void macio_bar_setup(macio_state_t *macio_state)
 {
-    macio_state_t *macio_state;
     int i;
+    MemoryRegion *bar = &macio_state->bar;
 
-    macio_state = (macio_state_t *)(pci_dev + 1);
-    if (macio_state->pic_mem_index >= 0) {
+    memory_region_init(bar, "macio", 0x80000);
+    if (macio_state->pic_mem) {
         if (macio_state->is_oldworld) {
             /* Heathrow PIC */
-            cpu_register_physical_memory(addr + 0x00000, 0x1000,
-                                         macio_state->pic_mem_index);
+            memory_region_add_subregion(bar, 0x00000, macio_state->pic_mem);
         } else {
             /* OpenPIC */
-            cpu_register_physical_memory(addr + 0x40000, 0x40000,
-                                         macio_state->pic_mem_index);
+            memory_region_add_subregion(bar, 0x40000, macio_state->pic_mem);
         }
     }
-    if (macio_state->dbdma_mem_index >= 0) {
-        cpu_register_physical_memory(addr + 0x08000, 0x1000,
-                                     macio_state->dbdma_mem_index);
+    if (macio_state->dbdma_mem) {
+        memory_region_add_subregion(bar, 0x08000, macio_state->dbdma_mem);
     }
-    if (macio_state->escc_mem_index >= 0) {
-        cpu_register_physical_memory(addr + 0x13000, ESCC_SIZE << 4,
-                                     macio_state->escc_mem_index);
+    if (macio_state->escc_mem) {
+        memory_region_add_subregion(bar, 0x13000, macio_state->escc_mem);
     }
-    if (macio_state->cuda_mem_index >= 0) {
-        cpu_register_physical_memory(addr + 0x16000, 0x2000,
-                                     macio_state->cuda_mem_index);
+    if (macio_state->cuda_mem) {
+        memory_region_add_subregion(bar, 0x16000, macio_state->cuda_mem);
     }
     for (i = 0; i < macio_state->nb_ide; i++) {
-        if (macio_state->ide_mem_index[i] >= 0) {
-            cpu_register_physical_memory(addr + 0x1f000 + (i * 0x1000), 0x1000,
-                                         macio_state->ide_mem_index[i]);
+        if (macio_state->ide_mem[i]) {
+            memory_region_add_subregion(bar, 0x1f000 + (i * 0x1000),
+                                        macio_state->ide_mem[i]);
         }
     }
     if (macio_state->nvram != NULL)
-        macio_nvram_map(macio_state->nvram, addr + 0x60000);
+        macio_nvram_setup_bar(macio_state->nvram, bar, 0x60000);
 }
 
-void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
-                 int dbdma_mem_index, int cuda_mem_index, void *nvram,
-                 int nb_ide, int *ide_mem_index, int escc_mem_index)
+void macio_init (PCIBus *bus, int device_id, int is_oldworld,
+                 MemoryRegion *pic_mem, MemoryRegion *dbdma_mem,
+                 MemoryRegion *cuda_mem, void *nvram,
+                 int nb_ide, MemoryRegion **ide_mem,
+                 MemoryRegion *escc_mem)
 {
     PCIDevice *d;
     macio_state_t *macio_state;
@@ -92,18 +89,18 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
                             -1, NULL, NULL);
     macio_state = (macio_state_t *)(d + 1);
     macio_state->is_oldworld = is_oldworld;
-    macio_state->pic_mem_index = pic_mem_index;
-    macio_state->dbdma_mem_index = dbdma_mem_index;
-    macio_state->cuda_mem_index = cuda_mem_index;
-    macio_state->escc_mem_index = escc_mem_index;
+    macio_state->pic_mem = pic_mem;
+    macio_state->dbdma_mem = dbdma_mem;
+    macio_state->cuda_mem = cuda_mem;
+    macio_state->escc_mem = escc_mem;
     macio_state->nvram = nvram;
     if (nb_ide > 4)
         nb_ide = 4;
     macio_state->nb_ide = nb_ide;
     for (i = 0; i < nb_ide; i++)
-        macio_state->ide_mem_index[i] = ide_mem_index[i];
+        macio_state->ide_mem[i] = ide_mem[i];
     for (; i < 4; i++)
-        macio_state->ide_mem_index[i] = -1;
+        macio_state->ide_mem[i] = NULL;
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */
 
@@ -113,6 +110,7 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld, int pic_mem_index,
 
     d->config[0x3d] = 0x01; // interrupt on pin 1
 
-    pci_register_bar(d, 0, 0x80000,
-                           PCI_BASE_ADDRESS_SPACE_MEMORY, macio_map);
+    macio_bar_setup(macio_state);
+    pci_register_bar_region(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &macio_state->bar);
 }
