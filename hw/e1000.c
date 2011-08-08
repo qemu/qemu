@@ -82,7 +82,8 @@ typedef struct E1000State_st {
     PCIDevice dev;
     NICState *nic;
     NICConf conf;
-    int mmio_index;
+    MemoryRegion mmio;
+    MemoryRegion io;
 
     uint32_t mac_reg[0x8000];
     uint16_t phy_reg[0x20];
@@ -149,14 +150,6 @@ static const char phy_regcap[0x20] = {
     [PHY_AUTONEG_ADV] = PHY_RW,	[M88E1000_RX_ERR_CNTR] = PHY_R,
     [PHY_ID2] = PHY_R,		[M88E1000_PHY_SPEC_STATUS] = PHY_R
 };
-
-static void
-ioport_map(PCIDevice *pci_dev, int region_num, pcibus_t addr,
-           pcibus_t size, int type)
-{
-    DBGOUT(IO, "e1000_ioport_map addr=0x%04"FMT_PCIBUS
-           " size=0x%08"FMT_PCIBUS"\n", addr, size);
-}
 
 static void
 set_interrupt_cause(E1000State *s, int index, uint32_t val)
@@ -905,7 +898,8 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
 enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
 
 static void
-e1000_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+e1000_mmio_write(void *opaque, target_phys_addr_t addr, uint64_t val,
+                 unsigned size)
 {
     E1000State *s = opaque;
     unsigned int index = (addr & 0x1ffff) >> 2;
@@ -913,31 +907,15 @@ e1000_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     if (index < NWRITEOPS && macreg_writeops[index]) {
         macreg_writeops[index](s, index, val);
     } else if (index < NREADOPS && macreg_readops[index]) {
-        DBGOUT(MMIO, "e1000_mmio_writel RO %x: 0x%04x\n", index<<2, val);
+        DBGOUT(MMIO, "e1000_mmio_writel RO %x: 0x%04"PRIx64"\n", index<<2, val);
     } else {
-        DBGOUT(UNKNOWN, "MMIO unknown write addr=0x%08x,val=0x%08x\n",
+        DBGOUT(UNKNOWN, "MMIO unknown write addr=0x%08x,val=0x%08"PRIx64"\n",
                index<<2, val);
     }
 }
 
-static void
-e1000_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    // emulate hw without byte enables: no RMW
-    e1000_mmio_writel(opaque, addr & ~3,
-                      (val & 0xffff) << (8*(addr & 3)));
-}
-
-static void
-e1000_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    // emulate hw without byte enables: no RMW
-    e1000_mmio_writel(opaque, addr & ~3,
-                      (val & 0xff) << (8*(addr & 3)));
-}
-
-static uint32_t
-e1000_mmio_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t
+e1000_mmio_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
     E1000State *s = opaque;
     unsigned int index = (addr & 0x1ffff) >> 2;
@@ -950,19 +928,38 @@ e1000_mmio_readl(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static uint32_t
-e1000_mmio_readb(void *opaque, target_phys_addr_t addr)
+static const MemoryRegionOps e1000_mmio_ops = {
+    .read = e1000_mmio_read,
+    .write = e1000_mmio_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+};
+
+static uint64_t e1000_io_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
-    return ((e1000_mmio_readl(opaque, addr & ~3)) >>
-            (8 * (addr & 3))) & 0xff;
+    E1000State *s = opaque;
+
+    (void)s;
+    return 0;
 }
 
-static uint32_t
-e1000_mmio_readw(void *opaque, target_phys_addr_t addr)
+static void e1000_io_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned size)
 {
-    return ((e1000_mmio_readl(opaque, addr & ~3)) >>
-            (8 * (addr & 3))) & 0xffff;
+    E1000State *s = opaque;
+
+    (void)s;
 }
+
+static const MemoryRegionOps e1000_io_ops = {
+    .read = e1000_io_read,
+    .write = e1000_io_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 static bool is_version_1(void *opaque, int version_id)
 {
@@ -1083,36 +1080,22 @@ static const uint32_t mac_reg_init[] = {
 
 /* PCI interface */
 
-static CPUWriteMemoryFunc * const e1000_mmio_write[] = {
-    e1000_mmio_writeb,	e1000_mmio_writew,	e1000_mmio_writel
-};
-
-static CPUReadMemoryFunc * const e1000_mmio_read[] = {
-    e1000_mmio_readb,	e1000_mmio_readw,	e1000_mmio_readl
-};
-
 static void
-e1000_mmio_map(PCIDevice *pci_dev, int region_num,
-                pcibus_t addr, pcibus_t size, int type)
+e1000_mmio_setup(E1000State *d)
 {
-    E1000State *d = DO_UPCAST(E1000State, dev, pci_dev);
     int i;
     const uint32_t excluded_regs[] = {
         E1000_MDIC, E1000_ICR, E1000_ICS, E1000_IMS,
         E1000_IMC, E1000_TCTL, E1000_TDT, PNPMMIO_SIZE
     };
 
-
-    DBGOUT(MMIO, "e1000_mmio_map addr=0x%08"FMT_PCIBUS" 0x%08"FMT_PCIBUS"\n",
-           addr, size);
-
-    cpu_register_physical_memory(addr, PNPMMIO_SIZE, d->mmio_index);
-    qemu_register_coalesced_mmio(addr, excluded_regs[0]);
-
+    memory_region_init_io(&d->mmio, &e1000_mmio_ops, d, "e1000-mmio",
+                          PNPMMIO_SIZE);
+    memory_region_add_coalescing(&d->mmio, 0, excluded_regs[0]);
     for (i = 0; excluded_regs[i] != PNPMMIO_SIZE; i++)
-        qemu_register_coalesced_mmio(addr + excluded_regs[i] + 4,
-                                     excluded_regs[i + 1] -
-                                     excluded_regs[i] - 4);
+        memory_region_add_coalescing(&d->mmio, excluded_regs[i] + 4,
+                                     excluded_regs[i+1] - excluded_regs[i] - 4);
+    memory_region_init_io(&d->io, &e1000_io_ops, d, "e1000-io", IOPORT_SIZE);
 }
 
 static void
@@ -1128,7 +1111,8 @@ pci_e1000_uninit(PCIDevice *dev)
 {
     E1000State *d = DO_UPCAST(E1000State, dev, dev);
 
-    cpu_unregister_io_memory(d->mmio_index);
+    memory_region_destroy(&d->mmio);
+    memory_region_destroy(&d->io);
     qemu_del_vlan_client(&d->nic->nc);
     return 0;
 }
@@ -1172,14 +1156,12 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     /* TODO: RST# value should be 0 if programmable, PCI spec 6.2.4 */
     pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
 
-    d->mmio_index = cpu_register_io_memory(e1000_mmio_read,
-            e1000_mmio_write, d, DEVICE_LITTLE_ENDIAN);
+    e1000_mmio_setup(d);
 
-    pci_register_bar(&d->dev, 0, PNPMMIO_SIZE,
-                           PCI_BASE_ADDRESS_SPACE_MEMORY, e1000_mmio_map);
+    pci_register_bar_region(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &d->mmio);
 
-    pci_register_bar(&d->dev, 1, IOPORT_SIZE,
-                           PCI_BASE_ADDRESS_SPACE_IO, ioport_map);
+    pci_register_bar_region(&d->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->io);
 
     memmove(d->eeprom_data, e1000_eeprom_template,
         sizeof e1000_eeprom_template);
