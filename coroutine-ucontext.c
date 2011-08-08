@@ -133,7 +133,7 @@ static Coroutine *coroutine_new(void)
     CoroutineUContext *co;
     ucontext_t old_uc, uc;
     jmp_buf old_env;
-    union cc_arg arg;
+    union cc_arg arg = {0};
 
     /* The ucontext functions preserve signal masks which incurs a system call
      * overhead.  setjmp()/longjmp() does not preserve signal masks but only
