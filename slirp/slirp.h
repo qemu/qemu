@@ -208,9 +208,9 @@ typedef struct ArpTable {
     int next_victim;
 } ArpTable;
 
-void arp_table_add(Slirp *slirp, int ip_addr, uint8_t ethaddr[ETH_ALEN]);
+void arp_table_add(Slirp *slirp, uint32_t ip_addr, uint8_t ethaddr[ETH_ALEN]);
 
-bool arp_table_search(Slirp *slirp, int in_ip_addr,
+bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
                       uint8_t out_ethaddr[ETH_ALEN]);
 
 struct Slirp {

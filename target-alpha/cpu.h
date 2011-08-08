@@ -426,7 +426,7 @@ int cpu_alpha_exec(CPUAlphaState *s);
 int cpu_alpha_signal_handler(int host_signum, void *pinfo,
                              void *puc);
 int cpu_alpha_handle_mmu_fault (CPUState *env, uint64_t address, int rw,
-                                int mmu_idx, int is_softmmu);
+                                int mmu_idx);
 #define cpu_handle_mmu_fault cpu_alpha_handle_mmu_fault
 void do_interrupt (CPUState *env);
 

@@ -265,6 +265,7 @@ int kvm_allowed = 0;
 int xen_allowed = 0;
 uint32_t xen_domid;
 enum xen_mode xen_mode = XEN_EMULATE;
+static int tcg_tb_size;
 
 static int default_serial = 1;
 static int default_parallel = 1;
@@ -1932,6 +1933,7 @@ static QEMUMachine *machine_parse(const char *name)
 
 static int tcg_init(void)
 {
+    tcg_exec_init(tcg_tb_size * 1024 * 1024);
     return 0;
 }
 
@@ -2092,7 +2094,6 @@ int main(int argc, char **argv, char **envp)
     const char *loadvm = NULL;
     QEMUMachine *machine;
     const char *cpu_model;
-    int tb_size;
     const char *pid_file = NULL;
     const char *incoming = NULL;
 #ifdef CONFIG_VNC
@@ -2132,7 +2133,6 @@ int main(int argc, char **argv, char **envp)
     nb_numa_nodes = 0;
     nb_nics = 0;
 
-    tb_size = 0;
     autostart= 1;
 
     /* first pass of option parsing */
@@ -2847,9 +2847,10 @@ int main(int argc, char **argv, char **envp)
                 configure_rtc(opts);
                 break;
             case QEMU_OPTION_tb_size:
-                tb_size = strtol(optarg, NULL, 0);
-                if (tb_size < 0)
-                    tb_size = 0;
+                tcg_tb_size = strtol(optarg, NULL, 0);
+                if (tcg_tb_size < 0) {
+                    tcg_tb_size = 0;
+                }
                 break;
             case QEMU_OPTION_icount:
                 icount_option = optarg;
@@ -3123,8 +3124,7 @@ int main(int argc, char **argv, char **envp)
         }
     }
 
-    /* init the dynamic translator */
-    cpu_exec_init_all(tb_size * 1024 * 1024);
+    cpu_exec_init_all();
 
     bdrv_init_with_whitelist();
 

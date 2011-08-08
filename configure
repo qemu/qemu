@@ -220,14 +220,14 @@ done
 # Using uname is really, really broken.  Once we have the right set of checks
 # we can eliminate it's usage altogether
 
-cc="${cross_prefix}${CC-gcc}"
-ar="${cross_prefix}${AR-ar}"
-objcopy="${cross_prefix}${OBJCOPY-objcopy}"
-ld="${cross_prefix}${LD-ld}"
-strip="${cross_prefix}${STRIP-strip}"
-windres="${cross_prefix}${WINDRES-windres}"
-pkg_config="${cross_prefix}${PKG_CONFIG-pkg-config}"
-sdl_config="${cross_prefix}${SDL_CONFIG-sdl-config}"
+cc="${CC-${cross_prefix}gcc}"
+ar="${AR-${cross_prefix}ar}"
+objcopy="${OBJCOPY-${cross_prefix}objcopy}"
+ld="${LD-${cross_prefix}ld}"
+strip="${STRIP-${cross_prefix}strip}"
+windres="${WINDRES-${cross_prefix}windres}"
+pkg_config="${PKG_CONFIG-${cross_prefix}pkg-config}"
+sdl_config="${SDL_CONFIG-${cross_prefix}sdl-config}"
 
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"

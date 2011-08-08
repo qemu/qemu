@@ -130,7 +130,7 @@ CPUState *uc32_cpu_init(const char *cpu_model);
 int uc32_cpu_exec(CPUState *s);
 int uc32_cpu_signal_handler(int host_signum, void *pinfo, void *puc);
 int uc32_cpu_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
-                              int mmu_idx, int is_softmuu);
+                              int mmu_idx);
 
 #define CPU_SAVE_VERSION 2
 

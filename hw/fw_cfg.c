@@ -87,6 +87,13 @@ static FILE *probe_splashfile(char *filename, int *file_sizep, int *file_typep)
     /* check magic ID */
     fseek(fp, 0L, SEEK_SET);
     fop_ret = fread(buf, 1, 2, fp);
+    if (fop_ret != 2) {
+        error_report("Could not read header from '%s': %s",
+                     filename, strerror(errno));
+        fclose(fp);
+        fp = NULL;
+        return fp;
+    }
     filehead_value = (buf[0] + (buf[1] << 8)) & 0xffff;
     if (filehead_value == 0xd8ff) {
         file_type = JPG_FILE;
@@ -181,6 +188,12 @@ static void fw_cfg_bootsplash(FWCfgState *s)
         boot_splash_filedata_size = file_size;
         fseek(fp, 0L, SEEK_SET);
         fop_ret = fread(boot_splash_filedata, 1, file_size, fp);
+        if (fop_ret != file_size) {
+            error_report("failed to read data from '%s'.",
+                         boot_splash_filename);
+            fclose(fp);
+            return;
+        }
         fclose(fp);
         /* insert data */
         if (file_type == JPG_FILE) {
