@@ -19,6 +19,7 @@
 #include "console.h"
 #include "i2c.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000
@@ -142,6 +143,7 @@ typedef struct mv88w8618_rx_desc {
 
 typedef struct mv88w8618_eth_state {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq irq;
     uint32_t smir;
     uint32_t icr;
@@ -260,7 +262,8 @@ static void eth_send(mv88w8618_eth_state *s, int queue_index)
     } while (desc_addr != s->tx_queue[queue_index]);
 }
 
-static uint32_t mv88w8618_eth_read(void *opaque, target_phys_addr_t offset)
+static uint64_t mv88w8618_eth_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     mv88w8618_eth_state *s = opaque;
 
@@ -302,7 +305,7 @@ static uint32_t mv88w8618_eth_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void mv88w8618_eth_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     mv88w8618_eth_state *s = opaque;
 
@@ -353,16 +356,10 @@ static void mv88w8618_eth_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const mv88w8618_eth_readfn[] = {
-    mv88w8618_eth_read,
-    mv88w8618_eth_read,
-    mv88w8618_eth_read
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_eth_writefn[] = {
-    mv88w8618_eth_write,
-    mv88w8618_eth_write,
-    mv88w8618_eth_write
+static const MemoryRegionOps mv88w8618_eth_ops = {
+    .read = mv88w8618_eth_read,
+    .write = mv88w8618_eth_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void eth_cleanup(VLANClientState *nc)
@@ -387,10 +384,9 @@ static int mv88w8618_eth_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
                           dev->qdev.info->name, dev->qdev.id, s);
-    s->mmio_index = cpu_register_io_memory(mv88w8618_eth_readfn,
-                                           mv88w8618_eth_writefn, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_ETH_SIZE, s->mmio_index);
+    memory_region_init_io(&s->iomem, &mv88w8618_eth_ops, s, "mv88w8618-eth",
+                          MP_ETH_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
@@ -444,6 +440,7 @@ static SysBusDeviceInfo mv88w8618_eth_info = {
 
 typedef struct musicpal_lcd_state {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t brightness;
     uint32_t mode;
     uint32_t irqctrl;
@@ -528,7 +525,8 @@ static void musicpal_lcd_gpio_brigthness_in(void *opaque, int irq, int level)
     s->brightness |= level << irq;
 }
 
-static uint32_t musicpal_lcd_read(void *opaque, target_phys_addr_t offset)
+static uint64_t musicpal_lcd_read(void *opaque, target_phys_addr_t offset,
+                                  unsigned size)
 {
     musicpal_lcd_state *s = opaque;
 
@@ -542,7 +540,7 @@ static uint32_t musicpal_lcd_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void musicpal_lcd_write(void *opaque, target_phys_addr_t offset,
-                               uint32_t value)
+                               uint64_t value, unsigned size)
 {
     musicpal_lcd_state *s = opaque;
 
@@ -581,29 +579,21 @@ static void musicpal_lcd_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const musicpal_lcd_readfn[] = {
-    musicpal_lcd_read,
-    musicpal_lcd_read,
-    musicpal_lcd_read
-};
-
-static CPUWriteMemoryFunc * const musicpal_lcd_writefn[] = {
-    musicpal_lcd_write,
-    musicpal_lcd_write,
-    musicpal_lcd_write
+static const MemoryRegionOps musicpal_lcd_ops = {
+    .read = musicpal_lcd_read,
+    .write = musicpal_lcd_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int musicpal_lcd_init(SysBusDevice *dev)
 {
     musicpal_lcd_state *s = FROM_SYSBUS(musicpal_lcd_state, dev);
-    int iomemtype;
 
     s->brightness = 7;
 
-    iomemtype = cpu_register_io_memory(musicpal_lcd_readfn,
-                                       musicpal_lcd_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_LCD_SIZE, iomemtype);
+    memory_region_init_io(&s->iomem, &musicpal_lcd_ops, s,
+                          "musicpal-lcd", MP_LCD_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     s->ds = graphic_console_init(lcd_refresh, lcd_invalidate,
                                  NULL, NULL, s);
@@ -645,6 +635,7 @@ static SysBusDeviceInfo musicpal_lcd_info = {
 typedef struct mv88w8618_pic_state
 {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t level;
     uint32_t enabled;
     qemu_irq parent_irq;
@@ -667,7 +658,8 @@ static void mv88w8618_pic_set_irq(void *opaque, int irq, int level)
     mv88w8618_pic_update(s);
 }
 
-static uint32_t mv88w8618_pic_read(void *opaque, target_phys_addr_t offset)
+static uint64_t mv88w8618_pic_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     mv88w8618_pic_state *s = opaque;
 
@@ -681,7 +673,7 @@ static uint32_t mv88w8618_pic_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void mv88w8618_pic_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     mv88w8618_pic_state *s = opaque;
 
@@ -707,29 +699,21 @@ static void mv88w8618_pic_reset(DeviceState *d)
     s->enabled = 0;
 }
 
-static CPUReadMemoryFunc * const mv88w8618_pic_readfn[] = {
-    mv88w8618_pic_read,
-    mv88w8618_pic_read,
-    mv88w8618_pic_read
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_pic_writefn[] = {
-    mv88w8618_pic_write,
-    mv88w8618_pic_write,
-    mv88w8618_pic_write
+static const MemoryRegionOps mv88w8618_pic_ops = {
+    .read = mv88w8618_pic_read,
+    .write = mv88w8618_pic_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int mv88w8618_pic_init(SysBusDevice *dev)
 {
     mv88w8618_pic_state *s = FROM_SYSBUS(mv88w8618_pic_state, dev);
-    int iomemtype;
 
     qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
-    iomemtype = cpu_register_io_memory(mv88w8618_pic_readfn,
-                                       mv88w8618_pic_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_PIC_SIZE, iomemtype);
+    memory_region_init_io(&s->iomem, &mv88w8618_pic_ops, s,
+                          "musicpal-pic", MP_PIC_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
@@ -775,6 +759,7 @@ typedef struct mv88w8618_timer_state {
 
 typedef struct mv88w8618_pit_state {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     mv88w8618_timer_state timer[4];
 } mv88w8618_pit_state;
 
@@ -797,7 +782,8 @@ static void mv88w8618_timer_init(SysBusDevice *dev, mv88w8618_timer_state *s,
     s->ptimer = ptimer_init(bh);
 }
 
-static uint32_t mv88w8618_pit_read(void *opaque, target_phys_addr_t offset)
+static uint64_t mv88w8618_pit_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     mv88w8618_pit_state *s = opaque;
     mv88w8618_timer_state *t;
@@ -813,7 +799,7 @@ static uint32_t mv88w8618_pit_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void mv88w8618_pit_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     mv88w8618_pit_state *s = opaque;
     mv88w8618_timer_state *t;
@@ -864,21 +850,14 @@ static void mv88w8618_pit_reset(DeviceState *d)
     }
 }
 
-static CPUReadMemoryFunc * const mv88w8618_pit_readfn[] = {
-    mv88w8618_pit_read,
-    mv88w8618_pit_read,
-    mv88w8618_pit_read
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_pit_writefn[] = {
-    mv88w8618_pit_write,
-    mv88w8618_pit_write,
-    mv88w8618_pit_write
+static const MemoryRegionOps mv88w8618_pit_ops = {
+    .read = mv88w8618_pit_read,
+    .write = mv88w8618_pit_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int mv88w8618_pit_init(SysBusDevice *dev)
 {
-    int iomemtype;
     mv88w8618_pit_state *s = FROM_SYSBUS(mv88w8618_pit_state, dev);
     int i;
 
@@ -888,10 +867,9 @@ static int mv88w8618_pit_init(SysBusDevice *dev)
         mv88w8618_timer_init(dev, &s->timer[i], 1000000);
     }
 
-    iomemtype = cpu_register_io_memory(mv88w8618_pit_readfn,
-                                       mv88w8618_pit_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_PIT_SIZE, iomemtype);
+    memory_region_init_io(&s->iomem, &mv88w8618_pit_ops, s,
+                          "musicpal-pit", MP_PIT_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
@@ -932,11 +910,13 @@ static SysBusDeviceInfo mv88w8618_pit_info = {
 
 typedef struct mv88w8618_flashcfg_state {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t cfgr0;
 } mv88w8618_flashcfg_state;
 
-static uint32_t mv88w8618_flashcfg_read(void *opaque,
-                                        target_phys_addr_t offset)
+static uint64_t mv88w8618_flashcfg_read(void *opaque,
+                                        target_phys_addr_t offset,
+                                        unsigned size)
 {
     mv88w8618_flashcfg_state *s = opaque;
 
@@ -950,7 +930,7 @@ static uint32_t mv88w8618_flashcfg_read(void *opaque,
 }
 
 static void mv88w8618_flashcfg_write(void *opaque, target_phys_addr_t offset,
-                                     uint32_t value)
+                                     uint64_t value, unsigned size)
 {
     mv88w8618_flashcfg_state *s = opaque;
 
@@ -961,28 +941,20 @@ static void mv88w8618_flashcfg_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const mv88w8618_flashcfg_readfn[] = {
-    mv88w8618_flashcfg_read,
-    mv88w8618_flashcfg_read,
-    mv88w8618_flashcfg_read
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_flashcfg_writefn[] = {
-    mv88w8618_flashcfg_write,
-    mv88w8618_flashcfg_write,
-    mv88w8618_flashcfg_write
+static const MemoryRegionOps mv88w8618_flashcfg_ops = {
+    .read = mv88w8618_flashcfg_read,
+    .write = mv88w8618_flashcfg_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int mv88w8618_flashcfg_init(SysBusDevice *dev)
 {
-    int iomemtype;
     mv88w8618_flashcfg_state *s = FROM_SYSBUS(mv88w8618_flashcfg_state, dev);
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
-    iomemtype = cpu_register_io_memory(mv88w8618_flashcfg_readfn,
-                                       mv88w8618_flashcfg_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_FLASHCFG_SIZE, iomemtype);
+    memory_region_init_io(&s->iomem, &mv88w8618_flashcfg_ops, s,
+                          "musicpal-flashcfg", MP_FLASHCFG_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
@@ -1009,7 +981,8 @@ static SysBusDeviceInfo mv88w8618_flashcfg_info = {
 
 #define MP_BOARD_REVISION       0x31
 
-static uint32_t musicpal_misc_read(void *opaque, target_phys_addr_t offset)
+static uint64_t musicpal_misc_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     switch (offset) {
     case MP_MISC_BOARD_REVISION:
@@ -1021,37 +994,31 @@ static uint32_t musicpal_misc_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void musicpal_misc_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
 }
 
-static CPUReadMemoryFunc * const musicpal_misc_readfn[] = {
-    musicpal_misc_read,
-    musicpal_misc_read,
-    musicpal_misc_read,
+static const MemoryRegionOps musicpal_misc_ops = {
+    .read = musicpal_misc_read,
+    .write = musicpal_misc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const musicpal_misc_writefn[] = {
-    musicpal_misc_write,
-    musicpal_misc_write,
-    musicpal_misc_write,
-};
-
-static void musicpal_misc_init(void)
+static void musicpal_misc_init(SysBusDevice *dev)
 {
-    int iomemtype;
+    MemoryRegion *iomem = g_new(MemoryRegion, 1);
 
-    iomemtype = cpu_register_io_memory(musicpal_misc_readfn,
-                                       musicpal_misc_writefn, NULL,
-                                       DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(MP_MISC_BASE, MP_MISC_SIZE, iomemtype);
+    memory_region_init_io(iomem, &musicpal_misc_ops, NULL,
+                          "musicpal-misc", MP_MISC_SIZE);
+    sysbus_add_memory(dev, MP_MISC_BASE, iomem);
 }
 
 /* WLAN register offsets */
 #define MP_WLAN_MAGIC1          0x11c
 #define MP_WLAN_MAGIC2          0x124
 
-static uint32_t mv88w8618_wlan_read(void *opaque, target_phys_addr_t offset)
+static uint64_t mv88w8618_wlan_read(void *opaque, target_phys_addr_t offset,
+                                    unsigned size)
 {
     switch (offset) {
     /* Workaround to allow loading the binary-only wlandrv.ko crap
@@ -1067,30 +1034,23 @@ static uint32_t mv88w8618_wlan_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void mv88w8618_wlan_write(void *opaque, target_phys_addr_t offset,
-                                 uint32_t value)
+                                 uint64_t value, unsigned size)
 {
 }
 
-static CPUReadMemoryFunc * const mv88w8618_wlan_readfn[] = {
-    mv88w8618_wlan_read,
-    mv88w8618_wlan_read,
-    mv88w8618_wlan_read,
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_wlan_writefn[] = {
-    mv88w8618_wlan_write,
-    mv88w8618_wlan_write,
-    mv88w8618_wlan_write,
+static const MemoryRegionOps mv88w8618_wlan_ops = {
+    .read = mv88w8618_wlan_read,
+    .write =mv88w8618_wlan_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int mv88w8618_wlan_init(SysBusDevice *dev)
 {
-    int iomemtype;
+    MemoryRegion *iomem = g_new(MemoryRegion, 1);
 
-    iomemtype = cpu_register_io_memory(mv88w8618_wlan_readfn,
-                                       mv88w8618_wlan_writefn, NULL,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_WLAN_SIZE, iomemtype);
+    memory_region_init_io(iomem, &mv88w8618_wlan_ops, NULL,
+                          "musicpal-wlan", MP_WLAN_SIZE);
+    sysbus_init_mmio_region(dev, iomem);
     return 0;
 }
 
@@ -1118,6 +1078,7 @@ static int mv88w8618_wlan_init(SysBusDevice *dev)
 
 typedef struct musicpal_gpio_state {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t lcd_brightness;
     uint32_t out_state;
     uint32_t in_state;
@@ -1190,7 +1151,8 @@ static void musicpal_gpio_pin_event(void *opaque, int pin, int level)
     }
 }
 
-static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
+static uint64_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     musicpal_gpio_state *s = opaque;
 
@@ -1229,7 +1191,7 @@ static uint32_t musicpal_gpio_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void musicpal_gpio_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     musicpal_gpio_state *s = opaque;
     switch (offset) {
@@ -1267,16 +1229,10 @@ static void musicpal_gpio_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const musicpal_gpio_readfn[] = {
-    musicpal_gpio_read,
-    musicpal_gpio_read,
-    musicpal_gpio_read,
-};
-
-static CPUWriteMemoryFunc * const musicpal_gpio_writefn[] = {
-    musicpal_gpio_write,
-    musicpal_gpio_write,
-    musicpal_gpio_write,
+static const MemoryRegionOps musicpal_gpio_ops = {
+    .read = musicpal_gpio_read,
+    .write = musicpal_gpio_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void musicpal_gpio_reset(DeviceState *d)
@@ -1295,14 +1251,12 @@ static void musicpal_gpio_reset(DeviceState *d)
 static int musicpal_gpio_init(SysBusDevice *dev)
 {
     musicpal_gpio_state *s = FROM_SYSBUS(musicpal_gpio_state, dev);
-    int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
 
-    iomemtype = cpu_register_io_memory(musicpal_gpio_readfn,
-                                       musicpal_gpio_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_GPIO_SIZE, iomemtype);
+    memory_region_init_io(&s->iomem, &musicpal_gpio_ops, s,
+                          "musicpal-gpio", MP_GPIO_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
 
@@ -1501,7 +1455,9 @@ static void musicpal_init(ram_addr_t ram_size,
     int i;
     unsigned long flash_size;
     DriveInfo *dinfo;
-    ram_addr_t sram_off;
+    MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *sram = g_new(MemoryRegion, 1);
 
     if (!cpu_model) {
         cpu_model = "arm926";
@@ -1514,12 +1470,11 @@ static void musicpal_init(ram_addr_t ram_size,
     cpu_pic = arm_pic_init_cpu(env);
 
     /* For now we use a fixed - the original - RAM size */
-    cpu_register_physical_memory(0, MP_RAM_DEFAULT_SIZE,
-                                 qemu_ram_alloc(NULL, "musicpal.ram",
-                                                MP_RAM_DEFAULT_SIZE));
+    memory_region_init_ram(ram, NULL, "musicpal.ram", MP_RAM_DEFAULT_SIZE);
+    memory_region_add_subregion(address_space_mem, 0, ram);
 
-    sram_off = qemu_ram_alloc(NULL, "musicpal.sram", MP_SRAM_SIZE);
-    cpu_register_physical_memory(MP_SRAM_BASE, MP_SRAM_SIZE, sram_off);
+    memory_region_init_ram(sram, NULL, "musicpal.sram", MP_SRAM_SIZE);
+    memory_region_add_subregion(address_space_mem, MP_SRAM_BASE, sram);
 
     dev = sysbus_create_simple("mv88w8618_pic", MP_PIC_BASE,
                                cpu_pic[ARM_PIC_CPU_IRQ]);
@@ -1594,7 +1549,7 @@ static void musicpal_init(ram_addr_t ram_size,
 
     sysbus_create_simple("mv88w8618_wlan", MP_WLAN_BASE, NULL);
 
-    musicpal_misc_init();
+    musicpal_misc_init(sysbus_from_qdev(dev));
 
     dev = sysbus_create_simple("musicpal_gpio", MP_GPIO_BASE, pic[MP_GPIO_IRQ]);
     i2c_dev = sysbus_create_simple("gpio_i2c", -1, NULL);
