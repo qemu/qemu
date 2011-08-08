@@ -201,9 +201,6 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
                                PCIConfigReadFunc *config_read,
                                PCIConfigWriteFunc *config_write);
 
-void pci_register_bar(PCIDevice *pci_dev, int region_num,
-                            pcibus_t size, uint8_t type,
-                            PCIMapIORegionFunc *map_func);
 void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
                              uint8_t attr, MemoryRegion *memory);
 pcibus_t pci_get_bar_addr(PCIDevice *pci_dev, int region_num);

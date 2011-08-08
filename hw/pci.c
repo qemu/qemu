@@ -881,13 +881,25 @@ static int pci_unregister_device(DeviceState *dev)
     return 0;
 }
 
-void pci_register_bar(PCIDevice *pci_dev, int region_num,
-                            pcibus_t size, uint8_t type,
-                            PCIMapIORegionFunc *map_func)
+static void pci_simple_bar_mapfunc_region(PCIDevice *pci_dev, int region_num,
+                                          pcibus_t addr, pcibus_t size,
+                                          int type)
+{
+    PCIIORegion *r = &pci_dev->io_regions[region_num];
+
+    memory_region_add_subregion_overlap(r->address_space,
+                                        addr,
+                                        r->memory,
+                                        1);
+}
+
+void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
+                             uint8_t type, MemoryRegion *memory)
 {
     PCIIORegion *r;
     uint32_t addr;
     uint64_t wmask;
+    pcibus_t size = memory_region_size(memory);
 
     assert(region_num >= 0);
     assert(region_num < PCI_NUM_REGIONS);
@@ -902,7 +914,7 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
     r->size = size;
     r->filtered_size = size;
     r->type = type;
-    r->map_func = map_func;
+    r->map_func = pci_simple_bar_mapfunc_region;
     r->memory = NULL;
 
     wmask = ~(size - 1);
@@ -920,29 +932,9 @@ void pci_register_bar(PCIDevice *pci_dev, int region_num,
         pci_set_long(pci_dev->wmask + addr, wmask & 0xffffffff);
         pci_set_long(pci_dev->cmask + addr, 0xffffffff);
     }
-}
-
-static void pci_simple_bar_mapfunc_region(PCIDevice *pci_dev, int region_num,
-                                          pcibus_t addr, pcibus_t size,
-                                          int type)
-{
-    PCIIORegion *r = &pci_dev->io_regions[region_num];
-
-    memory_region_add_subregion_overlap(r->address_space,
-                                        addr,
-                                        r->memory,
-                                        1);
-}
-
-void pci_register_bar_region(PCIDevice *pci_dev, int region_num,
-                             uint8_t attr, MemoryRegion *memory)
-{
-    pci_register_bar(pci_dev, region_num, memory_region_size(memory),
-                     attr,
-                     pci_simple_bar_mapfunc_region);
     pci_dev->io_regions[region_num].memory = memory;
     pci_dev->io_regions[region_num].address_space
-        = attr & PCI_BASE_ADDRESS_SPACE_IO
+        = type & PCI_BASE_ADDRESS_SPACE_IO
         ? pci_dev->bus->address_space_io
         : pci_dev->bus->address_space_mem;
 }
