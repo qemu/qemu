@@ -191,7 +191,8 @@ struct PCIDevice {
 
     /* Location of option rom */
     char *romfile;
-    ram_addr_t rom_offset;
+    bool has_rom;
+    MemoryRegion rom;
     uint32_t rom_bar;
 };
 

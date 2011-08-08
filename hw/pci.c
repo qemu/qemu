@@ -1855,11 +1855,6 @@ static uint8_t pci_find_capability_list(PCIDevice *pdev, uint8_t cap_id,
     return next;
 }
 
-static void pci_map_option_rom(PCIDevice *pdev, int region_num, pcibus_t addr, pcibus_t size, int type)
-{
-    cpu_register_physical_memory(addr, size, pdev->rom_offset);
-}
-
 /* Patch the PCI vendor and device ids in a PCI rom image if necessary.
    This is needed for an option rom which is used for more than one device. */
 static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, int size)
@@ -1963,9 +1958,9 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
         snprintf(name, sizeof(name), "%s.rom", pdev->qdev.info->vmsd->name);
     else
         snprintf(name, sizeof(name), "%s.rom", pdev->qdev.info->name);
-    pdev->rom_offset = qemu_ram_alloc(&pdev->qdev, name, size);
-
-    ptr = qemu_get_ram_ptr(pdev->rom_offset);
+    pdev->has_rom = true;
+    memory_region_init_ram(&pdev->rom, &pdev->qdev, name, size);
+    ptr = memory_region_get_ram_ptr(&pdev->rom);
     load_image(path, ptr);
     qemu_free(path);
 
@@ -1976,19 +1971,18 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
 
     qemu_put_ram_ptr(ptr);
 
-    pci_register_bar(pdev, PCI_ROM_SLOT, size,
-                     0, pci_map_option_rom);
+    pci_register_bar_region(pdev, PCI_ROM_SLOT, 0, &pdev->rom);
 
     return 0;
 }
 
 static void pci_del_option_rom(PCIDevice *pdev)
 {
-    if (!pdev->rom_offset)
+    if (!pdev->has_rom)
         return;
 
-    qemu_ram_free(pdev->rom_offset);
-    pdev->rom_offset = 0;
+    memory_region_destroy(&pdev->rom);
+    pdev->has_rom = false;
 }
 
 /*
