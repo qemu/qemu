@@ -24,6 +24,7 @@
 
 #include "hw.h"
 #include "isa.h"
+#include "exec-memory.h"
 
 static void isa_mmio_writeb (void *opaque, target_phys_addr_t addr,
                                   uint32_t val)
@@ -58,25 +59,23 @@ static uint32_t isa_mmio_readl(void *opaque, target_phys_addr_t addr)
     return cpu_inl(addr & IOPORTS_MASK);
 }
 
-static CPUWriteMemoryFunc * const isa_mmio_write[] = {
-    &isa_mmio_writeb,
-    &isa_mmio_writew,
-    &isa_mmio_writel,
+static const MemoryRegionOps isa_mmio_ops = {
+    .old_mmio = {
+        .write = { isa_mmio_writeb, isa_mmio_writew, isa_mmio_writel },
+        .read = { isa_mmio_readb, isa_mmio_readw, isa_mmio_readl, },
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static CPUReadMemoryFunc * const isa_mmio_read[] = {
-    &isa_mmio_readb,
-    &isa_mmio_readw,
-    &isa_mmio_readl,
-};
+void isa_mmio_setup(MemoryRegion *mr, target_phys_addr_t size)
+{
+    memory_region_init_io(mr, &isa_mmio_ops, NULL, "isa-mmio", size);
+}
 
 void isa_mmio_init(target_phys_addr_t base, target_phys_addr_t size)
 {
-    int isa_mmio_iomemtype;
+    MemoryRegion *mr = qemu_malloc(sizeof(*mr));
 
-    isa_mmio_iomemtype = cpu_register_io_memory(isa_mmio_read,
-                                                isa_mmio_write,
-                                                NULL,
-                                                DEVICE_LITTLE_ENDIAN);
-    cpu_register_physical_memory(base, size, isa_mmio_iomemtype);
+    isa_mmio_setup(mr, size);
+    memory_region_add_subregion(get_system_memory(), base, mr);
 }
