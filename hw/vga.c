@@ -708,9 +708,8 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
 #endif
 
 /* called for accesses between 0xa0000 and 0xc0000 */
-uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr)
+uint32_t vga_mem_readb(VGACommonState *s, target_phys_addr_t addr)
 {
-    VGACommonState *s = opaque;
     int memory_map_mode, plane;
     uint32_t ret;
 
@@ -764,28 +763,9 @@ uint32_t vga_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static uint32_t vga_mem_readw(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-    v = vga_mem_readb(opaque, addr);
-    v |= vga_mem_readb(opaque, addr + 1) << 8;
-    return v;
-}
-
-static uint32_t vga_mem_readl(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-    v = vga_mem_readb(opaque, addr);
-    v |= vga_mem_readb(opaque, addr + 1) << 8;
-    v |= vga_mem_readb(opaque, addr + 2) << 16;
-    v |= vga_mem_readb(opaque, addr + 3) << 24;
-    return v;
-}
-
 /* called for accesses between 0xa0000 and 0xc0000 */
-void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+void vga_mem_writeb(VGACommonState *s, target_phys_addr_t addr, uint32_t val)
 {
-    VGACommonState *s = opaque;
     int memory_map_mode, plane, write_mode, b, func_select, mask;
     uint32_t write_mask, bit_mask, set_mask;
 
@@ -915,20 +895,6 @@ void vga_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 #endif
         memory_region_set_dirty(&s->vram, addr << 2);
     }
-}
-
-static void vga_mem_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    vga_mem_writeb(opaque, addr, val & 0xff);
-    vga_mem_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-}
-
-static void vga_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    vga_mem_writeb(opaque, addr, val & 0xff);
-    vga_mem_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-    vga_mem_writeb(opaque, addr + 2, (val >> 16) & 0xff);
-    vga_mem_writeb(opaque, addr + 3, (val >> 24) & 0xff);
 }
 
 typedef void vga_draw_glyph8_func(uint8_t *d, int linesize,
@@ -2105,12 +2071,7 @@ static uint64_t vga_mem_read(void *opaque, target_phys_addr_t addr,
 {
     VGACommonState *s = opaque;
 
-    switch (size) {
-    case 1: return vga_mem_readb(s, addr);
-    case 2: return vga_mem_readw(s, addr);
-    case 4: return vga_mem_readl(s, addr);
-    default: abort();
-    }
+    return vga_mem_readb(s, addr);
 }
 
 static void vga_mem_write(void *opaque, target_phys_addr_t addr,
@@ -2118,18 +2079,17 @@ static void vga_mem_write(void *opaque, target_phys_addr_t addr,
 {
     VGACommonState *s = opaque;
 
-    switch (size) {
-    case 1: return vga_mem_writeb(s, addr, data);
-    case 2: return vga_mem_writew(s, addr, data);
-    case 4: return vga_mem_writel(s, addr, data);
-    default: abort();
-    }
+    return vga_mem_writeb(s, addr, data);
 }
 
 const MemoryRegionOps vga_mem_ops = {
     .read = vga_mem_read,
     .write = vga_mem_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static int vga_common_post_load(void *opaque, int version_id)
