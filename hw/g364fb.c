@@ -36,7 +36,7 @@ do { fprintf(stderr, "g364 ERROR: " fmt , ## __VA_ARGS__);} while (0)
 typedef struct G364State {
     /* hardware */
     uint8_t *vram;
-    ram_addr_t vram_offset;
+    MemoryRegion vram_region;
     int vram_size;
     qemu_irq irq;
     /* registers */
@@ -68,16 +68,17 @@ typedef struct G364State {
 #define CTLA_FORCE_BLANK 0x00000400
 #define CTLA_NO_CURSOR   0x00800000
 
-static inline int check_dirty(ram_addr_t page)
+static inline int check_dirty(G364State *s, ram_addr_t page)
 {
-    return cpu_physical_memory_get_dirty(page, VGA_DIRTY_FLAG);
+    return memory_region_get_dirty(&s->vram_region, page, DIRTY_MEMORY_VGA);
 }
 
 static inline void reset_dirty(G364State *s,
                                ram_addr_t page_min, ram_addr_t page_max)
 {
-    cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE - 1,
-                                    VGA_DIRTY_FLAG);
+    memory_region_reset_dirty(&s->vram_region, page_min,
+                              page_max + TARGET_PAGE_SIZE - 1,
+                              DIRTY_MEMORY_VGA);
 }
 
 static void g364fb_draw_graphic8(G364State *s)
@@ -114,7 +115,7 @@ static void g364fb_draw_graphic8(G364State *s)
             return;
     }
 
-    page = s->vram_offset;
+    page = 0;
     page_min = (ram_addr_t)-1;
     page_max = 0;
 
@@ -135,7 +136,7 @@ static void g364fb_draw_graphic8(G364State *s)
     /* XXX: out of range in vram? */
     data_display = dd = ds_get_data(s->ds);
     while (y < s->height) {
-        if (check_dirty(page)) {
+        if (check_dirty(s, page)) {
             if (y < ymin)
                 ymin = ymax = y;
             if (page_min == (ram_addr_t)-1)
@@ -275,7 +276,7 @@ static inline void g364fb_invalidate_display(void *opaque)
 
     s->blanked = 0;
     for (i = 0; i < s->vram_size; i += TARGET_PAGE_SIZE) {
-        cpu_physical_memory_set_dirty(s->vram_offset + i);
+        memory_region_set_dirty(&s->vram_region, i);
     }
 }
 
@@ -411,7 +412,7 @@ static void g364_invalidate_cursor_position(G364State *s)
     end = (ymax + 1) * ds_get_linesize(s->ds);
 
     for (i = start; i < end; i += TARGET_PAGE_SIZE) {
-        cpu_physical_memory_set_dirty(s->vram_offset + i);
+        memory_region_set_dirty(&s->vram_region, i);
     }
 }
 
@@ -522,16 +523,20 @@ static void g364fb_ctrl_writeb(void *opaque, target_phys_addr_t addr, uint32_t v
     g364fb_ctrl_writel(opaque, addr & ~0x3, val);
 }
 
-static CPUReadMemoryFunc * const g364fb_ctrl_read[3] = {
-    g364fb_ctrl_readb,
-    g364fb_ctrl_readw,
-    g364fb_ctrl_readl,
-};
-
-static CPUWriteMemoryFunc * const g364fb_ctrl_write[3] = {
-    g364fb_ctrl_writeb,
-    g364fb_ctrl_writew,
-    g364fb_ctrl_writel,
+static const MemoryRegionOps g364fb_ctrl_ops = {
+    .old_mmio = {
+        .read = {
+            g364fb_ctrl_readb,
+            g364fb_ctrl_readw,
+            g364fb_ctrl_readl,
+        },
+        .write = {
+            g364fb_ctrl_writeb,
+            g364fb_ctrl_writew,
+            g364fb_ctrl_writel,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int g364fb_load(QEMUFile *f, void *opaque, int version_id)
@@ -583,18 +588,19 @@ static void g364fb_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->height);
 }
 
-int g364fb_mm_init(target_phys_addr_t vram_base,
+int g364fb_mm_init(MemoryRegion *system_memory,
+                   target_phys_addr_t vram_base,
                    target_phys_addr_t ctrl_base, int it_shift,
                    qemu_irq irq)
 {
     G364State *s;
-    int io_ctrl;
+    MemoryRegion *io_ctrl = g_new(MemoryRegion, 1);
 
     s = g_malloc0(sizeof(G364State));
 
     s->vram_size = 8 * 1024 * 1024;
-    s->vram_offset = qemu_ram_alloc(NULL, "g364fb.vram", s->vram_size);
-    s->vram = qemu_get_ram_ptr(s->vram_offset);
+    memory_region_init_ram(&s->vram_region, NULL, "g364fb.vram", s->vram_size);
+    s->vram = memory_region_get_ram_ptr(&s->vram_region);
     s->irq = irq;
 
     qemu_register_reset(g364fb_reset, s);
@@ -605,11 +611,11 @@ int g364fb_mm_init(target_phys_addr_t vram_base,
                                  g364fb_invalidate_display,
                                  g364fb_screen_dump, NULL, s);
 
-    cpu_register_physical_memory(vram_base, s->vram_size, s->vram_offset);
+    memory_region_add_subregion(system_memory, vram_base, &s->vram_region);
 
-    io_ctrl = cpu_register_io_memory(g364fb_ctrl_read, g364fb_ctrl_write, s,
-                                     DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(ctrl_base, 0x200000, io_ctrl);
+    memory_region_init_io(io_ctrl, &g364fb_ctrl_ops, s,
+                          "g364fb-ctrl", 0x200000);
+    memory_region_add_subregion(system_memory, ctrl_base, io_ctrl);
 
     return 0;
 }
