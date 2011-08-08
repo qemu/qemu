@@ -149,19 +149,6 @@ static int v9fs_do_fstat(V9fsState *s, int fd, struct stat *stbuf)
     return s->ops->fstat(&s->ctx, fd, stbuf);
 }
 
-static int v9fs_do_open2(V9fsState *s, char *fullname, uid_t uid, gid_t gid,
-        int flags, int mode)
-{
-    FsCred cred;
-
-    cred_init(&cred);
-    cred.fc_uid = uid;
-    cred.fc_gid = gid;
-    cred.fc_mode = mode & 07777;
-
-    return s->ops->open2(&s->ctx, fullname, flags, &cred);
-}
-
 static int v9fs_do_symlink(V9fsState *s, V9fsFidState *fidp,
         const char *oldpath, const char *newpath, gid_t gid)
 {
@@ -1607,96 +1594,57 @@ out:
     complete_pdu(s, pdu, err);
 }
 
-static void v9fs_post_lcreate(V9fsState *s, V9fsLcreateState *vs, int err)
-{
-    if (err == 0) {
-        v9fs_string_copy(&vs->fidp->path, &vs->fullname);
-        stat_to_qid(&vs->stbuf, &vs->qid);
-        vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid,
-                vs->iounit);
-        err = vs->offset;
-    } else {
-        vs->fidp->fid_type = P9_FID_NONE;
-        err = -errno;
-        if (vs->fidp->fs.fd > 0) {
-            close(vs->fidp->fs.fd);
-        }
-    }
-
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->name);
-    v9fs_string_free(&vs->fullname);
-    g_free(vs);
-}
-
-static void v9fs_lcreate_post_get_iounit(V9fsState *s, V9fsLcreateState *vs,
-        int err)
-{
-    if (err) {
-        err = -errno;
-        goto out;
-    }
-    err = v9fs_do_lstat(s, &vs->fullname, &vs->stbuf);
-
-out:
-    v9fs_post_lcreate(s, vs, err);
-}
-
-static void v9fs_lcreate_post_do_open2(V9fsState *s, V9fsLcreateState *vs,
-        int err)
-{
-    if (vs->fidp->fs.fd == -1) {
-        err = -errno;
-        goto out;
-    }
-    vs->fidp->fid_type = P9_FID_FILE;
-    vs->iounit =  get_iounit(s, &vs->fullname);
-    v9fs_lcreate_post_get_iounit(s, vs, err);
-    return;
-
-out:
-    v9fs_post_lcreate(s, vs, err);
-}
-
 static void v9fs_lcreate(void *opaque)
 {
-    V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
     int32_t dfid, flags, mode;
     gid_t gid;
-    V9fsLcreateState *vs;
     ssize_t err = 0;
+    ssize_t offset = 7;
+    V9fsString fullname;
+    V9fsString name;
+    V9fsFidState *fidp;
+    struct stat stbuf;
+    V9fsQID qid;
+    int32_t iounit;
+    V9fsPDU *pdu = opaque;
 
-    vs = g_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
+    v9fs_string_init(&fullname);
+    pdu_unmarshal(pdu, offset, "dsddd", &dfid, &name, &flags,
+                  &mode, &gid);
 
-    v9fs_string_init(&vs->fullname);
-
-    pdu_unmarshal(vs->pdu, vs->offset, "dsddd", &dfid, &vs->name, &flags,
-            &mode, &gid);
-
-    vs->fidp = lookup_fid(s, dfid);
-    if (vs->fidp == NULL) {
+    fidp = lookup_fid(pdu->s, dfid);
+    if (fidp == NULL) {
         err = -ENOENT;
         goto out;
     }
-
-    v9fs_string_sprintf(&vs->fullname, "%s/%s", vs->fidp->path.data,
-             vs->name.data);
+    v9fs_string_sprintf(&fullname, "%s/%s", fidp->path.data, name.data);
 
     /* Ignore direct disk access hint until the server supports it. */
     flags &= ~O_DIRECT;
 
-    vs->fidp->fs.fd = v9fs_do_open2(s, vs->fullname.data, vs->fidp->uid,
-            gid, flags, mode);
-    v9fs_lcreate_post_do_open2(s, vs, err);
-    return;
+    err = v9fs_co_open2(pdu->s, fidp, fullname.data, gid, flags, mode);
+    if (err < 0) {
+        goto out;
+    }
+    fidp->fid_type = P9_FID_FILE;
+    iounit =  get_iounit(pdu->s, &fullname);
 
+    err = v9fs_co_lstat(pdu->s, &fullname, &stbuf);
+    if (err < 0) {
+        fidp->fid_type = P9_FID_NONE;
+        if (fidp->fs.fd > 0) {
+            close(fidp->fs.fd);
+        }
+        goto out;
+    }
+    v9fs_string_copy(&fidp->path, &fullname);
+    stat_to_qid(&stbuf, &qid);
+    offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
+    err = offset;
 out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->name);
-    g_free(vs);
+    complete_pdu(pdu->s, pdu, err);
+    v9fs_string_free(&name);
+    v9fs_string_free(&fullname);
 }
 
 static void v9fs_post_do_fsync(V9fsState *s, V9fsPDU *pdu, int err)
@@ -2273,8 +2221,7 @@ static void v9fs_create_post_fstat(V9fsState *s, V9fsCreateState *vs, int err)
 
 static void v9fs_create_post_open2(V9fsState *s, V9fsCreateState *vs, int err)
 {
-    if (vs->fidp->fs.fd == -1) {
-        err = -errno;
+    if (err < 0) {
         goto out;
     }
     vs->fidp->fid_type = P9_FID_FILE;
@@ -2349,8 +2296,8 @@ static void v9fs_create_post_lstat(V9fsState *s, V9fsCreateState *vs, int err)
                 0, vs->fidp->uid, -1);
         v9fs_post_create(s, vs, err);
     } else {
-        vs->fidp->fs.fd = v9fs_do_open2(s, vs->fullname.data, vs->fidp->uid,
-                -1, omode_to_uflags(vs->mode)|O_CREAT, vs->perm);
+        err = v9fs_co_open2(s, vs->fidp, vs->fullname.data, -1,
+                omode_to_uflags(vs->mode)|O_CREAT, vs->perm);
 
         v9fs_create_post_open2(s, vs, err);
     }

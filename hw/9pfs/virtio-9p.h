@@ -236,17 +236,6 @@ typedef struct V9fsCreateState {
     int iounit;
 } V9fsCreateState;
 
-typedef struct V9fsLcreateState {
-    V9fsPDU *pdu;
-    size_t offset;
-    V9fsFidState *fidp;
-    V9fsQID qid;
-    int32_t iounit;
-    struct stat stbuf;
-    V9fsString name;
-    V9fsString fullname;
-} V9fsLcreateState;
-
 typedef struct V9fsStatState {
     V9fsPDU *pdu;
     size_t offset;
