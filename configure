@@ -1856,7 +1856,7 @@ fi
 
 ##########################################
 # pthread probe
-PTHREADLIBS_LIST="-lpthread -lpthreadGC2"
+PTHREADLIBS_LIST="-pthread -lpthread -lpthreadGC2"
 
 pthread=no
 cat > $TMPC << EOF
