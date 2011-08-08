@@ -160,8 +160,9 @@ typedef struct AC97LinkState {
     SWVoiceIn *voice_mc;
     int invalid_freq[3];
     uint8_t silence[128];
-    uint32_t base[2];
     int bup_flag;
+    MemoryRegion io_nam;
+    MemoryRegion io_nabm;
 } AC97LinkState;
 
 enum {
@@ -583,7 +584,7 @@ static uint32_t nam_readw (void *opaque, uint32_t addr)
 {
     AC97LinkState *s = opaque;
     uint32_t val = ~0U;
-    uint32_t index = addr - s->base[0];
+    uint32_t index = addr;
     s->cas = 0;
     val = mixer_load (s, index);
     return val;
@@ -611,7 +612,7 @@ static void nam_writeb (void *opaque, uint32_t addr, uint32_t val)
 static void nam_writew (void *opaque, uint32_t addr, uint32_t val)
 {
     AC97LinkState *s = opaque;
-    uint32_t index = addr - s->base[0];
+    uint32_t index = addr;
     s->cas = 0;
     switch (index) {
     case AC97_Reset:
@@ -714,7 +715,7 @@ static uint32_t nabm_readb (void *opaque, uint32_t addr)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr - s->base[1];
+    uint32_t index = addr;
     uint32_t val = ~0U;
 
     switch (index) {
@@ -769,7 +770,7 @@ static uint32_t nabm_readw (void *opaque, uint32_t addr)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr - s->base[1];
+    uint32_t index = addr;
     uint32_t val = ~0U;
 
     switch (index) {
@@ -798,7 +799,7 @@ static uint32_t nabm_readl (void *opaque, uint32_t addr)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr - s->base[1];
+    uint32_t index = addr;
     uint32_t val = ~0U;
 
     switch (index) {
@@ -848,7 +849,7 @@ static void nabm_writeb (void *opaque, uint32_t addr, uint32_t val)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr - s->base[1];
+    uint32_t index = addr;
     switch (index) {
     case PI_LVI:
     case PO_LVI:
@@ -904,7 +905,7 @@ static void nabm_writew (void *opaque, uint32_t addr, uint32_t val)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr - s->base[1];
+    uint32_t index = addr;
     switch (index) {
     case PI_SR:
     case PO_SR:
@@ -924,7 +925,7 @@ static void nabm_writel (void *opaque, uint32_t addr, uint32_t val)
 {
     AC97LinkState *s = opaque;
     AC97BusMasterRegs *r = NULL;
-    uint32_t index = addr - s->base[1];
+    uint32_t index = addr;
     switch (index) {
     case PI_BDBAR:
     case PO_BDBAR:
@@ -1230,31 +1231,33 @@ static const VMStateDescription vmstate_ac97 = {
     }
 };
 
-static void ac97_map (PCIDevice *pci_dev, int region_num,
-                      pcibus_t addr, pcibus_t size, int type)
-{
-    AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, pci_dev);
-    PCIDevice *d = &s->dev;
+static const MemoryRegionPortio nam_portio[] = {
+    { 0, 256 * 1, 1, .read = nam_readb, },
+    { 0, 256 * 2, 2, .read = nam_readw, },
+    { 0, 256 * 4, 4, .read = nam_readl, },
+    { 0, 256 * 1, 1, .write = nam_writeb, },
+    { 0, 256 * 2, 2, .write = nam_writew, },
+    { 0, 256 * 4, 4, .write = nam_writel, },
+    PORTIO_END_OF_LIST(),
+};
 
-    if (!region_num) {
-        s->base[0] = addr;
-        register_ioport_read (addr, 256 * 1, 1, nam_readb, d);
-        register_ioport_read (addr, 256 * 2, 2, nam_readw, d);
-        register_ioport_read (addr, 256 * 4, 4, nam_readl, d);
-        register_ioport_write (addr, 256 * 1, 1, nam_writeb, d);
-        register_ioport_write (addr, 256 * 2, 2, nam_writew, d);
-        register_ioport_write (addr, 256 * 4, 4, nam_writel, d);
-    }
-    else {
-        s->base[1] = addr;
-        register_ioport_read (addr, 64 * 1, 1, nabm_readb, d);
-        register_ioport_read (addr, 64 * 2, 2, nabm_readw, d);
-        register_ioport_read (addr, 64 * 4, 4, nabm_readl, d);
-        register_ioport_write (addr, 64 * 1, 1, nabm_writeb, d);
-        register_ioport_write (addr, 64 * 2, 2, nabm_writew, d);
-        register_ioport_write (addr, 64 * 4, 4, nabm_writel, d);
-    }
-}
+static const MemoryRegionOps ac97_io_nam_ops = {
+    .old_portio = nam_portio,
+};
+
+static const MemoryRegionPortio nabm_portio[] = {
+    { 0, 64 * 1, 1, .read = nabm_readb, },
+    { 0, 64 * 2, 2, .read = nabm_readw, },
+    { 0, 64 * 4, 4, .read = nabm_readl, },
+    { 0, 64 * 1, 1, .write = nabm_writeb, },
+    { 0, 64 * 2, 2, .write = nabm_writew, },
+    { 0, 64 * 4, 4, .write = nabm_writel, },
+    PORTIO_END_OF_LIST()
+};
+
+static const MemoryRegionOps ac97_io_nabm_ops = {
+    .old_portio = nabm_portio,
+};
 
 static void ac97_on_reset (void *opaque)
 {
@@ -1311,12 +1314,23 @@ static int ac97_initfn (PCIDevice *dev)
     /* TODO: RST# value should be 0. */
     c[PCI_INTERRUPT_PIN] = 0x01;      /* intr_pn interrupt pin ro */
 
-    pci_register_bar (&s->dev, 0, 256 * 4, PCI_BASE_ADDRESS_SPACE_IO,
-                      ac97_map);
-    pci_register_bar (&s->dev, 1, 64 * 4, PCI_BASE_ADDRESS_SPACE_IO, ac97_map);
+    memory_region_init_io (&s->io_nam, &ac97_io_nam_ops, s, "ac97-nam", 1024);
+    memory_region_init_io (&s->io_nabm, &ac97_io_nabm_ops, s, "ac97-nabm", 256);
+    pci_register_bar_region (&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_nam);
+    pci_register_bar_region (&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO,
+                             &s->io_nabm);
     qemu_register_reset (ac97_on_reset, s);
     AUD_register_card ("ac97", &s->card);
     ac97_on_reset (s);
+    return 0;
+}
+
+static int ac97_exitfn (PCIDevice *dev)
+{
+    AC97LinkState *s = DO_UPCAST (AC97LinkState, dev, dev);
+
+    memory_region_destroy (&s->io_nam);
+    memory_region_destroy (&s->io_nabm);
     return 0;
 }
 
@@ -1332,6 +1346,7 @@ static PCIDeviceInfo ac97_info = {
     .qdev.size    = sizeof (AC97LinkState),
     .qdev.vmsd    = &vmstate_ac97,
     .init         = ac97_initfn,
+    .exit         = ac97_exitfn,
     .vendor_id    = PCI_VENDOR_ID_INTEL,
     .device_id    = PCI_DEVICE_ID_INTEL_82801AA_5,
     .revision     = 0x01,
