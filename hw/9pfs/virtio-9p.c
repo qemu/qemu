@@ -82,21 +82,6 @@ static int v9fs_do_lstat(V9fsState *s, V9fsString *path, struct stat *stbuf)
     return s->ops->lstat(&s->ctx, path->data, stbuf);
 }
 
-static ssize_t v9fs_do_readlink(V9fsState *s, V9fsString *path, V9fsString *buf)
-{
-    ssize_t len;
-
-    buf->data = qemu_malloc(1024);
-
-    len = s->ops->readlink(&s->ctx, path->data, buf->data, 1024 - 1);
-    if (len > -1) {
-        buf->size = len;
-        buf->data[len] = 0;
-    }
-
-    return len;
-}
-
 static int v9fs_do_close(V9fsState *s, int fd)
 {
     return s->ops->close(&s->ctx, fd);
@@ -1054,13 +1039,10 @@ static int stat_to_v9stat(V9fsState *s, V9fsString *name,
     v9fs_string_null(&v9stat->extension);
 
     if (v9stat->mode & P9_STAT_MODE_SYMLINK) {
-        err = v9fs_do_readlink(s, name, &v9stat->extension);
-        if (err == -1) {
-            err = -errno;
+        err = v9fs_co_readlink(s, name, &v9stat->extension);
+        if (err < 0) {
             return err;
         }
-        v9stat->extension.data[err] = 0;
-        v9stat->extension.size = err;
     } else if (v9stat->mode & P9_STAT_MODE_DEVICE) {
         v9fs_string_sprintf(&v9stat->extension, "%c %u %u",
                 S_ISCHR(stbuf->st_mode) ? 'c' : 'b',
@@ -1949,13 +1931,13 @@ static void v9fs_read_post_seekdir(V9fsState *s, V9fsReadState *vs, ssize_t err)
     if (err) {
         goto out;
     }
-    v9fs_stat_free(&vs->v9stat);
-    v9fs_string_free(&vs->name);
     vs->offset += pdu_marshal(vs->pdu, vs->offset, "d", vs->count);
     vs->offset += vs->count;
     err = vs->offset;
 out:
     complete_pdu(s, vs->pdu, err);
+    v9fs_stat_free(&vs->v9stat);
+    v9fs_string_free(&vs->name);
     qemu_free(vs);
     return;
 }
@@ -3582,49 +3564,32 @@ out:
     qemu_free(vs);
 }
 
-static void v9fs_readlink_post_readlink(V9fsState *s, V9fsReadLinkState *vs,
-                                                    int err)
-{
-    if (err < 0) {
-        err = -errno;
-        goto out;
-    }
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "s", &vs->target);
-    err = vs->offset;
-out:
-    complete_pdu(s, vs->pdu, err);
-    v9fs_string_free(&vs->target);
-    qemu_free(vs);
-}
-
 static void v9fs_readlink(void *opaque)
 {
     V9fsPDU *pdu = opaque;
-    V9fsState *s = pdu->s;
+    size_t offset = 7;
+    V9fsString target;
     int32_t fid;
-    V9fsReadLinkState *vs;
     int err = 0;
     V9fsFidState *fidp;
 
-    vs = qemu_malloc(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-
-    pdu_unmarshal(vs->pdu, vs->offset, "d", &fid);
-
-    fidp = lookup_fid(s, fid);
+    pdu_unmarshal(pdu, offset, "d", &fid);
+    fidp = lookup_fid(pdu->s, fid);
     if (fidp == NULL) {
         err = -ENOENT;
         goto out;
     }
 
-    v9fs_string_init(&vs->target);
-    err = v9fs_do_readlink(s, &fidp->path, &vs->target);
-    v9fs_readlink_post_readlink(s, vs, err);
-    return;
+    v9fs_string_init(&target);
+    err = v9fs_co_readlink(pdu->s, &fidp->path, &target);
+    if (err < 0) {
+        goto out;
+    }
+    offset += pdu_marshal(pdu, offset, "s", &target);
+    err = offset;
+    v9fs_string_free(&target);
 out:
-    complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    complete_pdu(pdu->s, pdu, err);
 }
 
 static CoroutineEntry *pdu_co_handlers[] = {

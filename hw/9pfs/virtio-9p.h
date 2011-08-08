@@ -495,13 +495,6 @@ typedef struct V9fsGetlockState
     V9fsGetlock *glock;
 } V9fsGetlockState;
 
-typedef struct V9fsReadLinkState
-{
-    V9fsPDU *pdu;
-    size_t offset;
-    V9fsString target;
-} V9fsReadLinkState;
-
 size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
                       size_t offset, size_t size, int pack);
 
@@ -512,5 +505,4 @@ static inline size_t do_pdu_unpack(void *dst, struct iovec *sg, int sg_count,
 }
 
 extern void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq);
-
 #endif
