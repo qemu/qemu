@@ -141,3 +141,17 @@ int v9fs_co_mknod(V9fsState *s, V9fsString *path, uid_t uid,
         });
     return err;
 }
+
+int v9fs_co_remove(V9fsState *s, V9fsString *path)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->remove(&s->ctx, path->data);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
