@@ -95,6 +95,7 @@ typedef struct PCIIORegion {
     PCIMapIORegionFunc *map_func;
     ram_addr_t ram_addr;
     MemoryRegion *memory;
+    MemoryRegion *address_space;
 } PCIIORegion;
 
 #define PCI_ROM_SLOT 6
