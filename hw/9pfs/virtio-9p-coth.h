@@ -56,4 +56,5 @@ typedef struct V9fsThPool {
 
 extern void co_run_in_worker_bh(void *);
 extern int v9fs_init_worker_threads(void);
+extern int v9fs_co_readlink(V9fsState *, V9fsString *, V9fsString *);
 #endif
