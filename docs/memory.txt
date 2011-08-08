@@ -15,7 +15,7 @@ The memory model provides support for
  - setting up coalesced memory for kvm
  - setting up ioeventfd regions for kvm
 
-Memory is modelled as an tree (really acyclic graph) of MemoryRegion objects.
+Memory is modelled as a tree (really acyclic graph) of MemoryRegion objects.
 The root of the tree is memory as seen from the CPU's viewpoint (the system
 bus).  Nodes in the tree represent other buses, memory controllers, and
 memory regions that have been rerouted.  Leaves are RAM and MMIO regions.
@@ -87,7 +87,7 @@ guest accesses an address:
   descending priority order
   - if the address lies outside the region offset/size, the subregion is
     discarded
-  - if the subregion is a leaf (RAM or MMIO), the seach terminates
+  - if the subregion is a leaf (RAM or MMIO), the search terminates
   - if the subregion is a container, the same algorithm is used within the
     subregion (after the address is adjusted by the subregion offset)
   - if the subregion is an alias, the search is continues at the alias target
@@ -128,7 +128,7 @@ so-called PCI hole, that allows a 32-bit PCI bus to exist in a system with
 4GB of memory.
 
 The memory controller diverts addresses in the range 640K-768K to the PCI
-address space.  This is modeled using the "vga-window" alias, mapped at a
+address space.  This is modelled using the "vga-window" alias, mapped at a
 higher priority so it obscures the RAM at the same addresses.  The vga window
 can be removed by programming the memory controller; this is modelled by
 removing the alias and exposing the RAM underneath.
@@ -164,7 +164,7 @@ various constraints can be supplied to control how these callbacks are called:
  - .impl.min_access_size, .impl.max_access_size define the access sizes
    (in bytes) supported by the *implementation*; other access sizes will be
    emulated using the ones available.  For example a 4-byte write will be
-   emulated using four 1-byte write, is .impl.max_access_size = 1.
+   emulated using four 1-byte write, if .impl.max_access_size = 1.
  - .impl.valid specifies that the *implementation* only supports unaligned
    accesses; unaligned accesses will be emulated by two aligned accesses.
  - .old_portio and .old_mmio can be used to ease porting from code using
