@@ -348,6 +348,7 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
                                                  ppc4xx_pci_map_irq,
                                                  pci_irqs,
                                                  get_system_memory(),
+                                                 get_system_io(),
                                                  0, 4);
 
     controller->pci_dev = pci_register_device(controller->pci_state.bus,

@@ -775,6 +775,7 @@ PCIBus *bonito_init(qemu_irq *pic)
     pcihost = FROM_SYSBUS(BonitoState, sysbus_from_qdev(dev));
     b = pci_register_bus(&pcihost->busdev.qdev, "pci", pci_bonito_set_irq,
                          pci_bonito_map_irq, pic, get_system_memory(),
+                         get_system_io(),
                          0x28, 32);
     pcihost->bus = b;
     qdev_init_nofail(dev);

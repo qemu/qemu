@@ -55,11 +55,16 @@ qemu_irq *heathrow_pic_init(int *pmem_index,
 
 /* Grackle PCI */
 PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
-                         MemoryRegion *address_space);
+                         MemoryRegion *address_space_mem,
+                         MemoryRegion *address_space_io);
 
 /* UniNorth PCI */
-PCIBus *pci_pmac_init(qemu_irq *pic, MemoryRegion *address_space);
-PCIBus *pci_pmac_u3_init(qemu_irq *pic, MemoryRegion *address_space);
+PCIBus *pci_pmac_init(qemu_irq *pic,
+                      MemoryRegion *address_space_mem,
+                      MemoryRegion *address_space_io);
+PCIBus *pci_pmac_u3_init(qemu_irq *pic,
+                         MemoryRegion *address_space_mem,
+                         MemoryRegion *address_space_io);
 
 /* Mac NVRAM */
 typedef struct MacIONVRAMState MacIONVRAMState;

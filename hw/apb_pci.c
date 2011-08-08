@@ -348,6 +348,7 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     d->bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_apb_set_irq, pci_pbm_map_irq, d,
                                          get_system_memory(),
+                                         get_system_io(),
                                          0, 32);
     pci_bus_set_mem_base(d->bus, mem_base);
 

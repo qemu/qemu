@@ -282,7 +282,8 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     PPCE500PCIState *s;
     PCIBus *b;
     int i;
-    MemoryRegion *address_space = get_system_memory();
+    MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *address_space_io = get_system_io();
 
     h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
     s = DO_UPCAST(PPCE500PCIState, pci_state, h);
@@ -292,8 +293,8 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
     }
 
     b = pci_register_bus(&s->pci_state.busdev.qdev, NULL, mpc85xx_pci_set_irq,
-                         mpc85xx_pci_map_irq, s->irq, address_space,
-                         PCI_DEVFN(0x11, 0), 4);
+                         mpc85xx_pci_map_irq, s->irq, address_space_mem,
+                         address_space_io, PCI_DEVFN(0x11, 0), 4);
     s->pci_state.bus = b;
 
     pci_create_simple(b, 0, "e500-host-bridge");

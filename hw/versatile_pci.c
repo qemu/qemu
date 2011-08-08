@@ -112,7 +112,7 @@ static int pci_vpb_init(SysBusDevice *dev)
     }
     bus = pci_register_bus(&dev->qdev, "pci",
                            pci_vpb_set_irq, pci_vpb_map_irq, s->irq,
-                           get_system_memory(),
+                           get_system_memory(), get_system_io(),
                            PCI_DEVFN(11, 0), 4);
 
     /* ??? Register memory space.  */
