@@ -52,44 +52,42 @@ static void main_cpu_reset(void *opaque)
     cpu_reset(env);
 }
 
-static uint32_t rtc_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t rtc_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
     return cpu_inw(0x71);
 }
 
-static void rtc_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void rtc_write(void *opaque, target_phys_addr_t addr,
+                      uint64_t val, unsigned size)
 {
     cpu_outw(0x71, val & 0xff);
 }
 
-static CPUReadMemoryFunc * const rtc_read[3] = {
-    rtc_readb,
-    rtc_readb,
-    rtc_readb,
+static const MemoryRegionOps rtc_ops = {
+    .read = rtc_read,
+    .write = rtc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const rtc_write[3] = {
-    rtc_writeb,
-    rtc_writeb,
-    rtc_writeb,
-};
+static uint64_t dma_dummy_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
+{
+    /* Nothing to do. That is only to ensure that
+     * the current DMA acknowledge cycle is completed. */
+    return 0xff;
+}
 
-static void dma_dummy_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void dma_dummy_write(void *opaque, target_phys_addr_t addr,
+                            uint64_t val, unsigned size)
 {
     /* Nothing to do. That is only to ensure that
      * the current DMA acknowledge cycle is completed. */
 }
 
-static CPUReadMemoryFunc * const dma_dummy_read[3] = {
-    NULL,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const dma_dummy_write[3] = {
-    dma_dummy_writeb,
-    dma_dummy_writeb,
-    dma_dummy_writeb,
+static const MemoryRegionOps dma_dummy_ops = {
+    .read = dma_dummy_read,
+    .write = dma_dummy_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 #define MAGNUM_BIOS_SIZE_MAX 0x7e000
@@ -105,7 +103,7 @@ static void cpu_request_exit(void *opaque, int irq, int level)
 }
 
 static
-void mips_jazz_init (ram_addr_t ram_size,
+void mips_jazz_init (MemoryRegion *address_space, ram_addr_t ram_size,
                      const char *cpu_model,
                      enum jazz_model_e jazz_model)
 {
@@ -115,7 +113,8 @@ void mips_jazz_init (ram_addr_t ram_size,
     qemu_irq *rc4030, *i8259;
     rc4030_dma *dmas;
     void* rc4030_opaque;
-    int s_rtc, s_dma_dummy;
+    MemoryRegion *rtc = g_new(MemoryRegion, 1);
+    MemoryRegion *dma_dummy = g_new(MemoryRegion, 1);
     NICInfo *nd;
     DeviceState *dev;
     SysBusDevice *sysbus;
@@ -123,8 +122,9 @@ void mips_jazz_init (ram_addr_t ram_size,
     DriveInfo *fds[MAX_FD];
     qemu_irq esp_reset, dma_enable;
     qemu_irq *cpu_exit_irq;
-    ram_addr_t ram_offset;
-    ram_addr_t bios_offset;
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *bios = g_new(MemoryRegion, 1);
+    MemoryRegion *bios2 = g_new(MemoryRegion, 1);
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -143,14 +143,15 @@ void mips_jazz_init (ram_addr_t ram_size,
     qemu_register_reset(main_cpu_reset, env);
 
     /* allocate RAM */
-    ram_offset = qemu_ram_alloc(NULL, "mips_jazz.ram", ram_size);
-    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
+    memory_region_init_ram(ram, NULL, "mips_jazz.ram", ram_size);
+    memory_region_add_subregion(address_space, 0, ram);
 
-    bios_offset = qemu_ram_alloc(NULL, "mips_jazz.bios", MAGNUM_BIOS_SIZE);
-    cpu_register_physical_memory(0x1fc00000LL,
-                                 MAGNUM_BIOS_SIZE, bios_offset | IO_MEM_ROM);
-    cpu_register_physical_memory(0xfff00000LL,
-                                 MAGNUM_BIOS_SIZE, bios_offset | IO_MEM_ROM);
+    memory_region_init_ram(bios, NULL, "mips_jazz.bios", MAGNUM_BIOS_SIZE);
+    memory_region_set_readonly(bios, true);
+    memory_region_init_alias(bios2, "mips_jazz.bios", bios,
+                             0, MAGNUM_BIOS_SIZE);
+    memory_region_add_subregion(address_space, 0x1fc00000LL, bios);
+    memory_region_add_subregion(address_space, 0xfff00000LL, bios2);
 
     /* load the BIOS image. */
     if (bios_name == NULL)
@@ -175,9 +176,8 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* Chipset */
     rc4030_opaque = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas);
-    s_dma_dummy = cpu_register_io_memory(dma_dummy_read, dma_dummy_write, NULL,
-                                         DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(0x8000d000, 0x00001000, s_dma_dummy);
+    memory_region_init_io(dma_dummy, &dma_dummy_ops, NULL, "dummy_dma", 0x1000);
+    memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
     /* ISA devices */
     i8259 = i8259_init(env->irq[4]);
@@ -203,10 +203,11 @@ void mips_jazz_init (ram_addr_t ram_size,
         sysbus_connect_irq(sysbus, 0, rc4030[3]);
         {
             /* Simple ROM, so user doesn't have to provide one */
-            ram_addr_t rom_offset = qemu_ram_alloc(NULL, "g364fb.rom", 0x80000);
-            uint8_t *rom = qemu_get_ram_ptr(rom_offset);
-            cpu_register_physical_memory(0x60000000, 0x80000,
-                                         rom_offset | IO_MEM_ROM);
+            MemoryRegion *rom_mr = g_new(MemoryRegion, 1);
+            memory_region_init_ram(rom_mr, NULL, "g364fb.rom", 0x80000);
+            memory_region_set_readonly(rom_mr, true);
+            uint8_t *rom = memory_region_get_ram_ptr(rom_mr);
+            memory_region_add_subregion(address_space, 0x60000000, rom_mr);
             rom[0] = 0x10; /* Mips G364 */
         }
         break;
@@ -252,9 +253,8 @@ void mips_jazz_init (ram_addr_t ram_size,
 
     /* Real time clock */
     rtc_init(1980, NULL);
-    s_rtc = cpu_register_io_memory(rtc_read, rtc_write, NULL,
-                                   DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(0x80004000, 0x00001000, s_rtc);
+    memory_region_init_io(rtc, &rtc_ops, NULL, "rtc", 0x1000);
+    memory_region_add_subregion(address_space, 0x80004000, rtc);
 
     /* Keyboard (i8042) */
     i8042_mm_init(rc4030[6], rc4030[7], 0x80005000, 0x1000, 0x1);
@@ -299,7 +299,7 @@ void mips_magnum_init (ram_addr_t ram_size,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
-    mips_jazz_init(ram_size, cpu_model, JAZZ_MAGNUM);
+    mips_jazz_init(get_system_memory(), ram_size, cpu_model, JAZZ_MAGNUM);
 }
 
 static
@@ -308,7 +308,7 @@ void mips_pica61_init (ram_addr_t ram_size,
                        const char *kernel_filename, const char *kernel_cmdline,
                        const char *initrd_filename, const char *cpu_model)
 {
-    mips_jazz_init(ram_size, cpu_model, JAZZ_PICA61);
+    mips_jazz_init(get_system_memory(), ram_size, cpu_model, JAZZ_PICA61);
 }
 
 static QEMUMachine mips_magnum_machine = {
