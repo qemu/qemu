@@ -113,6 +113,7 @@ static int in_migration;
 RAMList ram_list = { .blocks = QLIST_HEAD_INITIALIZER(ram_list) };
 
 static MemoryRegion *system_memory;
+static MemoryRegion *system_io;
 
 #endif
 
@@ -3830,11 +3831,20 @@ static void memory_map_init(void)
     system_memory = qemu_malloc(sizeof(*system_memory));
     memory_region_init(system_memory, "system", INT64_MAX);
     set_system_memory_map(system_memory);
+
+    system_io = qemu_malloc(sizeof(*system_io));
+    memory_region_init(system_io, "io", 65536);
+    set_system_io_map(system_io);
 }
 
 MemoryRegion *get_system_memory(void)
 {
     return system_memory;
+}
+
+MemoryRegion *get_system_io(void)
+{
+    return system_io;
 }
 
 #endif /* !defined(CONFIG_USER_ONLY) */

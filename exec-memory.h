@@ -28,6 +28,11 @@
  */
 MemoryRegion *get_system_memory(void);
 
+/* Get the root I/O port region.  This interface should only be used
+ * temporarily until a proper bus interface is available.
+ */
+MemoryRegion *get_system_io(void);
+
 /* Set the root memory region.  This region is the system memory map. */
 void set_system_memory_map(MemoryRegion *mr);
 
