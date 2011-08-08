@@ -276,12 +276,12 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
     }
 }
 
-static uint32_t ahci_mem_readl(void *ptr, target_phys_addr_t addr)
+static uint64_t ahci_mem_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
-    AHCIState *s = ptr;
+    AHCIState *s = opaque;
     uint32_t val = 0;
 
-    addr = addr & 0xfff;
     if (addr < AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR) {
         switch (addr) {
         case HOST_CAP:
@@ -314,10 +314,10 @@ static uint32_t ahci_mem_readl(void *ptr, target_phys_addr_t addr)
 
 
 
-static void ahci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
+static void ahci_mem_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned size)
 {
-    AHCIState *s = ptr;
-    addr = addr & 0xfff;
+    AHCIState *s = opaque;
 
     /* Only aligned reads are allowed on AHCI */
     if (addr & 3) {
@@ -364,16 +364,10 @@ static void ahci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 
 }
 
-static CPUReadMemoryFunc * const ahci_readfn[3]={
-    ahci_mem_readl,
-    ahci_mem_readl,
-    ahci_mem_readl
-};
-
-static CPUWriteMemoryFunc * const ahci_writefn[3]={
-    ahci_mem_writel,
-    ahci_mem_writel,
-    ahci_mem_writel
+static MemoryRegionOps ahci_mem_ops = {
+    .read = ahci_mem_read,
+    .write = ahci_mem_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void ahci_reg_init(AHCIState *s)
@@ -1131,8 +1125,8 @@ void ahci_init(AHCIState *s, DeviceState *qdev, int ports)
     s->ports = ports;
     s->dev = qemu_mallocz(sizeof(AHCIDevice) * ports);
     ahci_reg_init(s);
-    s->mem = cpu_register_io_memory(ahci_readfn, ahci_writefn, s,
-                                    DEVICE_LITTLE_ENDIAN);
+    /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
+    memory_region_init_io(&s->mem, &ahci_mem_ops, s, "ahci", 0x1000);
     irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
 
     for (i = 0; i < s->ports; i++) {
@@ -1151,6 +1145,7 @@ void ahci_init(AHCIState *s, DeviceState *qdev, int ports)
 
 void ahci_uninit(AHCIState *s)
 {
+    memory_region_destroy(&s->mem);
     qemu_free(s->dev);
 }
 
