@@ -814,7 +814,7 @@ static int img_convert(int argc, char **argv)
     bs_i = 0;
     bs_offset = 0;
     bdrv_get_geometry(bs[0], &bs_sectors);
-    buf = g_malloc(IO_BUF_SIZE);
+    buf = qemu_blockalign(out_bs, IO_BUF_SIZE);
 
     if (compress) {
         ret = bdrv_get_info(out_bs, &bdi);
@@ -986,7 +986,7 @@ out:
     qemu_progress_end();
     free_option_parameters(create_options);
     free_option_parameters(param);
-    g_free(buf);
+    qemu_vfree(buf);
     if (out_bs) {
         bdrv_delete(out_bs);
     }
@@ -1353,8 +1353,8 @@ static int img_rebase(int argc, char **argv)
         uint8_t * buf_new;
         float local_progress;
 
-        buf_old = g_malloc(IO_BUF_SIZE);
-        buf_new = g_malloc(IO_BUF_SIZE);
+        buf_old = qemu_blockalign(bs, IO_BUF_SIZE);
+        buf_new = qemu_blockalign(bs, IO_BUF_SIZE);
 
         bdrv_get_geometry(bs, &num_sectors);
 
@@ -1410,8 +1410,8 @@ static int img_rebase(int argc, char **argv)
             qemu_progress_print(local_progress, 100);
         }
 
-        g_free(buf_old);
-        g_free(buf_new);
+        qemu_vfree(buf_old);
+        qemu_vfree(buf_new);
     }
 
     /*
