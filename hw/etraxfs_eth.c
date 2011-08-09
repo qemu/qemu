@@ -23,7 +23,7 @@
  */
 
 #include <stdio.h>
-#include "hw.h"
+#include "sysbus.h"
 #include "net.h"
 #include "etraxfs.h"
 
@@ -319,6 +319,7 @@ static void mdio_cycle(struct qemu_mdio *bus)
 
 struct fs_eth
 {
+	SysBusDevice busdev;
 	NICState *nic;
 	NICConf conf;
 	int ethregs;
@@ -327,8 +328,14 @@ struct fs_eth
 	uint8_t macaddr[2][6];
 	uint32_t regs[FS_ETH_MAX_REGS];
 
-	struct etraxfs_dma_client *dma_out;
-	struct etraxfs_dma_client *dma_in;
+	union {
+		void *vdma_out;
+		struct etraxfs_dma_client *dma_out;
+	};
+	union {
+		void *vdma_in;
+		struct etraxfs_dma_client *dma_in;
+	};
 
 	/* MDIO bus.  */
 	struct qemu_mdio mdio_bus;
@@ -579,37 +586,50 @@ static NetClientInfo net_etraxfs_info = {
 	.link_status_changed = eth_set_link,
 };
 
-void etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr,
-                       struct etraxfs_dma_client *dma_out,
-                       struct etraxfs_dma_client *dma_in)
+static int fs_eth_init(SysBusDevice *dev)
 {
-	struct fs_eth *eth = NULL;
+	struct fs_eth *s = FROM_SYSBUS(typeof(*s), dev);
+	int eth_regs;
 
-	qemu_check_nic_model(nd, "fseth");
+	if (!s->dma_out || !s->dma_in) {
+		hw_error("Unconnected ETRAX-FS Ethernet MAC.\n");
+	}
 
-	eth = qemu_mallocz(sizeof *eth);
+	s->dma_out->client.push = eth_tx_push;
+	s->dma_out->client.opaque = s;
+	s->dma_in->client.opaque = s;
+	s->dma_in->client.pull = NULL;
 
-	dma_out->client.push = eth_tx_push;
-	dma_out->client.opaque = eth;
-	dma_in->client.opaque = eth;
-	dma_in->client.pull = NULL;
+	eth_regs = cpu_register_io_memory(eth_read, eth_write, s,
+					  DEVICE_LITTLE_ENDIAN);
+	sysbus_init_mmio(dev, 0x5c, eth_regs);
 
-	eth->dma_out = dma_out;
-	eth->dma_in = dma_in;
+	qemu_macaddr_default_if_unset(&s->conf.macaddr);
+	s->nic = qemu_new_nic(&net_etraxfs_info, &s->conf,
+			      dev->qdev.info->name, dev->qdev.id, s);
+	qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
-	/* Connect the phy.  */
-	eth->phyaddr = phyaddr & 0x1f;
-	tdk_init(&eth->phy);
-	mdio_attach(&eth->mdio_bus, &eth->phy, eth->phyaddr);
-
-	eth->ethregs = cpu_register_io_memory(eth_read, eth_write, eth,
-                                              DEVICE_NATIVE_ENDIAN);
-	cpu_register_physical_memory (base, 0x5c, eth->ethregs);
-
-	eth->conf.macaddr = nd->macaddr;
-	eth->conf.vlan = nd->vlan;
-	eth->conf.peer = nd->netdev;
-
-	eth->nic = qemu_new_nic(&net_etraxfs_info, &eth->conf,
-				nd->model, nd->name, eth);
+	tdk_init(&s->phy);
+	mdio_attach(&s->mdio_bus, &s->phy, s->phyaddr);
+	return 0;
 }
+
+static SysBusDeviceInfo etraxfs_eth_info = {
+	.init = fs_eth_init,
+	.qdev.name  = "etraxfs-eth",
+	.qdev.size  = sizeof(struct fs_eth),
+	.qdev.props = (Property[]) {
+		DEFINE_PROP_UINT32("phyaddr", struct fs_eth, phyaddr, 1),
+		DEFINE_PROP_PTR("dma_out", struct fs_eth, vdma_out),
+		DEFINE_PROP_PTR("dma_in", struct fs_eth, vdma_in),
+		DEFINE_NIC_PROPERTIES(struct fs_eth, conf),
+		DEFINE_PROP_END_OF_LIST(),
+	}
+};
+
+static void etraxfs_eth_register(void)
+{
+	sysbus_register_withprop(&etraxfs_eth_info);
+}
+
+device_init(etraxfs_eth_register)

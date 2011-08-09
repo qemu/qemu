@@ -25,6 +25,21 @@
 #include "etraxfs_dma.h"
 
 qemu_irq *cris_pic_init_cpu(CPUState *env);
-void etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr,
-                      struct etraxfs_dma_client *dma_out,
-                      struct etraxfs_dma_client *dma_in);
+
+/* Instantiate an ETRAXFS Ethernet MAC.  */
+static inline DeviceState *
+etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr,
+                 void *dma_out, void *dma_in)
+{
+    DeviceState *dev;
+    qemu_check_nic_model(nd, "fseth");
+
+    dev = qdev_create(NULL, "etraxfs-eth");
+    qdev_set_nic_properties(dev, nd);
+    qdev_prop_set_uint32(dev, "phyaddr", phyaddr);
+    qdev_prop_set_ptr(dev, "dma_out", dma_out);
+    qdev_prop_set_ptr(dev, "dma_in", dma_in);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
+    return dev;
+}
