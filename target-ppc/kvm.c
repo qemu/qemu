@@ -29,6 +29,10 @@
 #include "cpu.h"
 #include "device_tree.h"
 
+#include "hw/sysbus.h"
+#include "hw/spapr.h"
+#include "hw/spapr_vio.h"
+
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
@@ -455,6 +459,14 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
         dprintf("handle halt\n");
         ret = kvmppc_handle_halt(env);
         break;
+#ifdef CONFIG_PSERIES
+    case KVM_EXIT_PAPR_HCALL:
+        dprintf("handle PAPR hypercall\n");
+        run->papr_hcall.ret = spapr_hypercall(env, run->papr_hcall.nr,
+                                              run->papr_hcall.args);
+        ret = 1;
+        break;
+#endif
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;
@@ -604,6 +616,34 @@ int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
     hc[3] = 0x60000000;
 
     return 0;
+}
+
+void kvmppc_set_papr(CPUState *env)
+{
+    struct kvm_enable_cap cap;
+    int ret;
+
+    memset(&cap, 0, sizeof(cap));
+    cap.cap = KVM_CAP_PPC_PAPR;
+    ret = kvm_vcpu_ioctl(env, KVM_ENABLE_CAP, &cap);
+
+    if (ret) {
+        goto fail;
+    }
+
+    /*
+     * XXX We set HIOR here. It really should be a qdev property of
+     *     the CPU node, but we don't have CPUs converted to qdev yet.
+     *
+     *     Once we have qdev CPUs, move HIOR to a qdev property and
+     *     remove this chunk.
+     */
+    /* XXX Set HIOR using new ioctl */
+
+    return;
+
+fail:
+    cpu_abort(env, "This KVM version does not support PAPR\n");
 }
 
 bool kvm_arch_stop_on_emulation_error(CPUState *env)

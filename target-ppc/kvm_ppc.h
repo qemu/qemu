@@ -17,6 +17,7 @@ uint32_t kvmppc_get_tbfreq(void);
 uint64_t kvmppc_get_clockfreq(void);
 int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(CPUState *env, int irq, int level);
+void kvmppc_set_papr(CPUState *env);
 
 #else
 
@@ -38,6 +39,10 @@ static inline int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
 static inline int kvmppc_set_interrupt(CPUState *env, int irq, int level)
 {
     return -1;
+}
+
+static inline void kvmppc_set_papr(CPUState *env)
+{
 }
 
 #endif

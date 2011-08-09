@@ -38,6 +38,9 @@
 #include "hw/spapr_vio.h"
 #include "hw/xics.h"
 
+#include "kvm.h"
+#include "kvm_ppc.h"
+
 #include <libfdt.h>
 
 #define KERNEL_LOAD_ADDR        0x00000000
@@ -336,12 +339,21 @@ static void ppc_spapr_init(ram_addr_t ram_size,
      * later we should probably make it scale to the size of guest
      * RAM */
     spapr->htab_size = 1ULL << (pteg_shift + 7);
-    spapr->htab = g_malloc(spapr->htab_size);
+    spapr->htab = qemu_memalign(spapr->htab_size, spapr->htab_size);
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         env->external_htab = spapr->htab;
         env->htab_base = -1;
         env->htab_mask = spapr->htab_size - 1;
+
+        /* Tell KVM that we're in PAPR mode */
+        env->spr[SPR_SDR1] = (unsigned long)spapr->htab |
+                             ((pteg_shift + 7) - 18);
+        env->spr[SPR_HIOR] = 0;
+
+        if (kvm_enabled()) {
+            kvmppc_set_papr(env);
+        }
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
