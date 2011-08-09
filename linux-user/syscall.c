@@ -70,6 +70,9 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #ifdef CONFIG_EPOLL
 #include <sys/epoll.h>
 #endif
+#ifdef CONFIG_ATTR
+#include <attr/xattr.h>
+#endif
 
 #define termios host_termios
 #define winsize host_winsize
@@ -7642,22 +7645,67 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
         break;
 #endif
+#ifdef CONFIG_ATTR
 #ifdef TARGET_NR_setxattr
-    case TARGET_NR_setxattr:
     case TARGET_NR_lsetxattr:
     case TARGET_NR_fsetxattr:
-    case TARGET_NR_getxattr:
     case TARGET_NR_lgetxattr:
     case TARGET_NR_fgetxattr:
     case TARGET_NR_listxattr:
     case TARGET_NR_llistxattr:
     case TARGET_NR_flistxattr:
-    case TARGET_NR_removexattr:
     case TARGET_NR_lremovexattr:
     case TARGET_NR_fremovexattr:
         ret = -TARGET_EOPNOTSUPP;
         break;
+    case TARGET_NR_setxattr:
+        {
+            void *p, *n, *v;
+            p = lock_user_string(arg1);
+            n = lock_user_string(arg2);
+            v = lock_user(VERIFY_READ, arg3, arg4, 1);
+            if (p && n && v) {
+                ret = get_errno(setxattr(p, n, v, arg4, arg5));
+            } else {
+                ret = -TARGET_EFAULT;
+            }
+            unlock_user(p, arg1, 0);
+            unlock_user(n, arg2, 0);
+            unlock_user(v, arg3, 0);
+        }
+        break;
+    case TARGET_NR_getxattr:
+        {
+            void *p, *n, *v;
+            p = lock_user_string(arg1);
+            n = lock_user_string(arg2);
+            v = lock_user(VERIFY_WRITE, arg3, arg4, 0);
+            if (p && n && v) {
+                ret = get_errno(getxattr(p, n, v, arg4));
+            } else {
+                ret = -TARGET_EFAULT;
+            }
+            unlock_user(p, arg1, 0);
+            unlock_user(n, arg2, 0);
+            unlock_user(v, arg3, arg4);
+        }
+        break;
+    case TARGET_NR_removexattr:
+        {
+            void *p, *n;
+            p = lock_user_string(arg1);
+            n = lock_user_string(arg2);
+            if (p && n) {
+                ret = get_errno(removexattr(p, n));
+            } else {
+                ret = -TARGET_EFAULT;
+            }
+            unlock_user(p, arg1, 0);
+            unlock_user(n, arg2, 0);
+        }
+        break;
 #endif
+#endif /* CONFIG_ATTR */
 #ifdef TARGET_NR_set_thread_area
     case TARGET_NR_set_thread_area:
 #if defined(TARGET_MIPS)
