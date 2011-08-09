@@ -1749,7 +1749,7 @@ void cpu_loop(CPUPPCState *env)
 #define MIPS_SYS(name, args) args,
 
 static const uint8_t mips_syscall_args[] = {
-	MIPS_SYS(sys_syscall	, 0)	/* 4000 */
+	MIPS_SYS(sys_syscall	, 8)	/* 4000 */
 	MIPS_SYS(sys_exit	, 1)
 	MIPS_SYS(sys_fork	, 0)
 	MIPS_SYS(sys_read	, 3)
