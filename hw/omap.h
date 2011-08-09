@@ -826,6 +826,14 @@ struct omap_mpu_state_s {
 
     qemu_irq wakeup;
 
+    MemoryRegion ulpd_pm_iomem;
+    MemoryRegion pin_cfg_iomem;
+    MemoryRegion id_iomem;
+    MemoryRegion id_iomem_e18;
+    MemoryRegion id_iomem_ed4;
+    MemoryRegion id_iomem_e20;
+    MemoryRegion mpui_iomem;
+
     struct omap_dma_port_if_s {
         uint32_t (*read[3])(struct omap_mpu_state_s *s,
                         target_phys_addr_t offset);
@@ -947,7 +955,8 @@ struct omap_mpu_state_s {
 };
 
 /* omap1.c */
-struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
+struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
+                unsigned long sdram_size,
                 const char *core);
 
 /* omap2.c */

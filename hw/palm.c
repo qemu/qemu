@@ -25,6 +25,7 @@
 #include "arm-misc.h"
 #include "devices.h"
 #include "loader.h"
+#include "exec-memory.h"
 
 static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
 {
@@ -198,6 +199,7 @@ static void palmte_init(ram_addr_t ram_size,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
+    MemoryRegion *address_space_mem = get_system_memory();
     struct omap_mpu_state_s *cpu;
     int flash_size = 0x00800000;
     int sdram_size = palmte_binfo.ram_size;
@@ -209,7 +211,7 @@ static void palmte_init(ram_addr_t ram_size,
     int rom_size, rom_loaded = 0;
     DisplayState *ds = get_displaystate();
 
-    cpu = omap310_mpu_init(sdram_size, cpu_model);
+    cpu = omap310_mpu_init(address_space_mem, sdram_size, cpu_model);
 
     /* External Flash (EMIFS) */
     cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,

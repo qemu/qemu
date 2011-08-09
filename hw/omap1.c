@@ -84,6 +84,7 @@ void omap_badwidth_write32(void *opaque, target_phys_addr_t addr,
 
 /* MPU OS timers */
 struct omap_mpu_timer_s {
+    MemoryRegion iomem;
     qemu_irq irq;
     omap_clk clk;
     uint32_t val;
@@ -179,9 +180,14 @@ static void omap_timer_clk_setup(struct omap_mpu_timer_s *timer)
     timer->rate = omap_clk_getrate(timer->clk);
 }
 
-static uint32_t omap_mpu_timer_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_mpu_timer_read(void *opaque, target_phys_addr_t addr,
+                                    unsigned size)
 {
     struct omap_mpu_timer_s *s = (struct omap_mpu_timer_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* CNTL_TIMER */
@@ -199,9 +205,13 @@ static uint32_t omap_mpu_timer_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_mpu_timer_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                                 uint64_t value, unsigned size)
 {
     struct omap_mpu_timer_s *s = (struct omap_mpu_timer_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* CNTL_TIMER */
@@ -226,16 +236,10 @@ static void omap_mpu_timer_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_mpu_timer_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_mpu_timer_read,
-};
-
-static CPUWriteMemoryFunc * const omap_mpu_timer_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_mpu_timer_write,
+static const MemoryRegionOps omap_mpu_timer_ops = {
+    .read = omap_mpu_timer_read,
+    .write = omap_mpu_timer_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void omap_mpu_timer_reset(struct omap_mpu_timer_s *s)
@@ -250,10 +254,10 @@ static void omap_mpu_timer_reset(struct omap_mpu_timer_s *s)
     s->it_ena = 1;
 }
 
-static struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
+static struct omap_mpu_timer_s *omap_mpu_timer_init(MemoryRegion *system_memory,
+                target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk)
 {
-    int iomemtype;
     struct omap_mpu_timer_s *s = (struct omap_mpu_timer_s *)
             g_malloc0(sizeof(struct omap_mpu_timer_s));
 
@@ -264,9 +268,10 @@ static struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
     omap_mpu_timer_reset(s);
     omap_timer_clk_setup(s);
 
-    iomemtype = cpu_register_io_memory(omap_mpu_timer_readfn,
-                    omap_mpu_timer_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x100, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_mpu_timer_ops, s,
+                          "omap-mpu-timer", 0x100);
+
+    memory_region_add_subregion(system_memory, base, &s->iomem);
 
     return s;
 }
@@ -274,15 +279,21 @@ static struct omap_mpu_timer_s *omap_mpu_timer_init(target_phys_addr_t base,
 /* Watchdog timer */
 struct omap_watchdog_timer_s {
     struct omap_mpu_timer_s timer;
+    MemoryRegion iomem;
     uint8_t last_wr;
     int mode;
     int free;
     int reset;
 };
 
-static uint32_t omap_wd_timer_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_wd_timer_read(void *opaque, target_phys_addr_t addr,
+                                   unsigned size)
 {
     struct omap_watchdog_timer_s *s = (struct omap_watchdog_timer_s *) opaque;
+
+    if (size != 2) {
+        return omap_badwidth_read16(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* CNTL_TIMER */
@@ -301,9 +312,13 @@ static uint32_t omap_wd_timer_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_wd_timer_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     struct omap_watchdog_timer_s *s = (struct omap_watchdog_timer_s *) opaque;
+
+    if (size != 2) {
+        return omap_badwidth_write16(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* CNTL_TIMER */
@@ -344,16 +359,10 @@ static void omap_wd_timer_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_wd_timer_readfn[] = {
-    omap_badwidth_read16,
-    omap_wd_timer_read,
-    omap_badwidth_read16,
-};
-
-static CPUWriteMemoryFunc * const omap_wd_timer_writefn[] = {
-    omap_badwidth_write16,
-    omap_wd_timer_write,
-    omap_badwidth_write16,
+static const MemoryRegionOps omap_wd_timer_ops = {
+    .read = omap_wd_timer_read,
+    .write = omap_wd_timer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_wd_timer_reset(struct omap_watchdog_timer_s *s)
@@ -374,10 +383,10 @@ static void omap_wd_timer_reset(struct omap_watchdog_timer_s *s)
     omap_timer_update(&s->timer);
 }
 
-static struct omap_watchdog_timer_s *omap_wd_timer_init(target_phys_addr_t base,
+static struct omap_watchdog_timer_s *omap_wd_timer_init(MemoryRegion *memory,
+                target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk)
 {
-    int iomemtype;
     struct omap_watchdog_timer_s *s = (struct omap_watchdog_timer_s *)
             g_malloc0(sizeof(struct omap_watchdog_timer_s));
 
@@ -387,9 +396,9 @@ static struct omap_watchdog_timer_s *omap_wd_timer_init(target_phys_addr_t base,
     omap_wd_timer_reset(s);
     omap_timer_clk_setup(&s->timer);
 
-    iomemtype = cpu_register_io_memory(omap_wd_timer_readfn,
-                    omap_wd_timer_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x100, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_wd_timer_ops, s,
+                          "omap-wd-timer", 0x100);
+    memory_region_add_subregion(memory, base, &s->iomem);
 
     return s;
 }
@@ -397,12 +406,18 @@ static struct omap_watchdog_timer_s *omap_wd_timer_init(target_phys_addr_t base,
 /* 32-kHz timer */
 struct omap_32khz_timer_s {
     struct omap_mpu_timer_s timer;
+    MemoryRegion iomem;
 };
 
-static uint32_t omap_os_timer_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_os_timer_read(void *opaque, target_phys_addr_t addr,
+                                   unsigned size)
 {
     struct omap_32khz_timer_s *s = (struct omap_32khz_timer_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (offset) {
     case 0x00:	/* TVR */
@@ -422,10 +437,14 @@ static uint32_t omap_os_timer_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_os_timer_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     struct omap_32khz_timer_s *s = (struct omap_32khz_timer_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (offset) {
     case 0x00:	/* TVR */
@@ -452,16 +471,10 @@ static void omap_os_timer_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_os_timer_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_os_timer_read,
-};
-
-static CPUWriteMemoryFunc * const omap_os_timer_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_os_timer_write,
+static const MemoryRegionOps omap_os_timer_ops = {
+    .read = omap_os_timer_read,
+    .write = omap_os_timer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_os_timer_reset(struct omap_32khz_timer_s *s)
@@ -476,10 +489,10 @@ static void omap_os_timer_reset(struct omap_32khz_timer_s *s)
     s->timer.ar = 1;
 }
 
-static struct omap_32khz_timer_s *omap_os_timer_init(target_phys_addr_t base,
+static struct omap_32khz_timer_s *omap_os_timer_init(MemoryRegion *memory,
+                target_phys_addr_t base,
                 qemu_irq irq, omap_clk clk)
 {
-    int iomemtype;
     struct omap_32khz_timer_s *s = (struct omap_32khz_timer_s *)
             g_malloc0(sizeof(struct omap_32khz_timer_s));
 
@@ -489,18 +502,23 @@ static struct omap_32khz_timer_s *omap_os_timer_init(target_phys_addr_t base,
     omap_os_timer_reset(s);
     omap_timer_clk_setup(&s->timer);
 
-    iomemtype = cpu_register_io_memory(omap_os_timer_readfn,
-                    omap_os_timer_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x800, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_os_timer_ops, s,
+                          "omap-os-timer", 0x800);
+    memory_region_add_subregion(memory, base, &s->iomem);
 
     return s;
 }
 
 /* Ultra Low-Power Device Module */
-static uint32_t omap_ulpd_pm_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_ulpd_pm_read(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
     uint16_t ret;
+
+    if (size != 2) {
+        return omap_badwidth_read16(opaque, addr);
+    }
 
     switch (addr) {
     case 0x14:	/* IT_STATUS */
@@ -560,13 +578,17 @@ static inline void omap_ulpd_req_update(struct omap_mpu_state_s *s,
 }
 
 static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                               uint64_t value, unsigned size)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
     int64_t now, ticks;
     int div, mult;
     static const int bypass_div[4] = { 1, 2, 4, 4 };
     uint16_t diff;
+
+    if (size != 2) {
+        return omap_badwidth_write16(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* COUNTER_32_LSB */
@@ -674,16 +696,10 @@ static void omap_ulpd_pm_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_ulpd_pm_readfn[] = {
-    omap_badwidth_read16,
-    omap_ulpd_pm_read,
-    omap_badwidth_read16,
-};
-
-static CPUWriteMemoryFunc * const omap_ulpd_pm_writefn[] = {
-    omap_badwidth_write16,
-    omap_ulpd_pm_write,
-    omap_badwidth_write16,
+static const MemoryRegionOps omap_ulpd_pm_ops = {
+    .read = omap_ulpd_pm_read,
+    .write = omap_ulpd_pm_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_ulpd_pm_reset(struct omap_mpu_state_s *mpu)
@@ -713,20 +729,25 @@ static void omap_ulpd_pm_reset(struct omap_mpu_state_s *mpu)
     omap_clk_reparent(omap_findclk(mpu, "ck_48m"), omap_findclk(mpu, "dpll4"));
 }
 
-static void omap_ulpd_pm_init(target_phys_addr_t base,
+static void omap_ulpd_pm_init(MemoryRegion *system_memory,
+                target_phys_addr_t base,
                 struct omap_mpu_state_s *mpu)
 {
-    int iomemtype = cpu_register_io_memory(omap_ulpd_pm_readfn,
-                    omap_ulpd_pm_writefn, mpu, DEVICE_NATIVE_ENDIAN);
-
-    cpu_register_physical_memory(base, 0x800, iomemtype);
+    memory_region_init_io(&mpu->ulpd_pm_iomem, &omap_ulpd_pm_ops, mpu,
+                          "omap-ulpd-pm", 0x800);
+    memory_region_add_subregion(system_memory, base, &mpu->ulpd_pm_iomem);
     omap_ulpd_pm_reset(mpu);
 }
 
 /* OMAP Pin Configuration */
-static uint32_t omap_pin_cfg_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_pin_cfg_read(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* FUNC_MUX_CTRL_0 */
@@ -827,10 +848,14 @@ static inline void omap_pin_modconf1_update(struct omap_mpu_state_s *s,
 }
 
 static void omap_pin_cfg_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                               uint64_t value, unsigned size)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
     uint32_t diff;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* FUNC_MUX_CTRL_0 */
@@ -900,16 +925,10 @@ static void omap_pin_cfg_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_pin_cfg_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_pin_cfg_read,
-};
-
-static CPUWriteMemoryFunc * const omap_pin_cfg_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_pin_cfg_write,
+static const MemoryRegionOps omap_pin_cfg_ops = {
+    .read = omap_pin_cfg_read,
+    .write = omap_pin_cfg_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_pin_cfg_reset(struct omap_mpu_state_s *mpu)
@@ -928,20 +947,25 @@ static void omap_pin_cfg_reset(struct omap_mpu_state_s *mpu)
     memset(mpu->mod_conf_ctrl, 0, sizeof(mpu->mod_conf_ctrl));
 }
 
-static void omap_pin_cfg_init(target_phys_addr_t base,
+static void omap_pin_cfg_init(MemoryRegion *system_memory,
+                target_phys_addr_t base,
                 struct omap_mpu_state_s *mpu)
 {
-    int iomemtype = cpu_register_io_memory(omap_pin_cfg_readfn,
-                    omap_pin_cfg_writefn, mpu, DEVICE_NATIVE_ENDIAN);
-
-    cpu_register_physical_memory(base, 0x800, iomemtype);
+    memory_region_init_io(&mpu->pin_cfg_iomem, &omap_pin_cfg_ops, mpu,
+                          "omap-pin-cfg", 0x800);
+    memory_region_add_subregion(system_memory, base, &mpu->pin_cfg_iomem);
     omap_pin_cfg_reset(mpu);
 }
 
 /* Device Identification, Die Identification */
-static uint32_t omap_id_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_id_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0xfffe1800:	/* DIE_ID_LSB */
@@ -982,37 +1006,47 @@ static uint32_t omap_id_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_id_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                          uint64_t value, unsigned size)
 {
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
+
     OMAP_BAD_REG(addr);
 }
 
-static CPUReadMemoryFunc * const omap_id_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_id_read,
+static const MemoryRegionOps omap_id_ops = {
+    .read = omap_id_read,
+    .write = omap_id_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const omap_id_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_id_write,
-};
-
-static void omap_id_init(struct omap_mpu_state_s *mpu)
+static void omap_id_init(MemoryRegion *memory, struct omap_mpu_state_s *mpu)
 {
-    int iomemtype = cpu_register_io_memory(omap_id_readfn,
-                    omap_id_writefn, mpu, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory_offset(0xfffe1800, 0x800, iomemtype, 0xfffe1800);
-    cpu_register_physical_memory_offset(0xfffed400, 0x100, iomemtype, 0xfffed400);
-    if (!cpu_is_omap15xx(mpu))
-        cpu_register_physical_memory_offset(0xfffe2000, 0x800, iomemtype, 0xfffe2000);
+    memory_region_init_io(&mpu->id_iomem, &omap_id_ops, mpu,
+                          "omap-id", 0x100000000ULL);
+    memory_region_init_alias(&mpu->id_iomem_e18, "omap-id-e18", &mpu->id_iomem,
+                             0xfffe1800, 0x800);
+    memory_region_add_subregion(memory, 0xfffe1800, &mpu->id_iomem_e18);
+    memory_region_init_alias(&mpu->id_iomem_ed4, "omap-id-ed4", &mpu->id_iomem,
+                             0xfffed400, 0x100);
+    memory_region_add_subregion(memory, 0xfffed400, &mpu->id_iomem_ed4);
+    if (!cpu_is_omap15xx(mpu)) {
+        memory_region_init_alias(&mpu->id_iomem_ed4, "omap-id-e20",
+                                 &mpu->id_iomem, 0xfffe2000, 0x800);
+        memory_region_add_subregion(memory, 0xfffe2000, &mpu->id_iomem_e20);
+    }
 }
 
 /* MPUI Control (Dummy) */
-static uint32_t omap_mpui_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_mpui_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* CTRL */
@@ -1039,9 +1073,13 @@ static uint32_t omap_mpui_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_mpui_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* CTRL */
@@ -1064,16 +1102,10 @@ static void omap_mpui_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_mpui_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_mpui_read,
-};
-
-static CPUWriteMemoryFunc * const omap_mpui_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_mpui_write,
+static const MemoryRegionOps omap_mpui_ops = {
+    .read = omap_mpui_read,
+    .write = omap_mpui_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_mpui_reset(struct omap_mpu_state_s *s)
@@ -1081,13 +1113,12 @@ static void omap_mpui_reset(struct omap_mpu_state_s *s)
     s->mpui_ctrl = 0x0003ff1b;
 }
 
-static void omap_mpui_init(target_phys_addr_t base,
+static void omap_mpui_init(MemoryRegion *memory, target_phys_addr_t base,
                 struct omap_mpu_state_s *mpu)
 {
-    int iomemtype = cpu_register_io_memory(omap_mpui_readfn,
-                    omap_mpui_writefn, mpu, DEVICE_NATIVE_ENDIAN);
-
-    cpu_register_physical_memory(base, 0x100, iomemtype);
+    memory_region_init_io(&mpu->mpui_iomem, &omap_mpui_ops, mpu,
+                          "omap-mpui", 0x100);
+    memory_region_add_subregion(memory, base, &mpu->mpui_iomem);
 
     omap_mpui_reset(mpu);
 }
@@ -1095,6 +1126,7 @@ static void omap_mpui_init(target_phys_addr_t base,
 /* TIPB Bridges */
 struct omap_tipb_bridge_s {
     qemu_irq abort;
+    MemoryRegion iomem;
 
     int width_intr;
     uint16_t control;
@@ -1103,9 +1135,14 @@ struct omap_tipb_bridge_s {
     uint16_t enh_control;
 };
 
-static uint32_t omap_tipb_bridge_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_tipb_bridge_read(void *opaque, target_phys_addr_t addr,
+                                      unsigned size)
 {
     struct omap_tipb_bridge_s *s = (struct omap_tipb_bridge_s *) opaque;
+
+    if (size < 2) {
+        return omap_badwidth_read16(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* TIPB_CNTL */
@@ -1129,9 +1166,13 @@ static uint32_t omap_tipb_bridge_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_tipb_bridge_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                                   uint64_t value, unsigned size)
 {
     struct omap_tipb_bridge_s *s = (struct omap_tipb_bridge_s *) opaque;
+
+    if (size < 2) {
+        return omap_badwidth_write16(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* TIPB_CNTL */
@@ -1163,16 +1204,10 @@ static void omap_tipb_bridge_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_tipb_bridge_readfn[] = {
-    omap_badwidth_read16,
-    omap_tipb_bridge_read,
-    omap_tipb_bridge_read,
-};
-
-static CPUWriteMemoryFunc * const omap_tipb_bridge_writefn[] = {
-    omap_badwidth_write16,
-    omap_tipb_bridge_write,
-    omap_tipb_bridge_write,
+static const MemoryRegionOps omap_tipb_bridge_ops = {
+    .read = omap_tipb_bridge_read,
+    .write = omap_tipb_bridge_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_tipb_bridge_reset(struct omap_tipb_bridge_s *s)
@@ -1183,19 +1218,19 @@ static void omap_tipb_bridge_reset(struct omap_tipb_bridge_s *s)
     s->enh_control = 0x000f;
 }
 
-static struct omap_tipb_bridge_s *omap_tipb_bridge_init(target_phys_addr_t base,
-                qemu_irq abort_irq, omap_clk clk)
+static struct omap_tipb_bridge_s *omap_tipb_bridge_init(
+    MemoryRegion *memory, target_phys_addr_t base,
+    qemu_irq abort_irq, omap_clk clk)
 {
-    int iomemtype;
     struct omap_tipb_bridge_s *s = (struct omap_tipb_bridge_s *)
             g_malloc0(sizeof(struct omap_tipb_bridge_s));
 
     s->abort = abort_irq;
     omap_tipb_bridge_reset(s);
 
-    iomemtype = cpu_register_io_memory(omap_tipb_bridge_readfn,
-                    omap_tipb_bridge_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x100, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_tipb_bridge_ops, s,
+                          "omap-tipb-bridge", 0x100);
+    memory_region_add_subregion(memory, base, &s->iomem);
 
     return s;
 }
@@ -3706,7 +3741,8 @@ static int omap_validate_tipb_mpui_addr(struct omap_mpu_state_s *s,
     return range_covers_byte(0xe1010000, 0xe1020004 - 0xe1010000, addr);
 }
 
-struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
+struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
+                unsigned long sdram_size,
                 const char *core)
 {
     int i;
@@ -3772,21 +3808,21 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
     soc_dma_port_add_mem_ram(s->dma,
                     imif_base, OMAP_IMIF_BASE, s->sram_size);
 
-    s->timer[0] = omap_mpu_timer_init(0xfffec500,
+    s->timer[0] = omap_mpu_timer_init(system_memory, 0xfffec500,
                     s->irq[0][OMAP_INT_TIMER1],
                     omap_findclk(s, "mputim_ck"));
-    s->timer[1] = omap_mpu_timer_init(0xfffec600,
+    s->timer[1] = omap_mpu_timer_init(system_memory, 0xfffec600,
                     s->irq[0][OMAP_INT_TIMER2],
                     omap_findclk(s, "mputim_ck"));
-    s->timer[2] = omap_mpu_timer_init(0xfffec700,
+    s->timer[2] = omap_mpu_timer_init(system_memory, 0xfffec700,
                     s->irq[0][OMAP_INT_TIMER3],
                     omap_findclk(s, "mputim_ck"));
 
-    s->wdt = omap_wd_timer_init(0xfffec800,
+    s->wdt = omap_wd_timer_init(system_memory, 0xfffec800,
                     s->irq[0][OMAP_INT_WD_TIMER],
                     omap_findclk(s, "armwdt_ck"));
 
-    s->os_timer = omap_os_timer_init(0xfffb9000,
+    s->os_timer = omap_os_timer_init(system_memory, 0xfffb9000,
                     s->irq[1][OMAP_INT_OS_TIMER],
                     omap_findclk(s, "clk32-kHz"));
 
@@ -3794,16 +3830,16 @@ struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
                     omap_dma_get_lcdch(s->dma), imif_base, emiff_base,
                     omap_findclk(s, "lcd_ck"));
 
-    omap_ulpd_pm_init(0xfffe0800, s);
-    omap_pin_cfg_init(0xfffe1000, s);
-    omap_id_init(s);
+    omap_ulpd_pm_init(system_memory, 0xfffe0800, s);
+    omap_pin_cfg_init(system_memory, 0xfffe1000, s);
+    omap_id_init(system_memory, s);
 
-    omap_mpui_init(0xfffec900, s);
+    omap_mpui_init(system_memory, 0xfffec900, s);
 
-    s->private_tipb = omap_tipb_bridge_init(0xfffeca00,
+    s->private_tipb = omap_tipb_bridge_init(system_memory, 0xfffeca00,
                     s->irq[0][OMAP_INT_BRIDGE_PRIV],
                     omap_findclk(s, "tipb_ck"));
-    s->public_tipb = omap_tipb_bridge_init(0xfffed300,
+    s->public_tipb = omap_tipb_bridge_init(system_memory, 0xfffed300,
                     s->irq[0][OMAP_INT_BRIDGE_PUB],
                     omap_findclk(s, "tipb_ck"));
 
