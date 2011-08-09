@@ -2170,11 +2170,22 @@ void cpu_loop(CPUMIPSState *env)
                 sp_reg = env->active_tc.gpr[29];
                 switch (nb_args) {
                 /* these arguments are taken from the stack */
-                /* FIXME - what to do if get_user() fails? */
-                case 8: get_user_ual(arg8, sp_reg + 28);
-                case 7: get_user_ual(arg7, sp_reg + 24);
-                case 6: get_user_ual(arg6, sp_reg + 20);
-                case 5: get_user_ual(arg5, sp_reg + 16);
+                case 8:
+                    if ((ret = get_user_ual(arg8, sp_reg + 28)) != 0) {
+                        goto done_syscall;
+                    }
+                case 7:
+                    if ((ret = get_user_ual(arg7, sp_reg + 24)) != 0) {
+                        goto done_syscall;
+                    }
+                case 6:
+                    if ((ret = get_user_ual(arg6, sp_reg + 20)) != 0) {
+                        goto done_syscall;
+                    }
+                case 5:
+                    if ((ret = get_user_ual(arg5, sp_reg + 16)) != 0) {
+                        goto done_syscall;
+                    }
                 default:
                     break;
                 }
@@ -2185,6 +2196,7 @@ void cpu_loop(CPUMIPSState *env)
                                  env->active_tc.gpr[7],
                                  arg5, arg6, arg7, arg8);
             }
+done_syscall:
             if (ret == -TARGET_QEMU_ESIGRETURN) {
                 /* Returning from a successful sigreturn syscall.
                    Avoid clobbering register state.  */
