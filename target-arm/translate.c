@@ -2498,12 +2498,6 @@ static int cp15_user_ok(CPUState *env, uint32_t insn)
         if (op == 2 || (op == 3 && (insn & ARM_CP_RW_BIT)))
             return 1;
     }
-    if (cpn == 7) {
-        /* ISB, DSB, DMB.  */
-        if ((cpm == 5 && op == 4)
-                || (cpm == 10 && (op == 4 || op == 5)))
-            return 1;
-    }
     return 0;
 }
 
@@ -2579,39 +2573,60 @@ static int disas_cp15_insn(CPUState *env, DisasContext *s, uint32_t insn)
         /* cdp */
         return 1;
     }
-    if (IS_USER(s) && !cp15_user_ok(env, insn)) {
-        return 1;
-    }
-
-    /* Pre-v7 versions of the architecture implemented WFI via coprocessor
-     * instructions rather than a separate instruction.
+    /* We special case a number of cp15 instructions which were used
+     * for things which are real instructions in ARMv7. This allows
+     * them to work in linux-user mode which doesn't provide functional
+     * get_cp15/set_cp15 helpers, and is more efficient anyway.
      */
-    if ((insn & 0x0fff0fff) == 0x0e070f90) {
+    switch ((insn & 0x0fff0fff)) {
+    case 0x0e070f90:
         /* 0,c7,c0,4: Standard v6 WFI (also used in some pre-v6 cores).
          * In v7, this must NOP.
          */
+        if (IS_USER(s)) {
+            return 1;
+        }
         if (!arm_feature(env, ARM_FEATURE_V7)) {
             /* Wait for interrupt.  */
             gen_set_pc_im(s->pc);
             s->is_jmp = DISAS_WFI;
         }
         return 0;
-    }
-
-    if ((insn & 0x0fff0fff) == 0x0e070f58) {
+    case 0x0e070f58:
         /* 0,c7,c8,2: Not all pre-v6 cores implemented this WFI,
          * so this is slightly over-broad.
          */
-        if (!arm_feature(env, ARM_FEATURE_V6)) {
+        if (!IS_USER(s) && !arm_feature(env, ARM_FEATURE_V6)) {
             /* Wait for interrupt.  */
             gen_set_pc_im(s->pc);
             s->is_jmp = DISAS_WFI;
             return 0;
         }
-        /* Otherwise fall through to handle via helper function.
+        /* Otherwise continue to handle via helper function.
          * In particular, on v7 and some v6 cores this is one of
          * the VA-PA registers.
          */
+        break;
+    case 0x0e070f3d:
+        /* 0,c7,c13,1: prefetch-by-MVA in v6, NOP in v7 */
+        if (arm_feature(env, ARM_FEATURE_V6)) {
+            return IS_USER(s) ? 1 : 0;
+        }
+        break;
+    case 0x0e070f95: /* 0,c7,c5,4 : ISB */
+    case 0x0e070f9a: /* 0,c7,c10,4: DSB */
+    case 0x0e070fba: /* 0,c7,c10,5: DMB */
+        /* Barriers in both v6 and v7 */
+        if (arm_feature(env, ARM_FEATURE_V6)) {
+            return 0;
+        }
+        break;
+    default:
+        break;
+    }
+
+    if (IS_USER(s) && !cp15_user_ok(env, insn)) {
+        return 1;
     }
 
     rd = (insn >> 12) & 0xf;
@@ -3056,6 +3071,17 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     /* Source and destination the same.  */
                     gen_mov_F0_vreg(dp, rd);
                     break;
+                case 4:
+                case 5:
+                case 6:
+                case 7:
+                    /* VCVTB, VCVTT: only present with the halfprec extension,
+                     * UNPREDICTABLE if bit 8 is set (we choose to UNDEF)
+                     */
+                    if (dp || !arm_feature(env, ARM_FEATURE_VFP_FP16)) {
+                        return 1;
+                    }
+                    /* Otherwise fall through */
                 default:
                     /* One source operand.  */
                     gen_mov_F0_vreg(dp, rm);
@@ -3152,24 +3178,18 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_sqrt(dp);
                         break;
                     case 4: /* vcvtb.f32.f16 */
-                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                          return 1;
                         tmp = gen_vfp_mrs();
                         tcg_gen_ext16u_i32(tmp, tmp);
                         gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
                         tcg_temp_free_i32(tmp);
                         break;
                     case 5: /* vcvtt.f32.f16 */
-                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                          return 1;
                         tmp = gen_vfp_mrs();
                         tcg_gen_shri_i32(tmp, tmp, 16);
                         gen_helper_vfp_fcvt_f16_to_f32(cpu_F0s, tmp, cpu_env);
                         tcg_temp_free_i32(tmp);
                         break;
                     case 6: /* vcvtb.f16.f32 */
-                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                          return 1;
                         tmp = tcg_temp_new_i32();
                         gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
                         gen_mov_F0_vreg(0, rd);
@@ -3180,8 +3200,6 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_msr(tmp);
                         break;
                     case 7: /* vcvtt.f16.f32 */
-                        if (!arm_feature(env, ARM_FEATURE_VFP_FP16))
-                          return 1;
                         tmp = tcg_temp_new_i32();
                         gen_helper_vfp_fcvt_f32_to_f16(tmp, cpu_F0s, cpu_env);
                         tcg_gen_shli_i32(tmp, tmp, 16);
@@ -3270,12 +3288,10 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                         gen_vfp_toul(dp, 32 - rm, 0);
                         break;
                     default: /* undefined */
-                        printf ("rn:%d\n", rn);
                         return 1;
                     }
                     break;
                 default: /* undefined */
-                    printf ("op:%d\n", op);
                     return 1;
                 }
 
@@ -3382,17 +3398,18 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 VFP_DREG_D(rd, insn);
             else
                 rd = VFP_SREG_D(insn);
-            if (s->thumb && rn == 15) {
-                addr = tcg_temp_new_i32();
-                tcg_gen_movi_i32(addr, s->pc & ~2);
-            } else {
-                addr = load_reg(s, rn);
-            }
             if ((insn & 0x01200000) == 0x01000000) {
                 /* Single load/store */
                 offset = (insn & 0xff) << 2;
                 if ((insn & (1 << 23)) == 0)
                     offset = -offset;
+                if (s->thumb && rn == 15) {
+                    /* This is actually UNPREDICTABLE */
+                    addr = tcg_temp_new_i32();
+                    tcg_gen_movi_i32(addr, s->pc & ~2);
+                } else {
+                    addr = load_reg(s, rn);
+                }
                 tcg_gen_addi_i32(addr, addr, offset);
                 if (insn & (1 << 20)) {
                     gen_vfp_ld(s, dp, addr);
@@ -3404,11 +3421,34 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 tcg_temp_free_i32(addr);
             } else {
                 /* load/store multiple */
+                int w = insn & (1 << 21);
                 if (dp)
                     n = (insn >> 1) & 0x7f;
                 else
                     n = insn & 0xff;
 
+                if (w && !(((insn >> 23) ^ (insn >> 24)) & 1)) {
+                    /* P == U , W == 1  => UNDEF */
+                    return 1;
+                }
+                if (n == 0 || (rd + n) > 32 || (dp && n > 16)) {
+                    /* UNPREDICTABLE cases for bad immediates: we choose to
+                     * UNDEF to avoid generating huge numbers of TCG ops
+                     */
+                    return 1;
+                }
+                if (rn == 15 && w) {
+                    /* writeback to PC is UNPREDICTABLE, we choose to UNDEF */
+                    return 1;
+                }
+
+                if (s->thumb && rn == 15) {
+                    /* This is actually UNPREDICTABLE */
+                    addr = tcg_temp_new_i32();
+                    tcg_gen_movi_i32(addr, s->pc & ~2);
+                } else {
+                    addr = load_reg(s, rn);
+                }
                 if (insn & (1 << 24)) /* pre-decrement */
                     tcg_gen_addi_i32(addr, addr, -((insn & 0xff) << 2));
 
@@ -3428,7 +3468,7 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                     }
                     tcg_gen_addi_i32(addr, addr, offset);
                 }
-                if (insn & (1 << 21)) {
+                if (w) {
                     /* writeback */
                     if (insn & (1 << 24))
                         offset = -offset * n;
@@ -6330,8 +6370,6 @@ static int disas_cp14_read(CPUState * env, DisasContext *s, uint32_t insn)
             return 0;
         }
     }
-    fprintf(stderr, "Unknown cp14 read op1:%d crn:%d crm:%d op2:%d\n",
-            op1, crn, crm, op2);
     return 1;
 }
 
@@ -6363,8 +6401,6 @@ static int disas_cp14_write(CPUState * env, DisasContext *s, uint32_t insn)
             return 0;
         }
     }
-    fprintf(stderr, "Unknown cp14 write op1:%d crn:%d crm:%d op2:%d\n",
-            op1, crn, crm, op2);
     return 1;
 }
 

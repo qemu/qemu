@@ -35,6 +35,12 @@ static uint32_t arm1136_cp15_c0_c1[8] =
 static uint32_t arm1136_cp15_c0_c2[8] =
 { 0x00140011, 0x12002111, 0x11231111, 0x01102131, 0x141, 0, 0, 0 };
 
+static uint32_t arm1176_cp15_c0_c1[8] =
+{ 0x111, 0x11, 0x33, 0, 0x01130003, 0x10030302, 0x01222100, 0 };
+
+static uint32_t arm1176_cp15_c0_c2[8] =
+{ 0x0140011, 0x12002111, 0x11231121, 0x01102131, 0x01141, 0, 0, 0 };
+
 static uint32_t cpu_arm_find_by_name(const char *name);
 
 static inline void set_feature(CPUARMState *env, int feature)
@@ -70,18 +76,45 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_cachetype = 0x1dd20d2;
         env->cp15.c1_sys = 0x00090078;
         break;
-    case ARM_CPUID_ARM1136_R2:
     case ARM_CPUID_ARM1136:
+        /* This is the 1136 r1, which is a v6K core */
+        set_feature(env, ARM_FEATURE_V6K);
+        /* Fall through */
+    case ARM_CPUID_ARM1136_R2:
+        /* What qemu calls "arm1136_r2" is actually the 1136 r0p2, ie an
+         * older core than plain "arm1136". In particular this does not
+         * have the v6K features.
+         */
         set_feature(env, ARM_FEATURE_V4T);
         set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_AUXCR);
+        /* These ID register values are correct for 1136 but may be wrong
+         * for 1136_r2 (in particular r0p2 does not actually implement most
+         * of the ID registers).
+         */
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410120b4;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00000000;
         memcpy(env->cp15.c0_c1, arm1136_cp15_c0_c1, 8 * sizeof(uint32_t));
         memcpy(env->cp15.c0_c2, arm1136_cp15_c0_c2, 8 * sizeof(uint32_t));
+        env->cp15.c0_cachetype = 0x1dd20d2;
+        env->cp15.c1_sys = 0x00050078;
+        break;
+    case ARM_CPUID_ARM1176:
+        set_feature(env, ARM_FEATURE_V4T);
+        set_feature(env, ARM_FEATURE_V5);
+        set_feature(env, ARM_FEATURE_V6);
+        set_feature(env, ARM_FEATURE_V6K);
+        set_feature(env, ARM_FEATURE_VFP);
+        set_feature(env, ARM_FEATURE_AUXCR);
+        set_feature(env, ARM_FEATURE_VAPA);
+        env->vfp.xregs[ARM_VFP_FPSID] = 0x410120b5;
+        env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
+        env->vfp.xregs[ARM_VFP_MVFR1] = 0x00000000;
+        memcpy(env->cp15.c0_c1, arm1176_cp15_c0_c1, 8 * sizeof(uint32_t));
+        memcpy(env->cp15.c0_c2, arm1176_cp15_c0_c2, 8 * sizeof(uint32_t));
         env->cp15.c0_cachetype = 0x1dd20d2;
         env->cp15.c1_sys = 0x00050078;
         break;
@@ -92,6 +125,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_AUXCR);
+        set_feature(env, ARM_FEATURE_VAPA);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410120b4;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x00000000;
@@ -221,6 +255,11 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     default:
         cpu_abort(env, "Bad CPU ID: %x\n", id);
         break;
+    }
+
+    /* Some features automatically imply others: */
+    if (arm_feature(env, ARM_FEATURE_V7)) {
+        set_feature(env, ARM_FEATURE_VAPA);
     }
 }
 
@@ -380,6 +419,7 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { ARM_CPUID_ARM1026, "arm1026"},
     { ARM_CPUID_ARM1136, "arm1136"},
     { ARM_CPUID_ARM1136_R2, "arm1136-r2"},
+    { ARM_CPUID_ARM1176, "arm1176"},
     { ARM_CPUID_ARM11MPCORE, "arm11mpcore"},
     { ARM_CPUID_CORTEXM3, "cortex-m3"},
     { ARM_CPUID_CORTEXA8, "cortex-a8"},
@@ -948,7 +988,7 @@ static inline int check_ap(CPUState *env, int ap, int domain, int access_type,
   case 6:
       return prot_ro;
   case 7:
-      if (!arm_feature (env, ARM_FEATURE_V7))
+      if (!arm_feature (env, ARM_FEATURE_V6K))
           return 0;
       return prot_ro;
   default:
@@ -1502,7 +1542,7 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
             goto bad_reg;
         }
         /* No cache, so nothing to do except VA->PA translations. */
-        if (arm_feature(env, ARM_FEATURE_V6K)) {
+        if (arm_feature(env, ARM_FEATURE_VAPA)) {
             switch (crm) {
             case 4:
                 if (arm_feature(env, ARM_FEATURE_V7)) {
@@ -1848,6 +1888,7 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
                 return 1;
             case ARM_CPUID_ARM1136:
             case ARM_CPUID_ARM1136_R2:
+            case ARM_CPUID_ARM1176:
                 return 7;
             case ARM_CPUID_ARM11MPCORE:
                 return 1;

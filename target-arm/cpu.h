@@ -374,6 +374,7 @@ enum arm_features {
     ARM_FEATURE_V4T,
     ARM_FEATURE_V5,
     ARM_FEATURE_STRONGARM,
+    ARM_FEATURE_VAPA, /* cp15 VA to PA lookups */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
@@ -420,6 +421,7 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define ARM_CPUID_PXA270_C5   0x69054117
 #define ARM_CPUID_ARM1136     0x4117b363
 #define ARM_CPUID_ARM1136_R2  0x4107b362
+#define ARM_CPUID_ARM1176     0x410fb767
 #define ARM_CPUID_ARM11MPCORE 0x410fb022
 #define ARM_CPUID_CORTEXA8    0x410fc080
 #define ARM_CPUID_CORTEXA9    0x410fc090
