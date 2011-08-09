@@ -454,6 +454,9 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
     case SET_IDLE:
         hs->idle = (uint8_t) (value >> 8);
         hid_set_next_idle(hs, qemu_get_clock_ns(vm_clock));
+        if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
+            hid_pointer_activate(hs);
+        }
         ret = 0;
         break;
     default:

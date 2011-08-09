@@ -218,16 +218,21 @@ static inline int int_clamp(int val, int vmin, int vmax)
     }
 }
 
+void hid_pointer_activate(HIDState *hs)
+{
+    if (!hs->ptr.mouse_grabbed) {
+        qemu_activate_mouse_event_handler(hs->ptr.eh_entry);
+        hs->ptr.mouse_grabbed = 1;
+    }
+}
+
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 {
     int dx, dy, dz, b, l;
     int index;
     HIDPointerEvent *e;
 
-    if (!hs->ptr.mouse_grabbed) {
-        qemu_activate_mouse_event_handler(hs->ptr.eh_entry);
-        hs->ptr.mouse_grabbed = 1;
-    }
+    hid_pointer_activate(hs);
 
     /* When the buffer is empty, return the last event.  Relative
        movements will all be zero.  */
