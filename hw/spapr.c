@@ -140,6 +140,8 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         char *nodename;
         uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                            0xffffffff, 0xffffffff};
+        uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TIMEBASE_FREQ;
+        uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
 
         if (asprintf(&nodename, "%s@%x", modelname, index) < 0) {
             fprintf(stderr, "Allocation failure\n");
@@ -158,10 +160,8 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                                 env->dcache_line_size)));
         _FDT((fdt_property_cell(fdt, "icache-block-size",
                                 env->icache_line_size)));
-        _FDT((fdt_property_cell(fdt, "timebase-frequency", TIMEBASE_FREQ)));
-        /* Hardcode CPU frequency for now.  It's kind of arbitrary on
-         * full emu, for kvm we should copy it from the host */
-        _FDT((fdt_property_cell(fdt, "clock-frequency", 1000000000)));
+        _FDT((fdt_property_cell(fdt, "timebase-frequency", tbfreq)));
+        _FDT((fdt_property_cell(fdt, "clock-frequency", cpufreq)));
         _FDT((fdt_property_cell(fdt, "ibm,slb-size", env->slb_nr)));
         _FDT((fdt_property(fdt, "ibm,pft-size",
                            pft_size_prop, sizeof(pft_size_prop))));
