@@ -310,7 +310,6 @@ obj-microblaze-$(CONFIG_FDT) += device_tree.o
 # Boards
 obj-cris-y = cris_pic_cpu.o
 obj-cris-y += cris-boot.o
-obj-cris-y += etraxfs.o axis_dev88.o
 obj-cris-y += axis_dev88.o
 
 # IO blocks
