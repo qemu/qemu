@@ -22,6 +22,10 @@
 
 #include <linux/types.h>
 
+/* Select powerpc specific features in <linux/kvm.h> */
+#define __KVM_HAVE_SPAPR_TCE
+#define __KVM_HAVE_PPC_SMT
+
 struct kvm_regs {
 	__u64 pc;
 	__u64 cr;
@@ -145,6 +149,12 @@ struct kvm_regs {
 #define KVM_SREGS_E_UPDATE_DBSR		(1 << 3)
 
 /*
+ * Book3S special bits to indicate contents in the struct by maintaining
+ * backwards compatibility with older structs. If adding a new field,
+ * please make sure to add a flag for that new field */
+#define KVM_SREGS_S_HIOR		(1 << 0)
+
+/*
  * In KVM_SET_SREGS, reserved/pad fields must be left untouched from a
  * previous KVM_GET_REGS.
  *
@@ -169,6 +179,8 @@ struct kvm_sregs {
 				__u64 ibat[8];
 				__u64 dbat[8];
 			} ppc32;
+			__u64 flags; /* KVM_SREGS_S_ */
+			__u64 hior;
 		} s;
 		struct {
 			union {
@@ -271,5 +283,16 @@ struct kvm_guest_debug_arch {
 #define KVM_INTERRUPT_SET	-1U
 #define KVM_INTERRUPT_UNSET	-2U
 #define KVM_INTERRUPT_SET_LEVEL	-3U
+
+/* for KVM_CAP_SPAPR_TCE */
+struct kvm_create_spapr_tce {
+	__u64 liobn;
+	__u32 window_size;
+};
+
+/* for KVM_ALLOCATE_RMA */
+struct kvm_allocate_rma {
+	__u64 rma_size;
+};
 
 #endif /* __LINUX_KVM_POWERPC_H */
