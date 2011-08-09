@@ -678,7 +678,8 @@ void omap_uart_reset(struct omap_uart_s *s);
 void omap_uart_attach(struct omap_uart_s *s, CharDriverState *chr);
 
 struct omap_mpuio_s;
-struct omap_mpuio_s *omap_mpuio_init(target_phys_addr_t base,
+struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *system_memory,
+                target_phys_addr_t base,
                 qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
                 omap_clk clk);
 qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s);
@@ -833,6 +834,9 @@ struct omap_mpu_state_s {
     MemoryRegion id_iomem_ed4;
     MemoryRegion id_iomem_e20;
     MemoryRegion mpui_iomem;
+    MemoryRegion tcmi_iomem;
+    MemoryRegion clkm_iomem;
+    MemoryRegion clkdsp_iomem;
 
     struct omap_dma_port_if_s {
         uint32_t (*read[3])(struct omap_mpu_state_s *s,
@@ -915,6 +919,7 @@ struct omap_mpu_state_s {
     uint32_t tcmi_regs[17];
 
     struct dpll_ctl_s {
+        MemoryRegion iomem;
         uint16_t mode;
         omap_clk dpll;
     } dpll[3];
