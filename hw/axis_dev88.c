@@ -255,7 +255,7 @@ void axisdev88_init (ram_addr_t ram_size,
     DriveInfo *nand;
     qemu_irq irq[30], nmi[2], *cpu_irq;
     void *etraxfs_dmac;
-    struct etraxfs_dma_client *eth[2] = {NULL, NULL};
+    struct etraxfs_dma_client *dma_eth;
     int i;
     int nand_regs;
     int gpio_regs;
@@ -315,16 +315,18 @@ void axisdev88_init (ram_addr_t ram_size,
     }
 
     /* Add the two ethernet blocks.  */
-    eth[0] = etraxfs_eth_init(&nd_table[0], 0x30034000, 1);
-    if (nb_nics > 1)
-        eth[1] = etraxfs_eth_init(&nd_table[1], 0x30036000, 2);
+    dma_eth = qemu_mallocz(sizeof dma_eth[0] * 4); /* Allocate 4 channels.  */
+    etraxfs_eth_init(&nd_table[0], 0x30034000, 1, &dma_eth[0], &dma_eth[1]);
+    if (nb_nics > 1) {
+        etraxfs_eth_init(&nd_table[1], 0x30036000, 2, &dma_eth[2], &dma_eth[3]);
+    }
 
     /* The DMA Connector block is missing, hardwire things for now.  */
-    etraxfs_dmac_connect_client(etraxfs_dmac, 0, eth[0]);
-    etraxfs_dmac_connect_client(etraxfs_dmac, 1, eth[0] + 1);
-    if (eth[1]) {
-        etraxfs_dmac_connect_client(etraxfs_dmac, 6, eth[1]);
-        etraxfs_dmac_connect_client(etraxfs_dmac, 7, eth[1] + 1);
+    etraxfs_dmac_connect_client(etraxfs_dmac, 0, &dma_eth[0]);
+    etraxfs_dmac_connect_client(etraxfs_dmac, 1, &dma_eth[1]);
+    if (nb_nics > 1) {
+        etraxfs_dmac_connect_client(etraxfs_dmac, 6, &dma_eth[2]);
+        etraxfs_dmac_connect_client(etraxfs_dmac, 7, &dma_eth[3]);
     }
 
     /* 2 timers.  */

@@ -562,7 +562,11 @@ static void eth_cleanup(VLANClientState *nc)
 
         cpu_unregister_io_memory(eth->ethregs);
 
-        qemu_free(eth->dma_out);
+	/* Disconnect the client.  */
+	eth->dma_out->client.push = NULL;
+	eth->dma_out->client.opaque = NULL;
+	eth->dma_in->client.opaque = NULL;
+	eth->dma_in->client.pull = NULL;
         qemu_free(eth);
 }
 
@@ -575,23 +579,23 @@ static NetClientInfo net_etraxfs_info = {
 	.link_status_changed = eth_set_link,
 };
 
-void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr)
+void etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr,
+                       struct etraxfs_dma_client *dma_out,
+                       struct etraxfs_dma_client *dma_in)
 {
-	struct etraxfs_dma_client *dma = NULL;	
 	struct fs_eth *eth = NULL;
 
 	qemu_check_nic_model(nd, "fseth");
 
-	dma = qemu_mallocz(sizeof *dma * 2);
 	eth = qemu_mallocz(sizeof *eth);
 
-	dma[0].client.push = eth_tx_push;
-	dma[0].client.opaque = eth;
-	dma[1].client.opaque = eth;
-	dma[1].client.pull = NULL;
+	dma_out->client.push = eth_tx_push;
+	dma_out->client.opaque = eth;
+	dma_in->client.opaque = eth;
+	dma_in->client.pull = NULL;
 
-	eth->dma_out = dma;
-	eth->dma_in = dma + 1;
+	eth->dma_out = dma_out;
+	eth->dma_in = dma_in;
 
 	/* Connect the phy.  */
 	eth->phyaddr = phyaddr & 0x1f;
@@ -608,6 +612,4 @@ void *etraxfs_eth_init(NICInfo *nd, target_phys_addr_t base, int phyaddr)
 
 	eth->nic = qemu_new_nic(&net_etraxfs_info, &eth->conf,
 				nd->model, nd->name, eth);
-
-	return dma;
 }
