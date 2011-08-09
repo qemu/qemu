@@ -541,41 +541,13 @@ void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *))
     s->datain = datain;
 }
 
-static int usb_hid_post_load(void *opaque, int version_id)
-{
-    USBHIDState *s = opaque;
-
-    if (s->hid.idle) {
-        hid_set_next_idle(&s->hid, qemu_get_clock_ns(vm_clock));
-    }
-    return 0;
-}
-
-static const VMStateDescription vmstate_usb_ptr_queue = {
-    .name = "usb-ptr-queue",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField []) {
-        VMSTATE_INT32(xdx, HIDPointerEvent),
-        VMSTATE_INT32(ydy, HIDPointerEvent),
-        VMSTATE_INT32(dz, HIDPointerEvent),
-        VMSTATE_INT32(buttons_state, HIDPointerEvent),
-        VMSTATE_END_OF_LIST()
-    }
-};
 static const VMStateDescription vmstate_usb_ptr = {
     .name = "usb-ptr",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = usb_hid_post_load,
     .fields = (VMStateField []) {
         VMSTATE_USB_DEVICE(dev, USBHIDState),
-        VMSTATE_STRUCT_ARRAY(hid.ptr.queue, USBHIDState, QUEUE_LENGTH, 0,
-                             vmstate_usb_ptr_queue, HIDPointerEvent),
-        VMSTATE_UINT32(hid.head, USBHIDState),
-        VMSTATE_UINT32(hid.n, USBHIDState),
-        VMSTATE_INT32(hid.protocol, USBHIDState),
-        VMSTATE_UINT8(hid.idle, USBHIDState),
+        VMSTATE_HID_POINTER_DEVICE(hid, USBHIDState),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -584,18 +556,9 @@ static const VMStateDescription vmstate_usb_kbd = {
     .name = "usb-kbd",
     .version_id = 1,
     .minimum_version_id = 1,
-    .post_load = usb_hid_post_load,
     .fields = (VMStateField []) {
         VMSTATE_USB_DEVICE(dev, USBHIDState),
-        VMSTATE_UINT32_ARRAY(hid.kbd.keycodes, USBHIDState, QUEUE_LENGTH),
-        VMSTATE_UINT32(hid.head, USBHIDState),
-        VMSTATE_UINT32(hid.n, USBHIDState),
-        VMSTATE_UINT16(hid.kbd.modifiers, USBHIDState),
-        VMSTATE_UINT8(hid.kbd.leds, USBHIDState),
-        VMSTATE_UINT8_ARRAY(hid.kbd.key, USBHIDState, 16),
-        VMSTATE_INT32(hid.kbd.keys, USBHIDState),
-        VMSTATE_INT32(hid.protocol, USBHIDState),
-        VMSTATE_UINT8(hid.idle, USBHIDState),
+        VMSTATE_HID_KEYBOARD_DEVICE(hid, USBHIDState),
         VMSTATE_END_OF_LIST()
     }
 };
