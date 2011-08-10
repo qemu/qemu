@@ -442,7 +442,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                     "%ldM guest RAM\n", MIN_RAM_SLOF);
             exit(1);
         }
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "slof.bin");
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, FW_FILE_NAME);
         fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
         if (fw_size < 0) {
             hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
