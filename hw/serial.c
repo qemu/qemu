@@ -157,6 +157,7 @@ struct SerialState {
 
 typedef struct ISASerialState {
     ISADevice dev;
+    MemoryRegion io;
     uint32_t index;
     uint32_t iobase;
     uint32_t isairq;
@@ -755,6 +756,15 @@ void serial_set_frequency(SerialState *s, uint32_t frequency)
 static const int isa_serial_io[MAX_SERIAL_PORTS] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8 };
 static const int isa_serial_irq[MAX_SERIAL_PORTS] = { 4, 3, 4, 3 };
 
+static const MemoryRegionPortio serial_portio[] = {
+    { 0, 8, 1, .read = serial_ioport_read, .write = serial_ioport_write },
+    PORTIO_END_OF_LIST()
+};
+
+static const MemoryRegionOps serial_io_ops = {
+    .old_portio = serial_portio
+};
+
 static int serial_isa_initfn(ISADevice *dev)
 {
     static int index;
@@ -776,9 +786,8 @@ static int serial_isa_initfn(ISADevice *dev)
     serial_init_core(s);
     qdev_set_legacy_instance_id(&dev->qdev, isa->iobase, 3);
 
-    register_ioport_write(isa->iobase, 8, 1, serial_ioport_write, s);
-    register_ioport_read(isa->iobase, 8, 1, serial_ioport_read, s);
-    isa_init_ioport_range(dev, isa->iobase, 8);
+    memory_region_init_io(&isa->io, &serial_io_ops, s, "serial", 8);
+    isa_register_ioport(dev, &isa->io, isa->iobase);
     return 0;
 }
 
