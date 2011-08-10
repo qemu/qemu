@@ -192,9 +192,10 @@ int usb_desc_iface(const USBDescIface *iface, uint8_t *dest, size_t len)
 
 int usb_desc_endpoint(const USBDescEndpoint *ep, uint8_t *dest, size_t len)
 {
-    uint8_t bLength = 0x07;
+    uint8_t bLength = ep->is_audio ? 0x09 : 0x07;
+    uint8_t extralen = ep->extra ? ep->extra[0] : 0;
 
-    if (len < bLength) {
+    if (len < bLength + extralen) {
         return -1;
     }
 
@@ -205,8 +206,15 @@ int usb_desc_endpoint(const USBDescEndpoint *ep, uint8_t *dest, size_t len)
     dest[0x04] = usb_lo(ep->wMaxPacketSize);
     dest[0x05] = usb_hi(ep->wMaxPacketSize);
     dest[0x06] = ep->bInterval;
+    if (ep->is_audio) {
+        dest[0x07] = ep->bRefresh;
+        dest[0x08] = ep->bSynchAddress;
+    }
+    if (ep->extra) {
+        memcpy(dest + bLength, ep->extra, extralen);
+    }
 
-    return bLength;
+    return bLength + extralen;
 }
 
 int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
