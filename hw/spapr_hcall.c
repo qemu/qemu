@@ -463,6 +463,67 @@ static target_ulong h_rtas(CPUState *env, sPAPREnvironment *spapr,
                            nret, rtas_r3 + 12 + 4*nargs);
 }
 
+static target_ulong h_logical_load(CPUState *env, sPAPREnvironment *spapr,
+                                   target_ulong opcode, target_ulong *args)
+{
+    target_ulong size = args[0];
+    target_ulong addr = args[1];
+
+    switch (size) {
+    case 1:
+        args[0] = ldub_phys(addr);
+        return H_SUCCESS;
+    case 2:
+        args[0] = lduw_phys(addr);
+        return H_SUCCESS;
+    case 4:
+        args[0] = ldl_phys(addr);
+        return H_SUCCESS;
+    case 8:
+        args[0] = ldq_phys(addr);
+        return H_SUCCESS;
+    }
+    return H_PARAMETER;
+}
+
+static target_ulong h_logical_store(CPUState *env, sPAPREnvironment *spapr,
+                                    target_ulong opcode, target_ulong *args)
+{
+    target_ulong size = args[0];
+    target_ulong addr = args[1];
+    target_ulong val  = args[2];
+
+    switch (size) {
+    case 1:
+        stb_phys(addr, val);
+        return H_SUCCESS;
+    case 2:
+        stw_phys(addr, val);
+        return H_SUCCESS;
+    case 4:
+        stl_phys(addr, val);
+        return H_SUCCESS;
+    case 8:
+        stq_phys(addr, val);
+        return H_SUCCESS;
+    }
+    return H_PARAMETER;
+}
+
+static target_ulong h_logical_icbi(CPUState *env, sPAPREnvironment *spapr,
+                                   target_ulong opcode, target_ulong *args)
+{
+    /* Nothing to do on emulation, KVM will trap this in the kernel */
+    return H_SUCCESS;
+}
+
+static target_ulong h_logical_dcbf(CPUState *env, sPAPREnvironment *spapr,
+                                   target_ulong opcode, target_ulong *args)
+{
+    /* Nothing to do on emulation, KVM will trap this in the kernel */
+    return H_SUCCESS;
+}
+
 static spapr_hcall_fn papr_hypercall_table[(MAX_HCALL_OPCODE / 4) + 1];
 static spapr_hcall_fn kvmppc_hypercall_table[KVMPPC_HCALL_MAX - KVMPPC_HCALL_BASE + 1];
 
@@ -526,6 +587,18 @@ static void hypercall_init(void)
     /* hcall-splpar */
     spapr_register_hypercall(H_REGISTER_VPA, h_register_vpa);
     spapr_register_hypercall(H_CEDE, h_cede);
+
+    /* "debugger" hcalls (also used by SLOF). Note: We do -not- differenciate
+     * here between the "CI" and the "CACHE" variants, they will use whatever
+     * mapping attributes qemu is using. When using KVM, the kernel will
+     * enforce the attributes more strongly
+     */
+    spapr_register_hypercall(H_LOGICAL_CI_LOAD, h_logical_load);
+    spapr_register_hypercall(H_LOGICAL_CI_STORE, h_logical_store);
+    spapr_register_hypercall(H_LOGICAL_CACHE_LOAD, h_logical_load);
+    spapr_register_hypercall(H_LOGICAL_CACHE_STORE, h_logical_store);
+    spapr_register_hypercall(H_LOGICAL_ICBI, h_logical_icbi);
+    spapr_register_hypercall(H_LOGICAL_DCBF, h_logical_dcbf);
 
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
