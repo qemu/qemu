@@ -13,10 +13,12 @@ typedef struct ISADeviceInfo ISADeviceInfo;
 
 struct ISADevice {
     DeviceState qdev;
+    MemoryRegion *io[32];
     uint32_t isairq[2];
-    int nirqs;
     uint16_t ioports[32];
+    int nirqs;
     int nioports;
+    int nio;
 };
 
 typedef int (*isa_qdev_initfn)(ISADevice *dev);
@@ -29,6 +31,7 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io);
 void isa_bus_irqs(qemu_irq *irqs);
 qemu_irq isa_get_irq(int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq);
+void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start);
 void isa_init_ioport(ISADevice *dev, uint16_t ioport);
 void isa_init_ioport_range(ISADevice *dev, uint16_t start, uint16_t length);
 void isa_qdev_register(ISADeviceInfo *info);

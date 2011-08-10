@@ -108,6 +108,16 @@ void isa_init_ioport(ISADevice *dev, uint16_t ioport)
     isa_init_ioport_range(dev, ioport, 1);
 }
 
+void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start)
+{
+    memory_region_add_subregion(isabus->address_space_io, start, io);
+    if (dev != NULL) {
+        assert(dev->nio < ARRAY_SIZE(dev->io));
+        dev->io[dev->nio++] = io;
+        isa_init_ioport_range(dev, start, memory_region_size(io));
+    }
+}
+
 static int isa_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
     ISADevice *dev = DO_UPCAST(ISADevice, qdev, qdev);
