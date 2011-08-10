@@ -59,6 +59,8 @@ typedef struct PicState {
     uint8_t elcr; /* PIIX edge/trigger selection*/
     uint8_t elcr_mask;
     PicState2 *pics_state;
+    MemoryRegion base_io;
+    MemoryRegion elcr_io;
 } PicState;
 
 struct PicState2 {
@@ -284,13 +286,15 @@ static void pic_reset(void *opaque)
     /* Note: ELCR is not reset */
 }
 
-static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
+                             uint64_t val64, unsigned size)
 {
     PicState *s = opaque;
+    uint32_t addr = addr64;
+    uint32_t val = val64;
     int priority, cmd, irq;
 
     DPRINTF("write: addr=0x%02x val=0x%02x\n", addr, val);
-    addr &= 1;
     if (addr == 0) {
         if (val & 0x10) {
             /* init */
@@ -374,19 +378,21 @@ static void pic_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
-static uint32_t pic_poll_read (PicState *s, uint32_t addr1)
+static uint32_t pic_poll_read(PicState *s)
 {
     int ret;
 
     ret = pic_get_irq(s);
     if (ret >= 0) {
-        if (addr1 >> 7) {
+        bool slave = (s == &isa_pic->pics[1]);
+
+        if (slave) {
             s->pics_state->pics[0].isr &= ~(1 << 2);
             s->pics_state->pics[0].irr &= ~(1 << 2);
         }
         s->irr &= ~(1 << ret);
         s->isr &= ~(1 << ret);
-        if (addr1 >> 7 || ret != 2)
+        if (slave || ret != 2)
             pic_update_irq(s->pics_state);
     } else {
         ret = 0x07;
@@ -396,16 +402,15 @@ static uint32_t pic_poll_read (PicState *s, uint32_t addr1)
     return ret;
 }
 
-static uint32_t pic_ioport_read(void *opaque, uint32_t addr1)
+static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr1,
+                                unsigned size)
 {
     PicState *s = opaque;
-    unsigned int addr;
+    unsigned int addr = addr1;
     int ret;
 
-    addr = addr1;
-    addr &= 1;
     if (s->poll) {
-        ret = pic_poll_read(s, addr1);
+        ret = pic_poll_read(s);
         s->poll = 0;
     } else {
         if (addr == 0) {
@@ -417,7 +422,7 @@ static uint32_t pic_ioport_read(void *opaque, uint32_t addr1)
             ret = s->imr;
         }
     }
-    DPRINTF("read: addr=0x%02x val=0x%02x\n", addr1, ret);
+    DPRINTF("read: addr=0x%02x val=0x%02x\n", addr, ret);
     return ret;
 }
 
@@ -427,22 +432,24 @@ uint32_t pic_intack_read(PicState2 *s)
 {
     int ret;
 
-    ret = pic_poll_read(&s->pics[0], 0x00);
+    ret = pic_poll_read(&s->pics[0]);
     if (ret == 2)
-        ret = pic_poll_read(&s->pics[1], 0x80) + 8;
+        ret = pic_poll_read(&s->pics[1]) + 8;
     /* Prepare for ISR read */
     s->pics[0].read_reg_select = 1;
 
     return ret;
 }
 
-static void elcr_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void elcr_ioport_write(void *opaque, target_phys_addr_t addr,
+                              uint64_t val, unsigned size)
 {
     PicState *s = opaque;
     s->elcr = val & s->elcr_mask;
 }
 
-static uint32_t elcr_ioport_read(void *opaque, uint32_t addr1)
+static uint64_t elcr_ioport_read(void *opaque, target_phys_addr_t addr,
+                                 unsigned size)
 {
     PicState *s = opaque;
     return s->elcr;
@@ -474,15 +481,35 @@ static const VMStateDescription vmstate_pic = {
     }
 };
 
+static const MemoryRegionOps pic_base_ioport_ops = {
+    .read = pic_ioport_read,
+    .write = pic_ioport_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
+static const MemoryRegionOps pic_elcr_ioport_ops = {
+    .read = elcr_ioport_read,
+    .write = elcr_ioport_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+};
+
 /* XXX: add generic master/slave system */
 static void pic_init1(int io_addr, int elcr_addr, PicState *s)
 {
-    register_ioport_write(io_addr, 2, 1, pic_ioport_write, s);
-    register_ioport_read(io_addr, 2, 1, pic_ioport_read, s);
+    memory_region_init_io(&s->base_io, &pic_base_ioport_ops, s, "pic", 2);
+    memory_region_init_io(&s->elcr_io, &pic_elcr_ioport_ops, s, "elcr", 1);
+
+    isa_register_ioport(NULL, &s->base_io, io_addr);
     if (elcr_addr >= 0) {
-        register_ioport_write(elcr_addr, 1, 1, elcr_ioport_write, s);
-        register_ioport_read(elcr_addr, 1, 1, elcr_ioport_read, s);
+        isa_register_ioport(NULL, &s->elcr_io, elcr_addr);
     }
+
     vmstate_register(NULL, io_addr, &vmstate_pic, s);
     qemu_register_reset(pic_reset, s);
 }
