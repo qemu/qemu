@@ -45,8 +45,6 @@
 typedef struct USBHIDState {
     USBDevice dev;
     HIDState hid;
-    void *datain_opaque;
-    void (*datain)(void *);
 } USBHIDState;
 
 enum {
@@ -362,10 +360,6 @@ static void usb_hid_changed(HIDState *hs)
 {
     USBHIDState *us = container_of(hs, USBHIDState, hid);
 
-    if (us->datain) {
-        us->datain(us->datain_opaque);
-    }
-
     usb_wakeup(&us->dev);
 }
 
@@ -531,14 +525,6 @@ static int usb_mouse_initfn(USBDevice *dev)
 static int usb_keyboard_initfn(USBDevice *dev)
 {
     return usb_hid_initfn(dev, HID_KEYBOARD);
-}
-
-void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *))
-{
-    USBHIDState *s = (USBHIDState *)dev;
-
-    s->datain_opaque = opaque;
-    s->datain = datain;
 }
 
 static const VMStateDescription vmstate_usb_ptr = {
