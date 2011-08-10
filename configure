@@ -3389,6 +3389,9 @@ case "$target_arch2" in
       fi
     fi
 esac
+if test "$target_arch2" = "ppc64" -a "$fdt" = "yes"; then
+  echo "CONFIG_PSERIES=y" >> $config_target_mak
+fi
 if test "$target_bigendian" = "yes" ; then
   echo "TARGET_WORDS_BIGENDIAN=y" >> $config_target_mak
 fi
