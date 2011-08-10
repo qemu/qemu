@@ -1189,7 +1189,6 @@ static int add_graphics_client(Monitor *mon, const QDict *qdict, QObject **ret_d
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");
     const char *fdname = qdict_get_str(qdict, "fdname");
-    int skipauth = qdict_get_try_bool(qdict, "skipauth", 0);
     CharDriverState *s;
 
     if (strcmp(protocol, "spice") == 0) {
@@ -1203,6 +1202,7 @@ static int add_graphics_client(Monitor *mon, const QDict *qdict, QObject **ret_d
 #ifdef CONFIG_VNC
     } else if (strcmp(protocol, "vnc") == 0) {
 	int fd = monitor_get_fd(mon, fdname);
+        int skipauth = qdict_get_try_bool(qdict, "skipauth", 0);
 	vnc_display_add_client(NULL, fd, skipauth);
 	return 0;
 #endif
