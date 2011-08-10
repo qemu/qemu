@@ -396,7 +396,7 @@ static void memory_region_iorange_read(IORange *iorange,
 
         *data = ((uint64_t)1 << (width * 8)) - 1;
         if (mrp) {
-            *data = mrp->read(mr->opaque, offset - mrp->offset);
+            *data = mrp->read(mr->opaque, offset);
         }
         return;
     }
@@ -418,7 +418,7 @@ static void memory_region_iorange_write(IORange *iorange,
         const MemoryRegionPortio *mrp = find_portio(mr, offset, width, true);
 
         if (mrp) {
-            mrp->write(mr->opaque, offset - mrp->offset, data);
+            mrp->write(mr->opaque, offset, data);
         }
         return;
     }
