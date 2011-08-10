@@ -59,6 +59,7 @@ static struct {
 typedef struct CSState {
     ISADevice dev;
     QEMUSoundCard card;
+    MemoryRegion ioports;
     qemu_irq pic;
     uint32_t regs[CS_REGS];
     uint8_t dregs[CS_DREGS];
@@ -73,14 +74,6 @@ typedef struct CSState {
     SWVoiceOut *voice;
     int16_t *tab;
 } CSState;
-
-#define IO_READ_PROTO(name)                             \
-    static uint32_t name (void *opaque, uint32_t addr)
-
-#define IO_WRITE_PROTO(name)                                            \
-    static void name (void *opaque, uint32_t addr, uint32_t val)
-
-#define GET_SADDR(addr) (addr & 3)
 
 #define MODE2 (1 << 6)
 #define MCE (1 << 6)
@@ -353,12 +346,12 @@ static void cs_reset_voices (CSState *s, uint32_t val)
     }
 }
 
-IO_READ_PROTO (cs_read)
+static uint64_t cs_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
     CSState *s = opaque;
     uint32_t saddr, iaddr, ret;
 
-    saddr = GET_SADDR (addr);
+    saddr = addr;
     iaddr = ~0U;
 
     switch (saddr) {
@@ -390,12 +383,14 @@ IO_READ_PROTO (cs_read)
     return ret;
 }
 
-IO_WRITE_PROTO (cs_write)
+static void cs_write(void *opaque, target_phys_addr_t addr,
+                     uint64_t val64, unsigned size)
 {
     CSState *s = opaque;
-    uint32_t saddr, iaddr;
+    uint32_t saddr, iaddr, val;
 
-    saddr = GET_SADDR (addr);
+    saddr = addr;
+    val = val64;
 
     switch (saddr) {
     case Index_Address:
@@ -637,18 +632,23 @@ static const VMStateDescription vmstate_cs4231a = {
     }
 };
 
+static const MemoryRegionOps cs_ioport_ops = {
+    .read = cs_read,
+    .write = cs_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    }
+};
+
 static int cs4231a_initfn (ISADevice *dev)
 {
     CSState *s = DO_UPCAST (CSState, dev, dev);
-    int i;
 
     isa_init_irq (dev, &s->pic, s->irq);
 
-    for (i = 0; i < 4; i++) {
-        isa_init_ioport(dev, i);
-        register_ioport_write (s->port + i, 1, 1, cs_write, s);
-        register_ioport_read (s->port + i, 1, 1, cs_read, s);
-    }
+    memory_region_init_io(&s->ioports, &cs_ioport_ops, s, "cs4231a", 4);
+    isa_register_ioport(dev, &s->ioports, s->port);
 
     DMA_register_channel (s->dma, cs_dma_read, s);
 
