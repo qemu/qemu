@@ -372,6 +372,8 @@ void do_info_spice_print(Monitor *mon, const QObject *data)
         monitor_printf(mon, "     address: %s:%d [tls]\n", host, port);
     }
     monitor_printf(mon, "        auth: %s\n", qdict_get_str(server, "auth"));
+    monitor_printf(mon, "    compiled: %s\n",
+                   qdict_get_str(server, "compiled-version"));
 
     channels = qdict_get_qlist(server, "channels");
     if (qlist_empty(channels)) {
@@ -388,6 +390,7 @@ void do_info_spice(Monitor *mon, QObject **ret_data)
     QList *clist;
     const char *addr;
     int port, tls_port;
+    char version_string[20]; /* 12 = |255.255.255\0| is the max */
 
     if (!spice_server) {
         *ret_data = qobject_from_jsonf("{ 'enabled': false }");
@@ -403,6 +406,11 @@ void do_info_spice(Monitor *mon, QObject **ret_data)
     qdict_put(server, "enabled", qbool_from_int(true));
     qdict_put(server, "auth", qstring_from_str(auth));
     qdict_put(server, "host", qstring_from_str(addr ? addr : "0.0.0.0"));
+    snprintf(version_string, sizeof(version_string), "%d.%d.%d",
+             (SPICE_SERVER_VERSION & 0xff0000) >> 16,
+             (SPICE_SERVER_VERSION & 0xff00) >> 8,
+             SPICE_SERVER_VERSION & 0xff);
+    qdict_put(server, "compiled-version", qstring_from_str(version_string));
     if (port) {
         qdict_put(server, "port", qint_from_int(port));
     }
