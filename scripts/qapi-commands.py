@@ -375,7 +375,7 @@ if dispatch_type == "sync":
         ret = gen_marshal_input(cmd['command'], arglist, ret_type) + "\n"
         fdef.write(ret)
 
-    fdecl.write("\n#endif");
+    fdecl.write("\n#endif\n");
     ret = gen_registry(commands)
     fdef.write(ret)
 
