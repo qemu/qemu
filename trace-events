@@ -444,8 +444,8 @@ milkymist_tmu2_pulse_irq(void) "Pulse IRQ"
 # hw/milkymist-uart.c
 milkymist_uart_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
 milkymist_uart_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
-milkymist_uart_pulse_irq_rx(void) "Pulse IRQ RX"
-milkymist_uart_pulse_irq_tx(void) "Pulse IRQ TX"
+milkymist_uart_raise_irq(void) "Raise IRQ"
+milkymist_uart_lower_irq(void) "Lower IRQ"
 
 # hw/milkymist-vgafb.c
 milkymist_vgafb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"

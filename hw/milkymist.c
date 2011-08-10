@@ -146,7 +146,7 @@ milkymist_init(ram_addr_t ram_size_not_used,
         exit(1);
     }
 
-    milkymist_uart_create(0x60000000, irq[0], irq[1]);
+    milkymist_uart_create(0x60000000, irq[0]);
     milkymist_sysctl_create(0x60001000, irq[2], irq[3], irq[4],
             80000000, 0x10014d31, 0x0000041f, 0x00000001);
     milkymist_hpdmc_create(0x60002000);
