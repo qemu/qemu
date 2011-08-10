@@ -25,7 +25,7 @@ struct ISADeviceInfo {
     isa_qdev_initfn init;
 };
 
-ISABus *isa_bus_new(DeviceState *dev);
+ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io);
 void isa_bus_irqs(qemu_irq *irqs);
 qemu_irq isa_get_irq(int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq);

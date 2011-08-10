@@ -156,7 +156,7 @@ static void pc_init1(MemoryRegion *system_memory,
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
-        isa_bus_new(NULL);
+        isa_bus_new(NULL, system_io);
         no_hpet = 1;
     }
     isa_bus_irqs(isa_irq);

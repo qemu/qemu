@@ -24,6 +24,7 @@
 
 struct ISABus {
     BusState qbus;
+    MemoryRegion *address_space_io;
     qemu_irq *irqs;
 };
 static ISABus *isabus;
@@ -39,7 +40,7 @@ static struct BusInfo isa_bus_info = {
     .get_fw_dev_path = isabus_get_fw_dev_path,
 };
 
-ISABus *isa_bus_new(DeviceState *dev)
+ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io)
 {
     if (isabus) {
         fprintf(stderr, "Can't create a second ISA bus\n");
@@ -51,6 +52,7 @@ ISABus *isa_bus_new(DeviceState *dev)
     }
 
     isabus = FROM_QBUS(ISABus, qbus_create(&isa_bus_info, dev, NULL));
+    isabus->address_space_io = address_space_io;
     return isabus;
 }
 
