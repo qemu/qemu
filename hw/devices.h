@@ -1,6 +1,9 @@
 #ifndef QEMU_DEVICES_H
 #define QEMU_DEVICES_H
 
+/* ??? Not all users of this file can include cpu-common.h.  */
+struct MemoryRegion;
+
 /* Devices that have nowhere better to go.  */
 
 /* smc91c111.c */
@@ -57,7 +60,8 @@ qemu_irq *tc6393xb_gpio_in_get(TC6393xbState *s);
 qemu_irq tc6393xb_l3v_get(TC6393xbState *s);
 
 /* sm501.c */
-void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
+void sm501_init(struct MemoryRegion *address_space_mem, uint32_t base,
+                uint32_t local_mem_bytes, qemu_irq irq,
                 CharDriverState *chr);
 
 #endif
