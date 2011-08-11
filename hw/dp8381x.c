@@ -107,12 +107,12 @@ typedef enum {
 
 typedef struct {
     PCIDevice dev;
+    MemoryRegion mmio_bar;
+    MemoryRegion io_bar;
     RxTxState rx_state:8;
     RxTxState tx_state:8;
 
     /* Variables for QEMU interface. */
-    int io_memory;              /* handle for memory mapped I/O */
-    uint32_t region[2];         /* PCI region addresses */
     eeprom_t *eeprom;
     NICState *nic;
     NICConf conf;
@@ -938,14 +938,6 @@ static uint32_t dp8381x_readl(DP8381xState * s, target_phys_addr_t addr)
     return val;
 }
 
-static void QEMU_NORETURN dp8381x_writeb(DP8381xState * s,
-                                         target_phys_addr_t addr, uint8_t val);
-static void QEMU_NORETURN dp8381x_ioport_writeb(void *opaque,
-                                                uint32_t addr, uint32_t val);
-static void QEMU_NORETURN dp8381x_mmio_writeb(void *opaque,
-                                              target_phys_addr_t addr,
-                                              uint32_t val);
-
 static void dp8381x_writeb(DP8381xState * s, target_phys_addr_t addr,
                            uint8_t val)
 {
@@ -1186,156 +1178,56 @@ static void dp8381x_writel(DP8381xState * s, target_phys_addr_t addr,
 
 /*****************************************************************************
  *
- * Port mapped I/O.
+ * I/O interface.
  *
  ****************************************************************************/
 
-static uint32_t dp8381x_ioport_readb(void *opaque, uint32_t addr)
+static uint64_t dp8381x_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
 {
     DP8381xState *s = opaque;
-    addr -= s->region[0];
-    logout("addr=%s\n", dp8381x_regname(addr));
-    return dp8381x_readb(s, addr);
+    uint64_t val;
+    switch (size) {
+    case 1:
+        val = dp8381x_readb(s, addr);
+        break;
+    case 2:
+        val = dp8381x_readw(s, addr);
+        break;
+    case 4:
+        val = dp8381x_readl(s, addr);
+        break;
+    default:
+        assert(!"bad size");
+    }
+    logout("%u %s\n", size, dp8381x_regname(addr));
+    return val;
 }
 
-static uint32_t dp8381x_ioport_readw(void *opaque, uint32_t addr)
+static void dp8381x_write(void *opaque, target_phys_addr_t addr,
+                          uint64_t val, unsigned size)
 {
     DP8381xState *s = opaque;
-    addr -= s->region[0];
-    logout("addr=%s\n", dp8381x_regname(addr));
-    return dp8381x_readw(s, addr);
+    logout("%u, %s, 0x%08" PRIx64 "\n", size, dp8381x_regname(addr), val);
+    switch (size) {
+    case 1:
+        dp8381x_writeb(s, addr, val);
+        break;
+    case 2:
+        dp8381x_writew(s, addr, val);
+        break;
+    case 4:
+        dp8381x_writel(s, addr, val);
+        break;
+    default:
+        assert(!"bad size");
+    }
 }
 
-static uint32_t dp8381x_ioport_readl(void *opaque, uint32_t addr)
-{
-    DP8381xState *s = opaque;
-    addr -= s->region[0];
-    logout("addr=%s\n", dp8381x_regname(addr));
-    return dp8381x_readl(s, addr);
-}
-
-static void dp8381x_ioport_writeb(void *opaque, uint32_t addr, uint32_t val)
-{
-    DP8381xState *s = opaque;
-    addr -= s->region[0];
-    logout("addr=%s val=0x%02x\n", dp8381x_regname(addr), val);
-    dp8381x_writeb(s, addr, val);
-}
-
-static void dp8381x_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
-{
-    DP8381xState *s = opaque;
-    addr -= s->region[0];
-    logout("addr=%s val=0x%04x\n", dp8381x_regname(addr), val);
-    dp8381x_writew(s, addr, val);
-}
-
-static void dp8381x_ioport_writel(void *opaque, uint32_t addr, uint32_t val)
-{
-    DP8381xState *s = opaque;
-    addr -= s->region[0];
-    logout("addr=%s val=0x%08x\n", dp8381x_regname(addr), val);
-    dp8381x_writel(s, addr, val);
-}
-
-static void dp8381x_io_map(PCIDevice * pci_dev, int region_num,
-                           pcibus_t addr, pcibus_t size, int type)
-{
-    DP8381xState *s = DO_UPCAST(DP8381xState, dev, pci_dev);
-
-    logout("region %d, addr 0x%08" FMT_PCIBUS ", size 0x%08" FMT_PCIBUS "\n",
-           region_num, addr, size);
-    assert(region_num == 0);
-    s->region[region_num] = addr;
-
-    register_ioport_read(addr, size, 1, dp8381x_ioport_readb, s);
-    register_ioport_read(addr, size, 2, dp8381x_ioport_readw, s);
-    register_ioport_read(addr, size, 4, dp8381x_ioport_readl, s);
-    register_ioport_write(addr, size, 1, dp8381x_ioport_writeb, s);
-    register_ioport_write(addr, size, 2, dp8381x_ioport_writew, s);
-    register_ioport_write(addr, size, 4, dp8381x_ioport_writel, s);
-}
-
-/*****************************************************************************
- *
- * Memory mapped I/O.
- *
- ****************************************************************************/
-
-static uint32_t dp8381x_mmio_readb(void *opaque, target_phys_addr_t addr)
-{
-    DP8381xState *s = opaque;
-    addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    return dp8381x_readb(s, addr);
-}
-
-static uint32_t dp8381x_mmio_readw(void *opaque, target_phys_addr_t addr)
-{
-    DP8381xState *s = opaque;
-    addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    return dp8381x_readw(s, addr);
-}
-
-static uint32_t dp8381x_mmio_readl(void *opaque, target_phys_addr_t addr)
-{
-    DP8381xState *s = (DP8381xState *) opaque;
-    addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    return dp8381x_readl(s, addr);
-}
-
-static void dp8381x_mmio_writeb(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
-{
-    DP8381xState *s = (DP8381xState *) opaque;
-    addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    dp8381x_writeb(s, addr, val);
-}
-
-static void dp8381x_mmio_writew(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
-{
-    DP8381xState *s = (DP8381xState *) opaque;
-    addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    dp8381x_writew(s, addr, val);
-}
-
-static void dp8381x_mmio_writel(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
-{
-    DP8381xState *s = (DP8381xState *) opaque;
-    addr -= s->region[1];
-    logout("addr 0x" TARGET_FMT_plx "\n", addr);
-    dp8381x_writel(s, addr, val);
-}
-
-static void dp8381x_mem_map(PCIDevice * pci_dev, int region_num,
-                            pcibus_t addr, pcibus_t size, int type)
-{
-    DP8381xState *s = DO_UPCAST(DP8381xState, dev, pci_dev);
-
-    logout("region %d, addr 0x%08" FMT_PCIBUS ", size 0x%08" FMT_PCIBUS "\n",
-           region_num, addr, size);
-    assert(region_num == 1);
-    s->region[region_num] = addr;
-
-    cpu_register_physical_memory(addr, DP8381X_MEM_SIZE, s->io_memory);
-}
-
-static CPUReadMemoryFunc * const dp8381x_mmio_read[] = {
-    dp8381x_mmio_readb,
-    dp8381x_mmio_readw,
-    dp8381x_mmio_readl
-};
-
-static CPUWriteMemoryFunc * const dp8381x_mmio_write[] = {
-    dp8381x_mmio_writeb,
-    dp8381x_mmio_writew,
-    dp8381x_mmio_writel
+static const MemoryRegionOps dp8381x_ops = {
+    .read = dp8381x_read,
+    .write = dp8381x_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void nic_cleanup(VLANClientState *vc)
@@ -1460,16 +1352,15 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     s->silicon_revision = silicon_revision;
 
     /* Handler for memory-mapped I/O */
-    s->io_memory =
-        cpu_register_io_memory(dp8381x_mmio_read, dp8381x_mmio_write, s,
-                               DEVICE_NATIVE_ENDIAN);
+    /* TODO: check size for mmio_bar and io_bar. */
+    memory_region_init_io(&s->io_bar, &dp8381x_ops, s, "dp8381x_io",
+                          DP8381X_IO_SIZE);
+    memory_region_init_io(&s->mmio_bar, &dp8381x_ops, s, "dp8381x_mmio",
+                          DP8381X_MEM_SIZE);
 
-    logout("io_memory = 0x%08x\n", s->io_memory);
-
-    pci_register_bar(&s->dev, 0, DP8381X_IO_SIZE,
-                     PCI_BASE_ADDRESS_SPACE_IO, dp8381x_io_map);
-    pci_register_bar(&s->dev, 1, DP8381X_MEM_SIZE,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, dp8381x_mem_map);
+    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
+    pci_register_bar_region(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &s->mmio_bar);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     dp8381x_reset(s);
@@ -1496,6 +1387,15 @@ static int dp8381x_init(PCIDevice *pci_dev)
 #else
     return pci_dp8381x_init(pci_dev, DP83816AVNG);
 #endif
+}
+
+static int dp8381x_exit(PCIDevice *pci_dev)
+{
+    DP8381xState *s = DO_UPCAST(DP8381xState, dev, pci_dev);
+    memory_region_destroy(&s->mmio_bar);
+    memory_region_destroy(&s->io_bar);
+    qemu_del_vlan_client(&s->nic->nc);
+    return 0;
 }
 
 static void qdev_dp8381x_reset(DeviceState *dev)
@@ -1530,6 +1430,7 @@ static PCIDeviceInfo dp8381x_info = {
     .qdev.reset = qdev_dp8381x_reset,
     .qdev.vmsd = &vmstate_dp8381x,
     .init      = dp8381x_init,
+    .exit      = dp8381x_exit,
 };
 #else
 static PCIDeviceInfo dp8381x_info = {
@@ -1540,6 +1441,7 @@ static PCIDeviceInfo dp8381x_info = {
     .qdev.reset = qdev_dp8381x_reset,
     .qdev.vmsd = &vmstate_dp8381x,
     .init      = dp8381x_init,
+    .exit      = dp8381x_exit,
 };
 #endif
 
