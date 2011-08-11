@@ -20,7 +20,6 @@
 #include "ppc405.h"
 #include "sysemu.h"
 #include "kvm.h"
-#include "exec-memory.h"
 
 #define PPC440EP_PCI_CONFIG     0xeec00000
 #define PPC440EP_PCI_INTACK     0xeed00000
@@ -35,9 +34,9 @@ static const unsigned int ppc440ep_sdram_bank_sizes[] = {
     256<<20, 128<<20, 64<<20, 32<<20, 16<<20, 8<<20, 0
 };
 
-CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
-                        const unsigned int pci_irq_nrs[4], int do_init,
-                        const char *cpu_model)
+CPUState *ppc440ep_init(MemoryRegion *address_space_mem, ram_addr_t *ram_size,
+                        PCIBus **pcip, const unsigned int pci_irq_nrs[4],
+                        int do_init, const char *cpu_model)
 {
     MemoryRegion *ram_memories
         = g_malloc(PPC440EP_SDRAM_NR_BANKS * sizeof(*ram_memories));
@@ -93,12 +92,12 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
     isa_mmio_init(PPC440EP_PCI_IO, PPC440EP_PCI_IOLEN);
 
     if (serial_hds[0] != NULL) {
-        serial_mm_init(get_system_memory(), 0xef600300, 0, pic[0],
+        serial_mm_init(address_space_mem, 0xef600300, 0, pic[0],
                        PPC_SERIAL_MM_BAUDBASE, serial_hds[0],
                        DEVICE_BIG_ENDIAN);
     }
     if (serial_hds[1] != NULL) {
-        serial_mm_init(get_system_memory(), 0xef600400, 0, pic[1],
+        serial_mm_init(address_space_mem, 0xef600400, 0, pic[1],
                        PPC_SERIAL_MM_BAUDBASE, serial_hds[1],
                        DEVICE_BIG_ENDIAN);
     }
