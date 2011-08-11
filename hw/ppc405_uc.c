@@ -2107,11 +2107,12 @@ static void ppc405cr_cpc_init (CPUState *env, clk_setup_t clk_setup[7],
     qemu_register_reset(ppc405cr_cpc_reset, cpc);
 }
 
-CPUState *ppc405cr_init (MemoryRegion ram_memories[4],
-                         target_phys_addr_t ram_bases[4],
-                         target_phys_addr_t ram_sizes[4],
-                         uint32_t sysclk, qemu_irq **picp,
-                         int do_init)
+CPUState *ppc405cr_init(MemoryRegion *address_space_mem,
+                        MemoryRegion ram_memories[4],
+                        target_phys_addr_t ram_bases[4],
+                        target_phys_addr_t ram_sizes[4],
+                        uint32_t sysclk, qemu_irq **picp,
+                        int do_init)
 {
     clk_setup_t clk_setup[PPC405CR_CLK_NB];
     qemu_irq dma_irqs[4];
@@ -2149,12 +2150,12 @@ CPUState *ppc405cr_init (MemoryRegion ram_memories[4],
     ppc405_dma_init(env, dma_irqs);
     /* Serial ports */
     if (serial_hds[0] != NULL) {
-        serial_mm_init(get_system_memory(), 0xef600300, 0, pic[0],
+        serial_mm_init(address_space_mem, 0xef600300, 0, pic[0],
                        PPC_SERIAL_MM_BAUDBASE, serial_hds[0],
                        DEVICE_BIG_ENDIAN);
     }
     if (serial_hds[1] != NULL) {
-        serial_mm_init(get_system_memory(), 0xef600400, 0, pic[1],
+        serial_mm_init(address_space_mem, 0xef600400, 0, pic[1],
                        PPC_SERIAL_MM_BAUDBASE, serial_hds[1],
                        DEVICE_BIG_ENDIAN);
     }
@@ -2455,11 +2456,12 @@ static void ppc405ep_cpc_init (CPUState *env, clk_setup_t clk_setup[8],
 #endif
 }
 
-CPUState *ppc405ep_init (MemoryRegion ram_memories[2],
-                         target_phys_addr_t ram_bases[2],
-                         target_phys_addr_t ram_sizes[2],
-                         uint32_t sysclk, qemu_irq **picp,
-                         int do_init)
+CPUState *ppc405ep_init(MemoryRegion *address_space_mem,
+                        MemoryRegion ram_memories[2],
+                        target_phys_addr_t ram_bases[2],
+                        target_phys_addr_t ram_sizes[2],
+                        uint32_t sysclk, qemu_irq **picp,
+                        int do_init)
 {
     clk_setup_t clk_setup[PPC405EP_CLK_NB], tlb_clk_setup;
     qemu_irq dma_irqs[4], gpt_irqs[5], mal_irqs[4];
@@ -2506,12 +2508,12 @@ CPUState *ppc405ep_init (MemoryRegion ram_memories[2],
     ppc405_gpio_init(0xef600700);
     /* Serial ports */
     if (serial_hds[0] != NULL) {
-        serial_mm_init(get_system_memory(), 0xef600300, 0, pic[0],
+        serial_mm_init(address_space_mem, 0xef600300, 0, pic[0],
                        PPC_SERIAL_MM_BAUDBASE, serial_hds[0],
                        DEVICE_BIG_ENDIAN);
     }
     if (serial_hds[1] != NULL) {
-        serial_mm_init(get_system_memory(), 0xef600400, 0, pic[1],
+        serial_mm_init(address_space_mem, 0xef600400, 0, pic[1],
                        PPC_SERIAL_MM_BAUDBASE, serial_hds[1],
                        DEVICE_BIG_ENDIAN);
     }
