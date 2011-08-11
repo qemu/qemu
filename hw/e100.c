@@ -225,14 +225,6 @@ enum
     INT_CX_TNO = BIT(15),
 } E100_INTERRUPT;
 
-enum
-{
-    CSR_MEMORY_BASE,
-    CSR_IO_BASE,
-    FLASH_MEMORY_BASE,
-    REGION_NUM
-}E100_PCI_MEMORY_REGION;
-
 typedef struct {
     uint32_t tx_good_frames,        // Good frames transmitted
              tx_max_collisions,     // Fatal frames -- had max collisions
@@ -494,10 +486,11 @@ typedef struct
 
 typedef struct {
     PCIDevice dev;
+    MemoryRegion mmio_bar;
+    MemoryRegion io_bar;
+    MemoryRegion flash_bar;
 
-    int mmio_index;
     uint8_t scb_stat;           /* SCB stat/ack byte */
-    uint32_t region_base_addr[REGION_NUM];         /* PCI region addresses */
     NICConf conf;
     NICState *nic;
     uint16_t mdimem[32];
@@ -621,7 +614,7 @@ static const uint8_t broadcast_macaddr[6] =
     { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
 /* Debugging codes */
-#ifdef  DEBUG_E100
+#ifdef DEBUG_E100
 
 static void e100_dump(const char *comment, const uint8_t *info, int len)
 {
@@ -885,7 +878,7 @@ static void e100_self_test(uint32_t res_addr)
 
     test_res.st_sign = (uint32_t)-1;
     test_res.st_result = 0; // Our self test always success
-    cpu_physical_memory_write(res_addr, (uint8_t *)&test_res, sizeof(test_res));
+    cpu_physical_memory_write(res_addr, &test_res, sizeof(test_res));
 
     logout("Write self test result to %#x\n", res_addr);
 }
@@ -1293,7 +1286,7 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
     while (1)
     {
         cb_addr = s->cu_base + s->cu_offset;
-        cpu_physical_memory_read(cb_addr, (uint8_t *)&cb, sizeof(cb));
+        cpu_physical_memory_read(cb_addr, &cb, sizeof(cb));
 
 
         switch ( cb.cmd )
@@ -1311,7 +1304,8 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
                     i82557_cfg_t *cfg = &s->config;
 
                     assert(sizeof(s->config) == 22);
-                    cpu_physical_memory_read(cb_addr + 8, (uint8_t *)cfg, sizeof(s->config));
+                    cpu_physical_memory_read(cb_addr + 8, cfg,
+                                             sizeof(s->config));
                     logout("Setup card configuration:"
                             "\tbyte count:%d\n"
                             "\tRx FIFO limit:%d\n"
@@ -1360,7 +1354,7 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
                     uint16_t mult_list_count = 0;
                     uint16_t size = 0;
 
-                    cpu_physical_memory_read(cb_addr + 8, (uint8_t *)&mult_list_count, 2);
+                    cpu_physical_memory_read(cb_addr + 8, &mult_list_count, 2);
                     mult_list_count = (mult_list_count << 2) >> 2;
 
                     if ( !mult_list_count )
@@ -1399,7 +1393,7 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
 
                     assert( len < sizeof(s->pkt_buf));
 
-                    cpu_physical_memory_read(cb_addr, (uint8_t *)&tx, sizeof(tx));
+                    cpu_physical_memory_read(cb_addr, &tx, sizeof(tx));
                     tbd_array = le32_to_cpu(tx.tbd.tx_desc_addr);
                     tcb_bytes = le16_to_cpu(tx.tbd.tcb_bytes);
                     // Indicate use what mode to transmit(simple or flexible)
@@ -1450,8 +1444,7 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
 
                             for ( i=0; i<tx.tbd.tbd_num; i++ )
                             {
-
-                                cpu_physical_memory_read(tbd_array, (uint8_t *)&tx_buf,
+                                cpu_physical_memory_read(tbd_array, &tx_buf,
                                         sizeof(tx_buf));
                                 tx_buf.is_el_set &= 0x1;
                                 tx_buf.size &= 0x7fff;
@@ -1490,7 +1483,7 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
                             for ( ; i<2 && i<tx.tbd.tbd_num; i++ )
                             {
 
-                                cpu_physical_memory_read(tbd_array, (uint8_t *)&tx_buf,
+                                cpu_physical_memory_read(tbd_array, &tx_buf,
                                         sizeof(tx_buf));
                                 tx_buf.is_el_set &= 0x1;
                                 tbd_addr += 8;
@@ -1537,7 +1530,7 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
                                  */
                                 for ( ; i<tx.tbd.tbd_num; i++ )
                                 {
-                                    cpu_physical_memory_read(tbd_addr, (uint8_t *)&tx_buf,
+                                    cpu_physical_memory_read(tbd_addr, &tx_buf,
                                             sizeof(tx_buf));
                                     tx_buf.is_el_set &= 0x1;
                                     tbd_addr += 8;
@@ -1584,9 +1577,9 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
                         s->pkt_buf_len = 0;
                     }
 
-                    e100_dump("Dest addr:", (uint8_t *)s->pkt_buf, 6);
-                    e100_dump("Src addr:", (uint8_t *)(s->pkt_buf+6), 6);
-                    e100_dump("type:", (uint8_t *)(s->pkt_buf+8), 2);
+                    e100_dump("Dest addr:", s->pkt_buf, 6);
+                    e100_dump("Src addr:", s->pkt_buf + 6, 6);
+                    e100_dump("type:", s->pkt_buf + 8, 2);
 
                     break;
                 }
@@ -1618,7 +1611,7 @@ static void e100_execute_cb_list(E100State *s, int is_resume)
         cb.c = 1;
         cb.ok = 1;
         // Only update C bit and OK bit field in TCB
-        cpu_physical_memory_write(cb_addr, (uint8_t *)&cb, 2);
+        cpu_physical_memory_write(cb_addr, &cb, 2);
 
         logout("Finished a command from CB list:\n"
                 "\tok:%d\n"
@@ -1672,7 +1665,8 @@ static void dump_statistics(E100State * s, uint32_t complete_word)
      * and always 0.
      */
     s->statistics.complete_word = complete_word;
-    cpu_physical_memory_write(s->statsaddr, (uint8_t *)&s->statistics, sizeof(s->statistics));
+    cpu_physical_memory_write(s->statsaddr, &s->statistics,
+                              sizeof(s->statistics));
 
 }
 
@@ -1713,8 +1707,7 @@ static void e100_cu_command(E100State *s, uint8_t val)
                     logout("Illegal resume form IDLE\n");
                 }
 
-                cpu_physical_memory_read(previous_cb, (uint8_t *)&cb,
-                                        sizeof(cb));
+                cpu_physical_memory_read(previous_cb, &cb, sizeof(cb));
 
                 //FIXME: Need any speical handle when CU is active ?
 
@@ -1798,9 +1791,9 @@ enum
     OP_IS_READ,
 } WRITE_BYTES;
 
-/* Driver may issue a command by writting one 32bit-entry,
+/* Driver may issue a command by writing one 32bit-entry,
  * two 16bit-entries or four 8bit-entries. In late two case, we
- * must wait until driver finish writting to the highest byte. The parameter
+ * must wait until driver finish writing to the highest byte. The parameter
  * 'bytes' means write action of driver(writeb, wirtew, wirtel)
  */
 static void e100_execute(E100State *s, uint32_t addr_offset,
@@ -1907,8 +1900,7 @@ static uint8_t e100_read1(E100State * s, uint32_t addr_offset)
 
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invalid read, beyond memory boundary(addr:%#x)\n",
-               addr_offset + s->region_base_addr[CSR_MEMORY_BASE]);
+        logout("Invalid CSR read, addr:%#x\n", addr_offset);
         return val;
     }
 
@@ -1927,8 +1919,7 @@ static uint16_t e100_read2(E100State * s, uint32_t addr_offset)
 
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invalid read, beyond memory boundary(addr:%#x)\n",
-               addr_offset + s->region_base_addr[CSR_MEMORY_BASE]);
+        logout("Invalid CSR read, addr:%#x\n", addr_offset);
         return val;
     }
 
@@ -1947,8 +1938,7 @@ static uint32_t e100_read4(E100State * s, uint32_t addr_offset)
 
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invalid read, beyond memory boundary(addr:%#x)\n",
-               addr_offset + s->region_base_addr[CSR_MEMORY_BASE]);
+        logout("Invalid CSR read, addr:%#x)\n", addr_offset);
         return val;
     }
 
@@ -1961,36 +1951,12 @@ static uint32_t e100_read4(E100State * s, uint32_t addr_offset)
 
 }
 
-static uint32_t pci_mmio_readb(void *opaque, target_phys_addr_t addr)
-{
-    E100State *s = opaque;
-    return e100_read1(s, addr);
-}
-
-static uint32_t pci_mmio_readw(void *opaque, target_phys_addr_t addr)
-{
-    E100State *s = opaque;
-    return e100_read2(s, addr);
-}
-
-static uint32_t pci_mmio_readl(void *opaque, target_phys_addr_t addr)
-{
-    E100State *s = opaque;
-    return e100_read4(s, addr);
-}
-
-static CPUReadMemoryFunc * const pci_mmio_read[] = {
-    pci_mmio_readb,
-    pci_mmio_readw,
-    pci_mmio_readl
-};
-
 static void e100_write1(E100State * s, uint32_t addr_offset, uint8_t val)
 {
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invalid write, beyond memory boundary(addr = %#x, val = %#x\n",
-               addr_offset + s->region_base_addr[CSR_MEMORY_BASE], val);
+        logout("Invalid CSR write, addr = %#x, val = %#x\n",
+               addr_offset, val);
         return;
     }
 
@@ -2017,15 +1983,15 @@ static void e100_write1(E100State * s, uint32_t addr_offset, uint8_t val)
 
     logout("WRITE1: Register name = %s, addr_offset = %#x, val = %#x\n",
            SCBNAME(addr_offset), addr_offset, val);
-    return;
+    e100_execute(s, addr_offset, val, OP_WRITE, WRITEB);
 }
 
 static void e100_write2(E100State * s, uint32_t addr_offset, uint16_t val)
 {
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invalid write, beyond memory boundary(addr = %#x, val = %#x\n",
-               addr_offset + s->region_base_addr[CSR_MEMORY_BASE], val);
+        logout("Invalid CSR write, addr = %#x, val = %#x\n",
+               addr_offset, val);
         return;
     }
 
@@ -2053,15 +2019,15 @@ static void e100_write2(E100State * s, uint32_t addr_offset, uint16_t val)
 
     logout("WRITE2: Register name = %s, addr_offset = %#x, val = %#x\n",
            SCBNAME(addr_offset), addr_offset, val);
-    return;
+    e100_execute(s, addr_offset, val, OP_WRITE, WRITEW);
 }
 
 static void e100_write4(E100State * s, uint32_t addr_offset, uint32_t val)
 {
     if ( addr_offset + sizeof(val) >= sizeof(s->pci_mem.mem) )
     {
-        logout("Invalid write, beyond memory boundary(addr = %#x, val = %#x\n",
-               addr_offset + s->region_base_addr[CSR_MEMORY_BASE], val);
+        logout("Invalid CSR write, addr = %#x, val = %#x\n",
+               addr_offset, val);
         return;
     }
 
@@ -2084,122 +2050,48 @@ static void e100_write4(E100State * s, uint32_t addr_offset, uint32_t val)
     }
 
     logout("WRITE4: Register name = %s, addr_offset = %#x, val = %#x\n", SCBNAME(addr_offset),addr_offset, val);
-    return;
+    e100_execute(s, addr_offset, val, OP_WRITE, WRITEL);
 }
 
-static void pci_mmio_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static uint64_t e100_read(void *opaque, target_phys_addr_t addr,
+                          unsigned size)
 {
     E100State *s = opaque;
-    e100_write1(s, addr, val);
-    e100_execute(s, addr, val, OP_WRITE, WRITEB);
+
+    switch (size) {
+    case 1:
+        return e100_read1(s, addr);
+    case 2:
+        return e100_read2(s, addr);
+    case 4:
+        return e100_read4(s, addr);
+    default:
+        assert(!"bad size");
+    }
 }
 
-static void pci_mmio_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void e100_write(void *opaque, target_phys_addr_t addr,
+                       uint64_t data, unsigned size)
 {
     E100State *s = opaque;
-    e100_write2(s, addr, val);
-    e100_execute(s, addr, val, OP_WRITE, WRITEW);
+
+    switch (size) {
+    case 1:
+        return e100_write1(s, addr, data);
+    case 2:
+        return e100_write2(s, addr, data);
+    case 4:
+        return e100_write4(s, addr, data);
+    default:
+        assert(!"bad size");
+    }
 }
 
-static void pci_mmio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    E100State *s = opaque;
-    e100_write4(s, addr, val);
-    e100_execute(s, addr, val, OP_WRITE, WRITEL);
-}
-
-static CPUWriteMemoryFunc * const pci_mmio_write[] = {
-    pci_mmio_writeb,
-    pci_mmio_writew,
-    pci_mmio_writel
+static const MemoryRegionOps e100_ops = {
+    .read = e100_read,
+    .write = e100_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
-
-static void pci_mmio_map(PCIDevice * pci_dev, int region_num,
-                         pcibus_t addr, pcibus_t size, int type)
-{
-    E100State *s = DO_UPCAST(E100State, dev, pci_dev);
-
-    logout("region %d, addr=0x%08" FMT_PCIBUS
-           ", size=0x%08" FMT_PCIBUS ", type=%d\n",
-           region_num, addr, size, type);
-
-    if ( region_num == CSR_MEMORY_BASE ) {
-        /* Map control / status registers. */
-        cpu_register_physical_memory(addr, size, s->mmio_index);
-        s->region_base_addr[region_num] = addr;
-    }
-}
-
-/* IO access functions */
-static void ioport_write1(void *opaque, uint32_t addr, uint32_t val)
-{
-    E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_IO_BASE];
-    e100_write1(s, addr, val);
-    e100_execute(s, addr, (uint32_t)val, OP_WRITE, WRITEB);
-}
-
-static void ioport_write2(void *opaque, uint32_t addr, uint32_t val)
-{
-    E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_IO_BASE];
-    e100_write2(s, addr, val);
-    e100_execute(s, addr, (uint32_t)val, OP_WRITE, WRITEW);
-}
-
-static void ioport_write4(void *opaque, uint32_t addr, uint32_t val)
-{
-    E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_IO_BASE];
-    e100_write4(s, addr, val);
-    e100_execute(s, addr, (uint32_t)val, OP_WRITE, WRITEL);
-}
-
-static uint32_t ioport_read1(void *opaque, uint32_t addr)
-{
-    E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_IO_BASE];
-    return e100_read1(s, addr);
-}
-
-static uint32_t ioport_read2(void *opaque, uint32_t addr)
-{
-    E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_IO_BASE];
-    return e100_read2(s, addr);
-}
-
-static uint32_t ioport_read4(void *opaque, uint32_t addr)
-{
-    E100State *s = opaque;
-    addr -= s->region_base_addr[CSR_IO_BASE];
-    return e100_read4(s, addr);
-}
-
-static void pci_ioport_map(PCIDevice * pci_dev, int region_num,
-                           pcibus_t addr, pcibus_t size, int type)
-{
-    E100State *s = DO_UPCAST(E100State, dev, pci_dev);
-
-    logout("region %d, addr=0x%08" FMT_PCIBUS
-           ", size=0x%08" FMT_PCIBUS ", type=%d\n",
-           region_num, addr, size, type);
-
-    if ( region_num != 1 )
-    {
-        logout("Invaid region number!\n");
-        return;
-    }
-
-    register_ioport_write(addr, size, 1, ioport_write1, s);
-    register_ioport_read(addr, size, 1, ioport_read1, s);
-    register_ioport_write(addr, size, 2, ioport_write2, s);
-    register_ioport_read(addr, size, 2, ioport_read2, s);
-    register_ioport_write(addr, size, 4, ioport_write4, s);
-    register_ioport_read(addr, size, 4, ioport_read4, s);
-
-    s->region_base_addr[region_num] = addr;
-}
 
 /* From FreeBSD */
 #define POLYNOMIAL 0x04c11db6
@@ -2240,7 +2132,7 @@ static int buffer_tcp(E100State *s, const uint8_t *pkt)
     if ( eth_type == 0x0800 )
     {
         /* Get an IP frame */
-        ip_type = *(uint8_t *)(pkt+23);
+        ip_type = pkt[23];
         if ( ip_type == 0x6 )
         {
             /* Get a TCP frame */
@@ -2303,7 +2195,7 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     }
 
     rfd_addr = s->ru_base + s->ru_offset;
-    cpu_physical_memory_read(rfd_addr, (uint8_t *)&rfd, sizeof(rfd_t));
+    cpu_physical_memory_read(rfd_addr, &rfd, sizeof(rfd_t));
 
     if ( size > MAX_ETH_FRAME_SIZE+4 )
     {
@@ -2317,7 +2209,7 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     {
         /* The frame is for me */
         logout("Receive a frame for me(size=%zu)\n", size);
-        e100_dump("FRAME:", (uint8_t *)buf, size);
+        e100_dump("FRAME:", buf, size);
     }
     else if ( !memcmp(buf, broadcast_macaddr, sizeof(broadcast_macaddr)) )
     {
@@ -2366,10 +2258,10 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
     }
     else
     {
-        e100_dump("Unknown frame, MAC = ", (uint8_t *)buf, 6);
+        e100_dump("Unknown frame, MAC = ", buf, 6);
         return -1;
     }
-    e100_dump("Get frame, MAC = ", (uint8_t *)buf, 6);
+    e100_dump("Get frame, MAC = ", buf, 6);
 
     rfd.c = 1;
     rfd.ok = 1;
@@ -2388,7 +2280,7 @@ static ssize_t nic_receive(VLANClientState *vc, const uint8_t * buf, size_t size
             rfd.s, rfd.el, rfd.link_addr, rfd.count,
             rfd.f, rfd.eof, rfd.size);
 
-    cpu_physical_memory_write(rfd_addr, (uint8_t *)&rfd, sizeof(rfd));
+    cpu_physical_memory_write(rfd_addr, &rfd, sizeof(rfd));
     cpu_physical_memory_write(rfd_addr + sizeof(rfd_t), buf, size);
     s->statistics.rx_good_frames ++;
     s->ru_offset = le32_to_cpu(rfd.link_addr);
@@ -2459,24 +2351,22 @@ static int e100_init(PCIDevice *pci_dev, uint32_t device)
 
     pci_reset(s);
 
-    /* Handler for memory-mapped I/O */
-    s->mmio_index =
-        cpu_register_io_memory(pci_mmio_read, pci_mmio_write, s,
-                               DEVICE_NATIVE_ENDIAN);
-
-    //CSR Memory mapped base
-    pci_register_bar(&s->dev, 0, PCI_MEM_SIZE,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY | PCI_BASE_ADDRESS_MEM_PREFETCH,
-                     pci_mmio_map);
-    //CSR I/O mapped base
-    pci_register_bar(&s->dev, 1, PCI_IO_SIZE, PCI_BASE_ADDRESS_SPACE_IO,
-                     pci_ioport_map);
-    //Flash memory mapped base
-    pci_register_bar(&s->dev, 2, PCI_FLASH_SIZE, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                     pci_mmio_map);
+    memory_region_init_io(&s->mmio_bar, &e100_ops, s, "e100-mmio",
+                          PCI_MEM_SIZE);
+    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
+                                        PCI_BASE_ADDRESS_MEM_PREFETCH,
+                            &s->mmio_bar);
+    memory_region_init_io(&s->io_bar, &e100_ops, s, "eepro100-io",
+                          PCI_IO_SIZE);
+    pci_register_bar_region(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
+    /* FIXME: flash aliases to mmio?! */
+    memory_region_init_io(&s->flash_bar, &e100_ops, s, "eepro100-flash",
+                          PCI_FLASH_SIZE);
+    pci_register_bar_region(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &s->flash_bar);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    e100_dump("MAC ADDR", (uint8_t *)&s->conf.macaddr.a[0], 6);
+    e100_dump("MAC ADDR", &s->conf.macaddr.a[0], 6);
 
     eeprom_init(s);
 
@@ -2497,6 +2387,17 @@ static int pci_e100_init(PCIDevice *pci_dev)
     return e100_init(pci_dev, i82557C);
 }
 
+static int e100_exit(PCIDevice *pci_dev)
+{
+    E100State *s = DO_UPCAST(E100State, dev, pci_dev);
+    logout("\n");
+    memory_region_destroy(&s->mmio_bar);
+    memory_region_destroy(&s->io_bar);
+    memory_region_destroy(&s->flash_bar);
+    qemu_del_vlan_client(&s->nic->nc);
+    return 0;
+}
+
 static Property e100_properties[] = {
     DEFINE_NIC_PROPERTIES(E100State, conf),
     DEFINE_PROP_END_OF_LIST(),
@@ -2507,6 +2408,7 @@ static PCIDeviceInfo e100_info = {
     .qdev.props = e100_properties,
     .qdev.size = sizeof(E100State),
     .init      = pci_e100_init,
+    .exit      = e100_exit,
 };
 
 static void e100_register_devices(void)
