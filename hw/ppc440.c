@@ -20,6 +20,7 @@
 #include "ppc405.h"
 #include "sysemu.h"
 #include "kvm.h"
+#include "exec-memory.h"
 
 #define PPC440EP_PCI_CONFIG     0xeec00000
 #define PPC440EP_PCI_INTACK     0xeed00000
@@ -92,12 +93,14 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
     isa_mmio_init(PPC440EP_PCI_IO, PPC440EP_PCI_IOLEN);
 
     if (serial_hds[0] != NULL) {
-        serial_mm_init(0xef600300, 0, pic[0], PPC_SERIAL_MM_BAUDBASE,
-                       serial_hds[0], DEVICE_BIG_ENDIAN);
+        serial_mm_init(get_system_memory(), 0xef600300, 0, pic[0],
+                       PPC_SERIAL_MM_BAUDBASE, serial_hds[0],
+                       DEVICE_BIG_ENDIAN);
     }
     if (serial_hds[1] != NULL) {
-        serial_mm_init(0xef600400, 0, pic[1], PPC_SERIAL_MM_BAUDBASE,
-                       serial_hds[1], DEVICE_BIG_ENDIAN);
+        serial_mm_init(get_system_memory(), 0xef600400, 0, pic[1],
+                       PPC_SERIAL_MM_BAUDBASE, serial_hds[1],
+                       DEVICE_BIG_ENDIAN);
     }
 
     return env;

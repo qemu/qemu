@@ -34,6 +34,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "qemu-log.h"
+#include "exec-memory.h"
 
 #include "ppc.h"
 #include "ppc4xx.h"
@@ -191,6 +192,7 @@ static void virtex_init(ram_addr_t ram_size,
                         const char *kernel_cmdline,
                         const char *initrd_filename, const char *cpu_model)
 {
+    MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
     CPUState *env;
     target_phys_addr_t ram_base = 0;
@@ -226,8 +228,8 @@ static void virtex_init(ram_addr_t ram_size,
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    serial_mm_init(0x83e01003ULL, 2, irq[9], 115200, serial_hds[0],
-                   DEVICE_LITTLE_ENDIAN);
+    serial_mm_init(address_space_mem, 0x83e01003ULL, 2, irq[9], 115200,
+                   serial_hds[0], DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 62 Mhz.  */
     xilinx_timer_create(0x83c00000, irq[3], 2, 62 * 1000000);

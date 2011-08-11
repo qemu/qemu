@@ -38,6 +38,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 //#define DEBUG_IRQ
 //#define DEBUG_EBUS
@@ -770,8 +771,8 @@ static void sun4uv_init(ram_addr_t RAM_size,
 
     i = 0;
     if (hwdef->console_serial_base) {
-        serial_mm_init(hwdef->console_serial_base, 0, NULL, 115200,
-                       serial_hds[i], DEVICE_BIG_ENDIAN);
+        serial_mm_init(get_system_memory(), hwdef->console_serial_base, 0,
+                       NULL, 115200, serial_hds[i], DEVICE_BIG_ENDIAN);
         i++;
     }
     for(; i < MAX_SERIAL_PORTS; i++) {

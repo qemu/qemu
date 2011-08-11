@@ -30,6 +30,7 @@
 #include "sysbus.h"
 #include "qdev-addr.h"
 #include "range.h"
+#include "exec-memory.h"
 
 /*
  * Status: 2010/05/07
@@ -1440,7 +1441,8 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
 
     /* bridge to serial emulation module */
     if (chr) {
-        serial_mm_init(base + MMIO_BASE_OFFSET + SM501_UART0, 2,
+        serial_mm_init(get_system_memory(),
+                       base + MMIO_BASE_OFFSET + SM501_UART0, 2,
                        NULL, /* TODO : chain irq to IRL */
                        115200, chr, DEVICE_NATIVE_ENDIAN);
     }

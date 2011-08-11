@@ -38,6 +38,7 @@
 #include "elf.h"
 #include "blockdev.h"
 #include "pc.h"
+#include "exec-memory.h"
 
 #include "microblaze_pic_cpu.h"
 #include "xilinx_axidma.h"
@@ -141,6 +142,7 @@ petalogix_ml605_init(ram_addr_t ram_size,
                           const char *kernel_cmdline,
                           const char *initrd_filename, const char *cpu_model)
 {
+    MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
     CPUState *env;
     int kernel_size;
@@ -184,8 +186,8 @@ petalogix_ml605_init(ram_addr_t ram_size,
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    serial_mm_init(UART16550_BASEADDR + 0x1000, 2, irq[5], 115200,
-                   serial_hds[0], DEVICE_LITTLE_ENDIAN);
+    serial_mm_init(address_space_mem, UART16550_BASEADDR + 0x1000, 2,
+                   irq[5], 115200, serial_hds[0], DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
     xilinx_timer_create(TIMER_BASEADDR, irq[2], 2, 100 * 1000000);

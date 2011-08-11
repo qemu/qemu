@@ -32,6 +32,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "sysbus.h"
+#include "exec-memory.h"
 
 #define BINARY_DEVICE_TREE_FILE    "mpc8544ds.dtb"
 #define UIMAGE_LOAD_BASE           0
@@ -225,6 +226,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                          const char *initrd_filename,
                          const char *cpu_model)
 {
+    MemoryRegion *address_space_mem = get_system_memory();
     PCIBus *pci_bus;
     CPUState *env;
     uint64_t elf_entry;
@@ -274,13 +276,13 @@ static void mpc8544ds_init(ram_addr_t ram_size,
 
     /* Serial */
     if (serial_hds[0]) {
-        serial_mm_init(MPC8544_SERIAL0_REGS_BASE,
+        serial_mm_init(address_space_mem, MPC8544_SERIAL0_REGS_BASE,
                        0, mpic[12+26], 399193,
                        serial_hds[0], DEVICE_BIG_ENDIAN);
     }
 
     if (serial_hds[1]) {
-        serial_mm_init(MPC8544_SERIAL1_REGS_BASE,
+        serial_mm_init(address_space_mem, MPC8544_SERIAL1_REGS_BASE,
                        0, mpic[12+26], 399193,
                        serial_hds[0], DEVICE_BIG_ENDIAN);
     }

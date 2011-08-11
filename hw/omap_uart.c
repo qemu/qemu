@@ -22,6 +22,7 @@
 #include "omap.h"
 /* We use pc-style serial ports.  */
 #include "pc.h"
+#include "exec-memory.h"
 
 /* UARTs */
 struct omap_uart_s {
@@ -60,7 +61,8 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
     s->base = base;
     s->fclk = fclk;
     s->irq = irq;
-    s->serial = serial_mm_init(base, 2, irq, omap_clk_getrate(fclk)/16,
+    s->serial = serial_mm_init(get_system_memory(), base, 2, irq,
+                               omap_clk_getrate(fclk)/16,
                                chr ?: qemu_chr_new(label, "null", NULL),
                                DEVICE_NATIVE_ENDIAN);
     return s;
@@ -176,7 +178,7 @@ struct omap_uart_s *omap2_uart_init(struct omap_target_agent_s *ta,
 void omap_uart_attach(struct omap_uart_s *s, CharDriverState *chr)
 {
     /* TODO: Should reuse or destroy current s->serial */
-    s->serial = serial_mm_init(s->base, 2, s->irq,
+    s->serial = serial_mm_init(get_system_memory(), s->base, 2, s->irq,
                                omap_clk_getrate(s->fclk) / 16,
                                chr ?: qemu_chr_new("null", "null", NULL),
                                DEVICE_NATIVE_ENDIAN);
