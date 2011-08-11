@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include "hw.h"
+#include "exec-memory.h"
 #include "qemu-common.h"
 #include "sysemu.h"
 
@@ -185,7 +186,7 @@ struct fs_dma_channel
 
 struct fs_dma_ctrl
 {
-	int map;
+	MemoryRegion mmio;
 	int nr_channels;
 	struct fs_dma_channel *channels;
 
@@ -562,12 +563,16 @@ static uint32_t dma_rinvalid (void *opaque, target_phys_addr_t addr)
         return 0;
 }
 
-static uint32_t
-dma_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t
+dma_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 {
         struct fs_dma_ctrl *ctrl = opaque;
 	int c;
 	uint32_t r = 0;
+
+	if (size != 4) {
+		dma_rinvalid(opaque, addr);
+	}
 
 	/* Make addr relative to this channel and bounded to nr regs.  */
 	c = fs_channel(addr);
@@ -608,10 +613,16 @@ dma_update_state(struct fs_dma_ctrl *ctrl, int c)
 }
 
 static void
-dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+dma_write(void *opaque, target_phys_addr_t addr,
+	  uint64_t val64, unsigned int size)
 {
         struct fs_dma_ctrl *ctrl = opaque;
+	uint32_t value = val64;
 	int c;
+
+	if (size != 4) {
+		dma_winvalid(opaque, addr, value);
+	}
 
         /* Make addr relative to this channel and bounded to nr regs.  */
 	c = fs_channel(addr);
@@ -668,16 +679,14 @@ dma_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
         }
 }
 
-static CPUReadMemoryFunc * const dma_read[] = {
-	&dma_rinvalid,
-	&dma_rinvalid,
-	&dma_readl,
-};
-
-static CPUWriteMemoryFunc * const dma_write[] = {
-	&dma_winvalid,
-	&dma_winvalid,
-	&dma_writel,
+static const MemoryRegionOps dma_ops = {
+	.read = dma_read,
+	.write = dma_write,
+	.endianness = DEVICE_NATIVE_ENDIAN,
+	.valid = {
+		.min_access_size = 1,
+		.max_access_size = 4
+	}
 };
 
 static int etraxfs_dmac_run(void *opaque)
@@ -750,7 +759,9 @@ void *etraxfs_dmac_init(target_phys_addr_t base, int nr_channels)
 	ctrl->nr_channels = nr_channels;
 	ctrl->channels = g_malloc0(sizeof ctrl->channels[0] * nr_channels);
 
-	ctrl->map = cpu_register_io_memory(dma_read, dma_write, ctrl, DEVICE_NATIVE_ENDIAN);
-	cpu_register_physical_memory(base, nr_channels * 0x2000, ctrl->map);
+	memory_region_init_io(&ctrl->mmio, &dma_ops, ctrl, "etraxfs-dma",
+			      nr_channels * 0x2000);
+	memory_region_add_subregion(get_system_memory(), base, &ctrl->mmio);
+
 	return ctrl;
 }
