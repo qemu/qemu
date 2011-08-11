@@ -396,6 +396,15 @@ qapi-nested-y = qapi-visit-core.o qmp-input-visitor.o qmp-output-visitor.o qapi-
 qapi-nested-y += qmp-registry.o qmp-dispatch.o
 qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
 
+######################################################################
+# guest agent
+
+qga-nested-y = guest-agent-commands.o guest-agent-command-state.o
+qga-obj-y = $(addprefix qga/, $(qga-nested-y))
+qga-obj-y += qemu-ga.o qemu-tool.o qemu-error.o qemu-sockets.o module.o qemu-option.o cutils.o osdep.o
+qga-obj-$(CONFIG_WIN32) += oslib-win32.o
+qga-obj-$(CONFIG_POSIX) += oslib-posix.o
+
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
 vl.o: QEMU_CFLAGS+=$(SDL_CFLAGS)
