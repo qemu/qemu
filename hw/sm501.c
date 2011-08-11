@@ -1440,15 +1440,9 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
 
     /* bridge to serial emulation module */
     if (chr) {
-#ifdef TARGET_WORDS_BIGENDIAN
         serial_mm_init(base + MMIO_BASE_OFFSET + SM501_UART0, 2,
                        NULL, /* TODO : chain irq to IRL */
-                       115200, chr, 1, 1);
-#else
-        serial_mm_init(base + MMIO_BASE_OFFSET + SM501_UART0, 2,
-                       NULL, /* TODO : chain irq to IRL */
-                       115200, chr, 1, 0);
-#endif
+                       115200, chr, 1, DEVICE_NATIVE_ENDIAN);
     }
 
     /* create qemu graphic console */

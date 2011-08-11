@@ -264,18 +264,12 @@ static void mips_jazz_init(MemoryRegion *address_space,
 
     /* Serial ports */
     if (serial_hds[0]) {
-#ifdef TARGET_WORDS_BIGENDIAN
-        serial_mm_init(0x80006000, 0, rc4030[8], 8000000/16, serial_hds[0], 1, 1);
-#else
-        serial_mm_init(0x80006000, 0, rc4030[8], 8000000/16, serial_hds[0], 1, 0);
-#endif
+        serial_mm_init(0x80006000, 0, rc4030[8], 8000000/16, serial_hds[0],
+                       1, DEVICE_NATIVE_ENDIAN);
     }
     if (serial_hds[1]) {
-#ifdef TARGET_WORDS_BIGENDIAN
-        serial_mm_init(0x80007000, 0, rc4030[9], 8000000/16, serial_hds[1], 1, 1);
-#else
-        serial_mm_init(0x80007000, 0, rc4030[9], 8000000/16, serial_hds[1], 1, 0);
-#endif
+        serial_mm_init(0x80007000, 0, rc4030[9], 8000000/16, serial_hds[1],
+                       1, DEVICE_NATIVE_ENDIAN);
     }
 
     /* Parallel port */

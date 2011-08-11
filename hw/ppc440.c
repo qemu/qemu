@@ -93,11 +93,11 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
 
     if (serial_hds[0] != NULL) {
         serial_mm_init(0xef600300, 0, pic[0], PPC_SERIAL_MM_BAUDBASE,
-                       serial_hds[0], 1, 1);
+                       serial_hds[0], 1, DEVICE_BIG_ENDIAN);
     }
     if (serial_hds[1] != NULL) {
         serial_mm_init(0xef600400, 0, pic[1], PPC_SERIAL_MM_BAUDBASE,
-                       serial_hds[1], 1, 1);
+                       serial_hds[1], 1, DEVICE_BIG_ENDIAN);
     }
 
     return env;

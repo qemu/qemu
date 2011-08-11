@@ -858,10 +858,9 @@ static const MemoryRegionOps serial_mm_ops[3] = {
 SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              qemu_irq irq, int baudbase,
                              CharDriverState *chr, int ioregister,
-                             int be)
+                             enum device_endian end)
 {
     SerialState *s;
-    enum device_endian end;
 
     s = g_malloc0(sizeof(SerialState));
 
@@ -873,7 +872,6 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     serial_init_core(s);
     vmstate_register(NULL, base, &vmstate_serial, s);
 
-    end = (be ? DEVICE_BIG_ENDIAN : DEVICE_LITTLE_ENDIAN);
     memory_region_init_io(&s->io, &serial_mm_ops[end], s,
                           "serial", 8 << it_shift);
     if (ioregister) {
