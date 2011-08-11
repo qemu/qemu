@@ -159,6 +159,8 @@ static int qcow_open(BlockDriverState *bs, int flags)
             goto fail;
         bs->backing_file[len] = '\0';
     }
+
+    qemu_co_mutex_init(&s->lock);
     return 0;
 
  fail:
