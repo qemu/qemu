@@ -1358,9 +1358,8 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
     memory_region_init_io(&s->mmio_bar, &dp8381x_ops, s, "dp8381x_mmio",
                           DP8381X_MEM_SIZE);
 
-    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
-    pci_register_bar_region(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                            &s->mmio_bar);
+    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
+    pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio_bar);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     dp8381x_reset(s);

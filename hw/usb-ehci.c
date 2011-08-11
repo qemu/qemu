@@ -2302,7 +2302,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     qemu_register_reset(ehci_reset, s);
 
     memory_region_init_io(&s->mem, &ehci_mem_ops, s, "ehci", MMIO_SIZE);
-    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
+    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
 
     fprintf(stderr, "*** EHCI support is under development ***\n");
 

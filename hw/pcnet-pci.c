@@ -295,9 +295,9 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
 
     memory_region_init_io(&d->io_bar, &pcnet_io_ops, d, "pcnet-io",
                           PCNET_IOPORT_SIZE);
-    pci_register_bar_region(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->io_bar);
+    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->io_bar);
 
-    pci_register_bar_region(pci_dev, 1, 0, &s->mmio);
+    pci_register_bar(pci_dev, 1, 0, &s->mmio);
 
     s->irq = pci_dev->irq[0];
     s->phys_mem_read = pci_physical_memory_read;

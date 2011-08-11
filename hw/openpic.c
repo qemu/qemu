@@ -1177,8 +1177,8 @@ qemu_irq *openpic_init (PCIBus *bus, MemoryRegion **pmem, int nb_cpus,
 #endif
 
         /* Register I/O spaces */
-        pci_register_bar_region(&opp->pci_dev, 0,
-                                PCI_BASE_ADDRESS_SPACE_MEMORY, &opp->mem);
+        pci_register_bar(&opp->pci_dev, 0,
+                         PCI_BASE_ADDRESS_SPACE_MEMORY, &opp->mem);
     } else {
         opp = qemu_mallocz(sizeof(openpic_t));
         memory_region_init_io(&opp->mem, &openpic_ops, opp, "openpic", 0x40000);

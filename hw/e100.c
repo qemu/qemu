@@ -2353,17 +2353,16 @@ static int e100_init(PCIDevice *pci_dev, uint32_t device)
 
     memory_region_init_io(&s->mmio_bar, &e100_ops, s, "e100-mmio",
                           PCI_MEM_SIZE);
-    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
-                                        PCI_BASE_ADDRESS_MEM_PREFETCH,
-                            &s->mmio_bar);
+    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY |
+                                 PCI_BASE_ADDRESS_MEM_PREFETCH,
+                     &s->mmio_bar);
     memory_region_init_io(&s->io_bar, &e100_ops, s, "eepro100-io",
                           PCI_IO_SIZE);
-    pci_register_bar_region(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
+    pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &s->io_bar);
     /* FIXME: flash aliases to mmio?! */
     memory_region_init_io(&s->flash_bar, &e100_ops, s, "eepro100-flash",
                           PCI_FLASH_SIZE);
-    pci_register_bar_region(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                            &s->flash_bar);
+    pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->flash_bar);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     e100_dump("MAC ADDR", &s->conf.macaddr.a[0], 6);

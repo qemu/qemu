@@ -1158,10 +1158,9 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     e1000_mmio_setup(d);
 
-    pci_register_bar_region(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                            &d->mmio);
+    pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);
 
-    pci_register_bar_region(&d->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->io);
+    pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_SPACE_IO, &d->io);
 
     memmove(d->eeprom_data, e1000_eeprom_template,
         sizeof e1000_eeprom_template);

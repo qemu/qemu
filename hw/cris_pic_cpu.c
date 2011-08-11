@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 
+#include "sysbus.h"
 #include "hw.h"
 #include "pc.h"
 #include "etraxfs.h"

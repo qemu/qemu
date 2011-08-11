@@ -155,8 +155,7 @@ static int pci_piix_ide_initfn(PCIDevice *dev)
     qemu_register_reset(piix3_reset, d);
 
     bmdma_setup_bar(d);
-    pci_register_bar_region(&d->dev, 4, PCI_BASE_ADDRESS_SPACE_IO,
-                            &d->bmdma_bar);
+    pci_register_bar(&d->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
     vmstate_register(&d->dev.qdev, 0, &vmstate_ide_pci, d);
 

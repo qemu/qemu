@@ -24,6 +24,7 @@
 
 #include "sysbus.h"
 #include "qemu-char.h"
+#include "qemu-log.h"
 
 #define D(x)
 
@@ -100,7 +101,7 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
             break;
         default:
             r = s->regs[addr];
-            D(printf ("%s " TARGET_FMT_plx "=%x\n", __func__, addr, r));
+            D(qemu_log("%s " TARGET_FMT_plx "=%x\n", __func__, addr, r));
             break;
     }
     return r;
@@ -113,7 +114,7 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     unsigned char ch = value;
     D(CPUState *env = s->env);
 
-    D(printf ("%s " TARGET_FMT_plx "=%x\n",  __func__, addr, value));
+    D(qemu_log("%s " TARGET_FMT_plx "=%x\n",  __func__, addr, value));
     addr >>= 2;
     switch (addr)
     {
@@ -127,7 +128,8 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
             if (s->pending_tx) {
                 value &= ~1;
                 s->pending_tx = 0;
-                D(printf("fixedup value=%x r_intr=%x\n", value, s->regs[R_INTR]));
+                D(qemu_log("fixedup value=%x r_intr=%x\n",
+                           value, s->regs[R_INTR]));
             }
             s->regs[addr] = value;
             s->regs[R_INTR] &= ~value;
@@ -157,7 +159,7 @@ static void serial_receive(void *opaque, const uint8_t *buf, int size)
 
     /* Got a byte.  */
     if (s->rx_fifo_len >= 16) {
-        printf("WARNING: UART dropped char.\n");
+        qemu_log("WARNING: UART dropped char.\n");
         return;
     }
 

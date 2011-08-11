@@ -644,9 +644,8 @@ void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev)
     memory_region_init(&proxy->msix_bar, "virtio-msix", 4096);
     if (vdev->nvectors && !msix_init(&proxy->pci_dev, vdev->nvectors,
                                      &proxy->msix_bar, 1, 0)) {
-        pci_register_bar_region(&proxy->pci_dev, 1,
-                                PCI_BASE_ADDRESS_SPACE_MEMORY,
-                                &proxy->msix_bar);
+        pci_register_bar(&proxy->pci_dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                         &proxy->msix_bar);
     } else
         vdev->nvectors = 0;
 
@@ -658,8 +657,8 @@ void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev)
 
     memory_region_init_io(&proxy->bar, &virtio_pci_config_ops, proxy,
                           "virtio-pci", size);
-    pci_register_bar_region(&proxy->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
-                            &proxy->bar);
+    pci_register_bar(&proxy->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
+                     &proxy->bar);
 
     if (!kvm_has_many_ioeventfds()) {
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;

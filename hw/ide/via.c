@@ -180,8 +180,7 @@ static int vt82c686b_ide_initfn(PCIDevice *dev)
 
     qemu_register_reset(via_reset, d);
     bmdma_setup_bar(d);
-    pci_register_bar_region(&d->dev, 4, PCI_BASE_ADDRESS_SPACE_IO,
-                            &d->bmdma_bar);
+    pci_register_bar(&d->dev, 4, PCI_BASE_ADDRESS_SPACE_IO, &d->bmdma_bar);
 
     vmstate_register(&dev->qdev, 0, &vmstate_ide_pci, d);
 

@@ -717,10 +717,8 @@ static int tnetw1130_init(PCIDevice *pci_dev)
     memory_region_init_io(&d->mmio_bar1, &tnetw1130_ops1, s, "tnetw1130_mmio1",
                           TNETW1130_MEM1_SIZE);
 
-    pci_register_bar_region(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                            &d->mmio_bar0);
-    pci_register_bar_region(&d->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                            &d->mmio_bar1);
+    pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio_bar0);
+    pci_register_bar(&d->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio_bar1);
 
 #if 0
     static const char macaddr[6] = {

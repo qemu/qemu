@@ -248,8 +248,7 @@ void Atheros_WLAN_setup_io(PCIAtheros_WLANState *d)
 
     memory_region_init_io(&s->mmio_bar, &Atheros_WLAN_ops, s, "atheros_mmio",
                           Atheros_WLAN_MEM_SIZE);
-    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                            &s->mmio_bar);
+    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mmio_bar);
 }
 
 

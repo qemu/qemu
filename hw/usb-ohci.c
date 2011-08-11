@@ -1789,7 +1789,8 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     }
     ohci->state.irq = ohci->pci_dev.irq[0];
 
-    pci_register_bar_region(&ohci->pci_dev, 0, 0, &ohci->state.mem);
+    /* TODO: avoid cast below by using dev */
+    pci_register_bar(&ohci->pci_dev, 0, 0, &ohci->state.mem);
     return 0;
 }
 

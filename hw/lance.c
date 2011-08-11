@@ -116,7 +116,7 @@ static int lance_init(SysBusDevice *dev)
     SysBusPCNetState *d = FROM_SYSBUS(SysBusPCNetState, dev);
     PCNetState *s = &d->state;
 
-    memory_region_init_io(&s->mmio, &lance_mem_ops, s, "lance-mmio", 4);
+    memory_region_init_io(&s->mmio, &lance_mem_ops, d, "lance-mmio", 4);
 
     qdev_init_gpio_in(&dev->qdev, parent_lance_reset, 1);
 

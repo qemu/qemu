@@ -111,6 +111,5 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld,
     d->config[0x3d] = 0x01; // interrupt on pin 1
 
     macio_bar_setup(macio_state);
-    pci_register_bar_region(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                            &macio_state->bar);
+    pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &macio_state->bar);
 }

@@ -336,7 +336,7 @@ static void create_shared_memory_BAR(IVShmemState *s, int fd) {
     memory_region_add_subregion(&s->bar, 0, &s->ivshmem);
 
     /* region for shared memory */
-    pci_register_bar_region(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
+    pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
 }
 
 static void close_guest_eventfds(IVShmemState *s, int posn)
@@ -543,9 +543,8 @@ static void ivshmem_setup_msi(IVShmemState * s) {
 
     memory_region_init(&s->msix_bar, "ivshmem-msix", 4096);
     if (!msix_init(&s->dev, s->vectors, &s->msix_bar, 1, 0)) {
-        pci_register_bar_region(&s->dev, 1,
-                                PCI_BASE_ADDRESS_SPACE_MEMORY,
-                                &s->msix_bar);
+        pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                         &s->msix_bar);
         IVSHMEM_DPRINTF("msix initialized (%d vectors)\n", s->vectors);
     } else {
         IVSHMEM_DPRINTF("msix initialization failed\n");
@@ -665,8 +664,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
     }
 
     /* region for registers*/
-    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                            &s->ivshmem_mmio);
+    pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                     &s->ivshmem_mmio);
 
     memory_region_init(&s->bar, "ivshmem-bar2-container", s->ivshmem_size);
 
@@ -694,8 +693,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
         /* allocate/initialize space for interrupt handling */
         s->peers = qemu_mallocz(s->nb_peers * sizeof(Peer));
 
-        pci_register_bar_region(&s->dev, 2,
-                                PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ivshmem);
+        pci_register_bar(&s->dev, 2,
+                         PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ivshmem);
 
         s->eventfd_chr = qemu_mallocz(s->vectors * sizeof(CharDriverState *));
 

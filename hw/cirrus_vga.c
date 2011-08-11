@@ -2948,10 +2948,9 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      /* memory #0 LFB */
      /* memory #1 memory-mapped I/O */
      /* XXX: s->vga.vram_size must be a power of two */
-     pci_register_bar_region(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH,
-                             &s->pci_bar);
+     pci_register_bar(&d->dev, 0, PCI_BASE_ADDRESS_MEM_PREFETCH, &s->pci_bar);
      if (device_id == CIRRUS_ID_CLGD5446) {
-         pci_register_bar_region(&d->dev, 1, 0, &s->cirrus_mmio_io);
+         pci_register_bar(&d->dev, 1, 0, &s->cirrus_mmio_io);
      }
      return 0;
 }

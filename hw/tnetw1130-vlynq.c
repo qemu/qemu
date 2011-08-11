@@ -146,7 +146,7 @@ static int vlynq_tnetw1130_init(VLYNQDevice* vlynq_dev)
 
     /* Handler for memory-mapped I/O */
     // TODO: Code is missing.
-    missing("vlynq i/o");
+    logout("vlynq i/o is missing\n");
     //~ s->io_memory[0] =
         //~ cpu_register_io_memory(tnetw1130_region0_read, tnetw1130_region0_write,
                                //~ d, DEVICE_NATIVE_ENDIAN);
