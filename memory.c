@@ -400,7 +400,11 @@ static void memory_region_iorange_read(IORange *iorange,
         }
         return;
     }
-    *data = mr->ops->read(mr->opaque, offset, width);
+    *data = 0;
+    access_with_adjusted_size(offset, data, width,
+                              mr->ops->impl.min_access_size,
+                              mr->ops->impl.max_access_size,
+                              memory_region_read_accessor, mr);
 }
 
 static void memory_region_iorange_write(IORange *iorange,
@@ -418,7 +422,10 @@ static void memory_region_iorange_write(IORange *iorange,
         }
         return;
     }
-    mr->ops->write(mr->opaque, offset, data, width);
+    access_with_adjusted_size(offset, &data, width,
+                              mr->ops->impl.min_access_size,
+                              mr->ops->impl.max_access_size,
+                              memory_region_write_accessor, mr);
 }
 
 static const IORangeOps memory_region_iorange_ops = {
