@@ -24,6 +24,7 @@
 #include "boards.h"
 #include "blockdev.h"
 #include "sysbus.h"
+#include "exec-memory.h"
 
 #undef REG_FMT
 #define REG_FMT			"0x%02lx"
@@ -896,12 +897,13 @@ static void spitz_common_init(ram_addr_t ram_size,
 {
     PXA2xxState *cpu;
     DeviceState *scp0, *scp1 = NULL;
+    MemoryRegion *address_space_mem = get_system_memory();
 
     if (!cpu_model)
         cpu_model = (model == terrier) ? "pxa270-c5" : "pxa270-c0";
 
     /* Setup CPU & memory */
-    cpu = pxa270_init(spitz_binfo.ram_size, cpu_model);
+    cpu = pxa270_init(address_space_mem, spitz_binfo.ram_size, cpu_model);
 
     sl_flash_register(cpu, (model == spitz) ? FLASH_128M : FLASH_1024M);
 

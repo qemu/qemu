@@ -15,7 +15,6 @@
 #include "ssi.h"
 #include "qemu-char.h"
 #include "blockdev.h"
-#include "exec-memory.h"
 
 static struct {
     target_phys_addr_t io_base;
@@ -2060,7 +2059,8 @@ static void pxa2xx_reset(void *opaque, int line, int level)
 }
 
 /* Initialise a PXA270 integrated chip (ARM based core).  */
-PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
+PXA2xxState *pxa270_init(MemoryRegion *address_space,
+                         unsigned int sdram_size, const char *revision)
 {
     PXA2xxState *s;
     int iomemtype, i;
@@ -2116,7 +2116,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 
     for (i = 0; pxa270_serial[i].io_base; i++) {
         if (serial_hds[i]) {
-            serial_mm_init(get_system_memory(), pxa270_serial[i].io_base, 2,
+            serial_mm_init(address_space, pxa270_serial[i].io_base, 2,
                            qdev_get_gpio_in(s->pic, pxa270_serial[i].irqn),
                            14857000 / 16, serial_hds[i],
                            DEVICE_NATIVE_ENDIAN);
@@ -2199,7 +2199,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 }
 
 /* Initialise a PXA255 integrated chip (ARM based core).  */
-PXA2xxState *pxa255_init(unsigned int sdram_size)
+PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
 {
     PXA2xxState *s;
     int iomemtype, i;
@@ -2248,7 +2248,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
 
     for (i = 0; pxa255_serial[i].io_base; i++) {
         if (serial_hds[i]) {
-            serial_mm_init(get_system_memory(), pxa255_serial[i].io_base, 2,
+            serial_mm_init(address_space, pxa255_serial[i].io_base, 2,
                            qdev_get_gpio_in(s->pic, pxa255_serial[i].irqn),
                            14745600 / 16, serial_hds[i],
                            DEVICE_NATIVE_ENDIAN);
