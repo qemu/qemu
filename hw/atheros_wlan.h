@@ -288,10 +288,10 @@ struct pending_interrupt
 
 typedef struct Atheros_WLANState
 {
-	PCIDevice *pci_dev;
-	int Atheros_WLAN_mmio_io_addr;
+    PCIDevice dev;
+    MemoryRegion mmio_bar;
 
-	uint32_t device_driver_type;
+    uint32_t device_driver_type;
 
     NICConf conf;
     NICState *nic;

@@ -196,58 +196,61 @@ static uint32_t Atheros_WLAN_mmio_readl(void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-
-static void Atheros_WLAN_mmio_map(PCIDevice *pci_dev, int region_num,
-                                  pcibus_t addr, pcibus_t size, int type)
+static uint64_t Atheros_WLAN_read(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
 {
-	DEBUG_PRINT(("mmio_map\n"));
-	PCIAtheros_WLANState *d = (PCIAtheros_WLANState *)pci_dev;
-	Atheros_WLANState *s = &d->Atheros_WLAN;
-
-    DEBUG_PRINT(("cpu_register_physical_memory(0x%08" FMT_PCIBUS ", %u, %08x)\n",
-                 addr, Atheros_WLAN_MEM_SIZE, s->Atheros_WLAN_mmio_io_addr));
-
-	cpu_register_physical_memory(addr + 0, Atheros_WLAN_MEM_SIZE, s->Atheros_WLAN_mmio_io_addr);
+    Atheros_WLANState *s = opaque;
+    uint64_t val;
+    switch (size) {
+    case 1:
+        val = Atheros_WLAN_mmio_readb(s, addr);
+        break;
+    case 2:
+        val = Atheros_WLAN_mmio_readw(s, addr);
+        break;
+    case 4:
+        val = Atheros_WLAN_mmio_readl(s, addr);
+        break;
+    default:
+        assert(!"bad size");
+    }
+    return val;
 }
 
-static CPUReadMemoryFunc * const Atheros_WLAN_mmio_read[3] = {
-    Atheros_WLAN_mmio_readb,
-    Atheros_WLAN_mmio_readw,
-    Atheros_WLAN_mmio_readl,
-};
+static void Atheros_WLAN_write(void *opaque, target_phys_addr_t addr,
+                               uint64_t val, unsigned size)
+{
+    Atheros_WLANState *s = opaque;
+    switch (size) {
+    case 1:
+        Atheros_WLAN_mmio_writeb(s, addr, val);
+        break;
+    case 2:
+        Atheros_WLAN_mmio_writew(s, addr, val);
+        break;
+    case 4:
+        Atheros_WLAN_mmio_writel(s, addr, val);
+        break;
+    default:
+        assert(!"bad size");
+    }
+}
 
-static CPUWriteMemoryFunc * const Atheros_WLAN_mmio_write[3] = {
-    Atheros_WLAN_mmio_writeb,
-    Atheros_WLAN_mmio_writew,
-    Atheros_WLAN_mmio_writel,
+static const MemoryRegionOps Atheros_WLAN_ops = {
+    .read = Atheros_WLAN_read,
+    .write = Atheros_WLAN_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 void Atheros_WLAN_setup_io(PCIAtheros_WLANState *d)
 {
-    Atheros_WLANState *s;
-    s = &d->Atheros_WLAN;
+    Atheros_WLANState *s = &d->Atheros_WLAN;
 
-    /* I/O handler for memory-mapped I/O */
-    s->Atheros_WLAN_mmio_io_addr =
-        cpu_register_io_memory(Atheros_WLAN_mmio_read,
-                               Atheros_WLAN_mmio_write, s,
-                               DEVICE_NATIVE_ENDIAN);
-    pci_register_bar(&d->dev, 0, Atheros_WLAN_MEM_SIZE,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, Atheros_WLAN_mmio_map);
+    memory_region_init_io(&s->mmio_bar, &Atheros_WLAN_ops, s, "atheros_mmio",
+                          Atheros_WLAN_MEM_SIZE);
+    pci_register_bar_region(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &s->mmio_bar);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

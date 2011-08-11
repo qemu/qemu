@@ -217,10 +217,7 @@ static void Atheros_WLAN_save(QEMUFile* f, void* opaque)
 	uint32_t direct_value;
 	Atheros_WLANState *s = (Atheros_WLANState *)opaque;
 
-	if (s->pci_dev)
-	{
-		pci_device_save(s->pci_dev, f);
-	}
+        pci_device_save(&s->pci_dev, f);
 
 	qemu_put_be32s(f, &s->device_driver_type);
 
@@ -270,8 +267,8 @@ static int Atheros_WLAN_load(QEMUFile* f, void* opaque, int version_id)
 	if (version_id != 3)
 		return -EINVAL;
 
-	if (s->pci_dev && version_id >= 3) {
-		ret = pci_device_load(s->pci_dev, f);
+        if (version_id >= 3) {
+            ret = pci_device_load(&s->pci_dev, f);
 		if (ret < 0)
 			return ret;
 	}
@@ -337,7 +334,6 @@ static int pci_Atheros_WLAN_init(PCIDevice *pci_dev)
 
     // s->irq = 9; /* PCI interrupt */
     s->irq = d->dev.irq[0];
-    s->pci_dev = (PCIDevice *)d;
     s->pending_interrupts = NULL;
     qemu_format_nic_info_str(&s->nic->nc, s->macaddr);
 
@@ -354,10 +350,19 @@ static int pci_Atheros_WLAN_init(PCIDevice *pci_dev)
     return 0;
 }
 
+static int Atheros_WLAN_exit(PCIDevice *pci_dev)
+{
+    Atheros_WLANState *s = DO_UPCAST(Atheros_WLANState, dev, pci_dev);
+    memory_region_destroy(&s->mmio_bar);
+    qemu_del_vlan_client(&s->nic->nc);
+    return 0;
+}
+
 static PCIDeviceInfo atheros_info = {
     .qdev.name = "Atheros_WLAN",
     .qdev.size = sizeof(PCIAtheros_WLANState),
     .init      = pci_Atheros_WLAN_init,
+    .exit      = Atheros_WLAN_exit,
 };
 
 static void Atheros_WLAN_register_devices(void)
