@@ -185,7 +185,7 @@ petalogix_ml605_init(ram_addr_t ram_size,
     }
 
     serial_mm_init(UART16550_BASEADDR + 0x1000, 2, irq[5], 115200,
-                   serial_hds[0], 1, DEVICE_LITTLE_ENDIAN);
+                   serial_hds[0], DEVICE_LITTLE_ENDIAN);
 
     /* 2 timers at irq 2 @ 100 Mhz.  */
     xilinx_timer_create(TIMER_BASEADDR, irq[2], 2, 100 * 1000000);

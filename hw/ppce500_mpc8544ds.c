@@ -276,13 +276,13 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     if (serial_hds[0]) {
         serial_mm_init(MPC8544_SERIAL0_REGS_BASE,
                        0, mpic[12+26], 399193,
-                       serial_hds[0], 1, DEVICE_BIG_ENDIAN);
+                       serial_hds[0], DEVICE_BIG_ENDIAN);
     }
 
     if (serial_hds[1]) {
         serial_mm_init(MPC8544_SERIAL1_REGS_BASE,
                        0, mpic[12+26], 399193,
-                       serial_hds[0], 1, DEVICE_BIG_ENDIAN);
+                       serial_hds[0], DEVICE_BIG_ENDIAN);
     }
 
     /* General Utility device */

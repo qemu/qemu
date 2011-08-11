@@ -1442,7 +1442,7 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
     if (chr) {
         serial_mm_init(base + MMIO_BASE_OFFSET + SM501_UART0, 2,
                        NULL, /* TODO : chain irq to IRL */
-                       115200, chr, 1, DEVICE_NATIVE_ENDIAN);
+                       115200, chr, DEVICE_NATIVE_ENDIAN);
     }
 
     /* create qemu graphic console */

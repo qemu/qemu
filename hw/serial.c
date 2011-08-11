@@ -857,8 +857,7 @@ static const MemoryRegionOps serial_mm_ops[3] = {
 
 SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
                              qemu_irq irq, int baudbase,
-                             CharDriverState *chr, int ioregister,
-                             enum device_endian end)
+                             CharDriverState *chr, enum device_endian end)
 {
     SerialState *s;
 
@@ -874,9 +873,8 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
 
     memory_region_init_io(&s->io, &serial_mm_ops[end], s,
                           "serial", 8 << it_shift);
-    if (ioregister) {
-        memory_region_add_subregion(get_system_memory(), base, &s->io);
-    }
+    memory_region_add_subregion(get_system_memory(), base, &s->io);
+
     serial_update_msl(s);
     return s;
 }

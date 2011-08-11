@@ -447,7 +447,7 @@ static MaltaFPGAState *malta_fpga_init(MemoryRegion *address_space,
     s->display = qemu_chr_new("fpga", "vc:320x200", malta_fpga_led_init);
 
     s->uart = serial_mm_init(base + 0x900, 3, uart_irq, 230400, uart_chr,
-                             1, DEVICE_NATIVE_ENDIAN);
+                             DEVICE_NATIVE_ENDIAN);
 
     malta_fpga_reset(s);
     qemu_register_reset(malta_fpga_reset, s);

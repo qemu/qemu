@@ -2117,7 +2117,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
         if (serial_hds[i]) {
             serial_mm_init(pxa270_serial[i].io_base, 2,
                            qdev_get_gpio_in(s->pic, pxa270_serial[i].irqn),
-                           14857000 / 16, serial_hds[i], 1,
+                           14857000 / 16, serial_hds[i],
                            DEVICE_NATIVE_ENDIAN);
         } else {
             break;
@@ -2249,7 +2249,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
         if (serial_hds[i]) {
             serial_mm_init(pxa255_serial[i].io_base, 2,
                            qdev_get_gpio_in(s->pic, pxa255_serial[i].irqn),
-                           14745600 / 16, serial_hds[i], 1,
+                           14745600 / 16, serial_hds[i],
                            DEVICE_NATIVE_ENDIAN);
         } else {
             break;
