@@ -145,19 +145,16 @@ static int vlynq_tnetw1130_init(VLYNQDevice* vlynq_dev)
     //~ tnetw1130_pci_config(pci_conf);
 
     /* Handler for memory-mapped I/O */
-    s->io_memory[0] =
-        cpu_register_io_memory(tnetw1130_region0_read, tnetw1130_region0_write,
-                               d, DEVICE_NATIVE_ENDIAN);
-    s->io_memory[1] =
-        cpu_register_io_memory(tnetw1130_region1_read, tnetw1130_region1_write,
-                               d, DEVICE_NATIVE_ENDIAN);
+    // TODO: Code is missing.
+    missing("vlynq i/o");
+    //~ s->io_memory[0] =
+        //~ cpu_register_io_memory(tnetw1130_region0_read, tnetw1130_region0_write,
+                               //~ d, DEVICE_NATIVE_ENDIAN);
+    //~ s->io_memory[1] =
+        //~ cpu_register_io_memory(tnetw1130_region1_read, tnetw1130_region1_write,
+                               //~ d, DEVICE_NATIVE_ENDIAN);
 
     TRACE(TNETW, logout("io_memory = 0x%08x, 0x%08x\n", s->io_memory[0], s->io_memory[1]));
-
-    //~ pci_register_bar(&d->dev, 0, TNETW1130_MEM0_SIZE,
-                     //~ PCI_BASE_ADDRESS_SPACE_MEMORY, tnetw1130_mem_map);
-    //~ pci_register_bar(&d->dev, 1, TNETW1130_MEM1_SIZE,
-                     //~ PCI_BASE_ADDRESS_SPACE_MEMORY, tnetw1130_mem_map);
 
     //~ memcpy(s->mem1 + 0x0001f000, pci_conf, 64);
 

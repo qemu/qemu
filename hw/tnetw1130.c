@@ -76,6 +76,8 @@
 
 typedef struct {
     PCIDevice dev;
+    MemoryRegion mmio_bar0;
+    MemoryRegion mmio_bar1;
     tnetw1130_t tnetw1130;
 } TNETW1130State;
 
@@ -535,146 +537,101 @@ static void tnetw1130_write1l(tnetw1130_t *s, target_phys_addr_t addr,
  *
  ****************************************************************************/
 
-static uint32_t tnetw1130_mem0_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t tnetw1130_read0(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
-    TNETW1130State *d = (TNETW1130State *) opaque;
+    TNETW1130State *d = opaque;
     tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    return tnetw1130_read0b(s, addr);
+    uint64_t val;
+    switch (size) {
+    case 1:
+        val = tnetw1130_read0b(s, addr);
+        break;
+    case 2:
+        val = tnetw1130_read0w(s, addr);
+        break;
+    case 4:
+        val = tnetw1130_read0l(s, addr);
+        break;
+    default:
+        assert(!"bad size");
+    }
+    return val;
 }
 
-static uint32_t tnetw1130_mem0_readw(void *opaque, target_phys_addr_t addr)
+static void tnetw1130_write0(void *opaque, target_phys_addr_t addr,
+                             uint64_t val, unsigned size)
 {
-    TNETW1130State *d = (TNETW1130State *) opaque;
+    TNETW1130State *d = opaque;
     tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    return tnetw1130_read0w(s, addr);
+    switch (size) {
+    case 1:
+        tnetw1130_write0b(s, addr, val);
+        break;
+    case 2:
+        tnetw1130_write0w(s, addr, val);
+        break;
+    case 4:
+        tnetw1130_write0l(s, addr, val);
+        break;
+    default:
+        assert(!"bad size");
+    }
 }
 
-static uint32_t tnetw1130_mem0_readl(void *opaque, target_phys_addr_t addr)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    return tnetw1130_read0l(s, addr);
-}
-
-static void tnetw1130_mem0_writeb(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    tnetw1130_write0b(s, addr, val);
-}
-
-static void tnetw1130_mem0_writew(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    tnetw1130_write0w(s, addr, val);
-}
-
-static void tnetw1130_mem0_writel(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[0];
-    tnetw1130_write0l(s, addr, val);
-}
-
-CPUReadMemoryFunc * const tnetw1130_region0_read[] = {
-    tnetw1130_mem0_readb,
-    tnetw1130_mem0_readw,
-    tnetw1130_mem0_readl
+static const MemoryRegionOps tnetw1130_ops0 = {
+    .read = tnetw1130_read0,
+    .write = tnetw1130_write0,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-CPUWriteMemoryFunc * const tnetw1130_region0_write[] = {
-    tnetw1130_mem0_writeb,
-    tnetw1130_mem0_writew,
-    tnetw1130_mem0_writel
+static uint64_t tnetw1130_read1(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
+{
+    TNETW1130State *d = opaque;
+    tnetw1130_t *s = &d->tnetw1130;
+    uint64_t val;
+    switch (size) {
+    case 1:
+        val = tnetw1130_read1b(s, addr);
+        break;
+    case 2:
+        val = tnetw1130_read1w(s, addr);
+        break;
+    case 4:
+        val = tnetw1130_read1l(s, addr);
+        break;
+    default:
+        assert(!"bad size");
+    }
+    return val;
+}
+
+static void tnetw1130_write1(void *opaque, target_phys_addr_t addr,
+                             uint64_t val, unsigned size)
+{
+    TNETW1130State *d = opaque;
+    tnetw1130_t *s = &d->tnetw1130;
+    switch (size) {
+    case 1:
+        tnetw1130_write1b(s, addr, val);
+        break;
+    case 2:
+        tnetw1130_write1w(s, addr, val);
+        break;
+    case 4:
+        tnetw1130_write1l(s, addr, val);
+        break;
+    default:
+        assert(!"bad size");
+    }
+}
+
+static const MemoryRegionOps tnetw1130_ops1 = {
+    .read = tnetw1130_read1,
+    .write = tnetw1130_write1,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
-
-static uint32_t tnetw1130_mem1_readb(void *opaque, target_phys_addr_t addr)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[1];
-    return tnetw1130_read1b(s, addr);
-}
-
-static uint32_t tnetw1130_mem1_readw(void *opaque, target_phys_addr_t addr)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[1];
-    return tnetw1130_read1w(s, addr);
-}
-
-static uint32_t tnetw1130_mem1_readl(void *opaque, target_phys_addr_t addr)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[1];
-    return tnetw1130_read1l(s, addr);
-}
-
-static void tnetw1130_mem1_writeb(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[1];
-    tnetw1130_write1b(s, addr, val);
-}
-
-static void tnetw1130_mem1_writew(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[1];
-    tnetw1130_write1w(s, addr, val);
-}
-
-static void tnetw1130_mem1_writel(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
-{
-    TNETW1130State *d = (TNETW1130State *) opaque;
-    tnetw1130_t *s = &d->tnetw1130;
-    addr -= s->region[1];
-    tnetw1130_write1l(s, addr, val);
-}
-
-CPUReadMemoryFunc * const tnetw1130_region1_read[] = {
-    tnetw1130_mem1_readb,
-    tnetw1130_mem1_readw,
-    tnetw1130_mem1_readl
-};
-
-CPUWriteMemoryFunc * const tnetw1130_region1_write[] = {
-    tnetw1130_mem1_writeb,
-    tnetw1130_mem1_writew,
-    tnetw1130_mem1_writel
-};
-
-static void tnetw1130_mem_map(PCIDevice * pci_dev, int region_num,
-                              pcibus_t addr, pcibus_t size, int type)
-{
-    TNETW1130State *d = (TNETW1130State *) pci_dev;
-    tnetw1130_t *s = &d->tnetw1130;
-
-    TRACE(TNETW, logout("region %d, addr 0x%08" FMT_PCIBUS
-                        ", size 0x%08" FMT_PCIBUS "\n",
-                        region_num, addr, size));
-    assert((unsigned)region_num < TNETW1130_REGIONS);
-    s->region[region_num] = addr;
-
-    cpu_register_physical_memory(addr, size, s->io_memory[region_num]);
-}
 
 /*****************************************************************************
  *
@@ -755,19 +712,15 @@ static int tnetw1130_init(PCIDevice *pci_dev)
     tnetw1130_pci_config(d->dev.config);
 
     /* Handler for memory-mapped I/O */
-    s->io_memory[0] =
-        cpu_register_io_memory(tnetw1130_region0_read, tnetw1130_region0_write,
-                               d, DEVICE_NATIVE_ENDIAN);
-    s->io_memory[1] =
-        cpu_register_io_memory(tnetw1130_region1_read, tnetw1130_region1_write,
-                               d, DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&d->mmio_bar0, &tnetw1130_ops0, s, "tnetw1130_mmio0",
+                          TNETW1130_MEM0_SIZE);
+    memory_region_init_io(&d->mmio_bar1, &tnetw1130_ops1, s, "tnetw1130_mmio1",
+                          TNETW1130_MEM1_SIZE);
 
-    TRACE(TNETW, logout("io_memory = 0x%08x, 0x%08x\n", s->io_memory[0], s->io_memory[1]));
-
-    pci_register_bar(&d->dev, 0, TNETW1130_MEM0_SIZE,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, tnetw1130_mem_map);
-    pci_register_bar(&d->dev, 1, TNETW1130_MEM1_SIZE,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, tnetw1130_mem_map);
+    pci_register_bar_region(&d->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &d->mmio_bar0);
+    pci_register_bar_region(&d->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                            &d->mmio_bar1);
 
 #if 0
     static const char macaddr[6] = {
@@ -799,12 +752,10 @@ static int pci_tnetw1130_init(PCIDevice* pci_dev)
 
 static int pci_tnetw1130_uninit(PCIDevice *pci_dev)
 {
-    TNETW1130State *d = DO_UPCAST(TNETW1130State, dev, pci_dev);
-    tnetw1130_t *s = &d->tnetw1130;
-
-    cpu_unregister_io_memory(s->io_memory[0]);
-    cpu_unregister_io_memory(s->io_memory[1]);
-    qemu_del_vlan_client(&s->nic->nc);
+    TNETW1130State *s = DO_UPCAST(TNETW1130State, dev, pci_dev);
+    memory_region_destroy(&s->mmio_bar0);
+    memory_region_destroy(&s->mmio_bar1);
+    qemu_del_vlan_client(&s->tnetw1130.nic->nc);
     return 0;
 }
 
