@@ -1090,7 +1090,8 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
 }
 
 
-static int vmdk_create_extent(const char *filename, int64_t filesize, bool flat)
+static int vmdk_create_extent(const char *filename, int64_t filesize,
+                              bool flat, bool compress)
 {
     int ret, i;
     int fd = 0;
@@ -1114,7 +1115,9 @@ static int vmdk_create_extent(const char *filename, int64_t filesize, bool flat)
     magic = cpu_to_be32(VMDK4_MAGIC);
     memset(&header, 0, sizeof(header));
     header.version = 1;
-    header.flags = 3; /* ?? */
+    header.flags =
+        3 | (compress ? VMDK4_FLAG_COMPRESS | VMDK4_FLAG_MARKER : 0);
+    header.compressAlgorithm = compress ? VMDK4_COMPRESSION_DEFLATE : 0;
     header.capacity = filesize / 512;
     header.granularity = 128;
     header.num_gtes_per_gte = 512;
@@ -1144,6 +1147,7 @@ static int vmdk_create_extent(const char *filename, int64_t filesize, bool flat)
     header.rgd_offset = cpu_to_le64(header.rgd_offset);
     header.gd_offset = cpu_to_le64(header.gd_offset);
     header.grain_offset = cpu_to_le64(header.grain_offset);
+    header.compressAlgorithm = cpu_to_le16(header.compressAlgorithm);
 
     header.check_bytes[0] = 0xa;
     header.check_bytes[1] = 0x20;
@@ -1285,7 +1289,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     const char *fmt = NULL;
     int flags = 0;
     int ret = 0;
-    bool flat, split;
+    bool flat, split, compress;
     char ext_desc_lines[BUF_SIZE] = "";
     char path[PATH_MAX], prefix[PATH_MAX], postfix[PATH_MAX];
     const int64_t split_size = 0x80000000;  /* VMDK has constant split size */
@@ -1334,7 +1338,8 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
     } else if (strcmp(fmt, "monolithicFlat") &&
                strcmp(fmt, "monolithicSparse") &&
                strcmp(fmt, "twoGbMaxExtentSparse") &&
-               strcmp(fmt, "twoGbMaxExtentFlat")) {
+               strcmp(fmt, "twoGbMaxExtentFlat") &&
+               strcmp(fmt, "streamOptimized")) {
         fprintf(stderr, "VMDK: Unknown subformat: %s\n", fmt);
         return -EINVAL;
     }
@@ -1342,6 +1347,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
               strcmp(fmt, "twoGbMaxExtentSparse"));
     flat = !(strcmp(fmt, "monolithicFlat") &&
              strcmp(fmt, "twoGbMaxExtentFlat"));
+    compress = !strcmp(fmt, "streamOptimized");
     if (flat) {
         desc_extent_line = "RW %lld FLAT \"%s\" 0\n";
     } else {
@@ -1396,7 +1402,7 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
         snprintf(ext_filename, sizeof(ext_filename), "%s%s",
                 path, desc_filename);
 
-        if (vmdk_create_extent(ext_filename, size, flat)) {
+        if (vmdk_create_extent(ext_filename, size, flat, compress)) {
             return -EINVAL;
         }
         filesize -= size;
@@ -1510,7 +1516,7 @@ static QEMUOptionParameter vmdk_create_options[] = {
         .type = OPT_STRING,
         .help =
             "VMDK flat extent format, can be one of "
-            "{monolithicSparse (default) | monolithicFlat | twoGbMaxExtentSparse | twoGbMaxExtentFlat} "
+            "{monolithicSparse (default) | monolithicFlat | twoGbMaxExtentSparse | twoGbMaxExtentFlat | streamOptimized} "
     },
     { NULL }
 };
