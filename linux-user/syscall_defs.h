@@ -209,9 +209,9 @@ __target_cmsg_nxthdr (struct target_msghdr *__mhdr, struct target_cmsghdr *__cms
   struct target_cmsghdr *__ptr;
 
   __ptr = (struct target_cmsghdr *)((unsigned char *) __cmsg
-                                    + TARGET_CMSG_ALIGN (tswapl(__cmsg->cmsg_len)));
-  if ((unsigned long)((char *)(__ptr+1) - (char *)(size_t)tswapl(__mhdr->msg_control))
-      > tswapl(__mhdr->msg_controllen))
+                                    + TARGET_CMSG_ALIGN (tswapal(__cmsg->cmsg_len)));
+  if ((unsigned long)((char *)(__ptr+1) - (char *)(size_t)tswapal(__mhdr->msg_control))
+      > tswapal(__mhdr->msg_controllen))
     /* No more entries.  */
     return (struct target_cmsghdr *)0;
   return __cmsg;
@@ -292,7 +292,7 @@ static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
 {
     int i;
     for(i = 0;i < TARGET_NSIG_WORDS; i++)
-        d->sig[i] = tswapl(s->sig[i]);
+        d->sig[i] = tswapal(s->sig[i]);
 }
 #else
 static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
