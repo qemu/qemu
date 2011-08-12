@@ -26,9 +26,13 @@
 #include "qemu-common.h"
 #include "block_int.h"
 #include "module.h"
+#include "zlib.h"
 
 #define VMDK3_MAGIC (('C' << 24) | ('O' << 16) | ('W' << 8) | 'D')
 #define VMDK4_MAGIC (('K' << 24) | ('D' << 16) | ('M' << 8) | 'V')
+#define VMDK4_COMPRESSION_DEFLATE 1
+#define VMDK4_FLAG_COMPRESS (1 << 16)
+#define VMDK4_FLAG_MARKER (1 << 17)
 
 typedef struct {
     uint32_t version;
@@ -56,6 +60,7 @@ typedef struct {
     int64_t grain_offset;
     char filler[1];
     char check_bytes[4];
+    uint16_t compressAlgorithm;
 } QEMU_PACKED VMDK4Header;
 
 #define L2_CACHE_SIZE 16
@@ -63,6 +68,8 @@ typedef struct {
 typedef struct VmdkExtent {
     BlockDriverState *file;
     bool flat;
+    bool compressed;
+    bool has_marker;
     int64_t sectors;
     int64_t end_sector;
     int64_t flat_start_offset;
@@ -97,6 +104,12 @@ typedef struct VmdkMetaData {
     unsigned int l2_offset;
     int valid;
 } VmdkMetaData;
+
+typedef struct VmdkGrainMarker {
+    uint64_t lba;
+    uint32_t size;
+    uint8_t  data[0];
+} VmdkGrainMarker;
 
 static int vmdk_probe(const uint8_t *buf, int buf_size, const char *filename)
 {
@@ -423,6 +436,9 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
                           l1_size,
                           le32_to_cpu(header.num_gtes_per_gte),
                           le64_to_cpu(header.granularity));
+    extent->compressed =
+        le16_to_cpu(header.compressAlgorithm) == VMDK4_COMPRESSION_DEFLATE;
+    extent->has_marker = le32_to_cpu(header.flags) & VMDK4_FLAG_MARKER;
     ret = vmdk_init_tables(bs, extent);
     if (ret) {
         /* free extent allocated by vmdk_add_extent */
