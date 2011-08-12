@@ -821,17 +821,15 @@ static void qxl_check_state(PCIQXLDevice *d)
 {
     QXLRam *ram = d->ram;
 
-    assert(SPICE_RING_IS_EMPTY(&ram->cmd_ring));
-    assert(SPICE_RING_IS_EMPTY(&ram->cursor_ring));
+    assert(!d->ssd.running || SPICE_RING_IS_EMPTY(&ram->cmd_ring));
+    assert(!d->ssd.running || SPICE_RING_IS_EMPTY(&ram->cursor_ring));
 }
 
 static void qxl_reset_state(PCIQXLDevice *d)
 {
-    QXLRam *ram = d->ram;
     QXLRom *rom = d->rom;
 
-    assert(!d->ssd.running || SPICE_RING_IS_EMPTY(&ram->cmd_ring));
-    assert(!d->ssd.running || SPICE_RING_IS_EMPTY(&ram->cursor_ring));
+    qxl_check_state(d);
     d->shadow_rom.update_id = cpu_to_le32(0);
     *rom = d->shadow_rom;
     qxl_rom_set_dirty(d);
@@ -1189,7 +1187,7 @@ async_common:
         }
         d->current_async = orig_io_port;
         qemu_mutex_unlock(&d->async_lock);
-        dprint(d, 2, "start async %d (%d)\n", io_port, val);
+        dprint(d, 2, "start async %d (%"PRId64")\n", io_port, val);
         break;
     default:
         break;
@@ -1305,7 +1303,8 @@ async_common:
         break;
     }
     case QXL_IO_FLUSH_SURFACES_ASYNC:
-        dprint(d, 1, "QXL_IO_FLUSH_SURFACES_ASYNC (%d) (%s, s#=%d, res#=%d)\n",
+        dprint(d, 1, "QXL_IO_FLUSH_SURFACES_ASYNC"
+                     " (%"PRId64") (%s, s#=%d, res#=%d)\n",
                val, qxl_mode_to_string(d->mode), d->guest_surfaces.count,
                d->num_free_res);
         qxl_spice_flush_surfaces_async(d);

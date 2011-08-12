@@ -701,6 +701,26 @@ extern const VMStateDescription vmstate_ptimer;
     .offset     = vmstate_offset_pointer(_state, _field, ptimer_state), \
 }
 
+extern const VMStateDescription vmstate_hid_keyboard_device;
+
+#define VMSTATE_HID_KEYBOARD_DEVICE(_field, _state) {                \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(HIDState),                                  \
+    .vmsd       = &vmstate_hid_keyboard_device,                      \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, HIDState),    \
+}
+
+extern const VMStateDescription vmstate_hid_ptr_device;
+
+#define VMSTATE_HID_POINTER_DEVICE(_field, _state) {                 \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(HIDState),                                  \
+    .vmsd       = &vmstate_hid_ptr_device,                           \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, HIDState),    \
+}
+
 /* _f : field name
    _f_n : num of elements field_name
    _n : num of elements

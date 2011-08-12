@@ -78,6 +78,7 @@
 #define READ_TOC              0x43
 #define REPORT_DENSITY_SUPPORT 0x44
 #define GET_CONFIGURATION     0x46
+#define GET_EVENT_STATUS_NOTIFICATION 0x4a
 #define LOG_SELECT            0x4c
 #define LOG_SENSE             0x4d
 #define MODE_SELECT_10        0x55
@@ -176,5 +177,8 @@
 #define TYPE_ENCLOSURE      0x0d    /* Enclosure Services Device */
 #define TYPE_RBC            0x0e    /* Simplified Direct-Access Device */
 #define TYPE_OSD            0x11    /* Object-storage Device */
+#define TYPE_WLUN           0x1e    /* Well known LUN */
+#define TYPE_NOT_PRESENT    0x1f
+#define TYPE_INACTIVE       0x20
 #define TYPE_NO_LUN         0x7f
 

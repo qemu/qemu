@@ -15,21 +15,21 @@ MAKEFLAGS += -rR
 QEMU_DGFLAGS += -MMD -MP -MT $@ -MF $(*D)/$(*F).d
 
 %.o: %.c
-	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(QEMU_INCLUDES) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
+	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  CC    $(TARGET_DIR)$@")
 
 ifeq ($(LIBTOOL),)
 %.lo: %.c
 	@echo "missing libtool. please install and rerun configure"; exit 1
 else
 %.lo: %.c
-	$(call quiet-command,libtool --mode=compile --quiet --tag=CC $(CC) $(QEMU_CFLAGS) $(QEMU_INCLUDES) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
+	$(call quiet-command,libtool --mode=compile --quiet --tag=CC $(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  lt CC $@")
 endif
 
 %.o: %.S
-	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(QEMU_INCLUDES) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  AS    $(TARGET_DIR)$@")
+	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  AS    $(TARGET_DIR)$@")
 
 %.o: %.m
-	$(call quiet-command,$(CC) $(QEMU_CFLAGS) $(QEMU_INCLUDES) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  OBJC  $(TARGET_DIR)$@")
+	$(call quiet-command,$(CC) $(QEMU_INCLUDES) $(QEMU_CFLAGS) $(QEMU_DGFLAGS) $(CFLAGS) -c -o $@ $<,"  OBJC  $(TARGET_DIR)$@")
 
 LINK = $(call quiet-command,$(CC) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ $(1) $(LIBS),"  LINK  $(TARGET_DIR)$@")
 
