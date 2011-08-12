@@ -408,6 +408,9 @@ static int vmdk_open_vmdk3(BlockDriverState *bs,
     return ret;
 }
 
+static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
+                               int64_t desc_offset);
+
 static int vmdk_open_vmdk4(BlockDriverState *bs,
                            BlockDriverState *file,
                            int flags)
@@ -421,6 +424,9 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     ret = bdrv_pread(file, sizeof(magic), &header, sizeof(header));
     if (ret < 0) {
         return ret;
+    }
+    if (header.capacity == 0 && header.desc_offset) {
+        return vmdk_open_desc_file(bs, flags, header.desc_offset << 9);
     }
     l1_entry_sectors = le32_to_cpu(header.num_gtes_per_gte)
                         * le64_to_cpu(header.granularity);
@@ -559,7 +565,7 @@ static int vmdk_parse_extents(const char *desc, BlockDriverState *bs,
 
             extent = vmdk_add_extent(bs, extent_file, true, sectors,
                             0, 0, 0, 0, sectors);
-            extent->flat_start_offset = flat_offset;
+            extent->flat_start_offset = flat_offset << 9;
         } else if (!strcmp(type, "SPARSE")) {
             /* SPARSE extent */
             ret = vmdk_open_sparse(bs, extent_file, bs->open_flags);
@@ -582,14 +588,15 @@ next_line:
     return 0;
 }
 
-static int vmdk_open_desc_file(BlockDriverState *bs, int flags)
+static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
+                               int64_t desc_offset)
 {
     int ret;
     char buf[2048];
     char ct[128];
     BDRVVmdkState *s = bs->opaque;
 
-    ret = bdrv_pread(bs->file, 0, buf, sizeof(buf));
+    ret = bdrv_pread(bs->file, desc_offset, buf, sizeof(buf));
     if (ret < 0) {
         return ret;
     }
@@ -635,7 +642,7 @@ static int vmdk_open(BlockDriverState *bs, int flags)
         s->parent_cid = vmdk_read_cid(bs, 1);
         return 0;
     } else {
-        return vmdk_open_desc_file(bs, flags);
+        return vmdk_open_desc_file(bs, flags, 0);
     }
 }
 
