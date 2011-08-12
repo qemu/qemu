@@ -372,7 +372,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
     } else {
         trace_scsi_req_parsed(d->id, lun, tag, buf[0],
                               cmd.mode, cmd.xfer);
-        if (req->cmd.lba != -1) {
+        if (cmd.lba != -1) {
             trace_scsi_req_parsed_lba(d->id, lun, tag, buf[0],
                                       cmd.lba);
         }
