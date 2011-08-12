@@ -833,6 +833,43 @@ static int vmdk_is_allocated(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
+static int vmdk_write_extent(VmdkExtent *extent, int64_t cluster_offset,
+                            int64_t offset_in_cluster, const uint8_t *buf,
+                            int nb_sectors, int64_t sector_num)
+{
+    int ret;
+    const uint8_t *write_buf = buf;
+    int write_len = nb_sectors * 512;
+
+    ret = bdrv_pwrite(extent->file,
+                        cluster_offset + offset_in_cluster,
+                        write_buf,
+                        write_len);
+    if (ret != write_len) {
+        ret = ret < 0 ? ret : -EIO;
+        goto out;
+    }
+    ret = 0;
+ out:
+    return ret;
+}
+
+static int vmdk_read_extent(VmdkExtent *extent, int64_t cluster_offset,
+                            int64_t offset_in_cluster, uint8_t *buf,
+                            int nb_sectors)
+{
+    int ret;
+
+    ret = bdrv_pread(extent->file,
+                      cluster_offset + offset_in_cluster,
+                      buf, nb_sectors * 512);
+    if (ret == nb_sectors * 512) {
+        return 0;
+    } else {
+        return -EIO;
+    }
+}
+
 static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
                     uint8_t *buf, int nb_sectors)
 {
@@ -869,10 +906,10 @@ static int vmdk_read(BlockDriverState *bs, int64_t sector_num,
                 memset(buf, 0, 512 * n);
             }
         } else {
-            ret = bdrv_pread(extent->file,
-                            cluster_offset + index_in_cluster * 512,
-                            buf, n * 512);
-            if (ret < 0) {
+            ret = vmdk_read_extent(extent,
+                            cluster_offset, index_in_cluster * 512,
+                            buf, n);
+            if (ret) {
                 return ret;
             }
         }
@@ -921,11 +958,10 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
             n = nb_sectors;
         }
 
-        ret = bdrv_pwrite(extent->file,
-                        cluster_offset + index_in_cluster * 512,
-                        buf,
-                        n * 512);
-        if (ret < 0) {
+        ret = vmdk_write_extent(extent,
+                        cluster_offset, index_in_cluster * 512,
+                        buf, n, sector_num);
+        if (ret) {
             return ret;
         }
         if (m_data.valid) {
