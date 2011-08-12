@@ -316,9 +316,6 @@ USBDevice *usb_host_device_open(const char *devname);
 int usb_host_device_close(const char *devname);
 void usb_host_info(Monitor *mon);
 
-/* usb-hid.c */
-void usb_hid_datain_cb(USBDevice *dev, void *opaque, void (*datain)(void *));
-
 /* usb-bt.c */
 USBDevice *usb_bt_init(HCIInfo *hci);
 

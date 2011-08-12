@@ -218,16 +218,21 @@ static inline int int_clamp(int val, int vmin, int vmax)
     }
 }
 
+void hid_pointer_activate(HIDState *hs)
+{
+    if (!hs->ptr.mouse_grabbed) {
+        qemu_activate_mouse_event_handler(hs->ptr.eh_entry);
+        hs->ptr.mouse_grabbed = 1;
+    }
+}
+
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len)
 {
     int dx, dy, dz, b, l;
     int index;
     HIDPointerEvent *e;
 
-    if (!hs->ptr.mouse_grabbed) {
-        qemu_activate_mouse_event_handler(hs->ptr.eh_entry);
-        hs->ptr.mouse_grabbed = 1;
-    }
+    hid_pointer_activate(hs);
 
     /* When the buffer is empty, return the last event.  Relative
        movements will all be zero.  */
@@ -359,7 +364,6 @@ void hid_reset(HIDState *hs)
 {
     switch (hs->kind) {
     case HID_KEYBOARD:
-        qemu_add_kbd_event_handler(hid_keyboard_event, hs);
         memset(hs->kbd.keycodes, 0, sizeof(hs->kbd.keycodes));
         memset(hs->kbd.key, 0, sizeof(hs->kbd.key));
         hs->kbd.keys = 0;
@@ -393,7 +397,9 @@ void hid_init(HIDState *hs, int kind, HIDEventFunc event)
     hs->kind = kind;
     hs->event = event;
 
-    if (hs->kind == HID_MOUSE) {
+    if (hs->kind == HID_KEYBOARD) {
+        qemu_add_kbd_event_handler(hid_keyboard_event, hs);
+    } else if (hs->kind == HID_MOUSE) {
         hs->ptr.eh_entry = qemu_add_mouse_event_handler(hid_pointer_event, hs,
                                                         0, "QEMU HID Mouse");
     } else if (hs->kind == HID_TABLET) {
@@ -401,3 +407,61 @@ void hid_init(HIDState *hs, int kind, HIDEventFunc event)
                                                         1, "QEMU HID Tablet");
     }
 }
+
+static int hid_post_load(void *opaque, int version_id)
+{
+    HIDState *s = opaque;
+
+    if (s->idle) {
+        hid_set_next_idle(s, qemu_get_clock_ns(vm_clock));
+    }
+    return 0;
+}
+
+static const VMStateDescription vmstate_hid_ptr_queue = {
+    .name = "HIDPointerEventQueue",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_INT32(xdx, HIDPointerEvent),
+        VMSTATE_INT32(ydy, HIDPointerEvent),
+        VMSTATE_INT32(dz, HIDPointerEvent),
+        VMSTATE_INT32(buttons_state, HIDPointerEvent),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+const VMStateDescription vmstate_hid_ptr_device = {
+    .name = "HIDPointerDevice",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = hid_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_STRUCT_ARRAY(ptr.queue, HIDState, QUEUE_LENGTH, 0,
+                             vmstate_hid_ptr_queue, HIDPointerEvent),
+        VMSTATE_UINT32(head, HIDState),
+        VMSTATE_UINT32(n, HIDState),
+        VMSTATE_INT32(protocol, HIDState),
+        VMSTATE_UINT8(idle, HIDState),
+        VMSTATE_END_OF_LIST(),
+    }
+};
+
+const VMStateDescription vmstate_hid_keyboard_device = {
+    .name = "HIDKeyboardDevice",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = hid_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32_ARRAY(kbd.keycodes, HIDState, QUEUE_LENGTH),
+        VMSTATE_UINT32(head, HIDState),
+        VMSTATE_UINT32(n, HIDState),
+        VMSTATE_UINT16(kbd.modifiers, HIDState),
+        VMSTATE_UINT8(kbd.leds, HIDState),
+        VMSTATE_UINT8_ARRAY(kbd.key, HIDState, 16),
+        VMSTATE_INT32(kbd.keys, HIDState),
+        VMSTATE_INT32(protocol, HIDState),
+        VMSTATE_UINT8(idle, HIDState),
+        VMSTATE_END_OF_LIST(),
+    }
+};
