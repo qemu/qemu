@@ -24,14 +24,11 @@ static struct BusInfo scsi_bus_info = {
 static int next_scsi_bus;
 
 /* Create a scsi bus, and attach devices to it.  */
-void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
-                  const SCSIBusOps *ops)
+void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info)
 {
     qbus_create_inplace(&bus->qbus, &scsi_bus_info, host, NULL);
     bus->busnr = next_scsi_bus++;
-    bus->tcq = tcq;
-    bus->ndev = ndev;
-    bus->ops = ops;
+    bus->info = info;
     bus->qbus.allow_hotplug = 1;
 }
 
@@ -43,12 +40,12 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
     int rc = -1;
 
     if (dev->id == -1) {
-        for (dev->id = 0; dev->id < bus->ndev; dev->id++) {
+        for (dev->id = 0; dev->id < bus->info->ndev; dev->id++) {
             if (bus->devs[dev->id] == NULL)
                 break;
         }
     }
-    if (dev->id >= bus->ndev) {
+    if (dev->id >= bus->info->ndev) {
         error_report("bad scsi device id: %d", dev->id);
         goto err;
     }
@@ -120,7 +117,7 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     int res = 0, unit;
 
     loc_push_none(&loc);
-    for (unit = 0; unit < bus->ndev; unit++) {
+    for (unit = 0; unit < bus->info->ndev; unit++) {
         dinfo = drive_get(IF_SCSI, bus->busnr, unit);
         if (dinfo == NULL) {
             continue;
@@ -265,7 +262,7 @@ static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
         r->buf[2] = 5; /* Version */
         r->buf[3] = 2 | 0x10; /* HiSup, response data format */
         r->buf[4] = r->len - 5; /* Additional Length = (Len - 1) - 4 */
-        r->buf[7] = 0x10 | (r->req.bus->tcq ? 0x02 : 0); /* Sync, TCQ.  */
+        r->buf[7] = 0x10 | (r->req.bus->info->tcq ? 0x02 : 0); /* Sync, TCQ.  */
         memcpy(&r->buf[8], "QEMU    ", 8);
         memcpy(&r->buf[16], "QEMU TARGET     ", 16);
         strncpy((char *) &r->buf[32], QEMU_VERSION, 4);
@@ -1062,7 +1059,7 @@ void scsi_req_continue(SCSIRequest *req)
 void scsi_req_data(SCSIRequest *req, int len)
 {
     trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
-    req->bus->ops->transfer_data(req, len);
+    req->bus->info->transfer_data(req, len);
 }
 
 void scsi_req_print(SCSIRequest *req)
@@ -1121,7 +1118,7 @@ void scsi_req_complete(SCSIRequest *req, int status)
 
     scsi_req_ref(req);
     scsi_req_dequeue(req);
-    req->bus->ops->complete(req, req->status);
+    req->bus->info->complete(req, req->status);
     scsi_req_unref(req);
 }
 
@@ -1132,8 +1129,8 @@ void scsi_req_cancel(SCSIRequest *req)
     }
     scsi_req_ref(req);
     scsi_req_dequeue(req);
-    if (req->bus->ops->cancel) {
-        req->bus->ops->cancel(req);
+    if (req->bus->info->cancel) {
+        req->bus->info->cancel(req);
     }
     scsi_req_unref(req);
 }
@@ -1164,13 +1161,13 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev)
     char path[100];
     int i;
 
-    for (i = 0; i < bus->ndev; i++) {
+    for (i = 0; i < bus->info->ndev; i++) {
         if (bus->devs[i] == d) {
             break;
         }
     }
 
-    assert(i != bus->ndev);
+    assert(i != bus->info->ndev);
 
     snprintf(path, sizeof(path), "%s@%x", qdev_fw_name(dev), i);
 

@@ -1686,7 +1686,7 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
                 DeviceState *dev;
                 int id;
 
-                for (id = 0; id < s->bus.ndev; id++) {
+                for (id = 0; id < LSI_MAX_DEVS; id++) {
                     if (s->bus.devs[id]) {
                         dev = &s->bus.devs[id]->qdev;
                         dev->info->reset(dev);
@@ -2091,7 +2091,10 @@ static int lsi_scsi_uninit(PCIDevice *d)
     return 0;
 }
 
-static const struct SCSIBusOps lsi_scsi_ops = {
+static const struct SCSIBusInfo lsi_scsi_info = {
+    .tcq = true,
+    .ndev = LSI_MAX_DEVS,
+
     .transfer_data = lsi_transfer_data,
     .complete = lsi_command_complete,
     .cancel = lsi_request_cancelled
@@ -2118,7 +2121,7 @@ static int lsi_scsi_init(PCIDevice *dev)
     pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
-    scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, &lsi_scsi_ops);
+    scsi_bus_new(&s->bus, &dev->qdev, &lsi_scsi_info);
     if (!dev->qdev.hotplugged) {
         return scsi_bus_legacy_handle_cmdline(&s->bus);
     }

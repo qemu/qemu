@@ -720,7 +720,10 @@ void esp_init(target_phys_addr_t espaddr, int it_shift,
     *dma_enable = qdev_get_gpio_in(dev, 1);
 }
 
-static const struct SCSIBusOps esp_scsi_ops = {
+static const struct SCSIBusInfo esp_scsi_info = {
+    .tcq = false,
+    .ndev = ESP_MAX_DEVS,
+
     .transfer_data = esp_transfer_data,
     .complete = esp_command_complete,
     .cancel = esp_request_cancelled
@@ -740,7 +743,7 @@ static int esp_init1(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, esp_gpio_demux, 2);
 
-    scsi_bus_new(&s->bus, &dev->qdev, 0, ESP_MAX_DEVS, &esp_scsi_ops);
+    scsi_bus_new(&s->bus, &dev->qdev, &esp_scsi_info);
     return scsi_bus_legacy_handle_cmdline(&s->bus);
 }
 

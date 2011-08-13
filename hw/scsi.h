@@ -9,7 +9,7 @@
 #define SCSI_CMD_BUF_SIZE     16
 
 typedef struct SCSIBus SCSIBus;
-typedef struct SCSIBusOps SCSIBusOps;
+typedef struct SCSIBusInfo SCSIBusInfo;
 typedef struct SCSICommand SCSICommand;
 typedef struct SCSIDevice SCSIDevice;
 typedef struct SCSIDeviceInfo SCSIDeviceInfo;
@@ -97,7 +97,8 @@ struct SCSIDeviceInfo {
     SCSIReqOps reqops;
 };
 
-struct SCSIBusOps {
+struct SCSIBusInfo {
+    int tcq, ndev;
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
     void (*complete)(SCSIRequest *req, uint32_t arg);
     void (*cancel)(SCSIRequest *req);
@@ -108,14 +109,12 @@ struct SCSIBus {
     int busnr;
 
     SCSISense unit_attention;
-    int tcq, ndev;
-    const SCSIBusOps *ops;
+    const SCSIBusInfo *info;
 
     SCSIDevice *devs[MAX_SCSI_DEVS];
 };
 
-void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
-                  const SCSIBusOps *ops);
+void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info);
 void scsi_qdev_register(SCSIDeviceInfo *info);
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)

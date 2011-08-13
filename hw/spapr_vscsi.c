@@ -862,7 +862,10 @@ static int vscsi_do_crq(struct VIOsPAPRDevice *dev, uint8_t *crq_data)
     return 0;
 }
 
-static const struct SCSIBusOps vscsi_scsi_ops = {
+static const struct SCSIBusInfo vscsi_scsi_info = {
+    .tcq = true,
+    .ndev = VSCSI_REQ_LIMIT,
+
     .transfer_data = vscsi_transfer_data,
     .complete = vscsi_command_complete,
     .cancel = vscsi_request_cancelled
@@ -883,8 +886,7 @@ static int spapr_vscsi_init(VIOsPAPRDevice *dev)
 
     dev->crq.SendFunc = vscsi_do_crq;
 
-    scsi_bus_new(&s->bus, &dev->qdev, 1, VSCSI_REQ_LIMIT,
-                 &vscsi_scsi_ops);
+    scsi_bus_new(&s->bus, &dev->qdev, &vscsi_scsi_info);
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }

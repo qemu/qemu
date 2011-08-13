@@ -564,7 +564,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     }
 
     /* Sync data transfer and TCQ.  */
-    outbuf[7] = 0x10 | (req->bus->tcq ? 0x02 : 0);
+    outbuf[7] = 0x10 | (req->bus->info->tcq ? 0x02 : 0);
     return buflen;
 }
 
