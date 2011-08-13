@@ -98,7 +98,8 @@ struct SCSIDeviceInfo {
 };
 
 struct SCSIBusInfo {
-    int tcq, ndev;
+    int tcq;
+    int max_target, max_lun;
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
     void (*complete)(SCSIRequest *req, uint32_t arg);
     void (*cancel)(SCSIRequest *req);

@@ -131,9 +131,39 @@ static void vscsi_put_req(vscsi_req *req)
 
 static SCSIDevice *vscsi_device_find(SCSIBus *bus, uint64_t srp_lun, int *lun)
 {
-    /* XXX Figure that one out properly ! This is crackpot */
-    int id = (srp_lun >> 56) & 0x7f;
-    *lun = (srp_lun >> 48) & 0xff;
+    int channel = 0, id = 0;
+
+retry:
+    switch (srp_lun >> 62) {
+    case 0:
+        if ((srp_lun >> 56) != 0) {
+            channel = (srp_lun >> 56) & 0x3f;
+            id = (srp_lun >> 48) & 0xff;
+            srp_lun <<= 16;
+            goto retry;
+        }
+        *lun = (srp_lun >> 48) & 0xff;
+        break;
+
+    case 1:
+        *lun = (srp_lun >> 48) & 0x3fff;
+        break;
+    case 2:
+        channel = (srp_lun >> 53) & 0x7;
+        id = (srp_lun >> 56) & 0x3f;
+        *lun = (srp_lun >> 48) & 0x1f;
+        break;
+    case 3:
+        *lun = -1;
+        return NULL;
+    default:
+        abort();
+    }
+
+    if (channel) {
+        *lun = -1;
+        return NULL;
+    }
     return scsi_device_find(bus, id, *lun);
 }
 
@@ -862,7 +892,8 @@ static int vscsi_do_crq(struct VIOsPAPRDevice *dev, uint8_t *crq_data)
 
 static const struct SCSIBusInfo vscsi_scsi_info = {
     .tcq = true,
-    .ndev = VSCSI_REQ_LIMIT,
+    .max_target = 63, /* logical unit addressing format */
+    .max_lun = 31,
 
     .transfer_data = vscsi_transfer_data,
     .complete = vscsi_command_complete,

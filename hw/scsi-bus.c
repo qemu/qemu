@@ -17,7 +17,7 @@ static struct BusInfo scsi_bus_info = {
     .get_fw_dev_path = scsibus_get_fw_dev_path,
     .props = (Property[]) {
         DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
-        DEFINE_PROP_UINT32("lun", SCSIDevice, lun, 0),
+        DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
@@ -37,26 +37,42 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
     SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
     SCSIDeviceInfo *info = DO_UPCAST(SCSIDeviceInfo, qdev, base);
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);
-    SCSIDevice *olddev;
+    SCSIDevice *d;
     int rc = -1;
 
-    if (dev->id == -1) {
-        int id;
-        for (id = 0; id < bus->info->ndev; id++) {
-            if (!scsi_device_find(bus, id, 0)) {
-                dev->id = id;
-                break;
-            }
-        }
-    }
-    if (dev->id >= bus->info->ndev) {
+    if (dev->id != -1 && dev->id > bus->info->max_target) {
         error_report("bad scsi device id: %d", dev->id);
         goto err;
     }
 
-    olddev = scsi_device_find(bus, dev->id, dev->lun);
-    if (olddev && dev->lun == olddev->lun) {
-        qdev_free(&olddev->qdev);
+    if (dev->id == -1) {
+        int id = -1;
+        if (dev->lun == -1) {
+            dev->lun = 0;
+        }
+        do {
+            d = scsi_device_find(bus, ++id, dev->lun);
+        } while (d && d->lun == dev->lun && id <= bus->info->max_target);
+        if (id > bus->info->max_target) {
+            error_report("no free target");
+            goto err;
+        }
+        dev->id = id;
+    } else if (dev->lun == -1) {
+        int lun = -1;
+        do {
+            d = scsi_device_find(bus, dev->id, ++lun);
+        } while (d && d->lun == lun && lun < bus->info->max_lun);
+        if (lun > bus->info->max_lun) {
+            error_report("no free lun");
+            goto err;
+        }
+        dev->lun = lun;
+    } else {
+        d = scsi_device_find(bus, dev->id, dev->lun);
+        if (dev->lun == d->lun && dev != d) {
+            qdev_free(&d->qdev);
+        }
     }
 
     dev->info = info;
@@ -115,7 +131,7 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     int res = 0, unit;
 
     loc_push_none(&loc);
-    for (unit = 0; unit < bus->info->ndev; unit++) {
+    for (unit = 0; unit < bus->info->max_target; unit++) {
         dinfo = drive_get(IF_SCSI, bus->busnr, unit);
         if (dinfo == NULL) {
             continue;

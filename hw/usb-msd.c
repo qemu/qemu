@@ -497,7 +497,8 @@ static void usb_msd_password_cb(void *opaque, int err)
 
 static const struct SCSIBusInfo usb_msd_scsi_info = {
     .tcq = false,
-    .ndev = 1,
+    .max_target = 0,
+    .max_lun = 0,
 
     .transfer_data = usb_msd_transfer_data,
     .complete = usb_msd_command_complete,
