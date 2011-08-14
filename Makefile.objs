@@ -369,7 +369,7 @@ trace-dtrace.lo: trace-dtrace.dtrace
 	@echo "missing libtool. please install and rerun configure."; exit 1
 else
 trace-dtrace.lo: trace-dtrace.dtrace
-	$(call quiet-command,libtool --mode=compile --tag=CC dtrace -o $@ -G -s $<, "  lt GEN trace-dtrace.o")
+	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, "  lt GEN trace-dtrace.o")
 endif
 
 simpletrace.o: simpletrace.c $(GENERATED_HEADERS)

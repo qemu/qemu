@@ -225,6 +225,7 @@ cc="${CC-${cross_prefix}gcc}"
 ar="${AR-${cross_prefix}ar}"
 objcopy="${OBJCOPY-${cross_prefix}objcopy}"
 ld="${LD-${cross_prefix}ld}"
+libtool="${LIBTOOL-${cross_prefix}libtool}"
 strip="${STRIP-${cross_prefix}strip}"
 windres="${WINDRES-${cross_prefix}windres}"
 pkg_config="${PKG_CONFIG-${cross_prefix}pkg-config}"
@@ -1342,10 +1343,8 @@ fi
 ##########################################
 # libtool probe
 
-if ! has libtool; then
+if ! has $libtool; then
     libtool=
-else
-    libtool=libtool
 fi
 
 ##########################################

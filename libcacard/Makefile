@@ -39,7 +39,7 @@ install-libcacard:
 	@echo "libtool is missing, please install and rerun configure"; exit 1
 else
 libcacard.la: $(libcacard.lib-y) $(QEMU_OBJS_LIB)
-	$(call quiet-command,libtool --mode=link --quiet --tag=CC $(CC) -rpath $(libdir) -o $@ $^ $(libcacard_libs) -lrt,"  lt LINK $@")
+	$(call quiet-command,$(LIBTOOL) --mode=link --quiet --tag=CC $(CC) -rpath $(libdir) -o $@ $^ $(libcacard_libs) -lrt,"  lt LINK $@")
 
 libcacard.pc: $(libcacard_srcpath)/libcacard.pc.in
 	sed -e 's|@LIBDIR@|$(libdir)|' \
@@ -55,10 +55,10 @@ install-libcacard: libcacard.pc libcacard.la vscclient
 	$(INSTALL_DIR) "$(DESTDIR)$(libdir)/pkgconfig"
 	$(INSTALL_DIR) "$(DESTDIR)$(libcacard_includedir)"
 	$(INSTALL_DIR) "$(DESTDIR)$(bindir)"
-	libtool --mode=install $(INSTALL_PROG) vscclient "$(DESTDIR)$(bindir)"
-	libtool --mode=install $(INSTALL_PROG) libcacard.la "$(DESTDIR)$(libdir)"
-	libtool --mode=install $(INSTALL_DATA) libcacard.pc "$(DESTDIR)$(libdir)/pkgconfig"
+	$(LIBTOOL) --mode=install $(INSTALL_PROG) vscclient "$(DESTDIR)$(bindir)"
+	$(LIBTOOL) --mode=install $(INSTALL_PROG) libcacard.la "$(DESTDIR)$(libdir)"
+	$(LIBTOOL) --mode=install $(INSTALL_DATA) libcacard.pc "$(DESTDIR)$(libdir)/pkgconfig"
 	for inc in *.h; do \
-		libtool --mode=install $(INSTALL_DATA) $(libcacard_srcpath)/$$inc "$(DESTDIR)$(libcacard_includedir)"; \
+		$(LIBTOOL) --mode=install $(INSTALL_DATA) $(libcacard_srcpath)/$$inc "$(DESTDIR)$(libcacard_includedir)"; \
 	done
 endif
