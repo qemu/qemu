@@ -20,7 +20,7 @@ QEMU_CFLAGS+=$(GLIB_CFLAGS)
 libcacard.lib-y=$(addsuffix .lo,$(basename $(libcacard-y)))
 
 vscclient: $(libcacard-y) $(QEMU_OBJS) vscclient.o
-	$(call quiet-command,$(CC) $(libcacard_libs) $(LIBS) -lrt -o $@ $^,"  LINK  $@")
+	$(call quiet-command,$(CC) -o $@ $^ $(libcacard_libs) $(LIBS) -lrt,"  LINK  $@")
 
 clean:
 	rm -f *.o */*.o *.d */*.d *.a */*.a *~ */*~ vscclient *.lo .libs/* *.la *.pc
@@ -39,7 +39,7 @@ install-libcacard:
 	@echo "libtool is missing, please install and rerun configure"; exit 1
 else
 libcacard.la: $(libcacard.lib-y) $(QEMU_OBJS_LIB)
-	$(call quiet-command,libtool --mode=link --quiet --tag=CC $(CC) $(libcacard_libs) -lrt -rpath $(libdir) -o $@ $^,"  lt LINK $@")
+	$(call quiet-command,libtool --mode=link --quiet --tag=CC $(CC) -rpath $(libdir) -o $@ $^ $(libcacard_libs) -lrt,"  lt LINK $@")
 
 libcacard.pc: $(libcacard_srcpath)/libcacard.pc.in
 	sed -e 's|@LIBDIR@|$(libdir)|' \
