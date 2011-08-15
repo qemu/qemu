@@ -2248,7 +2248,8 @@ static void mem_info_32(Monitor *mon, CPUState *env)
                     pte = le32_to_cpu(pte);
                     end = (l1 << 22) + (l2 << 12);
                     if (pte & PG_PRESENT_MASK) {
-                        prot = pte & (PG_USER_MASK | PG_RW_MASK | PG_PRESENT_MASK);
+                        prot = pte & pde &
+                            (PG_USER_MASK | PG_RW_MASK | PG_PRESENT_MASK);
                     } else {
                         prot = 0;
                     }
@@ -2297,8 +2298,8 @@ static void mem_info_pae32(Monitor *mon, CPUState *env)
                             pte = le64_to_cpu(pte);
                             end = (l1 << 30) + (l2 << 21) + (l3 << 12);
                             if (pte & PG_PRESENT_MASK) {
-                                prot = pte & (PG_USER_MASK | PG_RW_MASK |
-                                              PG_PRESENT_MASK);
+                                prot = pte & pde & (PG_USER_MASK | PG_RW_MASK |
+                                                    PG_PRESENT_MASK);
                             } else {
                                 prot = 0;
                             }
@@ -2345,6 +2346,7 @@ static void mem_info_64(Monitor *mon, CPUState *env)
                     if (pdpe & PG_PSE_MASK) {
                         prot = pdpe & (PG_USER_MASK | PG_RW_MASK |
                                        PG_PRESENT_MASK);
+                        prot &= pml4e;
                         mem_print(mon, &start, &last_prot, end, prot);
                     } else {
                         pd_addr = pdpe & 0x3fffffffff000ULL;
@@ -2356,6 +2358,7 @@ static void mem_info_64(Monitor *mon, CPUState *env)
                                 if (pde & PG_PSE_MASK) {
                                     prot = pde & (PG_USER_MASK | PG_RW_MASK |
                                                   PG_PRESENT_MASK);
+                                    prot &= pml4e & pdpe;
                                     mem_print(mon, &start, &last_prot, end, prot);
                                 } else {
                                     pt_addr = pde & 0x3fffffffff000ULL;
@@ -2369,6 +2372,7 @@ static void mem_info_64(Monitor *mon, CPUState *env)
                                         if (pte & PG_PRESENT_MASK) {
                                             prot = pte & (PG_USER_MASK | PG_RW_MASK |
                                                           PG_PRESENT_MASK);
+                                            prot &= pml4e & pdpe & pde;
                                         } else {
                                             prot = 0;
                                         }
