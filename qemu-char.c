@@ -795,7 +795,7 @@ static int qemu_chr_open_stdio(QemuOpts *opts, CharDriverState **_chr)
     stdio_nb_clients++;
     stdio_allow_signal = qemu_opt_get_bool(opts, "signal",
                                            display_type != DT_NOGRAPHIC);
-    qemu_chr_set_echo(chr, false);
+    qemu_chr_fe_set_echo(chr, false);
 
     *_chr = chr;
     return 0;
@@ -2625,7 +2625,7 @@ CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*i
     return chr;
 }
 
-void qemu_chr_set_echo(struct CharDriverState *chr, bool echo)
+void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo)
 {
     if (chr->chr_set_echo) {
         chr->chr_set_echo(chr, echo);
