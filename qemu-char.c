@@ -2370,7 +2370,7 @@ QString *qemu_chr_mem_to_qs(CharDriverState *chr)
     return qstring_from_substr((char *) d->outbuf, 0, d->outbuf_size - 1);
 }
 
-/* NOTE: this driver can not be closed with qemu_chr_close()! */
+/* NOTE: this driver can not be closed with qemu_chr_delete()! */
 void qemu_chr_close_mem(CharDriverState *chr)
 {
     MemoryDriver *d = chr->opaque;
@@ -2646,7 +2646,7 @@ void qemu_chr_fe_close(struct CharDriverState *chr)
     }
 }
 
-void qemu_chr_close(CharDriverState *chr)
+void qemu_chr_delete(CharDriverState *chr)
 {
     QTAILQ_REMOVE(&chardevs, chr, next);
     if (chr->chr_close)

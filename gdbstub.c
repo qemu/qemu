@@ -2499,7 +2499,7 @@ void gdb_exit(CPUState *env, int code)
 
 #ifndef CONFIG_USER_ONLY
   if (s->chr) {
-      qemu_chr_close(s->chr);
+      qemu_chr_delete(s->chr);
   }
 #endif
 }
@@ -2785,7 +2785,7 @@ int gdbserver_start(const char *device)
         monitor_init(mon_chr, 0);
     } else {
         if (s->chr)
-            qemu_chr_close(s->chr);
+            qemu_chr_delete(s->chr);
         mon_chr = s->mon_chr;
         memset(s, 0, sizeof(GDBState));
     }
