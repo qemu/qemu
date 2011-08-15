@@ -16,10 +16,13 @@
 #ifndef TUSB6010_H
 #define TUSB6010_H
 
+#include "targphys.h"
+#include "memory.h"
+
 typedef struct TUSBState TUSBState;
 TUSBState *tusb6010_init(qemu_irq intr);
-int tusb6010_sync_io(TUSBState *s);
-int tusb6010_async_io(TUSBState *s);
+MemoryRegion *tusb6010_sync_io(TUSBState *s);
+MemoryRegion *tusb6010_async_io(TUSBState *s);
 void tusb6010_power(TUSBState *s, int on);
 
 #endif

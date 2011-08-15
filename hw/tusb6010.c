@@ -26,7 +26,7 @@
 #include "tusb6010.h"
 
 struct TUSBState {
-    int iomemtype[2];
+    MemoryRegion iomem[2];
     qemu_irq irq;
     MUSBState *musb;
     QEMUTimer *otg_timer;
@@ -234,14 +234,14 @@ struct TUSBState {
 #define TUSB_EP_CONFIG_XFR_SIZE(v)	((v) & 0x7fffffff)
 #define TUSB_PROD_TEST_RESET_VAL	0xa596
 
-int tusb6010_sync_io(TUSBState *s)
+MemoryRegion *tusb6010_sync_io(TUSBState *s)
 {
-    return s->iomemtype[0];
+    return &s->iomem[0];
 }
 
-int tusb6010_async_io(TUSBState *s)
+MemoryRegion *tusb6010_async_io(TUSBState *s)
 {
-    return s->iomemtype[1];
+    return &s->iomem[1];
 }
 
 static void tusb_intr_update(TUSBState *s)
@@ -647,16 +647,12 @@ static void tusb_async_writew(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const tusb_async_readfn[] = {
-    tusb_async_readb,
-    tusb_async_readh,
-    tusb_async_readw,
-};
-
-static CPUWriteMemoryFunc * const tusb_async_writefn[] = {
-    tusb_async_writeb,
-    tusb_async_writeh,
-    tusb_async_writew,
+static const MemoryRegionOps tusb_async_ops = {
+    .old_mmio = {
+        .read = { tusb_async_readb, tusb_async_readh, tusb_async_readw, },
+        .write =  { tusb_async_writeb, tusb_async_writeh, tusb_async_writew, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void tusb_otg_tick(void *opaque)
@@ -739,8 +735,8 @@ TUSBState *tusb6010_init(qemu_irq intr)
     s->mask = 0xffffffff;
     s->intr = 0x00000000;
     s->otg_timer_val = 0;
-    s->iomemtype[1] = cpu_register_io_memory(tusb_async_readfn,
-                    tusb_async_writefn, s, DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->iomem[1], &tusb_async_ops, s, "tusb-async",
+                          UINT32_MAX);
     s->irq = intr;
     s->otg_timer = qemu_new_timer_ns(vm_clock, tusb_otg_tick, s);
     s->pwr_timer = qemu_new_timer_ns(vm_clock, tusb_power_tick, s);

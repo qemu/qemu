@@ -21,10 +21,13 @@
 #include "hw.h"
 #include "flash.h"
 #include "omap.h"
+#include "memory.h"
+#include "exec-memory.h"
 
 /* General-Purpose Memory Controller */
 struct omap_gpmc_s {
     qemu_irq irq;
+    MemoryRegion iomem;
 
     uint8_t sysconfig;
     uint16_t irqst;
@@ -39,7 +42,8 @@ struct omap_gpmc_s {
         uint32_t config[7];
         target_phys_addr_t base;
         size_t size;
-        int iomemtype;
+        MemoryRegion *iomem;
+        MemoryRegion container;
         void (*base_update)(void *opaque, target_phys_addr_t new);
         void (*unmap)(void *opaque);
         void *opaque;
@@ -75,8 +79,12 @@ static void omap_gpmc_cs_map(struct omap_gpmc_cs_file_s *f, int base, int mask)
      * constant), the mask should cause wrapping of the address space, so
      * that the same memory becomes accessible at every <i>size</i> bytes
      * starting from <i>base</i>.  */
-    if (f->iomemtype)
-        cpu_register_physical_memory(f->base, f->size, f->iomemtype);
+    if (f->iomem) {
+        memory_region_init(&f->container, "omap-gpmc-file", f->size);
+        memory_region_add_subregion(&f->container, 0, f->iomem);
+        memory_region_add_subregion(get_system_memory(), f->base,
+                                    &f->container);
+    }
 
     if (f->base_update)
         f->base_update(f->opaque, f->base);
@@ -87,8 +95,11 @@ static void omap_gpmc_cs_unmap(struct omap_gpmc_cs_file_s *f)
     if (f->size) {
         if (f->unmap)
             f->unmap(f->opaque);
-        if (f->iomemtype)
-            cpu_register_physical_memory(f->base, f->size, IO_MEM_UNASSIGNED);
+        if (f->iomem) {
+            memory_region_del_subregion(get_system_memory(), &f->container);
+            memory_region_del_subregion(&f->container, f->iomem);
+            memory_region_destroy(&f->container);
+        }
         f->base = 0;
         f->size = 0;
     }
@@ -132,11 +143,16 @@ void omap_gpmc_reset(struct omap_gpmc_s *s)
         ecc_reset(&s->ecc[i]);
 }
 
-static uint32_t omap_gpmc_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_gpmc_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
     int cs;
     struct omap_gpmc_cs_file_s *f;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x000:	/* GPMC_REVISION */
@@ -230,11 +246,15 @@ static uint32_t omap_gpmc_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
     int cs;
     struct omap_gpmc_cs_file_s *f;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x000:	/* GPMC_REVISION */
@@ -249,7 +269,7 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
 
     case 0x010:	/* GPMC_SYSCONFIG */
         if ((value >> 3) == 0x3)
-            fprintf(stderr, "%s: bad SDRAM idle mode %i\n",
+            fprintf(stderr, "%s: bad SDRAM idle mode %"PRIi64"\n",
                             __FUNCTION__, value >> 3);
         if (value & 2)
             omap_gpmc_reset(s);
@@ -369,34 +389,26 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_gpmc_readfn[] = {
-    omap_badwidth_read32,	/* TODO */
-    omap_badwidth_read32,	/* TODO */
-    omap_gpmc_read,
-};
-
-static CPUWriteMemoryFunc * const omap_gpmc_writefn[] = {
-    omap_badwidth_write32,	/* TODO */
-    omap_badwidth_write32,	/* TODO */
-    omap_gpmc_write,
+static const MemoryRegionOps omap_gpmc_ops = {
+    .read = omap_gpmc_read,
+    .write = omap_gpmc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq)
 {
-    int iomemtype;
     struct omap_gpmc_s *s = (struct omap_gpmc_s *)
             g_malloc0(sizeof(struct omap_gpmc_s));
 
     omap_gpmc_reset(s);
 
-    iomemtype = cpu_register_io_memory(omap_gpmc_readfn,
-                    omap_gpmc_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_gpmc_ops, s, "omap-gpmc", 0x1000);
+    memory_region_add_subregion(get_system_memory(), base, &s->iomem);
 
     return s;
 }
 
-void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, int iomemtype,
+void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem,
                 void (*base_upd)(void *opaque, target_phys_addr_t new),
                 void (*unmap)(void *opaque), void *opaque)
 {
@@ -408,7 +420,7 @@ void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, int iomemtype,
     }
     f = &s->cs_file[cs];
 
-    f->iomemtype = iomemtype;
+    f->iomem = iomem;
     f->base_update = base_upd;
     f->unmap = unmap;
     f->opaque = opaque;
