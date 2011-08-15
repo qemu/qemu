@@ -401,7 +401,7 @@ static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
 
     memcpy(&incoming_posn, buf, sizeof(long));
     /* pick off s->server_chr->msgfd and store it, posn should accompany msg */
-    tmp_fd = qemu_chr_get_msgfd(s->server_chr);
+    tmp_fd = qemu_chr_fe_get_msgfd(s->server_chr);
     IVSHMEM_DPRINTF("posn is %ld, fd is %d\n", incoming_posn, tmp_fd);
 
     /* make sure we have enough space for this guest */

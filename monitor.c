@@ -2770,7 +2770,7 @@ static int do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
     mon_fd_t *monfd;
     int fd;
 
-    fd = qemu_chr_get_msgfd(mon->chr);
+    fd = qemu_chr_fe_get_msgfd(mon->chr);
     if (fd == -1) {
         qerror_report(QERR_FD_NOT_SUPPLIED);
         return -1;
