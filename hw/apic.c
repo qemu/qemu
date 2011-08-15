@@ -80,6 +80,7 @@ typedef struct APICState APICState;
 
 struct APICState {
     SysBusDevice busdev;
+    MemoryRegion io_memory;
     void *cpu_env;
     uint32_t apicbase;
     uint8_t id;
@@ -979,31 +980,25 @@ static void apic_reset(DeviceState *d)
     }
 }
 
-static CPUReadMemoryFunc * const apic_mem_read[3] = {
-    apic_mem_readb,
-    apic_mem_readw,
-    apic_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const apic_mem_write[3] = {
-    apic_mem_writeb,
-    apic_mem_writew,
-    apic_mem_writel,
+static const MemoryRegionOps apic_io_ops = {
+    .old_mmio = {
+        .read = { apic_mem_readb, apic_mem_readw, apic_mem_readl, },
+        .write = { apic_mem_writeb, apic_mem_writew, apic_mem_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int apic_init1(SysBusDevice *dev)
 {
     APICState *s = FROM_SYSBUS(APICState, dev);
-    int apic_io_memory;
     static int last_apic_idx;
 
     if (last_apic_idx >= MAX_APICS) {
         return -1;
     }
-    apic_io_memory = cpu_register_io_memory(apic_mem_read,
-                                            apic_mem_write, NULL,
-                                            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MSI_ADDR_SIZE, apic_io_memory);
+    memory_region_init_io(&s->io_memory, &apic_io_ops, s, "apic",
+                          MSI_ADDR_SIZE);
+    sysbus_init_mmio_region(dev, &s->io_memory);
 
     s->timer = qemu_new_timer_ns(vm_clock, apic_timer, s);
     s->idx = last_apic_idx++;
