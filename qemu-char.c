@@ -2548,7 +2548,7 @@ static const struct {
 #endif
 };
 
-CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
+CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
                                     void (*init)(struct CharDriverState *s))
 {
     CharDriverState *chr;
@@ -2617,7 +2617,7 @@ CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*in
     if (!opts)
         return NULL;
 
-    chr = qemu_chr_open_opts(opts, init);
+    chr = qemu_chr_new_from_opts(opts, init);
     if (chr && qemu_opt_get_bool(opts, "mux", 0)) {
         monitor_init(chr, MONITOR_USE_READLINE);
     }

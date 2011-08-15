@@ -1689,7 +1689,7 @@ static int chardev_init_func(QemuOpts *opts, void *opaque)
 {
     CharDriverState *chr;
 
-    chr = qemu_chr_open_opts(opts, NULL);
+    chr = qemu_chr_new_from_opts(opts, NULL);
     if (!chr)
         return -1;
     return 0;

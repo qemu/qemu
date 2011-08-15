@@ -78,7 +78,7 @@ struct CharDriverState {
 };
 
 QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename);
-CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
+CharDriverState *qemu_chr_new_from_opts(QemuOpts *opts,
                                     void (*init)(struct CharDriverState *s));
 CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*init)(struct CharDriverState *s));
 void qemu_chr_fe_set_echo(struct CharDriverState *chr, bool echo);
