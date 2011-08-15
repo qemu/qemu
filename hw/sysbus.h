@@ -47,8 +47,6 @@ void sysbus_register_withprop(SysBusDeviceInfo *info);
 void *sysbus_new(void);
 void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size,
                       ram_addr_t iofunc);
-void sysbus_init_mmio_cb(SysBusDevice *dev, target_phys_addr_t size,
-                            mmio_mapfunc cb);
 void sysbus_init_mmio_cb2(SysBusDevice *dev,
                           mmio_mapfunc cb, mmio_mapfunc unmap);
 void sysbus_init_mmio_region(SysBusDevice *dev, MemoryRegion *memory);

@@ -107,18 +107,6 @@ void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size,
     dev->mmio[n].iofunc = iofunc;
 }
 
-void sysbus_init_mmio_cb(SysBusDevice *dev, target_phys_addr_t size,
-                         mmio_mapfunc cb)
-{
-    int n;
-
-    assert(dev->num_mmio < QDEV_MAX_MMIO);
-    n = dev->num_mmio++;
-    dev->mmio[n].addr = -1;
-    dev->mmio[n].size = size;
-    dev->mmio[n].cb = cb;
-}
-
 void sysbus_init_mmio_cb2(SysBusDevice *dev,
                           mmio_mapfunc cb, mmio_mapfunc unmap)
 {
