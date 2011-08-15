@@ -73,6 +73,7 @@ struct M48t59State {
 typedef struct M48t59ISAState {
     ISADevice busdev;
     M48t59State state;
+    MemoryRegion io;
 } M48t59ISAState;
 
 typedef struct M48t59SysBusState {
@@ -626,6 +627,15 @@ static void m48t59_reset_sysbus(DeviceState *d)
     m48t59_reset_common(NVRAM);
 }
 
+static const MemoryRegionPortio m48t59_portio[] = {
+    {0, 4, 1, .read = NVRAM_readb, .write = NVRAM_writeb },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionOps m48t59_io_ops = {
+    .old_portio = m48t59_portio,
+};
+
 /* Initialisation routine */
 M48t59State *m48t59_init(qemu_irq IRQ, target_phys_addr_t mem_base,
                          uint32_t io_base, uint16_t size, int type)
@@ -669,10 +679,9 @@ M48t59State *m48t59_init_isa(uint32_t io_base, uint16_t size, int type)
     d = DO_UPCAST(M48t59ISAState, busdev, dev);
     s = &d->state;
 
+    memory_region_init_io(&d->io, &m48t59_io_ops, s, "m48t59", 4);
     if (io_base != 0) {
-        register_ioport_read(io_base, 0x04, 1, NVRAM_readb, s);
-        register_ioport_write(io_base, 0x04, 1, NVRAM_writeb, s);
-        isa_init_ioport_range(dev, io_base, 4);
+        isa_register_ioport(dev, &d->io, io_base);
     }
 
     return s;
