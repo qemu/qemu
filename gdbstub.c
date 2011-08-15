@@ -2764,7 +2764,7 @@ int gdbserver_start(const char *device)
             sigaction(SIGINT, &act, NULL);
         }
 #endif
-        chr = qemu_chr_open("gdb", device, NULL);
+        chr = qemu_chr_new("gdb", device, NULL);
         if (!chr)
             return -1;
 

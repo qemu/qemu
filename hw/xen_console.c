@@ -202,7 +202,7 @@ static int con_init(struct XenDevice *xendev)
         con->chr = serial_hds[con->xendev.dev];
     } else {
         snprintf(label, sizeof(label), "xencons%d", con->xendev.dev);
-        con->chr = qemu_chr_open(label, output, NULL);
+        con->chr = qemu_chr_new(label, output, NULL);
     }
 
     xenstore_store_pv_console_info(con->xendev.dev, con->chr);

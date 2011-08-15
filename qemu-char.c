@@ -2603,7 +2603,7 @@ CharDriverState *qemu_chr_open_opts(QemuOpts *opts,
     return chr;
 }
 
-CharDriverState *qemu_chr_open(const char *label, const char *filename, void (*init)(struct CharDriverState *s))
+CharDriverState *qemu_chr_new(const char *label, const char *filename, void (*init)(struct CharDriverState *s))
 {
     const char *p;
     CharDriverState *chr;

@@ -1828,7 +1828,7 @@ static int serial_parse(const char *devname)
         exit(1);
     }
     snprintf(label, sizeof(label), "serial%d", index);
-    serial_hds[index] = qemu_chr_open(label, devname, NULL);
+    serial_hds[index] = qemu_chr_new(label, devname, NULL);
     if (!serial_hds[index]) {
         fprintf(stderr, "qemu: could not open serial device '%s': %s\n",
                 devname, strerror(errno));
@@ -1850,7 +1850,7 @@ static int parallel_parse(const char *devname)
         exit(1);
     }
     snprintf(label, sizeof(label), "parallel%d", index);
-    parallel_hds[index] = qemu_chr_open(label, devname, NULL);
+    parallel_hds[index] = qemu_chr_new(label, devname, NULL);
     if (!parallel_hds[index]) {
         fprintf(stderr, "qemu: could not open parallel device '%s': %s\n",
                 devname, strerror(errno));
@@ -1881,7 +1881,7 @@ static int virtcon_parse(const char *devname)
     qemu_opt_set(dev_opts, "driver", "virtconsole");
 
     snprintf(label, sizeof(label), "virtcon%d", index);
-    virtcon_hds[index] = qemu_chr_open(label, devname, NULL);
+    virtcon_hds[index] = qemu_chr_new(label, devname, NULL);
     if (!virtcon_hds[index]) {
         fprintf(stderr, "qemu: could not open virtio console '%s': %s\n",
                 devname, strerror(errno));
@@ -1897,7 +1897,7 @@ static int debugcon_parse(const char *devname)
 {   
     QemuOpts *opts;
 
-    if (!qemu_chr_open("debugcon", devname, NULL)) {
+    if (!qemu_chr_new("debugcon", devname, NULL)) {
         exit(1);
     }
     opts = qemu_opts_create(qemu_find_opts("device"), "debugcon", 1);
