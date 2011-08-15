@@ -176,6 +176,7 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     arm_timer_state *timer[2];
     int level[2];
     qemu_irq irq;
@@ -190,7 +191,8 @@ static void sp804_set_irq(void *opaque, int irq, int level)
     qemu_set_irq(s->irq, s->level[0] || s->level[1]);
 }
 
-static uint32_t sp804_read(void *opaque, target_phys_addr_t offset)
+static uint64_t sp804_read(void *opaque, target_phys_addr_t offset,
+                           unsigned size)
 {
     sp804_state *s = (sp804_state *)opaque;
 
@@ -203,7 +205,7 @@ static uint32_t sp804_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void sp804_write(void *opaque, target_phys_addr_t offset,
-                        uint32_t value)
+                        uint64_t value, unsigned size)
 {
     sp804_state *s = (sp804_state *)opaque;
 
@@ -214,18 +216,11 @@ static void sp804_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const sp804_readfn[] = {
-   sp804_read,
-   sp804_read,
-   sp804_read
+static const MemoryRegionOps sp804_ops = {
+    .read = sp804_read,
+    .write = sp804_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
-
-static CPUWriteMemoryFunc * const sp804_writefn[] = {
-   sp804_write,
-   sp804_write,
-   sp804_write
-};
-
 
 static const VMStateDescription vmstate_sp804 = {
     .name = "sp804",
@@ -240,7 +235,6 @@ static const VMStateDescription vmstate_sp804 = {
 
 static int sp804_init(SysBusDevice *dev)
 {
-    int iomemtype;
     sp804_state *s = FROM_SYSBUS(sp804_state, dev);
     qemu_irq *qi;
 
@@ -252,9 +246,8 @@ static int sp804_init(SysBusDevice *dev)
     s->timer[1] = arm_timer_init(1000000);
     s->timer[0]->irq = qi[0];
     s->timer[1]->irq = qi[1];
-    iomemtype = cpu_register_io_memory(sp804_readfn,
-                                       sp804_writefn, s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &sp804_ops, s, "sp804", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     vmstate_register(&dev->qdev, -1, &vmstate_sp804, s);
     return 0;
 }
@@ -264,10 +257,12 @@ static int sp804_init(SysBusDevice *dev)
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     arm_timer_state *timer[3];
 } icp_pit_state;
 
-static uint32_t icp_pit_read(void *opaque, target_phys_addr_t offset)
+static uint64_t icp_pit_read(void *opaque, target_phys_addr_t offset,
+                             unsigned size)
 {
     icp_pit_state *s = (icp_pit_state *)opaque;
     int n;
@@ -282,7 +277,7 @@ static uint32_t icp_pit_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void icp_pit_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                          uint64_t value, unsigned size)
 {
     icp_pit_state *s = (icp_pit_state *)opaque;
     int n;
@@ -295,22 +290,14 @@ static void icp_pit_write(void *opaque, target_phys_addr_t offset,
     arm_timer_write(s->timer[n], offset & 0xff, value);
 }
 
-
-static CPUReadMemoryFunc * const icp_pit_readfn[] = {
-   icp_pit_read,
-   icp_pit_read,
-   icp_pit_read
-};
-
-static CPUWriteMemoryFunc * const icp_pit_writefn[] = {
-   icp_pit_write,
-   icp_pit_write,
-   icp_pit_write
+static const MemoryRegionOps icp_pit_ops = {
+    .read = icp_pit_read,
+    .write = icp_pit_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int icp_pit_init(SysBusDevice *dev)
 {
-    int iomemtype;
     icp_pit_state *s = FROM_SYSBUS(icp_pit_state, dev);
 
     /* Timer 0 runs at the system clock speed (40MHz).  */
@@ -323,10 +310,8 @@ static int icp_pit_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->timer[1]->irq);
     sysbus_init_irq(dev, &s->timer[2]->irq);
 
-    iomemtype = cpu_register_io_memory(icp_pit_readfn,
-                                       icp_pit_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &icp_pit_ops, s, "icp_pit", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     /* This device has no state to save/restore.  The component timers will
        save themselves.  */
     return 0;
