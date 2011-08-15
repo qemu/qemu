@@ -17,6 +17,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq pl110_mux_ctrl;
 
     uint32_t sys_id;
@@ -91,7 +92,8 @@ static void arm_sysctl_reset(DeviceState *d)
     }
 }
 
-static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
+static uint64_t arm_sysctl_read(void *opaque, target_phys_addr_t offset,
+                                unsigned size)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;
 
@@ -188,7 +190,7 @@ static uint32_t arm_sysctl_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t val)
+                             uint64_t val, unsigned size)
 {
     arm_sysctl_state *s = (arm_sysctl_state *)opaque;
 
@@ -327,16 +329,10 @@ static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const arm_sysctl_readfn[] = {
-   arm_sysctl_read,
-   arm_sysctl_read,
-   arm_sysctl_read
-};
-
-static CPUWriteMemoryFunc * const arm_sysctl_writefn[] = {
-   arm_sysctl_write,
-   arm_sysctl_write,
-   arm_sysctl_write
+static const MemoryRegionOps arm_sysctl_ops = {
+    .read = arm_sysctl_read,
+    .write = arm_sysctl_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void arm_sysctl_gpio_set(void *opaque, int line, int level)
@@ -370,12 +366,9 @@ static void arm_sysctl_gpio_set(void *opaque, int line, int level)
 static int arm_sysctl_init1(SysBusDevice *dev)
 {
     arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
-    int iomemtype;
 
-    iomemtype = cpu_register_io_memory(arm_sysctl_readfn,
-                                       arm_sysctl_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &arm_sysctl_ops, s, "arm-sysctl", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     qdev_init_gpio_in(&s->busdev.qdev, arm_sysctl_gpio_set, 2);
     qdev_init_gpio_out(&s->busdev.qdev, &s->pl110_mux_ctrl, 1);
     return 0;
