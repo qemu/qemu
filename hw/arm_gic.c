@@ -104,7 +104,7 @@ typedef struct gic_state
     int num_cpu;
 #endif
 
-    int iomemtype;
+    MemoryRegion iomem;
 } gic_state;
 
 /* TODO: Many places that call this routine could be optimized.  */
@@ -567,16 +567,12 @@ static void gic_dist_writel(void *opaque, target_phys_addr_t offset,
     gic_dist_writew(opaque, offset + 2, value >> 16);
 }
 
-static CPUReadMemoryFunc * const gic_dist_readfn[] = {
-   gic_dist_readb,
-   gic_dist_readw,
-   gic_dist_readl
-};
-
-static CPUWriteMemoryFunc * const gic_dist_writefn[] = {
-   gic_dist_writeb,
-   gic_dist_writew,
-   gic_dist_writel
+static const MemoryRegionOps gic_dist_ops = {
+    .old_mmio = {
+        .read = { gic_dist_readb, gic_dist_readw, gic_dist_readl, },
+        .write = { gic_dist_writeb, gic_dist_writew, gic_dist_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 #ifndef NVIC
@@ -741,9 +737,7 @@ static void gic_init(gic_state *s)
     for (i = 0; i < NUM_CPU(s); i++) {
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
-    s->iomemtype = cpu_register_io_memory(gic_dist_readfn,
-                                          gic_dist_writefn, s,
-                                          DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->iomem, &gic_dist_ops, s, "gic_dist", 0x1000);
     gic_reset(s);
     register_savevm(NULL, "arm_gic", -1, 1, gic_save, gic_load, s);
 }
