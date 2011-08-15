@@ -227,7 +227,7 @@
 #define PCI_MAPPING_ENTRY(regname)            \
     target_phys_addr_t regname ##_start;      \
     target_phys_addr_t regname ##_length;     \
-    int regname ##_handle
+    MemoryRegion regname ##_mem
 
 typedef struct GT64120State {
     SysBusDevice busdev;
@@ -269,9 +269,9 @@ static void gt64120_isd_mapping(GT64120State *s)
     target_phys_addr_t start = s->regs[GT_ISD] << 21;
     target_phys_addr_t length = 0x1000;
 
-    if (s->ISD_length)
-        cpu_register_physical_memory(s->ISD_start, s->ISD_length,
-                                     IO_MEM_UNASSIGNED);
+    if (s->ISD_length) {
+        memory_region_del_subregion(get_system_memory(), &s->ISD_mem);
+    }
     check_reserved_space(&start, &length);
     length = 0x1000;
     /* Map new address */
@@ -279,7 +279,7 @@ static void gt64120_isd_mapping(GT64120State *s)
             length, start, s->ISD_handle);
     s->ISD_start = start;
     s->ISD_length = length;
-    cpu_register_physical_memory(s->ISD_start, s->ISD_length, s->ISD_handle);
+    memory_region_add_subregion(get_system_memory(), s->ISD_start, &s->ISD_mem);
 }
 
 static void gt64120_pci_mapping(GT64120State *s)
@@ -290,7 +290,8 @@ static void gt64120_pci_mapping(GT64120State *s)
       /* Unmap old IO address */
       if (s->PCI0IO_length)
       {
-        cpu_register_physical_memory(s->PCI0IO_start, s->PCI0IO_length, IO_MEM_UNASSIGNED);
+          memory_region_del_subregion(get_system_memory(), &s->PCI0IO_mem);
+          memory_region_destroy(&s->PCI0IO_mem);
       }
       /* Map new IO address */
       s->PCI0IO_start = s->regs[GT_PCI0IOLD] << 21;
@@ -301,7 +302,7 @@ static void gt64120_pci_mapping(GT64120State *s)
 }
 
 static void gt64120_writel (void *opaque, target_phys_addr_t addr,
-                            uint32_t val)
+                            uint64_t val, unsigned size)
 {
     GT64120State *s = opaque;
     uint32_t saddr;
@@ -579,8 +580,8 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint32_t gt64120_readl (void *opaque,
-                               target_phys_addr_t addr)
+static uint64_t gt64120_readl (void *opaque,
+                               target_phys_addr_t addr, unsigned size)
 {
     GT64120State *s = opaque;
     uint32_t val;
@@ -851,16 +852,10 @@ static uint32_t gt64120_readl (void *opaque,
     return val;
 }
 
-static CPUWriteMemoryFunc * const gt64120_write[] = {
-    &gt64120_writel,
-    &gt64120_writel,
-    &gt64120_writel,
-};
-
-static CPUReadMemoryFunc * const gt64120_read[] = {
-    &gt64120_readl,
-    &gt64120_readl,
-    &gt64120_readl,
+static const MemoryRegionOps isd_mem_ops = {
+    .read = gt64120_readl,
+    .write = gt64120_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int gt64120_pci_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -1097,8 +1092,7 @@ PCIBus *gt64120_register(qemu_irq *pic)
                                   get_system_memory(),
                                   get_system_io(),
                                   PCI_DEVFN(18, 0), 4);
-    d->ISD_handle = cpu_register_io_memory(gt64120_read, gt64120_write, d,
-                                           DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&d->ISD_mem, &isd_mem_ops, d, "isd-mem", 0x1000);
 
     pci_create_simple(d->pci.bus, PCI_DEVFN(0, 0), "gt64120_pci");
     return d->pci.bus;
