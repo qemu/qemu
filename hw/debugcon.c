@@ -51,7 +51,7 @@ static void debugcon_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     printf("debugcon: write addr=0x%04x val=0x%02x\n", addr, val);
 #endif
 
-    qemu_chr_write(s->chr, &ch, 1);
+    qemu_chr_fe_write(s->chr, &ch, 1);
 }
 
 

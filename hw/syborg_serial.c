@@ -119,7 +119,7 @@ static void do_dma_tx(SyborgSerialState *s, uint32_t count)
         /* optimize later. Now, 1 byte per iteration */
         while (count--) {
             cpu_physical_memory_read(s->dma_tx_ptr, &ch, 1);
-            qemu_chr_write(s->chr, &ch, 1);
+            qemu_chr_fe_write(s->chr, &ch, 1);
             s->dma_tx_ptr++;
         }
     } else {
@@ -203,7 +203,7 @@ static void syborg_serial_write(void *opaque, target_phys_addr_t offset,
     case SERIAL_DATA:
         ch = value;
         if (s->chr)
-            qemu_chr_write(s->chr, &ch, 1);
+            qemu_chr_fe_write(s->chr, &ch, 1);
         break;
     case SERIAL_INT_ENABLE:
         s->int_enable = value;

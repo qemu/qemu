@@ -120,7 +120,7 @@ parallel_ioport_write_sw(void *opaque, uint32_t addr, uint32_t val)
             if (val & PARA_CTR_STROBE) {
                 s->status &= ~PARA_STS_BUSY;
                 if ((s->control & PARA_CTR_STROBE) == 0)
-                    qemu_chr_write(s->chr, &s->dataw, 1);
+                    qemu_chr_fe_write(s->chr, &s->dataw, 1);
             } else {
                 if (s->control & PARA_CTR_INTEN) {
                     s->irq_pending = 1;

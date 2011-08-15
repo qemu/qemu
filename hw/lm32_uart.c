@@ -169,7 +169,7 @@ static void uart_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     switch (addr) {
     case R_RXTX:
         if (s->chr) {
-            qemu_chr_write(s->chr, &ch, 1);
+            qemu_chr_fe_write(s->chr, &ch, 1);
         }
         break;
     case R_IER:

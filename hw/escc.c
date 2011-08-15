@@ -551,7 +551,7 @@ static void escc_mem_write(void *opaque, target_phys_addr_t addr,
         s->tx = val;
         if (s->wregs[W_TXCTRL2] & TXCTRL2_TXEN) { // tx enabled
             if (s->chr)
-                qemu_chr_write(s->chr, &s->tx, 1);
+                qemu_chr_fe_write(s->chr, &s->tx, 1);
             else if (s->type == kbd && !s->disabled) {
                 handle_kbd_command(s, val);
             }

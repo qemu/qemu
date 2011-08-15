@@ -334,7 +334,7 @@ static void serial_xmit(void *opaque)
     if (s->mcr & UART_MCR_LOOP) {
         /* in loopback mode, say that we just received a char */
         serial_receive1(s, &s->tsr, 1);
-    } else if (qemu_chr_write(s->chr, &s->tsr, 1) != 1) {
+    } else if (qemu_chr_fe_write(s->chr, &s->tsr, 1) != 1) {
         if ((s->tsr_retry > 0) && (s->tsr_retry <= MAX_XMIT_RETRY)) {
             s->tsr_retry++;
             qemu_mod_timer(s->transmit_timer,  new_xmit_ts + s->char_transmit_time);

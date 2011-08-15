@@ -371,7 +371,7 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
             goto fail;
         for (i = 0; i < p->iov.niov; i++) {
             iov = p->iov.iov + i;
-            qemu_chr_write(s->cs, iov->iov_base, iov->iov_len);
+            qemu_chr_fe_write(s->cs, iov->iov_base, iov->iov_len);
         }
         break;
 

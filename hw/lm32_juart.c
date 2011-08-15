@@ -72,7 +72,7 @@ void lm32_juart_set_jtx(DeviceState *d, uint32_t jtx)
 
     s->jtx = jtx;
     if (s->chr) {
-        qemu_chr_write(s->chr, &ch, 1);
+        qemu_chr_fe_write(s->chr, &ch, 1);
     }
 }
 

@@ -139,7 +139,7 @@ void qemu_chr_generic_open(CharDriverState *s)
     }
 }
 
-int qemu_chr_write(CharDriverState *s, const uint8_t *buf, int len)
+int qemu_chr_fe_write(CharDriverState *s, const uint8_t *buf, int len)
 {
     return s->chr_write(s, buf, len);
 }
@@ -185,7 +185,7 @@ void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
-    qemu_chr_write(s, (uint8_t *)buf, strlen(buf));
+    qemu_chr_fe_write(s, (uint8_t *)buf, strlen(buf));
     va_end(ap);
 }
 

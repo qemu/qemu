@@ -156,7 +156,7 @@ static void xencons_send(struct XenConsole *con)
 
     size = con->buffer.size - con->buffer.consumed;
     if (con->chr)
-        len = qemu_chr_write(con->chr, con->buffer.data + con->buffer.consumed,
+        len = qemu_chr_fe_write(con->chr, con->buffer.data + con->buffer.consumed,
                              size);
     else
         len = size;

@@ -818,7 +818,7 @@ int slirp_add_exec(Slirp *slirp, int do_pty, const void *args,
 ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
 {
 	if (so->s == -1 && so->extra) {
-		qemu_chr_write(so->extra, buf, len);
+		qemu_chr_fe_write(so->extra, buf, len);
 		return len;
 	}
 

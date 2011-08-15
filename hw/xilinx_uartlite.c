@@ -129,7 +129,7 @@ uart_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
 
         case R_TX:
             if (s->chr)
-                qemu_chr_write(s->chr, &ch, 1);
+                qemu_chr_fe_write(s->chr, &ch, 1);
 
             s->regs[addr] = value;
 

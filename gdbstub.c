@@ -382,7 +382,7 @@ static void put_buffer(GDBState *s, const uint8_t *buf, int len)
         }
     }
 #else
-    qemu_chr_write(s->chr, buf, len);
+    qemu_chr_fe_write(s->chr, buf, len);
 #endif
 }
 
