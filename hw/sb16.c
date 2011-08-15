@@ -1341,12 +1341,21 @@ static const VMStateDescription vmstate_sb16 = {
     }
 };
 
+static const MemoryRegionPortio sb16_ioport_list[] = {
+    {  4, 1, 1, .write = mixer_write_indexb },
+    {  4, 1, 2, .write = mixer_write_indexw },
+    {  5, 1, 1, .read = mixer_read, .write = mixer_write_datab },
+    {  6, 1, 1, .read = dsp_read, .write = dsp_write },
+    { 10, 1, 1, .read = dsp_read },
+    { 12, 1, 1, .write = dsp_write },
+    { 12, 4, 1, .read = dsp_read },
+    PORTIO_END_OF_LIST(),
+};
+
+
 static int sb16_initfn (ISADevice *dev)
 {
-    static const uint8_t dsp_write_ports[] = {0x6, 0xc};
-    static const uint8_t dsp_read_ports[] = {0x6, 0xa, 0xc, 0xd, 0xe, 0xf};
     SB16State *s;
-    int i;
 
     s = DO_UPCAST (SB16State, dev, dev);
 
@@ -1366,22 +1375,7 @@ static int sb16_initfn (ISADevice *dev)
         dolog ("warning: Could not create auxiliary timer\n");
     }
 
-    for (i = 0; i < ARRAY_SIZE (dsp_write_ports); i++) {
-        register_ioport_write (s->port + dsp_write_ports[i], 1, 1, dsp_write, s);
-        isa_init_ioport (dev, s->port + dsp_write_ports[i]);
-    }
-
-    for (i = 0; i < ARRAY_SIZE (dsp_read_ports); i++) {
-        register_ioport_read (s->port + dsp_read_ports[i], 1, 1, dsp_read, s);
-        isa_init_ioport (dev, s->port + dsp_read_ports[i]);
-    }
-
-    register_ioport_write (s->port + 0x4, 1, 1, mixer_write_indexb, s);
-    register_ioport_write (s->port + 0x4, 1, 2, mixer_write_indexw, s);
-    isa_init_ioport (dev, s->port + 0x4);
-    register_ioport_read (s->port + 0x5, 1, 1, mixer_read, s);
-    register_ioport_write (s->port + 0x5, 1, 1, mixer_write_datab, s);
-    isa_init_ioport (dev, s->port + 0x5);
+    isa_register_portio_list (dev, s->port, sb16_ioport_list, s, "sb16");
 
     DMA_register_channel (s->hdma, SB_read_DMA, s);
     DMA_register_channel (s->dma, SB_read_DMA, s);
