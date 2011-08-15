@@ -94,7 +94,7 @@ void qemu_chr_add_handlers(CharDriverState *s,
                            IOReadHandler *fd_read,
                            IOEventHandler *fd_event,
                            void *opaque);
-int qemu_chr_ioctl(CharDriverState *s, int cmd, void *arg);
+int qemu_chr_fe_ioctl(CharDriverState *s, int cmd, void *arg);
 void qemu_chr_generic_open(CharDriverState *s);
 int qemu_chr_be_can_write(CharDriverState *s);
 void qemu_chr_be_write(CharDriverState *s, uint8_t *buf, int len);
