@@ -212,11 +212,12 @@ static inline int isa_vga_init(void)
 
 int pci_vga_init(PCIBus *bus);
 int isa_vga_mm_init(target_phys_addr_t vram_base,
-                    target_phys_addr_t ctrl_base, int it_shift);
+                    target_phys_addr_t ctrl_base, int it_shift,
+                    MemoryRegion *address_space);
 
 /* cirrus_vga.c */
 void pci_cirrus_vga_init(PCIBus *bus);
-void isa_cirrus_vga_init(void);
+void isa_cirrus_vga_init(MemoryRegion *address_space);
 
 /* ne2000.c */
 static inline bool isa_ne2000_init(int base, int irq, NICInfo *nd)

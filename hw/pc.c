@@ -42,6 +42,7 @@
 #include "blockdev.h"
 #include "ui/qemu-spice.h"
 #include "memory.h"
+#include "exec-memory.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -1066,7 +1067,7 @@ void pc_vga_init(PCIBus *pci_bus)
         if (pci_bus) {
             pci_cirrus_vga_init(pci_bus);
         } else {
-            isa_cirrus_vga_init();
+            isa_cirrus_vga_init(get_system_memory());
         }
     } else if (vmsvga_enabled) {
         if (pci_bus) {

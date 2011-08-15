@@ -187,7 +187,7 @@ static inline int c6_to_8(int v)
 }
 
 void vga_common_init(VGACommonState *s, int vga_ram_size);
-void vga_init(VGACommonState *s);
+void vga_init(VGACommonState *s, MemoryRegion *address_space);
 MemoryRegion *vga_init_io(VGACommonState *s);
 void vga_common_reset(VGACommonState *s);
 
@@ -217,7 +217,7 @@ void vga_draw_cursor_line_32(uint8_t *d1, const uint8_t *src1,
                              unsigned int color_xor);
 
 int vga_ioport_invalid(VGACommonState *s, uint32_t addr);
-void vga_init_vbe(VGACommonState *s);
+void vga_init_vbe(VGACommonState *s, MemoryRegion *address_space);
 
 extern const uint8_t sr_mask[8];
 extern const uint8_t gr_mask[16];

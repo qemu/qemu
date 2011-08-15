@@ -28,7 +28,6 @@
 #include "vga_int.h"
 #include "pixel_ops.h"
 #include "qemu-timer.h"
-#include "exec-memory.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
@@ -2241,7 +2240,7 @@ MemoryRegion *vga_init_io(VGACommonState *s)
     return vga_mem;
 }
 
-void vga_init(VGACommonState *s)
+void vga_init(VGACommonState *s, MemoryRegion *address_space)
 {
     MemoryRegion *vga_io_memory;
 
@@ -2250,18 +2249,18 @@ void vga_init(VGACommonState *s)
     s->bank_offset = 0;
 
     vga_io_memory = vga_init_io(s);
-    memory_region_add_subregion_overlap(get_system_memory(),
+    memory_region_add_subregion_overlap(address_space,
                                         isa_mem_base + 0x000a0000,
                                         vga_io_memory,
                                         1);
     memory_region_set_coalescing(vga_io_memory);
 }
 
-void vga_init_vbe(VGACommonState *s)
+void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
 {
 #ifdef CONFIG_BOCHS_VBE
     /* XXX: use optimized standard vga accesses */
-    memory_region_add_subregion(get_system_memory(),
+    memory_region_add_subregion(system_memory,
                                 VBE_DISPI_LFB_PHYSICAL_ADDRESS,
                                 &s->vram);
     s->vbe_mapped = 1;

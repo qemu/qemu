@@ -38,6 +38,7 @@
 #include "mc146818rtc.h"
 #include "blockdev.h"
 #include "sysbus.h"
+#include "exec-memory.h"
 
 enum jazz_model_e
 {
@@ -197,7 +198,7 @@ void mips_jazz_init (ram_addr_t ram_size,
         g364fb_mm_init(0x40000000, 0x60000000, 0, rc4030[3]);
         break;
     case JAZZ_PICA61:
-        isa_vga_mm_init(0x40000000, 0x60000000, 0);
+        isa_vga_mm_init(0x40000000, 0x60000000, 0, get_system_memory());
         break;
     default:
         break;

@@ -54,7 +54,7 @@ static int pci_vga_initfn(PCIDevice *dev)
 
      // vga + console init
      vga_common_init(s, VGA_RAM_SIZE);
-     vga_init(s);
+     vga_init(s, pci_address_space(dev));
 
      s->ds = graphic_console_init(s->update, s->invalidate,
                                   s->screen_dump, s->text_update, s);
@@ -64,7 +64,7 @@ static int pci_vga_initfn(PCIDevice *dev)
 
      if (!dev->rom_bar) {
          /* compatibility with pc-0.13 and older */
-         vga_init_vbe(s);
+         vga_init_vbe(s, pci_address_space(dev));
      }
 
      return 0;
