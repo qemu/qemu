@@ -106,31 +106,27 @@ static void bitband_writel(void *opaque, target_phys_addr_t offset,
     cpu_physical_memory_write(addr, (uint8_t *)&v, 4);
 }
 
-static CPUReadMemoryFunc * const bitband_readfn[] = {
-   bitband_readb,
-   bitband_readw,
-   bitband_readl
-};
-
-static CPUWriteMemoryFunc * const bitband_writefn[] = {
-   bitband_writeb,
-   bitband_writew,
-   bitband_writel
+static const MemoryRegionOps bitband_ops = {
+    .old_mmio = {
+        .read = { bitband_readb, bitband_readw, bitband_readl, },
+        .write = { bitband_writeb, bitband_writew, bitband_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t base;
 } BitBandState;
 
 static int bitband_init(SysBusDevice *dev)
 {
     BitBandState *s = FROM_SYSBUS(BitBandState, dev);
-    int iomemtype;
 
-    iomemtype = cpu_register_io_memory(bitband_readfn, bitband_writefn,
-                                       &s->base, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x02000000, iomemtype);
+    memory_region_init_io(&s->iomem, &bitband_ops, &s->base, "bitband",
+                          0x02000000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
