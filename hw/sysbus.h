@@ -23,6 +23,7 @@ struct SysBusDevice {
         target_phys_addr_t addr;
         target_phys_addr_t size;
         mmio_mapfunc cb;
+        mmio_mapfunc unmap;
         ram_addr_t iofunc;
         MemoryRegion *memory;
     } mmio[QDEV_MAX_MMIO];
@@ -48,6 +49,8 @@ void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size,
                       ram_addr_t iofunc);
 void sysbus_init_mmio_cb(SysBusDevice *dev, target_phys_addr_t size,
                             mmio_mapfunc cb);
+void sysbus_init_mmio_cb2(SysBusDevice *dev,
+                          mmio_mapfunc cb, mmio_mapfunc unmap);
 void sysbus_init_mmio_region(SysBusDevice *dev, MemoryRegion *memory);
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
 void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target);
