@@ -223,7 +223,7 @@ static void baum_accept_input(struct CharDriverState *chr)
 
     if (!baum->out_buf_used)
         return;
-    room = qemu_chr_can_read(chr);
+    room = qemu_chr_be_can_write(chr);
     if (!room)
         return;
     if (room > baum->out_buf_used)
@@ -250,7 +250,7 @@ static void baum_write_packet(BaumDriverState *baum, const uint8_t *buf, int len
     while (len--)
         if ((*cur++ = *buf++) == ESC)
             *cur++ = ESC;
-    room = qemu_chr_can_read(baum->chr);
+    room = qemu_chr_be_can_write(baum->chr);
     len = cur - io_buf;
     if (len <= room) {
         /* Fits */

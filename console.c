@@ -1123,7 +1123,7 @@ static void kbd_send_chars(void *opaque)
     int len;
     uint8_t buf[16];
 
-    len = qemu_chr_can_read(s->chr);
+    len = qemu_chr_be_can_write(s->chr);
     if (len > s->out_fifo.count)
         len = s->out_fifo.count;
     if (len > 0) {
