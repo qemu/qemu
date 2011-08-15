@@ -424,7 +424,6 @@ typedef struct FDCtrlSysBus {
 
 typedef struct FDCtrlISABus {
     ISADevice busdev;
-    MemoryRegion io_0, io_7;
     struct FDCtrl state;
     int32_t bootindexA;
     int32_t bootindexB;
@@ -1880,32 +1879,10 @@ static int fdctrl_init_common(FDCtrl *fdctrl)
     return fdctrl_connect_drives(fdctrl);
 }
 
-static uint32_t fdctrl_read_port_7(void *opaque, uint32_t reg)
-{
-    return fdctrl_read(opaque, reg + 7);
-}
-
-static void fdctrl_write_port_7(void *opaque, uint32_t reg, uint32_t value)
-{
-    fdctrl_write(opaque, reg + 7, value);
-}
-
-static const MemoryRegionPortio fdc_portio_0[] = {
+static const MemoryRegionPortio fdc_portio_list[] = {
     { 1, 5, 1, .read = fdctrl_read, .write = fdctrl_write },
-    PORTIO_END_OF_LIST()
-};
-
-static const MemoryRegionPortio fdc_portio_7[] = {
-    { 0, 1, 1, .read = fdctrl_read_port_7, .write = fdctrl_write_port_7 },
-    PORTIO_END_OF_LIST()
-};
-
-static const MemoryRegionOps fdc_ioport_0_ops = {
-    .old_portio = fdc_portio_0
-};
-
-static const MemoryRegionOps fdc_ioport_7_ops = {
-    .old_portio = fdc_portio_7
+    { 7, 1, 1, .read = fdctrl_read, .write = fdctrl_write },
+    PORTIO_END_OF_LIST(),
 };
 
 static int isabus_fdc_init1(ISADevice *dev)
@@ -1917,10 +1894,7 @@ static int isabus_fdc_init1(ISADevice *dev)
     int dma_chann = 2;
     int ret;
 
-    memory_region_init_io(&isa->io_0, &fdc_ioport_0_ops, fdctrl, "fdc", 6);
-    memory_region_init_io(&isa->io_7, &fdc_ioport_7_ops, fdctrl, "fdc", 1);
-    isa_register_ioport(dev, &isa->io_0, iobase);
-    isa_register_ioport(dev, &isa->io_7, iobase + 7);
+    isa_register_portio_list(dev, iobase, fdc_portio_list, fdctrl, "fdc");
 
     isa_init_irq(&isa->busdev, &fdctrl->irq, isairq);
     fdctrl->dma_chann = dma_chann;
