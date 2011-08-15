@@ -232,6 +232,22 @@ static const VMStateDescription vmstate_gus = {
     }
 };
 
+static const MemoryRegionPortio gus_portio_list1[] = {
+    {0x000,  1, 1, .write = gus_writeb },
+    {0x000,  1, 2, .write = gus_writew },
+    {0x006, 10, 1, .read = gus_readb, .write = gus_writeb },
+    {0x006, 10, 2, .read = gus_readw, .write = gus_writew },
+    {0x100,  8, 1, .read = gus_readb, .write = gus_writeb },
+    {0x100,  8, 2, .read = gus_readw, .write = gus_writew },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionPortio gus_portio_list2[] = {
+    {0, 1, 1, .read = gus_readb },
+    {0, 1, 2, .read = gus_readw },
+    PORTIO_END_OF_LIST(),
+};
+
 static int gus_initfn (ISADevice *dev)
 {
     GUSState *s = DO_UPCAST (GUSState, dev, dev);
@@ -262,25 +278,9 @@ static int gus_initfn (ISADevice *dev)
     s->samples = AUD_get_buffer_size_out (s->voice) >> s->shift;
     s->mixbuf = g_malloc0 (s->samples << s->shift);
 
-    register_ioport_write (s->port, 1, 1, gus_writeb, s);
-    register_ioport_write (s->port, 1, 2, gus_writew, s);
-    isa_init_ioport_range (dev, s->port, 2);
-
-    register_ioport_read ((s->port + 0x100) & 0xf00, 1, 1, gus_readb, s);
-    register_ioport_read ((s->port + 0x100) & 0xf00, 1, 2, gus_readw, s);
-    isa_init_ioport_range (dev, (s->port + 0x100) & 0xf00, 2);
-
-    register_ioport_write (s->port + 6, 10, 1, gus_writeb, s);
-    register_ioport_write (s->port + 6, 10, 2, gus_writew, s);
-    register_ioport_read (s->port + 6, 10, 1, gus_readb, s);
-    register_ioport_read (s->port + 6, 10, 2, gus_readw, s);
-    isa_init_ioport_range (dev, s->port + 6, 10);
-
-    register_ioport_write (s->port + 0x100, 8, 1, gus_writeb, s);
-    register_ioport_write (s->port + 0x100, 8, 2, gus_writew, s);
-    register_ioport_read (s->port + 0x100, 8, 1, gus_readb, s);
-    register_ioport_read (s->port + 0x100, 8, 2, gus_readw, s);
-    isa_init_ioport_range (dev, s->port + 0x100, 8);
+    isa_register_portio_list (dev, s->port, gus_portio_list1, s, "gus");
+    isa_register_portio_list (dev, (s->port + 0x100) & 0xf00,
+                              gus_portio_list2, s, "gus");
 
     DMA_register_channel (s->emu.gusdma, GUS_read_DMA, s);
     s->emu.himemaddr = s->himem;
