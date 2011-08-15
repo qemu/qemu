@@ -1130,7 +1130,7 @@ static void kbd_send_chars(void *opaque)
         if (len > sizeof(buf))
             len = sizeof(buf);
         qemu_fifo_read(&s->out_fifo, buf, len);
-        qemu_chr_read(s->chr, buf, len);
+        qemu_chr_be_write(s->chr, buf, len);
     }
     /* characters are pending: we send them a bit later (XXX:
        horrible, should change char device API) */

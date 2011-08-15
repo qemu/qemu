@@ -2194,7 +2194,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             hextomem(mem_buf, p + 5, len);
             len = len / 2;
             mem_buf[len++] = 0;
-            qemu_chr_read(s->mon_chr, mem_buf, len);
+            qemu_chr_be_write(s->mon_chr, mem_buf, len);
             put_packet(s, "OK");
             break;
         }

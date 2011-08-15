@@ -50,7 +50,7 @@ static void msmouse_event(void *opaque,
     /* We always send the packet of, so that we do not have to keep track
        of previous state of the middle button. This can potentially confuse
        some very old drivers for two button mice though. */
-    qemu_chr_read(chr, bytes, 4);
+    qemu_chr_be_write(chr, bytes, 4);
 }
 
 static int msmouse_chr_write (struct CharDriverState *s, const uint8_t *buf, int len)
