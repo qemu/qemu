@@ -501,8 +501,9 @@ int kvm_arch_init_vcpu(CPUState *env)
     qemu_add_vm_change_state_handler(cpu_update_state, env);
 
     r = kvm_vcpu_ioctl(env, KVM_SET_CPUID2, &cpuid_data);
-    if (r)
-	    return r;
+    if (r) {
+        return r;
+    }
 
     r = kvm_check_extension(env->kvm_state, KVM_CAP_TSC_CONTROL);
     if (r && env->tsc_khz) {
