@@ -13,12 +13,9 @@ typedef struct ISADeviceInfo ISADeviceInfo;
 
 struct ISADevice {
     DeviceState qdev;
-    MemoryRegion *io[32];
     uint32_t isairq[2];
-    uint16_t ioports[32];
     int nirqs;
-    int nioports;
-    int nio;
+    int ioport_id;
 };
 
 typedef int (*isa_qdev_initfn)(ISADevice *dev);
