@@ -92,8 +92,8 @@ static void malta_fpga_update_display(void *opaque)
     }
     leds_text[8] = '\0';
 
-    qemu_chr_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
-    qemu_chr_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
+    qemu_chr_fe_printf(s->display, "\e[H\n\n|\e[32m%-8.8s\e[00m|\r\n", leds_text);
+    qemu_chr_fe_printf(s->display, "\n\n\n\n|\e[31m%-8.8s\e[00m|", s->display_text);
 }
 
 /*
@@ -417,15 +417,15 @@ static void malta_fpga_reset(void *opaque)
 
 static void malta_fpga_led_init(CharDriverState *chr)
 {
-    qemu_chr_printf(chr, "\e[HMalta LEDBAR\r\n");
-    qemu_chr_printf(chr, "+--------+\r\n");
-    qemu_chr_printf(chr, "+        +\r\n");
-    qemu_chr_printf(chr, "+--------+\r\n");
-    qemu_chr_printf(chr, "\n");
-    qemu_chr_printf(chr, "Malta ASCII\r\n");
-    qemu_chr_printf(chr, "+--------+\r\n");
-    qemu_chr_printf(chr, "+        +\r\n");
-    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_fe_printf(chr, "\e[HMalta LEDBAR\r\n");
+    qemu_chr_fe_printf(chr, "+--------+\r\n");
+    qemu_chr_fe_printf(chr, "+        +\r\n");
+    qemu_chr_fe_printf(chr, "+--------+\r\n");
+    qemu_chr_fe_printf(chr, "\n");
+    qemu_chr_fe_printf(chr, "Malta ASCII\r\n");
+    qemu_chr_fe_printf(chr, "+--------+\r\n");
+    qemu_chr_fe_printf(chr, "+        +\r\n");
+    qemu_chr_fe_printf(chr, "+--------+\r\n");
 }
 
 static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_irq, CharDriverState *uart_chr)

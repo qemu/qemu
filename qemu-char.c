@@ -179,7 +179,7 @@ void qemu_chr_accept_input(CharDriverState *s)
         s->chr_accept_input(s);
 }
 
-void qemu_chr_printf(CharDriverState *s, const char *fmt, ...)
+void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
 {
     char buf[READ_BUF_LEN];
     va_list ap;
