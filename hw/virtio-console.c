@@ -52,7 +52,7 @@ static void guest_open(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
-    qemu_chr_guest_open(vcon->chr);
+    qemu_chr_fe_open(vcon->chr);
 }
 
 /* Callback function that's called when the guest closes the port */

@@ -2632,7 +2632,7 @@ void qemu_chr_set_echo(struct CharDriverState *chr, bool echo)
     }
 }
 
-void qemu_chr_guest_open(struct CharDriverState *chr)
+void qemu_chr_fe_open(struct CharDriverState *chr)
 {
     if (chr->chr_guest_open) {
         chr->chr_guest_open(chr);
