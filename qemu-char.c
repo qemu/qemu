@@ -189,12 +189,6 @@ void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
     va_end(ap);
 }
 
-void qemu_chr_send_event(CharDriverState *s, int event)
-{
-    if (s->chr_send_event)
-        s->chr_send_event(s, event);
-}
-
 void qemu_chr_add_handlers(CharDriverState *s,
                            IOCanReadHandler *fd_can_read,
                            IOReadHandler *fd_read,

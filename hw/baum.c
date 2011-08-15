@@ -468,20 +468,6 @@ static int baum_write(CharDriverState *chr, const uint8_t *buf, int len)
     return orig_len;
 }
 
-/* The other end sent us some event */
-static void baum_send_event(CharDriverState *chr, int event)
-{
-    BaumDriverState *baum = chr->opaque;
-    switch (event) {
-    case CHR_EVENT_BREAK:
-        break;
-    case CHR_EVENT_OPENED:
-        /* Reset state */
-        baum->in_buf_used = 0;
-        break;
-    }
-}
-
 /* Send the key code to the other end */
 static void baum_send_key(BaumDriverState *baum, uint8_t type, uint8_t value) {
     uint8_t packet[] = { type, value };
@@ -591,7 +577,6 @@ int chr_baum_init(QemuOpts *opts, CharDriverState **_chr)
 
     chr->opaque = baum;
     chr->chr_write = baum_write;
-    chr->chr_send_event = baum_send_event;
     chr->chr_accept_input = baum_accept_input;
     chr->chr_close = baum_close;
 
