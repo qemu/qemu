@@ -47,13 +47,6 @@ void *tahvo_init(qemu_irq irq, int betty);
 
 void retu_key_event(void *retu, int state);
 
-/* tusb6010.c */
-typedef struct TUSBState TUSBState;
-TUSBState *tusb6010_init(qemu_irq intr);
-int tusb6010_sync_io(TUSBState *s);
-int tusb6010_async_io(TUSBState *s);
-void tusb6010_power(TUSBState *s, int on);
-
 /* tc6393xb.c */
 typedef struct TC6393xbState TC6393xbState;
 #define TC6393XB_RAM	0x110000 /* amount of ram for Video and USB */

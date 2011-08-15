@@ -32,6 +32,7 @@
 #include "bt.h"
 #include "loader.h"
 #include "blockdev.h"
+#include "tusb6010.h"
 
 /* Nokia N8x0 support */
 struct n800_s {

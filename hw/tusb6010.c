@@ -23,7 +23,7 @@
 #include "usb.h"
 #include "omap.h"
 #include "irq.h"
-#include "devices.h"
+#include "tusb6010.h"
 
 struct TUSBState {
     int iomemtype[2];
