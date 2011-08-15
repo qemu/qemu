@@ -25,6 +25,7 @@
 #include "ppc.h"
 #include "ppc4xx.h"
 #include "qemu-log.h"
+#include "exec-memory.h"
 
 //#define DEBUG_MMIO
 //#define DEBUG_UNASSIGNED
@@ -313,6 +314,8 @@ typedef struct ppc4xx_sdram_t ppc4xx_sdram_t;
 struct ppc4xx_sdram_t {
     uint32_t addr;
     int nbanks;
+    MemoryRegion containers[4]; /* used for clipping */
+    MemoryRegion *ram_memories;
     target_phys_addr_t ram_bases[4];
     target_phys_addr_t ram_sizes[4];
     uint32_t besr0;
@@ -395,16 +398,22 @@ static target_ulong sdram_size (uint32_t bcr)
     return size;
 }
 
-static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
+static void sdram_set_bcr(ppc4xx_sdram_t *sdram,
+                          uint32_t *bcrp, uint32_t bcr, int enabled)
 {
+    unsigned n = bcrp - sdram->bcr;
+
     if (*bcrp & 0x00000001) {
         /* Unmap RAM */
 #ifdef DEBUG_SDRAM
         printf("%s: unmap RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
                __func__, sdram_base(*bcrp), sdram_size(*bcrp));
 #endif
-        cpu_register_physical_memory(sdram_base(*bcrp), sdram_size(*bcrp),
-                                     IO_MEM_UNASSIGNED);
+        memory_region_del_subregion(get_system_memory(),
+                                    &sdram->containers[n]);
+        memory_region_del_subregion(&sdram->containers[n],
+                                    &sdram->ram_memories[n]);
+        memory_region_destroy(&sdram->containers[n]);
     }
     *bcrp = bcr & 0xFFDEE001;
     if (enabled && (bcr & 0x00000001)) {
@@ -412,8 +421,13 @@ static void sdram_set_bcr (uint32_t *bcrp, uint32_t bcr, int enabled)
         printf("%s: Map RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
                __func__, sdram_base(bcr), sdram_size(bcr));
 #endif
-        cpu_register_physical_memory(sdram_base(bcr), sdram_size(bcr),
-                                     sdram_base(bcr) | IO_MEM_RAM);
+        memory_region_init(&sdram->containers[n], "sdram-containers",
+                           sdram_size(bcr));
+        memory_region_add_subregion(&sdram->containers[n], 0,
+                                    &sdram->ram_memories[n]);
+        memory_region_add_subregion(get_system_memory(),
+                                    sdram_base(bcr),
+                                    &sdram->containers[n]);
     }
 }
 
@@ -423,11 +437,12 @@ static void sdram_map_bcr (ppc4xx_sdram_t *sdram)
 
     for (i = 0; i < sdram->nbanks; i++) {
         if (sdram->ram_sizes[i] != 0) {
-            sdram_set_bcr(&sdram->bcr[i],
+            sdram_set_bcr(sdram,
+                          &sdram->bcr[i],
                           sdram_bcr(sdram->ram_bases[i], sdram->ram_sizes[i]),
                           1);
         } else {
-            sdram_set_bcr(&sdram->bcr[i], 0x00000000, 0);
+            sdram_set_bcr(sdram, &sdram->bcr[i], 0x00000000, 0);
         }
     }
 }
@@ -441,9 +456,8 @@ static void sdram_unmap_bcr (ppc4xx_sdram_t *sdram)
         printf("%s: Unmap RAM area " TARGET_FMT_plx " " TARGET_FMT_lx "\n",
                __func__, sdram_base(sdram->bcr[i]), sdram_size(sdram->bcr[i]));
 #endif
-        cpu_register_physical_memory(sdram_base(sdram->bcr[i]),
-                                     sdram_size(sdram->bcr[i]),
-                                     IO_MEM_UNASSIGNED);
+        memory_region_del_subregion(get_system_memory(),
+                                    &sdram->ram_memories[i]);
     }
 }
 
@@ -568,16 +582,16 @@ static void dcr_write_sdram (void *opaque, int dcrn, uint32_t val)
             sdram->pmit = (val & 0xF8000000) | 0x07C00000;
             break;
         case 0x40: /* SDRAM_B0CR */
-            sdram_set_bcr(&sdram->bcr[0], val, sdram->cfg & 0x80000000);
+            sdram_set_bcr(sdram, &sdram->bcr[0], val, sdram->cfg & 0x80000000);
             break;
         case 0x44: /* SDRAM_B1CR */
-            sdram_set_bcr(&sdram->bcr[1], val, sdram->cfg & 0x80000000);
+            sdram_set_bcr(sdram, &sdram->bcr[1], val, sdram->cfg & 0x80000000);
             break;
         case 0x48: /* SDRAM_B2CR */
-            sdram_set_bcr(&sdram->bcr[2], val, sdram->cfg & 0x80000000);
+            sdram_set_bcr(sdram, &sdram->bcr[2], val, sdram->cfg & 0x80000000);
             break;
         case 0x4C: /* SDRAM_B3CR */
-            sdram_set_bcr(&sdram->bcr[3], val, sdram->cfg & 0x80000000);
+            sdram_set_bcr(sdram, &sdram->bcr[3], val, sdram->cfg & 0x80000000);
             break;
         case 0x80: /* SDRAM_TR */
             sdram->tr = val & 0x018FC01F;
@@ -621,6 +635,7 @@ static void sdram_reset (void *opaque)
 }
 
 void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
+                        MemoryRegion *ram_memories,
                         target_phys_addr_t *ram_bases,
                         target_phys_addr_t *ram_sizes,
                         int do_init)
@@ -630,6 +645,7 @@ void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
     sdram = g_malloc0(sizeof(ppc4xx_sdram_t));
     sdram->irq = irq;
     sdram->nbanks = nbanks;
+    sdram->ram_memories = ram_memories;
     memset(sdram->ram_bases, 0, 4 * sizeof(target_phys_addr_t));
     memcpy(sdram->ram_bases, ram_bases,
            nbanks * sizeof(target_phys_addr_t));
@@ -653,11 +669,13 @@ void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
  * must be one of a small set of sizes. The number of banks and the supported
  * sizes varies by SoC. */
 ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
+                               MemoryRegion ram_memories[],
                                target_phys_addr_t ram_bases[],
                                target_phys_addr_t ram_sizes[],
                                const unsigned int sdram_bank_sizes[])
 {
     ram_addr_t size_left = ram_size;
+    ram_addr_t base = 0;
     int i;
     int j;
 
@@ -668,8 +686,10 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
             if (bank_size <= size_left) {
                 char name[32];
                 snprintf(name, sizeof(name), "ppc4xx.sdram%d", i);
-                ram_bases[i] = qemu_ram_alloc(NULL, name, bank_size);
+                memory_region_init_ram(&ram_memories[i], NULL, name, bank_size);
+                ram_bases[i] = base;
                 ram_sizes[i] = bank_size;
+                base += ram_size;
                 size_left -= bank_size;
                 break;
             }

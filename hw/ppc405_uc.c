@@ -2107,7 +2107,8 @@ static void ppc405cr_cpc_init (CPUState *env, clk_setup_t clk_setup[7],
     qemu_register_reset(ppc405cr_cpc_reset, cpc);
 }
 
-CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
+CPUState *ppc405cr_init (MemoryRegion ram_memories[4],
+                         target_phys_addr_t ram_bases[4],
                          target_phys_addr_t ram_sizes[4],
                          uint32_t sysclk, qemu_irq **picp,
                          int do_init)
@@ -2136,7 +2137,8 @@ CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
     pic = ppcuic_init(env, irqs, 0x0C0, 0, 1);
     *picp = pic;
     /* SDRAM controller */
-    ppc4xx_sdram_init(env, pic[14], 1, ram_bases, ram_sizes, do_init);
+    ppc4xx_sdram_init(env, pic[14], 1, ram_memories,
+                      ram_bases, ram_sizes, do_init);
     /* External bus controller */
     ppc405_ebc_init(env);
     /* DMA controller */
@@ -2451,7 +2453,8 @@ static void ppc405ep_cpc_init (CPUState *env, clk_setup_t clk_setup[8],
 #endif
 }
 
-CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
+CPUState *ppc405ep_init (MemoryRegion ram_memories[2],
+                         target_phys_addr_t ram_bases[2],
                          target_phys_addr_t ram_sizes[2],
                          uint32_t sysclk, qemu_irq **picp,
                          int do_init)
@@ -2485,7 +2488,8 @@ CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
     *picp = pic;
     /* SDRAM controller */
 	/* XXX 405EP has no ECC interrupt */
-    ppc4xx_sdram_init(env, pic[17], 2, ram_bases, ram_sizes, do_init);
+    ppc4xx_sdram_init(env, pic[17], 2, ram_memories,
+                      ram_bases, ram_sizes, do_init);
     /* External bus controller */
     ppc405_ebc_init(env);
     /* DMA controller */

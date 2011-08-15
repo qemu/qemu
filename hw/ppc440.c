@@ -38,6 +38,8 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
                         const unsigned int pci_irq_nrs[4], int do_init,
                         const char *cpu_model)
 {
+    MemoryRegion *ram_memories
+        = g_malloc(PPC440EP_SDRAM_NR_BANKS * sizeof(*ram_memories));
     target_phys_addr_t ram_bases[PPC440EP_SDRAM_NR_BANKS];
     target_phys_addr_t ram_sizes[PPC440EP_SDRAM_NR_BANKS];
     CPUState *env;
@@ -66,11 +68,12 @@ CPUState *ppc440ep_init(ram_addr_t *ram_size, PCIBus **pcip,
     memset(ram_bases, 0, sizeof(ram_bases));
     memset(ram_sizes, 0, sizeof(ram_sizes));
     *ram_size = ppc4xx_sdram_adjust(*ram_size, PPC440EP_SDRAM_NR_BANKS,
+                                    ram_memories,
                                     ram_bases, ram_sizes,
                                     ppc440ep_sdram_bank_sizes);
     /* XXX 440EP's ECC interrupts are on UIC1, but we've only created UIC0. */
-    ppc4xx_sdram_init(env, pic[14], PPC440EP_SDRAM_NR_BANKS, ram_bases,
-                      ram_sizes, do_init);
+    ppc4xx_sdram_init(env, pic[14], PPC440EP_SDRAM_NR_BANKS, ram_memories,
+                      ram_bases, ram_sizes, do_init);
 
     /* PCI */
     pci_irqs = g_malloc(sizeof(qemu_irq) * 4);
