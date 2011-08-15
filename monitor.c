@@ -2226,7 +2226,8 @@ static void mem_print(Monitor *mon, target_phys_addr_t *pstart,
 
 static void mem_info_32(Monitor *mon, CPUState *env)
 {
-    int l1, l2, prot, last_prot;
+    unsigned int l1, l2;
+    int prot, last_prot;
     uint32_t pgd, pde, pte;
     target_phys_addr_t start, end;
 
@@ -2263,7 +2264,8 @@ static void mem_info_32(Monitor *mon, CPUState *env)
 
 static void mem_info_pae32(Monitor *mon, CPUState *env)
 {
-    int l1, l2, l3, prot, last_prot;
+    unsigned int l1, l2, l3;
+    int prot, last_prot;
     uint64_t pdpe, pde, pte;
     uint64_t pdp_addr, pd_addr, pt_addr;
     target_phys_addr_t start, end;
