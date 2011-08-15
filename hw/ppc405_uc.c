@@ -28,6 +28,7 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "qemu-log.h"
+#include "exec-memory.h"
 
 #define DEBUG_OPBA
 #define DEBUG_SDRAM
@@ -259,6 +260,7 @@ static void ppc4xx_pob_init(CPUState *env)
 /* OPB arbitrer */
 typedef struct ppc4xx_opba_t ppc4xx_opba_t;
 struct ppc4xx_opba_t {
+    MemoryRegion io;
     uint8_t cr;
     uint8_t pr;
 };
@@ -357,16 +359,12 @@ static void opba_writel (void *opaque,
     opba_writeb(opaque, addr + 1, value >> 16);
 }
 
-static CPUReadMemoryFunc * const opba_read[] = {
-    &opba_readb,
-    &opba_readw,
-    &opba_readl,
-};
-
-static CPUWriteMemoryFunc * const opba_write[] = {
-    &opba_writeb,
-    &opba_writew,
-    &opba_writel,
+static const MemoryRegionOps opba_ops = {
+    .old_mmio = {
+        .read = { opba_readb, opba_readw, opba_readl, },
+        .write = { opba_writeb, opba_writew, opba_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void ppc4xx_opba_reset (void *opaque)
@@ -381,15 +379,13 @@ static void ppc4xx_opba_reset (void *opaque)
 static void ppc4xx_opba_init(target_phys_addr_t base)
 {
     ppc4xx_opba_t *opba;
-    int io;
 
     opba = g_malloc0(sizeof(ppc4xx_opba_t));
 #ifdef DEBUG_OPBA
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    io = cpu_register_io_memory(opba_read, opba_write, opba,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x002, io);
+    memory_region_init_io(&opba->io, &opba_ops, opba, "opba", 0x002);
+    memory_region_add_subregion(get_system_memory(), base, &opba->io);
     qemu_register_reset(ppc4xx_opba_reset, opba);
 }
 
@@ -722,6 +718,7 @@ static void ppc405_dma_init(CPUState *env, qemu_irq irqs[4])
 /* GPIO */
 typedef struct ppc405_gpio_t ppc405_gpio_t;
 struct ppc405_gpio_t {
+    MemoryRegion io;
     uint32_t or;
     uint32_t tcr;
     uint32_t osrh;
@@ -789,16 +786,12 @@ static void ppc405_gpio_writel (void *opaque,
 #endif
 }
 
-static CPUReadMemoryFunc * const ppc405_gpio_read[] = {
-    &ppc405_gpio_readb,
-    &ppc405_gpio_readw,
-    &ppc405_gpio_readl,
-};
-
-static CPUWriteMemoryFunc * const ppc405_gpio_write[] = {
-    &ppc405_gpio_writeb,
-    &ppc405_gpio_writew,
-    &ppc405_gpio_writel,
+static const MemoryRegionOps ppc405_gpio_ops = {
+    .old_mmio = {
+        .read = { ppc405_gpio_readb, ppc405_gpio_readw, ppc405_gpio_readl, },
+        .write = { ppc405_gpio_writeb, ppc405_gpio_writew, ppc405_gpio_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void ppc405_gpio_reset (void *opaque)
@@ -808,15 +801,13 @@ static void ppc405_gpio_reset (void *opaque)
 static void ppc405_gpio_init(target_phys_addr_t base)
 {
     ppc405_gpio_t *gpio;
-    int io;
 
     gpio = g_malloc0(sizeof(ppc405_gpio_t));
 #ifdef DEBUG_GPIO
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    io = cpu_register_io_memory(ppc405_gpio_read, ppc405_gpio_write, gpio,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x038, io);
+    memory_region_init_io(&gpio->io, &ppc405_gpio_ops, gpio, "pgio", 0x038);
+    memory_region_add_subregion(get_system_memory(), base, &gpio->io);
     qemu_register_reset(&ppc405_gpio_reset, gpio);
 }
 
@@ -831,7 +822,9 @@ enum {
 
 typedef struct ppc405_ocm_t ppc405_ocm_t;
 struct ppc405_ocm_t {
-    target_ulong offset;
+    MemoryRegion ram;
+    MemoryRegion isarc_ram;
+    MemoryRegion dsarc_ram;
     uint32_t isarc;
     uint32_t isacntl;
     uint32_t dsarc;
@@ -854,16 +847,15 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
         if (ocm->isacntl & 0x80000000) {
             /* Unmap previously assigned memory region */
             printf("OCM unmap ISA %08" PRIx32 "\n", ocm->isarc);
-            cpu_register_physical_memory(ocm->isarc, 0x04000000,
-                                         IO_MEM_UNASSIGNED);
+            memory_region_del_subregion(get_system_memory(), &ocm->isarc_ram);
         }
         if (isacntl & 0x80000000) {
             /* Map new instruction memory region */
 #ifdef DEBUG_OCM
             printf("OCM map ISA %08" PRIx32 "\n", isarc);
 #endif
-            cpu_register_physical_memory(isarc, 0x04000000,
-                                         ocm->offset | IO_MEM_RAM);
+            memory_region_add_subregion(get_system_memory(), isarc,
+                                        &ocm->isarc_ram);
         }
     }
     if (ocm->dsarc != dsarc ||
@@ -875,8 +867,8 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
 #ifdef DEBUG_OCM
                 printf("OCM unmap DSA %08" PRIx32 "\n", ocm->dsarc);
 #endif
-                cpu_register_physical_memory(ocm->dsarc, 0x04000000,
-                                             IO_MEM_UNASSIGNED);
+                memory_region_del_subregion(get_system_memory(),
+                                            &ocm->dsarc_ram);
             }
         }
         if (dsacntl & 0x80000000) {
@@ -886,8 +878,8 @@ static void ocm_update_mappings (ppc405_ocm_t *ocm,
 #ifdef DEBUG_OCM
                 printf("OCM map DSA %08" PRIx32 "\n", dsarc);
 #endif
-                cpu_register_physical_memory(dsarc, 0x04000000,
-                                             ocm->offset | IO_MEM_RAM);
+                memory_region_add_subregion(get_system_memory(), dsarc,
+                                            &ocm->dsarc_ram);
             }
         }
     }
@@ -973,7 +965,10 @@ static void ppc405_ocm_init(CPUState *env)
     ppc405_ocm_t *ocm;
 
     ocm = g_malloc0(sizeof(ppc405_ocm_t));
-    ocm->offset = qemu_ram_alloc(NULL, "ppc405.ocm", 4096);
+    /* XXX: Size is 4096 or 0x04000000 */
+    memory_region_init_ram(&ocm->isarc_ram, NULL, "ppc405.ocm", 4096);
+    memory_region_init_alias(&ocm->dsarc_ram, "ppc405.dsarc", &ocm->isarc_ram,
+                             0, 4096);
     qemu_register_reset(&ocm_reset, ocm);
     ppc_dcr_register(env, OCM0_ISARC,
                      ocm, &dcr_read_ocm, &dcr_write_ocm);
@@ -990,6 +985,7 @@ static void ppc405_ocm_init(CPUState *env)
 typedef struct ppc4xx_i2c_t ppc4xx_i2c_t;
 struct ppc4xx_i2c_t {
     qemu_irq irq;
+    MemoryRegion iomem;
     uint8_t mdata;
     uint8_t lmadr;
     uint8_t hmadr;
@@ -1186,16 +1182,12 @@ static void ppc4xx_i2c_writel (void *opaque,
     ppc4xx_i2c_writeb(opaque, addr + 3, value);
 }
 
-static CPUReadMemoryFunc * const i2c_read[] = {
-    &ppc4xx_i2c_readb,
-    &ppc4xx_i2c_readw,
-    &ppc4xx_i2c_readl,
-};
-
-static CPUWriteMemoryFunc * const i2c_write[] = {
-    &ppc4xx_i2c_writeb,
-    &ppc4xx_i2c_writew,
-    &ppc4xx_i2c_writel,
+static const MemoryRegionOps i2c_ops = {
+    .old_mmio = {
+        .read = { ppc4xx_i2c_readb, ppc4xx_i2c_readw, ppc4xx_i2c_readl, },
+        .write = { ppc4xx_i2c_writeb, ppc4xx_i2c_writew, ppc4xx_i2c_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void ppc4xx_i2c_reset (void *opaque)
@@ -1217,16 +1209,14 @@ static void ppc4xx_i2c_reset (void *opaque)
 static void ppc405_i2c_init(target_phys_addr_t base, qemu_irq irq)
 {
     ppc4xx_i2c_t *i2c;
-    int io;
 
     i2c = g_malloc0(sizeof(ppc4xx_i2c_t));
     i2c->irq = irq;
 #ifdef DEBUG_I2C
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    io = cpu_register_io_memory(i2c_read, i2c_write, i2c,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x011, io);
+    memory_region_init_io(&i2c->iomem, &i2c_ops, i2c, "i2c", 0x011);
+    memory_region_add_subregion(get_system_memory(), base, &i2c->iomem);
     qemu_register_reset(ppc4xx_i2c_reset, i2c);
 }
 
@@ -1234,6 +1224,7 @@ static void ppc405_i2c_init(target_phys_addr_t base, qemu_irq irq)
 /* General purpose timers */
 typedef struct ppc4xx_gpt_t ppc4xx_gpt_t;
 struct ppc4xx_gpt_t {
+    MemoryRegion iomem;
     int64_t tb_offset;
     uint32_t tb_freq;
     struct QEMUTimer *timer;
@@ -1454,16 +1445,12 @@ static void ppc4xx_gpt_writel (void *opaque,
     }
 }
 
-static CPUReadMemoryFunc * const gpt_read[] = {
-    &ppc4xx_gpt_readb,
-    &ppc4xx_gpt_readw,
-    &ppc4xx_gpt_readl,
-};
-
-static CPUWriteMemoryFunc * const gpt_write[] = {
-    &ppc4xx_gpt_writeb,
-    &ppc4xx_gpt_writew,
-    &ppc4xx_gpt_writel,
+static const MemoryRegionOps gpt_ops = {
+    .old_mmio = {
+        .read = { ppc4xx_gpt_readb, ppc4xx_gpt_readw, ppc4xx_gpt_readl, },
+        .write = { ppc4xx_gpt_writeb, ppc4xx_gpt_writew, ppc4xx_gpt_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void ppc4xx_gpt_cb (void *opaque)
@@ -1498,7 +1485,6 @@ static void ppc4xx_gpt_init(target_phys_addr_t base, qemu_irq irqs[5])
 {
     ppc4xx_gpt_t *gpt;
     int i;
-    int io;
 
     gpt = g_malloc0(sizeof(ppc4xx_gpt_t));
     for (i = 0; i < 5; i++) {
@@ -1508,8 +1494,8 @@ static void ppc4xx_gpt_init(target_phys_addr_t base, qemu_irq irqs[5])
 #ifdef DEBUG_GPT
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
-    io = cpu_register_io_memory(gpt_read, gpt_write, gpt, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x0d4, io);
+    memory_region_init_io(&gpt->iomem, &gpt_ops, gpt, "gpt", 0x0d4);
+    memory_region_add_subregion(get_system_memory(), base, &gpt->iomem);
     qemu_register_reset(ppc4xx_gpt_reset, gpt);
 }
 
