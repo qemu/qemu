@@ -75,7 +75,7 @@ static void buffered_flush(QEMUFileBuffered *s)
 
     DPRINTF("flushing %zu byte(s) of data\n", s->buffer_size);
 
-    while (offset < s->buffer_size) {
+    while (s->bytes_xfer < s->xfer_limit && offset < s->buffer_size) {
         ssize_t ret;
 
         ret = s->put_buffer(s->opaque, s->buffer + offset,
@@ -93,6 +93,7 @@ static void buffered_flush(QEMUFileBuffered *s)
         } else {
             DPRINTF("flushed %zd byte(s)\n", ret);
             offset += ret;
+            s->bytes_xfer += ret;
         }
     }
 
@@ -104,8 +105,7 @@ static void buffered_flush(QEMUFileBuffered *s)
 static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, int size)
 {
     QEMUFileBuffered *s = opaque;
-    int offset = 0, error;
-    ssize_t ret;
+    int error;
 
     DPRINTF("putting %d bytes at %" PRId64 "\n", size, pos);
 
@@ -118,48 +118,22 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
     DPRINTF("unfreezing output\n");
     s->freeze_output = 0;
 
-    buffered_flush(s);
-
-    while (!s->freeze_output && offset < size) {
-        if (s->bytes_xfer > s->xfer_limit) {
-            DPRINTF("transfer limit exceeded when putting\n");
-            break;
-        }
-
-        ret = s->put_buffer(s->opaque, buf + offset, size - offset);
-        if (ret == -EAGAIN) {
-            DPRINTF("backend not ready, freezing\n");
-            s->freeze_output = 1;
-            break;
-        }
-
-        if (ret <= 0) {
-            DPRINTF("error putting\n");
-            qemu_file_set_error(s->file, ret);
-            offset = -EINVAL;
-            break;
-        }
-
-        DPRINTF("put %zd byte(s)\n", ret);
-        offset += ret;
-        s->bytes_xfer += ret;
-    }
-
-    if (offset >= 0) {
+    if (size > 0) {
         DPRINTF("buffering %d bytes\n", size - offset);
-        buffered_append(s, buf + offset, size - offset);
-        offset = size;
+        buffered_append(s, buf, size);
     }
+
+    buffered_flush(s);
 
     if (pos == 0 && size == 0) {
         DPRINTF("file is ready\n");
-        if (s->bytes_xfer <= s->xfer_limit) {
+        if (!s->freeze_output && s->bytes_xfer < s->xfer_limit) {
             DPRINTF("notifying client\n");
             s->put_ready(s->opaque);
         }
     }
 
-    return offset;
+    return size;
 }
 
 static int buffered_close(void *opaque)
@@ -169,6 +143,7 @@ static int buffered_close(void *opaque)
 
     DPRINTF("closing\n");
 
+    s->xfer_limit = INT_MAX;
     while (!qemu_file_get_error(s->file) && s->buffer_size) {
         buffered_flush(s);
         if (s->freeze_output)
@@ -248,10 +223,7 @@ static void buffered_rate_tick(void *opaque)
 
     s->bytes_xfer = 0;
 
-    buffered_flush(s);
-
-    /* Add some checks around this */
-    s->put_ready(s->opaque);
+    buffered_put_buffer(s, NULL, 0, 0);
 }
 
 QEMUFile *qemu_fopen_ops_buffered(void *opaque,
