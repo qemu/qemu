@@ -25,6 +25,7 @@
 #include <hw/hw.h>
 #include <hw/pc.h>
 #include <hw/pci.h>
+#include <hw/isa.h>
 #include "qemu-error.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
@@ -1969,20 +1970,27 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
     bus->dma = &ide_dma_nop;
 }
 
-void ide_init_ioport(IDEBus *bus, int iobase, int iobase2)
-{
-    register_ioport_write(iobase, 8, 1, ide_ioport_write, bus);
-    register_ioport_read(iobase, 8, 1, ide_ioport_read, bus);
-    if (iobase2) {
-        register_ioport_read(iobase2, 1, 1, ide_status_read, bus);
-        register_ioport_write(iobase2, 1, 1, ide_cmd_write, bus);
-    }
+static const MemoryRegionPortio ide_portio_list[] = {
+    { 0, 8, 1, .read = ide_ioport_read, .write = ide_ioport_write },
+    { 0, 2, 2, .read = ide_data_readw, .write = ide_data_writew },
+    { 0, 4, 4, .read = ide_data_readl, .write = ide_data_writel },
+    PORTIO_END_OF_LIST(),
+};
 
-    /* data ports */
-    register_ioport_write(iobase, 2, 2, ide_data_writew, bus);
-    register_ioport_read(iobase, 2, 2, ide_data_readw, bus);
-    register_ioport_write(iobase, 4, 4, ide_data_writel, bus);
-    register_ioport_read(iobase, 4, 4, ide_data_readl, bus);
+static const MemoryRegionPortio ide_portio2_list[] = {
+    { 0, 1, 1, .read = ide_status_read, .write = ide_cmd_write },
+    PORTIO_END_OF_LIST(),
+};
+
+void ide_init_ioport(IDEBus *bus, ISADevice *dev, int iobase, int iobase2)
+{
+    /* ??? Assume only ISA and PCI configurations, and that the PCI-ISA
+       bridge has been setup properly to always register with ISA.  */
+    isa_register_portio_list(dev, iobase, ide_portio_list, bus, "ide");
+
+    if (iobase2) {
+        isa_register_portio_list(dev, iobase2, ide_portio2_list, bus, "ide");
+    }
 }
 
 static bool is_identify_set(void *opaque, int version_id)
