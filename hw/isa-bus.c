@@ -83,24 +83,17 @@ void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq)
     dev->nirqs++;
 }
 
-void isa_init_ioport_range(ISADevice *dev, uint16_t start, uint16_t length)
+static inline void isa_init_ioport(ISADevice *dev, uint16_t ioport)
 {
-    if (dev->ioport_id == 0 || start < dev->ioport_id) {
-        dev->ioport_id = start;
+    if (dev && (dev->ioport_id == 0 || ioport < dev->ioport_id)) {
+        dev->ioport_id = ioport;
     }
-}
-
-void isa_init_ioport(ISADevice *dev, uint16_t ioport)
-{
-    isa_init_ioport_range(dev, ioport, 1);
 }
 
 void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start)
 {
     memory_region_add_subregion(isabus->address_space_io, start, io);
-    if (dev != NULL) {
-        isa_init_ioport(dev, start);
-    }
+    isa_init_ioport(dev, start);
 }
 
 void isa_register_portio_list(ISADevice *dev, uint16_t start,
@@ -112,9 +105,7 @@ void isa_register_portio_list(ISADevice *dev, uint16_t start,
     /* START is how we should treat DEV, regardless of the actual
        contents of the portio array.  This is how the old code
        actually handled e.g. the FDC device.  */
-    if (dev) {
-        isa_init_ioport(dev, start);
-    }
+    isa_init_ioport(dev, start);
 
     portio_list_init(piolist, pio_start, opaque, name);
     portio_list_add(piolist, isabus->address_space_io, start);

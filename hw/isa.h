@@ -28,8 +28,6 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io);
 void isa_bus_irqs(qemu_irq *irqs);
 qemu_irq isa_get_irq(int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq);
-void isa_init_ioport(ISADevice *dev, uint16_t ioport);
-void isa_init_ioport_range(ISADevice *dev, uint16_t start, uint16_t length);
 void isa_qdev_register(ISADeviceInfo *info);
 MemoryRegion *isa_address_space(ISADevice *dev);
 ISADevice *isa_create(const char *name);
