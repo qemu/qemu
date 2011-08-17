@@ -528,7 +528,6 @@ static void ram_migration_cancel(void *opaque)
     migration_end();
 }
 
-
 static void reset_ram_globals(void)
 {
     last_block = NULL;
@@ -547,6 +546,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
     bitmap_set(migration_bitmap, 0, ram_pages);
     migration_dirty_pages = ram_pages;
 
+    qemu_mutex_lock_ramlist();
     bytes_transferred = 0;
     reset_ram_globals();
 
@@ -574,6 +574,7 @@ static int ram_save_setup(QEMUFile *f, void *opaque)
         qemu_put_be64(f, block->length);
     }
 
+    qemu_mutex_unlock_ramlist();
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
     return 0;
@@ -587,6 +588,8 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int i;
     uint64_t expected_downtime;
     MigrationState *s = migrate_get_current();
+
+    qemu_mutex_lock_ramlist();
 
     if (ram_list.version != last_version) {
         reset_ram_globals();
@@ -636,6 +639,7 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
         bwidth = 0.000001;
     }
 
+    qemu_mutex_unlock_ramlist();
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
     expected_downtime = ram_save_remaining() * TARGET_PAGE_SIZE / bwidth;
@@ -656,6 +660,8 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
 {
     migration_bitmap_sync();
 
+    qemu_mutex_lock_ramlist();
+
     /* try transferring iterative blocks of memory */
 
     /* flush all remaining blocks regardless of rate limiting */
@@ -671,6 +677,7 @@ static int ram_save_complete(QEMUFile *f, void *opaque)
     }
     migration_end();
 
+    qemu_mutex_unlock_ramlist();
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);
 
     return 0;
