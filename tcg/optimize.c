@@ -215,6 +215,24 @@ static TCGArg do_constant_folding_2(int op, TCGArg x, TCGArg y)
     CASE_OP_32_64(not):
         return ~x;
 
+    CASE_OP_32_64(neg):
+        return -x;
+
+    CASE_OP_32_64(andc):
+        return x & ~y;
+
+    CASE_OP_32_64(orc):
+        return x | ~y;
+
+    CASE_OP_32_64(eqv):
+        return ~(x ^ y);
+
+    CASE_OP_32_64(nand):
+        return ~(x & y);
+
+    CASE_OP_32_64(nor):
+        return ~(x | y);
+
     CASE_OP_32_64(ext8s):
         return (int8_t)x;
 
@@ -290,6 +308,9 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(and):
         CASE_OP_32_64(or):
         CASE_OP_32_64(xor):
+        CASE_OP_32_64(eqv):
+        CASE_OP_32_64(nand):
+        CASE_OP_32_64(nor):
             if (temps[args[1]].state == TCG_TEMP_CONST) {
                 tmp = args[1];
                 args[1] = args[2];
@@ -389,6 +410,7 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
             args += 2;
             break;
         CASE_OP_32_64(not):
+        CASE_OP_32_64(neg):
         CASE_OP_32_64(ext8s):
         CASE_OP_32_64(ext8u):
         CASE_OP_32_64(ext16s):
@@ -421,6 +443,11 @@ static TCGArg *tcg_constant_folding(TCGContext *s, uint16_t *tcg_opc_ptr,
         CASE_OP_32_64(sar):
         CASE_OP_32_64(rotl):
         CASE_OP_32_64(rotr):
+        CASE_OP_32_64(andc):
+        CASE_OP_32_64(orc):
+        CASE_OP_32_64(eqv):
+        CASE_OP_32_64(nand):
+        CASE_OP_32_64(nor):
             if (temps[args[1]].state == TCG_TEMP_CONST
                 && temps[args[2]].state == TCG_TEMP_CONST) {
                 gen_opc_buf[op_index] = op_to_movi(op);
