@@ -1483,7 +1483,8 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
     FILE *f = NULL;
     char line[1024];
     char buf[1024];
-    int bus_num, addr, speed, device_count, class_id, product_id, vendor_id;
+    int bus_num, addr, speed, device_count;
+    int class_id, product_id, vendor_id, port;
     char product_name[512];
     int ret = 0;
 
@@ -1499,7 +1500,7 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
     }
 
     device_count = 0;
-    bus_num = addr = class_id = product_id = vendor_id = 0;
+    bus_num = addr = class_id = product_id = vendor_id = port = 0;
     speed = -1; /* Can't get the speed from /[proc|dev]/bus/usb/devices */
     for(;;) {
         if (fgets(line, sizeof(line), f) == NULL) {
@@ -1521,6 +1522,10 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
                 goto fail;
             }
             bus_num = atoi(buf);
+            if (get_tag_value(buf, sizeof(buf), line, "Port=", " ") < 0) {
+                goto fail;
+            }
+            port = atoi(buf);
             if (get_tag_value(buf, sizeof(buf), line, "Dev#=", " ") < 0) {
                 goto fail;
             }
@@ -1566,7 +1571,12 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
     }
     if (device_count && (vendor_id || product_id)) {
         /* Add the last device.  */
-        ret = func(opaque, bus_num, addr, 0, class_id, vendor_id,
+        if (port > 0) {
+            snprintf(buf, sizeof(buf), "%d", port);
+        } else {
+            snprintf(buf, sizeof(buf), "?");
+        }
+        ret = func(opaque, bus_num, addr, buf, class_id, vendor_id,
                    product_id, product_name, speed);
     }
  the_end:
