@@ -870,7 +870,8 @@ static int img_convert(int argc, char **argv)
 
                 ret = bdrv_read(bs[bs_i], bs_num, buf2, nlow);
                 if (ret < 0) {
-                    error_report("error while reading");
+                    error_report("error while reading sector %" PRId64 ": %s",
+                                 bs_num, strerror(-ret));
                     goto out;
                 }
 
@@ -888,8 +889,8 @@ static int img_convert(int argc, char **argv)
                 ret = bdrv_write_compressed(out_bs, sector_num, buf,
                                             cluster_sectors);
                 if (ret != 0) {
-                    error_report("error while compressing sector %" PRId64,
-                          sector_num);
+                    error_report("error while compressing sector %" PRId64
+                                 ": %s", sector_num, strerror(-ret));
                     goto out;
                 }
             }
@@ -952,7 +953,8 @@ static int img_convert(int argc, char **argv)
 
             ret = bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n);
             if (ret < 0) {
-                error_report("error while reading");
+                error_report("error while reading sector %" PRId64 ": %s",
+                             sector_num - bs_offset, strerror(-ret));
                 goto out;
             }
             /* NOTE: at the same time we convert, we do not write zero
@@ -971,7 +973,8 @@ static int img_convert(int argc, char **argv)
                     is_allocated_sectors(buf1, n, &n1)) {
                     ret = bdrv_write(out_bs, sector_num, buf1, n1);
                     if (ret < 0) {
-                        error_report("error while writing");
+                        error_report("error while writing sector %" PRId64
+                                     ": %s", sector_num, strerror(-ret));
                         goto out;
                     }
                 }
