@@ -54,7 +54,7 @@ struct usb_ctrltransfer {
     void *data;
 };
 
-typedef int USBScanFunc(void *opaque, int bus_num, int addr, char *port,
+typedef int USBScanFunc(void *opaque, int bus_num, int addr, const char *port,
                         int class_id, int vendor_id, int product_id,
                         const char *product_name, int speed);
 
@@ -1141,7 +1141,8 @@ static int usb_linux_full_speed_compat(USBHostDevice *dev)
 }
 
 static int usb_host_open(USBHostDevice *dev, int bus_num,
-                        int addr, char *port, const char *prod_name, int speed)
+                         int addr, const char *port,
+                         const char *prod_name, int speed)
 {
     int fd = -1, ret;
     char buf[1024];
@@ -1774,7 +1775,8 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
 
 static QEMUTimer *usb_auto_timer;
 
-static int usb_host_auto_scan(void *opaque, int bus_num, int addr, char *port,
+static int usb_host_auto_scan(void *opaque, int bus_num,
+                              int addr, const char *port,
                               int class_id, int vendor_id, int product_id,
                               const char *product_name, int speed)
 {
@@ -1948,7 +1950,8 @@ static const char *usb_class_str(uint8_t class)
     return p->class_name;
 }
 
-static void usb_info_device(Monitor *mon, int bus_num, int addr, char *port,
+static void usb_info_device(Monitor *mon, int bus_num,
+                            int addr, const char *port,
                             int class_id, int vendor_id, int product_id,
                             const char *product_name,
                             int speed)
@@ -1989,7 +1992,7 @@ static void usb_info_device(Monitor *mon, int bus_num, int addr, char *port,
 }
 
 static int usb_host_info_device(void *opaque, int bus_num, int addr,
-                                char *path, int class_id,
+                                const char *path, int class_id,
                                 int vendor_id, int product_id,
                                 const char *product_name,
                                 int speed)
