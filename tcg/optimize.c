@@ -92,81 +92,10 @@ static void reset_temp(TCGArg temp, int nb_temps, int nb_globals)
     }
 }
 
-static int op_bits(int op)
+static int op_bits(enum TCGOpcode op)
 {
-    switch (op) {
-    case INDEX_op_mov_i32:
-    case INDEX_op_add_i32:
-    case INDEX_op_sub_i32:
-    case INDEX_op_mul_i32:
-    case INDEX_op_and_i32:
-    case INDEX_op_or_i32:
-    case INDEX_op_xor_i32:
-    case INDEX_op_shl_i32:
-    case INDEX_op_shr_i32:
-    case INDEX_op_sar_i32:
-#ifdef TCG_TARGET_HAS_rot_i32
-    case INDEX_op_rotl_i32:
-    case INDEX_op_rotr_i32:
-#endif
-#ifdef TCG_TARGET_HAS_not_i32
-    case INDEX_op_not_i32:
-#endif
-#ifdef TCG_TARGET_HAS_ext8s_i32
-    case INDEX_op_ext8s_i32:
-#endif
-#ifdef TCG_TARGET_HAS_ext16s_i32
-    case INDEX_op_ext16s_i32:
-#endif
-#ifdef TCG_TARGET_HAS_ext8u_i32
-    case INDEX_op_ext8u_i32:
-#endif
-#ifdef TCG_TARGET_HAS_ext16u_i32
-    case INDEX_op_ext16u_i32:
-#endif
-        return 32;
-#if TCG_TARGET_REG_BITS == 64
-    case INDEX_op_mov_i64:
-    case INDEX_op_add_i64:
-    case INDEX_op_sub_i64:
-    case INDEX_op_mul_i64:
-    case INDEX_op_and_i64:
-    case INDEX_op_or_i64:
-    case INDEX_op_xor_i64:
-    case INDEX_op_shl_i64:
-    case INDEX_op_shr_i64:
-    case INDEX_op_sar_i64:
-#ifdef TCG_TARGET_HAS_rot_i64
-    case INDEX_op_rotl_i64:
-    case INDEX_op_rotr_i64:
-#endif
-#ifdef TCG_TARGET_HAS_not_i64
-    case INDEX_op_not_i64:
-#endif
-#ifdef TCG_TARGET_HAS_ext8s_i64
-    case INDEX_op_ext8s_i64:
-#endif
-#ifdef TCG_TARGET_HAS_ext16s_i64
-    case INDEX_op_ext16s_i64:
-#endif
-#ifdef TCG_TARGET_HAS_ext32s_i64
-    case INDEX_op_ext32s_i64:
-#endif
-#ifdef TCG_TARGET_HAS_ext8u_i64
-    case INDEX_op_ext8u_i64:
-#endif
-#ifdef TCG_TARGET_HAS_ext16u_i64
-    case INDEX_op_ext16u_i64:
-#endif
-#ifdef TCG_TARGET_HAS_ext32u_i64
-    case INDEX_op_ext32u_i64:
-#endif
-        return 64;
-#endif
-    default:
-        fprintf(stderr, "Unrecognized operation %d in op_bits.\n", op);
-        tcg_abort();
-    }
+    const TCGOpDef *def = &tcg_op_defs[op];
+    return def->flags & TCG_OPF_64BIT ? 64 : 32;
 }
 
 static int op_to_movi(int op)

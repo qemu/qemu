@@ -445,13 +445,18 @@ typedef struct TCGArgConstraint {
 
 #define TCG_MAX_OP_ARGS 16
 
-#define TCG_OPF_BB_END     0x01 /* instruction defines the end of a basic
-                                   block */
-#define TCG_OPF_CALL_CLOBBER 0x02 /* instruction clobbers call registers 
-                                   and potentially update globals. */
-#define TCG_OPF_SIDE_EFFECTS 0x04 /* instruction has side effects : it
-                                     cannot be removed if its output
-                                     are not used */
+/* Bits for TCGOpDef->flags, 8 bits available.  */
+enum {
+    /* Instruction defines the end of a basic block.  */
+    TCG_OPF_BB_END       = 0x01,
+    /* Instruction clobbers call registers and potentially update globals.  */
+    TCG_OPF_CALL_CLOBBER = 0x02,
+    /* Instruction has side effects: it cannot be removed
+       if its outputs are not used.  */
+    TCG_OPF_SIDE_EFFECTS = 0x04,
+    /* Instruction operands are 64-bits (otherwise 32-bits).  */
+    TCG_OPF_64BIT        = 0x08,
+};
 
 typedef struct TCGOpDef {
     const char *name;
@@ -463,6 +468,8 @@ typedef struct TCGOpDef {
     int used;
 #endif
 } TCGOpDef;
+
+extern TCGOpDef tcg_op_defs[];
         
 typedef struct TCGTargetOpDef {
     TCGOpcode op;

@@ -131,98 +131,98 @@ DEF(nor_i32, 1, 2, 0, 0)
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
-DEF(mov_i64, 1, 1, 0, 0)
-DEF(movi_i64, 1, 0, 1, 0)
-DEF(setcond_i64, 1, 2, 1, 0)
+DEF(mov_i64, 1, 1, 0, TCG_OPF_64BIT)
+DEF(movi_i64, 1, 0, 1, TCG_OPF_64BIT)
+DEF(setcond_i64, 1, 2, 1, TCG_OPF_64BIT)
 /* load/store */
-DEF(ld8u_i64, 1, 1, 1, 0)
-DEF(ld8s_i64, 1, 1, 1, 0)
-DEF(ld16u_i64, 1, 1, 1, 0)
-DEF(ld16s_i64, 1, 1, 1, 0)
-DEF(ld32u_i64, 1, 1, 1, 0)
-DEF(ld32s_i64, 1, 1, 1, 0)
-DEF(ld_i64, 1, 1, 1, 0)
-DEF(st8_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF(st16_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF(st32_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
-DEF(st_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS)
+DEF(ld8u_i64, 1, 1, 1, TCG_OPF_64BIT)
+DEF(ld8s_i64, 1, 1, 1, TCG_OPF_64BIT)
+DEF(ld16u_i64, 1, 1, 1, TCG_OPF_64BIT)
+DEF(ld16s_i64, 1, 1, 1, TCG_OPF_64BIT)
+DEF(ld32u_i64, 1, 1, 1, TCG_OPF_64BIT)
+DEF(ld32s_i64, 1, 1, 1, TCG_OPF_64BIT)
+DEF(ld_i64, 1, 1, 1, TCG_OPF_64BIT)
+DEF(st8_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS | TCG_OPF_64BIT)
+DEF(st16_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS | TCG_OPF_64BIT)
+DEF(st32_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS | TCG_OPF_64BIT)
+DEF(st_i64, 0, 2, 1, TCG_OPF_SIDE_EFFECTS | TCG_OPF_64BIT)
 /* arith */
-DEF(add_i64, 1, 2, 0, 0)
-DEF(sub_i64, 1, 2, 0, 0)
-DEF(mul_i64, 1, 2, 0, 0)
+DEF(add_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(sub_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(mul_i64, 1, 2, 0, TCG_OPF_64BIT)
 #ifdef TCG_TARGET_HAS_div_i64
-DEF(div_i64, 1, 2, 0, 0)
-DEF(divu_i64, 1, 2, 0, 0)
-DEF(rem_i64, 1, 2, 0, 0)
-DEF(remu_i64, 1, 2, 0, 0)
+DEF(div_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(divu_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(rem_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(remu_i64, 1, 2, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_div2_i64
-DEF(div2_i64, 2, 3, 0, 0)
-DEF(divu2_i64, 2, 3, 0, 0)
+DEF(div2_i64, 2, 3, 0, TCG_OPF_64BIT)
+DEF(divu2_i64, 2, 3, 0, TCG_OPF_64BIT)
 #endif
-DEF(and_i64, 1, 2, 0, 0)
-DEF(or_i64, 1, 2, 0, 0)
-DEF(xor_i64, 1, 2, 0, 0)
+DEF(and_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(or_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(xor_i64, 1, 2, 0, TCG_OPF_64BIT)
 /* shifts/rotates */
-DEF(shl_i64, 1, 2, 0, 0)
-DEF(shr_i64, 1, 2, 0, 0)
-DEF(sar_i64, 1, 2, 0, 0)
+DEF(shl_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(shr_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(sar_i64, 1, 2, 0, TCG_OPF_64BIT)
 #ifdef TCG_TARGET_HAS_rot_i64
-DEF(rotl_i64, 1, 2, 0, 0)
-DEF(rotr_i64, 1, 2, 0, 0)
+DEF(rotl_i64, 1, 2, 0, TCG_OPF_64BIT)
+DEF(rotr_i64, 1, 2, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_deposit_i64
-DEF(deposit_i64, 1, 2, 2, 0)
+DEF(deposit_i64, 1, 2, 2, TCG_OPF_64BIT)
 #endif
 
-DEF(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS)
+DEF(brcond_i64, 0, 2, 2, TCG_OPF_BB_END | TCG_OPF_SIDE_EFFECTS | TCG_OPF_64BIT)
 #ifdef TCG_TARGET_HAS_ext8s_i64
-DEF(ext8s_i64, 1, 1, 0, 0)
+DEF(ext8s_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_ext16s_i64
-DEF(ext16s_i64, 1, 1, 0, 0)
+DEF(ext16s_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_ext32s_i64
-DEF(ext32s_i64, 1, 1, 0, 0)
+DEF(ext32s_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_ext8u_i64
-DEF(ext8u_i64, 1, 1, 0, 0)
+DEF(ext8u_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_ext16u_i64
-DEF(ext16u_i64, 1, 1, 0, 0)
+DEF(ext16u_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_ext32u_i64
-DEF(ext32u_i64, 1, 1, 0, 0)
+DEF(ext32u_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_bswap16_i64
-DEF(bswap16_i64, 1, 1, 0, 0)
+DEF(bswap16_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_bswap32_i64
-DEF(bswap32_i64, 1, 1, 0, 0)
+DEF(bswap32_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_bswap64_i64
-DEF(bswap64_i64, 1, 1, 0, 0)
+DEF(bswap64_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_not_i64
-DEF(not_i64, 1, 1, 0, 0)
+DEF(not_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_neg_i64
-DEF(neg_i64, 1, 1, 0, 0)
+DEF(neg_i64, 1, 1, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_andc_i64
-DEF(andc_i64, 1, 2, 0, 0)
+DEF(andc_i64, 1, 2, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_orc_i64
-DEF(orc_i64, 1, 2, 0, 0)
+DEF(orc_i64, 1, 2, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_eqv_i64
-DEF(eqv_i64, 1, 2, 0, 0)
+DEF(eqv_i64, 1, 2, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_nand_i64
-DEF(nand_i64, 1, 2, 0, 0)
+DEF(nand_i64, 1, 2, 0, TCG_OPF_64BIT)
 #endif
 #ifdef TCG_TARGET_HAS_nor_i64
-DEF(nor_i64, 1, 2, 0, 0)
+DEF(nor_i64, 1, 2, 0, TCG_OPF_64BIT)
 #endif
 #endif
 
