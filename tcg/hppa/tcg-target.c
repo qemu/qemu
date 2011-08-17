@@ -1650,7 +1650,7 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     /* Record the location of the TCG temps.  */
     tcg_set_frame(s, TCG_REG_CALL_STACK, -frame_size + i * 4,
-                  TCG_TEMP_BUF_NLONGS * sizeof(long));
+                  CPU_TEMP_BUF_NLONGS * sizeof(long));
 
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE != 0) {
