@@ -667,8 +667,8 @@ enum {
 #define MAS0_ATSEL_TLB     0
 #define MAS0_ATSEL_LRAT    MAS0_ATSEL
 
-#define MAS1_TSIZE_SHIFT   8
-#define MAS1_TSIZE_MASK    (0xf << MAS1_TSIZE_SHIFT)
+#define MAS1_TSIZE_SHIFT   7
+#define MAS1_TSIZE_MASK    (0x1f << MAS1_TSIZE_SHIFT)
 
 #define MAS1_TS_SHIFT      12
 #define MAS1_TS            (1 << MAS1_TS_SHIFT)
