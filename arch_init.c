@@ -336,6 +336,7 @@ static RAMBlock *last_block;
 static ram_addr_t last_offset;
 static unsigned long *migration_bitmap;
 static uint64_t migration_dirty_pages;
+static uint32_t last_version;
 
 static inline bool migration_bitmap_test_and_reset_dirty(MemoryRegion *mr,
                                                          ram_addr_t offset)
@@ -405,7 +406,6 @@ static void migration_bitmap_sync(void)
         num_dirty_pages_period = 0;
     }
 }
-
 
 /*
  * ram_save_block: Writes a page of memory to the stream f
@@ -533,6 +533,7 @@ static void reset_ram_globals(void)
 {
     last_block = NULL;
     last_offset = 0;
+    last_version = ram_list.version;
 }
 
 #define MAX_WAIT 50 /* ms, half buffered_file limit */
@@ -586,6 +587,10 @@ static int ram_save_iterate(QEMUFile *f, void *opaque)
     int i;
     uint64_t expected_downtime;
     MigrationState *s = migrate_get_current();
+
+    if (ram_list.version != last_version) {
+        reset_ram_globals();
+    }
 
     bytes_transferred_last = bytes_transferred;
     bwidth = qemu_get_clock_ns(rt_clock);
