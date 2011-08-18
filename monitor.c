@@ -2462,7 +2462,7 @@ static void tlb_info(Monitor *mon)
 
 #endif
 
-#if defined(TARGET_SPARC)
+#if defined(TARGET_SPARC) || defined(TARGET_PPC)
 static void tlb_info(Monitor *mon)
 {
     CPUState *env1 = mon_get_cpu();
@@ -2965,7 +2965,8 @@ static const mon_cmd_t info_cmds[] = {
         .user_print = do_pci_info_print,
         .mhandler.info_new = do_pci_info,
     },
-#if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC)
+#if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC) || \
+    defined(TARGET_PPC)
     {
         .name       = "tlb",
         .args_type  = "",

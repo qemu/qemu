@@ -1465,6 +1465,94 @@ found_tlb:
     return ret;
 }
 
+static const char *book3e_tsize_to_str[32] = {
+    "1K", "2K", "4K", "8K", "16K", "32K", "64K", "128K", "256K", "512K",
+    "1M", "2M", "4M", "8M", "16M", "32M", "64M", "128M", "256M", "512M",
+    "1G", "2G", "4G", "8G", "16G", "32G", "64G", "128G", "256G", "512G",
+    "1T", "2T"
+};
+
+static void mmubooke206_dump_one_tlb(FILE *f, fprintf_function cpu_fprintf,
+                                     CPUState *env, int tlbn, int offset,
+                                     int tlbsize)
+{
+    ppcmas_tlb_t *entry;
+    int i;
+
+    cpu_fprintf(f, "\nTLB%d:\n", tlbn);
+    cpu_fprintf(f, "Effective          Physical           Size TID   TS SRWX URWX WIMGE U0123\n");
+
+    entry = &env->tlb.tlbm[offset];
+    for (i = 0; i < tlbsize; i++, entry++) {
+        target_phys_addr_t ea, pa, size;
+        int tsize;
+
+        if (!(entry->mas1 & MAS1_VALID)) {
+            continue;
+        }
+
+        tsize = (entry->mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
+        size = 1024ULL << tsize;
+        ea = entry->mas2 & ~(size - 1);
+        pa = entry->mas7_3 & ~(size - 1);
+
+        cpu_fprintf(f, "0x%016" PRIx64 " 0x%016" PRIx64 " %4s %-5u %1u  S%c%c%c U%c%c%c %c%c%c%c%c U%c%c%c%c\n",
+                    (uint64_t)ea, (uint64_t)pa,
+                    book3e_tsize_to_str[tsize],
+                    (entry->mas1 & MAS1_TID_MASK) >> MAS1_TID_SHIFT,
+                    (entry->mas1 & MAS1_TS) >> MAS1_TS_SHIFT,
+                    entry->mas7_3 & MAS3_SR ? 'R' : '-',
+                    entry->mas7_3 & MAS3_SW ? 'W' : '-',
+                    entry->mas7_3 & MAS3_SX ? 'X' : '-',
+                    entry->mas7_3 & MAS3_UR ? 'R' : '-',
+                    entry->mas7_3 & MAS3_UW ? 'W' : '-',
+                    entry->mas7_3 & MAS3_UX ? 'X' : '-',
+                    entry->mas2 & MAS2_W ? 'W' : '-',
+                    entry->mas2 & MAS2_I ? 'I' : '-',
+                    entry->mas2 & MAS2_M ? 'M' : '-',
+                    entry->mas2 & MAS2_G ? 'G' : '-',
+                    entry->mas2 & MAS2_E ? 'E' : '-',
+                    entry->mas7_3 & MAS3_U0 ? '0' : '-',
+                    entry->mas7_3 & MAS3_U1 ? '1' : '-',
+                    entry->mas7_3 & MAS3_U2 ? '2' : '-',
+                    entry->mas7_3 & MAS3_U3 ? '3' : '-');
+    }
+}
+
+static void mmubooke206_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
+                                 CPUState *env)
+{
+    int offset = 0;
+    int i;
+
+    if (kvm_enabled() && !env->kvm_sw_tlb) {
+        cpu_fprintf(f, "Cannot access KVM TLB\n");
+        return;
+    }
+
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        int size = booke206_tlb_size(env, i);
+
+        if (size == 0) {
+            continue;
+        }
+
+        mmubooke206_dump_one_tlb(f, cpu_fprintf, env, i, offset, size);
+        offset += size;
+    }
+}
+
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
+{
+    switch (env->mmu_model) {
+    case POWERPC_MMU_BOOKE206:
+        mmubooke206_dump_mmu(f, cpu_fprintf, env);
+        break;
+    default:
+        cpu_fprintf(f, "%s: unimplemented\n", __func__);
+    }
+}
+
 static inline int check_physical(CPUState *env, mmu_ctx_t *ctx,
                                  target_ulong eaddr, int rw)
 {

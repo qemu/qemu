@@ -2045,4 +2045,6 @@ static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
     env->nip = tb->pc;
 }
 
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env);
+
 #endif /* !defined (__CPU_PPC_H__) */
