@@ -2251,9 +2251,9 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
                               cb, opaque);
 
     if (ret) {
-	/* Update stats even though technically transfer has not happened. */
-	bs->rd_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
-	bs->rd_ops ++;
+        /* Update stats even though technically transfer has not happened. */
+        bs->rd_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
+        bs->rd_ops++;
     }
 
     return ret;
