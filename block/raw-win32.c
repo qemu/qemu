@@ -41,6 +41,7 @@ typedef struct BDRVRawState {
 int qemu_ftruncate64(int fd, int64_t length)
 {
     LARGE_INTEGER li;
+    DWORD dw;
     LONG high;
     HANDLE h;
     BOOL res;
@@ -53,12 +54,15 @@ int qemu_ftruncate64(int fd, int64_t length)
     /* get current position, ftruncate do not change position */
     li.HighPart = 0;
     li.LowPart = SetFilePointer (h, 0, &li.HighPart, FILE_CURRENT);
-    if (li.LowPart == 0xffffffffUL && GetLastError() != NO_ERROR)
+    if (li.LowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
 	return -1;
+    }
 
     high = length >> 32;
-    if (!SetFilePointer(h, (DWORD) length, &high, FILE_BEGIN))
+    dw = SetFilePointer(h, (DWORD) length, &high, FILE_BEGIN);
+    if (dw == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR) {
 	return -1;
+    }
     res = SetEndOfFile(h);
 
     /* back to old position */
