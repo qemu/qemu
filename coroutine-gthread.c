@@ -117,7 +117,7 @@ Coroutine *qemu_coroutine_self(void)
     if (!co) {
         co = g_malloc0(sizeof(*co));
         co->runnable = true;
-        g_static_private_set(&coroutine_key, co, (GDestroyNotify)qemu_free);
+        g_static_private_set(&coroutine_key, co, (GDestroyNotify)g_free);
     }
 
     return &co->base;
