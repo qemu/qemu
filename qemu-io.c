@@ -950,9 +950,9 @@ static int multiwrite_f(int argc, char **argv)
         }
     }
 
-    reqs = qemu_malloc(nr_reqs * sizeof(*reqs));
-    buf = qemu_malloc(nr_reqs * sizeof(*buf));
-    qiovs = qemu_malloc(nr_reqs * sizeof(*qiovs));
+    reqs = g_malloc(nr_reqs * sizeof(*reqs));
+    buf = g_malloc(nr_reqs * sizeof(*buf));
+    qiovs = g_malloc(nr_reqs * sizeof(*qiovs));
 
     for (i = 0; i < nr_reqs; i++) {
         int j;
@@ -1017,9 +1017,9 @@ out:
         qemu_io_free(buf[i]);
         qemu_iovec_destroy(&qiovs[i]);
     }
-    qemu_free(buf);
-    qemu_free(reqs);
-    qemu_free(qiovs);
+    g_free(buf);
+    g_free(reqs);
+    g_free(qiovs);
     return 0;
 }
 

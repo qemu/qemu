@@ -636,7 +636,7 @@ static void user_monitor_complete(void *opaque, QObject *ret_data)
         data->user_print(data->mon, ret_data);
     }
     monitor_resume(data->mon);
-    qemu_free(data);
+    g_free(data);
 }
 
 static void qmp_monitor_complete(void *opaque, QObject *ret_data)
@@ -660,7 +660,7 @@ static void user_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
 {
     int ret;
 
-    MonitorCompletionData *cb_data = qemu_malloc(sizeof(*cb_data));
+    MonitorCompletionData *cb_data = g_malloc(sizeof(*cb_data));
     cb_data->mon = mon;
     cb_data->user_print = cmd->user_print;
     monitor_suspend(mon);
@@ -668,7 +668,7 @@ static void user_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
                                   user_monitor_complete, cb_data);
     if (ret < 0) {
         monitor_resume(mon);
-        qemu_free(cb_data);
+        g_free(cb_data);
     }
 }
 
@@ -676,14 +676,14 @@ static void user_async_info_handler(Monitor *mon, const mon_cmd_t *cmd)
 {
     int ret;
 
-    MonitorCompletionData *cb_data = qemu_malloc(sizeof(*cb_data));
+    MonitorCompletionData *cb_data = g_malloc(sizeof(*cb_data));
     cb_data->mon = mon;
     cb_data->user_print = cmd->user_print;
     monitor_suspend(mon);
     ret = cmd->mhandler.info_async(mon, user_monitor_complete, cb_data);
     if (ret < 0) {
         monitor_resume(mon);
-        qemu_free(cb_data);
+        g_free(cb_data);
     }
 }
 
@@ -2545,7 +2545,7 @@ static void do_stop_capture(Monitor *mon, const QDict *qdict)
         if (i == n) {
             s->ops.destroy (s->opaque);
             QLIST_REMOVE (s, entries);
-            qemu_free (s);
+            g_free (s);
             return;
         }
     }
@@ -2562,7 +2562,7 @@ static void do_wav_capture(Monitor *mon, const QDict *qdict)
     int nchannels = qdict_get_try_int(qdict, "nchannels", -1);
     CaptureState *s;
 
-    s = qemu_mallocz (sizeof (*s));
+    s = g_malloc0 (sizeof (*s));
 
     freq = has_freq ? freq : 44100;
     bits = has_bits ? bits : 16;
@@ -2570,7 +2570,7 @@ static void do_wav_capture(Monitor *mon, const QDict *qdict)
 
     if (wav_start_capture (s, path, freq, bits, nchannels)) {
         monitor_printf(mon, "Failed to add wave capture\n");
-        qemu_free (s);
+        g_free (s);
         return;
     }
     QLIST_INSERT_HEAD (&capture_head, s, entries);
@@ -2780,8 +2780,8 @@ static int do_getfd(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return 0;
     }
 
-    monfd = qemu_mallocz(sizeof(mon_fd_t));
-    monfd->name = qemu_strdup(fdname);
+    monfd = g_malloc0(sizeof(mon_fd_t));
+    monfd->name = g_strdup(fdname);
     monfd->fd = fd;
 
     QLIST_INSERT_HEAD(&mon->fds, monfd, next);
@@ -2800,8 +2800,8 @@ static int do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
         QLIST_REMOVE(monfd, next);
         close(monfd->fd);
-        qemu_free(monfd->name);
-        qemu_free(monfd);
+        g_free(monfd->name);
+        g_free(monfd);
         return 0;
     }
 
@@ -2836,8 +2836,8 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
 
         /* caller takes ownership of fd */
         QLIST_REMOVE(monfd, next);
-        qemu_free(monfd->name);
-        qemu_free(monfd);
+        g_free(monfd->name);
+        g_free(monfd);
 
         return fd;
     }
@@ -4034,7 +4034,7 @@ static char *key_get_info(const char *type, char **key)
     }
     len = p - type;
 
-    str = qemu_malloc(len + 1);
+    str = g_malloc(len + 1);
     memcpy(str, type, len);
     str[len] = '\0';
 
@@ -4417,7 +4417,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
             monitor_printf(mon, "%s: unknown type '%c'\n", cmdname, c);
             goto fail;
         }
-        qemu_free(key);
+        g_free(key);
         key = NULL;
     }
     /* check that all arguments were parsed */
@@ -4432,7 +4432,7 @@ static const mon_cmd_t *monitor_parse_command(Monitor *mon,
     return cmd;
 
 fail:
-    qemu_free(key);
+    g_free(key);
     return NULL;
 }
 
@@ -4631,7 +4631,7 @@ static void parse_cmdline(const char *cmdline,
         if (nb_args >= MAX_ARGS)
             break;
         ret = get_str(buf, sizeof(buf), &p);
-        args[nb_args] = qemu_strdup(buf);
+        args[nb_args] = g_strdup(buf);
         nb_args++;
         if (ret < 0)
             break;
@@ -4668,7 +4668,7 @@ static void monitor_find_completion(const char *cmdline)
         if (nb_args >= MAX_ARGS) {
             goto cleanup;
         }
-        args[nb_args++] = qemu_strdup("");
+        args[nb_args++] = g_strdup("");
     }
     if (nb_args <= 1) {
         /* command completion */
@@ -4743,7 +4743,7 @@ static void monitor_find_completion(const char *cmdline)
 
 cleanup:
     for (i = 0; i < nb_args; i++) {
-        qemu_free(args[i]);
+        g_free(args[i]);
     }
 }
 
@@ -5261,7 +5261,7 @@ void monitor_init(CharDriverState *chr, int flags)
         is_first_init = 0;
     }
 
-    mon = qemu_mallocz(sizeof(*mon));
+    mon = g_malloc0(sizeof(*mon));
 
     mon->chr = chr;
     mon->flags = flags;
@@ -5271,7 +5271,7 @@ void monitor_init(CharDriverState *chr, int flags)
     }
 
     if (monitor_ctrl_mode(mon)) {
-        mon->mc = qemu_mallocz(sizeof(MonitorControl));
+        mon->mc = g_malloc0(sizeof(MonitorControl));
         /* Control mode requires special handlers */
         qemu_chr_add_handlers(chr, monitor_can_read, monitor_control_read,
                               monitor_control_event, mon);

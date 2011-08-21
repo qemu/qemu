@@ -301,7 +301,7 @@ static int vdi_check(BlockDriverState *bs, BdrvCheckResult *res)
     uint32_t *bmap;
     logout("\n");
 
-    bmap = qemu_malloc(s->header.blocks_in_image * sizeof(uint32_t));
+    bmap = g_malloc(s->header.blocks_in_image * sizeof(uint32_t));
     memset(bmap, 0xff, s->header.blocks_in_image * sizeof(uint32_t));
 
     /* Check block map and value of blocks_allocated. */
@@ -331,7 +331,7 @@ static int vdi_check(BlockDriverState *bs, BdrvCheckResult *res)
         res->corruptions++;
     }
 
-    qemu_free(bmap);
+    g_free(bmap);
 
     return 0;
 }
@@ -443,7 +443,7 @@ static int vdi_open(BlockDriverState *bs, int flags)
     bmap_size = header.blocks_in_image * sizeof(uint32_t);
     bmap_size = (bmap_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
     if (bmap_size > 0) {
-        s->bmap = qemu_malloc(bmap_size * SECTOR_SIZE);
+        s->bmap = g_malloc(bmap_size * SECTOR_SIZE);
     }
     if (bdrv_read(bs->file, s->bmap_sector, (uint8_t *)s->bmap, bmap_size) < 0) {
         goto fail_free_bmap;
@@ -452,7 +452,7 @@ static int vdi_open(BlockDriverState *bs, int flags)
     return 0;
 
  fail_free_bmap:
-    qemu_free(s->bmap);
+    g_free(s->bmap);
 
  fail:
     return -1;
@@ -704,7 +704,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
             uint64_t offset;
             uint32_t bmap_first;
             uint32_t bmap_last;
-            qemu_free(acb->block_buffer);
+            g_free(acb->block_buffer);
             acb->block_buffer = NULL;
             bmap_first = acb->bmap_first;
             bmap_last = acb->bmap_last;
@@ -760,7 +760,7 @@ static void vdi_aio_write_cb(void *opaque, int ret)
                  (uint64_t)bmap_entry * s->block_sectors;
         block = acb->block_buffer;
         if (block == NULL) {
-            block = qemu_mallocz(s->block_size);
+            block = g_malloc0(s->block_size);
             acb->block_buffer = block;
             acb->bmap_first = block_index;
             assert(!acb->header_modified);
@@ -906,7 +906,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
 
     bmap = NULL;
     if (bmap_size > 0) {
-        bmap = (uint32_t *)qemu_mallocz(bmap_size);
+        bmap = (uint32_t *)g_malloc0(bmap_size);
     }
     for (i = 0; i < blocks; i++) {
         if (image_type == VDI_TYPE_STATIC) {
@@ -918,7 +918,7 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
     if (write(fd, bmap, bmap_size) < 0) {
         result = -errno;
     }
-    qemu_free(bmap);
+    g_free(bmap);
     if (image_type == VDI_TYPE_STATIC) {
         if (ftruncate(fd, sizeof(header) + bmap_size + blocks * block_size)) {
             result = -errno;

@@ -198,7 +198,7 @@ static int xilinx_timer_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &t->irq);
 
     /* Init all the ptimers.  */
-    t->timers = qemu_mallocz(sizeof t->timers[0] * t->nr_timers);
+    t->timers = g_malloc0(sizeof t->timers[0] * t->nr_timers);
     for (i = 0; i < t->nr_timers; i++) {
         struct xlx_timer *xt = &t->timers[i];
 

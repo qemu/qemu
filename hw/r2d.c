@@ -184,7 +184,7 @@ static qemu_irq *r2d_fpga_init(target_phys_addr_t base, qemu_irq irl)
     int iomemtype;
     r2d_fpga_t *s;
 
-    s = qemu_mallocz(sizeof(r2d_fpga_t));
+    s = g_malloc0(sizeof(r2d_fpga_t));
 
     s->irl = irl;
 
@@ -244,7 +244,7 @@ static void r2d_init(ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    reset_info = qemu_mallocz(sizeof(ResetData));
+    reset_info = g_malloc0(sizeof(ResetData));
     reset_info->env = env;
     reset_info->vector = env->pc;
     qemu_register_reset(main_cpu_reset, reset_info);

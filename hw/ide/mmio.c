@@ -121,7 +121,7 @@ void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
                     qemu_irq irq, int shift,
                     DriveInfo *hd0, DriveInfo *hd1)
 {
-    MMIOState *s = qemu_mallocz(sizeof(MMIOState));
+    MMIOState *s = g_malloc0(sizeof(MMIOState));
     int mem1, mem2;
 
     ide_init2_with_non_qdev_drives(&s->bus, hd0, hd1, irq);

@@ -56,7 +56,7 @@ void qmp_guest_ping(Error **err)
 
 struct GuestAgentInfo *qmp_guest_info(Error **err)
 {
-    GuestAgentInfo *info = qemu_mallocz(sizeof(GuestAgentInfo));
+    GuestAgentInfo *info = g_malloc0(sizeof(GuestAgentInfo));
 
     info->version = g_strdup(QGA_VERSION);
 
@@ -114,7 +114,7 @@ static void guest_file_handle_add(FILE *fh)
 {
     GuestFileHandle *gfh;
 
-    gfh = qemu_mallocz(sizeof(GuestFileHandle));
+    gfh = g_malloc0(sizeof(GuestFileHandle));
     gfh->id = fileno(fh);
     gfh->fh = fh;
     QTAILQ_INSERT_TAIL(&guest_file_state.filehandles, gfh, next);
@@ -185,7 +185,7 @@ void qmp_guest_file_close(int64_t handle, Error **err)
     }
 
     QTAILQ_REMOVE(&guest_file_state.filehandles, gfh, next);
-    qemu_free(gfh);
+    g_free(gfh);
 }
 
 struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
@@ -210,21 +210,21 @@ struct GuestFileRead *qmp_guest_file_read(int64_t handle, bool has_count,
     }
 
     fh = gfh->fh;
-    buf = qemu_mallocz(count+1);
+    buf = g_malloc0(count+1);
     read_count = fread(buf, 1, count, fh);
     if (ferror(fh)) {
         slog("guest-file-read failed, handle: %ld", handle);
         error_set(err, QERR_QGA_COMMAND_FAILED, "fread() failed");
     } else {
         buf[read_count] = 0;
-        read_data = qemu_mallocz(sizeof(GuestFileRead));
+        read_data = g_malloc0(sizeof(GuestFileRead));
         read_data->count = read_count;
         read_data->eof = feof(fh);
         if (read_count) {
             read_data->buf_b64 = g_base64_encode(buf, read_count);
         }
     }
-    qemu_free(buf);
+    g_free(buf);
     clearerr(fh);
 
     return read_data;
@@ -251,7 +251,7 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
     if (!has_count) {
         count = buf_len;
     } else if (count < 0 || count > buf_len) {
-        qemu_free(buf);
+        g_free(buf);
         error_set(err, QERR_INVALID_PARAMETER, "count");
         return NULL;
     }
@@ -261,11 +261,11 @@ GuestFileWrite *qmp_guest_file_write(int64_t handle, const char *buf_b64,
         slog("guest-file-write failed, handle: %ld", handle);
         error_set(err, QERR_QGA_COMMAND_FAILED, "fwrite() error");
     } else {
-        write_data = qemu_mallocz(sizeof(GuestFileWrite));
+        write_data = g_malloc0(sizeof(GuestFileWrite));
         write_data->count = write_count;
         write_data->eof = feof(fh);
     }
-    qemu_free(buf);
+    g_free(buf);
     clearerr(fh);
 
     return write_data;
@@ -289,7 +289,7 @@ struct GuestFileSeek *qmp_guest_file_seek(int64_t handle, int64_t offset,
     if (ret == -1) {
         error_set(err, QERR_QGA_COMMAND_FAILED, strerror(errno));
     } else {
-        seek_data = qemu_mallocz(sizeof(GuestFileRead));
+        seek_data = g_malloc0(sizeof(GuestFileRead));
         seek_data->position = ftell(fh);
         seek_data->eof = feof(fh);
     }
@@ -355,9 +355,9 @@ static int guest_fsfreeze_build_mount_list(void)
 
     QTAILQ_FOREACH_SAFE(mount, &guest_fsfreeze_state.mount_list, next, temp) {
         QTAILQ_REMOVE(&guest_fsfreeze_state.mount_list, mount, next);
-        qemu_free(mount->dirname);
-        qemu_free(mount->devtype);
-        qemu_free(mount);
+        g_free(mount->dirname);
+        g_free(mount->devtype);
+        g_free(mount);
     }
 
     fp = setmntent(mtab, "r");
@@ -379,9 +379,9 @@ static int guest_fsfreeze_build_mount_list(void)
             continue;
         }
 
-        mount = qemu_mallocz(sizeof(GuestFsfreezeMount));
-        mount->dirname = qemu_strdup(ment->mnt_dir);
-        mount->devtype = qemu_strdup(ment->mnt_type);
+        mount = g_malloc0(sizeof(GuestFsfreezeMount));
+        mount->dirname = g_strdup(ment->mnt_dir);
+        mount->devtype = g_strdup(ment->mnt_type);
 
         QTAILQ_INSERT_TAIL(&guest_fsfreeze_state.mount_list, mount, next);
     }

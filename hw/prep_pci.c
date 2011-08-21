@@ -118,7 +118,7 @@ PCIBus *pci_prep_init(qemu_irq *pic,
     PCIDevice *d;
     int PPC_io_memory;
 
-    s = qemu_mallocz(sizeof(PREPPCIState));
+    s = g_malloc0(sizeof(PREPPCIState));
     s->bus = pci_register_bus(NULL, "pci",
                               prep_set_irq, prep_map_irq, pic,
                               address_space_mem,

@@ -1473,7 +1473,7 @@ static void load_elf_image(const char *image_name, int image_fd,
 #ifdef CONFIG_USE_FDPIC
     {
         struct elf32_fdpic_loadseg *loadsegs = info->loadsegs =
-            qemu_malloc(sizeof(*loadsegs) * info->nsegs);
+            g_malloc(sizeof(*loadsegs) * info->nsegs);
 
         for (i = 0; i < ehdr->e_phnum; ++i) {
             switch (phdr[i].p_type) {
@@ -2063,7 +2063,7 @@ static struct mm_struct *vma_init(void)
 {
     struct mm_struct *mm;
 
-    if ((mm = qemu_malloc(sizeof (*mm))) == NULL)
+    if ((mm = g_malloc(sizeof (*mm))) == NULL)
         return (NULL);
 
     mm->mm_count = 0;
@@ -2078,9 +2078,9 @@ static void vma_delete(struct mm_struct *mm)
 
     while ((vma = vma_first(mm)) != NULL) {
         QTAILQ_REMOVE(&mm->mm_mmap, vma, vma_link);
-        qemu_free(vma);
+        g_free(vma);
     }
-    qemu_free(mm);
+    g_free(mm);
 }
 
 static int vma_add_mapping(struct mm_struct *mm, abi_ulong start,
@@ -2088,7 +2088,7 @@ static int vma_add_mapping(struct mm_struct *mm, abi_ulong start,
 {
     struct vm_area_struct *vma;
 
-    if ((vma = qemu_mallocz(sizeof (*vma))) == NULL)
+    if ((vma = g_malloc0(sizeof (*vma))) == NULL)
         return (-1);
 
     vma->vma_start = start;
@@ -2412,7 +2412,7 @@ static void fill_thread_info(struct elf_note_info *info, const CPUState *env)
     TaskState *ts = (TaskState *)env->opaque;
     struct elf_thread_status *ets;
 
-    ets = qemu_mallocz(sizeof (*ets));
+    ets = g_malloc0(sizeof (*ets));
     ets->num_notes = 1; /* only prstatus is dumped */
     fill_prstatus(&ets->prstatus, ts, 0);
     elf_core_copy_regs(&ets->prstatus.pr_reg, env);
@@ -2436,13 +2436,13 @@ static int fill_note_info(struct elf_note_info *info,
 
     QTAILQ_INIT(&info->thread_list);
 
-    info->notes = qemu_mallocz(NUMNOTES * sizeof (struct memelfnote));
+    info->notes = g_malloc0(NUMNOTES * sizeof (struct memelfnote));
     if (info->notes == NULL)
         return (-ENOMEM);
-    info->prstatus = qemu_mallocz(sizeof (*info->prstatus));
+    info->prstatus = g_malloc0(sizeof (*info->prstatus));
     if (info->prstatus == NULL)
         return (-ENOMEM);
-    info->psinfo = qemu_mallocz(sizeof (*info->psinfo));
+    info->psinfo = g_malloc0(sizeof (*info->psinfo));
     if (info->prstatus == NULL)
         return (-ENOMEM);
 
@@ -2483,12 +2483,12 @@ static void free_note_info(struct elf_note_info *info)
     while (!QTAILQ_EMPTY(&info->thread_list)) {
         ets = QTAILQ_FIRST(&info->thread_list);
         QTAILQ_REMOVE(&info->thread_list, ets, ets_link);
-        qemu_free(ets);
+        g_free(ets);
     }
 
-    qemu_free(info->prstatus);
-    qemu_free(info->psinfo);
-    qemu_free(info->notes);
+    g_free(info->prstatus);
+    g_free(info->psinfo);
+    g_free(info->notes);
 }
 
 static int write_note_info(struct elf_note_info *info, int fd)

@@ -223,7 +223,7 @@ static int pcibus_reset(BusState *qbus)
 static void pci_host_bus_register(int domain, PCIBus *bus)
 {
     struct PCIHostBus *host;
-    host = qemu_mallocz(sizeof(*host));
+    host = g_malloc0(sizeof(*host));
     host->domain = domain;
     host->bus = bus;
     QLIST_INSERT_HEAD(&host_buses, host, next);
@@ -288,7 +288,7 @@ PCIBus *pci_bus_new(DeviceState *parent, const char *name,
 {
     PCIBus *bus;
 
-    bus = qemu_mallocz(sizeof(*bus));
+    bus = g_malloc0(sizeof(*bus));
     bus->qbus.qdev_allocated = 1;
     pci_bus_new_inplace(bus, parent, name, address_space_mem,
                         address_space_io, devfn_min);
@@ -302,7 +302,7 @@ void pci_bus_irqs(PCIBus *bus, pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
     bus->map_irq = map_irq;
     bus->irq_opaque = irq_opaque;
     bus->nirq = nirq;
-    bus->irq_count = qemu_mallocz(nirq * sizeof(bus->irq_count[0]));
+    bus->irq_count = g_malloc0(nirq * sizeof(bus->irq_count[0]));
 }
 
 void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug, DeviceState *qdev)
@@ -346,13 +346,13 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
     int i;
 
     assert(size == pci_config_size(s));
-    config = qemu_malloc(size);
+    config = g_malloc(size);
 
     qemu_get_buffer(f, config, size);
     for (i = 0; i < size; ++i) {
         if ((config[i] ^ s->config[i]) &
             s->cmask[i] & ~s->wmask[i] & ~s->w1cmask[i]) {
-            qemu_free(config);
+            g_free(config);
             return -EINVAL;
         }
     }
@@ -360,7 +360,7 @@ static int get_pci_config_device(QEMUFile *f, void *pv, size_t size)
 
     pci_update_mappings(s);
 
-    qemu_free(config);
+    g_free(config);
     return 0;
 }
 
@@ -720,20 +720,20 @@ static void pci_config_alloc(PCIDevice *pci_dev)
 {
     int config_size = pci_config_size(pci_dev);
 
-    pci_dev->config = qemu_mallocz(config_size);
-    pci_dev->cmask = qemu_mallocz(config_size);
-    pci_dev->wmask = qemu_mallocz(config_size);
-    pci_dev->w1cmask = qemu_mallocz(config_size);
-    pci_dev->used = qemu_mallocz(config_size);
+    pci_dev->config = g_malloc0(config_size);
+    pci_dev->cmask = g_malloc0(config_size);
+    pci_dev->wmask = g_malloc0(config_size);
+    pci_dev->w1cmask = g_malloc0(config_size);
+    pci_dev->used = g_malloc0(config_size);
 }
 
 static void pci_config_free(PCIDevice *pci_dev)
 {
-    qemu_free(pci_dev->config);
-    qemu_free(pci_dev->cmask);
-    qemu_free(pci_dev->wmask);
-    qemu_free(pci_dev->w1cmask);
-    qemu_free(pci_dev->used);
+    g_free(pci_dev->config);
+    g_free(pci_dev->cmask);
+    g_free(pci_dev->wmask);
+    g_free(pci_dev->w1cmask);
+    g_free(pci_dev->used);
 }
 
 /* -1 for devfn means auto assign */
@@ -825,7 +825,7 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
         .config_write = config_write,
     };
 
-    pci_dev = qemu_mallocz(instance_size);
+    pci_dev = g_malloc0(instance_size);
     pci_dev = do_pci_register_device(pci_dev, bus, name, devfn, &info);
     if (pci_dev == NULL) {
         hw_error("PCI: can't register device\n");
@@ -865,7 +865,7 @@ static int pci_unregister_device(DeviceState *dev)
 
     pci_unregister_io_regions(pci_dev);
     pci_del_option_rom(pci_dev);
-    qemu_free(pci_dev->romfile);
+    g_free(pci_dev->romfile);
     do_pci_unregister_device(pci_dev);
     return 0;
 }
@@ -1680,7 +1680,7 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     /* rom loading */
     is_default_rom = false;
     if (pci_dev->romfile == NULL && info->romfile != NULL) {
-        pci_dev->romfile = qemu_strdup(info->romfile);
+        pci_dev->romfile = g_strdup(info->romfile);
         is_default_rom = true;
     }
     pci_add_option_rom(pci_dev, is_default_rom);
@@ -1896,14 +1896,14 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
 
     path = qemu_find_file(QEMU_FILE_TYPE_BIOS, pdev->romfile);
     if (path == NULL) {
-        path = qemu_strdup(pdev->romfile);
+        path = g_strdup(pdev->romfile);
     }
 
     size = get_image_size(path);
     if (size < 0) {
         error_report("%s: failed to find romfile \"%s\"",
                      __FUNCTION__, pdev->romfile);
-        qemu_free(path);
+        g_free(path);
         return -1;
     }
     if (size & (size - 1)) {
@@ -1918,7 +1918,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     memory_region_init_ram(&pdev->rom, &pdev->qdev, name, size);
     ptr = memory_region_get_ram_ptr(&pdev->rom);
     load_image(path, ptr);
-    qemu_free(path);
+    g_free(path);
 
     if (is_default_rom) {
         /* Only the default rom images will be patched (if needed). */
@@ -2108,7 +2108,7 @@ static char *pcibus_get_dev_path(DeviceState *dev)
     path_len = domain_len + slot_len * slot_depth;
 
     /* Allocate memory, fill in the terminating null byte. */
-    path = qemu_malloc(path_len + 1 /* For '\0' */);
+    path = g_malloc(path_len + 1 /* For '\0' */);
     path[path_len] = '\0';
 
     /* First field is the domain. */

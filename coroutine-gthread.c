@@ -71,11 +71,11 @@ Coroutine *qemu_coroutine_new(void)
 {
     CoroutineGThread *co;
 
-    co = qemu_mallocz(sizeof(*co));
+    co = g_malloc0(sizeof(*co));
     co->thread = g_thread_create_full(coroutine_thread, co, 0, TRUE, TRUE,
                                       G_THREAD_PRIORITY_NORMAL, NULL);
     if (!co->thread) {
-        qemu_free(co);
+        g_free(co);
         return NULL;
     }
     return &co->base;
@@ -86,7 +86,7 @@ void qemu_coroutine_delete(Coroutine *co_)
     CoroutineGThread *co = DO_UPCAST(CoroutineGThread, base, co_);
 
     g_thread_join(co->thread);
-    qemu_free(co);
+    g_free(co);
 }
 
 CoroutineAction qemu_coroutine_switch(Coroutine *from_,
@@ -115,7 +115,7 @@ Coroutine *qemu_coroutine_self(void)
     CoroutineGThread *co = g_static_private_get(&coroutine_key);
 
     if (!co) {
-        co = qemu_mallocz(sizeof(*co));
+        co = g_malloc0(sizeof(*co));
         co->runnable = true;
         g_static_private_set(&coroutine_key, co, (GDestroyNotify)qemu_free);
     }

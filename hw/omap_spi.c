@@ -315,7 +315,7 @@ struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
 {
     int iomemtype;
     struct omap_mcspi_s *s = (struct omap_mcspi_s *)
-            qemu_mallocz(sizeof(struct omap_mcspi_s));
+            g_malloc0(sizeof(struct omap_mcspi_s));
     struct omap_mcspi_ch_s *ch = s->ch;
 
     s->irq = irq;

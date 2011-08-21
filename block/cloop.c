@@ -70,7 +70,7 @@ static int cloop_open(BlockDriverState *bs, int flags)
 
     /* read offsets */
     offsets_size = s->n_blocks * sizeof(uint64_t);
-    s->offsets = qemu_malloc(offsets_size);
+    s->offsets = g_malloc(offsets_size);
     if (bdrv_pread(bs->file, 128 + 4 + 4, s->offsets, offsets_size) <
             offsets_size) {
 	goto cloop_close;
@@ -85,8 +85,8 @@ static int cloop_open(BlockDriverState *bs, int flags)
     }
 
     /* initialize zlib engine */
-    s->compressed_block = qemu_malloc(max_compressed_block_size+1);
-    s->uncompressed_block = qemu_malloc(s->block_size);
+    s->compressed_block = g_malloc(max_compressed_block_size+1);
+    s->uncompressed_block = g_malloc(s->block_size);
     if(inflateInit(&s->zstream) != Z_OK)
 	goto cloop_close;
     s->current_block=s->n_blocks;

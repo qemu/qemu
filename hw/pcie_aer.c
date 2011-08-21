@@ -111,7 +111,7 @@ int pcie_aer_init(PCIDevice *dev, uint16_t offset)
     if (dev->exp.aer_log.log_max > PCIE_AER_LOG_MAX_LIMIT) {
         return -EINVAL;
     }
-    dev->exp.aer_log.log = qemu_mallocz(sizeof dev->exp.aer_log.log[0] *
+    dev->exp.aer_log.log = g_malloc0(sizeof dev->exp.aer_log.log[0] *
                                         dev->exp.aer_log.log_max);
 
     pci_set_long(dev->w1cmask + offset + PCI_ERR_UNCOR_STATUS,
@@ -165,7 +165,7 @@ int pcie_aer_init(PCIDevice *dev, uint16_t offset)
 
 void pcie_aer_exit(PCIDevice *dev)
 {
-    qemu_free(dev->exp.aer_log.log);
+    g_free(dev->exp.aer_log.log);
 }
 
 static void pcie_aer_update_uncor_status(PCIDevice *dev)

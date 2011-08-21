@@ -165,14 +165,14 @@ static void s390_init(ram_addr_t my_ram_size,
     cpu_register_physical_memory(0, my_ram_size, ram_addr);
 
     /* allocate storage keys */
-    storage_keys = qemu_mallocz(my_ram_size / TARGET_PAGE_SIZE);
+    storage_keys = g_malloc0(my_ram_size / TARGET_PAGE_SIZE);
 
     /* init CPUs */
     if (cpu_model == NULL) {
         cpu_model = "host";
     }
 
-    ipi_states = qemu_malloc(sizeof(CPUState *) * smp_cpus);
+    ipi_states = g_malloc(sizeof(CPUState *) * smp_cpus);
 
     for (i = 0; i < smp_cpus; i++) {
         CPUState *tmp_env;
@@ -211,7 +211,7 @@ static void s390_init(ram_addr_t my_ram_size,
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         bios_size = load_image(bios_filename, qemu_get_ram_ptr(ZIPL_LOAD_ADDR));
-        qemu_free(bios_filename);
+        g_free(bios_filename);
 
         if ((long)bios_size < 0) {
             hw_error("could not load bootloader '%s'\n", bios_name);
@@ -247,7 +247,7 @@ static void s390_init(ram_addr_t my_ram_size,
         DeviceState *dev;
 
         if (!nd->model) {
-            nd->model = qemu_strdup("virtio");
+            nd->model = g_strdup("virtio");
         }
 
         if (strcmp(nd->model, "virtio")) {

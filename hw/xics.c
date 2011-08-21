@@ -440,9 +440,9 @@ struct icp_state *xics_system_init(int nr_irqs)
         }
     }
 
-    icp = qemu_mallocz(sizeof(*icp));
+    icp = g_malloc0(sizeof(*icp));
     icp->nr_servers = max_server_num + 1;
-    icp->ss = qemu_mallocz(icp->nr_servers*sizeof(struct icp_server_state));
+    icp->ss = g_malloc0(icp->nr_servers*sizeof(struct icp_server_state));
 
     for (i = 0; i < icp->nr_servers; i++) {
         icp->ss[i].mfrr = 0xff;
@@ -467,10 +467,10 @@ struct icp_state *xics_system_init(int nr_irqs)
         }
     }
 
-    ics = qemu_mallocz(sizeof(*ics));
+    ics = g_malloc0(sizeof(*ics));
     ics->nr_irqs = nr_irqs;
     ics->offset = 16;
-    ics->irqs = qemu_mallocz(nr_irqs * sizeof(struct ics_irq_state));
+    ics->irqs = g_malloc0(nr_irqs * sizeof(struct ics_irq_state));
 
     icp->ics = ics;
     ics->icp = icp;

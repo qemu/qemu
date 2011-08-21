@@ -92,7 +92,7 @@ struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd,
                                  bool force)
 {
     int r;
-    struct vhost_net *net = qemu_malloc(sizeof *net);
+    struct vhost_net *net = g_malloc(sizeof *net);
     if (!backend) {
         fprintf(stderr, "vhost-net requires backend to be setup\n");
         goto fail;
@@ -125,7 +125,7 @@ struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd,
     vhost_net_ack_features(net, 0);
     return net;
 fail:
-    qemu_free(net);
+    g_free(net);
     return NULL;
 }
 
@@ -198,7 +198,7 @@ void vhost_net_cleanup(struct vhost_net *net)
     if (net->dev.acked_features & (1 << VIRTIO_NET_F_MRG_RXBUF)) {
         tap_set_vnet_hdr_len(net->vc, sizeof(struct virtio_net_hdr));
     }
-    qemu_free(net);
+    g_free(net);
 }
 #else
 struct vhost_net *vhost_net_init(VLANClientState *backend, int devfd,

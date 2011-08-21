@@ -160,7 +160,7 @@ static void rtce_init(VIOsPAPRDevice *dev)
         * sizeof(VIOsPAPR_RTCE);
 
     if (size) {
-        dev->rtce_table = qemu_mallocz(size);
+        dev->rtce_table = g_malloc0(size);
     }
 }
 

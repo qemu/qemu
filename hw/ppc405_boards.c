@@ -162,7 +162,7 @@ static void ref405ep_fpga_init (uint32_t base)
     ref405ep_fpga_t *fpga;
     int fpga_memory;
 
-    fpga = qemu_mallocz(sizeof(ref405ep_fpga_t));
+    fpga = g_malloc0(sizeof(ref405ep_fpga_t));
     fpga_memory = cpu_register_io_memory(ref405ep_fpga_read,
                                          ref405ep_fpga_write, fpga,
                                          DEVICE_NATIVE_ENDIAN);
@@ -246,7 +246,7 @@ static void ref405ep_init (ram_addr_t ram_size,
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
             bios_size = load_image(filename, qemu_get_ram_ptr(bios_offset));
-            qemu_free(filename);
+            g_free(filename);
         } else {
             bios_size = -1;
         }
@@ -487,7 +487,7 @@ static void taihu_cpld_init (uint32_t base)
     taihu_cpld_t *cpld;
     int cpld_memory;
 
-    cpld = qemu_mallocz(sizeof(taihu_cpld_t));
+    cpld = g_malloc0(sizeof(taihu_cpld_t));
     cpld_memory = cpu_register_io_memory(taihu_cpld_read,
                                          taihu_cpld_write, cpld,
                                          DEVICE_NATIVE_ENDIAN);
@@ -560,7 +560,7 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
             bios_size = load_image(filename, qemu_get_ram_ptr(bios_offset));
-            qemu_free(filename);
+            g_free(filename);
         } else {
             bios_size = -1;
         }

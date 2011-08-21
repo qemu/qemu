@@ -112,7 +112,7 @@ static int spice_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
     assert(s->datalen == 0);
     if (s->bufsize < len) {
         s->bufsize = len;
-        s->buffer = qemu_realloc(s->buffer, s->bufsize);
+        s->buffer = g_realloc(s->buffer, s->bufsize);
     }
     memcpy(s->buffer, buf, len);
     s->datapos = s->buffer;
@@ -127,7 +127,7 @@ static void spice_chr_close(struct CharDriverState *chr)
 
     printf("%s\n", __func__);
     vmc_unregister_interface(s);
-    qemu_free(s);
+    g_free(s);
 }
 
 static void spice_chr_guest_open(struct CharDriverState *chr)
@@ -185,8 +185,8 @@ int qemu_chr_open_spice(QemuOpts *opts, CharDriverState **_chr)
         return -EINVAL;
     }
 
-    chr = qemu_mallocz(sizeof(CharDriverState));
-    s = qemu_mallocz(sizeof(SpiceCharDriver));
+    chr = g_malloc0(sizeof(CharDriverState));
+    s = g_malloc0(sizeof(SpiceCharDriver));
     s->chr = chr;
     s->debug = debug;
     s->active = false;

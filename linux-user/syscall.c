@@ -3991,7 +3991,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         new_thread_info info;
         pthread_attr_t attr;
 #endif
-        ts = qemu_mallocz(sizeof(TaskState));
+        ts = g_malloc0(sizeof(TaskState));
         init_task_state(ts);
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
@@ -4057,7 +4057,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         if (flags & CLONE_NPTL_FLAGS2)
             return -EINVAL;
         /* This is probably going to die very quickly, but do it anyway.  */
-        new_stack = qemu_mallocz (NEW_STACK_SIZE);
+        new_stack = g_malloc0 (NEW_STACK_SIZE);
 #ifdef __ia64__
         ret = __clone2(clone_func, new_stack, NEW_STACK_SIZE, flags, new_env);
 #else
@@ -4651,8 +4651,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                         NULL, NULL, 0);
           }
           thread_env = NULL;
-          qemu_free(cpu_env);
-          qemu_free(ts);
+          g_free(cpu_env);
+          g_free(ts);
           pthread_exit(NULL);
       }
 #endif

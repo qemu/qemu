@@ -1668,7 +1668,7 @@ void gdb_register_coprocessor(CPUState * env,
     GDBRegisterState **p;
     static int last_reg = NUM_CORE_REGS;
 
-    s = (GDBRegisterState *)qemu_mallocz(sizeof(GDBRegisterState));
+    s = (GDBRegisterState *)g_malloc0(sizeof(GDBRegisterState));
     s->base_reg = last_reg;
     s->num_regs = num_regs;
     s->get_reg = get_reg;
@@ -2606,7 +2606,7 @@ static void gdb_accept(void)
     val = 1;
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
 
-    s = qemu_mallocz(sizeof(GDBState));
+    s = g_malloc0(sizeof(GDBState));
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
     s->fd = fd;
@@ -2774,13 +2774,13 @@ int gdbserver_start(const char *device)
 
     s = gdbserver_state;
     if (!s) {
-        s = qemu_mallocz(sizeof(GDBState));
+        s = g_malloc0(sizeof(GDBState));
         gdbserver_state = s;
 
         qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
 
         /* Initialize a monitor terminal for gdb */
-        mon_chr = qemu_mallocz(sizeof(*mon_chr));
+        mon_chr = g_malloc0(sizeof(*mon_chr));
         mon_chr->chr_write = gdb_monitor_write;
         monitor_init(mon_chr, 0);
     } else {

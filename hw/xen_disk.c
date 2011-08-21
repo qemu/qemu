@@ -124,7 +124,7 @@ static struct ioreq *ioreq_start(struct XenBlkDev *blkdev)
             goto out;
         }
         /* allocate new struct */
-        ioreq = qemu_mallocz(sizeof(*ioreq));
+        ioreq = g_malloc0(sizeof(*ioreq));
         ioreq->blkdev = blkdev;
         blkdev->requests_total++;
         qemu_iovec_init(&ioreq->v, BLKIF_MAX_SEGMENTS_PER_REQUEST);
@@ -716,15 +716,15 @@ static int blk_init(struct XenDevice *xendev)
     return 0;
 
 out_error:
-    qemu_free(blkdev->params);
+    g_free(blkdev->params);
     blkdev->params = NULL;
-    qemu_free(blkdev->mode);
+    g_free(blkdev->mode);
     blkdev->mode = NULL;
-    qemu_free(blkdev->type);
+    g_free(blkdev->type);
     blkdev->type = NULL;
-    qemu_free(blkdev->dev);
+    g_free(blkdev->dev);
     blkdev->dev = NULL;
-    qemu_free(blkdev->devtype);
+    g_free(blkdev->devtype);
     blkdev->devtype = NULL;
     return -1;
 }
@@ -822,14 +822,14 @@ static int blk_free(struct XenDevice *xendev)
         ioreq = QLIST_FIRST(&blkdev->freelist);
         QLIST_REMOVE(ioreq, list);
         qemu_iovec_destroy(&ioreq->v);
-        qemu_free(ioreq);
+        g_free(ioreq);
     }
 
-    qemu_free(blkdev->params);
-    qemu_free(blkdev->mode);
-    qemu_free(blkdev->type);
-    qemu_free(blkdev->dev);
-    qemu_free(blkdev->devtype);
+    g_free(blkdev->params);
+    g_free(blkdev->mode);
+    g_free(blkdev->type);
+    g_free(blkdev->dev);
+    g_free(blkdev->devtype);
     qemu_bh_delete(blkdev->bh);
     return 0;
 }

@@ -400,9 +400,9 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
         size = ALIGN(((mem->memory_size) >> TARGET_PAGE_BITS),
                      /*HOST_LONG_BITS*/ 64) / 8;
         if (!d.dirty_bitmap) {
-            d.dirty_bitmap = qemu_malloc(size);
+            d.dirty_bitmap = g_malloc(size);
         } else if (size > allocated_size) {
-            d.dirty_bitmap = qemu_realloc(d.dirty_bitmap, size);
+            d.dirty_bitmap = g_realloc(d.dirty_bitmap, size);
         }
         allocated_size = size;
         memset(d.dirty_bitmap, 0, allocated_size);
@@ -419,7 +419,7 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
                                       mem->start_addr, mem->memory_size);
         start_addr = mem->start_addr + mem->memory_size;
     }
-    qemu_free(d.dirty_bitmap);
+    g_free(d.dirty_bitmap);
 
     return ret;
 }
@@ -702,7 +702,7 @@ int kvm_init(void)
     int ret;
     int i;
 
-    s = qemu_mallocz(sizeof(KVMState));
+    s = g_malloc0(sizeof(KVMState));
 
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     QTAILQ_INIT(&s->kvm_sw_breakpoints);
@@ -804,7 +804,7 @@ err:
             close(s->fd);
         }
     }
-    qemu_free(s);
+    g_free(s);
 
     return ret;
 }
@@ -1188,7 +1188,7 @@ int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,
             return 0;
         }
 
-        bp = qemu_malloc(sizeof(struct kvm_sw_breakpoint));
+        bp = g_malloc(sizeof(struct kvm_sw_breakpoint));
         if (!bp) {
             return -ENOMEM;
         }
@@ -1197,7 +1197,7 @@ int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,
         bp->use_count = 1;
         err = kvm_arch_insert_sw_breakpoint(current_env, bp);
         if (err) {
-            qemu_free(bp);
+            g_free(bp);
             return err;
         }
 
@@ -1243,7 +1243,7 @@ int kvm_remove_breakpoint(CPUState *current_env, target_ulong addr,
         }
 
         QTAILQ_REMOVE(&current_env->kvm_state->kvm_sw_breakpoints, bp, entry);
-        qemu_free(bp);
+        g_free(bp);
     } else {
         err = kvm_arch_remove_hw_breakpoint(addr, len, type);
         if (err) {
@@ -1316,12 +1316,12 @@ int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset)
         return kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, NULL);
     }
 
-    sigmask = qemu_malloc(sizeof(*sigmask) + sizeof(*sigset));
+    sigmask = g_malloc(sizeof(*sigmask) + sizeof(*sigset));
 
     sigmask->len = 8;
     memcpy(sigmask->sigset, sigset, sizeof(*sigset));
     r = kvm_vcpu_ioctl(env, KVM_SET_SIGNAL_MASK, sigmask);
-    qemu_free(sigmask);
+    g_free(sigmask);
 
     return r;
 }

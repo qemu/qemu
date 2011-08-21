@@ -743,12 +743,12 @@ void *etraxfs_dmac_init(target_phys_addr_t base, int nr_channels)
 {
 	struct fs_dma_ctrl *ctrl = NULL;
 
-	ctrl = qemu_mallocz(sizeof *ctrl);
+	ctrl = g_malloc0(sizeof *ctrl);
 
         ctrl->bh = qemu_bh_new(DMA_run, ctrl);
 
 	ctrl->nr_channels = nr_channels;
-	ctrl->channels = qemu_mallocz(sizeof ctrl->channels[0] * nr_channels);
+	ctrl->channels = g_malloc0(sizeof ctrl->channels[0] * nr_channels);
 
 	ctrl->map = cpu_register_io_memory(dma_read, dma_write, ctrl, DEVICE_NATIVE_ENDIAN);
 	cpu_register_physical_memory(base, nr_channels * 0x2000, ctrl->map);

@@ -158,7 +158,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     if (filename) {
         bios_size = load_image_targphys(filename, 0xfff00000LL,
                                         MAGNUM_BIOS_SIZE);
-        qemu_free(filename);
+        g_free(filename);
     } else {
         bios_size = -1;
     }
@@ -207,7 +207,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     for (n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];
         if (!nd->model)
-            nd->model = qemu_strdup("dp83932");
+            nd->model = g_strdup("dp83932");
         if (strcmp(nd->model, "dp83932") == 0) {
             dp83932_init(nd, 0x80001000, 2, rc4030[4],
                          rc4030_opaque, rc4030_dma_memory_rw);

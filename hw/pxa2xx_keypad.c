@@ -312,7 +312,7 @@ PXA2xxKeyPadState *pxa27x_keypad_init(target_phys_addr_t base,
     int iomemtype;
     PXA2xxKeyPadState *s;
 
-    s = (PXA2xxKeyPadState *) qemu_mallocz(sizeof(PXA2xxKeyPadState));
+    s = (PXA2xxKeyPadState *) g_malloc0(sizeof(PXA2xxKeyPadState));
     s->irq = irq;
 
     iomemtype = cpu_register_io_memory(pxa2xx_keypad_readfn,

@@ -170,7 +170,7 @@ static char *assign_name(VLANClientState *vc1, const char *model)
 
     snprintf(buf, sizeof(buf), "%s.%d", model, id);
 
-    return qemu_strdup(buf);
+    return g_strdup(buf);
 }
 
 static ssize_t qemu_deliver_packet(VLANClientState *sender,
@@ -194,12 +194,12 @@ VLANClientState *qemu_new_net_client(NetClientInfo *info,
 
     assert(info->size >= sizeof(VLANClientState));
 
-    vc = qemu_mallocz(info->size);
+    vc = g_malloc0(info->size);
 
     vc->info = info;
-    vc->model = qemu_strdup(model);
+    vc->model = g_strdup(model);
     if (name) {
-        vc->name = qemu_strdup(name);
+        vc->name = g_strdup(name);
     } else {
         vc->name = assign_name(vc, model);
     }
@@ -268,9 +268,9 @@ static void qemu_free_vlan_client(VLANClientState *vc)
             vc->peer->peer = NULL;
         }
     }
-    qemu_free(vc->name);
-    qemu_free(vc->model);
-    qemu_free(vc);
+    g_free(vc->name);
+    g_free(vc->model);
+    g_free(vc);
 }
 
 void qemu_del_vlan_client(VLANClientState *vc)
@@ -640,7 +640,7 @@ VLANState *qemu_find_vlan(int id, int allocate)
         return NULL;
     }
 
-    vlan = qemu_mallocz(sizeof(VLANState));
+    vlan = g_malloc0(sizeof(VLANState));
     vlan->id = id;
     QTAILQ_INIT(&vlan->clients);
 
@@ -710,7 +710,7 @@ int qemu_find_nic_model(NICInfo *nd, const char * const *models,
     int i;
 
     if (!nd->model)
-        nd->model = qemu_strdup(default_model);
+        nd->model = g_strdup(default_model);
 
     for (i = 0 ; models[i]; i++) {
         if (strcmp(nd->model, models[i]) == 0)
@@ -774,13 +774,13 @@ static int net_init_nic(QemuOpts *opts,
         nd->vlan = vlan;
     }
     if (name) {
-        nd->name = qemu_strdup(name);
+        nd->name = g_strdup(name);
     }
     if (qemu_opt_get(opts, "model")) {
-        nd->model = qemu_strdup(qemu_opt_get(opts, "model"));
+        nd->model = g_strdup(qemu_opt_get(opts, "model"));
     }
     if (qemu_opt_get(opts, "addr")) {
-        nd->devaddr = qemu_strdup(qemu_opt_get(opts, "addr"));
+        nd->devaddr = g_strdup(qemu_opt_get(opts, "addr"));
     }
 
     if (qemu_opt_get(opts, "macaddr") &&

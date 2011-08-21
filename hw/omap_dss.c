@@ -627,7 +627,7 @@ static void omap_rfbi_transfer_start(struct omap_dss_s *s)
     }
     if (!data) {
         if (len > bounce_len) {
-            bounce_buffer = qemu_realloc(bounce_buffer, len);
+            bounce_buffer = g_realloc(bounce_buffer, len);
         }
         data = bounce_buffer;
         cpu_physical_memory_read(data_addr, data, len);
@@ -1030,7 +1030,7 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
 {
     int iomemtype[5];
     struct omap_dss_s *s = (struct omap_dss_s *)
-            qemu_mallocz(sizeof(struct omap_dss_s));
+            g_malloc0(sizeof(struct omap_dss_s));
 
     s->irq = irq;
     s->drq = drq;

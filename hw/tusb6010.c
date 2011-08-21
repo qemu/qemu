@@ -729,7 +729,7 @@ static void tusb_musb_core_intr(void *opaque, int source, int level)
 
 TUSBState *tusb6010_init(qemu_irq intr)
 {
-    TUSBState *s = qemu_mallocz(sizeof(*s));
+    TUSBState *s = g_malloc0(sizeof(*s));
 
     s->test_reset = TUSB_PROD_TEST_RESET_VAL;
     s->host_mode = 0;

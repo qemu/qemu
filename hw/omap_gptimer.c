@@ -465,7 +465,7 @@ struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
 {
     int iomemtype;
     struct omap_gp_timer_s *s = (struct omap_gp_timer_s *)
-            qemu_mallocz(sizeof(struct omap_gp_timer_s));
+            g_malloc0(sizeof(struct omap_gp_timer_s));
 
     s->ta = ta;
     s->irq = irq;

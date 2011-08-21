@@ -172,7 +172,7 @@ static void ppc4xx_plb_init(CPUState *env)
 {
     ppc4xx_plb_t *plb;
 
-    plb = qemu_mallocz(sizeof(ppc4xx_plb_t));
+    plb = g_malloc0(sizeof(ppc4xx_plb_t));
     ppc_dcr_register(env, PLB0_ACR, plb, &dcr_read_plb, &dcr_write_plb);
     ppc_dcr_register(env, PLB0_BEAR, plb, &dcr_read_plb, &dcr_write_plb);
     ppc_dcr_register(env, PLB0_BESR, plb, &dcr_read_plb, &dcr_write_plb);
@@ -248,7 +248,7 @@ static void ppc4xx_pob_init(CPUState *env)
 {
     ppc4xx_pob_t *pob;
 
-    pob = qemu_mallocz(sizeof(ppc4xx_pob_t));
+    pob = g_malloc0(sizeof(ppc4xx_pob_t));
     ppc_dcr_register(env, POB0_BEAR, pob, &dcr_read_pob, &dcr_write_pob);
     ppc_dcr_register(env, POB0_BESR0, pob, &dcr_read_pob, &dcr_write_pob);
     ppc_dcr_register(env, POB0_BESR1, pob, &dcr_read_pob, &dcr_write_pob);
@@ -383,7 +383,7 @@ static void ppc4xx_opba_init(target_phys_addr_t base)
     ppc4xx_opba_t *opba;
     int io;
 
-    opba = qemu_mallocz(sizeof(ppc4xx_opba_t));
+    opba = g_malloc0(sizeof(ppc4xx_opba_t));
 #ifdef DEBUG_OPBA
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
@@ -582,7 +582,7 @@ static void ppc405_ebc_init(CPUState *env)
 {
     ppc4xx_ebc_t *ebc;
 
-    ebc = qemu_mallocz(sizeof(ppc4xx_ebc_t));
+    ebc = g_malloc0(sizeof(ppc4xx_ebc_t));
     qemu_register_reset(&ebc_reset, ebc);
     ppc_dcr_register(env, EBC0_CFGADDR,
                      ebc, &dcr_read_ebc, &dcr_write_ebc);
@@ -665,7 +665,7 @@ static void ppc405_dma_init(CPUState *env, qemu_irq irqs[4])
 {
     ppc405_dma_t *dma;
 
-    dma = qemu_mallocz(sizeof(ppc405_dma_t));
+    dma = g_malloc0(sizeof(ppc405_dma_t));
     memcpy(dma->irqs, irqs, 4 * sizeof(qemu_irq));
     qemu_register_reset(&ppc405_dma_reset, dma);
     ppc_dcr_register(env, DMA0_CR0,
@@ -810,7 +810,7 @@ static void ppc405_gpio_init(target_phys_addr_t base)
     ppc405_gpio_t *gpio;
     int io;
 
-    gpio = qemu_mallocz(sizeof(ppc405_gpio_t));
+    gpio = g_malloc0(sizeof(ppc405_gpio_t));
 #ifdef DEBUG_GPIO
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
 #endif
@@ -972,7 +972,7 @@ static void ppc405_ocm_init(CPUState *env)
 {
     ppc405_ocm_t *ocm;
 
-    ocm = qemu_mallocz(sizeof(ppc405_ocm_t));
+    ocm = g_malloc0(sizeof(ppc405_ocm_t));
     ocm->offset = qemu_ram_alloc(NULL, "ppc405.ocm", 4096);
     qemu_register_reset(&ocm_reset, ocm);
     ppc_dcr_register(env, OCM0_ISARC,
@@ -1219,7 +1219,7 @@ static void ppc405_i2c_init(target_phys_addr_t base, qemu_irq irq)
     ppc4xx_i2c_t *i2c;
     int io;
 
-    i2c = qemu_mallocz(sizeof(ppc4xx_i2c_t));
+    i2c = g_malloc0(sizeof(ppc4xx_i2c_t));
     i2c->irq = irq;
 #ifdef DEBUG_I2C
     printf("%s: offset " TARGET_FMT_plx "\n", __func__, base);
@@ -1500,7 +1500,7 @@ static void ppc4xx_gpt_init(target_phys_addr_t base, qemu_irq irqs[5])
     int i;
     int io;
 
-    gpt = qemu_mallocz(sizeof(ppc4xx_gpt_t));
+    gpt = g_malloc0(sizeof(ppc4xx_gpt_t));
     for (i = 0; i < 5; i++) {
         gpt->irqs[i] = irqs[i];
     }
@@ -1731,7 +1731,7 @@ static void ppc405_mal_init(CPUState *env, qemu_irq irqs[4])
     ppc40x_mal_t *mal;
     int i;
 
-    mal = qemu_mallocz(sizeof(ppc40x_mal_t));
+    mal = g_malloc0(sizeof(ppc40x_mal_t));
     for (i = 0; i < 4; i++)
         mal->irqs[i] = irqs[i];
     qemu_register_reset(&ppc40x_mal_reset, mal);
@@ -2096,7 +2096,7 @@ static void ppc405cr_cpc_init (CPUState *env, clk_setup_t clk_setup[7],
 {
     ppc405cr_cpc_t *cpc;
 
-    cpc = qemu_mallocz(sizeof(ppc405cr_cpc_t));
+    cpc = g_malloc0(sizeof(ppc405cr_cpc_t));
     memcpy(cpc->clk_setup, clk_setup,
            PPC405CR_CLK_NB * sizeof(clk_setup_t));
     cpc->sysclk = sysclk;
@@ -2142,7 +2142,7 @@ CPUState *ppc405cr_init (target_phys_addr_t ram_bases[4],
     /* OBP arbitrer */
     ppc4xx_opba_init(0xef600600);
     /* Universal interrupt controller */
-    irqs = qemu_mallocz(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
+    irqs = g_malloc0(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
     irqs[PPCUIC_OUTPUT_INT] =
         ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
     irqs[PPCUIC_OUTPUT_CINT] =
@@ -2433,7 +2433,7 @@ static void ppc405ep_cpc_init (CPUState *env, clk_setup_t clk_setup[8],
 {
     ppc405ep_cpc_t *cpc;
 
-    cpc = qemu_mallocz(sizeof(ppc405ep_cpc_t));
+    cpc = g_malloc0(sizeof(ppc405ep_cpc_t));
     memcpy(cpc->clk_setup, clk_setup,
            PPC405EP_CLK_NB * sizeof(clk_setup_t));
     cpc->jtagid = 0x20267049;
@@ -2490,7 +2490,7 @@ CPUState *ppc405ep_init (target_phys_addr_t ram_bases[2],
     /* OBP arbitrer */
     ppc4xx_opba_init(0xef600600);
     /* Universal interrupt controller */
-    irqs = qemu_mallocz(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
+    irqs = g_malloc0(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
     irqs[PPCUIC_OUTPUT_INT] =
         ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
     irqs[PPCUIC_OUTPUT_CINT] =

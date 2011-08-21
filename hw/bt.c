@@ -54,7 +54,7 @@ static void bt_dummy_lmp_acl_resp(struct bt_link_s *link,
 /* Slaves that don't hold any additional per link state can use these */
 static void bt_dummy_lmp_connection_request(struct bt_link_s *req)
 {
-    struct bt_link_s *link = qemu_mallocz(sizeof(struct bt_link_s));
+    struct bt_link_s *link = g_malloc0(sizeof(struct bt_link_s));
 
     link->slave = req->slave;
     link->host = req->host;
@@ -65,13 +65,13 @@ static void bt_dummy_lmp_connection_request(struct bt_link_s *req)
 
 static void bt_dummy_lmp_disconnect_slave(struct bt_link_s *link)
 {
-    qemu_free(link);
+    g_free(link);
 }
 
 static void bt_dummy_destroy(struct bt_device_s *device)
 {
     bt_device_done(device);
-    qemu_free(device);
+    g_free(device);
 }
 
 static int bt_dev_idx = 0;

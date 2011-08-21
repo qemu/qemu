@@ -98,7 +98,7 @@ cac_applet_pki_reset(VCard *card, int channel)
 
     pki_applet->cert_buffer = NULL;
     if (pki_applet->sign_buffer) {
-        qemu_free(pki_applet->sign_buffer);
+        g_free(pki_applet->sign_buffer);
         pki_applet->sign_buffer = NULL;
     }
     pki_applet->cert_buffer_len = 0;
@@ -166,7 +166,7 @@ cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
         sign_buffer = realloc(pki_applet->sign_buffer,
                       pki_applet->sign_buffer_len+size);
         if (sign_buffer == NULL) {
-            qemu_free(pki_applet->sign_buffer);
+            g_free(pki_applet->sign_buffer);
             pki_applet->sign_buffer = NULL;
             pki_applet->sign_buffer_len = 0;
             *response = vcard_make_response(
@@ -204,7 +204,7 @@ cac_applet_pki_process_apdu(VCard *card, VCardAPDU *apdu,
                                 VCARD7816_STATUS_ERROR_P1_P2_INCORRECT);
             break;
         }
-        qemu_free(sign_buffer);
+        g_free(sign_buffer);
         pki_applet->sign_buffer = NULL;
         pki_applet->sign_buffer_len = 0;
         return VCARD_DONE;
@@ -271,15 +271,15 @@ cac_delete_pki_applet_private(VCardAppletPrivate *applet_private)
     }
     pki_applet_data = &(applet_private->u.pki_data);
     if (pki_applet_data->cert != NULL) {
-        qemu_free(pki_applet_data->cert);
+        g_free(pki_applet_data->cert);
     }
     if (pki_applet_data->sign_buffer != NULL) {
-        qemu_free(pki_applet_data->sign_buffer);
+        g_free(pki_applet_data->sign_buffer);
     }
     if (pki_applet_data->key != NULL) {
         vcard_emul_delete_key(pki_applet_data->key);
     }
-    qemu_free(applet_private);
+    g_free(applet_private);
 }
 
 static VCardAppletPrivate *
@@ -288,7 +288,7 @@ cac_new_pki_applet_private(const unsigned char *cert,
 {
     CACPKIAppletData *pki_applet_data = NULL;
     VCardAppletPrivate *applet_private = NULL;
-    applet_private = (VCardAppletPrivate *)qemu_malloc(sizeof(VCardAppletPrivate));
+    applet_private = (VCardAppletPrivate *)g_malloc(sizeof(VCardAppletPrivate));
 
     pki_applet_data = &(applet_private->u.pki_data);
     pki_applet_data->cert_buffer = NULL;
@@ -296,7 +296,7 @@ cac_new_pki_applet_private(const unsigned char *cert,
     pki_applet_data->sign_buffer = NULL;
     pki_applet_data->sign_buffer_len = 0;
     pki_applet_data->key = NULL;
-    pki_applet_data->cert = (unsigned char *)qemu_malloc(cert_len+1);
+    pki_applet_data->cert = (unsigned char *)g_malloc(cert_len+1);
     /*
      * if we want to support compression, then we simply change the 0 to a 1
      * and compress the cert data with libz

@@ -55,7 +55,7 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
                 const char *label, CharDriverState *chr)
 {
     struct omap_uart_s *s = (struct omap_uart_s *)
-            qemu_mallocz(sizeof(struct omap_uart_s));
+            g_malloc0(sizeof(struct omap_uart_s));
 
     s->base = base;
     s->fclk = fclk;

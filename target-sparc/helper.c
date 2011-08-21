@@ -1091,7 +1091,7 @@ static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
     if (cpu_sparc_find_by_name(def, cpu_model) < 0)
         return -1;
 
-    env->def = qemu_mallocz(sizeof(*def));
+    env->def = g_malloc0(sizeof(*def));
     memcpy(env->def, def, sizeof(*def));
 #if defined(CONFIG_USER_ONLY)
     if ((env->def->features & CPU_FEATURE_FLOAT))
@@ -1124,7 +1124,7 @@ CPUSPARCState *cpu_sparc_init(const char *cpu_model)
 {
     CPUSPARCState *env;
 
-    env = qemu_mallocz(sizeof(CPUSPARCState));
+    env = g_malloc0(sizeof(CPUSPARCState));
     cpu_exec_init(env);
 
     gen_intermediate_code_init(env);

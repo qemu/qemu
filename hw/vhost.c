@@ -252,7 +252,7 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
     uint64_t log_base;
     int r;
     if (size) {
-        log = qemu_mallocz(size * sizeof *log);
+        log = g_malloc0(size * sizeof *log);
     } else {
         log = NULL;
     }
@@ -262,7 +262,7 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
     vhost_client_sync_dirty_bitmap(&dev->client, 0,
                                    (target_phys_addr_t)~0x0ull);
     if (dev->log) {
-        qemu_free(dev->log);
+        g_free(dev->log);
     }
     dev->log = log;
     dev->log_size = size;
@@ -348,7 +348,7 @@ static void vhost_client_set_memory(CPUPhysMemoryClient *client,
     uint64_t log_size;
     int r;
 
-    dev->mem = qemu_realloc(dev->mem, s);
+    dev->mem = g_realloc(dev->mem, s);
 
     if (log_dirty) {
         flags = IO_MEM_UNASSIGNED;
@@ -485,7 +485,7 @@ static int vhost_client_migration_log(CPUPhysMemoryClient *client,
             return r;
         }
         if (dev->log) {
-            qemu_free(dev->log);
+            g_free(dev->log);
         }
         dev->log = NULL;
         dev->log_size = 0;
@@ -669,7 +669,7 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
     hdev->client.migration_log = vhost_client_migration_log;
     hdev->client.log_start = NULL;
     hdev->client.log_stop = NULL;
-    hdev->mem = qemu_mallocz(offsetof(struct vhost_memory, regions));
+    hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
     hdev->log = NULL;
     hdev->log_size = 0;
     hdev->log_enabled = false;
@@ -686,7 +686,7 @@ fail:
 void vhost_dev_cleanup(struct vhost_dev *hdev)
 {
     cpu_unregister_phys_memory_client(&hdev->client);
-    qemu_free(hdev->mem);
+    g_free(hdev->mem);
     close(hdev->control);
 }
 
@@ -734,7 +734,7 @@ int vhost_dev_start(struct vhost_dev *hdev, VirtIODevice *vdev)
     if (hdev->log_enabled) {
         hdev->log_size = vhost_get_log_size(hdev);
         hdev->log = hdev->log_size ?
-            qemu_mallocz(hdev->log_size * sizeof *hdev->log) : NULL;
+            g_malloc0(hdev->log_size * sizeof *hdev->log) : NULL;
         r = ioctl(hdev->control, VHOST_SET_LOG_BASE,
                   (uint64_t)(unsigned long)hdev->log);
         if (r < 0) {
@@ -782,7 +782,7 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
     assert (r >= 0);
 
     hdev->started = false;
-    qemu_free(hdev->log);
+    g_free(hdev->log);
     hdev->log = NULL;
     hdev->log_size = 0;
 }

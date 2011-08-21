@@ -3449,7 +3449,7 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     CPUAlphaState *env;
     int implver, amask, i, max;
 
-    env = qemu_mallocz(sizeof(CPUAlphaState));
+    env = g_malloc0(sizeof(CPUAlphaState));
     cpu_exec_init(env);
     alpha_translate_init();
     tlb_flush(env, 1);

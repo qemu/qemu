@@ -3089,7 +3089,7 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
     if (!def)
         return NULL;
 
-    env = qemu_mallocz(sizeof(CPUPPCState));
+    env = g_malloc0(sizeof(CPUPPCState));
     cpu_exec_init(env);
     if (tcg_enabled()) {
         ppc_translate_init();
@@ -3105,5 +3105,5 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
 void cpu_ppc_close (CPUPPCState *env)
 {
     /* Should also remove all opcode tables... */
-    qemu_free(env);
+    g_free(env);
 }

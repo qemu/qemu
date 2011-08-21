@@ -260,7 +260,7 @@ static int gus_initfn (ISADevice *dev)
 
     s->shift = 2;
     s->samples = AUD_get_buffer_size_out (s->voice) >> s->shift;
-    s->mixbuf = qemu_mallocz (s->samples << s->shift);
+    s->mixbuf = g_malloc0 (s->samples << s->shift);
 
     register_ioport_write (s->port, 1, 1, gus_writeb, s);
     register_ioport_write (s->port, 1, 2, gus_writew, s);

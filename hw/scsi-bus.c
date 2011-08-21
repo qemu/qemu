@@ -346,7 +346,7 @@ SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
 {
     SCSIRequest *req;
 
-    req = qemu_mallocz(reqops->size);
+    req = g_malloc0(reqops->size);
     req->refcount = 1;
     req->bus = scsi_bus_from_device(d);
     req->dev = d;
@@ -1015,7 +1015,7 @@ void scsi_req_unref(SCSIRequest *req)
         if (req->ops->free_req) {
             req->ops->free_req(req);
         }
-        qemu_free(req);
+        g_free(req);
     }
 }
 

@@ -268,7 +268,7 @@ static void Adlib_fini (AdlibState *s)
 #endif
 
     if (s->mixbuf) {
-        qemu_free (s->mixbuf);
+        g_free (s->mixbuf);
     }
 
     s->active = 0;
@@ -323,7 +323,7 @@ int Adlib_init (qemu_irq *pic)
     }
 
     s->samples = AUD_get_buffer_size_out (s->voice) >> SHIFT;
-    s->mixbuf = qemu_mallocz (s->samples << SHIFT);
+    s->mixbuf = g_malloc0 (s->samples << SHIFT);
 
     register_ioport_read (0x388, 4, 1, adlib_read, s);
     register_ioport_write (0x388, 4, 1, adlib_write, s);

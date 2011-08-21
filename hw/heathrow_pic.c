@@ -202,7 +202,7 @@ qemu_irq *heathrow_pic_init(MemoryRegion **pmem,
 {
     HeathrowPICS *s;
 
-    s = qemu_mallocz(sizeof(HeathrowPICS));
+    s = g_malloc0(sizeof(HeathrowPICS));
     /* only 1 CPU */
     s->irqs = irqs[0];
     memory_region_init_io(&s->mem, &heathrow_pic_ops, s,

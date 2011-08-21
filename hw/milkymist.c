@@ -99,7 +99,7 @@ milkymist_init(ram_addr_t ram_size_not_used,
     target_phys_addr_t cmdline_base = sdram_base + 0x1000000;
     size_t initrd_max = sdram_size - 0x1002000;
 
-    reset_info = qemu_mallocz(sizeof(ResetInfo));
+    reset_info = g_malloc0(sizeof(ResetInfo));
 
     if (cpu_model == NULL) {
         cpu_model = "lm32-full";

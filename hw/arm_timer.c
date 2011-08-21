@@ -159,7 +159,7 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
     arm_timer_state *s;
     QEMUBH *bh;
 
-    s = (arm_timer_state *)qemu_mallocz(sizeof(arm_timer_state));
+    s = (arm_timer_state *)g_malloc0(sizeof(arm_timer_state));
     s->freq = freq;
     s->control = TIMER_CTRL_IE;
 

@@ -242,7 +242,7 @@ QError *qerror_new(void)
 {
     QError *qerr;
 
-    qerr = qemu_mallocz(sizeof(*qerr));
+    qerr = g_malloc0(sizeof(*qerr));
     QOBJECT_INIT(qerr, &qerror_type);
 
     return qerr;
@@ -501,5 +501,5 @@ static void qerror_destroy_obj(QObject *obj)
     qerr = qobject_to_qerror(obj);
 
     QDECREF(qerr->error);
-    qemu_free(qerr);
+    g_free(qerr);
 }

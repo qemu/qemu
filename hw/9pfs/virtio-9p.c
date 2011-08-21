@@ -239,7 +239,7 @@ static void v9fs_string_init(V9fsString *str)
 
 static void v9fs_string_free(V9fsString *str)
 {
-    qemu_free(str->data);
+    g_free(str->data);
     str->data = NULL;
     str->size = 0;
 }
@@ -338,7 +338,7 @@ v9fs_string_alloc_printf(char **strp, const char *fmt, va_list ap)
     }
 
 alloc_print:
-    *strp = qemu_malloc((len + 1) * sizeof(**strp));
+    *strp = g_malloc((len + 1) * sizeof(**strp));
 
     return vsprintf(*strp, fmt, ap);
 }
@@ -408,7 +408,7 @@ static V9fsFidState *alloc_fid(V9fsState *s, int32_t fid)
         return NULL;
     }
 
-    f = qemu_mallocz(sizeof(V9fsFidState));
+    f = g_malloc0(sizeof(V9fsFidState));
 
     f->fid = fid;
     f->fid_type = P9_FID_NONE;
@@ -448,7 +448,7 @@ free_out:
     v9fs_string_free(&fidp->fs.xattr.name);
 free_value:
     if (fidp->fs.xattr.value) {
-        qemu_free(fidp->fs.xattr.value);
+        g_free(fidp->fs.xattr.value);
     }
     return retval;
 }
@@ -479,7 +479,7 @@ static int free_fid(V9fsState *s, int32_t fid)
         retval = v9fs_xattr_fid_clunk(s, fidp);
     }
     v9fs_string_free(&fidp->path);
-    qemu_free(fidp);
+    g_free(fidp);
 
     return retval;
 }
@@ -685,7 +685,7 @@ static size_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
             V9fsString *str = va_arg(ap, V9fsString *);
             offset += pdu_unmarshal(pdu, offset, "w", &str->size);
             /* FIXME: sanity check str->size */
-            str->data = qemu_malloc(str->size + 1);
+            str->data = g_malloc(str->size + 1);
             offset += pdu_unpack(str->data, pdu, offset, str->size);
             str->data[str->size] = 0;
             break;
@@ -1209,7 +1209,7 @@ static void v9fs_stat_post_lstat(V9fsState *s, V9fsStatState *vs, int err)
 out:
     complete_pdu(s, vs->pdu, err);
     v9fs_stat_free(&vs->v9stat);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_stat(void *opaque)
@@ -1220,7 +1220,7 @@ static void v9fs_stat(void *opaque)
     V9fsStatState *vs;
     ssize_t err = 0;
 
-    vs = qemu_malloc(sizeof(*vs));
+    vs = g_malloc(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
 
@@ -1241,7 +1241,7 @@ static void v9fs_stat(void *opaque)
 out:
     complete_pdu(s, vs->pdu, err);
     v9fs_stat_free(&vs->v9stat);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_getattr(void *opaque)
@@ -1379,8 +1379,8 @@ static void v9fs_walk_complete(V9fsState *s, V9fsWalkState *vs, int err)
             v9fs_string_free(&vs->wnames[vs->name_idx]);
         }
 
-        qemu_free(vs->wnames);
-        qemu_free(vs->qids);
+        g_free(vs->wnames);
+        g_free(vs->qids);
     }
 }
 
@@ -1463,7 +1463,7 @@ static void v9fs_walk(void *opaque)
     int err = 0;
     int i;
 
-    vs = qemu_malloc(sizeof(*vs));
+    vs = g_malloc(sizeof(*vs));
     vs->pdu = pdu;
     vs->wnames = NULL;
     vs->qids = NULL;
@@ -1473,9 +1473,9 @@ static void v9fs_walk(void *opaque)
                                             &newfid, &vs->nwnames);
 
     if (vs->nwnames && vs->nwnames <= P9_MAXWELEM) {
-        vs->wnames = qemu_mallocz(sizeof(vs->wnames[0]) * vs->nwnames);
+        vs->wnames = g_malloc0(sizeof(vs->wnames[0]) * vs->nwnames);
 
-        vs->qids = qemu_mallocz(sizeof(vs->qids[0]) * vs->nwnames);
+        vs->qids = g_malloc0(sizeof(vs->qids[0]) * vs->nwnames);
 
         for (i = 0; i < vs->nwnames; i++) {
             vs->offset += pdu_unmarshal(vs->pdu, vs->offset, "s",
@@ -1568,7 +1568,7 @@ static void v9fs_open_post_opendir(V9fsState *s, V9fsOpenState *vs, int err)
     err = vs->offset;
 out:
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 
 }
 
@@ -1578,7 +1578,7 @@ static void v9fs_open_post_getiounit(V9fsState *s, V9fsOpenState *vs)
     vs->offset += pdu_marshal(vs->pdu, vs->offset, "Qd", &vs->qid, vs->iounit);
     err = vs->offset;
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_open_post_open(V9fsState *s, V9fsOpenState *vs, int err)
@@ -1593,7 +1593,7 @@ static void v9fs_open_post_open(V9fsState *s, V9fsOpenState *vs, int err)
     return;
 out:
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
@@ -1625,7 +1625,7 @@ static void v9fs_open_post_lstat(V9fsState *s, V9fsOpenState *vs, int err)
     return;
 out:
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_open(void *opaque)
@@ -1636,7 +1636,7 @@ static void v9fs_open(void *opaque)
     V9fsOpenState *vs;
     ssize_t err = 0;
 
-    vs = qemu_malloc(sizeof(*vs));
+    vs = g_malloc(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
     vs->mode = 0;
@@ -1661,7 +1661,7 @@ static void v9fs_open(void *opaque)
     return;
 out:
     complete_pdu(s, pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_post_lcreate(V9fsState *s, V9fsLcreateState *vs, int err)
@@ -1683,7 +1683,7 @@ static void v9fs_post_lcreate(V9fsState *s, V9fsLcreateState *vs, int err)
     complete_pdu(s, vs->pdu, err);
     v9fs_string_free(&vs->name);
     v9fs_string_free(&vs->fullname);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_lcreate_post_get_iounit(V9fsState *s, V9fsLcreateState *vs,
@@ -1724,7 +1724,7 @@ static void v9fs_lcreate(void *opaque)
     V9fsLcreateState *vs;
     ssize_t err = 0;
 
-    vs = qemu_malloc(sizeof(*vs));
+    vs = g_malloc(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
 
@@ -1753,7 +1753,7 @@ static void v9fs_lcreate(void *opaque)
 out:
     complete_pdu(s, vs->pdu, err);
     v9fs_string_free(&vs->name);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_post_do_fsync(V9fsState *s, V9fsPDU *pdu, int err)
@@ -1820,7 +1820,7 @@ out:
     complete_pdu(s, vs->pdu, err);
     v9fs_stat_free(&vs->v9stat);
     v9fs_string_free(&vs->name);
-    qemu_free(vs);
+    g_free(vs);
     return;
 }
 
@@ -1874,7 +1874,7 @@ static void v9fs_read_post_readdir(V9fsState *s, V9fsReadState *vs, ssize_t err)
     vs->offset += vs->count;
     err = vs->offset;
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
     return;
 }
 
@@ -1925,7 +1925,7 @@ static void v9fs_read_post_preadv(V9fsState *s, V9fsReadState *vs, ssize_t err)
 
 out:
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_xattr_read(V9fsState *s, V9fsReadState *vs)
@@ -1950,7 +1950,7 @@ static void v9fs_xattr_read(V9fsState *s, V9fsReadState *vs)
                            read_count);
     err = vs->offset;
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_read(void *opaque)
@@ -1961,7 +1961,7 @@ static void v9fs_read(void *opaque)
     V9fsReadState *vs;
     ssize_t err = 0;
 
-    vs = qemu_malloc(sizeof(*vs));
+    vs = g_malloc(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
     vs->total = 0;
@@ -2006,7 +2006,7 @@ static void v9fs_read(void *opaque)
     }
 out:
     complete_pdu(s, pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static size_t v9fs_readdir_data_size(V9fsString *name)
@@ -2138,7 +2138,7 @@ static void v9fs_write_post_pwritev(V9fsState *s, V9fsWriteState *vs,
     err = vs->offset;
 out:
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_xattr_write(V9fsState *s, V9fsWriteState *vs)
@@ -2180,7 +2180,7 @@ static void v9fs_xattr_write(V9fsState *s, V9fsWriteState *vs)
     }
 out:
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_write(void *opaque)
@@ -2191,7 +2191,7 @@ static void v9fs_write(void *opaque)
     V9fsWriteState *vs;
     ssize_t err;
 
-    vs = qemu_malloc(sizeof(*vs));
+    vs = g_malloc(sizeof(*vs));
 
     vs->pdu = pdu;
     vs->offset = 7;
@@ -2235,7 +2235,7 @@ static void v9fs_write(void *opaque)
     return;
 out:
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_create_post_getiounit(V9fsState *s, V9fsCreateState *vs)
@@ -2251,7 +2251,7 @@ static void v9fs_create_post_getiounit(V9fsState *s, V9fsCreateState *vs)
     v9fs_string_free(&vs->name);
     v9fs_string_free(&vs->extension);
     v9fs_string_free(&vs->fullname);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_post_create(V9fsState *s, V9fsCreateState *vs, int err)
@@ -2266,7 +2266,7 @@ static void v9fs_post_create(V9fsState *s, V9fsCreateState *vs, int err)
     v9fs_string_free(&vs->name);
     v9fs_string_free(&vs->extension);
     v9fs_string_free(&vs->fullname);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_create_post_perms(V9fsState *s, V9fsCreateState *vs, int err)
@@ -2426,7 +2426,7 @@ static void v9fs_create(void *opaque)
     V9fsCreateState *vs;
     int err = 0;
 
-    vs = qemu_malloc(sizeof(*vs));
+    vs = g_malloc(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
 
@@ -2452,7 +2452,7 @@ out:
     complete_pdu(s, vs->pdu, err);
     v9fs_string_free(&vs->name);
     v9fs_string_free(&vs->extension);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_post_symlink(V9fsState *s, V9fsSymlinkState *vs, int err)
@@ -2468,7 +2468,7 @@ static void v9fs_post_symlink(V9fsState *s, V9fsSymlinkState *vs, int err)
     v9fs_string_free(&vs->name);
     v9fs_string_free(&vs->symname);
     v9fs_string_free(&vs->fullname);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_symlink_post_do_symlink(V9fsState *s, V9fsSymlinkState *vs,
@@ -2491,7 +2491,7 @@ static void v9fs_symlink(void *opaque)
     int err = 0;
     gid_t gid;
 
-    vs = qemu_malloc(sizeof(*vs));
+    vs = g_malloc(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
 
@@ -2517,7 +2517,7 @@ out:
     complete_pdu(s, vs->pdu, err);
     v9fs_string_free(&vs->name);
     v9fs_string_free(&vs->symname);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_flush(void *opaque)
@@ -2605,7 +2605,7 @@ static void v9fs_wstat_post_truncate(V9fsState *s, V9fsWstatState *vs, int err)
 out:
     v9fs_stat_free(&vs->v9stat);
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_wstat_post_rename(V9fsState *s, V9fsWstatState *vs, int err)
@@ -2624,7 +2624,7 @@ static void v9fs_wstat_post_rename(V9fsState *s, V9fsWstatState *vs, int err)
 out:
     v9fs_stat_free(&vs->v9stat);
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
@@ -2643,7 +2643,7 @@ static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
         }
         BUG_ON(dirfidp->fid_type != P9_FID_NONE);
 
-        new_name = qemu_mallocz(dirfidp->path.size + name->size + 2);
+        new_name = g_malloc0(dirfidp->path.size + name->size + 2);
 
         strcpy(new_name, dirfidp->path.data);
         strcat(new_name, "/");
@@ -2656,7 +2656,7 @@ static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
         } else {
             end = old_name;
         }
-        new_name = qemu_mallocz(end - old_name + name->size + 1);
+        new_name = g_malloc0(end - old_name + name->size + 1);
 
         strncat(new_name, old_name, end - old_name);
         strncat(new_name + (end - old_name), name->data, name->size);
@@ -2710,7 +2710,7 @@ static void v9fs_wstat_post_chown(V9fsState *s, V9fsWstatState *vs, int err)
 out:
     v9fs_stat_free(&vs->v9stat);
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_rename(void *opaque)
@@ -2760,7 +2760,7 @@ static void v9fs_wstat_post_utime(V9fsState *s, V9fsWstatState *vs, int err)
 out:
     v9fs_stat_free(&vs->v9stat);
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_wstat_post_chmod(V9fsState *s, V9fsWstatState *vs, int err)
@@ -2795,7 +2795,7 @@ static void v9fs_wstat_post_chmod(V9fsState *s, V9fsWstatState *vs, int err)
 out:
     v9fs_stat_free(&vs->v9stat);
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_wstat_post_fsync(V9fsState *s, V9fsWstatState *vs, int err)
@@ -2805,7 +2805,7 @@ static void v9fs_wstat_post_fsync(V9fsState *s, V9fsWstatState *vs, int err)
     }
     v9fs_stat_free(&vs->v9stat);
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_wstat_post_lstat(V9fsState *s, V9fsWstatState *vs, int err)
@@ -2836,7 +2836,7 @@ static void v9fs_wstat_post_lstat(V9fsState *s, V9fsWstatState *vs, int err)
 out:
     v9fs_stat_free(&vs->v9stat);
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static void v9fs_wstat(void *opaque)
@@ -2847,7 +2847,7 @@ static void v9fs_wstat(void *opaque)
     V9fsWstatState *vs;
     int err = 0;
 
-    vs = qemu_malloc(sizeof(*vs));
+    vs = g_malloc(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
 
@@ -2878,7 +2878,7 @@ static void v9fs_wstat(void *opaque)
 out:
     v9fs_stat_free(&vs->v9stat);
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs);
+    g_free(vs);
 }
 
 static int v9fs_fill_statfs(V9fsState *s, V9fsPDU *pdu, struct statfs *stbuf)
@@ -3014,11 +3014,11 @@ static void v9fs_lock(void *opaque)
     int32_t fid, err = 0;
     V9fsLockState *vs;
 
-    vs = qemu_mallocz(sizeof(*vs));
+    vs = g_malloc0(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
 
-    vs->flock = qemu_malloc(sizeof(*vs->flock));
+    vs->flock = g_malloc(sizeof(*vs->flock));
     pdu_unmarshal(vs->pdu, vs->offset, "dbdqqds", &fid, &vs->flock->type,
                 &vs->flock->flags, &vs->flock->start, &vs->flock->length,
                             &vs->flock->proc_id, &vs->flock->client_id);
@@ -3045,8 +3045,8 @@ static void v9fs_lock(void *opaque)
 out:
     vs->offset += pdu_marshal(vs->pdu, vs->offset, "b", vs->status);
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs->flock);
-    qemu_free(vs);
+    g_free(vs->flock);
+    g_free(vs);
 }
 
 /*
@@ -3061,11 +3061,11 @@ static void v9fs_getlock(void *opaque)
     int32_t fid, err = 0;
     V9fsGetlockState *vs;
 
-    vs = qemu_mallocz(sizeof(*vs));
+    vs = g_malloc0(sizeof(*vs));
     vs->pdu = pdu;
     vs->offset = 7;
 
-    vs->glock = qemu_malloc(sizeof(*vs->glock));
+    vs->glock = g_malloc(sizeof(*vs->glock));
     pdu_unmarshal(vs->pdu, vs->offset, "dbqqds", &fid, &vs->glock->type,
                 &vs->glock->start, &vs->glock->length, &vs->glock->proc_id,
 		&vs->glock->client_id);
@@ -3087,8 +3087,8 @@ static void v9fs_getlock(void *opaque)
 		&vs->glock->client_id);
 out:
     complete_pdu(s, vs->pdu, err);
-    qemu_free(vs->glock);
-    qemu_free(vs);
+    g_free(vs->glock);
+    g_free(vs);
 }
 
 static void v9fs_mkdir(void *opaque)
@@ -3171,7 +3171,7 @@ static void v9fs_xattrwalk(void *opaque)
         xattr_fidp->fid_type = P9_FID_XATTR;
         xattr_fidp->fs.xattr.copied_len = -1;
         if (size) {
-            xattr_fidp->fs.xattr.value = qemu_malloc(size);
+            xattr_fidp->fs.xattr.value = g_malloc(size);
             err = v9fs_co_llistxattr(s, &xattr_fidp->path,
                                      xattr_fidp->fs.xattr.value,
                                      xattr_fidp->fs.xattr.len);
@@ -3201,7 +3201,7 @@ static void v9fs_xattrwalk(void *opaque)
         xattr_fidp->fid_type = P9_FID_XATTR;
         xattr_fidp->fs.xattr.copied_len = -1;
         if (size) {
-            xattr_fidp->fs.xattr.value = qemu_malloc(size);
+            xattr_fidp->fs.xattr.value = g_malloc(size);
             err = v9fs_co_lgetxattr(s, &xattr_fidp->path,
                                     &name, xattr_fidp->fs.xattr.value,
                                     xattr_fidp->fs.xattr.len);
@@ -3248,7 +3248,7 @@ static void v9fs_xattrcreate(void *opaque)
     v9fs_string_init(&xattr_fidp->fs.xattr.name);
     v9fs_string_copy(&xattr_fidp->fs.xattr.name, &name);
     if (size) {
-        xattr_fidp->fs.xattr.value = qemu_malloc(size);
+        xattr_fidp->fs.xattr.value = g_malloc(size);
     } else {
         xattr_fidp->fs.xattr.value = NULL;
     }

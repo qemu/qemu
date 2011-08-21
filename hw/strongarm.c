@@ -1529,7 +1529,7 @@ StrongARMState *sa1110_init(unsigned int sdram_size, const char *rev)
     qemu_irq *pic;
     int i;
 
-    s = qemu_mallocz(sizeof(StrongARMState));
+    s = g_malloc0(sizeof(StrongARMState));
 
     if (!rev) {
         rev = "sa1110-b5";

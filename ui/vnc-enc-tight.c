@@ -1293,13 +1293,13 @@ static int send_jpeg_rect(VncState *vs, int x, int y, int w, int h, int quality)
 
     jpeg_start_compress(&cinfo, true);
 
-    buf = qemu_malloc(w * 3);
+    buf = g_malloc(w * 3);
     row[0] = buf;
     for (dy = 0; dy < h; dy++) {
         rgb_prepare_row(vs, buf, x, y + dy, w);
         jpeg_write_scanlines(&cinfo, row, 1);
     }
-    qemu_free(buf);
+    g_free(buf);
 
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
@@ -1363,12 +1363,12 @@ static void png_flush_data(png_structp png_ptr)
 
 static void *vnc_png_malloc(png_structp png_ptr, png_size_t size)
 {
-    return qemu_malloc(size);
+    return g_malloc(size);
 }
 
 static void vnc_png_free(png_structp png_ptr, png_voidp ptr)
 {
-    qemu_free(ptr);
+    g_free(ptr);
 }
 
 static int send_png_rect(VncState *vs, int x, int y, int w, int h,
@@ -1432,7 +1432,7 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
     png_write_info(png_ptr, info_ptr);
 
     buffer_reserve(&vs->tight.png, 2048);
-    buf = qemu_malloc(w * 3);
+    buf = g_malloc(w * 3);
     for (dy = 0; dy < h; dy++)
     {
         if (color_type == PNG_COLOR_TYPE_PALETTE) {
@@ -1442,7 +1442,7 @@ static int send_png_rect(VncState *vs, int x, int y, int w, int h,
         }
         png_write_row(png_ptr, buf);
     }
-    qemu_free(buf);
+    g_free(buf);
 
     png_write_end(png_ptr, NULL);
 

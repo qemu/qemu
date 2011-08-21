@@ -410,7 +410,7 @@ static struct l2cap_chan_s *l2cap_channel_open(struct l2cap_instance_s *l2cap,
 
         if (psm_info) {
             /* Device supports this use-case.  */
-            ch = qemu_mallocz(sizeof(*ch));
+            ch = g_malloc0(sizeof(*ch));
             ch->params.sdu_out = l2cap_bframe_out;
             ch->params.sdu_submit = l2cap_bframe_submit;
             ch->frame_in = l2cap_bframe_in;
@@ -428,7 +428,7 @@ static struct l2cap_chan_s *l2cap_channel_open(struct l2cap_instance_s *l2cap,
                 result = L2CAP_CR_SUCCESS;
                 status = L2CAP_CS_NO_INFO;
             } else {
-                qemu_free(ch);
+                g_free(ch);
 
                 result = L2CAP_CR_NO_MEM;
                 status = L2CAP_CS_NO_INFO;
@@ -473,7 +473,7 @@ static void l2cap_channel_close(struct l2cap_instance_s *l2cap,
         l2cap->cid[cid] = NULL;
 
         ch->params.close(ch->params.opaque);
-        qemu_free(ch);
+        g_free(ch);
     }
 
     l2cap_disconnection_response(l2cap, cid, source_cid);
@@ -1218,13 +1218,13 @@ static void l2cap_teardown(struct l2cap_instance_s *l2cap, int send_disconnect)
     for (cid = L2CAP_CID_ALLOC; cid < L2CAP_CID_MAX; cid ++)
         if (l2cap->cid[cid]) {
             l2cap->cid[cid]->params.close(l2cap->cid[cid]->params.opaque);
-            qemu_free(l2cap->cid[cid]);
+            g_free(l2cap->cid[cid]);
         }
 
     if (l2cap->role)
-        qemu_free(l2cap);
+        g_free(l2cap);
     else
-        qemu_free(l2cap->link);
+        g_free(l2cap->link);
 }
 
 /* L2CAP glue to lower layers in bluetooth stack (LMP) */
@@ -1236,7 +1236,7 @@ static void l2cap_lmp_connection_request(struct bt_link_s *link)
 
     /* Always accept - we only get called if (dev->device->page_scan).  */
 
-    l2cap = qemu_mallocz(sizeof(struct slave_l2cap_instance_s));
+    l2cap = g_malloc0(sizeof(struct slave_l2cap_instance_s));
     l2cap->link.slave = &dev->device;
     l2cap->link.host = link->host;
     l2cap_init(&l2cap->l2cap, &l2cap->link, 0);
@@ -1257,7 +1257,7 @@ static void l2cap_lmp_connection_complete(struct bt_link_s *link)
         return;
     }
 
-    l2cap = qemu_mallocz(sizeof(struct l2cap_instance_s));
+    l2cap = g_malloc0(sizeof(struct l2cap_instance_s));
     l2cap_init(l2cap, link, 1);
 
     link->acl_mode = acl_active;
@@ -1353,7 +1353,7 @@ void bt_l2cap_psm_register(struct bt_l2cap_device_s *dev, int psm, int min_mtu,
         exit(-1);
     }
 
-    new_psm = qemu_mallocz(sizeof(*new_psm));
+    new_psm = g_malloc0(sizeof(*new_psm));
     new_psm->psm = psm;
     new_psm->min_mtu = min_mtu;
     new_psm->new_channel = new_channel;

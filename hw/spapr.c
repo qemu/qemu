@@ -85,7 +85,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         }                                                          \
     } while (0)
 
-    fdt = qemu_mallocz(FDT_MAX_SIZE);
+    fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create(fdt, FDT_MAX_SIZE)));
 
     _FDT((fdt_finish_reservemap(fdt)));
@@ -125,7 +125,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_property_cell(fdt, "#address-cells", 0x1)));
     _FDT((fdt_property_cell(fdt, "#size-cells", 0x0)));
 
-    modelname = qemu_strdup(cpu_model);
+    modelname = g_strdup(cpu_model);
 
     for (i = 0; i < strlen(modelname); i++) {
         modelname[i] = toupper(modelname[i]);
@@ -176,7 +176,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         _FDT((fdt_end_node(fdt)));
     }
 
-    qemu_free(modelname);
+    g_free(modelname);
 
     _FDT((fdt_end_node(fdt)));
 
@@ -228,7 +228,7 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
     int ret;
     void *fdt;
 
-    fdt = qemu_malloc(FDT_MAX_SIZE);
+    fdt = g_malloc(FDT_MAX_SIZE);
 
     /* open out the base tree into a temp buffer for the final tweaks */
     _FDT((fdt_open_into(spapr->fdt_skel, fdt, FDT_MAX_SIZE)));
@@ -249,7 +249,7 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
 
     cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
 
-    qemu_free(fdt);
+    g_free(fdt);
 }
 
 static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
@@ -300,7 +300,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     char *filename;
     int irq = 16;
 
-    spapr = qemu_malloc(sizeof(*spapr));
+    spapr = g_malloc(sizeof(*spapr));
     cpu_ppc_hypercall = emulate_spapr_hypercall;
 
     /* We place the device tree just below either the top of RAM, or
@@ -337,7 +337,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
      * later we should probably make it scale to the size of guest
      * RAM */
     spapr->htab_size = 1ULL << (pteg_shift + 7);
-    spapr->htab = qemu_malloc(spapr->htab_size);
+    spapr->htab = g_malloc(spapr->htab_size);
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         env->external_htab = spapr->htab;
@@ -352,7 +352,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
         exit(1);
     }
-    qemu_free(filename);
+    g_free(filename);
 
     /* Set up Interrupt Controller */
     spapr->icp = xics_system_init(XICS_IRQS);
@@ -372,7 +372,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         NICInfo *nd = &nd_table[i];
 
         if (!nd->model) {
-            nd->model = qemu_strdup("ibmveth");
+            nd->model = g_strdup("ibmveth");
         }
 
         if (strcmp(nd->model, "ibmveth") == 0) {
@@ -436,7 +436,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
             hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
             exit(1);
         }
-        qemu_free(filename);
+        g_free(filename);
         spapr->entry_point = 0x100;
         initrd_base = 0;
         initrd_size = 0;

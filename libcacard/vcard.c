@@ -37,8 +37,8 @@ vcard_buffer_response_new(unsigned char *buffer, int size)
 {
     VCardBufferResponse *new_buffer;
 
-    new_buffer = (VCardBufferResponse *)qemu_malloc(sizeof(VCardBufferResponse));
-    new_buffer->buffer = (unsigned char *)qemu_malloc(size);
+    new_buffer = (VCardBufferResponse *)g_malloc(sizeof(VCardBufferResponse));
+    new_buffer->buffer = (unsigned char *)g_malloc(size);
     memcpy(new_buffer->buffer, buffer, size);
     new_buffer->buffer_len = size;
     new_buffer->current = new_buffer->buffer;
@@ -53,9 +53,9 @@ vcard_buffer_response_delete(VCardBufferResponse *buffer_response)
         return;
     }
     if (buffer_response->buffer) {
-        qemu_free(buffer_response->buffer);
+        g_free(buffer_response->buffer);
     }
-    qemu_free(buffer_response);
+    g_free(buffer_response);
 }
 
 
@@ -102,14 +102,14 @@ vcard_new_applet(VCardProcessAPDU applet_process_function,
 {
     VCardApplet *applet;
 
-    applet = (VCardApplet *)qemu_malloc(sizeof(VCardApplet));
+    applet = (VCardApplet *)g_malloc(sizeof(VCardApplet));
     applet->next = NULL;
     applet->applet_private = NULL;
     applet->applet_private_free = NULL;
     applet->process_apdu = applet_process_function;
     applet->reset_applet = applet_reset_function;
 
-    applet->aid = qemu_malloc(aid_len);
+    applet->aid = g_malloc(aid_len);
     memcpy(applet->aid, aid, aid_len);
     applet->aid_len = aid_len;
     return applet;
@@ -127,10 +127,10 @@ vcard_delete_applet(VCardApplet *applet)
         applet->applet_private = NULL;
     }
     if (applet->aid) {
-        qemu_free(applet->aid);
+        g_free(applet->aid);
         applet->aid = NULL;
     }
-    qemu_free(applet);
+    g_free(applet);
 }
 
 /* accessor */
@@ -151,7 +151,7 @@ vcard_new(VCardEmul *private, VCardEmulFree private_free)
     VCard *new_card;
     int i;
 
-    new_card = (VCard *)qemu_malloc(sizeof(VCard));
+    new_card = (VCard *)g_malloc(sizeof(VCard));
     new_card->applet_list = NULL;
     for (i = 0; i < MAX_CHANNEL; i++) {
         new_card->current_applet[i] = NULL;
@@ -199,7 +199,7 @@ vcard_free(VCard *vcard)
         vcard_delete_applet(current_applet);
     }
     vcard_buffer_response_delete(vcard->vcard_buffer_response);
-    qemu_free(vcard);
+    g_free(vcard);
     return;
 }
 

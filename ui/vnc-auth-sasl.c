@@ -135,7 +135,7 @@ static int vnc_auth_sasl_check_access(VncState *vs)
     }
     VNC_DEBUG("SASL client username %s\n", (const char *)val);
 
-    vs->sasl.username = qemu_strdup((const char*)val);
+    vs->sasl.username = g_strdup((const char*)val);
 
     if (vs->vd->sasl.acl == NULL) {
         VNC_DEBUG("no ACL activated, allowing access\n");

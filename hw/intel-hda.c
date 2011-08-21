@@ -467,8 +467,8 @@ static void intel_hda_parse_bdl(IntelHDAState *d, IntelHDAStream *st)
 
     addr = intel_hda_addr(st->bdlp_lbase, st->bdlp_ubase);
     st->bentries = st->lvi +1;
-    qemu_free(st->bpl);
-    st->bpl = qemu_malloc(sizeof(bpl) * st->bentries);
+    g_free(st->bpl);
+    st->bpl = g_malloc(sizeof(bpl) * st->bentries);
     for (i = 0; i < st->bentries; i++, addr += 16) {
         cpu_physical_memory_read(addr, buf, 16);
         st->bpl[i].addr  = le64_to_cpu(*(uint64_t *)buf);

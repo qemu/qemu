@@ -681,7 +681,7 @@ static void prom_init(target_phys_addr_t addr, const char *bios_name)
         if (ret < 0 || ret > PROM_SIZE_MAX) {
             ret = load_image_targphys(filename, addr, PROM_SIZE_MAX);
         }
-        qemu_free(filename);
+        g_free(filename);
     } else {
         ret = -1;
     }

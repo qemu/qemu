@@ -1107,7 +1107,7 @@ inline static int debug_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                                            CPUWriteMemoryFunc * const *mem_write,
                                            void *opaque)
 {
-    struct io_fn *s = qemu_malloc(sizeof(struct io_fn));
+    struct io_fn *s = g_malloc(sizeof(struct io_fn));
 
     s->mem_read = mem_read;
     s->mem_write = mem_write;

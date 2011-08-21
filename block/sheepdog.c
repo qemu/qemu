@@ -368,7 +368,7 @@ static inline AIOReq *alloc_aio_req(BDRVSheepdogState *s, SheepdogAIOCB *acb,
 {
     AIOReq *aio_req;
 
-    aio_req = qemu_malloc(sizeof(*aio_req));
+    aio_req = g_malloc(sizeof(*aio_req));
     aio_req->aiocb = acb;
     aio_req->iov_offset = iov_offset;
     aio_req->oid = oid;
@@ -390,7 +390,7 @@ static inline int free_aio_req(BDRVSheepdogState *s, AIOReq *aio_req)
     SheepdogAIOCB *acb = aio_req->aiocb;
     QLIST_REMOVE(aio_req, outstanding_aio_siblings);
     QLIST_REMOVE(aio_req, aioreq_siblings);
-    qemu_free(aio_req);
+    g_free(aio_req);
 
     return !QLIST_EMPTY(&acb->aioreq_head);
 }
@@ -470,7 +470,7 @@ static ssize_t sendmsg(int s, const struct msghdr *msg, int flags)
     for (i = 0; i < msg->msg_iovlen; i++) {
         size += msg->msg_iov[i].iov_len;
     }
-    buf = qemu_malloc(size);
+    buf = g_malloc(size);
 
     p = buf;
     for (i = 0; i < msg->msg_iovlen; i++) {
@@ -480,7 +480,7 @@ static ssize_t sendmsg(int s, const struct msghdr *msg, int flags)
 
     ret = send(s, buf, size, flags);
 
-    qemu_free(buf);
+    g_free(buf);
     return ret;
 }
 
@@ -494,7 +494,7 @@ static ssize_t recvmsg(int s, struct msghdr *msg, int flags)
     for (i = 0; i < msg->msg_iovlen; i++) {
         size += msg->msg_iov[i].iov_len;
     }
-    buf = qemu_malloc(size);
+    buf = g_malloc(size);
 
     ret = qemu_recv(s, buf, size, flags);
     if (ret < 0) {
@@ -507,7 +507,7 @@ static ssize_t recvmsg(int s, struct msghdr *msg, int flags)
         p += msg->msg_iov[i].iov_len;
     }
 out:
-    qemu_free(buf);
+    g_free(buf);
     return ret;
 }
 
@@ -952,7 +952,7 @@ static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
     char *p, *q;
     int nr_sep;
 
-    p = q = qemu_strdup(filename);
+    p = q = g_strdup(filename);
 
     /* count the number of separators */
     nr_sep = 0;
@@ -992,7 +992,7 @@ static int parse_vdiname(BDRVSheepdogState *s, const char *filename,
     }
 
     if (s->addr == NULL) {
-        qemu_free(q);
+        g_free(q);
     }
 
     return 0;
@@ -1210,7 +1210,7 @@ static int sd_open(BlockDriverState *bs, const char *filename, int flags)
         goto out;
     }
 
-    buf = qemu_malloc(SD_INODE_SIZE);
+    buf = g_malloc(SD_INODE_SIZE);
     ret = read_object(fd, buf, vid_to_vdi_oid(vid), 0, SD_INODE_SIZE, 0);
 
     closesocket(fd);
@@ -1225,14 +1225,14 @@ static int sd_open(BlockDriverState *bs, const char *filename, int flags)
 
     bs->total_sectors = s->inode.vdi_size / SECTOR_SIZE;
     strncpy(s->name, vdi, sizeof(s->name));
-    qemu_free(buf);
+    g_free(buf);
     return 0;
 out:
     qemu_aio_set_fd_handler(s->fd, NULL, NULL, NULL, NULL, NULL);
     if (s->fd >= 0) {
         closesocket(s->fd);
     }
-    qemu_free(buf);
+    g_free(buf);
     return -1;
 }
 
@@ -1291,7 +1291,7 @@ static int sd_prealloc(const char *filename)
     BlockDriverState *bs = NULL;
     uint32_t idx, max_idx;
     int64_t vdi_size;
-    void *buf = qemu_mallocz(SD_DATA_OBJ_SIZE);
+    void *buf = g_malloc0(SD_DATA_OBJ_SIZE);
     int ret;
 
     ret = bdrv_file_open(&bs, filename, BDRV_O_RDWR);
@@ -1324,7 +1324,7 @@ out:
     if (bs) {
         bdrv_delete(bs);
     }
-    qemu_free(buf);
+    g_free(buf);
 
     return ret;
 }
@@ -1444,7 +1444,7 @@ static void sd_close(BlockDriverState *bs)
 
     qemu_aio_set_fd_handler(s->fd, NULL, NULL, NULL, NULL, NULL);
     closesocket(s->fd);
-    qemu_free(s->addr);
+    g_free(s->addr);
 }
 
 static int64_t sd_getlength(BlockDriverState *bs)
@@ -1542,7 +1542,7 @@ static int sd_create_branch(BDRVSheepdogState *s)
 
     dprintf("%" PRIx32 " is snapshot.\n", s->inode.vdi_id);
 
-    buf = qemu_malloc(SD_INODE_SIZE);
+    buf = g_malloc(SD_INODE_SIZE);
 
     ret = do_sd_create(s->name, s->inode.vdi_size, s->inode.vdi_id, &vid, 1,
                        s->addr, s->port);
@@ -1574,7 +1574,7 @@ static int sd_create_branch(BDRVSheepdogState *s)
     dprintf("%" PRIx32 " was newly created.\n", s->inode.vdi_id);
 
 out:
-    qemu_free(buf);
+    g_free(buf);
 
     return ret;
 }
@@ -1786,7 +1786,7 @@ static int sd_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
         goto cleanup;
     }
 
-    inode = (SheepdogInode *)qemu_malloc(datalen);
+    inode = (SheepdogInode *)g_malloc(datalen);
 
     ret = read_object(fd, (char *)inode, vid_to_vdi_oid(new_vid),
                       s->inode.nr_copies, datalen, 0);
@@ -1816,7 +1816,7 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     uint32_t snapid = 0;
     int ret = -ENOENT, fd;
 
-    old_s = qemu_malloc(sizeof(BDRVSheepdogState));
+    old_s = g_malloc(sizeof(BDRVSheepdogState));
 
     memcpy(old_s, s, sizeof(BDRVSheepdogState));
 
@@ -1842,7 +1842,7 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         goto out;
     }
 
-    buf = qemu_malloc(SD_INODE_SIZE);
+    buf = g_malloc(SD_INODE_SIZE);
     ret = read_object(fd, buf, vid_to_vdi_oid(vid), s->inode.nr_copies,
                       SD_INODE_SIZE, 0);
 
@@ -1863,15 +1863,15 @@ static int sd_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
 
     s->is_snapshot = 1;
 
-    qemu_free(buf);
-    qemu_free(old_s);
+    g_free(buf);
+    g_free(old_s);
 
     return 0;
 out:
     /* recover bdrv_sd_state */
     memcpy(s, old_s, sizeof(BDRVSheepdogState));
-    qemu_free(buf);
-    qemu_free(old_s);
+    g_free(buf);
+    g_free(old_s);
 
     error_report("failed to open. recover old bdrv_sd_state.");
 
@@ -1898,7 +1898,7 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
     uint64_t hval;
     uint32_t vid;
 
-    vdi_inuse = qemu_malloc(max);
+    vdi_inuse = g_malloc(max);
 
     fd = connect_to_sdog(s->addr, s->port);
     if (fd < 0) {
@@ -1920,7 +1920,7 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
         goto out;
     }
 
-    sn_tab = qemu_mallocz(nr * sizeof(*sn_tab));
+    sn_tab = g_malloc0(nr * sizeof(*sn_tab));
 
     /* calculate a vdi id with hash function */
     hval = fnv_64a_buf(s->name, strlen(s->name), FNV1A_64_INIT);
@@ -1963,7 +1963,7 @@ static int sd_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
 out:
     *psn_tab = sn_tab;
 
-    qemu_free(vdi_inuse);
+    g_free(vdi_inuse);
 
     return found;
 }

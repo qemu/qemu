@@ -65,11 +65,11 @@ int qemu_fsdev_add(QemuOpts *opts)
         return -1;
     }
 
-    fsle = qemu_malloc(sizeof(*fsle));
+    fsle = g_malloc(sizeof(*fsle));
 
-    fsle->fse.fsdev_id = qemu_strdup(fsdev_id);
-    fsle->fse.path = qemu_strdup(path);
-    fsle->fse.security_model = qemu_strdup(sec_model);
+    fsle->fse.fsdev_id = g_strdup(fsdev_id);
+    fsle->fse.path = g_strdup(path);
+    fsle->fse.security_model = g_strdup(sec_model);
     fsle->fse.ops = FsTypes[i].ops;
 
     QTAILQ_INSERT_TAIL(&fstype_entries, fsle, next);

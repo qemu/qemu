@@ -579,7 +579,7 @@ TC6393xbState *tc6393xb_init(uint32_t base, qemu_irq irq)
         tc6393xb_writel,
     };
 
-    s = (TC6393xbState *) qemu_mallocz(sizeof(TC6393xbState));
+    s = (TC6393xbState *) g_malloc0(sizeof(TC6393xbState));
     s->irq = irq;
     s->gpio_in = qemu_allocate_irqs(tc6393xb_gpio_set, s, TC6393XB_GPIOS);
 

@@ -610,7 +610,7 @@ int main(int argc, char **argv)
         become_daemon(pidfile);
     }
 
-    s = qemu_mallocz(sizeof(GAState));
+    s = g_malloc0(sizeof(GAState));
     s->conn_channel = NULL;
     s->path = path;
     s->method = method;

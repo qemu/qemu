@@ -1764,7 +1764,7 @@ static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
 {
     int iomemtype;
     PXA2xxI2SState *s = (PXA2xxI2SState *)
-            qemu_mallocz(sizeof(PXA2xxI2SState));
+            g_malloc0(sizeof(PXA2xxI2SState));
 
     s->irq = irq;
     s->rx_dma = rx_dma;
@@ -2025,7 +2025,7 @@ static PXA2xxFIrState *pxa2xx_fir_init(target_phys_addr_t base,
 {
     int iomemtype;
     PXA2xxFIrState *s = (PXA2xxFIrState *)
-            qemu_mallocz(sizeof(PXA2xxFIrState));
+            g_malloc0(sizeof(PXA2xxFIrState));
 
     s->irq = irq;
     s->rx_dma = rx_dma;
@@ -2064,7 +2064,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     PXA2xxState *s;
     int iomemtype, i;
     DriveInfo *dinfo;
-    s = (PXA2xxState *) qemu_mallocz(sizeof(PXA2xxState));
+    s = (PXA2xxState *) g_malloc0(sizeof(PXA2xxState));
 
     if (revision && strncmp(revision, "pxa27", 5)) {
         fprintf(stderr, "Machine requires a PXA27x processor.\n");
@@ -2162,7 +2162,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
     vmstate_register(NULL, 0, &vmstate_pxa2xx_pm, s);
 
     for (i = 0; pxa27x_ssp[i].io_base; i ++);
-    s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);
+    s->ssp = (SSIBus **)g_malloc0(sizeof(SSIBus *) * i);
     for (i = 0; pxa27x_ssp[i].io_base; i ++) {
         DeviceState *dev;
         dev = sysbus_create_simple("pxa2xx-ssp", pxa27x_ssp[i].io_base,
@@ -2207,7 +2207,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     int iomemtype, i;
     DriveInfo *dinfo;
 
-    s = (PXA2xxState *) qemu_mallocz(sizeof(PXA2xxState));
+    s = (PXA2xxState *) g_malloc0(sizeof(PXA2xxState));
 
     s->env = cpu_init("pxa255");
     if (!s->env) {
@@ -2298,7 +2298,7 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
     vmstate_register(NULL, 0, &vmstate_pxa2xx_pm, s);
 
     for (i = 0; pxa255_ssp[i].io_base; i ++);
-    s->ssp = (SSIBus **)qemu_mallocz(sizeof(SSIBus *) * i);
+    s->ssp = (SSIBus **)g_malloc0(sizeof(SSIBus *) * i);
     for (i = 0; pxa255_ssp[i].io_base; i ++) {
         DeviceState *dev;
         dev = sysbus_create_simple("pxa2xx-ssp", pxa255_ssp[i].io_base,

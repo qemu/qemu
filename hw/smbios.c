@@ -105,9 +105,9 @@ void smbios_add_field(int type, int offset, int len, void *data)
 
     if (!smbios_entries) {
         smbios_entries_len = sizeof(uint16_t);
-        smbios_entries = qemu_mallocz(smbios_entries_len);
+        smbios_entries = g_malloc0(smbios_entries_len);
     }
-    smbios_entries = qemu_realloc(smbios_entries, smbios_entries_len +
+    smbios_entries = g_realloc(smbios_entries, smbios_entries_len +
                                                   sizeof(*field) + len);
     field = (struct smbios_field *)(smbios_entries + smbios_entries_len);
     field->header.type = SMBIOS_FIELD_ENTRY;
@@ -192,10 +192,10 @@ int smbios_entry_add(const char *t)
 
         if (!smbios_entries) {
             smbios_entries_len = sizeof(uint16_t);
-            smbios_entries = qemu_mallocz(smbios_entries_len);
+            smbios_entries = g_malloc0(smbios_entries_len);
         }
 
-        smbios_entries = qemu_realloc(smbios_entries, smbios_entries_len +
+        smbios_entries = g_realloc(smbios_entries, smbios_entries_len +
                                                       sizeof(*table) + size);
         table = (struct smbios_table *)(smbios_entries + smbios_entries_len);
         table->header.type = SMBIOS_TABLE_ENTRY;

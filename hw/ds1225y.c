@@ -146,7 +146,7 @@ static int nvram_sysbus_initfn(SysBusDevice *dev)
     QEMUFile *file;
     int s_io;
 
-    s->contents = qemu_mallocz(s->chip_size);
+    s->contents = g_malloc0(s->chip_size);
 
     s_io = cpu_register_io_memory(nvram_read, nvram_write, s,
                                   DEVICE_NATIVE_ENDIAN);

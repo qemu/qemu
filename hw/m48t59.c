@@ -679,7 +679,7 @@ M48t59State *m48t59_init_isa(uint32_t io_base, uint16_t size, int type)
 
 static void m48t59_init_common(M48t59State *s)
 {
-    s->buffer = qemu_mallocz(s->size);
+    s->buffer = g_malloc0(s->size);
     if (s->type == 59) {
         s->alrm_timer = qemu_new_timer_ns(vm_clock, &alarm_cb, s);
         s->wd_timer = qemu_new_timer_ns(vm_clock, &watchdog_cb, s);

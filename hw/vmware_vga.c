@@ -1068,7 +1068,7 @@ static void vmsvga_screen_dump(void *opaque, const char *filename)
         DisplaySurface *ds = qemu_create_displaysurface_from(s->width,
                 s->height, 32, ds_get_linesize(s->vga.ds), s->vga.vram_ptr);
         ppm_save(filename, ds);
-        qemu_free(ds);
+        g_free(ds);
     }
 }
 
@@ -1210,7 +1210,7 @@ static const VMStateDescription vmstate_vmware_vga = {
 static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size)
 {
     s->scratch_size = SVGA_SCRATCH_SIZE;
-    s->scratch = qemu_malloc(s->scratch_size * 4);
+    s->scratch = g_malloc(s->scratch_size * 4);
 
     s->vga.ds = graphic_console_init(vmsvga_update_display,
                                      vmsvga_invalidate_display,
@@ -1274,7 +1274,7 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
     MemoryRegion *iomem;
 
 #ifdef DIRECT_VRAM
-    DirectMem *directmem = qemu_malloc(sizeof(*directmem));
+    DirectMem *directmem = g_malloc(sizeof(*directmem));
 
     iomem = &directmem->mr;
     memory_region_init_io(iomem, &vmsvga_vram_io_ops, &s->chip, "vmsvga",

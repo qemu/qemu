@@ -559,7 +559,7 @@ static void baum_chr_read(void *opaque)
     if (ret == -1 && (brlapi_errno != BRLAPI_ERROR_LIBCERR || errno != EINTR)) {
         brlapi_perror("baum: brlapi_readKey");
         brlapi__closeConnection(baum->brlapi);
-        qemu_free(baum->brlapi);
+        g_free(baum->brlapi);
         baum->brlapi = NULL;
     }
 }
@@ -571,9 +571,9 @@ static void baum_close(struct CharDriverState *chr)
     qemu_free_timer(baum->cellCount_timer);
     if (baum->brlapi) {
         brlapi__closeConnection(baum->brlapi);
-        qemu_free(baum->brlapi);
+        g_free(baum->brlapi);
     }
-    qemu_free(baum);
+    g_free(baum);
 }
 
 int chr_baum_init(QemuOpts *opts, CharDriverState **_chr)
@@ -586,8 +586,8 @@ int chr_baum_init(QemuOpts *opts, CharDriverState **_chr)
 #endif
     int tty;
 
-    baum = qemu_mallocz(sizeof(BaumDriverState));
-    baum->chr = chr = qemu_mallocz(sizeof(CharDriverState));
+    baum = g_malloc0(sizeof(BaumDriverState));
+    baum->chr = chr = g_malloc0(sizeof(CharDriverState));
 
     chr->opaque = baum;
     chr->chr_write = baum_write;
@@ -595,7 +595,7 @@ int chr_baum_init(QemuOpts *opts, CharDriverState **_chr)
     chr->chr_accept_input = baum_accept_input;
     chr->chr_close = baum_close;
 
-    handle = qemu_mallocz(brlapi_getHandleSize());
+    handle = g_malloc0(brlapi_getHandleSize());
     baum->brlapi = handle;
 
     baum->brlapi_fd = brlapi__openConnection(handle, NULL, NULL);
@@ -636,8 +636,8 @@ fail:
     qemu_free_timer(baum->cellCount_timer);
     brlapi__closeConnection(handle);
 fail_handle:
-    qemu_free(handle);
-    qemu_free(chr);
-    qemu_free(baum);
+    g_free(handle);
+    g_free(chr);
+    g_free(baum);
     return -EIO;
 }

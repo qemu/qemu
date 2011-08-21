@@ -98,7 +98,7 @@ QEMUCursor *cursor_alloc(int width, int height)
     QEMUCursor *c;
     int datasize = width * height * sizeof(uint32_t);
 
-    c = qemu_mallocz(sizeof(QEMUCursor) + datasize);
+    c = g_malloc0(sizeof(QEMUCursor) + datasize);
     c->width  = width;
     c->height = height;
     c->refcount = 1;
@@ -117,7 +117,7 @@ void cursor_put(QEMUCursor *c)
     c->refcount--;
     if (c->refcount)
         return;
-    qemu_free(c);
+    g_free(c);
 }
 
 int cursor_get_mono_bpl(QEMUCursor *c)

@@ -9327,13 +9327,13 @@ static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
             nb_tlb *= 2;
         switch (env->tlb_type) {
         case TLB_6XX:
-            env->tlb.tlb6 = qemu_mallocz(nb_tlb * sizeof(ppc6xx_tlb_t));
+            env->tlb.tlb6 = g_malloc0(nb_tlb * sizeof(ppc6xx_tlb_t));
             break;
         case TLB_EMB:
-            env->tlb.tlbe = qemu_mallocz(nb_tlb * sizeof(ppcemb_tlb_t));
+            env->tlb.tlbe = g_malloc0(nb_tlb * sizeof(ppcemb_tlb_t));
             break;
         case TLB_MAS:
-            env->tlb.tlbm = qemu_mallocz(nb_tlb * sizeof(ppcmas_tlb_t));
+            env->tlb.tlbm = g_malloc0(nb_tlb * sizeof(ppcmas_tlb_t));
             break;
         }
         /* Pre-compute some useful values */

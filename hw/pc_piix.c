@@ -121,7 +121,7 @@ static void pc_init1(MemoryRegion *system_memory,
     } else {
         i8259 = xen_interrupt_controller_init();
     }
-    isa_irq_state = qemu_mallocz(sizeof(*isa_irq_state));
+    isa_irq_state = g_malloc0(sizeof(*isa_irq_state));
     isa_irq_state->i8259 = i8259;
     if (pci_enabled) {
         ioapic_init(isa_irq_state);

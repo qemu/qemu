@@ -156,7 +156,7 @@ static int wav_init_out (HWVoiceOut *hw, struct audsettings *as)
     if (!wav->f) {
         dolog ("Failed to open wave file `%s'\nReason: %s\n",
                conf.wav_path, strerror (errno));
-        qemu_free (wav->pcm_buf);
+        g_free (wav->pcm_buf);
         wav->pcm_buf = NULL;
         return -1;
     }
@@ -189,7 +189,7 @@ static void wav_fini_out (HWVoiceOut *hw)
     qemu_fclose (wav->f);
     wav->f = NULL;
 
-    qemu_free (wav->pcm_buf);
+    g_free (wav->pcm_buf);
     wav->pcm_buf = NULL;
 }
 

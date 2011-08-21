@@ -202,7 +202,7 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
                   const char *bootfile, struct in_addr vdhcp_start,
                   struct in_addr vnameserver, void *opaque)
 {
-    Slirp *slirp = qemu_mallocz(sizeof(Slirp));
+    Slirp *slirp = g_malloc0(sizeof(Slirp));
 
     slirp_init_once();
 
@@ -222,10 +222,10 @@ Slirp *slirp_init(int restricted, struct in_addr vnetwork,
                 vhostname);
     }
     if (tftp_path) {
-        slirp->tftp_prefix = qemu_strdup(tftp_path);
+        slirp->tftp_prefix = g_strdup(tftp_path);
     }
     if (bootfile) {
-        slirp->bootp_filename = qemu_strdup(bootfile);
+        slirp->bootp_filename = g_strdup(bootfile);
     }
     slirp->vdhcp_startaddr = vdhcp_start;
     slirp->vnameserver_addr = vnameserver;
@@ -246,9 +246,9 @@ void slirp_cleanup(Slirp *slirp)
 
     unregister_savevm(NULL, "slirp", slirp);
 
-    qemu_free(slirp->tftp_prefix);
-    qemu_free(slirp->bootp_filename);
-    qemu_free(slirp);
+    g_free(slirp->tftp_prefix);
+    g_free(slirp->bootp_filename);
+    g_free(slirp);
 }
 
 #define CONN_CANFSEND(so) (((so)->so_state & (SS_FCANTSENDMORE|SS_ISFCONNECTED)) == SS_ISFCONNECTED)

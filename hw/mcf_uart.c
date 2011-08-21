@@ -272,7 +272,7 @@ void *mcf_uart_init(qemu_irq irq, CharDriverState *chr)
 {
     mcf_uart_state *s;
 
-    s = qemu_mallocz(sizeof(mcf_uart_state));
+    s = g_malloc0(sizeof(mcf_uart_state));
     s->chr = chr;
     s->irq = irq;
     if (chr) {

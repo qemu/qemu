@@ -605,7 +605,7 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
     int iomemtype;
     ssys_state *s;
 
-    s = (ssys_state *)qemu_mallocz(sizeof(ssys_state));
+    s = (ssys_state *)g_malloc0(sizeof(ssys_state));
     s->irq = irq;
     s->board = board;
     /* Most devices come preprogrammed with a MAC address in the user data. */

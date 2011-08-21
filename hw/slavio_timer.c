@@ -381,7 +381,7 @@ static int slavio_timer_init1(SysBusDevice *dev)
     TimerContext *tc;
 
     for (i = 0; i <= MAX_CPUS; i++) {
-        tc = qemu_mallocz(sizeof(TimerContext));
+        tc = g_malloc0(sizeof(TimerContext));
         tc->s = s;
         tc->timer_index = i;
 

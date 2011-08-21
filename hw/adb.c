@@ -290,7 +290,7 @@ void adb_kbd_init(ADBBusState *bus)
 {
     ADBDevice *d;
     KBDState *s;
-    s = qemu_mallocz(sizeof(KBDState));
+    s = g_malloc0(sizeof(KBDState));
     d = adb_register_device(bus, ADB_KEYBOARD, adb_kbd_request,
                             adb_kbd_reset, s);
     qemu_add_kbd_event_handler(adb_kbd_put_keycode, d);
@@ -447,7 +447,7 @@ void adb_mouse_init(ADBBusState *bus)
     ADBDevice *d;
     MouseState *s;
 
-    s = qemu_mallocz(sizeof(MouseState));
+    s = g_malloc0(sizeof(MouseState));
     d = adb_register_device(bus, ADB_MOUSE, adb_mouse_request,
                             adb_mouse_reset, s);
     qemu_add_mouse_event_handler(adb_mouse_event, d, 0, "QEMU ADB Mouse");

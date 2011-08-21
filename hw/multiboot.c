@@ -187,7 +187,7 @@ int load_multiboot(void *fw_cfg,
         mb_kernel_size = elf_high - elf_low;
         mh_entry_addr = elf_entry;
 
-        mbs.mb_buf = qemu_malloc(mb_kernel_size);
+        mbs.mb_buf = g_malloc(mb_kernel_size);
         if (rom_copy(mbs.mb_buf, mh_load_addr, mb_kernel_size) != mb_kernel_size) {
             fprintf(stderr, "Error while fetching elf kernel from rom\n");
             exit(1);
@@ -220,7 +220,7 @@ int load_multiboot(void *fw_cfg,
         mb_debug("qemu: loading multiboot kernel (%#x bytes) at %#x\n",
                  mb_load_size, mh_load_addr);
 
-        mbs.mb_buf = qemu_malloc(mb_kernel_size);
+        mbs.mb_buf = g_malloc(mb_kernel_size);
         fseek(f, mb_kernel_text_offset, SEEK_SET);
         if (fread(mbs.mb_buf, 1, mb_load_size, f) != mb_load_size) {
             fprintf(stderr, "fread() failed\n");
@@ -252,7 +252,7 @@ int load_multiboot(void *fw_cfg,
     mbs.mb_buf_size = TARGET_PAGE_ALIGN(mbs.mb_buf_size);
 
     /* enlarge mb_buf to hold cmdlines and mb-info structs */
-    mbs.mb_buf          = qemu_realloc(mbs.mb_buf, mbs.mb_buf_size);
+    mbs.mb_buf          = g_realloc(mbs.mb_buf, mbs.mb_buf_size);
     mbs.offset_cmdlines = mbs.offset_mbinfo + mbs.mb_mods_avail * MB_MOD_SIZE;
 
     if (initrd_filename) {
@@ -281,7 +281,7 @@ int load_multiboot(void *fw_cfg,
             }
 
             mbs.mb_buf_size = TARGET_PAGE_ALIGN(mb_mod_length + mbs.mb_buf_size);
-            mbs.mb_buf = qemu_realloc(mbs.mb_buf, mbs.mb_buf_size);
+            mbs.mb_buf = g_realloc(mbs.mb_buf, mbs.mb_buf_size);
 
             load_image(initrd_filename, (unsigned char *)mbs.mb_buf + offs);
             mb_add_mod(&mbs, mbs.mb_buf_phys + offs,
@@ -320,7 +320,7 @@ int load_multiboot(void *fw_cfg,
     mb_debug("           mb_mods_count = %d\n", mbs.mb_mods_count);
 
     /* save bootinfo off the stack */
-    mb_bootinfo_data = qemu_malloc(sizeof(bootinfo));
+    mb_bootinfo_data = g_malloc(sizeof(bootinfo));
     memcpy(mb_bootinfo_data, bootinfo, sizeof(bootinfo));
 
     /* Pass variables to option rom */

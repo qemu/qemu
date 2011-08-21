@@ -166,7 +166,7 @@ void *tcg_malloc_internal(TCGContext *s, int size)
     
     if (size > TCG_POOL_CHUNK_SIZE) {
         /* big malloc: insert a new pool (XXX: could optimize) */
-        p = qemu_malloc(sizeof(TCGPool) + size);
+        p = g_malloc(sizeof(TCGPool) + size);
         p->size = size;
         if (s->pool_current)
             s->pool_current->next = p;
@@ -183,7 +183,7 @@ void *tcg_malloc_internal(TCGContext *s, int size)
             if (!p->next) {
             new_pool:
                 pool_size = TCG_POOL_CHUNK_SIZE;
-                p = qemu_malloc(sizeof(TCGPool) + pool_size);
+                p = g_malloc(sizeof(TCGPool) + pool_size);
                 p->size = pool_size;
                 p->next = NULL;
                 if (s->pool_current) 
@@ -227,8 +227,8 @@ void tcg_context_init(TCGContext *s)
         total_args += n;
     }
 
-    args_ct = qemu_malloc(sizeof(TCGArgConstraint) * total_args);
-    sorted_args = qemu_malloc(sizeof(int) * total_args);
+    args_ct = g_malloc(sizeof(TCGArgConstraint) * total_args);
+    sorted_args = g_malloc(sizeof(int) * total_args);
 
     for(op = 0; op < NB_OPS; op++) {
         def = &tcg_op_defs[op];

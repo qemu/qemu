@@ -19,7 +19,7 @@ static QTAILQ_HEAD(, QmpCommand) qmp_commands =
 
 void qmp_register_command(const char *name, QmpCommandFunc *fn)
 {
-    QmpCommand *cmd = qemu_mallocz(sizeof(*cmd));
+    QmpCommand *cmd = g_malloc0(sizeof(*cmd));
 
     cmd->name = name;
     cmd->type = QCT_NORMAL;

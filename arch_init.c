@@ -235,7 +235,7 @@ static void sort_ram_list(void)
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         ++n;
     }
-    blocks = qemu_malloc(n * sizeof *blocks);
+    blocks = g_malloc(n * sizeof *blocks);
     n = 0;
     QLIST_FOREACH_SAFE(block, &ram_list.blocks, next, nblock) {
         blocks[n++] = block;
@@ -245,7 +245,7 @@ static void sort_ram_list(void)
     while (--n >= 0) {
         QLIST_INSERT_HEAD(&ram_list.blocks, blocks[n], next);
     }
-    qemu_free(blocks);
+    g_free(blocks);
 }
 
 int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)

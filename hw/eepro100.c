@@ -1901,7 +1901,7 @@ static int e100_nic_init(PCIDevice *pci_dev)
 
     qemu_register_reset(nic_reset, s);
 
-    s->vmstate = qemu_malloc(sizeof(vmstate_eepro100));
+    s->vmstate = g_malloc(sizeof(vmstate_eepro100));
     memcpy(s->vmstate, &vmstate_eepro100, sizeof(vmstate_eepro100));
     s->vmstate->name = s->nic->nc.model;
     vmstate_register(&pci_dev->qdev, -1, s->vmstate, s);

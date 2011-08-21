@@ -713,7 +713,7 @@ static int img_convert(int argc, char **argv)
     qemu_progress_init(progress, 2.0);
     qemu_progress_print(0, 100);
 
-    bs = qemu_mallocz(bs_n * sizeof(BlockDriverState *));
+    bs = g_malloc0(bs_n * sizeof(BlockDriverState *));
 
     total_sectors = 0;
     for (bs_i = 0; bs_i < bs_n; bs_i++) {
@@ -834,7 +834,7 @@ static int img_convert(int argc, char **argv)
     bs_i = 0;
     bs_offset = 0;
     bdrv_get_geometry(bs[0], &bs_sectors);
-    buf = qemu_malloc(IO_BUF_SIZE);
+    buf = g_malloc(IO_BUF_SIZE);
 
     if (compress) {
         ret = bdrv_get_info(out_bs, &bdi);
@@ -1006,7 +1006,7 @@ out:
     qemu_progress_end();
     free_option_parameters(create_options);
     free_option_parameters(param);
-    qemu_free(buf);
+    g_free(buf);
     if (out_bs) {
         bdrv_delete(out_bs);
     }
@@ -1016,7 +1016,7 @@ out:
                 bdrv_delete(bs[bs_i]);
             }
         }
-        qemu_free(bs);
+        g_free(bs);
     }
     if (ret) {
         return 1;
@@ -1040,7 +1040,7 @@ static void dump_snapshots(BlockDriverState *bs)
         sn = &sn_tab[i];
         printf("%s\n", bdrv_snapshot_dump(buf, sizeof(buf), sn));
     }
-    qemu_free(sn_tab);
+    g_free(sn_tab);
 }
 
 static int img_info(int argc, char **argv)
@@ -1373,8 +1373,8 @@ static int img_rebase(int argc, char **argv)
         uint8_t * buf_new;
         float local_progress;
 
-        buf_old = qemu_malloc(IO_BUF_SIZE);
-        buf_new = qemu_malloc(IO_BUF_SIZE);
+        buf_old = g_malloc(IO_BUF_SIZE);
+        buf_new = g_malloc(IO_BUF_SIZE);
 
         bdrv_get_geometry(bs, &num_sectors);
 
@@ -1430,8 +1430,8 @@ static int img_rebase(int argc, char **argv)
             qemu_progress_print(local_progress, 100);
         }
 
-        qemu_free(buf_old);
-        qemu_free(buf_new);
+        g_free(buf_old);
+        g_free(buf_new);
     }
 
     /*

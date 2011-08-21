@@ -32,8 +32,8 @@ START_TEST(qstring_from_str_test)
     fail_unless(qobject_type(QOBJECT(qstring)) == QTYPE_QSTRING);
 
     // destroy doesn't exit yet
-    qemu_free(qstring->string);
-    qemu_free(qstring);
+    g_free(qstring->string);
+    g_free(qstring);
 }
 END_TEST
 

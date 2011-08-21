@@ -148,10 +148,10 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     }
 
     if (!dev->version) {
-        dev->version = qemu_strdup(s->version);
+        dev->version = g_strdup(s->version);
     }
     if (!dev->serial) {
-        dev->serial = qemu_strdup(s->drive_serial_str);
+        dev->serial = g_strdup(s->drive_serial_str);
     }
 
     add_boot_device_path(dev->conf.bootindex, &dev->qdev,

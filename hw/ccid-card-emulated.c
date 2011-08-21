@@ -135,7 +135,7 @@ static void emulated_apdu_from_guest(CCIDCardState *base,
     const uint8_t *apdu, uint32_t len)
 {
     EmulatedState *card = DO_UPCAST(EmulatedState, base, base);
-    EmulEvent *event = (EmulEvent *)qemu_malloc(sizeof(EmulEvent) + len);
+    EmulEvent *event = (EmulEvent *)g_malloc(sizeof(EmulEvent) + len);
 
     assert(event);
     event->p.data.type = EMUL_GUEST_APDU;
@@ -169,7 +169,7 @@ static void emulated_push_event(EmulatedState *card, EmulEvent *event)
 
 static void emulated_push_type(EmulatedState *card, uint32_t type)
 {
-    EmulEvent *event = (EmulEvent *)qemu_malloc(sizeof(EmulEvent));
+    EmulEvent *event = (EmulEvent *)g_malloc(sizeof(EmulEvent));
 
     assert(event);
     event->p.gen.type = type;
@@ -178,7 +178,7 @@ static void emulated_push_type(EmulatedState *card, uint32_t type)
 
 static void emulated_push_error(EmulatedState *card, uint64_t code)
 {
-    EmulEvent *event = (EmulEvent *)qemu_malloc(sizeof(EmulEvent));
+    EmulEvent *event = (EmulEvent *)g_malloc(sizeof(EmulEvent));
 
     assert(event);
     event->p.error.type = EMUL_ERROR;
@@ -189,7 +189,7 @@ static void emulated_push_error(EmulatedState *card, uint64_t code)
 static void emulated_push_data_type(EmulatedState *card, uint32_t type,
     const uint8_t *data, uint32_t len)
 {
-    EmulEvent *event = (EmulEvent *)qemu_malloc(sizeof(EmulEvent) + len);
+    EmulEvent *event = (EmulEvent *)g_malloc(sizeof(EmulEvent) + len);
 
     assert(event);
     event->p.data.type = type;
@@ -249,12 +249,12 @@ static void *handle_apdu_thread(void* arg)
             QSIMPLEQ_REMOVE_HEAD(&card->guest_apdu_list, entry);
             if (event->p.data.type != EMUL_GUEST_APDU) {
                 DPRINTF(card, 1, "unexpected message in handle_apdu_thread\n");
-                qemu_free(event);
+                g_free(event);
                 continue;
             }
             if (card->reader == NULL) {
                 DPRINTF(card, 1, "reader is NULL\n");
-                qemu_free(event);
+                g_free(event);
                 continue;
             }
             recv_len = sizeof(recv_data);
@@ -267,7 +267,7 @@ static void *handle_apdu_thread(void* arg)
             } else {
                 emulated_push_error(card, reader_status);
             }
-            qemu_free(event);
+            g_free(event);
         }
         qemu_mutex_unlock(&card->vreader_mutex);
     }
@@ -401,7 +401,7 @@ static void pipe_read(void *opaque)
             DPRINTF(card, 2, "unexpected event\n");
             break;
         }
-        qemu_free(event);
+        g_free(event);
     }
     QSIMPLEQ_INIT(&card->event_list);
     qemu_mutex_unlock(&card->event_list_mutex);

@@ -594,7 +594,7 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
         return NULL;
 #endif
 
-    pfl = qemu_mallocz(sizeof(pflash_t));
+    pfl = g_malloc0(sizeof(pflash_t));
 
     /* FIXME: Allocate ram ourselves.  */
     pfl->storage = qemu_get_ram_ptr(off);
@@ -617,7 +617,7 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base, ram_addr_t off,
         ret = bdrv_read(pfl->bs, 0, pfl->storage, total_len >> 9);
         if (ret < 0) {
             cpu_unregister_io_memory(pfl->fl_mem);
-            qemu_free(pfl);
+            g_free(pfl);
             return NULL;
         }
     }

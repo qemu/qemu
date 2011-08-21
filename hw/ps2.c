@@ -604,7 +604,7 @@ static const VMStateDescription vmstate_ps2_mouse = {
 
 void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
 {
-    PS2KbdState *s = (PS2KbdState *)qemu_mallocz(sizeof(PS2KbdState));
+    PS2KbdState *s = (PS2KbdState *)g_malloc0(sizeof(PS2KbdState));
 
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;
@@ -617,7 +617,7 @@ void *ps2_kbd_init(void (*update_irq)(void *, int), void *update_arg)
 
 void *ps2_mouse_init(void (*update_irq)(void *, int), void *update_arg)
 {
-    PS2MouseState *s = (PS2MouseState *)qemu_mallocz(sizeof(PS2MouseState));
+    PS2MouseState *s = (PS2MouseState *)g_malloc0(sizeof(PS2MouseState));
 
     s->common.update_irq = update_irq;
     s->common.update_arg = update_arg;

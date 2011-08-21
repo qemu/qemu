@@ -59,7 +59,7 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
 {
     FdMigrationState *s;
 
-    s = qemu_mallocz(sizeof(*s));
+    s = g_malloc0(sizeof(*s));
 
     s->fd = monitor_get_fd(mon, fdname);
     if (s->fd == -1) {
@@ -96,7 +96,7 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
 err_after_open:
     close(s->fd);
 err_after_alloc:
-    qemu_free(s);
+    g_free(s);
     return NULL;
 }
 

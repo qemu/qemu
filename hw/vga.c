@@ -2234,7 +2234,7 @@ MemoryRegion *vga_init_io(VGACommonState *s)
 #endif
 #endif /* CONFIG_BOCHS_VBE */
 
-    vga_mem = qemu_malloc(sizeof(*vga_mem));
+    vga_mem = g_malloc(sizeof(*vga_mem));
     memory_region_init_io(vga_mem, &vga_mem_ops, s,
                           "vga-lowmem", 0x20000);
 
@@ -2302,7 +2302,7 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
         return -1;
     fprintf(f, "P6\n%d %d\n%d\n",
             ds->width, ds->height, 255);
-    linebuf = qemu_malloc(ds->width * 3);
+    linebuf = g_malloc(ds->width * 3);
     d1 = ds->data;
     for(y = 0; y < ds->height; y++) {
         d = d1;
@@ -2327,7 +2327,7 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
         ret = fwrite(linebuf, 1, pbuf - linebuf, f);
         (void)ret;
     }
-    qemu_free(linebuf);
+    g_free(linebuf);
     fclose(f);
     return 0;
 }
@@ -2336,7 +2336,7 @@ static DisplayChangeListener* vga_screen_dump_init(DisplayState *ds)
 {
     DisplayChangeListener *dcl;
 
-    dcl = qemu_mallocz(sizeof(DisplayChangeListener));
+    dcl = g_malloc0(sizeof(DisplayChangeListener));
     dcl->dpy_update = vga_save_dpy_update;
     dcl->dpy_resize = vga_save_dpy_resize;
     dcl->dpy_refresh = vga_save_dpy_refresh;

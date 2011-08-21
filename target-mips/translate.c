@@ -12618,7 +12618,7 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
     def = cpu_mips_find_by_name(cpu_model);
     if (!def)
         return NULL;
-    env = qemu_mallocz(sizeof(CPUMIPSState));
+    env = g_malloc0(sizeof(CPUMIPSState));
     env->cpu_model = def;
     env->cpu_model_str = cpu_model;
 

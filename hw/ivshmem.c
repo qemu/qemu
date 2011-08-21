@@ -351,7 +351,7 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
         close(s->peers[posn].eventfds[i]);
     }
 
-    qemu_free(s->peers[posn].eventfds);
+    g_free(s->peers[posn].eventfds);
     s->peers[posn].nb_eventfds = 0;
 }
 
@@ -383,7 +383,7 @@ static void increase_dynamic_storage(IVShmemState *s, int new_min_size) {
         s->nb_peers = s->nb_peers * 2;
 
     IVSHMEM_DPRINTF("bumping storage to %d guests\n", s->nb_peers);
-    s->peers = qemu_realloc(s->peers, s->nb_peers * sizeof(Peer));
+    s->peers = g_realloc(s->peers, s->nb_peers * sizeof(Peer));
 
     /* zero out new pointers */
     for (j = old_nb_alloc; j < s->nb_peers; j++) {
@@ -467,7 +467,7 @@ static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
 
     if (guest_max_eventfd == 0) {
         /* one eventfd per MSI vector */
-        s->peers[incoming_posn].eventfds = (int *) qemu_malloc(s->vectors *
+        s->peers[incoming_posn].eventfds = (int *) g_malloc(s->vectors *
                                                                 sizeof(int));
     }
 
@@ -557,7 +557,7 @@ static void ivshmem_setup_msi(IVShmemState * s) {
     }
 
     /* allocate Qemu char devices for receiving interrupts */
-    s->eventfd_table = qemu_mallocz(s->vectors * sizeof(EventfdEntry));
+    s->eventfd_table = g_malloc0(s->vectors * sizeof(EventfdEntry));
 }
 
 static void ivshmem_save(QEMUFile* f, void *opaque)
@@ -691,12 +691,12 @@ static int pci_ivshmem_init(PCIDevice *dev)
         s->vm_id = -1;
 
         /* allocate/initialize space for interrupt handling */
-        s->peers = qemu_mallocz(s->nb_peers * sizeof(Peer));
+        s->peers = g_malloc0(s->nb_peers * sizeof(Peer));
 
         pci_register_bar(&s->dev, 2,
                          PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ivshmem);
 
-        s->eventfd_chr = qemu_mallocz(s->vectors * sizeof(CharDriverState *));
+        s->eventfd_chr = g_malloc0(s->vectors * sizeof(CharDriverState *));
 
         qemu_chr_add_handlers(s->server_chr, ivshmem_can_receive, ivshmem_read,
                      ivshmem_event, s);

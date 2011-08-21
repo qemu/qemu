@@ -67,7 +67,7 @@ static char *addr_to_string(const char *format,
     /* Enough for the existing format + the 2 vars we're
      * substituting in. */
     addrlen = strlen(format) + strlen(host) + strlen(serv);
-    addr = qemu_malloc(addrlen + 1);
+    addr = g_malloc(addrlen + 1);
     snprintf(addr, addrlen, format, host, serv);
     addr[addrlen] = '\0';
 
@@ -411,7 +411,7 @@ void buffer_reserve(Buffer *buffer, size_t len)
 {
     if ((buffer->capacity - buffer->offset) < len) {
         buffer->capacity += (len + 1024);
-        buffer->buffer = qemu_realloc(buffer->buffer, buffer->capacity);
+        buffer->buffer = g_realloc(buffer->buffer, buffer->capacity);
         if (buffer->buffer == NULL) {
             fprintf(stderr, "vnc: out of memory\n");
             exit(1);
@@ -436,7 +436,7 @@ void buffer_reset(Buffer *buffer)
 
 void buffer_free(Buffer *buffer)
 {
-    qemu_free(buffer->buffer);
+    g_free(buffer->buffer);
     buffer->offset = 0;
     buffer->capacity = 0;
     buffer->buffer = NULL;
@@ -505,16 +505,16 @@ static void vnc_dpy_resize(DisplayState *ds)
 
     /* server surface */
     if (!vd->server)
-        vd->server = qemu_mallocz(sizeof(*vd->server));
+        vd->server = g_malloc0(sizeof(*vd->server));
     if (vd->server->data)
-        qemu_free(vd->server->data);
+        g_free(vd->server->data);
     *(vd->server) = *(ds->surface);
-    vd->server->data = qemu_mallocz(vd->server->linesize *
+    vd->server->data = g_malloc0(vd->server->linesize *
                                     vd->server->height);
 
     /* guest surface */
     if (!vd->guest.ds)
-        vd->guest.ds = qemu_mallocz(sizeof(*vd->guest.ds));
+        vd->guest.ds = g_malloc0(sizeof(*vd->guest.ds));
     if (ds_get_bytes_per_pixel(ds) != vd->guest.ds->pf.bytes_per_pixel)
         console_color_init(ds);
     *(vd->guest.ds) = *(ds->surface);
@@ -781,12 +781,12 @@ static void vnc_dpy_cursor_define(QEMUCursor *c)
     VncState *vs;
 
     cursor_put(vd->cursor);
-    qemu_free(vd->cursor_mask);
+    g_free(vd->cursor_mask);
 
     vd->cursor = c;
     cursor_get(vd->cursor);
     vd->cursor_msize = cursor_get_mono_bpl(c) * c->height;
-    vd->cursor_mask = qemu_mallocz(vd->cursor_msize);
+    vd->cursor_mask = g_malloc0(vd->cursor_msize);
     cursor_get_mono_mask(c, 0, vd->cursor_mask);
 
     QTAILQ_FOREACH(vs, &vd->clients, next) {
@@ -1013,10 +1013,10 @@ static void vnc_disconnect_finish(VncState *vs)
     qemu_mutex_destroy(&vs->output_mutex);
 #endif
     for (i = 0; i < VNC_STAT_ROWS; ++i) {
-        qemu_free(vs->lossy_rect[i]);
+        g_free(vs->lossy_rect[i]);
     }
-    qemu_free(vs->lossy_rect);
-    qemu_free(vs);
+    g_free(vs->lossy_rect);
+    g_free(vs);
 }
 
 int vnc_client_io_error(VncState *vs, int ret, int last_errno)
@@ -2496,7 +2496,7 @@ static void vnc_remove_timer(VncDisplay *vd)
 
 static void vnc_connect(VncDisplay *vd, int csock, int skipauth)
 {
-    VncState *vs = qemu_mallocz(sizeof(VncState));
+    VncState *vs = g_malloc0(sizeof(VncState));
     int i;
 
     vs->csock = csock;
@@ -2513,9 +2513,9 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth)
 #endif
     }
 
-    vs->lossy_rect = qemu_mallocz(VNC_STAT_ROWS * sizeof (*vs->lossy_rect));
+    vs->lossy_rect = g_malloc0(VNC_STAT_ROWS * sizeof (*vs->lossy_rect));
     for (i = 0; i < VNC_STAT_ROWS; ++i) {
-        vs->lossy_rect[i] = qemu_mallocz(VNC_STAT_COLS * sizeof (uint8_t));
+        vs->lossy_rect[i] = g_malloc0(VNC_STAT_COLS * sizeof (uint8_t));
     }
 
     VNC_DEBUG("New client on socket %d\n", csock);
@@ -2576,9 +2576,9 @@ static void vnc_listen_read(void *opaque)
 
 void vnc_display_init(DisplayState *ds)
 {
-    VncDisplay *vs = qemu_mallocz(sizeof(*vs));
+    VncDisplay *vs = g_malloc0(sizeof(*vs));
 
-    dcl = qemu_mallocz(sizeof(DisplayChangeListener));
+    dcl = g_malloc0(sizeof(DisplayChangeListener));
 
     ds->opaque = vs;
     dcl->idle = 1;
@@ -2620,7 +2620,7 @@ void vnc_display_close(DisplayState *ds)
     if (!vs)
         return;
     if (vs->display) {
-        qemu_free(vs->display);
+        g_free(vs->display);
         vs->display = NULL;
     }
     if (vs->lsock != -1) {
@@ -2644,7 +2644,7 @@ int vnc_display_disable_login(DisplayState *ds)
     }
 
     if (vs->password) {
-        qemu_free(vs->password);
+        g_free(vs->password);
     }
 
     vs->password = NULL;
@@ -2671,10 +2671,10 @@ int vnc_display_password(DisplayState *ds, const char *password)
     }
 
     if (vs->password) {
-        qemu_free(vs->password);
+        g_free(vs->password);
         vs->password = NULL;
     }
-    vs->password = qemu_strdup(password);
+    vs->password = g_strdup(password);
     vs->auth = VNC_AUTH_VNC;
 out:
     if (ret != 0) {
@@ -2753,20 +2753,20 @@ int vnc_display_open(DisplayState *ds, const char *display)
             end = strchr(options, ',');
             if (start && (!end || (start < end))) {
                 int len = end ? end-(start+1) : strlen(start+1);
-                char *path = qemu_strndup(start + 1, len);
+                char *path = g_strndup(start + 1, len);
 
                 VNC_DEBUG("Trying certificate path '%s'\n", path);
                 if (vnc_tls_set_x509_creds_dir(vs, path) < 0) {
                     fprintf(stderr, "Failed to find x509 certificates/keys in %s\n", path);
-                    qemu_free(path);
-                    qemu_free(vs->display);
+                    g_free(path);
+                    g_free(vs->display);
                     vs->display = NULL;
                     return -1;
                 }
-                qemu_free(path);
+                g_free(path);
             } else {
                 fprintf(stderr, "No certificate path provided\n");
-                qemu_free(vs->display);
+                g_free(vs->display);
                 vs->display = NULL;
                 return -1;
             }
@@ -2907,7 +2907,7 @@ int vnc_display_open(DisplayState *ds, const char *display)
     } else {
         /* listen for connects */
         char *dpy;
-        dpy = qemu_malloc(256);
+        dpy = g_malloc(256);
         if (strncmp(display, "unix:", 5) == 0) {
             pstrcpy(dpy, 256, "unix:");
             vs->lsock = unix_listen(display+5, dpy+5, 256-5);

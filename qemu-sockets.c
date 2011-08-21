@@ -593,10 +593,10 @@ int unix_listen(const char *str, char *ostr, int olen)
     if (optstr) {
         len = optstr - str;
         if (len) {
-            path = qemu_malloc(len+1);
+            path = g_malloc(len+1);
             snprintf(path, len+1, "%.*s", len, str);
             qemu_opt_set(opts, "path", path);
-            qemu_free(path);
+            g_free(path);
         }
     } else {
         qemu_opt_set(opts, "path", str);

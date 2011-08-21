@@ -57,14 +57,14 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size, bool exact_size)
 #endif
 
     new_l1_size2 = sizeof(uint64_t) * new_l1_size;
-    new_l1_table = qemu_mallocz(align_offset(new_l1_size2, 512));
+    new_l1_table = g_malloc0(align_offset(new_l1_size2, 512));
     memcpy(new_l1_table, s->l1_table, s->l1_size * sizeof(uint64_t));
 
     /* write new table (align to cluster) */
     BLKDBG_EVENT(bs->file, BLKDBG_L1_GROW_ALLOC_TABLE);
     new_l1_table_offset = qcow2_alloc_clusters(bs, new_l1_size2);
     if (new_l1_table_offset < 0) {
-        qemu_free(new_l1_table);
+        g_free(new_l1_table);
         return new_l1_table_offset;
     }
 
@@ -90,14 +90,14 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size, bool exact_size)
     if (ret < 0) {
         goto fail;
     }
-    qemu_free(s->l1_table);
+    g_free(s->l1_table);
     qcow2_free_clusters(bs, s->l1_table_offset, s->l1_size * sizeof(uint64_t));
     s->l1_table_offset = new_l1_table_offset;
     s->l1_table = new_l1_table;
     s->l1_size = new_l1_size;
     return 0;
  fail:
-    qemu_free(new_l1_table);
+    g_free(new_l1_table);
     qcow2_free_clusters(bs, new_l1_table_offset, new_l1_size2);
     return ret;
 }
@@ -612,7 +612,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     if (m->nb_clusters == 0)
         return 0;
 
-    old_cluster = qemu_malloc(m->nb_clusters * sizeof(uint64_t));
+    old_cluster = g_malloc(m->nb_clusters * sizeof(uint64_t));
 
     /* copy content of unmodified sectors */
     start_sect = (m->offset & ~(s->cluster_size - 1)) >> 9;
@@ -683,7 +683,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
 
     ret = 0;
 err:
-    qemu_free(old_cluster);
+    g_free(old_cluster);
     return ret;
  }
 

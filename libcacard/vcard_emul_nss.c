@@ -94,9 +94,9 @@ vcard_emul_alloc_arrays(unsigned char ***certsp, int **cert_lenp,
     *certsp = NULL;
     *cert_lenp = NULL;
     *keysp = NULL;
-    *certsp = (unsigned char **)qemu_malloc(sizeof(unsigned char *)*cert_count);
-    *cert_lenp = (int *)qemu_malloc(sizeof(int)*cert_count);
-    *keysp = (VCardKey **)qemu_malloc(sizeof(VCardKey *)*cert_count);
+    *certsp = (unsigned char **)g_malloc(sizeof(unsigned char *)*cert_count);
+    *cert_lenp = (int *)g_malloc(sizeof(int)*cert_count);
+    *keysp = (VCardKey **)g_malloc(sizeof(VCardKey *)*cert_count);
     return PR_TRUE;
 }
 
@@ -140,7 +140,7 @@ vcard_emul_make_key(PK11SlotInfo *slot, CERTCertificate *cert)
 {
     VCardKey *key;
 
-    key = (VCardKey *)qemu_malloc(sizeof(VCardKey));
+    key = (VCardKey *)g_malloc(sizeof(VCardKey));
     key->slot = PK11_ReferenceSlot(slot);
     key->cert = CERT_DupCertificate(cert);
     /* NOTE: if we aren't logged into the token, this could return NULL */
@@ -244,7 +244,7 @@ vcard_emul_rsa_op(VCard *card, VCardKey *key,
     /* be able to handle larger keys if necessariy */
     bp = &buf[0];
     if (sizeof(buf) < signature_len) {
-        bp = qemu_malloc(signature_len);
+        bp = g_malloc(signature_len);
     }
 
     /*
@@ -348,7 +348,7 @@ vcard_emul_rsa_op(VCard *card, VCardKey *key,
     key->failedX509 = VCardEmulTrue;
 cleanup:
     if (bp != buf) {
-        qemu_free(bp);
+        g_free(bp);
     }
     return ret;
 }
@@ -382,7 +382,7 @@ vcard_emul_login(VCard *card, unsigned char *pin, int pin_len)
       * to handle multiple guests from one process, then we would need to keep
       * a lot of extra state in our card structure
       * */
-    pin_string = qemu_malloc(pin_len+1);
+    pin_string = g_malloc(pin_len+1);
     memcpy(pin_string, pin, pin_len);
     pin_string[pin_len] = 0;
 
@@ -394,7 +394,7 @@ vcard_emul_login(VCard *card, unsigned char *pin, int pin_len)
     rv = PK11_Authenticate(slot, PR_FALSE, pin_string);
     memset(pin_string, 0, pin_len);  /* don't let the pin hang around in memory
                                         to be snooped */
-    qemu_free(pin_string);
+    g_free(pin_string);
     if (rv == SECSuccess) {
         return VCARD7816_STATUS_SUCCESS;
     }
@@ -452,7 +452,7 @@ vreader_emul_new(PK11SlotInfo *slot, VCardEmulType type, const char *params)
 {
     VReaderEmul *new_reader_emul;
 
-    new_reader_emul = (VReaderEmul *)qemu_malloc(sizeof(VReaderEmul));
+    new_reader_emul = (VReaderEmul *)g_malloc(sizeof(VReaderEmul));
 
     new_reader_emul->slot = PK11_ReferenceSlot(slot);
     new_reader_emul->default_type = type;
@@ -473,9 +473,9 @@ vreader_emul_delete(VReaderEmul *vreader_emul)
         PK11_FreeSlot(vreader_emul->slot);
     }
     if (vreader_emul->type_params) {
-        qemu_free(vreader_emul->type_params);
+        g_free(vreader_emul->type_params);
     }
-    qemu_free(vreader_emul);
+    g_free(vreader_emul);
 }
 
 /*
@@ -658,9 +658,9 @@ vcard_emul_mirror_card(VReader *vreader)
 
     /* now create the card */
     card = vcard_emul_make_card(vreader, certs, cert_len, keys, cert_count);
-    qemu_free(certs);
-    qemu_free(cert_len);
-    qemu_free(keys);
+    g_free(certs);
+    g_free(cert_len);
+    g_free(keys);
 
     return card;
 }
@@ -947,9 +947,9 @@ vcard_emul_init(const VCardEmulOptions *options)
             vreader_free(vreader);
             has_readers = PR_TRUE;
         }
-        qemu_free(certs);
-        qemu_free(cert_len);
-        qemu_free(keys);
+        g_free(certs);
+        g_free(cert_len);
+        g_free(keys);
     }
 
     /* if we aren't suppose to use hw, skip looking up hardware tokens */
@@ -1173,18 +1173,18 @@ vcard_emul_options(const char *args)
             }
             opts->vreader = vreaderOpt;
             vreaderOpt = &vreaderOpt[opts->vreader_count];
-            vreaderOpt->name = qemu_strndup(name, name_length);
-            vreaderOpt->vname = qemu_strndup(vname, vname_length);
+            vreaderOpt->name = g_strndup(name, name_length);
+            vreaderOpt->vname = g_strndup(vname, vname_length);
             vreaderOpt->card_type = type;
             vreaderOpt->type_params =
-                qemu_strndup(type_params, type_params_length);
+                g_strndup(type_params, type_params_length);
             count = count_tokens(args, ',', ')') + 1;
             vreaderOpt->cert_count = count;
-            vreaderOpt->cert_name = (char **)qemu_malloc(count*sizeof(char *));
+            vreaderOpt->cert_name = (char **)g_malloc(count*sizeof(char *));
             for (i = 0; i < count; i++) {
                 const char *cert = args;
                 args = strpbrk(args, ",)");
-                vreaderOpt->cert_name[i] = qemu_strndup(cert, args - cert);
+                vreaderOpt->cert_name[i] = g_strndup(cert, args - cert);
                 args = strip(args+1);
             }
             if (*args == ')') {
@@ -1211,7 +1211,7 @@ vcard_emul_options(const char *args)
             args = strip(args+10);
             params = args;
             args = find_blank(args);
-            opts->hw_type_params = qemu_strndup(params, args-params);
+            opts->hw_type_params = g_strndup(params, args-params);
         /* db="/data/base/path" */
         } else if (strncmp(args, "db=", 3) == 0) {
             const char *db;
@@ -1222,7 +1222,7 @@ vcard_emul_options(const char *args)
             args++;
             db = args;
             args = strpbrk(args, "\"\n");
-            opts->nss_db = qemu_strndup(db, args-db);
+            opts->nss_db = g_strndup(db, args-db);
             if (*args != 0) {
                 args++;
             }

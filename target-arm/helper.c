@@ -384,7 +384,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
     id = cpu_arm_find_by_name(cpu_model);
     if (id == 0)
         return NULL;
-    env = qemu_mallocz(sizeof(CPUARMState));
+    env = g_malloc0(sizeof(CPUARMState));
     cpu_exec_init(env);
     if (!inited) {
         inited = 1;

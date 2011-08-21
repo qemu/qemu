@@ -174,8 +174,6 @@
 
 #define CIRRUS_PNPMMIO_SIZE         0x1000
 
-#define ABS(a) ((signed)(a) > 0 ? a : -a)
-
 #define BLTUNSAFE(s) \
     ( \
         ( /* check dst is within bounds */ \
@@ -2372,7 +2370,7 @@ static void unmap_bank(CirrusVGAState *s, unsigned bank)
         memory_region_del_subregion(&s->low_mem_container,
                                     s->cirrus_bank[bank]);
         memory_region_destroy(s->cirrus_bank[bank]);
-        qemu_free(s->cirrus_bank[bank]);
+        g_free(s->cirrus_bank[bank]);
         s->cirrus_bank[bank] = NULL;
     }
 }
@@ -2387,7 +2385,7 @@ static void map_linear_vram_bank(CirrusVGAState *s, unsigned bank)
         && !((s->vga.gr[0x0B] & 0x14) == 0x14)
         && !(s->vga.gr[0x0B] & 0x02)) {
 
-        mr = qemu_malloc(sizeof(*mr));
+        mr = g_malloc(sizeof(*mr));
         memory_region_init_alias(mr, names[bank], &s->vga.vram,
                                  s->cirrus_bank_base[bank], 0x8000);
         memory_region_add_subregion_overlap(
@@ -2903,7 +2901,7 @@ void isa_cirrus_vga_init(void)
 {
     CirrusVGAState *s;
 
-    s = qemu_mallocz(sizeof(CirrusVGAState));
+    s = g_malloc0(sizeof(CirrusVGAState));
 
     vga_common_init(&s->vga, VGA_RAM_SIZE);
     cirrus_init_common(s, CIRRUS_ID_CLGD5430, 0);

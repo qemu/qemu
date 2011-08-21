@@ -712,7 +712,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu)
     int sh7750_io_memory;
     int sh7750_mm_cache_and_tlb; /* memory mapped cache and tlb */
 
-    s = qemu_mallocz(sizeof(SH7750State));
+    s = g_malloc0(sizeof(SH7750State));
     s->cpu = cpu;
     s->periph_freq = 60000000;	/* 60MHz */
     sh7750_io_memory = cpu_register_io_memory(sh7750_mem_read,

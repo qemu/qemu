@@ -1396,32 +1396,32 @@ get_opcode_entry (unsigned int insn,
   /* Allocate and clear the opcode-table.  */
   if (opc_table == NULL)
     {
-      opc_table = qemu_malloc (65536 * sizeof (opc_table[0]));
+      opc_table = g_malloc (65536 * sizeof (opc_table[0]));
 
       memset (opc_table, 0, 65536 * sizeof (const struct cris_opcode *));
 
       dip_prefixes
-	= qemu_malloc (65536 * sizeof (const struct cris_opcode **));
+	= g_malloc (65536 * sizeof (const struct cris_opcode **));
 
       memset (dip_prefixes, 0, 65536 * sizeof (dip_prefixes[0]));
 
       bdapq_m1_prefixes
-	= qemu_malloc (65536 * sizeof (const struct cris_opcode **));
+	= g_malloc (65536 * sizeof (const struct cris_opcode **));
 
       memset (bdapq_m1_prefixes, 0, 65536 * sizeof (bdapq_m1_prefixes[0]));
 
       bdapq_m2_prefixes
-	= qemu_malloc (65536 * sizeof (const struct cris_opcode **));
+	= g_malloc (65536 * sizeof (const struct cris_opcode **));
 
       memset (bdapq_m2_prefixes, 0, 65536 * sizeof (bdapq_m2_prefixes[0]));
 
       bdapq_m4_prefixes
-	= qemu_malloc (65536 * sizeof (const struct cris_opcode **));
+	= g_malloc (65536 * sizeof (const struct cris_opcode **));
 
       memset (bdapq_m4_prefixes, 0, 65536 * sizeof (bdapq_m4_prefixes[0]));
 
       rest_prefixes
-	= qemu_malloc (65536 * sizeof (const struct cris_opcode **));
+	= g_malloc (65536 * sizeof (const struct cris_opcode **));
 
       memset (rest_prefixes, 0, 65536 * sizeof (rest_prefixes[0]));
     }

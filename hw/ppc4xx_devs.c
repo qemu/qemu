@@ -293,7 +293,7 @@ qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
     ppcuic_t *uic;
     int i;
 
-    uic = qemu_mallocz(sizeof(ppcuic_t));
+    uic = g_malloc0(sizeof(ppcuic_t));
     uic->dcr_base = dcr_base;
     uic->irqs = irqs;
     if (has_vr)
@@ -627,7 +627,7 @@ void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
 {
     ppc4xx_sdram_t *sdram;
 
-    sdram = qemu_mallocz(sizeof(ppc4xx_sdram_t));
+    sdram = g_malloc0(sizeof(ppc4xx_sdram_t));
     sdram->irq = irq;
     sdram->nbanks = nbanks;
     memset(sdram->ram_bases, 0, 4 * sizeof(target_phys_addr_t));

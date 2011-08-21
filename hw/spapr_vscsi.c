@@ -788,7 +788,7 @@ static void vscsi_got_payload(VSCSIState *s, vscsi_crq *crq)
     if (spapr_tce_dma_read(&s->vdev, crq->s.IU_data_ptr, &req->iu,
                            crq->s.IU_length)) {
         fprintf(stderr, "vscsi_got_payload: DMA read failure !\n");
-        qemu_free(req);
+        g_free(req);
     }
     memcpy(&req->crq, crq, sizeof(vscsi_crq));
 

@@ -94,7 +94,7 @@ void *qemu_vmalloc(size_t size)
     return p;
 }
 
-void *qemu_malloc(size_t size)
+void *g_malloc(size_t size)
 {
     char * p;
     size += 16;
@@ -104,12 +104,12 @@ void *qemu_malloc(size_t size)
 }
 
 /* We use map, which is always zero initialized.  */
-void * qemu_mallocz(size_t size)
+void * g_malloc0(size_t size)
 {
-    return qemu_malloc(size);
+    return g_malloc(size);
 }
 
-void qemu_free(void *ptr)
+void g_free(void *ptr)
 {
     /* FIXME: We should unmark the reserved pages here.  However this gets
        complicated when one target page spans multiple host pages, so we
@@ -119,18 +119,18 @@ void qemu_free(void *ptr)
     munmap(p, *p);
 }
 
-void *qemu_realloc(void *ptr, size_t size)
+void *g_realloc(void *ptr, size_t size)
 {
     size_t old_size, copy;
     void *new_ptr;
 
     if (!ptr)
-        return qemu_malloc(size);
+        return g_malloc(size);
     old_size = *(size_t *)((char *)ptr - 16);
     copy = old_size < size ? old_size : size;
-    new_ptr = qemu_malloc(size);
+    new_ptr = g_malloc(size);
     memcpy(new_ptr, ptr, copy);
-    qemu_free(ptr);
+    g_free(ptr);
     return new_ptr;
 }
 

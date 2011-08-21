@@ -441,7 +441,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
 {
     int iomemtype;
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *)
-            qemu_mallocz(sizeof(struct omap_lcd_panel_s));
+            g_malloc0(sizeof(struct omap_lcd_panel_s));
 
     s->irq = irq;
     s->dma = dma;

@@ -43,7 +43,7 @@ struct QEMUBH {
 QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque)
 {
     QEMUBH *bh;
-    bh = qemu_mallocz(sizeof(QEMUBH));
+    bh = g_malloc0(sizeof(QEMUBH));
     bh->cb = cb;
     bh->opaque = opaque;
     bh->next = first_bh;
@@ -74,7 +74,7 @@ int qemu_bh_poll(void)
         bh = *bhp;
         if (bh->deleted) {
             *bhp = bh->next;
-            qemu_free(bh);
+            g_free(bh);
         } else
             bhp = &bh->next;
     }

@@ -246,7 +246,7 @@ static int qesd_init_out (HWVoiceOut *hw, struct audsettings *as)
     esd->fd = -1;
 
  fail1:
-    qemu_free (esd->pcm_buf);
+    g_free (esd->pcm_buf);
     esd->pcm_buf = NULL;
     return -1;
 }
@@ -270,7 +270,7 @@ static void qesd_fini_out (HWVoiceOut *hw)
 
     audio_pt_fini (&esd->pt, AUDIO_FUNC);
 
-    qemu_free (esd->pcm_buf);
+    g_free (esd->pcm_buf);
     esd->pcm_buf = NULL;
 }
 
@@ -453,7 +453,7 @@ static int qesd_init_in (HWVoiceIn *hw, struct audsettings *as)
     esd->fd = -1;
 
  fail1:
-    qemu_free (esd->pcm_buf);
+    g_free (esd->pcm_buf);
     esd->pcm_buf = NULL;
     return -1;
 }
@@ -477,7 +477,7 @@ static void qesd_fini_in (HWVoiceIn *hw)
 
     audio_pt_fini (&esd->pt, AUDIO_FUNC);
 
-    qemu_free (esd->pcm_buf);
+    g_free (esd->pcm_buf);
     esd->pcm_buf = NULL;
 }
 

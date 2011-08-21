@@ -3216,7 +3216,7 @@ int main(int argc, char **argv, char **envp)
     }
     target_argv[target_argc] = NULL;
 
-    ts = qemu_mallocz (sizeof(TaskState));
+    ts = g_malloc0 (sizeof(TaskState));
     init_task_state(ts);
     /* build Task State */
     ts->info = info;

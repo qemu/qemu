@@ -832,9 +832,9 @@ void virtio_cleanup(VirtIODevice *vdev)
 {
     qemu_del_vm_change_state_handler(vdev->vmstate);
     if (vdev->config)
-        qemu_free(vdev->config);
-    qemu_free(vdev->vq);
-    qemu_free(vdev);
+        g_free(vdev->config);
+    g_free(vdev->vq);
+    g_free(vdev);
 }
 
 static void virtio_vmstate_change(void *opaque, int running, int reason)
@@ -862,14 +862,14 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
     VirtIODevice *vdev;
     int i;
 
-    vdev = qemu_mallocz(struct_size);
+    vdev = g_malloc0(struct_size);
 
     vdev->device_id = device_id;
     vdev->status = 0;
     vdev->isr = 0;
     vdev->queue_sel = 0;
     vdev->config_vector = VIRTIO_NO_VECTOR;
-    vdev->vq = qemu_mallocz(sizeof(VirtQueue) * VIRTIO_PCI_QUEUE_MAX);
+    vdev->vq = g_malloc0(sizeof(VirtQueue) * VIRTIO_PCI_QUEUE_MAX);
     vdev->vm_running = vm_running;
     for(i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
         vdev->vq[i].vector = VIRTIO_NO_VECTOR;
@@ -879,7 +879,7 @@ VirtIODevice *virtio_common_init(const char *name, uint16_t device_id,
     vdev->name = name;
     vdev->config_len = config_size;
     if (vdev->config_len)
-        vdev->config = qemu_mallocz(config_size);
+        vdev->config = g_malloc0(config_size);
     else
         vdev->config = NULL;
 

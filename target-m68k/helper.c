@@ -172,7 +172,7 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
     CPUM68KState *env;
     static int inited;
 
-    env = qemu_mallocz(sizeof(CPUM68KState));
+    env = g_malloc0(sizeof(CPUM68KState));
     cpu_exec_init(env);
     if (!inited) {
         inited = 1;
@@ -193,7 +193,7 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
 
 void cpu_m68k_close(CPUM68KState *env)
 {
-    qemu_free(env);
+    g_free(env);
 }
 
 void cpu_m68k_flush_flags(CPUM68KState *env, int cc_op)

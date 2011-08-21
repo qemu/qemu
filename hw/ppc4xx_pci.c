@@ -341,7 +341,7 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     static int ppc4xx_pci_id;
     uint8_t *pci_conf;
 
-    controller = qemu_mallocz(sizeof(PPC4xxPCIState));
+    controller = g_malloc0(sizeof(PPC4xxPCIState));
 
     controller->pci_state.bus = pci_register_bus(NULL, "pci",
                                                  ppc4xx_pci_set_irq,
@@ -390,6 +390,6 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
 
 free:
     printf("%s error\n", __func__);
-    qemu_free(controller);
+    g_free(controller);
     return NULL;
 }

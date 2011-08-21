@@ -1125,12 +1125,12 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
         /* try to fall back to value set with legacy -drive serial=... */
         dinfo = drive_get_by_blockdev(s->bs);
         if (*dinfo->serial) {
-            s->serial = qemu_strdup(dinfo->serial);
+            s->serial = g_strdup(dinfo->serial);
         }
     }
 
     if (!s->version) {
-        s->version = qemu_strdup(QEMU_VERSION);
+        s->version = g_strdup(QEMU_VERSION);
     }
 
     if (bdrv_is_sg(s->bs)) {

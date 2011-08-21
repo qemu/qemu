@@ -88,7 +88,7 @@ static int petalogix_load_device_tree(target_phys_addr_t addr,
         path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
         if (path) {
             fdt = load_device_tree(path, &fdt_size);
-            qemu_free(path);
+            g_free(path);
         }
         if (!fdt) {
             return 0;
@@ -108,7 +108,7 @@ static int petalogix_load_device_tree(target_phys_addr_t addr,
         path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
         if (path) {
             fdt_size = load_image_targphys(path, addr, 0x10000);
-            qemu_free(path);
+            g_free(path);
         }
     }
 

@@ -634,7 +634,7 @@ int paio_init(void)
     if (posix_aio_state)
         return 0;
 
-    s = qemu_malloc(sizeof(PosixAioState));
+    s = g_malloc(sizeof(PosixAioState));
 
     sigfillset(&act.sa_mask);
     act.sa_flags = 0; /* do not restart syscalls to interrupt select() */

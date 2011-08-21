@@ -654,7 +654,7 @@ static uint32_t mipid_txrx(void *opaque, uint32_t cmd, int len)
 
 static void *mipid_init(void)
 {
-    struct mipid_s *s = (struct mipid_s *) qemu_mallocz(sizeof(*s));
+    struct mipid_s *s = (struct mipid_s *) g_malloc0(sizeof(*s));
 
     s->id = 0x838f03;
     mipid_reset(s);
@@ -710,10 +710,10 @@ static void n800_dss_init(struct rfbi_chip_s *chip)
     chip->write(chip->opaque, 1, 0x01);		/* Input Data Format */
     chip->write(chip->opaque, 1, 0x01);		/* Data Source Select */
 
-    fb_blank = memset(qemu_malloc(800 * 480 * 2), 0xff, 800 * 480 * 2);
+    fb_blank = memset(g_malloc(800 * 480 * 2), 0xff, 800 * 480 * 2);
     /* Display Memory Data Port */
     chip->block(chip->opaque, 1, fb_blank, 800 * 480 * 2, 800);
-    qemu_free(fb_blank);
+    g_free(fb_blank);
 }
 
 static void n8x0_dss_setup(struct n800_s *s)
@@ -1270,7 +1270,7 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
                 const char *kernel_cmdline, const char *initrd_filename,
                 const char *cpu_model, struct arm_boot_info *binfo, int model)
 {
-    struct n800_s *s = (struct n800_s *) qemu_mallocz(sizeof(*s));
+    struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
     int sdram_size = binfo->ram_size;
     DisplayState *ds;
 

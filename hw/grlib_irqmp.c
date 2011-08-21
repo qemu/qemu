@@ -345,7 +345,7 @@ static int grlib_irqmp_init(SysBusDevice *dev)
                                         grlib_irqmp_write,
                                         irqmp, DEVICE_NATIVE_ENDIAN);
 
-    irqmp->state = qemu_mallocz(sizeof *irqmp->state);
+    irqmp->state = g_malloc0(sizeof *irqmp->state);
 
     if (irqmp_regs < 0) {
         return -1;

@@ -88,7 +88,7 @@ MigrationState *unix_start_outgoing_migration(Monitor *mon,
     addr.sun_family = AF_UNIX;
     snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path);
 
-    s = qemu_mallocz(sizeof(*s));
+    s = g_malloc0(sizeof(*s));
 
     s->get_error = unix_errno;
     s->write = unix_write;
@@ -138,7 +138,7 @@ err_after_open:
     close(s->fd);
 
 err_after_alloc:
-    qemu_free(s);
+    g_free(s);
     return NULL;
 }
 

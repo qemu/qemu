@@ -234,7 +234,7 @@ static int usbredir_write(void *priv, uint8_t *data, int count)
 
 static AsyncURB *async_alloc(USBRedirDevice *dev, USBPacket *p)
 {
-    AsyncURB *aurb = (AsyncURB *) qemu_mallocz(sizeof(AsyncURB));
+    AsyncURB *aurb = (AsyncURB *) g_malloc0(sizeof(AsyncURB));
     aurb->dev = dev;
     aurb->packet = p;
     aurb->packet_id = dev->packet_id;
@@ -247,7 +247,7 @@ static AsyncURB *async_alloc(USBRedirDevice *dev, USBPacket *p)
 static void async_free(USBRedirDevice *dev, AsyncURB *aurb)
 {
     QTAILQ_REMOVE(&dev->asyncq, aurb, next);
-    qemu_free(aurb);
+    g_free(aurb);
 }
 
 static AsyncURB *async_find(USBRedirDevice *dev, uint32_t packet_id)
@@ -286,7 +286,7 @@ static void usbredir_cancel_packet(USBDevice *udev, USBPacket *p)
 static struct buf_packet *bufp_alloc(USBRedirDevice *dev,
     uint8_t *data, int len, int status, uint8_t ep)
 {
-    struct buf_packet *bufp = qemu_malloc(sizeof(struct buf_packet));
+    struct buf_packet *bufp = g_malloc(sizeof(struct buf_packet));
     bufp->data   = data;
     bufp->len    = len;
     bufp->status = status;
@@ -299,7 +299,7 @@ static void bufp_free(USBRedirDevice *dev, struct buf_packet *bufp,
 {
     QTAILQ_REMOVE(&dev->endpoint[EP2I(ep)].bufpq, bufp, next);
     free(bufp->data);
-    qemu_free(bufp);
+    g_free(bufp);
 }
 
 static void usbredir_free_bufpq(USBRedirDevice *dev, uint8_t ep)

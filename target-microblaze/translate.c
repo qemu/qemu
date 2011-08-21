@@ -1846,7 +1846,7 @@ CPUState *cpu_mb_init (const char *cpu_model)
     static int tcg_initialized = 0;
     int i;
 
-    env = qemu_mallocz(sizeof(CPUState));
+    env = g_malloc0(sizeof(CPUState));
 
     cpu_exec_init(env);
     cpu_reset(env);

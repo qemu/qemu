@@ -567,12 +567,12 @@ static void bt_l2cap_sdp_close_ch(void *opaque)
     int i;
 
     for (i = 0; i < sdp->services; i ++) {
-        qemu_free(sdp->service_list[i].attribute_list->pair);
-        qemu_free(sdp->service_list[i].attribute_list);
-        qemu_free(sdp->service_list[i].uuid);
+        g_free(sdp->service_list[i].attribute_list->pair);
+        g_free(sdp->service_list[i].attribute_list);
+        g_free(sdp->service_list[i].uuid);
     }
-    qemu_free(sdp->service_list);
-    qemu_free(sdp);
+    g_free(sdp->service_list);
+    g_free(sdp);
 }
 
 struct sdp_def_service_s {
@@ -709,10 +709,10 @@ static void sdp_service_record_build(struct sdp_service_record_s *record,
     }
     record->uuids = 1 << ffs(record->uuids - 1);
     record->attribute_list =
-            qemu_mallocz(record->attributes * sizeof(*record->attribute_list));
+            g_malloc0(record->attributes * sizeof(*record->attribute_list));
     record->uuid =
-            qemu_mallocz(record->uuids * sizeof(*record->uuid));
-    data = qemu_malloc(len);
+            g_malloc0(record->uuids * sizeof(*record->uuid));
+    data = g_malloc(len);
 
     record->attributes = 0;
     uuid = record->uuid;
@@ -753,7 +753,7 @@ static void sdp_service_db_build(struct bt_l2cap_sdp_state_s *sdp,
     while (service[sdp->services])
         sdp->services ++;
     sdp->service_list =
-            qemu_mallocz(sdp->services * sizeof(*sdp->service_list));
+            g_malloc0(sdp->services * sizeof(*sdp->service_list));
 
     sdp->services = 0;
     while (*service) {
@@ -942,7 +942,7 @@ SERVICE(pnp,
 static int bt_l2cap_sdp_new_ch(struct bt_l2cap_device_s *dev,
                 struct bt_l2cap_conn_params_s *params)
 {
-    struct bt_l2cap_sdp_state_s *sdp = qemu_mallocz(sizeof(*sdp));
+    struct bt_l2cap_sdp_state_s *sdp = g_malloc0(sizeof(*sdp));
     struct sdp_def_service_s *services[] = {
         &sdp_service_sdp_s,
         &sdp_service_hid_s,

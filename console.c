@@ -516,7 +516,7 @@ static void text_console_resize(TextConsole *s)
     if (s->width < w1)
         w1 = s->width;
 
-    cells = qemu_malloc(s->width * s->total_height * sizeof(TextCell));
+    cells = g_malloc(s->width * s->total_height * sizeof(TextCell));
     for(y = 0; y < s->total_height; y++) {
         c = &cells[y * s->width];
         if (w1 > 0) {
@@ -531,7 +531,7 @@ static void text_console_resize(TextConsole *s)
             c++;
         }
     }
-    qemu_free(s->cells);
+    g_free(s->cells);
     s->cells = cells;
 }
 
@@ -1252,7 +1252,7 @@ static TextConsole *new_console(DisplayState *ds, console_type_t console_type)
 
     if (nb_consoles >= MAX_CONSOLES)
         return NULL;
-    s = qemu_mallocz(sizeof(TextConsole));
+    s = g_malloc0(sizeof(TextConsole));
     if (!active_console || ((active_console->console_type != GRAPHIC_CONSOLE) &&
         (console_type == GRAPHIC_CONSOLE))) {
         active_console = s;
@@ -1276,7 +1276,7 @@ static TextConsole *new_console(DisplayState *ds, console_type_t console_type)
 
 static DisplaySurface* defaultallocator_create_displaysurface(int width, int height)
 {
-    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
+    DisplaySurface *surface = (DisplaySurface*) g_malloc0(sizeof(DisplaySurface));
 
     int linesize = width * 4;
     qemu_alloc_display(surface, width, height, linesize,
@@ -1302,10 +1302,10 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
     surface->linesize = linesize;
     surface->pf = pf;
     if (surface->flags & QEMU_ALLOCATED_FLAG) {
-        data = qemu_realloc(surface->data,
+        data = g_realloc(surface->data,
                             surface->linesize * surface->height);
     } else {
-        data = qemu_malloc(surface->linesize * surface->height);
+        data = g_malloc(surface->linesize * surface->height);
     }
     surface->data = (uint8_t *)data;
     surface->flags = newflags | QEMU_ALLOCATED_FLAG;
@@ -1317,7 +1317,7 @@ void qemu_alloc_display(DisplaySurface *surface, int width, int height,
 DisplaySurface* qemu_create_displaysurface_from(int width, int height, int bpp,
                                               int linesize, uint8_t *data)
 {
-    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
+    DisplaySurface *surface = (DisplaySurface*) g_malloc0(sizeof(DisplaySurface));
 
     surface->width = width;
     surface->height = height;
@@ -1336,8 +1336,8 @@ static void defaultallocator_free_displaysurface(DisplaySurface *surface)
     if (surface == NULL)
         return;
     if (surface->flags & QEMU_ALLOCATED_FLAG)
-        qemu_free(surface->data);
-    qemu_free(surface);
+        g_free(surface->data);
+    g_free(surface);
 }
 
 static struct DisplayAllocator default_allocator = {
@@ -1348,7 +1348,7 @@ static struct DisplayAllocator default_allocator = {
 
 static void dumb_display_init(void)
 {
-    DisplayState *ds = qemu_mallocz(sizeof(DisplayState));
+    DisplayState *ds = g_malloc0(sizeof(DisplayState));
     int width = 640;
     int height = 480;
 
@@ -1403,14 +1403,14 @@ DisplayState *graphic_console_init(vga_hw_update_ptr update,
     TextConsole *s;
     DisplayState *ds;
 
-    ds = (DisplayState *) qemu_mallocz(sizeof(DisplayState));
+    ds = (DisplayState *) g_malloc0(sizeof(DisplayState));
     ds->allocator = &default_allocator; 
     ds->surface = qemu_create_displaysurface(ds, 640, 480);
 
     s = new_console(ds, GRAPHIC_CONSOLE);
     if (s == NULL) {
         qemu_free_displaysurface(ds);
-        qemu_free(ds);
+        g_free(ds);
         return NULL;
     }
     s->hw_update = update;
@@ -1521,7 +1521,7 @@ int text_console_init(QemuOpts *opts, CharDriverState **_chr)
     unsigned width;
     unsigned height;
 
-    chr = qemu_mallocz(sizeof(CharDriverState));
+    chr = g_malloc0(sizeof(CharDriverState));
 
     if (n_text_consoles == 128) {
         fprintf(stderr, "Too many text consoles\n");

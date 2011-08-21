@@ -127,7 +127,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     if (filename) {
         bios_size = load_elf(filename, 0, NULL, NULL, NULL, NULL,
                              1, ELF_MACHINE, 0);
-        qemu_free(filename);
+        g_free(filename);
     } else {
         bios_size = -1;
     }
@@ -213,9 +213,9 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     isa_mmio_init(0xfe000000, 0x00200000);
 
     /* XXX: we register only 1 output pin for heathrow PIC */
-    heathrow_irqs = qemu_mallocz(smp_cpus * sizeof(qemu_irq *));
+    heathrow_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     heathrow_irqs[0] =
-        qemu_mallocz(smp_cpus * sizeof(qemu_irq) * 1);
+        g_malloc0(smp_cpus * sizeof(qemu_irq) * 1);
     /* Connect the heathrow PIC outputs to the 6xx bus */
     for (i = 0; i < smp_cpus; i++) {
         switch (PPC_INPUT(env)) {
@@ -306,7 +306,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         uint8_t *hypercall;
 
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
-        hypercall = qemu_malloc(16);
+        hypercall = g_malloc(16);
         kvmppc_get_hypercall(env, hypercall, 16);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());

@@ -121,8 +121,8 @@ MacIONVRAMState *macio_nvram_init (target_phys_addr_t size,
 {
     MacIONVRAMState *s;
 
-    s = qemu_mallocz(sizeof(MacIONVRAMState));
-    s->data = qemu_mallocz(size);
+    s = g_malloc0(sizeof(MacIONVRAMState));
+    s->data = g_malloc0(size);
     s->size = size;
     s->it_shift = it_shift;
 

@@ -565,7 +565,7 @@ bool parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
     ParallelState *s;
     int io_sw;
 
-    s = qemu_mallocz(sizeof(ParallelState));
+    s = g_malloc0(sizeof(ParallelState));
     s->irq = irq;
     s->chr = chr;
     s->it_shift = it_shift;

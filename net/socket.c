@@ -404,7 +404,7 @@ static int net_socket_listen_init(VLANState *vlan,
     if (parse_host_port(&saddr, host_str) < 0)
         return -1;
 
-    s = qemu_mallocz(sizeof(NetSocketListenState));
+    s = g_malloc0(sizeof(NetSocketListenState));
 
     fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -428,8 +428,8 @@ static int net_socket_listen_init(VLANState *vlan,
         return -1;
     }
     s->vlan = vlan;
-    s->model = qemu_strdup(model);
-    s->name = name ? qemu_strdup(name) : NULL;
+    s->model = g_strdup(model);
+    s->name = name ? g_strdup(name) : NULL;
     s->fd = fd;
     qemu_set_fd_handler(fd, net_socket_accept, NULL, s);
     return 0;

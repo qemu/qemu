@@ -351,7 +351,7 @@ static CPUTimer* cpu_timer_create(const char* name, CPUState *env,
                                   QEMUBHFunc *cb, uint32_t frequency,
                                   uint64_t disabled_mask)
 {
-    CPUTimer *timer = qemu_mallocz(sizeof (CPUTimer));
+    CPUTimer *timer = g_malloc0(sizeof (CPUTimer));
 
     timer->name = name;
     timer->frequency = frequency;
@@ -608,7 +608,7 @@ static void prom_init(target_phys_addr_t addr, const char *bios_name)
         if (ret < 0 || ret > PROM_SIZE_MAX) {
             ret = load_image_targphys(filename, addr, PROM_SIZE_MAX);
         }
-        qemu_free(filename);
+        g_free(filename);
     } else {
         ret = -1;
     }
@@ -723,7 +723,7 @@ static CPUState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
     env->hstick = cpu_timer_create("hstick", env, hstick_irq,
                                     hstick_frequency, TICK_INT_DIS);
 
-    reset_info = qemu_mallocz(sizeof(ResetData));
+    reset_info = g_malloc0(sizeof(ResetData));
     reset_info->env = env;
     reset_info->prom_addr = hwdef->prom_addr;
     qemu_register_reset(main_cpu_reset, reset_info);

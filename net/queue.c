@@ -63,7 +63,7 @@ NetQueue *qemu_new_net_queue(NetPacketDeliver *deliver,
 {
     NetQueue *queue;
 
-    queue = qemu_mallocz(sizeof(NetQueue));
+    queue = g_malloc0(sizeof(NetQueue));
 
     queue->deliver = deliver;
     queue->deliver_iov = deliver_iov;
@@ -82,10 +82,10 @@ void qemu_del_net_queue(NetQueue *queue)
 
     QTAILQ_FOREACH_SAFE(packet, &queue->packets, entry, next) {
         QTAILQ_REMOVE(&queue->packets, packet, entry);
-        qemu_free(packet);
+        g_free(packet);
     }
 
-    qemu_free(queue);
+    g_free(queue);
 }
 
 static ssize_t qemu_net_queue_append(NetQueue *queue,
@@ -97,7 +97,7 @@ static ssize_t qemu_net_queue_append(NetQueue *queue,
 {
     NetPacket *packet;
 
-    packet = qemu_malloc(sizeof(NetPacket) + size);
+    packet = g_malloc(sizeof(NetPacket) + size);
     packet->sender = sender;
     packet->flags = flags;
     packet->size = size;
@@ -124,7 +124,7 @@ static ssize_t qemu_net_queue_append_iov(NetQueue *queue,
         max_len += iov[i].iov_len;
     }
 
-    packet = qemu_malloc(sizeof(NetPacket) + max_len);
+    packet = g_malloc(sizeof(NetPacket) + max_len);
     packet->sender = sender;
     packet->sent_cb = sent_cb;
     packet->flags = flags;
@@ -227,7 +227,7 @@ void qemu_net_queue_purge(NetQueue *queue, VLANClientState *from)
     QTAILQ_FOREACH_SAFE(packet, &queue->packets, entry, next) {
         if (packet->sender == from) {
             QTAILQ_REMOVE(&queue->packets, packet, entry);
-            qemu_free(packet);
+            g_free(packet);
         }
     }
 }
@@ -255,6 +255,6 @@ void qemu_net_queue_flush(NetQueue *queue)
             packet->sent_cb(packet->sender, ret);
         }
 
-        qemu_free(packet);
+        g_free(packet);
     }
 }

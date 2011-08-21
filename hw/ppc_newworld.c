@@ -189,7 +189,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         bios_size = load_elf(filename, NULL, NULL, NULL,
                              NULL, NULL, 1, ELF_MACHINE, 0);
 
-        qemu_free(filename);
+        g_free(filename);
     } else {
         bios_size = -1;
     }
@@ -271,9 +271,9 @@ static void ppc_core99_init (ram_addr_t ram_size,
                                          DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
 
-    openpic_irqs = qemu_mallocz(smp_cpus * sizeof(qemu_irq *));
+    openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     openpic_irqs[0] =
-        qemu_mallocz(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
+        g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
         /* Mac99 IRQ connection between OpenPIC outputs pins
          * and PowerPC input pins
@@ -398,7 +398,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         uint8_t *hypercall;
 
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
-        hypercall = qemu_malloc(16);
+        hypercall = g_malloc(16);
         kvmppc_get_hypercall(env, hypercall, 16);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());

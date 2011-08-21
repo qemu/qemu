@@ -44,20 +44,20 @@ static void set_idt(int n, unsigned int dpl)
     set_gate(idt_table + n, 0, dpl, 0, 0);
 }
 
-void qemu_free(void *ptr)
+void g_free(void *ptr)
 {
     free(ptr);
 }
 
-void *qemu_malloc(size_t size)
+void *g_malloc(size_t size)
 {
     return malloc(size);
 }
 
-void *qemu_mallocz(size_t size)
+void *g_malloc0(size_t size)
 {
     void *ptr;
-    ptr = qemu_malloc(size);
+    ptr = g_malloc(size);
     if (!ptr)
         return NULL;
     memset(ptr, 0, size);

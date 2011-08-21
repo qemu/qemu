@@ -150,7 +150,7 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
         i++;
     }
     if (nsyms) {
-        syms = qemu_realloc(syms, nsyms * sizeof(*syms));
+        syms = g_realloc(syms, nsyms * sizeof(*syms));
 
         qsort(syms, nsyms, sizeof(*syms), glue(symcmp, SZ));
         for (i = 0; i < nsyms - 1; i++) {
@@ -159,7 +159,7 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
             }
         }
     } else {
-        qemu_free(syms);
+        g_free(syms);
         syms = NULL;
     }
 
@@ -173,19 +173,19 @@ static int glue(load_symbols, SZ)(struct elfhdr *ehdr, int fd, int must_swab,
         goto fail;
 
     /* Commit */
-    s = qemu_mallocz(sizeof(*s));
+    s = g_malloc0(sizeof(*s));
     s->lookup_symbol = glue(lookup_symbol, SZ);
     glue(s->disas_symtab.elf, SZ) = syms;
     s->disas_num_syms = nsyms;
     s->disas_strtab = str;
     s->next = syminfos;
     syminfos = s;
-    qemu_free(shdr_table);
+    g_free(shdr_table);
     return 0;
  fail:
-    qemu_free(syms);
-    qemu_free(str);
-    qemu_free(shdr_table);
+    g_free(syms);
+    g_free(str);
+    g_free(shdr_table);
     return -1;
 }
 
@@ -238,7 +238,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
 
     size = ehdr.e_phnum * sizeof(phdr[0]);
     lseek(fd, ehdr.e_phoff, SEEK_SET);
-    phdr = qemu_mallocz(size);
+    phdr = g_malloc0(size);
     if (!phdr)
         goto fail;
     if (read(fd, phdr, size) != size)
@@ -256,7 +256,7 @@ static int glue(load_elf, SZ)(const char *name, int fd,
         if (ph->p_type == PT_LOAD) {
             mem_size = ph->p_memsz;
             /* XXX: avoid allocating */
-            data = qemu_mallocz(mem_size);
+            data = g_malloc0(mem_size);
             if (ph->p_filesz > 0) {
                 if (lseek(fd, ph->p_offset, SEEK_SET) < 0)
                     goto fail;
@@ -280,18 +280,18 @@ static int glue(load_elf, SZ)(const char *name, int fd,
             if ((addr + mem_size) > high)
                 high = addr + mem_size;
 
-            qemu_free(data);
+            g_free(data);
             data = NULL;
         }
     }
-    qemu_free(phdr);
+    g_free(phdr);
     if (lowaddr)
         *lowaddr = (uint64_t)(elf_sword)low;
     if (highaddr)
         *highaddr = (uint64_t)(elf_sword)high;
     return total_size;
  fail:
-    qemu_free(data);
-    qemu_free(phdr);
+    g_free(data);
+    g_free(phdr);
     return -1;
 }

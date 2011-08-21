@@ -1697,7 +1697,7 @@ static int qxl_post_load(void *opaque, int version)
         qxl_create_guest_primary(d, 1, QXL_SYNC);
 
         /* replay surface-create and cursor-set commands */
-        cmds = qemu_mallocz(sizeof(QXLCommandExt) * (NUM_SURFACES + 1));
+        cmds = g_malloc0(sizeof(QXLCommandExt) * (NUM_SURFACES + 1));
         for (in = 0, out = 0; in < NUM_SURFACES; in++) {
             if (d->guest_surfaces.cmds[in] == 0) {
                 continue;
@@ -1712,7 +1712,7 @@ static int qxl_post_load(void *opaque, int version)
         cmds[out].group_id = MEMSLOT_GROUP_GUEST;
         out++;
         qxl_spice_loadvm_commands(d, cmds, out);
-        qemu_free(cmds);
+        g_free(cmds);
 
         break;
     case QXL_MODE_COMPAT:

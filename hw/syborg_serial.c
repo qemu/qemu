@@ -311,7 +311,7 @@ static int syborg_serial_init(SysBusDevice *dev)
         fprintf(stderr, "syborg_serial: fifo too small\n");
         s->fifo_size = 16;
     }
-    s->read_fifo = qemu_mallocz(s->fifo_size * sizeof(s->read_fifo[0]));
+    s->read_fifo = g_malloc0(s->fifo_size * sizeof(s->read_fifo[0]));
 
     return 0;
 }

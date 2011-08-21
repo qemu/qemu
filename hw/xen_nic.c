@@ -183,7 +183,7 @@ static void net_tx_packets(struct XenNetDev *netdev)
             if (txreq.flags & NETTXF_csum_blank) {
                 /* have read-only mapping -> can't fill checksum in-place */
                 if (!tmpbuf) {
-                    tmpbuf = qemu_malloc(XC_PAGE_SIZE);
+                    tmpbuf = g_malloc(XC_PAGE_SIZE);
                 }
                 memcpy(tmpbuf, page + txreq.offset, txreq.size);
                 net_checksum_calculate(tmpbuf, txreq.size);
@@ -199,7 +199,7 @@ static void net_tx_packets(struct XenNetDev *netdev)
         }
         netdev->tx_work = 0;
     }
-    qemu_free(tmpbuf);
+    g_free(tmpbuf);
 }
 
 /* ------------------------------------------------------------- */
@@ -423,7 +423,7 @@ static int net_free(struct XenDevice *xendev)
 {
     struct XenNetDev *netdev = container_of(xendev, struct XenNetDev, xendev);
 
-    qemu_free(netdev->mac);
+    g_free(netdev->mac);
     return 0;
 }
 

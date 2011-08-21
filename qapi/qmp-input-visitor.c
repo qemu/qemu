@@ -99,7 +99,7 @@ static void qmp_input_start_struct(Visitor *v, void **obj, const char *kind,
     }
 
     if (obj) {
-        *obj = qemu_mallocz(size);
+        *obj = g_malloc0(size);
     }
 }
 
@@ -135,11 +135,11 @@ static GenericList *qmp_input_next_list(Visitor *v, GenericList **list,
         return NULL;
     }
 
-    entry = qemu_mallocz(sizeof(*entry));
+    entry = g_malloc0(sizeof(*entry));
     if (*list) {
         so->entry = qlist_next(so->entry);
         if (so->entry == NULL) {
-            qemu_free(entry);
+            g_free(entry);
             return NULL;
         }
         (*list)->next = entry;
@@ -199,7 +199,7 @@ static void qmp_input_type_str(Visitor *v, char **obj, const char *name,
         return;
     }
 
-    *obj = qemu_strdup(qstring_get_str(qobject_to_qstring(qobj)));
+    *obj = g_strdup(qstring_get_str(qobject_to_qstring(qobj)));
 }
 
 static void qmp_input_type_number(Visitor *v, double *obj, const char *name,
@@ -272,14 +272,14 @@ Visitor *qmp_input_get_visitor(QmpInputVisitor *v)
 void qmp_input_visitor_cleanup(QmpInputVisitor *v)
 {
     qobject_decref(v->obj);
-    qemu_free(v);
+    g_free(v);
 }
 
 QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
 {
     QmpInputVisitor *v;
 
-    v = qemu_mallocz(sizeof(*v));
+    v = g_malloc0(sizeof(*v));
 
     v->visitor.start_struct = qmp_input_start_struct;
     v->visitor.end_struct = qmp_input_end_struct;

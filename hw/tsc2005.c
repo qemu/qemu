@@ -524,7 +524,7 @@ void *tsc2005_init(qemu_irq pintdav)
     TSC2005State *s;
 
     s = (TSC2005State *)
-            qemu_mallocz(sizeof(TSC2005State));
+            g_malloc0(sizeof(TSC2005State));
     s->x = 400;
     s->y = 240;
     s->pressure = 0;

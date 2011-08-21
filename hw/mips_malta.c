@@ -433,7 +433,7 @@ static MaltaFPGAState *malta_fpga_init(target_phys_addr_t base, qemu_irq uart_ir
     MaltaFPGAState *s;
     int malta;
 
-    s = (MaltaFPGAState *)qemu_mallocz(sizeof(MaltaFPGAState));
+    s = (MaltaFPGAState *)g_malloc0(sizeof(MaltaFPGAState));
 
     malta = cpu_register_io_memory(malta_fpga_read,
                                    malta_fpga_write, s,
@@ -709,7 +709,7 @@ static int64_t load_kernel (void)
 
     /* Setup prom parameters. */
     prom_size = ENVP_NB_ENTRIES * (sizeof(int32_t) + ENVP_ENTRY_SIZE);
-    prom_buf = qemu_malloc(prom_size);
+    prom_buf = g_malloc(prom_size);
 
     prom_set(prom_buf, prom_index++, "%s", loaderparams.kernel_filename);
     if (initrd_size > 0) {
@@ -863,7 +863,7 @@ void mips_malta_init (ram_addr_t ram_size,
             if (filename) {
                 bios_size = load_image_targphys(filename, 0x1fc00000LL,
                                                 BIOS_SIZE);
-                qemu_free(filename);
+                g_free(filename);
             } else {
                 bios_size = -1;
             }

@@ -310,7 +310,7 @@ eeprom_t *eeprom93xx_new(DeviceState *dev, uint16_t nwords)
             addrbits = 6;
     }
 
-    eeprom = (eeprom_t *)qemu_mallocz(sizeof(*eeprom) + nwords * 2);
+    eeprom = (eeprom_t *)g_malloc0(sizeof(*eeprom) + nwords * 2);
     eeprom->size = nwords;
     eeprom->addrbits = addrbits;
     /* Output DO is tristate, read results in 1. */
@@ -325,7 +325,7 @@ void eeprom93xx_free(DeviceState *dev, eeprom_t *eeprom)
     /* Destroy EEPROM. */
     logout("eeprom = 0x%p\n", eeprom);
     vmstate_unregister(dev, &vmstate_eeprom, eeprom);
-    qemu_free(eeprom);
+    g_free(eeprom);
 }
 
 uint16_t *eeprom93xx_data(eeprom_t *eeprom)

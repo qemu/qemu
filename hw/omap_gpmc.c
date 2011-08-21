@@ -385,7 +385,7 @@ struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq)
 {
     int iomemtype;
     struct omap_gpmc_s *s = (struct omap_gpmc_s *)
-            qemu_mallocz(sizeof(struct omap_gpmc_s));
+            g_malloc0(sizeof(struct omap_gpmc_s));
 
     omap_gpmc_reset(s);
 

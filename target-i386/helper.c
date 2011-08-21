@@ -108,7 +108,7 @@ void cpu_reset(CPUX86State *env)
 
 void cpu_x86_close(CPUX86State *env)
 {
-    qemu_free(env);
+    g_free(env);
 }
 
 static void cpu_x86_version(CPUState *env, int *family, int *model)
@@ -1239,7 +1239,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
     CPUX86State *env;
     static int inited;
 
-    env = qemu_mallocz(sizeof(CPUX86State));
+    env = g_malloc0(sizeof(CPUX86State));
     cpu_exec_init(env);
     env->cpu_model_str = cpu_model;
 

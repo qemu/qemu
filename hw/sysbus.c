@@ -158,8 +158,8 @@ void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init)
 {
     SysBusDeviceInfo *info;
 
-    info = qemu_mallocz(sizeof(*info));
-    info->qdev.name = qemu_strdup(name);
+    info = g_malloc0(sizeof(*info));
+    info->qdev.name = g_strdup(name);
     info->qdev.size = size;
     info->init = init;
     sysbus_register_withprop(info);

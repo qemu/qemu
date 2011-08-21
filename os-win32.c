@@ -41,7 +41,7 @@ int setenv(const char *name, const char *value, int overwrite)
     int result = 0;
     if (overwrite || !getenv(name)) {
         size_t length = strlen(name) + strlen(value) + 2;
-        char *string = qemu_malloc(length);
+        char *string = g_malloc(length);
         snprintf(string, length, "%s=%s", name, value);
         result = putenv(string);
     }
@@ -62,7 +62,7 @@ static PollingEntry *first_polling_entry;
 int qemu_add_polling_cb(PollingFunc *func, void *opaque)
 {
     PollingEntry **ppe, *pe;
-    pe = qemu_mallocz(sizeof(PollingEntry));
+    pe = g_malloc0(sizeof(PollingEntry));
     pe->func = func;
     pe->opaque = opaque;
     for(ppe = &first_polling_entry; *ppe != NULL; ppe = &(*ppe)->next);
@@ -77,7 +77,7 @@ void qemu_del_polling_cb(PollingFunc *func, void *opaque)
         pe = *ppe;
         if (pe->func == func && pe->opaque == opaque) {
             *ppe = pe->next;
-            qemu_free(pe);
+            g_free(pe);
             break;
         }
     }
@@ -218,7 +218,7 @@ char *os_find_datadir(const char *argv0)
         p--;
     *p = 0;
     if (access(buf, R_OK) == 0) {
-        return qemu_strdup(buf);
+        return g_strdup(buf);
     }
     return NULL;
 }

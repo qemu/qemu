@@ -283,12 +283,12 @@ void usb_desc_set_string(USBDevice *dev, uint8_t index, const char *str)
         }
     }
     if (s == NULL) {
-        s = qemu_mallocz(sizeof(*s));
+        s = g_malloc0(sizeof(*s));
         s->index = index;
         QLIST_INSERT_HEAD(&dev->strings, s, next);
     }
-    qemu_free(s->str);
-    s->str = qemu_strdup(str);
+    g_free(s->str);
+    s->str = g_strdup(str);
 }
 
 const char *usb_desc_get_string(USBDevice *dev, uint8_t index)

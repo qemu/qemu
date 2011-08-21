@@ -183,7 +183,7 @@ static void flatview_insert(FlatView *view, unsigned pos, FlatRange *range)
 {
     if (view->nr == view->nr_allocated) {
         view->nr_allocated = MAX(2 * view->nr, 10);
-        view->ranges = qemu_realloc(view->ranges,
+        view->ranges = g_realloc(view->ranges,
                                     view->nr_allocated * sizeof(*view->ranges));
     }
     memmove(view->ranges + pos + 1, view->ranges + pos,
@@ -194,7 +194,7 @@ static void flatview_insert(FlatView *view, unsigned pos, FlatRange *range)
 
 static void flatview_destroy(FlatView *view)
 {
-    qemu_free(view->ranges);
+    g_free(view->ranges);
 }
 
 static bool can_merge(FlatRange *r1, FlatRange *r2)
@@ -553,7 +553,7 @@ static void address_space_update_ioeventfds(AddressSpace *as)
                                   fr->addr.start - fr->offset_in_region);
             if (addrrange_intersects(fr->addr, tmp)) {
                 ++ioeventfd_nb;
-                ioeventfds = qemu_realloc(ioeventfds,
+                ioeventfds = g_realloc(ioeventfds,
                                           ioeventfd_nb * sizeof(*ioeventfds));
                 ioeventfds[ioeventfd_nb-1] = fr->mr->ioeventfds[i];
                 ioeventfds[ioeventfd_nb-1].addr = tmp;
@@ -564,7 +564,7 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     address_space_add_del_ioeventfds(as, ioeventfds, ioeventfd_nb,
                                      as->ioeventfds, as->ioeventfd_nb);
 
-    qemu_free(as->ioeventfds);
+    g_free(as->ioeventfds);
     as->ioeventfds = ioeventfds;
     as->ioeventfd_nb = ioeventfd_nb;
 }
@@ -713,7 +713,7 @@ void memory_region_init(MemoryRegion *mr,
     QTAILQ_INIT(&mr->subregions);
     memset(&mr->subregions_link, 0, sizeof mr->subregions_link);
     QTAILQ_INIT(&mr->coalesced);
-    mr->name = qemu_strdup(name);
+    mr->name = g_strdup(name);
     mr->dirty_log_mask = 0;
     mr->ioeventfd_nb = 0;
     mr->ioeventfds = NULL;
@@ -949,8 +949,8 @@ void memory_region_destroy(MemoryRegion *mr)
     assert(QTAILQ_EMPTY(&mr->subregions));
     mr->destructor(mr);
     memory_region_clear_coalescing(mr);
-    qemu_free((char *)mr->name);
-    qemu_free(mr->ioeventfds);
+    g_free((char *)mr->name);
+    g_free(mr->ioeventfds);
 }
 
 uint64_t memory_region_size(MemoryRegion *mr)
@@ -1061,7 +1061,7 @@ void memory_region_add_coalescing(MemoryRegion *mr,
                                   target_phys_addr_t offset,
                                   uint64_t size)
 {
-    CoalescedMemoryRange *cmr = qemu_malloc(sizeof(*cmr));
+    CoalescedMemoryRange *cmr = g_malloc(sizeof(*cmr));
 
     cmr->addr = addrrange_make(offset, size);
     QTAILQ_INSERT_TAIL(&mr->coalesced, cmr, link);
@@ -1075,7 +1075,7 @@ void memory_region_clear_coalescing(MemoryRegion *mr)
     while (!QTAILQ_EMPTY(&mr->coalesced)) {
         cmr = QTAILQ_FIRST(&mr->coalesced);
         QTAILQ_REMOVE(&mr->coalesced, cmr, link);
-        qemu_free(cmr);
+        g_free(cmr);
     }
     memory_region_update_coalesced_range(mr);
 }
@@ -1102,7 +1102,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
         }
     }
     ++mr->ioeventfd_nb;
-    mr->ioeventfds = qemu_realloc(mr->ioeventfds,
+    mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds) * mr->ioeventfd_nb);
     memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
@@ -1135,7 +1135,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     memmove(&mr->ioeventfds[i], &mr->ioeventfds[i+1],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb - (i+1)));
     --mr->ioeventfd_nb;
-    mr->ioeventfds = qemu_realloc(mr->ioeventfds,
+    mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
     memory_region_update_topology();
 }

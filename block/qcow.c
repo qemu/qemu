@@ -129,7 +129,7 @@ static int qcow_open(BlockDriverState *bs, int flags)
     s->l1_size = (header.size + (1LL << shift) - 1) >> shift;
 
     s->l1_table_offset = header.l1_table_offset;
-    s->l1_table = qemu_malloc(s->l1_size * sizeof(uint64_t));
+    s->l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
     if (!s->l1_table)
         goto fail;
     if (bdrv_pread(bs->file, s->l1_table_offset, s->l1_table, s->l1_size * sizeof(uint64_t)) !=
@@ -139,13 +139,13 @@ static int qcow_open(BlockDriverState *bs, int flags)
         be64_to_cpus(&s->l1_table[i]);
     }
     /* alloc L2 cache */
-    s->l2_cache = qemu_malloc(s->l2_size * L2_CACHE_SIZE * sizeof(uint64_t));
+    s->l2_cache = g_malloc(s->l2_size * L2_CACHE_SIZE * sizeof(uint64_t));
     if (!s->l2_cache)
         goto fail;
-    s->cluster_cache = qemu_malloc(s->cluster_size);
+    s->cluster_cache = g_malloc(s->cluster_size);
     if (!s->cluster_cache)
         goto fail;
-    s->cluster_data = qemu_malloc(s->cluster_size);
+    s->cluster_data = g_malloc(s->cluster_size);
     if (!s->cluster_data)
         goto fail;
     s->cluster_cache_offset = -1;
@@ -162,10 +162,10 @@ static int qcow_open(BlockDriverState *bs, int flags)
     return 0;
 
  fail:
-    qemu_free(s->l1_table);
-    qemu_free(s->l2_cache);
-    qemu_free(s->cluster_cache);
-    qemu_free(s->cluster_data);
+    g_free(s->l1_table);
+    g_free(s->l2_cache);
+    g_free(s->cluster_cache);
+    g_free(s->cluster_data);
     return -1;
 }
 
@@ -687,7 +687,7 @@ static int qcow_aio_write_cb(void *opaque)
     }
     if (s->crypt_method) {
         if (!acb->cluster_data) {
-            acb->cluster_data = qemu_mallocz(s->cluster_size);
+            acb->cluster_data = g_malloc0(s->cluster_size);
         }
         encrypt_sectors(s, acb->sector_num, acb->cluster_data, acb->buf,
                         acb->n, 1, &s->aes_encrypt_key);
@@ -738,10 +738,10 @@ static int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
 static void qcow_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
-    qemu_free(s->l1_table);
-    qemu_free(s->l2_cache);
-    qemu_free(s->cluster_cache);
-    qemu_free(s->cluster_data);
+    g_free(s->l1_table);
+    g_free(s->l2_cache);
+    g_free(s->cluster_cache);
+    g_free(s->cluster_data);
 }
 
 static int qcow_create(const char *filename, QEMUOptionParameter *options)
@@ -869,7 +869,7 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
     if (nb_sectors != s->cluster_sectors)
         return -EINVAL;
 
-    out_buf = qemu_malloc(s->cluster_size + (s->cluster_size / 1000) + 128);
+    out_buf = g_malloc(s->cluster_size + (s->cluster_size / 1000) + 128);
     if (!out_buf)
         return -1;
 
@@ -879,7 +879,7 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
                        Z_DEFLATED, -12,
                        9, Z_DEFAULT_STRATEGY);
     if (ret != 0) {
-        qemu_free(out_buf);
+        g_free(out_buf);
         return -1;
     }
 
@@ -890,7 +890,7 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     ret = deflate(&strm, Z_FINISH);
     if (ret != Z_STREAM_END && ret != Z_OK) {
-        qemu_free(out_buf);
+        g_free(out_buf);
         deflateEnd(&strm);
         return -1;
     }
@@ -906,12 +906,12 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
                                             out_len, 0, 0);
         cluster_offset &= s->cluster_offset_mask;
         if (bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len) != out_len) {
-            qemu_free(out_buf);
+            g_free(out_buf);
             return -1;
         }
     }
 
-    qemu_free(out_buf);
+    g_free(out_buf);
     return 0;
 }
 

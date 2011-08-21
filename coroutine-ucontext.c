@@ -73,7 +73,7 @@ static CoroutineThreadState *coroutine_get_thread_state(void)
     CoroutineThreadState *s = pthread_getspecific(thread_state_key);
 
     if (!s) {
-        s = qemu_mallocz(sizeof(*s));
+        s = g_malloc0(sizeof(*s));
         s->current = &s->leader.base;
         QLIST_INIT(&s->pool);
         pthread_setspecific(thread_state_key, s);
@@ -88,10 +88,10 @@ static void qemu_coroutine_thread_cleanup(void *opaque)
     Coroutine *tmp;
 
     QLIST_FOREACH_SAFE(co, &s->pool, pool_next, tmp) {
-        qemu_free(DO_UPCAST(CoroutineUContext, base, co)->stack);
-        qemu_free(co);
+        g_free(DO_UPCAST(CoroutineUContext, base, co)->stack);
+        g_free(co);
     }
-    qemu_free(s);
+    g_free(s);
 }
 
 static void __attribute__((constructor)) coroutine_init(void)
@@ -146,8 +146,8 @@ static Coroutine *coroutine_new(void)
         abort();
     }
 
-    co = qemu_mallocz(sizeof(*co));
-    co->stack = qemu_malloc(stack_size);
+    co = g_malloc0(sizeof(*co));
+    co->stack = g_malloc(stack_size);
     co->base.entry_arg = &old_env; /* stash away our jmp_buf */
 
     uc.uc_link = &old_uc;
@@ -194,8 +194,8 @@ void qemu_coroutine_delete(Coroutine *co_)
         return;
     }
 
-    qemu_free(co->stack);
-    qemu_free(co);
+    g_free(co->stack);
+    g_free(co);
 }
 
 CoroutineAction qemu_coroutine_switch(Coroutine *from_, Coroutine *to_,

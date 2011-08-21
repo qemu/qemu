@@ -177,14 +177,14 @@ static void fw_cfg_bootsplash(FWCfgState *s)
         /* probing the file */
         fp = probe_splashfile(filename, &file_size, &file_type);
         if (fp == NULL) {
-            qemu_free(filename);
+            g_free(filename);
             return;
         }
         /* loading file data */
         if (boot_splash_filedata != NULL) {
-            qemu_free(boot_splash_filedata);
+            g_free(boot_splash_filedata);
         }
-        boot_splash_filedata = qemu_malloc(file_size);
+        boot_splash_filedata = g_malloc(file_size);
         boot_splash_filedata_size = file_size;
         fseek(fp, 0L, SEEK_SET);
         fop_ret = fread(boot_splash_filedata, 1, file_size, fp);
@@ -203,7 +203,7 @@ static void fw_cfg_bootsplash(FWCfgState *s)
             fw_cfg_add_file(s, "bootsplash.bmp",
                     boot_splash_filedata, boot_splash_filedata_size);
         }
-        qemu_free(filename);
+        g_free(filename);
     }
 }
 
@@ -385,7 +385,7 @@ int fw_cfg_add_i16(FWCfgState *s, uint16_t key, uint16_t value)
 {
     uint16_t *copy;
 
-    copy = qemu_malloc(sizeof(value));
+    copy = g_malloc(sizeof(value));
     *copy = cpu_to_le16(value);
     return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
 }
@@ -394,7 +394,7 @@ int fw_cfg_add_i32(FWCfgState *s, uint16_t key, uint32_t value)
 {
     uint32_t *copy;
 
-    copy = qemu_malloc(sizeof(value));
+    copy = g_malloc(sizeof(value));
     *copy = cpu_to_le32(value);
     return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
 }
@@ -403,7 +403,7 @@ int fw_cfg_add_i64(FWCfgState *s, uint16_t key, uint64_t value)
 {
     uint64_t *copy;
 
-    copy = qemu_malloc(sizeof(value));
+    copy = g_malloc(sizeof(value));
     *copy = cpu_to_le64(value);
     return fw_cfg_add_bytes(s, key, (uint8_t *)copy, sizeof(value));
 }
@@ -436,7 +436,7 @@ int fw_cfg_add_file(FWCfgState *s,  const char *filename, uint8_t *data,
 
     if (!s->files) {
         int dsize = sizeof(uint32_t) + sizeof(FWCfgFile) * FW_CFG_FILE_SLOTS;
-        s->files = qemu_mallocz(dsize);
+        s->files = g_malloc0(dsize);
         fw_cfg_add_bytes(s, FW_CFG_FILE_DIR, (uint8_t*)s->files, dsize);
     }
 

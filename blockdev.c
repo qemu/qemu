@@ -182,9 +182,9 @@ static void drive_uninit(DriveInfo *dinfo)
 {
     qemu_opts_del(dinfo->opts);
     bdrv_delete(dinfo->bdrv);
-    qemu_free(dinfo->id);
+    g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
-    qemu_free(dinfo);
+    g_free(dinfo);
 }
 
 void drive_put_ref(DriveInfo *dinfo)
@@ -442,12 +442,12 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 
     /* init */
 
-    dinfo = qemu_mallocz(sizeof(*dinfo));
+    dinfo = g_malloc0(sizeof(*dinfo));
     if ((buf = qemu_opts_id(opts)) != NULL) {
-        dinfo->id = qemu_strdup(buf);
+        dinfo->id = g_strdup(buf);
     } else {
         /* no id supplied -> create one */
-        dinfo->id = qemu_mallocz(32);
+        dinfo->id = g_malloc0(32);
         if (type == IF_IDE || type == IF_SCSI)
             mediastr = (media == MEDIA_CDROM) ? "-cd" : "-hd";
         if (max_devs)
@@ -542,9 +542,9 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 
 err:
     bdrv_delete(dinfo->bdrv);
-    qemu_free(dinfo->id);
+    g_free(dinfo->id);
     QTAILQ_REMOVE(&drives, dinfo, next);
-    qemu_free(dinfo);
+    g_free(dinfo);
     return NULL;
 }
 

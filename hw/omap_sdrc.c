@@ -153,7 +153,7 @@ struct omap_sdrc_s *omap_sdrc_init(target_phys_addr_t base)
 {
     int iomemtype;
     struct omap_sdrc_s *s = (struct omap_sdrc_s *)
-            qemu_mallocz(sizeof(struct omap_sdrc_s));
+            g_malloc0(sizeof(struct omap_sdrc_s));
 
     omap_sdrc_reset(s);
 

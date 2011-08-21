@@ -300,7 +300,7 @@ static struct {
 static void res_free(void)
 {
     if (boot_splash_filedata != NULL) {
-        qemu_free(boot_splash_filedata);
+        g_free(boot_splash_filedata);
         boot_splash_filedata = NULL;
     }
 }
@@ -466,7 +466,7 @@ static struct bt_scatternet_s *qemu_find_bt_vlan(int id)
         if (vlan->id == id)
             return &vlan->net;
     }
-    vlan = qemu_mallocz(sizeof(struct bt_vlan_s));
+    vlan = g_malloc0(sizeof(struct bt_vlan_s));
     vlan->id = id;
     pvlan = &first_bt_vlan;
     while (*pvlan != NULL)
@@ -741,7 +741,7 @@ static void restore_boot_devices(void *opaque)
     qemu_boot_set(standard_boot_devices);
 
     qemu_unregister_reset(restore_boot_devices, standard_boot_devices);
-    qemu_free(standard_boot_devices);
+    g_free(standard_boot_devices);
 }
 
 void add_boot_device_path(int32_t bootindex, DeviceState *dev,
@@ -755,9 +755,9 @@ void add_boot_device_path(int32_t bootindex, DeviceState *dev,
 
     assert(dev != NULL || suffix != NULL);
 
-    node = qemu_mallocz(sizeof(FWBootEntry));
+    node = g_malloc0(sizeof(FWBootEntry));
     node->bootindex = bootindex;
-    node->suffix = suffix ? qemu_strdup(suffix) : NULL;
+    node->suffix = suffix ? g_strdup(suffix) : NULL;
     node->dev = dev;
 
     QTAILQ_FOREACH(i, &fw_boot_order, link) {
@@ -798,13 +798,13 @@ char *get_boot_devices_list(uint32_t *size)
         if (i->suffix && devpath) {
             size_t bootpathlen = strlen(devpath) + strlen(i->suffix) + 1;
 
-            bootpath = qemu_malloc(bootpathlen);
+            bootpath = g_malloc(bootpathlen);
             snprintf(bootpath, bootpathlen, "%s%s", devpath, i->suffix);
-            qemu_free(devpath);
+            g_free(devpath);
         } else if (devpath) {
             bootpath = devpath;
         } else {
-            bootpath = qemu_strdup(i->suffix);
+            bootpath = g_strdup(i->suffix);
             assert(bootpath);
         }
 
@@ -812,10 +812,10 @@ char *get_boot_devices_list(uint32_t *size)
             list[total-1] = '\n';
         }
         len = strlen(bootpath) + 1;
-        list = qemu_realloc(list, total + len);
+        list = g_realloc(list, total + len);
         memcpy(&list[total], bootpath, len);
         total += len;
-        qemu_free(bootpath);
+        g_free(bootpath);
     }
 
     *size = total;
@@ -1014,7 +1014,7 @@ void pcmcia_socket_register(PCMCIASocket *socket)
 {
     struct pcmcia_socket_entry_s *entry;
 
-    entry = qemu_malloc(sizeof(struct pcmcia_socket_entry_s));
+    entry = g_malloc(sizeof(struct pcmcia_socket_entry_s));
     entry->socket = socket;
     entry->next = pcmcia_sockets;
     pcmcia_sockets = entry;
@@ -1028,7 +1028,7 @@ void pcmcia_socket_unregister(PCMCIASocket *socket)
     for (entry = *ptr; entry; ptr = &entry->next, entry = *ptr)
         if (entry->socket == socket) {
             *ptr = entry->next;
-            qemu_free(entry);
+            g_free(entry);
         }
 }
 
@@ -1129,7 +1129,7 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
 {
     VMChangeStateEntry *e;
 
-    e = qemu_mallocz(sizeof (*e));
+    e = g_malloc0(sizeof (*e));
 
     e->cb = cb;
     e->opaque = opaque;
@@ -1140,7 +1140,7 @@ VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
 {
     QLIST_REMOVE (e, entries);
-    qemu_free (e);
+    g_free (e);
 }
 
 void vm_state_notify(int running, int reason)
@@ -1245,7 +1245,7 @@ static int qemu_vmstop_requested(void)
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
 {
-    QEMUResetEntry *re = qemu_mallocz(sizeof(QEMUResetEntry));
+    QEMUResetEntry *re = g_malloc0(sizeof(QEMUResetEntry));
 
     re->func = func;
     re->opaque = opaque;
@@ -1259,7 +1259,7 @@ void qemu_unregister_reset(QEMUResetHandler *func, void *opaque)
     QTAILQ_FOREACH(re, &reset_handlers, entry) {
         if (re->func == func && re->opaque == opaque) {
             QTAILQ_REMOVE(&reset_handlers, re, entry);
-            qemu_free(re);
+            g_free(re);
             return;
         }
     }
@@ -1648,7 +1648,7 @@ char *qemu_find_file(int type, const char *name)
     /* If name contains path separators then try it as a straight path.  */
     if ((strchr(name, '/') || strchr(name, '\\'))
         && access(name, R_OK) == 0) {
-        return qemu_strdup(name);
+        return g_strdup(name);
     }
     switch (type) {
     case QEMU_FILE_TYPE_BIOS:
@@ -1661,10 +1661,10 @@ char *qemu_find_file(int type, const char *name)
         abort();
     }
     len = strlen(data_dir) + strlen(name) + strlen(subdir) + 2;
-    buf = qemu_mallocz(len);
+    buf = g_malloc0(len);
     snprintf(buf, len, "%s/%s%s", data_dir, subdir, name);
     if (access(buf, R_OK)) {
-        qemu_free(buf);
+        g_free(buf);
         return NULL;
     }
     return buf;
@@ -1795,7 +1795,7 @@ static void add_device_config(int type, const char *cmdline)
 {
     struct device_config *conf;
 
-    conf = qemu_mallocz(sizeof(*conf));
+    conf = g_malloc0(sizeof(*conf));
     conf->type = type;
     conf->cmdline = cmdline;
     QTAILQ_INSERT_TAIL(&device_configs, conf, next);
@@ -2367,7 +2367,7 @@ int main(int argc, char **argv, char **envp)
                         if (get_param_value(buf, sizeof(buf),
                                             "once", optarg)) {
                             validate_bootdevices(buf);
-                            standard_boot_devices = qemu_strdup(boot_devices);
+                            standard_boot_devices = g_strdup(boot_devices);
                             pstrcpy(boot_devices, sizeof(boot_devices), buf);
                             qemu_register_reset(restore_boot_devices,
                                                 standard_boot_devices);
@@ -2808,7 +2808,7 @@ int main(int argc, char **argv, char **envp)
                 semihosting_enabled = 1;
                 break;
             case QEMU_OPTION_name:
-                qemu_name = qemu_strdup(optarg);
+                qemu_name = g_strdup(optarg);
 		 {
 		     char *p = strchr(qemu_name, ',');
 		     if (p != NULL) {

@@ -95,7 +95,7 @@ static void lm32_evr_init(ram_addr_t ram_size_not_used,
     int timer0_irq                 = 1;
     int timer1_irq                 = 3;
 
-    reset_info = qemu_mallocz(sizeof(ResetInfo));
+    reset_info = g_malloc0(sizeof(ResetInfo));
 
     if (cpu_model == NULL) {
         cpu_model = "lm32-full";
@@ -190,7 +190,7 @@ static void lm32_uclinux_init(ram_addr_t ram_size_not_used,
     target_phys_addr_t initrd_base  = 0x08400000;
     size_t initrd_max               = 0x01000000;
 
-    reset_info = qemu_mallocz(sizeof(ResetInfo));
+    reset_info = g_malloc0(sizeof(ResetInfo));
 
     if (cpu_model == NULL) {
         cpu_model = "lm32-full";

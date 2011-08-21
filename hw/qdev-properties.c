@@ -275,14 +275,14 @@ static int parse_string(DeviceState *dev, Property *prop, const char *str)
     char **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr)
-        qemu_free(*ptr);
-    *ptr = qemu_strdup(str);
+        g_free(*ptr);
+    *ptr = g_strdup(str);
     return 0;
 }
 
 static void free_string(DeviceState *dev, Property *prop)
 {
-    qemu_free(*(char **)qdev_get_prop_ptr(dev, prop));
+    g_free(*(char **)qdev_get_prop_ptr(dev, prop));
 }
 
 static int print_string(DeviceState *dev, Property *prop, char *dest, size_t len)
@@ -768,7 +768,7 @@ static int qdev_add_one_global(QemuOpts *opts, void *opaque)
 {
     GlobalProperty *g;
 
-    g = qemu_mallocz(sizeof(*g));
+    g = g_malloc0(sizeof(*g));
     g->driver   = qemu_opt_get(opts, "driver");
     g->property = qemu_opt_get(opts, "property");
     g->value    = qemu_opt_get(opts, "value");

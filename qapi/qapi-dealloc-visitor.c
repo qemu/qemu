@@ -35,7 +35,7 @@ static QapiDeallocVisitor *to_qov(Visitor *v)
 
 static void qapi_dealloc_push(QapiDeallocVisitor *qov, void *value)
 {
-    StackEntry *e = qemu_mallocz(sizeof(*e));
+    StackEntry *e = g_malloc0(sizeof(*e));
 
     e->value = value;
     QTAILQ_INSERT_HEAD(&qov->stack, e, node);
@@ -47,7 +47,7 @@ static void *qapi_dealloc_pop(QapiDeallocVisitor *qov)
     QObject *value;
     QTAILQ_REMOVE(&qov->stack, e, node);
     value = e->value;
-    qemu_free(e);
+    g_free(e);
     return value;
 }
 
@@ -64,7 +64,7 @@ static void qapi_dealloc_end_struct(Visitor *v, Error **errp)
     QapiDeallocVisitor *qov = to_qov(v);
     void **obj = qapi_dealloc_pop(qov);
     if (obj) {
-        qemu_free(*obj);
+        g_free(*obj);
     }
 }
 
@@ -76,7 +76,7 @@ static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList **list,
                                            Error **errp)
 {
     GenericList *retval = *list;
-    qemu_free(retval->value);
+    g_free(retval->value);
     *list = retval->next;
     return retval;
 }
@@ -89,7 +89,7 @@ static void qapi_dealloc_type_str(Visitor *v, char **obj, const char *name,
                                   Error **errp)
 {
     if (obj) {
-        qemu_free(*obj);
+        g_free(*obj);
     }
 }
 
@@ -121,14 +121,14 @@ Visitor *qapi_dealloc_get_visitor(QapiDeallocVisitor *v)
 
 void qapi_dealloc_visitor_cleanup(QapiDeallocVisitor *v)
 {
-    qemu_free(v);
+    g_free(v);
 }
 
 QapiDeallocVisitor *qapi_dealloc_visitor_new(void)
 {
     QapiDeallocVisitor *v;
 
-    v = qemu_mallocz(sizeof(*v));
+    v = g_malloc0(sizeof(*v));
 
     v->visitor.start_struct = qapi_dealloc_start_struct;
     v->visitor.end_struct = qapi_dealloc_end_struct;

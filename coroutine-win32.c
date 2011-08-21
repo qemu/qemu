@@ -64,7 +64,7 @@ Coroutine *qemu_coroutine_new(void)
     const size_t stack_size = 1 << 20;
     CoroutineWin32 *co;
 
-    co = qemu_mallocz(sizeof(*co));
+    co = g_malloc0(sizeof(*co));
     co->fiber = CreateFiber(stack_size, coroutine_trampoline, &co->base);
     return &co->base;
 }
@@ -74,7 +74,7 @@ void qemu_coroutine_delete(Coroutine *co_)
     CoroutineWin32 *co = DO_UPCAST(CoroutineWin32, base, co_);
 
     DeleteFiber(co->fiber);
-    qemu_free(co);
+    g_free(co);
 }
 
 Coroutine *qemu_coroutine_self(void)

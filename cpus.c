@@ -968,8 +968,8 @@ static void qemu_tcg_init_vcpu(void *_env)
 
     /* share a single thread for all cpus with TCG */
     if (!tcg_cpu_thread) {
-        env->thread = qemu_mallocz(sizeof(QemuThread));
-        env->halt_cond = qemu_mallocz(sizeof(QemuCond));
+        env->thread = g_malloc0(sizeof(QemuThread));
+        env->halt_cond = g_malloc0(sizeof(QemuCond));
         qemu_cond_init(env->halt_cond);
         qemu_thread_create(env->thread, qemu_tcg_cpu_thread_fn, env);
         while (env->created == 0) {
@@ -985,8 +985,8 @@ static void qemu_tcg_init_vcpu(void *_env)
 
 static void qemu_kvm_start_vcpu(CPUState *env)
 {
-    env->thread = qemu_mallocz(sizeof(QemuThread));
-    env->halt_cond = qemu_mallocz(sizeof(QemuCond));
+    env->thread = g_malloc0(sizeof(QemuThread));
+    env->halt_cond = g_malloc0(sizeof(QemuCond));
     qemu_cond_init(env->halt_cond);
     qemu_thread_create(env->thread, qemu_kvm_cpu_thread_fn, env);
     while (env->created == 0) {

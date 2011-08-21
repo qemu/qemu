@@ -200,12 +200,12 @@ void qemu_spice_input_init(void)
     QemuSpiceKbd *kbd;
     QemuSpicePointer *pointer;
 
-    kbd = qemu_mallocz(sizeof(*kbd));
+    kbd = g_malloc0(sizeof(*kbd));
     kbd->sin.base.sif = &kbd_interface.base;
     qemu_spice_add_interface(&kbd->sin.base);
     qemu_add_led_event_handler(kbd_leds, kbd);
 
-    pointer = qemu_mallocz(sizeof(*pointer));
+    pointer = g_malloc0(sizeof(*pointer));
     pointer->mouse.base.sif  = &mouse_interface.base;
     pointer->tablet.base.sif = &tablet_interface.base;
     qemu_spice_add_interface(&pointer->mouse.base);

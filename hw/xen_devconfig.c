@@ -14,7 +14,7 @@ static void xen_config_cleanup_dir(char *dir)
 {
     struct xs_dirs *d;
 
-    d = qemu_malloc(sizeof(*d));
+    d = g_malloc(sizeof(*d));
     d->xs_dir = dir;
     QTAILQ_INSERT_TAIL(&xs_cleanup, d, list);
 }
@@ -43,7 +43,7 @@ static int xen_config_dev_mkdir(char *dev, int p)
 	xen_be_printf(NULL, 0, "xs_mkdir %s: failed\n", dev);
 	return -1;
     }
-    xen_config_cleanup_dir(qemu_strdup(dev));
+    xen_config_cleanup_dir(g_strdup(dev));
 
     if (!xs_set_permissions(xenstore, 0, dev, perms, 2)) {
 	xen_be_printf(NULL, 0, "xs_set_permissions %s: failed\n", dev);

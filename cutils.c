@@ -136,7 +136,7 @@ int qemu_fdatasync(int fd)
 
 void qemu_iovec_init(QEMUIOVector *qiov, int alloc_hint)
 {
-    qiov->iov = qemu_malloc(alloc_hint * sizeof(struct iovec));
+    qiov->iov = g_malloc(alloc_hint * sizeof(struct iovec));
     qiov->niov = 0;
     qiov->nalloc = alloc_hint;
     qiov->size = 0;
@@ -160,7 +160,7 @@ void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len)
 
     if (qiov->niov == qiov->nalloc) {
         qiov->nalloc = 2 * qiov->nalloc + 1;
-        qiov->iov = qemu_realloc(qiov->iov, qiov->nalloc * sizeof(struct iovec));
+        qiov->iov = g_realloc(qiov->iov, qiov->nalloc * sizeof(struct iovec));
     }
     qiov->iov[qiov->niov].iov_base = base;
     qiov->iov[qiov->niov].iov_len = len;
@@ -217,7 +217,7 @@ void qemu_iovec_destroy(QEMUIOVector *qiov)
 {
     assert(qiov->nalloc != -1);
 
-    qemu_free(qiov->iov);
+    g_free(qiov->iov);
 }
 
 void qemu_iovec_reset(QEMUIOVector *qiov)

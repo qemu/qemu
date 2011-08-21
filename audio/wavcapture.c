@@ -48,7 +48,7 @@ static void wav_destroy (void *opaque)
         qemu_fclose (wav->f);
     }
 
-    qemu_free (wav->path);
+    g_free (wav->path);
 }
 
 static void wav_capture (void *opaque, void *buf, int size)
@@ -120,7 +120,7 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
     ops.capture = wav_capture;
     ops.destroy = wav_destroy;
 
-    wav = qemu_mallocz (sizeof (*wav));
+    wav = g_malloc0 (sizeof (*wav));
 
     shift = bits16 + stereo;
     hdr[34] = bits16 ? 0x10 : 0x08;
@@ -134,11 +134,11 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
     if (!wav->f) {
         monitor_printf(mon, "Failed to open wave file `%s'\nReason: %s\n",
                        path, strerror (errno));
-        qemu_free (wav);
+        g_free (wav);
         return -1;
     }
 
-    wav->path = qemu_strdup (path);
+    wav->path = g_strdup (path);
     wav->bits = bits;
     wav->nchannels = nchannels;
     wav->freq = freq;
@@ -148,9 +148,9 @@ int wav_start_capture (CaptureState *s, const char *path, int freq,
     cap = AUD_add_capture (&as, &ops, wav);
     if (!cap) {
         monitor_printf(mon, "Failed to add audio capture\n");
-        qemu_free (wav->path);
+        g_free (wav->path);
         qemu_fclose (wav->f);
-        qemu_free (wav);
+        g_free (wav);
         return -1;
     }
 

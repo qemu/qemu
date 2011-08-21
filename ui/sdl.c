@@ -166,7 +166,7 @@ static PixelFormat sdl_to_qemu_pixelformat(SDL_PixelFormat *sdl_pf)
 
 static DisplaySurface* sdl_create_displaysurface(int width, int height)
 {
-    DisplaySurface *surface = (DisplaySurface*) qemu_mallocz(sizeof(DisplaySurface));
+    DisplaySurface *surface = (DisplaySurface*) g_malloc0(sizeof(DisplaySurface));
     if (surface == NULL) {
         fprintf(stderr, "sdl_create_displaysurface: malloc failed\n");
         exit(1);
@@ -215,8 +215,8 @@ static void sdl_free_displaysurface(DisplaySurface *surface)
         return;
 
     if (surface->flags & QEMU_ALLOCATED_FLAG)
-        qemu_free(surface->data);
-    qemu_free(surface);
+        g_free(surface->data);
+    g_free(surface);
 }
 
 static DisplaySurface* sdl_resize_displaysurface(DisplaySurface *surface, int width, int height)
@@ -928,14 +928,14 @@ static void sdl_mouse_define(QEMUCursor *c)
         SDL_FreeCursor(guest_sprite);
 
     bpl = cursor_get_mono_bpl(c);
-    image = qemu_mallocz(bpl * c->height);
-    mask  = qemu_mallocz(bpl * c->height);
+    image = g_malloc0(bpl * c->height);
+    mask  = g_malloc0(bpl * c->height);
     cursor_get_mono_image(c, 0x000000, image);
     cursor_get_mono_mask(c, 0, mask);
     guest_sprite = SDL_CreateCursor(image, mask, c->width, c->height,
                                     c->hot_x, c->hot_y);
-    qemu_free(image);
-    qemu_free(mask);
+    g_free(image);
+    g_free(mask);
 
     if (guest_cursor &&
             (gui_grab || kbd_mouse_is_absolute() || absolute_enabled))
@@ -1009,7 +1009,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
             SDL_SetColorKey(image, SDL_SRCCOLORKEY, colorkey);
             SDL_WM_SetIcon(image, NULL);
         }
-        qemu_free(filename);
+        g_free(filename);
     }
 
     if (full_screen) {
@@ -1017,7 +1017,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
         sdl_grab_start();
     }
 
-    dcl = qemu_mallocz(sizeof(DisplayChangeListener));
+    dcl = g_malloc0(sizeof(DisplayChangeListener));
     dcl->dpy_update = sdl_update;
     dcl->dpy_resize = sdl_resize;
     dcl->dpy_refresh = sdl_refresh;
@@ -1027,7 +1027,7 @@ void sdl_display_init(DisplayState *ds, int full_screen, int no_frame)
     ds->cursor_define = sdl_mouse_define;
     register_displaychangelistener(ds, dcl);
 
-    da = qemu_mallocz(sizeof(DisplayAllocator));
+    da = g_malloc0(sizeof(DisplayAllocator));
     da->create_displaysurface = sdl_create_displaysurface;
     da->resize_displaysurface = sdl_resize_displaysurface;
     da->free_displaysurface = sdl_free_displaysurface;

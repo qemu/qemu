@@ -590,7 +590,7 @@ int g364fb_mm_init(target_phys_addr_t vram_base,
     G364State *s;
     int io_ctrl;
 
-    s = qemu_mallocz(sizeof(G364State));
+    s = g_malloc0(sizeof(G364State));
 
     s->vram_size = 8 * 1024 * 1024;
     s->vram_offset = qemu_ram_alloc(NULL, "g364fb.vram", s->vram_size);

@@ -352,7 +352,7 @@ static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
     int i;
 
 #if defined(CONFIG_USER_ONLY)
-    /* We can't use qemu_malloc because it may recurse into a locked mutex. */
+    /* We can't use g_malloc because it may recurse into a locked mutex. */
 # define ALLOC(P, SIZE)                                 \
     do {                                                \
         P = mmap(NULL, SIZE, PROT_READ | PROT_WRITE,    \
@@ -360,7 +360,7 @@ static PageDesc *page_find_alloc(tb_page_addr_t index, int alloc)
     } while (0)
 #else
 # define ALLOC(P, SIZE) \
-    do { P = qemu_mallocz(SIZE); } while (0)
+    do { P = g_malloc0(SIZE); } while (0)
 #endif
 
     /* Level 1.  Always allocated.  */
@@ -417,7 +417,7 @@ static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
             if (!alloc) {
                 return NULL;
             }
-            *lp = p = qemu_mallocz(sizeof(void *) * L2_SIZE);
+            *lp = p = g_malloc0(sizeof(void *) * L2_SIZE);
         }
         lp = p + ((index >> (i * L2_BITS)) & (L2_SIZE - 1));
     }
@@ -430,7 +430,7 @@ static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
             return NULL;
         }
 
-        *lp = pd = qemu_malloc(sizeof(PhysPageDesc) * L2_SIZE);
+        *lp = pd = g_malloc(sizeof(PhysPageDesc) * L2_SIZE);
 
         for (i = 0; i < L2_SIZE; i++) {
             pd[i].phys_offset = IO_MEM_UNASSIGNED;
@@ -558,7 +558,7 @@ static void code_gen_alloc(unsigned long tb_size)
         }
     }
 #else
-    code_gen_buffer = qemu_malloc(code_gen_buffer_size);
+    code_gen_buffer = g_malloc(code_gen_buffer_size);
     map_exec(code_gen_buffer, code_gen_buffer_size);
 #endif
 #endif /* !USE_STATIC_CODE_GEN_BUFFER */
@@ -566,7 +566,7 @@ static void code_gen_alloc(unsigned long tb_size)
     code_gen_buffer_max_size = code_gen_buffer_size -
         (TCG_MAX_OP_SIZE * OPC_BUF_SIZE);
     code_gen_max_blocks = code_gen_buffer_size / CODE_GEN_AVG_BLOCK_SIZE;
-    tbs = qemu_malloc(code_gen_max_blocks * sizeof(TranslationBlock));
+    tbs = g_malloc(code_gen_max_blocks * sizeof(TranslationBlock));
 }
 
 /* Must be called before using the QEMU cpus. 'tb_size' is the size
@@ -701,7 +701,7 @@ void tb_free(TranslationBlock *tb)
 static inline void invalidate_page_bitmap(PageDesc *p)
 {
     if (p->code_bitmap) {
-        qemu_free(p->code_bitmap);
+        g_free(p->code_bitmap);
         p->code_bitmap = NULL;
     }
     p->code_write_count = 0;
@@ -961,7 +961,7 @@ static void build_page_bitmap(PageDesc *p)
     int n, tb_start, tb_end;
     TranslationBlock *tb;
 
-    p->code_bitmap = qemu_mallocz(TARGET_PAGE_SIZE / 8);
+    p->code_bitmap = g_malloc0(TARGET_PAGE_SIZE / 8);
 
     tb = p->first_tb;
     while (tb != NULL) {
@@ -1448,7 +1448,7 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
                 TARGET_FMT_lx ", len=" TARGET_FMT_lu "\n", addr, len);
         return -EINVAL;
     }
-    wp = qemu_malloc(sizeof(*wp));
+    wp = g_malloc(sizeof(*wp));
 
     wp->vaddr = addr;
     wp->len_mask = len_mask;
@@ -1491,7 +1491,7 @@ void cpu_watchpoint_remove_by_ref(CPUState *env, CPUWatchpoint *watchpoint)
 
     tlb_flush_page(env, watchpoint->vaddr);
 
-    qemu_free(watchpoint);
+    g_free(watchpoint);
 }
 
 /* Remove all matching watchpoints.  */
@@ -1513,7 +1513,7 @@ int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
 #if defined(TARGET_HAS_ICE)
     CPUBreakpoint *bp;
 
-    bp = qemu_malloc(sizeof(*bp));
+    bp = g_malloc(sizeof(*bp));
 
     bp->pc = pc;
     bp->flags = flags;
@@ -1560,7 +1560,7 @@ void cpu_breakpoint_remove_by_ref(CPUState *env, CPUBreakpoint *breakpoint)
 
     breakpoint_invalidate(env, breakpoint->pc);
 
-    qemu_free(breakpoint);
+    g_free(breakpoint);
 #endif
 }
 
@@ -2921,13 +2921,13 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
     RAMBlock *new_block, *block;
 
     size = TARGET_PAGE_ALIGN(size);
-    new_block = qemu_mallocz(sizeof(*new_block));
+    new_block = g_malloc0(sizeof(*new_block));
 
     if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
         char *id = dev->parent_bus->info->get_dev_path(dev);
         if (id) {
             snprintf(new_block->idstr, sizeof(new_block->idstr), "%s/", id);
-            qemu_free(id);
+            g_free(id);
         }
     }
     pstrcat(new_block->idstr, sizeof(new_block->idstr), name);
@@ -2984,7 +2984,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
 
     QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
 
-    ram_list.phys_dirty = qemu_realloc(ram_list.phys_dirty,
+    ram_list.phys_dirty = g_realloc(ram_list.phys_dirty,
                                        last_ram_offset() >> TARGET_PAGE_BITS);
     memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
            0xff, size >> TARGET_PAGE_BITS);
@@ -3007,7 +3007,7 @@ void qemu_ram_free_from_ptr(ram_addr_t addr)
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         if (addr == block->offset) {
             QLIST_REMOVE(block, next);
-            qemu_free(block);
+            g_free(block);
             return;
         }
     }
@@ -3044,7 +3044,7 @@ void qemu_ram_free(ram_addr_t addr)
                 }
 #endif
             }
-            qemu_free(block);
+            g_free(block);
             return;
         }
     }
@@ -3602,7 +3602,7 @@ static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
     subpage_t *mmio;
     int subpage_memory;
 
-    mmio = qemu_mallocz(sizeof(subpage_t));
+    mmio = g_malloc0(sizeof(subpage_t));
 
     mmio->base = base;
     subpage_memory = cpu_register_io_memory(subpage_read, subpage_write, mmio,
@@ -3708,7 +3708,7 @@ static CPUWriteMemoryFunc * const swapendian_writefn[3]={
 
 static void swapendian_init(int io_index)
 {
-    SwapEndianContainer *c = qemu_malloc(sizeof(SwapEndianContainer));
+    SwapEndianContainer *c = g_malloc(sizeof(SwapEndianContainer));
     int i;
 
     /* Swap mmio for big endian targets */
@@ -3726,7 +3726,7 @@ static void swapendian_init(int io_index)
 static void swapendian_del(int io_index)
 {
     if (io_mem_read[io_index][0] == swapendian_readfn[0]) {
-        qemu_free(io_mem_opaque[io_index]);
+        g_free(io_mem_opaque[io_index]);
     }
 }
 
@@ -3828,11 +3828,11 @@ static void io_mem_init(void)
 
 static void memory_map_init(void)
 {
-    system_memory = qemu_malloc(sizeof(*system_memory));
+    system_memory = g_malloc(sizeof(*system_memory));
     memory_region_init(system_memory, "system", INT64_MAX);
     set_system_memory_map(system_memory);
 
-    system_io = qemu_malloc(sizeof(*system_io));
+    system_io = g_malloc(sizeof(*system_io));
     memory_region_init(system_io, "io", 65536);
     set_system_io_map(system_io);
 }
@@ -4048,7 +4048,7 @@ static QLIST_HEAD(map_client_list, MapClient) map_client_list
 
 void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque))
 {
-    MapClient *client = qemu_malloc(sizeof(*client));
+    MapClient *client = g_malloc(sizeof(*client));
 
     client->opaque = opaque;
     client->callback = callback;
@@ -4061,7 +4061,7 @@ void cpu_unregister_map_client(void *_client)
     MapClient *client = (MapClient *)_client;
 
     QLIST_REMOVE(client, link);
-    qemu_free(client);
+    g_free(client);
 }
 
 static void cpu_notify_map_clients(void)

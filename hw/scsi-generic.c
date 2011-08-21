@@ -66,7 +66,7 @@ static void scsi_free_request(SCSIRequest *req)
 {
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
 
-    qemu_free(r->buf);
+    g_free(r->buf);
 }
 
 /* Helper function for command completion.  */
@@ -288,7 +288,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
 
     if (r->req.cmd.xfer == 0) {
         if (r->buf != NULL)
-            qemu_free(r->buf);
+            g_free(r->buf);
         r->buflen = 0;
         r->buf = NULL;
         ret = execute_command(s->bs, r, SG_DXFER_NONE, scsi_command_complete);
@@ -301,8 +301,8 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
 
     if (r->buflen != r->req.cmd.xfer) {
         if (r->buf != NULL)
-            qemu_free(r->buf);
-        r->buf = qemu_malloc(r->req.cmd.xfer);
+            g_free(r->buf);
+        r->buf = g_malloc(r->req.cmd.xfer);
         r->buflen = r->req.cmd.xfer;
     }
 

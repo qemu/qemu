@@ -186,7 +186,7 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
         const uint8_t *sp = (const uint8_t *) src;
         uint8_t *dp = 0;
         if (s->bdrv_cur) {
-            dp = qemu_malloc(size);
+            dp = g_malloc(size);
             if (!dp || bdrv_read(s->bdrv_cur, sec, dp, secn) < 0) {
                 result = 1;
             }
@@ -207,7 +207,7 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
             }
         }
         if (dp && s->bdrv_cur) {
-            qemu_free(dp);
+            g_free(dp);
         }
     }
 
@@ -239,7 +239,7 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
         const uint8_t *sp = (const uint8_t *) src;
         uint8_t *dp = 0, *dpp = 0;
         if (s->bdrv_cur) {
-            dp = qemu_malloc(512);
+            dp = g_malloc(512);
             if (!dp || bdrv_read(s->bdrv_cur,
                                 s->secs_cur + (sec >> 5),
                                 dp, 1) < 0) {
@@ -265,7 +265,7 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
             }
         }
         if (dp) {
-            qemu_free(dp);
+            g_free(dp);
         }
     }
     return result;
@@ -274,13 +274,13 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
 static inline int onenand_erase(OneNANDState *s, int sec, int num)
 {
     uint8_t *blankbuf, *tmpbuf;
-    blankbuf = qemu_malloc(512);
+    blankbuf = g_malloc(512);
     if (!blankbuf) {
         return 1;
     }
-    tmpbuf = qemu_malloc(512);
+    tmpbuf = g_malloc(512);
     if (!tmpbuf) {
-        qemu_free(blankbuf);
+        g_free(blankbuf);
         return 1;
     }
     memset(blankbuf, 0xff, 512);
@@ -307,13 +307,13 @@ static inline int onenand_erase(OneNANDState *s, int sec, int num)
         }
     }
 
-    qemu_free(tmpbuf);
-    qemu_free(blankbuf);
+    g_free(tmpbuf);
+    g_free(blankbuf);
     return 0;
 
 fail:
-    qemu_free(tmpbuf);
-    qemu_free(blankbuf);
+    g_free(tmpbuf);
+    g_free(blankbuf);
     return 1;
 }
 
@@ -700,7 +700,7 @@ void *onenand_init(BlockDriverState *bdrv,
                 uint16_t man_id, uint16_t dev_id, uint16_t ver_id,
                 int regshift, qemu_irq irq)
 {
-    OneNANDState *s = (OneNANDState *) qemu_mallocz(sizeof(*s));
+    OneNANDState *s = (OneNANDState *) g_malloc0(sizeof(*s));
     uint32_t size = 1 << (24 + ((dev_id >> 4) & 7));
     void *ram;
 
@@ -712,16 +712,16 @@ void *onenand_init(BlockDriverState *bdrv,
     s->id.ver = ver_id;
     s->blocks = size >> BLOCK_SHIFT;
     s->secs = size >> 9;
-    s->blockwp = qemu_malloc(s->blocks);
+    s->blockwp = g_malloc(s->blocks);
     s->density_mask = (dev_id & 0x08) ? (1 << (6 + ((dev_id >> 4) & 7))) : 0;
     s->iomemtype = cpu_register_io_memory(onenand_readfn,
                     onenand_writefn, s, DEVICE_NATIVE_ENDIAN);
     s->bdrv = bdrv;
     if (!s->bdrv) {
-        s->image = memset(qemu_malloc(size + (size >> 5)),
+        s->image = memset(g_malloc(size + (size >> 5)),
                         0xff, size + (size >> 5));
     }
-    s->otp = memset(qemu_malloc((64 + 2) << PAGE_SHIFT),
+    s->otp = memset(g_malloc((64 + 2) << PAGE_SHIFT),
                     0xff, (64 + 2) << PAGE_SHIFT);
     s->ram = qemu_ram_alloc(NULL, "onenand.ram", 0xc000 << s->shift);
     ram = qemu_get_ram_ptr(s->ram);

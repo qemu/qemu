@@ -846,7 +846,7 @@ void* DBDMA_init (MemoryRegion **dbdma_mem)
 {
     DBDMAState *s;
 
-    s = qemu_mallocz(sizeof(DBDMAState));
+    s = g_malloc0(sizeof(DBDMAState));
 
     memory_region_init_io(&s->mem, &dbdma_ops, s, "dbdma", 0x1000);
     *dbdma_mem = &s->mem;

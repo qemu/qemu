@@ -42,7 +42,7 @@ static QmpOutputVisitor *to_qov(Visitor *v)
 
 static void qmp_output_push_obj(QmpOutputVisitor *qov, QObject *value)
 {
-    QStackEntry *e = qemu_mallocz(sizeof(*e));
+    QStackEntry *e = g_malloc0(sizeof(*e));
 
     e->value = value;
     QTAILQ_INSERT_HEAD(&qov->stack, e, node);
@@ -54,7 +54,7 @@ static QObject *qmp_output_pop(QmpOutputVisitor *qov)
     QObject *value;
     QTAILQ_REMOVE(&qov->stack, e, node);
     value = e->value;
-    qemu_free(e);
+    g_free(e);
     return value;
 }
 
@@ -210,17 +210,17 @@ void qmp_output_visitor_cleanup(QmpOutputVisitor *v)
         if (e->value) {
             qobject_decref(e->value);
         }
-        qemu_free(e);
+        g_free(e);
     }
 
-    qemu_free(v);
+    g_free(v);
 }
 
 QmpOutputVisitor *qmp_output_visitor_new(void)
 {
     QmpOutputVisitor *v;
 
-    v = qemu_mallocz(sizeof(*v));
+    v = g_malloc0(sizeof(*v));
 
     v->visitor.start_struct = qmp_output_start_struct;
     v->visitor.end_struct = qmp_output_end_struct;

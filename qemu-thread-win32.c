@@ -249,7 +249,7 @@ void qemu_thread_create(QemuThread *thread,
 
     struct QemuThreadData *data;
     qemu_thread_init();
-    data = qemu_malloc(sizeof *data);
+    data = g_malloc(sizeof *data);
     data->thread = thread;
     data->start_routine = start_routine;
     data->arg = arg;

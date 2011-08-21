@@ -1009,7 +1009,7 @@ static int cpudef_setfield(const char *name, const char *str, void *opaque)
  */
 static int cpudef_register(QemuOpts *opts, void *opaque)
 {
-    x86_def_t *def = qemu_mallocz(sizeof (x86_def_t));
+    x86_def_t *def = g_malloc0(sizeof (x86_def_t));
 
     qemu_opt_foreach(opts, cpudef_setfield, def, 1);
     def->next = x86_defs;

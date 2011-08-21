@@ -208,7 +208,7 @@ CPUState *cpu_lm32_init(const char *cpu_model)
         return NULL;
     }
 
-    env = qemu_mallocz(sizeof(CPUState));
+    env = g_malloc0(sizeof(CPUState));
 
     env->features = def->features;
     env->num_bps = def->num_breakpoints;

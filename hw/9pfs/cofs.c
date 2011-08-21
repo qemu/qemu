@@ -22,7 +22,7 @@ int v9fs_co_readlink(V9fsState *s, V9fsString *path, V9fsString *buf)
     int err;
     ssize_t len;
 
-    buf->data = qemu_malloc(PATH_MAX);
+    buf->data = g_malloc(PATH_MAX);
     v9fs_co_run_in_worker(
         {
             len = s->ops->readlink(&s->ctx, path->data,
@@ -36,7 +36,7 @@ int v9fs_co_readlink(V9fsState *s, V9fsString *path, V9fsString *buf)
             }
         });
     if (err) {
-        qemu_free(buf->data);
+        g_free(buf->data);
         buf->data = NULL;
         buf->size = 0;
     }

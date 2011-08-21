@@ -3516,7 +3516,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 	static int tcg_initialized = 0;
 	int i;
 
-	env = qemu_mallocz(sizeof(CPUCRISState));
+	env = g_malloc0(sizeof(CPUCRISState));
 
 	env->pregs[PR_VR] = vr_by_name(cpu_model);
 	cpu_exec_init(env);

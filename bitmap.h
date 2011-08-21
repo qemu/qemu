@@ -91,7 +91,7 @@ int slow_bitmap_intersects(const unsigned long *bitmap1,
 static inline unsigned long *bitmap_new(int nbits)
 {
     int len = BITS_TO_LONGS(nbits) * sizeof(unsigned long);
-    return qemu_mallocz(len);
+    return g_malloc0(len);
 }
 
 static inline void bitmap_zero(unsigned long *dst, int nbits)

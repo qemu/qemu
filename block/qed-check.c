@@ -197,7 +197,7 @@ int qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix)
     };
     int ret;
 
-    check.used_clusters = qemu_mallocz(((check.nclusters + 31) / 32) *
+    check.used_clusters = g_malloc0(((check.nclusters + 31) / 32) *
                                        sizeof(check.used_clusters[0]));
 
     ret = qed_check_l1_table(&check, s->l1_table);
@@ -206,6 +206,6 @@ int qed_check(BDRVQEDState *s, BdrvCheckResult *result, bool fix)
         qed_check_for_leaks(&check);
     }
 
-    qemu_free(check.used_clusters);
+    g_free(check.used_clusters);
     return ret;
 }

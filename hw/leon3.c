@@ -122,7 +122,7 @@ static void leon3_generic_hw_init(ram_addr_t  ram_size,
     cpu_sparc_set_id(env, 0);
 
     /* Reset data */
-    reset_info        = qemu_mallocz(sizeof(ResetData));
+    reset_info        = g_malloc0(sizeof(ResetData));
     reset_info->env   = env;
     qemu_register_reset(main_cpu_reset, reset_info);
 

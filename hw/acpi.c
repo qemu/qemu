@@ -100,13 +100,13 @@ int acpi_table_add(const char *t)
 
     if (!acpi_tables) {
         allen = sizeof(uint16_t);
-        acpi_tables = qemu_mallocz(allen);
+        acpi_tables = g_malloc0(allen);
     } else {
         allen = acpi_tables_len;
     }
 
     start = allen;
-    acpi_tables = qemu_realloc(acpi_tables, start + ACPI_TABLE_HDR_SIZE);
+    acpi_tables = g_realloc(acpi_tables, start + ACPI_TABLE_HDR_SIZE);
     allen += has_header ? ACPI_TABLE_PFX_SIZE : ACPI_TABLE_HDR_SIZE;
 
     /* now read in the data files, reallocating buffer as needed */
@@ -125,7 +125,7 @@ int acpi_table_add(const char *t)
             if (r == 0) {
                 break;
             } else if (r > 0) {
-                acpi_tables = qemu_realloc(acpi_tables, allen + r);
+                acpi_tables = g_realloc(acpi_tables, allen + r);
                 memcpy(acpi_tables + allen, data, r);
                 allen += r;
             } else if (errno != EINTR) {
@@ -379,8 +379,8 @@ void acpi_pm1_cnt_reset(ACPIPM1CNT *pm1_cnt)
 void acpi_gpe_init(ACPIGPE *gpe, uint8_t len)
 {
     gpe->len = len;
-    gpe->sts = qemu_mallocz(len / 2);
-    gpe->en = qemu_mallocz(len / 2);
+    gpe->sts = g_malloc0(len / 2);
+    gpe->en = g_malloc0(len / 2);
 }
 
 void acpi_gpe_blk(ACPIGPE *gpe, uint32_t blk)

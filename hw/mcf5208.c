@@ -185,7 +185,7 @@ static void mcf5208_sys_init(qemu_irq *pic)
     cpu_register_physical_memory(0xfc0a8000, 0x00004000, iomemtype);
     /* Timers.  */
     for (i = 0; i < 2; i++) {
-        s = (m5208_timer_state *)qemu_mallocz(sizeof(m5208_timer_state));
+        s = (m5208_timer_state *)g_malloc0(sizeof(m5208_timer_state));
         bh = qemu_bh_new(m5208_timer_trigger, s);
         s->timer = ptimer_init(bh);
         iomemtype = cpu_register_io_memory(m5208_timer_readfn,
