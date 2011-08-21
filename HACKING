@@ -77,11 +77,11 @@ avoided.
 
 Use of the malloc/free/realloc/calloc/valloc/memalign/posix_memalign
 APIs is not allowed in the QEMU codebase. Instead of these routines,
-use the replacement qemu_malloc/qemu_mallocz/qemu_realloc/qemu_free or
+use the replacement g_malloc/g_malloc0/g_realloc/g_free or
 qemu_vmalloc/qemu_memalign/qemu_vfree APIs.
 
 Please note that NULL check for the qemu_malloc result is redundant and
-that qemu_malloc() call with zero size is not allowed.
+that g_malloc() call with zero size is not allowed.
 
 Memory allocated by qemu_vmalloc or qemu_memalign must be freed with
 qemu_vfree, since breaking this will cause problems on Win32 and user
@@ -108,7 +108,7 @@ int qemu_strnlen(const char *s, int max_len)
 There are also replacement character processing macros for isxyz and toxyz,
 so instead of e.g. isalnum you should use qemu_isalnum.
 
-Because of the memory management rules, you must use qemu_strdup/qemu_strndup
+Because of the memory management rules, you must use g_strdup/g_strndup
 instead of plain strdup/strndup.
 
 5. Printf-style functions
