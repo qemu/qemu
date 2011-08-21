@@ -182,12 +182,6 @@ const char *path(const char *pathname);
 #define qemu_toascii(c)		toascii((unsigned char)(c))
 
 void *qemu_oom_check(void *ptr);
-void *qemu_malloc(size_t size);
-void *qemu_realloc(void *ptr, size_t size);
-void *qemu_mallocz(size_t size);
-void qemu_free(void *ptr);
-char *qemu_strdup(const char *str);
-char *qemu_strndup(const char *str, size_t size);
 
 void qemu_mutex_lock_iothread(void);
 void qemu_mutex_unlock_iothread(void);
