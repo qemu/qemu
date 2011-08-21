@@ -8,7 +8,7 @@ libcacard_includedir=$(includedir)/cacard
 $(call set-vpath, $(SRC_PATH):$(libcacard_srcpath))
 
 # objects linked against normal qemu binaries, not compiled with libtool
-QEMU_OBJS=$(addprefix ../,$(oslib-obj-y) qemu-malloc.o qemu-timer-common.o $(trace-obj-y))
+QEMU_OBJS=$(addprefix ../,$(oslib-obj-y) qemu-timer-common.o $(trace-obj-y))
 
 # objects linked into a shared library, built with libtool with -fPIC if required
 QEMU_OBJS_LIB=$(addsuffix .lo,$(basename $(QEMU_OBJS)))
