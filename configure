@@ -1848,8 +1848,7 @@ fi
 if $pkg_config --modversion gthread-2.0 > /dev/null 2>&1 ; then
     glib_cflags=`$pkg_config --cflags gthread-2.0 2>/dev/null`
     glib_libs=`$pkg_config --libs gthread-2.0 2>/dev/null`
-    libs_softmmu="$glib_libs $libs_softmmu"
-    libs_tools="$glib_libs $libs_tools"
+    LIBS="$glib_libs $LIBS"
 else
     echo "glib-2.0 required to compile QEMU"
     exit 1

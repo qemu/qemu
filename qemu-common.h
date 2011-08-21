@@ -37,6 +37,7 @@ typedef struct Monitor Monitor;
 #include <sys/time.h>
 #include <assert.h>
 #include <signal.h>
+#include <glib.h>
 
 #ifdef _WIN32
 #include "qemu-os-win32.h"
