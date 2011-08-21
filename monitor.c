@@ -2054,7 +2054,7 @@ static void print_pte(Monitor *mon, target_phys_addr_t addr,
 
 static void tlb_info_32(Monitor *mon, CPUState *env)
 {
-    int l1, l2;
+    unsigned int l1, l2;
     uint32_t pgd, pde, pte;
 
     pgd = env->cr[3] & ~0xfff;
@@ -2082,7 +2082,7 @@ static void tlb_info_32(Monitor *mon, CPUState *env)
 
 static void tlb_info_pae32(Monitor *mon, CPUState *env)
 {
-    int l1, l2, l3;
+    unsigned int l1, l2, l3;
     uint64_t pdpe, pde, pte;
     uint64_t pdp_addr, pd_addr, pt_addr;
 
