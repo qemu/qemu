@@ -1915,11 +1915,13 @@ static void bdrv_stats_iter(QObject *data, void *opaque)
                         " wr_bytes=%" PRId64
                         " rd_operations=%" PRId64
                         " wr_operations=%" PRId64
+                        " flush_operations=%" PRId64
                         "\n",
                         qdict_get_int(qdict, "rd_bytes"),
                         qdict_get_int(qdict, "wr_bytes"),
                         qdict_get_int(qdict, "rd_operations"),
-                        qdict_get_int(qdict, "wr_operations"));
+                        qdict_get_int(qdict, "wr_operations"),
+                        qdict_get_int(qdict, "flush_operations"));
 }
 
 void bdrv_stats_print(Monitor *mon, const QObject *data)
@@ -1937,12 +1939,16 @@ static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
                              "'wr_bytes': %" PRId64 ","
                              "'rd_operations': %" PRId64 ","
                              "'wr_operations': %" PRId64 ","
-                             "'wr_highest_offset': %" PRId64
+                             "'wr_highest_offset': %" PRId64 ","
+                             "'flush_operations': %" PRId64
                              "} }",
-                             bs->rd_bytes, bs->wr_bytes,
-                             bs->rd_ops, bs->wr_ops,
+                             bs->rd_bytes,
+                             bs->wr_bytes,
+                             bs->rd_ops,
+                             bs->wr_ops,
                              bs->wr_highest_sector *
-                             (uint64_t)BDRV_SECTOR_SIZE);
+                             (uint64_t)BDRV_SECTOR_SIZE,
+                             bs->flush_ops);
     dict  = qobject_to_qdict(res);
 
     if (*bs->device_name) {
@@ -2605,6 +2611,8 @@ BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
     BlockDriver *drv = bs->drv;
 
     trace_bdrv_aio_flush(bs, opaque);
+
+    bs->flush_ops++;
 
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
         return bdrv_aio_noop_em(bs, cb, opaque);
