@@ -180,7 +180,7 @@ static void versatile_init(ram_addr_t ram_size,
     qemu_irq *cpu_pic;
     qemu_irq pic[32];
     qemu_irq sic[32];
-    DeviceState *dev;
+    DeviceState *dev, *sysctl;
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
@@ -198,7 +198,12 @@ static void versatile_init(ram_addr_t ram_size,
     /* SDRAM at address zero.  */
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
 
-    arm_sysctl_init(0x10000000, 0x41007004, 0x02000000);
+    sysctl = qdev_create(NULL, "realview_sysctl");
+    qdev_prop_set_uint32(sysctl, "sys_id", 0x41007004);
+    qdev_init_nofail(sysctl);
+    qdev_prop_set_uint32(sysctl, "proc_id", 0x02000000);
+    sysbus_mmio_map(sysbus_from_qdev(sysctl), 0, 0x10000000);
+
     cpu_pic = arm_pic_init_cpu(env);
     dev = sysbus_create_varargs("pl190", 0x10140000,
                                 cpu_pic[0], cpu_pic[1], NULL);
@@ -250,7 +255,9 @@ static void versatile_init(ram_addr_t ram_size,
 
     /* The versatile/PB actually has a modified Color LCD controller
        that includes hardware cursor support from the PL111.  */
-    sysbus_create_simple("pl110_versatile", 0x10120000, pic[16]);
+    dev = sysbus_create_simple("pl110_versatile", 0x10120000, pic[16]);
+    /* Wire up the mux control signals from the SYS_CLCD register */
+    qdev_connect_gpio_out(sysctl, 0, qdev_get_gpio_in(dev, 0));
 
     sysbus_create_varargs("pl181", 0x10005000, sic[22], sic[1], NULL);
     sysbus_create_varargs("pl181", 0x1000b000, sic[23], sic[2], NULL);

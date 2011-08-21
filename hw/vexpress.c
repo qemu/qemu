@@ -150,7 +150,7 @@ static void vexpress_a9_init(ram_addr_t ram_size,
     /* Daughterboard peripherals : 0x10020000 .. 0x20000000 */
 
     /* 0x10020000 PL111 CLCD (daughterboard) */
-    sysbus_create_simple("pl110", 0x10020000, pic[44]);
+    sysbus_create_simple("pl111", 0x10020000, pic[44]);
 
     /* 0x10060000 AXI RAM */
     /* 0x100e0000 PL341 Dynamic Memory Controller */
