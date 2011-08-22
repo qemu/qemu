@@ -1349,9 +1349,15 @@ void main_loop_wait(int nonblocking)
     qemu_iohandler_fill(&nfds, &rfds, &wfds, &xfds);
     slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
 
-    qemu_mutex_unlock_iothread();
+    if (timeout > 0) {
+        qemu_mutex_unlock_iothread();
+    }
+
     ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
-    qemu_mutex_lock_iothread();
+
+    if (timeout > 0) {
+        qemu_mutex_lock_iothread();
+    }
 
     qemu_iohandler_poll(&rfds, &wfds, &xfds, ret);
     slirp_select_poll(&rfds, &wfds, &xfds, (ret < 0));
