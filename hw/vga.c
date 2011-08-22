@@ -152,6 +152,48 @@ static void vga_screen_dump(void *opaque, const char *filename);
 static char *screen_dump_filename;
 static DisplayChangeListener *screen_dump_dcl;
 
+static void vga_update_memory_access(VGACommonState *s)
+{
+    MemoryRegion *region, *old_region = s->chain4_alias;
+    target_phys_addr_t base, offset, size;
+
+    s->chain4_alias = NULL;
+
+    if ((s->sr[0x02] & 0xf) == 0xf && s->sr[0x04] & 0x08) {
+        offset = 0;
+        switch ((s->gr[6] >> 2) & 3) {
+        case 0:
+            base = 0xa0000;
+            size = 0x20000;
+            break;
+        case 1:
+            base = 0xa0000;
+            size = 0x10000;
+            offset = s->bank_offset;
+            break;
+        case 2:
+            base = 0xb0000;
+            size = 0x8000;
+            break;
+        case 3:
+            base = 0xb8000;
+            size = 0x8000;
+            break;
+        }
+        region = g_malloc(sizeof(*region));
+        memory_region_init_alias(region, "vga.chain4", &s->vram, offset, size);
+        memory_region_add_subregion_overlap(s->legacy_address_space, base,
+                                            region, 2);
+        s->chain4_alias = region;
+    }
+    if (old_region) {
+        memory_region_del_subregion(s->legacy_address_space, old_region);
+        memory_region_destroy(old_region);
+        g_free(old_region);
+        s->plane_updated = 0xf;
+    }
+}
+
 static void vga_dumb_update_retrace_info(VGACommonState *s)
 {
     (void) s;
@@ -445,6 +487,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 #endif
         s->sr[s->sr_index] = val & sr_mask[s->sr_index];
         if (s->sr_index == 1) s->update_retrace_info(s);
+        vga_update_memory_access(s);
         break;
     case 0x3c7:
         s->dac_read_index = val;
@@ -472,6 +515,7 @@ void vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
         printf("vga: write GR%x = 0x%02x\n", s->gr_index, val);
 #endif
         s->gr[s->gr_index] = val & gr_mask[s->gr_index];
+        vga_update_memory_access(s);
         break;
     case 0x3b4:
     case 0x3d4:
@@ -605,6 +649,7 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
             }
             s->vbe_regs[s->vbe_index] = val;
             s->bank_offset = (val << 16);
+            vga_update_memory_access(s);
             break;
         case VBE_DISPI_INDEX_ENABLE:
             if ((val & VBE_DISPI_ENABLED) &&
@@ -664,6 +709,7 @@ static void vbe_ioport_write_data(void *opaque, uint32_t addr, uint32_t val)
             }
             s->dac_8bit = (val & VBE_DISPI_8BIT_DAC) > 0;
             s->vbe_regs[s->vbe_index] = val;
+            vga_update_memory_access(s);
             break;
         case VBE_DISPI_INDEX_VIRT_WIDTH:
             {
@@ -1238,7 +1284,7 @@ static void vga_draw_text(VGACommonState *s, int full_update)
         s->font_offsets[1] = offset;
         full_update = 1;
     }
-    if (s->plane_updated & (1 << 2)) {
+    if (s->plane_updated & (1 << 2) || s->chain4_alias) {
         /* if the plane 2 was modified since the last display, it
            indicates the font may have been modified */
         s->plane_updated = 0;
@@ -1885,6 +1931,7 @@ void vga_common_reset(VGACommonState *s)
         memset(&s->retrace_info, 0, sizeof (s->retrace_info));
         break;
     }
+    vga_update_memory_access(s);
 }
 
 static void vga_reset(void *opaque)
@@ -2241,6 +2288,8 @@ void vga_init(VGACommonState *s, MemoryRegion *address_space)
     qemu_register_reset(vga_reset, s);
 
     s->bank_offset = 0;
+
+    s->legacy_address_space = address_space;
 
     vga_io_memory = vga_init_io(s);
     memory_region_add_subregion_overlap(address_space,
