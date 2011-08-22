@@ -1,3 +1,5 @@
+#include "qemu-common.h"
+#include "net.h"
 
 /* OPB Interrupt Controller.  */
 qemu_irq *microblaze_pic_init_cpu(CPUState *env);
