@@ -491,7 +491,9 @@ static void sdl_mouse_mode_change(Notifier *notify, void *data)
             absolute_enabled = 1;
         }
     } else if (absolute_enabled) {
-        sdl_grab_end();
+        if (!gui_fullscreen) {
+            sdl_grab_end();
+        }
         absolute_enabled = 0;
     }
 }
