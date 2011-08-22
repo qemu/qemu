@@ -240,6 +240,30 @@ usb_set_config(int addr, int config, int ret) "dev %d, config %d, ret %d"
 usb_clear_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 
+# usb-linux.c
+usb_host_open_started(int bus, int addr) "dev %d:%d"
+usb_host_open_success(int bus, int addr) "dev %d:%d"
+usb_host_open_failure(int bus, int addr) "dev %d:%d"
+usb_host_disconnect(int bus, int addr) "dev %d:%d"
+usb_host_close(int bus, int addr) "dev %d:%d"
+usb_host_set_address(int bus, int addr, int config) "dev %d:%d, address %d"
+usb_host_set_config(int bus, int addr, int config) "dev %d:%d, config %d"
+usb_host_set_interface(int bus, int addr, int interface, int alt) "dev %d:%d, interface %d, alt %d"
+usb_host_claim_interfaces(int bus, int addr, int config, int nif) "dev %d:%d, config %d, nif %d"
+usb_host_release_interfaces(int bus, int addr) "dev %d:%d"
+usb_host_req_control(int bus, int addr, int req, int value, int index) "dev %d:%d, req 0x%x, value %d, index %d"
+usb_host_req_data(int bus, int addr, int in, int ep, int size) "dev %d:%d, in %d, ep %d, size %d"
+usb_host_req_complete(int bus, int addr, int status) "dev %d:%d, status %d"
+usb_host_urb_submit(int bus, int addr, void *aurb, int length, int more) "dev %d:%d, aurb %p, length %d, more %d"
+usb_host_urb_complete(int bus, int addr, void *aurb, int status, int length, int more) "dev %d:%d, aurb %p, status %d, length %d, more %d"
+usb_host_ep_set_halt(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_ep_clear_halt(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_ep_start_iso(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_ep_stop_iso(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_reset(int bus, int addr) "dev %d:%d"
+usb_host_auto_scan_enabled(void)
+usb_host_auto_scan_disabled(void)
+
 # hw/scsi-bus.c
 scsi_req_alloc(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_data(int target, int lun, int tag, int len) "target %d lun %d tag %d len %d"
