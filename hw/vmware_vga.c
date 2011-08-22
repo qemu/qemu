@@ -998,46 +998,21 @@ static void vmsvga_update_display(void *opaque)
     }
 }
 
-static void vmsvga_reset(struct vmsvga_state_s *s)
+static void vmsvga_reset(DeviceState *dev)
 {
+    struct pci_vmsvga_state_s *pci =
+        DO_UPCAST(struct pci_vmsvga_state_s, card.qdev, dev);
+    struct vmsvga_state_s *s = &pci->chip;
+
     s->index = 0;
     s->enable = 0;
     s->config = 0;
     s->width = -1;
     s->height = -1;
     s->svgaid = SVGA_ID;
-    s->depth = ds_get_bits_per_pixel(s->vga.ds);
-    s->bypp = ds_get_bytes_per_pixel(s->vga.ds);
     s->cursor.on = 0;
     s->redraw_fifo_first = 0;
     s->redraw_fifo_last = 0;
-    switch (s->depth) {
-    case 8:
-        s->wred   = 0x00000007;
-        s->wgreen = 0x00000038;
-        s->wblue  = 0x000000c0;
-        break;
-    case 15:
-        s->wred   = 0x0000001f;
-        s->wgreen = 0x000003e0;
-        s->wblue  = 0x00007c00;
-        break;
-    case 16:
-        s->wred   = 0x0000001f;
-        s->wgreen = 0x000007e0;
-        s->wblue  = 0x0000f800;
-        break;
-    case 24:
-        s->wred   = 0x00ff0000;
-        s->wgreen = 0x0000ff00;
-        s->wblue  = 0x000000ff;
-        break;
-    case 32:
-        s->wred   = 0x00ff0000;
-        s->wgreen = 0x0000ff00;
-        s->wblue  = 0x000000ff;
-        break;
-    }
     s->syncing = 0;
 
     vga_dirty_log_start(&s->vga);
@@ -1227,7 +1202,35 @@ static void vmsvga_init(struct vmsvga_state_s *s, int vga_ram_size,
     vga_init(&s->vga, address_space);
     vmstate_register(NULL, 0, &vmstate_vga_common, &s->vga);
 
-    vmsvga_reset(s);
+    s->depth = ds_get_bits_per_pixel(s->vga.ds);
+    s->bypp = ds_get_bytes_per_pixel(s->vga.ds);
+    switch (s->depth) {
+    case 8:
+        s->wred   = 0x00000007;
+        s->wgreen = 0x00000038;
+        s->wblue  = 0x000000c0;
+        break;
+    case 15:
+        s->wred   = 0x0000001f;
+        s->wgreen = 0x000003e0;
+        s->wblue  = 0x00007c00;
+        break;
+    case 16:
+        s->wred   = 0x0000001f;
+        s->wgreen = 0x000007e0;
+        s->wblue  = 0x0000f800;
+        break;
+    case 24:
+        s->wred   = 0x00ff0000;
+        s->wgreen = 0x0000ff00;
+        s->wblue  = 0x000000ff;
+        break;
+    case 32:
+        s->wred   = 0x00ff0000;
+        s->wgreen = 0x0000ff00;
+        s->wblue  = 0x000000ff;
+        break;
+    }
 }
 
 static uint64_t vmsvga_io_read(void *opaque, target_phys_addr_t addr,
@@ -1312,6 +1315,7 @@ static PCIDeviceInfo vmsvga_info = {
     .qdev.name    = "vmware-svga",
     .qdev.size    = sizeof(struct pci_vmsvga_state_s),
     .qdev.vmsd    = &vmstate_vmware_vga,
+    .qdev.reset   = vmsvga_reset,
     .no_hotplug   = 1,
     .init         = pci_vmsvga_initfn,
     .romfile      = "vgabios-vmware.bin",
