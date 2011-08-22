@@ -312,9 +312,11 @@ static void async_complete(void *opaque)
                 }
                 return;
             }
-            if (errno == ENODEV && !s->closing) {
-                trace_usb_host_disconnect(s->bus_num, s->addr);
-                do_disconnect(s);
+            if (errno == ENODEV) {
+                if (!s->closing) {
+                    trace_usb_host_disconnect(s->bus_num, s->addr);
+                    do_disconnect(s);
+                }
                 return;
             }
 
