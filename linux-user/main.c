@@ -2339,6 +2339,13 @@ void cpu_loop (CPUState *env)
             env->iflags &= ~(IMM_FLAG | D_FLAG);
 
             switch (env->sregs[SR_ESR] & 31) {
+                case ESR_EC_DIVZERO:
+                    info.si_signo = SIGFPE;
+                    info.si_errno = 0;
+                    info.si_code = TARGET_FPE_FLTDIV;
+                    info._sifields._sigfault._addr = 0;
+                    queue_signal(env, info.si_signo, &info);
+                    break;
                 case ESR_EC_FPU:
                     info.si_signo = SIGFPE;
                     info.si_errno = 0;
