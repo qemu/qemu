@@ -110,7 +110,6 @@ typedef struct VGACommonState {
     MemoryRegion vram;
     uint32_t vram_size;
     uint32_t latch;
-    uint32_t lfb_vram_mapped; /* whether 0xa0000 is mapped as ram */
     MemoryRegion *chain4_alias;
     uint8_t sr_index;
     uint8_t sr[256];
@@ -133,7 +132,6 @@ typedef struct VGACommonState {
     int dac_8bit;
     uint8_t palette[768];
     int32_t bank_offset;
-    MemoryRegion *vga_io_memory;
     int (*get_bpp)(struct VGACommonState *s);
     void (*get_offsets)(struct VGACommonState *s,
                         uint32_t *pline_offset,
