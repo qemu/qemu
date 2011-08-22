@@ -37,13 +37,13 @@
 typedef struct MiscState {
     SysBusDevice busdev;
     qemu_irq irq;
+    qemu_irq fdc_tc;
     uint32_t dummy;
     uint8_t config;
     uint8_t aux1, aux2;
     uint8_t diag, mctrl;
     uint8_t sysctrl;
     uint16_t leds;
-    qemu_irq fdc_tc;
 } MiscState;
 
 typedef struct APCState {

@@ -48,16 +48,16 @@ typedef struct CPUTimerState {
     qemu_irq irq;
     ptimer_state *timer;
     uint32_t count, counthigh, reached;
-    uint64_t limit;
-    // processor only
+    /* processor only */
     uint32_t running;
+    uint64_t limit;
 } CPUTimerState;
 
 typedef struct SLAVIO_TIMERState {
     SysBusDevice busdev;
     uint32_t num_cpus;
-    CPUTimerState cputimer[MAX_CPUS + 1];
     uint32_t cputimer_mode;
+    CPUTimerState cputimer[MAX_CPUS + 1];
 } SLAVIO_TIMERState;
 
 typedef struct TimerContext {

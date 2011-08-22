@@ -24,15 +24,25 @@ enum pl110_bppmode
     BPP_4,
     BPP_8,
     BPP_16,
-    BPP_32
+    BPP_32,
+    BPP_16_565, /* PL111 only */
+    BPP_12      /* PL111 only */
+};
+
+
+/* The Versatile/PB uses a slightly modified PL110 controller.  */
+enum pl110_version
+{
+    PL110,
+    PL110_VERSATILE,
+    PL111
 };
 
 typedef struct {
     SysBusDevice busdev;
     DisplayState *ds;
 
-    /* The Versatile/PB uses a slightly modified PL110 controller.  */
-    int versatile;
+    int version;
     uint32_t timing[4];
     uint32_t cr;
     uint32_t upbase;
@@ -43,6 +53,7 @@ typedef struct {
     int rows;
     enum pl110_bppmode bpp;
     int invalidate;
+    uint32_t mux_ctrl;
     uint32_t pallette[256];
     uint32_t raw_pallette[128];
     qemu_irq irq;
@@ -50,10 +61,10 @@ typedef struct {
 
 static const VMStateDescription vmstate_pl110 = {
     .name = "pl110",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_INT32(versatile, pl110_state),
+        VMSTATE_INT32(version, pl110_state),
         VMSTATE_UINT32_ARRAY(timing, pl110_state, 4),
         VMSTATE_UINT32(cr, pl110_state),
         VMSTATE_UINT32(upbase, pl110_state),
@@ -66,6 +77,7 @@ static const VMStateDescription vmstate_pl110 = {
         VMSTATE_INT32(invalidate, pl110_state),
         VMSTATE_UINT32_ARRAY(pallette, pl110_state, 256),
         VMSTATE_UINT32_ARRAY(raw_pallette, pl110_state, 128),
+        VMSTATE_UINT32_V(mux_ctrl, pl110_state, 2),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -81,6 +93,17 @@ static const unsigned char pl110_versatile_id[] =
 #else
 #define pl110_versatile_id pl110_id
 #endif
+
+static const unsigned char pl111_id[] = {
+    0x11, 0x11, 0x24, 0x00, 0x0d, 0xf0, 0x05, 0xb1
+};
+
+/* Indexed by pl110_version */
+static const unsigned char *idregs[] = {
+    pl110_id,
+    pl110_versatile_id,
+    pl111_id
+};
 
 #include "pixel_ops.h"
 
@@ -144,12 +167,40 @@ static void pl110_update_display(void *opaque)
     if (s->cr & PL110_CR_BGR)
         bpp_offset = 0;
     else
-        bpp_offset = 18;
+        bpp_offset = 24;
+
+    if ((s->version != PL111) && (s->bpp == BPP_16)) {
+        /* The PL110's native 16 bit mode is 5551; however
+         * most boards with a PL110 implement an external
+         * mux which allows bits to be reshuffled to give
+         * 565 format. The mux is typically controlled by
+         * an external system register.
+         * This is controlled by a GPIO input pin
+         * so boards can wire it up to their register.
+         *
+         * The PL111 straightforwardly implements both
+         * 5551 and 565 under control of the bpp field
+         * in the LCDControl register.
+         */
+        switch (s->mux_ctrl) {
+        case 3: /* 565 BGR */
+            bpp_offset = (BPP_16_565 - BPP_16);
+            break;
+        case 1: /* 5551 */
+            break;
+        case 0: /* 888; also if we have loaded vmstate from an old version */
+        case 2: /* 565 RGB */
+        default:
+            /* treat as 565 but honour BGR bit */
+            bpp_offset += (BPP_16_565 - BPP_16);
+            break;
+        }
+    }
 
     if (s->cr & PL110_CR_BEBO)
-        fn = fntable[s->bpp + 6 + bpp_offset];
+        fn = fntable[s->bpp + 8 + bpp_offset];
     else if (s->cr & PL110_CR_BEPO)
-        fn = fntable[s->bpp + 12 + bpp_offset];
+        fn = fntable[s->bpp + 16 + bpp_offset];
     else
         fn = fntable[s->bpp + bpp_offset];
 
@@ -167,6 +218,8 @@ static void pl110_update_display(void *opaque)
     case BPP_8:
         break;
     case BPP_16:
+    case BPP_16_565:
+    case BPP_12:
         src_width <<= 1;
         break;
     case BPP_32:
@@ -253,10 +306,7 @@ static uint32_t pl110_read(void *opaque, target_phys_addr_t offset)
     pl110_state *s = (pl110_state *)opaque;
 
     if (offset >= 0xfe0 && offset < 0x1000) {
-        if (s->versatile)
-            return pl110_versatile_id[(offset - 0xfe0) >> 2];
-        else
-            return pl110_id[(offset - 0xfe0) >> 2];
+        return idregs[s->version][(offset - 0xfe0) >> 2];
     }
     if (offset >= 0x200 && offset < 0x400) {
         return s->raw_pallette[(offset - 0x200) >> 2];
@@ -275,12 +325,14 @@ static uint32_t pl110_read(void *opaque, target_phys_addr_t offset)
     case 5: /* LCDLPBASE */
         return s->lpbase;
     case 6: /* LCDIMSC */
-	if (s->versatile)
-	  return s->cr;
+        if (s->version != PL110) {
+            return s->cr;
+        }
         return s->int_mask;
     case 7: /* LCDControl */
-	if (s->versatile)
-	  return s->int_mask;
+        if (s->version != PL110) {
+            return s->int_mask;
+        }
         return s->cr;
     case 8: /* LCDRIS */
         return s->int_status;
@@ -337,15 +389,17 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
         s->lpbase = val;
         break;
     case 6: /* LCDIMSC */
-        if (s->versatile)
+        if (s->version != PL110) {
             goto control;
+        }
     imsc:
         s->int_mask = val;
         pl110_update(s);
         break;
     case 7: /* LCDControl */
-        if (s->versatile)
+        if (s->version != PL110) {
             goto imsc;
+        }
     control:
         s->cr = val;
         s->bpp = (val >> 1) & 7;
@@ -374,6 +428,12 @@ static CPUWriteMemoryFunc * const pl110_writefn[] = {
    pl110_write
 };
 
+static void pl110_mux_ctrl_set(void *opaque, int line, int level)
+{
+    pl110_state *s = (pl110_state *)opaque;
+    s->mux_ctrl = level;
+}
+
 static int pl110_init(SysBusDevice *dev)
 {
     pl110_state *s = FROM_SYSBUS(pl110_state, dev);
@@ -384,6 +444,7 @@ static int pl110_init(SysBusDevice *dev)
                                        DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
     sysbus_init_irq(dev, &s->irq);
+    qdev_init_gpio_in(&s->busdev.qdev, pl110_mux_ctrl_set, 1);
     s->ds = graphic_console_init(pl110_update_display,
                                  pl110_invalidate_display,
                                  NULL, NULL, s);
@@ -393,7 +454,14 @@ static int pl110_init(SysBusDevice *dev)
 static int pl110_versatile_init(SysBusDevice *dev)
 {
     pl110_state *s = FROM_SYSBUS(pl110_state, dev);
-    s->versatile = 1;
+    s->version = PL110_VERSATILE;
+    return pl110_init(dev);
+}
+
+static int pl111_init(SysBusDevice *dev)
+{
+    pl110_state *s = FROM_SYSBUS(pl110_state, dev);
+    s->version = PL111;
     return pl110_init(dev);
 }
 
@@ -413,10 +481,19 @@ static SysBusDeviceInfo pl110_versatile_info = {
     .qdev.no_user = 1,
 };
 
+static SysBusDeviceInfo pl111_info = {
+    .init = pl111_init,
+    .qdev.name = "pl111",
+    .qdev.size = sizeof(pl110_state),
+    .qdev.vmsd = &vmstate_pl110,
+    .qdev.no_user = 1,
+};
+
 static void pl110_register_devices(void)
 {
     sysbus_register_withprop(&pl110_info);
     sysbus_register_withprop(&pl110_versatile_info);
+    sysbus_register_withprop(&pl111_info);
 }
 
 device_init(pl110_register_devices)

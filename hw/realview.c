@@ -251,7 +251,7 @@ static void realview_init(ram_addr_t ram_size,
     sysbus_create_simple("pl061", 0x10014000, pic[7]);
     gpio2 = sysbus_create_simple("pl061", 0x10015000, pic[8]);
 
-    sysbus_create_simple("pl110_versatile", 0x10020000, pic[23]);
+    sysbus_create_simple("pl111", 0x10020000, pic[23]);
 
     dev = sysbus_create_varargs("pl181", 0x10005000, pic[17], pic[18], NULL);
     /* Wire up MMC card detect and read-only signals. These have

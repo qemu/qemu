@@ -54,15 +54,15 @@ typedef struct ESPState ESPState;
 
 struct ESPState {
     SysBusDevice busdev;
-    uint32_t it_shift;
-    qemu_irq irq;
     uint8_t rregs[ESP_REGS];
     uint8_t wregs[ESP_REGS];
+    qemu_irq irq;
+    uint32_t it_shift;
     int32_t ti_size;
     uint32_t ti_rptr, ti_wptr;
-    uint8_t ti_buf[TI_BUFSZ];
     uint32_t status;
     uint32_t dma;
+    uint8_t ti_buf[TI_BUFSZ];
     SCSIBus bus;
     SCSIDevice *current_dev;
     SCSIRequest *current_req;
@@ -75,13 +75,14 @@ struct ESPState {
     /* The size of the current DMA transfer.  Zero if no transfer is in
        progress.  */
     uint32_t dma_counter;
-    uint8_t *async_buf;
+    int dma_enabled;
+
     uint32_t async_len;
+    uint8_t *async_buf;
 
     ESPDMAMemoryReadWriteFunc dma_memory_read;
     ESPDMAMemoryReadWriteFunc dma_memory_write;
     void *dma_opaque;
-    int dma_enabled;
     void (*dma_cb)(ESPState *s);
 };
 
