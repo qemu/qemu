@@ -1191,11 +1191,13 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
             || offset + subregion->size <= other->offset) {
             continue;
         }
+#if 0
         printf("warning: subregion collision %llx/%llx vs %llx/%llx\n",
                (unsigned long long)offset,
                (unsigned long long)subregion->size,
                (unsigned long long)other->offset,
                (unsigned long long)other->size);
+#endif
     }
     QTAILQ_FOREACH(other, &mr->subregions, subregions_link) {
         if (subregion->priority >= other->priority) {
