@@ -28,7 +28,6 @@
 #include "vmware_vga.h"
 
 #undef VERBOSE
-#undef DIRECT_VRAM
 #define HW_RECT_ACCEL
 #define HW_FILL_ACCEL
 #define HW_MOUSE_ACCEL
@@ -292,7 +291,6 @@ enum {
 static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
                 int x, int y, int w, int h)
 {
-#ifndef DIRECT_VRAM
     int line;
     int bypl;
     int width;
@@ -323,23 +321,17 @@ static inline void vmsvga_update_rect(struct vmsvga_state_s *s,
 
     for (; line > 0; line --, src += bypl, dst += bypl)
         memcpy(dst, src, width);
-#endif
 
     dpy_update(s->vga.ds, x, y, w, h);
 }
 
 static inline void vmsvga_update_screen(struct vmsvga_state_s *s)
 {
-#ifndef DIRECT_VRAM
-    memcpy(ds_get_data(s->vga.ds), s->vga.vram_ptr, s->bypp * s->width * s->height);
-#endif
-
+    memcpy(ds_get_data(s->vga.ds), s->vga.vram_ptr,
+           s->bypp * s->width * s->height);
     dpy_update(s->vga.ds, 0, 0, s->width, s->height);
 }
 
-#ifdef DIRECT_VRAM
-# define vmsvga_update_rect_delayed	vmsvga_update_rect
-#else
 static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,
                 int x, int y, int w, int h)
 {
@@ -350,7 +342,6 @@ static inline void vmsvga_update_rect_delayed(struct vmsvga_state_s *s,
     rect->w = w;
     rect->h = h;
 }
-#endif
 
 static inline void vmsvga_update_rect_flush(struct vmsvga_state_s *s)
 {
@@ -372,32 +363,23 @@ static inline void vmsvga_update_rect_flush(struct vmsvga_state_s *s)
 static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
                 int x0, int y0, int x1, int y1, int w, int h)
 {
-# ifdef DIRECT_VRAM
-    uint8_t *vram = ds_get_data(s->ds);
-# else
     uint8_t *vram = s->vga.vram_ptr;
-# endif
     int bypl = s->bypp * s->width;
     int width = s->bypp * w;
     int line = h;
     uint8_t *ptr[2];
 
-# ifdef DIRECT_VRAM
-    if (s->ds->dpy_copy)
-        qemu_console_copy(s->ds, x0, y0, x1, y1, w, h);
-    else
-# endif
-    {
-        if (y1 > y0) {
-            ptr[0] = vram + s->bypp * x0 + bypl * (y0 + h - 1);
-            ptr[1] = vram + s->bypp * x1 + bypl * (y1 + h - 1);
-            for (; line > 0; line --, ptr[0] -= bypl, ptr[1] -= bypl)
-                memmove(ptr[1], ptr[0], width);
-        } else {
-            ptr[0] = vram + s->bypp * x0 + bypl * y0;
-            ptr[1] = vram + s->bypp * x1 + bypl * y1;
-            for (; line > 0; line --, ptr[0] += bypl, ptr[1] += bypl)
-                memmove(ptr[1], ptr[0], width);
+    if (y1 > y0) {
+        ptr[0] = vram + s->bypp * x0 + bypl * (y0 + h - 1);
+        ptr[1] = vram + s->bypp * x1 + bypl * (y1 + h - 1);
+        for (; line > 0; line --, ptr[0] -= bypl, ptr[1] -= bypl) {
+            memmove(ptr[1], ptr[0], width);
+        }
+    } else {
+        ptr[0] = vram + s->bypp * x0 + bypl * y0;
+        ptr[1] = vram + s->bypp * x1 + bypl * y1;
+        for (; line > 0; line --, ptr[0] += bypl, ptr[1] += bypl) {
+            memmove(ptr[1], ptr[0], width);
         }
     }
 
@@ -409,11 +391,7 @@ static inline void vmsvga_copy_rect(struct vmsvga_state_s *s,
 static inline void vmsvga_fill_rect(struct vmsvga_state_s *s,
                 uint32_t c, int x, int y, int w, int h)
 {
-# ifdef DIRECT_VRAM
-    uint8_t *vram = ds_get_data(s->ds);
-# else
     uint8_t *vram = s->vga.vram_ptr;
-# endif
     int bypp = s->bypp;
     int bypl = bypp * s->width;
     int width = bypp * w;
@@ -424,30 +402,24 @@ static inline void vmsvga_fill_rect(struct vmsvga_state_s *s,
     uint8_t *src;
     uint8_t col[4];
 
-# ifdef DIRECT_VRAM
-    if (s->ds->dpy_fill)
-        s->ds->dpy_fill(s->ds, x, y, w, h, c);
-    else
-# endif
-    {
-        col[0] = c;
-        col[1] = c >> 8;
-        col[2] = c >> 16;
-        col[3] = c >> 24;
+    col[0] = c;
+    col[1] = c >> 8;
+    col[2] = c >> 16;
+    col[3] = c >> 24;
 
-        if (line --) {
-            dst = fst;
-            src = col;
-            for (column = width; column > 0; column --) {
-                *(dst ++) = *(src ++);
-                if (src - col == bypp)
-                    src = col;
+    if (line--) {
+        dst = fst;
+        src = col;
+        for (column = width; column > 0; column--) {
+            *(dst++) = *(src++);
+            if (src - col == bypp) {
+                src = col;
             }
-            dst = fst;
-            for (; line > 0; line --) {
-                dst += bypl;
-                memcpy(dst, fst, width);
-            }
+        }
+        dst = fst;
+        for (; line > 0; line--) {
+            dst += bypl;
+            memcpy(dst, fst, width);
         }
     }
 
@@ -1055,82 +1027,6 @@ static void vmsvga_text_update(void *opaque, console_ch_t *chardata)
         s->vga.text_update(&s->vga, chardata);
 }
 
-#ifdef DIRECT_VRAM
-static uint32_t vmsvga_vram_readb(void *opaque, target_phys_addr_t addr)
-{
-    struct vmsvga_state_s *s = opaque;
-    if (addr < s->fb_size)
-        return *(uint8_t *) (ds_get_data(s->ds) + addr);
-    else
-        return *(uint8_t *) (s->vram_ptr + addr);
-}
-
-static uint32_t vmsvga_vram_readw(void *opaque, target_phys_addr_t addr)
-{
-    struct vmsvga_state_s *s = opaque;
-    if (addr < s->fb_size)
-        return *(uint16_t *) (ds_get_data(s->ds) + addr);
-    else
-        return *(uint16_t *) (s->vram_ptr + addr);
-}
-
-static uint32_t vmsvga_vram_readl(void *opaque, target_phys_addr_t addr)
-{
-    struct vmsvga_state_s *s = opaque;
-    if (addr < s->fb_size)
-        return *(uint32_t *) (ds_get_data(s->ds) + addr);
-    else
-        return *(uint32_t *) (s->vram_ptr + addr);
-}
-
-static void vmsvga_vram_writeb(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
-{
-    struct vmsvga_state_s *s = opaque;
-    if (addr < s->fb_size)
-        *(uint8_t *) (ds_get_data(s->ds) + addr) = value;
-    else
-        *(uint8_t *) (s->vram_ptr + addr) = value;
-}
-
-static void vmsvga_vram_writew(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
-{
-    struct vmsvga_state_s *s = opaque;
-    if (addr < s->fb_size)
-        *(uint16_t *) (ds_get_data(s->ds) + addr) = value;
-    else
-        *(uint16_t *) (s->vram_ptr + addr) = value;
-}
-
-static void vmsvga_vram_writel(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
-{
-    struct vmsvga_state_s *s = opaque;
-    if (addr < s->fb_size)
-        *(uint32_t *) (ds_get_data(s->ds) + addr) = value;
-    else
-        *(uint32_t *) (s->vram_ptr + addr) = value;
-}
-
-static const MemoryRegionOps vmsvga_vram_io_ops = {
-    .old_mmio = {
-        .read = {
-            vmsvga_vram_readb,
-            vmsvga_vram_readw,
-            vmsvga_vram_readl,
-        },
-        .write = {
-            vmsvga_vram_writeb,
-            vmsvga_vram_writew,
-            vmsvga_vram_writel,
-        },
-    },
-    .endianness = DEVICE_NATIVE_ENDIAN,
-}
-
-#endif
-
 static int vmsvga_post_load(void *opaque, int version_id)
 {
     struct vmsvga_state_s *s = opaque;
@@ -1277,15 +1173,7 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
         DO_UPCAST(struct pci_vmsvga_state_s, card, dev);
     MemoryRegion *iomem;
 
-#ifdef DIRECT_VRAM
-    DirectMem *directmem = g_malloc(sizeof(*directmem));
-
-    iomem = &directmem->mr;
-    memory_region_init_io(iomem, &vmsvga_vram_io_ops, &s->chip, "vmsvga",
-                          memory_region_size(&s->chip.vga.vram));
-#else
     iomem = &s->chip.vga.vram;
-#endif
 
     vga_dirty_log_restart(&s->chip.vga);
 
