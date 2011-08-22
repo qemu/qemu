@@ -403,16 +403,6 @@ typedef struct V9fsFlock
     V9fsString client_id;
 } V9fsFlock;
 
-typedef struct V9fsLockState
-{
-    V9fsPDU *pdu;
-    size_t offset;
-    int8_t status;
-    struct stat stbuf;
-    V9fsFidState *fidp;
-    V9fsFlock *flock;
-} V9fsLockState;
-
 typedef struct V9fsGetlock
 {
     uint8_t type;

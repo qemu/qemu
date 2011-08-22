@@ -3006,47 +3006,43 @@ out:
  * do any thing in * qemu 9p server side lock code path.
  * So when a TLOCK request comes, always return success
  */
-
 static void v9fs_lock(void *opaque)
 {
+    int8_t status;
+    V9fsFlock *flock;
+    size_t offset = 7;
+    struct stat stbuf;
+    V9fsFidState *fidp;
+    int32_t fid, err = 0;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
-    int32_t fid, err = 0;
-    V9fsLockState *vs;
 
-    vs = g_malloc0(sizeof(*vs));
-    vs->pdu = pdu;
-    vs->offset = 7;
-
-    vs->flock = g_malloc(sizeof(*vs->flock));
-    pdu_unmarshal(vs->pdu, vs->offset, "dbdqqds", &fid, &vs->flock->type,
-                &vs->flock->flags, &vs->flock->start, &vs->flock->length,
-                            &vs->flock->proc_id, &vs->flock->client_id);
-
-    vs->status = P9_LOCK_ERROR;
+    flock = g_malloc(sizeof(*flock));
+    pdu_unmarshal(pdu, offset, "dbdqqds", &fid, &flock->type,
+                  &flock->flags, &flock->start, &flock->length,
+                  &flock->proc_id, &flock->client_id);
+    status = P9_LOCK_ERROR;
 
     /* We support only block flag now (that too ignored currently) */
-    if (vs->flock->flags & ~P9_LOCK_FLAGS_BLOCK) {
+    if (flock->flags & ~P9_LOCK_FLAGS_BLOCK) {
         err = -EINVAL;
         goto out;
     }
-    vs->fidp = lookup_fid(s, fid);
-    if (vs->fidp == NULL) {
+    fidp = lookup_fid(s, fid);
+    if (fidp == NULL) {
         err = -ENOENT;
         goto out;
     }
-
-    err = v9fs_do_fstat(s, vs->fidp->fs.fd, &vs->stbuf);
+    err = v9fs_co_fstat(s, fidp->fs.fd, &stbuf);
     if (err < 0) {
-        err = -errno;
         goto out;
     }
-    vs->status = P9_LOCK_SUCCESS;
+    status = P9_LOCK_SUCCESS;
 out:
-    vs->offset += pdu_marshal(vs->pdu, vs->offset, "b", vs->status);
-    complete_pdu(s, vs->pdu, err);
-    g_free(vs->flock);
-    g_free(vs);
+    err = offset;
+    err += pdu_marshal(pdu, offset, "b", status);
+    complete_pdu(s, pdu, err);
+    g_free(flock);
 }
 
 /*
