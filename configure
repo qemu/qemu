@@ -165,7 +165,6 @@ darwin_user="no"
 bsd_user="no"
 guest_base=""
 uname_release=""
-io_thread="no"
 mixemu="no"
 aix="no"
 blobs="yes"
@@ -722,8 +721,6 @@ for opt do
   --disable-attr) attr="no"
   ;;
   --enable-attr) attr="yes"
-  ;;
-  --enable-io-thread) io_thread="yes"
   ;;
   --disable-blobs) blobs="no"
   ;;
@@ -2158,12 +2155,6 @@ EOF
 
 if compile_prog "" "" ; then
   signalfd=yes
-elif test "$kvm" = "yes" -a "$io_thread" != "yes"; then
-  echo
-  echo "ERROR: Host kernel lacks signalfd() support,"
-  echo "but KVM depends on it when the IO thread is disabled."
-  echo
-  exit 1
 fi
 
 # check if eventfd is supported
@@ -2710,7 +2701,6 @@ echo "NPTL support      $nptl"
 echo "GUEST_BASE        $guest_base"
 echo "PIE user targets  $user_pie"
 echo "vde support       $vde"
-echo "IO thread         $io_thread"
 echo "Linux AIO support $linux_aio"
 echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
@@ -2967,9 +2957,6 @@ echo "GLIB_CFLAGS=$glib_cflags" >> $config_host_mak
 if test "$xen" = "yes" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
-fi
-if test "$io_thread" = "yes" ; then
-  echo "CONFIG_IOTHREAD=y" >> $config_host_mak
 fi
 if test "$linux_aio" = "yes" ; then
   echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
