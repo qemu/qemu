@@ -3064,10 +3064,10 @@ static void setup_frame(int sig, struct target_sigaction *ka,
         goto give_sigsegv;
 
     /* Set up registers for signal handler */
-    regs->gregs[15] = (unsigned long) frame;
+    regs->gregs[15] = frame_addr;
     regs->gregs[4] = signal; /* Arg for signal handler */
     regs->gregs[5] = 0;
-    regs->gregs[6] = (unsigned long) &frame->sc;
+    regs->gregs[6] = frame_addr += offsetof(typeof(*frame), sc);
     regs->pc = (unsigned long) ka->_sa_handler;
 
     unlock_user_struct(frame, frame_addr, 1);
@@ -3127,10 +3127,10 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
         goto give_sigsegv;
 
     /* Set up registers for signal handler */
-    regs->gregs[15] = (unsigned long) frame;
+    regs->gregs[15] = frame_addr;
     regs->gregs[4] = signal; /* Arg for signal handler */
-    regs->gregs[5] = (unsigned long) &frame->info;
-    regs->gregs[6] = (unsigned long) &frame->uc;
+    regs->gregs[5] = frame_addr + offsetof(typeof(*frame), info);
+    regs->gregs[6] = frame_addr + offsetof(typeof(*frame), uc);
     regs->pc = (unsigned long) ka->_sa_handler;
 
     unlock_user_struct(frame, frame_addr, 1);
@@ -3381,11 +3381,12 @@ static void setup_frame(int sig, struct target_sigaction *ka,
         goto badframe;
 
     /* Set up registers for signal handler */
-    env->regs[1] = (unsigned long) frame;
+    env->regs[1] = frame_addr;
     /* Signal handler args: */
     env->regs[5] = sig; /* Arg 0: signum */
     env->regs[6] = 0;
-    env->regs[7] = (unsigned long) &frame->uc; /* arg 1: sigcontext */
+    /* arg 1: sigcontext */
+    env->regs[7] = frame_addr += offsetof(typeof(*frame), uc);
 
     /* Offset of 4 to handle microblaze rtid r14, 0 */
     env->sregs[SR_PC] = (unsigned long)ka->_sa_handler;
@@ -3559,11 +3560,11 @@ static void setup_frame(int sig, struct target_sigaction *ka,
 	setup_sigcontext(&frame->sc, env);
 
 	/* Move the stack and setup the arguments for the handler.  */
-	env->regs[R_SP] = (uint32_t) (unsigned long) frame;
+	env->regs[R_SP] = frame_addr;
 	env->regs[10] = sig;
 	env->pc = (unsigned long) ka->_sa_handler;
 	/* Link SRP so the guest returns through the trampoline.  */
-	env->pregs[PR_SRP] = (uint32_t) (unsigned long) &frame->retcode[0];
+	env->pregs[PR_SRP] = frame_addr + offsetof(typeof(*frame), retcode);
 
 	unlock_user_struct(frame, frame_addr, 1);
 	return;
@@ -3769,11 +3770,11 @@ static void setup_frame(int sig, struct target_sigaction *ka,
     }
 
     /* Set up registers for signal handler */
-    env->regs[15] = (target_ulong)(unsigned long) frame;
+    env->regs[15] = frame_addr;
     env->psw.addr = (target_ulong) ka->_sa_handler | PSW_ADDR_AMODE;
 
     env->regs[2] = sig; //map_signal(sig);
-    env->regs[3] = (target_ulong)(unsigned long) &frame->sc;
+    env->regs[3] = frame_addr += offsetof(typeof(*frame), sc);
 
     /* We forgot to include these in the sigcontext.
        To avoid breaking binary compatibility, they are passed as args. */
@@ -3844,12 +3845,12 @@ static void setup_rt_frame(int sig, struct target_sigaction *ka,
     }
 
     /* Set up registers for signal handler */
-    env->regs[15] = (target_ulong)(unsigned long) frame;
+    env->regs[15] = frame_addr;
     env->psw.addr = (target_ulong) ka->_sa_handler | PSW_ADDR_AMODE;
 
     env->regs[2] = sig; //map_signal(sig);
-    env->regs[3] = (target_ulong)(unsigned long) &frame->info;
-    env->regs[4] = (target_ulong)(unsigned long) &frame->uc;
+    env->regs[3] = frame_addr + offsetof(typeof(*frame), info);
+    env->regs[4] = frame_addr + offsetof(typeof(*frame), uc);
     return;
 
 give_sigsegv:
