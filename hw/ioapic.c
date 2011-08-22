@@ -148,6 +148,9 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
         uint32_t mask = 1 << vector;
         uint64_t entry = s->ioredtbl[vector];
 
+        if (entry & (1 << IOAPIC_LVT_POLARITY_SHIFT)) {
+            level = !level;
+        }
         if (((entry >> IOAPIC_LVT_TRIGGER_MODE_SHIFT) & 1) ==
             IOAPIC_TRIGGER_LEVEL) {
             /* level triggered */
