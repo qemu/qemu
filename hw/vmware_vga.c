@@ -1175,8 +1175,6 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
     iomem = &s->chip.vga.vram;
 
-    vga_dirty_log_restart(&s->chip.vga);
-
     s->card.config[PCI_CACHE_LINE_SIZE]	= 0x08;		/* Cache line size */
     s->card.config[PCI_LATENCY_TIMER] = 0x40;		/* Latency timer */
     s->card.config[PCI_INTERRUPT_LINE] = 0xff;		/* End */

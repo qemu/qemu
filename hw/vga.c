@@ -1532,12 +1532,6 @@ void vga_dirty_log_stop(VGACommonState *s)
     memory_region_set_log(&s->vram, false, DIRTY_MEMORY_VGA);
 }
 
-void vga_dirty_log_restart(VGACommonState *s)
-{
-    vga_dirty_log_stop(s);
-    vga_dirty_log_start(s);
-}
-
 /*
  * graphic modes
  */

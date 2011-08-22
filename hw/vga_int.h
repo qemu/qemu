@@ -193,7 +193,6 @@ void vga_common_reset(VGACommonState *s);
 
 void vga_dirty_log_start(VGACommonState *s);
 void vga_dirty_log_stop(VGACommonState *s);
-void vga_dirty_log_restart(VGACommonState *s);
 
 extern const VMStateDescription vmstate_vga_common;
 uint32_t vga_ioport_read(void *opaque, uint32_t addr);
