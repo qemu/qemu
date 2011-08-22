@@ -90,7 +90,7 @@ disable balloon_event(void *opaque, unsigned long addr) "opaque %p addr %lu"
 
 # hw/apic.c
 disable apic_local_deliver(int vector, uint32_t lvt) "vector %d delivery mode %d"
-disable apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode, uint8_t vector_num, uint8_t polarity, uint8_t trigger_mode) "dest %d dest_mode %d delivery_mode %d vector %d polarity %d trigger_mode %d"
+disable apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode, uint8_t vector_num, uint8_t trigger_mode) "dest %d dest_mode %d delivery_mode %d vector %d trigger_mode %d"
 disable cpu_set_apic_base(uint64_t val) "%016"PRIx64""
 disable cpu_get_apic_base(uint64_t val) "%016"PRIx64""
 disable apic_mem_readl(uint64_t addr, uint32_t val)  "%"PRIx64" = %08x"
