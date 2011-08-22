@@ -39,6 +39,7 @@
 #include "blockdev.h"
 #include "pc.h"
 
+#include "microblaze_pic_cpu.h"
 #include "xilinx_axidma.h"
 
 #define LMB_BRAM_SIZE  (128 * 1024)

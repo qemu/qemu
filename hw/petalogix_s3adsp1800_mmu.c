@@ -36,6 +36,8 @@
 #include "elf.h"
 #include "blockdev.h"
 
+#include "microblaze_pic_cpu.h"
+
 #define LMB_BRAM_SIZE  (128 * 1024)
 #define FLASH_SIZE     (16 * 1024 * 1024)
 

@@ -1,9 +1,6 @@
 #include "qemu-common.h"
 #include "net.h"
 
-/* OPB Interrupt Controller.  */
-qemu_irq *microblaze_pic_init_cpu(CPUState *env);
-
 static inline DeviceState *
 xilinx_intc_create(target_phys_addr_t base, qemu_irq irq, int kind_of_intr)
 {
