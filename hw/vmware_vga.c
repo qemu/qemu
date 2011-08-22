@@ -27,7 +27,7 @@
 #include "pci.h"
 #include "vmware_vga.h"
 
-#define VERBOSE
+#undef VERBOSE
 #undef DIRECT_VRAM
 #define HW_RECT_ACCEL
 #define HW_FILL_ACCEL
