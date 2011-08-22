@@ -30,3 +30,17 @@ int v9fs_co_lstat(V9fsState *s, V9fsString *path, struct stat *stbuf)
         });
     return err;
 }
+
+int v9fs_co_fstat(V9fsState *s, int fd, struct stat *stbuf)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->fstat(&s->ctx, fd, stbuf);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
