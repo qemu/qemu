@@ -392,17 +392,6 @@ typedef struct QCowAIOCB {
     QLIST_ENTRY(QCowAIOCB) next_depend;
 } QCowAIOCB;
 
-static void qcow2_aio_cancel(BlockDriverAIOCB *blockacb)
-{
-    QCowAIOCB *acb = container_of(blockacb, QCowAIOCB, common);
-    qemu_aio_release(acb);
-}
-
-static AIOPool qcow2_aio_pool = {
-    .aiocb_size         = sizeof(QCowAIOCB),
-    .cancel             = qcow2_aio_cancel,
-};
-
 /*
  * Returns 0 when the request is completed successfully, 1 when there is still
  * a part left to do and -errno in error cases.
@@ -532,13 +521,10 @@ static int qcow2_aio_read_cb(QCowAIOCB *acb)
 static QCowAIOCB *qcow2_aio_setup(BlockDriverState *bs, int64_t sector_num,
                                   QEMUIOVector *qiov, int nb_sectors,
                                   BlockDriverCompletionFunc *cb,
-                                  void *opaque, int is_write)
+                                  void *opaque, int is_write, QCowAIOCB *acb)
 {
-    QCowAIOCB *acb;
-
-    acb = qemu_aio_get(&qcow2_aio_pool, bs, cb, opaque);
-    if (!acb)
-        return NULL;
+    memset(acb, 0, sizeof(*acb));
+    acb->common.bs = bs;
     acb->sector_num = sector_num;
     acb->qiov = qiov;
     acb->is_write = is_write;
@@ -558,19 +544,18 @@ static int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                           int nb_sectors, QEMUIOVector *qiov)
 {
     BDRVQcowState *s = bs->opaque;
-    QCowAIOCB *acb;
+    QCowAIOCB acb;
     int ret;
 
-    acb = qcow2_aio_setup(bs, sector_num, qiov, nb_sectors, NULL, NULL, 0);
+    qcow2_aio_setup(bs, sector_num, qiov, nb_sectors, NULL, NULL, 0, &acb);
 
     qemu_co_mutex_lock(&s->lock);
     do {
-        ret = qcow2_aio_read_cb(acb);
+        ret = qcow2_aio_read_cb(&acb);
     } while (ret > 0);
     qemu_co_mutex_unlock(&s->lock);
 
-    qemu_iovec_destroy(&acb->hd_qiov);
-    qemu_aio_release(acb);
+    qemu_iovec_destroy(&acb.hd_qiov);
 
     return ret;
 }
@@ -674,20 +659,19 @@ static int qcow2_co_writev(BlockDriverState *bs,
                            QEMUIOVector *qiov)
 {
     BDRVQcowState *s = bs->opaque;
-    QCowAIOCB *acb;
+    QCowAIOCB acb;
     int ret;
 
-    acb = qcow2_aio_setup(bs, sector_num, qiov, nb_sectors, NULL, NULL, 1);
+    qcow2_aio_setup(bs, sector_num, qiov, nb_sectors, NULL, NULL, 1, &acb);
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
     qemu_co_mutex_lock(&s->lock);
     do {
-        ret = qcow2_aio_write_cb(acb);
+        ret = qcow2_aio_write_cb(&acb);
     } while (ret > 0);
     qemu_co_mutex_unlock(&s->lock);
 
-    qemu_iovec_destroy(&acb->hd_qiov);
-    qemu_aio_release(acb);
+    qemu_iovec_destroy(&acb.hd_qiov);
 
     return ret;
 }
