@@ -522,35 +522,18 @@ static int qcow_aio_read_cb(QCowAIOCB *acb)
     BlockDriverState *bs = acb->bs;
     BDRVQcowState *s = bs->opaque;
     int index_in_cluster;
-    int ret, n = 0;
-    uint64_t cluster_offset = 0;
+    int ret, n;
+    uint64_t cluster_offset;
     struct iovec hd_iov;
     QEMUIOVector hd_qiov;
 
  redo:
-    /* post process the read buffer */
-    if (!cluster_offset) {
-        /* nothing to do */
-    } else if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
-        /* nothing to do */
-    } else {
-        if (s->crypt_method) {
-            encrypt_sectors(s, acb->sector_num, acb->buf, acb->buf,
-                            n, 0,
-                            &s->aes_decrypt_key);
-        }
-    }
-
-    acb->nb_sectors -= n;
-    acb->sector_num += n;
-    acb->buf += n * 512;
-
     if (acb->nb_sectors == 0) {
         /* request completed */
         return 0;
     }
 
-    /* prepare next AIO request */
+    /* prepare next request */
     cluster_offset = get_cluster_offset(bs, acb->sector_num << 9,
                                              0, 0, 0, 0);
     index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
@@ -575,7 +558,6 @@ static int qcow_aio_read_cb(QCowAIOCB *acb)
         } else {
             /* Note: in this case, no need to wait */
             memset(acb->buf, 0, 512 * n);
-            goto redo;
         }
     } else if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
         /* add AIO support for compressed blocks ? */
@@ -584,7 +566,6 @@ static int qcow_aio_read_cb(QCowAIOCB *acb)
         }
         memcpy(acb->buf,
                s->cluster_cache + index_in_cluster * 512, 512 * n);
-        goto redo;
     } else {
         if ((cluster_offset & 511) != 0) {
             return -EIO;
@@ -601,6 +582,23 @@ static int qcow_aio_read_cb(QCowAIOCB *acb)
             return ret;
         }
     }
+
+    /* post process the read buffer */
+    if (!cluster_offset) {
+        /* nothing to do */
+    } else if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
+        /* nothing to do */
+    } else {
+        if (s->crypt_method) {
+            encrypt_sectors(s, acb->sector_num, acb->buf, acb->buf,
+                            n, 0,
+                            &s->aes_decrypt_key);
+        }
+    }
+
+    acb->nb_sectors -= n;
+    acb->sector_num += n;
+    acb->buf += n * 512;
 
     goto redo;
 }
@@ -633,16 +631,12 @@ static int qcow_aio_write_cb(QCowAIOCB *acb)
     int index_in_cluster;
     uint64_t cluster_offset;
     const uint8_t *src_buf;
-    int ret, n = 0;
+    int ret, n;
     uint8_t *cluster_data = NULL;
     struct iovec hd_iov;
     QEMUIOVector hd_qiov;
 
 redo:
-    acb->nb_sectors -= n;
-    acb->sector_num += n;
-    acb->buf += n * 512;
-
     if (acb->nb_sectors == 0) {
         /* request completed */
         return 0;
@@ -685,6 +679,11 @@ redo:
     if (ret < 0) {
         return ret;
     }
+
+    acb->nb_sectors -= n;
+    acb->sector_num += n;
+    acb->buf += n * 512;
+
     goto redo;
 }
 
