@@ -135,7 +135,6 @@ void omap_gpmc_reset(struct omap_gpmc_s *s)
                             s->cs_file[i].config[6] & 0x1f,	/* MASKADDR */
                         (s->cs_file[i].config[6] >> 8 & 0xf));	/* BASEADDR */
     }
-    omap_gpmc_cs_map(s->cs_file, 0, 0xf);
     s->ecc_cs = 0;
     s->ecc_ptr = 0;
     s->ecc_cfg = 0x3fcff000;
