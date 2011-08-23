@@ -192,24 +192,6 @@ static int qcow_set_key(BlockDriverState *bs, const char *key)
         return -1;
     if (AES_set_decrypt_key(keybuf, 128, &s->aes_decrypt_key) != 0)
         return -1;
-#if 0
-    /* test */
-    {
-        uint8_t in[16];
-        uint8_t out[16];
-        uint8_t tmp[16];
-        for(i=0;i<16;i++)
-            in[i] = i;
-        AES_encrypt(in, tmp, &s->aes_encrypt_key);
-        AES_decrypt(tmp, out, &s->aes_decrypt_key);
-        for(i = 0; i < 16; i++)
-            printf(" %02x", tmp[i]);
-        printf("\n");
-        for(i = 0; i < 16; i++)
-            printf(" %02x", out[i]);
-        printf("\n");
-    }
-#endif
     return 0;
 }
 
@@ -442,51 +424,6 @@ static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
     }
     return 0;
 }
-
-#if 0
-
-static int qcow_read(BlockDriverState *bs, int64_t sector_num,
-                     uint8_t *buf, int nb_sectors)
-{
-    BDRVQcowState *s = bs->opaque;
-    int ret, index_in_cluster, n;
-    uint64_t cluster_offset;
-
-    while (nb_sectors > 0) {
-        cluster_offset = get_cluster_offset(bs, sector_num << 9, 0, 0, 0, 0);
-        index_in_cluster = sector_num & (s->cluster_sectors - 1);
-        n = s->cluster_sectors - index_in_cluster;
-        if (n > nb_sectors)
-            n = nb_sectors;
-        if (!cluster_offset) {
-            if (bs->backing_hd) {
-                /* read from the base image */
-                ret = bdrv_read(bs->backing_hd, sector_num, buf, n);
-                if (ret < 0)
-                    return -1;
-            } else {
-                memset(buf, 0, 512 * n);
-            }
-        } else if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
-            if (decompress_cluster(bs, cluster_offset) < 0)
-                return -1;
-            memcpy(buf, s->cluster_cache + index_in_cluster * 512, 512 * n);
-        } else {
-            ret = bdrv_pread(bs->file, cluster_offset + index_in_cluster * 512, buf, n * 512);
-            if (ret != n * 512)
-                return -1;
-            if (s->crypt_method) {
-                encrypt_sectors(s, sector_num, buf, buf, n, 0,
-                                &s->aes_decrypt_key);
-            }
-        }
-        nb_sectors -= n;
-        sector_num += n;
-        buf += n * 512;
-    }
-    return 0;
-}
-#endif
 
 static int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
                          int nb_sectors, QEMUIOVector *qiov)
