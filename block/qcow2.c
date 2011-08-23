@@ -385,7 +385,6 @@ typedef struct QCowAIOCB {
     uint64_t cluster_offset;
     uint8_t *cluster_data;
     QEMUIOVector hd_qiov;
-    QCowL2Meta l2meta;
 } QCowAIOCB;
 
 /*
@@ -518,8 +517,6 @@ static QCowAIOCB *qcow2_aio_setup(BlockDriverState *bs, int64_t sector_num,
     acb->bytes_done = 0;
     acb->remaining_sectors = nb_sectors;
     acb->cluster_offset = 0;
-    acb->l2meta.nb_clusters = 0;
-    qemu_co_queue_init(&acb->l2meta.dependent_requests);
     return acb;
 }
 
@@ -570,6 +567,10 @@ static int qcow2_aio_write_cb(QCowAIOCB *acb)
     int n_end;
     int ret;
     int cur_nr_sectors; /* number of sectors in current iteration */
+    QCowL2Meta l2meta;
+
+    l2meta.nb_clusters = 0;
+    qemu_co_queue_init(&l2meta.dependent_requests);
 
     if (acb->remaining_sectors == 0) {
         /* request completed */
@@ -583,12 +584,12 @@ static int qcow2_aio_write_cb(QCowAIOCB *acb)
         n_end = QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors;
 
     ret = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
-        index_in_cluster, n_end, &cur_nr_sectors, &acb->l2meta);
+        index_in_cluster, n_end, &cur_nr_sectors, &l2meta);
     if (ret < 0) {
         return ret;
     }
 
-    acb->cluster_offset = acb->l2meta.cluster_offset;
+    acb->cluster_offset = l2meta.cluster_offset;
     assert((acb->cluster_offset & 511) == 0);
 
     qemu_iovec_reset(&acb->hd_qiov);
@@ -622,9 +623,9 @@ static int qcow2_aio_write_cb(QCowAIOCB *acb)
         return ret;
     }
 
-    ret = qcow2_alloc_cluster_link_l2(bs, &acb->l2meta);
+    ret = qcow2_alloc_cluster_link_l2(bs, &l2meta);
 
-    run_dependent_requests(s, &acb->l2meta);
+    run_dependent_requests(s, &l2meta);
 
     if (ret < 0) {
         return ret;
