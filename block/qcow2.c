@@ -385,11 +385,8 @@ typedef struct QCowAIOCB {
     uint64_t bytes_done;
     uint64_t cluster_offset;
     uint8_t *cluster_data;
-    bool is_write;
     QEMUIOVector hd_qiov;
-    QEMUBH *bh;
     QCowL2Meta l2meta;
-    QLIST_ENTRY(QCowAIOCB) next_depend;
 } QCowAIOCB;
 
 /*
@@ -521,13 +518,12 @@ static int qcow2_aio_read_cb(QCowAIOCB *acb)
 static QCowAIOCB *qcow2_aio_setup(BlockDriverState *bs, int64_t sector_num,
                                   QEMUIOVector *qiov, int nb_sectors,
                                   BlockDriverCompletionFunc *cb,
-                                  void *opaque, int is_write, QCowAIOCB *acb)
+                                  void *opaque, QCowAIOCB *acb)
 {
     memset(acb, 0, sizeof(*acb));
     acb->common.bs = bs;
     acb->sector_num = sector_num;
     acb->qiov = qiov;
-    acb->is_write = is_write;
 
     qemu_iovec_init(&acb->hd_qiov, qiov->niov);
 
@@ -547,7 +543,7 @@ static int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
     QCowAIOCB acb;
     int ret;
 
-    qcow2_aio_setup(bs, sector_num, qiov, nb_sectors, NULL, NULL, 0, &acb);
+    qcow2_aio_setup(bs, sector_num, qiov, nb_sectors, NULL, NULL, &acb);
 
     qemu_co_mutex_lock(&s->lock);
     do {
@@ -662,7 +658,7 @@ static int qcow2_co_writev(BlockDriverState *bs,
     QCowAIOCB acb;
     int ret;
 
-    qcow2_aio_setup(bs, sector_num, qiov, nb_sectors, NULL, NULL, 1, &acb);
+    qcow2_aio_setup(bs, sector_num, qiov, nb_sectors, NULL, NULL, &acb);
     s->cluster_cache_offset = -1; /* disable compressed cache */
 
     qemu_co_mutex_lock(&s->lock);
