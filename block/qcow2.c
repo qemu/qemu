@@ -399,107 +399,105 @@ static int qcow2_aio_read_cb(QCowAIOCB *acb)
     int cur_nr_sectors; /* number of sectors in current iteration */
     uint64_t cluster_offset = 0;
 
-    if (acb->remaining_sectors == 0) {
-        /* request completed */
-        return 0;
-    }
+    while (acb->remaining_sectors != 0) {
 
-    /* prepare next request */
-    cur_nr_sectors = acb->remaining_sectors;
-    if (s->crypt_method) {
-        cur_nr_sectors = MIN(cur_nr_sectors,
-            QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors);
-    }
-
-    ret = qcow2_get_cluster_offset(bs, acb->sector_num << 9,
-        &cur_nr_sectors, &cluster_offset);
-    if (ret < 0) {
-        return ret;
-    }
-
-    index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
-
-    qemu_iovec_reset(&acb->hd_qiov);
-    qemu_iovec_copy(&acb->hd_qiov, acb->qiov, acb->bytes_done,
-        cur_nr_sectors * 512);
-
-    if (!cluster_offset) {
-
-        if (bs->backing_hd) {
-            /* read from the base image */
-            n1 = qcow2_backing_read1(bs->backing_hd, &acb->hd_qiov,
-                acb->sector_num, cur_nr_sectors);
-            if (n1 > 0) {
-                BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
-                qemu_co_mutex_unlock(&s->lock);
-                ret = bdrv_co_readv(bs->backing_hd, acb->sector_num,
-                                    n1, &acb->hd_qiov);
-                qemu_co_mutex_lock(&s->lock);
-                if (ret < 0) {
-                    return ret;
-                }
-            }
-        } else {
-            /* Note: in this case, no need to wait */
-            qemu_iovec_memset(&acb->hd_qiov, 0, 512 * cur_nr_sectors);
-        }
-    } else if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
-        /* add AIO support for compressed blocks ? */
-        ret = qcow2_decompress_cluster(bs, cluster_offset);
-        if (ret < 0) {
-            return ret;
-        }
-
-        qemu_iovec_from_buffer(&acb->hd_qiov,
-            s->cluster_cache + index_in_cluster * 512,
-            512 * cur_nr_sectors);
-    } else {
-        if ((cluster_offset & 511) != 0) {
-            return -EIO;
-        }
-
+        /* prepare next request */
+        cur_nr_sectors = acb->remaining_sectors;
         if (s->crypt_method) {
-            /*
-             * For encrypted images, read everything into a temporary
-             * contiguous buffer on which the AES functions can work.
-             */
-            if (!acb->cluster_data) {
-                acb->cluster_data =
-                    g_malloc0(QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
-            }
-
-            assert(cur_nr_sectors <=
+            cur_nr_sectors = MIN(cur_nr_sectors,
                 QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors);
-            qemu_iovec_reset(&acb->hd_qiov);
-            qemu_iovec_add(&acb->hd_qiov, acb->cluster_data,
-                512 * cur_nr_sectors);
         }
 
-        BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
-        qemu_co_mutex_unlock(&s->lock);
-        ret = bdrv_co_readv(bs->file,
-                            (cluster_offset >> 9) + index_in_cluster,
-                            cur_nr_sectors, &acb->hd_qiov);
-        qemu_co_mutex_lock(&s->lock);
+        ret = qcow2_get_cluster_offset(bs, acb->sector_num << 9,
+            &cur_nr_sectors, &cluster_offset);
         if (ret < 0) {
             return ret;
         }
-        if (s->crypt_method) {
-            qcow2_encrypt_sectors(s, acb->sector_num,  acb->cluster_data,
-                acb->cluster_data, cur_nr_sectors, 0, &s->aes_decrypt_key);
-            qemu_iovec_reset(&acb->hd_qiov);
-            qemu_iovec_copy(&acb->hd_qiov, acb->qiov, acb->bytes_done,
-                cur_nr_sectors * 512);
-            qemu_iovec_from_buffer(&acb->hd_qiov, acb->cluster_data,
+
+        index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
+
+        qemu_iovec_reset(&acb->hd_qiov);
+        qemu_iovec_copy(&acb->hd_qiov, acb->qiov, acb->bytes_done,
+            cur_nr_sectors * 512);
+
+        if (!cluster_offset) {
+
+            if (bs->backing_hd) {
+                /* read from the base image */
+                n1 = qcow2_backing_read1(bs->backing_hd, &acb->hd_qiov,
+                    acb->sector_num, cur_nr_sectors);
+                if (n1 > 0) {
+                    BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING_AIO);
+                    qemu_co_mutex_unlock(&s->lock);
+                    ret = bdrv_co_readv(bs->backing_hd, acb->sector_num,
+                                        n1, &acb->hd_qiov);
+                    qemu_co_mutex_lock(&s->lock);
+                    if (ret < 0) {
+                        return ret;
+                    }
+                }
+            } else {
+                /* Note: in this case, no need to wait */
+                qemu_iovec_memset(&acb->hd_qiov, 0, 512 * cur_nr_sectors);
+            }
+        } else if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
+            /* add AIO support for compressed blocks ? */
+            ret = qcow2_decompress_cluster(bs, cluster_offset);
+            if (ret < 0) {
+                return ret;
+            }
+
+            qemu_iovec_from_buffer(&acb->hd_qiov,
+                s->cluster_cache + index_in_cluster * 512,
                 512 * cur_nr_sectors);
+        } else {
+            if ((cluster_offset & 511) != 0) {
+                return -EIO;
+            }
+
+            if (s->crypt_method) {
+                /*
+                 * For encrypted images, read everything into a temporary
+                 * contiguous buffer on which the AES functions can work.
+                 */
+                if (!acb->cluster_data) {
+                    acb->cluster_data =
+                        g_malloc0(QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
+                }
+
+                assert(cur_nr_sectors <=
+                    QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors);
+                qemu_iovec_reset(&acb->hd_qiov);
+                qemu_iovec_add(&acb->hd_qiov, acb->cluster_data,
+                    512 * cur_nr_sectors);
+            }
+
+            BLKDBG_EVENT(bs->file, BLKDBG_READ_AIO);
+            qemu_co_mutex_unlock(&s->lock);
+            ret = bdrv_co_readv(bs->file,
+                                (cluster_offset >> 9) + index_in_cluster,
+                                cur_nr_sectors, &acb->hd_qiov);
+            qemu_co_mutex_lock(&s->lock);
+            if (ret < 0) {
+                return ret;
+            }
+            if (s->crypt_method) {
+                qcow2_encrypt_sectors(s, acb->sector_num,  acb->cluster_data,
+                    acb->cluster_data, cur_nr_sectors, 0, &s->aes_decrypt_key);
+                qemu_iovec_reset(&acb->hd_qiov);
+                qemu_iovec_copy(&acb->hd_qiov, acb->qiov, acb->bytes_done,
+                    cur_nr_sectors * 512);
+                qemu_iovec_from_buffer(&acb->hd_qiov, acb->cluster_data,
+                    512 * cur_nr_sectors);
+            }
         }
+
+        acb->remaining_sectors -= cur_nr_sectors;
+        acb->sector_num += cur_nr_sectors;
+        acb->bytes_done += cur_nr_sectors * 512;
     }
 
-    acb->remaining_sectors -= cur_nr_sectors;
-    acb->sector_num += cur_nr_sectors;
-    acb->bytes_done += cur_nr_sectors * 512;
-
-    return 1;
+    return 0;
 }
 
 static QCowAIOCB *qcow2_aio_setup(BlockDriverState *bs, int64_t sector_num,
@@ -572,70 +570,70 @@ static int qcow2_aio_write_cb(QCowAIOCB *acb)
     l2meta.nb_clusters = 0;
     qemu_co_queue_init(&l2meta.dependent_requests);
 
-    if (acb->remaining_sectors == 0) {
-        /* request completed */
-        return 0;
-    }
+    while (acb->remaining_sectors != 0) {
 
-    index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
-    n_end = index_in_cluster + acb->remaining_sectors;
-    if (s->crypt_method &&
-        n_end > QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors)
-        n_end = QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors;
-
-    ret = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
-        index_in_cluster, n_end, &cur_nr_sectors, &l2meta);
-    if (ret < 0) {
-        return ret;
-    }
-
-    cluster_offset = l2meta.cluster_offset;
-    assert((cluster_offset & 511) == 0);
-
-    qemu_iovec_reset(&acb->hd_qiov);
-    qemu_iovec_copy(&acb->hd_qiov, acb->qiov, acb->bytes_done,
-        cur_nr_sectors * 512);
-
-    if (s->crypt_method) {
-        if (!acb->cluster_data) {
-            acb->cluster_data = g_malloc0(QCOW_MAX_CRYPT_CLUSTERS *
-                                             s->cluster_size);
+        index_in_cluster = acb->sector_num & (s->cluster_sectors - 1);
+        n_end = index_in_cluster + acb->remaining_sectors;
+        if (s->crypt_method &&
+            n_end > QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors) {
+            n_end = QCOW_MAX_CRYPT_CLUSTERS * s->cluster_sectors;
         }
 
-        assert(acb->hd_qiov.size <= QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
-        qemu_iovec_to_buffer(&acb->hd_qiov, acb->cluster_data);
+        ret = qcow2_alloc_cluster_offset(bs, acb->sector_num << 9,
+            index_in_cluster, n_end, &cur_nr_sectors, &l2meta);
+        if (ret < 0) {
+            return ret;
+        }
 
-        qcow2_encrypt_sectors(s, acb->sector_num, acb->cluster_data,
-            acb->cluster_data, cur_nr_sectors, 1, &s->aes_encrypt_key);
+        cluster_offset = l2meta.cluster_offset;
+        assert((cluster_offset & 511) == 0);
 
         qemu_iovec_reset(&acb->hd_qiov);
-        qemu_iovec_add(&acb->hd_qiov, acb->cluster_data,
+        qemu_iovec_copy(&acb->hd_qiov, acb->qiov, acb->bytes_done,
             cur_nr_sectors * 512);
+
+        if (s->crypt_method) {
+            if (!acb->cluster_data) {
+                acb->cluster_data = g_malloc0(QCOW_MAX_CRYPT_CLUSTERS *
+                                                 s->cluster_size);
+            }
+
+            assert(acb->hd_qiov.size <=
+                   QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
+            qemu_iovec_to_buffer(&acb->hd_qiov, acb->cluster_data);
+
+            qcow2_encrypt_sectors(s, acb->sector_num, acb->cluster_data,
+                acb->cluster_data, cur_nr_sectors, 1, &s->aes_encrypt_key);
+
+            qemu_iovec_reset(&acb->hd_qiov);
+            qemu_iovec_add(&acb->hd_qiov, acb->cluster_data,
+                cur_nr_sectors * 512);
+        }
+
+        BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
+        qemu_co_mutex_unlock(&s->lock);
+        ret = bdrv_co_writev(bs->file,
+                             (cluster_offset >> 9) + index_in_cluster,
+                             cur_nr_sectors, &acb->hd_qiov);
+        qemu_co_mutex_lock(&s->lock);
+        if (ret < 0) {
+            return ret;
+        }
+
+        ret = qcow2_alloc_cluster_link_l2(bs, &l2meta);
+
+        run_dependent_requests(s, &l2meta);
+
+        if (ret < 0) {
+            return ret;
+        }
+
+        acb->remaining_sectors -= cur_nr_sectors;
+        acb->sector_num += cur_nr_sectors;
+        acb->bytes_done += cur_nr_sectors * 512;
     }
 
-    BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
-    qemu_co_mutex_unlock(&s->lock);
-    ret = bdrv_co_writev(bs->file,
-                         (cluster_offset >> 9) + index_in_cluster,
-                         cur_nr_sectors, &acb->hd_qiov);
-    qemu_co_mutex_lock(&s->lock);
-    if (ret < 0) {
-        return ret;
-    }
-
-    ret = qcow2_alloc_cluster_link_l2(bs, &l2meta);
-
-    run_dependent_requests(s, &l2meta);
-
-    if (ret < 0) {
-        return ret;
-    }
-
-    acb->remaining_sectors -= cur_nr_sectors;
-    acb->sector_num += cur_nr_sectors;
-    acb->bytes_done += cur_nr_sectors * 512;
-
-    return 1;
+    return 0;
 }
 
 static int qcow2_co_writev(BlockDriverState *bs,
