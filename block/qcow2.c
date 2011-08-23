@@ -377,7 +377,7 @@ int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
 }
 
 typedef struct QCowAIOCB {
-    BlockDriverAIOCB common;
+    BlockDriverState *bs;
     int64_t sector_num;
     QEMUIOVector *qiov;
     int remaining_sectors;
@@ -392,7 +392,7 @@ typedef struct QCowAIOCB {
  */
 static int qcow2_aio_read_cb(QCowAIOCB *acb)
 {
-    BlockDriverState *bs = acb->common.bs;
+    BlockDriverState *bs = acb->bs;
     BDRVQcowState *s = bs->opaque;
     int index_in_cluster, n1;
     int ret;
@@ -508,7 +508,7 @@ static QCowAIOCB *qcow2_aio_setup(BlockDriverState *bs, int64_t sector_num,
                                   void *opaque, QCowAIOCB *acb)
 {
     memset(acb, 0, sizeof(*acb));
-    acb->common.bs = bs;
+    acb->bs = bs;
     acb->sector_num = sector_num;
     acb->qiov = qiov;
 
@@ -560,7 +560,7 @@ static void run_dependent_requests(BDRVQcowState *s, QCowL2Meta *m)
  */
 static int qcow2_aio_write_cb(QCowAIOCB *acb)
 {
-    BlockDriverState *bs = acb->common.bs;
+    BlockDriverState *bs = acb->bs;
     BDRVQcowState *s = bs->opaque;
     int index_in_cluster;
     int n_end;
