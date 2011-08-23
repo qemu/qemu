@@ -2484,16 +2484,19 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
             if (lpes1 == 0)
                 new_msr |= (target_ulong)MSR_HVB;
             msr |= 0x00080000;
+            env->spr[SPR_BOOKE_ESR] = ESR_PIL;
             break;
         case POWERPC_EXCP_PRIV:
             if (lpes1 == 0)
                 new_msr |= (target_ulong)MSR_HVB;
             msr |= 0x00040000;
+            env->spr[SPR_BOOKE_ESR] = ESR_PPR;
             break;
         case POWERPC_EXCP_TRAP:
             if (lpes1 == 0)
                 new_msr |= (target_ulong)MSR_HVB;
             msr |= 0x00020000;
+            env->spr[SPR_BOOKE_ESR] = ESR_PTR;
             break;
         default:
             /* Should never occur */
@@ -2556,16 +2559,19 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
         cpu_abort(env, "Debug exception is not implemented yet !\n");
         goto store_next;
     case POWERPC_EXCP_SPEU:      /* SPE/embedded floating-point unavailable  */
+        env->spr[SPR_BOOKE_ESR] = ESR_SPV;
         goto store_current;
     case POWERPC_EXCP_EFPDI:     /* Embedded floating-point data interrupt   */
         /* XXX: TODO */
         cpu_abort(env, "Embedded floating point data exception "
                   "is not implemented yet !\n");
+        env->spr[SPR_BOOKE_ESR] = ESR_SPV;
         goto store_next;
     case POWERPC_EXCP_EFPRI:     /* Embedded floating-point round interrupt  */
         /* XXX: TODO */
         cpu_abort(env, "Embedded floating point round exception "
                   "is not implemented yet !\n");
+        env->spr[SPR_BOOKE_ESR] = ESR_SPV;
         goto store_next;
     case POWERPC_EXCP_EPERFM:    /* Embedded performance monitor interrupt   */
         /* XXX: TODO */
