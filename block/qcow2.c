@@ -496,6 +496,7 @@ fail:
     qemu_co_mutex_unlock(&s->lock);
 
     qemu_iovec_destroy(&hd_qiov);
+    g_free(cluster_data);
 
     return ret;
 }
@@ -608,6 +609,7 @@ fail:
     qemu_co_mutex_unlock(&s->lock);
 
     qemu_iovec_destroy(&hd_qiov);
+    g_free(cluster_data);
 
     return ret;
 }
