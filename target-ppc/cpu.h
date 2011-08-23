@@ -516,7 +516,22 @@ struct ppc_slb_t {
 #endif
 
 /* Exception state register bits definition                                  */
-#define ESR_ST    23    /* Exception was caused by a store type access.      */
+#define ESR_PIL   (1 << (63 - 36)) /* Illegal Instruction                    */
+#define ESR_PPR   (1 << (63 - 37)) /* Privileged Instruction                 */
+#define ESR_PTR   (1 << (63 - 38)) /* Trap                                   */
+#define ESR_FP    (1 << (63 - 39)) /* Floating-Point Operation               */
+#define ESR_ST    (1 << (63 - 40)) /* Store Operation                        */
+#define ESR_AP    (1 << (63 - 44)) /* Auxiliary Processor Operation          */
+#define ESR_PUO   (1 << (63 - 45)) /* Unimplemented Operation                */
+#define ESR_BO    (1 << (63 - 46)) /* Byte Ordering                          */
+#define ESR_PIE   (1 << (63 - 47)) /* Imprecise exception                    */
+#define ESR_DATA  (1 << (63 - 53)) /* Data Access (Embedded page table)      */
+#define ESR_TLBI  (1 << (63 - 54)) /* TLB Ineligible (Embedded page table)   */
+#define ESR_PT    (1 << (63 - 55)) /* Page Table (Embedded page table)       */
+#define ESR_SPV   (1 << (63 - 56)) /* SPE/VMX operation                      */
+#define ESR_EPID  (1 << (63 - 57)) /* External Process ID operation          */
+#define ESR_VLEMI (1 << (63 - 58)) /* VLE operation                          */
+#define ESR_MIF   (1 << (63 - 62)) /* Misaligned instruction (VLE)           */
 
 enum {
     POWERPC_FLAG_NONE     = 0x00000000,

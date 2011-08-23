@@ -1837,7 +1837,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->exception_index = POWERPC_EXCP_DTLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = address;
-                    env->spr[SPR_BOOKE_ESR] = rw ? 1 << ESR_ST : 0;
+                    env->spr[SPR_BOOKE_ESR] = rw ? ESR_ST : 0;
                     return -1;
                 case POWERPC_MMU_REAL:
                     cpu_abort(env, "PowerPC in real mode should never raise "
@@ -1861,7 +1861,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 } else if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
                            (env->mmu_model == POWERPC_MMU_BOOKE206)) {
                     env->spr[SPR_BOOKE_DEAR] = address;
-                    env->spr[SPR_BOOKE_ESR] = rw ? 1 << ESR_ST : 0;
+                    env->spr[SPR_BOOKE_ESR] = rw ? ESR_ST : 0;
                 } else {
                     env->spr[SPR_DAR] = address;
                     if (rw == 1) {
