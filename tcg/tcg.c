@@ -1128,18 +1128,19 @@ void tcg_add_target_add_op_defs(const TCGTargetOpDef *tdefs)
 #if defined(CONFIG_DEBUG_TCG)
     i = 0;
     for (op = 0; op < ARRAY_SIZE(tcg_op_defs); op++) {
-        if (op < INDEX_op_call || op == INDEX_op_debug_insn_start) {
+        const TCGOpDef *def = &tcg_op_defs[op];
+        if (op < INDEX_op_call
+            || op == INDEX_op_debug_insn_start
+            || (def->flags & TCG_OPF_NOT_PRESENT)) {
             /* Wrong entry in op definitions? */
-            if (tcg_op_defs[op].used) {
-                fprintf(stderr, "Invalid op definition for %s\n",
-                        tcg_op_defs[op].name);
+            if (def->used) {
+                fprintf(stderr, "Invalid op definition for %s\n", def->name);
                 i = 1;
             }
         } else {
             /* Missing entry in op definitions? */
-            if (!tcg_op_defs[op].used) {
-                fprintf(stderr, "Missing op definition for %s\n",
-                        tcg_op_defs[op].name);
+            if (!def->used) {
+                fprintf(stderr, "Missing op definition for %s\n", def->name);
                 i = 1;
             }
         }
