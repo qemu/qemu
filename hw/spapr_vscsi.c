@@ -483,7 +483,6 @@ static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status)
     if (status == CHECK_CONDITION) {
         req->senselen = scsi_req_get_sense(req->sreq, req->sense,
                                            sizeof(req->sense));
-        status = 0;
         dprintf("VSCSI: Sense data, %d bytes:\n", len);
         dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
                 req->sense[0], req->sense[1], req->sense[2], req->sense[3],
