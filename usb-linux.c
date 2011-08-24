@@ -407,8 +407,11 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
     int interface, nb_interfaces;
     int ret, i;
 
-    if (configuration == 0) /* address state - ignore */
+    if (configuration == 0) { /* address state - ignore */
+        dev->ninterfaces   = 0;
+        dev->configuration = 0;
         return 1;
+    }
 
     DPRINTF("husb: claiming interfaces. config %d\n", configuration);
 
@@ -433,7 +436,7 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
 
         DPRINTF("husb: config #%d need %d\n", dev->descr[i + 5], configuration);
 
-        if (configuration < 0 || configuration == dev->descr[i + 5]) {
+        if (configuration == dev->descr[i + 5]) {
             configuration = dev->descr[i + 5];
             break;
         }
@@ -513,7 +516,7 @@ static void usb_host_handle_reset(USBDevice *dev)
 
     ioctl(s->fd, USBDEVFS_RESET);
 
-    usb_host_claim_interfaces(s, s->configuration);
+    usb_host_claim_interfaces(s, 0);
     usb_linux_update_endp_table(s);
 }
 
@@ -835,6 +838,7 @@ static int usb_host_set_config(USBHostDevice *s, int config)
         return ctrl_error();
     }
     usb_host_claim_interfaces(s, config);
+    usb_linux_update_endp_table(s);
     return 0;
 }
 
@@ -941,51 +945,6 @@ static int usb_host_handle_control(USBDevice *dev, USBPacket *p,
     return USB_RET_ASYNC;
 }
 
-static int usb_linux_get_configuration(USBHostDevice *s)
-{
-    uint8_t configuration;
-    struct usb_ctrltransfer ct;
-    int ret;
-
-    if (usb_fs_type == USB_FS_SYS) {
-        char device_name[32], line[1024];
-        int configuration;
-
-        sprintf(device_name, "%d-%s", s->bus_num, s->port);
-
-        if (!usb_host_read_file(line, sizeof(line), "bConfigurationValue",
-                                device_name)) {
-            goto usbdevfs;
-        }
-        if (sscanf(line, "%d", &configuration) != 1) {
-            goto usbdevfs;
-        }
-        return configuration;
-    }
-
-usbdevfs:
-    ct.bRequestType = USB_DIR_IN;
-    ct.bRequest = USB_REQ_GET_CONFIGURATION;
-    ct.wValue = 0;
-    ct.wIndex = 0;
-    ct.wLength = 1;
-    ct.data = &configuration;
-    ct.timeout = 50;
-
-    ret = ioctl(s->fd, USBDEVFS_CONTROL, &ct);
-    if (ret < 0) {
-        perror("usb_linux_get_configuration");
-        return -1;
-    }
-
-    /* in address state */
-    if (configuration == 0) {
-        return -1;
-    }
-
-    return configuration;
-}
-
 static uint8_t usb_linux_get_alt_setting(USBHostDevice *s,
     uint8_t configuration, uint8_t interface)
 {
@@ -1031,16 +990,16 @@ usbdevfs:
 static int usb_linux_update_endp_table(USBHostDevice *s)
 {
     uint8_t *descriptors;
-    uint8_t devep, type, configuration, alt_interface;
+    uint8_t devep, type, alt_interface;
     int interface, length, i;
 
     for (i = 0; i < MAX_ENDPOINTS; i++)
         s->endp_table[i].type = INVALID_EP_TYPE;
 
-    i = usb_linux_get_configuration(s);
-    if (i < 0)
-        return 1;
-    configuration = i;
+    if (s->configuration == 0) {
+        /* not configured yet -- leave all endpoints disabled */
+        return 0;
+    }
 
     /* get the desired configuration, interface, and endpoint descriptors
      * from device description */
@@ -1049,8 +1008,9 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     i = 0;
 
     if (descriptors[i + 1] != USB_DT_CONFIG ||
-        descriptors[i + 5] != configuration) {
-        DPRINTF("invalid descriptor data - configuration\n");
+        descriptors[i + 5] != s->configuration) {
+        fprintf(stderr, "invalid descriptor data - configuration %d\n",
+                s->configuration);
         return 1;
     }
     i += descriptors[i];
@@ -1064,7 +1024,8 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
         }
 
         interface = descriptors[i + 2];
-        alt_interface = usb_linux_get_alt_setting(s, configuration, interface);
+        alt_interface = usb_linux_get_alt_setting(s, s->configuration,
+                                                  interface);
 
         /* the current interface descriptor is the active interface
          * and has endpoints */
@@ -1204,13 +1165,8 @@ static int usb_host_open(USBHostDevice *dev, int bus_num,
 #endif
 
 
-    /*
-     * Initial configuration is -1 which makes us claim first
-     * available config. We used to start with 1, which does not
-     * always work. I've seen devices where first config starts
-     * with 2.
-     */
-    if (!usb_host_claim_interfaces(dev, -1)) {
+    /* start unconfigured -- we'll wait for the guest to set a configuration */
+    if (!usb_host_claim_interfaces(dev, 0)) {
         goto fail;
     }
 
