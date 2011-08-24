@@ -143,6 +143,7 @@ static int parse_filter(const char *spec, struct USBAutoFilter *f);
 static void usb_host_auto_check(void *unused);
 static int usb_host_read_file(char *line, size_t line_size,
                             const char *device_file, const char *device_name);
+static int usb_linux_update_endp_table(USBHostDevice *s);
 
 static struct endp_data *get_endp(USBHostDevice *s, int ep)
 {
@@ -512,6 +513,7 @@ static void usb_host_handle_reset(USBDevice *dev)
     ioctl(s->fd, USBDEVFS_RESET);
 
     usb_host_claim_interfaces(s, s->configuration);
+    usb_linux_update_endp_table(s);
 }
 
 static void usb_host_handle_destroy(USBDevice *dev)
@@ -522,8 +524,6 @@ static void usb_host_handle_destroy(USBDevice *dev)
     QTAILQ_REMOVE(&hostdevs, s, next);
     qemu_remove_exit_notifier(&s->exit);
 }
-
-static int usb_linux_update_endp_table(USBHostDevice *s);
 
 /* iso data is special, we need to keep enough urbs in flight to make sure
    that the controller never runs out of them, otherwise the device will
@@ -732,7 +732,8 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     }
 
     if (is_halted(s, p->devep)) {
-        ret = ioctl(s->fd, USBDEVFS_CLEAR_HALT, &ep);
+        unsigned int arg = ep;
+        ret = ioctl(s->fd, USBDEVFS_CLEAR_HALT, &arg);
         if (ret < 0) {
             perror("USBDEVFS_CLEAR_HALT");
             trace_usb_host_req_complete(s->bus_num, s->addr, USB_RET_NAK);
