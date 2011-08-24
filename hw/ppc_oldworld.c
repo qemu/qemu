@@ -83,7 +83,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     MacIONVRAMState *nvr;
     int bios_size;
     MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem;
-    MemoryRegion *escc_mem, *ide_mem[2];
+    MemoryRegion *escc_mem, *escc_bar = g_new(MemoryRegion, 1), *ide_mem[2];
     uint16_t ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     void *fw_cfg;
@@ -241,6 +241,8 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
 
     escc_mem = escc_init(0x80013000, pic[0x0f], pic[0x10], serial_hds[0],
                                serial_hds[1], ESCC_CLOCK, 4);
+    memory_region_init_alias(escc_bar, "escc-bar",
+                             escc_mem, 0, memory_region_size(escc_mem));
 
     for(i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
@@ -269,7 +271,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
     pmac_format_nvram_partition(nvr, 0x2000);
 
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_343S1201, 1, pic_mem,
-               dbdma_mem, cuda_mem, nvr, 2, ide_mem, escc_mem);
+               dbdma_mem, cuda_mem, nvr, 2, ide_mem, escc_bar);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, -1);

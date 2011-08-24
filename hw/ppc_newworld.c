@@ -146,6 +146,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     MacIONVRAMState *nvr;
     int bios_size;
     MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem, *escc_mem;
+    MemoryRegion *escc_bar = g_new(MemoryRegion, 1);
     MemoryRegion *ide_mem[3];
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
@@ -328,6 +329,8 @@ static void ppc_core99_init (ram_addr_t ram_size,
 
     escc_mem = escc_init(0x80013000, pic[0x25], pic[0x24],
                          serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
+    memory_region_init_alias(escc_bar, "escc-bar",
+                             escc_mem, 0, memory_region_size(escc_mem));
 
     for(i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
@@ -350,7 +353,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     adb_mouse_init(&adb_bus);
 
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem,
-               dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_mem);
+               dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_bar);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, -1);
