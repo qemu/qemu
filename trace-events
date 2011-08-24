@@ -263,6 +263,7 @@ usb_host_ep_stop_iso(int bus, int addr, int ep) "dev %d:%d, ep %d"
 usb_host_reset(int bus, int addr) "dev %d:%d"
 usb_host_auto_scan_enabled(void)
 usb_host_auto_scan_disabled(void)
+usb_host_claim_port(int bus, int hub, int port) "bus %d, hub addr %d, port %d"
 
 # hw/scsi-bus.c
 scsi_req_alloc(int target, int lun, int tag) "target %d lun %d tag %d"

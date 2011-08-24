@@ -115,6 +115,7 @@ struct USBAutoFilter {
 typedef struct USBHostDevice {
     USBDevice dev;
     int       fd;
+    int       hub_fd;
 
     uint8_t   descr[8192];
     int       descr_len;
@@ -525,6 +526,9 @@ static void usb_host_handle_destroy(USBDevice *dev)
     USBHostDevice *s = (USBHostDevice *)dev;
 
     usb_host_close(s);
+    if (s->hub_fd != -1) {
+        close(s->hub_fd);
+    }
     QTAILQ_REMOVE(&hostdevs, s, next);
     qemu_remove_exit_notifier(&s->exit);
 }
@@ -1266,10 +1270,63 @@ static int usb_host_initfn(USBDevice *dev)
 
     dev->auto_attach = 0;
     s->fd = -1;
+    s->hub_fd = -1;
+
     QTAILQ_INSERT_TAIL(&hostdevs, s, next);
     s->exit.notify = usb_host_exit_notifier;
     qemu_add_exit_notifier(&s->exit);
     usb_host_auto_check(NULL);
+
+#ifdef USBDEVFS_CLAIM_PORT
+    if (s->match.bus_num != 0 && s->match.port != NULL) {
+        char *h, hub_name[64], line[1024];
+        int hub_addr, portnr, ret;
+
+        snprintf(hub_name, sizeof(hub_name), "%d-%s",
+                 s->match.bus_num, s->match.port);
+
+        /* try strip off last ".$portnr" to get hub */
+        h = strrchr(hub_name, '.');
+        if (h != NULL) {
+            portnr = atoi(h+1);
+            *h = '\0';
+        } else {
+            /* no dot in there -> it is the root hub */
+            snprintf(hub_name, sizeof(hub_name), "usb%d",
+                     s->match.bus_num);
+            portnr = atoi(s->match.port);
+        }
+
+        if (!usb_host_read_file(line, sizeof(line), "devnum",
+                                hub_name)) {
+            goto out;
+        }
+        if (sscanf(line, "%d", &hub_addr) != 1) {
+            goto out;
+        }
+
+        if (!usb_host_device_path) {
+            goto out;
+        }
+        snprintf(line, sizeof(line), "%s/%03d/%03d",
+                 usb_host_device_path, s->match.bus_num, hub_addr);
+        s->hub_fd = open(line, O_RDWR | O_NONBLOCK);
+        if (s->hub_fd < 0) {
+            goto out;
+        }
+
+        ret = ioctl(s->hub_fd, USBDEVFS_CLAIM_PORT, &portnr);
+        if (ret < 0) {
+            close(s->hub_fd);
+            s->hub_fd = -1;
+            goto out;
+        }
+
+        trace_usb_host_claim_port(s->match.bus_num, hub_addr, portnr);
+    }
+out:
+#endif
+
     return 0;
 }
 
