@@ -104,17 +104,20 @@ static void cd_data_to_raw(uint8_t *buf, int lba)
     memset(buf, 0, 288);
 }
 
-static int cd_read_sector(BlockDriverState *bs, int lba, uint8_t *buf,
-                           int sector_size)
+static int cd_read_sector(IDEState *s, int lba, uint8_t *buf, int sector_size)
 {
     int ret;
 
     switch(sector_size) {
     case 2048:
-        ret = bdrv_read(bs, (int64_t)lba << 2, buf, 4);
+        bdrv_acct_start(s->bs, &s->acct, 4 * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
+        ret = bdrv_read(s->bs, (int64_t)lba << 2, buf, 4);
+        bdrv_acct_done(s->bs, &s->acct);
         break;
     case 2352:
-        ret = bdrv_read(bs, (int64_t)lba << 2, buf + 16, 4);
+        bdrv_acct_start(s->bs, &s->acct, 4 * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
+        ret = bdrv_read(s->bs, (int64_t)lba << 2, buf + 16, 4);
+        bdrv_acct_done(s->bs, &s->acct);
         if (ret < 0)
             return ret;
         cd_data_to_raw(buf, lba);
@@ -181,7 +184,7 @@ void ide_atapi_cmd_reply_end(IDEState *s)
     } else {
         /* see if a new sector must be read */
         if (s->lba != -1 && s->io_buffer_index >= s->cd_sector_size) {
-            ret = cd_read_sector(s->bs, s->lba, s->io_buffer, s->cd_sector_size);
+            ret = cd_read_sector(s, s->lba, s->io_buffer, s->cd_sector_size);
             if (ret < 0) {
                 ide_transfer_stop(s);
                 ide_atapi_io_error(s, ret);
@@ -250,6 +253,7 @@ static void ide_atapi_cmd_reply(IDEState *s, int size, int max_size)
     s->io_buffer_index = 0;
 
     if (s->atapi_dma) {
+        bdrv_acct_start(s->bs, &s->acct, size, BDRV_ACCT_READ);
         s->status = READY_STAT | SEEK_STAT | DRQ_STAT;
         s->bus->dma->ops->start_dma(s->bus->dma, s,
                                    ide_atapi_cmd_read_dma_cb);
@@ -322,10 +326,7 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
         s->status = READY_STAT | SEEK_STAT;
         s->nsector = (s->nsector & ~7) | ATAPI_INT_REASON_IO | ATAPI_INT_REASON_CD;
         ide_set_irq(s->bus);
-    eot:
-        s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
-        ide_set_inactive(s);
-        return;
+        goto eot;
     }
 
     s->io_buffer_index = 0;
@@ -343,9 +344,11 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
 #ifdef DEBUG_AIO
     printf("aio_read_cd: lba=%u n=%d\n", s->lba, n);
 #endif
+
     s->bus->dma->iov.iov_base = (void *)(s->io_buffer + data_offset);
     s->bus->dma->iov.iov_len = n * 4 * 512;
     qemu_iovec_init_external(&s->bus->dma->qiov, &s->bus->dma->iov, 1);
+
     s->bus->dma->aiocb = bdrv_aio_readv(s->bs, (int64_t)s->lba << 2,
                                        &s->bus->dma->qiov, n * 4,
                                        ide_atapi_cmd_read_dma_cb, s);
@@ -355,6 +358,12 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
                             ASC_MEDIUM_NOT_PRESENT);
         goto eot;
     }
+
+    return;
+eot:
+    bdrv_acct_done(s->bs, &s->acct);
+    s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
+    ide_set_inactive(s);
 }
 
 /* start a CD-CDROM read command with DMA */
@@ -367,6 +376,8 @@ static void ide_atapi_cmd_read_dma(IDEState *s, int lba, int nb_sectors,
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->cd_sector_size = sector_size;
+
+    bdrv_acct_start(s->bs, &s->acct, s->packet_transfer_size, BDRV_ACCT_READ);
 
     /* XXX: check if BUSY_STAT should be set */
     s->status = READY_STAT | SEEK_STAT | DRQ_STAT | BUSY_STAT;

@@ -184,11 +184,8 @@ struct BlockDriverState {
     void *sync_aiocb;
 
     /* I/O stats (display with "info blockstats"). */
-    uint64_t rd_bytes;
-    uint64_t wr_bytes;
-    uint64_t rd_ops;
-    uint64_t wr_ops;
-    uint64_t flush_ops;
+    uint64_t nr_bytes[BDRV_MAX_IOTYPE];
+    uint64_t nr_ops[BDRV_MAX_IOTYPE];
     uint64_t wr_highest_sector;
 
     /* Whether the disk can expand beyond total_sectors */

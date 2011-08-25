@@ -255,6 +255,22 @@ int64_t bdrv_get_dirty_count(BlockDriverState *bs);
 void bdrv_set_in_use(BlockDriverState *bs, int in_use);
 int bdrv_in_use(BlockDriverState *bs);
 
+enum BlockAcctType {
+    BDRV_ACCT_READ,
+    BDRV_ACCT_WRITE,
+    BDRV_ACCT_FLUSH,
+    BDRV_MAX_IOTYPE,
+};
+
+typedef struct BlockAcctCookie {
+    int64_t bytes;
+    enum BlockAcctType type;
+} BlockAcctCookie;
+
+void bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
+        int64_t bytes, enum BlockAcctType type);
+void bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie);
+
 typedef enum {
     BLKDBG_L1_UPDATE,
 
@@ -307,3 +323,4 @@ typedef enum {
 void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
 
 #endif
+
