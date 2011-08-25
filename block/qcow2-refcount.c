@@ -422,7 +422,7 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
     int ret;
 
 #ifdef DEBUG_ALLOC2
-    printf("update_refcount: offset=%" PRId64 " size=%" PRId64 " addend=%d\n",
+    fprintf(stderr, "update_refcount: offset=%" PRId64 " size=%" PRId64 " addend=%d\n",
            offset, length, addend);
 #endif
     if (length < 0) {
@@ -556,7 +556,7 @@ retry:
         }
     }
 #ifdef DEBUG_ALLOC2
-    printf("alloc_clusters: size=%" PRId64 " -> %" PRId64 "\n",
+    fprintf(stderr, "alloc_clusters: size=%" PRId64 " -> %" PRId64 "\n",
             size,
             (s->free_cluster_index - nb_clusters) << s->cluster_bits);
 #endif

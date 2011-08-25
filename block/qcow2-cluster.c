@@ -53,7 +53,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size, bool exact_size)
     }
 
 #ifdef DEBUG_ALLOC2
-    printf("grow l1_table from %d to %d\n", s->l1_size, new_l1_size);
+    fprintf(stderr, "grow l1_table from %d to %d\n", s->l1_size, new_l1_size);
 #endif
 
     new_l1_size2 = sizeof(uint64_t) * new_l1_size;
