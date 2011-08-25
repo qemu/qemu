@@ -49,9 +49,6 @@ struct MilkymistSoftUsbState {
     HIDState hid_kbd;
     HIDState hid_mouse;
 
-    MemoryRegion regs_region;
-    MemoryRegion pmem;
-    MemoryRegion dmem;
     qemu_irq irq;
 
     /* device properties */
@@ -71,8 +68,7 @@ struct MilkymistSoftUsbState {
 };
 typedef struct MilkymistSoftUsbState MilkymistSoftUsbState;
 
-static uint64_t softusb_read(void *opaque, target_phys_addr_t addr,
-                             unsigned size)
+static uint32_t softusb_read(void *opaque, target_phys_addr_t addr)
 {
     MilkymistSoftUsbState *s = opaque;
     uint32_t r = 0;
@@ -95,8 +91,7 @@ static uint64_t softusb_read(void *opaque, target_phys_addr_t addr,
 }
 
 static void
-softusb_write(void *opaque, target_phys_addr_t addr, uint64_t value,
-              unsigned size)
+softusb_write(void *opaque, target_phys_addr_t addr, uint32_t value)
 {
     MilkymistSoftUsbState *s = opaque;
 
@@ -115,14 +110,16 @@ softusb_write(void *opaque, target_phys_addr_t addr, uint64_t value,
     }
 }
 
-static const MemoryRegionOps softusb_mmio_ops = {
-    .read = softusb_read,
-    .write = softusb_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4,
-    },
+static CPUReadMemoryFunc * const softusb_read_fn[] = {
+    NULL,
+    NULL,
+    &softusb_read,
+};
+
+static CPUWriteMemoryFunc * const softusb_write_fn[] = {
+    NULL,
+    NULL,
+    &softusb_write,
 };
 
 static inline void softusb_read_dmem(MilkymistSoftUsbState *s,
@@ -259,20 +256,23 @@ static void milkymist_softusb_reset(DeviceState *d)
 static int milkymist_softusb_init(SysBusDevice *dev)
 {
     MilkymistSoftUsbState *s = FROM_SYSBUS(typeof(*s), dev);
+    int softusb_regs;
+    ram_addr_t pmem_ram;
+    ram_addr_t dmem_ram;
 
     sysbus_init_irq(dev, &s->irq);
 
-    memory_region_init_io(&s->regs_region, &softusb_mmio_ops, s,
-                          "milkymist-softusb", R_MAX * 4);
-    sysbus_init_mmio_region(dev, &s->regs_region);
+    softusb_regs = cpu_register_io_memory(softusb_read_fn, softusb_write_fn, s,
+            DEVICE_NATIVE_ENDIAN);
+    sysbus_init_mmio(dev, R_MAX * 4, softusb_regs);
 
     /* register pmem and dmem */
-    memory_region_init_ram(&s->pmem, NULL, "milkymist_softusb.pmem",
-                           s->pmem_size);
-    sysbus_add_memory(dev, s->pmem_base, &s->pmem);
-    memory_region_init_ram(&s->dmem, NULL, "milkymist_softusb.dmem",
-                           s->dmem_size);
-    sysbus_add_memory(dev, s->dmem_base, &s->dmem);
+    pmem_ram = qemu_ram_alloc(NULL, "milkymist_softusb.pmem", s->pmem_size);
+    cpu_register_physical_memory(s->pmem_base, s->pmem_size,
+            pmem_ram | IO_MEM_RAM);
+    dmem_ram = qemu_ram_alloc(NULL, "milkymist_softusb.dmem", s->dmem_size);
+    cpu_register_physical_memory(s->dmem_base, s->dmem_size,
+            dmem_ram | IO_MEM_RAM);
 
     hid_init(&s->hid_kbd, HID_KEYBOARD, softusb_kbd_hid_datain);
     hid_init(&s->hid_mouse, HID_MOUSE, softusb_mouse_hid_datain);

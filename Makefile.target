@@ -195,6 +195,7 @@ obj-$(CONFIG_VIRTIO) += virtio.o virtio-blk.o virtio-balloon.o virtio-net.o virt
 obj-y += vhost_net.o
 obj-$(CONFIG_VHOST_NET) += vhost.o
 obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/virtio-9p-device.o
+obj-y += rwhandler.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-y += memory.o

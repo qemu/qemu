@@ -79,6 +79,8 @@ struct PPCE500PCIState {
     uint32_t gasket_time;
     qemu_irq irq[4];
     /* mmio maps */
+    int cfgaddr;
+    int cfgdata;
     int reg;
 };
 
@@ -266,18 +268,18 @@ static void e500_pci_map(SysBusDevice *dev, target_phys_addr_t base)
     PCIHostState *h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
     PPCE500PCIState *s = DO_UPCAST(PPCE500PCIState, pci_state, h);
 
-    sysbus_add_memory(dev, base + PCIE500_CFGADDR, &h->conf_mem);
-    sysbus_add_memory(dev, base + PCIE500_CFGDATA, &h->data_mem);
+    cpu_register_physical_memory(base + PCIE500_CFGADDR, 4, s->cfgaddr);
+    cpu_register_physical_memory(base + PCIE500_CFGDATA, 4, s->cfgdata);
     cpu_register_physical_memory(base + PCIE500_REG_BASE, PCIE500_REG_SIZE,
                                  s->reg);
 }
 
 static void e500_pci_unmap(SysBusDevice *dev, target_phys_addr_t base)
 {
-    PCIHostState *h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
-
-    sysbus_del_memory(dev, &h->conf_mem);
-    sysbus_del_memory(dev, &h->data_mem);
+    cpu_register_physical_memory(base + PCIE500_CFGADDR, 4,
+                                 IO_MEM_UNASSIGNED);
+    cpu_register_physical_memory(base + PCIE500_CFGDATA, 4,
+                                 IO_MEM_UNASSIGNED);
     cpu_register_physical_memory(base + PCIE500_REG_BASE, PCIE500_REG_SIZE,
                                  IO_MEM_UNASSIGNED);
 }
@@ -307,10 +309,9 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
 
     pci_create_simple(b, 0, "e500-host-bridge");
 
-    memory_region_init_io(&h->conf_mem, &pci_host_conf_be_ops, h,
-                          "pci-conf-idx", 4);
-    memory_region_init_io(&h->data_mem, &pci_host_data_le_ops, h,
-                          "pci-conf-data", 4);
+    s->cfgaddr = pci_host_conf_register_mmio(&s->pci_state, DEVICE_BIG_ENDIAN);
+    s->cfgdata = pci_host_data_register_mmio(&s->pci_state,
+                                             DEVICE_LITTLE_ENDIAN);
     s->reg = cpu_register_io_memory(e500_pci_reg_read, e500_pci_reg_write, s,
                                     DEVICE_BIG_ENDIAN);
     sysbus_init_mmio_cb2(dev, e500_pci_map, e500_pci_unmap);

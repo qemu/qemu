@@ -280,11 +280,10 @@ static void z2_init(ram_addr_t ram_size,
     uint32_t sector_len = 0x10000;
     PXA2xxState *cpu;
     DriveInfo *dinfo;
-    const MemoryRegionOps *flash_ops;
+    int be;
     void *z2_lcd;
     i2c_bus *bus;
     DeviceState *wm;
-    MemoryRegion *flash = g_new(MemoryRegion, 1);
 
     if (!cpu_model) {
         cpu_model = "pxa270-c5";
@@ -294,9 +293,9 @@ static void z2_init(ram_addr_t ram_size,
     cpu = pxa270_init(z2_binfo.ram_size, cpu_model);
 
 #ifdef TARGET_WORDS_BIGENDIAN
-    flash_ops = &pflash_cfi01_ops_be;
+    be = 1;
 #else
-    flash_ops = &pflash_cfi01_ops_le;
+    be = 0;
 #endif
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!dinfo) {
@@ -305,11 +304,11 @@ static void z2_init(ram_addr_t ram_size,
         exit(1);
     }
 
-    memory_region_init_rom_device(flash, flash_ops,
-                                  NULL, "z2.flash0", Z2_FLASH_SIZE);
-    if (!pflash_cfi01_register(Z2_FLASH_BASE, flash,
+    if (!pflash_cfi01_register(Z2_FLASH_BASE,
+                               qemu_ram_alloc(NULL, "z2.flash0", Z2_FLASH_SIZE),
                                dinfo->bdrv, sector_len,
-                               Z2_FLASH_SIZE / sector_len, 4, 0, 0, 0, 0)) {
+                               Z2_FLASH_SIZE / sector_len, 4, 0, 0, 0, 0,
+                               be)) {
         fprintf(stderr, "qemu: Error registering flash memory.\n");
         exit(1);
     }

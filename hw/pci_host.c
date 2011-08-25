@@ -94,72 +94,82 @@ uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len)
     return val;
 }
 
-static void pci_host_config_write(void *opaque, target_phys_addr_t addr,
-                                  uint64_t val, unsigned len)
+static void pci_host_config_write(ReadWriteHandler *handler,
+                                  pcibus_t addr, uint32_t val, int len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = container_of(handler, PCIHostState, conf_handler);
 
-    PCI_DPRINTF("%s addr " TARGET_FMT_plx " len %d val %"PRIx64"\n",
+    PCI_DPRINTF("%s addr %" FMT_PCIBUS " %d val %"PRIx32"\n",
                 __func__, addr, len, val);
     s->config_reg = val;
 }
 
-static uint64_t pci_host_config_read(void *opaque, target_phys_addr_t addr,
-                                     unsigned len)
+static uint32_t pci_host_config_read(ReadWriteHandler *handler,
+                                     pcibus_t addr, int len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = container_of(handler, PCIHostState, conf_handler);
     uint32_t val = s->config_reg;
 
-    PCI_DPRINTF("%s addr " TARGET_FMT_plx " len %d val %"PRIx32"\n",
+    PCI_DPRINTF("%s addr %" FMT_PCIBUS " len %d val %"PRIx32"\n",
                 __func__, addr, len, val);
     return val;
 }
 
-static void pci_host_data_write(void *opaque, target_phys_addr_t addr,
-                                uint64_t val, unsigned len)
+static void pci_host_data_write(ReadWriteHandler *handler,
+                                pcibus_t addr, uint32_t val, int len)
 {
-    PCIHostState *s = opaque;
-    PCI_DPRINTF("write addr " TARGET_FMT_plx " len %d val %x\n",
-                addr, len, (unsigned)val);
+    PCIHostState *s = container_of(handler, PCIHostState, data_handler);
+    PCI_DPRINTF("write addr %" FMT_PCIBUS " len %d val %x\n",
+                addr, len, val);
     if (s->config_reg & (1u << 31))
         pci_data_write(s->bus, s->config_reg | (addr & 3), val, len);
 }
 
-static uint64_t pci_host_data_read(void *opaque,
-                                   target_phys_addr_t addr, unsigned len)
+static uint32_t pci_host_data_read(ReadWriteHandler *handler,
+                                   pcibus_t addr, int len)
 {
-    PCIHostState *s = opaque;
+    PCIHostState *s = container_of(handler, PCIHostState, data_handler);
     uint32_t val;
     if (!(s->config_reg & (1 << 31)))
         return 0xffffffff;
     val = pci_data_read(s->bus, s->config_reg | (addr & 3), len);
-    PCI_DPRINTF("read addr " TARGET_FMT_plx " len %d val %x\n",
+    PCI_DPRINTF("read addr %" FMT_PCIBUS " len %d val %x\n",
                 addr, len, val);
     return val;
 }
 
-const MemoryRegionOps pci_host_conf_le_ops = {
-    .read = pci_host_config_read,
-    .write = pci_host_config_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
+static void pci_host_init(PCIHostState *s)
+{
+    s->conf_handler.write = pci_host_config_write;
+    s->conf_handler.read = pci_host_config_read;
+    s->data_handler.write = pci_host_data_write;
+    s->data_handler.read = pci_host_data_read;
+}
 
-const MemoryRegionOps pci_host_conf_be_ops = {
-    .read = pci_host_config_read,
-    .write = pci_host_config_write,
-    .endianness = DEVICE_BIG_ENDIAN,
-};
+int pci_host_conf_register_mmio(PCIHostState *s, int endian)
+{
+    pci_host_init(s);
+    return cpu_register_io_memory_simple(&s->conf_handler, endian);
+}
 
-const MemoryRegionOps pci_host_data_le_ops = {
-    .read = pci_host_data_read,
-    .write = pci_host_data_write,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
+void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s)
+{
+    pci_host_init(s);
+    register_ioport_simple(&s->conf_handler, ioport, 4, 4);
+    sysbus_init_ioports(&s->busdev, ioport, 4);
+}
 
-const MemoryRegionOps pci_host_data_be_ops = {
-    .read = pci_host_data_read,
-    .write = pci_host_data_write,
-    .endianness = DEVICE_BIG_ENDIAN,
-};
+int pci_host_data_register_mmio(PCIHostState *s, int endian)
+{
+    pci_host_init(s);
+    return cpu_register_io_memory_simple(&s->data_handler, endian);
+}
 
-
+void pci_host_data_register_ioport(pio_addr_t ioport, PCIHostState *s)
+{
+    pci_host_init(s);
+    register_ioport_simple(&s->data_handler, ioport, 4, 1);
+    register_ioport_simple(&s->data_handler, ioport, 4, 2);
+    register_ioport_simple(&s->data_handler, ioport, 4, 4);
+    sysbus_init_ioports(&s->busdev, ioport, 4);
+}

@@ -195,8 +195,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        g364fb_mm_init(get_system_memory(), 0x40000000, 0x60000000, 0,
-                       rc4030[3]);
+        g364fb_mm_init(0x40000000, 0x60000000, 0, rc4030[3]);
         break;
     case JAZZ_PICA61:
         isa_vga_mm_init(0x40000000, 0x60000000, 0, get_system_memory());

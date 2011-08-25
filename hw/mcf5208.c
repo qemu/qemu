@@ -13,7 +13,6 @@
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "exec-memory.h"
 
 #define SYS_FREQ 66000000
 
@@ -28,7 +27,6 @@
 #define PCSR_PRE_MASK   0x0f00
 
 typedef struct {
-    MemoryRegion iomem;
     qemu_irq irq;
     ptimer_state *timer;
     uint16_t pcsr;
@@ -45,7 +43,7 @@ static void m5208_timer_update(m5208_timer_state *s)
 }
 
 static void m5208_timer_write(void *opaque, target_phys_addr_t offset,
-                              uint64_t value, unsigned size)
+                              uint32_t value)
 {
     m5208_timer_state *s = (m5208_timer_state *)opaque;
     int prescale;
@@ -106,8 +104,7 @@ static void m5208_timer_trigger(void *opaque)
     m5208_timer_update(s);
 }
 
-static uint64_t m5208_timer_read(void *opaque, target_phys_addr_t addr,
-                                 unsigned size)
+static uint32_t m5208_timer_read(void *opaque, target_phys_addr_t addr)
 {
     m5208_timer_state *s = (m5208_timer_state *)opaque;
     switch (addr) {
@@ -123,14 +120,19 @@ static uint64_t m5208_timer_read(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static const MemoryRegionOps m5208_timer_ops = {
-    .read = m5208_timer_read,
-    .write = m5208_timer_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+static CPUReadMemoryFunc * const m5208_timer_readfn[] = {
+   m5208_timer_read,
+   m5208_timer_read,
+   m5208_timer_read
 };
 
-static uint64_t m5208_sys_read(void *opaque, target_phys_addr_t addr,
-                               unsigned size)
+static CPUWriteMemoryFunc * const m5208_timer_writefn[] = {
+   m5208_timer_write,
+   m5208_timer_write,
+   m5208_timer_write
+};
+
+static uint32_t m5208_sys_read(void *opaque, target_phys_addr_t addr)
 {
     switch (addr) {
     case 0x110: /* SDCS0 */
@@ -152,36 +154,45 @@ static uint64_t m5208_sys_read(void *opaque, target_phys_addr_t addr,
 }
 
 static void m5208_sys_write(void *opaque, target_phys_addr_t addr,
-                            uint64_t value, unsigned size)
+                            uint32_t value)
 {
     hw_error("m5208_sys_write: Bad offset 0x%x\n", (int)addr);
 }
 
-static const MemoryRegionOps m5208_sys_ops = {
-    .read = m5208_sys_read,
-    .write = m5208_sys_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+static CPUReadMemoryFunc * const m5208_sys_readfn[] = {
+   m5208_sys_read,
+   m5208_sys_read,
+   m5208_sys_read
 };
 
-static void mcf5208_sys_init(MemoryRegion *address_space, qemu_irq *pic)
+static CPUWriteMemoryFunc * const m5208_sys_writefn[] = {
+   m5208_sys_write,
+   m5208_sys_write,
+   m5208_sys_write
+};
+
+static void mcf5208_sys_init(qemu_irq *pic)
 {
-    MemoryRegion *iomem = g_new(MemoryRegion, 1);
+    int iomemtype;
     m5208_timer_state *s;
     QEMUBH *bh;
     int i;
 
+    iomemtype = cpu_register_io_memory(m5208_sys_readfn,
+                                       m5208_sys_writefn, NULL,
+                                       DEVICE_NATIVE_ENDIAN);
     /* SDRAMC.  */
-    memory_region_init_io(iomem, &m5208_sys_ops, NULL, "m5208-sys", 0x00004000);
-    memory_region_add_subregion(address_space, 0xfc0a8000, iomem);
+    cpu_register_physical_memory(0xfc0a8000, 0x00004000, iomemtype);
     /* Timers.  */
     for (i = 0; i < 2; i++) {
         s = (m5208_timer_state *)g_malloc0(sizeof(m5208_timer_state));
         bh = qemu_bh_new(m5208_timer_trigger, s);
         s->timer = ptimer_init(bh);
-        memory_region_init_io(&s->iomem, &m5208_timer_ops, s,
-                              "m5208-timer", 0x00004000);
-        memory_region_add_subregion(address_space, 0xfc080000 + 0x4000 * i,
-                                    &s->iomem);
+        iomemtype = cpu_register_io_memory(m5208_timer_readfn,
+                                           m5208_timer_writefn, s,
+                                           DEVICE_NATIVE_ENDIAN);
+        cpu_register_physical_memory(0xfc080000 + 0x4000 * i, 0x00004000,
+                                     iomemtype);
         s->irq = pic[4 + i];
     }
 }
@@ -196,9 +207,6 @@ static void mcf5208evb_init(ram_addr_t ram_size,
     uint64_t elf_entry;
     target_phys_addr_t entry;
     qemu_irq *pic;
-    MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *sram = g_new(MemoryRegion, 1);
 
     if (!cpu_model)
         cpu_model = "m5208";
@@ -213,12 +221,12 @@ static void mcf5208evb_init(ram_addr_t ram_size,
     /* TODO: Configure BARs.  */
 
     /* DRAM at 0x40000000 */
-    memory_region_init_ram(ram, NULL, "mcf5208.ram", ram_size);
-    memory_region_add_subregion(address_space_mem, 0x40000000, ram);
+    cpu_register_physical_memory(0x40000000, ram_size,
+        qemu_ram_alloc(NULL, "mcf5208.ram", ram_size) | IO_MEM_RAM);
 
     /* Internal SRAM.  */
-    memory_region_init_ram(sram, NULL, "mcf5208.sram", 16384);
-    memory_region_add_subregion(address_space_mem, 0x80000000, sram);
+    cpu_register_physical_memory(0x80000000, 16384,
+        qemu_ram_alloc(NULL, "mcf5208.sram", 16384) | IO_MEM_RAM);
 
     /* Internal peripherals.  */
     pic = mcf_intc_init(0xfc048000, env);
@@ -227,7 +235,7 @@ static void mcf5208evb_init(ram_addr_t ram_size,
     mcf_uart_mm_init(0xfc064000, pic[27], serial_hds[1]);
     mcf_uart_mm_init(0xfc068000, pic[28], serial_hds[2]);
 
-    mcf5208_sys_init(address_space_mem, pic);
+    mcf5208_sys_init(pic);
 
     if (nb_nics > 1) {
         fprintf(stderr, "Too many NICs\n");

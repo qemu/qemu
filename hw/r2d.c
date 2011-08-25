@@ -235,7 +235,6 @@ static void r2d_init(ram_addr_t ram_size,
     qemu_irq *irq;
     DriveInfo *dinfo;
     int i;
-    MemoryRegion *flash = g_new(MemoryRegion, 1);
 
     if (!cpu_model)
         cpu_model = "SH7751R";
@@ -268,13 +267,11 @@ static void r2d_init(ram_addr_t ram_size,
 
     /* onboard flash memory */
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    memory_region_init_rom_device(flash, &pflash_cfi02_ops_le,
-                                  NULL, "r2d.flash", FLASH_SIZE);
-    pflash_cfi02_register(0x0, flash,
+    pflash_cfi02_register(0x0, qemu_ram_alloc(NULL, "r2d.flash", FLASH_SIZE),
                           dinfo ? dinfo->bdrv : NULL, (16 * 1024),
                           FLASH_SIZE >> 16,
                           1, 4, 0x0000, 0x0000, 0x0000, 0x0000,
-                          0x555, 0x2aa);
+                          0x555, 0x2aa, 0);
 
     /* NIC: rtl8139 on-board, and 2 slots. */
     for (i = 0; i < nb_nics; i++)

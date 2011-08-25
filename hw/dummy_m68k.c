@@ -10,7 +10,6 @@
 #include "boards.h"
 #include "loader.h"
 #include "elf.h"
-#include "exec-memory.h"
 
 #define KERNEL_LOAD_ADDR 0x10000
 
@@ -22,8 +21,6 @@ static void dummy_m68k_init(ram_addr_t ram_size,
                      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    MemoryRegion *address_space_mem =  get_system_memory();
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
     int kernel_size;
     uint64_t elf_entry;
     target_phys_addr_t entry;
@@ -40,8 +37,8 @@ static void dummy_m68k_init(ram_addr_t ram_size,
     env->vbr = 0;
 
     /* RAM at address zero */
-    memory_region_init_ram(ram, NULL, "dummy_m68k.ram", ram_size);
-    memory_region_add_subregion(address_space_mem, 0, ram);
+    cpu_register_physical_memory(0, ram_size,
+        qemu_ram_alloc(NULL, "dummy_m68k.ram", ram_size) | IO_MEM_RAM);
 
     /* Load kernel.  */
     if (kernel_filename) {

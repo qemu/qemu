@@ -368,12 +368,10 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     cpu_register_physical_memory(config_space + PCIC0_CFGADDR, 4, index);
 
     /* CFGDATA */
-    memory_region_init_io(&controller->pci_state.data_mem,
-                          &pci_host_data_be_ops,
-                          &controller->pci_state, "pci-conf-data", 4);
-    memory_region_add_subregion(get_system_memory(),
-                                config_space + PCIC0_CFGDATA,
-                                &controller->pci_state.data_mem);
+    index = pci_host_data_register_mmio(&controller->pci_state, 1);
+    if (index < 0)
+        goto free;
+    cpu_register_physical_memory(config_space + PCIC0_CFGDATA, 4, index);
 
     /* Internal registers */
     index = cpu_register_io_memory(pci_reg_read, pci_reg_write, controller,

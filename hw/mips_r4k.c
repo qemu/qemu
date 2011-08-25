@@ -23,7 +23,6 @@
 #include "elf.h"
 #include "mc146818rtc.h"
 #include "blockdev.h"
-#include "exec-memory.h"
 
 #define MAX_IDE_BUS 2
 
@@ -164,8 +163,7 @@ void mips_r4k_init (ram_addr_t ram_size,
 {
     char *filename;
     ram_addr_t ram_offset;
-    MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *bios = g_new(MemoryRegion, 1);
+    ram_addr_t bios_offset;
     int bios_size;
     CPUState *env;
     ResetData *reset_info;
@@ -229,20 +227,18 @@ void mips_r4k_init (ram_addr_t ram_size,
     be = 0;
 #endif
     if ((bios_size > 0) && (bios_size <= BIOS_SIZE)) {
-        memory_region_init_ram(bios, NULL, "mips_r4k.bios", BIOS_SIZE);
-        memory_region_set_readonly(bios, true);
-        memory_region_add_subregion(address_space_mem, 0x1fc00000, bios);
+        bios_offset = qemu_ram_alloc(NULL, "mips_r4k.bios", BIOS_SIZE);
+	cpu_register_physical_memory(0x1fc00000, BIOS_SIZE,
+                                     bios_offset | IO_MEM_ROM);
+
         load_image_targphys(filename, 0x1fc00000, BIOS_SIZE);
     } else if ((dinfo = drive_get(IF_PFLASH, 0, 0)) != NULL) {
         uint32_t mips_rom = 0x00400000;
-        memory_region_init_rom_device(bios,
-                                      (be ? &pflash_cfi01_ops_be
-                                          : &pflash_cfi01_ops_le),
-                                      NULL, "mips_r4k.bios", mips_rom);
-        if (!pflash_cfi01_register(0x1fc00000, bios,
+        bios_offset = qemu_ram_alloc(NULL, "mips_r4k.bios", mips_rom);
+        if (!pflash_cfi01_register(0x1fc00000, bios_offset,
                                    dinfo->bdrv, sector_len,
                                    mips_rom / sector_len,
-                                   4, 0, 0, 0, 0)) {
+                                   4, 0, 0, 0, 0, be)) {
             fprintf(stderr, "qemu: Error registering flash memory.\n");
 	}
     }

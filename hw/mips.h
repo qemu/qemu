@@ -2,8 +2,6 @@
 #define HW_MIPS_H
 /* Definitions for mips board emulation.  */
 
-#include "memory.h"
-
 /* gt64xxx.c */
 PCIBus *gt64120_register(qemu_irq *pic);
 
@@ -11,7 +9,7 @@ PCIBus *gt64120_register(qemu_irq *pic);
 PCIBus *bonito_init(qemu_irq *pic);
 
 /* g364fb.c */
-int g364fb_mm_init(MemoryRegion *system_memory, target_phys_addr_t vram_base,
+int g364fb_mm_init(target_phys_addr_t vram_base,
                    target_phys_addr_t ctrl_base, int it_shift,
                    qemu_irq irq);
 

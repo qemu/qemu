@@ -13,13 +13,11 @@
 #include "boards.h"
 #include "arm-misc.h"
 #include "net.h"
-#include "exec-memory.h"
 
 typedef struct {
     SysBusDevice busdev;
     uint32_t memsz;
-    MemoryRegion flash;
-    bool flash_mapped;
+    uint32_t flash_offset;
     uint32_t cm_osc;
     uint32_t cm_ctrl;
     uint32_t cm_lock;
@@ -110,15 +108,9 @@ static uint32_t integratorcm_read(void *opaque, target_phys_addr_t offset)
 static void integratorcm_do_remap(integratorcm_state *s, int flash)
 {
     if (flash) {
-        if (s->flash_mapped) {
-            sysbus_del_memory(&s->busdev, &s->flash);
-            s->flash_mapped = false;
-        }
+        cpu_register_physical_memory(0, 0x100000, IO_MEM_RAM);
     } else {
-        if (!s->flash_mapped) {
-            sysbus_add_memory_overlap(&s->busdev, 0, &s->flash, 1);
-            s->flash_mapped = true;
-        }
+        cpu_register_physical_memory(0, 0x100000, s->flash_offset | IO_MEM_RAM);
     }
     //??? tlb_flush (cpu_single_env, 1);
 }
@@ -260,8 +252,7 @@ static int integratorcm_init(SysBusDevice *dev)
     }
     memcpy(integrator_spd + 73, "QEMU-MEMORY", 11);
     s->cm_init = 0x00000112;
-    memory_region_init_ram(&s->flash, NULL, "integrator.flash", 0x100000);
-    s->flash_mapped = false;
+    s->flash_offset = qemu_ram_alloc(NULL, "integrator.flash", 0x100000);
 
     iomemtype = cpu_register_io_memory(integratorcm_readfn,
                                        integratorcm_writefn, s,
@@ -465,9 +456,7 @@ static void integratorcp_init(ram_addr_t ram_size,
                      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
-    MemoryRegion *address_space_mem = get_system_memory();
-    MemoryRegion *ram = g_new(MemoryRegion, 1);
-    MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
+    ram_addr_t ram_offset;
     qemu_irq pic[32];
     qemu_irq *cpu_pic;
     DeviceState *dev;
@@ -480,14 +469,13 @@ static void integratorcp_init(ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    memory_region_init_ram(ram, NULL, "integrator.ram", ram_size);
+    ram_offset = qemu_ram_alloc(NULL, "integrator.ram", ram_size);
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero*/
-    memory_region_add_subregion(address_space_mem, 0, ram);
+    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
     /* And again at address 0x80000000 */
-    memory_region_init_alias(ram_alias, "ram.alias", ram, 0, ram_size);
-    memory_region_add_subregion(address_space_mem, 0x80000000, ram_alias);
+    cpu_register_physical_memory(0x80000000, ram_size, ram_offset | IO_MEM_RAM);
 
     dev = qdev_create(NULL, "integrator_core");
     qdev_prop_set_uint32(dev, "memsz", ram_size >> 20);
