@@ -967,6 +967,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
                                    uint64_t size)
 {
     memory_region_init(mr, name, size);
+    mr->ops = ops;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_rom_device;
     mr->ram_addr = qemu_ram_alloc(dev, name, size);
