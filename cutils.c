@@ -408,7 +408,7 @@ fail:
 
 int64_t strtosz_suffix(const char *nptr, char **end, const char default_suffix)
 {
-        return strtosz_suffix_unit(nptr, end, default_suffix, 1024);
+    return strtosz_suffix_unit(nptr, end, default_suffix, 1024);
 }
 
 int64_t strtosz(const char *nptr, char **end)
