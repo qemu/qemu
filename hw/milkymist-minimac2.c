@@ -97,6 +97,8 @@ struct MilkymistMinimac2State {
     NICConf conf;
     char *phy_model;
     target_phys_addr_t buffers_base;
+    MemoryRegion buffers;
+    MemoryRegion regs_region;
 
     qemu_irq rx_irq;
     qemu_irq tx_irq;
@@ -320,8 +322,8 @@ static ssize_t minimac2_rx(VLANClientState *nc, const uint8_t *buf, size_t size)
     return size;
 }
 
-static uint32_t
-minimac2_read(void *opaque, target_phys_addr_t addr)
+static uint64_t
+minimac2_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
     MilkymistMinimac2State *s = opaque;
     uint32_t r = 0;
@@ -350,7 +352,8 @@ minimac2_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void
-minimac2_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+minimac2_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+               unsigned size)
 {
     MilkymistMinimac2State *s = opaque;
 
@@ -395,16 +398,14 @@ minimac2_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc * const minimac2_read_fn[] = {
-    NULL,
-    NULL,
-    &minimac2_read,
-};
-
-static CPUWriteMemoryFunc * const minimac2_write_fn[] = {
-    NULL,
-    NULL,
-    &minimac2_write,
+static const MemoryRegionOps minimac2_ops = {
+    .read = minimac2_read,
+    .write = minimac2_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int minimac2_can_rx(VLANClientState *nc)
@@ -457,25 +458,23 @@ static NetClientInfo net_milkymist_minimac2_info = {
 static int milkymist_minimac2_init(SysBusDevice *dev)
 {
     MilkymistMinimac2State *s = FROM_SYSBUS(typeof(*s), dev);
-    int regs;
-    ram_addr_t buffers;
     size_t buffers_size = TARGET_PAGE_ALIGN(3 * MINIMAC2_BUFFER_SIZE);
 
     sysbus_init_irq(dev, &s->rx_irq);
     sysbus_init_irq(dev, &s->tx_irq);
 
-    regs = cpu_register_io_memory(minimac2_read_fn, minimac2_write_fn, s,
-            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, regs);
+    memory_region_init_io(&s->regs_region, &minimac2_ops, s,
+                          "minimac2-mmio", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->regs_region);
 
     /* register buffers memory */
-    buffers = qemu_ram_alloc(NULL, "milkymist_minimac2.buffers", buffers_size);
-    s->rx0_buf = qemu_get_ram_ptr(buffers);
+    memory_region_init_ram(&s->buffers, NULL, "milkymist_minimac2.buffers",
+                           buffers_size);
+    s->rx0_buf = memory_region_get_ram_ptr(&s->buffers);
     s->rx1_buf = s->rx0_buf + MINIMAC2_BUFFER_SIZE;
     s->tx_buf = s->rx1_buf + MINIMAC2_BUFFER_SIZE;
 
-    cpu_register_physical_memory(s->buffers_base, buffers_size,
-            buffers | IO_MEM_RAM);
+    sysbus_add_memory(dev, s->buffers_base, &s->buffers);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_milkymist_minimac2_info, &s->conf,

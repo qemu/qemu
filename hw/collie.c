@@ -26,7 +26,7 @@ static void collie_init(ram_addr_t ram_size,
 {
     StrongARMState *s;
     DriveInfo *dinfo;
-    ram_addr_t phys_flash;
+    MemoryRegion *phys_flash = g_new(MemoryRegion, 2);
 
     if (!cpu_model) {
         cpu_model = "sa1110";
@@ -34,17 +34,19 @@ static void collie_init(ram_addr_t ram_size,
 
     s = sa1110_init(collie_binfo.ram_size, cpu_model);
 
-    phys_flash = qemu_ram_alloc(NULL, "collie.fl1", 0x02000000);
+    memory_region_init_rom_device(&phys_flash[0], &pflash_cfi01_ops_le,
+                                  NULL, "collie.fl1", 0x02000000);
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    pflash_cfi01_register(SA_CS0, phys_flash,
+    pflash_cfi01_register(SA_CS0, &phys_flash[0],
                     dinfo ? dinfo->bdrv : NULL, (64 * 1024),
-                    512, 4, 0x00, 0x00, 0x00, 0x00, 0);
+                    512, 4, 0x00, 0x00, 0x00, 0x00);
 
-    phys_flash = qemu_ram_alloc(NULL, "collie.fl2", 0x02000000);
+    memory_region_init_rom_device(&phys_flash[1], &pflash_cfi01_ops_le,
+                                  NULL, "collie.fl2", 0x02000000);
     dinfo = drive_get(IF_PFLASH, 0, 1);
-    pflash_cfi01_register(SA_CS1, phys_flash,
+    pflash_cfi01_register(SA_CS1, &phys_flash[1],
                     dinfo ? dinfo->bdrv : NULL, (64 * 1024),
-                    512, 4, 0x00, 0x00, 0x00, 0x00, 0);
+                    512, 4, 0x00, 0x00, 0x00, 0x00);
 
     sysbus_create_simple("scoop", 0x40800000, NULL);
 

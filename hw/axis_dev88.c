@@ -31,6 +31,7 @@
 #include "elf.h"
 #include "cris-boot.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 #define D(x)
 #define DNAND(x)
@@ -259,8 +260,9 @@ void axisdev88_init (ram_addr_t ram_size,
     int i;
     int nand_regs;
     int gpio_regs;
-    ram_addr_t phys_ram;
-    ram_addr_t phys_intmem;
+    MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
+    MemoryRegion *phys_intmem = g_new(MemoryRegion, 1);
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -269,15 +271,13 @@ void axisdev88_init (ram_addr_t ram_size,
     env = cpu_init(cpu_model);
 
     /* allocate RAM */
-    phys_ram = qemu_ram_alloc(NULL, "axisdev88.ram", ram_size);
-    cpu_register_physical_memory(0x40000000, ram_size, phys_ram | IO_MEM_RAM);
+    memory_region_init_ram(phys_ram, NULL, "axisdev88.ram", ram_size);
+    memory_region_add_subregion(address_space_mem, 0x40000000, phys_ram);
 
     /* The ETRAX-FS has 128Kb on chip ram, the docs refer to it as the 
        internal memory.  */
-    phys_intmem = qemu_ram_alloc(NULL, "axisdev88.chipram", INTMEM_SIZE);
-    cpu_register_physical_memory(0x38000000, INTMEM_SIZE,
-                                 phys_intmem | IO_MEM_RAM);
-
+    memory_region_init_ram(phys_intmem, NULL, "axisdev88.chipram", INTMEM_SIZE);
+    memory_region_add_subregion(address_space_mem, 0x38000000, phys_intmem);
 
       /* Attach a NAND flash to CS1.  */
     nand = drive_get(IF_MTD, 0, 0);

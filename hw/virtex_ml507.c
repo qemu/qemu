@@ -196,7 +196,7 @@ static void virtex_init(ram_addr_t ram_size,
     target_phys_addr_t ram_base = 0;
     DriveInfo *dinfo;
     ram_addr_t phys_ram;
-    ram_addr_t phys_flash;
+    MemoryRegion *phys_flash = g_new(MemoryRegion, 1);
     qemu_irq irq[32], *cpu_irq;
     clk_setup_t clk_setup[7];
     int kernel_size;
@@ -215,12 +215,13 @@ static void virtex_init(ram_addr_t ram_size,
     phys_ram = qemu_ram_alloc(NULL, "ram", ram_size);
     cpu_register_physical_memory(ram_base, ram_size, phys_ram | IO_MEM_RAM);
 
-    phys_flash = qemu_ram_alloc(NULL, "virtex.flash", FLASH_SIZE);
+    memory_region_init_rom_device(phys_flash, &pflash_cfi01_ops_be,
+                                  NULL, "virtex.flash", FLASH_SIZE);
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(0xfc000000, phys_flash,
                           dinfo ? dinfo->bdrv : NULL, (64 * 1024),
                           FLASH_SIZE >> 16,
-                          1, 0x89, 0x18, 0x0000, 0x0, 1);
+                          1, 0x89, 0x18, 0x0000, 0x0);
 
     cpu_irq = (qemu_irq *) &env->irq_inputs[PPC40x_INPUT_INT];
     dev = xilinx_intc_create(0x81800000, cpu_irq[0], 0);

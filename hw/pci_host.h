@@ -29,12 +29,11 @@
 #define PCI_HOST_H
 
 #include "sysbus.h"
-#include "rwhandler.h"
 
 struct PCIHostState {
     SysBusDevice busdev;
-    ReadWriteHandler conf_handler;
-    ReadWriteHandler data_handler;
+    MemoryRegion conf_mem;
+    MemoryRegion data_mem;
     MemoryRegion *address_space;
     uint32_t config_reg;
     PCIBus *bus;
@@ -49,12 +48,9 @@ uint32_t pci_host_config_read_common(PCIDevice *pci_dev, uint32_t addr,
 void pci_data_write(PCIBus *s, uint32_t addr, uint32_t val, int len);
 uint32_t pci_data_read(PCIBus *s, uint32_t addr, int len);
 
-/* for mmio */
-int pci_host_conf_register_mmio(PCIHostState *s, int endian);
-int pci_host_data_register_mmio(PCIHostState *s, int endian);
-
-/* for ioio */
-void pci_host_conf_register_ioport(pio_addr_t ioport, PCIHostState *s);
-void pci_host_data_register_ioport(pio_addr_t ioport, PCIHostState *s);
+extern const MemoryRegionOps pci_host_conf_le_ops;
+extern const MemoryRegionOps pci_host_conf_be_ops;
+extern const MemoryRegionOps pci_host_data_le_ops;
+extern const MemoryRegionOps pci_host_data_be_ops;
 
 #endif /* PCI_HOST_H */
