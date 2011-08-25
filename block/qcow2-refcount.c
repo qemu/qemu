@@ -680,24 +680,6 @@ void qcow2_free_any_clusters(BlockDriverState *bs,
 
 
 
-void qcow2_create_refcount_update(QCowCreateState *s, int64_t offset,
-    int64_t size)
-{
-    int refcount;
-    int64_t start, last, cluster_offset;
-    uint16_t *p;
-
-    start = offset & ~(s->cluster_size - 1);
-    last = (offset + size - 1)  & ~(s->cluster_size - 1);
-    for(cluster_offset = start; cluster_offset <= last;
-        cluster_offset += s->cluster_size) {
-        p = &s->refcount_block[cluster_offset >> s->cluster_bits];
-        refcount = be16_to_cpu(*p);
-        refcount++;
-        *p = cpu_to_be16(refcount);
-    }
-}
-
 /* update the refcounts of snapshots and the copied flag */
 int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     int64_t l1_table_offset, int l1_size, int addend)
