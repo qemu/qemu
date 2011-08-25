@@ -962,12 +962,14 @@ void memory_region_init_alias(MemoryRegion *mr,
 
 void memory_region_init_rom_device(MemoryRegion *mr,
                                    const MemoryRegionOps *ops,
+                                   void *opaque,
                                    DeviceState *dev,
                                    const char *name,
                                    uint64_t size)
 {
     memory_region_init(mr, name, size);
     mr->ops = ops;
+    mr->opaque = opaque;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_rom_device;
     mr->ram_addr = qemu_ram_alloc(dev, name, size);
