@@ -102,10 +102,10 @@ def process(events, log, analyzer):
         fn_argcount = len(inspect.getargspec(fn)[0]) - 1
         if fn_argcount == event_argcount + 1:
             # Include timestamp as first argument
-            return lambda _, rec: fn(*rec[1:2 + fn_argcount])
+            return lambda _, rec: fn(*rec[1:2 + event_argcount])
         else:
             # Just arguments, no timestamp
-            return lambda _, rec: fn(*rec[2:2 + fn_argcount])
+            return lambda _, rec: fn(*rec[2:2 + event_argcount])
 
     analyzer.begin()
     fn_cache = {}
