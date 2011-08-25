@@ -338,8 +338,8 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
 {
     /* Note: p->owner != dev is possible in case dev is a hub */
     assert(p->owner != NULL);
-    dev->port->ops->complete(dev->port, p);
     p->owner = NULL;
+    dev->port->ops->complete(dev->port, p);
 }
 
 /* Cancel an active packet.  The packed must have been deferred by
