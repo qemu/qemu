@@ -176,6 +176,7 @@ static void vga_update_memory_access(VGACommonState *s)
             size = 0x8000;
             break;
         case 3:
+        default:
             base = 0xb8000;
             size = 0x8000;
             break;
