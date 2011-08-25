@@ -40,6 +40,7 @@
 struct xlx_pic
 {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     qemu_irq parent_irq;
 
     /* Configuration reg chosen at synthesis-time. QEMU populates
@@ -72,7 +73,8 @@ static void update_irq(struct xlx_pic *p)
     }
 }
 
-static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t
+pic_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 {
     struct xlx_pic *p = opaque;
     uint32_t r = 0;
@@ -91,9 +93,11 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void
-pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+pic_write(void *opaque, target_phys_addr_t addr,
+          uint64_t val64, unsigned int size)
 {
     struct xlx_pic *p = opaque;
+    uint32_t value = val64;
 
     addr >>= 2;
     D(qemu_log("%s addr=%x val=%x\n", __func__, addr * 4, value));
@@ -116,14 +120,14 @@ pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     update_irq(p);
 }
 
-static CPUReadMemoryFunc * const pic_read[] = {
-    NULL, NULL,
-    &pic_readl,
-};
-
-static CPUWriteMemoryFunc * const pic_write[] = {
-    NULL, NULL,
-    &pic_writel,
+static const MemoryRegionOps pic_ops = {
+    .read = pic_read,
+    .write = pic_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void irq_handler(void *opaque, int irq, int level)
@@ -148,13 +152,12 @@ static void irq_handler(void *opaque, int irq, int level)
 static int xilinx_intc_init(SysBusDevice *dev)
 {
     struct xlx_pic *p = FROM_SYSBUS(typeof (*p), dev);
-    int pic_regs;
 
     qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
     sysbus_init_irq(dev, &p->parent_irq);
 
-    pic_regs = cpu_register_io_memory(pic_read, pic_write, p, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, pic_regs);
+    memory_region_init_io(&p->mmio, &pic_ops, p, "xilinx-pic", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &p->mmio);
     return 0;
 }
 
