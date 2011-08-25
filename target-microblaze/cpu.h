@@ -65,6 +65,7 @@ struct CPUMBState;
 #define MSR_DCE (1<<7) /* 0x080 */
 #define MSR_EE  (1<<8) /* 0x100 */
 #define MSR_EIP (1<<9) /* 0x200 */
+#define MSR_PVR (1<<10) /* 0x400 */
 #define MSR_CC  (1<<31)
 
 /* Machine State Register (MSR) Fields */
