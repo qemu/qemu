@@ -28,6 +28,7 @@
 #include "qemu-option.h"
 #include "qemu-queue.h"
 #include "qemu-coroutine.h"
+#include "qemu-timer.h"
 
 #define BLOCK_FLAG_ENCRYPT	1
 #define BLOCK_FLAG_COMPAT6	4
@@ -186,6 +187,7 @@ struct BlockDriverState {
     /* I/O stats (display with "info blockstats"). */
     uint64_t nr_bytes[BDRV_MAX_IOTYPE];
     uint64_t nr_ops[BDRV_MAX_IOTYPE];
+    uint64_t total_time_ns[BDRV_MAX_IOTYPE];
     uint64_t wr_highest_sector;
 
     /* Whether the disk can expand beyond total_sectors */

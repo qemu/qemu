@@ -1202,6 +1202,9 @@ Each json-object contain the following:
     - "rd_operations": read operations (json-int)
     - "wr_operations": write operations (json-int)
     - "flush_operations": cache flush operations (json-int)
+    - "wr_total_time_ns": total time spend on writes in nano-seconds (json-int)
+    - "rd_total_time_ns": total time spend on reads in nano-seconds (json-int)
+    - "flush_total_time_ns": total time spend on cache flushes in nano-seconds (json-int)
     - "wr_highest_offset": Highest offset of a sector written since the
                            BlockDriverState has been opened (json-int)
 - "parent": Contains recursively the statistics of the underlying
@@ -1223,6 +1226,9 @@ Example:
                   "wr_operations":751,
                   "rd_bytes":122567168,
                   "rd_operations":36772
+                  "wr_total_times_ns":313253456
+                  "rd_total_times_ns":3465673657
+                  "flush_total_times_ns":49653
                   "flush_operations":61,
                }
             },
@@ -1233,6 +1239,9 @@ Example:
                "rd_bytes":122739200,
                "rd_operations":36604
                "flush_operations":51,
+               "wr_total_times_ns":313253456
+               "rd_total_times_ns":3465673657
+               "flush_total_times_ns":49653
             }
          },
          {
@@ -1244,6 +1253,9 @@ Example:
                "rd_bytes":0,
                "rd_operations":0
                "flush_operations":0,
+               "wr_total_times_ns":0
+               "rd_total_times_ns":0
+               "flush_total_times_ns":0
             }
          },
          {
@@ -1255,6 +1267,9 @@ Example:
                "rd_bytes":0,
                "rd_operations":0
                "flush_operations":0,
+               "wr_total_times_ns":0
+               "rd_total_times_ns":0
+               "flush_total_times_ns":0
             }
          },
          {
@@ -1266,6 +1281,9 @@ Example:
                "rd_bytes":0,
                "rd_operations":0
                "flush_operations":0,
+               "wr_total_times_ns":0
+               "rd_total_times_ns":0
+               "flush_total_times_ns":0
             }
          }
       ]
