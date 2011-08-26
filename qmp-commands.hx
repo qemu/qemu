@@ -1053,6 +1053,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-version",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_version,
+    },
+
 SQMP
 query-commands
 --------------

@@ -18,5 +18,6 @@
 #include "qapi-types.h"
 
 void hmp_info_name(Monitor *mon);
+void hmp_info_version(Monitor *mon);
 
 #endif

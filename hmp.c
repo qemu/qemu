@@ -24,3 +24,16 @@ void hmp_info_name(Monitor *mon)
     }
     qapi_free_NameInfo(info);
 }
+
+void hmp_info_version(Monitor *mon)
+{
+    VersionInfo *info;
+
+    info = qmp_query_version(NULL);
+
+    monitor_printf(mon, "%" PRId64 ".%" PRId64 ".%" PRId64 "%s\n",
+                   info->qemu.major, info->qemu.minor, info->qemu.micro,
+                   info->package);
+
+    qapi_free_VersionInfo(info);
+}
