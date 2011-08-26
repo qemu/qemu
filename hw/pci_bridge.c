@@ -246,6 +246,9 @@ int pci_bridge_initfn(PCIDevice *dev)
                         br->bus_name);
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq;
+    /* TODO: use memory API to perform memory filtering. */
+    sec_bus->address_space_mem = parent->address_space_mem;
+    sec_bus->address_space_io = parent->address_space_io;
 
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);
