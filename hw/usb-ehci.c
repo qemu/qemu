@@ -149,6 +149,7 @@ typedef enum {
     EST_FETCHENTRY,
     EST_FETCHQH,
     EST_FETCHITD,
+    EST_FETCHSITD,
     EST_ADVANCEQUEUE,
     EST_FETCHQTD,
     EST_EXECUTE,
@@ -644,6 +645,13 @@ static void ehci_trace_itd(EHCIState *s, target_phys_addr_t addr, EHCIitd *itd)
                        get_field(itd->bufptr[2], ITD_BUFPTR_MULT),
                        get_field(itd->bufptr[0], ITD_BUFPTR_EP),
                        get_field(itd->bufptr[0], ITD_BUFPTR_DEVADDR));
+}
+
+static void ehci_trace_sitd(EHCIState *s, target_phys_addr_t addr,
+                            EHCIsitd *sitd)
+{
+    trace_usb_ehci_sitd(addr, sitd->next,
+                        (bool)(sitd->results & SITD_RESULTS_ACTIVE));
 }
 
 /* queue management */
@@ -1584,8 +1592,13 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async)
         again = 1;
         break;
 
+    case NLPTR_TYPE_STITD:
+        ehci_set_state(ehci, async, EST_FETCHSITD);
+        again = 1;
+        break;
+
     default:
-        // TODO: handle siTD and FSTN types
+        /* TODO: handle FSTN type */
         fprintf(stderr, "FETCHENTRY: entry at %X is of type %d "
                 "which is not supported yet\n", entry, NLPTR_TYPE_GET(entry));
         return -1;
@@ -1698,6 +1711,30 @@ static int ehci_state_fetchitd(EHCIState *ehci, int async)
     ehci_set_fetch_addr(ehci, async, itd.next);
     ehci_set_state(ehci, async, EST_FETCHENTRY);
 
+    return 1;
+}
+
+static int ehci_state_fetchsitd(EHCIState *ehci, int async)
+{
+    uint32_t entry;
+    EHCIsitd sitd;
+
+    assert(!async);
+    entry = ehci_get_fetch_addr(ehci, async);
+
+    get_dwords(NLPTR_GET(entry), (uint32_t *)&sitd,
+               sizeof(EHCIsitd) >> 2);
+    ehci_trace_sitd(ehci, entry, &sitd);
+
+    if (!(sitd.results & SITD_RESULTS_ACTIVE)) {
+        /* siTD is not active, nothing to do */;
+    } else {
+        /* TODO: split transfers are not implemented */
+        fprintf(stderr, "WARNING: Skipping active siTD\n");
+    }
+
+    ehci_set_fetch_addr(ehci, async, sitd.next);
+    ehci_set_state(ehci, async, EST_FETCHENTRY);
     return 1;
 }
 
@@ -1974,6 +2011,10 @@ static void ehci_advance_state(EHCIState *ehci,
 
         case EST_FETCHITD:
             again = ehci_state_fetchitd(ehci, async);
+            break;
+
+        case EST_FETCHSITD:
+            again = ehci_state_fetchsitd(ehci, async);
             break;
 
         case EST_ADVANCEQUEUE:

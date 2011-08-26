@@ -223,6 +223,7 @@ usb_ehci_qtd_ptrs(void *q, uint32_t addr, uint32_t nxt, uint32_t altnext) "q %p 
 usb_ehci_qtd_fields(uint32_t addr, int tbytes, int cpage, int cerr, int pid) "QTD @ %08x - tbytes %d, cpage %d, cerr %d, pid %d"
 usb_ehci_qtd_bits(uint32_t addr, int ioc, int active, int halt, int babble, int xacterr) "QTD @ %08x - ioc %d, active %d, halt %d, babble %d, xacterr %d"
 usb_ehci_itd(uint32_t addr, uint32_t nxt, uint32_t mplen, uint32_t mult, uint32_t ep, uint32_t devaddr) "ITD @ %08x: next %08x - mplen %d, mult %d, ep %d, dev %d"
+usb_ehci_sitd(uint32_t addr, uint32_t nxt, uint32_t active) "ITD @ %08x: next %08x - active %d"
 usb_ehci_port_attach(uint32_t port, const char *device) "attach port #%d - %s"
 usb_ehci_port_detach(uint32_t port) "detach port #%d"
 usb_ehci_port_reset(uint32_t port, int enable) "reset port #%d - %d"
