@@ -195,7 +195,20 @@ void mips_jazz_init (ram_addr_t ram_size,
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        g364fb_mm_init(0x40000000, 0x60000000, 0, rc4030[3]);
+        dev = qdev_create(NULL, "sysbus-g364");
+        qdev_init_nofail(dev);
+        sysbus = sysbus_from_qdev(dev);
+        sysbus_mmio_map(sysbus, 0, 0x60080000);
+        sysbus_mmio_map(sysbus, 1, 0x40000000);
+        sysbus_connect_irq(sysbus, 0, rc4030[3]);
+        {
+            /* Simple ROM, so user doesn't have to provide one */
+            ram_addr_t rom_offset = qemu_ram_alloc(NULL, "g364fb.rom", 0x80000);
+            uint8_t *rom = qemu_get_ram_ptr(rom_offset);
+            cpu_register_physical_memory(0x60000000, 0x80000,
+                                         rom_offset | IO_MEM_ROM);
+            rom[0] = 0x10; /* Mips G364 */
+        }
         break;
     case JAZZ_PICA61:
         isa_vga_mm_init(0x40000000, 0x60000000, 0, get_system_memory());
