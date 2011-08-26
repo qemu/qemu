@@ -21,17 +21,7 @@
 #include "mips.h"
 #include "console.h"
 #include "pixel_ops.h"
-
-//#define DEBUG_G364
-
-#ifdef DEBUG_G364
-#define DPRINTF(fmt, ...) \
-do { printf("g364: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while (0)
-#endif
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "g364 ERROR: " fmt , ## __VA_ARGS__);} while (0)
+#include "trace.h"
 
 typedef struct G364State {
     /* hardware */
@@ -110,7 +100,8 @@ static void g364fb_draw_graphic8(G364State *s)
             w = 4;
             break;
         default:
-            BADF("unknown host depth %d\n", ds_get_bits_per_pixel(s->ds));
+            hw_error("g364: unknown host depth %d",
+                     ds_get_bits_per_pixel(s->ds));
             return;
     }
 
@@ -262,7 +253,7 @@ static void g364fb_update_display(void *opaque)
     } else if (s->depth == 8) {
         g364fb_draw_graphic8(s);
     } else {
-        BADF("unknown guest depth %d\n", s->depth);
+        error_report("g364: unknown guest depth %d", s->depth);
     }
 
     qemu_irq_raise(s->irq);
@@ -304,7 +295,7 @@ static void g364fb_screen_dump(void *opaque, const char *filename)
     FILE *f;
 
     if (s->depth != 8) {
-        BADF("unknown guest depth %d\n", s->depth);
+        error_report("g364: unknown guest depth %d", s->depth);
         return;
     }
 
@@ -367,14 +358,15 @@ static uint32_t g364fb_ctrl_readl(void *opaque, target_phys_addr_t addr)
                 break;
             default:
             {
-                BADF("invalid read at [" TARGET_FMT_plx "]\n", addr);
+                error_report("g364: invalid read at [" TARGET_FMT_plx "]",
+                             addr);
                 val = 0;
                 break;
             }
         }
     }
 
-    DPRINTF("read 0x%08x at [" TARGET_FMT_plx "]\n", val, addr);
+    trace_g364fb_read(addr, val);
 
     return val;
 }
@@ -419,7 +411,7 @@ static void g364fb_ctrl_writel(void *opaque, target_phys_addr_t addr, uint32_t v
 {
     G364State *s = opaque;
 
-    DPRINTF("write 0x%08x at [" TARGET_FMT_plx "]\n", val, addr);
+    trace_g364fb_write(addr, val);
 
     if (addr >= REG_CLR_PAL && addr < REG_CLR_PAL + 0x800) {
         /* color palette */
@@ -483,7 +475,8 @@ static void g364fb_ctrl_writel(void *opaque, target_phys_addr_t addr, uint32_t v
                 g364fb_reset(s);
                 break;
             default:
-                BADF("invalid write of 0x%08x at [" TARGET_FMT_plx "]\n", val, addr);
+                error_report("g364: invalid write of 0x%" PRIx64
+                             " at [" TARGET_FMT_plx "]", val, addr);
                 break;
         }
     }

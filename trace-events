@@ -284,6 +284,10 @@ disable qed_aio_write_prefill(void *s, void *acb, uint64_t start, size_t len, ui
 disable qed_aio_write_postfill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64""
 disable qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
 
+# hw/g364fb.c
+disable g364fb_read(uint64_t addr, uint32_t val) "read addr=0x%"PRIx64": 0x%x"
+disable g364fb_write(uint64_t addr, uint32_t new) "write addr=0x%"PRIx64": 0x%x"
+
 # hw/grlib_gptimer.c
 disable grlib_gptimer_enable(int id, uint32_t count) "timer:%d set count 0x%x and run"
 disable grlib_gptimer_disabled(int id, uint32_t config) "timer:%d Timer disable config 0x%x"
