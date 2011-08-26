@@ -82,6 +82,8 @@ static void help(void)
            "       rebasing in this case (useful for renaming the backing file)\n"
            "  '-h' with or without a command shows this help and lists the supported formats\n"
            "  '-p' show progress of command (only certain commands)\n"
+           "  '-S' indicates the consecutive number of bytes that must contain only zeros\n"
+           "       for qemu-img to create a sparse image during conversion\n"
            "\n"
            "Parameters to snapshot subcommand:\n"
            "  'snapshot' is the name of the snapshot to create, apply or delete\n"
@@ -571,6 +573,48 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
 }
 
 /*
+ * Like is_allocated_sectors, but if the buffer starts with a used sector,
+ * up to 'min' consecutive sectors containing zeros are ignored. This avoids
+ * breaking up write requests for only small sparse areas.
+ */
+static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
+    int min)
+{
+    int ret;
+    int num_checked, num_used;
+
+    if (n < min) {
+        min = n;
+    }
+
+    ret = is_allocated_sectors(buf, n, pnum);
+    if (!ret) {
+        return ret;
+    }
+
+    num_used = *pnum;
+    buf += BDRV_SECTOR_SIZE * *pnum;
+    n -= *pnum;
+    num_checked = num_used;
+
+    while (n > 0) {
+        ret = is_allocated_sectors(buf, n, pnum);
+
+        buf += BDRV_SECTOR_SIZE * *pnum;
+        n -= *pnum;
+        num_checked += *pnum;
+        if (ret) {
+            num_used = num_checked;
+        } else if (*pnum >= min) {
+            break;
+        }
+    }
+
+    *pnum = num_used;
+    return 1;
+}
+
+/*
  * Compares two buffers sector by sector. Returns 0 if the first sector of both
  * buffers matches, non-zero otherwise.
  *
@@ -620,6 +664,7 @@ static int img_convert(int argc, char **argv)
     char *options = NULL;
     const char *snapshot_name = NULL;
     float local_progress;
+    int min_sparse = 8; /* Need at least 4k of zeros for sparse detection */
 
     fmt = NULL;
     out_fmt = "raw";
@@ -627,7 +672,7 @@ static int img_convert(int argc, char **argv)
     out_baseimg = NULL;
     compress = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:B:s:hce6o:pt:");
+        c = getopt(argc, argv, "f:O:B:s:hce6o:pS:t:");
         if (c == -1) {
             break;
         }
@@ -662,6 +707,18 @@ static int img_convert(int argc, char **argv)
         case 's':
             snapshot_name = optarg;
             break;
+        case 'S':
+        {
+            int64_t sval;
+            sval = strtosz_suffix(optarg, NULL, STRTOSZ_DEFSUFFIX_B);
+            if (sval < 0) {
+                error_report("Invalid minimum zero buffer size for sparse output specified");
+                return 1;
+            }
+
+            min_sparse = sval / BDRV_SECTOR_SIZE;
+            break;
+        }
         case 'p':
             progress = 1;
             break;
@@ -970,7 +1027,7 @@ static int img_convert(int argc, char **argv)
                    sectors that are entirely 0, since whatever data was
                    already there is garbage, not 0s. */
                 if (!has_zero_init || out_baseimg ||
-                    is_allocated_sectors(buf1, n, &n1)) {
+                    is_allocated_sectors_min(buf1, n, &n1, min_sparse)) {
                     ret = bdrv_write(out_bs, sector_num, buf1, n1);
                     if (ret < 0) {
                         error_report("error while writing sector %" PRId64
