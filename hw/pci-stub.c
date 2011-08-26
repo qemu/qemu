@@ -1,5 +1,5 @@
 /*
- * PCI stubs for plathome that doesn't support pci bus.
+ * PCI stubs for platforms that don't support pci bus.
  *
  * Copyright (c) 2010 Isaku Yamahata <yamahata at valinux co jp>
  *                    VA Linux Systems Japan K.K.
