@@ -797,6 +797,15 @@ abi_long do_brk(abi_ulong new_brk)
                                         MAP_ANON|MAP_PRIVATE, 0, 0));
 
     if (mapped_addr == brk_page) {
+        /* Heap contents are initialized to zero, as for anonymous
+         * mapped pages.  Technically the new pages are already
+         * initialized to zero since they *are* anonymous mapped
+         * pages, however we have to take care with the contents that
+         * come from the remaining part of the previous page: it may
+         * contains garbage data due to a previous heap usage (grown
+         * then shrunken).  */
+        memset(g2h(target_brk), 0, brk_page - target_brk);
+
         target_brk = new_brk;
         brk_page = HOST_PAGE_ALIGN(target_brk);
         DEBUGF_BRK("%#010x (mapped_addr == brk_page)\n", target_brk);
