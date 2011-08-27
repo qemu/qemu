@@ -71,6 +71,14 @@
 #include <hw/ide/pci.h>
 #include <hw/ide/ahci.h>
 
+#define ICH9_SATA_CAP_OFFSET    0xA8
+
+#define ICH9_IDP_BAR            4
+#define ICH9_MEM_BAR            5
+
+#define ICH9_IDP_INDEX          0x10
+#define ICH9_IDP_INDEX_LOG2     0x04
+
 static const VMStateDescription vmstate_ahci = {
     .name = "ahci",
     .unmigratable = 1,
@@ -79,6 +87,8 @@ static const VMStateDescription vmstate_ahci = {
 static int pci_ich9_ahci_init(PCIDevice *dev)
 {
     struct AHCIPCIState *d;
+    int sata_cap_offset;
+    uint8_t *sata_cap;
     d = DO_UPCAST(struct AHCIPCIState, card, dev);
 
     ahci_init(&d->ahci, &dev->qdev, 6);
@@ -97,7 +107,22 @@ static int pci_ich9_ahci_init(PCIDevice *dev)
     msi_init(dev, 0x50, 1, true, false);
     d->ahci.irq = d->card.irq[0];
 
-    pci_register_bar(&d->card, 5, 0, &d->ahci.mem);
+    pci_register_bar(&d->card, ICH9_IDP_BAR, PCI_BASE_ADDRESS_SPACE_IO,
+                     &d->ahci.idp);
+    pci_register_bar(&d->card, ICH9_MEM_BAR, PCI_BASE_ADDRESS_SPACE_MEMORY,
+                     &d->ahci.mem);
+
+    sata_cap_offset = pci_add_capability(&d->card, PCI_CAP_ID_SATA,
+                                         ICH9_SATA_CAP_OFFSET, SATA_CAP_SIZE);
+    if (sata_cap_offset < 0) {
+        return sata_cap_offset;
+    }
+
+    sata_cap = d->card.config + sata_cap_offset;
+    pci_set_word(sata_cap + SATA_CAP_REV, 0x10);
+    pci_set_long(sata_cap + SATA_CAP_BAR,
+                 (ICH9_IDP_BAR + 0x4) | (ICH9_IDP_INDEX_LOG2 << 4));
+    d->ahci.idp_offset = ICH9_IDP_INDEX;
 
     return 0;
 }
