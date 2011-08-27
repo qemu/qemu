@@ -37,7 +37,7 @@ static inline void tftp_session_update(struct tftp_session *spt)
 
 static void tftp_session_terminate(struct tftp_session *spt)
 {
-    qemu_free(spt->filename);
+    g_free(spt->filename);
     spt->slirp = NULL;
 }
 
@@ -54,7 +54,7 @@ static int tftp_session_allocate(Slirp *slirp, struct tftp_t *tp)
 
     /* sessions time out after 5 inactive seconds */
     if ((int)(curtime - spt->timestamp) > 5000) {
-        qemu_free(spt->filename);
+        g_free(spt->filename);
         goto found;
     }
   }
@@ -287,7 +287,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
 
   /* prepend tftp_prefix */
   prefix_len = strlen(slirp->tftp_prefix);
-  spt->filename = qemu_malloc(prefix_len + TFTP_FILENAME_MAX + 2);
+  spt->filename = g_malloc(prefix_len + TFTP_FILENAME_MAX + 2);
   memcpy(spt->filename, slirp->tftp_prefix, prefix_len);
   spt->filename[prefix_len] = '/';
 

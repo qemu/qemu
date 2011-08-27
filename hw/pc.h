@@ -140,7 +140,9 @@ void pc_memory_init(MemoryRegion *system_memory,
                     const char *kernel_cmdline,
                     const char *initrd_filename,
                     ram_addr_t below_4g_mem_size,
-                    ram_addr_t above_4g_mem_size);
+                    ram_addr_t above_4g_mem_size,
+                    MemoryRegion *pci_memory,
+                    MemoryRegion **ram_memory);
 qemu_irq *pc_allocate_cpu_irq(void);
 void pc_vga_init(PCIBus *pci_bus);
 void pc_basic_device_init(qemu_irq *isa_irq,
@@ -186,8 +188,13 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn,
                     qemu_irq *pic,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
-                    ram_addr_t ram_size);
-void i440fx_init_memory_mappings(PCII440FXState *d);
+                    ram_addr_t ram_size,
+                    target_phys_addr_t pci_hole_start,
+                    target_phys_addr_t pci_hole_size,
+                    target_phys_addr_t pci_hole64_start,
+                    target_phys_addr_t pci_hole64_size,
+                    MemoryRegion *pci_memory,
+                    MemoryRegion *ram_memory);
 
 /* piix4.c */
 extern PCIDevice *piix4_dev;
@@ -216,11 +223,12 @@ static inline int isa_vga_init(void)
 
 int pci_vga_init(PCIBus *bus);
 int isa_vga_mm_init(target_phys_addr_t vram_base,
-                    target_phys_addr_t ctrl_base, int it_shift);
+                    target_phys_addr_t ctrl_base, int it_shift,
+                    MemoryRegion *address_space);
 
 /* cirrus_vga.c */
 void pci_cirrus_vga_init(PCIBus *bus);
-void isa_cirrus_vga_init(void);
+void isa_cirrus_vga_init(MemoryRegion *address_space);
 
 /* ne2000.c */
 static inline bool isa_ne2000_init(int base, int irq, NICInfo *nd)

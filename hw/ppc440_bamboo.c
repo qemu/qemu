@@ -49,7 +49,7 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
         goto out;
     }
     fdt = load_device_tree(filename, &fdt_size);
-    qemu_free(filename);
+    g_free(filename);
     if (fdt == NULL) {
         goto out;
     }
@@ -80,7 +80,7 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
         kvmppc_fdt_update(fdt);
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
-    qemu_free(fdt);
+    g_free(fdt);
 
 out:
 #endif

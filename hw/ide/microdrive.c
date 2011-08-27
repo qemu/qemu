@@ -531,7 +531,7 @@ static int dscm1xxxx_detach(void *opaque)
 
 PCMCIACardState *dscm1xxxx_init(DriveInfo *bdrv)
 {
-    MicroDriveState *md = (MicroDriveState *) qemu_mallocz(sizeof(MicroDriveState));
+    MicroDriveState *md = (MicroDriveState *) g_malloc0(sizeof(MicroDriveState));
     md->card.state = md;
     md->card.attach = dscm1xxxx_attach;
     md->card.detach = dscm1xxxx_detach;
@@ -542,7 +542,7 @@ PCMCIACardState *dscm1xxxx_init(DriveInfo *bdrv)
                                    qemu_allocate_irqs(md_set_irq, md, 1)[0]);
     md->bus.ifs[0].drive_kind = IDE_CFATA;
     md->bus.ifs[0].mdata_size = METADATA_SIZE;
-    md->bus.ifs[0].mdata_storage = (uint8_t *) qemu_mallocz(METADATA_SIZE);
+    md->bus.ifs[0].mdata_storage = (uint8_t *) g_malloc0(METADATA_SIZE);
 
     vmstate_register(NULL, -1, &vmstate_microdrive, md);
 

@@ -132,7 +132,7 @@ static m5206_timer_state *m5206_timer_init(qemu_irq irq)
     m5206_timer_state *s;
     QEMUBH *bh;
 
-    s = (m5206_timer_state *)qemu_mallocz(sizeof(m5206_timer_state));
+    s = (m5206_timer_state *)g_malloc0(sizeof(m5206_timer_state));
     bh = qemu_bh_new(m5206_timer_trigger, s);
     s->timer = ptimer_init(bh);
     s->irq = irq;
@@ -523,7 +523,7 @@ qemu_irq *mcf5206_init(uint32_t base, CPUState *env)
     qemu_irq *pic;
     int iomemtype;
 
-    s = (m5206_mbar_state *)qemu_mallocz(sizeof(m5206_mbar_state));
+    s = (m5206_mbar_state *)g_malloc0(sizeof(m5206_mbar_state));
     iomemtype = cpu_register_io_memory(m5206_mbar_readfn,
                                        m5206_mbar_writefn, s,
                                        DEVICE_NATIVE_ENDIAN);

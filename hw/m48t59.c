@@ -50,8 +50,6 @@
  */
 
 struct M48t59State {
-    /* Model parameters */
-    uint32_t type; // 2 = m48t02, 8 = m48t08, 59 = m48t59
     /* Hardware parameters */
     qemu_irq IRQ;
     uint32_t io_base;
@@ -64,9 +62,12 @@ struct M48t59State {
     struct QEMUTimer *alrm_timer;
     struct QEMUTimer *wd_timer;
     /* NVRAM storage */
-    uint8_t  lock;
-    uint16_t addr;
     uint8_t *buffer;
+    /* Model parameters */
+    uint32_t type; /* 2 = m48t02, 8 = m48t08, 59 = m48t59 */
+    /* NVRAM storage */
+    uint16_t addr;
+    uint8_t  lock;
 };
 
 typedef struct M48t59ISAState {
@@ -679,7 +680,7 @@ M48t59State *m48t59_init_isa(uint32_t io_base, uint16_t size, int type)
 
 static void m48t59_init_common(M48t59State *s)
 {
-    s->buffer = qemu_mallocz(s->size);
+    s->buffer = g_malloc0(s->size);
     if (s->type == 59) {
         s->alrm_timer = qemu_new_timer_ns(vm_clock, &alarm_cb, s);
         s->wd_timer = qemu_new_timer_ns(vm_clock, &watchdog_cb, s);

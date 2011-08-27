@@ -32,7 +32,7 @@ int kvmppc_read_host_property(const char *node_path, const char *prop,
 
     pathlen = snprintf(NULL, 0, "%s/%s/%s", PROC_DEVTREE_PATH, node_path, prop)
               + 1;
-    path = qemu_malloc(pathlen);
+    path = g_malloc(pathlen);
 
     snprintf(path, pathlen, "%s/%s/%s", PROC_DEVTREE_PATH, node_path, prop);
 

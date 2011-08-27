@@ -42,9 +42,9 @@ typedef struct TCXState {
     uint32_t *vram24, *cplane;
     ram_addr_t vram_offset, vram24_offset, cplane_offset;
     uint32_t vram_size;
-    uint16_t width, height, depth;
-    uint8_t r[256], g[256], b[256];
     uint32_t palette[256];
+    uint8_t r[256], g[256], b[256];
+    uint16_t width, height, depth;
     uint8_t dac_index, dac_state;
 } TCXState;
 

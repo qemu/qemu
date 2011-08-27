@@ -78,7 +78,7 @@ typedef struct FileOperations
     int (*open2)(FsContext *, const char *, int, FsCred *);
     void (*rewinddir)(FsContext *, DIR *);
     off_t (*telldir)(FsContext *, DIR *);
-    struct dirent *(*readdir)(FsContext *, DIR *);
+    int (*readdir_r)(FsContext *, DIR *, struct dirent *, struct dirent **);
     void (*seekdir)(FsContext *, DIR *, off_t);
     ssize_t (*preadv)(FsContext *, int, const struct iovec *, int, off_t);
     ssize_t (*pwritev)(FsContext *, int, const struct iovec *, int, off_t);

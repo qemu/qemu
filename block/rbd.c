@@ -138,7 +138,7 @@ static int qemu_rbd_parsename(const char *filename,
         return -EINVAL;
     }
 
-    buf = qemu_strdup(start);
+    buf = g_strdup(start);
     p = buf;
     *snap = '\0';
     *conf = '\0';
@@ -165,7 +165,7 @@ static int qemu_rbd_parsename(const char *filename,
     ret = qemu_rbd_next_tok(conf, conf_len, p, '\0', "configuration", &p);
 
 done:
-    qemu_free(buf);
+    g_free(buf);
     return ret;
 }
 
@@ -176,7 +176,7 @@ static int qemu_rbd_set_conf(rados_t cluster, const char *conf)
     char value[RBD_MAX_CONF_VAL_SIZE];
     int ret = 0;
 
-    buf = qemu_strdup(conf);
+    buf = g_strdup(conf);
     p = buf;
 
     while (p) {
@@ -214,7 +214,7 @@ static int qemu_rbd_set_conf(rados_t cluster, const char *conf)
         }
     }
 
-    qemu_free(buf);
+    g_free(buf);
     return ret;
 }
 
@@ -341,7 +341,7 @@ static void qemu_rbd_complete_aio(RADOSCB *rcb)
     acb->bh = qemu_bh_new(rbd_aio_bh_cb, acb);
     qemu_bh_schedule(acb->bh);
 done:
-    qemu_free(rcb);
+    g_free(rcb);
 }
 
 /*
@@ -395,7 +395,7 @@ static int qemu_rbd_open(BlockDriverState *bs, const char *filename, int flags)
     }
     s->snap = NULL;
     if (snap_buf[0] != '\0') {
-        s->snap = qemu_strdup(snap_buf);
+        s->snap = g_strdup(snap_buf);
     }
 
     r = rados_create(&s->cluster, NULL);
@@ -478,7 +478,7 @@ static void qemu_rbd_close(BlockDriverState *bs)
 
     rbd_close(s->image);
     rados_ioctx_destroy(s->io_ctx);
-    qemu_free(s->snap);
+    g_free(s->snap);
     rados_shutdown(s->cluster);
 }
 
@@ -544,7 +544,7 @@ static void rbd_finish_aiocb(rbd_completion_t c, RADOSCB *rcb)
     ret = qemu_rbd_send_pipe(rcb->s, rcb);
     if (ret < 0) {
         error_report("failed writing to acb->s->fds");
-        qemu_free(rcb);
+        g_free(rcb);
     }
 }
 
@@ -605,7 +605,7 @@ static BlockDriverAIOCB *rbd_aio_rw_vector(BlockDriverState *bs,
 
     s->qemu_aio_count++; /* All the RADOSCB */
 
-    rcb = qemu_malloc(sizeof(RADOSCB));
+    rcb = g_malloc(sizeof(RADOSCB));
     rcb->done = 0;
     rcb->acb = acb;
     rcb->buf = buf;
@@ -629,7 +629,7 @@ static BlockDriverAIOCB *rbd_aio_rw_vector(BlockDriverState *bs,
     return &acb->common;
 
 failed:
-    qemu_free(rcb);
+    g_free(rcb);
     s->qemu_aio_count--;
     qemu_aio_release(acb);
     return NULL;
@@ -739,10 +739,10 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
     int max_snaps = RBD_MAX_SNAPS;
 
     do {
-        snaps = qemu_malloc(sizeof(*snaps) * max_snaps);
+        snaps = g_malloc(sizeof(*snaps) * max_snaps);
         snap_count = rbd_snap_list(s->image, snaps, &max_snaps);
         if (snap_count < 0) {
-            qemu_free(snaps);
+            g_free(snaps);
         }
     } while (snap_count == -ERANGE);
 
@@ -750,7 +750,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
         return snap_count;
     }
 
-    sn_tab = qemu_mallocz(snap_count * sizeof(QEMUSnapshotInfo));
+    sn_tab = g_malloc0(snap_count * sizeof(QEMUSnapshotInfo));
 
     for (i = 0; i < snap_count; i++) {
         const char *snap_name = snaps[i].name;

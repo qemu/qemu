@@ -70,7 +70,7 @@ static void buffer_append(struct XenConsole *con)
 
     if ((buffer->capacity - buffer->size) < size) {
 	buffer->capacity += (size + 1024);
-	buffer->data = qemu_realloc(buffer->data, buffer->capacity);
+	buffer->data = g_realloc(buffer->data, buffer->capacity);
     }
 
     while (cons != prod)
@@ -89,7 +89,7 @@ static void buffer_append(struct XenConsole *con)
 	uint8_t *maxpos = buffer->data + buffer->max_capacity;
 
 	memmove(maxpos - over, maxpos, over);
-	buffer->data = qemu_realloc(buffer->data, buffer->max_capacity);
+	buffer->data = g_realloc(buffer->data, buffer->max_capacity);
 	buffer->size = buffer->capacity = buffer->max_capacity;
 
 	if (buffer->consumed > buffer->max_capacity - over)
@@ -156,7 +156,7 @@ static void xencons_send(struct XenConsole *con)
 
     size = con->buffer.size - con->buffer.consumed;
     if (con->chr)
-        len = qemu_chr_write(con->chr, con->buffer.data + con->buffer.consumed,
+        len = qemu_chr_fe_write(con->chr, con->buffer.data + con->buffer.consumed,
                              size);
     else
         len = size;
@@ -202,13 +202,13 @@ static int con_init(struct XenDevice *xendev)
         con->chr = serial_hds[con->xendev.dev];
     } else {
         snprintf(label, sizeof(label), "xencons%d", con->xendev.dev);
-        con->chr = qemu_chr_open(label, output, NULL);
+        con->chr = qemu_chr_new(label, output, NULL);
     }
 
     xenstore_store_pv_console_info(con->xendev.dev, con->chr);
 
 out:
-    qemu_free(type);
+    g_free(type);
     return ret;
 }
 

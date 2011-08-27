@@ -130,8 +130,8 @@ typedef struct IOMMUState {
     SysBusDevice busdev;
     uint32_t regs[IOMMU_NREGS];
     target_phys_addr_t iostart;
-    uint32_t version;
     qemu_irq irq;
+    uint32_t version;
 } IOMMUState;
 
 static uint32_t iommu_mem_readl(void *opaque, target_phys_addr_t addr)

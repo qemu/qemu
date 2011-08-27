@@ -595,7 +595,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
         goto out;
     }
 
-    l1_table = qemu_mallocz(l1_size);
+    l1_table = g_malloc0(l1_size);
     ret = bdrv_pwrite(bs, header.l1_table_offset, l1_table, l1_size);
     if (ret < 0) {
         goto out;
@@ -603,7 +603,7 @@ static int qed_create(const char *filename, uint32_t cluster_size,
 
     ret = 0; /* success */
 out:
-    qemu_free(l1_table);
+    g_free(l1_table);
     bdrv_delete(bs);
     return ret;
 }
@@ -1419,7 +1419,7 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     }
 
     /* Prepare new header */
-    buffer = qemu_malloc(buffer_len);
+    buffer = g_malloc(buffer_len);
 
     qed_header_cpu_to_le(&new_header, &le_header);
     memcpy(buffer, &le_header, sizeof(le_header));
@@ -1430,7 +1430,7 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
 
     /* Write new header */
     ret = bdrv_pwrite_sync(bs->file, 0, buffer, buffer_len);
-    qemu_free(buffer);
+    g_free(buffer);
     if (ret == 0) {
         memcpy(&s->header, &new_header, sizeof(new_header));
     }

@@ -6617,7 +6617,7 @@ static inline void gen_evmra(DisasContext *ctx)
 {
 
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 
@@ -6688,7 +6688,7 @@ static inline void gen_speundef(DisasContext *ctx)
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     tcg_op(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],                \
@@ -6699,7 +6699,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     tcg_op(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],                \
@@ -6724,7 +6724,7 @@ GEN_SPEOP_LOGIC2(evnand, tcg_gen_nand_tl);
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     TCGv_i32 t0 = tcg_temp_local_new_i32();                                   \
@@ -6745,7 +6745,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     tcg_opi(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],               \
@@ -6765,7 +6765,7 @@ GEN_SPEOP_TCG_LOGIC_IMM2(evrlwi, tcg_gen_rotli_i32);
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     TCGv_i32 t0 = tcg_temp_local_new_i32();                                   \
@@ -6786,7 +6786,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     tcg_op(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)]);               \
@@ -6824,7 +6824,7 @@ GEN_SPEOP_ARITH1(evcntlzw, gen_helper_cntlzw32);
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     TCGv_i32 t0 = tcg_temp_local_new_i32();                                   \
@@ -6850,7 +6850,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     tcg_op(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],                \
@@ -6928,7 +6928,7 @@ GEN_SPEOP_ARITH2(evrlw, gen_op_evrlw);
 static inline void gen_evmergehi(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)
@@ -6957,7 +6957,7 @@ GEN_SPEOP_ARITH2(evsubfw, gen_op_evsubf);
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     TCGv_i32 t0 = tcg_temp_local_new_i32();                                   \
@@ -6978,7 +6978,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     tcg_op(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rB(ctx->opcode)],                \
@@ -6996,7 +6996,7 @@ GEN_SPEOP_ARITH_IMM2(evsubifw, tcg_gen_subi_i32);
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     int l1 = gen_new_label();                                                 \
@@ -7036,7 +7036,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     int l1 = gen_new_label();                                                 \
@@ -7079,7 +7079,7 @@ static inline void gen_brinc(DisasContext *ctx)
 static inline void gen_evmergelo(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)
@@ -7098,7 +7098,7 @@ static inline void gen_evmergelo(DisasContext *ctx)
 static inline void gen_evmergehilo(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)
@@ -7117,7 +7117,7 @@ static inline void gen_evmergehilo(DisasContext *ctx)
 static inline void gen_evmergelohi(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)
@@ -7240,7 +7240,7 @@ static inline void gen_evmwumi(DisasContext *ctx)
     TCGv_i64 t0, t1;
 
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 
@@ -7269,7 +7269,7 @@ static inline void gen_evmwumia(DisasContext *ctx)
     TCGv_i64 tmp;
 
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 
@@ -7289,7 +7289,7 @@ static inline void gen_evmwumiaa(DisasContext *ctx)
     TCGv_i64 tmp;
 
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 
@@ -7322,7 +7322,7 @@ static inline void gen_evmwsmi(DisasContext *ctx)
     TCGv_i64 t0, t1;
 
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 
@@ -7741,7 +7741,7 @@ static void glue(gen_, name)(DisasContext *ctx)                                 
 {                                                                             \
     TCGv t0;                                                                  \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     gen_set_access_type(ctx, ACCESS_INT);                                     \
@@ -7899,7 +7899,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
     TCGv_i32 t0, t1;                                                          \
     TCGv_i64 t2;                                                              \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     t0 = tcg_temp_new_i32();                                                  \
@@ -7920,7 +7920,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     gen_helper_##name(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)],     \
@@ -7931,7 +7931,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     TCGv_i32 t0, t1;                                                          \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     t0 = tcg_temp_new_i32();                                                  \
@@ -7946,7 +7946,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     gen_helper_##name(cpu_crf[crfD(ctx->opcode)],                             \
@@ -7987,7 +7987,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     gen_helper_##name(cpu_gpr[rD(ctx->opcode)],                               \
@@ -7998,7 +7998,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     TCGv_i64 t0, t1;                                                          \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     t0 = tcg_temp_new_i64();                                                  \
@@ -8014,7 +8014,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     gen_helper_##name(cpu_crf[crfD(ctx->opcode)],                             \
@@ -8025,7 +8025,7 @@ static inline void gen_##name(DisasContext *ctx)                              \
 {                                                                             \
     TCGv_i64 t0, t1;                                                          \
     if (unlikely(!ctx->spe_enabled)) {                                        \
-        gen_exception(ctx, POWERPC_EXCP_APU);                                 \
+        gen_exception(ctx, POWERPC_EXCP_SPEU);                                \
         return;                                                               \
     }                                                                         \
     t0 = tcg_temp_new_i64();                                                  \
@@ -8047,7 +8047,7 @@ GEN_SPEFPUOP_ARITH2_64_64(evfsdiv);
 static inline void gen_evfsabs(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)
@@ -8060,7 +8060,7 @@ static inline void gen_evfsabs(DisasContext *ctx)
 static inline void gen_evfsnabs(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)
@@ -8073,7 +8073,7 @@ static inline void gen_evfsnabs(DisasContext *ctx)
 static inline void gen_evfsneg(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)
@@ -8129,7 +8129,7 @@ GEN_SPEFPUOP_ARITH2_32_32(efsdiv);
 static inline void gen_efsabs(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
     tcg_gen_andi_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], (target_long)~0x80000000LL);
@@ -8137,7 +8137,7 @@ static inline void gen_efsabs(DisasContext *ctx)
 static inline void gen_efsnabs(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
     tcg_gen_ori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
@@ -8145,7 +8145,7 @@ static inline void gen_efsnabs(DisasContext *ctx)
 static inline void gen_efsneg(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
     tcg_gen_xori_tl(cpu_gpr[rD(ctx->opcode)], cpu_gpr[rA(ctx->opcode)], 0x80000000);
@@ -8197,7 +8197,7 @@ GEN_SPEFPUOP_ARITH2_64_64(efddiv);
 static inline void gen_efdabs(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)
@@ -8210,7 +8210,7 @@ static inline void gen_efdabs(DisasContext *ctx)
 static inline void gen_efdnabs(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)
@@ -8223,7 +8223,7 @@ static inline void gen_efdnabs(DisasContext *ctx)
 static inline void gen_efdneg(DisasContext *ctx)
 {
     if (unlikely(!ctx->spe_enabled)) {
-        gen_exception(ctx, POWERPC_EXCP_APU);
+        gen_exception(ctx, POWERPC_EXCP_SPEU);
         return;
     }
 #if defined(TARGET_PPC64)

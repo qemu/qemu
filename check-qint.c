@@ -32,7 +32,7 @@ START_TEST(qint_from_int_test)
     fail_unless(qobject_type(QOBJECT(qi)) == QTYPE_QINT);
 
     // destroy doesn't exit yet
-    qemu_free(qi);
+    g_free(qi);
 }
 END_TEST
 

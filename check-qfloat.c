@@ -33,7 +33,7 @@ START_TEST(qfloat_from_double_test)
     fail_unless(qobject_type(QOBJECT(qf)) == QTYPE_QFLOAT);
 
     // destroy doesn't exit yet
-    qemu_free(qf);
+    g_free(qf);
 }
 END_TEST
 

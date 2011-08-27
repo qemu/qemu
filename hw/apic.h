@@ -4,10 +4,8 @@
 #include "qemu-common.h"
 
 /* apic.c */
-void apic_deliver_irq(uint8_t dest, uint8_t dest_mode,
-                             uint8_t delivery_mode,
-                             uint8_t vector_num, uint8_t polarity,
-                             uint8_t trigger_mode);
+void apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode,
+                      uint8_t vector_num, uint8_t trigger_mode);
 int apic_accept_pic_intr(DeviceState *s);
 void apic_deliver_pic_intr(DeviceState *s, int level);
 int apic_get_interrupt(DeviceState *s);

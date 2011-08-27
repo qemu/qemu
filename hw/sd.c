@@ -409,9 +409,9 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     sd->bdrv = bdrv;
 
     if (sd->wp_groups)
-        qemu_free(sd->wp_groups);
+        g_free(sd->wp_groups);
     sd->wp_switch = bdrv ? bdrv_is_read_only(bdrv) : 0;
-    sd->wp_groups = (int *) qemu_mallocz(sizeof(int) * sect);
+    sd->wp_groups = (int *) g_malloc0(sizeof(int) * sect);
     memset(sd->function_group, 0, sizeof(int) * 6);
     sd->erase_start = 0;
     sd->erase_end = 0;
@@ -443,7 +443,7 @@ SDState *sd_init(BlockDriverState *bs, int is_spi)
 {
     SDState *sd;
 
-    sd = (SDState *) qemu_mallocz(sizeof(SDState));
+    sd = (SDState *) g_malloc0(sizeof(SDState));
     sd->buf = qemu_blockalign(bs, 512);
     sd->spi = is_spi;
     sd->enable = 1;

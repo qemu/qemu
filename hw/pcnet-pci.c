@@ -290,10 +290,10 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     pci_conf[PCI_MAX_LAT] = 0xff;
 
     /* Handler for memory-mapped I/O */
-    memory_region_init_io(&d->state.mmio, &pcnet_mmio_ops, d, "pcnet-mmio",
+    memory_region_init_io(&d->state.mmio, &pcnet_mmio_ops, s, "pcnet-mmio",
                           PCNET_PNPMMIO_SIZE);
 
-    memory_region_init_io(&d->io_bar, &pcnet_io_ops, d, "pcnet-io",
+    memory_region_init_io(&d->io_bar, &pcnet_io_ops, s, "pcnet-io",
                           PCNET_IOPORT_SIZE);
     pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &d->io_bar);
 

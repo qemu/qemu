@@ -47,6 +47,42 @@ typedef uint64_t TCGRegSet;
 #error unsupported
 #endif
 
+/* Turn some undef macros into false macros.  */
+#if TCG_TARGET_REG_BITS == 32
+#define TCG_TARGET_HAS_div_i64          0
+#define TCG_TARGET_HAS_div2_i64         0
+#define TCG_TARGET_HAS_rot_i64          0
+#define TCG_TARGET_HAS_ext8s_i64        0
+#define TCG_TARGET_HAS_ext16s_i64       0
+#define TCG_TARGET_HAS_ext32s_i64       0
+#define TCG_TARGET_HAS_ext8u_i64        0
+#define TCG_TARGET_HAS_ext16u_i64       0
+#define TCG_TARGET_HAS_ext32u_i64       0
+#define TCG_TARGET_HAS_bswap16_i64      0
+#define TCG_TARGET_HAS_bswap32_i64      0
+#define TCG_TARGET_HAS_bswap64_i64      0
+#define TCG_TARGET_HAS_neg_i64          0
+#define TCG_TARGET_HAS_not_i64          0
+#define TCG_TARGET_HAS_andc_i64         0
+#define TCG_TARGET_HAS_orc_i64          0
+#define TCG_TARGET_HAS_eqv_i64          0
+#define TCG_TARGET_HAS_nand_i64         0
+#define TCG_TARGET_HAS_nor_i64          0
+#define TCG_TARGET_HAS_deposit_i64      0
+#endif
+
+/* Only one of DIV or DIV2 should be defined.  */
+#if defined(TCG_TARGET_HAS_div_i32)
+#define TCG_TARGET_HAS_div2_i32         0
+#elif defined(TCG_TARGET_HAS_div2_i32)
+#define TCG_TARGET_HAS_div_i32          0
+#endif
+#if defined(TCG_TARGET_HAS_div_i64)
+#define TCG_TARGET_HAS_div2_i64         0
+#elif defined(TCG_TARGET_HAS_div2_i64)
+#define TCG_TARGET_HAS_div_i64          0
+#endif
+
 typedef enum TCGOpcode {
 #define DEF(name, oargs, iargs, cargs, flags) INDEX_op_ ## name,
 #include "tcg-opc.h"
@@ -445,13 +481,20 @@ typedef struct TCGArgConstraint {
 
 #define TCG_MAX_OP_ARGS 16
 
-#define TCG_OPF_BB_END     0x01 /* instruction defines the end of a basic
-                                   block */
-#define TCG_OPF_CALL_CLOBBER 0x02 /* instruction clobbers call registers 
-                                   and potentially update globals. */
-#define TCG_OPF_SIDE_EFFECTS 0x04 /* instruction has side effects : it
-                                     cannot be removed if its output
-                                     are not used */
+/* Bits for TCGOpDef->flags, 8 bits available.  */
+enum {
+    /* Instruction defines the end of a basic block.  */
+    TCG_OPF_BB_END       = 0x01,
+    /* Instruction clobbers call registers and potentially update globals.  */
+    TCG_OPF_CALL_CLOBBER = 0x02,
+    /* Instruction has side effects: it cannot be removed
+       if its outputs are not used.  */
+    TCG_OPF_SIDE_EFFECTS = 0x04,
+    /* Instruction operands are 64-bits (otherwise 32-bits).  */
+    TCG_OPF_64BIT        = 0x08,
+    /* Instruction is optional and not implemented by the host.  */
+    TCG_OPF_NOT_PRESENT  = 0x10,
+};
 
 typedef struct TCGOpDef {
     const char *name;
@@ -463,6 +506,8 @@ typedef struct TCGOpDef {
     int used;
 #endif
 } TCGOpDef;
+
+extern TCGOpDef tcg_op_defs[];
         
 typedef struct TCGTargetOpDef {
     TCGOpcode op;

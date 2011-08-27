@@ -434,7 +434,7 @@ qemu_irq *csrhci_pins_get(CharDriverState *chr)
 CharDriverState *uart_hci_init(qemu_irq wakeup)
 {
     struct csrhci_s *s = (struct csrhci_s *)
-            qemu_mallocz(sizeof(struct csrhci_s));
+            g_malloc0(sizeof(struct csrhci_s));
 
     s->chr.opaque = s;
     s->chr.chr_write = csrhci_write;

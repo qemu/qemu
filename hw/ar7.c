@@ -65,7 +65,7 @@
 #include "pci.h"
 
 #include "sysemu.h"             /* serial_hds */
-#include "qemu-char.h"          /* qemu_chr_printf */
+#include "qemu-char.h"          /* qemu_chr_fe_printf */
 #include "qemu-timer.h"         /* vm_clock */
 
 #include "block.h"              /* bdrv_getlength */
@@ -559,8 +559,8 @@ static void malta_fpga_update_display(void *opaque)
     }
     leds_text[8] = '\0';
 
-    qemu_chr_printf(s->display, "\e[3;2H\e[0;32m%-8.8s", leds_text);
-    qemu_chr_printf(s->display, "\e[8;2H\e[0;31m%-8.8s\r\n\n\e[0;37m", s->display_text);
+    qemu_chr_fe_printf(s->display, "\e[3;2H\e[0;32m%-8.8s", leds_text);
+    qemu_chr_fe_printf(s->display, "\e[8;2H\e[0;31m%-8.8s\r\n\n\e[0;37m", s->display_text);
 }
 
 /*****************************************************************************
@@ -1947,7 +1947,7 @@ typedef enum {
 static void ar7_led_display(unsigned led_index, int on)
 {
   static const uint8_t x[] = { 1, 7, 14, 23, 29 };
-  qemu_chr_printf(ar7.gpio_display, "\e[10;%uH\e[%dm \e[m", x[led_index], (on) ? 42 : 40);
+  qemu_chr_fe_printf(ar7.gpio_display, "\e[10;%uH\e[%dm \e[m", x[led_index], (on) ? 42 : 40);
 }
 
 static void ar7_gpio_display(void)
@@ -1961,27 +1961,23 @@ static void ar7_gpio_display(void)
     for (bit_index = 0; bit_index < 32; bit_index++) {
         text[bit_index] = (in & BIT(bit_index)) ? '*' : '.';
     }
-    qemu_chr_printf(ar7.gpio_display,
-                    "\e[5;1H%32.32s (in  0x%08x)",
-                    text, in);
+    qemu_chr_fe_printf(ar7.gpio_display, "\e[5;1H%32.32s (in  0x%08x)",
+                       text, in);
     for (bit_index = 0; bit_index < 32; bit_index++) {
         text[bit_index] = (out & BIT(bit_index)) ? '*' : '.';
     }
-    qemu_chr_printf(ar7.gpio_display,
-                    "\e[6;1H%32.32s (out 0x%08x)",
-                    text, out);
+    qemu_chr_fe_printf(ar7.gpio_display, "\e[6;1H%32.32s (out 0x%08x)",
+                       text, out);
     for (bit_index = 0; bit_index < 32; bit_index++) {
         text[bit_index] = (dir & BIT(bit_index)) ? '*' : '.';
     }
-    qemu_chr_printf(ar7.gpio_display,
-                    "\e[7;1H%32.32s (dir 0x%08x)",
-                    text, dir);
+    qemu_chr_fe_printf(ar7.gpio_display, "\e[7;1H%32.32s (dir 0x%08x)",
+                       text, dir);
     for (bit_index = 0; bit_index < 32; bit_index++) {
         text[bit_index] = (enable & BIT(bit_index)) ? '*' : '.';
     }
-    qemu_chr_printf(ar7.gpio_display,
-                    "\e[8;1H%32.32s (ena 0x%08x)",
-                    text, enable);
+    qemu_chr_fe_printf(ar7.gpio_display, "\e[8;1H%32.32s (ena 0x%08x)",
+                       text, enable);
 
     /* LAN LED. */
     ar7_led_display(0, 1);
@@ -1999,7 +1995,7 @@ static void ar7_gpio_display(void)
     ar7_led_display(4, 1);
 
     /* Hide cursor. */
-    qemu_chr_printf(ar7.gpio_display, "\e[20;1H");
+    qemu_chr_fe_printf(ar7.gpio_display, "\e[20;1H");
 }
 
 #undef ENTRY
@@ -3298,7 +3294,7 @@ static void ar7_serial_init(CPUState * env)
      */
     unsigned uart_index;
     if (serial_hds[1] == 0) {
-        serial_hds[1] = qemu_chr_open("serial1", "vc:80Cx24C", NULL);
+        serial_hds[1] = qemu_chr_new("serial1", "vc:80Cx24C", NULL);
     }
     for (uart_index = 0; uart_index < 2; uart_index++) {
         ar7.serial[uart_index] = serial_mm_init(uart_base[uart_index], 2,
@@ -3536,15 +3532,15 @@ static void ar7_display_event(void *opaque, int event)
 
 static void malta_fpga_led_init(CharDriverState *chr)
 {
-    qemu_chr_printf(chr, "\e[HMalta LEDBAR\r\n");
-    qemu_chr_printf(chr, "+--------+\r\n");
-    qemu_chr_printf(chr, "+        +\r\n");
-    qemu_chr_printf(chr, "+--------+\r\n");
-    qemu_chr_printf(chr, "\n");
-    qemu_chr_printf(chr, "Malta ASCII\r\n");
-    qemu_chr_printf(chr, "+--------+\r\n");
-    qemu_chr_printf(chr, "+        +\r\n");
-    qemu_chr_printf(chr, "+--------+\r\n");
+    qemu_chr_fe_printf(chr, "\e[HMalta LEDBAR\r\n");
+    qemu_chr_fe_printf(chr, "+--------+\r\n");
+    qemu_chr_fe_printf(chr, "+        +\r\n");
+    qemu_chr_fe_printf(chr, "+--------+\r\n");
+    qemu_chr_fe_printf(chr, "\n");
+    qemu_chr_fe_printf(chr, "Malta ASCII\r\n");
+    qemu_chr_fe_printf(chr, "+--------+\r\n");
+    qemu_chr_fe_printf(chr, "+        +\r\n");
+    qemu_chr_fe_printf(chr, "+--------+\r\n");
 
     /* Select 1st serial console as default (because we don't have VGA). */
     console_select(1);
@@ -3552,22 +3548,22 @@ static void malta_fpga_led_init(CharDriverState *chr)
 
 static void ar7_gpio_display_init(CharDriverState *chr)
 {
-    qemu_chr_printf(chr,
-                    "\e[1;1HGPIO Status"
-                    "\e[2;1H0         1         2         3"
-                    "\e[3;1H01234567890123456789012345678901"
-                    "\e[10;1H* lan * wlan * online * dsl * power"
-                    "\e[12;1HPress 'r' to toggle the reset button");
+    qemu_chr_fe_printf(chr,
+                       "\e[1;1HGPIO Status"
+                       "\e[2;1H0         1         2         3"
+                       "\e[3;1H01234567890123456789012345678901"
+                       "\e[10;1H* lan * wlan * online * dsl * power"
+                       "\e[12;1HPress 'r' to toggle the reset button");
     ar7_gpio_display();
 }
 
 static void ar7_display_init(CPUState *env)
 {
-    ar7.gpio_display = qemu_chr_open("gpio", "vc:400x300", ar7_gpio_display_init);
+    ar7.gpio_display = qemu_chr_new("gpio", "vc:400x300", ar7_gpio_display_init);
     qemu_chr_add_handlers(ar7.gpio_display, ar7_display_can_receive,
                           ar7_display_receive, ar7_display_event, 0);
 
-    malta_display.display = qemu_chr_open("led-display", "vc:320x200", malta_fpga_led_init);
+    malta_display.display = qemu_chr_new("led-display", "vc:320x200", malta_fpga_led_init);
 }
 
 static void ar7_reset(DeviceState *d)
@@ -3877,7 +3873,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "flashimage.bin");
         if (filename) {
             flash_size = load_image_targphys(filename, FLASH_ADDR, flash_size);
-            qemu_free(filename);
+            g_free(filename);
         }
     }
     fprintf(stderr, "%s: load BIOS '%s', size %d\n",
@@ -3889,7 +3885,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
                                  4 * KiB, rom_offset | IO_MEM_ROM);
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "mips_bios.bin");
     rom_size = load_image_targphys(filename, PROM_ADDR, 4 * KiB);
-    qemu_free(filename);
+    g_free(filename);
     if ((rom_size > 0) && (rom_size <= 4 * KiB)) {
         fprintf(stderr, "%s: load BIOS '%s', size %d\n", __func__, "mips_bios.bin", rom_size);
     } else {

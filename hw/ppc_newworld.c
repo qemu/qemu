@@ -146,6 +146,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     MacIONVRAMState *nvr;
     int bios_size;
     MemoryRegion *pic_mem, *dbdma_mem, *cuda_mem, *escc_mem;
+    MemoryRegion *escc_bar = g_new(MemoryRegion, 1);
     MemoryRegion *ide_mem[3];
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
@@ -189,7 +190,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         bios_size = load_elf(filename, NULL, NULL, NULL,
                              NULL, NULL, 1, ELF_MACHINE, 0);
 
-        qemu_free(filename);
+        g_free(filename);
     } else {
         bios_size = -1;
     }
@@ -271,9 +272,9 @@ static void ppc_core99_init (ram_addr_t ram_size,
                                          DEVICE_NATIVE_ENDIAN);
     cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
 
-    openpic_irqs = qemu_mallocz(smp_cpus * sizeof(qemu_irq *));
+    openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     openpic_irqs[0] =
-        qemu_mallocz(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
+        g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     for (i = 0; i < smp_cpus; i++) {
         /* Mac99 IRQ connection between OpenPIC outputs pins
          * and PowerPC input pins
@@ -328,6 +329,8 @@ static void ppc_core99_init (ram_addr_t ram_size,
 
     escc_mem = escc_init(0x80013000, pic[0x25], pic[0x24],
                          serial_hds[0], serial_hds[1], ESCC_CLOCK, 4);
+    memory_region_init_alias(escc_bar, "escc-bar",
+                             escc_mem, 0, memory_region_size(escc_mem));
 
     for(i = 0; i < nb_nics; i++)
         pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
@@ -350,7 +353,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
     adb_mouse_init(&adb_bus);
 
     macio_init(pci_bus, PCI_DEVICE_ID_APPLE_UNI_N_KEYL, 0, pic_mem,
-               dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_mem);
+               dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_bar);
 
     if (usb_enabled) {
         usb_ohci_init_pci(pci_bus, -1);
@@ -398,7 +401,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
         uint8_t *hypercall;
 
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_TBFREQ, kvmppc_get_tbfreq());
-        hypercall = qemu_malloc(16);
+        hypercall = g_malloc(16);
         kvmppc_get_hypercall(env, hypercall, 16);
         fw_cfg_add_bytes(fw_cfg, FW_CFG_PPC_KVM_HC, hypercall, 16);
         fw_cfg_add_i32(fw_cfg, FW_CFG_PPC_KVM_PID, getpid());

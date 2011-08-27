@@ -36,12 +36,12 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
     struct virtio_9p_config *cfg;
     V9fsState *s = to_virtio_9p(vdev);
 
-    cfg = qemu_mallocz(sizeof(struct virtio_9p_config) +
+    cfg = g_malloc0(sizeof(struct virtio_9p_config) +
                         s->tag_len);
     stw_raw(&cfg->tag_len, s->tag_len);
     memcpy(cfg->tag, s->tag, s->tag_len);
     memcpy(config, cfg, s->config_size);
-    qemu_free(cfg);
+    g_free(cfg);
 }
 
 VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
@@ -114,13 +114,13 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         exit(1);
     }
 
-    s->ctx.fs_root = qemu_strdup(fse->path);
+    s->ctx.fs_root = g_strdup(fse->path);
     len = strlen(conf->tag);
     if (len > MAX_TAG_LEN) {
         len = MAX_TAG_LEN;
     }
     /* s->tag is non-NULL terminated string */
-    s->tag = qemu_malloc(len);
+    s->tag = g_malloc(len);
     memcpy(s->tag, conf->tag, len);
     s->tag_len = len;
     s->ctx.uid = -1;

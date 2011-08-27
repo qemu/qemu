@@ -119,7 +119,7 @@ static int raw_has_zero_init(BlockDriverState *bs)
 static BlockDriver bdrv_raw = {
     .format_name        = "raw",
 
-    /* It's really 0, but we need to make qemu_malloc() happy */
+    /* It's really 0, but we need to make g_malloc() happy */
     .instance_size      = 1,
 
     .bdrv_open          = raw_open,

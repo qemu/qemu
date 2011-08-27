@@ -1620,7 +1620,7 @@ struct soc_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
 {
     int iomemtype, num_irqs, memsize, i;
     struct omap_dma_s *s = (struct omap_dma_s *)
-            qemu_mallocz(sizeof(struct omap_dma_s));
+            g_malloc0(sizeof(struct omap_dma_s));
 
     if (model <= omap_dma_3_1) {
         num_irqs = 6;
@@ -2039,7 +2039,7 @@ struct soc_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
 {
     int iomemtype, i;
     struct omap_dma_s *s = (struct omap_dma_s *)
-            qemu_mallocz(sizeof(struct omap_dma_s));
+            g_malloc0(sizeof(struct omap_dma_s));
 
     s->model = omap_dma_4;
     s->chans = chans;

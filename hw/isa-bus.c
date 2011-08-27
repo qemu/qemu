@@ -20,6 +20,7 @@
 #include "monitor.h"
 #include "sysbus.h"
 #include "isa.h"
+#include "exec-memory.h"
 
 struct ISABus {
     BusState qbus;
@@ -200,6 +201,11 @@ static char *isabus_get_fw_dev_path(DeviceState *dev)
     }
 
     return strdup(path);
+}
+
+MemoryRegion *isa_address_space(ISADevice *dev)
+{
+    return get_system_memory();
 }
 
 device_init(isabus_register_devices)

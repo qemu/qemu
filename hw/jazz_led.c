@@ -312,7 +312,7 @@ void jazz_led_init(target_phys_addr_t base)
     LedState *s;
     int io;
 
-    s = qemu_mallocz(sizeof(LedState));
+    s = g_malloc0(sizeof(LedState));
 
     s->state = REDRAW_SEGMENTS | REDRAW_BACKGROUND;
 

@@ -102,7 +102,7 @@ static int mpc8544_load_device_tree(CPUState *env,
         goto out;
     }
     fdt = load_device_tree(filename, &fdt_size);
-    qemu_free(filename);
+    g_free(filename);
     if (fdt == NULL) {
         goto out;
     }
@@ -176,7 +176,7 @@ static int mpc8544_load_device_tree(CPUState *env,
     }
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
-    qemu_free(fdt);
+    g_free(fdt);
 
 out:
 #endif
@@ -267,7 +267,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                                  "mpc8544ds.ram", ram_size));
 
     /* MPIC */
-    irqs = qemu_mallocz(sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
+    irqs = g_malloc0(sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
     irqs[OPENPIC_OUTPUT_INT] = ((qemu_irq *)env->irq_inputs)[PPCE500_INPUT_INT];
     irqs[OPENPIC_OUTPUT_CINT] = ((qemu_irq *)env->irq_inputs)[PPCE500_INPUT_CINT];
     mpic = mpic_init(MPC8544_MPIC_REGS_BASE, 1, &irqs, NULL);
@@ -336,7 +336,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         }
     }
 
-    boot_info = qemu_mallocz(sizeof(struct boot_info));
+    boot_info = g_malloc0(sizeof(struct boot_info));
 
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {

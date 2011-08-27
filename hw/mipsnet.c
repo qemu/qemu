@@ -228,7 +228,7 @@ static void mipsnet_cleanup(VLANClientState *nc)
 
     isa_unassign_ioport(s->io_base, 36);
 
-    qemu_free(s);
+    g_free(s);
 }
 
 static NetClientInfo net_mipsnet_info = {
@@ -245,7 +245,7 @@ void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
 
     qemu_check_nic_model(nd, "mipsnet");
 
-    s = qemu_mallocz(sizeof(MIPSnetState));
+    s = g_malloc0(sizeof(MIPSnetState));
 
     register_ioport_write(base, 36, 1, mipsnet_ioport_write, s);
     register_ioport_read(base, 36, 1, mipsnet_ioport_read, s);

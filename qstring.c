@@ -40,12 +40,12 @@ QString *qstring_from_substr(const char *str, int start, int end)
 {
     QString *qstring;
 
-    qstring = qemu_malloc(sizeof(*qstring));
+    qstring = g_malloc(sizeof(*qstring));
 
     qstring->length = end - start + 1;
     qstring->capacity = qstring->length;
 
-    qstring->string = qemu_malloc(qstring->capacity + 1);
+    qstring->string = g_malloc(qstring->capacity + 1);
     memcpy(qstring->string, str + start, qstring->length);
     qstring->string[qstring->length] = 0;
 
@@ -70,7 +70,7 @@ static void capacity_increase(QString *qstring, size_t len)
         qstring->capacity += len;
         qstring->capacity *= 2; /* use exponential growth */
 
-        qstring->string = qemu_realloc(qstring->string, qstring->capacity + 1);
+        qstring->string = g_realloc(qstring->string, qstring->capacity + 1);
     }
 }
 
@@ -136,6 +136,6 @@ static void qstring_destroy_obj(QObject *obj)
 
     assert(obj != NULL);
     qs = qobject_to_qstring(obj);
-    qemu_free(qs->string);
-    qemu_free(qs);
+    g_free(qs->string);
+    g_free(qs);
 }

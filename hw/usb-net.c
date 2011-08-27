@@ -844,7 +844,7 @@ static int rndis_get_response(USBNetState *s, uint8_t *buf)
     QTAILQ_REMOVE(&s->rndis_resp, r, entries);
     ret = r->length;
     memcpy(buf, r->buf, r->length);
-    qemu_free(r);
+    g_free(r);
 
     return ret;
 }
@@ -852,7 +852,7 @@ static int rndis_get_response(USBNetState *s, uint8_t *buf)
 static void *rndis_queue_response(USBNetState *s, unsigned int length)
 {
     struct rndis_response *r =
-            qemu_mallocz(sizeof(struct rndis_response) + length);
+            g_malloc0(sizeof(struct rndis_response) + length);
 
     QTAILQ_INSERT_TAIL(&s->rndis_resp, r, entries);
     r->length = length;
@@ -866,7 +866,7 @@ static void rndis_clear_responsequeue(USBNetState *s)
 
     while ((r = s->rndis_resp.tqh_first)) {
         QTAILQ_REMOVE(&s->rndis_resp, r, entries);
-        qemu_free(r);
+        g_free(r);
     }
 }
 

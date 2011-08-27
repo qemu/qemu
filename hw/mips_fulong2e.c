@@ -140,7 +140,7 @@ static int64_t load_kernel (CPUState *env)
 
     /* Setup prom parameters. */
     prom_size = ENVP_NB_ENTRIES * (sizeof(int32_t) + ENVP_ENTRY_SIZE);
-    prom_buf = qemu_malloc(prom_size);
+    prom_buf = g_malloc(prom_size);
 
     prom_set(prom_buf, index++, "%s", loaderparams.kernel_filename);
     if (initrd_size > 0) {
@@ -313,7 +313,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
         if (filename) {
             bios_size = load_image_targphys(filename, 0x1fc00000LL,
                                             BIOS_SIZE);
-            qemu_free(filename);
+            g_free(filename);
         } else {
             bios_size = -1;
         }

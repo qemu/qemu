@@ -30,7 +30,7 @@ START_TEST(qlist_new_test)
     fail_unless(qobject_type(QOBJECT(qlist)) == QTYPE_QLIST);
 
     // destroy doesn't exist yet
-    qemu_free(qlist);
+    g_free(qlist);
 }
 END_TEST
 
@@ -51,8 +51,8 @@ START_TEST(qlist_append_test)
 
     // destroy doesn't exist yet
     QDECREF(qi);
-    qemu_free(entry);
-    qemu_free(qlist);
+    g_free(entry);
+    g_free(qlist);
 }
 END_TEST
 
@@ -65,7 +65,7 @@ START_TEST(qobject_to_qlist_test)
     fail_unless(qobject_to_qlist(QOBJECT(qlist)) == qlist);
 
     // destroy doesn't exist yet
-    qemu_free(qlist);
+    g_free(qlist);
 }
 END_TEST
 

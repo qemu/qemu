@@ -30,7 +30,7 @@ static void init_dev(tc58128_dev * dev, const char *filename)
     int ret, blocks;
 
     dev->state = WAIT;
-    dev->flash_contents = qemu_mallocz(FLASH_SIZE);
+    dev->flash_contents = g_malloc0(FLASH_SIZE);
     memset(dev->flash_contents, 0xff, FLASH_SIZE);
     if (!dev->flash_contents) {
 	fprintf(stderr, "could not alloc memory for flash\n");

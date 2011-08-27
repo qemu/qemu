@@ -524,7 +524,7 @@ PXA2xxMMCIState *pxa2xx_mmci_init(target_phys_addr_t base,
     int iomemtype;
     PXA2xxMMCIState *s;
 
-    s = (PXA2xxMMCIState *) qemu_mallocz(sizeof(PXA2xxMMCIState));
+    s = (PXA2xxMMCIState *) g_malloc0(sizeof(PXA2xxMMCIState));
     s->irq = irq;
     s->rx_dma = rx_dma;
     s->tx_dma = tx_dma;

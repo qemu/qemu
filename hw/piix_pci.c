@@ -66,10 +66,22 @@ typedef struct PIIX3State {
     int32_t pci_irq_levels_vmstate[PIIX_NUM_PIRQS];
 } PIIX3State;
 
+typedef struct PAMMemoryRegion {
+    MemoryRegion mem;
+    bool initialized;
+} PAMMemoryRegion;
+
 struct PCII440FXState {
     PCIDevice dev;
-    target_phys_addr_t isa_page_descs[384 / 4];
+    MemoryRegion *system_memory;
+    MemoryRegion *pci_address_space;
+    MemoryRegion *ram_memory;
+    MemoryRegion pci_hole;
+    MemoryRegion pci_hole_64bit;
+    PAMMemoryRegion pam_regions[13];
+    MemoryRegion smram_region;
     uint8_t smm_enabled;
+    bool smram_enabled;
     PIIX3State *piix3;
 };
 
@@ -92,50 +104,62 @@ static int pci_slot_get_pirq(PCIDevice *pci_dev, int pci_intx)
     return (pci_intx + slot_addend) & 3;
 }
 
-static void update_pam(PCII440FXState *d, uint32_t start, uint32_t end, int r)
+static void update_pam(PCII440FXState *d, uint32_t start, uint32_t end, int r,
+                       PAMMemoryRegion *mem)
 {
-    uint32_t addr;
+    if (mem->initialized) {
+        memory_region_del_subregion(d->system_memory, &mem->mem);
+        memory_region_destroy(&mem->mem);
+    }
 
     //    printf("ISA mapping %08x-0x%08x: %d\n", start, end, r);
     switch(r) {
     case 3:
         /* RAM */
-        cpu_register_physical_memory(start, end - start,
-                                     start);
+        memory_region_init_alias(&mem->mem, "pam-ram", d->ram_memory,
+                                 start, end - start);
         break;
     case 1:
         /* ROM (XXX: not quite correct) */
-        cpu_register_physical_memory(start, end - start,
-                                     start | IO_MEM_ROM);
+        memory_region_init_alias(&mem->mem, "pam-rom", d->ram_memory,
+                                 start, end - start);
+        memory_region_set_readonly(&mem->mem, true);
         break;
     case 2:
     case 0:
         /* XXX: should distinguish read/write cases */
-        for(addr = start; addr < end; addr += 4096) {
-            cpu_register_physical_memory(addr, 4096,
-                                         d->isa_page_descs[(addr - 0xa0000) >> 12]);
-        }
+        memory_region_init_alias(&mem->mem, "pam-pci", d->pci_address_space,
+                                 start, end - start);
         break;
     }
+    memory_region_add_subregion_overlap(d->system_memory,
+                                        start, &mem->mem, 1);
+    mem->initialized = true;
 }
 
 static void i440fx_update_memory_mappings(PCII440FXState *d)
 {
     int i, r;
-    uint32_t smram, addr;
+    uint32_t smram;
 
-    update_pam(d, 0xf0000, 0x100000, (d->dev.config[I440FX_PAM] >> 4) & 3);
+    update_pam(d, 0xf0000, 0x100000, (d->dev.config[I440FX_PAM] >> 4) & 3,
+               &d->pam_regions[0]);
     for(i = 0; i < 12; i++) {
         r = (d->dev.config[(i >> 1) + (I440FX_PAM + 1)] >> ((i & 1) * 4)) & 3;
-        update_pam(d, 0xc0000 + 0x4000 * i, 0xc0000 + 0x4000 * (i + 1), r);
+        update_pam(d, 0xc0000 + 0x4000 * i, 0xc0000 + 0x4000 * (i + 1), r,
+                   &d->pam_regions[i+1]);
     }
     smram = d->dev.config[I440FX_SMRAM];
     if ((d->smm_enabled && (smram & 0x08)) || (smram & 0x40)) {
-        cpu_register_physical_memory(0xa0000, 0x20000, 0xa0000);
+        if (!d->smram_enabled) {
+            memory_region_del_subregion(d->system_memory, &d->smram_region);
+            d->smram_enabled = true;
+        }
     } else {
-        for(addr = 0xa0000; addr < 0xc0000; addr += 4096) {
-            cpu_register_physical_memory(addr, 4096,
-                                         d->isa_page_descs[(addr - 0xa0000) >> 12]);
+        if (d->smram_enabled) {
+            memory_region_add_subregion_overlap(d->system_memory, 0xa0000,
+                                                &d->smram_region, 1);
+            d->smram_enabled = false;
         }
     }
 }
@@ -151,17 +175,6 @@ static void i440fx_set_smm(int val, void *arg)
     }
 }
 
-
-/* XXX: suppress when better memory API. We make the assumption that
-   no device (in particular the VGA) changes the memory mappings in
-   the 0xa0000-0x100000 range */
-void i440fx_init_memory_mappings(PCII440FXState *d)
-{
-    int i;
-    for(i = 0; i < 96; i++) {
-        d->isa_page_descs[i] = cpu_get_physical_page_desc(0xa0000 + i * 0x1000);
-    }
-}
 
 static void i440fx_write_config(PCIDevice *dev,
                                 uint32_t address, uint32_t val, int len)
@@ -244,24 +257,48 @@ static PCIBus *i440fx_common_init(const char *device_name,
                                   qemu_irq *pic,
                                   MemoryRegion *address_space_mem,
                                   MemoryRegion *address_space_io,
-                                  ram_addr_t ram_size)
+                                  ram_addr_t ram_size,
+                                  target_phys_addr_t pci_hole_start,
+                                  target_phys_addr_t pci_hole_size,
+                                  target_phys_addr_t pci_hole64_start,
+                                  target_phys_addr_t pci_hole64_size,
+                                  MemoryRegion *pci_address_space,
+                                  MemoryRegion *ram_memory)
 {
     DeviceState *dev;
     PCIBus *b;
     PCIDevice *d;
     I440FXState *s;
     PIIX3State *piix3;
+    PCII440FXState *f;
 
     dev = qdev_create(NULL, "i440FX-pcihost");
     s = FROM_SYSBUS(I440FXState, sysbus_from_qdev(dev));
     s->address_space = address_space_mem;
-    b = pci_bus_new(&s->busdev.qdev, NULL, s->address_space,
+    b = pci_bus_new(&s->busdev.qdev, NULL, pci_address_space,
                     address_space_io, 0);
     s->bus = b;
     qdev_init_nofail(dev);
 
     d = pci_create_simple(b, 0, device_name);
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
+    f = *pi440fx_state;
+    f->system_memory = address_space_mem;
+    f->pci_address_space = pci_address_space;
+    f->ram_memory = ram_memory;
+    memory_region_init_alias(&f->pci_hole, "pci-hole", f->pci_address_space,
+                             pci_hole_start, pci_hole_size);
+    memory_region_add_subregion(f->system_memory, pci_hole_start, &f->pci_hole);
+    memory_region_init_alias(&f->pci_hole_64bit, "pci-hole64",
+                             f->pci_address_space,
+                             pci_hole64_start, pci_hole64_size);
+    if (pci_hole64_size) {
+        memory_region_add_subregion(f->system_memory, pci_hole64_start,
+                                    &f->pci_hole_64bit);
+    }
+    memory_region_init_alias(&f->smram_region, "smram-region",
+                             f->pci_address_space, 0xa0000, 0x20000);
+    f->smram_enabled = true;
 
     /* Xen supports additional interrupt routes from the PCI devices to
      * the IOAPIC: the four pins of each PCI device on the bus are also
@@ -289,6 +326,8 @@ static PCIBus *i440fx_common_init(const char *device_name,
         ram_size = 255;
     (*pi440fx_state)->dev.config[0x57]=ram_size;
 
+    i440fx_update_memory_mappings(f);
+
     return b;
 }
 
@@ -296,12 +335,21 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix3_devfn,
                     qemu_irq *pic,
                     MemoryRegion *address_space_mem,
                     MemoryRegion *address_space_io,
-                    ram_addr_t ram_size)
+                    ram_addr_t ram_size,
+                    target_phys_addr_t pci_hole_start,
+                    target_phys_addr_t pci_hole_size,
+                    target_phys_addr_t pci_hole64_start,
+                    target_phys_addr_t pci_hole64_size,
+                    MemoryRegion *pci_memory, MemoryRegion *ram_memory)
+
 {
     PCIBus *b;
 
     b = i440fx_common_init("i440FX", pi440fx_state, piix3_devfn, pic,
-                           address_space_mem, address_space_io, ram_size);
+                           address_space_mem, address_space_io, ram_size,
+                           pci_hole_start, pci_hole_size,
+                           pci_hole64_size, pci_hole64_size,
+                           pci_memory, ram_memory);
     return b;
 }
 

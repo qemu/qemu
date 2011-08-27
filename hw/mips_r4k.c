@@ -133,7 +133,7 @@ static int64_t load_kernel(void)
 
     /* Store command line.  */
     params_size = 264;
-    params_buf = qemu_malloc(params_size);
+    params_buf = g_malloc(params_size);
 
     params_buf[0] = tswap32(ram_size);
     params_buf[1] = tswap32(0x12345678);
@@ -196,7 +196,7 @@ static void mips_init(ram_addr_t ram_size,
     fprintf(stderr, "%s: setting %s endian mode\n",
             __func__, bigendian ? "big" : "little");
 
-    reset_info = qemu_mallocz(sizeof(ResetData));
+    reset_info = g_malloc0(sizeof(ResetData));
     reset_info->env = env;
     reset_info->vector = env->active_tc.PC;
     qemu_register_reset(main_cpu_reset, reset_info);
@@ -258,7 +258,7 @@ static void mips_init(ram_addr_t ram_size,
 		bios_name);
     }
     if (filename) {
-        qemu_free(filename);
+        g_free(filename);
     }
 
     if (kernel_filename) {

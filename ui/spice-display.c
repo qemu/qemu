@@ -144,14 +144,14 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
            ssd->dirty.left, ssd->dirty.right,
            ssd->dirty.top, ssd->dirty.bottom);
 
-    update   = qemu_mallocz(sizeof(*update));
+    update   = g_malloc0(sizeof(*update));
     drawable = &update->drawable;
     image    = &update->image;
     cmd      = &update->ext.cmd;
 
     bw       = ssd->dirty.right - ssd->dirty.left;
     bh       = ssd->dirty.bottom - ssd->dirty.top;
-    update->bitmap = qemu_malloc(bw * bh * 4);
+    update->bitmap = g_malloc(bw * bh * 4);
 
     drawable->bbox            = ssd->dirty;
     drawable->clip.type       = SPICE_CLIP_TYPE_NONE;
@@ -208,12 +208,12 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
  * Called from spice server thread context (via interface_release_ressource)
  * We do *not* hold the global qemu mutex here, so extra care is needed
  * when calling qemu functions.  Qemu interfaces used:
- *    - qemu_free (underlying glibc free is re-entrant).
+ *    - g_free (underlying glibc free is re-entrant).
  */
 void qemu_spice_destroy_update(SimpleSpiceDisplay *sdpy, SimpleSpiceUpdate *update)
 {
-    qemu_free(update->bitmap);
-    qemu_free(update);
+    g_free(update->bitmap);
+    g_free(update);
 }
 
 void qemu_spice_create_host_memslot(SimpleSpiceDisplay *ssd)
@@ -274,7 +274,7 @@ void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds)
     ssd->mouse_x = -1;
     ssd->mouse_y = -1;
     ssd->bufsize = (16 * 1024 * 1024);
-    ssd->buf = qemu_malloc(ssd->bufsize);
+    ssd->buf = g_malloc(ssd->bufsize);
 }
 
 /* display listener callbacks */

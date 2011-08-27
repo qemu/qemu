@@ -461,7 +461,7 @@ static int pxa2xx_dma_init(SysBusDevice *dev)
         return -1;
     }
 
-    s->chan = qemu_mallocz(sizeof(PXA2xxDMAChannel) * s->channels);
+    s->chan = g_malloc0(sizeof(PXA2xxDMAChannel) * s->channels);
 
     memset(s->chan, 0, sizeof(PXA2xxDMAChannel) * s->channels);
     for (i = 0; i < s->channels; i ++)

@@ -213,7 +213,7 @@ static int syborg_int_init(SysBusDevice *dev)
                                        syborg_int_writefn, s,
                                        DEVICE_NATIVE_ENDIAN);
     sysbus_init_mmio(dev, 0x1000, iomemtype);
-    s->flags = qemu_mallocz(s->num_irqs * sizeof(syborg_int_flags));
+    s->flags = g_malloc0(s->num_irqs * sizeof(syborg_int_flags));
 
     register_savevm(&dev->qdev, "syborg_int", -1, 1, syborg_int_save,
                     syborg_int_load, s);

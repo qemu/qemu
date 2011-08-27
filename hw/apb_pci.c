@@ -31,7 +31,6 @@
 #include "pci_host.h"
 #include "pci_bridge.h"
 #include "pci_internals.h"
-#include "rwhandler.h"
 #include "apb_pci.h"
 #include "sysemu.h"
 #include "exec-memory.h"
@@ -70,7 +69,9 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 typedef struct APBState {
     SysBusDevice busdev;
     PCIBus      *bus;
-    ReadWriteHandler pci_config_handler;
+    MemoryRegion apb_config;
+    MemoryRegion pci_config;
+    MemoryRegion pci_ioport;
     uint32_t iommu[4];
     uint32_t pci_control[16];
     uint32_t pci_irq_map[8];
@@ -81,7 +82,7 @@ typedef struct APBState {
 } APBState;
 
 static void apb_config_writel (void *opaque, target_phys_addr_t addr,
-                               uint32_t val)
+                               uint64_t val, unsigned size)
 {
     APBState *s = opaque;
 
@@ -128,8 +129,8 @@ static void apb_config_writel (void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint32_t apb_config_readl (void *opaque,
-                                  target_phys_addr_t addr)
+static uint64_t apb_config_readl (void *opaque,
+                                  target_phys_addr_t addr, unsigned size)
 {
     APBState *s = opaque;
     uint32_t val;
@@ -176,33 +177,27 @@ static uint32_t apb_config_readl (void *opaque,
     return val;
 }
 
-static CPUWriteMemoryFunc * const apb_config_write[] = {
-    &apb_config_writel,
-    &apb_config_writel,
-    &apb_config_writel,
+static const MemoryRegionOps apb_config_ops = {
+    .read = apb_config_readl,
+    .write = apb_config_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUReadMemoryFunc * const apb_config_read[] = {
-    &apb_config_readl,
-    &apb_config_readl,
-    &apb_config_readl,
-};
-
-static void apb_pci_config_write(ReadWriteHandler *h, pcibus_t addr,
-                                 uint32_t val, int size)
+static void apb_pci_config_write(void *opaque, target_phys_addr_t addr,
+                                 uint64_t val, unsigned size)
 {
-    APBState *s = container_of(h, APBState, pci_config_handler);
+    APBState *s = opaque;
 
     val = qemu_bswap_len(val, size);
     APB_DPRINTF("%s: addr " TARGET_FMT_lx " val %x\n", __func__, addr, val);
     pci_data_write(s->bus, addr, val, size);
 }
 
-static uint32_t apb_pci_config_read(ReadWriteHandler *h, pcibus_t addr,
-                                    int size)
+static uint64_t apb_pci_config_read(void *opaque, target_phys_addr_t addr,
+                                    unsigned size)
 {
     uint32_t ret;
-    APBState *s = container_of(h, APBState, pci_config_handler);
+    APBState *s = opaque;
 
     ret = pci_data_read(s->bus, addr, size);
     ret = qemu_bswap_len(ret, size);
@@ -252,16 +247,12 @@ static uint32_t pci_apb_ioreadl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUWriteMemoryFunc * const pci_apb_iowrite[] = {
-    &pci_apb_iowriteb,
-    &pci_apb_iowritew,
-    &pci_apb_iowritel,
-};
-
-static CPUReadMemoryFunc * const pci_apb_ioread[] = {
-    &pci_apb_ioreadb,
-    &pci_apb_ioreadw,
-    &pci_apb_ioreadl,
+static const MemoryRegionOps pci_ioport_ops = {
+    .old_mmio = {
+        .read = { pci_apb_ioreadb, pci_apb_ioreadw, pci_apb_ioreadl },
+        .write = { pci_apb_iowriteb, pci_apb_iowritew, pci_apb_iowritel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* The APB host has an IRQ line for each IRQ line of each slot.  */
@@ -393,10 +384,15 @@ static void pci_pbm_reset(DeviceState *d)
     }
 }
 
+static const MemoryRegionOps pci_config_ops = {
+    .read = apb_pci_config_read,
+    .write = apb_pci_config_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
 static int pci_pbm_init_device(SysBusDevice *dev)
 {
     APBState *s;
-    int pci_config, apb_config, pci_ioport;
     unsigned int i;
 
     s = FROM_SYSBUS(APBState, dev);
@@ -408,27 +404,21 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     }
 
     /* apb_config */
-    apb_config = cpu_register_io_memory(apb_config_read,
-                                        apb_config_write, s,
-                                        DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->apb_config, &apb_config_ops, s, "apb-config",
+                          0x10000);
     /* at region 0 */
-    sysbus_init_mmio(dev, 0x10000ULL, apb_config);
+    sysbus_init_mmio_region(dev, &s->apb_config);
 
-    /* PCI configuration space */
-    s->pci_config_handler.read = apb_pci_config_read;
-    s->pci_config_handler.write = apb_pci_config_write;
-    pci_config = cpu_register_io_memory_simple(&s->pci_config_handler,
-                                               DEVICE_NATIVE_ENDIAN);
-    assert(pci_config >= 0);
+    memory_region_init_io(&s->pci_config, &pci_config_ops, s, "apb-pci-config",
+                          0x1000000);
     /* at region 1 */
-    sysbus_init_mmio(dev, 0x1000000ULL, pci_config);
+    sysbus_init_mmio_region(dev, &s->pci_config);
 
     /* pci_ioport */
-    pci_ioport = cpu_register_io_memory(pci_apb_ioread,
-                                        pci_apb_iowrite, s,
-                                        DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->pci_ioport, &pci_ioport_ops, s,
+                          "apb-pci-ioport", 0x10000);
     /* at region 2 */
-    sysbus_init_mmio(dev, 0x10000ULL, pci_ioport);
+    sysbus_init_mmio_region(dev, &s->pci_ioport);
 
     return 0;
 }

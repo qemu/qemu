@@ -325,7 +325,7 @@ MemoryRegion *pmac_ide_init (DriveInfo **hd_table, qemu_irq irq,
 {
     MACIOIDEState *d;
 
-    d = qemu_mallocz(sizeof(MACIOIDEState));
+    d = g_malloc0(sizeof(MACIOIDEState));
     ide_init2_with_non_qdev_drives(&d->bus, hd_table[0], hd_table[1], irq);
 
     if (dbdma)

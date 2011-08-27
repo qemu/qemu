@@ -1105,7 +1105,7 @@ uWireSlave *tsc2102_init(qemu_irq pint)
     TSC210xState *s;
 
     s = (TSC210xState *)
-            qemu_mallocz(sizeof(TSC210xState));
+            g_malloc0(sizeof(TSC210xState));
     memset(s, 0, sizeof(TSC210xState));
     s->x = 160;
     s->y = 160;
@@ -1154,7 +1154,7 @@ uWireSlave *tsc2301_init(qemu_irq penirq, qemu_irq kbirq, qemu_irq dav)
     TSC210xState *s;
 
     s = (TSC210xState *)
-            qemu_mallocz(sizeof(TSC210xState));
+            g_malloc0(sizeof(TSC210xState));
     memset(s, 0, sizeof(TSC210xState));
     s->x = 400;
     s->y = 240;

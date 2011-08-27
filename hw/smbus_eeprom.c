@@ -130,7 +130,7 @@ void smbus_eeprom_init(i2c_bus *smbus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int eeprom_spd_size)
 {
     int i;
-    uint8_t *eeprom_buf = qemu_mallocz(8 * 256); /* XXX: make this persistent */
+    uint8_t *eeprom_buf = g_malloc0(8 * 256); /* XXX: make this persistent */
     if (eeprom_spd_size > 0) {
         memcpy(eeprom_buf, eeprom_spd, eeprom_spd_size);
     }

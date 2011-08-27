@@ -290,7 +290,7 @@ static void usb_host_handle_destroy(USBDevice *opaque)
 
     close(s->devfd);
 
-    qemu_free(s);
+    g_free(s);
 }
 
 static int usb_host_initfn(USBDevice *dev)

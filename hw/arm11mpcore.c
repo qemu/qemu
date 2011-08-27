@@ -54,6 +54,11 @@ static void mpcore_rirq_map(SysBusDevice *dev, target_phys_addr_t base)
     sysbus_mmio_map(s->priv, 0, base);
 }
 
+static void mpcore_rirq_unmap(SysBusDevice *dev, target_phys_addr_t base)
+{
+    /* nothing to do */
+}
+
 static int realview_mpcore_init(SysBusDevice *dev)
 {
     mpcore_rirq_state *s = FROM_SYSBUS(mpcore_rirq_state, dev);
@@ -79,7 +84,7 @@ static int realview_mpcore_init(SysBusDevice *dev)
         }
     }
     qdev_init_gpio_in(&dev->qdev, mpcore_rirq_set_irq, 64);
-    sysbus_init_mmio_cb(dev, 0x2000, mpcore_rirq_map);
+    sysbus_init_mmio_cb2(dev, mpcore_rirq_map, mpcore_rirq_unmap);
     return 0;
 }
 

@@ -140,7 +140,7 @@ static void xen_ram_init(ram_addr_t ram_size)
     RAMBlock *new_block;
     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
 
-    new_block = qemu_mallocz(sizeof (*new_block));
+    new_block = g_malloc0(sizeof (*new_block));
     pstrcpy(new_block->idstr, sizeof (new_block->idstr), "xen.ram");
     new_block->host = NULL;
     new_block->offset = 0;
@@ -154,7 +154,7 @@ static void xen_ram_init(ram_addr_t ram_size)
 
     QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
 
-    ram_list.phys_dirty = qemu_realloc(ram_list.phys_dirty,
+    ram_list.phys_dirty = g_realloc(ram_list.phys_dirty,
                                        new_block->length >> TARGET_PAGE_BITS);
     memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
            0xff, new_block->length >> TARGET_PAGE_BITS);
@@ -190,7 +190,7 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size)
     trace_xen_ram_alloc(ram_addr, size);
 
     nr_pfn = size >> TARGET_PAGE_BITS;
-    pfn_list = qemu_malloc(sizeof (*pfn_list) * nr_pfn);
+    pfn_list = g_malloc(sizeof (*pfn_list) * nr_pfn);
 
     for (i = 0; i < nr_pfn; i++) {
         pfn_list[i] = (ram_addr >> TARGET_PAGE_BITS) + i;
@@ -200,7 +200,7 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size)
         hw_error("xen: failed to populate ram at " RAM_ADDR_FMT, ram_addr);
     }
 
-    qemu_free(pfn_list);
+    g_free(pfn_list);
 }
 
 static XenPhysmap *get_physmapping(XenIOState *state,
@@ -267,7 +267,7 @@ go_physmap:
         }
     }
 
-    physmap = qemu_malloc(sizeof (XenPhysmap));
+    physmap = g_malloc(sizeof (XenPhysmap));
 
     physmap->start_addr = start_addr;
     physmap->size = size;
@@ -888,7 +888,7 @@ int xen_hvm_init(void)
     unsigned long ioreq_pfn;
     XenIOState *state;
 
-    state = qemu_mallocz(sizeof (XenIOState));
+    state = g_malloc0(sizeof (XenIOState));
 
     state->xce_handle = xen_xc_evtchn_open(NULL, 0);
     if (state->xce_handle == XC_HANDLER_INITIAL_VALUE) {
@@ -922,7 +922,7 @@ int xen_hvm_init(void)
         hw_error("map buffered IO page returned error %d", errno);
     }
 
-    state->ioreq_local_port = qemu_mallocz(smp_cpus * sizeof (evtchn_port_t));
+    state->ioreq_local_port = g_malloc0(smp_cpus * sizeof (evtchn_port_t));
 
     /* FIXME: how about if we overflow the page here? */
     for (i = 0; i < smp_cpus; i++) {

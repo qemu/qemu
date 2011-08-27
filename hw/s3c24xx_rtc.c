@@ -114,7 +114,7 @@ s3c24xx_rtc_init(target_phys_addr_t base_addr)
     int tag;
     struct s3c24xx_rtc_state_s *s;
 
-    s = qemu_mallocz(sizeof(struct s3c24xx_rtc_state_s));
+    s = g_malloc0(sizeof(struct s3c24xx_rtc_state_s));
 
     tag = cpu_register_io_memory(s3c24xx_rtc_read, s3c24xx_rtc_write,
                                  s, DEVICE_NATIVE_ENDIAN);

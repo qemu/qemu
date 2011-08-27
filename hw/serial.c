@@ -275,7 +275,7 @@ static void serial_update_parameters(SerialState *s)
     ssp.data_bits = data_bits;
     ssp.stop_bits = stop_bits;
     s->char_transmit_time =  (get_ticks_per_sec() / speed) * frame_size;
-    qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
+    qemu_chr_fe_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
 
     DPRINTF("speed=%d parity=%c data=%d stop=%d\n",
            speed, parity, data_bits, stop_bits);
@@ -288,7 +288,7 @@ static void serial_update_msl(SerialState *s)
 
     qemu_del_timer(s->modem_status_poll);
 
-    if (qemu_chr_ioctl(s->chr,CHR_IOCTL_SERIAL_GET_TIOCM, &flags) == -ENOTSUP) {
+    if (qemu_chr_fe_ioctl(s->chr,CHR_IOCTL_SERIAL_GET_TIOCM, &flags) == -ENOTSUP) {
         s->poll_msl = -1;
         return;
     }
@@ -335,7 +335,7 @@ static void serial_xmit(void *opaque)
     if (s->mcr & UART_MCR_LOOP) {
         /* in loopback mode, say that we just received a char */
         serial_receive1(s, &s->tsr, 1);
-    } else if (qemu_chr_write(s->chr, &s->tsr, 1) != 1) {
+    } else if (qemu_chr_fe_write(s->chr, &s->tsr, 1) != 1) {
         if ((s->tsr_retry > 0) && (s->tsr_retry <= MAX_XMIT_RETRY)) {
             s->tsr_retry++;
             qemu_mod_timer(s->transmit_timer,  new_xmit_ts + s->char_transmit_time);
@@ -471,7 +471,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
             break_enable = (val >> 6) & 1;
             if (break_enable != s->last_break_enable) {
                 s->last_break_enable = break_enable;
-                qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_BREAK,
+                qemu_chr_fe_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_BREAK,
                                &break_enable);
             }
         }
@@ -486,7 +486,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 
             if (s->poll_msl >= 0 && old_mcr != s->mcr) {
 
-                qemu_chr_ioctl(s->chr,CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
+                qemu_chr_fe_ioctl(s->chr,CHR_IOCTL_SERIAL_GET_TIOCM, &flags);
 
                 flags &= ~(CHR_TIOCM_RTS | CHR_TIOCM_DTR);
 
@@ -495,7 +495,7 @@ static void serial_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                 if (val & UART_MCR_DTR)
                     flags |= CHR_TIOCM_DTR;
 
-                qemu_chr_ioctl(s->chr,CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
+                qemu_chr_fe_ioctl(s->chr,CHR_IOCTL_SERIAL_SET_TIOCM, &flags);
                 /* Update the modem status after a one-character-send wait-time, since there may be a response
                    from the device/computer at the other end of the serial line */
                 qemu_mod_timer(s->modem_status_poll, qemu_get_clock_ns(vm_clock) + s->char_transmit_time);
@@ -807,10 +807,7 @@ SerialState *serial_init(int base, qemu_irq irq, int baudbase,
 {
     SerialState *s;
 
-    //~ fprintf(stderr, "%s()\n", __func__);
-    //~ fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
-
-    s = qemu_mallocz(sizeof(SerialState));
+    s = g_malloc0(sizeof(SerialState));
 
     s->base = base;
     s->it_shift = 0;
@@ -947,9 +944,7 @@ SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
     SerialState *s;
     int s_io_memory;
 
-    //~ fprintf(stderr, "%s()\n", __func__);
-
-    s = qemu_mallocz(sizeof(SerialState));
+    s = g_malloc0(sizeof(SerialState));
 
     s->base = base;
     s->it_shift = it_shift;

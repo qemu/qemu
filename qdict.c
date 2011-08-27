@@ -35,7 +35,7 @@ QDict *qdict_new(void)
 {
     QDict *qdict;
 
-    qdict = qemu_mallocz(sizeof(*qdict));
+    qdict = g_malloc0(sizeof(*qdict));
     QOBJECT_INIT(qdict, &qdict_type);
 
     return qdict;
@@ -75,8 +75,8 @@ static QDictEntry *alloc_entry(const char *key, QObject *value)
 {
     QDictEntry *entry;
 
-    entry = qemu_mallocz(sizeof(*entry));
-    entry->key = qemu_strdup(key);
+    entry = g_malloc0(sizeof(*entry));
+    entry->key = g_strdup(key);
     entry->value = value;
 
     return entry;
@@ -410,8 +410,8 @@ static void qentry_destroy(QDictEntry *e)
     assert(e->value != NULL);
 
     qobject_decref(e->value);
-    qemu_free(e->key);
-    qemu_free(e);
+    g_free(e->key);
+    g_free(e);
 }
 
 /**
@@ -452,5 +452,5 @@ static void qdict_destroy_obj(QObject *obj)
         }
     }
 
-    qemu_free(qdict);
+    g_free(qdict);
 }

@@ -355,6 +355,7 @@ static int tcg_target_const_match (tcg_target_long val,
 #define SRAWI  XO31(824)
 #define NEG    XO31(104)
 #define MFCR   XO31( 19)
+#define NOR    XO31(124)
 #define CNTLZW XO31( 26)
 #define CNTLZD XO31( 58)
 
@@ -1449,6 +1450,11 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out32 (s, NEG | RT (args[0]) | RA (args[1]));
         break;
 
+    case INDEX_op_not_i32:
+    case INDEX_op_not_i64:
+        tcg_out32 (s, NOR | SAB (args[1], args[0], args[1]));
+        break;
+
     case INDEX_op_add_i64:
         if (const_args[2])
             ppc_addi64 (s, args[0], args[1], args[2]);
@@ -1553,6 +1559,10 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out32 (s, c | RS (args[1]) | RA (args[0]));
         break;
 
+    case INDEX_op_ext32u_i64:
+        tcg_out_rld (s, RLDICR, args[0], args[1], 0, 32);
+        break;
+
     case INDEX_op_setcond_i32:
         tcg_out_setcond (s, TCG_TYPE_I32, args[3], args[0], args[1], args[2],
                          const_args[2]);
@@ -1621,6 +1631,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_brcond_i64, { "r", "ri" } },
 
     { INDEX_op_neg_i32, { "r", "r" } },
+    { INDEX_op_not_i32, { "r", "r" } },
 
     { INDEX_op_add_i64, { "r", "r", "ri" } },
     { INDEX_op_sub_i64, { "r", "r", "ri" } },
@@ -1639,6 +1650,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_remu_i64, { "r", "r", "r" } },
 
     { INDEX_op_neg_i64, { "r", "r" } },
+    { INDEX_op_not_i64, { "r", "r" } },
 
     { INDEX_op_qemu_ld8u, { "r", "L" } },
     { INDEX_op_qemu_ld8s, { "r", "L" } },
@@ -1659,6 +1671,7 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_ext8s_i64, { "r", "r" } },
     { INDEX_op_ext16s_i64, { "r", "r" } },
     { INDEX_op_ext32s_i64, { "r", "r" } },
+    { INDEX_op_ext32u_i64, { "r", "r" } },
 
     { INDEX_op_setcond_i32, { "r", "r", "ri" } },
     { INDEX_op_setcond_i64, { "r", "r", "ri" } },

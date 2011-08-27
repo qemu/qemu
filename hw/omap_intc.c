@@ -358,7 +358,7 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
 {
     int iomemtype;
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *)
-            qemu_mallocz(sizeof(struct omap_intr_handler_s) +
+            g_malloc0(sizeof(struct omap_intr_handler_s) +
                             sizeof(struct omap_intr_handler_bank_s) * nbanks);
 
     s->parent_intr[0] = parent_irq;
@@ -577,7 +577,7 @@ struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
 {
     int iomemtype;
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *)
-            qemu_mallocz(sizeof(struct omap_intr_handler_s) +
+            g_malloc0(sizeof(struct omap_intr_handler_s) +
                             sizeof(struct omap_intr_handler_bank_s) * nbanks);
 
     s->parent_intr[0] = parent_irq;

@@ -165,9 +165,10 @@ static off_t local_telldir(FsContext *ctx, DIR *dir)
     return telldir(dir);
 }
 
-static struct dirent *local_readdir(FsContext *ctx, DIR *dir)
+static int local_readdir_r(FsContext *ctx, DIR *dir, struct dirent *entry,
+                         struct dirent **result)
 {
-    return readdir(dir);
+    return readdir_r(dir, entry, result);
 }
 
 static void local_seekdir(FsContext *ctx, DIR *dir, off_t off)
@@ -532,7 +533,7 @@ FileOperations local_ops = {
     .opendir = local_opendir,
     .rewinddir = local_rewinddir,
     .telldir = local_telldir,
-    .readdir = local_readdir,
+    .readdir_r = local_readdir_r,
     .seekdir = local_seekdir,
     .preadv = local_preadv,
     .pwritev = local_pwritev,

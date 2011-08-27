@@ -1123,7 +1123,7 @@ void ahci_init(AHCIState *s, DeviceState *qdev, int ports)
     int i;
 
     s->ports = ports;
-    s->dev = qemu_mallocz(sizeof(AHCIDevice) * ports);
+    s->dev = g_malloc0(sizeof(AHCIDevice) * ports);
     ahci_reg_init(s);
     /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
     memory_region_init_io(&s->mem, &ahci_mem_ops, s, "ahci", 0x1000);
@@ -1146,7 +1146,7 @@ void ahci_init(AHCIState *s, DeviceState *qdev, int ports)
 void ahci_uninit(AHCIState *s)
 {
     memory_region_destroy(&s->mem);
-    qemu_free(s->dev);
+    g_free(s->dev);
 }
 
 void ahci_reset(void *opaque)

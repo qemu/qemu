@@ -198,7 +198,7 @@ static int syborg_pointer_init(SysBusDevice *dev)
         fprintf(stderr, "syborg_pointer: fifo too small\n");
         s->fifo_size = 16;
     }
-    s->event_fifo = qemu_mallocz(s->fifo_size * sizeof(s->event_fifo[0]));
+    s->event_fifo = g_malloc0(s->fifo_size * sizeof(s->event_fifo[0]));
 
     qemu_add_mouse_event_handler(syborg_pointer_event, s, s->absolute,
                                  "Syborg Pointer");

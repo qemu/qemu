@@ -16,7 +16,9 @@ typedef struct {
     SysBusDevice busdev;
     qemu_irq irq[4];
     int realview;
-    int mem_config;
+    MemoryRegion mem_config;
+    MemoryRegion mem_config2;
+    MemoryRegion isa;
 } PCIVPBState;
 
 static inline uint32_t vpb_pci_config_addr(target_phys_addr_t addr)
@@ -24,55 +26,24 @@ static inline uint32_t vpb_pci_config_addr(target_phys_addr_t addr)
     return addr & 0xffffff;
 }
 
-static void pci_vpb_config_writeb (void *opaque, target_phys_addr_t addr,
-                                   uint32_t val)
+static void pci_vpb_config_write(void *opaque, target_phys_addr_t addr,
+                                 uint64_t val, unsigned size)
 {
-    pci_data_write(opaque, vpb_pci_config_addr (addr), val, 1);
+    pci_data_write(opaque, vpb_pci_config_addr(addr), val, size);
 }
 
-static void pci_vpb_config_writew (void *opaque, target_phys_addr_t addr,
-                                   uint32_t val)
-{
-    pci_data_write(opaque, vpb_pci_config_addr (addr), val, 2);
-}
-
-static void pci_vpb_config_writel (void *opaque, target_phys_addr_t addr,
-                                   uint32_t val)
-{
-    pci_data_write(opaque, vpb_pci_config_addr (addr), val, 4);
-}
-
-static uint32_t pci_vpb_config_readb (void *opaque, target_phys_addr_t addr)
+static uint64_t pci_vpb_config_read(void *opaque, target_phys_addr_t addr,
+                                    unsigned size)
 {
     uint32_t val;
-    val = pci_data_read(opaque, vpb_pci_config_addr (addr), 1);
+    val = pci_data_read(opaque, vpb_pci_config_addr(addr), size);
     return val;
 }
 
-static uint32_t pci_vpb_config_readw (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t val;
-    val = pci_data_read(opaque, vpb_pci_config_addr (addr), 2);
-    return val;
-}
-
-static uint32_t pci_vpb_config_readl (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t val;
-    val = pci_data_read(opaque, vpb_pci_config_addr (addr), 4);
-    return val;
-}
-
-static CPUWriteMemoryFunc * const pci_vpb_config_write[] = {
-    &pci_vpb_config_writeb,
-    &pci_vpb_config_writew,
-    &pci_vpb_config_writel,
-};
-
-static CPUReadMemoryFunc * const pci_vpb_config_read[] = {
-    &pci_vpb_config_readb,
-    &pci_vpb_config_readw,
-    &pci_vpb_config_readl,
+static const MemoryRegionOps pci_vpb_config_ops = {
+    .read = pci_vpb_config_read,
+    .write = pci_vpb_config_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int pci_vpb_map_irq(PCIDevice *d, int irq_num)
@@ -87,17 +58,35 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
+
 static void pci_vpb_map(SysBusDevice *dev, target_phys_addr_t base)
 {
     PCIVPBState *s = (PCIVPBState *)dev;
     /* Selfconfig area.  */
-    cpu_register_physical_memory(base + 0x01000000, 0x1000000, s->mem_config);
+    memory_region_add_subregion(get_system_memory(), base + 0x01000000,
+                                &s->mem_config);
     /* Normal config area.  */
-    cpu_register_physical_memory(base + 0x02000000, 0x1000000, s->mem_config);
+    memory_region_add_subregion(get_system_memory(), base + 0x02000000,
+                                &s->mem_config2);
 
     if (s->realview) {
         /* IO memory area.  */
-        isa_mmio_init(base + 0x03000000, 0x00100000);
+        memory_region_add_subregion(get_system_memory(), base + 0x03000000,
+                                    &s->isa);
+    }
+}
+
+static void pci_vpb_unmap(SysBusDevice *dev, target_phys_addr_t base)
+{
+    PCIVPBState *s = (PCIVPBState *)dev;
+    /* Selfconfig area.  */
+    memory_region_del_subregion(get_system_memory(), &s->mem_config);
+    /* Normal config area.  */
+    memory_region_del_subregion(get_system_memory(), &s->mem_config2);
+
+    if (s->realview) {
+        /* IO memory area.  */
+        memory_region_del_subregion(get_system_memory(), &s->isa);
     }
 }
 
@@ -117,10 +106,15 @@ static int pci_vpb_init(SysBusDevice *dev)
 
     /* ??? Register memory space.  */
 
-    s->mem_config = cpu_register_io_memory(pci_vpb_config_read,
-                                           pci_vpb_config_write, bus,
-                                           DEVICE_LITTLE_ENDIAN);
-    sysbus_init_mmio_cb(dev, 0x04000000, pci_vpb_map);
+    memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, bus,
+                          "pci-vpb-selfconfig", 0x1000000);
+    memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, bus,
+                          "pci-vpb-config", 0x1000000);
+    if (s->realview) {
+        isa_mmio_setup(&s->isa, 0x0100000);
+    }
+
+    sysbus_init_mmio_cb2(dev, pci_vpb_map, pci_vpb_unmap);
 
     pci_create_simple(bus, -1, "versatile_pci_host");
     return 0;

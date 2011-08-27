@@ -144,7 +144,7 @@ qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env)
     mcf_intc_state *s;
     int iomemtype;
 
-    s = qemu_mallocz(sizeof(mcf_intc_state));
+    s = g_malloc0(sizeof(mcf_intc_state));
     s->env = env;
     mcf_intc_reset(s);
 

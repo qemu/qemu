@@ -274,6 +274,16 @@ static void e500_pci_map(SysBusDevice *dev, target_phys_addr_t base)
                                  s->reg);
 }
 
+static void e500_pci_unmap(SysBusDevice *dev, target_phys_addr_t base)
+{
+    cpu_register_physical_memory(base + PCIE500_CFGADDR, 4,
+                                 IO_MEM_UNASSIGNED);
+    cpu_register_physical_memory(base + PCIE500_CFGDATA, 4,
+                                 IO_MEM_UNASSIGNED);
+    cpu_register_physical_memory(base + PCIE500_REG_BASE, PCIE500_REG_SIZE,
+                                 IO_MEM_UNASSIGNED);
+}
+
 #include "exec-memory.h"
 
 static int e500_pcihost_initfn(SysBusDevice *dev)
@@ -304,7 +314,7 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
                                              DEVICE_LITTLE_ENDIAN);
     s->reg = cpu_register_io_memory(e500_pci_reg_read, e500_pci_reg_write, s,
                                     DEVICE_BIG_ENDIAN);
-    sysbus_init_mmio_cb(dev, PCIE500_ALL_SIZE, e500_pci_map);
+    sysbus_init_mmio_cb2(dev, e500_pci_map, e500_pci_unmap);
 
     return 0;
 }

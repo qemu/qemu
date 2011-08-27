@@ -652,7 +652,7 @@ static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, int async)
 {
     EHCIQueue *q;
 
-    q = qemu_mallocz(sizeof(*q));
+    q = g_malloc0(sizeof(*q));
     q->ehci = ehci;
     q->async_schedule = async;
     QTAILQ_INSERT_HEAD(&ehci->queues, q, next);
@@ -667,7 +667,7 @@ static void ehci_free_queue(EHCIQueue *q)
         usb_cancel_packet(&q->packet);
     }
     QTAILQ_REMOVE(&q->ehci->queues, q, next);
-    qemu_free(q);
+    g_free(q);
 }
 
 static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr)

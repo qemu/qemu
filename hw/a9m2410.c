@@ -176,7 +176,7 @@ static CPUReadMemoryFunc * const stcb_ide_read[] = {
  */
 static int stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
 {
-    MMIOState *s = qemu_mallocz(sizeof(MMIOState));
+    MMIOState *s = g_malloc0(sizeof(MMIOState));
     int stcb_ide_memory;
     ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
 
@@ -367,7 +367,7 @@ device_init(ax88796_register_device)
 static void stcb_i2c_setup(STCBState *stcb)
 {
     i2c_bus *bus = s3c24xx_i2c_bus(stcb->soc->iic);
-    uint8_t *eeprom_buf = qemu_mallocz(256);
+    uint8_t *eeprom_buf = g_malloc0(256);
     DeviceState *eeprom;
     eeprom = qdev_create((BusState *)bus, "smbus-eeprom");
     qdev_prop_set_uint8(eeprom, "address", 0x50);
@@ -416,14 +416,14 @@ static void stcb_init(ram_addr_t _ram_size,
     a9m2410_binfo.loader_start = A9M2410_NOR_RO_BASE;
 
     /* allocate storage for board state */
-    stcb = qemu_mallocz(sizeof(STCBState));
+    stcb = g_malloc0(sizeof(STCBState));
 
     /* Make sure all serial ports are associated with a device. */
     for (i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (!serial_hds[i]) {
             char label[32];
             snprintf(label, sizeof(label), "serial%d", i);
-            serial_hds[i] = qemu_chr_open(label, "vc:80Cx24C", NULL);
+            serial_hds[i] = qemu_chr_new(label, "vc:80Cx24C", NULL);
         }
     }
 
@@ -452,7 +452,7 @@ static void stcb_init(ram_addr_t _ram_size,
             ret = load_image_targphys(filename,
                                       A9M2410_NOR_RO_BASE, A9M2410_NOR_SIZE);
             (void)ret;
-            qemu_free(filename);
+            g_free(filename);
         }
     }
     pflash_cfi02_register(A9M2410_NOR_RW_BASE, flash_mem, flash_bds,
@@ -517,11 +517,11 @@ static void stcb_init(ram_addr_t _ram_size,
         stcb->nand[2] = nand_init(NULL, 0xEC, 0x79); /* 128MiB small-page */
     }
 
-    chr = qemu_chr_open("uart0", "vc:80Cx24C", NULL);
+    chr = qemu_chr_new("uart0", "vc:80Cx24C", NULL);
     serial_mm_init(SERIAL_BASE + 0x2f8, 0,
                    s3c24xx_get_eirq(stcb->soc->gpio, 15),
                    SERIAL_CLK, chr, 1, 0);
-    chr = qemu_chr_open("uart1", "vc:80Cx24C", NULL);
+    chr = qemu_chr_new("uart1", "vc:80Cx24C", NULL);
     serial_mm_init(SERIAL_BASE + 0x3f8, 0,
                    s3c24xx_get_eirq(stcb->soc->gpio, 14),
                    SERIAL_CLK, chr, 1, 0);

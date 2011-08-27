@@ -170,7 +170,7 @@ static void applesmc_add_key(struct AppleSMCStatus *s, const char *key,
 {
     struct AppleSMCData *def;
 
-    def = qemu_mallocz(sizeof(struct AppleSMCData));
+    def = g_malloc0(sizeof(struct AppleSMCData));
     def->key = key;
     def->len = len;
     def->data = data;

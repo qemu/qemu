@@ -354,7 +354,7 @@ void curses_display_init(DisplayState *ds, int full_screen)
 #endif
 #endif
 
-    dcl = (DisplayChangeListener *) qemu_mallocz(sizeof(DisplayChangeListener));
+    dcl = (DisplayChangeListener *) g_malloc0(sizeof(DisplayChangeListener));
     dcl->dpy_update = curses_update;
     dcl->dpy_resize = curses_resize;
     dcl->dpy_refresh = curses_refresh;

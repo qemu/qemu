@@ -342,7 +342,7 @@ struct MUSBState {
 
 struct MUSBState *musb_init(qemu_irq *irqs)
 {
-    MUSBState *s = qemu_mallocz(sizeof(*s));
+    MUSBState *s = g_malloc0(sizeof(*s));
     int i;
 
     s->irqs = irqs;

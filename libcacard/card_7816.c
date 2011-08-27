@@ -51,8 +51,8 @@ vcard_response_new_data(unsigned char *buf, int len)
 {
     VCardResponse *new_response;
 
-    new_response = (VCardResponse *)qemu_malloc(sizeof(VCardResponse));
-    new_response->b_data = qemu_malloc(len + 2);
+    new_response = (VCardResponse *)g_malloc(sizeof(VCardResponse));
+    new_response->b_data = g_malloc(len + 2);
     memcpy(new_response->b_data, buf, len);
     new_response->b_total_len = len+2;
     new_response->b_len = len;
@@ -132,7 +132,7 @@ vcard_response_new_status(vcard_7816_status_t status)
 {
     VCardResponse *new_response;
 
-    new_response = (VCardResponse *)qemu_malloc(sizeof(VCardResponse));
+    new_response = (VCardResponse *)g_malloc(sizeof(VCardResponse));
     new_response->b_data = &new_response->b_sw1;
     new_response->b_len = 0;
     new_response->b_total_len = 2;
@@ -149,7 +149,7 @@ vcard_response_new_status_bytes(unsigned char sw1, unsigned char sw2)
 {
     VCardResponse *new_response;
 
-    new_response = (VCardResponse *)qemu_malloc(sizeof(VCardResponse));
+    new_response = (VCardResponse *)g_malloc(sizeof(VCardResponse));
     new_response->b_data = &new_response->b_sw1;
     new_response->b_len = 0;
     new_response->b_total_len = 2;
@@ -173,19 +173,19 @@ vcard_response_delete(VCardResponse *response)
     case VCARD_MALLOC:
         /* everything was malloc'ed */
         if (response->b_data) {
-            qemu_free(response->b_data);
+            g_free(response->b_data);
         }
-        qemu_free(response);
+        g_free(response);
         break;
     case VCARD_MALLOC_DATA:
         /* only the data buffer was malloc'ed */
         if (response->b_data) {
-            qemu_free(response->b_data);
+            g_free(response->b_data);
         }
         break;
     case VCARD_MALLOC_STRUCT:
         /* only the structure was malloc'ed */
-        qemu_free(response);
+        g_free(response);
         break;
     case VCARD_STATIC:
         break;
@@ -336,18 +336,18 @@ vcard_apdu_new(unsigned char *raw_apdu, int len, vcard_7816_status_t *status)
         return NULL;
     }
 
-    new_apdu = (VCardAPDU *)qemu_malloc(sizeof(VCardAPDU));
-    new_apdu->a_data = qemu_malloc(len);
+    new_apdu = (VCardAPDU *)g_malloc(sizeof(VCardAPDU));
+    new_apdu->a_data = g_malloc(len);
     memcpy(new_apdu->a_data, raw_apdu, len);
     new_apdu->a_len = len;
     *status = vcard_apdu_set_class(new_apdu);
     if (*status != VCARD7816_STATUS_SUCCESS) {
-        qemu_free(new_apdu);
+        g_free(new_apdu);
         return NULL;
     }
     *status = vcard_apdu_set_length(new_apdu);
     if (*status != VCARD7816_STATUS_SUCCESS) {
-        qemu_free(new_apdu);
+        g_free(new_apdu);
         new_apdu = NULL;
     }
     return new_apdu;
@@ -360,9 +360,9 @@ vcard_apdu_delete(VCardAPDU *apdu)
         return;
     }
     if (apdu->a_data) {
-        qemu_free(apdu->a_data);
+        g_free(apdu->a_data);
     }
-    qemu_free(apdu);
+    g_free(apdu);
 }
 
 

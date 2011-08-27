@@ -36,7 +36,7 @@ QEMUBH *qemu_bh_new (QEMUBHFunc * cb, void *opaque)
 {
     QEMUBH *bh;
 
-    bh = qemu_malloc (sizeof (*bh));
+    bh = g_malloc(sizeof(*bh));
     bh->cb = cb;
     bh->opaque = opaque;
 
@@ -59,7 +59,7 @@ void qemu_bh_cancel (QEMUBH * bh)
 
 void qemu_bh_delete (QEMUBH * bh)
 {
-    qemu_free (bh);
+    g_free(bh);
 }
 
 void qemu_mod_timer (QEMUTimer * ts, int64_t expire_time)

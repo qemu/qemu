@@ -27,7 +27,7 @@ void ga_command_state_add(GACommandState *cs,
                           void (*init)(void),
                           void (*cleanup)(void))
 {
-    GACommandGroup *cg = qemu_mallocz(sizeof(GACommandGroup));
+    GACommandGroup *cg = g_malloc0(sizeof(GACommandGroup));
     cg->init = init;
     cg->cleanup = cleanup;
     cs->groups = g_slist_append(cs->groups, cg);
@@ -67,7 +67,7 @@ void ga_command_state_cleanup_all(GACommandState *cs)
 
 GACommandState *ga_command_state_new(void)
 {
-    GACommandState *cs = qemu_mallocz(sizeof(GACommandState));
+    GACommandState *cs = g_malloc0(sizeof(GACommandState));
     cs->groups = NULL;
     return cs;
 }

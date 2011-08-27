@@ -416,7 +416,7 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
                    target_phys_addr_t base, ram_addr_t size,
                    target_phys_addr_t mask)
 {
-    KBDState *s = qemu_mallocz(sizeof(KBDState));
+    KBDState *s = g_malloc0(sizeof(KBDState));
     int s_io_memory;
 
     s->irq_kbd = kbd_irq;

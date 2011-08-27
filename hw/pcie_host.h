@@ -22,6 +22,7 @@
 #define PCIE_HOST_H
 
 #include "pci_host.h"
+#include "memory.h"
 
 struct PCIExpressHost {
     PCIHostState pci;
@@ -34,16 +35,15 @@ struct PCIExpressHost {
     /* the size of MMCONFIG area. It's host bridge dependent */
     target_phys_addr_t  size;
 
-    /* result of cpu_register_io_memory() to map MMCONFIG area */
-    int mmio_index;
+    /* MMCONFIG mmio area */
+    MemoryRegion mmio;
 };
 
-int pcie_host_init(PCIExpressHost *e);
+int pcie_host_init(PCIExpressHost *e, uint32_t size);
 void pcie_host_mmcfg_unmap(PCIExpressHost *e);
-void pcie_host_mmcfg_map(PCIExpressHost *e,
-                         target_phys_addr_t addr, uint32_t size);
+void pcie_host_mmcfg_map(PCIExpressHost *e, target_phys_addr_t addr);
 void pcie_host_mmcfg_update(PCIExpressHost *e,
                             int enable,
-                            target_phys_addr_t addr, uint32_t size);
+                            target_phys_addr_t addr);
 
 #endif /* PCIE_HOST_H */

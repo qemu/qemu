@@ -59,7 +59,7 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
     virtqueue_push(s->vq, &req->elem, req->qiov.size + sizeof(*req->in));
     virtio_notify(&s->vdev, s->vq);
 
-    qemu_free(req);
+    g_free(req);
 }
 
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
@@ -117,7 +117,7 @@ static void virtio_blk_flush_complete(void *opaque, int ret)
 
 static VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
 {
-    VirtIOBlockReq *req = qemu_malloc(sizeof(*req));
+    VirtIOBlockReq *req = g_malloc(sizeof(*req));
     req->dev = s;
     req->qiov.size = 0;
     req->next = NULL;
@@ -130,7 +130,7 @@ static VirtIOBlockReq *virtio_blk_get_request(VirtIOBlock *s)
 
     if (req != NULL) {
         if (!virtqueue_pop(s->vq, &req->elem)) {
-            qemu_free(req);
+            g_free(req);
             return NULL;
         }
     }

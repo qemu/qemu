@@ -399,7 +399,7 @@ static int nand_device_init(SysBusDevice *dev)
         pagesize += 1 << s->page_shift;
     }
     if (pagesize) {
-        s->storage = (uint8_t *) memset(qemu_malloc(s->pages * pagesize),
+        s->storage = (uint8_t *) memset(g_malloc(s->pages * pagesize),
                         0xff, s->pages * pagesize);
     }
     /* Give s->ioaddr a sane value in case we save state before it is used. */

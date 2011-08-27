@@ -23,6 +23,8 @@
 #include "flash.h"
 #include "irq.h"
 #include "blockdev.h"
+#include "memory.h"
+#include "exec-memory.h"
 
 /* 11 for 2kB-page OneNAND ("2nd generation") and 10 for 1kB-page chips */
 #define PAGE_SHIFT	11
@@ -45,10 +47,12 @@ typedef struct {
     uint8_t *image;
     uint8_t *otp;
     uint8_t *current;
-    ram_addr_t ram;
+    MemoryRegion ram;
+    MemoryRegion mapped_ram;
     uint8_t *boot[2];
     uint8_t *data[2][2];
-    int iomemtype;
+    MemoryRegion iomem;
+    MemoryRegion container;
     int cycle;
     int otpmode;
 
@@ -100,31 +104,36 @@ enum {
     ONEN_LOCK_UNLOCKED = 1 << 2,
 };
 
+static void onenand_mem_setup(OneNANDState *s)
+{
+    /* XXX: We should use IO_MEM_ROMD but we broke it earlier...
+     * Both 0x0000 ... 0x01ff and 0x8000 ... 0x800f can be used to
+     * write boot commands.  Also take note of the BWPS bit.  */
+    memory_region_init(&s->container, "onenand", 0x10000 << s->shift);
+    memory_region_add_subregion(&s->container, 0, &s->iomem);
+    memory_region_init_alias(&s->mapped_ram, "onenand-mapped-ram",
+                             &s->ram, 0x0200 << s->shift,
+                             0xbe00 << s->shift);
+    memory_region_add_subregion_overlap(&s->container,
+                                        0x0200 << s->shift,
+                                        &s->mapped_ram,
+                                        1);
+}
+
 void onenand_base_update(void *opaque, target_phys_addr_t new)
 {
     OneNANDState *s = (OneNANDState *) opaque;
 
     s->base = new;
 
-    /* XXX: We should use IO_MEM_ROMD but we broke it earlier...
-     * Both 0x0000 ... 0x01ff and 0x8000 ... 0x800f can be used to
-     * write boot commands.  Also take note of the BWPS bit.  */
-    cpu_register_physical_memory(s->base + (0x0000 << s->shift),
-                    0x0200 << s->shift, s->iomemtype);
-    cpu_register_physical_memory(s->base + (0x0200 << s->shift),
-                    0xbe00 << s->shift,
-                    (s->ram +(0x0200 << s->shift)) | IO_MEM_RAM);
-    if (s->iomemtype)
-        cpu_register_physical_memory_offset(s->base + (0xc000 << s->shift),
-                    0x4000 << s->shift, s->iomemtype, (0xc000 << s->shift));
+    memory_region_add_subregion(get_system_memory(), s->base, &s->container);
 }
 
 void onenand_base_unmap(void *opaque)
 {
     OneNANDState *s = (OneNANDState *) opaque;
 
-    cpu_register_physical_memory(s->base,
-                    0x10000 << s->shift, IO_MEM_UNASSIGNED);
+    memory_region_del_subregion(get_system_memory(), &s->container);
 }
 
 static void onenand_intr_update(OneNANDState *s)
@@ -186,7 +195,7 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
         const uint8_t *sp = (const uint8_t *) src;
         uint8_t *dp = 0;
         if (s->bdrv_cur) {
-            dp = qemu_malloc(size);
+            dp = g_malloc(size);
             if (!dp || bdrv_read(s->bdrv_cur, sec, dp, secn) < 0) {
                 result = 1;
             }
@@ -207,7 +216,7 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
             }
         }
         if (dp && s->bdrv_cur) {
-            qemu_free(dp);
+            g_free(dp);
         }
     }
 
@@ -239,7 +248,7 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
         const uint8_t *sp = (const uint8_t *) src;
         uint8_t *dp = 0, *dpp = 0;
         if (s->bdrv_cur) {
-            dp = qemu_malloc(512);
+            dp = g_malloc(512);
             if (!dp || bdrv_read(s->bdrv_cur,
                                 s->secs_cur + (sec >> 5),
                                 dp, 1) < 0) {
@@ -265,7 +274,7 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
             }
         }
         if (dp) {
-            qemu_free(dp);
+            g_free(dp);
         }
     }
     return result;
@@ -274,13 +283,13 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
 static inline int onenand_erase(OneNANDState *s, int sec, int num)
 {
     uint8_t *blankbuf, *tmpbuf;
-    blankbuf = qemu_malloc(512);
+    blankbuf = g_malloc(512);
     if (!blankbuf) {
         return 1;
     }
-    tmpbuf = qemu_malloc(512);
+    tmpbuf = g_malloc(512);
     if (!tmpbuf) {
-        qemu_free(blankbuf);
+        g_free(blankbuf);
         return 1;
     }
     memset(blankbuf, 0xff, 512);
@@ -307,13 +316,13 @@ static inline int onenand_erase(OneNANDState *s, int sec, int num)
         }
     }
 
-    qemu_free(tmpbuf);
-    qemu_free(blankbuf);
+    g_free(tmpbuf);
+    g_free(blankbuf);
     return 0;
 
 fail:
-    qemu_free(tmpbuf);
-    qemu_free(blankbuf);
+    g_free(tmpbuf);
+    g_free(blankbuf);
     return 1;
 }
 
@@ -524,7 +533,8 @@ static void onenand_command(OneNANDState *s, int cmd)
     onenand_intr_update(s);
 }
 
-static uint32_t onenand_read(void *opaque, target_phys_addr_t addr)
+static uint64_t onenand_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
 {
     OneNANDState *s = (OneNANDState *) opaque;
     int offset = addr >> s->shift;
@@ -589,7 +599,7 @@ static uint32_t onenand_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void onenand_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                          uint64_t value, unsigned size)
 {
     OneNANDState *s = (OneNANDState *) opaque;
     int offset = addr >> s->shift;
@@ -628,7 +638,7 @@ static void onenand_write(void *opaque, target_phys_addr_t addr,
             break;
 
         default:
-            fprintf(stderr, "%s: unknown OneNAND boot command %x\n",
+            fprintf(stderr, "%s: unknown OneNAND boot command %"PRIx64"\n",
                             __FUNCTION__, value);
         }
         break;
@@ -684,23 +694,17 @@ static void onenand_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const onenand_readfn[] = {
-    onenand_read,	/* TODO */
-    onenand_read,
-    onenand_read,
-};
-
-static CPUWriteMemoryFunc * const onenand_writefn[] = {
-    onenand_write,	/* TODO */
-    onenand_write,
-    onenand_write,
+static const MemoryRegionOps onenand_ops = {
+    .read = onenand_read,
+    .write = onenand_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 void *onenand_init(BlockDriverState *bdrv,
                 uint16_t man_id, uint16_t dev_id, uint16_t ver_id,
                 int regshift, qemu_irq irq)
 {
-    OneNANDState *s = (OneNANDState *) qemu_mallocz(sizeof(*s));
+    OneNANDState *s = (OneNANDState *) g_malloc0(sizeof(*s));
     uint32_t size = 1 << (24 + ((dev_id >> 4) & 7));
     void *ram;
 
@@ -712,25 +716,26 @@ void *onenand_init(BlockDriverState *bdrv,
     s->id.ver = ver_id;
     s->blocks = size >> BLOCK_SHIFT;
     s->secs = size >> 9;
-    s->blockwp = qemu_malloc(s->blocks);
+    s->blockwp = g_malloc(s->blocks);
     s->density_mask = (dev_id & 0x08) ? (1 << (6 + ((dev_id >> 4) & 7))) : 0;
-    s->iomemtype = cpu_register_io_memory(onenand_readfn,
-                    onenand_writefn, s, DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->iomem, &onenand_ops, s, "onenand",
+                          0x10000 << s->shift);
     s->bdrv = bdrv;
     if (!s->bdrv) {
-        s->image = memset(qemu_malloc(size + (size >> 5)),
+        s->image = memset(g_malloc(size + (size >> 5)),
                         0xff, size + (size >> 5));
     }
-    s->otp = memset(qemu_malloc((64 + 2) << PAGE_SHIFT),
+    s->otp = memset(g_malloc((64 + 2) << PAGE_SHIFT),
                     0xff, (64 + 2) << PAGE_SHIFT);
-    s->ram = qemu_ram_alloc(NULL, "onenand.ram", 0xc000 << s->shift);
-    ram = qemu_get_ram_ptr(s->ram);
+    memory_region_init_ram(&s->ram, NULL, "onenand.ram", 0xc000 << s->shift);
+    ram = memory_region_get_ram_ptr(&s->ram);
     s->boot[0] = ram + (0x0000 << s->shift);
     s->boot[1] = ram + (0x8000 << s->shift);
     s->data[0][0] = ram + ((0x0200 + (0 << (PAGE_SHIFT - 1))) << s->shift);
     s->data[0][1] = ram + ((0x8010 + (0 << (PAGE_SHIFT - 6))) << s->shift);
     s->data[1][0] = ram + ((0x0200 + (1 << (PAGE_SHIFT - 1))) << s->shift);
     s->data[1][1] = ram + ((0x8010 + (1 << (PAGE_SHIFT - 6))) << s->shift);
+    onenand_mem_setup(s);
 
     onenand_reset(s, 1);
 

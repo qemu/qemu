@@ -210,7 +210,7 @@ int kqemu_init(CPUState *env)
     if (!modified_ram_pages)
         goto fail;
     modified_ram_pages_table =
-        qemu_mallocz(kqemu_phys_ram_size >> TARGET_PAGE_BITS);
+        g_malloc0(kqemu_phys_ram_size >> TARGET_PAGE_BITS);
     if (!modified_ram_pages_table)
         goto fail;
 

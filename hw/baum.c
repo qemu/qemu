@@ -223,7 +223,7 @@ static void baum_accept_input(struct CharDriverState *chr)
 
     if (!baum->out_buf_used)
         return;
-    room = qemu_chr_can_read(chr);
+    room = qemu_chr_be_can_write(chr);
     if (!room)
         return;
     if (room > baum->out_buf_used)
@@ -231,12 +231,12 @@ static void baum_accept_input(struct CharDriverState *chr)
 
     first = BUF_SIZE - baum->out_buf_ptr;
     if (room > first) {
-        qemu_chr_read(chr, baum->out_buf + baum->out_buf_ptr, first);
+        qemu_chr_be_write(chr, baum->out_buf + baum->out_buf_ptr, first);
         baum->out_buf_ptr = 0;
         baum->out_buf_used -= first;
         room -= first;
     }
-    qemu_chr_read(chr, baum->out_buf + baum->out_buf_ptr, room);
+    qemu_chr_be_write(chr, baum->out_buf + baum->out_buf_ptr, room);
     baum->out_buf_ptr += room;
     baum->out_buf_used -= room;
 }
@@ -250,16 +250,16 @@ static void baum_write_packet(BaumDriverState *baum, const uint8_t *buf, int len
     while (len--)
         if ((*cur++ = *buf++) == ESC)
             *cur++ = ESC;
-    room = qemu_chr_can_read(baum->chr);
+    room = qemu_chr_be_can_write(baum->chr);
     len = cur - io_buf;
     if (len <= room) {
         /* Fits */
-        qemu_chr_read(baum->chr, io_buf, len);
+        qemu_chr_be_write(baum->chr, io_buf, len);
     } else {
         int first;
         uint8_t out;
         /* Can't fit all, send what can be, and store the rest. */
-        qemu_chr_read(baum->chr, io_buf, room);
+        qemu_chr_be_write(baum->chr, io_buf, room);
         len -= room;
         cur = io_buf + room;
         if (len > BUF_SIZE - baum->out_buf_used) {
@@ -468,20 +468,6 @@ static int baum_write(CharDriverState *chr, const uint8_t *buf, int len)
     return orig_len;
 }
 
-/* The other end sent us some event */
-static void baum_send_event(CharDriverState *chr, int event)
-{
-    BaumDriverState *baum = chr->opaque;
-    switch (event) {
-    case CHR_EVENT_BREAK:
-        break;
-    case CHR_EVENT_OPENED:
-        /* Reset state */
-        baum->in_buf_used = 0;
-        break;
-    }
-}
-
 /* Send the key code to the other end */
 static void baum_send_key(BaumDriverState *baum, uint8_t type, uint8_t value) {
     uint8_t packet[] = { type, value };
@@ -559,7 +545,7 @@ static void baum_chr_read(void *opaque)
     if (ret == -1 && (brlapi_errno != BRLAPI_ERROR_LIBCERR || errno != EINTR)) {
         brlapi_perror("baum: brlapi_readKey");
         brlapi__closeConnection(baum->brlapi);
-        qemu_free(baum->brlapi);
+        g_free(baum->brlapi);
         baum->brlapi = NULL;
     }
 }
@@ -571,9 +557,9 @@ static void baum_close(struct CharDriverState *chr)
     qemu_free_timer(baum->cellCount_timer);
     if (baum->brlapi) {
         brlapi__closeConnection(baum->brlapi);
-        qemu_free(baum->brlapi);
+        g_free(baum->brlapi);
     }
-    qemu_free(baum);
+    g_free(baum);
 }
 
 int chr_baum_init(QemuOpts *opts, CharDriverState **_chr)
@@ -586,16 +572,15 @@ int chr_baum_init(QemuOpts *opts, CharDriverState **_chr)
 #endif
     int tty;
 
-    baum = qemu_mallocz(sizeof(BaumDriverState));
-    baum->chr = chr = qemu_mallocz(sizeof(CharDriverState));
+    baum = g_malloc0(sizeof(BaumDriverState));
+    baum->chr = chr = g_malloc0(sizeof(CharDriverState));
 
     chr->opaque = baum;
     chr->chr_write = baum_write;
-    chr->chr_send_event = baum_send_event;
     chr->chr_accept_input = baum_accept_input;
     chr->chr_close = baum_close;
 
-    handle = qemu_mallocz(brlapi_getHandleSize());
+    handle = g_malloc0(brlapi_getHandleSize());
     baum->brlapi = handle;
 
     baum->brlapi_fd = brlapi__openConnection(handle, NULL, NULL);
@@ -636,8 +621,8 @@ fail:
     qemu_free_timer(baum->cellCount_timer);
     brlapi__closeConnection(handle);
 fail_handle:
-    qemu_free(handle);
-    qemu_free(chr);
-    qemu_free(baum);
+    g_free(handle);
+    g_free(chr);
+    g_free(baum);
     return -EIO;
 }

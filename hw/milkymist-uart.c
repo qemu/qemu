@@ -77,7 +77,7 @@ static void uart_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     switch (addr) {
     case R_RXTX:
         if (s->chr) {
-            qemu_chr_write(s->chr, &ch, 1);
+            qemu_chr_fe_write(s->chr, &ch, 1);
         }
         trace_milkymist_uart_pulse_irq_tx();
         qemu_irq_pulse(s->tx_irq);

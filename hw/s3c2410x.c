@@ -259,7 +259,7 @@ s3c2410x_init(int sdram_size)
 {
     DeviceState *dev;
     ram_addr_t offset;
-    S3CState *s = qemu_mallocz(sizeof(S3CState));
+    S3CState *s = g_malloc0(sizeof(S3CState));
 
     /* Prepare the ARM 920T core */
     s->cpu_env = cpu_init("arm920t");

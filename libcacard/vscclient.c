@@ -488,7 +488,7 @@ main(
         for (i = 0; i < cert_count; i++) {
             len += strlen(cert_names[i])+1; /* 1 == comma */
         }
-        new_args = qemu_malloc(len);
+        new_args = g_malloc(len);
         strcpy(new_args, emul_args);
         strcat(new_args, SOFT_STRING);
         for (i = 0; i < cert_count; i++) {

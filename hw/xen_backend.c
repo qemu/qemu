@@ -75,8 +75,8 @@ char *xenstore_read_str(const char *base, const char *node)
     str = xs_read(xenstore, 0, abspath, &len);
     if (str != NULL) {
         /* move to qemu-allocated memory to make sure
-         * callers can savely qemu_free() stuff. */
-        ret = qemu_strdup(str);
+         * callers can savely g_free() stuff. */
+        ret = g_strdup(str);
         free(str);
     }
     return ret;
@@ -99,7 +99,7 @@ int xenstore_read_int(const char *base, const char *node, int *ival)
     if (val && 1 == sscanf(val, "%d", ival)) {
         rc = 0;
     }
-    qemu_free(val);
+    g_free(val);
     return rc;
 }
 
@@ -199,7 +199,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     }
 
     /* init new xendev */
-    xendev = qemu_mallocz(ops->size);
+    xendev = g_malloc0(ops->size);
     xendev->type  = type;
     xendev->dom   = dom;
     xendev->dev   = dev;
@@ -218,7 +218,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
     xendev->evtchndev = xen_xc_evtchn_open(NULL, 0);
     if (xendev->evtchndev == XC_HANDLER_INITIAL_VALUE) {
         xen_be_printf(NULL, 0, "can't open evtchn device\n");
-        qemu_free(xendev);
+        g_free(xendev);
         return NULL;
     }
     fcntl(xc_evtchn_fd(xendev->evtchndev), F_SETFD, FD_CLOEXEC);
@@ -228,7 +228,7 @@ static struct XenDevice *xen_be_get_xendev(const char *type, int dom, int dev,
         if (xendev->gnttabdev == XC_HANDLER_INITIAL_VALUE) {
             xen_be_printf(NULL, 0, "can't open gnttab device\n");
             xc_evtchn_close(xendev->evtchndev);
-            qemu_free(xendev);
+            g_free(xendev);
             return NULL;
         }
     } else {
@@ -275,7 +275,7 @@ static struct XenDevice *xen_be_del_xendev(int dom, int dev)
             char token[XEN_BUFSIZE];
             snprintf(token, sizeof(token), "fe:%p", xendev);
             xs_unwatch(xenstore, xendev->fe, token);
-            qemu_free(xendev->fe);
+            g_free(xendev->fe);
         }
 
         if (xendev->evtchndev != XC_HANDLER_INITIAL_VALUE) {
@@ -286,7 +286,7 @@ static struct XenDevice *xen_be_del_xendev(int dom, int dev)
         }
 
         QTAILQ_REMOVE(&xendevs, xendev, next);
-        qemu_free(xendev);
+        g_free(xendev);
     }
     return NULL;
 }
@@ -328,7 +328,7 @@ static void xen_be_frontend_changed(struct XenDevice *xendev, const char *node)
         xendev->fe_state = fe_state;
     }
     if (node == NULL  ||  strcmp(node, "protocol") == 0) {
-        qemu_free(xendev->protocol);
+        g_free(xendev->protocol);
         xendev->protocol = xenstore_read_fe_str(xendev, "protocol");
         if (xendev->protocol) {
             xen_be_printf(xendev, 1, "frontend protocol: %s\n", xendev->protocol);

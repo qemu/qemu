@@ -38,6 +38,7 @@
 #include "mc146818rtc.h"
 #include "blockdev.h"
 #include "sysbus.h"
+#include "exec-memory.h"
 
 enum jazz_model_e
 {
@@ -158,7 +159,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     if (filename) {
         bios_size = load_image_targphys(filename, 0xfff00000LL,
                                         MAGNUM_BIOS_SIZE);
-        qemu_free(filename);
+        g_free(filename);
     } else {
         bios_size = -1;
     }
@@ -194,10 +195,23 @@ void mips_jazz_init (ram_addr_t ram_size,
     /* Video card */
     switch (jazz_model) {
     case JAZZ_MAGNUM:
-        g364fb_mm_init(0x40000000, 0x60000000, 0, rc4030[3]);
+        dev = qdev_create(NULL, "sysbus-g364");
+        qdev_init_nofail(dev);
+        sysbus = sysbus_from_qdev(dev);
+        sysbus_mmio_map(sysbus, 0, 0x60080000);
+        sysbus_mmio_map(sysbus, 1, 0x40000000);
+        sysbus_connect_irq(sysbus, 0, rc4030[3]);
+        {
+            /* Simple ROM, so user doesn't have to provide one */
+            ram_addr_t rom_offset = qemu_ram_alloc(NULL, "g364fb.rom", 0x80000);
+            uint8_t *rom = qemu_get_ram_ptr(rom_offset);
+            cpu_register_physical_memory(0x60000000, 0x80000,
+                                         rom_offset | IO_MEM_ROM);
+            rom[0] = 0x10; /* Mips G364 */
+        }
         break;
     case JAZZ_PICA61:
-        isa_vga_mm_init(0x40000000, 0x60000000, 0);
+        isa_vga_mm_init(0x40000000, 0x60000000, 0, get_system_memory());
         break;
     default:
         break;
@@ -207,7 +221,7 @@ void mips_jazz_init (ram_addr_t ram_size,
     for (n = 0; n < nb_nics; n++) {
         nd = &nd_table[n];
         if (!nd->model)
-            nd->model = qemu_strdup("dp83932");
+            nd->model = g_strdup("dp83932");
         if (strcmp(nd->model, "dp83932") == 0) {
             dp83932_init(nd, 0x80001000, 2, rc4030[4],
                          rc4030_opaque, rc4030_dma_memory_rw);

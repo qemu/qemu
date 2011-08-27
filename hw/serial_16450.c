@@ -215,7 +215,7 @@ void serial_write(void *opaque, uint32_t addr, uint32_t val)
             s->lsr &= ~UART_LSR_THRE;
             serial_update_irq(s);
             ch = val;
-            qemu_chr_write(s->chr, &ch, 1);
+            qemu_chr_fe_write(s->chr, &ch, 1);
             s->thr_ipending = 1;
             s->lsr |= UART_LSR_THRE;
             s->lsr |= UART_LSR_TEMT;
@@ -441,7 +441,7 @@ SerialState *serial_16450_init(int base, qemu_irq irq, CharDriverState *chr)
 
     fprintf(stderr, "%s:%u\n", __FILE__, __LINE__);
 
-    s = qemu_mallocz(sizeof(SerialState));
+    s = g_malloc0(sizeof(SerialState));
     if (!s)
         return NULL;
     s->irq = irq;

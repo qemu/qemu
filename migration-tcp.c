@@ -89,7 +89,7 @@ MigrationState *tcp_start_outgoing_migration(Monitor *mon,
     if (parse_host_port(&addr, host_port) < 0)
         return NULL;
 
-    s = qemu_mallocz(sizeof(*s));
+    s = g_malloc0(sizeof(*s));
 
     s->get_error = socket_errno;
     s->write = socket_write;
@@ -106,7 +106,7 @@ MigrationState *tcp_start_outgoing_migration(Monitor *mon,
     s->bandwidth_limit = bandwidth_limit;
     s->fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (s->fd == -1) {
-        qemu_free(s);
+        g_free(s);
         return NULL;
     }
 

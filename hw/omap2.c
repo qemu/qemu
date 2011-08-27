@@ -591,7 +591,7 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 {
     int iomemtype;
     struct omap_eac_s *s = (struct omap_eac_s *)
-            qemu_mallocz(sizeof(struct omap_eac_s));
+            g_malloc0(sizeof(struct omap_eac_s));
 
     s->irq = irq;
     s->codec.rxdrq = *drq ++;
@@ -748,14 +748,14 @@ static void omap_sti_fifo_write(void *opaque, target_phys_addr_t addr,
 
     if (ch == STI_TRACE_CONTROL_CHANNEL) {
         /* Flush channel <i>value</i>.  */
-        qemu_chr_write(s->chr, (const uint8_t *) "\r", 1);
+        qemu_chr_fe_write(s->chr, (const uint8_t *) "\r", 1);
     } else if (ch == STI_TRACE_CONSOLE_CHANNEL || 1) {
         if (value == 0xc0 || value == 0xc3) {
             /* Open channel <i>ch</i>.  */
         } else if (value == 0x00)
-            qemu_chr_write(s->chr, (const uint8_t *) "\n", 1);
+            qemu_chr_fe_write(s->chr, (const uint8_t *) "\n", 1);
         else
-            qemu_chr_write(s->chr, &byte, 1);
+            qemu_chr_fe_write(s->chr, &byte, 1);
     }
 }
 
@@ -777,12 +777,12 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
 {
     int iomemtype;
     struct omap_sti_s *s = (struct omap_sti_s *)
-            qemu_mallocz(sizeof(struct omap_sti_s));
+            g_malloc0(sizeof(struct omap_sti_s));
 
     s->irq = irq;
     omap_sti_reset(s);
 
-    s->chr = chr ?: qemu_chr_open("null", "null", NULL);
+    s->chr = chr ?: qemu_chr_new("null", "null", NULL);
 
     iomemtype = l4_register_io_memory(omap_sti_readfn,
                     omap_sti_writefn, s);
@@ -1790,7 +1790,7 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
 {
     int iomemtype;
     struct omap_prcm_s *s = (struct omap_prcm_s *)
-            qemu_mallocz(sizeof(struct omap_prcm_s));
+            g_malloc0(sizeof(struct omap_prcm_s));
 
     s->irq[0] = mpu_int;
     s->irq[1] = dsp_int;
@@ -2163,7 +2163,7 @@ static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
 {
     int iomemtype;
     struct omap_sysctl_s *s = (struct omap_sysctl_s *)
-            qemu_mallocz(sizeof(struct omap_sysctl_s));
+            g_malloc0(sizeof(struct omap_sysctl_s));
 
     s->mpu = mpu;
     omap_sysctl_reset(s);
@@ -2228,7 +2228,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                 const char *core)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
-            qemu_mallocz(sizeof(struct omap_mpu_state_s));
+            g_malloc0(sizeof(struct omap_mpu_state_s));
     ram_addr_t sram_base, q2_base;
     qemu_irq *cpu_irq;
     qemu_irq dma_irqs[4];

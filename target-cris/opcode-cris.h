@@ -29,8 +29,8 @@ along with this program; if not, see <http://www.gnu.org/licenses/>.  */
 
 /* Registers.  */
 #define MAX_REG (15)
-#define REG_SP (14)
-#define REG_PC (15)
+#define CRIS_REG_SP (14)
+#define CRIS_REG_PC (15)
 
 /* CPU version control of disassembly and assembly of instructions.
    May affect how the instruction is assembled, at least the size of
@@ -138,7 +138,7 @@ extern const struct cris_cond15 cris_conds15[];
 
 #define BDAP_INDIR_OPCODE (BDAP_INDIR_HIGH * 0x0100 + BDAP_INDIR_LOW)
 #define BDAP_INDIR_Z_BITS (BDAP_INDIR_HIGH_Z * 0x100 + BDAP_INDIR_LOW_Z)
-#define BDAP_PC_LOW	  (BDAP_INDIR_LOW + REG_PC)
+#define BDAP_PC_LOW	  (BDAP_INDIR_LOW + CRIS_REG_PC)
 #define BDAP_INCR_HIGH	  (BDAP_INDIR_HIGH + AUTOINCR_BIT)
 
 /* No prefix must have this code for its "match" bits in the
@@ -192,16 +192,16 @@ extern const char *const cris_cc_strings[];
 #define JUMP_INDIR_OPCODE (0x0930)
 #define JUMP_INDIR_Z_BITS (0xf2c0)
 #define JUMP_PC_INCR_OPCODE \
- (JUMP_INDIR_OPCODE + AUTOINCR_BIT * 0x0100 + REG_PC)
+ (JUMP_INDIR_OPCODE + AUTOINCR_BIT * 0x0100 + CRIS_REG_PC)
 
 #define MOVE_M_TO_PREG_OPCODE 0x0a30
 #define MOVE_M_TO_PREG_ZBITS 0x01c0
 
 /* BDAP.D N,PC.  */
 #define MOVE_PC_INCR_OPCODE_PREFIX \
- (((BDAP_INCR_HIGH | (REG_PC << 4)) << 8) | BDAP_PC_LOW | (2 << 4))
+ (((BDAP_INCR_HIGH | (CRIS_REG_PC << 4)) << 8) | BDAP_PC_LOW | (2 << 4))
 #define MOVE_PC_INCR_OPCODE_SUFFIX \
- (MOVE_M_TO_PREG_OPCODE | REG_PC | (AUTOINCR_BIT << 8))
+ (MOVE_M_TO_PREG_OPCODE | CRIS_REG_PC | (AUTOINCR_BIT << 8))
 
 #define JUMP_PC_INCR_OPCODE_V32 (0x0DBF)
 

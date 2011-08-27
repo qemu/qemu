@@ -86,8 +86,8 @@ static void scsi_free_request(SCSIRequest *req)
 /* Helper function for command completion with sense.  */
 static void scsi_check_condition(SCSIDiskReq *r, SCSISense sense)
 {
-    DPRINTF("Command complete tag=0x%x status=%d sense=%d/%d/%d\n",
-            r->req.tag, status, sense.key, sense.asc, sense.ascq);
+    DPRINTF("Command complete tag=0x%x sense=%d/%d/%d\n",
+            r->req.tag, sense.key, sense.asc, sense.ascq);
     scsi_req_build_sense(&r->req, sense);
     scsi_req_complete(&r->req, CHECK_CONDITION);
 }
@@ -1125,12 +1125,12 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
         /* try to fall back to value set with legacy -drive serial=... */
         dinfo = drive_get_by_blockdev(s->bs);
         if (*dinfo->serial) {
-            s->serial = qemu_strdup(dinfo->serial);
+            s->serial = g_strdup(dinfo->serial);
         }
     }
 
     if (!s->version) {
-        s->version = qemu_strdup(QEMU_VERSION);
+        s->version = g_strdup(QEMU_VERSION);
     }
 
     if (bdrv_is_sg(s->bs)) {

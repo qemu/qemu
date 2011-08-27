@@ -271,7 +271,7 @@ struct AsyncURB
 
 static AsyncURB *async_alloc(USBHostDevice *s)
 {
-    AsyncURB *aurb = qemu_mallocz(sizeof(AsyncURB));
+    AsyncURB *aurb = g_malloc0(sizeof(AsyncURB));
     aurb->hdev = s;
     QLIST_INSERT_HEAD(&s->aurbs, aurb, next);
     return aurb;
@@ -280,7 +280,7 @@ static AsyncURB *async_alloc(USBHostDevice *s)
 static void async_free(AsyncURB *aurb)
 {
     QLIST_REMOVE(aurb, next);
-    qemu_free(aurb);
+    g_free(aurb);
 }
 
 static void do_disconnect(USBHostDevice *s)
@@ -528,11 +528,11 @@ static AsyncURB *usb_host_alloc_iso(USBHostDevice *s, uint8_t ep, int in)
     AsyncURB *aurb;
     int i, j, len = get_max_packet_size(s, ep);
 
-    aurb = qemu_mallocz(s->iso_urb_count * sizeof(*aurb));
+    aurb = g_malloc0(s->iso_urb_count * sizeof(*aurb));
     for (i = 0; i < s->iso_urb_count; i++) {
         aurb[i].urb.endpoint      = ep;
         aurb[i].urb.buffer_length = ISO_FRAME_DESC_PER_URB * len;
-        aurb[i].urb.buffer        = qemu_malloc(aurb[i].urb.buffer_length);
+        aurb[i].urb.buffer        = g_malloc(aurb[i].urb.buffer_length);
         aurb[i].urb.type          = USBDEVFS_URB_TYPE_ISO;
         aurb[i].urb.flags         = USBDEVFS_URB_ISO_ASAP;
         aurb[i].urb.number_of_packets = ISO_FRAME_DESC_PER_URB;
@@ -578,11 +578,11 @@ static void usb_host_stop_n_free_iso(USBHostDevice *s, uint8_t ep)
     }
 
     for (i = 0; i < s->iso_urb_count; i++) {
-        qemu_free(aurb[i].urb.buffer);
+        g_free(aurb[i].urb.buffer);
     }
 
     if (free)
-        qemu_free(aurb);
+        g_free(aurb);
     else
         printf("husb: leaking iso urbs because of discard failure\n");
     set_iso_urb(s, ep, NULL);
@@ -1688,7 +1688,7 @@ static int usb_host_scan(void *opaque, USBScanFunc *func)
         }
 
         /* the module setting (used later for opening devices) */
-        usb_host_device_path = qemu_mallocz(strlen(devpath)+1);
+        usb_host_device_path = g_malloc0(strlen(devpath)+1);
         strcpy(usb_host_device_path, devpath);
         if (mon) {
             monitor_printf(mon, "husb: using %s file-system with %s\n",

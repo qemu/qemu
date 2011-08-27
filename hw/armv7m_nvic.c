@@ -13,6 +13,7 @@
 #include "sysbus.h"
 #include "qemu-timer.h"
 #include "arm-misc.h"
+#include "exec-memory.h"
 
 /* 32 internal lines (16 used for system exceptions) plus 64 external
    interrupt lines.  */
@@ -384,7 +385,7 @@ static int armv7m_nvic_init(SysBusDevice *dev)
     nvic_state *s= FROM_SYSBUSGIC(nvic_state, dev);
 
     gic_init(&s->gic);
-    cpu_register_physical_memory(0xe000e000, 0x1000, s->gic.iomemtype);
+    memory_region_add_subregion(get_system_memory(), 0xe000e000, &s->gic.iomem);
     s->systick.timer = qemu_new_timer_ns(vm_clock, systick_timer_tick, s);
     vmstate_register(&dev->qdev, -1, &vmstate_nvic, s);
     return 0;

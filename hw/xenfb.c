@@ -366,7 +366,7 @@ static int input_connect(struct XenDevice *xendev)
             /* there is no vfb, run vkbd on its own */
             in->c.ds = get_displaystate();
         } else {
-            qemu_free(vfb);
+            g_free(vfb);
             xen_be_printf(xendev, 1, "ds not set (yet)\n");
             return -1;
         }
@@ -483,8 +483,8 @@ static int xenfb_map_fb(struct XenFB *xenfb)
     n_fbdirs = xenfb->fbpages * mode / 8;
     n_fbdirs = (n_fbdirs + (XC_PAGE_SIZE - 1)) / XC_PAGE_SIZE;
 
-    pgmfns = qemu_mallocz(sizeof(unsigned long) * n_fbdirs);
-    fbmfns = qemu_mallocz(sizeof(unsigned long) * xenfb->fbpages);
+    pgmfns = g_malloc0(sizeof(unsigned long) * n_fbdirs);
+    fbmfns = g_malloc0(sizeof(unsigned long) * xenfb->fbpages);
 
     xenfb_copy_mfns(mode, n_fbdirs, pgmfns, pd);
     map = xc_map_foreign_pages(xen_xc, xenfb->c.xendev.dom,
@@ -502,8 +502,8 @@ static int xenfb_map_fb(struct XenFB *xenfb)
     ret = 0; /* all is fine */
 
 out:
-    qemu_free(pgmfns);
-    qemu_free(fbmfns);
+    g_free(pgmfns);
+    g_free(fbmfns);
     return ret;
 }
 

@@ -196,7 +196,7 @@ static int vpc_open(BlockDriverState *bs, int flags)
     s->bitmap_size = ((s->block_size / (8 * 512)) + 511) & ~511;
 
     s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
-    s->pagetable = qemu_malloc(s->max_table_entries * 4);
+    s->pagetable = g_malloc(s->max_table_entries * 4);
 
     s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
     if (bdrv_pread(bs->file, s->bat_offset, s->pagetable,
@@ -220,7 +220,7 @@ static int vpc_open(BlockDriverState *bs, int flags)
     s->last_bitmap_offset = (int64_t) -1;
 
 #ifdef CACHE
-    s->pageentry_u8 = qemu_malloc(512);
+    s->pageentry_u8 = g_malloc(512);
     s->pageentry_u32 = s->pageentry_u8;
     s->pageentry_u16 = s->pageentry_u8;
     s->last_pagetable = -1;
@@ -619,9 +619,9 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
 static void vpc_close(BlockDriverState *bs)
 {
     BDRVVPCState *s = bs->opaque;
-    qemu_free(s->pagetable);
+    g_free(s->pagetable);
 #ifdef CACHE
-    qemu_free(s->pageentry_u8);
+    g_free(s->pageentry_u8);
 #endif
 }
 

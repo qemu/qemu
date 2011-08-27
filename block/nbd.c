@@ -65,7 +65,7 @@ static int nbd_config(BDRVNBDState *s, const char *filename, int flags)
     const char *unixpath;
     int err = -EINVAL;
 
-    file = qemu_strdup(filename);
+    file = g_strdup(filename);
 
     export_name = strstr(file, EN_OPTSTR);
     if (export_name) {
@@ -74,7 +74,7 @@ static int nbd_config(BDRVNBDState *s, const char *filename, int flags)
         }
         export_name[0] = 0; /* truncate 'file' */
         export_name += strlen(EN_OPTSTR);
-        s->export_name = qemu_strdup(export_name);
+        s->export_name = g_strdup(export_name);
     }
 
     /* extract the host_spec - fail if it's not nbd:... */
@@ -87,18 +87,18 @@ static int nbd_config(BDRVNBDState *s, const char *filename, int flags)
         if (unixpath[0] != '/') { /* We demand  an absolute path*/
             goto out;
         }
-        s->host_spec = qemu_strdup(unixpath);
+        s->host_spec = g_strdup(unixpath);
     } else {
-        s->host_spec = qemu_strdup(host_spec);
+        s->host_spec = g_strdup(host_spec);
     }
 
     err = 0;
 
 out:
-    qemu_free(file);
+    g_free(file);
     if (err != 0) {
-        qemu_free(s->export_name);
-        qemu_free(s->host_spec);
+        g_free(s->export_name);
+        g_free(s->host_spec);
     }
     return err;
 }
@@ -240,8 +240,8 @@ static int nbd_write(BlockDriverState *bs, int64_t sector_num,
 static void nbd_close(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
-    qemu_free(s->export_name);
-    qemu_free(s->host_spec);
+    g_free(s->export_name);
+    g_free(s->host_spec);
 
     nbd_teardown_connection(bs);
 }

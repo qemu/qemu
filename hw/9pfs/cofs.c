@@ -22,7 +22,7 @@ int v9fs_co_readlink(V9fsState *s, V9fsString *path, V9fsString *buf)
     int err;
     ssize_t len;
 
-    buf->data = qemu_malloc(PATH_MAX);
+    buf->data = g_malloc(PATH_MAX);
     v9fs_co_run_in_worker(
         {
             len = s->ops->readlink(&s->ctx, path->data,
@@ -36,7 +36,7 @@ int v9fs_co_readlink(V9fsState *s, V9fsString *path, V9fsString *buf)
             }
         });
     if (err) {
-        qemu_free(buf->data);
+        g_free(buf->data);
         buf->data = NULL;
         buf->size = 0;
     }
@@ -163,6 +163,26 @@ int v9fs_co_rename(V9fsState *s, V9fsString *oldpath, V9fsString *newpath)
     v9fs_co_run_in_worker(
         {
             err = s->ops->rename(&s->ctx, oldpath->data, newpath->data);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
+int v9fs_co_symlink(V9fsState *s, V9fsFidState *fidp,
+                    const char *oldpath, const char *newpath, gid_t gid)
+{
+    int err;
+    FsCred cred;
+
+    cred_init(&cred);
+    cred.fc_uid = fidp->uid;
+    cred.fc_gid = gid;
+    cred.fc_mode = 0777;
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->symlink(&s->ctx, oldpath, newpath, &cred);
             if (err < 0) {
                 err = -errno;
             }

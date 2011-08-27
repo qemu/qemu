@@ -136,7 +136,7 @@ static void alsa_fini_poll (struct pollhlp *hlp)
         for (i = 0; i < hlp->count; ++i) {
             qemu_set_fd_handler (pfds[i].fd, NULL, NULL, NULL);
         }
-        qemu_free (pfds);
+        g_free (pfds);
     }
     hlp->pfds = NULL;
     hlp->count = 0;
@@ -260,7 +260,7 @@ static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp, int mask)
     if (err < 0) {
         alsa_logerr (err, "Could not initialize poll mode\n"
                      "Could not obtain poll descriptors\n");
-        qemu_free (pfds);
+        g_free (pfds);
         return -1;
     }
 
@@ -288,7 +288,7 @@ static int alsa_poll_helper (snd_pcm_t *handle, struct pollhlp *hlp, int mask)
             while (i--) {
                 qemu_set_fd_handler (pfds[i].fd, NULL, NULL, NULL);
             }
-            qemu_free (pfds);
+            g_free (pfds);
             return -1;
         }
     }
@@ -816,7 +816,7 @@ static void alsa_fini_out (HWVoiceOut *hw)
     alsa_anal_close (&alsa->handle, &alsa->pollhlp);
 
     if (alsa->pcm_buf) {
-        qemu_free (alsa->pcm_buf);
+        g_free (alsa->pcm_buf);
         alsa->pcm_buf = NULL;
     }
 }
@@ -979,7 +979,7 @@ static void alsa_fini_in (HWVoiceIn *hw)
     alsa_anal_close (&alsa->handle, &alsa->pollhlp);
 
     if (alsa->pcm_buf) {
-        qemu_free (alsa->pcm_buf);
+        g_free (alsa->pcm_buf);
         alsa->pcm_buf = NULL;
     }
 }

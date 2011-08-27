@@ -127,11 +127,11 @@ static int dmg_open(BlockDriverState *bs, int flags)
 
 	    chunk_count = (count-204)/40;
 	    new_size = sizeof(uint64_t) * (s->n_chunks + chunk_count);
-	    s->types = qemu_realloc(s->types, new_size/2);
-	    s->offsets = qemu_realloc(s->offsets, new_size);
-	    s->lengths = qemu_realloc(s->lengths, new_size);
-	    s->sectors = qemu_realloc(s->sectors, new_size);
-	    s->sectorcounts = qemu_realloc(s->sectorcounts, new_size);
+	    s->types = g_realloc(s->types, new_size/2);
+	    s->offsets = g_realloc(s->offsets, new_size);
+	    s->lengths = g_realloc(s->lengths, new_size);
+	    s->sectors = g_realloc(s->sectors, new_size);
+	    s->sectorcounts = g_realloc(s->sectorcounts, new_size);
 
 	    for(i=s->n_chunks;i<s->n_chunks+chunk_count;i++) {
 		s->types[i] = read_uint32(bs, offset);
@@ -170,8 +170,8 @@ static int dmg_open(BlockDriverState *bs, int flags)
     }
 
     /* initialize zlib engine */
-    s->compressed_chunk = qemu_malloc(max_compressed_size+1);
-    s->uncompressed_chunk = qemu_malloc(512*max_sectors_per_chunk);
+    s->compressed_chunk = g_malloc(max_compressed_size+1);
+    s->uncompressed_chunk = g_malloc(512*max_sectors_per_chunk);
     if(inflateInit(&s->zstream) != Z_OK)
 	goto fail;
 

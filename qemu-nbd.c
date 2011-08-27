@@ -431,7 +431,7 @@ int main(int argc, char **argv)
         /* children */
     }
 
-    sharing_fds = qemu_malloc((shared + 1) * sizeof(int));
+    sharing_fds = g_malloc((shared + 1) * sizeof(int));
 
     if (socket) {
         sharing_fds[0] = unix_socket_incoming(socket);
@@ -491,7 +491,7 @@ int main(int argc, char **argv)
 
     close(sharing_fds[0]);
     bdrv_close(bs);
-    qemu_free(sharing_fds);
+    g_free(sharing_fds);
     if (socket)
         unlink(socket);
 

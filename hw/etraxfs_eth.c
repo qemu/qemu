@@ -574,7 +574,7 @@ static void eth_cleanup(VLANClientState *nc)
 	eth->dma_out->client.opaque = NULL;
 	eth->dma_in->client.opaque = NULL;
 	eth->dma_in->client.pull = NULL;
-        qemu_free(eth);
+        g_free(eth);
 }
 
 static NetClientInfo net_etraxfs_info = {

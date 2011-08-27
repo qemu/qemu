@@ -136,7 +136,7 @@ PXA2xxPCMCIAState *pxa2xx_pcmcia_init(target_phys_addr_t base)
     PXA2xxPCMCIAState *s;
 
     s = (PXA2xxPCMCIAState *)
-            qemu_mallocz(sizeof(PXA2xxPCMCIAState));
+            g_malloc0(sizeof(PXA2xxPCMCIAState));
 
     /* Socket I/O Memory Space */
     iomemtype = cpu_register_io_memory(pxa2xx_pcmcia_io_readfn,

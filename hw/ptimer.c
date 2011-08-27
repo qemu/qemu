@@ -210,7 +210,7 @@ ptimer_state *ptimer_init(QEMUBH *bh)
 {
     ptimer_state *s;
 
-    s = (ptimer_state *)qemu_mallocz(sizeof(ptimer_state));
+    s = (ptimer_state *)g_malloc0(sizeof(ptimer_state));
     s->bh = bh;
     s->timer = qemu_new_timer_ns(vm_clock, ptimer_tick, s);
     return s;

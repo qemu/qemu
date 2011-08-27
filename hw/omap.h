@@ -17,6 +17,7 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef hw_omap_h
+#include "memory.h"
 # define hw_omap_h		"omap.h"
 
 # define OMAP_EMIFS_BASE	0x00000000
@@ -119,7 +120,7 @@ void omap_sdrc_reset(struct omap_sdrc_s *s);
 struct omap_gpmc_s;
 struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq);
 void omap_gpmc_reset(struct omap_gpmc_s *s);
-void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, int iomemtype,
+void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem,
                 void (*base_upd)(void *opaque, target_phys_addr_t new),
                 void (*unmap)(void *opaque), void *opaque);
 
@@ -1107,7 +1108,7 @@ inline static int debug_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                                            CPUWriteMemoryFunc * const *mem_write,
                                            void *opaque)
 {
-    struct io_fn *s = qemu_malloc(sizeof(struct io_fn));
+    struct io_fn *s = g_malloc(sizeof(struct io_fn));
 
     s->mem_read = mem_read;
     s->mem_write = mem_write;

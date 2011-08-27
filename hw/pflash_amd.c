@@ -596,7 +596,7 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
         total_len != (8 * MiB) && total_len != (16 * MiB) &&
         total_len != (32 * MiB) && total_len != (64 * MiB))
         return NULL;
-    pfl = qemu_mallocz(sizeof(pflash_t));
+    pfl = g_malloc0(sizeof(pflash_t));
     if (pfl == NULL)
         return NULL;
     pfl->storage = qemu_get_ram_ptr(off);

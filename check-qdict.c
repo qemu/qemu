@@ -56,9 +56,9 @@ START_TEST(qdict_put_obj_test)
 
     // destroy doesn't exit yet
     QDECREF(qi);
-    qemu_free(ent->key);
-    qemu_free(ent);
-    qemu_free(qdict);
+    g_free(ent->key);
+    g_free(ent);
+    g_free(qdict);
 }
 END_TEST
 

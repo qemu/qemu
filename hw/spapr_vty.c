@@ -50,8 +50,8 @@ void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len)
 {
     VIOsPAPRVTYDevice *dev = (VIOsPAPRVTYDevice *)sdev;
 
-    /* FIXME: should check the qemu_chr_write() return value */
-    qemu_chr_write(dev->chardev, buf, len);
+    /* FIXME: should check the qemu_chr_fe_write() return value */
+    qemu_chr_fe_write(dev->chardev, buf, len);
 }
 
 static int spapr_vty_init(VIOsPAPRDevice *sdev)

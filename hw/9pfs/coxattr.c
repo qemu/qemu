@@ -48,3 +48,37 @@ int v9fs_co_lgetxattr(V9fsState *s, V9fsString *path,
         });
     return err;
 }
+
+int v9fs_co_lsetxattr(V9fsState *s, V9fsString *path,
+                      V9fsString *xattr_name, void *value,
+                      size_t size, int flags)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->lsetxattr(&s->ctx, path->data,
+                                    xattr_name->data, value,
+                                    size, flags);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}
+
+int v9fs_co_lremovexattr(V9fsState *s, V9fsString *path,
+                         V9fsString *xattr_name)
+{
+    int err;
+
+    v9fs_co_run_in_worker(
+        {
+            err = s->ops->lremovexattr(&s->ctx, path->data,
+                                       xattr_name->data);
+            if (err < 0) {
+                err = -errno;
+            }
+        });
+    return err;
+}

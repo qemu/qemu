@@ -576,7 +576,7 @@ struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
 {
     int iomemtype;
     struct omap_mmc_s *s = (struct omap_mmc_s *)
-            qemu_mallocz(sizeof(struct omap_mmc_s));
+            g_malloc0(sizeof(struct omap_mmc_s));
 
     s->irq = irq;
     s->dma = dma;
@@ -602,7 +602,7 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
 {
     int iomemtype;
     struct omap_mmc_s *s = (struct omap_mmc_s *)
-            qemu_mallocz(sizeof(struct omap_mmc_s));
+            g_malloc0(sizeof(struct omap_mmc_s));
 
     s->irq = irq;
     s->dma = dma;

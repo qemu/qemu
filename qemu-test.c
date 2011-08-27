@@ -228,7 +228,7 @@ static void compare_full_images_cb (void *opaque, int ret)
         /* Finished. */
         free (cf->truth_buf);
         qemu_vfree (cf->iov.iov_base);
-        qemu_free (cf);
+        g_free(cf);
         return;
     }
 
@@ -260,7 +260,7 @@ static int compare_full_images (void)
         fvd_set_copy_on_read (bs, FALSE);
     }
 
-    cf = qemu_malloc (sizeof (CompareFullCB));
+    cf = g_malloc(sizeof(CompareFullCB));
     cf->max_nb_sectors = 1048576L / 512;
     cf->nb_sectors = MIN (cf->max_nb_sectors, total_sectors);
     if (posix_memalign ((void **) &cf->truth_buf, 512,
@@ -619,14 +619,14 @@ static void perform_test(const char *truth_file, const char *test_file,
 
     if (round > 0) {
         /* Create testers. */
-        testers = qemu_malloc (sizeof (RandomIO) * parallel);
+        testers = g_malloc(sizeof(RandomIO) * parallel);
         for (i = 0; i < parallel; i++) {
             RandomIO *r = &testers[i];
             r->test_buf = qemu_blockalign (bs, io_size * 512);
             if (posix_memalign ((void **) &r->truth_buf, 512, io_size * 512)) {
                 die ("posix_memalign");
             }
-            r->qiov.iov = qemu_malloc (sizeof (struct iovec) * max_iov);
+            r->qiov.iov = g_malloc(sizeof(struct iovec) * max_iov);
             r->sector_num = 0;
             r->nb_sectors = 0;
             r->type = OP_READ;
@@ -651,9 +651,9 @@ static void perform_test(const char *truth_file, const char *test_file,
             RandomIO *r = &testers[i];
             qemu_vfree (r->test_buf);
             free (r->truth_buf);
-            qemu_free (r->qiov.iov);
+            g_free(r->qiov.iov);
         }
-        qemu_free (testers);
+        g_free(testers);
     }
 
     printf ("Test process %d finished successfully\n", getpid ());

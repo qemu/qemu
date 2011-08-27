@@ -28,7 +28,6 @@
 #include "pixel_ops.h"
 #include "qemu-timer.h"
 #include "loader.h"
-#include "exec-memory.h"
 
 typedef struct ISAVGAState {
     ISADevice dev;
@@ -51,7 +50,7 @@ static int vga_initfn(ISADevice *dev)
 
     vga_common_init(s, VGA_RAM_SIZE);
     vga_io_memory = vga_init_io(s);
-    memory_region_add_subregion_overlap(get_system_memory(),
+    memory_region_add_subregion_overlap(isa_address_space(dev),
                                         isa_mem_base + 0x000a0000,
                                         vga_io_memory, 1);
     memory_region_set_coalescing(vga_io_memory);
@@ -68,7 +67,7 @@ static int vga_initfn(ISADevice *dev)
     s->ds = graphic_console_init(s->update, s->invalidate,
                                  s->screen_dump, s->text_update, s);
 
-    vga_init_vbe(s);
+    vga_init_vbe(s, isa_address_space(dev));
     /* ROM BIOS */
     rom_add_vga(VGABIOS_FILENAME);
     return 0;

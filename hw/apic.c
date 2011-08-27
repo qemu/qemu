@@ -80,6 +80,7 @@ typedef struct APICState APICState;
 
 struct APICState {
     SysBusDevice busdev;
+    MemoryRegion io_memory;
     void *cpu_env;
     uint32_t apicbase;
     uint8_t id;
@@ -222,8 +223,7 @@ void apic_deliver_pic_intr(DeviceState *d, int level)
 }
 
 static void apic_bus_deliver(const uint32_t *deliver_bitmask,
-                             uint8_t delivery_mode,
-                             uint8_t vector_num, uint8_t polarity,
+                             uint8_t delivery_mode, uint8_t vector_num,
                              uint8_t trigger_mode)
 {
     APICState *apic_iter;
@@ -280,18 +280,16 @@ static void apic_bus_deliver(const uint32_t *deliver_bitmask,
                  apic_set_irq(apic_iter, vector_num, trigger_mode) );
 }
 
-void apic_deliver_irq(uint8_t dest, uint8_t dest_mode,
-                      uint8_t delivery_mode, uint8_t vector_num,
-                      uint8_t polarity, uint8_t trigger_mode)
+void apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode,
+                      uint8_t vector_num, uint8_t trigger_mode)
 {
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
 
     trace_apic_deliver_irq(dest, dest_mode, delivery_mode, vector_num,
-                           polarity, trigger_mode);
+                           trigger_mode);
 
     apic_get_delivery_bitmask(deliver_bitmask, dest, dest_mode);
-    apic_bus_deliver(deliver_bitmask, delivery_mode, vector_num, polarity,
-                     trigger_mode);
+    apic_bus_deliver(deliver_bitmask, delivery_mode, vector_num, trigger_mode);
 }
 
 void cpu_set_apic_base(DeviceState *d, uint64_t val)
@@ -548,7 +546,7 @@ void apic_sipi(DeviceState *d)
 
 static void apic_deliver(DeviceState *d, uint8_t dest, uint8_t dest_mode,
                          uint8_t delivery_mode, uint8_t vector_num,
-                         uint8_t polarity, uint8_t trigger_mode)
+                         uint8_t trigger_mode)
 {
     APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
     uint32_t deliver_bitmask[MAX_APIC_WORDS];
@@ -591,8 +589,7 @@ static void apic_deliver(DeviceState *d, uint8_t dest, uint8_t dest_mode,
             return;
     }
 
-    apic_bus_deliver(deliver_bitmask, delivery_mode, vector_num, polarity,
-                     trigger_mode);
+    apic_bus_deliver(deliver_bitmask, delivery_mode, vector_num, trigger_mode);
 }
 
 int apic_get_interrupt(DeviceState *d)
@@ -794,7 +791,7 @@ static void apic_send_msi(target_phys_addr_t addr, uint32_t data)
     uint8_t trigger_mode = (data >> MSI_DATA_TRIGGER_SHIFT) & 0x1;
     uint8_t delivery = (data >> MSI_DATA_DELIVERY_MODE_SHIFT) & 0x7;
     /* XXX: Ignore redirection hint. */
-    apic_deliver_irq(dest, dest_mode, delivery, vector, 0, trigger_mode);
+    apic_deliver_irq(dest, dest_mode, delivery, vector, trigger_mode);
 }
 
 static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
@@ -855,7 +852,7 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         s->icr[0] = val;
         apic_deliver(d, (s->icr[1] >> 24) & 0xff, (s->icr[0] >> 11) & 1,
                      (s->icr[0] >> 8) & 7, (s->icr[0] & 0xff),
-                     (s->icr[0] >> 14) & 1, (s->icr[0] >> 15) & 1);
+                     (s->icr[0] >> 15) & 1);
         break;
     case 0x31:
         s->icr[1] = val;
@@ -979,31 +976,25 @@ static void apic_reset(DeviceState *d)
     }
 }
 
-static CPUReadMemoryFunc * const apic_mem_read[3] = {
-    apic_mem_readb,
-    apic_mem_readw,
-    apic_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const apic_mem_write[3] = {
-    apic_mem_writeb,
-    apic_mem_writew,
-    apic_mem_writel,
+static const MemoryRegionOps apic_io_ops = {
+    .old_mmio = {
+        .read = { apic_mem_readb, apic_mem_readw, apic_mem_readl, },
+        .write = { apic_mem_writeb, apic_mem_writew, apic_mem_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int apic_init1(SysBusDevice *dev)
 {
     APICState *s = FROM_SYSBUS(APICState, dev);
-    int apic_io_memory;
     static int last_apic_idx;
 
     if (last_apic_idx >= MAX_APICS) {
         return -1;
     }
-    apic_io_memory = cpu_register_io_memory(apic_mem_read,
-                                            apic_mem_write, NULL,
-                                            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MSI_ADDR_SIZE, apic_io_memory);
+    memory_region_init_io(&s->io_memory, &apic_io_ops, s, "apic",
+                          MSI_ADDR_SIZE);
+    sysbus_init_mmio_region(dev, &s->io_memory);
 
     s->timer = qemu_new_timer_ns(vm_clock, apic_timer, s);
     s->idx = last_apic_idx++;

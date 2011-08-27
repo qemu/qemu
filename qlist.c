@@ -31,7 +31,7 @@ QList *qlist_new(void)
 {
     QList *qlist;
 
-    qlist = qemu_malloc(sizeof(*qlist));
+    qlist = g_malloc(sizeof(*qlist));
     QTAILQ_INIT(&qlist->head);
     QOBJECT_INIT(qlist, &qlist_type);
 
@@ -64,7 +64,7 @@ void qlist_append_obj(QList *qlist, QObject *value)
 {
     QListEntry *entry;
 
-    entry = qemu_malloc(sizeof(*entry));
+    entry = g_malloc(sizeof(*entry));
     entry->value = value;
 
     QTAILQ_INSERT_TAIL(&qlist->head, entry, next);
@@ -98,7 +98,7 @@ QObject *qlist_pop(QList *qlist)
     QTAILQ_REMOVE(&qlist->head, entry, next);
 
     ret = entry->value;
-    qemu_free(entry);
+    g_free(entry);
 
     return ret;
 }
@@ -150,8 +150,8 @@ static void qlist_destroy_obj(QObject *obj)
     QTAILQ_FOREACH_SAFE(entry, &qlist->head, next, next_entry) {
         QTAILQ_REMOVE(&qlist->head, entry, next);
         qobject_decref(entry->value);
-        qemu_free(entry);
+        g_free(entry);
     }
 
-    qemu_free(qlist);
+    g_free(qlist);
 }

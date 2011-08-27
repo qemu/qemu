@@ -535,7 +535,7 @@ static void r4k_mmu_init (CPUMIPSState *env, const mips_def_t *def)
 
 static void mmu_init (CPUMIPSState *env, const mips_def_t *def)
 {
-    env->tlb = qemu_mallocz(sizeof(CPUMIPSTLBContext));
+    env->tlb = g_malloc0(sizeof(CPUMIPSTLBContext));
 
     switch (def->mmu_type) {
         case MMU_TYPE_NONE:
@@ -568,7 +568,7 @@ static void fpu_init (CPUMIPSState *env, const mips_def_t *def)
 
 static void mvp_init (CPUMIPSState *env, const mips_def_t *def)
 {
-    env->mvp = qemu_mallocz(sizeof(CPUMIPSMVPContext));
+    env->mvp = g_malloc0(sizeof(CPUMIPSMVPContext));
 
     /* MVPConf1 implemented, TLB sharable, no gating storage support,
        programmable cache partitioning implemented, number of allocatable

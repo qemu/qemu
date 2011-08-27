@@ -195,7 +195,7 @@ static int syborg_keyboard_init(SysBusDevice *dev)
         fprintf(stderr, "syborg_keyboard: fifo too small\n");
         s->fifo_size = 16;
     }
-    s->key_fifo = qemu_mallocz(s->fifo_size * sizeof(s->key_fifo[0]));
+    s->key_fifo = g_malloc0(s->fifo_size * sizeof(s->key_fifo[0]));
 
     qemu_add_kbd_event_handler(syborg_keyboard_event, s);
 

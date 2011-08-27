@@ -980,7 +980,7 @@ static void strongarm_uart_update_parameters(StrongARMUARTState *s)
     ssp.stop_bits = stop_bits;
     s->char_transmit_time =  (get_ticks_per_sec() / speed) * frame_size;
     if (s->chr) {
-        qemu_chr_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
+        qemu_chr_fe_ioctl(s->chr, CHR_IOCTL_SERIAL_SET_PARAMS, &ssp);
     }
 
     DPRINTF(stderr, "%s speed=%d parity=%c data=%d stop=%d\n", s->chr->label,
@@ -1067,7 +1067,7 @@ static void strongarm_uart_tx(void *opaque)
     if (s->utcr3 & UTCR3_LBM) /* loopback */ {
         strongarm_uart_receive(s, &s->tx_fifo[s->tx_start], 1);
     } else if (s->chr) {
-        qemu_chr_write(s->chr, &s->tx_fifo[s->tx_start], 1);
+        qemu_chr_fe_write(s->chr, &s->tx_fifo[s->tx_start], 1);
     }
 
     s->tx_start = (s->tx_start + 1) % 8;
@@ -1529,7 +1529,7 @@ StrongARMState *sa1110_init(unsigned int sdram_size, const char *rev)
     qemu_irq *pic;
     int i;
 
-    s = qemu_mallocz(sizeof(StrongARMState));
+    s = g_malloc0(sizeof(StrongARMState));
 
     if (!rev) {
         rev = "sa1110-b5";

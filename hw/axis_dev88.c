@@ -315,7 +315,7 @@ void axisdev88_init (ram_addr_t ram_size,
     }
 
     /* Add the two ethernet blocks.  */
-    dma_eth = qemu_mallocz(sizeof dma_eth[0] * 4); /* Allocate 4 channels.  */
+    dma_eth = g_malloc0(sizeof dma_eth[0] * 4); /* Allocate 4 channels.  */
     etraxfs_eth_init(&nd_table[0], 0x30034000, 1, &dma_eth[0], &dma_eth[1]);
     if (nb_nics > 1) {
         etraxfs_eth_init(&nd_table[1], 0x30036000, 2, &dma_eth[2], &dma_eth[3]);

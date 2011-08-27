@@ -1833,7 +1833,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                     env->exception_index = POWERPC_EXCP_DTLB;
                     env->error_code = 0;
                     env->spr[SPR_BOOKE_DEAR] = address;
-                    env->spr[SPR_BOOKE_ESR] = rw ? 1 << ESR_ST : 0;
+                    env->spr[SPR_BOOKE_ESR] = rw ? ESR_ST : 0;
                     return -1;
                 case POWERPC_MMU_REAL:
                     cpu_abort(env, "PowerPC in real mode should never raise "
@@ -1857,7 +1857,7 @@ int cpu_ppc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
                 } else if ((env->mmu_model == POWERPC_MMU_BOOKE) ||
                            (env->mmu_model == POWERPC_MMU_BOOKE206)) {
                     env->spr[SPR_BOOKE_DEAR] = address;
-                    env->spr[SPR_BOOKE_ESR] = rw ? 1 << ESR_ST : 0;
+                    env->spr[SPR_BOOKE_ESR] = rw ? ESR_ST : 0;
                 } else {
                     env->spr[SPR_DAR] = address;
                     if (rw == 1) {
@@ -2480,16 +2480,19 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
             if (lpes1 == 0)
                 new_msr |= (target_ulong)MSR_HVB;
             msr |= 0x00080000;
+            env->spr[SPR_BOOKE_ESR] = ESR_PIL;
             break;
         case POWERPC_EXCP_PRIV:
             if (lpes1 == 0)
                 new_msr |= (target_ulong)MSR_HVB;
             msr |= 0x00040000;
+            env->spr[SPR_BOOKE_ESR] = ESR_PPR;
             break;
         case POWERPC_EXCP_TRAP:
             if (lpes1 == 0)
                 new_msr |= (target_ulong)MSR_HVB;
             msr |= 0x00020000;
+            env->spr[SPR_BOOKE_ESR] = ESR_PTR;
             break;
         default:
             /* Should never occur */
@@ -2552,16 +2555,19 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
         cpu_abort(env, "Debug exception is not implemented yet !\n");
         goto store_next;
     case POWERPC_EXCP_SPEU:      /* SPE/embedded floating-point unavailable  */
+        env->spr[SPR_BOOKE_ESR] = ESR_SPV;
         goto store_current;
     case POWERPC_EXCP_EFPDI:     /* Embedded floating-point data interrupt   */
         /* XXX: TODO */
         cpu_abort(env, "Embedded floating point data exception "
                   "is not implemented yet !\n");
+        env->spr[SPR_BOOKE_ESR] = ESR_SPV;
         goto store_next;
     case POWERPC_EXCP_EFPRI:     /* Embedded floating-point round interrupt  */
         /* XXX: TODO */
         cpu_abort(env, "Embedded floating point round exception "
                   "is not implemented yet !\n");
+        env->spr[SPR_BOOKE_ESR] = ESR_SPV;
         goto store_next;
     case POWERPC_EXCP_EPERFM:    /* Embedded performance monitor interrupt   */
         /* XXX: TODO */
@@ -3085,7 +3091,7 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
     if (!def)
         return NULL;
 
-    env = qemu_mallocz(sizeof(CPUPPCState));
+    env = g_malloc0(sizeof(CPUPPCState));
     cpu_exec_init(env);
     if (tcg_enabled()) {
         ppc_translate_init();
@@ -3101,5 +3107,5 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
 void cpu_ppc_close (CPUPPCState *env)
 {
     /* Should also remove all opcode tables... */
-    qemu_free(env);
+    g_free(env);
 }

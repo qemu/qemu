@@ -188,7 +188,7 @@ static int blizzard_transfer_setup(BlizzardState *s)
     s->data.len = s->bpp * s->data.dx * s->data.dy;
     s->data.pitch = s->data.dx;
     if (s->data.len > s->data.buflen) {
-        s->data.buf = qemu_realloc(s->data.buf, s->data.len);
+        s->data.buf = g_realloc(s->data.buf, s->data.len);
         s->data.buflen = s->data.len;
     }
     s->data.ptr = s->data.buf;
@@ -953,9 +953,9 @@ static void blizzard_screen_dump(void *opaque, const char *filename) {
 
 void *s1d13745_init(qemu_irq gpio_int)
 {
-    BlizzardState *s = (BlizzardState *) qemu_mallocz(sizeof(*s));
+    BlizzardState *s = (BlizzardState *) g_malloc0(sizeof(*s));
 
-    s->fb = qemu_malloc(0x180000);
+    s->fb = g_malloc(0x180000);
 
     s->state = graphic_console_init(blizzard_update_display,
                                  blizzard_invalidate_display,
@@ -964,7 +964,7 @@ void *s1d13745_init(qemu_irq gpio_int)
     switch (ds_get_bits_per_pixel(s->state)) {
     case 0:
         s->line_fn_tab[0] = s->line_fn_tab[1] =
-                qemu_mallocz(sizeof(blizzard_fn_t) * 0x10);
+                g_malloc0(sizeof(blizzard_fn_t) * 0x10);
         break;
     case 8:
         s->line_fn_tab[0] = blizzard_draw_fn_8;

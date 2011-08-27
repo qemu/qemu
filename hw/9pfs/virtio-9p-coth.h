@@ -57,8 +57,8 @@ typedef struct V9fsThPool {
 extern void co_run_in_worker_bh(void *);
 extern int v9fs_init_worker_threads(void);
 extern int v9fs_co_readlink(V9fsState *, V9fsString *, V9fsString *);
-extern int v9fs_co_readdir(V9fsState *, V9fsFidState *,
-                           struct dirent **);
+extern int v9fs_co_readdir_r(V9fsState *, V9fsFidState *,
+                           struct dirent *, struct dirent **result);
 extern off_t v9fs_co_telldir(V9fsState *, V9fsFidState *);
 extern void v9fs_co_seekdir(V9fsState *, V9fsFidState *, off_t);
 extern void v9fs_co_rewinddir(V9fsState *, V9fsFidState *);
@@ -76,4 +76,21 @@ extern int v9fs_co_mknod(V9fsState *, V9fsString *, uid_t,
 extern int v9fs_co_mkdir(V9fsState *, char *, mode_t, uid_t, gid_t);
 extern int v9fs_co_remove(V9fsState *, V9fsString *);
 extern int v9fs_co_rename(V9fsState *, V9fsString *, V9fsString *);
+extern int v9fs_co_fstat(V9fsState *, int, struct stat *);
+extern int v9fs_co_opendir(V9fsState *, V9fsFidState *);
+extern int v9fs_co_open(V9fsState *, V9fsFidState *, int);
+extern int v9fs_co_open2(V9fsState *, V9fsFidState *, char *, gid_t, int, int);
+extern int v9fs_co_lsetxattr(V9fsState *, V9fsString *, V9fsString *,
+                             void *, size_t, int);
+extern int v9fs_co_lremovexattr(V9fsState *, V9fsString *, V9fsString *);
+extern int v9fs_co_closedir(V9fsState *, V9fsFidState *);
+extern int v9fs_co_close(V9fsState *, V9fsFidState *);
+extern int v9fs_co_fsync(V9fsState *, V9fsFidState *, int);
+extern int v9fs_co_symlink(V9fsState *, V9fsFidState *, const char *,
+                           const char *, gid_t);
+extern int v9fs_co_link(V9fsState *, V9fsString *, V9fsString *);
+extern int v9fs_co_pwritev(V9fsState *, V9fsFidState *,
+                           struct iovec *, int, int64_t);
+extern int v9fs_co_preadv(V9fsState *, V9fsFidState *,
+                          struct iovec *, int, int64_t);
 #endif

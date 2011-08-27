@@ -67,23 +67,23 @@ SECTIONS
   .tbss    : { *(.tbss) }
   .preinit_array     :
   {
-    PROVIDE_HIDDEN (__preinit_array_start = .);
+    PROVIDE (__preinit_array_start = .);
     KEEP (*(.preinit_array))
-    PROVIDE_HIDDEN (__preinit_array_end = .);
+    PROVIDE (__preinit_array_end = .);
   }
   .init_array     :
   {
-     PROVIDE_HIDDEN (__init_array_start = .);
+     PROVIDE (__init_array_start = .);
      KEEP (*(SORT(.init_array.*)))
      KEEP (*(.init_array))
-     PROVIDE_HIDDEN (__init_array_end = .);
+     PROVIDE (__init_array_end = .);
   }
   .fini_array     :
   {
-    PROVIDE_HIDDEN (__fini_array_start = .);
+    PROVIDE (__fini_array_start = .);
     KEEP (*(.fini_array))
     KEEP (*(SORT(.fini_array.*)))
-    PROVIDE_HIDDEN (__fini_array_end = .);
+    PROVIDE (__fini_array_end = .);
   }
   .ctors         :
   {

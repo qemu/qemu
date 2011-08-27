@@ -326,7 +326,7 @@ void *st_rate_start (int inrate, int outrate)
 
 void st_rate_stop (void *opaque)
 {
-    qemu_free (opaque);
+    g_free (opaque);
 }
 
 void mixeng_clear (struct st_sample *buf, int len)

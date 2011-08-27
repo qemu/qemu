@@ -85,7 +85,7 @@ s3c24xx_memc_init(target_phys_addr_t base_addr)
      *
      * There are 13 registers, each 4 bytes.
      */
-    struct s3c24xx_memc_state_s *s = qemu_mallocz(sizeof(struct s3c24xx_memc_state_s));
+    struct s3c24xx_memc_state_s *s = g_malloc0(sizeof(struct s3c24xx_memc_state_s));
 
     int tag;
     tag = cpu_register_io_memory(s3c24xx_memc_read, s3c24xx_memc_write, s,

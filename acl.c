@@ -55,8 +55,8 @@ qemu_acl *qemu_acl_init(const char *aclname)
     if (acl)
         return acl;
 
-    acl = qemu_malloc(sizeof(*acl));
-    acl->aclname = qemu_strdup(aclname);
+    acl = g_malloc(sizeof(*acl));
+    acl->aclname = g_strdup(aclname);
     /* Deny by default, so there is no window of "open
      * access" between QEMU starting, and the user setting
      * up ACLs in the monitor */
@@ -65,7 +65,7 @@ qemu_acl *qemu_acl_init(const char *aclname)
     acl->nentries = 0;
     QTAILQ_INIT(&acl->entries);
 
-    acls = qemu_realloc(acls, sizeof(*acls) * (nacls +1));
+    acls = g_realloc(acls, sizeof(*acls) * (nacls +1));
     acls[nacls] = acl;
     nacls++;
 
@@ -116,8 +116,8 @@ int qemu_acl_append(qemu_acl *acl,
 {
     qemu_acl_entry *entry;
 
-    entry = qemu_malloc(sizeof(*entry));
-    entry->match = qemu_strdup(match);
+    entry = g_malloc(sizeof(*entry));
+    entry->match = g_strdup(match);
     entry->deny = deny;
 
     QTAILQ_INSERT_TAIL(&acl->entries, entry, next);
@@ -142,8 +142,8 @@ int qemu_acl_insert(qemu_acl *acl,
         return qemu_acl_append(acl, deny, match);
 
 
-    entry = qemu_malloc(sizeof(*entry));
-    entry->match = qemu_strdup(match);
+    entry = g_malloc(sizeof(*entry));
+    entry->match = g_strdup(match);
     entry->deny = deny;
 
     QTAILQ_FOREACH(tmp, &acl->entries, next) {

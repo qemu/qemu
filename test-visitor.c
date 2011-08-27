@@ -191,11 +191,11 @@ static void test_nested_structs(void)
     g_assert(!g_strcmp0(ud1c_p->string, ud1_p->string));
 
     g_assert(!g_strcmp0(ud2c_p->dict.dict2.string, ud2.dict.dict2.string));
-    qemu_free(ud1.string);
-    qemu_free(ud2.string);
-    qemu_free(ud2.dict.string);
-    qemu_free(ud2.dict.dict.string);
-    qemu_free(ud2.dict.dict2.string);
+    g_free(ud1.string);
+    g_free(ud2.string);
+    g_free(ud2.dict.string);
+    g_free(ud2.dict.dict.string);
+    g_free(ud2.dict.dict2.string);
 
     qapi_free_UserDefTwo(ud2c_p);
 
@@ -251,7 +251,7 @@ static void test_nested_enums(void)
     QObject *obj;
     QString *str;
 
-    nested_enums = qemu_mallocz(sizeof(NestedEnumsOne));
+    nested_enums = g_malloc0(sizeof(NestedEnumsOne));
     nested_enums->enum1 = ENUM_ONE_VALUE1;
     nested_enums->enum2 = ENUM_ONE_VALUE2;
     nested_enums->enum3 = ENUM_ONE_VALUE3;

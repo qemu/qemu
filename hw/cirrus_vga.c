@@ -32,7 +32,6 @@
 #include "console.h"
 #include "vga_int.h"
 #include "loader.h"
-#include "exec-memory.h"
 
 /*
  * TODO:
@@ -173,8 +172,6 @@
 #define CIRRUS_MMIO_BLTSTATUS         0x40	// byte
 
 #define CIRRUS_PNPMMIO_SIZE         0x1000
-
-#define ABS(a) ((signed)(a) > 0 ? a : -a)
 
 #define BLTUNSAFE(s) \
     ( \
@@ -2372,7 +2369,7 @@ static void unmap_bank(CirrusVGAState *s, unsigned bank)
         memory_region_del_subregion(&s->low_mem_container,
                                     s->cirrus_bank[bank]);
         memory_region_destroy(s->cirrus_bank[bank]);
-        qemu_free(s->cirrus_bank[bank]);
+        g_free(s->cirrus_bank[bank]);
         s->cirrus_bank[bank] = NULL;
     }
 }
@@ -2387,7 +2384,7 @@ static void map_linear_vram_bank(CirrusVGAState *s, unsigned bank)
         && !((s->vga.gr[0x0B] & 0x14) == 0x14)
         && !(s->vga.gr[0x0B] & 0x02)) {
 
-        mr = qemu_malloc(sizeof(*mr));
+        mr = g_malloc(sizeof(*mr));
         memory_region_init_alias(mr, names[bank], &s->vga.vram,
                                  s->cirrus_bank_base[bank], 0x8000);
         memory_region_add_subregion_overlap(
@@ -2803,7 +2800,8 @@ static const MemoryRegionOps cirrus_linear_io_ops = {
     },
 };
 
-static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
+static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
+                               MemoryRegion *system_memory)
 {
     int i;
     static int inited;
@@ -2856,7 +2854,7 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
     memory_region_init_io(&s->low_mem, &cirrus_vga_mem_ops, s,
                           "cirrus-low-memory", 0x20000);
     memory_region_add_subregion(&s->low_mem_container, 0, &s->low_mem);
-    memory_region_add_subregion_overlap(get_system_memory(),
+    memory_region_add_subregion_overlap(system_memory,
                                         isa_mem_base + 0x000a0000,
                                         &s->low_mem_container,
                                         1);
@@ -2899,14 +2897,14 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci)
  *
  ***************************************/
 
-void isa_cirrus_vga_init(void)
+void isa_cirrus_vga_init(MemoryRegion *system_memory)
 {
     CirrusVGAState *s;
 
-    s = qemu_mallocz(sizeof(CirrusVGAState));
+    s = g_malloc0(sizeof(CirrusVGAState));
 
     vga_common_init(&s->vga, VGA_RAM_SIZE);
-    cirrus_init_common(s, CIRRUS_ID_CLGD5430, 0);
+    cirrus_init_common(s, CIRRUS_ID_CLGD5430, 0, system_memory);
     s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
                                      s->vga.screen_dump, s->vga.text_update,
                                      &s->vga);
@@ -2930,7 +2928,7 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
 
      /* setup VGA */
      vga_common_init(&s->vga, VGA_RAM_SIZE);
-     cirrus_init_common(s, device_id, 1);
+     cirrus_init_common(s, device_id, 1, pci_address_space(dev));
      s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
                                       s->vga.screen_dump, s->vga.text_update,
                                       &s->vga);

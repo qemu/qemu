@@ -696,8 +696,8 @@ static int omap2_gpio_init(SysBusDevice *dev)
     } else {
         s->modulecount = 6;
     }
-    s->modules = qemu_mallocz(s->modulecount * sizeof(struct omap2_gpio_s));
-    s->handler = qemu_mallocz(s->modulecount * 32 * sizeof(qemu_irq));
+    s->modules = g_malloc0(s->modulecount * sizeof(struct omap2_gpio_s));
+    s->handler = g_malloc0(s->modulecount * 32 * sizeof(qemu_irq));
     qdev_init_gpio_in(&dev->qdev, omap2_gpio_set, s->modulecount * 32);
     qdev_init_gpio_out(&dev->qdev, s->handler, s->modulecount * 32);
     for (i = 0; i < s->modulecount; i++) {

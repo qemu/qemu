@@ -41,7 +41,7 @@ int qcow2_refcount_init(BlockDriverState *bs)
     int ret, refcount_table_size2, i;
 
     refcount_table_size2 = s->refcount_table_size * sizeof(uint64_t);
-    s->refcount_table = qemu_malloc(refcount_table_size2);
+    s->refcount_table = g_malloc(refcount_table_size2);
     if (s->refcount_table_size > 0) {
         BLKDBG_EVENT(bs->file, BLKDBG_REFTABLE_LOAD);
         ret = bdrv_pread(bs->file, s->refcount_table_offset,
@@ -59,7 +59,7 @@ int qcow2_refcount_init(BlockDriverState *bs)
 void qcow2_refcount_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
-    qemu_free(s->refcount_table);
+    g_free(s->refcount_table);
 }
 
 
@@ -323,8 +323,8 @@ static int alloc_refcount_block(BlockDriverState *bs,
     uint64_t meta_offset = (blocks_used * refcount_block_clusters) *
         s->cluster_size;
     uint64_t table_offset = meta_offset + blocks_clusters * s->cluster_size;
-    uint16_t *new_blocks = qemu_mallocz(blocks_clusters * s->cluster_size);
-    uint64_t *new_table = qemu_mallocz(table_size * sizeof(uint64_t));
+    uint16_t *new_blocks = g_malloc0(blocks_clusters * s->cluster_size);
+    uint64_t *new_table = g_malloc0(table_size * sizeof(uint64_t));
 
     assert(meta_offset >= (s->free_cluster_index * s->cluster_size));
 
@@ -349,7 +349,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     BLKDBG_EVENT(bs->file, BLKDBG_REFBLOCK_ALLOC_WRITE_BLOCKS);
     ret = bdrv_pwrite_sync(bs->file, meta_offset, new_blocks,
         blocks_clusters * s->cluster_size);
-    qemu_free(new_blocks);
+    g_free(new_blocks);
     if (ret < 0) {
         goto fail_table;
     }
@@ -385,7 +385,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     uint64_t old_table_offset = s->refcount_table_offset;
     uint64_t old_table_size = s->refcount_table_size;
 
-    qemu_free(s->refcount_table);
+    g_free(s->refcount_table);
     s->refcount_table = new_table;
     s->refcount_table_size = table_size;
     s->refcount_table_offset = table_offset;
@@ -403,7 +403,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     return new_block;
 
 fail_table:
-    qemu_free(new_table);
+    g_free(new_table);
 fail_block:
     if (*refcount_block != NULL) {
         qcow2_cache_put(bs, s->refcount_block_cache, (void**) refcount_block);
@@ -720,7 +720,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     l1_size2 = l1_size * sizeof(uint64_t);
     if (l1_table_offset != s->l1_table_offset) {
         if (l1_size2 != 0) {
-            l1_table = qemu_mallocz(align_offset(l1_size2, 512));
+            l1_table = g_malloc0(align_offset(l1_size2, 512));
         } else {
             l1_table = NULL;
         }
@@ -847,7 +847,7 @@ fail:
             be64_to_cpus(&l1_table[i]);
     }
     if (l1_allocated)
-        qemu_free(l1_table);
+        g_free(l1_table);
     return ret;
 }
 
@@ -921,7 +921,7 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
 
     /* Read L2 table from disk */
     l2_size = s->l2_size * sizeof(uint64_t);
-    l2_table = qemu_malloc(l2_size);
+    l2_table = g_malloc(l2_size);
 
     if (bdrv_pread(bs->file, l2_offset, l2_table, l2_size) != l2_size)
         goto fail;
@@ -979,12 +979,12 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
         }
     }
 
-    qemu_free(l2_table);
+    g_free(l2_table);
     return 0;
 
 fail:
     fprintf(stderr, "ERROR: I/O error in check_refcounts_l2\n");
-    qemu_free(l2_table);
+    g_free(l2_table);
     return -EIO;
 }
 
@@ -1017,7 +1017,7 @@ static int check_refcounts_l1(BlockDriverState *bs,
     if (l1_size2 == 0) {
         l1_table = NULL;
     } else {
-        l1_table = qemu_malloc(l1_size2);
+        l1_table = g_malloc(l1_size2);
         if (bdrv_pread(bs->file, l1_table_offset,
                        l1_table, l1_size2) != l1_size2)
             goto fail;
@@ -1065,13 +1065,13 @@ static int check_refcounts_l1(BlockDriverState *bs,
             }
         }
     }
-    qemu_free(l1_table);
+    g_free(l1_table);
     return 0;
 
 fail:
     fprintf(stderr, "ERROR: I/O error in check_refcounts_l1\n");
     res->check_errors++;
-    qemu_free(l1_table);
+    g_free(l1_table);
     return -EIO;
 }
 
@@ -1092,7 +1092,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res)
 
     size = bdrv_getlength(bs->file);
     nb_clusters = size_to_clusters(s, size);
-    refcount_table = qemu_mallocz(nb_clusters * sizeof(uint16_t));
+    refcount_table = g_malloc0(nb_clusters * sizeof(uint16_t));
 
     /* header */
     inc_refcounts(bs, res, refcount_table, nb_clusters,
@@ -1178,7 +1178,7 @@ int qcow2_check_refcounts(BlockDriverState *bs, BdrvCheckResult *res)
     ret = 0;
 
 fail:
-    qemu_free(refcount_table);
+    g_free(refcount_table);
 
     return ret;
 }

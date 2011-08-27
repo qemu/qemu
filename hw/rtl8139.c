@@ -1796,7 +1796,7 @@ static void rtl8139_transfer_frame(RTL8139State *s, uint8_t *buf, int size,
 
         if (iov) {
             buf2_size = iov_size(iov, 3);
-            buf2 = qemu_malloc(buf2_size);
+            buf2 = g_malloc(buf2_size);
             iov_to_buf(iov, 3, buf2, 0, buf2_size);
             buf = buf2;
         }
@@ -1805,7 +1805,7 @@ static void rtl8139_transfer_frame(RTL8139State *s, uint8_t *buf, int size,
         rtl8139_do_receive(&s->nic->nc, buf, size, do_interrupt);
 
         if (iov) {
-            qemu_free(buf2);
+            g_free(buf2);
         }
     }
     else
@@ -2053,7 +2053,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
     if (!s->cplus_txbuffer)
     {
         s->cplus_txbuffer_len = CP_TX_BUFFER_SIZE;
-        s->cplus_txbuffer = qemu_malloc(s->cplus_txbuffer_len);
+        s->cplus_txbuffer = g_malloc(s->cplus_txbuffer_len);
         s->cplus_txbuffer_offset = 0;
 
         DPRINTF("+++ C+ mode transmission buffer allocated space %d\n",
@@ -2063,7 +2063,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
     while (s->cplus_txbuffer && s->cplus_txbuffer_offset + txsize >= s->cplus_txbuffer_len)
     {
         s->cplus_txbuffer_len += CP_TX_BUFFER_SIZE;
-        s->cplus_txbuffer = qemu_realloc(s->cplus_txbuffer, s->cplus_txbuffer_len);
+        s->cplus_txbuffer = g_realloc(s->cplus_txbuffer, s->cplus_txbuffer_len);
 
         DPRINTF("+++ C+ mode transmission buffer space changed to %d\n",
             s->cplus_txbuffer_len);
@@ -2401,7 +2401,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
         }
         else
         {
-            qemu_free(saved_buffer);
+            g_free(saved_buffer);
         }
     }
     else
@@ -3441,7 +3441,7 @@ static int pci_rtl8139_uninit(PCIDevice *dev)
     memory_region_destroy(&s->bar_io);
     memory_region_destroy(&s->bar_mem);
     if (s->cplus_txbuffer) {
-        qemu_free(s->cplus_txbuffer);
+        g_free(s->cplus_txbuffer);
         s->cplus_txbuffer = NULL;
     }
     qemu_del_timer(s->timer);

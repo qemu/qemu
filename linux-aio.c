@@ -204,7 +204,7 @@ void *laio_init(void)
 {
     struct qemu_laio_state *s;
 
-    s = qemu_mallocz(sizeof(*s));
+    s = g_malloc0(sizeof(*s));
     s->efd = eventfd(0, 0);
     if (s->efd == -1)
         goto out_free_state;
@@ -221,6 +221,6 @@ void *laio_init(void)
 out_close_efd:
     close(s->efd);
 out_free_state:
-    qemu_free(s);
+    g_free(s);
     return NULL;
 }

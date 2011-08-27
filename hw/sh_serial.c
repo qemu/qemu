@@ -105,7 +105,7 @@ static void sh_serial_write(void *opaque, uint32_t offs, uint32_t val)
     case 0x0c: /* FTDR / TDR */
         if (s->chr) {
             ch = val;
-            qemu_chr_write(s->chr, &ch, 1);
+            qemu_chr_fe_write(s->chr, &ch, 1);
 	}
 	s->dr = val;
 	s->flags &= ~SH_SERIAL_FLAG_TDE;
@@ -361,7 +361,7 @@ void sh_serial_init (target_phys_addr_t base, int feat,
     sh_serial_state *s;
     int s_io_memory;
 
-    s = qemu_mallocz(sizeof(sh_serial_state));
+    s = g_malloc0(sizeof(sh_serial_state));
 
     s->feat = feat;
     s->flags = SH_SERIAL_FLAG_TEND | SH_SERIAL_FLAG_TDE;

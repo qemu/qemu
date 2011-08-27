@@ -789,8 +789,8 @@ static void eth_cleanup(VLANClientState *nc)
 {
     /* FIXME.  */
     struct XilinxAXIEnet *s = DO_UPCAST(NICState, nc, nc)->opaque;
-    qemu_free(s->rxmem);
-    qemu_free(s);
+    g_free(s->rxmem);
+    g_free(s);
 }
 
 static void
@@ -871,7 +871,7 @@ static int xilinx_enet_init(SysBusDevice *dev)
 
     s->TEMAC.parent = s;
 
-    s->rxmem = qemu_malloc(s->c_rxmem);
+    s->rxmem = g_malloc(s->c_rxmem);
     axienet_reset(s);
 
     return 0;

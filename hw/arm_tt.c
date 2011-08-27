@@ -1295,13 +1295,13 @@ static void tt_init(ram_addr_t ram_size,
     }
 
     /* Allocate storage for board state. */
-    s = qemu_mallocz(sizeof(TTState));
+    s = g_malloc0(sizeof(TTState));
 
     for (i = 0; i < 3; i++) {
         if (serial_hds[i] == NULL) {
             char name[32];
             snprintf(name, sizeof(name), "serial%u", i);
-            serial_hds[i] = qemu_chr_open(name, "vc:80Cx24C", NULL);
+            serial_hds[i] = qemu_chr_new(name, "vc:80Cx24C", NULL);
         }
     }
 

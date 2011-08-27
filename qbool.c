@@ -31,7 +31,7 @@ QBool *qbool_from_int(int value)
 {
     QBool *qb;
 
-    qb = qemu_malloc(sizeof(*qb));
+    qb = g_malloc(sizeof(*qb));
     qb->value = value;
     QOBJECT_INIT(qb, &qbool_type);
 
@@ -64,5 +64,5 @@ QBool *qobject_to_qbool(const QObject *obj)
 static void qbool_destroy_obj(QObject *obj)
 {
     assert(obj != NULL);
-    qemu_free(qobject_to_qbool(obj));
+    g_free(qobject_to_qbool(obj));
 }

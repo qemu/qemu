@@ -222,9 +222,9 @@ static int winwave_init_out (HWVoiceOut *hw, struct audsettings *as)
     return 0;
 
  err4:
-    qemu_free (wave->pcm_buf);
+    g_free (wave->pcm_buf);
  err3:
-    qemu_free (wave->hdrs);
+    g_free (wave->hdrs);
  err2:
     winwave_anal_close_out (wave);
  err1:
@@ -310,10 +310,10 @@ static void winwave_fini_out (HWVoiceOut *hw)
         wave->event = NULL;
     }
 
-    qemu_free (wave->pcm_buf);
+    g_free (wave->pcm_buf);
     wave->pcm_buf = NULL;
 
-    qemu_free (wave->hdrs);
+    g_free (wave->hdrs);
     wave->hdrs = NULL;
 }
 
@@ -511,9 +511,9 @@ static int winwave_init_in (HWVoiceIn *hw, struct audsettings *as)
     return 0;
 
  err4:
-    qemu_free (wave->pcm_buf);
+    g_free (wave->pcm_buf);
  err3:
-    qemu_free (wave->hdrs);
+    g_free (wave->hdrs);
  err2:
     winwave_anal_close_in (wave);
  err1:
@@ -550,10 +550,10 @@ static void winwave_fini_in (HWVoiceIn *hw)
         wave->event = NULL;
     }
 
-    qemu_free (wave->pcm_buf);
+    g_free (wave->pcm_buf);
     wave->pcm_buf = NULL;
 
-    qemu_free (wave->hdrs);
+    g_free (wave->hdrs);
     wave->hdrs = NULL;
 }
 

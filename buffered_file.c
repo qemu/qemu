@@ -56,7 +56,7 @@ static void buffered_append(QEMUFileBuffered *s,
 
         s->buffer_capacity += size + 1024;
 
-        tmp = qemu_realloc(s->buffer, s->buffer_capacity);
+        tmp = g_realloc(s->buffer, s->buffer_capacity);
         if (tmp == NULL) {
             fprintf(stderr, "qemu file buffer expansion failed\n");
             exit(1);
@@ -183,8 +183,8 @@ static int buffered_close(void *opaque)
 
     qemu_del_timer(s->timer);
     qemu_free_timer(s->timer);
-    qemu_free(s->buffer);
-    qemu_free(s);
+    g_free(s->buffer);
+    g_free(s);
 
     return ret;
 }
@@ -259,7 +259,7 @@ QEMUFile *qemu_fopen_ops_buffered(void *opaque,
 {
     QEMUFileBuffered *s;
 
-    s = qemu_mallocz(sizeof(*s));
+    s = g_malloc0(sizeof(*s));
 
     s->opaque = opaque;
     s->xfer_limit = bytes_per_sec / 10;

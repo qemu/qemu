@@ -93,7 +93,7 @@ static void smdk2410_init(ram_addr_t _ram_size,
             fprintf(stdout,
                     "qemu: info, loaded SMDK2410 BIOS %d bytes from %s\n",
                     ret, filename);
-            qemu_free(filename);
+            g_free(filename);
         } else {
             perror("qemu");
             fprintf(stderr,

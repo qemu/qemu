@@ -217,15 +217,24 @@ static void syborg_fb_update_display(void *opaque)
     }
 
     if (s->rgb) {
-        bpp_offset = 18;
+        bpp_offset = 24;
     } else {
         bpp_offset = 0;
     }
     if (s->endian) {
-        bpp_offset += 6;
+        bpp_offset += 8;
     }
-
-    fn = fntable[s->bpp + bpp_offset];
+    /* Our bpp constants mostly match the PL110/PL111 but
+     * not for the 16 bit case
+     */
+    switch (s->bpp) {
+    case BPP_SRC_16:
+        bpp_offset += 6;
+        break;
+    default:
+        bpp_offset += s->bpp;
+    }
+    fn = fntable[bpp_offset];
 
     if (s->pitch) {
         src_width = s->pitch;

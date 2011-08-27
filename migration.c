@@ -428,7 +428,7 @@ void migrate_fd_release(MigrationState *mig_state)
         notifier_list_notify(&migration_state_notifiers, NULL);
         migrate_fd_cleanup(s);
     }
-    qemu_free(s);
+    g_free(s);
 }
 
 void migrate_fd_wait_for_unfreeze(void *opaque)

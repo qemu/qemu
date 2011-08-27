@@ -72,8 +72,8 @@ static void ccid_card_vscard_send_msg(PassthruState *s,
     scr_msg_header.type = htonl(type);
     scr_msg_header.reader_id = htonl(reader_id);
     scr_msg_header.length = htonl(length);
-    qemu_chr_write(s->cs, (uint8_t *)&scr_msg_header, sizeof(VSCMsgHeader));
-    qemu_chr_write(s->cs, payload, length);
+    qemu_chr_fe_write(s->cs, (uint8_t *)&scr_msg_header, sizeof(VSCMsgHeader));
+    qemu_chr_fe_write(s->cs, payload, length);
 }
 
 static void ccid_card_vscard_send_apdu(PassthruState *s,
@@ -198,7 +198,7 @@ static void ccid_card_vscard_handle_message(PassthruState *card,
 
 static void ccid_card_vscard_drop_connection(PassthruState *card)
 {
-    qemu_chr_close(card->cs);
+    qemu_chr_delete(card->cs);
     card->vscard_in_pos = card->vscard_in_hdr = 0;
 }
 

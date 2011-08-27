@@ -185,7 +185,7 @@ s3c24xx_timers_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t tclk0,
     int tag;
     int i;
 
-    s = qemu_mallocz(sizeof(struct s3c24xx_timers_state_s));
+    s = g_malloc0(sizeof(struct s3c24xx_timers_state_s));
 
     tag = cpu_register_io_memory(s3c24xx_timers_read, s3c24xx_timers_write, s,
                                  DEVICE_NATIVE_ENDIAN);

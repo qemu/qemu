@@ -426,7 +426,7 @@ struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
 {
     int iomemtype;
     struct omap_i2c_s *s = (struct omap_i2c_s *)
-            qemu_mallocz(sizeof(struct omap_i2c_s));
+            g_malloc0(sizeof(struct omap_i2c_s));
 
     /* TODO: set a value greater or equal to real hardware */
     s->revision = 0x11;
@@ -448,7 +448,7 @@ struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
 {
     int iomemtype;
     struct omap_i2c_s *s = (struct omap_i2c_s *)
-            qemu_mallocz(sizeof(struct omap_i2c_s));
+            g_malloc0(sizeof(struct omap_i2c_s));
 
     s->revision = 0x34;
     s->irq = irq;

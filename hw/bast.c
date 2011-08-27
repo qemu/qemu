@@ -180,7 +180,7 @@ static CPUReadMemoryFunc * const stcb_ide_read[] = {
  */
 static int stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
 {
-    MMIOState *s = qemu_mallocz(sizeof(MMIOState));
+    MMIOState *s = g_malloc0(sizeof(MMIOState));
     int stcb_ide_memory;
     ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
 
@@ -221,7 +221,7 @@ static void stcb_register_ide(STCBState *stcb)
 static void stcb_i2c_setup(STCBState *stcb)
 {
     i2c_bus *bus = s3c24xx_i2c_bus(stcb->soc->iic);
-    uint8_t *eeprom_buf = qemu_mallocz(256);
+    uint8_t *eeprom_buf = g_malloc0(256);
     DeviceState *eeprom;
     eeprom = qdev_create((BusState *)bus, "smbus-eeprom");
     qdev_prop_set_uint8(eeprom, "address", 0x50);
@@ -264,7 +264,7 @@ static void stcb_init(ram_addr_t _ram_size,
     bast_binfo.loader_start = BAST_NOR_RO_BASE;
 
     /* allocate storage for board state */
-    stcb = qemu_mallocz(sizeof(STCBState));
+    stcb = g_malloc0(sizeof(STCBState));
 
     /* initialise SOC */
     stcb->soc = s3c2410x_init(ram_size);
@@ -290,7 +290,7 @@ static void stcb_init(ram_addr_t _ram_size,
         if (filename) {
             ret = load_image_targphys(filename,
                                       BAST_NOR_RO_BASE, BAST_NOR_SIZE);
-            qemu_free(filename);
+            g_free(filename);
             (void)ret;
         }
     }

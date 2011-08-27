@@ -70,8 +70,8 @@ int vnc_hextile_send_framebuffer_update(VncState *vs, int x,
     uint8_t *last_fg, *last_bg;
     VncDisplay *vd = vs->vd;
 
-    last_fg = (uint8_t *) qemu_malloc(vd->server->pf.bytes_per_pixel);
-    last_bg = (uint8_t *) qemu_malloc(vd->server->pf.bytes_per_pixel);
+    last_fg = (uint8_t *) g_malloc(vd->server->pf.bytes_per_pixel);
+    last_bg = (uint8_t *) g_malloc(vd->server->pf.bytes_per_pixel);
     has_fg = has_bg = 0;
     for (j = y; j < (y + h); j += 16) {
         for (i = x; i < (x + w); i += 16) {

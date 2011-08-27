@@ -23,39 +23,37 @@ gic_get_current_cpu(void)
 
 typedef struct {
     gic_state gic;
-    int iomemtype;
+    MemoryRegion iomem;
+    MemoryRegion container;
 } RealViewGICState;
 
-static uint32_t realview_gic_cpu_read(void *opaque, target_phys_addr_t offset)
+static uint64_t realview_gic_cpu_read(void *opaque, target_phys_addr_t offset,
+                                      unsigned size)
 {
     gic_state *s = (gic_state *)opaque;
     return gic_cpu_read(s, gic_get_current_cpu(), offset);
 }
 
 static void realview_gic_cpu_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                                   uint64_t value, unsigned size)
 {
     gic_state *s = (gic_state *)opaque;
     gic_cpu_write(s, gic_get_current_cpu(), offset, value);
 }
 
-static CPUReadMemoryFunc * const realview_gic_cpu_readfn[] = {
-   realview_gic_cpu_read,
-   realview_gic_cpu_read,
-   realview_gic_cpu_read
+static const MemoryRegionOps realview_gic_cpu_ops = {
+    .read = realview_gic_cpu_read,
+    .write = realview_gic_cpu_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const realview_gic_cpu_writefn[] = {
-   realview_gic_cpu_write,
-   realview_gic_cpu_write,
-   realview_gic_cpu_write
-};
-
-static void realview_gic_map(SysBusDevice *dev, target_phys_addr_t base)
+static void realview_gic_map_setup(RealViewGICState *s)
 {
-    RealViewGICState *s = FROM_SYSBUSGIC(RealViewGICState, dev);
-    cpu_register_physical_memory(base, 0x1000, s->iomemtype);
-    cpu_register_physical_memory(base + 0x1000, 0x1000, s->gic.iomemtype);
+    memory_region_init(&s->container, "realview-gic-container", 0x2000);
+    memory_region_init_io(&s->iomem, &realview_gic_cpu_ops, &s->gic,
+                          "realview-gic", 0x1000);
+    memory_region_add_subregion(&s->container, 0, &s->iomem);
+    memory_region_add_subregion(&s->container, 0x1000, &s->gic.iomem);
 }
 
 static int realview_gic_init(SysBusDevice *dev)
@@ -63,10 +61,8 @@ static int realview_gic_init(SysBusDevice *dev)
     RealViewGICState *s = FROM_SYSBUSGIC(RealViewGICState, dev);
 
     gic_init(&s->gic);
-    s->iomemtype = cpu_register_io_memory(realview_gic_cpu_readfn,
-                                          realview_gic_cpu_writefn, s,
-                                          DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio_cb(dev, 0x2000, realview_gic_map);
+    realview_gic_map_setup(s);
+    sysbus_init_mmio_region(dev, &s->container);
     return 0;
 }
 

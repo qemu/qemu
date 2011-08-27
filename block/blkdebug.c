@@ -214,7 +214,7 @@ static int add_rule(QemuOpts *opts, void *opaque)
     }
 
     /* Set attributes common for all actions */
-    rule = qemu_mallocz(sizeof(*rule));
+    rule = g_malloc0(sizeof(*rule));
     *rule = (struct BlkdebugRule) {
         .event  = event,
         .action = d->action,
@@ -392,7 +392,7 @@ static void blkdebug_close(BlockDriverState *bs)
     for (i = 0; i < BLKDBG_EVENT_MAX; i++) {
         QLIST_FOREACH_SAFE(rule, &s->rules[i], next, next) {
             QLIST_REMOVE(rule, next);
-            qemu_free(rule);
+            g_free(rule);
         }
     }
 }

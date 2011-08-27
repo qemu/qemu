@@ -63,10 +63,10 @@ static void TRACE_STORE_IN_FVD (const char *str, int64_t sector_num,
 #endif
 
 #ifndef FVD_DEBUG
-# define my_qemu_malloc qemu_malloc
-# define my_qemu_mallocz qemu_mallocz
+# define my_qemu_malloc g_malloc
+# define my_qemu_mallocz g_malloc0
 # define my_qemu_blockalign qemu_blockalign
-# define my_qemu_free qemu_free
+# define my_qemu_free g_free
 # define my_qemu_vfree qemu_vfree
 # define my_qemu_aio_get qemu_aio_get
 # define my_qemu_aio_release qemu_aio_release
@@ -119,7 +119,7 @@ static void **alloc_tracers = NULL;
 static void __attribute__ ((constructor)) init_mem_alloc_tracers (void)
 {
     if (!alloc_tracers) {
-        alloc_tracers = qemu_mallocz (sizeof (void *) * MAX_TRACER);
+        alloc_tracers = g_malloc0(sizeof(void *) * MAX_TRACER);
     }
 }
 
@@ -250,11 +250,11 @@ static inline void *_my_qemu_malloc (size_t size)
     ASSERT (size > 0);
     pending_qemu_malloc++;
 #ifndef DEBUG_MEMORY_LEAK
-    return qemu_malloc (size);
+    return g_malloc(size);
 #else
 
     size += 1024;        /* 512 bytes header and 512 bytes footer. */
-    uint8_t *ret = qemu_malloc (size);
+    uint8_t *ret = g_malloc(size);
     trace_alloc (ret, size);
     return ret + 512;
 #endif
@@ -265,11 +265,11 @@ static inline void *_my_qemu_mallocz (size_t size)
     ASSERT (size > 0);
     pending_qemu_malloc++;
 #ifndef DEBUG_MEMORY_LEAK
-    return qemu_mallocz (size);
+    return g_malloc0(size);
 #else
 
     size += 1024;        /* 512 bytes header and 512 bytes footer. */
-    uint8_t *ret = qemu_mallocz (size);
+    uint8_t *ret = g_malloc0(size);
     trace_alloc (ret, size);
     return ret + 512;
 #endif
@@ -296,12 +296,12 @@ static inline void _my_qemu_free (void *ptr)
     pending_qemu_malloc--;
     ASSERT (pending_qemu_malloc >= 0);
 #ifndef DEBUG_MEMORY_LEAK
-    qemu_free (ptr);
+    g_free(ptr);
 #else
 
     uint8_t *q = ((uint8_t *) ptr) - 512;
     trace_free (q);
-    qemu_free (q);
+    g_free(q);
 #endif
 }
 

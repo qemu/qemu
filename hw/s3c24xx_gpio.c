@@ -201,7 +201,7 @@ s3c24xx_gpio_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t cpu_id)
     int tag;
     int i;
 
-    s = qemu_mallocz(sizeof(S3C24xxGpioState));
+    s = g_malloc0(sizeof(S3C24xxGpioState));
     if (!s) {
         return NULL;
     }

@@ -383,14 +383,14 @@ static void handle_control_message(VirtIOSerial *vser, void *buf, size_t len)
             stw_p(&cpkt.value, 1);
 
             buffer_len = sizeof(cpkt) + strlen(port->name) + 1;
-            buffer = qemu_malloc(buffer_len);
+            buffer = g_malloc(buffer_len);
 
             memcpy(buffer, &cpkt, sizeof(cpkt));
             memcpy(buffer + sizeof(cpkt), port->name, strlen(port->name));
             buffer[buffer_len - 1] = 0;
 
             send_control_msg(port, buffer, buffer_len);
-            qemu_free(buffer);
+            g_free(buffer);
         }
 
         if (port->host_connected) {
@@ -447,9 +447,9 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
          * if the size of the buf differs
          */
         if (cur_len > len) {
-            qemu_free(buf);
+            g_free(buf);
 
-            buf = qemu_malloc(cur_len);
+            buf = g_malloc(cur_len);
             len = cur_len;
         }
         copied = iov_to_buf(elem.out_sg, elem.out_num, buf, 0, len);
@@ -457,7 +457,7 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
         handle_control_message(vser, buf, copied);
         virtqueue_push(vq, &elem, 0);
     }
-    qemu_free(buf);
+    g_free(buf);
     virtio_notify(vdev, vq);
 }
 
@@ -862,8 +862,8 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
     QTAILQ_INIT(&vser->ports);
 
     vser->bus.max_nr_ports = conf->max_virtserial_ports;
-    vser->ivqs = qemu_malloc(conf->max_virtserial_ports * sizeof(VirtQueue *));
-    vser->ovqs = qemu_malloc(conf->max_virtserial_ports * sizeof(VirtQueue *));
+    vser->ivqs = g_malloc(conf->max_virtserial_ports * sizeof(VirtQueue *));
+    vser->ovqs = g_malloc(conf->max_virtserial_ports * sizeof(VirtQueue *));
 
     /* Add a queue for host to guest transfers for port 0 (backward compat) */
     vser->ivqs[0] = virtio_add_queue(vdev, 128, handle_input);
@@ -889,7 +889,7 @@ VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
     }
 
     vser->config.max_nr_ports = tswap32(conf->max_virtserial_ports);
-    vser->ports_map = qemu_mallocz(((conf->max_virtserial_ports + 31) / 32)
+    vser->ports_map = g_malloc0(((conf->max_virtserial_ports + 31) / 32)
         * sizeof(vser->ports_map[0]));
     /*
      * Reserve location 0 for a console port for backward compat
@@ -919,9 +919,9 @@ void virtio_serial_exit(VirtIODevice *vdev)
 
     unregister_savevm(vser->qdev, "virtio-console", vser);
 
-    qemu_free(vser->ivqs);
-    qemu_free(vser->ovqs);
-    qemu_free(vser->ports_map);
+    g_free(vser->ivqs);
+    g_free(vser->ovqs);
+    g_free(vser->ports_map);
 
     virtio_cleanup(vdev);
 }

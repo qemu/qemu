@@ -1395,7 +1395,7 @@ void sm501_init(uint32_t base, uint32_t local_mem_bytes, qemu_irq irq,
     int sm501_2d_engine_index;
 
     /* allocate management data region */
-    s = (SM501State *)qemu_mallocz(sizeof(SM501State));
+    s = (SM501State *)g_malloc0(sizeof(SM501State));
     s->base = base;
     s->local_mem_size_index
 	= get_local_mem_size_index(local_mem_bytes);

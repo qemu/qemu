@@ -46,22 +46,22 @@
 struct SLAVIO_INTCTLState;
 
 typedef struct SLAVIO_CPUINTCTLState {
-    uint32_t intreg_pending;
     struct SLAVIO_INTCTLState *master;
+    uint32_t intreg_pending;
     uint32_t cpu;
     uint32_t irl_out;
 } SLAVIO_CPUINTCTLState;
 
 typedef struct SLAVIO_INTCTLState {
     SysBusDevice busdev;
-    uint32_t intregm_pending;
-    uint32_t intregm_disabled;
-    uint32_t target_cpu;
 #ifdef DEBUG_IRQ_COUNT
     uint64_t irq_count[32];
 #endif
     qemu_irq cpu_irqs[MAX_CPUS][MAX_PILS];
     SLAVIO_CPUINTCTLState slaves[MAX_CPUS];
+    uint32_t intregm_pending;
+    uint32_t intregm_disabled;
+    uint32_t target_cpu;
 } SLAVIO_INTCTLState;
 
 #define INTCTL_MAXADDR 0xf

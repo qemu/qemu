@@ -504,7 +504,7 @@ static void bt_hid_destroy(struct bt_device_s *dev)
 
     hid_free(&hid->hid);
 
-    qemu_free(hid);
+    g_free(hid);
 }
 
 enum peripheral_minor_class {
@@ -517,7 +517,7 @@ enum peripheral_minor_class {
 static struct bt_device_s *bt_hid_init(struct bt_scatternet_s *net,
                                        enum peripheral_minor_class minor)
 {
-    struct bt_hid_device_s *s = qemu_mallocz(sizeof(*s));
+    struct bt_hid_device_s *s = g_malloc0(sizeof(*s));
     uint32_t class =
             /* Format type */
             (0 << 0) |

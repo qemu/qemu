@@ -353,10 +353,10 @@ static void lsi_soft_reset(LSIState *s)
     while (!QTAILQ_EMPTY(&s->queue)) {
         p = QTAILQ_FIRST(&s->queue);
         QTAILQ_REMOVE(&s->queue, p, next);
-        qemu_free(p);
+        g_free(p);
     }
     if (s->current) {
-        qemu_free(s->current);
+        g_free(s->current);
         s->current = NULL;
     }
 }
@@ -664,7 +664,7 @@ static void lsi_request_cancelled(SCSIRequest *req)
 
     if (s->current && req == s->current->req) {
         scsi_req_unref(req);
-        qemu_free(s->current);
+        g_free(s->current);
         s->current = NULL;
         return;
     }
@@ -672,7 +672,7 @@ static void lsi_request_cancelled(SCSIRequest *req)
     if (p) {
         QTAILQ_REMOVE(&s->queue, p, next);
         scsi_req_unref(req);
-        qemu_free(p);
+        g_free(p);
     }
 }
 
@@ -723,7 +723,7 @@ static void lsi_command_complete(SCSIRequest *req, uint32_t status)
 
     if (s->current && req == s->current->req) {
         scsi_req_unref(s->current->req);
-        qemu_free(s->current);
+        g_free(s->current);
         s->current = NULL;
     }
     lsi_resume_script(s);
@@ -779,7 +779,7 @@ static void lsi_do_command(LSIState *s)
     }
 
     assert(s->current == NULL);
-    s->current = qemu_mallocz(sizeof(lsi_request));
+    s->current = g_malloc0(sizeof(lsi_request));
     s->current->tag = s->select_tag;
     s->current->req = scsi_req_new(dev, s->current->tag, s->current_lun, buf,
                                    s->current);

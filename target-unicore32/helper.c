@@ -53,7 +53,7 @@ CPUState *uc32_cpu_init(const char *cpu_model)
     uint32_t id;
     static int inited = 1;
 
-    env = qemu_mallocz(sizeof(CPUState));
+    env = g_malloc0(sizeof(CPUState));
     cpu_exec_init(env);
 
     id = uc32_cpu_find_by_name(cpu_model);

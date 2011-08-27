@@ -85,7 +85,7 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
     DeviceState *dev;
 
     assert(bus->info == info->bus_info);
-    dev = qemu_mallocz(info->size);
+    dev = g_malloc0(info->size);
     dev->info = info;
     dev->parent_bus = bus;
     qdev_prop_set_defaults(dev, dev->info->props);
@@ -408,7 +408,7 @@ void qdev_free(DeviceState *dev)
             prop->info->free(dev, prop);
         }
     }
-    qemu_free(dev);
+    g_free(dev);
 }
 
 void qdev_machine_creation_done(void)
@@ -750,17 +750,17 @@ void qbus_create_inplace(BusState *bus, BusInfo *info,
 
     if (name) {
         /* use supplied name */
-        bus->name = qemu_strdup(name);
+        bus->name = g_strdup(name);
     } else if (parent && parent->id) {
         /* parent device has id -> use it for bus name */
         len = strlen(parent->id) + 16;
-        buf = qemu_malloc(len);
+        buf = g_malloc(len);
         snprintf(buf, len, "%s.%d", parent->id, parent->num_child_bus);
         bus->name = buf;
     } else {
         /* no id -> use lowercase bus type for bus name */
         len = strlen(info->name) + 16;
-        buf = qemu_malloc(len);
+        buf = g_malloc(len);
         len = snprintf(buf, len, "%s.%d", info->name,
                        parent ? parent->num_child_bus : 0);
         for (i = 0; i < len; i++)
@@ -783,7 +783,7 @@ BusState *qbus_create(BusInfo *info, DeviceState *parent, const char *name)
 {
     BusState *bus;
 
-    bus = qemu_mallocz(info->size);
+    bus = g_malloc0(info->size);
     bus->qdev_allocated = 1;
     qbus_create_inplace(bus, info, parent, name);
     return bus;
@@ -793,7 +793,7 @@ static void main_system_bus_create(void)
 {
     /* assign main_system_bus before qbus_create_inplace()
      * in order to make "if (bus != main_system_bus)" work */
-    main_system_bus = qemu_mallocz(system_bus_info.size);
+    main_system_bus = g_malloc0(system_bus_info.size);
     main_system_bus->qdev_allocated = 1;
     qbus_create_inplace(main_system_bus, &system_bus_info, NULL,
                         "main-system-bus");
@@ -813,9 +813,9 @@ void qbus_free(BusState *bus)
         assert(bus != main_system_bus); /* main_system_bus is never freed */
         qemu_unregister_reset(qbus_reset_all_fn, bus);
     }
-    qemu_free((void*)bus->name);
+    g_free((void*)bus->name);
     if (bus->qdev_allocated) {
-        qemu_free(bus);
+        g_free(bus);
     }
 }
 
@@ -935,7 +935,7 @@ static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
         if (dev->parent_bus->info->get_fw_dev_path) {
             d = dev->parent_bus->info->get_fw_dev_path(dev);
             l += snprintf(p + l, size - l, "%s", d);
-            qemu_free(d);
+            g_free(d);
         } else {
             l += snprintf(p + l, size - l, "%s", dev->info->name);
         }

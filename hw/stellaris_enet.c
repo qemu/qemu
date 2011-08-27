@@ -393,7 +393,7 @@ static void stellaris_enet_cleanup(VLANClientState *nc)
 
     cpu_unregister_io_memory(s->mmio_index);
 
-    qemu_free(s);
+    g_free(s);
 }
 
 static NetClientInfo net_stellaris_enet_info = {

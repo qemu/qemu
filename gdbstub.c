@@ -382,7 +382,7 @@ static void put_buffer(GDBState *s, const uint8_t *buf, int len)
         }
     }
 #else
-    qemu_chr_write(s->chr, buf, len);
+    qemu_chr_fe_write(s->chr, buf, len);
 #endif
 }
 
@@ -1668,7 +1668,7 @@ void gdb_register_coprocessor(CPUState * env,
     GDBRegisterState **p;
     static int last_reg = NUM_CORE_REGS;
 
-    s = (GDBRegisterState *)qemu_mallocz(sizeof(GDBRegisterState));
+    s = (GDBRegisterState *)g_malloc0(sizeof(GDBRegisterState));
     s->base_reg = last_reg;
     s->num_regs = num_regs;
     s->get_reg = get_reg;
@@ -2194,7 +2194,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             hextomem(mem_buf, p + 5, len);
             len = len / 2;
             mem_buf[len++] = 0;
-            qemu_chr_read(s->mon_chr, mem_buf, len);
+            qemu_chr_be_write(s->mon_chr, mem_buf, len);
             put_packet(s, "OK");
             break;
         }
@@ -2499,7 +2499,7 @@ void gdb_exit(CPUState *env, int code)
 
 #ifndef CONFIG_USER_ONLY
   if (s->chr) {
-      qemu_chr_close(s->chr);
+      qemu_chr_delete(s->chr);
   }
 #endif
 }
@@ -2606,7 +2606,7 @@ static void gdb_accept(void)
     val = 1;
     setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val));
 
-    s = qemu_mallocz(sizeof(GDBState));
+    s = g_malloc0(sizeof(GDBState));
     s->c_cpu = first_cpu;
     s->g_cpu = first_cpu;
     s->fd = fd;
@@ -2764,7 +2764,7 @@ int gdbserver_start(const char *device)
             sigaction(SIGINT, &act, NULL);
         }
 #endif
-        chr = qemu_chr_open("gdb", device, NULL);
+        chr = qemu_chr_new("gdb", device, NULL);
         if (!chr)
             return -1;
 
@@ -2774,18 +2774,18 @@ int gdbserver_start(const char *device)
 
     s = gdbserver_state;
     if (!s) {
-        s = qemu_mallocz(sizeof(GDBState));
+        s = g_malloc0(sizeof(GDBState));
         gdbserver_state = s;
 
         qemu_add_vm_change_state_handler(gdb_vm_state_change, NULL);
 
         /* Initialize a monitor terminal for gdb */
-        mon_chr = qemu_mallocz(sizeof(*mon_chr));
+        mon_chr = g_malloc0(sizeof(*mon_chr));
         mon_chr->chr_write = gdb_monitor_write;
         monitor_init(mon_chr, 0);
     } else {
         if (s->chr)
-            qemu_chr_close(s->chr);
+            qemu_chr_delete(s->chr);
         mon_chr = s->mon_chr;
         memset(s, 0, sizeof(GDBState));
     }

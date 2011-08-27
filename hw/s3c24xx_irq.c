@@ -214,7 +214,7 @@ s3c24xx_irq_init(S3CState *soc, target_phys_addr_t base_addr)
     struct s3c24xx_irq_state_s * s;
     int tag;
 
-    s = qemu_mallocz(sizeof(struct s3c24xx_irq_state_s));
+    s = g_malloc0(sizeof(struct s3c24xx_irq_state_s));
 
     /* Samsung S3C24XX IRQ registration. */
     tag = cpu_register_io_memory(s3c24xx_irq_read, s3c24xx_irq_write, s,

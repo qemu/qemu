@@ -90,7 +90,7 @@ disable balloon_event(void *opaque, unsigned long addr) "opaque %p addr %lu"
 
 # hw/apic.c
 disable apic_local_deliver(int vector, uint32_t lvt) "vector %d delivery mode %d"
-disable apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode, uint8_t vector_num, uint8_t polarity, uint8_t trigger_mode) "dest %d dest_mode %d delivery_mode %d vector %d polarity %d trigger_mode %d"
+disable apic_deliver_irq(uint8_t dest, uint8_t dest_mode, uint8_t delivery_mode, uint8_t vector_num, uint8_t trigger_mode) "dest %d dest_mode %d delivery_mode %d vector %d trigger_mode %d"
 disable cpu_set_apic_base(uint64_t val) "%016"PRIx64""
 disable cpu_get_apic_base(uint64_t val) "%016"PRIx64""
 disable apic_mem_readl(uint64_t addr, uint32_t val)  "%"PRIx64" = %08x"
@@ -284,6 +284,10 @@ disable qed_aio_write_prefill(void *s, void *acb, uint64_t start, size_t len, ui
 disable qed_aio_write_postfill(void *s, void *acb, uint64_t start, size_t len, uint64_t offset) "s %p acb %p start %"PRIu64" len %zu offset %"PRIu64""
 disable qed_aio_write_main(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
 
+# hw/g364fb.c
+disable g364fb_read(uint64_t addr, uint32_t val) "read addr=0x%"PRIx64": 0x%x"
+disable g364fb_write(uint64_t addr, uint32_t new) "write addr=0x%"PRIx64": 0x%x"
+
 # hw/grlib_gptimer.c
 disable grlib_gptimer_enable(int id, uint32_t count) "timer:%d set count 0x%x and run"
 disable grlib_gptimer_disabled(int id, uint32_t config) "timer:%d Timer disable config 0x%x"
@@ -446,3 +450,18 @@ disable qemu_co_mutex_lock_entry(void *mutex, void *self) "mutex %p self %p"
 disable qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"
 disable qemu_co_mutex_unlock_entry(void *mutex, void *self) "mutex %p self %p"
 disable qemu_co_mutex_unlock_return(void *mutex, void *self) "mutex %p self %p"
+
+# hw/escc.c
+disable escc_put_queue(char channel, int b) "channel %c put: 0x%02x"
+disable escc_get_queue(char channel, int val) "channel %c get 0x%02x"
+disable escc_update_irq(int irq) "IRQ = %d"
+disable escc_update_parameters(char channel, int speed, int parity, int data_bits, int stop_bits) "channel %c: speed=%d parity=%c data=%d stop=%d"
+disable escc_mem_writeb_ctrl(char channel, uint32_t reg, uint32_t val) "Write channel %c, reg[%d] = %2.2x"
+disable escc_mem_writeb_data(char channel, uint32_t val) "Write channel %c, ch %d"
+disable escc_mem_readb_ctrl(char channel, uint32_t reg, uint8_t val) "Read channel %c, reg[%d] = %2.2x"
+disable escc_mem_readb_data(char channel, uint32_t ret) "Read channel %c, ch %d"
+disable escc_serial_receive_byte(char channel, int ch) "channel %c put ch %d"
+disable escc_sunkbd_event_in(int ch) "Untranslated keycode %2.2x"
+disable escc_sunkbd_event_out(int ch) "Translated keycode %2.2x"
+disable escc_kbd_command(int val) "Command %d"
+disable escc_sunmouse_event(int dx, int dy, int buttons_state) "dx=%d dy=%d buttons=%01x"

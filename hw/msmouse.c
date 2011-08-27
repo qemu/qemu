@@ -50,7 +50,7 @@ static void msmouse_event(void *opaque,
     /* We always send the packet of, so that we do not have to keep track
        of previous state of the middle button. This can potentially confuse
        some very old drivers for two button mice though. */
-    qemu_chr_read(chr, bytes, 4);
+    qemu_chr_be_write(chr, bytes, 4);
 }
 
 static int msmouse_chr_write (struct CharDriverState *s, const uint8_t *buf, int len)
@@ -61,14 +61,14 @@ static int msmouse_chr_write (struct CharDriverState *s, const uint8_t *buf, int
 
 static void msmouse_chr_close (struct CharDriverState *chr)
 {
-    qemu_free (chr);
+    g_free (chr);
 }
 
 int qemu_chr_open_msmouse(QemuOpts *opts, CharDriverState **_chr)
 {
     CharDriverState *chr;
 
-    chr = qemu_mallocz(sizeof(CharDriverState));
+    chr = g_malloc0(sizeof(CharDriverState));
     chr->chr_write = msmouse_chr_write;
     chr->chr_close = msmouse_chr_close;
 

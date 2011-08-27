@@ -31,7 +31,7 @@ QFloat *qfloat_from_double(double value)
 {
     QFloat *qf;
 
-    qf = qemu_malloc(sizeof(*qf));
+    qf = g_malloc(sizeof(*qf));
     qf->value = value;
     QOBJECT_INIT(qf, &qfloat_type);
 
@@ -64,5 +64,5 @@ QFloat *qobject_to_qfloat(const QObject *obj)
 static void qfloat_destroy_obj(QObject *obj)
 {
     assert(obj != NULL);
-    qemu_free(qobject_to_qfloat(obj));
+    g_free(qobject_to_qfloat(obj));
 }

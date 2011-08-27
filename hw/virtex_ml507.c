@@ -102,7 +102,7 @@ static CPUState *ppc440_init_xilinx(ram_addr_t *ram_size,
     ppc_dcr_init(env, NULL, NULL);
 
     /* interrupt controller */
-    irqs = qemu_mallocz(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
+    irqs = g_malloc0(sizeof(qemu_irq) * PPCUIC_OUTPUT_NB);
     irqs[PPCUIC_OUTPUT_INT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_INT];
     irqs[PPCUIC_OUTPUT_CINT] = ((qemu_irq *)env->irq_inputs)[PPC40x_INPUT_CINT];
     ppcuic_init(env, irqs, 0x0C0, 0, 1);
@@ -154,7 +154,7 @@ static int xilinx_load_device_tree(target_phys_addr_t addr,
         path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
         if (path) {
             fdt = load_device_tree(path, &fdt_size);
-            qemu_free(path);
+            g_free(path);
         }
         if (!fdt) {
             return 0;
@@ -173,7 +173,7 @@ static int xilinx_load_device_tree(target_phys_addr_t addr,
         path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
         if (path) {
             fdt_size = load_image_targphys(path, addr, 0x10000);
-            qemu_free(path);
+            g_free(path);
         }
     }
 

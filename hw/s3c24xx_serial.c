@@ -111,7 +111,7 @@ s3c24xx_serial_write_f(void *opaque, target_phys_addr_t addr, uint32_t value)
     case S3C_SERIAL_UTXH: {
         unsigned char ch = value & 0xff;
         if (s->chr && ((s->ucon & 1<<5)==0)) {
-            qemu_chr_write(s->chr, &ch, 1);
+            qemu_chr_fe_write(s->chr, &ch, 1);
         } else {
             s->rx_byte = ch;
             s->rx_available = 1;
@@ -246,7 +246,7 @@ s3c24xx_serial_init(S3CState *soc,
     s3c24xx_serial_dev *s;
     int serial_io;
 
-    s = qemu_mallocz(sizeof(s3c24xx_serial_dev));
+    s = g_malloc0(sizeof(s3c24xx_serial_dev));
 
     /* initialise serial port context */
     s->rx_irq = s3c24xx_get_irq(soc->irq, irqn);

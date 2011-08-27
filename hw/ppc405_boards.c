@@ -162,7 +162,7 @@ static void ref405ep_fpga_init (uint32_t base)
     ref405ep_fpga_t *fpga;
     int fpga_memory;
 
-    fpga = qemu_mallocz(sizeof(ref405ep_fpga_t));
+    fpga = g_malloc0(sizeof(ref405ep_fpga_t));
     fpga_memory = cpu_register_io_memory(ref405ep_fpga_read,
                                          ref405ep_fpga_write, fpga,
                                          DEVICE_NATIVE_ENDIAN);
@@ -182,6 +182,7 @@ static void ref405ep_init (ram_addr_t ram_size,
     CPUPPCState *env;
     qemu_irq *pic;
     ram_addr_t sram_offset, bios_offset, bdloc;
+    MemoryRegion *ram_memories = g_malloc(2 * sizeof(*ram_memories));
     target_phys_addr_t ram_bases[2], ram_sizes[2];
     target_ulong sram_size;
     long bios_size;
@@ -194,15 +195,17 @@ static void ref405ep_init (ram_addr_t ram_size,
     DriveInfo *dinfo;
 
     /* XXX: fix this */
-    ram_bases[0] = qemu_ram_alloc(NULL, "ef405ep.ram", 0x08000000);
+    memory_region_init_ram(&ram_memories[0], NULL, "ef405ep.ram", 0x08000000);
+    ram_bases[0] = 0;
     ram_sizes[0] = 0x08000000;
+    memory_region_init(&ram_memories[1], "ef405ep.ram1", 0);
     ram_bases[1] = 0x00000000;
     ram_sizes[1] = 0x00000000;
     ram_size = 128 * 1024 * 1024;
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register cpu\n", __func__);
 #endif
-    env = ppc405ep_init(ram_bases, ram_sizes, 33333333, &pic,
+    env = ppc405ep_init(ram_memories, ram_bases, ram_sizes, 33333333, &pic,
                         kernel_filename == NULL ? 0 : 1);
     /* allocate SRAM */
     sram_size = 512 * 1024;
@@ -246,7 +249,7 @@ static void ref405ep_init (ram_addr_t ram_size,
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
             bios_size = load_image(filename, qemu_get_ram_ptr(bios_offset));
-            qemu_free(filename);
+            g_free(filename);
         } else {
             bios_size = -1;
         }
@@ -487,7 +490,7 @@ static void taihu_cpld_init (uint32_t base)
     taihu_cpld_t *cpld;
     int cpld_memory;
 
-    cpld = qemu_mallocz(sizeof(taihu_cpld_t));
+    cpld = g_malloc0(sizeof(taihu_cpld_t));
     cpld_memory = cpu_register_io_memory(taihu_cpld_read,
                                          taihu_cpld_write, cpld,
                                          DEVICE_NATIVE_ENDIAN);
@@ -505,6 +508,7 @@ static void taihu_405ep_init(ram_addr_t ram_size,
     char *filename;
     qemu_irq *pic;
     ram_addr_t bios_offset;
+    MemoryRegion *ram_memories = g_malloc(2 * sizeof(*ram_memories));
     target_phys_addr_t ram_bases[2], ram_sizes[2];
     long bios_size;
     target_ulong kernel_base, initrd_base;
@@ -514,15 +518,19 @@ static void taihu_405ep_init(ram_addr_t ram_size,
     DriveInfo *dinfo;
 
     /* RAM is soldered to the board so the size cannot be changed */
-    ram_bases[0] = qemu_ram_alloc(NULL, "taihu_405ep.ram-0", 0x04000000);
+    memory_region_init_ram(&ram_memories[0], NULL,
+                           "taihu_405ep.ram-0", 0x04000000);
+    ram_bases[0] = 0;
     ram_sizes[0] = 0x04000000;
-    ram_bases[1] = qemu_ram_alloc(NULL, "taihu_405ep.ram-1", 0x04000000);
+    memory_region_init_ram(&ram_memories[1], NULL,
+                           "taihu_405ep.ram-1", 0x04000000);
+    ram_bases[1] = 0x04000000;
     ram_sizes[1] = 0x04000000;
     ram_size = 0x08000000;
 #ifdef DEBUG_BOARD_INIT
     printf("%s: register cpu\n", __func__);
 #endif
-    ppc405ep_init(ram_bases, ram_sizes, 33333333, &pic,
+    ppc405ep_init(ram_memories, ram_bases, ram_sizes, 33333333, &pic,
                   kernel_filename == NULL ? 0 : 1);
     /* allocate and load BIOS */
 #ifdef DEBUG_BOARD_INIT
@@ -560,7 +568,7 @@ static void taihu_405ep_init(ram_addr_t ram_size,
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
         if (filename) {
             bios_size = load_image(filename, qemu_get_ram_ptr(bios_offset));
-            qemu_free(filename);
+            g_free(filename);
         } else {
             bios_size = -1;
         }

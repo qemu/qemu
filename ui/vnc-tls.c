@@ -244,11 +244,11 @@ int vnc_tls_validate_certificate(struct VncState *vs)
 
         if (i == 0) {
             size_t dnameSize = 1024;
-            vs->tls.dname = qemu_malloc(dnameSize);
+            vs->tls.dname = g_malloc(dnameSize);
         requery:
             if ((ret = gnutls_x509_crt_get_dn (cert, vs->tls.dname, &dnameSize)) != 0) {
                 if (ret == GNUTLS_E_SHORT_MEMORY_BUFFER) {
-                    vs->tls.dname = qemu_realloc(vs->tls.dname, dnameSize);
+                    vs->tls.dname = g_realloc(vs->tls.dname, dnameSize);
                     goto requery;
                 }
                 gnutls_x509_crt_deinit (cert);
@@ -397,11 +397,11 @@ static int vnc_set_x509_credential(VncDisplay *vd,
     struct stat sb;
 
     if (*cred) {
-        qemu_free(*cred);
+        g_free(*cred);
         *cred = NULL;
     }
 
-    *cred = qemu_malloc(strlen(certdir) + strlen(filename) + 2);
+    *cred = g_malloc(strlen(certdir) + strlen(filename) + 2);
 
     strcpy(*cred, certdir);
     strcat(*cred, "/");
@@ -409,7 +409,7 @@ static int vnc_set_x509_credential(VncDisplay *vd,
 
     VNC_DEBUG("Check %s\n", *cred);
     if (stat(*cred, &sb) < 0) {
-        qemu_free(*cred);
+        g_free(*cred);
         *cred = NULL;
         if (ignoreMissing && errno == ENOENT)
             return 0;
@@ -435,10 +435,10 @@ int vnc_tls_set_x509_creds_dir(VncDisplay *vd,
     return 0;
 
  cleanup:
-    qemu_free(vd->tls.x509cacert);
-    qemu_free(vd->tls.x509cacrl);
-    qemu_free(vd->tls.x509cert);
-    qemu_free(vd->tls.x509key);
+    g_free(vd->tls.x509cacert);
+    g_free(vd->tls.x509cacrl);
+    g_free(vd->tls.x509cert);
+    g_free(vd->tls.x509key);
     vd->tls.x509cacert = vd->tls.x509cacrl = vd->tls.x509cert = vd->tls.x509key = NULL;
     return -1;
 }

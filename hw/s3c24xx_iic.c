@@ -235,7 +235,7 @@ s3c24xx_iic_init(qemu_irq irq, target_phys_addr_t base_addr)
     int tag;
     struct s3c24xx_i2c_state_s *s;
 
-    s = qemu_mallocz(sizeof(struct s3c24xx_i2c_state_s));
+    s = g_malloc0(sizeof(struct s3c24xx_i2c_state_s));
 
     s->irq = irq;
     s->bus = i2c_init_bus(NULL, "i2c");
