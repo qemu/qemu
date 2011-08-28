@@ -245,8 +245,8 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
     int result = 0;
 
     if (secn > 0) {
-        uint32_t size = (uint32_t) secn * 512;
-        const uint8_t *sp = (const uint8_t *) src;
+        uint32_t size = (uint32_t)secn * 512;
+        const uint8_t *sp = (const uint8_t *)src;
         uint8_t *dp = 0;
         if (s->bdrv_cur) {
             dp = g_malloc(size);
@@ -257,7 +257,7 @@ static inline int onenand_prog_main(OneNANDState *s, int sec, int secn,
             if (sec + secn > s->secs_cur) {
                 result = 1;
             } else {
-                dp = (uint8_t *) s->current + (sec << 9);
+                dp = (uint8_t *)s->current + (sec << 9);
             }
         }
         if (!result) {
@@ -299,13 +299,13 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
 {
     int result = 0;
     if (secn > 0) {
-        const uint8_t *sp = (const uint8_t *) src;
+        const uint8_t *sp = (const uint8_t *)src;
         uint8_t *dp = 0, *dpp = 0;
         if (s->bdrv_cur) {
             dp = g_malloc(512);
             if (!dp || bdrv_read(s->bdrv_cur,
-                                s->secs_cur + (sec >> 5),
-                                dp, 1) < 0) {
+                                 s->secs_cur + (sec >> 5),
+                                 dp, 1) < 0) {
                 result = 1;
             } else {
                 dpp = dp + ((sec & 31) << 4);
@@ -324,7 +324,7 @@ static inline int onenand_prog_spare(OneNANDState *s, int sec, int secn,
             }
             if (s->bdrv_cur) {
                 result = bdrv_write(s->bdrv_cur, s->secs_cur + (sec >> 5),
-                                dp, 1) < 0;
+                                    dp, 1) < 0;
             }
         }
         if (dp) {
