@@ -29,6 +29,7 @@ struct omap_gpmc_s {
     qemu_irq irq;
     MemoryRegion iomem;
 
+    uint8_t revision;
     uint8_t sysconfig;
     uint16_t irqst;
     uint16_t irqen;
@@ -163,7 +164,7 @@ static uint64_t omap_gpmc_read(void *opaque, target_phys_addr_t addr,
 
     switch (addr) {
     case 0x000:	/* GPMC_REVISION */
-        return 0x20;
+        return s->revision;
 
     case 0x010:	/* GPMC_SYSCONFIG */
         return s->sysconfig;
@@ -409,6 +410,7 @@ struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
     memory_region_add_subregion(get_system_memory(), base, &s->iomem);
 
     s->irq = irq;
+    s->revision = cpu_class_omap3(mpu) ? 0x50 : 0x20;
     omap_gpmc_reset(s);
 
     return s;
