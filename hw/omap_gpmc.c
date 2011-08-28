@@ -399,7 +399,8 @@ static const MemoryRegionOps omap_gpmc_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq)
+struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
+                                   target_phys_addr_t base, qemu_irq irq)
 {
     struct omap_gpmc_s *s = (struct omap_gpmc_s *)
             g_malloc0(sizeof(struct omap_gpmc_s));
