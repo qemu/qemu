@@ -122,6 +122,7 @@ struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
                                    target_phys_addr_t base, qemu_irq irq);
 void omap_gpmc_reset(struct omap_gpmc_s *s);
 void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem);
+void omap_gpmc_attach_nand(struct omap_gpmc_s *s, int cs, DeviceState *nand);
 
 /*
  * Common IRQ numbers for level 1 interrupt handler
