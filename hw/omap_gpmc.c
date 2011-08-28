@@ -222,7 +222,7 @@ static uint64_t omap_gpmc_read(void *opaque, target_phys_addr_t addr,
         return s->prefcontrol;
     case 0x1f0:	/* GPMC_PREFETCH_STATUS */
         return (s->preffifo << 24) |
-                ((s->preffifo >
+                ((s->preffifo >=
                   ((s->prefconfig[0] >> 8) & 0x7f) ? 1 : 0) << 16) |
                 s->prefcount;
 
