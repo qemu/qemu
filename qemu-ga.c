@@ -51,7 +51,7 @@ static struct GAState *ga_state;
 
 static void quit_handler(int sig)
 {
-    g_debug("recieved signal num %d, quitting", sig);
+    g_debug("received signal num %d, quitting", sig);
 
     if (g_main_loop_is_running(ga_state->main_loop)) {
         g_main_loop_quit(ga_state->main_loop);
