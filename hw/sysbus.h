@@ -50,6 +50,7 @@ void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size,
 void sysbus_init_mmio_cb2(SysBusDevice *dev,
                           mmio_mapfunc cb, mmio_mapfunc unmap);
 void sysbus_init_mmio_region(SysBusDevice *dev, MemoryRegion *memory);
+MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
 void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target);
 void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size);
