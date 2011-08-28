@@ -54,18 +54,25 @@ static void omap_gpmc_int_update(struct omap_gpmc_s *s)
     qemu_set_irq(s->irq, s->irqen & s->irqst);
 }
 
-static void omap_gpmc_cs_map(struct omap_gpmc_cs_file_s *f, int base, int mask)
+static void omap_gpmc_cs_map(struct omap_gpmc_s *s, int cs)
 {
+    struct omap_gpmc_cs_file_s *f = &s->cs_file[cs];
+    uint32_t mask = (f->config[6] >> 8) & 0xf;
+    uint32_t base = f->config[6] & 0x3f;
     uint32_t size;
 
     if (!f->iomem) {
         return;
     }
 
+    if (!(f->config[6] & (1 << 6))) {
+        /* Do nothing unless CSVALID */
+        return;
+    }
+
     /* TODO: check for overlapping regions and report access errors */
     if ((mask != 0x8 && mask != 0xc && mask != 0xe && mask != 0xf) ||
-                    (base < 0 || base >= 0x40) ||
-                    (base & 0x0f & ~mask)) {
+        (base & 0x0f & ~mask)) {
         fprintf(stderr, "%s: wrong cs address mapping/decoding!\n",
                         __FUNCTION__);
         return;
@@ -83,8 +90,13 @@ static void omap_gpmc_cs_map(struct omap_gpmc_cs_file_s *f, int base, int mask)
                                 &f->container);
 }
 
-static void omap_gpmc_cs_unmap(struct omap_gpmc_cs_file_s *f)
+static void omap_gpmc_cs_unmap(struct omap_gpmc_s *s, int cs)
 {
+    struct omap_gpmc_cs_file_s *f = &s->cs_file[cs];
+    if (!(f->config[6] & (1 << 6))) {
+        /* Do nothing unless CSVALID */
+        return;
+    }
     if (!f->iomem) {
         return;
     }
@@ -110,19 +122,26 @@ void omap_gpmc_reset(struct omap_gpmc_s *s)
     s->preffifo = 0;
     s->prefcount = 0;
     for (i = 0; i < 8; i ++) {
-        if (s->cs_file[i].config[6] & (1 << 6))			/* CSVALID */
-            omap_gpmc_cs_unmap(s->cs_file + i);
-        s->cs_file[i].config[0] = i ? 1 << 12 : 0;
+        omap_gpmc_cs_unmap(s, i);
         s->cs_file[i].config[1] = 0x101001;
         s->cs_file[i].config[2] = 0x020201;
         s->cs_file[i].config[3] = 0x10031003;
         s->cs_file[i].config[4] = 0x10f1111;
         s->cs_file[i].config[5] = 0;
         s->cs_file[i].config[6] = 0xf00 | (i ? 0 : 1 << 6);
-        if (s->cs_file[i].config[6] & (1 << 6))			/* CSVALID */
-            omap_gpmc_cs_map(&s->cs_file[i],
-                            s->cs_file[i].config[6] & 0x1f,	/* MASKADDR */
-                        (s->cs_file[i].config[6] >> 8 & 0xf));	/* BASEADDR */
+
+        s->cs_file[i].config[6] = 0xf00;
+        /* In theory we could probe attached devices for some CFG1
+         * bits here, but we just retain them across resets as they
+         * were set initially by omap_gpmc_attach().
+         */
+        if (i == 0) {
+            s->cs_file[i].config[0] &= 0x00433e00;
+            s->cs_file[i].config[6] |= 1 << 6; /* CSVALID */
+            omap_gpmc_cs_map(s, i);
+        } else {
+            s->cs_file[i].config[0] &= 0x00403c00;
+        }
     }
     s->ecc_cs = 0;
     s->ecc_ptr = 0;
@@ -311,13 +330,10 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
                 break;
             case 0x78:	/* GPMC_CONFIG7 */
                 if ((f->config[6] ^ value) & 0xf7f) {
-                    if (f->config[6] & (1 << 6))		/* CSVALID */
-                        omap_gpmc_cs_unmap(f);
-                    if (value & (1 << 6))			/* CSVALID */
-                        omap_gpmc_cs_map(f, value & 0x1f,	/* MASKADDR */
-                                        (value >> 8 & 0xf));	/* BASEADDR */
+                    omap_gpmc_cs_unmap(s, cs);
+                    f->config[6] = value & 0x00000f7f;
+                    omap_gpmc_cs_map(s, cs);
                 }
-                f->config[6] = value & 0x00000f7f;
                 break;
             case 0x7c:	/* GPMC_NAND_COMMAND */
             case 0x80:	/* GPMC_NAND_ADDRESS */
@@ -407,9 +423,7 @@ void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem)
     }
     f = &s->cs_file[cs];
 
+    omap_gpmc_cs_unmap(s, cs);
     f->iomem = iomem;
-
-    if (f->config[6] & (1 << 6))				/* CSVALID */
-        omap_gpmc_cs_map(f, f->config[6] & 0x1f,		/* MASKADDR */
-                        (f->config[6] >> 8 & 0xf));		/* BASEADDR */
+    omap_gpmc_cs_map(s, cs);
 }
