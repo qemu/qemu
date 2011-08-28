@@ -36,10 +36,6 @@ struct omap_gpmc_s {
     uint16_t irqen;
     uint16_t timeout;
     uint16_t config;
-    uint32_t prefconfig[2];
-    int prefcontrol;
-    int preffifo;
-    int prefcount;
     struct omap_gpmc_cs_file_s {
         uint32_t config[7];
         MemoryRegion *iomem;
@@ -51,6 +47,13 @@ struct omap_gpmc_s {
     int ecc_ptr;
     uint32_t ecc_cfg;
     ECCState ecc[9];
+    struct prefetch {
+        uint32_t config1; /* GPMC_PREFETCH_CONFIG1 */
+        uint32_t transfercount; /* GPMC_PREFETCH_CONFIG2:TRANSFERCOUNT */
+        int startengine; /* GPMC_PREFETCH_CONTROL:STARTENGINE */
+        int fifopointer; /* GPMC_PREFETCH_STATUS:FIFOPOINTER */
+        int count; /* GPMC_PREFETCH_STATUS:COUNTVALUE */
+    } prefetch;
 };
 
 #define OMAP_GPMC_8BIT 0
@@ -243,11 +246,11 @@ void omap_gpmc_reset(struct omap_gpmc_s *s)
     omap_gpmc_int_update(s);
     s->timeout = 0;
     s->config = 0xa00;
-    s->prefconfig[0] = 0x00004000;
-    s->prefconfig[1] = 0x00000000;
-    s->prefcontrol = 0;
-    s->preffifo = 0;
-    s->prefcount = 0;
+    s->prefetch.config1 = 0x00004000;
+    s->prefetch.transfercount = 0x00000000;
+    s->prefetch.startengine = 0;
+    s->prefetch.fifopointer = 0;
+    s->prefetch.count = 0;
     for (i = 0; i < 8; i ++) {
         omap_gpmc_cs_unmap(s, i);
         s->cs_file[i].config[1] = 0x101001;
@@ -363,16 +366,16 @@ static uint64_t omap_gpmc_read(void *opaque, target_phys_addr_t addr,
         break;
 
     case 0x1e0:	/* GPMC_PREFETCH_CONFIG1 */
-        return s->prefconfig[0];
+        return s->prefetch.config1;
     case 0x1e4:	/* GPMC_PREFETCH_CONFIG2 */
-        return s->prefconfig[1];
+        return s->prefetch.transfercount;
     case 0x1ec:	/* GPMC_PREFETCH_CONTROL */
-        return s->prefcontrol;
+        return s->prefetch.startengine;
     case 0x1f0:	/* GPMC_PREFETCH_STATUS */
-        return (s->preffifo << 24) |
-                ((s->preffifo >=
-                  ((s->prefconfig[0] >> 8) & 0x7f) ? 1 : 0) << 16) |
-                s->prefcount;
+        return (s->prefetch.fifopointer << 24) |
+                ((s->prefetch.fifopointer >=
+                  ((s->prefetch.config1 >> 8) & 0x7f) ? 1 : 0) << 16) |
+                s->prefetch.count;
 
     case 0x1f4:	/* GPMC_ECC_CONFIG */
         return s->ecc_cs;
@@ -506,21 +509,22 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
         break;
 
     case 0x1e0:	/* GPMC_PREFETCH_CONFIG1 */
-        s->prefconfig[0] = value & 0x7f8f7fbf;
+        s->prefetch.config1 = value & 0x7f8f7fbf;
         /* TODO: update interrupts, fifos, dmas */
         break;
 
     case 0x1e4:	/* GPMC_PREFETCH_CONFIG2 */
-        s->prefconfig[1] = value & 0x3fff;
+        s->prefetch.transfercount = value & 0x3fff;
         break;
 
     case 0x1ec:	/* GPMC_PREFETCH_CONTROL */
-        s->prefcontrol = value & 1;
-        if (s->prefcontrol) {
-            if (s->prefconfig[0] & 1)
-                s->preffifo = 0x40;
-            else
-                s->preffifo = 0x00;
+        s->prefetch.startengine = value & 1;
+        if (s->prefetch.startengine) {
+            if (s->prefetch.config1 & 1) {
+                s->prefetch.fifopointer = 0x40;
+            } else {
+                s->prefetch.fifopointer = 0x00;
+            }
         }
         /* TODO: start */
         break;
