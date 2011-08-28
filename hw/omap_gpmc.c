@@ -407,6 +407,7 @@ struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq)
     memory_region_init_io(&s->iomem, &omap_gpmc_ops, s, "omap-gpmc", 0x1000);
     memory_region_add_subregion(get_system_memory(), base, &s->iomem);
 
+    s->irq = irq;
     omap_gpmc_reset(s);
 
     return s;
