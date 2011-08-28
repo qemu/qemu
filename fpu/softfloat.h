@@ -216,8 +216,8 @@ void float_raise( int8 flags STATUS_PARAM);
 *----------------------------------------------------------------------------*/
 float32 int32_to_float32( int32 STATUS_PARAM );
 float64 int32_to_float64( int32 STATUS_PARAM );
-float32 uint32_to_float32( unsigned int STATUS_PARAM );
-float64 uint32_to_float64( unsigned int STATUS_PARAM );
+float32 uint32_to_float32( uint32 STATUS_PARAM );
+float64 uint32_to_float64( uint32 STATUS_PARAM );
 floatx80 int32_to_floatx80( int32 STATUS_PARAM );
 float128 int32_to_float128( int32 STATUS_PARAM );
 float32 int64_to_float32( int64 STATUS_PARAM );
