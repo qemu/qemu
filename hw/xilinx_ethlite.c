@@ -50,6 +50,7 @@
 struct xlx_ethlite
 {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     qemu_irq irq;
     NICState *nic;
     NICConf conf;
@@ -70,7 +71,8 @@ static inline void eth_pulse_irq(struct xlx_ethlite *s)
     }
 }
 
-static uint32_t eth_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t
+eth_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 {
     struct xlx_ethlite *s = opaque;
     uint32_t r = 0;
@@ -98,10 +100,12 @@ static uint32_t eth_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void
-eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+eth_write(void *opaque, target_phys_addr_t addr,
+          uint64_t val64, unsigned int size)
 {
     struct xlx_ethlite *s = opaque;
     unsigned int base = 0;
+    uint32_t value = val64;
 
     addr >>= 2;
     switch (addr) 
@@ -146,12 +150,14 @@ eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc * const eth_read[] = {
-    NULL, NULL, &eth_readl,
-};
-
-static CPUWriteMemoryFunc * const eth_write[] = {
-    NULL, NULL, &eth_writel,
+static const MemoryRegionOps eth_ops = {
+    .read = eth_read,
+    .write = eth_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static int eth_can_rx(VLANClientState *nc)
@@ -206,13 +212,12 @@ static NetClientInfo net_xilinx_ethlite_info = {
 static int xilinx_ethlite_init(SysBusDevice *dev)
 {
     struct xlx_ethlite *s = FROM_SYSBUS(typeof (*s), dev);
-    int regs;
 
     sysbus_init_irq(dev, &s->irq);
     s->rxbuf = 0;
 
-    regs = cpu_register_io_memory(eth_read, eth_write, s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, regs);
+    memory_region_init_io(&s->mmio, &eth_ops, s, "xilinx-ethlite", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->mmio);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_ethlite_info, &s->conf,

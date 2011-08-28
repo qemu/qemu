@@ -19,15 +19,6 @@
 #if !defined(__DYNGEN_EXEC_H__)
 #define __DYNGEN_EXEC_H__
 
-#include "qemu-common.h"
-
-#ifdef __OpenBSD__
-#include <sys/types.h>
-#endif
-
-/* XXX: This may be wrong for 64-bit ILP32 hosts.  */
-typedef void * host_reg_t;
-
 #if defined(CONFIG_TCG_INTERPRETER)
 /* The TCG interpreter does not use special registers. */
 #elif defined(__i386__)
@@ -71,11 +62,6 @@ register CPUState *env asm(AREG0);
 #else
 extern CPUState *env;
 #endif
-
-#define xglue(x, y) x ## y
-#define glue(x, y) xglue(x, y)
-#define stringify(s)	tostring(s)
-#define tostring(s)	#s
 
 /* The return address may point to the start of the next instruction.
    Subtracting one gets us the call instruction itself.  */

@@ -49,6 +49,7 @@
 struct xlx_uartlite
 {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     CharDriverState *chr;
     qemu_irq irq;
 
@@ -82,7 +83,8 @@ static void uart_update_status(struct xlx_uartlite *s)
     s->regs[R_STATUS] = r;
 }
 
-static uint32_t uart_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t
+uart_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 {
     struct xlx_uartlite *s = opaque;
     uint32_t r = 0;
@@ -107,9 +109,11 @@ static uint32_t uart_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void
-uart_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+uart_write(void *opaque, target_phys_addr_t addr,
+           uint64_t val64, unsigned int size)
 {
     struct xlx_uartlite *s = opaque;
+    uint32_t value = val64;
     unsigned char ch = value;
 
     addr >>= 2;
@@ -147,16 +151,14 @@ uart_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     uart_update_irq(s);
 }
 
-static CPUReadMemoryFunc * const uart_read[] = {
-    &uart_readl,
-    &uart_readl,
-    &uart_readl,
-};
-
-static CPUWriteMemoryFunc * const uart_write[] = {
-    &uart_writel,
-    &uart_writel,
-    &uart_writel,
+static const MemoryRegionOps uart_ops = {
+    .read = uart_read,
+    .write = uart_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4
+    }
 };
 
 static void uart_rx(void *opaque, const uint8_t *buf, int size)
@@ -196,14 +198,12 @@ static void uart_event(void *opaque, int event)
 static int xilinx_uartlite_init(SysBusDevice *dev)
 {
     struct xlx_uartlite *s = FROM_SYSBUS(typeof (*s), dev);
-    int uart_regs;
 
     sysbus_init_irq(dev, &s->irq);
 
     uart_update_status(s);
-    uart_regs = cpu_register_io_memory(uart_read, uart_write, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, uart_regs);
+    memory_region_init_io(&s->mmio, &uart_ops, s, "xilinx-uartlite", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->mmio);
 
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr)

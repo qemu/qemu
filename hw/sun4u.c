@@ -261,7 +261,9 @@ void cpu_check_irqs(CPUState *env)
         pil |= 1 << 14;
     }
 
-    if (!pil) {
+    /* The bit corresponding to psrpil is (1<< psrpil), the next bit
+       is (2 << psrpil). */
+    if (pil < (2 << env->psrpil)){
         if (env->interrupt_request & CPU_INTERRUPT_HARD) {
             CPUIRQ_DPRINTF("Reset CPU IRQ (current interrupt %x)\n",
                            env->interrupt_index);
@@ -293,10 +295,12 @@ void cpu_check_irqs(CPUState *env)
                 break;
             }
         }
-    } else {
+    } else if (env->interrupt_request & CPU_INTERRUPT_HARD) {
         CPUIRQ_DPRINTF("Interrupts disabled, pil=%08x pil_in=%08x softint=%08x "
                        "current interrupt %x\n",
                        pil, env->pil_in, env->softint, env->interrupt_index);
+        env->interrupt_index = 0;
+        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
 }
 
