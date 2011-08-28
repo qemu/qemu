@@ -35,6 +35,7 @@ struct omap_gpmc_s {
     uint8_t sysconfig;
     uint16_t irqst;
     uint16_t irqen;
+    uint16_t lastirq;
     uint16_t timeout;
     uint16_t config;
     struct omap_gpmc_cs_file_s {
@@ -54,6 +55,8 @@ struct omap_gpmc_s {
         int startengine; /* GPMC_PREFETCH_CONTROL:STARTENGINE */
         int fifopointer; /* GPMC_PREFETCH_STATUS:FIFOPOINTER */
         int count; /* GPMC_PREFETCH_STATUS:COUNTVALUE */
+        MemoryRegion iomem;
+        uint8_t fifo[64];
     } prefetch;
 };
 
@@ -76,9 +79,42 @@ static int omap_gpmc_devsize(struct omap_gpmc_cs_file_s *f)
     return (f->config[0] >> 12) & 1;
 }
 
+/* Extract the chip-select value from the prefetch config1 register */
+static int prefetch_cs(uint32_t config1)
+{
+    return (config1 >> 24) & 7;
+}
+
+static int prefetch_threshold(uint32_t config1)
+{
+    return (config1 >> 8) & 0x7f;
+}
+
 static void omap_gpmc_int_update(struct omap_gpmc_s *s)
 {
-    qemu_set_irq(s->irq, s->irqen & s->irqst);
+    /* The TRM is a bit unclear, but it seems to say that
+     * the TERMINALCOUNTSTATUS bit is set only on the
+     * transition when the prefetch engine goes from
+     * active to inactive, whereas the FIFOEVENTSTATUS
+     * bit is held high as long as the fifo has at
+     * least THRESHOLD bytes available.
+     * So we do the latter here, but TERMINALCOUNTSTATUS
+     * is set elsewhere.
+     */
+    if (s->prefetch.fifopointer >= prefetch_threshold(s->prefetch.config1)) {
+        s->irqst |= 1;
+    }
+    if ((s->irqen & s->irqst) != s->lastirq) {
+        s->lastirq = s->irqen & s->irqst;
+        qemu_set_irq(s->irq, s->lastirq);
+    }
+}
+
+static void omap_gpmc_dma_update(struct omap_gpmc_s *s, int value)
+{
+    if (s->prefetch.config1 & 4) {
+        qemu_set_irq(s->drq, value);
+    }
 }
 
 /* Access functions for when a NAND-like device is mapped into memory:
@@ -176,12 +212,172 @@ static const MemoryRegionOps omap_nand_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
+static void fill_prefetch_fifo(struct omap_gpmc_s *s)
+{
+    /* Fill the prefetch FIFO by reading data from NAND.
+     * We do this synchronously, unlike the hardware which
+     * will do this asynchronously. We refill when the
+     * FIFO has THRESHOLD bytes free, and we always refill
+     * as much data as possible starting at the top end
+     * of the FIFO.
+     * (We have to refill at THRESHOLD rather than waiting
+     * for the FIFO to empty to allow for the case where
+     * the FIFO size isn't an exact multiple of THRESHOLD
+     * and we're doing DMA transfers.)
+     * This means we never need to handle wrap-around in
+     * the fifo-reading code, and the next byte of data
+     * to read is always fifo[63 - fifopointer].
+     */
+    int fptr;
+    int cs = prefetch_cs(s->prefetch.config1);
+    int is16bit = (((s->cs_file[cs].config[0] >> 12) & 3) != 0);
+    int bytes;
+    /* Don't believe the bit of the OMAP TRM that says that COUNTVALUE
+     * and TRANSFERCOUNT are in units of 16 bit words for 16 bit NAND.
+     * Instead believe the bit that says it is always a byte count.
+     */
+    bytes = 64 - s->prefetch.fifopointer;
+    if (bytes > s->prefetch.count) {
+        bytes = s->prefetch.count;
+    }
+    s->prefetch.count -= bytes;
+    s->prefetch.fifopointer += bytes;
+    fptr = 64 - s->prefetch.fifopointer;
+    /* Move the existing data in the FIFO so it sits just
+     * before what we're about to read in
+     */
+    while (fptr < (64 - bytes)) {
+        s->prefetch.fifo[fptr] = s->prefetch.fifo[fptr + bytes];
+        fptr++;
+    }
+    while (fptr < 64) {
+        if (is16bit) {
+            uint32_t v = omap_nand_read(&s->cs_file[cs], 0, 2);
+            s->prefetch.fifo[fptr++] = v & 0xff;
+            s->prefetch.fifo[fptr++] = (v >> 8) & 0xff;
+        } else {
+            s->prefetch.fifo[fptr++] = omap_nand_read(&s->cs_file[cs], 0, 1);
+        }
+    }
+    if (s->prefetch.startengine && (s->prefetch.count == 0)) {
+        /* This was the final transfer: raise TERMINALCOUNTSTATUS */
+        s->irqst |= 2;
+        s->prefetch.startengine = 0;
+    }
+    /* If there are any bytes in the FIFO at this point then
+     * we must raise a DMA request (either this is a final part
+     * transfer, or we filled the FIFO in which case we certainly
+     * have THRESHOLD bytes available)
+     */
+    if (s->prefetch.fifopointer != 0) {
+        omap_gpmc_dma_update(s, 1);
+    }
+    omap_gpmc_int_update(s);
+}
+
+/* Access functions for a NAND-like device when the prefetch/postwrite
+ * engine is enabled -- all addresses in the region behave alike:
+ * data is read or written to the FIFO.
+ */
+static uint64_t omap_gpmc_prefetch_read(void *opaque, target_phys_addr_t addr,
+                                        unsigned size)
+{
+    struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
+    uint32_t data;
+    if (s->prefetch.config1 & 1) {
+        /* The TRM doesn't define the behaviour if you read from the
+         * FIFO when the prefetch engine is in write mode. We choose
+         * to always return zero.
+         */
+        return 0;
+    }
+    /* Note that trying to read an empty fifo repeats the last byte */
+    if (s->prefetch.fifopointer) {
+        s->prefetch.fifopointer--;
+    }
+    data = s->prefetch.fifo[63 - s->prefetch.fifopointer];
+    if (s->prefetch.fifopointer ==
+        (64 - prefetch_threshold(s->prefetch.config1))) {
+        /* We've drained THRESHOLD bytes now. So deassert the
+         * DMA request, then refill the FIFO (which will probably
+         * assert it again.)
+         */
+        omap_gpmc_dma_update(s, 0);
+        fill_prefetch_fifo(s);
+    }
+    omap_gpmc_int_update(s);
+    return data;
+}
+
+static void omap_gpmc_prefetch_write(void *opaque, target_phys_addr_t addr,
+                                     uint64_t value, unsigned size)
+{
+    struct omap_gpmc_s *s = (struct omap_gpmc_s *) opaque;
+    int cs = prefetch_cs(s->prefetch.config1);
+    if ((s->prefetch.config1 & 1) == 0) {
+        /* The TRM doesn't define the behaviour of writing to the
+         * FIFO when the prefetch engine is in read mode. We
+         * choose to ignore the write.
+         */
+        return;
+    }
+    if (s->prefetch.count == 0) {
+        /* The TRM doesn't define the behaviour of writing to the
+         * FIFO if the transfer is complete. We choose to ignore.
+         */
+        return;
+    }
+    /* The only reason we do any data buffering in postwrite
+     * mode is if we are talking to a 16 bit NAND device, in
+     * which case we need to buffer the first byte of the
+     * 16 bit word until the other byte arrives.
+     */
+    int is16bit = (((s->cs_file[cs].config[0] >> 12) & 3) != 0);
+    if (is16bit) {
+        /* fifopointer alternates between 64 (waiting for first
+         * byte of word) and 63 (waiting for second byte)
+         */
+        if (s->prefetch.fifopointer == 64) {
+            s->prefetch.fifo[0] = value;
+            s->prefetch.fifopointer--;
+        } else {
+            value = (value << 8) | s->prefetch.fifo[0];
+            omap_nand_write(&s->cs_file[cs], 0, value, 2);
+            s->prefetch.count--;
+            s->prefetch.fifopointer = 64;
+        }
+    } else {
+        /* Just write the byte : fifopointer remains 64 at all times */
+        omap_nand_write(&s->cs_file[cs], 0, value, 1);
+        s->prefetch.count--;
+    }
+    if (s->prefetch.count == 0) {
+        /* Final transfer: raise TERMINALCOUNTSTATUS */
+        s->irqst |= 2;
+        s->prefetch.startengine = 0;
+    }
+    omap_gpmc_int_update(s);
+}
+
+static const MemoryRegionOps omap_prefetch_ops = {
+    .read = omap_gpmc_prefetch_read,
+    .write = omap_gpmc_prefetch_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
+};
+
 static MemoryRegion *omap_gpmc_cs_memregion(struct omap_gpmc_s *s, int cs)
 {
     /* Return the MemoryRegion* to map/unmap for this chipselect */
     struct omap_gpmc_cs_file_s *f = &s->cs_file[cs];
     if (omap_gpmc_devtype(f) == OMAP_GPMC_NOR) {
         return f->iomem;
+    }
+    if ((s->prefetch.config1 & 0x80) &&
+        (prefetch_cs(s->prefetch.config1) == cs)) {
+        /* The prefetch engine is enabled for this CS: map the FIFO */
+        return &s->prefetch.iomem;
     }
     return &f->nandiomem;
 }
@@ -510,24 +706,61 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
         break;
 
     case 0x1e0:	/* GPMC_PREFETCH_CONFIG1 */
-        s->prefetch.config1 = value & 0x7f8f7fbf;
-        /* TODO: update interrupts, fifos, dmas */
+        if (!s->prefetch.startengine) {
+            uint32_t oldconfig1 = s->prefetch.config1;
+            uint32_t changed;
+            s->prefetch.config1 = value & 0x7f8f7fbf;
+            changed = oldconfig1 ^ s->prefetch.config1;
+            if (changed & (0x80 | 0x7000000)) {
+                /* Turning the engine on or off, or mapping it somewhere else.
+                 * cs_map() and cs_unmap() check the prefetch config and
+                 * overall CSVALID bits, so it is sufficient to unmap-and-map
+                 * both the old cs and the new one.
+                 */
+                int oldcs = prefetch_cs(oldconfig1);
+                int newcs = prefetch_cs(s->prefetch.config1);
+                omap_gpmc_cs_unmap(s, oldcs);
+                omap_gpmc_cs_map(s, oldcs);
+                if (newcs != oldcs) {
+                    omap_gpmc_cs_unmap(s, newcs);
+                    omap_gpmc_cs_map(s, newcs);
+                }
+            }
+        }
         break;
 
     case 0x1e4:	/* GPMC_PREFETCH_CONFIG2 */
-        s->prefetch.transfercount = value & 0x3fff;
+        if (!s->prefetch.startengine) {
+            s->prefetch.transfercount = value & 0x3fff;
+        }
         break;
 
     case 0x1ec:	/* GPMC_PREFETCH_CONTROL */
-        s->prefetch.startengine = value & 1;
-        if (s->prefetch.startengine) {
-            if (s->prefetch.config1 & 1) {
-                s->prefetch.fifopointer = 0x40;
+        if (s->prefetch.startengine != (value & 1)) {
+            s->prefetch.startengine = value & 1;
+            if (s->prefetch.startengine) {
+                /* Prefetch engine start */
+                s->prefetch.count = s->prefetch.transfercount;
+                if (s->prefetch.config1 & 1) {
+                    /* Write */
+                    s->prefetch.fifopointer = 64;
+                } else {
+                    /* Read */
+                    s->prefetch.fifopointer = 0;
+                    fill_prefetch_fifo(s);
+                }
             } else {
-                s->prefetch.fifopointer = 0x00;
+                /* Prefetch engine forcibly stopped. The TRM
+                 * doesn't define the behaviour if you do this.
+                 * We clear the prefetch count, which means that
+                 * we permit no more writes, and don't read any
+                 * more data from NAND. The CPU can still drain
+                 * the FIFO of unread data.
+                 */
+                s->prefetch.count = 0;
             }
+            omap_gpmc_int_update(s);
         }
-        /* TODO: start */
         break;
 
     case 0x1f4:	/* GPMC_ECC_CONFIG */
@@ -579,6 +812,7 @@ struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
     s->drq = drq;
     s->accept_256 = cpu_is_omap3630(mpu);
     s->revision = cpu_class_omap3(mpu) ? 0x50 : 0x20;
+    s->lastirq = 0;
     omap_gpmc_reset(s);
 
     /* We have to register a different IO memory handler for each
@@ -594,6 +828,9 @@ struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
                               "omap-nand",
                               256 * 1024 * 1024);
     }
+
+    memory_region_init_io(&s->prefetch.iomem, &omap_prefetch_ops, s,
+                          "omap-gpmc-prefetch", 256 * 1024 * 1024);
     return s;
 }
 
