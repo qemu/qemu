@@ -788,6 +788,7 @@ i2c_bus *omap_i2c_bus(struct omap_i2c_s *s);
 # define cpu_is_omap2420(cpu)		(cpu->mpu_model == omap2420)
 # define cpu_is_omap2430(cpu)		(cpu->mpu_model == omap2430)
 # define cpu_is_omap3430(cpu)		(cpu->mpu_model == omap3430)
+# define cpu_is_omap3630(cpu)           (cpu->mpu_model == omap3630)
 
 # define cpu_is_omap15xx(cpu)		\
         (cpu_is_omap310(cpu) || cpu_is_omap1510(cpu))
@@ -799,7 +800,8 @@ i2c_bus *omap_i2c_bus(struct omap_i2c_s *s);
 # define cpu_class_omap1(cpu)		\
         (cpu_is_omap15xx(cpu) || cpu_is_omap16xx(cpu))
 # define cpu_class_omap2(cpu)		cpu_is_omap24xx(cpu)
-# define cpu_class_omap3(cpu)		cpu_is_omap3430(cpu)
+# define cpu_class_omap3(cpu) \
+        (cpu_is_omap3430(cpu) || cpu_is_omap3630(cpu))
 
 struct omap_mpu_state_s {
     enum omap_mpu_model {
@@ -813,6 +815,7 @@ struct omap_mpu_state_s {
         omap2423,
         omap2430,
         omap3430,
+        omap3630,
     } mpu_model;
 
     CPUState *env;
