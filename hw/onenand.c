@@ -326,7 +326,7 @@ fail:
     return 1;
 }
 
-static void onenand_command(OneNANDState *s, int cmd)
+static void onenand_command(OneNANDState *s)
 {
     int b;
     int sec;
@@ -346,7 +346,7 @@ static void onenand_command(OneNANDState *s, int cmd)
             s->data[(s->bufaddr >> 2) & 1][1] : s->boot[1];	\
     buf += (s->bufaddr & 3) << 4;
 
-    switch (cmd) {
+    switch (s->command) {
     case 0x00:	/* Load single/multiple sector data unit into buffer */
         SETADDR(ONEN_BUF_BLOCK, ONEN_BUF_PAGE)
 
@@ -527,7 +527,7 @@ static void onenand_command(OneNANDState *s, int cmd)
         s->status |= ONEN_ERR_CMD;
         s->intstatus |= ONEN_INT;
         fprintf(stderr, "%s: unknown OneNAND command %x\n",
-                        __FUNCTION__, cmd);
+                        __func__, s->command);
     }
 
     onenand_intr_update(s);
@@ -659,7 +659,7 @@ static void onenand_write(void *opaque, target_phys_addr_t addr,
         if (s->intstatus & (1 << 15))
             break;
         s->command = value;
-        onenand_command(s, s->command);
+        onenand_command(s);
         break;
     case 0xf221:	/* System Configuration 1 */
         s->config[0] = value;
