@@ -40,13 +40,8 @@ struct omap_gpmc_s {
     int prefcount;
     struct omap_gpmc_cs_file_s {
         uint32_t config[7];
-        target_phys_addr_t base;
-        size_t size;
         MemoryRegion *iomem;
         MemoryRegion container;
-        void (*base_update)(void *opaque, target_phys_addr_t new);
-        void (*unmap)(void *opaque);
-        void *opaque;
     } cs_file[8];
     int ecc_cs;
     int ecc_ptr;
@@ -61,6 +56,12 @@ static void omap_gpmc_int_update(struct omap_gpmc_s *s)
 
 static void omap_gpmc_cs_map(struct omap_gpmc_cs_file_s *f, int base, int mask)
 {
+    uint32_t size;
+
+    if (!f->iomem) {
+        return;
+    }
+
     /* TODO: check for overlapping regions and report access errors */
     if ((mask != 0x8 && mask != 0xc && mask != 0xe && mask != 0xf) ||
                     (base < 0 || base >= 0x40) ||
@@ -70,39 +71,27 @@ static void omap_gpmc_cs_map(struct omap_gpmc_cs_file_s *f, int base, int mask)
         return;
     }
 
-    if (!f->opaque)
-        return;
-
-    f->base = base << 24;
-    f->size = (0x0fffffff & ~(mask << 24)) + 1;
+    base <<= 24;
+    size = (0x0fffffff & ~(mask << 24)) + 1;
     /* TODO: rather than setting the size of the mapping (which should be
      * constant), the mask should cause wrapping of the address space, so
      * that the same memory becomes accessible at every <i>size</i> bytes
      * starting from <i>base</i>.  */
-    if (f->iomem) {
-        memory_region_init(&f->container, "omap-gpmc-file", f->size);
-        memory_region_add_subregion(&f->container, 0, f->iomem);
-        memory_region_add_subregion(get_system_memory(), f->base,
-                                    &f->container);
-    }
-
-    if (f->base_update)
-        f->base_update(f->opaque, f->base);
+    memory_region_init(&f->container, "omap-gpmc-file", size);
+    memory_region_add_subregion(&f->container, 0, f->iomem);
+    memory_region_add_subregion(get_system_memory(), base,
+                                &f->container);
 }
 
 static void omap_gpmc_cs_unmap(struct omap_gpmc_cs_file_s *f)
 {
-    if (f->size) {
-        if (f->unmap)
-            f->unmap(f->opaque);
-        if (f->iomem) {
-            memory_region_del_subregion(get_system_memory(), &f->container);
-            memory_region_del_subregion(&f->container, f->iomem);
-            memory_region_destroy(&f->container);
-        }
-        f->base = 0;
-        f->size = 0;
+    if (!f->iomem) {
+        return;
     }
+
+    memory_region_del_subregion(get_system_memory(), &f->container);
+    memory_region_del_subregion(&f->container, f->iomem);
+    memory_region_destroy(&f->container);
 }
 
 void omap_gpmc_reset(struct omap_gpmc_s *s)
@@ -399,19 +388,18 @@ struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq)
     struct omap_gpmc_s *s = (struct omap_gpmc_s *)
             g_malloc0(sizeof(struct omap_gpmc_s));
 
-    omap_gpmc_reset(s);
-
     memory_region_init_io(&s->iomem, &omap_gpmc_ops, s, "omap-gpmc", 0x1000);
     memory_region_add_subregion(get_system_memory(), base, &s->iomem);
+
+    omap_gpmc_reset(s);
 
     return s;
 }
 
-void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem,
-                void (*base_upd)(void *opaque, target_phys_addr_t new),
-                void (*unmap)(void *opaque), void *opaque)
+void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem)
 {
     struct omap_gpmc_cs_file_s *f;
+    assert(iomem);
 
     if (cs < 0 || cs >= 8) {
         fprintf(stderr, "%s: bad chip-select %i\n", __FUNCTION__, cs);
@@ -420,9 +408,6 @@ void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem,
     f = &s->cs_file[cs];
 
     f->iomem = iomem;
-    f->base_update = base_upd;
-    f->unmap = unmap;
-    f->opaque = opaque;
 
     if (f->config[6] & (1 << 6))				/* CSVALID */
         omap_gpmc_cs_map(f, f->config[6] & 0x1f,		/* MASKADDR */

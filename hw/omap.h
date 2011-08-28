@@ -120,9 +120,7 @@ void omap_sdrc_reset(struct omap_sdrc_s *s);
 struct omap_gpmc_s;
 struct omap_gpmc_s *omap_gpmc_init(target_phys_addr_t base, qemu_irq irq);
 void omap_gpmc_reset(struct omap_gpmc_s *s);
-void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem,
-                void (*base_upd)(void *opaque, target_phys_addr_t new),
-                void (*unmap)(void *opaque), void *opaque);
+void omap_gpmc_attach(struct omap_gpmc_s *s, int cs, MemoryRegion *iomem);
 
 /*
  * Common IRQ numbers for level 1 interrupt handler

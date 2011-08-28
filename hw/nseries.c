@@ -182,9 +182,7 @@ static void n8x0_nand_setup(struct n800_s *s)
     sysbus_connect_irq(sysbus_from_qdev(s->nand), 0,
                        qdev_get_gpio_in(s->cpu->gpio, N8X0_ONENAND_GPIO));
     omap_gpmc_attach(s->cpu->gpmc, N8X0_ONENAND_CS,
-                     sysbus_mmio_get_region(sysbus_from_qdev(s->nand), 0),
-                     NULL, NULL,
-                     s->nand);
+                     sysbus_mmio_get_region(sysbus_from_qdev(s->nand), 0));
     otp_region = onenand_raw_otp(s->nand);
 
     memcpy(otp_region + 0x000, n8x0_cal_wlan_mac, sizeof(n8x0_cal_wlan_mac));
@@ -781,10 +779,8 @@ static void n8x0_usb_setup(struct n800_s *s)
     TUSBState *tusb = tusb6010_init(tusb_irq);
 
     /* Using the NOR interface */
-    omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_ASYNC_CS,
-                    tusb6010_async_io(tusb), NULL, NULL, tusb);
-    omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_SYNC_CS,
-                    tusb6010_sync_io(tusb), NULL, NULL, tusb);
+    omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_ASYNC_CS, tusb6010_async_io(tusb));
+    omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_SYNC_CS, tusb6010_sync_io(tusb));
 
     s->usb = tusb;
     qdev_connect_gpio_out(s->cpu->gpio, N8X0_TUSB_ENABLE_GPIO, tusb_pwr);
