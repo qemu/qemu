@@ -36,12 +36,7 @@ uint32_t nand_getbuswidth(DeviceState *dev);
 #define NAND_MFR_MICRON		0x2c
 
 /* onenand.c */
-void onenand_base_update(void *opaque, target_phys_addr_t new);
-void onenand_base_unmap(void *opaque);
-void *onenand_init(BlockDriverState *bdrv,
-                uint16_t man_id, uint16_t dev_id, uint16_t ver_id,
-                int regshift, qemu_irq irq);
-void *onenand_raw_otp(void *opaque);
+void *onenand_raw_otp(DeviceState *onenand_device);
 
 /* ecc.c */
 typedef struct {
