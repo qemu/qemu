@@ -27,6 +27,7 @@
 /* General-Purpose Memory Controller */
 struct omap_gpmc_s {
     qemu_irq irq;
+    qemu_irq drq;
     MemoryRegion iomem;
     int accept_256;
 
@@ -564,7 +565,8 @@ static const MemoryRegionOps omap_gpmc_ops = {
 };
 
 struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
-                                   target_phys_addr_t base, qemu_irq irq)
+                                   target_phys_addr_t base,
+                                   qemu_irq irq, qemu_irq drq)
 {
     int cs;
     struct omap_gpmc_s *s = (struct omap_gpmc_s *)
@@ -574,6 +576,7 @@ struct omap_gpmc_s *omap_gpmc_init(struct omap_mpu_state_s *mpu,
     memory_region_add_subregion(get_system_memory(), base, &s->iomem);
 
     s->irq = irq;
+    s->drq = drq;
     s->accept_256 = cpu_is_omap3630(mpu);
     s->revision = cpu_class_omap3(mpu) ? 0x50 : 0x20;
     omap_gpmc_reset(s);
