@@ -150,7 +150,7 @@ static int sh_pci_init_device(SysBusDevice *dev)
                               PCI_DEVFN(0, 0), 4);
     memory_region_init_io(&s->memconfig_p4, &sh_pci_reg_ops, s,
                           "sh_pci", 0x224);
-    memory_region_init_alias(&s->memconfig_a7, "sh_pci.2", &s->memconfig_a7,
+    memory_region_init_alias(&s->memconfig_a7, "sh_pci.2", &s->memconfig_p4,
                              0, 0x224);
     isa_mmio_setup(&s->isa, 0x40000);
     sysbus_init_mmio_cb2(dev, sh_pci_map, sh_pci_unmap);
