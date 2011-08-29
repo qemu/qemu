@@ -732,6 +732,12 @@ static int64_t load_kernel (void)
     return kernel_entry;
 }
 
+static void malta_mips_config(CPUState *env)
+{
+    env->mvp->CP0_MVPConf0 |= ((smp_cpus - 1) << CP0MVPC0_PVPE) |
+                         ((smp_cpus * env->nr_threads - 1) << CP0MVPC0_PTC);
+}
+
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
@@ -743,6 +749,8 @@ static void main_cpu_reset(void *opaque)
     if (loaderparams.kernel_filename) {
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));
     }
+
+    malta_mips_config(env);
 }
 
 static void cpu_request_exit(void *opaque, int irq, int level)
@@ -796,12 +804,19 @@ void mips_malta_init (ram_addr_t ram_size,
         cpu_model = "24Kf";
 #endif
     }
-    env = cpu_init(cpu_model);
-    if (!env) {
-        fprintf(stderr, "Unable to find CPU definition\n");
-        exit(1);
+
+    for (i = 0; i < smp_cpus; i++) {
+        env = cpu_init(cpu_model);
+        if (!env) {
+            fprintf(stderr, "Unable to find CPU definition\n");
+            exit(1);
+        }
+        /* Init internal devices */
+        cpu_mips_irq_init_cpu(env);
+        cpu_mips_clock_init(env);
+        qemu_register_reset(main_cpu_reset, env);
     }
-    qemu_register_reset(main_cpu_reset, env);
+    env = first_cpu;
 
     /* allocate RAM */
     if (ram_size > (256 << 20)) {
@@ -955,6 +970,7 @@ static QEMUMachine mips_malta_machine = {
     .name = "malta",
     .desc = "MIPS Malta Core LV",
     .init = mips_malta_init,
+    .max_cpus = 16,
     .is_default = 1,
 };
 
