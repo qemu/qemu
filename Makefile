@@ -366,9 +366,8 @@ tar:
 	rm -rf /tmp/$(FILE)
 
 SYSTEM_TARGETS=$(filter %-softmmu,$(TARGET_DIRS))
-SYSTEM_PROGS=$(patsubst qemu-system-i386,qemu, \
-             $(patsubst %-softmmu,qemu-system-%, \
-             $(SYSTEM_TARGETS)))
+SYSTEM_PROGS=$(patsubst %-softmmu,qemu-system-%, \
+             $(SYSTEM_TARGETS))
 
 USER_TARGETS=$(filter %-user,$(TARGET_DIRS))
 USER_PROGS=$(patsubst %-bsd-user,qemu-%, \

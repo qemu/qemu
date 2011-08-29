@@ -27,11 +27,7 @@ ifdef CONFIG_USER_ONLY
 QEMU_PROG=qemu-$(TARGET_ARCH2)
 else
 # system emulator name
-ifeq ($(TARGET_ARCH), i386)
-QEMU_PROG=qemu$(EXESUF)
-else
 QEMU_PROG=qemu-system-$(TARGET_ARCH2)$(EXESUF)
-endif
 endif
 
 PROGS=$(QEMU_PROG)
