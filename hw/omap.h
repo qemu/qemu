@@ -692,7 +692,8 @@ struct uWireSlave {
     void *opaque;
 };
 struct omap_uwire_s;
-struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
+struct omap_uwire_s *omap_uwire_init(MemoryRegion *system_memory,
+                target_phys_addr_t base,
                 qemu_irq *irq, qemu_irq dma, omap_clk clk);
 void omap_uwire_attach(struct omap_uwire_s *s,
                 uWireSlave *slave, int chipselect);
@@ -731,7 +732,8 @@ struct I2SCodec {
     } in, out;
 };
 struct omap_mcbsp_s;
-struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
+struct omap_mcbsp_s *omap_mcbsp_init(MemoryRegion *system_memory,
+                target_phys_addr_t base,
                 qemu_irq *irq, qemu_irq *dma, omap_clk clk);
 void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave);
 
@@ -837,6 +839,8 @@ struct omap_mpu_state_s {
     MemoryRegion tcmi_iomem;
     MemoryRegion clkm_iomem;
     MemoryRegion clkdsp_iomem;
+    MemoryRegion pwl_iomem;
+    MemoryRegion pwt_iomem;
 
     struct omap_dma_port_if_s {
         uint32_t (*read[3])(struct omap_mpu_state_s *s,
