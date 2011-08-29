@@ -1063,7 +1063,7 @@ void *memory_region_get_ram_ptr(MemoryRegion *mr)
 
     assert(mr->terminates);
 
-    return qemu_get_ram_ptr(mr->ram_addr);
+    return qemu_get_ram_ptr(mr->ram_addr & TARGET_PAGE_MASK);
 }
 
 static void memory_region_update_coalesced_range(MemoryRegion *mr)
