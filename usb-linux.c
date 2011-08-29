@@ -1206,6 +1206,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             assert(usb_ep_get_type(&s->dev, pid, ep) ==
                    USB_ENDPOINT_XFER_INVALID);
             usb_ep_set_type(&s->dev, pid, ep, type);
+            usb_ep_set_ifnum(&s->dev, pid, ep, interface);
 
             epd = get_endp(s, pid, ep);
             epd->halted = 0;

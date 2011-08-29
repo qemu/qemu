@@ -175,6 +175,7 @@ struct USBDescString {
 
 struct USBEndpoint {
     uint8_t type;
+    uint8_t ifnum;
 };
 
 /* definition of a USB device */
@@ -334,7 +335,9 @@ void usb_cancel_packet(USBPacket * p);
 void usb_ep_init(USBDevice *dev);
 struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep);
 uint8_t usb_ep_get_type(USBDevice *dev, int pid, int ep);
+uint8_t usb_ep_get_ifnum(USBDevice *dev, int pid, int ep);
 void usb_ep_set_type(USBDevice *dev, int pid, int ep, uint8_t type);
+void usb_ep_set_ifnum(USBDevice *dev, int pid, int ep, uint8_t ifnum);
 
 void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);

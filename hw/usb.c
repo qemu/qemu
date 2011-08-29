@@ -422,6 +422,8 @@ void usb_ep_init(USBDevice *dev)
     for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
         dev->ep_in[ep].type = USB_ENDPOINT_XFER_INVALID;
         dev->ep_out[ep].type = USB_ENDPOINT_XFER_INVALID;
+        dev->ep_in[ep].ifnum = 0;
+        dev->ep_out[ep].ifnum = 0;
     }
 }
 
@@ -443,4 +445,16 @@ void usb_ep_set_type(USBDevice *dev, int pid, int ep, uint8_t type)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     uep->type = type;
+}
+
+uint8_t usb_ep_get_ifnum(USBDevice *dev, int pid, int ep)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    return uep->ifnum;
+}
+
+void usb_ep_set_ifnum(USBDevice *dev, int pid, int ep, uint8_t ifnum)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    uep->ifnum = ifnum;
 }
