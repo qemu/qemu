@@ -749,6 +749,46 @@ void helper_sdm (target_ulong addr, target_ulong reglist, uint32_t mem_idx)
 #endif
 
 #ifndef CONFIG_USER_ONLY
+/* SMP helpers.  */
+static int mips_vpe_is_wfi(CPUState *c)
+{
+    /* If the VPE is halted but otherwise active, it means it's waiting for
+       an interrupt.  */
+    return c->halted && mips_vpe_active(c);
+}
+
+static inline void mips_vpe_wake(CPUState *c)
+{
+    /* Dont set ->halted = 0 directly, let it be done via cpu_has_work
+       because there might be other conditions that state that c should
+       be sleeping.  */
+    cpu_interrupt(c, CPU_INTERRUPT_WAKE);
+}
+
+static inline void mips_vpe_sleep(CPUState *c)
+{
+    /* The VPE was shut off, really go to bed.
+       Reset any old _WAKE requests.  */
+    c->halted = 1;
+    cpu_reset_interrupt(c, CPU_INTERRUPT_WAKE);
+}
+
+static inline void mips_tc_wake(CPUState *c, int tc)
+{
+    /* FIXME: TC reschedule.  */
+    if (mips_vpe_active(c) && !mips_vpe_is_wfi(c)) {
+        mips_vpe_wake(c);
+    }
+}
+
+static inline void mips_tc_sleep(CPUState *c, int tc)
+{
+    /* FIXME: TC reschedule.  */
+    if (!mips_vpe_active(c)) {
+        mips_vpe_sleep(c);
+    }
+}
+
 /* tc should point to an int with the value of the global TC index.
    This function will transform it into a local index within the
    returned CPUState.
@@ -1340,6 +1380,11 @@ void helper_mtc0_tchalt (target_ulong arg1)
     env->active_tc.CP0_TCHalt = arg1 & 0x1;
 
     // TODO: Halt TC / Restart (if allocated+active) TC.
+    if (env->active_tc.CP0_TCHalt & 1) {
+        mips_tc_sleep(env, env->current_tc);
+    } else {
+        mips_tc_wake(env, env->current_tc);
+    }
 }
 
 void helper_mttc0_tchalt (target_ulong arg1)
@@ -1353,6 +1398,12 @@ void helper_mttc0_tchalt (target_ulong arg1)
         other->active_tc.CP0_TCHalt = arg1;
     else
         other->tcs[other_tc].CP0_TCHalt = arg1;
+
+    if (arg1 & 1) {
+        mips_tc_sleep(other, other_tc);
+    } else {
+        mips_tc_wake(other, other_tc);
+    }
 }
 
 void helper_mtc0_tccontext (target_ulong arg1)
@@ -1858,14 +1909,36 @@ target_ulong helper_emt(void)
 
 target_ulong helper_dvpe(void)
 {
-    // TODO
-    return 0;
+    CPUState *other_cpu = first_cpu;
+    target_ulong prev = env->mvp->CP0_MVPControl;
+
+    do {
+        /* Turn off all VPEs except the one executing the dvpe.  */
+        if (other_cpu != env) {
+            other_cpu->mvp->CP0_MVPControl &= ~(1 << CP0MVPCo_EVP);
+            mips_vpe_sleep(other_cpu);
+        }
+        other_cpu = other_cpu->next_cpu;
+    } while (other_cpu);
+    return prev;
 }
 
 target_ulong helper_evpe(void)
 {
-    // TODO
-    return 0;
+    CPUState *other_cpu = first_cpu;
+    target_ulong prev = env->mvp->CP0_MVPControl;
+
+    do {
+        if (other_cpu != env
+           /* If the VPE is WFI, dont distrub it's sleep.  */
+           && !mips_vpe_is_wfi(other_cpu)) {
+            /* Enable the VPE.  */
+            other_cpu->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
+            mips_vpe_wake(other_cpu); /* And wake it up.  */
+        }
+        other_cpu = other_cpu->next_cpu;
+    } while (other_cpu);
+    return prev;
 }
 #endif /* !CONFIG_USER_ONLY */
 
@@ -2213,6 +2286,7 @@ void helper_pmon (int function)
 void helper_wait (void)
 {
     env->halted = 1;
+    cpu_reset_interrupt(env, CPU_INTERRUPT_WAKE);
     helper_raise_exception(EXCP_HLT);
 }
 

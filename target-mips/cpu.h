@@ -618,6 +618,14 @@ enum {
 /* Dummy exception for conditional stores.  */
 #define EXCP_SC 0x100
 
+/*
+ * This is an interrnally generated WAKE request line.
+ * It is driven by the CPU itself. Raised when the MT
+ * block wants to wake a VPE from an inactive state and
+ * cleared when VPE goes from active to inactive.
+ */
+#define CPU_INTERRUPT_WAKE CPU_INTERRUPT_TGT_INT_0
+
 int cpu_mips_exec(CPUMIPSState *s);
 CPUMIPSState *cpu_mips_init(const char *cpu_model);
 //~ uint32_t cpu_mips_get_clock (void);
@@ -658,6 +666,37 @@ static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
     env->tls_value = newtls;
 }
 
+static inline int mips_vpe_active(CPUState *env)
+{
+    int active = 1;
+
+    /* Check that the VPE is enabled.  */
+    if (!(env->mvp->CP0_MVPControl & (1 << CP0MVPCo_EVP))) {
+        active = 0;
+    }
+    /* Check that the VPE is actived.  */
+    if (!(env->CP0_VPEConf0 & (1 << CP0VPEC0_VPA))) {
+        active = 0;
+    }
+
+    /* Now verify that there are active thread contexts in the VPE.
+
+       This assumes the CPU model will internally reschedule threads
+       if the active one goes to sleep. If there are no threads available
+       the active one will be in a sleeping state, and we can turn off
+       the entire VPE.  */
+    if (!(env->active_tc.CP0_TCStatus & (1 << CP0TCSt_A))) {
+        /* TC is not activated.  */
+        active = 0;
+    }
+    if (env->active_tc.CP0_TCHalt & 1) {
+        /* TC is in halt state.  */
+        active = 0;
+    }
+
+    return active;
+}
+
 static inline int cpu_has_work(CPUState *env)
 {
     int has_work = 0;
@@ -670,6 +709,18 @@ static inline int cpu_has_work(CPUState *env)
         has_work = 1;
     }
 
+    /* MIPS-MT has the ability to halt the CPU.  */
+    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
+        /* The QEMU model will issue an _WAKE request whenever the CPUs
+           should be woken up.  */
+        if (env->interrupt_request & CPU_INTERRUPT_WAKE) {
+            has_work = 1;
+        }
+
+        if (!mips_vpe_active(env)) {
+            has_work = 0;
+        }
+    }
     return has_work;
 }
 
