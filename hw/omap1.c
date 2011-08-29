@@ -3452,6 +3452,7 @@ void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave)
 
 /* LED Pulse Generators */
 struct omap_lpg_s {
+    MemoryRegion iomem;
     QEMUTimer *tm;
 
     uint8_t control;
@@ -3516,10 +3517,15 @@ static void omap_lpg_reset(struct omap_lpg_s *s)
     omap_lpg_update(s);
 }
 
-static uint32_t omap_lpg_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_lpg_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     struct omap_lpg_s *s = (struct omap_lpg_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
+
+    if (size != 1) {
+        return omap_badwidth_read8(opaque, addr);
+    }
 
     switch (offset) {
     case 0x00:	/* LCR */
@@ -3534,10 +3540,14 @@ static uint32_t omap_lpg_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_lpg_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                           uint64_t value, unsigned size)
 {
     struct omap_lpg_s *s = (struct omap_lpg_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
+
+    if (size != 1) {
+        return omap_badwidth_write8(opaque, addr, value);
+    }
 
     switch (offset) {
     case 0x00:	/* LCR */
@@ -3558,16 +3568,10 @@ static void omap_lpg_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_lpg_readfn[] = {
-    omap_lpg_read,
-    omap_badwidth_read8,
-    omap_badwidth_read8,
-};
-
-static CPUWriteMemoryFunc * const omap_lpg_writefn[] = {
-    omap_lpg_write,
-    omap_badwidth_write8,
-    omap_badwidth_write8,
+static const MemoryRegionOps omap_lpg_ops = {
+    .read = omap_lpg_read,
+    .write = omap_lpg_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_lpg_clk_update(void *opaque, int line, int on)
@@ -3578,9 +3582,9 @@ static void omap_lpg_clk_update(void *opaque, int line, int on)
     omap_lpg_update(s);
 }
 
-static struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk)
+static struct omap_lpg_s *omap_lpg_init(MemoryRegion *system_memory,
+                                        target_phys_addr_t base, omap_clk clk)
 {
-    int iomemtype;
     struct omap_lpg_s *s = (struct omap_lpg_s *)
             g_malloc0(sizeof(struct omap_lpg_s));
 
@@ -3588,9 +3592,8 @@ static struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk)
 
     omap_lpg_reset(s);
 
-    iomemtype = cpu_register_io_memory(omap_lpg_readfn,
-                    omap_lpg_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x800, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_lpg_ops, s, "omap-lpg", 0x800);
+    memory_region_add_subregion(system_memory, base, &s->iomem);
 
     omap_clk_adduser(clk, qemu_allocate_irqs(omap_lpg_clk_update, s, 1)[0]);
 
@@ -3598,8 +3601,13 @@ static struct omap_lpg_s *omap_lpg_init(target_phys_addr_t base, omap_clk clk)
 }
 
 /* MPUI Peripheral Bridge configuration */
-static uint32_t omap_mpui_io_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_mpui_io_read(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
 {
+    if (size != 2) {
+        return omap_badwidth_read16(opaque, addr);
+    }
+
     if (addr == OMAP_MPUI_BASE)	/* CMR */
         return 0xfe4d;
 
@@ -3607,23 +3615,26 @@ static uint32_t omap_mpui_io_read(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static CPUReadMemoryFunc * const omap_mpui_io_readfn[] = {
-    omap_badwidth_read16,
-    omap_mpui_io_read,
-    omap_badwidth_read16,
-};
-
-static CPUWriteMemoryFunc * const omap_mpui_io_writefn[] = {
-    omap_badwidth_write16,
-    omap_badwidth_write16,
-    omap_badwidth_write16,
-};
-
-static void omap_setup_mpui_io(struct omap_mpu_state_s *mpu)
+static void omap_mpui_io_write(void *opaque, target_phys_addr_t addr,
+                               uint64_t value, unsigned size)
 {
-    int iomemtype = cpu_register_io_memory(omap_mpui_io_readfn,
-                    omap_mpui_io_writefn, mpu, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(OMAP_MPUI_BASE, 0x7fff, iomemtype);
+    /* FIXME: infinite loop */
+    omap_badwidth_write16(opaque, addr, value);
+}
+
+static const MemoryRegionOps omap_mpui_io_ops = {
+    .read = omap_mpui_io_read,
+    .write = omap_mpui_io_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static void omap_setup_mpui_io(MemoryRegion *system_memory,
+                               struct omap_mpu_state_s *mpu)
+{
+    memory_region_init_io(&mpu->mpui_io_iomem, &omap_mpui_io_ops, mpu,
+                          "omap-mpui-io", 0x7fff);
+    memory_region_add_subregion(system_memory, OMAP_MPUI_BASE,
+                                &mpu->mpui_io_iomem);
 }
 
 /* General chip reset */
@@ -3947,8 +3958,10 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
                     0xfffb7000, &s->irq[1][OMAP_INT_McBSP3TX],
                     &s->drq[OMAP_DMA_MCBSP3_TX], omap_findclk(s, "dspxor_ck"));
 
-    s->led[0] = omap_lpg_init(0xfffbd000, omap_findclk(s, "clk32-kHz"));
-    s->led[1] = omap_lpg_init(0xfffbd800, omap_findclk(s, "clk32-kHz"));
+    s->led[0] = omap_lpg_init(system_memory,
+                              0xfffbd000, omap_findclk(s, "clk32-kHz"));
+    s->led[1] = omap_lpg_init(system_memory,
+                              0xfffbd800, omap_findclk(s, "clk32-kHz"));
 
     /* Register mappings not currenlty implemented:
      * MCSI2 Comm	fffb2000 - fffb27ff (not mapped on OMAP310)
@@ -3966,7 +3979,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
      */
 
     omap_setup_dsp_mapping(omap15xx_dsp_mm);
-    omap_setup_mpui_io(s);
+    omap_setup_mpui_io(system_memory, s);
 
     qemu_register_reset(omap1_mpu_reset, s);
 
