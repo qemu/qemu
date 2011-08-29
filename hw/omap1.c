@@ -3708,14 +3708,16 @@ static const struct omap_map_s {
     { 0 }
 };
 
-static void omap_setup_dsp_mapping(const struct omap_map_s *map)
+static void omap_setup_dsp_mapping(MemoryRegion *system_memory,
+                                   const struct omap_map_s *map)
 {
-    int io;
+    MemoryRegion *io;
 
     for (; map->phys_dsp; map ++) {
-        io = cpu_get_physical_page_desc(map->phys_mpu);
-
-        cpu_register_physical_memory(map->phys_dsp, map->size, io);
+        io = g_new(MemoryRegion, 1);
+        memory_region_init_alias(io, map->name,
+                                 system_memory, map->phys_mpu, map->size);
+        memory_region_add_subregion(system_memory, map->phys_dsp, io);
     }
 }
 
@@ -3978,7 +3980,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
      * DSP MMU		fffed200 - fffed2ff
      */
 
-    omap_setup_dsp_mapping(omap15xx_dsp_mm);
+    omap_setup_dsp_mapping(system_memory, omap15xx_dsp_mm);
     omap_setup_mpui_io(system_memory, s);
 
     qemu_register_reset(omap1_mpu_reset, s);
