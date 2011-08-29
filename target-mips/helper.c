@@ -482,18 +482,18 @@ void do_interrupt (CPUState *env)
             unsigned int vector;
             unsigned int pending = (env->CP0_Cause & CP0Ca_IP_mask) >> 8;
 
+            pending &= env->CP0_Status >> 8;
             /* Compute the Vector Spacing.  */
             spacing = (env->CP0_IntCtl >> CP0IntCtl_VS) & ((1 << 6) - 1);
             spacing <<= 5;
 
             if (env->CP0_Config3 & (1 << CP0C3_VInt)) {
                 /* For VInt mode, the MIPS computes the vector internally.  */
-                for (vector = 0; vector < 8; vector++) {
-                    if (pending & 1) {
+                for (vector = 7; vector > 0; vector--) {
+                    if (pending & (1 << vector)) {
                         /* Found it.  */
                         break;
                     }
-                    pending >>= 1;
                 }
             } else {
                 /* For VEIC mode, the external interrupt controller feeds the
