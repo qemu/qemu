@@ -1811,6 +1811,25 @@ static uint8_t pci_find_capability_list(PCIDevice *pdev, uint8_t cap_id,
     return next;
 }
 
+static uint8_t pci_find_capability_at_offset(PCIDevice *pdev, uint8_t offset)
+{
+    uint8_t next, prev, found = 0;
+
+    if (!(pdev->used[offset])) {
+        return 0;
+    }
+
+    assert(pdev->config[PCI_STATUS] & PCI_STATUS_CAP_LIST);
+
+    for (prev = PCI_CAPABILITY_LIST; (next = pdev->config[prev]);
+         prev = next + PCI_CAP_LIST_NEXT) {
+        if (next <= offset && next > found) {
+            found = next;
+        }
+    }
+    return found;
+}
+
 /* Patch the PCI vendor and device ids in a PCI rom image if necessary.
    This is needed for an option rom which is used for more than one device. */
 static void pci_patch_ids(PCIDevice *pdev, uint8_t *ptr, int size)
@@ -1952,10 +1971,29 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
                        uint8_t offset, uint8_t size)
 {
     uint8_t *config;
+    int i, overlapping_cap;
+
     if (!offset) {
         offset = pci_find_space(pdev, size);
         if (!offset) {
             return -ENOSPC;
+        }
+    } else {
+        /* Verify that capabilities don't overlap.  Note: device assignment
+         * depends on this check to verify that the device is not broken.
+         * Should never trigger for emulated devices, but it's helpful
+         * for debugging these. */
+        for (i = offset; i < offset + size; i++) {
+            overlapping_cap = pci_find_capability_at_offset(pdev, i);
+            if (overlapping_cap) {
+                fprintf(stderr, "ERROR: %04x:%02x:%02x.%x "
+                        "Attempt to add PCI capability %x at offset "
+                        "%x overlaps existing capability %x at offset %x\n",
+                        pci_find_domain(pdev->bus), pci_bus_num(pdev->bus),
+                        PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
+                        cap_id, offset, overlapping_cap, i);
+                return -EINVAL;
+            }
         }
     }
 

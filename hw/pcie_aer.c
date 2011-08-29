@@ -415,7 +415,7 @@ static void pcie_aer_update_log(PCIDevice *dev, const PCIEAERErr *err)
     int i;
 
     assert(err->status);
-    assert(err->status & (err->status - 1));
+    assert(!(err->status & (err->status - 1)));
 
     errcap &= ~(PCI_ERR_CAP_FEP_MASK | PCI_ERR_CAP_TLP);
     errcap |= PCI_ERR_CAP_FEP(first_bit);
@@ -495,7 +495,7 @@ static int pcie_aer_record_error(PCIDevice *dev,
     int fep = PCI_ERR_CAP_FEP(errcap);
 
     assert(err->status);
-    assert(err->status & (err->status - 1));
+    assert(!(err->status & (err->status - 1)));
 
     if (errcap & PCI_ERR_CAP_MHRE &&
         (pci_get_long(aer_cap + PCI_ERR_UNCOR_STATUS) & (1U << fep))) {
@@ -979,20 +979,21 @@ int do_pcie_aer_inejct_error(Monitor *mon,
     if (pcie_aer_parse_error_string(error_name, &error_status, &correctable)) {
         char *e = NULL;
         error_status = strtoul(error_name, &e, 0);
-        correctable = !!qdict_get_int(qdict, "correctable");
+        correctable = qdict_get_try_bool(qdict, "correctable", 0);
         if (!e || *e != '\0') {
             monitor_printf(mon, "invalid error status value. \"%s\"",
                            error_name);
             return -EINVAL;
         }
     }
+    err.status = error_status;
     err.source_id = (pci_bus_num(dev->bus) << 8) | dev->devfn;
 
     err.flags = 0;
     if (correctable) {
         err.flags |= PCIE_AER_ERR_IS_CORRECTABLE;
     }
-    if (qdict_get_int(qdict, "advisory_non_fatal")) {
+    if (qdict_get_try_bool(qdict, "advisory_non_fatal", 0)) {
         err.flags |= PCIE_AER_ERR_MAYBE_ADVISORY;
     }
     if (qdict_haskey(qdict, "header0")) {
