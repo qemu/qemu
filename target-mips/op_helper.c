@@ -774,6 +774,98 @@ static CPUState *mips_cpu_map_tc(int *tc)
     return other ? other : env;
 }
 
+/* The per VPE CP0_Status register shares some fields with the per TC
+   CP0_TCStatus registers. These fields are wired to the same registers,
+   so changes to either of them should be reflected on both registers.
+
+   Also, EntryHi shares the bottom 8 bit ASID with TCStauts.
+
+   These helper call synchronizes the regs for a given cpu.  */
+
+/* Called for updates to CP0_Status.  */
+static void sync_c0_status(CPUState *cpu, int tc)
+{
+    int32_t tcstatus, *tcst;
+    uint32_t v = cpu->CP0_Status;
+    uint32_t cu, mx, asid, ksu;
+    uint32_t mask = ((1 << CP0TCSt_TCU3)
+                       | (1 << CP0TCSt_TCU2)
+                       | (1 << CP0TCSt_TCU1)
+                       | (1 << CP0TCSt_TCU0)
+                       | (1 << CP0TCSt_TMX)
+                       | (3 << CP0TCSt_TKSU)
+                       | (0xff << CP0TCSt_TASID));
+
+    cu = (v >> CP0St_CU0) & 0xf;
+    mx = (v >> CP0St_MX) & 0x1;
+    ksu = (v >> CP0St_KSU) & 0x3;
+    asid = env->CP0_EntryHi & 0xff;
+
+    tcstatus = cu << CP0TCSt_TCU0;
+    tcstatus |= mx << CP0TCSt_TMX;
+    tcstatus |= ksu << CP0TCSt_TKSU;
+    tcstatus |= asid;
+
+    if (tc == cpu->current_tc) {
+        tcst = &cpu->active_tc.CP0_TCStatus;
+    } else {
+        tcst = &cpu->tcs[tc].CP0_TCStatus;
+    }
+
+    *tcst &= ~mask;
+    *tcst |= tcstatus;
+    compute_hflags(cpu);
+}
+
+/* Called for updates to CP0_TCStatus.  */
+static void sync_c0_tcstatus(CPUState *cpu, int tc, target_ulong v)
+{
+    uint32_t status;
+    uint32_t tcu, tmx, tasid, tksu;
+    uint32_t mask = ((1 << CP0St_CU3)
+                       | (1 << CP0St_CU2)
+                       | (1 << CP0St_CU1)
+                       | (1 << CP0St_CU0)
+                       | (1 << CP0St_MX)
+                       | (3 << CP0St_KSU));
+
+    tcu = (v >> CP0TCSt_TCU0) & 0xf;
+    tmx = (v >> CP0TCSt_TMX) & 0x1;
+    tasid = v & 0xff;
+    tksu = (v >> CP0TCSt_TKSU) & 0x3;
+
+    status = tcu << CP0St_CU0;
+    status |= tmx << CP0St_MX;
+    status |= tksu << CP0St_KSU;
+
+    cpu->CP0_Status &= ~mask;
+    cpu->CP0_Status |= status;
+
+    /* Sync the TASID with EntryHi.  */
+    cpu->CP0_EntryHi &= ~0xff;
+    cpu->CP0_EntryHi = tasid;
+
+    compute_hflags(cpu);
+}
+
+/* Called for updates to CP0_EntryHi.  */
+static void sync_c0_entryhi(CPUState *cpu, int tc)
+{
+    int32_t *tcst;
+    uint32_t asid, v = cpu->CP0_EntryHi;
+
+    asid = v & 0xff;
+
+    if (tc == cpu->current_tc) {
+        tcst = &cpu->active_tc.CP0_TCStatus;
+    } else {
+        tcst = &cpu->tcs[tc].CP0_TCStatus;
+    }
+
+    *tcst &= ~0xff;
+    *tcst |= asid;
+}
+
 /* CP0 helpers */
 target_ulong helper_mfc0_mvpcontrol (void)
 {
@@ -916,34 +1008,16 @@ target_ulong helper_mftc0_entryhi(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     CPUState *other = mips_cpu_map_tc(&other_tc);
-    int32_t tcstatus;
 
-    if (other_tc == other->current_tc)
-        tcstatus = other->active_tc.CP0_TCStatus;
-    else
-        tcstatus = other->tcs[other_tc].CP0_TCStatus;
-
-    return (other->CP0_EntryHi & ~0xff) | (tcstatus & 0xff);
+    return other->CP0_EntryHi;
 }
 
 target_ulong helper_mftc0_status(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-    target_ulong t0;
-    int32_t tcstatus;
     CPUState *other = mips_cpu_map_tc(&other_tc);
 
-    if (other_tc == other->current_tc)
-        tcstatus = other->active_tc.CP0_TCStatus;
-    else
-        tcstatus = other->tcs[other_tc].CP0_TCStatus;
-
-    t0 = other->CP0_Status & ~0xf1000018;
-    t0 |= tcstatus & (0xf << CP0TCSt_TCU0);
-    t0 |= (tcstatus & (1 << CP0TCSt_TMX)) >> (CP0TCSt_TMX - CP0St_MX);
-    t0 |= (tcstatus & (0x3 << CP0TCSt_TKSU)) >> (CP0TCSt_TKSU - CP0St_KSU);
-
-    return t0;
+    return other->CP0_Status;
 }
 
 target_ulong helper_mfc0_lladdr (void)
@@ -1129,9 +1203,8 @@ void helper_mtc0_tcstatus (target_ulong arg1)
 
     newval = (env->active_tc.CP0_TCStatus & ~mask) | (arg1 & mask);
 
-    // TODO: Sync with CP0_Status.
-
     env->active_tc.CP0_TCStatus = newval;
+    sync_c0_tcstatus(env, env->current_tc, newval);
 }
 
 void helper_mttc0_tcstatus (target_ulong arg1)
@@ -1139,12 +1212,11 @@ void helper_mttc0_tcstatus (target_ulong arg1)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     CPUState *other = mips_cpu_map_tc(&other_tc);
 
-    // TODO: Sync with CP0_Status.
-
     if (other_tc == other->current_tc)
         other->active_tc.CP0_TCStatus = arg1;
     else
         other->tcs[other_tc].CP0_TCStatus = arg1;
+    sync_c0_tcstatus(other, other_tc, arg1);
 }
 
 void helper_mtc0_tcbind (target_ulong arg1)
@@ -1348,8 +1420,7 @@ void helper_mtc0_entryhi (target_ulong arg1)
     old = env->CP0_EntryHi;
     env->CP0_EntryHi = val;
     if (env->CP0_Config3 & (1 << CP0C3_MT)) {
-        uint32_t tcst = env->active_tc.CP0_TCStatus & ~0xff;
-        env->active_tc.CP0_TCStatus = tcst | (val & 0xff);
+        sync_c0_entryhi(env, env->current_tc);
     }
     /* If the ASID changes, flush qemu's TLB.  */
     if ((old & 0xFF) != (val & 0xFF))
@@ -1359,17 +1430,10 @@ void helper_mtc0_entryhi (target_ulong arg1)
 void helper_mttc0_entryhi(target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-    int32_t tcstatus;
     CPUState *other = mips_cpu_map_tc(&other_tc);
 
-    other->CP0_EntryHi = (other->CP0_EntryHi & 0xff) | (arg1 & ~0xff);
-    if (other_tc == other->current_tc) {
-        tcstatus = (other->active_tc.CP0_TCStatus & ~0xff) | (arg1 & 0xff);
-        other->active_tc.CP0_TCStatus = tcstatus;
-    } else {
-        tcstatus = (other->tcs[other_tc].CP0_TCStatus & ~0xff) | (arg1 & 0xff);
-        other->tcs[other_tc].CP0_TCStatus = tcstatus;
-    }
+    other->CP0_EntryHi = arg1;
+    sync_c0_entryhi(other, other_tc);
 }
 
 void helper_mtc0_compare (target_ulong arg1)
@@ -1385,7 +1449,12 @@ void helper_mtc0_status (target_ulong arg1)
     val = arg1 & mask;
     old = env->CP0_Status;
     env->CP0_Status = (env->CP0_Status & ~mask) | val;
-    compute_hflags(env);
+    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
+        sync_c0_status(env, env->current_tc);
+    } else {
+        compute_hflags(env);
+    }
+
     if (qemu_loglevel_mask(CPU_LOG_EXEC)) {
         qemu_log("Status %08x (%08x) => %08x (%08x) Cause %08x",
                 old, old & env->CP0_Cause & CP0Ca_IP_mask,
@@ -1403,17 +1472,10 @@ void helper_mtc0_status (target_ulong arg1)
 void helper_mttc0_status(target_ulong arg1)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
-    int32_t tcstatus = env->tcs[other_tc].CP0_TCStatus;
     CPUState *other = mips_cpu_map_tc(&other_tc);
 
     other->CP0_Status = arg1 & ~0xf1000018;
-    tcstatus = (tcstatus & ~(0xf << CP0TCSt_TCU0)) | (arg1 & (0xf << CP0St_CU0));
-    tcstatus = (tcstatus & ~(1 << CP0TCSt_TMX)) | ((arg1 & (1 << CP0St_MX)) << (CP0TCSt_TMX - CP0St_MX));
-    tcstatus = (tcstatus & ~(0x3 << CP0TCSt_TKSU)) | ((arg1 & (0x3 << CP0St_KSU)) << (CP0TCSt_TKSU - CP0St_KSU));
-    if (other_tc == other->current_tc)
-        other->active_tc.CP0_TCStatus = tcstatus;
-    else
-        other->tcs[other_tc].CP0_TCStatus = tcstatus;
+    sync_c0_status(other, other_tc);
 }
 
 void helper_mtc0_intctl (target_ulong arg1)
