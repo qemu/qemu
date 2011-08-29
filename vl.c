@@ -378,6 +378,22 @@ static const RunStateTransition runstate_transitions_def[] = {
 
 static bool runstate_valid_transitions[RSTATE_MAX][RSTATE_MAX];
 
+static const char *const runstate_name_tbl[RSTATE_MAX] = {
+    [RSTATE_DEBUG] = "debug",
+    [RSTATE_IN_MIGRATE] = "incoming-migration",
+    [RSTATE_PANICKED] = "internal-error",
+    [RSTATE_IO_ERROR] = "io-error",
+    [RSTATE_PAUSED] = "paused",
+    [RSTATE_POST_MIGRATE] = "post-migrate",
+    [RSTATE_PRE_LAUNCH] = "prelaunch",
+    [RSTATE_PRE_MIGRATE] = "finish-migrate",
+    [RSTATE_RESTORE] = "restore-vm",
+    [RSTATE_RUNNING] = "running",
+    [RSTATE_SAVEVM] = "save-vm",
+    [RSTATE_SHUTDOWN] = "shutdown",
+    [RSTATE_WATCHDOG] = "watchdog",
+};
+
 bool runstate_check(RunState state)
 {
     return current_run_state == state;
@@ -404,6 +420,13 @@ void runstate_set(RunState new_state)
     }
 
     current_run_state = new_state;
+}
+
+const char *runstate_as_string(void)
+{
+    assert(current_run_state > RSTATE_NO_STATE &&
+           current_run_state < RSTATE_MAX);
+    return runstate_name_tbl[current_run_state];
 }
 
 int runstate_is_running(void)
