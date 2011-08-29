@@ -12813,6 +12813,32 @@ void cpu_reset (CPUMIPSState *env)
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
     env->hflags = MIPS_HFLAG_CP0;
+
+    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
+        int i;
+
+        /* Only TC0 on VPE 0 starts as active.  */
+        for (i = 0; i < ARRAY_SIZE(env->tcs); i++) {
+            env->tcs[i].CP0_TCBind = env->cpu_index << CP0TCBd_CurVPE;
+            env->tcs[i].CP0_TCHalt = 1;
+        }
+        env->active_tc.CP0_TCHalt = 1;
+        env->halted = 1;
+
+        if (!env->cpu_index) {
+            /* VPE0 starts up enabled.  */
+            env->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
+            env->CP0_VPEConf0 |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);
+
+            /* TC0 starts up unhalted.  */
+            env->halted = 0;
+            env->active_tc.CP0_TCHalt = 0;
+            env->tcs[0].CP0_TCHalt = 0;
+            /* With thread 0 active.  */
+            env->active_tc.CP0_TCStatus = (1 << CP0TCSt_A);
+            env->tcs[0].CP0_TCStatus = (1 << CP0TCSt_A);
+        }
+    }
 #endif
 #if defined(TARGET_MIPS64)
     if (env->cpu_model->insn_flags & ISA_MIPS3) {
