@@ -537,6 +537,10 @@ static inline int cpu_mips_hw_interrupts_pending(CPUState *env)
     if (!(env->CP0_Status & (1 << CP0St_IE)) ||
         (env->CP0_Status & (1 << CP0St_EXL)) ||
         (env->CP0_Status & (1 << CP0St_ERL)) ||
+        /* Note that the TCStatus IXMT field is initialized to zero,
+           and only MT capable cores can set it to one. So we don't
+           need to check for MT capabilities here.  */
+        (env->active_tc.CP0_TCStatus & (1 << CP0TCSt_IXMT)) ||
         (env->hflags & MIPS_HFLAG_DM)) {
         /* Interrupts are disabled */
         return 0;
