@@ -69,6 +69,7 @@ int bdrv_create_file(const char* filename, QEMUOptionParameter *options);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_make_anon(BlockDriverState *bs);
 void bdrv_delete(BlockDriverState *bs);
+int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
 int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv);
@@ -254,6 +255,23 @@ int64_t bdrv_get_dirty_count(BlockDriverState *bs);
 void bdrv_set_in_use(BlockDriverState *bs, int in_use);
 int bdrv_in_use(BlockDriverState *bs);
 
+enum BlockAcctType {
+    BDRV_ACCT_READ,
+    BDRV_ACCT_WRITE,
+    BDRV_ACCT_FLUSH,
+    BDRV_MAX_IOTYPE,
+};
+
+typedef struct BlockAcctCookie {
+    int64_t bytes;
+    int64_t start_time_ns;
+    enum BlockAcctType type;
+} BlockAcctCookie;
+
+void bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
+        int64_t bytes, enum BlockAcctType type);
+void bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie);
+
 typedef enum {
     BLKDBG_L1_UPDATE,
 
@@ -306,3 +324,4 @@ typedef enum {
 void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event);
 
 #endif
+

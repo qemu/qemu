@@ -156,4 +156,36 @@ void coroutine_fn qemu_co_mutex_lock(CoMutex *mutex);
  */
 void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex);
 
+typedef struct CoRwlock {
+    bool writer;
+    int reader;
+    CoQueue queue;
+} CoRwlock;
+
+/**
+ * Initialises a CoRwlock. This must be called before any other operation
+ * is used on the CoRwlock
+ */
+void qemu_co_rwlock_init(CoRwlock *lock);
+
+/**
+ * Read locks the CoRwlock. If the lock cannot be taken immediately because
+ * of a parallel writer, control is transferred to the caller of the current
+ * coroutine.
+ */
+void qemu_co_rwlock_rdlock(CoRwlock *lock);
+
+/**
+ * Write Locks the mutex. If the lock cannot be taken immediately because
+ * of a parallel reader, control is transferred to the caller of the current
+ * coroutine.
+ */
+void qemu_co_rwlock_wrlock(CoRwlock *lock);
+
+/**
+ * Unlocks the read/write lock and schedules the next coroutine that was
+ * waiting for this lock to be run.
+ */
+void qemu_co_rwlock_unlock(CoRwlock *lock);
+
 #endif /* QEMU_COROUTINE_H */

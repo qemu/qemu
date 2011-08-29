@@ -437,6 +437,33 @@ static int refresh_total_sectors(BlockDriverState *bs, int64_t hint)
     return 0;
 }
 
+/**
+ * Set open flags for a given cache mode
+ *
+ * Return 0 on success, -1 if the cache mode was invalid.
+ */
+int bdrv_parse_cache_flags(const char *mode, int *flags)
+{
+    *flags &= ~BDRV_O_CACHE_MASK;
+
+    if (!strcmp(mode, "off") || !strcmp(mode, "none")) {
+        *flags |= BDRV_O_NOCACHE | BDRV_O_CACHE_WB;
+    } else if (!strcmp(mode, "directsync")) {
+        *flags |= BDRV_O_NOCACHE;
+    } else if (!strcmp(mode, "writeback")) {
+        *flags |= BDRV_O_CACHE_WB;
+    } else if (!strcmp(mode, "unsafe")) {
+        *flags |= BDRV_O_CACHE_WB;
+        *flags |= BDRV_O_NO_FLUSH;
+    } else if (!strcmp(mode, "writethrough")) {
+        /* this is the default */
+    } else {
+        return -1;
+    }
+
+    return 0;
+}
+
 /*
  * Common part for opening disk images and files
  */
@@ -1163,8 +1190,8 @@ int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
         return ret;
     }
 
-    /* No flush needed for cache=writethrough, it uses O_DSYNC */
-    if ((bs->open_flags & BDRV_O_CACHE_MASK) != 0) {
+    /* No flush needed for cache modes that use O_DSYNC */
+    if ((bs->open_flags & BDRV_O_CACHE_WB) != 0) {
         bdrv_flush(bs);
     }
 
@@ -1888,11 +1915,19 @@ static void bdrv_stats_iter(QObject *data, void *opaque)
                         " wr_bytes=%" PRId64
                         " rd_operations=%" PRId64
                         " wr_operations=%" PRId64
+                        " flush_operations=%" PRId64
+                        " wr_total_time_ns=%" PRId64
+                        " rd_total_time_ns=%" PRId64
+                        " flush_total_time_ns=%" PRId64
                         "\n",
                         qdict_get_int(qdict, "rd_bytes"),
                         qdict_get_int(qdict, "wr_bytes"),
                         qdict_get_int(qdict, "rd_operations"),
-                        qdict_get_int(qdict, "wr_operations"));
+                        qdict_get_int(qdict, "wr_operations"),
+                        qdict_get_int(qdict, "flush_operations"),
+                        qdict_get_int(qdict, "wr_total_time_ns"),
+                        qdict_get_int(qdict, "rd_total_time_ns"),
+                        qdict_get_int(qdict, "flush_total_time_ns"));
 }
 
 void bdrv_stats_print(Monitor *mon, const QObject *data)
@@ -1910,12 +1945,22 @@ static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
                              "'wr_bytes': %" PRId64 ","
                              "'rd_operations': %" PRId64 ","
                              "'wr_operations': %" PRId64 ","
-                             "'wr_highest_offset': %" PRId64
+                             "'wr_highest_offset': %" PRId64 ","
+                             "'flush_operations': %" PRId64 ","
+                             "'wr_total_time_ns': %" PRId64 ","
+                             "'rd_total_time_ns': %" PRId64 ","
+                             "'flush_total_time_ns': %" PRId64
                              "} }",
-                             bs->rd_bytes, bs->wr_bytes,
-                             bs->rd_ops, bs->wr_ops,
+                             bs->nr_bytes[BDRV_ACCT_READ],
+                             bs->nr_bytes[BDRV_ACCT_WRITE],
+                             bs->nr_ops[BDRV_ACCT_READ],
+                             bs->nr_ops[BDRV_ACCT_WRITE],
                              bs->wr_highest_sector *
-                             (uint64_t)BDRV_SECTOR_SIZE);
+                             (uint64_t)BDRV_SECTOR_SIZE,
+                             bs->nr_ops[BDRV_ACCT_FLUSH],
+                             bs->total_time_ns[BDRV_ACCT_WRITE],
+                             bs->total_time_ns[BDRV_ACCT_READ],
+                             bs->total_time_ns[BDRV_ACCT_FLUSH]);
     dict  = qobject_to_qdict(res);
 
     if (*bs->device_name) {
@@ -2229,7 +2274,6 @@ char *bdrv_snapshot_dump(char *buf, int buf_size, QEMUSnapshotInfo *sn)
     return buf;
 }
 
-
 /**************************************************************/
 /* async I/Os */
 
@@ -2238,7 +2282,6 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
                                  BlockDriverCompletionFunc *cb, void *opaque)
 {
     BlockDriver *drv = bs->drv;
-    BlockDriverAIOCB *ret;
 
     trace_bdrv_aio_readv(bs, sector_num, nb_sectors, opaque);
 
@@ -2247,16 +2290,8 @@ BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,
     if (bdrv_check_request(bs, sector_num, nb_sectors))
         return NULL;
 
-    ret = drv->bdrv_aio_readv(bs, sector_num, qiov, nb_sectors,
-                              cb, opaque);
-
-    if (ret) {
-        /* Update stats even though technically transfer has not happened. */
-        bs->rd_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
-        bs->rd_ops++;
-    }
-
-    return ret;
+    return drv->bdrv_aio_readv(bs, sector_num, qiov, nb_sectors,
+                               cb, opaque);
 }
 
 typedef struct BlockCompleteData {
@@ -2323,9 +2358,6 @@ BlockDriverAIOCB *bdrv_aio_writev(BlockDriverState *bs, int64_t sector_num,
                                cb, opaque);
 
     if (ret) {
-        /* Update stats even though technically transfer has not happened. */
-        bs->wr_bytes += (unsigned) nb_sectors * BDRV_SECTOR_SIZE;
-        bs->wr_ops ++;
         if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
             bs->wr_highest_sector = sector_num + nb_sectors - 1;
         }
@@ -3131,6 +3163,27 @@ void bdrv_set_in_use(BlockDriverState *bs, int in_use)
 int bdrv_in_use(BlockDriverState *bs)
 {
     return bs->in_use;
+}
+
+void
+bdrv_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie, int64_t bytes,
+        enum BlockAcctType type)
+{
+    assert(type < BDRV_MAX_IOTYPE);
+
+    cookie->bytes = bytes;
+    cookie->start_time_ns = get_clock();
+    cookie->type = type;
+}
+
+void
+bdrv_acct_done(BlockDriverState *bs, BlockAcctCookie *cookie)
+{
+    assert(cookie->type < BDRV_MAX_IOTYPE);
+
+    bs->nr_bytes[cookie->type] += cookie->bytes;
+    bs->nr_ops[cookie->type]++;
+    bs->total_time_ns[cookie->type] += get_clock() - cookie->start_time_ns;
 }
 
 int bdrv_img_create(const char *filename, const char *fmt,

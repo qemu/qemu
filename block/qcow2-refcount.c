@@ -422,7 +422,7 @@ static int QEMU_WARN_UNUSED_RESULT update_refcount(BlockDriverState *bs,
     int ret;
 
 #ifdef DEBUG_ALLOC2
-    printf("update_refcount: offset=%" PRId64 " size=%" PRId64 " addend=%d\n",
+    fprintf(stderr, "update_refcount: offset=%" PRId64 " size=%" PRId64 " addend=%d\n",
            offset, length, addend);
 #endif
     if (length < 0) {
@@ -556,7 +556,7 @@ retry:
         }
     }
 #ifdef DEBUG_ALLOC2
-    printf("alloc_clusters: size=%" PRId64 " -> %" PRId64 "\n",
+    fprintf(stderr, "alloc_clusters: size=%" PRId64 " -> %" PRId64 "\n",
             size,
             (s->free_cluster_index - nb_clusters) << s->cluster_bits);
 #endif
@@ -679,24 +679,6 @@ void qcow2_free_any_clusters(BlockDriverState *bs,
 /* snapshots and image creation */
 
 
-
-void qcow2_create_refcount_update(QCowCreateState *s, int64_t offset,
-    int64_t size)
-{
-    int refcount;
-    int64_t start, last, cluster_offset;
-    uint16_t *p;
-
-    start = offset & ~(s->cluster_size - 1);
-    last = (offset + size - 1)  & ~(s->cluster_size - 1);
-    for(cluster_offset = start; cluster_offset <= last;
-        cluster_offset += s->cluster_size) {
-        p = &s->refcount_block[cluster_offset >> s->cluster_bits];
-        refcount = be16_to_cpu(*p);
-        refcount++;
-        *p = cpu_to_be16(refcount);
-    }
-}
 
 /* update the refcounts of snapshots and the copied flag */
 int qcow2_update_snapshot_refcount(BlockDriverState *bs,

@@ -66,7 +66,8 @@ static void help(void)
            "  'filename' is a disk image filename\n"
            "  'fmt' is the disk image format. It is guessed automatically in most cases\n"
            "  'cache' is the cache mode used to write the output disk image, the valid\n"
-           "    options are: 'none', 'writeback' (default), 'writethrough' and 'unsafe'\n"
+           "    options are: 'none', 'writeback' (default), 'writethrough', 'directsync'\n"
+           "    and 'unsafe'\n"
            "  'size' is the disk image size in bytes. Optional suffixes\n"
            "    'k' or 'K' (kilobyte, 1024), 'M' (megabyte, 1024k), 'G' (gigabyte, 1024M)\n"
            "    and T (terabyte, 1024G) are supported. 'b' is ignored.\n"
@@ -81,6 +82,8 @@ static void help(void)
            "       rebasing in this case (useful for renaming the backing file)\n"
            "  '-h' with or without a command shows this help and lists the supported formats\n"
            "  '-p' show progress of command (only certain commands)\n"
+           "  '-S' indicates the consecutive number of bytes that must contain only zeros\n"
+           "       for qemu-img to create a sparse image during conversion\n"
            "\n"
            "Parameters to snapshot subcommand:\n"
            "  'snapshot' is the name of the snapshot to create, apply or delete\n"
@@ -182,27 +185,6 @@ static int read_password(char *buf, int buf_size)
     return ret;
 }
 #endif
-
-static int set_cache_flag(const char *mode, int *flags)
-{
-    *flags &= ~BDRV_O_CACHE_MASK;
-
-    if (!strcmp(mode, "none") || !strcmp(mode, "off")) {
-        *flags |= BDRV_O_CACHE_WB;
-        *flags |= BDRV_O_NOCACHE;
-    } else if (!strcmp(mode, "writeback")) {
-        *flags |= BDRV_O_CACHE_WB;
-    } else if (!strcmp(mode, "unsafe")) {
-        *flags |= BDRV_O_CACHE_WB;
-        *flags |= BDRV_O_NO_FLUSH;
-    } else if (!strcmp(mode, "writethrough")) {
-        /* this is the default */
-    } else {
-        return -1;
-    }
-
-    return 0;
-}
 
 static int print_block_option_help(const char *filename, const char *fmt)
 {
@@ -495,7 +477,7 @@ static int img_commit(int argc, char **argv)
     filename = argv[optind++];
 
     flags = BDRV_O_RDWR;
-    ret = set_cache_flag(cache, &flags);
+    ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
         return -1;
@@ -591,6 +573,48 @@ static int is_allocated_sectors(const uint8_t *buf, int n, int *pnum)
 }
 
 /*
+ * Like is_allocated_sectors, but if the buffer starts with a used sector,
+ * up to 'min' consecutive sectors containing zeros are ignored. This avoids
+ * breaking up write requests for only small sparse areas.
+ */
+static int is_allocated_sectors_min(const uint8_t *buf, int n, int *pnum,
+    int min)
+{
+    int ret;
+    int num_checked, num_used;
+
+    if (n < min) {
+        min = n;
+    }
+
+    ret = is_allocated_sectors(buf, n, pnum);
+    if (!ret) {
+        return ret;
+    }
+
+    num_used = *pnum;
+    buf += BDRV_SECTOR_SIZE * *pnum;
+    n -= *pnum;
+    num_checked = num_used;
+
+    while (n > 0) {
+        ret = is_allocated_sectors(buf, n, pnum);
+
+        buf += BDRV_SECTOR_SIZE * *pnum;
+        n -= *pnum;
+        num_checked += *pnum;
+        if (ret) {
+            num_used = num_checked;
+        } else if (*pnum >= min) {
+            break;
+        }
+    }
+
+    *pnum = num_used;
+    return 1;
+}
+
+/*
  * Compares two buffers sector by sector. Returns 0 if the first sector of both
  * buffers matches, non-zero otherwise.
  *
@@ -640,6 +664,7 @@ static int img_convert(int argc, char **argv)
     char *options = NULL;
     const char *snapshot_name = NULL;
     float local_progress;
+    int min_sparse = 8; /* Need at least 4k of zeros for sparse detection */
 
     fmt = NULL;
     out_fmt = "raw";
@@ -647,7 +672,7 @@ static int img_convert(int argc, char **argv)
     out_baseimg = NULL;
     compress = 0;
     for(;;) {
-        c = getopt(argc, argv, "f:O:B:s:hce6o:pt:");
+        c = getopt(argc, argv, "f:O:B:s:hce6o:pS:t:");
         if (c == -1) {
             break;
         }
@@ -682,6 +707,18 @@ static int img_convert(int argc, char **argv)
         case 's':
             snapshot_name = optarg;
             break;
+        case 'S':
+        {
+            int64_t sval;
+            sval = strtosz_suffix(optarg, NULL, STRTOSZ_DEFSUFFIX_B);
+            if (sval < 0) {
+                error_report("Invalid minimum zero buffer size for sparse output specified");
+                return 1;
+            }
+
+            min_sparse = sval / BDRV_SECTOR_SIZE;
+            break;
+        }
         case 'p':
             progress = 1;
             break;
@@ -819,7 +856,7 @@ static int img_convert(int argc, char **argv)
     }
 
     flags = BDRV_O_RDWR;
-    ret = set_cache_flag(cache, &flags);
+    ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
         return -1;
@@ -834,7 +871,7 @@ static int img_convert(int argc, char **argv)
     bs_i = 0;
     bs_offset = 0;
     bdrv_get_geometry(bs[0], &bs_sectors);
-    buf = g_malloc(IO_BUF_SIZE);
+    buf = qemu_blockalign(out_bs, IO_BUF_SIZE);
 
     if (compress) {
         ret = bdrv_get_info(out_bs, &bdi);
@@ -890,7 +927,8 @@ static int img_convert(int argc, char **argv)
 
                 ret = bdrv_read(bs[bs_i], bs_num, buf2, nlow);
                 if (ret < 0) {
-                    error_report("error while reading");
+                    error_report("error while reading sector %" PRId64 ": %s",
+                                 bs_num, strerror(-ret));
                     goto out;
                 }
 
@@ -908,8 +946,8 @@ static int img_convert(int argc, char **argv)
                 ret = bdrv_write_compressed(out_bs, sector_num, buf,
                                             cluster_sectors);
                 if (ret != 0) {
-                    error_report("error while compressing sector %" PRId64,
-                          sector_num);
+                    error_report("error while compressing sector %" PRId64
+                                 ": %s", sector_num, strerror(-ret));
                     goto out;
                 }
             }
@@ -972,7 +1010,8 @@ static int img_convert(int argc, char **argv)
 
             ret = bdrv_read(bs[bs_i], sector_num - bs_offset, buf, n);
             if (ret < 0) {
-                error_report("error while reading");
+                error_report("error while reading sector %" PRId64 ": %s",
+                             sector_num - bs_offset, strerror(-ret));
                 goto out;
             }
             /* NOTE: at the same time we convert, we do not write zero
@@ -988,10 +1027,11 @@ static int img_convert(int argc, char **argv)
                    sectors that are entirely 0, since whatever data was
                    already there is garbage, not 0s. */
                 if (!has_zero_init || out_baseimg ||
-                    is_allocated_sectors(buf1, n, &n1)) {
+                    is_allocated_sectors_min(buf1, n, &n1, min_sparse)) {
                     ret = bdrv_write(out_bs, sector_num, buf1, n1);
                     if (ret < 0) {
-                        error_report("error while writing");
+                        error_report("error while writing sector %" PRId64
+                                     ": %s", sector_num, strerror(-ret));
                         goto out;
                     }
                 }
@@ -1006,7 +1046,7 @@ out:
     qemu_progress_end();
     free_option_parameters(create_options);
     free_option_parameters(param);
-    g_free(buf);
+    qemu_vfree(buf);
     if (out_bs) {
         bdrv_delete(out_bs);
     }
@@ -1291,7 +1331,7 @@ static int img_rebase(int argc, char **argv)
     qemu_progress_print(0, 100);
 
     flags = BDRV_O_RDWR | (unsafe ? BDRV_O_NO_BACKING : 0);
-    ret = set_cache_flag(cache, &flags);
+    ret = bdrv_parse_cache_flags(cache, &flags);
     if (ret < 0) {
         error_report("Invalid cache option: %s", cache);
         return -1;
@@ -1373,8 +1413,8 @@ static int img_rebase(int argc, char **argv)
         uint8_t * buf_new;
         float local_progress;
 
-        buf_old = g_malloc(IO_BUF_SIZE);
-        buf_new = g_malloc(IO_BUF_SIZE);
+        buf_old = qemu_blockalign(bs, IO_BUF_SIZE);
+        buf_new = qemu_blockalign(bs, IO_BUF_SIZE);
 
         bdrv_get_geometry(bs, &num_sectors);
 
@@ -1430,8 +1470,8 @@ static int img_rebase(int argc, char **argv)
             qemu_progress_print(local_progress, 100);
         }
 
-        g_free(buf_old);
-        g_free(buf_new);
+        qemu_vfree(buf_old);
+        qemu_vfree(buf_new);
     }
 
     /*

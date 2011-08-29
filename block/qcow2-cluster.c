@@ -53,7 +53,7 @@ int qcow2_grow_l1_table(BlockDriverState *bs, int min_size, bool exact_size)
     }
 
 #ifdef DEBUG_ALLOC2
-    printf("grow l1_table from %d to %d\n", s->l1_size, new_l1_size);
+    fprintf(stderr, "grow l1_table from %d to %d\n", s->l1_size, new_l1_size);
 #endif
 
     new_l1_size2 = sizeof(uint64_t) * new_l1_size;
@@ -381,10 +381,10 @@ static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
  * For a given offset of the disk image, find the cluster offset in
  * qcow2 file. The offset is stored in *cluster_offset.
  *
- * on entry, *num is the number of contiguous clusters we'd like to
+ * on entry, *num is the number of contiguous sectors we'd like to
  * access following offset.
  *
- * on exit, *num is the number of contiguous clusters we can read.
+ * on exit, *num is the number of contiguous sectors we can read.
  *
  * Return 0, if the offset is found
  * Return -errno, otherwise.
