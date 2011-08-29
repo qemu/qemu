@@ -427,6 +427,46 @@ void usb_ep_init(USBDevice *dev)
     }
 }
 
+void usb_ep_dump(USBDevice *dev)
+{
+    static const char *tname[] = {
+        [USB_ENDPOINT_XFER_CONTROL] = "control",
+        [USB_ENDPOINT_XFER_ISOC]    = "isoc",
+        [USB_ENDPOINT_XFER_BULK]    = "bulk",
+        [USB_ENDPOINT_XFER_INT]     = "int",
+    };
+    int ifnum, ep, first;
+
+    fprintf(stderr, "Device \"%s\", config %d\n",
+            dev->product_desc, dev->configuration);
+    for (ifnum = 0; ifnum < 16; ifnum++) {
+        first = 1;
+        for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
+            if (dev->ep_in[ep].type != USB_ENDPOINT_XFER_INVALID &&
+                dev->ep_in[ep].ifnum == ifnum) {
+                if (first) {
+                    first = 0;
+                    fprintf(stderr, "  Interface %d, alternative %d\n",
+                            ifnum, dev->altsetting[ifnum]);
+                }
+                fprintf(stderr, "    Endpoint %d, IN, %s\n", ep,
+                        tname[dev->ep_in[ep].type]);
+            }
+            if (dev->ep_out[ep].type != USB_ENDPOINT_XFER_INVALID &&
+                dev->ep_out[ep].ifnum == ifnum) {
+                if (first) {
+                    first = 0;
+                    fprintf(stderr, "  Interface %d, alternative %d\n",
+                            ifnum, dev->altsetting[ifnum]);
+                }
+                fprintf(stderr, "    Endpoint %d, OUT, %s\n", ep,
+                        tname[dev->ep_out[ep].type]);
+            }
+        }
+    }
+    fprintf(stderr, "--\n");
+}
+
 struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)
 {
     struct USBEndpoint *eps = pid == USB_TOKEN_IN ? dev->ep_in : dev->ep_out;

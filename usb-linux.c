@@ -1214,6 +1214,9 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             i += descriptors[i];
         }
     }
+#ifdef DEBUG
+    usb_ep_dump(&s->dev);
+#endif
     return 0;
 }
 

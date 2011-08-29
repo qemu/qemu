@@ -333,6 +333,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p);
 void usb_cancel_packet(USBPacket * p);
 
 void usb_ep_init(USBDevice *dev);
+void usb_ep_dump(USBDevice *dev);
 struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep);
 uint8_t usb_ep_get_type(USBDevice *dev, int pid, int ep);
 uint8_t usb_ep_get_ifnum(USBDevice *dev, int pid, int ep);
