@@ -1012,6 +1012,21 @@ target_ulong helper_mftc0_entryhi(void)
     return other->CP0_EntryHi;
 }
 
+target_ulong helper_mftc0_cause(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    int32_t tccause;
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+
+    if (other_tc == other->current_tc) {
+        tccause = other->CP0_Cause;
+    } else {
+        tccause = other->CP0_Cause;
+    }
+
+    return tccause;
+}
+
 target_ulong helper_mftc0_status(void)
 {
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
@@ -1143,6 +1158,38 @@ void helper_mtc0_vpecontrol (target_ulong arg1)
     env->CP0_VPEControl = newval;
 }
 
+void helper_mttc0_vpecontrol(target_ulong arg1)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+    uint32_t mask;
+    uint32_t newval;
+
+    mask = (1 << CP0VPECo_YSI) | (1 << CP0VPECo_GSI) |
+           (1 << CP0VPECo_TE) | (0xff << CP0VPECo_TargTC);
+    newval = (other->CP0_VPEControl & ~mask) | (arg1 & mask);
+
+    /* TODO: Enable/disable TCs.  */
+
+    other->CP0_VPEControl = newval;
+}
+
+target_ulong helper_mftc0_vpecontrol(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+    /* FIXME: Mask away return zero on read bits.  */
+    return other->CP0_VPEControl;
+}
+
+target_ulong helper_mftc0_vpeconf0(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+
+    return other->CP0_VPEConf0;
+}
+
 void helper_mtc0_vpeconf0 (target_ulong arg1)
 {
     uint32_t mask = 0;
@@ -1158,6 +1205,20 @@ void helper_mtc0_vpeconf0 (target_ulong arg1)
     // TODO: TC exclusive handling due to ERL/EXL.
 
     env->CP0_VPEConf0 = newval;
+}
+
+void helper_mttc0_vpeconf0(target_ulong arg1)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+    uint32_t mask = 0;
+    uint32_t newval;
+
+    mask |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);
+    newval = (other->CP0_VPEConf0 & ~mask) | (arg1 & mask);
+
+    /* TODO: TC exclusive handling due to ERL/EXL.  */
+    other->CP0_VPEConf0 = newval;
 }
 
 void helper_mtc0_vpeconf1 (target_ulong arg1)
@@ -1490,36 +1551,93 @@ void helper_mtc0_srsctl (target_ulong arg1)
     env->CP0_SRSCtl = (env->CP0_SRSCtl & ~mask) | (arg1 & mask);
 }
 
-void helper_mtc0_cause (target_ulong arg1)
+static void mtc0_cause(CPUState *cpu, target_ulong arg1)
 {
     uint32_t mask = 0x00C00300;
-    uint32_t old = env->CP0_Cause;
+    uint32_t old = cpu->CP0_Cause;
     int i;
 
-    if (env->insn_flags & ISA_MIPS32R2)
+    if (cpu->insn_flags & ISA_MIPS32R2) {
         mask |= 1 << CP0Ca_DC;
+    }
 
-    env->CP0_Cause = (env->CP0_Cause & ~mask) | (arg1 & mask);
+    cpu->CP0_Cause = (cpu->CP0_Cause & ~mask) | (arg1 & mask);
 
-    if ((old ^ env->CP0_Cause) & (1 << CP0Ca_DC)) {
-        if (env->CP0_Cause & (1 << CP0Ca_DC))
-            cpu_mips_stop_count(env);
-        else
-            cpu_mips_start_count(env);
+    if ((old ^ cpu->CP0_Cause) & (1 << CP0Ca_DC)) {
+        if (cpu->CP0_Cause & (1 << CP0Ca_DC)) {
+            cpu_mips_stop_count(cpu);
+        } else {
+            cpu_mips_start_count(cpu);
+        }
     }
 
     /* Set/reset software interrupts */
     for (i = 0 ; i < 2 ; i++) {
-        if ((old ^ env->CP0_Cause) & (1 << (CP0Ca_IP + i))) {
-            cpu_mips_soft_irq(env, i, env->CP0_Cause & (1 << (CP0Ca_IP + i)));
+        if ((old ^ cpu->CP0_Cause) & (1 << (CP0Ca_IP + i))) {
+            cpu_mips_soft_irq(cpu, i, cpu->CP0_Cause & (1 << (CP0Ca_IP + i)));
         }
     }
+}
+
+void helper_mtc0_cause(target_ulong arg1)
+{
+    mtc0_cause(env, arg1);
+}
+
+void helper_mttc0_cause(target_ulong arg1)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+
+    mtc0_cause(other, arg1);
+}
+
+target_ulong helper_mftc0_epc(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+
+    return other->CP0_EPC;
+}
+
+target_ulong helper_mftc0_ebase(void)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+
+    return other->CP0_EBase;
 }
 
 void helper_mtc0_ebase (target_ulong arg1)
 {
     /* vectored interrupts not implemented */
     env->CP0_EBase = (env->CP0_EBase & ~0x3FFFF000) | (arg1 & 0x3FFFF000);
+}
+
+void helper_mttc0_ebase(target_ulong arg1)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+    other->CP0_EBase = (other->CP0_EBase & ~0x3FFFF000) | (arg1 & 0x3FFFF000);
+}
+
+target_ulong helper_mftc0_configx(target_ulong idx)
+{
+    int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
+    CPUState *other = mips_cpu_map_tc(&other_tc);
+
+    switch (idx) {
+    case 0: return other->CP0_Config0;
+    case 1: return other->CP0_Config1;
+    case 2: return other->CP0_Config2;
+    case 3: return other->CP0_Config3;
+    /* 4 and 5 are reserved.  */
+    case 6: return other->CP0_Config6;
+    case 7: return other->CP0_Config7;
+    default:
+        break;
+    }
+    return 0;
 }
 
 void helper_mtc0_config0 (target_ulong arg1)

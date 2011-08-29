@@ -5537,6 +5537,19 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
         tcg_gen_movi_tl(t0, -1);
     else if (u == 0) {
         switch (rt) {
+        case 1:
+            switch (sel) {
+            case 1:
+                gen_helper_mftc0_vpecontrol(t0);
+                break;
+            case 2:
+                gen_helper_mftc0_vpeconf0(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
         case 2:
             switch (sel) {
             case 1:
@@ -5583,6 +5596,46 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
                 gen_mfc0(env, ctx, t0, rt, sel);
                 break;
             }
+        case 13:
+            switch (sel) {
+            case 0:
+                gen_helper_mftc0_cause(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
+        case 14:
+            switch (sel) {
+            case 0:
+                gen_helper_mftc0_epc(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
+        case 15:
+            switch (sel) {
+            case 1:
+                gen_helper_mftc0_ebase(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
+        case 16:
+            switch (sel) {
+            case 0 ... 7:
+                gen_helper_mftc0_configx(t0, tcg_const_tl(sel));
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
         case 23:
             switch (sel) {
             case 0:
@@ -5702,6 +5755,19 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd, int rt,
         /* NOP */ ;
     else if (u == 0) {
         switch (rd) {
+        case 1:
+            switch (sel) {
+            case 1:
+                gen_helper_mttc0_vpecontrol(t0);
+                break;
+            case 2:
+                gen_helper_mttc0_vpeconf0(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
         case 2:
             switch (sel) {
             case 1:
@@ -5748,6 +5814,26 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd, int rt,
                 gen_mtc0(env, ctx, t0, rd, sel);
                 break;
             }
+        case 13:
+            switch (sel) {
+            case 0:
+                gen_helper_mttc0_cause(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
+        case 15:
+            switch (sel) {
+            case 1:
+                gen_helper_mttc0_ebase(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
         case 23:
             switch (sel) {
             case 0:
