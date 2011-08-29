@@ -580,7 +580,7 @@ static void mvp_init (CPUMIPSState *env, const mips_def_t *def)
 //                             (1 << CP0MVPC0_TCA) | (0x1 << CP0MVPC0_PVPE) |
 //                             (0x04 << CP0MVPC0_PTC);
                              (1 << CP0MVPC0_TCA) | (0x0 << CP0MVPC0_PVPE) |
-                             (0x04 << CP0MVPC0_PTC);
+                             (0x00 << CP0MVPC0_PTC);
 #if !defined(CONFIG_USER_ONLY)
     /* Usermode has no TLB support */
     env->mvp->CP0_MVPConf0 |= (env->tlb->nb_tlb << CP0MVPC0_PTLBE);
