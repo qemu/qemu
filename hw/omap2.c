@@ -2402,7 +2402,8 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
     sysbus_mmio_map(busdev, 4, omap_l4_region_base(ta, 5));
 
     s->sdrc = omap_sdrc_init(0x68009000);
-    s->gpmc = omap_gpmc_init(0x6800a000, s->irq[0][OMAP_INT_24XX_GPMC_IRQ]);
+    s->gpmc = omap_gpmc_init(s, 0x6800a000, s->irq[0][OMAP_INT_24XX_GPMC_IRQ],
+                             s->drq[OMAP24XX_DMA_GPMC]);
 
     dinfo = drive_get(IF_SD, 0, 0);
     if (!dinfo) {
