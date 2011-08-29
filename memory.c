@@ -304,7 +304,7 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
     }
 
     if (!fr->readable) {
-        phys_offset &= TARGET_PAGE_MASK;
+        phys_offset &= ~TARGET_PAGE_MASK & ~IO_MEM_ROMD;
     }
 
     cpu_register_physical_memory_log(fr->addr.start,
