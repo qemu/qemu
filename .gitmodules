@@ -10,3 +10,6 @@
 [submodule "roms/ipxe"]
 	path = roms/ipxe
 	url = git://git.qemu.org/ipxe.git
+[submodule "roms/openbios"]
+	path = roms/openbios
+	url = git://git.qemu.org/openbios.git
