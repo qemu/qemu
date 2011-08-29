@@ -1542,7 +1542,7 @@ void helper_mttc0_status(target_ulong arg1)
 void helper_mtc0_intctl (target_ulong arg1)
 {
     /* vectored interrupts not implemented, no performance counters. */
-    env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000002e0) | (arg1 & 0x000002e0);
+    env->CP0_IntCtl = (env->CP0_IntCtl & ~0x000003e0) | (arg1 & 0x000003e0);
 }
 
 void helper_mtc0_srsctl (target_ulong arg1)
