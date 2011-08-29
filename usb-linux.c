@@ -67,12 +67,10 @@ typedef int USBScanFunc(void *opaque, int bus_num, int addr, const char *port,
 #endif
 
 #define PRODUCT_NAME_SZ 32
-#define MAX_ENDPOINTS 15
 #define MAX_PORTLEN 16
 
 /* endpoint association data */
 #define ISO_FRAME_DESC_PER_URB 32
-#define INVALID_EP_TYPE 255
 
 /* devio.c limits single requests to 16k */
 #define MAX_USBFS_BUFFER_SIZE 16384
@@ -80,7 +78,6 @@ typedef int USBScanFunc(void *opaque, int bus_num, int addr, const char *port,
 typedef struct AsyncURB AsyncURB;
 
 struct endp_data {
-    uint8_t type;
     uint8_t halted;
     uint8_t iso_started;
     AsyncURB *iso_urb;
@@ -110,8 +107,8 @@ typedef struct USBHostDevice {
     uint32_t  iso_urb_count;
     Notifier  exit;
 
-    struct endp_data ep_in[MAX_ENDPOINTS];
-    struct endp_data ep_out[MAX_ENDPOINTS];
+    struct endp_data ep_in[USB_MAX_ENDPOINTS];
+    struct endp_data ep_out[USB_MAX_ENDPOINTS];
     QLIST_HEAD(, AsyncURB) aurbs;
 
     /* Host side address */
@@ -132,6 +129,19 @@ static void usb_host_auto_check(void *unused);
 static int usb_host_read_file(char *line, size_t line_size,
                             const char *device_file, const char *device_name);
 static int usb_linux_update_endp_table(USBHostDevice *s);
+
+static int usb_host_usbfs_type(USBHostDevice *s, USBPacket *p)
+{
+    static const int usbfs[] = {
+        [USB_ENDPOINT_XFER_CONTROL] = USBDEVFS_URB_TYPE_CONTROL,
+        [USB_ENDPOINT_XFER_ISOC]    = USBDEVFS_URB_TYPE_ISO,
+        [USB_ENDPOINT_XFER_BULK]    = USBDEVFS_URB_TYPE_BULK,
+        [USB_ENDPOINT_XFER_INT]     = USBDEVFS_URB_TYPE_INTERRUPT,
+    };
+    uint8_t type = usb_ep_get_type(&s->dev, p->pid, p->devep);
+    assert(type < ARRAY_SIZE(usbfs));
+    return usbfs[type];
+}
 
 static int usb_host_do_reset(USBHostDevice *dev)
 {
@@ -156,18 +166,18 @@ static struct endp_data *get_endp(USBHostDevice *s, int pid, int ep)
 {
     struct endp_data *eps = pid == USB_TOKEN_IN ? s->ep_in : s->ep_out;
     assert(pid == USB_TOKEN_IN || pid == USB_TOKEN_OUT);
-    assert(ep > 0 && ep <= MAX_ENDPOINTS);
+    assert(ep > 0 && ep <= USB_MAX_ENDPOINTS);
     return eps + ep - 1;
 }
 
 static int is_isoc(USBHostDevice *s, int pid, int ep)
 {
-    return get_endp(s, pid, ep)->type == USBDEVFS_URB_TYPE_ISO;
+    return usb_ep_get_type(&s->dev, pid, ep) == USB_ENDPOINT_XFER_ISOC;
 }
 
 static int is_valid(USBHostDevice *s, int pid, int ep)
 {
-    return get_endp(s, pid, ep)->type != INVALID_EP_TYPE;
+    return usb_ep_get_type(&s->dev, pid, ep) != USB_ENDPOINT_XFER_INVALID;
 }
 
 static int is_halted(USBHostDevice *s, int pid, int ep)
@@ -896,7 +906,7 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
 
         urb = &aurb->urb;
         urb->endpoint      = ep;
-        urb->type          = USBDEVFS_URB_TYPE_BULK;
+        urb->type          = usb_host_usbfs_type(s, p);
         urb->usercontext   = s;
         urb->buffer        = pbuf;
         urb->buffer_length = prem;
@@ -992,7 +1002,7 @@ static int usb_host_set_interface(USBHostDevice *s, int iface, int alt)
 
     trace_usb_host_set_interface(s->bus_num, s->addr, iface, alt);
 
-    for (i = 1; i <= MAX_ENDPOINTS; i++) {
+    for (i = 1; i <= USB_MAX_ENDPOINTS; i++) {
         if (is_isoc(s, USB_TOKEN_IN, i)) {
             usb_host_stop_n_free_iso(s, USB_TOKEN_IN, i);
         }
@@ -1126,10 +1136,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     int interface, length, i, ep, pid;
     struct endp_data *epd;
 
-    for (i = 0; i < MAX_ENDPOINTS; i++) {
-        s->ep_in[i].type = INVALID_EP_TYPE;
-        s->ep_out[i].type = INVALID_EP_TYPE;
-    }
+    usb_ep_init(&s->dev);
 
     if (s->dev.configuration == 0) {
         /* not configured yet -- leave all endpoints disabled */
@@ -1192,27 +1199,15 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
                 return 1;
             }
 
-            switch (descriptors[i + 3] & 0x3) {
-            case 0x00:
-                type = USBDEVFS_URB_TYPE_CONTROL;
-                break;
-            case 0x01:
-                type = USBDEVFS_URB_TYPE_ISO;
+            type = descriptors[i + 3] & 0x3;
+            if (type == USB_ENDPOINT_XFER_ISOC) {
                 set_max_packet_size(s, pid, ep, descriptors + i);
-                break;
-            case 0x02:
-                type = USBDEVFS_URB_TYPE_BULK;
-                break;
-            case 0x03:
-                type = USBDEVFS_URB_TYPE_INTERRUPT;
-                break;
-            default:
-                DPRINTF("usb_host: malformed endpoint type\n");
-                type = USBDEVFS_URB_TYPE_BULK;
-            }
+            };
+            assert(usb_ep_get_type(&s->dev, pid, ep) ==
+                   USB_ENDPOINT_XFER_INVALID);
+            usb_ep_set_type(&s->dev, pid, ep, type);
+
             epd = get_endp(s, pid, ep);
-            assert(epd->type == INVALID_EP_TYPE);
-            epd->type = type;
             epd->halted = 0;
 
             i += descriptors[i];
@@ -1371,7 +1366,7 @@ static int usb_host_close(USBHostDevice *dev)
 
     qemu_set_fd_handler(dev->fd, NULL, NULL, NULL);
     dev->closing = 1;
-    for (i = 1; i <= MAX_ENDPOINTS; i++) {
+    for (i = 1; i <= USB_MAX_ENDPOINTS; i++) {
         if (is_isoc(dev, USB_TOKEN_IN, i)) {
             usb_host_stop_n_free_iso(dev, USB_TOKEN_IN, i);
         }

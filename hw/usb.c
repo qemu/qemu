@@ -414,3 +414,33 @@ void usb_packet_cleanup(USBPacket *p)
 {
     qemu_iovec_destroy(&p->iov);
 }
+
+void usb_ep_init(USBDevice *dev)
+{
+    int ep;
+
+    for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
+        dev->ep_in[ep].type = USB_ENDPOINT_XFER_INVALID;
+        dev->ep_out[ep].type = USB_ENDPOINT_XFER_INVALID;
+    }
+}
+
+struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)
+{
+    struct USBEndpoint *eps = pid == USB_TOKEN_IN ? dev->ep_in : dev->ep_out;
+    assert(pid == USB_TOKEN_IN || pid == USB_TOKEN_OUT);
+    assert(ep > 0 && ep <= USB_MAX_ENDPOINTS);
+    return eps + ep - 1;
+}
+
+uint8_t usb_ep_get_type(USBDevice *dev, int pid, int ep)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    return uep->type;
+}
+
+void usb_ep_set_type(USBDevice *dev, int pid, int ep, uint8_t type)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    uep->type = type;
+}
