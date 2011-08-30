@@ -3872,8 +3872,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
                     omap_findclk(s, "clk32-kHz"));
 
     s->lcd = omap_lcdc_init(0xfffec000, s->irq[0][OMAP_INT_LCD_CTRL],
-                    omap_dma_get_lcdch(s->dma), imif_base, emiff_base,
-                    omap_findclk(s, "lcd_ck"));
+                    omap_dma_get_lcdch(s->dma), omap_findclk(s, "lcd_ck"));
 
     omap_ulpd_pm_init(system_memory, 0xfffe0800, s);
     omap_pin_cfg_init(system_memory, 0xfffe1000, s);
