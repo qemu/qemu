@@ -32,7 +32,6 @@
 #include "bt.h"
 #include "loader.h"
 #include "blockdev.h"
-#include "tusb6010.h"
 #include "sysbus.h"
 
 /* Nokia N8x0 support */
@@ -50,7 +49,7 @@ struct n800_s {
     int keymap[0x80];
     DeviceState *kbd;
 
-    TUSBState *usb;
+    DeviceState *usb;
     void *retu;
     void *tahvo;
     DeviceState *nand;
@@ -765,25 +764,21 @@ static void n8x0_uart_setup(struct n800_s *s)
     omap_uart_attach(s->cpu->uart[BT_UART], radio);
 }
 
-static void n8x0_usb_power_cb(void *opaque, int line, int level)
-{
-    struct n800_s *s = opaque;
-
-    tusb6010_power(s->usb, level);
-}
-
 static void n8x0_usb_setup(struct n800_s *s)
 {
-    qemu_irq tusb_irq = qdev_get_gpio_in(s->cpu->gpio, N8X0_TUSB_INT_GPIO);
-    qemu_irq tusb_pwr = qemu_allocate_irqs(n8x0_usb_power_cb, s, 1)[0];
-    TUSBState *tusb = tusb6010_init(tusb_irq);
-
+    SysBusDevice *dev;
+    s->usb = qdev_create(NULL, "tusb6010");
+    dev = sysbus_from_qdev(s->usb);
+    qdev_init_nofail(s->usb);
+    sysbus_connect_irq(dev, 0,
+                       qdev_get_gpio_in(s->cpu->gpio, N8X0_TUSB_INT_GPIO));
     /* Using the NOR interface */
-    omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_ASYNC_CS, tusb6010_async_io(tusb));
-    omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_SYNC_CS, tusb6010_sync_io(tusb));
-
-    s->usb = tusb;
-    qdev_connect_gpio_out(s->cpu->gpio, N8X0_TUSB_ENABLE_GPIO, tusb_pwr);
+    omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_ASYNC_CS,
+                     sysbus_mmio_get_region(dev, 0));
+    omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_SYNC_CS,
+                     sysbus_mmio_get_region(dev, 1));
+    qdev_connect_gpio_out(s->cpu->gpio, N8X0_TUSB_ENABLE_GPIO,
+                          qdev_get_gpio_in(s->usb, 0)); /* tusb_pwr */
 }
 
 /* Setup done before the main bootloader starts by some early setup code
