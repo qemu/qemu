@@ -236,6 +236,10 @@ static int raw_open_common(BlockDriverState *bs, const char *filename,
     }
 
 #ifdef CONFIG_LINUX_AIO
+    /*
+     * Currently Linux do AIO only for files opened with O_DIRECT
+     * specified so check NOCACHE flag too
+     */
     if ((bdrv_flags & (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) ==
                       (BDRV_O_NOCACHE|BDRV_O_NATIVE_AIO)) {
 
