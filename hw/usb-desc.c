@@ -231,6 +231,27 @@ int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
 
 /* ------------------------------------------------------------------ */
 
+static void usb_desc_ep_init(USBDevice *dev)
+{
+    const USBDescIface *iface;
+    int i, e, pid, ep;
+
+    usb_ep_init(dev);
+    for (i = 0; i < dev->ninterfaces; i++) {
+        iface = dev->ifaces[i];
+        if (iface == NULL) {
+            continue;
+        }
+        for (e = 0; e < iface->bNumEndpoints; e++) {
+            pid = (iface->eps[e].bEndpointAddress & USB_DIR_IN) ?
+                USB_TOKEN_IN : USB_TOKEN_OUT;
+            ep = iface->eps[e].bEndpointAddress & 0x0f;
+            usb_ep_set_type(dev, pid, ep, iface->eps[e].bmAttributes & 0x03);
+            usb_ep_set_ifnum(dev, pid, ep, iface->bInterfaceNumber);
+        }
+    }
+}
+
 static const USBDescIface *usb_desc_find_interface(USBDevice *dev,
                                                    int nif, int alt)
 {
@@ -272,6 +293,7 @@ static int usb_desc_set_interface(USBDevice *dev, int index, int value)
     old = dev->altsetting[index];
     dev->altsetting[index] = value;
     dev->ifaces[index] = iface;
+    usb_desc_ep_init(dev);
 
     if (dev->info->set_interface && old != value) {
         dev->info->set_interface(dev, index, old, value);
