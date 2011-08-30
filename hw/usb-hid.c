@@ -384,13 +384,6 @@ static int usb_hid_handle_control(USBDevice *dev, USBPacket *p,
 
     ret = 0;
     switch (request) {
-    case DeviceRequest | USB_REQ_GET_INTERFACE:
-        data[0] = 0;
-        ret = 1;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_INTERFACE:
-        ret = 0;
-        break;
         /* hid specific requests */
     case InterfaceRequest | USB_REQ_GET_DESCRIPTOR:
         switch (value >> 8) {

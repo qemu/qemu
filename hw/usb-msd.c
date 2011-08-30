@@ -306,17 +306,7 @@ static int usb_msd_handle_control(USBDevice *dev, USBPacket *p,
 
     ret = 0;
     switch (request) {
-    case DeviceRequest | USB_REQ_GET_INTERFACE:
-        data[0] = 0;
-        ret = 1;
-        break;
-    case DeviceOutRequest | USB_REQ_SET_INTERFACE:
-        ret = 0;
-        break;
     case EndpointOutRequest | USB_REQ_CLEAR_FEATURE:
-        ret = 0;
-        break;
-    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
         ret = 0;
         break;
         /* Class specific requests.  */

@@ -161,6 +161,9 @@ struct USBDescString {
     QLIST_ENTRY(USBDescString) next;
 };
 
+#define USB_MAX_ENDPOINTS  15
+#define USB_MAX_INTERFACES 16
+
 /* definition of a USB device */
 struct USBDevice {
     DeviceState qdev;
@@ -191,7 +194,9 @@ struct USBDevice {
 
     int configuration;
     int ninterfaces;
+    int altsetting[USB_MAX_INTERFACES];
     const USBDescConfig *config;
+    const USBDescIface  *ifaces[USB_MAX_INTERFACES];
 };
 
 struct USBDeviceInfo {
@@ -243,6 +248,9 @@ struct USBDeviceInfo {
      * Returns length or one of the USB_RET_ codes.
      */
     int (*handle_data)(USBDevice *dev, USBPacket *p);
+
+    void (*set_interface)(USBDevice *dev, int interface,
+                          int alt_old, int alt_new);
 
     const char *product_desc;
     const USBDesc *usb_desc;

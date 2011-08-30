@@ -544,6 +544,10 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
     int interface, nb_interfaces;
     int ret, i;
 
+    for (i = 0; i < USB_MAX_INTERFACES; i++) {
+        dev->dev.altsetting[i] = 0;
+    }
+
     if (configuration == 0) { /* address state - ignore */
         dev->dev.ninterfaces   = 0;
         dev->dev.configuration = 0;
@@ -997,6 +1001,10 @@ static int usb_host_set_interface(USBHostDevice *s, int iface, int alt)
         }
     }
 
+    if (iface >= USB_MAX_INTERFACES) {
+        return USB_RET_STALL;
+    }
+
     si.interface  = iface;
     si.altsetting = alt;
     ret = ioctl(s->fd, USBDEVFS_SETINTERFACE, &si);
@@ -1007,6 +1015,8 @@ static int usb_host_set_interface(USBHostDevice *s, int iface, int alt)
     if (ret < 0) {
         return ctrl_error();
     }
+
+    s->dev.altsetting[iface] = alt;
     usb_linux_update_endp_table(s);
     return 0;
 }

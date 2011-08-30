@@ -1098,17 +1098,6 @@ static int usb_net_handle_control(USBDevice *dev, USBPacket *p,
 #endif
         break;
 
-    case DeviceRequest | USB_REQ_GET_INTERFACE:
-    case InterfaceRequest | USB_REQ_GET_INTERFACE:
-        data[0] = 0;
-        ret = 1;
-        break;
-
-    case DeviceOutRequest | USB_REQ_SET_INTERFACE:
-    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
-        ret = 0;
-        break;
-
     default:
     fail:
         fprintf(stderr, "usbnet: failed control transaction: "
