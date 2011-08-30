@@ -13,6 +13,6 @@ enum {
 
 qemu_irq *openpic_init (PCIBus *bus, MemoryRegion **pmem, int nb_cpus,
                         qemu_irq **irqs, qemu_irq irq_out);
-qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
-                        qemu_irq **irqs, qemu_irq irq_out);
+qemu_irq *mpic_init (MemoryRegion *address_space, target_phys_addr_t base,
+                     int nb_cpus, qemu_irq **irqs, qemu_irq irq_out);
 #endif /* __OPENPIC_H__ */

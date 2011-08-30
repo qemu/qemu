@@ -206,6 +206,10 @@ typedef struct IRQ_dst_t {
 typedef struct openpic_t {
     PCIDevice pci_dev;
     MemoryRegion mem;
+
+    /* Sub-regions */
+    MemoryRegion sub_io_mem[7];
+
     /* Global registers */
     uint32_t frep; /* Feature reporting register */
     uint32_t glbc; /* Global configuration register  */
@@ -1537,107 +1541,122 @@ static uint32_t mpic_src_msi_read (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc * const mpic_glb_write[] = {
-    &openpic_buggy_write,
-    &openpic_buggy_write,
-    &openpic_gbl_write,
+static const MemoryRegionOps mpic_glb_ops = {
+    .old_mmio = {
+        .write = { openpic_buggy_write,
+                   openpic_buggy_write,
+                   openpic_gbl_write,
+        },
+        .read  = { openpic_buggy_read,
+                   openpic_buggy_read,
+                   openpic_gbl_read,
+        },
+    },
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static CPUReadMemoryFunc * const mpic_glb_read[] = {
-    &openpic_buggy_read,
-    &openpic_buggy_read,
-    &openpic_gbl_read,
+static const MemoryRegionOps mpic_tmr_ops = {
+    .old_mmio = {
+        .write = { openpic_buggy_write,
+                   openpic_buggy_write,
+                   mpic_timer_write,
+        },
+        .read  = { openpic_buggy_read,
+                   openpic_buggy_read,
+                   mpic_timer_read,
+        },
+    },
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const mpic_tmr_write[] = {
-    &openpic_buggy_write,
-    &openpic_buggy_write,
-    &mpic_timer_write,
+static const MemoryRegionOps mpic_cpu_ops = {
+    .old_mmio = {
+        .write = { openpic_buggy_write,
+                   openpic_buggy_write,
+                   openpic_cpu_write,
+        },
+        .read  = { openpic_buggy_read,
+                   openpic_buggy_read,
+                   openpic_cpu_read,
+        },
+    },
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static CPUReadMemoryFunc * const mpic_tmr_read[] = {
-    &openpic_buggy_read,
-    &openpic_buggy_read,
-    &mpic_timer_read,
+static const MemoryRegionOps mpic_ext_ops = {
+    .old_mmio = {
+        .write = { openpic_buggy_write,
+                   openpic_buggy_write,
+                   mpic_src_ext_write,
+        },
+        .read  = { openpic_buggy_read,
+                   openpic_buggy_read,
+                   mpic_src_ext_read,
+        },
+    },
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const mpic_cpu_write[] = {
-    &openpic_buggy_write,
-    &openpic_buggy_write,
-    &openpic_cpu_write,
+static const MemoryRegionOps mpic_int_ops = {
+    .old_mmio = {
+        .write = { openpic_buggy_write,
+                   openpic_buggy_write,
+                   mpic_src_int_write,
+        },
+        .read  = { openpic_buggy_read,
+                   openpic_buggy_read,
+                   mpic_src_int_read,
+        },
+    },
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static CPUReadMemoryFunc * const mpic_cpu_read[] = {
-    &openpic_buggy_read,
-    &openpic_buggy_read,
-    &openpic_cpu_read,
+static const MemoryRegionOps mpic_msg_ops = {
+    .old_mmio = {
+        .write = { openpic_buggy_write,
+                   openpic_buggy_write,
+                   mpic_src_msg_write,
+        },
+        .read  = { openpic_buggy_read,
+                   openpic_buggy_read,
+                   mpic_src_msg_read,
+        },
+    },
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const mpic_ext_write[] = {
-    &openpic_buggy_write,
-    &openpic_buggy_write,
-    &mpic_src_ext_write,
+static const MemoryRegionOps mpic_msi_ops = {
+    .old_mmio = {
+        .write = { openpic_buggy_write,
+                   openpic_buggy_write,
+                   mpic_src_msi_write,
+        },
+        .read  = { openpic_buggy_read,
+                   openpic_buggy_read,
+                   mpic_src_msi_read,
+        },
+    },
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
-static CPUReadMemoryFunc * const mpic_ext_read[] = {
-    &openpic_buggy_read,
-    &openpic_buggy_read,
-    &mpic_src_ext_read,
-};
-
-static CPUWriteMemoryFunc * const mpic_int_write[] = {
-    &openpic_buggy_write,
-    &openpic_buggy_write,
-    &mpic_src_int_write,
-};
-
-static CPUReadMemoryFunc * const mpic_int_read[] = {
-    &openpic_buggy_read,
-    &openpic_buggy_read,
-    &mpic_src_int_read,
-};
-
-static CPUWriteMemoryFunc * const mpic_msg_write[] = {
-    &openpic_buggy_write,
-    &openpic_buggy_write,
-    &mpic_src_msg_write,
-};
-
-static CPUReadMemoryFunc * const mpic_msg_read[] = {
-    &openpic_buggy_read,
-    &openpic_buggy_read,
-    &mpic_src_msg_read,
-};
-static CPUWriteMemoryFunc * const mpic_msi_write[] = {
-    &openpic_buggy_write,
-    &openpic_buggy_write,
-    &mpic_src_msi_write,
-};
-
-static CPUReadMemoryFunc * const mpic_msi_read[] = {
-    &openpic_buggy_read,
-    &openpic_buggy_read,
-    &mpic_src_msi_read,
-};
-
-qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
-                        qemu_irq **irqs, qemu_irq irq_out)
+qemu_irq *mpic_init (MemoryRegion *address_space, target_phys_addr_t base,
+                     int nb_cpus, qemu_irq **irqs, qemu_irq irq_out)
 {
-    openpic_t *mpp;
-    int i;
+    openpic_t    *mpp;
+    int           i;
     struct {
-        CPUReadMemoryFunc * const *read;
-        CPUWriteMemoryFunc * const *write;
-        target_phys_addr_t start_addr;
-        ram_addr_t size;
+        const char             *name;
+        MemoryRegionOps const  *ops;
+        target_phys_addr_t      start_addr;
+        ram_addr_t              size;
     } const list[] = {
-        {mpic_glb_read, mpic_glb_write, MPIC_GLB_REG_START, MPIC_GLB_REG_SIZE},
-        {mpic_tmr_read, mpic_tmr_write, MPIC_TMR_REG_START, MPIC_TMR_REG_SIZE},
-        {mpic_ext_read, mpic_ext_write, MPIC_EXT_REG_START, MPIC_EXT_REG_SIZE},
-        {mpic_int_read, mpic_int_write, MPIC_INT_REG_START, MPIC_INT_REG_SIZE},
-        {mpic_msg_read, mpic_msg_write, MPIC_MSG_REG_START, MPIC_MSG_REG_SIZE},
-        {mpic_msi_read, mpic_msi_write, MPIC_MSI_REG_START, MPIC_MSI_REG_SIZE},
-        {mpic_cpu_read, mpic_cpu_write, MPIC_CPU_REG_START, MPIC_CPU_REG_SIZE},
+        {"glb", &mpic_glb_ops, MPIC_GLB_REG_START, MPIC_GLB_REG_SIZE},
+        {"tmr", &mpic_tmr_ops, MPIC_TMR_REG_START, MPIC_TMR_REG_SIZE},
+        {"ext", &mpic_ext_ops, MPIC_EXT_REG_START, MPIC_EXT_REG_SIZE},
+        {"int", &mpic_int_ops, MPIC_INT_REG_START, MPIC_INT_REG_SIZE},
+        {"msg", &mpic_msg_ops, MPIC_MSG_REG_START, MPIC_MSG_REG_SIZE},
+        {"msi", &mpic_msi_ops, MPIC_MSI_REG_START, MPIC_MSI_REG_SIZE},
+        {"cpu", &mpic_cpu_ops, MPIC_CPU_REG_START, MPIC_CPU_REG_SIZE},
     };
 
     /* XXX: for now, only one CPU is supported */
@@ -1646,16 +1665,16 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
 
     mpp = g_malloc0(sizeof(openpic_t));
 
-    for (i = 0; i < sizeof(list)/sizeof(list[0]); i++) {
-        int mem_index;
+    memory_region_init(&mpp->mem, "mpic", 0x40000);
+    memory_region_add_subregion(address_space, base, &mpp->mem);
 
-        mem_index = cpu_register_io_memory(list[i].read, list[i].write, mpp,
-                                           DEVICE_BIG_ENDIAN);
-        if (mem_index < 0) {
-            goto free;
-        }
-        cpu_register_physical_memory(base + list[i].start_addr,
-                                     list[i].size, mem_index);
+    for (i = 0; i < sizeof(list)/sizeof(list[0]); i++) {
+
+        memory_region_init_io(&mpp->sub_io_mem[i], list[i].ops, mpp,
+                              list[i].name, list[i].size);
+
+        memory_region_add_subregion(&mpp->mem, list[i].start_addr,
+                                    &mpp->sub_io_mem[i]);
     }
 
     mpp->nb_cpus = nb_cpus;
@@ -1674,8 +1693,4 @@ qemu_irq *mpic_init (target_phys_addr_t base, int nb_cpus,
     qemu_register_reset(mpic_reset, mpp);
 
     return qemu_allocate_irqs(openpic_set_irq, mpp, mpp->max_irq);
-
-free:
-    g_free(mpp);
-    return NULL;
 }
