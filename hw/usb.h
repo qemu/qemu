@@ -188,6 +188,9 @@ struct USBDevice {
 
     QLIST_HEAD(, USBDescString) strings;
     const USBDescDevice *device;
+
+    int configuration;
+    int ninterfaces;
     const USBDescConfig *config;
 };
 

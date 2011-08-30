@@ -223,6 +223,29 @@ int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
 
 /* ------------------------------------------------------------------ */
 
+static int usb_desc_set_config(USBDevice *dev, int value)
+{
+    int i;
+
+    if (value == 0) {
+        dev->configuration = 0;
+        dev->ninterfaces   = 0;
+        dev->config = NULL;
+    } else {
+        for (i = 0; i < dev->device->bNumConfigurations; i++) {
+            if (dev->device->confs[i].bConfigurationValue == value) {
+                dev->configuration = value;
+                dev->ninterfaces   = dev->device->confs[i].bNumInterfaces;
+                dev->config = dev->device->confs + i;
+            }
+        }
+        if (i < dev->device->bNumConfigurations) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static void usb_desc_setdefaults(USBDevice *dev)
 {
     const USBDesc *desc = dev->info->usb_desc;
@@ -237,7 +260,7 @@ static void usb_desc_setdefaults(USBDevice *dev)
         dev->device = desc->high;
         break;
     }
-    dev->config = dev->device->confs;
+    usb_desc_set_config(dev, 0);
 }
 
 void usb_desc_init(USBDevice *dev)
@@ -408,7 +431,7 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         int request, int value, int index, int length, uint8_t *data)
 {
     const USBDesc *desc = dev->info->usb_desc;
-    int i, ret = -1;
+    int ret = -1;
 
     assert(desc != NULL);
     switch(request) {
@@ -427,12 +450,7 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         ret = 1;
         break;
     case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        for (i = 0; i < dev->device->bNumConfigurations; i++) {
-            if (dev->device->confs[i].bConfigurationValue == value) {
-                dev->config = dev->device->confs + i;
-                ret = 0;
-            }
-        }
+        ret = usb_desc_set_config(dev, value);
         trace_usb_set_config(dev->addr, value, ret);
         break;
 

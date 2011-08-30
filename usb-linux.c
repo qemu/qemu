@@ -106,8 +106,6 @@ typedef struct USBHostDevice {
 
     uint8_t   descr[8192];
     int       descr_len;
-    int       configuration;
-    int       ninterfaces;
     int       closing;
     uint32_t  iso_urb_count;
     Notifier  exit;
@@ -547,8 +545,8 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
     int ret, i;
 
     if (configuration == 0) { /* address state - ignore */
-        dev->ninterfaces   = 0;
-        dev->configuration = 0;
+        dev->dev.ninterfaces   = 0;
+        dev->dev.configuration = 0;
         return 1;
     }
 
@@ -606,8 +604,8 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
     trace_usb_host_claim_interfaces(dev->bus_num, dev->addr,
                                     nb_interfaces, configuration);
 
-    dev->ninterfaces   = nb_interfaces;
-    dev->configuration = configuration;
+    dev->dev.ninterfaces   = nb_interfaces;
+    dev->dev.configuration = configuration;
     return 1;
 
 fail:
@@ -624,7 +622,7 @@ static int usb_host_release_interfaces(USBHostDevice *s)
 
     trace_usb_host_release_interfaces(s->bus_num, s->addr);
 
-    for (i = 0; i < s->ninterfaces; i++) {
+    for (i = 0; i < s->dev.ninterfaces; i++) {
         ret = ioctl(s->fd, USBDEVFS_RELEASEINTERFACE, &i);
         if (ret < 0) {
             perror("USBDEVFS_RELEASEINTERFACE");
@@ -1123,7 +1121,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
         s->ep_out[i].type = INVALID_EP_TYPE;
     }
 
-    if (s->configuration == 0) {
+    if (s->dev.configuration == 0) {
         /* not configured yet -- leave all endpoints disabled */
         return 0;
     }
@@ -1138,12 +1136,11 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
         if (descriptors[i + 1] != USB_DT_CONFIG) {
             fprintf(stderr, "invalid descriptor data\n");
             return 1;
-        } else if (descriptors[i + 5] != s->configuration) {
-            DPRINTF("not requested configuration %d\n", s->configuration);
+        } else if (descriptors[i + 5] != s->dev.configuration) {
+            DPRINTF("not requested configuration %d\n", s->dev.configuration);
             i += (descriptors[i + 3] << 8) + descriptors[i + 2];
             continue;
         }
-
         i += descriptors[i];
 
         if (descriptors[i + 1] != USB_DT_INTERFACE ||
@@ -1154,7 +1151,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
         }
 
         interface = descriptors[i + 2];
-        alt_interface = usb_linux_get_alt_setting(s, s->configuration,
+        alt_interface = usb_linux_get_alt_setting(s, s->dev.configuration,
                                                   interface);
 
         /* the current interface descriptor is the active interface
