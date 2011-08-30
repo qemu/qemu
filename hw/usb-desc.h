@@ -75,7 +75,7 @@ struct USBDescEndpoint {
 
 struct USBDescOther {
     uint8_t                   length;
-    uint8_t                   *data;
+    const uint8_t             *data;
 };
 
 typedef const char *USBDescStrings[256];
