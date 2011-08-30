@@ -105,9 +105,3 @@ static inline void soc_dma_port_add_fifo_out(struct soc_dma_s *dma,
 {
     return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 1);
 }
-
-static inline void soc_dma_port_add_mem_ram(struct soc_dma_s *dma,
-                ram_addr_t offset, target_phys_addr_t virt_base, size_t size)
-{
-    return soc_dma_port_add_mem(dma, qemu_get_ram_ptr(offset), virt_base, size);
-}
