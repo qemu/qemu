@@ -18,6 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "memory.h"
+
 struct soc_dma_s;
 struct soc_dma_ch_s;
 typedef void (*soc_dma_io_t)(void *opaque, uint8_t *buf, int len);

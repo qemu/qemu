@@ -3793,7 +3793,6 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     int i;
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             g_malloc0(sizeof(struct omap_mpu_state_s));
-    ram_addr_t imif_base, emiff_base;
     qemu_irq *cpu_irq;
     qemu_irq dma_irqs[6];
     DriveInfo *dinfo;
@@ -3817,12 +3816,10 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     omap_clk_init(s);
 
     /* Memory-mapped stuff */
-    cpu_register_physical_memory(OMAP_EMIFF_BASE, s->sdram_size,
-                    (emiff_base = qemu_ram_alloc(NULL, "omap1.dram",
-                                                 s->sdram_size)) | IO_MEM_RAM);
-    cpu_register_physical_memory(OMAP_IMIF_BASE, s->sram_size,
-                    (imif_base = qemu_ram_alloc(NULL, "omap1.sram",
-                                                s->sram_size)) | IO_MEM_RAM);
+    memory_region_init_ram(&s->emiff_ram, NULL, "omap1.dram", s->sdram_size);
+    memory_region_add_subregion(system_memory, OMAP_EMIFF_BASE, &s->emiff_ram);
+    memory_region_init_ram(&s->imif_ram, NULL, "omap1.sram", s->sram_size);
+    memory_region_add_subregion(system_memory, OMAP_IMIF_BASE, &s->imif_ram);
 
     omap_clkm_init(system_memory, 0xfffece00, 0xe1008000, s);
 
@@ -3848,9 +3845,9 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     s->port[tipb_mpui].addr_valid = omap_validate_tipb_mpui_addr;
 
     /* Register SDRAM and SRAM DMA ports for fast transfers.  */
-    soc_dma_port_add_mem(s->dma, qemu_get_ram_ptr(emiff_base),
-                             OMAP_EMIFF_BASE, s->sdram_size);
-    soc_dma_port_add_mem(s->dma, qemu_get_ram_ptr(imif_base),
+    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(&s->emiff_ram),
+                         OMAP_EMIFF_BASE, s->sdram_size);
+    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(&s->imif_ram),
                          OMAP_IMIF_BASE, s->sram_size);
 
     s->timer[0] = omap_mpu_timer_init(system_memory, 0xfffec500,
