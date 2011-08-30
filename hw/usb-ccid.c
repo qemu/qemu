@@ -447,7 +447,7 @@ static const USBDescDevice desc_device = {
         {
             .bNumInterfaces        = 1,
             .bConfigurationValue   = 1,
-            .bmAttributes          = 0x80,
+            .bmAttributes          = 0xa0,
             .bMaxPower             = 50,
             .nif = 1,
             .ifs = &desc_iface0,
@@ -811,6 +811,7 @@ static void ccid_on_slot_change(USBCCIDState *s, bool full)
         s->bmSlotICCState |= SLOT_0_CHANGED_MASK;
     }
     s->notify_slot_change = true;
+    usb_wakeup(&s->dev);
 }
 
 static void ccid_write_data_block_error(
