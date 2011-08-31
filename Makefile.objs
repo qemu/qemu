@@ -380,7 +380,7 @@ else
 trace-obj-y = trace.o
 ifeq ($(TRACE_BACKEND),simple)
 trace-obj-y += simpletrace.o
-user-obj-y += qemu-timer-common.o
+trace-obj-y += qemu-timer-common.o
 endif
 endif
 
