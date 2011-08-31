@@ -64,6 +64,7 @@ enum {
 
 struct MilkymistVgafbState {
     SysBusDevice busdev;
+    MemoryRegion regs_region;
     DisplayState *ds;
 
     int invalidate;
@@ -153,7 +154,8 @@ static void vgafb_resize(MilkymistVgafbState *s)
     s->invalidate = 1;
 }
 
-static uint32_t vgafb_read(void *opaque, target_phys_addr_t addr)
+static uint64_t vgafb_read(void *opaque, target_phys_addr_t addr,
+                           unsigned size)
 {
     MilkymistVgafbState *s = opaque;
     uint32_t r = 0;
@@ -189,8 +191,8 @@ static uint32_t vgafb_read(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static void
-vgafb_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void vgafb_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+                        unsigned size)
 {
     MilkymistVgafbState *s = opaque;
 
@@ -238,16 +240,14 @@ vgafb_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc * const vgafb_read_fn[] = {
-   NULL,
-   NULL,
-   &vgafb_read
-};
-
-static CPUWriteMemoryFunc * const vgafb_write_fn[] = {
-   NULL,
-   NULL,
-   &vgafb_write
+static const MemoryRegionOps vgafb_mmio_ops = {
+    .read = vgafb_read,
+    .write = vgafb_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void milkymist_vgafb_reset(DeviceState *d)
@@ -269,11 +269,10 @@ static void milkymist_vgafb_reset(DeviceState *d)
 static int milkymist_vgafb_init(SysBusDevice *dev)
 {
     MilkymistVgafbState *s = FROM_SYSBUS(typeof(*s), dev);
-    int vgafb_regs;
 
-    vgafb_regs = cpu_register_io_memory(vgafb_read_fn, vgafb_write_fn, s,
-            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, vgafb_regs);
+    memory_region_init_io(&s->regs_region, &vgafb_mmio_ops, s,
+            "milkymist-vgafb", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->regs_region);
 
     s->ds = graphic_console_init(vgafb_update_display,
                                  vgafb_invalidate_display,
