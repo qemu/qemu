@@ -2454,7 +2454,8 @@ Immediately enable events listed in @var{file}.
 The file must contain one event name (as listed in the @var{trace-events} file)
 per line.
 
-This option is only available when using the @var{simple} tracing backend.
+This option is only available when using the @var{simple} and @var{stderr}
+tracing backends.
 @item file=@var{file}
 Log output traces to @var{file}.
 

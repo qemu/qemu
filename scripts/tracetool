@@ -241,7 +241,12 @@ linetoh_begin_stderr()
 {
     cat <<EOF
 #include <stdio.h>
+#include "trace/stderr.h"
+
+extern TraceEvent trace_list[];
 EOF
+
+    stderr_event_num=0
 }
 
 linetoh_stderr()
@@ -260,29 +265,47 @@ linetoh_stderr()
     cat <<EOF
 static inline void trace_$name($args)
 {
-    fprintf(stderr, "$name $fmt\n" $argnames);
+    if (trace_list[$stderr_event_num].state != 0) {
+        fprintf(stderr, "$name $fmt\n" $argnames);
+    }
 }
 EOF
+    stderr_event_num=$((stderr_event_num + 1))
+
 }
 
 linetoh_end_stderr()
 {
-return
+    cat <<EOF
+#define NR_TRACE_EVENTS $stderr_event_num
+EOF
 }
 
 linetoc_begin_stderr()
 {
-return
+    cat <<EOF
+#include "trace.h"
+
+TraceEvent trace_list[] = {
+EOF
+    stderr_event_num=0
 }
 
 linetoc_stderr()
 {
-return
+    local name
+    name=$(get_name "$1")
+    cat <<EOF
+{.tp_name = "$name", .state=0},
+EOF
+    stderr_event_num=$(($stderr_event_num + 1))
 }
 
 linetoc_end_stderr()
 {
-return
+    cat <<EOF
+};
+EOF
 }
 #END OF STDERR
 

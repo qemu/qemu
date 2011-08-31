@@ -3078,6 +3078,7 @@ if test "$trace_backend" = "simple"; then
 fi
 if test "$trace_backend" = "stderr"; then
   echo "CONFIG_TRACE_STDERR=y" >> $config_host_mak
+  trace_default=no
 fi
 if test "$trace_backend" = "ust"; then
   echo "CONFIG_TRACE_UST=y" >> $config_host_mak

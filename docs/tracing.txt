@@ -178,11 +178,6 @@ effectively turns trace events into debug printfs.
 This is the simplest backend and can be used together with existing code that
 uses DPRINTF().
 
-Note that with this backend trace events cannot be programmatically
-enabled/disabled. Thus, in order to trim down the amount of output and the
-performance impact of tracing, you might want to add the "disable" property in
-the "trace-events" file for those events you are not interested in.
-
 === Simpletrace ===
 
 The "simple" backend supports common use cases and comes as part of the QEMU
