@@ -43,7 +43,26 @@ EOF
 # Get the name of a trace event
 get_name()
 {
-    echo ${1%%\(*}
+    local name
+    name=${1%%\(*}
+    echo "${name##* }"
+}
+
+# Get the given property of a trace event
+# 1: trace-events line
+# 2: property name
+# -> return 0 if property is present, or 1 otherwise
+has_property()
+{
+    local props prop
+    props=${1%%\(*}
+    props=${props% *}
+    for prop in $props; do
+        if [ "$prop" = "$2" ]; then
+            return 0
+        fi
+    done
+    return 1
 }
 
 # Get the argument list of a trace event, including types and names
@@ -99,20 +118,6 @@ get_fmt()
     fmt=${1#*\"}
     fmt=${fmt%\"*}
     echo "$fmt"
-}
-
-# Get the state of a trace event
-get_state()
-{
-    local str disable state
-    str=$(get_name "$1")
-    disable=${str##disable }
-    if [ "$disable" = "$str" ] ; then
-        state=1
-    else
-        state=0
-    fi
-    echo "$state"
 }
 
 linetoh_begin_nop()
@@ -174,14 +179,10 @@ cast_args_to_uint64_t()
 
 linetoh_simple()
 {
-    local name args argc trace_args state
+    local name args argc trace_args
     name=$(get_name "$1")
     args=$(get_args "$1")
     argc=$(get_argc "$1")
-    state=$(get_state "$1")
-    if [ "$state" = "0" ]; then
-        name=${name##disable }
-    fi
 
     trace_args="$simple_event_num"
     if [ "$argc" -gt 0 ]
@@ -222,9 +223,10 @@ linetoc_simple()
 {
     local name state
     name=$(get_name "$1")
-    state=$(get_state "$1")
-    if [ "$state" = "0" ] ; then
-        name=${name##disable }
+    if has_property "$1" "disable"; then
+        state="0"
+    else
+        state="1"
     fi
     cat <<EOF
 {.tp_name = "$name", .state=$state},
@@ -379,14 +381,10 @@ EOF
 
 linetoh_dtrace()
 {
-    local name args argnames state nameupper
+    local name args argnames nameupper
     name=$(get_name "$1")
     args=$(get_args "$1")
     argnames=$(get_argnames "$1", ",")
-    state=$(get_state "$1")
-    if [ "$state" = "0" ] ; then
-        name=${name##disable }
-    fi
 
     nameupper=`echo $name | tr '[:lower:]' '[:upper:]'`
 
@@ -430,13 +428,9 @@ EOF
 
 linetod_dtrace()
 {
-    local name args state
+    local name args
     name=$(get_name "$1")
     args=$(get_args "$1")
-    state=$(get_state "$1")
-    if [ "$state" = "0" ] ; then
-        name=${name##disable }
-    fi
 
     # DTrace provider syntax expects foo() for empty
     # params, not foo(void)
@@ -464,14 +458,10 @@ linetostap_begin_dtrace()
 
 linetostap_dtrace()
 {
-    local i arg name args arglist state
+    local i arg name args arglist
     name=$(get_name "$1")
     args=$(get_args "$1")
     arglist=$(get_argnames "$1", "")
-    state=$(get_state "$1")
-    if [ "$state" = "0" ] ; then
-        name=${name##disable }
-    fi
 
     # Define prototype for probe arguments
     cat <<EOF
@@ -517,9 +507,12 @@ convert()
         test -z "${str%%#*}" && continue
 
         # Process the line.  The nop backend handles disabled lines.
-        disable=${str%%disable *}
+        disable="0"
+        if has_property "$str" "disable"; then
+            disable="1"
+        fi
         echo
-        if test -z "$disable"; then
+        if [ "$disable" = "1" ]; then
             # Pass the disabled state as an arg for the simple
             # or DTrace backends which handle it dynamically.
             # For all other backends, call lineto$1_nop()

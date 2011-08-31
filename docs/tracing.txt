@@ -38,7 +38,7 @@ generate code for the trace events.  Trace events are invoked directly from
 source code like this:
 
     #include "trace.h"  /* needed for trace event prototype */
-
+    
     void *qemu_malloc(size_t size)
     {
         void *ptr;
@@ -103,7 +103,7 @@ portability macros, ensure they are preceded and followed by double quotes:
 4. Name trace events after their function.  If there are multiple trace events
    in one function, append a unique distinguisher at the end of the name.
 
-5. Declare trace events with the "disable" keyword.  Some trace events can
+5. Declare trace events with the "disable" property.  Some trace events can
    produce a lot of output and users are typically only interested in a subset
    of trace events.  Marking trace events disabled by default saves the user
    from having to manually disable noisy trace events.
