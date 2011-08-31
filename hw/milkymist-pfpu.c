@@ -118,6 +118,7 @@ static const char *opcode_to_str[] = {
 
 struct MilkymistPFPUState {
     SysBusDevice busdev;
+    MemoryRegion regs_region;
     CharDriverState *chr;
     qemu_irq irq;
 
@@ -379,7 +380,8 @@ static inline int get_microcode_address(MilkymistPFPUState *s, uint32_t addr)
     return (512 * s->regs[R_CODEPAGE]) + addr - MICROCODE_BEGIN;
 }
 
-static uint32_t pfpu_read(void *opaque, target_phys_addr_t addr)
+static uint64_t pfpu_read(void *opaque, target_phys_addr_t addr,
+                          unsigned size)
 {
     MilkymistPFPUState *s = opaque;
     uint32_t r = 0;
@@ -418,8 +420,8 @@ static uint32_t pfpu_read(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static void
-pfpu_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void pfpu_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+                       unsigned size)
 {
     MilkymistPFPUState *s = opaque;
 
@@ -459,16 +461,14 @@ pfpu_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc * const pfpu_read_fn[] = {
-    NULL,
-    NULL,
-    &pfpu_read,
-};
-
-static CPUWriteMemoryFunc * const pfpu_write_fn[] = {
-    NULL,
-    NULL,
-    &pfpu_write,
+static const MemoryRegionOps pfpu_mmio_ops = {
+    .read = pfpu_read,
+    .write = pfpu_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void milkymist_pfpu_reset(DeviceState *d)
@@ -494,13 +494,12 @@ static void milkymist_pfpu_reset(DeviceState *d)
 static int milkymist_pfpu_init(SysBusDevice *dev)
 {
     MilkymistPFPUState *s = FROM_SYSBUS(typeof(*s), dev);
-    int pfpu_regs;
 
     sysbus_init_irq(dev, &s->irq);
 
-    pfpu_regs = cpu_register_io_memory(pfpu_read_fn, pfpu_write_fn, s,
-            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MICROCODE_END * 4, pfpu_regs);
+    memory_region_init_io(&s->regs_region, &pfpu_mmio_ops, s,
+            "milkymist-pfpu", MICROCODE_END * 4);
+    sysbus_init_mmio_region(dev, &s->regs_region);
 
     return 0;
 }
