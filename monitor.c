@@ -57,8 +57,9 @@
 #include "json-parser.h"
 #include "osdep.h"
 #include "cpu.h"
+#include "trace/control.h"
 #ifdef CONFIG_TRACE_SIMPLE
-#include "trace.h"
+#include "trace/simple.h"
 #endif
 #include "trace/control.h"
 #include "ui/qemu-spice.h"
@@ -593,7 +594,6 @@ static void do_help_cmd(Monitor *mon, const QDict *qdict)
     help_cmd(mon, qdict_get_try_str(qdict, "name"));
 }
 
-#ifdef CONFIG_TRACE_SIMPLE
 static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
@@ -605,6 +605,7 @@ static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
     }
 }
 
+#ifdef CONFIG_SIMPLE_TRACE
 static void do_trace_file(Monitor *mon, const QDict *qdict)
 {
     const char *op = qdict_get_try_str(qdict, "op");
@@ -1002,12 +1003,12 @@ static void do_info_trace(Monitor *mon)
 {
     st_print_trace((FILE *)mon, &monitor_fprintf);
 }
+#endif
 
 static void do_trace_print_events(Monitor *mon)
 {
     trace_print_events((FILE *)mon, &monitor_fprintf);
 }
-#endif
 
 /**
  * do_quit(): Quit QEMU execution
@@ -3144,6 +3145,7 @@ static const mon_cmd_t info_cmds[] = {
         .help       = "show current contents of trace buffer",
         .mhandler.info = do_info_trace,
     },
+#endif
     {
         .name       = "trace-events",
         .args_type  = "",
@@ -3151,7 +3153,6 @@ static const mon_cmd_t info_cmds[] = {
         .help       = "show available trace-events & their state",
         .mhandler.info = do_trace_print_events,
     },
-#endif
     {
         .name       = NULL,
     },

@@ -108,6 +108,36 @@ portability macros, ensure they are preceded and followed by double quotes:
    of trace events.  Marking trace events disabled by default saves the user
    from having to manually disable noisy trace events.
 
+== Generic interface and monitor commands ==
+
+You can programmatically query and control the dynamic state of trace events
+through a backend-agnostic interface:
+
+* trace_print_events
+
+* trace_event_set_state
+  Enables or disables trace events at runtime inside QEMU.
+  The function returns "true" if the state of the event has been successfully
+  changed, or "false" otherwise:
+
+    #include "trace/control.h"
+    
+    trace_event_set_state("virtio_irq", true); /* enable */
+    [...]
+    trace_event_set_state("virtio_irq", false); /* disable */
+
+Note that some of the backends do not provide an implementation for this
+interface, in which case QEMU will just print a warning.
+
+This functionality is also provided through monitor commands:
+
+* info trace-events
+  View available trace events and their state.  State 1 means enabled, state 0
+  means disabled.
+
+* trace-event NAME on|off
+  Enable/disable a given trace event.
+
 == Trace backends ==
 
 The "tracetool" script automates tedious trace event code generation and also
@@ -157,26 +187,8 @@ unless you have specific needs for more advanced backends.
   flushed and emptied.  This means the 'info trace' will display few or no
   entries if the buffer has just been flushed.
 
-* info trace-events
-  View available trace events and their state.  State 1 means enabled, state 0
-  means disabled.
-
-* trace-event NAME on|off
-  Enable/disable a given trace event.
-
 * trace-file on|off|flush|set <path>
   Enable/disable/flush the trace file or set the trace file name.
-
-==== Enabling/disabling trace events programmatically ====
-
-The st_change_trace_event_state() function can be used to enable or disable trace
-events at runtime inside QEMU:
-
-    #include "trace.h"
-    
-    st_change_trace_event_state("virtio_irq", true); /* enable */
-    [...]
-    st_change_trace_event_state("virtio_irq", false); /* disable */
 
 ==== Analyzing trace files ====
 

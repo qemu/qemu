@@ -180,7 +180,6 @@ STEXI
 Output logs to @var{filename}.
 ETEXI
 
-#ifdef CONFIG_TRACE_SIMPLE
     {
         .name       = "trace-event",
         .args_type  = "name:s,option:b",
@@ -195,6 +194,7 @@ STEXI
 changes status of a trace event
 ETEXI
 
+#if defined(CONFIG_SIMPLE_TRACE)
     {
         .name       = "trace-file",
         .args_type  = "op:s?,arg:F?",
@@ -1358,10 +1358,13 @@ ETEXI
 STEXI
 @item info trace
 show contents of trace buffer
+ETEXI
+#endif
+
+STEXI
 @item info trace-events
 show available trace events and their state
 ETEXI
-#endif
 
 STEXI
 @end table
