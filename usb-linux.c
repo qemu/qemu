@@ -83,7 +83,6 @@ struct endp_data {
     AsyncURB *iso_urb;
     int iso_urb_idx;
     int iso_buffer_used;
-    int max_packet_size;
     int inflight;
 };
 
@@ -257,26 +256,6 @@ static void set_iso_buffer_used(USBHostDevice *s, int pid, int ep, int i)
 static int get_iso_buffer_used(USBHostDevice *s, int pid, int ep)
 {
     return get_endp(s, pid, ep)->iso_buffer_used;
-}
-
-static void set_max_packet_size(USBHostDevice *s, int pid, int ep,
-                                uint8_t *descriptor)
-{
-    int raw = descriptor[4] + (descriptor[5] << 8);
-    int size, microframes;
-
-    size = raw & 0x7ff;
-    switch ((raw >> 11) & 3) {
-    case 1:  microframes = 2; break;
-    case 2:  microframes = 3; break;
-    default: microframes = 1; break;
-    }
-    get_endp(s, pid, ep)->max_packet_size = size * microframes;
-}
-
-static int get_max_packet_size(USBHostDevice *s, int pid, int ep)
-{
-    return get_endp(s, pid, ep)->max_packet_size;
 }
 
 /*
@@ -674,7 +653,7 @@ static void usb_host_handle_destroy(USBDevice *dev)
 static AsyncURB *usb_host_alloc_iso(USBHostDevice *s, int pid, uint8_t ep)
 {
     AsyncURB *aurb;
-    int i, j, len = get_max_packet_size(s, pid, ep);
+    int i, j, len = usb_ep_get_max_packet_size(&s->dev, pid, ep);
 
     aurb = g_malloc0(s->iso_urb_count * sizeof(*aurb));
     for (i = 0; i < s->iso_urb_count; i++) {
@@ -754,7 +733,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
     int i, j, ret, max_packet_size, offset, len = 0;
     uint8_t *buf;
 
-    max_packet_size = get_max_packet_size(s, p->pid, p->devep);
+    max_packet_size = usb_ep_get_max_packet_size(&s->dev, p->pid, p->devep);
     if (max_packet_size == 0)
         return USB_RET_NAK;
 
@@ -1133,6 +1112,7 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
 {
     uint8_t *descriptors;
     uint8_t devep, type, alt_interface;
+    uint16_t raw;
     int interface, length, i, ep, pid;
     struct endp_data *epd;
 
@@ -1200,9 +1180,8 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
             }
 
             type = descriptors[i + 3] & 0x3;
-            if (type == USB_ENDPOINT_XFER_ISOC) {
-                set_max_packet_size(s, pid, ep, descriptors + i);
-            };
+            raw = descriptors[i + 4] + (descriptors[i + 5] << 8);
+            usb_ep_set_max_packet_size(&s->dev, pid, ep, raw);
             assert(usb_ep_get_type(&s->dev, pid, ep) ==
                    USB_ENDPOINT_XFER_INVALID);
             usb_ep_set_type(&s->dev, pid, ep, type);

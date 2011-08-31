@@ -449,8 +449,9 @@ void usb_ep_dump(USBDevice *dev)
                     fprintf(stderr, "  Interface %d, alternative %d\n",
                             ifnum, dev->altsetting[ifnum]);
                 }
-                fprintf(stderr, "    Endpoint %d, IN, %s\n", ep,
-                        tname[dev->ep_in[ep].type]);
+                fprintf(stderr, "    Endpoint %d, IN, %s, %d max\n", ep,
+                        tname[dev->ep_in[ep].type],
+                        dev->ep_in[ep].max_packet_size);
             }
             if (dev->ep_out[ep].type != USB_ENDPOINT_XFER_INVALID &&
                 dev->ep_out[ep].ifnum == ifnum) {
@@ -459,8 +460,9 @@ void usb_ep_dump(USBDevice *dev)
                     fprintf(stderr, "  Interface %d, alternative %d\n",
                             ifnum, dev->altsetting[ifnum]);
                 }
-                fprintf(stderr, "    Endpoint %d, OUT, %s\n", ep,
-                        tname[dev->ep_out[ep].type]);
+                fprintf(stderr, "    Endpoint %d, OUT, %s, %d max\n", ep,
+                        tname[dev->ep_out[ep].type],
+                        dev->ep_out[ep].max_packet_size);
             }
         }
     }
@@ -497,4 +499,31 @@ void usb_ep_set_ifnum(USBDevice *dev, int pid, int ep, uint8_t ifnum)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     uep->ifnum = ifnum;
+}
+
+void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
+                                uint16_t raw)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    int size, microframes;
+
+    size = raw & 0x7ff;
+    switch ((raw >> 11) & 3) {
+    case 1:
+        microframes = 2;
+        break;
+    case 2:
+        microframes = 3;
+        break;
+    default:
+        microframes = 1;
+        break;
+    }
+    uep->max_packet_size = size * microframes;
+}
+
+int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    return uep->max_packet_size;
 }
