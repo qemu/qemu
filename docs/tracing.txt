@@ -12,11 +12,16 @@ for debugging, profiling, and observing execution.
     ./configure --trace-backend=simple
     make
 
-2. Run the virtual machine to produce a trace file:
+2. Create a file with the events you want to trace:
 
-    qemu ... # your normal QEMU invocation
+   echo bdrv_aio_readv   > /tmp/events
+   echo bdrv_aio_writev >> /tmp/events
 
-3. Pretty-print the binary trace file:
+3. Run the virtual machine to produce a trace file:
+
+    qemu -trace events=/tmp/events ... # your normal QEMU invocation
+
+4. Pretty-print the binary trace file:
 
     ./simpletrace.py trace-events trace-*
 

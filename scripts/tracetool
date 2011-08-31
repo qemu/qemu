@@ -221,15 +221,10 @@ EOF
 
 linetoc_simple()
 {
-    local name state
+    local name
     name=$(get_name "$1")
-    if has_property "$1" "disable"; then
-        state="0"
-    else
-        state="1"
-    fi
     cat <<EOF
-{.tp_name = "$name", .state=$state},
+{.tp_name = "$name", .state=0},
 EOF
     simple_event_num=$((simple_event_num + 1))
 }
