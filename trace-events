@@ -14,7 +14,7 @@
 #
 # [disable] <name>(<type1> <arg1>[, <type2> <arg2>] ...) "<format-string>"
 #
-# Example: qemu_malloc(size_t size) "size %zu"
+# Example: g_malloc(size_t size) "size %zu"
 #
 # The "disable" keyword will build without the trace event.
 #
@@ -26,9 +26,9 @@
 # The <format-string> should be a sprintf()-compatible format string.
 
 # qemu-malloc.c
-qemu_malloc(size_t size, void *ptr) "size %zu ptr %p"
-qemu_realloc(void *ptr, size_t size, void *newptr) "ptr %p size %zu newptr %p"
-qemu_free(void *ptr) "ptr %p"
+g_malloc(size_t size, void *ptr) "size %zu ptr %p"
+g_realloc(void *ptr, size_t size, void *newptr) "ptr %p size %zu newptr %p"
+g_free(void *ptr) "ptr %p"
 
 # osdep.c
 qemu_memalign(size_t alignment, size_t size, void *ptr) "alignment %zu size %zu ptr %p"
