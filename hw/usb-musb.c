@@ -314,7 +314,7 @@ struct MUSBEndPoint {
 };
 
 struct MUSBState {
-    qemu_irq *irqs;
+    qemu_irq irqs[musb_irq_max];
     USBBus bus;
     USBPort port;
 
@@ -340,12 +340,14 @@ struct MUSBState {
     MUSBEndPoint ep[16];
 };
 
-struct MUSBState *musb_init(qemu_irq *irqs)
+struct MUSBState *musb_init(DeviceState *parent_device, int gpio_base)
 {
     MUSBState *s = g_malloc0(sizeof(*s));
     int i;
 
-    s->irqs = irqs;
+    for (i = 0; i < musb_irq_max; i++) {
+        s->irqs[i] = qdev_get_gpio_in(parent_device, gpio_base + i);
+    }
 
     s->faddr = 0x00;
     s->power = MGC_M_POWER_HSENAB;
@@ -369,7 +371,7 @@ struct MUSBState *musb_init(qemu_irq *irqs)
         usb_packet_init(&s->ep[i].packey[1].p);
     }
 
-    usb_bus_new(&s->bus, &musb_bus_ops, NULL /* FIXME */);
+    usb_bus_new(&s->bus, &musb_bus_ops, parent_device);
     usb_register_port(&s->bus, &s->port, s, 0, &musb_port_ops,
                       USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
 
