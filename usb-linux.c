@@ -1354,10 +1354,16 @@ out:
     return 0;
 }
 
+static const VMStateDescription vmstate_usb_host = {
+    .name = "usb-host",
+    .unmigratable = 1,
+};
+
 static struct USBDeviceInfo usb_host_dev_info = {
     .product_desc   = "USB Host Device",
     .qdev.name      = "usb-host",
     .qdev.size      = sizeof(USBHostDevice),
+    .qdev.vmsd      = &vmstate_usb_host,
     .init           = usb_host_initfn,
     .handle_packet  = usb_generic_handle_packet,
     .cancel_packet  = usb_host_async_cancel,
