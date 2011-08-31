@@ -785,9 +785,9 @@ static int tusb6010_init(SysBusDevice *dev)
     sysbus_init_mmio_region(dev, &s->iomem[0]);
     sysbus_init_mmio_region(dev, &s->iomem[1]);
     sysbus_init_irq(dev, &s->irq);
-    qdev_init_gpio_in(&dev->qdev, tusb6010_irq, __musb_irq_max + 1);
-    musb_irqs = g_new0(qemu_irq, __musb_irq_max);
-    for (i = 0; i < __musb_irq_max; i++) {
+    qdev_init_gpio_in(&dev->qdev, tusb6010_irq, musb_irq_max + 1);
+    musb_irqs = g_new0(qemu_irq, musb_irq_max);
+    for (i = 0; i < musb_irq_max; i++) {
         musb_irqs[i] = qdev_get_gpio_in(&dev->qdev, i + 1);
     }
     s->musb = musb_init(musb_irqs);
