@@ -12,15 +12,11 @@ for debugging, profiling, and observing execution.
     ./configure --trace-backend=simple
     make
 
-2. Enable trace events you are interested in:
-
-    $EDITOR trace-events  # remove "disable" from events you want
-
-3. Run the virtual machine to produce a trace file:
+2. Run the virtual machine to produce a trace file:
 
     qemu ... # your normal QEMU invocation
 
-4. Pretty-print the binary trace file:
+3. Pretty-print the binary trace file:
 
     ./simpletrace.py trace-events trace-*
 
@@ -103,10 +99,11 @@ portability macros, ensure they are preceded and followed by double quotes:
 4. Name trace events after their function.  If there are multiple trace events
    in one function, append a unique distinguisher at the end of the name.
 
-5. Declare trace events with the "disable" property.  Some trace events can
-   produce a lot of output and users are typically only interested in a subset
-   of trace events.  Marking trace events disabled by default saves the user
-   from having to manually disable noisy trace events.
+5. If specific trace events are going to be called a huge number of times, this
+   might have a noticeable performance impact even when the trace events are
+   programmatically disabled. In this case you should declare the trace event
+   with the "disable" property, which will effectively disable it at compile
+   time (using the "nop" backend).
 
 == Generic interface and monitor commands ==
 
@@ -165,6 +162,9 @@ The "nop" backend generates empty trace event functions so that the compiler
 can optimize out trace events completely.  This is the default and imposes no
 performance penalty.
 
+Note that regardless of the selected trace backend, events with the "disable"
+property will be generated with the "nop" backend.
+
 === Stderr ===
 
 The "stderr" backend sends trace events directly to standard error.  This
@@ -172,6 +172,11 @@ effectively turns trace events into debug printfs.
 
 This is the simplest backend and can be used together with existing code that
 uses DPRINTF().
+
+Note that with this backend trace events cannot be programmatically
+enabled/disabled. Thus, in order to trim down the amount of output and the
+performance impact of tracing, you might want to add the "disable" property in
+the "trace-events" file for those events you are not interested in.
 
 === Simpletrace ===
 

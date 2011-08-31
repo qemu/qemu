@@ -506,21 +506,10 @@ convert()
         # Skip comments and empty lines
         test -z "${str%%#*}" && continue
 
-        # Process the line.  The nop backend handles disabled lines.
-        disable="0"
-        if has_property "$str" "disable"; then
-            disable="1"
-        fi
         echo
-        if [ "$disable" = "1" ]; then
-            # Pass the disabled state as an arg for the simple
-            # or DTrace backends which handle it dynamically.
-            # For all other backends, call lineto$1_nop()
-            if [ $backend = "simple" -o "$backend" = "dtrace" ]; then
-                "$process_line" "$str"
-            else
-                "lineto$1_nop" "${str##disable }"
-            fi
+        # Process the line.  The nop backend handles disabled lines.
+        if has_property "$str" "disable"; then
+            "lineto$1_nop" "$str"
         else
             "$process_line" "$str"
         fi
