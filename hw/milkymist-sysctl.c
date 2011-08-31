@@ -59,6 +59,7 @@ enum {
 
 struct MilkymistSysctlState {
     SysBusDevice busdev;
+    MemoryRegion regs_region;
 
     QEMUBH *bh0;
     QEMUBH *bh1;
@@ -88,7 +89,8 @@ static void sysctl_icap_write(MilkymistSysctlState *s, uint32_t value)
     }
 }
 
-static uint32_t sysctl_read(void *opaque, target_phys_addr_t addr)
+static uint64_t sysctl_read(void *opaque, target_phys_addr_t addr,
+                            unsigned size)
 {
     MilkymistSysctlState *s = opaque;
     uint32_t r = 0;
@@ -129,7 +131,8 @@ static uint32_t sysctl_read(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static void sysctl_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void sysctl_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+                         unsigned size)
 {
     MilkymistSysctlState *s = opaque;
 
@@ -195,16 +198,14 @@ static void sysctl_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc * const sysctl_read_fn[] = {
-    NULL,
-    NULL,
-    &sysctl_read,
-};
-
-static CPUWriteMemoryFunc * const sysctl_write_fn[] = {
-    NULL,
-    NULL,
-    &sysctl_write,
+static const MemoryRegionOps sysctl_mmio_ops = {
+    .read = sysctl_read,
+    .write = sysctl_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void timer0_hit(void *opaque)
@@ -258,7 +259,6 @@ static void milkymist_sysctl_reset(DeviceState *d)
 static int milkymist_sysctl_init(SysBusDevice *dev)
 {
     MilkymistSysctlState *s = FROM_SYSBUS(typeof(*s), dev);
-    int sysctl_regs;
 
     sysbus_init_irq(dev, &s->gpio_irq);
     sysbus_init_irq(dev, &s->timer0_irq);
@@ -271,9 +271,9 @@ static int milkymist_sysctl_init(SysBusDevice *dev)
     ptimer_set_freq(s->ptimer0, s->freq_hz);
     ptimer_set_freq(s->ptimer1, s->freq_hz);
 
-    sysctl_regs = cpu_register_io_memory(sysctl_read_fn, sysctl_write_fn, s,
-            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, sysctl_regs);
+    memory_region_init_io(&s->regs_region, &sysctl_mmio_ops, s,
+            "milkymist-sysctl", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->regs_region);
 
     return 0;
 }
