@@ -2436,7 +2436,7 @@ Normally QEMU loads a configuration file from @var{sysconfdir}/qemu.conf and
 @var{sysconfdir}/target-@var{ARCH}.conf on startup.  The @code{-nodefconfig}
 option will prevent QEMU from loading these configuration files at startup.
 ETEXI
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
 DEF("trace", HAS_ARG, QEMU_OPTION_trace,
     "-trace\n"
     "                Specify a trace file to log traces to\n",

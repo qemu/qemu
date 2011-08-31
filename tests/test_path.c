@@ -4,7 +4,7 @@
 #include "../cutils.c"
 #include "../path.c"
 #include "../trace.c"
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
 #include "../simpletrace.c"
 #endif
 

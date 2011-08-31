@@ -180,7 +180,7 @@ STEXI
 Output logs to @var{filename}.
 ETEXI
 
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
     {
         .name       = "trace-event",
         .args_type  = "name:s,option:b",
@@ -1354,7 +1354,7 @@ show roms
 @end table
 ETEXI
 
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
 STEXI
 @item info trace
 show contents of trace buffer

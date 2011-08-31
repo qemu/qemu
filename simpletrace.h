@@ -15,7 +15,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
 typedef uint64_t TraceEventID;
 
 typedef struct {
@@ -43,6 +43,6 @@ static inline bool st_init(const char *file)
 {
     return true;
 }
-#endif /* !CONFIG_SIMPLE_TRACE */
+#endif /* !CONFIG_TRACE_SIMPLE */
 
 #endif /* SIMPLETRACE_H */

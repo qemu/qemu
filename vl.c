@@ -2928,7 +2928,7 @@ int main(int argc, char **argv, char **envp)
                 }
                 xen_mode = XEN_ATTACH;
                 break;
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
             case QEMU_OPTION_trace:
                 opts = qemu_opts_parse(qemu_find_opts("trace"), optarg, 0);
                 if (opts) {
