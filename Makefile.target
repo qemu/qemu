@@ -398,7 +398,7 @@ obj-y += $(addprefix ../, $(trace-obj-y))
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 
 $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
-	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
+	$(call LINK,$^)
 
 
 gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/scripts/feature_to_c.sh
