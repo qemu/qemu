@@ -344,6 +344,7 @@ enum musb_irq_source_e {
 
 typedef struct MUSBState MUSBState;
 MUSBState *musb_init(DeviceState *parent_device, int gpio_base);
+void musb_reset(MUSBState *s);
 uint32_t musb_core_intr_get(MUSBState *s);
 void musb_core_intr_clear(MUSBState *s, uint32_t mask);
 void musb_set_size(MUSBState *s, int epnum, int size, int is_tx);

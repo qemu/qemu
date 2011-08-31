@@ -771,6 +771,7 @@ static void tusb6010_reset(DeviceState *dev)
     for (i = 0; i < 15; i++) {
         s->rx_config[i] = s->tx_config[i] = 0;
     }
+    musb_reset(s->musb);
 }
 
 static int tusb6010_init(SysBusDevice *dev)
