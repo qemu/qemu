@@ -555,6 +555,8 @@ enum {
     /* Decrementer clock: RTC clock (POWER, 601) or bus clock                */
     POWERPC_FLAG_RTC_CLK  = 0x00010000,
     POWERPC_FLAG_BUS_CLK  = 0x00020000,
+    /* Has CFAR                                                              */
+    POWERPC_FLAG_CFAR     = 0x00040000,
 };
 
 /*****************************************************************************/
@@ -872,6 +874,10 @@ struct CPUPPCState {
     target_ulong ctr;
     /* condition register */
     uint32_t crf[8];
+#if defined(TARGET_PPC64)
+    /* CFAR */
+    target_ulong cfar;
+#endif
     /* XER */
     target_ulong xer;
     /* Reservation address */
@@ -1204,6 +1210,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define SPR_601_UDECR         (0x006)
 #define SPR_LR                (0x008)
 #define SPR_CTR               (0x009)
+#define SPR_DSCR              (0x011)
 #define SPR_DSISR             (0x012)
 #define SPR_DAR               (0x013) /* DAE for PowerPC 601 */
 #define SPR_601_RTCU          (0x014)
@@ -1212,6 +1219,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define SPR_SDR1              (0x019)
 #define SPR_SRR0              (0x01A)
 #define SPR_SRR1              (0x01B)
+#define SPR_CFAR              (0x01C)
 #define SPR_AMR               (0x01D)
 #define SPR_BOOKE_PID         (0x030)
 #define SPR_BOOKE_DECAR       (0x036)

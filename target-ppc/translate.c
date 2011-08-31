@@ -69,6 +69,9 @@ static TCGv cpu_nip;
 static TCGv cpu_msr;
 static TCGv cpu_ctr;
 static TCGv cpu_lr;
+#if defined(TARGET_PPC64)
+static TCGv cpu_cfar;
+#endif
 static TCGv cpu_xer;
 static TCGv cpu_reserve;
 static TCGv_i32 cpu_fpscr;
@@ -154,6 +157,11 @@ void ppc_translate_init(void)
     cpu_lr = tcg_global_mem_new(TCG_AREG0,
                                 offsetof(CPUState, lr), "lr");
 
+#if defined(TARGET_PPC64)
+    cpu_cfar = tcg_global_mem_new(TCG_AREG0,
+                                  offsetof(CPUState, cfar), "cfar");
+#endif
+
     cpu_xer = tcg_global_mem_new(TCG_AREG0,
                                  offsetof(CPUState, xer), "xer");
 
@@ -187,6 +195,7 @@ typedef struct DisasContext {
     int le_mode;
 #if defined(TARGET_PPC64)
     int sf_mode;
+    int has_cfar;
 #endif
     int fpu_enabled;
     int altivec_enabled;
@@ -3345,6 +3354,14 @@ static inline void gen_qemu_st32fiw(DisasContext *ctx, TCGv_i64 arg1, TCGv arg2)
 /* stfiwx */
 GEN_STXF(stfiw, st32fiw, 0x17, 0x1E, PPC_FLOAT_STFIWX);
 
+static inline void gen_update_cfar(DisasContext *ctx, target_ulong nip)
+{
+#if defined(TARGET_PPC64)
+    if (ctx->has_cfar)
+        tcg_gen_movi_tl(cpu_cfar, nip);
+#endif
+}
+
 /***                                Branch                                 ***/
 static inline void gen_goto_tb(DisasContext *ctx, int n, target_ulong dest)
 {
@@ -3407,6 +3424,7 @@ static void gen_b(DisasContext *ctx)
         target = li;
     if (LK(ctx->opcode))
         gen_setlr(ctx, ctx->nip);
+    gen_update_cfar(ctx, ctx->nip);
     gen_goto_tb(ctx, 0, target);
 }
 
@@ -3469,6 +3487,7 @@ static inline void gen_bcond(DisasContext *ctx, int type)
         }
         tcg_temp_free_i32(temp);
     }
+    gen_update_cfar(ctx, ctx->nip);
     if (type == BCOND_IM) {
         target_ulong li = (target_long)((int16_t)(BD(ctx->opcode)));
         if (likely(AA(ctx->opcode) == 0)) {
@@ -3580,6 +3599,7 @@ static void gen_rfi(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
+    gen_update_cfar(ctx, ctx->nip);
     gen_helper_rfi();
     gen_sync_exception(ctx);
 #endif
@@ -3596,6 +3616,7 @@ static void gen_rfid(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
+    gen_update_cfar(ctx, ctx->nip);
     gen_helper_rfid();
     gen_sync_exception(ctx);
 #endif
@@ -9263,6 +9284,12 @@ void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
          */
     }
 
+#if defined(TARGET_PPC64)
+    if (env->flags & POWERPC_FLAG_CFAR) {
+        cpu_fprintf(f, " CFAR " TARGET_FMT_lx"\n", env->cfar);
+    }
+#endif
+
     switch (env->mmu_model) {
     case POWERPC_MMU_32B:
     case POWERPC_MMU_601:
@@ -9371,6 +9398,7 @@ static inline void gen_intermediate_code_internal(CPUState *env,
     ctx.le_mode = env->hflags & (1 << MSR_LE) ? 1 : 0;
 #if defined(TARGET_PPC64)
     ctx.sf_mode = msr_sf;
+    ctx.has_cfar = !!(env->flags & POWERPC_FLAG_CFAR);
 #endif
     ctx.fpu_enabled = msr_fp;
     if ((env->flags & POWERPC_FLAG_SPE) && msr_spe)

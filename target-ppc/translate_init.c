@@ -129,6 +129,19 @@ static void spr_write_lr (void *opaque, int sprn, int gprn)
     tcg_gen_mov_tl(cpu_lr, cpu_gpr[gprn]);
 }
 
+/* CFAR */
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+static void spr_read_cfar (void *opaque, int gprn, int sprn)
+{
+    tcg_gen_mov_tl(cpu_gpr[gprn], cpu_cfar);
+}
+
+static void spr_write_cfar (void *opaque, int sprn, int gprn)
+{
+    tcg_gen_mov_tl(cpu_cfar, cpu_gpr[gprn]);
+}
+#endif /* defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
+
 /* CTR */
 static void spr_read_ctr (void *opaque, int gprn, int sprn)
 {
@@ -6489,7 +6502,7 @@ static void init_proc_970MP (CPUPPCState *env)
 #define POWERPC_BFDM_POWER7   (bfd_mach_ppc64)
 #define POWERPC_FLAG_POWER7   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
+                              POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR)
 #define check_pow_POWER7    check_pow_nocheck
 
 static void init_proc_POWER7 (CPUPPCState *env)
@@ -6507,6 +6520,14 @@ static void init_proc_POWER7 (CPUPPCState *env)
     spr_register(env, SPR_SPURR,   "SPURR",
                  &spr_read_purr, SPR_NOACCESS,
                  &spr_read_purr, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_CFAR, "SPR_CFAR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_cfar, &spr_write_cfar,
+                 0x00000000);
+    spr_register(env, SPR_DSCR, "SPR_DSCR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
                  0x00000000);
 #endif /* !CONFIG_USER_ONLY */
     /* Memory management */
