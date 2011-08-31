@@ -10,7 +10,16 @@
 #ifndef TRACE_CONTROL_H
 #define TRACE_CONTROL_H
 
-#include <stdbool.h>
+#include "qemu-common.h"
+
+
+/** Print the state of all events. */
+void trace_print_events(FILE *stream, fprintf_function stream_printf);
+/** Set the state of an event.
+ *
+ * @return Whether the state changed.
+ */
+bool trace_event_set_state(const char *name, bool state);
 
 
 /** Initialize the tracing backend.

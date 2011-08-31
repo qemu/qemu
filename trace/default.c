@@ -10,6 +10,21 @@
 #include "trace/control.h"
 
 
+void trace_print_events(FILE *stream, fprintf_function stream_printf)
+{
+    fprintf(stderr, "warning: "
+            "cannot print the trace events with the current backend\n");
+    stream_printf(stream, "error: "
+                  "operation not supported with the current backend\n");
+}
+
+bool trace_event_set_state(const char *name, bool state)
+{
+    fprintf(stderr, "warning: "
+            "cannot set the state of a trace event with the current backend\n");
+    return false;
+}
+
 bool trace_backend_init(const char *file)
 {
     if (file) {

@@ -60,6 +60,7 @@
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace.h"
 #endif
+#include "trace/control.h"
 #include "ui/qemu-spice.h"
 
 //#define DEBUG
@@ -593,11 +594,11 @@ static void do_help_cmd(Monitor *mon, const QDict *qdict)
 }
 
 #ifdef CONFIG_TRACE_SIMPLE
-static void do_change_trace_event_state(Monitor *mon, const QDict *qdict)
+static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
 {
     const char *tp_name = qdict_get_str(qdict, "name");
     bool new_state = qdict_get_bool(qdict, "option");
-    int ret = st_change_trace_event_state(tp_name, new_state);
+    int ret = trace_event_set_state(tp_name, new_state);
 
     if (!ret) {
         monitor_printf(mon, "unknown event name \"%s\"\n", tp_name);
@@ -1002,9 +1003,9 @@ static void do_info_trace(Monitor *mon)
     st_print_trace((FILE *)mon, &monitor_fprintf);
 }
 
-static void do_info_trace_events(Monitor *mon)
+static void do_trace_print_events(Monitor *mon)
 {
-    st_print_trace_events((FILE *)mon, &monitor_fprintf);
+    trace_print_events((FILE *)mon, &monitor_fprintf);
 }
 #endif
 
@@ -3148,7 +3149,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show available trace-events & their state",
-        .mhandler.info = do_info_trace_events,
+        .mhandler.info = do_trace_print_events,
     },
 #endif
     {
