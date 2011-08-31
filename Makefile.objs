@@ -374,15 +374,13 @@ endif
 
 simpletrace.o: simpletrace.c $(GENERATED_HEADERS)
 
-ifeq ($(TRACE_BACKEND),dtrace)
-trace-obj-y = trace-dtrace.o
-else
+trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
+ifneq ($(TRACE_BACKEND),dtrace)
 trace-obj-y = trace.o
-ifeq ($(TRACE_BACKEND),simple)
-trace-obj-y += simpletrace.o
-trace-obj-y += qemu-timer-common.o
 endif
-endif
+
+trace-obj-$(CONFIG_TRACE_SIMPLE) += simpletrace.o
+trace-obj-$(CONFIG_TRACE_SIMPLE) += qemu-timer-common.o
 
 ######################################################################
 # smartcard
