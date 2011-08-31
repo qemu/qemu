@@ -456,6 +456,83 @@ void cpu_loop(CPUX86State *env)
 
 #ifdef TARGET_ARM
 
+/*
+ * See the Linux kernel's Documentation/arm/kernel_user_helpers.txt
+ * Input:
+ * r0 = pointer to oldval
+ * r1 = pointer to newval
+ * r2 = pointer to target value
+ *
+ * Output:
+ * r0 = 0 if *ptr was changed, non-0 if no exchange happened
+ * C set if *ptr was changed, clear if no exchange happened
+ *
+ * Note segv's in kernel helpers are a bit tricky, we can set the
+ * data address sensibly but the PC address is just the entry point.
+ */
+static void arm_kernel_cmpxchg64_helper(CPUARMState *env)
+{
+    uint64_t oldval, newval, val;
+    uint32_t addr, cpsr;
+    target_siginfo_t info;
+
+    /* Based on the 32 bit code in do_kernel_trap */
+
+    /* XXX: This only works between threads, not between processes.
+       It's probably possible to implement this with native host
+       operations. However things like ldrex/strex are much harder so
+       there's not much point trying.  */
+    start_exclusive();
+    cpsr = cpsr_read(env);
+    addr = env->regs[2];
+
+    if (get_user_u64(oldval, env->regs[0])) {
+        env->cp15.c6_data = env->regs[0];
+        goto segv;
+    };
+
+    if (get_user_u64(newval, env->regs[1])) {
+        env->cp15.c6_data = env->regs[1];
+        goto segv;
+    };
+
+    if (get_user_u64(val, addr)) {
+        env->cp15.c6_data = addr;
+        goto segv;
+    }
+
+    if (val == oldval) {
+        val = newval;
+
+        if (put_user_u64(val, addr)) {
+            env->cp15.c6_data = addr;
+            goto segv;
+        };
+
+        env->regs[0] = 0;
+        cpsr |= CPSR_C;
+    } else {
+        env->regs[0] = -1;
+        cpsr &= ~CPSR_C;
+    }
+    cpsr_write(env, cpsr, CPSR_C);
+    end_exclusive();
+    return;
+
+segv:
+    end_exclusive();
+    /* We get the PC of the entry address - which is as good as anything,
+       on a real kernel what you get depends on which mode it uses. */
+    info.si_signo = SIGSEGV;
+    info.si_errno = 0;
+    /* XXX: check env->error_code */
+    info.si_code = TARGET_SEGV_MAPERR;
+    info._sifields._sigfault._addr = env->cp15.c6_data;
+    queue_signal(env, info.si_signo, &info);
+
+    end_exclusive();
+}
+
 /* Handle a jump to the kernel code page.  */
 static int
 do_kernel_trap(CPUARMState *env)
@@ -495,6 +572,10 @@ do_kernel_trap(CPUARMState *env)
     case 0xffff0fe0: /* __kernel_get_tls */
         env->regs[0] = env->cp15.c13_tls2;
         break;
+    case 0xffff0f60: /* __kernel_cmpxchg64 */
+        arm_kernel_cmpxchg64_helper(env);
+        break;
+
     default:
         return 1;
     }
@@ -752,7 +833,6 @@ void cpu_loop(CPUARMState *env)
             goto do_segv;
         case EXCP_DATA_ABORT:
             addr = env->cp15.c6_data;
-            goto do_segv;
         do_segv:
             {
                 info.si_signo = SIGSEGV;
@@ -3179,6 +3259,13 @@ int main(int argc, char **argv, char **envp)
             guest_base = HOST_PAGE_ALIGN((unsigned long)p);
         }
         qemu_log("Reserved 0x%lx bytes of guest address space\n", reserved_va);
+    }
+
+    if (reserved_va || have_guest_base) {
+        if (!guest_validate_base(guest_base)) {
+            fprintf(stderr, "Guest base/Reserved VA rejected by guest code\n");
+            exit(1);
+        }
     }
 #endif /* CONFIG_USE_GUEST_BASE */
 
