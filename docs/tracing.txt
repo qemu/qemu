@@ -138,6 +138,10 @@ This functionality is also provided through monitor commands:
 * trace-event NAME on|off
   Enable/disable a given trace event.
 
+The "-trace events=<file>" command line argument can be used to enable the
+events listed in <file> from the very beginning of the program. This file must
+contain one event name per line.
+
 == Trace backends ==
 
 The "tracetool" script automates tedious trace event code generation and also

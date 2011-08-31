@@ -25,8 +25,13 @@ bool trace_event_set_state(const char *name, bool state)
     return false;
 }
 
-bool trace_backend_init(const char *file)
+bool trace_backend_init(const char *events, const char *file)
 {
+    if (events) {
+        fprintf(stderr, "error: -trace events=...: "
+                "option not supported by the selected tracing backend\n");
+        return false;
+    }
     if (file) {
         fprintf(stderr, "error: -trace file=...: "
                 "option not supported by the selected tracing backend\n");

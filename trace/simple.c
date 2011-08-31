@@ -331,7 +331,7 @@ bool trace_event_set_state(const char *name, bool state)
     return false;
 }
 
-bool trace_backend_init(const char *file)
+bool trace_backend_init(const char *events, const char *file)
 {
     pthread_t thread;
     pthread_attr_t attr;
@@ -350,6 +350,7 @@ bool trace_backend_init(const char *file)
         fprintf(stderr, "warning: unable to initialize simple trace backend\n");
     } else {
         atexit(st_flush_trace_buffer);
+        trace_backend_init_events(events);
         st_set_trace_file(file);
     }
 

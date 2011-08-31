@@ -2137,6 +2137,7 @@ int main(int argc, char **argv, char **envp)
         .realloc = realloc_and_trace,
         .free = free_and_trace,
     };
+    const char *trace_events = NULL;
     const char *trace_file = NULL;
 
     atexit(qemu_run_exit_notifiers);
@@ -2934,6 +2935,7 @@ int main(int argc, char **argv, char **envp)
                 if (!opts) {
                     exit(1);
                 }
+                trace_events = qemu_opt_get(opts, "events");
                 trace_file = qemu_opt_get(opts, "file");
                 break;
             }
@@ -2994,7 +2996,7 @@ int main(int argc, char **argv, char **envp)
         set_cpu_log(log_mask);
     }
 
-    if (!trace_backend_init(trace_file)) {
+    if (!trace_backend_init(trace_events, trace_file)) {
         exit(1);
     }
 

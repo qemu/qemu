@@ -24,10 +24,18 @@ bool trace_event_set_state(const char *name, bool state);
 
 /** Initialize the tracing backend.
  *
- * @file Name of trace output file; may be NULL.
- *       Corresponds to commandline option "-trace file=...".
+ * @events Name of file with events to be enabled at startup; may be NULL.
+ *         Corresponds to commandline option "-trace events=...".
+ * @file   Name of trace output file; may be NULL.
+ *         Corresponds to commandline option "-trace file=...".
  * @return Whether the backend could be successfully initialized.
  */
-bool trace_backend_init(const char *file);
+bool trace_backend_init(const char *events, const char *file);
+
+/** Generic function to initialize the state of events.
+ *
+ * @fname Name of file with events to enable; may be NULL.
+ */
+void trace_backend_init_events(const char *fname);
 
 #endif  /* TRACE_CONTROL_H */

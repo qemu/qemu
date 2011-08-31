@@ -309,6 +309,9 @@ static QemuOptsList qemu_trace_opts = {
     .head = QTAILQ_HEAD_INITIALIZER(qemu_trace_opts.head),
     .desc = {
         {
+            .name = "events",
+            .type = QEMU_OPT_STRING,
+        },{
             .name = "file",
             .type = QEMU_OPT_STRING,
         },
