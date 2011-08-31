@@ -91,7 +91,7 @@ struct ip {
 	uint8_t ip_p;			/* protocol */
 	uint16_t	ip_sum;			/* checksum */
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
-} __attribute__((packed));
+} QEMU_PACKED;
 
 #define	IP_MAXPACKET	65535		/* maximum packet size */
 
@@ -153,7 +153,7 @@ struct	ip_timestamp {
 			n_long ipt_time;
 		} ipt_ta[1];
 	} ipt_timestamp;
-} __attribute__((packed));
+} QEMU_PACKED;
 
 /* flag bits for ipt_flg */
 #define	IPOPT_TS_TSONLY		0		/* timestamps only */
@@ -183,11 +183,11 @@ struct	ip_timestamp {
 struct mbuf_ptr {
 	struct mbuf *mptr;
 	uint32_t dummy;
-} __attribute__((packed));
+} QEMU_PACKED;
 #else
 struct mbuf_ptr {
 	struct mbuf *mptr;
-} __attribute__((packed));
+} QEMU_PACKED;
 #endif
 struct qlink {
 	void *next, *prev;
@@ -203,7 +203,7 @@ struct ipovly {
 	uint16_t	ih_len;			/* protocol length */
 	struct	in_addr ih_src;		/* source internet address */
 	struct	in_addr ih_dst;		/* destination internet address */
-} __attribute__((packed));
+} QEMU_PACKED;
 
 /*
  * Ip reassembly queue structure.  Each fragment
@@ -219,7 +219,7 @@ struct ipq {
 	uint8_t	ipq_p;			/* protocol of this fragment */
 	uint16_t	ipq_id;			/* sequence id for reassembly */
 	struct	in_addr ipq_src,ipq_dst;
-} __attribute__((packed));
+} QEMU_PACKED;
 
 /*
  * Ip header, when holding a fragment.
@@ -229,7 +229,7 @@ struct ipq {
 struct	ipasfrag {
 	struct qlink ipf_link;
 	struct ip ipf_ip;
-} __attribute__((packed));
+} QEMU_PACKED;
 
 #define ipf_off      ipf_ip.ip_off
 #define ipf_tos      ipf_ip.ip_tos
@@ -248,6 +248,6 @@ struct	ipasfrag {
 struct ipoption {
 	struct	in_addr ipopt_dst;	/* first-hop dst if source routed */
 	int8_t	ipopt_list[MAX_IPOPTLEN];	/* options proper */
-} __attribute__((packed));
+} QEMU_PACKED;
 
 #endif

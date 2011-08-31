@@ -56,7 +56,7 @@ typedef struct {
     int64_t grain_offset;
     char filler[1];
     char check_bytes[4];
-} __attribute__((packed)) VMDK4Header;
+} QEMU_PACKED VMDK4Header;
 
 #define L2_CACHE_SIZE 16
 

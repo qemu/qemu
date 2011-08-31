@@ -348,7 +348,7 @@ int kvm_arch_init_vcpu(CPUState *env)
     struct {
         struct kvm_cpuid2 cpuid;
         struct kvm_cpuid_entry2 entries[100];
-    } __attribute__((packed)) cpuid_data;
+    } QEMU_PACKED cpuid_data;
     KVMState *s = env->kvm_state;
     uint32_t limit, i, j, cpuid_i;
     uint32_t unused;

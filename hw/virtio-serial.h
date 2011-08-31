@@ -37,7 +37,7 @@ struct virtio_console_config {
     uint16_t rows;
 
     uint32_t max_nr_ports;
-} __attribute__((packed));
+} QEMU_PACKED;
 
 struct virtio_console_control {
     uint32_t id;		/* Port number */

@@ -199,7 +199,7 @@ struct arphdr {
     uint32_t      ar_sip;           /* sender IP address       */
     unsigned char ar_tha[ETH_ALEN]; /* target hardware address */
     uint32_t      ar_tip;           /* target IP address       */
-} __attribute__((packed));
+} QEMU_PACKED;
 
 #define ARP_TABLE_SIZE 16
 

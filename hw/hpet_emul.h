@@ -59,13 +59,13 @@ struct hpet_fw_entry
     uint64_t address;
     uint16_t min_tick;
     uint8_t page_prot;
-} __attribute__ ((packed));
+} QEMU_PACKED;
 
 struct hpet_fw_config
 {
     uint8_t count;
     struct hpet_fw_entry hpet[8];
-} __attribute__ ((packed));
+} QEMU_PACKED;
 
 extern struct hpet_fw_config hpet_cfg;
 #endif

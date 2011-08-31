@@ -70,12 +70,12 @@ struct m68k_gdb_stat {
   gdb_time_t  gdb_st_atime;   /* time of last access */
   gdb_time_t  gdb_st_mtime;   /* time of last modification */
   gdb_time_t  gdb_st_ctime;   /* time of last change */
-} __attribute__((packed));
+} QEMU_PACKED;
 
 struct gdb_timeval {
   gdb_time_t tv_sec;  /* second */
   uint64_t tv_usec;   /* microsecond */
-} __attribute__((packed));
+} QEMU_PACKED;
 
 #define GDB_O_RDONLY   0x0
 #define GDB_O_WRONLY   0x1

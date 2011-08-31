@@ -70,7 +70,7 @@ struct vmsvga_state_s {
 
     union {
         uint32_t *fifo;
-        struct __attribute__((__packed__)) {
+        struct QEMU_PACKED {
             uint32_t min;
             uint32_t max;
             uint32_t next_cmd;

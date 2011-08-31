@@ -26,7 +26,7 @@ struct smbios_structure_header {
     uint8_t type;
     uint8_t length;
     uint16_t handle;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 /* SMBIOS type 0 - BIOS Information */
 struct smbios_type_0 {
@@ -42,7 +42,7 @@ struct smbios_type_0 {
     uint8_t system_bios_minor_release;
     uint8_t embedded_controller_major_release;
     uint8_t embedded_controller_minor_release;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 /* SMBIOS type 1 - System Information */
 struct smbios_type_1 {
@@ -55,7 +55,7 @@ struct smbios_type_1 {
     uint8_t wake_up_type;
     uint8_t sku_number_str;
     uint8_t family_str;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 /* SMBIOS type 3 - System Enclosure (v2.3) */
 struct smbios_type_3 {
@@ -74,7 +74,7 @@ struct smbios_type_3 {
     uint8_t number_of_power_cords;
     uint8_t contained_element_count;
     // contained elements follow
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 /* SMBIOS type 4 - Processor Information (v2.0) */
 struct smbios_type_4 {
@@ -94,7 +94,7 @@ struct smbios_type_4 {
     uint16_t l1_cache_handle;
     uint16_t l2_cache_handle;
     uint16_t l3_cache_handle;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 /* SMBIOS type 16 - Physical Memory Array
  *   Associated with one type 17 (Memory Device).
@@ -107,7 +107,7 @@ struct smbios_type_16 {
     uint32_t maximum_capacity;
     uint16_t memory_error_information_handle;
     uint16_t number_of_memory_devices;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 /* SMBIOS type 17 - Memory Device
  *   Associated with one type 19
  */
@@ -124,7 +124,7 @@ struct smbios_type_17 {
     uint8_t bank_locator_str;
     uint8_t memory_type;
     uint16_t type_detail;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 /* SMBIOS type 19 - Memory Array Mapped Address */
 struct smbios_type_19 {
@@ -133,7 +133,7 @@ struct smbios_type_19 {
     uint32_t ending_address;
     uint16_t memory_array_handle;
     uint8_t partition_width;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 /* SMBIOS type 20 - Memory Device Mapped Address */
 struct smbios_type_20 {
@@ -145,18 +145,18 @@ struct smbios_type_20 {
     uint8_t partition_row_position;
     uint8_t interleave_position;
     uint8_t interleaved_data_depth;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 /* SMBIOS type 32 - System Boot Information */
 struct smbios_type_32 {
     struct smbios_structure_header header;
     uint8_t reserved[6];
     uint8_t boot_status;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 /* SMBIOS type 127 -- End-of-table */
 struct smbios_type_127 {
     struct smbios_structure_header header;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 #endif /*QEMU_SMBIOS_H */

@@ -31,13 +31,13 @@ struct nbd_request {
     uint64_t handle;
     uint64_t from;
     uint32_t len;
-} __attribute__ ((__packed__));
+} QEMU_PACKED;
 
 struct nbd_reply {
     uint32_t magic;
     uint32_t error;
     uint64_t handle;
-} __attribute__ ((__packed__));
+} QEMU_PACKED;
 
 enum {
     NBD_CMD_READ = 0,

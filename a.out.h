@@ -151,7 +151,7 @@ struct external_lineno {
 #define E_FILNMLEN	14	/* # characters in a file name		*/
 #define E_DIMNUM	4	/* # array dimensions in auxiliary entry */
 
-struct __attribute__((packed)) external_syment
+struct QEMU_PACKED external_syment
 {
   union {
     char e_name[E_SYMNMLEN];

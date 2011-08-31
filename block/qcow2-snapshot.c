@@ -26,7 +26,7 @@
 #include "block_int.h"
 #include "block/qcow2.h"
 
-typedef struct __attribute__((packed)) QCowSnapshotHeader {
+typedef struct QEMU_PACKED QCowSnapshotHeader {
     /* header is 8 byte aligned */
     uint64_t l1_table_offset;
 

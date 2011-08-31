@@ -1120,7 +1120,7 @@ struct target_stat64 {
 	abi_ulong	__pad7;		/* will be high 32 bits of ctime someday */
 
 	unsigned long long	st_ino;
-} __attribute__((packed));
+} QEMU_PACKED;
 
 #ifdef TARGET_ARM
 struct target_eabi_stat64 {
@@ -1151,7 +1151,7 @@ struct target_eabi_stat64 {
         abi_ulong    target_st_ctime_nsec;
 
         unsigned long long st_ino;
-} __attribute__ ((packed));
+} QEMU_PACKED;
 #endif
 
 #elif defined(TARGET_SPARC64) && !defined(TARGET_ABI32)
@@ -1294,7 +1294,7 @@ struct target_stat {
 #endif
 };
 
-struct __attribute__((__packed__)) target_stat64 {
+struct QEMU_PACKED target_stat64 {
 	unsigned long long st_dev;
         unsigned long long st_ino;
 	unsigned int st_mode;
@@ -1341,7 +1341,7 @@ struct target_stat {
 };
 
 /* FIXME: Microblaze no-mmu user-space has a difference stat64 layout...  */
-struct __attribute__((__packed__)) target_stat64 {
+struct QEMU_PACKED target_stat64 {
 	uint64_t st_dev;
 #define TARGET_STAT64_HAS_BROKEN_ST_INO 1
 	uint32_t pad0;
@@ -1428,7 +1428,7 @@ struct target_stat64 {
 	abi_ulong	target_st_ctime_nsec;
 
 	unsigned long long	st_ino;
-} __attribute__((packed));
+} QEMU_PACKED;
 
 #elif defined(TARGET_ABI_MIPSN64)
 
@@ -1680,7 +1680,7 @@ struct target_stat {
 /* This matches struct stat64 in glibc2.1, hence the absolutely
  * insane amounts of padding around dev_t's.
  */
-struct __attribute__((__packed__)) target_stat64 {
+struct QEMU_PACKED target_stat64 {
 	unsigned long long	st_dev;
 	unsigned char	__pad0[4];
 
@@ -2095,7 +2095,7 @@ struct target_flock64 {
 	unsigned long long l_start;
 	unsigned long long l_len;
 	int  l_pid;
-}__attribute__((packed));
+} QEMU_PACKED;
 
 #ifdef TARGET_ARM
 struct target_eabi_flock64 {
@@ -2105,7 +2105,7 @@ struct target_eabi_flock64 {
 	unsigned long long l_start;
 	unsigned long long l_len;
 	int  l_pid;
-}__attribute__((packed));
+} QEMU_PACKED;
 #endif
 
 /* soundcard defines */

@@ -176,56 +176,56 @@ enum {
      */
 };
 
-typedef struct __attribute__ ((__packed__)) CCID_Header {
+typedef struct QEMU_PACKED CCID_Header {
     uint8_t     bMessageType;
     uint32_t    dwLength;
     uint8_t     bSlot;
     uint8_t     bSeq;
 } CCID_Header;
 
-typedef struct __attribute__ ((__packed__)) CCID_BULK_IN {
+typedef struct QEMU_PACKED CCID_BULK_IN {
     CCID_Header hdr;
     uint8_t     bStatus;        /* Only used in BULK_IN */
     uint8_t     bError;         /* Only used in BULK_IN */
 } CCID_BULK_IN;
 
-typedef struct __attribute__ ((__packed__)) CCID_SlotStatus {
+typedef struct QEMU_PACKED CCID_SlotStatus {
     CCID_BULK_IN b;
     uint8_t     bClockStatus;
 } CCID_SlotStatus;
 
-typedef struct __attribute__ ((__packed__)) CCID_Parameter {
+typedef struct QEMU_PACKED CCID_Parameter {
     CCID_BULK_IN b;
     uint8_t     bProtocolNum;
     uint8_t     abProtocolDataStructure[0];
 } CCID_Parameter;
 
-typedef struct __attribute__ ((__packed__)) CCID_DataBlock {
+typedef struct QEMU_PACKED CCID_DataBlock {
     CCID_BULK_IN b;
     uint8_t      bChainParameter;
     uint8_t      abData[0];
 } CCID_DataBlock;
 
 /* 6.1.4 PC_to_RDR_XfrBlock */
-typedef struct __attribute__ ((__packed__)) CCID_XferBlock {
+typedef struct QEMU_PACKED CCID_XferBlock {
     CCID_Header  hdr;
     uint8_t      bBWI; /* Block Waiting Timeout */
     uint16_t     wLevelParameter; /* XXX currently unused */
     uint8_t      abData[0];
 } CCID_XferBlock;
 
-typedef struct __attribute__ ((__packed__)) CCID_IccPowerOn {
+typedef struct QEMU_PACKED CCID_IccPowerOn {
     CCID_Header hdr;
     uint8_t     bPowerSelect;
     uint16_t    abRFU;
 } CCID_IccPowerOn;
 
-typedef struct __attribute__ ((__packed__)) CCID_IccPowerOff {
+typedef struct QEMU_PACKED CCID_IccPowerOff {
     CCID_Header hdr;
     uint16_t    abRFU;
 } CCID_IccPowerOff;
 
-typedef struct __attribute__ ((__packed__)) CCID_SetParameters {
+typedef struct QEMU_PACKED CCID_SetParameters {
     CCID_Header hdr;
     uint8_t     bProtocolNum;
     uint16_t   abRFU;

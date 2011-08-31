@@ -246,7 +246,7 @@ device_init(scoop_register);
 
 #define MAGIC_CHG(a, b, c, d)	((d << 24) | (c << 16) | (b << 8) | a)
 
-static struct __attribute__ ((__packed__)) sl_param_info {
+static struct QEMU_PACKED sl_param_info {
     uint32_t comadj_keyword;
     int32_t comadj;
 

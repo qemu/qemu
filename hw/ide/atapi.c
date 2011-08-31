@@ -557,13 +557,13 @@ static void cmd_get_event_status_notification(IDEState *s,
         uint8_t reserved3[2];
         uint16_t len;
         uint8_t control;
-    } __attribute__((packed)) *gesn_cdb;
+    } QEMU_PACKED *gesn_cdb;
 
     struct {
         uint16_t len;
         uint8_t notification_class;
         uint8_t supported_events;
-    } __attribute((packed)) *gesn_event_header;
+    } QEMU_PACKED *gesn_event_header;
 
     enum notification_class_request_type {
         NCR_RESERVED1 = 1 << 0,

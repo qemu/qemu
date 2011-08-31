@@ -209,7 +209,7 @@ static void main_cpu_reset(void *opaque)
     env->pc = s->vector;
 }
 
-static struct __attribute__((__packed__))
+static struct QEMU_PACKED
 {
     int mount_root_rdonly;
     int ramdisk_flags;

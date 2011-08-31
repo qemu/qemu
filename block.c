@@ -1327,7 +1327,7 @@ struct partition {
         uint8_t end_cyl;            /* end cylinder */
         uint32_t start_sect;        /* starting sector counting from 0 */
         uint32_t nr_sects;          /* nr of sectors in partition */
-} __attribute__((packed));
+} QEMU_PACKED;
 
 /* try to guess the disk logical geometry from the MSDOS partition table. Return 0 if OK, -1 if could not guess */
 static int guess_disk_lchs(BlockDriverState *bs,

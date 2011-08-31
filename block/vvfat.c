@@ -200,7 +200,7 @@ static int array_index(array_t* array, void* pointer)
 }
 
 /* These structures are used to fake a disk and the VFAT filesystem.
- * For this reason we need to use __attribute__((packed)). */
+ * For this reason we need to use QEMU_PACKED. */
 
 typedef struct bootsector_t {
     uint8_t jump[3];
@@ -224,7 +224,7 @@ typedef struct bootsector_t {
 	    uint8_t signature;
 	    uint32_t id;
 	    uint8_t volume_label[11];
-	} __attribute__((packed)) fat16;
+	} QEMU_PACKED fat16;
 	struct {
 	    uint32_t sectors_per_fat;
 	    uint16_t flags;
@@ -233,12 +233,12 @@ typedef struct bootsector_t {
 	    uint16_t info_sector;
 	    uint16_t backup_boot_sector;
 	    uint16_t ignored;
-	} __attribute__((packed)) fat32;
+	} QEMU_PACKED fat32;
     } u;
     uint8_t fat_type[8];
     uint8_t ignored[0x1c0];
     uint8_t magic[2];
-} __attribute__((packed)) bootsector_t;
+} QEMU_PACKED bootsector_t;
 
 typedef struct {
     uint8_t head;
@@ -253,7 +253,7 @@ typedef struct partition_t {
     mbr_chs_t end_CHS;
     uint32_t start_sector_long;
     uint32_t length_sector_long;
-} __attribute__((packed)) partition_t;
+} QEMU_PACKED partition_t;
 
 typedef struct mbr_t {
     uint8_t ignored[0x1b8];
@@ -261,7 +261,7 @@ typedef struct mbr_t {
     uint8_t ignored2[2];
     partition_t partition[4];
     uint8_t magic[2];
-} __attribute__((packed)) mbr_t;
+} QEMU_PACKED mbr_t;
 
 typedef struct direntry_t {
     uint8_t name[8];
@@ -276,7 +276,7 @@ typedef struct direntry_t {
     uint16_t mdate;
     uint16_t begin;
     uint32_t size;
-} __attribute__((packed)) direntry_t;
+} QEMU_PACKED direntry_t;
 
 /* this structure are used to transparently access the files */
 
