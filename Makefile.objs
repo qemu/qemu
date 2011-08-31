@@ -372,15 +372,17 @@ trace-dtrace.lo: trace-dtrace.dtrace
 	$(call quiet-command,$(LIBTOOL) --mode=compile --tag=CC dtrace -o $@ -G -s $<, "  lt GEN trace-dtrace.o")
 endif
 
-simpletrace.o: simpletrace.c $(GENERATED_HEADERS)
+trace/simple.o: trace/simple.c $(GENERATED_HEADERS)
 
 trace-obj-$(CONFIG_TRACE_DTRACE) += trace-dtrace.o
 ifneq ($(TRACE_BACKEND),dtrace)
 trace-obj-y = trace.o
 endif
 
-trace-obj-$(CONFIG_TRACE_SIMPLE) += simpletrace.o
+trace-nested-$(CONFIG_TRACE_SIMPLE) += simple.o
 trace-obj-$(CONFIG_TRACE_SIMPLE) += qemu-timer-common.o
+
+trace-obj-y += $(addprefix trace/, $(trace-nested-y))
 
 ######################################################################
 # smartcard

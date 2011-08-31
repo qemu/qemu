@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef SIMPLETRACE_H
-#define SIMPLETRACE_H
+#ifndef TRACE_SIMPLE_H
+#define TRACE_SIMPLE_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -45,4 +45,4 @@ static inline bool st_init(const char *file)
 }
 #endif /* !CONFIG_TRACE_SIMPLE */
 
-#endif /* SIMPLETRACE_H */
+#endif /* TRACE_SIMPLE_H */

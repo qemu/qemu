@@ -156,7 +156,7 @@ int main(int argc, char **argv)
 #include "slirp/libslirp.h"
 
 #include "trace.h"
-#include "simpletrace.h"
+#include "trace/simple.h"
 #include "qemu-queue.h"
 #include "cpus.h"
 #include "arch_init.h"

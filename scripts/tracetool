@@ -158,7 +158,7 @@ linetoc_end_nop()
 linetoh_begin_simple()
 {
     cat <<EOF
-#include "simpletrace.h"
+#include "trace/simple.h"
 EOF
 
     simple_event_num=0
