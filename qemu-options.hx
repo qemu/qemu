@@ -2436,17 +2436,19 @@ Normally QEMU loads a configuration file from @var{sysconfdir}/qemu.conf and
 @var{sysconfdir}/target-@var{ARCH}.conf on startup.  The @code{-nodefconfig}
 option will prevent QEMU from loading these configuration files at startup.
 ETEXI
-#ifdef CONFIG_TRACE_SIMPLE
 DEF("trace", HAS_ARG, QEMU_OPTION_trace,
     "-trace\n"
     "                Specify a trace file to log traces to\n",
     QEMU_ARCH_ALL)
 STEXI
+HXCOMM This line is not accurate, as the option is backend-specific but HX does
+HXCOMM not support conditional compilation of text.
 @item -trace
 @findex -trace
 Specify a trace file to log output traces to.
+
+This option is available only when using the @var{simple} tracing backend.
 ETEXI
-#endif
 
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI

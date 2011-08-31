@@ -379,6 +379,8 @@ ifneq ($(TRACE_BACKEND),dtrace)
 trace-obj-y = trace.o
 endif
 
+trace-nested-$(CONFIG_TRACE_DEFAULT) += default.o
+
 trace-nested-$(CONFIG_TRACE_SIMPLE) += simple.o
 trace-obj-$(CONFIG_TRACE_SIMPLE) += qemu-timer-common.o
 

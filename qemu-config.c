@@ -303,7 +303,6 @@ static QemuOptsList qemu_mon_opts = {
     },
 };
 
-#ifdef CONFIG_TRACE_SIMPLE
 static QemuOptsList qemu_trace_opts = {
     .name = "trace",
     .implied_opt_name = "trace",
@@ -316,7 +315,6 @@ static QemuOptsList qemu_trace_opts = {
         { /* end of list */ }
     },
 };
-#endif
 
 static QemuOptsList qemu_cpudef_opts = {
     .name = "cpudef",
@@ -517,9 +515,7 @@ static QemuOptsList *vm_config_groups[32] = {
     &qemu_global_opts,
     &qemu_mon_opts,
     &qemu_cpudef_opts,
-#ifdef CONFIG_TRACE_SIMPLE
     &qemu_trace_opts,
-#endif
     &qemu_option_rom_opts,
     &qemu_machine_opts,
     &qemu_boot_opts,

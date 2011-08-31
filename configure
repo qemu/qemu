@@ -3064,12 +3064,15 @@ bsd)
 ;;
 esac
 
+# use default implementation for tracing backend-specific routines
+trace_default=yes
 echo "TRACE_BACKEND=$trace_backend" >> $config_host_mak
 if test "$trace_backend" = "nop"; then
   echo "CONFIG_TRACE_NOP=y" >> $config_host_mak
 fi
 if test "$trace_backend" = "simple"; then
   echo "CONFIG_TRACE_SIMPLE=y" >> $config_host_mak
+  trace_default=no
   # Set the appropriate trace file.
   trace_file="\"$trace_file-\" FMT_pid"
 fi
@@ -3086,6 +3089,9 @@ if test "$trace_backend" = "dtrace"; then
   fi
 fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
+if test "$trace_default" = "yes"; then
+  echo "CONFIG_TRACE_DEFAULT=y" >> $config_host_mak
+fi
 
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak

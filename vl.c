@@ -156,7 +156,7 @@ int main(int argc, char **argv)
 #include "slirp/libslirp.h"
 
 #include "trace.h"
-#include "trace/simple.h"
+#include "trace/control.h"
 #include "qemu-queue.h"
 #include "cpus.h"
 #include "arch_init.h"
@@ -2130,7 +2130,6 @@ int main(int argc, char **argv, char **envp)
     int show_vnc_port = 0;
 #endif
     int defconfig = 1;
-    const char *trace_file = NULL;
     const char *log_mask = NULL;
     const char *log_file = NULL;
     GMemVTable mem_trace = {
@@ -2138,6 +2137,7 @@ int main(int argc, char **argv, char **envp)
         .realloc = realloc_and_trace,
         .free = free_and_trace,
     };
+    const char *trace_file = NULL;
 
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
@@ -2928,14 +2928,15 @@ int main(int argc, char **argv, char **envp)
                 }
                 xen_mode = XEN_ATTACH;
                 break;
-#ifdef CONFIG_TRACE_SIMPLE
             case QEMU_OPTION_trace:
+            {
                 opts = qemu_opts_parse(qemu_find_opts("trace"), optarg, 0);
-                if (opts) {
-                    trace_file = qemu_opt_get(opts, "file");
+                if (!opts) {
+                    exit(1);
                 }
+                trace_file = qemu_opt_get(opts, "file");
                 break;
-#endif
+            }
             case QEMU_OPTION_readconfig:
                 {
                     int ret = qemu_read_config_file(optarg);
@@ -2993,8 +2994,8 @@ int main(int argc, char **argv, char **envp)
         set_cpu_log(log_mask);
     }
 
-    if (!st_init(trace_file)) {
-        fprintf(stderr, "warning: unable to initialize simple trace backend\n");
+    if (!trace_backend_init(trace_file)) {
+        exit(1);
     }
 
     /* If no data_dir is specified then try to find it relative to the
