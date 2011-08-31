@@ -189,6 +189,8 @@ static void mmubooke_create_initial_mapping(CPUState *env,
     tlb->mas2 = va & TARGET_PAGE_MASK;
     tlb->mas7_3 = pa & TARGET_PAGE_MASK;
     tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
+
+    env->tlb_dirty = true;
 }
 
 static void mpc8544ds_cpu_reset_sec(void *opaque)

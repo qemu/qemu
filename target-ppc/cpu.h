@@ -934,6 +934,8 @@ struct CPUPPCState {
     ppc_tlb_t tlb;   /* TLB is optional. Allocate them only if needed        */
     /* 403 dedicated access protection registers */
     target_ulong pb[4];
+    bool tlb_dirty;   /* Set to non-zero when modifying TLB                  */
+    bool kvm_sw_tlb;  /* non-zero if KVM SW TLB API is active                */
 #endif
 
     /* Other registers */

@@ -112,6 +112,52 @@ static int kvm_arch_sync_sregs(CPUState *cenv)
     return kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
 }
 
+/* Set up a shared TLB array with KVM */
+static int kvm_booke206_tlb_init(CPUState *env)
+{
+    struct kvm_book3e_206_tlb_params params = {};
+    struct kvm_config_tlb cfg = {};
+    struct kvm_enable_cap encap = {};
+    unsigned int entries = 0;
+    int ret, i;
+
+    if (!kvm_enabled() ||
+        !kvm_check_extension(env->kvm_state, KVM_CAP_SW_TLB)) {
+        return 0;
+    }
+
+    assert(ARRAY_SIZE(params.tlb_sizes) == BOOKE206_MAX_TLBN);
+
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        params.tlb_sizes[i] = booke206_tlb_size(env, i);
+        params.tlb_ways[i] = booke206_tlb_ways(env, i);
+        entries += params.tlb_sizes[i];
+    }
+
+    assert(entries == env->nb_tlb);
+    assert(sizeof(struct kvm_book3e_206_tlb_entry) == sizeof(ppcmas_tlb_t));
+
+    env->tlb_dirty = true;
+
+    cfg.array = (uintptr_t)env->tlb.tlbm;
+    cfg.array_len = sizeof(ppcmas_tlb_t) * entries;
+    cfg.params = (uintptr_t)&params;
+    cfg.mmu_type = KVM_MMU_FSL_BOOKE_NOHV;
+
+    encap.cap = KVM_CAP_SW_TLB;
+    encap.args[0] = (uintptr_t)&cfg;
+
+    ret = kvm_vcpu_ioctl(env, KVM_ENABLE_CAP, &encap);
+    if (ret < 0) {
+        fprintf(stderr, "%s: couldn't enable KVM_CAP_SW_TLB: %s\n",
+                __func__, strerror(-ret));
+        return ret;
+    }
+
+    env->kvm_sw_tlb = true;
+    return 0;
+}
+
 int kvm_arch_init_vcpu(CPUState *cenv)
 {
     int ret;
@@ -123,11 +169,45 @@ int kvm_arch_init_vcpu(CPUState *cenv)
 
     idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_env, cenv);
 
+    /* Some targets support access to KVM's guest TLB. */
+    switch (cenv->mmu_model) {
+    case POWERPC_MMU_BOOKE206:
+        ret = kvm_booke206_tlb_init(cenv);
+        break;
+    default:
+        break;
+    }
+
     return ret;
 }
 
 void kvm_arch_reset_vcpu(CPUState *env)
 {
+}
+
+static void kvm_sw_tlb_put(CPUState *env)
+{
+    struct kvm_dirty_tlb dirty_tlb;
+    unsigned char *bitmap;
+    int ret;
+
+    if (!env->kvm_sw_tlb) {
+        return;
+    }
+
+    bitmap = g_malloc((env->nb_tlb + 7) / 8);
+    memset(bitmap, 0xFF, (env->nb_tlb + 7) / 8);
+
+    dirty_tlb.bitmap = (uintptr_t)bitmap;
+    dirty_tlb.num_dirty = env->nb_tlb;
+
+    ret = kvm_vcpu_ioctl(env, KVM_DIRTY_TLB, &dirty_tlb);
+    if (ret) {
+        fprintf(stderr, "%s: KVM_DIRTY_TLB: %s\n",
+                __func__, strerror(-ret));
+    }
+
+    g_free(bitmap);
 }
 
 int kvm_arch_put_registers(CPUState *env, int level)
@@ -166,6 +246,11 @@ int kvm_arch_put_registers(CPUState *env, int level)
     ret = kvm_vcpu_ioctl(env, KVM_SET_REGS, &regs);
     if (ret < 0)
         return ret;
+
+    if (env->tlb_dirty) {
+        kvm_sw_tlb_put(env);
+        env->tlb_dirty = false;
+    }
 
     return ret;
 }
