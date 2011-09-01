@@ -593,12 +593,11 @@ static int qcow2_co_writev(BlockDriverState *bs,
         }
 
         ret = qcow2_alloc_cluster_link_l2(bs, &l2meta);
-
-        run_dependent_requests(s, &l2meta);
-
         if (ret < 0) {
             goto fail;
         }
+
+        run_dependent_requests(s, &l2meta);
 
         remaining_sectors -= cur_nr_sectors;
         sector_num += cur_nr_sectors;
@@ -607,6 +606,8 @@ static int qcow2_co_writev(BlockDriverState *bs,
     ret = 0;
 
 fail:
+    run_dependent_requests(s, &l2meta);
+
     qemu_co_mutex_unlock(&s->lock);
 
     qemu_iovec_destroy(&hd_qiov);
