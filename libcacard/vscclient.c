@@ -585,7 +585,7 @@ main(
                 printf(" recv APDU: ");
                 print_byte_array(pbSendBuffer, mhHeader.length);
             }
-            /* Transmit recieved APDU */
+            /* Transmit received APDU */
             dwSendLength = mhHeader.length;
             dwRecvLength = sizeof(pbRecvBuffer);
             reader = vreader_get_reader_by_id(mhHeader.reader_id);
