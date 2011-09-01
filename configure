@@ -2669,7 +2669,7 @@ if test "$softmmu" = yes ; then
     fi
     if [ "$check_utests" = "yes" ]; then
       checks="check-qint check-qstring check-qdict check-qlist"
-      checks="check-qfloat check-qjson $checks"
+      checks="check-qfloat check-qjson test-coroutine $checks"
     fi
   fi
 fi
