@@ -3,6 +3,7 @@
 #include "qdev.h"
 #include "sysemu.h"
 #include "monitor.h"
+#include "trace.h"
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
 
@@ -73,9 +74,13 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
     dev->info = info;
     dev->auto_attach = 1;
     QLIST_INIT(&dev->strings);
-    rc = dev->info->init(dev);
-    if (rc == 0 && dev->auto_attach)
+    rc = usb_claim_port(dev);
+    if (rc == 0) {
+        rc = dev->info->init(dev);
+    }
+    if (rc == 0 && dev->auto_attach) {
         rc = usb_device_attach(dev);
+    }
     return rc;
 }
 
@@ -88,6 +93,9 @@ static int usb_qdev_exit(DeviceState *qdev)
     }
     if (dev->info->handle_destroy) {
         dev->info->handle_destroy(dev);
+    }
+    if (dev->port) {
+        usb_release_port(dev);
     }
     return 0;
 }
@@ -205,21 +213,13 @@ void usb_unregister_port(USBBus *bus, USBPort *port)
     bus->nfree--;
 }
 
-static int do_attach(USBDevice *dev)
+int usb_claim_port(USBDevice *dev)
 {
     USBBus *bus = usb_bus_from_device(dev);
     USBPort *port;
 
-    if (dev->attached) {
-        error_report("Error: tried to attach usb device %s twice\n",
-                dev->product_desc);
-        return -1;
-    }
-    if (bus->nfree == 0) {
-        error_report("Error: tried to attach usb device %s to a bus with no free ports\n",
-                dev->product_desc);
-        return -1;
-    }
+    assert(dev->port == NULL);
+
     if (dev->port_path) {
         QTAILQ_FOREACH(port, &bus->free, next) {
             if (strcmp(port->path, dev->port_path) == 0) {
@@ -227,68 +227,86 @@ static int do_attach(USBDevice *dev)
             }
         }
         if (port == NULL) {
-            error_report("Error: usb port %s (bus %s) not found\n",
-                    dev->port_path, bus->qbus.name);
+            error_report("Error: usb port %s (bus %s) not found (in use?)\n",
+                         dev->port_path, bus->qbus.name);
             return -1;
         }
     } else {
+        if (bus->nfree == 1 && strcmp(dev->qdev.info->name, "usb-hub") != 0) {
+            /* Create a new hub and chain it on */
+            usb_create_simple(bus, "usb-hub");
+        }
+        if (bus->nfree == 0) {
+            error_report("Error: tried to attach usb device %s to a bus "
+                         "with no free ports\n", dev->product_desc);
+            return -1;
+        }
         port = QTAILQ_FIRST(&bus->free);
     }
-    if (!(port->speedmask & dev->speedmask)) {
-        error_report("Warning: speed mismatch trying to attach usb device %s to bus %s\n",
-                dev->product_desc, bus->qbus.name);
-        return -1;
-    }
+    trace_usb_port_claim(bus->busnr, port->path);
 
-    dev->attached++;
     QTAILQ_REMOVE(&bus->free, port, next);
     bus->nfree--;
 
-    usb_attach(port, dev);
+    dev->port = port;
+    port->dev = dev;
 
     QTAILQ_INSERT_TAIL(&bus->used, port, next);
     bus->nused++;
-
     return 0;
+}
+
+void usb_release_port(USBDevice *dev)
+{
+    USBBus *bus = usb_bus_from_device(dev);
+    USBPort *port = dev->port;
+
+    assert(port != NULL);
+    trace_usb_port_release(bus->busnr, port->path);
+
+    QTAILQ_REMOVE(&bus->used, port, next);
+    bus->nused--;
+
+    dev->port = NULL;
+    port->dev = NULL;
+
+    QTAILQ_INSERT_TAIL(&bus->free, port, next);
+    bus->nfree++;
 }
 
 int usb_device_attach(USBDevice *dev)
 {
     USBBus *bus = usb_bus_from_device(dev);
+    USBPort *port = dev->port;
 
-    if (bus->nfree == 1 && dev->port_path == NULL) {
-        /* Create a new hub and chain it on
-           (unless a physical port location is specified). */
-        usb_create_simple(bus, "usb-hub");
+    assert(port != NULL);
+    assert(!dev->attached);
+    trace_usb_port_attach(bus->busnr, port->path);
+
+    if (!(port->speedmask & dev->speedmask)) {
+        error_report("Warning: speed mismatch trying to attach "
+                     "usb device %s to bus %s\n",
+                     dev->product_desc, bus->qbus.name);
+        return -1;
     }
-    return do_attach(dev);
+
+    dev->attached++;
+    usb_attach(port);
+
+    return 0;
 }
 
 int usb_device_detach(USBDevice *dev)
 {
     USBBus *bus = usb_bus_from_device(dev);
-    USBPort *port;
+    USBPort *port = dev->port;
 
-    if (!dev->attached) {
-        error_report("Error: tried to detach unattached usb device %s\n",
-                dev->product_desc);
-        return -1;
-    }
-    dev->attached--;
-
-    QTAILQ_FOREACH(port, &bus->used, next) {
-        if (port->dev == dev)
-            break;
-    }
     assert(port != NULL);
+    assert(dev->attached);
+    trace_usb_port_detach(bus->busnr, port->path);
 
-    QTAILQ_REMOVE(&bus->used, port, next);
-    bus->nused--;
-
-    usb_attach(port, NULL);
-
-    QTAILQ_INSERT_TAIL(&bus->free, port, next);
-    bus->nfree++;
+    usb_detach(port);
+    dev->attached--;
     return 0;
 }
 

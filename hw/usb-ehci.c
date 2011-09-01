@@ -857,8 +857,8 @@ static void ehci_reset(void *opaque)
      */
     for(i = 0; i < NB_PORTS; i++) {
         devs[i] = s->ports[i].dev;
-        if (devs[i]) {
-            usb_attach(&s->ports[i], NULL);
+        if (devs[i] && devs[i]->attached) {
+            usb_detach(&s->ports[i]);
         }
     }
 
@@ -878,8 +878,8 @@ static void ehci_reset(void *opaque)
         } else {
             s->portsc[i] = PORTSC_PPOWER;
         }
-        if (devs[i]) {
-            usb_attach(&s->ports[i], devs[i]);
+        if (devs[i] && devs[i]->attached) {
+            usb_attach(&s->ports[i]);
         }
     }
     ehci_queues_rip_all(s);
@@ -945,15 +945,15 @@ static void handle_port_owner_write(EHCIState *s, int port, uint32_t owner)
         return;
     }
 
-    if (dev) {
-        usb_attach(&s->ports[port], NULL);
+    if (dev && dev->attached) {
+        usb_detach(&s->ports[port]);
     }
 
     *portsc &= ~PORTSC_POWNER;
     *portsc |= owner;
 
-    if (dev) {
-        usb_attach(&s->ports[port], dev);
+    if (dev && dev->attached) {
+        usb_attach(&s->ports[port]);
     }
 }
 
@@ -977,8 +977,8 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
 
     if (!(val & PORTSC_PRESET) &&(*portsc & PORTSC_PRESET)) {
         trace_usb_ehci_port_reset(port, 0);
-        if (dev) {
-            usb_attach(&s->ports[port], dev);
+        if (dev && dev->attached) {
+            usb_attach(&s->ports[port]);
             usb_send_msg(dev, USB_MSG_RESET);
             *portsc &= ~PORTSC_CSC;
         }
@@ -987,7 +987,7 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
          *  Table 2.16 Set the enable bit(and enable bit change) to indicate
          *  to SW that this port has a high speed device attached
          */
-        if (dev && (dev->speedmask & USB_SPEED_MASK_HIGH)) {
+        if (dev && dev->attached && (dev->speedmask & USB_SPEED_MASK_HIGH)) {
             val |= PORTSC_PED;
         }
     }

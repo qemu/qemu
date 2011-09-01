@@ -213,16 +213,6 @@ static void usb_hub_complete(USBPort *port, USBPacket *packet)
     usb_packet_complete(&s->dev, packet);
 }
 
-static void usb_hub_handle_attach(USBDevice *dev)
-{
-    USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
-    int i;
-
-    for (i = 0; i < NUM_PORTS; i++) {
-        usb_port_location(&s->ports[i].port, dev->port, i+1);
-    }
-}
-
 static void usb_hub_handle_reset(USBDevice *dev)
 {
     /* XXX: do it */
@@ -499,6 +489,7 @@ static int usb_hub_initfn(USBDevice *dev)
         usb_register_port(usb_bus_from_device(dev),
                           &port->port, s, i, &usb_hub_port_ops,
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
+        usb_port_location(&port->port, dev->port, i+1);
         port->wPortStatus = PORT_STAT_POWER;
         port->wPortChange = 0;
     }
@@ -537,7 +528,6 @@ static struct USBDeviceInfo hub_info = {
     .usb_desc       = &desc_hub,
     .init           = usb_hub_initfn,
     .handle_packet  = usb_hub_handle_packet,
-    .handle_attach  = usb_hub_handle_attach,
     .handle_reset   = usb_hub_handle_reset,
     .handle_control = usb_hub_handle_control,
     .handle_data    = usb_hub_handle_data,

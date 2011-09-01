@@ -209,6 +209,12 @@ sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "get flags
 sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva %"PRIx64" => pa %"PRIx64" iopte = %x"
 sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64""
 
+# hw/usb-bus.c
+usb_port_claim(int bus, const char *port) "bus %d, port %s"
+usb_port_attach(int bus, const char *port) "bus %d, port %s"
+usb_port_detach(int bus, const char *port) "bus %d, port %s"
+usb_port_release(int bus, const char *port) "bus %d, port %s"
+
 # hw/usb-ehci.c
 usb_ehci_reset(void) "=== RESET ==="
 usb_ehci_mmio_readl(uint32_t addr, const char *str, uint32_t val) "rd mmio %04x [%s] = %x"
