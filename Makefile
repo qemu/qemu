@@ -305,6 +305,12 @@ endif
 test speed: all
 	$(MAKE) -C tests $@
 
+.PHONY: check
+check: $(patsubst %,run-check-%,$(CHECKS))
+
+run-check-%: %
+	./$<
+
 .PHONY: TAGS
 TAGS:
 	find "$(SRC_PATH)" -name '*.[hc]' -print0 | xargs -0 etags
