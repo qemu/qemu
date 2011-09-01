@@ -526,13 +526,14 @@ static int qcow2_co_writev(BlockDriverState *bs,
     int n_end;
     int ret;
     int cur_nr_sectors; /* number of sectors in current iteration */
-    QCowL2Meta l2meta;
     uint64_t cluster_offset;
     QEMUIOVector hd_qiov;
     uint64_t bytes_done = 0;
     uint8_t *cluster_data = NULL;
+    QCowL2Meta l2meta = {
+        .nb_clusters = 0,
+    };
 
-    l2meta.nb_clusters = 0;
     qemu_co_queue_init(&l2meta.dependent_requests);
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
