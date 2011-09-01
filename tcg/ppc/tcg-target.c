@@ -525,13 +525,13 @@ static void *qemu_st_helpers[4] = {
 
 static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, data_reg, data_reg2, r0, r1, rbase, mem_index, s_bits, bswap;
+    int addr_reg, data_reg, data_reg2, r0, r1, rbase, bswap;
 #ifdef CONFIG_SOFTMMU
-    int r2;
+    int mem_index, s_bits, r2;
     void *label1_ptr, *label2_ptr;
-#endif
 #if TARGET_LONG_BITS == 64
     int addr_reg2;
+#endif
 #endif
 
     data_reg = *args++;
@@ -540,13 +540,13 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     else
         data_reg2 = 0;
     addr_reg = *args++;
+
+#ifdef CONFIG_SOFTMMU
 #if TARGET_LONG_BITS == 64
     addr_reg2 = *args++;
 #endif
     mem_index = *args;
     s_bits = opc & 3;
-
-#ifdef CONFIG_SOFTMMU
     r0 = 3;
     r1 = 4;
     r2 = 0;
@@ -722,13 +722,13 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
 static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, r0, r1, data_reg, data_reg2, mem_index, bswap, rbase;
+    int addr_reg, r0, r1, data_reg, data_reg2, bswap, rbase;
 #ifdef CONFIG_SOFTMMU
-    int r2, ir;
+    int mem_index, r2, ir;
     void *label1_ptr, *label2_ptr;
-#endif
 #if TARGET_LONG_BITS == 64
     int addr_reg2;
+#endif
 #endif
 
     data_reg = *args++;
@@ -737,12 +737,12 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     else
         data_reg2 = 0;
     addr_reg = *args++;
+
+#ifdef CONFIG_SOFTMMU
 #if TARGET_LONG_BITS == 64
     addr_reg2 = *args++;
 #endif
     mem_index = *args;
-
-#ifdef CONFIG_SOFTMMU
     r0 = 3;
     r1 = 4;
     r2 = 0;
