@@ -227,7 +227,7 @@ int monitor_cur_is_qmp(void)
     return cur_mon && monitor_ctrl_mode(cur_mon);
 }
 
-static void monitor_read_command(Monitor *mon, int show_prompt)
+void monitor_read_command(Monitor *mon, int show_prompt)
 {
     if (!mon->rs)
         return;
@@ -237,8 +237,8 @@ static void monitor_read_command(Monitor *mon, int show_prompt)
         readline_show_prompt(mon->rs);
 }
 
-static int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
-                                 void *opaque)
+int monitor_read_password(Monitor *mon, ReadLineFunc *readline_func,
+                          void *opaque)
 {
     if (monitor_ctrl_mode(mon)) {
         qerror_report(QERR_MISSING_PARAMETER, "password");
@@ -4662,6 +4662,11 @@ static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)
         mon->password_completion_cb(mon->password_opaque, ret);
 
     monitor_read_command(mon, 1);
+}
+
+ReadLineState *monitor_get_rs(Monitor *mon)
+{
+    return mon->rs;
 }
 
 int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
