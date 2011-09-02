@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include "qemu-timer.h"
 #include "trace.h"
+#include "trace/control.h"
 
 /** Trace file header event ID */
 #define HEADER_EVENT_ID (~(uint64_t)0) /* avoids conflicting with TraceEventIDs */
@@ -302,7 +303,12 @@ void st_print_trace(FILE *stream, int (*stream_printf)(FILE *stream, const char 
     }
 }
 
-void st_print_trace_events(FILE *stream, int (*stream_printf)(FILE *stream, const char *fmt, ...))
+void st_flush_trace_buffer(void)
+{
+    flush_trace_file(true);
+}
+
+void trace_print_events(FILE *stream, fprintf_function stream_printf)
 {
     unsigned int i;
 
@@ -312,25 +318,20 @@ void st_print_trace_events(FILE *stream, int (*stream_printf)(FILE *stream, cons
     }
 }
 
-bool st_change_trace_event_state(const char *name, bool enabled)
+bool trace_event_set_state(const char *name, bool state)
 {
     unsigned int i;
 
     for (i = 0; i < NR_TRACE_EVENTS; i++) {
         if (!strcmp(trace_list[i].tp_name, name)) {
-            trace_list[i].state = enabled;
+            trace_list[i].state = state;
             return true;
         }
     }
     return false;
 }
 
-void st_flush_trace_buffer(void)
-{
-    flush_trace_file(true);
-}
-
-bool st_init(const char *file)
+bool trace_backend_init(const char *events, const char *file)
 {
     pthread_t thread;
     pthread_attr_t attr;
@@ -346,10 +347,12 @@ bool st_init(const char *file)
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 
     if (ret != 0) {
-        return false;
+        fprintf(stderr, "warning: unable to initialize simple trace backend\n");
+    } else {
+        atexit(st_flush_trace_buffer);
+        trace_backend_init_events(events);
+        st_set_trace_file(file);
     }
 
-    atexit(st_flush_trace_buffer);
-    st_set_trace_file(file);
     return true;
 }

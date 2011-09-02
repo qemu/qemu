@@ -44,7 +44,7 @@ endif
 config-target.h: config-target.h-timestamp
 config-target.h-timestamp: config-target.mak
 
-ifdef CONFIG_SYSTEMTAP_TRACE
+ifdef CONFIG_TRACE_SYSTEMTAP
 stap: $(QEMU_PROG).stp
 
 ifdef CONFIG_USER_ONLY
@@ -398,7 +398,7 @@ obj-y += $(addprefix ../, $(trace-obj-y))
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 
 $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
-	$(call LINK,$(obj-y) $(obj-$(TARGET_BASE_ARCH)-y))
+	$(call LINK,$^)
 
 
 gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/scripts/feature_to_c.sh
@@ -414,7 +414,7 @@ clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o ide/*.o 9pfs/*.o
 	rm -f hmp-commands.h qmp-commands.h gdbstub-xml.c
-ifdef CONFIG_SYSTEMTAP_TRACE
+ifdef CONFIG_TRACE_SYSTEMTAP
 	rm -f *.stp
 endif
 
@@ -425,7 +425,7 @@ ifneq ($(STRIP),)
 	$(STRIP) $(patsubst %,"$(DESTDIR)$(bindir)/%",$(PROGS))
 endif
 endif
-ifdef CONFIG_SYSTEMTAP_TRACE
+ifdef CONFIG_TRACE_SYSTEMTAP
 	$(INSTALL_DIR) "$(DESTDIR)$(datadir)/../systemtap/tapset"
 	$(INSTALL_DATA) $(QEMU_PROG).stp "$(DESTDIR)$(datadir)/../systemtap/tapset"
 endif

@@ -3064,18 +3064,35 @@ bsd)
 ;;
 esac
 
+# use default implementation for tracing backend-specific routines
+trace_default=yes
 echo "TRACE_BACKEND=$trace_backend" >> $config_host_mak
-if test "$trace_backend" = "simple"; then
-  echo "CONFIG_SIMPLE_TRACE=y" >> $config_host_mak
+if test "$trace_backend" = "nop"; then
+  echo "CONFIG_TRACE_NOP=y" >> $config_host_mak
 fi
-# Set the appropriate trace file.
 if test "$trace_backend" = "simple"; then
+  echo "CONFIG_TRACE_SIMPLE=y" >> $config_host_mak
+  trace_default=no
+  # Set the appropriate trace file.
   trace_file="\"$trace_file-\" FMT_pid"
 fi
-if test "$trace_backend" = "dtrace" -a "$trace_backend_stap" = "yes" ; then
-  echo "CONFIG_SYSTEMTAP_TRACE=y" >> $config_host_mak
+if test "$trace_backend" = "stderr"; then
+  echo "CONFIG_TRACE_STDERR=y" >> $config_host_mak
+  trace_default=no
+fi
+if test "$trace_backend" = "ust"; then
+  echo "CONFIG_TRACE_UST=y" >> $config_host_mak
+fi
+if test "$trace_backend" = "dtrace"; then
+  echo "CONFIG_TRACE_DTRACE=y" >> $config_host_mak
+  if test "$trace_backend_stap" = "yes" ; then
+    echo "CONFIG_TRACE_SYSTEMTAP=y" >> $config_host_mak
+  fi
 fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
+if test "$trace_default" = "yes"; then
+  echo "CONFIG_TRACE_DEFAULT=y" >> $config_host_mak
+fi
 
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
