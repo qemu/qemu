@@ -200,4 +200,6 @@ def basename(filename):
     return filename.split("/")[-1]
 
 def guardname(filename):
-    return filename.replace("/", "_").replace("-", "_").split(".")[0].upper()
+    if filename.startswith('./'):
+        filename = filename[2:]
+    return filename.replace("/", "_").replace("-", "_").split(".")[0].upper() + '_H'

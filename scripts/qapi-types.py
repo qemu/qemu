@@ -268,3 +268,6 @@ fdecl.write('''
 
 fdecl.flush()
 fdecl.close()
+
+fdef.flush()
+fdef.close()

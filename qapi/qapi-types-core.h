@@ -17,4 +17,7 @@
 #include "qemu-common.h"
 #include "error.h"
 
+/* FIXME this is temporary until we remove middle mode */
+#include "monitor.h"
+
 #endif
