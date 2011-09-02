@@ -122,6 +122,7 @@ typedef struct mon_cmd_t {
         int  (*cmd_async)(Monitor *mon, const QDict *params,
                           MonitorCompletion *cb, void *opaque);
     } mhandler;
+    bool qapi;
     int flags;
 } mon_cmd_t;
 
@@ -3182,7 +3183,7 @@ static const mon_cmd_t info_cmds[] = {
 };
 
 static const mon_cmd_t qmp_cmds[] = {
-#include "qmp-commands.h"
+#include "qmp-commands-old.h"
     { /* NULL */ },
 };
 
@@ -5107,12 +5108,10 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    if (strstart(cmd_name, "query-", &query_cmd)) {
+    cmd = qmp_find_cmd(cmd_name);
+    if (!cmd && strstart(cmd_name, "query-", &query_cmd)) {
         cmd = qmp_find_query_cmd(query_cmd);
-    } else {
-        cmd = qmp_find_cmd(cmd_name);
     }
-
     if (!cmd) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_out;

@@ -406,6 +406,8 @@ qapi-nested-y = qapi-visit-core.o qmp-input-visitor.o qmp-output-visitor.o qapi-
 qapi-nested-y += qmp-registry.o qmp-dispatch.o
 qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
 
+common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o $(qapi-obj-y)
+
 ######################################################################
 # guest agent
 

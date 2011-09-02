@@ -7,6 +7,7 @@ GENERATED_HEADERS = config-host.h trace.h qemu-options.def
 ifeq ($(TRACE_BACKEND),dtrace)
 GENERATED_HEADERS += trace-dtrace.h
 endif
+GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h
 
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
@@ -187,8 +188,19 @@ $(qapi-dir)/qga-qapi-types.h: $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scr
 $(qapi-dir)/qga-qapi-visit.c: $(qapi-dir)/qga-qapi-visit.h
 $(qapi-dir)/qga-qapi-visit.h: $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-visit.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py -o "$(qapi-dir)" -p "qga-" < $<, "  GEN   $@")
+$(qapi-dir)/qga-qmp-commands.h: $(qapi-dir)/qga-qmp-marshal.c
 $(qapi-dir)/qga-qmp-marshal.c: $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-commands.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py -o "$(qapi-dir)" -p "qga-" < $<, "  GEN   $@")
+
+qapi-types.c: qapi-types.h
+qapi-types.h: $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py -o "." < $<, "  GEN   $@")
+qapi-visit.c: qapi-visit.h
+qapi-visit.h: $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-visit.py
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py -o "."  < $<, "  GEN   $@")
+qmp-commands.h: qmp-marshal.c
+qmp-marshal.c: $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py -m -o "." < $<, "  GEN   $@")
 
 test-visitor.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h) $(qapi-obj-y)
 test-visitor: test-visitor.o qfloat.o qint.o qdict.o qstring.o qlist.o qbool.o $(qapi-obj-y) error.o osdep.o $(oslib-obj-y) qjson.o json-streamer.o json-lexer.o json-parser.o qerror.o qemu-error.o qemu-tool.o $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o

@@ -375,7 +375,7 @@ obj-xtensa-y += xtensa-semi.o
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
-monitor.o: hmp-commands.h qmp-commands.h
+monitor.o: hmp-commands.h qmp-commands-old.h
 
 $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
 
@@ -407,13 +407,13 @@ gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/scripts/feature_to_c.sh
 hmp-commands.h: $(SRC_PATH)/hmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
-qmp-commands.h: $(SRC_PATH)/qmp-commands.hx
+qmp-commands-old.h: $(SRC_PATH)/qmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o ide/*.o 9pfs/*.o
-	rm -f hmp-commands.h qmp-commands.h gdbstub-xml.c
+	rm -f hmp-commands.h qmp-commands-old.h gdbstub-xml.c
 ifdef CONFIG_TRACE_SYSTEMTAP
 	rm -f *.stp
 endif
