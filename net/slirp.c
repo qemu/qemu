@@ -529,7 +529,7 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
     fclose(f);
 
     snprintf(smb_cmdline, sizeof(smb_cmdline), "%s -s %s",
-             SMBD_COMMAND, smb_conf);
+             CONFIG_SMBD_COMMAND, smb_conf);
 
     if (slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 139) < 0) {
         slirp_smb_cleanup(s);
