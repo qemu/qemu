@@ -1,3 +1,25 @@
 # -*- Mode: Python -*-
 #
 # QAPI Schema
+
+##
+# @NameInfo:
+#
+# Guest name information.
+#
+# @name: #optional The name of the guest
+#
+# Since 0.14.0
+##
+{ 'type': 'NameInfo', 'data': {'*name': 'str'} }
+
+##
+# @query-name:
+#
+# Return the name information of a guest.
+#
+# Returns: @NameInfo of the guest
+#
+# Since 0.14.0
+##
+{ 'command': 'query-name', 'returns': 'NameInfo' }

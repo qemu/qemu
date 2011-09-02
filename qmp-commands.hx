@@ -1780,6 +1780,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-name",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_name,
+    },
+
 SQMP
 query-uuid
 ----------

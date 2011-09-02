@@ -407,6 +407,7 @@ qapi-nested-y += qmp-registry.o qmp-dispatch.o
 qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
 
 common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o $(qapi-obj-y)
+common-obj-y += qmp.o hmp.o
 
 ######################################################################
 # guest agent

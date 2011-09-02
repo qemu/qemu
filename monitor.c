@@ -64,6 +64,8 @@
 #include "trace/control.h"
 #include "ui/qemu-spice.h"
 #include "memory.h"
+#include "qmp-commands.h"
+#include "hmp.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -758,24 +760,6 @@ static void do_info_version(Monitor *mon, QObject **ret_data)
 
     *ret_data = qobject_from_jsonf("{ 'qemu': { 'major': %d, 'minor': %d, \
         'micro': %d }, 'package': %s }", major, minor, micro, QEMU_PKGVERSION);
-}
-
-static void do_info_name_print(Monitor *mon, const QObject *data)
-{
-    QDict *qdict;
-
-    qdict = qobject_to_qdict(data);
-    if (qdict_size(qdict) == 0) {
-        return;
-    }
-
-    monitor_printf(mon, "%s\n", qdict_get_str(qdict, "name"));
-}
-
-static void do_info_name(Monitor *mon, QObject **ret_data)
-{
-    *ret_data = qemu_name ? qobject_from_jsonf("{'name': %s }", qemu_name) :
-                            qobject_from_jsonf("{}");
 }
 
 static QObject *get_cmd_dict(const char *name)
@@ -3094,8 +3078,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM name",
-        .user_print = do_info_name_print,
-        .mhandler.info_new = do_info_name,
+        .mhandler.info = hmp_info_name,
     },
     {
         .name       = "uuid",
@@ -3286,14 +3269,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .mhandler.info_new = do_info_spice,
     },
 #endif
-    {
-        .name       = "name",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the current VM name",
-        .user_print = do_info_name_print,
-        .mhandler.info_new = do_info_name,
-    },
     {
         .name       = "uuid",
         .args_type  = "",
