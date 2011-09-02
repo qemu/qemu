@@ -1277,9 +1277,9 @@ or @file{C:\WINNT\SYSTEM32\DRIVERS\ETC\LMHOSTS} (Windows NT/2000).
 
 Then @file{@var{dir}} can be accessed in @file{\\smbserver\qemu}.
 
-Note that a SAMBA server must be installed on the host OS in
-@file{/usr/sbin/smbd}. QEMU was tested successfully with smbd versions from
-Red Hat 9, Fedora Core 3 and OpenSUSE 11.x.
+Note that a SAMBA server must be installed on the host OS.
+QEMU was tested successfully with smbd versions from Red Hat 9,
+Fedora Core 3 and OpenSUSE 11.x.
 
 @item hostfwd=[tcp|udp]:[@var{hostaddr}]:@var{hostport}-[@var{guestaddr}]:@var{guestport}
 Redirect incoming TCP or UDP connections to the host port @var{hostport} to

@@ -412,6 +412,7 @@ SunOS)
   make="${MAKE-gmake}"
   install="${INSTALL-ginstall}"
   ld="gld"
+  smbd="${SMBD-/usr/sfw/sbin/smbd}"
   needs_libsunmath="no"
   solarisrev=`uname -r | cut -f2 -d.`
   # have to select again, because `uname -m` returns i86pc
@@ -480,6 +481,7 @@ fi
 : ${make=${MAKE-make}}
 : ${install=${INSTALL-install}}
 : ${python=${PYTHON-python}}
+: ${smbd=${SMBD-/usr/sbin/smbd}}
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
@@ -523,6 +525,8 @@ for opt do
   --install=*) install="$optarg"
   ;;
   --python=*) python="$optarg"
+  ;;
+  --smbd=*) smbd="$optarg"
   ;;
   --extra-cflags=*)
   ;;
@@ -938,6 +942,7 @@ echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --python=PYTHON          use specified python [$python]"
+echo "  --smbd=SMBD              use specified smbd [$smbd]"
 echo "  --static                 enable static build [$static]"
 echo "  --mandir=PATH            install man pages in PATH"
 echo "  --datadir=PATH           install firmware in PATH"
@@ -2657,6 +2662,9 @@ echo "LDFLAGS           $LDFLAGS"
 echo "make              $make"
 echo "install           $install"
 echo "python            $python"
+if test "$slirp" = "yes" ; then
+    echo "smbd              $smbd"
+fi
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -2815,6 +2823,7 @@ if test "$profiler" = "yes" ; then
 fi
 if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak
+  echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
   QEMU_INCLUDES="-I\$(SRC_PATH)/slirp $QEMU_INCLUDES"
 fi
 if test "$vde" = "yes" ; then
