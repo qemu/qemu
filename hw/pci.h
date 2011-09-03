@@ -255,8 +255,6 @@ PCIBus *pci_register_bus(DeviceState *parent, const char *name,
 void pci_device_reset(PCIDevice *dev);
 void pci_bus_reset(PCIBus *bus);
 
-void pci_bus_set_mem_base(PCIBus *bus, target_phys_addr_t base);
-
 PCIDevice *pci_nic_init(NICInfo *nd, const char *default_model,
                         const char *default_devaddr);
 PCIDevice *pci_nic_init_nofail(NICInfo *nd, const char *default_model,

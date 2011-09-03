@@ -312,11 +312,6 @@ void pci_bus_hotplug(PCIBus *bus, pci_hotplug_fn hotplug, DeviceState *qdev)
     bus->hotplug_qdev = qdev;
 }
 
-void pci_bus_set_mem_base(PCIBus *bus, target_phys_addr_t base)
-{
-    bus->mem_base = base;
-}
-
 PCIBus *pci_register_bus(DeviceState *parent, const char *name,
                          pci_set_irq_fn set_irq, pci_map_irq_fn map_irq,
                          void *irq_opaque,
@@ -833,12 +828,6 @@ PCIDevice *pci_register_device(PCIBus *bus, const char *name,
     return pci_dev;
 }
 
-static target_phys_addr_t pci_to_cpu_addr(PCIBus *bus,
-                                          target_phys_addr_t addr)
-{
-    return addr + bus->mem_base;
-}
-
 static void pci_unregister_io_regions(PCIDevice *pci_dev)
 {
     PCIIORegion *r;
@@ -1066,8 +1055,7 @@ static void pci_update_mappings(PCIDevice *d)
                                                     1);
             } else {
                 memory_region_add_subregion_overlap(r->address_space,
-                                                    pci_to_cpu_addr(d->bus,
-                                                                    r->addr),
+                                                    r->addr,
                                                     r->memory,
                                                     1);
             }
