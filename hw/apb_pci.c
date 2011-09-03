@@ -71,6 +71,7 @@ typedef struct APBState {
     PCIBus      *bus;
     MemoryRegion apb_config;
     MemoryRegion pci_config;
+    MemoryRegion pci_mmio;
     MemoryRegion pci_ioport;
     uint32_t iommu[4];
     uint32_t pci_control[16];
@@ -336,12 +337,14 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
     sysbus_mmio_map(s, 2, special_base + 0x2000000ULL);
     d = FROM_SYSBUS(APBState, s);
 
+    memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
+    memory_region_add_subregion(get_system_memory(), mem_base, &d->pci_mmio);
+
     d->bus = pci_register_bus(&d->busdev.qdev, "pci",
-                                         pci_apb_set_irq, pci_pbm_map_irq, d,
-                                         get_system_memory(),
-                                         get_system_io(),
-                                         0, 32);
-    pci_bus_set_mem_base(d->bus, mem_base);
+                              pci_apb_set_irq, pci_pbm_map_irq, d,
+                              &d->pci_mmio,
+                              get_system_io(),
+                              0, 32);
 
     for (i = 0; i < 32; i++) {
         sysbus_connect_irq(s, i, pic[i]);
