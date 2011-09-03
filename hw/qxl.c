@@ -959,7 +959,7 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     memslot.generation = d->rom->slot_generation = 0;
     qxl_rom_set_dirty(d);
 
-    dprint(d, 1, "%s: slot %d: host virt 0x%" PRIx64 " - 0x%" PRIx64 "\n",
+    dprint(d, 1, "%s: slot %d: host virt 0x%lx - 0x%lx\n",
            __FUNCTION__, memslot.slot_id,
            memslot.virt_start, memslot.virt_end);
 
@@ -1090,8 +1090,8 @@ static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
         .mem        = devmem + d->shadow_rom.draw_area_offset,
     };
 
-    dprint(d, 1, "%s: mode %d  [ %d x %d @ %d bpp devmem 0x%lx ]\n", __FUNCTION__,
-           modenr, mode->x_res, mode->y_res, mode->bits, devmem);
+    dprint(d, 1, "%s: mode %d  [ %d x %d @ %d bpp devmem 0x%" PRIx64 " ]\n",
+           __func__, modenr, mode->x_res, mode->y_res, mode->bits, devmem);
     if (!loadvm) {
         qxl_hard_reset(d, 0);
     }
@@ -1229,7 +1229,7 @@ async_common:
         break;
     case QXL_IO_LOG:
         if (d->guestdebug) {
-            fprintf(stderr, "qxl/guest-%d: %ld: %s", d->id,
+            fprintf(stderr, "qxl/guest-%d: %" PRId64 ": %s", d->id,
                     qemu_get_clock_ns(vm_clock), d->ram->log_buf);
         }
         break;
