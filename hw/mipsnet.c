@@ -1,11 +1,7 @@
 #include "hw.h"
 #include "net.h"
+#include "trace.h"
 #include "sysbus.h"
-
-//#define DEBUG_MIPSNET_SEND
-//#define DEBUG_MIPSNET_RECEIVE
-//#define DEBUG_MIPSNET_DATA
-//#define DEBUG_MIPSNET_IRQ
 
 /* MIPSnet register offsets */
 
@@ -55,9 +51,7 @@ static void mipsnet_reset(MIPSnetState *s)
 static void mipsnet_update_irq(MIPSnetState *s)
 {
     int isr = !!s->intctl;
-#ifdef DEBUG_MIPSNET_IRQ
-    printf("mipsnet: Set IRQ to %d (%02x)\n", isr, s->intctl);
-#endif
+    trace_mipsnet_irq(isr, s->intctl);
     qemu_set_irq(s->irq, isr);
 }
 
@@ -81,9 +75,7 @@ static ssize_t mipsnet_receive(VLANClientState *nc, const uint8_t *buf, size_t s
 {
     MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-#ifdef DEBUG_MIPSNET_RECEIVE
-    printf("mipsnet: receiving len=%zu\n", size);
-#endif
+    trace_mipsnet_receive(size);
     if (!mipsnet_can_receive(nc))
         return -1;
 
@@ -146,9 +138,7 @@ static uint64_t mipsnet_ioport_read(void *opaque, target_phys_addr_t addr,
     default:
         break;
     }
-#ifdef DEBUG_MIPSNET_DATA
-    printf("mipsnet: read addr=0x%02x val=0x%02x\n", addr, ret);
-#endif
+    trace_mipsnet_read(addr, ret);
     return ret;
 }
 
@@ -158,9 +148,7 @@ static void mipsnet_ioport_write(void *opaque, target_phys_addr_t addr,
     MIPSnetState *s = opaque;
 
     addr &= 0x3f;
-#ifdef DEBUG_MIPSNET_DATA
-    printf("mipsnet: write addr=0x%02x val=0x%02x\n", addr, val);
-#endif
+    trace_mipsnet_write(addr, val);
     switch (addr) {
     case MIPSNET_TX_DATA_COUNT:
 	s->tx_count = (val <= MAX_ETH_FRAME_SIZE) ? val : 0;
@@ -184,9 +172,7 @@ static void mipsnet_ioport_write(void *opaque, target_phys_addr_t addr,
         s->tx_buffer[s->tx_written++] = val;
         if (s->tx_written == s->tx_count) {
             /* Send buffer. */
-#ifdef DEBUG_MIPSNET_SEND
-            printf("mipsnet: sending len=%d\n", s->tx_count);
-#endif
+            trace_mipsnet_send(s->tx_count);
             qemu_send_packet(&s->nic->nc, s->tx_buffer, s->tx_count);
             s->tx_count = s->tx_written = 0;
             s->intctl |= MIPSNET_INTCTL_TXDONE;
