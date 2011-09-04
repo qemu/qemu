@@ -90,7 +90,6 @@ typedef struct PCIIORegion {
     pcibus_t addr; /* current PCI mapping address. -1 means not mapped */
 #define PCI_BAR_UNMAPPED (~(pcibus_t)0)
     pcibus_t size;
-    pcibus_t filtered_size;
     uint8_t type;
     MemoryRegion *memory;
     MemoryRegion *address_space;
@@ -273,7 +272,6 @@ int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
 
 void do_pci_info_print(Monitor *mon, const QObject *data);
 void do_pci_info(Monitor *mon, QObject **ret_data);
-void pci_bridge_update_mappings(PCIBus *b);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 

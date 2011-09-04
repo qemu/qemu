@@ -41,6 +41,9 @@ struct PCIBridge {
 
     /* private member */
     PCIBus sec_bus;
+    MemoryRegion alias_pref_mem;
+    MemoryRegion alias_mem;
+    MemoryRegion alias_io;
     pci_map_irq_fn map_irq;
     const char *bus_name;
 };
