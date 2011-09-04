@@ -240,6 +240,7 @@ hw-obj-$(CONFIG_PPCE500_PCI) += ppce500_pci.o
 
 # MIPS devices
 hw-obj-$(CONFIG_PIIX4) += piix4.o
+hw-obj-$(CONFIG_G364FB) += g364fb.o
 
 # PCI watchdog devices
 hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
