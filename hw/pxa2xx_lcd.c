@@ -70,7 +70,7 @@ struct PXA2xxLCDState {
     int orientation;
 };
 
-typedef struct __attribute__ ((__packed__)) {
+typedef struct QEMU_PACKED {
     uint32_t fdaddr;
     uint32_t fsaddr;
     uint32_t fidr;

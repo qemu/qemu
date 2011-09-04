@@ -49,7 +49,7 @@ struct virtio_blk_config
     uint8_t alignment_offset;
     uint16_t min_io_size;
     uint32_t opt_io_size;
-} __attribute__((packed));
+} QEMU_PACKED;
 
 /* These two define direction. */
 #define VIRTIO_BLK_T_IN         0

@@ -106,7 +106,7 @@ struct srp_indirect_buf {
     struct srp_direct_buf    table_desc;
     uint32_t                 len;
     struct srp_direct_buf    desc_list[0];
-} __attribute__((packed));
+} QEMU_PACKED;
 
 enum {
     SRP_MULTICHAN_SINGLE = 0,
@@ -141,7 +141,7 @@ struct srp_login_rsp {
     uint16_t   buf_fmt;
     uint8_t    rsp_flags;
     uint8_t    reserved2[25];
-} __attribute__((packed));
+} QEMU_PACKED;
 
 struct srp_login_rej {
     uint8_t    opcode;
@@ -177,7 +177,7 @@ struct srp_tsk_mgmt {
     uint8_t    reserved1[6];
     uint64_t   tag;
     uint8_t    reserved2[4];
-    uint64_t   lun __attribute__((packed));
+    uint64_t   lun QEMU_PACKED;
     uint8_t    reserved3[2];
     uint8_t    tsk_mgmt_func;
     uint8_t    reserved4;
@@ -198,7 +198,7 @@ struct srp_cmd {
     uint8_t    data_in_desc_cnt;
     uint64_t   tag;
     uint8_t    reserved2[4];
-    uint64_t   lun __attribute__((packed));
+    uint64_t   lun QEMU_PACKED;
     uint8_t    reserved3;
     uint8_t    task_attr;
     uint8_t    reserved4;
@@ -235,6 +235,6 @@ struct srp_rsp {
     uint32_t   sense_data_len;
     uint32_t   resp_data_len;
     uint8_t    data[0];
-} __attribute__((packed));
+} QEMU_PACKED;
 
 #endif /* SCSI_SRP_H */

@@ -23,9 +23,11 @@
 #include "usb.h"
 #include "omap.h"
 #include "irq.h"
-#include "tusb6010.h"
+#include "devices.h"
+#include "sysbus.h"
 
-struct TUSBState {
+typedef struct TUSBState {
+    SysBusDevice busdev;
     MemoryRegion iomem[2];
     qemu_irq irq;
     MUSBState *musb;
@@ -59,7 +61,7 @@ struct TUSBState {
     uint32_t pullup[2];
     uint32_t control_config;
     uint32_t otg_timer_val;
-};
+} TUSBState;
 
 #define TUSB_DEVCLOCK			60000000	/* 60 MHz */
 
@@ -233,16 +235,6 @@ struct TUSBState {
 #define TUSB_EP_CONFIG_SW_EN		(1 << 31)
 #define TUSB_EP_CONFIG_XFR_SIZE(v)	((v) & 0x7fffffff)
 #define TUSB_PROD_TEST_RESET_VAL	0xa596
-
-MemoryRegion *tusb6010_sync_io(TUSBState *s)
-{
-    return &s->iomem[0];
-}
-
-MemoryRegion *tusb6010_async_io(TUSBState *s)
-{
-    return &s->iomem[1];
-}
 
 static void tusb_intr_update(TUSBState *s)
 {
@@ -723,9 +715,33 @@ static void tusb_musb_core_intr(void *opaque, int source, int level)
     }
 }
 
-TUSBState *tusb6010_init(qemu_irq intr)
+static void tusb6010_power(TUSBState *s, int on)
 {
-    TUSBState *s = g_malloc0(sizeof(*s));
+    if (!on) {
+        s->power = 0;
+    } else if (!s->power && on) {
+        s->power = 1;
+        /* Pull the interrupt down after TUSB6010 comes up.  */
+        s->intr_ok = 0;
+        tusb_intr_update(s);
+        qemu_mod_timer(s->pwr_timer,
+                       qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 2);
+    }
+}
+
+static void tusb6010_irq(void *opaque, int source, int level)
+{
+    if (source) {
+        tusb_musb_core_intr(opaque, source - 1, level);
+    } else {
+        tusb6010_power(opaque, level);
+    }
+}
+
+static void tusb6010_reset(DeviceState *dev)
+{
+    TUSBState *s = FROM_SYSBUS(TUSBState, sysbus_from_qdev(dev));
+    int i;
 
     s->test_reset = TUSB_PROD_TEST_RESET_VAL;
     s->host_mode = 0;
@@ -735,28 +751,59 @@ TUSBState *tusb6010_init(qemu_irq intr)
     s->mask = 0xffffffff;
     s->intr = 0x00000000;
     s->otg_timer_val = 0;
-    memory_region_init_io(&s->iomem[1], &tusb_async_ops, s, "tusb-async",
-                          UINT32_MAX);
-    s->irq = intr;
-    s->otg_timer = qemu_new_timer_ns(vm_clock, tusb_otg_tick, s);
-    s->pwr_timer = qemu_new_timer_ns(vm_clock, tusb_power_tick, s);
-    s->musb = musb_init(qemu_allocate_irqs(tusb_musb_core_intr, s,
-                            __musb_irq_max));
-
-    return s;
-}
-
-void tusb6010_power(TUSBState *s, int on)
-{
-    if (!on)
-        s->power = 0;
-    else if (!s->power && on) {
-        s->power = 1;
-
-        /* Pull the interrupt down after TUSB6010 comes up.  */
-        s->intr_ok = 0;
-        tusb_intr_update(s);
-        qemu_mod_timer(s->pwr_timer,
-                       qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 2);
+    s->scratch = 0;
+    s->prcm_config = 0;
+    s->prcm_mngmt = 0;
+    s->intr_ok = 0;
+    s->usbip_intr = 0;
+    s->usbip_mask = 0;
+    s->gpio_intr = 0;
+    s->gpio_mask = 0;
+    s->gpio_config = 0;
+    s->dma_intr = 0;
+    s->dma_mask = 0;
+    s->dma_map = 0;
+    s->dma_config = 0;
+    s->ep0_config = 0;
+    s->wkup_mask = 0;
+    s->pullup[0] = s->pullup[1] = 0;
+    s->control_config = 0;
+    for (i = 0; i < 15; i++) {
+        s->rx_config[i] = s->tx_config[i] = 0;
     }
 }
+
+static int tusb6010_init(SysBusDevice *dev)
+{
+    TUSBState *s = FROM_SYSBUS(TUSBState, dev);
+    qemu_irq *musb_irqs;
+    int i;
+    s->otg_timer = qemu_new_timer_ns(vm_clock, tusb_otg_tick, s);
+    s->pwr_timer = qemu_new_timer_ns(vm_clock, tusb_power_tick, s);
+    memory_region_init_io(&s->iomem[1], &tusb_async_ops, s, "tusb-async",
+                          UINT32_MAX);
+    sysbus_init_mmio_region(dev, &s->iomem[0]);
+    sysbus_init_mmio_region(dev, &s->iomem[1]);
+    sysbus_init_irq(dev, &s->irq);
+    qdev_init_gpio_in(&dev->qdev, tusb6010_irq, __musb_irq_max + 1);
+    musb_irqs = g_new0(qemu_irq, __musb_irq_max);
+    for (i = 0; i < __musb_irq_max; i++) {
+        musb_irqs[i] = qdev_get_gpio_in(&dev->qdev, i + 1);
+    }
+    s->musb = musb_init(musb_irqs);
+    return 0;
+}
+
+static SysBusDeviceInfo tusb6010_info = {
+    .init = tusb6010_init,
+    .qdev.name = "tusb6010",
+    .qdev.size = sizeof(TUSBState),
+    .qdev.reset = tusb6010_reset,
+};
+
+static void tusb6010_register_device(void)
+{
+    sysbus_register_withprop(&tusb6010_info);
+}
+
+device_init(tusb6010_register_device)

@@ -244,13 +244,13 @@ typedef struct AHCICmdHdr {
     uint32_t    status;
     uint64_t    tbl_addr;
     uint32_t    reserved[4];
-} __attribute__ ((packed)) AHCICmdHdr;
+} QEMU_PACKED AHCICmdHdr;
 
 typedef struct AHCI_SG {
     uint64_t    addr;
     uint32_t    reserved;
     uint32_t    flags_size;
-} __attribute__ ((packed)) AHCI_SG;
+} QEMU_PACKED AHCI_SG;
 
 typedef struct AHCIDevice AHCIDevice;
 
@@ -258,6 +258,7 @@ typedef struct NCQTransferState {
     AHCIDevice *drive;
     BlockDriverAIOCB *aiocb;
     QEMUSGList sglist;
+    BlockAcctCookie acct;
     int is_read;
     uint16_t sector_count;
     uint64_t lba;
@@ -320,7 +321,7 @@ typedef struct NCQFrame {
     uint8_t reserved8;
     uint8_t reserved9;
     uint8_t reserved10;
-} __attribute__ ((packed)) NCQFrame;
+} QEMU_PACKED NCQFrame;
 
 void ahci_init(AHCIState *s, DeviceState *qdev, int ports);
 void ahci_uninit(AHCIState *s);

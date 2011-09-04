@@ -773,7 +773,7 @@ void test_fops(double a, double b)
 
 void fpu_clear_exceptions(void)
 {
-    struct __attribute__((packed)) {
+    struct QEMU_PACKED {
         uint16_t fpuc;
         uint16_t dummy1;
         uint16_t fpus;
@@ -924,7 +924,7 @@ void test_fbcd(double a)
 
 void test_fenv(void)
 {
-    struct __attribute__((packed)) {
+    struct QEMU_PACKED {
         uint16_t fpuc;
         uint16_t dummy1;
         uint16_t fpus;
@@ -934,7 +934,7 @@ void test_fenv(void)
         uint32_t ignored[4];
         long double fpregs[8];
     } float_env32;
-    struct __attribute__((packed)) {
+    struct QEMU_PACKED {
         uint16_t fpuc;
         uint16_t fpus;
         uint16_t fptag;
@@ -1279,7 +1279,7 @@ void test_segs(void)
     struct {
         uint32_t offset;
         uint16_t seg;
-    } __attribute__((packed)) segoff;
+    } QEMU_PACKED segoff;
 
     ldt.entry_number = 1;
     ldt.base_addr = (unsigned long)&seg_data1;
@@ -1441,7 +1441,7 @@ void test_misc(void)
         /* XXX: see if Intel Core2 and AMD64 behavior really
            differ. Here we implemented the Intel way which is not
            compatible yet with QEMU. */
-        static struct __attribute__((packed)) {
+        static struct QEMU_PACKED {
             uint64_t offset;
             uint16_t seg;
         } desc;

@@ -32,7 +32,7 @@
 #include "bt.h"
 #include "loader.h"
 #include "blockdev.h"
-#include "tusb6010.h"
+#include "sysbus.h"
 
 /* Nokia N8x0 support */
 struct n800_s {
@@ -49,10 +49,10 @@ struct n800_s {
     int keymap[0x80];
     DeviceState *kbd;
 
-    TUSBState *usb;
+    DeviceState *usb;
     void *retu;
     void *tahvo;
-    void *nand;
+    DeviceState *nand;
 };
 
 /* GPIO pins */
@@ -167,13 +167,21 @@ static void n8x0_nand_setup(struct n800_s *s)
     char *otp_region;
     DriveInfo *dinfo;
 
-    dinfo = drive_get(IF_MTD, 0, 0);
+    s->nand = qdev_create(NULL, "onenand");
+    qdev_prop_set_uint16(s->nand, "manufacturer_id", NAND_MFR_SAMSUNG);
     /* Either 0x40 or 0x48 are OK for the device ID */
-    s->nand = onenand_init(dinfo ? dinfo->bdrv : 0,
-                    NAND_MFR_SAMSUNG, 0x48, 0, 1,
-                    qdev_get_gpio_in(s->cpu->gpio, N8X0_ONENAND_GPIO));
-    omap_gpmc_attach(s->cpu->gpmc, N8X0_ONENAND_CS, 0, onenand_base_update,
-                    onenand_base_unmap, s->nand);
+    qdev_prop_set_uint16(s->nand, "device_id", 0x48);
+    qdev_prop_set_uint16(s->nand, "version_id", 0);
+    qdev_prop_set_int32(s->nand, "shift", 1);
+    dinfo = drive_get(IF_MTD, 0, 0);
+    if (dinfo && dinfo->bdrv) {
+        qdev_prop_set_drive_nofail(s->nand, "drive", dinfo->bdrv);
+    }
+    qdev_init_nofail(s->nand);
+    sysbus_connect_irq(sysbus_from_qdev(s->nand), 0,
+                       qdev_get_gpio_in(s->cpu->gpio, N8X0_ONENAND_GPIO));
+    omap_gpmc_attach(s->cpu->gpmc, N8X0_ONENAND_CS,
+                     sysbus_mmio_get_region(sysbus_from_qdev(s->nand), 0));
     otp_region = onenand_raw_otp(s->nand);
 
     memcpy(otp_region + 0x000, n8x0_cal_wlan_mac, sizeof(n8x0_cal_wlan_mac));
@@ -756,27 +764,21 @@ static void n8x0_uart_setup(struct n800_s *s)
     omap_uart_attach(s->cpu->uart[BT_UART], radio);
 }
 
-static void n8x0_usb_power_cb(void *opaque, int line, int level)
-{
-    struct n800_s *s = opaque;
-
-    tusb6010_power(s->usb, level);
-}
-
 static void n8x0_usb_setup(struct n800_s *s)
 {
-    qemu_irq tusb_irq = qdev_get_gpio_in(s->cpu->gpio, N8X0_TUSB_INT_GPIO);
-    qemu_irq tusb_pwr = qemu_allocate_irqs(n8x0_usb_power_cb, s, 1)[0];
-    TUSBState *tusb = tusb6010_init(tusb_irq);
-
+    SysBusDevice *dev;
+    s->usb = qdev_create(NULL, "tusb6010");
+    dev = sysbus_from_qdev(s->usb);
+    qdev_init_nofail(s->usb);
+    sysbus_connect_irq(dev, 0,
+                       qdev_get_gpio_in(s->cpu->gpio, N8X0_TUSB_INT_GPIO));
     /* Using the NOR interface */
     omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_ASYNC_CS,
-                    tusb6010_async_io(tusb), NULL, NULL, tusb);
+                     sysbus_mmio_get_region(dev, 0));
     omap_gpmc_attach(s->cpu->gpmc, N8X0_USB_SYNC_CS,
-                    tusb6010_sync_io(tusb), NULL, NULL, tusb);
-
-    s->usb = tusb;
-    qdev_connect_gpio_out(s->cpu->gpio, N8X0_TUSB_ENABLE_GPIO, tusb_pwr);
+                     sysbus_mmio_get_region(dev, 1));
+    qdev_connect_gpio_out(s->cpu->gpio, N8X0_TUSB_ENABLE_GPIO,
+                          qdev_get_gpio_in(s->usb, 0)); /* tusb_pwr */
 }
 
 /* Setup done before the main bootloader starts by some early setup code

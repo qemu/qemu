@@ -47,6 +47,7 @@ typedef struct VirtIOBlockReq
     struct virtio_scsi_inhdr *scsi;
     QEMUIOVector qiov;
     struct VirtIOBlockReq *next;
+    BlockAcctCookie acct;
 } VirtIOBlockReq;
 
 static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
@@ -58,8 +59,6 @@ static void virtio_blk_req_complete(VirtIOBlockReq *req, int status)
     stb_p(&req->in->status, status);
     virtqueue_push(s->vq, &req->elem, req->qiov.size + sizeof(*req->in));
     virtio_notify(&s->vdev, s->vq);
-
-    g_free(req);
 }
 
 static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
@@ -81,6 +80,8 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
         vm_stop(VMSTOP_DISKFULL);
     } else {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+        bdrv_acct_done(s->bs, &req->acct);
+        g_free(req);
         bdrv_mon_event(s->bs, BDRV_ACTION_REPORT, is_read);
     }
 
@@ -100,6 +101,8 @@ static void virtio_blk_rw_complete(void *opaque, int ret)
     }
 
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
+    bdrv_acct_done(req->dev->bs, &req->acct);
+    g_free(req);
 }
 
 static void virtio_blk_flush_complete(void *opaque, int ret)
@@ -113,6 +116,8 @@ static void virtio_blk_flush_complete(void *opaque, int ret)
     }
 
     virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
+    bdrv_acct_done(req->dev->bs, &req->acct);
+    g_free(req);
 }
 
 static VirtIOBlockReq *virtio_blk_alloc_request(VirtIOBlock *s)
@@ -155,6 +160,7 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
      */
     if (req->elem.out_num < 2 || req->elem.in_num < 3) {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
+        g_free(req);
         return;
     }
 
@@ -163,6 +169,7 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
      */
     if (req->elem.out_num > 2 && req->elem.in_num > 3) {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
+        g_free(req);
         return;
     }
 
@@ -229,11 +236,13 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
     stl_p(&req->scsi->data_len, hdr.dxfer_len);
 
     virtio_blk_req_complete(req, status);
+    g_free(req);
 }
 #else
 static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
 {
     virtio_blk_req_complete(req, VIRTIO_BLK_S_UNSUPP);
+    g_free(req);
 }
 #endif /* __linux__ */
 
@@ -266,6 +275,8 @@ static void virtio_blk_handle_flush(VirtIOBlockReq *req, MultiReqBuffer *mrb)
 {
     BlockDriverAIOCB *acb;
 
+    bdrv_acct_start(req->dev->bs, &req->acct, 0, BDRV_ACCT_FLUSH);
+
     /*
      * Make sure all outstanding writes are posted to the backing device.
      */
@@ -283,6 +294,8 @@ static void virtio_blk_handle_write(VirtIOBlockReq *req, MultiReqBuffer *mrb)
     uint64_t sector;
 
     sector = ldq_p(&req->out->sector);
+
+    bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_WRITE);
 
     trace_virtio_blk_handle_write(req, sector, req->qiov.size / 512);
 
@@ -316,6 +329,8 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
     uint64_t sector;
 
     sector = ldq_p(&req->out->sector);
+
+    bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_READ);
 
     if (sector & req->dev->sector_mask) {
         virtio_blk_rw_complete(req, -EIO);
@@ -370,6 +385,7 @@ static void virtio_blk_handle_request(VirtIOBlockReq *req,
                 s->serial ? s->serial : "",
                 MIN(req->elem.in_sg[0].iov_len, VIRTIO_BLK_ID_BYTES));
         virtio_blk_req_complete(req, VIRTIO_BLK_S_OK);
+        g_free(req);
     } else if (type & VIRTIO_BLK_T_OUT) {
         qemu_iovec_init_external(&req->qiov, &req->elem.out_sg[1],
                                  req->elem.out_num - 1);

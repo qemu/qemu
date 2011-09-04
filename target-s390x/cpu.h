@@ -698,7 +698,7 @@ typedef struct LowCore
     /* align to the top of the prefix area */
 
     uint8_t         pad18[0x2000-0x1400];      /* 0x1400 */
-} __attribute__((packed)) LowCore;
+} QEMU_PACKED LowCore;
 
 /* STSI */
 #define STSI_LEVEL_MASK         0x00000000f0000000ULL

@@ -115,3 +115,47 @@ void coroutine_fn qemu_co_mutex_unlock(CoMutex *mutex)
 
     trace_qemu_co_mutex_unlock_return(mutex, self);
 }
+
+void qemu_co_rwlock_init(CoRwlock *lock)
+{
+    memset(lock, 0, sizeof(*lock));
+    qemu_co_queue_init(&lock->queue);
+}
+
+void qemu_co_rwlock_rdlock(CoRwlock *lock)
+{
+    while (lock->writer) {
+        qemu_co_queue_wait(&lock->queue);
+    }
+    lock->reader++;
+}
+
+void qemu_co_rwlock_unlock(CoRwlock *lock)
+{
+    assert(qemu_in_coroutine());
+    if (lock->writer) {
+        lock->writer = false;
+        while (!qemu_co_queue_empty(&lock->queue)) {
+            /*
+             * Wakeup every body. This will include some
+             * writers too.
+             */
+            qemu_co_queue_next(&lock->queue);
+        }
+    } else {
+        lock->reader--;
+        assert(lock->reader >= 0);
+        /* Wakeup only one waiting writer */
+        if (!lock->reader) {
+            qemu_co_queue_next(&lock->queue);
+        }
+    }
+}
+
+void qemu_co_rwlock_wrlock(CoRwlock *lock)
+{
+    while (lock->writer || lock->reader) {
+        qemu_co_queue_wait(&lock->queue);
+    }
+    lock->writer = true;
+}

@@ -8,14 +8,13 @@
  *
  */
 
-#ifndef SIMPLETRACE_H
-#define SIMPLETRACE_H
+#ifndef TRACE_SIMPLE_H
+#define TRACE_SIMPLE_H
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
 
-#ifdef CONFIG_SIMPLE_TRACE
 typedef uint64_t TraceEventID;
 
 typedef struct {
@@ -31,18 +30,9 @@ void trace4(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t 
 void trace5(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t x4, uint64_t x5);
 void trace6(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3, uint64_t x4, uint64_t x5, uint64_t x6);
 void st_print_trace(FILE *stream, fprintf_function stream_printf);
-void st_print_trace_events(FILE *stream, fprintf_function stream_printf);
-bool st_change_trace_event_state(const char *tname, bool tstate);
 void st_print_trace_file_status(FILE *stream, fprintf_function stream_printf);
 void st_set_trace_file_enabled(bool enable);
 bool st_set_trace_file(const char *file);
 void st_flush_trace_buffer(void);
-bool st_init(const char *file);
-#else
-static inline bool st_init(const char *file)
-{
-    return true;
-}
-#endif /* !CONFIG_SIMPLE_TRACE */
 
-#endif /* SIMPLETRACE_H */
+#endif /* TRACE_SIMPLE_H */

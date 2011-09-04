@@ -168,7 +168,6 @@ darwin_user="no"
 bsd_user="no"
 guest_base=""
 uname_release=""
-io_thread="no"
 mixemu="no"
 aix="no"
 blobs="yes"
@@ -431,6 +430,7 @@ SunOS)
   make="${MAKE-gmake}"
   install="${INSTALL-ginstall}"
   ld="gld"
+  smbd="${SMBD-/usr/sfw/sbin/smbd}"
   needs_libsunmath="no"
   solarisrev=`uname -r | cut -f2 -d.`
   # have to select again, because `uname -m` returns i86pc
@@ -499,6 +499,7 @@ fi
 : ${make=${MAKE-make}}
 : ${install=${INSTALL-install}}
 : ${python=${PYTHON-python}}
+: ${smbd=${SMBD-/usr/sbin/smbd}}
 
 if test "$mingw32" = "yes" ; then
   EXESUF=".exe"
@@ -543,6 +544,8 @@ for opt do
   --install=*) install="$optarg"
   ;;
   --python=*) python="$optarg"
+  ;;
+  --smbd=*) smbd="$optarg"
   ;;
   --extra-cflags=*)
   ;;
@@ -745,8 +748,6 @@ for opt do
   --disable-attr) attr="no"
   ;;
   --enable-attr) attr="yes"
-  ;;
-  --enable-io-thread) io_thread="yes"
   ;;
   --disable-blobs) blobs="no"
   ;;
@@ -968,6 +969,7 @@ echo "  --extra-ldflags=LDFLAGS  append extra linker flags LDFLAGS"
 echo "  --make=MAKE              use specified make [$make]"
 echo "  --install=INSTALL        use specified install [$install]"
 echo "  --python=PYTHON          use specified python [$python]"
+echo "  --smbd=SMBD              use specified smbd [$smbd]"
 echo "  --static                 enable static build [$static]"
 echo "  --mandir=PATH            install man pages in PATH"
 echo "  --datadir=PATH           install firmware in PATH"
@@ -2205,12 +2207,6 @@ EOF
 
 if compile_prog "" "" ; then
   signalfd=yes
-elif test "$kvm" = "yes" -a "$io_thread" != "yes"; then
-  echo
-  echo "ERROR: Host kernel lacks signalfd() support,"
-  echo "but KVM depends on it when the IO thread is disabled."
-  echo
-  exit 1
 fi
 
 # check if eventfd is supported
@@ -2723,6 +2719,9 @@ echo "LDFLAGS           $LDFLAGS"
 echo "make              $make"
 echo "install           $install"
 echo "python            $python"
+if test "$slirp" = "yes" ; then
+    echo "smbd              $smbd"
+fi
 echo "host CPU          $cpu"
 echo "host big endian   $bigendian"
 echo "target list       $target_list"
@@ -2768,7 +2767,6 @@ echo "NPTL support      $nptl"
 echo "GUEST_BASE        $guest_base"
 echo "PIE user targets  $user_pie"
 echo "vde support       $vde"
-echo "IO thread         $io_thread"
 echo "Linux AIO support $linux_aio"
 echo "(X)ATTR support   $attr"
 echo "Install blobs     $blobs"
@@ -2898,6 +2896,7 @@ if test "$profiler" = "yes" ; then
 fi
 if test "$slirp" = "yes" ; then
   echo "CONFIG_SLIRP=y" >> $config_host_mak
+  echo "CONFIG_SMBD_COMMAND=\"$smbd\"" >> $config_host_mak
   QEMU_INCLUDES="-I\$(SRC_PATH)/slirp $QEMU_INCLUDES"
 fi
 if test "$vde" = "yes" ; then
@@ -3044,9 +3043,6 @@ if test "$xen" = "yes" ; then
   echo "CONFIG_XEN_BACKEND=y" >> $config_host_mak
   echo "CONFIG_XEN_CTRL_INTERFACE_VERSION=$xen_ctrl_version" >> $config_host_mak
 fi
-if test "$io_thread" = "yes" ; then
-  echo "CONFIG_IOTHREAD=y" >> $config_host_mak
-fi
 if test "$linux_aio" = "yes" ; then
   echo "CONFIG_LINUX_AIO=y" >> $config_host_mak
 fi
@@ -3143,26 +3139,43 @@ bsd)
 ;;
 esac
 
+# use default implementation for tracing backend-specific routines
+trace_default=yes
 echo "TRACE_BACKEND=$trace_backend" >> $config_host_mak
-if test "$trace_backend" = "simple"; then
-  echo "CONFIG_SIMPLE_TRACE=y" >> $config_host_mak
+if test "$trace_backend" = "nop"; then
+  echo "CONFIG_TRACE_NOP=y" >> $config_host_mak
 fi
-# Set the appropriate trace file.
 if test "$trace_backend" = "simple"; then
+  echo "CONFIG_TRACE_SIMPLE=y" >> $config_host_mak
+  trace_default=no
+  # Set the appropriate trace file.
   trace_file="\"$trace_file-\" FMT_pid"
 fi
-if test "$trace_backend" = "dtrace" -a "$trace_backend_stap" = "yes" ; then
-  echo "CONFIG_SYSTEMTAP_TRACE=y" >> $config_host_mak
+if test "$trace_backend" = "stderr"; then
+  echo "CONFIG_TRACE_STDERR=y" >> $config_host_mak
+  trace_default=no
+fi
+if test "$trace_backend" = "ust"; then
+  echo "CONFIG_TRACE_UST=y" >> $config_host_mak
+fi
+if test "$trace_backend" = "dtrace"; then
+  echo "CONFIG_TRACE_DTRACE=y" >> $config_host_mak
+  if test "$trace_backend_stap" = "yes" ; then
+    echo "CONFIG_TRACE_SYSTEMTAP=y" >> $config_host_mak
+  fi
 fi
 echo "CONFIG_TRACE_FILE=$trace_file" >> $config_host_mak
+if test "$trace_default" = "yes"; then
+  echo "CONFIG_TRACE_DEFAULT=y" >> $config_host_mak
+fi
 
 echo "TOOLS=$tools" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
 echo "INSTALL=$install" >> $config_host_mak
-echo "INSTALL_DIR=$install -d -m0755 -p" >> $config_host_mak
-echo "INSTALL_DATA=$install -m0644 -p" >> $config_host_mak
-echo "INSTALL_PROG=$install -m0755 -p" >> $config_host_mak
+echo "INSTALL_DIR=$install -d -m 0755" >> $config_host_mak
+echo "INSTALL_DATA=$install -c -m 0644" >> $config_host_mak
+echo "INSTALL_PROG=$install -c -m 0755" >> $config_host_mak
 echo "PYTHON=$python" >> $config_host_mak
 echo "CC=$cc" >> $config_host_mak
 echo "CC_I386=$cc_i386" >> $config_host_mak
@@ -3686,7 +3699,7 @@ DIRS="$DIRS pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS fsdev ui"
 DIRS="$DIRS qapi"
-DIRS="$DIRS qga"
+DIRS="$DIRS qga trace"
 FILES="Makefile tests/Makefile"
 FILES="$FILES pc-bios/qemu-icon.bmp"
 FILES="$FILES tests/cris/Makefile tests/cris/.gdbinit"

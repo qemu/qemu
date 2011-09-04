@@ -32,7 +32,7 @@ struct acpi_table_header {
     uint32_t oem_revision;    /* OEM revision number */
     char asl_compiler_id[4];  /* ASL compiler vendor ID */
     uint32_t asl_compiler_revision; /* ASL compiler revision number */
-} __attribute__((packed));
+} QEMU_PACKED;
 
 #define ACPI_TABLE_HDR_SIZE sizeof(struct acpi_table_header)
 #define ACPI_TABLE_PFX_SIZE sizeof(uint16_t)  /* size of the extra prefix */

@@ -314,7 +314,7 @@ struct virtio_9p_config
     uint16_t tag_len;
     /* Variable size tag name */
     uint8_t tag[0];
-} __attribute__((packed));
+} QEMU_PACKED;
 
 typedef struct V9fsMkState {
     V9fsPDU *pdu;

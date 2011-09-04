@@ -30,6 +30,7 @@
 
 #include "block/raw-posix-aio.h"
 
+static void do_spawn_thread(void);
 
 struct qemu_paiocb {
     BlockDriverAIOCB common;
@@ -64,6 +65,9 @@ static pthread_attr_t attr;
 static int max_threads = 64;
 static int cur_threads = 0;
 static int idle_threads = 0;
+static int new_threads = 0;     /* backlog of threads we need to create */
+static int pending_threads = 0; /* threads created but not running yet */
+static QEMUBH *new_thread_bh;
 static QTAILQ_HEAD(, qemu_paiocb) request_list;
 
 #ifdef CONFIG_PREADV
@@ -311,6 +315,11 @@ static void *aio_thread(void *unused)
 
     pid = getpid();
 
+    mutex_lock(&lock);
+    pending_threads--;
+    mutex_unlock(&lock);
+    do_spawn_thread();
+
     while (1) {
         struct qemu_paiocb *aiocb;
         ssize_t ret = 0;
@@ -381,11 +390,20 @@ static void *aio_thread(void *unused)
     return NULL;
 }
 
-static void spawn_thread(void)
+static void do_spawn_thread(void)
 {
     sigset_t set, oldset;
 
-    cur_threads++;
+    mutex_lock(&lock);
+    if (!new_threads) {
+        mutex_unlock(&lock);
+        return;
+    }
+
+    new_threads--;
+    pending_threads++;
+
+    mutex_unlock(&lock);
 
     /* block all signals */
     if (sigfillset(&set)) die("sigfillset");
@@ -394,6 +412,27 @@ static void spawn_thread(void)
     thread_create(&thread_id, &attr, aio_thread, NULL);
 
     if (sigprocmask(SIG_SETMASK, &oldset, NULL)) die("sigprocmask restore");
+}
+
+static void spawn_thread_bh_fn(void *opaque)
+{
+    do_spawn_thread();
+}
+
+static void spawn_thread(void)
+{
+    cur_threads++;
+    new_threads++;
+    /* If there are threads being created, they will spawn new workers, so
+     * we don't spend time creating many threads in a loop holding a mutex or
+     * starving the current vcpu.
+     *
+     * If there are no idle threads, ask the main thread to create one, so we
+     * inherit the correct affinity instead of the vcpu affinity.
+     */
+    if (!pending_threads) {
+        qemu_bh_schedule(new_thread_bh);
+    }
 }
 
 static void qemu_paio_submit(struct qemu_paiocb *aiocb)
@@ -665,6 +704,7 @@ int paio_init(void)
         die2(ret, "pthread_attr_setdetachstate");
 
     QTAILQ_INIT(&request_list);
+    new_thread_bh = qemu_bh_new(spawn_thread_bh_fn, NULL);
 
     posix_aio_state = s;
     return 0;

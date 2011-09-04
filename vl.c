@@ -115,6 +115,8 @@ int main(int argc, char **argv)
 #define main qemu_main
 #endif /* CONFIG_COCOA */
 
+#include <glib.h>
+
 #include "hw/hw.h"
 #include "hw/boards.h"
 #include "hw/usb.h"
@@ -160,7 +162,7 @@ int main(int argc, char **argv)
 #include "slirp/libslirp.h"
 
 #include "trace.h"
-#include "simpletrace.h"
+#include "trace/control.h"
 #include "qemu-queue.h"
 #include "cpus.h"
 #include "arch_init.h"
@@ -1328,6 +1330,75 @@ void qemu_system_vmstop_request(int reason)
     qemu_notify_event();
 }
 
+static GPollFD poll_fds[1024 * 2]; /* this is probably overkill */
+static int n_poll_fds;
+static int max_priority;
+
+static void glib_select_fill(int *max_fd, fd_set *rfds, fd_set *wfds,
+                             fd_set *xfds, struct timeval *tv)
+{
+    GMainContext *context = g_main_context_default();
+    int i;
+    int timeout = 0, cur_timeout;
+
+    g_main_context_prepare(context, &max_priority);
+
+    n_poll_fds = g_main_context_query(context, max_priority, &timeout,
+                                      poll_fds, ARRAY_SIZE(poll_fds));
+    g_assert(n_poll_fds <= ARRAY_SIZE(poll_fds));
+
+    for (i = 0; i < n_poll_fds; i++) {
+        GPollFD *p = &poll_fds[i];
+
+        if ((p->events & G_IO_IN)) {
+            FD_SET(p->fd, rfds);
+            *max_fd = MAX(*max_fd, p->fd);
+        }
+        if ((p->events & G_IO_OUT)) {
+            FD_SET(p->fd, wfds);
+            *max_fd = MAX(*max_fd, p->fd);
+        }
+        if ((p->events & G_IO_ERR)) {
+            FD_SET(p->fd, xfds);
+            *max_fd = MAX(*max_fd, p->fd);
+        }
+    }
+
+    cur_timeout = (tv->tv_sec * 1000) + ((tv->tv_usec + 500) / 1000);
+    if (timeout >= 0 && timeout < cur_timeout) {
+        tv->tv_sec = timeout / 1000;
+        tv->tv_usec = (timeout % 1000) * 1000;
+    }
+}
+
+static void glib_select_poll(fd_set *rfds, fd_set *wfds, fd_set *xfds,
+                             bool err)
+{
+    GMainContext *context = g_main_context_default();
+
+    if (!err) {
+        int i;
+
+        for (i = 0; i < n_poll_fds; i++) {
+            GPollFD *p = &poll_fds[i];
+
+            if ((p->events & G_IO_IN) && FD_ISSET(p->fd, rfds)) {
+                p->revents |= G_IO_IN;
+            }
+            if ((p->events & G_IO_OUT) && FD_ISSET(p->fd, wfds)) {
+                p->revents |= G_IO_OUT;
+            }
+            if ((p->events & G_IO_ERR) && FD_ISSET(p->fd, xfds)) {
+                p->revents |= G_IO_ERR;
+            }
+        }
+    }
+
+    if (g_main_context_check(context, max_priority, poll_fds, n_poll_fds)) {
+        g_main_context_dispatch(context);
+    }
+}
+
 int main_loop_wait(int nonblocking)
 {
     fd_set rfds, wfds, xfds;
@@ -1353,8 +1424,10 @@ int main_loop_wait(int nonblocking)
     FD_ZERO(&rfds);
     FD_ZERO(&wfds);
     FD_ZERO(&xfds);
+
     qemu_iohandler_fill(&nfds, &rfds, &wfds, &xfds);
     slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
+    glib_select_fill(&nfds, &rfds, &wfds, &xfds, &tv);
 
     if (timeout > 0) {
         qemu_mutex_unlock_iothread();
@@ -1368,6 +1441,7 @@ int main_loop_wait(int nonblocking)
 
     qemu_iohandler_poll(&rfds, &wfds, &xfds, ret);
     slirp_select_poll(&rfds, &wfds, &xfds, (ret < 0));
+    glib_select_poll(&rfds, &wfds, &xfds, (ret < 0));
 
     qemu_run_all_timers();
 
@@ -1377,17 +1451,6 @@ int main_loop_wait(int nonblocking)
 
     return ret;
 }
-
-#ifndef CONFIG_IOTHREAD
-static int vm_request_pending(void)
-{
-    return powerdown_requested ||
-           reset_requested ||
-           shutdown_requested ||
-           debug_requested ||
-           vmstop_requested;
-}
-#endif
 
 qemu_irq qemu_system_powerdown;
 
@@ -1403,14 +1466,7 @@ static void main_loop(void)
     qemu_main_loop_start();
 
     for (;;) {
-#ifdef CONFIG_IOTHREAD
         nonblocking = !kvm_enabled() && last_io > 0;
-#else
-        nonblocking = cpu_exec_all();
-        if (vm_request_pending()) {
-            nonblocking = true;
-        }
-#endif
 #ifdef CONFIG_PROFILER
         ti = profile_getclock();
 #endif
@@ -2131,20 +2187,20 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
 static gpointer malloc_and_trace(gsize n_bytes)
 {
     void *ptr = malloc(n_bytes);
-    trace_qemu_malloc(n_bytes, ptr);
+    trace_g_malloc(n_bytes, ptr);
     return ptr;
 }
 
 static gpointer realloc_and_trace(gpointer mem, gsize n_bytes)
 {
     void *ptr = realloc(mem, n_bytes);
-    trace_qemu_realloc(mem, n_bytes, ptr);
+    trace_g_realloc(mem, n_bytes, ptr);
     return ptr;
 }
 
 static void free_and_trace(gpointer mem)
 {
-    trace_qemu_free(mem);
+    trace_g_free(mem);
     free(mem);
 }
 
@@ -2173,7 +2229,6 @@ int main(int argc, char **argv, char **envp)
     int show_vnc_port = 0;
 #endif
     int defconfig = 1;
-    const char *trace_file = NULL;
     const char *log_mask = NULL;
     const char *log_file = NULL;
     GMemVTable mem_trace = {
@@ -2181,6 +2236,8 @@ int main(int argc, char **argv, char **envp)
         .realloc = realloc_and_trace,
         .free = free_and_trace,
     };
+    const char *trace_events = NULL;
+    const char *trace_file = NULL;
 
     atexit(qemu_run_exit_notifiers);
     error_set_progname(argv[0]);
@@ -2979,14 +3036,16 @@ int main(int argc, char **argv, char **envp)
                 }
                 xen_mode = XEN_ATTACH;
                 break;
-#ifdef CONFIG_SIMPLE_TRACE
             case QEMU_OPTION_trace:
+            {
                 opts = qemu_opts_parse(qemu_find_opts("trace"), optarg, 0);
-                if (opts) {
-                    trace_file = qemu_opt_get(opts, "file");
+                if (!opts) {
+                    exit(1);
                 }
+                trace_events = qemu_opt_get(opts, "events");
+                trace_file = qemu_opt_get(opts, "file");
                 break;
-#endif
+            }
             case QEMU_OPTION_trace_unassigned:
                 trace_unassigned = true;
                 break;
@@ -3047,8 +3106,8 @@ int main(int argc, char **argv, char **envp)
         set_cpu_log(log_mask);
     }
 
-    if (!st_init(trace_file)) {
-        fprintf(stderr, "warning: unable to initialize simple trace backend\n");
+    if (!trace_backend_init(trace_events, trace_file)) {
+        exit(1);
     }
 
     /* If no data_dir is specified then try to find it relative to the

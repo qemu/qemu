@@ -189,8 +189,6 @@ void qcow2_free_clusters(BlockDriverState *bs,
 void qcow2_free_any_clusters(BlockDriverState *bs,
     uint64_t cluster_offset, int nb_clusters);
 
-void qcow2_create_refcount_update(QCowCreateState *s, int64_t offset,
-    int64_t size);
 int qcow2_update_snapshot_refcount(BlockDriverState *bs,
     int64_t l1_table_offset, int l1_size, int addend);
 

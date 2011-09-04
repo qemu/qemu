@@ -235,6 +235,7 @@ void memory_region_init_alias(MemoryRegion *mr,
  */
 void memory_region_init_rom_device(MemoryRegion *mr,
                                    const MemoryRegionOps *ops,
+                                   void *opaque,
                                    DeviceState *dev, /* FIXME: layering violation */
                                    const char *name,
                                    uint64_t size);

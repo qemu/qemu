@@ -473,7 +473,10 @@ void ide_sector_read(IDEState *s)
 #endif
         if (n > s->req_nb_sectors)
             n = s->req_nb_sectors;
+
+        bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
         ret = bdrv_read(s->bs, sector_num, s->io_buffer, n);
+        bdrv_acct_done(s->bs, &s->acct);
         if (ret != 0) {
             if (ide_handle_rw_error(s, -ret,
                 BM_STATUS_PIO_RETRY | BM_STATUS_RETRY_READ))
@@ -610,7 +613,10 @@ handle_rw_error:
     return;
 
 eot:
-   ide_set_inactive(s);
+    if (s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) {
+        bdrv_acct_done(s->bs, &s->acct);
+    }
+    ide_set_inactive(s);
 }
 
 static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
@@ -619,6 +625,20 @@ static void ide_sector_start_dma(IDEState *s, enum ide_dma_cmd dma_cmd)
     s->io_buffer_index = 0;
     s->io_buffer_size = 0;
     s->dma_cmd = dma_cmd;
+
+    switch (dma_cmd) {
+    case IDE_DMA_READ:
+        bdrv_acct_start(s->bs, &s->acct, s->nsector * BDRV_SECTOR_SIZE,
+                        BDRV_ACCT_READ);
+        break;
+    case IDE_DMA_WRITE:
+        bdrv_acct_start(s->bs, &s->acct, s->nsector * BDRV_SECTOR_SIZE,
+                        BDRV_ACCT_WRITE);
+        break;
+    default:
+        break;
+    }
+
     s->bus->dma->ops->start_dma(s->bus->dma, s, ide_dma_cb);
 }
 
@@ -641,7 +661,10 @@ void ide_sector_write(IDEState *s)
     n = s->nsector;
     if (n > s->req_nb_sectors)
         n = s->req_nb_sectors;
+
+    bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
     ret = bdrv_write(s->bs, sector_num, s->io_buffer, n);
+    bdrv_acct_done(s->bs, &s->acct);
 
     if (ret != 0) {
         if (ide_handle_rw_error(s, -ret, BM_STATUS_PIO_RETRY))
@@ -685,6 +708,7 @@ static void ide_flush_cb(void *opaque, int ret)
         }
     }
 
+    bdrv_acct_done(s->bs, &s->acct);
     s->status = READY_STAT | SEEK_STAT;
     ide_set_irq(s->bus);
 }
@@ -698,6 +722,7 @@ void ide_flush_cache(IDEState *s)
         return;
     }
 
+    bdrv_acct_start(s->bs, &s->acct, 0, BDRV_ACCT_FLUSH);
     acb = bdrv_aio_flush(s->bs, ide_flush_cb, s);
     if (acb == NULL) {
         ide_flush_cb(s, -EIO);

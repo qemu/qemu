@@ -50,6 +50,6 @@ struct virtio_balloon_config
 typedef struct VirtIOBalloonStat {
     uint16_t tag;
     uint64_t val;
-} __attribute__((packed)) VirtIOBalloonStat;
+} QEMU_PACKED VirtIOBalloonStat;
 
 #endif

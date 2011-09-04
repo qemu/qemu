@@ -216,8 +216,8 @@ void float_raise( int8 flags STATUS_PARAM);
 *----------------------------------------------------------------------------*/
 float32 int32_to_float32( int32 STATUS_PARAM );
 float64 int32_to_float64( int32 STATUS_PARAM );
-float32 uint32_to_float32( unsigned int STATUS_PARAM );
-float64 uint32_to_float64( unsigned int STATUS_PARAM );
+float32 uint32_to_float32( uint32 STATUS_PARAM );
+float64 uint32_to_float64( uint32 STATUS_PARAM );
 floatx80 int32_to_floatx80( int32 STATUS_PARAM );
 float128 int32_to_float128( int32 STATUS_PARAM );
 float32 int64_to_float32( int64 STATUS_PARAM );
@@ -249,7 +249,7 @@ extern const float16 float16_default_nan;
 | Software IEC/IEEE single-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int16 float32_to_int16_round_to_zero( float32 STATUS_PARAM );
-unsigned int float32_to_uint16_round_to_zero( float32 STATUS_PARAM );
+uint16 float32_to_uint16_round_to_zero( float32 STATUS_PARAM );
 int32 float32_to_int32( float32 STATUS_PARAM );
 int32 float32_to_int32_round_to_zero( float32 STATUS_PARAM );
 uint32 float32_to_uint32( float32 STATUS_PARAM );
@@ -352,7 +352,7 @@ extern const float32 float32_default_nan;
 | Software IEC/IEEE double-precision conversion routines.
 *----------------------------------------------------------------------------*/
 int16 float64_to_int16_round_to_zero( float64 STATUS_PARAM );
-unsigned int float64_to_uint16_round_to_zero( float64 STATUS_PARAM );
+uint16 float64_to_uint16_round_to_zero( float64 STATUS_PARAM );
 int32 float64_to_int32( float64 STATUS_PARAM );
 int32 float64_to_int32_round_to_zero( float64 STATUS_PARAM );
 uint32 float64_to_uint32( float64 STATUS_PARAM );

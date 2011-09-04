@@ -130,7 +130,7 @@
 
 #define SVM_CR0_SELECTIVE_MASK (1 << 3 | 1) /* TS and MP */
 
-struct __attribute__ ((__packed__)) vmcb_control_area {
+struct QEMU_PACKED vmcb_control_area {
 	uint16_t intercept_cr_read;
 	uint16_t intercept_cr_write;
 	uint16_t intercept_dr_read;
@@ -162,14 +162,14 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	uint8_t reserved_5[832];
 };
 
-struct __attribute__ ((__packed__)) vmcb_seg {
+struct QEMU_PACKED vmcb_seg {
 	uint16_t selector;
 	uint16_t attrib;
 	uint32_t limit;
 	uint64_t base;
 };
 
-struct __attribute__ ((__packed__)) vmcb_save_area {
+struct QEMU_PACKED vmcb_save_area {
 	struct vmcb_seg es;
 	struct vmcb_seg cs;
 	struct vmcb_seg ss;
@@ -214,7 +214,7 @@ struct __attribute__ ((__packed__)) vmcb_save_area {
 	uint64_t last_excp_to;
 };
 
-struct __attribute__ ((__packed__)) vmcb {
+struct QEMU_PACKED vmcb {
 	struct vmcb_control_area control;
 	struct vmcb_save_area save;
 };

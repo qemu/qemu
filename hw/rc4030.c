@@ -50,7 +50,7 @@ do { fprintf(stderr, "rc4030 ERROR: %s: " fmt, __func__ , ## __VA_ARGS__); } whi
 typedef struct dma_pagetable_entry {
     int32_t frame;
     int32_t owner;
-} __attribute__((packed)) dma_pagetable_entry;
+} QEMU_PACKED dma_pagetable_entry;
 
 #define DMA_PAGESIZE    4096
 #define DMA_REG_ENABLE  1

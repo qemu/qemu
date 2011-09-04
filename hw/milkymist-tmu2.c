@@ -73,7 +73,7 @@ enum {
 struct vertex {
     int x;
     int y;
-} __attribute__((packed));
+} QEMU_PACKED;
 
 struct MilkymistTMU2State {
     SysBusDevice busdev;

@@ -131,6 +131,11 @@ void sysbus_init_mmio_region(SysBusDevice *dev, MemoryRegion *memory)
     dev->mmio[n].memory = memory;
 }
 
+MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n)
+{
+    return dev->mmio[n].memory;
+}
+
 void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size)
 {
     pio_addr_t i;

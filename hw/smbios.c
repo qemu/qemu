@@ -21,19 +21,19 @@
 struct smbios_header {
     uint16_t length;
     uint8_t type;
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 struct smbios_field {
     struct smbios_header header;
     uint8_t type;
     uint16_t offset;
     uint8_t data[];
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 struct smbios_table {
     struct smbios_header header;
     uint8_t data[];
-} __attribute__((__packed__));
+} QEMU_PACKED;
 
 #define SMBIOS_FIELD_ENTRY 0
 #define SMBIOS_TABLE_ENTRY 1
