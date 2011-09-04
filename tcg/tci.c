@@ -429,12 +429,15 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
 
     env = cpustate;
     tci_reg[TCG_AREG0] = (tcg_target_ulong)cpustate;
+    assert(tb_ptr);
 
     for (;;) {
 #ifdef NEEDS_TB_PTR
         tci_tb_ptr = tb_ptr;
 #endif
-        TCGOpcode opc = *(uint8_t *)tb_ptr++;
+        uint8_t *old_code_ptr = tb_ptr;
+        TCGOpcode opc = *tb_ptr++;
+        uint8_t op_size = *tb_ptr++;
         tcg_target_ulong t0;
         tcg_target_ulong t1;
         tcg_target_ulong t2;
@@ -495,9 +498,11 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             break;
         case INDEX_op_jmp:
         case INDEX_op_br:
-            t0 = *(uint64_t *)tb_ptr;
-            tb_ptr = (uint8_t *)t0;
-            break;
+            label = tci_read_i(&tb_ptr);
+            assert(label);
+            assert(tb_ptr == old_code_ptr + op_size);
+            tb_ptr = (uint8_t *)label;
+            continue;
         case INDEX_op_setcond_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r32(&tb_ptr);
@@ -676,8 +681,11 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             t1 = tci_read_ri32(&tb_ptr);
             condition = *tb_ptr++;
             label = tci_read_i(&tb_ptr);
+            assert(label); //!!!
             if (tci_compare32(t0, t1, condition)) {
+                assert(tb_ptr == old_code_ptr + op_size);
                 tb_ptr = (uint8_t *)label;
+                continue;
             }
             break;
 #if TCG_TARGET_REG_BITS == 32
@@ -700,8 +708,11 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             v64 = tci_read_ri64(&tb_ptr);
             condition = *tb_ptr++;
             label = tci_read_i(&tb_ptr);
+            assert(label);
             if (tci_compare64(u64, v64, condition)) {
+                assert(tb_ptr == old_code_ptr + op_size);
                 tb_ptr = (uint8_t *)label;
+                continue;
             }
             break;
         case INDEX_op_mulu2_i32:
@@ -913,6 +924,7 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             t1 = tci_read_ri64(&tb_ptr);
             condition = *tb_ptr++;
             label = tci_read_i(&tb_ptr);
+            assert(label);
             if (tci_compare64(t0, t1, condition)) {
                 tb_ptr = (uint8_t *)label;
             }
@@ -1013,8 +1025,9 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             break;
         case INDEX_op_goto_tb:
             t0 = tci_read_i32(&tb_ptr);
+            assert(tb_ptr == old_code_ptr + op_size);
             tb_ptr += (int32_t)t0;
-            break;
+            continue;
         case INDEX_op_qemu_ld8u:
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
@@ -1171,6 +1184,7 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             TODO();
             break;
         }
+        assert(tb_ptr == old_code_ptr + op_size);
     }
     exit:
     return next_tb;

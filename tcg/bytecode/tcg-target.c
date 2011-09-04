@@ -387,6 +387,7 @@ static void patch_reloc(uint8_t *code_ptr, int type,
     //~ TRACE();
     /* tcg_out_reloc always uses the same type, addend. */
     assert(type == sizeof(tcg_target_long) && addend == 0);
+    assert(value != 0);
     *(tcg_target_long *)code_ptr = value;
 }
 
@@ -642,6 +643,7 @@ static void tcg_out64(TCGContext *s, uint64_t v)
 static void tcg_out_op_t(TCGContext *s, TCGOpcode op)
 {
     tcg_out8(s, op);
+    tcg_out8(s, 0);
 }
 
 /* Write register. */
@@ -696,6 +698,7 @@ static void tci_out_label(TCGContext *s, TCGArg arg)
     TCGLabel *label = &s->labels[arg];
     if (label->has_value) {
         tcg_out_i(s, label->u.value);
+        assert(label->u.value);
     } else {
         tcg_out_reloc(s, s->code_ptr, sizeof(tcg_target_ulong), arg, 0);
         tcg_out_i(s, 0);
@@ -705,6 +708,7 @@ static void tci_out_label(TCGContext *s, TCGArg arg)
 static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
                        tcg_target_long arg2)
 {
+    uint8_t *old_code_ptr = s->code_ptr;
     TCGArg args[3] = { ret, arg1, arg2 };
     if (type == TCG_TYPE_I32) {
         tcg_disas3(s, INDEX_op_ld_i32, args);
@@ -725,12 +729,14 @@ static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
         TODO();
 #endif
     }
+    old_code_ptr[1] = s->code_ptr - old_code_ptr;
 }
 
 static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
-    assert(ret != arg);
+    uint8_t *old_code_ptr = s->code_ptr;
     TCGArg args[2] = { ret, arg };
+    assert(ret != arg);
 #if TCG_TARGET_REG_BITS == 32
     tcg_disas3(s, INDEX_op_mov_i32, args);
     tcg_out_op_t(s, INDEX_op_mov_i32);
@@ -740,11 +746,13 @@ static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 #endif
     tcg_out_r(s, ret);
     tcg_out_r(s, arg);
+    old_code_ptr[1] = s->code_ptr - old_code_ptr;
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
                          int t0, tcg_target_long arg)
 {
+    uint8_t *old_code_ptr = s->code_ptr;
     TCGArg args[2] = { t0, arg };
     uint32_t arg32 = arg;
     if (type == TCG_TYPE_I32 || arg == arg32) {
@@ -763,12 +771,15 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
         TODO();
 #endif
     }
+    old_code_ptr[1] = s->code_ptr - old_code_ptr;
 }
 
 static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
                        const int *const_args)
 {
     tcg_disas3(s, opc, args);
+    uint8_t *old_code_ptr = s->code_ptr;
+
     switch (opc) {
     case INDEX_op_exit_tb:
         tcg_out_op_t(s, opc);
@@ -827,7 +838,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 #endif
     case INDEX_op_movi_i32:
-        TODO();
+        TODO(); /* Handled by tcg_out_movi? */
         break;
     case INDEX_op_ld8u_i32:
     case INDEX_op_ld8s_i32:
@@ -1221,11 +1232,13 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         fprintf(stderr, "Missing: %s\n", tcg_op_defs[opc].name);
         tcg_abort();
     }
+    old_code_ptr[1] = s->code_ptr - old_code_ptr;
 }
 
 static void tcg_out_st(TCGContext *s, TCGType type, int arg, int arg1,
                        tcg_target_long arg2)
 {
+    uint8_t *old_code_ptr = s->code_ptr;
     TCGArg args[3] = { arg, arg1, arg2 };
     if (type == TCG_TYPE_I32) {
         tcg_disas3(s, INDEX_op_st_i32, args);
@@ -1245,6 +1258,7 @@ static void tcg_out_st(TCGContext *s, TCGType type, int arg, int arg1,
         TODO();
 #endif
     }
+    old_code_ptr[1] = s->code_ptr - old_code_ptr;
 }
 
 /* Test if a constant matches the constraint. */
