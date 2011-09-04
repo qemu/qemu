@@ -89,39 +89,39 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_add_i32, { R, RI, RI } },
     { INDEX_op_sub_i32, { R, RI, RI } },
     { INDEX_op_mul_i32, { R, RI, RI } },
-#if defined(TCG_TARGET_HAS_div_i32)
+#if TCG_TARGET_HAS_div_i32
     { INDEX_op_div_i32, { R, R, R } },
     { INDEX_op_divu_i32, { R, R, R } },
     { INDEX_op_rem_i32, { R, R, R } },
     { INDEX_op_remu_i32, { R, R, R } },
-#elif defined(TCG_TARGET_HAS_div2_i32)
+#elif TCG_TARGET_HAS_div2_i32
     { INDEX_op_div2_i32, { R, R, "0", "1", R } },
     { INDEX_op_divu2_i32, { R, R, "0", "1", R } },
 #endif
     /* TODO: Does R, RI, RI result in faster code than R, R, RI?
        If both operands are constants, we can optimize. */
     { INDEX_op_and_i32, { R, RI, RI } },
-#if defined(TCG_TARGET_HAS_andc_i32)
+#if TCG_TARGET_HAS_andc_i32
     { INDEX_op_andc_i32, { R, RI, RI } },
 #endif
-#if defined(TCG_TARGET_HAS_eqv_i32)
+#if TCG_TARGET_HAS_eqv_i32
     { INDEX_op_eqv_i32, { R, RI, RI } },
 #endif
-#ifdef TCG_TARGET_HAS_nand_i32
+#if TCG_TARGET_HAS_nand_i32
     { INDEX_op_nand_i32, { R, RI, RI } },
 #endif
-#ifdef TCG_TARGET_HAS_nor_i32
+#if TCG_TARGET_HAS_nor_i32
     { INDEX_op_nor_i32, { R, RI, RI } },
 #endif
     { INDEX_op_or_i32, { R, RI, RI } },
-#ifdef TCG_TARGET_HAS_orc_i32
+#if TCG_TARGET_HAS_orc_i32
     { INDEX_op_orc_i32, { R, RI, RI } },
 #endif
     { INDEX_op_xor_i32, { R, RI, RI } },
     { INDEX_op_shl_i32, { R, RI, RI } },
     { INDEX_op_shr_i32, { R, RI, RI } },
     { INDEX_op_sar_i32, { R, RI, RI } },
-#ifdef TCG_TARGET_HAS_rot_i32
+#if TCG_TARGET_HAS_rot_i32
     { INDEX_op_rotl_i32, { R, RI, RI } },
     { INDEX_op_rotr_i32, { R, RI, RI } },
 #endif
@@ -142,10 +142,10 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_setcond2_i32, { R, R, R, RI, RI } },
 #endif
 
-#if defined(TCG_TARGET_HAS_not_i32)
+#if TCG_TARGET_HAS_not_i32
     { INDEX_op_not_i32, { R, R } },
 #endif
-#if defined(TCG_TARGET_HAS_neg_i32)
+#if TCG_TARGET_HAS_neg_i32
     { INDEX_op_neg_i32, { R, R } },
 #endif
 
@@ -169,7 +169,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_add_i64, { R, RI, RI } },
     { INDEX_op_sub_i64, { R, RI, RI } },
     { INDEX_op_mul_i64, { R, RI, RI } },
-#if defined(TCG_TARGET_HAS_div_i64)
+#if TCG_TARGET_HAS_div_i64
     { INDEX_op_div_i64, { R, R, R } },
     { INDEX_op_divu_i64, { R, R, R } },
     { INDEX_op_rem_i64, { R, R, R } },
@@ -179,63 +179,63 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_divu2_i64, { R, R, "0", "1", R } },
 #endif
     { INDEX_op_and_i64, { R, RI, RI } },
-#if defined(TCG_TARGET_HAS_andc_i64)
+#if TCG_TARGET_HAS_andc_i64
     { INDEX_op_andc_i64, { R, RI, RI } },
 #endif
-#if defined(TCG_TARGET_HAS_eqv_i64)
+#if TCG_TARGET_HAS_eqv_i64
     { INDEX_op_eqv_i64, { R, RI, RI } },
 #endif
-#ifdef TCG_TARGET_HAS_nand_i64
+#if TCG_TARGET_HAS_nand_i64
     { INDEX_op_nand_i64, { R, RI, RI } },
 #endif
-#ifdef TCG_TARGET_HAS_nor_i64
+#if TCG_TARGET_HAS_nor_i64
     { INDEX_op_nor_i64, { R, RI, RI } },
 #endif
     { INDEX_op_or_i64, { R, RI, RI } },
-#ifdef TCG_TARGET_HAS_orc_i64
+#if TCG_TARGET_HAS_orc_i64
     { INDEX_op_orc_i64, { R, RI, RI } },
 #endif
     { INDEX_op_xor_i64, { R, RI, RI } },
     { INDEX_op_shl_i64, { R, RI, RI } },
     { INDEX_op_shr_i64, { R, RI, RI } },
     { INDEX_op_sar_i64, { R, RI, RI } },
-#ifdef TCG_TARGET_HAS_rot_i64
+#if TCG_TARGET_HAS_rot_i64
     { INDEX_op_rotl_i64, { R, RI, RI } },
     { INDEX_op_rotr_i64, { R, RI, RI } },
 #endif
     { INDEX_op_brcond_i64, { R, RI } },
 
-#if defined(TCG_TARGET_HAS_ext8s_i64)
+#if TCG_TARGET_HAS_ext8s_i64
     { INDEX_op_ext8s_i64, { R, R } },
 #endif
-#if defined(TCG_TARGET_HAS_ext16s_i64)
+#if TCG_TARGET_HAS_ext16s_i64
     { INDEX_op_ext16s_i64, { R, R } },
 #endif
-#if defined(TCG_TARGET_HAS_ext32s_i64)
+#if TCG_TARGET_HAS_ext32s_i64
     { INDEX_op_ext32s_i64, { R, R } },
 #endif
-#if defined(TCG_TARGET_HAS_ext8u_i64)
+#if TCG_TARGET_HAS_ext8u_i64
     { INDEX_op_ext8u_i64, { R, R } },
 #endif
-#if defined(TCG_TARGET_HAS_ext16u_i64)
+#if TCG_TARGET_HAS_ext16u_i64
     { INDEX_op_ext16u_i64, { R, R } },
 #endif
-#if defined(TCG_TARGET_HAS_ext32u_i64)
+#if TCG_TARGET_HAS_ext32u_i64
     { INDEX_op_ext32u_i64, { R, R } },
 #endif
-#ifdef TCG_TARGET_HAS_bswap16_i64
+#if TCG_TARGET_HAS_bswap16_i64
     { INDEX_op_bswap16_i64, { R, R } },
 #endif
-#ifdef TCG_TARGET_HAS_bswap32_i64
+#if TCG_TARGET_HAS_bswap32_i64
     { INDEX_op_bswap32_i64, { R, R } },
 #endif
-#ifdef TCG_TARGET_HAS_bswap64_i64
+#if TCG_TARGET_HAS_bswap64_i64
     { INDEX_op_bswap64_i64, { R, R } },
 #endif
-#ifdef TCG_TARGET_HAS_not_i64
+#if TCG_TARGET_HAS_not_i64
     { INDEX_op_not_i64, { R, R } },
 #endif
-#ifdef TCG_TARGET_HAS_neg_i64
+#if TCG_TARGET_HAS_neg_i64
     { INDEX_op_neg_i64, { R, R } },
 #endif
 #endif /* TCG_TARGET_REG_BITS == 64 */
@@ -256,23 +256,23 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_qemu_st32, { R, S } },
     { INDEX_op_qemu_st64, { R64, S } },
 
-#if defined(TCG_TARGET_HAS_ext8s_i32)
+#if TCG_TARGET_HAS_ext8s_i32
     { INDEX_op_ext8s_i32, { R, R } },
 #endif
-#if defined(TCG_TARGET_HAS_ext16s_i32)
+#if TCG_TARGET_HAS_ext16s_i32
     { INDEX_op_ext16s_i32, { R, R } },
 #endif
-#if defined(TCG_TARGET_HAS_ext8u_i32)
+#if TCG_TARGET_HAS_ext8u_i32
     { INDEX_op_ext8u_i32, { R, R } },
 #endif
-#if defined(TCG_TARGET_HAS_ext16u_i32)
+#if TCG_TARGET_HAS_ext16u_i32
     { INDEX_op_ext16u_i32, { R, R } },
 #endif
 
-#ifdef TCG_TARGET_HAS_bswap16_i32
+#if TCG_TARGET_HAS_bswap16_i32
     { INDEX_op_bswap16_i32, { R, R } },
 #endif
-#ifdef TCG_TARGET_HAS_bswap32_i32
+#if TCG_TARGET_HAS_bswap32_i32
     { INDEX_op_bswap32_i32, { R, R } },
 #endif
 
@@ -864,27 +864,27 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_sub_i32:
     case INDEX_op_mul_i32:
     case INDEX_op_and_i32:
-#if defined(TCG_TARGET_HAS_andc_i32)
+#if TCG_TARGET_HAS_andc_i32
     case INDEX_op_andc_i32:
 #endif
-#if defined(TCG_TARGET_HAS_eqv_i32)
+#if TCG_TARGET_HAS_eqv_i32
     case INDEX_op_eqv_i32:
 #endif
-#ifdef TCG_TARGET_HAS_nand_i32
+#if TCG_TARGET_HAS_nand_i32
     case INDEX_op_nand_i32:
 #endif
-#ifdef TCG_TARGET_HAS_nor_i32
+#if TCG_TARGET_HAS_nor_i32
     case INDEX_op_nor_i32:
 #endif
     case INDEX_op_or_i32:
-#ifdef TCG_TARGET_HAS_orc_i32
+#if TCG_TARGET_HAS_orc_i32
     case INDEX_op_orc_i32:
 #endif
     case INDEX_op_xor_i32:
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
     case INDEX_op_sar_i32:
-#ifdef TCG_TARGET_HAS_rot_i32
+#if TCG_TARGET_HAS_rot_i32
     case INDEX_op_rotl_i32:
     case INDEX_op_rotr_i32:
 #endif
@@ -926,27 +926,27 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_sub_i64:
     case INDEX_op_mul_i64:
     case INDEX_op_and_i64:
-#if defined(TCG_TARGET_HAS_andc_i64)
+#if TCG_TARGET_HAS_andc_i64
     case INDEX_op_andc_i64:
 #endif
-#if defined(TCG_TARGET_HAS_eqv_i64)
+#if TCG_TARGET_HAS_eqv_i64
     case INDEX_op_eqv_i64:
 #endif
-#ifdef TCG_TARGET_HAS_nand_i64
+#if TCG_TARGET_HAS_nand_i64
     case INDEX_op_nand_i64:
 #endif
-#ifdef TCG_TARGET_HAS_nor_i64
+#if TCG_TARGET_HAS_nor_i64
     case INDEX_op_nor_i64:
 #endif
     case INDEX_op_or_i64:
-#ifdef TCG_TARGET_HAS_orc_i64
+#if TCG_TARGET_HAS_orc_i64
     case INDEX_op_orc_i64:
 #endif
     case INDEX_op_xor_i64:
     case INDEX_op_shl_i64:
     case INDEX_op_shr_i64:
     case INDEX_op_sar_i64:
-#ifdef TCG_TARGET_HAS_rot_i64
+#if TCG_TARGET_HAS_rot_i64
     // TODO: TCI implementation for rotl_i64, rotr_i64 missing.
     case INDEX_op_rotl_i64:
     case INDEX_op_rotr_i64:
@@ -956,14 +956,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_ri64(s, const_args[1], args[1]);
         tcg_out_ri64(s, const_args[2], args[2]);
         break;
-#ifdef TCG_TARGET_HAS_div_i64
+#if TCG_TARGET_HAS_div_i64
     case INDEX_op_div_i64:
     case INDEX_op_divu_i64:
     case INDEX_op_rem_i64:
     case INDEX_op_remu_i64:
         TODO();
         break;
-#elif defined(TCG_TARGET_HAS_div2_i64)
+#elif TCG_TARGET_HAS_div2_i64
     case INDEX_op_div2_i64:
     case INDEX_op_divu2_i64:
         TODO();
@@ -976,35 +976,35 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out8(s, args[2]);           /* condition */
         tci_out_label(s, args[3]);
         break;
-#ifdef TCG_TARGET_HAS_bswap16_i64
+#if TCG_TARGET_HAS_bswap16_i64
     case INDEX_op_bswap16_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#ifdef TCG_TARGET_HAS_bswap32_i64
+#if TCG_TARGET_HAS_bswap32_i64
     case INDEX_op_bswap32_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#ifdef TCG_TARGET_HAS_bswap64_i64
+#if TCG_TARGET_HAS_bswap64_i64
     case INDEX_op_bswap64_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#ifdef TCG_TARGET_HAS_not_i64
+#if TCG_TARGET_HAS_not_i64
     case INDEX_op_not_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#ifdef TCG_TARGET_HAS_neg_i64
+#if TCG_TARGET_HAS_neg_i64
     case INDEX_op_neg_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
@@ -1013,7 +1013,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 #endif
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
-#if defined(TCG_TARGET_HAS_div_i32)
+#if TCG_TARGET_HAS_div_i32
     case INDEX_op_div_i32:
     case INDEX_op_divu_i32:
     case INDEX_op_rem_i32:
@@ -1023,7 +1023,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_ri32(s, const_args[1], args[1]);
         tcg_out_ri32(s, const_args[2], args[2]);
         break;
-#elif defined(TCG_TARGET_HAS_div2_i32)
+#elif TCG_TARGET_HAS_div2_i32
     case INDEX_op_div2_i32:
     case INDEX_op_divu2_i32:
         TODO();
@@ -1064,14 +1064,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out8(s, args[2]);           /* condition */
         tci_out_label(s, args[3]);
         break;
-#if defined(TCG_TARGET_HAS_neg_i32)
+#if TCG_TARGET_HAS_neg_i32
     case INDEX_op_neg_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_not_i32)
+#if TCG_TARGET_HAS_not_i32
     case INDEX_op_not_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
@@ -1138,28 +1138,28 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_i(s, *args);
 #endif
         break;
-#if defined(TCG_TARGET_HAS_ext8s_i32)
+#if TCG_TARGET_HAS_ext8s_i32
     case INDEX_op_ext8s_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_ext16s_i32)
+#if TCG_TARGET_HAS_ext16s_i32
     case INDEX_op_ext16s_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_ext8u_i32)
+#if TCG_TARGET_HAS_ext8u_i32
     case INDEX_op_ext8u_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_ext16u_i32)
+#if TCG_TARGET_HAS_ext16u_i32
     case INDEX_op_ext16u_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
@@ -1167,42 +1167,42 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 #endif
 #if TCG_TARGET_REG_BITS == 64
-#if defined(TCG_TARGET_HAS_ext8s_i64)
+#if TCG_TARGET_HAS_ext8s_i64
     case INDEX_op_ext8s_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_ext8u_i64)
+#if TCG_TARGET_HAS_ext8u_i64
     case INDEX_op_ext8u_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_ext16s_i64)
+#if TCG_TARGET_HAS_ext16s_i64
     case INDEX_op_ext16s_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_ext16u_i64)
+#if TCG_TARGET_HAS_ext16u_i64
     case INDEX_op_ext16u_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_ext32s_i64)
+#if TCG_TARGET_HAS_ext32s_i64
     case INDEX_op_ext32s_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_ext32u_i64)
+#if TCG_TARGET_HAS_ext32u_i64
     case INDEX_op_ext32u_i64:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
@@ -1210,14 +1210,14 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 #endif
 #endif /* TCG_TARGET_REG_BITS == 64 */
-#if defined(TCG_TARGET_HAS_bswap16_i32)
+#if TCG_TARGET_HAS_bswap16_i32
     case INDEX_op_bswap16_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         break;
 #endif
-#if defined(TCG_TARGET_HAS_bswap32_i32)
+#if TCG_TARGET_HAS_bswap32_i32
     case INDEX_op_bswap32_i32:
         tcg_out_op_t(s, opc);
         tcg_out_r(s, args[0]);

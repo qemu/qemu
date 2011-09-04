@@ -69,14 +69,14 @@ static tcg_target_ulong tci_read_reg(TCGRegister index)
     return tci_reg[index];
 }
 
-#if defined(TCG_TARGET_HAS_ext8s_i32) || defined(TCG_TARGET_HAS_ext8s_i64)
+#if TCG_TARGET_HAS_ext8s_i32 || TCG_TARGET_HAS_ext8s_i64
 static int8_t tci_read_reg8s(TCGRegister index)
 {
     return (int8_t)tci_read_reg(index);
 }
 #endif
 
-#if defined(TCG_TARGET_HAS_ext16s_i32) || defined(TCG_TARGET_HAS_ext16s_i64)
+#if TCG_TARGET_HAS_ext16s_i32 || TCG_TARGET_HAS_ext16s_i64
 static int16_t tci_read_reg16s(TCGRegister index)
 {
     return (int16_t)tci_read_reg(index);
@@ -214,7 +214,7 @@ static uint8_t tci_read_r8(uint8_t **tb_ptr)
     return value;
 }
 
-#if defined(TCG_TARGET_HAS_ext8s_i32) || defined(TCG_TARGET_HAS_ext8s_i64)
+#if TCG_TARGET_HAS_ext8s_i32 || TCG_TARGET_HAS_ext8s_i64
 /* Read indexed register (8 bit signed) from bytecode. */
 static int8_t tci_read_r8s(uint8_t **tb_ptr)
 {
@@ -232,7 +232,7 @@ static uint16_t tci_read_r16(uint8_t **tb_ptr)
     return value;
 }
 
-#if defined(TCG_TARGET_HAS_ext16s_i32) || defined(TCG_TARGET_HAS_ext16s_i64)
+#if TCG_TARGET_HAS_ext16s_i32 || TCG_TARGET_HAS_ext16s_i64
 /* Read indexed register (16 bit signed) from bytecode. */
 static int16_t tci_read_r16s(uint8_t **tb_ptr)
 {
@@ -594,7 +594,7 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             t2 = tci_read_ri32(&tb_ptr);
             tci_write_reg32(t0, t1 * t2);
             break;
-#ifdef TCG_TARGET_HAS_div_i32
+#if TCG_TARGET_HAS_div_i32
         case INDEX_op_div_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_ri32(&tb_ptr);
@@ -619,7 +619,7 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             t2 = tci_read_ri32(&tb_ptr);
             tci_write_reg32(t0, t1 % t2);
             break;
-#elif defined(TCG_TARGET_HAS_div2_i32)
+#elif TCG_TARGET_HAS_div2_i32
         case INDEX_op_div2_i32:
         case INDEX_op_divu2_i32:
             TODO();
@@ -662,7 +662,7 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             t2 = tci_read_ri32(&tb_ptr);
             tci_write_reg32(t0, ((int32_t)t1 >> t2));
             break;
-#ifdef TCG_TARGET_HAS_rot_i32
+#if TCG_TARGET_HAS_rot_i32
         case INDEX_op_rotl_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_ri32(&tb_ptr);
@@ -723,56 +723,56 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             tci_write_reg64(t1, t0, t2 * u64);
             break;
 #endif /* TCG_TARGET_REG_BITS == 32 */
-#ifdef TCG_TARGET_HAS_ext8s_i32
+#if TCG_TARGET_HAS_ext8s_i32
         case INDEX_op_ext8s_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r8s(&tb_ptr);
             tci_write_reg32(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_ext16s_i32
+#if TCG_TARGET_HAS_ext16s_i32
         case INDEX_op_ext16s_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r16s(&tb_ptr);
             tci_write_reg32(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_ext8u_i32
+#if TCG_TARGET_HAS_ext8u_i32
         case INDEX_op_ext8u_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r8(&tb_ptr);
             tci_write_reg32(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_ext16u_i32
+#if TCG_TARGET_HAS_ext16u_i32
         case INDEX_op_ext16u_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r16(&tb_ptr);
             tci_write_reg32(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_bswap16_i32
+#if TCG_TARGET_HAS_bswap16_i32
         case INDEX_op_bswap16_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r16(&tb_ptr);
             tci_write_reg32(t0, bswap16(t1));
             break;
 #endif
-#ifdef TCG_TARGET_HAS_bswap32_i32
+#if TCG_TARGET_HAS_bswap32_i32
         case INDEX_op_bswap32_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r32(&tb_ptr);
             tci_write_reg32(t0, bswap32(t1));
             break;
 #endif
-#ifdef TCG_TARGET_HAS_not_i32
+#if TCG_TARGET_HAS_not_i32
         case INDEX_op_not_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r32(&tb_ptr);
             tci_write_reg32(t0, ~t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_neg_i32
+#if TCG_TARGET_HAS_neg_i32
         case INDEX_op_neg_i32:
             t0 = *tb_ptr++;
             t1 = tci_read_r32(&tb_ptr);
@@ -863,14 +863,14 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             t2 = tci_read_ri64(&tb_ptr);
             tci_write_reg64(t0, t1 * t2);
             break;
-#ifdef TCG_TARGET_HAS_div_i64
+#if TCG_TARGET_HAS_div_i64
         case INDEX_op_div_i64:
         case INDEX_op_divu_i64:
         case INDEX_op_rem_i64:
         case INDEX_op_remu_i64:
             TODO();
             break;
-#elif defined(TCG_TARGET_HAS_div2_i64)
+#elif TCG_TARGET_HAS_div2_i64
         case INDEX_op_div2_i64:
         case INDEX_op_divu2_i64:
             TODO();
@@ -913,7 +913,7 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             t2 = tci_read_ri64(&tb_ptr);
             tci_write_reg64(t0, ((int64_t)t1 >> t2));
             break;
-#ifdef TCG_TARGET_HAS_rot_i64
+#if TCG_TARGET_HAS_rot_i64
         case INDEX_op_rotl_i64:
         case INDEX_op_rotr_i64:
             TODO();
@@ -929,49 +929,49 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
                 tb_ptr = (uint8_t *)label;
             }
             break;
-#ifdef TCG_TARGET_HAS_ext8u_i64
+#if TCG_TARGET_HAS_ext8u_i64
         case INDEX_op_ext8u_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r8(&tb_ptr);
             tci_write_reg64(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_ext8s_i64
+#if TCG_TARGET_HAS_ext8s_i64
         case INDEX_op_ext8s_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r8s(&tb_ptr);
             tci_write_reg64(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_ext16s_i64
+#if TCG_TARGET_HAS_ext16s_i64
         case INDEX_op_ext16s_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r16s(&tb_ptr);
             tci_write_reg64(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_ext16u_i64
+#if TCG_TARGET_HAS_ext16u_i64
         case INDEX_op_ext16u_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r16(&tb_ptr);
             tci_write_reg64(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_ext32s_i64
+#if TCG_TARGET_HAS_ext32s_i64
         case INDEX_op_ext32s_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r32s(&tb_ptr);
             tci_write_reg64(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_ext32u_i64
+#if TCG_TARGET_HAS_ext32u_i64
         case INDEX_op_ext32u_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r32(&tb_ptr);
             tci_write_reg64(t0, t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_bswap16_i64
+#if TCG_TARGET_HAS_bswap16_i64
         case INDEX_op_bswap16_i64:
             TODO();
             t0 = *tb_ptr++;
@@ -979,14 +979,14 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             tci_write_reg64(t0, bswap16(t1));
             break;
 #endif
-#ifdef TCG_TARGET_HAS_bswap32_i64
+#if TCG_TARGET_HAS_bswap32_i64
         case INDEX_op_bswap32_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r32(&tb_ptr);
             tci_write_reg64(t0, bswap32(t1));
             break;
 #endif
-#ifdef TCG_TARGET_HAS_bswap64_i64
+#if TCG_TARGET_HAS_bswap64_i64
         case INDEX_op_bswap64_i64:
             TODO();
             t0 = *tb_ptr++;
@@ -994,14 +994,14 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             tci_write_reg64(t0, bswap64(t1));
             break;
 #endif
-#ifdef TCG_TARGET_HAS_not_i64
+#if TCG_TARGET_HAS_not_i64
         case INDEX_op_not_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r64(&tb_ptr);
             tci_write_reg64(t0, ~t1);
             break;
 #endif
-#ifdef TCG_TARGET_HAS_neg_i64
+#if TCG_TARGET_HAS_neg_i64
         case INDEX_op_neg_i64:
             t0 = *tb_ptr++;
             t1 = tci_read_r64(&tb_ptr);
