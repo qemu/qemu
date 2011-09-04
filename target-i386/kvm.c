@@ -769,7 +769,7 @@ static int kvm_put_xsave(CPUState *env)
 
     xsave = qemu_memalign(4096, sizeof(struct kvm_xsave));
     memset(xsave, 0, sizeof(struct kvm_xsave));
-    cwd = swd = twd = 0;
+    twd = 0;
     swd = env->fpus & ~(7 << 11);
     swd |= (env->fpstt & 7) << 11;
     cwd = env->fpuc;
