@@ -35,6 +35,8 @@
 #include "mips-bios.h"
 #include "loader.h"
 #include "elf.h"
+#include "sysbus.h"
+#include "exec-memory.h"
 
 static struct _loaderparams {
     int ram_size;
@@ -110,6 +112,22 @@ static void main_cpu_reset(void *opaque)
     if (s->vector & 1) {
         env->hflags |= MIPS_HFLAG_M16;
     }
+}
+
+static void mipsnet_init(int base, qemu_irq irq, NICInfo *nd)
+{
+    DeviceState *dev;
+    SysBusDevice *s;
+
+    dev = qdev_create(NULL, "mipsnet");
+    qdev_set_nic_properties(dev, nd);
+    qdev_init_nofail(dev);
+
+    s = sysbus_from_qdev(dev);
+    sysbus_connect_irq(s, 0, irq);
+    memory_region_add_subregion(get_system_io(),
+                                base,
+                                sysbus_mmio_get_region(s, 0));
 }
 
 static void

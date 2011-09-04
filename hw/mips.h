@@ -8,9 +8,6 @@ PCIBus *gt64120_register(qemu_irq *pic);
 /* bonito.c */
 PCIBus *bonito_init(qemu_irq *pic);
 
-/* mipsnet.c */
-void mipsnet_init(int base, qemu_irq irq, NICInfo *nd);
-
 /* jazz_led.c */
 void jazz_led_init(target_phys_addr_t base);
 

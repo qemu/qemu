@@ -1,7 +1,6 @@
 #include "hw.h"
-#include "mips.h"
 #include "net.h"
-#include "isa.h"
+#include "sysbus.h"
 
 //#define DEBUG_MIPSNET_SEND
 //#define DEBUG_MIPSNET_RECEIVE
@@ -25,6 +24,8 @@
 #define MAX_ETH_FRAME_SIZE	1514
 
 typedef struct MIPSnetState {
+    SysBusDevice busdev;
+
     uint32_t busy;
     uint32_t rx_count;
     uint32_t rx_read;
@@ -33,7 +34,7 @@ typedef struct MIPSnetState {
     uint32_t intctl;
     uint8_t rx_buffer[MAX_ETH_FRAME_SIZE];
     uint8_t tx_buffer[MAX_ETH_FRAME_SIZE];
-    int io_base;
+    MemoryRegion io;
     qemu_irq irq;
     NICState *nic;
     NICConf conf;
@@ -103,7 +104,8 @@ static ssize_t mipsnet_receive(VLANClientState *nc, const uint8_t *buf, size_t s
     return size;
 }
 
-static uint32_t mipsnet_ioport_read(void *opaque, uint32_t addr)
+static uint64_t mipsnet_ioport_read(void *opaque, target_phys_addr_t addr,
+                                    unsigned int size)
 {
     MIPSnetState *s = opaque;
     int ret = 0;
@@ -150,7 +152,8 @@ static uint32_t mipsnet_ioport_read(void *opaque, uint32_t addr)
     return ret;
 }
 
-static void mipsnet_ioport_write(void *opaque, uint32_t addr, uint32_t val)
+static void mipsnet_ioport_write(void *opaque, target_phys_addr_t addr,
+                                 uint64_t val, unsigned int size)
 {
     MIPSnetState *s = opaque;
 
@@ -224,11 +227,7 @@ static void mipsnet_cleanup(VLANClientState *nc)
 {
     MIPSnetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    vmstate_unregister(NULL, &vmstate_mipsnet, s);
-
-    isa_unassign_ioport(s->io_base, 36);
-
-    g_free(s);
+    s->nic = NULL;
 }
 
 static NetClientInfo net_mipsnet_info = {
@@ -239,35 +238,50 @@ static NetClientInfo net_mipsnet_info = {
     .cleanup = mipsnet_cleanup,
 };
 
-void mipsnet_init (int base, qemu_irq irq, NICInfo *nd)
+static MemoryRegionOps mipsnet_ioport_ops = {
+    .read = mipsnet_ioport_read,
+    .write = mipsnet_ioport_write,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 4,
+};
+
+static int mipsnet_sysbus_init(SysBusDevice *dev)
 {
-    MIPSnetState *s;
+    MIPSnetState *s = DO_UPCAST(MIPSnetState, busdev, dev);
 
-    qemu_check_nic_model(nd, "mipsnet");
+    memory_region_init_io(&s->io, &mipsnet_ioport_ops, s, "mipsnet-io", 36);
+    sysbus_init_mmio_region(dev, &s->io);
+    sysbus_init_irq(dev, &s->irq);
 
-    s = g_malloc0(sizeof(MIPSnetState));
+    s->nic = qemu_new_nic(&net_mipsnet_info, &s->conf,
+                          dev->qdev.info->name, dev->qdev.id, s);
+    qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
-    register_ioport_write(base, 36, 1, mipsnet_ioport_write, s);
-    register_ioport_read(base, 36, 1, mipsnet_ioport_read, s);
-    register_ioport_write(base, 36, 2, mipsnet_ioport_write, s);
-    register_ioport_read(base, 36, 2, mipsnet_ioport_read, s);
-    register_ioport_write(base, 36, 4, mipsnet_ioport_write, s);
-    register_ioport_read(base, 36, 4, mipsnet_ioport_read, s);
-
-    s->io_base = base;
-    s->irq = irq;
-
-    if (nd) {
-        s->conf.macaddr = nd->macaddr;
-        s->conf.vlan = nd->vlan;
-        s->conf.peer = nd->netdev;
-
-        s->nic = qemu_new_nic(&net_mipsnet_info, &s->conf,
-                              nd->model, nd->name, s);
-
-        qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
-    }
-
-    mipsnet_reset(s);
-    vmstate_register(NULL, 0, &vmstate_mipsnet, s);
+    return 0;
 }
+
+static void mipsnet_sysbus_reset(DeviceState *dev)
+{
+    MIPSnetState *s = DO_UPCAST(MIPSnetState, busdev.qdev, dev);
+    mipsnet_reset(s);
+}
+
+static SysBusDeviceInfo mipsnet_info = {
+    .init = mipsnet_sysbus_init,
+    .qdev.name = "mipsnet",
+    .qdev.desc = "MIPS Simulator network device",
+    .qdev.size = sizeof(MIPSnetState),
+    .qdev.vmsd = &vmstate_mipsnet,
+    .qdev.reset = mipsnet_sysbus_reset,
+    .qdev.props = (Property[]) {
+        DEFINE_NIC_PROPERTIES(MIPSnetState, conf),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void mipsnet_register_devices(void)
+{
+    sysbus_register_withprop(&mipsnet_info);
+}
+
+device_init(mipsnet_register_devices)
