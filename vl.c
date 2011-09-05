@@ -327,14 +327,84 @@ static int default_driver_check(QemuOpts *opts, void *opaque)
 
 static RunState current_run_state = RSTATE_NO_STATE;
 
+typedef struct {
+    RunState from;
+    RunState to;
+} RunStateTransition;
+
+static const RunStateTransition runstate_transitions_def[] = {
+    /*     from      ->     to      */
+    { RSTATE_NO_STATE, RSTATE_RUNNING },
+    { RSTATE_NO_STATE, RSTATE_IN_MIGRATE },
+    { RSTATE_NO_STATE, RSTATE_PRE_LAUNCH },
+
+    { RSTATE_DEBUG, RSTATE_RUNNING },
+
+    { RSTATE_IN_MIGRATE, RSTATE_RUNNING },
+    { RSTATE_IN_MIGRATE, RSTATE_PRE_LAUNCH },
+
+    { RSTATE_PANICKED, RSTATE_PAUSED },
+
+    { RSTATE_IO_ERROR, RSTATE_RUNNING },
+
+    { RSTATE_PAUSED, RSTATE_RUNNING },
+
+    { RSTATE_POST_MIGRATE, RSTATE_RUNNING },
+
+    { RSTATE_PRE_LAUNCH, RSTATE_RUNNING },
+    { RSTATE_PRE_LAUNCH, RSTATE_POST_MIGRATE },
+
+    { RSTATE_PRE_MIGRATE, RSTATE_RUNNING },
+    { RSTATE_PRE_MIGRATE, RSTATE_POST_MIGRATE },
+
+    { RSTATE_RESTORE, RSTATE_RUNNING },
+
+    { RSTATE_RUNNING, RSTATE_DEBUG },
+    { RSTATE_RUNNING, RSTATE_PANICKED },
+    { RSTATE_RUNNING, RSTATE_IO_ERROR },
+    { RSTATE_RUNNING, RSTATE_PAUSED },
+    { RSTATE_RUNNING, RSTATE_PRE_MIGRATE },
+    { RSTATE_RUNNING, RSTATE_RESTORE },
+    { RSTATE_RUNNING, RSTATE_SAVEVM },
+    { RSTATE_RUNNING, RSTATE_SHUTDOWN },
+    { RSTATE_RUNNING, RSTATE_WATCHDOG },
+
+    { RSTATE_SAVEVM, RSTATE_RUNNING },
+
+    { RSTATE_SHUTDOWN, RSTATE_PAUSED },
+
+    { RSTATE_WATCHDOG, RSTATE_RUNNING },
+
+    { RSTATE_MAX, RSTATE_MAX },
+};
+
+static bool runstate_valid_transitions[RSTATE_MAX][RSTATE_MAX];
+
 bool runstate_check(RunState state)
 {
     return current_run_state == state;
 }
 
+void runstate_init(void)
+{
+    const RunStateTransition *p;
+
+    memset(&runstate_valid_transitions, 0, sizeof(runstate_valid_transitions));
+
+    for (p = &runstate_transitions_def[0]; p->from != RSTATE_MAX; p++) {
+        runstate_valid_transitions[p->from][p->to] = true;
+    }
+}
+
+/* This function will abort() on invalid state transitions */
 void runstate_set(RunState new_state)
 {
-    assert(new_state < RSTATE_MAX);
+    if (new_state >= RSTATE_MAX ||
+        !runstate_valid_transitions[current_run_state][new_state]) {
+        fprintf(stderr, "invalid runstate transition\n");
+        abort();
+    }
+
     current_run_state = new_state;
 }
 
@@ -2218,6 +2288,8 @@ int main(int argc, char **argv, char **envp)
 
     g_mem_set_vtable(&mem_trace);
     g_thread_init(NULL);
+
+    runstate_init();
 
     init_clocks();
 
