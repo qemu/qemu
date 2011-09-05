@@ -235,3 +235,9 @@ uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg)
 {
     return dma_buf_rw(ptr, len, sg, 1);
 }
+
+void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
+                    QEMUSGList *sg, enum BlockAcctType type)
+{
+    bdrv_acct_start(bs, cookie, sg->size, type);
+}
