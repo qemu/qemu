@@ -12,8 +12,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
+#ifndef _WIN32
 #include <signal.h>
 #include <pthread.h>
+#endif
 #include "qemu-timer.h"
 #include "trace.h"
 #include "trace/control.h"
@@ -54,9 +56,9 @@ enum {
  * Trace records are written out by a dedicated thread.  The thread waits for
  * records to become available, writes them out, and then waits again.
  */
-static pthread_mutex_t trace_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t trace_available_cond = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t trace_empty_cond = PTHREAD_COND_INITIALIZER;
+static GStaticMutex trace_lock = G_STATIC_MUTEX_INIT;
+static GCond *trace_available_cond;
+static GCond *trace_empty_cond;
 static bool trace_available;
 static bool trace_writeout_enabled;
 
@@ -93,29 +95,30 @@ static bool get_trace_record(unsigned int idx, TraceRecord *record)
  */
 static void flush_trace_file(bool wait)
 {
-    pthread_mutex_lock(&trace_lock);
+    g_static_mutex_lock(&trace_lock);
     trace_available = true;
-    pthread_cond_signal(&trace_available_cond);
+    g_cond_signal(trace_available_cond);
 
     if (wait) {
-        pthread_cond_wait(&trace_empty_cond, &trace_lock);
+        g_cond_wait(trace_empty_cond, g_static_mutex_get_mutex(&trace_lock));
     }
 
-    pthread_mutex_unlock(&trace_lock);
+    g_static_mutex_unlock(&trace_lock);
 }
 
 static void wait_for_trace_records_available(void)
 {
-    pthread_mutex_lock(&trace_lock);
+    g_static_mutex_lock(&trace_lock);
     while (!(trace_available && trace_writeout_enabled)) {
-        pthread_cond_signal(&trace_empty_cond);
-        pthread_cond_wait(&trace_available_cond, &trace_lock);
+        g_cond_signal(trace_empty_cond);
+        g_cond_wait(trace_available_cond,
+                    g_static_mutex_get_mutex(&trace_lock));
     }
     trace_available = false;
-    pthread_mutex_unlock(&trace_lock);
+    g_static_mutex_unlock(&trace_lock);
 }
 
-static void *writeout_thread(void *opaque)
+static gpointer writeout_thread(gpointer opaque)
 {
     TraceRecord record;
     unsigned int writeout_idx = 0;
@@ -159,7 +162,7 @@ static void trace(TraceEventID event, uint64_t x1, uint64_t x2, uint64_t x3,
 
     timestamp = get_clock();
 
-    idx = __sync_fetch_and_add(&trace_idx, 1) % TRACE_BUF_LEN;
+    idx = g_atomic_int_exchange_and_add((gint *)&trace_idx, 1) % TRACE_BUF_LEN;
     trace_buf[idx] = (TraceRecord){
         .event = event,
         .timestamp_ns = timestamp,
@@ -331,28 +334,47 @@ bool trace_event_set_state(const char *name, bool state)
     return false;
 }
 
-bool trace_backend_init(const char *events, const char *file)
+/* Helper function to create a thread with signals blocked.  Use glib's
+ * portable threads since QEMU abstractions cannot be used due to reentrancy in
+ * the tracer.  Also note the signal masking on POSIX hosts so that the thread
+ * does not steal signals when the rest of the program wants them blocked.
+ */
+static GThread *trace_thread_create(GThreadFunc fn)
 {
-    pthread_t thread;
-    pthread_attr_t attr;
+    GThread *thread;
+#ifndef _WIN32
     sigset_t set, oldset;
-    int ret;
-
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
     sigfillset(&set);
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
-    ret = pthread_create(&thread, &attr, writeout_thread, NULL);
+#endif
+    thread = g_thread_create(writeout_thread, NULL, FALSE, NULL);
+#ifndef _WIN32
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+#endif
 
-    if (ret != 0) {
-        fprintf(stderr, "warning: unable to initialize simple trace backend\n");
-    } else {
-        atexit(st_flush_trace_buffer);
-        trace_backend_init_events(events);
-        st_set_trace_file(file);
+    return thread;
+}
+
+bool trace_backend_init(const char *events, const char *file)
+{
+    GThread *thread;
+
+    if (!g_thread_supported()) {
+        g_thread_init(NULL);
     }
 
+    trace_available_cond = g_cond_new();
+    trace_empty_cond = g_cond_new();
+
+    thread = trace_thread_create(writeout_thread);
+    if (!thread) {
+        fprintf(stderr, "warning: unable to initialize simple trace backend\n");
+        return false;
+    }
+
+    atexit(st_flush_trace_buffer);
+    trace_backend_init_events(events);
+    st_set_trace_file(file);
     return true;
 }
