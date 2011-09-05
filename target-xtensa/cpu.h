@@ -108,7 +108,26 @@ enum {
 enum {
     SAR = 3,
     SCOMPARE1 = 12,
+    PS = 230,
 };
+
+#define PS_INTLEVEL 0xf
+#define PS_INTLEVEL_SHIFT 0
+
+#define PS_EXCM 0x10
+#define PS_UM 0x20
+
+#define PS_RING 0xc0
+#define PS_RING_SHIFT 6
+
+#define PS_OWB 0xf00
+#define PS_OWB_SHIFT 8
+
+#define PS_CALLINC 0x30000
+#define PS_CALLINC_SHIFT 16
+#define PS_CALLINC_LEN 2
+
+#define PS_WOE 0x40000
 
 typedef struct XtensaConfig {
     const char *name;
@@ -145,10 +164,38 @@ static inline bool xtensa_option_enabled(const XtensaConfig *config, int opt)
     return (config->options & XTENSA_OPTION_BIT(opt)) != 0;
 }
 
+static inline int xtensa_get_ring(const CPUState *env)
+{
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
+        return (env->sregs[PS] & PS_RING) >> PS_RING_SHIFT;
+    } else {
+        return 0;
+    }
+}
+
+static inline int xtensa_get_cring(const CPUState *env)
+{
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU) &&
+            (env->sregs[PS] & PS_EXCM) == 0) {
+        return (env->sregs[PS] & PS_RING) >> PS_RING_SHIFT;
+    } else {
+        return 0;
+    }
+}
+
+/* MMU modes definitions */
+#define MMU_MODE0_SUFFIX _ring0
+#define MMU_MODE1_SUFFIX _ring1
+#define MMU_MODE2_SUFFIX _ring2
+#define MMU_MODE3_SUFFIX _ring3
+
 static inline int cpu_mmu_index(CPUState *env)
 {
-    return 0;
+    return xtensa_get_cring(env);
 }
+
+#define XTENSA_TBFLAG_RING_MASK 0x3
+#define XTENSA_TBFLAG_EXCM 0x4
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
@@ -156,6 +203,10 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *pc = env->pc;
     *cs_base = 0;
     *flags = 0;
+    *flags |= xtensa_get_ring(env);
+    if (env->sregs[PS] & PS_EXCM) {
+        *flags |= XTENSA_TBFLAG_EXCM;
+    }
 }
 
 #include "cpu-all.h"

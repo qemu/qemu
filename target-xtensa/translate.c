@@ -45,6 +45,8 @@ typedef struct DisasContext {
     TranslationBlock *tb;
     uint32_t pc;
     uint32_t next_pc;
+    int cring;
+    int ring;
     int is_jmp;
     int singlestep_enabled;
 
@@ -65,6 +67,7 @@ static TCGv_i32 cpu_UR[256];
 static const char * const sregnames[256] = {
     [SAR] = "SAR",
     [SCOMPARE1] = "SCOMPARE1",
+    [PS] = "PS",
 };
 
 static const char * const uregnames[256] = {
@@ -239,11 +242,25 @@ static void gen_wsr_sar(DisasContext *dc, uint32_t sr, TCGv_i32 s)
     dc->sar_m32_5bit = false;
 }
 
+static void gen_wsr_ps(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    uint32_t mask = PS_WOE | PS_CALLINC | PS_OWB |
+        PS_UM | PS_EXCM | PS_INTLEVEL;
+
+    if (option_enabled(dc, XTENSA_OPTION_MMU)) {
+        mask |= PS_RING;
+    }
+    tcg_gen_andi_i32(cpu_SR[sr], v, mask);
+    /* This can change mmu index, so exit tb */
+    gen_jumpi(dc, dc->next_pc, -1);
+}
+
 static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 {
     static void (* const wsr_handler[256])(DisasContext *dc,
             uint32_t sr, TCGv_i32 v) = {
         [SAR] = gen_wsr_sar,
+        [PS] = gen_wsr_ps,
     };
 
     if (sregnames[sr]) {
@@ -973,7 +990,7 @@ static void disas_xtensa_insn(DisasContext *dc)
 
             /* no ext L32R */
 
-            tcg_gen_qemu_ld32u(cpu_R[RRR_T], tmp, 0);
+            tcg_gen_qemu_ld32u(cpu_R[RRR_T], tmp, dc->cring);
             tcg_temp_free(tmp);
         }
         break;
@@ -982,7 +999,7 @@ static void disas_xtensa_insn(DisasContext *dc)
 #define gen_load_store(type, shift) do { \
             TCGv_i32 addr = tcg_temp_new_i32(); \
             tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << shift); \
-            tcg_gen_qemu_##type(cpu_R[RRI8_T], addr, 0); \
+            tcg_gen_qemu_##type(cpu_R[RRI8_T], addr, dc->cring); \
             tcg_temp_free(addr); \
         } while (0)
 
@@ -1140,11 +1157,11 @@ static void disas_xtensa_insn(DisasContext *dc)
 
                 tcg_gen_mov_i32(tmp, cpu_R[RRI8_T]);
                 tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << 2);
-                tcg_gen_qemu_ld32u(cpu_R[RRI8_T], addr, 0);
+                tcg_gen_qemu_ld32u(cpu_R[RRI8_T], addr, dc->cring);
                 tcg_gen_brcond_i32(TCG_COND_NE, cpu_R[RRI8_T],
                         cpu_SR[SCOMPARE1], label);
 
-                tcg_gen_qemu_st32(tmp, addr, 0);
+                tcg_gen_qemu_st32(tmp, addr, dc->cring);
 
                 gen_set_label(label);
                 tcg_temp_free(addr);
@@ -1345,7 +1362,7 @@ static void disas_xtensa_insn(DisasContext *dc)
 #define gen_narrow_load_store(type) do { \
             TCGv_i32 addr = tcg_temp_new_i32(); \
             tcg_gen_addi_i32(addr, cpu_R[RRRN_S], RRRN_R << 2); \
-            tcg_gen_qemu_##type(cpu_R[RRRN_T], addr, 0); \
+            tcg_gen_qemu_##type(cpu_R[RRRN_T], addr, dc->cring); \
             tcg_temp_free(addr); \
         } while (0)
 
@@ -1468,6 +1485,8 @@ static void gen_intermediate_code_internal(
     dc.singlestep_enabled = env->singlestep_enabled;
     dc.tb = tb;
     dc.pc = pc_start;
+    dc.ring = tb->flags & XTENSA_TBFLAG_RING_MASK;
+    dc.cring = (tb->flags & XTENSA_TBFLAG_EXCM) ? 0 : dc.ring;
     dc.is_jmp = DISAS_NEXT;
 
     init_sar_tracker(&dc);

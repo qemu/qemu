@@ -37,6 +37,7 @@
 void cpu_reset(CPUXtensaState *env)
 {
     env->pc = 0;
+    env->sregs[PS] = 0x1f;
 }
 
 static const XtensaConfig core_config[] = {
