@@ -106,6 +106,7 @@ static const char * const sregnames[256] = {
     [INTCLEAR] = "INTCLEAR",
     [INTENABLE] = "INTENABLE",
     [PS] = "PS",
+    [VECBASE] = "VECBASE",
     [EXCCAUSE] = "EXCCAUSE",
     [CCOUNT] = "CCOUNT",
     [PRID] = "PRID",

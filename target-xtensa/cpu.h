@@ -123,6 +123,7 @@ enum {
     INTCLEAR = 227,
     INTENABLE = 228,
     PS = 230,
+    VECBASE = 231,
     EXCCAUSE = 232,
     CCOUNT = 234,
     PRID = 235,
@@ -219,6 +220,7 @@ typedef struct XtensaConfig {
     unsigned nareg;
     int excm_level;
     int ndepc;
+    uint32_t vecbase;
     uint32_t exception_vector[EXC_MAX];
     unsigned ninterrupt;
     unsigned nlevel;
