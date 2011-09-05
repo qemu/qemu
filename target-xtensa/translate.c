@@ -80,6 +80,10 @@ static const char * const sregnames[256] = {
     [SCOMPARE1] = "SCOMPARE1",
     [WINDOW_BASE] = "WINDOW_BASE",
     [WINDOW_START] = "WINDOW_START",
+    [PTEVADDR] = "PTEVADDR",
+    [RASID] = "RASID",
+    [ITLBCFG] = "ITLBCFG",
+    [DTLBCFG] = "DTLBCFG",
     [EPC1] = "EPC1",
     [EPC1 + 1] = "EPC2",
     [EPC1 + 2] = "EPC3",
@@ -159,6 +163,11 @@ void xtensa_translate_init(void)
     }
 #define GEN_HELPER 2
 #include "helpers.h"
+}
+
+static inline bool option_bits_enabled(DisasContext *dc, uint64_t opt)
+{
+    return xtensa_option_bits_enabled(dc->config, opt);
 }
 
 static inline bool option_enabled(DisasContext *dc, int opt)
@@ -379,11 +388,19 @@ static void gen_rsr_ccount(DisasContext *dc, TCGv_i32 d, uint32_t sr)
     tcg_gen_mov_i32(d, cpu_SR[sr]);
 }
 
+static void gen_rsr_ptevaddr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
+{
+    tcg_gen_shri_i32(d, cpu_SR[EXCVADDR], 10);
+    tcg_gen_or_i32(d, d, cpu_SR[sr]);
+    tcg_gen_andi_i32(d, d, 0xfffffffc);
+}
+
 static void gen_rsr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
 {
     static void (* const rsr_handler[256])(DisasContext *dc,
             TCGv_i32 d, uint32_t sr) = {
         [CCOUNT] = gen_rsr_ccount,
+        [PTEVADDR] = gen_rsr_ptevaddr,
     };
 
     if (sregnames[sr]) {
@@ -434,6 +451,23 @@ static void gen_wsr_windowstart(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     tcg_gen_mov_i32(cpu_SR[sr], v);
     reset_used_window(dc);
+}
+
+static void gen_wsr_ptevaddr(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    tcg_gen_andi_i32(cpu_SR[sr], v, 0xffc00000);
+}
+
+static void gen_wsr_rasid(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    gen_helper_wsr_rasid(v);
+    /* This can change tb->flags, so exit tb */
+    gen_jumpi_check_loop_end(dc, -1);
+}
+
+static void gen_wsr_tlbcfg(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    tcg_gen_andi_i32(cpu_SR[sr], v, 0x01130000);
 }
 
 static void gen_wsr_intset(DisasContext *dc, uint32_t sr, TCGv_i32 v)
@@ -505,6 +539,10 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [LITBASE] = gen_wsr_litbase,
         [WINDOW_BASE] = gen_wsr_windowbase,
         [WINDOW_START] = gen_wsr_windowstart,
+        [PTEVADDR] = gen_wsr_ptevaddr,
+        [RASID] = gen_wsr_rasid,
+        [ITLBCFG] = gen_wsr_tlbcfg,
+        [DTLBCFG] = gen_wsr_tlbcfg,
         [INTSET] = gen_wsr_intset,
         [INTCLEAR] = gen_wsr_intclear,
         [INTENABLE] = gen_wsr_intenable,
@@ -585,13 +623,15 @@ static void gen_window_check3(DisasContext *dc, unsigned r1, unsigned r2,
 
 static void disas_xtensa_insn(DisasContext *dc)
 {
-#define HAS_OPTION(opt) do { \
-        if (!option_enabled(dc, opt)) { \
-            qemu_log("Option %d is not enabled %s:%d\n", \
-                    (opt), __FILE__, __LINE__); \
+#define HAS_OPTION_BITS(opt) do { \
+        if (!option_bits_enabled(dc, opt)) { \
+            qemu_log("Option is not enabled %s:%d\n", \
+                    __FILE__, __LINE__); \
             goto invalid_opcode; \
         } \
     } while (0)
+
+#define HAS_OPTION(opt) HAS_OPTION_BITS(XTENSA_OPTION_BIT(opt))
 
 #define TBD() qemu_log("TBD(pc = %08x): %s:%d\n", dc->pc, __FILE__, __LINE__)
 #define RESERVED() do { \
@@ -1055,7 +1095,48 @@ static void disas_xtensa_insn(DisasContext *dc)
                 break;
 
             case 5: /*TLB*/
-                TBD();
+                HAS_OPTION_BITS(
+                        XTENSA_OPTION_BIT(XTENSA_OPTION_MMU) |
+                        XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
+                        XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION));
+                gen_check_privilege(dc);
+                gen_window_check2(dc, RRR_S, RRR_T);
+                {
+                    TCGv_i32 dtlb = tcg_const_i32((RRR_R & 8) != 0);
+
+                    switch (RRR_R & 7) {
+                    case 3: /*RITLB0*/ /*RDTLB0*/
+                        gen_helper_rtlb0(cpu_R[RRR_T], cpu_R[RRR_S], dtlb);
+                        break;
+
+                    case 4: /*IITLB*/ /*IDTLB*/
+                        gen_helper_itlb(cpu_R[RRR_S], dtlb);
+                        /* This could change memory mapping, so exit tb */
+                        gen_jumpi_check_loop_end(dc, -1);
+                        break;
+
+                    case 5: /*PITLB*/ /*PDTLB*/
+                        tcg_gen_movi_i32(cpu_pc, dc->pc);
+                        gen_helper_ptlb(cpu_R[RRR_T], cpu_R[RRR_S], dtlb);
+                        break;
+
+                    case 6: /*WITLB*/ /*WDTLB*/
+                        gen_helper_wtlb(cpu_R[RRR_T], cpu_R[RRR_S], dtlb);
+                        /* This could change memory mapping, so exit tb */
+                        gen_jumpi_check_loop_end(dc, -1);
+                        break;
+
+                    case 7: /*RITLB1*/ /*RDTLB1*/
+                        gen_helper_rtlb1(cpu_R[RRR_T], cpu_R[RRR_S], dtlb);
+                        break;
+
+                    default:
+                        tcg_temp_free(dtlb);
+                        RESERVED();
+                        break;
+                    }
+                    tcg_temp_free(dtlb);
+                }
                 break;
 
             case 6: /*RT0*/
