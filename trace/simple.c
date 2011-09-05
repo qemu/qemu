@@ -234,7 +234,7 @@ void st_set_trace_file_enabled(bool enable)
             .x1 = HEADER_VERSION,
         };
 
-        trace_fp = fopen(trace_file_name, "w");
+        trace_fp = fopen(trace_file_name, "wb");
         if (!trace_fp) {
             return;
         }
