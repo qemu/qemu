@@ -52,8 +52,19 @@ typedef struct DisasContext {
 static TCGv_ptr cpu_env;
 static TCGv_i32 cpu_pc;
 static TCGv_i32 cpu_R[16];
+static TCGv_i32 cpu_SR[256];
+static TCGv_i32 cpu_UR[256];
 
 #include "gen-icount.h"
+
+static const char * const sregnames[256] = {
+};
+
+static const char * const uregnames[256] = {
+    [THREADPTR] = "THREADPTR",
+    [FCR] = "FCR",
+    [FSR] = "FSR",
+};
 
 void xtensa_translate_init(void)
 {
@@ -73,6 +84,22 @@ void xtensa_translate_init(void)
         cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
                 offsetof(CPUState, regs[i]),
                 regnames[i]);
+    }
+
+    for (i = 0; i < 256; ++i) {
+        if (sregnames[i]) {
+            cpu_SR[i] = tcg_global_mem_new_i32(TCG_AREG0,
+                    offsetof(CPUState, sregs[i]),
+                    sregnames[i]);
+        }
+    }
+
+    for (i = 0; i < 256; ++i) {
+        if (uregnames[i]) {
+            cpu_UR[i] = tcg_global_mem_new_i32(TCG_AREG0,
+                    offsetof(CPUState, uregs[i]),
+                    uregnames[i]);
+        }
     }
 #define GEN_HELPER 2
 #include "helpers.h"
@@ -784,9 +811,27 @@ void gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
 void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
         int flags)
 {
-    int i;
+    int i, j;
 
-    cpu_fprintf(f, "PC=%08x\n", env->pc);
+    cpu_fprintf(f, "PC=%08x\n\n", env->pc);
+
+    for (i = j = 0; i < 256; ++i) {
+        if (sregnames[i]) {
+            cpu_fprintf(f, "%s=%08x%c", sregnames[i], env->sregs[i],
+                    (j++ % 4) == 3 ? '\n' : ' ');
+        }
+    }
+
+    cpu_fprintf(f, (j % 4) == 0 ? "\n" : "\n\n");
+
+    for (i = j = 0; i < 256; ++i) {
+        if (uregnames[i]) {
+            cpu_fprintf(f, "%s=%08x%c", uregnames[i], env->uregs[i],
+                    (j++ % 4) == 3 ? '\n' : ' ');
+        }
+    }
+
+    cpu_fprintf(f, (j % 4) == 0 ? "\n" : "\n\n");
 
     for (i = 0; i < 16; ++i) {
         cpu_fprintf(f, "A%02d=%08x%c", i, env->regs[i],
