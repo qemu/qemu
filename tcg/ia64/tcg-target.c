@@ -172,9 +172,8 @@ static const int tcg_target_call_iarg_regs[8] = {
     TCG_REG_R63,
 };
 
-static const int tcg_target_call_oarg_regs[2] = {
-    TCG_REG_R8,
-    TCG_REG_R9
+static const int tcg_target_call_oarg_regs[] = {
+    TCG_REG_R8
 };
 
 /* maximum number of register used for input function arguments */
