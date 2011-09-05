@@ -111,9 +111,10 @@ static void scsi_read_complete(void * opaque, int ret)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     int n;
 
-    r->req.aiocb = NULL;
-
-    bdrv_acct_done(s->bs, &r->acct);
+    if (r->req.aiocb != NULL) {
+        r->req.aiocb = NULL;
+        bdrv_acct_done(s->bs, &r->acct);
+    }
 
     if (ret) {
         if (scsi_handle_rw_error(r, -ret, SCSI_REQ_STATUS_RETRY_READ)) {
@@ -235,9 +236,10 @@ static void scsi_write_complete(void * opaque, int ret)
     uint32_t len;
     uint32_t n;
 
-    r->req.aiocb = NULL;
-
-    bdrv_acct_done(s->bs, &r->acct);
+    if (r->req.aiocb != NULL) {
+        r->req.aiocb = NULL;
+        bdrv_acct_done(s->bs, &r->acct);
+    }
 
     if (ret) {
         if (scsi_handle_rw_error(r, -ret, SCSI_REQ_STATUS_RETRY_WRITE)) {
