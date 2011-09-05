@@ -1362,7 +1362,6 @@ static void pipe_read(void *opaque)
     qxl_set_irq(d);
 }
 
-/* called from spice server thread context only */
 static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
 {
     uint32_t old_pending;
@@ -1459,7 +1458,14 @@ static void qxl_vm_change_state_handler(void *opaque, int running, int reason)
     PCIQXLDevice *qxl = opaque;
     qemu_spice_vm_change_state_handler(&qxl->ssd, running, reason);
 
-    if (!running && qxl->mode == QXL_MODE_NATIVE) {
+    if (running) {
+        /*
+         * if qxl_send_events was called from spice server context before
+         * migration ended, qxl_set_irq for these events might not have been
+         * called
+         */
+         qxl_set_irq(qxl);
+    } else if (qxl->mode == QXL_MODE_NATIVE) {
         /* dirty all vram (which holds surfaces) and devram (primary surface)
          * to make sure they are saved */
         /* FIXME #1: should go out during "live" stage */
