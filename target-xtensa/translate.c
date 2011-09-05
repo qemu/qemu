@@ -58,6 +58,8 @@ typedef struct DisasContext {
     bool sar_m32_5bit;
     bool sar_m32_allocated;
     TCGv_i32 sar_m32;
+
+    uint32_t ccount_delta;
 } DisasContext;
 
 static TCGv_ptr cpu_env;
@@ -78,11 +80,36 @@ static const char * const sregnames[256] = {
     [WINDOW_BASE] = "WINDOW_BASE",
     [WINDOW_START] = "WINDOW_START",
     [EPC1] = "EPC1",
+    [EPC1 + 1] = "EPC2",
+    [EPC1 + 2] = "EPC3",
+    [EPC1 + 3] = "EPC4",
+    [EPC1 + 4] = "EPC5",
+    [EPC1 + 5] = "EPC6",
+    [EPC1 + 6] = "EPC7",
     [DEPC] = "DEPC",
+    [EPS2] = "EPS2",
+    [EPS2 + 1] = "EPS3",
+    [EPS2 + 2] = "EPS4",
+    [EPS2 + 3] = "EPS5",
+    [EPS2 + 4] = "EPS6",
+    [EPS2 + 5] = "EPS7",
     [EXCSAVE1] = "EXCSAVE1",
+    [EXCSAVE1 + 1] = "EXCSAVE2",
+    [EXCSAVE1 + 2] = "EXCSAVE3",
+    [EXCSAVE1 + 3] = "EXCSAVE4",
+    [EXCSAVE1 + 4] = "EXCSAVE5",
+    [EXCSAVE1 + 5] = "EXCSAVE6",
+    [EXCSAVE1 + 6] = "EXCSAVE7",
+    [INTSET] = "INTSET",
+    [INTCLEAR] = "INTCLEAR",
+    [INTENABLE] = "INTENABLE",
     [PS] = "PS",
     [EXCCAUSE] = "EXCCAUSE",
+    [CCOUNT] = "CCOUNT",
     [EXCVADDR] = "EXCVADDR",
+    [CCOMPARE] = "CCOMPARE0",
+    [CCOMPARE + 1] = "CCOMPARE1",
+    [CCOMPARE + 2] = "CCOMPARE2",
 };
 
 static const char * const uregnames[256] = {
@@ -188,9 +215,20 @@ static void gen_left_shift_sar(DisasContext *dc, TCGv_i32 sa)
     tcg_temp_free(tmp);
 }
 
-static void gen_exception(int excp)
+static void gen_advance_ccount(DisasContext *dc)
+{
+    if (dc->ccount_delta > 0) {
+        TCGv_i32 tmp = tcg_const_i32(dc->ccount_delta);
+        dc->ccount_delta = 0;
+        gen_helper_advance_ccount(tmp);
+        tcg_temp_free(tmp);
+    }
+}
+
+static void gen_exception(DisasContext *dc, int excp)
 {
     TCGv_i32 tmp = tcg_const_i32(excp);
+    gen_advance_ccount(dc);
     gen_helper_exception(tmp);
     tcg_temp_free(tmp);
 }
@@ -199,6 +237,7 @@ static void gen_exception_cause(DisasContext *dc, uint32_t cause)
 {
     TCGv_i32 tpc = tcg_const_i32(dc->pc);
     TCGv_i32 tcause = tcg_const_i32(cause);
+    gen_advance_ccount(dc);
     gen_helper_exception_cause(tpc, tcause);
     tcg_temp_free(tpc);
     tcg_temp_free(tcause);
@@ -209,6 +248,7 @@ static void gen_exception_cause_vaddr(DisasContext *dc, uint32_t cause,
 {
     TCGv_i32 tpc = tcg_const_i32(dc->pc);
     TCGv_i32 tcause = tcg_const_i32(cause);
+    gen_advance_ccount(dc);
     gen_helper_exception_cause_vaddr(tpc, tcause, vaddr);
     tcg_temp_free(tpc);
     tcg_temp_free(tcause);
@@ -225,8 +265,9 @@ static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
 {
     tcg_gen_mov_i32(cpu_pc, dest);
     if (dc->singlestep_enabled) {
-        gen_exception(EXCP_DEBUG);
+        gen_exception(dc, EXCP_DEBUG);
     } else {
+        gen_advance_ccount(dc);
         if (slot >= 0) {
             tcg_gen_goto_tb(slot);
             tcg_gen_exit_tb((tcg_target_long)dc->tb + slot);
@@ -323,10 +364,17 @@ static void gen_brcondi(DisasContext *dc, TCGCond cond,
     tcg_temp_free(tmp);
 }
 
+static void gen_rsr_ccount(DisasContext *dc, TCGv_i32 d, uint32_t sr)
+{
+    gen_advance_ccount(dc);
+    tcg_gen_mov_i32(d, cpu_SR[sr]);
+}
+
 static void gen_rsr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
 {
     static void (* const rsr_handler[256])(DisasContext *dc,
             TCGv_i32 d, uint32_t sr) = {
+        [CCOUNT] = gen_rsr_ccount,
     };
 
     if (sregnames[sr]) {
@@ -372,6 +420,34 @@ static void gen_wsr_windowbase(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     gen_helper_wsr_windowbase(v);
 }
 
+static void gen_wsr_intset(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    tcg_gen_andi_i32(cpu_SR[sr], v,
+            dc->config->inttype_mask[INTTYPE_SOFTWARE]);
+    gen_helper_check_interrupts(cpu_env);
+    gen_jumpi_check_loop_end(dc, 0);
+}
+
+static void gen_wsr_intclear(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    TCGv_i32 tmp = tcg_temp_new_i32();
+
+    tcg_gen_andi_i32(tmp, v,
+            dc->config->inttype_mask[INTTYPE_EDGE] |
+            dc->config->inttype_mask[INTTYPE_NMI] |
+            dc->config->inttype_mask[INTTYPE_SOFTWARE]);
+    tcg_gen_andc_i32(cpu_SR[INTSET], cpu_SR[INTSET], tmp);
+    tcg_temp_free(tmp);
+    gen_helper_check_interrupts(cpu_env);
+}
+
+static void gen_wsr_intenable(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    tcg_gen_mov_i32(cpu_SR[sr], v);
+    gen_helper_check_interrupts(cpu_env);
+    gen_jumpi_check_loop_end(dc, 0);
+}
+
 static void gen_wsr_ps(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     uint32_t mask = PS_WOE | PS_CALLINC | PS_OWB |
@@ -381,8 +457,21 @@ static void gen_wsr_ps(DisasContext *dc, uint32_t sr, TCGv_i32 v)
         mask |= PS_RING;
     }
     tcg_gen_andi_i32(cpu_SR[sr], v, mask);
-    /* This can change mmu index, so exit tb */
+    gen_helper_check_interrupts(cpu_env);
+    /* This can change mmu index and tb->flags, so exit tb */
     gen_jumpi_check_loop_end(dc, -1);
+}
+
+static void gen_wsr_ccompare(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    uint32_t id = sr - CCOMPARE;
+    if (id < dc->config->nccompare) {
+        uint32_t int_bit = 1 << dc->config->timerint[id];
+        gen_advance_ccount(dc);
+        tcg_gen_mov_i32(cpu_SR[sr], v);
+        tcg_gen_andi_i32(cpu_SR[INTSET], cpu_SR[INTSET], ~int_bit);
+        gen_helper_check_interrupts(cpu_env);
+    }
 }
 
 static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
@@ -394,7 +483,13 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [SAR] = gen_wsr_sar,
         [LITBASE] = gen_wsr_litbase,
         [WINDOW_BASE] = gen_wsr_windowbase,
+        [INTSET] = gen_wsr_intset,
+        [INTCLEAR] = gen_wsr_intclear,
+        [INTENABLE] = gen_wsr_intenable,
         [PS] = gen_wsr_ps,
+        [CCOMPARE] = gen_wsr_ccompare,
+        [CCOMPARE + 1] = gen_wsr_ccompare,
+        [CCOMPARE + 2] = gen_wsr_ccompare,
     };
 
     if (sregnames[sr]) {
@@ -423,6 +518,16 @@ static void gen_load_store_alignment(DisasContext *dc, int shift,
         gen_set_label(label);
         tcg_temp_free(tmp);
     }
+}
+
+static void gen_waiti(DisasContext *dc, uint32_t imm4)
+{
+    TCGv_i32 pc = tcg_const_i32(dc->next_pc);
+    TCGv_i32 intlevel = tcg_const_i32(imm4);
+    gen_advance_ccount(dc);
+    gen_helper_waiti(pc, intlevel);
+    tcg_temp_free(pc);
+    tcg_temp_free(intlevel);
 }
 
 static void disas_xtensa_insn(DisasContext *dc)
@@ -561,6 +666,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                             HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
                             {
                                 TCGv_i32 tmp = tcg_const_i32(dc->pc);
+                                gen_advance_ccount(dc);
                                 gen_helper_retw(tmp, tmp);
                                 gen_jump(dc, tmp);
                                 tcg_temp_free(tmp);
@@ -606,6 +712,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                     HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
                     {
                         TCGv_i32 pc = tcg_const_i32(dc->pc);
+                        gen_advance_ccount(dc);
                         gen_helper_movsp(pc);
                         tcg_gen_mov_i32(cpu_R[RRR_T], cpu_R[RRR_S]);
                         tcg_temp_free(pc);
@@ -653,6 +760,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                         case 0: /*RFEx*/
                             gen_check_privilege(dc);
                             tcg_gen_andi_i32(cpu_SR[PS], cpu_SR[PS], ~PS_EXCM);
+                            gen_helper_check_interrupts(cpu_env);
                             gen_jump(dc, cpu_SR[EPC1]);
                             break;
 
@@ -686,6 +794,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                                 }
 
                                 gen_helper_restore_owb();
+                                gen_helper_check_interrupts(cpu_env);
                                 gen_jump(dc, cpu_SR[EPC1]);
 
                                 tcg_temp_free(tmp);
@@ -700,7 +809,16 @@ static void disas_xtensa_insn(DisasContext *dc)
 
                     case 1: /*RFIx*/
                         HAS_OPTION(XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT);
-                        TBD();
+                        if (RRR_S >= 2 && RRR_S <= dc->config->nlevel) {
+                            gen_check_privilege(dc);
+                            tcg_gen_mov_i32(cpu_SR[PS],
+                                    cpu_SR[EPS2 + RRR_S - 2]);
+                            gen_helper_check_interrupts(cpu_env);
+                            gen_jump(dc, cpu_SR[EPC1 + RRR_S - 1]);
+                        } else {
+                            qemu_log("RFI %d is illegal\n", RRR_S);
+                            gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
+                        }
                         break;
 
                     case 2: /*RFME*/
@@ -746,14 +864,16 @@ static void disas_xtensa_insn(DisasContext *dc)
                     HAS_OPTION(XTENSA_OPTION_INTERRUPT);
                     gen_check_privilege(dc);
                     tcg_gen_mov_i32(cpu_R[RRR_T], cpu_SR[PS]);
+                    tcg_gen_andi_i32(cpu_SR[PS], cpu_SR[PS], ~PS_INTLEVEL);
                     tcg_gen_ori_i32(cpu_SR[PS], cpu_SR[PS], RRR_S);
-                    tcg_gen_andi_i32(cpu_SR[PS], cpu_SR[PS],
-                            RRR_S | ~PS_INTLEVEL);
+                    gen_helper_check_interrupts(cpu_env);
+                    gen_jumpi_check_loop_end(dc, 0);
                     break;
 
                 case 7: /*WAITIx*/
                     HAS_OPTION(XTENSA_OPTION_INTERRUPT);
-                    TBD();
+                    gen_check_privilege(dc);
+                    gen_waiti(dc, RRR_S);
                     break;
 
                 case 8: /*ANY4p*/
@@ -1637,6 +1757,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                     TCGv_i32 pc = tcg_const_i32(dc->pc);
                     TCGv_i32 s = tcg_const_i32(BRI12_S);
                     TCGv_i32 imm = tcg_const_i32(BRI12_IMM12);
+                    gen_advance_ccount(dc);
                     gen_helper_entry(pc, s, imm);
                     tcg_temp_free(imm);
                     tcg_temp_free(s);
@@ -1823,6 +1944,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                 HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
                 {
                     TCGv_i32 tmp = tcg_const_i32(dc->pc);
+                    gen_advance_ccount(dc);
                     gen_helper_retw(tmp, tmp);
                     gen_jump(dc, tmp);
                     tcg_temp_free(tmp);
@@ -1876,7 +1998,7 @@ static void check_breakpoint(CPUState *env, DisasContext *dc)
         QTAILQ_FOREACH(bp, &env->breakpoints, entry) {
             if (bp->pc == dc->pc) {
                 tcg_gen_movi_i32(cpu_pc, dc->pc);
-                gen_exception(EXCP_DEBUG);
+                gen_exception(dc, EXCP_DEBUG);
                 dc->is_jmp = DISAS_UPDATE;
              }
         }
@@ -1908,6 +2030,7 @@ static void gen_intermediate_code_internal(
     dc.lbeg = env->sregs[LBEG];
     dc.lend = env->sregs[LEND];
     dc.is_jmp = DISAS_NEXT;
+    dc.ccount_delta = 0;
 
     init_litbase(&dc);
     init_sar_tracker(&dc);
@@ -1917,7 +2040,7 @@ static void gen_intermediate_code_internal(
     if (env->singlestep_enabled && env->exception_taken) {
         env->exception_taken = 0;
         tcg_gen_movi_i32(cpu_pc, dc.pc);
-        gen_exception(EXCP_DEBUG);
+        gen_exception(&dc, EXCP_DEBUG);
     }
 
     do {
@@ -1940,11 +2063,17 @@ static void gen_intermediate_code_internal(
             tcg_gen_debug_insn_start(dc.pc);
         }
 
+        ++dc.ccount_delta;
+
+        if (insn_count + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
+            gen_io_start();
+        }
+
         disas_xtensa_insn(&dc);
         ++insn_count;
         if (env->singlestep_enabled) {
             tcg_gen_movi_i32(cpu_pc, dc.pc);
-            gen_exception(EXCP_DEBUG);
+            gen_exception(&dc, EXCP_DEBUG);
             break;
         }
     } while (dc.is_jmp == DISAS_NEXT &&
@@ -1954,6 +2083,10 @@ static void gen_intermediate_code_internal(
 
     reset_litbase(&dc);
     reset_sar_tracker(&dc);
+
+    if (tb->cflags & CF_LAST_IO) {
+        gen_io_end();
+    }
 
     if (dc.is_jmp == DISAS_NEXT) {
         gen_jumpi(&dc, dc.pc, 0);

@@ -116,10 +116,16 @@ enum {
     WINDOW_START = 73,
     EPC1 = 177,
     DEPC = 192,
+    EPS2 = 194,
     EXCSAVE1 = 209,
+    INTSET = 226,
+    INTCLEAR = 227,
+    INTENABLE = 228,
     PS = 230,
     EXCCAUSE = 232,
+    CCOUNT = 234,
     EXCVADDR = 238,
+    CCOMPARE = 240,
 };
 
 #define PS_INTLEVEL 0xf
@@ -141,6 +147,10 @@ enum {
 #define PS_WOE 0x40000
 
 #define MAX_NAREG 64
+#define MAX_NINTERRUPT 32
+#define MAX_NLEVEL 6
+#define MAX_NNMI 1
+#define MAX_NCCOMPARE 3
 
 enum {
     /* Static vectors */
@@ -190,6 +200,17 @@ enum {
     COPROCESSOR0_DISABLED = 32,
 };
 
+typedef enum {
+    INTTYPE_LEVEL,
+    INTTYPE_EDGE,
+    INTTYPE_NMI,
+    INTTYPE_SOFTWARE,
+    INTTYPE_TIMER,
+    INTTYPE_DEBUG,
+    INTTYPE_WRITE_ERR,
+    INTTYPE_MAX
+} interrupt_type;
+
 typedef struct XtensaConfig {
     const char *name;
     uint64_t options;
@@ -197,6 +218,18 @@ typedef struct XtensaConfig {
     int excm_level;
     int ndepc;
     uint32_t exception_vector[EXC_MAX];
+    unsigned ninterrupt;
+    unsigned nlevel;
+    uint32_t interrupt_vector[MAX_NLEVEL + MAX_NNMI + 1];
+    uint32_t level_mask[MAX_NLEVEL + MAX_NNMI + 1];
+    uint32_t inttype_mask[INTTYPE_MAX];
+    struct {
+        uint32_t level;
+        interrupt_type inttype;
+    } interrupt[MAX_NINTERRUPT];
+    unsigned nccompare;
+    uint32_t timerint[MAX_NCCOMPARE];
+    uint32_t clock_freq_khz;
 } XtensaConfig;
 
 typedef struct CPUXtensaState {
@@ -206,6 +239,12 @@ typedef struct CPUXtensaState {
     uint32_t sregs[256];
     uint32_t uregs[256];
     uint32_t phys_regs[MAX_NAREG];
+
+    int pending_irq_level; /* level of last raised IRQ */
+    void **irq_inputs;
+    QEMUTimer *ccompare_timer;
+    uint32_t wake_ccount;
+    int64_t halt_clock;
 
     int exception_taken;
 
@@ -222,6 +261,10 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model);
 void xtensa_translate_init(void);
 int cpu_xtensa_exec(CPUXtensaState *s);
 void do_interrupt(CPUXtensaState *s);
+void check_interrupts(CPUXtensaState *s);
+void xtensa_irq_init(CPUState *env);
+void xtensa_advance_ccount(CPUState *env, uint32_t d);
+void xtensa_timer_irq(CPUState *env, uint32_t id, uint32_t active);
 int cpu_xtensa_signal_handler(int host_signum, void *pinfo, void *puc);
 void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void xtensa_sync_window_from_phys(CPUState *env);
@@ -298,7 +341,7 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 
 static inline int cpu_has_work(CPUState *env)
 {
-    return 1;
+    return env->pending_irq_level;
 }
 
 static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)

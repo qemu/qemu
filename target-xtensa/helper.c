@@ -39,7 +39,10 @@ void cpu_reset(CPUXtensaState *env)
     env->exception_taken = 0;
     env->pc = env->config->exception_vector[EXC_RESET];
     env->sregs[LITBASE] &= ~1;
-    env->sregs[PS] = 0x1f;
+    env->sregs[PS] = xtensa_option_enabled(env->config,
+            XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;
+
+    env->pending_irq_level = 0;
 }
 
 static const XtensaConfig core_config[] = {
@@ -63,6 +66,31 @@ static const XtensaConfig core_config[] = {
             [EXC_USER] = 0x5fff863c,
             [EXC_DOUBLE] = 0x5fff865c,
         },
+        .ninterrupt = 13,
+        .nlevel = 6,
+        .interrupt_vector = {
+            0,
+            0,
+            0x5fff857c,
+            0x5fff859c,
+            0x5fff85bc,
+            0x5fff85dc,
+            0x5fff85fc,
+        },
+        .level_mask = {
+            [4] = 1,
+        },
+        .interrupt = {
+            [0] = {
+                .level = 4,
+                .inttype = INTTYPE_TIMER,
+            },
+        },
+        .nccompare = 1,
+        .timerint = {
+            [0] = 0,
+        },
+        .clock_freq_khz = 912000,
     },
 };
 
@@ -92,6 +120,7 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
         xtensa_translate_init();
     }
 
+    xtensa_irq_init(env);
     qemu_init_vcpu(env);
     return env;
 }
@@ -111,8 +140,63 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     return addr;
 }
 
+/*!
+ * Handle penging IRQ.
+ * For the high priority interrupt jump to the corresponding interrupt vector.
+ * For the level-1 interrupt convert it to either user, kernel or double
+ * exception with the 'level-1 interrupt' exception cause.
+ */
+static void handle_interrupt(CPUState *env)
+{
+    int level = env->pending_irq_level;
+
+    if (level > xtensa_get_cintlevel(env) &&
+            level <= env->config->nlevel &&
+            (env->config->level_mask[level] &
+             env->sregs[INTSET] &
+             env->sregs[INTENABLE])) {
+        if (level > 1) {
+            env->sregs[EPC1 + level - 1] = env->pc;
+            env->sregs[EPS2 + level - 2] = env->sregs[PS];
+            env->sregs[PS] =
+                (env->sregs[PS] & ~PS_INTLEVEL) | level | PS_EXCM;
+            env->pc = env->config->interrupt_vector[level];
+        } else {
+            env->sregs[EXCCAUSE] = LEVEL1_INTERRUPT_CAUSE;
+
+            if (env->sregs[PS] & PS_EXCM) {
+                if (env->config->ndepc) {
+                    env->sregs[DEPC] = env->pc;
+                } else {
+                    env->sregs[EPC1] = env->pc;
+                }
+                env->exception_index = EXC_DOUBLE;
+            } else {
+                env->sregs[EPC1] = env->pc;
+                env->exception_index =
+                    (env->sregs[PS] & PS_UM) ? EXC_USER : EXC_KERNEL;
+            }
+            env->sregs[PS] |= PS_EXCM;
+        }
+        env->exception_taken = 1;
+    }
+}
+
 void do_interrupt(CPUState *env)
 {
+    if (env->exception_index == EXC_IRQ) {
+        qemu_log_mask(CPU_LOG_INT,
+                "%s(EXC_IRQ) level = %d, cintlevel = %d, "
+                "pc = %08x, a0 = %08x, ps = %08x, "
+                "intset = %08x, intenable = %08x, "
+                "ccount = %08x\n",
+                __func__, env->pending_irq_level, xtensa_get_cintlevel(env),
+                env->pc, env->regs[0], env->sregs[PS],
+                env->sregs[INTSET], env->sregs[INTENABLE],
+                env->sregs[CCOUNT]);
+        handle_interrupt(env);
+    }
+
     switch (env->exception_index) {
     case EXC_WINDOW_OVERFLOW4:
     case EXC_WINDOW_UNDERFLOW4:
@@ -123,6 +207,10 @@ void do_interrupt(CPUState *env)
     case EXC_KERNEL:
     case EXC_USER:
     case EXC_DOUBLE:
+        qemu_log_mask(CPU_LOG_INT, "%s(%d) "
+                "pc = %08x, a0 = %08x, ps = %08x, ccount = %08x\n",
+                __func__, env->exception_index,
+                env->pc, env->regs[0], env->sregs[PS], env->sregs[CCOUNT]);
         if (env->config->exception_vector[env->exception_index]) {
             env->pc = env->config->exception_vector[env->exception_index];
             env->exception_taken = 1;
@@ -132,5 +220,13 @@ void do_interrupt(CPUState *env)
         }
         break;
 
+    case EXC_IRQ:
+        break;
+
+    default:
+        qemu_log("%s(pc = %08x) unknown exception_index: %d\n",
+                __func__, env->pc, env->exception_index);
+        break;
     }
+    check_interrupts(env);
 }

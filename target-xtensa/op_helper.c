@@ -338,3 +338,49 @@ void HELPER(dump_state)(void)
 {
     cpu_dump_state(env, stderr, fprintf, 0);
 }
+
+void HELPER(waiti)(uint32_t pc, uint32_t intlevel)
+{
+    env->pc = pc;
+    env->sregs[PS] = (env->sregs[PS] & ~PS_INTLEVEL) |
+        (intlevel << PS_INTLEVEL_SHIFT);
+    check_interrupts(env);
+    if (env->pending_irq_level) {
+        cpu_loop_exit(env);
+        return;
+    }
+
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT)) {
+        int i;
+        uint32_t wake_ccount = env->sregs[CCOUNT] - 1;
+
+        for (i = 0; i < env->config->nccompare; ++i) {
+            if (env->sregs[CCOMPARE + i] - env->sregs[CCOUNT] <
+                    wake_ccount - env->sregs[CCOUNT]) {
+                wake_ccount = env->sregs[CCOMPARE + i];
+            }
+        }
+        env->wake_ccount = wake_ccount;
+        qemu_mod_timer(env->ccompare_timer, qemu_get_clock_ns(vm_clock) +
+                muldiv64(wake_ccount - env->sregs[CCOUNT],
+                    1000000, env->config->clock_freq_khz));
+    }
+    env->halt_clock = qemu_get_clock_ns(vm_clock);
+    env->halted = 1;
+    HELPER(exception)(EXCP_HLT);
+}
+
+void HELPER(timer_irq)(uint32_t id, uint32_t active)
+{
+    xtensa_timer_irq(env, id, active);
+}
+
+void HELPER(advance_ccount)(uint32_t d)
+{
+    xtensa_advance_ccount(env, d);
+}
+
+void HELPER(check_interrupts)(CPUState *env)
+{
+    check_interrupts(env);
+}
