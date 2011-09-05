@@ -55,6 +55,7 @@ static void xtensa_init(ram_addr_t ram_size,
             exit(1);
         }
         qemu_register_reset(xtensa_sample_reset, env);
+        env->sregs[PRID] = n;
     }
 
     ram = g_malloc(sizeof(*ram));
