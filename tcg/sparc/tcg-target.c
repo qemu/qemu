@@ -84,9 +84,11 @@ static const int tcg_target_call_iarg_regs[6] = {
     TCG_REG_O5,
 };
 
-static const int tcg_target_call_oarg_regs[2] = {
+static const int tcg_target_call_oarg_regs[] = {
     TCG_REG_O0,
-    TCG_REG_O1,
+#if TCG_TARGET_REG_BITS == 32
+    TCG_REG_O1
+#endif
 };
 
 static inline int check_fit_tl(tcg_target_long val, unsigned int bits)
