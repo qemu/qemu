@@ -107,6 +107,174 @@ static const XtensaConfig core_config[] = {
             [0] = 0,
         },
         .clock_freq_khz = 912000,
+    }, {
+        .name = "dc232b",
+        .options = -1 ^
+            (XTENSA_OPTION_BIT(XTENSA_OPTION_HW_ALIGNMENT) |
+             XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
+             XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION)),
+        .gdb_regmap = {
+            .num_regs = 120,
+            .num_core_regs = 52,
+            .reg = {
+#include "gdb-config-dc232b.c"
+            }
+        },
+        .nareg = 32,
+        .ndepc = 1,
+        .excm_level = 3,
+        .vecbase = 0xd0000000,
+        .exception_vector = {
+            [EXC_RESET] = 0xfe000000,
+            [EXC_WINDOW_OVERFLOW4] = 0xd0000000,
+            [EXC_WINDOW_UNDERFLOW4] = 0xd0000040,
+            [EXC_WINDOW_OVERFLOW8] = 0xd0000080,
+            [EXC_WINDOW_UNDERFLOW8] = 0xd00000c0,
+            [EXC_WINDOW_OVERFLOW12] = 0xd0000100,
+            [EXC_WINDOW_UNDERFLOW12] = 0xd0000140,
+            [EXC_KERNEL] = 0xd0000300,
+            [EXC_USER] = 0xd0000340,
+            [EXC_DOUBLE] = 0xd00003c0,
+        },
+        .ninterrupt = 22,
+        .nlevel = 6,
+        .interrupt_vector = {
+            0,
+            0,
+            0xd0000180,
+            0xd00001c0,
+            0xd0000200,
+            0xd0000240,
+            0xd0000280,
+            0xd00002c0,
+        },
+        .level_mask = {
+            [1] = 0x1f80ff,
+            [2] = 0x000100,
+            [3] = 0x200e00,
+            [4] = 0x001000,
+            [5] = 0x002000,
+            [6] = 0x000000,
+            [7] = 0x004000,
+        },
+        .inttype_mask = {
+            [INTTYPE_EDGE] = 0x3f8000,
+            [INTTYPE_NMI] = 0x4000,
+            [INTTYPE_SOFTWARE] = 0x880,
+        },
+        .interrupt = {
+            [0] = {
+                .level = 1,
+                .inttype = INTTYPE_LEVEL,
+            },
+            [1] = {
+                .level = 1,
+                .inttype = INTTYPE_LEVEL,
+            },
+            [2] = {
+                .level = 1,
+                .inttype = INTTYPE_LEVEL,
+            },
+            [3] = {
+                .level = 1,
+                .inttype = INTTYPE_LEVEL,
+            },
+            [4] = {
+                .level = 1,
+                .inttype = INTTYPE_LEVEL,
+            },
+            [5] = {
+                .level = 1,
+                .inttype = INTTYPE_LEVEL,
+            },
+            [6] = {
+                .level = 1,
+                .inttype = INTTYPE_TIMER,
+            },
+            [7] = {
+                .level = 1,
+                .inttype = INTTYPE_SOFTWARE,
+            },
+            [8] = {
+                .level = 2,
+                .inttype = INTTYPE_LEVEL,
+            },
+            [9] = {
+                .level = 3,
+                .inttype = INTTYPE_LEVEL,
+            },
+            [10] = {
+                .level = 3,
+                .inttype = INTTYPE_TIMER,
+            },
+            [11] = {
+                .level = 3,
+                .inttype = INTTYPE_SOFTWARE,
+            },
+            [12] = {
+                .level = 4,
+                .inttype = INTTYPE_LEVEL,
+            },
+            [13] = {
+                .level = 5,
+                .inttype = INTTYPE_TIMER,
+            },
+            [14] = {
+                .level = 7,
+                .inttype = INTTYPE_NMI,
+            },
+            [15] = {
+                .level = 1,
+                .inttype = INTTYPE_EDGE,
+            },
+            [16] = {
+                .level = 1,
+                .inttype = INTTYPE_EDGE,
+            },
+            [17] = {
+                .level = 1,
+                .inttype = INTTYPE_EDGE,
+            },
+            [18] = {
+                .level = 1,
+                .inttype = INTTYPE_EDGE,
+            },
+            [19] = {
+                .level = 1,
+                .inttype = INTTYPE_EDGE,
+            },
+            [20] = {
+                .level = 1,
+                .inttype = INTTYPE_EDGE,
+            },
+            [21] = {
+                .level = 3,
+                .inttype = INTTYPE_EDGE,
+            },
+        },
+        .nccompare = 3,
+        .timerint = {
+            [0] = 6,
+            [1] = 10,
+            [2] = 13,
+        },
+        .clock_freq_khz = 912000,
+        .itlb = {
+            .nways = 7,
+            .way_size = {
+                4, 4, 4, 4, 4, 2, 2,
+            },
+            .varway56 = false,
+            .nrefillentries = 16,
+        },
+        .dtlb = {
+            .nways = 10,
+            .way_size = {
+                4, 4, 4, 4, 4, 2, 2, 1, 1, 1,
+            },
+            .varway56 = false,
+            .nrefillentries = 16,
+        },
     },
 };
 
