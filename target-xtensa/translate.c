@@ -106,6 +106,11 @@ static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
     dc->is_jmp = DISAS_UPDATE;
 }
 
+static void gen_jump(DisasContext *dc, TCGv dest)
+{
+    gen_jump_slot(dc, dest, -1);
+}
+
 static void gen_jumpi(DisasContext *dc, uint32_t dest, int slot)
 {
     TCGv_i32 tmp = tcg_const_i32(dest);
@@ -377,22 +382,71 @@ static void disas_xtensa_insn(DisasContext *dc)
     case 7: /*B*/
         break;
 
+#define gen_narrow_load_store(type) do { \
+            TCGv_i32 addr = tcg_temp_new_i32(); \
+            tcg_gen_addi_i32(addr, cpu_R[RRRN_S], RRRN_R << 2); \
+            tcg_gen_qemu_##type(cpu_R[RRRN_T], addr, 0); \
+            tcg_temp_free(addr); \
+        } while (0)
+
     case 8: /*L32I.Nn*/
+        gen_narrow_load_store(ld32u);
         break;
 
     case 9: /*S32I.Nn*/
+        gen_narrow_load_store(st32);
         break;
+#undef gen_narrow_load_store
 
     case 10: /*ADD.Nn*/
+        tcg_gen_add_i32(cpu_R[RRRN_R], cpu_R[RRRN_S], cpu_R[RRRN_T]);
         break;
 
     case 11: /*ADDI.Nn*/
+        tcg_gen_addi_i32(cpu_R[RRRN_R], cpu_R[RRRN_S], RRRN_T ? RRRN_T : -1);
         break;
 
     case 12: /*ST2n*/
+        if (RRRN_T < 8) { /*MOVI.Nn*/
+            tcg_gen_movi_i32(cpu_R[RRRN_S],
+                    RRRN_R | (RRRN_T << 4) |
+                    ((RRRN_T & 6) == 6 ? 0xffffff80 : 0));
+        } else { /*BEQZ.Nn*/ /*BNEZ.Nn*/
+        }
         break;
 
     case 13: /*ST3n*/
+        switch (RRRN_R) {
+        case 0: /*MOV.Nn*/
+            tcg_gen_mov_i32(cpu_R[RRRN_T], cpu_R[RRRN_S]);
+            break;
+
+        case 15: /*S3*/
+            switch (RRRN_T) {
+            case 0: /*RET.Nn*/
+                gen_jump(dc, cpu_R[0]);
+                break;
+
+            case 1: /*RETW.Nn*/
+                break;
+
+            case 2: /*BREAK.Nn*/
+                break;
+
+            case 3: /*NOP.Nn*/
+                break;
+
+            case 6: /*ILL.Nn*/
+                break;
+
+            default: /*reserved*/
+                break;
+            }
+            break;
+
+        default: /*reserved*/
+            break;
+        }
         break;
 
     default: /*reserved*/
