@@ -255,6 +255,25 @@ static void disas_xtensa_insn(DisasContext *dc)
                 break;
 
             case 6: /*RT0*/
+                switch (RRR_S) {
+                case 0: /*NEG*/
+                    tcg_gen_neg_i32(cpu_R[RRR_R], cpu_R[RRR_T]);
+                    break;
+
+                case 1: /*ABS*/
+                    {
+                        int label = gen_new_label();
+                        tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_T]);
+                        tcg_gen_brcondi_i32(
+                                TCG_COND_GE, cpu_R[RRR_R], 0, label);
+                        tcg_gen_neg_i32(cpu_R[RRR_R], cpu_R[RRR_T]);
+                        gen_set_label(label);
+                    }
+                    break;
+
+                default: /*reserved*/
+                    break;
+                }
                 break;
 
             case 7: /*reserved*/
