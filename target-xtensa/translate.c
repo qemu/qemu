@@ -76,6 +76,7 @@ static const char * const sregnames[256] = {
     [LEND] = "LEND",
     [LCOUNT] = "LCOUNT",
     [SAR] = "SAR",
+    [BR] = "BR",
     [LITBASE] = "LITBASE",
     [SCOMPARE1] = "SCOMPARE1",
     [WINDOW_BASE] = "WINDOW_BASE",
@@ -434,6 +435,11 @@ static void gen_wsr_sar(DisasContext *dc, uint32_t sr, TCGv_i32 s)
     dc->sar_m32_5bit = false;
 }
 
+static void gen_wsr_br(DisasContext *dc, uint32_t sr, TCGv_i32 s)
+{
+    tcg_gen_andi_i32(cpu_SR[sr], s, 0xffff);
+}
+
 static void gen_wsr_litbase(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 {
     tcg_gen_andi_i32(cpu_SR[sr], s, 0xfffff001);
@@ -536,6 +542,7 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [LBEG] = gen_wsr_lbeg,
         [LEND] = gen_wsr_lend,
         [SAR] = gen_wsr_sar,
+        [BR] = gen_wsr_br,
         [LITBASE] = gen_wsr_litbase,
         [WINDOW_BASE] = gen_wsr_windowbase,
         [WINDOW_START] = gen_wsr_windowstart,
@@ -974,23 +981,28 @@ static void disas_xtensa_insn(DisasContext *dc)
                     break;
 
                 case 8: /*ANY4p*/
-                    HAS_OPTION(XTENSA_OPTION_BOOLEAN);
-                    TBD();
-                    break;
-
                 case 9: /*ALL4p*/
-                    HAS_OPTION(XTENSA_OPTION_BOOLEAN);
-                    TBD();
-                    break;
-
                 case 10: /*ANY8p*/
-                    HAS_OPTION(XTENSA_OPTION_BOOLEAN);
-                    TBD();
-                    break;
-
                 case 11: /*ALL8p*/
                     HAS_OPTION(XTENSA_OPTION_BOOLEAN);
-                    TBD();
+                    {
+                        const unsigned shift = (RRR_R & 2) ? 8 : 4;
+                        TCGv_i32 mask = tcg_const_i32(
+                                ((1 << shift) - 1) << RRR_S);
+                        TCGv_i32 tmp = tcg_temp_new_i32();
+
+                        tcg_gen_and_i32(tmp, cpu_SR[BR], mask);
+                        if (RRR_R & 1) { /*ALL*/
+                            tcg_gen_addi_i32(tmp, tmp, 1 << RRR_S);
+                        } else { /*ANY*/
+                            tcg_gen_add_i32(tmp, tmp, mask);
+                        }
+                        tcg_gen_shri_i32(tmp, tmp, RRR_S + shift);
+                        tcg_gen_deposit_i32(cpu_SR[BR], cpu_SR[BR],
+                                tmp, RRR_T, 1);
+                        tcg_temp_free(mask);
+                        tcg_temp_free(tmp);
+                    }
                     break;
 
                 default: /*reserved*/
@@ -1339,7 +1351,9 @@ static void disas_xtensa_insn(DisasContext *dc)
             break;
 
         case 2: /*RST2*/
-            gen_window_check3(dc, RRR_R, RRR_S, RRR_T);
+            if (OP2 >= 8) {
+                gen_window_check3(dc, RRR_R, RRR_S, RRR_T);
+            }
 
             if (OP2 >= 12) {
                 HAS_OPTION(XTENSA_OPTION_32_BIT_IDIV);
@@ -1350,6 +1364,42 @@ static void disas_xtensa_insn(DisasContext *dc)
             }
 
             switch (OP2) {
+#define BOOLEAN_LOGIC(fn, r, s, t) \
+                do { \
+                    HAS_OPTION(XTENSA_OPTION_BOOLEAN); \
+                    TCGv_i32 tmp1 = tcg_temp_new_i32(); \
+                    TCGv_i32 tmp2 = tcg_temp_new_i32(); \
+                    \
+                    tcg_gen_shri_i32(tmp1, cpu_SR[BR], s); \
+                    tcg_gen_shri_i32(tmp2, cpu_SR[BR], t); \
+                    tcg_gen_##fn##_i32(tmp1, tmp1, tmp2); \
+                    tcg_gen_deposit_i32(cpu_SR[BR], cpu_SR[BR], tmp1, r, 1); \
+                    tcg_temp_free(tmp1); \
+                    tcg_temp_free(tmp2); \
+                } while (0)
+
+            case 0: /*ANDBp*/
+                BOOLEAN_LOGIC(and, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 1: /*ANDBCp*/
+                BOOLEAN_LOGIC(andc, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 2: /*ORBp*/
+                BOOLEAN_LOGIC(or, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 3: /*ORBCp*/
+                BOOLEAN_LOGIC(orc, RRR_R, RRR_S, RRR_T);
+                break;
+
+            case 4: /*XORBp*/
+                BOOLEAN_LOGIC(xor, RRR_R, RRR_S, RRR_T);
+                break;
+
+#undef BOOLEAN_LOGIC
+
             case 8: /*MULLi*/
                 HAS_OPTION(XTENSA_OPTION_32_BIT_IMUL);
                 tcg_gen_mul_i32(cpu_R[RRR_R], cpu_R[RRR_S], cpu_R[RRR_T]);
@@ -1536,13 +1586,21 @@ static void disas_xtensa_insn(DisasContext *dc)
                 break;
 
             case 12: /*MOVFp*/
-                HAS_OPTION(XTENSA_OPTION_BOOLEAN);
-                TBD();
-                break;
-
             case 13: /*MOVTp*/
                 HAS_OPTION(XTENSA_OPTION_BOOLEAN);
-                TBD();
+                gen_window_check2(dc, RRR_R, RRR_S);
+                {
+                    int label = gen_new_label();
+                    TCGv_i32 tmp = tcg_temp_new_i32();
+
+                    tcg_gen_andi_i32(tmp, cpu_SR[BR], 1 << RRR_T);
+                    tcg_gen_brcondi_i32(
+                            OP2 & 1 ? TCG_COND_EQ : TCG_COND_NE,
+                            tmp, 0, label);
+                    tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
+                    gen_set_label(label);
+                    tcg_temp_free(tmp);
+                }
                 break;
 
             case 14: /*RUR*/
@@ -1954,13 +2012,16 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 1: /*B1*/
                 switch (BRI8_R) {
                 case 0: /*BFp*/
-                    HAS_OPTION(XTENSA_OPTION_BOOLEAN);
-                    TBD();
-                    break;
-
                 case 1: /*BTp*/
                     HAS_OPTION(XTENSA_OPTION_BOOLEAN);
-                    TBD();
+                    {
+                        TCGv_i32 tmp = tcg_temp_new_i32();
+                        tcg_gen_andi_i32(tmp, cpu_SR[BR], 1 << RRI8_S);
+                        gen_brcondi(dc,
+                                BRI8_R == 1 ? TCG_COND_NE : TCG_COND_EQ,
+                                tmp, 0, 4 + RRI8_IMM8_SE);
+                        tcg_temp_free(tmp);
+                    }
                     break;
 
                 case 8: /*LOOP*/
