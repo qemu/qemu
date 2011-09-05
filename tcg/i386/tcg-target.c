@@ -76,9 +76,11 @@ static const int tcg_target_call_iarg_regs[] = {
 #endif
 };
 
-static const int tcg_target_call_oarg_regs[2] = {
+static const int tcg_target_call_oarg_regs[] = {
     TCG_REG_EAX,
+#if TCG_TARGET_REG_BITS == 32
     TCG_REG_EDX
+#endif
 };
 
 static uint8_t *tb_ret_addr;
