@@ -28,6 +28,7 @@
 #include "cpu.h"
 #include "dyngen-exec.h"
 #include "helpers.h"
+#include "host-utils.h"
 
 #define MMUSUFFIX _mmu
 
@@ -56,4 +57,17 @@ void HELPER(exception)(uint32_t excp)
 {
     env->exception_index = excp;
     cpu_loop_exit(env);
+}
+
+uint32_t HELPER(nsa)(uint32_t v)
+{
+    if (v & 0x80000000) {
+        v = ~v;
+    }
+    return v ? clz32(v) - 1 : 31;
+}
+
+uint32_t HELPER(nsau)(uint32_t v)
+{
+    return v ? clz32(v) : 32;
 }

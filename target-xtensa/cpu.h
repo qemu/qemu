@@ -105,6 +105,10 @@ enum {
     FSR = 233,
 };
 
+enum {
+    SAR = 3,
+};
+
 typedef struct XtensaConfig {
     const char *name;
     uint64_t options;
