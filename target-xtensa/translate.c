@@ -167,6 +167,40 @@ static void gen_brcondi(DisasContext *dc, TCGCond cond,
     tcg_temp_free(tmp);
 }
 
+static void gen_rsr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
+{
+    static void (* const rsr_handler[256])(DisasContext *dc,
+            TCGv_i32 d, uint32_t sr) = {
+    };
+
+    if (sregnames[sr]) {
+        if (rsr_handler[sr]) {
+            rsr_handler[sr](dc, d, sr);
+        } else {
+            tcg_gen_mov_i32(d, cpu_SR[sr]);
+        }
+    } else {
+        qemu_log("RSR %d not implemented, ", sr);
+    }
+}
+
+static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
+{
+    static void (* const wsr_handler[256])(DisasContext *dc,
+            uint32_t sr, TCGv_i32 v) = {
+    };
+
+    if (sregnames[sr]) {
+        if (wsr_handler[sr]) {
+            wsr_handler[sr](dc, sr, s);
+        } else {
+            tcg_gen_mov_i32(cpu_SR[sr], s);
+        }
+    } else {
+        qemu_log("WSR %d not implemented, ", sr);
+    }
+}
+
 static void disas_xtensa_insn(DisasContext *dc)
 {
 #define HAS_OPTION(opt) do { \
@@ -415,6 +449,133 @@ static void disas_xtensa_insn(DisasContext *dc)
             break;
 
         case 3: /*RST3*/
+            switch (OP2) {
+            case 0: /*RSR*/
+                gen_rsr(dc, cpu_R[RRR_T], RSR_SR);
+                break;
+
+            case 1: /*WSR*/
+                gen_wsr(dc, RSR_SR, cpu_R[RRR_T]);
+                break;
+
+            case 2: /*SEXTu*/
+                HAS_OPTION(XTENSA_OPTION_MISC_OP);
+                {
+                    int shift = 24 - RRR_T;
+
+                    if (shift == 24) {
+                        tcg_gen_ext8s_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
+                    } else if (shift == 16) {
+                        tcg_gen_ext16s_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
+                    } else {
+                        TCGv_i32 tmp = tcg_temp_new_i32();
+                        tcg_gen_shli_i32(tmp, cpu_R[RRR_S], shift);
+                        tcg_gen_sari_i32(cpu_R[RRR_R], tmp, shift);
+                        tcg_temp_free(tmp);
+                    }
+                }
+                break;
+
+            case 3: /*CLAMPSu*/
+                HAS_OPTION(XTENSA_OPTION_MISC_OP);
+                {
+                    TCGv_i32 tmp1 = tcg_temp_new_i32();
+                    TCGv_i32 tmp2 = tcg_temp_new_i32();
+                    int label = gen_new_label();
+
+                    tcg_gen_sari_i32(tmp1, cpu_R[RRR_S], 24 - RRR_T);
+                    tcg_gen_xor_i32(tmp2, tmp1, cpu_R[RRR_S]);
+                    tcg_gen_andi_i32(tmp2, tmp2, 0xffffffff << (RRR_T + 7));
+                    tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
+                    tcg_gen_brcondi_i32(TCG_COND_EQ, tmp2, 0, label);
+
+                    tcg_gen_sari_i32(tmp1, cpu_R[RRR_S], 31);
+                    tcg_gen_xori_i32(cpu_R[RRR_R], tmp1,
+                            0xffffffff >> (25 - RRR_T));
+
+                    gen_set_label(label);
+
+                    tcg_temp_free(tmp1);
+                    tcg_temp_free(tmp2);
+                }
+                break;
+
+            case 4: /*MINu*/
+            case 5: /*MAXu*/
+            case 6: /*MINUu*/
+            case 7: /*MAXUu*/
+                HAS_OPTION(XTENSA_OPTION_MISC_OP);
+                {
+                    static const TCGCond cond[] = {
+                        TCG_COND_LE,
+                        TCG_COND_GE,
+                        TCG_COND_LEU,
+                        TCG_COND_GEU
+                    };
+                    int label = gen_new_label();
+
+                    if (RRR_R != RRR_T) {
+                        tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
+                        tcg_gen_brcond_i32(cond[OP2 - 4],
+                                cpu_R[RRR_S], cpu_R[RRR_T], label);
+                        tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_T]);
+                    } else {
+                        tcg_gen_brcond_i32(cond[OP2 - 4],
+                                cpu_R[RRR_T], cpu_R[RRR_S], label);
+                        tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
+                    }
+                    gen_set_label(label);
+                }
+                break;
+
+            case 8: /*MOVEQZ*/
+            case 9: /*MOVNEZ*/
+            case 10: /*MOVLTZ*/
+            case 11: /*MOVGEZ*/
+                {
+                    static const TCGCond cond[] = {
+                        TCG_COND_NE,
+                        TCG_COND_EQ,
+                        TCG_COND_GE,
+                        TCG_COND_LT
+                    };
+                    int label = gen_new_label();
+                    tcg_gen_brcondi_i32(cond[OP2 - 8], cpu_R[RRR_T], 0, label);
+                    tcg_gen_mov_i32(cpu_R[RRR_R], cpu_R[RRR_S]);
+                    gen_set_label(label);
+                }
+                break;
+
+            case 12: /*MOVFp*/
+                HAS_OPTION(XTENSA_OPTION_BOOLEAN);
+                break;
+
+            case 13: /*MOVTp*/
+                HAS_OPTION(XTENSA_OPTION_BOOLEAN);
+                break;
+
+            case 14: /*RUR*/
+                {
+                    int st = (RRR_S << 4) + RRR_T;
+                    if (uregnames[st]) {
+                        tcg_gen_mov_i32(cpu_R[RRR_R], cpu_UR[st]);
+                    } else {
+                        qemu_log("RUR %d not implemented, ", st);
+                    }
+                }
+                break;
+
+            case 15: /*WUR*/
+                {
+                    if (uregnames[RSR_SR]) {
+                        tcg_gen_mov_i32(cpu_UR[RSR_SR], cpu_R[RRR_T]);
+                    } else {
+                        qemu_log("WUR %d not implemented, ", RSR_SR);
+                    }
+                }
+                break;
+
+            }
             break;
 
         case 4: /*EXTUI*/
