@@ -252,7 +252,9 @@ static const int tcg_target_call_iarg_regs[] = {
 
 static const int tcg_target_call_oarg_regs[] = {
     TCG_REG_R2,
-    TCG_REG_R3,
+#if TCG_TARGET_REG_BITS == 32
+    TCG_REG_R3
+#endif
 };
 
 #define S390_CC_EQ      8
