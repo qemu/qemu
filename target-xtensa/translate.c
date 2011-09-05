@@ -49,6 +49,7 @@ typedef struct DisasContext {
     int ring;
     uint32_t lbeg;
     uint32_t lend;
+    TCGv_i32 litbase;
     int is_jmp;
     int singlestep_enabled;
 
@@ -71,6 +72,7 @@ static const char * const sregnames[256] = {
     [LEND] = "LEND",
     [LCOUNT] = "LCOUNT",
     [SAR] = "SAR",
+    [LITBASE] = "LITBASE",
     [SCOMPARE1] = "SCOMPARE1",
     [WINDOW_BASE] = "WINDOW_BASE",
     [WINDOW_START] = "WINDOW_START",
@@ -130,6 +132,21 @@ void xtensa_translate_init(void)
 static inline bool option_enabled(DisasContext *dc, int opt)
 {
     return xtensa_option_enabled(dc->config, opt);
+}
+
+static void init_litbase(DisasContext *dc)
+{
+    if (dc->tb->flags & XTENSA_TBFLAG_LITBASE) {
+        dc->litbase = tcg_temp_local_new_i32();
+        tcg_gen_andi_i32(dc->litbase, cpu_SR[LITBASE], 0xfffff000);
+    }
+}
+
+static void reset_litbase(DisasContext *dc)
+{
+    if (dc->tb->flags & XTENSA_TBFLAG_LITBASE) {
+        tcg_temp_free(dc->litbase);
+    }
 }
 
 static void init_sar_tracker(DisasContext *dc)
@@ -332,6 +349,13 @@ static void gen_wsr_sar(DisasContext *dc, uint32_t sr, TCGv_i32 s)
     dc->sar_m32_5bit = false;
 }
 
+static void gen_wsr_litbase(DisasContext *dc, uint32_t sr, TCGv_i32 s)
+{
+    tcg_gen_andi_i32(cpu_SR[sr], s, 0xfffff001);
+    /* This can change tb->flags, so exit tb */
+    gen_jumpi_check_loop_end(dc, -1);
+}
+
 static void gen_wsr_windowbase(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     gen_helper_wsr_windowbase(v);
@@ -357,6 +381,7 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [LBEG] = gen_wsr_lbeg,
         [LEND] = gen_wsr_lend,
         [SAR] = gen_wsr_sar,
+        [LITBASE] = gen_wsr_litbase,
         [WINDOW_BASE] = gen_wsr_windowbase,
         [PS] = gen_wsr_ps,
     };
@@ -1298,11 +1323,13 @@ static void disas_xtensa_insn(DisasContext *dc)
     case 1: /*L32R*/
         {
             TCGv_i32 tmp = tcg_const_i32(
-                    (0xfffc0000 | (RI16_IMM16 << 2)) +
-                    ((dc->pc + 3) & ~3));
+                    ((dc->tb->flags & XTENSA_TBFLAG_LITBASE) ?
+                     0 : ((dc->pc + 3) & ~3)) +
+                    (0xfffc0000 | (RI16_IMM16 << 2)));
 
-            /* no ext L32R */
-
+            if (dc->tb->flags & XTENSA_TBFLAG_LITBASE) {
+                tcg_gen_add_i32(tmp, tmp, dc->litbase);
+            }
             tcg_gen_qemu_ld32u(cpu_R[RRR_T], tmp, dc->cring);
             tcg_temp_free(tmp);
         }
@@ -1834,6 +1861,7 @@ static void gen_intermediate_code_internal(
     dc.lend = env->sregs[LEND];
     dc.is_jmp = DISAS_NEXT;
 
+    init_litbase(&dc);
     init_sar_tracker(&dc);
 
     gen_icount_start();
@@ -1876,6 +1904,7 @@ static void gen_intermediate_code_internal(
             dc.pc < next_page_start &&
             gen_opc_ptr < gen_opc_end);
 
+    reset_litbase(&dc);
     reset_sar_tracker(&dc);
 
     if (dc.is_jmp == DISAS_NEXT) {

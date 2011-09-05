@@ -110,6 +110,7 @@ enum {
     LEND = 1,
     LCOUNT = 2,
     SAR = 3,
+    LITBASE = 5,
     SCOMPARE1 = 12,
     WINDOW_BASE = 72,
     WINDOW_START = 73,
@@ -274,6 +275,7 @@ static inline int cpu_mmu_index(CPUState *env)
 
 #define XTENSA_TBFLAG_RING_MASK 0x3
 #define XTENSA_TBFLAG_EXCM 0x4
+#define XTENSA_TBFLAG_LITBASE 0x8
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
@@ -284,6 +286,10 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *flags |= xtensa_get_ring(env);
     if (env->sregs[PS] & PS_EXCM) {
         *flags |= XTENSA_TBFLAG_EXCM;
+    }
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_EXTENDED_L32R) &&
+            (env->sregs[LITBASE] & 1)) {
+        *flags |= XTENSA_TBFLAG_LITBASE;
     }
 }
 

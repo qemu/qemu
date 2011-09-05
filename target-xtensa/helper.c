@@ -38,6 +38,7 @@ void cpu_reset(CPUXtensaState *env)
 {
     env->exception_taken = 0;
     env->pc = env->config->exception_vector[EXC_RESET];
+    env->sregs[LITBASE] &= ~1;
     env->sregs[PS] = 0x1f;
 }
 
