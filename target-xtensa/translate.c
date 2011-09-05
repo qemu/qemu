@@ -67,7 +67,12 @@ static TCGv_i32 cpu_UR[256];
 static const char * const sregnames[256] = {
     [SAR] = "SAR",
     [SCOMPARE1] = "SCOMPARE1",
+    [EPC1] = "EPC1",
+    [DEPC] = "DEPC",
+    [EXCSAVE1] = "EXCSAVE1",
     [PS] = "PS",
+    [EXCCAUSE] = "EXCCAUSE",
+    [EXCVADDR] = "EXCVADDR",
 };
 
 static const char * const uregnames[256] = {
@@ -163,6 +168,22 @@ static void gen_exception(int excp)
     TCGv_i32 tmp = tcg_const_i32(excp);
     gen_helper_exception(tmp);
     tcg_temp_free(tmp);
+}
+
+static void gen_exception_cause(DisasContext *dc, uint32_t cause)
+{
+    TCGv_i32 tpc = tcg_const_i32(dc->pc);
+    TCGv_i32 tcause = tcg_const_i32(cause);
+    gen_helper_exception_cause(tpc, tcause);
+    tcg_temp_free(tpc);
+    tcg_temp_free(tcause);
+}
+
+static void gen_check_privilege(DisasContext *dc)
+{
+    if (dc->cring) {
+        gen_exception_cause(dc, PRIVILEGED_CAUSE);
+    }
 }
 
 static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
@@ -392,7 +413,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                 case 0: /*SNM0*/
                     switch (CALLX_M) {
                     case 0: /*ILL*/
-                        TBD();
+                        gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
                         break;
 
                     case 1: /*reserved*/
@@ -479,7 +500,52 @@ static void disas_xtensa_insn(DisasContext *dc)
                     break;
 
                 case 3: /*RFEIx*/
-                    TBD();
+                    switch (RRR_T) {
+                    case 0: /*RFETx*/
+                        HAS_OPTION(XTENSA_OPTION_EXCEPTION);
+                        switch (RRR_S) {
+                        case 0: /*RFEx*/
+                            gen_check_privilege(dc);
+                            tcg_gen_andi_i32(cpu_SR[PS], cpu_SR[PS], ~PS_EXCM);
+                            gen_jump(dc, cpu_SR[EPC1]);
+                            break;
+
+                        case 1: /*RFUEx*/
+                            RESERVED();
+                            break;
+
+                        case 2: /*RFDEx*/
+                            gen_check_privilege(dc);
+                            gen_jump(dc, cpu_SR[
+                                    dc->config->ndepc ? DEPC : EPC1]);
+                            break;
+
+                        case 4: /*RFWOw*/
+                        case 5: /*RFWUw*/
+                            HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
+                            TBD();
+                            break;
+
+                        default: /*reserved*/
+                            RESERVED();
+                            break;
+                        }
+                        break;
+
+                    case 1: /*RFIx*/
+                        HAS_OPTION(XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT);
+                        TBD();
+                        break;
+
+                    case 2: /*RFME*/
+                        TBD();
+                        break;
+
+                    default: /*reserved*/
+                        RESERVED();
+                        break;
+
+                    }
                     break;
 
                 case 4: /*BREAKx*/
@@ -489,12 +555,28 @@ static void disas_xtensa_insn(DisasContext *dc)
 
                 case 5: /*SYSCALLx*/
                     HAS_OPTION(XTENSA_OPTION_EXCEPTION);
-                    TBD();
+                    switch (RRR_S) {
+                    case 0: /*SYSCALLx*/
+                        gen_exception_cause(dc, SYSCALL_CAUSE);
+                        break;
+
+                    case 1: /*SIMCALL*/
+                        TBD();
+                        break;
+
+                    default:
+                        RESERVED();
+                        break;
+                    }
                     break;
 
                 case 6: /*RSILx*/
                     HAS_OPTION(XTENSA_OPTION_INTERRUPT);
-                    TBD();
+                    gen_check_privilege(dc);
+                    tcg_gen_mov_i32(cpu_R[RRR_T], cpu_SR[PS]);
+                    tcg_gen_ori_i32(cpu_SR[PS], cpu_SR[PS], RRR_S);
+                    tcg_gen_andi_i32(cpu_SR[PS], cpu_SR[PS],
+                            RRR_S | ~PS_INTLEVEL);
                     break;
 
                 case 7: /*WAITIx*/
@@ -691,6 +773,9 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 6: /*XSR*/
                 {
                     TCGv_i32 tmp = tcg_temp_new_i32();
+                    if (RSR_SR >= 64) {
+                        gen_check_privilege(dc);
+                    }
                     tcg_gen_mov_i32(tmp, cpu_R[RRR_T]);
                     gen_rsr(dc, cpu_R[RRR_T], RSR_SR);
                     gen_wsr(dc, RSR_SR, tmp);
@@ -799,6 +884,9 @@ static void disas_xtensa_insn(DisasContext *dc)
         case 3: /*RST3*/
             switch (OP2) {
             case 0: /*RSR*/
+                if (RSR_SR >= 64) {
+                    gen_check_privilege(dc);
+                }
                 gen_rsr(dc, cpu_R[RRR_T], RSR_SR);
                 if (!sregnames[RSR_SR]) {
                     TBD();
@@ -806,6 +894,9 @@ static void disas_xtensa_insn(DisasContext *dc)
                 break;
 
             case 1: /*WSR*/
+                if (RSR_SR >= 64) {
+                    gen_check_privilege(dc);
+                }
                 gen_wsr(dc, RSR_SR, cpu_R[RRR_T]);
                 if (!sregnames[RSR_SR]) {
                     TBD();
@@ -1421,7 +1512,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                 break;
 
             case 6: /*ILL.Nn*/
-                TBD();
+                gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
                 break;
 
             default: /*reserved*/
@@ -1492,6 +1583,12 @@ static void gen_intermediate_code_internal(
     init_sar_tracker(&dc);
 
     gen_icount_start();
+
+    if (env->singlestep_enabled && env->exception_taken) {
+        env->exception_taken = 0;
+        tcg_gen_movi_i32(cpu_pc, dc.pc);
+        gen_exception(EXCP_DEBUG);
+    }
 
     do {
         check_breakpoint(env, &dc);

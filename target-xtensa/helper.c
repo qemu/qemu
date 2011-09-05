@@ -36,7 +36,8 @@
 
 void cpu_reset(CPUXtensaState *env)
 {
-    env->pc = 0;
+    env->exception_taken = 0;
+    env->pc = env->config->exception_vector[EXC_RESET];
     env->sregs[PS] = 0x1f;
 }
 
@@ -44,6 +45,20 @@ static const XtensaConfig core_config[] = {
     {
         .name = "sample-xtensa-core",
         .options = -1,
+        .ndepc = 1,
+        .excm_level = 16,
+        .exception_vector = {
+            [EXC_RESET] = 0x5fff8000,
+            [EXC_WINDOW_OVERFLOW4] = 0x5fff8400,
+            [EXC_WINDOW_UNDERFLOW4] = 0x5fff8440,
+            [EXC_WINDOW_OVERFLOW8] = 0x5fff8480,
+            [EXC_WINDOW_UNDERFLOW8] = 0x5fff84c0,
+            [EXC_WINDOW_OVERFLOW12] = 0x5fff8500,
+            [EXC_WINDOW_UNDERFLOW12] = 0x5fff8540,
+            [EXC_KERNEL] = 0x5fff861c,
+            [EXC_USER] = 0x5fff863c,
+            [EXC_DOUBLE] = 0x5fff865c,
+        },
     },
 };
 
@@ -94,4 +109,24 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 
 void do_interrupt(CPUState *env)
 {
+    switch (env->exception_index) {
+    case EXC_WINDOW_OVERFLOW4:
+    case EXC_WINDOW_UNDERFLOW4:
+    case EXC_WINDOW_OVERFLOW8:
+    case EXC_WINDOW_UNDERFLOW8:
+    case EXC_WINDOW_OVERFLOW12:
+    case EXC_WINDOW_UNDERFLOW12:
+    case EXC_KERNEL:
+    case EXC_USER:
+    case EXC_DOUBLE:
+        if (env->config->exception_vector[env->exception_index]) {
+            env->pc = env->config->exception_vector[env->exception_index];
+            env->exception_taken = 1;
+        } else {
+            qemu_log("%s(pc = %08x) bad exception_index: %d\n",
+                    __func__, env->pc, env->exception_index);
+        }
+        break;
+
+    }
 }
