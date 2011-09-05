@@ -45,6 +45,7 @@ static const XtensaConfig core_config[] = {
     {
         .name = "sample-xtensa-core",
         .options = -1,
+        .nareg = 64,
         .ndepc = 1,
         .excm_level = 16,
         .exception_vector = {

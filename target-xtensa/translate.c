@@ -67,6 +67,8 @@ static TCGv_i32 cpu_UR[256];
 static const char * const sregnames[256] = {
     [SAR] = "SAR",
     [SCOMPARE1] = "SCOMPARE1",
+    [WINDOW_BASE] = "WINDOW_BASE",
+    [WINDOW_START] = "WINDOW_START",
     [EPC1] = "EPC1",
     [DEPC] = "DEPC",
     [EXCSAVE1] = "EXCSAVE1",
@@ -217,6 +219,34 @@ static void gen_jumpi(DisasContext *dc, uint32_t dest, int slot)
     tcg_temp_free(tmp);
 }
 
+static void gen_callw_slot(DisasContext *dc, int callinc, TCGv_i32 dest,
+        int slot)
+{
+    TCGv_i32 tcallinc = tcg_const_i32(callinc);
+
+    tcg_gen_deposit_i32(cpu_SR[PS], cpu_SR[PS],
+            tcallinc, PS_CALLINC_SHIFT, PS_CALLINC_LEN);
+    tcg_temp_free(tcallinc);
+    tcg_gen_movi_i32(cpu_R[callinc << 2],
+            (callinc << 30) | (dc->next_pc & 0x3fffffff));
+    gen_jump_slot(dc, dest, slot);
+}
+
+static void gen_callw(DisasContext *dc, int callinc, TCGv_i32 dest)
+{
+    gen_callw_slot(dc, callinc, dest, -1);
+}
+
+static void gen_callwi(DisasContext *dc, int callinc, uint32_t dest, int slot)
+{
+    TCGv_i32 tmp = tcg_const_i32(dest);
+    if (((dc->pc ^ dest) & TARGET_PAGE_MASK) != 0) {
+        slot = -1;
+    }
+    gen_callw_slot(dc, callinc, tmp, slot);
+    tcg_temp_free(tmp);
+}
+
 static void gen_brcond(DisasContext *dc, TCGCond cond,
         TCGv_i32 t0, TCGv_i32 t1, uint32_t offset)
 {
@@ -263,6 +293,11 @@ static void gen_wsr_sar(DisasContext *dc, uint32_t sr, TCGv_i32 s)
     dc->sar_m32_5bit = false;
 }
 
+static void gen_wsr_windowbase(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    gen_helper_wsr_windowbase(v);
+}
+
 static void gen_wsr_ps(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     uint32_t mask = PS_WOE | PS_CALLINC | PS_OWB |
@@ -281,6 +316,7 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
     static void (* const wsr_handler[256])(DisasContext *dc,
             uint32_t sr, TCGv_i32 v) = {
         [SAR] = gen_wsr_sar,
+        [WINDOW_BASE] = gen_wsr_windowbase,
         [PS] = gen_wsr_ps,
     };
 
@@ -429,7 +465,12 @@ static void disas_xtensa_insn(DisasContext *dc)
 
                         case 1: /*RETWw*/
                             HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-                            TBD();
+                            {
+                                TCGv_i32 tmp = tcg_const_i32(dc->pc);
+                                gen_helper_retw(tmp, tmp);
+                                gen_jump(dc, tmp);
+                                tcg_temp_free(tmp);
+                            }
                             break;
 
                         case 3: /*reserved*/
@@ -454,7 +495,13 @@ static void disas_xtensa_insn(DisasContext *dc)
                         case 2: /*CALLX8w*/
                         case 3: /*CALLX12w*/
                             HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-                            TBD();
+                            {
+                                TCGv_i32 tmp = tcg_temp_new_i32();
+
+                                tcg_gen_mov_i32(tmp, cpu_R[CALLX_S]);
+                                gen_callw(dc, CALLX_N, tmp);
+                                tcg_temp_free(tmp);
+                            }
                             break;
                         }
                         break;
@@ -463,7 +510,12 @@ static void disas_xtensa_insn(DisasContext *dc)
 
                 case 1: /*MOVSPw*/
                     HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-                    TBD();
+                    {
+                        TCGv_i32 pc = tcg_const_i32(dc->pc);
+                        gen_helper_movsp(pc);
+                        tcg_gen_mov_i32(cpu_R[RRR_T], cpu_R[RRR_S]);
+                        tcg_temp_free(pc);
+                    }
                     break;
 
                 case 2: /*SYNC*/
@@ -523,7 +575,27 @@ static void disas_xtensa_insn(DisasContext *dc)
                         case 4: /*RFWOw*/
                         case 5: /*RFWUw*/
                             HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-                            TBD();
+                            gen_check_privilege(dc);
+                            {
+                                TCGv_i32 tmp = tcg_const_i32(1);
+
+                                tcg_gen_andi_i32(
+                                        cpu_SR[PS], cpu_SR[PS], ~PS_EXCM);
+                                tcg_gen_shl_i32(tmp, tmp, cpu_SR[WINDOW_BASE]);
+
+                                if (RRR_S == 4) {
+                                    tcg_gen_andc_i32(cpu_SR[WINDOW_START],
+                                            cpu_SR[WINDOW_START], tmp);
+                                } else {
+                                    tcg_gen_or_i32(cpu_SR[WINDOW_START],
+                                            cpu_SR[WINDOW_START], tmp);
+                                }
+
+                                gen_helper_restore_owb();
+                                gen_jump(dc, cpu_SR[EPC1]);
+
+                                tcg_temp_free(tmp);
+                            }
                             break;
 
                         default: /*reserved*/
@@ -670,7 +742,13 @@ static void disas_xtensa_insn(DisasContext *dc)
 
                 case 8: /*ROTWw*/
                     HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-                    TBD();
+                    gen_check_privilege(dc);
+                    {
+                        TCGv_i32 tmp = tcg_const_i32(
+                                RRR_T | ((RRR_T & 8) ? 0xfffffff0 : 0));
+                        gen_helper_rotw(tmp);
+                        tcg_temp_free(tmp);
+                    }
                     break;
 
                 case 14: /*NSAu*/
@@ -1129,7 +1207,35 @@ static void disas_xtensa_insn(DisasContext *dc)
             break;
 
         case 9: /*LSC4*/
-            TBD();
+            switch (OP2) {
+            case 0: /*L32E*/
+                HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
+                gen_check_privilege(dc);
+                {
+                    TCGv_i32 addr = tcg_temp_new_i32();
+                    tcg_gen_addi_i32(addr, cpu_R[RRR_S],
+                            (0xffffffc0 | (RRR_R << 2)));
+                    tcg_gen_qemu_ld32u(cpu_R[RRR_T], addr, dc->ring);
+                    tcg_temp_free(addr);
+                }
+                break;
+
+            case 4: /*S32E*/
+                HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
+                gen_check_privilege(dc);
+                {
+                    TCGv_i32 addr = tcg_temp_new_i32();
+                    tcg_gen_addi_i32(addr, cpu_R[RRR_S],
+                            (0xffffffc0 | (RRR_R << 2)));
+                    tcg_gen_qemu_st32(cpu_R[RRR_T], addr, dc->ring);
+                    tcg_temp_free(addr);
+                }
+                break;
+
+            default:
+                RESERVED();
+                break;
+            }
             break;
 
         case 10: /*FP0*/
@@ -1368,7 +1474,8 @@ static void disas_xtensa_insn(DisasContext *dc)
         case 2: /*CALL8w*/
         case 3: /*CALL12w*/
             HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-            TBD();
+            gen_callwi(dc, CALL_N,
+                    (dc->pc & ~3) + (CALL_OFFSET_SE << 2) + 4, 0);
             break;
         }
         break;
@@ -1411,7 +1518,15 @@ static void disas_xtensa_insn(DisasContext *dc)
             switch (BRI8_M) {
             case 0: /*ENTRYw*/
                 HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-                TBD();
+                {
+                    TCGv_i32 pc = tcg_const_i32(dc->pc);
+                    TCGv_i32 s = tcg_const_i32(BRI12_S);
+                    TCGv_i32 imm = tcg_const_i32(BRI12_IMM12);
+                    gen_helper_entry(pc, s, imm);
+                    tcg_temp_free(imm);
+                    tcg_temp_free(s);
+                    tcg_temp_free(pc);
+                }
                 break;
 
             case 1: /*B1*/
@@ -1576,7 +1691,12 @@ static void disas_xtensa_insn(DisasContext *dc)
 
             case 1: /*RETW.Nn*/
                 HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
-                TBD();
+                {
+                    TCGv_i32 tmp = tcg_const_i32(dc->pc);
+                    gen_helper_retw(tmp, tmp);
+                    gen_jump(dc, tmp);
+                    tcg_temp_free(tmp);
+                }
                 break;
 
             case 2: /*BREAK.Nn*/
@@ -1748,6 +1868,13 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
 
     for (i = 0; i < 16; ++i) {
         cpu_fprintf(f, "A%02d=%08x%c", i, env->regs[i],
+                (i % 4) == 3 ? '\n' : ' ');
+    }
+
+    cpu_fprintf(f, "\n");
+
+    for (i = 0; i < env->config->nareg; ++i) {
+        cpu_fprintf(f, "AR%02d=%08x%c", i, env->phys_regs[i],
                 (i % 4) == 3 ? '\n' : ' ');
     }
 }
