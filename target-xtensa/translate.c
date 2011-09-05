@@ -248,6 +248,49 @@ static void disas_xtensa_insn(DisasContext *dc)
 
                 switch (RRR_R) {
                 case 0: /*SNM0*/
+                    switch (CALLX_M) {
+                    case 0: /*ILL*/
+                        break;
+
+                    case 1: /*reserved*/
+                        break;
+
+                    case 2: /*JR*/
+                        switch (CALLX_N) {
+                        case 0: /*RET*/
+                        case 2: /*JX*/
+                            gen_jump(dc, cpu_R[CALLX_S]);
+                            break;
+
+                        case 1: /*RETWw*/
+                            HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
+                            break;
+
+                        case 3: /*reserved*/
+                            break;
+                        }
+                        break;
+
+                    case 3: /*CALLX*/
+                        switch (CALLX_N) {
+                        case 0: /*CALLX0*/
+                            {
+                                TCGv_i32 tmp = tcg_temp_new_i32();
+                                tcg_gen_mov_i32(tmp, cpu_R[CALLX_S]);
+                                tcg_gen_movi_i32(cpu_R[0], dc->next_pc);
+                                gen_jump(dc, tmp);
+                                tcg_temp_free(tmp);
+                            }
+                            break;
+
+                        case 1: /*CALLX4w*/
+                        case 2: /*CALLX8w*/
+                        case 3: /*CALLX12w*/
+                            HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
+                            break;
+                        }
+                        break;
+                    }
                     break;
 
                 case 1: /*MOVSPw*/
