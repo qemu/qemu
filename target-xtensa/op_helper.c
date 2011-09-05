@@ -27,6 +27,7 @@
 
 #include "cpu.h"
 #include "dyngen-exec.h"
+#include "helpers.h"
 
 #define MMUSUFFIX _mmu
 
@@ -49,4 +50,10 @@ void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
             addr & ~(TARGET_PAGE_SIZE - 1),
             PAGE_READ | PAGE_WRITE | PAGE_EXEC,
             mmu_idx, TARGET_PAGE_SIZE);
+}
+
+void HELPER(exception)(uint32_t excp)
+{
+    env->exception_index = excp;
+    cpu_loop_exit(env);
 }

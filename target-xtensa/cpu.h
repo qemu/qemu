@@ -45,7 +45,67 @@
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 #define TARGET_PAGE_BITS 12
 
+enum {
+    /* Additional instructions */
+    XTENSA_OPTION_CODE_DENSITY,
+    XTENSA_OPTION_LOOP,
+    XTENSA_OPTION_EXTENDED_L32R,
+    XTENSA_OPTION_16_BIT_IMUL,
+    XTENSA_OPTION_32_BIT_IMUL,
+    XTENSA_OPTION_32_BIT_IDIV,
+    XTENSA_OPTION_MAC16,
+    XTENSA_OPTION_MISC_OP,
+    XTENSA_OPTION_COPROCESSOR,
+    XTENSA_OPTION_BOOLEAN,
+    XTENSA_OPTION_FP_COPROCESSOR,
+    XTENSA_OPTION_MP_SYNCHRO,
+    XTENSA_OPTION_CONDITIONAL_STORE,
+
+    /* Interrupts and exceptions */
+    XTENSA_OPTION_EXCEPTION,
+    XTENSA_OPTION_RELOCATABLE_VECTOR,
+    XTENSA_OPTION_UNALIGNED_EXCEPTION,
+    XTENSA_OPTION_INTERRUPT,
+    XTENSA_OPTION_HIGH_PRIORITY_INTERRUPT,
+    XTENSA_OPTION_TIMER_INTERRUPT,
+
+    /* Local memory */
+    XTENSA_OPTION_ICACHE,
+    XTENSA_OPTION_ICACHE_TEST,
+    XTENSA_OPTION_ICACHE_INDEX_LOCK,
+    XTENSA_OPTION_DCACHE,
+    XTENSA_OPTION_DCACHE_TEST,
+    XTENSA_OPTION_DCACHE_INDEX_LOCK,
+    XTENSA_OPTION_IRAM,
+    XTENSA_OPTION_IROM,
+    XTENSA_OPTION_DRAM,
+    XTENSA_OPTION_DROM,
+    XTENSA_OPTION_XLMI,
+    XTENSA_OPTION_HW_ALIGNMENT,
+    XTENSA_OPTION_MEMORY_ECC_PARITY,
+
+    /* Memory protection and translation */
+    XTENSA_OPTION_REGION_PROTECTION,
+    XTENSA_OPTION_REGION_TRANSLATION,
+    XTENSA_OPTION_MMU,
+
+    /* Other */
+    XTENSA_OPTION_WINDOWED_REGISTER,
+    XTENSA_OPTION_PROCESSOR_INTERFACE,
+    XTENSA_OPTION_MISC_SR,
+    XTENSA_OPTION_THREAD_POINTER,
+    XTENSA_OPTION_PROCESSOR_ID,
+    XTENSA_OPTION_DEBUG,
+    XTENSA_OPTION_TRACE_PORT,
+};
+
+typedef struct XtensaConfig {
+    const char *name;
+    uint64_t options;
+} XtensaConfig;
+
 typedef struct CPUXtensaState {
+    const XtensaConfig *config;
     uint32_t regs[16];
     uint32_t pc;
     uint32_t sregs[256];
@@ -65,6 +125,13 @@ int cpu_xtensa_exec(CPUXtensaState *s);
 void do_interrupt(CPUXtensaState *s);
 int cpu_xtensa_signal_handler(int host_signum, void *pinfo, void *puc);
 void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+
+#define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))
+
+static inline bool xtensa_option_enabled(const XtensaConfig *config, int opt)
+{
+    return (config->options & XTENSA_OPTION_BIT(opt)) != 0;
+}
 
 static inline int cpu_mmu_index(CPUState *env)
 {

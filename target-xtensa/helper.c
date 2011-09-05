@@ -39,12 +39,32 @@ void cpu_reset(CPUXtensaState *env)
     env->pc = 0;
 }
 
+static const XtensaConfig core_config[] = {
+    {
+        .name = "sample-xtensa-core",
+        .options = -1,
+    },
+};
+
 CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
 {
     static int tcg_inited;
     CPUXtensaState *env;
+    const XtensaConfig *config = NULL;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(core_config); ++i)
+        if (strcmp(core_config[i].name, cpu_model) == 0) {
+            config = core_config + i;
+            break;
+        }
+
+    if (config == NULL) {
+        return NULL;
+    }
 
     env = g_malloc0(sizeof(*env));
+    env->config = config;
     cpu_exec_init(env);
 
     if (!tcg_inited) {
@@ -59,8 +79,11 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
 
 void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    cpu_fprintf(f, "Available CPUs:\n"
-            "  Xtensa core\n");
+    int i;
+    cpu_fprintf(f, "Available CPUs:\n");
+    for (i = 0; i < ARRAY_SIZE(core_config); ++i) {
+        cpu_fprintf(f, "  %s\n", core_config[i].name);
+    }
 }
 
 target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
