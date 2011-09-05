@@ -106,6 +106,9 @@ enum {
 };
 
 enum {
+    LBEG = 0,
+    LEND = 1,
+    LCOUNT = 2,
     SAR = 3,
     SCOMPARE1 = 12,
     WINDOW_BASE = 72,
