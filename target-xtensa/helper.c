@@ -45,7 +45,9 @@ void cpu_reset(CPUXtensaState *env)
 static const XtensaConfig core_config[] = {
     {
         .name = "sample-xtensa-core",
-        .options = -1,
+        .options = -1 ^
+            (XTENSA_OPTION_BIT(XTENSA_OPTION_HW_ALIGNMENT) |
+             XTENSA_OPTION_BIT(XTENSA_OPTION_MMU)),
         .nareg = 64,
         .ndepc = 1,
         .excm_level = 16,

@@ -30,6 +30,10 @@
 #include "helpers.h"
 #include "host-utils.h"
 
+static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
+        void *retaddr);
+
+#define ALIGNED_ONLY
 #define MMUSUFFIX _mmu
 
 #define SHIFT 0
@@ -43,6 +47,28 @@
 
 #define SHIFT 3
 #include "softmmu_template.h"
+
+static void do_restore_state(void *pc_ptr)
+{
+    TranslationBlock *tb;
+    uint32_t pc = (uint32_t)(intptr_t)pc_ptr;
+
+    tb = tb_find_pc(pc);
+    if (tb) {
+        cpu_restore_state(tb, env, pc);
+    }
+}
+
+static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
+        void *retaddr)
+{
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
+            !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {
+        do_restore_state(retaddr);
+        HELPER(exception_cause_vaddr)(
+                env->pc, LOAD_STORE_ALIGNMENT_CAUSE, addr);
+    }
+}
 
 void tlb_fill(target_ulong addr, int is_write, int mmu_idx, void *retaddr)
 {

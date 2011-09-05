@@ -203,6 +203,16 @@ static void gen_exception_cause(DisasContext *dc, uint32_t cause)
     tcg_temp_free(tcause);
 }
 
+static void gen_exception_cause_vaddr(DisasContext *dc, uint32_t cause,
+        TCGv_i32 vaddr)
+{
+    TCGv_i32 tpc = tcg_const_i32(dc->pc);
+    TCGv_i32 tcause = tcg_const_i32(cause);
+    gen_helper_exception_cause_vaddr(tpc, tcause, vaddr);
+    tcg_temp_free(tpc);
+    tcg_temp_free(tcause);
+}
+
 static void gen_check_privilege(DisasContext *dc)
 {
     if (dc->cring) {
@@ -394,6 +404,23 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         }
     } else {
         qemu_log("WSR %d not implemented, ", sr);
+    }
+}
+
+static void gen_load_store_alignment(DisasContext *dc, int shift,
+        TCGv_i32 addr, bool no_hw_alignment)
+{
+    if (!option_enabled(dc, XTENSA_OPTION_UNALIGNED_EXCEPTION)) {
+        tcg_gen_andi_i32(addr, addr, ~0 << shift);
+    } else if (option_enabled(dc, XTENSA_OPTION_HW_ALIGNMENT) &&
+            no_hw_alignment) {
+        int label = gen_new_label();
+        TCGv_i32 tmp = tcg_temp_new_i32();
+        tcg_gen_andi_i32(tmp, addr, ~(~0 << shift));
+        tcg_gen_brcondi_i32(TCG_COND_EQ, tmp, 0, label);
+        gen_exception_cause_vaddr(dc, LOAD_STORE_ALIGNMENT_CAUSE, addr);
+        gen_set_label(label);
+        tcg_temp_free(tmp);
     }
 }
 
@@ -1339,6 +1366,9 @@ static void disas_xtensa_insn(DisasContext *dc)
 #define gen_load_store(type, shift) do { \
             TCGv_i32 addr = tcg_temp_new_i32(); \
             tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << shift); \
+            if (shift) { \
+                gen_load_store_alignment(dc, shift, addr, false); \
+            } \
             tcg_gen_qemu_##type(cpu_R[RRI8_T], addr, dc->cring); \
             tcg_temp_free(addr); \
         } while (0)
@@ -1468,6 +1498,7 @@ static void disas_xtensa_insn(DisasContext *dc)
         case 9: /*L16SI*/
             gen_load_store(ld16s, 1);
             break;
+#undef gen_load_store
 
         case 10: /*MOVI*/
             tcg_gen_movi_i32(cpu_R[RRI8_T],
@@ -1475,9 +1506,17 @@ static void disas_xtensa_insn(DisasContext *dc)
                     ((RRI8_S & 0x8) ? 0xfffff000 : 0));
             break;
 
+#define gen_load_store_no_hw_align(type) do { \
+            TCGv_i32 addr = tcg_temp_local_new_i32(); \
+            tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << 2); \
+            gen_load_store_alignment(dc, 2, addr, true); \
+            tcg_gen_qemu_##type(cpu_R[RRI8_T], addr, dc->cring); \
+            tcg_temp_free(addr); \
+        } while (0)
+
         case 11: /*L32AIy*/
             HAS_OPTION(XTENSA_OPTION_MP_SYNCHRO);
-            gen_load_store(ld32u, 2); /*TODO acquire?*/
+            gen_load_store_no_hw_align(ld32u); /*TODO acquire?*/
             break;
 
         case 12: /*ADDI*/
@@ -1497,6 +1536,7 @@ static void disas_xtensa_insn(DisasContext *dc)
 
                 tcg_gen_mov_i32(tmp, cpu_R[RRI8_T]);
                 tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << 2);
+                gen_load_store_alignment(dc, 2, addr, true);
                 tcg_gen_qemu_ld32u(cpu_R[RRI8_T], addr, dc->cring);
                 tcg_gen_brcond_i32(TCG_COND_NE, cpu_R[RRI8_T],
                         cpu_SR[SCOMPARE1], label);
@@ -1511,15 +1551,15 @@ static void disas_xtensa_insn(DisasContext *dc)
 
         case 15: /*S32RIy*/
             HAS_OPTION(XTENSA_OPTION_MP_SYNCHRO);
-            gen_load_store(st32, 2); /*TODO release?*/
+            gen_load_store_no_hw_align(st32); /*TODO release?*/
             break;
+#undef gen_load_store_no_hw_align
 
         default: /*reserved*/
             RESERVED();
             break;
         }
         break;
-#undef gen_load_store
 
     case 3: /*LSCIp*/
         HAS_OPTION(XTENSA_OPTION_COPROCESSOR);
@@ -1725,6 +1765,7 @@ static void disas_xtensa_insn(DisasContext *dc)
 #define gen_narrow_load_store(type) do { \
             TCGv_i32 addr = tcg_temp_new_i32(); \
             tcg_gen_addi_i32(addr, cpu_R[RRRN_S], RRRN_R << 2); \
+            gen_load_store_alignment(dc, 2, addr, false); \
             tcg_gen_qemu_##type(cpu_R[RRRN_T], addr, dc->cring); \
             tcg_temp_free(addr); \
         } while (0)
