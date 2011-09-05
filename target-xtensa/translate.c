@@ -429,7 +429,36 @@ static void disas_xtensa_insn(DisasContext *dc)
                     break;
 
                 case 2: /*SYNC*/
-                    TBD();
+                    switch (RRR_T) {
+                    case 0: /*ISYNC*/
+                        break;
+
+                    case 1: /*RSYNC*/
+                        break;
+
+                    case 2: /*ESYNC*/
+                        break;
+
+                    case 3: /*DSYNC*/
+                        break;
+
+                    case 8: /*EXCW*/
+                        HAS_OPTION(XTENSA_OPTION_EXCEPTION);
+                        break;
+
+                    case 12: /*MEMW*/
+                        break;
+
+                    case 13: /*EXTW*/
+                        break;
+
+                    case 15: /*NOP*/
+                        break;
+
+                    default: /*reserved*/
+                        RESERVED();
+                        break;
+                    }
                     break;
 
                 case 3: /*RFEIx*/
