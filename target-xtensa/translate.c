@@ -64,6 +64,7 @@ static TCGv_i32 cpu_UR[256];
 
 static const char * const sregnames[256] = {
     [SAR] = "SAR",
+    [SCOMPARE1] = "SCOMPARE1",
 };
 
 static const char * const uregnames[256] = {
@@ -860,7 +861,95 @@ static void disas_xtensa_insn(DisasContext *dc)
         break;
 
     case 2: /*LSAI*/
+#define gen_load_store(type, shift) do { \
+            TCGv_i32 addr = tcg_temp_new_i32(); \
+            tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << shift); \
+            tcg_gen_qemu_##type(cpu_R[RRI8_T], addr, 0); \
+            tcg_temp_free(addr); \
+        } while (0)
+
+        switch (RRI8_R) {
+        case 0: /*L8UI*/
+            gen_load_store(ld8u, 0);
+            break;
+
+        case 1: /*L16UI*/
+            gen_load_store(ld16u, 1);
+            break;
+
+        case 2: /*L32I*/
+            gen_load_store(ld32u, 2);
+            break;
+
+        case 4: /*S8I*/
+            gen_load_store(st8, 0);
+            break;
+
+        case 5: /*S16I*/
+            gen_load_store(st16, 1);
+            break;
+
+        case 6: /*S32I*/
+            gen_load_store(st32, 2);
+            break;
+
+        case 7: /*CACHEc*/
+            break;
+
+        case 9: /*L16SI*/
+            gen_load_store(ld16s, 1);
+            break;
+
+        case 10: /*MOVI*/
+            tcg_gen_movi_i32(cpu_R[RRI8_T],
+                    RRI8_IMM8 | (RRI8_S << 8) |
+                    ((RRI8_S & 0x8) ? 0xfffff000 : 0));
+            break;
+
+        case 11: /*L32AIy*/
+            HAS_OPTION(XTENSA_OPTION_MP_SYNCHRO);
+            gen_load_store(ld32u, 2); /*TODO acquire?*/
+            break;
+
+        case 12: /*ADDI*/
+            tcg_gen_addi_i32(cpu_R[RRI8_T], cpu_R[RRI8_S], RRI8_IMM8_SE);
+            break;
+
+        case 13: /*ADDMI*/
+            tcg_gen_addi_i32(cpu_R[RRI8_T], cpu_R[RRI8_S], RRI8_IMM8_SE << 8);
+            break;
+
+        case 14: /*S32C1Iy*/
+            HAS_OPTION(XTENSA_OPTION_MP_SYNCHRO);
+            {
+                int label = gen_new_label();
+                TCGv_i32 tmp = tcg_temp_local_new_i32();
+                TCGv_i32 addr = tcg_temp_local_new_i32();
+
+                tcg_gen_mov_i32(tmp, cpu_R[RRI8_T]);
+                tcg_gen_addi_i32(addr, cpu_R[RRI8_S], RRI8_IMM8 << 2);
+                tcg_gen_qemu_ld32u(cpu_R[RRI8_T], addr, 0);
+                tcg_gen_brcond_i32(TCG_COND_NE, cpu_R[RRI8_T],
+                        cpu_SR[SCOMPARE1], label);
+
+                tcg_gen_qemu_st32(tmp, addr, 0);
+
+                gen_set_label(label);
+                tcg_temp_free(addr);
+                tcg_temp_free(tmp);
+            }
+            break;
+
+        case 15: /*S32RIy*/
+            HAS_OPTION(XTENSA_OPTION_MP_SYNCHRO);
+            gen_load_store(st32, 2); /*TODO release?*/
+            break;
+
+        default: /*reserved*/
+            break;
+        }
         break;
+#undef gen_load_store
 
     case 3: /*LSCIp*/
         HAS_OPTION(XTENSA_OPTION_COPROCESSOR);

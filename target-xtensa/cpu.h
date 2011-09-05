@@ -107,6 +107,7 @@ enum {
 
 enum {
     SAR = 3,
+    SCOMPARE1 = 12,
 };
 
 typedef struct XtensaConfig {
