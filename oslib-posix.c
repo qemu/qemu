@@ -35,6 +35,13 @@
 extern int daemon(int, int);
 #endif
 
+#if defined(__linux__) && defined(__x86_64__)
+   /* Use 2MB alignment so transparent hugepages can be used by KVM */
+#  define QEMU_VMALLOC_ALIGN (512 * 4096)
+#else
+#  define QEMU_VMALLOC_ALIGN getpagesize()
+#endif
+
 #include "config-host.h"
 #include "sysemu.h"
 #include "trace.h"
@@ -80,7 +87,12 @@ void *qemu_memalign(size_t alignment, size_t size)
 void *qemu_vmalloc(size_t size)
 {
     void *ptr;
-    ptr = qemu_memalign(getpagesize(), size);
+    size_t align = QEMU_VMALLOC_ALIGN;
+
+    if (size < align) {
+        align = getpagesize();
+    }
+    ptr = qemu_memalign(align, size);
     trace_qemu_vmalloc(size, ptr);
     return ptr;
 }
