@@ -121,6 +121,25 @@ static void gen_jumpi(DisasContext *dc, uint32_t dest, int slot)
     tcg_temp_free(tmp);
 }
 
+static void gen_brcond(DisasContext *dc, TCGCond cond,
+        TCGv_i32 t0, TCGv_i32 t1, uint32_t offset)
+{
+    int label = gen_new_label();
+
+    tcg_gen_brcond_i32(cond, t0, t1, label);
+    gen_jumpi(dc, dc->next_pc, 0);
+    gen_set_label(label);
+    gen_jumpi(dc, dc->pc + offset, 1);
+}
+
+static void gen_brcondi(DisasContext *dc, TCGCond cond,
+        TCGv_i32 t0, uint32_t t1, uint32_t offset)
+{
+    TCGv_i32 tmp = tcg_const_i32(t1);
+    gen_brcond(dc, cond, t0, tmp, offset);
+    tcg_temp_free(tmp);
+}
+
 static void disas_xtensa_insn(DisasContext *dc)
 {
 #define HAS_OPTION(opt) do { \
@@ -201,6 +220,14 @@ static void disas_xtensa_insn(DisasContext *dc)
     uint8_t b0 = ldub_code(dc->pc);
     uint8_t b1 = ldub_code(dc->pc + 1);
     uint8_t b2 = ldub_code(dc->pc + 2);
+
+    static const uint32_t B4CONST[] = {
+        0xffffffff, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16, 32, 64, 128, 256
+    };
+
+    static const uint32_t B4CONSTU[] = {
+        32768, 65536, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16, 32, 64, 128, 256
+    };
 
     if (OP0 >= 8) {
         dc->next_pc = dc->pc + 2;
@@ -395,10 +422,143 @@ static void disas_xtensa_insn(DisasContext *dc)
             gen_jumpi(dc, dc->pc + 4 + CALL_OFFSET_SE, 0);
             break;
 
+        case 1: /*BZ*/
+            {
+                static const TCGCond cond[] = {
+                    TCG_COND_EQ, /*BEQZ*/
+                    TCG_COND_NE, /*BNEZ*/
+                    TCG_COND_LT, /*BLTZ*/
+                    TCG_COND_GE, /*BGEZ*/
+                };
+
+                gen_brcondi(dc, cond[BRI12_M & 3], cpu_R[BRI12_S], 0,
+                        4 + BRI12_IMM12_SE);
+            }
+            break;
+
+        case 2: /*BI0*/
+            {
+                static const TCGCond cond[] = {
+                    TCG_COND_EQ, /*BEQI*/
+                    TCG_COND_NE, /*BNEI*/
+                    TCG_COND_LT, /*BLTI*/
+                    TCG_COND_GE, /*BGEI*/
+                };
+
+                gen_brcondi(dc, cond[BRI8_M & 3],
+                        cpu_R[BRI8_S], B4CONST[BRI8_R], 4 + BRI8_IMM8_SE);
+            }
+            break;
+
+        case 3: /*BI1*/
+            switch (BRI8_M) {
+            case 0: /*ENTRYw*/
+                HAS_OPTION(XTENSA_OPTION_WINDOWED_REGISTER);
+                break;
+
+            case 1: /*B1*/
+                switch (BRI8_R) {
+                case 0: /*BFp*/
+                    HAS_OPTION(XTENSA_OPTION_BOOLEAN);
+                    break;
+
+                case 1: /*BTp*/
+                    HAS_OPTION(XTENSA_OPTION_BOOLEAN);
+                    break;
+
+                case 8: /*LOOP*/
+                    break;
+
+                case 9: /*LOOPNEZ*/
+                    break;
+
+                case 10: /*LOOPGTZ*/
+                    break;
+
+                default: /*reserved*/
+                    break;
+
+                }
+                break;
+
+            case 2: /*BLTUI*/
+            case 3: /*BGEUI*/
+                gen_brcondi(dc, BRI8_M == 2 ? TCG_COND_LTU : TCG_COND_GEU,
+                        cpu_R[BRI8_S], B4CONSTU[BRI8_R], 4 + BRI8_IMM8_SE);
+                break;
+            }
+            break;
+
         }
         break;
 
     case 7: /*B*/
+        {
+            TCGCond eq_ne = (RRI8_R & 8) ? TCG_COND_NE : TCG_COND_EQ;
+
+            switch (RRI8_R & 7) {
+            case 0: /*BNONE*/ /*BANY*/
+                {
+                    TCGv_i32 tmp = tcg_temp_new_i32();
+                    tcg_gen_and_i32(tmp, cpu_R[RRI8_S], cpu_R[RRI8_T]);
+                    gen_brcondi(dc, eq_ne, tmp, 0, 4 + RRI8_IMM8_SE);
+                    tcg_temp_free(tmp);
+                }
+                break;
+
+            case 1: /*BEQ*/ /*BNE*/
+            case 2: /*BLT*/ /*BGE*/
+            case 3: /*BLTU*/ /*BGEU*/
+                {
+                    static const TCGCond cond[] = {
+                        [1] = TCG_COND_EQ,
+                        [2] = TCG_COND_LT,
+                        [3] = TCG_COND_LTU,
+                        [9] = TCG_COND_NE,
+                        [10] = TCG_COND_GE,
+                        [11] = TCG_COND_GEU,
+                    };
+                    gen_brcond(dc, cond[RRI8_R], cpu_R[RRI8_S], cpu_R[RRI8_T],
+                            4 + RRI8_IMM8_SE);
+                }
+                break;
+
+            case 4: /*BALL*/ /*BNALL*/
+                {
+                    TCGv_i32 tmp = tcg_temp_new_i32();
+                    tcg_gen_and_i32(tmp, cpu_R[RRI8_S], cpu_R[RRI8_T]);
+                    gen_brcond(dc, eq_ne, tmp, cpu_R[RRI8_T],
+                            4 + RRI8_IMM8_SE);
+                    tcg_temp_free(tmp);
+                }
+                break;
+
+            case 5: /*BBC*/ /*BBS*/
+                {
+                    TCGv_i32 bit = tcg_const_i32(1);
+                    TCGv_i32 tmp = tcg_temp_new_i32();
+                    tcg_gen_andi_i32(tmp, cpu_R[RRI8_T], 0x1f);
+                    tcg_gen_shl_i32(bit, bit, tmp);
+                    tcg_gen_and_i32(tmp, cpu_R[RRI8_S], bit);
+                    gen_brcondi(dc, eq_ne, tmp, 0, 4 + RRI8_IMM8_SE);
+                    tcg_temp_free(tmp);
+                    tcg_temp_free(bit);
+                }
+                break;
+
+            case 6: /*BBCI*/ /*BBSI*/
+            case 7:
+                {
+                    TCGv_i32 tmp = tcg_temp_new_i32();
+                    tcg_gen_andi_i32(tmp, cpu_R[RRI8_S],
+                            1 << (((RRI8_R & 1) << 4) | RRI8_T));
+                    gen_brcondi(dc, eq_ne, tmp, 0, 4 + RRI8_IMM8_SE);
+                    tcg_temp_free(tmp);
+                }
+                break;
+
+            }
+        }
         break;
 
 #define gen_narrow_load_store(type) do { \
@@ -431,6 +591,10 @@ static void disas_xtensa_insn(DisasContext *dc)
                     RRRN_R | (RRRN_T << 4) |
                     ((RRRN_T & 6) == 6 ? 0xffffff80 : 0));
         } else { /*BEQZ.Nn*/ /*BNEZ.Nn*/
+            TCGCond eq_ne = (RRRN_T & 4) ? TCG_COND_NE : TCG_COND_EQ;
+
+            gen_brcondi(dc, eq_ne, cpu_R[RRRN_S], 0,
+                    4 + (RRRN_R | ((RRRN_T & 3) << 4)));
         }
         break;
 
