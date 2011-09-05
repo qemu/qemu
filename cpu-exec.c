@@ -223,6 +223,7 @@ int cpu_exec(CPUState *env)
 #elif defined(TARGET_SH4)
 #elif defined(TARGET_CRIS)
 #elif defined(TARGET_S390X)
+#elif defined(TARGET_XTENSA)
     /* XXXXX */
 #else
 #error unsupported target CPU
@@ -617,6 +618,7 @@ int cpu_exec(CPUState *env)
 #elif defined(TARGET_ALPHA)
 #elif defined(TARGET_CRIS)
 #elif defined(TARGET_S390X)
+#elif defined(TARGET_XTENSA)
     /* XXXXX */
 #else
 #error unsupported target CPU

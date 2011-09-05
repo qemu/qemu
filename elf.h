@@ -125,6 +125,8 @@ typedef int64_t  Elf64_Sxword;
 #define EM_MICROBLAZE      189
 #define EM_MICROBLAZE_OLD  0xBAAB
 
+#define EM_XTENSA   94      /* Tensilica Xtensa */
+
 /* This is the info that is needed to parse the dynamic section of the file */
 #define DT_NULL		0
 #define DT_NEEDED	1
