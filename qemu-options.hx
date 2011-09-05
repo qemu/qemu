@@ -2396,11 +2396,11 @@ STEXI
 Set OpenBIOS nvram @var{variable} to given @var{value} (PPC, SPARC only).
 ETEXI
 DEF("semihosting", 0, QEMU_OPTION_semihosting,
-    "-semihosting    semihosting mode\n", QEMU_ARCH_ARM | QEMU_ARCH_M68K)
+    "-semihosting    semihosting mode\n", QEMU_ARCH_ARM | QEMU_ARCH_M68K | QEMU_ARCH_XTENSA)
 STEXI
 @item -semihosting
 @findex -semihosting
-Semihosting mode (ARM, M68K only).
+Semihosting mode (ARM, M68K, Xtensa only).
 ETEXI
 DEF("old-param", 0, QEMU_OPTION_old_param,
     "-old-param      old param mode\n", QEMU_ARCH_ARM)

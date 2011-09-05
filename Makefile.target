@@ -370,6 +370,7 @@ obj-alpha-y += vga.o cirrus_vga.o
 
 obj-xtensa-y += xtensa_pic.o
 obj-xtensa-y += xtensa_sample.o
+obj-xtensa-y += xtensa-semi.o
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
