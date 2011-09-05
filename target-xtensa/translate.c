@@ -1012,7 +1012,100 @@ static void disas_xtensa_insn(DisasContext *dc)
             break;
 
         case 7: /*CACHEc*/
-            TBD();
+            if (RRI8_T < 8) {
+                HAS_OPTION(XTENSA_OPTION_DCACHE);
+            }
+
+            switch (RRI8_T) {
+            case 0: /*DPFRc*/
+                break;
+
+            case 1: /*DPFWc*/
+                break;
+
+            case 2: /*DPFROc*/
+                break;
+
+            case 3: /*DPFWOc*/
+                break;
+
+            case 4: /*DHWBc*/
+                break;
+
+            case 5: /*DHWBIc*/
+                break;
+
+            case 6: /*DHIc*/
+                break;
+
+            case 7: /*DIIc*/
+                break;
+
+            case 8: /*DCEc*/
+                switch (OP1) {
+                case 0: /*DPFLl*/
+                    HAS_OPTION(XTENSA_OPTION_DCACHE_INDEX_LOCK);
+                    break;
+
+                case 2: /*DHUl*/
+                    HAS_OPTION(XTENSA_OPTION_DCACHE_INDEX_LOCK);
+                    break;
+
+                case 3: /*DIUl*/
+                    HAS_OPTION(XTENSA_OPTION_DCACHE_INDEX_LOCK);
+                    break;
+
+                case 4: /*DIWBc*/
+                    HAS_OPTION(XTENSA_OPTION_DCACHE);
+                    break;
+
+                case 5: /*DIWBIc*/
+                    HAS_OPTION(XTENSA_OPTION_DCACHE);
+                    break;
+
+                default: /*reserved*/
+                    RESERVED();
+                    break;
+
+                }
+                break;
+
+            case 12: /*IPFc*/
+                HAS_OPTION(XTENSA_OPTION_ICACHE);
+                break;
+
+            case 13: /*ICEc*/
+                switch (OP1) {
+                case 0: /*IPFLl*/
+                    HAS_OPTION(XTENSA_OPTION_ICACHE_INDEX_LOCK);
+                    break;
+
+                case 2: /*IHUl*/
+                    HAS_OPTION(XTENSA_OPTION_ICACHE_INDEX_LOCK);
+                    break;
+
+                case 3: /*IIUl*/
+                    HAS_OPTION(XTENSA_OPTION_ICACHE_INDEX_LOCK);
+                    break;
+
+                default: /*reserved*/
+                    RESERVED();
+                    break;
+                }
+                break;
+
+            case 14: /*IHIc*/
+                HAS_OPTION(XTENSA_OPTION_ICACHE);
+                break;
+
+            case 15: /*IIIc*/
+                HAS_OPTION(XTENSA_OPTION_ICACHE);
+                break;
+
+            default: /*reserved*/
+                RESERVED();
+                break;
+            }
             break;
 
         case 9: /*L16SI*/
