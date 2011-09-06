@@ -1176,6 +1176,11 @@ static void scsi_cd_change_media_cb(void *opaque)
 {
 }
 
+static bool scsi_cd_is_tray_open(void *opaque)
+{
+    return ((SCSIDiskState *)opaque)->tray_open;
+}
+
 static bool scsi_cd_is_medium_locked(void *opaque)
 {
     return ((SCSIDiskState *)opaque)->tray_locked;
@@ -1183,6 +1188,7 @@ static bool scsi_cd_is_medium_locked(void *opaque)
 
 static const BlockDevOps scsi_cd_block_ops = {
     .change_media_cb = scsi_cd_change_media_cb,
+    .is_tray_open = scsi_cd_is_tray_open,
     .is_medium_locked = scsi_cd_is_medium_locked,
 };
 

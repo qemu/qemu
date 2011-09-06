@@ -819,6 +819,14 @@ bool bdrv_dev_has_removable_media(BlockDriverState *bs)
     return !bs->dev || (bs->dev_ops && bs->dev_ops->change_media_cb);
 }
 
+bool bdrv_dev_is_tray_open(BlockDriverState *bs)
+{
+    if (bs->dev_ops && bs->dev_ops->is_tray_open) {
+        return bs->dev_ops->is_tray_open(bs->dev_opaque);
+    }
+    return false;
+}
+
 static void bdrv_dev_resize_cb(BlockDriverState *bs)
 {
     if (bs->dev_ops && bs->dev_ops->resize_cb) {
@@ -1853,8 +1861,9 @@ static void bdrv_print_dict(QObject *obj, void *opaque)
 
     if (qdict_get_bool(bs_dict, "removable")) {
         monitor_printf(mon, " locked=%d", qdict_get_bool(bs_dict, "locked"));
+        monitor_printf(mon, " tray-open=%d",
+                       qdict_get_bool(bs_dict, "tray-open"));
     }
-
     if (qdict_haskey(bs_dict, "inserted")) {
         QDict *qdict = qobject_to_qdict(qdict_get(bs_dict, "inserted"));
 
@@ -1889,16 +1898,21 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
         QObject *bs_obj;
+        QDict *bs_dict;
 
         bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': 'unknown', "
                                     "'removable': %i, 'locked': %i }",
                                     bs->device_name,
                                     bdrv_dev_has_removable_media(bs),
                                     bdrv_dev_is_medium_locked(bs));
+        bs_dict = qobject_to_qdict(bs_obj);
 
+        if (bdrv_dev_has_removable_media(bs)) {
+            qdict_put(bs_dict, "tray-open",
+                      qbool_from_int(bdrv_dev_is_tray_open(bs)));
+        }
         if (bs->drv) {
             QObject *obj;
-            QDict *bs_dict = qobject_to_qdict(bs_obj);
 
             obj = qobject_from_jsonf("{ 'file': %s, 'ro': %i, 'drv': %s, "
                                      "'encrypted': %i }",

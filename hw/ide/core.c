@@ -1795,6 +1795,11 @@ void ide_bus_reset(IDEBus *bus)
     bus->dma->ops->reset(bus->dma);
 }
 
+static bool ide_cd_is_tray_open(void *opaque)
+{
+    return ((IDEState *)opaque)->tray_open;
+}
+
 static bool ide_cd_is_medium_locked(void *opaque)
 {
     return ((IDEState *)opaque)->tray_locked;
@@ -1802,6 +1807,7 @@ static bool ide_cd_is_medium_locked(void *opaque)
 
 static const BlockDevOps ide_cd_block_ops = {
     .change_media_cb = ide_cd_change_cb,
+    .is_tray_open = ide_cd_is_tray_open,
     .is_medium_locked = ide_cd_is_medium_locked,
 };
 

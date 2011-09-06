@@ -38,6 +38,11 @@ typedef struct BlockDevOps {
      */
     void (*change_media_cb)(void *opaque);
     /*
+     * Is the virtual tray open?
+     * Device models implement this only when the device has a tray.
+     */
+    bool (*is_tray_open)(void *opaque);
+    /*
      * Is the virtual medium locked into the device?
      * Device models implement this only when device has such a lock.
      */
@@ -101,6 +106,7 @@ void *bdrv_get_attached_dev(BlockDriverState *bs);
 void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
                       void *opaque);
 bool bdrv_dev_has_removable_media(BlockDriverState *bs);
+bool bdrv_dev_is_tray_open(BlockDriverState *bs);
 bool bdrv_dev_is_medium_locked(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);

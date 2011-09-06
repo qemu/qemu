@@ -1131,6 +1131,8 @@ Each json-object contain the following:
          - Possible values: "unknown"
 - "removable": true if the device is removable, false otherwise (json-bool)
 - "locked": true if the device is locked, false otherwise (json-bool)
+- "tray-open": only present if removable, true if the device has a tray,
+               and it is open (json-bool)
 - "inserted": only present if the device is inserted, it is a json-object
    containing the following:
          - "file": device file name (json-string)
