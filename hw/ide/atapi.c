@@ -903,11 +903,11 @@ static void cmd_seek(IDEState *s, uint8_t* buf)
 
 static void cmd_start_stop_unit(IDEState *s, uint8_t* buf)
 {
-    int start, eject, sense, err = 0;
-    start = buf[4] & 1;
-    eject = (buf[4] >> 1) & 1;
+    int sense, err = 0;
+    bool start = buf[4] & 1;
+    bool loej = buf[4] & 2;     /* load on start, eject on !start */
 
-    if (eject) {
+    if (loej) {
         err = bdrv_eject(s->bs, !start);
     }
 
