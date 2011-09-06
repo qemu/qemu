@@ -498,6 +498,7 @@ void scsi_req_build_sense(SCSIRequest *req, SCSISense sense)
     memset(req->sense, 0, 18);
     req->sense[0] = 0xf0;
     req->sense[2] = sense.key;
+    req->sense[7] = 10;
     req->sense[12] = sense.asc;
     req->sense[13] = sense.ascq;
     req->sense_len = 18;
@@ -883,7 +884,7 @@ int scsi_build_sense(uint8_t *in_buf, int in_len,
         /* Return fixed format sense buffer */
         buf[0] = 0xf0;
         buf[2] = sense.key;
-        buf[7] = 7;
+        buf[7] = 10;
         buf[12] = sense.asc;
         buf[13] = sense.ascq;
         return MIN(len, 18);
