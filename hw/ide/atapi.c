@@ -910,7 +910,7 @@ static void cmd_start_stop_unit(IDEState *s, uint8_t* buf)
     bool loej = buf[4] & 2;     /* load on start, eject on !start */
 
     if (loej) {
-        if (!start && s->tray_locked) {
+        if (!start && !s->tray_open && s->tray_locked) {
             sense = bdrv_is_inserted(s->bs)
                 ? SENSE_NOT_READY : SENSE_ILLEGAL_REQUEST;
             ide_atapi_cmd_error(s, sense, ASC_MEDIA_REMOVAL_PREVENTED);
