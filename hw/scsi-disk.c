@@ -183,6 +183,9 @@ static void scsi_read_data(SCSIRequest *req)
     if (n > SCSI_DMA_BUF_SIZE / 512)
         n = SCSI_DMA_BUF_SIZE / 512;
 
+    if (s->tray_open) {
+        scsi_read_complete(r, -ENOMEDIUM);
+    }
     r->iov.iov_len = n * 512;
     qemu_iovec_init_external(&r->qiov, &r->iov, 1);
 
@@ -281,6 +284,9 @@ static void scsi_write_data(SCSIRequest *req)
 
     n = r->iov.iov_len / 512;
     if (n) {
+        if (s->tray_open) {
+            scsi_write_complete(r, -ENOMEDIUM);
+        }
         qemu_iovec_init_external(&r->qiov, &r->iov, 1);
 
         bdrv_acct_start(s->bs, &r->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_WRITE);
@@ -837,7 +843,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
 
     switch (req->cmd.buf[0]) {
     case TEST_UNIT_READY:
-        if (!bdrv_is_inserted(s->bs))
+        if (s->tray_open || !bdrv_is_inserted(s->bs))
             goto not_ready;
         break;
     case INQUIRY:
@@ -957,7 +963,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
     return buflen;
 
 not_ready:
-    if (!bdrv_is_inserted(s->bs)) {
+    if (s->tray_open || !bdrv_is_inserted(s->bs)) {
         scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
     } else {
         scsi_check_condition(r, SENSE_CODE(LUN_NOT_READY));

@@ -73,7 +73,7 @@ static void lba_to_msf(uint8_t *buf, int lba)
 
 static inline int media_present(IDEState *s)
 {
-    return (s->nb_sectors > 0);
+    return !s->tray_open && s->nb_sectors > 0;
 }
 
 /* XXX: DVDs that could fit on a CD will be reported as a CD */
@@ -1077,20 +1077,21 @@ static const struct {
     [ 0x03 ] = { cmd_request_sense,                 ALLOW_UA },
     [ 0x12 ] = { cmd_inquiry,                       ALLOW_UA },
     [ 0x1a ] = { cmd_mode_sense, /* (6) */          0 },
-    [ 0x1b ] = { cmd_start_stop_unit,               0 },
+    [ 0x1b ] = { cmd_start_stop_unit,               0 }, /* [1] */
     [ 0x1e ] = { cmd_prevent_allow_medium_removal,  0 },
     [ 0x25 ] = { cmd_read_cdvd_capacity,            CHECK_READY },
-    [ 0x28 ] = { cmd_read, /* (10) */               0 },
+    [ 0x28 ] = { cmd_read, /* (10) */               CHECK_READY },
     [ 0x2b ] = { cmd_seek,                          CHECK_READY },
     [ 0x43 ] = { cmd_read_toc_pma_atip,             CHECK_READY },
     [ 0x46 ] = { cmd_get_configuration,             ALLOW_UA },
     [ 0x4a ] = { cmd_get_event_status_notification, ALLOW_UA },
     [ 0x5a ] = { cmd_mode_sense, /* (10) */         0 },
-    [ 0xa8 ] = { cmd_read, /* (12) */               0 },
-    [ 0xad ] = { cmd_read_dvd_structure,            0 },
+    [ 0xa8 ] = { cmd_read, /* (12) */               CHECK_READY },
+    [ 0xad ] = { cmd_read_dvd_structure,            CHECK_READY },
     [ 0xbb ] = { cmd_set_speed,                     0 },
     [ 0xbd ] = { cmd_mechanism_status,              0 },
-    [ 0xbe ] = { cmd_read_cd,                       0 },
+    [ 0xbe ] = { cmd_read_cd,                       CHECK_READY },
+    /* [1] handler detects and reports not ready condition itself */
 };
 
 void ide_atapi_cmd(IDEState *s)
@@ -1126,7 +1127,7 @@ void ide_atapi_cmd(IDEState *s)
      * GET_EVENT_STATUS_NOTIFICATION to detect such tray open/close
      * states rely on this behavior.
      */
-    if (bdrv_is_inserted(s->bs) && s->cdrom_changed) {
+    if (!s->tray_open && bdrv_is_inserted(s->bs) && s->cdrom_changed) {
         ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
 
         s->cdrom_changed = 0;

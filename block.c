@@ -3026,13 +3026,12 @@ static int coroutine_fn bdrv_co_flush_em(BlockDriverState *bs)
 int bdrv_is_inserted(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
-    int ret;
+
     if (!drv)
         return 0;
     if (!drv->bdrv_is_inserted)
-        return !bs->tray_open;
-    ret = drv->bdrv_is_inserted(bs);
-    return ret;
+        return 1;
+    return drv->bdrv_is_inserted(bs);
 }
 
 /**
