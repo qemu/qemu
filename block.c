@@ -818,6 +818,14 @@ static void bdrv_dev_resize_cb(BlockDriverState *bs)
     }
 }
 
+bool bdrv_dev_is_medium_locked(BlockDriverState *bs)
+{
+    if (bs->dev_ops && bs->dev_ops->is_medium_locked) {
+        return bs->dev_ops->is_medium_locked(bs->dev_opaque);
+    }
+    return false;
+}
+
 /*
  * Run consistency checks on an image
  *
@@ -1890,7 +1898,7 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
         bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': 'unknown', "
                                     "'removable': %i, 'locked': %i }",
                                     bs->device_name, bs->removable,
-                                    bs->locked);
+                                    bdrv_dev_is_medium_locked(bs));
 
         if (bs->drv) {
             QObject *obj;
@@ -3060,11 +3068,6 @@ void bdrv_eject(BlockDriverState *bs, int eject_flag)
     }
 }
 
-int bdrv_is_locked(BlockDriverState *bs)
-{
-    return bs->locked;
-}
-
 /**
  * Lock or unlock the media (if it is locked, the user won't be able
  * to eject it manually).
@@ -3075,7 +3078,6 @@ void bdrv_set_locked(BlockDriverState *bs, int locked)
 
     trace_bdrv_set_locked(bs, locked);
 
-    bs->locked = locked;
     if (drv && drv->bdrv_set_locked) {
         drv->bdrv_set_locked(bs, locked);
     }

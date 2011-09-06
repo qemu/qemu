@@ -1165,6 +1165,15 @@ static void scsi_destroy(SCSIDevice *dev)
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
+static bool scsi_cd_is_medium_locked(void *opaque)
+{
+    return ((SCSIDiskState *)opaque)->tray_locked;
+}
+
+static const BlockDevOps scsi_cd_block_ops = {
+    .is_medium_locked = scsi_cd_is_medium_locked,
+};
+
 static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
@@ -1199,6 +1208,7 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
     }
 
     if (scsi_type == TYPE_ROM) {
+        bdrv_set_dev_ops(s->bs, &scsi_cd_block_ops, s);
         s->qdev.blocksize = 2048;
     } else if (scsi_type == TYPE_DISK) {
         s->qdev.blocksize = s->qdev.conf.logical_block_size;

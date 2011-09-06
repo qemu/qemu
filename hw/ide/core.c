@@ -1795,8 +1795,14 @@ void ide_bus_reset(IDEBus *bus)
     bus->dma->ops->reset(bus->dma);
 }
 
+static bool ide_cd_is_medium_locked(void *opaque)
+{
+    return ((IDEState *)opaque)->tray_locked;
+}
+
 static const BlockDevOps ide_cd_block_ops = {
     .change_media_cb = ide_cd_change_cb,
+    .is_medium_locked = ide_cd_is_medium_locked,
 };
 
 int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,

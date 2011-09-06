@@ -37,6 +37,11 @@ typedef struct BlockDevOps {
      */
     void (*change_media_cb)(void *opaque);
     /*
+     * Is the virtual medium locked into the device?
+     * Device models implement this only when device has such a lock.
+     */
+    bool (*is_medium_locked)(void *opaque);
+    /*
      * Runs when the size changed (e.g. monitor command block_resize)
      */
     void (*resize_cb)(void *opaque);
@@ -94,6 +99,7 @@ void bdrv_detach_dev(BlockDriverState *bs, void *dev);
 void *bdrv_get_attached_dev(BlockDriverState *bs);
 void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
                       void *opaque);
+bool bdrv_dev_is_medium_locked(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
@@ -206,7 +212,6 @@ int bdrv_is_sg(BlockDriverState *bs);
 int bdrv_enable_write_cache(BlockDriverState *bs);
 int bdrv_is_inserted(BlockDriverState *bs);
 int bdrv_media_changed(BlockDriverState *bs);
-int bdrv_is_locked(BlockDriverState *bs);
 void bdrv_set_locked(BlockDriverState *bs, int locked);
 void bdrv_eject(BlockDriverState *bs, int eject_flag);
 void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size);
