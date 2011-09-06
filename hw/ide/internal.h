@@ -7,7 +7,6 @@
  * non-internal declarations are in hw/ide.h
  */
 #include <hw/ide.h>
-#include "block_int.h"
 #include "iorange.h"
 #include "dma.h"
 

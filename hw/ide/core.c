@@ -30,6 +30,7 @@
 #include "sysemu.h"
 #include "dma.h"
 #include "blockdev.h"
+#include "block_int.h"
 
 #include <hw/ide/internal.h>
 

@@ -3,7 +3,6 @@
 
 #include "qdev.h"
 #include "block.h"
-#include "block_int.h"
 
 #define MAX_SCSI_DEVS	255
 
