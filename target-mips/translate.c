@@ -5531,6 +5531,19 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
         tcg_gen_movi_tl(t0, -1);
     else if (u == 0) {
         switch (rt) {
+        case 1:
+            switch (sel) {
+            case 1:
+                gen_helper_mftc0_vpecontrol(t0);
+                break;
+            case 2:
+                gen_helper_mftc0_vpeconf0(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
         case 2:
             switch (sel) {
             case 1:
@@ -5577,6 +5590,46 @@ static void gen_mftr(CPUState *env, DisasContext *ctx, int rt, int rd,
                 gen_mfc0(env, ctx, t0, rt, sel);
                 break;
             }
+        case 13:
+            switch (sel) {
+            case 0:
+                gen_helper_mftc0_cause(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
+        case 14:
+            switch (sel) {
+            case 0:
+                gen_helper_mftc0_epc(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
+        case 15:
+            switch (sel) {
+            case 1:
+                gen_helper_mftc0_ebase(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
+        case 16:
+            switch (sel) {
+            case 0 ... 7:
+                gen_helper_mftc0_configx(t0, tcg_const_tl(sel));
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
         case 23:
             switch (sel) {
             case 0:
@@ -5696,6 +5749,19 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd, int rt,
         /* NOP */ ;
     else if (u == 0) {
         switch (rd) {
+        case 1:
+            switch (sel) {
+            case 1:
+                gen_helper_mttc0_vpecontrol(t0);
+                break;
+            case 2:
+                gen_helper_mttc0_vpeconf0(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
         case 2:
             switch (sel) {
             case 1:
@@ -5742,6 +5808,26 @@ static void gen_mttr(CPUState *env, DisasContext *ctx, int rd, int rt,
                 gen_mtc0(env, ctx, t0, rd, sel);
                 break;
             }
+        case 13:
+            switch (sel) {
+            case 0:
+                gen_helper_mttc0_cause(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
+        case 15:
+            switch (sel) {
+            case 1:
+                gen_helper_mttc0_ebase(t0);
+                break;
+            default:
+                goto die;
+                break;
+            }
+            break;
         case 23:
             switch (sel) {
             case 0:
@@ -12721,6 +12807,32 @@ void cpu_reset (CPUMIPSState *env)
     /* Count register increments in debug mode, EJTAG version 1 */
     env->CP0_Debug = (1 << CP0DB_CNT) | (0x1 << CP0DB_VER);
     env->hflags = MIPS_HFLAG_CP0;
+
+    if (env->CP0_Config3 & (1 << CP0C3_MT)) {
+        int i;
+
+        /* Only TC0 on VPE 0 starts as active.  */
+        for (i = 0; i < ARRAY_SIZE(env->tcs); i++) {
+            env->tcs[i].CP0_TCBind = env->cpu_index << CP0TCBd_CurVPE;
+            env->tcs[i].CP0_TCHalt = 1;
+        }
+        env->active_tc.CP0_TCHalt = 1;
+        env->halted = 1;
+
+        if (!env->cpu_index) {
+            /* VPE0 starts up enabled.  */
+            env->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);
+            env->CP0_VPEConf0 |= (1 << CP0VPEC0_MVP) | (1 << CP0VPEC0_VPA);
+
+            /* TC0 starts up unhalted.  */
+            env->halted = 0;
+            env->active_tc.CP0_TCHalt = 0;
+            env->tcs[0].CP0_TCHalt = 0;
+            /* With thread 0 active.  */
+            env->active_tc.CP0_TCStatus = (1 << CP0TCSt_A);
+            env->tcs[0].CP0_TCStatus = (1 << CP0TCSt_A);
+        }
+    }
 #endif
 #if defined(TARGET_MIPS64)
     if (env->cpu_model->insn_flags & ISA_MIPS3) {
