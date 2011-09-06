@@ -905,33 +905,22 @@ static void cmd_seek(IDEState *s, uint8_t* buf)
 
 static void cmd_start_stop_unit(IDEState *s, uint8_t* buf)
 {
-    int sense, err = 0;
+    int sense;
     bool start = buf[4] & 1;
     bool loej = buf[4] & 2;     /* load on start, eject on !start */
 
     if (loej) {
-        err = bdrv_eject(s->bs, !start);
-    }
-
-    switch (err) {
-    case 0:
-        ide_atapi_cmd_ok(s);
-        break;
-    case -EBUSY:
-        sense = SENSE_NOT_READY;
-        if (bdrv_is_inserted(s->bs)) {
-            sense = SENSE_ILLEGAL_REQUEST;
+        if (!start && s->tray_locked) {
+            sense = bdrv_is_inserted(s->bs)
+                ? SENSE_NOT_READY : SENSE_ILLEGAL_REQUEST;
+            ide_atapi_cmd_error(s, sense, ASC_MEDIA_REMOVAL_PREVENTED);
+            return;
         }
-        ide_atapi_cmd_error(s, sense, ASC_MEDIA_REMOVAL_PREVENTED);
-        break;
-    default:
-        ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
-        break;
-    }
-
-    if (loej && !err) {
+        bdrv_eject(s->bs, !start);
         s->tray_open = !start;
     }
+
+    ide_atapi_cmd_ok(s);
 }
 
 static void cmd_mechanism_status(IDEState *s, uint8_t* buf)

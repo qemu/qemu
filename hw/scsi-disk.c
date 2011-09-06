@@ -830,6 +830,9 @@ static void scsi_disk_emulate_start_stop(SCSIDiskReq *r)
     bool loej = req->cmd.buf[4] & 2; /* load on start, eject on !start */
 
     if (s->qdev.type == TYPE_ROM && loej) {
+        if (!start && s->tray_locked) {
+            return;
+        }
         bdrv_eject(s->bs, !start);
         s->tray_open = !start;
     }
