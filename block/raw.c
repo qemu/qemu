@@ -85,9 +85,9 @@ static void raw_eject(BlockDriverState *bs, int eject_flag)
     bdrv_eject(bs->file, eject_flag);
 }
 
-static void raw_set_locked(BlockDriverState *bs, int locked)
+static void raw_lock_medium(BlockDriverState *bs, bool locked)
 {
-    bdrv_set_locked(bs->file, locked);
+    bdrv_lock_medium(bs->file, locked);
 }
 
 static int raw_ioctl(BlockDriverState *bs, unsigned long int req, void *buf)
@@ -144,7 +144,7 @@ static BlockDriver bdrv_raw = {
     .bdrv_is_inserted   = raw_is_inserted,
     .bdrv_media_changed = raw_media_changed,
     .bdrv_eject         = raw_eject,
-    .bdrv_set_locked    = raw_set_locked,
+    .bdrv_lock_medium   = raw_lock_medium,
 
     .bdrv_ioctl         = raw_ioctl,
     .bdrv_aio_ioctl     = raw_aio_ioctl,

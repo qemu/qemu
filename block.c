@@ -3072,14 +3072,14 @@ void bdrv_eject(BlockDriverState *bs, int eject_flag)
  * Lock or unlock the media (if it is locked, the user won't be able
  * to eject it manually).
  */
-void bdrv_set_locked(BlockDriverState *bs, int locked)
+void bdrv_lock_medium(BlockDriverState *bs, bool locked)
 {
     BlockDriver *drv = bs->drv;
 
-    trace_bdrv_set_locked(bs, locked);
+    trace_bdrv_lock_medium(bs, locked);
 
-    if (drv && drv->bdrv_set_locked) {
-        drv->bdrv_set_locked(bs, locked);
+    if (drv && drv->bdrv_lock_medium) {
+        drv->bdrv_lock_medium(bs, locked);
     }
 }
 

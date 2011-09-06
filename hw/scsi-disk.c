@@ -887,7 +887,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         break;
     case ALLOW_MEDIUM_REMOVAL:
         s->tray_locked = req->cmd.buf[4] & 1;
-        bdrv_set_locked(s->bs, req->cmd.buf[4] & 1);
+        bdrv_lock_medium(s->bs, req->cmd.buf[4] & 1);
         break;
     case READ_CAPACITY_10:
         /* The normal LEN field for this command is zero.  */
