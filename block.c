@@ -788,6 +788,7 @@ void bdrv_detach_dev(BlockDriverState *bs, void *dev)
     bs->dev = NULL;
     bs->dev_ops = NULL;
     bs->dev_opaque = NULL;
+    bs->buffer_alignment = 512;
 }
 
 /* TODO change to return DeviceState * when all users are qdevified */
