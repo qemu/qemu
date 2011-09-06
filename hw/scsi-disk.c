@@ -1172,12 +1172,17 @@ static void scsi_destroy(SCSIDevice *dev)
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
+static void scsi_cd_change_media_cb(void *opaque)
+{
+}
+
 static bool scsi_cd_is_medium_locked(void *opaque)
 {
     return ((SCSIDiskState *)opaque)->tray_locked;
 }
 
 static const BlockDevOps scsi_cd_block_ops = {
+    .change_media_cb = scsi_cd_change_media_cb,
     .is_medium_locked = scsi_cd_is_medium_locked,
 };
 

@@ -636,7 +636,7 @@ out:
 
 static int eject_device(Monitor *mon, BlockDriverState *bs, int force)
 {
-    if (!bdrv_is_removable(bs)) {
+    if (!bdrv_dev_has_removable_media(bs)) {
         qerror_report(QERR_DEVICE_NOT_REMOVABLE, bdrv_get_device_name(bs));
         return -1;
     }

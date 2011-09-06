@@ -802,6 +802,9 @@ void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
 {
     bs->dev_ops = ops;
     bs->dev_opaque = opaque;
+    if (bdrv_dev_has_removable_media(bs) && bs == bs_snapshots) {
+        bs_snapshots = NULL;
+    }
 }
 
 static void bdrv_dev_change_media_cb(BlockDriverState *bs)
@@ -809,6 +812,11 @@ static void bdrv_dev_change_media_cb(BlockDriverState *bs)
     if (bs->dev_ops && bs->dev_ops->change_media_cb) {
         bs->dev_ops->change_media_cb(bs->dev_opaque);
     }
+}
+
+bool bdrv_dev_has_removable_media(BlockDriverState *bs)
+{
+    return !bs->dev || (bs->dev_ops && bs->dev_ops->change_media_cb);
 }
 
 static void bdrv_dev_resize_cb(BlockDriverState *bs)
@@ -1329,7 +1337,7 @@ int64_t bdrv_getlength(BlockDriverState *bs)
     if (!drv)
         return -ENOMEDIUM;
 
-    if (bs->growable || bs->removable) {
+    if (bs->growable || bdrv_dev_has_removable_media(bs)) {
         if (drv->bdrv_getlength) {
             return drv->bdrv_getlength(bs);
         }
@@ -1614,11 +1622,6 @@ void bdrv_set_removable(BlockDriverState *bs, int removable)
     }
 }
 
-int bdrv_is_removable(BlockDriverState *bs)
-{
-    return bs->removable;
-}
-
 int bdrv_is_read_only(BlockDriverState *bs)
 {
     return bs->read_only;
@@ -1897,7 +1900,8 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
 
         bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': 'unknown', "
                                     "'removable': %i, 'locked': %i }",
-                                    bs->device_name, bs->removable,
+                                    bs->device_name,
+                                    bdrv_dev_has_removable_media(bs),
                                     bdrv_dev_is_medium_locked(bs));
 
         if (bs->drv) {

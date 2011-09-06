@@ -34,6 +34,7 @@ typedef struct BlockDevOps {
      * Runs when virtual media changed (monitor commands eject, change)
      * Beware: doesn't run when a host device's physical media
      * changes.  Sure would be useful if it did.
+     * Device models with removable media must implement this callback.
      */
     void (*change_media_cb)(void *opaque);
     /*
@@ -99,6 +100,7 @@ void bdrv_detach_dev(BlockDriverState *bs, void *dev);
 void *bdrv_get_attached_dev(BlockDriverState *bs);
 void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
                       void *opaque);
+bool bdrv_dev_has_removable_media(BlockDriverState *bs);
 bool bdrv_dev_is_medium_locked(BlockDriverState *bs);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
@@ -206,7 +208,6 @@ void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
                        BlockErrorAction on_write_error);
 BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read);
 void bdrv_set_removable(BlockDriverState *bs, int removable);
-int bdrv_is_removable(BlockDriverState *bs);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
 int bdrv_enable_write_cache(BlockDriverState *bs);
