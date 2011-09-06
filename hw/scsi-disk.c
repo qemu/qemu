@@ -72,6 +72,7 @@ struct SCSIDiskState
     QEMUBH *bh;
     char *version;
     char *serial;
+    bool tray_open;
 };
 
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
@@ -823,6 +824,7 @@ static void scsi_disk_emulate_start_stop(SCSIDiskReq *r)
 
     if (s->qdev.type == TYPE_ROM && loej) {
         bdrv_eject(s->bs, !start);
+        s->tray_open = !start;
     }
 }
 
