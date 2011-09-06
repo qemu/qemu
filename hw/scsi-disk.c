@@ -1233,7 +1233,6 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
 
     s->qdev.type = scsi_type;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
-    bdrv_set_removable(s->bs, scsi_type == TYPE_ROM);
     add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, ",0");
     return 0;
 }

@@ -1864,7 +1864,6 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     }
 
     ide_reset(s);
-    bdrv_set_removable(bs, s->drive_kind == IDE_CD);
     return 0;
 }
 

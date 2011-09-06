@@ -207,7 +207,6 @@ int bdrv_get_translation_hint(BlockDriverState *bs);
 void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
                        BlockErrorAction on_write_error);
 BlockErrorAction bdrv_get_on_error(BlockDriverState *bs, int is_read);
-void bdrv_set_removable(BlockDriverState *bs, int removable);
 int bdrv_is_read_only(BlockDriverState *bs);
 int bdrv_is_sg(BlockDriverState *bs);
 int bdrv_enable_write_cache(BlockDriverState *bs);

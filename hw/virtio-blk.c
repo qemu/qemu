@@ -599,7 +599,6 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
     s->qdev = dev;
     register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
-    bdrv_set_removable(s->bs, 0);
     bdrv_set_dev_ops(s->bs, &virtio_block_ops, s);
     s->bs->buffer_alignment = conf->logical_block_size;
 
