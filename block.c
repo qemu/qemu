@@ -3062,7 +3062,6 @@ int bdrv_eject(BlockDriverState *bs, int eject_flag)
     if (drv && drv->bdrv_eject) {
         drv->bdrv_eject(bs, eject_flag);
     }
-    bs->tray_open = eject_flag;
     return 0;
 }
 
