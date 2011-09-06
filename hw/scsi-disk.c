@@ -822,7 +822,7 @@ static int scsi_disk_emulate_read_toc(SCSIRequest *req, uint8_t *outbuf)
     return toclen;
 }
 
-static void scsi_disk_emulate_start_stop(SCSIDiskReq *r)
+static int scsi_disk_emulate_start_stop(SCSIDiskReq *r)
 {
     SCSIRequest *req = &r->req;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
@@ -830,12 +830,17 @@ static void scsi_disk_emulate_start_stop(SCSIDiskReq *r)
     bool loej = req->cmd.buf[4] & 2; /* load on start, eject on !start */
 
     if (s->qdev.type == TYPE_ROM && loej) {
-        if (!start && s->tray_locked) {
-            return;
+        if (!start && !s->tray_open && s->tray_locked) {
+            scsi_check_condition(r,
+                                 bdrv_is_inserted(s->bs)
+                                 ? SENSE_CODE(ILLEGAL_REQ_REMOVAL_PREVENTED)
+                                 : SENSE_CODE(NOT_READY_REMOVAL_PREVENTED));
+            return -1;
         }
         bdrv_eject(s->bs, !start);
         s->tray_open = !start;
     }
+    return 0;
 }
 
 static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
@@ -883,7 +888,9 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
             goto illegal_request;
         break;
     case START_STOP:
-        scsi_disk_emulate_start_stop(r);
+        if (scsi_disk_emulate_start_stop(r) < 0) {
+            return -1;
+        }
         break;
     case ALLOW_MEDIUM_REMOVAL:
         s->tray_locked = req->cmd.buf[4] & 1;
