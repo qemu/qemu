@@ -1173,7 +1173,7 @@ static void scsi_destroy(SCSIDevice *dev)
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
-static void scsi_cd_change_media_cb(void *opaque)
+static void scsi_cd_change_media_cb(void *opaque, bool load)
 {
 }
 

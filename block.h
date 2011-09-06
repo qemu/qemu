@@ -32,11 +32,12 @@ typedef struct QEMUSnapshotInfo {
 typedef struct BlockDevOps {
     /*
      * Runs when virtual media changed (monitor commands eject, change)
+     * Argument load is true on load and false on eject.
      * Beware: doesn't run when a host device's physical media
      * changes.  Sure would be useful if it did.
      * Device models with removable media must implement this callback.
      */
-    void (*change_media_cb)(void *opaque);
+    void (*change_media_cb)(void *opaque, bool load);
     /*
      * Is the virtual tray open?
      * Device models implement this only when the device has a tray.

@@ -1777,7 +1777,7 @@ static void fdctrl_result_timer(void *opaque)
     fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
 }
 
-static void fdctrl_change_cb(void *opaque)
+static void fdctrl_change_cb(void *opaque, bool load)
 {
     FDrive *drive = opaque;
 

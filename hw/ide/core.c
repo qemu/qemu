@@ -784,7 +784,7 @@ static void ide_cfata_metadata_write(IDEState *s)
 }
 
 /* called when the inserted state of the media has changed */
-static void ide_cd_change_cb(void *opaque)
+static void ide_cd_change_cb(void *opaque, bool load)
 {
     IDEState *s = opaque;
     uint64_t nb_sectors;
