@@ -3655,7 +3655,11 @@ int main(int argc, char **argv, char **envp)
 #endif
 
     if (gdbstub_port) {
-        gdbserver_start (gdbstub_port);
+        if (gdbserver_start(gdbstub_port) < 0) {
+            fprintf(stderr, "qemu: could not open gdbserver on port %d\n",
+                    gdbstub_port);
+            exit(1);
+        }
         gdb_handlesig(env, 0);
     }
     cpu_loop(env);
