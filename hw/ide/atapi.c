@@ -788,8 +788,9 @@ static void cmd_mode_sense(IDEState *s, uint8_t *buf)
             buf[12] = 0x71;
             buf[13] = 3 << 5;
             buf[14] = (1 << 0) | (1 << 3) | (1 << 5);
-            if (bdrv_is_locked(s->bs))
+            if (s->tray_locked) {
                 buf[6] |= 1 << 1;
+            }
             buf[15] = 0x00;
             cpu_to_ube16(&buf[16], 706);
             buf[18] = 0;
@@ -831,6 +832,7 @@ static void cmd_test_unit_ready(IDEState *s, uint8_t *buf)
 
 static void cmd_prevent_allow_medium_removal(IDEState *s, uint8_t* buf)
 {
+    s->tray_locked = buf[4] & 1;
     bdrv_set_locked(s->bs, buf[4] & 1);
     ide_atapi_cmd_ok(s);
 }
