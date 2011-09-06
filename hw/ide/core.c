@@ -901,6 +901,78 @@ void ide_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     }
 }
 
+#define HD_OK (1u << IDE_HD)
+#define CD_OK (1u << IDE_CD)
+#define CFA_OK (1u << IDE_CFATA)
+#define HD_CFA_OK (HD_OK | CFA_OK)
+#define ALL_OK (HD_OK | CD_OK | CFA_OK)
+
+/* See ACS-2 T13/2015-D Table B.2 Command codes */
+static const uint8_t ide_cmd_table[0x100] = {
+    /* NOP not implemented, mandatory for CD */
+    [CFA_REQ_EXT_ERROR_CODE]            = CFA_OK,
+    [WIN_DSM]                           = ALL_OK,
+    [WIN_DEVICE_RESET]                  = CD_OK,
+    [WIN_RECAL]                         = ALL_OK,
+    [WIN_READ]                          = ALL_OK,
+    [WIN_READ_ONCE]                     = ALL_OK,
+    [WIN_READ_EXT]                      = ALL_OK,
+    [WIN_READDMA_EXT]                   = ALL_OK,
+    [WIN_READ_NATIVE_MAX_EXT]           = ALL_OK,
+    [WIN_MULTREAD_EXT]                  = ALL_OK,
+    [WIN_WRITE]                         = ALL_OK,
+    [WIN_WRITE_ONCE]                    = ALL_OK,
+    [WIN_WRITE_EXT]                     = ALL_OK,
+    [WIN_WRITEDMA_EXT]                  = ALL_OK,
+    [CFA_WRITE_SECT_WO_ERASE]           = ALL_OK,
+    [WIN_MULTWRITE_EXT]                 = ALL_OK,
+    [WIN_WRITE_VERIFY]                  = ALL_OK,
+    [WIN_VERIFY]                        = ALL_OK,
+    [WIN_VERIFY_ONCE]                   = ALL_OK,
+    [WIN_VERIFY_EXT]                    = ALL_OK,
+    [WIN_SEEK]                          = HD_CFA_OK,
+    [CFA_TRANSLATE_SECTOR]              = CFA_OK,
+    [WIN_DIAGNOSE]                      = ALL_OK,
+    [WIN_SPECIFY]                       = ALL_OK,
+    [WIN_STANDBYNOW2]                   = ALL_OK,
+    [WIN_IDLEIMMEDIATE2]                = ALL_OK,
+    [WIN_STANDBY2]                      = ALL_OK,
+    [WIN_SETIDLE2]                      = ALL_OK,
+    [WIN_CHECKPOWERMODE2]               = ALL_OK,
+    [WIN_SLEEPNOW2]                     = ALL_OK,
+    [WIN_PACKETCMD]                     = CD_OK,
+    [WIN_PIDENTIFY]                     = CD_OK,
+    [WIN_SMART]                         = HD_CFA_OK,
+    [CFA_ACCESS_METADATA_STORAGE]       = CFA_OK,
+    [CFA_ERASE_SECTORS]                 = CFA_OK,
+    [WIN_MULTREAD]                      = ALL_OK,
+    [WIN_MULTWRITE]                     = ALL_OK,
+    [WIN_SETMULT]                       = ALL_OK,
+    [WIN_READDMA]                       = ALL_OK,
+    [WIN_READDMA_ONCE]                  = ALL_OK,
+    [WIN_WRITEDMA]                      = ALL_OK,
+    [WIN_WRITEDMA_ONCE]                 = ALL_OK,
+    [CFA_WRITE_MULTI_WO_ERASE]          = ALL_OK,
+    [WIN_STANDBYNOW1]                   = ALL_OK,
+    [WIN_IDLEIMMEDIATE]                 = ALL_OK,
+    [WIN_STANDBY]                       = ALL_OK,
+    [WIN_SETIDLE1]                      = ALL_OK,
+    [WIN_CHECKPOWERMODE1]               = ALL_OK,
+    [WIN_SLEEPNOW1]                     = ALL_OK,
+    [WIN_FLUSH_CACHE]                   = ALL_OK,
+    [WIN_FLUSH_CACHE_EXT]               = ALL_OK,
+    [WIN_IDENTIFY]                      = ALL_OK,
+    [WIN_SETFEATURES]                   = ALL_OK,
+    [IBM_SENSE_CONDITION]               = CFA_OK,
+    [CFA_WEAR_LEVEL]                    = CFA_OK,
+    [WIN_READ_NATIVE_MAX]               = ALL_OK,
+};
+
+static bool ide_cmd_permitted(IDEState *s, uint32_t cmd)
+{
+    return cmd < ARRAY_SIZE(ide_cmd_table)
+        && (ide_cmd_table[cmd] & (1u << s->drive_kind));
+}
 
 void ide_exec_cmd(IDEBus *bus, uint32_t val)
 {
@@ -919,6 +991,10 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     /* Only DEVICE RESET is allowed while BSY or/and DRQ are set */
     if ((s->status & (BUSY_STAT|DRQ_STAT)) && val != WIN_DEVICE_RESET)
         return;
+
+    if (!ide_cmd_permitted(s, val)) {
+        goto abort_cmd;
+    }
 
     switch(val) {
     case WIN_DSM:
@@ -1140,21 +1216,15 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_set_irq(s->bus);
         break;
     case WIN_SEEK:
-        if(s->drive_kind == IDE_CD)
-            goto abort_cmd;
         /* XXX: Check that seek is within bounds */
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
         break;
         /* ATAPI commands */
     case WIN_PIDENTIFY:
-        if (s->drive_kind == IDE_CD) {
-            ide_atapi_identify(s);
-            s->status = READY_STAT | SEEK_STAT;
-            ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
-        } else {
-            ide_abort_command(s);
-        }
+        ide_atapi_identify(s);
+        s->status = READY_STAT | SEEK_STAT;
+        ide_transfer_start(s, s->io_buffer, 512, ide_transfer_stop);
         ide_set_irq(s->bus);
         break;
     case WIN_DIAGNOSE:
@@ -1171,15 +1241,11 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_set_irq(s->bus);
         break;
     case WIN_DEVICE_RESET:
-        if (s->drive_kind != IDE_CD)
-            goto abort_cmd;
         ide_set_signature(s);
         s->status = 0x00; /* NOTE: READY is _not_ set */
         s->error = 0x01;
         break;
     case WIN_PACKETCMD:
-        if (s->drive_kind != IDE_CD)
-            goto abort_cmd;
         /* overlapping commands not supported */
         if (s->feature & 0x02)
             goto abort_cmd;
@@ -1191,16 +1257,12 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         break;
     /* CF-ATA commands */
     case CFA_REQ_EXT_ERROR_CODE:
-        if (s->drive_kind != IDE_CFATA)
-            goto abort_cmd;
         s->error = 0x09;    /* miscellaneous error */
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
         break;
     case CFA_ERASE_SECTORS:
     case CFA_WEAR_LEVEL:
-        if (s->drive_kind != IDE_CFATA)
-            goto abort_cmd;
         if (val == CFA_WEAR_LEVEL)
             s->nsector = 0;
         if (val == CFA_ERASE_SECTORS)
@@ -1210,8 +1272,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_set_irq(s->bus);
         break;
     case CFA_TRANSLATE_SECTOR:
-        if (s->drive_kind != IDE_CFATA)
-            goto abort_cmd;
         s->error = 0x00;
         s->status = READY_STAT | SEEK_STAT;
         memset(s->io_buffer, 0, 0x200);
@@ -1230,8 +1290,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_set_irq(s->bus);
         break;
     case CFA_ACCESS_METADATA_STORAGE:
-        if (s->drive_kind != IDE_CFATA)
-            goto abort_cmd;
         switch (s->feature) {
         case 0x02:	/* Inquiry Metadata Storage */
             ide_cfata_metadata_inquiry(s);
@@ -1250,8 +1308,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_set_irq(s->bus);
         break;
     case IBM_SENSE_CONDITION:
-        if (s->drive_kind != IDE_CFATA)
-            goto abort_cmd;
         switch (s->feature) {
         case 0x01:  /* sense temperature in device */
             s->nsector = 0x50;      /* +20 C */
@@ -1264,8 +1320,6 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         break;
 
     case WIN_SMART:
-	if (s->drive_kind == IDE_CD)
-		goto abort_cmd;
 	if (s->hcyl != 0xc2 || s->lcyl != 0x4f)
 		goto abort_cmd;
 	if (!s->smart_enabled && s->feature != SMART_ENABLE)
@@ -1420,6 +1474,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 	}
 	break;
     default:
+        /* should not be reachable */
     abort_cmd:
         ide_abort_command(s);
         ide_set_irq(s->bus);
