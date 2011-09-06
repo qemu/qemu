@@ -23,8 +23,6 @@
 
 #include "qemu-common.h"
 
-#include "block_int.h"
-
 struct nbd_request {
     uint32_t magic;
     uint32_t type;

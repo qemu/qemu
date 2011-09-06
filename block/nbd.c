@@ -28,6 +28,7 @@
 
 #include "qemu-common.h"
 #include "nbd.h"
+#include "block_int.h"
 #include "module.h"
 #include "qemu_socket.h"
 
