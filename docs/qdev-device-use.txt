@@ -208,7 +208,7 @@ LEGACY-CHARDEV translates to -chardev HOST-OPTS... as follows:
 
 * con: becomes -chardev console
 
-* COM<NUM> becomes -chardev serial,path=<NUM>
+* COM<NUM> becomes -chardev serial,path=COM<NUM>
 
 * file:FNAME becomes -chardev file,path=FNAME
 
