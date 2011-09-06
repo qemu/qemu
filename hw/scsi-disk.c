@@ -73,6 +73,7 @@ struct SCSIDiskState
     char *version;
     char *serial;
     bool tray_open;
+    bool tray_locked;
 };
 
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
@@ -671,7 +672,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         p[5] = 0xff; /* CD DA, DA accurate, RW supported,
                         RW corrected, C2 errors, ISRC,
                         UPC, Bar code */
-        p[6] = 0x2d | (bdrv_is_locked(s->bs)? 2 : 0);
+        p[6] = 0x2d | (s->tray_locked ? 2 : 0);
         /* Locking supported, jumper present, eject, tray */
         p[7] = 0; /* no volume & mute control, no
                      changer */
@@ -882,6 +883,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         scsi_disk_emulate_start_stop(r);
         break;
     case ALLOW_MEDIUM_REMOVAL:
+        s->tray_locked = req->cmd.buf[4] & 1;
         bdrv_set_locked(s->bs, req->cmd.buf[4] & 1);
         break;
     case READ_CAPACITY_10:
