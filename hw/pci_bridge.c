@@ -160,26 +160,25 @@ static void pci_bridge_cleanup_alias(MemoryRegion *alias,
 
 static void pci_bridge_region_init(PCIBridge *br)
 {
-    PCIBus *sec_bus = &br->sec_bus;
     PCIBus *parent = br->dev.bus;
     uint16_t cmd = pci_get_word(br->dev.config + PCI_COMMAND);
 
     pci_bridge_init_alias(br, &br->alias_pref_mem,
                           PCI_BASE_ADDRESS_MEM_PREFETCH,
                           "pci_bridge_pref_mem",
-                          sec_bus->address_space_mem,
+                          &br->address_space_mem,
                           parent->address_space_mem,
                           cmd & PCI_COMMAND_MEMORY);
     pci_bridge_init_alias(br, &br->alias_mem,
                           PCI_BASE_ADDRESS_SPACE_MEMORY,
                           "pci_bridge_mem",
-                          sec_bus->address_space_mem,
+                          &br->address_space_mem,
                           parent->address_space_mem,
                           cmd & PCI_COMMAND_MEMORY);
     pci_bridge_init_alias(br, &br->alias_io,
                           PCI_BASE_ADDRESS_SPACE_IO,
                           "pci_bridge_io",
-                          sec_bus->address_space_io,
+                          &br->address_space_io,
                           parent->address_space_io,
                           cmd & PCI_COMMAND_IO);
    /* TODO: optinal VGA and VGA palette snooping support. */
@@ -319,10 +318,10 @@ int pci_bridge_initfn(PCIDevice *dev)
                         br->bus_name);
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq;
-    sec_bus->address_space_mem = g_new(MemoryRegion, 1);
-    memory_region_init(sec_bus->address_space_mem, "pci_pridge_pci", INT64_MAX);
-    sec_bus->address_space_io = g_new(MemoryRegion, 1);
-    memory_region_init(sec_bus->address_space_io, "pci_bridge_io", 65536);
+    sec_bus->address_space_mem = &br->address_space_mem;
+    memory_region_init(&br->address_space_mem, "pci_pridge_pci", INT64_MAX);
+    sec_bus->address_space_io = &br->address_space_io;
+    memory_region_init(&br->address_space_io, "pci_bridge_io", 65536);
     pci_bridge_region_init(br);
     QLIST_INIT(&sec_bus->child);
     QLIST_INSERT_HEAD(&parent->child, sec_bus, sibling);
@@ -333,14 +332,11 @@ int pci_bridge_initfn(PCIDevice *dev)
 int pci_bridge_exitfn(PCIDevice *pci_dev)
 {
     PCIBridge *s = DO_UPCAST(PCIBridge, dev, pci_dev);
-    PCIBus *sec_bus = &s->sec_bus;
     assert(QLIST_EMPTY(&s->sec_bus.child));
     QLIST_REMOVE(&s->sec_bus, sibling);
     pci_bridge_region_cleanup(s);
-    memory_region_destroy(sec_bus->address_space_mem);
-    g_free(sec_bus->address_space_mem);
-    memory_region_destroy(sec_bus->address_space_io);
-    g_free(sec_bus->address_space_io);
+    memory_region_destroy(&s->address_space_mem);
+    memory_region_destroy(&s->address_space_io);
     /* qbus_free() is called automatically by qdev_free() */
     return 0;
 }
