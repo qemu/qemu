@@ -521,7 +521,7 @@ static unsigned int event_status_media(IDEState *s,
     uint8_t event_code, media_status;
 
     media_status = 0;
-    if (s->bs->tray_open) {
+    if (s->tray_open) {
         media_status = MS_TRAY_OPEN;
     } else if (bdrv_is_inserted(s->bs)) {
         media_status = MS_MEDIA_PRESENT;
@@ -925,6 +925,10 @@ static void cmd_start_stop_unit(IDEState *s, uint8_t* buf)
     default:
         ide_atapi_cmd_error(s, SENSE_NOT_READY, ASC_MEDIUM_NOT_PRESENT);
         break;
+    }
+
+    if (loej && !err) {
+        s->tray_open = !start;
     }
 }
 
