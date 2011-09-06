@@ -269,6 +269,7 @@ int bdrv_img_create(const char *filename, const char *fmt,
                     const char *base_filename, const char *base_fmt,
                     char *options, uint64_t img_size, int flags);
 
+void bdrv_set_buffer_alignment(BlockDriverState *bs, int align);
 void *qemu_blockalign(BlockDriverState *bs, size_t size);
 
 #define BDRV_SECTORS_PER_DIRTY_CHUNK 2048

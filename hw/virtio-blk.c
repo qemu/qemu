@@ -15,7 +15,6 @@
 #include "qemu-error.h"
 #include "trace.h"
 #include "blockdev.h"
-#include "block_int.h"
 #include "virtio-blk.h"
 #ifdef __linux__
 # include <scsi/sg.h>
@@ -601,7 +600,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
     register_savevm(dev, "virtio-blk", virtio_blk_id++, 2,
                     virtio_blk_save, virtio_blk_load, s);
     bdrv_set_dev_ops(s->bs, &virtio_block_ops, s);
-    s->bs->buffer_alignment = conf->logical_block_size;
+    bdrv_set_buffer_alignment(s->bs, conf->logical_block_size);
 
     add_boot_device_path(conf->bootindex, dev, "/disk@0,0");
 

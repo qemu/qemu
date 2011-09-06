@@ -480,7 +480,6 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     bs->encrypted = 0;
     bs->valid_key = 0;
     bs->open_flags = flags;
-    /* buffer_alignment defaulted to 512, drivers can change this value */
     bs->buffer_alignment = 512;
 
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
@@ -3115,7 +3114,10 @@ BlockDriverAIOCB *bdrv_aio_ioctl(BlockDriverState *bs,
     return NULL;
 }
 
-
+void bdrv_set_buffer_alignment(BlockDriverState *bs, int align)
+{
+    bs->buffer_alignment = align;
+}
 
 void *qemu_blockalign(BlockDriverState *bs, size_t size)
 {

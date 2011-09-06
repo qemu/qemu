@@ -1236,7 +1236,7 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
         return -1;
     }
     s->cluster_size = s->qdev.blocksize / 512;
-    s->bs->buffer_alignment = s->qdev.blocksize;
+    bdrv_set_buffer_alignment(s->bs, s->qdev.blocksize);
 
     s->qdev.type = scsi_type;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
