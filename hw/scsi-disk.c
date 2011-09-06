@@ -890,9 +890,9 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
         outbuf[7] = 8; // CD-ROM
         buflen = 8;
         break;
-    case SERVICE_ACTION_IN:
+    case SERVICE_ACTION_IN_16:
         /* Service Action In subcommands. */
-        if ((req->cmd.buf[1] & 31) == 0x10) {
+        if ((req->cmd.buf[1] & 31) == SAI_READ_CAPACITY_16) {
             DPRINTF("SAI READ CAPACITY(16)\n");
             memset(outbuf, 0, req->cmd.xfer);
             bdrv_get_geometry(s->bs, &nb_sectors);
@@ -992,7 +992,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case READ_CAPACITY_10:
     case READ_TOC:
     case GET_CONFIGURATION:
-    case SERVICE_ACTION_IN:
+    case SERVICE_ACTION_IN_16:
     case VERIFY_10:
         rc = scsi_disk_emulate_command(r, outbuf);
         if (rc < 0) {
