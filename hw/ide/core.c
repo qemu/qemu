@@ -983,8 +983,10 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 	lba48 = 1;
     case WIN_READ:
     case WIN_READ_ONCE:
-        if (!s->bs)
+        if (s->drive_kind == IDE_CD) {
+            ide_set_signature(s); /* odd, but ATA4 8.27.5.2 requires it */
             goto abort_cmd;
+        }
 	ide_cmd_lba48_transform(s, lba48);
         s->req_nb_sectors = 1;
         ide_sector_read(s);
