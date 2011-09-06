@@ -36,7 +36,6 @@
 #include "qdev-addr.h"
 #include "blockdev.h"
 #include "sysemu.h"
-#include "block_int.h"
 
 /********************************************************/
 /* debug Floppy devices */
