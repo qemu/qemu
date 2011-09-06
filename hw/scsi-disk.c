@@ -814,6 +814,18 @@ static int scsi_disk_emulate_read_toc(SCSIRequest *req, uint8_t *outbuf)
     return toclen;
 }
 
+static void scsi_disk_emulate_start_stop(SCSIDiskReq *r)
+{
+    SCSIRequest *req = &r->req;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+    bool start = req->cmd.buf[4] & 1;
+    bool loej = req->cmd.buf[4] & 2; /* load on start, eject on !start */
+
+    if (s->qdev.type == TYPE_ROM && loej) {
+        bdrv_eject(s->bs, !start);
+    }
+}
+
 static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
 {
     SCSIRequest *req = &r->req;
@@ -859,10 +871,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
             goto illegal_request;
         break;
     case START_STOP:
-        if (s->qdev.type == TYPE_ROM && (req->cmd.buf[4] & 2)) {
-            /* load/eject medium */
-            bdrv_eject(s->bs, !(req->cmd.buf[4] & 1));
-        }
+        scsi_disk_emulate_start_stop(r);
         break;
     case ALLOW_MEDIUM_REMOVAL:
         bdrv_set_locked(s->bs, req->cmd.buf[4] & 1);
