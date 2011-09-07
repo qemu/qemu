@@ -1788,7 +1788,7 @@ static void disas_uc32_insn(CPUState *env, DisasContext *s)
      * E    : 5
      */
     switch (insn >> 29) {
-    case 0b000:
+    case 0x0:
         if (UCOP_SET(5) && UCOP_SET(8) && !UCOP_SET(28)) {
             do_mult(env, s, insn);
             break;
@@ -1798,7 +1798,7 @@ static void disas_uc32_insn(CPUState *env, DisasContext *s)
             do_misc(env, s, insn);
             break;
         }
-    case 0b001:
+    case 0x1:
         if (((UCOP_OPCODES >> 2) == 2) && !UCOP_SET_S) {
             do_misc(env, s, insn);
             break;
@@ -1806,7 +1806,7 @@ static void disas_uc32_insn(CPUState *env, DisasContext *s)
         do_datap(env, s, insn);
         break;
 
-    case 0b010:
+    case 0x2:
         if (UCOP_SET(8) && UCOP_SET(5)) {
             do_ldst_hwsb(env, s, insn);
             break;
@@ -1814,24 +1814,24 @@ static void disas_uc32_insn(CPUState *env, DisasContext *s)
         if (UCOP_SET(8) || UCOP_SET(5)) {
             ILLEGAL;
         }
-    case 0b011:
+    case 0x3:
         do_ldst_ir(env, s, insn);
         break;
 
-    case 0b100:
+    case 0x4:
         if (UCOP_SET(8)) {
             ILLEGAL; /* extended instructions */
         }
         do_ldst_m(env, s, insn);
         break;
-    case 0b101:
+    case 0x5:
         do_branch(env, s, insn);
         break;
-    case 0b110:
+    case 0x6:
         /* Coprocessor.  */
         disas_coproc_insn(env, s, insn);
         break;
-    case 0b111:
+    case 0x7:
         if (!UCOP_SET(28)) {
             disas_coproc_insn(env, s, insn);
             break;
