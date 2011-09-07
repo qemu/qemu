@@ -472,20 +472,14 @@ static void openpic_reset (void *opaque)
     opp->glbc = 0x00000000;
 }
 
-static inline uint32_t read_IRQreg (openpic_t *opp, int n_IRQ, uint32_t reg)
+static inline uint32_t read_IRQreg_ide(openpic_t *opp, int n_IRQ)
 {
-    uint32_t retval;
+    return opp->src[n_IRQ].ide;
+}
 
-    switch (reg) {
-    case IRQ_IPVP:
-        retval = opp->src[n_IRQ].ipvp;
-        break;
-    case IRQ_IDE:
-        retval = opp->src[n_IRQ].ide;
-        break;
-    }
-
-    return retval;
+static inline uint32_t read_IRQreg_ipvp(openpic_t *opp, int n_IRQ)
+{
+    return opp->src[n_IRQ].ipvp;
 }
 
 static inline void write_IRQreg (openpic_t *opp, int n_IRQ,
@@ -523,10 +517,10 @@ static uint32_t read_doorbell_register (openpic_t *opp,
 
     switch (offset) {
     case DBL_IPVP_OFFSET:
-        retval = read_IRQreg(opp, IRQ_DBL0 + n_dbl, IRQ_IPVP);
+        retval = read_IRQreg_ipvp(opp, IRQ_DBL0 + n_dbl);
         break;
     case DBL_IDE_OFFSET:
-        retval = read_IRQreg(opp, IRQ_DBL0 + n_dbl, IRQ_IDE);
+        retval = read_IRQreg_ide(opp, IRQ_DBL0 + n_dbl);
         break;
     case DBL_DMR_OFFSET:
         retval = opp->doorbells[n_dbl].dmr;
@@ -564,10 +558,10 @@ static uint32_t read_mailbox_register (openpic_t *opp,
         retval = opp->mailboxes[n_mbx].mbr;
         break;
     case MBX_IVPR_OFFSET:
-        retval = read_IRQreg(opp, IRQ_MBX0 + n_mbx, IRQ_IPVP);
+        retval = read_IRQreg_ipvp(opp, IRQ_MBX0 + n_mbx);
         break;
     case MBX_DMR_OFFSET:
-        retval = read_IRQreg(opp, IRQ_MBX0 + n_mbx, IRQ_IDE);
+        retval = read_IRQreg_ide(opp, IRQ_MBX0 + n_mbx);
         break;
     }
 
@@ -695,7 +689,7 @@ static uint32_t openpic_gbl_read (void *opaque, target_phys_addr_t addr)
         {
             int idx;
             idx = (addr - 0x10A0) >> 4;
-            retval = read_IRQreg(opp, opp->irq_ipi0 + idx, IRQ_IPVP);
+            retval = read_IRQreg_ipvp(opp, opp->irq_ipi0 + idx);
         }
         break;
     case 0x10E0: /* SPVE */
@@ -765,10 +759,10 @@ static uint32_t openpic_timer_read (void *opaque, uint32_t addr)
         retval = opp->timers[idx].tibc;
         break;
     case 0x20: /* TIPV */
-        retval = read_IRQreg(opp, opp->irq_tim0 + idx, IRQ_IPVP);
+        retval = read_IRQreg_ipvp(opp, opp->irq_tim0 + idx);
         break;
     case 0x30: /* TIDE */
-        retval = read_IRQreg(opp, opp->irq_tim0 + idx, IRQ_IDE);
+        retval = read_IRQreg_ide(opp, opp->irq_tim0 + idx);
         break;
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
@@ -809,10 +803,10 @@ static uint32_t openpic_src_read (void *opaque, uint32_t addr)
     idx = addr >> 5;
     if (addr & 0x10) {
         /* EXDE / IFEDE / IEEDE */
-        retval = read_IRQreg(opp, idx, IRQ_IDE);
+        retval = read_IRQreg_ide(opp, idx);
     } else {
         /* EXVP / IFEVP / IEEVP */
-        retval = read_IRQreg(opp, idx, IRQ_IPVP);
+        retval = read_IRQreg_ipvp(opp, idx);
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
 
@@ -1368,13 +1362,13 @@ static uint32_t mpic_timer_read (void *opaque, target_phys_addr_t addr)
         retval = mpp->timers[idx].tibc;
         break;
     case 0x20: /* TIPV */
-        retval = read_IRQreg(mpp, MPIC_TMR_IRQ + idx, IRQ_IPVP);
+        retval = read_IRQreg_ipvp(mpp, MPIC_TMR_IRQ + idx);
         break;
     case 0x30: /* TIDR */
         if ((addr &0xF0) == 0XF0)
             retval = mpp->dst[cpu].tfrr;
         else
-            retval = read_IRQreg(mpp, MPIC_TMR_IRQ + idx, IRQ_IDE);
+            retval = read_IRQreg_ide(mpp, MPIC_TMR_IRQ + idx);
         break;
     }
     DPRINTF("%s: => %08x\n", __func__, retval);
@@ -1421,10 +1415,10 @@ static uint32_t mpic_src_ext_read (void *opaque, target_phys_addr_t addr)
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
             /* EXDE / IFEDE / IEEDE */
-            retval = read_IRQreg(mpp, idx, IRQ_IDE);
+            retval = read_IRQreg_ide(mpp, idx);
         } else {
             /* EXVP / IFEVP / IEEVP */
-            retval = read_IRQreg(mpp, idx, IRQ_IPVP);
+            retval = read_IRQreg_ipvp(mpp, idx);
         }
         DPRINTF("%s: => %08x\n", __func__, retval);
     }
@@ -1471,10 +1465,10 @@ static uint32_t mpic_src_int_read (void *opaque, target_phys_addr_t addr)
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
             /* EXDE / IFEDE / IEEDE */
-            retval = read_IRQreg(mpp, idx, IRQ_IDE);
+            retval = read_IRQreg_ide(mpp, idx);
         } else {
             /* EXVP / IFEVP / IEEVP */
-            retval = read_IRQreg(mpp, idx, IRQ_IPVP);
+            retval = read_IRQreg_ipvp(mpp, idx);
         }
         DPRINTF("%s: => %08x\n", __func__, retval);
     }
@@ -1521,10 +1515,10 @@ static uint32_t mpic_src_msg_read (void *opaque, target_phys_addr_t addr)
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
             /* EXDE / IFEDE / IEEDE */
-            retval = read_IRQreg(mpp, idx, IRQ_IDE);
+            retval = read_IRQreg_ide(mpp, idx);
         } else {
             /* EXVP / IFEVP / IEEVP */
-            retval = read_IRQreg(mpp, idx, IRQ_IPVP);
+            retval = read_IRQreg_ipvp(mpp, idx);
         }
         DPRINTF("%s: => %08x\n", __func__, retval);
     }
@@ -1570,10 +1564,10 @@ static uint32_t mpic_src_msi_read (void *opaque, target_phys_addr_t addr)
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
             /* EXDE / IFEDE / IEEDE */
-            retval = read_IRQreg(mpp, idx, IRQ_IDE);
+            retval = read_IRQreg_ide(mpp, idx);
         } else {
             /* EXVP / IFEVP / IEEVP */
-            retval = read_IRQreg(mpp, idx, IRQ_IPVP);
+            retval = read_IRQreg_ipvp(mpp, idx);
         }
         DPRINTF("%s: => %08x\n", __func__, retval);
     }
