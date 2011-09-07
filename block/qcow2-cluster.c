@@ -694,7 +694,7 @@ err:
  * If the offset is not found, allocate a new cluster.
  *
  * If the cluster was already allocated, m->nb_clusters is set to 0,
- * m->depends_on is set to NULL and the other fields in m are meaningless.
+ * other fields in m are meaningless.
  *
  * If the cluster is newly allocated, m->nb_clusters is set to the number of
  * contiguous clusters that have been allocated. In this case, the other
@@ -736,7 +736,6 @@ again:
 
         cluster_offset &= ~QCOW_OFLAG_COPIED;
         m->nb_clusters = 0;
-        m->depends_on = NULL;
 
         goto out;
     }
