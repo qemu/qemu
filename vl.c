@@ -2200,6 +2200,7 @@ int main(int argc, char **argv, char **envp)
     error_set_progname(argv[0]);
 
     g_mem_set_vtable(&mem_trace);
+    g_thread_init(NULL);
 
     init_clocks();
 
