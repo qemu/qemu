@@ -390,6 +390,8 @@ trace-nested-y += control.o
 
 trace-obj-y += $(addprefix trace/, $(trace-nested-y))
 
+$(trace-obj-y): $(GENERATED_HEADERS)
+
 ######################################################################
 # smartcard
 
