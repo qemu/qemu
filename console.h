@@ -328,7 +328,12 @@ static inline int ds_get_bytes_per_pixel(DisplayState *ds)
     return ds->surface->pf.bytes_per_pixel;
 }
 
+#ifdef CONFIG_CURSES
+#include <curses.h>
+typedef chtype console_ch_t;
+#else
 typedef unsigned long console_ch_t;
+#endif
 static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 {
     if (!(ch & 0xff))

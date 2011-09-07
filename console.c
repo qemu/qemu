@@ -343,6 +343,7 @@ static const uint32_t dmask4[4] = {
 
 static uint32_t color_table[2][8];
 
+#ifndef CONFIG_CURSES
 enum color_names {
     COLOR_BLACK   = 0,
     COLOR_RED     = 1,
@@ -353,6 +354,7 @@ enum color_names {
     COLOR_CYAN    = 6,
     COLOR_WHITE   = 7
 };
+#endif
 
 static const uint32_t color_table_rgb[2][8] = {
     {   /* dark */
