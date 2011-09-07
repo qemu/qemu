@@ -482,30 +482,25 @@ static inline uint32_t read_IRQreg_ipvp(openpic_t *opp, int n_IRQ)
     return opp->src[n_IRQ].ipvp;
 }
 
-static inline void write_IRQreg (openpic_t *opp, int n_IRQ,
-                                 uint32_t reg, uint32_t val)
+static inline void write_IRQreg_ide(openpic_t *opp, int n_IRQ, uint32_t val)
 {
     uint32_t tmp;
 
-    switch (reg) {
-    case IRQ_IPVP:
-        /* NOTE: not fully accurate for special IRQs, but simple and
-           sufficient */
-        /* ACTIVITY bit is read-only */
-        opp->src[n_IRQ].ipvp =
-            (opp->src[n_IRQ].ipvp & 0x40000000) |
-            (val & 0x800F00FF);
-        openpic_update_irq(opp, n_IRQ);
-        DPRINTF("Set IPVP %d to 0x%08x -> 0x%08x\n",
-                n_IRQ, val, opp->src[n_IRQ].ipvp);
-        break;
-    case IRQ_IDE:
-        tmp = val & 0xC0000000;
-        tmp |= val & ((1ULL << MAX_CPU) - 1);
-        opp->src[n_IRQ].ide = tmp;
-        DPRINTF("Set IDE %d to 0x%08x\n", n_IRQ, opp->src[n_IRQ].ide);
-        break;
-    }
+    tmp = val & 0xC0000000;
+    tmp |= val & ((1ULL << MAX_CPU) - 1);
+    opp->src[n_IRQ].ide = tmp;
+    DPRINTF("Set IDE %d to 0x%08x\n", n_IRQ, opp->src[n_IRQ].ide);
+}
+
+static inline void write_IRQreg_ipvp(openpic_t *opp, int n_IRQ, uint32_t val)
+{
+    /* NOTE: not fully accurate for special IRQs, but simple and sufficient */
+    /* ACTIVITY bit is read-only */
+    opp->src[n_IRQ].ipvp = (opp->src[n_IRQ].ipvp & 0x40000000)
+                         | (val & 0x800F00FF);
+    openpic_update_irq(opp, n_IRQ);
+    DPRINTF("Set IPVP %d to 0x%08x -> 0x%08x\n", n_IRQ, val,
+            opp->src[n_IRQ].ipvp);
 }
 
 #if 0 // Code provision for Intel model
@@ -535,10 +530,10 @@ static void write_doorbell_register (penpic_t *opp, int n_dbl,
 {
     switch (offset) {
     case DBL_IVPR_OFFSET:
-        write_IRQreg(opp, IRQ_DBL0 + n_dbl, IRQ_IPVP, value);
+        write_IRQreg_ipvp(opp, IRQ_DBL0 + n_dbl, value);
         break;
     case DBL_IDE_OFFSET:
-        write_IRQreg(opp, IRQ_DBL0 + n_dbl, IRQ_IDE, value);
+        write_IRQreg_ide(opp, IRQ_DBL0 + n_dbl, value);
         break;
     case DBL_DMR_OFFSET:
         opp->doorbells[n_dbl].dmr = value;
@@ -576,10 +571,10 @@ static void write_mailbox_register (openpic_t *opp, int n_mbx,
         opp->mailboxes[n_mbx].mbr = value;
         break;
     case MBX_IVPR_OFFSET:
-        write_IRQreg(opp, IRQ_MBX0 + n_mbx, IRQ_IPVP, value);
+        write_IRQreg_ipvp(opp, IRQ_MBX0 + n_mbx, value);
         break;
     case MBX_DMR_OFFSET:
-        write_IRQreg(opp, IRQ_MBX0 + n_mbx, IRQ_IDE, value);
+        write_IRQreg_ide(opp, IRQ_MBX0 + n_mbx, value);
         break;
     }
 }
@@ -636,7 +631,7 @@ static void openpic_gbl_write (void *opaque, target_phys_addr_t addr, uint32_t v
         {
             int idx;
             idx = (addr - 0x10A0) >> 4;
-            write_IRQreg(opp, opp->irq_ipi0 + idx, IRQ_IPVP, val);
+            write_IRQreg_ipvp(opp, opp->irq_ipi0 + idx, val);
         }
         break;
     case 0x10E0: /* SPVE */
@@ -729,10 +724,10 @@ static void openpic_timer_write (void *opaque, uint32_t addr, uint32_t val)
         opp->timers[idx].tibc = val;
         break;
     case 0x20: /* TIVP */
-        write_IRQreg(opp, opp->irq_tim0 + idx, IRQ_IPVP, val);
+        write_IRQreg_ipvp(opp, opp->irq_tim0 + idx, val);
         break;
     case 0x30: /* TIDE */
-        write_IRQreg(opp, opp->irq_tim0 + idx, IRQ_IDE, val);
+        write_IRQreg_ide(opp, opp->irq_tim0 + idx, val);
         break;
     }
 }
@@ -782,10 +777,10 @@ static void openpic_src_write (void *opaque, uint32_t addr, uint32_t val)
     idx = addr >> 5;
     if (addr & 0x10) {
         /* EXDE / IFEDE / IEEDE */
-        write_IRQreg(opp, idx, IRQ_IDE, val);
+        write_IRQreg_ide(opp, idx, val);
     } else {
         /* EXVP / IFEVP / IEEVP */
-        write_IRQreg(opp, idx, IRQ_IPVP, val);
+        write_IRQreg_ipvp(opp, idx, val);
     }
 }
 
@@ -835,8 +830,8 @@ static void openpic_cpu_write_internal(void *opaque, target_phys_addr_t addr,
     case 0x70:
         idx = (addr - 0x40) >> 4;
         /* we use IDE as mask which CPUs to deliver the IPI to still. */
-        write_IRQreg(opp, opp->irq_ipi0 + idx, IRQ_IDE,
-                     opp->src[opp->irq_ipi0 + idx].ide | val);
+        write_IRQreg_ide(opp, opp->irq_ipi0 + idx,
+                         opp->src[opp->irq_ipi0 + idx].ide | val);
         openpic_set_irq(opp, opp->irq_ipi0 + idx, 1);
         openpic_set_irq(opp, opp->irq_ipi0 + idx, 0);
         break;
@@ -1330,13 +1325,13 @@ static void mpic_timer_write (void *opaque, target_phys_addr_t addr, uint32_t va
         mpp->timers[idx].tibc = val;
         break;
     case 0x20: /* GTIVPR */
-        write_IRQreg(mpp, MPIC_TMR_IRQ + idx, IRQ_IPVP, val);
+        write_IRQreg_ipvp(mpp, MPIC_TMR_IRQ + idx, val);
         break;
     case 0x30: /* GTIDR & TFRR */
         if ((addr & 0xF0) == 0xF0)
             mpp->dst[cpu].tfrr = val;
         else
-            write_IRQreg(mpp, MPIC_TMR_IRQ + idx, IRQ_IDE, val);
+            write_IRQreg_ide(mpp, MPIC_TMR_IRQ + idx, val);
         break;
     }
 }
@@ -1391,10 +1386,10 @@ static void mpic_src_ext_write (void *opaque, target_phys_addr_t addr,
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
             /* EXDE / IFEDE / IEEDE */
-            write_IRQreg(mpp, idx, IRQ_IDE, val);
+            write_IRQreg_ide(mpp, idx, val);
         } else {
             /* EXVP / IFEVP / IEEVP */
-            write_IRQreg(mpp, idx, IRQ_IPVP, val);
+            write_IRQreg_ipvp(mpp, idx, val);
         }
     }
 }
@@ -1441,10 +1436,10 @@ static void mpic_src_int_write (void *opaque, target_phys_addr_t addr,
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
             /* EXDE / IFEDE / IEEDE */
-            write_IRQreg(mpp, idx, IRQ_IDE, val);
+            write_IRQreg_ide(mpp, idx, val);
         } else {
             /* EXVP / IFEVP / IEEVP */
-            write_IRQreg(mpp, idx, IRQ_IPVP, val);
+            write_IRQreg_ipvp(mpp, idx, val);
         }
     }
 }
@@ -1491,10 +1486,10 @@ static void mpic_src_msg_write (void *opaque, target_phys_addr_t addr,
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
             /* EXDE / IFEDE / IEEDE */
-            write_IRQreg(mpp, idx, IRQ_IDE, val);
+            write_IRQreg_ide(mpp, idx, val);
         } else {
             /* EXVP / IFEVP / IEEVP */
-            write_IRQreg(mpp, idx, IRQ_IPVP, val);
+            write_IRQreg_ipvp(mpp, idx, val);
         }
     }
 }
@@ -1541,10 +1536,10 @@ static void mpic_src_msi_write (void *opaque, target_phys_addr_t addr,
         idx += (addr & 0xFFF0) >> 5;
         if (addr & 0x10) {
             /* EXDE / IFEDE / IEEDE */
-            write_IRQreg(mpp, idx, IRQ_IDE, val);
+            write_IRQreg_ide(mpp, idx, val);
         } else {
             /* EXVP / IFEVP / IEEVP */
-            write_IRQreg(mpp, idx, IRQ_IPVP, val);
+            write_IRQreg_ipvp(mpp, idx, val);
         }
     }
 }
