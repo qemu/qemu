@@ -495,6 +495,13 @@ int cpu_sparc_handle_mmu_fault(CPUSPARCState *env1, target_ulong address, int rw
 target_ulong mmu_probe(CPUSPARCState *env, target_ulong address, int mmulev);
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env);
 
+#if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY)
+int target_memory_rw_debug(CPUState *env, target_ulong addr,
+                           uint8_t *buf, int len, int is_write);
+#define TARGET_CPU_MEMORY_RW_DEBUG
+#endif
+
+
 /* translate.c */
 void gen_intermediate_code_init(CPUSPARCState *env);
 

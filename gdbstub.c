@@ -41,6 +41,15 @@
 #include "qemu_socket.h"
 #include "kvm.h"
 
+#ifndef TARGET_CPU_MEMORY_RW_DEBUG
+static inline int target_memory_rw_debug(CPUState *env, target_ulong addr,
+                                         uint8_t *buf, int len, int is_write)
+{
+    return cpu_memory_rw_debug(env, addr, buf, len, is_write);
+}
+#else
+/* target_memory_rw_debug() defined in cpu.h */
+#endif
 
 enum {
     GDB_SIGNAL_0 = 0,
@@ -2109,7 +2118,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         if (*p == ',')
             p++;
         len = strtoull(p, NULL, 16);
-        if (cpu_memory_rw_debug(s->g_cpu, addr, mem_buf, len, 0) != 0) {
+        if (target_memory_rw_debug(s->g_cpu, addr, mem_buf, len, 0) != 0) {
             put_packet (s, "E14");
         } else {
             memtohex(buf, mem_buf, len);
@@ -2124,10 +2133,11 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
         if (*p == ':')
             p++;
         hextomem(mem_buf, p, len);
-        if (cpu_memory_rw_debug(s->g_cpu, addr, mem_buf, len, 1) != 0)
+        if (target_memory_rw_debug(s->g_cpu, addr, mem_buf, len, 1) != 0) {
             put_packet(s, "E14");
-        else
+        } else {
             put_packet(s, "OK");
+        }
         break;
     case 'p':
         /* Older gdb are really dumb, and don't use 'g' if 'p' is avaialable.
