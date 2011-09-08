@@ -39,11 +39,20 @@ struct nbd_reply {
 
 #define NBD_FLAG_HAS_FLAGS      (1 << 0)        /* Flags are there */
 #define NBD_FLAG_READ_ONLY      (1 << 1)        /* Device is read-only */
+#define NBD_FLAG_SEND_FLUSH     (1 << 2)        /* Send FLUSH */
+#define NBD_FLAG_SEND_FUA       (1 << 3)        /* Send FUA (Force Unit Access) */
+#define NBD_FLAG_ROTATIONAL     (1 << 4)        /* Use elevator algorithm - rotational media */
+#define NBD_FLAG_SEND_TRIM      (1 << 5)        /* Send TRIM (discard) */
+
+#define NBD_CMD_MASK_COMMAND	0x0000ffff
+#define NBD_CMD_FLAG_FUA	(1 << 16)
 
 enum {
     NBD_CMD_READ = 0,
     NBD_CMD_WRITE = 1,
-    NBD_CMD_DISC = 2
+    NBD_CMD_DISC = 2,
+    NBD_CMD_FLUSH = 3,
+    NBD_CMD_TRIM = 4
 };
 
 #define NBD_DEFAULT_PORT	10809
