@@ -11,7 +11,7 @@
  *
  */
 
-#include <qemu-common.h>
+#include "qemu-common.h"
 #include "qemu-error.h"
 #include "trace.h"
 #include "blockdev.h"

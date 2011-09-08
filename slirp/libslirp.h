@@ -1,7 +1,7 @@
 #ifndef _LIBSLIRP_H
 #define _LIBSLIRP_H
 
-#include <qemu-common.h>
+#include "qemu-common.h"
 
 #ifdef CONFIG_SLIRP
 
