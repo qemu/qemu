@@ -259,7 +259,6 @@ typedef struct NCQTransferState {
     BlockDriverAIOCB *aiocb;
     QEMUSGList sglist;
     BlockAcctCookie acct;
-    int is_read;
     uint16_t sector_count;
     uint64_t lba;
     uint8_t tag;

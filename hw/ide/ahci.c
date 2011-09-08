@@ -754,7 +754,6 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
         case READ_FPDMA_QUEUED:
             DPRINTF(port, "NCQ reading %d sectors from LBA %ld, tag %d\n",
                     ncq_tfs->sector_count-1, ncq_tfs->lba, ncq_tfs->tag);
-            ncq_tfs->is_read = 1;
 
             DPRINTF(port, "tag %d aio read %ld\n", ncq_tfs->tag, ncq_tfs->lba);
 
@@ -768,7 +767,6 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
         case WRITE_FPDMA_QUEUED:
             DPRINTF(port, "NCQ writing %d sectors to LBA %ld, tag %d\n",
                     ncq_tfs->sector_count-1, ncq_tfs->lba, ncq_tfs->tag);
-            ncq_tfs->is_read = 0;
 
             DPRINTF(port, "tag %d aio write %ld\n", ncq_tfs->tag, ncq_tfs->lba);
 
