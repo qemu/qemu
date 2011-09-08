@@ -806,6 +806,11 @@ again:
         abort();
     }
 
+    /* save info needed for meta data update */
+    m->offset = offset;
+    m->n_start = n_start;
+    m->nb_clusters = nb_clusters;
+
     QLIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);
 
     /* allocate a new cluster */
@@ -815,11 +820,6 @@ again:
         ret = cluster_offset;
         goto fail;
     }
-
-    /* save info needed for meta data update */
-    m->offset = offset;
-    m->n_start = n_start;
-    m->nb_clusters = nb_clusters;
 
 out:
     ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
