@@ -260,11 +260,12 @@ void qemu_spice_vm_change_state_handler(void *opaque, int running, int reason)
     SimpleSpiceDisplay *ssd = opaque;
 
     if (running) {
+        ssd->running = true;
         qemu_spice_start(ssd);
     } else {
         qemu_spice_stop(ssd);
+        ssd->running = false;
     }
-    ssd->running = running;
 }
 
 void qemu_spice_display_init_common(SimpleSpiceDisplay *ssd, DisplayState *ds)

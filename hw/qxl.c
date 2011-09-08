@@ -808,7 +808,7 @@ static void qxl_exit_vga_mode(PCIQXLDevice *d)
     qxl_destroy_primary(d, QXL_SYNC);
 }
 
-static void qxl_set_irq(PCIQXLDevice *d)
+static void qxl_update_irq(PCIQXLDevice *d)
 {
     uint32_t pending = le32_to_cpu(d->ram->int_pending);
     uint32_t mask    = le32_to_cpu(d->ram->int_mask);
@@ -959,7 +959,7 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     memslot.generation = d->rom->slot_generation = 0;
     qxl_rom_set_dirty(d);
 
-    dprint(d, 1, "%s: slot %d: host virt 0x%" PRIx64 " - 0x%" PRIx64 "\n",
+    dprint(d, 1, "%s: slot %d: host virt 0x%lx - 0x%lx\n",
            __FUNCTION__, memslot.slot_id,
            memslot.virt_start, memslot.virt_end);
 
@@ -1090,8 +1090,8 @@ static void qxl_set_mode(PCIQXLDevice *d, int modenr, int loadvm)
         .mem        = devmem + d->shadow_rom.draw_area_offset,
     };
 
-    dprint(d, 1, "%s: mode %d  [ %d x %d @ %d bpp devmem 0x%lx ]\n", __FUNCTION__,
-           modenr, mode->x_res, mode->y_res, mode->bits, devmem);
+    dprint(d, 1, "%s: mode %d  [ %d x %d @ %d bpp devmem 0x%" PRIx64 " ]\n",
+           __func__, modenr, mode->x_res, mode->y_res, mode->bits, devmem);
     if (!loadvm) {
         qxl_hard_reset(d, 0);
     }
@@ -1209,7 +1209,7 @@ async_common:
         qemu_spice_wakeup(&d->ssd);
         break;
     case QXL_IO_UPDATE_IRQ:
-        qxl_set_irq(d);
+        qxl_update_irq(d);
         break;
     case QXL_IO_NOTIFY_OOM:
         if (!SPICE_RING_IS_EMPTY(&d->ram->release_ring)) {
@@ -1229,7 +1229,7 @@ async_common:
         break;
     case QXL_IO_LOG:
         if (d->guestdebug) {
-            fprintf(stderr, "qxl/guest-%d: %ld: %s", d->id,
+            fprintf(stderr, "qxl/guest-%d: %" PRId64 ": %s", d->id,
                     qemu_get_clock_ns(vm_clock), d->ram->log_buf);
         }
         break;
@@ -1359,10 +1359,9 @@ static void pipe_read(void *opaque)
     do {
         len = read(d->pipe[0], &dummy, sizeof(dummy));
     } while (len == sizeof(dummy));
-    qxl_set_irq(d);
+    qxl_update_irq(d);
 }
 
-/* called from spice server thread context only */
 static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
 {
     uint32_t old_pending;
@@ -1374,7 +1373,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
         return;
     }
     if (pthread_self() == d->main) {
-        qxl_set_irq(d);
+        qxl_update_irq(d);
     } else {
         if (write(d->pipe[1], d, 1) != 1) {
             dprint(d, 1, "%s: write to pipe failed\n", __FUNCTION__);
@@ -1459,7 +1458,14 @@ static void qxl_vm_change_state_handler(void *opaque, int running, int reason)
     PCIQXLDevice *qxl = opaque;
     qemu_spice_vm_change_state_handler(&qxl->ssd, running, reason);
 
-    if (!running && qxl->mode == QXL_MODE_NATIVE) {
+    if (running) {
+        /*
+         * if qxl_send_events was called from spice server context before
+         * migration ended, qxl_update_irq for these events might not have been
+         * called
+         */
+         qxl_update_irq(qxl);
+    } else if (qxl->mode == QXL_MODE_NATIVE) {
         /* dirty all vram (which holds surfaces) and devram (primary surface)
          * to make sure they are saved */
         /* FIXME #1: should go out during "live" stage */
