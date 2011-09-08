@@ -304,7 +304,8 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p);
 void usb_packet_complete(USBDevice *dev, USBPacket *p);
 void usb_cancel_packet(USBPacket * p);
 
-void usb_attach(USBPort *port, USBDevice *dev);
+void usb_attach(USBPort *port);
+void usb_detach(USBPort *port);
 void usb_wakeup(USBDevice *dev);
 int usb_generic_handle_packet(USBDevice *s, USBPacket *p);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
@@ -337,11 +338,13 @@ enum musb_irq_source_e {
     musb_irq_tx,
     musb_set_vbus,
     musb_set_session,
-    __musb_irq_max,
+    /* Add new interrupts here */
+    musb_irq_max, /* total number of interrupts defined */
 };
 
 typedef struct MUSBState MUSBState;
-MUSBState *musb_init(qemu_irq *irqs);
+MUSBState *musb_init(DeviceState *parent_device, int gpio_base);
+void musb_reset(MUSBState *s);
 uint32_t musb_core_intr_get(MUSBState *s);
 void musb_core_intr_clear(MUSBState *s, uint32_t mask);
 void musb_set_size(MUSBState *s, int epnum, int size, int is_tx);
@@ -378,6 +381,8 @@ int usb_register_companion(const char *masterbus, USBPort *ports[],
                            void *opaque, USBPortOps *ops, int speedmask);
 void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr);
 void usb_unregister_port(USBBus *bus, USBPort *port);
+int usb_claim_port(USBDevice *dev);
+void usb_release_port(USBDevice *dev);
 int usb_device_attach(USBDevice *dev);
 int usb_device_detach(USBDevice *dev);
 int usb_device_delete_addr(int busnr, int addr);

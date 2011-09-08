@@ -209,6 +209,12 @@ sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "get flags
 sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva %"PRIx64" => pa %"PRIx64" iopte = %x"
 sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64""
 
+# hw/usb-bus.c
+usb_port_claim(int bus, const char *port) "bus %d, port %s"
+usb_port_attach(int bus, const char *port) "bus %d, port %s"
+usb_port_detach(int bus, const char *port) "bus %d, port %s"
+usb_port_release(int bus, const char *port) "bus %d, port %s"
+
 # hw/usb-ehci.c
 usb_ehci_reset(void) "=== RESET ==="
 usb_ehci_mmio_readl(uint32_t addr, const char *str, uint32_t val) "rd mmio %04x [%s] = %x"
@@ -223,6 +229,7 @@ usb_ehci_qtd_ptrs(void *q, uint32_t addr, uint32_t nxt, uint32_t altnext) "q %p 
 usb_ehci_qtd_fields(uint32_t addr, int tbytes, int cpage, int cerr, int pid) "QTD @ %08x - tbytes %d, cpage %d, cerr %d, pid %d"
 usb_ehci_qtd_bits(uint32_t addr, int ioc, int active, int halt, int babble, int xacterr) "QTD @ %08x - ioc %d, active %d, halt %d, babble %d, xacterr %d"
 usb_ehci_itd(uint32_t addr, uint32_t nxt, uint32_t mplen, uint32_t mult, uint32_t ep, uint32_t devaddr) "ITD @ %08x: next %08x - mplen %d, mult %d, ep %d, dev %d"
+usb_ehci_sitd(uint32_t addr, uint32_t nxt, uint32_t active) "ITD @ %08x: next %08x - active %d"
 usb_ehci_port_attach(uint32_t port, const char *device) "attach port #%d - %s"
 usb_ehci_port_detach(uint32_t port) "detach port #%d"
 usb_ehci_port_reset(uint32_t port, int enable) "reset port #%d - %d"
@@ -239,6 +246,31 @@ usb_set_addr(int addr) "dev %d"
 usb_set_config(int addr, int config, int ret) "dev %d, config %d, ret %d"
 usb_clear_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
+
+# usb-linux.c
+usb_host_open_started(int bus, int addr) "dev %d:%d"
+usb_host_open_success(int bus, int addr) "dev %d:%d"
+usb_host_open_failure(int bus, int addr) "dev %d:%d"
+usb_host_disconnect(int bus, int addr) "dev %d:%d"
+usb_host_close(int bus, int addr) "dev %d:%d"
+usb_host_set_address(int bus, int addr, int config) "dev %d:%d, address %d"
+usb_host_set_config(int bus, int addr, int config) "dev %d:%d, config %d"
+usb_host_set_interface(int bus, int addr, int interface, int alt) "dev %d:%d, interface %d, alt %d"
+usb_host_claim_interfaces(int bus, int addr, int config, int nif) "dev %d:%d, config %d, nif %d"
+usb_host_release_interfaces(int bus, int addr) "dev %d:%d"
+usb_host_req_control(int bus, int addr, int req, int value, int index) "dev %d:%d, req 0x%x, value %d, index %d"
+usb_host_req_data(int bus, int addr, int in, int ep, int size) "dev %d:%d, in %d, ep %d, size %d"
+usb_host_req_complete(int bus, int addr, int status) "dev %d:%d, status %d"
+usb_host_urb_submit(int bus, int addr, void *aurb, int length, int more) "dev %d:%d, aurb %p, length %d, more %d"
+usb_host_urb_complete(int bus, int addr, void *aurb, int status, int length, int more) "dev %d:%d, aurb %p, status %d, length %d, more %d"
+usb_host_ep_set_halt(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_ep_clear_halt(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_ep_start_iso(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_ep_stop_iso(int bus, int addr, int ep) "dev %d:%d, ep %d"
+usb_host_reset(int bus, int addr) "dev %d:%d"
+usb_host_auto_scan_enabled(void)
+usb_host_auto_scan_disabled(void)
+usb_host_claim_port(int bus, int hub, int port) "bus %d, hub addr %d, port %d"
 
 # hw/scsi-bus.c
 scsi_req_alloc(int target, int lun, int tag) "target %d lun %d tag %d"

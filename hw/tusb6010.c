@@ -771,13 +771,12 @@ static void tusb6010_reset(DeviceState *dev)
     for (i = 0; i < 15; i++) {
         s->rx_config[i] = s->tx_config[i] = 0;
     }
+    musb_reset(s->musb);
 }
 
 static int tusb6010_init(SysBusDevice *dev)
 {
     TUSBState *s = FROM_SYSBUS(TUSBState, dev);
-    qemu_irq *musb_irqs;
-    int i;
     s->otg_timer = qemu_new_timer_ns(vm_clock, tusb_otg_tick, s);
     s->pwr_timer = qemu_new_timer_ns(vm_clock, tusb_power_tick, s);
     memory_region_init_io(&s->iomem[1], &tusb_async_ops, s, "tusb-async",
@@ -785,12 +784,8 @@ static int tusb6010_init(SysBusDevice *dev)
     sysbus_init_mmio_region(dev, &s->iomem[0]);
     sysbus_init_mmio_region(dev, &s->iomem[1]);
     sysbus_init_irq(dev, &s->irq);
-    qdev_init_gpio_in(&dev->qdev, tusb6010_irq, __musb_irq_max + 1);
-    musb_irqs = g_new0(qemu_irq, __musb_irq_max);
-    for (i = 0; i < __musb_irq_max; i++) {
-        musb_irqs[i] = qdev_get_gpio_in(&dev->qdev, i + 1);
-    }
-    s->musb = musb_init(musb_irqs);
+    qdev_init_gpio_in(&dev->qdev, tusb6010_irq, musb_irq_max + 1);
+    s->musb = musb_init(&dev->qdev, 1);
     return 0;
 }
 
