@@ -130,6 +130,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     s->config_size = sizeof(struct virtio_9p_config) +
                         s->tag_len;
     s->vdev.get_config = virtio_9p_get_config;
+    s->fid_list = NULL;
 
     if (v9fs_init_worker_threads() < 0) {
         fprintf(stderr, "worker thread initialization failed\n");
@@ -171,6 +172,7 @@ static PCIDeviceInfo virtio_9p_info = {
 static void virtio_9p_register_devices(void)
 {
     pci_qdev_register(&virtio_9p_info);
+    virtio_9p_set_fd_limit();
 }
 
 device_init(virtio_9p_register_devices)
