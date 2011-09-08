@@ -284,6 +284,12 @@ elif check_define __s390__ ; then
   else
     cpu="s390"
   fi
+elif check_define __ARMEB__ ; then
+  cpu="armv4b"
+elif check_define __ARMEL__ ; then
+  cpu="armv4l"
+elif check_define __hppa__ ; then
+  cpu="hppa"
 else
   cpu=`uname -m`
 fi
@@ -304,7 +310,7 @@ case "$cpu" in
   armv*l)
     cpu="armv4l"
   ;;
-  parisc|parisc64)
+  hppa|parisc|parisc64)
     cpu="hppa"
   ;;
   mips*)
