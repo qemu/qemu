@@ -378,6 +378,14 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
         }
     }
 
+    if (ioctl(fd, NBD_SET_FLAGS, flags) < 0
+        && errno != ENOTTY) {
+        int serrno = errno;
+        LOG("Failed setting flags");
+        errno = serrno;
+        return -1;
+    }
+
     TRACE("Clearing NBD socket");
 
     if (ioctl(fd, NBD_CLEAR_SOCK) == -1) {
