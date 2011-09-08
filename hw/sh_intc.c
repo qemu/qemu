@@ -382,13 +382,14 @@ void sh_intc_register_sources(struct intc_desc *desc,
 
 	sh_intc_register_source(desc, vect->enum_id, groups, nr_groups);
 	s = sh_intc_source(desc, vect->enum_id);
-	if (s)
-	    s->vect = vect->vect;
+        if (s) {
+            s->vect = vect->vect;
 
 #ifdef DEBUG_INTC_SOURCES
-	printf("sh_intc: registered source %d -> 0x%04x (%d/%d)\n",
-	       vect->enum_id, s->vect, s->enable_count, s->enable_max);
+            printf("sh_intc: registered source %d -> 0x%04x (%d/%d)\n",
+                   vect->enum_id, s->vect, s->enable_count, s->enable_max);
 #endif
+        }
     }
 
     if (groups) {

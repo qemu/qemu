@@ -1970,20 +1970,20 @@ void helper_aas(void)
 
 void helper_daa(void)
 {
-    int al, af, cf;
+    int old_al, al, af, cf;
     int eflags;
 
     eflags = helper_cc_compute_all(CC_OP);
     cf = eflags & CC_C;
     af = eflags & CC_A;
-    al = EAX & 0xff;
+    old_al = al = EAX & 0xff;
 
     eflags = 0;
     if (((al & 0x0f) > 9 ) || af) {
         al = (al + 6) & 0xff;
         eflags |= CC_A;
     }
-    if ((al > 0x9f) || cf) {
+    if ((old_al > 0x99) || cf) {
         al = (al + 0x60) & 0xff;
         eflags |= CC_C;
     }
