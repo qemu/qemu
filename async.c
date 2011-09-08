@@ -55,6 +55,9 @@ int qemu_bh_poll(void)
 {
     QEMUBH *bh, **bhp, *next;
     int ret;
+    static int nesting = 0;
+
+    nesting++;
 
     ret = 0;
     for (bh = first_bh; bh; bh = next) {
@@ -68,15 +71,20 @@ int qemu_bh_poll(void)
         }
     }
 
+    nesting--;
+
     /* remove deleted bhs */
-    bhp = &first_bh;
-    while (*bhp) {
-        bh = *bhp;
-        if (bh->deleted) {
-            *bhp = bh->next;
-            g_free(bh);
-        } else
-            bhp = &bh->next;
+    if (!nesting) {
+        bhp = &first_bh;
+        while (*bhp) {
+            bh = *bhp;
+            if (bh->deleted) {
+                *bhp = bh->next;
+                g_free(bh);
+            } else {
+                bhp = &bh->next;
+            }
+        }
     }
 
     return ret;

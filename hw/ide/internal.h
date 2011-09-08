@@ -55,111 +55,120 @@ typedef struct IDEDMAOps IDEDMAOps;
 #define IDE_CMD_RESET           0x04
 #define IDE_CMD_DISABLE_IRQ     0x02
 
-/* ATA/ATAPI Commands pre T13 Spec */
+/* ACS-2 T13/2015-D Table B.2 Command codes */
 #define WIN_NOP				0x00
-/*
- *	0x01->0x02 Reserved
- */
+/* reserved                             0x01..0x02 */
 #define CFA_REQ_EXT_ERROR_CODE		0x03 /* CFA Request Extended Error Code */
-/*
- *      0x04->0x05 Reserved
- */
+/* reserved                             0x04..0x05 */
 #define WIN_DSM                         0x06
-/*
- *      0x07 Reserved
- */
-#define WIN_SRST			0x08 /* ATAPI soft reset command */
+/* reserved                             0x07 */
 #define WIN_DEVICE_RESET		0x08
-/*
- *	0x09->0x0F Reserved
- */
-#define WIN_RECAL			0x10
-#define WIN_RESTORE			WIN_RECAL
-/*
- *	0x10->0x1F Reserved
- */
+/* reserved                             0x09..0x0a */
+/* REQUEST SENSE DATA EXT               0x0B */
+/* reserved                             0x0C..0x0F */
+#define WIN_RECAL                       0x10 /* obsolete since ATA4 */
+/* obsolete since ATA3, retired in ATA4 0x11..0x1F */
 #define WIN_READ			0x20 /* 28-Bit */
-#define WIN_READ_ONCE			0x21 /* 28-Bit without retries */
-#define WIN_READ_LONG			0x22 /* 28-Bit */
-#define WIN_READ_LONG_ONCE		0x23 /* 28-Bit without retries */
+#define WIN_READ_ONCE                   0x21 /* 28-Bit w/o retries, obsolete since ATA5 */
+/* obsolete since ATA4                  0x22..0x23 */
 #define WIN_READ_EXT			0x24 /* 48-Bit */
 #define WIN_READDMA_EXT			0x25 /* 48-Bit */
-#define WIN_READDMA_QUEUED_EXT		0x26 /* 48-Bit */
+#define WIN_READDMA_QUEUED_EXT          0x26 /* 48-Bit, obsolete since ACS2 */
 #define WIN_READ_NATIVE_MAX_EXT		0x27 /* 48-Bit */
-/*
- *	0x28
- */
+/* reserved                             0x28 */
 #define WIN_MULTREAD_EXT		0x29 /* 48-Bit */
-/*
- *	0x2A->0x2F Reserved
- */
+/* READ STREAM DMA EXT                  0x2A */
+/* READ STREAM EXT                      0x2B */
+/* reserved                             0x2C..0x2E */
+/* READ LOG EXT                         0x2F */
 #define WIN_WRITE			0x30 /* 28-Bit */
-#define WIN_WRITE_ONCE			0x31 /* 28-Bit without retries */
-#define WIN_WRITE_LONG			0x32 /* 28-Bit */
-#define WIN_WRITE_LONG_ONCE		0x33 /* 28-Bit without retries */
+#define WIN_WRITE_ONCE                  0x31 /* 28-Bit w/o retries, obsolete since ATA5 */
+/* obsolete since ATA4                  0x32..0x33 */
 #define WIN_WRITE_EXT			0x34 /* 48-Bit */
 #define WIN_WRITEDMA_EXT		0x35 /* 48-Bit */
 #define WIN_WRITEDMA_QUEUED_EXT		0x36 /* 48-Bit */
+#define WIN_SET_MAX_EXT                 0x37 /* 48-Bit, obsolete since ACS2 */
 #define WIN_SET_MAX_EXT			0x37 /* 48-Bit */
 #define CFA_WRITE_SECT_WO_ERASE		0x38 /* CFA Write Sectors without erase */
 #define WIN_MULTWRITE_EXT		0x39 /* 48-Bit */
-/*
- *	0x3A->0x3B Reserved
- */
-#define WIN_WRITE_VERIFY		0x3C /* 28-Bit */
-/*
- *	0x3D->0x3F Reserved
- */
+/* WRITE STREAM DMA EXT                 0x3A */
+/* WRITE STREAM EXT                     0x3B */
+#define WIN_WRITE_VERIFY                0x3C /* 28-Bit, obsolete since ATA4 */
+/* WRITE DMA FUA EXT                    0x3D */
+/* obsolete since ACS2                  0x3E */
+/* WRITE LOG EXT                        0x3F */
 #define WIN_VERIFY			0x40 /* 28-Bit - Read Verify Sectors */
-#define WIN_VERIFY_ONCE			0x41 /* 28-Bit - without retries */
+#define WIN_VERIFY_ONCE                 0x41 /* 28-Bit - w/o retries, obsolete since ATA5 */
 #define WIN_VERIFY_EXT			0x42 /* 48-Bit */
-/*
- *	0x43->0x4F Reserved
- */
-#define WIN_FORMAT			0x50
-/*
- *	0x51->0x5F Reserved
- */
-#define WIN_INIT			0x60
-/*
- *	0x61->0x5F Reserved
- */
-#define WIN_SEEK			0x70 /* 0x70-0x7F Reserved */
+/* reserved                             0x43..0x44 */
+/* WRITE UNCORRECTABLE EXT              0x45 */
+/* reserved                             0x46 */
+/* READ LOG DMA EXT                     0x47 */
+/* reserved                             0x48..0x4F */
+/* obsolete since ATA4                  0x50 */
+/* CONFIGURE STREAM                     0x51 */
+/* reserved                             0x52..0x56 */
+/* WRITE LOG DMA EXT                    0x57 */
+/* reserved                             0x58..0x5A */
+/* TRUSTED NON DATA                     0x5B */
+/* TRUSTED RECEIVE                      0x5C */
+/* TRUSTED RECEIVE DMA                  0x5D */
+/* TRUSTED SEND                         0x5E */
+/* TRUSTED SEND DMA                     0x5F */
+/* READ FPDMA QUEUED                    0x60 */
+/* WRITE FPDMA QUEUED                   0x61 */
+/* reserved                             0x62->0x6F */
+#define WIN_SEEK                        0x70 /* obsolete since ATA7 */
+/* reserved                             0x71-0x7F */
+/* vendor specific                      0x80-0x86 */
 #define CFA_TRANSLATE_SECTOR		0x87 /* CFA Translate Sector */
+/* vendor specific                      0x88-0x8F */
 #define WIN_DIAGNOSE			0x90
-#define WIN_SPECIFY			0x91 /* set drive geometry translation */
+#define WIN_SPECIFY                     0x91 /* set drive geometry translation, obsolete since ATA6 */
 #define WIN_DOWNLOAD_MICROCODE		0x92
-#define WIN_STANDBYNOW2			0x94
-#define CFA_IDLEIMMEDIATE		0x95 /* force drive to become "ready" */
-#define WIN_STANDBY2			0x96
-#define WIN_SETIDLE2			0x97
-#define WIN_CHECKPOWERMODE2		0x98
-#define WIN_SLEEPNOW2			0x99
-/*
- *	0x9A VENDOR
- */
+/* DOWNLOAD MICROCODE DMA               0x93 */
+#define WIN_STANDBYNOW2                 0x94 /* retired in ATA4 */
+#define WIN_IDLEIMMEDIATE2              0x95 /* force drive to become "ready", retired in ATA4 */
+#define WIN_STANDBY2                    0x96 /* retired in ATA4 */
+#define WIN_SETIDLE2                    0x97 /* retired in ATA4 */
+#define WIN_CHECKPOWERMODE2             0x98 /* retired in ATA4 */
+#define WIN_SLEEPNOW2                   0x99 /* retired in ATA4 */
+/* vendor specific                      0x9A */
+/* reserved                             0x9B..0x9F */
 #define WIN_PACKETCMD			0xA0 /* Send a packet command. */
 #define WIN_PIDENTIFY			0xA1 /* identify ATAPI device	*/
-#define WIN_QUEUED_SERVICE		0xA2
+#define WIN_QUEUED_SERVICE              0xA2 /* obsolete since ACS2 */
+/* reserved                             0xA3..0xAF */
 #define WIN_SMART			0xB0 /* self-monitoring and reporting */
+/* Device Configuration Overlay         0xB1 */
+/* reserved                             0xB2..0xB3 */
+/* Sanitize Device                      0xB4 */
+/* reserved                             0xB5 */
+/* NV Cache                             0xB6 */
+/* reserved for CFA                     0xB7..0xBB */
 #define CFA_ACCESS_METADATA_STORAGE	0xB8
+/* reserved                             0xBC..0xBF */
 #define CFA_ERASE_SECTORS       	0xC0 /* microdrives implement as NOP */
+/* vendor specific                      0xC1..0xC3 */
 #define WIN_MULTREAD			0xC4 /* read sectors using multiple mode*/
 #define WIN_MULTWRITE			0xC5 /* write sectors using multiple mode */
 #define WIN_SETMULT			0xC6 /* enable/disable multiple mode */
-#define WIN_READDMA_QUEUED		0xC7 /* read sectors using Queued DMA transfers */
+#define WIN_READDMA_QUEUED              0xC7 /* read sectors using Queued DMA transfers, obsolete since ACS2 */
 #define WIN_READDMA			0xC8 /* read sectors using DMA transfers */
-#define WIN_READDMA_ONCE		0xC9 /* 28-Bit - without retries */
+#define WIN_READDMA_ONCE                0xC9 /* 28-Bit - w/o retries, obsolete since ATA5 */
 #define WIN_WRITEDMA			0xCA /* write sectors using DMA transfers */
-#define WIN_WRITEDMA_ONCE		0xCB /* 28-Bit - without retries */
-#define WIN_WRITEDMA_QUEUED		0xCC /* write sectors using Queued DMA transfers */
+#define WIN_WRITEDMA_ONCE               0xCB /* 28-Bit - w/o retries, obsolete since ATA5 */
+#define WIN_WRITEDMA_QUEUED		0xCC /* write sectors using Queued DMA transfers, obsolete since ACS2 */
 #define CFA_WRITE_MULTI_WO_ERASE	0xCD /* CFA Write multiple without erase */
-#define WIN_GETMEDIASTATUS		0xDA
-#define WIN_ACKMEDIACHANGE		0xDB /* ATA-1, ATA-2 vendor */
-#define WIN_POSTBOOT			0xDC
-#define WIN_PREBOOT			0xDD
-#define WIN_DOORLOCK			0xDE /* lock door on removable drives */
-#define WIN_DOORUNLOCK			0xDF /* unlock door on removable drives */
+/* WRITE MULTIPLE FUA EXT               0xCE */
+/* reserved                             0xCF..0xDO */
+/* CHECK MEDIA CARD TYPE                0xD1 */
+/* reserved for media card pass through 0xD2..0xD4 */
+/* reserved                             0xD5..0xD9 */
+#define WIN_GETMEDIASTATUS              0xDA /* obsolete since ATA8 */
+/* obsolete since ATA3, retired in ATA4 0xDB..0xDD */
+#define WIN_DOORLOCK                    0xDE /* lock door on removable drives, obsolete since ATA8 */
+#define WIN_DOORUNLOCK                  0xDF /* unlock door on removable drives, obsolete since ATA8 */
 #define WIN_STANDBYNOW1			0xE0
 #define WIN_IDLEIMMEDIATE		0xE1 /* force drive to become "ready" */
 #define WIN_STANDBY             	0xE2 /* Set device in Standby Mode */
@@ -169,25 +178,25 @@ typedef struct IDEDMAOps IDEDMAOps;
 #define WIN_SLEEPNOW1			0xE6
 #define WIN_FLUSH_CACHE			0xE7
 #define WIN_WRITE_BUFFER		0xE8 /* force write only 1 sector */
-#define WIN_WRITE_SAME			0xE9 /* read ata-2 to use */
-	/* SET_FEATURES 0x22 or 0xDD */
+/* READ BUFFER DMA                      0xE9 */
 #define WIN_FLUSH_CACHE_EXT		0xEA /* 48-Bit */
+/* WRITE BUFFER DMA                     0xEB */
 #define WIN_IDENTIFY			0xEC /* ask drive to identify itself	*/
-#define WIN_MEDIAEJECT			0xED
-#define WIN_IDENTIFY_DMA		0xEE /* same as WIN_IDENTIFY, but DMA */
+#define WIN_MEDIAEJECT                  0xED /* obsolete since ATA8 */
+/* obsolete since ATA4                  0xEE */
 #define WIN_SETFEATURES			0xEF /* set special drive features */
-#define EXABYTE_ENABLE_NEST		0xF0
-#define IBM_SENSE_CONDITION		0xF0 /* measure disk temperature */
+#define IBM_SENSE_CONDITION             0xF0 /* measure disk temperature, vendor specific */
 #define WIN_SECURITY_SET_PASS		0xF1
 #define WIN_SECURITY_UNLOCK		0xF2
 #define WIN_SECURITY_ERASE_PREPARE	0xF3
 #define WIN_SECURITY_ERASE_UNIT		0xF4
 #define WIN_SECURITY_FREEZE_LOCK	0xF5
-#define CFA_WEAR_LEVEL			0xF5 /* microdrives implement as NOP */
+#define CFA_WEAR_LEVEL                  0xF5 /* microdrives implement as NOP; not specified in T13! */
 #define WIN_SECURITY_DISABLE		0xF6
+/* vendor specific                      0xF7 */
 #define WIN_READ_NATIVE_MAX		0xF8 /* return the native maximum address */
 #define WIN_SET_MAX			0xF9
-#define DISABLE_SEAGATE			0xFB
+/* vendor specific                      0xFA..0xFF */
 
 /* set to 1 set disable mult support */
 #define MAX_MULT_SECTORS 16

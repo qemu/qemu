@@ -641,6 +641,7 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base,
             g_free(pfl);
             return NULL;
         }
+        bdrv_attach_dev_nofail(pfl->bs, pfl);
     }
     pflash_setup_mappings(pfl);
     pfl->rom_mode = 1;

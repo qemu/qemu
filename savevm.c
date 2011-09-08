@@ -1914,7 +1914,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     bs = NULL;
     while ((bs = bdrv_next(bs))) {
 
-        if (bdrv_is_removable(bs) || bdrv_is_read_only(bs)) {
+        if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
             continue;
         }
 
@@ -2034,7 +2034,7 @@ int load_vmstate(const char *name)
     bs = NULL;
     while ((bs = bdrv_next(bs))) {
 
-        if (bdrv_is_removable(bs) || bdrv_is_read_only(bs)) {
+        if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
             continue;
         }
 

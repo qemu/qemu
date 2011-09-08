@@ -44,6 +44,7 @@
 #include <windows.h>
 #endif
 
+static void bdrv_dev_change_media_cb(BlockDriverState *bs);
 static BlockDriverAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
         BlockDriverCompletionFunc *cb, void *opaque);
@@ -688,10 +689,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
     }
 
     if (!bdrv_key_required(bs)) {
-        /* call the change callback */
-        bs->media_changed = 1;
-        if (bs->change_cb)
-            bs->change_cb(bs->change_opaque, CHANGE_MEDIA);
+        bdrv_dev_change_media_cb(bs);
     }
 
     return 0;
@@ -727,10 +725,7 @@ void bdrv_close(BlockDriverState *bs)
             bdrv_close(bs->file);
         }
 
-        /* call the change callback */
-        bs->media_changed = 1;
-        if (bs->change_cb)
-            bs->change_cb(bs->change_opaque, CHANGE_MEDIA);
+        bdrv_dev_change_media_cb(bs);
     }
 }
 
@@ -755,7 +750,7 @@ void bdrv_make_anon(BlockDriverState *bs)
 
 void bdrv_delete(BlockDriverState *bs)
 {
-    assert(!bs->peer);
+    assert(!bs->dev);
 
     /* remove from list, if necessary */
     bdrv_make_anon(bs);
@@ -769,26 +764,58 @@ void bdrv_delete(BlockDriverState *bs)
     g_free(bs);
 }
 
-int bdrv_attach(BlockDriverState *bs, DeviceState *qdev)
+int bdrv_attach_dev(BlockDriverState *bs, void *dev)
+/* TODO change to DeviceState *dev when all users are qdevified */
 {
-    if (bs->peer) {
+    if (bs->dev) {
         return -EBUSY;
     }
-    bs->peer = qdev;
+    bs->dev = dev;
     return 0;
 }
 
-void bdrv_detach(BlockDriverState *bs, DeviceState *qdev)
+/* TODO qdevified devices don't use this, remove when devices are qdevified */
+void bdrv_attach_dev_nofail(BlockDriverState *bs, void *dev)
 {
-    assert(bs->peer == qdev);
-    bs->peer = NULL;
-    bs->change_cb = NULL;
-    bs->change_opaque = NULL;
+    if (bdrv_attach_dev(bs, dev) < 0) {
+        abort();
+    }
 }
 
-DeviceState *bdrv_get_attached(BlockDriverState *bs)
+void bdrv_detach_dev(BlockDriverState *bs, void *dev)
+/* TODO change to DeviceState *dev when all users are qdevified */
 {
-    return bs->peer;
+    assert(bs->dev == dev);
+    bs->dev = NULL;
+    bs->dev_ops = NULL;
+    bs->dev_opaque = NULL;
+}
+
+/* TODO change to return DeviceState * when all users are qdevified */
+void *bdrv_get_attached_dev(BlockDriverState *bs)
+{
+    return bs->dev;
+}
+
+void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
+                      void *opaque)
+{
+    bs->dev_ops = ops;
+    bs->dev_opaque = opaque;
+}
+
+static void bdrv_dev_change_media_cb(BlockDriverState *bs)
+{
+    if (bs->dev_ops && bs->dev_ops->change_media_cb) {
+        bs->dev_ops->change_media_cb(bs->dev_opaque);
+    }
+}
+
+static void bdrv_dev_resize_cb(BlockDriverState *bs)
+{
+    if (bs->dev_ops && bs->dev_ops->resize_cb) {
+        bs->dev_ops->resize_cb(bs->dev_opaque);
+    }
 }
 
 /*
@@ -1261,9 +1288,7 @@ int bdrv_truncate(BlockDriverState *bs, int64_t offset)
     ret = drv->bdrv_truncate(bs, offset);
     if (ret == 0) {
         ret = refresh_total_sectors(bs, offset >> BDRV_SECTOR_BITS);
-        if (bs->change_cb) {
-            bs->change_cb(bs->change_opaque, CHANGE_SIZE);
-        }
+        bdrv_dev_resize_cb(bs);
     }
     return ret;
 }
@@ -1601,15 +1626,6 @@ int bdrv_enable_write_cache(BlockDriverState *bs)
     return bs->enable_write_cache;
 }
 
-/* XXX: no longer used */
-void bdrv_set_change_cb(BlockDriverState *bs,
-                        void (*change_cb)(void *opaque, int reason),
-                        void *opaque)
-{
-    bs->change_cb = change_cb;
-    bs->change_opaque = opaque;
-}
-
 int bdrv_is_encrypted(BlockDriverState *bs)
 {
     if (bs->backing_hd && bs->backing_hd->encrypted)
@@ -1647,9 +1663,7 @@ int bdrv_set_key(BlockDriverState *bs, const char *key)
     } else if (!bs->valid_key) {
         bs->valid_key = 1;
         /* call the change callback now, we skipped it on open */
-        bs->media_changed = 1;
-        if (bs->change_cb)
-            bs->change_cb(bs->change_opaque, CHANGE_MEDIA);
+        bdrv_dev_change_media_cb(bs);
     }
     return ret;
 }
@@ -1739,8 +1753,7 @@ void bdrv_flush_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        if (bs->drv && !bdrv_is_read_only(bs) &&
-            (!bdrv_is_removable(bs) || bdrv_is_inserted(bs))) {
+        if (!bdrv_is_read_only(bs) && bdrv_is_inserted(bs)) {
             bdrv_flush(bs);
         }
     }
@@ -2084,7 +2097,7 @@ void bdrv_debug_event(BlockDriverState *bs, BlkDebugEvent event)
 int bdrv_can_snapshot(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
-    if (!drv || bdrv_is_removable(bs) || bdrv_is_read_only(bs)) {
+    if (!drv || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
         return 0;
     }
 
@@ -3023,22 +3036,17 @@ int bdrv_is_inserted(BlockDriverState *bs)
 }
 
 /**
- * Return TRUE if the media changed since the last call to this
- * function. It is currently only used for floppy disks
+ * Return whether the media changed since the last call to this
+ * function, or -ENOTSUP if we don't know.  Most drivers don't know.
  */
 int bdrv_media_changed(BlockDriverState *bs)
 {
     BlockDriver *drv = bs->drv;
-    int ret;
 
-    if (!drv || !drv->bdrv_media_changed)
-        ret = -ENOTSUP;
-    else
-        ret = drv->bdrv_media_changed(bs);
-    if (ret == -ENOTSUP)
-        ret = bs->media_changed;
-    bs->media_changed = 0;
-    return ret;
+    if (drv && drv->bdrv_media_changed) {
+        return drv->bdrv_media_changed(bs);
+    }
+    return -ENOTSUP;
 }
 
 /**

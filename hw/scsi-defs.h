@@ -102,7 +102,7 @@
 #define LOCATE_16             0x92
 #define WRITE_SAME_16         0x93
 #define ERASE_16              0x93
-#define SERVICE_ACTION_IN     0x9e
+#define SERVICE_ACTION_IN_16  0x9e
 #define WRITE_LONG_16         0x9f
 #define REPORT_LUNS           0xa0
 #define BLANK                 0xa1
@@ -112,6 +112,7 @@
 #define LOAD_UNLOAD           0xa6
 #define READ_12               0xa8
 #define WRITE_12              0xaa
+#define SERVICE_ACTION_IN_12  0xab
 #define WRITE_VERIFY_12       0xae
 #define VERIFY_12             0xaf
 #define SEARCH_HIGH_12        0xb0
@@ -121,6 +122,11 @@
 #define SEND_VOLUME_TAG       0xb6
 #define READ_DEFECT_DATA_12   0xb7
 #define SET_CD_SPEED          0xbb
+
+/*
+ * SERVICE ACTION IN subcodes
+ */
+#define SAI_READ_CAPACITY_16  0x10
 
 /*
  *  SAM Status codes

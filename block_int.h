@@ -161,21 +161,20 @@ struct BlockDriverState {
     int encrypted; /* if true, the media is encrypted */
     int valid_key; /* if true, a valid encryption key has been set */
     int sg;        /* if true, the device is a /dev/sg* */
-    /* event callback when inserting/removing */
-    void (*change_cb)(void *opaque, int reason);
-    void *change_opaque;
 
     BlockDriver *drv; /* NULL means no media */
     void *opaque;
 
-    DeviceState *peer;
+    void *dev;                  /* attached device model, if any */
+    /* TODO change to DeviceState when all users are qdevified */
+    const BlockDevOps *dev_ops;
+    void *dev_opaque;
 
     char filename[1024];
     char backing_file[1024]; /* if non zero, the image is a diff of
                                 this file image */
     char backing_format[16]; /* if non-zero and backing_file exists */
     int is_temporary;
-    int media_changed;
 
     BlockDriverState *backing_hd;
     BlockDriverState *file;
@@ -211,9 +210,6 @@ struct BlockDriverState {
     void *private;
 };
 
-#define CHANGE_MEDIA    0x01
-#define CHANGE_SIZE     0x02
-
 struct BlockDriverAIOCB {
     AIOPool *pool;
     BlockDriverState *bs;
@@ -227,8 +223,6 @@ void get_tmp_filename(char *filename, int size);
 void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
                    BlockDriverCompletionFunc *cb, void *opaque);
 void qemu_aio_release(void *p);
-
-void *qemu_blockalign(BlockDriverState *bs, size_t size);
 
 #ifdef _WIN32
 int is_windows_drive(const char *filename);

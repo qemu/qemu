@@ -697,6 +697,7 @@ static int blk_init(struct XenDevice *xendev)
         xen_be_printf(&blkdev->xendev, 2, "get configured bdrv (cmdline setup)\n");
         blkdev->bs = blkdev->dinfo->bdrv;
     }
+    bdrv_attach_dev_nofail(blkdev->bs, blkdev);
     blkdev->file_blk  = BLOCK_SIZE;
     blkdev->file_size = bdrv_getlength(blkdev->bs);
     if (blkdev->file_size < 0) {

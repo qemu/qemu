@@ -14,7 +14,6 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "sysemu.h"
-#include "hw/qdev.h"
 #include "block_int.h"
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
@@ -738,12 +737,12 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     bdrv_flush(bs);
     bdrv_close(bs);
 
-    /* if we have a device associated with this BlockDriverState (bs->peer)
+    /* if we have a device attached to this BlockDriverState
      * then we need to make the drive anonymous until the device
      * can be removed.  If this is a drive with no device backing
      * then we can just get rid of the block driver state right here.
      */
-    if (bs->peer) {
+    if (bdrv_get_attached_dev(bs)) {
         bdrv_make_anon(bs);
     } else {
         drive_uninit(drive_get_by_blockdev(bs));
