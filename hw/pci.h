@@ -209,8 +209,6 @@ int pci_add_capability(PCIDevice *pdev, uint8_t cap_id,
 
 void pci_del_capability(PCIDevice *pci_dev, uint8_t cap_id, uint8_t cap_size);
 
-void pci_reserve_capability(PCIDevice *pci_dev, uint8_t offset, uint8_t size);
-
 uint8_t pci_find_capability(PCIDevice *pci_dev, uint8_t cap_id);
 
 
