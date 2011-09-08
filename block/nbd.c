@@ -48,6 +48,7 @@
 
 typedef struct BDRVNBDState {
     int sock;
+    uint32_t nbdflags;
     off_t size;
     size_t blocksize;
     char *export_name; /* An NBD server may export several devices */
@@ -111,7 +112,6 @@ static int nbd_establish_connection(BlockDriverState *bs)
     int ret;
     off_t size;
     size_t blocksize;
-    uint32_t nbdflags;
 
     if (s->host_spec[0] == '/') {
         sock = unix_socket_outgoing(s->host_spec);
@@ -126,7 +126,7 @@ static int nbd_establish_connection(BlockDriverState *bs)
     }
 
     /* NBD handshake */
-    ret = nbd_receive_negotiate(sock, s->export_name, &nbdflags, &size,
+    ret = nbd_receive_negotiate(sock, s->export_name, &s->nbdflags, &size,
                                 &blocksize);
     if (ret == -1) {
         logout("Failed to negotiate with the NBD server\n");

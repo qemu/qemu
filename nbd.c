@@ -30,6 +30,10 @@
 #include <ctype.h>
 #include <inttypes.h>
 
+#ifdef __linux__
+#include <linux/fs.h>
+#endif
+
 #include "qemu_socket.h"
 
 //#define DEBUG_NBD
@@ -172,7 +176,7 @@ int unix_socket_outgoing(const char *path)
                   Request (type == 2)
 */
 
-int nbd_negotiate(int csock, off_t size)
+int nbd_negotiate(int csock, off_t size, uint32_t flags)
 {
     char buf[8 + 8 + 8 + 128];
 
@@ -180,14 +184,16 @@ int nbd_negotiate(int csock, off_t size)
         [ 0 ..   7]   passwd   ("NBDMAGIC")
         [ 8 ..  15]   magic    (0x00420281861253)
         [16 ..  23]   size
-        [24 .. 151]   reserved (0)
+        [24 ..  27]   flags
+        [28 .. 151]   reserved (0)
      */
 
     TRACE("Beginning negotiation.");
     memcpy(buf, "NBDMAGIC", 8);
     cpu_to_be64w((uint64_t*)(buf + 8), 0x00420281861253LL);
     cpu_to_be64w((uint64_t*)(buf + 16), size);
-    memset(buf + 24, 0, 128);
+    cpu_to_be32w((uint32_t*)(buf + 24), flags | NBD_FLAG_HAS_FLAGS);
+    memset(buf + 28, 0, 124);
 
     if (write_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
         LOG("write failed");
@@ -337,8 +343,8 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
         return 0;
 }
 
-#ifndef _WIN32
-int nbd_init(int fd, int csock, off_t size, size_t blocksize)
+#ifdef __linux__
+int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
 {
     TRACE("Setting block size to %lu", (unsigned long)blocksize);
 
@@ -356,6 +362,18 @@ int nbd_init(int fd, int csock, off_t size, size_t blocksize)
         LOG("Failed setting size (in blocks)");
         errno = serrno;
         return -1;
+    }
+
+    if (flags & NBD_FLAG_READ_ONLY) {
+        int read_only = 1;
+        TRACE("Setting readonly attribute");
+
+        if (ioctl(fd, BLKROSET, (unsigned long) &read_only) < 0) {
+            int serrno = errno;
+            LOG("Failed setting read-only attribute");
+            errno = serrno;
+            return -1;
+        }
     }
 
     TRACE("Clearing NBD socket");
@@ -548,7 +566,7 @@ static int nbd_send_reply(int csock, struct nbd_reply *reply)
 }
 
 int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
-             off_t *offset, bool readonly, uint8_t *data, int data_size)
+             off_t *offset, uint32_t nbdflags, uint8_t *data, int data_size)
 {
     struct nbd_request request;
     struct nbd_reply reply;
@@ -632,7 +650,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
             return -1;
         }
 
-        if (readonly) {
+        if (nbdflags & NBD_FLAG_READ_ONLY) {
             TRACE("Server is read-only, return error");
             reply.error = 1;
         } else {
