@@ -29,6 +29,7 @@
 #include "blockdev.h"
 #include "milkymist-hw.h"
 #include "lm32.h"
+#include "exec-memory.h"
 
 #define BIOS_FILENAME    "mmone-bios.bin"
 #define BIOS_OFFSET      0x00860000
@@ -81,8 +82,8 @@ milkymist_init(ram_addr_t ram_size_not_used,
     CPUState *env;
     int kernel_size;
     DriveInfo *dinfo;
-    ram_addr_t phys_sdram;
-    ram_addr_t phys_flash;
+    MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *phys_sdram = g_new(MemoryRegion, 1);
     qemu_irq irq[32], *cpu_irq;
     int i;
     char *bios_filename;
@@ -109,14 +110,12 @@ milkymist_init(ram_addr_t ram_size_not_used,
 
     cpu_lm32_set_phys_msb_ignore(env, 1);
 
-    phys_sdram = qemu_ram_alloc(NULL, "milkymist.sdram", sdram_size);
-    cpu_register_physical_memory(sdram_base, sdram_size,
-            phys_sdram | IO_MEM_RAM);
+    memory_region_init_ram(phys_sdram, NULL, "milkymist.sdram", sdram_size);
+    memory_region_add_subregion(address_space_mem, sdram_base, phys_sdram);
 
-    phys_flash = qemu_ram_alloc(NULL, "milkymist.flash", flash_size);
     dinfo = drive_get(IF_PFLASH, 0, 0);
     /* Numonyx JS28F256J3F105 */
-    pflash_cfi01_register(flash_base, phys_flash,
+    pflash_cfi01_register(flash_base, NULL, "milkymist.flash", flash_size,
                           dinfo ? dinfo->bdrv : NULL, flash_sector_size,
                           flash_size / flash_sector_size, 2,
                           0x00, 0x89, 0x00, 0x1d, 1);

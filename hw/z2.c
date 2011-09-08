@@ -305,7 +305,7 @@ static void z2_init(ram_addr_t ram_size,
     }
 
     if (!pflash_cfi01_register(Z2_FLASH_BASE,
-                               qemu_ram_alloc(NULL, "z2.flash0", Z2_FLASH_SIZE),
+                               NULL, "z2.flash0", Z2_FLASH_SIZE,
                                dinfo->bdrv, sector_len,
                                Z2_FLASH_SIZE / sector_len, 4, 0, 0, 0, 0,
                                be)) {

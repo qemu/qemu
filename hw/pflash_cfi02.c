@@ -39,6 +39,7 @@
 #include "flash.h"
 #include "qemu-timer.h"
 #include "block.h"
+#include "exec-memory.h"
 
 //#define PFLASH_DEBUG
 #ifdef PFLASH_DEBUG
@@ -69,25 +70,38 @@ struct pflash_t {
     uint8_t cfi_len;
     uint8_t cfi_table[0x52];
     QEMUTimer *timer;
-    ram_addr_t off;
-    int fl_mem;
+    /* The device replicates the flash memory across its memory space.  Emulate
+     * that by having a container (.mem) filled with an array of aliases
+     * (.mem_mappings) pointing to the flash memory (.orig_mem).
+     */
+    MemoryRegion mem;
+    MemoryRegion *mem_mappings;    /* array; one per mapping */
+    MemoryRegion orig_mem;
     int rom_mode;
     int read_counter; /* used for lazy switch-back to rom mode */
     void *storage;
 };
 
+/*
+ * Set up replicated mappings of the same region.
+ */
+static void pflash_setup_mappings(pflash_t *pfl)
+{
+    unsigned i;
+    target_phys_addr_t size = memory_region_size(&pfl->orig_mem);
+
+    memory_region_init(&pfl->mem, "pflash", pfl->mappings * size);
+    pfl->mem_mappings = g_new(MemoryRegion, pfl->mappings);
+    for (i = 0; i < pfl->mappings; ++i) {
+        memory_region_init_alias(&pfl->mem_mappings[i], "pflash-alias",
+                                 &pfl->orig_mem, 0, size);
+        memory_region_add_subregion(&pfl->mem, i * size, &pfl->mem_mappings[i]);
+    }
+}
+
 static void pflash_register_memory(pflash_t *pfl, int rom_mode)
 {
-    unsigned long phys_offset = pfl->fl_mem;
-    int i;
-
-    if (rom_mode)
-        phys_offset |= pfl->off | IO_MEM_ROMD;
-    pfl->rom_mode = rom_mode;
-
-    for (i = 0; i < pfl->mappings; i++)
-        cpu_register_physical_memory(pfl->base + i * pfl->chip_len,
-                                     pfl->chip_len, phys_offset);
+    memory_region_rom_device_set_readable(&pfl->orig_mem, rom_mode);
 }
 
 static void pflash_timer (void *opaque)
@@ -538,28 +552,20 @@ static void pflash_writel_le(void *opaque, target_phys_addr_t addr,
     pflash_write(pfl, addr, value, 4, 0);
 }
 
-static CPUWriteMemoryFunc * const pflash_write_ops_be[] = {
-    &pflash_writeb_be,
-    &pflash_writew_be,
-    &pflash_writel_be,
+static const MemoryRegionOps pflash_cfi02_ops_be = {
+    .old_mmio = {
+        .read = { pflash_readb_be, pflash_readw_be, pflash_readl_be, },
+        .write = { pflash_writeb_be, pflash_writew_be, pflash_writel_be, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUReadMemoryFunc * const pflash_read_ops_be[] = {
-    &pflash_readb_be,
-    &pflash_readw_be,
-    &pflash_readl_be,
-};
-
-static CPUWriteMemoryFunc * const pflash_write_ops_le[] = {
-    &pflash_writeb_le,
-    &pflash_writew_le,
-    &pflash_writel_le,
-};
-
-static CPUReadMemoryFunc * const pflash_read_ops_le[] = {
-    &pflash_readb_le,
-    &pflash_readw_le,
-    &pflash_readl_le,
+static const MemoryRegionOps pflash_cfi02_ops_le = {
+    .old_mmio = {
+        .read = { pflash_readb_le, pflash_readw_le, pflash_readl_le, },
+        .write = { pflash_writeb_le, pflash_writew_le, pflash_writel_le, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* Count trailing zeroes of a 32 bits quantity */
@@ -598,7 +604,9 @@ static int ctz32 (uint32_t n)
     return ret;
 }
 
-pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
+pflash_t *pflash_cfi02_register(target_phys_addr_t base,
+                                DeviceState *qdev, const char *name,
+                                target_phys_addr_t size,
                                 BlockDriverState *bs, uint32_t sector_len,
                                 int nb_blocs, int nb_mappings, int width,
                                 uint16_t id0, uint16_t id1,
@@ -618,32 +626,25 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base, ram_addr_t off,
         return NULL;
 #endif
     pfl = g_malloc0(sizeof(pflash_t));
-    /* FIXME: Allocate ram ourselves.  */
-    pfl->storage = qemu_get_ram_ptr(off);
-    if (be) {
-        pfl->fl_mem = cpu_register_io_memory(pflash_read_ops_be,
-                                             pflash_write_ops_be,
-                                             pfl, DEVICE_NATIVE_ENDIAN);
-    } else {
-        pfl->fl_mem = cpu_register_io_memory(pflash_read_ops_le,
-                                             pflash_write_ops_le,
-                                             pfl, DEVICE_NATIVE_ENDIAN);
-    }
-    pfl->off = off;
+    memory_region_init_rom_device(
+        &pfl->orig_mem, be ? &pflash_cfi02_ops_be : &pflash_cfi02_ops_le, pfl,
+        qdev, name, size);
+    pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
     pfl->base = base;
     pfl->chip_len = chip_len;
     pfl->mappings = nb_mappings;
-    pflash_register_memory(pfl, 1);
     pfl->bs = bs;
     if (pfl->bs) {
         /* read the initial flash content */
         ret = bdrv_read(pfl->bs, 0, pfl->storage, chip_len >> 9);
         if (ret < 0) {
-            cpu_unregister_io_memory(pfl->fl_mem);
             g_free(pfl);
             return NULL;
         }
     }
+    pflash_setup_mappings(pfl);
+    pfl->rom_mode = 1;
+    memory_region_add_subregion(get_system_memory(), pfl->base, &pfl->mem);
 #if 0 /* XXX: there should be a bit to set up read-only,
        *      the same way the hardware does (with WP pin).
        */

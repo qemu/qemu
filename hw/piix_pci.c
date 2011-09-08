@@ -142,6 +142,7 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
     int i, r;
     uint32_t smram;
 
+    memory_region_transaction_begin();
     update_pam(d, 0xf0000, 0x100000, (d->dev.config[I440FX_PAM] >> 4) & 3,
                &d->pam_regions[0]);
     for(i = 0; i < 12; i++) {
@@ -162,6 +163,7 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
             d->smram_enabled = false;
         }
     }
+    memory_region_transaction_commit();
 }
 
 static void i440fx_set_smm(int val, void *arg)
@@ -235,9 +237,16 @@ static int i440fx_pcihost_initfn(SysBusDevice *dev)
 {
     I440FXState *s = FROM_SYSBUS(I440FXState, dev);
 
-    pci_host_conf_register_ioport(0xcf8, s);
+    memory_region_init_io(&s->conf_mem, &pci_host_conf_le_ops, s,
+                          "pci-conf-idx", 4);
+    sysbus_add_io(dev, 0xcf8, &s->conf_mem);
+    sysbus_init_ioports(&s->busdev, 0xcf8, 4);
 
-    pci_host_data_register_ioport(0xcfc, s);
+    memory_region_init_io(&s->data_mem, &pci_host_data_le_ops, s,
+                          "pci-conf-data", 4);
+    sysbus_add_io(dev, 0xcfc, &s->data_mem);
+    sysbus_init_ioports(&s->busdev, 0xcfc, 4);
+
     return 0;
 }
 

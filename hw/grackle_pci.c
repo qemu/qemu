@@ -92,16 +92,15 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
 static int pci_grackle_init_device(SysBusDevice *dev)
 {
     GrackleState *s;
-    int pci_mem_config, pci_mem_data;
 
     s = FROM_SYSBUS(GrackleState, dev);
 
-    pci_mem_config = pci_host_conf_register_mmio(&s->host_state,
-                                                 DEVICE_LITTLE_ENDIAN);
-    pci_mem_data = pci_host_data_register_mmio(&s->host_state,
-                                               DEVICE_LITTLE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_config);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_data);
+    memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
+                          &s->host_state, "pci-conf-idx", 0x1000);
+    memory_region_init_io(&s->host_state.data_mem, &pci_host_data_le_ops,
+                          &s->host_state, "pci-data-idx", 0x1000);
+    sysbus_init_mmio_region(dev, &s->host_state.conf_mem);
+    sysbus_init_mmio_region(dev, &s->host_state.data_mem);
 
     qemu_register_reset(pci_grackle_reset, &s->host_state);
     return 0;

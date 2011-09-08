@@ -1565,16 +1565,16 @@ static void musicpal_init(ram_addr_t ram_size,
          * image is smaller than 32 MB.
          */
 #ifdef TARGET_WORDS_BIGENDIAN
-        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, qemu_ram_alloc(NULL,
-                              "musicpal.flash", flash_size),
+        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, NULL,
+                              "musicpal.flash", flash_size,
                               dinfo->bdrv, 0x10000,
                               (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
                               2, 0x00BF, 0x236D, 0x0000, 0x0000,
                               0x5555, 0x2AAA, 1);
 #else
-        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, qemu_ram_alloc(NULL,
-                              "musicpal.flash", flash_size),
+        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, NULL,
+                              "musicpal.flash", flash_size,
                               dinfo->bdrv, 0x10000,
                               (flash_size + 0xffff) >> 16,
                               MP_FLASH_SIZE_MAX / flash_size,
