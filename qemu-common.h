@@ -175,7 +175,7 @@ ssize_t qemu_write_full(int fd, const void *buf, size_t count)
     QEMU_WARN_UNUSED_RESULT;
 ssize_t qemu_send_full(int fd, const void *buf, size_t count, int flags)
     QEMU_WARN_UNUSED_RESULT;
-ssize_t qemu_recv_full(int fd, const void *buf, size_t count, int flags)
+ssize_t qemu_recv_full(int fd, void *buf, size_t count, int flags)
     QEMU_WARN_UNUSED_RESULT;
 void qemu_set_cloexec(int fd);
 
@@ -189,6 +189,9 @@ int qemu_pipe(int pipefd[2]);
 #else
 #define qemu_recv(sockfd, buf, len, flags) recv(sockfd, buf, len, flags)
 #endif
+
+int qemu_recvv(int sockfd, struct iovec *iov, int len, int iov_offset);
+int qemu_sendv(int sockfd, struct iovec *iov, int len, int iov_offset);
 
 /* Error handling.  */
 
@@ -275,6 +278,33 @@ struct qemu_work_item {
 #else
 void qemu_init_vcpu(void *env);
 #endif
+
+/**
+ * Sends an iovec (or optionally a part of it) down a socket, yielding
+ * when the socket is full.
+ */
+int qemu_co_sendv(int sockfd, struct iovec *iov,
+                  int len, int iov_offset);
+
+/**
+ * Receives data into an iovec (or optionally into a part of it) from
+ * a socket, yielding when there is no data in the socket.
+ */
+int qemu_co_recvv(int sockfd, struct iovec *iov,
+                  int len, int iov_offset);
+
+
+/**
+ * Sends a buffer down a socket, yielding when the socket is full.
+ */
+int qemu_co_send(int sockfd, void *buf, int len);
+
+/**
+ * Receives data into a buffer from a socket, yielding when there
+ * is no data in the socket.
+ */
+int qemu_co_recv(int sockfd, void *buf, int len);
+
 
 typedef struct QEMUIOVector {
     struct iovec *iov;
