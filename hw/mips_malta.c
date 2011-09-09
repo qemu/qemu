@@ -893,10 +893,11 @@ void mips_malta_init (ram_addr_t ram_size,
         loaderparams.initrd_filename = initrd_filename;
         kernel_entry = load_kernel(env->bigendian);
         write_bootloader(env, memory_region_get_ram_ptr(bios), kernel_entry);
-        pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
-                              FLASH_SIZE, flashdriver, 65536, fl_sectors,
-                              4, 0x0000, 0x0000, 0x0000, 0x0000,
-                              env->bigendian);
+        // TODO: Always register flash.
+        //~ pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
+                              //~ FLASH_SIZE, flashdriver, 65536, fl_sectors,
+                              //~ 4, 0x0000, 0x0000, 0x0000, 0x0000,
+                              //~ env->bigendian);
     } else {
         target_long bios_size;
         if (dinfo) {
