@@ -295,7 +295,7 @@ static void pprint_data(V9fsPDU *pdu, int rx, size_t *offsetp, const char *name)
 
     if (rx) {
         count = pdu->elem.in_num;
-    } else
+    } else {
         count = pdu->elem.out_num;
     }
 

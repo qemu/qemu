@@ -1025,7 +1025,6 @@ echo "  --disable-linux-aio      disable Linux AIO support"
 echo "  --enable-linux-aio       enable Linux AIO support"
 echo "  --disable-attr           disables attr and xattr support"
 echo "  --enable-attr            enable attr and xattr support"
-echo "  --enable-io-thread       enable IO thread"
 echo "  --disable-blobs          disable installing provided firmware blobs"
 echo "  --enable-docs            enable documentation build"
 echo "  --disable-docs           disable documentation build"
@@ -1071,7 +1070,7 @@ cat > $TMPC << EOF
 int main(void) { return 0; }
 EOF
 for flag in $gcc_flags; do
-    if compile_prog "-Werror $QEMU_CFLAGS" "-Werror $flag" ; then
+    if compile_prog "$flag -Werror" "" ; then
 	QEMU_CFLAGS="$QEMU_CFLAGS $flag"
     fi
 done
