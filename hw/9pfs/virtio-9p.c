@@ -2338,6 +2338,45 @@ out_nofid:
     complete_pdu(pdu->s, pdu, err);
 }
 
+static void v9fs_unlinkat(void *opaque)
+{
+    int err = 0;
+    V9fsString name;
+    int32_t dfid, flags;
+    size_t offset = 7;
+    V9fsFidState *dfidp;
+    V9fsPDU *pdu = opaque;
+    V9fsString full_name;
+
+    pdu_unmarshal(pdu, offset, "dsd", &dfid, &name, &flags);
+
+    dfidp = get_fid(pdu->s, dfid);
+    if (dfidp == NULL) {
+        err = -EINVAL;
+        goto out_nofid;
+    }
+    v9fs_string_init(&full_name);
+    v9fs_string_sprintf(&full_name, "%s/%s", dfidp->path.data, name.data);
+    /*
+     * IF the file is unlinked, we cannot reopen
+     * the file later. So don't reclaim fd
+     */
+    err = v9fs_mark_fids_unreclaim(pdu->s, &full_name);
+    if (err < 0) {
+        goto out_err;
+    }
+    err = v9fs_co_remove(pdu->s, &full_name);
+    if (!err) {
+        err = offset;
+    }
+out_err:
+    put_fid(pdu->s, dfidp);
+    v9fs_string_free(&full_name);
+out_nofid:
+    complete_pdu(pdu->s, pdu, err);
+    v9fs_string_free(&name);
+}
+
 static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
                                 int32_t newdirfid, V9fsString *name)
 {
@@ -3040,6 +3079,7 @@ static CoroutineEntry *pdu_co_handlers[] = {
     [P9_TGETLOCK] = v9fs_getlock,
     [P9_TRENAMEAT] = v9fs_renameat,
     [P9_TREADLINK] = v9fs_readlink,
+    [P9_TUNLINKAT] = v9fs_unlinkat,
     [P9_TMKDIR] = v9fs_mkdir,
     [P9_TVERSION] = v9fs_version,
     [P9_TLOPEN] = v9fs_open,

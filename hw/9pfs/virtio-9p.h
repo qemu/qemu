@@ -52,6 +52,8 @@ enum {
     P9_RMKDIR,
     P9_TRENAMEAT = 74,
     P9_RRENAMEAT,
+    P9_TUNLINKAT = 76,
+    P9_RUNLINKAT,
     P9_TVERSION = 100,
     P9_RVERSION,
     P9_TAUTH = 102,
