@@ -60,7 +60,7 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <linux/wireless.h>
-#include <qemu-common.h>
+#include "qemu-common.h"
 #ifdef TARGET_GPROF
 #include <sys/gmon.h>
 #endif
@@ -96,7 +96,6 @@ int __clone2(int (*fn)(void *), void *child_stack_base,
 #include "cpu-uname.h"
 
 #include "qemu.h"
-#include "qemu-common.h"
 
 #if defined(CONFIG_USE_NPTL)
 #define CLONE_NPTL_FLAGS2 (CLONE_SETTLS | \

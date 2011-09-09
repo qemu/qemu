@@ -620,7 +620,7 @@ static void cpu_ioreq_move(ioreq_t *req)
             }
         }
     } else {
-        target_ulong tmp;
+        uint64_t tmp;
 
         if (req->dir == IOREQ_READ) {
             for (i = 0; i < req->count; i++) {

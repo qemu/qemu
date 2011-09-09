@@ -22,6 +22,7 @@ typedef void (QEMUBalloonStatus)(void *opaque, MonitorCompletion cb,
 
 int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
 			     QEMUBalloonStatus *stat_func, void *opaque);
+void qemu_remove_balloon_handler(void *opaque);
 
 void monitor_print_balloon(Monitor *mon, const QObject *data);
 int do_info_balloon(Monitor *mon, MonitorCompletion cb, void *opaque);

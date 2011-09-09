@@ -52,6 +52,16 @@ int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
     return 0;
 }
 
+void qemu_remove_balloon_handler(void *opaque)
+{
+    if (balloon_opaque != opaque) {
+        return;
+    }
+    balloon_event_fn = NULL;
+    balloon_stat_fn = NULL;
+    balloon_opaque = NULL;
+}
+
 static int qemu_balloon(ram_addr_t target)
 {
     if (!balloon_event_fn) {

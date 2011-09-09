@@ -1560,7 +1560,7 @@ static void tcg_out_op (TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 
     case INDEX_op_ext32u_i64:
-        tcg_out_rld (s, RLDICR, args[0], args[1], 0, 32);
+        tcg_out_rld (s, RLDICL, args[0], args[1], 0, 32);
         break;
 
     case INDEX_op_setcond_i32:

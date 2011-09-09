@@ -67,10 +67,6 @@ int v9fs_init_worker_threads(void)
     /* Leave signal handling to the iothread.  */
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
 
-    /* init thread system if not already initialized */
-    if (!g_thread_get_initialized()) {
-        g_thread_init(NULL);
-    }
     if (qemu_pipe(notifier_fds) == -1) {
         ret = -1;
         goto err_out;

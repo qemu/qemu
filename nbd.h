@@ -21,7 +21,7 @@
 
 #include <sys/types.h>
 
-#include <qemu-common.h>
+#include "qemu-common.h"
 
 #include "block_int.h"
 
