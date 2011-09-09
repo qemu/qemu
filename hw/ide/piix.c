@@ -27,7 +27,6 @@
 #include <hw/pci.h>
 #include <hw/isa.h>
 #include "block.h"
-#include "block_int.h"
 #include "sysemu.h"
 #include "dma.h"
 
@@ -176,10 +175,10 @@ static int pci_piix3_xen_ide_unplug(DeviceState *dev)
 
     for (; i < 3; i++) {
         di = drive_get_by_index(IF_IDE, i);
-        if (di != NULL && di->bdrv != NULL && !di->bdrv->removable) {
-            DeviceState *ds = bdrv_get_attached(di->bdrv);
+        if (di != NULL && !di->media_cd) {
+            DeviceState *ds = bdrv_get_attached_dev(di->bdrv);
             if (ds) {
-                bdrv_detach(di->bdrv, ds);
+                bdrv_detach_dev(di->bdrv, ds);
             }
             bdrv_close(di->bdrv);
             pci_ide->bus[di->bus].ifs[di->unit].bs = NULL;

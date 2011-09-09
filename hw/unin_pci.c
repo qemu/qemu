@@ -41,7 +41,6 @@ static const int unin_irq_line[] = { 0x1b, 0x1c, 0x1d, 0x1e };
 typedef struct UNINState {
     SysBusDevice busdev;
     PCIHostState host_state;
-    ReadWriteHandler data_handler;
 } UNINState;
 
 static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -100,67 +99,70 @@ static uint32_t unin_get_config_reg(uint32_t reg, uint32_t addr)
     return retval;
 }
 
-static void unin_data_write(ReadWriteHandler *handler,
-                            pcibus_t addr, uint32_t val, int len)
+static void unin_data_write(void *opaque, target_phys_addr_t addr,
+                            uint64_t val, unsigned len)
 {
-    UNINState *s = container_of(handler, UNINState, data_handler);
-    UNIN_DPRINTF("write addr %" FMT_PCIBUS " len %d val %x\n", addr, len, val);
+    UNINState *s = opaque;
+    UNIN_DPRINTF("write addr %" TARGET_FMT_plx " len %d val %"PRIx64"\n",
+                 addr, len, val);
     pci_data_write(s->host_state.bus,
                    unin_get_config_reg(s->host_state.config_reg, addr),
                    val, len);
 }
 
-static uint32_t unin_data_read(ReadWriteHandler *handler,
-                               pcibus_t addr, int len)
+static uint64_t unin_data_read(void *opaque, target_phys_addr_t addr,
+                               unsigned len)
 {
-    UNINState *s = container_of(handler, UNINState, data_handler);
+    UNINState *s = opaque;
     uint32_t val;
 
     val = pci_data_read(s->host_state.bus,
                         unin_get_config_reg(s->host_state.config_reg, addr),
                         len);
-    UNIN_DPRINTF("read addr %" FMT_PCIBUS " len %d val %x\n", addr, len, val);
+    UNIN_DPRINTF("read addr %" TARGET_FMT_plx " len %d val %x\n",
+                 addr, len, val);
     return val;
 }
+
+static const MemoryRegionOps unin_data_ops = {
+    .read = unin_data_read,
+    .write = unin_data_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
 
 static int pci_unin_main_init_device(SysBusDevice *dev)
 {
     UNINState *s;
-    int pci_mem_config, pci_mem_data;
 
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
     s = FROM_SYSBUS(UNINState, dev);
 
-    pci_mem_config = pci_host_conf_register_mmio(&s->host_state,
-                                                 DEVICE_LITTLE_ENDIAN);
-    s->data_handler.read = unin_data_read;
-    s->data_handler.write = unin_data_write;
-    pci_mem_data = cpu_register_io_memory_simple(&s->data_handler,
-                                                 DEVICE_LITTLE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_config);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_data);
+    memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
+                          &s->host_state, "pci-conf-idx", 0x1000);
+    memory_region_init_io(&s->host_state.data_mem, &unin_data_ops, s,
+                          "pci-conf-data", 0x1000);
+    sysbus_init_mmio_region(dev, &s->host_state.conf_mem);
+    sysbus_init_mmio_region(dev, &s->host_state.data_mem);
 
     qemu_register_reset(pci_unin_reset, &s->host_state);
     return 0;
 }
 
+
 static int pci_u3_agp_init_device(SysBusDevice *dev)
 {
     UNINState *s;
-    int pci_mem_config, pci_mem_data;
 
     /* Uninorth U3 AGP bus */
     s = FROM_SYSBUS(UNINState, dev);
 
-    pci_mem_config = pci_host_conf_register_mmio(&s->host_state,
-                                                 DEVICE_LITTLE_ENDIAN);
-    s->data_handler.read = unin_data_read;
-    s->data_handler.write = unin_data_write;
-    pci_mem_data = cpu_register_io_memory_simple(&s->data_handler,
-                                                 DEVICE_LITTLE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_config);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_data);
+    memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
+                          &s->host_state, "pci-conf-idx", 0x1000);
+    memory_region_init_io(&s->host_state.data_mem, &unin_data_ops, s,
+                          "pci-conf-data", 0x1000);
+    sysbus_init_mmio_region(dev, &s->host_state.conf_mem);
+    sysbus_init_mmio_region(dev, &s->host_state.data_mem);
 
     qemu_register_reset(pci_unin_reset, &s->host_state);
 
@@ -170,34 +172,32 @@ static int pci_u3_agp_init_device(SysBusDevice *dev)
 static int pci_unin_agp_init_device(SysBusDevice *dev)
 {
     UNINState *s;
-    int pci_mem_config, pci_mem_data;
 
     /* Uninorth AGP bus */
     s = FROM_SYSBUS(UNINState, dev);
 
-    pci_mem_config = pci_host_conf_register_mmio(&s->host_state,
-                                                 DEVICE_LITTLE_ENDIAN);
-    pci_mem_data = pci_host_data_register_mmio(&s->host_state,
-                                               DEVICE_LITTLE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_config);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_data);
+    memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
+                          &s->host_state, "pci-conf-idx", 0x1000);
+    memory_region_init_io(&s->host_state.data_mem, &pci_host_data_le_ops,
+                          &s->host_state, "pci-conf-data", 0x1000);
+    sysbus_init_mmio_region(dev, &s->host_state.conf_mem);
+    sysbus_init_mmio_region(dev, &s->host_state.data_mem);
     return 0;
 }
 
 static int pci_unin_internal_init_device(SysBusDevice *dev)
 {
     UNINState *s;
-    int pci_mem_config, pci_mem_data;
 
     /* Uninorth internal bus */
     s = FROM_SYSBUS(UNINState, dev);
 
-    pci_mem_config = pci_host_conf_register_mmio(&s->host_state,
-                                                 DEVICE_LITTLE_ENDIAN);
-    pci_mem_data = pci_host_data_register_mmio(&s->host_state,
-                                               DEVICE_LITTLE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_config);
-    sysbus_init_mmio(dev, 0x1000, pci_mem_data);
+    memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
+                          &s->host_state, "pci-conf-idx", 0x1000);
+    memory_region_init_io(&s->host_state.data_mem, &pci_host_data_le_ops,
+                          &s->host_state, "pci-conf-data", 0x1000);
+    sysbus_init_mmio_region(dev, &s->host_state.conf_mem);
+    sysbus_init_mmio_region(dev, &s->host_state.data_mem);
     return 0;
 }
 

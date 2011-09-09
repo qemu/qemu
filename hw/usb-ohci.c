@@ -448,8 +448,8 @@ static void ohci_reset(void *opaque)
       {
         port = &ohci->rhport[i];
         port->ctrl = 0;
-        if (port->port.dev) {
-            usb_attach(&port->port, port->port.dev);
+        if (port->port.dev && port->port.dev->attached) {
+            usb_attach(&port->port);
         }
       }
     if (ohci->async_td) {

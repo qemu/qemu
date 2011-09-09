@@ -149,7 +149,6 @@ petalogix_ml605_init(ram_addr_t ram_size,
     target_phys_addr_t ddr_base = MEMORY_BASEADDR;
     ram_addr_t phys_lmb_bram;
     ram_addr_t phys_ram;
-    ram_addr_t phys_flash;
     qemu_irq irq[32], *cpu_irq;
 
     /* init CPUs */
@@ -169,11 +168,11 @@ petalogix_ml605_init(ram_addr_t ram_size,
     phys_ram = qemu_ram_alloc(NULL, "petalogix_ml605.ram", ram_size);
     cpu_register_physical_memory(ddr_base, ram_size, phys_ram | IO_MEM_RAM);
 
-    phys_flash = qemu_ram_alloc(NULL, "petalogix_ml605.flash", FLASH_SIZE);
     dinfo = drive_get(IF_PFLASH, 0, 0);
     /* 5th parameter 2 means bank-width
      * 10th paremeter 0 means little-endian */
-    pflash_cfi01_register(FLASH_BASEADDR, phys_flash,
+    pflash_cfi01_register(FLASH_BASEADDR,
+                          NULL, "petalogix_ml605.flash", FLASH_SIZE,
                           dinfo ? dinfo->bdrv : NULL, (64 * 1024),
                           FLASH_SIZE >> 16,
                           2, 0x89, 0x18, 0x0000, 0x0, 0);

@@ -1,7 +1,7 @@
 /*
  * QEMU interface to CFI1 und CFI2 flash emulation.
  *
- * Copyright (c) 2006 Stefan Weil
+ * Copyright (c) 2006-2011 Stefan Weil
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,10 +26,13 @@
 static int traceflag;
 #endif
 
-pflash_t *pflash_device_register(target_phys_addr_t base, ram_addr_t off,
-                           BlockDriverState *bs, uint32_t size, int width,
-                           uint16_t flash_manufacturer, uint16_t flash_type,
-                           int be)
+pflash_t *pflash_device_register(target_phys_addr_t base,
+                                 DeviceState *qdev, const char *name,
+                                 target_phys_addr_t size,
+                                 BlockDriverState *bs, int width,
+                                 uint16_t flash_manufacturer,
+                                 uint16_t flash_type,
+                                 int be)
 {
     /* The values for blocksize and nblocks are defaults which must be
        replaced by the correct values based on flash manufacturer and type.
@@ -56,23 +59,29 @@ pflash_t *pflash_device_register(target_phys_addr_t base, ram_addr_t off,
 #endif
         case MANUFACTURER_004A:  /* Which manufacturer is this? */
 #if 0
-            pf = pflash_amd_register(base, off, bs, blocksize, nblocks, width,
-                    flash_manufacturer, flash_type, id2, id3, be);
+            pf = pflash_amd_register(base, qdev, name, size, bs,
+                                     blocksize, nblocks, width,
+                                     flash_manufacturer, flash_type,
+                                     id2, id3, be);
 #else
-            pf = pflash_cfi02_register(base, off, bs, blocksize, nblocks,
-                    1, width, flash_manufacturer, flash_type, id2, id3,
-                    0, 0, be);
+            pf = pflash_cfi02_register(base, qdev, name, size, bs,
+                                       blocksize, nblocks, 1, width,
+                                       flash_manufacturer, flash_type,
+                                       id2, id3, 0, 0, be);
 #endif
             break;
         case MANUFACTURER_INTEL:
-            pf = pflash_cfi01_register(base, off, bs, blocksize, nblocks, width,
-                    flash_manufacturer, flash_type, id2, id3, be);
+            pf = pflash_cfi01_register(base, qdev, name, size, bs,
+                                       blocksize, nblocks, width,
+                                       flash_manufacturer, flash_type,
+                                       id2, id3, be);
             break;
         default:
             /* TODO: fix new parameters (0) */
-            pf = pflash_cfi02_register(base, off, bs, blocksize, nblocks,
-                    1, width, flash_manufacturer, flash_type, id2, id3,
-                    0, 0, be);
+            pf = pflash_cfi02_register(base, qdev, name, size, bs,
+                                       blocksize, nblocks, 1, width,
+                                       flash_manufacturer, flash_type,
+                                       id2, id3, 0, 0, be);
     }
     return pf;
 }

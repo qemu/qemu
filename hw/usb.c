@@ -27,26 +27,23 @@
 #include "usb.h"
 #include "iov.h"
 
-void usb_attach(USBPort *port, USBDevice *dev)
+void usb_attach(USBPort *port)
 {
-    if (dev != NULL) {
-        /* attach */
-        if (port->dev) {
-            usb_attach(port, NULL);
-        }
-        dev->port = port;
-        port->dev = dev;
-        port->ops->attach(port);
-        usb_send_msg(dev, USB_MSG_ATTACH);
-    } else {
-        /* detach */
-        dev = port->dev;
-        assert(dev);
-        port->ops->detach(port);
-        usb_send_msg(dev, USB_MSG_DETACH);
-        dev->port = NULL;
-        port->dev = NULL;
-    }
+    USBDevice *dev = port->dev;
+
+    assert(dev != NULL);
+    assert(dev->attached);
+    port->ops->attach(port);
+    usb_send_msg(dev, USB_MSG_ATTACH);
+}
+
+void usb_detach(USBPort *port)
+{
+    USBDevice *dev = port->dev;
+
+    assert(dev != NULL);
+    port->ops->detach(port);
+    usb_send_msg(dev, USB_MSG_DETACH);
 }
 
 void usb_wakeup(USBDevice *dev)
@@ -338,8 +335,8 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
 {
     /* Note: p->owner != dev is possible in case dev is a hub */
     assert(p->owner != NULL);
-    dev->port->ops->complete(dev->port, p);
     p->owner = NULL;
+    dev->port->ops->complete(dev->port, p);
 }
 
 /* Cancel an active packet.  The packed must have been deferred by

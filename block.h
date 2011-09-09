@@ -28,6 +28,20 @@ typedef struct QEMUSnapshotInfo {
     uint64_t vm_clock_nsec; /* VM clock relative to boot */
 } QEMUSnapshotInfo;
 
+/* Callbacks for block device models */
+typedef struct BlockDevOps {
+    /*
+     * Runs when virtual media changed (monitor commands eject, change)
+     * Beware: doesn't run when a host device's physical media
+     * changes.  Sure would be useful if it did.
+     */
+    void (*change_media_cb)(void *opaque);
+    /*
+     * Runs when the size changed (e.g. monitor command block_resize)
+     */
+    void (*resize_cb)(void *opaque);
+} BlockDevOps;
+
 #define BDRV_O_RDWR        0x0002
 #define BDRV_O_SNAPSHOT    0x0008 /* open the file read only and save writes in a snapshot */
 #define BDRV_O_NOCACHE     0x0020 /* do not use the host page cache */
@@ -74,9 +88,12 @@ int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
 int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv);
 void bdrv_close(BlockDriverState *bs);
-int bdrv_attach(BlockDriverState *bs, DeviceState *qdev);
-void bdrv_detach(BlockDriverState *bs, DeviceState *qdev);
-DeviceState *bdrv_get_attached(BlockDriverState *bs);
+int bdrv_attach_dev(BlockDriverState *bs, void *dev);
+void bdrv_attach_dev_nofail(BlockDriverState *bs, void *dev);
+void bdrv_detach_dev(BlockDriverState *bs, void *dev);
+void *bdrv_get_attached_dev(BlockDriverState *bs);
+void bdrv_set_dev_ops(BlockDriverState *bs, const BlockDevOps *ops,
+                      void *opaque);
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors);
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
@@ -192,9 +209,6 @@ int bdrv_media_changed(BlockDriverState *bs);
 int bdrv_is_locked(BlockDriverState *bs);
 void bdrv_set_locked(BlockDriverState *bs, int locked);
 int bdrv_eject(BlockDriverState *bs, int eject_flag);
-void bdrv_set_change_cb(BlockDriverState *bs,
-                        void (*change_cb)(void *opaque, int reason),
-                        void *opaque);
 void bdrv_get_format(BlockDriverState *bs, char *buf, int buf_size);
 BlockDriverState *bdrv_find(const char *name);
 BlockDriverState *bdrv_next(BlockDriverState *bs);
@@ -243,6 +257,8 @@ int bdrv_load_vmstate(BlockDriverState *bs, uint8_t *buf,
 int bdrv_img_create(const char *filename, const char *fmt,
                     const char *base_filename, const char *base_fmt,
                     char *options, uint64_t img_size, int flags);
+
+void *qemu_blockalign(BlockDriverState *bs, size_t size);
 
 #define BDRV_SECTORS_PER_DIRTY_CHUNK 2048
 

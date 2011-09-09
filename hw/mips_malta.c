@@ -47,6 +47,7 @@
 #include "mc146818rtc.h"
 #include "hw/sysbus.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 #undef BIOS_SIZE
 #define BIOS_SIZE (16 * MiB)
@@ -248,10 +249,9 @@ static uint32_t malta_fpga_readl(void *opaque, target_phys_addr_t addr)
 
     /* STATUS Register */
     case 0x00208:
+        val = 0x00000010;
         if (s->bigendian) {
-            val = 0x00000012;
-        } else {
-            val = 0x00000010;
+            val |= 2;
         }
         break;
 
@@ -791,9 +791,10 @@ void mips_malta_init (ram_addr_t ram_size,
                       const char *initrd_filename, const char *cpu_model)
 {
     char *filename;
+    pflash_t *fl;
     ram_addr_t ram_offset;
-    ram_addr_t bios_offset;
-    target_long bios_size;
+    MemoryRegion *system_memory = get_system_memory();
+    MemoryRegion *bios, *bios_alias = g_new(MemoryRegion, 1);
     int64_t kernel_entry;
     PCIBus *pci_bus;
     CPUState *env;
@@ -805,6 +806,7 @@ void mips_malta_init (ram_addr_t ram_size,
     DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
+    int fl_idx = 0;
     int fl_sectors;
 
     //~ DeviceState *dev =
@@ -852,20 +854,13 @@ void mips_malta_init (ram_addr_t ram_size,
     logout("RAM size = %d MiB\n", ram_size / MiB);
 
     ram_offset = qemu_ram_alloc(NULL, "mips_malta.ram", ram_size);
-    bios_offset = qemu_ram_alloc(NULL, "mips_malta.bios", BIOS_SIZE);
 
     cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
-
-    /* Map the bios at two physical locations, as on the real board. */
-    cpu_register_physical_memory(FLASH_ADDRESS,
-                                 BIOS_SIZE, bios_offset | IO_MEM_ROM);
-    cpu_register_physical_memory(0x1fc00000LL,
-                                 BIOS_SIZE, bios_offset | IO_MEM_ROM);
 
     /* FPGA */
     malta_fpga_init(0x1f000000LL, env->irq[2], serial_hds[2], env->bigendian);
 
-    dinfo = drive_get(IF_PFLASH, 0, 0);
+    dinfo = drive_get(IF_PFLASH, 0, fl_idx);
     const char *flashfile = NULL;
     BlockDriverState *flashdriver = NULL;
     if (dinfo) {
@@ -881,23 +876,60 @@ void mips_malta_init (ram_addr_t ram_size,
            flashfile, fl_sectors);
 #endif
     (void)flashfile;
-    pflash_cfi01_register(FLASH_ADDRESS, bios_offset,
-                          flashdriver, 65536, fl_sectors,
-                          4, 0x0000, 0x0000, 0x0000, 0x0000, env->bigendian);
 
     /* Load firmware in flash / BIOS unless we boot directly into a kernel. */
     if (kernel_filename) {
         /* Write a small bootloader to the flash location. */
+        bios = g_new(MemoryRegion, 1);
+        memory_region_init_ram(bios, NULL, "mips_malta.bios", BIOS_SIZE);
+        memory_region_set_readonly(bios, true);
+        memory_region_init_alias(bios_alias, "bios.1fc", bios, 0, BIOS_SIZE);
+        /* Map the bios at two physical locations, as on the real board. */
+        memory_region_add_subregion(system_memory, FLASH_ADDRESS, bios);
+        memory_region_add_subregion(system_memory, 0x1fc00000LL, bios_alias);
         loaderparams.ram_size = ram_size;
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
         loaderparams.initrd_filename = initrd_filename;
         kernel_entry = load_kernel(env->bigendian);
-        write_bootloader(env, qemu_get_ram_ptr(bios_offset), kernel_entry);
+        write_bootloader(env, memory_region_get_ram_ptr(bios), kernel_entry);
+        pflash_cfi01_register(FLASH_ADDRESS, NULL, "mips_malta.bios",
+                              FLASH_SIZE, flashdriver, 65536, fl_sectors,
+                              4, 0x0000, 0x0000, 0x0000, 0x0000,
+                              env->bigendian);
     } else {
+        target_long bios_size;
         if (dinfo) {
-            /* Load firmware from flash, see above. */
+            /* Load firmware from flash. */
+            bios_size = FLASH_SIZE;
+#ifdef DEBUG_BOARD_INIT
+            printf("Register parallel flash %d size " TARGET_FMT_lx " at "
+                   "addr %08llx '%s' %x\n",
+                   fl_idx, bios_size, FLASH_ADDRESS,
+                   bdrv_get_device_name(dinfo->bdrv), fl_sectors);
+#endif
+            fl = pflash_cfi01_register(FLASH_ADDRESS,
+                                       NULL, "mips_malta.bios", BIOS_SIZE,
+                                       dinfo->bdrv, 65536, fl_sectors,
+                                       4, 0x0000, 0x0000, 0x0000, 0x0000,
+                                       env->bigendian);
+            bios = pflash_cfi01_get_memory(fl);
+            /* Map the bios at two physical locations, as on the real board. */
+            memory_region_init_alias(bios_alias, "bios.1fc",
+                                     bios, 0, BIOS_SIZE);
+            memory_region_add_subregion(system_memory, 0x1fc00000LL,
+                                        bios_alias);
+            fl_idx++;
         } else {
+            bios = g_new(MemoryRegion, 1);
+            memory_region_init_ram(bios, NULL, "mips_malta.bios", BIOS_SIZE);
+            memory_region_set_readonly(bios, true);
+            memory_region_init_alias(bios_alias, "bios.1fc",
+                                     bios, 0, BIOS_SIZE);
+            /* Map the bios at two physical locations, as on the real board. */
+            memory_region_add_subregion(system_memory, FLASH_ADDRESS, bios);
+            memory_region_add_subregion(system_memory, 0x1fc00000LL,
+                                        bios_alias);
             /* Load a BIOS image. */
             if (bios_name == NULL)
                 bios_name = BIOS_FILENAME;
@@ -920,7 +952,7 @@ void mips_malta_init (ram_addr_t ram_size,
            a neat trick which allows bi-endian firmware. */
 #if !defined(TARGET_WORDS_BIGENDIAN) && 0
         {
-            uint32_t *addr = qemu_get_ram_ptr(bios_offset);;
+            uint32_t *addr = memory_region_get_ram_ptr(bios);
             uint32_t *end = addr + bios_size;
             while (addr < end) {
                 fprintf(stderr, "0x%08x\n", *addr);
@@ -933,7 +965,7 @@ void mips_malta_init (ram_addr_t ram_size,
     /* Board ID = 0x420 (Malta Board with CoreLV)
        XXX: theoretically 0x1e000010 should map to flash and 0x1fc00010 should
        map to the board ID. */
-    stl_p(qemu_get_ram_ptr(bios_offset) + 0x10, 0x00000420);
+    stl_p(memory_region_get_ram_ptr(bios) + 0x10, 0x00000420);
 
     /* Init internal devices */
     cpu_mips_irq_init_cpu(env);

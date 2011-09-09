@@ -498,6 +498,7 @@ void scsi_req_build_sense(SCSIRequest *req, SCSISense sense)
     memset(req->sense, 0, 18);
     req->sense[0] = 0xf0;
     req->sense[2] = sense.key;
+    req->sense[7] = 10;
     req->sense[12] = sense.asc;
     req->sense[13] = sense.ascq;
     req->sense_len = 18;
@@ -883,7 +884,7 @@ int scsi_build_sense(uint8_t *in_buf, int in_len,
         /* Return fixed format sense buffer */
         buf[0] = 0xf0;
         buf[2] = sense.key;
-        buf[7] = 7;
+        buf[7] = 10;
         buf[12] = sense.asc;
         buf[13] = sense.ascq;
         return MIN(len, 18);
@@ -977,7 +978,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ LOCATE_16                ] = "LOCATE_16",
         [ WRITE_SAME_16            ] = "WRITE_SAME_16",
         [ ERASE_16                 ] = "ERASE_16",
-        [ SERVICE_ACTION_IN        ] = "SERVICE_ACTION_IN",
+        [ SERVICE_ACTION_IN_16     ] = "SERVICE_ACTION_IN_16",
         [ WRITE_LONG_16            ] = "WRITE_LONG_16",
         [ REPORT_LUNS              ] = "REPORT_LUNS",
         [ BLANK                    ] = "BLANK",
@@ -987,6 +988,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",
         [ READ_12                  ] = "READ_12",
         [ WRITE_12                 ] = "WRITE_12",
+        [ SERVICE_ACTION_IN_12     ] = "SERVICE_ACTION_IN_12",
         [ WRITE_VERIFY_12          ] = "WRITE_VERIFY_12",
         [ VERIFY_12                ] = "VERIFY_12",
         [ SEARCH_HIGH_12           ] = "SEARCH_HIGH_12",

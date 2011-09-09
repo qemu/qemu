@@ -1,6 +1,6 @@
 /*
  * This file contains parts from Linux header files (several authors)
- * Copyright (c) 2006 Stefan Weil (modifications for QEMU integration)
+ * Copyright (c) 2006-2011 Stefan Weil (modifications for QEMU integration)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -232,9 +232,12 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
 
 /* User interface. */
 
-pflash_t *pflash_device_register (target_phys_addr_t base, ram_addr_t off,
-                           BlockDriverState *bs, uint32_t size, int width,
-                           uint16_t flash_manufacturer, uint16_t flash_type,
-                           int be);
+pflash_t *pflash_device_register(target_phys_addr_t base,
+                                 DeviceState *qdev, const char *name,
+                                 target_phys_addr_t size,
+                                 BlockDriverState *bs, int width,
+                                 uint16_t flash_manufacturer,
+                                 uint16_t flash_type,
+                                 int be);
 
 #endif /* __pflash_h */

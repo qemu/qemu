@@ -125,9 +125,15 @@ PCIBus *pci_prep_init(qemu_irq *pic,
                               address_space_io,
                               0, 4);
 
-    pci_host_conf_register_ioport(0xcf8, s);
+    memory_region_init_io(&s->conf_mem, &pci_host_conf_be_ops, s,
+                          "pci-conf-idx", 1);
+    memory_region_add_subregion(address_space_io, 0xcf8, &s->conf_mem);
+    sysbus_init_ioports(&s->busdev, 0xcf8, 1);
 
-    pci_host_data_register_ioport(0xcfc, s);
+    memory_region_init_io(&s->conf_mem, &pci_host_data_be_ops, s,
+                          "pci-conf-data", 1);
+    memory_region_add_subregion(address_space_io, 0xcfc, &s->data_mem);
+    sysbus_init_ioports(&s->busdev, 0xcfc, 1);
 
     PPC_io_memory = cpu_register_io_memory(PPC_PCIIO_read,
                                            PPC_PCIIO_write, s,

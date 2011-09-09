@@ -340,8 +340,8 @@ static void uhci_reset(void *opaque)
     for(i = 0; i < NB_PORTS; i++) {
         port = &s->ports[i];
         port->ctrl = 0x0080;
-        if (port->port.dev) {
-            usb_attach(&port->port, port->port.dev);
+        if (port->port.dev && port->port.dev->attached) {
+            usb_attach(&port->port);
         }
     }
 
@@ -446,7 +446,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
             for(i = 0; i < NB_PORTS; i++) {
                 port = &s->ports[i];
                 dev = port->port.dev;
-                if (dev) {
+                if (dev && dev->attached) {
                     usb_send_msg(dev, USB_MSG_RESET);
                 }
             }
@@ -486,7 +486,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
                 return;
             port = &s->ports[n];
             dev = port->port.dev;
-            if (dev) {
+            if (dev && dev->attached) {
                 /* port reset */
                 if ( (val & UHCI_PORT_RESET) &&
                      !(port->ctrl & UHCI_PORT_RESET) ) {
@@ -660,8 +660,9 @@ static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
         UHCIPort *port = &s->ports[i];
         USBDevice *dev = port->port.dev;
 
-        if (dev && (port->ctrl & UHCI_PORT_EN))
+        if (dev && dev->attached && (port->ctrl & UHCI_PORT_EN)) {
             ret = usb_handle_packet(dev, p);
+        }
     }
 
     DPRINTF("uhci: packet exit. ret %d len %zd\n", ret, p->iov.size);

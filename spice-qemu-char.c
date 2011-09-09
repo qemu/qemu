@@ -45,7 +45,7 @@ static int vmc_write(SpiceCharDeviceInstance *sin, const uint8_t *buf, int len)
         p += last_out;
     }
 
-    dprintf(scd, 3, "%s: %lu/%zd\n", __func__, out, len + out);
+    dprintf(scd, 3, "%s: %zu/%zd\n", __func__, out, len + out);
     trace_spice_vmc_write(out, len + out);
     return out;
 }

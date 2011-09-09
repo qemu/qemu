@@ -783,14 +783,10 @@ static void ide_cfata_metadata_write(IDEState *s)
 }
 
 /* called when the inserted state of the media has changed */
-static void cdrom_change_cb(void *opaque, int reason)
+static void ide_cd_change_cb(void *opaque)
 {
     IDEState *s = opaque;
     uint64_t nb_sectors;
-
-    if (!(reason & CHANGE_MEDIA)) {
-        return;
-    }
 
     bdrv_get_geometry(s->bs, &nb_sectors);
     s->nb_sectors = nb_sectors;
@@ -983,7 +979,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         s->status = READY_STAT | SEEK_STAT;
         ide_set_irq(s->bus);
         break;
-	case WIN_READ_EXT:
+    case WIN_READ_EXT:
 	lba48 = 1;
     case WIN_READ:
     case WIN_READ_ONCE:
@@ -993,7 +989,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         s->req_nb_sectors = 1;
         ide_sector_read(s);
         break;
-	case WIN_WRITE_EXT:
+    case WIN_WRITE_EXT:
 	lba48 = 1;
     case WIN_WRITE:
     case WIN_WRITE_ONCE:
@@ -1006,7 +1002,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_transfer_start(s, s->io_buffer, 512, ide_sector_write);
         s->media_changed = 1;
         break;
-	case WIN_MULTREAD_EXT:
+    case WIN_MULTREAD_EXT:
 	lba48 = 1;
     case WIN_MULTREAD:
         if (!s->mult_sectors)
@@ -1031,7 +1027,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_write);
         s->media_changed = 1;
         break;
-	case WIN_READDMA_EXT:
+    case WIN_READDMA_EXT:
 	lba48 = 1;
     case WIN_READDMA:
     case WIN_READDMA_ONCE:
@@ -1040,7 +1036,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
 	ide_cmd_lba48_transform(s, lba48);
         ide_sector_start_dma(s, IDE_DMA_READ);
         break;
-	case WIN_WRITEDMA_EXT:
+    case WIN_WRITEDMA_EXT:
 	lba48 = 1;
     case WIN_WRITEDMA:
     case WIN_WRITEDMA_ONCE:
@@ -1133,7 +1129,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
     case WIN_STANDBYNOW1:
     case WIN_STANDBYNOW2:
     case WIN_IDLEIMMEDIATE:
-    case CFA_IDLEIMMEDIATE:
+    case WIN_IDLEIMMEDIATE2:
     case WIN_SETIDLE1:
     case WIN_SETIDLE2:
     case WIN_SLEEPNOW1:
@@ -1172,7 +1168,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
                           */
         ide_set_irq(s->bus);
         break;
-    case WIN_SRST:
+    case WIN_DEVICE_RESET:
         if (s->drive_kind != IDE_CD)
             goto abort_cmd;
         ide_set_signature(s);
@@ -1265,7 +1261,7 @@ void ide_exec_cmd(IDEBus *bus, uint32_t val)
         ide_set_irq(s->bus);
         break;
 
-	case WIN_SMART:
+    case WIN_SMART:
 	if (s->drive_kind == IDE_CD)
 		goto abort_cmd;
 	if (s->hcyl != 0xc2 || s->lcyl != 0x4f)
@@ -1742,6 +1738,10 @@ void ide_bus_reset(IDEBus *bus)
     bus->dma->ops->reset(bus->dma);
 }
 
+static const BlockDevOps ide_cd_block_ops = {
+    .change_media_cb = ide_cd_change_cb,
+};
+
 int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
                    const char *version, const char *serial)
 {
@@ -1776,7 +1776,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     s->smart_errors = 0;
     s->smart_selftest_count = 0;
     if (kind == IDE_CD) {
-        bdrv_set_change_cb(bs, cdrom_change_cb, s);
+        bdrv_set_dev_ops(bs, &ide_cd_block_ops, s);
         bs->buffer_alignment = 2048;
     } else {
         if (!bdrv_is_inserted(s->bs)) {
@@ -1890,6 +1890,7 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
                 error_report("Can't set up IDE drive %s", dinfo->id);
                 exit(1);
             }
+            bdrv_attach_dev_nofail(dinfo->bdrv, &bus->ifs[i]);
         } else {
             ide_reset(&bus->ifs[i]);
         }
@@ -2009,7 +2010,7 @@ static bool ide_error_needed(void *opaque)
 }
 
 /* Fields for GET_EVENT_STATUS_NOTIFICATION ATAPI command */
-const VMStateDescription vmstate_ide_atapi_gesn_state = {
+static const VMStateDescription vmstate_ide_atapi_gesn_state = {
     .name ="ide_drive/atapi/gesn_state",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -2021,7 +2022,7 @@ const VMStateDescription vmstate_ide_atapi_gesn_state = {
     }
 };
 
-const VMStateDescription vmstate_ide_drive_pio_state = {
+static const VMStateDescription vmstate_ide_drive_pio_state = {
     .name = "ide_drive/pio_state",
     .version_id = 1,
     .minimum_version_id = 1,
@@ -2083,7 +2084,7 @@ const VMStateDescription vmstate_ide_drive = {
     }
 };
 
-const VMStateDescription vmstate_ide_error_status = {
+static const VMStateDescription vmstate_ide_error_status = {
     .name ="ide_bus/error",
     .version_id = 1,
     .minimum_version_id = 1,

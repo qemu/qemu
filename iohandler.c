@@ -94,10 +94,6 @@ static gboolean fd_trampoline(GIOChannel *chan, GIOCondition cond, gpointer opaq
 {
     IOTrampoline *tramp = opaque;
 
-    if (tramp->opaque == NULL) {
-        return FALSE;
-    }
-
     if ((cond & G_IO_IN) && tramp->fd_read) {
         tramp->fd_read(tramp->opaque);
     }
@@ -120,9 +116,10 @@ int qemu_set_fd_handler(int fd,
     if (tramp->tag != 0) {
         g_io_channel_unref(tramp->chan);
         g_source_remove(tramp->tag);
+        tramp->tag = 0;
     }
 
-    if (opaque) {
+    if (fd_read || fd_write || opaque) {
         GIOCondition cond = 0;
 
         tramp->fd_read = fd_read;

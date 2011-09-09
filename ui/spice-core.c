@@ -19,6 +19,7 @@
 #include <spice-experimental.h>
 
 #include <netdb.h>
+#include <pthread.h>
 
 #include "qemu-common.h"
 #include "qemu-spice.h"
@@ -43,6 +44,8 @@ static const char *auth = "spice";
 static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 int using_spice = 0;
+
+static pthread_t me;
 
 struct SpiceTimer {
     QEMUTimer *timer;
@@ -217,6 +220,20 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     QDict *server, *client;
     QObject *data;
 
+    /*
+     * Spice server might have called us from spice worker thread
+     * context (happens on display channel disconnects).  Spice should
+     * not do that.  It isn't that easy to fix it in spice and even
+     * when it is fixed we still should cover the already released
+     * spice versions.  So detect that we've been called from another
+     * thread and grab the iothread lock if so before calling qemu
+     * functions.
+     */
+    bool need_lock = !pthread_equal(me, pthread_self());
+    if (need_lock) {
+        qemu_mutex_lock_iothread();
+    }
+
     client = qdict_new();
     add_addr_info(client, &info->paddr, info->plen);
 
@@ -236,6 +253,10 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
                               QOBJECT(client), QOBJECT(server));
     monitor_protocol_event(qevent[event], data);
     qobject_decref(data);
+
+    if (need_lock) {
+        qemu_mutex_unlock_iothread();
+    }
 }
 
 #else /* SPICE_INTERFACE_CORE_MINOR >= 3 */
@@ -482,7 +503,9 @@ void qemu_spice_init(void)
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
 
-    if (!opts) {
+    me = pthread_self();
+
+   if (!opts) {
         return;
     }
     port = qemu_opt_get_number(opts, "port", 0);

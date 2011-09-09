@@ -246,7 +246,6 @@ static void stcb_init(ram_addr_t _ram_size,
     DriveInfo *dinfo;
     NICInfo *nd;
     int ret;
-    ram_addr_t flash_mem;
     BlockDriverState *flash_bds = NULL;
 
     /* ensure memory is limited to 256MB */
@@ -269,15 +268,7 @@ static void stcb_init(ram_addr_t _ram_size,
     /* initialise SOC */
     stcb->soc = s3c2410x_init(ram_size);
 
-    /* Register the NOR flash ROM */
-    flash_mem = qemu_ram_alloc(NULL, "bast.flash", BAST_NOR_SIZE);
-
     stcb_register_ide(stcb);
-
-    /* Read only ROM type mapping */
-    cpu_register_physical_memory(BAST_NOR_RO_BASE,
-                                 BAST_NOR_SIZE,
-                                 flash_mem | IO_MEM_ROM);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     /* Aquire flash contents and register pflash device */
@@ -294,10 +285,16 @@ static void stcb_init(ram_addr_t _ram_size,
             (void)ret;
         }
     }
-    pflash_cfi02_register(BAST_NOR_RW_BASE, flash_mem, flash_bds,
+
+    pflash_cfi02_register(BAST_NOR_RW_BASE, NULL, "bast.flash",
+                          BAST_NOR_SIZE, flash_bds,
                           65536, 32, 1, 2,
                           0x00BF, 0x234B, 0x0000, 0x0000, 0x5555, 0x2AAA,
                           bigendian);
+    /* TODO: Read only ROM type mapping */
+    //~ cpu_register_physical_memory(BAST_NOR_RO_BASE,
+                                 //~ BAST_NOR_SIZE,
+                                 //~ flash_mem | IO_MEM_ROM);
 
     /* if kernel is given, boot that directly */
     if (kernel_filename != NULL) {

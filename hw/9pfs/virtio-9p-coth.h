@@ -83,8 +83,8 @@ extern int v9fs_co_open2(V9fsState *, V9fsFidState *, char *, gid_t, int, int);
 extern int v9fs_co_lsetxattr(V9fsState *, V9fsString *, V9fsString *,
                              void *, size_t, int);
 extern int v9fs_co_lremovexattr(V9fsState *, V9fsString *, V9fsString *);
-extern int v9fs_co_closedir(V9fsState *, V9fsFidState *);
-extern int v9fs_co_close(V9fsState *, V9fsFidState *);
+extern int v9fs_co_closedir(V9fsState *, DIR *);
+extern int v9fs_co_close(V9fsState *, int);
 extern int v9fs_co_fsync(V9fsState *, V9fsFidState *, int);
 extern int v9fs_co_symlink(V9fsState *, V9fsFidState *, const char *,
                            const char *, gid_t);

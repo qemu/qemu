@@ -3793,7 +3793,6 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     DeviceState *dev;
     DriveInfo *dinfo;
     BlockDriverState *flash_driver = NULL;
-    ram_addr_t flash_offset;
     ram_addr_t ram_offset;
     ram_addr_t rom_offset;
     int rom_size;
@@ -3865,9 +3864,8 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
             flash_size = image_size;
         }
     }
-    flash_offset = qemu_ram_alloc(NULL, "ar7.flash", flash_size);
-    pflash_device_register(FLASH_ADDR, flash_offset,
-                          flash_driver, flash_size, 2,
+    pflash_device_register(FLASH_ADDR, NULL, "ar7.flash",
+                          flash_size, flash_driver, 2,
                           flash_manufacturer, flash_type, env->bigendian);
     if (!dinfo) {
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "flashimage.bin");
