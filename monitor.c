@@ -886,7 +886,7 @@ static void print_cpu_iter(QObject *obj, void *opaque)
     monitor_printf(mon, "nip=0x" TARGET_FMT_lx,
                    (target_long) qdict_get_int(cpu, "nip"));
 #elif defined(TARGET_SPARC)
-    monitor_printf(mon, "pc=0x " TARGET_FMT_lx,
+    monitor_printf(mon, "pc=0x" TARGET_FMT_lx,
                    (target_long) qdict_get_int(cpu, "pc"));
     monitor_printf(mon, "npc=0x" TARGET_FMT_lx,
                    (target_long) qdict_get_int(cpu, "npc"));
