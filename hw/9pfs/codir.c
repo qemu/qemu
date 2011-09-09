@@ -70,29 +70,31 @@ int v9fs_co_mkdir(V9fsState *s, V9fsFidState *fidp, V9fsString *name,
 {
     int err;
     FsCred cred;
-    V9fsString fullname;
+    V9fsPath path;
 
     cred_init(&cred);
     cred.fc_mode = mode;
     cred.fc_uid = uid;
     cred.fc_gid = gid;
-    v9fs_string_init(&fullname);
     qemu_co_rwlock_rdlock(&s->rename_lock);
-    v9fs_string_sprintf(&fullname, "%s/%s", fidp->path.data, name->data);
     v9fs_co_run_in_worker(
         {
-            err = s->ops->mkdir(&s->ctx, fullname.data, &cred);
+            err = s->ops->mkdir(&s->ctx, &fidp->path, name->data,  &cred);
             if (err < 0) {
                 err = -errno;
             } else {
-                err = s->ops->lstat(&s->ctx, fullname.data, stbuf);
-                if (err < 0) {
-                    err = -errno;
+                v9fs_path_init(&path);
+                err = v9fs_name_to_path(s, &fidp->path, name->data, &path);
+                if (!err) {
+                    err = s->ops->lstat(&s->ctx, &path, stbuf);
+                    if (err < 0) {
+                        err = -errno;
+                    }
                 }
+                v9fs_path_free(&path);
             }
         });
     qemu_co_rwlock_unlock(&s->rename_lock);
-    v9fs_string_free(&fullname);
     return err;
 }
 
@@ -103,7 +105,7 @@ int v9fs_co_opendir(V9fsState *s, V9fsFidState *fidp)
     qemu_co_rwlock_rdlock(&s->rename_lock);
     v9fs_co_run_in_worker(
         {
-            fidp->fs.dir = s->ops->opendir(&s->ctx, fidp->path.data);
+            fidp->fs.dir = s->ops->opendir(&s->ctx, &fidp->path);
             if (!fidp->fs.dir) {
                 err = -errno;
             } else {

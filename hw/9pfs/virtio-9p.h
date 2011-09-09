@@ -206,7 +206,7 @@ struct V9fsFidState
 {
     int fid_type;
     int32_t fid;
-    V9fsString path;
+    V9fsPath path;
     union {
         int fd;
         DIR *dir;
@@ -396,4 +396,9 @@ extern void v9fs_string_free(V9fsString *str);
 extern void v9fs_string_null(V9fsString *str);
 extern void v9fs_string_sprintf(V9fsString *str, const char *fmt, ...);
 extern void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs);
+extern void v9fs_path_init(V9fsPath *path);
+extern void v9fs_path_free(V9fsPath *path);
+extern void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs);
+extern int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
+                             const char *name, V9fsPath *path);
 #endif

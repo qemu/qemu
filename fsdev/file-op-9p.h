@@ -57,43 +57,53 @@ typedef struct FsContext
     struct xattr_operations **xops;
 } FsContext;
 
+typedef struct V9fsPath {
+    int16_t size;
+    char *data;
+} V9fsPath;
+
 void cred_init(FsCred *);
 
 typedef struct FileOperations
 {
-    int (*lstat)(FsContext *, const char *, struct stat *);
-    ssize_t (*readlink)(FsContext *, const char *, char *, size_t);
-    int (*chmod)(FsContext *, const char *, FsCred *);
-    int (*chown)(FsContext *, const char *, FsCred *);
-    int (*mknod)(FsContext *, const char *, FsCred *);
-    int (*utimensat)(FsContext *, const char *, const struct timespec *);
+    int (*lstat)(FsContext *, V9fsPath *, struct stat *);
+    ssize_t (*readlink)(FsContext *, V9fsPath *, char *, size_t);
+    int (*chmod)(FsContext *, V9fsPath *, FsCred *);
+    int (*chown)(FsContext *, V9fsPath *, FsCred *);
+    int (*mknod)(FsContext *, V9fsPath *, const char *, FsCred *);
+    int (*utimensat)(FsContext *, V9fsPath *, const struct timespec *);
     int (*remove)(FsContext *, const char *);
-    int (*symlink)(FsContext *, const char *, const char *, FsCred *);
-    int (*link)(FsContext *, const char *, const char *);
+    int (*symlink)(FsContext *, const char *, V9fsPath *,
+                   const char *, FsCred *);
+    int (*link)(FsContext *, V9fsPath *, V9fsPath *, const char *);
     int (*setuid)(FsContext *, uid_t);
     int (*close)(FsContext *, int);
     int (*closedir)(FsContext *, DIR *);
-    DIR *(*opendir)(FsContext *, const char *);
-    int (*open)(FsContext *, const char *, int);
-    int (*open2)(FsContext *, const char *, int, FsCred *);
+    DIR *(*opendir)(FsContext *, V9fsPath *);
+    int (*open)(FsContext *, V9fsPath *, int);
+    int (*open2)(FsContext *, V9fsPath *, const char *, int, FsCred *);
     void (*rewinddir)(FsContext *, DIR *);
     off_t (*telldir)(FsContext *, DIR *);
     int (*readdir_r)(FsContext *, DIR *, struct dirent *, struct dirent **);
     void (*seekdir)(FsContext *, DIR *, off_t);
     ssize_t (*preadv)(FsContext *, int, const struct iovec *, int, off_t);
     ssize_t (*pwritev)(FsContext *, int, const struct iovec *, int, off_t);
-    int (*mkdir)(FsContext *, const char *, FsCred *);
+    int (*mkdir)(FsContext *, V9fsPath *, const char *, FsCred *);
     int (*fstat)(FsContext *, int, struct stat *);
     int (*rename)(FsContext *, const char *, const char *);
-    int (*truncate)(FsContext *, const char *, off_t);
+    int (*truncate)(FsContext *, V9fsPath *, off_t);
     int (*fsync)(FsContext *, int, int);
-    int (*statfs)(FsContext *s, const char *path, struct statfs *stbuf);
-    ssize_t (*lgetxattr)(FsContext *, const char *,
+    int (*statfs)(FsContext *s, V9fsPath *path, struct statfs *stbuf);
+    ssize_t (*lgetxattr)(FsContext *, V9fsPath *,
                          const char *, void *, size_t);
-    ssize_t (*llistxattr)(FsContext *, const char *, void *, size_t);
-    int (*lsetxattr)(FsContext *, const char *,
+    ssize_t (*llistxattr)(FsContext *, V9fsPath *, void *, size_t);
+    int (*lsetxattr)(FsContext *, V9fsPath *,
                      const char *, void *, size_t, int);
-    int (*lremovexattr)(FsContext *, const char *, const char *);
+    int (*lremovexattr)(FsContext *, V9fsPath *, const char *);
+    int (*name_to_path)(FsContext *, V9fsPath *, const char *, V9fsPath *);
+    int (*renameat)(FsContext *ctx, V9fsPath *olddir, const char *old_name,
+                    V9fsPath *newdir, const char *new_name);
+    int (*unlinkat)(FsContext *ctx, V9fsPath *dir, const char *name, int flags);
     void *opaque;
 } FileOperations;
 
