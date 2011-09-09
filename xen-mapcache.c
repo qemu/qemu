@@ -40,6 +40,13 @@
 #endif
 #define MCACHE_BUCKET_SIZE (1UL << MCACHE_BUCKET_SHIFT)
 
+/* This is the size of the virtual address space reserve to QEMU that will not
+ * be use by MapCache.
+ * From empirical tests I observed that qemu use 75MB more than the
+ * max_mcache_size.
+ */
+#define NON_MCACHE_MEMORY_SIZE (80 * 1024 * 1024)
+
 #define mapcache_lock()   ((void)0)
 #define mapcache_unlock() ((void)0)
 
@@ -92,15 +99,27 @@ void xen_map_cache_init(void)
     QTAILQ_INIT(&mapcache->locked_entries);
     mapcache->last_address_index = -1;
 
-    getrlimit(RLIMIT_AS, &rlimit_as);
-    if (rlimit_as.rlim_max < MCACHE_MAX_SIZE) {
-        rlimit_as.rlim_cur = rlimit_as.rlim_max;
+    if (geteuid() == 0) {
+        rlimit_as.rlim_cur = RLIM_INFINITY;
+        rlimit_as.rlim_max = RLIM_INFINITY;
+        mapcache->max_mcache_size = MCACHE_MAX_SIZE;
     } else {
-        rlimit_as.rlim_cur = MCACHE_MAX_SIZE;
+        getrlimit(RLIMIT_AS, &rlimit_as);
+        rlimit_as.rlim_cur = rlimit_as.rlim_max;
+
+        if (rlimit_as.rlim_max != RLIM_INFINITY) {
+            fprintf(stderr, "Warning: QEMU's maximum size of virtual"
+                    " memory is not infinity.\n");
+        }
+        if (rlimit_as.rlim_max < MCACHE_MAX_SIZE + NON_MCACHE_MEMORY_SIZE) {
+            mapcache->max_mcache_size = rlimit_as.rlim_max -
+                NON_MCACHE_MEMORY_SIZE;
+        } else {
+            mapcache->max_mcache_size = MCACHE_MAX_SIZE;
+        }
     }
 
     setrlimit(RLIMIT_AS, &rlimit_as);
-    mapcache->max_mcache_size = rlimit_as.rlim_cur;
 
     mapcache->nr_buckets =
         (((mapcache->max_mcache_size >> XC_PAGE_SHIFT) +
