@@ -237,7 +237,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
 
     s->cluster_cache = g_malloc(s->cluster_size);
     /* one more sector for decompressed data alignment */
-    s->cluster_data = g_malloc(QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size
+    s->cluster_data = qemu_blockalign(bs, QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size
                                   + 512);
     s->cluster_cache_offset = -1;
 
@@ -296,7 +296,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
         qcow2_cache_destroy(bs, s->l2_table_cache);
     }
     g_free(s->cluster_cache);
-    g_free(s->cluster_data);
+    qemu_vfree(s->cluster_data);
     return ret;
 }
 
@@ -456,7 +456,7 @@ static int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                  */
                 if (!cluster_data) {
                     cluster_data =
-                        g_malloc0(QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
+                        qemu_blockalign(bs, QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size);
                 }
 
                 assert(cur_nr_sectors <=
@@ -496,7 +496,7 @@ fail:
     qemu_co_mutex_unlock(&s->lock);
 
     qemu_iovec_destroy(&hd_qiov);
-    g_free(cluster_data);
+    qemu_vfree(cluster_data);
 
     return ret;
 }
@@ -566,7 +566,7 @@ static int qcow2_co_writev(BlockDriverState *bs,
 
         if (s->crypt_method) {
             if (!cluster_data) {
-                cluster_data = g_malloc0(QCOW_MAX_CRYPT_CLUSTERS *
+                cluster_data = qemu_blockalign(bs, QCOW_MAX_CRYPT_CLUSTERS *
                                                  s->cluster_size);
             }
 
@@ -611,7 +611,7 @@ fail:
     qemu_co_mutex_unlock(&s->lock);
 
     qemu_iovec_destroy(&hd_qiov);
-    g_free(cluster_data);
+    qemu_vfree(cluster_data);
 
     return ret;
 }
@@ -628,7 +628,7 @@ static void qcow2_close(BlockDriverState *bs)
     qcow2_cache_destroy(bs, s->refcount_block_cache);
 
     g_free(s->cluster_cache);
-    g_free(s->cluster_data);
+    qemu_vfree(s->cluster_data);
     qcow2_refcount_close(bs);
 }
 
