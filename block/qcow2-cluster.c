@@ -776,17 +776,17 @@ again:
      */
     QLIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
 
-        uint64_t end_offset = offset + nb_clusters * s->cluster_size;
-        uint64_t old_offset = old_alloc->offset;
-        uint64_t old_end_offset = old_alloc->offset +
-            old_alloc->nb_clusters * s->cluster_size;
+        uint64_t start = offset >> s->cluster_bits;
+        uint64_t end = start + nb_clusters;
+        uint64_t old_start = old_alloc->offset >> s->cluster_bits;
+        uint64_t old_end = old_start + old_alloc->nb_clusters;
 
-        if (end_offset < old_offset || offset > old_end_offset) {
+        if (end < old_start || start > old_end) {
             /* No intersection */
         } else {
-            if (offset < old_offset) {
+            if (start < old_start) {
                 /* Stop at the start of a running allocation */
-                nb_clusters = (old_offset - offset) >> s->cluster_bits;
+                nb_clusters = old_start - start;
             } else {
                 nb_clusters = 0;
             }
