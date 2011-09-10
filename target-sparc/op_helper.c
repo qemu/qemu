@@ -3901,10 +3901,8 @@ target_ulong cpu_get_ccr(CPUState *env1)
 
 static void put_ccr(target_ulong val)
 {
-    target_ulong tmp = val;
-
-    env->xcc = (tmp >> 4) << 20;
-    env->psr = (tmp & 0xf) << 20;
+    env->xcc = (val >> 4) << 20;
+    env->psr = (val & 0xf) << 20;
     CC_OP = CC_OP_FLAGS;
 }
 

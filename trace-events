@@ -450,6 +450,13 @@ milkymist_uart_pulse_irq_tx(void) "Pulse IRQ TX"
 milkymist_vgafb_memory_read(uint32_t addr, uint32_t value) "addr %08x value %08x"
 milkymist_vgafb_memory_write(uint32_t addr, uint32_t value) "addr %08x value %08x"
 
+# hw/mipsnet.c
+mipsnet_send(uint32_t size) "sending len=%u"
+mipsnet_receive(uint32_t size) "receiving len=%u"
+mipsnet_read(uint64_t addr, uint32_t val) "read addr=0x%" PRIx64 " val=0x%x"
+mipsnet_write(uint64_t addr, uint64_t val) "write addr=0x%" PRIx64 " val=0x%" PRIx64
+mipsnet_irq(uint32_t isr, uint32_t intctl) "set irq to %d (%02x)"
+
 # xen-all.c
 xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#lx, size %#lx"
 xen_client_set_memory(uint64_t start_addr, unsigned long size, unsigned long phys_offset, bool log_dirty) "%#"PRIx64" size %#lx, offset %#lx, log_dirty %i"

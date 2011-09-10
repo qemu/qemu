@@ -992,7 +992,6 @@ static int multiwrite_f(int argc, char **argv)
 
         optind = j + 1;
 
-        offset += reqs[i].qiov->size;
         pattern++;
     }
 

@@ -96,7 +96,7 @@ static void hid_pointer_event_combine(HIDPointerEvent *e, int xyrel,
         /* Windows drivers do not like the 0/0 position and ignore such
          * events. */
         if (!(x1 | y1)) {
-            x1 = 1;
+            e->xdx = 1;
         }
     }
     e->dz += z1;

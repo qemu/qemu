@@ -301,7 +301,7 @@ obj-lm32-y += framebuffer.o
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
 obj-mips-y += vga.o i8259.o
-obj-mips-y += g364fb.o jazz_led.o
+obj-mips-y += jazz_led.o
 obj-mips-y += gt64xxx.o mc146818rtc.o
 obj-mips-y += cirrus_vga.o
 obj-mips-$(CONFIG_AR7) += ar7.o
@@ -395,6 +395,11 @@ obj-s390x-y = s390-virtio-bus.o s390-virtio.o
 
 obj-alpha-y = i8259.o mc146818rtc.o
 obj-alpha-y += vga.o cirrus_vga.o
+
+obj-xtensa-y += xtensa_pic.o
+obj-xtensa-y += xtensa_sample.o
+obj-xtensa-y += xtensa_dc232b.o
+obj-xtensa-y += xtensa-semi.o
 
 ifdef QEMU_RUBY
 $(QEMU_RUBY): $(OBJS) libqemu.a

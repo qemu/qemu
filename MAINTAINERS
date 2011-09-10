@@ -115,6 +115,12 @@ M: qemu-devel@nongnu.org
 S: Odd Fixes
 F: target-i386/
 
+Xtensa
+M: Max Filippov <jcmvbkbc@gmail.com>
+W: http://kkv.spb.su/doku.php?id=etc:users:jcmvbkbc:qemu-target-xtensa
+S: Maintained
+F: target-xtensa/
+
 Guest CPU Cores (KVM):
 ----------------------
 
@@ -334,6 +340,13 @@ PC
 M: Anthony Liguori <aliguori@us.ibm.com>
 S: Supported
 F: hw/pc.[ch] hw/pc_piix.c
+
+Xtensa Machines
+---------------
+DC232B
+M: Max Filippov <jcmvbkbc@gmail.com>
+S: Maintained
+F: hw/xtensa_dc232b.c
 
 Devices
 -------

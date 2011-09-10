@@ -883,7 +883,6 @@ static void lsi_do_msgout(LSIState *s)
     int len;
     uint32_t current_tag;
     lsi_request *current_req, *p, *p_next;
-    int id;
 
     if (s->current) {
         current_tag = s->current->tag;
@@ -892,7 +891,6 @@ static void lsi_do_msgout(LSIState *s)
         current_tag = s->select_tag;
         current_req = lsi_find_by_tag(s, current_tag);
     }
-    id = (current_tag >> 8) & 0xf;
 
     DPRINTF("MSG out len=%d\n", s->dbc);
     while (s->dbc) {
@@ -977,9 +975,8 @@ static void lsi_do_msgout(LSIState *s)
                device, but this is currently not implemented (and seems not
                to be really necessary). So let's simply clear all queued
                commands for the current device: */
-            id = current_tag & 0x0000ff00;
             QTAILQ_FOREACH_SAFE(p, &s->queue, next, p_next) {
-                if ((p->tag & 0x0000ff00) == id) {
+                if ((p->tag & 0x0000ff00) == (current_tag & 0x0000ff00)) {
                     scsi_req_cancel(p->req);
                 }
             }

@@ -88,7 +88,7 @@ static TranslationBlock *tb_find_slow(CPUState *env,
 {
     TranslationBlock *tb, **ptb1;
     unsigned int h;
-    tb_page_addr_t phys_pc, phys_page1, phys_page2;
+    tb_page_addr_t phys_pc, phys_page1;
     target_ulong virt_page2;
 
     tb_invalidated_flag = 0;
@@ -96,7 +96,6 @@ static TranslationBlock *tb_find_slow(CPUState *env,
     /* find translated block using physical mappings */
     phys_pc = get_page_addr_code(env, pc);
     phys_page1 = phys_pc & TARGET_PAGE_MASK;
-    phys_page2 = -1;
     h = tb_phys_hash_func(phys_pc);
     ptb1 = &tb_phys_hash[h];
     for(;;) {
@@ -109,6 +108,8 @@ static TranslationBlock *tb_find_slow(CPUState *env,
             tb->flags == flags) {
             /* check next page if needed */
             if (tb->page_addr[1] != -1) {
+                tb_page_addr_t phys_page2;
+
                 virt_page2 = (pc & TARGET_PAGE_MASK) +
                     TARGET_PAGE_SIZE;
                 phys_page2 = get_page_addr_code(env, virt_page2);
@@ -224,6 +225,7 @@ int cpu_exec(CPUState *env)
 #elif defined(TARGET_SH4)
 #elif defined(TARGET_CRIS)
 #elif defined(TARGET_S390X)
+#elif defined(TARGET_XTENSA)
     /* XXXXX */
 #else
 #error unsupported target CPU
@@ -489,6 +491,12 @@ int cpu_exec(CPUState *env)
                         do_interrupt(env);
                         next_tb = 0;
                     }
+#elif defined(TARGET_XTENSA)
+                    if (interrupt_request & CPU_INTERRUPT_HARD) {
+                        env->exception_index = EXC_IRQ;
+                        do_interrupt(env);
+                        next_tb = 0;
+                    }
 #endif
                    /* Don't use the cached interrupt_request value,
                       do_interrupt may have updated the EXITTB flag. */
@@ -618,6 +626,7 @@ int cpu_exec(CPUState *env)
 #elif defined(TARGET_ALPHA)
 #elif defined(TARGET_CRIS)
 #elif defined(TARGET_S390X)
+#elif defined(TARGET_XTENSA)
     /* XXXXX */
 #else
 #error unsupported target CPU
