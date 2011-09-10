@@ -277,8 +277,9 @@ static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
     return result;
 }
 
-static int nbd_co_readv(BlockDriverState *bs, int64_t sector_num,
-                        int nb_sectors, QEMUIOVector *qiov)
+static int nbd_co_readv_1(BlockDriverState *bs, int64_t sector_num,
+                          int nb_sectors, QEMUIOVector *qiov,
+                          int offset)
 {
     BDRVNBDState *s = bs->opaque;
     struct nbd_request request;
@@ -292,15 +293,16 @@ static int nbd_co_readv(BlockDriverState *bs, int64_t sector_num,
     if (nbd_co_send_request(s, &request, NULL, 0) == -1) {
         reply.error = errno;
     } else {
-        nbd_co_receive_reply(s, &request, &reply, qiov->iov, 0);
+        nbd_co_receive_reply(s, &request, &reply, qiov->iov, offset);
     }
     nbd_coroutine_end(s, &request);
     return -reply.error;
 
 }
 
-static int nbd_co_writev(BlockDriverState *bs, int64_t sector_num,
-                         int nb_sectors, QEMUIOVector *qiov)
+static int nbd_co_writev_1(BlockDriverState *bs, int64_t sector_num,
+                           int nb_sectors, QEMUIOVector *qiov,
+                           int offset)
 {
     BDRVNBDState *s = bs->opaque;
     struct nbd_request request;
@@ -311,13 +313,51 @@ static int nbd_co_writev(BlockDriverState *bs, int64_t sector_num,
     request.len = nb_sectors * 512;
 
     nbd_coroutine_start(s, &request);
-    if (nbd_co_send_request(s, &request, qiov->iov, 0) == -1) {
+    if (nbd_co_send_request(s, &request, qiov->iov, offset) == -1) {
         reply.error = errno;
     } else {
         nbd_co_receive_reply(s, &request, &reply, NULL, 0);
     }
     nbd_coroutine_end(s, &request);
     return -reply.error;
+}
+
+/* qemu-nbd has a limit of slightly less than 1M per request.  Try to
+ * remain aligned to 4K. */
+#define NBD_MAX_SECTORS 2040
+
+static int nbd_co_readv(BlockDriverState *bs, int64_t sector_num,
+                        int nb_sectors, QEMUIOVector *qiov)
+{
+    int offset = 0;
+    int ret;
+    while (nb_sectors > NBD_MAX_SECTORS) {
+        ret = nbd_co_readv_1(bs, sector_num, NBD_MAX_SECTORS, qiov, offset);
+        if (ret < 0) {
+            return ret;
+        }
+        offset += NBD_MAX_SECTORS * 512;
+        sector_num += NBD_MAX_SECTORS;
+        nb_sectors -= NBD_MAX_SECTORS;
+    }
+    return nbd_co_readv_1(bs, sector_num, nb_sectors, qiov, offset);
+}
+
+static int nbd_co_writev(BlockDriverState *bs, int64_t sector_num,
+                         int nb_sectors, QEMUIOVector *qiov)
+{
+    int offset = 0;
+    int ret;
+    while (nb_sectors > NBD_MAX_SECTORS) {
+        ret = nbd_co_writev_1(bs, sector_num, NBD_MAX_SECTORS, qiov, offset);
+        if (ret < 0) {
+            return ret;
+        }
+        offset += NBD_MAX_SECTORS * 512;
+        sector_num += NBD_MAX_SECTORS;
+        nb_sectors -= NBD_MAX_SECTORS;
+    }
+    return nbd_co_writev_1(bs, sector_num, nb_sectors, qiov, offset);
 }
 
 static void nbd_close(BlockDriverState *bs)
