@@ -1144,7 +1144,7 @@ void cpu_reset(CPUSPARCState *env)
     env->cleanwin = env->nwindows - 2;
     env->cansave = env->nwindows - 2;
     env->pstate = PS_RMO | PS_PEF | PS_IE;
-    env->asi = 0x82; // Primary no-fault
+    env->asi = 0x82; /* Primary no-fault */
 #endif
 #else
 #if !defined(TARGET_SPARC64)
@@ -1172,14 +1172,16 @@ static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
 {
     sparc_def_t def1, *def = &def1;
 
-    if (cpu_sparc_find_by_name(def, cpu_model) < 0)
+    if (cpu_sparc_find_by_name(def, cpu_model) < 0) {
         return -1;
+    }
 
     env->def = g_malloc0(sizeof(*def));
     memcpy(env->def, def, sizeof(*def));
 #if defined(CONFIG_USER_ONLY)
-    if ((env->def->features & CPU_FEATURE_FLOAT))
+    if ((env->def->features & CPU_FEATURE_FLOAT)) {
         env->def->features |= CPU_FEATURE_FLOAT128;
+    }
 #endif
     env->cpu_model_str = cpu_model;
     env->version = def->iu_version;
@@ -1359,7 +1361,7 @@ static const sparc_def_t sparc_defs[] = {
     },
     {
         .name = "Sun UltraSparc T1",
-        // defined in sparc_ifu_fdp.v and ctu.h
+        /* defined in sparc_ifu_fdp.v and ctu.h */
         .iu_version = ((0x3eULL << 48) | (0x23ULL << 32) | (0x02ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_sun4v,
@@ -1370,7 +1372,7 @@ static const sparc_def_t sparc_defs[] = {
     },
     {
         .name = "Sun UltraSparc T2",
-        // defined in tlu_asi_ctl.v and n2_revid_cust.v
+        /* defined in tlu_asi_ctl.v and n2_revid_cust.v */
         .iu_version = ((0x3eULL << 48) | (0x24ULL << 32) | (0x02ULL << 24)),
         .fpu_version = 0x00000000,
         .mmu_version = mmu_sun4v,
@@ -1512,10 +1514,10 @@ static const sparc_def_t sparc_defs[] = {
         .features = CPU_DEFAULT_FEATURES,
     },
     {
-        .name = "TI SuperSparc 40", // STP1020NPGA
-        .iu_version = 0x41000000, // SuperSPARC 2.x
+        .name = "TI SuperSparc 40", /* STP1020NPGA */
+        .iu_version = 0x41000000, /* SuperSPARC 2.x */
         .fpu_version = 0 << 17,
-        .mmu_version = 0x00000800, // SuperSPARC 2.x, no MXCC
+        .mmu_version = 0x00000800, /* SuperSPARC 2.x, no MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
         .mmu_cxr_mask = 0x0000ffff,
@@ -1525,10 +1527,10 @@ static const sparc_def_t sparc_defs[] = {
         .features = CPU_DEFAULT_FEATURES,
     },
     {
-        .name = "TI SuperSparc 50", // STP1020PGA
-        .iu_version = 0x40000000, // SuperSPARC 3.x
+        .name = "TI SuperSparc 50", /* STP1020PGA */
+        .iu_version = 0x40000000, /* SuperSPARC 3.x */
         .fpu_version = 0 << 17,
-        .mmu_version = 0x01000800, // SuperSPARC 3.x, no MXCC
+        .mmu_version = 0x01000800, /* SuperSPARC 3.x, no MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
         .mmu_cxr_mask = 0x0000ffff,
@@ -1539,9 +1541,9 @@ static const sparc_def_t sparc_defs[] = {
     },
     {
         .name = "TI SuperSparc 51",
-        .iu_version = 0x40000000, // SuperSPARC 3.x
+        .iu_version = 0x40000000, /* SuperSPARC 3.x */
         .fpu_version = 0 << 17,
-        .mmu_version = 0x01000000, // SuperSPARC 3.x, MXCC
+        .mmu_version = 0x01000000, /* SuperSPARC 3.x, MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
         .mmu_cxr_mask = 0x0000ffff,
@@ -1552,10 +1554,10 @@ static const sparc_def_t sparc_defs[] = {
         .features = CPU_DEFAULT_FEATURES,
     },
     {
-        .name = "TI SuperSparc 60", // STP1020APGA
-        .iu_version = 0x40000000, // SuperSPARC 3.x
+        .name = "TI SuperSparc 60", /* STP1020APGA */
+        .iu_version = 0x40000000, /* SuperSPARC 3.x */
         .fpu_version = 0 << 17,
-        .mmu_version = 0x01000800, // SuperSPARC 3.x, no MXCC
+        .mmu_version = 0x01000800, /* SuperSPARC 3.x, no MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
         .mmu_cxr_mask = 0x0000ffff,
@@ -1566,9 +1568,9 @@ static const sparc_def_t sparc_defs[] = {
     },
     {
         .name = "TI SuperSparc 61",
-        .iu_version = 0x44000000, // SuperSPARC 3.x
+        .iu_version = 0x44000000, /* SuperSPARC 3.x */
         .fpu_version = 0 << 17,
-        .mmu_version = 0x01000000, // SuperSPARC 3.x, MXCC
+        .mmu_version = 0x01000000, /* SuperSPARC 3.x, MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
         .mmu_cxr_mask = 0x0000ffff,
@@ -1580,9 +1582,9 @@ static const sparc_def_t sparc_defs[] = {
     },
     {
         .name = "TI SuperSparc II",
-        .iu_version = 0x40000000, // SuperSPARC II 1.x
+        .iu_version = 0x40000000, /* SuperSPARC II 1.x */
         .fpu_version = 0 << 17,
-        .mmu_version = 0x08000000, // SuperSPARC II 1.x, MXCC
+        .mmu_version = 0x08000000, /* SuperSPARC II 1.x, MXCC */
         .mmu_bm = 0x00002000,
         .mmu_ctpr_mask = 0xffffffc0,
         .mmu_cxr_mask = 0x0000ffff,
@@ -1711,23 +1713,26 @@ static void print_features(FILE *f, fprintf_function cpu_fprintf,
 {
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(feature_name); i++)
+    for (i = 0; i < ARRAY_SIZE(feature_name); i++) {
         if (feature_name[i] && (features & (1 << i))) {
-            if (prefix)
+            if (prefix) {
                 (*cpu_fprintf)(f, "%s", prefix);
+            }
             (*cpu_fprintf)(f, "%s ", feature_name[i]);
         }
+    }
 }
 
 static void add_flagname_to_bitmaps(const char *flagname, uint32_t *features)
 {
     unsigned int i;
 
-    for (i = 0; i < ARRAY_SIZE(feature_name); i++)
+    for (i = 0; i < ARRAY_SIZE(feature_name); i++) {
         if (feature_name[i] && !strcmp(flagname, feature_name[i])) {
             *features |= 1 << i;
             return;
         }
+    }
     fprintf(stderr, "CPU feature %s not found\n", flagname);
 }
 
@@ -1747,8 +1752,9 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model)
             def = &sparc_defs[i];
         }
     }
-    if (!def)
+    if (!def) {
         goto error;
+    }
     memcpy(cpu_def, def, sizeof(*def));
 
     featurestr = strtok(NULL, ",");
@@ -1839,7 +1845,8 @@ void sparc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
     unsigned int i;
 
     for (i = 0; i < ARRAY_SIZE(sparc_defs); i++) {
-        (*cpu_fprintf)(f, "Sparc %16s IU " TARGET_FMT_lx " FPU %08x MMU %08x NWINS %d ",
+        (*cpu_fprintf)(f, "Sparc %16s IU " TARGET_FMT_lx
+                       " FPU %08x MMU %08x NWINS %d ",
                        sparc_defs[i].name,
                        sparc_defs[i].iu_version,
                        sparc_defs[i].fpu_version,
@@ -1864,9 +1871,9 @@ void sparc_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 static void cpu_print_cc(FILE *f, fprintf_function cpu_fprintf,
                          uint32_t cc)
 {
-    cpu_fprintf(f, "%c%c%c%c", cc & PSR_NEG? 'N' : '-',
-                cc & PSR_ZERO? 'Z' : '-', cc & PSR_OVF? 'V' : '-',
-                cc & PSR_CARRY? 'C' : '-');
+    cpu_fprintf(f, "%c%c%c%c", cc & PSR_NEG ? 'N' : '-',
+                cc & PSR_ZERO ? 'Z' : '-', cc & PSR_OVF ? 'V' : '-',
+                cc & PSR_CARRY ? 'C' : '-');
 }
 
 #ifdef TARGET_SPARC64
@@ -1909,11 +1916,13 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
     }
     cpu_fprintf(f, "\nFloating Point Registers:\n");
     for (i = 0; i < TARGET_FPREGS; i++) {
-        if ((i & 3) == 0)
+        if ((i & 3) == 0) {
             cpu_fprintf(f, "%%f%02d:", i);
+        }
         cpu_fprintf(f, " %016f", *(float *)&env->fpr[i]);
-        if ((i & 3) == 3)
+        if ((i & 3) == 3) {
             cpu_fprintf(f, "\n");
+        }
     }
 #ifdef TARGET_SPARC64
     cpu_fprintf(f, "pstate: %08x ccr: %02x (icc: ", env->pstate,
@@ -1932,8 +1941,8 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
 #else
     cpu_fprintf(f, "psr: %08x (icc: ", cpu_get_psr(env));
     cpu_print_cc(f, cpu_fprintf, cpu_get_psr(env));
-    cpu_fprintf(f, " SPE: %c%c%c) wim: %08x\n", env->psrs? 'S' : '-',
-                env->psrps? 'P' : '-', env->psret? 'E' : '-',
+    cpu_fprintf(f, " SPE: %c%c%c) wim: %08x\n", env->psrs ? 'S' : '-',
+                env->psrps ? 'P' : '-', env->psret ? 'E' : '-',
                 env->wim);
     cpu_fprintf(f, "fsr: " TARGET_FMT_lx " y: " TARGET_FMT_lx "\n",
                 env->fsr, env->y);
