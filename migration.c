@@ -274,15 +274,7 @@ static void migrate_fd_monitor_suspend(MigrationState *s, Monitor *mon)
     }
 }
 
-void migrate_fd_error(MigrationState *s)
-{
-    DPRINTF("setting error state\n");
-    s->state = MIG_STATE_ERROR;
-    notifier_list_notify(&migration_state_notifiers, NULL);
-    migrate_fd_cleanup(s);
-}
-
-int migrate_fd_cleanup(MigrationState *s)
+static int migrate_fd_cleanup(MigrationState *s)
 {
     int ret = 0;
 
@@ -308,7 +300,15 @@ int migrate_fd_cleanup(MigrationState *s)
     return ret;
 }
 
-void migrate_fd_put_notify(void *opaque)
+void migrate_fd_error(MigrationState *s)
+{
+    DPRINTF("setting error state\n");
+    s->state = MIG_STATE_ERROR;
+    notifier_list_notify(&migration_state_notifiers, NULL);
+    migrate_fd_cleanup(s);
+}
+
+static void migrate_fd_put_notify(void *opaque)
 {
     MigrationState *s = opaque;
 
@@ -319,7 +319,8 @@ void migrate_fd_put_notify(void *opaque)
     }
 }
 
-ssize_t migrate_fd_put_buffer(void *opaque, const void *data, size_t size)
+static ssize_t migrate_fd_put_buffer(void *opaque, const void *data,
+                                     size_t size)
 {
     MigrationState *s = opaque;
     ssize_t ret;
@@ -342,29 +343,7 @@ ssize_t migrate_fd_put_buffer(void *opaque, const void *data, size_t size)
     return ret;
 }
 
-void migrate_fd_connect(MigrationState *s)
-{
-    int ret;
-
-    s->file = qemu_fopen_ops_buffered(s,
-                                      s->bandwidth_limit,
-                                      migrate_fd_put_buffer,
-                                      migrate_fd_put_ready,
-                                      migrate_fd_wait_for_unfreeze,
-                                      migrate_fd_close);
-
-    DPRINTF("beginning savevm\n");
-    ret = qemu_savevm_state_begin(s->mon, s->file, s->blk, s->shared);
-    if (ret < 0) {
-        DPRINTF("failed, %d\n", ret);
-        migrate_fd_error(s);
-        return;
-    }
-    
-    migrate_fd_put_ready(s);
-}
-
-void migrate_fd_put_ready(void *opaque)
+static void migrate_fd_put_ready(void *opaque)
 {
     MigrationState *s = opaque;
     int ret;
@@ -436,7 +415,7 @@ static void migrate_fd_release(MigrationState *s)
     g_free(s);
 }
 
-void migrate_fd_wait_for_unfreeze(void *opaque)
+static void migrate_fd_wait_for_unfreeze(void *opaque)
 {
     MigrationState *s = opaque;
     int ret;
@@ -459,7 +438,7 @@ void migrate_fd_wait_for_unfreeze(void *opaque)
     }
 }
 
-int migrate_fd_close(void *opaque)
+static int migrate_fd_close(void *opaque)
 {
     MigrationState *s = opaque;
 
@@ -487,6 +466,27 @@ int get_migration_state(void)
     } else {
         return MIG_STATE_ERROR;
     }
+}
+
+void migrate_fd_connect(MigrationState *s)
+{
+    int ret;
+
+    s->file = qemu_fopen_ops_buffered(s,
+                                      s->bandwidth_limit,
+                                      migrate_fd_put_buffer,
+                                      migrate_fd_put_ready,
+                                      migrate_fd_wait_for_unfreeze,
+                                      migrate_fd_close);
+
+    DPRINTF("beginning savevm\n");
+    ret = qemu_savevm_state_begin(s->mon, s->file, s->blk, s->shared);
+    if (ret < 0) {
+        DPRINTF("failed, %d\n", ret);
+        migrate_fd_error(s);
+        return;
+    }
+    migrate_fd_put_ready(s);
 }
 
 MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
