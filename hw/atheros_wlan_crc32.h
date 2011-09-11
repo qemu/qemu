@@ -39,8 +39,8 @@ extern guint32 crc32_ccitt_seed(const guint8 *buf, guint len, guint32 seed);
 
 
 typedef struct {
-	const guint8 *ptr;
-	int	len;
+    const guint8 *ptr;
+    int len;
 } vec_t;
 
 extern int in_cksum(const vec_t *vec, int veclen);

@@ -76,241 +76,227 @@
 
 static void Atheros_WLAN_reset(NICInfo *nd, Atheros_WLANState *s)
 {
-	DEBUG_PRINT(("reset\n"));
+    DEBUG_PRINT(("reset\n"));
 
-	/*
-	 * Restore mac address
-	 */
-	memcpy(s->macaddr, nd->macaddr.a, 6);
+    /*
+     * Restore mac address
+     */
+    memcpy(s->macaddr, nd->macaddr.a, 6);
 
-	/*
-	 * data from my local AR5212 device
-	 */
-	SET_MEM_L(s->mem, 12, 0);
-	SET_MEM_L(s->mem, AR5K_SREV, 86);
-	SET_MEM_L(s->mem, AR5K_PCICFG, 0x00010014);
-	SET_MEM_L(s->mem, AR5K_PHY_CHIP_ID, 65);
-	SET_MEM_L(s->mem, AR5K_SLEEP_CTL, 0x00010000);
-	SET_MEM_L(s->mem, 0x9820, 0x02020200);
+    /*
+     * data from my local AR5212 device
+     */
+    SET_MEM_L(s->mem, 12, 0);
+    SET_MEM_L(s->mem, AR5K_SREV, 86);
+    SET_MEM_L(s->mem, AR5K_PCICFG, 0x00010014);
+    SET_MEM_L(s->mem, AR5K_PHY_CHIP_ID, 65);
+    SET_MEM_L(s->mem, AR5K_SLEEP_CTL, 0x00010000);
+    SET_MEM_L(s->mem, 0x9820, 0x02020200);
 
-	Atheros_WLAN_update_irq(s);
+    Atheros_WLAN_update_irq(s);
 }
 
 static void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
 {
-	// create buffer large enough to
-	// do all checks
-	char *device_name;
-	char nd_model[128];
-	uint8_t *pci_conf;
-	Atheros_WLANState *s;
+    // create buffer large enough to
+    // do all checks
+    char *device_name;
+    char nd_model[128];
+    uint8_t *pci_conf;
+    Atheros_WLANState *s;
 
-	device_name = nd_model;
-	pci_conf = d->dev.config;
-	s = &d->Atheros_WLAN;
+    device_name = nd_model;
+    pci_conf = d->dev.config;
+    s = &d->Atheros_WLAN;
 
-	snprintf(nd_model, sizeof(nd_model), "%s", nd->model);
+    snprintf(nd_model, sizeof(nd_model), "%s", nd->model);
 
 
-	// skip "atheros_wlan"
-	// if it had not been part of nd->model, this
-	// module would not be loaded anyways!!
-	device_name += 12;
-	DEBUG_PRINT_AP(("Loading virtual wlan-pci device...\n"));
-	if (strncmp(device_name, "_winxp", 6) == 0)
-	{
-		s->device_driver_type = WINXP_DRIVER;
-		DEBUG_PRINT_AP((" * Make sure you are using a MS Windows driver!!\n"));
+    // skip "atheros_wlan"
+    // if it had not been part of nd->model, this
+    // module would not be loaded anyways!!
+    device_name += 12;
+    DEBUG_PRINT_AP(("Loading virtual wlan-pci device...\n"));
+    if (strncmp(device_name, "_winxp", 6) == 0) {
+        s->device_driver_type = WINXP_DRIVER;
+        DEBUG_PRINT_AP((" * Make sure you are using a MS Windows driver!!\n"));
 
-		// skip "_winxp"
-		device_name += 6;
-	}
-	else if (strncmp(device_name, "_linux", 6) == 0)
-	{
-		s->device_driver_type = LINUX_DRIVER;
-		DEBUG_PRINT_AP((" * Make sure you are using a MadWifi driver!!\n"));
+        // skip "_winxp"
+        device_name += 6;
+    } else if (strncmp(device_name, "_linux", 6) == 0) {
+        s->device_driver_type = LINUX_DRIVER;
+        DEBUG_PRINT_AP((" * Make sure you are using a MadWifi driver!!\n"));
 
-		// skip "_linux"
-		device_name += 6;
-	}
-	else
-	{
-		s->device_driver_type = LINUX_DRIVER;
-		DEBUG_PRINT_AP((" * Unknown driver type '%s'... defaulting to Linux... Make sure you are using a MadWifi driver!!\n", nd->model));
-	}
+        // skip "_linux"
+        device_name += 6;
+    } else {
+        s->device_driver_type = LINUX_DRIVER;
+        DEBUG_PRINT_AP((" * Unknown driver type '%s'... defaulting to Linux... Make sure you are using a MadWifi driver!!\n", nd->model));
+    }
 
-	if (strncmp(device_name, "_HPW400", 7) == 0)
-	{
-		s->eeprom_data = (u_int32_t*)Atheros_WLAN_eeprom_data_HPW400;
-		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
+    if (strncmp(device_name, "_HPW400", 7) == 0) {
+        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
-		memcpy(pci_conf, Atheros_WLAN_pci_config_HPW400, 256);
+        memcpy(pci_conf, Atheros_WLAN_pci_config_HPW400, 256);
 
-		DEBUG_PRINT_AP((" * Using EEPROM and device configuration of HP W400!!\n"));
+        DEBUG_PRINT_AP((" * Using EEPROM and device configuration of HP W400!!\n"));
 
-		// skip "_HPW400"
-		device_name += 7;
-	}
-	else if (strncmp(device_name, "_MacBook", 8) == 0)
-	{
-		s->eeprom_data = (u_int32_t*)Atheros_WLAN_eeprom_data_MacBook;
-		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_MacBook);
+        // skip "_HPW400"
+        device_name += 7;
+    } else if (strncmp(device_name, "_MacBook", 8) == 0) {
+        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_MacBook;
+        s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_MacBook);
 
-		memcpy(pci_conf, Atheros_WLAN_pci_config_MacBook, 256);
+        memcpy(pci_conf, Atheros_WLAN_pci_config_MacBook, 256);
 
-		DEBUG_PRINT_AP((" * Using EEPROM and device configuration of Mac Book!!\n"));
+        DEBUG_PRINT_AP((" * Using EEPROM and device configuration of Mac Book!!\n"));
 
-		// skip "_MacBook"
-		device_name += 8;
-	}
-	else if (strncmp(device_name, "_AR5001XPlus", 12) == 0)
-	{
-		s->eeprom_data = (u_int32_t*)Atheros_WLAN_eeprom_data_HPW400;
-		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
+        // skip "_MacBook"
+        device_name += 8;
+    } else if (strncmp(device_name, "_AR5001XPlus", 12) == 0) {
+        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
-		memcpy(pci_conf, Atheros_WLAN_pci_config_AR5001XPlus, 256);
+        memcpy(pci_conf, Atheros_WLAN_pci_config_AR5001XPlus, 256);
 
-		DEBUG_PRINT_AP((" * Using EEPROM and device configuration of AR5001X+ (e.g. Toshiba A100)!!\n"));
+        DEBUG_PRINT_AP((" * Using EEPROM and device configuration of AR5001X+ (e.g. Toshiba A100)!!\n"));
 
-		// skip "_AR5001XPlus"
-		device_name += 12;
-	}
-	else if (strncmp(device_name, "_John", 5) == 0)
-	{
-		s->eeprom_data = (u_int32_t*)Atheros_WLAN_eeprom_data_HPW400;
-		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
+        // skip "_AR5001XPlus"
+        device_name += 12;
+    } else if (strncmp(device_name, "_John", 5) == 0) {
+        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
-		memcpy(pci_conf, Atheros_WLAN_pci_config_JOHN, 256);
+        memcpy(pci_conf, Atheros_WLAN_pci_config_JOHN, 256);
 
-		DEBUG_PRINT_AP((" * Using EEPROM and device configuration of John!!\n"));
+        DEBUG_PRINT_AP((" * Using EEPROM and device configuration of John!!\n"));
 
-		// skip "_John"
-		device_name += 5;
-	}
-	else if (strncmp(device_name, "_TPLinkWN651G", 13) == 0)
-	{
-		s->eeprom_data = (u_int32_t*)Atheros_WLAN_eeprom_data_HPW400;
-		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
+        // skip "_John"
+        device_name += 5;
+    } else if (strncmp(device_name, "_TPLinkWN651G", 13) == 0) {
+        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
-		memcpy(pci_conf, Atheros_WLAN_pci_config_TP_Link_WN651G, 64);
+        memcpy(pci_conf, Atheros_WLAN_pci_config_TP_Link_WN651G, 64);
 
-		DEBUG_PRINT_AP((" * Using EEPROM and device configuration of TP-Link WN651G!!\n"));
+        DEBUG_PRINT_AP((" * Using EEPROM and device configuration of TP-Link WN651G!!\n"));
 
-		// skip "_TPLinkWN651G"
-		device_name += 13;
-	}
-	else
-	{
-		s->eeprom_data = (u_int32_t*)Atheros_WLAN_eeprom_data_HPW400;
-		s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
+        // skip "_TPLinkWN651G"
+        device_name += 13;
+    } else {
+        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
-		memcpy(pci_conf, Atheros_WLAN_pci_config_HPW400, 256);
+        memcpy(pci_conf, Atheros_WLAN_pci_config_HPW400, 256);
 
-		DEBUG_PRINT_AP((" * Unknown EEPROM type '%s'... defaulting to HP W400!!\n", nd->model));
-	}
+        DEBUG_PRINT_AP((" * Unknown EEPROM type '%s'... defaulting to HP W400!!\n", nd->model));
+    }
 }
 
 #if 0
-static void Atheros_WLAN_save(QEMUFile* f, void* opaque)
+static void Atheros_WLAN_save(QEMUFile *f, void *opaque)
 {
-	int i;
-	uint32_t direct_value;
-	Atheros_WLANState *s = (Atheros_WLANState *)opaque;
+    int i;
+    uint32_t direct_value;
+    Atheros_WLANState *s = (Atheros_WLANState *)opaque;
 
-        pci_device_save(&s->pci_dev, f);
+    pci_device_save(&s->pci_dev, f);
 
-	qemu_put_be32s(f, &s->device_driver_type);
+    qemu_put_be32s(f, &s->device_driver_type);
 
-	qemu_put_buffer(f, s->ipaddr, 4);
-	qemu_put_buffer(f, s->macaddr, 6);
+    qemu_put_buffer(f, s->ipaddr, 4);
+    qemu_put_buffer(f, s->macaddr, 6);
 
-	qemu_put_buffer(f, s->ap_ipaddr, 4);
-	qemu_put_buffer(f, s->ap_macaddr, 6);
+    qemu_put_buffer(f, s->ap_ipaddr, 4);
+    qemu_put_buffer(f, s->ap_macaddr, 6);
 
 
-	qemu_put_be32s(f, &s->interrupt_p_mask);
-	for (i=0; i<5; qemu_put_be32s(f, &s->interrupt_s_mask[i++]));
-	qemu_put_8s(f, &s->interrupt_enabled);
+    qemu_put_be32s(f, &s->interrupt_p_mask);
+    for (i = 0; i < 5; qemu_put_be32s(f, &s->interrupt_s_mask[i++])) {
+    }
+    qemu_put_8s(f, &s->interrupt_enabled);
 
-	qemu_put_be32s(f, &s->current_frequency);
+    qemu_put_be32s(f, &s->current_frequency);
 
-	direct_value = (uint32_t)s->receive_queue_address;
-	qemu_put_be32s(f, &direct_value);
-	qemu_put_be32s(f, &s->receive_queue_count);
+    direct_value = (uint32_t)s->receive_queue_address;
+    qemu_put_be32s(f, &direct_value);
+    qemu_put_be32s(f, &s->receive_queue_count);
 
-	qemu_put_be32s(f, &s->transmit_queue_size);
-	for (i=0; i<16; i++)
-	{
-		qemu_put_8s(f, &s->transmit_queue_enabled[i]);
-		direct_value = (uint32_t)s->transmit_queue_address[i];
-		qemu_put_be32s(f, &direct_value);
-		qemu_put_be32s(f, &s->transmit_queue_processed[i]);
-	}
+    qemu_put_be32s(f, &s->transmit_queue_size);
+    for (i = 0; i < 16; i++) {
+        qemu_put_8s(f, &s->transmit_queue_enabled[i]);
+        direct_value = (uint32_t)s->transmit_queue_address[i];
+        qemu_put_be32s(f, &direct_value);
+        qemu_put_be32s(f, &s->transmit_queue_processed[i]);
+    }
 
-	qemu_put_be32s(f, &s->ap_state);
-	qemu_put_be32s(f, &s->inject_sequence_number);
+    qemu_put_be32s(f, &s->ap_state);
+    qemu_put_be32s(f, &s->inject_sequence_number);
 
-	qemu_put_buffer(f, (uint8_t *)s->mem, Atheros_WLAN_MEM_SIZE);
+    qemu_put_buffer(f, (uint8_t *)s->mem, Atheros_WLAN_MEM_SIZE);
 }
 
-static int Atheros_WLAN_load(QEMUFile* f, void* opaque, int version_id)
+static int Atheros_WLAN_load(QEMUFile *f, void *opaque, int version_id)
 {
-	int i, ret;
-	uint32_t direct_value;
-	Atheros_WLANState *s = (Atheros_WLANState *)opaque;
+    int i, ret;
+    uint32_t direct_value;
+    Atheros_WLANState *s = (Atheros_WLANState *)opaque;
 
-	// everyone has version 3... and the pci
-	// stuff should be there as well, I think
-	//
-	// let's just claim this has been around
-	// for quite some time ;-)
-	if (version_id != 3)
-		return -EINVAL;
+    // everyone has version 3... and the pci
+    // stuff should be there as well, I think
+    //
+    // let's just claim this has been around
+    // for quite some time ;-)
+    if (version_id != 3) {
+        return -EINVAL;
+    }
 
-        if (version_id >= 3) {
-            ret = pci_device_load(&s->pci_dev, f);
-		if (ret < 0)
-			return ret;
-	}
+    if (version_id >= 3) {
+        ret = pci_device_load(&s->pci_dev, f);
+        if (ret < 0) {
+            return ret;
+        }
+    }
 
-	qemu_get_be32s(f, &s->device_driver_type);
+    qemu_get_be32s(f, &s->device_driver_type);
 
-	qemu_get_buffer(f, s->ipaddr, 4);
-	qemu_get_buffer(f, s->macaddr, 6);
+    qemu_get_buffer(f, s->ipaddr, 4);
+    qemu_get_buffer(f, s->macaddr, 6);
 
-	qemu_get_buffer(f, s->ap_ipaddr, 4);
-	qemu_get_buffer(f, s->ap_macaddr, 6);
-
-
-	qemu_get_be32s(f, &s->interrupt_p_mask);
-	for (i=0; i<5; qemu_get_be32s(f, &s->interrupt_s_mask[i++]));
-	qemu_get_8s(f, &s->interrupt_enabled);
-
-	qemu_get_be32s(f, &s->current_frequency);
-	qemu_get_be32s(f, &direct_value);
-	s->receive_queue_address = (target_phys_addr_t)direct_value;
-	qemu_get_be32s(f, &s->receive_queue_count);
-
-	qemu_get_be32s(f, &s->transmit_queue_size);
-	for (i=0; i<16; i++)
-	{
-		qemu_get_8s(f, &s->transmit_queue_enabled[i]);
-		qemu_get_be32s(f, &direct_value);
-		s->transmit_queue_address[i] = (target_phys_addr_t)direct_value;
-		qemu_get_be32s(f, &s->transmit_queue_processed[i]);
-	}
-
-	qemu_get_be32s(f, &s->ap_state);
-	qemu_get_be32s(f, &s->inject_sequence_number);
-
-	qemu_get_buffer(f, (uint8_t *)s->mem, Atheros_WLAN_MEM_SIZE);
+    qemu_get_buffer(f, s->ap_ipaddr, 4);
+    qemu_get_buffer(f, s->ap_macaddr, 6);
 
 
-	s->inject_timer_running = 0;
-	s->inject_queue_size = 0;
-	s->inject_queue = NULL;
+    qemu_get_be32s(f, &s->interrupt_p_mask);
+    for (i = 0; i < 5; qemu_get_be32s(f, &s->interrupt_s_mask[i++])) {
+    }
+    qemu_get_8s(f, &s->interrupt_enabled);
 
-	return 0;
+    qemu_get_be32s(f, &s->current_frequency);
+    qemu_get_be32s(f, &direct_value);
+    s->receive_queue_address = (target_phys_addr_t)direct_value;
+    qemu_get_be32s(f, &s->receive_queue_count);
+
+    qemu_get_be32s(f, &s->transmit_queue_size);
+    for (i = 0; i < 16; i++) {
+        qemu_get_8s(f, &s->transmit_queue_enabled[i]);
+        qemu_get_be32s(f, &direct_value);
+        s->transmit_queue_address[i] = (target_phys_addr_t)direct_value;
+        qemu_get_be32s(f, &s->transmit_queue_processed[i]);
+    }
+
+    qemu_get_be32s(f, &s->ap_state);
+    qemu_get_be32s(f, &s->inject_sequence_number);
+
+    qemu_get_buffer(f, (uint8_t *)s->mem, Atheros_WLAN_MEM_SIZE);
+
+
+    s->inject_timer_running = 0;
+    s->inject_queue_size = 0;
+    s->inject_queue = NULL;
+
+    return 0;
 }
 #endif
 
