@@ -1,0 +1,16 @@
+# Artistic Style (astyle) options for qemu source code.
+
+# Usage:
+# astyle --options=scripts/astylerc {source files}
+
+# For best results, use latest astyle from http://astyle.sourceforge.net/.
+
+add-brackets
+align-pointer=name
+convert-tabs
+style=otbs
+brackets=linux
+indent=spaces=4
+pad-oper
+pad-header
+unpad-paren
