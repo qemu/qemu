@@ -485,10 +485,11 @@ typedef struct CPUSPARCState {
 } CPUSPARCState;
 
 #ifndef NO_CPU_IO_DEFS
-/* helper.c */
+/* cpu_init.c */
 CPUSPARCState *cpu_sparc_init(const char *cpu_model);
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
 void sparc_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+/* helper.c */
 int cpu_sparc_handle_mmu_fault(CPUSPARCState *env1, target_ulong address, int rw,
                                int mmu_idx);
 #define cpu_handle_mmu_fault cpu_sparc_handle_mmu_fault

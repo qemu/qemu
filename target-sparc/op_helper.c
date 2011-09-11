@@ -13,7 +13,6 @@
 //#define DEBUG_UNALIGNED
 //#define DEBUG_UNASSIGNED
 //#define DEBUG_ASI
-//#define DEBUG_PCALL
 //#define DEBUG_PSTATE
 //#define DEBUG_CACHE_CONTROL
 

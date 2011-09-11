@@ -76,6 +76,11 @@ libobj-y += cpuid.o
 endif
 libobj-$(CONFIG_NEED_MMU) += mmu.o
 libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
+ifeq ($(TARGET_BASE_ARCH), sparc)
+libobj-y += cpu_init.o
+endif
+libobj-$(TARGET_SPARC) += int32_helper.o
+libobj-$(TARGET_SPARC64) += int64_helper.o
 
 libobj-y += disas.o
 
