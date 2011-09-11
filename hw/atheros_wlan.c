@@ -135,7 +135,7 @@ static void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
     }
 
     if (strncmp(device_name, "_HPW400", 7) == 0) {
-        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_data = (uint32_t *)Atheros_WLAN_eeprom_data_HPW400;
         s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
         memcpy(pci_conf, Atheros_WLAN_pci_config_HPW400, 256);
@@ -145,7 +145,7 @@ static void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
         // skip "_HPW400"
         device_name += 7;
     } else if (strncmp(device_name, "_MacBook", 8) == 0) {
-        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_MacBook;
+        s->eeprom_data = (uint32_t *)Atheros_WLAN_eeprom_data_MacBook;
         s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_MacBook);
 
         memcpy(pci_conf, Atheros_WLAN_pci_config_MacBook, 256);
@@ -155,7 +155,7 @@ static void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
         // skip "_MacBook"
         device_name += 8;
     } else if (strncmp(device_name, "_AR5001XPlus", 12) == 0) {
-        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_data = (uint32_t *)Atheros_WLAN_eeprom_data_HPW400;
         s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
         memcpy(pci_conf, Atheros_WLAN_pci_config_AR5001XPlus, 256);
@@ -165,7 +165,7 @@ static void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
         // skip "_AR5001XPlus"
         device_name += 12;
     } else if (strncmp(device_name, "_John", 5) == 0) {
-        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_data = (uint32_t *)Atheros_WLAN_eeprom_data_HPW400;
         s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
         memcpy(pci_conf, Atheros_WLAN_pci_config_JOHN, 256);
@@ -175,7 +175,7 @@ static void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
         // skip "_John"
         device_name += 5;
     } else if (strncmp(device_name, "_TPLinkWN651G", 13) == 0) {
-        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_data = (uint32_t *)Atheros_WLAN_eeprom_data_HPW400;
         s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
         memcpy(pci_conf, Atheros_WLAN_pci_config_TP_Link_WN651G, 64);
@@ -185,7 +185,7 @@ static void Atheros_WLAN_setup_type(NICInfo *nd, PCIAtheros_WLANState *d)
         // skip "_TPLinkWN651G"
         device_name += 13;
     } else {
-        s->eeprom_data = (u_int32_t *)Atheros_WLAN_eeprom_data_HPW400;
+        s->eeprom_data = (uint32_t *)Atheros_WLAN_eeprom_data_HPW400;
         s->eeprom_size = sizeof(Atheros_WLAN_eeprom_data_HPW400);
 
         memcpy(pci_conf, Atheros_WLAN_pci_config_HPW400, 256);

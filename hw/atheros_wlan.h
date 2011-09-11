@@ -267,9 +267,9 @@ typedef struct mac80211_frame {
  * I just don't care ;-)
  */
 struct Atheros_WLAN_frequency {
-    u_int32_t   value1;
-    u_int32_t   value2;
-    u_int32_t   frequency;
+    uint32_t   value1;
+    uint32_t   value2;
+    uint32_t   frequency;
 };
 
 struct pending_interrupt {

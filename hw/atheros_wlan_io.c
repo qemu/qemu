@@ -120,7 +120,7 @@ static int get_eeprom_data(Atheros_WLANState *s, uint32_t addr, uint32_t *val)
 static void updateFrequency(Atheros_WLANState *s)
 {
     int i;
-    u_int32_t new_frequency = 0;
+    uint32_t new_frequency = 0;
     for (i = 0; i < ARRAY_SIZE(Atheros_WLAN_frequency_data); i++) {
         if (Atheros_WLAN_frequency_data[i].value1 !=
             s->current_frequency_partial_data[0]) {

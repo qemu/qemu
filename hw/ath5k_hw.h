@@ -55,19 +55,19 @@ struct ath5k_gain_opt_step {
 };
 
 struct ath5k_gain_opt {
-    u_int32_t           go_default;
-    u_int32_t           go_steps_count;
+    uint32_t           go_default;
+    uint32_t           go_steps_count;
     const struct ath5k_gain_opt_step    go_step[AR5K_GAIN_STEP_COUNT];
 };
 
 struct ath5k_gain {
-    u_int32_t           g_step_idx;
-    u_int32_t           g_current;
-    u_int32_t           g_target;
-    u_int32_t           g_low;
-    u_int32_t           g_high;
-    u_int32_t           g_f_corr;
-    u_int32_t           g_active;
+    uint32_t           g_step_idx;
+    uint32_t           g_current;
+    uint32_t           g_target;
+    uint32_t           g_low;
+    uint32_t           g_high;
+    uint32_t           g_f_corr;
+    uint32_t           g_active;
     const struct ath5k_gain_opt_step    *g_step;
 };
 
@@ -146,47 +146,47 @@ struct ath5k_gain {
 #define AR5K_EEPROM_N_IQ_CAL        2
 
 struct ath5k_eeprom_info {
-    u_int16_t   ee_magic;
-    u_int16_t   ee_protect;
-    u_int16_t   ee_regdomain;
-    u_int16_t   ee_version;
-    u_int16_t   ee_header;
-    u_int16_t   ee_ant_gain;
-    u_int16_t   ee_misc0;
-    u_int16_t   ee_misc1;
-    u_int16_t   ee_cck_ofdm_gain_delta;
-    u_int16_t   ee_cck_ofdm_power_delta;
-    u_int16_t   ee_scaled_cck_delta;
-    u_int16_t   ee_tx_clip;
-    u_int16_t   ee_pwd_84;
-    u_int16_t   ee_pwd_90;
-    u_int16_t   ee_gain_select;
+    uint16_t   ee_magic;
+    uint16_t   ee_protect;
+    uint16_t   ee_regdomain;
+    uint16_t   ee_version;
+    uint16_t   ee_header;
+    uint16_t   ee_ant_gain;
+    uint16_t   ee_misc0;
+    uint16_t   ee_misc1;
+    uint16_t   ee_cck_ofdm_gain_delta;
+    uint16_t   ee_cck_ofdm_power_delta;
+    uint16_t   ee_scaled_cck_delta;
+    uint16_t   ee_tx_clip;
+    uint16_t   ee_pwd_84;
+    uint16_t   ee_pwd_90;
+    uint16_t   ee_gain_select;
 
-    u_int16_t   ee_i_cal[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_q_cal[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_fixed_bias[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_turbo_max_power[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_xr_power[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_switch_settling[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_ant_tx_rx[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_ant_control[AR5K_EEPROM_N_MODES][AR5K_EEPROM_N_PCDAC];
-    u_int16_t   ee_ob[AR5K_EEPROM_N_MODES][AR5K_EEPROM_N_OBDB];
-    u_int16_t   ee_db[AR5K_EEPROM_N_MODES][AR5K_EEPROM_N_OBDB];
-    u_int16_t   ee_tx_end2xlna_enable[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_tx_end2xpa_disable[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_tx_frm2xpa_enable[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_thr_62[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_xlna_gain[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_xpd[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_x_gain[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_i_gain[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_margin_tx_rx[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_false_detect[AR5K_EEPROM_N_MODES];
-    u_int16_t   ee_cal_pier[AR5K_EEPROM_N_MODES][AR5K_EEPROM_N_2GHZ_CHAN];
-    u_int16_t   ee_channel[AR5K_EEPROM_N_MODES][AR5K_EEPROM_MAX_CHAN];
+    uint16_t   ee_i_cal[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_q_cal[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_fixed_bias[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_turbo_max_power[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_xr_power[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_switch_settling[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_ant_tx_rx[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_ant_control[AR5K_EEPROM_N_MODES][AR5K_EEPROM_N_PCDAC];
+    uint16_t   ee_ob[AR5K_EEPROM_N_MODES][AR5K_EEPROM_N_OBDB];
+    uint16_t   ee_db[AR5K_EEPROM_N_MODES][AR5K_EEPROM_N_OBDB];
+    uint16_t   ee_tx_end2xlna_enable[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_tx_end2xpa_disable[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_tx_frm2xpa_enable[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_thr_62[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_xlna_gain[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_xpd[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_x_gain[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_i_gain[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_margin_tx_rx[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_false_detect[AR5K_EEPROM_N_MODES];
+    uint16_t   ee_cal_pier[AR5K_EEPROM_N_MODES][AR5K_EEPROM_N_2GHZ_CHAN];
+    uint16_t   ee_channel[AR5K_EEPROM_N_MODES][AR5K_EEPROM_MAX_CHAN];
 
-    u_int16_t   ee_ctls;
-    u_int16_t   ee_ctl[AR5K_EEPROM_MAX_CTLS];
+    uint16_t   ee_ctls;
+    uint16_t   ee_ctl[AR5K_EEPROM_MAX_CTLS];
 
     int16_t     ee_noise_floor_thr[AR5K_EEPROM_N_MODES];
     int8_t      ee_adc_desired_size[AR5K_EEPROM_N_MODES];
@@ -341,8 +341,8 @@ struct ath5k_eeprom_info {
  * Non - common initial register values
  */
 struct ath5k_ini {
-    u_int16_t   ini_register;
-    u_int32_t   ini_value;
+    uint16_t   ini_register;
+    uint32_t   ini_value;
 
     enum {
         AR5K_INI_WRITE = 0,
@@ -366,9 +366,9 @@ struct ath5k_ini {
 #define AR5K_AR5112_INI_RF_MAX_BANKS    AR5K_MAX_RF_BANKS
 
 struct ath5k_ini_rf {
-    u_int8_t    rf_bank;
-    u_int16_t   rf_register;
-    u_int32_t   rf_value[5];
+    uint8_t    rf_bank;
+    uint16_t   rf_register;
+    uint32_t   rf_value[5];
 };
 
 #define AR5K_AR5111_INI_RF  {                       \
@@ -691,8 +691,8 @@ struct ath5k_ini_rf {
 }
 
 struct ath5k_ini_rfgain {
-    u_int16_t   rfg_register;
-    u_int32_t   rfg_value[2][2];
+    uint16_t   rfg_register;
+    uint32_t   rfg_value[2][2];
 
 #define AR5K_INI_RFGAIN_5GHZ    0
 #define AR5K_INI_RFGAIN_2GHZ    1
@@ -1021,9 +1021,9 @@ struct ath5k_ini_rfgain {
 }
 
 struct ath5k_ar5212_ini {
-    u_int8_t    ini_flags;
-    u_int16_t   ini_register;
-    u_int32_t   ini_value;
+    uint8_t    ini_flags;
+    uint16_t   ini_register;
+    uint32_t   ini_value;
 
 #define AR5K_INI_FLAG_511X  0x00
 #define AR5K_INI_FLAG_5111  0x01
@@ -1405,8 +1405,8 @@ struct ath5k_ar5212_ini {
 }
 
 struct ath5k_ar5211_ini_mode {
-    u_int16_t   mode_register;
-    u_int32_t   mode_value[4];
+    uint16_t   mode_register;
+    uint32_t   mode_value[4];
 };
 
 #define AR5K_AR5211_INI_MODE {                      \
@@ -1448,9 +1448,9 @@ struct ath5k_ar5211_ini_mode {
 }
 
 struct ath5k_ar5212_ini_mode {
-    u_int16_t   mode_register;
-    u_int8_t    mode_flags;
-    u_int32_t   mode_value[2][5];
+    uint16_t   mode_register;
+    uint8_t    mode_flags;
+    uint32_t   mode_value[2][5];
 };
 
 #define AR5K_AR5212_INI_MODE {                          \
@@ -1621,8 +1621,8 @@ struct ath5k_ar5212_ini_mode {
 }
 
 struct ath5k_ar5211_ini_rf {
-    u_int16_t   rf_register;
-    u_int32_t   rf_value[2];
+    uint16_t   rf_register;
+    uint32_t   rf_value[2];
 };
 
 #define AR5K_AR5211_INI_RF  {                   \
@@ -1694,14 +1694,14 @@ struct ath5k_rx_desc {
     /*
      * RX control word 0
      */
-    u_int32_t   rx_control_0;
+    uint32_t   rx_control_0;
 
 #define AR5K_DESC_RX_CTL0           0x00000000
 
     /*
      * RX control word 1
      */
-    u_int32_t   rx_control_1;
+    uint32_t   rx_control_1;
 
 #define AR5K_DESC_RX_CTL1_BUF_LEN       0x00000fff
 #define AR5K_DESC_RX_CTL1_INTREQ            0x00002000
@@ -1711,7 +1711,7 @@ struct ath5k_ar5211_rx_status {
     /*
      * RX status word 0
      */
-    u_int32_t   rx_status_0;
+    uint32_t   rx_status_0;
 
 #define AR5K_AR5211_DESC_RX_STATUS0_DATA_LEN        0x00000fff
 #define AR5K_AR5211_DESC_RX_STATUS0_MORE        0x00001000
@@ -1725,7 +1725,7 @@ struct ath5k_ar5211_rx_status {
     /*
      * RX status word 1
      */
-    u_int32_t   rx_status_1;
+    uint32_t   rx_status_1;
 
 #define AR5K_AR5211_DESC_RX_STATUS1_DONE        0x00000001
 #define AR5K_AR5211_DESC_RX_STATUS1_FRAME_RECEIVE_OK    0x00000002
@@ -1746,7 +1746,7 @@ struct ath5k_ar5212_rx_status {
     /*
      * RX status word 0
      */
-    u_int32_t   rx_status_0;
+    uint32_t   rx_status_0;
 
 #define AR5K_AR5212_DESC_RX_STATUS0_DATA_LEN        0x00000fff
 #define AR5K_AR5212_DESC_RX_STATUS0_MORE        0x00001000
@@ -1761,7 +1761,7 @@ struct ath5k_ar5212_rx_status {
     /*
      * RX status word 1
      */
-    u_int32_t   rx_status_1;
+    uint32_t   rx_status_1;
 
 #define AR5K_AR5212_DESC_RX_STATUS1_DONE        0x00000001
 #define AR5K_AR5212_DESC_RX_STATUS1_FRAME_RECEIVE_OK    0x00000002
@@ -1781,14 +1781,14 @@ struct ath5k_ar5212_rx_error {
     /*
      * RX error word 0
      */
-    u_int32_t   rx_error_0;
+    uint32_t   rx_error_0;
 
 #define AR5K_AR5212_DESC_RX_ERROR0          0x00000000
 
     /*
      * RX error word 1
      */
-    u_int32_t   rx_error_1;
+    uint32_t   rx_error_1;
 
 #define AR5K_AR5212_DESC_RX_ERROR1_PHY_ERROR_CODE   0x0000ff00
 #define AR5K_AR5212_DESC_RX_ERROR1_PHY_ERROR_CODE_S 8
@@ -1807,7 +1807,7 @@ struct ath5k_ar5211_tx_desc {
     /*
      * TX control word 0
      */
-    u_int32_t   tx_control_0;
+    uint32_t   tx_control_0;
 
 #define AR5K_AR5211_DESC_TX_CTL0_FRAME_LEN      0x00000fff
 #define AR5K_AR5211_DESC_TX_CTL0_XMIT_RATE      0x003c0000
@@ -1823,7 +1823,7 @@ struct ath5k_ar5211_tx_desc {
     /*
      * TX control word 1
      */
-    u_int32_t   tx_control_1;
+    uint32_t   tx_control_1;
 
 #define AR5K_AR5211_DESC_TX_CTL1_BUF_LEN        0x00000fff
 #define AR5K_AR5211_DESC_TX_CTL1_MORE           0x00001000
@@ -1838,7 +1838,7 @@ struct ath5k_ar5212_tx_desc {
     /*
      * TX control word 0
      */
-    u_int32_t   tx_control_0;
+    uint32_t   tx_control_0;
 
 #define AR5K_AR5212_DESC_TX_CTL0_FRAME_LEN      0x00000fff
 #define AR5K_AR5212_DESC_TX_CTL0_XMIT_POWER     0x003f0000
@@ -1855,7 +1855,7 @@ struct ath5k_ar5212_tx_desc {
     /*
      * TX control word 1
      */
-    u_int32_t   tx_control_1;
+    uint32_t   tx_control_1;
 
 #define AR5K_AR5212_DESC_TX_CTL1_BUF_LEN        0x00000fff
 #define AR5K_AR5212_DESC_TX_CTL1_MORE           0x00001000
@@ -1874,7 +1874,7 @@ struct ath5k_ar5212_tx_desc {
     /*
      * TX control word 2
      */
-    u_int32_t   tx_control_2;
+    uint32_t   tx_control_2;
 
 #define AR5K_AR5212_DESC_TX_CTL2_RTS_DURATION       0x00007fff
 #define AR5K_AR5212_DESC_TX_CTL2_DURATION_UPDATE_ENABLE 0x00008000
@@ -1890,7 +1890,7 @@ struct ath5k_ar5212_tx_desc {
     /*
      * TX control word 3
      */
-    u_int32_t   tx_control_3;
+    uint32_t   tx_control_3;
 
 #define AR5K_AR5212_DESC_TX_CTL3_XMIT_RATE0     0x0000001f
 #define AR5K_AR5212_DESC_TX_CTL3_XMIT_RATE1     0x000003e0
@@ -1907,7 +1907,7 @@ struct ath5k_tx_status {
     /*
      * TX status word 0
      */
-    u_int32_t   tx_status_0;
+    uint32_t   tx_status_0;
 
 #define AR5K_DESC_TX_STATUS0_FRAME_XMIT_OK  0x00000001
 #define AR5K_DESC_TX_STATUS0_EXCESSIVE_RETRIES  0x00000002
@@ -1925,7 +1925,7 @@ struct ath5k_tx_status {
     /*
      * TX status word 1
      */
-    u_int32_t   tx_status_1;
+    uint32_t   tx_status_1;
 
 #define AR5K_DESC_TX_STATUS1_DONE       0x00000001
 #define AR5K_DESC_TX_STATUS1_SEQ_NUM        0x00001ffe

@@ -33,19 +33,11 @@
 #ifndef _AR5K_H
 #define _AR5K_H
 
-
-
-
 /*
  * Device tracing
  */
 
 #define AR5K_TRACE_PRINTF(_trace)   AR5K_PRINTF(_trace)
-
-
-
-
-
 
 /****************************\
   GENERIC DRIVER DEFINITIONS
@@ -62,7 +54,6 @@
 #ifndef FALSE
 #define FALSE   0
 #endif
-typedef u_int8_t AR5K_BOOL;
 
 /*
  * Error codes reported from HAL to the driver
@@ -110,7 +101,7 @@ typedef enum {
 #define AR5K_TUNE_HWTXTRIES         4
 
 /* token to use for aifs, cwmin, cwmax in MadWiFi */
-#define AR5K_TXQ_USEDEFAULT ((u_int32_t) -1)
+#define AR5K_TXQ_USEDEFAULT ((uint32_t) -1)
 
 #define IEEE80211_ADDR_LEN      6       /* size of 802.11 address */
 #define ETHER_ADDR_LEN          6       /* length of an Ethernet address */
@@ -209,15 +200,15 @@ struct ath5k_srev_name {
  * Tx Descriptor
  */
 struct ath_tx_status {
-    u_int16_t   ts_seqnum;
-    u_int16_t   ts_tstamp;
-    u_int8_t    ts_status;
-    u_int8_t    ts_rate;
+    uint16_t   ts_seqnum;
+    uint16_t   ts_tstamp;
+    uint8_t    ts_status;
+    uint8_t    ts_rate;
     int8_t      ts_rssi;
-    u_int8_t    ts_shortretry;
-    u_int8_t    ts_longretry;
-    u_int8_t    ts_virtcol;
-    u_int8_t    ts_antenna;
+    uint8_t    ts_shortretry;
+    uint8_t    ts_longretry;
+    uint8_t    ts_virtcol;
+    uint8_t    ts_antenna;
 };
 
 #define AR5K_TXSTAT_ALTRATE 0x80
@@ -298,15 +289,15 @@ typedef enum {
 typedef struct {
     AR5K_TX_QUEUE           tqi_type;   /* See AR5K_TX_QUEUE */
     AR5K_TX_QUEUE_SUBTYPE       tqi_subtype;    /* See AR5K_TX_QUEUE_SUBTYPE */
-    u_int16_t           tqi_flags;  /* Tx queue flags (see above) */
-    u_int32_t           tqi_aifs;   /* Arbitrated Interframe Space */
+    uint16_t           tqi_flags;  /* Tx queue flags (see above) */
+    uint32_t           tqi_aifs;   /* Arbitrated Interframe Space */
     int32_t             tqi_cw_min; /* Minimum Contention Window */
     int32_t             tqi_cw_max; /* Maximum Contention Window */
-    u_int32_t           tqi_cbr_period; /* Constant bit rate period */
-    u_int32_t           tqi_cbr_overflow_limit;
-    u_int32_t           tqi_burst_time;
-    u_int32_t           tqi_ready_time; /* Not used */
-    u_int32_t           tqi_comp_buffer;/* Compression Buffer's phys addr */
+    uint32_t           tqi_cbr_period; /* Constant bit rate period */
+    uint32_t           tqi_cbr_overflow_limit;
+    uint32_t           tqi_burst_time;
+    uint32_t           tqi_ready_time; /* Not used */
+    uint32_t           tqi_comp_buffer;/* Compression Buffer's phys addr */
 } AR5K_TXQ_INFO;
 
 /*
@@ -437,15 +428,15 @@ typedef enum {
  * Rx Descriptor
  */
 struct ath_rx_status {
-    u_int16_t   rs_datalen;
-    u_int16_t   rs_tstamp;
-    u_int8_t    rs_status;
-    u_int8_t    rs_phyerr;
+    uint16_t   rs_datalen;
+    uint16_t   rs_tstamp;
+    uint8_t    rs_status;
+    uint8_t    rs_phyerr;
     int8_t      rs_rssi;
-    u_int8_t    rs_keyix;
-    u_int8_t    rs_rate;
-    u_int8_t    rs_antenna;
-    u_int8_t    rs_more;
+    uint8_t    rs_keyix;
+    uint8_t    rs_rate;
+    uint8_t    rs_antenna;
+    uint8_t    rs_more;
 };
 
 #define AR5K_RXERR_CRC      0x01
@@ -453,8 +444,8 @@ struct ath_rx_status {
 #define AR5K_RXERR_FIFO     0x04
 #define AR5K_RXERR_DECRYPT  0x08
 #define AR5K_RXERR_MIC      0x10
-#define AR5K_RXKEYIX_INVALID    ((u_int8_t) -1)
-#define AR5K_TXKEYIX_INVALID    ((u_int32_t) -1)
+#define AR5K_RXKEYIX_INVALID    ((uint8_t) -1)
+#define AR5K_TXKEYIX_INVALID    ((uint32_t) -1)
 
 /*
  * RX filters
@@ -482,11 +473,11 @@ struct ath_rx_status {
 #define AR5K_RX_FILTER_PHYRADAR     0x00000200
 
 typedef struct {
-    u_int32_t   ackrcv_bad;
-    u_int32_t   rts_bad;
-    u_int32_t   rts_good;
-    u_int32_t   fcs_bad;
-    u_int32_t   beacons;
+    uint32_t   ackrcv_bad;
+    uint32_t   rts_bad;
+    uint32_t   rts_good;
+    uint32_t   fcs_bad;
+    uint32_t   beacons;
 } AR5K_MIB_STATS;
 
 
@@ -504,19 +495,19 @@ typedef struct {
  * Per-station beacon timer state.
  */
 typedef struct {
-    u_int32_t   bs_next_beacon;
-    u_int32_t   bs_next_dtim;
-    u_int32_t   bs_interval;        /*in TU's -see net80211/ieee80211_var.h-
+    uint32_t   bs_next_beacon;
+    uint32_t   bs_next_dtim;
+    uint32_t   bs_interval;        /*in TU's -see net80211/ieee80211_var.h-
                         can also include the above flags*/
-    u_int8_t    bs_dtim_period;
-    u_int8_t    bs_cfp_period;
-    u_int16_t   bs_cfp_max_duration; /*if non-zero hw is setup to coexist with
+    uint8_t    bs_dtim_period;
+    uint8_t    bs_cfp_period;
+    uint16_t   bs_cfp_max_duration; /*if non-zero hw is setup to coexist with
                         a Point Coordination Function capable AP*/
-    u_int16_t   bs_cfp_du_remain;
-    u_int16_t   bs_tim_offset;
-    u_int16_t   bs_sleep_duration;
-    u_int16_t   bs_bmiss_threshold;
-    u_int32_t   bs_cfp_next;
+    uint16_t   bs_cfp_du_remain;
+    uint16_t   bs_tim_offset;
+    uint16_t   bs_sleep_duration;
+    uint16_t   bs_bmiss_threshold;
+    uint32_t   bs_cfp_next;
 } AR5K_BEACON_STATE;
 
 
@@ -530,11 +521,11 @@ typedef struct {
  * Atheros descriptor
  */
 struct __attribute__((__packed__)) ath_desc {
-    u_int32_t   ds_link;
-    u_int32_t   ds_data;
-    u_int32_t   ds_ctl0;
-    u_int32_t   ds_ctl1;
-    u_int32_t   ds_hw[4];
+    uint32_t   ds_link;
+    uint32_t   ds_data;
+    uint32_t   ds_ctl0;
+    uint32_t   ds_ctl1;
+    uint32_t   ds_hw[4];
 
     union {
         struct ath_rx_status rx;
@@ -575,9 +566,9 @@ struct __attribute__((__packed__)) ath_desc {
  * Channel definitions
  */
 typedef struct {
-    u_int16_t   freq;       /* setting in Mhz */
-    u_int16_t   channel_flags;
-    u_int8_t    private_flags;  /* not used in OpenHAL yet*/
+    uint16_t   freq;       /* setting in Mhz */
+    uint16_t   channel_flags;
+    uint8_t    private_flags;  /* not used in OpenHAL yet*/
 } AR5K_CHANNEL;
 
 #define AR5K_SLOT_TIME_9    396
@@ -635,8 +626,8 @@ typedef enum {
  * 5GHz Atheros channels.
  */
 struct ath5k_athchan_2ghz {
-    u_int32_t   a2_flags;
-    u_int16_t   a2_athchan;
+    uint32_t   a2_flags;
+    uint16_t   a2_athchan;
 };
 
 /*
@@ -646,19 +637,19 @@ struct ath5k_athchan_2ghz {
 #define AR5K_MAX_RATES  32 /*max number of rates on the rate table*/
 
 typedef struct {
-    u_int8_t    valid;      /* Valid for rate control */
-    u_int32_t   modulation;
-    u_int16_t   rate_kbps;
-    u_int8_t    rate_code;  /* Rate mapping for h/w descriptors */
-    u_int8_t    dot11_rate;
-    u_int8_t    control_rate;
-    u_int16_t   lp_ack_duration;/* long preamble ACK duration */
-    u_int16_t   sp_ack_duration;/* short preamble ACK duration*/
+    uint8_t    valid;      /* Valid for rate control */
+    uint32_t   modulation;
+    uint16_t   rate_kbps;
+    uint8_t    rate_code;  /* Rate mapping for h/w descriptors */
+    uint8_t    dot11_rate;
+    uint8_t    control_rate;
+    uint16_t   lp_ack_duration;/* long preamble ACK duration */
+    uint16_t   sp_ack_duration;/* short preamble ACK duration*/
 } AR5K_RATE;
 
 typedef struct {
-    u_int16_t   rate_count;
-    u_int8_t    rate_code_to_index[AR5K_MAX_RATES]; /* Back-mapping */
+    uint16_t   rate_count;
+    uint8_t    rate_code_to_index[AR5K_MAX_RATES]; /* Back-mapping */
     AR5K_RATE   rates[AR5K_MAX_RATES];
 } AR5K_RATE_TABLE;
 
@@ -762,9 +753,9 @@ typedef enum {
 
 typedef struct {
     int     wk_len;     /* key's length */
-    u_int8_t    wk_key[AR5K_KEYVAL_LENGTH_MAX];
-    u_int8_t    wk_type;    /* see above */
-    u_int8_t    wk_mic[8];  /* TKIP MIC key */
+    uint8_t    wk_key[AR5K_KEYVAL_LENGTH_MAX];
+    uint8_t    wk_type;    /* see above */
+    uint8_t    wk_mic[8];  /* TKIP MIC key */
 } AR5K_KEYVAL;
 
 
@@ -786,9 +777,9 @@ typedef struct {
 
 
 typedef struct {
-    u_int32_t   ns_avgbrssi;    /* average beacon rssi */
-    u_int32_t   ns_avgrssi; /* average data rssi */
-    u_int32_t   ns_avgtxrssi;   /* average tx rssi */
+    uint32_t   ns_avgbrssi;    /* average beacon rssi */
+    uint32_t   ns_avgrssi; /* average data rssi */
+    uint32_t   ns_avgtxrssi;   /* average tx rssi */
 } AR5K_NODE_STATS;
 
 typedef enum {
