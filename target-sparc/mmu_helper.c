@@ -18,15 +18,7 @@
  */
 
 #include "cpu.h"
-
-//#define DEBUG_MMU
-
-#ifdef DEBUG_MMU
-#define DPRINTF_MMU(fmt, ...)                                   \
-    do { printf("MMU: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF_MMU(fmt, ...) do {} while (0)
-#endif
+#include "trace.h"
 
 /* Sparc MMU emulation */
 
@@ -538,10 +530,7 @@ static int get_physical_address_data(CPUState *env,
             if (TTE_IS_PRIV(env->dtlb[i].tte) && is_user) {
                 do_fault = 1;
                 sfsr |= SFSR_FT_PRIV_BIT; /* privilege violation */
-
-                DPRINTF_MMU("DFAULT at %" PRIx64 " context %" PRIx64
-                            " mmu_idx=%d tl=%d\n",
-                            address, context, mmu_idx, env->tl);
+                trace_mmu_helper_dfault(address, context, mmu_idx, env->tl);
             }
             if (rw == 4) {
                 if (TTE_IS_SIDEEFFECT(env->dtlb[i].tte)) {
@@ -562,9 +551,7 @@ static int get_physical_address_data(CPUState *env,
                 do_fault = 1;
                 env->exception_index = TT_DPROT;
 
-                DPRINTF_MMU("DPROT at %" PRIx64 " context %" PRIx64
-                            " mmu_idx=%d tl=%d\n",
-                            address, context, mmu_idx, env->tl);
+                trace_mmu_helper_dprot(address, context, mmu_idx, env->tl);
             }
 
             if (!do_fault) {
@@ -598,8 +585,7 @@ static int get_physical_address_data(CPUState *env,
         }
     }
 
-    DPRINTF_MMU("DMISS at %" PRIx64 " context %" PRIx64 "\n",
-                address, context);
+    trace_mmu_helper_dmiss(address, context);
 
     /*
      * On MMU misses:
@@ -662,8 +648,7 @@ static int get_physical_address_code(CPUState *env,
 
                 env->immu.tag_access = (address & ~0x1fffULL) | context;
 
-                DPRINTF_MMU("TFAULT at %" PRIx64 " context %" PRIx64 "\n",
-                            address, context);
+                trace_mmu_helper_tfault(address, context);
 
                 return 1;
             }
@@ -673,8 +658,7 @@ static int get_physical_address_code(CPUState *env,
         }
     }
 
-    DPRINTF_MMU("TMISS at %" PRIx64 " context %" PRIx64 "\n",
-                address, context);
+    trace_mmu_helper_tmiss(address, context);
 
     /* Context is stored in DMMU (dmmuregs[1]) also for IMMU */
     env->immu.tag_access = (address & ~0x1fffULL) | context;
@@ -691,21 +675,20 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
        everything when an entry is evicted.  */
     *page_size = TARGET_PAGE_SIZE;
 
-#if defined(DEBUG_MMU)
     /* safety net to catch wrong softmmu index use from dynamic code */
     if (env->tl > 0 && mmu_idx != MMU_NUCLEUS_IDX) {
-        DPRINTF_MMU("get_physical_address %s tl=%d mmu_idx=%d"
-                    " primary context=%" PRIx64
-                    " secondary context=%" PRIx64
-                " address=%" PRIx64
-                "\n",
-                (rw == 2 ? "CODE" : "DATA"),
-                env->tl, mmu_idx,
-                env->dmmu.mmu_primary_context,
-                env->dmmu.mmu_secondary_context,
-                address);
+        if (rw == 2) {
+            trace_mmu_helper_get_phys_addr_code(env->tl, mmu_idx,
+                                                env->dmmu.mmu_primary_context,
+                                                env->dmmu.mmu_secondary_context,
+                                                address);
+        } else {
+            trace_mmu_helper_get_phys_addr_data(env->tl, mmu_idx,
+                                                env->dmmu.mmu_primary_context,
+                                                env->dmmu.mmu_secondary_context,
+                                                address);
+        }
     }
-#endif
 
     if (rw == 2) {
         return get_physical_address_code(env, physical, prot, address,
@@ -732,16 +715,9 @@ int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
         vaddr = virt_addr + ((address & TARGET_PAGE_MASK) &
                              (TARGET_PAGE_SIZE - 1));
 
-        DPRINTF_MMU("Translate at %" PRIx64 " -> %" PRIx64 ","
-                    " vaddr %" PRIx64
-                    " mmu_idx=%d"
-                    " tl=%d"
-                    " primary context=%" PRIx64
-                    " secondary context=%" PRIx64
-                    "\n",
-                    address, paddr, vaddr, mmu_idx, env->tl,
-                    env->dmmu.mmu_primary_context,
-                    env->dmmu.mmu_secondary_context);
+        trace_mmu_helper_mmu_fault(address, paddr, mmu_idx, env->tl,
+                                   env->dmmu.mmu_primary_context,
+                                   env->dmmu.mmu_secondary_context);
 
         tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
         return 0;
