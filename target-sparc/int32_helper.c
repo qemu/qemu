@@ -18,16 +18,9 @@
  */
 
 #include "cpu.h"
+#include "trace.h"
 
 //#define DEBUG_PCALL
-//#define DEBUG_CACHE_CONTROL
-
-#ifdef DEBUG_CACHE_CONTROL
-#define DPRINTF_CACHE_CONTROL(fmt, ...)                                 \
-    do { printf("CACHE_CONTROL: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF_CACHE_CONTROL(fmt, ...) do {} while (0)
-#endif
 
 #ifdef DEBUG_PCALL
 static const char * const excp_names[0x80] = {
@@ -142,7 +135,7 @@ static void leon3_cache_control_int(CPUState *env)
         state = env->cache_control & CACHE_STATE_MASK;
         if (state == CACHE_ENABLED) {
             state = CACHE_FROZEN;
-            DPRINTF_CACHE_CONTROL("Instruction cache: freeze\n");
+            trace_int_helper_icache_freeze();
         }
 
         env->cache_control &= ~CACHE_STATE_MASK;
@@ -154,7 +147,7 @@ static void leon3_cache_control_int(CPUState *env)
         state = (env->cache_control >> 2) & CACHE_STATE_MASK;
         if (state == CACHE_ENABLED) {
             state = CACHE_FROZEN;
-            DPRINTF_CACHE_CONTROL("Data cache: freeze\n");
+            trace_int_helper_dcache_freeze();
         }
 
         env->cache_control &= ~(CACHE_STATE_MASK << 2);
