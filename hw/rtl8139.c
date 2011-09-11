@@ -3464,7 +3464,7 @@ static int pci_rtl8139_init(PCIDevice *dev)
     uint8_t *pci_conf;
 
     pci_conf = s->dev.config;
-    pci_conf[PCI_INTERRUPT_PIN] = 1;    /* interrupt pin 0 */
+    pci_conf[PCI_INTERRUPT_PIN] = 1;    /* interrupt pin A */
     /* TODO: start of capability list, but no capability
      * list bit in status register, and offset 0xdc seems unused. */
     pci_conf[PCI_CAPABILITY_LIST] = 0xdc;

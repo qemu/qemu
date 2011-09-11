@@ -1156,8 +1156,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     /* TODO: RST# value should be 0, PCI spec 6.2.4 */
     pci_conf[PCI_CACHE_LINE_SIZE] = 0x10;
 
-    /* TODO: RST# value should be 0 if programmable, PCI spec 6.2.4 */
-    pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
+    pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */
 
     e1000_mmio_setup(d);
 

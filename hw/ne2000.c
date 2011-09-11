@@ -749,8 +749,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     uint8_t *pci_conf;
 
     pci_conf = d->dev.config;
-    /* TODO: RST# value should be 0. PCI spec 6.2.4 */
-    pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
+    pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */
 
     s = &d->ne2000;
     ne2000_setup_io(s, 0x100);

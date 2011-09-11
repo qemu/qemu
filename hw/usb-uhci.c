@@ -1131,7 +1131,7 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
 
     pci_conf[PCI_CLASS_PROG] = 0x00;
     /* TODO: reset value should be 0. */
-    pci_conf[PCI_INTERRUPT_PIN] = 4; // interrupt pin 3
+    pci_conf[PCI_INTERRUPT_PIN] = 4; /* interrupt pin D */
     pci_conf[USB_SBRN] = USB_RELEASE_1; // release number
 
     if (s->masterbus) {

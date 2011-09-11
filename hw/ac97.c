@@ -1311,7 +1311,6 @@ static int ac97_initfn (PCIDevice *dev)
     c[PCI_SUBSYSTEM_ID + 1] = 0x00;
 
     c[PCI_INTERRUPT_LINE] = 0x00;      /* intr_ln interrupt line rw */
-    /* TODO: RST# value should be 0. */
     c[PCI_INTERRUPT_PIN] = 0x01;      /* intr_pn interrupt pin ro */
 
     memory_region_init_io (&s->io_nam, &ac97_io_nam_ops, s, "ac97-nam", 1024);

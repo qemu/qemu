@@ -1003,7 +1003,6 @@ static int es1370_initfn (PCIDevice *dev)
     c[0xdc] = 0x00;
 #endif
 
-    /* TODO: RST# value should be 0. */
     c[PCI_INTERRUPT_PIN] = 1;
     c[PCI_MIN_GNT] = 0x0c;
     c[PCI_MAX_LAT] = 0x80;
