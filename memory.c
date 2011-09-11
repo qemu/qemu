@@ -1271,3 +1271,94 @@ void set_system_io_map(MemoryRegion *mr)
     address_space_io.root = mr;
     memory_region_update_topology();
 }
+
+typedef struct MemoryRegionList MemoryRegionList;
+
+struct MemoryRegionList {
+    const MemoryRegion *mr;
+    bool printed;
+    QTAILQ_ENTRY(MemoryRegionList) queue;
+};
+
+typedef QTAILQ_HEAD(queue, MemoryRegionList) MemoryRegionListHead;
+
+static void mtree_print_mr(fprintf_function mon_printf, void *f,
+                           const MemoryRegion *mr, unsigned int level,
+                           target_phys_addr_t base,
+                           MemoryRegionListHead *print_queue)
+{
+    const MemoryRegion *submr;
+    unsigned int i;
+
+
+    if (!mr) {
+        return;
+    }
+
+    for (i = 0; i < level; i++) {
+        mon_printf(f, "  ");
+    }
+
+    if (mr->alias) {
+        MemoryRegionList *ml;
+        bool found = false;
+
+        /* check if the alias is already in the queue */
+        QTAILQ_FOREACH(ml, print_queue, queue) {
+            if (ml->mr == mr->alias && !ml->printed) {
+                found = true;
+            }
+        }
+
+        if (!found) {
+            ml = g_new(MemoryRegionList, 1);
+            ml->mr = mr->alias;
+            ml->printed = false;
+            QTAILQ_INSERT_TAIL(print_queue, ml, queue);
+        }
+        mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx " : alias %s @%s "
+                   TARGET_FMT_plx "-" TARGET_FMT_plx "\n",
+                   base + mr->addr,
+                   base + mr->addr + (target_phys_addr_t)mr->size - 1,
+                   mr->name,
+                   mr->alias->name,
+                   mr->alias_offset,
+                   mr->alias_offset + (target_phys_addr_t)mr->size - 1);
+    } else {
+        mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx " : %s\n",
+                   base + mr->addr,
+                   base + mr->addr + (target_phys_addr_t)mr->size - 1,
+                   mr->name);
+    }
+    QTAILQ_FOREACH(submr, &mr->subregions, subregions_link) {
+        mtree_print_mr(mon_printf, f, submr, level + 1, base + mr->addr,
+                       print_queue);
+    }
+}
+
+void mtree_info(fprintf_function mon_printf, void *f)
+{
+    MemoryRegionListHead ml_head;
+    MemoryRegionList *ml, *ml2;
+
+    QTAILQ_INIT(&ml_head);
+
+    mon_printf(f, "memory\n");
+    mtree_print_mr(mon_printf, f, address_space_memory.root, 0, 0, &ml_head);
+
+    /* print aliased regions */
+    QTAILQ_FOREACH(ml, &ml_head, queue) {
+        if (!ml->printed) {
+            mon_printf(f, "%s\n", ml->mr->name);
+            mtree_print_mr(mon_printf, f, ml->mr, 0, 0, &ml_head);
+        }
+    }
+
+    QTAILQ_FOREACH_SAFE(ml, &ml_head, queue, ml2) {
+        g_free(ml2);
+    }
+
+    QTAILQ_INIT(&ml_head);
+    mon_printf(f, "I/O\n");
+    mtree_print_mr(mon_printf, f, address_space_io.root, 0, 0, &ml_head);
+}
