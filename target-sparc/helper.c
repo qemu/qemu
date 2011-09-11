@@ -25,7 +25,7 @@
 //#define DEBUG_MMU
 
 #ifdef DEBUG_MMU
-#define DPRINTF_MMU(fmt, ...) \
+#define DPRINTF_MMU(fmt, ...)                                   \
     do { printf("MMU: " fmt , ## __VA_ARGS__); } while (0)
 #else
 #define DPRINTF_MMU(fmt, ...) do {} while (0)
@@ -38,10 +38,11 @@
 int cpu_sparc_handle_mmu_fault(CPUState *env1, target_ulong address, int rw,
                                int mmu_idx)
 {
-    if (rw & 2)
+    if (rw & 2) {
         env1->exception_index = TT_TFAULT;
-    else
+    } else {
         env1->exception_index = TT_DFAULT;
+    }
     return 1;
 }
 
@@ -100,7 +101,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
 
     if ((env->mmuregs[0] & MMU_E) == 0) { /* MMU disabled */
         *page_size = TARGET_PAGE_SIZE;
-        // Boot mode: instruction fetches are taken from PROM
+        /* Boot mode: instruction fetches are taken from PROM */
         if (rw == 2 && (env->mmuregs[0] & env->def->mmu_bm)) {
             *physical = env->prom_addr | (address & 0x7ffffULL);
             *prot = PAGE_READ | PAGE_EXEC;
@@ -111,7 +112,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
         return 0;
     }
 
-    *access_index = ((rw & 1) << 2) | (rw & 2) | (is_user? 0 : 1);
+    *access_index = ((rw & 1) << 2) | (rw & 2) | (is_user ? 0 : 1);
     *physical = 0xffffffffffff0000ULL;
 
     /* SPARC reference MMU table walk: Context table->L1->L2->PTE */
@@ -178,15 +179,17 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
     /* check access */
     access_perms = (pde & PTE_ACCESS_MASK) >> PTE_ACCESS_SHIFT;
     error_code = access_table[*access_index][access_perms];
-    if (error_code && !((env->mmuregs[0] & MMU_NF) && is_user))
+    if (error_code && !((env->mmuregs[0] & MMU_NF) && is_user)) {
         return error_code;
+    }
 
     /* update page modified and dirty bits */
     is_dirty = (rw & 1) && !(pde & PG_MODIFIED_MASK);
     if (!(pde & PG_ACCESSED_MASK) || is_dirty) {
         pde |= PG_ACCESSED_MASK;
-        if (is_dirty)
+        if (is_dirty) {
             pde |= PG_MODIFIED_MASK;
+        }
         stl_phys_notdirty(pde_ptr, pde);
     }
 
@@ -205,8 +208,8 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
 }
 
 /* Perform address translation */
-int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx)
+int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+                               int mmu_idx)
 {
     target_phys_addr_t paddr;
     target_ulong vaddr;
@@ -226,25 +229,27 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         return 0;
     }
 
-    if (env->mmuregs[3]) /* Fault status register */
+    if (env->mmuregs[3]) { /* Fault status register */
         env->mmuregs[3] = 1; /* overflow (not read before another fault) */
+    }
     env->mmuregs[3] |= (access_index << 5) | error_code | 2;
     env->mmuregs[4] = address; /* Fault address register */
 
     if ((env->mmuregs[0] & MMU_NF) || env->psret == 0)  {
-        // No fault mode: if a mapping is available, just override
-        // permissions. If no mapping is available, redirect accesses to
-        // neverland. Fake/overridden mappings will be flushed when
-        // switching to normal mode.
+        /* No fault mode: if a mapping is available, just override
+           permissions. If no mapping is available, redirect accesses to
+           neverland. Fake/overridden mappings will be flushed when
+           switching to normal mode. */
         vaddr = address & TARGET_PAGE_MASK;
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         tlb_set_page(env, vaddr, paddr, prot, mmu_idx, TARGET_PAGE_SIZE);
         return 0;
     } else {
-        if (rw & 2)
+        if (rw & 2) {
             env->exception_index = TT_TFAULT;
-        else
+        } else {
             env->exception_index = TT_DFAULT;
+        }
         return 1;
     }
 }
@@ -266,8 +271,9 @@ target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
     case 3: /* Reserved */
         return 0;
     case 1: /* L1 PDE */
-        if (mmulev == 3)
+        if (mmulev == 3) {
             return pde;
+        }
         pde_ptr = ((address >> 22) & ~3) + ((pde & ~3) << 4);
         pde = ldl_phys(pde_ptr);
 
@@ -279,8 +285,9 @@ target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
         case 2: /* L1 PTE */
             return pde;
         case 1: /* L2 PDE */
-            if (mmulev == 2)
+            if (mmulev == 2) {
                 return pde;
+            }
             pde_ptr = ((address & 0xfc0000) >> 16) + ((pde & ~3) << 4);
             pde = ldl_phys(pde_ptr);
 
@@ -292,8 +299,9 @@ target_ulong mmu_probe(CPUState *env, target_ulong address, int mmulev)
             case 2: /* L2 PTE */
                 return pde;
             case 1: /* L3 PDE */
-                if (mmulev == 1)
+                if (mmulev == 1) {
                     return pde;
+                }
                 pde_ptr = ((address & 0x3f000) >> 10) + ((pde & ~3) << 4);
                 pde = ldl_phys(pde_ptr);
 
@@ -434,7 +442,7 @@ int target_memory_rw_debug(CPUState *env, target_ulong addr,
 
 #else /* !TARGET_SPARC64 */
 
-// 41 bit physical address space
+/* 41 bit physical address space */
 static inline target_phys_addr_t ultrasparc_truncate_physical(uint64_t x)
 {
     return x & 0x1ffffffffffULL;
@@ -444,8 +452,9 @@ static inline target_phys_addr_t ultrasparc_truncate_physical(uint64_t x)
  * UltraSparc IIi I/DMMUs
  */
 
-// Returns true if TTE tag is valid and matches virtual address value in context
-// requires virtual address mask value calculated from TTE entry size
+/* Returns true if TTE tag is valid and matches virtual address value
+   in context requires virtual address mask value calculated from TTE
+   entry size */
 static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
                                        uint64_t address, uint64_t context,
                                        target_phys_addr_t *physical)
@@ -454,26 +463,25 @@ static inline int ultrasparc_tag_match(SparcTLBEntry *tlb,
 
     switch (TTE_PGSIZE(tlb->tte)) {
     default:
-    case 0x0: // 8k
+    case 0x0: /* 8k */
         mask = 0xffffffffffffe000ULL;
         break;
-    case 0x1: // 64k
+    case 0x1: /* 64k */
         mask = 0xffffffffffff0000ULL;
         break;
-    case 0x2: // 512k
+    case 0x2: /* 512k */
         mask = 0xfffffffffff80000ULL;
         break;
-    case 0x3: // 4M
+    case 0x3: /* 4M */
         mask = 0xffffffffffc00000ULL;
         break;
     }
 
-    // valid, context match, virtual address match?
+    /* valid, context match, virtual address match? */
     if (TTE_IS_VALID(tlb->tte) &&
         (TTE_IS_GLOBAL(tlb->tte) || tlb_compare_context(tlb, context))
-        && compare_masked(address, tlb->tag, mask))
-    {
-        // decode physical address
+        && compare_masked(address, tlb->tag, mask)) {
+        /* decode physical address */
         *physical = ((tlb->tte & mask) | (address & ~mask)) & 0x1ffffffe000ULL;
         return 1;
     }
@@ -498,7 +506,7 @@ static int get_physical_address_data(CPUState *env,
         return 0;
     }
 
-    switch(mmu_idx) {
+    switch (mmu_idx) {
     case MMU_USER_IDX:
     case MMU_KERNEL_IDX:
         context = env->dmmu.mmu_primary_context & 0x1fff;
@@ -524,11 +532,11 @@ static int get_physical_address_data(CPUState *env,
     }
 
     for (i = 0; i < 64; i++) {
-        // ctx match, vaddr match, valid?
+        /* ctx match, vaddr match, valid? */
         if (ultrasparc_tag_match(&env->dtlb[i], address, context, physical)) {
             int do_fault = 0;
 
-            // access ok?
+            /* access ok? */
             /* multiple bits in SFSR.FT may be set on TT_DFAULT */
             if (TTE_IS_PRIV(env->dtlb[i].tte) && is_user) {
                 do_fault = 1;
@@ -632,10 +640,10 @@ static int get_physical_address_code(CPUState *env,
     }
 
     for (i = 0; i < 64; i++) {
-        // ctx match, vaddr match, valid?
+        /* ctx match, vaddr match, valid? */
         if (ultrasparc_tag_match(&env->itlb[i],
                                  address, context, physical)) {
-            // access ok?
+            /* access ok? */
             if (TTE_IS_PRIV(env->itlb[i].tte) && is_user) {
                 /* Fault status register */
                 if (env->immu.sfsr & SFSR_VALID_BIT) {
@@ -686,7 +694,7 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
        everything when an entry is evicted.  */
     *page_size = TARGET_PAGE_SIZE;
 
-#if defined (DEBUG_MMU)
+#if defined(DEBUG_MMU)
     /* safety net to catch wrong softmmu index use from dynamic code */
     if (env->tl > 0 && mmu_idx != MMU_NUCLEUS_IDX) {
         DPRINTF_MMU("get_physical_address %s tl=%d mmu_idx=%d"
@@ -702,17 +710,18 @@ static int get_physical_address(CPUState *env, target_phys_addr_t *physical,
     }
 #endif
 
-    if (rw == 2)
+    if (rw == 2) {
         return get_physical_address_code(env, physical, prot, address,
                                          mmu_idx);
-    else
+    } else {
         return get_physical_address_data(env, physical, prot, address, rw,
                                          mmu_idx);
+    }
 }
 
 /* Perform address translation */
-int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
-                              int mmu_idx)
+int cpu_sparc_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+                               int mmu_idx)
 {
     target_ulong virt_addr, vaddr;
     target_phys_addr_t paddr;
@@ -740,7 +749,7 @@ int cpu_sparc_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
         tlb_set_page(env, vaddr, paddr, prot, mmu_idx, page_size);
         return 0;
     }
-    // XXX
+    /* XXX */
     return 1;
 }
 
@@ -785,7 +794,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
                                TTE_IS_LOCKED(env->dtlb[i].tte) ?
                                "locked" : "unlocked",
                                env->dtlb[i].tag & (uint64_t)0x1fffULL,
-                               TTE_IS_GLOBAL(env->dtlb[i].tte)?
+                               TTE_IS_GLOBAL(env->dtlb[i].tte) ?
                                "global" : "local");
             }
         }
@@ -821,7 +830,7 @@ void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
                                TTE_IS_LOCKED(env->itlb[i].tte) ?
                                "locked" : "unlocked",
                                env->itlb[i].tag & (uint64_t)0x1fffULL,
-                               TTE_IS_GLOBAL(env->itlb[i].tte)?
+                               TTE_IS_GLOBAL(env->itlb[i].tte) ?
                                "global" : "local");
             }
         }
