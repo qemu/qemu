@@ -19,15 +19,7 @@
 
 #include "cpu.h"
 #include "helper.h"
-
-//#define DEBUG_PSTATE
-
-#ifdef DEBUG_PSTATE
-#define DPRINTF_PSTATE(fmt, ...)                                \
-    do { printf("PSTATE: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF_PSTATE(fmt, ...) do {} while (0)
-#endif
+#include "trace.h"
 
 static inline void memcpy32(target_ulong *dst, const target_ulong *src)
 {
@@ -293,11 +285,7 @@ static inline uint64_t *get_gregset(CPUState *env, uint32_t pstate)
 {
     switch (pstate) {
     default:
-        DPRINTF_PSTATE("ERROR in get_gregset: active pstate bits=%x%s%s%s\n",
-                       pstate,
-                       (pstate & PS_IG) ? " IG" : "",
-                       (pstate & PS_MG) ? " MG" : "",
-                       (pstate & PS_AG) ? " AG" : "");
+        trace_win_helper_gregset_error(pstate);
         /* pass through to normal set of global registers */
     case 0:
         return env->bgregs;
@@ -324,16 +312,15 @@ void cpu_change_pstate(CPUState *env, uint32_t new_pstate)
     new_pstate_regs = new_pstate & 0xc01;
 
     if (new_pstate_regs != pstate_regs) {
-        DPRINTF_PSTATE("change_pstate: switching regs old=%x new=%x\n",
-                       pstate_regs, new_pstate_regs);
+        trace_win_helper_switch_pstate(pstate_regs, new_pstate_regs);
+
         /* Switch global register bank */
         src = get_gregset(env, new_pstate_regs);
         dst = get_gregset(env, pstate_regs);
         memcpy32(dst, env->gregs);
         memcpy32(env->gregs, src);
     } else {
-        DPRINTF_PSTATE("change_pstate: regs new=%x (unchanged)\n",
-                       new_pstate_regs);
+        trace_win_helper_no_switch_pstate(new_pstate_regs);
     }
     env->pstate = new_pstate;
 }
@@ -352,8 +339,7 @@ void helper_wrpstate(CPUState *env, target_ulong new_state)
 void helper_wrpil(CPUState *env, target_ulong new_pil)
 {
 #if !defined(CONFIG_USER_ONLY)
-    DPRINTF_PSTATE("helper_wrpil old=%x new=%x\n",
-                   env->psrpil, (uint32_t)new_pil);
+    trace_win_helper_wrpil(env->psrpil, (uint32_t)new_pil);
 
     env->psrpil = new_pil;
 
@@ -375,7 +361,7 @@ void helper_done(CPUState *env)
     cpu_put_cwp64(env, tsptr->tstate & 0xff);
     env->tl--;
 
-    DPRINTF_PSTATE("... helper_done tl=%d\n", env->tl);
+    trace_win_helper_done(env->tl);
 
 #if !defined(CONFIG_USER_ONLY)
     if (cpu_interrupts_enabled(env)) {
@@ -396,7 +382,7 @@ void helper_retry(CPUState *env)
     cpu_put_cwp64(env, tsptr->tstate & 0xff);
     env->tl--;
 
-    DPRINTF_PSTATE("... helper_retry tl=%d\n", env->tl);
+    trace_win_helper_retry(env->tl);
 
 #if !defined(CONFIG_USER_ONLY)
     if (cpu_interrupts_enabled(env)) {
