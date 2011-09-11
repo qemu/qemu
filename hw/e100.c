@@ -2057,17 +2057,22 @@ static uint64_t e100_read(void *opaque, target_phys_addr_t addr,
                           unsigned size)
 {
     E100State *s = opaque;
+    uint64_t val = 0;
 
     switch (size) {
     case 1:
-        return e100_read1(s, addr);
+        val = e100_read1(s, addr);
+        break;
     case 2:
-        return e100_read2(s, addr);
+        val = e100_read2(s, addr);
+        break;
     case 4:
-        return e100_read4(s, addr);
+        val = e100_read4(s, addr);
+        break;
     default:
         assert(!"bad size");
     }
+    return val;
 }
 
 static void e100_write(void *opaque, target_phys_addr_t addr,
