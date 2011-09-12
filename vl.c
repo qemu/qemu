@@ -148,6 +148,7 @@ int main(int argc, char **argv)
 #include "qemu-objects.h"
 #include "qemu-options.h"
 #include "qmp-commands.h"
+#include "main-loop.h"
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif

@@ -7,6 +7,7 @@
 #include "qemu-config.h"
 #include "qobject.h"
 #include "qstring.h"
+#include "main-loop.h"
 
 /* character device */
 
@@ -237,15 +238,4 @@ void qemu_chr_close_mem(CharDriverState *chr);
 QString *qemu_chr_mem_to_qs(CharDriverState *chr);
 size_t qemu_chr_mem_osize(const CharDriverState *chr);
 
-/* async I/O support */
-
-int qemu_set_fd_handler2(int fd,
-                         IOCanReadHandler *fd_read_poll,
-                         IOHandler *fd_read,
-                         IOHandler *fd_write,
-                         void *opaque);
-int qemu_set_fd_handler(int fd,
-                        IOHandler *fd_read,
-                        IOHandler *fd_write,
-                        void *opaque);
 #endif

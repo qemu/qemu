@@ -26,6 +26,7 @@
 #include "qemu-common.h"
 #include "qemu-char.h"
 #include "qemu-queue.h"
+#include "main-loop.h"
 
 #ifndef _WIN32
 #include <sys/wait.h>
