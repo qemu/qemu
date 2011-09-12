@@ -495,6 +495,31 @@ void qemu_clock_warp(QEMUClock *clock)
     }
 }
 
+int64_t qemu_clock_has_timers(QEMUClock *clock)
+{
+    return !!clock->active_timers;
+}
+
+int64_t qemu_clock_expired(QEMUClock *clock)
+{
+    return (clock->active_timers &&
+            clock->active_timers->expire_time < qemu_get_clock_ns(clock));
+}
+
+int64_t qemu_clock_deadline(QEMUClock *clock)
+{
+    /* To avoid problems with overflow limit this to 2^32.  */
+    int64_t delta = INT32_MAX;
+
+    if (clock->active_timers) {
+        delta = clock->active_timers->expire_time - qemu_get_clock_ns(clock);
+    }
+    if (delta < 0) {
+        delta = 0;
+    }
+    return delta;
+}
+
 QEMUTimer *qemu_new_timer(QEMUClock *clock, int scale,
                           QEMUTimerCB *cb, void *opaque)
 {

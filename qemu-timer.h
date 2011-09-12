@@ -38,6 +38,9 @@ extern QEMUClock *vm_clock;
 extern QEMUClock *host_clock;
 
 int64_t qemu_get_clock_ns(QEMUClock *clock);
+int64_t qemu_clock_has_timers(QEMUClock *clock);
+int64_t qemu_clock_expired(QEMUClock *clock);
+int64_t qemu_clock_deadline(QEMUClock *clock);
 void qemu_clock_enable(QEMUClock *clock, int enabled);
 void qemu_clock_warp(QEMUClock *clock);
 
