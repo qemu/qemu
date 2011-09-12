@@ -865,11 +865,11 @@ unsigned long setup_arg_pages(void * mh, char ** argv, char ** env)
         page_set_flags((int)argv[i], (int)(argv[i]+strlen(argv[i])), PROT_READ | PAGE_VALID);
     }
 
-    DPRINTF("pushing argc %d \n", argc);
+    DPRINTF("pushing argc %d\n", argc);
     stl(stack, argc);
     stack--;
 
-    DPRINTF("pushing mh 0x%x \n", (int)mh);
+    DPRINTF("pushing mh 0x%x\n", (int)mh);
     stl(stack, (int) mh);
 
     /* Stack points on the mh */

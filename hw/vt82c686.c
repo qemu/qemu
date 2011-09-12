@@ -49,7 +49,7 @@ static void superio_ioport_writeb(void *opaque, uint32_t addr, uint32_t data)
     int can_write;
     SuperIOConfig *superio_conf = opaque;
 
-    DPRINTF("superio_ioport_writeb  address 0x%x  val 0x%x  \n", addr, data);
+    DPRINTF("superio_ioport_writeb  address 0x%x  val 0x%x\n", addr, data);
     if (addr == 0x3f0) {
         superio_conf->index = data & 0xff;
     } else {
@@ -73,12 +73,12 @@ static void superio_ioport_writeb(void *opaque, uint32_t addr, uint32_t data)
                 switch (superio_conf->index) {
                 case 0xe7:
                     if ((data & 0xff) != 0xfe) {
-                        DPRINTF("chage uart 1 base. unsupported yet \n");
+                        DPRINTF("chage uart 1 base. unsupported yet\n");
                     }
                     break;
                 case 0xe8:
                     if ((data & 0xff) != 0xbe) {
-                        DPRINTF("chage uart 2 base. unsupported yet \n");
+                        DPRINTF("chage uart 2 base. unsupported yet\n");
                     }
                     break;
 
@@ -95,7 +95,7 @@ static uint32_t superio_ioport_readb(void *opaque, uint32_t addr)
 {
     SuperIOConfig *superio_conf = opaque;
 
-    DPRINTF("superio_ioport_readb  address 0x%x   \n", addr);
+    DPRINTF("superio_ioport_readb  address 0x%x\n", addr);
     return (superio_conf->config[superio_conf->index]);
 }
 
@@ -133,7 +133,7 @@ static void vt82c686b_write_config(PCIDevice * d, uint32_t address,
 {
     VT82C686BState *vt686 = DO_UPCAST(VT82C686BState, dev, d);
 
-    DPRINTF("vt82c686b_write_config  address 0x%x  val 0x%x len 0x%x \n",
+    DPRINTF("vt82c686b_write_config  address 0x%x  val 0x%x len 0x%x\n",
            address, val, len);
 
     pci_default_write_config(d, address, val, len);
@@ -285,7 +285,7 @@ static void pm_io_space_update(VT686PMState *s)
 static void pm_write_config(PCIDevice *d,
                             uint32_t address, uint32_t val, int len)
 {
-    DPRINTF("pm_write_config  address 0x%x  val 0x%x len 0x%x \n",
+    DPRINTF("pm_write_config  address 0x%x  val 0x%x len 0x%x\n",
            address, val, len);
     pci_default_write_config(d, address, val, len);
 }

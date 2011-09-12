@@ -231,7 +231,7 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
     Slirp *slirp;
 
 	DEBUG_CALL("tcp_input");
-	DEBUG_ARGS((dfd," m = %8lx  iphlen = %2d  inso = %lx\n",
+	DEBUG_ARGS((dfd, " m = %8lx  iphlen = %2d  inso = %lx\n",
 		    (long )m, iphlen, (long )inso ));
 
 	/*
@@ -580,7 +580,7 @@ findso:
 
 	  if((tcp_fconnect(so) == -1) && (errno != EINPROGRESS) && (errno != EWOULDBLOCK)) {
 	    u_char code=ICMP_UNREACH_NET;
-	    DEBUG_MISC((dfd," tcp fconnect errno = %d-%s\n",
+	    DEBUG_MISC((dfd, " tcp fconnect errno = %d-%s\n",
 			errno,strerror(errno)));
 	    if(errno == ECONNREFUSED) {
 	      /* ACK the SYN, send RST to refuse the connection */
@@ -910,7 +910,7 @@ trimthenstep6:
 
 		if (SEQ_LEQ(ti->ti_ack, tp->snd_una)) {
 			if (ti->ti_len == 0 && tiwin == tp->snd_wnd) {
-			  DEBUG_MISC((dfd," dup ack  m = %lx  so = %lx \n",
+			  DEBUG_MISC((dfd, " dup ack  m = %lx  so = %lx\n",
 				      (long )m, (long )so));
 				/*
 				 * If we have outstanding data (other than
@@ -1293,7 +1293,7 @@ tcp_dooptions(struct tcpcb *tp, u_char *cp, int cnt, struct tcpiphdr *ti)
 	int opt, optlen;
 
 	DEBUG_CALL("tcp_dooptions");
-	DEBUG_ARGS((dfd," tp = %lx  cnt=%i \n", (long )tp, cnt));
+	DEBUG_ARGS((dfd, " tp = %lx  cnt=%i\n", (long)tp, cnt));
 
 	for (; cnt > 0; cnt -= optlen, cp += optlen) {
 		opt = cp[0];

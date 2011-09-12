@@ -553,7 +553,7 @@ static inline int get_bat(CPUState *env, mmu_ctx_t *ctx, target_ulong virtual,
                 BEPIl = *BATu & 0x0FFE0000;
                 bl = (*BATu & 0x00001FFC) << 15;
                 LOG_BATS("%s: %cBAT%d v " TARGET_FMT_lx " BATu " TARGET_FMT_lx
-                         " BATl " TARGET_FMT_lx " \n\t" TARGET_FMT_lx " "
+                         " BATl " TARGET_FMT_lx "\n\t" TARGET_FMT_lx " "
                          TARGET_FMT_lx " " TARGET_FMT_lx "\n",
                          __func__, type == ACCESS_CODE ? 'I' : 'D', i, virtual,
                          *BATu, *BATl, BEPIu, BEPIl, bl);

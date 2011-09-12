@@ -343,7 +343,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
 
     via_devfn = vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 0));
     if (via_devfn < 0) {
-        fprintf(stderr, "vt82c686b_init error \n");
+        fprintf(stderr, "vt82c686b_init error\n");
         exit(1);
     }
 

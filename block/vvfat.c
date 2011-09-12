@@ -1789,7 +1789,7 @@ DLOG(fprintf(stderr, "read cluster %d (sector %d)\n", (int)cluster_num, (int)clu
 	for (i = 0; i < 0x10 * s->sectors_per_cluster; i++) {
 	    int cluster_count = 0;
 
-DLOG(fprintf(stderr, "check direntry %d: \n", i); print_direntry(direntries + i));
+DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i));
 	    if (is_volume_label(direntries + i) || is_dot(direntries + i) ||
 		    is_free(direntries + i))
 		continue;

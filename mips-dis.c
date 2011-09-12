@@ -4841,7 +4841,7 @@ with the -M switch (multiple options should be separated by commas):\n"));
                            Default: based on binary being disassembled.\n"));
 
   fprintf (stream, _("\n\
-  hwr-names=ARCH           Print HWR names according to specified \n\
+  hwr-names=ARCH           Print HWR names according to specified\n\
 			   architecture.\n\
                            Default: based on binary being disassembled.\n"));
 
