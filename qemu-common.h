@@ -96,6 +96,10 @@ static inline char *realpath(const char *path, char *resolved_path)
 }
 #endif
 
+/* icount */
+void configure_icount(const char *option);
+extern int use_icount;
+
 /* FIXME: Remove NEED_CPU_H.  */
 #ifndef NEED_CPU_H
 

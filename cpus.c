@@ -65,6 +65,281 @@
 static CPUState *next_cpu;
 
 /***********************************************************/
+/* guest cycle counter */
+
+/* Conversion factor from emulated instructions to virtual clock ticks.  */
+static int icount_time_shift;
+/* Arbitrarily pick 1MIPS as the minimum allowable speed.  */
+#define MAX_ICOUNT_SHIFT 10
+/* Compensate for varying guest execution speed.  */
+static int64_t qemu_icount_bias;
+static QEMUTimer *icount_rt_timer;
+static QEMUTimer *icount_vm_timer;
+static QEMUTimer *icount_warp_timer;
+static int64_t vm_clock_warp_start;
+static int64_t qemu_icount;
+
+typedef struct TimersState {
+    int64_t cpu_ticks_prev;
+    int64_t cpu_ticks_offset;
+    int64_t cpu_clock_offset;
+    int32_t cpu_ticks_enabled;
+    int64_t dummy;
+} TimersState;
+
+TimersState timers_state;
+
+/* Return the virtual CPU time, based on the instruction counter.  */
+int64_t cpu_get_icount(void)
+{
+    int64_t icount;
+    CPUState *env = cpu_single_env;;
+
+    icount = qemu_icount;
+    if (env) {
+        if (!can_do_io(env)) {
+            fprintf(stderr, "Bad clock read\n");
+        }
+        icount -= (env->icount_decr.u16.low + env->icount_extra);
+    }
+    return qemu_icount_bias + (icount << icount_time_shift);
+}
+
+/* return the host CPU cycle counter and handle stop/restart */
+int64_t cpu_get_ticks(void)
+{
+    if (use_icount) {
+        return cpu_get_icount();
+    }
+    if (!timers_state.cpu_ticks_enabled) {
+        return timers_state.cpu_ticks_offset;
+    } else {
+        int64_t ticks;
+        ticks = cpu_get_real_ticks();
+        if (timers_state.cpu_ticks_prev > ticks) {
+            /* Note: non increasing ticks may happen if the host uses
+               software suspend */
+            timers_state.cpu_ticks_offset += timers_state.cpu_ticks_prev - ticks;
+        }
+        timers_state.cpu_ticks_prev = ticks;
+        return ticks + timers_state.cpu_ticks_offset;
+    }
+}
+
+/* return the host CPU monotonic timer and handle stop/restart */
+int64_t cpu_get_clock(void)
+{
+    int64_t ti;
+    if (!timers_state.cpu_ticks_enabled) {
+        return timers_state.cpu_clock_offset;
+    } else {
+        ti = get_clock();
+        return ti + timers_state.cpu_clock_offset;
+    }
+}
+
+/* enable cpu_get_ticks() */
+void cpu_enable_ticks(void)
+{
+    if (!timers_state.cpu_ticks_enabled) {
+        timers_state.cpu_ticks_offset -= cpu_get_real_ticks();
+        timers_state.cpu_clock_offset -= get_clock();
+        timers_state.cpu_ticks_enabled = 1;
+    }
+}
+
+/* disable cpu_get_ticks() : the clock is stopped. You must not call
+   cpu_get_ticks() after that.  */
+void cpu_disable_ticks(void)
+{
+    if (timers_state.cpu_ticks_enabled) {
+        timers_state.cpu_ticks_offset = cpu_get_ticks();
+        timers_state.cpu_clock_offset = cpu_get_clock();
+        timers_state.cpu_ticks_enabled = 0;
+    }
+}
+
+/* Correlation between real and virtual time is always going to be
+   fairly approximate, so ignore small variation.
+   When the guest is idle real and virtual time will be aligned in
+   the IO wait loop.  */
+#define ICOUNT_WOBBLE (get_ticks_per_sec() / 10)
+
+static void icount_adjust(void)
+{
+    int64_t cur_time;
+    int64_t cur_icount;
+    int64_t delta;
+    static int64_t last_delta;
+    /* If the VM is not running, then do nothing.  */
+    if (!runstate_is_running()) {
+        return;
+    }
+    cur_time = cpu_get_clock();
+    cur_icount = qemu_get_clock_ns(vm_clock);
+    delta = cur_icount - cur_time;
+    /* FIXME: This is a very crude algorithm, somewhat prone to oscillation.  */
+    if (delta > 0
+        && last_delta + ICOUNT_WOBBLE < delta * 2
+        && icount_time_shift > 0) {
+        /* The guest is getting too far ahead.  Slow time down.  */
+        icount_time_shift--;
+    }
+    if (delta < 0
+        && last_delta - ICOUNT_WOBBLE > delta * 2
+        && icount_time_shift < MAX_ICOUNT_SHIFT) {
+        /* The guest is getting too far behind.  Speed time up.  */
+        icount_time_shift++;
+    }
+    last_delta = delta;
+    qemu_icount_bias = cur_icount - (qemu_icount << icount_time_shift);
+}
+
+static void icount_adjust_rt(void *opaque)
+{
+    qemu_mod_timer(icount_rt_timer,
+                   qemu_get_clock_ms(rt_clock) + 1000);
+    icount_adjust();
+}
+
+static void icount_adjust_vm(void *opaque)
+{
+    qemu_mod_timer(icount_vm_timer,
+                   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 10);
+    icount_adjust();
+}
+
+static int64_t qemu_icount_round(int64_t count)
+{
+    return (count + (1 << icount_time_shift) - 1) >> icount_time_shift;
+}
+
+static void icount_warp_rt(void *opaque)
+{
+    if (vm_clock_warp_start == -1) {
+        return;
+    }
+
+    if (runstate_is_running()) {
+        int64_t clock = qemu_get_clock_ns(rt_clock);
+        int64_t warp_delta = clock - vm_clock_warp_start;
+        if (use_icount == 1) {
+            qemu_icount_bias += warp_delta;
+        } else {
+            /*
+             * In adaptive mode, do not let the vm_clock run too
+             * far ahead of real time.
+             */
+            int64_t cur_time = cpu_get_clock();
+            int64_t cur_icount = qemu_get_clock_ns(vm_clock);
+            int64_t delta = cur_time - cur_icount;
+            qemu_icount_bias += MIN(warp_delta, delta);
+        }
+        if (qemu_clock_expired(vm_clock)) {
+            qemu_notify_event();
+        }
+    }
+    vm_clock_warp_start = -1;
+}
+
+void qemu_clock_warp(QEMUClock *clock)
+{
+    int64_t deadline;
+
+    /*
+     * There are too many global variables to make the "warp" behavior
+     * applicable to other clocks.  But a clock argument removes the
+     * need for if statements all over the place.
+     */
+    if (clock != vm_clock || !use_icount) {
+        return;
+    }
+
+    /*
+     * If the CPUs have been sleeping, advance the vm_clock timer now.  This
+     * ensures that the deadline for the timer is computed correctly below.
+     * This also makes sure that the insn counter is synchronized before the
+     * CPU starts running, in case the CPU is woken by an event other than
+     * the earliest vm_clock timer.
+     */
+    icount_warp_rt(NULL);
+    if (!all_cpu_threads_idle() || !qemu_clock_has_timers(vm_clock)) {
+        qemu_del_timer(icount_warp_timer);
+        return;
+    }
+
+    vm_clock_warp_start = qemu_get_clock_ns(rt_clock);
+    deadline = qemu_clock_deadline(vm_clock);
+    if (deadline > 0) {
+        /*
+         * Ensure the vm_clock proceeds even when the virtual CPU goes to
+         * sleep.  Otherwise, the CPU might be waiting for a future timer
+         * interrupt to wake it up, but the interrupt never comes because
+         * the vCPU isn't running any insns and thus doesn't advance the
+         * vm_clock.
+         *
+         * An extreme solution for this problem would be to never let VCPUs
+         * sleep in icount mode if there is a pending vm_clock timer; rather
+         * time could just advance to the next vm_clock event.  Instead, we
+         * do stop VCPUs and only advance vm_clock after some "real" time,
+         * (related to the time left until the next event) has passed.  This
+         * rt_clock timer will do this.  This avoids that the warps are too
+         * visible externally---for example, you will not be sending network
+         * packets continously instead of every 100ms.
+         */
+        qemu_mod_timer(icount_warp_timer, vm_clock_warp_start + deadline);
+    } else {
+        qemu_notify_event();
+    }
+}
+
+static const VMStateDescription vmstate_timers = {
+    .name = "timer",
+    .version_id = 2,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_INT64(cpu_ticks_offset, TimersState),
+        VMSTATE_INT64(dummy, TimersState),
+        VMSTATE_INT64_V(cpu_clock_offset, TimersState, 2),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+void configure_icount(const char *option)
+{
+    vmstate_register(NULL, 0, &vmstate_timers, &timers_state);
+    if (!option) {
+        return;
+    }
+
+    icount_warp_timer = qemu_new_timer_ns(rt_clock, icount_warp_rt, NULL);
+    if (strcmp(option, "auto") != 0) {
+        icount_time_shift = strtol(option, NULL, 0);
+        use_icount = 1;
+        return;
+    }
+
+    use_icount = 2;
+
+    /* 125MIPS seems a reasonable initial guess at the guest speed.
+       It will be corrected fairly quickly anyway.  */
+    icount_time_shift = 3;
+
+    /* Have both realtime and virtual time triggers for speed adjustment.
+       The realtime trigger catches emulated time passing too slowly,
+       the virtual time trigger catches emulated time passing too fast.
+       Realtime triggers occur even when idle, so use them less frequently
+       than VM triggers.  */
+    icount_rt_timer = qemu_new_timer_ms(rt_clock, icount_adjust_rt, NULL);
+    qemu_mod_timer(icount_rt_timer,
+                   qemu_get_clock_ms(rt_clock) + 1000);
+    icount_vm_timer = qemu_new_timer_ns(vm_clock, icount_adjust_vm, NULL);
+    qemu_mod_timer(icount_vm_timer,
+                   qemu_get_clock_ns(vm_clock) + get_ticks_per_sec() / 10);
+}
+
+/***********************************************************/
 void hw_error(const char *fmt, ...)
 {
     va_list ap;
@@ -686,7 +961,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
 
     while (1) {
         cpu_exec_all();
-        if (use_icount && qemu_next_icount_deadline() <= 0) {
+        if (use_icount && qemu_clock_deadline(vm_clock) <= 0) {
             qemu_notify_event();
         }
         qemu_tcg_wait_io_event();
@@ -914,7 +1189,7 @@ static int tcg_cpu_exec(CPUState *env)
         qemu_icount -= (env->icount_decr.u16.low + env->icount_extra);
         env->icount_decr.u16.low = 0;
         env->icount_extra = 0;
-        count = qemu_icount_round(qemu_next_icount_deadline());
+        count = qemu_icount_round(qemu_clock_deadline(vm_clock));
         qemu_icount += count;
         decr = (count > 0xffff) ? 0xffff : count;
         count -= decr;
@@ -1004,22 +1279,6 @@ void set_cpu_log(const char *optarg)
 void set_cpu_log_filename(const char *optarg)
 {
     cpu_set_log_filename(optarg);
-}
-
-/* Return the virtual CPU time, based on the instruction counter.  */
-int64_t cpu_get_icount(void)
-{
-    int64_t icount;
-    CPUState *env = cpu_single_env;;
-
-    icount = qemu_icount;
-    if (env) {
-        if (!can_do_io(env)) {
-            fprintf(stderr, "Bad clock read\n");
-        }
-        icount -= (env->icount_decr.u16.low + env->icount_extra);
-    }
-    return qemu_icount_bias + (icount << icount_time_shift);
 }
 
 void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)

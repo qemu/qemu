@@ -125,9 +125,6 @@ CPUState *cpu_single_env;
    1 = Precise instruction counting.
    2 = Adaptive rate instruction counting.  */
 int use_icount = 0;
-/* Current instruction counter.  While executing translated code this may
-   include some instructions that have not yet been executed.  */
-int64_t qemu_icount;
 
 typedef struct PageDesc {
     /* list of TBs intersecting this ram page */

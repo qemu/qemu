@@ -58,9 +58,7 @@ int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time);
 
 void qemu_run_all_timers(void);
 int qemu_alarm_pending(void);
-int64_t qemu_next_icount_deadline(void);
 void configure_alarms(char const *opt);
-void configure_icount(const char *option);
 int qemu_calculate_timeout(void);
 void init_clocks(void);
 int init_timer_alarm(void);
@@ -153,12 +151,8 @@ void ptimer_run(ptimer_state *s, int oneshot);
 void ptimer_stop(ptimer_state *s);
 
 /* icount */
-int64_t qemu_icount_round(int64_t count);
-extern int64_t qemu_icount;
-extern int use_icount;
-extern int icount_time_shift;
-extern int64_t qemu_icount_bias;
 int64_t cpu_get_icount(void);
+int64_t cpu_get_clock(void);
 
 /*******************************************/
 /* host CPU ticks (if available) */
@@ -311,22 +305,6 @@ static inline int64_t cpu_get_real_ticks (void)
 {
     static int64_t ticks = 0;
     return ticks++;
-}
-#endif
-
-#ifdef NEED_CPU_H
-/* Deterministic execution requires that IO only be performed on the last
-   instruction of a TB so that interrupts take effect immediately.  */
-static inline int can_do_io(CPUState *env)
-{
-    if (!use_icount)
-        return 1;
-
-    /* If not executing code then assume we are ok.  */
-    if (!env->current_tb)
-        return 1;
-
-    return env->can_do_io != 0;
 }
 #endif
 
