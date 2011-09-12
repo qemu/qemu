@@ -626,11 +626,6 @@ void qemu_init_cpu_loop(void)
     qemu_thread_get_self(&io_thread);
 }
 
-void qemu_main_loop_start(void)
-{
-    resume_all_vcpus();
-}
-
 void run_on_cpu(CPUState *env, void (*func)(void *data), void *data)
 {
     struct qemu_work_item wi;

@@ -1428,18 +1428,49 @@ void qemu_system_vmstop_request(RunState state)
 
 qemu_irq qemu_system_powerdown;
 
+static bool main_loop_should_exit(void)
+{
+    RunState r;
+    if (qemu_debug_requested()) {
+        vm_stop(RUN_STATE_DEBUG);
+    }
+    if (qemu_shutdown_requested()) {
+        qemu_kill_report();
+        monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
+        if (no_shutdown) {
+            vm_stop(RUN_STATE_SHUTDOWN);
+        } else {
+            return true;
+        }
+    }
+    if (qemu_reset_requested()) {
+        pause_all_vcpus();
+        cpu_synchronize_all_states();
+        qemu_system_reset(VMRESET_REPORT);
+        resume_all_vcpus();
+        if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
+            runstate_check(RUN_STATE_SHUTDOWN)) {
+            runstate_set(RUN_STATE_PAUSED);
+        }
+    }
+    if (qemu_powerdown_requested()) {
+        monitor_protocol_event(QEVENT_POWERDOWN, NULL);
+        qemu_irq_raise(qemu_system_powerdown);
+    }
+    if (qemu_vmstop_requested(&r)) {
+        vm_stop(r);
+    }
+    return false;
+}
+
 static void main_loop(void)
 {
     bool nonblocking;
-    int last_io __attribute__ ((unused)) = 0;
+    int last_io = 0;
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
-    RunState r;
-
-    qemu_main_loop_start();
-
-    for (;;) {
+    do {
         nonblocking = !kvm_enabled() && last_io > 0;
 #ifdef CONFIG_PROFILER
         ti = profile_getclock();
@@ -1448,38 +1479,7 @@ static void main_loop(void)
 #ifdef CONFIG_PROFILER
         dev_time += profile_getclock() - ti;
 #endif
-
-        if (qemu_debug_requested()) {
-            vm_stop(RUN_STATE_DEBUG);
-        }
-        if (qemu_shutdown_requested()) {
-            qemu_kill_report();
-            monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
-            if (no_shutdown) {
-                vm_stop(RUN_STATE_SHUTDOWN);
-            } else
-                break;
-        }
-        if (qemu_reset_requested()) {
-            pause_all_vcpus();
-            cpu_synchronize_all_states();
-            qemu_system_reset(VMRESET_REPORT);
-            resume_all_vcpus();
-            if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
-                runstate_check(RUN_STATE_SHUTDOWN)) {
-                runstate_set(RUN_STATE_PAUSED);
-            }
-        }
-        if (qemu_powerdown_requested()) {
-            monitor_protocol_event(QEVENT_POWERDOWN, NULL);
-            qemu_irq_raise(qemu_system_powerdown);
-        }
-        if (qemu_vmstop_requested(&r)) {
-            vm_stop(r);
-        }
-    }
-    bdrv_close_all();
-    pause_all_vcpus();
+    } while (!main_loop_should_exit());
 }
 
 static void version(void)
@@ -3445,7 +3445,10 @@ int main(int argc, char **argv, char **envp)
 
     os_setup_post();
 
+    resume_all_vcpus();
     main_loop();
+    bdrv_close_all();
+    pause_all_vcpus();
     net_cleanup();
     res_free();
 

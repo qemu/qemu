@@ -3,7 +3,6 @@
 
 /* cpus.c */
 void qemu_init_cpu_loop(void);
-void qemu_main_loop_start(void);
 void resume_all_vcpus(void);
 void pause_all_vcpus(void);
 void cpu_stop_current(void);
