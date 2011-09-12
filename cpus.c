@@ -1059,6 +1059,7 @@ void pause_all_vcpus(void)
 {
     CPUState *penv = first_cpu;
 
+    qemu_clock_enable(vm_clock, false);
     while (penv) {
         penv->stop = 1;
         qemu_cpu_kick(penv);

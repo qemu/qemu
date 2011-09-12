@@ -504,10 +504,7 @@ void qemu_run_all_timers(void)
     }
 
     /* vm time timers */
-    if (runstate_is_running()) {
-        qemu_run_timers(vm_clock);
-    }
-
+    qemu_run_timers(vm_clock);
     qemu_run_timers(rt_clock);
     qemu_run_timers(host_clock);
 }
