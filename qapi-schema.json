@@ -60,3 +60,28 @@
 # Since: 0.14.0
 ##
 { 'command': 'query-version', 'returns': 'VersionInfo' }
+
+##
+# @KvmInfo:
+#
+# Information about support for KVM acceleration
+#
+# @enabled: true if KVM acceleration is active
+#
+# @present: true if KVM acceleration is built into this executable
+#
+# Since: 0.14.0
+##
+{ 'type': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
+
+##
+# @query-kvm:
+#
+# Returns information about KVM acceleration
+#
+# Returns: @KvmInfo
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-kvm', 'returns': 'KvmInfo' }
+

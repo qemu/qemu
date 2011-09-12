@@ -37,3 +37,19 @@ void hmp_info_version(Monitor *mon)
 
     qapi_free_VersionInfo(info);
 }
+
+void hmp_info_kvm(Monitor *mon)
+{
+    KvmInfo *info;
+
+    info = qmp_query_kvm(NULL);
+    monitor_printf(mon, "kvm support: ");
+    if (info->present) {
+        monitor_printf(mon, "%s\n", info->enabled ? "enabled" : "disabled");
+    } else {
+        monitor_printf(mon, "not compiled\n");
+    }
+
+    qapi_free_KvmInfo(info);
+}
+

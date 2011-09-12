@@ -14,6 +14,8 @@
 #include "qemu-common.h"
 #include "sysemu.h"
 #include "qmp-commands.h"
+#include "kvm.h"
+#include "arch_init.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -42,3 +44,14 @@ VersionInfo *qmp_query_version(Error **err)
 
     return info;
 }
+
+KvmInfo *qmp_query_kvm(Error **errp)
+{
+    KvmInfo *info = g_malloc0(sizeof(*info));
+
+    info->enabled = kvm_enabled();
+    info->present = kvm_available();
+
+    return info;
+}
+

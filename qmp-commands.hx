@@ -1570,6 +1570,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-kvm",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_kvm,
+    },
+
 SQMP
 query-status
 ------------
