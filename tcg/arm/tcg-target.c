@@ -1820,21 +1820,6 @@ static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
     tcg_out_st32(s, COND_AL, arg, arg1, arg2);
 }
 
-static void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
-{
-    if (val > 0)
-        if (val < 0x100)
-            tcg_out_dat_imm(s, COND_AL, ARITH_ADD, reg, reg, val);
-        else
-            tcg_abort();
-    else if (val < 0) {
-        if (val > -0x100)
-            tcg_out_dat_imm(s, COND_AL, ARITH_SUB, reg, reg, -val);
-        else
-            tcg_abort();
-    }
-}
-
 static inline void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
     tcg_out_dat_reg(s, COND_AL, ARITH_MOV, ret, 0, arg, SHIFT_IMM_LSL(0));
