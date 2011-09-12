@@ -266,11 +266,8 @@ static QEMUClock *qemu_new_clock(int type)
     clock = g_malloc0(sizeof(QEMUClock));
     clock->type = type;
     clock->enabled = 1;
+    clock->last = INT64_MIN;
     notifier_list_init(&clock->reset_notifiers);
-    /* required to detect & report backward jumps */
-    if (type == QEMU_CLOCK_HOST) {
-        clock->last = get_clock_realtime();
-    }
     return clock;
 }
 
@@ -344,7 +341,7 @@ void qemu_del_timer(QEMUTimer *ts)
 
 /* modify the current timer so that it will be fired when current_time
    >= expire_time. The corresponding callback will be called. */
-static void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
+void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
 {
     QEMUTimer **pt, *t;
 
@@ -378,8 +375,6 @@ static void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
     }
 }
 
-/* modify the current timer so that it will be fired when current_time
-   >= expire_time. The corresponding callback will be called. */
 void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
 {
     qemu_mod_timer_ns(ts, expire_time * ts->scale);
@@ -464,33 +459,11 @@ void init_clocks(void)
     rt_clock = qemu_new_clock(QEMU_CLOCK_REALTIME);
     vm_clock = qemu_new_clock(QEMU_CLOCK_VIRTUAL);
     host_clock = qemu_new_clock(QEMU_CLOCK_HOST);
-
-    rtc_clock = host_clock;
 }
 
-/* save a timer */
-void qemu_put_timer(QEMUFile *f, QEMUTimer *ts)
+uint64_t qemu_timer_expire_time_ns(QEMUTimer *ts)
 {
-    uint64_t expire_time;
-
-    if (qemu_timer_pending(ts)) {
-        expire_time = ts->expire_time;
-    } else {
-        expire_time = -1;
-    }
-    qemu_put_be64(f, expire_time);
-}
-
-void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
-{
-    uint64_t expire_time;
-
-    expire_time = qemu_get_be64(f);
-    if (expire_time != -1) {
-        qemu_mod_timer_ns(ts, expire_time);
-    } else {
-        qemu_del_timer(ts);
-    }
+    return qemu_timer_pending(ts) ? ts->expire_time : -1;
 }
 
 void qemu_run_all_timers(void)
