@@ -53,3 +53,22 @@ void hmp_info_kvm(Monitor *mon)
     qapi_free_KvmInfo(info);
 }
 
+void hmp_info_status(Monitor *mon)
+{
+    StatusInfo *info;
+
+    info = qmp_query_status(NULL);
+
+    monitor_printf(mon, "VM status: %s%s",
+                   info->running ? "running" : "paused",
+                   info->singlestep ? " (single step mode)" : "");
+
+    if (!info->running && info->status != RUN_STATE_PAUSED) {
+        monitor_printf(mon, " (%s)", RunState_lookup[info->status]);
+    }
+
+    monitor_printf(mon, "\n");
+
+    qapi_free_StatusInfo(info);
+}
+

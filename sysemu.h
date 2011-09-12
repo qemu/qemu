@@ -6,26 +6,10 @@
 #include "qemu-option.h"
 #include "qemu-queue.h"
 #include "qemu-timer.h"
+#include "qapi-types.h"
 #include "notify.h"
 
 /* vl.c */
-
-typedef enum {
-    RUN_STATE_DEBUG,          /* qemu is running under gdb */
-    RUN_STATE_INMIGRATE,     /* paused waiting for an incoming migration */
-    RUN_STATE_INTERNAL_ERROR,       /* paused due to an internal error */
-    RUN_STATE_IO_ERROR,       /* paused due to an I/O error */
-    RUN_STATE_PAUSED,         /* paused by the user (ie. the 'stop' command) */
-    RUN_STATE_POSTMIGRATE,   /* paused following a successful migration */
-    RUN_STATE_PRELAUNCH,     /* qemu was started with -S and haven't started */
-    RUN_STATE_FINISH_MIGRATE,    /* paused preparing to finish migrate */
-    RUN_STATE_RESTORE_VM,        /* paused restoring the VM state */
-    RUN_STATE_RUNNING,        /* qemu is running */
-    RUN_STATE_SAVE_VM,         /* paused saving VM state */
-    RUN_STATE_SHUTDOWN,       /* guest shut down and -no-shutdown is in use */
-    RUN_STATE_WATCHDOG,       /* watchdog fired and qemu is configured to pause */
-    RUN_STATE_MAX
-} RunState;
 
 extern const char *bios_name;
 
@@ -38,7 +22,6 @@ void runstate_init(void);
 bool runstate_check(RunState state);
 void runstate_set(RunState new_state);
 int runstate_is_running(void);
-const char *runstate_as_string(void);
 typedef struct vm_change_state_entry VMChangeStateEntry;
 typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 

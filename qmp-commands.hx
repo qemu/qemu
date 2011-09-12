@@ -1609,6 +1609,12 @@ Example:
 <- { "return": { "running": true, "singlestep": false, "status": "running" } }
 
 EQMP
+    
+    {
+        .name       = "query-status",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_status,
+    },
 
 SQMP
 query-mice

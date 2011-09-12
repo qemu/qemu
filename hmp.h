@@ -20,5 +20,6 @@
 void hmp_info_name(Monitor *mon);
 void hmp_info_version(Monitor *mon);
 void hmp_info_kvm(Monitor *mon);
+void hmp_info_status(Monitor *mon);
 
 #endif

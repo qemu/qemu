@@ -147,6 +147,7 @@ int main(int argc, char **argv)
 #include "qemu-config.h"
 #include "qemu-objects.h"
 #include "qemu-options.h"
+#include "qmp-commands.h"
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
@@ -375,22 +376,6 @@ static const RunStateTransition runstate_transitions_def[] = {
 
 static bool runstate_valid_transitions[RUN_STATE_MAX][RUN_STATE_MAX];
 
-static const char *const runstate_name_tbl[RUN_STATE_MAX] = {
-    [RUN_STATE_DEBUG] = "debug",
-    [RUN_STATE_INMIGRATE] = "incoming-migration",
-    [RUN_STATE_INTERNAL_ERROR] = "internal-error",
-    [RUN_STATE_IO_ERROR] = "io-error",
-    [RUN_STATE_PAUSED] = "paused",
-    [RUN_STATE_POSTMIGRATE] = "post-migrate",
-    [RUN_STATE_PRELAUNCH] = "prelaunch",
-    [RUN_STATE_FINISH_MIGRATE] = "finish-migrate",
-    [RUN_STATE_RESTORE_VM] = "restore-vm",
-    [RUN_STATE_RUNNING] = "running",
-    [RUN_STATE_SAVE_VM] = "save-vm",
-    [RUN_STATE_SHUTDOWN] = "shutdown",
-    [RUN_STATE_WATCHDOG] = "watchdog",
-};
-
 bool runstate_check(RunState state)
 {
     return current_run_state == state;
@@ -419,15 +404,20 @@ void runstate_set(RunState new_state)
     current_run_state = new_state;
 }
 
-const char *runstate_as_string(void)
-{
-    assert(current_run_state < RUN_STATE_MAX);
-    return runstate_name_tbl[current_run_state];
-}
-
 int runstate_is_running(void)
 {
     return runstate_check(RUN_STATE_RUNNING);
+}
+
+StatusInfo *qmp_query_status(Error **errp)
+{
+    StatusInfo *info = g_malloc0(sizeof(*info));
+
+    info->running = runstate_is_running();
+    info->singlestep = singlestep;
+    info->status = current_run_state;
+
+    return info;
 }
 
 /***********************************************************/

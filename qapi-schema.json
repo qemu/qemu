@@ -85,3 +85,70 @@
 ##
 { 'command': 'query-kvm', 'returns': 'KvmInfo' }
 
+##
+# @RunState
+#
+# An enumation of VM run states.
+#
+# @debug: QEMU is running on a debugger
+#
+# @inmigrate: guest is paused waiting for an incoming migration
+#
+# @internal-error: An internal error that prevents further guest execution
+# has occurred
+#
+# @io-error: the last IOP has failed and the device is configured to pause
+# on I/O errors
+#
+# @paused: guest has been paused via the 'stop' command
+#
+# @postmigrate: guest is paused following a successful 'migrate'
+#
+# @prelaunch: QEMU was started with -S and guest has not started
+#
+# @finish-migrate: guest is paused to finish the migration process
+#
+# @restore-vm: guest is paused to restore VM state
+#
+# @running: guest is actively running
+#
+# @save-vm: guest is paused to save the VM state
+#
+# @shutdown: guest is shut down (and -no-shutdown is in use)
+#
+# @watchdog: the watchdog action is configured to pause and has been triggered
+##
+{ 'enum': 'RunState',
+  'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
+            'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
+            'running', 'save-vm', 'shutdown', 'watchdog' ] }
+
+##
+# @StatusInfo:
+#
+# Information about VCPU run state
+#
+# @running: true if all VCPUs are runnable, false if not runnable
+#
+# @singlestep: true if VCPUs are in single-step mode
+#
+# @status: the virtual machine @RunState
+#
+# Since:  0.14.0
+#
+# Notes: @singlestep is enabled through the GDB stub
+##
+{ 'type': 'StatusInfo',
+  'data': {'running': 'bool', 'singlestep': 'bool', 'status': 'RunState'} }
+
+##
+# @query-status:
+#
+# Query the run status of all VCPUs
+#
+# Returns: @StatusInfo reflecting all VCPUs
+#
+# Since:  0.14.0
+##
+{ 'command': 'query-status', 'returns': 'StatusInfo' }
+

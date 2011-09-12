@@ -2550,36 +2550,6 @@ static int do_inject_nmi(Monitor *mon, const QDict *qdict, QObject **ret_data)
 }
 #endif
 
-static void do_info_status_print(Monitor *mon, const QObject *data)
-{
-    QDict *qdict;
-    const char *status;
-
-    qdict = qobject_to_qdict(data);
-
-    monitor_printf(mon, "VM status: ");
-    if (qdict_get_bool(qdict, "running")) {
-        monitor_printf(mon, "running");
-        if (qdict_get_bool(qdict, "singlestep")) {
-            monitor_printf(mon, " (single step mode)");
-        }
-    } else {
-        monitor_printf(mon, "paused");
-    }
-
-    status = qdict_get_str(qdict, "status");
-    if (strcmp(status, "paused") && strcmp(status, "running")) {
-        monitor_printf(mon, " (%s)", status);
-    }
-
-    monitor_printf(mon, "\n");
-}
-
-static void do_info_status(Monitor *mon, QObject **ret_data)
-{
-    *ret_data = qobject_from_jsonf("{ 'running': %i, 'singlestep': %i, 'status': %s }", runstate_is_running(), singlestep, runstate_as_string());
-}
-
 static qemu_acl *find_acl(Monitor *mon, const char *name)
 {
     qemu_acl *acl = qemu_acl_find(name);
@@ -2979,8 +2949,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM status (running|paused)",
-        .user_print = do_info_status_print,
-        .mhandler.info_new = do_info_status,
+        .mhandler.info = hmp_info_status,
     },
     {
         .name       = "pcmcia",
@@ -3160,14 +3129,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .help       = "show PCI info",
         .user_print = do_pci_info_print,
         .mhandler.info_new = do_pci_info,
-    },
-    {
-        .name       = "status",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the current VM status (running|paused)",
-        .user_print = do_info_status_print,
-        .mhandler.info_new = do_info_status,
     },
     {
         .name       = "mice",
