@@ -203,6 +203,27 @@
  * of MODE_PAGE_SENSE_POWER */
 #define MODE_PAGE_CDROM                       0x0d
 
+/* Event notification classes for GET EVENT STATUS NOTIFICATION */
+#define GESN_NO_EVENTS                0
+#define GESN_OPERATIONAL_CHANGE       1
+#define GESN_POWER_MANAGEMENT         2
+#define GESN_EXTERNAL_REQUEST         3
+#define GESN_MEDIA                    4
+#define GESN_MULTIPLE_HOSTS           5
+#define GESN_DEVICE_BUSY              6
+
+/* Event codes for MEDIA event status notification */
+#define MEC_NO_CHANGE                 0
+#define MEC_EJECT_REQUESTED           1
+#define MEC_NEW_MEDIA                 2
+#define MEC_MEDIA_REMOVAL             3 /* only for media changers */
+#define MEC_MEDIA_CHANGED             4 /* only for media changers */
+#define MEC_BG_FORMAT_COMPLETED       5 /* MRW or DVD+RW b/g format completed */
+#define MEC_BG_FORMAT_RESTARTED       6 /* MRW or DVD+RW b/g format restarted */
+
+#define MS_TRAY_OPEN                  1
+#define MS_MEDIA_PRESENT              2
+
 /*
  * Based on values from <linux/cdrom.h> but extending CD_MINS
  * to the maximum common size allowed by the Orange's Book ATIP

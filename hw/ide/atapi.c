@@ -505,19 +505,6 @@ static int ide_dvd_read_structure(IDEState *s, int format,
 static unsigned int event_status_media(IDEState *s,
                                        uint8_t *buf)
 {
-    enum media_event_code {
-        MEC_NO_CHANGE = 0,       /* Status unchanged */
-        MEC_EJECT_REQUESTED,     /* received a request from user to eject */
-        MEC_NEW_MEDIA,           /* new media inserted and ready for access */
-        MEC_MEDIA_REMOVAL,       /* only for media changers */
-        MEC_MEDIA_CHANGED,       /* only for media changers */
-        MEC_BG_FORMAT_COMPLETED, /* MRW or DVD+RW b/g format completed */
-        MEC_BG_FORMAT_RESTARTED, /* MRW or DVD+RW b/g format restarted */
-    };
-    enum media_status {
-        MS_TRAY_OPEN = 1,
-        MS_MEDIA_PRESENT = 2,
-    };
     uint8_t event_code, media_status;
 
     media_status = 0;
@@ -564,27 +551,6 @@ static void cmd_get_event_status_notification(IDEState *s,
         uint8_t notification_class;
         uint8_t supported_events;
     } QEMU_PACKED *gesn_event_header;
-
-    enum notification_class_request_type {
-        NCR_RESERVED1 = 1 << 0,
-        NCR_OPERATIONAL_CHANGE = 1 << 1,
-        NCR_POWER_MANAGEMENT = 1 << 2,
-        NCR_EXTERNAL_REQUEST = 1 << 3,
-        NCR_MEDIA = 1 << 4,
-        NCR_MULTI_HOST = 1 << 5,
-        NCR_DEVICE_BUSY = 1 << 6,
-        NCR_RESERVED2 = 1 << 7,
-    };
-    enum event_notification_class_field {
-        ENC_NO_EVENTS = 0,
-        ENC_OPERATIONAL_CHANGE,
-        ENC_POWER_MANAGEMENT,
-        ENC_EXTERNAL_REQUEST,
-        ENC_MEDIA,
-        ENC_MULTIPLE_HOSTS,
-        ENC_DEVICE_BUSY,
-        ENC_RESERVED,
-    };
     unsigned int max_len, used_len;
 
     gesn_cdb = (void *)packet;
@@ -606,8 +572,11 @@ static void cmd_get_event_status_notification(IDEState *s,
      * These are the supported events.
      *
      * We currently only support requests of the 'media' type.
+     * Notification class requests and supported event classes are bitmasks,
+     * but they are build from the same values as the "notification class"
+     * field.
      */
-    gesn_event_header->supported_events = NCR_MEDIA;
+    gesn_event_header->supported_events = 1 << GESN_MEDIA;
 
     /*
      * We use |= below to set the class field; other bits in this byte
@@ -621,8 +590,8 @@ static void cmd_get_event_status_notification(IDEState *s,
      * notification_class_request_type enum above specifies the
      * priority: upper elements are higher prio than lower ones.
      */
-    if (gesn_cdb->class & NCR_MEDIA) {
-        gesn_event_header->notification_class |= ENC_MEDIA;
+    if (gesn_cdb->class & (1 << GESN_MEDIA)) {
+        gesn_event_header->notification_class |= GESN_MEDIA;
         used_len = event_status_media(s, buf);
     } else {
         gesn_event_header->notification_class = 0x80; /* No event available */
