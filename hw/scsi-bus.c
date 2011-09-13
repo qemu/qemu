@@ -847,6 +847,11 @@ const struct SCSISense sense_code_RESET = {
     .key = UNIT_ATTENTION, .asc = 0x29, .ascq = 0x00
 };
 
+/* Unit attention, No medium */
+const struct SCSISense sense_code_UNIT_ATTENTION_NO_MEDIUM = {
+    .key = UNIT_ATTENTION, .asc = 0x3a, .ascq = 0x00
+};
+
 /* Unit attention, Medium may have changed */
 const struct SCSISense sense_code_MEDIUM_CHANGED = {
     .key = UNIT_ATTENTION, .asc = 0x28, .ascq = 0x00

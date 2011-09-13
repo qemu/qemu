@@ -161,6 +161,8 @@ extern const struct SCSISense sense_code_IO_ERROR;
 extern const struct SCSISense sense_code_I_T_NEXUS_LOSS;
 /* Command aborted, Logical Unit failure */
 extern const struct SCSISense sense_code_LUN_FAILURE;
+/* LUN not ready, Medium not present */
+extern const struct SCSISense sense_code_UNIT_ATTENTION_NO_MEDIUM;
 /* Unit attention, Power on, reset or bus device reset occurred */
 extern const struct SCSISense sense_code_RESET;
 /* Unit attention, Medium may have changed*/

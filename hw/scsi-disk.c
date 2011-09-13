@@ -71,6 +71,7 @@ struct SCSIDiskState
     int cluster_size;
     uint32_t removable;
     uint64_t max_lba;
+    bool media_changed;
     QEMUBH *bh;
     char *version;
     char *serial;
@@ -1198,7 +1199,21 @@ static void scsi_destroy(SCSIDevice *dev)
 
 static void scsi_cd_change_media_cb(void *opaque, bool load)
 {
-    ((SCSIDiskState *)opaque)->tray_open = !load;
+    SCSIDiskState *s = opaque;
+
+    /*
+     * When a CD gets changed, we have to report an ejected state and
+     * then a loaded state to guests so that they detect tray
+     * open/close and media change events.  Guests that do not use
+     * GET_EVENT_STATUS_NOTIFICATION to detect such tray open/close
+     * states rely on this behavior.
+     *
+     * media_changed governs the state machine used for unit attention
+     * report.  media_event is used by GET EVENT STATUS NOTIFICATION.
+     */
+    s->media_changed = load;
+    s->tray_open = !load;
+    s->qdev.unit_attention = SENSE_CODE(UNIT_ATTENTION_NO_MEDIUM);
 }
 
 static bool scsi_cd_is_tray_open(void *opaque)
@@ -1216,6 +1231,15 @@ static const BlockDevOps scsi_cd_block_ops = {
     .is_tray_open = scsi_cd_is_tray_open,
     .is_medium_locked = scsi_cd_is_medium_locked,
 };
+
+static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    if (s->media_changed) {
+        s->media_changed = false;
+        s->qdev.unit_attention = SENSE_CODE(MEDIUM_CHANGED);
+    }
+}
 
 static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
 {
@@ -1329,6 +1353,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .init         = scsi_hd_initfn,
         .destroy      = scsi_destroy,
         .alloc_req    = scsi_new_request,
+        .unit_attention_reported = scsi_disk_unit_attention_reported,
         .qdev.props   = (Property[]) {
             DEFINE_SCSI_DISK_PROPERTIES(),
             DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
@@ -1343,6 +1368,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .init         = scsi_cd_initfn,
         .destroy      = scsi_destroy,
         .alloc_req    = scsi_new_request,
+        .unit_attention_reported = scsi_disk_unit_attention_reported,
         .qdev.props   = (Property[]) {
             DEFINE_SCSI_DISK_PROPERTIES(),
             DEFINE_PROP_END_OF_LIST(),
@@ -1356,6 +1382,7 @@ static SCSIDeviceInfo scsi_disk_info[] = {
         .init         = scsi_disk_initfn,
         .destroy      = scsi_destroy,
         .alloc_req    = scsi_new_request,
+        .unit_attention_reported = scsi_disk_unit_attention_reported,
         .qdev.props   = (Property[]) {
             DEFINE_SCSI_DISK_PROPERTIES(),
             DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
