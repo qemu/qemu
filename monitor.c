@@ -2999,8 +2999,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show migration status",
-        .user_print = do_info_migrate_print,
-        .mhandler.info_new = do_info_migrate,
+        .mhandler.info = hmp_info_migrate,
     },
     {
         .name       = "balloon",
@@ -3109,14 +3108,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .mhandler.info_new = do_info_spice,
     },
 #endif
-    {
-        .name       = "migrate",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show migration status",
-        .user_print = do_info_migrate_print,
-        .mhandler.info_new = do_info_migrate,
-    },
     {
         .name       = "balloon",
         .args_type  = "",

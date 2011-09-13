@@ -1919,6 +1919,12 @@ Examples:
 
 EQMP
 
+    {
+        .name       = "query-migrate",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_migrate,
+    },
+
 SQMP
 query-balloon
 -------------

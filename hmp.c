@@ -114,6 +114,37 @@ void hmp_info_mice(Monitor *mon)
     qapi_free_MouseInfoList(mice_list);
 }
 
+void hmp_info_migrate(Monitor *mon)
+{
+    MigrationInfo *info;
+
+    info = qmp_query_migrate(NULL);
+
+    if (info->has_status) {
+        monitor_printf(mon, "Migration status: %s\n", info->status);
+    }
+
+    if (info->has_ram) {
+        monitor_printf(mon, "transferred ram: %" PRIu64 " kbytes\n",
+                       info->ram->transferred >> 10);
+        monitor_printf(mon, "remaining ram: %" PRIu64 " kbytes\n",
+                       info->ram->remaining >> 10);
+        monitor_printf(mon, "total ram: %" PRIu64 " kbytes\n",
+                       info->ram->total >> 10);
+    }
+
+    if (info->has_disk) {
+        monitor_printf(mon, "transferred disk: %" PRIu64 " kbytes\n",
+                       info->disk->transferred >> 10);
+        monitor_printf(mon, "remaining disk: %" PRIu64 " kbytes\n",
+                       info->disk->remaining >> 10);
+        monitor_printf(mon, "total disk: %" PRIu64 " kbytes\n",
+                       info->disk->total >> 10);
+    }
+
+    qapi_free_MigrationInfo(info);
+}
+
 void hmp_quit(Monitor *mon, const QDict *qdict)
 {
     monitor_suspend(mon);

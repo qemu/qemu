@@ -226,6 +226,56 @@
 { 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
 ##
+# @MigrationStats
+#
+# Detailed migration status.
+#
+# @transferred: amount of bytes already transferred to the target VM
+#
+# @remaining: amount of bytes remaining to be transferred to the target VM
+#
+# @total: total amount of bytes involved in the migration process
+#
+# Since: 0.14.0.
+##
+{ 'type': 'MigrationStats',
+  'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' } }
+
+##
+# @MigrationInfo
+#
+# Information about current migration process.
+#
+# @status: #optional string describing the current migration status.
+#          As of 0.14.0 this can be 'active', 'completed', 'failed' or
+#          'cancelled'. If this field is not returned, no migration process
+#          has been initiated
+#
+# @ram: #optional @MigrationStats containing detailed migration status,
+#       only returned if status is 'active'
+#
+# @disk: #optional @MigrationStats containing detailed disk migration
+#        status, only returned if status is 'active' and it is a block
+#        migration
+#
+# Since: 0.14.0
+##
+{ 'type': 'MigrationInfo',
+  'data': {'*status': 'str', '*ram': 'MigrationStats',
+           '*disk': 'MigrationStats'} }
+
+##
+# @query-migrate
+#
+# Returns information about current migration process.
+#
+# Returns: @MigrationInfo
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-migrate', 'returns': 'MigrationInfo' }
+
+##
 # @MouseInfo:
 #
 # Information about a mouse device.
