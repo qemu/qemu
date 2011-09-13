@@ -3,8 +3,6 @@
 
 #include "qemu-common.h"
 
-#ifdef CONFIG_SLIRP
-
 struct Slirp;
 typedef struct Slirp Slirp;
 
@@ -43,14 +41,5 @@ void slirp_socket_recv(Slirp *slirp, struct in_addr guest_addr,
                        int guest_port, const uint8_t *buf, int size);
 size_t slirp_socket_can_recv(Slirp *slirp, struct in_addr guest_addr,
                              int guest_port);
-
-#else /* !CONFIG_SLIRP */
-
-static inline void slirp_select_fill(int *pnfds, fd_set *readfds,
-                                     fd_set *writefds, fd_set *xfds) { }
-
-static inline void slirp_select_poll(fd_set *readfds, fd_set *writefds,
-                                     fd_set *xfds, int select_error) { }
-#endif /* !CONFIG_SLIRP */
 
 #endif

@@ -315,6 +315,30 @@ void qemu_bh_delete(QEMUBH *bh);
 int qemu_add_child_watch(pid_t pid);
 #endif
 
+/**
+ * qemu_mutex_lock_iothread: Lock the main loop mutex.
+ *
+ * This function locks the main loop mutex.  The mutex is taken by
+ * qemu_init_main_loop and always taken except while waiting on
+ * external events (such as with select).  The mutex should be taken
+ * by threads other than the main loop thread when calling
+ * qemu_bh_new(), qemu_set_fd_handler() and basically all other
+ * functions documented in this file.
+ */
+void qemu_mutex_lock_iothread(void);
+
+/**
+ * qemu_mutex_unlock_iothread: Unlock the main loop mutex.
+ *
+ * This function unlocks the main loop mutex.  The mutex is taken by
+ * qemu_init_main_loop and always taken except while waiting on
+ * external events (such as with select).  The mutex should be unlocked
+ * as soon as possible by threads other than the main loop thread,
+ * because it prevents the main loop from processing callbacks,
+ * including timers and bottom halves.
+ */
+void qemu_mutex_unlock_iothread(void);
+
 /* internal interfaces */
 
 void qemu_iohandler_fill(int *pnfds, fd_set *readfds, fd_set *writefds, fd_set *xfds);

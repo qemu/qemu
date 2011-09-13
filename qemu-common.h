@@ -169,9 +169,6 @@ const char *path(const char *pathname);
 
 void *qemu_oom_check(void *ptr);
 
-void qemu_mutex_lock_iothread(void);
-void qemu_mutex_unlock_iothread(void);
-
 int qemu_open(const char *name, int flags, ...);
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)
     QEMU_WARN_UNUSED_RESULT;

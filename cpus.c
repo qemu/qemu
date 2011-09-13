@@ -542,141 +542,8 @@ static void qemu_kvm_eat_signals(CPUState *env)
 #endif /* !CONFIG_LINUX */
 
 #ifndef _WIN32
-static int io_thread_fd = -1;
-
-static void qemu_event_increment(void)
-{
-    /* Write 8 bytes to be compatible with eventfd.  */
-    static const uint64_t val = 1;
-    ssize_t ret;
-
-    if (io_thread_fd == -1) {
-        return;
-    }
-    do {
-        ret = write(io_thread_fd, &val, sizeof(val));
-    } while (ret < 0 && errno == EINTR);
-
-    /* EAGAIN is fine, a read must be pending.  */
-    if (ret < 0 && errno != EAGAIN) {
-        fprintf(stderr, "qemu_event_increment: write() failed: %s\n",
-                strerror(errno));
-        exit (1);
-    }
-}
-
-static void qemu_event_read(void *opaque)
-{
-    int fd = (intptr_t)opaque;
-    ssize_t len;
-    char buffer[512];
-
-    /* Drain the notify pipe.  For eventfd, only 8 bytes will be read.  */
-    do {
-        len = read(fd, buffer, sizeof(buffer));
-    } while ((len == -1 && errno == EINTR) || len == sizeof(buffer));
-}
-
-static int qemu_event_init(void)
-{
-    int err;
-    int fds[2];
-
-    err = qemu_eventfd(fds);
-    if (err == -1) {
-        return -errno;
-    }
-    err = fcntl_setfl(fds[0], O_NONBLOCK);
-    if (err < 0) {
-        goto fail;
-    }
-    err = fcntl_setfl(fds[1], O_NONBLOCK);
-    if (err < 0) {
-        goto fail;
-    }
-    qemu_set_fd_handler2(fds[0], NULL, qemu_event_read, NULL,
-                         (void *)(intptr_t)fds[0]);
-
-    io_thread_fd = fds[1];
-    return 0;
-
-fail:
-    close(fds[0]);
-    close(fds[1]);
-    return err;
-}
-
 static void dummy_signal(int sig)
 {
-}
-
-/* If we have signalfd, we mask out the signals we want to handle and then
- * use signalfd to listen for them.  We rely on whatever the current signal
- * handler is to dispatch the signals when we receive them.
- */
-static void sigfd_handler(void *opaque)
-{
-    int fd = (intptr_t)opaque;
-    struct qemu_signalfd_siginfo info;
-    struct sigaction action;
-    ssize_t len;
-
-    while (1) {
-        do {
-            len = read(fd, &info, sizeof(info));
-        } while (len == -1 && errno == EINTR);
-
-        if (len == -1 && errno == EAGAIN) {
-            break;
-        }
-
-        if (len != sizeof(info)) {
-            printf("read from sigfd returned %zd: %m\n", len);
-            return;
-        }
-
-        sigaction(info.ssi_signo, NULL, &action);
-        if ((action.sa_flags & SA_SIGINFO) && action.sa_sigaction) {
-            action.sa_sigaction(info.ssi_signo,
-                                (siginfo_t *)&info, NULL);
-        } else if (action.sa_handler) {
-            action.sa_handler(info.ssi_signo);
-        }
-    }
-}
-
-static int qemu_signal_init(void)
-{
-    int sigfd;
-    sigset_t set;
-
-    /*
-     * SIG_IPI must be blocked in the main thread and must not be caught
-     * by sigwait() in the signal thread. Otherwise, the cpu thread will
-     * not catch it reliably.
-     */
-    sigemptyset(&set);
-    sigaddset(&set, SIG_IPI);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGIO);
-    sigaddset(&set, SIGALRM);
-    sigaddset(&set, SIGBUS);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-
-    sigfd = qemu_signalfd(&set);
-    if (sigfd == -1) {
-        fprintf(stderr, "failed to create signalfd\n");
-        return -errno;
-    }
-
-    fcntl_setfl(sigfd, O_NONBLOCK);
-
-    qemu_set_fd_handler2(sigfd, NULL, sigfd_handler, NULL,
-                         (void *)(intptr_t)sigfd);
-
-    return 0;
 }
 
 static void qemu_kvm_init_cpu_signals(CPUState *env)
@@ -722,38 +589,6 @@ static void qemu_tcg_init_cpu_signals(void)
 }
 
 #else /* _WIN32 */
-
-HANDLE qemu_event_handle;
-
-static void dummy_event_handler(void *opaque)
-{
-}
-
-static int qemu_event_init(void)
-{
-    qemu_event_handle = CreateEvent(NULL, FALSE, FALSE, NULL);
-    if (!qemu_event_handle) {
-        fprintf(stderr, "Failed CreateEvent: %ld\n", GetLastError());
-        return -1;
-    }
-    qemu_add_wait_object(qemu_event_handle, dummy_event_handler, NULL);
-    return 0;
-}
-
-static void qemu_event_increment(void)
-{
-    if (!SetEvent(qemu_event_handle)) {
-        fprintf(stderr, "qemu_event_increment: SetEvent failed: %ld\n",
-                GetLastError());
-        exit (1);
-    }
-}
-
-static int qemu_signal_init(void)
-{
-    return 0;
-}
-
 static void qemu_kvm_init_cpu_signals(CPUState *env)
 {
     abort();
@@ -779,33 +614,16 @@ static QemuCond qemu_cpu_cond;
 static QemuCond qemu_pause_cond;
 static QemuCond qemu_work_cond;
 
-int qemu_init_main_loop(void)
+void qemu_init_cpu_loop(void)
 {
-    int ret;
-
     qemu_init_sigbus();
-
-    ret = qemu_signal_init();
-    if (ret) {
-        return ret;
-    }
-
-    /* Note eventfd must be drained before signalfd handlers run */
-    ret = qemu_event_init();
-    if (ret) {
-        return ret;
-    }
-
     qemu_cond_init(&qemu_cpu_cond);
     qemu_cond_init(&qemu_pause_cond);
     qemu_cond_init(&qemu_work_cond);
     qemu_cond_init(&qemu_io_proceeded_cond);
     qemu_mutex_init(&qemu_global_mutex);
-    qemu_mutex_lock(&qemu_global_mutex);
 
     qemu_thread_get_self(&io_thread);
-
-    return 0;
 }
 
 void qemu_main_loop_start(void)
@@ -1127,11 +945,6 @@ void qemu_init_vcpu(void *_env)
     } else {
         qemu_tcg_init_vcpu(env);
     }
-}
-
-void qemu_notify_event(void)
-{
-    qemu_event_increment();
 }
 
 void cpu_stop_current(void)
