@@ -1018,7 +1018,34 @@ struct CPUPPCState {
 #if !defined(CONFIG_USER_ONLY)
     void *load_info;    /* Holds boot loading state.  */
 #endif
+
+    /* booke timers */
+
+    /* Specifies bit locations of the Time Base used to signal a fixed timer
+     * exception on a transition from 0 to 1. (watchdog or fixed-interval timer)
+     *
+     * 0 selects the least significant bit.
+     * 63 selects the most significant bit.
+     */
+    uint8_t fit_period[4];
+    uint8_t wdt_period[4];
 };
+
+#define SET_FIT_PERIOD(a_, b_, c_, d_)          \
+do {                                            \
+    env->fit_period[0] = (a_);                  \
+    env->fit_period[1] = (b_);                  \
+    env->fit_period[2] = (c_);                  \
+    env->fit_period[3] = (d_);                  \
+ } while (0)
+
+#define SET_WDT_PERIOD(a_, b_, c_, d_)          \
+do {                                            \
+    env->wdt_period[0] = (a_);                  \
+    env->wdt_period[1] = (b_);                  \
+    env->wdt_period[2] = (c_);                  \
+    env->wdt_period[3] = (d_);                  \
+ } while (0)
 
 #if !defined(CONFIG_USER_ONLY)
 /* Context used internally during MMU translations */

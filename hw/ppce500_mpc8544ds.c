@@ -268,11 +268,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
         env->spr[SPR_BOOKE_PIR] = env->cpu_index = i;
 
-        /* XXX register timer? */
-        ppc_emb_timers_init(env, 400000000, PPC_INTERRUPT_DECR);
-        ppc_dcr_init(env, NULL, NULL);
-        /* XXX Enable DEC interrupts - probably wrong in the backend */
-        env->spr[SPR_40x_TCR] = 1 << 26;
+        ppc_booke_timers_init(env, 400000000, PPC_TIMER_E500);
 
         /* Register reset handler */
         if (!i) {

@@ -229,7 +229,7 @@ obj-i386-$(CONFIG_KVM) += kvmclock.o
 obj-i386-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 
 # shared objects
-obj-ppc-y = ppc.o
+obj-ppc-y = ppc.o ppc_booke.o
 obj-ppc-y += vga.o
 # PREP target
 obj-ppc-y += i8259.o mc146818rtc.o
