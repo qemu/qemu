@@ -40,6 +40,15 @@ EOF
     exit 1
 }
 
+# Print a line without interpreting backslash escapes
+#
+# The built-in echo command may interpret backslash escapes without an option
+# to disable this behavior.
+puts()
+{
+    printf "%s\n" "$1"
+}
+
 # Get the name of a trace event
 get_name()
 {
@@ -111,13 +120,10 @@ get_argc()
     echo $argc
 }
 
-# Get the format string for a trace event
+# Get the format string including double quotes for a trace event
 get_fmt()
 {
-    local fmt
-    fmt=${1#*\"}
-    fmt=${fmt%\"*}
-    echo "$fmt"
+    puts "${1#*)}"
 }
 
 linetoh_begin_nop()
@@ -266,7 +272,7 @@ linetoh_stderr()
 static inline void trace_$name($args)
 {
     if (trace_list[$stderr_event_num].state != 0) {
-        fprintf(stderr, "$name $fmt\n" $argnames);
+        fprintf(stderr, "$name " $fmt "\n" $argnames);
     }
 }
 EOF
@@ -366,7 +372,7 @@ DEFINE_TRACE(ust_$name);
 
 static void ust_${name}_probe($args)
 {
-    trace_mark(ust, $name, "$fmt"$argnames);
+    trace_mark(ust, $name, $fmt$argnames);
 }
 EOF
 
