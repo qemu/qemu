@@ -152,3 +152,27 @@
 ##
 { 'command': 'query-status', 'returns': 'StatusInfo' }
 
+##
+# @UuidInfo:
+#
+# Guest UUID information.
+#
+# @UUID: the UUID of the guest
+#
+# Since: 0.14.0
+#
+# Notes: If no UUID was specified for the guest, a null UUID is returned.
+##
+{ 'type': 'UuidInfo', 'data': {'UUID': 'str'} }
+
+##
+# @query-uuid:
+#
+# Query the guest UUID information.
+#
+# Returns: The @UuidInfo for the guest
+#
+# Since 0.14.0
+##
+{ 'command': 'query-uuid', 'returns': 'UuidInfo' }
+

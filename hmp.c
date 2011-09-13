@@ -72,3 +72,11 @@ void hmp_info_status(Monitor *mon)
     qapi_free_StatusInfo(info);
 }
 
+void hmp_info_uuid(Monitor *mon)
+{
+    UuidInfo *info;
+
+    info = qmp_query_uuid(NULL);
+    monitor_printf(mon, "%s\n", info->UUID);
+    qapi_free_UuidInfo(info);
+}

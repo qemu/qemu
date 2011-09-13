@@ -1821,6 +1821,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-uuid",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_uuid,
+    },
+
 SQMP
 query-migrate
 -------------
