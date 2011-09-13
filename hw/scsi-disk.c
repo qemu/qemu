@@ -567,6 +567,43 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     return buflen;
 }
 
+static int scsi_read_dvd_structure(SCSIDiskState *s, SCSIDiskReq *r,
+                                   uint8_t *outbuf)
+{
+    scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
+    return -1;
+}
+
+static int scsi_get_event_status_notification(SCSIDiskState *s,
+                                              SCSIDiskReq *r, uint8_t *outbuf)
+{
+    scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
+    return -1;
+}
+
+static int scsi_get_configuration(SCSIDiskState *s, SCSIDiskReq *r,
+                                  uint8_t *outbuf)
+{
+    if (s->qdev.type != TYPE_ROM) {
+        return -1;
+    }
+    memset(outbuf, 0, 8);
+    /* ??? This should probably return much more information.  For now
+       just return the basic header indicating the CD-ROM profile.  */
+    outbuf[7] = 8; /* CD-ROM */
+    return 8;
+}
+
+static int scsi_emulate_mechanism_status(SCSIDiskState *s, uint8_t *outbuf)
+{
+    if (s->qdev.type != TYPE_ROM) {
+        return -1;
+    }
+    memset(outbuf, 0, 8);
+    outbuf[5] = 1; /* CD-ROM */
+    return 8;
+}
+
 static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
                            int page_control)
 {
@@ -964,12 +1001,29 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
         outbuf[7] = 0;
         buflen = 8;
         break;
+    case MECHANISM_STATUS:
+        buflen = scsi_emulate_mechanism_status(s, outbuf);
+        if (buflen < 0) {
+            goto illegal_request;
+        }
+        break;
     case GET_CONFIGURATION:
-        memset(outbuf, 0, 8);
-        /* ??? This should probably return much more information.  For now
-           just return the basic header indicating the CD-ROM profile.  */
-        outbuf[7] = 8; // CD-ROM
-        buflen = 8;
+        buflen = scsi_get_configuration(s, r, outbuf);
+        if (buflen < 0) {
+            goto illegal_request;
+        }
+        break;
+    case GET_EVENT_STATUS_NOTIFICATION:
+        buflen = scsi_get_event_status_notification(s, r, outbuf);
+        if (buflen < 0) {
+            goto illegal_request;
+        }
+        break;
+    case READ_DVD_STRUCTURE:
+        buflen = scsi_read_dvd_structure(s, r, outbuf);
+        if (buflen < 0) {
+            goto illegal_request;
+        }
         break;
     case SERVICE_ACTION_IN_16:
         /* Service Action In subcommands. */
@@ -1073,7 +1127,10 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case ALLOW_MEDIUM_REMOVAL:
     case READ_CAPACITY_10:
     case READ_TOC:
+    case READ_DVD_STRUCTURE:
     case GET_CONFIGURATION:
+    case GET_EVENT_STATUS_NOTIFICATION:
+    case MECHANISM_STATUS:
     case SERVICE_ACTION_IN_16:
     case VERIFY_10:
         rc = scsi_disk_emulate_command(r);

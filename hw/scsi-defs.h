@@ -113,6 +113,7 @@
 #define READ_12               0xa8
 #define WRITE_12              0xaa
 #define SERVICE_ACTION_IN_12  0xab
+#define READ_DVD_STRUCTURE    0xad
 #define WRITE_VERIFY_12       0xae
 #define VERIFY_12             0xaf
 #define SEARCH_HIGH_12        0xb0
@@ -122,6 +123,8 @@
 #define SEND_VOLUME_TAG       0xb6
 #define READ_DEFECT_DATA_12   0xb7
 #define SET_CD_SPEED          0xbb
+#define MECHANISM_STATUS      0xbd
+#define READ_CD               0xbe
 
 /*
  * SERVICE ACTION IN subcodes
