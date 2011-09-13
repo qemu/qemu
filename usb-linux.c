@@ -485,6 +485,26 @@ static int usb_host_disconnect_ifaces(USBHostDevice *dev, int nb_interfaces)
     return 0;
 }
 
+static int usb_linux_get_num_interfaces(USBHostDevice *s)
+{
+    char device_name[64], line[1024];
+    int num_interfaces = 0;
+
+    if (usb_fs_type != USB_FS_SYS) {
+        return -1;
+    }
+
+    sprintf(device_name, "%d-%s", s->bus_num, s->port);
+    if (!usb_host_read_file(line, sizeof(line), "bNumInterfaces",
+                            device_name)) {
+        return -1;
+    }
+    if (sscanf(line, "%d", &num_interfaces) != 1) {
+        return -1;
+    }
+    return num_interfaces;
+}
+
 static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
 {
     const char *op = NULL;
@@ -901,13 +921,27 @@ static int usb_host_set_address(USBHostDevice *s, int addr)
 
 static int usb_host_set_config(USBHostDevice *s, int config)
 {
+    int ret, first = 1;
+
     trace_usb_host_set_config(s->bus_num, s->addr, config);
 
     usb_host_release_interfaces(s);
 
-    int ret = ioctl(s->fd, USBDEVFS_SETCONFIGURATION, &config);
+again:
+    ret = ioctl(s->fd, USBDEVFS_SETCONFIGURATION, &config);
 
     DPRINTF("husb: ctrl set config %d ret %d errno %d\n", config, ret, errno);
+
+    if (ret < 0 && errno == EBUSY && first) {
+        /* happens if usb device is in use by host drivers */
+        int count = usb_linux_get_num_interfaces(s);
+        if (count > 0) {
+            DPRINTF("husb: busy -> disconnecting %d interfaces\n", count);
+            usb_host_disconnect_ifaces(s, count);
+            first = 0;
+            goto again;
+        }
+    }
 
     if (ret < 0) {
         return ctrl_error();
