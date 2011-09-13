@@ -295,6 +295,13 @@ static int32_t scsi_target_send_command(SCSIRequest *req, uint8_t *buf)
         r->len = scsi_device_get_sense(r->req.dev, r->buf,
                                        MIN(req->cmd.xfer, sizeof r->buf),
                                        (req->cmd.buf[1] & 1) == 0);
+        if (r->req.dev->sense_is_ua) {
+            if (r->req.dev->info->unit_attention_reported) {
+                r->req.dev->info->unit_attention_reported(req->dev);
+            }
+            r->req.dev->sense_len = 0;
+            r->req.dev->sense_is_ua = false;
+        }
         break;
     default:
         scsi_req_build_sense(req, SENSE_CODE(LUN_NOT_SUPPORTED));
@@ -383,7 +390,13 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
             (buf[0] != INQUIRY &&
              buf[0] != REPORT_LUNS &&
              buf[0] != GET_CONFIGURATION &&
-             buf[0] != GET_EVENT_STATUS_NOTIFICATION)) {
+             buf[0] != GET_EVENT_STATUS_NOTIFICATION &&
+
+             /*
+              * If we already have a pending unit attention condition,
+              * report this one before triggering another one.
+              */
+             !(buf[0] == REQUEST_SENSE && d->sense_is_ua))) {
             req = scsi_req_alloc(&reqops_unit_attention, d, tag, lun,
                                  hba_private);
         } else if (lun != d->lun ||
@@ -479,10 +492,15 @@ int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len)
      *
      * We assume UA_INTLCK_CTRL to be 00b for HBAs that support autosense, and
      * 10b for HBAs that do not support it (do not call scsi_req_get_sense).
-     * In the latter case, scsi_req_complete clears unit attention conditions
-     * after moving them to the device's sense buffer.
+     * Here we handle unit attention clearing for UA_INTLCK_CTRL == 00b.
      */
-    scsi_clear_unit_attention(req);
+    if (req->dev->sense_is_ua) {
+        if (req->dev->info->unit_attention_reported) {
+            req->dev->info->unit_attention_reported(req->dev);
+        }
+        req->dev->sense_len = 0;
+        req->dev->sense_is_ua = false;
+    }
     return ret;
 }
 
@@ -1082,8 +1100,12 @@ void scsi_req_complete(SCSIRequest *req, int status)
 
     if (req->sense_len) {
         memcpy(req->dev->sense, req->sense, req->sense_len);
+        req->dev->sense_len = req->sense_len;
+        req->dev->sense_is_ua = (req->ops == &reqops_unit_attention);
+    } else {
+        req->dev->sense_len = 0;
+        req->dev->sense_is_ua = false;
     }
-    req->dev->sense_len = req->sense_len;
 
     /*
      * Unit attention state is now stored in the device's sense buffer
