@@ -595,6 +595,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
 {
     struct nbd_request request;
     struct nbd_reply reply;
+    int ret;
 
     TRACE("Reading request.");
 
@@ -633,12 +634,13 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
     case NBD_CMD_READ:
         TRACE("Request type is READ");
 
-        if (bdrv_read(bs, (request.from + dev_offset) / 512,
-                  data + NBD_REPLY_SIZE,
-                  request.len / 512) == -1) {
+        ret = bdrv_read(bs, (request.from + dev_offset) / 512,
+                        data + NBD_REPLY_SIZE,
+                        request.len / 512);
+        if (ret < 0) {
             LOG("reading from file failed");
-            errno = EINVAL;
-            return -1;
+            reply.error = -ret;
+            request.len = 0;
         }
         *offset += request.len;
 
@@ -681,11 +683,12 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
         } else {
             TRACE("Writing to device");
 
-            if (bdrv_write(bs, (request.from + dev_offset) / 512,
-                       data, request.len / 512) == -1) {
+            ret = bdrv_write(bs, (request.from + dev_offset) / 512,
+                             data, request.len / 512);
+            if (ret < 0) {
                 LOG("writing to file failed");
-                errno = EINVAL;
-                return -1;
+                reply.error = -ret;
+                request.len = 0;
             }
 
             *offset += request.len;
