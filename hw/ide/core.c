@@ -799,7 +799,7 @@ static void ide_cd_change_cb(void *opaque, bool load)
      * First indicate to the guest that a CD has been removed.  That's
      * done on the next command the guest sends us.
      *
-     * Then we set SENSE_UNIT_ATTENTION, by which the guest will
+     * Then we set UNIT_ATTENTION, by which the guest will
      * detect a new CD in the drive.  See ide_atapi_cmd() for details.
      */
     s->cdrom_changed = 1;
@@ -2027,7 +2027,7 @@ static int ide_drive_post_load(void *opaque, int version_id)
     IDEState *s = opaque;
 
     if (version_id < 3) {
-        if (s->sense_key == SENSE_UNIT_ATTENTION &&
+        if (s->sense_key == UNIT_ATTENTION &&
             s->asc == ASC_MEDIUM_MAY_HAVE_CHANGED) {
             s->cdrom_changed = 1;
         }

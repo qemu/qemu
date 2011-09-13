@@ -576,7 +576,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
      * The buffer was already menset to zero by the caller of this function.
      */
     switch (page) {
-    case 4: /* Rigid disk device geometry page. */
+    case MODE_PAGE_HD_GEOMETRY:
         if (s->qdev.type == TYPE_ROM) {
             return -1;
         }
@@ -611,7 +611,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         p[21] = 5400 & 0xff;
         break;
 
-    case 5: /* Flexible disk device geometry page. */
+    case MODE_PAGE_FLEXIBLE_DISK_GEOMETRY:
         if (s->qdev.type == TYPE_ROM) {
             return -1;
         }
@@ -653,7 +653,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         p[29] = 5400 & 0xff;
         break;
 
-    case 8: /* Caching page.  */
+    case MODE_PAGE_CACHING:
         p[0] = 8;
         p[1] = 0x12;
         if (page_control == 1) { /* Changeable Values */
@@ -664,7 +664,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         }
         break;
 
-    case 0x2a: /* CD Capabilities and Mechanical Status page. */
+    case MODE_PAGE_CAPABILITIES:
         if (s->qdev.type != TYPE_ROM) {
             return -1;
         }

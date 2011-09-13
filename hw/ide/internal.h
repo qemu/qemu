@@ -11,6 +11,7 @@
 #include "iorange.h"
 #include "dma.h"
 #include "sysemu.h"
+#include "hw/scsi-defs.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE
@@ -280,71 +281,6 @@ typedef struct IDEDMAOps IDEDMAOps;
 #define GPCMD_GET_MEDIA_STATUS		    0xda
 #define GPCMD_MODE_SENSE_6		    0x1a
 
-/* Mode page codes for mode sense/set */
-#define GPMODE_R_W_ERROR_PAGE		0x01
-#define GPMODE_WRITE_PARMS_PAGE		0x05
-#define GPMODE_AUDIO_CTL_PAGE		0x0e
-#define GPMODE_POWER_PAGE		0x1a
-#define GPMODE_FAULT_FAIL_PAGE		0x1c
-#define GPMODE_TO_PROTECT_PAGE		0x1d
-#define GPMODE_CAPABILITIES_PAGE	0x2a
-#define GPMODE_ALL_PAGES		0x3f
-/* Not in Mt. Fuji, but in ATAPI 2.6 -- depricated now in favor
- * of MODE_SENSE_POWER_PAGE */
-#define GPMODE_CDROM_PAGE		0x0d
-
-/*
- * Based on values from <linux/cdrom.h> but extending CD_MINS
- * to the maximum common size allowed by the Orange's Book ATIP
- *
- * 90 and 99 min CDs are also available but using them as the
- * upper limit reduces the effectiveness of the heuristic to
- * detect DVDs burned to less than 25% of their maximum capacity
- */
-
-/* Some generally useful CD-ROM information */
-#define CD_MINS                       80 /* max. minutes per CD */
-#define CD_SECS                       60 /* seconds per minute */
-#define CD_FRAMES                     75 /* frames per second */
-#define CD_FRAMESIZE                2048 /* bytes per frame, "cooked" mode */
-#define CD_MAX_BYTES       (CD_MINS * CD_SECS * CD_FRAMES * CD_FRAMESIZE)
-#define CD_MAX_SECTORS     (CD_MAX_BYTES / 512)
-
-/*
- * The MMC values are not IDE specific and might need to be moved
- * to a common header if they are also needed for the SCSI emulation
- */
-
-/* Profile list from MMC-6 revision 1 table 91 */
-#define MMC_PROFILE_NONE                0x0000
-#define MMC_PROFILE_CD_ROM              0x0008
-#define MMC_PROFILE_CD_R                0x0009
-#define MMC_PROFILE_CD_RW               0x000A
-#define MMC_PROFILE_DVD_ROM             0x0010
-#define MMC_PROFILE_DVD_R_SR            0x0011
-#define MMC_PROFILE_DVD_RAM             0x0012
-#define MMC_PROFILE_DVD_RW_RO           0x0013
-#define MMC_PROFILE_DVD_RW_SR           0x0014
-#define MMC_PROFILE_DVD_R_DL_SR         0x0015
-#define MMC_PROFILE_DVD_R_DL_JR         0x0016
-#define MMC_PROFILE_DVD_RW_DL           0x0017
-#define MMC_PROFILE_DVD_DDR             0x0018
-#define MMC_PROFILE_DVD_PLUS_RW         0x001A
-#define MMC_PROFILE_DVD_PLUS_R          0x001B
-#define MMC_PROFILE_DVD_PLUS_RW_DL      0x002A
-#define MMC_PROFILE_DVD_PLUS_R_DL       0x002B
-#define MMC_PROFILE_BD_ROM              0x0040
-#define MMC_PROFILE_BD_R_SRM            0x0041
-#define MMC_PROFILE_BD_R_RRM            0x0042
-#define MMC_PROFILE_BD_RE               0x0043
-#define MMC_PROFILE_HDDVD_ROM           0x0050
-#define MMC_PROFILE_HDDVD_R             0x0051
-#define MMC_PROFILE_HDDVD_RAM           0x0052
-#define MMC_PROFILE_HDDVD_RW            0x0053
-#define MMC_PROFILE_HDDVD_R_DL          0x0058
-#define MMC_PROFILE_HDDVD_RW_DL         0x005A
-#define MMC_PROFILE_INVALID             0xFFFF
-
 #define ATAPI_INT_REASON_CD             0x01 /* 0 = data transfer */
 #define ATAPI_INT_REASON_IO             0x02 /* 1 = transfer to the host */
 #define ATAPI_INT_REASON_REL            0x04
@@ -365,11 +301,6 @@ typedef struct IDEDMAOps IDEDMAOps;
 #define CFA_INVALID_COMMAND     0x20
 #define CFA_INVALID_ADDRESS     0x21
 #define CFA_ADDRESS_OVERFLOW    0x2f
-
-#define SENSE_NONE            0
-#define SENSE_NOT_READY       2
-#define SENSE_ILLEGAL_REQUEST 5
-#define SENSE_UNIT_ATTENTION  6
 
 #define SMART_READ_DATA       0xd0
 #define SMART_READ_THRESH     0xd1

@@ -800,7 +800,7 @@ const struct SCSISense sense_code_SAVING_PARAMS_NOT_SUPPORTED = {
 };
 
 /* Illegal request, Incompatible medium installed */
-const struct SCSISense sense_code_INCOMPATIBLE_MEDIUM = {
+const struct SCSISense sense_code_INCOMPATIBLE_FORMAT = {
     .key = ILLEGAL_REQUEST, .asc = 0x30, .ascq = 0x00
 };
 
