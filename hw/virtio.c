@@ -498,6 +498,16 @@ void virtio_update_irq(VirtIODevice *vdev)
     virtio_notify_vector(vdev, VIRTIO_NO_VECTOR);
 }
 
+void virtio_set_status(VirtIODevice *vdev, uint8_t val)
+{
+    trace_virtio_set_status(vdev, val);
+
+    if (vdev->set_status) {
+        vdev->set_status(vdev, val);
+    }
+    vdev->status = val;
+}
+
 void virtio_reset(void *opaque)
 {
     VirtIODevice *vdev = opaque;

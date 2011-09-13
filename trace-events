@@ -42,6 +42,7 @@ virtqueue_pop(void *vq, void *elem, unsigned int in_num, unsigned int out_num) "
 virtio_queue_notify(void *vdev, int n, void *vq) "vdev %p n %d vq %p"
 virtio_irq(void *vq) "vq %p"
 virtio_notify(void *vdev, void *vq) "vdev %p vq %p"
+virtio_set_status(void *vdev, uint8_t val) "vdev %p val %u"
 
 # hw/virtio-serial-bus.c
 virtio_serial_send_control_event(unsigned int port, uint16_t event, uint16_t value) "port %u, event %u, value %u"
