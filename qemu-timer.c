@@ -134,6 +134,7 @@ struct QEMUClock {
     int enabled;
 
     QEMUTimer *warp_timer;
+    QEMUTimer *active_timers;
 
     NotifierList reset_notifiers;
     int64_t last;
@@ -352,13 +353,9 @@ next:
     }
 }
 
-#define QEMU_NUM_CLOCKS 3
-
 QEMUClock *rt_clock;
 QEMUClock *vm_clock;
 QEMUClock *host_clock;
-
-static QEMUTimer *active_timers[QEMU_NUM_CLOCKS];
 
 static QEMUClock *qemu_new_clock(int type)
 {
@@ -403,7 +400,7 @@ static void icount_warp_rt(void *opaque)
             int64_t delta = cur_time - cur_icount;
             qemu_icount_bias += MIN(warp_delta, delta);
         }
-        if (qemu_timer_expired(active_timers[QEMU_CLOCK_VIRTUAL],
+        if (qemu_timer_expired(vm_clock->active_timers,
                                qemu_get_clock_ns(vm_clock))) {
             qemu_notify_event();
         }
@@ -434,7 +431,7 @@ void qemu_clock_warp(QEMUClock *clock)
      * the earliest vm_clock timer.
      */
     icount_warp_rt(NULL);
-    if (!all_cpu_threads_idle() || !active_timers[clock->type]) {
+    if (!all_cpu_threads_idle() || !clock->active_timers) {
         qemu_del_timer(clock->warp_timer);
         return;
     }
@@ -489,7 +486,7 @@ void qemu_del_timer(QEMUTimer *ts)
 
     /* NOTE: this code must be signal safe because
        qemu_timer_expired() can be called from a signal. */
-    pt = &active_timers[ts->clock->type];
+    pt = &ts->clock->active_timers;
     for(;;) {
         t = *pt;
         if (!t)
@@ -513,7 +510,7 @@ static void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
     /* add the timer in the sorted list */
     /* NOTE: this code must be signal safe because
        qemu_timer_expired() can be called from a signal. */
-    pt = &active_timers[ts->clock->type];
+    pt = &ts->clock->active_timers;
     for(;;) {
         t = *pt;
         if (!qemu_timer_expired_ns(t, expire_time)) {
@@ -526,7 +523,7 @@ static void qemu_mod_timer_ns(QEMUTimer *ts, int64_t expire_time)
     *pt = ts;
 
     /* Rearm if necessary  */
-    if (pt == &active_timers[ts->clock->type]) {
+    if (pt == &ts->clock->active_timers) {
         if (!alarm_timer->pending) {
             qemu_rearm_alarm_timer(alarm_timer);
         }
@@ -548,7 +545,7 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
 int qemu_timer_pending(QEMUTimer *ts)
 {
     QEMUTimer *t;
-    for(t = active_timers[ts->clock->type]; t != NULL; t = t->next) {
+    for (t = ts->clock->active_timers; t != NULL; t = t->next) {
         if (t == ts)
             return 1;
     }
@@ -569,7 +566,7 @@ static void qemu_run_timers(QEMUClock *clock)
         return;
 
     current_time = qemu_get_clock_ns(clock);
-    ptimer_head = &active_timers[clock->type];
+    ptimer_head = &clock->active_timers;
     for(;;) {
         ts = *ptimer_head;
         if (!qemu_timer_expired_ns(ts, current_time)) {
@@ -773,8 +770,8 @@ int64_t qemu_next_icount_deadline(void)
     int64_t delta = INT32_MAX;
 
     assert(use_icount);
-    if (active_timers[QEMU_CLOCK_VIRTUAL]) {
-        delta = active_timers[QEMU_CLOCK_VIRTUAL]->expire_time -
+    if (vm_clock->active_timers) {
+        delta = vm_clock->active_timers->expire_time -
                      qemu_get_clock_ns(vm_clock);
     }
 
@@ -789,20 +786,20 @@ static int64_t qemu_next_alarm_deadline(void)
     int64_t delta;
     int64_t rtdelta;
 
-    if (!use_icount && active_timers[QEMU_CLOCK_VIRTUAL]) {
-        delta = active_timers[QEMU_CLOCK_VIRTUAL]->expire_time -
+    if (!use_icount && vm_clock->active_timers) {
+        delta = vm_clock->active_timers->expire_time -
                      qemu_get_clock_ns(vm_clock);
     } else {
         delta = INT32_MAX;
     }
-    if (active_timers[QEMU_CLOCK_HOST]) {
-        int64_t hdelta = active_timers[QEMU_CLOCK_HOST]->expire_time -
+    if (host_clock->active_timers) {
+        int64_t hdelta = host_clock->active_timers->expire_time -
                  qemu_get_clock_ns(host_clock);
         if (hdelta < delta)
             delta = hdelta;
     }
-    if (active_timers[QEMU_CLOCK_REALTIME]) {
-        rtdelta = (active_timers[QEMU_CLOCK_REALTIME]->expire_time -
+    if (rt_clock->active_timers) {
+        rtdelta = (rt_clock->active_timers->expire_time -
                  qemu_get_clock_ns(rt_clock));
         if (rtdelta < delta)
             delta = rtdelta;
@@ -871,9 +868,9 @@ static void dynticks_rearm_timer(struct qemu_alarm_timer *t)
     int64_t current_ns;
 
     assert(alarm_has_dynticks(t));
-    if (!active_timers[QEMU_CLOCK_REALTIME] &&
-        !active_timers[QEMU_CLOCK_VIRTUAL] &&
-        !active_timers[QEMU_CLOCK_HOST])
+    if (!rt_clock->active_timers &&
+        !vm_clock->active_timers &&
+        !host_clock->active_timers)
         return;
 
     nearest_delta_ns = qemu_next_alarm_deadline();
@@ -925,9 +922,9 @@ static void unix_rearm_timer(struct qemu_alarm_timer *t)
     int err;
 
     assert(alarm_has_dynticks(t));
-    if (!active_timers[QEMU_CLOCK_REALTIME] &&
-        !active_timers[QEMU_CLOCK_VIRTUAL] &&
-        !active_timers[QEMU_CLOCK_HOST])
+    if (!rt_clock->active_timers &&
+        !vm_clock->active_timers &&
+        !host_clock->active_timers)
         return;
 
     nearest_delta_ns = qemu_next_alarm_deadline();
@@ -1022,9 +1019,9 @@ static void mm_rearm_timer(struct qemu_alarm_timer *t)
     int nearest_delta_ms;
 
     assert(alarm_has_dynticks(t));
-    if (!active_timers[QEMU_CLOCK_REALTIME] &&
-        !active_timers[QEMU_CLOCK_VIRTUAL] &&
-        !active_timers[QEMU_CLOCK_HOST]) {
+    if (!rt_clock->active_timers &&
+        !vm_clock->active_timers &&
+        !host_clock->active_timers) {
         return;
     }
 
@@ -1092,9 +1089,9 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t)
     BOOLEAN success;
 
     assert(alarm_has_dynticks(t));
-    if (!active_timers[QEMU_CLOCK_REALTIME] &&
-        !active_timers[QEMU_CLOCK_VIRTUAL] &&
-        !active_timers[QEMU_CLOCK_HOST])
+    if (!rt_clock->active_timers &&
+        !vm_clock->active_timers &&
+        !host_clock->active_timers)
         return;
 
     nearest_delta_ms = (qemu_next_alarm_deadline() + 999999) / 1000000;
