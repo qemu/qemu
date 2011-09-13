@@ -72,6 +72,7 @@ struct SCSIDiskState
     uint32_t removable;
     uint64_t max_lba;
     bool media_changed;
+    bool media_event;
     QEMUBH *bh;
     char *version;
     char *serial;
@@ -687,11 +688,58 @@ fail:
     return -1;
 }
 
-static int scsi_get_event_status_notification(SCSIDiskState *s,
-                                              SCSIDiskReq *r, uint8_t *outbuf)
+static int scsi_event_status_media(SCSIDiskState *s, uint8_t *outbuf)
 {
-    scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
-    return -1;
+    uint8_t event_code, media_status;
+
+    media_status = 0;
+    if (s->tray_open) {
+        media_status = MS_TRAY_OPEN;
+    } else if (bdrv_is_inserted(s->bs)) {
+        media_status = MS_MEDIA_PRESENT;
+    }
+
+    /* Event notification descriptor */
+    event_code = MEC_NO_CHANGE;
+    if (media_status != MS_TRAY_OPEN && s->media_event) {
+        event_code = MEC_NEW_MEDIA;
+        s->media_event = false;
+    }
+
+    outbuf[0] = event_code;
+    outbuf[1] = media_status;
+
+    /* These fields are reserved, just clear them. */
+    outbuf[2] = 0;
+    outbuf[3] = 0;
+    return 4;
+}
+
+static int scsi_get_event_status_notification(SCSIDiskState *s, SCSIDiskReq *r,
+                                              uint8_t *outbuf)
+{
+    int size;
+    uint8_t *buf = r->req.cmd.buf;
+    uint8_t notification_class_request = buf[4];
+    if (s->qdev.type != TYPE_ROM) {
+        return -1;
+    }
+    if ((buf[1] & 1) == 0) {
+        /* asynchronous */
+        return -1;
+    }
+
+    size = 4;
+    outbuf[0] = outbuf[1] = 0;
+    outbuf[3] = 1 << GESN_MEDIA; /* supported events */
+    if (notification_class_request & (1 << GESN_MEDIA)) {
+        outbuf[2] = GESN_MEDIA;
+        size += scsi_event_status_media(s, &outbuf[size]);
+    } else {
+        outbuf[2] = 0x80;
+    }
+    stw_be_p(outbuf, size - 4);
+    return size;
 }
 
 static int scsi_get_configuration(SCSIDiskState *s, uint8_t *outbuf)
@@ -1442,6 +1490,7 @@ static void scsi_cd_change_media_cb(void *opaque, bool load)
     s->media_changed = load;
     s->tray_open = !load;
     s->qdev.unit_attention = SENSE_CODE(UNIT_ATTENTION_NO_MEDIUM);
+    s->media_event = true;
 }
 
 static bool scsi_cd_is_tray_open(void *opaque)
