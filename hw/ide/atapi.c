@@ -751,7 +751,7 @@ static void cmd_mode_sense(IDEState *s, uint8_t *buf)
 
             buf[8] = MODE_PAGE_CAPABILITIES;
             buf[9] = 28 - 10;
-            buf[10] = 0x00;
+            buf[10] = 0x3b; /* read CDR/CDRW/DVDROM/DVDR/DVDRAM */
             buf[11] = 0x00;
 
             /* Claim PLAY_AUDIO capability (0x01) since some Linux
@@ -760,14 +760,14 @@ static void cmd_mode_sense(IDEState *s, uint8_t *buf)
             buf[13] = 3 << 5;
             buf[14] = (1 << 0) | (1 << 3) | (1 << 5);
             if (s->tray_locked) {
-                buf[6] |= 1 << 1;
+                buf[14] |= 1 << 1;
             }
-            buf[15] = 0x00;
-            cpu_to_ube16(&buf[16], 706);
-            buf[18] = 0;
+            buf[15] = 0x00; /* No volume & mute control, no changer */
+            cpu_to_ube16(&buf[16], 704); /* 4x read speed */
+            buf[18] = 0; /* Two volume levels */
             buf[19] = 2;
-            cpu_to_ube16(&buf[20], 512);
-            cpu_to_ube16(&buf[22], 706);
+            cpu_to_ube16(&buf[20], 512); /* 512k buffer */
+            cpu_to_ube16(&buf[22], 704); /* 4x read speed current */
             buf[24] = 0;
             buf[25] = 0;
             buf[26] = 0;

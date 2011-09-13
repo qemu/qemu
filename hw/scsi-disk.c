@@ -611,6 +611,8 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         [MODE_PAGE_HD_GEOMETRY]            = (1 << TYPE_DISK),
         [MODE_PAGE_FLEXIBLE_DISK_GEOMETRY] = (1 << TYPE_DISK),
         [MODE_PAGE_CACHING]                = (1 << TYPE_DISK) | (1 << TYPE_ROM),
+        [MODE_PAGE_R_W_ERROR]              = (1 << TYPE_DISK) | (1 << TYPE_ROM),
+        [MODE_PAGE_AUDIO_CTL]              = (1 << TYPE_ROM),
         [MODE_PAGE_CAPABILITIES]           = (1 << TYPE_ROM),
     };
 
@@ -711,13 +713,26 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         }
         break;
 
+    case MODE_PAGE_R_W_ERROR:
+        p[1] = 10;
+        p[2] = 0x80; /* Automatic Write Reallocation Enabled */
+        if (s->qdev.type == TYPE_ROM) {
+            p[3] = 0x20; /* Read Retry Count */
+        }
+        break;
+
+    case MODE_PAGE_AUDIO_CTL:
+        p[1] = 14;
+        break;
+
     case MODE_PAGE_CAPABILITIES:
         p[1] = 0x14;
         if (page_control == 1) { /* Changeable Values */
             break;
         }
-        p[2] = 3; // CD-R & CD-RW read
-        p[3] = 0; // Writing not supported
+
+        p[2] = 0x3b; /* CD-R & CD-RW read */
+        p[3] = 0; /* Writing not supported */
         p[4] = 0x7f; /* Audio, composite, digital out,
                         mode 2 form 1&2, multi session */
         p[5] = 0xff; /* CD DA, DA accurate, RW supported,
@@ -727,17 +742,17 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         /* Locking supported, jumper present, eject, tray */
         p[7] = 0; /* no volume & mute control, no
                      changer */
-        p[8] = (50 * 176) >> 8; // 50x read speed
+        p[8] = (50 * 176) >> 8; /* 50x read speed */
         p[9] = (50 * 176) & 0xff;
-        p[10] = 0 >> 8; // No volume
-        p[11] = 0 & 0xff;
-        p[12] = 2048 >> 8; // 2M buffer
+        p[10] = 2 >> 8; /* Two volume levels */
+        p[11] = 2 & 0xff;
+        p[12] = 2048 >> 8; /* 2M buffer */
         p[13] = 2048 & 0xff;
-        p[14] = (16 * 176) >> 8; // 16x read speed current
+        p[14] = (16 * 176) >> 8; /* 16x read speed current */
         p[15] = (16 * 176) & 0xff;
-        p[18] = (16 * 176) >> 8; // 16x write speed
+        p[18] = (16 * 176) >> 8; /* 16x write speed */
         p[19] = (16 * 176) & 0xff;
-        p[20] = (16 * 176) >> 8; // 16x write speed current
+        p[20] = (16 * 176) >> 8; /* 16x write speed current */
         p[21] = (16 * 176) & 0xff;
         break;
 
