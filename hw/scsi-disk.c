@@ -607,9 +607,22 @@ static int scsi_emulate_mechanism_status(SCSIDiskState *s, uint8_t *outbuf)
 static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
                            int page_control)
 {
+    static const int mode_sense_valid[0x3f] = {
+        [MODE_PAGE_HD_GEOMETRY]            = (1 << TYPE_DISK),
+        [MODE_PAGE_FLEXIBLE_DISK_GEOMETRY] = (1 << TYPE_DISK),
+        [MODE_PAGE_CACHING]                = (1 << TYPE_DISK) | (1 << TYPE_ROM),
+        [MODE_PAGE_CAPABILITIES]           = (1 << TYPE_ROM),
+    };
+
     BlockDriverState *bdrv = s->bs;
     int cylinders, heads, secs;
     uint8_t *p = *p_outbuf;
+
+    if ((mode_sense_valid[page] & (1 << s->qdev.type)) == 0) {
+        return -1;
+    }
+
+    p[0] = page;
 
     /*
      * If Changeable Values are requested, a mask denoting those mode parameters
@@ -619,10 +632,6 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
      */
     switch (page) {
     case MODE_PAGE_HD_GEOMETRY:
-        if (s->qdev.type == TYPE_ROM) {
-            return -1;
-        }
-        p[0] = 4;
         p[1] = 0x16;
         if (page_control == 1) { /* Changeable Values */
             break;
@@ -654,10 +663,6 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         break;
 
     case MODE_PAGE_FLEXIBLE_DISK_GEOMETRY:
-        if (s->qdev.type == TYPE_ROM) {
-            return -1;
-        }
-        p[0] = 5;
         p[1] = 0x1e;
         if (page_control == 1) { /* Changeable Values */
             break;
@@ -707,10 +712,6 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         break;
 
     case MODE_PAGE_CAPABILITIES:
-        if (s->qdev.type != TYPE_ROM) {
-            return -1;
-        }
-        p[0] = 0x2a;
         p[1] = 0x14;
         if (page_control == 1) { /* Changeable Values */
             break;
