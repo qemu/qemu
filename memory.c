@@ -19,6 +19,7 @@
 #include <assert.h>
 
 unsigned memory_region_transaction_depth = 0;
+static bool memory_region_update_pending = false;
 
 typedef struct AddrRange AddrRange;
 
@@ -757,6 +758,7 @@ static void address_space_update_topology(AddressSpace *as)
 static void memory_region_update_topology(MemoryRegion *mr)
 {
     if (memory_region_transaction_depth) {
+        memory_region_update_pending |= !mr || mr->enabled;
         return;
     }
 
@@ -770,6 +772,8 @@ static void memory_region_update_topology(MemoryRegion *mr)
     if (address_space_io.root) {
         address_space_update_topology(&address_space_io);
     }
+
+    memory_region_update_pending = false;
 }
 
 void memory_region_transaction_begin(void)
@@ -781,7 +785,9 @@ void memory_region_transaction_commit(void)
 {
     assert(memory_region_transaction_depth);
     --memory_region_transaction_depth;
-    memory_region_update_topology(NULL);
+    if (!memory_region_transaction_depth && memory_region_update_pending) {
+        memory_region_update_topology(NULL);
+    }
 }
 
 static void memory_region_destructor_none(MemoryRegion *mr)
