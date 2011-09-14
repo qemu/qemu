@@ -170,7 +170,7 @@ typedef struct SCSITargetReq SCSITargetReq;
 struct SCSITargetReq {
     SCSIRequest req;
     int len;
-    uint8_t buf[64];
+    uint8_t buf[2056];
 };
 
 static void store_lun(uint8_t *outbuf, int lun)
@@ -185,23 +185,52 @@ static void store_lun(uint8_t *outbuf, int lun)
 
 static bool scsi_target_emulate_report_luns(SCSITargetReq *r)
 {
-    int len;
+    DeviceState *qdev;
+    int i, len, n;
+    int id;
+    bool found_lun0;
+
     if (r->req.cmd.xfer < 16) {
         return false;
     }
     if (r->req.cmd.buf[2] > 2) {
         return false;
     }
-    len = MIN(sizeof r->buf, r->req.cmd.xfer);
-    memset(r->buf, 0, len);
-    if (r->req.dev->lun != 0) {
-        r->buf[3] = 16;
-        r->len = 24;
-        store_lun(&r->buf[16], r->req.dev->lun);
-    } else {
-        r->buf[3] = 8;
-        r->len = 16;
+    id = r->req.dev->id;
+    found_lun0 = false;
+    n = 0;
+    QTAILQ_FOREACH(qdev, &r->req.bus->qbus.children, sibling) {
+        SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
+
+        if (dev->id == id) {
+            if (dev->lun == 0) {
+                found_lun0 = true;
+            }
+            n += 8;
+        }
     }
+    if (!found_lun0) {
+        n += 8;
+    }
+    len = MIN(n + 8, r->req.cmd.xfer & ~7);
+    if (len > sizeof(r->buf)) {
+        /* TODO: > 256 LUNs? */
+        return false;
+    }
+
+    memset(r->buf, 0, len);
+    stl_be_p(&r->buf, n);
+    i = found_lun0 ? 8 : 16;
+    QTAILQ_FOREACH(qdev, &r->req.bus->qbus.children, sibling) {
+        SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
+
+        if (dev->id == id) {
+            store_lun(&r->buf[i], dev->lun);
+            i += 8;
+        }
+    }
+    assert(i == n + 8);
+    r->len = len;
     return true;
 }
 
