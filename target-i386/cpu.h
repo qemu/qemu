@@ -991,11 +991,6 @@ static inline int cpu_mmu_index (CPUState *env)
 /* translate.c */
 void optimize_flags_init(void);
 
-typedef struct CCTable {
-    int (*compute_all)(void); /* return all the flags */
-    int (*compute_c)(void);  /* return the C flag */
-} CCTable;
-
 #if defined(CONFIG_USER_ONLY)
 static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 {
