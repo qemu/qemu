@@ -518,6 +518,17 @@ void memory_region_del_subregion(MemoryRegion *mr,
  */
 void memory_region_set_enabled(MemoryRegion *mr, bool enabled);
 
+/*
+ * memory_region_set_address: dynamically update the address of a region
+ *
+ * Dynamically updates the address of a region, relative to its parent.
+ * May be used on regions are currently part of a memory hierarchy.
+ *
+ * @mr: the region to be updated
+ * @addr: new address, relative to parent region
+ */
+void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr);
+
 /* Start a transaction; changes will be accumulated and made visible only
  * when the transaction ends.
  */

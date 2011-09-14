@@ -1324,6 +1324,27 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
     memory_region_update_topology(NULL);
 }
 
+void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr)
+{
+    MemoryRegion *parent = mr->parent;
+    unsigned priority = mr->priority;
+    bool may_overlap = mr->may_overlap;
+
+    if (addr == mr->addr || !parent) {
+        mr->addr = addr;
+        return;
+    }
+
+    memory_region_transaction_begin();
+    memory_region_del_subregion(parent, mr);
+    if (may_overlap) {
+        memory_region_add_subregion_overlap(parent, addr, mr, priority);
+    } else {
+        memory_region_add_subregion(parent, addr, mr);
+    }
+    memory_region_transaction_commit();
+}
+
 void set_system_memory_map(MemoryRegion *mr)
 {
     address_space_memory.root = mr;
