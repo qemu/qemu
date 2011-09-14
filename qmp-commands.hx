@@ -1120,6 +1120,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-chardev",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_chardev,
+    },
+
 SQMP
 query-block
 -----------

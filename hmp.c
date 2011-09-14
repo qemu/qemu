@@ -80,3 +80,16 @@ void hmp_info_uuid(Monitor *mon)
     monitor_printf(mon, "%s\n", info->UUID);
     qapi_free_UuidInfo(info);
 }
+
+void hmp_info_chardev(Monitor *mon)
+{
+    ChardevInfoList *char_info, *info;
+
+    char_info = qmp_query_chardev(NULL);
+    for (info = char_info; info; info = info->next) {
+        monitor_printf(mon, "%s: filename=%s\n", info->value->label,
+                                                 info->value->filename);
+    }
+
+    qapi_free_ChardevInfoList(char_info);
+}

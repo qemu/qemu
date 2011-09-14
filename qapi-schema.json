@@ -176,3 +176,29 @@
 ##
 { 'command': 'query-uuid', 'returns': 'UuidInfo' }
 
+##
+# @ChardevInfo:
+#
+# Information about a character device.
+#
+# @label: the label of the character device
+#
+# @filename: the filename of the character device
+#
+# Notes: @filename is encoded using the QEMU command line character device
+#        encoding.  See the QEMU man page for details.
+#
+# Since: 0.14.0
+##
+{ 'type': 'ChardevInfo', 'data': {'label': 'str', 'filename': 'str'} }
+
+##
+# @query-chardev:
+#
+# Returns information about current character devices.
+#
+# Returns: a list of @ChardevInfo
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
