@@ -97,6 +97,7 @@ int s390_virtio_hypercall(CPUState *env, uint64_t mem, uint64_t hypercall)
 
         dev = s390_virtio_bus_find_mem(s390_bus, mem);
         virtio_reset(dev->vdev);
+        stb_phys(dev->dev_offs + VIRTIO_DEV_OFFS_STATUS, 0);
         s390_virtio_device_sync(dev);
         break;
     }
