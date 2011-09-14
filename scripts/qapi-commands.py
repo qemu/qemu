@@ -17,12 +17,18 @@ import os
 import getopt
 import errno
 
+def type_visitor(name):
+    if type(name) == list:
+        return 'visit_type_%sList' % name[0]
+    else:
+        return 'visit_type_%s' % name
+
 def generate_decl_enum(name, members, genlist=True):
     return mcgen('''
 
-void visit_type_%(name)s(Visitor *m, %(name)s * obj, const char *name, Error **errp);
+void %(visitor)s(Visitor *m, %(name)s * obj, const char *name, Error **errp);
 ''',
-                name=name)
+                 visitor=type_visitor(name))
 
 def generate_command_decl(name, args, ret_type):
     arglist=""
@@ -146,9 +152,10 @@ if (has_%(c_name)s) {
                          c_name=c_var(argname), name=argname)
             push_indent()
         ret += mcgen('''
-visit_type_%(argtype)s(v, &%(c_name)s, "%(name)s", errp);
+%(visitor)s(v, &%(c_name)s, "%(name)s", errp);
 ''',
-                      c_name=c_var(argname), name=argname, argtype=argtype)
+                     c_name=c_var(argname), name=argname, argtype=argtype,
+                     visitor=type_visitor(argtype))
         if optional:
             pop_indent()
             ret += mcgen('''
@@ -179,18 +186,18 @@ static void qmp_marshal_output_%(c_name)s(%(c_ret_type)s ret_in, QObject **ret_o
     Visitor *v;
 
     v = qmp_output_get_visitor(mo);
-    visit_type_%(ret_type)s(v, &ret_in, "unused", errp);
+    %(visitor)s(v, &ret_in, "unused", errp);
     if (!error_is_set(errp)) {
         *ret_out = qmp_output_get_qobject(mo);
     }
     qmp_output_visitor_cleanup(mo);
     v = qapi_dealloc_get_visitor(md);
-    visit_type_%(ret_type)s(v, &ret_in, "unused", errp);
+    %(visitor)s(v, &ret_in, "unused", errp);
     qapi_dealloc_visitor_cleanup(md);
 }
 ''',
-                 c_ret_type=c_type(ret_type), c_name=c_var(name),
-                 ret_type=ret_type)
+                c_ret_type=c_type(ret_type), c_name=c_var(name),
+                visitor=type_visitor(ret_type))
 
     return ret
 
