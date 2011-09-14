@@ -84,6 +84,7 @@
 #define TCG_TARGET_HAS_bswap16_i64      1
 #define TCG_TARGET_HAS_bswap32_i64      1
 #define TCG_TARGET_HAS_bswap64_i64      1
+#define TCG_TARGET_HAS_deposit_i64      0
 /* Not more than one of the next two defines must be 1. */
 #define TCG_TARGET_HAS_div_i64          0
 #define TCG_TARGET_HAS_div2_i64         0
