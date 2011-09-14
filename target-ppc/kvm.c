@@ -705,10 +705,11 @@ int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
 
 void kvmppc_set_papr(CPUState *env)
 {
-    struct kvm_enable_cap cap;
+    struct kvm_enable_cap cap = {};
+    struct kvm_one_reg reg = {};
+    struct kvm_sregs sregs = {};
     int ret;
 
-    memset(&cap, 0, sizeof(cap));
     cap.cap = KVM_CAP_PPC_PAPR;
     ret = kvm_vcpu_ioctl(env, KVM_ENABLE_CAP, &cap);
 
@@ -723,7 +724,25 @@ void kvmppc_set_papr(CPUState *env)
      *     Once we have qdev CPUs, move HIOR to a qdev property and
      *     remove this chunk.
      */
-    /* XXX Set HIOR using new ioctl */
+    reg.id = KVM_ONE_REG_PPC_HIOR;
+    reg.u.reg64 = env->spr[SPR_HIOR];
+    ret = kvm_vcpu_ioctl(env, KVM_SET_ONE_REG, &reg);
+    if (ret) {
+        goto fail;
+    }
+
+    /* Set SDR1 so kernel space finds the HTAB */
+    ret = kvm_vcpu_ioctl(env, KVM_GET_SREGS, &sregs);
+    if (ret) {
+        goto fail;
+    }
+
+    sregs.u.s.sdr1 = env->spr[SPR_SDR1];
+
+    ret = kvm_vcpu_ioctl(env, KVM_SET_SREGS, &sregs);
+    if (ret) {
+        goto fail;
+    }
 
     return;
 
