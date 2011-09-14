@@ -244,12 +244,6 @@ static uint8_t *scsi_get_buf(SCSIRequest *req)
 static void scsi_req_fixup(SCSIRequest *req)
 {
     switch(req->cmd.buf[0]) {
-    case WRITE_10:
-        req->cmd.buf[1] &= ~0x08;	/* disable FUA */
-        break;
-    case READ_10:
-        req->cmd.buf[1] &= ~0x08;	/* disable FUA */
-        break;
     case REWIND:
     case START_STOP:
         if (req->dev->type == TYPE_TAPE) {
