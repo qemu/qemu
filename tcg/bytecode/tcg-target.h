@@ -51,14 +51,12 @@
 #endif
 
 /* Target word size (must be identical to pointer size). */
-#if !defined(HOST_LONG_BITS)
-# error HOST_LONG_BITS is undefined
-#elif HOST_LONG_BITS == 32
+#if UINTPTR_MAX == UINT32_MAX
 # define TCG_TARGET_REG_BITS 32
-#elif HOST_LONG_BITS == 64
+#elif UINTPTR_MAX == UINT64_MAX
 # define TCG_TARGET_REG_BITS 64
 #else
-# error Only 32 or 64 bit long support for host
+# error Unknown pointer size for tcg target
 #endif
 
 /* Optional instructions. */
