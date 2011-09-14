@@ -99,7 +99,7 @@
 #define TCG_TARGET_HAS_nor_i64          0
 #define TCG_TARGET_HAS_neg_i64          1
 #define TCG_TARGET_HAS_not_i64          1
-#undef  TCG_TARGET_HAS_orc_i64          1
+#define TCG_TARGET_HAS_orc_i64          0
 #define TCG_TARGET_HAS_rot_i64          1
 #endif /* TCG_TARGET_REG_BITS == 64 */
 
