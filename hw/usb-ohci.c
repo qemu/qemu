@@ -150,7 +150,7 @@ static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev);
 #define OHCI_TD_DI_SHIFT  21
 #define OHCI_TD_DI_MASK   (7<<OHCI_TD_DI_SHIFT)
 #define OHCI_TD_T0        (1<<24)
-#define OHCI_TD_T1        (1<<24)
+#define OHCI_TD_T1        (1<<25)
 #define OHCI_TD_EC_SHIFT  26
 #define OHCI_TD_EC_MASK   (3<<OHCI_TD_EC_SHIFT)
 #define OHCI_TD_CC_SHIFT  28
