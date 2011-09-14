@@ -274,7 +274,7 @@ VirtIOS390Device *s390_virtio_bus_find_vring(VirtIOS390Bus *bus,
     DeviceState *dev;
     int i;
 
-    QLIST_FOREACH(dev, &bus->bus.children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->bus.children, sibling) {
         _dev = (VirtIOS390Device *)dev;
         for(i = 0; i < VIRTIO_PCI_QUEUE_MAX; i++) {
             if (!virtio_queue_get_addr(_dev->vdev, i))
@@ -297,7 +297,7 @@ VirtIOS390Device *s390_virtio_bus_find_mem(VirtIOS390Bus *bus, ram_addr_t mem)
     VirtIOS390Device *_dev;
     DeviceState *dev;
 
-    QLIST_FOREACH(dev, &bus->bus.children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->bus.children, sibling) {
         _dev = (VirtIOS390Device *)dev;
         if (_dev->dev_offs == mem) {
             return _dev;
