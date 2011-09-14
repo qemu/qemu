@@ -327,4 +327,6 @@ struct kvm_book3e_206_tlb_params {
 	__u32 reserved[8];
 };
 
+#define KVM_ONE_REG_PPC_HIOR	KVM_ONE_REG_PPC | 0x100
+
 #endif /* __LINUX_KVM_POWERPC_H */
