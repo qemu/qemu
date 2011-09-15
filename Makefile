@@ -1,5 +1,8 @@
 # Makefile for QEMU.
 
+# Always point to the root of the build tree
+BUILD_DIR=$(PWD)
+
 GENERATED_HEADERS = config-host.h trace.h qemu-options.def
 ifeq ($(TRACE_BACKEND),dtrace)
 GENERATED_HEADERS += trace-dtrace.h
@@ -37,7 +40,7 @@ else
 DOCS=
 endif
 
-SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory)
+SUBDIR_MAKEFLAGS=$(if $(V),,--no-print-directory) BUILD_DIR=$(BUILD_DIR)
 SUBDIR_DEVICES_MAK=$(patsubst %, %/config-devices.mak, $(TARGET_DIRS))
 SUBDIR_DEVICES_MAK_DEP=$(patsubst %, %/config-devices.mak.d, $(TARGET_DIRS))
 
