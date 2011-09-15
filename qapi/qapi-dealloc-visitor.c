@@ -26,6 +26,7 @@ struct QapiDeallocVisitor
 {
     Visitor visitor;
     QTAILQ_HEAD(, StackEntry) stack;
+    bool is_list_head;
 };
 
 static QapiDeallocVisitor *to_qov(Visitor *v)
@@ -70,15 +71,24 @@ static void qapi_dealloc_end_struct(Visitor *v, Error **errp)
 
 static void qapi_dealloc_start_list(Visitor *v, const char *name, Error **errp)
 {
+    QapiDeallocVisitor *qov = to_qov(v);
+    qov->is_list_head = true;
 }
 
-static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList **list,
+static GenericList *qapi_dealloc_next_list(Visitor *v, GenericList **listp,
                                            Error **errp)
 {
-    GenericList *retval = *list;
-    g_free(retval->value);
-    *list = retval->next;
-    return retval;
+    GenericList *list = *listp;
+    QapiDeallocVisitor *qov = to_qov(v);
+
+    if (!qov->is_list_head) {
+        *listp = list->next;
+        g_free(list);
+        return *listp;
+    }
+
+    qov->is_list_head = false;
+    return list;
 }
 
 static void qapi_dealloc_end_list(Visitor *v, Error **errp)
