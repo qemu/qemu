@@ -383,6 +383,7 @@ obj-y += $(addprefix ../, $(common-obj-y))
 obj-y += $(addprefix ../libdis/, $(libdis-y))
 obj-y += $(libobj-y)
 obj-y += $(addprefix $(HWDIR)/, $(hw-obj-y))
+obj-y += $(addprefix ../, $(trace-obj-y))
 
 endif # CONFIG_SOFTMMU
 
@@ -394,7 +395,6 @@ obj-$(CONFIG_SMARTCARD_NSS) += $(addprefix ../libcacard/, $(libcacard-y))
 endif # CONFIG_BSD_USER
 endif # CONFIG_LINUX_USER
 
-obj-y += $(addprefix ../, $(trace-obj-y))
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 
 $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
