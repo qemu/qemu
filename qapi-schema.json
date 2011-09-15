@@ -248,3 +248,12 @@
 #         state
 ##
 { 'command': 'stop' }
+
+##
+# @system_reset:
+#
+# Performs a hard reset of a guest.
+#
+# Since: 0.14.0
+##
+{ 'command': 'system_reset' }

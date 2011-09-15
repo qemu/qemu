@@ -104,3 +104,8 @@ void hmp_stop(Monitor *mon, const QDict *qdict)
 {
     qmp_stop(NULL);
 }
+
+void hmp_system_reset(Monitor *mon, const QDict *qdict)
+{
+    qmp_system_reset(NULL);
+}

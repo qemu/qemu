@@ -81,3 +81,7 @@ void qmp_stop(Error **errp)
     vm_stop(RUN_STATE_PAUSED);
 }
 
+void qmp_system_reset(Error **errp)
+{
+    qemu_system_reset_request();
+}
