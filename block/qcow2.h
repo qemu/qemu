@@ -148,7 +148,6 @@ typedef struct QCowL2Meta
     int n_start;
     int nb_available;
     int nb_clusters;
-    struct QCowL2Meta *depends_on;
     CoQueue dependent_requests;
 
     QLIST_ENTRY(QCowL2Meta) next_in_flight;

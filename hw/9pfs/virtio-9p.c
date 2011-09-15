@@ -543,6 +543,7 @@ static void stat_to_qid(const struct stat *stbuf, V9fsQID *qidp)
 {
     size_t size;
 
+    memset(&qidp->path, 0, sizeof(qidp->path));
     size = MIN(sizeof(stbuf->st_ino), sizeof(qidp->path));
     memcpy(&qidp->path, &stbuf->st_ino, size);
     qidp->version = stbuf->st_mtime ^ (stbuf->st_size << 8);
@@ -2106,6 +2107,7 @@ static void v9fs_create(void *opaque)
         if (err < 0) {
             goto out;
         }
+        v9fs_string_copy(&fidp->path, &fullname);
         err = v9fs_co_opendir(pdu->s, fidp);
         if (err < 0) {
             goto out;
@@ -2336,6 +2338,45 @@ out_nofid:
     complete_pdu(pdu->s, pdu, err);
 }
 
+static void v9fs_unlinkat(void *opaque)
+{
+    int err = 0;
+    V9fsString name;
+    int32_t dfid, flags;
+    size_t offset = 7;
+    V9fsFidState *dfidp;
+    V9fsPDU *pdu = opaque;
+    V9fsString full_name;
+
+    pdu_unmarshal(pdu, offset, "dsd", &dfid, &name, &flags);
+
+    dfidp = get_fid(pdu->s, dfid);
+    if (dfidp == NULL) {
+        err = -EINVAL;
+        goto out_nofid;
+    }
+    v9fs_string_init(&full_name);
+    v9fs_string_sprintf(&full_name, "%s/%s", dfidp->path.data, name.data);
+    /*
+     * IF the file is unlinked, we cannot reopen
+     * the file later. So don't reclaim fd
+     */
+    err = v9fs_mark_fids_unreclaim(pdu->s, &full_name);
+    if (err < 0) {
+        goto out_err;
+    }
+    err = v9fs_co_remove(pdu->s, &full_name);
+    if (!err) {
+        err = offset;
+    }
+out_err:
+    put_fid(pdu->s, dfidp);
+    v9fs_string_free(&full_name);
+out_nofid:
+    complete_pdu(pdu->s, pdu, err);
+    v9fs_string_free(&name);
+}
+
 static int v9fs_complete_rename(V9fsState *s, V9fsFidState *fidp,
                                 int32_t newdirfid, V9fsString *name)
 {
@@ -2436,6 +2477,87 @@ static void v9fs_rename(void *opaque)
 out_nofid:
     complete_pdu(s, pdu, err);
     v9fs_string_free(&name);
+}
+
+static int v9fs_complete_renameat(V9fsState *s, int32_t olddirfid,
+                                  V9fsString *old_name, int32_t newdirfid,
+                                  V9fsString *new_name)
+{
+    int err = 0;
+    V9fsString old_full_name, new_full_name;
+    V9fsFidState *newdirfidp = NULL, *olddirfidp = NULL;
+
+    olddirfidp = get_fid(s, olddirfid);
+    if (olddirfidp == NULL) {
+        err = -ENOENT;
+        goto out;
+    }
+    v9fs_string_init(&old_full_name);
+    v9fs_string_init(&new_full_name);
+
+    v9fs_string_sprintf(&old_full_name, "%s/%s",
+                        olddirfidp->path.data, old_name->data);
+    if (newdirfid != -1) {
+        newdirfidp = get_fid(s, newdirfid);
+        if (newdirfidp == NULL) {
+            err = -ENOENT;
+            goto out;
+        }
+        v9fs_string_sprintf(&new_full_name, "%s/%s",
+                            newdirfidp->path.data, new_name->data);
+    } else {
+        v9fs_string_sprintf(&new_full_name, "%s/%s",
+                            olddirfidp->path.data, new_name->data);
+    }
+
+    if (strcmp(old_full_name.data, new_full_name.data) != 0) {
+        V9fsFidState *tfidp;
+        err = v9fs_co_rename(s, &old_full_name, &new_full_name);
+        if (err < 0) {
+            goto out;
+        }
+        /*
+         * Fixup fid's pointing to the old name to
+         * start pointing to the new name
+         */
+        for (tfidp = s->fid_list; tfidp; tfidp = tfidp->next) {
+            if (v9fs_path_is_ancestor(&old_full_name, &tfidp->path)) {
+                /* replace the name */
+                v9fs_fix_path(&tfidp->path, &new_full_name, old_full_name.size);
+            }
+        }
+    }
+out:
+    if (olddirfidp) {
+        put_fid(s, olddirfidp);
+    }
+    if (newdirfidp) {
+        put_fid(s, newdirfidp);
+    }
+    v9fs_string_free(&old_full_name);
+    v9fs_string_free(&new_full_name);
+    return err;
+}
+
+static void v9fs_renameat(void *opaque)
+{
+    ssize_t err = 0;
+    size_t offset = 7;
+    V9fsPDU *pdu = opaque;
+    V9fsState *s = pdu->s;
+    int32_t olddirfid, newdirfid;
+    V9fsString old_name, new_name;
+
+    pdu_unmarshal(pdu, offset, "dsds", &olddirfid,
+                  &old_name, &newdirfid, &new_name);
+
+    err = v9fs_complete_renameat(s, olddirfid, &old_name, newdirfid, &new_name);
+    if (!err) {
+        err = offset;
+    }
+    complete_pdu(s, pdu, err);
+    v9fs_string_free(&old_name);
+    v9fs_string_free(&new_name);
 }
 
 static void v9fs_wstat(void *opaque)
@@ -2694,6 +2816,7 @@ out_nofid:
     err = offset;
     err += pdu_marshal(pdu, offset, "b", status);
     complete_pdu(s, pdu, err);
+    v9fs_string_free(&flock->client_id);
     g_free(flock);
 }
 
@@ -2734,6 +2857,7 @@ out:
     put_fid(s, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
+    v9fs_string_free(&glock->client_id);
     g_free(glock);
 }
 
@@ -2953,7 +3077,9 @@ static CoroutineEntry *pdu_co_handlers[] = {
     [P9_TRENAME] = v9fs_rename,
     [P9_TLOCK] = v9fs_lock,
     [P9_TGETLOCK] = v9fs_getlock,
+    [P9_TRENAMEAT] = v9fs_renameat,
     [P9_TREADLINK] = v9fs_readlink,
+    [P9_TUNLINKAT] = v9fs_unlinkat,
     [P9_TMKDIR] = v9fs_mkdir,
     [P9_TVERSION] = v9fs_version,
     [P9_TLOPEN] = v9fs_open,

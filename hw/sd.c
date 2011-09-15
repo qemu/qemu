@@ -419,7 +419,7 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     sd->pwd_len = 0;
 }
 
-static void sd_cardchange(void *opaque)
+static void sd_cardchange(void *opaque, bool load)
 {
     SDState *sd = opaque;
 

@@ -121,7 +121,7 @@ struct BlockDriver {
     int (*bdrv_is_inserted)(BlockDriverState *bs);
     int (*bdrv_media_changed)(BlockDriverState *bs);
     void (*bdrv_eject)(BlockDriverState *bs, int eject_flag);
-    void (*bdrv_set_locked)(BlockDriverState *bs, int locked);
+    void (*bdrv_lock_medium)(BlockDriverState *bs, bool locked);
 
     /* to control generic scsi devices */
     int (*bdrv_ioctl)(BlockDriverState *bs, unsigned long int req, void *buf);
@@ -156,9 +156,6 @@ struct BlockDriverState {
     int read_only; /* if true, the media is read only */
     int keep_read_only; /* if true, the media was requested to stay read only */
     int open_flags; /* flags used to open the file, re-used for re-open */
-    int removable; /* if true, the media can be removed */
-    int locked;    /* if true, the media cannot temporarily be ejected */
-    int tray_open; /* if true, the virtual tray is open */
     int encrypted; /* if true, the media is encrypted */
     int valid_key; /* if true, a valid encryption key has been set */
     int sg;        /* if true, the device is a /dev/sg* */
@@ -228,40 +225,5 @@ void qemu_aio_release(void *p);
 #ifdef _WIN32
 int is_windows_drive(const char *filename);
 #endif
-
-typedef struct BlockConf {
-    BlockDriverState *bs;
-    uint16_t physical_block_size;
-    uint16_t logical_block_size;
-    uint16_t min_io_size;
-    uint32_t opt_io_size;
-    int32_t bootindex;
-    uint32_t discard_granularity;
-} BlockConf;
-
-static inline unsigned int get_physical_block_exp(BlockConf *conf)
-{
-    unsigned int exp = 0, size;
-
-    for (size = conf->physical_block_size;
-        size > conf->logical_block_size;
-        size >>= 1) {
-        exp++;
-    }
-
-    return exp;
-}
-
-#define DEFINE_BLOCK_PROPERTIES(_state, _conf)                          \
-    DEFINE_PROP_DRIVE("drive", _state, _conf.bs),                       \
-    DEFINE_PROP_UINT16("logical_block_size", _state,                    \
-                       _conf.logical_block_size, 512),                  \
-    DEFINE_PROP_UINT16("physical_block_size", _state,                   \
-                       _conf.physical_block_size, 512),                 \
-    DEFINE_PROP_UINT16("min_io_size", _state, _conf.min_io_size, 0),  \
-    DEFINE_PROP_UINT32("opt_io_size", _state, _conf.opt_io_size, 0),    \
-    DEFINE_PROP_INT32("bootindex", _state, _conf.bootindex, -1),        \
-    DEFINE_PROP_UINT32("discard_granularity", _state, \
-                       _conf.discard_granularity, 0)
 
 #endif /* BLOCK_INT_H */

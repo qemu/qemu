@@ -694,7 +694,7 @@ err:
  * If the offset is not found, allocate a new cluster.
  *
  * If the cluster was already allocated, m->nb_clusters is set to 0,
- * m->depends_on is set to NULL and the other fields in m are meaningless.
+ * other fields in m are meaningless.
  *
  * If the cluster is newly allocated, m->nb_clusters is set to the number of
  * contiguous clusters that have been allocated. In this case, the other
@@ -736,7 +736,6 @@ again:
 
         cluster_offset &= ~QCOW_OFLAG_COPIED;
         m->nb_clusters = 0;
-        m->depends_on = NULL;
 
         goto out;
     }
@@ -777,17 +776,17 @@ again:
      */
     QLIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
 
-        uint64_t end_offset = offset + nb_clusters * s->cluster_size;
-        uint64_t old_offset = old_alloc->offset;
-        uint64_t old_end_offset = old_alloc->offset +
-            old_alloc->nb_clusters * s->cluster_size;
+        uint64_t start = offset >> s->cluster_bits;
+        uint64_t end = start + nb_clusters;
+        uint64_t old_start = old_alloc->offset >> s->cluster_bits;
+        uint64_t old_end = old_start + old_alloc->nb_clusters;
 
-        if (end_offset < old_offset || offset > old_end_offset) {
+        if (end < old_start || start > old_end) {
             /* No intersection */
         } else {
-            if (offset < old_offset) {
+            if (start < old_start) {
                 /* Stop at the start of a running allocation */
-                nb_clusters = (old_offset - offset) >> s->cluster_bits;
+                nb_clusters = old_start - start;
             } else {
                 nb_clusters = 0;
             }
@@ -807,6 +806,11 @@ again:
         abort();
     }
 
+    /* save info needed for meta data update */
+    m->offset = offset;
+    m->n_start = n_start;
+    m->nb_clusters = nb_clusters;
+
     QLIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);
 
     /* allocate a new cluster */
@@ -816,11 +820,6 @@ again:
         ret = cluster_offset;
         goto fail;
     }
-
-    /* save info needed for meta data update */
-    m->offset = offset;
-    m->n_start = n_start;
-    m->nb_clusters = nb_clusters;
 
 out:
     ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);

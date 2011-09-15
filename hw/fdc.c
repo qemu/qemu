@@ -36,7 +36,6 @@
 #include "qdev-addr.h"
 #include "blockdev.h"
 #include "sysemu.h"
-#include "block_int.h"
 
 /********************************************************/
 /* debug Floppy devices */
@@ -1778,7 +1777,7 @@ static void fdctrl_result_timer(void *opaque)
     fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
 }
 
-static void fdctrl_change_cb(void *opaque)
+static void fdctrl_change_cb(void *opaque, bool load)
 {
     FDrive *drive = opaque;
 
@@ -1813,7 +1812,6 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
         fd_revalidate(drive);
         if (drive->bs) {
             drive->media_changed = 1;
-            bdrv_set_removable(drive->bs, 1);
             bdrv_set_dev_ops(drive->bs, &fdctrl_block_ops, drive);
         }
     }

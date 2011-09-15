@@ -450,7 +450,6 @@ static int scsi_generic_initfn(SCSIDevice *dev)
         }
     }
     DPRINTF("block size %d\n", s->qdev.blocksize);
-    bdrv_set_removable(s->bs, 0);
     return 0;
 }
 

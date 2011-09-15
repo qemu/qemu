@@ -24,7 +24,6 @@
  */
 #include <hw/hw.h>
 #include "block.h"
-#include "block_int.h"
 #include "dma.h"
 
 #include <hw/ide/internal.h>

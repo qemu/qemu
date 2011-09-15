@@ -7,7 +7,6 @@
  * non-internal declarations are in hw/ide.h
  */
 #include <hw/ide.h>
-#include "block_int.h"
 #include "iorange.h"
 #include "dma.h"
 
@@ -442,6 +441,8 @@ struct IDEState {
     struct unreported_events events;
     uint8_t sense_key;
     uint8_t asc;
+    bool tray_open;
+    bool tray_locked;
     uint8_t cdrom_changed;
     int packet_transfer_size;
     int elementary_transfer_size;

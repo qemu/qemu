@@ -37,6 +37,7 @@ do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "scsi-defs.h"
 #include "sysemu.h"
 #include "blockdev.h"
+#include "block_int.h"
 
 #define SCSI_DMA_BUF_SIZE    131072
 #define SCSI_MAX_INQUIRY_LEN 256
@@ -72,6 +73,8 @@ struct SCSIDiskState
     QEMUBH *bh;
     char *version;
     char *serial;
+    bool tray_open;
+    bool tray_locked;
 };
 
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
@@ -182,6 +185,9 @@ static void scsi_read_data(SCSIRequest *req)
     if (n > SCSI_DMA_BUF_SIZE / 512)
         n = SCSI_DMA_BUF_SIZE / 512;
 
+    if (s->tray_open) {
+        scsi_read_complete(r, -ENOMEDIUM);
+    }
     r->iov.iov_len = n * 512;
     qemu_iovec_init_external(&r->qiov, &r->iov, 1);
 
@@ -280,6 +286,9 @@ static void scsi_write_data(SCSIRequest *req)
 
     n = r->iov.iov_len / 512;
     if (n) {
+        if (s->tray_open) {
+            scsi_write_complete(r, -ENOMEDIUM);
+        }
         qemu_iovec_init_external(&r->qiov, &r->iov, 1);
 
         bdrv_acct_start(s->bs, &r->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_WRITE);
@@ -664,7 +673,7 @@ static int mode_sense_page(SCSIDiskState *s, int page, uint8_t **p_outbuf,
         p[5] = 0xff; /* CD DA, DA accurate, RW supported,
                         RW corrected, C2 errors, ISRC,
                         UPC, Bar code */
-        p[6] = 0x2d | (bdrv_is_locked(s->bs)? 2 : 0);
+        p[6] = 0x2d | (s->tray_locked ? 2 : 0);
         /* Locking supported, jumper present, eject, tray */
         p[7] = 0; /* no volume & mute control, no
                      changer */
@@ -814,6 +823,27 @@ static int scsi_disk_emulate_read_toc(SCSIRequest *req, uint8_t *outbuf)
     return toclen;
 }
 
+static int scsi_disk_emulate_start_stop(SCSIDiskReq *r)
+{
+    SCSIRequest *req = &r->req;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+    bool start = req->cmd.buf[4] & 1;
+    bool loej = req->cmd.buf[4] & 2; /* load on start, eject on !start */
+
+    if (s->qdev.type == TYPE_ROM && loej) {
+        if (!start && !s->tray_open && s->tray_locked) {
+            scsi_check_condition(r,
+                                 bdrv_is_inserted(s->bs)
+                                 ? SENSE_CODE(ILLEGAL_REQ_REMOVAL_PREVENTED)
+                                 : SENSE_CODE(NOT_READY_REMOVAL_PREVENTED));
+            return -1;
+        }
+        bdrv_eject(s->bs, !start);
+        s->tray_open = !start;
+    }
+    return 0;
+}
+
 static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
 {
     SCSIRequest *req = &r->req;
@@ -823,7 +853,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
 
     switch (req->cmd.buf[0]) {
     case TEST_UNIT_READY:
-        if (!bdrv_is_inserted(s->bs))
+        if (s->tray_open || !bdrv_is_inserted(s->bs))
             goto not_ready;
         break;
     case INQUIRY:
@@ -859,13 +889,13 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
             goto illegal_request;
         break;
     case START_STOP:
-        if (s->qdev.type == TYPE_ROM && (req->cmd.buf[4] & 2)) {
-            /* load/eject medium */
-            bdrv_eject(s->bs, !(req->cmd.buf[4] & 1));
+        if (scsi_disk_emulate_start_stop(r) < 0) {
+            return -1;
         }
         break;
     case ALLOW_MEDIUM_REMOVAL:
-        bdrv_set_locked(s->bs, req->cmd.buf[4] & 1);
+        s->tray_locked = req->cmd.buf[4] & 1;
+        bdrv_lock_medium(s->bs, req->cmd.buf[4] & 1);
         break;
     case READ_CAPACITY_10:
         /* The normal LEN field for this command is zero.  */
@@ -946,7 +976,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r, uint8_t *outbuf)
     return buflen;
 
 not_ready:
-    if (!bdrv_is_inserted(s->bs)) {
+    if (s->tray_open || !bdrv_is_inserted(s->bs)) {
         scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
     } else {
         scsi_check_condition(r, SENSE_CODE(LUN_NOT_READY));
@@ -1143,6 +1173,27 @@ static void scsi_destroy(SCSIDevice *dev)
     blockdev_mark_auto_del(s->qdev.conf.bs);
 }
 
+static void scsi_cd_change_media_cb(void *opaque, bool load)
+{
+    ((SCSIDiskState *)opaque)->tray_open = !load;
+}
+
+static bool scsi_cd_is_tray_open(void *opaque)
+{
+    return ((SCSIDiskState *)opaque)->tray_open;
+}
+
+static bool scsi_cd_is_medium_locked(void *opaque)
+{
+    return ((SCSIDiskState *)opaque)->tray_locked;
+}
+
+static const BlockDevOps scsi_cd_block_ops = {
+    .change_media_cb = scsi_cd_change_media_cb,
+    .is_tray_open = scsi_cd_is_tray_open,
+    .is_medium_locked = scsi_cd_is_medium_locked,
+};
+
 static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
@@ -1177,6 +1228,7 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
     }
 
     if (scsi_type == TYPE_ROM) {
+        bdrv_set_dev_ops(s->bs, &scsi_cd_block_ops, s);
         s->qdev.blocksize = 2048;
     } else if (scsi_type == TYPE_DISK) {
         s->qdev.blocksize = s->qdev.conf.logical_block_size;
@@ -1185,11 +1237,10 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
         return -1;
     }
     s->cluster_size = s->qdev.blocksize / 512;
-    s->bs->buffer_alignment = s->qdev.blocksize;
+    bdrv_set_buffer_alignment(s->bs, s->qdev.blocksize);
 
     s->qdev.type = scsi_type;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
-    bdrv_set_removable(s->bs, scsi_type == TYPE_ROM);
     add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, ",0");
     return 0;
 }

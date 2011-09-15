@@ -772,6 +772,11 @@ const struct SCSISense sense_code_NO_MEDIUM = {
     .key = NOT_READY, .asc = 0x3a, .ascq = 0x00
 };
 
+/* LUN not ready, medium removal prevented */
+const struct SCSISense sense_code_NOT_READY_REMOVAL_PREVENTED = {
+    .key = NOT_READY, .asc = 0x53, .ascq = 0x00
+};
+
 /* Hardware error, internal target failure */
 const struct SCSISense sense_code_TARGET_FAILURE = {
     .key = HARDWARE_ERROR, .asc = 0x44, .ascq = 0x00
@@ -805,6 +810,11 @@ const struct SCSISense sense_code_SAVING_PARAMS_NOT_SUPPORTED = {
 /* Illegal request, Incompatible medium installed */
 const struct SCSISense sense_code_INCOMPATIBLE_MEDIUM = {
     .key = ILLEGAL_REQUEST, .asc = 0x30, .ascq = 0x00
+};
+
+/* Illegal request, medium removal prevented */
+const struct SCSISense sense_code_ILLEGAL_REQ_REMOVAL_PREVENTED = {
+    .key = ILLEGAL_REQUEST, .asc = 0x53, .ascq = 0x00
 };
 
 /* Command aborted, I/O process terminated */

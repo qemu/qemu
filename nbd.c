@@ -17,6 +17,7 @@
  */
 
 #include "nbd.h"
+#include "block.h"
 
 #include <errno.h>
 #include <string.h>
