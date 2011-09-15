@@ -289,7 +289,7 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                 port->wPortStatus |= PORT_STAT_SUSPEND;
                 break;
             case PORT_RESET:
-                if (dev) {
+                if (dev && dev->attached) {
                     usb_send_msg(dev, USB_MSG_RESET);
                     port->wPortChange |= PORT_STAT_C_RESET;
                     /* set enable bit */
@@ -429,7 +429,7 @@ static int usb_hub_broadcast_packet(USBHubState *s, USBPacket *p)
     for(i = 0; i < NUM_PORTS; i++) {
         port = &s->ports[i];
         dev = port->port.dev;
-        if (dev && (port->wPortStatus & PORT_STAT_ENABLE)) {
+        if (dev && dev->attached && (port->wPortStatus & PORT_STAT_ENABLE)) {
             ret = usb_handle_packet(dev, p);
             if (ret != USB_RET_NODEV) {
                 return ret;
