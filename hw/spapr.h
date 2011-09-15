@@ -17,6 +17,7 @@ typedef struct sPAPREnvironment {
     long rtas_size;
     void *fdt_skel;
     target_ulong entry_point;
+    int next_irq;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
@@ -281,11 +282,7 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
 target_ulong spapr_hypercall(CPUState *env, target_ulong opcode,
                              target_ulong *args);
 
-static inline qemu_irq spapr_find_qirq(sPAPREnvironment *spapr,
-                                        int irq_num)
-{
-    return xics_find_qirq(spapr->icp, irq_num);
-}
+qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num);
 
 static inline uint32_t rtas_ld(target_ulong phys, int n)
 {

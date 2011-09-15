@@ -61,6 +61,30 @@
 
 sPAPREnvironment *spapr;
 
+qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num)
+{
+    uint32_t irq;
+    qemu_irq qirq;
+
+    if (hint) {
+        irq = hint;
+        /* FIXME: we should probably check for collisions somehow */
+    } else {
+        irq = spapr->next_irq++;
+    }
+
+    qirq = xics_find_qirq(spapr->icp, irq);
+    if (!qirq) {
+        return NULL;
+    }
+
+    if (irq_num) {
+        *irq_num = irq;
+    }
+
+    return qirq;
+}
+
 static void *spapr_create_fdt_skel(const char *cpu_model,
                                    target_phys_addr_t initrd_base,
                                    target_phys_addr_t initrd_size,
@@ -372,6 +396,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     /* Set up Interrupt Controller */
     spapr->icp = xics_system_init(XICS_IRQS);
+    spapr->next_irq = 16;
 
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();

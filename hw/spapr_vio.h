@@ -67,7 +67,6 @@ typedef struct VIOsPAPRDevice {
 
 typedef struct VIOsPAPRBus {
     BusState bus;
-    int irq;
 } VIOsPAPRBus;
 
 typedef struct {
