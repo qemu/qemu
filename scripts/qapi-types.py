@@ -254,6 +254,8 @@ for expr in exprs:
     ret = "\n"
     if expr.has_key('type'):
         ret += generate_struct(expr['type'], "", expr['data']) + "\n"
+        ret += generate_type_cleanup_decl(expr['type'] + "List")
+        fdef.write(generate_type_cleanup(expr['type'] + "List") + "\n")
         ret += generate_type_cleanup_decl(expr['type'])
         fdef.write(generate_type_cleanup(expr['type']) + "\n")
     elif expr.has_key('union'):
