@@ -680,6 +680,17 @@ static BlockDriverAIOCB *qemu_rbd_aio_writev(BlockDriverState *bs,
     return rbd_aio_rw_vector(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
 }
 
+static int qemu_rbd_flush(BlockDriverState *bs)
+{
+#if LIBRBD_VERSION_CODE >= LIBRBD_VERSION(0, 1, 1)
+    /* rbd_flush added in 0.1.1 */
+    BDRVRBDState *s = bs->opaque;
+    return rbd_flush(s->image);
+#else
+    return 0;
+#endif
+}
+
 static int qemu_rbd_getinfo(BlockDriverState *bs, BlockDriverInfo *bdi)
 {
     BDRVRBDState *s = bs->opaque;
@@ -815,6 +826,7 @@ static BlockDriver bdrv_rbd = {
     .bdrv_file_open     = qemu_rbd_open,
     .bdrv_close         = qemu_rbd_close,
     .bdrv_create        = qemu_rbd_create,
+    .bdrv_flush         = qemu_rbd_flush,
     .bdrv_get_info      = qemu_rbd_getinfo,
     .create_options     = qemu_rbd_create_options,
     .bdrv_getlength     = qemu_rbd_getlength,
