@@ -70,3 +70,9 @@ UuidInfo *qmp_query_uuid(Error **errp)
     return info;
 }
 
+void qmp_quit(Error **err)
+{
+    no_shutdown = 0;
+    qemu_system_shutdown_request();
+}
+

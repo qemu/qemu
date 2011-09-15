@@ -225,3 +225,14 @@
 ##
 { 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
+##
+# @quit:
+#
+# This command will cause the QEMU process to exit gracefully.  While every
+# attempt is made to send the QMP response before terminating, this is not
+# guaranteed.  When using this interface, a premature EOF would not be
+# unexpected.
+#
+# Since: 0.14.0
+##
+{ 'command': 'quit' }

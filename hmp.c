@@ -93,3 +93,9 @@ void hmp_info_chardev(Monitor *mon)
 
     qapi_free_ChardevInfoList(char_info);
 }
+
+void hmp_quit(Monitor *mon, const QDict *qdict)
+{
+    monitor_suspend(mon);
+    qmp_quit(NULL);
+}

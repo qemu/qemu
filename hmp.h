@@ -23,5 +23,6 @@ void hmp_info_kvm(Monitor *mon);
 void hmp_info_status(Monitor *mon);
 void hmp_info_uuid(Monitor *mon);
 void hmp_info_chardev(Monitor *mon);
+void hmp_quit(Monitor *mon, const QDict *qdict);
 
 #endif

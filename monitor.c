@@ -946,18 +946,6 @@ static void do_trace_print_events(Monitor *mon)
     trace_print_events((FILE *)mon, &monitor_fprintf);
 }
 
-/**
- * do_quit(): Quit QEMU execution
- */
-static int do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    monitor_suspend(mon);
-    no_shutdown = 0;
-    qemu_system_shutdown_request();
-
-    return 0;
-}
-
 #ifdef CONFIG_VNC
 static int change_vnc_password(const char *password)
 {
