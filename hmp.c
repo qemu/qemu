@@ -99,3 +99,8 @@ void hmp_quit(Monitor *mon, const QDict *qdict)
     monitor_suspend(mon);
     qmp_quit(NULL);
 }
+
+void hmp_stop(Monitor *mon, const QDict *qdict)
+{
+    qmp_stop(NULL);
+}

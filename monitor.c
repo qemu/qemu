@@ -1212,15 +1212,6 @@ static void do_singlestep(Monitor *mon, const QDict *qdict)
     }
 }
 
-/**
- * do_stop(): Stop VM execution
- */
-static int do_stop(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    vm_stop(RUN_STATE_PAUSED);
-    return 0;
-}
-
 static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs);
 
 struct bdrv_iterate_context {

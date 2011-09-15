@@ -76,3 +76,8 @@ void qmp_quit(Error **err)
     qemu_system_shutdown_request();
 }
 
+void qmp_stop(Error **errp)
+{
+    vm_stop(RUN_STATE_PAUSED);
+}
+

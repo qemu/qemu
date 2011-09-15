@@ -236,3 +236,15 @@
 # Since: 0.14.0
 ##
 { 'command': 'quit' }
+
+##
+# @stop:
+#
+# Stop all guest VCPU execution.
+#
+# Since:  0.14.0
+#
+# Notes:  This function will succeed even if the guest is already in the stopped
+#         state
+##
+{ 'command': 'stop' }
