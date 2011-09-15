@@ -33,6 +33,7 @@ void usb_attach(USBPort *port)
 
     assert(dev != NULL);
     assert(dev->attached);
+    assert(dev->state == USB_STATE_NOTATTACHED);
     port->ops->attach(port);
     usb_send_msg(dev, USB_MSG_ATTACH);
 }
@@ -42,8 +43,19 @@ void usb_detach(USBPort *port)
     USBDevice *dev = port->dev;
 
     assert(dev != NULL);
+    assert(dev->state != USB_STATE_NOTATTACHED);
     port->ops->detach(port);
     usb_send_msg(dev, USB_MSG_DETACH);
+}
+
+void usb_reset(USBPort *port)
+{
+    USBDevice *dev = port->dev;
+
+    assert(dev != NULL);
+    usb_detach(port);
+    usb_attach(port);
+    usb_send_msg(dev, USB_MSG_RESET);
 }
 
 void usb_wakeup(USBDevice *dev)
