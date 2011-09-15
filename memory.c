@@ -55,8 +55,8 @@ static AddrRange addrrange_shift(AddrRange range, int64_t delta)
 
 static bool addrrange_intersects(AddrRange r1, AddrRange r2)
 {
-    return (r1.start >= r2.start && r1.start < r2.start + r2.size)
-        || (r2.start >= r1.start && r2.start < r1.start + r1.size);
+    return (r1.start >= r2.start && (r1.start - r2.start) < r2.size)
+        || (r2.start >= r1.start && (r2.start - r1.start) < r1.size);
 }
 
 static AddrRange addrrange_intersection(AddrRange r1, AddrRange r2)
