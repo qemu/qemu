@@ -13,35 +13,33 @@
 
 #include "qemu-common.h"
 #include "qemu-error.h"
-
 #include "block_int.h"
 
 #include <rbd/librbd.h>
-
-
 
 /*
  * When specifying the image filename use:
  *
  * rbd:poolname/devicename[@snapshotname][:option1=value1[:option2=value2...]]
  *
- * poolname must be the name of an existing rados pool
+ * poolname must be the name of an existing rados pool.
  *
- * devicename is the basename for all objects used to
- * emulate the raw device.
+ * devicename is the name of the rbd image.
  *
- * Each option given is used to configure rados, and may be
- * any Ceph option, or "conf". The "conf" option specifies
- * a Ceph configuration file to read.
+ * Each option given is used to configure rados, and may be any valid
+ * Ceph option, "id", or "conf".
  *
- * Metadata information (image size, ...) is stored in an
- * object with the name "devicename.rbd".
+ * The "id" option indicates what user we should authenticate as to
+ * the Ceph cluster.  If it is excluded we will use the Ceph default
+ * (normally 'admin').
  *
- * The raw device is split into 4MB sized objects by default.
- * The sequencenumber is encoded in a 12 byte long hex-string,
- * and is attached to the devicename, separated by a dot.
- * e.g. "devicename.1234567890ab"
+ * The "conf" option specifies a Ceph configuration file to read.  If
+ * it is not specified, we will read from the default Ceph locations
+ * (e.g., /etc/ceph/ceph.conf).  To avoid reading _any_ configuration
+ * file, specify conf=/dev/null.
  *
+ * Configuration values containing :, @, or = can be escaped with a
+ * leading "\".
  */
 
 #define OBJ_MAX_SIZE (1UL << OBJ_DEFAULT_OBJ_ORDER)
