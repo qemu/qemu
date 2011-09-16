@@ -4,14 +4,13 @@
 #include "config-host.h"
 
 #include <inttypes.h>
+#include "softfloat.h"
 
 #ifdef CONFIG_MACHINE_BSWAP_H
 #include <sys/endian.h>
 #include <sys/types.h>
 #include <machine/bswap.h>
 #else
-
-#include "softfloat.h"
 
 #ifdef CONFIG_BYTESWAP_H
 #include <byteswap.h>

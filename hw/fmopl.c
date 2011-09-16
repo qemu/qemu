@@ -606,7 +606,7 @@ static void init_timetables( FM_OPL *OPL , int ARRATE , int DRRATE )
 	}
 #if 0
 	for (i = 0;i < 64 ;i++){	/* make for overflow area */
-		LOG(LOG_WAR,("rate %2d , ar %f ms , dr %f ms \n",i,
+		LOG(LOG_WAR, ("rate %2d , ar %f ms , dr %f ms\n", i,
 			((double)(EG_ENT<<ENV_BITS) / OPL->AR_TABLE[i]) * (1000.0 / OPL->rate),
 			((double)(EG_ENT<<ENV_BITS) / OPL->DR_TABLE[i]) * (1000.0 / OPL->rate) ));
 	}

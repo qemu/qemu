@@ -179,6 +179,7 @@ user-obj-y =
 user-obj-y += envlist.o path.o
 user-obj-y += tcg-runtime.o host-utils.o
 user-obj-y += cutils.o cache-utils.o
+user-obj-y += $(trace-obj-y)
 
 ######################################################################
 # libhw
@@ -354,12 +355,12 @@ trace.h: trace.h-timestamp trace-dtrace.h
 else
 trace.h: trace.h-timestamp
 endif
-trace.h-timestamp: $(SRC_PATH)/trace-events config-host.mak
+trace.h-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -h < $< > $@,"  GEN   trace.h")
 	@cmp -s $@ trace.h || cp $@ trace.h
 
 trace.c: trace.c-timestamp
-trace.c-timestamp: $(SRC_PATH)/trace-events config-host.mak
+trace.c-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -c < $< > $@,"  GEN   trace.c")
 	@cmp -s $@ trace.c || cp $@ trace.c
 
@@ -372,7 +373,7 @@ trace-dtrace.h: trace-dtrace.dtrace
 # but that gets picked up by QEMU's Makefile as an external dependency
 # rule file. So we use '.dtrace' instead
 trace-dtrace.dtrace: trace-dtrace.dtrace-timestamp
-trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events config-host.mak
+trace-dtrace.dtrace-timestamp: $(SRC_PATH)/trace-events $(BUILD_DIR)/config-host.mak
 	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool --$(TRACE_BACKEND) -d < $< > $@,"  GEN   trace-dtrace.dtrace")
 	@cmp -s $@ trace-dtrace.dtrace || cp $@ trace-dtrace.dtrace
 

@@ -207,6 +207,12 @@ int qdev_device_help(QemuOpts *opts)
         }
         error_printf("%s.%s=%s\n", info->name, prop->name, prop->info->name);
     }
+    for (prop = info->bus_info->props; prop && prop->name; prop++) {
+        if (!prop->info->parse) {
+            continue;           /* no way to set it, don't show */
+        }
+        error_printf("%s.%s=%s\n", info->name, prop->name, prop->info->name);
+    }
     return 1;
 }
 

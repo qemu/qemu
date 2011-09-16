@@ -802,7 +802,7 @@ void test_fcmp(double a, double b)
         "fstsw %%ax\n"
         : "=a" (fpus)
         : "t" (a), "u" (b));
-    printf("fcom(%f %f)=%04lx \n",
+    printf("fcom(%f %f)=%04lx\n",
            a, b, fpus & (0x4500 | FPUS_EMASK));
     fpu_clear_exceptions();
     asm("fucom %2\n"

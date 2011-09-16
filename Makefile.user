@@ -17,7 +17,9 @@ all: $(user-obj-y)
 	@true
 
 clean:
-	rm -f *.o *.d *.a *~
+	for d in . trace; do \
+	rm -f $$d/*.o $$d/*.d $$d/*.a $$d/*~; \
+	done
 
 # Include automatically generated dependency files
 -include $(wildcard *.d */*.d)

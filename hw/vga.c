@@ -149,7 +149,7 @@ static uint16_t expand2[256];
 static uint8_t expand4to8[16];
 
 static void vga_screen_dump(void *opaque, const char *filename);
-static char *screen_dump_filename;
+static const char *screen_dump_filename;
 static DisplayChangeListener *screen_dump_dcl;
 
 static void vga_update_memory_access(VGACommonState *s)
@@ -181,6 +181,7 @@ static void vga_update_memory_access(VGACommonState *s)
             size = 0x8000;
             break;
         }
+        base += isa_mem_base;
         region = g_malloc(sizeof(*region));
         memory_region_init_alias(region, "vga.chain4", &s->vram, offset, size);
         memory_region_add_subregion_overlap(s->legacy_address_space, base,
@@ -2322,7 +2323,6 @@ static void vga_save_dpy_update(DisplayState *ds,
 {
     if (screen_dump_filename) {
         ppm_save(screen_dump_filename, ds->surface);
-        screen_dump_filename = NULL;
     }
 }
 
@@ -2400,8 +2400,8 @@ static void vga_screen_dump(void *opaque, const char *filename)
     if (!screen_dump_dcl)
         screen_dump_dcl = vga_screen_dump_init(s->ds);
 
-    screen_dump_filename = (char *)filename;
+    screen_dump_filename = filename;
     vga_invalidate_display(s);
     vga_hw_update();
+    screen_dump_filename = NULL;
 }
-

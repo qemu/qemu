@@ -14,6 +14,7 @@
 #include "arm-misc.h"
 #include "net.h"
 #include "exec-memory.h"
+#include "sysemu.h"
 
 typedef struct {
     SysBusDevice busdev;
@@ -126,15 +127,20 @@ static void integratorcm_do_remap(integratorcm_state *s, int flash)
 static void integratorcm_set_ctrl(integratorcm_state *s, uint32_t value)
 {
     if (value & 8) {
-        hw_error("Board reset\n");
+        qemu_system_reset_request();
     }
-    if ((s->cm_init ^ value) & 4) {
+    if ((s->cm_ctrl ^ value) & 4) {
         integratorcm_do_remap(s, (value & 4) == 0);
     }
-    if ((s->cm_init ^ value) & 1) {
-        printf("Green LED %s\n", (value & 1) ? "on" : "off");
+    if ((s->cm_ctrl ^ value) & 1) {
+        /* (value & 1) != 0 means the green "MISC LED" is lit.
+         * We don't have any nice place to display LEDs. printf is a bad
+         * idea because Linux uses the LED as a heartbeat and the output
+         * will swamp anything else on the terminal.
+         */
     }
-    s->cm_init = (s->cm_init & ~ 5) | (value ^ 5);
+    /* Note that the RESET bit [3] always reads as zero */
+    s->cm_ctrl = (s->cm_ctrl & ~5) | (value & 5);
 }
 
 static void integratorcm_update(integratorcm_state *s)
