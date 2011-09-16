@@ -368,41 +368,5 @@ tar:
 	cd /tmp && tar zcvf ~/$(FILE).tar.gz $(FILE) --exclude CVS --exclude .git --exclude .svn
 	rm -rf /tmp/$(FILE)
 
-SYSTEM_TARGETS=$(filter %-softmmu,$(TARGET_DIRS))
-SYSTEM_PROGS=$(patsubst %-softmmu,qemu-system-%, \
-             $(SYSTEM_TARGETS))
-
-USER_TARGETS=$(filter %-user,$(TARGET_DIRS))
-USER_PROGS=$(patsubst %-bsd-user,qemu-%, \
-           $(patsubst %-darwin-user,qemu-%, \
-           $(patsubst %-linux-user,qemu-%, \
-           $(USER_TARGETS))))
-
-# generate a binary distribution
-tarbin:
-	cd / && tar zcvf ~/qemu-$(VERSION)-$(ARCH).tar.gz \
-	$(patsubst %,$(bindir)/%, $(SYSTEM_PROGS)) \
-	$(patsubst %,$(bindir)/%, $(USER_PROGS)) \
-	$(bindir)/qemu-img \
-	$(bindir)/qemu-nbd \
-	$(datadir)/bios.bin \
-	$(datadir)/vgabios.bin \
-	$(datadir)/vgabios-cirrus.bin \
-	$(datadir)/ppc_rom.bin \
-	$(datadir)/openbios-sparc32 \
-	$(datadir)/openbios-sparc64 \
-	$(datadir)/openbios-ppc \
-	$(datadir)/pxe-e1000.rom \
-	$(datadir)/pxe-eepro100.rom \
-	$(datadir)/pxe-ne2k_pci.rom \
-	$(datadir)/pxe-pcnet.rom \
-	$(datadir)/pxe-rtl8139.rom \
-	$(datadir)/pxe-virtio.rom \
-	$(docdir)/qemu-doc.html \
-	$(docdir)/qemu-tech.html \
-	$(mandir)/man1/qemu.1 \
-	$(mandir)/man1/qemu-img.1 \
-	$(mandir)/man8/qemu-nbd.8
-
 # Include automatically generated dependency files
 -include $(wildcard *.d audio/*.d slirp/*.d block/*.d net/*.d ui/*.d qapi/*.d qga/*.d)
