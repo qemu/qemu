@@ -336,6 +336,13 @@ static uint64_t tci_read_ri64(uint8_t **tb_ptr)
 }
 #endif
 
+static target_ulong tci_read_label(uint8_t **tb_ptr)
+{
+    target_ulong label = tci_read_i(tb_ptr);
+    assert(label != 0);
+    return label;
+}
+
 static bool tci_compare32(uint32_t u0, uint32_t u1, TCGCond condition)
 {
     bool result = false;
@@ -498,8 +505,7 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             break;
         case INDEX_op_jmp:
         case INDEX_op_br:
-            label = tci_read_i(&tb_ptr);
-            assert(label);
+            label = tci_read_label(&tb_ptr);
             assert(tb_ptr == old_code_ptr + op_size);
             tb_ptr = (uint8_t *)label;
             continue;
@@ -680,8 +686,7 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             t0 = tci_read_r32(&tb_ptr);
             t1 = tci_read_ri32(&tb_ptr);
             condition = *tb_ptr++;
-            label = tci_read_i(&tb_ptr);
-            assert(label); //!!!
+            label = tci_read_label(&tb_ptr);
             if (tci_compare32(t0, t1, condition)) {
                 assert(tb_ptr == old_code_ptr + op_size);
                 tb_ptr = (uint8_t *)label;
@@ -707,8 +712,7 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             u64 = tci_read_r64(&tb_ptr);
             v64 = tci_read_ri64(&tb_ptr);
             condition = *tb_ptr++;
-            label = tci_read_i(&tb_ptr);
-            assert(label);
+            label = tci_read_label(&tb_ptr);
             if (tci_compare64(u64, v64, condition)) {
                 assert(tb_ptr == old_code_ptr + op_size);
                 tb_ptr = (uint8_t *)label;
@@ -923,10 +927,11 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
             t0 = tci_read_r64(&tb_ptr);
             t1 = tci_read_ri64(&tb_ptr);
             condition = *tb_ptr++;
-            label = tci_read_i(&tb_ptr);
-            assert(label);
+            label = tci_read_label(&tb_ptr);
             if (tci_compare64(t0, t1, condition)) {
+                assert(tb_ptr == old_code_ptr + op_size);
                 tb_ptr = (uint8_t *)label;
+                continue;
             }
             break;
 #if TCG_TARGET_HAS_ext8u_i64
