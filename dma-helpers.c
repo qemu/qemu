@@ -43,6 +43,7 @@ typedef struct {
     QEMUSGList *sg;
     uint64_t sector_num;
     bool to_dev;
+    bool in_cancel;
     int sg_cur_index;
     target_phys_addr_t sg_cur_byte;
     QEMUIOVector iov;
@@ -58,7 +59,7 @@ static void reschedule_dma(void *opaque)
 
     qemu_bh_delete(dbs->bh);
     dbs->bh = NULL;
-    dma_bdrv_cb(opaque, 0);
+    dma_bdrv_cb(dbs, 0);
 }
 
 static void continue_after_map_failure(void *opaque)
@@ -78,6 +79,26 @@ static void dma_bdrv_unmap(DMAAIOCB *dbs)
                                   dbs->iov.iov[i].iov_len, !dbs->to_dev,
                                   dbs->iov.iov[i].iov_len);
     }
+    qemu_iovec_reset(&dbs->iov);
+}
+
+static void dma_complete(DMAAIOCB *dbs, int ret)
+{
+    dma_bdrv_unmap(dbs);
+    if (dbs->common.cb) {
+        dbs->common.cb(dbs->common.opaque, ret);
+    }
+    qemu_iovec_destroy(&dbs->iov);
+    if (dbs->bh) {
+        qemu_bh_delete(dbs->bh);
+        dbs->bh = NULL;
+    }
+    if (!dbs->in_cancel) {
+        /* Requests may complete while dma_aio_cancel is in progress.  In
+         * this case, the AIOCB should not be released because it is still
+         * referenced by dma_aio_cancel.  */
+        qemu_aio_release(dbs);
+    }
 }
 
 static void dma_bdrv_cb(void *opaque, int ret)
@@ -89,12 +110,9 @@ static void dma_bdrv_cb(void *opaque, int ret)
     dbs->acb = NULL;
     dbs->sector_num += dbs->iov.size / 512;
     dma_bdrv_unmap(dbs);
-    qemu_iovec_reset(&dbs->iov);
 
     if (dbs->sg_cur_index == dbs->sg->nsg || ret < 0) {
-        dbs->common.cb(dbs->common.opaque, ret);
-        qemu_iovec_destroy(&dbs->iov);
-        qemu_aio_release(dbs);
+        dma_complete(dbs, ret);
         return;
     }
 
@@ -120,9 +138,7 @@ static void dma_bdrv_cb(void *opaque, int ret)
     dbs->acb = dbs->io_func(dbs->bs, dbs->sector_num, &dbs->iov,
                             dbs->iov.size / 512, dma_bdrv_cb, dbs);
     if (!dbs->acb) {
-        dma_bdrv_unmap(dbs);
-        qemu_iovec_destroy(&dbs->iov);
-        return;
+        dma_complete(dbs, -EIO);
     }
 }
 
@@ -131,8 +147,14 @@ static void dma_aio_cancel(BlockDriverAIOCB *acb)
     DMAAIOCB *dbs = container_of(acb, DMAAIOCB, common);
 
     if (dbs->acb) {
-        bdrv_aio_cancel(dbs->acb);
+        BlockDriverAIOCB *acb = dbs->acb;
+        dbs->acb = NULL;
+        dbs->in_cancel = true;
+        bdrv_aio_cancel(acb);
+        dbs->in_cancel = false;
     }
+    dbs->common.cb = NULL;
+    dma_complete(dbs, 0);
 }
 
 static AIOPool dma_aio_pool = {
@@ -158,10 +180,6 @@ BlockDriverAIOCB *dma_bdrv_io(
     dbs->bh = NULL;
     qemu_iovec_init(&dbs->iov, sg->nsg);
     dma_bdrv_cb(dbs, 0);
-    if (!dbs->acb) {
-        qemu_aio_release(dbs);
-        return NULL;
-    }
     return &dbs->common;
 }
 
