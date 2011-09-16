@@ -5,7 +5,19 @@
 
 #include "config-host.h"
 
+/*----------------------------------------------------------------------------
+| The macro QEMU_GNUC_PREREQ tests for minimum version of the GNU C compiler.
+| The code is a copy of SOFTFLOAT_GNUC_PREREQ, see softfloat-macros.h.
+*----------------------------------------------------------------------------*/
+#if defined(__GNUC__) && defined(__GNUC_MINOR__)
+# define QEMU_GNUC_PREREQ(maj, min) \
+         ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
+#else
+# define QEMU_GNUC_PREREQ(maj, min) 0
+#endif
+
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
+
 #ifdef CONFIG_GCC_ATTRIBUTE_WARN_UNUSED_RESULT
 #define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else
@@ -22,8 +34,7 @@
     typedef char qemu_build_bug_on__##__LINE__[(x)?-1:1];
 
 #if defined __GNUC__
-# if (__GNUC__ < 4) || \
-     defined(__GNUC_MINOR__) && (__GNUC__ == 4) && (__GNUC_MINOR__ < 4)
+# if !QEMU_GNUC_PREREQ(4, 4)
    /* gcc versions before 4.4.x don't support gnu_printf, so use printf. */
 #  define GCC_ATTR __attribute__((__unused__, format(printf, 1, 2)))
 #  define GCC_FMT_ATTR(n, m) __attribute__((format(printf, n, m)))
