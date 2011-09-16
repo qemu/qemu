@@ -1,4 +1,9 @@
-#!/bin/sh
+#!/bin/sh -e
+
+# Copyright (C) 2011 Stefan Weil
+
+# This work is licensed under the terms of the GNU GPL, version 2 or later.
+# See the file COPYING in the top-level directory.
 
 # This script provides a cross pkg-config for QEMU cross compilations.
 # It will use the standard pkg-config with special options for the
@@ -13,10 +18,9 @@
 # /usr/bin/arm-linux-gnueabi-pkg-config
 # /usr/bin/mipsel-linux-gnu-pkg-config
 
-basename=`basename $0`
-prefix=/usr/`echo $basename|sed s/-pkg-config//`
-PKG_CONFIG_LIBDIR=$prefix/lib/pkgconfig
-export PKG_CONFIG_LIBDIR
-exec pkg-config --define-variable=prefix=$prefix $@
+basename=`basename "$0"`
+prefix="/usr/${basename%-pkg-config}"
+export PKG_CONFIG_LIBDIR=$prefix/lib/pkgconfig
+exec pkg-config --define-variable=prefix="$prefix" "$@"
 
 # end
