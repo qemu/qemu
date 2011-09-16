@@ -603,7 +603,7 @@ handle_rw_error:
         break;
     case IDE_DMA_TRIM:
         s->bus->dma->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
-                                         ide_issue_trim, ide_dma_cb, s, 1);
+                                         ide_issue_trim, ide_dma_cb, s, true);
         break;
     }
 

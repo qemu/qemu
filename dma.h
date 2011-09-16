@@ -39,7 +39,7 @@ typedef BlockDriverAIOCB *DMAIOFunc(BlockDriverState *bs, int64_t sector_num,
 BlockDriverAIOCB *dma_bdrv_io(BlockDriverState *bs,
                               QEMUSGList *sg, uint64_t sector_num,
                               DMAIOFunc *io_func, BlockDriverCompletionFunc *cb,
-                              void *opaque, int is_write);
+                              void *opaque, bool to_dev);
 BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
                                 QEMUSGList *sg, uint64_t sector,
                                 BlockDriverCompletionFunc *cb, void *opaque);
