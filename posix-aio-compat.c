@@ -181,7 +181,6 @@ qemu_pwritev(int fd, const struct iovec *iov, int nr_iov, off_t offset)
 
 static ssize_t handle_aiocb_rw_vector(struct qemu_paiocb *aiocb)
 {
-    size_t offset = 0;
     ssize_t len;
 
     do {
@@ -189,12 +188,12 @@ static ssize_t handle_aiocb_rw_vector(struct qemu_paiocb *aiocb)
             len = qemu_pwritev(aiocb->aio_fildes,
                                aiocb->aio_iov,
                                aiocb->aio_niov,
-                               aiocb->aio_offset + offset);
+                               aiocb->aio_offset);
          else
             len = qemu_preadv(aiocb->aio_fildes,
                               aiocb->aio_iov,
                               aiocb->aio_niov,
-                              aiocb->aio_offset + offset);
+                              aiocb->aio_offset);
     } while (len == -1 && errno == EINTR);
 
     if (len == -1)
