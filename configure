@@ -2359,23 +2359,6 @@ if compile_prog "" "" ; then
     need_offsetof=no
 fi
 
-##########################################
-# check if the compiler understands attribute warn_unused_result
-#
-# This could be smarter, but gcc -Werror does not error out even when warning
-# about attribute warn_unused_result
-
-gcc_attribute_warn_unused_result=no
-cat > $TMPC << EOF
-#if defined(__GNUC__) && (__GNUC__ < 4) && defined(__GNUC_MINOR__) && (__GNUC__ < 4)
-#error gcc 3.3 or older
-#endif
-int main(void) { return 0;}
-EOF
-if compile_prog "" ""; then
-    gcc_attribute_warn_unused_result=yes
-fi
-
 # spice probe
 if test "$spice" != "no" ; then
   cat > $TMPC << EOF
@@ -2997,9 +2980,6 @@ if test "$signalfd" = "yes" ; then
 fi
 if test "$need_offsetof" = "yes" ; then
   echo "CONFIG_NEED_OFFSETOF=y" >> $config_host_mak
-fi
-if test "$gcc_attribute_warn_unused_result" = "yes" ; then
-  echo "CONFIG_GCC_ATTRIBUTE_WARN_UNUSED_RESULT=y" >> $config_host_mak
 fi
 if test "$fdatasync" = "yes" ; then
   echo "CONFIG_FDATASYNC=y" >> $config_host_mak

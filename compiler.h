@@ -18,7 +18,7 @@
 
 #define QEMU_NORETURN __attribute__ ((__noreturn__))
 
-#ifdef CONFIG_GCC_ATTRIBUTE_WARN_UNUSED_RESULT
+#if QEMU_GNUC_PREREQ(3, 4)
 #define QEMU_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else
 #define QEMU_WARN_UNUSED_RESULT
