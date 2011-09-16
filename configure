@@ -337,6 +337,9 @@ case "$cpu" in
   sparc|sun4[cdmuv])
     cpu="sparc"
   ;;
+  sh4)
+    cpu="sh4"
+    ;;
   *)
     echo "Unsupported CPU = $cpu"
     exit 1
