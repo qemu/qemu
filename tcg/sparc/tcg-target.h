@@ -23,12 +23,6 @@
  */
 #define TCG_TARGET_SPARC 1
 
-#if defined(__sparc_v9__) && !defined(__sparc_v8plus__)
-#define TCG_TARGET_REG_BITS 64
-#else
-#define TCG_TARGET_REG_BITS 32
-#endif
-
 #define TCG_TARGET_WORDS_BIGENDIAN
 
 #define TCG_TARGET_NB_REGS 32

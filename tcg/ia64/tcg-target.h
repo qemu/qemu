@@ -24,8 +24,6 @@
  */
 #define TCG_TARGET_IA64 1
 
-#define TCG_TARGET_REG_BITS 64
-
 /* We only map the first 64 registers */
 #define TCG_TARGET_NB_REGS 64
 enum {

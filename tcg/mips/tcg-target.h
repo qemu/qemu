@@ -25,7 +25,6 @@
  */
 #define TCG_TARGET_MIPS 1
 
-#define TCG_TARGET_REG_BITS 32
 #ifdef __MIPSEB__
 # define TCG_TARGET_WORDS_BIGENDIAN
 #endif

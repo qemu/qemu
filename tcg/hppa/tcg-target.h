@@ -24,9 +24,7 @@
 
 #define TCG_TARGET_HPPA 1
 
-#if defined(_PA_RISC1_1)
-#define TCG_TARGET_REG_BITS 32
-#else
+#if TCG_TARGET_REG_BITS != 32
 #error unsupported
 #endif
 
