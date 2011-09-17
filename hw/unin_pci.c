@@ -41,6 +41,8 @@ static const int unin_irq_line[] = { 0x1b, 0x1c, 0x1d, 0x1e };
 typedef struct UNINState {
     SysBusDevice busdev;
     PCIHostState host_state;
+    MemoryRegion pci_mmio;
+    MemoryRegion pci_hole;
 } UNINState;
 
 static int pci_unin_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -215,10 +217,16 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     d = FROM_SYSBUS(UNINState, s);
+    memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
+    memory_region_init_alias(&d->pci_hole, "pci-hole", &d->pci_mmio,
+                             0x80000000ULL, 0x70000000ULL);
+    memory_region_add_subregion(address_space_mem, 0x80000000ULL,
+                                &d->pci_hole);
+
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_unin_set_irq, pci_unin_map_irq,
                                          pic,
-                                         address_space_mem,
+                                         &d->pci_mmio,
                                          address_space_io,
                                          PCI_DEVFN(11, 0), 4);
 
@@ -272,10 +280,16 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
     s = sysbus_from_qdev(dev);
     d = FROM_SYSBUS(UNINState, s);
 
+    memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
+    memory_region_init_alias(&d->pci_hole, "pci-hole", &d->pci_mmio,
+                             0x80000000ULL, 0x70000000ULL);
+    memory_region_add_subregion(address_space_mem, 0x80000000ULL,
+                                &d->pci_hole);
+
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_unin_set_irq, pci_unin_map_irq,
                                          pic,
-                                         address_space_mem,
+                                         &d->pci_mmio,
                                          address_space_io,
                                          PCI_DEVFN(11, 0), 4);
 

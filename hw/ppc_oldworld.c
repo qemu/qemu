@@ -207,8 +207,6 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         }
     }
 
-    isa_mem_base = 0x80000000;
-
     /* Register 2 MB of ISA IO space */
     isa_mmio_init(0xfe000000, 0x00200000);
 
