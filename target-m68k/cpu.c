@@ -64,9 +64,14 @@ static void m68k_cpu_reset(CPUState *s)
     tlb_flush(s, 1);
 }
 
-static void m68k_cpu_disas_set_info(CPUState *cpu, disassemble_info *info)
+static void m68k_cpu_disas_set_info(CPUState *s, disassemble_info *info)
 {
+    M68kCPU *cpu = M68K_CPU(s);
+    CPUM68KState *env = &cpu->env;
     info->print_insn = print_insn_m68k;
+    if (m68k_feature(env, M68K_FEATURE_M68000)) {
+        info->mach = bfd_mach_m68040;
+    }
 }
 
 /* CPU models */
