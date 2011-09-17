@@ -1,7 +1,7 @@
 /*
  * Tiny Code Interpreter for QEMU
  *
- * Copyright (c) 2009, 2010 Stefan Weil
+ * Copyright (c) 2009, 2011 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,14 +24,17 @@
 
 /* Marker for missing code. */
 #define TODO() \
-    fprintf(stderr, "TODO %s:%u: %s()\n", __FILE__, __LINE__, __FUNCTION__); \
-    tcg_abort()
+    do { \
+        fprintf(stderr, "TODO %s:%u: %s()\n", \
+                __FILE__, __LINE__, __func__); \
+        tcg_abort(); \
+    } while (0)
 
 /* Trace message to see program flow. */
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
 #define TRACE() \
     loglevel \
-    ? fprintf(stderr, "TCG %s:%u: %s()\n", __FILE__, __LINE__, __FUNCTION__) \
+    ? fprintf(stderr, "TCG %s:%u: %s()\n", __FILE__, __LINE__, __func__) \
     : (void)0
 #else
 #define TRACE() ((void)0)
@@ -58,7 +61,7 @@ CPUState *env;
 #endif
 
 #ifdef NEEDS_TB_PTR
-uint8_t * tci_tb_ptr;
+uint8_t *tci_tb_ptr;
 #endif
 
 static tcg_target_ulong tci_reg[TCG_TARGET_NB_REGS];
@@ -152,7 +155,8 @@ static void tci_write_reg32(TCGRegister index, uint32_t value)
 }
 
 #if TCG_TARGET_REG_BITS == 32
-static void tci_write_reg64(uint32_t high_index, uint32_t low_index, uint64_t value)
+static void tci_write_reg64(uint32_t high_index, uint32_t low_index,
+                            uint64_t value)
 {
     tci_write_reg(low_index, value);
     tci_write_reg(high_index, value >> 32);
@@ -349,38 +353,38 @@ static bool tci_compare32(uint32_t u0, uint32_t u1, TCGCond condition)
     int32_t i0 = u0;
     int32_t i1 = u1;
     switch (condition) {
-        case TCG_COND_EQ:
-            result = (u0 == u1);
-            break;
-        case TCG_COND_NE:
-            result = (u0 != u1);
-            break;
-        case TCG_COND_LT:
-            result = (i0 < i1);
-            break;
-        case TCG_COND_GE:
-            result = (i0 >= i1);
-            break;
-        case TCG_COND_LE:
-            result = (i0 <= i1);
-            break;
-        case TCG_COND_GT:
-            result = (i0 > i1);
-            break;
-        case TCG_COND_LTU:
-            result = (u0 < u1);
-            break;
-        case TCG_COND_GEU:
-            result = (u0 >= u1);
-            break;
-        case TCG_COND_LEU:
-            result = (u0 <= u1);
-            break;
-        case TCG_COND_GTU:
-            result = (u0 > u1);
-            break;
-        default:
-            TODO();
+    case TCG_COND_EQ:
+        result = (u0 == u1);
+        break;
+    case TCG_COND_NE:
+        result = (u0 != u1);
+        break;
+    case TCG_COND_LT:
+        result = (i0 < i1);
+        break;
+    case TCG_COND_GE:
+        result = (i0 >= i1);
+        break;
+    case TCG_COND_LE:
+        result = (i0 <= i1);
+        break;
+    case TCG_COND_GT:
+        result = (i0 > i1);
+        break;
+    case TCG_COND_LTU:
+        result = (u0 < u1);
+        break;
+    case TCG_COND_GEU:
+        result = (u0 >= u1);
+        break;
+    case TCG_COND_LEU:
+        result = (u0 <= u1);
+        break;
+    case TCG_COND_GTU:
+        result = (u0 > u1);
+        break;
+    default:
+        TODO();
     }
     return result;
 }
@@ -391,38 +395,38 @@ static bool tci_compare64(uint64_t u0, uint64_t u1, TCGCond condition)
     int64_t i0 = u0;
     int64_t i1 = u1;
     switch (condition) {
-        case TCG_COND_EQ:
-            result = (u0 == u1);
-            break;
-        case TCG_COND_NE:
-            result = (u0 != u1);
-            break;
-        case TCG_COND_LT:
-            result = (i0 < i1);
-            break;
-        case TCG_COND_GE:
-            result = (i0 >= i1);
-            break;
-        case TCG_COND_LE:
-            result = (i0 <= i1);
-            break;
-        case TCG_COND_GT:
-            result = (i0 > i1);
-            break;
-        case TCG_COND_LTU:
-            result = (u0 < u1);
-            break;
-        case TCG_COND_GEU:
-            result = (u0 >= u1);
-            break;
-        case TCG_COND_LEU:
-            result = (u0 <= u1);
-            break;
-        case TCG_COND_GTU:
-            result = (u0 > u1);
-            break;
-        default:
-            TODO();
+    case TCG_COND_EQ:
+        result = (u0 == u1);
+        break;
+    case TCG_COND_NE:
+        result = (u0 != u1);
+        break;
+    case TCG_COND_LT:
+        result = (i0 < i1);
+        break;
+    case TCG_COND_GE:
+        result = (i0 >= i1);
+        break;
+    case TCG_COND_LE:
+        result = (i0 <= i1);
+        break;
+    case TCG_COND_GT:
+        result = (i0 > i1);
+        break;
+    case TCG_COND_LTU:
+        result = (u0 < u1);
+        break;
+    case TCG_COND_GEU:
+        result = (u0 >= u1);
+        break;
+    case TCG_COND_LEU:
+        result = (u0 <= u1);
+        break;
+    case TCG_COND_GTU:
+        result = (u0 > u1);
+        break;
+    default:
+        TODO();
     }
     return result;
 }
@@ -1191,6 +1195,6 @@ unsigned long tcg_qemu_tb_exec(CPUState *cpustate, uint8_t *tb_ptr)
         }
         assert(tb_ptr == old_code_ptr + op_size);
     }
-    exit:
+exit:
     return next_tb;
 }

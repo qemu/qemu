@@ -89,8 +89,7 @@ static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
                                  int idx);
 static TCGHelperInfo *tcg_find_helper(TCGContext *s, tcg_target_ulong val);
 
-static const char * const cond_name[] =
-{
+static const char * const cond_name[] = {
     [TCG_COND_EQ] = "eq",
     [TCG_COND_NE] = "ne",
     [TCG_COND_LT] = "lt",
@@ -1227,13 +1226,13 @@ static void tcg_liveness_analysis(TCGContext *s)
     const TCGOpDef *def;
     uint8_t *dead_temps;
     unsigned int dead_args;
-    
+
     gen_opc_ptr++; /* skip end */
 
     nb_ops = gen_opc_ptr - gen_opc_buf;
 
     s->op_dead_args = tcg_malloc(nb_ops * sizeof(uint16_t));
-    
+
     dead_temps = tcg_malloc(s->nb_temps);
     memset(dead_temps, 1, s->nb_temps);
 

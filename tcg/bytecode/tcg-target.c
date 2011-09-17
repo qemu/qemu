@@ -23,14 +23,17 @@
 
 /* Marker for missing code. */
 #define TODO() \
-    fprintf(stderr, "TODO %s:%u: %s()\n", __FILE__, __LINE__, __FUNCTION__); \
-    tcg_abort()
+    do { \
+        fprintf(stderr, "TODO %s:%u: %s()\n", \
+                __FILE__, __LINE__, __func__); \
+        tcg_abort(); \
+    } while (0)
 
 /* Trace message to see program flow. */
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
 #define TRACE() \
     loglevel \
-    ? fprintf(stderr, "TCG %s:%u: %s()\n", __FILE__, __LINE__, __FUNCTION__) \
+    ? fprintf(stderr, "TCG %s:%u: %s()\n", __FILE__, __LINE__, __func__) \
     : (void)0
 #else
 #define TRACE() ((void)0)
@@ -328,7 +331,6 @@ static const int tcg_target_call_iarg_regs[] = {
 };
 
 static const int tcg_target_call_oarg_regs[] = {
-    // TODO: ppc64 only uses one register. Why do others use two?
     TCG_REG_R0,
 #if TCG_TARGET_REG_BITS == 32
     TCG_REG_R1
@@ -384,9 +386,9 @@ static void flush_icache_range(unsigned long start, unsigned long stop)
 static void patch_reloc(uint8_t *code_ptr, int type,
                         tcg_target_long value, tcg_target_long addend)
 {
-    //~ TRACE();
     /* tcg_out_reloc always uses the same type, addend. */
-    assert(type == sizeof(tcg_target_long) && addend == 0);
+    assert(type == sizeof(tcg_target_long));
+    assert(addend == 0);
     assert(value != 0);
     *(tcg_target_long *)code_ptr = value;
 }
@@ -432,9 +434,8 @@ int print_insn_bytecode(bfd_vma addr, disassemble_info *info)
     int nb_iargs = def->nb_iargs;
     int nb_cargs = def->nb_cargs;
     FILE *f = info->stream;
-    //~ FILE *f = stderr;
-    //~ info->fprintf_func(f, "0x%08" PRIx64 " %3d", addr, info->buffer_length);
-    info->fprintf_func(f, "%s\t%d %d %d", def->name, nb_oargs, nb_iargs, nb_cargs);
+    info->fprintf_func(f, "%s\t%d %d %d",
+                       def->name, nb_oargs, nb_iargs, nb_cargs);
     addr++;
     length += nb_oargs;
     addr += nb_oargs;
@@ -468,8 +469,6 @@ int print_insn_bytecode(bfd_vma addr, disassemble_info *info)
     }
 #endif
     while (nb_cargs) {
-        //~ length += TARGET_LONG_BITS / 8;
-        //~ addr += TARGET_LONG_BITS / 8;
         length += cl;
         addr += cl;
         nb_cargs--;
@@ -529,24 +528,26 @@ static void tcg_disas3(TCGContext *s, TCGOpcode c, const TCGArg *args)
 #if 0 /* TODO: code does not work (crash), need better code for disassembly. */
         /* function name */
         fprintf(outfile, "%s",
-                tcg_get_arg_str_idx(s, buf, sizeof(buf), args[nb_oargs + nb_iargs - 1]));
+                tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                    args[nb_oargs + nb_iargs - 1]));
         /* flags */
         fprintf(outfile, ",$0x%" TCG_PRIlx,
                 args[nb_oargs + nb_iargs]);
         /* nb out args */
         fprintf(outfile, ",$%d", nb_oargs);
-        for(i = 0; i < nb_oargs; i++) {
+        for (i = 0; i < nb_oargs; i++) {
             fprintf(outfile, ",");
             fprintf(outfile, "%s",
                     tcg_get_arg_str_idx(s, buf, sizeof(buf), args[i]));
         }
-        for(i = 0; i < (nb_iargs - 1); i++) {
+        for (i = 0; i < (nb_iargs - 1); i++) {
             fprintf(outfile, ",");
             if (args[nb_oargs + i] == TCG_CALL_DUMMY_ARG) {
                 fprintf(outfile, "<dummy>");
             } else {
                 fprintf(outfile, "%s",
-                        tcg_get_arg_str_idx(s, buf, sizeof(buf), args[nb_oargs + i]));
+                        tcg_get_arg_str_idx(s, buf, sizeof(buf),
+                                            args[nb_oargs + i]));
             }
         }
 #endif
@@ -588,12 +589,12 @@ static void tcg_disas3(TCGContext *s, TCGOpcode c, const TCGArg *args)
         }
 
         k = 0;
-        for(i = 0; i < nb_oargs; i++) {
+        for (i = 0; i < nb_oargs; i++) {
             fprintf(outfile, "%s%s", (k != 0) ? "," : "",
                     tcg_get_arg_str_idx(s, buf, sizeof(buf), args[k]));
             k++;
         }
-        for(i = 0; i < nb_iargs; i++) {
+        for (i = 0; i < nb_iargs; i++) {
             fprintf(outfile, "%s%s", (k != 0) ? "," : "",
                     tcg_get_arg_str_idx(s, buf, sizeof(buf), args[k]));
             k++;
@@ -614,7 +615,7 @@ static void tcg_disas3(TCGContext *s, TCGOpcode c, const TCGArg *args)
         } else {
             i = 0;
         }
-        for(; i < nb_cargs; i++) {
+        for (; i < nb_cargs; i++) {
             arg = args[k];
             fprintf(outfile, "%s$0x%" TCG_PRIlx,  (k != 0) ? "," : "", arg);
             k++;
@@ -670,7 +671,6 @@ static void tcg_out_ri32(TCGContext *s, int const_arg, TCGArg arg)
 {
     if (const_arg) {
         assert(const_arg == 1);
-        //~ assert(arg == (uint32_t)arg);
         tcg_out8(s, TCG_CONST);
         tcg_out32(s, arg);
     } else {
@@ -815,7 +815,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_setcond2_i32:
-//~ * setcond2_i32 cond, t0, t1_low, t1_high, t2_low, t2_high
+        /* setcond2_i32 cond, t0, t1_low, t1_high, t2_low, t2_high */
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         tcg_out_r(s, args[2]);
@@ -936,7 +936,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_shr_i64:
     case INDEX_op_sar_i64:
 #if TCG_TARGET_HAS_rot_i64
-    // TODO: TCI implementation for rotl_i64, rotr_i64 missing.
+    /* TODO: TCI implementation for rotl_i64, rotr_i64 missing. */
     case INDEX_op_rotl_i64:
     case INDEX_op_rotr_i64:
 #endif
@@ -1187,7 +1187,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         TODO();
         break;
     default:
-        //~ tcg_dump_ops(s, stderr);
         fprintf(stderr, "Missing: %s\n", tcg_op_defs[opc].name);
         tcg_abort();
     }
@@ -1248,11 +1247,14 @@ static void tcg_target_init(TCGContext *s)
     assert(ARRAY_SIZE(tcg_op_defs) <= UINT8_MAX);
 
     /* Registers available for 32 bit operations. */
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0, BIT(TCG_TARGET_NB_REGS) - 1);
+    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I32], 0,
+                     BIT(TCG_TARGET_NB_REGS) - 1);
     /* Registers available for 64 bit operations. */
-    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0, BIT(TCG_TARGET_NB_REGS) - 1);
+    tcg_regset_set32(tcg_target_available_regs[TCG_TYPE_I64], 0,
+                     BIT(TCG_TARGET_NB_REGS) - 1);
     /* TODO: Which registers should be set here? */
-    tcg_regset_set32(tcg_target_call_clobber_regs, 0, BIT(TCG_TARGET_NB_REGS) - 1);
+    tcg_regset_set32(tcg_target_call_clobber_regs, 0,
+                     BIT(TCG_TARGET_NB_REGS) - 1);
     tcg_regset_clear(s->reserved_regs);
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
     tcg_add_target_add_op_defs(tcg_target_op_defs);

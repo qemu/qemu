@@ -1,7 +1,7 @@
 /*
  * Tiny Code Generator for QEMU
  *
- * Copyright (c) 2009, 2010 Stefan Weil
+ * Copyright (c) 2009, 2011 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -109,9 +109,9 @@
 
 /* Number of registers available.
    For 32 bit hosts, we need more than 8 registers (call arguments). */
-//~ #define TCG_TARGET_NB_REGS 8
+/* #define TCG_TARGET_NB_REGS 8 */
 #define TCG_TARGET_NB_REGS 16
-//~ #define TCG_TARGET_NB_REGS 32
+/* #define TCG_TARGET_NB_REGS 32 */
 
 /* List of registers which are used by TCG. */
 typedef enum {
@@ -152,7 +152,7 @@ typedef enum {
     TCG_REG_R31,
 #endif
 #endif
-    // Special value UINT8_MAX is used by TCI to encode constant values.
+    /* Special value UINT8_MAX is used by TCI to encode constant values. */
     TCG_CONST = UINT8_MAX
 } TCGRegister;
 
