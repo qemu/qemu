@@ -639,7 +639,7 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
         break;
 
     case 0x018:	/* GPMC_IRQSTATUS */
-        s->irqen &= ~value;
+        s->irqst &= ~value;
         omap_gpmc_int_update(s);
         break;
 
