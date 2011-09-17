@@ -22,6 +22,16 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+
+/* Target word size (must be identical to pointer size). */
+#if UINTPTR_MAX == UINT32_MAX
+# define TCG_TARGET_REG_BITS 32
+#elif UINTPTR_MAX == UINT64_MAX
+# define TCG_TARGET_REG_BITS 64
+#else
+# error Unknown pointer size for tcg target
+#endif
+
 #include "tcg-target.h"
 #include "tcg-runtime.h"
 
