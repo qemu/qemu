@@ -355,6 +355,11 @@ M: Kevin Wolf <kwolf@redhat.com>
 S: Odd Fixes
 F: hw/ide/
 
+OMAP
+M: Peter Maydell <peter.maydell@linaro.org>
+S: Maintained
+F: hw/omap*
+
 PCI
 M: Michael S. Tsirkin <mst@redhat.com>
 S: Supported
