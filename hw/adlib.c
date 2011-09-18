@@ -119,7 +119,6 @@ static IO_WRITE_PROTO (adlib_write)
 {
     AdlibState *s = opaque;
     int a = nport & 3;
-    int status;
 
     s->active = 1;
     AUD_set_active_out (s->voice, 1);
@@ -127,9 +126,9 @@ static IO_WRITE_PROTO (adlib_write)
     adlib_kill_timers (s);
 
 #ifdef HAS_YMF262
-    status = YMF262Write (0, a, val);
+    YMF262Write (0, a, val);
 #else
-    status = OPLWrite (s->opl, a, val);
+    OPLWrite (s->opl, a, val);
 #endif
 }
 
