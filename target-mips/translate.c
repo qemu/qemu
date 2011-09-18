@@ -5933,6 +5933,7 @@ static void gen_cp0 (CPUMIPSState *env, DisasContext *ctx, uint32_t opc, int rt,
 {
     const char *opn = "ldst";
 
+    check_cp0_enabled(ctx);
     switch (opc) {
     case OPC_MFC0:
         if (rt == 0) {
@@ -10121,6 +10122,7 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
 #ifndef CONFIG_USER_ONLY
     case MFC0:
     case MFC0 + 32:
+        check_cp0_enabled(ctx);
         if (rt == 0) {
             /* Treat as NOP. */
             break;
@@ -10129,6 +10131,7 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
         break;
     case MTC0:
     case MTC0 + 32:
+        check_cp0_enabled(ctx);
         {
             TCGv t0 = tcg_temp_new();
 
@@ -10225,10 +10228,12 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
     case 0x05:
         switch (minor) {
         case RDPGPR:
+            check_cp0_enabled(ctx);
             check_insn(env, ctx, ISA_MIPS32R2);
             gen_load_srsgpr(rt, rs);
             break;
         case WRPGPR:
+            check_cp0_enabled(ctx);
             check_insn(env, ctx, ISA_MIPS32R2);
             gen_store_srsgpr(rt, rs);
             break;
@@ -10269,6 +10274,7 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
     case 0x1d:
         switch (minor) {
         case DI:
+            check_cp0_enabled(ctx);
             {
                 TCGv t0 = tcg_temp_new();
 
@@ -10281,6 +10287,7 @@ static void gen_pool32axf (CPUMIPSState *env, DisasContext *ctx, int rt, int rs,
             }
             break;
         case EI:
+            check_cp0_enabled(ctx);
             {
                 TCGv t0 = tcg_temp_new();
 
@@ -10761,6 +10768,7 @@ static void decode_micromips32_opc (CPUMIPSState *env, DisasContext *ctx,
         minor = (ctx->opcode >> 12) & 0xf;
         switch (minor) {
         case CACHE:
+            check_cp0_enabled(ctx);
             /* Treat as no-op. */
             break;
         case LWC2:
@@ -12211,6 +12219,7 @@ static void decode_opc (CPUMIPSState *env, DisasContext *ctx, int *is_branch)
          gen_st_cond(ctx, op, rt, rs, imm);
          break;
     case OPC_CACHE:
+        check_cp0_enabled(ctx);
         check_insn(env, ctx, ISA_MIPS3 | ISA_MIPS32);
         /* Treat as NOP. */
         break;
