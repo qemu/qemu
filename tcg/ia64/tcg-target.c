@@ -1452,12 +1452,25 @@ static inline void tcg_out_qemu_tlb(TCGContext *s, TCGArg addr_reg,
                                TCG_REG_P7, TCG_REG_R3, TCG_REG_R57));
 }
 
+#ifdef CONFIG_TCG_PASS_AREG0
+/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
+   int mmu_idx) */
+static const void * const qemu_ld_helpers[4] = {
+    helper_ldb_mmu,
+    helper_ldw_mmu,
+    helper_ldl_mmu,
+    helper_ldq_mmu,
+};
+#else
+/* legacy helper signature: __ld_mmu(target_ulong addr, int
+   mmu_idx) */
 static void *qemu_ld_helpers[4] = {
     __ldb_mmu,
     __ldw_mmu,
     __ldl_mmu,
     __ldq_mmu,
 };
+#endif
 
 static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 {
@@ -1517,6 +1530,15 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
                        tcg_opc_m1 (TCG_REG_P7, OPC_LD8_M1, TCG_REG_R1, TCG_REG_R2),
                        tcg_opc_i18(TCG_REG_P0, OPC_NOP_I18, 0));
     }
+#ifdef CONFIG_TCG_PASS_AREG0
+    /* XXX/FIXME: suboptimal */
+    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
+                tcg_target_call_iarg_regs[1]);
+    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                tcg_target_call_iarg_regs[0]);
+    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                TCG_AREG0);
+#endif
     if (!bswap || s_bits == 0) {
         tcg_out_bundle(s, miB,
                        tcg_opc_m48(TCG_REG_P0, OPC_NOP_M48, 0),
@@ -1547,12 +1569,25 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     }
 }
 
+#ifdef CONFIG_TCG_PASS_AREG0
+/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
+   uintxx_t val, int mmu_idx) */
+static const void * const qemu_st_helpers[4] = {
+    helper_stb_mmu,
+    helper_stw_mmu,
+    helper_stl_mmu,
+    helper_stq_mmu,
+};
+#else
+/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
+   int mmu_idx) */
 static void *qemu_st_helpers[4] = {
     __stb_mmu,
     __stw_mmu,
     __stl_mmu,
     __stq_mmu,
 };
+#endif
 
 static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 {
@@ -1622,6 +1657,17 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         data_reg = TCG_REG_R2;
     }
 
+#ifdef CONFIG_TCG_PASS_AREG0
+    /* XXX/FIXME: suboptimal */
+    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
+                tcg_target_call_iarg_regs[2]);
+    tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
+                tcg_target_call_iarg_regs[1]);
+    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                tcg_target_call_iarg_regs[0]);
+    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                TCG_AREG0);
+#endif
     tcg_out_bundle(s, miB,
                    tcg_opc_m4 (TCG_REG_P6, opc_st_m4[opc],
                                data_reg, TCG_REG_R3),

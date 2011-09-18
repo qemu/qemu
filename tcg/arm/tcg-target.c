@@ -929,6 +929,27 @@ static inline void tcg_out_goto_label(TCGContext *s, int cond, int label_index)
 
 #include "../../softmmu_defs.h"
 
+#ifdef CONFIG_TCG_PASS_AREG0
+/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
+   int mmu_idx) */
+static const void * const qemu_ld_helpers[4] = {
+    helper_ldb_mmu,
+    helper_ldw_mmu,
+    helper_ldl_mmu,
+    helper_ldq_mmu,
+};
+
+/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
+   uintxx_t val, int mmu_idx) */
+static const void * const qemu_st_helpers[4] = {
+    helper_stb_mmu,
+    helper_stw_mmu,
+    helper_stl_mmu,
+    helper_stq_mmu,
+};
+#else
+/* legacy helper signature: __ld_mmu(target_ulong addr, int
+   mmu_idx) */
 static void *qemu_ld_helpers[4] = {
     __ldb_mmu,
     __ldw_mmu,
@@ -936,12 +957,15 @@ static void *qemu_ld_helpers[4] = {
     __ldq_mmu,
 };
 
+/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
+   int mmu_idx) */
 static void *qemu_st_helpers[4] = {
     __stb_mmu,
     __stw_mmu,
     __stl_mmu,
     __stq_mmu,
 };
+#endif
 #endif
 
 #define TLB_SHIFT	(CPU_TLB_ENTRY_BITS + CPU_TLB_BITS)
@@ -1075,6 +1099,19 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
                     TCG_REG_R1, 0, addr_reg2, SHIFT_IMM_LSL(0));
     tcg_out_dat_imm(s, COND_AL, ARITH_MOV, TCG_REG_R2, 0, mem_index);
 # endif
+#ifdef CONFIG_TCG_PASS_AREG0
+    /* XXX/FIXME: suboptimal and incorrect for 64 bit */
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    tcg_target_call_iarg_regs[2], 0,
+                    tcg_target_call_iarg_regs[1], SHIFT_IMM_LSL(0));
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    tcg_target_call_iarg_regs[1], 0,
+                    tcg_target_call_iarg_regs[0], SHIFT_IMM_LSL(0));
+
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    tcg_target_call_iarg_regs[0], 0, TCG_AREG0,
+                    SHIFT_IMM_LSL(0));
+#endif
     tcg_out_call(s, (tcg_target_long) qemu_ld_helpers[s_bits]);
 
     switch (opc) {
@@ -1341,6 +1378,22 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     }
 # endif
 
+#ifdef CONFIG_TCG_PASS_AREG0
+    /* XXX/FIXME: suboptimal and incorrect for 64 bit */
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    tcg_target_call_iarg_regs[3], 0,
+                    tcg_target_call_iarg_regs[2], SHIFT_IMM_LSL(0));
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    tcg_target_call_iarg_regs[2], 0,
+                    tcg_target_call_iarg_regs[1], SHIFT_IMM_LSL(0));
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    tcg_target_call_iarg_regs[1], 0,
+                    tcg_target_call_iarg_regs[0], SHIFT_IMM_LSL(0));
+
+    tcg_out_dat_reg(s, COND_AL, ARITH_MOV,
+                    tcg_target_call_iarg_regs[0], 0, TCG_AREG0,
+                    SHIFT_IMM_LSL(0));
+#endif
     tcg_out_call(s, (tcg_target_long) qemu_st_helpers[s_bits]);
     if (opc == 3)
         tcg_out_dat_imm(s, COND_AL, ARITH_ADD, TCG_REG_R13, TCG_REG_R13, 0x10);

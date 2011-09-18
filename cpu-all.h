@@ -259,12 +259,21 @@ extern unsigned long reserved_va;
 #define stfl(p, v) stfl_raw(p, v)
 #define stfq(p, v) stfq_raw(p, v)
 
+#ifndef CONFIG_TCG_PASS_AREG0
 #define ldub_code(p) ldub_raw(p)
 #define ldsb_code(p) ldsb_raw(p)
 #define lduw_code(p) lduw_raw(p)
 #define ldsw_code(p) ldsw_raw(p)
 #define ldl_code(p) ldl_raw(p)
 #define ldq_code(p) ldq_raw(p)
+#else
+#define cpu_ldub_code(env1, p) ldub_raw(p)
+#define cpu_ldsb_code(env1, p) ldsb_raw(p)
+#define cpu_lduw_code(env1, p) lduw_raw(p)
+#define cpu_ldsw_code(env1, p) ldsw_raw(p)
+#define cpu_ldl_code(env1, p) ldl_raw(p)
+#define cpu_ldq_code(env1, p) ldq_raw(p)
+#endif
 
 #define ldub_kernel(p) ldub_raw(p)
 #define ldsb_kernel(p) ldsb_raw(p)
