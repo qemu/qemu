@@ -127,7 +127,7 @@ static void pc_init1(MemoryRegion *system_memory,
         pc_memory_init(system_memory,
                        kernel_filename, kernel_cmdline, initrd_filename,
                        below_4g_mem_size, above_4g_mem_size,
-                       rom_memory, &ram_memory);
+                       pci_enabled ? rom_memory : system_memory, &ram_memory);
     }
 
     if (!xen_enabled()) {
