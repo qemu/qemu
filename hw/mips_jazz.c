@@ -181,8 +181,8 @@ static void mips_jazz_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
     /* ISA devices */
-    i8259 = i8259_init(env->irq[4]);
     isa_bus_new(NULL, address_space_io);
+    i8259 = i8259_init(env->irq[4]);
     isa_bus_irqs(i8259);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
