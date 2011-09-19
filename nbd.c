@@ -600,6 +600,37 @@ struct NBDExport {
     QSIMPLEQ_HEAD(, NBDRequest) requests;
 };
 
+struct NBDClient {
+    int refcount;
+    void (*close)(NBDClient *client);
+
+    NBDExport *exp;
+    int sock;
+};
+
+static void nbd_client_get(NBDClient *client)
+{
+    client->refcount++;
+}
+
+static void nbd_client_put(NBDClient *client)
+{
+    if (--client->refcount == 0) {
+        g_free(client);
+    }
+}
+
+static void nbd_client_close(NBDClient *client)
+{
+    qemu_set_fd_handler2(client->sock, NULL, NULL, NULL, NULL);
+    close(client->sock);
+    client->sock = -1;
+    if (client->close) {
+        client->close(client);
+    }
+    nbd_client_put(client);
+}
+
 static NBDRequest *nbd_request_get(NBDExport *exp)
 {
     NBDRequest *req;
@@ -712,9 +743,11 @@ out:
     return rc;
 }
 
-int nbd_trip(NBDExport *exp, int csock)
+static int nbd_trip(NBDClient *client)
 {
+    NBDExport *exp = client->exp;
     NBDRequest *req = nbd_request_get(exp);
+    int csock = client->sock;
     struct nbd_request request;
     struct nbd_reply reply;
     int rc = -1;
@@ -836,7 +869,30 @@ out:
     return rc;
 }
 
-int nbd_negotiate(NBDExport *exp, int csock)
+static void nbd_read(void *opaque)
 {
-    return nbd_send_negotiate(csock, exp->size, exp->nbdflags);
+    NBDClient *client = opaque;
+
+    nbd_client_get(client);
+    if (nbd_trip(client) != 0) {
+        nbd_client_close(client);
+    }
+
+    nbd_client_put(client);
+}
+
+NBDClient *nbd_client_new(NBDExport *exp, int csock,
+                          void (*close)(NBDClient *))
+{
+    NBDClient *client;
+    if (nbd_send_negotiate(csock, exp->size, exp->nbdflags) == -1) {
+        return NULL;
+    }
+    client = g_malloc0(sizeof(NBDClient));
+    client->refcount = 1;
+    client->exp = exp;
+    client->sock = csock;
+    client->close = close;
+    qemu_set_fd_handler2(csock, NULL, nbd_read, NULL, client);
+    return client;
 }

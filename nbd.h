@@ -76,11 +76,12 @@ int nbd_client(int fd);
 int nbd_disconnect(int fd);
 
 typedef struct NBDExport NBDExport;
+typedef struct NBDClient NBDClient;
 
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
                           off_t size, uint32_t nbdflags);
 void nbd_export_close(NBDExport *exp);
-int nbd_negotiate(NBDExport *exp, int csock);
-int nbd_trip(NBDExport *exp, int csock);
+NBDClient *nbd_client_new(NBDExport *exp, int csock,
+                          void (*close)(NBDClient *));
 
 #endif

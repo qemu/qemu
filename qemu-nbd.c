@@ -249,15 +249,10 @@ static int nbd_can_accept(void *opaque)
     return nb_fds < shared;
 }
 
-static void nbd_read(void *opaque)
+static void nbd_client_closed(NBDClient *client)
 {
-    int fd = (uintptr_t) opaque;
-
-    if (nbd_trip(exp, fd) != 0) {
-        qemu_set_fd_handler2(fd, NULL, NULL, NULL, NULL);
-        close(fd);
-        nb_fds--;
-    }
+    nb_fds--;
+    qemu_notify_event();
 }
 
 static void nbd_accept(void *opaque)
@@ -268,8 +263,7 @@ static void nbd_accept(void *opaque)
 
     int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
     nbd_started = true;
-    if (fd != -1 && nbd_negotiate(exp, fd) != -1) {
-        qemu_set_fd_handler2(fd, NULL, nbd_read, NULL, (void *) (intptr_t) fd);
+    if (fd != -1 && nbd_client_new(exp, fd, nbd_client_closed)) {
         nb_fds++;
     }
 }
