@@ -18,6 +18,7 @@
 
 #include "nbd.h"
 #include "block.h"
+#include "block_int.h"
 
 #include <errno.h>
 #include <string.h>
@@ -186,7 +187,7 @@ int unix_socket_outgoing(const char *path)
                   Request (type == 2)
 */
 
-int nbd_negotiate(int csock, off_t size, uint32_t flags)
+static int nbd_send_negotiate(int csock, off_t size, uint32_t flags)
 {
     char buf[8 + 8 + 8 + 128];
 
@@ -583,6 +584,33 @@ static int nbd_send_reply(int csock, struct nbd_reply *reply)
     return 0;
 }
 
+struct NBDExport {
+    BlockDriverState *bs;
+    off_t dev_offset;
+    off_t size;
+    uint8_t *data;
+    uint32_t nbdflags;
+};
+
+NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
+                          off_t size, uint32_t nbdflags)
+{
+    NBDExport *exp = g_malloc0(sizeof(NBDExport));
+    exp->bs = bs;
+    exp->dev_offset = dev_offset;
+    exp->nbdflags = nbdflags;
+    exp->size = size == -1 ? exp->bs->total_sectors * 512 : size;
+    exp->data = qemu_blockalign(exp->bs, NBD_BUFFER_SIZE);
+    return exp;
+}
+
+void nbd_export_close(NBDExport *exp)
+{
+    qemu_vfree(exp->data);
+    bdrv_close(exp->bs);
+    g_free(exp);
+}
+
 static int nbd_do_send_reply(int csock, struct nbd_reply *reply,
                              uint8_t *data, int len)
 {
@@ -652,9 +680,7 @@ out:
     return rc;
 }
 
-int nbd_trip(BlockDriverState *bs, int csock, off_t size,
-             uint64_t dev_offset, uint32_t nbdflags,
-             uint8_t *data)
+int nbd_trip(NBDExport *exp, int csock)
 {
     struct nbd_request request;
     struct nbd_reply reply;
@@ -662,7 +688,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
 
     TRACE("Reading request.");
 
-    ret = nbd_do_receive_request(csock, &request, data);
+    ret = nbd_do_receive_request(csock, &request, exp->data);
     if (ret == -EIO) {
         return -1;
     }
@@ -675,10 +701,11 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
         goto error_reply;
     }
 
-    if ((request.from + request.len) > size) {
+    if ((request.from + request.len) > exp->size) {
             LOG("From: %" PRIu64 ", Len: %u, Size: %" PRIu64
             ", Offset: %" PRIu64 "\n",
-                    request.from, request.len, (uint64_t)size, dev_offset);
+                    request.from, request.len,
+                    (uint64_t)exp->size, exp->dev_offset);
         LOG("requested operation past EOF--bad client?");
         goto invalid_request;
     }
@@ -687,8 +714,8 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
     case NBD_CMD_READ:
         TRACE("Request type is READ");
 
-        ret = bdrv_read(bs, (request.from + dev_offset) / 512,
-                        data, request.len / 512);
+        ret = bdrv_read(exp->bs, (request.from + exp->dev_offset) / 512,
+                        exp->data, request.len / 512);
         if (ret < 0) {
             LOG("reading from file failed");
             reply.error = -ret;
@@ -696,13 +723,13 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
         }
 
         TRACE("Read %u byte(s)", request.len);
-        if (nbd_do_send_reply(csock, &reply, data, request.len) < 0)
+        if (nbd_do_send_reply(csock, &reply, exp->data, request.len) < 0)
             return -1;
         break;
     case NBD_CMD_WRITE:
         TRACE("Request type is WRITE");
 
-        if (nbdflags & NBD_FLAG_READ_ONLY) {
+        if (exp->nbdflags & NBD_FLAG_READ_ONLY) {
             TRACE("Server is read-only, return error");
             reply.error = EROFS;
             goto error_reply;
@@ -710,8 +737,8 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
 
         TRACE("Writing to device");
 
-        ret = bdrv_write(bs, (request.from + dev_offset) / 512,
-                         data, request.len / 512);
+        ret = bdrv_write(exp->bs, (request.from + exp->dev_offset) / 512,
+                         exp->data, request.len / 512);
         if (ret < 0) {
             LOG("writing to file failed");
             reply.error = -ret;
@@ -719,7 +746,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
         }
 
         if (request.type & NBD_CMD_FLAG_FUA) {
-            ret = bdrv_flush(bs);
+            ret = bdrv_flush(exp->bs);
             if (ret < 0) {
                 LOG("flush failed");
                 reply.error = -ret;
@@ -737,7 +764,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
     case NBD_CMD_FLUSH:
         TRACE("Request type is FLUSH");
 
-        ret = bdrv_flush(bs);
+        ret = bdrv_flush(exp->bs);
         if (ret < 0) {
             LOG("flush failed");
             reply.error = -ret;
@@ -748,7 +775,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
         break;
     case NBD_CMD_TRIM:
         TRACE("Request type is TRIM");
-        ret = bdrv_discard(bs, (request.from + dev_offset) / 512,
+        ret = bdrv_discard(exp->bs, (request.from + exp->dev_offset) / 512,
                            request.len / 512);
         if (ret < 0) {
             LOG("discard failed");
@@ -770,4 +797,9 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
     TRACE("Request/Reply complete");
 
     return 0;
+}
+
+int nbd_negotiate(NBDExport *exp, int csock)
+{
+    return nbd_send_negotiate(csock, exp->size, exp->nbdflags);
 }

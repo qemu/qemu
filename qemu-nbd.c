@@ -36,6 +36,7 @@
 #define SOCKET_PATH    "/var/lock/qemu-nbd-%s"
 
 static int sigterm_wfd;
+static NBDExport *exp;
 static int verbose;
 static char *device;
 static char *srcpath;
@@ -280,7 +281,6 @@ int main(int argc, char **argv)
     int partition = -1;
     int ret;
     int shared = 1;
-    uint8_t *data;
     fd_set fds;
     int *sharing_fds;
     int fd;
@@ -489,6 +489,7 @@ int main(int argc, char **argv)
         err(EXIT_FAILURE, "Could not find partition %d", partition);
     }
 
+    exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags);
     sharing_fds = g_malloc((shared + 1) * sizeof(int));
 
     if (sockpath) {
@@ -516,11 +517,6 @@ int main(int argc, char **argv)
     max_fd = sharing_fds[0];
     nb_fds++;
 
-    data = qemu_blockalign(bs, NBD_BUFFER_SIZE);
-    if (data == NULL) {
-        errx(EXIT_FAILURE, "Cannot allocate data buffer");
-    }
-
     do {
         FD_ZERO(&fds);
         FD_SET(sigterm_fd[0], &fds);
@@ -538,8 +534,7 @@ int main(int argc, char **argv)
             ret--;
         for (i = 1; i < nb_fds && ret; i++) {
             if (FD_ISSET(sharing_fds[i], &fds)) {
-                if (nbd_trip(bs, sharing_fds[i], fd_size, dev_offset,
-                             nbdflags, data) != 0) {
+                if (nbd_trip(exp, sharing_fds[i]) != 0) {
                     close(sharing_fds[i]);
                     nb_fds--;
                     sharing_fds[i] = sharing_fds[nb_fds];
@@ -555,7 +550,7 @@ int main(int argc, char **argv)
                                              (struct sockaddr *)&addr,
                                              &addr_len);
                 if (sharing_fds[nb_fds] != -1 &&
-                    nbd_negotiate(sharing_fds[nb_fds], fd_size, nbdflags) != -1) {
+                    nbd_negotiate(exp, sharing_fds[nb_fds]) != -1) {
                         if (sharing_fds[nb_fds] > max_fd)
                             max_fd = sharing_fds[nb_fds];
                         nb_fds++;
@@ -563,9 +558,9 @@ int main(int argc, char **argv)
             }
         }
     } while (persistent || nb_fds > 1);
-    qemu_vfree(data);
 
     close(sharing_fds[0]);
+    nbd_export_close(exp);
     g_free(sharing_fds);
     if (sockpath) {
         unlink(sockpath);

@@ -67,15 +67,20 @@ int tcp_socket_incoming_spec(const char *address_and_port);
 int unix_socket_outgoing(const char *path);
 int unix_socket_incoming(const char *path);
 
-int nbd_negotiate(int csock, off_t size, uint32_t flags);
 int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
                           off_t *size, size_t *blocksize);
 int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize);
 int nbd_send_request(int csock, struct nbd_request *request);
 int nbd_receive_reply(int csock, struct nbd_reply *reply);
-int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
-             uint32_t nbdflags, uint8_t *data);
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
+
+typedef struct NBDExport NBDExport;
+
+NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
+                          off_t size, uint32_t nbdflags);
+void nbd_export_close(NBDExport *exp);
+int nbd_negotiate(NBDExport *exp, int csock);
+int nbd_trip(NBDExport *exp, int csock);
 
 #endif
