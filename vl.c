@@ -3565,7 +3565,6 @@ int main(int argc, char **argv, char **envp)
     os_setup_post();
 
     main_loop();
-    quit_timers();
     net_cleanup();
     res_free();
 

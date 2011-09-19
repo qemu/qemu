@@ -840,6 +840,13 @@ static void alarm_timer_on_change_state_rearm(void *opaque, int running,
         qemu_rearm_alarm_timer((struct qemu_alarm_timer *) opaque);
 }
 
+static void quit_timers(void)
+{
+    struct qemu_alarm_timer *t = alarm_timer;
+    alarm_timer = NULL;
+    t->stop(t);
+}
+
 int init_timer_alarm(void)
 {
     struct qemu_alarm_timer *t = NULL;
@@ -859,6 +866,7 @@ int init_timer_alarm(void)
     }
 
     /* first event is at time 0 */
+    atexit(quit_timers);
     t->pending = 1;
     alarm_timer = t;
     qemu_add_vm_change_state_handler(alarm_timer_on_change_state_rearm, t);
@@ -867,13 +875,6 @@ int init_timer_alarm(void)
 
 fail:
     return err;
-}
-
-void quit_timers(void)
-{
-    struct qemu_alarm_timer *t = alarm_timer;
-    alarm_timer = NULL;
-    t->stop(t);
 }
 
 int qemu_calculate_timeout(void)
