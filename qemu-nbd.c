@@ -248,7 +248,6 @@ int main(int argc, char **argv)
 {
     BlockDriverState *bs;
     off_t dev_offset = 0;
-    off_t offset = 0;
     uint32_t nbdflags = 0;
     bool disconnect = false;
     const char *bindto = "0.0.0.0";
@@ -542,7 +541,7 @@ int main(int argc, char **argv)
         for (i = 1; i < nb_fds && ret; i++) {
             if (FD_ISSET(sharing_fds[i], &fds)) {
                 if (nbd_trip(bs, sharing_fds[i], fd_size, dev_offset,
-                    &offset, nbdflags, data, NBD_BUFFER_SIZE) != 0) {
+                    nbdflags, data, NBD_BUFFER_SIZE) != 0) {
                     close(sharing_fds[i]);
                     nb_fds--;
                     sharing_fds[i] = sharing_fds[nb_fds];

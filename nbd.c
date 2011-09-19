@@ -583,8 +583,9 @@ static int nbd_send_reply(int csock, struct nbd_reply *reply)
     return 0;
 }
 
-int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
-             off_t *offset, uint32_t nbdflags, uint8_t *data, int data_size)
+int nbd_trip(BlockDriverState *bs, int csock, off_t size,
+             uint64_t dev_offset, uint32_t nbdflags,
+             uint8_t *data, int data_size)
 {
     struct nbd_request request;
     struct nbd_reply reply;
@@ -635,7 +636,6 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
             reply.error = -ret;
             request.len = 0;
         }
-        *offset += request.len;
 
         TRACE("Read %u byte(s)", request.len);
 
@@ -683,8 +683,6 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
                 reply.error = -ret;
                 request.len = 0;
             }
-
-            *offset += request.len;
 
             if (request.type & NBD_CMD_FLAG_FUA) {
                 ret = bdrv_flush(bs);

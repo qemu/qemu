@@ -72,7 +72,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize);
 int nbd_send_request(int csock, struct nbd_request *request);
 int nbd_receive_reply(int csock, struct nbd_reply *reply);
 int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
-             off_t *offset, uint32_t nbdflags, uint8_t *data, int data_size);
+             uint32_t nbdflags, uint8_t *data, int data_size);
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
 
