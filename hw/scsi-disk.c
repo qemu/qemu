@@ -231,6 +231,9 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
         bdrv_iostatus_set_err(s->bs, error);
     } else {
         switch (error) {
+        case ENOMEDIUM:
+            scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
+            break;
         case ENOMEM:
             scsi_check_condition(r, SENSE_CODE(TARGET_FAILURE));
             break;
