@@ -624,18 +624,19 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
     if (nbd_receive_request(csock, &request) == -1)
         return -1;
 
+    reply.handle = request.handle;
+    reply.error = 0;
+
     if (request.len > NBD_BUFFER_SIZE) {
         LOG("len (%u) is larger than max len (%u)",
             request.len, NBD_BUFFER_SIZE);
-        errno = EINVAL;
-        return -1;
+        goto invalid_request;
     }
 
     if ((request.from + request.len) < request.from) {
         LOG("integer overflow detected! "
             "you're probably being attacked");
-        errno = EINVAL;
-        return -1;
+        goto invalid_request;
     }
 
     if ((request.from + request.len) > size) {
@@ -643,14 +644,10 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
             ", Offset: %" PRIu64 "\n",
                     request.from, request.len, (uint64_t)size, dev_offset);
         LOG("requested operation past EOF--bad client?");
-        errno = EINVAL;
-        return -1;
+        goto invalid_request;
     }
 
     TRACE("Decoding type");
-
-    reply.handle = request.handle;
-    reply.error = 0;
 
     switch (request.type & NBD_CMD_MASK_COMMAND) {
     case NBD_CMD_READ:
@@ -661,7 +658,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
         if (ret < 0) {
             LOG("reading from file failed");
             reply.error = -ret;
-            request.len = 0;
+            goto error_reply;
         }
 
         TRACE("Read %u byte(s)", request.len);
@@ -681,24 +678,26 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
 
         if (nbdflags & NBD_FLAG_READ_ONLY) {
             TRACE("Server is read-only, return error");
-            reply.error = 1;
-        } else {
-            TRACE("Writing to device");
+            reply.error = EROFS;
+            goto error_reply;
+        }
 
-            ret = bdrv_write(bs, (request.from + dev_offset) / 512,
-                             data, request.len / 512);
+        TRACE("Writing to device");
+
+        ret = bdrv_write(bs, (request.from + dev_offset) / 512,
+                         data, request.len / 512);
+        if (ret < 0) {
+            LOG("writing to file failed");
+            reply.error = -ret;
+            goto error_reply;
+        }
+
+        if (request.type & NBD_CMD_FLAG_FUA) {
+            ret = bdrv_flush(bs);
             if (ret < 0) {
-                LOG("writing to file failed");
+                LOG("flush failed");
                 reply.error = -ret;
-                request.len = 0;
-            }
-
-            if (request.type & NBD_CMD_FLAG_FUA) {
-                ret = bdrv_flush(bs);
-                if (ret < 0) {
-                    LOG("flush failed");
-                    reply.error = -ret;
-                }
+                goto error_reply;
             }
         }
 
@@ -734,8 +733,12 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
         break;
     default:
         LOG("invalid request type (%u) received", request.type);
-        errno = EINVAL;
-        return -1;
+    invalid_request:
+        reply.error = -EINVAL;
+    error_reply:
+        if (nbd_do_send_reply(csock, &reply, NULL, 0) == -1)
+            return -1;
+        break;
     }
 
     TRACE("Request/Reply complete");
