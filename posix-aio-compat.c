@@ -42,7 +42,6 @@ struct qemu_paiocb {
     int aio_niov;
     size_t aio_nbytes;
 #define aio_ioctl_cmd   aio_nbytes /* for QEMU_AIO_IOCTL */
-    int ev_signo;
     off_t aio_offset;
 
     QTAILQ_ENTRY(qemu_paiocb) node;
@@ -308,12 +307,10 @@ static ssize_t handle_aiocb_rw(struct qemu_paiocb *aiocb)
     return nbytes;
 }
 
+static void posix_aio_notify_event(void);
+
 static void *aio_thread(void *unused)
 {
-    pid_t pid;
-
-    pid = getpid();
-
     mutex_lock(&lock);
     pending_threads--;
     mutex_unlock(&lock);
@@ -380,7 +377,7 @@ static void *aio_thread(void *unused)
         aiocb->ret = ret;
         mutex_unlock(&lock);
 
-        if (kill(pid, aiocb->ev_signo)) die("kill failed");
+        posix_aio_notify_event();
     }
 
     cur_threads--;
@@ -547,18 +544,14 @@ static int posix_aio_flush(void *opaque)
 
 static PosixAioState *posix_aio_state;
 
-static void aio_signal_handler(int signum)
+static void posix_aio_notify_event(void)
 {
-    if (posix_aio_state) {
-        char byte = 0;
-        ssize_t ret;
+    char byte = 0;
+    ssize_t ret;
 
-        ret = write(posix_aio_state->wfd, &byte, sizeof(byte));
-        if (ret < 0 && errno != EAGAIN)
-            die("write()");
-    }
-
-    qemu_service_io();
+    ret = write(posix_aio_state->wfd, &byte, sizeof(byte));
+    if (ret < 0 && errno != EAGAIN)
+        die("write()");
 }
 
 static void paio_remove(struct qemu_paiocb *acb)
@@ -622,7 +615,6 @@ BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
         return NULL;
     acb->aio_type = type;
     acb->aio_fildes = fd;
-    acb->ev_signo = SIGUSR2;
 
     if (qiov) {
         acb->aio_iov = qiov->iov;
@@ -650,7 +642,6 @@ BlockDriverAIOCB *paio_ioctl(BlockDriverState *bs, int fd,
         return NULL;
     acb->aio_type = QEMU_AIO_IOCTL;
     acb->aio_fildes = fd;
-    acb->ev_signo = SIGUSR2;
     acb->aio_offset = 0;
     acb->aio_ioctl_buf = buf;
     acb->aio_ioctl_cmd = req;
@@ -664,7 +655,6 @@ BlockDriverAIOCB *paio_ioctl(BlockDriverState *bs, int fd,
 
 int paio_init(void)
 {
-    struct sigaction act;
     PosixAioState *s;
     int fds[2];
     int ret;
@@ -673,11 +663,6 @@ int paio_init(void)
         return 0;
 
     s = g_malloc(sizeof(PosixAioState));
-
-    sigfillset(&act.sa_mask);
-    act.sa_flags = 0; /* do not restart syscalls to interrupt select() */
-    act.sa_handler = aio_signal_handler;
-    sigaction(SIGUSR2, &act, NULL);
 
     s->first_aio = NULL;
     if (qemu_pipe(fds) == -1) {
