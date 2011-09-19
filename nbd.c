@@ -583,6 +583,34 @@ static int nbd_send_reply(int csock, struct nbd_reply *reply)
     return 0;
 }
 
+static int nbd_do_send_reply(int csock, struct nbd_reply *reply,
+                             uint8_t *data, int len)
+{
+    int rc, ret;
+
+    if (!len) {
+        rc = nbd_send_reply(csock, reply);
+        if (rc == -1) {
+            rc = -errno;
+        }
+    } else {
+        socket_set_cork(csock, 1);
+        rc = nbd_send_reply(csock, reply);
+        if (rc != -1) {
+            ret = write_sync(csock, data, len);
+            if (ret != len) {
+                errno = EIO;
+                rc = -1;
+            }
+        }
+        if (rc == -1) {
+            rc = -errno;
+        }
+        socket_set_cork(csock, 0);
+    }
+    return rc;
+}
+
 int nbd_trip(BlockDriverState *bs, int csock, off_t size,
              uint64_t dev_offset, uint32_t nbdflags,
              uint8_t *data)
@@ -637,18 +665,8 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
         }
 
         TRACE("Read %u byte(s)", request.len);
-        socket_set_cork(csock, 1);
-        if (nbd_send_reply(csock, &reply) == -1)
+        if (nbd_do_send_reply(csock, &reply, data, request.len) < 0)
             return -1;
-
-        TRACE("Sending data to client");
-
-        if (write_sync(csock, data, request.len) != request.len) {
-            LOG("writing to socket failed");
-            errno = EINVAL;
-            return -1;
-        }
-        socket_set_cork(csock, 0);
         break;
     case NBD_CMD_WRITE:
         TRACE("Request type is WRITE");
@@ -684,7 +702,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
             }
         }
 
-        if (nbd_send_reply(csock, &reply) == -1)
+        if (nbd_do_send_reply(csock, &reply, NULL, 0) < 0)
             return -1;
         break;
     case NBD_CMD_DISC:
@@ -700,7 +718,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
             reply.error = -ret;
         }
 
-        if (nbd_send_reply(csock, &reply) == -1)
+        if (nbd_do_send_reply(csock, &reply, NULL, 0) < 0)
             return -1;
         break;
     case NBD_CMD_TRIM:
@@ -711,7 +729,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
             LOG("discard failed");
             reply.error = -ret;
         }
-        if (nbd_send_reply(csock, &reply) == -1)
+        if (nbd_do_send_reply(csock, &reply, NULL, 0) < 0)
             return -1;
         break;
     default:
