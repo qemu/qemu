@@ -36,6 +36,7 @@
 #endif
 
 #include "qemu_socket.h"
+#include "qemu-queue.h"
 
 //#define DEBUG_NBD
 
@@ -584,29 +585,60 @@ static int nbd_send_reply(int csock, struct nbd_reply *reply)
     return 0;
 }
 
+typedef struct NBDRequest NBDRequest;
+
+struct NBDRequest {
+    QSIMPLEQ_ENTRY(NBDRequest) entry;
+    uint8_t *data;
+};
+
 struct NBDExport {
     BlockDriverState *bs;
     off_t dev_offset;
     off_t size;
-    uint8_t *data;
     uint32_t nbdflags;
+    QSIMPLEQ_HEAD(, NBDRequest) requests;
 };
+
+static NBDRequest *nbd_request_get(NBDExport *exp)
+{
+    NBDRequest *req;
+    if (QSIMPLEQ_EMPTY(&exp->requests)) {
+        req = g_malloc0(sizeof(NBDRequest));
+        req->data = qemu_blockalign(exp->bs, NBD_BUFFER_SIZE);
+    } else {
+        req = QSIMPLEQ_FIRST(&exp->requests);
+        QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
+    }
+    return req;
+}
+
+static void nbd_request_put(NBDExport *exp, NBDRequest *req)
+{
+    QSIMPLEQ_INSERT_HEAD(&exp->requests, req, entry);
+}
 
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
                           off_t size, uint32_t nbdflags)
 {
     NBDExport *exp = g_malloc0(sizeof(NBDExport));
+    QSIMPLEQ_INIT(&exp->requests);
     exp->bs = bs;
     exp->dev_offset = dev_offset;
     exp->nbdflags = nbdflags;
     exp->size = size == -1 ? exp->bs->total_sectors * 512 : size;
-    exp->data = qemu_blockalign(exp->bs, NBD_BUFFER_SIZE);
     return exp;
 }
 
 void nbd_export_close(NBDExport *exp)
 {
-    qemu_vfree(exp->data);
+    while (!QSIMPLEQ_EMPTY(&exp->requests)) {
+        NBDRequest *first = QSIMPLEQ_FIRST(&exp->requests);
+        QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
+        qemu_vfree(first->data);
+        g_free(first);
+    }
+
     bdrv_close(exp->bs);
     g_free(exp);
 }
@@ -682,15 +714,17 @@ out:
 
 int nbd_trip(NBDExport *exp, int csock)
 {
+    NBDRequest *req = nbd_request_get(exp);
     struct nbd_request request;
     struct nbd_reply reply;
+    int rc = -1;
     int ret;
 
     TRACE("Reading request.");
 
-    ret = nbd_do_receive_request(csock, &request, exp->data);
+    ret = nbd_do_receive_request(csock, &request, req->data);
     if (ret == -EIO) {
-        return -1;
+        goto out;
     }
 
     reply.handle = request.handle;
@@ -715,7 +749,7 @@ int nbd_trip(NBDExport *exp, int csock)
         TRACE("Request type is READ");
 
         ret = bdrv_read(exp->bs, (request.from + exp->dev_offset) / 512,
-                        exp->data, request.len / 512);
+                        req->data, request.len / 512);
         if (ret < 0) {
             LOG("reading from file failed");
             reply.error = -ret;
@@ -723,8 +757,8 @@ int nbd_trip(NBDExport *exp, int csock)
         }
 
         TRACE("Read %u byte(s)", request.len);
-        if (nbd_do_send_reply(csock, &reply, exp->data, request.len) < 0)
-            return -1;
+        if (nbd_do_send_reply(csock, &reply, req->data, request.len) < 0)
+            goto out;
         break;
     case NBD_CMD_WRITE:
         TRACE("Request type is WRITE");
@@ -738,7 +772,7 @@ int nbd_trip(NBDExport *exp, int csock)
         TRACE("Writing to device");
 
         ret = bdrv_write(exp->bs, (request.from + exp->dev_offset) / 512,
-                         exp->data, request.len / 512);
+                         req->data, request.len / 512);
         if (ret < 0) {
             LOG("writing to file failed");
             reply.error = -ret;
@@ -755,7 +789,7 @@ int nbd_trip(NBDExport *exp, int csock)
         }
 
         if (nbd_do_send_reply(csock, &reply, NULL, 0) < 0)
-            return -1;
+            goto out;
         break;
     case NBD_CMD_DISC:
         TRACE("Request type is DISCONNECT");
@@ -771,7 +805,7 @@ int nbd_trip(NBDExport *exp, int csock)
         }
 
         if (nbd_do_send_reply(csock, &reply, NULL, 0) < 0)
-            return -1;
+            goto out;
         break;
     case NBD_CMD_TRIM:
         TRACE("Request type is TRIM");
@@ -782,7 +816,7 @@ int nbd_trip(NBDExport *exp, int csock)
             reply.error = -ret;
         }
         if (nbd_do_send_reply(csock, &reply, NULL, 0) < 0)
-            return -1;
+            goto out;
         break;
     default:
         LOG("invalid request type (%u) received", request.type);
@@ -790,13 +824,16 @@ int nbd_trip(NBDExport *exp, int csock)
         reply.error = -EINVAL;
     error_reply:
         if (nbd_do_send_reply(csock, &reply, NULL, 0) == -1)
-            return -1;
+            goto out;
         break;
     }
 
     TRACE("Request/Reply complete");
 
-    return 0;
+    rc = 0;
+out:
+    nbd_request_put(exp, req);
+    return rc;
 }
 
 int nbd_negotiate(NBDExport *exp, int csock)
