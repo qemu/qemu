@@ -596,9 +596,9 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
     if (nbd_receive_request(csock, &request) == -1)
         return -1;
 
-    if (request.len + NBD_REPLY_SIZE > NBD_BUFFER_SIZE) {
+    if (request.len > NBD_BUFFER_SIZE) {
         LOG("len (%u) is larger than max len (%u)",
-            request.len + NBD_REPLY_SIZE, NBD_BUFFER_SIZE);
+            request.len, NBD_BUFFER_SIZE);
         errno = EINVAL;
         return -1;
     }
@@ -629,8 +629,7 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
         TRACE("Request type is READ");
 
         ret = bdrv_read(bs, (request.from + dev_offset) / 512,
-                        data + NBD_REPLY_SIZE,
-                        request.len / 512);
+                        data, request.len / 512);
         if (ret < 0) {
             LOG("reading from file failed");
             reply.error = -ret;
@@ -638,26 +637,18 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
         }
 
         TRACE("Read %u byte(s)", request.len);
-
-        /* Reply
-           [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
-           [ 4 ..  7]    error   (0 == no error)
-           [ 7 .. 15]    handle
-         */
-
-        cpu_to_be32w((uint32_t*)data, NBD_REPLY_MAGIC);
-        cpu_to_be32w((uint32_t*)(data + 4), reply.error);
-        cpu_to_be64w((uint64_t*)(data + 8), reply.handle);
+        socket_set_cork(csock, 1);
+        if (nbd_send_reply(csock, &reply) == -1)
+            return -1;
 
         TRACE("Sending data to client");
 
-        if (write_sync(csock, data,
-                   request.len + NBD_REPLY_SIZE) !=
-                   request.len + NBD_REPLY_SIZE) {
+        if (write_sync(csock, data, request.len) != request.len) {
             LOG("writing to socket failed");
             errno = EINVAL;
             return -1;
         }
+        socket_set_cork(csock, 0);
         break;
     case NBD_CMD_WRITE:
         TRACE("Request type is WRITE");
