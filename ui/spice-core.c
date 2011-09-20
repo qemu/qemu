@@ -19,10 +19,10 @@
 #include <spice-experimental.h>
 
 #include <netdb.h>
-#include <pthread.h>
 
 #include "qemu-common.h"
 #include "qemu-spice.h"
+#include "qemu-thread.h"
 #include "qemu-timer.h"
 #include "qemu-queue.h"
 #include "qemu-x509.h"
@@ -45,7 +45,7 @@ static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 int using_spice = 0;
 
-static pthread_t me;
+static QemuThread me;
 
 struct SpiceTimer {
     QEMUTimer *timer;
@@ -229,7 +229,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
      * thread and grab the iothread lock if so before calling qemu
      * functions.
      */
-    bool need_lock = !pthread_equal(me, pthread_self());
+    bool need_lock = !qemu_thread_is_self(&me);
     if (need_lock) {
         qemu_mutex_lock_iothread();
     }
@@ -556,7 +556,7 @@ void qemu_spice_init(void)
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
 
-    me = pthread_self();
+    qemu_thread_get_self(&me);
 
    if (!opts) {
         return;
