@@ -29,8 +29,6 @@
 #include "hw/spapr.h"
 #include "hw/xics.h"
 
-#include <pthread.h>
-
 /*
  * ICP: Presentation layer
  */
