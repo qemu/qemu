@@ -30,7 +30,7 @@
 
 typedef struct WAVVoiceOut {
     HWVoiceOut hw;
-    QEMUFile *f;
+    FILE *f;
     int64_t old_ticks;
     void *pcm_buf;
     int total_samples;
@@ -76,7 +76,10 @@ static int wav_run_out (HWVoiceOut *hw, int live)
         dst = advance (wav->pcm_buf, rpos << hw->info.shift);
 
         hw->clip (dst, src, convert_samples);
-        qemu_put_buffer (wav->f, dst, convert_samples << hw->info.shift);
+        if (fwrite (dst, convert_samples << hw->info.shift, 1, wav->f) != 1) {
+            dolog ("wav_run_out: fwrite of %d bytes failed\nReaons: %s\n",
+                   convert_samples << hw->info.shift, strerror (errno));
+        }
 
         rpos = (rpos + convert_samples) % hw->samples;
         samples -= convert_samples;
@@ -152,7 +155,7 @@ static int wav_init_out (HWVoiceOut *hw, struct audsettings *as)
     le_store (hdr + 28, hw->info.freq << (bits16 + stereo), 4);
     le_store (hdr + 32, 1 << (bits16 + stereo), 2);
 
-    wav->f = qemu_fopen (conf.wav_path, "wb");
+    wav->f = fopen (conf.wav_path, "wb");
     if (!wav->f) {
         dolog ("Failed to open wave file `%s'\nReason: %s\n",
                conf.wav_path, strerror (errno));
@@ -161,7 +164,11 @@ static int wav_init_out (HWVoiceOut *hw, struct audsettings *as)
         return -1;
     }
 
-    qemu_put_buffer (wav->f, hdr, sizeof (hdr));
+    if (fwrite (hdr, sizeof (hdr), 1, wav->f) != 1) {
+        dolog ("wav_init_out: failed to write header\nReason: %s\n",
+               strerror(errno));
+        return -1;
+    }
     return 0;
 }
 
@@ -180,13 +187,32 @@ static void wav_fini_out (HWVoiceOut *hw)
     le_store (rlen, rifflen, 4);
     le_store (dlen, datalen, 4);
 
-    qemu_fseek (wav->f, 4, SEEK_SET);
-    qemu_put_buffer (wav->f, rlen, 4);
+    if (fseek (wav->f, 4, SEEK_SET)) {
+        dolog ("wav_fini_out: fseek to rlen failed\nReason: %s\n",
+               strerror(errno));
+        goto doclose;
+    }
+    if (fwrite (rlen, 4, 1, wav->f) != 1) {
+        dolog ("wav_fini_out: failed to write rlen\nReason: %s\n",
+               strerror (errno));
+        goto doclose;
+    }
+    if (fseek (wav->f, 32, SEEK_CUR)) {
+        dolog ("wav_fini_out: fseek to dlen failed\nReason: %s\n",
+               strerror (errno));
+        goto doclose;
+    }
+    if (fwrite (dlen, 4, 1, wav->f) != 1) {
+        dolog ("wav_fini_out: failed to write dlen\nReaons: %s\n",
+               strerror (errno));
+        goto doclose;
+    }
 
-    qemu_fseek (wav->f, 32, SEEK_CUR);
-    qemu_put_buffer (wav->f, dlen, 4);
-
-    qemu_fclose (wav->f);
+ doclose:
+    if (fclose (wav->f))  {
+        dolog ("wav_fini_out: fclose %p failed\nReason: %s\n",
+               wav->f, strerror (errno));
+    }
     wav->f = NULL;
 
     g_free (wav->pcm_buf);
