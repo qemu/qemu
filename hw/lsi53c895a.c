@@ -2106,8 +2106,7 @@ static int lsi_scsi_init(PCIDevice *dev)
 
     /* PCI latency timer = 255 */
     pci_conf[PCI_LATENCY_TIMER] = 0xff;
-    /* TODO: RST# value should be 0 */
-    /* Interrupt pin 1 */
+    /* Interrupt pin A */
     pci_conf[PCI_INTERRUPT_PIN] = 0x01;
 
     memory_region_init_io(&s->mmio_io, &lsi_mmio_ops, s, "lsi-mmio", 0x400);
