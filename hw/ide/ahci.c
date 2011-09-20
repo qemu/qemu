@@ -1103,7 +1103,7 @@ static void ahci_irq_set(void *opaque, int n, int level)
 {
 }
 
-static void ahci_dma_restart_cb(void *opaque, int running, int reason)
+static void ahci_dma_restart_cb(void *opaque, int running, RunState state)
 {
 }
 

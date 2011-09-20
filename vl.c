@@ -185,9 +185,7 @@ int mem_prealloc = 0; /* force preallocation of physical target memory */
 #endif
 int nb_nics;
 NICInfo nd_table[MAX_NICS];
-int vm_running;
 int autostart;
-int incoming_expected; /* Started with -incoming and waiting for incoming */
 static int rtc_utc = 1;
 static int rtc_date_offset = -1; /* -1 means no change */
 QEMUClock *rtc_clock;
@@ -320,6 +318,120 @@ static int default_driver_check(QemuOpts *opts, void *opaque)
         *(default_list[i].flag) = 0;
     }
     return 0;
+}
+
+/***********************************************************/
+/* QEMU state */
+
+static RunState current_run_state = RSTATE_NO_STATE;
+
+typedef struct {
+    RunState from;
+    RunState to;
+} RunStateTransition;
+
+static const RunStateTransition runstate_transitions_def[] = {
+    /*     from      ->     to      */
+    { RSTATE_NO_STATE, RSTATE_RUNNING },
+    { RSTATE_NO_STATE, RSTATE_IN_MIGRATE },
+    { RSTATE_NO_STATE, RSTATE_PRE_LAUNCH },
+
+    { RSTATE_DEBUG, RSTATE_RUNNING },
+
+    { RSTATE_IN_MIGRATE, RSTATE_RUNNING },
+    { RSTATE_IN_MIGRATE, RSTATE_PRE_LAUNCH },
+
+    { RSTATE_PANICKED, RSTATE_PAUSED },
+
+    { RSTATE_IO_ERROR, RSTATE_RUNNING },
+
+    { RSTATE_PAUSED, RSTATE_RUNNING },
+
+    { RSTATE_POST_MIGRATE, RSTATE_RUNNING },
+
+    { RSTATE_PRE_LAUNCH, RSTATE_RUNNING },
+    { RSTATE_PRE_LAUNCH, RSTATE_POST_MIGRATE },
+
+    { RSTATE_PRE_MIGRATE, RSTATE_RUNNING },
+    { RSTATE_PRE_MIGRATE, RSTATE_POST_MIGRATE },
+
+    { RSTATE_RESTORE, RSTATE_RUNNING },
+
+    { RSTATE_RUNNING, RSTATE_DEBUG },
+    { RSTATE_RUNNING, RSTATE_PANICKED },
+    { RSTATE_RUNNING, RSTATE_IO_ERROR },
+    { RSTATE_RUNNING, RSTATE_PAUSED },
+    { RSTATE_RUNNING, RSTATE_PRE_MIGRATE },
+    { RSTATE_RUNNING, RSTATE_RESTORE },
+    { RSTATE_RUNNING, RSTATE_SAVEVM },
+    { RSTATE_RUNNING, RSTATE_SHUTDOWN },
+    { RSTATE_RUNNING, RSTATE_WATCHDOG },
+
+    { RSTATE_SAVEVM, RSTATE_RUNNING },
+
+    { RSTATE_SHUTDOWN, RSTATE_PAUSED },
+
+    { RSTATE_WATCHDOG, RSTATE_RUNNING },
+
+    { RSTATE_MAX, RSTATE_MAX },
+};
+
+static bool runstate_valid_transitions[RSTATE_MAX][RSTATE_MAX];
+
+static const char *const runstate_name_tbl[RSTATE_MAX] = {
+    [RSTATE_DEBUG] = "debug",
+    [RSTATE_IN_MIGRATE] = "incoming-migration",
+    [RSTATE_PANICKED] = "internal-error",
+    [RSTATE_IO_ERROR] = "io-error",
+    [RSTATE_PAUSED] = "paused",
+    [RSTATE_POST_MIGRATE] = "post-migrate",
+    [RSTATE_PRE_LAUNCH] = "prelaunch",
+    [RSTATE_PRE_MIGRATE] = "finish-migrate",
+    [RSTATE_RESTORE] = "restore-vm",
+    [RSTATE_RUNNING] = "running",
+    [RSTATE_SAVEVM] = "save-vm",
+    [RSTATE_SHUTDOWN] = "shutdown",
+    [RSTATE_WATCHDOG] = "watchdog",
+};
+
+bool runstate_check(RunState state)
+{
+    return current_run_state == state;
+}
+
+void runstate_init(void)
+{
+    const RunStateTransition *p;
+
+    memset(&runstate_valid_transitions, 0, sizeof(runstate_valid_transitions));
+
+    for (p = &runstate_transitions_def[0]; p->from != RSTATE_MAX; p++) {
+        runstate_valid_transitions[p->from][p->to] = true;
+    }
+}
+
+/* This function will abort() on invalid state transitions */
+void runstate_set(RunState new_state)
+{
+    if (new_state >= RSTATE_MAX ||
+        !runstate_valid_transitions[current_run_state][new_state]) {
+        fprintf(stderr, "invalid runstate transition\n");
+        abort();
+    }
+
+    current_run_state = new_state;
+}
+
+const char *runstate_as_string(void)
+{
+    assert(current_run_state > RSTATE_NO_STATE &&
+           current_run_state < RSTATE_MAX);
+    return runstate_name_tbl[current_run_state];
+}
+
+int runstate_is_running(void)
+{
+    return runstate_check(RSTATE_RUNNING);
 }
 
 /***********************************************************/
@@ -1145,23 +1257,23 @@ void qemu_del_vm_change_state_handler(VMChangeStateEntry *e)
     g_free (e);
 }
 
-void vm_state_notify(int running, int reason)
+void vm_state_notify(int running, RunState state)
 {
     VMChangeStateEntry *e;
 
-    trace_vm_state_notify(running, reason);
+    trace_vm_state_notify(running, state);
 
     for (e = vm_change_state_head.lh_first; e; e = e->entries.le_next) {
-        e->cb(e->opaque, running, reason);
+        e->cb(e->opaque, running, state);
     }
 }
 
 void vm_start(void)
 {
-    if (!vm_running) {
+    if (!runstate_is_running()) {
         cpu_enable_ticks();
-        vm_running = 1;
-        vm_state_notify(1, 0);
+        runstate_set(RSTATE_RUNNING);
+        vm_state_notify(1, RSTATE_RUNNING);
         resume_all_vcpus();
         monitor_protocol_event(QEVENT_RESUME, NULL);
     }
@@ -1182,7 +1294,7 @@ static int shutdown_requested, shutdown_signal = -1;
 static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
-static int vmstop_requested;
+static RunState vmstop_requested = RSTATE_NO_STATE;
 
 int qemu_shutdown_requested_get(void)
 {
@@ -1238,11 +1350,11 @@ static int qemu_debug_requested(void)
     return r;
 }
 
-static int qemu_vmstop_requested(void)
+static RunState qemu_vmstop_requested(void)
 {
-    int r = vmstop_requested;
-    vmstop_requested = 0;
-    return r;
+    RunState s = vmstop_requested;
+    vmstop_requested = RSTATE_NO_STATE;
+    return s;
 }
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
@@ -1318,9 +1430,9 @@ void qemu_system_debug_request(void)
     qemu_notify_event();
 }
 
-void qemu_system_vmstop_request(int reason)
+void qemu_system_vmstop_request(RunState state)
 {
-    vmstop_requested = reason;
+    vmstop_requested = state;
     qemu_notify_event();
 }
 
@@ -1470,13 +1582,13 @@ static void main_loop(void)
 #endif
 
         if (qemu_debug_requested()) {
-            vm_stop(VMSTOP_DEBUG);
+            vm_stop(RSTATE_DEBUG);
         }
         if (qemu_shutdown_requested()) {
             qemu_kill_report();
             monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
             if (no_shutdown) {
-                vm_stop(VMSTOP_SHUTDOWN);
+                vm_stop(RSTATE_SHUTDOWN);
             } else
                 break;
         }
@@ -1485,6 +1597,10 @@ static void main_loop(void)
             cpu_synchronize_all_states();
             qemu_system_reset(VMRESET_REPORT);
             resume_all_vcpus();
+            if (runstate_check(RSTATE_PANICKED) ||
+                runstate_check(RSTATE_SHUTDOWN)) {
+                runstate_set(RSTATE_PAUSED);
+            }
         }
         if (qemu_powerdown_requested()) {
             monitor_protocol_event(QEVENT_POWERDOWN, NULL);
@@ -2202,6 +2318,8 @@ int main(int argc, char **argv, char **envp)
 
     g_mem_set_vtable(&mem_trace);
     g_thread_init(NULL);
+
+    runstate_init();
 
     init_clocks();
 
@@ -2953,7 +3071,6 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_incoming:
                 incoming = optarg;
-                incoming_expected = true;
                 break;
             case QEMU_OPTION_nodefaults:
                 default_serial = 0;
@@ -3439,6 +3556,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (incoming) {
+        runstate_set(RSTATE_IN_MIGRATE);
         int ret = qemu_start_incoming_migration(incoming);
         if (ret < 0) {
             fprintf(stderr, "Migration failed. Exit code %s(%d), exiting.\n",
@@ -3447,6 +3565,8 @@ int main(int argc, char **argv, char **envp)
         }
     } else if (autostart) {
         vm_start();
+    } else {
+        runstate_set(RSTATE_PRE_LAUNCH);
     }
 
     os_setup_post();

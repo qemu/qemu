@@ -70,10 +70,11 @@ void process_incoming_migration(QEMUFile *f)
     qemu_announce_self();
     DPRINTF("successfully loaded vm state\n");
 
-    incoming_expected = false;
-
-    if (autostart)
+    if (autostart) {
         vm_start();
+    } else {
+        runstate_set(RSTATE_PRE_LAUNCH);
+    }
 }
 
 int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
@@ -371,10 +372,10 @@ void migrate_fd_put_ready(void *opaque)
     DPRINTF("iterate\n");
     if (qemu_savevm_state_iterate(s->mon, s->file) == 1) {
         int state;
-        int old_vm_running = vm_running;
+        int old_vm_running = runstate_is_running();
 
         DPRINTF("done iterating\n");
-        vm_stop(VMSTOP_MIGRATE);
+        vm_stop(RSTATE_PRE_MIGRATE);
 
         if ((qemu_savevm_state_complete(s->mon, s->file)) < 0) {
             if (old_vm_running) {
@@ -389,6 +390,9 @@ void migrate_fd_put_ready(void *opaque)
                 vm_start();
             }
             state = MIG_STATE_ERROR;
+        }
+        if (state == MIG_STATE_COMPLETED) {
+            runstate_set(RSTATE_POST_MIGRATE);
         }
         s->state = state;
         notifier_list_notify(&migration_state_notifiers, NULL);

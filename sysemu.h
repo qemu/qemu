@@ -9,42 +9,56 @@
 #include "notify.h"
 
 /* vl.c */
+
+typedef enum {
+    RSTATE_NO_STATE,
+    RSTATE_DEBUG,          /* qemu is running under gdb */
+    RSTATE_IN_MIGRATE,     /* paused waiting for an incoming migration */
+    RSTATE_PANICKED,       /* paused due to an internal error */
+    RSTATE_IO_ERROR,       /* paused due to an I/O error */
+    RSTATE_PAUSED,         /* paused by the user (ie. the 'stop' command) */
+    RSTATE_POST_MIGRATE,   /* paused following a successful migration */
+    RSTATE_PRE_LAUNCH,     /* qemu was started with -S and haven't started */
+    RSTATE_PRE_MIGRATE,    /* paused preparing to finish migrate */
+    RSTATE_RESTORE,        /* paused restoring the VM state */
+    RSTATE_RUNNING,        /* qemu is running */
+    RSTATE_SAVEVM,         /* paused saving VM state */
+    RSTATE_SHUTDOWN,       /* guest shut down and -no-shutdown is in use */
+    RSTATE_WATCHDOG,       /* watchdog fired and qemu is configured to pause */
+    RSTATE_MAX
+} RunState;
+
 extern const char *bios_name;
 
-extern int vm_running;
 extern const char *qemu_name;
 extern uint8_t qemu_uuid[];
 int qemu_uuid_parse(const char *str, uint8_t *uuid);
 #define UUID_FMT "%02hhx%02hhx%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx-%02hhx%02hhx%02hhx%02hhx%02hhx%02hhx"
 
+void runstate_init(void);
+bool runstate_check(RunState state);
+void runstate_set(RunState new_state);
+int runstate_is_running(void);
+const char *runstate_as_string(void);
 typedef struct vm_change_state_entry VMChangeStateEntry;
-typedef void VMChangeStateHandler(void *opaque, int running, int reason);
+typedef void VMChangeStateHandler(void *opaque, int running, RunState state);
 
 VMChangeStateEntry *qemu_add_vm_change_state_handler(VMChangeStateHandler *cb,
                                                      void *opaque);
 void qemu_del_vm_change_state_handler(VMChangeStateEntry *e);
-
-#define VMSTOP_USER      0
-#define VMSTOP_DEBUG     1
-#define VMSTOP_SHUTDOWN  2
-#define VMSTOP_DISKFULL  3
-#define VMSTOP_WATCHDOG  4
-#define VMSTOP_PANIC     5
-#define VMSTOP_SAVEVM    6
-#define VMSTOP_LOADVM    7
-#define VMSTOP_MIGRATE   8
+void vm_state_notify(int running, RunState state);
 
 #define VMRESET_SILENT   false
 #define VMRESET_REPORT   true
 
 void vm_start(void);
-void vm_stop(int reason);
+void vm_stop(RunState state);
 
 void qemu_system_reset_request(void);
 void qemu_system_shutdown_request(void);
 void qemu_system_powerdown_request(void);
 void qemu_system_debug_request(void);
-void qemu_system_vmstop_request(int reason);
+void qemu_system_vmstop_request(RunState reason);
 int qemu_shutdown_requested_get(void);
 int qemu_reset_requested_get(void);
 int qemu_shutdown_requested(void);

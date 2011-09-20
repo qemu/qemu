@@ -115,16 +115,16 @@ void cpu_synchronize_all_post_init(void)
 
 int cpu_is_stopped(CPUState *env)
 {
-    return !vm_running || env->stopped;
+    return !runstate_is_running() || env->stopped;
 }
 
-static void do_vm_stop(int reason)
+static void do_vm_stop(RunState state)
 {
-    if (vm_running) {
+    if (runstate_is_running()) {
         cpu_disable_ticks();
-        vm_running = 0;
         pause_all_vcpus();
-        vm_state_notify(0, reason);
+        runstate_set(state);
+        vm_state_notify(0, state);
         qemu_aio_flush();
         bdrv_flush_all();
         monitor_protocol_event(QEVENT_STOP, NULL);
@@ -136,7 +136,7 @@ static int cpu_can_run(CPUState *env)
     if (env->stop) {
         return 0;
     }
-    if (env->stopped || !vm_running) {
+    if (env->stopped || !runstate_is_running()) {
         return 0;
     }
     return 1;
@@ -147,7 +147,7 @@ static bool cpu_thread_is_idle(CPUState *env)
     if (env->stop || env->queued_work_first) {
         return false;
     }
-    if (env->stopped || !vm_running) {
+    if (env->stopped || !runstate_is_running()) {
         return true;
     }
     if (!env->halted || qemu_cpu_has_work(env) ||
@@ -878,10 +878,10 @@ void cpu_stop_current(void)
     }
 }
 
-void vm_stop(int reason)
+void vm_stop(RunState state)
 {
     if (!qemu_thread_is_self(&io_thread)) {
-        qemu_system_vmstop_request(reason);
+        qemu_system_vmstop_request(state);
         /*
          * FIXME: should not return to device code in case
          * vm_stop() has been requested.
@@ -889,7 +889,7 @@ void vm_stop(int reason)
         cpu_stop_current();
         return;
     }
-    do_vm_stop(reason);
+    do_vm_stop(state);
 }
 
 static int tcg_cpu_exec(CPUState *env)

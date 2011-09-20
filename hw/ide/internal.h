@@ -9,6 +9,7 @@
 #include <hw/ide.h>
 #include "iorange.h"
 #include "dma.h"
+#include "sysemu.h"
 
 /* debug IDE devices */
 //#define DEBUG_IDE
@@ -387,7 +388,7 @@ typedef void EndTransferFunc(IDEState *);
 typedef void DMAStartFunc(IDEDMA *, IDEState *, BlockDriverCompletionFunc *);
 typedef int DMAFunc(IDEDMA *);
 typedef int DMAIntFunc(IDEDMA *, int);
-typedef void DMARestartFunc(void *, int, int);
+typedef void DMARestartFunc(void *, int, RunState);
 
 struct unreported_events {
     bool eject_request;

@@ -217,7 +217,7 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
         r->status |= SCSI_REQ_STATUS_RETRY | type;
 
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(VMSTOP_DISKFULL);
+        vm_stop(RSTATE_IO_ERROR);
     } else {
         switch (error) {
         case ENOMEM:
@@ -338,7 +338,7 @@ static void scsi_dma_restart_bh(void *opaque)
     }
 }
 
-static void scsi_dma_restart_cb(void *opaque, int running, int reason)
+static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
 {
     SCSIDiskState *s = opaque;
 
