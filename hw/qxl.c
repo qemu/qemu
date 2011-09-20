@@ -18,8 +18,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <pthread.h>
-
 #include "qemu-common.h"
 #include "qemu-timer.h"
 #include "qemu-queue.h"
@@ -1212,10 +1210,6 @@ async_common:
         qxl_update_irq(d);
         break;
     case QXL_IO_NOTIFY_OOM:
-        if (!SPICE_RING_IS_EMPTY(&d->ram->release_ring)) {
-            break;
-        }
-        pthread_yield();
         if (!SPICE_RING_IS_EMPTY(&d->ram->release_ring)) {
             break;
         }
