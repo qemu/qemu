@@ -79,11 +79,11 @@ def generate_visit_list(name, members):
 
 void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, Error **errp)
 {
-    GenericList *i;
+    GenericList *i, **head = (GenericList **)obj;
 
     visit_start_list(m, name, errp);
 
-    for (i = visit_next_list(m, (GenericList **)obj, errp); i; i = visit_next_list(m, &i, errp)) {
+    for (*head = i = visit_next_list(m, head, errp); i; i = visit_next_list(m, &i, errp)) {
         %(name)sList *native_i = (%(name)sList *)i;
         visit_type_%(name)s(m, &native_i->value, NULL, errp);
     }
