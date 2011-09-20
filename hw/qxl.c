@@ -1372,7 +1372,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
     if ((old_pending & le_events) == le_events) {
         return;
     }
-    if (pthread_self() == d->main) {
+    if (qemu_thread_is_self(&d->main)) {
         qxl_update_irq(d);
     } else {
         if (write(d->pipe[1], d, 1) != 1) {
@@ -1391,7 +1391,7 @@ static void init_pipe_signaling(PCIQXLDevice *d)
    fcntl(d->pipe[1], F_SETFL, O_NONBLOCK);
    fcntl(d->pipe[0], F_SETOWN, getpid());
 
-   d->main = pthread_self();
+   qemu_thread_get_self(&d->main);
    qemu_set_fd_handler(d->pipe[0], pipe_read, NULL, d);
 }
 
