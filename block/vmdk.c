@@ -179,11 +179,16 @@ static void vmdk_free_extents(BlockDriverState *bs)
 {
     int i;
     BDRVVmdkState *s = bs->opaque;
+    VmdkExtent *e;
 
     for (i = 0; i < s->num_extents; i++) {
-        g_free(s->extents[i].l1_table);
-        g_free(s->extents[i].l2_cache);
-        g_free(s->extents[i].l1_backup_table);
+        e = &s->extents[i];
+        g_free(e->l1_table);
+        g_free(e->l2_cache);
+        g_free(e->l1_backup_table);
+        if (e->file != bs->file) {
+            bdrv_delete(e->file);
+        }
     }
     g_free(s->extents);
 }
@@ -619,12 +624,13 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
     s->desc_offset = 0;
     ret = vmdk_parse_extents(buf, bs, bs->file->filename);
     if (ret) {
+        vmdk_free_extents(bs);
         return ret;
     }
 
     /* try to open parent images, if exist */
     if (vmdk_parent_open(bs)) {
-        g_free(s->extents);
+        vmdk_free_extents(bs);
         return -EINVAL;
     }
     s->parent_cid = vmdk_read_cid(bs, 1);

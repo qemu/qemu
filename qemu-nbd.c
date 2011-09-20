@@ -185,7 +185,7 @@ int main(int argc, char **argv)
     BlockDriverState *bs;
     off_t dev_offset = 0;
     off_t offset = 0;
-    bool readonly = false;
+    uint32_t nbdflags = 0;
     bool disconnect = false;
     const char *bindto = "0.0.0.0";
     int port = NBD_DEFAULT_PORT;
@@ -230,7 +230,6 @@ int main(int argc, char **argv)
     int nb_fds = 0;
     int max_fd;
     int persistent = 0;
-    uint32_t nbdflags;
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -263,7 +262,7 @@ int main(int argc, char **argv)
             }
             break;
         case 'r':
-            readonly = true;
+            nbdflags |= NBD_FLAG_READ_ONLY;
             flags &= ~BDRV_O_RDWR;
             break;
         case 'P':
@@ -398,13 +397,13 @@ int main(int argc, char **argv)
             }
 
             ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
-					&size, &blocksize);
+                                        &size, &blocksize);
             if (ret == -1) {
                 ret = 1;
                 goto out;
             }
 
-            ret = nbd_init(fd, sock, size, blocksize);
+            ret = nbd_init(fd, sock, nbdflags, size, blocksize);
             if (ret == -1) {
                 ret = 1;
                 goto out;
@@ -463,7 +462,7 @@ int main(int argc, char **argv)
         for (i = 1; i < nb_fds && ret; i++) {
             if (FD_ISSET(sharing_fds[i], &fds)) {
                 if (nbd_trip(bs, sharing_fds[i], fd_size, dev_offset,
-                    &offset, readonly, data, NBD_BUFFER_SIZE) != 0) {
+                    &offset, nbdflags, data, NBD_BUFFER_SIZE) != 0) {
                     close(sharing_fds[i]);
                     nb_fds--;
                     sharing_fds[i] = sharing_fds[nb_fds];
@@ -479,7 +478,7 @@ int main(int argc, char **argv)
                                              (struct sockaddr *)&addr,
                                              &addr_len);
                 if (sharing_fds[nb_fds] != -1 &&
-                    nbd_negotiate(sharing_fds[nb_fds], fd_size) != -1) {
+                    nbd_negotiate(sharing_fds[nb_fds], fd_size, nbdflags) != -1) {
                         if (sharing_fds[nb_fds] > max_fd)
                             max_fd = sharing_fds[nb_fds];
                         nb_fds++;

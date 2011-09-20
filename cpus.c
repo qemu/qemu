@@ -380,11 +380,6 @@ static int qemu_signal_init(void)
     int sigfd;
     sigset_t set;
 
-    /* SIGUSR2 used by posix-aio-compat.c */
-    sigemptyset(&set);
-    sigaddset(&set, SIGUSR2);
-    pthread_sigmask(SIG_UNBLOCK, &set, NULL);
-
     /*
      * SIG_IPI must be blocked in the main thread and must not be caught
      * by sigwait() in the signal thread. Otherwise, the cpu thread will
