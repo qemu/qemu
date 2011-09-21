@@ -4763,6 +4763,7 @@ void dump_exec_info(FILE *f, fprintf_function cpu_fprintf)
 }
 
 #define MMUSUFFIX _cmmu
+#undef GETPC
 #define GETPC() NULL
 #define env cpu_single_env
 #define SOFTMMU_CODE_ACCESS
