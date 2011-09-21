@@ -226,6 +226,36 @@
 { 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
 ##
+# @MouseInfo:
+#
+# Information about a mouse device.
+#
+# @name: the name of the mouse device
+#
+# @index: the index of the mouse device
+#
+# @current: true if this device is currently receiving mouse events
+#
+# @absolute: true if this device supports absolute coordinates as input
+#
+# Since: 0.14.0
+##
+{ 'type': 'MouseInfo',
+  'data': {'name': 'str', 'index': 'int', 'current': 'bool',
+           'absolute': 'bool'} }
+
+##
+# @query-mice:
+#
+# Returns information about each active mouse device
+#
+# Returns: a list of @MouseInfo for each device
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-mice', 'returns': ['MouseInfo'] }
+
+##
 # @quit:
 #
 # This command will cause the QEMU process to exit gracefully.  While every

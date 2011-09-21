@@ -2942,8 +2942,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show which guest mouse is receiving events",
-        .user_print = do_info_mice_print,
-        .mhandler.info_new = do_info_mice,
+        .mhandler.info = hmp_info_mice,
     },
     {
         .name       = "vnc",
@@ -3091,14 +3090,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .help       = "show PCI info",
         .user_print = do_pci_info_print,
         .mhandler.info_new = do_pci_info,
-    },
-    {
-        .name       = "mice",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show which guest mouse is receiving events",
-        .user_print = do_info_mice_print,
-        .mhandler.info_new = do_info_mice,
     },
     {
         .name       = "vnc",

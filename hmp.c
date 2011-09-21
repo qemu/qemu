@@ -94,6 +94,26 @@ void hmp_info_chardev(Monitor *mon)
     qapi_free_ChardevInfoList(char_info);
 }
 
+void hmp_info_mice(Monitor *mon)
+{
+    MouseInfoList *mice_list, *mouse;
+
+    mice_list = qmp_query_mice(NULL);
+    if (!mice_list) {
+        monitor_printf(mon, "No mouse devices connected\n");
+        return;
+    }
+
+    for (mouse = mice_list; mouse; mouse = mouse->next) {
+        monitor_printf(mon, "%c Mouse #%" PRId64 ": %s%s\n",
+                       mouse->value->current ? '*' : ' ',
+                       mouse->value->index, mouse->value->name,
+                       mouse->value->absolute ? " (absolute)" : "");
+    }
+
+    qapi_free_MouseInfoList(mice_list);
+}
+
 void hmp_quit(Monitor *mon, const QDict *qdict)
 {
     monitor_suspend(mon);

@@ -1663,6 +1663,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-mice",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_mice,
+    },
+
 SQMP
 query-vnc
 ---------
