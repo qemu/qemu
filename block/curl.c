@@ -47,7 +47,12 @@ struct BDRVCURLState;
 
 typedef struct CURLAIOCB {
     BlockDriverAIOCB common;
+    QEMUBH *bh;
     QEMUIOVector *qiov;
+
+    int64_t sector_num;
+    int nb_sectors;
+
     size_t start;
     size_t end;
 } CURLAIOCB;
@@ -440,43 +445,42 @@ static AIOPool curl_aio_pool = {
     .cancel             = curl_aio_cancel,
 };
 
-static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
-        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-        BlockDriverCompletionFunc *cb, void *opaque)
+
+static void curl_readv_bh_cb(void *p)
 {
-    BDRVCURLState *s = bs->opaque;
-    CURLAIOCB *acb;
-    size_t start = sector_num * SECTOR_SIZE;
-    size_t end;
     CURLState *state;
 
-    acb = qemu_aio_get(&curl_aio_pool, bs, cb, opaque);
-    if (!acb)
-        return NULL;
+    CURLAIOCB *acb = p;
+    BDRVCURLState *s = acb->common.bs->opaque;
 
-    acb->qiov = qiov;
+    qemu_bh_delete(acb->bh);
+    acb->bh = NULL;
+
+    size_t start = acb->sector_num * SECTOR_SIZE;
+    size_t end;
 
     // In case we have the requested data already (e.g. read-ahead),
     // we can just call the callback and be done.
-
-    switch (curl_find_buf(s, start, nb_sectors * SECTOR_SIZE, acb)) {
+    switch (curl_find_buf(s, start, acb->nb_sectors * SECTOR_SIZE, acb)) {
         case FIND_RET_OK:
             qemu_aio_release(acb);
             // fall through
         case FIND_RET_WAIT:
-            return &acb->common;
+            return;
         default:
             break;
     }
 
     // No cache found, so let's start a new request
-
     state = curl_init_state(s);
-    if (!state)
-        return NULL;
+    if (!state) {
+        acb->common.cb(acb->common.opaque, -EIO);
+        qemu_aio_release(acb);
+        return;
+    }
 
     acb->start = 0;
-    acb->end = (nb_sectors * SECTOR_SIZE);
+    acb->end = (acb->nb_sectors * SECTOR_SIZE);
 
     state->buf_off = 0;
     if (state->orig_buf)
@@ -489,12 +493,38 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
 
     snprintf(state->range, 127, "%zd-%zd", start, end);
     DPRINTF("CURL (AIO): Reading %d at %zd (%s)\n",
-            (nb_sectors * SECTOR_SIZE), start, state->range);
+            (acb->nb_sectors * SECTOR_SIZE), start, state->range);
     curl_easy_setopt(state->curl, CURLOPT_RANGE, state->range);
 
     curl_multi_add_handle(s->multi, state->curl);
     curl_multi_do(s);
 
+}
+
+static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
+        int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    CURLAIOCB *acb;
+
+    acb = qemu_aio_get(&curl_aio_pool, bs, cb, opaque);
+
+    if (!acb) {
+        return NULL;
+    }
+
+    acb->qiov = qiov;
+    acb->sector_num = sector_num;
+    acb->nb_sectors = nb_sectors;
+
+    acb->bh = qemu_bh_new(curl_readv_bh_cb, acb);
+
+    if (!acb->bh) {
+        DPRINTF("CURL: qemu_bh_new failed\n");
+        return NULL;
+    }
+
+    qemu_bh_schedule(acb->bh);
     return &acb->common;
 }
 
