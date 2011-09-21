@@ -2291,7 +2291,7 @@ static int usb_ehci_initfn(PCIDevice *dev)
     pci_set_byte(&pci_conf[PCI_CAPABILITY_LIST], 0x00);
     //pci_set_byte(&pci_conf[PCI_CAPABILITY_LIST], 0x50);
 
-    pci_set_byte(&pci_conf[PCI_INTERRUPT_PIN], 4); // interrupt pin 3
+    pci_set_byte(&pci_conf[PCI_INTERRUPT_PIN], 4); /* interrupt pin D */
     pci_set_byte(&pci_conf[PCI_MIN_GNT], 0);
     pci_set_byte(&pci_conf[PCI_MAX_LAT], 0);
 

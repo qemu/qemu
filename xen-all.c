@@ -736,7 +736,7 @@ static void cpu_handle_ioreq(void *opaque)
          * guest resumes and does a hlt with interrupts disabled which
          * causes Xen to powerdown the domain.
          */
-        if (vm_running) {
+        if (runstate_is_running()) {
             if (qemu_shutdown_requested_get()) {
                 destroy_hvm_domain();
             }
@@ -846,7 +846,8 @@ static void xen_main_loop_prepare(XenIOState *state)
 
 /* Initialise Xen */
 
-static void xen_change_state_handler(void *opaque, int running, int reason)
+static void xen_change_state_handler(void *opaque, int running,
+                                     RunState state)
 {
     if (running) {
         /* record state running */
@@ -854,11 +855,12 @@ static void xen_change_state_handler(void *opaque, int running, int reason)
     }
 }
 
-static void xen_hvm_change_state_handler(void *opaque, int running, int reason)
+static void xen_hvm_change_state_handler(void *opaque, int running,
+                                         RunState rstate)
 {
-    XenIOState *state = opaque;
+    XenIOState *xstate = opaque;
     if (running) {
-        xen_main_loop_prepare(state);
+        xen_main_loop_prepare(xstate);
     }
 }
 

@@ -527,7 +527,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
         s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
         s->bus->error_status = op;
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(VMSTOP_DISKFULL);
+        vm_stop(RSTATE_IO_ERROR);
     } else {
         if (op & BM_STATUS_DMA_RETRY) {
             dma_buf_commit(s, 0);
@@ -603,7 +603,7 @@ handle_rw_error:
         break;
     case IDE_DMA_TRIM:
         s->bus->dma->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
-                                         ide_issue_trim, ide_dma_cb, s, 1);
+                                         ide_issue_trim, ide_dma_cb, s, true);
         break;
     }
 
@@ -1910,7 +1910,7 @@ static int ide_nop_int(IDEDMA *dma, int x)
     return 0;
 }
 
-static void ide_nop_restart(void *opaque, int x, int y)
+static void ide_nop_restart(void *opaque, int x, RunState y)
 {
 }
 

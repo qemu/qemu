@@ -135,14 +135,6 @@ struct VirtIODevice
     VMChangeStateEntry *vmstate;
 };
 
-static inline void virtio_set_status(VirtIODevice *vdev, uint8_t val)
-{
-    if (vdev->set_status) {
-        vdev->set_status(vdev, val);
-    }
-    vdev->status = val;
-}
-
 VirtQueue *virtio_add_queue(VirtIODevice *vdev, int queue_size,
                             void (*handle_output)(VirtIODevice *,
                                                   VirtQueue *));
@@ -190,6 +182,7 @@ int virtio_queue_get_num(VirtIODevice *vdev, int n);
 void virtio_queue_notify(VirtIODevice *vdev, int n);
 uint16_t virtio_queue_vector(VirtIODevice *vdev, int n);
 void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector);
+void virtio_set_status(VirtIODevice *vdev, uint8_t val);
 void virtio_reset(void *opaque);
 void virtio_update_irq(VirtIODevice *vdev);
 

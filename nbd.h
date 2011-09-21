@@ -37,10 +37,22 @@ struct nbd_reply {
     uint64_t handle;
 } QEMU_PACKED;
 
+#define NBD_FLAG_HAS_FLAGS      (1 << 0)        /* Flags are there */
+#define NBD_FLAG_READ_ONLY      (1 << 1)        /* Device is read-only */
+#define NBD_FLAG_SEND_FLUSH     (1 << 2)        /* Send FLUSH */
+#define NBD_FLAG_SEND_FUA       (1 << 3)        /* Send FUA (Force Unit Access) */
+#define NBD_FLAG_ROTATIONAL     (1 << 4)        /* Use elevator algorithm - rotational media */
+#define NBD_FLAG_SEND_TRIM      (1 << 5)        /* Send TRIM (discard) */
+
+#define NBD_CMD_MASK_COMMAND	0x0000ffff
+#define NBD_CMD_FLAG_FUA	(1 << 16)
+
 enum {
     NBD_CMD_READ = 0,
     NBD_CMD_WRITE = 1,
-    NBD_CMD_DISC = 2
+    NBD_CMD_DISC = 2,
+    NBD_CMD_FLUSH = 3,
+    NBD_CMD_TRIM = 4
 };
 
 #define NBD_DEFAULT_PORT	10809
@@ -53,14 +65,14 @@ int tcp_socket_incoming_spec(const char *address_and_port);
 int unix_socket_outgoing(const char *path);
 int unix_socket_incoming(const char *path);
 
-int nbd_negotiate(int csock, off_t size);
+int nbd_negotiate(int csock, off_t size, uint32_t flags);
 int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
                           off_t *size, size_t *blocksize);
-int nbd_init(int fd, int csock, off_t size, size_t blocksize);
+int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize);
 int nbd_send_request(int csock, struct nbd_request *request);
 int nbd_receive_reply(int csock, struct nbd_reply *reply);
 int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
-             off_t *offset, bool readonly, uint8_t *data, int data_size);
+             off_t *offset, uint32_t nbdflags, uint8_t *data, int data_size);
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
 

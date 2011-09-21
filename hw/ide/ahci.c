@@ -499,10 +499,7 @@ static void ahci_reset_port(AHCIState *s, int port)
     ide_bus_reset(&d->port);
     ide_state->ncq_queues = AHCI_MAX_CMDS;
 
-    pr->irq_stat = 0;
-    pr->irq_mask = 0;
     pr->scr_stat = 0;
-    pr->scr_ctl = 0;
     pr->scr_err = 0;
     pr->scr_act = 0;
     d->busy_slot = -1;
@@ -1103,7 +1100,7 @@ static void ahci_irq_set(void *opaque, int n, int level)
 {
 }
 
-static void ahci_dma_restart_cb(void *opaque, int running, int reason)
+static void ahci_dma_restart_cb(void *opaque, int running, RunState state)
 {
 }
 
@@ -1159,12 +1156,17 @@ void ahci_uninit(AHCIState *s)
 void ahci_reset(void *opaque)
 {
     struct AHCIPCIState *d = opaque;
+    AHCIPortRegs *pr;
     int i;
 
     d->ahci.control_regs.irqstatus = 0;
     d->ahci.control_regs.ghc = 0;
 
     for (i = 0; i < d->ahci.ports; i++) {
+        pr = &d->ahci.dev[i].port_regs;
+        pr->irq_stat = 0;
+        pr->irq_mask = 0;
+        pr->scr_ctl = 0;
         ahci_reset_port(&d->ahci, i);
     }
 }

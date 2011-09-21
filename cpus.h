@@ -15,7 +15,6 @@ void cpu_synchronize_all_post_init(void);
 /* vl.c */
 extern int smp_cores;
 extern int smp_threads;
-void vm_state_notify(int running, int reason);
 bool cpu_exec_all(void);
 void set_numa_modes(void);
 void set_cpu_log(const char *optarg);

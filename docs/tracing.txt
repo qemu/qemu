@@ -80,10 +80,7 @@ Trace events should use types as follows:
 
 Format strings should reflect the types defined in the trace event.  Take
 special care to use PRId64 and PRIu64 for int64_t and uint64_t types,
-respectively.  This ensures portability between 32- and 64-bit platforms.  Note
-that format strings must begin and end with double quotes.  When using
-portability macros, ensure they are preceded and followed by double quotes:
-"value %"PRIx64"".
+respectively.  This ensures portability between 32- and 64-bit platforms.
 
 === Hints for adding new trace events ===
 

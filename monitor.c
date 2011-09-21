@@ -1293,7 +1293,7 @@ static void do_singlestep(Monitor *mon, const QDict *qdict)
  */
 static int do_stop(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    vm_stop(VMSTOP_USER);
+    vm_stop(RSTATE_PAUSED);
     return 0;
 }
 
@@ -1311,10 +1311,15 @@ static int do_cont(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     struct bdrv_iterate_context context = { mon, 0 };
 
-    if (incoming_expected) {
+    if (runstate_check(RSTATE_IN_MIGRATE)) {
         qerror_report(QERR_MIGRATION_EXPECTED);
         return -1;
+    } else if (runstate_check(RSTATE_PANICKED) ||
+               runstate_check(RSTATE_SHUTDOWN)) {
+        qerror_report(QERR_RESET_REQUIRED);
+        return -1;
     }
+
     bdrv_iterate(encrypted_bdrv_it, &context);
     /* only resume the vm if all keys are set and valid */
     if (!context.err) {
@@ -2613,6 +2618,7 @@ static int do_inject_nmi(Monitor *mon, const QDict *qdict, QObject **ret_data)
 static void do_info_status_print(Monitor *mon, const QObject *data)
 {
     QDict *qdict;
+    const char *status;
 
     qdict = qobject_to_qdict(data);
 
@@ -2626,13 +2632,17 @@ static void do_info_status_print(Monitor *mon, const QObject *data)
         monitor_printf(mon, "paused");
     }
 
+    status = qdict_get_str(qdict, "status");
+    if (strcmp(status, "paused") && strcmp(status, "running")) {
+        monitor_printf(mon, " (%s)", status);
+    }
+
     monitor_printf(mon, "\n");
 }
 
 static void do_info_status(Monitor *mon, QObject **ret_data)
 {
-    *ret_data = qobject_from_jsonf("{ 'running': %i, 'singlestep': %i }",
-                                    vm_running, singlestep);
+    *ret_data = qobject_from_jsonf("{ 'running': %i, 'singlestep': %i, 'status': %s }", runstate_is_running(), singlestep, runstate_as_string());
 }
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
@@ -2825,10 +2835,10 @@ static int do_closefd(Monitor *mon, const QDict *qdict, QObject **ret_data)
 
 static void do_loadvm(Monitor *mon, const QDict *qdict)
 {
-    int saved_vm_running  = vm_running;
+    int saved_vm_running  = runstate_is_running();
     const char *name = qdict_get_str(qdict, "name");
 
-    vm_stop(VMSTOP_LOADVM);
+    vm_stop(RSTATE_RESTORE);
 
     if (load_vmstate(name) == 0 && saved_vm_running) {
         vm_start();

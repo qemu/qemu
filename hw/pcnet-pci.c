@@ -285,7 +285,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     pci_set_word(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, 0x0);
     pci_set_word(pci_conf + PCI_SUBSYSTEM_ID, 0x0);
 
-    pci_conf[PCI_INTERRUPT_PIN] = 1; // interrupt pin 0
+    pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */
     pci_conf[PCI_MIN_GNT] = 0x06;
     pci_conf[PCI_MAX_LAT] = 0xff;
 

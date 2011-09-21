@@ -15,10 +15,13 @@
 #include "hw/hw.h"
 #include "block.h"
 
-typedef struct {
+typedef struct ScatterGatherEntry ScatterGatherEntry;
+
+#if defined(TARGET_PHYS_ADDR_BITS)
+struct ScatterGatherEntry {
     target_phys_addr_t base;
     target_phys_addr_t len;
-} ScatterGatherEntry;
+};
 
 struct QEMUSGList {
     ScatterGatherEntry *sg;
@@ -31,6 +34,7 @@ void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint);
 void qemu_sglist_add(QEMUSGList *qsg, target_phys_addr_t base,
                      target_phys_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
+#endif
 
 typedef BlockDriverAIOCB *DMAIOFunc(BlockDriverState *bs, int64_t sector_num,
                                  QEMUIOVector *iov, int nb_sectors,
@@ -39,7 +43,7 @@ typedef BlockDriverAIOCB *DMAIOFunc(BlockDriverState *bs, int64_t sector_num,
 BlockDriverAIOCB *dma_bdrv_io(BlockDriverState *bs,
                               QEMUSGList *sg, uint64_t sector_num,
                               DMAIOFunc *io_func, BlockDriverCompletionFunc *cb,
-                              void *opaque, int is_write);
+                              void *opaque, bool to_dev);
 BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
                                 QEMUSGList *sg, uint64_t sector,
                                 BlockDriverCompletionFunc *cb, void *opaque);

@@ -839,7 +839,14 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
 static int raw_flush(BlockDriverState *bs)
 {
     BDRVRawState *s = bs->opaque;
-    return qemu_fdatasync(s->fd);
+    int ret;
+
+    ret = qemu_fdatasync(s->fd);
+    if (ret < 0) {
+        return -errno;
+    }
+
+    return 0;
 }
 
 #ifdef CONFIG_XFS

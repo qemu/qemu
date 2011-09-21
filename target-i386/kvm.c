@@ -335,7 +335,7 @@ static int kvm_inject_mce_oldstyle(CPUState *env)
     return 0;
 }
 
-static void cpu_update_state(void *opaque, int running, int reason)
+static void cpu_update_state(void *opaque, int running, RunState state)
 {
     CPUState *env = opaque;
 
@@ -1133,7 +1133,7 @@ static int kvm_get_msrs(CPUState *env)
 
     if (!env->tsc_valid) {
         msrs[n++].index = MSR_IA32_TSC;
-        env->tsc_valid = !vm_running;
+        env->tsc_valid = !runstate_is_running();
     }
 
 #ifdef TARGET_X86_64
