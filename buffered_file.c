@@ -176,7 +176,7 @@ static int buffered_close(void *opaque)
     while (!s->has_error && s->buffer_size) {
         buffered_flush(s);
         if (s->freeze_output)
-            s->wait_for_unfreeze(s);
+            s->wait_for_unfreeze(s->opaque);
     }
 
     ret = s->close(s->opaque);
