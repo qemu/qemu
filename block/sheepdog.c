@@ -702,22 +702,6 @@ static int aio_flush_request(void *opaque)
     return !QLIST_EMPTY(&s->outstanding_aio_head);
 }
 
-#if !defined(SOL_TCP) || !defined(TCP_CORK)
-
-static int set_cork(int fd, int v)
-{
-    return 0;
-}
-
-#else
-
-static int set_cork(int fd, int v)
-{
-    return setsockopt(fd, SOL_TCP, TCP_CORK, &v, sizeof(v));
-}
-
-#endif
-
 static int set_nodelay(int fd)
 {
     int ret, opt;
@@ -923,7 +907,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
     s->co_send = qemu_coroutine_self();
     qemu_aio_set_fd_handler(s->fd, co_read_response, co_write_request,
                             aio_flush_request, NULL, s);
-    set_cork(s->fd, 1);
+    socket_set_cork(s->fd, 1);
 
     /* send a header */
     ret = qemu_co_send(s->fd, &hdr, sizeof(hdr));
@@ -942,7 +926,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
         }
     }
 
-    set_cork(s->fd, 0);
+    socket_set_cork(s->fd, 0);
     qemu_aio_set_fd_handler(s->fd, co_read_response, NULL,
                             aio_flush_request, NULL, s);
     qemu_co_mutex_unlock(&s->lock);

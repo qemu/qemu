@@ -48,6 +48,15 @@ extern int madvise(caddr_t, size_t, int);
 #include "trace.h"
 #include "qemu_socket.h"
 
+int socket_set_cork(int fd, int v)
+{
+#if defined(SOL_TCP) && defined(TCP_CORK)
+    return setsockopt(fd, SOL_TCP, TCP_CORK, &v, sizeof(v));
+#else
+    return 0;
+#endif
+}
+
 int qemu_madvise(void *addr, size_t len, int advice)
 {
     if (advice == QEMU_MADV_INVALID) {
