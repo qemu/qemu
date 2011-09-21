@@ -1,6 +1,11 @@
 /*
  *  Software MMU support
  *
+ * Generate helpers used by TCG for qemu_ld/st ops and code load
+ * functions.
+ *
+ * Included from target op helpers and exec.c.
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or

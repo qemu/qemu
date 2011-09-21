@@ -1,6 +1,15 @@
 /*
  *  Software MMU support
  *
+ * Generate inline load/store functions for one MMU mode and data
+ * size.
+ *
+ * Generate a store function as well as signed and unsigned loads. For
+ * 32 and 64 bit cases, also generate floating point functions with
+ * the same size.
+ *
+ * Not used directly but included from softmmu_exec.h and exec-all.h.
+ *
  *  Copyright (c) 2003 Fabrice Bellard
  *
  * This library is free software; you can redistribute it and/or
