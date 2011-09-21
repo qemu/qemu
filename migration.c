@@ -323,6 +323,10 @@ ssize_t migrate_fd_put_buffer(void *opaque, const void *data, size_t size)
     FdMigrationState *s = opaque;
     ssize_t ret;
 
+    if (s->state != MIG_STATE_ACTIVE) {
+        return -EIO;
+    }
+
     do {
         ret = s->write(s, data, size);
     } while (ret == -1 && ((s->get_error(s)) == EINTR));
