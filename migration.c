@@ -453,6 +453,10 @@ void migrate_fd_wait_for_unfreeze(void *opaque)
 
         ret = select(s->fd + 1, NULL, &wfds, NULL, NULL);
     } while (ret == -1 && (s->get_error(s)) == EINTR);
+
+    if (ret == -1) {
+        qemu_file_set_error(s->file);
+    }
 }
 
 int migrate_fd_close(void *opaque)
