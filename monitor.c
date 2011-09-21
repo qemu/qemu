@@ -731,39 +731,37 @@ help:
     help_cmd(mon, "info");
 }
 
-static QObject *get_cmd_dict(const char *name)
+static CommandInfoList *alloc_cmd_entry(const char *cmd_name)
 {
-    const char *p;
+    CommandInfoList *info;
 
-    /* Remove '|' from some commands */
-    p = strchr(name, '|');
-    if (p) {
-        p++;
-    } else {
-        p = name;
-    }
+    info = g_malloc0(sizeof(*info));
+    info->value = g_malloc0(sizeof(*info->value));
+    info->value->name = g_strdup(cmd_name);
 
-    return qobject_from_jsonf("{ 'name': %s }", p);
+    return info;
 }
 
-static void do_info_commands(Monitor *mon, QObject **ret_data)
+CommandInfoList *qmp_query_commands(Error **errp)
 {
-    QList *cmd_list;
+    CommandInfoList *info, *cmd_list = NULL;
     const mon_cmd_t *cmd;
 
-    cmd_list = qlist_new();
-
     for (cmd = qmp_cmds; cmd->name != NULL; cmd++) {
-        qlist_append_obj(cmd_list, get_cmd_dict(cmd->name));
+        info = alloc_cmd_entry(cmd->name);
+        info->next = cmd_list;
+        cmd_list = info;
     }
 
     for (cmd = qmp_query_cmds; cmd->name != NULL; cmd++) {
         char buf[128];
         snprintf(buf, sizeof(buf), "query-%s", cmd->name);
-        qlist_append_obj(cmd_list, get_cmd_dict(buf));
+        info = alloc_cmd_entry(buf);
+        info->next = cmd_list;
+        cmd_list = info;
     }
 
-    *ret_data = QOBJECT(cmd_list);
+    return cmd_list;
 }
 
 /* get the current CPU defined by the user */
@@ -3063,14 +3061,6 @@ static const mon_cmd_t qmp_cmds[] = {
 };
 
 static const mon_cmd_t qmp_query_cmds[] = {
-    {
-        .name       = "commands",
-        .args_type  = "",
-        .params     = "",
-        .help       = "list QMP available commands",
-        .user_print = monitor_user_noop,
-        .mhandler.info_new = do_info_commands,
-    },
     {
         .name       = "block",
         .args_type  = "",

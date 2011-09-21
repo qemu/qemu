@@ -202,3 +202,26 @@
 # Since: 0.14.0
 ##
 { 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
+
+##
+# @CommandInfo:
+#
+# Information about a QMP command
+#
+# @name: The command name
+#
+# Since: 0.14.0
+##
+{ 'type': 'CommandInfo', 'data': {'name': 'str'} }
+
+##
+# @query-commands:
+#
+# Return a list of supported QMP commands by this server
+#
+# Returns: A list of @CommandInfo for all supported commands
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
+

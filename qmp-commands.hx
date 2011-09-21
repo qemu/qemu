@@ -1090,6 +1090,12 @@ Note: This example has been shortened as the real response is too long.
 
 EQMP
 
+    {
+        .name       = "query-commands",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_commands,
+    },
+
 SQMP
 query-chardev
 -------------
