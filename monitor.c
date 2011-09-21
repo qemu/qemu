@@ -2674,8 +2674,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the block devices",
-        .user_print = bdrv_info_print,
-        .mhandler.info_new = bdrv_info,
+        .mhandler.info = hmp_info_block,
     },
     {
         .name       = "blockstats",
@@ -2960,14 +2959,6 @@ static const mon_cmd_t qmp_cmds[] = {
 };
 
 static const mon_cmd_t qmp_query_cmds[] = {
-    {
-        .name       = "block",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the block devices",
-        .user_print = bdrv_info_print,
-        .mhandler.info_new = bdrv_info,
-    },
     {
         .name       = "blockstats",
         .args_type  = "",

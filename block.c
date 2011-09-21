@@ -29,6 +29,7 @@
 #include "module.h"
 #include "qemu-objects.h"
 #include "qemu-coroutine.h"
+#include "qmp-commands.h"
 
 #ifdef CONFIG_BSD
 #include <sys/types.h>
@@ -1824,106 +1825,53 @@ void bdrv_mon_event(const BlockDriverState *bdrv,
     qobject_decref(data);
 }
 
-static void bdrv_print_dict(QObject *obj, void *opaque)
+BlockInfoList *qmp_query_block(Error **errp)
 {
-    QDict *bs_dict;
-    Monitor *mon = opaque;
-
-    bs_dict = qobject_to_qdict(obj);
-
-    monitor_printf(mon, "%s: removable=%d",
-                        qdict_get_str(bs_dict, "device"),
-                        qdict_get_bool(bs_dict, "removable"));
-
-    if (qdict_get_bool(bs_dict, "removable")) {
-        monitor_printf(mon, " locked=%d", qdict_get_bool(bs_dict, "locked"));
-        monitor_printf(mon, " tray-open=%d",
-                       qdict_get_bool(bs_dict, "tray-open"));
-    }
-
-    if (qdict_haskey(bs_dict, "io-status")) {
-        monitor_printf(mon, " io-status=%s", qdict_get_str(bs_dict, "io-status"));
-    }
-
-    if (qdict_haskey(bs_dict, "inserted")) {
-        QDict *qdict = qobject_to_qdict(qdict_get(bs_dict, "inserted"));
-
-        monitor_printf(mon, " file=");
-        monitor_print_filename(mon, qdict_get_str(qdict, "file"));
-        if (qdict_haskey(qdict, "backing_file")) {
-            monitor_printf(mon, " backing_file=");
-            monitor_print_filename(mon, qdict_get_str(qdict, "backing_file"));
-        }
-        monitor_printf(mon, " ro=%d drv=%s encrypted=%d",
-                            qdict_get_bool(qdict, "ro"),
-                            qdict_get_str(qdict, "drv"),
-                            qdict_get_bool(qdict, "encrypted"));
-    } else {
-        monitor_printf(mon, " [not inserted]");
-    }
-
-    monitor_printf(mon, "\n");
-}
-
-void bdrv_info_print(Monitor *mon, const QObject *data)
-{
-    qlist_iter(qobject_to_qlist(data), bdrv_print_dict, mon);
-}
-
-static const char *const io_status_name[BLOCK_DEVICE_IO_STATUS_MAX] = {
-    [BLOCK_DEVICE_IO_STATUS_OK] = "ok",
-    [BLOCK_DEVICE_IO_STATUS_FAILED] = "failed",
-    [BLOCK_DEVICE_IO_STATUS_NOSPACE] = "nospace",
-};
-
-void bdrv_info(Monitor *mon, QObject **ret_data)
-{
-    QList *bs_list;
+    BlockInfoList *head = NULL, *cur_item = NULL;
     BlockDriverState *bs;
 
-    bs_list = qlist_new();
-
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        QObject *bs_obj;
-        QDict *bs_dict;
+        BlockInfoList *info = g_malloc0(sizeof(*info));
 
-        bs_obj = qobject_from_jsonf("{ 'device': %s, 'type': 'unknown', "
-                                    "'removable': %i, 'locked': %i }",
-                                    bs->device_name,
-                                    bdrv_dev_has_removable_media(bs),
-                                    bdrv_dev_is_medium_locked(bs));
-        bs_dict = qobject_to_qdict(bs_obj);
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->device = g_strdup(bs->device_name);
+        info->value->type = g_strdup("unknown");
+        info->value->locked = bdrv_dev_is_medium_locked(bs);
+        info->value->removable = bdrv_dev_has_removable_media(bs);
 
         if (bdrv_dev_has_removable_media(bs)) {
-            qdict_put(bs_dict, "tray-open",
-                      qbool_from_int(bdrv_dev_is_tray_open(bs)));
+            info->value->has_tray_open = true;
+            info->value->tray_open = bdrv_dev_is_tray_open(bs);
         }
 
         if (bdrv_iostatus_is_enabled(bs)) {
-            qdict_put(bs_dict, "io-status",
-                      qstring_from_str(io_status_name[bs->iostatus]));
+            info->value->has_io_status = true;
+            info->value->io_status = bs->iostatus;
         }
 
         if (bs->drv) {
-            QObject *obj;
-
-            obj = qobject_from_jsonf("{ 'file': %s, 'ro': %i, 'drv': %s, "
-                                     "'encrypted': %i }",
-                                     bs->filename, bs->read_only,
-                                     bs->drv->format_name,
-                                     bdrv_is_encrypted(bs));
-            if (bs->backing_file[0] != '\0') {
-                QDict *qdict = qobject_to_qdict(obj);
-                qdict_put(qdict, "backing_file",
-                          qstring_from_str(bs->backing_file));
+            info->value->has_inserted = true;
+            info->value->inserted = g_malloc0(sizeof(*info->value->inserted));
+            info->value->inserted->file = g_strdup(bs->filename);
+            info->value->inserted->ro = bs->read_only;
+            info->value->inserted->drv = g_strdup(bs->drv->format_name);
+            info->value->inserted->encrypted = bs->encrypted;
+            if (bs->backing_file[0]) {
+                info->value->inserted->has_backing_file = true;
+                info->value->inserted->backing_file = g_strdup(bs->backing_file);
             }
-
-            qdict_put_obj(bs_dict, "inserted", obj);
         }
-        qlist_append_obj(bs_list, bs_obj);
+
+        /* XXX: waiting for the qapi to support GSList */
+        if (!cur_item) {
+            head = cur_item = info;
+        } else {
+            cur_item->next = info;
+            cur_item = info;
+        }
     }
 
-    *ret_data = QOBJECT(bs_list);
+    return head;
 }
 
 static void bdrv_stats_iter(QObject *data, void *opaque)

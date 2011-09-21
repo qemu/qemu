@@ -184,6 +184,48 @@ void hmp_info_cpus(Monitor *mon)
     qapi_free_CpuInfoList(cpu_list);
 }
 
+void hmp_info_block(Monitor *mon)
+{
+    BlockInfoList *block_list, *info;
+
+    block_list = qmp_query_block(NULL);
+
+    for (info = block_list; info; info = info->next) {
+        monitor_printf(mon, "%s: removable=%d",
+                       info->value->device, info->value->removable);
+
+        if (info->value->removable) {
+            monitor_printf(mon, " locked=%d", info->value->locked);
+            monitor_printf(mon, " tray-open=%d", info->value->tray_open);
+        }
+
+        if (info->value->has_io_status) {
+            monitor_printf(mon, " io-status=%s",
+                           BlockDeviceIoStatus_lookup[info->value->io_status]);
+        }
+
+        if (info->value->has_inserted) {
+            monitor_printf(mon, " file=");
+            monitor_print_filename(mon, info->value->inserted->file);
+
+            if (info->value->inserted->has_backing_file) {
+                monitor_printf(mon, " backing_file=");
+                monitor_print_filename(mon, info->value->inserted->backing_file);
+            }
+            monitor_printf(mon, " ro=%d drv=%s encrypted=%d",
+                           info->value->inserted->ro,
+                           info->value->inserted->drv,
+                           info->value->inserted->encrypted);
+        } else {
+            monitor_printf(mon, " [not inserted]");
+        }
+
+        monitor_printf(mon, "\n");
+    }
+
+    qapi_free_BlockInfoList(block_list);
+}
+
 void hmp_quit(Monitor *mon, const QDict *qdict)
 {
     monitor_suspend(mon);

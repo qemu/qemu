@@ -1198,6 +1198,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-block",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_block,
+    },
+
 SQMP
 query-blockstats
 ----------------
