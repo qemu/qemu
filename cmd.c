@@ -389,7 +389,7 @@ cvtnum(
 	if (sp[1] != '\0')
 		return -1LL;
 
-	c = tolower(*sp);
+	c = qemu_tolower(*sp);
 	switch (c) {
 	default:
 		return i;
