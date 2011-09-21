@@ -27,6 +27,8 @@ clean:
 	rm -Rf .libs
 
 all: vscclient
+# Dummy command so that make thinks it has done something
+	@true
 
 #########################################################################
 # Rules for building libcacard standalone library
