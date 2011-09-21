@@ -97,6 +97,7 @@ static void pc_init1(MemoryRegion *system_memory,
     ISADevice *rtc_state;
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
+    MemoryRegion *rom_memory;
 
     pc_cpus_init(cpu_model);
 
@@ -112,15 +113,21 @@ static void pc_init1(MemoryRegion *system_memory,
         below_4g_mem_size = ram_size;
     }
 
-    pci_memory = g_new(MemoryRegion, 1);
-    memory_region_init(pci_memory, "pci", INT64_MAX);
+    if (pci_enabled) {
+        pci_memory = g_new(MemoryRegion, 1);
+        memory_region_init(pci_memory, "pci", INT64_MAX);
+        rom_memory = pci_memory;
+    } else {
+        pci_memory = NULL;
+        rom_memory = system_memory;
+    }
 
     /* allocate ram and load rom/bios */
     if (!xen_enabled()) {
         pc_memory_init(system_memory,
                        kernel_filename, kernel_cmdline, initrd_filename,
                        below_4g_mem_size, above_4g_mem_size,
-                       pci_memory, &ram_memory);
+                       rom_memory, &ram_memory);
     }
 
     if (!xen_enabled()) {

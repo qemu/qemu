@@ -965,7 +965,7 @@ void pc_memory_init(MemoryRegion *system_memory,
                     const char *initrd_filename,
                     ram_addr_t below_4g_mem_size,
                     ram_addr_t above_4g_mem_size,
-                    MemoryRegion *pci_memory,
+                    MemoryRegion *rom_memory,
                     MemoryRegion **ram_memory)
 {
     char *filename;
@@ -1029,7 +1029,7 @@ void pc_memory_init(MemoryRegion *system_memory,
     isa_bios = g_malloc(sizeof(*isa_bios));
     memory_region_init_alias(isa_bios, "isa-bios", bios,
                              bios_size - isa_bios_size, isa_bios_size);
-    memory_region_add_subregion_overlap(pci_memory,
+    memory_region_add_subregion_overlap(rom_memory,
                                         0x100000 - isa_bios_size,
                                         isa_bios,
                                         1);
@@ -1037,13 +1037,13 @@ void pc_memory_init(MemoryRegion *system_memory,
 
     option_rom_mr = g_malloc(sizeof(*option_rom_mr));
     memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE);
-    memory_region_add_subregion_overlap(pci_memory,
+    memory_region_add_subregion_overlap(rom_memory,
                                         PC_ROM_MIN_VGA,
                                         option_rom_mr,
                                         1);
 
     /* map all the bios at the top of memory */
-    memory_region_add_subregion(pci_memory,
+    memory_region_add_subregion(rom_memory,
                                 (uint32_t)(-bios_size),
                                 bios);
 
