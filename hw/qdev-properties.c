@@ -524,6 +524,8 @@ static int parse_pci_devfn(DeviceState *dev, Property *prop, const char *str)
         return -EINVAL;
     if (fn > 7)
         return -EINVAL;
+    if (slot > 31)
+        return -EINVAL;
     *ptr = slot << 3 | fn;
     return 0;
 }
