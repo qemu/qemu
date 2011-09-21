@@ -455,7 +455,7 @@ void migrate_fd_wait_for_unfreeze(void *opaque)
     } while (ret == -1 && (s->get_error(s)) == EINTR);
 
     if (ret == -1) {
-        qemu_file_set_error(s->file);
+        qemu_file_set_error(s->file, -s->get_error(s));
     }
 }
 

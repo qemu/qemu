@@ -263,7 +263,7 @@ static int mig_save_device_bulk(Monitor *mon, QEMUFile *f,
 
 error:
     monitor_printf(mon, "Error reading sector %" PRId64 "\n", cur_sector);
-    qemu_file_set_error(f);
+    qemu_file_set_error(f, -EIO);
     g_free(blk->buf);
     g_free(blk);
     return 0;
@@ -383,6 +383,7 @@ static int mig_save_device_dirty(Monitor *mon, QEMUFile *f,
     int64_t total_sectors = bmds->total_sectors;
     int64_t sector;
     int nr_sectors;
+    int ret = -EIO;
 
     for (sector = bmds->cur_dirty; sector < bmds->total_sectors;) {
         if (bmds_aio_inflight(bmds, sector)) {
@@ -418,8 +419,8 @@ static int mig_save_device_dirty(Monitor *mon, QEMUFile *f,
                 block_mig_state.submitted++;
                 bmds_set_aio_inflight(bmds, sector, nr_sectors, 1);
             } else {
-                if (bdrv_read(bmds->bs, sector, blk->buf,
-                              nr_sectors) < 0) {
+                ret = bdrv_read(bmds->bs, sector, blk->buf, nr_sectors);
+                if (ret < 0) {
                     goto error;
                 }
                 blk_send(f, blk);
@@ -439,7 +440,7 @@ static int mig_save_device_dirty(Monitor *mon, QEMUFile *f,
 
 error:
     monitor_printf(mon, "Error reading sector %" PRId64 "\n", sector);
-    qemu_file_set_error(f);
+    qemu_file_set_error(f, ret);
     g_free(blk->buf);
     g_free(blk);
     return 0;
@@ -473,7 +474,7 @@ static void flush_blks(QEMUFile* f)
             break;
         }
         if (blk->ret < 0) {
-            qemu_file_set_error(f);
+            qemu_file_set_error(f, blk->ret);
             break;
         }
         blk_send(f, blk);

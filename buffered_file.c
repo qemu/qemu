@@ -92,7 +92,7 @@ static void buffered_flush(QEMUFileBuffered *s)
 
         if (ret <= 0) {
             DPRINTF("error flushing data, %zd\n", ret);
-            qemu_file_set_error(s->file);
+            qemu_file_set_error(s->file, ret);
             break;
         } else {
             DPRINTF("flushed %zd byte(s)\n", ret);
@@ -138,7 +138,7 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
 
         if (ret <= 0) {
             DPRINTF("error putting\n");
-            qemu_file_set_error(s->file);
+            qemu_file_set_error(s->file, ret);
             offset = -EINVAL;
             break;
         }

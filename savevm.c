@@ -430,9 +430,9 @@ int qemu_file_has_error(QEMUFile *f)
     return f->has_error;
 }
 
-void qemu_file_set_error(QEMUFile *f)
+void qemu_file_set_error(QEMUFile *f, int ret)
 {
-    f->has_error = 1;
+    f->has_error = ret;
 }
 
 void qemu_fflush(QEMUFile *f)
@@ -447,7 +447,7 @@ void qemu_fflush(QEMUFile *f)
         if (len > 0)
             f->buf_offset += f->buf_index;
         else
-            f->has_error = 1;
+            f->has_error = -EINVAL;
         f->buf_index = 0;
     }
 }
@@ -476,7 +476,7 @@ static void qemu_fill_buffer(QEMUFile *f)
         f->buf_size += len;
         f->buf_offset += len;
     } else if (len != -EAGAIN)
-        f->has_error = 1;
+        f->has_error = len;
 }
 
 int qemu_fclose(QEMUFile *f)
