@@ -812,96 +812,6 @@ static void do_info_registers(Monitor *mon)
 #endif
 }
 
-static void print_cpu_iter(QObject *obj, void *opaque)
-{
-    QDict *cpu;
-    int active = ' ';
-    Monitor *mon = opaque;
-
-    assert(qobject_type(obj) == QTYPE_QDICT);
-    cpu = qobject_to_qdict(obj);
-
-    if (qdict_get_bool(cpu, "current")) {
-        active = '*';
-    }
-
-    monitor_printf(mon, "%c CPU #%d: ", active, (int)qdict_get_int(cpu, "CPU"));
-
-#if defined(TARGET_I386)
-    monitor_printf(mon, "pc=0x" TARGET_FMT_lx,
-                   (target_ulong) qdict_get_int(cpu, "pc"));
-#elif defined(TARGET_PPC)
-    monitor_printf(mon, "nip=0x" TARGET_FMT_lx,
-                   (target_long) qdict_get_int(cpu, "nip"));
-#elif defined(TARGET_SPARC)
-    monitor_printf(mon, "pc=0x" TARGET_FMT_lx,
-                   (target_long) qdict_get_int(cpu, "pc"));
-    monitor_printf(mon, "npc=0x" TARGET_FMT_lx,
-                   (target_long) qdict_get_int(cpu, "npc"));
-#elif defined(TARGET_MIPS)
-    monitor_printf(mon, "PC=0x" TARGET_FMT_lx,
-                   (target_long) qdict_get_int(cpu, "PC"));
-#endif
-
-    if (qdict_get_bool(cpu, "halted")) {
-        monitor_printf(mon, " (halted)");
-    }
-
-    monitor_printf(mon, " thread_id=%" PRId64 " ",
-                   qdict_get_int(cpu, "thread_id"));
-
-    monitor_printf(mon, "\n");
-}
-
-static void monitor_print_cpus(Monitor *mon, const QObject *data)
-{
-    QList *cpu_list;
-
-    assert(qobject_type(data) == QTYPE_QLIST);
-    cpu_list = qobject_to_qlist(data);
-    qlist_iter(cpu_list, print_cpu_iter, mon);
-}
-
-static void do_info_cpus(Monitor *mon, QObject **ret_data)
-{
-    CPUState *env;
-    QList *cpu_list;
-
-    cpu_list = qlist_new();
-
-    /* just to set the default cpu if not already done */
-    mon_get_cpu();
-
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        QDict *cpu;
-        QObject *obj;
-
-        cpu_synchronize_state(env);
-
-        obj = qobject_from_jsonf("{ 'CPU': %d, 'current': %i, 'halted': %i }",
-                                 env->cpu_index, env == mon->mon_cpu,
-                                 env->halted);
-
-        cpu = qobject_to_qdict(obj);
-
-#if defined(TARGET_I386)
-        qdict_put(cpu, "pc", qint_from_int(env->eip + env->segs[R_CS].base));
-#elif defined(TARGET_PPC)
-        qdict_put(cpu, "nip", qint_from_int(env->nip));
-#elif defined(TARGET_SPARC)
-        qdict_put(cpu, "pc", qint_from_int(env->pc));
-        qdict_put(cpu, "npc", qint_from_int(env->npc));
-#elif defined(TARGET_MIPS)
-        qdict_put(cpu, "PC", qint_from_int(env->active_tc.PC));
-#endif
-        qdict_put(cpu, "thread_id", qint_from_int(env->thread_id));
-
-        qlist_append(cpu_list, cpu);
-    }
-
-    *ret_data = QOBJECT(cpu_list);
-}
-
 static void do_info_jit(Monitor *mon)
 {
     dump_exec_info((FILE *)mon, monitor_fprintf);
@@ -2787,8 +2697,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show infos for each CPU",
-        .user_print = monitor_print_cpus,
-        .mhandler.info_new = do_info_cpus,
+        .mhandler.info = hmp_info_cpus,
     },
     {
         .name       = "history",
@@ -3066,14 +2975,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .help       = "show block device statistics",
         .user_print = bdrv_stats_print,
         .mhandler.info_new = bdrv_info_stats,
-    },
-    {
-        .name       = "cpus",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show infos for each CPU",
-        .user_print = monitor_print_cpus,
-        .mhandler.info_new = do_info_cpus,
     },
     {
         .name       = "pci",

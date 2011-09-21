@@ -1347,6 +1347,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-cpus",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_cpus,
+    },
+
 SQMP
 query-pci
 ---------
