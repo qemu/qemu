@@ -29,10 +29,6 @@ struct QEMUBH
     void *opaque;
 };
 
-void qemu_service_io(void)
-{
-}
-
 Monitor *cur_mon;
 
 int monitor_cur_is_qmp(void)
