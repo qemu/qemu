@@ -56,6 +56,7 @@ virtio_console_chr_read(unsigned int port, int size) "port %u, size %d"
 virtio_console_chr_event(unsigned int port, int event) "port %u, event %d"
 
 # block.c
+bdrv_open_common(void *bs, const char *filename, int flags, const char *format_name) "bs %p filename \"%s\" flags %#x format_name \"%s\""
 multiwrite_cb(void *mcb, int ret) "mcb %p ret %d"
 bdrv_aio_multiwrite(void *mcb, int num_callbacks, int num_reqs) "mcb %p num_callbacks %d num_reqs %d"
 bdrv_aio_multiwrite_earlyfail(void *mcb) "mcb %p"

@@ -475,6 +475,8 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
 
     assert(drv != NULL);
 
+    trace_bdrv_open_common(bs, filename, flags, drv->format_name);
+
     bs->file = NULL;
     bs->total_sectors = 0;
     bs->encrypted = 0;
