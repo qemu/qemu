@@ -185,10 +185,10 @@ BlockDriverAIOCB *laio_submit(BlockDriverState *bs, void *aio_ctx, int fd,
         goto out_dec_count;
     return &laiocb->common;
 
-out_free_aiocb:
-    qemu_aio_release(laiocb);
 out_dec_count:
     s->count--;
+out_free_aiocb:
+    qemu_aio_release(laiocb);
     return NULL;
 }
 
