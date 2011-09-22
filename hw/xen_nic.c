@@ -25,7 +25,6 @@
 #include <inttypes.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <pthread.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>

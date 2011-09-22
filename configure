@@ -1340,8 +1340,8 @@ fi
 # pkg-config probe
 
 if ! has $pkg_config; then
-  echo warning: proceeding without "$pkg_config" >&2
-  pkg_config=/bin/false
+  echo "Error: pkg-config binary '$pkg_config' not found"
+  exit 1
 fi
 
 ##########################################

@@ -24,7 +24,7 @@ static void error_exit(int err, const char *msg)
                   NULL, err, 0, (LPTSTR)&pstr, 2, NULL);
     fprintf(stderr, "qemu: %s: %s\n", msg, pstr);
     LocalFree(pstr);
-    exit(1);
+    abort();
 }
 
 void qemu_mutex_init(QemuMutex *mutex)

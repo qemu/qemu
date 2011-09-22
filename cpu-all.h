@@ -290,7 +290,6 @@ extern unsigned long reserved_va;
 
 /* ??? These should be the larger of unsigned long and target_ulong.  */
 extern unsigned long qemu_real_host_page_size;
-extern unsigned long qemu_host_page_bits;
 extern unsigned long qemu_host_page_size;
 extern unsigned long qemu_host_page_mask;
 

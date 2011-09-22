@@ -7641,11 +7641,6 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
 
 void optimize_flags_init(void)
 {
-#if TCG_TARGET_REG_BITS == 32
-    assert(sizeof(CCTable) == (1 << 3));
-#else
-    assert(sizeof(CCTable) == (1 << 4));
-#endif
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
     cpu_cc_op = tcg_global_mem_new_i32(TCG_AREG0,
                                        offsetof(CPUState, cc_op), "cc_op");
