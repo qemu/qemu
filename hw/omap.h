@@ -678,7 +678,8 @@ void omap_uart_reset(struct omap_uart_s *s);
 void omap_uart_attach(struct omap_uart_s *s, CharDriverState *chr);
 
 struct omap_mpuio_s;
-struct omap_mpuio_s *omap_mpuio_init(target_phys_addr_t base,
+struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *system_memory,
+                target_phys_addr_t base,
                 qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
                 omap_clk clk);
 qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s);
@@ -691,7 +692,8 @@ struct uWireSlave {
     void *opaque;
 };
 struct omap_uwire_s;
-struct omap_uwire_s *omap_uwire_init(target_phys_addr_t base,
+struct omap_uwire_s *omap_uwire_init(MemoryRegion *system_memory,
+                target_phys_addr_t base,
                 qemu_irq *irq, qemu_irq dma, omap_clk clk);
 void omap_uwire_attach(struct omap_uwire_s *s,
                 uWireSlave *slave, int chipselect);
@@ -730,7 +732,8 @@ struct I2SCodec {
     } in, out;
 };
 struct omap_mcbsp_s;
-struct omap_mcbsp_s *omap_mcbsp_init(target_phys_addr_t base,
+struct omap_mcbsp_s *omap_mcbsp_init(MemoryRegion *system_memory,
+                target_phys_addr_t base,
                 qemu_irq *irq, qemu_irq *dma, omap_clk clk);
 void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave);
 
@@ -741,8 +744,7 @@ void omap_tap_init(struct omap_target_agent_s *ta,
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
 struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
-                struct omap_dma_lcd_channel_s *dma,
-                ram_addr_t imif_base, ram_addr_t emiff_base, omap_clk clk);
+                struct omap_dma_lcd_channel_s *dma, omap_clk clk);
 
 /* omap_dss.c */
 struct rfbi_chip_s {
@@ -826,6 +828,22 @@ struct omap_mpu_state_s {
 
     qemu_irq wakeup;
 
+    MemoryRegion ulpd_pm_iomem;
+    MemoryRegion pin_cfg_iomem;
+    MemoryRegion id_iomem;
+    MemoryRegion id_iomem_e18;
+    MemoryRegion id_iomem_ed4;
+    MemoryRegion id_iomem_e20;
+    MemoryRegion mpui_iomem;
+    MemoryRegion tcmi_iomem;
+    MemoryRegion clkm_iomem;
+    MemoryRegion clkdsp_iomem;
+    MemoryRegion pwl_iomem;
+    MemoryRegion pwt_iomem;
+    MemoryRegion mpui_io_iomem;
+    MemoryRegion imif_ram;
+    MemoryRegion emiff_ram;
+
     struct omap_dma_port_if_s {
         uint32_t (*read[3])(struct omap_mpu_state_s *s,
                         target_phys_addr_t offset);
@@ -907,6 +925,7 @@ struct omap_mpu_state_s {
     uint32_t tcmi_regs[17];
 
     struct dpll_ctl_s {
+        MemoryRegion iomem;
         uint16_t mode;
         omap_clk dpll;
     } dpll[3];
@@ -947,7 +966,8 @@ struct omap_mpu_state_s {
 };
 
 /* omap1.c */
-struct omap_mpu_state_s *omap310_mpu_init(unsigned long sdram_size,
+struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
+                unsigned long sdram_size,
                 const char *core);
 
 /* omap2.c */
