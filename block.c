@@ -1874,93 +1874,56 @@ BlockInfoList *qmp_query_block(Error **errp)
     return head;
 }
 
-static void bdrv_stats_iter(QObject *data, void *opaque)
+/* Consider exposing this as a full fledged QMP command */
+static BlockStats *qmp_query_blockstat(const BlockDriverState *bs, Error **errp)
 {
-    QDict *qdict;
-    Monitor *mon = opaque;
+    BlockStats *s;
 
-    qdict = qobject_to_qdict(data);
-    monitor_printf(mon, "%s:", qdict_get_str(qdict, "device"));
+    s = g_malloc0(sizeof(*s));
 
-    qdict = qobject_to_qdict(qdict_get(qdict, "stats"));
-    monitor_printf(mon, " rd_bytes=%" PRId64
-                        " wr_bytes=%" PRId64
-                        " rd_operations=%" PRId64
-                        " wr_operations=%" PRId64
-                        " flush_operations=%" PRId64
-                        " wr_total_time_ns=%" PRId64
-                        " rd_total_time_ns=%" PRId64
-                        " flush_total_time_ns=%" PRId64
-                        "\n",
-                        qdict_get_int(qdict, "rd_bytes"),
-                        qdict_get_int(qdict, "wr_bytes"),
-                        qdict_get_int(qdict, "rd_operations"),
-                        qdict_get_int(qdict, "wr_operations"),
-                        qdict_get_int(qdict, "flush_operations"),
-                        qdict_get_int(qdict, "wr_total_time_ns"),
-                        qdict_get_int(qdict, "rd_total_time_ns"),
-                        qdict_get_int(qdict, "flush_total_time_ns"));
-}
-
-void bdrv_stats_print(Monitor *mon, const QObject *data)
-{
-    qlist_iter(qobject_to_qlist(data), bdrv_stats_iter, mon);
-}
-
-static QObject* bdrv_info_stats_bs(BlockDriverState *bs)
-{
-    QObject *res;
-    QDict *dict;
-
-    res = qobject_from_jsonf("{ 'stats': {"
-                             "'rd_bytes': %" PRId64 ","
-                             "'wr_bytes': %" PRId64 ","
-                             "'rd_operations': %" PRId64 ","
-                             "'wr_operations': %" PRId64 ","
-                             "'wr_highest_offset': %" PRId64 ","
-                             "'flush_operations': %" PRId64 ","
-                             "'wr_total_time_ns': %" PRId64 ","
-                             "'rd_total_time_ns': %" PRId64 ","
-                             "'flush_total_time_ns': %" PRId64
-                             "} }",
-                             bs->nr_bytes[BDRV_ACCT_READ],
-                             bs->nr_bytes[BDRV_ACCT_WRITE],
-                             bs->nr_ops[BDRV_ACCT_READ],
-                             bs->nr_ops[BDRV_ACCT_WRITE],
-                             bs->wr_highest_sector *
-                             (uint64_t)BDRV_SECTOR_SIZE,
-                             bs->nr_ops[BDRV_ACCT_FLUSH],
-                             bs->total_time_ns[BDRV_ACCT_WRITE],
-                             bs->total_time_ns[BDRV_ACCT_READ],
-                             bs->total_time_ns[BDRV_ACCT_FLUSH]);
-    dict  = qobject_to_qdict(res);
-
-    if (*bs->device_name) {
-        qdict_put(dict, "device", qstring_from_str(bs->device_name));
+    if (bs->device_name[0]) {
+        s->has_device = true;
+        s->device = g_strdup(bs->device_name);
     }
+
+    s->stats = g_malloc0(sizeof(*s->stats));
+    s->stats->rd_bytes = bs->nr_bytes[BDRV_ACCT_READ];
+    s->stats->wr_bytes = bs->nr_bytes[BDRV_ACCT_WRITE];
+    s->stats->rd_operations = bs->nr_ops[BDRV_ACCT_READ];
+    s->stats->wr_operations = bs->nr_ops[BDRV_ACCT_WRITE];
+    s->stats->wr_highest_offset = bs->wr_highest_sector * BDRV_SECTOR_SIZE;
+    s->stats->flush_operations = bs->nr_ops[BDRV_ACCT_FLUSH];
+    s->stats->wr_total_time_ns = bs->total_time_ns[BDRV_ACCT_WRITE];
+    s->stats->rd_total_time_ns = bs->total_time_ns[BDRV_ACCT_READ];
+    s->stats->flush_total_time_ns = bs->total_time_ns[BDRV_ACCT_FLUSH];
 
     if (bs->file) {
-        QObject *parent = bdrv_info_stats_bs(bs->file);
-        qdict_put_obj(dict, "parent", parent);
+        s->has_parent = true;
+        s->parent = qmp_query_blockstat(bs->file, NULL);
     }
 
-    return res;
+    return s;
 }
 
-void bdrv_info_stats(Monitor *mon, QObject **ret_data)
+BlockStatsList *qmp_query_blockstats(Error **errp)
 {
-    QObject *obj;
-    QList *devices;
+    BlockStatsList *head = NULL, *cur_item = NULL;
     BlockDriverState *bs;
 
-    devices = qlist_new();
-
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        obj = bdrv_info_stats_bs(bs);
-        qlist_append_obj(devices, obj);
+        BlockStatsList *info = g_malloc0(sizeof(*info));
+        info->value = qmp_query_blockstat(bs, NULL);
+
+        /* XXX: waiting for the qapi to support GSList */
+        if (!cur_item) {
+            head = cur_item = info;
+        } else {
+            cur_item->next = info;
+            cur_item = info;
+        }
     }
 
-    *ret_data = QOBJECT(devices);
+    return head;
 }
 
 const char *bdrv_get_encrypted_filename(BlockDriverState *bs)

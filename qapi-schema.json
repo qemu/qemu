@@ -437,6 +437,73 @@
 { 'command': 'query-block', 'returns': ['BlockInfo'] }
 
 ##
+# @BlockDeviceStats:
+#
+# Statistics of a virtual block device or a block backing device.
+#
+# @rd_bytes:      The number of bytes read by the device.
+#
+# @wr_bytes:      The number of bytes written by the device.
+#
+# @rd_operations: The number of read operations performed by the device.
+#
+# @wr_operations: The number of write operations performed by the device.
+#
+# @flush_operations: The number of cache flush operations performed by the
+#                    device (since 0.15.0)
+#
+# @flush_total_time_ns: Total time spend on cache flushes in nano-seconds
+#                       (since 0.15.0).
+#
+# @wr_total_time_ns: Total time spend on writes in nano-seconds (since 0.15.0).
+#
+# @rd_total_time_ns: Total_time_spend on reads in nano-seconds (since 0.15.0).
+#
+# @wr_highest_offset: The offset after the greatest byte written to the
+#                     device.  The intended use of this information is for
+#                     growable sparse files (like qcow2) that are used on top
+#                     of a physical device.
+#
+# Since: 0.14.0
+##
+{ 'type': 'BlockDeviceStats',
+  'data': {'rd_bytes': 'int', 'wr_bytes': 'int', 'rd_operations': 'int',
+           'wr_operations': 'int', 'flush_operations': 'int',
+           'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
+           'rd_total_time_ns': 'int', 'wr_highest_offset': 'int' } }
+
+##
+# @BlockStats:
+#
+# Statistics of a virtual block device or a block backing device.
+#
+# @device: #optional If the stats are for a virtual block device, the name
+#          corresponding to the virtual block device.
+#
+# @stats:  A @BlockDeviceStats for the device.
+#
+# @parent: #optional This may point to the backing block device if this is a
+#          a virtual block device.  If it's a backing block, this will point
+#          to the backing file is one is present.
+#
+# Since: 0.14.0
+##
+{ 'type': 'BlockStats',
+  'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
+           '*parent': 'BlockStats'} }
+
+##
+# @query-blockstats:
+#
+# Query the @BlockStats for all virtual block devices.
+#
+# Returns: A list of @BlockStats for each virtual block devices.
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-blockstats', 'returns': ['BlockStats'] }
+
+##
 # @quit:
 #
 # This command will cause the QEMU process to exit gracefully.  While every

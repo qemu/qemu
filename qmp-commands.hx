@@ -1311,6 +1311,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-blockstats",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_blockstats,
+    },
+
 SQMP
 query-cpus
 ----------

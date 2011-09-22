@@ -226,6 +226,40 @@ void hmp_info_block(Monitor *mon)
     qapi_free_BlockInfoList(block_list);
 }
 
+void hmp_info_blockstats(Monitor *mon)
+{
+    BlockStatsList *stats_list, *stats;
+
+    stats_list = qmp_query_blockstats(NULL);
+
+    for (stats = stats_list; stats; stats = stats->next) {
+        if (!stats->value->has_device) {
+            continue;
+        }
+
+        monitor_printf(mon, "%s:", stats->value->device);
+        monitor_printf(mon, " rd_bytes=%" PRId64
+                       " wr_bytes=%" PRId64
+                       " rd_operations=%" PRId64
+                       " wr_operations=%" PRId64
+                       " flush_operations=%" PRId64
+                       " wr_total_time_ns=%" PRId64
+                       " rd_total_time_ns=%" PRId64
+                       " flush_total_time_ns=%" PRId64
+                       "\n",
+                       stats->value->stats->rd_bytes,
+                       stats->value->stats->wr_bytes,
+                       stats->value->stats->rd_operations,
+                       stats->value->stats->wr_operations,
+                       stats->value->stats->flush_operations,
+                       stats->value->stats->wr_total_time_ns,
+                       stats->value->stats->rd_total_time_ns,
+                       stats->value->stats->flush_total_time_ns);
+    }
+
+    qapi_free_BlockStatsList(stats_list);
+}
+
 void hmp_quit(Monitor *mon, const QDict *qdict)
 {
     monitor_suspend(mon);
