@@ -31,8 +31,8 @@ There is a set of static trace events declared in the "trace-events" source
 file.  Each trace event declaration names the event, its arguments, and the
 format string which can be used for pretty-printing:
 
-    qemu_malloc(size_t size, void *ptr) "size %zu ptr %p"
-    qemu_free(void *ptr) "ptr %p"
+    qemu_vmalloc(size_t size, void *ptr) "size %zu ptr %p"
+    qemu_vfree(void *ptr) "ptr %p"
 
 The "trace-events" file is processed by the "tracetool" script during build to
 generate code for the trace events.  Trace events are invoked directly from
@@ -40,14 +40,16 @@ source code like this:
 
     #include "trace.h"  /* needed for trace event prototype */
     
-    void *qemu_malloc(size_t size)
+    void *qemu_vmalloc(size_t size)
     {
         void *ptr;
-        if (!size && !allow_zero_malloc()) {
-            abort();
+        size_t align = QEMU_VMALLOC_ALIGN;
+     
+        if (size < align) {
+            align = getpagesize();
         }
-        ptr = oom_check(malloc(size ? size : 1));
-        trace_qemu_malloc(size, ptr);  /* <-- trace event */
+        ptr = qemu_memalign(align, size);
+        trace_qemu_vmalloc(size, ptr);
         return ptr;
     }
 
@@ -69,11 +71,6 @@ Trace events should use types as follows:
  * Use void * for pointers to structs or for arrays.  The trace.h header
    cannot include all user-defined struct declarations and it is therefore
    necessary to use void * for pointers to structs.
-
-   Pointers (including char *) cannot be dereferenced easily (or at all) in
-   some trace backends.  If pointers are used, ensure they are meaningful by
-   themselves and do not assume the data they point to will be traced.  Do
-   not pass in string arguments.
 
  * For everything else, use primitive scalar types (char, int, long) with the
    appropriate signedness.
@@ -181,6 +178,9 @@ The "simple" backend supports common use cases and comes as part of the QEMU
 source tree.  It may not be as powerful as platform-specific or third-party
 trace backends but it is portable.  This is the recommended trace backend
 unless you have specific needs for more advanced backends.
+
+The "simple" backend currently does not capture string arguments, it simply
+records the char* pointer value instead of the string that is pointed to.
 
 ==== Monitor commands ====
 

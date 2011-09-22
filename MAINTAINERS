@@ -459,6 +459,12 @@ S: Maintained
 F: slirp/
 T: git://git.kiszka.org/qemu.git queues/slirp
 
+Tracing
+M: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
+S: Maintained
+F: trace/
+T: git://repo.or.cz/qemu/stefanha.git tracing
+
 Usermode Emulation
 ------------------
 BSD user
