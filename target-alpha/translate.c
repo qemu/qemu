@@ -2721,8 +2721,16 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             break;
         case 0xC000:
             /* RPCC */
-            if (ra != 31)
-                gen_helper_load_pcc(cpu_ir[ra]);
+            if (ra != 31) {
+                if (use_icount) {
+                    gen_io_start();
+                    gen_helper_load_pcc(cpu_ir[ra]);
+                    gen_io_end();
+                    ret = EXIT_PC_STALE;
+                } else {
+                    gen_helper_load_pcc(cpu_ir[ra]);
+                }
+            }
             break;
         case 0xE000:
             /* RC */
