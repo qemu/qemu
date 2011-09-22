@@ -1190,16 +1190,19 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
         if (subregion->may_overlap || other->may_overlap) {
             continue;
         }
-        if (offset >= other->offset + other->size
-            || offset + subregion->size <= other->offset) {
+        if (offset >= other->addr + other->size
+            || offset + subregion->size <= other->addr) {
             continue;
         }
 #if 0
-        printf("warning: subregion collision %llx/%llx vs %llx/%llx\n",
+        printf("warning: subregion collision %llx/%llx (%s) "
+               "vs %llx/%llx (%s)\n",
                (unsigned long long)offset,
                (unsigned long long)subregion->size,
-               (unsigned long long)other->offset,
-               (unsigned long long)other->size);
+               subregion->name,
+               (unsigned long long)other->addr,
+               (unsigned long long)other->size,
+               other->name);
 #endif
     }
     QTAILQ_FOREACH(other, &mr->subregions, subregions_link) {

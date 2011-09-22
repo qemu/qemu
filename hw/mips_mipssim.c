@@ -137,8 +137,9 @@ mips_mipssim_init (ram_addr_t ram_size,
                    const char *initrd_filename, const char *cpu_model)
 {
     char *filename;
-    ram_addr_t ram_offset;
-    ram_addr_t bios_offset;
+    MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *bios = g_new(MemoryRegion, 1);
     CPUState *env;
     ResetData *reset_info;
     int bios_size;
@@ -162,14 +163,14 @@ mips_mipssim_init (ram_addr_t ram_size,
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate RAM. */
-    ram_offset = qemu_ram_alloc(NULL, "mips_mipssim.ram", ram_size);
-    bios_offset = qemu_ram_alloc(NULL, "mips_mipssim.bios", BIOS_SIZE);
+    memory_region_init_ram(ram, NULL, "mips_mipssim.ram", ram_size);
+    memory_region_init_ram(bios, NULL, "mips_mipssim.bios", BIOS_SIZE);
+    memory_region_set_readonly(bios, true);
 
-    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
+    memory_region_add_subregion(address_space_mem, 0, ram);
 
     /* Map the BIOS / boot exception handler. */
-    cpu_register_physical_memory(0x1fc00000LL,
-                                 BIOS_SIZE, bios_offset | IO_MEM_ROM);
+    memory_region_add_subregion(address_space_mem, 0x1fc00000LL, bios);
     /* Load a BIOS / boot exception handler image. */
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;

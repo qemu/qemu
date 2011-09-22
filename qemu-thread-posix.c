@@ -22,7 +22,7 @@
 static void error_exit(int err, const char *msg)
 {
     fprintf(stderr, "qemu: %s: %s\n", msg, strerror(err));
-    exit(1);
+    abort();
 }
 
 void qemu_mutex_init(QemuMutex *mutex)

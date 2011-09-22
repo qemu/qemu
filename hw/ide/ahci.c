@@ -370,6 +370,43 @@ static MemoryRegionOps ahci_mem_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
+static uint64_t ahci_idp_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
+{
+    AHCIState *s = opaque;
+
+    if (addr == s->idp_offset) {
+        /* index register */
+        return s->idp_index;
+    } else if (addr == s->idp_offset + 4) {
+        /* data register - do memory read at location selected by index */
+        return ahci_mem_read(opaque, s->idp_index, size);
+    } else {
+        return 0;
+    }
+}
+
+static void ahci_idp_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned size)
+{
+    AHCIState *s = opaque;
+
+    if (addr == s->idp_offset) {
+        /* index register - mask off reserved bits */
+        s->idp_index = (uint32_t)val & ((AHCI_MEM_BAR_SIZE - 1) & ~3);
+    } else if (addr == s->idp_offset + 4) {
+        /* data register - do memory write at location selected by index */
+        ahci_mem_write(opaque, s->idp_index, val, size);
+    }
+}
+
+static MemoryRegionOps ahci_idp_ops = {
+    .read = ahci_idp_read,
+    .write = ahci_idp_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
+};
+
+
 static void ahci_reg_init(AHCIState *s)
 {
     int i;
@@ -1130,7 +1167,9 @@ void ahci_init(AHCIState *s, DeviceState *qdev, int ports)
     s->dev = g_malloc0(sizeof(AHCIDevice) * ports);
     ahci_reg_init(s);
     /* XXX BAR size should be 1k, but that breaks, so bump it to 4k for now */
-    memory_region_init_io(&s->mem, &ahci_mem_ops, s, "ahci", 0x1000);
+    memory_region_init_io(&s->mem, &ahci_mem_ops, s, "ahci", AHCI_MEM_BAR_SIZE);
+    memory_region_init_io(&s->idp, &ahci_idp_ops, s, "ahci-idp", 32);
+
     irqs = qemu_allocate_irqs(ahci_irq_set, s, s->ports);
 
     for (i = 0; i < s->ports; i++) {
@@ -1150,6 +1189,7 @@ void ahci_init(AHCIState *s, DeviceState *qdev, int ports)
 void ahci_uninit(AHCIState *s)
 {
     memory_region_destroy(&s->mem);
+    memory_region_destroy(&s->idp);
     g_free(s->dev);
 }
 

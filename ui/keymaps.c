@@ -146,7 +146,7 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
 		    if (rest && strstr(rest, "addupper")) {
 			char *c;
 			for (c = line; *c; c++)
-			    *c = toupper(*c);
+			    *c = qemu_toupper(*c);
 			keysym = get_keysym(table, line);
 			if (keysym)
 			    add_keysym(line, keysym, keycode | SCANCODE_SHIFT, k);

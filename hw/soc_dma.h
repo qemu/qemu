@@ -18,6 +18,8 @@
  * with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "memory.h"
+
 struct soc_dma_s;
 struct soc_dma_ch_s;
 typedef void (*soc_dma_io_t)(void *opaque, uint8_t *buf, int len);
@@ -104,10 +106,4 @@ static inline void soc_dma_port_add_fifo_out(struct soc_dma_s *dma,
                 target_phys_addr_t virt_base, soc_dma_io_t fn, void *opaque)
 {
     return soc_dma_port_add_fifo(dma, virt_base, fn, opaque, 1);
-}
-
-static inline void soc_dma_port_add_mem_ram(struct soc_dma_s *dma,
-                ram_addr_t offset, target_phys_addr_t virt_base, size_t size)
-{
-    return soc_dma_port_add_mem(dma, qemu_get_ram_ptr(offset), virt_base, size);
 }

@@ -32,6 +32,7 @@
 #include "arm-misc.h"
 #include "flash.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 /*****************************************************************************/
 /* Siemens SX1 Cellphone V1 */
@@ -121,6 +122,7 @@ static void sx1_init(ram_addr_t ram_size,
                 const int version)
 {
     struct omap_mpu_state_s *cpu;
+    MemoryRegion *address_space = get_system_memory();
     int io;
     static uint32_t cs0val = 0x00213090;
     static uint32_t cs1val = 0x00215070;
@@ -135,7 +137,7 @@ static void sx1_init(ram_addr_t ram_size,
         flash_size = flash2_size;
     }
 
-    cpu = omap310_mpu_init(sx1_binfo.ram_size, cpu_model);
+    cpu = omap310_mpu_init(address_space, sx1_binfo.ram_size, cpu_model);
 
     /* External Flash (EMIFS) */
     cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,
