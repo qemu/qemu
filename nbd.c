@@ -439,7 +439,7 @@ int nbd_client(int fd)
     return ret;
 }
 #else
-int nbd_init(int fd, int csock, off_t size, size_t blocksize)
+int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
 {
     errno = ENOTSUP;
     return -1;
