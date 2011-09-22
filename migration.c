@@ -367,6 +367,7 @@ void migrate_fd_connect(FdMigrationState *s)
 void migrate_fd_put_ready(void *opaque)
 {
     FdMigrationState *s = opaque;
+    int ret;
 
     if (s->state != MIG_STATE_ACTIVE) {
         DPRINTF("put_ready returning because of non-active state\n");
@@ -374,7 +375,10 @@ void migrate_fd_put_ready(void *opaque)
     }
 
     DPRINTF("iterate\n");
-    if (qemu_savevm_state_iterate(s->mon, s->file) == 1) {
+    ret = qemu_savevm_state_iterate(s->mon, s->file);
+    if (ret < 0) {
+        migrate_fd_error(s);
+    } else if (ret == 1) {
         int old_vm_running = runstate_is_running();
 
         DPRINTF("done iterating\n");

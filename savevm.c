@@ -1504,6 +1504,7 @@ int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
                             int shared)
 {
     SaveStateEntry *se;
+    int ret;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if(se->set_params == NULL) {
@@ -1535,15 +1536,21 @@ int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
 
         se->save_live_state(mon, f, QEMU_VM_SECTION_START, se->opaque);
     }
-
-    if (qemu_file_has_error(f)) {
+    ret = qemu_file_has_error(f);
+    if (ret != 0) {
         qemu_savevm_state_cancel(mon, f);
-        return -EIO;
     }
 
-    return 0;
+    return ret;
+
 }
 
+/*
+ * this funtion has three return values:
+ *   negative: there was one error, and we have -errno.
+ *   0 : We haven't finished, caller have to go again
+ *   1 : We have finished, we can go to complete phase
+ */
 int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f)
 {
     SaveStateEntry *se;
@@ -1566,16 +1573,14 @@ int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f)
             break;
         }
     }
-
-    if (ret)
-        return 1;
-
-    if (qemu_file_has_error(f)) {
-        qemu_savevm_state_cancel(mon, f);
-        return -EIO;
+    if (ret != 0) {
+        return ret;
     }
-
-    return 0;
+    ret = qemu_file_has_error(f);
+    if (ret != 0) {
+        qemu_savevm_state_cancel(mon, f);
+    }
+    return ret;
 }
 
 int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
@@ -1618,10 +1623,7 @@ int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
 
     qemu_put_byte(f, QEMU_VM_EOF);
 
-    if (qemu_file_has_error(f))
-        return -EIO;
-
-    return 0;
+    return qemu_file_has_error(f);
 }
 
 void qemu_savevm_state_cancel(Monitor *mon, QEMUFile *f)
@@ -1661,8 +1663,9 @@ static int qemu_savevm_state(Monitor *mon, QEMUFile *f)
     ret = qemu_savevm_state_complete(mon, f);
 
 out:
-    if (qemu_file_has_error(f))
-        ret = -EIO;
+    if (ret == 0) {
+        ret = qemu_file_has_error(f);
+    }
 
     if (!ret && saved_vm_running)
         vm_start();
