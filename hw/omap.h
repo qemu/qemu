@@ -99,18 +99,6 @@ target_phys_addr_t omap_l4_region_base(struct omap_target_agent_s *ta,
 int l4_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                 CPUWriteMemoryFunc * const *mem_write, void *opaque);
 
-/* OMAP interrupt controller */
-struct omap_intr_handler_s;
-struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
-                unsigned long size, unsigned char nbanks, qemu_irq **pins,
-                qemu_irq parent_irq, qemu_irq parent_fiq, omap_clk clk);
-struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
-                int size, int nbanks, qemu_irq **pins,
-                qemu_irq parent_irq, qemu_irq parent_fiq,
-                omap_clk fclk, omap_clk iclk);
-void omap_inth_reset(struct omap_intr_handler_s *s);
-qemu_irq omap_inth_get_pin(struct omap_intr_handler_s *s, int n);
-
 /* OMAP2 SDRAM controller */
 struct omap_sdrc_s;
 struct omap_sdrc_s *omap_sdrc_init(target_phys_addr_t base);
@@ -692,9 +680,6 @@ struct uWireSlave {
     void *opaque;
 };
 struct omap_uwire_s;
-struct omap_uwire_s *omap_uwire_init(MemoryRegion *system_memory,
-                target_phys_addr_t base,
-                qemu_irq *irq, qemu_irq dma, omap_clk clk);
 void omap_uwire_attach(struct omap_uwire_s *s,
                 uWireSlave *slave, int chipselect);
 
@@ -732,9 +717,6 @@ struct I2SCodec {
     } in, out;
 };
 struct omap_mcbsp_s;
-struct omap_mcbsp_s *omap_mcbsp_init(MemoryRegion *system_memory,
-                target_phys_addr_t base,
-                qemu_irq *irq, qemu_irq *dma, omap_clk clk);
 void omap_mcbsp_i2s_attach(struct omap_mcbsp_s *s, I2SCodec *slave);
 
 void omap_tap_init(struct omap_target_agent_s *ta,
@@ -823,7 +805,6 @@ struct omap_mpu_state_s {
 
     CPUState *env;
 
-    qemu_irq *irq[2];
     qemu_irq *drq;
 
     qemu_irq wakeup;
@@ -896,7 +877,7 @@ struct omap_mpu_state_s {
     struct omap_lpg_s *led[2];
 
     /* MPU private TIPB peripherals */
-    struct omap_intr_handler_s *ih[2];
+    DeviceState *ih[2];
 
     struct soc_dma_s *dma;
 

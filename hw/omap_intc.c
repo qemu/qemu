@@ -19,7 +19,7 @@
  */
 #include "hw.h"
 #include "omap.h"
-#include "exec-memory.h"
+#include "sysbus.h"
 
 /* Interrupt Handlers */
 struct omap_intr_handler_bank_s {
@@ -33,24 +33,25 @@ struct omap_intr_handler_bank_s {
 };
 
 struct omap_intr_handler_s {
+    SysBusDevice busdev;
     qemu_irq *pins;
     qemu_irq parent_intr[2];
     MemoryRegion mmio;
+    void *iclk;
+    void *fclk;
     unsigned char nbanks;
     int level_only;
+    uint32_t size;
+
+    uint8_t revision;
 
     /* state */
     uint32_t new_agr[2];
     int sir_intr[2];
     int autoidle;
     uint32_t mask;
-    struct omap_intr_handler_bank_s bank[];
+    struct omap_intr_handler_bank_s bank[3];
 };
-
-inline qemu_irq omap_inth_get_pin(struct omap_intr_handler_s *s, int n)
-{
-    return s->pins[n];
-}
 
 static void omap_inth_sir_update(struct omap_intr_handler_s *s, int is_fiq)
 {
@@ -325,8 +326,10 @@ static const MemoryRegionOps omap_inth_mem_ops = {
     },
 };
 
-void omap_inth_reset(struct omap_intr_handler_s *s)
+static void omap_inth_reset(DeviceState *dev)
 {
+    struct omap_intr_handler_s *s = FROM_SYSBUS(struct omap_intr_handler_s,
+                                                sysbus_from_qdev(dev));
     int i;
 
     for (i = 0; i < s->nbanks; ++i){
@@ -353,28 +356,34 @@ void omap_inth_reset(struct omap_intr_handler_s *s)
     qemu_set_irq(s->parent_intr[1], 0);
 }
 
-struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
-                unsigned long size, unsigned char nbanks, qemu_irq **pins,
-                qemu_irq parent_irq, qemu_irq parent_fiq, omap_clk clk)
+static int omap_intc_init(SysBusDevice *dev)
 {
-    struct omap_intr_handler_s *s = (struct omap_intr_handler_s *)
-            g_malloc0(sizeof(struct omap_intr_handler_s) +
-                            sizeof(struct omap_intr_handler_bank_s) * nbanks);
-
-    s->parent_intr[0] = parent_irq;
-    s->parent_intr[1] = parent_fiq;
-    s->nbanks = nbanks;
-    s->pins = qemu_allocate_irqs(omap_set_intr, s, nbanks * 32);
-    if (pins)
-        *pins = s->pins;
-
-    memory_region_init_io(&s->mmio, &omap_inth_mem_ops, s, "omap-intc", size);
-    memory_region_add_subregion(get_system_memory(), base, &s->mmio);
-
-    omap_inth_reset(s);
-
-    return s;
+    struct omap_intr_handler_s *s;
+    s = FROM_SYSBUS(struct omap_intr_handler_s, dev);
+    if (!s->iclk) {
+        hw_error("omap-intc: clk not connected\n");
+    }
+    s->nbanks = 1;
+    sysbus_init_irq(dev, &s->parent_intr[0]);
+    sysbus_init_irq(dev, &s->parent_intr[1]);
+    qdev_init_gpio_in(&dev->qdev, omap_set_intr, s->nbanks * 32);
+    memory_region_init_io(&s->mmio, &omap_inth_mem_ops, s,
+                          "omap-intc", s->size);
+    sysbus_init_mmio_region(dev, &s->mmio);
+    return 0;
 }
+
+static SysBusDeviceInfo omap_intc_info = {
+    .init = omap_intc_init,
+    .qdev.name = "omap-intc",
+    .qdev.size = sizeof(struct omap_intr_handler_s),
+    .qdev.reset = omap_inth_reset,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("size", struct omap_intr_handler_s, size, 0x100),
+        DEFINE_PROP_PTR("clk", struct omap_intr_handler_s, iclk),
+        DEFINE_PROP_END_OF_LIST()
+    }
+};
 
 static uint64_t omap2_inth_read(void *opaque, target_phys_addr_t addr,
                                 unsigned size)
@@ -394,7 +403,7 @@ static uint64_t omap2_inth_read(void *opaque, target_phys_addr_t addr,
 
     switch (offset) {
     case 0x00:	/* INTC_REVISION */
-        return 0x21;
+        return s->revision;
 
     case 0x10:	/* INTC_SYSCONFIG */
         return (s->autoidle >> 2) & 1;
@@ -475,7 +484,7 @@ static void omap2_inth_write(void *opaque, target_phys_addr_t addr,
         s->autoidle &= 4;
         s->autoidle |= (value & 1) << 2;
         if (value & 2)						/* SOFTRESET */
-            omap_inth_reset(s);
+            omap_inth_reset(&s->busdev.qdev);
         return;
 
     case 0x48:	/* INTC_CONTROL */
@@ -568,27 +577,45 @@ static const MemoryRegionOps omap2_inth_mem_ops = {
     },
 };
 
-struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
-                int size, int nbanks, qemu_irq **pins,
-                qemu_irq parent_irq, qemu_irq parent_fiq,
-                omap_clk fclk, omap_clk iclk)
+static int omap2_intc_init(SysBusDevice *dev)
 {
-    struct omap_intr_handler_s *s = (struct omap_intr_handler_s *)
-            g_malloc0(sizeof(struct omap_intr_handler_s) +
-                            sizeof(struct omap_intr_handler_bank_s) * nbanks);
-
-    s->parent_intr[0] = parent_irq;
-    s->parent_intr[1] = parent_fiq;
-    s->nbanks = nbanks;
+    struct omap_intr_handler_s *s;
+    s = FROM_SYSBUS(struct omap_intr_handler_s, dev);
+    if (!s->iclk) {
+        hw_error("omap2-intc: iclk not connected\n");
+    }
+    if (!s->fclk) {
+        hw_error("omap2-intc: fclk not connected\n");
+    }
     s->level_only = 1;
-    s->pins = qemu_allocate_irqs(omap_set_intr_noedge, s, nbanks * 32);
-    if (pins)
-        *pins = s->pins;
-
-    memory_region_init_io(&s->mmio, &omap2_inth_mem_ops, s, "omap2-intc", size);
-    memory_region_add_subregion(get_system_memory(), base, &s->mmio);
-
-    omap_inth_reset(s);
-
-    return s;
+    s->nbanks = 3;
+    sysbus_init_irq(dev, &s->parent_intr[0]);
+    sysbus_init_irq(dev, &s->parent_intr[1]);
+    qdev_init_gpio_in(&dev->qdev, omap_set_intr_noedge, s->nbanks * 32);
+    memory_region_init_io(&s->mmio, &omap2_inth_mem_ops, s,
+                          "omap2-intc", 0x1000);
+    sysbus_init_mmio_region(dev, &s->mmio);
+    return 0;
 }
+
+static SysBusDeviceInfo omap2_intc_info = {
+    .init = omap2_intc_init,
+    .qdev.name = "omap2-intc",
+    .qdev.size = sizeof(struct omap_intr_handler_s),
+    .qdev.reset = omap_inth_reset,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT8("revision", struct omap_intr_handler_s,
+                          revision, 0x21),
+        DEFINE_PROP_PTR("iclk", struct omap_intr_handler_s, iclk),
+        DEFINE_PROP_PTR("fclk", struct omap_intr_handler_s, fclk),
+        DEFINE_PROP_END_OF_LIST()
+    }
+};
+
+static void omap_intc_register_device(void)
+{
+    sysbus_register_withprop(&omap_intc_info);
+    sysbus_register_withprop(&omap2_intc_info);
+}
+
+device_init(omap_intc_register_device)
