@@ -534,3 +534,7 @@ esp_mem_writeb_cmd_sel(uint32_t val) "Select without ATN (%2.2x)"
 esp_mem_writeb_cmd_selatn(uint32_t val) "Select with ATN (%2.2x)"
 esp_mem_writeb_cmd_selatns(uint32_t val) "Select with ATN & stop (%2.2x)"
 esp_mem_writeb_cmd_ensel(uint32_t val) "Enable selection (%2.2x)"
+
+# monitor.c
+handle_qmp_command(void *mon, const char *cmd_name) "mon %p cmd_name \"%s\""
+monitor_protocol_emitter(void *mon) "mon %p"
