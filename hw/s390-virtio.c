@@ -230,7 +230,7 @@ static void s390_init(ram_addr_t my_ram_size,
 
     if (kernel_cmdline) {
         cpu_physical_memory_write(KERN_PARM_AREA, kernel_cmdline,
-                                  strlen(kernel_cmdline));
+                                  strlen(kernel_cmdline) + 1);
     }
 
     /* Create VirtIO network adapters */
