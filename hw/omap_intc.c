@@ -19,6 +19,7 @@
  */
 #include "hw.h"
 #include "omap.h"
+#include "exec-memory.h"
 
 /* Interrupt Handlers */
 struct omap_intr_handler_bank_s {
@@ -34,6 +35,7 @@ struct omap_intr_handler_bank_s {
 struct omap_intr_handler_s {
     qemu_irq *pins;
     qemu_irq parent_intr[2];
+    MemoryRegion mmio;
     unsigned char nbanks;
     int level_only;
 
@@ -142,7 +144,8 @@ static void omap_set_intr_noedge(void *opaque, int irq, int req)
         bank->irqs = (bank->inputs &= ~(1 << n)) | bank->swi;
 }
 
-static uint32_t omap_inth_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_inth_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
     int i, offset = addr;
@@ -220,7 +223,7 @@ static uint32_t omap_inth_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_inth_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
     int i, offset = addr;
@@ -312,16 +315,14 @@ static void omap_inth_write(void *opaque, target_phys_addr_t addr,
     OMAP_BAD_REG(addr);
 }
 
-static CPUReadMemoryFunc * const omap_inth_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_inth_read,
-};
-
-static CPUWriteMemoryFunc * const omap_inth_writefn[] = {
-    omap_inth_write,
-    omap_inth_write,
-    omap_inth_write,
+static const MemoryRegionOps omap_inth_mem_ops = {
+    .read = omap_inth_read,
+    .write = omap_inth_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 void omap_inth_reset(struct omap_intr_handler_s *s)
@@ -356,7 +357,6 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
                 unsigned long size, unsigned char nbanks, qemu_irq **pins,
                 qemu_irq parent_irq, qemu_irq parent_fiq, omap_clk clk)
 {
-    int iomemtype;
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *)
             g_malloc0(sizeof(struct omap_intr_handler_s) +
                             sizeof(struct omap_intr_handler_bank_s) * nbanks);
@@ -368,16 +368,16 @@ struct omap_intr_handler_s *omap_inth_init(target_phys_addr_t base,
     if (pins)
         *pins = s->pins;
 
-    omap_inth_reset(s);
+    memory_region_init_io(&s->mmio, &omap_inth_mem_ops, s, "omap-intc", size);
+    memory_region_add_subregion(get_system_memory(), base, &s->mmio);
 
-    iomemtype = cpu_register_io_memory(omap_inth_readfn,
-                    omap_inth_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, size, iomemtype);
+    omap_inth_reset(s);
 
     return s;
 }
 
-static uint32_t omap2_inth_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap2_inth_read(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
     int offset = addr;
@@ -455,7 +455,7 @@ static uint32_t omap2_inth_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap2_inth_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                             uint64_t value, unsigned size)
 {
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *) opaque;
     int offset = addr;
@@ -558,16 +558,14 @@ static void omap2_inth_write(void *opaque, target_phys_addr_t addr,
     OMAP_BAD_REG(addr);
 }
 
-static CPUReadMemoryFunc * const omap2_inth_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap2_inth_read,
-};
-
-static CPUWriteMemoryFunc * const omap2_inth_writefn[] = {
-    omap2_inth_write,
-    omap2_inth_write,
-    omap2_inth_write,
+static const MemoryRegionOps omap2_inth_mem_ops = {
+    .read = omap2_inth_read,
+    .write = omap2_inth_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
@@ -575,7 +573,6 @@ struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
                 qemu_irq parent_irq, qemu_irq parent_fiq,
                 omap_clk fclk, omap_clk iclk)
 {
-    int iomemtype;
     struct omap_intr_handler_s *s = (struct omap_intr_handler_s *)
             g_malloc0(sizeof(struct omap_intr_handler_s) +
                             sizeof(struct omap_intr_handler_bank_s) * nbanks);
@@ -588,11 +585,10 @@ struct omap_intr_handler_s *omap2_inth_init(target_phys_addr_t base,
     if (pins)
         *pins = s->pins;
 
-    omap_inth_reset(s);
+    memory_region_init_io(&s->mmio, &omap2_inth_mem_ops, s, "omap2-intc", size);
+    memory_region_add_subregion(get_system_memory(), base, &s->mmio);
 
-    iomemtype = cpu_register_io_memory(omap2_inth_readfn,
-                    omap2_inth_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, size, iomemtype);
+    omap_inth_reset(s);
 
     return s;
 }
