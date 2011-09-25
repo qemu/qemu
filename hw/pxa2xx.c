@@ -521,6 +521,7 @@ static const VMStateDescription vmstate_pxa2xx_mm = {
 /* Synchronous Serial Ports */
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq irq;
     int enable;
     SSIBus *bus;
@@ -627,7 +628,8 @@ static void pxa2xx_ssp_fifo_update(PXA2xxSSPState *s)
     pxa2xx_ssp_int_update(s);
 }
 
-static uint32_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr)
+static uint64_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
     PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
     uint32_t retval;
@@ -673,9 +675,10 @@ static uint32_t pxa2xx_ssp_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                             uint64_t value64, unsigned size)
 {
     PXA2xxSSPState *s = (PXA2xxSSPState *) opaque;
+    uint32_t value = value64;
 
     switch (addr) {
     case SSCR0:
@@ -762,16 +765,10 @@ static void pxa2xx_ssp_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const pxa2xx_ssp_readfn[] = {
-    pxa2xx_ssp_read,
-    pxa2xx_ssp_read,
-    pxa2xx_ssp_read,
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_ssp_writefn[] = {
-    pxa2xx_ssp_write,
-    pxa2xx_ssp_write,
-    pxa2xx_ssp_write,
+static const MemoryRegionOps pxa2xx_ssp_ops = {
+    .read = pxa2xx_ssp_read,
+    .write = pxa2xx_ssp_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void pxa2xx_ssp_save(QEMUFile *f, void *opaque)
@@ -823,15 +820,12 @@ static int pxa2xx_ssp_load(QEMUFile *f, void *opaque, int version_id)
 
 static int pxa2xx_ssp_init(SysBusDevice *dev)
 {
-    int iomemtype;
     PXA2xxSSPState *s = FROM_SYSBUS(PXA2xxSSPState, dev);
 
     sysbus_init_irq(dev, &s->irq);
 
-    iomemtype = cpu_register_io_memory(pxa2xx_ssp_readfn,
-                                       pxa2xx_ssp_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa2xx_ssp_ops, s, "pxa2xx-ssp", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     register_savevm(&dev->qdev, "pxa2xx_ssp", -1, 0,
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
 
@@ -858,6 +852,7 @@ static int pxa2xx_ssp_init(SysBusDevice *dev)
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t rttr;
     uint32_t rtsr;
     uint32_t rtar;
@@ -1009,7 +1004,8 @@ static inline void pxa2xx_rtc_pi_tick(void *opaque)
     pxa2xx_rtc_int_update(s);
 }
 
-static uint32_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr)
+static uint64_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
     PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
 
@@ -1055,9 +1051,10 @@ static uint32_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void pxa2xx_rtc_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                             uint64_t value64, unsigned size)
 {
     PXA2xxRTCState *s = (PXA2xxRTCState *) opaque;
+    uint32_t value = value64;
 
     switch (addr) {
     case RTTR:
@@ -1157,16 +1154,10 @@ static void pxa2xx_rtc_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const pxa2xx_rtc_readfn[] = {
-    pxa2xx_rtc_read,
-    pxa2xx_rtc_read,
-    pxa2xx_rtc_read,
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_rtc_writefn[] = {
-    pxa2xx_rtc_write,
-    pxa2xx_rtc_write,
-    pxa2xx_rtc_write,
+static const MemoryRegionOps pxa2xx_rtc_ops = {
+    .read = pxa2xx_rtc_read,
+    .write = pxa2xx_rtc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int pxa2xx_rtc_init(SysBusDevice *dev)
@@ -1174,7 +1165,6 @@ static int pxa2xx_rtc_init(SysBusDevice *dev)
     PXA2xxRTCState *s = FROM_SYSBUS(PXA2xxRTCState, dev);
     struct tm tm;
     int wom;
-    int iomemtype;
 
     s->rttr = 0x7fff;
     s->rtsr = 0;
@@ -1201,9 +1191,8 @@ static int pxa2xx_rtc_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->rtc_irq);
 
-    iomemtype = cpu_register_io_memory(pxa2xx_rtc_readfn,
-                    pxa2xx_rtc_writefn, s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x10000, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa2xx_rtc_ops, s, "pxa2xx-rtc", 0x10000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     return 0;
 }
@@ -1272,6 +1261,7 @@ typedef struct {
 
 struct PXA2xxI2CState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     PXA2xxI2CSlaveState *slave;
     i2c_bus *bus;
     qemu_irq irq;
@@ -1356,7 +1346,8 @@ static int pxa2xx_i2c_tx(i2c_slave *i2c, uint8_t data)
     return 1;
 }
 
-static uint32_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr)
+static uint64_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
     PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
 
@@ -1384,9 +1375,10 @@ static uint32_t pxa2xx_i2c_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void pxa2xx_i2c_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                             uint64_t value64, unsigned size)
 {
     PXA2xxI2CState *s = (PXA2xxI2CState *) opaque;
+    uint32_t value = value64;
     int ack;
 
     addr -= s->offset;
@@ -1453,16 +1445,10 @@ static void pxa2xx_i2c_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const pxa2xx_i2c_readfn[] = {
-    pxa2xx_i2c_read,
-    pxa2xx_i2c_read,
-    pxa2xx_i2c_read,
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_i2c_writefn[] = {
-    pxa2xx_i2c_write,
-    pxa2xx_i2c_write,
-    pxa2xx_i2c_write,
+static const MemoryRegionOps pxa2xx_i2c_ops = {
+    .read = pxa2xx_i2c_read,
+    .write = pxa2xx_i2c_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_pxa2xx_i2c_slave = {
@@ -1536,13 +1522,12 @@ PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
 static int pxa2xx_i2c_initfn(SysBusDevice *dev)
 {
     PXA2xxI2CState *s = FROM_SYSBUS(PXA2xxI2CState, dev);
-    int iomemtype;
 
     s->bus = i2c_init_bus(&dev->qdev, "i2c");
 
-    iomemtype = cpu_register_io_memory(pxa2xx_i2c_readfn,
-                    pxa2xx_i2c_writefn, s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, s->region_size, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa2xx_i2c_ops, s,
+                          "pxa2xx-i2x", s->region_size);
+    sysbus_init_mmio_region(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
     return 0;
@@ -1621,7 +1606,8 @@ static inline void pxa2xx_i2s_update(PXA2xxI2SState *i2s)
 #define SADIV	0x60	/* Serial Audio Clock Divider register */
 #define SADR	0x80	/* Serial Audio Data register */
 
-static uint32_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr)
+static uint64_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
     PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
 
@@ -1653,7 +1639,7 @@ static uint32_t pxa2xx_i2s_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void pxa2xx_i2s_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                             uint64_t value, unsigned size)
 {
     PXA2xxI2SState *s = (PXA2xxI2SState *) opaque;
     uint32_t *sample;
@@ -1707,16 +1693,10 @@ static void pxa2xx_i2s_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const pxa2xx_i2s_readfn[] = {
-    pxa2xx_i2s_read,
-    pxa2xx_i2s_read,
-    pxa2xx_i2s_read,
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_i2s_writefn[] = {
-    pxa2xx_i2s_write,
-    pxa2xx_i2s_write,
-    pxa2xx_i2s_write,
+static const MemoryRegionOps pxa2xx_i2s_ops = {
+    .read = pxa2xx_i2s_read,
+    .write = pxa2xx_i2s_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_pxa2xx_i2s = {
@@ -1759,10 +1739,10 @@ static void pxa2xx_i2s_data_req(void *opaque, int tx, int rx)
     pxa2xx_i2s_update(s);
 }
 
-static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
+static PXA2xxI2SState *pxa2xx_i2s_init(MemoryRegion *sysmem,
+                target_phys_addr_t base,
                 qemu_irq irq, qemu_irq rx_dma, qemu_irq tx_dma)
 {
-    int iomemtype;
     PXA2xxI2SState *s = (PXA2xxI2SState *)
             g_malloc0(sizeof(PXA2xxI2SState));
 
@@ -1773,9 +1753,9 @@ static PXA2xxI2SState *pxa2xx_i2s_init(target_phys_addr_t base,
 
     pxa2xx_i2s_reset(s);
 
-    iomemtype = cpu_register_io_memory(pxa2xx_i2s_readfn,
-                    pxa2xx_i2s_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x100000, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa2xx_i2s_ops, s,
+                          "pxa2xx-i2s", 0x100000);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     vmstate_register(NULL, base, &vmstate_pxa2xx_i2s, s);
 
@@ -2184,7 +2164,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
     s->i2c[1] = pxa2xx_i2c_init(0x40f00100,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_PWRI2C), 0xff);
 
-    s->i2s = pxa2xx_i2s_init(0x40400000,
+    s->i2s = pxa2xx_i2s_init(address_space, 0x40400000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_I2S),
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_I2S),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_I2S));
@@ -2316,7 +2296,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     s->i2c[1] = pxa2xx_i2c_init(0x40f00100,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_PWRI2C), 0xff);
 
-    s->i2s = pxa2xx_i2s_init(0x40400000,
+    s->i2s = pxa2xx_i2s_init(address_space, 0x40400000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_I2S),
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_I2S),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_I2S));

@@ -151,6 +151,7 @@ typedef struct {
 } PXA2xxState;
 
 struct PXA2xxI2SState {
+    MemoryRegion iomem;
     qemu_irq irq;
     qemu_irq rx_dma;
     qemu_irq tx_dma;
