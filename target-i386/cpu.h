@@ -283,6 +283,7 @@
 #define MSR_IA32_APICBASE_BSP           (1<<8)
 #define MSR_IA32_APICBASE_ENABLE        (1<<11)
 #define MSR_IA32_APICBASE_BASE          (0xfffff<<12)
+#define MSR_IA32_TSCDEADLINE            0x6e0
 
 #define MSR_MTRRcap			0xfe
 #define MSR_MTRRcap_VCNT		8
@@ -687,6 +688,7 @@ typedef struct CPUX86State {
     uint64_t async_pf_en_msr;
 
     uint64_t tsc;
+    uint64_t tsc_deadline;
 
     uint64_t mcg_status;
 
@@ -947,7 +949,7 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define cpu_list_id x86_cpu_list
 #define cpudef_setup	x86_cpudef_setup
 
-#define CPU_SAVE_VERSION 12
+#define CPU_SAVE_VERSION 13
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel
