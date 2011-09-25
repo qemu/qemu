@@ -801,7 +801,6 @@ void mips_malta_init (ram_addr_t ram_size,
     int piix4_devfn;
     i2c_bus *smbus;
     int i;
-    DriveInfo *dinfo;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
     int fl_idx = 0;
@@ -877,9 +876,11 @@ void mips_malta_init (ram_addr_t ram_size,
                               //~ env->bigendian);
     } else {
         target_long bios_size;
+        DriveInfo *dinfo = drive_get(IF_PFLASH, 0, fl_idx);
         if (dinfo) {
             /* Load firmware from flash. */
             bios_size = FLASH_SIZE;
+            fl_sectors = bios_size >> 16;
 #ifdef DEBUG_BOARD_INIT
             printf("Register parallel flash %d size " TARGET_FMT_lx " at "
                    "addr %08llx '%s' %x\n",

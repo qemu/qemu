@@ -569,6 +569,13 @@ static uint64_t omap_gpmc_read(void *opaque, target_phys_addr_t addr,
     case 0x1ec:	/* GPMC_PREFETCH_CONTROL */
         return s->prefetch.startengine;
     case 0x1f0:	/* GPMC_PREFETCH_STATUS */
+        /* NB: The OMAP3 TRM is inconsistent about whether the GPMC
+         * FIFOTHRESHOLDSTATUS bit should be set when
+         * FIFOPOINTER > FIFOTHRESHOLD or when it is >= FIFOTHRESHOLD.
+         * Apparently the underlying functional spec from which the TRM was
+         * created states that the behaviour is ">=", and this also
+         * makes more conceptual sense.
+         */
         return (s->prefetch.fifopointer << 24) |
                 ((s->prefetch.fifopointer >=
                   ((s->prefetch.config1 >> 8) & 0x7f) ? 1 : 0) << 16) |
@@ -632,7 +639,7 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
         break;
 
     case 0x018:	/* GPMC_IRQSTATUS */
-        s->irqen &= ~value;
+        s->irqst &= ~value;
         omap_gpmc_int_update(s);
         break;
 

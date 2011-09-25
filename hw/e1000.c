@@ -1151,8 +1151,6 @@ static int pci_e1000_init(PCIDevice *pci_dev)
 
     pci_conf = d->dev.config;
 
-    /* TODO: we have no capabilities, so why is this bit set? */
-    pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_CAP_LIST);
     /* TODO: RST# value should be 0, PCI spec 6.2.4 */
     pci_conf[PCI_CACHE_LINE_SIZE] = 0x10;
 

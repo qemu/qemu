@@ -1881,7 +1881,7 @@ static void udp_chr_close(CharDriverState *chr)
 {
     NetCharDriver *s = chr->opaque;
     if (s->fd >= 0) {
-        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
         closesocket(s->fd);
     }
     g_free(s);
@@ -2093,9 +2093,9 @@ static void tcp_chr_read(void *opaque)
         /* connection closed */
         s->connected = 0;
         if (s->listen_fd >= 0) {
-            qemu_set_fd_handler(s->listen_fd, tcp_chr_accept, NULL, chr);
+            qemu_set_fd_handler2(s->listen_fd, NULL, tcp_chr_accept, NULL, chr);
         }
-        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
         closesocket(s->fd);
         s->fd = -1;
         qemu_chr_event(chr, CHR_EVENT_CLOSED);
@@ -2156,7 +2156,7 @@ static int tcp_chr_add_client(CharDriverState *chr, int fd)
     if (s->do_nodelay)
         socket_set_nodelay(fd);
     s->fd = fd;
-    qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
+    qemu_set_fd_handler2(s->listen_fd, NULL, NULL, NULL, NULL);
     tcp_chr_connect(chr);
 
     return 0;
@@ -2202,11 +2202,11 @@ static void tcp_chr_close(CharDriverState *chr)
 {
     TCPCharDriver *s = chr->opaque;
     if (s->fd >= 0) {
-        qemu_set_fd_handler(s->fd, NULL, NULL, NULL);
+        qemu_set_fd_handler2(s->fd, NULL, NULL, NULL, NULL);
         closesocket(s->fd);
     }
     if (s->listen_fd >= 0) {
-        qemu_set_fd_handler(s->listen_fd, NULL, NULL, NULL);
+        qemu_set_fd_handler2(s->listen_fd, NULL, NULL, NULL, NULL);
         closesocket(s->listen_fd);
     }
     g_free(s);
@@ -2272,7 +2272,7 @@ static int qemu_chr_open_socket(QemuOpts *opts, CharDriverState **_chr)
 
     if (is_listen) {
         s->listen_fd = fd;
-        qemu_set_fd_handler(s->listen_fd, tcp_chr_accept, NULL, chr);
+        qemu_set_fd_handler2(s->listen_fd, NULL, tcp_chr_accept, NULL, chr);
         if (is_telnet)
             s->do_telnetopt = 1;
 

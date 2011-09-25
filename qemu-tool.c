@@ -23,9 +23,11 @@ QEMUClock *vm_clock;
 
 FILE *logfile;
 
-void qemu_service_io(void)
+struct QEMUBH
 {
-}
+    QEMUBHFunc *cb;
+    void *opaque;
+};
 
 Monitor *cur_mon;
 

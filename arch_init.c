@@ -459,11 +459,6 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-void qemu_service_io(void)
-{
-    qemu_notify_event();
-}
-
 #ifdef HAS_AUDIO
 struct soundhw {
     const char *name;

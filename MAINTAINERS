@@ -62,6 +62,7 @@ F: target-alpha/
 
 ARM
 M: Paul Brook <paul@codesourcery.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: target-arm/
 
@@ -168,6 +169,7 @@ F: hw/gumstix.c
 
 Integrator CP
 M: Paul Brook <paul@codesourcery.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/integratorcp.c
 
@@ -193,6 +195,7 @@ F: hw/palm.c
 
 Real View
 M: Paul Brook <paul@codesourcery.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/realview*
 
@@ -203,11 +206,13 @@ F: hw/spitz.c
 
 Stellaris
 M: Paul Brook <paul@codesourcery.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/stellaris.c
 
 Versatile PB
 M: Paul Brook <paul@codesourcery.com>
+M: Peter Maydell <peter.maydell@linaro.org>
 S: Maintained
 F: hw/versatilepb.c
 
