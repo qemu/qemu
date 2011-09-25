@@ -116,16 +116,17 @@ static uint32_t speaker_ioport_read (void *opaque, uint32_t addr)
 
 /* PCI intack register */
 /* Read-only register (?) */
-static void _PPC_intack_write (void *opaque,
-                               target_phys_addr_t addr, uint32_t value)
+static void PPC_intack_write (void *opaque, target_phys_addr_t addr,
+                              uint64_t value, unsigned size)
 {
 #if 0
-    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx32 "\n", __func__, addr,
+    printf("%s: 0x" TARGET_FMT_plx " => 0x%08" PRIx64 "\n", __func__, addr,
            value);
 #endif
 }
 
-static inline uint32_t _PPC_intack_read(target_phys_addr_t addr)
+static uint64_t PPC_intack_read(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
     uint32_t retval = 0;
 
@@ -139,31 +140,10 @@ static inline uint32_t _PPC_intack_read(target_phys_addr_t addr)
     return retval;
 }
 
-static uint32_t PPC_intack_readb (void *opaque, target_phys_addr_t addr)
-{
-    return _PPC_intack_read(addr);
-}
-
-static uint32_t PPC_intack_readw (void *opaque, target_phys_addr_t addr)
-{
-    return _PPC_intack_read(addr);
-}
-
-static uint32_t PPC_intack_readl (void *opaque, target_phys_addr_t addr)
-{
-    return _PPC_intack_read(addr);
-}
-
-static CPUWriteMemoryFunc * const PPC_intack_write[] = {
-    &_PPC_intack_write,
-    &_PPC_intack_write,
-    &_PPC_intack_write,
-};
-
-static CPUReadMemoryFunc * const PPC_intack_read[] = {
-    &PPC_intack_readb,
-    &PPC_intack_readw,
-    &PPC_intack_readl,
+static const MemoryRegionOps PPC_intack_ops = {
+    .read = PPC_intack_read,
+    .write = PPC_intack_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 /* PowerPC control and status registers */
@@ -244,17 +224,14 @@ static uint32_t PPC_XCSR_readl (void *opaque, target_phys_addr_t addr)
     return retval;
 }
 
-static CPUWriteMemoryFunc * const PPC_XCSR_write[] = {
-    &PPC_XCSR_writeb,
-    &PPC_XCSR_writew,
-    &PPC_XCSR_writel,
+static const MemoryRegionOps PPC_XCSR_ops = {
+    .old_mmio = {
+        .read = { PPC_XCSR_readb, PPC_XCSR_readw, PPC_XCSR_readl, },
+        .write = { PPC_XCSR_writeb, PPC_XCSR_writew, PPC_XCSR_writel, },
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
-static CPUReadMemoryFunc * const PPC_XCSR_read[] = {
-    &PPC_XCSR_readb,
-    &PPC_XCSR_readw,
-    &PPC_XCSR_readl,
-};
 #endif
 
 /* Fake super-io ports for PREP platform (Intel 82378ZB) */
@@ -503,16 +480,12 @@ static uint32_t PPC_prep_io_readl (void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUWriteMemoryFunc * const PPC_prep_io_write[] = {
-    &PPC_prep_io_writeb,
-    &PPC_prep_io_writew,
-    &PPC_prep_io_writel,
-};
-
-static CPUReadMemoryFunc * const PPC_prep_io_read[] = {
-    &PPC_prep_io_readb,
-    &PPC_prep_io_readw,
-    &PPC_prep_io_readl,
+static const MemoryRegionOps PPC_prep_io_ops = {
+    .old_mmio = {
+        .read = { PPC_prep_io_readb, PPC_prep_io_readw, PPC_prep_io_readl },
+        .write = { PPC_prep_io_writeb, PPC_prep_io_writew, PPC_prep_io_writel },
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 #define NVRAM_SIZE        0x2000
@@ -534,13 +507,19 @@ static void ppc_prep_init (ram_addr_t ram_size,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
+    MemoryRegion *sysmem = get_system_memory();
     CPUState *env = NULL;
     char *filename;
     nvram_t nvram;
     M48t59State *m48t59;
-    int PPC_io_memory;
+    MemoryRegion *PPC_io_memory = g_new(MemoryRegion, 1);
+    MemoryRegion *intack = g_new(MemoryRegion, 1);
+#if 0
+    MemoryRegion *xcsr = g_new(MemoryRegion, 1);
+#endif
     int linux_boot, i, nb_nics1, bios_size;
-    ram_addr_t ram_offset, bios_offset;
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *bios = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
@@ -574,11 +553,11 @@ static void ppc_prep_init (ram_addr_t ram_size,
     }
 
     /* allocate RAM */
-    ram_offset = qemu_ram_alloc(NULL, "ppc_prep.ram", ram_size);
-    cpu_register_physical_memory(0, ram_size, ram_offset);
+    memory_region_init_ram(ram, NULL, "ppc_prep.ram", ram_size);
+    memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate and load BIOS */
-    bios_offset = qemu_ram_alloc(NULL, "ppc_prep.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "ppc_prep.bios", BIOS_SIZE);
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
@@ -591,8 +570,8 @@ static void ppc_prep_init (ram_addr_t ram_size,
         target_phys_addr_t bios_addr;
         bios_size = (bios_size + 0xfff) & ~0xfff;
         bios_addr = (uint32_t)(-bios_size);
-        cpu_register_physical_memory(bios_addr, bios_size,
-                                     bios_offset | IO_MEM_ROM);
+        memory_region_set_readonly(bios, true);
+        memory_region_add_subregion(sysmem, bios_addr, bios);
         bios_size = load_image_targphys(filename, bios_addr, bios_size);
     }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
@@ -655,10 +634,9 @@ static void ppc_prep_init (ram_addr_t ram_size,
     isa_bus_irqs(i8259);
     //    pci_bus = i440fx_init();
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
-    PPC_io_memory = cpu_register_io_memory(PPC_prep_io_read,
-                                           PPC_prep_io_write, sysctrl,
-                                           DEVICE_LITTLE_ENDIAN);
-    cpu_register_physical_memory(0x80000000, 0x00800000, PPC_io_memory);
+    memory_region_init_io(PPC_io_memory, &PPC_prep_io_ops, sysctrl,
+                          "ppc-io", 0x00800000);
+    memory_region_add_subregion(sysmem, 0x80000000, PPC_io_memory);
 
     /* init basic PC hardware */
     pci_vga_init(pci_bus);
@@ -713,15 +691,12 @@ static void ppc_prep_init (ram_addr_t ram_size,
     register_ioport_read(0x0800, 0x52, 1, &PREP_io_800_readb, sysctrl);
     register_ioport_write(0x0800, 0x52, 1, &PREP_io_800_writeb, sysctrl);
     /* PCI intack location */
-    PPC_io_memory = cpu_register_io_memory(PPC_intack_read,
-                                           PPC_intack_write, NULL,
-                                           DEVICE_LITTLE_ENDIAN);
-    cpu_register_physical_memory(0xBFFFFFF0, 0x4, PPC_io_memory);
+    memory_region_init_io(intack, &PPC_intack_ops, NULL, "ppc-intack", 4);
+    memory_region_add_subregion(sysmem, 0xBFFFFFF0, intack);
     /* PowerPC control and status register group */
 #if 0
-    PPC_io_memory = cpu_register_io_memory(PPC_XCSR_read, PPC_XCSR_write,
-                                           NULL, DEVICE_LITTLE_ENDIAN);
-    cpu_register_physical_memory(0xFEFF0000, 0x1000, PPC_io_memory);
+    memory_region_init_io(xcsr, &PPC_XCSR_ops, NULL, "ppc-xcsr", 0x1000);
+    memory_region_add_subregion(sysmem, 0xFEFF0000, xcsr);
 #endif
 
     if (usb_enabled) {
