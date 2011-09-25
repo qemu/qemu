@@ -126,6 +126,7 @@ struct FlatRange {
     AddrRange addr;
     uint8_t dirty_log_mask;
     bool readable;
+    bool readonly;
 };
 
 /* Flattened global view of current active memory hierarchy.  Kept in sorted
@@ -166,7 +167,8 @@ static bool flatrange_equal(FlatRange *a, FlatRange *b)
     return a->mr == b->mr
         && addrrange_equal(a->addr, b->addr)
         && a->offset_in_region == b->offset_in_region
-        && a->readable == b->readable;
+        && a->readable == b->readable
+        && a->readonly == b->readonly;
 }
 
 static void flatview_init(FlatView *view)
@@ -203,7 +205,8 @@ static bool can_merge(FlatRange *r1, FlatRange *r2)
         && r1->mr == r2->mr
         && r1->offset_in_region + r1->addr.size == r2->offset_in_region
         && r1->dirty_log_mask == r2->dirty_log_mask
-        && r1->readable == r2->readable;
+        && r1->readable == r2->readable
+        && r1->readonly == r2->readonly;
 }
 
 /* Attempt to simplify a view by merging ajacent ranges */
@@ -305,6 +308,10 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
 
     if (!fr->readable) {
         phys_offset &= ~TARGET_PAGE_MASK & ~IO_MEM_ROMD;
+    }
+
+    if (fr->readonly) {
+        phys_offset |= IO_MEM_ROM;
     }
 
     cpu_register_physical_memory_log(fr->addr.start,
@@ -484,7 +491,8 @@ static AddressSpace address_space_io = {
 static void render_memory_region(FlatView *view,
                                  MemoryRegion *mr,
                                  target_phys_addr_t base,
-                                 AddrRange clip)
+                                 AddrRange clip,
+                                 bool readonly)
 {
     MemoryRegion *subregion;
     unsigned i;
@@ -495,6 +503,7 @@ static void render_memory_region(FlatView *view,
     AddrRange tmp;
 
     base += mr->addr;
+    readonly |= mr->readonly;
 
     tmp = addrrange_make(base, mr->size);
 
@@ -507,13 +516,13 @@ static void render_memory_region(FlatView *view,
     if (mr->alias) {
         base -= mr->alias->addr;
         base -= mr->alias_offset;
-        render_memory_region(view, mr->alias, base, clip);
+        render_memory_region(view, mr->alias, base, clip, readonly);
         return;
     }
 
     /* Render subregions in priority order. */
     QTAILQ_FOREACH(subregion, &mr->subregions, subregions_link) {
-        render_memory_region(view, subregion, base, clip);
+        render_memory_region(view, subregion, base, clip, readonly);
     }
 
     if (!mr->terminates) {
@@ -536,6 +545,7 @@ static void render_memory_region(FlatView *view,
             fr.addr = addrrange_make(base, now);
             fr.dirty_log_mask = mr->dirty_log_mask;
             fr.readable = mr->readable;
+            fr.readonly = readonly;
             flatview_insert(view, i, &fr);
             ++i;
             base += now;
@@ -555,6 +565,7 @@ static void render_memory_region(FlatView *view,
         fr.addr = addrrange_make(base, remain);
         fr.dirty_log_mask = mr->dirty_log_mask;
         fr.readable = mr->readable;
+        fr.readonly = readonly;
         flatview_insert(view, i, &fr);
     }
 }
@@ -566,7 +577,7 @@ static FlatView generate_memory_topology(MemoryRegion *mr)
 
     flatview_init(&view);
 
-    render_memory_region(&view, mr, 0, addrrange_make(0, INT64_MAX));
+    render_memory_region(&view, mr, 0, addrrange_make(0, INT64_MAX), false);
     flatview_simplify(&view);
 
     return view;
@@ -772,6 +783,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->offset = 0;
     mr->terminates = false;
     mr->readable = true;
+    mr->readonly = false;
     mr->destructor = memory_region_destructor_none;
     mr->priority = 0;
     mr->may_overlap = false;
@@ -1035,7 +1047,10 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 
 void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
 {
-    /* FIXME */
+    if (mr->readonly != readonly) {
+        mr->readonly = readonly;
+        memory_region_update_topology();
+    }
 }
 
 void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable)
