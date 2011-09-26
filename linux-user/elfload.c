@@ -332,6 +332,49 @@ enum
     ARM_HWCAP_ARM_VFPv3D16  = 1 << 13,
 };
 
+#define TARGET_HAS_GUEST_VALIDATE_BASE
+/* We want the opportunity to check the suggested base */
+bool guest_validate_base(unsigned long guest_base)
+{
+    unsigned long real_start, test_page_addr;
+
+    /* We need to check that we can force a fault on access to the
+     * commpage at 0xffff0fxx
+     */
+    test_page_addr = guest_base + (0xffff0f00 & qemu_host_page_mask);
+    /* Note it needs to be writeable to let us initialise it */
+    real_start = (unsigned long)
+                 mmap((void *)test_page_addr, qemu_host_page_size,
+                     PROT_READ | PROT_WRITE,
+                     MAP_ANONYMOUS | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    /* If we can't map it then try another address */
+    if (real_start == -1ul) {
+        return 0;
+    }
+
+    if (real_start != test_page_addr) {
+        /* OS didn't put the page where we asked - unmap and reject */
+        munmap((void *)real_start, qemu_host_page_size);
+        return 0;
+    }
+
+    /* Leave the page mapped
+     * Populate it (mmap should have left it all 0'd)
+     */
+
+    /* Kernel helper versions */
+    __put_user(5, (uint32_t *)g2h(0xffff0ffcul));
+
+    /* Now it's populated make it RO */
+    if (mprotect((void *)test_page_addr, qemu_host_page_size, PROT_READ)) {
+        perror("Protecting guest commpage");
+        exit(-1);
+    }
+
+    return 1; /* All good */
+}
+
 #define ELF_HWCAP (ARM_HWCAP_ARM_SWP | ARM_HWCAP_ARM_HALF               \
                    | ARM_HWCAP_ARM_THUMB | ARM_HWCAP_ARM_FAST_MULT      \
                    | ARM_HWCAP_ARM_FPA | ARM_HWCAP_ARM_VFP              \
@@ -1309,6 +1352,14 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
     return sp;
 }
 
+#ifndef TARGET_HAS_GUEST_VALIDATE_BASE
+/* If the guest doesn't have a validation function just agree */
+bool guest_validate_base(unsigned long guest_base)
+{
+    return 1;
+}
+#endif
+
 static void probe_guest_base(const char *image_name,
                              abi_ulong loaddr, abi_ulong hiaddr)
 {
@@ -1345,7 +1396,9 @@ static void probe_guest_base(const char *image_name,
             if (real_start == (unsigned long)-1) {
                 goto exit_perror;
             }
-            if (real_start == host_start) {
+            guest_base = real_start - loaddr;
+            if ((real_start == host_start) &&
+                guest_validate_base(guest_base)) {
                 break;
             }
             /* That address didn't work.  Unmap and try a different one.
@@ -1368,7 +1421,6 @@ static void probe_guest_base(const char *image_name,
         qemu_log("Relocating guest address space from 0x"
                  TARGET_ABI_FMT_lx " to 0x%lx\n",
                  loaddr, real_start);
-        guest_base = real_start - loaddr;
     }
     return;
 
