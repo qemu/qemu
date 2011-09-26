@@ -114,6 +114,7 @@ struct MemoryRegion {
     IORange iorange;
     bool terminates;
     bool readable;
+    bool readonly; /* For RAM regions */
     MemoryRegion *alias;
     target_phys_addr_t alias_offset;
     unsigned priority;
