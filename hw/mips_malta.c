@@ -778,7 +778,7 @@ void mips_malta_init (ram_addr_t ram_size,
     int64_t kernel_entry;
     PCIBus *pci_bus;
     CPUState *env;
-    qemu_irq *i8259;
+    qemu_irq *i8259 = NULL, *isa_irq;
     qemu_irq *cpu_exit_irq;
     int piix4_devfn;
     i2c_bus *smbus;
@@ -928,17 +928,27 @@ void mips_malta_init (ram_addr_t ram_size,
     cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
 
-    /* Interrupt controller */
-    /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
-    i8259 = i8259_init(env->irq[2]);
+    /*
+     * We have a circular dependency problem: pci_bus depends on isa_irq,
+     * isa_irq is provided by i8259, i8259 depends on ISA, ISA depends
+     * on piix4, and piix4 depends on pci_bus.  To stop the cycle we have
+     * qemu_irq_proxy() adds an extra bit of indirection, allowing us
+     * to resolve the isa_irq -> i8259 dependency after i8259 is initialized.
+     */
+    isa_irq = qemu_irq_proxy(&i8259, 16);
 
     /* Northbridge */
-    pci_bus = gt64120_register(i8259);
+    pci_bus = gt64120_register(isa_irq);
 
     /* Southbridge */
     ide_drive_get(hd, MAX_IDE_BUS);
 
     piix4_devfn = piix4_init(pci_bus, 80);
+
+    /* Interrupt controller */
+    /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
+    i8259 = i8259_init(env->irq[2]);
+
     isa_bus_irqs(i8259);
     pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
     usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);

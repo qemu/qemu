@@ -648,10 +648,10 @@ static void ppc_prep_init (ram_addr_t ram_size,
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         hw_error("Only 6xx bus is supported on PREP machine\n");
     }
+    /* Hmm, prep has no pci-isa bridge ??? */
+    isa_bus_new(NULL, get_system_io());
     i8259 = i8259_init(first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
     pci_bus = pci_prep_init(i8259, get_system_memory(), get_system_io());
-    /* Hmm, prep has no pci-isa bridge ??? */
-    isa_bus_new(NULL);
     isa_bus_irqs(i8259);
     //    pci_bus = i440fx_init();
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */

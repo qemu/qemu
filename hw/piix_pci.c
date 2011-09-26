@@ -504,7 +504,7 @@ static int piix3_initfn(PCIDevice *dev)
 {
     PIIX3State *d = DO_UPCAST(PIIX3State, dev, dev);
 
-    isa_bus_new(&d->dev.qdev);
+    isa_bus_new(&d->dev.qdev, pci_address_space_io(dev));
     qemu_register_reset(piix3_reset, d);
     return 0;
 }
