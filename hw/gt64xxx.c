@@ -543,19 +543,19 @@ static void gt64120_writel (void *opaque, target_phys_addr_t addr,
         /* not really implemented */
         s->regs[saddr] = ~(~(s->regs[saddr]) | ~(val & 0xfffffffe));
         s->regs[saddr] |= !!(s->regs[saddr] & 0xfffffffe);
-        DPRINTF("INTRCAUSE %x\n", val);
+        DPRINTF("INTRCAUSE %" PRIx64 "\n", val);
         break;
     case GT_INTRMASK:
         s->regs[saddr] = val & 0x3c3ffffe;
-        DPRINTF("INTRMASK %x\n", val);
+        DPRINTF("INTRMASK %" PRIx64 "\n", val);
         break;
     case GT_PCI0_ICMASK:
         s->regs[saddr] = val & 0x03fffffe;
-        DPRINTF("ICMASK %x\n", val);
+        DPRINTF("ICMASK %" PRIx64 "\n", val);
         break;
     case GT_PCI0_SERR0MASK:
         s->regs[saddr] = val & 0x0000003f;
-        DPRINTF("SERR0MASK %x\n", val);
+        DPRINTF("SERR0MASK %" PRIx64 "\n", val);
         break;
 
     /* Reserved when only PCI_0 is configured. */
