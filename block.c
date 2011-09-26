@@ -1868,6 +1868,11 @@ static void bdrv_print_dict(QObject *obj, void *opaque)
         monitor_printf(mon, " tray-open=%d",
                        qdict_get_bool(bs_dict, "tray-open"));
     }
+
+    if (qdict_haskey(bs_dict, "io-status")) {
+        monitor_printf(mon, " io-status=%s", qdict_get_str(bs_dict, "io-status"));
+    }
+
     if (qdict_haskey(bs_dict, "inserted")) {
         QDict *qdict = qobject_to_qdict(qdict_get(bs_dict, "inserted"));
 
