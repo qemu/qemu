@@ -35,6 +35,11 @@ these four paragraphs for those parts of this code that are retained.
 
 =============================================================================*/
 
+/* softfloat (and in particular the code in softfloat-specialize.h) is
+ * target-dependent and needs the TARGET_* macros.
+ */
+#include "config.h"
+
 #include "softfloat.h"
 
 /*----------------------------------------------------------------------------
