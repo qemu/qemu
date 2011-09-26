@@ -221,6 +221,7 @@ BlockDriverState *bdrv_new(const char *device_name)
     if (device_name[0] != '\0') {
         QTAILQ_INSERT_TAIL(&bdrv_states, bs, list);
     }
+    bdrv_iostatus_disable(bs);
     return bs;
 }
 
@@ -772,6 +773,7 @@ int bdrv_attach_dev(BlockDriverState *bs, void *dev)
         return -EBUSY;
     }
     bs->dev = dev;
+    bdrv_iostatus_reset(bs);
     return 0;
 }
 
@@ -3181,6 +3183,44 @@ void bdrv_set_in_use(BlockDriverState *bs, int in_use)
 int bdrv_in_use(BlockDriverState *bs)
 {
     return bs->in_use;
+}
+
+void bdrv_iostatus_enable(BlockDriverState *bs)
+{
+    bs->iostatus = BDRV_IOS_OK;
+}
+
+/* The I/O status is only enabled if the drive explicitly
+ * enables it _and_ the VM is configured to stop on errors */
+bool bdrv_iostatus_is_enabled(const BlockDriverState *bs)
+{
+    return (bs->iostatus != BDRV_IOS_INVAL &&
+           (bs->on_write_error == BLOCK_ERR_STOP_ENOSPC ||
+            bs->on_write_error == BLOCK_ERR_STOP_ANY    ||
+            bs->on_read_error == BLOCK_ERR_STOP_ANY));
+}
+
+void bdrv_iostatus_disable(BlockDriverState *bs)
+{
+    bs->iostatus = BDRV_IOS_INVAL;
+}
+
+void bdrv_iostatus_reset(BlockDriverState *bs)
+{
+    if (bdrv_iostatus_is_enabled(bs)) {
+        bs->iostatus = BDRV_IOS_OK;
+    }
+}
+
+/* XXX: Today this is set by device models because it makes the implementation
+   quite simple. However, the block layer knows about the error, so it's
+   possible to implement this without device models being involved */
+void bdrv_iostatus_set_err(BlockDriverState *bs, int error)
+{
+    if (bdrv_iostatus_is_enabled(bs) && bs->iostatus == BDRV_IOS_OK) {
+        assert(error >= 0);
+        bs->iostatus = error == ENOSPC ? BDRV_IOS_ENOSPC : BDRV_IOS_FAILED;
+    }
 }
 
 void
