@@ -76,12 +76,24 @@ static uint64_t pcnet_ioport_read(void *opaque, target_phys_addr_t addr,
 {
     PCNetState *d = opaque;
 
-    if (addr < 16 && size == 1) {
-        return pcnet_aprom_readb(d, addr);
-    } else if (addr >= 0x10 && addr < 0x20 && size == 2) {
-        return pcnet_ioport_readw(d, addr);
-    } else if (addr >= 0x10 && addr < 0x20 && size == 4) {
-        return pcnet_ioport_readl(d, addr);
+    if (addr < 0x10) {
+        if (!BCR_DWIO(d) && size == 1) {
+            return pcnet_aprom_readb(d, addr);
+        } else if (!BCR_DWIO(d) && (addr & 1) == 0 && size == 2) {
+            return pcnet_aprom_readb(d, addr) |
+                   (pcnet_aprom_readb(d, addr + 1) << 8);
+        } else if (BCR_DWIO(d) && (addr & 3) == 0 && size == 4) {
+            return pcnet_aprom_readb(d, addr) |
+                   (pcnet_aprom_readb(d, addr + 1) << 8) |
+                   (pcnet_aprom_readb(d, addr + 2) << 16) |
+                   (pcnet_aprom_readb(d, addr + 3) << 24);
+        }
+    } else {
+        if (size == 2) {
+            return pcnet_ioport_readw(d, addr);
+        } else if (size == 4) {
+            return pcnet_ioport_readl(d, addr);
+        }
     }
     return ((uint64_t)1 << (size * 8)) - 1;
 }
@@ -91,12 +103,24 @@ static void pcnet_ioport_write(void *opaque, target_phys_addr_t addr,
 {
     PCNetState *d = opaque;
 
-    if (addr < 16 && size == 1) {
-        return pcnet_aprom_writeb(d, addr, data);
-    } else if (addr >= 0x10 && addr < 0x20 && size == 2) {
-        return pcnet_ioport_writew(d, addr, data);
-    } else if (addr >= 0x10 && addr < 0x20 && size == 4) {
-        return pcnet_ioport_writel(d, addr, data);
+    if (addr < 0x10) {
+        if (!BCR_DWIO(d) && size == 1) {
+            pcnet_aprom_writeb(d, addr, data);
+        } else if (!BCR_DWIO(d) && (addr & 1) == 0 && size == 2) {
+            pcnet_aprom_writeb(d, addr, data & 0xff);
+            pcnet_aprom_writeb(d, addr + 1, data >> 8);
+        } else if (BCR_DWIO(d) && (addr & 3) == 0 && size == 4) {
+            pcnet_aprom_writeb(d, addr, data & 0xff);
+            pcnet_aprom_writeb(d, addr + 1, (data >> 8) & 0xff);
+            pcnet_aprom_writeb(d, addr + 2, (data >> 16) & 0xff);
+            pcnet_aprom_writeb(d, addr + 3, data >> 24);
+        }
+    } else {
+        if (size == 2) {
+            pcnet_ioport_writew(d, addr, data);
+        } else if (size == 4) {
+            pcnet_ioport_writel(d, addr, data);
+        }
     }
 }
 
