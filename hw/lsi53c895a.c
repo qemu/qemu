@@ -697,7 +697,7 @@ static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
         lsi_reselect(s, p);
         return 0;
     } else {
-        DPRINTF("Queueing IO tag=0x%x\n", tag);
+        DPRINTF("Queueing IO tag=0x%x\n", p->tag);
         p->pending = len;
         return 1;
     }
