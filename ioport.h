@@ -52,4 +52,25 @@ uint8_t cpu_inb(pio_addr_t addr);
 uint16_t cpu_inw(pio_addr_t addr);
 uint32_t cpu_inl(pio_addr_t addr);
 
+struct MemoryRegion;
+struct MemoryRegionPortio;
+
+typedef struct PortioList {
+    const struct MemoryRegionPortio *ports;
+    struct MemoryRegion *address_space;
+    unsigned nr;
+    struct MemoryRegion **regions;
+    void *opaque;
+    const char *name;
+} PortioList;
+
+void portio_list_init(PortioList *piolist,
+                      const struct MemoryRegionPortio *callbacks,
+                      void *opaque, const char *name);
+void portio_list_destroy(PortioList *piolist);
+void portio_list_add(PortioList *piolist,
+                     struct MemoryRegion *address_space,
+                     uint32_t addr);
+void portio_list_del(PortioList *piolist);
+
 #endif /* IOPORT_H */
