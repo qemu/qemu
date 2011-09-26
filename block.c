@@ -1893,6 +1893,12 @@ void bdrv_info_print(Monitor *mon, const QObject *data)
     qlist_iter(qobject_to_qlist(data), bdrv_print_dict, mon);
 }
 
+static const char *const io_status_name[BDRV_IOS_MAX] = {
+    [BDRV_IOS_OK] = "ok",
+    [BDRV_IOS_FAILED] = "failed",
+    [BDRV_IOS_ENOSPC] = "nospace",
+};
+
 void bdrv_info(Monitor *mon, QObject **ret_data)
 {
     QList *bs_list;
@@ -1915,6 +1921,12 @@ void bdrv_info(Monitor *mon, QObject **ret_data)
             qdict_put(bs_dict, "tray-open",
                       qbool_from_int(bdrv_dev_is_tray_open(bs)));
         }
+
+        if (bdrv_iostatus_is_enabled(bs)) {
+            qdict_put(bs_dict, "io-status",
+                      qstring_from_str(io_status_name[bs->iostatus]));
+        }
+
         if (bs->drv) {
             QObject *obj;
 
