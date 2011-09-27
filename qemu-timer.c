@@ -273,7 +273,11 @@ static QEMUClock *qemu_new_clock(int type)
 
 void qemu_clock_enable(QEMUClock *clock, int enabled)
 {
+    bool old = clock->enabled;
     clock->enabled = enabled;
+    if (enabled && !old) {
+        qemu_rearm_alarm_timer(alarm_timer);
+    }
 }
 
 int64_t qemu_clock_has_timers(QEMUClock *clock)
@@ -806,13 +810,6 @@ static void win32_rearm_timer(struct qemu_alarm_timer *t,
 
 #endif /* _WIN32 */
 
-static void alarm_timer_on_change_state_rearm(void *opaque, int running,
-                                              RunState state)
-{
-    if (running)
-        qemu_rearm_alarm_timer((struct qemu_alarm_timer *) opaque);
-}
-
 static void quit_timers(void)
 {
     struct qemu_alarm_timer *t = alarm_timer;
@@ -842,7 +839,6 @@ int init_timer_alarm(void)
     atexit(quit_timers);
     t->pending = 1;
     alarm_timer = t;
-    qemu_add_vm_change_state_handler(alarm_timer_on_change_state_rearm, t);
 
     return 0;
 
