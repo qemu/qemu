@@ -248,6 +248,8 @@ _syscall3(int, sys_sched_getaffinity, pid_t, pid, unsigned int, len,
 #define __NR_sys_sched_setaffinity __NR_sched_setaffinity
 _syscall3(int, sys_sched_setaffinity, pid_t, pid, unsigned int, len,
           unsigned long *, user_mask_ptr);
+_syscall4(int, reboot, int, magic1, int, magic2, unsigned int, cmd,
+          void *, arg);
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
@@ -5872,7 +5874,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_reboot:
-        goto unimplemented;
+        if (!(p = lock_user_string(arg4)))
+            goto efault;
+        ret = reboot(arg1, arg2, arg3, p);
+        unlock_user(p, arg4, 0);
+        break;
 #ifdef TARGET_NR_readdir
     case TARGET_NR_readdir:
         goto unimplemented;
