@@ -1360,7 +1360,10 @@ void mtree_info(fprintf_function mon_printf, void *f)
         g_free(ml2);
     }
 
-    QTAILQ_INIT(&ml_head);
-    mon_printf(f, "I/O\n");
-    mtree_print_mr(mon_printf, f, address_space_io.root, 0, 0, &ml_head);
+    if (address_space_io.root &&
+        !QTAILQ_EMPTY(&address_space_io.root->subregions)) {
+        QTAILQ_INIT(&ml_head);
+        mon_printf(f, "I/O\n");
+        mtree_print_mr(mon_printf, f, address_space_io.root, 0, 0, &ml_head);
+    }
 }
