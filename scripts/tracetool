@@ -415,9 +415,7 @@ linetoh_dtrace()
     # Define an empty function for the trace event
     cat <<EOF
 static inline void trace_$name($args) {
-    if (QEMU_${nameupper}_ENABLED()) {
-        QEMU_${nameupper}($argnames);
-    }
+    QEMU_${nameupper}($argnames);
 }
 EOF
 }
