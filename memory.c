@@ -1316,18 +1316,20 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
             ml->printed = false;
             QTAILQ_INSERT_TAIL(print_queue, ml, queue);
         }
-        mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx " : alias %s @%s "
+        mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d): alias %s @%s "
                    TARGET_FMT_plx "-" TARGET_FMT_plx "\n",
                    base + mr->addr,
                    base + mr->addr + (target_phys_addr_t)mr->size - 1,
+                   mr->priority,
                    mr->name,
                    mr->alias->name,
                    mr->alias_offset,
                    mr->alias_offset + (target_phys_addr_t)mr->size - 1);
     } else {
-        mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx " : %s\n",
+        mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d): %s\n",
                    base + mr->addr,
                    base + mr->addr + (target_phys_addr_t)mr->size - 1,
+                   mr->priority,
                    mr->name);
     }
     QTAILQ_FOREACH(submr, &mr->subregions, subregions_link) {
