@@ -740,7 +740,6 @@ static QEMUMachine spapr_machine = {
     .desc = "pSeries Logical Partition (PAPR compliant)",
     .init = ppc_spapr_init,
     .max_cpus = MAX_CPUS,
-    .no_vga = 1,
     .no_parallel = 1,
     .use_scsi = 1,
 };

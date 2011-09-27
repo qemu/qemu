@@ -121,10 +121,8 @@ void alpha_pci_vga_setup(PCIBus *pci_bus)
         pci_cirrus_vga_init(pci_bus);
         return;
     case VGA_VMWARE:
-        if (pci_vmsvga_init(pci_bus)) {
-            return;
-        }
-        break;
+        pci_vmsvga_init(pci_bus);
+        return;
     }
     /* If VGA is enabled at all, and one of the above didn't work, then
        fallback to Standard VGA.  */

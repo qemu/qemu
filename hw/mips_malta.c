@@ -996,11 +996,7 @@ void mips_malta_init (ram_addr_t ram_size,
     if (cirrus_vga_enabled) {
         pci_cirrus_vga_init(pci_bus);
     } else if (vmsvga_enabled) {
-        if (!pci_vmsvga_init(pci_bus)) {
-            fprintf(stderr, "Warning: vmware_vga not available,"
-                    " using standard VGA instead\n");
-            pci_vga_init(pci_bus);
-        }
+        pci_vmsvga_init(pci_bus);
     } else if (std_vga_enabled) {
         pci_vga_init(pci_bus);
     }
