@@ -1285,11 +1285,12 @@ typedef QTAILQ_HEAD(queue, MemoryRegionList) MemoryRegionListHead;
 static void mtree_print_mr(fprintf_function mon_printf, void *f,
                            const MemoryRegion *mr, unsigned int level,
                            target_phys_addr_t base,
-                           MemoryRegionListHead *print_queue)
+                           MemoryRegionListHead *alias_print_queue)
 {
+    MemoryRegionList *new_ml, *ml, *next_ml;
+    MemoryRegionListHead submr_print_queue;
     const MemoryRegion *submr;
     unsigned int i;
-
 
     if (!mr) {
         return;
@@ -1304,7 +1305,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
         bool found = false;
 
         /* check if the alias is already in the queue */
-        QTAILQ_FOREACH(ml, print_queue, queue) {
+        QTAILQ_FOREACH(ml, alias_print_queue, queue) {
             if (ml->mr == mr->alias && !ml->printed) {
                 found = true;
             }
@@ -1314,7 +1315,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
             ml = g_new(MemoryRegionList, 1);
             ml->mr = mr->alias;
             ml->printed = false;
-            QTAILQ_INSERT_TAIL(print_queue, ml, queue);
+            QTAILQ_INSERT_TAIL(alias_print_queue, ml, queue);
         }
         mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d): alias %s @%s "
                    TARGET_FMT_plx "-" TARGET_FMT_plx "\n",
@@ -1332,9 +1333,33 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                    mr->priority,
                    mr->name);
     }
+
+    QTAILQ_INIT(&submr_print_queue);
+
     QTAILQ_FOREACH(submr, &mr->subregions, subregions_link) {
-        mtree_print_mr(mon_printf, f, submr, level + 1, base + mr->addr,
-                       print_queue);
+        new_ml = g_new(MemoryRegionList, 1);
+        new_ml->mr = submr;
+        QTAILQ_FOREACH(ml, &submr_print_queue, queue) {
+            if (new_ml->mr->addr < ml->mr->addr ||
+                (new_ml->mr->addr == ml->mr->addr &&
+                 new_ml->mr->priority > ml->mr->priority)) {
+                QTAILQ_INSERT_BEFORE(ml, new_ml, queue);
+                new_ml = NULL;
+                break;
+            }
+        }
+        if (new_ml) {
+            QTAILQ_INSERT_TAIL(&submr_print_queue, new_ml, queue);
+        }
+    }
+
+    QTAILQ_FOREACH(ml, &submr_print_queue, queue) {
+        mtree_print_mr(mon_printf, f, ml->mr, level + 1, base + mr->addr,
+                       alias_print_queue);
+    }
+
+    QTAILQ_FOREACH_SAFE(next_ml, &submr_print_queue, queue, ml) {
+        g_free(ml);
     }
 }
 
