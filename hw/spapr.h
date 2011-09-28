@@ -18,6 +18,7 @@ typedef struct sPAPREnvironment {
     void *fdt_skel;
     target_ulong entry_point;
     int next_irq;
+    int rtc_offset;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
