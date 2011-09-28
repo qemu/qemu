@@ -1248,6 +1248,7 @@ static int aio_write_f(int argc, char **argv)
         case 'P':
             pattern = parse_pattern(optarg);
             if (pattern < 0) {
+                free(ctx);
                 return 0;
             }
             break;
