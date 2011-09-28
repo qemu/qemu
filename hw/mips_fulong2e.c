@@ -331,10 +331,6 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     cpu_mips_irq_init_cpu(env);
     cpu_mips_clock_init(env);
 
-    /* Interrupt controller */
-    /* The 8259 -> IP5  */
-    i8259 = i8259_init(env->irq[5]);
-
     /* North bridge, Bonito --> IP2 */
     pci_bus = bonito_init((qemu_irq *)&(env->irq[2]));
 
@@ -347,7 +343,11 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
         exit(1);
     }
 
+    /* Interrupt controller */
+    /* The 8259 -> IP5  */
+    i8259 = i8259_init(env->irq[5]);
     isa_bus_irqs(i8259);
+
     vt82c686b_ide_init(pci_bus, hd, PCI_DEVFN(FULONG2E_VIA_SLOT, 1));
     usb_uhci_vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 2));
     usb_uhci_vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 3));
