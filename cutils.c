@@ -415,3 +415,15 @@ int64_t strtosz(const char *nptr, char **end)
 {
     return strtosz_suffix(nptr, end, STRTOSZ_DEFSUFFIX_MB);
 }
+
+int qemu_parse_fd(const char *param)
+{
+    int fd;
+    char *endptr = NULL;
+
+    fd = strtol(param, &endptr, 10);
+    if (*endptr || (fd == 0 && param == endptr)) {
+        return -1;
+    }
+    return fd;
+}
