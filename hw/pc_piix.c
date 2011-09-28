@@ -130,17 +130,7 @@ static void pc_init1(MemoryRegion *system_memory,
                        pci_enabled ? rom_memory : system_memory, &ram_memory);
     }
 
-    if (!xen_enabled()) {
-        cpu_irq = pc_allocate_cpu_irq();
-        i8259 = i8259_init(cpu_irq[0]);
-    } else {
-        i8259 = xen_interrupt_controller_init();
-    }
     isa_irq_state = g_malloc0(sizeof(*isa_irq_state));
-    isa_irq_state->i8259 = i8259;
-    if (pci_enabled) {
-        ioapic_init(isa_irq_state);
-    }
     isa_irq = qemu_allocate_irqs(isa_irq_handler, isa_irq_state, 24);
 
     if (pci_enabled) {
@@ -156,10 +146,22 @@ static void pc_init1(MemoryRegion *system_memory,
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
-        isa_bus_new(NULL);
+        isa_bus_new(NULL, system_io);
         no_hpet = 1;
     }
     isa_bus_irqs(isa_irq);
+
+    if (!xen_enabled()) {
+        cpu_irq = pc_allocate_cpu_irq();
+        i8259 = i8259_init(cpu_irq[0]);
+    } else {
+        i8259 = xen_interrupt_controller_init();
+    }
+
+    isa_irq_state->i8259 = i8259;
+    if (pci_enabled) {
+        ioapic_init(isa_irq_state);
+    }
 
     pc_register_ferr_irq(isa_get_irq(13));
 

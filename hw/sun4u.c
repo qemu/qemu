@@ -548,7 +548,7 @@ pci_ebus_init1(PCIDevice *pci_dev)
 {
     EbusState *s = DO_UPCAST(EbusState, pci_dev, pci_dev);
 
-    isa_bus_new(&pci_dev->qdev);
+    isa_bus_new(&pci_dev->qdev, pci_address_space_io(pci_dev));
 
     pci_dev->config[0x04] = 0x06; // command = bus master, pci mem
     pci_dev->config[0x05] = 0x00;

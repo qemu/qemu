@@ -41,6 +41,8 @@
 typedef struct GrackleState {
     SysBusDevice busdev;
     PCIHostState host_state;
+    MemoryRegion pci_mmio;
+    MemoryRegion pci_hole;
 } GrackleState;
 
 /* Don't know if this matches real hardware, but it agrees with OHW.  */
@@ -73,11 +75,18 @@ PCIBus *pci_grackle_init(uint32_t base, qemu_irq *pic,
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
     d = FROM_SYSBUS(GrackleState, s);
+
+    memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
+    memory_region_init_alias(&d->pci_hole, "pci-hole", &d->pci_mmio,
+                             0x80000000ULL, 0x7e000000ULL);
+    memory_region_add_subregion(address_space_mem, 0x80000000ULL,
+                                &d->pci_hole);
+
     d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
                                          pci_grackle_set_irq,
                                          pci_grackle_map_irq,
                                          pic,
-                                         address_space_mem,
+                                         &d->pci_mmio,
                                          address_space_io,
                                          0, 4);
 
