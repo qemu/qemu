@@ -168,6 +168,10 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
             tcg_regset_set32(ct->u.regs, 0, 0xf);
         }
         break;
+    case 'Q':
+        ct->ct |= TCG_CT_REG;
+        tcg_regset_set32(ct->u.regs, 0, 0xf);
+        break;
     case 'r':
         ct->ct |= TCG_CT_REG;
         if (TCG_TARGET_REG_BITS == 64) {
@@ -1747,6 +1751,22 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc,
         break;
 #endif
 
+    OP_32_64(deposit):
+        if (args[3] == 0 && args[4] == 8) {
+            /* load bits 0..7 */
+            tcg_out_modrm(s, OPC_MOVB_EvGv | P_REXB_R | P_REXB_RM,
+                          args[2], args[0]);
+        } else if (args[3] == 8 && args[4] == 8) {
+            /* load bits 8..15 */
+            tcg_out_modrm(s, OPC_MOVB_EvGv, args[2], args[0] + 4);
+        } else if (args[3] == 0 && args[4] == 16) {
+            /* load bits 0..15 */
+            tcg_out_modrm(s, OPC_MOVL_EvGv | P_DATA16, args[2], args[0]);
+        } else {
+            tcg_abort();
+        }
+        break;
+
     default:
         tcg_abort();
     }
@@ -1802,6 +1822,8 @@ static const TCGTargetOpDef x86_op_defs[] = {
 
     { INDEX_op_setcond_i32, { "q", "r", "ri" } },
 
+    { INDEX_op_deposit_i32, { "Q", "0", "Q" } },
+
 #if TCG_TARGET_REG_BITS == 32
     { INDEX_op_mulu2_i32, { "a", "d", "a", "r" } },
     { INDEX_op_add2_i32, { "r", "r", "0", "1", "ri", "ri" } },
@@ -1853,6 +1875,8 @@ static const TCGTargetOpDef x86_op_defs[] = {
     { INDEX_op_ext8u_i64, { "r", "r" } },
     { INDEX_op_ext16u_i64, { "r", "r" } },
     { INDEX_op_ext32u_i64, { "r", "r" } },
+
+    { INDEX_op_deposit_i64, { "Q", "0", "Q" } },
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
