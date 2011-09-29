@@ -525,7 +525,8 @@ typedef struct TCGOpDef {
 } TCGOpDef;
 
 extern TCGOpDef tcg_op_defs[];
-        
+extern const size_t tcg_op_defs_max;
+
 typedef struct TCGTargetOpDef {
     TCGOpcode op;
     const char *args_ct_str[TCG_MAX_OP_ARGS];
