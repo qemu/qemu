@@ -28,6 +28,7 @@
 #include "kvm_ppc.h"
 #include "cpu.h"
 #include "device_tree.h"
+#include "hw/sysbus.h"
 #include "hw/spapr.h"
 
 #include "hw/sysbus.h"
@@ -56,6 +57,7 @@ static int cap_segstate;
 static int cap_booke_sregs;
 static int cap_ppc_smt;
 static int cap_ppc_rma;
+static int cap_spapr_tce;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -81,6 +83,7 @@ int kvm_arch_init(KVMState *s)
     cap_booke_sregs = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_SREGS);
     cap_ppc_smt = kvm_check_extension(s, KVM_CAP_PPC_SMT);
     cap_ppc_rma = kvm_check_extension(s, KVM_CAP_PPC_RMA);
+    cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -800,6 +803,57 @@ off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
     memory_region_add_subregion(sysmem, 0, rma_region);
 
     return size;
+}
+
+void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
+{
+    struct kvm_create_spapr_tce args = {
+        .liobn = liobn,
+        .window_size = window_size,
+    };
+    long len;
+    int fd;
+    void *table;
+
+    if (!cap_spapr_tce) {
+        return NULL;
+    }
+
+    fd = kvm_vm_ioctl(kvm_state, KVM_CREATE_SPAPR_TCE, &args);
+    if (fd < 0) {
+        return NULL;
+    }
+
+    len = (window_size / SPAPR_VIO_TCE_PAGE_SIZE) * sizeof(VIOsPAPR_RTCE);
+    /* FIXME: round this up to page size */
+
+    table = mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0);
+    if (table == MAP_FAILED) {
+        close(fd);
+        return NULL;
+    }
+
+    *pfd = fd;
+    return table;
+}
+
+int kvmppc_remove_spapr_tce(void *table, int fd, uint32_t window_size)
+{
+    long len;
+
+    if (fd < 0) {
+        return -1;
+    }
+
+    len = (window_size / SPAPR_VIO_TCE_PAGE_SIZE)*sizeof(VIOsPAPR_RTCE);
+    if ((munmap(table, len) < 0) ||
+        (close(fd) < 0)) {
+        fprintf(stderr, "KVM: Unexpected error removing KVM SPAPR TCE "
+                "table: %s", strerror(errno));
+        /* Leak the table */
+    }
+
+    return 0;
 }
 
 bool kvm_arch_stop_on_emulation_error(CPUState *env)

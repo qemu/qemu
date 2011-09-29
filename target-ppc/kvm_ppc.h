@@ -22,6 +22,8 @@ int kvmppc_set_interrupt(CPUState *env, int irq, int level);
 void kvmppc_set_papr(CPUState *env);
 int kvmppc_smt_threads(void);
 off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
+void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd);
+int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
 
 #else
 
@@ -57,6 +59,18 @@ static inline int kvmppc_smt_threads(void)
 static inline off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
 {
     return 0;
+}
+
+static inline void *kvmppc_create_spapr_tce(uint32_t liobn,
+                                            uint32_t window_size, int *fd)
+{
+    return NULL;
+}
+
+static inline int kvmppc_remove_spapr_tce(void *table, int pfd,
+                                          uint32_t window_size)
+{
+    return -1;
 }
 
 #endif
