@@ -29,6 +29,9 @@
 #include "elf.h"
 #include "net.h"
 #include "blockdev.h"
+#include "cpus.h"
+#include "kvm.h"
+#include "kvm_ppc.h"
 
 #include "hw/boards.h"
 #include "hw/ppc.h"
@@ -105,6 +108,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
     int i;
     char *modelname;
+    int smt = kvmppc_smt_threads();
 
 #define _FDT(exp) \
     do { \
@@ -164,12 +168,17 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         int index = env->cpu_index;
-        uint32_t gserver_prop[] = {cpu_to_be32(index), 0}; /* HACK! */
+        uint32_t servers_prop[smp_threads];
+        uint32_t gservers_prop[smp_threads * 2];
         char *nodename;
         uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                            0xffffffff, 0xffffffff};
         uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TIMEBASE_FREQ;
         uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
+
+        if ((index % smt) != 0) {
+            continue;
+        }
 
         if (asprintf(&nodename, "%s@%x", modelname, index) < 0) {
             fprintf(stderr, "Allocation failure\n");
@@ -195,9 +204,18 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                            pft_size_prop, sizeof(pft_size_prop))));
         _FDT((fdt_property_string(fdt, "status", "okay")));
         _FDT((fdt_property(fdt, "64-bit", NULL, 0)));
-        _FDT((fdt_property_cell(fdt, "ibm,ppc-interrupt-server#s", index)));
+
+        /* Build interrupt servers and gservers properties */
+        for (i = 0; i < smp_threads; i++) {
+            servers_prop[i] = cpu_to_be32(index + i);
+            /* Hack, direct the group queues back to cpu 0 */
+            gservers_prop[i*2] = cpu_to_be32(index + i);
+            gservers_prop[i*2 + 1] = 0;
+        }
+        _FDT((fdt_property(fdt, "ibm,ppc-interrupt-server#s",
+                           servers_prop, sizeof(servers_prop))));
         _FDT((fdt_property(fdt, "ibm,ppc-interrupt-gserver#s",
-                           gserver_prop, sizeof(gserver_prop))));
+                           gservers_prop, sizeof(gservers_prop))));
 
         if (env->mmu_model & POWERPC_MMU_1TSEG) {
             _FDT((fdt_property(fdt, "ibm,processor-segment-sizes",

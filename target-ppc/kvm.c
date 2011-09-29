@@ -28,6 +28,7 @@
 #include "kvm_ppc.h"
 #include "cpu.h"
 #include "device_tree.h"
+#include "hw/spapr.h"
 
 #include "hw/sysbus.h"
 #include "hw/spapr.h"
@@ -53,6 +54,7 @@ static int cap_interrupt_unset = false;
 static int cap_interrupt_level = false;
 static int cap_segstate;
 static int cap_booke_sregs;
+static int cap_ppc_smt;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -76,6 +78,7 @@ int kvm_arch_init(KVMState *s)
     cap_interrupt_level = kvm_check_extension(s, KVM_CAP_PPC_IRQ_LEVEL);
     cap_segstate = kvm_check_extension(s, KVM_CAP_PPC_SEGSTATE);
     cap_booke_sregs = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_SREGS);
+    cap_ppc_smt = kvm_check_extension(s, KVM_CAP_PPC_SMT);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -748,6 +751,11 @@ void kvmppc_set_papr(CPUState *env)
 
 fail:
     cpu_abort(env, "This KVM version does not support PAPR\n");
+}
+
+int kvmppc_smt_threads(void)
+{
+    return cap_ppc_smt ? cap_ppc_smt : 1;
 }
 
 bool kvm_arch_stop_on_emulation_error(CPUState *env)
