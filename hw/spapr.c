@@ -91,6 +91,7 @@ qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num)
 }
 
 static void *spapr_create_fdt_skel(const char *cpu_model,
+                                   target_phys_addr_t rma_size,
                                    target_phys_addr_t initrd_base,
                                    target_phys_addr_t initrd_size,
                                    const char *boot_device,
@@ -99,7 +100,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 {
     void *fdt;
     CPUState *env;
-    uint64_t mem_reg_property[] = { 0, cpu_to_be64(ram_size) };
+    uint64_t mem_reg_property_rma[] = { 0, cpu_to_be64(rma_size) };
+    uint64_t mem_reg_property_nonrma[] = { cpu_to_be64(rma_size),
+                                           cpu_to_be64(ram_size - rma_size) };
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
@@ -145,14 +148,24 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 
     _FDT((fdt_end_node(fdt)));
 
-    /* memory node */
+    /* memory node(s) */
     _FDT((fdt_begin_node(fdt, "memory@0")));
 
     _FDT((fdt_property_string(fdt, "device_type", "memory")));
-    _FDT((fdt_property(fdt, "reg",
-                       mem_reg_property, sizeof(mem_reg_property))));
-
+    _FDT((fdt_property(fdt, "reg", mem_reg_property_rma,
+                       sizeof(mem_reg_property_rma))));
     _FDT((fdt_end_node(fdt)));
+
+    if (ram_size > rma_size) {
+        char mem_name[32];
+
+        sprintf(mem_name, "memory@%" PRIx64, (uint64_t)rma_size);
+        _FDT((fdt_begin_node(fdt, mem_name)));
+        _FDT((fdt_property_string(fdt, "device_type", "memory")));
+        _FDT((fdt_property(fdt, "reg", mem_reg_property_nonrma,
+                           sizeof(mem_reg_property_nonrma))));
+        _FDT((fdt_end_node(fdt)));
+    }
 
     /* cpus */
     _FDT((fdt_begin_node(fdt, "cpus")));
@@ -346,6 +359,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
+    target_phys_addr_t rma_alloc_size, rma_size;
     uint32_t initrd_base;
     long kernel_size, initrd_size, fw_size;
     long pteg_shift = 17;
@@ -354,10 +368,23 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     spapr = g_malloc(sizeof(*spapr));
     cpu_ppc_hypercall = emulate_spapr_hypercall;
 
-    /* We place the device tree just below either the top of RAM, or
-     * 2GB, so that it can be processed with 32-bit code if
-     * necessary */
-    spapr->fdt_addr = MIN(ram_size, 0x80000000) - FDT_MAX_SIZE;
+    /* Allocate RMA if necessary */
+    rma_alloc_size = kvmppc_alloc_rma("ppc_spapr.rma", sysmem);
+
+    if (rma_alloc_size == -1) {
+        hw_error("qemu: Unable to create RMA\n");
+        exit(1);
+    }
+    if (rma_alloc_size && (rma_alloc_size < ram_size)) {
+        rma_size = rma_alloc_size;
+    } else {
+        rma_size = ram_size;
+    }
+
+    /* We place the device tree just below either the top of the RMA,
+     * or just below 2GB, whichever is lowere, so that it can be
+     * processed with 32-bit real mode code if necessary */
+    spapr->fdt_addr = MIN(rma_size, 0x80000000) - FDT_MAX_SIZE;
     spapr->rtas_addr = spapr->fdt_addr - RTAS_MAX_SIZE;
 
     /* init CPUs */
@@ -382,8 +409,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     /* allocate RAM */
     spapr->ram_limit = ram_size;
-    memory_region_init_ram(ram, NULL, "ppc_spapr.ram", spapr->ram_limit);
-    memory_region_add_subregion(sysmem, 0, ram);
+    if (spapr->ram_limit > rma_alloc_size) {
+        ram_addr_t nonrma_base = rma_alloc_size;
+        ram_addr_t nonrma_size = spapr->ram_limit - rma_alloc_size;
+
+        memory_region_init_ram(ram, NULL, "ppc_spapr.ram", nonrma_size);
+        memory_region_add_subregion(sysmem, nonrma_base, ram);
+    }
 
     /* allocate hash page table.  For now we always make this 16mb,
      * later we should probably make it scale to the size of guest
@@ -507,7 +539,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     /* Prepare the device tree */
-    spapr->fdt_skel = spapr_create_fdt_skel(cpu_model,
+    spapr->fdt_skel = spapr_create_fdt_skel(cpu_model, rma_size,
                                             initrd_base, initrd_size,
                                             boot_device, kernel_cmdline,
                                             pteg_shift + 7);

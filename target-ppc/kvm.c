@@ -55,6 +55,7 @@ static int cap_interrupt_level = false;
 static int cap_segstate;
 static int cap_booke_sregs;
 static int cap_ppc_smt;
+static int cap_ppc_rma;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -79,6 +80,7 @@ int kvm_arch_init(KVMState *s)
     cap_segstate = kvm_check_extension(s, KVM_CAP_PPC_SEGSTATE);
     cap_booke_sregs = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_SREGS);
     cap_ppc_smt = kvm_check_extension(s, KVM_CAP_PPC_SMT);
+    cap_ppc_rma = kvm_check_extension(s, KVM_CAP_PPC_RMA);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -756,6 +758,48 @@ fail:
 int kvmppc_smt_threads(void)
 {
     return cap_ppc_smt ? cap_ppc_smt : 1;
+}
+
+off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
+{
+    void *rma;
+    off_t size;
+    int fd;
+    struct kvm_allocate_rma ret;
+    MemoryRegion *rma_region;
+
+    /* If cap_ppc_rma == 0, contiguous RMA allocation is not supported
+     * if cap_ppc_rma == 1, contiguous RMA allocation is supported, but
+     *                      not necessary on this hardware
+     * if cap_ppc_rma == 2, contiguous RMA allocation is needed on this hardware
+     *
+     * FIXME: We should allow the user to force contiguous RMA
+     * allocation in the cap_ppc_rma==1 case.
+     */
+    if (cap_ppc_rma < 2) {
+        return 0;
+    }
+
+    fd = kvm_vm_ioctl(kvm_state, KVM_ALLOCATE_RMA, &ret);
+    if (fd < 0) {
+        fprintf(stderr, "KVM: Error on KVM_ALLOCATE_RMA: %s\n",
+                strerror(errno));
+        return -1;
+    }
+
+    size = MIN(ret.rma_size, 256ul << 20);
+
+    rma = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (rma == MAP_FAILED) {
+        fprintf(stderr, "KVM: Error mapping RMA: %s\n", strerror(errno));
+        return -1;
+    };
+
+    rma_region = g_new(MemoryRegion, 1);
+    memory_region_init_ram_ptr(rma_region, NULL, name, size, rma);
+    memory_region_add_subregion(sysmem, 0, rma_region);
+
+    return size;
 }
 
 bool kvm_arch_stop_on_emulation_error(CPUState *env)

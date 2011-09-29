@@ -9,6 +9,8 @@
 #ifndef __KVM_PPC_H__
 #define __KVM_PPC_H__
 
+#include "memory.h"
+
 void kvmppc_init(void);
 
 #ifdef CONFIG_KVM
@@ -19,6 +21,7 @@ int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(CPUState *env, int irq, int level);
 void kvmppc_set_papr(CPUState *env);
 int kvmppc_smt_threads(void);
+off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
 
 #else
 
@@ -49,6 +52,11 @@ static inline void kvmppc_set_papr(CPUState *env)
 static inline int kvmppc_smt_threads(void)
 {
     return 1;
+}
+
+static inline off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
+{
+    return 0;
 }
 
 #endif
