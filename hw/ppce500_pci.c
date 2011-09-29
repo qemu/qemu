@@ -98,11 +98,20 @@ static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
     case PPCE500_PCI_OW3:
     case PPCE500_PCI_OW4:
         switch (addr & 0xC) {
-        case PCI_POTAR: value = pci->pob[(addr >> 5) & 0x7].potar; break;
-        case PCI_POTEAR: value = pci->pob[(addr >> 5) & 0x7].potear; break;
-        case PCI_POWBAR: value = pci->pob[(addr >> 5) & 0x7].powbar; break;
-        case PCI_POWAR: value = pci->pob[(addr >> 5) & 0x7].powar; break;
-        default: break;
+        case PCI_POTAR:
+            value = pci->pob[(addr >> 5) & 0x7].potar;
+            break;
+        case PCI_POTEAR:
+            value = pci->pob[(addr >> 5) & 0x7].potear;
+            break;
+        case PCI_POWBAR:
+            value = pci->pob[(addr >> 5) & 0x7].powbar;
+            break;
+        case PCI_POWAR:
+            value = pci->pob[(addr >> 5) & 0x7].powar;
+            break;
+        default:
+            break;
         }
         break;
 
@@ -110,11 +119,20 @@ static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
     case PPCE500_PCI_IW2:
     case PPCE500_PCI_IW1:
         switch (addr & 0xC) {
-        case PCI_PITAR: value = pci->pib[(addr >> 5) & 0x3].pitar; break;
-        case PCI_PIWBAR: value = pci->pib[(addr >> 5) & 0x3].piwbar; break;
-        case PCI_PIWBEAR: value = pci->pib[(addr >> 5) & 0x3].piwbear; break;
-        case PCI_PIWAR: value = pci->pib[(addr >> 5) & 0x3].piwar; break;
-        default: break;
+        case PCI_PITAR:
+            value = pci->pib[(addr >> 5) & 0x3].pitar;
+            break;
+        case PCI_PIWBAR:
+            value = pci->pib[(addr >> 5) & 0x3].piwbar;
+            break;
+        case PCI_PIWBEAR:
+            value = pci->pib[(addr >> 5) & 0x3].piwbear;
+            break;
+        case PCI_PIWAR:
+            value = pci->pib[(addr >> 5) & 0x3].piwar;
+            break;
+        default:
+            break;
         };
         break;
 
@@ -154,11 +172,20 @@ static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
     case PPCE500_PCI_OW3:
     case PPCE500_PCI_OW4:
         switch (addr & 0xC) {
-        case PCI_POTAR: pci->pob[(addr >> 5) & 0x7].potar = value; break;
-        case PCI_POTEAR: pci->pob[(addr >> 5) & 0x7].potear = value; break;
-        case PCI_POWBAR: pci->pob[(addr >> 5) & 0x7].powbar = value; break;
-        case PCI_POWAR: pci->pob[(addr >> 5) & 0x7].powar = value; break;
-        default: break;
+        case PCI_POTAR:
+            pci->pob[(addr >> 5) & 0x7].potar = value;
+            break;
+        case PCI_POTEAR:
+            pci->pob[(addr >> 5) & 0x7].potear = value;
+            break;
+        case PCI_POWBAR:
+            pci->pob[(addr >> 5) & 0x7].powbar = value;
+            break;
+        case PCI_POWAR:
+            pci->pob[(addr >> 5) & 0x7].powar = value;
+            break;
+        default:
+            break;
         };
         break;
 
@@ -166,11 +193,20 @@ static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
     case PPCE500_PCI_IW2:
     case PPCE500_PCI_IW1:
         switch (addr & 0xC) {
-        case PCI_PITAR: pci->pib[(addr >> 5) & 0x3].pitar = value; break;
-        case PCI_PIWBAR: pci->pib[(addr >> 5) & 0x3].piwbar = value; break;
-        case PCI_PIWBEAR: pci->pib[(addr >> 5) & 0x3].piwbear = value; break;
-        case PCI_PIWAR: pci->pib[(addr >> 5) & 0x3].piwar = value; break;
-        default: break;
+        case PCI_PITAR:
+            pci->pib[(addr >> 5) & 0x3].pitar = value;
+            break;
+        case PCI_PIWBAR:
+            pci->pib[(addr >> 5) & 0x3].piwbar = value;
+            break;
+        case PCI_PIWBEAR:
+            pci->pib[(addr >> 5) & 0x3].piwbear = value;
+            break;
+        case PCI_PIWAR:
+            pci->pib[(addr >> 5) & 0x3].piwar = value;
+            break;
+        default:
+            break;
         };
         break;
 
