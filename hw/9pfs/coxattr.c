@@ -17,68 +17,91 @@
 #include "qemu-coroutine.h"
 #include "virtio-9p-coth.h"
 
-int v9fs_co_llistxattr(V9fsState *s, V9fsString *path, void *value, size_t size)
+int v9fs_co_llistxattr(V9fsPDU *pdu, V9fsPath *path, void *value, size_t size)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
-            err = s->ops->llistxattr(&s->ctx, path->data, value, size);
+            err = s->ops->llistxattr(&s->ctx, path, value, size);
             if (err < 0) {
                 err = -errno;
             }
         });
+    v9fs_path_unlock(s);
     return err;
 }
 
-int v9fs_co_lgetxattr(V9fsState *s, V9fsString *path,
+int v9fs_co_lgetxattr(V9fsPDU *pdu, V9fsPath *path,
                       V9fsString *xattr_name,
                       void *value, size_t size)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
-            err = s->ops->lgetxattr(&s->ctx, path->data,
+            err = s->ops->lgetxattr(&s->ctx, path,
                                     xattr_name->data,
                                     value, size);
             if (err < 0) {
                 err = -errno;
             }
         });
+    v9fs_path_unlock(s);
     return err;
 }
 
-int v9fs_co_lsetxattr(V9fsState *s, V9fsString *path,
+int v9fs_co_lsetxattr(V9fsPDU *pdu, V9fsPath *path,
                       V9fsString *xattr_name, void *value,
                       size_t size, int flags)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
-            err = s->ops->lsetxattr(&s->ctx, path->data,
+            err = s->ops->lsetxattr(&s->ctx, path,
                                     xattr_name->data, value,
                                     size, flags);
             if (err < 0) {
                 err = -errno;
             }
         });
+    v9fs_path_unlock(s);
     return err;
 }
 
-int v9fs_co_lremovexattr(V9fsState *s, V9fsString *path,
+int v9fs_co_lremovexattr(V9fsPDU *pdu, V9fsPath *path,
                          V9fsString *xattr_name)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
-            err = s->ops->lremovexattr(&s->ctx, path->data,
-                                       xattr_name->data);
+            err = s->ops->lremovexattr(&s->ctx, path, xattr_name->data);
             if (err < 0) {
                 err = -errno;
             }
         });
+    v9fs_path_unlock(s);
     return err;
 }

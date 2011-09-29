@@ -45,7 +45,7 @@ static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
 }
 
 VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
- {
+{
     V9fsState *s;
     int i, len;
     struct stat stat;
@@ -58,6 +58,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
                                     sizeof(V9fsState));
     /* initialize pdu allocator */
     QLIST_INIT(&s->free_list);
+    QLIST_INIT(&s->active_list);
     for (i = 0; i < (MAX_REQ - 1); i++) {
         QLIST_INSERT_HEAD(&s->free_list, &s->pdus[i], next);
     }
@@ -124,6 +125,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     memcpy(s->tag, conf->tag, len);
     s->tag_len = len;
     s->ctx.uid = -1;
+    s->ctx.flags = 0;
 
     s->ops = fse->ops;
     s->vdev.get_features = virtio_9p_get_features;
@@ -131,7 +133,13 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
                         s->tag_len;
     s->vdev.get_config = virtio_9p_get_config;
     s->fid_list = NULL;
+    qemu_co_rwlock_init(&s->rename_lock);
 
+    if (s->ops->init(&s->ctx) < 0) {
+        fprintf(stderr, "Virtio-9p Failed to initialize fs-driver with id:%s"
+                " and export path:%s\n", conf->fsdev_id, s->ctx.fs_root);
+        exit(1);
+    }
     if (v9fs_init_worker_threads() < 0) {
         fprintf(stderr, "worker thread initialization failed\n");
         exit(1);
