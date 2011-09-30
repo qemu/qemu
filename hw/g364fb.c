@@ -245,6 +245,8 @@ static void g364fb_update_display(void *opaque)
 {
     G364State *s = opaque;
 
+    qemu_flush_coalesced_mmio_buffer();
+
     if (s->width == 0 || s->height == 0)
         return;
 
@@ -296,6 +298,8 @@ static void g364fb_screen_dump(void *opaque, const char *filename)
     uint8_t index;
     uint8_t *data_buffer;
     FILE *f;
+
+    qemu_flush_coalesced_mmio_buffer();
 
     if (s->depth != 8) {
         error_report("g364: unknown guest depth %d", s->depth);
