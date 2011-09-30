@@ -2999,7 +2999,7 @@ static int coroutine_fn bdrv_co_io_em(BlockDriverState *bs, int64_t sector_num,
                              bdrv_co_io_em_complete, &co);
     }
 
-    trace_bdrv_co_io(is_write, acb);
+    trace_bdrv_co_io_em(bs, sector_num, nb_sectors, is_write, acb);
     if (!acb) {
         return -EIO;
     }
