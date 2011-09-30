@@ -323,7 +323,7 @@ static int default_driver_check(QemuOpts *opts, void *opaque)
 /***********************************************************/
 /* QEMU state */
 
-static RunState current_run_state = RSTATE_NO_STATE;
+static RunState current_run_state = RSTATE_PRE_LAUNCH;
 
 typedef struct {
     RunState from;
@@ -332,10 +332,6 @@ typedef struct {
 
 static const RunStateTransition runstate_transitions_def[] = {
     /*     from      ->     to      */
-    { RSTATE_NO_STATE, RSTATE_RUNNING },
-    { RSTATE_NO_STATE, RSTATE_IN_MIGRATE },
-    { RSTATE_NO_STATE, RSTATE_PRE_LAUNCH },
-
     { RSTATE_DEBUG, RSTATE_RUNNING },
 
     { RSTATE_IN_MIGRATE, RSTATE_RUNNING },
@@ -350,6 +346,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RSTATE_POST_MIGRATE, RSTATE_RUNNING },
 
     { RSTATE_PRE_LAUNCH, RSTATE_RUNNING },
+    { RSTATE_PRE_LAUNCH, RSTATE_IN_MIGRATE },
     { RSTATE_PRE_LAUNCH, RSTATE_POST_MIGRATE },
 
     { RSTATE_PRE_MIGRATE, RSTATE_RUNNING },
@@ -424,8 +421,7 @@ void runstate_set(RunState new_state)
 
 const char *runstate_as_string(void)
 {
-    assert(current_run_state > RSTATE_NO_STATE &&
-           current_run_state < RSTATE_MAX);
+    assert(current_run_state < RSTATE_MAX);
     return runstate_name_tbl[current_run_state];
 }
 
@@ -1294,7 +1290,7 @@ static int shutdown_requested, shutdown_signal = -1;
 static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
-static RunState vmstop_requested = RSTATE_NO_STATE;
+static RunState vmstop_requested = RSTATE_MAX;
 
 int qemu_shutdown_requested_get(void)
 {
@@ -1350,11 +1346,12 @@ static int qemu_debug_requested(void)
     return r;
 }
 
+/* We use RSTATE_MAX but any invalid value will do */
 static bool qemu_vmstop_requested(RunState *r)
 {
-    if (vmstop_requested != RSTATE_NO_STATE) {
+    if (vmstop_requested < RSTATE_MAX) {
         *r = vmstop_requested;
-        vmstop_requested = RSTATE_NO_STATE;
+        vmstop_requested = RSTATE_MAX;
         return true;
     }
 
@@ -3569,8 +3566,6 @@ int main(int argc, char **argv, char **envp)
         }
     } else if (autostart) {
         vm_start();
-    } else {
-        runstate_set(RSTATE_PRE_LAUNCH);
     }
 
     os_setup_post();

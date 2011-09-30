@@ -11,7 +11,6 @@
 /* vl.c */
 
 typedef enum {
-    RSTATE_NO_STATE,
     RSTATE_DEBUG,          /* qemu is running under gdb */
     RSTATE_IN_MIGRATE,     /* paused waiting for an incoming migration */
     RSTATE_PANICKED,       /* paused due to an internal error */
