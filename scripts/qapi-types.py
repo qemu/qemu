@@ -91,8 +91,11 @@ typedef enum %(name)s
 ''',
                 name=name)
 
+    # append automatically generated _MAX value
+    enum_values = values + [ 'MAX' ]
+
     i = 0
-    for value in values:
+    for value in enum_values:
         enum_decl += mcgen('''
     %(abbrev)s_%(value)s = %(i)d,
 ''',
