@@ -1014,7 +1014,7 @@ int kvm_cpu_exec(CPUState *env)
 
     if (ret < 0) {
         cpu_dump_state(env, stderr, fprintf, CPU_DUMP_CODE);
-        vm_stop(RSTATE_PANICKED);
+        vm_stop(RUN_STATE_INTERNAL_ERROR);
     }
 
     env->exit_request = 0;

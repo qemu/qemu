@@ -77,7 +77,7 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
         req->next = s->rq;
         s->rq = req;
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
-        vm_stop(RSTATE_IO_ERROR);
+        vm_stop(RUN_STATE_IO_ERROR);
     } else {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
         bdrv_acct_done(s->bs, &req->acct);

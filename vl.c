@@ -323,7 +323,7 @@ static int default_driver_check(QemuOpts *opts, void *opaque)
 /***********************************************************/
 /* QEMU state */
 
-static RunState current_run_state = RSTATE_PRE_LAUNCH;
+static RunState current_run_state = RUN_STATE_PRELAUNCH;
 
 typedef struct {
     RunState from;
@@ -332,63 +332,63 @@ typedef struct {
 
 static const RunStateTransition runstate_transitions_def[] = {
     /*     from      ->     to      */
-    { RSTATE_DEBUG, RSTATE_RUNNING },
+    { RUN_STATE_DEBUG, RUN_STATE_RUNNING },
 
-    { RSTATE_IN_MIGRATE, RSTATE_RUNNING },
-    { RSTATE_IN_MIGRATE, RSTATE_PRE_LAUNCH },
+    { RUN_STATE_INMIGRATE, RUN_STATE_RUNNING },
+    { RUN_STATE_INMIGRATE, RUN_STATE_PRELAUNCH },
 
-    { RSTATE_PANICKED, RSTATE_PAUSED },
+    { RUN_STATE_INTERNAL_ERROR, RUN_STATE_PAUSED },
 
-    { RSTATE_IO_ERROR, RSTATE_RUNNING },
+    { RUN_STATE_IO_ERROR, RUN_STATE_RUNNING },
 
-    { RSTATE_PAUSED, RSTATE_RUNNING },
+    { RUN_STATE_PAUSED, RUN_STATE_RUNNING },
 
-    { RSTATE_POST_MIGRATE, RSTATE_RUNNING },
+    { RUN_STATE_POSTMIGRATE, RUN_STATE_RUNNING },
 
-    { RSTATE_PRE_LAUNCH, RSTATE_RUNNING },
-    { RSTATE_PRE_LAUNCH, RSTATE_IN_MIGRATE },
-    { RSTATE_PRE_LAUNCH, RSTATE_POST_MIGRATE },
+    { RUN_STATE_PRELAUNCH, RUN_STATE_RUNNING },
+    { RUN_STATE_PRELAUNCH, RUN_STATE_INMIGRATE },
+    { RUN_STATE_PRELAUNCH, RUN_STATE_POSTMIGRATE },
 
-    { RSTATE_PRE_MIGRATE, RSTATE_RUNNING },
-    { RSTATE_PRE_MIGRATE, RSTATE_POST_MIGRATE },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_RUNNING },
+    { RUN_STATE_FINISH_MIGRATE, RUN_STATE_POSTMIGRATE },
 
-    { RSTATE_RESTORE, RSTATE_RUNNING },
+    { RUN_STATE_RESTORE_VM, RUN_STATE_RUNNING },
 
-    { RSTATE_RUNNING, RSTATE_DEBUG },
-    { RSTATE_RUNNING, RSTATE_PANICKED },
-    { RSTATE_RUNNING, RSTATE_IO_ERROR },
-    { RSTATE_RUNNING, RSTATE_PAUSED },
-    { RSTATE_RUNNING, RSTATE_PRE_MIGRATE },
-    { RSTATE_RUNNING, RSTATE_RESTORE },
-    { RSTATE_RUNNING, RSTATE_SAVEVM },
-    { RSTATE_RUNNING, RSTATE_SHUTDOWN },
-    { RSTATE_RUNNING, RSTATE_WATCHDOG },
+    { RUN_STATE_RUNNING, RUN_STATE_DEBUG },
+    { RUN_STATE_RUNNING, RUN_STATE_INTERNAL_ERROR },
+    { RUN_STATE_RUNNING, RUN_STATE_IO_ERROR },
+    { RUN_STATE_RUNNING, RUN_STATE_PAUSED },
+    { RUN_STATE_RUNNING, RUN_STATE_FINISH_MIGRATE },
+    { RUN_STATE_RUNNING, RUN_STATE_RESTORE_VM },
+    { RUN_STATE_RUNNING, RUN_STATE_SAVE_VM },
+    { RUN_STATE_RUNNING, RUN_STATE_SHUTDOWN },
+    { RUN_STATE_RUNNING, RUN_STATE_WATCHDOG },
 
-    { RSTATE_SAVEVM, RSTATE_RUNNING },
+    { RUN_STATE_SAVE_VM, RUN_STATE_RUNNING },
 
-    { RSTATE_SHUTDOWN, RSTATE_PAUSED },
+    { RUN_STATE_SHUTDOWN, RUN_STATE_PAUSED },
 
-    { RSTATE_WATCHDOG, RSTATE_RUNNING },
+    { RUN_STATE_WATCHDOG, RUN_STATE_RUNNING },
 
-    { RSTATE_MAX, RSTATE_MAX },
+    { RUN_STATE_MAX, RUN_STATE_MAX },
 };
 
-static bool runstate_valid_transitions[RSTATE_MAX][RSTATE_MAX];
+static bool runstate_valid_transitions[RUN_STATE_MAX][RUN_STATE_MAX];
 
-static const char *const runstate_name_tbl[RSTATE_MAX] = {
-    [RSTATE_DEBUG] = "debug",
-    [RSTATE_IN_MIGRATE] = "incoming-migration",
-    [RSTATE_PANICKED] = "internal-error",
-    [RSTATE_IO_ERROR] = "io-error",
-    [RSTATE_PAUSED] = "paused",
-    [RSTATE_POST_MIGRATE] = "post-migrate",
-    [RSTATE_PRE_LAUNCH] = "prelaunch",
-    [RSTATE_PRE_MIGRATE] = "finish-migrate",
-    [RSTATE_RESTORE] = "restore-vm",
-    [RSTATE_RUNNING] = "running",
-    [RSTATE_SAVEVM] = "save-vm",
-    [RSTATE_SHUTDOWN] = "shutdown",
-    [RSTATE_WATCHDOG] = "watchdog",
+static const char *const runstate_name_tbl[RUN_STATE_MAX] = {
+    [RUN_STATE_DEBUG] = "debug",
+    [RUN_STATE_INMIGRATE] = "incoming-migration",
+    [RUN_STATE_INTERNAL_ERROR] = "internal-error",
+    [RUN_STATE_IO_ERROR] = "io-error",
+    [RUN_STATE_PAUSED] = "paused",
+    [RUN_STATE_POSTMIGRATE] = "post-migrate",
+    [RUN_STATE_PRELAUNCH] = "prelaunch",
+    [RUN_STATE_FINISH_MIGRATE] = "finish-migrate",
+    [RUN_STATE_RESTORE_VM] = "restore-vm",
+    [RUN_STATE_RUNNING] = "running",
+    [RUN_STATE_SAVE_VM] = "save-vm",
+    [RUN_STATE_SHUTDOWN] = "shutdown",
+    [RUN_STATE_WATCHDOG] = "watchdog",
 };
 
 bool runstate_check(RunState state)
@@ -402,7 +402,7 @@ void runstate_init(void)
 
     memset(&runstate_valid_transitions, 0, sizeof(runstate_valid_transitions));
 
-    for (p = &runstate_transitions_def[0]; p->from != RSTATE_MAX; p++) {
+    for (p = &runstate_transitions_def[0]; p->from != RUN_STATE_MAX; p++) {
         runstate_valid_transitions[p->from][p->to] = true;
     }
 }
@@ -410,7 +410,7 @@ void runstate_init(void)
 /* This function will abort() on invalid state transitions */
 void runstate_set(RunState new_state)
 {
-    if (new_state >= RSTATE_MAX ||
+    if (new_state >= RUN_STATE_MAX ||
         !runstate_valid_transitions[current_run_state][new_state]) {
         fprintf(stderr, "invalid runstate transition\n");
         abort();
@@ -421,13 +421,13 @@ void runstate_set(RunState new_state)
 
 const char *runstate_as_string(void)
 {
-    assert(current_run_state < RSTATE_MAX);
+    assert(current_run_state < RUN_STATE_MAX);
     return runstate_name_tbl[current_run_state];
 }
 
 int runstate_is_running(void)
 {
-    return runstate_check(RSTATE_RUNNING);
+    return runstate_check(RUN_STATE_RUNNING);
 }
 
 /***********************************************************/
@@ -1268,8 +1268,8 @@ void vm_start(void)
 {
     if (!runstate_is_running()) {
         cpu_enable_ticks();
-        runstate_set(RSTATE_RUNNING);
-        vm_state_notify(1, RSTATE_RUNNING);
+        runstate_set(RUN_STATE_RUNNING);
+        vm_state_notify(1, RUN_STATE_RUNNING);
         resume_all_vcpus();
         monitor_protocol_event(QEVENT_RESUME, NULL);
     }
@@ -1290,7 +1290,7 @@ static int shutdown_requested, shutdown_signal = -1;
 static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
-static RunState vmstop_requested = RSTATE_MAX;
+static RunState vmstop_requested = RUN_STATE_MAX;
 
 int qemu_shutdown_requested_get(void)
 {
@@ -1346,12 +1346,12 @@ static int qemu_debug_requested(void)
     return r;
 }
 
-/* We use RSTATE_MAX but any invalid value will do */
+/* We use RUN_STATE_MAX but any invalid value will do */
 static bool qemu_vmstop_requested(RunState *r)
 {
-    if (vmstop_requested < RSTATE_MAX) {
+    if (vmstop_requested < RUN_STATE_MAX) {
         *r = vmstop_requested;
-        vmstop_requested = RSTATE_MAX;
+        vmstop_requested = RUN_STATE_MAX;
         return true;
     }
 
@@ -1583,13 +1583,13 @@ static void main_loop(void)
 #endif
 
         if (qemu_debug_requested()) {
-            vm_stop(RSTATE_DEBUG);
+            vm_stop(RUN_STATE_DEBUG);
         }
         if (qemu_shutdown_requested()) {
             qemu_kill_report();
             monitor_protocol_event(QEVENT_SHUTDOWN, NULL);
             if (no_shutdown) {
-                vm_stop(RSTATE_SHUTDOWN);
+                vm_stop(RUN_STATE_SHUTDOWN);
             } else
                 break;
         }
@@ -1598,9 +1598,9 @@ static void main_loop(void)
             cpu_synchronize_all_states();
             qemu_system_reset(VMRESET_REPORT);
             resume_all_vcpus();
-            if (runstate_check(RSTATE_PANICKED) ||
-                runstate_check(RSTATE_SHUTDOWN)) {
-                runstate_set(RSTATE_PAUSED);
+            if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
+                runstate_check(RUN_STATE_SHUTDOWN)) {
+                runstate_set(RUN_STATE_PAUSED);
             }
         }
         if (qemu_powerdown_requested()) {
@@ -3557,7 +3557,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (incoming) {
-        runstate_set(RSTATE_IN_MIGRATE);
+        runstate_set(RUN_STATE_INMIGRATE);
         int ret = qemu_start_incoming_migration(incoming);
         if (ret < 0) {
             fprintf(stderr, "Migration failed. Exit code %s(%d), exiting.\n",

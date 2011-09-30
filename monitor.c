@@ -1248,7 +1248,7 @@ static void do_singlestep(Monitor *mon, const QDict *qdict)
  */
 static int do_stop(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    vm_stop(RSTATE_PAUSED);
+    vm_stop(RUN_STATE_PAUSED);
     return 0;
 }
 
@@ -1266,11 +1266,11 @@ static int do_cont(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     struct bdrv_iterate_context context = { mon, 0 };
 
-    if (runstate_check(RSTATE_IN_MIGRATE)) {
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
         qerror_report(QERR_MIGRATION_EXPECTED);
         return -1;
-    } else if (runstate_check(RSTATE_PANICKED) ||
-               runstate_check(RSTATE_SHUTDOWN)) {
+    } else if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
+               runstate_check(RUN_STATE_SHUTDOWN)) {
         qerror_report(QERR_RESET_REQUIRED);
         return -1;
     }
@@ -2773,7 +2773,7 @@ static void do_loadvm(Monitor *mon, const QDict *qdict)
     int saved_vm_running  = runstate_is_running();
     const char *name = qdict_get_str(qdict, "name");
 
-    vm_stop(RSTATE_RESTORE);
+    vm_stop(RUN_STATE_RESTORE_VM);
 
     if (load_vmstate(name) == 0 && saved_vm_running) {
         vm_start();

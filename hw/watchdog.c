@@ -132,7 +132,7 @@ void watchdog_perform_action(void)
 
     case WDT_PAUSE:             /* same as 'stop' command in monitor */
         watchdog_mon_event("pause");
-        vm_stop(RSTATE_WATCHDOG);
+        vm_stop(RUN_STATE_WATCHDOG);
         break;
 
     case WDT_DEBUG:
