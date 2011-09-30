@@ -17,12 +17,10 @@
 #include "hw/virtio-pci.h"
 #include "virtio-9p.h"
 #include "fsdev/qemu-fsdev.h"
-#include "virtio-9p-debug.h"
 #include "virtio-9p-xattr.h"
 #include "virtio-9p-coth.h"
 #include "trace.h"
 
-int debug_9p_pdu;
 int open_fd_hw;
 int total_open_fd;
 static int open_fd_rc;
@@ -686,9 +684,6 @@ static V9fsPDU *alloc_pdu(V9fsState *s)
 static void free_pdu(V9fsState *s, V9fsPDU *pdu)
 {
     if (pdu) {
-        if (debug_9p_pdu) {
-            pprint_pdu(pdu);
-        }
         /*
          * Cancelled pdu are added back to the freelist
          * by flush request .
@@ -3321,9 +3316,6 @@ static void submit_pdu(V9fsState *s, V9fsPDU *pdu)
     Coroutine *co;
     CoroutineEntry *handler;
 
-    if (debug_9p_pdu) {
-        pprint_pdu(pdu);
-    }
     if (pdu->id >= ARRAY_SIZE(pdu_co_handlers) ||
         (pdu_co_handlers[pdu->id] == NULL)) {
         handler = v9fs_op_not_supp;
