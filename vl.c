@@ -1350,11 +1350,15 @@ static int qemu_debug_requested(void)
     return r;
 }
 
-static RunState qemu_vmstop_requested(void)
+static bool qemu_vmstop_requested(RunState *r)
 {
-    RunState s = vmstop_requested;
-    vmstop_requested = RSTATE_NO_STATE;
-    return s;
+    if (vmstop_requested != RSTATE_NO_STATE) {
+        *r = vmstop_requested;
+        vmstop_requested = RSTATE_NO_STATE;
+        return true;
+    }
+
+    return false;
 }
 
 void qemu_register_reset(QEMUResetHandler *func, void *opaque)
@@ -1567,7 +1571,7 @@ static void main_loop(void)
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
-    int r;
+    RunState r;
 
     qemu_main_loop_start();
 
@@ -1606,7 +1610,7 @@ static void main_loop(void)
             monitor_protocol_event(QEVENT_POWERDOWN, NULL);
             qemu_irq_raise(qemu_system_powerdown);
         }
-        if ((r = qemu_vmstop_requested())) {
+        if (qemu_vmstop_requested(&r)) {
             vm_stop(r);
         }
     }
