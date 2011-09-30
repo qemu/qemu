@@ -248,8 +248,6 @@ int nb_numa_nodes;
 uint64_t node_mem[MAX_NODES];
 uint64_t node_cpumask[MAX_NODES];
 
-static QEMUTimer *nographic_timer;
-
 uint8_t qemu_uuid[16];
 
 static QEMUBootSetHandler *boot_set_handler;
@@ -1205,13 +1203,6 @@ static void gui_update(void *opaque)
         dcl = dcl->next;
     }
     qemu_mod_timer(ds->gui_timer, interval + qemu_get_clock_ms(rt_clock));
-}
-
-static void nographic_update(void *opaque)
-{
-    uint64_t interval = GUI_REFRESH_INTERVAL;
-
-    qemu_mod_timer(nographic_timer, interval + qemu_get_clock_ms(rt_clock));
 }
 
 struct vm_change_state_entry {
@@ -3512,10 +3503,6 @@ int main(int argc, char **argv, char **envp)
             break;
         }
         dcl = dcl->next;
-    }
-    if (ds->gui_timer == NULL) {
-        nographic_timer = qemu_new_timer_ms(rt_clock, nographic_update, NULL);
-        qemu_mod_timer(nographic_timer, qemu_get_clock_ms(rt_clock));
     }
     text_consoles_set_display(ds);
 
