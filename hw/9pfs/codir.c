@@ -17,11 +17,15 @@
 #include "qemu-coroutine.h"
 #include "virtio-9p-coth.h"
 
-int v9fs_co_readdir_r(V9fsState *s, V9fsFidState *fidp, struct dirent *dent,
+int v9fs_co_readdir_r(V9fsPDU *pdu, V9fsFidState *fidp, struct dirent *dent,
                       struct dirent **result)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_co_run_in_worker(
         {
             errno = 0;
@@ -35,10 +39,14 @@ int v9fs_co_readdir_r(V9fsState *s, V9fsFidState *fidp, struct dirent *dent,
     return err;
 }
 
-off_t v9fs_co_telldir(V9fsState *s, V9fsFidState *fidp)
+off_t v9fs_co_telldir(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     off_t err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;
+    }
     v9fs_co_run_in_worker(
         {
             err = s->ops->telldir(&s->ctx, fidp->fs.dir);
@@ -49,67 +57,103 @@ off_t v9fs_co_telldir(V9fsState *s, V9fsFidState *fidp)
     return err;
 }
 
-void v9fs_co_seekdir(V9fsState *s, V9fsFidState *fidp, off_t offset)
+void v9fs_co_seekdir(V9fsPDU *pdu, V9fsFidState *fidp, off_t offset)
 {
+    V9fsState *s = pdu->s;
+    if (v9fs_request_cancelled(pdu)) {
+        return;
+    }
     v9fs_co_run_in_worker(
         {
             s->ops->seekdir(&s->ctx, fidp->fs.dir, offset);
         });
 }
 
-void v9fs_co_rewinddir(V9fsState *s, V9fsFidState *fidp)
+void v9fs_co_rewinddir(V9fsPDU *pdu, V9fsFidState *fidp)
 {
+    V9fsState *s = pdu->s;
+    if (v9fs_request_cancelled(pdu)) {
+        return;
+    }
     v9fs_co_run_in_worker(
         {
             s->ops->rewinddir(&s->ctx, fidp->fs.dir);
         });
 }
 
-int v9fs_co_mkdir(V9fsState *s, char *name, mode_t mode, uid_t uid, gid_t gid)
+int v9fs_co_mkdir(V9fsPDU *pdu, V9fsFidState *fidp, V9fsString *name,
+                  mode_t mode, uid_t uid, gid_t gid, struct stat *stbuf)
 {
     int err;
     FsCred cred;
+    V9fsPath path;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;;
+    }
     cred_init(&cred);
     cred.fc_mode = mode;
     cred.fc_uid = uid;
     cred.fc_gid = gid;
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
-            err = s->ops->mkdir(&s->ctx, name, &cred);
+            err = s->ops->mkdir(&s->ctx, &fidp->path, name->data,  &cred);
             if (err < 0) {
                 err = -errno;
+            } else {
+                v9fs_path_init(&path);
+                err = v9fs_name_to_path(s, &fidp->path, name->data, &path);
+                if (!err) {
+                    err = s->ops->lstat(&s->ctx, &path, stbuf);
+                    if (err < 0) {
+                        err = -errno;
+                    }
+                }
+                v9fs_path_free(&path);
             }
         });
+    v9fs_path_unlock(s);
     return err;
 }
 
-int v9fs_co_opendir(V9fsState *s, V9fsFidState *fidp)
+int v9fs_co_opendir(V9fsPDU *pdu, V9fsFidState *fidp)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;;
+    }
+    v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
-            fidp->fs.dir = s->ops->opendir(&s->ctx, fidp->path.data);
+            fidp->fs.dir = s->ops->opendir(&s->ctx, &fidp->path);
             if (!fidp->fs.dir) {
                 err = -errno;
             } else {
                 err = 0;
             }
         });
+    v9fs_path_unlock(s);
     if (!err) {
         total_open_fd++;
         if (total_open_fd > open_fd_hw) {
-            v9fs_reclaim_fd(s);
+            v9fs_reclaim_fd(pdu);
         }
     }
     return err;
 }
 
-int v9fs_co_closedir(V9fsState *s, DIR *dir)
+int v9fs_co_closedir(V9fsPDU *pdu, DIR *dir)
 {
     int err;
+    V9fsState *s = pdu->s;
 
+    if (v9fs_request_cancelled(pdu)) {
+        return -EINTR;;
+    }
     v9fs_co_run_in_worker(
         {
             err = s->ops->closedir(&s->ctx, dir);
