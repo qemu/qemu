@@ -1080,7 +1080,7 @@ DeviceState *pc_vga_init(ISABus *isa_bus, PCIBus *pci_bus)
         if (pci_bus) {
             dev = pci_cirrus_vga_init(pci_bus);
         } else {
-            dev = isa_cirrus_vga_init(get_system_memory());
+            dev = &isa_create_simple(isa_bus, "isa-cirrus-vga")->qdev;
         }
     } else if (vmsvga_enabled) {
         if (pci_bus) {

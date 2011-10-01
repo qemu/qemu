@@ -226,7 +226,6 @@ int isa_vga_mm_init(target_phys_addr_t vram_base,
 
 /* cirrus_vga.c */
 DeviceState *pci_cirrus_vga_init(PCIBus *bus);
-DeviceState *isa_cirrus_vga_init(MemoryRegion *address_space);
 
 /* ne2000.c */
 static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)

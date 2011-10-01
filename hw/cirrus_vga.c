@@ -250,6 +250,11 @@ typedef struct PCICirrusVGAState {
     CirrusVGAState cirrus_vga;
 } PCICirrusVGAState;
 
+typedef struct ISACirrusVGAState {
+    ISADevice dev;
+    CirrusVGAState cirrus_vga;
+} ISACirrusVGAState;
+
 static uint8_t rop_to_index[256];
 
 /***************************************
@@ -2883,23 +2888,35 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
  *
  ***************************************/
 
-DeviceState *isa_cirrus_vga_init(MemoryRegion *system_memory)
+static int vga_initfn(ISADevice *dev)
 {
-    CirrusVGAState *s;
+    ISACirrusVGAState *d = DO_UPCAST(ISACirrusVGAState, dev, dev);
+    VGACommonState *s = &d->cirrus_vga.vga;
 
-    s = g_malloc0(sizeof(CirrusVGAState));
-
-    vga_common_init(&s->vga, VGA_RAM_SIZE);
-    cirrus_init_common(s, CIRRUS_ID_CLGD5430, 0, system_memory);
-    s->vga.ds = graphic_console_init(s->vga.update, s->vga.invalidate,
-                                     s->vga.screen_dump, s->vga.text_update,
-                                     &s->vga);
-    vmstate_register(NULL, 0, &vmstate_cirrus_vga, s);
+    vga_common_init(s, VGA_RAM_SIZE);
+    cirrus_init_common(&d->cirrus_vga, CIRRUS_ID_CLGD5430, 0,
+                       isa_address_space(dev));
+    s->ds = graphic_console_init(s->update, s->invalidate,
+                                 s->screen_dump, s->text_update,
+                                 s);
     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
     /* FIXME not qdev yet */
-    return NULL;
+    return 0;
 }
+
+static ISADeviceInfo isa_cirrus_vga_info = {
+    .qdev.name     = "isa-cirrus-vga",
+    .qdev.size     = sizeof(ISACirrusVGAState),
+    .qdev.vmsd     = &vmstate_cirrus_vga,
+    .init          = vga_initfn,
+};
+
+static void isa_cirrus_vga_register(void)
+{
+    isa_qdev_register(&isa_cirrus_vga_info);
+}
+device_init(isa_cirrus_vga_register)
 
 /***************************************
  *

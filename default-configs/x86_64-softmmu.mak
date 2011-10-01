@@ -1,8 +1,10 @@
 # Default configuration for x86_64-softmmu
 
 include pci.mak
+CONFIG_VGA=y
 CONFIG_VGA_PCI=y
 CONFIG_VGA_ISA=y
+CONFIG_VGA_CIRRUS=y
 CONFIG_VMWARE_VGA=y
 CONFIG_VMMOUSE=y
 CONFIG_SERIAL=y
