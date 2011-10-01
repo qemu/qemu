@@ -824,20 +824,6 @@ static inline off_t cluster2sector(BDRVVVFATState* s, uint32_t cluster_num)
     return s->faked_sectors + s->sectors_per_cluster * cluster_num;
 }
 
-static inline uint32_t sector_offset_in_cluster(BDRVVVFATState* s,off_t sector_num)
-{
-    return (sector_num-s->first_sectors_number-2*s->sectors_per_fat)%s->sectors_per_cluster;
-}
-
-#ifdef DBG
-static direntry_t* get_direntry_for_mapping(BDRVVVFATState* s,mapping_t* mapping)
-{
-    if(mapping->mode==MODE_UNDEFINED)
-	return 0;
-    return (direntry_t*)(s->directory.pointer+sizeof(direntry_t)*mapping->dir_index);
-}
-#endif
-
 static int init_directories(BDRVVVFATState* s,
 	const char* dirname)
 {
@@ -1137,25 +1123,6 @@ static inline mapping_t* find_mapping_for_cluster(BDRVVVFATState* s,int cluster_
     return mapping;
 }
 
-/*
- * This function simply compares path == mapping->path. Since the mappings
- * are sorted by cluster, this is expensive: O(n).
- */
-static inline mapping_t* find_mapping_for_path(BDRVVVFATState* s,
-	const char* path)
-{
-    int i;
-
-    for (i = 0; i < s->mapping.next; i++) {
-	mapping_t* mapping = array_get(&(s->mapping), i);
-	if (mapping->first_mapping_index < 0 &&
-		!strcmp(path, mapping->path))
-	    return mapping;
-    }
-
-    return NULL;
-}
-
 static int open_file(BDRVVVFATState* s,mapping_t* mapping)
 {
     if(!mapping)
@@ -1222,23 +1189,6 @@ read_cluster_directory:
 }
 
 #ifdef DEBUG
-static void hexdump(const void* address, uint32_t len)
-{
-    const unsigned char* p = address;
-    int i, j;
-
-    for (i = 0; i < len; i += 16) {
-	for (j = 0; j < 16 && i + j < len; j++)
-	    fprintf(stderr, "%02x ", p[i + j]);
-	for (; j < 16; j++)
-	    fprintf(stderr, "   ");
-	fprintf(stderr, " ");
-	for (j = 0; j < 16 && i + j < len; j++)
-	    fprintf(stderr, "%c", (p[i + j] < ' ' || p[i + j] > 0x7f) ? '.' : p[i + j]);
-	fprintf(stderr, "\n");
-    }
-}
-
 static void print_direntry(const direntry_t* direntry)
 {
     int j = 0;
@@ -2887,11 +2837,5 @@ static void checkpoint(void) {
     direntry = array_get(&(vvv->directory), mapping->dir_index);
     assert(!memcmp(direntry->name, "USB     H  ", 11) || direntry->name[0]==0);
 #endif
-    return;
-    /* avoid compiler warnings: */
-    hexdump(NULL, 100);
-    remove_mapping(vvv, 0);
-    print_mapping(NULL);
-    print_direntry(NULL);
 }
 #endif
