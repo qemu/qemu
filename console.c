@@ -1538,7 +1538,7 @@ int text_console_init(QemuOpts *opts, CharDriverState **_chr)
     }
 
     if (!s) {
-        free(chr);
+        g_free(chr);
         return -EBUSY;
     }
 
