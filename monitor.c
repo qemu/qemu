@@ -606,7 +606,7 @@ static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
     }
 }
 
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
 static void do_trace_file(Monitor *mon, const QDict *qdict)
 {
     const char *op = qdict_get_try_str(qdict, "op");
