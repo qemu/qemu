@@ -229,6 +229,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                          const char *cpu_model)
 {
     MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
     PCIBus *pci_bus;
     CPUState *env = NULL;
     uint64_t elf_entry;
@@ -291,8 +292,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     ram_size &= ~(RAM_SIZES_ALIGN - 1);
 
     /* Register Memory */
-    cpu_register_physical_memory(0, ram_size, qemu_ram_alloc(NULL,
-                                 "mpc8544ds.ram", ram_size));
+    memory_region_init_ram(ram, NULL, "mpc8544ds.ram", ram_size);
+    memory_region_add_subregion(address_space_mem, 0, ram);
 
     /* MPIC */
     mpic = mpic_init(address_space_mem, MPC8544_MPIC_REGS_BASE,
