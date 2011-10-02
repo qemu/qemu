@@ -29,6 +29,7 @@
 #include "hw/virtio.h"
 #include "hw/sysbus.h"
 #include "kvm.h"
+#include "exec-memory.h"
 
 #include "hw/s390-virtio-bus.h"
 
@@ -128,7 +129,8 @@ static void s390_init(ram_addr_t my_ram_size,
                       const char *cpu_model)
 {
     CPUState *env = NULL;
-    ram_addr_t ram_addr;
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
     ram_addr_t kernel_size = 0;
     ram_addr_t initrd_offset;
     ram_addr_t initrd_size = 0;
@@ -150,8 +152,8 @@ static void s390_init(ram_addr_t my_ram_size,
     s390_bus = s390_virtio_bus_init(&my_ram_size);
 
     /* allocate RAM */
-    ram_addr = qemu_ram_alloc(NULL, "s390.ram", my_ram_size);
-    cpu_register_physical_memory(0, my_ram_size, ram_addr);
+    memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size);
+    memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate storage keys */
     storage_keys = g_malloc0(my_ram_size / TARGET_PAGE_SIZE);
