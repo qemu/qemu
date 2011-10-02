@@ -298,7 +298,7 @@ void cpu_reset(CPUARMState *env)
         if (rom) {
             /* We should really use ldl_phys here, in case the guest
                modified flash and reset itself.  However images
-               loaded via -kenrel have not been copied yet, so load the
+               loaded via -kernel have not been copied yet, so load the
                values directly from there.  */
             env->regs[13] = ldl_p(rom);
             pc = ldl_p(rom + 4);
