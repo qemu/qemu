@@ -18,17 +18,20 @@
 #include "boards.h"
 #include "bitbang_i2c.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     bitbang_i2c_interface *bitbang;
     int out;
     int in;
 } RealViewI2CState;
 
-static uint32_t realview_i2c_read(void *opaque, target_phys_addr_t offset)
+static uint64_t realview_i2c_read(void *opaque, target_phys_addr_t offset,
+                                  unsigned size)
 {
     RealViewI2CState *s = (RealViewI2CState *)opaque;
 
@@ -41,7 +44,7 @@ static uint32_t realview_i2c_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void realview_i2c_write(void *opaque, target_phys_addr_t offset,
-                               uint32_t value)
+                               uint64_t value, unsigned size)
 {
     RealViewI2CState *s = (RealViewI2CState *)opaque;
 
@@ -59,30 +62,22 @@ static void realview_i2c_write(void *opaque, target_phys_addr_t offset,
     s->in = bitbang_i2c_set(s->bitbang, BITBANG_I2C_SDA, (s->out & 2) != 0);
 }
 
-static CPUReadMemoryFunc * const realview_i2c_readfn[] = {
-   realview_i2c_read,
-   realview_i2c_read,
-   realview_i2c_read
-};
-
-static CPUWriteMemoryFunc * const realview_i2c_writefn[] = {
-   realview_i2c_write,
-   realview_i2c_write,
-   realview_i2c_write
+static const MemoryRegionOps realview_i2c_ops = {
+    .read = realview_i2c_read,
+    .write = realview_i2c_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int realview_i2c_init(SysBusDevice *dev)
 {
     RealViewI2CState *s = FROM_SYSBUS(RealViewI2CState, dev);
     i2c_bus *bus;
-    int iomemtype;
 
     bus = i2c_init_bus(&dev->qdev, "i2c");
     s->bitbang = bitbang_i2c_init(bus);
-    iomemtype = cpu_register_io_memory(realview_i2c_readfn,
-                                       realview_i2c_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &realview_i2c_ops, s,
+                          "realview-i2c", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
@@ -125,7 +120,11 @@ static void realview_init(ram_addr_t ram_size,
                      enum realview_board_type board_type)
 {
     CPUState *env = NULL;
-    ram_addr_t ram_offset;
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram_lo = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_hi = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
+    MemoryRegion *ram_hack = g_new(MemoryRegion, 1);
     DeviceState *dev, *sysctl, *gpio2;
     SysBusDevice *busdev;
     qemu_irq *irqp;
@@ -184,21 +183,21 @@ static void realview_init(ram_addr_t ram_size,
         /* Core tile RAM.  */
         low_ram_size = ram_size - 0x20000000;
         ram_size = 0x20000000;
-        ram_offset = qemu_ram_alloc(NULL, "realview.lowmem", low_ram_size);
-        cpu_register_physical_memory(0x20000000, low_ram_size,
-                                     ram_offset | IO_MEM_RAM);
+        memory_region_init_ram(ram_lo, NULL, "realview.lowmem", low_ram_size);
+        memory_region_add_subregion(sysmem, 0x20000000, ram_lo);
     }
 
-    ram_offset = qemu_ram_alloc(NULL, "realview.highmem", ram_size);
+    memory_region_init_ram(ram_hi, NULL, "realview.highmem", ram_size);
     low_ram_size = ram_size;
     if (low_ram_size > 0x10000000)
       low_ram_size = 0x10000000;
     /* SDRAM at address zero.  */
-    cpu_register_physical_memory(0, low_ram_size, ram_offset | IO_MEM_RAM);
+    memory_region_init_alias(ram_alias, "realview.alias",
+                             ram_hi, 0, low_ram_size);
+    memory_region_add_subregion(sysmem, 0, ram_alias);
     if (is_pb) {
         /* And again at a high address.  */
-        cpu_register_physical_memory(0x70000000, ram_size,
-                                     ram_offset | IO_MEM_RAM);
+        memory_region_add_subregion(sysmem, 0x70000000, ram_hi);
     } else {
         ram_size = low_ram_size;
     }
@@ -372,9 +371,8 @@ static void realview_init(ram_addr_t ram_size,
        startup code.  I guess this works on real hardware because the
        BootROM happens to be in ROM/flash or in memory that isn't clobbered
        until after Linux boots the secondary CPUs.  */
-    ram_offset = qemu_ram_alloc(NULL, "realview.hack", 0x1000);
-    cpu_register_physical_memory(SMP_BOOT_ADDR, 0x1000,
-                                 ram_offset | IO_MEM_RAM);
+    memory_region_init_ram(ram_hack, NULL, "realview.hack", 0x1000);
+    memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, ram_hack);
 
     realview_binfo.ram_size = ram_size;
     realview_binfo.kernel_filename = kernel_filename;
