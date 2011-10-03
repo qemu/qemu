@@ -220,7 +220,7 @@ static void tosa_init(ram_addr_t ram_size,
     cpu_register_physical_memory(0, TOSA_ROM,
                     qemu_ram_alloc(NULL, "tosa.rom", TOSA_ROM) | IO_MEM_ROM);
 
-    tmio = tc6393xb_init(0x10000000,
+    tmio = tc6393xb_init(address_space_mem, 0x10000000,
             qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_TC6393XB_INT));
 
     scp0 = sysbus_create_simple("scoop", 0x08800000, NULL);
