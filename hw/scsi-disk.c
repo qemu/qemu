@@ -1180,6 +1180,9 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
         if (!nb_sectors) {
             goto not_ready;
         }
+        if ((req->cmd.buf[8] & 1) == 0 && req->cmd.lba) {
+            goto illegal_request;
+        }
         nb_sectors /= s->cluster_size;
         /* Returned value is the address of the last sector.  */
         nb_sectors--;
@@ -1231,6 +1234,9 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
             bdrv_get_geometry(s->bs, &nb_sectors);
             if (!nb_sectors) {
                 goto not_ready;
+            }
+            if ((req->cmd.buf[14] & 1) == 0 && req->cmd.lba) {
+                goto illegal_request;
             }
             nb_sectors /= s->cluster_size;
             /* Returned value is the address of the last sector.  */
