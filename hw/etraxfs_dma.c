@@ -599,12 +599,10 @@ dma_winvalid (void *opaque, target_phys_addr_t addr, uint32_t value)
 static void
 dma_update_state(struct fs_dma_ctrl *ctrl, int c)
 {
-	if ((ctrl->channels[c].regs[RW_CFG] & 1) != 3) {
-		if (ctrl->channels[c].regs[RW_CFG] & 2)
-			ctrl->channels[c].state = STOPPED;
-		if (!(ctrl->channels[c].regs[RW_CFG] & 1))
-			ctrl->channels[c].state = RST;
-	}
+	if (ctrl->channels[c].regs[RW_CFG] & 2)
+		ctrl->channels[c].state = STOPPED;
+	if (!(ctrl->channels[c].regs[RW_CFG] & 1))
+		ctrl->channels[c].state = RST;
 }
 
 static void
