@@ -90,7 +90,7 @@ enum {
 #define TCG_TARGET_HAS_eqv_i32          0
 #define TCG_TARGET_HAS_nand_i32         0
 #define TCG_TARGET_HAS_nor_i32          0
-#define TCG_TARGET_HAS_deposit_i32      0
+#define TCG_TARGET_HAS_deposit_i32      1
 
 #if TCG_TARGET_REG_BITS == 64
 #define TCG_TARGET_HAS_div2_i64         1
@@ -111,8 +111,13 @@ enum {
 #define TCG_TARGET_HAS_eqv_i64          0
 #define TCG_TARGET_HAS_nand_i64         0
 #define TCG_TARGET_HAS_nor_i64          0
-#define TCG_TARGET_HAS_deposit_i64      0
+#define TCG_TARGET_HAS_deposit_i64      1
 #endif
+
+#define TCG_TARGET_deposit_i32_valid(ofs, len) \
+    (((ofs) == 0 && (len) == 8) || ((ofs) == 8 && (len) == 8) || \
+     ((ofs) == 0 && (len) == 16))
+#define TCG_TARGET_deposit_i64_valid    TCG_TARGET_deposit_i32_valid
 
 #define TCG_TARGET_HAS_GUEST_BASE
 

@@ -63,19 +63,4 @@ register CPUState *env asm(AREG0);
 extern CPUState *env;
 #endif
 
-/* The return address may point to the start of the next instruction.
-   Subtracting one gets us the call instruction itself.  */
-#if defined(CONFIG_TCG_INTERPRETER)
-extern uint8_t * tci_tb_ptr;
-# define GETPC() ((void *)tci_tb_ptr)
-#elif defined(__s390__) && !defined(__s390x__)
-# define GETPC() ((void*)(((unsigned long)__builtin_return_address(0) & 0x7fffffffUL) - 1))
-#elif defined(__arm__)
-/* Thumb return addresses have the low bit set, so we need to subtract two.
-   This is still safe in ARM mode because instructions are 4 bytes.  */
-# define GETPC() ((void *)((unsigned long)__builtin_return_address(0) - 2))
-#else
-# define GETPC() ((void *)((uintptr_t)__builtin_return_address(0) - 1))
-#endif
-
 #endif /* !defined(__DYNGEN_EXEC_H__) */

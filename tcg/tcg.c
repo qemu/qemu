@@ -811,10 +811,10 @@ static char *tcg_get_arg_str_idx(TCGContext *s, char *buf, int buf_size,
 {
     TCGTemp *ts = NULL;
 
-    if (idx >= 0 && idx < s->nb_temps) {
-        ts = &s->temps[idx];
-    }
-    if (ts && idx < s->nb_globals) {
+    assert(idx >= 0 && idx < s->nb_temps);
+    ts = &s->temps[idx];
+    assert(ts);
+    if (idx < s->nb_globals) {
         pstrcpy(buf, buf_size, ts->name);
     } else {
         if (ts && ts->temp_local)

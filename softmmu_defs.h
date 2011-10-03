@@ -1,3 +1,11 @@
+/*
+ *  Software MMU support
+ *
+ * Declare helpers used by TCG for qemu_ld/st ops.
+ *
+ * Used by softmmu_exec.h, TCG targets and exec-all.h.
+ *
+ */
 #ifndef SOFTMMU_DEFS_H
 #define SOFTMMU_DEFS_H
 

@@ -501,6 +501,8 @@ void memory_region_transaction_begin(void);
  */
 void memory_region_transaction_commit(void);
 
+void mtree_info(fprintf_function mon_printf, void *f);
+
 #endif
 
 #endif

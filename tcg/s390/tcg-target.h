@@ -23,12 +23,6 @@
  */
 #define TCG_TARGET_S390 1
 
-#ifdef __s390x__
-#define TCG_TARGET_REG_BITS 64
-#else
-#define TCG_TARGET_REG_BITS 32
-#endif
-
 #define TCG_TARGET_WORDS_BIGENDIAN
 
 typedef enum TCGReg {

@@ -2045,7 +2045,7 @@ static inline void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1,
 				       TCGv_i32 arg2, unsigned int ofs,
 				       unsigned int len)
 {
-    if (TCG_TARGET_HAS_deposit_i32) {
+    if (TCG_TARGET_HAS_deposit_i32 && TCG_TARGET_deposit_i32_valid(ofs, len)) {
         tcg_gen_op5ii_i32(INDEX_op_deposit_i32, ret, arg1, arg2, ofs, len);
     } else {
         uint32_t mask = (1u << len) - 1;
@@ -2064,7 +2064,7 @@ static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
 				       TCGv_i64 arg2, unsigned int ofs,
 				       unsigned int len)
 {
-    if (TCG_TARGET_HAS_deposit_i64) {
+    if (TCG_TARGET_HAS_deposit_i64 && TCG_TARGET_deposit_i64_valid(ofs, len)) {
         tcg_gen_op5ii_i64(INDEX_op_deposit_i64, ret, arg1, arg2, ofs, len);
     } else {
         uint64_t mask = (1ull << len) - 1;
