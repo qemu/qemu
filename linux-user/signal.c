@@ -1274,10 +1274,7 @@ setup_return(CPUState *env, struct target_sigaction *ka,
 
 		if (__put_user(retcodes[idx], rc))
 			return 1;
-#if 0
-		flush_icache_range((abi_ulong)rc,
-				   (abi_ulong)(rc + 1));
-#endif
+
 		retcode = rc_addr + thumb;
 	}
 
