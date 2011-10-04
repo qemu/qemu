@@ -328,6 +328,24 @@ static const VMStateDescription vmstate_msr_tscdeadline = {
     }
 };
 
+static bool misc_enable_needed(void *opaque)
+{
+    CPUState *env = opaque;
+
+    return env->msr_ia32_misc_enable != MSR_IA32_MISC_ENABLE_DEFAULT;
+}
+
+static const VMStateDescription vmstate_msr_ia32_misc_enable = {
+    .name = "cpu/msr_ia32_misc_enable",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(msr_ia32_misc_enable, CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_cpu = {
     .name = "cpu",
     .version_id = CPU_SAVE_VERSION,
@@ -441,6 +459,9 @@ static const VMStateDescription vmstate_cpu = {
         }, {
             .vmsd = &vmstate_msr_tscdeadline,
             .needed = tscdeadline_needed,
+        }, {
+            .vmsd = &vmstate_msr_ia32_misc_enable,
+            .needed = misc_enable_needed,
         } , {
             /* empty */
         }
