@@ -536,8 +536,9 @@ int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size1)
 {
     int size, l;
 
-    if (f->is_write)
+    if (f->is_write) {
         abort();
+    }
 
     size = size1;
     while (size > 0) {
@@ -545,11 +546,13 @@ int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size1)
         if (l == 0) {
             qemu_fill_buffer(f);
             l = f->buf_size - f->buf_index;
-            if (l == 0)
+            if (l == 0) {
                 break;
+            }
         }
-        if (l > size)
+        if (l > size) {
             l = size;
+        }
         memcpy(buf, f->buf + f->buf_index, l);
         f->buf_index += l;
         buf += l;
@@ -560,26 +563,30 @@ int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size1)
 
 static int qemu_peek_byte(QEMUFile *f)
 {
-    if (f->is_write)
+    if (f->is_write) {
         abort();
+    }
 
     if (f->buf_index >= f->buf_size) {
         qemu_fill_buffer(f);
-        if (f->buf_index >= f->buf_size)
+        if (f->buf_index >= f->buf_size) {
             return 0;
+        }
     }
     return f->buf[f->buf_index];
 }
 
 int qemu_get_byte(QEMUFile *f)
 {
-    if (f->is_write)
+    if (f->is_write) {
         abort();
+    }
 
     if (f->buf_index >= f->buf_size) {
         qemu_fill_buffer(f);
-        if (f->buf_index >= f->buf_size)
+        if (f->buf_index >= f->buf_size) {
             return 0;
+        }
     }
     return f->buf[f->buf_index++];
 }
