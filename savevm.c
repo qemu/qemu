@@ -173,7 +173,7 @@ struct QEMUFile {
     int buf_size; /* 0 when writing */
     uint8_t buf[IO_BUF_SIZE];
 
-    int has_error;
+    int last_error;
 };
 
 typedef struct QEMUFileStdio
@@ -427,12 +427,12 @@ QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
 
 int qemu_file_get_error(QEMUFile *f)
 {
-    return f->has_error;
+    return f->last_error;
 }
 
 void qemu_file_set_error(QEMUFile *f, int ret)
 {
-    f->has_error = ret;
+    f->last_error = ret;
 }
 
 void qemu_fflush(QEMUFile *f)
@@ -447,7 +447,7 @@ void qemu_fflush(QEMUFile *f)
         if (len > 0)
             f->buf_offset += f->buf_index;
         else
-            f->has_error = -EINVAL;
+            f->last_error = -EINVAL;
         f->buf_index = 0;
     }
 }
@@ -476,7 +476,7 @@ static void qemu_fill_buffer(QEMUFile *f)
         f->buf_size += len;
         f->buf_offset += len;
     } else if (len != -EAGAIN)
-        f->has_error = len;
+        f->last_error = len;
 }
 
 int qemu_fclose(QEMUFile *f)
@@ -498,13 +498,13 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 {
     int l;
 
-    if (!f->has_error && f->is_write == 0 && f->buf_index > 0) {
+    if (!f->last_error && f->is_write == 0 && f->buf_index > 0) {
         fprintf(stderr,
                 "Attempted to write to buffer while read buffer is not empty\n");
         abort();
     }
 
-    while (!f->has_error && size > 0) {
+    while (!f->last_error && size > 0) {
         l = IO_BUF_SIZE - f->buf_index;
         if (l > size)
             l = size;
@@ -520,7 +520,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, int size)
 
 void qemu_put_byte(QEMUFile *f, int v)
 {
-    if (!f->has_error && f->is_write == 0 && f->buf_index > 0) {
+    if (!f->last_error && f->is_write == 0 && f->buf_index > 0) {
         fprintf(stderr,
                 "Attempted to write to buffer while read buffer is not empty\n");
         abort();
