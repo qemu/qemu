@@ -647,6 +647,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
     uint8_t *buf;
     int64_t total_sectors = 0;
     int nr_sectors;
+    int ret;
 
     do {
         addr = qemu_get_be64(f);
@@ -655,7 +656,6 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
         addr >>= BDRV_SECTOR_BITS;
 
         if (flags & BLK_MIG_FLAG_DEVICE_BLOCK) {
-            int ret;
             /* get device name */
             len = qemu_get_byte(f);
             qemu_get_buffer(f, (uint8_t *)device_name, len);
@@ -705,8 +705,9 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
             fprintf(stderr, "Unknown flags\n");
             return -EINVAL;
         }
-        if (qemu_file_get_error(f)) {
-            return -EIO;
+        ret = qemu_file_get_error(f);
+        if (ret != 0) {
+            return ret;
         }
     } while (!(flags & BLK_MIG_FLAG_EOS));
 

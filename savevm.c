@@ -1885,8 +1885,8 @@ out:
         g_free(le);
     }
 
-    if (qemu_file_get_error(f)) {
-        ret = -EIO;
+    if (ret == 0) {
+        ret = qemu_file_get_error(f);
     }
 
     return ret;
