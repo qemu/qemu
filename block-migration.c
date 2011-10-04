@@ -580,7 +580,7 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 
     flush_blks(f);
 
-    if (qemu_file_has_error(f)) {
+    if (qemu_file_get_error(f)) {
         blk_mig_cleanup(mon);
         return 0;
     }
@@ -608,7 +608,7 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 
         flush_blks(f);
 
-        if (qemu_file_has_error(f)) {
+        if (qemu_file_get_error(f)) {
             blk_mig_cleanup(mon);
             return 0;
         }
@@ -625,7 +625,7 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         /* report completion */
         qemu_put_be64(f, (100 << BDRV_SECTOR_BITS) | BLK_MIG_FLAG_PROGRESS);
 
-        if (qemu_file_has_error(f)) {
+        if (qemu_file_get_error(f)) {
             return 0;
         }
 
@@ -705,7 +705,7 @@ static int block_load(QEMUFile *f, void *opaque, int version_id)
             fprintf(stderr, "Unknown flags\n");
             return -EINVAL;
         }
-        if (qemu_file_has_error(f)) {
+        if (qemu_file_get_error(f)) {
             return -EIO;
         }
     } while (!(flags & BLK_MIG_FLAG_EOS));

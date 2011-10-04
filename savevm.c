@@ -425,7 +425,7 @@ QEMUFile *qemu_fopen_ops(void *opaque, QEMUFilePutBufferFunc *put_buffer,
     return f;
 }
 
-int qemu_file_has_error(QEMUFile *f)
+int qemu_file_get_error(QEMUFile *f)
 {
     return f->has_error;
 }
@@ -1536,7 +1536,7 @@ int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
 
         se->save_live_state(mon, f, QEMU_VM_SECTION_START, se->opaque);
     }
-    ret = qemu_file_has_error(f);
+    ret = qemu_file_get_error(f);
     if (ret != 0) {
         qemu_savevm_state_cancel(mon, f);
     }
@@ -1576,7 +1576,7 @@ int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f)
     if (ret != 0) {
         return ret;
     }
-    ret = qemu_file_has_error(f);
+    ret = qemu_file_get_error(f);
     if (ret != 0) {
         qemu_savevm_state_cancel(mon, f);
     }
@@ -1623,7 +1623,7 @@ int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
 
     qemu_put_byte(f, QEMU_VM_EOF);
 
-    return qemu_file_has_error(f);
+    return qemu_file_get_error(f);
 }
 
 void qemu_savevm_state_cancel(Monitor *mon, QEMUFile *f)
@@ -1664,7 +1664,7 @@ static int qemu_savevm_state(Monitor *mon, QEMUFile *f)
 
 out:
     if (ret == 0) {
-        ret = qemu_file_has_error(f);
+        ret = qemu_file_get_error(f);
     }
 
     if (!ret && saved_vm_running)
@@ -1885,8 +1885,9 @@ out:
         g_free(le);
     }
 
-    if (qemu_file_has_error(f))
+    if (qemu_file_get_error(f)) {
         ret = -EIO;
+    }
 
     return ret;
 }

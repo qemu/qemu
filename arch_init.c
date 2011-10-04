@@ -451,7 +451,7 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
 
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
         }
-        if (qemu_file_has_error(f)) {
+        if (qemu_file_get_error(f)) {
             return -EIO;
         }
     } while (!(flags & RAM_SAVE_FLAG_EOS));

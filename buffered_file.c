@@ -72,7 +72,7 @@ static void buffered_flush(QEMUFileBuffered *s)
 {
     size_t offset = 0;
 
-    if (qemu_file_has_error(s->file)) {
+    if (qemu_file_get_error(s->file)) {
         DPRINTF("flush when error, bailing\n");
         return;
     }
@@ -113,7 +113,7 @@ static int buffered_put_buffer(void *opaque, const uint8_t *buf, int64_t pos, in
 
     DPRINTF("putting %d bytes at %" PRId64 "\n", size, pos);
 
-    if (qemu_file_has_error(s->file)) {
+    if (qemu_file_get_error(s->file)) {
         DPRINTF("flush when error, bailing\n");
         return -EINVAL;
     }
@@ -172,7 +172,7 @@ static int buffered_close(void *opaque)
 
     DPRINTF("closing\n");
 
-    while (!qemu_file_has_error(s->file) && s->buffer_size) {
+    while (!qemu_file_get_error(s->file) && s->buffer_size) {
         buffered_flush(s);
         if (s->freeze_output)
             s->wait_for_unfreeze(s->opaque);
@@ -198,7 +198,7 @@ static int buffered_rate_limit(void *opaque)
 {
     QEMUFileBuffered *s = opaque;
 
-    if (qemu_file_has_error(s->file)) {
+    if (qemu_file_get_error(s->file)) {
         return -1;
     }
     if (s->freeze_output)
@@ -213,9 +213,9 @@ static int buffered_rate_limit(void *opaque)
 static int64_t buffered_set_rate_limit(void *opaque, int64_t new_rate)
 {
     QEMUFileBuffered *s = opaque;
-    if (qemu_file_has_error(s->file))
+    if (qemu_file_get_error(s->file)) {
         goto out;
-
+    }
     if (new_rate > SIZE_MAX) {
         new_rate = SIZE_MAX;
     }
@@ -237,7 +237,7 @@ static void buffered_rate_tick(void *opaque)
 {
     QEMUFileBuffered *s = opaque;
 
-    if (qemu_file_has_error(s->file)) {
+    if (qemu_file_get_error(s->file)) {
         buffered_close(s);
         return;
     }
