@@ -445,7 +445,7 @@ void do_info_spice(Monitor *mon, QObject **ret_data)
     int port, tls_port;
     char version_string[20]; /* 12 = |255.255.255\0| is the max */
 
-    if (!spice_server) {
+    if (!spice_server || !opts) {
         *ret_data = qobject_from_jsonf("{ 'enabled': false }");
         return;
     }
