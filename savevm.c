@@ -532,59 +532,85 @@ void qemu_put_byte(QEMUFile *f, int v)
         qemu_fflush(f);
 }
 
-int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size1)
+static void qemu_file_skip(QEMUFile *f, int size)
 {
-    int size, l;
-
-    if (f->is_write) {
-        abort();
+    if (f->buf_index + size <= f->buf_size) {
+        f->buf_index += size;
     }
-
-    size = size1;
-    while (size > 0) {
-        l = f->buf_size - f->buf_index;
-        if (l == 0) {
-            qemu_fill_buffer(f);
-            l = f->buf_size - f->buf_index;
-            if (l == 0) {
-                break;
-            }
-        }
-        if (l > size) {
-            l = size;
-        }
-        memcpy(buf, f->buf + f->buf_index, l);
-        f->buf_index += l;
-        buf += l;
-        size -= l;
-    }
-    return size1 - size;
 }
 
-static int qemu_peek_byte(QEMUFile *f)
+static int qemu_peek_buffer(QEMUFile *f, uint8_t *buf, int size, size_t offset)
 {
+    int pending;
+    int index;
+
     if (f->is_write) {
         abort();
     }
 
-    if (f->buf_index >= f->buf_size) {
+    index = f->buf_index + offset;
+    pending = f->buf_size - index;
+    if (pending < size) {
         qemu_fill_buffer(f);
-        if (f->buf_index >= f->buf_size) {
+        index = f->buf_index + offset;
+        pending = f->buf_size - index;
+    }
+
+    if (pending <= 0) {
+        return 0;
+    }
+    if (size > pending) {
+        size = pending;
+    }
+
+    memcpy(buf, f->buf + index, size);
+    return size;
+}
+
+int qemu_get_buffer(QEMUFile *f, uint8_t *buf, int size)
+{
+    int pending = size;
+    int done = 0;
+
+    while (pending > 0) {
+        int res;
+
+        res = qemu_peek_buffer(f, buf, pending, 0);
+        if (res == 0) {
+            return done;
+        }
+        qemu_file_skip(f, res);
+        buf += res;
+        pending -= res;
+        done += res;
+    }
+    return done;
+}
+
+static int qemu_peek_byte(QEMUFile *f, int offset)
+{
+    int index = f->buf_index + offset;
+
+    if (f->is_write) {
+        abort();
+    }
+
+    if (index >= f->buf_size) {
+        qemu_fill_buffer(f);
+        index = f->buf_index + offset;
+        if (index >= f->buf_size) {
             return 0;
         }
     }
-    return f->buf[f->buf_index];
+    return f->buf[index];
 }
 
 int qemu_get_byte(QEMUFile *f)
 {
     int result;
 
-    result = qemu_peek_byte(f);
-
-    if (f->buf_index < f->buf_size) {
-        f->buf_index++;
-    }
+    result = qemu_peek_byte(f, 0);
+    qemu_file_skip(f, 1);
     return result;
 }
 
@@ -1684,22 +1710,36 @@ static int vmstate_subsection_load(QEMUFile *f, const VMStateDescription *vmsd,
         return 0;
     }
 
-    while (qemu_peek_byte(f) == QEMU_VM_SUBSECTION) {
+    while (qemu_peek_byte(f, 0) == QEMU_VM_SUBSECTION) {
         char idstr[256];
         int ret;
-        uint8_t version_id, len;
+        uint8_t version_id, len, size;
         const VMStateDescription *sub_vmsd;
 
-        qemu_get_byte(f); /* subsection */
-        len = qemu_get_byte(f);
-        qemu_get_buffer(f, (uint8_t *)idstr, len);
-        idstr[len] = 0;
-        version_id = qemu_get_be32(f);
+        len = qemu_peek_byte(f, 1);
+        if (len < strlen(vmsd->name) + 1) {
+            /* subsection name has be be "section_name/a" */
+            return 0;
+        }
+        size = qemu_peek_buffer(f, (uint8_t *)idstr, len, 2);
+        if (size != len) {
+            return 0;
+        }
+        idstr[size] = 0;
 
+        if (strncmp(vmsd->name, idstr, strlen(vmsd->name)) != 0) {
+            /* it don't have a valid subsection name */
+            return 0;
+        }
         sub_vmsd = vmstate_get_subsection(sub, idstr);
         if (sub_vmsd == NULL) {
             return -ENOENT;
         }
+        qemu_file_skip(f, 1); /* subsection */
+        qemu_file_skip(f, 1); /* len */
+        qemu_file_skip(f, len); /* idstr */
+        version_id = qemu_get_be32(f);
+
         assert(!sub_vmsd->subsections);
         ret = vmstate_load_state(f, sub_vmsd, opaque, version_id);
         if (ret) {
