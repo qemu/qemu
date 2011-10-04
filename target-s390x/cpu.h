@@ -309,6 +309,8 @@ static inline void kvm_s390_interrupt_internal(CPUState *env, int type,
 }
 #endif
 CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
+void s390_add_running_cpu(CPUState *env);
+unsigned s390_del_running_cpu(CPUState *env);
 
 /* from s390-virtio-bus */
 extern const target_phys_addr_t virtio_size;

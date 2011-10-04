@@ -185,8 +185,7 @@ void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
         return;
     }
 
-    env->halted = 0;
-    env->exception_index = -1;
+    s390_add_running_cpu(env);
     qemu_cpu_kick(env);
 
     kvmint.type = type;
@@ -299,8 +298,7 @@ static int handle_diag(CPUState *env, struct kvm_run *run, int ipb_code)
 static int s390_cpu_restart(CPUState *env)
 {
     kvm_s390_interrupt(env, KVM_S390_RESTART, 0);
-    env->halted = 0;
-    env->exception_index = -1;
+    s390_add_running_cpu(env);
     qemu_cpu_kick(env);
     dprintf("DONE: SIGP cpu restart: %p\n", env);
     return 0;
@@ -425,16 +423,15 @@ static int handle_intercept(CPUState *env)
             r = handle_instruction(env, run);
             break;
         case ICPT_WAITPSW:
-            /* XXX What to do on system shutdown? */
-            env->halted = 1;
-            env->exception_index = EXCP_HLT;
+        case ICPT_CPU_STOP:
+            if (s390_del_running_cpu(env) == 0) {
+                qemu_system_shutdown_request();
+            }
+            r = EXCP_HALTED;
             break;
         case ICPT_SOFT_INTERCEPT:
             fprintf(stderr, "KVM unimplemented icpt SOFT\n");
             exit(1);
-            break;
-        case ICPT_CPU_STOP:
-            qemu_system_shutdown_request();
             break;
         case ICPT_IO:
             fprintf(stderr, "KVM unimplemented icpt IO\n");
@@ -468,8 +465,6 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
 
     if (ret == 0) {
         ret = EXCP_INTERRUPT;
-    } else if (ret > 0) {
-        ret = 0;
     }
     return ret;
 }

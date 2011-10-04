@@ -121,6 +121,34 @@ int s390_virtio_hypercall(CPUState *env, uint64_t mem, uint64_t hypercall)
     return r;
 }
 
+/*
+ * The number of running CPUs. On s390 a shutdown is the state of all CPUs
+ * being either stopped or disabled (for interrupts) waiting. We have to
+ * track this number to call the shutdown sequence accordingly. This
+ * number is modified either on startup or while holding the big qemu lock.
+ */
+static unsigned s390_running_cpus;
+
+void s390_add_running_cpu(CPUState *env)
+{
+    if (env->halted) {
+        s390_running_cpus++;
+        env->halted = 0;
+        env->exception_index = -1;
+    }
+}
+
+unsigned s390_del_running_cpu(CPUState *env)
+{
+    if (env->halted == 0) {
+        assert(s390_running_cpus >= 1);
+        s390_running_cpus--;
+        env->halted = 1;
+        env->exception_index = EXCP_HLT;
+    }
+    return s390_running_cpus;
+}
+
 /* PC hardware initialisation */
 static void s390_init(ram_addr_t my_ram_size,
                       const char *boot_device,
@@ -179,8 +207,8 @@ static void s390_init(ram_addr_t my_ram_size,
         tmp_env->storage_keys = storage_keys;
     }
 
-    env->halted = 0;
-    env->exception_index = 0;
+    /* One CPU has to run */
+    s390_add_running_cpu(env);
 
     if (kernel_filename) {
         kernel_size = load_image(kernel_filename, qemu_get_ram_ptr(0));
