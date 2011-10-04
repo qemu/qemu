@@ -81,7 +81,7 @@ struct SCSIDiskState
 };
 
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
-static int scsi_disk_emulate_command(SCSIDiskReq *r);
+static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf);
 
 static void scsi_free_request(SCSIRequest *req)
 {
@@ -325,7 +325,6 @@ static void scsi_dma_restart_bh(void *opaque)
         r = DO_UPCAST(SCSIDiskReq, req, req);
         if (r->status & SCSI_REQ_STATUS_RETRY) {
             int status = r->status;
-            int ret;
 
             r->status &=
                 ~(SCSI_REQ_STATUS_RETRY | SCSI_REQ_STATUS_RETRY_TYPE_MASK);
@@ -338,10 +337,8 @@ static void scsi_dma_restart_bh(void *opaque)
                 scsi_write_data(&r->req);
                 break;
             case SCSI_REQ_STATUS_RETRY_FLUSH:
-                ret = scsi_disk_emulate_command(r);
-                if (ret == 0) {
-                    scsi_req_complete(&r->req, GOOD);
-                }
+                scsi_send_command(&r->req, r->req.cmd.buf);
+                break;
             }
         }
     }
