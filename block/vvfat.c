@@ -1245,7 +1245,7 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
     int i;
 
     for(i=0;i<nb_sectors;i++,sector_num++) {
-	if (sector_num >= s->sector_count)
+	if (sector_num >= bs->total_sectors)
 	   return -1;
 	if (s->qcow) {
 	    int n;
@@ -1271,7 +1271,7 @@ DLOG(fprintf(stderr, "sector %d not allocated\n", (int)sector_num));
 	    uint32_t sector=sector_num-s->faked_sectors,
 	    sector_offset_in_cluster=(sector%s->sectors_per_cluster),
 	    cluster_num=sector/s->sectors_per_cluster;
-	    if(read_cluster(s, cluster_num) != 0) {
+	    if(cluster_num > s->cluster_count || read_cluster(s, cluster_num) != 0) {
 		/* LATER TODO: strict: return -1; */
 		memset(buf+i*0x200,0,0x200);
 		continue;
