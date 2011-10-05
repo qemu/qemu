@@ -310,6 +310,24 @@ static const VMStateDescription vmstate_fpop_ip_dp = {
     }
 };
 
+static bool tscdeadline_needed(void *opaque)
+{
+    CPUState *env = opaque;
+
+    return env->tsc_deadline != 0;
+}
+
+static const VMStateDescription vmstate_msr_tscdeadline = {
+    .name = "cpu/msr_tscdeadline",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(tsc_deadline, CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_cpu = {
     .name = "cpu",
     .version_id = CPU_SAVE_VERSION,
@@ -420,6 +438,9 @@ static const VMStateDescription vmstate_cpu = {
         } , {
             .vmsd = &vmstate_fpop_ip_dp,
             .needed = fpop_ip_dp_needed,
+        }, {
+            .vmsd = &vmstate_msr_tscdeadline,
+            .needed = tscdeadline_needed,
         } , {
             /* empty */
         }
