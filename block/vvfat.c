@@ -799,6 +799,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	/* root directory */
 	int cur = s->directory.next;
 	array_ensure_allocated(&(s->directory), ROOT_ENTRIES - 1);
+	s->directory.next = ROOT_ENTRIES;
 	memset(array_get(&(s->directory), cur), 0,
 		(ROOT_ENTRIES - cur) * sizeof(direntry_t));
     }
