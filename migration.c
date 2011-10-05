@@ -34,10 +34,21 @@
 /* Migration speed throttling */
 static int64_t max_throttle = (32 << 20);
 
-static MigrationState *current_migration;
-
 static NotifierList migration_state_notifiers =
     NOTIFIER_LIST_INITIALIZER(migration_state_notifiers);
+
+/* When we add fault tolerance, we could have several
+   migrations at once.  For now we don't need to add
+   dynamic creation of migration */
+
+static MigrationState *migrate_get_current(void)
+{
+    static MigrationState current_migration = {
+        .state = MIG_STATE_SETUP,
+    };
+
+    return &current_migration;
+}
 
 int qemu_start_incoming_migration(const char *uri)
 {
@@ -135,39 +146,36 @@ static void migrate_put_status(QDict *qdict, const char *name,
 void do_info_migrate(Monitor *mon, QObject **ret_data)
 {
     QDict *qdict;
+    MigrationState *s = migrate_get_current();
 
-    if (current_migration) {
-        MigrationState *s = current_migration;
+    switch (s->state) {
+    case MIG_STATE_SETUP:
+        /* no migration has happened ever */
+        break;
+    case MIG_STATE_ACTIVE:
+        qdict = qdict_new();
+        qdict_put(qdict, "status", qstring_from_str("active"));
 
-        switch (s->state) {
-        case MIG_STATE_SETUP:
-            /* no migration has happened ever */
-            break;
-        case MIG_STATE_ACTIVE:
-            qdict = qdict_new();
-            qdict_put(qdict, "status", qstring_from_str("active"));
+        migrate_put_status(qdict, "ram", ram_bytes_transferred(),
+                           ram_bytes_remaining(), ram_bytes_total());
 
-            migrate_put_status(qdict, "ram", ram_bytes_transferred(),
-                               ram_bytes_remaining(), ram_bytes_total());
-
-            if (blk_mig_active()) {
-                migrate_put_status(qdict, "disk", blk_mig_bytes_transferred(),
-                                   blk_mig_bytes_remaining(),
-                                   blk_mig_bytes_total());
-            }
-
-            *ret_data = QOBJECT(qdict);
-            break;
-        case MIG_STATE_COMPLETED:
-            *ret_data = qobject_from_jsonf("{ 'status': 'completed' }");
-            break;
-        case MIG_STATE_ERROR:
-            *ret_data = qobject_from_jsonf("{ 'status': 'failed' }");
-            break;
-        case MIG_STATE_CANCELLED:
-            *ret_data = qobject_from_jsonf("{ 'status': 'cancelled' }");
-            break;
+        if (blk_mig_active()) {
+            migrate_put_status(qdict, "disk", blk_mig_bytes_transferred(),
+                               blk_mig_bytes_remaining(),
+                               blk_mig_bytes_total());
         }
+
+        *ret_data = QOBJECT(qdict);
+        break;
+    case MIG_STATE_COMPLETED:
+        *ret_data = qobject_from_jsonf("{ 'status': 'completed' }");
+        break;
+    case MIG_STATE_ERROR:
+        *ret_data = qobject_from_jsonf("{ 'status': 'failed' }");
+        break;
+    case MIG_STATE_CANCELLED:
+        *ret_data = qobject_from_jsonf("{ 'status': 'cancelled' }");
+        break;
     }
 }
 
@@ -358,11 +366,7 @@ void remove_migration_state_change_notifier(Notifier *notify)
 
 int get_migration_state(void)
 {
-    if (current_migration) {
-        return current_migration->state;
-    } else {
-        return MIG_STATE_ERROR;
-    }
+    return migrate_get_current()->state;
 }
 
 void migrate_fd_connect(MigrationState *s)
@@ -387,11 +391,12 @@ void migrate_fd_connect(MigrationState *s)
     migrate_fd_put_ready(s);
 }
 
-static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
-                                   int detach, int blk, int inc)
+static MigrationState *migrate_init(Monitor *mon, int64_t bandwidth_limit,
+                                    int detach, int blk, int inc)
 {
-    MigrationState *s = g_malloc0(sizeof(*s));
+    MigrationState *s = migrate_get_current();
 
+    memset(s, 0, sizeof(*s));
     s->blk = blk;
     s->shared = inc;
     s->mon = NULL;
@@ -407,7 +412,7 @@ static MigrationState *migrate_new(Monitor *mon, int64_t bandwidth_limit,
 
 int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    MigrationState *s = NULL;
+    MigrationState *s = migrate_get_current();
     const char *p;
     int detach = qdict_get_try_bool(qdict, "detach", 0);
     int blk = qdict_get_try_bool(qdict, "blk", 0);
@@ -415,8 +420,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     const char *uri = qdict_get_str(qdict, "uri");
     int ret;
 
-    if (current_migration &&
-        current_migration->state == MIG_STATE_ACTIVE) {
+    if (s->state == MIG_STATE_ACTIVE) {
         monitor_printf(mon, "migration already in progress\n");
         return -1;
     }
@@ -425,7 +429,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return -1;
     }
 
-    s = migrate_new(mon, max_throttle, detach, blk, inc);
+    s = migrate_init(mon, max_throttle, detach, blk, inc);
 
     if (strstart(uri, "tcp:", &p)) {
         ret = tcp_start_outgoing_migration(s, p);
@@ -440,28 +444,20 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     } else {
         monitor_printf(mon, "unknown migration protocol: %s\n", uri);
         ret  = -EINVAL;
-        goto free_migrate_state;
     }
 
     if (ret < 0) {
-        monitor_printf(mon, "migration failed\n");
-        goto free_migrate_state;
+        monitor_printf(mon, "migration failed: %s\n", strerror(-ret));
+        return ret;
     }
 
-    g_free(current_migration);
-    current_migration = s;
     notifier_list_notify(&migration_state_notifiers, NULL);
     return 0;
-free_migrate_state:
-    g_free(s);
-    return -1;
 }
 
 int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
-    if (current_migration) {
-        migrate_fd_cancel(current_migration);
-    }
+    migrate_fd_cancel(migrate_get_current());
     return 0;
 }
 
@@ -476,10 +472,8 @@ int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
     max_throttle = d;
 
-    s = current_migration;
-    if (s && s->file) {
-        qemu_file_set_rate_limit(s->file, max_throttle);
-    }
+    s = migrate_get_current();
+    qemu_file_set_rate_limit(s->file, max_throttle);
 
     return 0;
 }
