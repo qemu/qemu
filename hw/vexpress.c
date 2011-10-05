@@ -25,6 +25,7 @@
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
+#include "exec-memory.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
 
@@ -40,7 +41,12 @@ static void vexpress_a9_init(ram_addr_t ram_size,
                      const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env = NULL;
-    ram_addr_t ram_offset, vram_offset, sram_offset;
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *lowram = g_new(MemoryRegion, 1);
+    MemoryRegion *vram = g_new(MemoryRegion, 1);
+    MemoryRegion *sram = g_new(MemoryRegion, 1);
+    MemoryRegion *hackram = g_new(MemoryRegion, 1);
     DeviceState *dev, *sysctl, *pl041;
     SysBusDevice *busdev;
     qemu_irq *irqp;
@@ -71,7 +77,7 @@ static void vexpress_a9_init(ram_addr_t ram_size,
         exit(1);
     }
 
-    ram_offset = qemu_ram_alloc(NULL, "vexpress.highmem", ram_size);
+    memory_region_init_ram(ram, NULL, "vexpress.highmem", ram_size);
     low_ram_size = ram_size;
     if (low_ram_size > 0x4000000) {
         low_ram_size = 0x4000000;
@@ -80,9 +86,9 @@ static void vexpress_a9_init(ram_addr_t ram_size,
      * address space should in theory be remappable to various
      * things including ROM or RAM; we always map the RAM there.
      */
-    cpu_register_physical_memory(0x0, low_ram_size, ram_offset | IO_MEM_RAM);
-    cpu_register_physical_memory(0x60000000, ram_size,
-                                 ram_offset | IO_MEM_RAM);
+    memory_region_init_alias(lowram, "vexpress.lowmem", ram, 0, low_ram_size);
+    memory_region_add_subregion(sysmem, 0x0, lowram);
+    memory_region_add_subregion(sysmem, 0x60000000, ram);
 
     /* 0x1e000000 A9MPCore (SCU) private memory region */
     dev = qdev_create(NULL, "a9mpcore_priv");
@@ -175,17 +181,15 @@ static void vexpress_a9_init(ram_addr_t ram_size,
     /* CS4: NOR1 flash          : 0x44000000 .. 0x48000000 */
     /* CS2: SRAM                : 0x48000000 .. 0x4a000000 */
     sram_size = 0x2000000;
-    sram_offset = qemu_ram_alloc(NULL, "vexpress.sram", sram_size);
-    cpu_register_physical_memory(0x48000000, sram_size,
-                                 sram_offset | IO_MEM_RAM);
+    memory_region_init_ram(sram, NULL, "vexpress.sram", sram_size);
+    memory_region_add_subregion(sysmem, 0x48000000, sram);
 
     /* CS3: USB, ethernet, VRAM : 0x4c000000 .. 0x50000000 */
 
     /* 0x4c000000 Video RAM */
     vram_size = 0x800000;
-    vram_offset = qemu_ram_alloc(NULL, "vexpress.vram", vram_size);
-    cpu_register_physical_memory(0x4c000000, vram_size,
-                                 vram_offset | IO_MEM_RAM);
+    memory_region_init_ram(vram, NULL, "vexpress.vram", vram_size);
+    memory_region_add_subregion(sysmem, 0x4c000000, vram);
 
     /* 0x4e000000 LAN9118 Ethernet */
     if (nd_table[0].vlan) {
@@ -198,9 +202,8 @@ static void vexpress_a9_init(ram_addr_t ram_size,
        startup code.  I guess this works on real hardware because the
        BootROM happens to be in ROM/flash or in memory that isn't clobbered
        until after Linux boots the secondary CPUs.  */
-    ram_offset = qemu_ram_alloc(NULL, "vexpress.hack", 0x1000);
-    cpu_register_physical_memory(SMP_BOOT_ADDR, 0x1000,
-                                 ram_offset | IO_MEM_RAM);
+    memory_region_init_ram(hackram, NULL, "vexpress.hack", 0x1000);
+    memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, hackram);
 
     vexpress_binfo.ram_size = ram_size;
     vexpress_binfo.kernel_filename = kernel_filename;
