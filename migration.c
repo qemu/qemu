@@ -222,7 +222,7 @@ void migrate_fd_error(MigrationState *s)
 {
     DPRINTF("setting error state\n");
     s->state = MIG_STATE_ERROR;
-    notifier_list_notify(&migration_state_notifiers, NULL);
+    notifier_list_notify(&migration_state_notifiers, s);
     migrate_fd_cleanup(s);
 }
 
@@ -235,7 +235,7 @@ static void migrate_fd_completed(MigrationState *s)
         s->state = MIG_STATE_COMPLETED;
         runstate_set(RUN_STATE_POSTMIGRATE);
     }
-    notifier_list_notify(&migration_state_notifiers, NULL);
+    notifier_list_notify(&migration_state_notifiers, s);
 }
 
 static void migrate_fd_put_notify(void *opaque)
@@ -314,7 +314,7 @@ static void migrate_fd_cancel(MigrationState *s)
     DPRINTF("cancelling migration\n");
 
     s->state = MIG_STATE_CANCELLED;
-    notifier_list_notify(&migration_state_notifiers, NULL);
+    notifier_list_notify(&migration_state_notifiers, s);
     qemu_savevm_state_cancel(s->mon, s->file);
 
     migrate_fd_cleanup(s);
@@ -452,7 +452,7 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
         return ret;
     }
 
-    notifier_list_notify(&migration_state_notifiers, NULL);
+    notifier_list_notify(&migration_state_notifiers, s);
     return 0;
 }
 
