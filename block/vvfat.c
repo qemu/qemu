@@ -916,11 +916,8 @@ static int init_directories(BDRVVVFATState* s,
 	cluster = mapping->end;
 
 	if(cluster > s->cluster_count) {
-	    fprintf(stderr,"Directory does not fit in FAT%d (capacity %s)\n",
-		    s->fat_type,
-		    s->fat_type == 12 ? s->sector_count == 2880 ? "1.44 MB"
-								: "2.88 MB"
-				      : "504MB");
+	    fprintf(stderr,"Directory does not fit in FAT%d (capacity %.2f MB)\n",
+		    s->fat_type, s->sector_count / 2000.0);
 	    return -EINVAL;
 	}
 
