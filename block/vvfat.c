@@ -954,7 +954,7 @@ static int init_directories(BDRVVVFATState* s,
     bootsector->number_of_fats=0x2; /* number of FATs */
     bootsector->root_entries=cpu_to_le16(s->sectors_of_root_directory*0x10);
     bootsector->total_sectors16=s->sector_count>0xffff?0:cpu_to_le16(s->sector_count);
-    bootsector->media_type=(s->fat_type!=12?0xf8:s->sector_count==5760?0xf9:0xf8); /* media descriptor */
+    bootsector->media_type=(s->first_sectors_number>1?0xf8:0xf0); /* media descriptor (f8=hd, f0=3.5 fd)*/
     s->fat.pointer[0] = bootsector->media_type;
     bootsector->sectors_per_fat=cpu_to_le16(s->sectors_per_fat);
     bootsector->sectors_per_track=cpu_to_le16(s->bs->secs);
@@ -963,7 +963,7 @@ static int init_directories(BDRVVVFATState* s,
     bootsector->total_sectors=cpu_to_le32(s->sector_count>0xffff?s->sector_count:0);
 
     /* LATER TODO: if FAT32, this is wrong */
-    bootsector->u.fat16.drive_number=s->fat_type==12?0:0x80; /* assume this is hda (TODO) */
+    bootsector->u.fat16.drive_number=s->first_sectors_number==1?0:0x80; /* fda=0, hda=0x80 */
     bootsector->u.fat16.current_head=0;
     bootsector->u.fat16.signature=0x29;
     bootsector->u.fat16.id=cpu_to_le32(0xfabe1afd);
