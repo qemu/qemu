@@ -1026,8 +1026,6 @@ DLOG(if (stderr == NULL) {
 	bs->cyls = 80; bs->heads = 2; bs->secs = 36;
     }
 
-    s->sector_count=bs->cyls*bs->heads*bs->secs;
-
     if (strstr(dirname, ":32:")) {
 	fprintf(stderr, "Big fat greek warning: FAT32 has not been tested. You are welcome to do so!\n");
 	s->fat_type = 32;
@@ -1035,8 +1033,10 @@ DLOG(if (stderr == NULL) {
 	s->fat_type = 16;
     } else if (strstr(dirname, ":12:")) {
 	s->fat_type = 12;
-	s->sector_count=2880;
+	bs->secs = 18;
     }
+
+    s->sector_count=bs->cyls*bs->heads*bs->secs-(s->first_sectors_number-1);
 
     if (strstr(dirname, ":rw:")) {
 	if (enable_write_target(s))
