@@ -274,7 +274,8 @@ static void mips_jazz_init(MemoryRegion *address_space,
 
     /* Parallel port */
     if (parallel_hds[0])
-        parallel_mm_init(0x80008000, 0, rc4030[0], parallel_hds[0]);
+        parallel_mm_init(address_space, 0x80008000, 0, rc4030[0],
+                         parallel_hds[0]);
 
     /* Sound card */
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */

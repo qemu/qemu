@@ -55,7 +55,8 @@ static inline bool parallel_init(int index, CharDriverState *chr)
     return true;
 }
 
-bool parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
+bool parallel_mm_init(MemoryRegion *address_space,
+                      target_phys_addr_t base, int it_shift, qemu_irq irq,
                       CharDriverState *chr);
 
 /* i8259.c */
