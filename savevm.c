@@ -578,17 +578,14 @@ static int qemu_peek_byte(QEMUFile *f)
 
 int qemu_get_byte(QEMUFile *f)
 {
-    if (f->is_write) {
-        abort();
-    }
+    int result;
 
-    if (f->buf_index >= f->buf_size) {
-        qemu_fill_buffer(f);
-        if (f->buf_index >= f->buf_size) {
-            return 0;
-        }
+    result = qemu_peek_byte(f);
+
+    if (f->buf_index < f->buf_size) {
+        f->buf_index++;
     }
-    return f->buf[f->buf_index++];
+    return result;
 }
 
 int64_t qemu_ftell(QEMUFile *f)
