@@ -538,6 +538,9 @@ int send_all(int fd, const void *_buf, int len1)
 }
 #endif /* !_WIN32 */
 
+#define STDIO_MAX_CLIENTS 1
+static int stdio_nb_clients;
+
 #ifndef _WIN32
 
 typedef struct {
@@ -545,8 +548,6 @@ typedef struct {
     int max_size;
 } FDCharDriver;
 
-#define STDIO_MAX_CLIENTS 1
-static int stdio_nb_clients = 0;
 
 static int fd_chr_write(CharDriverState *chr, const uint8_t *buf, int len)
 {
@@ -1451,6 +1452,8 @@ static int qemu_chr_open_pp(QemuOpts *opts, CharDriverState **_chr)
 
 #else /* _WIN32 */
 
+static CharDriverState *stdio_clients[STDIO_MAX_CLIENTS];
+
 typedef struct {
     int max_size;
     HANDLE hcom, hrecv, hsend;
@@ -1458,6 +1461,14 @@ typedef struct {
     BOOL fpipe;
     DWORD len;
 } WinCharState;
+
+typedef struct {
+    HANDLE  hStdIn;
+    HANDLE  hInputReadyEvent;
+    HANDLE  hInputDoneEvent;
+    HANDLE  hInputThread;
+    uint8_t win_stdio_buf;
+} WinStdioCharState;
 
 #define NSENDBUF 2048
 #define NRECVBUF 2048
@@ -1808,6 +1819,217 @@ static int qemu_chr_open_win_file_out(QemuOpts *opts, CharDriverState **_chr)
     }
 
     return qemu_chr_open_win_file(fd_out, _chr);
+}
+
+static int win_stdio_write(CharDriverState *chr, const uint8_t *buf, int len)
+{
+    HANDLE  hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD   dwSize;
+    int     len1;
+
+    len1 = len;
+
+    while (len1 > 0) {
+        if (!WriteFile(hStdOut, buf, len1, &dwSize, NULL)) {
+            break;
+        }
+        buf  += dwSize;
+        len1 -= dwSize;
+    }
+
+    return len - len1;
+}
+
+static void win_stdio_wait_func(void *opaque)
+{
+    CharDriverState   *chr   = opaque;
+    WinStdioCharState *stdio = chr->opaque;
+    INPUT_RECORD       buf[4];
+    int                ret;
+    DWORD              dwSize;
+    int                i;
+
+    ret = ReadConsoleInput(stdio->hStdIn, buf, sizeof(buf) / sizeof(*buf),
+                           &dwSize);
+
+    if (!ret) {
+        /* Avoid error storm */
+        qemu_del_wait_object(stdio->hStdIn, NULL, NULL);
+        return;
+    }
+
+    for (i = 0; i < dwSize; i++) {
+        KEY_EVENT_RECORD *kev = &buf[i].Event.KeyEvent;
+
+        if (buf[i].EventType == KEY_EVENT && kev->bKeyDown) {
+            int j;
+            if (kev->uChar.AsciiChar != 0) {
+                for (j = 0; j < kev->wRepeatCount; j++) {
+                    if (qemu_chr_be_can_write(chr)) {
+                        uint8_t c = kev->uChar.AsciiChar;
+                        qemu_chr_be_write(chr, &c, 1);
+                    }
+                }
+            }
+        }
+    }
+}
+
+static DWORD WINAPI win_stdio_thread(LPVOID param)
+{
+    CharDriverState   *chr   = param;
+    WinStdioCharState *stdio = chr->opaque;
+    int                ret;
+    DWORD              dwSize;
+
+    while (1) {
+
+        /* Wait for one byte */
+        ret = ReadFile(stdio->hStdIn, &stdio->win_stdio_buf, 1, &dwSize, NULL);
+
+        /* Exit in case of error, continue if nothing read */
+        if (!ret) {
+            break;
+        }
+        if (!dwSize) {
+            continue;
+        }
+
+        /* Some terminal emulator returns \r\n for Enter, just pass \n */
+        if (stdio->win_stdio_buf == '\r') {
+            continue;
+        }
+
+        /* Signal the main thread and wait until the byte was eaten */
+        if (!SetEvent(stdio->hInputReadyEvent)) {
+            break;
+        }
+        if (WaitForSingleObject(stdio->hInputDoneEvent, INFINITE)
+            != WAIT_OBJECT_0) {
+            break;
+        }
+    }
+
+    qemu_del_wait_object(stdio->hInputReadyEvent, NULL, NULL);
+    return 0;
+}
+
+static void win_stdio_thread_wait_func(void *opaque)
+{
+    CharDriverState   *chr   = opaque;
+    WinStdioCharState *stdio = chr->opaque;
+
+    if (qemu_chr_be_can_write(chr)) {
+        qemu_chr_be_write(chr, &stdio->win_stdio_buf, 1);
+    }
+
+    SetEvent(stdio->hInputDoneEvent);
+}
+
+static void qemu_chr_set_echo_win_stdio(CharDriverState *chr, bool echo)
+{
+    WinStdioCharState *stdio  = chr->opaque;
+    DWORD              dwMode = 0;
+
+    GetConsoleMode(stdio->hStdIn, &dwMode);
+
+    if (echo) {
+        SetConsoleMode(stdio->hStdIn, dwMode | ENABLE_ECHO_INPUT);
+    } else {
+        SetConsoleMode(stdio->hStdIn, dwMode & ~ENABLE_ECHO_INPUT);
+    }
+}
+
+static void win_stdio_close(CharDriverState *chr)
+{
+    WinStdioCharState *stdio = chr->opaque;
+
+    if (stdio->hInputReadyEvent != INVALID_HANDLE_VALUE) {
+        CloseHandle(stdio->hInputReadyEvent);
+    }
+    if (stdio->hInputDoneEvent != INVALID_HANDLE_VALUE) {
+        CloseHandle(stdio->hInputDoneEvent);
+    }
+    if (stdio->hInputThread != INVALID_HANDLE_VALUE) {
+        TerminateThread(stdio->hInputThread, 0);
+    }
+
+    g_free(chr->opaque);
+    g_free(chr);
+    stdio_nb_clients--;
+}
+
+static int qemu_chr_open_win_stdio(QemuOpts *opts, CharDriverState **_chr)
+{
+    CharDriverState   *chr;
+    WinStdioCharState *stdio;
+    DWORD              dwMode;
+    int                is_console = 0;
+
+    if (stdio_nb_clients >= STDIO_MAX_CLIENTS
+        || ((display_type != DT_NOGRAPHIC) && (stdio_nb_clients != 0))) {
+        return -EIO;
+    }
+
+    chr   = g_malloc0(sizeof(CharDriverState));
+    stdio = g_malloc0(sizeof(WinStdioCharState));
+
+    stdio->hStdIn = GetStdHandle(STD_INPUT_HANDLE);
+    if (stdio->hStdIn == INVALID_HANDLE_VALUE) {
+        fprintf(stderr, "cannot open stdio: invalid handle\n");
+        exit(1);
+    }
+
+    is_console = GetConsoleMode(stdio->hStdIn, &dwMode) != 0;
+
+    chr->opaque    = stdio;
+    chr->chr_write = win_stdio_write;
+    chr->chr_close = win_stdio_close;
+
+    if (stdio_nb_clients == 0) {
+        if (is_console) {
+            if (qemu_add_wait_object(stdio->hStdIn,
+                                     win_stdio_wait_func, chr)) {
+                fprintf(stderr, "qemu_add_wait_object: failed\n");
+            }
+        } else {
+            DWORD   dwId;
+
+            stdio->hInputReadyEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+            stdio->hInputDoneEvent  = CreateEvent(NULL, FALSE, FALSE, NULL);
+            stdio->hInputThread     = CreateThread(NULL, 0, win_stdio_thread,
+                                            chr, 0, &dwId);
+
+            if (stdio->hInputThread == INVALID_HANDLE_VALUE
+                || stdio->hInputReadyEvent == INVALID_HANDLE_VALUE
+                || stdio->hInputDoneEvent == INVALID_HANDLE_VALUE) {
+                fprintf(stderr, "cannot create stdio thread or event\n");
+                exit(1);
+            }
+            if (qemu_add_wait_object(stdio->hInputReadyEvent,
+                                     win_stdio_thread_wait_func, chr)) {
+                fprintf(stderr, "qemu_add_wait_object: failed\n");
+            }
+        }
+    }
+
+    dwMode |= ENABLE_LINE_INPUT;
+
+    stdio_clients[stdio_nb_clients++] = chr;
+    if (stdio_nb_clients == 1 && is_console) {
+        /* set the terminal in raw mode */
+        /* ENABLE_QUICK_EDIT_MODE | ENABLE_EXTENDED_FLAGS */
+        dwMode |= ENABLE_PROCESSED_INPUT;
+    }
+
+    SetConsoleMode(stdio->hStdIn, dwMode);
+
+    chr->chr_set_echo = qemu_chr_set_echo_win_stdio;
+    qemu_chr_fe_set_echo(chr, false);
+
+    *_chr = chr;
+
+    return 0;
 }
 #endif /* !_WIN32 */
 
@@ -2519,6 +2741,7 @@ static const struct {
     { .name = "pipe",      .open = qemu_chr_open_win_pipe },
     { .name = "console",   .open = qemu_chr_open_win_con },
     { .name = "serial",    .open = qemu_chr_open_win },
+    { .name = "stdio",     .open = qemu_chr_open_win_stdio },
 #else
     { .name = "file",      .open = qemu_chr_open_file_out },
     { .name = "pipe",      .open = qemu_chr_open_pipe },
