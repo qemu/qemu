@@ -2,6 +2,8 @@
 #define HW_MIPS_H
 /* Definitions for mips board emulation.  */
 
+#include "memory.h"
+
 /* gt64xxx.c */
 PCIBus *gt64120_register(qemu_irq *pic);
 
@@ -9,7 +11,7 @@ PCIBus *gt64120_register(qemu_irq *pic);
 PCIBus *bonito_init(qemu_irq *pic);
 
 /* jazz_led.c */
-void jazz_led_init(target_phys_addr_t base);
+void jazz_led_init(MemoryRegion *address_space, target_phys_addr_t base);
 
 /* rc4030.c */
 typedef struct rc4030DMAState *rc4030_dma;
