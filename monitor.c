@@ -902,17 +902,6 @@ static void do_info_cpus(Monitor *mon, QObject **ret_data)
     *ret_data = QOBJECT(cpu_list);
 }
 
-static int do_cpu_set(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    int index = qdict_get_int(qdict, "index");
-    if (monitor_set_cpu(index) < 0) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "index",
-                      "a CPU number");
-        return -1;
-    }
-    return 0;
-}
-
 static void do_info_jit(Monitor *mon)
 {
     dump_exec_info((FILE *)mon, monitor_fprintf);

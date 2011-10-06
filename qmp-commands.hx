@@ -331,10 +331,7 @@ EQMP
     {
         .name       = "cpu",
         .args_type  = "index:i",
-        .params     = "index",
-        .help       = "set the default CPU",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_cpu_set,
+        .mhandler.cmd_new = qmp_marshal_input_cpu,
     },
 
 SQMP

@@ -90,3 +90,8 @@ void qmp_system_powerdown(Error **erp)
 {
     qemu_system_powerdown_request();
 }
+
+void qmp_cpu(int64_t index, Error **errp)
+{
+    /* Just do nothing */
+}

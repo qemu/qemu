@@ -165,3 +165,15 @@ void hmp_system_powerdown(Monitor *mon, const QDict *qdict)
 {
     qmp_system_powerdown(NULL);
 }
+
+void hmp_cpu(Monitor *mon, const QDict *qdict)
+{
+    int64_t cpu_index;
+
+    /* XXX: drop the monitor_set_cpu() usage when all HMP commands that
+            use it are converted to the QAPI */
+    cpu_index = qdict_get_int(qdict, "index");
+    if (monitor_set_cpu(cpu_index) < 0) {
+        monitor_printf(mon, "invalid CPU index\n");
+    }
+}
