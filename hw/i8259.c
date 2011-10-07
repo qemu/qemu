@@ -385,11 +385,10 @@ static uint32_t pic_poll_read(PicState *s)
     return ret;
 }
 
-static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr1,
+static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr,
                                 unsigned size)
 {
     PicState *s = opaque;
-    unsigned int addr = addr1;
     int ret;
 
     if (s->poll) {
