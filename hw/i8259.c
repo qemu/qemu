@@ -41,6 +41,7 @@
 //#define DEBUG_IRQ_COUNT
 
 struct PicState {
+    ISADevice dev;
     uint8_t last_irr; /* edge detection */
     uint8_t irr; /* interrupt request register */
     uint8_t imr; /* interrupt mask register */
@@ -58,8 +59,10 @@ struct PicState {
     uint8_t single_mode; /* true if slave pic is not initialized */
     uint8_t elcr; /* PIIX edge/trigger selection*/
     uint8_t elcr_mask;
-    qemu_irq int_out;
-    bool master; /* reflects /SP input pin */
+    qemu_irq int_out[1];
+    uint32_t master; /* reflects /SP input pin */
+    uint32_t iobase;
+    uint32_t elcr_addr;
     MemoryRegion base_io;
     MemoryRegion elcr_io;
 };
@@ -69,6 +72,9 @@ static int irq_level[16];
 #endif
 #ifdef DEBUG_IRQ_COUNT
 static uint64_t irq_count[16];
+#endif
+#ifdef DEBUG_IRQ_LATENCY
+static int64_t irq_time[16];
 #endif
 PicState *isa_pic;
 static PicState *slave_pic;
@@ -122,17 +128,39 @@ static void pic_update_irq(PicState *s)
     if (irq >= 0) {
         DPRINTF("pic%d: imr=%x irr=%x padd=%d\n",
                 s->master ? 0 : 1, s->imr, s->irr, s->priority_add);
-        qemu_irq_raise(s->int_out);
+        qemu_irq_raise(s->int_out[0]);
     } else {
-        qemu_irq_lower(s->int_out);
+        qemu_irq_lower(s->int_out[0]);
     }
 }
 
 /* set irq level. If an edge is detected, then the IRR is set to 1 */
-static void pic_set_irq1(PicState *s, int irq, int level)
+static void pic_set_irq(void *opaque, int irq, int level)
 {
-    int mask;
-    mask = 1 << irq;
+    PicState *s = opaque;
+    int mask = 1 << irq;
+
+#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT) || \
+    defined(DEBUG_IRQ_LATENCY)
+    int irq_index = s->master ? irq : irq + 8;
+#endif
+#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
+    if (level != irq_level[irq_index]) {
+        DPRINTF("pic_set_irq: irq=%d level=%d\n", irq_index, level);
+        irq_level[irq_index] = level;
+#ifdef DEBUG_IRQ_COUNT
+        if (level == 1) {
+            irq_count[irq_index]++;
+        }
+#endif
+    }
+#endif
+#ifdef DEBUG_IRQ_LATENCY
+    if (level) {
+        irq_time[irq_index] = qemu_get_clock_ns(vm_clock);
+    }
+#endif
+
     if (s->elcr & mask) {
         /* level triggered */
         if (level) {
@@ -154,32 +182,6 @@ static void pic_set_irq1(PicState *s, int irq, int level)
         }
     }
     pic_update_irq(s);
-}
-
-#ifdef DEBUG_IRQ_LATENCY
-int64_t irq_time[16];
-#endif
-
-static void i8259_set_irq(void *opaque, int irq, int level)
-{
-    PicState *s = irq <= 7 ? isa_pic : slave_pic;
-
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
-    if (level != irq_level[irq]) {
-        DPRINTF("i8259_set_irq: irq=%d level=%d\n", irq, level);
-        irq_level[irq] = level;
-#ifdef DEBUG_IRQ_COUNT
-	if (level == 1)
-	    irq_count[irq]++;
-#endif
-    }
-#endif
-#ifdef DEBUG_IRQ_LATENCY
-    if (level) {
-        irq_time[irq] = qemu_get_clock_ns(vm_clock);
-    }
-#endif
-    pic_set_irq1(s, irq & 7, level);
 }
 
 /* acknowledge interrupt 'irq' */
@@ -258,9 +260,9 @@ static void pic_init_reset(PicState *s)
     pic_update_irq(s);
 }
 
-static void pic_reset(void *opaque)
+static void pic_reset(DeviceState *dev)
 {
-    PicState *s = opaque;
+    PicState *s = container_of(dev, PicState, dev.qdev);
 
     pic_init_reset(s);
     s->elcr = 0;
@@ -447,23 +449,24 @@ static const MemoryRegionOps pic_elcr_ioport_ops = {
     },
 };
 
-/* XXX: add generic master/slave system */
-static void pic_init(int io_addr, int elcr_addr, PicState *s, qemu_irq int_out,
-                     bool master)
+static int pic_initfn(ISADevice *dev)
 {
-    s->int_out = int_out;
-    s->master = master;
+    PicState *s = DO_UPCAST(PicState, dev, dev);
 
     memory_region_init_io(&s->base_io, &pic_base_ioport_ops, s, "pic", 2);
     memory_region_init_io(&s->elcr_io, &pic_elcr_ioport_ops, s, "elcr", 1);
 
-    isa_register_ioport(NULL, &s->base_io, io_addr);
-    if (elcr_addr >= 0) {
-        isa_register_ioport(NULL, &s->elcr_io, elcr_addr);
+    isa_register_ioport(NULL, &s->base_io, s->iobase);
+    if (s->elcr_addr != -1) {
+        isa_register_ioport(NULL, &s->elcr_io, s->elcr_addr);
     }
 
-    vmstate_register(NULL, io_addr, &vmstate_pic, s);
-    qemu_register_reset(pic_reset, s);
+    qdev_init_gpio_out(&dev->qdev, s->int_out, ARRAY_SIZE(s->int_out));
+    qdev_init_gpio_in(&dev->qdev, pic_set_irq, 8);
+
+    qdev_set_legacy_instance_id(&dev->qdev, s->iobase, 1);
+
+    return 0;
 }
 
 void pic_info(Monitor *mon)
@@ -503,20 +506,60 @@ void irq_info(Monitor *mon)
 
 qemu_irq *i8259_init(qemu_irq parent_irq)
 {
-    qemu_irq *irqs;
-    PicState *s;
+    qemu_irq *irq_set;
+    ISADevice *dev;
+    int i;
 
-    irqs = qemu_allocate_irqs(i8259_set_irq, NULL, 16);
+    irq_set = g_malloc(ISA_NUM_IRQS * sizeof(qemu_irq));
 
-    s = g_malloc0(sizeof(PicState));
-    pic_init(0x20, 0x4d0, s, parent_irq, true);
-    s->elcr_mask = 0xf8;
-    isa_pic = s;
+    dev = isa_create("isa-i8259");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", 0x20);
+    qdev_prop_set_uint32(&dev->qdev, "elcr_addr", 0x4d0);
+    qdev_prop_set_uint8(&dev->qdev, "elcr_mask", 0xf8);
+    qdev_prop_set_bit(&dev->qdev, "master", true);
+    qdev_init_nofail(&dev->qdev);
 
-    s = g_malloc0(sizeof(PicState));
-    pic_init(0xa0, 0x4d1, s, irqs[2], false);
-    s->elcr_mask = 0xde;
-    slave_pic = s;
+    qdev_connect_gpio_out(&dev->qdev, 0, parent_irq);
+    for (i = 0 ; i < 8; i++) {
+        irq_set[i] = qdev_get_gpio_in(&dev->qdev, i);
+    }
 
-    return irqs;
+    isa_pic = DO_UPCAST(PicState, dev, dev);
+
+    dev = isa_create("isa-i8259");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", 0xa0);
+    qdev_prop_set_uint32(&dev->qdev, "elcr_addr", 0x4d1);
+    qdev_prop_set_uint8(&dev->qdev, "elcr_mask", 0xde);
+    qdev_init_nofail(&dev->qdev);
+
+    qdev_connect_gpio_out(&dev->qdev, 0, irq_set[2]);
+    for (i = 0 ; i < 8; i++) {
+        irq_set[i + 8] = qdev_get_gpio_in(&dev->qdev, i);
+    }
+
+    slave_pic = DO_UPCAST(PicState, dev, dev);
+
+    return irq_set;
 }
+
+static ISADeviceInfo i8259_info = {
+    .qdev.name     = "isa-i8259",
+    .qdev.size     = sizeof(PicState),
+    .qdev.vmsd     = &vmstate_pic,
+    .qdev.reset    = pic_reset,
+    .qdev.no_user  = 1,
+    .init          = pic_initfn,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_HEX32("iobase", PicState, iobase,  -1),
+        DEFINE_PROP_HEX32("elcr_addr", PicState, elcr_addr,  -1),
+        DEFINE_PROP_HEX8("elcr_mask", PicState, elcr_mask,  -1),
+        DEFINE_PROP_BIT("master", PicState, master,  0, false),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static void pic_register(void)
+{
+    isa_qdev_register(&i8259_info);
+}
+device_init(pic_register)
