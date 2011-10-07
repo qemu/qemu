@@ -589,6 +589,7 @@ typedef struct NBDRequest NBDRequest;
 
 struct NBDRequest {
     QSIMPLEQ_ENTRY(NBDRequest) entry;
+    NBDClient *client;
     uint8_t *data;
 };
 
@@ -631,9 +632,11 @@ static void nbd_client_close(NBDClient *client)
     nbd_client_put(client);
 }
 
-static NBDRequest *nbd_request_get(NBDExport *exp)
+static NBDRequest *nbd_request_get(NBDClient *client)
 {
     NBDRequest *req;
+    NBDExport *exp = client->exp;
+
     if (QSIMPLEQ_EMPTY(&exp->requests)) {
         req = g_malloc0(sizeof(NBDRequest));
         req->data = qemu_blockalign(exp->bs, NBD_BUFFER_SIZE);
@@ -641,12 +644,16 @@ static NBDRequest *nbd_request_get(NBDExport *exp)
         req = QSIMPLEQ_FIRST(&exp->requests);
         QSIMPLEQ_REMOVE_HEAD(&exp->requests, entry);
     }
+    nbd_client_get(client);
+    req->client = client;
     return req;
 }
 
-static void nbd_request_put(NBDExport *exp, NBDRequest *req)
+static void nbd_request_put(NBDRequest *req)
 {
-    QSIMPLEQ_INSERT_HEAD(&exp->requests, req, entry);
+    NBDClient *client = req->client;
+    QSIMPLEQ_INSERT_HEAD(&client->exp->requests, req, entry);
+    nbd_client_put(client);
 }
 
 NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
@@ -674,9 +681,11 @@ void nbd_export_close(NBDExport *exp)
     g_free(exp);
 }
 
-static int nbd_do_send_reply(int csock, struct nbd_reply *reply,
-                             uint8_t *data, int len)
+static int nbd_do_send_reply(NBDRequest *req, struct nbd_reply *reply,
+                             int len)
 {
+    NBDClient *client = req->client;
+    int csock = client->sock;
     int rc, ret;
 
     if (!len) {
@@ -688,7 +697,7 @@ static int nbd_do_send_reply(int csock, struct nbd_reply *reply,
         socket_set_cork(csock, 1);
         rc = nbd_send_reply(csock, reply);
         if (rc != -1) {
-            ret = write_sync(csock, data, len);
+            ret = write_sync(csock, req->data, len);
             if (ret != len) {
                 errno = EIO;
                 rc = -1;
@@ -702,9 +711,10 @@ static int nbd_do_send_reply(int csock, struct nbd_reply *reply,
     return rc;
 }
 
-static int nbd_do_receive_request(int csock, struct nbd_request *request,
-                                  uint8_t *data)
+static int nbd_do_receive_request(NBDRequest *req, struct nbd_request *request)
 {
+    NBDClient *client = req->client;
+    int csock = client->sock;
     int rc;
 
     if (nbd_receive_request(csock, request) == -1) {
@@ -731,7 +741,7 @@ static int nbd_do_receive_request(int csock, struct nbd_request *request,
     if ((request->type & NBD_CMD_MASK_COMMAND) == NBD_CMD_WRITE) {
         TRACE("Reading %u byte(s)", request->len);
 
-        if (read_sync(csock, data, request->len) != request->len) {
+        if (read_sync(csock, req->data, request->len) != request->len) {
             LOG("reading from socket failed");
             rc = -EIO;
             goto out;
@@ -745,9 +755,8 @@ out:
 
 static int nbd_trip(NBDClient *client)
 {
+    NBDRequest *req = nbd_request_get(client);
     NBDExport *exp = client->exp;
-    NBDRequest *req = nbd_request_get(exp);
-    int csock = client->sock;
     struct nbd_request request;
     struct nbd_reply reply;
     int rc = -1;
@@ -755,7 +764,7 @@ static int nbd_trip(NBDClient *client)
 
     TRACE("Reading request.");
 
-    ret = nbd_do_receive_request(csock, &request, req->data);
+    ret = nbd_do_receive_request(req, &request);
     if (ret == -EIO) {
         goto out;
     }
@@ -790,7 +799,7 @@ static int nbd_trip(NBDClient *client)
         }
 
         TRACE("Read %u byte(s)", request.len);
-        if (nbd_do_send_reply(csock, &reply, req->data, request.len) < 0)
+        if (nbd_do_send_reply(req, &reply, request.len) < 0)
             goto out;
         break;
     case NBD_CMD_WRITE:
@@ -821,7 +830,7 @@ static int nbd_trip(NBDClient *client)
             }
         }
 
-        if (nbd_do_send_reply(csock, &reply, NULL, 0) < 0)
+        if (nbd_do_send_reply(req, &reply, 0) < 0)
             goto out;
         break;
     case NBD_CMD_DISC:
@@ -837,7 +846,7 @@ static int nbd_trip(NBDClient *client)
             reply.error = -ret;
         }
 
-        if (nbd_do_send_reply(csock, &reply, NULL, 0) < 0)
+        if (nbd_do_send_reply(req, &reply, 0) < 0)
             goto out;
         break;
     case NBD_CMD_TRIM:
@@ -848,7 +857,7 @@ static int nbd_trip(NBDClient *client)
             LOG("discard failed");
             reply.error = -ret;
         }
-        if (nbd_do_send_reply(csock, &reply, NULL, 0) < 0)
+        if (nbd_do_send_reply(req, &reply, 0) < 0)
             goto out;
         break;
     default:
@@ -856,7 +865,7 @@ static int nbd_trip(NBDClient *client)
     invalid_request:
         reply.error = -EINVAL;
     error_reply:
-        if (nbd_do_send_reply(csock, &reply, NULL, 0) == -1)
+        if (nbd_do_send_reply(req, &reply, 0) == -1)
             goto out;
         break;
     }
@@ -865,7 +874,7 @@ static int nbd_trip(NBDClient *client)
 
     rc = 0;
 out:
-    nbd_request_put(exp, req);
+    nbd_request_put(req);
     return rc;
 }
 
@@ -873,12 +882,9 @@ static void nbd_read(void *opaque)
 {
     NBDClient *client = opaque;
 
-    nbd_client_get(client);
     if (nbd_trip(client) != 0) {
         nbd_client_close(client);
     }
-
-    nbd_client_put(client);
 }
 
 NBDClient *nbd_client_new(NBDExport *exp, int csock,
