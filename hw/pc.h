@@ -76,7 +76,7 @@ void irq_info(Monitor *mon);
 #define GSI_NUM_PINS IOAPIC_NUM_PINS
 
 typedef struct GSIState {
-    qemu_irq *i8259_irq;
+    qemu_irq i8259_irq[ISA_NUM_IRQS];
     qemu_irq ioapic_irq[IOAPIC_NUM_PINS];
 } GSIState;
 

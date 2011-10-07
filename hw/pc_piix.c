@@ -158,7 +158,9 @@ static void pc_init1(MemoryRegion *system_memory,
         i8259 = xen_interrupt_controller_init();
     }
 
-    gsi_state->i8259_irq = i8259;
+    for (i = 0; i < ISA_NUM_IRQS; i++) {
+        gsi_state->i8259_irq[i] = i8259[i];
+    }
     if (pci_enabled) {
         ioapic_init(gsi_state);
     }
