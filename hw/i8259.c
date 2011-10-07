@@ -228,7 +228,6 @@ int pic_read_irq(PicState2 *s)
 
     irq = pic_get_irq(&s->pics[0]);
     if (irq >= 0) {
-        pic_intack(&s->pics[0], irq);
         if (irq == 2) {
             irq2 = pic_get_irq(&s->pics[1]);
             if (irq2 >= 0) {
@@ -238,12 +237,10 @@ int pic_read_irq(PicState2 *s)
                 irq2 = 7;
             }
             intno = s->pics[1].irq_base + irq2;
-#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_LATENCY)
-            irq = irq2 + 8;
-#endif
         } else {
             intno = s->pics[0].irq_base + irq;
         }
+        pic_intack(&s->pics[0], irq);
     } else {
         /* spurious IRQ on host controller */
         irq = 7;
@@ -251,6 +248,11 @@ int pic_read_irq(PicState2 *s)
     }
     pic_update_irq(s);
 
+#if defined(DEBUG_PIC) || defined(DEBUG_IRQ_LATENCY)
+    if (irq == 2) {
+        irq = irq2 + 8;
+    }
+#endif
 #ifdef DEBUG_IRQ_LATENCY
     printf("IRQ%d latency=%0.3fus\n",
            irq,
