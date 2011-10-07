@@ -393,7 +393,6 @@ static uint32_t pic_poll_read(PicState *s)
             pic_update_irq(s->pics_state);
     } else {
         ret = 0x07;
-        pic_update_irq(s->pics_state);
     }
 
     return ret;
