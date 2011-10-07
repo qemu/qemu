@@ -118,39 +118,19 @@ static int pic_get_irq(PicState *s)
     }
 }
 
-static void pic_set_irq1(PicState *s, int irq, int level);
-
-/* raise irq to CPU if necessary. must be called every time the active
-   irq may change */
-static void pic_update_irq(PicState2 *s)
+/* Update INT output. Must be called every time the output may have changed. */
+static void pic_update_irq(PicState *s)
 {
-    int irq2, irq;
+    int irq;
 
-    /* first look at slave pic */
-    irq2 = pic_get_irq(&s->pics[1]);
-    if (irq2 >= 0) {
-        /* if irq request by slave pic, signal master PIC */
-        pic_set_irq1(&s->pics[0], 2, 1);
-        pic_set_irq1(&s->pics[0], 2, 0);
-    }
-    /* look at requested irq */
-    irq = pic_get_irq(&s->pics[0]);
+    irq = pic_get_irq(s);
     if (irq >= 0) {
-#if defined(DEBUG_PIC)
-        {
-            int i;
-            for(i = 0; i < 2; i++) {
-                printf("pic%d: imr=%x irr=%x padd=%d\n",
-                       i, s->pics[i].imr, s->pics[i].irr,
-                       s->pics[i].priority_add);
-
-            }
-        }
-        printf("pic: cpu_interrupt\n");
-#endif
-        qemu_irq_raise(s->pics[0].int_out);
+        DPRINTF("pic%d: imr=%x irr=%x padd=%d\n",
+                s == &s->pics_state->pics[0] ? 0 : 1, s->imr, s->irr,
+                s->priority_add);
+        qemu_irq_raise(s->int_out);
     } else {
-        qemu_irq_lower(s->pics[0].int_out);
+        qemu_irq_lower(s->int_out);
     }
 }
 
@@ -179,6 +159,7 @@ static void pic_set_irq1(PicState *s, int irq, int level)
             s->last_irr &= ~mask;
         }
     }
+    pic_update_irq(s);
 }
 
 #ifdef DEBUG_IRQ_LATENCY
@@ -205,7 +186,6 @@ static void i8259_set_irq(void *opaque, int irq, int level)
     }
 #endif
     pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
-    pic_update_irq(s);
 }
 
 /* acknowledge interrupt 'irq' */
@@ -220,6 +200,7 @@ static void pic_intack(PicState *s, int irq)
     /* We don't clear a level sensitive interrupt here */
     if (!(s->elcr & (1 << irq)))
         s->irr &= ~(1 << irq);
+    pic_update_irq(s);
 }
 
 int pic_read_irq(PicState2 *s)
@@ -246,7 +227,6 @@ int pic_read_irq(PicState2 *s)
         irq = 7;
         intno = s->pics[0].irq_base + irq;
     }
-    pic_update_irq(s);
 
 #if defined(DEBUG_PIC) || defined(DEBUG_IRQ_LATENCY)
     if (irq == 2) {
@@ -281,7 +261,7 @@ static void pic_init_reset(PicState *s)
     s->init4 = 0;
     s->single_mode = 0;
     /* Note: ELCR is not reset */
-    pic_update_irq(s->pics_state);
+    pic_update_irq(s);
 }
 
 static void pic_reset(void *opaque)
@@ -331,23 +311,23 @@ static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
                     s->isr &= ~(1 << irq);
                     if (cmd == 5)
                         s->priority_add = (irq + 1) & 7;
-                    pic_update_irq(s->pics_state);
+                    pic_update_irq(s);
                 }
                 break;
             case 3:
                 irq = val & 7;
                 s->isr &= ~(1 << irq);
-                pic_update_irq(s->pics_state);
+                pic_update_irq(s);
                 break;
             case 6:
                 s->priority_add = (val + 1) & 7;
-                pic_update_irq(s->pics_state);
+                pic_update_irq(s);
                 break;
             case 7:
                 irq = val & 7;
                 s->isr &= ~(1 << irq);
                 s->priority_add = (irq + 1) & 7;
-                pic_update_irq(s->pics_state);
+                pic_update_irq(s);
                 break;
             default:
                 /* no operation */
@@ -359,7 +339,7 @@ static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
         case 0:
             /* normal mode */
             s->imr = val;
-            pic_update_irq(s->pics_state);
+            pic_update_irq(s);
             break;
         case 1:
             s->irq_base = val & 0xf8;
@@ -395,8 +375,9 @@ static uint32_t pic_poll_read(PicState *s)
         }
         s->irr &= ~(1 << ret);
         s->isr &= ~(1 << ret);
-        if (slave || ret != 2)
-            pic_update_irq(s->pics_state);
+        if (slave || ret != 2) {
+            pic_update_irq(s);
+        }
     } else {
         ret = 0x07;
     }
