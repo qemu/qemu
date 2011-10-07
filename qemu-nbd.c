@@ -35,8 +35,6 @@
 
 #define SOCKET_PATH    "/var/lock/qemu-nbd-%s"
 
-#define NBD_BUFFER_SIZE (1024*1024)
-
 static int sigterm_wfd;
 static int verbose;
 static char *device;
@@ -541,7 +539,7 @@ int main(int argc, char **argv)
         for (i = 1; i < nb_fds && ret; i++) {
             if (FD_ISSET(sharing_fds[i], &fds)) {
                 if (nbd_trip(bs, sharing_fds[i], fd_size, dev_offset,
-                    nbdflags, data, NBD_BUFFER_SIZE) != 0) {
+                             nbdflags, data) != 0) {
                     close(sharing_fds[i]);
                     nb_fds--;
                     sharing_fds[i] = sharing_fds[nb_fds];

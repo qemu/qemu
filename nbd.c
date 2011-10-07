@@ -585,7 +585,7 @@ static int nbd_send_reply(int csock, struct nbd_reply *reply)
 
 int nbd_trip(BlockDriverState *bs, int csock, off_t size,
              uint64_t dev_offset, uint32_t nbdflags,
-             uint8_t *data, int data_size)
+             uint8_t *data)
 {
     struct nbd_request request;
     struct nbd_reply reply;
@@ -596,9 +596,9 @@ int nbd_trip(BlockDriverState *bs, int csock, off_t size,
     if (nbd_receive_request(csock, &request) == -1)
         return -1;
 
-    if (request.len + NBD_REPLY_SIZE > data_size) {
+    if (request.len + NBD_REPLY_SIZE > NBD_BUFFER_SIZE) {
         LOG("len (%u) is larger than max len (%u)",
-            request.len + NBD_REPLY_SIZE, data_size);
+            request.len + NBD_REPLY_SIZE, NBD_BUFFER_SIZE);
         errno = EINVAL;
         return -1;
     }
