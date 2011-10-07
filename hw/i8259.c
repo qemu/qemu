@@ -80,7 +80,7 @@ static uint64_t irq_count[16];
 PicState2 *isa_pic;
 
 /* set irq level. If an edge is detected, then the IRR is set to 1 */
-static inline void pic_set_irq1(PicState *s, int irq, int level)
+static void pic_set_irq1(PicState *s, int irq, int level)
 {
     int mask;
     mask = 1 << irq;
@@ -107,7 +107,7 @@ static inline void pic_set_irq1(PicState *s, int irq, int level)
 
 /* return the highest priority found in mask (highest = smallest
    number). Return 8 if no irq */
-static inline int get_priority(PicState *s, int mask)
+static int get_priority(PicState *s, int mask)
 {
     int priority;
     if (mask == 0)
@@ -206,7 +206,7 @@ static void i8259_set_irq(void *opaque, int irq, int level)
 }
 
 /* acknowledge interrupt 'irq' */
-static inline void pic_intack(PicState *s, int irq)
+static void pic_intack(PicState *s, int irq)
 {
     if (s->auto_eoi) {
         if (s->rotate_on_auto_eoi)
