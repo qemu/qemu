@@ -79,32 +79,6 @@ static uint64_t irq_count[16];
 #endif
 PicState2 *isa_pic;
 
-/* set irq level. If an edge is detected, then the IRR is set to 1 */
-static void pic_set_irq1(PicState *s, int irq, int level)
-{
-    int mask;
-    mask = 1 << irq;
-    if (s->elcr & mask) {
-        /* level triggered */
-        if (level) {
-            s->irr |= mask;
-            s->last_irr |= mask;
-        } else {
-            s->irr &= ~mask;
-            s->last_irr &= ~mask;
-        }
-    } else {
-        /* edge triggered */
-        if (level) {
-            if ((s->last_irr & mask) == 0)
-                s->irr |= mask;
-            s->last_irr |= mask;
-        } else {
-            s->last_irr &= ~mask;
-        }
-    }
-}
-
 /* return the highest priority found in mask (highest = smallest
    number). Return 8 if no irq */
 static int get_priority(PicState *s, int mask)
@@ -144,6 +118,8 @@ static int pic_get_irq(PicState *s)
     }
 }
 
+static void pic_set_irq1(PicState *s, int irq, int level);
+
 /* raise irq to CPU if necessary. must be called every time the active
    irq may change */
 static void pic_update_irq(PicState2 *s)
@@ -175,6 +151,33 @@ static void pic_update_irq(PicState2 *s)
         qemu_irq_raise(s->parent_irq);
     } else {
         qemu_irq_lower(s->parent_irq);
+    }
+}
+
+/* set irq level. If an edge is detected, then the IRR is set to 1 */
+static void pic_set_irq1(PicState *s, int irq, int level)
+{
+    int mask;
+    mask = 1 << irq;
+    if (s->elcr & mask) {
+        /* level triggered */
+        if (level) {
+            s->irr |= mask;
+            s->last_irr |= mask;
+        } else {
+            s->irr &= ~mask;
+            s->last_irr &= ~mask;
+        }
+    } else {
+        /* edge triggered */
+        if (level) {
+            if ((s->last_irr & mask) == 0) {
+                s->irr |= mask;
+            }
+            s->last_irr |= mask;
+        } else {
+            s->last_irr &= ~mask;
+        }
     }
 }
 
