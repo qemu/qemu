@@ -263,10 +263,8 @@ int pic_read_irq(PicState2 *s)
     return intno;
 }
 
-static void pic_reset(void *opaque)
+static void pic_init_reset(PicState *s)
 {
-    PicState *s = opaque;
-
     s->last_irr = 0;
     s->irr = 0;
     s->imr = 0;
@@ -286,6 +284,14 @@ static void pic_reset(void *opaque)
     pic_update_irq(s->pics_state);
 }
 
+static void pic_reset(void *opaque)
+{
+    PicState *s = opaque;
+
+    pic_init_reset(s);
+    s->elcr = 0;
+}
+
 static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
                              uint64_t val64, unsigned size)
 {
@@ -297,8 +303,7 @@ static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
     DPRINTF("write: addr=0x%02x val=0x%02x\n", addr, val);
     if (addr == 0) {
         if (val & 0x10) {
-            /* init */
-            pic_reset(s);
+            pic_init_reset(s);
             s->init_state = 1;
             s->init4 = val & 1;
             s->single_mode = val & 2;
