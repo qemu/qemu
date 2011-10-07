@@ -7,6 +7,8 @@
 #include "memory.h"
 #include "qdev.h"
 
+#define ISA_NUM_IRQS 16
+
 typedef struct ISABus ISABus;
 typedef struct ISADevice ISADevice;
 typedef struct ISADeviceInfo ISADeviceInfo;

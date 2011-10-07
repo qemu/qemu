@@ -8,6 +8,7 @@
 #include "fdc.h"
 #include "net.h"
 #include "memory.h"
+#include "ioapic.h"
 
 /* PC-style peripherals (also used by other machines).  */
 
@@ -70,15 +71,16 @@ uint32_t pic_intack_read(PicState2 *s);
 void pic_info(Monitor *mon);
 void irq_info(Monitor *mon);
 
-/* ISA */
-#define IOAPIC_NUM_PINS 0x18
+/* Global System Interrupts */
 
-typedef struct isa_irq_state {
-    qemu_irq *i8259;
-    qemu_irq ioapic[IOAPIC_NUM_PINS];
-} IsaIrqState;
+#define GSI_NUM_PINS IOAPIC_NUM_PINS
 
-void isa_irq_handler(void *opaque, int n, int level);
+typedef struct GSIState {
+    qemu_irq *i8259_irq;
+    qemu_irq ioapic_irq[IOAPIC_NUM_PINS];
+} GSIState;
+
+void gsi_handler(void *opaque, int n, int level);
 
 /* i8254.c */
 
@@ -141,7 +143,7 @@ void pc_memory_init(MemoryRegion *system_memory,
                     MemoryRegion **ram_memory);
 qemu_irq *pc_allocate_cpu_irq(void);
 void pc_vga_init(PCIBus *pci_bus);
-void pc_basic_device_init(qemu_irq *isa_irq,
+void pc_basic_device_init(qemu_irq *gsi,
                           ISADevice **rtc_state,
                           bool no_vmport);
 void pc_init_ne2k_isa(NICInfo *nd);
