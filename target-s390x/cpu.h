@@ -315,6 +315,15 @@ unsigned s390_del_running_cpu(CPUState *env);
 /* from s390-virtio-bus */
 extern const target_phys_addr_t virtio_size;
 
+#else
+static inline void s390_add_running_cpu(CPUState *env)
+{
+}
+
+static inline unsigned s390_del_running_cpu(CPUState *env)
+{
+    return 0;
+}
 #endif
 void cpu_lock(void);
 void cpu_unlock(void);
