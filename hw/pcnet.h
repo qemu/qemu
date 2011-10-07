@@ -58,6 +58,7 @@ uint32_t pcnet_ioport_readl(void *opaque, uint32_t addr);
 uint32_t pcnet_bcr_readw(PCNetState *s, uint32_t rap);
 int pcnet_can_receive(VLANClientState *nc);
 ssize_t pcnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size_);
+void pcnet_set_link_status(VLANClientState *nc);
 void pcnet_common_cleanup(PCNetState *d);
 int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info);
 extern const VMStateDescription vmstate_pcnet;

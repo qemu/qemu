@@ -1197,6 +1197,13 @@ ssize_t pcnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size_)
     return size_;
 }
 
+void pcnet_set_link_status(VLANClientState *nc)
+{
+    PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
+
+    d->lnkst = nc->link_down ? 0 : 0x40;
+}
+
 static void pcnet_transmit(PCNetState *s)
 {
     target_phys_addr_t xmit_cxda = 0;

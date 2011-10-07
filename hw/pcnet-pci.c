@@ -288,6 +288,7 @@ static NetClientInfo net_pci_pcnet_info = {
     .size = sizeof(NICState),
     .can_receive = pcnet_can_receive,
     .receive = pcnet_receive,
+    .link_status_changed = pcnet_set_link_status,
     .cleanup = pci_pcnet_cleanup,
 };
 
