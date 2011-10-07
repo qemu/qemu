@@ -62,8 +62,6 @@ bool parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
 
 typedef struct PicState2 PicState2;
 extern PicState2 *isa_pic;
-void pic_set_irq(int irq, int level);
-void pic_set_irq_new(void *opaque, int irq, int level);
 qemu_irq *i8259_init(qemu_irq parent_irq);
 int pic_read_irq(PicState2 *s);
 int pic_get_output(PicState2 *s);
