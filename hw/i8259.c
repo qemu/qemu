@@ -146,8 +146,7 @@ static int pic_get_irq(PicState *s)
 
 /* raise irq to CPU if necessary. must be called every time the active
    irq may change */
-/* XXX: should not export it, but it is needed for an APIC kludge */
-void pic_update_irq(PicState2 *s)
+static void pic_update_irq(PicState2 *s)
 {
     int irq2, irq;
 
@@ -174,14 +173,9 @@ void pic_update_irq(PicState2 *s)
         printf("pic: cpu_interrupt\n");
 #endif
         qemu_irq_raise(s->parent_irq);
-    }
-
-/* all targets should do this rather than acking the IRQ in the cpu */
-#if defined(TARGET_MIPS) || defined(TARGET_PPC) || defined(TARGET_ALPHA)
-    else {
+    } else {
         qemu_irq_lower(s->parent_irq);
     }
-#endif
 }
 
 #ifdef DEBUG_IRQ_LATENCY
@@ -439,6 +433,11 @@ uint32_t pic_intack_read(PicState2 *s)
     s->pics[0].read_reg_select = 1;
 
     return ret;
+}
+
+int pic_get_output(PicState2 *s)
+{
+    return (pic_get_irq(&s->pics[0]) >= 0);
 }
 
 static void elcr_ioport_write(void *opaque, target_phys_addr_t addr,

@@ -155,9 +155,6 @@ int cpu_get_pic_interrupt(CPUState *env)
 
     intno = apic_get_interrupt(env->apic_state);
     if (intno >= 0) {
-        /* set irq request if a PIC irq is still pending */
-        /* XXX: improve that */
-        pic_update_irq(isa_pic);
         return intno;
     }
     /* read the irq from the PIC */
