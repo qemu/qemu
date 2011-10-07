@@ -393,7 +393,13 @@ static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr1,
     int ret;
 
     if (s->poll) {
-        ret = pic_poll_read(s);
+        ret = pic_get_irq(s);
+        if (ret >= 0) {
+            pic_intack(s, ret);
+            ret |= 0x80;
+        } else {
+            ret = 0;
+        }
         s->poll = 0;
     } else {
         if (addr == 0) {
