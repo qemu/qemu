@@ -130,7 +130,7 @@ static inline uint32_t _PPC_intack_read(target_phys_addr_t addr)
     uint32_t retval = 0;
 
     if ((addr & 0xf) == 0)
-        retval = pic_intack_read(isa_pic);
+        retval = pic_read_irq(isa_pic);
 #if 0
     printf("%s: 0x" TARGET_FMT_plx " <= %08" PRIx32 "\n", __func__, addr,
            retval);

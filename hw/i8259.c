@@ -361,30 +361,6 @@ static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
     }
 }
 
-static uint32_t pic_poll_read(PicState *s)
-{
-    int ret;
-
-    ret = pic_get_irq(s);
-    if (ret >= 0) {
-        bool slave = (s == &isa_pic->pics[1]);
-
-        if (slave) {
-            s->pics_state->pics[0].isr &= ~(1 << 2);
-            s->pics_state->pics[0].irr &= ~(1 << 2);
-        }
-        s->irr &= ~(1 << ret);
-        s->isr &= ~(1 << ret);
-        if (slave || ret != 2) {
-            pic_update_irq(s);
-        }
-    } else {
-        ret = 0x07;
-    }
-
-    return ret;
-}
-
 static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr,
                                 unsigned size)
 {
@@ -411,21 +387,6 @@ static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr,
         }
     }
     DPRINTF("read: addr=0x%02x val=0x%02x\n", addr, ret);
-    return ret;
-}
-
-/* memory mapped interrupt status */
-/* XXX: may be the same than pic_read_irq() */
-uint32_t pic_intack_read(PicState2 *s)
-{
-    int ret;
-
-    ret = pic_poll_read(&s->pics[0]);
-    if (ret == 2)
-        ret = pic_poll_read(&s->pics[1]) + 8;
-    /* Prepare for ISR read */
-    s->pics[0].read_reg_select = 1;
-
     return ret;
 }
 
