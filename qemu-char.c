@@ -1664,8 +1664,8 @@ static int qemu_chr_open_win(QemuOpts *opts, CharDriverState **_chr)
     chr->chr_close = win_chr_close;
 
     if (win_chr_init(chr, filename) < 0) {
-        free(s);
-        free(chr);
+        g_free(s);
+        g_free(chr);
         return -EIO;
     }
     qemu_chr_generic_open(chr);
@@ -1766,8 +1766,8 @@ static int qemu_chr_open_win_pipe(QemuOpts *opts, CharDriverState **_chr)
     chr->chr_close = win_chr_close;
 
     if (win_chr_pipe_init(chr, filename) < 0) {
-        free(s);
-        free(chr);
+        g_free(s);
+        g_free(chr);
         return -EIO;
     }
     qemu_chr_generic_open(chr);
