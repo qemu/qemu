@@ -224,6 +224,7 @@ extern PropertyInfo qdev_prop_uint16;
 extern PropertyInfo qdev_prop_uint32;
 extern PropertyInfo qdev_prop_int32;
 extern PropertyInfo qdev_prop_uint64;
+extern PropertyInfo qdev_prop_hex8;
 extern PropertyInfo qdev_prop_hex32;
 extern PropertyInfo qdev_prop_hex64;
 extern PropertyInfo qdev_prop_string;
@@ -267,6 +268,8 @@ extern PropertyInfo qdev_prop_pci_devfn;
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_int32, int32_t)
 #define DEFINE_PROP_UINT64(_n, _s, _f, _d)                      \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_uint64, uint64_t)
+#define DEFINE_PROP_HEX8(_n, _s, _f, _d)                       \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex8, uint8_t)
 #define DEFINE_PROP_HEX32(_n, _s, _f, _d)                       \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_hex32, uint32_t)
 #define DEFINE_PROP_HEX64(_n, _s, _f, _d)                       \
