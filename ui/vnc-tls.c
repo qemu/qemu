@@ -413,7 +413,7 @@ void vnc_tls_client_cleanup(struct VncState *vs)
         vs->tls.session = NULL;
     }
     vs->tls.wiremode = VNC_WIREMODE_CLEAR;
-    free(vs->tls.dname);
+    g_free(vs->tls.dname);
 }
 
 
