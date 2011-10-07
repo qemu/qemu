@@ -60,11 +60,11 @@ bool parallel_mm_init(target_phys_addr_t base, int it_shift, qemu_irq irq,
 
 /* i8259.c */
 
-typedef struct PicState2 PicState2;
-extern PicState2 *isa_pic;
+typedef struct PicState PicState;
+extern PicState *isa_pic;
 qemu_irq *i8259_init(qemu_irq parent_irq);
-int pic_read_irq(PicState2 *s);
-int pic_get_output(PicState2 *s);
+int pic_read_irq(PicState *s);
+int pic_get_output(PicState *s);
 void pic_info(Monitor *mon);
 void irq_info(Monitor *mon);
 

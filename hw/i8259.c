@@ -40,7 +40,7 @@
 //#define DEBUG_IRQ_LATENCY
 //#define DEBUG_IRQ_COUNT
 
-typedef struct PicState {
+struct PicState {
     uint8_t last_irr; /* edge detection */
     uint8_t irr; /* interrupt request register */
     uint8_t imr; /* interrupt mask register */
@@ -62,13 +62,6 @@ typedef struct PicState {
     bool master; /* reflects /SP input pin */
     MemoryRegion base_io;
     MemoryRegion elcr_io;
-} PicState;
-
-struct PicState2 {
-    /* 0 is master pic, 1 is slave pic */
-    /* XXX: better separation between the two pics */
-    PicState pics[2];
-    void *irq_request_opaque;
 };
 
 #if defined(DEBUG_PIC) || defined (DEBUG_IRQ_COUNT)
@@ -77,7 +70,8 @@ static int irq_level[16];
 #ifdef DEBUG_IRQ_COUNT
 static uint64_t irq_count[16];
 #endif
-PicState2 *isa_pic;
+PicState *isa_pic;
+static PicState *slave_pic;
 
 /* return the highest priority found in mask (highest = smallest
    number). Return 8 if no irq */
@@ -168,7 +162,7 @@ int64_t irq_time[16];
 
 static void i8259_set_irq(void *opaque, int irq, int level)
 {
-    PicState2 *s = opaque;
+    PicState *s = irq <= 7 ? isa_pic : slave_pic;
 
 #if defined(DEBUG_PIC) || defined(DEBUG_IRQ_COUNT)
     if (level != irq_level[irq]) {
@@ -185,7 +179,7 @@ static void i8259_set_irq(void *opaque, int irq, int level)
         irq_time[irq] = qemu_get_clock_ns(vm_clock);
     }
 #endif
-    pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
+    pic_set_irq1(s, irq & 7, level);
 }
 
 /* acknowledge interrupt 'irq' */
@@ -203,29 +197,29 @@ static void pic_intack(PicState *s, int irq)
     pic_update_irq(s);
 }
 
-int pic_read_irq(PicState2 *s)
+int pic_read_irq(PicState *s)
 {
     int irq, irq2, intno;
 
-    irq = pic_get_irq(&s->pics[0]);
+    irq = pic_get_irq(s);
     if (irq >= 0) {
         if (irq == 2) {
-            irq2 = pic_get_irq(&s->pics[1]);
+            irq2 = pic_get_irq(slave_pic);
             if (irq2 >= 0) {
-                pic_intack(&s->pics[1], irq2);
+                pic_intack(slave_pic, irq2);
             } else {
                 /* spurious IRQ on slave controller */
                 irq2 = 7;
             }
-            intno = s->pics[1].irq_base + irq2;
+            intno = slave_pic->irq_base + irq2;
         } else {
-            intno = s->pics[0].irq_base + irq;
+            intno = s->irq_base + irq;
         }
-        pic_intack(&s->pics[0], irq);
+        pic_intack(s, irq);
     } else {
         /* spurious IRQ on host controller */
         irq = 7;
-        intno = s->pics[0].irq_base + irq;
+        intno = s->irq_base + irq;
     }
 
 #if defined(DEBUG_PIC) || defined(DEBUG_IRQ_LATENCY)
@@ -390,9 +384,9 @@ static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-int pic_get_output(PicState2 *s)
+int pic_get_output(PicState *s)
 {
-    return (pic_get_irq(&s->pics[0]) >= 0);
+    return (pic_get_irq(s) >= 0);
 }
 
 static void elcr_ioport_write(void *opaque, target_phys_addr_t addr,
@@ -480,8 +474,8 @@ void pic_info(Monitor *mon)
     if (!isa_pic)
         return;
 
-    for(i=0;i<2;i++) {
-        s = &isa_pic->pics[i];
+    for (i = 0; i < 2; i++) {
+        s = i == 0 ? isa_pic : slave_pic;
         monitor_printf(mon, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
                        "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
                        i, s->irr, s->imr, s->isr, s->priority_add,
@@ -510,14 +504,19 @@ void irq_info(Monitor *mon)
 qemu_irq *i8259_init(qemu_irq parent_irq)
 {
     qemu_irq *irqs;
-    PicState2 *s;
+    PicState *s;
 
-    s = g_malloc0(sizeof(PicState2));
-    irqs = qemu_allocate_irqs(i8259_set_irq, s, 16);
-    pic_init(0x20, 0x4d0, &s->pics[0], parent_irq, true);
-    pic_init(0xa0, 0x4d1, &s->pics[1], irqs[2], false);
-    s->pics[0].elcr_mask = 0xf8;
-    s->pics[1].elcr_mask = 0xde;
+    irqs = qemu_allocate_irqs(i8259_set_irq, NULL, 16);
+
+    s = g_malloc0(sizeof(PicState));
+    pic_init(0x20, 0x4d0, s, parent_irq, true);
+    s->elcr_mask = 0xf8;
     isa_pic = s;
+
+    s = g_malloc0(sizeof(PicState));
+    pic_init(0xa0, 0x4d1, s, irqs[2], false);
+    s->elcr_mask = 0xde;
+    slave_pic = s;
+
     return irqs;
 }
