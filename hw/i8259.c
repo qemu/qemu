@@ -58,6 +58,7 @@ typedef struct PicState {
     uint8_t single_mode; /* true if slave pic is not initialized */
     uint8_t elcr; /* PIIX edge/trigger selection*/
     uint8_t elcr_mask;
+    qemu_irq int_out;
     PicState2 *pics_state;
     MemoryRegion base_io;
     MemoryRegion elcr_io;
@@ -67,7 +68,6 @@ struct PicState2 {
     /* 0 is master pic, 1 is slave pic */
     /* XXX: better separation between the two pics */
     PicState pics[2];
-    qemu_irq parent_irq;
     void *irq_request_opaque;
 };
 
@@ -148,9 +148,9 @@ static void pic_update_irq(PicState2 *s)
         }
         printf("pic: cpu_interrupt\n");
 #endif
-        qemu_irq_raise(s->parent_irq);
+        qemu_irq_raise(s->pics[0].int_out);
     } else {
-        qemu_irq_lower(s->parent_irq);
+        qemu_irq_lower(s->pics[0].int_out);
     }
 }
 
@@ -297,7 +297,7 @@ static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
             /* init */
             pic_reset(s);
             /* deassert a pending interrupt */
-            qemu_irq_lower(s->pics_state->parent_irq);
+            qemu_irq_lower(s->pics_state->pics[0].int_out);
             s->init_state = 1;
             s->init4 = val & 1;
             s->single_mode = val & 2;
@@ -502,8 +502,10 @@ static const MemoryRegionOps pic_elcr_ioport_ops = {
 };
 
 /* XXX: add generic master/slave system */
-static void pic_init1(int io_addr, int elcr_addr, PicState *s)
+static void pic_init(int io_addr, int elcr_addr, PicState *s, qemu_irq int_out)
 {
+    s->int_out = int_out;
+
     memory_region_init_io(&s->base_io, &pic_base_ioport_ops, s, "pic", 2);
     memory_region_init_io(&s->elcr_io, &pic_elcr_ioport_ops, s, "elcr", 1);
 
@@ -553,16 +555,17 @@ void irq_info(Monitor *mon)
 
 qemu_irq *i8259_init(qemu_irq parent_irq)
 {
+    qemu_irq *irqs;
     PicState2 *s;
 
     s = g_malloc0(sizeof(PicState2));
-    pic_init1(0x20, 0x4d0, &s->pics[0]);
-    pic_init1(0xa0, 0x4d1, &s->pics[1]);
+    irqs = qemu_allocate_irqs(i8259_set_irq, s, 16);
+    pic_init(0x20, 0x4d0, &s->pics[0], parent_irq);
+    pic_init(0xa0, 0x4d1, &s->pics[1], irqs[2]);
     s->pics[0].elcr_mask = 0xf8;
     s->pics[1].elcr_mask = 0xde;
-    s->parent_irq = parent_irq;
     s->pics[0].pics_state = s;
     s->pics[1].pics_state = s;
     isa_pic = s;
-    return qemu_allocate_irqs(i8259_set_irq, s, 16);
+    return irqs;
 }
