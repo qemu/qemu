@@ -57,11 +57,11 @@
 #include "json-parser.h"
 #include "osdep.h"
 #include "cpu.h"
+#include "trace.h"
 #include "trace/control.h"
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif
-#include "trace/control.h"
 #include "ui/qemu-spice.h"
 #include "memory.h"
 
@@ -370,6 +370,8 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
 {
     QDict *qmp;
 
+    trace_monitor_protocol_emitter(mon);
+
     qmp = qdict_new();
 
     if (!monitor_has_error(mon)) {
@@ -606,7 +608,7 @@ static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
     }
 }
 
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
 static void do_trace_file(Monitor *mon, const QDict *qdict)
 {
     const char *op = qdict_get_try_str(qdict, "op");
@@ -5103,6 +5105,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     qobject_incref(mon->mc->id);
 
     cmd_name = qdict_get_str(input, "execute");
+    trace_handle_qmp_command(mon, cmd_name);
     if (invalid_qmp_mode(mon, cmd_name)) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_out;

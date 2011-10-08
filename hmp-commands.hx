@@ -194,7 +194,7 @@ STEXI
 changes status of a trace event
 ETEXI
 
-#if defined(CONFIG_SIMPLE_TRACE)
+#if defined(CONFIG_TRACE_SIMPLE)
     {
         .name       = "trace-file",
         .args_type  = "op:s?,arg:F?",
