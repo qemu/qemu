@@ -251,7 +251,8 @@ bamboo.dtb petalogix-s3adsp1800.dtb petalogix-ml605.dtb \
 mpc8544ds.dtb \
 multiboot.bin linuxboot.bin \
 s390-zipl.rom \
-spapr-rtas.bin slof.bin
+spapr-rtas.bin slof.bin \
+palcode-clipper
 else
 BLOBS=
 endif

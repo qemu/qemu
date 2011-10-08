@@ -13,3 +13,6 @@
 [submodule "roms/openbios"]
 	path = roms/openbios
 	url = git://git.qemu.org/openbios.git
+[submodule "roms/qemu-palcode"]
+	path = roms/qemu-palcode
+	url = git://repo.or.cz/qemu-palcode.git
