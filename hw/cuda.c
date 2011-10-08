@@ -24,6 +24,7 @@
  */
 #include "hw.h"
 #include "ppc_mac.h"
+#include "adb.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
 
@@ -633,16 +634,20 @@ static uint32_t cuda_readl (void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static CPUWriteMemoryFunc * const cuda_write[] = {
-    &cuda_writeb,
-    &cuda_writew,
-    &cuda_writel,
-};
-
-static CPUReadMemoryFunc * const cuda_read[] = {
-    &cuda_readb,
-    &cuda_readw,
-    &cuda_readl,
+static MemoryRegionOps cuda_ops = {
+    .old_mmio = {
+        .write = {
+            cuda_writeb,
+            cuda_writew,
+            cuda_writel,
+        },
+        .read = {
+            cuda_readb,
+            cuda_readw,
+            cuda_readl,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static bool cuda_timer_exist(void *opaque, int version_id)
@@ -739,8 +744,8 @@ void cuda_init (MemoryRegion **cuda_mem, qemu_irq irq)
     s->tick_offset = (uint32_t)mktimegm(&tm) + RTC_OFFSET;
 
     s->adb_poll_timer = qemu_new_timer_ns(vm_clock, cuda_adb_poll, s);
-    cpu_register_io_memory(cuda_read, cuda_write, s,
-                                             DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->mem, &cuda_ops, s, "cuda", 0x2000);
+
     *cuda_mem = &s->mem;
     vmstate_register(NULL, -1, &vmstate_cuda, s);
     qemu_register_reset(cuda_reset, s);

@@ -14,8 +14,6 @@
  * (at your option) any later version.
  */
 
-#include <dirent.h>
-
 #include "config.h"
 #include "qemu-common.h"
 #include "net.h"
@@ -51,36 +49,13 @@
 #define MPC8544_PCI_IO             0xE1000000
 #define MPC8544_PCI_IOLEN          0x10000
 #define MPC8544_UTIL_BASE          (MPC8544_CCSRBAR_BASE + 0xe0000)
+#define MPC8544_SPIN_BASE          0xEF000000
 
 struct boot_info
 {
     uint32_t dt_base;
     uint32_t entry;
 };
-
-#ifdef CONFIG_FDT
-static int mpc8544_copy_soc_cell(void *fdt, const char *node, const char *prop)
-{
-    uint32_t cell;
-    int ret;
-
-    ret = kvmppc_read_host_property(node, prop, &cell, sizeof(cell));
-    if (ret < 0) {
-        fprintf(stderr, "couldn't read host %s/%s\n", node, prop);
-        goto out;
-    }
-
-    ret = qemu_devtree_setprop_cell(fdt, "/cpus/PowerPC,8544@0",
-                                prop, cell);
-    if (ret < 0) {
-        fprintf(stderr, "couldn't set guest /cpus/PowerPC,8544@0/%s\n", prop);
-        goto out;
-    }
-
-out:
-    return ret;
-}
-#endif
 
 static int mpc8544_load_device_tree(CPUState *env,
                                     target_phys_addr_t addr,
@@ -96,6 +71,9 @@ static int mpc8544_load_device_tree(CPUState *env,
     int fdt_size;
     void *fdt;
     uint8_t hypercall[16];
+    uint32_t clock_freq = 400000000;
+    uint32_t tb_freq = 400000000;
+    int i;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -133,32 +111,9 @@ static int mpc8544_load_device_tree(CPUState *env,
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
     if (kvm_enabled()) {
-        struct dirent *dirp;
-        DIR *dp;
-        char buf[128];
-
-        if ((dp = opendir("/proc/device-tree/cpus/")) == NULL) {
-            printf("Can't open directory /proc/device-tree/cpus/\n");
-            ret = -1;
-            goto out;
-        }
-
-        buf[0] = '\0';
-        while ((dirp = readdir(dp)) != NULL) {
-            if (strncmp(dirp->d_name, "PowerPC", 7) == 0) {
-                snprintf(buf, 128, "/cpus/%s", dirp->d_name);
-                break;
-            }
-        }
-        closedir(dp);
-        if (buf[0] == '\0') {
-            printf("Unknow host!\n");
-            ret = -1;
-            goto out;
-        }
-
-        mpc8544_copy_soc_cell(fdt, buf, "clock-frequency");
-        mpc8544_copy_soc_cell(fdt, buf, "timebase-frequency");
+        /* Read out host's frequencies */
+        clock_freq = kvmppc_get_clockfreq();
+        tb_freq = kvmppc_get_tbfreq();
 
         /* indicate KVM hypercall interface */
         qemu_devtree_setprop_string(fdt, "/hypervisor", "compatible",
@@ -166,13 +121,45 @@ static int mpc8544_load_device_tree(CPUState *env,
         kvmppc_get_hypercall(env, hypercall, sizeof(hypercall));
         qemu_devtree_setprop(fdt, "/hypervisor", "hcall-instructions",
                              hypercall, sizeof(hypercall));
-    } else {
-        const uint32_t freq = 400000000;
+    }
 
-        qemu_devtree_setprop_cell(fdt, "/cpus/PowerPC,8544@0",
-                                  "clock-frequency", freq);
-        qemu_devtree_setprop_cell(fdt, "/cpus/PowerPC,8544@0",
-                                  "timebase-frequency", freq);
+    /* We need to generate the cpu nodes in reverse order, so Linux can pick
+       the first node as boot node and be happy */
+    for (i = smp_cpus - 1; i >= 0; i--) {
+        char cpu_name[128];
+        uint64_t cpu_release_addr = cpu_to_be64(MPC8544_SPIN_BASE + (i * 0x20));
+
+        for (env = first_cpu; env != NULL; env = env->next_cpu) {
+            if (env->cpu_index == i) {
+                break;
+            }
+        }
+
+        if (!env) {
+            continue;
+        }
+
+        snprintf(cpu_name, sizeof(cpu_name), "/cpus/PowerPC,8544@%x", env->cpu_index);
+        qemu_devtree_add_subnode(fdt, cpu_name);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "clock-frequency", clock_freq);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "timebase-frequency", tb_freq);
+        qemu_devtree_setprop_string(fdt, cpu_name, "device_type", "cpu");
+        qemu_devtree_setprop_cell(fdt, cpu_name, "reg", env->cpu_index);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "d-cache-line-size",
+                                  env->dcache_line_size);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "i-cache-line-size",
+                                  env->icache_line_size);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "d-cache-size", 0x8000);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "i-cache-size", 0x8000);
+        qemu_devtree_setprop_cell(fdt, cpu_name, "bus-frequency", 0);
+        if (env->cpu_index) {
+            qemu_devtree_setprop_string(fdt, cpu_name, "status", "disabled");
+            qemu_devtree_setprop_string(fdt, cpu_name, "enable-method", "spin-table");
+            qemu_devtree_setprop(fdt, cpu_name, "cpu-release-addr",
+                                 &cpu_release_addr, sizeof(cpu_release_addr));
+        } else {
+            qemu_devtree_setprop_string(fdt, cpu_name, "status", "okay");
+        }
     }
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
@@ -187,7 +174,7 @@ out:
 /* Create -kernel TLB entries for BookE, linearly spanning 256MB.  */
 static inline target_phys_addr_t booke206_page_size_to_tlb(uint64_t size)
 {
-    return (ffs(size >> 10) - 1) >> 1;
+    return ffs(size >> 10) - 1;
 }
 
 static void mmubooke_create_initial_mapping(CPUState *env,
@@ -202,6 +189,20 @@ static void mmubooke_create_initial_mapping(CPUState *env,
     tlb->mas2 = va & TARGET_PAGE_MASK;
     tlb->mas7_3 = pa & TARGET_PAGE_MASK;
     tlb->mas7_3 |= MAS3_UR | MAS3_UW | MAS3_UX | MAS3_SR | MAS3_SW | MAS3_SX;
+
+    env->tlb_dirty = true;
+}
+
+static void mpc8544ds_cpu_reset_sec(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_reset(env);
+
+    /* Secondary CPU starts in halted state for now. Needs to change when
+       implementing non-kernel boot. */
+    env->halted = 1;
+    env->exception_index = EXCP_HLT;
 }
 
 static void mpc8544ds_cpu_reset(void *opaque)
@@ -212,6 +213,7 @@ static void mpc8544ds_cpu_reset(void *opaque)
     cpu_reset(env);
 
     /* Set initial guest state. */
+    env->halted = 0;
     env->gpr[1] = (16<<20) - 8;
     env->gpr[3] = bi->dt_base;
     env->nip = bi->entry;
@@ -226,7 +228,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                          const char *cpu_model)
 {
     PCIBus *pci_bus;
-    CPUState *env;
+    CPUState *env = NULL;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
     target_phys_addr_t entry=0;
@@ -237,27 +239,51 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     target_long initrd_size=0;
     int i=0;
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
-    qemu_irq *irqs, *mpic;
+    qemu_irq **irqs, *mpic;
     DeviceState *dev;
-    struct boot_info *boot_info;
+    CPUState *firstenv = NULL;
 
-    /* Setup CPU */
+    /* Setup CPUs */
     if (cpu_model == NULL) {
         cpu_model = "e500v2_v30";
     }
 
-    env = cpu_ppc_init(cpu_model);
-    if (!env) {
-        fprintf(stderr, "Unable to initialize CPU!\n");
-        exit(1);
+    irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
+    irqs[0] = g_malloc0(smp_cpus * sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
+    for (i = 0; i < smp_cpus; i++) {
+        qemu_irq *input;
+        env = cpu_ppc_init(cpu_model);
+        if (!env) {
+            fprintf(stderr, "Unable to initialize CPU!\n");
+            exit(1);
+        }
+
+        if (!firstenv) {
+            firstenv = env;
+        }
+
+        irqs[i] = irqs[0] + (i * OPENPIC_OUTPUT_NB);
+        input = (qemu_irq *)env->irq_inputs;
+        irqs[i][OPENPIC_OUTPUT_INT] = input[PPCE500_INPUT_INT];
+        irqs[i][OPENPIC_OUTPUT_CINT] = input[PPCE500_INPUT_CINT];
+        env->spr[SPR_BOOKE_PIR] = env->cpu_index = i;
+
+        ppc_booke_timers_init(env, 400000000, PPC_TIMER_E500);
+
+        /* Register reset handler */
+        if (!i) {
+            /* Primary CPU */
+            struct boot_info *boot_info;
+            boot_info = g_malloc0(sizeof(struct boot_info));
+            qemu_register_reset(mpc8544ds_cpu_reset, env);
+            env->load_info = boot_info;
+        } else {
+            /* Secondary CPUs */
+            qemu_register_reset(mpc8544ds_cpu_reset_sec, env);
+        }
     }
 
-    /* XXX register timer? */
-    ppc_emb_timers_init(env, 400000000, PPC_INTERRUPT_DECR);
-    ppc_dcr_init(env, NULL, NULL);
-
-    /* Register reset handler */
-    qemu_register_reset(mpc8544ds_cpu_reset, env);
+    env = firstenv;
 
     /* Fixup Memory size on a alignment boundary */
     ram_size &= ~(RAM_SIZES_ALIGN - 1);
@@ -267,10 +293,11 @@ static void mpc8544ds_init(ram_addr_t ram_size,
                                  "mpc8544ds.ram", ram_size));
 
     /* MPIC */
-    irqs = g_malloc0(sizeof(qemu_irq) * OPENPIC_OUTPUT_NB);
-    irqs[OPENPIC_OUTPUT_INT] = ((qemu_irq *)env->irq_inputs)[PPCE500_INPUT_INT];
-    irqs[OPENPIC_OUTPUT_CINT] = ((qemu_irq *)env->irq_inputs)[PPCE500_INPUT_CINT];
-    mpic = mpic_init(MPC8544_MPIC_REGS_BASE, 1, &irqs, NULL);
+    mpic = mpic_init(MPC8544_MPIC_REGS_BASE, smp_cpus, irqs, NULL);
+
+    if (!mpic) {
+        cpu_abort(env, "MPIC failed to initialize\n");
+    }
 
     /* Serial */
     if (serial_hds[0]) {
@@ -306,6 +333,9 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         }
     }
 
+    /* Register spinning region */
+    sysbus_create_simple("e500-spin", MPC8544_SPIN_BASE, NULL);
+
     /* Load kernel. */
     if (kernel_filename) {
         kernel_size = load_uimage(kernel_filename, &entry, &loadaddr, NULL);
@@ -336,10 +366,10 @@ static void mpc8544ds_init(ram_addr_t ram_size,
         }
     }
 
-    boot_info = g_malloc0(sizeof(struct boot_info));
-
     /* If we're loading a kernel directly, we must load the device tree too. */
     if (kernel_filename) {
+        struct boot_info *boot_info;
+
 #ifndef CONFIG_FDT
         cpu_abort(env, "Compiled without FDT support - can't load kernel\n");
 #endif
@@ -350,10 +380,10 @@ static void mpc8544ds_init(ram_addr_t ram_size,
             exit(1);
         }
 
+        boot_info = env->load_info;
         boot_info->entry = entry;
         boot_info->dt_base = dt_base;
     }
-    env->load_info = boot_info;
 
     if (kvm_enabled()) {
         kvmppc_init();
@@ -364,6 +394,7 @@ static QEMUMachine mpc8544ds_machine = {
     .name = "mpc8544ds",
     .desc = "mpc8544ds",
     .init = mpc8544ds_init,
+    .max_cpus = 15,
 };
 
 static void mpc8544ds_machine_init(void)

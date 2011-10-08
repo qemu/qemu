@@ -195,11 +195,9 @@ static int spapr_vlan_init(VIOsPAPRDevice *sdev)
     return 0;
 }
 
-void spapr_vlan_create(VIOsPAPRBus *bus, uint32_t reg, NICInfo *nd,
-                       qemu_irq qirq, uint32_t vio_irq_num)
+void spapr_vlan_create(VIOsPAPRBus *bus, uint32_t reg, NICInfo *nd)
 {
     DeviceState *dev;
-    VIOsPAPRDevice *sdev;
 
     dev = qdev_create(&bus->bus, "spapr-vlan");
     qdev_prop_set_uint32(dev, "reg", reg);
@@ -207,9 +205,6 @@ void spapr_vlan_create(VIOsPAPRBus *bus, uint32_t reg, NICInfo *nd,
     qdev_set_nic_properties(dev, nd);
 
     qdev_init_nofail(dev);
-    sdev = (VIOsPAPRDevice *)dev;
-    sdev->qirq = qirq;
-    sdev->vio_irq_num = vio_irq_num;
 }
 
 static int spapr_vlan_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
@@ -500,9 +495,7 @@ static VIOsPAPRDeviceInfo spapr_vlan = {
     .qdev.name = "spapr-vlan",
     .qdev.size = sizeof(VIOsPAPRVLANDevice),
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("reg", VIOsPAPRDevice, reg, 0x1000),
-        DEFINE_PROP_UINT32("dma-window", VIOsPAPRDevice, rtce_window_size,
-                           0x10000000),
+        DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev, 0x1000, 0x10000000),
         DEFINE_NIC_PROPERTIES(VIOsPAPRVLANDevice, nicconf),
         DEFINE_PROP_END_OF_LIST(),
     },

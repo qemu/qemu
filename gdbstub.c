@@ -733,7 +733,7 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
             {
                 if (gdb_has_xml)
                     return 0;
-                GET_REG32(0); /* fpscr */
+                GET_REG32(env->fpscr);
             }
         }
     }

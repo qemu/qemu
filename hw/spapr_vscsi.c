@@ -483,7 +483,6 @@ static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status)
     if (status == CHECK_CONDITION) {
         req->senselen = scsi_req_get_sense(req->sreq, req->sense,
                                            sizeof(req->sense));
-        status = 0;
         dprintf("VSCSI: Sense data, %d bytes:\n", len);
         dprintf("       %02x  %02x  %02x  %02x  %02x  %02x  %02x  %02x\n",
                 req->sense[0], req->sense[1], req->sense[2], req->sense[3],
@@ -893,20 +892,14 @@ static int spapr_vscsi_init(VIOsPAPRDevice *dev)
     return 0;
 }
 
-void spapr_vscsi_create(VIOsPAPRBus *bus, uint32_t reg,
-                        qemu_irq qirq, uint32_t vio_irq_num)
+void spapr_vscsi_create(VIOsPAPRBus *bus, uint32_t reg)
 {
     DeviceState *dev;
-    VIOsPAPRDevice *sdev;
 
     dev = qdev_create(&bus->bus, "spapr-vscsi");
     qdev_prop_set_uint32(dev, "reg", reg);
 
     qdev_init_nofail(dev);
-
-    sdev = (VIOsPAPRDevice *)dev;
-    sdev->qirq = qirq;
-    sdev->vio_irq_num = vio_irq_num;
 }
 
 static int spapr_vscsi_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
@@ -936,9 +929,7 @@ static VIOsPAPRDeviceInfo spapr_vscsi = {
     .qdev.name = "spapr-vscsi",
     .qdev.size = sizeof(VSCSIState),
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("reg", VIOsPAPRDevice, reg, 0x2000),
-        DEFINE_PROP_UINT32("dma-window", VIOsPAPRDevice,
-                           rtce_window_size, 0x10000000),
+        DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev, 0x2000, 0x10000000),
         DEFINE_PROP_END_OF_LIST(),
     },
 };

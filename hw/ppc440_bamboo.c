@@ -43,6 +43,8 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
     char *filename;
     int fdt_size;
     void *fdt;
+    uint32_t tb_freq = 400000000;
+    uint32_t clock_freq = 400000000;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -76,8 +78,18 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
     if (ret < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
-    if (kvm_enabled())
-        kvmppc_fdt_update(fdt);
+    /* Copy data from the host device tree into the guest. Since the guest can
+     * directly access the timebase without host involvement, we must expose
+     * the correct frequencies. */
+    if (kvm_enabled()) {
+        tb_freq = kvmppc_get_tbfreq();
+        clock_freq = kvmppc_get_clockfreq();
+    }
+
+    qemu_devtree_setprop_cell(fdt, "/cpus/cpu@0", "clock-frequency",
+                              clock_freq);
+    qemu_devtree_setprop_cell(fdt, "/cpus/cpu@0", "timebase-frequency",
+                              tb_freq);
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
