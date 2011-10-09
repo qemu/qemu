@@ -734,19 +734,23 @@ PCIBus *typhoon_init(ram_addr_t ram_size, qemu_irq *p_rtc_irq,
 
     /* Pchip0 CSRs, 0x801.8000.0000, 256MB.  */
     memory_region_init_io(&s->pchip.region, &pchip_ops, s, "pchip0", 256*MB);
-    memory_region_add_subregion(addr_space, 0x80180000000, &s->pchip.region);
+    memory_region_add_subregion(addr_space, 0x80180000000ULL,
+                                &s->pchip.region);
 
     /* Cchip CSRs, 0x801.A000.0000, 256MB.  */
     memory_region_init_io(&s->cchip.region, &cchip_ops, s, "cchip0", 256*MB);
-    memory_region_add_subregion(addr_space, 0x801a0000000, &s->cchip.region);
+    memory_region_add_subregion(addr_space, 0x801a0000000ULL,
+                                &s->cchip.region);
 
     /* Dchip CSRs, 0x801.B000.0000, 256MB.  */
     memory_region_init_io(&s->dchip_region, &dchip_ops, s, "dchip0", 256*MB);
-    memory_region_add_subregion(addr_space, 0x801b0000000, &s->dchip_region);
+    memory_region_add_subregion(addr_space, 0x801b0000000ULL,
+                                &s->dchip_region);
 
     /* Pchip0 PCI memory, 0x800.0000.0000, 4GB.  */
     memory_region_init(&s->pchip.reg_mem, "pci0-mem", 4*GB);
-    memory_region_add_subregion(addr_space, 0x80000000000, &s->pchip.reg_mem);
+    memory_region_add_subregion(addr_space, 0x80000000000ULL,
+                                &s->pchip.reg_mem);
 
     /* Pchip0 PCI I/O, 0x801.FC00.0000, 32MB.  */
     /* ??? Ideally we drop the "system" i/o space on the floor and give the
@@ -754,7 +758,8 @@ PCIBus *typhoon_init(ram_addr_t ram_size, qemu_irq *p_rtc_irq,
        We can't do that until the MEM and IO paths in memory.c are unified.  */
     memory_region_init_io(&s->pchip.reg_io, &alpha_pci_bw_io_ops, NULL,
                           "pci0-io", 32*MB);
-    memory_region_add_subregion(addr_space, 0x801fc000000, &s->pchip.reg_io);
+    memory_region_add_subregion(addr_space, 0x801fc000000ULL,
+                                &s->pchip.reg_io);
 
     b = pci_register_bus(&s->host.busdev.qdev, "pci",
                          typhoon_set_irq, sys_map_irq, s,
@@ -764,12 +769,14 @@ PCIBus *typhoon_init(ram_addr_t ram_size, qemu_irq *p_rtc_irq,
     /* Pchip0 PCI special/interrupt acknowledge, 0x801.F800.0000, 64MB.  */
     memory_region_init_io(&s->pchip.reg_iack, &alpha_pci_iack_ops, b,
                           "pci0-iack", 64*MB);
-    memory_region_add_subregion(addr_space, 0x801f8000000, &s->pchip.reg_iack);
+    memory_region_add_subregion(addr_space, 0x801f8000000ULL,
+                                &s->pchip.reg_iack);
 
     /* Pchip0 PCI configuration, 0x801.FE00.0000, 16MB.  */
     memory_region_init_io(&s->pchip.reg_conf, &alpha_pci_conf1_ops, b,
                           "pci0-conf", 16*MB);
-    memory_region_add_subregion(addr_space, 0x801fe000000, &s->pchip.reg_conf);
+    memory_region_add_subregion(addr_space, 0x801fe000000ULL,
+                                &s->pchip.reg_conf);
 
     /* For the record, these are the mappings for the second PCI bus.
        We can get away with not implementing them because we indicate

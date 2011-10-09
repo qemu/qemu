@@ -155,7 +155,7 @@ static void clipper_init(ram_addr_t ram_size,
             load_image_targphys(initrd_filename, initrd_base,
                                 ram_size - initrd_base);
 
-            stq_phys(param_offset + 0x100, initrd_base + 0xfffffc0000000000UL);
+            stq_phys(param_offset + 0x100, initrd_base + 0xfffffc0000000000ULL);
             stq_phys(param_offset + 0x108, initrd_size);
         }
     }
