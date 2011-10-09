@@ -618,7 +618,6 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
     for (y = 0; y < lines; y++) {
 	off_cur = off_begin;
 	off_cur_end = (off_cur + bytesperline) & s->cirrus_addr_mask;
-	off_cur &= TARGET_PAGE_MASK;
         memory_region_set_dirty(&s->vga.vram, off_cur, off_cur_end - off_cur);
 	off_begin += off_pitch;
     }
@@ -1896,8 +1895,6 @@ static void cirrus_mmio_blt_write(CirrusVGAState * s, unsigned address,
 /***************************************
  *
  *  write mode 4/5
- *
- * assume TARGET_PAGE_SIZE >= 16
  *
  ***************************************/
 

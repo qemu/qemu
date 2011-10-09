@@ -197,7 +197,6 @@ obj-$(CONFIG_REALLY_VIRTFS) += 9pfs/virtio-9p-device.o
 obj-$(CONFIG_KVM) += kvm.o kvm-all.o
 obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-$(CONFIG_VGA) += vga.o
-obj-$(CONFIG_VGA_CIRRUS) += cirrus_vga.o
 obj-y += memory.o savevm.o
 LIBS+=-lz
 
