@@ -346,7 +346,7 @@ static void cs_reset_voices (CSState *s, uint32_t val)
     }
 }
 
-static uint64_t cs_read(void *opaque, target_phys_addr_t addr, unsigned size)
+static uint64_t cs_read (void *opaque, target_phys_addr_t addr, unsigned size)
 {
     CSState *s = opaque;
     uint32_t saddr, iaddr, ret;
@@ -383,8 +383,8 @@ static uint64_t cs_read(void *opaque, target_phys_addr_t addr, unsigned size)
     return ret;
 }
 
-static void cs_write(void *opaque, target_phys_addr_t addr,
-                     uint64_t val64, unsigned size)
+static void cs_write (void *opaque, target_phys_addr_t addr,
+                      uint64_t val64, unsigned size)
 {
     CSState *s = opaque;
     uint32_t saddr, iaddr, val;
@@ -647,8 +647,8 @@ static int cs4231a_initfn (ISADevice *dev)
 
     isa_init_irq (dev, &s->pic, s->irq);
 
-    memory_region_init_io(&s->ioports, &cs_ioport_ops, s, "cs4231a", 4);
-    isa_register_ioport(dev, &s->ioports, s->port);
+    memory_region_init_io (&s->ioports, &cs_ioport_ops, s, "cs4231a", 4);
+    isa_register_ioport (dev, &s->ioports, s->port);
 
     DMA_register_channel (s->dma, cs_dma_read, s);
 
