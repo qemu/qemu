@@ -194,7 +194,7 @@ STEXI
 changes status of a trace event
 ETEXI
 
-#if defined(CONFIG_SIMPLE_TRACE)
+#if defined(CONFIG_TRACE_SIMPLE)
     {
         .name       = "trace-file",
         .args_type  = "op:s?,arg:F?",
@@ -1306,7 +1306,7 @@ show i8259 (PIC) state
 @item info pci
 show emulated PCI device info
 @item info tlb
-show virtual to physical memory mappings (i386, SH4 and SPARC only)
+show virtual to physical memory mappings (i386, SH4, SPARC, and PPC only)
 @item info mem
 show the active virtual memory mappings (i386 only)
 @item info jit

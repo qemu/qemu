@@ -77,46 +77,4 @@ void macio_nvram_setup_bar(MacIONVRAMState *s, MemoryRegion *bar,
 void pmac_format_nvram_partition (MacIONVRAMState *nvr, int len);
 uint32_t macio_nvram_read (void *opaque, uint32_t addr);
 void macio_nvram_write (void *opaque, uint32_t addr, uint32_t val);
-
-/* adb.c */
-
-#define MAX_ADB_DEVICES 16
-
-#define ADB_MAX_OUT_LEN 16
-
-typedef struct ADBDevice ADBDevice;
-
-/* buf = NULL means polling */
-typedef int ADBDeviceRequest(ADBDevice *d, uint8_t *buf_out,
-                              const uint8_t *buf, int len);
-typedef int ADBDeviceReset(ADBDevice *d);
-
-struct ADBDevice {
-    struct ADBBusState *bus;
-    int devaddr;
-    int handler;
-    ADBDeviceRequest *devreq;
-    ADBDeviceReset *devreset;
-    void *opaque;
-};
-
-typedef struct ADBBusState {
-    ADBDevice devices[MAX_ADB_DEVICES];
-    int nb_devices;
-    int poll_index;
-} ADBBusState;
-
-int adb_request(ADBBusState *s, uint8_t *buf_out,
-                const uint8_t *buf, int len);
-int adb_poll(ADBBusState *s, uint8_t *buf_out);
-
-ADBDevice *adb_register_device(ADBBusState *s, int devaddr,
-                               ADBDeviceRequest *devreq,
-                               ADBDeviceReset *devreset,
-                               void *opaque);
-void adb_kbd_init(ADBBusState *bus);
-void adb_mouse_init(ADBBusState *bus);
-
-extern ADBBusState adb_bus;
-
 #endif /* !defined(__PPC_MAC_H__) */

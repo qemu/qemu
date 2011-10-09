@@ -82,7 +82,6 @@ static void mmubooke_create_initial_mapping(CPUState *env,
 static CPUState *ppc440_init_xilinx(ram_addr_t *ram_size,
                                     int do_init,
                                     const char *cpu_model,
-                                    clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
                                     uint32_t sysclk)
 {
     CPUState *env;
@@ -94,11 +93,7 @@ static CPUState *ppc440_init_xilinx(ram_addr_t *ram_size,
         exit(1);
     }
 
-    cpu_clk->cb = NULL; /* We don't care about CPU clock frequency changes */
-    cpu_clk->opaque = env;
-    /* Set time-base frequency to sysclk */
-    tb_clk->cb = ppc_emb_timers_init(env, sysclk, PPC_INTERRUPT_DECR);
-    tb_clk->opaque = env;
+    ppc_booke_timers_init(env, sysclk, 0/* no flags */);
 
     ppc_dcr_init(env, NULL, NULL);
 
@@ -199,7 +194,6 @@ static void virtex_init(ram_addr_t ram_size,
     DriveInfo *dinfo;
     ram_addr_t phys_ram;
     qemu_irq irq[32], *cpu_irq;
-    clk_setup_t clk_setup[7];
     int kernel_size;
     int i;
 
@@ -209,8 +203,7 @@ static void virtex_init(ram_addr_t ram_size,
     }
 
     memset(clk_setup, 0, sizeof(clk_setup));
-    env = ppc440_init_xilinx(&ram_size, 1, cpu_model, &clk_setup[0],
-                             &clk_setup[1], 400000000);
+    env = ppc440_init_xilinx(&ram_size, 1, cpu_model, 400000000);
     qemu_register_reset(main_cpu_reset, env);
 
     phys_ram = qemu_ram_alloc(NULL, "ram", ram_size);

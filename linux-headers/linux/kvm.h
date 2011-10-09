@@ -161,6 +161,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_NMI              16
 #define KVM_EXIT_INTERNAL_ERROR   17
 #define KVM_EXIT_OSI              18
+#define KVM_EXIT_PAPR_HCALL	  19
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 #define KVM_INTERNAL_ERROR_EMULATION 1
@@ -264,6 +265,11 @@ struct kvm_run {
 		struct {
 			__u64 gprs[32];
 		} osi;
+		struct {
+			__u64 nr;
+			__u64 ret;
+			__u64 args[9];
+		} papr_hcall;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -457,7 +463,7 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_VAPIC 6
 #define KVM_CAP_EXT_CPUID 7
 #define KVM_CAP_CLOCKSOURCE 8
-#define KVM_CAP_NR_VCPUS 9       /* returns max vcpus per vm */
+#define KVM_CAP_NR_VCPUS 9       /* returns recommended max vcpus per vm */
 #define KVM_CAP_NR_MEMSLOTS 10   /* returns max memory slots per vm */
 #define KVM_CAP_PIT 11
 #define KVM_CAP_NOP_IO_DELAY 12
@@ -544,6 +550,14 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_TSC_CONTROL 60
 #define KVM_CAP_GET_TSC_KHZ 61
 #define KVM_CAP_PPC_BOOKE_SREGS 62
+#define KVM_CAP_SPAPR_TCE 63
+#define KVM_CAP_PPC_SMT 64
+#define KVM_CAP_PPC_RMA	65
+#define KVM_CAP_MAX_VCPUS 66       /* returns max vcpus per vm */
+#define KVM_CAP_PPC_HIOR 67
+#define KVM_CAP_PPC_PAPR 68
+#define KVM_CAP_SW_TLB 69
+#define KVM_CAP_ONE_REG 70
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -621,6 +635,49 @@ struct kvm_clock_data {
 	__u64 clock;
 	__u32 flags;
 	__u32 pad[9];
+};
+
+#define KVM_MMU_FSL_BOOKE_NOHV		0
+#define KVM_MMU_FSL_BOOKE_HV		1
+
+struct kvm_config_tlb {
+	__u64 params;
+	__u64 array;
+	__u32 mmu_type;
+	__u32 array_len;
+};
+
+struct kvm_dirty_tlb {
+	__u64 bitmap;
+	__u32 num_dirty;
+};
+
+/* Available with KVM_CAP_ONE_REG */
+
+#define KVM_ONE_REG_GENERIC		0x0000000000000000ULL
+
+/*
+ * Architecture specific registers are to be defined in arch headers and
+ * ORed with the arch identifier.
+ */
+#define KVM_ONE_REG_PPC			0x1000000000000000ULL
+#define KVM_ONE_REG_X86			0x2000000000000000ULL
+#define KVM_ONE_REG_IA64		0x3000000000000000ULL
+#define KVM_ONE_REG_ARM			0x4000000000000000ULL
+#define KVM_ONE_REG_S390		0x5000000000000000ULL
+
+struct kvm_one_reg {
+	__u64 id;
+	union {
+		__u8 reg8;
+		__u16 reg16;
+		__u32 reg32;
+		__u64 reg64;
+		__u8 reg128[16];
+		__u8 reg256[32];
+		__u8 reg512[64];
+		__u8 reg1024[128];
+	} u;
 };
 
 /*
@@ -746,6 +803,14 @@ struct kvm_clock_data {
 /* Available with KVM_CAP_XCRS */
 #define KVM_GET_XCRS		  _IOR(KVMIO,  0xa6, struct kvm_xcrs)
 #define KVM_SET_XCRS		  _IOW(KVMIO,  0xa7, struct kvm_xcrs)
+#define KVM_CREATE_SPAPR_TCE	  _IOW(KVMIO,  0xa8, struct kvm_create_spapr_tce)
+/* Available with KVM_CAP_RMA */
+#define KVM_ALLOCATE_RMA	  _IOR(KVMIO,  0xa9, struct kvm_allocate_rma)
+/* Available with KVM_CAP_SW_TLB */
+#define KVM_DIRTY_TLB		  _IOW(KVMIO,  0xaa, struct kvm_dirty_tlb)
+/* Available with KVM_CAP_ONE_REG */
+#define KVM_GET_ONE_REG		  _IOWR(KVMIO, 0xab, struct kvm_one_reg)
+#define KVM_SET_ONE_REG		  _IOW(KVMIO,  0xac, struct kvm_one_reg)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 
@@ -773,19 +838,13 @@ struct kvm_assigned_pci_dev {
 
 struct kvm_assigned_irq {
 	__u32 assigned_dev_id;
-	__u32 host_irq;
+	__u32 host_irq; /* ignored (legacy field) */
 	__u32 guest_irq;
 	__u32 flags;
 	union {
-		struct {
-			__u32 addr_lo;
-			__u32 addr_hi;
-			__u32 data;
-		} guest_msi;
 		__u32 reserved[12];
 	};
 };
-
 
 struct kvm_assigned_msix_nr {
 	__u32 assigned_dev_id;

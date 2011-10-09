@@ -213,7 +213,8 @@ static void ref405ep_init (ram_addr_t ram_size,
     sram_size = 512 * 1024;
     sram_offset = qemu_ram_alloc(NULL, "ef405ep.sram", sram_size);
 #ifdef DEBUG_BOARD_INIT
-    printf("%s: register SRAM at offset %08lx\n", __func__, sram_offset);
+    printf("%s: register SRAM at offset " RAM_ADDR_FMT "\n",
+           __func__, sram_offset);
 #endif
     cpu_register_physical_memory(0xFFF00000, sram_size,
                                  sram_offset | IO_MEM_RAM);
@@ -357,7 +358,7 @@ static void ref405ep_init (ram_addr_t ram_size,
 #ifdef DEBUG_BOARD_INIT
     printf("%s: Done\n", __func__);
 #endif
-    printf("bdloc %016lx\n", (unsigned long)bdloc);
+    printf("bdloc " RAM_ADDR_FMT "\n", bdloc);
 }
 
 static QEMUMachine ref405ep_machine = {

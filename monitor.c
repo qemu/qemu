@@ -57,12 +57,13 @@
 #include "json-parser.h"
 #include "osdep.h"
 #include "cpu.h"
+#include "trace.h"
 #include "trace/control.h"
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif
-#include "trace/control.h"
 #include "ui/qemu-spice.h"
+#include "memory.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -369,6 +370,8 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
 {
     QDict *qmp;
 
+    trace_monitor_protocol_emitter(mon);
+
     qmp = qdict_new();
 
     if (!monitor_has_error(mon)) {
@@ -605,7 +608,7 @@ static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
     }
 }
 
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
 static void do_trace_file(Monitor *mon, const QDict *qdict)
 {
     const char *op = qdict_get_try_str(qdict, "op");
@@ -2461,7 +2464,7 @@ static void tlb_info(Monitor *mon)
 
 #endif
 
-#if defined(TARGET_SPARC)
+#if defined(TARGET_SPARC) || defined(TARGET_PPC)
 static void tlb_info(Monitor *mon)
 {
     CPUState *env1 = mon_get_cpu();
@@ -2469,6 +2472,11 @@ static void tlb_info(Monitor *mon)
     dump_mmu((FILE*)mon, (fprintf_function)monitor_printf, env1);
 }
 #endif
+
+static void do_info_mtree(Monitor *mon)
+{
+    mtree_info((fprintf_function)monitor_printf, mon);
+}
 
 static void do_info_kvm_print(Monitor *mon, const QObject *data)
 {
@@ -2959,7 +2967,8 @@ static const mon_cmd_t info_cmds[] = {
         .user_print = do_pci_info_print,
         .mhandler.info_new = do_pci_info,
     },
-#if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC)
+#if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC) || \
+    defined(TARGET_PPC)
     {
         .name       = "tlb",
         .args_type  = "",
@@ -2977,6 +2986,13 @@ static const mon_cmd_t info_cmds[] = {
         .mhandler.info = mem_info,
     },
 #endif
+    {
+        .name       = "mtree",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show memory tree",
+        .mhandler.info = do_info_mtree,
+    },
     {
         .name       = "jit",
         .args_type  = "",
@@ -5089,6 +5105,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     qobject_incref(mon->mc->id);
 
     cmd_name = qdict_get_str(input, "execute");
+    trace_handle_qmp_command(mon, cmd_name);
     if (invalid_qmp_mode(mon, cmd_name)) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_out;

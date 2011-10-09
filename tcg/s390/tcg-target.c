@@ -2322,8 +2322,3 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     /* br %r14 (return) */
     tcg_out_insn(s, RR, BCR, S390_CC_ALWAYS, TCG_REG_R14);
 }
-
-static inline void tcg_out_addi(TCGContext *s, int reg, tcg_target_long val)
-{
-    tcg_abort();
-}

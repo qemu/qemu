@@ -222,7 +222,6 @@ hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 hw-obj-$(CONFIG_USB_REDIR) += usb-redir.o
 
 # PPC devices
-hw-obj-$(CONFIG_OPENPIC) += openpic.o
 hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
 # Mac shared devices
 hw-obj-$(CONFIG_MACIO) += macio.o

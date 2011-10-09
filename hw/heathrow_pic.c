@@ -126,7 +126,7 @@ static uint64_t pic_read(void *opaque, target_phys_addr_t addr,
 static const MemoryRegionOps heathrow_pic_ops = {
     .read = pic_read,
     .write = pic_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void heathrow_pic_set_irq(void *opaque, int num, int level)

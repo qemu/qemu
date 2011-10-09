@@ -5,15 +5,14 @@
 #include "qdev-addr.h"
 
 static inline DeviceState *milkymist_uart_create(target_phys_addr_t base,
-        qemu_irq rx_irq, qemu_irq tx_irq)
+        qemu_irq irq)
 {
     DeviceState *dev;
 
     dev = qdev_create(NULL, "milkymist-uart");
     qdev_init_nofail(dev);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, rx_irq);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 1, tx_irq);
+    sysbus_connect_irq(sysbus_from_qdev(dev), 0, irq);
 
     return dev;
 }

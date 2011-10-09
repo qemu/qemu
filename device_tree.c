@@ -41,6 +41,7 @@ void *load_device_tree(const char *filename_path, int *sizep)
     }
 
     /* Expand to 2x size to give enough room for manipulation.  */
+    dt_size += 10000;
     dt_size *= 2;
     /* First allocate space in qemu for device tree */
     fdt = g_malloc0(dt_size);
@@ -72,38 +73,99 @@ fail:
     return NULL;
 }
 
-int qemu_devtree_setprop(void *fdt, const char *node_path,
-                         const char *property, void *val_array, int size)
+static int findnode_nofail(void *fdt, const char *node_path)
 {
     int offset;
 
     offset = fdt_path_offset(fdt, node_path);
-    if (offset < 0)
-        return offset;
+    if (offset < 0) {
+        fprintf(stderr, "%s Couldn't find node %s: %s\n", __func__, node_path,
+                fdt_strerror(offset));
+        exit(1);
+    }
 
-    return fdt_setprop(fdt, offset, property, val_array, size);
+    return offset;
+}
+
+int qemu_devtree_setprop(void *fdt, const char *node_path,
+                         const char *property, void *val_array, int size)
+{
+    int r;
+
+    r = fdt_setprop(fdt, findnode_nofail(fdt, node_path), property, val_array, size);
+    if (r < 0) {
+        fprintf(stderr, "%s: Couldn't set %s/%s: %s\n", __func__, node_path,
+                property, fdt_strerror(r));
+        exit(1);
+    }
+
+    return r;
 }
 
 int qemu_devtree_setprop_cell(void *fdt, const char *node_path,
                               const char *property, uint32_t val)
 {
-    int offset;
+    int r;
 
-    offset = fdt_path_offset(fdt, node_path);
-    if (offset < 0)
-        return offset;
+    r = fdt_setprop_cell(fdt, findnode_nofail(fdt, node_path), property, val);
+    if (r < 0) {
+        fprintf(stderr, "%s: Couldn't set %s/%s = %#08x: %s\n", __func__,
+                node_path, property, val, fdt_strerror(r));
+        exit(1);
+    }
 
-    return fdt_setprop_cell(fdt, offset, property, val);
+    return r;
 }
 
 int qemu_devtree_setprop_string(void *fdt, const char *node_path,
                                 const char *property, const char *string)
 {
-    int offset;
+    int r;
 
-    offset = fdt_path_offset(fdt, node_path);
-    if (offset < 0)
-        return offset;
+    r = fdt_setprop_string(fdt, findnode_nofail(fdt, node_path), property, string);
+    if (r < 0) {
+        fprintf(stderr, "%s: Couldn't set %s/%s = %s: %s\n", __func__,
+                node_path, property, string, fdt_strerror(r));
+        exit(1);
+    }
 
-    return fdt_setprop_string(fdt, offset, property, string);
+    return r;
+}
+
+int qemu_devtree_nop_node(void *fdt, const char *node_path)
+{
+    int r;
+
+    r = fdt_nop_node(fdt, findnode_nofail(fdt, node_path));
+    if (r < 0) {
+        fprintf(stderr, "%s: Couldn't nop node %s: %s\n", __func__, node_path,
+                fdt_strerror(r));
+        exit(1);
+    }
+
+    return r;
+}
+
+int qemu_devtree_add_subnode(void *fdt, const char *name)
+{
+    char *dupname = g_strdup(name);
+    char *basename = strrchr(dupname, '/');
+    int retval;
+
+    if (!basename) {
+        return -1;
+    }
+
+    basename[0] = '\0';
+    basename++;
+
+    retval = fdt_add_subnode(fdt, findnode_nofail(fdt, dupname), basename);
+    if (retval < 0) {
+        fprintf(stderr, "FDT: Failed to create subnode %s: %s\n", name,
+                fdt_strerror(retval));
+        exit(1);
+    }
+
+    g_free(dupname);
+    return retval;
 }

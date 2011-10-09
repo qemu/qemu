@@ -218,6 +218,7 @@ CPUState *cpu_lm32_init(const char *cpu_model)
 
     cpu_exec_init(env);
     cpu_reset(env);
+    qemu_init_vcpu(env);
 
     if (!tcg_initialized) {
         tcg_initialized = 1;
