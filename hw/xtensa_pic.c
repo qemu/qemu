@@ -116,10 +116,35 @@ void xtensa_timer_irq(CPUState *env, uint32_t id, uint32_t active)
     qemu_set_irq(env->irq_inputs[env->config->timerint[id]], active);
 }
 
+void xtensa_rearm_ccompare_timer(CPUState *env)
+{
+    int i;
+    uint32_t wake_ccount = env->sregs[CCOUNT] - 1;
+
+    for (i = 0; i < env->config->nccompare; ++i) {
+        if (env->sregs[CCOMPARE + i] - env->sregs[CCOUNT] <
+                wake_ccount - env->sregs[CCOUNT]) {
+            wake_ccount = env->sregs[CCOMPARE + i];
+        }
+    }
+    env->wake_ccount = wake_ccount;
+    qemu_mod_timer(env->ccompare_timer, env->halt_clock +
+            muldiv64(wake_ccount - env->sregs[CCOUNT],
+                1000000, env->config->clock_freq_khz));
+}
+
 static void xtensa_ccompare_cb(void *opaque)
 {
     CPUState *env = opaque;
-    xtensa_advance_ccount(env, env->wake_ccount - env->sregs[CCOUNT]);
+
+    if (env->halted) {
+        env->halt_clock = qemu_get_clock_ns(vm_clock);
+        xtensa_advance_ccount(env, env->wake_ccount - env->sregs[CCOUNT]);
+        if (!cpu_has_work(env)) {
+            env->sregs[CCOUNT] = env->wake_ccount + 1;
+            xtensa_rearm_ccompare_timer(env);
+        }
+    }
 }
 
 void xtensa_irq_init(CPUState *env)

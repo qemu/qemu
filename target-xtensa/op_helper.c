@@ -370,23 +370,11 @@ void HELPER(waiti)(uint32_t pc, uint32_t intlevel)
         return;
     }
 
-    if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT)) {
-        int i;
-        uint32_t wake_ccount = env->sregs[CCOUNT] - 1;
-
-        for (i = 0; i < env->config->nccompare; ++i) {
-            if (env->sregs[CCOMPARE + i] - env->sregs[CCOUNT] <
-                    wake_ccount - env->sregs[CCOUNT]) {
-                wake_ccount = env->sregs[CCOMPARE + i];
-            }
-        }
-        env->wake_ccount = wake_ccount;
-        qemu_mod_timer(env->ccompare_timer, qemu_get_clock_ns(vm_clock) +
-                muldiv64(wake_ccount - env->sregs[CCOUNT],
-                    1000000, env->config->clock_freq_khz));
-    }
     env->halt_clock = qemu_get_clock_ns(vm_clock);
     env->halted = 1;
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_TIMER_INTERRUPT)) {
+        xtensa_rearm_ccompare_timer(env);
+    }
     HELPER(exception)(EXCP_HLT);
 }
 
