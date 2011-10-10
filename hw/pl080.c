@@ -37,6 +37,7 @@ typedef struct {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint8_t tc_int;
     uint8_t tc_mask;
     uint8_t err_int;
@@ -217,7 +218,8 @@ again:
     }
 }
 
-static uint32_t pl080_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pl080_read(void *opaque, target_phys_addr_t offset,
+                           unsigned size)
 {
     pl080_state *s = (pl080_state *)opaque;
     uint32_t i;
@@ -285,7 +287,7 @@ static uint32_t pl080_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void pl080_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                        uint64_t value, unsigned size)
 {
     pl080_state *s = (pl080_state *)opaque;
     int i;
@@ -344,27 +346,18 @@ static void pl080_write(void *opaque, target_phys_addr_t offset,
     pl080_update(s);
 }
 
-static CPUReadMemoryFunc * const pl080_readfn[] = {
-   pl080_read,
-   pl080_read,
-   pl080_read
-};
-
-static CPUWriteMemoryFunc * const pl080_writefn[] = {
-   pl080_write,
-   pl080_write,
-   pl080_write
+static const MemoryRegionOps pl080_ops = {
+    .read = pl080_read,
+    .write = pl080_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int pl08x_init(SysBusDevice *dev, int nchannels)
 {
-    int iomemtype;
     pl080_state *s = FROM_SYSBUS(pl080_state, dev);
 
-    iomemtype = cpu_register_io_memory(pl080_readfn,
-                                       pl080_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &pl080_ops, s, "pl080", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     s->nchannels = nchannels;
     return 0;
