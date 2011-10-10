@@ -28,6 +28,7 @@ TESTCASES += test_clamps.tst
 TESTCASES += test_fail.tst
 TESTCASES += test_interrupt.tst
 TESTCASES += test_loop.tst
+TESTCASES += test_mac16.tst
 TESTCASES += test_max.tst
 TESTCASES += test_min.tst
 TESTCASES += test_mmu.tst
