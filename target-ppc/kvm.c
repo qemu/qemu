@@ -650,35 +650,48 @@ static int kvmppc_find_cpu_dt(char *buf, int buf_len)
     return 0;
 }
 
-uint64_t kvmppc_get_clockfreq(void)
+/* Read a CPU node property from the host device tree that's a single
+ * integer (32-bit or 64-bit).  Returns 0 if anything goes wrong
+ * (can't find or open the property, or doesn't understand the
+ * format) */
+static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
 {
-    char buf[512];
-    uint32_t tb[2];
+    char buf[PATH_MAX];
+    union {
+        uint32_t v32;
+        uint64_t v64;
+    } u;
     FILE *f;
     int len;
 
     if (kvmppc_find_cpu_dt(buf, sizeof(buf))) {
-        return 0;
+        return -1;
     }
 
-    strncat(buf, "/clock-frequency", sizeof(buf) - strlen(buf));
+    strncat(buf, "/", sizeof(buf) - strlen(buf));
+    strncat(buf, propname, sizeof(buf) - strlen(buf));
 
     f = fopen(buf, "rb");
     if (!f) {
         return -1;
     }
 
-    len = fread(tb, sizeof(tb[0]), 2, f);
+    len = fread(&u, 1, sizeof(u), f);
     fclose(f);
     switch (len) {
-    case 1:
-        /* freq is only a single cell */
-        return tb[0];
-    case 2:
-        return *(uint64_t*)tb;
+    case 4:
+        /* property is a 32-bit quantity */
+        return be32_to_cpu(u.v32);
+    case 8:
+        return be64_to_cpu(u.v64);
     }
 
     return 0;
+}
+
+uint64_t kvmppc_get_clockfreq(void)
+{
+    return kvmppc_read_int_cpu_dt("clock-frequency");
 }
 
 int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
