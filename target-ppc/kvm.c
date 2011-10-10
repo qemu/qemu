@@ -694,6 +694,16 @@ uint64_t kvmppc_get_clockfreq(void)
     return kvmppc_read_int_cpu_dt("clock-frequency");
 }
 
+uint32_t kvmppc_get_vmx(void)
+{
+    return kvmppc_read_int_cpu_dt("ibm,vmx");
+}
+
+uint32_t kvmppc_get_dfp(void)
+{
+    return kvmppc_read_int_cpu_dt("ibm,dfp");
+}
+
 int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
 {
     uint32_t *hc = (uint32_t*)buf;
