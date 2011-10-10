@@ -475,7 +475,7 @@ static uint32_t cpu_arm_find_by_name(const char *name)
 
 void cpu_arm_close(CPUARMState *env)
 {
-    free(env);
+    g_free(env);
 }
 
 uint32_t cpsr_read(CPUARMState *env)
