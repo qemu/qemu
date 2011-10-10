@@ -30,6 +30,7 @@ static const uint8_t pl061_id_luminary[12] =
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t locked;
     uint32_t data;
     uint32_t old_data;
@@ -112,7 +113,8 @@ static void pl061_update(pl061_state *s)
     /* FIXME: Implement input interrupts.  */
 }
 
-static uint32_t pl061_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pl061_read(void *opaque, target_phys_addr_t offset,
+                           unsigned size)
 {
     pl061_state *s = (pl061_state *)opaque;
 
@@ -168,7 +170,7 @@ static uint32_t pl061_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void pl061_write(void *opaque, target_phys_addr_t offset,
-                        uint32_t value)
+                        uint64_t value, unsigned size)
 {
     pl061_state *s = (pl061_state *)opaque;
     uint8_t mask;
@@ -262,27 +264,18 @@ static void pl061_set_irq(void * opaque, int irq, int level)
     }
 }
 
-static CPUReadMemoryFunc * const pl061_readfn[] = {
-   pl061_read,
-   pl061_read,
-   pl061_read
-};
-
-static CPUWriteMemoryFunc * const pl061_writefn[] = {
-   pl061_write,
-   pl061_write,
-   pl061_write
+static const MemoryRegionOps pl061_ops = {
+    .read = pl061_read,
+    .write = pl061_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int pl061_init(SysBusDevice *dev, const unsigned char *id)
 {
-    int iomemtype;
     pl061_state *s = FROM_SYSBUS(pl061_state, dev);
     s->id = id;
-    iomemtype = cpu_register_io_memory(pl061_readfn,
-                                       pl061_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &pl061_ops, s, "pl061", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_in(&dev->qdev, pl061_set_irq, 8);
     qdev_init_gpio_out(&dev->qdev, s->out, 8);
