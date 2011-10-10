@@ -12,6 +12,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     void *dev;
     uint32_t cr;
     uint32_t clk;
@@ -57,7 +58,8 @@ static void pl050_update(void *opaque, int level)
     qemu_set_irq(s->irq, raise);
 }
 
-static uint32_t pl050_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pl050_read(void *opaque, target_phys_addr_t offset,
+                           unsigned size)
 {
     pl050_state *s = (pl050_state *)opaque;
     if (offset >= 0xfe0 && offset < 0x1000)
@@ -99,7 +101,7 @@ static uint32_t pl050_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void pl050_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                        uint64_t value, unsigned size)
 {
     pl050_state *s = (pl050_state *)opaque;
     switch (offset >> 2) {
@@ -124,27 +126,18 @@ static void pl050_write(void *opaque, target_phys_addr_t offset,
         hw_error("pl050_write: Bad offset %x\n", (int)offset);
     }
 }
-static CPUReadMemoryFunc * const pl050_readfn[] = {
-   pl050_read,
-   pl050_read,
-   pl050_read
-};
-
-static CPUWriteMemoryFunc * const pl050_writefn[] = {
-   pl050_write,
-   pl050_write,
-   pl050_write
+static const MemoryRegionOps pl050_ops = {
+    .read = pl050_read,
+    .write = pl050_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int pl050_init(SysBusDevice *dev, int is_mouse)
 {
     pl050_state *s = FROM_SYSBUS(pl050_state, dev);
-    int iomemtype;
 
-    iomemtype = cpu_register_io_memory(pl050_readfn,
-                                       pl050_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &pl050_ops, s, "pl050", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     s->is_mouse = is_mouse;
     if (s->is_mouse)
