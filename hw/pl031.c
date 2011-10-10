@@ -32,6 +32,7 @@ do { printf("pl031: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     QEMUTimer *timer;
     qemu_irq irq;
 
@@ -105,7 +106,8 @@ static void pl031_set_alarm(pl031_state *s)
     }
 }
 
-static uint32_t pl031_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pl031_read(void *opaque, target_phys_addr_t offset,
+                           unsigned size)
 {
     pl031_state *s = (pl031_state *)opaque;
 
@@ -141,7 +143,7 @@ static uint32_t pl031_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void pl031_write(void * opaque, target_phys_addr_t offset,
-                        uint32_t value)
+                        uint64_t value, unsigned size)
 {
     pl031_state *s = (pl031_state *)opaque;
 
@@ -186,31 +188,19 @@ static void pl031_write(void * opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUWriteMemoryFunc * const  pl031_writefn[] = {
-    pl031_write,
-    pl031_write,
-    pl031_write
-};
-
-static CPUReadMemoryFunc * const  pl031_readfn[] = {
-    pl031_read,
-    pl031_read,
-    pl031_read
+static const MemoryRegionOps pl031_ops = {
+    .read = pl031_read,
+    .write = pl031_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int pl031_init(SysBusDevice *dev)
 {
-    int iomemtype;
     pl031_state *s = FROM_SYSBUS(pl031_state, dev);
     struct tm tm;
 
-    iomemtype = cpu_register_io_memory(pl031_readfn, pl031_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    if (iomemtype == -1) {
-        hw_error("pl031_init: Can't register I/O memory\n");
-    }
-
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &pl031_ops, s, "pl031", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
     /* ??? We assume vm_clock is zero at this point.  */
