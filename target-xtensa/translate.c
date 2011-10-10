@@ -79,6 +79,12 @@ static const char * const sregnames[256] = {
     [BR] = "BR",
     [LITBASE] = "LITBASE",
     [SCOMPARE1] = "SCOMPARE1",
+    [ACCLO] = "ACCLO",
+    [ACCHI] = "ACCHI",
+    [MR] = "MR0",
+    [MR + 1] = "MR1",
+    [MR + 2] = "MR2",
+    [MR + 3] = "MR3",
     [WINDOW_BASE] = "WINDOW_BASE",
     [WINDOW_START] = "WINDOW_START",
     [PTEVADDR] = "PTEVADDR",
@@ -447,6 +453,11 @@ static void gen_wsr_litbase(DisasContext *dc, uint32_t sr, TCGv_i32 s)
     gen_jumpi_check_loop_end(dc, -1);
 }
 
+static void gen_wsr_acchi(DisasContext *dc, uint32_t sr, TCGv_i32 s)
+{
+    tcg_gen_ext8s_i32(cpu_SR[sr], s);
+}
+
 static void gen_wsr_windowbase(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     gen_helper_wsr_windowbase(v);
@@ -544,6 +555,7 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [SAR] = gen_wsr_sar,
         [BR] = gen_wsr_br,
         [LITBASE] = gen_wsr_litbase,
+        [ACCHI] = gen_wsr_acchi,
         [WINDOW_BASE] = gen_wsr_windowbase,
         [WINDOW_START] = gen_wsr_windowstart,
         [PTEVADDR] = gen_wsr_ptevaddr,
@@ -628,6 +640,18 @@ static void gen_window_check3(DisasContext *dc, unsigned r1, unsigned r2,
     gen_window_check2(dc, r1, r2 > r3 ? r2 : r3);
 }
 
+static TCGv_i32 gen_mac16_m(TCGv_i32 v, bool hi, bool is_unsigned)
+{
+    TCGv_i32 m = tcg_temp_new_i32();
+
+    if (hi) {
+        (is_unsigned ? tcg_gen_shri_i32 : tcg_gen_sari_i32)(m, v, 16);
+    } else {
+        (is_unsigned ? tcg_gen_ext16u_i32 : tcg_gen_ext16s_i32)(m, v);
+    }
+    return m;
+}
+
 static void disas_xtensa_insn(DisasContext *dc)
 {
 #define HAS_OPTION_BITS(opt) do { \
@@ -663,6 +687,9 @@ static void disas_xtensa_insn(DisasContext *dc)
 #define RRR_S (((b1) & 0xf))
 #define RRR_T (((b0) & 0xf0) >> 4)
 #endif
+#define RRR_X ((RRR_R & 0x4) >> 2)
+#define RRR_Y ((RRR_T & 0x4) >> 2)
+#define RRR_W (RRR_R & 0x3)
 
 #define RRRN_R RRR_R
 #define RRRN_S RRR_S
@@ -1935,7 +1962,113 @@ static void disas_xtensa_insn(DisasContext *dc)
 
     case 4: /*MAC16d*/
         HAS_OPTION(XTENSA_OPTION_MAC16);
-        TBD();
+        {
+            enum {
+                MAC16_UMUL = 0x0,
+                MAC16_MUL  = 0x4,
+                MAC16_MULA = 0x8,
+                MAC16_MULS = 0xc,
+                MAC16_NONE = 0xf,
+            } op = OP1 & 0xc;
+            bool is_m1_sr = (OP2 & 0x3) == 2;
+            bool is_m2_sr = (OP2 & 0xc) == 0;
+            uint32_t ld_offset = 0;
+
+            if (OP2 > 9) {
+                RESERVED();
+            }
+
+            switch (OP2 & 2) {
+            case 0: /*MACI?/MACC?*/
+                is_m1_sr = true;
+                ld_offset = (OP2 & 1) ? -4 : 4;
+
+                if (OP2 >= 8) { /*MACI/MACC*/
+                    if (OP1 == 0) { /*LDINC/LDDEC*/
+                        op = MAC16_NONE;
+                    } else {
+                        RESERVED();
+                    }
+                } else if (op != MAC16_MULA) { /*MULA.*.*.LDINC/LDDEC*/
+                    RESERVED();
+                }
+                break;
+
+            case 2: /*MACD?/MACA?*/
+                if (op == MAC16_UMUL && OP2 != 7) { /*UMUL only in MACAA*/
+                    RESERVED();
+                }
+                break;
+            }
+
+            if (op != MAC16_NONE) {
+                if (!is_m1_sr) {
+                    gen_window_check1(dc, RRR_S);
+                }
+                if (!is_m2_sr) {
+                    gen_window_check1(dc, RRR_T);
+                }
+            }
+
+            {
+                TCGv_i32 vaddr = tcg_temp_new_i32();
+                TCGv_i32 mem32 = tcg_temp_new_i32();
+
+                if (ld_offset) {
+                    gen_window_check1(dc, RRR_S);
+                    tcg_gen_addi_i32(vaddr, cpu_R[RRR_S], ld_offset);
+                    gen_load_store_alignment(dc, 2, vaddr, false);
+                    tcg_gen_qemu_ld32u(mem32, vaddr, dc->cring);
+                }
+                if (op != MAC16_NONE) {
+                    TCGv_i32 m1 = gen_mac16_m(
+                            is_m1_sr ? cpu_SR[MR + RRR_X] : cpu_R[RRR_S],
+                            OP1 & 1, op == MAC16_UMUL);
+                    TCGv_i32 m2 = gen_mac16_m(
+                            is_m2_sr ? cpu_SR[MR + 2 + RRR_Y] : cpu_R[RRR_T],
+                            OP1 & 2, op == MAC16_UMUL);
+
+                    if (op == MAC16_MUL || op == MAC16_UMUL) {
+                        tcg_gen_mul_i32(cpu_SR[ACCLO], m1, m2);
+                        if (op == MAC16_UMUL) {
+                            tcg_gen_movi_i32(cpu_SR[ACCHI], 0);
+                        } else {
+                            tcg_gen_sari_i32(cpu_SR[ACCHI], cpu_SR[ACCLO], 31);
+                        }
+                    } else {
+                        TCGv_i32 res = tcg_temp_new_i32();
+                        TCGv_i64 res64 = tcg_temp_new_i64();
+                        TCGv_i64 tmp = tcg_temp_new_i64();
+
+                        tcg_gen_mul_i32(res, m1, m2);
+                        tcg_gen_ext_i32_i64(res64, res);
+                        tcg_gen_concat_i32_i64(tmp,
+                                cpu_SR[ACCLO], cpu_SR[ACCHI]);
+                        if (op == MAC16_MULA) {
+                            tcg_gen_add_i64(tmp, tmp, res64);
+                        } else {
+                            tcg_gen_sub_i64(tmp, tmp, res64);
+                        }
+                        tcg_gen_trunc_i64_i32(cpu_SR[ACCLO], tmp);
+                        tcg_gen_shri_i64(tmp, tmp, 32);
+                        tcg_gen_trunc_i64_i32(cpu_SR[ACCHI], tmp);
+                        tcg_gen_ext8s_i32(cpu_SR[ACCHI], cpu_SR[ACCHI]);
+
+                        tcg_temp_free(res);
+                        tcg_temp_free_i64(res64);
+                        tcg_temp_free_i64(tmp);
+                    }
+                    tcg_temp_free(m1);
+                    tcg_temp_free(m2);
+                }
+                if (ld_offset) {
+                    tcg_gen_mov_i32(cpu_R[RRR_S], vaddr);
+                    tcg_gen_mov_i32(cpu_SR[MR + RRR_W], mem32);
+                }
+                tcg_temp_free(vaddr);
+                tcg_temp_free(mem32);
+            }
+        }
         break;
 
     case 5: /*CALLN*/
