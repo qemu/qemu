@@ -43,7 +43,7 @@ ETEXI
         .params     = "",
         .help       = "quit the emulator",
         .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_quit,
+        .mhandler.cmd = hmp_quit,
     },
 
 STEXI
@@ -290,8 +290,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "stop emulation",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_stop,
+        .mhandler.cmd = hmp_stop,
     },
 
 STEXI
@@ -478,8 +477,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "reset the system",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_system_reset,
+        .mhandler.cmd = hmp_system_reset,
     },
 
 STEXI
@@ -494,8 +492,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "send system power down event",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_system_powerdown,
+        .mhandler.cmd = hmp_system_powerdown,
     },
 
 STEXI

@@ -31,7 +31,7 @@
 #include "hw/usb.h"
 #include "hw/baum.h"
 #include "hw/msmouse.h"
-#include "qemu-objects.h"
+#include "qmp-commands.h"
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -2650,35 +2650,22 @@ void qemu_chr_delete(CharDriverState *chr)
     g_free(chr);
 }
 
-static void qemu_chr_qlist_iter(QObject *obj, void *opaque)
+ChardevInfoList *qmp_query_chardev(Error **errp)
 {
-    QDict *chr_dict;
-    Monitor *mon = opaque;
-
-    chr_dict = qobject_to_qdict(obj);
-    monitor_printf(mon, "%s: filename=%s\n", qdict_get_str(chr_dict, "label"),
-                                         qdict_get_str(chr_dict, "filename"));
-}
-
-void qemu_chr_info_print(Monitor *mon, const QObject *ret_data)
-{
-    qlist_iter(qobject_to_qlist(ret_data), qemu_chr_qlist_iter, mon);
-}
-
-void qemu_chr_info(Monitor *mon, QObject **ret_data)
-{
-    QList *chr_list;
+    ChardevInfoList *chr_list = NULL;
     CharDriverState *chr;
 
-    chr_list = qlist_new();
-
     QTAILQ_FOREACH(chr, &chardevs, next) {
-        QObject *obj = qobject_from_jsonf("{ 'label': %s, 'filename': %s }",
-                                          chr->label, chr->filename);
-        qlist_append_obj(chr_list, obj);
+        ChardevInfoList *info = g_malloc0(sizeof(*info));
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->label = g_strdup(chr->label);
+        info->value->filename = g_strdup(chr->filename);
+
+        info->next = chr_list;
+        chr_list = info;
     }
 
-    *ret_data = QOBJECT(chr_list);
+    return chr_list;
 }
 
 CharDriverState *qemu_chr_find(const char *name)

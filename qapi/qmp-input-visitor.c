@@ -144,8 +144,6 @@ static GenericList *qmp_input_next_list(Visitor *v, GenericList **list,
         }
         (*list)->next = entry;
     }
-    *list = entry;
-
 
     return entry;
 }
@@ -240,9 +238,11 @@ static void qmp_input_type_enum(Visitor *v, int *obj, const char *strings[],
 
     if (strings[value] == NULL) {
         error_set(errp, QERR_INVALID_PARAMETER, name ? name : "null");
+        g_free(enum_str);
         return;
     }
 
+    g_free(enum_str);
     *obj = value;
 }
 

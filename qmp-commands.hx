@@ -63,10 +63,7 @@ EQMP
     {
         .name       = "quit",
         .args_type  = "",
-        .params     = "",
-        .help       = "quit the emulator",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_quit,
+        .mhandler.cmd_new = qmp_marshal_input_quit,
     },
 
 SQMP
@@ -181,10 +178,7 @@ EQMP
     {
         .name       = "stop",
         .args_type  = "",
-        .params     = "",
-        .help       = "stop emulation",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_stop,
+        .mhandler.cmd_new = qmp_marshal_input_stop,
     },
 
 SQMP
@@ -229,10 +223,7 @@ EQMP
     {
         .name       = "system_reset",
         .args_type  = "",
-        .params     = "",
-        .help       = "reset the system",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_system_reset,
+        .mhandler.cmd_new = qmp_marshal_input_system_reset,
     },
 
 SQMP
@@ -1053,6 +1044,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-version",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_version,
+    },
+
 SQMP
 query-commands
 --------------
@@ -1084,6 +1081,12 @@ Note: This example has been shortened as the real response is too long.
 
 EQMP
 
+    {
+        .name       = "query-commands",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_commands,
+    },
+
 SQMP
 query-chardev
 -------------
@@ -1113,6 +1116,12 @@ Example:
    }
 
 EQMP
+
+    {
+        .name       = "query-chardev",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_chardev,
+    },
 
 SQMP
 query-block
@@ -1564,6 +1573,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-kvm",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_kvm,
+    },
+
 SQMP
 query-status
 ------------
@@ -1597,6 +1612,12 @@ Example:
 <- { "return": { "running": true, "singlestep": false, "status": "running" } }
 
 EQMP
+    
+    {
+        .name       = "query-status",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_status,
+    },
 
 SQMP
 query-mice
@@ -1780,6 +1801,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-name",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_name,
+    },
+
 SQMP
 query-uuid
 ----------
@@ -1796,6 +1823,12 @@ Example:
 <- { "return": { "UUID": "550e8400-e29b-41d4-a716-446655440000" } }
 
 EQMP
+
+    {
+        .name       = "query-uuid",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_uuid,
+    },
 
 SQMP
 query-migrate
