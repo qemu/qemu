@@ -40,6 +40,7 @@ enum pl110_version
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     DisplayState *ds;
 
     int version;
@@ -301,7 +302,8 @@ static void pl110_update(pl110_state *s)
   /* TODO: Implement interrupts.  */
 }
 
-static uint32_t pl110_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pl110_read(void *opaque, target_phys_addr_t offset,
+                           unsigned size)
 {
     pl110_state *s = (pl110_state *)opaque;
 
@@ -350,7 +352,7 @@ static uint32_t pl110_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void pl110_write(void *opaque, target_phys_addr_t offset,
-                        uint32_t val)
+                        uint64_t val, unsigned size)
 {
     pl110_state *s = (pl110_state *)opaque;
     int n;
@@ -416,16 +418,10 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const pl110_readfn[] = {
-   pl110_read,
-   pl110_read,
-   pl110_read
-};
-
-static CPUWriteMemoryFunc * const pl110_writefn[] = {
-   pl110_write,
-   pl110_write,
-   pl110_write
+static const MemoryRegionOps pl110_ops = {
+    .read = pl110_read,
+    .write = pl110_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void pl110_mux_ctrl_set(void *opaque, int line, int level)
@@ -437,12 +433,9 @@ static void pl110_mux_ctrl_set(void *opaque, int line, int level)
 static int pl110_init(SysBusDevice *dev)
 {
     pl110_state *s = FROM_SYSBUS(pl110_state, dev);
-    int iomemtype;
 
-    iomemtype = cpu_register_io_memory(pl110_readfn,
-                                       pl110_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &pl110_ops, s, "pl110", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_in(&s->busdev.qdev, pl110_mux_ctrl_set, 1);
     s->ds = graphic_console_init(pl110_update_display,
