@@ -50,6 +50,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     int i, len;
     struct stat stat;
     FsTypeEntry *fse;
+    V9fsPath path;
 
     s = (V9fsState *)virtio_common_init("virtio-9p",
                                     VIRTIO_ID_9P,
@@ -107,14 +108,6 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         s->ctx.xops = none_xattr_ops;
     }
 
-    if (lstat(fse->path, &stat)) {
-        fprintf(stderr, "share path %s does not exist\n", fse->path);
-        exit(1);
-    } else if (!S_ISDIR(stat.st_mode)) {
-        fprintf(stderr, "share path %s is not a directory\n", fse->path);
-        exit(1);
-    }
-
     s->ctx.export_flags = fse->export_flags;
     s->ctx.fs_root = g_strdup(fse->path);
     s->ctx.exops.get_st_gen = NULL;
@@ -134,8 +127,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
 
     s->ops = fse->ops;
     s->vdev.get_features = virtio_9p_get_features;
-    s->config_size = sizeof(struct virtio_9p_config) +
-                        s->tag_len;
+    s->config_size = sizeof(struct virtio_9p_config) + s->tag_len;
     s->vdev.get_config = virtio_9p_get_config;
     s->fid_list = NULL;
     qemu_co_rwlock_init(&s->rename_lock);
@@ -149,6 +141,27 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         fprintf(stderr, "worker thread initialization failed\n");
         exit(1);
     }
+
+    /*
+     * Check details of export path, We need to use fs driver
+     * call back to do that. Since we are in the init path, we don't
+     * use co-routines here.
+     */
+    v9fs_path_init(&path);
+    if (s->ops->name_to_path(&s->ctx, NULL, "/", &path) < 0) {
+        fprintf(stderr,
+                "error in converting name to path %s", strerror(errno));
+        exit(1);
+    }
+    if (s->ops->lstat(&s->ctx, &path, &stat)) {
+        fprintf(stderr, "share path %s does not exist\n", fse->path);
+        exit(1);
+    } else if (!S_ISDIR(stat.st_mode)) {
+        fprintf(stderr, "share path %s is not a directory\n", fse->path);
+        exit(1);
+    }
+    v9fs_path_free(&path);
+
     return &s->vdev;
 }
 
