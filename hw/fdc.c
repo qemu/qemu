@@ -373,6 +373,7 @@ enum {
 #define FD_FORMAT_CMD(state) ((state) & FD_STATE_FORMAT)
 
 struct FDCtrl {
+    MemoryRegion iomem;
     qemu_irq irq;
     /* Controller state */
     QEMUTimer *result_timer;
@@ -491,39 +492,32 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
     }
 }
 
-static uint32_t fdctrl_read_mem (void *opaque, target_phys_addr_t reg)
+static uint64_t fdctrl_read_mem (void *opaque, target_phys_addr_t reg,
+                                 unsigned ize)
 {
     return fdctrl_read(opaque, (uint32_t)reg);
 }
 
-static void fdctrl_write_mem (void *opaque,
-                              target_phys_addr_t reg, uint32_t value)
+static void fdctrl_write_mem (void *opaque, target_phys_addr_t reg,
+                              uint64_t value, unsigned size)
 {
     fdctrl_write(opaque, (uint32_t)reg, value);
 }
 
-static CPUReadMemoryFunc * const fdctrl_mem_read[3] = {
-    fdctrl_read_mem,
-    fdctrl_read_mem,
-    fdctrl_read_mem,
+static const MemoryRegionOps fdctrl_mem_ops = {
+    .read = fdctrl_read_mem,
+    .write = fdctrl_write_mem,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const fdctrl_mem_write[3] = {
-    fdctrl_write_mem,
-    fdctrl_write_mem,
-    fdctrl_write_mem,
-};
-
-static CPUReadMemoryFunc * const fdctrl_mem_read_strict[3] = {
-    fdctrl_read_mem,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const fdctrl_mem_write_strict[3] = {
-    fdctrl_write_mem,
-    NULL,
-    NULL,
+static const MemoryRegionOps fdctrl_mem_strict_ops = {
+    .read = fdctrl_read_mem,
+    .write = fdctrl_write_mem,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static bool fdrive_media_changed_needed(void *opaque)
@@ -1914,17 +1908,15 @@ static int sysbus_fdc_init1(SysBusDevice *dev)
 {
     FDCtrlSysBus *sys = DO_UPCAST(FDCtrlSysBus, busdev, dev);
     FDCtrl *fdctrl = &sys->state;
-    int io;
     int ret;
 
-    io = cpu_register_io_memory(fdctrl_mem_read, fdctrl_mem_write, fdctrl,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x08, io);
+    memory_region_init_io(&fdctrl->iomem, &fdctrl_mem_ops, fdctrl, "fdc", 0x08);
+    sysbus_init_mmio_region(dev, &fdctrl->iomem);
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
     fdctrl->dma_chann = -1;
 
-    qdev_set_legacy_instance_id(&dev->qdev, io, 2);
+    qdev_set_legacy_instance_id(&dev->qdev, 0 /* io */, 2); /* FIXME */
     ret = fdctrl_init_common(fdctrl);
 
     return ret;
@@ -1933,17 +1925,15 @@ static int sysbus_fdc_init1(SysBusDevice *dev)
 static int sun4m_fdc_init1(SysBusDevice *dev)
 {
     FDCtrl *fdctrl = &(FROM_SYSBUS(FDCtrlSysBus, dev)->state);
-    int io;
 
-    io = cpu_register_io_memory(fdctrl_mem_read_strict,
-                                fdctrl_mem_write_strict, fdctrl,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x08, io);
+    memory_region_init_io(&fdctrl->iomem, &fdctrl_mem_strict_ops, fdctrl,
+                          "fdctrl", 0x08);
+    sysbus_init_mmio_region(dev, &fdctrl->iomem);
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
 
     fdctrl->sun4m = 1;
-    qdev_set_legacy_instance_id(&dev->qdev, io, 2);
+    qdev_set_legacy_instance_id(&dev->qdev, 0 /* io */, 2); /* FIXME */
     return fdctrl_init_common(fdctrl);
 }
 
