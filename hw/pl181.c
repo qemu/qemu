@@ -24,6 +24,7 @@ do { printf("pl181: " fmt , ## __VA_ARGS__); } while (0)
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     SDState *card;
     uint32_t clock;
     uint32_t power;
@@ -259,7 +260,8 @@ static void pl181_fifo_run(pl181_state *s)
     }
 }
 
-static uint32_t pl181_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pl181_read(void *opaque, target_phys_addr_t offset,
+                           unsigned size)
 {
     pl181_state *s = (pl181_state *)opaque;
     uint32_t tmp;
@@ -342,7 +344,7 @@ static uint32_t pl181_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void pl181_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                        uint64_t value, unsigned size)
 {
     pl181_state *s = (pl181_state *)opaque;
 
@@ -412,16 +414,10 @@ static void pl181_write(void *opaque, target_phys_addr_t offset,
     pl181_update(s);
 }
 
-static CPUReadMemoryFunc * const pl181_readfn[] = {
-   pl181_read,
-   pl181_read,
-   pl181_read
-};
-
-static CPUWriteMemoryFunc * const pl181_writefn[] = {
-   pl181_write,
-   pl181_write,
-   pl181_write
+static const MemoryRegionOps pl181_ops = {
+    .read = pl181_read,
+    .write = pl181_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void pl181_reset(void *opaque)
@@ -453,13 +449,11 @@ static void pl181_reset(void *opaque)
 
 static int pl181_init(SysBusDevice *dev)
 {
-    int iomemtype;
     pl181_state *s = FROM_SYSBUS(pl181_state, dev);
     DriveInfo *dinfo;
 
-    iomemtype = cpu_register_io_memory(pl181_readfn, pl181_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &pl181_ops, s, "pl181", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq[0]);
     sysbus_init_irq(dev, &s->irq[1]);
     qdev_init_gpio_out(&s->busdev.qdev, s->cardstatus, 2);
