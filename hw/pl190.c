@@ -17,6 +17,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t level;
     uint32_t soft_level;
     uint32_t irq_enable;
@@ -84,7 +85,8 @@ static void pl190_update_vectors(pl190_state *s)
     pl190_update(s);
 }
 
-static uint32_t pl190_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pl190_read(void *opaque, target_phys_addr_t offset,
+                           unsigned size)
 {
     pl190_state *s = (pl190_state *)opaque;
     int i;
@@ -140,7 +142,8 @@ static uint32_t pl190_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void pl190_write(void *opaque, target_phys_addr_t offset, uint32_t val)
+static void pl190_write(void *opaque, target_phys_addr_t offset,
+                        uint64_t val, unsigned size)
 {
     pl190_state *s = (pl190_state *)opaque;
 
@@ -199,16 +202,10 @@ static void pl190_write(void *opaque, target_phys_addr_t offset, uint32_t val)
     pl190_update(s);
 }
 
-static CPUReadMemoryFunc * const pl190_readfn[] = {
-   pl190_read,
-   pl190_read,
-   pl190_read
-};
-
-static CPUWriteMemoryFunc * const pl190_writefn[] = {
-   pl190_write,
-   pl190_write,
-   pl190_write
+static const MemoryRegionOps pl190_ops = {
+    .read = pl190_read,
+    .write = pl190_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void pl190_reset(DeviceState *d)
@@ -230,12 +227,9 @@ static void pl190_reset(DeviceState *d)
 static int pl190_init(SysBusDevice *dev)
 {
     pl190_state *s = FROM_SYSBUS(pl190_state, dev);
-    int iomemtype;
 
-    iomemtype = cpu_register_io_memory(pl190_readfn,
-                                       pl190_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &pl190_ops, s, "pl190", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     qdev_init_gpio_in(&dev->qdev, pl190_set_irq, 32);
     sysbus_init_irq(dev, &s->irq);
     sysbus_init_irq(dev, &s->fiq);
