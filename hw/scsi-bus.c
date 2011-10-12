@@ -160,7 +160,7 @@ static int32_t scsi_invalid_command(SCSIRequest *req, uint8_t *buf)
     return 0;
 }
 
-struct SCSIReqOps reqops_invalid_opcode = {
+static const struct SCSIReqOps reqops_invalid_opcode = {
     .size         = sizeof(SCSIRequest),
     .send_command = scsi_invalid_command
 };
@@ -178,7 +178,7 @@ static int32_t scsi_unit_attention(SCSIRequest *req, uint8_t *buf)
     return 0;
 }
 
-struct SCSIReqOps reqops_unit_attention = {
+static const struct SCSIReqOps reqops_unit_attention = {
     .size         = sizeof(SCSIRequest),
     .send_command = scsi_unit_attention
 };
@@ -386,7 +386,7 @@ static uint8_t *scsi_target_get_buf(SCSIRequest *req)
     return r->buf;
 }
 
-struct SCSIReqOps reqops_target_command = {
+static const struct SCSIReqOps reqops_target_command = {
     .size         = sizeof(SCSITargetReq),
     .send_command = scsi_target_send_command,
     .read_data    = scsi_target_read_data,
@@ -394,8 +394,8 @@ struct SCSIReqOps reqops_target_command = {
 };
 
 
-SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
-                            uint32_t lun, void *hba_private)
+SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
+                            uint32_t tag, uint32_t lun, void *hba_private)
 {
     SCSIRequest *req;
 

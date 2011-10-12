@@ -1588,7 +1588,7 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     }
 }
 
-static SCSIReqOps scsi_disk_reqops = {
+static const SCSIReqOps scsi_disk_reqops = {
     .size         = sizeof(SCSIDiskReq),
     .free_req     = scsi_free_request,
     .send_command = scsi_send_command,

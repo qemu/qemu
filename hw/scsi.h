@@ -41,7 +41,7 @@ struct SCSICommand {
 struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
-    SCSIReqOps        *ops;
+    const SCSIReqOps  *ops;
     uint32_t          refcount;
     uint32_t          tag;
     uint32_t          lun;
@@ -96,7 +96,6 @@ struct SCSIDeviceInfo {
     SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun,
                               void *hba_private);
     void (*unit_attention_reported)(SCSIDevice *s);
-    SCSIReqOps reqops;
 };
 
 struct SCSIBusInfo {
@@ -176,8 +175,8 @@ extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
 
 int scsi_sense_valid(SCSISense sense);
 
-SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
-                            uint32_t lun, void *hba_private);
+SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
+                            uint32_t tag, uint32_t lun, void *hba_private);
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                           uint8_t *buf, void *hba_private);
 int32_t scsi_req_enqueue(SCSIRequest *req);
