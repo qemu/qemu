@@ -8,6 +8,7 @@
 add-brackets
 align-pointer=name
 convert-tabs
+max-code-length=80
 style=otbs
 brackets=linux
 indent=spaces=4
