@@ -381,11 +381,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             return -1;
         }
 
-        if (s->qdev.type == TYPE_ROM) {
-            outbuf[buflen++] = 5;
-        } else {
-            outbuf[buflen++] = 0;
-        }
+        outbuf[buflen++] = s->qdev.type & 0x1f;
         outbuf[buflen++] = page_code ; // this page
         outbuf[buflen++] = 0x00;
 
@@ -529,11 +525,10 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     memset(outbuf, 0, buflen);
 
     outbuf[0] = s->qdev.type & 0x1f;
+    outbuf[1] = s->removable ? 0x80 : 0;
     if (s->qdev.type == TYPE_ROM) {
-        outbuf[1] = 0x80;
         memcpy(&outbuf[16], "QEMU CD-ROM     ", 16);
     } else {
-        outbuf[1] = s->removable ? 0x80 : 0;
         memcpy(&outbuf[16], "QEMU HARDDISK   ", 16);
     }
     memcpy(&outbuf[8], "QEMU    ", 8);
@@ -1518,7 +1513,7 @@ static void scsi_disk_unit_attention_reported(SCSIDevice *dev)
     }
 }
 
-static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
+static int scsi_initfn(SCSIDevice *dev)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
     DriveInfo *dinfo;
@@ -1528,7 +1523,7 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
         return -1;
     }
 
-    if (scsi_type == TYPE_DISK && !bdrv_is_inserted(s->qdev.conf.bs)) {
+    if (!s->removable && !bdrv_is_inserted(s->qdev.conf.bs)) {
         error_report("Device needs media, but drive is empty");
         return -1;
     }
@@ -1550,18 +1545,11 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
         return -1;
     }
 
-    if (scsi_type == TYPE_ROM) {
+    if (s->removable) {
         bdrv_set_dev_ops(s->qdev.conf.bs, &scsi_cd_block_ops, s);
-        s->qdev.blocksize = 2048;
-    } else if (scsi_type == TYPE_DISK) {
-        s->qdev.blocksize = s->qdev.conf.logical_block_size;
-    } else {
-        error_report("scsi-disk: Unhandled SCSI type %02x", scsi_type);
-        return -1;
     }
     bdrv_set_buffer_alignment(s->qdev.conf.bs, s->qdev.blocksize);
 
-    s->qdev.type = scsi_type;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
     bdrv_iostatus_enable(s->qdev.conf.bs);
     add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, ",0");
@@ -1570,27 +1558,35 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
 
 static int scsi_hd_initfn(SCSIDevice *dev)
 {
-    return scsi_initfn(dev, TYPE_DISK);
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    s->qdev.blocksize = s->qdev.conf.logical_block_size;
+    s->qdev.type = TYPE_DISK;
+    return scsi_initfn(&s->qdev);
 }
 
 static int scsi_cd_initfn(SCSIDevice *dev)
 {
-    return scsi_initfn(dev, TYPE_ROM);
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    s->qdev.blocksize = 2048;
+    s->qdev.type = TYPE_ROM;
+    s->removable = true;
+    return scsi_initfn(&s->qdev);
 }
 
 static int scsi_disk_initfn(SCSIDevice *dev)
 {
     DriveInfo *dinfo;
-    uint8_t scsi_type;
 
     if (!dev->conf.bs) {
-        scsi_type = TYPE_DISK;  /* will die in scsi_initfn() */
-    } else {
-        dinfo = drive_get_by_blockdev(dev->conf.bs);
-        scsi_type = dinfo->media_cd ? TYPE_ROM : TYPE_DISK;
+        return scsi_initfn(dev);  /* ... and die there */
     }
 
-    return scsi_initfn(dev, scsi_type);
+    dinfo = drive_get_by_blockdev(dev->conf.bs);
+    if (dinfo->media_cd) {
+        return scsi_cd_initfn(dev);
+    } else {
+        return scsi_hd_initfn(dev);
+    }
 }
 
 static SCSIReqOps scsi_disk_reqops = {
