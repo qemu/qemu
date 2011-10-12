@@ -18,6 +18,11 @@
 #include "virtio-net.h"
 #include "virtio-serial.h"
 
+/* Performance improves when virtqueue kick processing is decoupled from the
+ * vcpu thread using ioeventfd for some devices. */
+#define VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT 1
+#define VIRTIO_PCI_FLAG_USE_IOEVENTFD   (1 << VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT)
+
 typedef struct {
     PCIDevice pci_dev;
     VirtIODevice *vdev;
