@@ -115,6 +115,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         exit(1);
     }
 
+    s->ctx.export_flags = fse->export_flags;
     s->ctx.fs_root = g_strdup(fse->path);
     len = strlen(conf->tag);
     if (len > MAX_TAG_LEN) {

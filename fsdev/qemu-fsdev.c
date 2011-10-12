@@ -34,6 +34,8 @@ int qemu_fsdev_add(QemuOpts *opts)
     const char *fstype = qemu_opt_get(opts, "fstype");
     const char *path = qemu_opt_get(opts, "path");
     const char *sec_model = qemu_opt_get(opts, "security_model");
+    const char *writeout = qemu_opt_get(opts, "writeout");
+
 
     if (!fsdev_id) {
         fprintf(stderr, "fsdev: No id specified\n");
@@ -72,10 +74,14 @@ int qemu_fsdev_add(QemuOpts *opts)
     fsle->fse.path = g_strdup(path);
     fsle->fse.security_model = g_strdup(sec_model);
     fsle->fse.ops = FsTypes[i].ops;
-
+    fsle->fse.export_flags = 0;
+    if (writeout) {
+        if (!strcmp(writeout, "immediate")) {
+            fsle->fse.export_flags = V9FS_IMMEDIATE_WRITEOUT;
+        }
+    }
     QTAILQ_INSERT_TAIL(&fstype_entries, fsle, next);
     return 0;
-
 }
 
 FsTypeEntry *get_fsdev_fsentry(char *id)

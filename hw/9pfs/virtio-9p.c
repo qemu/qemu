@@ -80,6 +80,20 @@ void cred_init(FsCred *credp)
     credp->fc_rdev = -1;
 }
 
+static int get_dotl_openflags(V9fsState *s, int oflags)
+{
+    int flags;
+    /*
+     * Filter the client open flags
+     */
+    flags = oflags & ~(O_NOCTTY | O_ASYNC | O_CREAT);
+    /*
+     * Ignore direct disk access hint until the server supports it.
+     */
+    flags &= ~O_DIRECT;
+    return flags;
+}
+
 void v9fs_string_init(V9fsString *str)
 {
     str->data = NULL;
@@ -1598,10 +1612,7 @@ static void v9fs_open(void *opaque)
         err = offset;
     } else {
         if (s->proto_version == V9FS_PROTO_2000L) {
-            flags = mode;
-            flags &= ~(O_NOCTTY | O_ASYNC | O_CREAT);
-            /* Ignore direct disk access hint until the server supports it. */
-            flags &= ~O_DIRECT;
+            flags = get_dotl_openflags(s, mode);
         } else {
             flags = omode_to_uflags(mode);
         }
@@ -1650,8 +1661,7 @@ static void v9fs_lcreate(void *opaque)
         goto out_nofid;
     }
 
-    /* Ignore direct disk access hint until the server supports it. */
-    flags &= ~O_DIRECT;
+    flags = get_dotl_openflags(pdu->s, flags);
     err = v9fs_co_open2(pdu, fidp, &name, gid,
                         flags | O_CREAT, mode, &stbuf);
     if (err < 0) {

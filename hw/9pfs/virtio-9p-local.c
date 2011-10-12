@@ -203,16 +203,30 @@ static ssize_t local_preadv(FsContext *ctx, int fd, const struct iovec *iov,
 static ssize_t local_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
                              int iovcnt, off_t offset)
 {
+    ssize_t ret
+;
 #ifdef CONFIG_PREADV
-    return pwritev(fd, iov, iovcnt, offset);
+    ret = pwritev(fd, iov, iovcnt, offset);
 #else
     int err = lseek(fd, offset, SEEK_SET);
     if (err == -1) {
         return err;
     } else {
-        return writev(fd, iov, iovcnt);
+        ret = writev(fd, iov, iovcnt);
     }
 #endif
+#ifdef CONFIG_SYNC_FILE_RANGE
+    if (ret > 0 && ctx->export_flags & V9FS_IMMEDIATE_WRITEOUT) {
+        /*
+         * Initiate a writeback. This is not a data integrity sync.
+         * We want to ensure that we don't leave dirty pages in the cache
+         * after write when writeout=immediate is sepcified.
+         */
+        sync_file_range(fd, offset, ret,
+                        SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE);
+    }
+#endif
+    return ret;
 }
 
 static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)

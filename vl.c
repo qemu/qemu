@@ -2785,6 +2785,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_virtfs: {
                 QemuOpts *fsdev;
                 QemuOpts *device;
+                const char *writeout;
 
                 olist = qemu_find_opts("virtfs");
                 if (!olist) {
@@ -2813,6 +2814,17 @@ int main(int argc, char **argv, char **envp)
                     fprintf(stderr, "duplicate fsdev id: %s\n",
                             qemu_opt_get(opts, "mount_tag"));
                     exit(1);
+                }
+
+                writeout = qemu_opt_get(opts, "writeout");
+                if (writeout) {
+#ifdef CONFIG_SYNC_FILE_RANGE
+                    qemu_opt_set(fsdev, "writeout", writeout);
+#else
+                    fprintf(stderr, "writeout=immediate not supported on "
+                            "this platform\n");
+                    exit(1);
+#endif
                 }
                 qemu_opt_set(fsdev, "fstype", qemu_opt_get(opts, "fstype"));
                 qemu_opt_set(fsdev, "path", qemu_opt_get(opts, "path"));

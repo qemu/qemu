@@ -177,6 +177,9 @@ QemuOptsList qemu_fsdev_opts = {
         }, {
             .name = "security_model",
             .type = QEMU_OPT_STRING,
+        }, {
+            .name = "writeout",
+            .type = QEMU_OPT_STRING,
         },
         { /*End of list */ }
     },
@@ -198,6 +201,9 @@ QemuOptsList qemu_virtfs_opts = {
             .type = QEMU_OPT_STRING,
         }, {
             .name = "security_model",
+            .type = QEMU_OPT_STRING,
+        }, {
+            .name = "writeout",
             .type = QEMU_OPT_STRING,
         },
 

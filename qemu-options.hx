@@ -525,7 +525,8 @@ ETEXI
 DEFHEADING(File system options:)
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
-    "-fsdev local,id=id,path=path,security_model=[mapped|passthrough|none]\n",
+    "-fsdev local,id=id,path=path,security_model=[mapped|passthrough|none]\n"
+    "       [,writeout=immediate]\n",
     QEMU_ARCH_ALL)
 
 STEXI
@@ -541,7 +542,7 @@ The specific Fstype will determine the applicable options.
 
 Options to each backend are described below.
 
-@item -fsdev local ,id=@var{id} ,path=@var{path} ,security_model=@var{security_model}
+@item -fsdev local ,id=@var{id} ,path=@var{path} ,security_model=@var{security_model}[,writeout=@var{writeout}]
 
 Create a file-system-"device" for local-filesystem.
 
@@ -552,13 +553,17 @@ Create a file-system-"device" for local-filesystem.
 @option{security_model} specifies the security model to be followed.
 @option{security_model} is required.
 
+@option{writeout} specifies whether to skip the host page cache.
+@option{writeout} is an optional argument.
+
 @end table
 ETEXI
 
 DEFHEADING(Virtual File system pass-through options:)
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
-    "-virtfs local,path=path,mount_tag=tag,security_model=[mapped|passthrough|none]\n",
+    "-virtfs local,path=path,mount_tag=tag,security_model=[mapped|passthrough|none]\n"
+    "        [,writeout=immediate]\n",
     QEMU_ARCH_ALL)
 
 STEXI
@@ -574,7 +579,7 @@ The specific Fstype will determine the applicable options.
 
 Options to each backend are described below.
 
-@item -virtfs local ,path=@var{path} ,mount_tag=@var{mount_tag} ,security_model=@var{security_model}
+@item -virtfs local ,path=@var{path} ,mount_tag=@var{mount_tag} ,security_model=@var{security_model}[,writeout=@var{writeout}]
 
 Create a Virtual file-system-pass through for local-filesystem.
 
@@ -585,9 +590,11 @@ Create a Virtual file-system-pass through for local-filesystem.
 @option{security_model} specifies the security model to be followed.
 @option{security_model} is required.
 
-
 @option{mount_tag} specifies the tag with which the exported file is mounted.
 @option{mount_tag} is required.
+
+@option{writeout} specifies whether to skip the host page cache.
+@option{writeout} is an optional argument.
 
 @end table
 ETEXI
