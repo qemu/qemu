@@ -38,6 +38,7 @@ do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "sysemu.h"
 #include "blockdev.h"
 #include "block_int.h"
+#include "dma.h"
 
 #ifdef __linux
 #include <scsi/sg.h>
@@ -121,6 +122,27 @@ static uint32_t scsi_init_iovec(SCSIDiskReq *r)
     r->iov.iov_len = MIN(r->sector_count * 512, r->buflen);
     qemu_iovec_init_external(&r->qiov, &r->iov, 1);
     return r->qiov.size / 512;
+}
+
+static void scsi_dma_complete(void *opaque, int ret)
+{
+    SCSIDiskReq *r = (SCSIDiskReq *)opaque;
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
+
+    bdrv_acct_done(s->qdev.conf.bs, &r->acct);
+
+    if (ret) {
+        if (scsi_handle_rw_error(r, -ret)) {
+            goto done;
+        }
+    }
+
+    r->sector += r->sector_count;
+    r->sector_count = 0;
+    scsi_req_complete(&r->req, GOOD);
+
+done:
+    scsi_req_unref(&r->req);
 }
 
 static void scsi_read_complete(void * opaque, int ret)
@@ -213,10 +235,17 @@ static void scsi_read_data(SCSIRequest *req)
         return;
     }
 
-    n = scsi_init_iovec(r);
-    bdrv_acct_start(s->qdev.conf.bs, &r->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
-    r->req.aiocb = bdrv_aio_readv(s->qdev.conf.bs, r->sector, &r->qiov, n,
-                              scsi_read_complete, r);
+    if (r->req.sg) {
+        dma_acct_start(s->qdev.conf.bs, &r->acct, r->req.sg, BDRV_ACCT_READ);
+        r->req.resid -= r->req.sg->size;
+        r->req.aiocb = dma_bdrv_read(s->qdev.conf.bs, r->req.sg, r->sector,
+                                     scsi_dma_complete, r);
+    } else {
+        n = scsi_init_iovec(r);
+        bdrv_acct_start(s->qdev.conf.bs, &r->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
+        r->req.aiocb = bdrv_aio_readv(s->qdev.conf.bs, r->sector, &r->qiov, n,
+                                      scsi_read_complete, r);
+    }
 }
 
 /*
@@ -315,18 +344,26 @@ static void scsi_write_data(SCSIRequest *req)
         return;
     }
 
-    n = r->qiov.size / 512;
-    if (n) {
-        if (s->tray_open) {
-            scsi_write_complete(r, -ENOMEDIUM);
-            return;
-        }
+    if (!r->req.sg && !r->qiov.size) {
+        /* Called for the first time.  Ask the driver to send us more data.  */
+        scsi_write_complete(r, 0);
+        return;
+    }
+    if (s->tray_open) {
+        scsi_write_complete(r, -ENOMEDIUM);
+        return;
+    }
+
+    if (r->req.sg) {
+        dma_acct_start(s->qdev.conf.bs, &r->acct, r->req.sg, BDRV_ACCT_WRITE);
+        r->req.resid -= r->req.sg->size;
+        r->req.aiocb = dma_bdrv_write(s->qdev.conf.bs, r->req.sg, r->sector,
+                                      scsi_dma_complete, r);
+    } else {
+        n = r->qiov.size / 512;
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_WRITE);
         r->req.aiocb = bdrv_aio_writev(s->qdev.conf.bs, r->sector, &r->qiov, n,
                                        scsi_write_complete, r);
-    } else {
-        /* Called for the first time.  Ask the driver to send us more data.  */
-        scsi_write_complete(r, 0);
     }
 }
 
