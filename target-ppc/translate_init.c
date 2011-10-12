@@ -10043,40 +10043,16 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
 
 static const ppc_def_t *ppc_find_by_pvr (uint32_t pvr)
 {
-    const ppc_def_t *ret;
-    uint32_t pvr_rev;
-    int i, best, match, best_match, max;
+    int i;
 
-    ret = NULL;
-    max = ARRAY_SIZE(ppc_defs);
-    best = -1;
-    pvr_rev = pvr & 0xFFFF;
-    /* We want all specified bits to match */
-    best_match = 32 - ctz32(pvr_rev);
-    for (i = 0; i < max; i++) {
-        /* We check that the 16 higher bits are the same to ensure the CPU
-         * model will be the choosen one.
-         */
-        if (((pvr ^ ppc_defs[i].pvr) >> 16) == 0) {
-            /* We want as much as possible of the low-level 16 bits
-             * to be the same but we allow inexact matches.
-             */
-            match = clz32(pvr_rev ^ (ppc_defs[i].pvr & 0xFFFF));
-            /* We check '>=' instead of '>' because the PPC_defs table
-             * is ordered by increasing revision.
-             * Then, we will match the higher revision compatible
-             * with the requested PVR
-             */
-            if (match >= best_match) {
-                best = i;
-                best_match = match;
-            }
+    for (i = 0; i < ARRAY_SIZE(ppc_defs); i++) {
+        /* If we have an exact match, we're done */
+        if (pvr == ppc_defs[i].pvr) {
+            return &ppc_defs[i];
         }
     }
-    if (best != -1)
-        ret = &ppc_defs[best];
 
-    return ret;
+    return NULL;
 }
 
 #include <ctype.h>
