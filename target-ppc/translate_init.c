@@ -7333,6 +7333,8 @@ enum {
     CPU_POWERPC_POWER6A            = 0x0F000002,
 #define CPU_POWERPC_POWER7           CPU_POWERPC_POWER7_v20
     CPU_POWERPC_POWER7_v20         = 0x003F0200,
+    CPU_POWERPC_POWER7_v21         = 0x003F0201,
+    CPU_POWERPC_POWER7_v23         = 0x003F0203,
     CPU_POWERPC_970                = 0x00390202,
 #define CPU_POWERPC_970FX            CPU_POWERPC_970FX_v31
     CPU_POWERPC_970FX_v10          = 0x00391100,
@@ -9139,6 +9141,8 @@ static const ppc_def_t ppc_defs[] = {
     /* POWER7                                                                */
     POWERPC_DEF("POWER7",        CPU_POWERPC_POWER7,                 POWER7),
     POWERPC_DEF("POWER7_v2.0",   CPU_POWERPC_POWER7_v20,             POWER7),
+    POWERPC_DEF("POWER7_v2.1",   CPU_POWERPC_POWER7_v21,             POWER7),
+    POWERPC_DEF("POWER7_v2.3",   CPU_POWERPC_POWER7_v23,             POWER7),
     /* PowerPC 970                                                           */
     POWERPC_DEF("970",           CPU_POWERPC_970,                    970),
     /* PowerPC 970FX (G5)                                                    */
