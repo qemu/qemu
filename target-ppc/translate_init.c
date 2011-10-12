@@ -24,6 +24,8 @@
 
 #include "dis-asm.h"
 #include "gdbstub.h"
+#include <kvm.h>
+#include "kvm_ppc.h"
 
 //#define PPC_DUMP_CPU
 //#define PPC_DEBUG_SPR
@@ -10041,7 +10043,7 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
     return 0;
 }
 
-static const ppc_def_t *ppc_find_by_pvr (uint32_t pvr)
+const ppc_def_t *ppc_find_by_pvr(uint32_t pvr)
 {
     int i;
 
@@ -10062,6 +10064,10 @@ const ppc_def_t *cpu_ppc_find_by_name (const char *name)
     const ppc_def_t *ret;
     const char *p;
     int i, max, len;
+
+    if (kvm_enabled() && (strcasecmp(name, "host") == 0)) {
+        return kvmppc_host_cpu_def();
+    }
 
     /* Check if the given name is a PVR */
     len = strlen(name);

@@ -879,6 +879,25 @@ int kvmppc_remove_spapr_tce(void *table, int fd, uint32_t window_size)
     return 0;
 }
 
+static inline uint32_t mfpvr(void)
+{
+    uint32_t pvr;
+
+    asm ("mfpvr %0"
+         : "=r"(pvr));
+    return pvr;
+}
+
+const ppc_def_t *kvmppc_host_cpu_def(void)
+{
+    uint32_t host_pvr = mfpvr();
+    const ppc_def_t *base_spec;
+
+    base_spec = ppc_find_by_pvr(host_pvr);
+
+    return base_spec;
+}
+
 bool kvm_arch_stop_on_emulation_error(CPUState *env)
 {
     return true;

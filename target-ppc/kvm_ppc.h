@@ -26,6 +26,7 @@ int kvmppc_smt_threads(void);
 off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem);
 void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd);
 int kvmppc_remove_spapr_tce(void *table, int pfd, uint32_t window_size);
+const ppc_def_t *kvmppc_host_cpu_def(void);
 
 #else
 
@@ -83,6 +84,11 @@ static inline int kvmppc_remove_spapr_tce(void *table, int pfd,
                                           uint32_t window_size)
 {
     return -1;
+}
+
+static inline const ppc_def_t *kvmppc_host_cpu_def(void)
+{
+    return NULL;
 }
 
 #endif
