@@ -422,21 +422,21 @@ static inline size_t do_pdu_unpack(void *dst, struct iovec *sg, int sg_count,
 
 static inline void v9fs_path_write_lock(V9fsState *s)
 {
-    if (s->ctx.flags & PATHNAME_FSCONTEXT) {
+    if (s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT) {
         qemu_co_rwlock_wrlock(&s->rename_lock);
     }
 }
 
 static inline void v9fs_path_read_lock(V9fsState *s)
 {
-    if (s->ctx.flags & PATHNAME_FSCONTEXT) {
+    if (s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT) {
         qemu_co_rwlock_rdlock(&s->rename_lock);
     }
 }
 
 static inline void v9fs_path_unlock(V9fsState *s)
 {
-    if (s->ctx.flags & PATHNAME_FSCONTEXT) {
+    if (s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT) {
         qemu_co_rwlock_unlock(&s->rename_lock);
     }
 }

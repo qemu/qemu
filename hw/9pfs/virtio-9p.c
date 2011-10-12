@@ -2493,7 +2493,7 @@ static void v9fs_remove(void *opaque)
         goto out_nofid;
     }
     /* if fs driver is not path based, return EOPNOTSUPP */
-    if (!pdu->s->ctx.flags & PATHNAME_FSCONTEXT) {
+    if (!(pdu->s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT)) {
         err = -EOPNOTSUPP;
         goto out_err;
     }
@@ -2640,7 +2640,7 @@ static void v9fs_rename(void *opaque)
     }
     BUG_ON(fidp->fid_type != P9_FID_NONE);
     /* if fs driver is not path based, return EOPNOTSUPP */
-    if (!pdu->s->ctx.flags & PATHNAME_FSCONTEXT) {
+    if (!(pdu->s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT)) {
         err = -EOPNOTSUPP;
         goto out;
     }
@@ -2713,7 +2713,7 @@ static int v9fs_complete_renameat(V9fsPDU *pdu, int32_t olddirfid,
     if (err < 0) {
         goto out;
     }
-    if (s->ctx.flags & PATHNAME_FSCONTEXT) {
+    if (s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT) {
         /* Only for path based fid  we need to do the below fixup */
         v9fs_fix_fid_paths(pdu, &olddirfidp->path, old_name,
                            &newdirfidp->path, new_name);

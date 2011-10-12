@@ -702,7 +702,7 @@ static int local_init(FsContext *ctx)
     int err;
     struct statfs stbuf;
 
-    ctx->flags |= PATHNAME_FSCONTEXT;
+    ctx->export_flags |= V9FS_PATHNAME_FSCONTEXT;
     err = statfs(ctx->fs_root, &stbuf);
     if (!err) {
         switch (stbuf.f_type) {

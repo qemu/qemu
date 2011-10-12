@@ -57,15 +57,12 @@ typedef struct extended_ops {
                       mode_t, uint64_t *);
 } extended_ops;
 
-/* FsContext flag values */
-#define PATHNAME_FSCONTEXT 0x1
-
 /* export flags */
-#define V9FS_IMMEDIATE_WRITEOUT 0x1
+#define V9FS_IMMEDIATE_WRITEOUT     0x00000001
+#define V9FS_PATHNAME_FSCONTEXT     0x00000002
 
 typedef struct FsContext
 {
-    int flags;
     char *fs_root;
     SecModel fs_sm;
     uid_t uid;
