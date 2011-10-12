@@ -1598,8 +1598,8 @@ static const SCSIReqOps scsi_disk_reqops = {
     .get_buf      = scsi_get_buf,
 };
 
-static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag,
-                                     uint32_t lun, void *hba_private)
+static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
+                                     uint8_t *buf, void *hba_private)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
     SCSIRequest *req;

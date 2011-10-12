@@ -431,7 +431,7 @@ const SCSIReqOps scsi_generic_req_ops = {
 };
 
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
-                                     void *hba_private)
+                                     uint8_t *buf, void *hba_private)
 {
     SCSIRequest *req;
 

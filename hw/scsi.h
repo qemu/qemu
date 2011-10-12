@@ -94,7 +94,7 @@ struct SCSIDeviceInfo {
     scsi_qdev_initfn init;
     void (*destroy)(SCSIDevice *s);
     SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun,
-                              void *hba_private);
+                              uint8_t *buf, void *hba_private);
     void (*unit_attention_reported)(SCSIDevice *s);
 };
 

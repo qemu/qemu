@@ -451,7 +451,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
             req = scsi_req_alloc(&reqops_target_command, d, tag, lun,
                                  hba_private);
         } else {
-            req = d->info->alloc_req(d, tag, lun, hba_private);
+            req = d->info->alloc_req(d, tag, lun, buf, hba_private);
         }
     }
 
