@@ -232,19 +232,6 @@ static uint8_t *scsi_get_buf(SCSIRequest *req)
     return r->buf;
 }
 
-static void scsi_req_fixup(SCSIRequest *req)
-{
-    switch(req->cmd.buf[0]) {
-    case REWIND:
-    case START_STOP:
-        if (req->dev->type == TYPE_TAPE) {
-            /* force IMMED, otherwise qemu waits end of command */
-            req->cmd.buf[1] = 0x01;
-        }
-        break;
-    }
-}
-
 /* Execute a scsi command.  Returns the length of the data expected by the
    command.  This will be Positive for data transfers from the device
    (eg. disk reads), negative for transfers to the device (eg. disk writes),
@@ -255,8 +242,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
     SCSIDevice *s = r->req.dev;
     int ret;
-
-    scsi_req_fixup(&r->req);
 
     DPRINTF("Command: lun=%d tag=0x%x len %zd data=0x%02x", lun, tag,
             r->req.cmd.xfer, cmd[0]);
