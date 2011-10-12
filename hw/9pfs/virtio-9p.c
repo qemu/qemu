@@ -1402,6 +1402,15 @@ static void v9fs_getattr(void *opaque)
         goto out;
     }
     stat_to_v9stat_dotl(s, &stbuf, &v9stat_dotl);
+
+    /*  fill st_gen if requested and supported by underlying fs */
+    if (request_mask & P9_STATS_GEN) {
+        retval = v9fs_co_st_gen(pdu, &fidp->path, stbuf.st_mode, &v9stat_dotl);
+        if (retval < 0) {
+            goto out;
+        }
+        v9stat_dotl.st_result_mask |= P9_STATS_GEN;
+    }
     retval = offset;
     retval += pdu_marshal(pdu, offset, "A", &v9stat_dotl);
 out:

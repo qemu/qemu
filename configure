@@ -2568,6 +2568,19 @@ if compile_prog "" "" ; then
     open_by_handle_at=yes
 fi
 
+########################################
+# check if we have linux/magic.h
+
+linux_magic_h=no
+cat > $TMPC << EOF
+#include <linux/magic.h>
+int main(void) {
+}
+EOF
+if compile_prog "" "" ; then
+    linux_magic_h=yes
+fi
+
 ##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
@@ -3049,6 +3062,10 @@ fi
 
 if test "$open_by_handle_at" = "yes" ; then
   echo "CONFIG_OPEN_BY_HANDLE=y" >> $config_host_mak
+fi
+
+if test "$linux_magic_h" = "yes" ; then
+  echo "CONFIG_LINUX_MAGIC_H=y" >> $config_host_mak
 fi
 
 # USB host support

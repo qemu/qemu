@@ -49,6 +49,13 @@ typedef struct FsCred
 } FsCred;
 
 struct xattr_operations;
+struct FsContext;
+struct V9fsPath;
+
+typedef struct extended_ops {
+    int (*get_st_gen)(struct FsContext *, struct V9fsPath *,
+                      mode_t, uint64_t *);
+} extended_ops;
 
 /* FsContext flag values */
 #define PATHNAME_FSCONTEXT 0x1
@@ -64,6 +71,7 @@ typedef struct FsContext
     uid_t uid;
     int export_flags;
     struct xattr_operations **xops;
+    struct extended_ops exops;
     /* fs driver specific data */
     void *private;
 } FsContext;

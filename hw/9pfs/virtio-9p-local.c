@@ -20,6 +20,24 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <attr/xattr.h>
+#include <linux/fs.h>
+#ifdef CONFIG_LINUX_MAGIC_H
+#include <linux/magic.h>
+#endif
+#include <sys/ioctl.h>
+
+#ifndef XFS_SUPER_MAGIC
+#define XFS_SUPER_MAGIC  0x58465342
+#endif
+#ifndef EXT2_SUPER_MAGIC
+#define EXT2_SUPER_MAGIC 0xEF53
+#endif
+#ifndef REISERFS_SUPER_MAGIC
+#define REISERFS_SUPER_MAGIC 0x52654973
+#endif
+#ifndef BTRFS_SUPER_MAGIC
+#define BTRFS_SUPER_MAGIC 0x9123683E
+#endif
 
 static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
 {
@@ -659,10 +677,44 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
     return ret;
 }
 
+static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
+                                mode_t st_mode, uint64_t *st_gen)
+{
+    int err, fd;
+    /*
+     * Do not try to open special files like device nodes, fifos etc
+     * We can get fd for regular files and directories only
+     */
+    if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
+            return 0;
+    }
+    fd = local_open(ctx, path, O_RDONLY);
+    if (fd < 0) {
+        return fd;
+    }
+    err = ioctl(fd, FS_IOC_GETVERSION, st_gen);
+    local_close(ctx, fd);
+    return err;
+}
+
 static int local_init(FsContext *ctx)
 {
+    int err;
+    struct statfs stbuf;
+
     ctx->flags |= PATHNAME_FSCONTEXT;
-    return 0;
+    err = statfs(ctx->fs_root, &stbuf);
+    if (!err) {
+        switch (stbuf.f_type) {
+        case EXT2_SUPER_MAGIC:
+        case BTRFS_SUPER_MAGIC:
+        case REISERFS_SUPER_MAGIC:
+        case XFS_SUPER_MAGIC:
+            ctx->exops.get_st_gen = local_ioc_getversion;
+            break;
+        }
+    }
+    return err;
 }
 
 FileOperations local_ops = {

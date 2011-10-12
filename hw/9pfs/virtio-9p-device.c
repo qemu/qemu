@@ -117,6 +117,8 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
 
     s->ctx.export_flags = fse->export_flags;
     s->ctx.fs_root = g_strdup(fse->path);
+    s->ctx.exops.get_st_gen = NULL;
+
     len = strlen(conf->tag);
     if (len > MAX_TAG_LEN) {
         fprintf(stderr, "mount tag '%s' (%d bytes) is longer than "
