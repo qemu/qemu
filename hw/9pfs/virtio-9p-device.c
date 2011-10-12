@@ -119,7 +119,9 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     s->ctx.fs_root = g_strdup(fse->path);
     len = strlen(conf->tag);
     if (len > MAX_TAG_LEN) {
-        len = MAX_TAG_LEN;
+        fprintf(stderr, "mount tag '%s' (%d bytes) is longer than "
+                "maximum (%d bytes)", conf->tag, len, MAX_TAG_LEN);
+        exit(1);
     }
     /* s->tag is non-NULL terminated string */
     s->tag = g_malloc(len);
