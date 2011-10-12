@@ -310,9 +310,9 @@ static int get_blocksize(BlockDriverState *bdrv)
     io_header.timeout = 6000; /* XXX */
 
     ret = bdrv_ioctl(bdrv, SG_IO, &io_header);
-    if (ret < 0)
+    if (ret < 0 || io_header.driver_status || io_header.host_status) {
         return -1;
-
+    }
     return (buf[4] << 24) | (buf[5] << 16) | (buf[6] << 8) | buf[7];
 }
 
@@ -341,9 +341,9 @@ static int get_stream_blocksize(BlockDriverState *bdrv)
     io_header.timeout = 6000; /* XXX */
 
     ret = bdrv_ioctl(bdrv, SG_IO, &io_header);
-    if (ret < 0)
+    if (ret < 0 || io_header.driver_status || io_header.host_status) {
         return -1;
-
+    }
     return (buf[9] << 16) | (buf[10] << 8) | buf[11];
 }
 
