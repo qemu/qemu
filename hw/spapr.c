@@ -406,7 +406,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     /* init CPUs */
     if (cpu_model == NULL) {
-        cpu_model = "POWER7";
+        cpu_model = kvm_enabled() ? "host" : "POWER7";
     }
     for (i = 0; i < smp_cpus; i++) {
         env = cpu_init(cpu_model);
