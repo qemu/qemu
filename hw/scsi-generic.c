@@ -39,8 +39,13 @@ do { fprintf(stderr, "scsi-generic: " fmt , ## __VA_ARGS__); } while (0)
 
 #define SCSI_SENSE_BUF_SIZE 96
 
-#define SG_ERR_DRIVER_TIMEOUT 0x06
-#define SG_ERR_DRIVER_SENSE 0x08
+#define SG_ERR_DRIVER_TIMEOUT  0x06
+#define SG_ERR_DRIVER_SENSE    0x08
+
+#define SG_ERR_DID_OK          0x00
+#define SG_ERR_DID_NO_CONNECT  0x01
+#define SG_ERR_DID_BUS_BUSY    0x02
+#define SG_ERR_DID_TIME_OUT    0x03
 
 #ifndef MAX_UINT
 #define MAX_UINT ((unsigned int)-1)
@@ -68,8 +73,9 @@ static void scsi_command_complete(void *opaque, int ret)
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
 
     r->req.aiocb = NULL;
-    if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE)
+    if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) {
         r->req.sense_len = r->io_header.sb_len_wr;
+    }
 
     if (ret != 0) {
         switch (ret) {
@@ -86,9 +92,15 @@ static void scsi_command_complete(void *opaque, int ret)
             break;
         }
     } else {
-        if (r->io_header.driver_status & SG_ERR_DRIVER_TIMEOUT) {
+        if (r->io_header.host_status == SG_ERR_DID_NO_CONNECT ||
+            r->io_header.host_status == SG_ERR_DID_BUS_BUSY ||
+            r->io_header.host_status == SG_ERR_DID_TIME_OUT ||
+            (r->io_header.driver_status & SG_ERR_DRIVER_TIMEOUT)) {
             status = BUSY;
             BADF("Driver Timeout\n");
+        } else if (r->io_header.host_status) {
+            status = CHECK_CONDITION;
+            scsi_req_build_sense(&r->req, SENSE_CODE(I_T_NEXUS_LOSS));
         } else if (r->io_header.status) {
             status = r->io_header.status;
         } else if (r->io_header.driver_status & SG_ERR_DRIVER_SENSE) {
