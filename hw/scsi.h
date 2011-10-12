@@ -197,4 +197,7 @@ void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense);
 int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun);
 
+/* scsi-generic.c. */
+extern const SCSIReqOps scsi_generic_req_ops;
+
 #endif

@@ -420,7 +420,7 @@ static int scsi_generic_initfn(SCSIDevice *s)
     return 0;
 }
 
-static const SCSIReqOps scsi_generic_req_ops = {
+const SCSIReqOps scsi_generic_req_ops = {
     .size         = sizeof(SCSIGenericReq),
     .free_req     = scsi_free_request,
     .send_command = scsi_send_command,
