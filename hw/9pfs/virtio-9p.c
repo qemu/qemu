@@ -2930,7 +2930,7 @@ static void v9fs_getlock(void *opaque)
     if (err < 0) {
         goto out;
     }
-    glock->type = F_UNLCK;
+    glock->type = P9_LOCK_TYPE_UNLCK;
     offset += pdu_marshal(pdu, offset, "bqqds", glock->type,
                           glock->start, glock->length, glock->proc_id,
                           &glock->client_id);

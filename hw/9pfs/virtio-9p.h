@@ -352,6 +352,11 @@ typedef struct V9fsMkState {
     V9fsString fullname;
 } V9fsMkState;
 
+/* 9P2000.L lock type */
+#define P9_LOCK_TYPE_RDLCK 0
+#define P9_LOCK_TYPE_WRLCK 1
+#define P9_LOCK_TYPE_UNLCK 2
+
 #define P9_LOCK_SUCCESS 0
 #define P9_LOCK_BLOCKED 1
 #define P9_LOCK_ERROR 2
