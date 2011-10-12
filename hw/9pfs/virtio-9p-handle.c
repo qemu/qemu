@@ -21,6 +21,24 @@
 #include <sys/un.h>
 #include <attr/xattr.h>
 #include <unistd.h>
+#include <linux/fs.h>
+#ifdef CONFIG_LINUX_MAGIC_H
+#include <linux/magic.h>
+#endif
+#include <sys/ioctl.h>
+
+#ifndef XFS_SUPER_MAGIC
+#define XFS_SUPER_MAGIC  0x58465342
+#endif
+#ifndef EXT2_SUPER_MAGIC
+#define EXT2_SUPER_MAGIC 0xEF53
+#endif
+#ifndef REISERFS_SUPER_MAGIC
+#define REISERFS_SUPER_MAGIC 0x52654973
+#endif
+#ifndef BTRFS_SUPER_MAGIC
+#define BTRFS_SUPER_MAGIC 0x9123683E
+#endif
 
 struct handle_data {
     int mountfd;
@@ -554,9 +572,31 @@ static int handle_unlinkat(FsContext *ctx, V9fsPath *dir,
     return ret;
 }
 
+static int handle_ioc_getversion(FsContext *ctx, V9fsPath *path,
+                                 mode_t st_mode, uint64_t *st_gen)
+{
+    int err, fd;
+
+    /*
+     * Do not try to open special files like device nodes, fifos etc
+     * We can get fd for regular files and directories only
+     */
+    if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
+            return 0;
+    }
+    fd = handle_open(ctx, path, O_RDONLY);
+    if (fd < 0) {
+        return fd;
+    }
+    err = ioctl(fd, FS_IOC_GETVERSION, st_gen);
+    handle_close(ctx, fd);
+    return err;
+}
+
 static int handle_init(FsContext *ctx)
 {
     int ret, mnt_id;
+    struct statfs stbuf;
     struct file_handle fh;
     struct handle_data *data = g_malloc(sizeof(struct handle_data));
 
@@ -564,6 +604,17 @@ static int handle_init(FsContext *ctx)
     if (data->mountfd < 0) {
         ret = data->mountfd;
         goto err_out;
+    }
+    ret = statfs(ctx->fs_root, &stbuf);
+    if (!ret) {
+        switch (stbuf.f_type) {
+        case EXT2_SUPER_MAGIC:
+        case BTRFS_SUPER_MAGIC:
+        case REISERFS_SUPER_MAGIC:
+        case XFS_SUPER_MAGIC:
+            ctx->exops.get_st_gen = handle_ioc_getversion;
+            break;
+        }
     }
     memset(&fh, 0, sizeof(struct file_handle));
     ret = name_to_handle(data->mountfd, ".", &fh, &mnt_id, 0);
