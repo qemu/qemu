@@ -1311,6 +1311,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
 {
     BlockDriver *drv = bs->drv;
+    int ret;
 
     if (!bs->drv) {
         return -ENOMEDIUM;
@@ -1322,6 +1323,8 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
         return -EIO;
     }
 
+    ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
+
     if (bs->dirty_bitmap) {
         set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
     }
@@ -1330,7 +1333,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
         bs->wr_highest_sector = sector_num + nb_sectors - 1;
     }
 
-    return drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
+    return ret;
 }
 
 int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
