@@ -341,6 +341,7 @@ static const RunStateTransition runstate_transitions_def[] = {
     { RUN_STATE_IO_ERROR, RUN_STATE_RUNNING },
 
     { RUN_STATE_PAUSED, RUN_STATE_RUNNING },
+    { RUN_STATE_PAUSED, RUN_STATE_POSTMIGRATE },
 
     { RUN_STATE_POSTMIGRATE, RUN_STATE_RUNNING },
 
