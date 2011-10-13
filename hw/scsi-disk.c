@@ -66,7 +66,6 @@ struct SCSIDiskState
 {
     SCSIDevice qdev;
     uint32_t removable;
-    uint64_t max_lba;
     bool media_changed;
     bool media_event;
     QEMUBH *bh;
@@ -1175,7 +1174,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
         /* Returned value is the address of the last sector.  */
         nb_sectors--;
         /* Remember the new size for read/write sanity checking. */
-        s->max_lba = nb_sectors;
+        s->qdev.max_lba = nb_sectors;
         /* Clip to 2TB, instead of returning capacity modulo 2TB. */
         if (nb_sectors > UINT32_MAX) {
             nb_sectors = UINT32_MAX;
@@ -1230,7 +1229,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
             /* Returned value is the address of the last sector.  */
             nb_sectors--;
             /* Remember the new size for read/write sanity checking. */
-            s->max_lba = nb_sectors;
+            s->qdev.max_lba = nb_sectors;
             outbuf[0] = (nb_sectors >> 56) & 0xff;
             outbuf[1] = (nb_sectors >> 48) & 0xff;
             outbuf[2] = (nb_sectors >> 40) & 0xff;
@@ -1345,7 +1344,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case READ_16:
         len = r->req.cmd.xfer / s->qdev.blocksize;
         DPRINTF("Read (sector %" PRId64 ", count %d)\n", r->req.cmd.lba, len);
-        if (r->req.cmd.lba > s->max_lba) {
+        if (r->req.cmd.lba > s->qdev.max_lba) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
@@ -1362,7 +1361,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
                 (command & 0xe) == 0xe ? "And Verify " : "",
                 r->req.cmd.lba, len);
-        if (r->req.cmd.lba > s->max_lba) {
+        if (r->req.cmd.lba > s->qdev.max_lba) {
             goto illegal_lba;
         }
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
@@ -1388,7 +1387,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case SEEK_10:
         DPRINTF("Seek(%d) (sector %" PRId64 ")\n", command == SEEK_6 ? 6 : 10,
                 r->req.cmd.lba);
-        if (r->req.cmd.lba > s->max_lba) {
+        if (r->req.cmd.lba > s->qdev.max_lba) {
             goto illegal_lba;
         }
         break;
@@ -1398,7 +1397,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         DPRINTF("WRITE SAME(16) (sector %" PRId64 ", count %d)\n",
                 r->req.cmd.lba, len);
 
-        if (r->req.cmd.lba > s->max_lba) {
+        if (r->req.cmd.lba > s->qdev.max_lba) {
             goto illegal_lba;
         }
 
@@ -1457,7 +1456,7 @@ static void scsi_disk_reset(DeviceState *dev)
     if (nb_sectors) {
         nb_sectors--;
     }
-    s->max_lba = nb_sectors;
+    s->qdev.max_lba = nb_sectors;
 }
 
 static void scsi_destroy(SCSIDevice *dev)

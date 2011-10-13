@@ -70,6 +70,7 @@ struct SCSIDevice
     uint32_t lun;
     int blocksize;
     int type;
+    uint64_t max_lba;
 };
 
 /* cdrom.c */
