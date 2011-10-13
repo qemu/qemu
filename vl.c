@@ -393,9 +393,12 @@ void runstate_init(void)
 /* This function will abort() on invalid state transitions */
 void runstate_set(RunState new_state)
 {
-    if (new_state >= RUN_STATE_MAX ||
-        !runstate_valid_transitions[current_run_state][new_state]) {
-        fprintf(stderr, "invalid runstate transition\n");
+    assert(new_state < RUN_STATE_MAX);
+
+    if (!runstate_valid_transitions[current_run_state][new_state]) {
+        fprintf(stderr, "ERROR: invalid runstate transition: '%s' -> '%s'\n",
+                RunState_lookup[current_run_state],
+                RunState_lookup[new_state]);
         abort();
     }
 
