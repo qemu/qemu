@@ -44,6 +44,8 @@
 #include <windows.h>
 #endif
 
+#define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
+
 static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load);
 static BlockDriverAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
@@ -73,6 +75,8 @@ static int coroutine_fn bdrv_co_writev_em(BlockDriverState *bs,
                                          QEMUIOVector *iov);
 static int coroutine_fn bdrv_co_flush_em(BlockDriverState *bs);
 static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
+static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
 
 static QTAILQ_HEAD(, BlockDriverState) bdrv_states =
@@ -1042,30 +1046,69 @@ static inline bool bdrv_has_async_flush(BlockDriver *drv)
     return drv->bdrv_aio_flush != bdrv_aio_flush_em;
 }
 
+typedef struct RwCo {
+    BlockDriverState *bs;
+    int64_t sector_num;
+    int nb_sectors;
+    QEMUIOVector *qiov;
+    bool is_write;
+    int ret;
+} RwCo;
+
+static void coroutine_fn bdrv_rw_co_entry(void *opaque)
+{
+    RwCo *rwco = opaque;
+
+    if (!rwco->is_write) {
+        rwco->ret = bdrv_co_do_readv(rwco->bs, rwco->sector_num,
+                                     rwco->nb_sectors, rwco->qiov);
+    } else {
+        rwco->ret = bdrv_co_do_writev(rwco->bs, rwco->sector_num,
+                                      rwco->nb_sectors, rwco->qiov);
+    }
+}
+
+/*
+ * Process a synchronous request using coroutines
+ */
+static int bdrv_rw_co(BlockDriverState *bs, int64_t sector_num, uint8_t *buf,
+                      int nb_sectors, bool is_write)
+{
+    QEMUIOVector qiov;
+    struct iovec iov = {
+        .iov_base = (void *)buf,
+        .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
+    };
+    Coroutine *co;
+    RwCo rwco = {
+        .bs = bs,
+        .sector_num = sector_num,
+        .nb_sectors = nb_sectors,
+        .qiov = &qiov,
+        .is_write = is_write,
+        .ret = NOT_DONE,
+    };
+
+    qemu_iovec_init_external(&qiov, &iov, 1);
+
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        bdrv_rw_co_entry(&rwco);
+    } else {
+        co = qemu_coroutine_create(bdrv_rw_co_entry);
+        qemu_coroutine_enter(co, &rwco);
+        while (rwco.ret == NOT_DONE) {
+            qemu_aio_wait();
+        }
+    }
+    return rwco.ret;
+}
+
 /* return < 0 if error. See bdrv_write() for the return codes */
 int bdrv_read(BlockDriverState *bs, int64_t sector_num,
               uint8_t *buf, int nb_sectors)
 {
-    BlockDriver *drv = bs->drv;
-
-    if (!drv)
-        return -ENOMEDIUM;
-
-    if (bdrv_has_async_rw(drv) && qemu_in_coroutine()) {
-        QEMUIOVector qiov;
-        struct iovec iov = {
-            .iov_base = (void *)buf,
-            .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
-        };
-
-        qemu_iovec_init_external(&qiov, &iov, 1);
-        return bdrv_co_readv(bs, sector_num, nb_sectors, &qiov);
-    }
-
-    if (bdrv_check_request(bs, sector_num, nb_sectors))
-        return -EIO;
-
-    return drv->bdrv_read(bs, sector_num, buf, nb_sectors);
+    return bdrv_rw_co(bs, sector_num, buf, nb_sectors, false);
 }
 
 static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
@@ -1105,36 +1148,7 @@ static void set_dirty_bitmap(BlockDriverState *bs, int64_t sector_num,
 int bdrv_write(BlockDriverState *bs, int64_t sector_num,
                const uint8_t *buf, int nb_sectors)
 {
-    BlockDriver *drv = bs->drv;
-
-    if (!bs->drv)
-        return -ENOMEDIUM;
-
-    if (bdrv_has_async_rw(drv) && qemu_in_coroutine()) {
-        QEMUIOVector qiov;
-        struct iovec iov = {
-            .iov_base = (void *)buf,
-            .iov_len = nb_sectors * BDRV_SECTOR_SIZE,
-        };
-
-        qemu_iovec_init_external(&qiov, &iov, 1);
-        return bdrv_co_writev(bs, sector_num, nb_sectors, &qiov);
-    }
-
-    if (bs->read_only)
-        return -EACCES;
-    if (bdrv_check_request(bs, sector_num, nb_sectors))
-        return -EIO;
-
-    if (bs->dirty_bitmap) {
-        set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
-    }
-
-    if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
-        bs->wr_highest_sector = sector_num + nb_sectors - 1;
-    }
-
-    return drv->bdrv_write(bs, sector_num, buf, nb_sectors);
+    return bdrv_rw_co(bs, sector_num, (uint8_t *)buf, nb_sectors, true);
 }
 
 int bdrv_pread(BlockDriverState *bs, int64_t offset,
@@ -2911,8 +2925,6 @@ static void bdrv_rw_em_cb(void *opaque, int ret)
 {
     *(int *)opaque = ret;
 }
-
-#define NOT_DONE 0x7fffffff
 
 static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
                         uint8_t *buf, int nb_sectors)
