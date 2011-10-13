@@ -1027,12 +1027,6 @@ static int bdrv_check_request(BlockDriverState *bs, int64_t sector_num,
                                    nb_sectors * BDRV_SECTOR_SIZE);
 }
 
-static inline bool bdrv_has_async_rw(BlockDriver *drv)
-{
-    return drv->bdrv_co_readv != bdrv_co_readv_em
-        || drv->bdrv_aio_readv != bdrv_aio_readv_em;
-}
-
 static inline bool bdrv_has_async_flush(BlockDriver *drv)
 {
     return drv->bdrv_aio_flush != bdrv_aio_flush_em;
