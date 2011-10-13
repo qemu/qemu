@@ -155,6 +155,7 @@ static int execute_command(BlockDriverState *bdrv,
 static void scsi_read_complete(void * opaque, int ret)
 {
     SCSIGenericReq *r = (SCSIGenericReq *)opaque;
+    SCSIDevice *s = r->req.dev;
     int len;
 
     r->req.aiocb = NULL;
@@ -170,6 +171,15 @@ static void scsi_read_complete(void * opaque, int ret)
     if (len == 0) {
         scsi_command_complete(r, 0);
     } else {
+        /* Snoop READ CAPACITY output to set the blocksize.  */
+        if (r->req.cmd.buf[0] == READ_CAPACITY_10) {
+            s->blocksize = ldl_be_p(&r->buf[4]);
+        } else if (r->req.cmd.buf[0] == SERVICE_ACTION_IN_16 &&
+                   (r->req.cmd.buf[1] & 31) == SAI_READ_CAPACITY_16) {
+            s->blocksize = ldl_be_p(&r->buf[8]);
+        }
+        bdrv_set_buffer_alignment(s->conf.bs, s->blocksize);
+
         scsi_req_data(&r->req, len);
     }
 }
@@ -298,36 +308,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *cmd)
     }
 }
 
-static int get_blocksize(BlockDriverState *bdrv)
-{
-    uint8_t cmd[10];
-    uint8_t buf[8];
-    uint8_t sensebuf[8];
-    sg_io_hdr_t io_header;
-    int ret;
-
-    memset(cmd, 0, sizeof(cmd));
-    memset(buf, 0, sizeof(buf));
-    cmd[0] = READ_CAPACITY_10;
-
-    memset(&io_header, 0, sizeof(io_header));
-    io_header.interface_id = 'S';
-    io_header.dxfer_direction = SG_DXFER_FROM_DEV;
-    io_header.dxfer_len = sizeof(buf);
-    io_header.dxferp = buf;
-    io_header.cmdp = cmd;
-    io_header.cmd_len = sizeof(cmd);
-    io_header.mx_sb_len = sizeof(sensebuf);
-    io_header.sbp = sensebuf;
-    io_header.timeout = 6000; /* XXX */
-
-    ret = bdrv_ioctl(bdrv, SG_IO, &io_header);
-    if (ret < 0 || io_header.driver_status || io_header.host_status) {
-        return -1;
-    }
-    return (buf[4] << 24) | (buf[5] << 16) | (buf[6] << 8) | buf[7];
-}
-
 static int get_stream_blocksize(BlockDriverState *bdrv)
 {
     uint8_t cmd[6];
@@ -413,21 +393,25 @@ static int scsi_generic_initfn(SCSIDevice *s)
     /* define device state */
     s->type = scsiid.scsi_type;
     DPRINTF("device type %d\n", s->type);
-    if (s->type == TYPE_TAPE) {
+    switch (s->type) {
+    case TYPE_TAPE:
         s->blocksize = get_stream_blocksize(s->conf.bs);
         if (s->blocksize == -1) {
             s->blocksize = 0;
         }
-    } else {
-        s->blocksize = get_blocksize(s->conf.bs);
-        /* removable media returns 0 if not present */
-        if (s->blocksize <= 0) {
-            if (s->type == TYPE_ROM || s->type  == TYPE_WORM) {
-                s->blocksize = 2048;
-            } else {
-                s->blocksize = 512;
-            }
-        }
+        break;
+
+        /* Make a guess for block devices, we'll fix it when the guest sends.
+         * READ CAPACITY.  If they don't, they likely would assume these sizes
+         * anyway. (TODO: they could also send MODE SENSE).
+         */
+    case TYPE_ROM:
+    case TYPE_WORM:
+        s->blocksize = 2048;
+        break;
+    default:
+        s->blocksize = 512;
+        break;
     }
 
     DPRINTF("block size %d\n", s->blocksize);
