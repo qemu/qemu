@@ -49,7 +49,7 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     V9fsState *s;
     int i, len;
     struct stat stat;
-    FsTypeEntry *fse;
+    FsDriverEntry *fse;
     V9fsPath path;
 
     s = (V9fsState *)virtio_common_init("virtio-9p",

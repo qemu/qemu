@@ -18,20 +18,20 @@
 #include "qemu-common.h"
 #include "qemu-config.h"
 
-static QTAILQ_HEAD(FsTypeEntry_head, FsTypeListEntry) fstype_entries =
-    QTAILQ_HEAD_INITIALIZER(fstype_entries);
+static QTAILQ_HEAD(FsDriverEntry_head, FsDriverListEntry) fsdriver_entries =
+    QTAILQ_HEAD_INITIALIZER(fsdriver_entries);
 
-static FsTypeTable FsTypes[] = {
+static FsDriverTable FsDrivers[] = {
     { .name = "local", .ops = &local_ops},
     { .name = "handle", .ops = &handle_ops},
 };
 
 int qemu_fsdev_add(QemuOpts *opts)
 {
-    struct FsTypeListEntry *fsle;
+    struct FsDriverListEntry *fsle;
     int i;
     const char *fsdev_id = qemu_opts_id(opts);
-    const char *fstype = qemu_opt_get(opts, "fstype");
+    const char *fsdriver = qemu_opt_get(opts, "fsdriver");
     const char *path = qemu_opt_get(opts, "path");
     const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *writeout = qemu_opt_get(opts, "writeout");
@@ -42,19 +42,19 @@ int qemu_fsdev_add(QemuOpts *opts)
         return -1;
     }
 
-    if (fstype) {
-        for (i = 0; i < ARRAY_SIZE(FsTypes); i++) {
-            if (strcmp(FsTypes[i].name, fstype) == 0) {
+    if (fsdriver) {
+        for (i = 0; i < ARRAY_SIZE(FsDrivers); i++) {
+            if (strcmp(FsDrivers[i].name, fsdriver) == 0) {
                 break;
             }
         }
 
-        if (i == ARRAY_SIZE(FsTypes)) {
-            fprintf(stderr, "fsdev: fstype %s not found\n", fstype);
+        if (i == ARRAY_SIZE(FsDrivers)) {
+            fprintf(stderr, "fsdev: fsdriver %s not found\n", fsdriver);
             return -1;
         }
     } else {
-        fprintf(stderr, "fsdev: No fstype specified\n");
+        fprintf(stderr, "fsdev: No fsdriver specified\n");
         return -1;
     }
 
@@ -73,23 +73,23 @@ int qemu_fsdev_add(QemuOpts *opts)
     fsle->fse.fsdev_id = g_strdup(fsdev_id);
     fsle->fse.path = g_strdup(path);
     fsle->fse.security_model = g_strdup(sec_model);
-    fsle->fse.ops = FsTypes[i].ops;
+    fsle->fse.ops = FsDrivers[i].ops;
     fsle->fse.export_flags = 0;
     if (writeout) {
         if (!strcmp(writeout, "immediate")) {
             fsle->fse.export_flags = V9FS_IMMEDIATE_WRITEOUT;
         }
     }
-    QTAILQ_INSERT_TAIL(&fstype_entries, fsle, next);
+    QTAILQ_INSERT_TAIL(&fsdriver_entries, fsle, next);
     return 0;
 }
 
-FsTypeEntry *get_fsdev_fsentry(char *id)
+FsDriverEntry *get_fsdev_fsentry(char *id)
 {
     if (id) {
-        struct FsTypeListEntry *fsle;
+        struct FsDriverListEntry *fsle;
 
-        QTAILQ_FOREACH(fsle, &fstype_entries, next) {
+        QTAILQ_FOREACH(fsle, &fsdriver_entries, next) {
             if (strcmp(fsle->fse.fsdev_id, id) == 0) {
                 return &fsle->fse;
             }

@@ -2798,11 +2798,11 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
 
-                if (qemu_opt_get(opts, "fstype") == NULL ||
+                if (qemu_opt_get(opts, "fsdriver") == NULL ||
                         qemu_opt_get(opts, "mount_tag") == NULL ||
                         qemu_opt_get(opts, "path") == NULL ||
                         qemu_opt_get(opts, "security_model") == NULL) {
-                    fprintf(stderr, "Usage: -virtfs fstype,path=/share_path/,"
+                    fprintf(stderr, "Usage: -virtfs fsdriver,path=/share_path/,"
                             "security_model=[mapped|passthrough|none],"
                             "mount_tag=tag.\n");
                     exit(1);
@@ -2826,7 +2826,7 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
 #endif
                 }
-                qemu_opt_set(fsdev, "fstype", qemu_opt_get(opts, "fstype"));
+                qemu_opt_set(fsdev, "fsdriver", qemu_opt_get(opts, "fsdriver"));
                 qemu_opt_set(fsdev, "path", qemu_opt_get(opts, "path"));
                 qemu_opt_set(fsdev, "security_model",
                              qemu_opt_get(opts, "security_model"));
