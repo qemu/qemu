@@ -207,10 +207,14 @@ static void usb_hub_complete(USBPort *port, USBPacket *packet)
     /*
      * Just pass it along upstream for now.
      *
-     * If we ever inplement usb 2.0 split transactions this will
+     * If we ever implement usb 2.0 split transactions this will
      * become a little more complicated ...
+     *
+     * Can't use usb_packet_complete() here because packet->owner is
+     * cleared already, go call the ->complete() callback directly
+     * instead.
      */
-    usb_packet_complete(&s->dev, packet);
+    s->dev.port->ops->complete(s->dev.port, packet);
 }
 
 static void usb_hub_handle_reset(USBDevice *dev)
