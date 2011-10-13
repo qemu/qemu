@@ -57,10 +57,6 @@ static BlockDriverAIOCB *bdrv_aio_flush_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
 static BlockDriverAIOCB *bdrv_aio_noop_em(BlockDriverState *bs,
         BlockDriverCompletionFunc *cb, void *opaque);
-static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
-                        uint8_t *buf, int nb_sectors);
-static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
-                         const uint8_t *buf, int nb_sectors);
 static int coroutine_fn bdrv_co_readv_em(BlockDriverState *bs,
                                          int64_t sector_num, int nb_sectors,
                                          QEMUIOVector *iov);
@@ -197,14 +193,13 @@ void bdrv_register(BlockDriver *bdrv)
         bdrv->bdrv_co_readv = bdrv_co_readv_em;
         bdrv->bdrv_co_writev = bdrv_co_writev_em;
 
+        /* bdrv_co_readv_em()/brdv_co_writev_em() work in terms of aio, so if
+         * the block driver lacks aio we need to emulate that too.
+         */
         if (!bdrv->bdrv_aio_readv) {
             /* add AIO emulation layer */
             bdrv->bdrv_aio_readv = bdrv_aio_readv_em;
             bdrv->bdrv_aio_writev = bdrv_aio_writev_em;
-        } else if (!bdrv->bdrv_read) {
-            /* add synchronous IO emulation layer */
-            bdrv->bdrv_read = bdrv_read_em;
-            bdrv->bdrv_write = bdrv_write_em;
         }
     }
 
@@ -2832,70 +2827,6 @@ static BlockDriverAIOCB *bdrv_aio_noop_em(BlockDriverState *bs,
 
     qemu_bh_schedule(acb->bh);
     return &acb->common;
-}
-
-/**************************************************************/
-/* sync block device emulation */
-
-static void bdrv_rw_em_cb(void *opaque, int ret)
-{
-    *(int *)opaque = ret;
-}
-
-static int bdrv_read_em(BlockDriverState *bs, int64_t sector_num,
-                        uint8_t *buf, int nb_sectors)
-{
-    int async_ret;
-    BlockDriverAIOCB *acb;
-    struct iovec iov;
-    QEMUIOVector qiov;
-
-    async_ret = NOT_DONE;
-    iov.iov_base = (void *)buf;
-    iov.iov_len = nb_sectors * BDRV_SECTOR_SIZE;
-    qemu_iovec_init_external(&qiov, &iov, 1);
-
-    acb = bs->drv->bdrv_aio_readv(bs, sector_num, &qiov, nb_sectors,
-                                  bdrv_rw_em_cb, &async_ret);
-    if (acb == NULL) {
-        async_ret = -1;
-        goto fail;
-    }
-
-    while (async_ret == NOT_DONE) {
-        qemu_aio_wait();
-    }
-
-
-fail:
-    return async_ret;
-}
-
-static int bdrv_write_em(BlockDriverState *bs, int64_t sector_num,
-                         const uint8_t *buf, int nb_sectors)
-{
-    int async_ret;
-    BlockDriverAIOCB *acb;
-    struct iovec iov;
-    QEMUIOVector qiov;
-
-    async_ret = NOT_DONE;
-    iov.iov_base = (void *)buf;
-    iov.iov_len = nb_sectors * BDRV_SECTOR_SIZE;
-    qemu_iovec_init_external(&qiov, &iov, 1);
-
-    acb = bs->drv->bdrv_aio_writev(bs, sector_num, &qiov, nb_sectors,
-                                   bdrv_rw_em_cb, &async_ret);
-    if (acb == NULL) {
-        async_ret = -1;
-        goto fail;
-    }
-    while (async_ret == NOT_DONE) {
-        qemu_aio_wait();
-    }
-
-fail:
-    return async_ret;
 }
 
 void bdrv_init(void)
