@@ -23,23 +23,6 @@
 #define SM_LOCAL_MODE_BITS    0600
 #define SM_LOCAL_DIR_MODE_BITS    0700
 
-typedef enum
-{
-    /*
-     * Server will try to set uid/gid.
-     * On failure ignore the error.
-     */
-    SM_NONE = 0,
-    /*
-     * uid/gid set on fileserver files
-     */
-    SM_PASSTHROUGH = 1,
-    /*
-     * uid/gid part of xattr
-     */
-    SM_MAPPED,
-} SecModel;
-
 typedef struct FsCred
 {
     uid_t   fc_uid;
@@ -60,12 +43,27 @@ typedef struct extended_ops {
 /* export flags */
 #define V9FS_IMMEDIATE_WRITEOUT     0x00000001
 #define V9FS_PATHNAME_FSCONTEXT     0x00000002
+/*
+ * uid/gid set on fileserver files
+ */
+#define V9FS_SM_PASSTHROUGH         0x00000004
+/*
+ * uid/gid part of xattr
+ */
+#define V9FS_SM_MAPPED              0x00000008
+/*
+ * Server will try to set uid/gid.
+ * On failure ignore the error.
+ */
+#define V9FS_SM_NONE                0x00000010
+
+
+#define V9FS_SEC_MASK               0x0000001C
 
 typedef struct FsContext
 {
-    char *fs_root;
-    SecModel fs_sm;
     uid_t uid;
+    char *fs_root;
     int export_flags;
     struct xattr_operations **xops;
     struct extended_ops exops;

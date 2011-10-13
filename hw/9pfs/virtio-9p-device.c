@@ -83,34 +83,17 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         exit(1);
     }
 
-    if (!strcmp(fse->security_model, "passthrough")) {
-        /* Files on the Fileserver set to client user credentials */
-        s->ctx.fs_sm = SM_PASSTHROUGH;
-        s->ctx.xops = passthrough_xattr_ops;
-    } else if (!strcmp(fse->security_model, "mapped")) {
-        /* Files on the fileserver are set to QEMU credentials.
-         * Client user credentials are saved in extended attributes.
-         */
-        s->ctx.fs_sm = SM_MAPPED;
-        s->ctx.xops = mapped_xattr_ops;
-    } else if (!strcmp(fse->security_model, "none")) {
-        /*
-         * Files on the fileserver are set to QEMU credentials.
-         */
-        s->ctx.fs_sm = SM_NONE;
-        s->ctx.xops = none_xattr_ops;
-    } else {
-        fprintf(stderr, "Default to security_model=none. You may want"
-                " enable advanced security model using "
-                "security option:\n\t security_model=passthrough\n\t "
-                "security_model=mapped\n");
-        s->ctx.fs_sm = SM_NONE;
-        s->ctx.xops = none_xattr_ops;
-    }
-
     s->ctx.export_flags = fse->export_flags;
     s->ctx.fs_root = g_strdup(fse->path);
     s->ctx.exops.get_st_gen = NULL;
+
+    if (fse->export_flags & V9FS_SM_PASSTHROUGH) {
+        s->ctx.xops = passthrough_xattr_ops;
+    } else if (fse->export_flags & V9FS_SM_MAPPED) {
+        s->ctx.xops = mapped_xattr_ops;
+    } else if (fse->export_flags & V9FS_SM_NONE) {
+        s->ctx.xops = none_xattr_ops;
+    }
 
     len = strlen(conf->tag);
     if (len > MAX_TAG_LEN) {

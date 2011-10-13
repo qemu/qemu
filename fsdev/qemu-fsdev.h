@@ -40,7 +40,6 @@ typedef struct FsDriverTable {
 typedef struct FsDriverEntry {
     char *fsdev_id;
     char *path;
-    char *security_model;
     int export_flags;
     FileOperations *ops;
 } FsDriverEntry;

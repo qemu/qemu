@@ -72,14 +72,29 @@ int qemu_fsdev_add(QemuOpts *opts)
 
     fsle->fse.fsdev_id = g_strdup(fsdev_id);
     fsle->fse.path = g_strdup(path);
-    fsle->fse.security_model = g_strdup(sec_model);
     fsle->fse.ops = FsDrivers[i].ops;
     fsle->fse.export_flags = 0;
     if (writeout) {
         if (!strcmp(writeout, "immediate")) {
-            fsle->fse.export_flags = V9FS_IMMEDIATE_WRITEOUT;
+            fsle->fse.export_flags |= V9FS_IMMEDIATE_WRITEOUT;
         }
     }
+
+    if (!strcmp(sec_model, "passthrough")) {
+        fsle->fse.export_flags |= V9FS_SM_PASSTHROUGH;
+    } else if (!strcmp(sec_model, "mapped")) {
+        fsle->fse.export_flags |= V9FS_SM_MAPPED;
+    } else if (!strcmp(sec_model, "none")) {
+        fsle->fse.export_flags |= V9FS_SM_NONE;
+    } else {
+        fprintf(stderr, "Default to security_model=none. You may want"
+                " enable advanced security model using "
+                "security option:\n\t security_model=passthrough\n\t "
+                "security_model=mapped\n");
+
+        fsle->fse.export_flags |= V9FS_SM_NONE;
+    }
+
     QTAILQ_INSERT_TAIL(&fsdriver_entries, fsle, next);
     return 0;
 }
