@@ -527,10 +527,21 @@ static int usb_keyboard_initfn(USBDevice *dev)
     return usb_hid_initfn(dev, HID_KEYBOARD);
 }
 
+static int usb_ptr_post_load(void *opaque, int version_id)
+{
+    USBHIDState *s = opaque;
+
+    if (s->dev.remote_wakeup) {
+        hid_pointer_activate(&s->hid);
+    }
+    return 0;
+}
+
 static const VMStateDescription vmstate_usb_ptr = {
     .name = "usb-ptr",
     .version_id = 1,
     .minimum_version_id = 1,
+    .post_load = usb_ptr_post_load,
     .fields = (VMStateField []) {
         VMSTATE_USB_DEVICE(dev, USBHIDState),
         VMSTATE_HID_POINTER_DEVICE(hid, USBHIDState),

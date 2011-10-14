@@ -150,7 +150,7 @@ static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev);
 #define OHCI_TD_DI_SHIFT  21
 #define OHCI_TD_DI_MASK   (7<<OHCI_TD_DI_SHIFT)
 #define OHCI_TD_T0        (1<<24)
-#define OHCI_TD_T1        (1<<24)
+#define OHCI_TD_T1        (1<<25)
 #define OHCI_TD_EC_SHIFT  26
 #define OHCI_TD_EC_MASK   (3<<OHCI_TD_EC_SHIFT)
 #define OHCI_TD_CC_SHIFT  28
@@ -449,7 +449,7 @@ static void ohci_reset(void *opaque)
         port = &ohci->rhport[i];
         port->ctrl = 0;
         if (port->port.dev && port->port.dev->attached) {
-            usb_attach(&port->port);
+            usb_reset(&port->port);
         }
       }
     if (ohci->async_td) {
@@ -872,7 +872,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
 static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 {
     int dir;
-    size_t len = 0;
+    size_t len = 0, pktlen = 0;
 #ifdef DEBUG_PACKET
     const char *str = NULL;
 #endif
@@ -940,20 +940,30 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             len = (td.be - td.cbp) + 1;
         }
 
-        if (len && dir != OHCI_TD_DIR_IN && !completion) {
-            ohci_copy_td(ohci, &td, ohci->usb_buf, len, 0);
+        pktlen = len;
+        if (len && dir != OHCI_TD_DIR_IN) {
+            /* The endpoint may not allow us to transfer it all now */
+            pktlen = (ed->flags & OHCI_ED_MPS_MASK) >> OHCI_ED_MPS_SHIFT;
+            if (pktlen > len) {
+                pktlen = len;
+            }
+            if (!completion) {
+                ohci_copy_td(ohci, &td, ohci->usb_buf, pktlen, 0);
+            }
         }
     }
 
     flag_r = (td.flags & OHCI_TD_R) != 0;
 #ifdef DEBUG_PACKET
-    DPRINTF(" TD @ 0x%.8x %" PRId64 " bytes %s r=%d cbp=0x%.8x be=0x%.8x\n",
-            addr, (int64_t)len, str, flag_r, td.cbp, td.be);
+    DPRINTF(" TD @ 0x%.8x %" PRId64 " of %" PRId64
+            " bytes %s r=%d cbp=0x%.8x be=0x%.8x\n",
+            addr, (int64_t)pktlen, (int64_t)len, str, flag_r, td.cbp, td.be);
 
-    if (len > 0 && dir != OHCI_TD_DIR_IN) {
+    if (pktlen > 0 && dir != OHCI_TD_DIR_IN) {
         DPRINTF("  data:");
-        for (i = 0; i < len; i++)
+        for (i = 0; i < pktlen; i++) {
             printf(" %.2x", ohci->usb_buf[i]);
+        }
         DPRINTF("\n");
     }
 #endif
@@ -982,7 +992,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             usb_packet_setup(&ohci->usb_packet, pid,
                              OHCI_BM(ed->flags, ED_FA),
                              OHCI_BM(ed->flags, ED_EN));
-            usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
+            usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, pktlen);
             ret = usb_handle_packet(dev, &ohci->usb_packet);
             if (ret != USB_RET_NODEV)
                 break;
@@ -1005,12 +1015,12 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             DPRINTF("\n");
 #endif
         } else {
-            ret = len;
+            ret = pktlen;
         }
     }
 
     /* Writeback */
-    if (ret == len || (dir == OHCI_TD_DIR_IN && ret >= 0 && flag_r)) {
+    if (ret == pktlen || (dir == OHCI_TD_DIR_IN && ret >= 0 && flag_r)) {
         /* Transmission succeeded.  */
         if (ret == len) {
             td.cbp = 0;
@@ -1026,6 +1036,12 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         OHCI_SET_BM(td.flags, TD_CC, OHCI_CC_NOERROR);
         OHCI_SET_BM(td.flags, TD_EC, 0);
 
+        if ((dir != OHCI_TD_DIR_IN) && (ret != len)) {
+            /* Partial packet transfer: TD not ready to retire yet */
+            goto exit_no_retire;
+        }
+
+        /* Setting ED_C is part of the TD retirement process */
         ed->head &= ~OHCI_ED_C;
         if (td.flags & OHCI_TD_T0)
             ed->head |= OHCI_ED_C;
@@ -1066,6 +1082,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     i = OHCI_BM(td.flags, TD_DI);
     if (i < ohci->done_count)
         ohci->done_count = i;
+exit_no_retire:
     ohci_put_td(ohci, addr, &td);
     return OHCI_BM(td.flags, TD_CC) != OHCI_CC_NOERROR;
 }

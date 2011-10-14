@@ -325,7 +325,10 @@ static int usb_msd_handle_control(USBDevice *dev, USBPacket *p,
 static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
 {
     MSDState *s = DO_UPCAST(MSDState, dev, dev);
-    scsi_req_cancel(s->req);
+
+    if (s->req) {
+        scsi_req_cancel(s->req);
+    }
 }
 
 static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
