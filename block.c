@@ -3139,6 +3139,7 @@ int bdrv_in_use(BlockDriverState *bs)
 
 void bdrv_iostatus_enable(BlockDriverState *bs)
 {
+    bs->iostatus_enabled = true;
     bs->iostatus = BDRV_IOS_OK;
 }
 
@@ -3146,7 +3147,7 @@ void bdrv_iostatus_enable(BlockDriverState *bs)
  * enables it _and_ the VM is configured to stop on errors */
 bool bdrv_iostatus_is_enabled(const BlockDriverState *bs)
 {
-    return (bs->iostatus != BDRV_IOS_INVAL &&
+    return (bs->iostatus_enabled &&
            (bs->on_write_error == BLOCK_ERR_STOP_ENOSPC ||
             bs->on_write_error == BLOCK_ERR_STOP_ANY    ||
             bs->on_read_error == BLOCK_ERR_STOP_ANY));
@@ -3154,7 +3155,7 @@ bool bdrv_iostatus_is_enabled(const BlockDriverState *bs)
 
 void bdrv_iostatus_disable(BlockDriverState *bs)
 {
-    bs->iostatus = BDRV_IOS_INVAL;
+    bs->iostatus_enabled = false;
 }
 
 void bdrv_iostatus_reset(BlockDriverState *bs)
