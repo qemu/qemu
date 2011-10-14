@@ -114,6 +114,13 @@ static int sign_extend(int x, int len)
 
 #define IS_IMM (insn & (1<<13))
 
+static inline void gen_update_fprs_dirty(int rd)
+{
+#if defined(TARGET_SPARC64)
+    tcg_gen_ori_i32(cpu_fprs, cpu_fprs, (rd < 32) ? 1 : 2);
+#endif
+}
+
 /* floating point registers moves */
 static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
 {
@@ -123,6 +130,7 @@ static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
 static void gen_store_fpr_F(DisasContext *dc, unsigned int dst, TCGv_i32 v)
 {
     tcg_gen_mov_i32 (cpu__fpr[dst], v);
+    gen_update_fprs_dirty(dst);
 }
 
 static TCGv_i32 gen_dest_fpr_F(void)
@@ -1585,13 +1593,6 @@ static int gen_trap_ifnofpu(DisasContext *dc, TCGv r_cond)
     return 0;
 }
 
-static inline void gen_update_fprs_dirty(int rd)
-{
-#if defined(TARGET_SPARC64)
-    tcg_gen_ori_i32(cpu_fprs, cpu_fprs, (rd < 32) ? 1 : 2);
-#endif
-}
-
 static inline void gen_op_clear_ieee_excp_and_FTT(void)
 {
     tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_CEXC_NMASK);
@@ -2387,21 +2388,18 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x1: /* fmovs */
                     cpu_src1_32 = gen_load_fpr_F(dc, rs2);
                     gen_store_fpr_F(dc, rd, cpu_src1_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x5: /* fnegs */
                     cpu_src1_32 = gen_load_fpr_F(dc, rs2);
                     cpu_dst_32 = gen_dest_fpr_F();
                     gen_helper_fnegs(cpu_dst_32, cpu_src1_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x9: /* fabss */
                     cpu_src1_32 = gen_load_fpr_F(dc, rs2);
                     cpu_dst_32 = gen_dest_fpr_F();
                     gen_helper_fabss(cpu_dst_32, cpu_src1_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x29: /* fsqrts */
                     CHECK_FPU_FEATURE(dc, FSQRT);
@@ -2411,7 +2409,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fsqrts(cpu_dst_32, cpu_env, cpu_src1_32);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x2a: /* fsqrtd */
                     CHECK_FPU_FEATURE(dc, FSQRT);
@@ -2440,7 +2437,6 @@ static void disas_sparc_insn(DisasContext * dc)
                                      cpu_src1_32, cpu_src2_32);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x42: /* faddd */
                     gen_op_load_fpr_DT0(DFPREG(rs1));
@@ -2470,7 +2466,6 @@ static void disas_sparc_insn(DisasContext * dc)
                                      cpu_src1_32, cpu_src2_32);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x46: /* fsubd */
                     gen_op_load_fpr_DT0(DFPREG(rs1));
@@ -2501,7 +2496,6 @@ static void disas_sparc_insn(DisasContext * dc)
                                      cpu_src1_32, cpu_src2_32);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x4a: /* fmuld */
                     CHECK_FPU_FEATURE(dc, FMUL);
@@ -2533,7 +2527,6 @@ static void disas_sparc_insn(DisasContext * dc)
                                      cpu_src1_32, cpu_src2_32);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x4e: /* fdivd */
                     gen_op_load_fpr_DT0(DFPREG(rs1));
@@ -2581,7 +2574,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fitos(cpu_dst_32, cpu_env, cpu_src1_32);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0xc6: /* fdtos */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
@@ -2590,7 +2582,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fdtos(cpu_dst_32, cpu_env);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0xc7: /* fqtos */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
@@ -2600,7 +2591,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fqtos(cpu_dst_32, cpu_env);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0xc8: /* fitod */
                     cpu_src1_32 = gen_load_fpr_F(dc, rs2);
@@ -2651,7 +2641,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fstoi(cpu_dst_32, cpu_env, cpu_src1_32);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0xd2: /* fdtoi */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
@@ -2660,7 +2649,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fdtoi(cpu_dst_32, cpu_env);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0xd3: /* fqtoi */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
@@ -2670,7 +2658,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fqtoi(cpu_dst_32, cpu_env);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
 #ifdef TARGET_SPARC64
                 case 0x2: /* V9 fmovd */
@@ -2750,7 +2737,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fxtos(cpu_dst_32, cpu_env);
                     gen_helper_check_ieee_exceptions(cpu_env);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x88: /* V9 fxtod */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
@@ -2795,7 +2781,6 @@ static void disas_sparc_insn(DisasContext * dc)
                                        0, l1);
                     cpu_src1_32 = gen_load_fpr_F(dc, rs2);
                     gen_store_fpr_F(dc, rd, cpu_src1_32);
-                    gen_update_fprs_dirty(rd);
                     gen_set_label(l1);
                     break;
                 } else if ((xop & 0x11f) == 0x006) { // V9 fmovdr
@@ -2844,7 +2829,6 @@ static void disas_sparc_insn(DisasContext * dc)
                                            0, l1);                      \
                         cpu_src1_32 = gen_load_fpr_F(dc, rs2);          \
                         gen_store_fpr_F(dc, rd, cpu_src1_32);           \
-                        gen_update_fprs_dirty(rd);                      \
                         gen_set_label(l1);                              \
                         tcg_temp_free(r_cond);                          \
                     }
@@ -2946,7 +2930,6 @@ static void disas_sparc_insn(DisasContext * dc)
                                            0, l1);                      \
                         cpu_src1_32 = gen_load_fpr_F(dc, rs2);          \
                         gen_store_fpr_F(dc, rd, cpu_src1_32);           \
-                        gen_update_fprs_dirty(rd);                      \
                         gen_set_label(l1);                              \
                         tcg_temp_free(r_cond);                          \
                     }
@@ -4089,7 +4072,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fpadd16s(cpu_dst_32, cpu_env,
                                         cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x052: /* VIS I fpadd32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4106,7 +4088,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_add_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x054: /* VIS I fpsub16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4124,7 +4105,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_helper_fpsub16s(cpu_dst_32, cpu_env,
                                         cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x056: /* VIS I fpsub32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4141,7 +4121,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_sub_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x060: /* VIS I fzero */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4154,7 +4133,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_movi_i32(cpu_dst_32, 0);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x062: /* VIS I fnor */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4173,7 +4151,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_nor_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x064: /* VIS I fandnot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4192,7 +4169,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_andc_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x066: /* VIS I fnot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4208,7 +4184,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_not_i32(cpu_dst_32, cpu_src1_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x068: /* VIS I fandnot1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4227,7 +4202,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_andc_i32(cpu_dst_32, cpu_src2_32, cpu_src1_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x06a: /* VIS I fnot1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4243,7 +4217,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_not_i32(cpu_dst_32, cpu_src1_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x06c: /* VIS I fxor */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4262,7 +4235,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_xor_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x06e: /* VIS I fnand */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4281,7 +4253,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_nand_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x070: /* VIS I fand */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4300,7 +4271,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_and_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x072: /* VIS I fxnor */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4319,7 +4289,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_eqv_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x074: /* VIS I fsrc1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4333,7 +4302,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_32 = gen_load_fpr_F(dc, rs1);
                     gen_store_fpr_F(dc, rd, cpu_src1_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x076: /* VIS I fornot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4352,7 +4320,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_orc_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x078: /* VIS I fsrc2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4364,7 +4331,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_32 = gen_load_fpr_F(dc, rs2);
                     gen_store_fpr_F(dc, rd, cpu_src1_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x07a: /* VIS I fornot1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4383,7 +4349,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_orc_i32(cpu_dst_32, cpu_src2_32, cpu_src1_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x07c: /* VIS I for */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4402,7 +4367,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_or_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x07e: /* VIS I fone */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4415,7 +4379,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_movi_i32(cpu_dst_32, -1);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x080: /* VIS I shutdown */
                 case 0x081: /* VIS II siam */
@@ -4801,7 +4764,6 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_dst_32 = gen_dest_fpr_F();
                     tcg_gen_trunc_tl_i32(cpu_dst_32, cpu_tmp0);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
-                    gen_update_fprs_dirty(rd);
                     break;
                 case 0x21:      /* ldfsr, V9 ldxfsr */
 #ifdef TARGET_SPARC64
