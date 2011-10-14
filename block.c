@@ -2735,7 +2735,7 @@ static AIOPool bdrv_em_co_aio_pool = {
     .cancel             = bdrv_aio_co_cancel_em,
 };
 
-static void bdrv_co_rw_bh(void *opaque)
+static void bdrv_co_em_bh(void *opaque)
 {
     BlockDriverAIOCBCoroutine *acb = opaque;
 
@@ -2758,7 +2758,7 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque)
             acb->req.nb_sectors, acb->req.qiov);
     }
 
-    acb->bh = qemu_bh_new(bdrv_co_rw_bh, acb);
+    acb->bh = qemu_bh_new(bdrv_co_em_bh, acb);
     qemu_bh_schedule(acb->bh);
 }
 
