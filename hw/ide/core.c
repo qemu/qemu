@@ -529,6 +529,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
         s->bus->error_status = op;
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
         vm_stop(RUN_STATE_IO_ERROR);
+        bdrv_iostatus_set_err(s->bs, error);
     } else {
         if (op & BM_STATUS_DMA_RETRY) {
             dma_buf_commit(s, 0);
@@ -1873,6 +1874,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     }
 
     ide_reset(s);
+    bdrv_iostatus_enable(bs);
     return 0;
 }
 

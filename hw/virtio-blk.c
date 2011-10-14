@@ -78,6 +78,7 @@ static int virtio_blk_handle_rw_error(VirtIOBlockReq *req, int error,
         s->rq = req;
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
         vm_stop(RUN_STATE_IO_ERROR);
+        bdrv_iostatus_set_err(s->bs, error);
     } else {
         virtio_blk_req_complete(req, VIRTIO_BLK_S_IOERR);
         bdrv_acct_done(s->bs, &req->acct);
@@ -603,6 +604,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
     bdrv_set_dev_ops(s->bs, &virtio_block_ops, s);
     bdrv_set_buffer_alignment(s->bs, conf->logical_block_size);
 
+    bdrv_iostatus_enable(s->bs);
     add_boot_device_path(conf->bootindex, dev, "/disk@0,0");
 
     return &s->vdev;

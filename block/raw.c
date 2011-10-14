@@ -9,30 +9,16 @@ static int raw_open(BlockDriverState *bs, int flags)
     return 0;
 }
 
-static int raw_read(BlockDriverState *bs, int64_t sector_num,
-                    uint8_t *buf, int nb_sectors)
+static int coroutine_fn raw_co_readv(BlockDriverState *bs, int64_t sector_num,
+                                     int nb_sectors, QEMUIOVector *qiov)
 {
-    return bdrv_read(bs->file, sector_num, buf, nb_sectors);
+    return bdrv_co_readv(bs->file, sector_num, nb_sectors, qiov);
 }
 
-static int raw_write(BlockDriverState *bs, int64_t sector_num,
-                     const uint8_t *buf, int nb_sectors)
+static int coroutine_fn raw_co_writev(BlockDriverState *bs, int64_t sector_num,
+                                      int nb_sectors, QEMUIOVector *qiov)
 {
-    return bdrv_write(bs->file, sector_num, buf, nb_sectors);
-}
-
-static BlockDriverAIOCB *raw_aio_readv(BlockDriverState *bs,
-    int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-    BlockDriverCompletionFunc *cb, void *opaque)
-{
-    return bdrv_aio_readv(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
-}
-
-static BlockDriverAIOCB *raw_aio_writev(BlockDriverState *bs,
-    int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
-    BlockDriverCompletionFunc *cb, void *opaque)
-{
-    return bdrv_aio_writev(bs->file, sector_num, qiov, nb_sectors, cb, opaque);
+    return bdrv_co_writev(bs->file, sector_num, nb_sectors, qiov);
 }
 
 static void raw_close(BlockDriverState *bs)
@@ -129,15 +115,13 @@ static BlockDriver bdrv_raw = {
 
     .bdrv_open          = raw_open,
     .bdrv_close         = raw_close,
-    .bdrv_read          = raw_read,
-    .bdrv_write         = raw_write,
+    .bdrv_co_readv      = raw_co_readv,
+    .bdrv_co_writev     = raw_co_writev,
     .bdrv_flush         = raw_flush,
     .bdrv_probe         = raw_probe,
     .bdrv_getlength     = raw_getlength,
     .bdrv_truncate      = raw_truncate,
 
-    .bdrv_aio_readv     = raw_aio_readv,
-    .bdrv_aio_writev    = raw_aio_writev,
     .bdrv_aio_flush     = raw_aio_flush,
     .bdrv_discard       = raw_discard,
 
