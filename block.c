@@ -1870,10 +1870,10 @@ void bdrv_info_print(Monitor *mon, const QObject *data)
     qlist_iter(qobject_to_qlist(data), bdrv_print_dict, mon);
 }
 
-static const char *const io_status_name[BDRV_IOS_MAX] = {
-    [BDRV_IOS_OK] = "ok",
-    [BDRV_IOS_FAILED] = "failed",
-    [BDRV_IOS_ENOSPC] = "nospace",
+static const char *const io_status_name[BLOCK_DEVICE_IO_STATUS_MAX] = {
+    [BLOCK_DEVICE_IO_STATUS_OK] = "ok",
+    [BLOCK_DEVICE_IO_STATUS_FAILED] = "failed",
+    [BLOCK_DEVICE_IO_STATUS_NOSPACE] = "nospace",
 };
 
 void bdrv_info(Monitor *mon, QObject **ret_data)
@@ -3140,7 +3140,7 @@ int bdrv_in_use(BlockDriverState *bs)
 void bdrv_iostatus_enable(BlockDriverState *bs)
 {
     bs->iostatus_enabled = true;
-    bs->iostatus = BDRV_IOS_OK;
+    bs->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
 }
 
 /* The I/O status is only enabled if the drive explicitly
@@ -3161,7 +3161,7 @@ void bdrv_iostatus_disable(BlockDriverState *bs)
 void bdrv_iostatus_reset(BlockDriverState *bs)
 {
     if (bdrv_iostatus_is_enabled(bs)) {
-        bs->iostatus = BDRV_IOS_OK;
+        bs->iostatus = BLOCK_DEVICE_IO_STATUS_OK;
     }
 }
 
@@ -3170,9 +3170,11 @@ void bdrv_iostatus_reset(BlockDriverState *bs)
    possible to implement this without device models being involved */
 void bdrv_iostatus_set_err(BlockDriverState *bs, int error)
 {
-    if (bdrv_iostatus_is_enabled(bs) && bs->iostatus == BDRV_IOS_OK) {
+    if (bdrv_iostatus_is_enabled(bs) &&
+        bs->iostatus == BLOCK_DEVICE_IO_STATUS_OK) {
         assert(error >= 0);
-        bs->iostatus = error == ENOSPC ? BDRV_IOS_ENOSPC : BDRV_IOS_FAILED;
+        bs->iostatus = error == ENOSPC ? BLOCK_DEVICE_IO_STATUS_NOSPACE :
+                                         BLOCK_DEVICE_IO_STATUS_FAILED;
     }
 }
 

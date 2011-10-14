@@ -78,7 +78,8 @@ typedef enum {
 } BlockMonEventAction;
 
 typedef enum {
-    BDRV_IOS_OK, BDRV_IOS_FAILED, BDRV_IOS_ENOSPC, BDRV_IOS_MAX
+    BLOCK_DEVICE_IO_STATUS_OK, BLOCK_DEVICE_IO_STATUS_FAILED,
+    BLOCK_DEVICE_IO_STATUS_NOSPACE, BLOCK_DEVICE_IO_STATUS_MAX
 } BlockIOStatus;
 
 void bdrv_iostatus_enable(BlockDriverState *bs);
