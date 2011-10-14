@@ -16,6 +16,10 @@ enum qxl_mode {
     QXL_MODE_NATIVE,
 };
 
+#ifndef QXL_VRAM64_RANGE_INDEX
+#define QXL_VRAM64_RANGE_INDEX 4
+#endif
+
 #define QXL_UNDEFINED_IO UINT32_MAX
 
 #define QXL_NUM_DIRTY_RECTS 64
@@ -88,6 +92,8 @@ typedef struct PCIQXLDevice {
     /* vram pci bar */
     uint32_t           vram_size;
     MemoryRegion       vram_bar;
+    uint32_t           vram32_size;
+    MemoryRegion       vram32_bar;
 
     /* io bar */
     MemoryRegion       io_bar;
@@ -95,6 +101,7 @@ typedef struct PCIQXLDevice {
     /* user-friendly properties (in megabytes) */
     uint32_t          ram_size_mb;
     uint32_t          vram_size_mb;
+    uint32_t          vram32_size_mb;
 
     /* qxl_render_update state */
     int                render_update_cookie_num;

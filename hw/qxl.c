@@ -976,6 +976,7 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
     static const int regions[] = {
         QXL_RAM_RANGE_INDEX,
         QXL_VRAM_RANGE_INDEX,
+        QXL_VRAM64_RANGE_INDEX,
     };
     uint64_t guest_start;
     uint64_t guest_end;
@@ -1022,6 +1023,7 @@ static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
         virt_start = (intptr_t)memory_region_get_ram_ptr(&d->vga.vram);
         break;
     case QXL_VRAM_RANGE_INDEX:
+    case 4 /* vram 64bit */:
         virt_start = (intptr_t)memory_region_get_ram_ptr(&d->vram_bar);
         break;
     default:
@@ -1622,18 +1624,28 @@ static void qxl_init_ramsize(PCIQXLDevice *qxl, uint32_t ram_min_mb)
         qxl->vga.vram_size = ram_min_mb * 1024 * 1024;
     }
 
-    /* vram (surfaces, bar 1) */
+    /* vram32 (surfaces, 32bit, bar 1) */
+    if (qxl->vram32_size_mb != -1) {
+        qxl->vram32_size = qxl->vram32_size_mb * 1024 * 1024;
+    }
+    if (qxl->vram32_size < 4096) {
+        qxl->vram32_size = 4096;
+    }
+
+    /* vram (surfaces, 64bit, bar 4+5) */
     if (qxl->vram_size_mb != -1) {
         qxl->vram_size = qxl->vram_size_mb * 1024 * 1024;
     }
-    if (qxl->vram_size < 4096) {
-        qxl->vram_size = 4096;
-    }
-    if (qxl->revision == 1) {
-        qxl->vram_size = 4096;
+    if (qxl->vram_size < qxl->vram32_size) {
+        qxl->vram_size = qxl->vram32_size;
     }
 
+    if (qxl->revision == 1) {
+        qxl->vram32_size = 4096;
+        qxl->vram_size = 4096;
+    }
     qxl->vga.vram_size = msb_mask(qxl->vga.vram_size * 2 - 1);
+    qxl->vram32_size = msb_mask(qxl->vram32_size * 2 - 1);
     qxl->vram_size = msb_mask(qxl->vram_size * 2 - 1);
 }
 
@@ -1675,6 +1687,8 @@ static int qxl_init_common(PCIQXLDevice *qxl)
 
     memory_region_init_ram(&qxl->vram_bar, "qxl.vram", qxl->vram_size);
     vmstate_register_ram(&qxl->vram_bar, &qxl->pci.qdev);
+    memory_region_init_alias(&qxl->vram32_bar, "qxl.vram32", &qxl->vram_bar,
+                             0, qxl->vram32_size);
 
     io_size = msb_mask(QXL_IO_RANGE_SIZE * 2 - 1);
     if (qxl->revision == 1) {
@@ -1698,7 +1712,29 @@ static int qxl_init_common(PCIQXLDevice *qxl)
                      PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vga.vram);
 
     pci_register_bar(&qxl->pci, QXL_VRAM_RANGE_INDEX,
-                     PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vram_bar);
+                     PCI_BASE_ADDRESS_SPACE_MEMORY, &qxl->vram32_bar);
+
+    if (qxl->vram32_size < qxl->vram_size) {
+        /*
+         * Make the 64bit vram bar show up only in case it is
+         * configured to be larger than the 32bit vram bar.
+         */
+        pci_register_bar(&qxl->pci, QXL_VRAM64_RANGE_INDEX,
+                         PCI_BASE_ADDRESS_SPACE_MEMORY |
+                         PCI_BASE_ADDRESS_MEM_TYPE_64 |
+                         PCI_BASE_ADDRESS_MEM_PREFETCH,
+                         &qxl->vram_bar);
+    }
+
+    /* print pci bar details */
+    dprint(qxl, 1, "ram/%s: %d MB [region 0]\n",
+           qxl->id == 0 ? "pri" : "sec",
+           qxl->vga.vram_size / (1024*1024));
+    dprint(qxl, 1, "vram/32: %d MB [region 1]\n",
+           qxl->vram32_size / (1024*1024));
+    dprint(qxl, 1, "vram/64: %d MB %s\n",
+           qxl->vram_size / (1024*1024),
+           qxl->vram32_size < qxl->vram_size ? "[region 4]" : "[unmapped]");
 
     qxl->ssd.qxl.base.sif = &qxl_interface.base;
     qxl->ssd.qxl.id = qxl->id;
@@ -1917,7 +1953,7 @@ static VMStateDescription qxl_vmstate = {
 static Property qxl_properties[] = {
         DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
                            64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size,
+        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram32_size,
                            64 * 1024 * 1024),
         DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
                            QXL_DEFAULT_REVISION),
@@ -1925,7 +1961,8 @@ static Property qxl_properties[] = {
         DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
         DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
         DEFINE_PROP_UINT32("ram_size_mb",  PCIQXLDevice, ram_size_mb, -1),
-        DEFINE_PROP_UINT32("vram_size_mb", PCIQXLDevice, vram_size_mb, -1),
+        DEFINE_PROP_UINT32("vram_size_mb", PCIQXLDevice, vram32_size_mb, 0),
+        DEFINE_PROP_UINT32("vram64_size_mb", PCIQXLDevice, vram_size_mb, 0),
         DEFINE_PROP_END_OF_LIST(),
 };
 
