@@ -2800,14 +2800,12 @@ int main(int argc, char **argv, char **envp)
 
                 if (qemu_opt_get(opts, "fsdriver") == NULL ||
                         qemu_opt_get(opts, "mount_tag") == NULL ||
-                        qemu_opt_get(opts, "path") == NULL ||
-                        qemu_opt_get(opts, "security_model") == NULL) {
+                        qemu_opt_get(opts, "path") == NULL) {
                     fprintf(stderr, "Usage: -virtfs fsdriver,path=/share_path/,"
-                            "security_model=[mapped|passthrough|none],"
+                            "[security_model={mapped|passthrough|none}],"
                             "mount_tag=tag.\n");
                     exit(1);
                 }
-
                 fsdev = qemu_opts_create(qemu_find_opts("fsdev"),
                                          qemu_opt_get(opts, "mount_tag"), 1);
                 if (!fsdev) {

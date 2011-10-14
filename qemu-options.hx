@@ -527,13 +527,13 @@ DEFHEADING()
 DEFHEADING(File system options:)
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
-    "-fsdev fsdriver,id=id,path=path,security_model=[mapped|passthrough|none]\n"
+    "-fsdev fsdriver,id=id,path=path,[security_model={mapped|passthrough|none}]\n"
     "       [,writeout=immediate]\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -fsdev @var{fsdriver},id=@var{id},path=@var{path},security_model=@var{security_model}[,writeout=@var{writeout}]
+@item -fsdev @var{fsdriver},id=@var{id},path=@var{path},[security_model=@var{security_model}][,writeout=@var{writeout}]
 @findex -fsdev
 Define a new file system device. Valid options are:
 @table @option
@@ -555,7 +555,9 @@ attributes like uid, gid, mode bits and link target are stored as
 file attributes. Directories exported by this security model cannot
 interact with other unix tools. "none" security model is same as
 passthrough except the sever won't report failures if it fails to
-set file attributes like ownership.
+set file attributes like ownership. Security model is mandatory
+only for local fsdriver. Other fsdrivers (like handle) don't take
+security model as a parameter.
 @item writeout=@var{writeout}
 This is an optional argument. The only supported value is "immediate".
 This means that host page cache will be used to read and write data but
@@ -609,7 +611,9 @@ attributes like uid, gid, mode bits and link target are stored as
 file attributes. Directories exported by this security model cannot
 interact with other unix tools. "none" security model is same as
 passthrough except the sever won't report failures if it fails to
-set file attributes like ownership.
+set file attributes like ownership. Security model is mandatory only
+for local fsdriver. Other fsdrivers (like handle) don't take security
+model as a parameter.
 @item writeout=@var{writeout}
 This is an optional argument. The only supported value is "immediate".
 This means that host page cache will be used to read and write data but
