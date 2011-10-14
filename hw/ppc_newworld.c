@@ -84,12 +84,13 @@
 #endif
 
 /* UniN device */
-static void unin_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void unin_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+                       unsigned size)
 {
-    UNIN_DPRINTF("writel addr " TARGET_FMT_plx " val %x\n", addr, value);
+    UNIN_DPRINTF("write addr " TARGET_FMT_plx " val %"PRIx64"\n", addr, value);
 }
 
-static uint32_t unin_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t unin_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
     uint32_t value;
 
@@ -99,16 +100,10 @@ static uint32_t unin_readl (void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUWriteMemoryFunc * const unin_write[] = {
-    &unin_writel,
-    &unin_writel,
-    &unin_writel,
-};
-
-static CPUReadMemoryFunc * const unin_read[] = {
-    &unin_readl,
-    &unin_readl,
-    &unin_readl,
+static const MemoryRegionOps unin_ops = {
+    .read = unin_read,
+    .write = unin_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int fw_cfg_boot_set(void *opaque, const char *boot_device)
@@ -138,9 +133,9 @@ static void ppc_core99_init (ram_addr_t ram_size,
     CPUState *env = NULL;
     char *filename;
     qemu_irq *pic, **openpic_irqs;
-    int unin_memory;
+    MemoryRegion *unin_memory = g_new(MemoryRegion, 1);
     int linux_boot, i;
-    ram_addr_t ram_offset, bios_offset;
+    MemoryRegion *ram = g_new(MemoryRegion, 1), *bios = g_new(MemoryRegion, 1);
     target_phys_addr_t kernel_base, initrd_base, cmdline_base = 0;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
@@ -176,15 +171,16 @@ static void ppc_core99_init (ram_addr_t ram_size,
     }
 
     /* allocate RAM */
-    ram_offset = qemu_ram_alloc(NULL, "ppc_core99.ram", ram_size);
-    cpu_register_physical_memory(0, ram_size, ram_offset);
+    memory_region_init_ram(ram, NULL, "ppc_core99.ram", ram_size);
+    memory_region_add_subregion(get_system_memory(), 0, ram);
 
     /* allocate and load BIOS */
-    bios_offset = qemu_ram_alloc(NULL, "ppc_core99.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, NULL, "ppc_core99.bios", BIOS_SIZE);
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    cpu_register_physical_memory(PROM_ADDR, BIOS_SIZE, bios_offset | IO_MEM_ROM);
+    memory_region_set_readonly(bios, true);
+    memory_region_add_subregion(get_system_memory(), PROM_ADDR, bios);
 
     /* Load OpenBIOS (ELF) */
     if (filename) {
@@ -267,9 +263,8 @@ static void ppc_core99_init (ram_addr_t ram_size,
     isa_mmio_init(0xf2000000, 0x00800000);
 
     /* UniN init */
-    unin_memory = cpu_register_io_memory(unin_read, unin_write, NULL,
-                                         DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(0xf8000000, 0x00001000, unin_memory);
+    memory_region_init_io(unin_memory, &unin_ops, NULL, "unin", 0x1000);
+    memory_region_add_subregion(get_system_memory(), 0xf8000000, unin_memory);
 
     openpic_irqs = g_malloc0(smp_cpus * sizeof(qemu_irq *));
     openpic_irqs[0] =

@@ -149,8 +149,8 @@ petalogix_ml605_init(ram_addr_t ram_size,
     DriveInfo *dinfo;
     int i;
     target_phys_addr_t ddr_base = MEMORY_BASEADDR;
-    ram_addr_t phys_lmb_bram;
-    ram_addr_t phys_ram;
+    MemoryRegion *phys_lmb_bram = g_new(MemoryRegion, 1);
+    MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
     qemu_irq irq[32], *cpu_irq;
 
     /* init CPUs */
@@ -162,13 +162,12 @@ petalogix_ml605_init(ram_addr_t ram_size,
     qemu_register_reset(main_cpu_reset, env);
 
     /* Attach emulated BRAM through the LMB.  */
-    phys_lmb_bram = qemu_ram_alloc(NULL, "petalogix_ml605.lmb_bram",
-                                   LMB_BRAM_SIZE);
-    cpu_register_physical_memory(0x00000000, LMB_BRAM_SIZE,
-                                 phys_lmb_bram | IO_MEM_RAM);
+    memory_region_init_ram(phys_lmb_bram, NULL, "petalogix_ml605.lmb_bram",
+                           LMB_BRAM_SIZE);
+    memory_region_add_subregion(address_space_mem, 0x00000000, phys_lmb_bram);
 
-    phys_ram = qemu_ram_alloc(NULL, "petalogix_ml605.ram", ram_size);
-    cpu_register_physical_memory(ddr_base, ram_size, phys_ram | IO_MEM_RAM);
+    memory_region_init_ram(phys_ram, NULL, "petalogix_ml605.ram", ram_size);
+    memory_region_add_subregion(address_space_mem, ddr_base, phys_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     /* 5th parameter 2 means bank-width

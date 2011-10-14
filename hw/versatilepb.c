@@ -181,6 +181,7 @@ static void versatile_init(ram_addr_t ram_size,
     qemu_irq pic[32];
     qemu_irq sic[32];
     DeviceState *dev, *sysctl;
+    SysBusDevice *busdev;
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
@@ -219,8 +220,15 @@ static void versatile_init(ram_addr_t ram_size,
     sysbus_create_simple("pl050_keyboard", 0x10006000, sic[3]);
     sysbus_create_simple("pl050_mouse", 0x10007000, sic[4]);
 
-    dev = sysbus_create_varargs("versatile_pci", 0x40000000,
-                                sic[27], sic[28], sic[29], sic[30], NULL);
+    dev = qdev_create(NULL, "versatile_pci");
+    busdev = sysbus_from_qdev(dev);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(busdev, 0, 0x41000000); /* PCI self-config */
+    sysbus_mmio_map(busdev, 1, 0x42000000); /* PCI config */
+    sysbus_connect_irq(busdev, 0, sic[27]);
+    sysbus_connect_irq(busdev, 1, sic[28]);
+    sysbus_connect_irq(busdev, 2, sic[29]);
+    sysbus_connect_irq(busdev, 3, sic[30]);
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
 
     /* The Versatile PCI bridge does not provide access to PCI IO space,

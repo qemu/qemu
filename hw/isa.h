@@ -13,12 +13,9 @@ typedef struct ISADeviceInfo ISADeviceInfo;
 
 struct ISADevice {
     DeviceState qdev;
-    MemoryRegion *io[32];
     uint32_t isairq[2];
-    uint16_t ioports[32];
     int nirqs;
-    int nioports;
-    int nio;
+    int ioport_id;
 };
 
 typedef int (*isa_qdev_initfn)(ISADevice *dev);
@@ -31,14 +28,41 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io);
 void isa_bus_irqs(qemu_irq *irqs);
 qemu_irq isa_get_irq(int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq);
-void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start);
-void isa_init_ioport(ISADevice *dev, uint16_t ioport);
-void isa_init_ioport_range(ISADevice *dev, uint16_t start, uint16_t length);
 void isa_qdev_register(ISADeviceInfo *info);
 MemoryRegion *isa_address_space(ISADevice *dev);
 ISADevice *isa_create(const char *name);
 ISADevice *isa_try_create(const char *name);
 ISADevice *isa_create_simple(const char *name);
+
+/**
+ * isa_register_ioport: Install an I/O port region on the ISA bus.
+ *
+ * Register an I/O port region via memory_region_add_subregion
+ * inside the ISA I/O address space.
+ *
+ * @dev: the ISADevice against which these are registered; may be NULL.
+ * @io: the #MemoryRegion being registered.
+ * @start: the base I/O port.
+ */
+void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start);
+
+/**
+ * isa_register_portio_list: Initialize a set of ISA io ports
+ *
+ * Several ISA devices have many dis-joint I/O ports.  Worse, these I/O
+ * ports can be interleaved with I/O ports from other devices.  This
+ * function makes it easy to create multiple MemoryRegions for a single
+ * device and use the legacy portio routines.
+ *
+ * @dev: the ISADevice against which these are registered; may be NULL.
+ * @start: the base I/O port against which the portio->offset is applied.
+ * @portio: the ports, sorted by offset.
+ * @opaque: passed into the old_portio callbacks.
+ * @name: passed into memory_region_init_io.
+ */
+void isa_register_portio_list(ISADevice *dev, uint16_t start,
+                              const MemoryRegionPortio *portio,
+                              void *opaque, const char *name);
 
 extern target_phys_addr_t isa_mem_base;
 

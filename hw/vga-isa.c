@@ -47,24 +47,19 @@ static int vga_initfn(ISADevice *dev)
     ISAVGAState *d = DO_UPCAST(ISAVGAState, dev, dev);
     VGACommonState *s = &d->state;
     MemoryRegion *vga_io_memory;
+    const MemoryRegionPortio *vga_ports, *vbe_ports;
 
     vga_common_init(s, VGA_RAM_SIZE);
     s->legacy_address_space = isa_address_space(dev);
-    vga_io_memory = vga_init_io(s);
+    vga_io_memory = vga_init_io(s, &vga_ports, &vbe_ports);
+    isa_register_portio_list(dev, 0x3b0, vga_ports, s, "vga");
+    if (vbe_ports) {
+        isa_register_portio_list(dev, 0x1ce, vbe_ports, s, "vbe");
+    }
     memory_region_add_subregion_overlap(isa_address_space(dev),
                                         isa_mem_base + 0x000a0000,
                                         vga_io_memory, 1);
     memory_region_set_coalescing(vga_io_memory);
-    isa_init_ioport(dev, 0x3c0);
-    isa_init_ioport(dev, 0x3b4);
-    isa_init_ioport(dev, 0x3ba);
-    isa_init_ioport(dev, 0x3da);
-    isa_init_ioport(dev, 0x3c0);
-#ifdef CONFIG_BOCHS_VBE
-    isa_init_ioport(dev, 0x1ce);
-    isa_init_ioport(dev, 0x1cf);
-    isa_init_ioport(dev, 0x1d0);
-#endif /* CONFIG_BOCHS_VBE */
     s->ds = graphic_console_init(s->update, s->invalidate,
                                  s->screen_dump, s->text_update, s);
 

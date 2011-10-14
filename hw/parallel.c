@@ -448,6 +448,29 @@ static void parallel_reset(void *opaque)
 
 static const int isa_parallel_io[MAX_PARALLEL_PORTS] = { 0x378, 0x278, 0x3bc };
 
+static const MemoryRegionPortio isa_parallel_portio_hw_list[] = {
+    { 0, 8, 1,
+      .read = parallel_ioport_read_hw,
+      .write = parallel_ioport_write_hw },
+    { 4, 1, 2,
+      .read = parallel_ioport_eppdata_read_hw2,
+      .write = parallel_ioport_eppdata_write_hw2 },
+    { 4, 1, 4,
+      .read = parallel_ioport_eppdata_read_hw4,
+      .write = parallel_ioport_eppdata_write_hw4 },
+    { 0x400, 8, 1,
+      .read = parallel_ioport_ecp_read,
+      .write = parallel_ioport_ecp_write },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionPortio isa_parallel_portio_sw_list[] = {
+    { 0, 8, 1,
+      .read = parallel_ioport_read_sw,
+      .write = parallel_ioport_write_sw },
+    PORTIO_END_OF_LIST(),
+};
+
 static int parallel_isa_initfn(ISADevice *dev)
 {
     static int index;
@@ -478,25 +501,11 @@ static int parallel_isa_initfn(ISADevice *dev)
         s->status = dummy;
     }
 
-    if (s->hw_driver) {
-        register_ioport_write(base, 8, 1, parallel_ioport_write_hw, s);
-        register_ioport_read(base, 8, 1, parallel_ioport_read_hw, s);
-        isa_init_ioport_range(dev, base, 8);
-
-        register_ioport_write(base+4, 1, 2, parallel_ioport_eppdata_write_hw2, s);
-        register_ioport_read(base+4, 1, 2, parallel_ioport_eppdata_read_hw2, s);
-        register_ioport_write(base+4, 1, 4, parallel_ioport_eppdata_write_hw4, s);
-        register_ioport_read(base+4, 1, 4, parallel_ioport_eppdata_read_hw4, s);
-        isa_init_ioport(dev, base+4);
-        register_ioport_write(base+0x400, 8, 1, parallel_ioport_ecp_write, s);
-        register_ioport_read(base+0x400, 8, 1, parallel_ioport_ecp_read, s);
-        isa_init_ioport_range(dev, base+0x400, 8);
-    }
-    else {
-        register_ioport_write(base, 8, 1, parallel_ioport_write_sw, s);
-        register_ioport_read(base, 8, 1, parallel_ioport_read_sw, s);
-        isa_init_ioport_range(dev, base, 8);
-    }
+    isa_register_portio_list(dev, base,
+                             (s->hw_driver
+                              ? &isa_parallel_portio_hw_list[0]
+                              : &isa_parallel_portio_sw_list[0]),
+                             s, "parallel");
     return 0;
 }
 

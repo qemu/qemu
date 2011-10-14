@@ -38,6 +38,7 @@
 typedef struct _VMPortState
 {
     ISADevice dev;
+    MemoryRegion io;
     IOPortReadFunc *func[VMPORT_ENTRIES];
     void *opaque[VMPORT_ENTRIES];
 } VMPortState;
@@ -120,13 +121,22 @@ void vmmouse_set_data(const uint32_t *data)
     env->regs[R_ESI] = data[4]; env->regs[R_EDI] = data[5];
 }
 
+static const MemoryRegionPortio vmport_portio[] = {
+    {0, 1, 4, .read = vmport_ioport_read, .write = vmport_ioport_write },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionOps vmport_ops = {
+    .old_portio = vmport_portio
+};
+
 static int vmport_initfn(ISADevice *dev)
 {
     VMPortState *s = DO_UPCAST(VMPortState, dev, dev);
 
-    register_ioport_read(0x5658, 1, 4, vmport_ioport_read, s);
-    register_ioport_write(0x5658, 1, 4, vmport_ioport_write, s);
-    isa_init_ioport(dev, 0x5658);
+    memory_region_init_io(&s->io, &vmport_ops, s, "vmport", 1);
+    isa_register_ioport(dev, &s->io, 0x5658);
+
     port_state = s;
     /* Register some generic port commands */
     vmport_register(VMPORT_CMD_GETVERSION, vmport_cmd_get_version, NULL);

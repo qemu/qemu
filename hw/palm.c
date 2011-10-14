@@ -54,16 +54,12 @@ static void static_write(void *opaque, target_phys_addr_t offset,
 #endif
 }
 
-static CPUReadMemoryFunc * const static_readfn[] = {
-    static_readb,
-    static_readh,
-    static_readw,
-};
-
-static CPUWriteMemoryFunc * const static_writefn[] = {
-    static_write,
-    static_write,
-    static_write,
+static const MemoryRegionOps static_ops = {
+    .old_mmio = {
+        .read = { static_readb, static_readh, static_readw, },
+        .write = { static_write, static_write, static_write, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* Palm Tunsgten|E support */
@@ -203,34 +199,35 @@ static void palmte_init(ram_addr_t ram_size,
     struct omap_mpu_state_s *cpu;
     int flash_size = 0x00800000;
     int sdram_size = palmte_binfo.ram_size;
-    int io;
     static uint32_t cs0val = 0xffffffff;
     static uint32_t cs1val = 0x0000e1a0;
     static uint32_t cs2val = 0x0000e1a0;
     static uint32_t cs3val = 0xe1a0e1a0;
     int rom_size, rom_loaded = 0;
     DisplayState *ds = get_displaystate();
+    MemoryRegion *flash = g_new(MemoryRegion, 1);
+    MemoryRegion *cs = g_new(MemoryRegion, 4);
 
     cpu = omap310_mpu_init(address_space_mem, sdram_size, cpu_model);
 
     /* External Flash (EMIFS) */
-    cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,
-                                 qemu_ram_alloc(NULL, "palmte.flash",
-                                                flash_size) | IO_MEM_ROM);
+    memory_region_init_ram(flash, NULL, "palmte.flash", flash_size);
+    memory_region_set_readonly(flash, true);
+    memory_region_add_subregion(address_space_mem, OMAP_CS0_BASE, flash);
 
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(OMAP_CS0_BASE + flash_size,
-                    OMAP_CS0_SIZE - flash_size, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs1val,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(OMAP_CS1_BASE, OMAP_CS1_SIZE, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs2val,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(OMAP_CS2_BASE, OMAP_CS2_SIZE, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs3val,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(OMAP_CS3_BASE, OMAP_CS3_SIZE, io);
+    memory_region_init_io(&cs[0], &static_ops, &cs0val, "palmte-cs0",
+                          OMAP_CS0_SIZE - flash_size);
+    memory_region_add_subregion(address_space_mem, OMAP_CS0_BASE + flash_size,
+                                &cs[0]);
+    memory_region_init_io(&cs[1], &static_ops, &cs1val, "palmte-cs1",
+                          OMAP_CS1_SIZE);
+    memory_region_add_subregion(address_space_mem, OMAP_CS1_BASE, &cs[1]);
+    memory_region_init_io(&cs[2], &static_ops, &cs2val, "palmte-cs2",
+                          OMAP_CS2_SIZE);
+    memory_region_add_subregion(address_space_mem, OMAP_CS2_BASE, &cs[2]);
+    memory_region_init_io(&cs[3], &static_ops, &cs3val, "palmte-cs3",
+                          OMAP_CS3_SIZE);
+    memory_region_add_subregion(address_space_mem, OMAP_CS3_BASE, &cs[3]);
 
     palmte_microwire_setup(cpu);
 
