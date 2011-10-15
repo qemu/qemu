@@ -1627,6 +1627,305 @@ static inline void gen_clear_float_exceptions(void)
     gen_helper_clear_float_exceptions(cpu_env);
 }
 
+static inline void gen_fop_FF(DisasContext *dc, int rd, int rs,
+                              void (*gen)(TCGv_i32, TCGv_ptr, TCGv_i32))
+{
+    TCGv_i32 dst, src;
+
+    gen_clear_float_exceptions();
+    src = gen_load_fpr_F(dc, rs);
+    dst = gen_dest_fpr_F();
+
+    gen(dst, cpu_env, src);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_store_fpr_F(dc, rd, dst);
+}
+
+static inline void gen_ne_fop_FF(DisasContext *dc, int rd, int rs,
+                                 void (*gen)(TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 dst, src;
+
+    src = gen_load_fpr_F(dc, rs);
+    dst = gen_dest_fpr_F();
+
+    gen(dst, src);
+
+    gen_store_fpr_F(dc, rd, dst);
+}
+
+static inline void gen_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
+                        void (*gen)(TCGv_i32, TCGv_ptr, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 dst, src1, src2;
+
+    gen_clear_float_exceptions();
+    src1 = gen_load_fpr_F(dc, rs1);
+    src2 = gen_load_fpr_F(dc, rs2);
+    dst = gen_dest_fpr_F();
+
+    gen(dst, cpu_env, src1, src2);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_store_fpr_F(dc, rd, dst);
+}
+
+#ifdef TARGET_SPARC64
+static inline void gen_ne_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
+                                  void (*gen)(TCGv_i32, TCGv_i32, TCGv_i32))
+{
+    TCGv_i32 dst, src1, src2;
+
+    src1 = gen_load_fpr_F(dc, rs1);
+    src2 = gen_load_fpr_F(dc, rs2);
+    dst = gen_dest_fpr_F();
+
+    gen(dst, src1, src2);
+
+    gen_store_fpr_F(dc, rd, dst);
+}
+#endif
+
+static inline void gen_fop_DD(DisasContext *dc, int rd, int rs,
+                              void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i64))
+{
+    TCGv_i64 dst, src;
+
+    gen_clear_float_exceptions();
+    src = gen_load_fpr_D(dc, rs);
+    dst = gen_dest_fpr_D();
+
+    gen(dst, cpu_env, src);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_store_fpr_D(dc, rd, dst);
+}
+
+#ifdef TARGET_SPARC64
+static inline void gen_ne_fop_DD(DisasContext *dc, int rd, int rs,
+                                 void (*gen)(TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 dst, src;
+
+    src = gen_load_fpr_D(dc, rs);
+    dst = gen_dest_fpr_D();
+
+    gen(dst, src);
+
+    gen_store_fpr_D(dc, rd, dst);
+}
+#endif
+
+static inline void gen_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
+                        void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 dst, src1, src2;
+
+    gen_clear_float_exceptions();
+    src1 = gen_load_fpr_D(dc, rs1);
+    src2 = gen_load_fpr_D(dc, rs2);
+    dst = gen_dest_fpr_D();
+
+    gen(dst, cpu_env, src1, src2);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_store_fpr_D(dc, rd, dst);
+}
+
+#ifdef TARGET_SPARC64
+static inline void gen_ne_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
+                                  void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 dst, src1, src2;
+
+    src1 = gen_load_fpr_D(dc, rs1);
+    src2 = gen_load_fpr_D(dc, rs2);
+    dst = gen_dest_fpr_D();
+
+    gen(dst, src1, src2);
+
+    gen_store_fpr_D(dc, rd, dst);
+}
+#endif
+
+static inline void gen_fop_QQ(DisasContext *dc, int rd, int rs,
+                              void (*gen)(TCGv_ptr))
+{
+    gen_clear_float_exceptions();
+    gen_op_load_fpr_QT1(QFPREG(rs));
+
+    gen(cpu_env);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_op_store_QT0_fpr(QFPREG(rd));
+    gen_update_fprs_dirty(QFPREG(rd));
+}
+
+#ifdef TARGET_SPARC64
+static inline void gen_ne_fop_QQ(DisasContext *dc, int rd, int rs,
+                                 void (*gen)(TCGv_ptr))
+{
+    gen_op_load_fpr_QT1(QFPREG(rs));
+
+    gen(cpu_env);
+
+    gen_op_store_QT0_fpr(QFPREG(rd));
+    gen_update_fprs_dirty(QFPREG(rd));
+}
+#endif
+
+static inline void gen_fop_QQQ(DisasContext *dc, int rd, int rs1, int rs2,
+                               void (*gen)(TCGv_ptr))
+{
+    gen_clear_float_exceptions();
+    gen_op_load_fpr_QT0(QFPREG(rs1));
+    gen_op_load_fpr_QT1(QFPREG(rs2));
+
+    gen(cpu_env);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_op_store_QT0_fpr(QFPREG(rd));
+    gen_update_fprs_dirty(QFPREG(rd));
+}
+
+static inline void gen_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
+                        void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i32, TCGv_i32))
+{
+    TCGv_i64 dst;
+    TCGv_i32 src1, src2;
+
+    gen_clear_float_exceptions();
+    src1 = gen_load_fpr_F(dc, rs1);
+    src2 = gen_load_fpr_F(dc, rs2);
+    dst = gen_dest_fpr_D();
+
+    gen(dst, cpu_env, src1, src2);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_store_fpr_D(dc, rd, dst);
+}
+
+static inline void gen_fop_QDD(DisasContext *dc, int rd, int rs1, int rs2,
+                               void (*gen)(TCGv_ptr, TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 src1, src2;
+
+    gen_clear_float_exceptions();
+    src1 = gen_load_fpr_D(dc, rs1);
+    src2 = gen_load_fpr_D(dc, rs2);
+
+    gen(cpu_env, src1, src2);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_op_store_QT0_fpr(QFPREG(rd));
+    gen_update_fprs_dirty(QFPREG(rd));
+}
+
+#ifdef TARGET_SPARC64
+static inline void gen_fop_DF(DisasContext *dc, int rd, int rs,
+                              void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i32))
+{
+    TCGv_i64 dst;
+    TCGv_i32 src;
+
+    gen_clear_float_exceptions();
+    src = gen_load_fpr_F(dc, rs);
+    dst = gen_dest_fpr_D();
+
+    gen(dst, cpu_env, src);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_store_fpr_D(dc, rd, dst);
+}
+#endif
+
+static inline void gen_ne_fop_DF(DisasContext *dc, int rd, int rs,
+                                 void (*gen)(TCGv_i64, TCGv_ptr, TCGv_i32))
+{
+    TCGv_i64 dst;
+    TCGv_i32 src;
+
+    src = gen_load_fpr_F(dc, rs);
+    dst = gen_dest_fpr_D();
+
+    gen(dst, cpu_env, src);
+
+    gen_store_fpr_D(dc, rd, dst);
+}
+
+static inline void gen_fop_FD(DisasContext *dc, int rd, int rs,
+                              void (*gen)(TCGv_i32, TCGv_ptr, TCGv_i64))
+{
+    TCGv_i32 dst;
+    TCGv_i64 src;
+
+    gen_clear_float_exceptions();
+    src = gen_load_fpr_D(dc, rs);
+    dst = gen_dest_fpr_F();
+
+    gen(dst, cpu_env, src);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_store_fpr_F(dc, rd, dst);
+}
+
+static inline void gen_fop_FQ(DisasContext *dc, int rd, int rs,
+                              void (*gen)(TCGv_i32, TCGv_ptr))
+{
+    TCGv_i32 dst;
+
+    gen_clear_float_exceptions();
+    gen_op_load_fpr_QT1(QFPREG(rs));
+    dst = gen_dest_fpr_F();
+
+    gen(dst, cpu_env);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_store_fpr_F(dc, rd, dst);
+}
+
+static inline void gen_fop_DQ(DisasContext *dc, int rd, int rs,
+                              void (*gen)(TCGv_i64, TCGv_ptr))
+{
+    TCGv_i64 dst;
+
+    gen_clear_float_exceptions();
+    gen_op_load_fpr_QT1(QFPREG(rs));
+    dst = gen_dest_fpr_D();
+
+    gen(dst, cpu_env);
+
+    gen_helper_check_ieee_exceptions(cpu_env);
+    gen_store_fpr_D(dc, rd, dst);
+}
+
+static inline void gen_ne_fop_QF(DisasContext *dc, int rd, int rs,
+                                 void (*gen)(TCGv_ptr, TCGv_i32))
+{
+    TCGv_i32 src;
+
+    src = gen_load_fpr_F(dc, rs);
+
+    gen(cpu_env, src);
+
+    gen_op_store_QT0_fpr(QFPREG(rd));
+    gen_update_fprs_dirty(QFPREG(rd));
+}
+
+static inline void gen_ne_fop_QD(DisasContext *dc, int rd, int rs,
+                                 void (*gen)(TCGv_ptr, TCGv_i64))
+{
+    TCGv_i64 src;
+
+    src = gen_load_fpr_D(dc, rs);
+
+    gen(cpu_env, src);
+
+    gen_op_store_QT0_fpr(QFPREG(rd));
+    gen_update_fprs_dirty(QFPREG(rd));
+}
+
 /* asi moves */
 #ifdef TARGET_SPARC64
 static inline TCGv_i32 gen_get_asi(int insn, TCGv r_addr)
@@ -2415,279 +2714,115 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_store_fpr_F(dc, rd, cpu_src1_32);
                     break;
                 case 0x5: /* fnegs */
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fnegs(cpu_dst_32, cpu_src1_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FF(dc, rd, rs2, gen_helper_fnegs);
                     break;
                 case 0x9: /* fabss */
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fabss(cpu_dst_32, cpu_src1_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FF(dc, rd, rs2, gen_helper_fabss);
                     break;
                 case 0x29: /* fsqrts */
                     CHECK_FPU_FEATURE(dc, FSQRT);
-                    gen_clear_float_exceptions();
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fsqrts(cpu_dst_32, cpu_env, cpu_src1_32);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FF(dc, rd, rs2, gen_helper_fsqrts);
                     break;
                 case 0x2a: /* fsqrtd */
                     CHECK_FPU_FEATURE(dc, FSQRT);
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fsqrtd(cpu_dst_64, cpu_env, cpu_src1_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DD(dc, rd, rs2, gen_helper_fsqrtd);
                     break;
                 case 0x2b: /* fsqrtq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_clear_float_exceptions();
-                    gen_helper_fsqrtq(cpu_env);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_fop_QQ(dc, rd, rs2, gen_helper_fsqrtq);
                     break;
                 case 0x41: /* fadds */
-                    gen_clear_float_exceptions();
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fadds(cpu_dst_32, cpu_env,
-                                     cpu_src1_32, cpu_src2_32);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FFF(dc, rd, rs1, rs2, gen_helper_fadds);
                     break;
                 case 0x42: /* faddd */
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_faddd(cpu_dst_64, cpu_env,
-                                     cpu_src1_64, cpu_src2_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DDD(dc, rd, rs1, rs2, gen_helper_faddd);
                     break;
                 case 0x43: /* faddq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_op_load_fpr_QT0(QFPREG(rs1));
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_clear_float_exceptions();
-                    gen_helper_faddq(cpu_env);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_fop_QQQ(dc, rd, rs1, rs2, gen_helper_faddq);
                     break;
                 case 0x45: /* fsubs */
-                    gen_clear_float_exceptions();
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fsubs(cpu_dst_32, cpu_env,
-                                     cpu_src1_32, cpu_src2_32);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FFF(dc, rd, rs1, rs2, gen_helper_fsubs);
                     break;
                 case 0x46: /* fsubd */
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fsubd(cpu_dst_64, cpu_env,
-                                     cpu_src1_64, cpu_src2_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DDD(dc, rd, rs1, rs2, gen_helper_fsubd);
                     break;
                 case 0x47: /* fsubq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_op_load_fpr_QT0(QFPREG(rs1));
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_clear_float_exceptions();
-                    gen_helper_fsubq(cpu_env);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_fop_QQQ(dc, rd, rs1, rs2, gen_helper_fsubq);
                     break;
                 case 0x49: /* fmuls */
                     CHECK_FPU_FEATURE(dc, FMUL);
-                    gen_clear_float_exceptions();
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fmuls(cpu_dst_32, cpu_env,
-                                     cpu_src1_32, cpu_src2_32);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FFF(dc, rd, rs1, rs2, gen_helper_fmuls);
                     break;
                 case 0x4a: /* fmuld */
                     CHECK_FPU_FEATURE(dc, FMUL);
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmuld(cpu_dst_64, cpu_env,
-                                     cpu_src1_64, cpu_src2_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmuld);
                     break;
                 case 0x4b: /* fmulq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     CHECK_FPU_FEATURE(dc, FMUL);
-                    gen_op_load_fpr_QT0(QFPREG(rs1));
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_clear_float_exceptions();
-                    gen_helper_fmulq(cpu_env);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_fop_QQQ(dc, rd, rs1, rs2, gen_helper_fmulq);
                     break;
                 case 0x4d: /* fdivs */
-                    gen_clear_float_exceptions();
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fdivs(cpu_dst_32, cpu_env,
-                                     cpu_src1_32, cpu_src2_32);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FFF(dc, rd, rs1, rs2, gen_helper_fdivs);
                     break;
                 case 0x4e: /* fdivd */
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fdivd(cpu_dst_64, cpu_env,
-                                     cpu_src1_64, cpu_src2_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DDD(dc, rd, rs1, rs2, gen_helper_fdivd);
                     break;
                 case 0x4f: /* fdivq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_op_load_fpr_QT0(QFPREG(rs1));
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_clear_float_exceptions();
-                    gen_helper_fdivq(cpu_env);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_fop_QQQ(dc, rd, rs1, rs2, gen_helper_fdivq);
                     break;
                 case 0x69: /* fsmuld */
                     CHECK_FPU_FEATURE(dc, FSMULD);
-                    gen_clear_float_exceptions();
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fsmuld(cpu_dst_64, cpu_env,
-                                      cpu_src1_32, cpu_src2_32);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DFF(dc, rd, rs1, rs2, gen_helper_fsmuld);
                     break;
                 case 0x6e: /* fdmulq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fdmulq(cpu_env, cpu_src1_64, cpu_src2_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_fop_QDD(dc, rd, rs1, rs2, gen_helper_fdmulq);
                     break;
                 case 0xc4: /* fitos */
-                    gen_clear_float_exceptions();
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fitos(cpu_dst_32, cpu_env, cpu_src1_32);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FF(dc, rd, rs2, gen_helper_fitos);
                     break;
                 case 0xc6: /* fdtos */
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fdtos(cpu_dst_32, cpu_env, cpu_src1_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FD(dc, rd, rs2, gen_helper_fdtos);
                     break;
                 case 0xc7: /* fqtos */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_clear_float_exceptions();
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fqtos(cpu_dst_32, cpu_env);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FQ(dc, rd, rs2, gen_helper_fqtos);
                     break;
                 case 0xc8: /* fitod */
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fitod(cpu_dst_64, cpu_env, cpu_src1_32);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DF(dc, rd, rs2, gen_helper_fitod);
                     break;
                 case 0xc9: /* fstod */
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fstod(cpu_dst_64, cpu_env, cpu_src1_32);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DF(dc, rd, rs2, gen_helper_fstod);
                     break;
                 case 0xcb: /* fqtod */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_clear_float_exceptions();
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fqtod(cpu_dst_64, cpu_env);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DQ(dc, rd, rs2, gen_helper_fqtod);
                     break;
                 case 0xcc: /* fitoq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    gen_helper_fitoq(cpu_env, cpu_src1_32);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_ne_fop_QF(dc, rd, rs2, gen_helper_fitoq);
                     break;
                 case 0xcd: /* fstoq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    gen_helper_fstoq(cpu_env, cpu_src1_32);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_ne_fop_QF(dc, rd, rs2, gen_helper_fstoq);
                     break;
                 case 0xce: /* fdtoq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fdtoq(cpu_env, cpu_src1_64);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_ne_fop_QD(dc, rd, rs2, gen_helper_fdtoq);
                     break;
                 case 0xd1: /* fstoi */
-                    gen_clear_float_exceptions();
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fstoi(cpu_dst_32, cpu_env, cpu_src1_32);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FF(dc, rd, rs2, gen_helper_fstoi);
                     break;
                 case 0xd2: /* fdtoi */
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fdtoi(cpu_dst_32, cpu_env, cpu_src1_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FD(dc, rd, rs2, gen_helper_fdtoi);
                     break;
                 case 0xd3: /* fqtoi */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_clear_float_exceptions();
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fqtoi(cpu_dst_32, cpu_env);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FQ(dc, rd, rs2, gen_helper_fqtoi);
                     break;
 #ifdef TARGET_SPARC64
                 case 0x2: /* V9 fmovd */
@@ -2707,80 +2842,38 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0x6: /* V9 fnegd */
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fnegd(cpu_dst_64, cpu_src1_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DD(dc, rd, rs2, gen_helper_fnegd);
                     break;
                 case 0x7: /* V9 fnegq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_helper_fnegq(cpu_env);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_ne_fop_QQ(dc, rd, rs2, gen_helper_fnegq);
                     break;
                 case 0xa: /* V9 fabsd */
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fabsd(cpu_dst_64, cpu_src1_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DD(dc, rd, rs2, gen_helper_fabsd);
                     break;
                 case 0xb: /* V9 fabsq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_helper_fabsq(cpu_env);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_ne_fop_QQ(dc, rd, rs2, gen_helper_fabsq);
                     break;
                 case 0x81: /* V9 fstox */
-                    gen_clear_float_exceptions();
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fstox(cpu_dst_64, cpu_env, cpu_src1_32);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DF(dc, rd, rs2, gen_helper_fstox);
                     break;
                 case 0x82: /* V9 fdtox */
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fdtox(cpu_dst_64, cpu_env, cpu_src1_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DD(dc, rd, rs2, gen_helper_fdtox);
                     break;
                 case 0x83: /* V9 fqtox */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_clear_float_exceptions();
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fqtox(cpu_dst_64, cpu_env);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DQ(dc, rd, rs2, gen_helper_fqtox);
                     break;
                 case 0x84: /* V9 fxtos */
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fxtos(cpu_dst_32, cpu_env, cpu_src1_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_fop_FD(dc, rd, rs2, gen_helper_fxtos);
                     break;
                 case 0x88: /* V9 fxtod */
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fxtod(cpu_dst_64, cpu_env, cpu_src1_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_fop_DD(dc, rd, rs2, gen_helper_fxtod);
                     break;
                 case 0x8c: /* V9 fxtoq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_clear_float_exceptions();
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fxtoq(cpu_env, cpu_src1_64);
-                    gen_helper_check_ieee_exceptions(cpu_env);
-                    gen_op_store_QT0_fpr(QFPREG(rd));
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_ne_fop_QD(dc, rd, rs2, gen_helper_fxtoq);
                     break;
 #endif
                 default:
@@ -3990,65 +4083,31 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x031: /* VIS I fmul8x16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8x16(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8x16);
                     break;
                 case 0x033: /* VIS I fmul8x16au */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8x16au(cpu_dst_64, cpu_src1_64,
-                                          cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8x16au);
                     break;
                 case 0x035: /* VIS I fmul8x16al */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8x16al(cpu_dst_64, cpu_src1_64,
-                                          cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8x16al);
                     break;
                 case 0x036: /* VIS I fmul8sux16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8sux16(cpu_dst_64, cpu_src1_64,
-                                          cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8sux16);
                     break;
                 case 0x037: /* VIS I fmul8ulx16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8ulx16(cpu_dst_64, cpu_src1_64,
-                                          cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmul8ulx16);
                     break;
                 case 0x038: /* VIS I fmuld8sux16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmuld8sux16(cpu_dst_64, cpu_src1_64,
-                                           cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmuld8sux16);
                     break;
                 case 0x039: /* VIS I fmuld8ulx16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmuld8ulx16(cpu_dst_64, cpu_src1_64,
-                                           cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmuld8ulx16);
                     break;
                 case 0x03a: /* VIS I fpack32 */
                 case 0x03b: /* VIS I fpack16 */
@@ -4067,86 +4126,46 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x04b: /* VIS I fpmerge */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpmerge(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpmerge);
                     break;
                 case 0x04c: /* VIS II bshuffle */
                     // XXX
                     goto illegal_insn;
                 case 0x04d: /* VIS I fexpand */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fexpand(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fexpand);
                     break;
                 case 0x050: /* VIS I fpadd16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpadd16(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpadd16);
                     break;
                 case 0x051: /* VIS I fpadd16s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fpadd16s(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, gen_helper_fpadd16s);
                     break;
                 case 0x052: /* VIS I fpadd32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpadd32(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpadd32);
                     break;
                 case 0x053: /* VIS I fpadd32s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_add_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_add_i32);
                     break;
                 case 0x054: /* VIS I fpsub16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpsub16(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpsub16);
                     break;
                 case 0x055: /* VIS I fpsub16s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fpsub16s(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, gen_helper_fpsub16s);
                     break;
                 case 0x056: /* VIS I fpsub32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpsub32(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpsub32);
                     break;
                 case 0x057: /* VIS I fpsub32s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_sub_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_sub_i32);
                     break;
                 case 0x060: /* VIS I fzero */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4162,143 +4181,75 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x062: /* VIS I fnor */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_nor_i64(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_nor_i64);
                     break;
                 case 0x063: /* VIS I fnors */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_nor_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_nor_i32);
                     break;
                 case 0x064: /* VIS I fandnot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_andc_i64(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_andc_i64);
                     break;
                 case 0x065: /* VIS I fandnot2s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_andc_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_andc_i32);
                     break;
                 case 0x066: /* VIS I fnot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_not_i64(cpu_dst_64, cpu_src1_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DD(dc, rd, rs2, tcg_gen_not_i64);
                     break;
                 case 0x067: /* VIS I fnot2s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_not_i32(cpu_dst_32, cpu_src1_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FF(dc, rd, rs2, tcg_gen_not_i32);
                     break;
                 case 0x068: /* VIS I fandnot1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_andc_i64(cpu_dst_64, cpu_src2_64, cpu_src1_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs2, rs1, tcg_gen_andc_i64);
                     break;
                 case 0x069: /* VIS I fandnot1s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_andc_i32(cpu_dst_32, cpu_src2_32, cpu_src1_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs2, rs1, tcg_gen_andc_i32);
                     break;
                 case 0x06a: /* VIS I fnot1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_not_i64(cpu_dst_64, cpu_src1_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DD(dc, rd, rs1, tcg_gen_not_i64);
                     break;
                 case 0x06b: /* VIS I fnot1s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_not_i32(cpu_dst_32, cpu_src1_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FF(dc, rd, rs1, tcg_gen_not_i32);
                     break;
                 case 0x06c: /* VIS I fxor */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_xor_i64(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_xor_i64);
                     break;
                 case 0x06d: /* VIS I fxors */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_xor_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_xor_i32);
                     break;
                 case 0x06e: /* VIS I fnand */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_nand_i64(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_nand_i64);
                     break;
                 case 0x06f: /* VIS I fnands */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_nand_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_nand_i32);
                     break;
                 case 0x070: /* VIS I fand */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_and_i64(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_and_i64);
                     break;
                 case 0x071: /* VIS I fands */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_and_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_and_i32);
                     break;
                 case 0x072: /* VIS I fxnor */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_eqv_i64(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_eqv_i64);
                     break;
                 case 0x073: /* VIS I fxnors */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_eqv_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_eqv_i32);
                     break;
                 case 0x074: /* VIS I fsrc1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4312,19 +4263,11 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x076: /* VIS I fornot2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_orc_i64(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_orc_i64);
                     break;
                 case 0x077: /* VIS I fornot2s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_orc_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_orc_i32);
                     break;
                 case 0x078: /* VIS I fsrc2 */
                     CHECK_FPU_FEATURE(dc, VIS1);
@@ -4338,35 +4281,19 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x07a: /* VIS I fornot1 */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_orc_i64(cpu_dst_64, cpu_src2_64, cpu_src1_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs2, rs1, tcg_gen_orc_i64);
                     break;
                 case 0x07b: /* VIS I fornot1s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_orc_i32(cpu_dst_32, cpu_src2_32, cpu_src1_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs2, rs1, tcg_gen_orc_i32);
                     break;
                 case 0x07c: /* VIS I for */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    tcg_gen_or_i64(cpu_dst_64, cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_ne_fop_DDD(dc, rd, rs1, rs2, tcg_gen_or_i64);
                     break;
                 case 0x07d: /* VIS I fors */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_32 = gen_load_fpr_F(dc, rs1);
-                    cpu_src2_32 = gen_load_fpr_F(dc, rs2);
-                    cpu_dst_32 = gen_dest_fpr_F();
-                    tcg_gen_or_i32(cpu_dst_32, cpu_src1_32, cpu_src2_32);
-                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    gen_ne_fop_FFF(dc, rd, rs1, rs2, tcg_gen_or_i32);
                     break;
                 case 0x07e: /* VIS I fone */
                     CHECK_FPU_FEATURE(dc, VIS1);
