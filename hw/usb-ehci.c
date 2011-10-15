@@ -880,6 +880,7 @@ static void ehci_reset(void *opaque)
         }
         if (devs[i] && devs[i]->attached) {
             usb_attach(&s->ports[i]);
+            usb_send_msg(devs[i], USB_MSG_RESET);
         }
     }
     ehci_queues_rip_all(s);
@@ -978,8 +979,7 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
     if (!(val & PORTSC_PRESET) &&(*portsc & PORTSC_PRESET)) {
         trace_usb_ehci_port_reset(port, 0);
         if (dev && dev->attached) {
-            usb_attach(&s->ports[port]);
-            usb_send_msg(dev, USB_MSG_RESET);
+            usb_reset(&s->ports[port]);
             *portsc &= ~PORTSC_CSC;
         }
 

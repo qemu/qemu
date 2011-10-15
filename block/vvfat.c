@@ -86,8 +86,7 @@ static inline void array_init(array_t* array,unsigned int item_size)
 
 static inline void array_free(array_t* array)
 {
-    if(array->pointer)
-        free(array->pointer);
+    g_free(array->pointer);
     array->size=array->next=0;
 }
 
@@ -169,7 +168,7 @@ static inline int array_roll(array_t* array,int index_to,int index_from,int coun
 
     memcpy(to,buf,is*count);
 
-    free(buf);
+    g_free(buf);
 
     return 0;
 }
@@ -732,7 +731,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	snprintf(buffer,length,"%s/%s",dirname,entry->d_name);
 
 	if(stat(buffer,&st)<0) {
-	    free(buffer);
+            g_free(buffer);
             continue;
 	}
 
@@ -755,7 +754,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	    direntry->begin=0; /* do that later */
         if (st.st_size > 0x7fffffff) {
 	    fprintf(stderr, "File %s is larger than 2GB\n", buffer);
-	    free(buffer);
+            g_free(buffer);
             closedir(dir);
 	    return -2;
         }
@@ -824,20 +823,6 @@ static inline off_t cluster2sector(BDRVVVFATState* s, uint32_t cluster_num)
 {
     return s->faked_sectors + s->sectors_per_cluster * cluster_num;
 }
-
-static inline uint32_t sector_offset_in_cluster(BDRVVVFATState* s,off_t sector_num)
-{
-    return (sector_num-s->first_sectors_number-2*s->sectors_per_fat)%s->sectors_per_cluster;
-}
-
-#ifdef DBG
-static direntry_t* get_direntry_for_mapping(BDRVVVFATState* s,mapping_t* mapping)
-{
-    if(mapping->mode==MODE_UNDEFINED)
-	return 0;
-    return (direntry_t*)(s->directory.pointer+sizeof(direntry_t)*mapping->dir_index);
-}
-#endif
 
 static int init_directories(BDRVVVFATState* s,
 	const char* dirname)
@@ -1138,25 +1123,6 @@ static inline mapping_t* find_mapping_for_cluster(BDRVVVFATState* s,int cluster_
     return mapping;
 }
 
-/*
- * This function simply compares path == mapping->path. Since the mappings
- * are sorted by cluster, this is expensive: O(n).
- */
-static inline mapping_t* find_mapping_for_path(BDRVVVFATState* s,
-	const char* path)
-{
-    int i;
-
-    for (i = 0; i < s->mapping.next; i++) {
-	mapping_t* mapping = array_get(&(s->mapping), i);
-	if (mapping->first_mapping_index < 0 &&
-		!strcmp(path, mapping->path))
-	    return mapping;
-    }
-
-    return NULL;
-}
-
 static int open_file(BDRVVVFATState* s,mapping_t* mapping)
 {
     if(!mapping)
@@ -1223,23 +1189,6 @@ read_cluster_directory:
 }
 
 #ifdef DEBUG
-static void hexdump(const void* address, uint32_t len)
-{
-    const unsigned char* p = address;
-    int i, j;
-
-    for (i = 0; i < len; i += 16) {
-	for (j = 0; j < 16 && i + j < len; j++)
-	    fprintf(stderr, "%02x ", p[i + j]);
-	for (; j < 16; j++)
-	    fprintf(stderr, "   ");
-	fprintf(stderr, " ");
-	for (j = 0; j < 16 && i + j < len; j++)
-	    fprintf(stderr, "%c", (p[i + j] < ' ' || p[i + j] > 0x7f) ? '.' : p[i + j]);
-	fprintf(stderr, "\n");
-    }
-}
-
 static void print_direntry(const direntry_t* direntry)
 {
     int j = 0;
@@ -1375,7 +1324,7 @@ DLOG(fprintf(stderr, "clear_commits (%d commits)\n", s->commits.next));
 	assert(commit->path || commit->action == ACTION_WRITEOUT);
 	if (commit->action != ACTION_WRITEOUT) {
 	    assert(commit->path);
-	    free(commit->path);
+            g_free(commit->path);
 	} else
 	    assert(commit->path == NULL);
     }
@@ -1741,7 +1690,7 @@ static int check_directory_consistency(BDRVVVFATState *s,
 
     long_file_name lfn;
     int path_len = strlen(path);
-    char path2[PATH_MAX];
+    char path2[PATH_MAX + 1];
 
     assert(path_len < PATH_MAX); /* len was tested before! */
     pstrcpy(path2, sizeof(path2), path);
@@ -1782,7 +1731,7 @@ DLOG(fprintf(stderr, "read cluster %d (sector %d)\n", (int)cluster_num, (int)clu
 	if (subret) {
 	    fprintf(stderr, "Error fetching direntries\n");
 	fail:
-	    free(cluster);
+            g_free(cluster);
 	    return 0;
 	}
 
@@ -1850,7 +1799,7 @@ DLOG(fprintf(stderr, "check direntry %d:\n", i); print_direntry(direntries + i))
 	cluster_num = modified_fat_get(s, cluster_num);
     } while(!fat_eof(s, cluster_num));
 
-    free(cluster);
+    g_free(cluster);
     return ret;
 }
 
@@ -1995,8 +1944,9 @@ static int remove_mapping(BDRVVVFATState* s, int mapping_index)
     mapping_t* first_mapping = array_get(&(s->mapping), 0);
 
     /* free mapping */
-    if (mapping->first_mapping_index < 0)
-	free(mapping->path);
+    if (mapping->first_mapping_index < 0) {
+        g_free(mapping->path);
+    }
 
     /* remove from s->mapping */
     array_remove(&(s->mapping), mapping_index);
@@ -2232,11 +2182,15 @@ static int commit_one_file(BDRVVVFATState* s,
     if (fd < 0) {
 	fprintf(stderr, "Could not open %s... (%s, %d)\n", mapping->path,
 		strerror(errno), errno);
+        g_free(cluster);
 	return fd;
     }
-    if (offset > 0)
-	if (lseek(fd, offset, SEEK_SET) != offset)
-	    return -3;
+    if (offset > 0) {
+        if (lseek(fd, offset, SEEK_SET) != offset) {
+            g_free(cluster);
+            return -3;
+        }
+    }
 
     while (offset < size) {
 	uint32_t c1;
@@ -2252,11 +2206,15 @@ static int commit_one_file(BDRVVVFATState* s,
 	ret = vvfat_read(s->bs, cluster2sector(s, c),
 	    (uint8_t*)cluster, (rest_size + 0x1ff) / 0x200);
 
-	if (ret < 0)
-	    return ret;
+        if (ret < 0) {
+            g_free(cluster);
+            return ret;
+        }
 
-	if (write(fd, cluster, rest_size) < 0)
-	    return -2;
+        if (write(fd, cluster, rest_size) < 0) {
+            g_free(cluster);
+            return -2;
+        }
 
 	offset += rest_size;
 	c = c1;
@@ -2265,9 +2223,11 @@ static int commit_one_file(BDRVVVFATState* s,
     if (ftruncate(fd, size)) {
         perror("ftruncate()");
         close(fd);
+        g_free(cluster);
         return -4;
     }
     close(fd);
+    g_free(cluster);
 
     return commit_mappings(s, first_cluster, dir_index);
 }
@@ -2399,7 +2359,7 @@ static int handle_renames_and_mkdirs(BDRVVVFATState* s)
 		}
 	    }
 
-	    free(old_path);
+            g_free(old_path);
 	    array_remove(&(s->commits), i);
 	    continue;
 	} else if (commit->action == ACTION_MKDIR) {
@@ -2775,7 +2735,7 @@ static int write_target_commit(BlockDriverState *bs, int64_t sector_num,
 static void write_target_close(BlockDriverState *bs) {
     BDRVVVFATState* s = *((BDRVVVFATState**) bs->opaque);
     bdrv_delete(s->qcow);
-    free(s->qcow_filename);
+    g_free(s->qcow_filename);
 }
 
 static BlockDriver vvfat_write_target = {
@@ -2836,8 +2796,7 @@ static void vvfat_close(BlockDriverState *bs)
     array_free(&(s->fat));
     array_free(&(s->directory));
     array_free(&(s->mapping));
-    if(s->cluster_buffer)
-        free(s->cluster_buffer);
+    g_free(s->cluster_buffer);
 }
 
 static BlockDriver bdrv_vvfat = {
@@ -2878,11 +2837,5 @@ static void checkpoint(void) {
     direntry = array_get(&(vvv->directory), mapping->dir_index);
     assert(!memcmp(direntry->name, "USB     H  ", 11) || direntry->name[0]==0);
 #endif
-    return;
-    /* avoid compiler warnings: */
-    hexdump(NULL, 100);
-    remove_mapping(vvv, 0);
-    print_mapping(NULL);
-    print_direntry(NULL);
 }
 #endif

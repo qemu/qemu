@@ -228,6 +228,7 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
 
         bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
         vm_stop(RUN_STATE_IO_ERROR);
+        bdrv_iostatus_set_err(s->bs, error);
     } else {
         switch (error) {
         case ENOMEM:
@@ -1260,6 +1261,7 @@ static int scsi_initfn(SCSIDevice *dev, uint8_t scsi_type)
 
     s->qdev.type = scsi_type;
     qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
+    bdrv_iostatus_enable(s->bs);
     add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, ",0");
     return 0;
 }

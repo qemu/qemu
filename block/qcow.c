@@ -596,7 +596,7 @@ static int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
     if (qiov->niov > 1) {
         qemu_vfree(orig_buf);
     }
-    free(cluster_data);
+    g_free(cluster_data);
 
     return ret;
 }

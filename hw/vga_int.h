@@ -187,8 +187,11 @@ static inline int c6_to_8(int v)
 }
 
 void vga_common_init(VGACommonState *s, int vga_ram_size);
-void vga_init(VGACommonState *s, MemoryRegion *address_space);
-MemoryRegion *vga_init_io(VGACommonState *s);
+void vga_init(VGACommonState *s, MemoryRegion *address_space,
+              MemoryRegion *address_space_io, bool init_vga_ports);
+MemoryRegion *vga_init_io(VGACommonState *s,
+                          const MemoryRegionPortio **vga_ports,
+                          const MemoryRegionPortio **vbe_ports);
 void vga_common_reset(VGACommonState *s);
 
 void vga_dirty_log_start(VGACommonState *s);

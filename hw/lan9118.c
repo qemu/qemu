@@ -152,7 +152,7 @@ typedef struct {
     NICState *nic;
     NICConf conf;
     qemu_irq irq;
-    int mmio_index;
+    MemoryRegion mmio;
     ptimer_state *timer;
 
     uint32_t irq_cfg;
@@ -895,7 +895,7 @@ static void lan9118_tick(void *opaque)
 }
 
 static void lan9118_writel(void *opaque, target_phys_addr_t offset,
-                           uint32_t val)
+                           uint64_t val, unsigned size)
 {
     lan9118_state *s = (lan9118_state *)opaque;
     offset &= 0xff;
@@ -1022,13 +1022,14 @@ static void lan9118_writel(void *opaque, target_phys_addr_t offset,
         break;
 
     default:
-        hw_error("lan9118_write: Bad reg 0x%x = %x\n", (int)offset, val);
+        hw_error("lan9118_write: Bad reg 0x%x = %x\n", (int)offset, (int)val);
         break;
     }
     lan9118_update(s);
 }
 
-static uint32_t lan9118_readl(void *opaque, target_phys_addr_t offset)
+static uint64_t lan9118_readl(void *opaque, target_phys_addr_t offset,
+                              unsigned size)
 {
     lan9118_state *s = (lan9118_state *)opaque;
 
@@ -1101,16 +1102,10 @@ static uint32_t lan9118_readl(void *opaque, target_phys_addr_t offset)
     return 0;
 }
 
-static CPUReadMemoryFunc * const lan9118_readfn[] = {
-    lan9118_readl,
-    lan9118_readl,
-    lan9118_readl
-};
-
-static CPUWriteMemoryFunc * const lan9118_writefn[] = {
-    lan9118_writel,
-    lan9118_writel,
-    lan9118_writel
+static const MemoryRegionOps lan9118_mem_ops = {
+    .read = lan9118_readl,
+    .write = lan9118_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void lan9118_cleanup(VLANClientState *nc)
@@ -1135,10 +1130,8 @@ static int lan9118_init1(SysBusDevice *dev)
     QEMUBH *bh;
     int i;
 
-    s->mmio_index = cpu_register_io_memory(lan9118_readfn,
-                                           lan9118_writefn, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x100, s->mmio_index);
+    memory_region_init_io(&s->mmio, &lan9118_mem_ops, s, "lan9118-mmio", 0x100);
+    sysbus_init_mmio_region(dev, &s->mmio);
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 

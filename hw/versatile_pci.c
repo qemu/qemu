@@ -58,38 +58,6 @@ static void pci_vpb_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-
-static void pci_vpb_map(SysBusDevice *dev, target_phys_addr_t base)
-{
-    PCIVPBState *s = (PCIVPBState *)dev;
-    /* Selfconfig area.  */
-    memory_region_add_subregion(get_system_memory(), base + 0x01000000,
-                                &s->mem_config);
-    /* Normal config area.  */
-    memory_region_add_subregion(get_system_memory(), base + 0x02000000,
-                                &s->mem_config2);
-
-    if (s->realview) {
-        /* IO memory area.  */
-        memory_region_add_subregion(get_system_memory(), base + 0x03000000,
-                                    &s->isa);
-    }
-}
-
-static void pci_vpb_unmap(SysBusDevice *dev, target_phys_addr_t base)
-{
-    PCIVPBState *s = (PCIVPBState *)dev;
-    /* Selfconfig area.  */
-    memory_region_del_subregion(get_system_memory(), &s->mem_config);
-    /* Normal config area.  */
-    memory_region_del_subregion(get_system_memory(), &s->mem_config2);
-
-    if (s->realview) {
-        /* IO memory area.  */
-        memory_region_del_subregion(get_system_memory(), &s->isa);
-    }
-}
-
 static int pci_vpb_init(SysBusDevice *dev)
 {
     PCIVPBState *s = FROM_SYSBUS(PCIVPBState, dev);
@@ -106,15 +74,21 @@ static int pci_vpb_init(SysBusDevice *dev)
 
     /* ??? Register memory space.  */
 
+    /* Our memory regions are:
+     * 0 : PCI self config window
+     * 1 : PCI config window
+     * 2 : PCI IO window (realview_pci only)
+     */
     memory_region_init_io(&s->mem_config, &pci_vpb_config_ops, bus,
                           "pci-vpb-selfconfig", 0x1000000);
+    sysbus_init_mmio_region(dev, &s->mem_config);
     memory_region_init_io(&s->mem_config2, &pci_vpb_config_ops, bus,
                           "pci-vpb-config", 0x1000000);
+    sysbus_init_mmio_region(dev, &s->mem_config2);
     if (s->realview) {
         isa_mmio_setup(&s->isa, 0x0100000);
+        sysbus_init_mmio_region(dev, &s->isa);
     }
-
-    sysbus_init_mmio_cb2(dev, pci_vpb_map, pci_vpb_unmap);
 
     pci_create_simple(bus, -1, "versatile_pci_host");
     return 0;

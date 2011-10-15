@@ -68,10 +68,7 @@ static int isa_ne2000_initfn(ISADevice *dev)
     NE2000State *s = &isa->ne2000;
 
     ne2000_setup_io(s, 0x20);
-    isa_init_ioport_range(dev, isa->iobase, 16);
-    isa_init_ioport_range(dev, isa->iobase + 0x10, 2);
-    isa_init_ioport(dev, isa->iobase + 0x1f);
-    memory_region_add_subregion(get_system_io(), isa->iobase, &s->io);
+    isa_register_ioport(dev, &s->io, isa->iobase);
 
     isa_init_irq(dev, &s->irq, isa->isairq);
 

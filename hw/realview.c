@@ -272,8 +272,16 @@ static void realview_init(ram_addr_t ram_size,
     sysbus_create_simple("pl031", 0x10017000, pic[10]);
 
     if (!is_pb) {
-        dev = sysbus_create_varargs("realview_pci", 0x60000000,
-                                    pic[48], pic[49], pic[50], pic[51], NULL);
+        dev = qdev_create(NULL, "realview_pci");
+        busdev = sysbus_from_qdev(dev);
+        qdev_init_nofail(dev);
+        sysbus_mmio_map(busdev, 0, 0x61000000); /* PCI self-config */
+        sysbus_mmio_map(busdev, 1, 0x62000000); /* PCI config */
+        sysbus_mmio_map(busdev, 2, 0x63000000); /* PCI I/O */
+        sysbus_connect_irq(busdev, 0, pic[48]);
+        sysbus_connect_irq(busdev, 1, pic[49]);
+        sysbus_connect_irq(busdev, 2, pic[50]);
+        sysbus_connect_irq(busdev, 3, pic[51]);
         pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci");
         if (usb_enabled) {
             usb_ohci_init_pci(pci_bus, -1);

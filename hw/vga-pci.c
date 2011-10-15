@@ -54,7 +54,7 @@ static int pci_vga_initfn(PCIDevice *dev)
 
      // vga + console init
      vga_common_init(s, VGA_RAM_SIZE);
-     vga_init(s, pci_address_space(dev));
+     vga_init(s, pci_address_space(dev), pci_address_space_io(dev), true);
 
      s->ds = graphic_console_init(s->update, s->invalidate,
                                   s->screen_dump, s->text_update, s);

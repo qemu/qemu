@@ -1601,7 +1601,7 @@ static int qxl_init_primary(PCIDevice *dev)
         ram_size = 32 * 1024 * 1024;
     }
     vga_common_init(vga, ram_size);
-    vga_init(vga, pci_address_space(dev));
+    vga_init(vga, pci_address_space(dev), pci_address_space_io(dev), false);
     register_ioport_write(0x3c0, 16, 1, qxl_vga_ioport_write, vga);
     register_ioport_write(0x3b4,  2, 1, qxl_vga_ioport_write, vga);
     register_ioport_write(0x3d4,  2, 1, qxl_vga_ioport_write, vga);

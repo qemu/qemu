@@ -81,6 +81,7 @@
 
 typedef struct RTCState {
     ISADevice dev;
+    MemoryRegion io;
     uint8_t cmos_data[128];
     uint8_t cmos_index;
     struct tm current_tm;
@@ -604,6 +605,15 @@ static void rtc_reset(void *opaque)
 #endif
 }
 
+static const MemoryRegionPortio cmos_portio[] = {
+    {0, 2, 1, .read = cmos_ioport_read, .write = cmos_ioport_write },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionOps cmos_ops = {
+    .old_portio = cmos_portio
+};
+
 static int rtc_initfn(ISADevice *dev)
 {
     RTCState *s = DO_UPCAST(RTCState, dev, dev);
@@ -632,9 +642,8 @@ static int rtc_initfn(ISADevice *dev)
         qemu_get_clock_ns(rtc_clock) + (get_ticks_per_sec() * 99) / 100;
     qemu_mod_timer(s->second_timer2, s->next_second_time);
 
-    register_ioport_write(base, 2, 1, cmos_ioport_write, s);
-    register_ioport_read(base, 2, 1, cmos_ioport_read, s);
-    isa_init_ioport_range(dev, base, 2);
+    memory_region_init_io(&s->io, &cmos_ops, s, "rtc", 2);
+    isa_register_ioport(dev, &s->io, base);
 
     qdev_set_legacy_instance_id(&dev->qdev, base, 2);
     qemu_register_reset(rtc_reset, s);

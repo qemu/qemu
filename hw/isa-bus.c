@@ -83,39 +83,32 @@ void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq)
     dev->nirqs++;
 }
 
-static void isa_init_ioport_one(ISADevice *dev, uint16_t ioport)
+static inline void isa_init_ioport(ISADevice *dev, uint16_t ioport)
 {
-    assert(dev->nioports < ARRAY_SIZE(dev->ioports));
-    dev->ioports[dev->nioports++] = ioport;
-}
-
-static int isa_cmp_ports(const void *p1, const void *p2)
-{
-    return *(uint16_t*)p1 - *(uint16_t*)p2;
-}
-
-void isa_init_ioport_range(ISADevice *dev, uint16_t start, uint16_t length)
-{
-    int i;
-    for (i = start; i < start + length; i++) {
-        isa_init_ioport_one(dev, i);
+    if (dev && (dev->ioport_id == 0 || ioport < dev->ioport_id)) {
+        dev->ioport_id = ioport;
     }
-    qsort(dev->ioports, dev->nioports, sizeof(dev->ioports[0]), isa_cmp_ports);
-}
-
-void isa_init_ioport(ISADevice *dev, uint16_t ioport)
-{
-    isa_init_ioport_range(dev, ioport, 1);
 }
 
 void isa_register_ioport(ISADevice *dev, MemoryRegion *io, uint16_t start)
 {
     memory_region_add_subregion(isabus->address_space_io, start, io);
-    if (dev != NULL) {
-        assert(dev->nio < ARRAY_SIZE(dev->io));
-        dev->io[dev->nio++] = io;
-        isa_init_ioport_range(dev, start, memory_region_size(io));
-    }
+    isa_init_ioport(dev, start);
+}
+
+void isa_register_portio_list(ISADevice *dev, uint16_t start,
+                              const MemoryRegionPortio *pio_start,
+                              void *opaque, const char *name)
+{
+    PortioList *piolist = g_new(PortioList, 1);
+
+    /* START is how we should treat DEV, regardless of the actual
+       contents of the portio array.  This is how the old code
+       actually handled e.g. the FDC device.  */
+    isa_init_ioport(dev, start);
+
+    portio_list_init(piolist, pio_start, opaque, name);
+    portio_list_add(piolist, isabus->address_space_io, start);
 }
 
 static int isa_qdev_init(DeviceState *qdev, DeviceInfo *base)
@@ -208,8 +201,8 @@ static char *isabus_get_fw_dev_path(DeviceState *dev)
     int off;
 
     off = snprintf(path, sizeof(path), "%s", qdev_fw_name(dev));
-    if (d->nioports) {
-        snprintf(path + off, sizeof(path) - off, "@%04x", d->ioports[0]);
+    if (d->ioport_id) {
+        snprintf(path + off, sizeof(path) - off, "@%04x", d->ioport_id);
     }
 
     return strdup(path);

@@ -411,6 +411,100 @@ static void usb_host_async_cancel(USBDevice *dev, USBPacket *p)
     }
 }
 
+static int usb_host_claim_port(USBHostDevice *s)
+{
+#ifdef USBDEVFS_CLAIM_PORT
+    char *h, hub_name[64], line[1024];
+    int hub_addr, portnr, ret;
+
+    snprintf(hub_name, sizeof(hub_name), "%d-%s",
+             s->match.bus_num, s->match.port);
+
+    /* try strip off last ".$portnr" to get hub */
+    h = strrchr(hub_name, '.');
+    if (h != NULL) {
+        portnr = atoi(h+1);
+        *h = '\0';
+    } else {
+        /* no dot in there -> it is the root hub */
+        snprintf(hub_name, sizeof(hub_name), "usb%d",
+                 s->match.bus_num);
+        portnr = atoi(s->match.port);
+    }
+
+    if (!usb_host_read_file(line, sizeof(line), "devnum",
+                            hub_name)) {
+        return -1;
+    }
+    if (sscanf(line, "%d", &hub_addr) != 1) {
+        return -1;
+    }
+
+    if (!usb_host_device_path) {
+        return -1;
+    }
+    snprintf(line, sizeof(line), "%s/%03d/%03d",
+             usb_host_device_path, s->match.bus_num, hub_addr);
+    s->hub_fd = open(line, O_RDWR | O_NONBLOCK);
+    if (s->hub_fd < 0) {
+        return -1;
+    }
+
+    ret = ioctl(s->hub_fd, USBDEVFS_CLAIM_PORT, &portnr);
+    if (ret < 0) {
+        close(s->hub_fd);
+        s->hub_fd = -1;
+        return -1;
+    }
+
+    trace_usb_host_claim_port(s->match.bus_num, hub_addr, portnr);
+    return 0;
+#else
+    return -1;
+#endif
+}
+
+static int usb_host_disconnect_ifaces(USBHostDevice *dev, int nb_interfaces)
+{
+    /* earlier Linux 2.4 do not support that */
+#ifdef USBDEVFS_DISCONNECT
+    struct usbdevfs_ioctl ctrl;
+    int ret, interface;
+
+    for (interface = 0; interface < nb_interfaces; interface++) {
+        ctrl.ioctl_code = USBDEVFS_DISCONNECT;
+        ctrl.ifno = interface;
+        ctrl.data = 0;
+        ret = ioctl(dev->fd, USBDEVFS_IOCTL, &ctrl);
+        if (ret < 0 && errno != ENODATA) {
+            perror("USBDEVFS_DISCONNECT");
+            return -1;
+        }
+    }
+#endif
+    return 0;
+}
+
+static int usb_linux_get_num_interfaces(USBHostDevice *s)
+{
+    char device_name[64], line[1024];
+    int num_interfaces = 0;
+
+    if (usb_fs_type != USB_FS_SYS) {
+        return -1;
+    }
+
+    sprintf(device_name, "%d-%s", s->bus_num, s->port);
+    if (!usb_host_read_file(line, sizeof(line), "bNumInterfaces",
+                            device_name)) {
+        return -1;
+    }
+    if (sscanf(line, "%d", &num_interfaces) != 1) {
+        return -1;
+    }
+    return num_interfaces;
+}
+
 static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
 {
     const char *op = NULL;
@@ -462,22 +556,9 @@ static int usb_host_claim_interfaces(USBHostDevice *dev, int configuration)
     }
     nb_interfaces = dev->descr[i + 4];
 
-#ifdef USBDEVFS_DISCONNECT
-    /* earlier Linux 2.4 do not support that */
-    {
-        struct usbdevfs_ioctl ctrl;
-        for (interface = 0; interface < nb_interfaces; interface++) {
-            ctrl.ioctl_code = USBDEVFS_DISCONNECT;
-            ctrl.ifno = interface;
-            ctrl.data = 0;
-            op = "USBDEVFS_DISCONNECT";
-            ret = ioctl(dev->fd, USBDEVFS_IOCTL, &ctrl);
-            if (ret < 0 && errno != ENODATA) {
-                goto fail;
-            }
-        }
+    if (usb_host_disconnect_ifaces(dev, nb_interfaces) < 0) {
+        goto fail;
     }
-#endif
 
     /* XXX: only grab if all interfaces are free */
     for (interface = 0; interface < nb_interfaces; interface++) {
@@ -840,13 +921,27 @@ static int usb_host_set_address(USBHostDevice *s, int addr)
 
 static int usb_host_set_config(USBHostDevice *s, int config)
 {
+    int ret, first = 1;
+
     trace_usb_host_set_config(s->bus_num, s->addr, config);
 
     usb_host_release_interfaces(s);
 
-    int ret = ioctl(s->fd, USBDEVFS_SETCONFIGURATION, &config);
+again:
+    ret = ioctl(s->fd, USBDEVFS_SETCONFIGURATION, &config);
 
     DPRINTF("husb: ctrl set config %d ret %d errno %d\n", config, ret, errno);
+
+    if (ret < 0 && errno == EBUSY && first) {
+        /* happens if usb device is in use by host drivers */
+        int count = usb_linux_get_num_interfaces(s);
+        if (count > 0) {
+            DPRINTF("husb: busy -> disconnecting %d interfaces\n", count);
+            usb_host_disconnect_ifaces(s, count);
+            first = 0;
+            goto again;
+        }
+    }
 
     if (ret < 0) {
         return ctrl_error();
@@ -1301,56 +1396,9 @@ static int usb_host_initfn(USBDevice *dev)
     qemu_add_exit_notifier(&s->exit);
     usb_host_auto_check(NULL);
 
-#ifdef USBDEVFS_CLAIM_PORT
     if (s->match.bus_num != 0 && s->match.port != NULL) {
-        char *h, hub_name[64], line[1024];
-        int hub_addr, portnr, ret;
-
-        snprintf(hub_name, sizeof(hub_name), "%d-%s",
-                 s->match.bus_num, s->match.port);
-
-        /* try strip off last ".$portnr" to get hub */
-        h = strrchr(hub_name, '.');
-        if (h != NULL) {
-            portnr = atoi(h+1);
-            *h = '\0';
-        } else {
-            /* no dot in there -> it is the root hub */
-            snprintf(hub_name, sizeof(hub_name), "usb%d",
-                     s->match.bus_num);
-            portnr = atoi(s->match.port);
-        }
-
-        if (!usb_host_read_file(line, sizeof(line), "devnum",
-                                hub_name)) {
-            goto out;
-        }
-        if (sscanf(line, "%d", &hub_addr) != 1) {
-            goto out;
-        }
-
-        if (!usb_host_device_path) {
-            goto out;
-        }
-        snprintf(line, sizeof(line), "%s/%03d/%03d",
-                 usb_host_device_path, s->match.bus_num, hub_addr);
-        s->hub_fd = open(line, O_RDWR | O_NONBLOCK);
-        if (s->hub_fd < 0) {
-            goto out;
-        }
-
-        ret = ioctl(s->hub_fd, USBDEVFS_CLAIM_PORT, &portnr);
-        if (ret < 0) {
-            close(s->hub_fd);
-            s->hub_fd = -1;
-            goto out;
-        }
-
-        trace_usb_host_claim_port(s->match.bus_num, hub_addr, portnr);
+        usb_host_claim_port(s);
     }
-out:
-#endif
-
     return 0;
 }
 

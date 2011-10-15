@@ -428,6 +428,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 /* port 92 stuff: could be split off */
 typedef struct Port92State {
     ISADevice dev;
+    MemoryRegion io;
     uint8_t outport;
     qemu_irq *a20_out;
 } Port92State;
@@ -479,13 +480,22 @@ static void port92_reset(DeviceState *d)
     s->outport &= ~1;
 }
 
+static const MemoryRegionPortio port92_portio[] = {
+    { 0, 1, 1, .read = port92_read, .write = port92_write },
+    PORTIO_END_OF_LIST(),
+};
+
+static const MemoryRegionOps port92_ops = {
+    .old_portio = port92_portio
+};
+
 static int port92_initfn(ISADevice *dev)
 {
     Port92State *s = DO_UPCAST(Port92State, dev, dev);
 
-    register_ioport_read(0x92, 1, 1, port92_read, s);
-    register_ioport_write(0x92, 1, 1, port92_write, s);
-    isa_init_ioport(dev, 0x92);
+    memory_region_init_io(&s->io, &port92_ops, s, "port92", 1);
+    isa_register_ioport(dev, &s->io, 0x92);
+
     s->outport = 0;
     return 0;
 }

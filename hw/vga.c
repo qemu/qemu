@@ -2245,40 +2245,39 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
     vga_dirty_log_start(s);
 }
 
-/* used by both ISA and PCI */
-MemoryRegion *vga_init_io(VGACommonState *s)
+static const MemoryRegionPortio vga_portio_list[] = {
+    { 0x04,  2, 1, .read = vga_ioport_read, .write = vga_ioport_write }, /* 3b4 */
+    { 0x0a,  1, 1, .read = vga_ioport_read, .write = vga_ioport_write }, /* 3ba */
+    { 0x10, 16, 1, .read = vga_ioport_read, .write = vga_ioport_write }, /* 3c0 */
+    { 0x24,  2, 1, .read = vga_ioport_read, .write = vga_ioport_write }, /* 3d4 */
+    { 0x2a,  1, 1, .read = vga_ioport_read, .write = vga_ioport_write }, /* 3da */
+    PORTIO_END_OF_LIST(),
+};
+
+#ifdef CONFIG_BOCHS_VBE
+static const MemoryRegionPortio vbe_portio_list[] = {
+    { 0, 1, 2, .read = vbe_ioport_read_index, .write = vbe_ioport_write_index },
+# ifdef TARGET_I386
+    { 1, 1, 2, .read = vbe_ioport_read_data, .write = vbe_ioport_write_data },
+# else
+    { 2, 1, 2, .read = vbe_ioport_read_data, .write = vbe_ioport_write_data },
+# endif
+    PORTIO_END_OF_LIST(),
+};
+#endif /* CONFIG_BOCHS_VBE */
+
+/* Used by both ISA and PCI */
+MemoryRegion *vga_init_io(VGACommonState *s,
+                          const MemoryRegionPortio **vga_ports,
+                          const MemoryRegionPortio **vbe_ports)
 {
     MemoryRegion *vga_mem;
 
-    register_ioport_write(0x3c0, 16, 1, vga_ioport_write, s);
-
-    register_ioport_write(0x3b4, 2, 1, vga_ioport_write, s);
-    register_ioport_write(0x3d4, 2, 1, vga_ioport_write, s);
-    register_ioport_write(0x3ba, 1, 1, vga_ioport_write, s);
-    register_ioport_write(0x3da, 1, 1, vga_ioport_write, s);
-
-    register_ioport_read(0x3c0, 16, 1, vga_ioport_read, s);
-
-    register_ioport_read(0x3b4, 2, 1, vga_ioport_read, s);
-    register_ioport_read(0x3d4, 2, 1, vga_ioport_read, s);
-    register_ioport_read(0x3ba, 1, 1, vga_ioport_read, s);
-    register_ioport_read(0x3da, 1, 1, vga_ioport_read, s);
-
+    *vga_ports = vga_portio_list;
+    *vbe_ports = NULL;
 #ifdef CONFIG_BOCHS_VBE
-#if defined (TARGET_I386)
-    register_ioport_read(0x1ce, 1, 2, vbe_ioport_read_index, s);
-    register_ioport_read(0x1cf, 1, 2, vbe_ioport_read_data, s);
-
-    register_ioport_write(0x1ce, 1, 2, vbe_ioport_write_index, s);
-    register_ioport_write(0x1cf, 1, 2, vbe_ioport_write_data, s);
-#else
-    register_ioport_read(0x1ce, 1, 2, vbe_ioport_read_index, s);
-    register_ioport_read(0x1d0, 1, 2, vbe_ioport_read_data, s);
-
-    register_ioport_write(0x1ce, 1, 2, vbe_ioport_write_index, s);
-    register_ioport_write(0x1d0, 1, 2, vbe_ioport_write_data, s);
+    *vbe_ports = vbe_portio_list;
 #endif
-#endif /* CONFIG_BOCHS_VBE */
 
     vga_mem = g_malloc(sizeof(*vga_mem));
     memory_region_init_io(vga_mem, &vga_mem_ops, s,
@@ -2287,9 +2286,13 @@ MemoryRegion *vga_init_io(VGACommonState *s)
     return vga_mem;
 }
 
-void vga_init(VGACommonState *s, MemoryRegion *address_space)
+void vga_init(VGACommonState *s, MemoryRegion *address_space,
+              MemoryRegion *address_space_io, bool init_vga_ports)
 {
     MemoryRegion *vga_io_memory;
+    const MemoryRegionPortio *vga_ports, *vbe_ports;
+    PortioList *vga_port_list = g_new(PortioList, 1);
+    PortioList *vbe_port_list = g_new(PortioList, 1);
 
     qemu_register_reset(vga_reset, s);
 
@@ -2297,12 +2300,20 @@ void vga_init(VGACommonState *s, MemoryRegion *address_space)
 
     s->legacy_address_space = address_space;
 
-    vga_io_memory = vga_init_io(s);
+    vga_io_memory = vga_init_io(s, &vga_ports, &vbe_ports);
     memory_region_add_subregion_overlap(address_space,
                                         isa_mem_base + 0x000a0000,
                                         vga_io_memory,
                                         1);
     memory_region_set_coalescing(vga_io_memory);
+    if (init_vga_ports) {
+        portio_list_init(vga_port_list, vga_ports, s, "vga");
+        portio_list_add(vga_port_list, address_space_io, 0x3b0);
+    }
+    if (vbe_ports) {
+        portio_list_init(vbe_port_list, vbe_ports, s, "vbe");
+        portio_list_add(vbe_port_list, address_space_io, 0x1ce);
+    }
 }
 
 void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)

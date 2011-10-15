@@ -66,7 +66,7 @@
  * 20 - 31 (12 bits): reserved data object space
  * 32 - 55 (24 bits): vdi object space
  * 56 - 59 ( 4 bits): reserved vdi object space
- * 60 - 63 ( 4 bits): object type indentifier space
+ * 60 - 63 ( 4 bits): object type identifier space
  */
 
 #define VDI_SPACE_SHIFT   32

@@ -1673,15 +1673,15 @@ Connect to a local parallel port.
 @option{path} specifies the path to the parallel port device. @option{path} is
 required.
 
-#if defined(CONFIG_SPICE)
 @item -chardev spicevmc ,id=@var{id} ,debug=@var{debug}, name=@var{name}
+
+@option{spicevmc} is only available when spice support is built in.
 
 @option{debug} debug level for spicevmc
 
 @option{name} name of spice channel to connect to
 
 Connect to a spice virtual machine channel, such as vdiport.
-#endif
 
 @end table
 ETEXI

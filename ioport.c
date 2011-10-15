@@ -27,6 +27,7 @@
 
 #include "ioport.h"
 #include "trace.h"
+#include "memory.h"
 
 /***********************************************************/
 /* IO Port */
@@ -312,4 +313,111 @@ uint32_t cpu_inl(pio_addr_t addr)
     trace_cpu_in(addr, val);
     LOG_IOPORT("inl : %04"FMT_pioaddr" %08"PRIx32"\n", addr, val);
     return val;
+}
+
+void portio_list_init(PortioList *piolist,
+                      const MemoryRegionPortio *callbacks,
+                      void *opaque, const char *name)
+{
+    unsigned n = 0;
+
+    while (callbacks[n].size) {
+        ++n;
+    }
+
+    piolist->ports = callbacks;
+    piolist->nr = 0;
+    piolist->regions = g_new0(MemoryRegion *, n);
+    piolist->address_space = NULL;
+    piolist->opaque = opaque;
+    piolist->name = name;
+}
+
+void portio_list_destroy(PortioList *piolist)
+{
+    g_free(piolist->regions);
+}
+
+static void portio_list_add_1(PortioList *piolist,
+                              const MemoryRegionPortio *pio_init,
+                              unsigned count, unsigned start,
+                              unsigned off_low, unsigned off_high)
+{
+    MemoryRegionPortio *pio;
+    MemoryRegionOps *ops;
+    MemoryRegion *region;
+    unsigned i;
+
+    /* Copy the sub-list and null-terminate it.  */
+    pio = g_new(MemoryRegionPortio, count + 1);
+    memcpy(pio, pio_init, sizeof(MemoryRegionPortio) * count);
+    memset(pio + count, 0, sizeof(MemoryRegionPortio));
+
+    /* Adjust the offsets to all be zero-based for the region.  */
+    for (i = 0; i < count; ++i) {
+        pio[i].offset -= off_low;
+    }
+
+    ops = g_new0(MemoryRegionOps, 1);
+    ops->old_portio = pio;
+
+    region = g_new(MemoryRegion, 1);
+    memory_region_init_io(region, ops, piolist->opaque, piolist->name,
+                          off_high - off_low);
+    memory_region_set_offset(region, start + off_low);
+    memory_region_add_subregion(piolist->address_space,
+                                start + off_low, region);
+    piolist->regions[piolist->nr++] = region;
+}
+
+void portio_list_add(PortioList *piolist,
+                     MemoryRegion *address_space,
+                     uint32_t start)
+{
+    const MemoryRegionPortio *pio, *pio_start = piolist->ports;
+    unsigned int off_low, off_high, off_last, count;
+
+    piolist->address_space = address_space;
+
+    /* Handle the first entry specially.  */
+    off_last = off_low = pio_start->offset;
+    off_high = off_low + pio_start->len;
+    count = 1;
+
+    for (pio = pio_start + 1; pio->size != 0; pio++, count++) {
+        /* All entries must be sorted by offset.  */
+        assert(pio->offset >= off_last);
+        off_last = pio->offset;
+
+        /* If we see a hole, break the region.  */
+        if (off_last > off_high) {
+            portio_list_add_1(piolist, pio_start, count, start, off_low,
+                              off_high);
+            /* ... and start collecting anew.  */
+            pio_start = pio;
+            off_low = off_last;
+            off_high = off_low + pio->len;
+            count = 0;
+        } else if (off_last + pio->len > off_high) {
+            off_high = off_last + pio->len;
+        }
+    }
+
+    /* There will always be an open sub-list.  */
+    portio_list_add_1(piolist, pio_start, count, start, off_low, off_high);
+}
+
+void portio_list_del(PortioList *piolist)
+{
+    MemoryRegion *mr;
+    unsigned i;
+
+    for (i = 0; i < piolist->nr; ++i) {
+        mr = piolist->regions[i];
+        memory_region_del_subregion(piolist->address_space, mr);
+        memory_region_destroy(mr);
+        g_free((MemoryRegionOps *)mr->ops);
+        g_free(mr);
+        piolist->regions[i] = NULL;
+    }
 }

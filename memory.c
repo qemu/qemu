@@ -403,12 +403,17 @@ static void memory_region_iorange_read(IORange *iorange,
 
         *data = ((uint64_t)1 << (width * 8)) - 1;
         if (mrp) {
-            *data = mrp->read(mr->opaque, offset);
+            *data = mrp->read(mr->opaque, offset + mr->offset);
+        } else if (width == 2) {
+            mrp = find_portio(mr, offset, 1, false);
+            assert(mrp);
+            *data = mrp->read(mr->opaque, offset + mr->offset) |
+                    (mrp->read(mr->opaque, offset + mr->offset + 1) << 8);
         }
         return;
     }
     *data = 0;
-    access_with_adjusted_size(offset, data, width,
+    access_with_adjusted_size(offset + mr->offset, data, width,
                               mr->ops->impl.min_access_size,
                               mr->ops->impl.max_access_size,
                               memory_region_read_accessor, mr);
@@ -425,11 +430,16 @@ static void memory_region_iorange_write(IORange *iorange,
         const MemoryRegionPortio *mrp = find_portio(mr, offset, width, true);
 
         if (mrp) {
-            mrp->write(mr->opaque, offset, data);
+            mrp->write(mr->opaque, offset + mr->offset, data);
+        } else if (width == 2) {
+            mrp = find_portio(mr, offset, 1, false);
+            assert(mrp);
+            mrp->write(mr->opaque, offset + mr->offset, data & 0xff);
+            mrp->write(mr->opaque, offset + mr->offset + 1, data >> 8);
         }
         return;
     }
-    access_with_adjusted_size(offset, &data, width,
+    access_with_adjusted_size(offset + mr->offset, &data, width,
                               mr->ops->impl.min_access_size,
                               mr->ops->impl.max_access_size,
                               memory_region_write_accessor, mr);
