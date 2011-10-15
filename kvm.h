@@ -51,6 +51,7 @@ int kvm_has_debugregs(void);
 int kvm_has_xsave(void);
 int kvm_has_xcrs(void);
 int kvm_has_many_ioeventfds(void);
+int kvm_has_gsi_routing(void);
 
 #ifdef NEED_CPU_H
 int kvm_init_vcpu(CPUState *env);
@@ -123,6 +124,13 @@ void kvm_arch_reset_vcpu(CPUState *env);
 
 int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr);
 int kvm_arch_on_sigbus(int code, void *addr);
+
+void kvm_arch_init_irq_routing(KVMState *s);
+
+int kvm_irqchip_set_irq(KVMState *s, int irq, int level);
+
+void kvm_irqchip_add_route(KVMState *s, int gsi, int irqchip, int pin);
+int kvm_irqchip_commit_routes(KVMState *s);
 
 struct kvm_guest_debug;
 struct kvm_debug_exit_arch;

@@ -1939,3 +1939,14 @@ bool kvm_arch_stop_on_emulation_error(CPUState *env)
     return !(env->cr[0] & CR0_PE_MASK) ||
            ((env->segs[R_CS].selector  & 3) != 3);
 }
+
+void kvm_arch_init_irq_routing(KVMState *s)
+{
+    if (!kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
+        /* If kernel can't do irq routing, interrupt source
+         * override 0->2 cannot be set up as required by HPET.
+         * So we have to disable it.
+         */
+        no_hpet = 1;
+    }
+}

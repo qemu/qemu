@@ -78,6 +78,13 @@ struct KVMState
     int pit_in_kernel;
     int xsave, xcrs;
     int many_ioeventfds;
+    int irqchip_inject_ioctl;
+#ifdef KVM_CAP_IRQ_ROUTING
+    struct kvm_irq_routing *irq_routes;
+    int nr_allocated_irq_routes;
+    uint32_t *used_gsi_bitmap;
+    unsigned int max_gsi;
+#endif
 };
 
 KVMState *kvm_state;
@@ -728,6 +735,138 @@ static void kvm_handle_interrupt(CPUState *env, int mask)
     }
 }
 
+int kvm_irqchip_set_irq(KVMState *s, int irq, int level)
+{
+    struct kvm_irq_level event;
+    int ret;
+
+    assert(s->irqchip_in_kernel);
+
+    event.level = level;
+    event.irq = irq;
+    ret = kvm_vm_ioctl(s, s->irqchip_inject_ioctl, &event);
+    if (ret < 0) {
+        perror("kvm_set_irqchip_line");
+        abort();
+    }
+
+    return (s->irqchip_inject_ioctl == KVM_IRQ_LINE) ? 1 : event.status;
+}
+
+#ifdef KVM_CAP_IRQ_ROUTING
+static void set_gsi(KVMState *s, unsigned int gsi)
+{
+    assert(gsi < s->max_gsi);
+
+    s->used_gsi_bitmap[gsi / 32] |= 1U << (gsi % 32);
+}
+
+static void kvm_init_irq_routing(KVMState *s)
+{
+    int gsi_count;
+
+    gsi_count = kvm_check_extension(s, KVM_CAP_IRQ_ROUTING);
+    if (gsi_count > 0) {
+        unsigned int gsi_bits, i;
+
+        /* Round up so we can search ints using ffs */
+        gsi_bits = (gsi_count + 31) / 32;
+        s->used_gsi_bitmap = g_malloc0(gsi_bits / 8);
+        s->max_gsi = gsi_bits;
+
+        /* Mark any over-allocated bits as already in use */
+        for (i = gsi_count; i < gsi_bits; i++) {
+            set_gsi(s, i);
+        }
+    }
+
+    s->irq_routes = g_malloc0(sizeof(*s->irq_routes));
+    s->nr_allocated_irq_routes = 0;
+
+    kvm_arch_init_irq_routing(s);
+}
+
+static void kvm_add_routing_entry(KVMState *s,
+                                  struct kvm_irq_routing_entry *entry)
+{
+    struct kvm_irq_routing_entry *new;
+    int n, size;
+
+    if (s->irq_routes->nr == s->nr_allocated_irq_routes) {
+        n = s->nr_allocated_irq_routes * 2;
+        if (n < 64) {
+            n = 64;
+        }
+        size = sizeof(struct kvm_irq_routing);
+        size += n * sizeof(*new);
+        s->irq_routes = g_realloc(s->irq_routes, size);
+        s->nr_allocated_irq_routes = n;
+    }
+    n = s->irq_routes->nr++;
+    new = &s->irq_routes->entries[n];
+    memset(new, 0, sizeof(*new));
+    new->gsi = entry->gsi;
+    new->type = entry->type;
+    new->flags = entry->flags;
+    new->u = entry->u;
+
+    set_gsi(s, entry->gsi);
+}
+
+void kvm_irqchip_add_route(KVMState *s, int irq, int irqchip, int pin)
+{
+    struct kvm_irq_routing_entry e;
+
+    e.gsi = irq;
+    e.type = KVM_IRQ_ROUTING_IRQCHIP;
+    e.flags = 0;
+    e.u.irqchip.irqchip = irqchip;
+    e.u.irqchip.pin = pin;
+    kvm_add_routing_entry(s, &e);
+}
+
+int kvm_irqchip_commit_routes(KVMState *s)
+{
+    s->irq_routes->flags = 0;
+    return kvm_vm_ioctl(s, KVM_SET_GSI_ROUTING, s->irq_routes);
+}
+
+#else /* !KVM_CAP_IRQ_ROUTING */
+
+static void kvm_init_irq_routing(KVMState *s)
+{
+}
+#endif /* !KVM_CAP_IRQ_ROUTING */
+
+static int kvm_irqchip_create(KVMState *s)
+{
+    QemuOptsList *list = qemu_find_opts("machine");
+    int ret;
+
+    if (QTAILQ_EMPTY(&list->head) ||
+        !qemu_opt_get_bool(QTAILQ_FIRST(&list->head),
+                           "kernel_irqchip", false) ||
+        !kvm_check_extension(s, KVM_CAP_IRQCHIP)) {
+        return 0;
+    }
+
+    ret = kvm_vm_ioctl(s, KVM_CREATE_IRQCHIP);
+    if (ret < 0) {
+        fprintf(stderr, "Create kernel irqchip failed\n");
+        return ret;
+    }
+
+    s->irqchip_inject_ioctl = KVM_IRQ_LINE;
+    if (kvm_check_extension(s, KVM_CAP_IRQ_INJECT_STATUS)) {
+        s->irqchip_inject_ioctl = KVM_IRQ_LINE_STATUS;
+    }
+    s->irqchip_in_kernel = 1;
+
+    kvm_init_irq_routing(s);
+
+    return 0;
+}
+
 int kvm_init(void)
 {
     static const char upgrade_note[] =
@@ -819,6 +958,11 @@ int kvm_init(void)
 #endif
 
     ret = kvm_arch_init(s);
+    if (ret < 0) {
+        goto err;
+    }
+
+    ret = kvm_irqchip_create(s);
     if (ret < 0) {
         goto err;
     }
@@ -1156,6 +1300,11 @@ int kvm_has_many_ioeventfds(void)
         return 0;
     }
     return kvm_state->many_ioeventfds;
+}
+
+int kvm_has_gsi_routing(void)
+{
+    return kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING);
 }
 
 void kvm_setup_guest_memory(void *start, size_t size)
