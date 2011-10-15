@@ -34,12 +34,6 @@
 #include "hw/loader.h"
 #endif
 
-#define XTREG(idx, ofs, bi, sz, al, no, flags, cp, typ, grp, name, \
-        a1, a2, a3, a4, a5, a6) \
-    { .targno = (no), .type = (typ), .group = (grp) },
-
-static const XtensaConfig core_config[0];
-
 static void reset_mmu(CPUState *env);
 
 void cpu_reset(CPUXtensaState *env)
@@ -55,17 +49,24 @@ void cpu_reset(CPUXtensaState *env)
     reset_mmu(env);
 }
 
+static struct XtensaConfigList *xtensa_cores;
+
+void xtensa_register_core(XtensaConfigList *node)
+{
+    node->next = xtensa_cores;
+    xtensa_cores = node;
+}
 
 CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
 {
     static int tcg_inited;
     CPUXtensaState *env;
     const XtensaConfig *config = NULL;
-    int i;
+    XtensaConfigList *core = xtensa_cores;
 
-    for (i = 0; i < ARRAY_SIZE(core_config); ++i)
-        if (strcmp(core_config[i].name, cpu_model) == 0) {
-            config = core_config + i;
+    for (; core; core = core->next)
+        if (strcmp(core->config->name, cpu_model) == 0) {
+            config = core->config;
             break;
         }
 
@@ -90,10 +91,10 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
 
 void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf)
 {
-    int i;
+    XtensaConfigList *core = xtensa_cores;
     cpu_fprintf(f, "Available CPUs:\n");
-    for (i = 0; i < ARRAY_SIZE(core_config); ++i) {
-        cpu_fprintf(f, "  %s\n", core_config[i].name);
+    for (; core; core = core->next) {
+        cpu_fprintf(f, "  %s\n", core->config->name);
     }
 }
 

@@ -285,6 +285,11 @@ typedef struct XtensaConfig {
     xtensa_tlb dtlb;
 } XtensaConfig;
 
+typedef struct XtensaConfigList {
+    const XtensaConfig *config;
+    struct XtensaConfigList *next;
+} XtensaConfigList;
+
 typedef struct CPUXtensaState {
     const XtensaConfig *config;
     uint32_t regs[16];
@@ -317,6 +322,7 @@ typedef struct CPUXtensaState {
 CPUXtensaState *cpu_xtensa_init(const char *cpu_model);
 void xtensa_translate_init(void);
 int cpu_xtensa_exec(CPUXtensaState *s);
+void xtensa_register_core(XtensaConfigList *node);
 void do_interrupt(CPUXtensaState *s);
 void check_interrupts(CPUXtensaState *s);
 void xtensa_irq_init(CPUState *env);
