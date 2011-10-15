@@ -233,7 +233,7 @@ obj-i386-y += vmport.o
 obj-i386-y += pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
 obj-i386-y += pc_piix.o
-obj-i386-$(CONFIG_KVM) += kvmclock.o
+obj-i386-$(CONFIG_KVM) += kvm/clock.o
 obj-i386-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 
 # shared objects
@@ -424,7 +424,7 @@ qmp-commands-old.h: $(SRC_PATH)/qmp-commands.hx
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
-	rm -f *.d */*.d tcg/*.o ide/*.o 9pfs/*.o
+	rm -f *.d */*.d tcg/*.o ide/*.o 9pfs/*.o kvm/*.o
 	rm -f hmp-commands.h qmp-commands-old.h gdbstub-xml.c
 ifdef CONFIG_TRACE_SYSTEMTAP
 	rm -f *.stp

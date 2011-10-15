@@ -34,7 +34,7 @@
 #include "boards.h"
 #include "ide.h"
 #include "kvm.h"
-#include "kvmclock.h"
+#include "kvm/clock.h"
 #include "sysemu.h"
 #include "sysbus.h"
 #include "arch_init.h"
