@@ -1116,13 +1116,13 @@ static void disas_xtensa_insn(DisasContext *dc)
                     break;
 
                 case 14: /*NSAu*/
-                    HAS_OPTION(XTENSA_OPTION_MISC_OP);
+                    HAS_OPTION(XTENSA_OPTION_MISC_OP_NSA);
                     gen_window_check2(dc, RRR_S, RRR_T);
                     gen_helper_nsa(cpu_R[RRR_T], cpu_R[RRR_S]);
                     break;
 
                 case 15: /*NSAUu*/
-                    HAS_OPTION(XTENSA_OPTION_MISC_OP);
+                    HAS_OPTION(XTENSA_OPTION_MISC_OP_NSA);
                     gen_window_check2(dc, RRR_S, RRR_T);
                     gen_helper_nsau(cpu_R[RRR_T], cpu_R[RRR_S]);
                     break;
@@ -1434,7 +1434,7 @@ static void disas_xtensa_insn(DisasContext *dc)
 
             case 10: /*MULUHi*/
             case 11: /*MULSHi*/
-                HAS_OPTION(XTENSA_OPTION_32_BIT_IMUL);
+                HAS_OPTION(XTENSA_OPTION_32_BIT_IMUL_HIGH);
                 {
                     TCGv_i64 r = tcg_temp_new_i64();
                     TCGv_i64 s = tcg_temp_new_i64();
@@ -1521,7 +1521,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                 break;
 
             case 2: /*SEXTu*/
-                HAS_OPTION(XTENSA_OPTION_MISC_OP);
+                HAS_OPTION(XTENSA_OPTION_MISC_OP_SEXT);
                 gen_window_check2(dc, RRR_R, RRR_S);
                 {
                     int shift = 24 - RRR_T;
@@ -1540,7 +1540,7 @@ static void disas_xtensa_insn(DisasContext *dc)
                 break;
 
             case 3: /*CLAMPSu*/
-                HAS_OPTION(XTENSA_OPTION_MISC_OP);
+                HAS_OPTION(XTENSA_OPTION_MISC_OP_CLAMPS);
                 gen_window_check2(dc, RRR_R, RRR_S);
                 {
                     TCGv_i32 tmp1 = tcg_temp_new_i32();
@@ -1568,7 +1568,7 @@ static void disas_xtensa_insn(DisasContext *dc)
             case 5: /*MAXu*/
             case 6: /*MINUu*/
             case 7: /*MAXUu*/
-                HAS_OPTION(XTENSA_OPTION_MISC_OP);
+                HAS_OPTION(XTENSA_OPTION_MISC_OP_MINMAX);
                 gen_window_check3(dc, RRR_R, RRR_S, RRR_T);
                 {
                     static const TCGCond cond[] = {
@@ -1921,7 +1921,7 @@ static void disas_xtensa_insn(DisasContext *dc)
             break;
 
         case 14: /*S32C1Iy*/
-            HAS_OPTION(XTENSA_OPTION_MP_SYNCHRO);
+            HAS_OPTION(XTENSA_OPTION_CONDITIONAL_STORE);
             gen_window_check2(dc, RRI8_S, RRI8_T);
             {
                 int label = gen_new_label();
