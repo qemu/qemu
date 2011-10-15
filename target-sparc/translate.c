@@ -63,7 +63,7 @@ static TCGv cpu_tmp0;
 static TCGv_i32 cpu_tmp32;
 static TCGv_i64 cpu_tmp64;
 /* Floating point registers */
-static TCGv_i32 cpu__fpr[TARGET_FPREGS];
+static TCGv_i32 cpu_fpr[TARGET_FPREGS];
 
 static target_ulong gen_opc_npc[OPC_BUF_SIZE];
 static target_ulong gen_opc_jump_pc[2];
@@ -126,12 +126,12 @@ static inline void gen_update_fprs_dirty(int rd)
 /* floating point registers moves */
 static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
 {
-    return cpu__fpr[src];
+    return cpu_fpr[src];
 }
 
 static void gen_store_fpr_F(DisasContext *dc, unsigned int dst, TCGv_i32 v)
 {
-    tcg_gen_mov_i32(cpu__fpr[dst], v);
+    tcg_gen_mov_i32(cpu_fpr[dst], v);
     gen_update_fprs_dirty(dst);
 }
 
@@ -146,13 +146,13 @@ static TCGv_i64 gen_load_fpr_D(DisasContext *dc, unsigned int src)
     src = DFPREG(src);
 
 #if TCG_TARGET_REG_BITS == 32
-    tcg_gen_mov_i32(TCGV_HIGH(ret), cpu__fpr[src]);
-    tcg_gen_mov_i32(TCGV_LOW(ret), cpu__fpr[src + 1]);
+    tcg_gen_mov_i32(TCGV_HIGH(ret), cpu_fpr[src]);
+    tcg_gen_mov_i32(TCGV_LOW(ret), cpu_fpr[src + 1]);
 #else
     {
         TCGv_i64 t = tcg_temp_new_i64();
-        tcg_gen_extu_i32_i64(ret, cpu__fpr[src]);
-        tcg_gen_extu_i32_i64(t, cpu__fpr[src + 1]);
+        tcg_gen_extu_i32_i64(ret, cpu_fpr[src]);
+        tcg_gen_extu_i32_i64(t, cpu_fpr[src + 1]);
         tcg_gen_shli_i64(ret, ret, 32);
         tcg_gen_or_i64(ret, ret, t);
         tcg_temp_free_i64(t);
@@ -173,9 +173,9 @@ static void gen_store_fpr_D(DisasContext *dc, unsigned int dst, TCGv_i64 v)
     tcg_gen_mov_i32(cpu__fpu[dst], TCGV_HIGH(v));
     tcg_gen_mov_i32(cpu__fpu[dst + 1], TCGV_LOW(v));
 #else
-    tcg_gen_trunc_i64_i32(cpu__fpr[dst + 1], v);
+    tcg_gen_trunc_i64_i32(cpu_fpr[dst + 1], v);
     tcg_gen_shri_i64(v, v, 32);
-    tcg_gen_trunc_i64_i32(cpu__fpr[dst], v);
+    tcg_gen_trunc_i64_i32(cpu_fpr[dst], v);
 #endif
 
     gen_update_fprs_dirty(dst);
@@ -188,37 +188,37 @@ static TCGv_i64 gen_dest_fpr_D(void)
 
 static void gen_op_load_fpr_QT0(unsigned int src)
 {
-    tcg_gen_st_i32(cpu__fpr[src], cpu_env, offsetof(CPUSPARCState, qt0) +
+    tcg_gen_st_i32(cpu_fpr[src], cpu_env, offsetof(CPUSPARCState, qt0) +
                    offsetof(CPU_QuadU, l.upmost));
-    tcg_gen_st_i32(cpu__fpr[src + 1], cpu_env, offsetof(CPUSPARCState, qt0) +
+    tcg_gen_st_i32(cpu_fpr[src + 1], cpu_env, offsetof(CPUSPARCState, qt0) +
                    offsetof(CPU_QuadU, l.upper));
-    tcg_gen_st_i32(cpu__fpr[src + 2], cpu_env, offsetof(CPUSPARCState, qt0) +
+    tcg_gen_st_i32(cpu_fpr[src + 2], cpu_env, offsetof(CPUSPARCState, qt0) +
                    offsetof(CPU_QuadU, l.lower));
-    tcg_gen_st_i32(cpu__fpr[src + 3], cpu_env, offsetof(CPUSPARCState, qt0) +
+    tcg_gen_st_i32(cpu_fpr[src + 3], cpu_env, offsetof(CPUSPARCState, qt0) +
                    offsetof(CPU_QuadU, l.lowest));
 }
 
 static void gen_op_load_fpr_QT1(unsigned int src)
 {
-    tcg_gen_st_i32(cpu__fpr[src], cpu_env, offsetof(CPUSPARCState, qt1) +
+    tcg_gen_st_i32(cpu_fpr[src], cpu_env, offsetof(CPUSPARCState, qt1) +
                    offsetof(CPU_QuadU, l.upmost));
-    tcg_gen_st_i32(cpu__fpr[src + 1], cpu_env, offsetof(CPUSPARCState, qt1) +
+    tcg_gen_st_i32(cpu_fpr[src + 1], cpu_env, offsetof(CPUSPARCState, qt1) +
                    offsetof(CPU_QuadU, l.upper));
-    tcg_gen_st_i32(cpu__fpr[src + 2], cpu_env, offsetof(CPUSPARCState, qt1) +
+    tcg_gen_st_i32(cpu_fpr[src + 2], cpu_env, offsetof(CPUSPARCState, qt1) +
                    offsetof(CPU_QuadU, l.lower));
-    tcg_gen_st_i32(cpu__fpr[src + 3], cpu_env, offsetof(CPUSPARCState, qt1) +
+    tcg_gen_st_i32(cpu_fpr[src + 3], cpu_env, offsetof(CPUSPARCState, qt1) +
                    offsetof(CPU_QuadU, l.lowest));
 }
 
 static void gen_op_store_QT0_fpr(unsigned int dst)
 {
-    tcg_gen_ld_i32(cpu__fpr[dst], cpu_env, offsetof(CPUSPARCState, qt0) +
+    tcg_gen_ld_i32(cpu_fpr[dst], cpu_env, offsetof(CPUSPARCState, qt0) +
                    offsetof(CPU_QuadU, l.upmost));
-    tcg_gen_ld_i32(cpu__fpr[dst + 1], cpu_env, offsetof(CPUSPARCState, qt0) +
+    tcg_gen_ld_i32(cpu_fpr[dst + 1], cpu_env, offsetof(CPUSPARCState, qt0) +
                    offsetof(CPU_QuadU, l.upper));
-    tcg_gen_ld_i32(cpu__fpr[dst + 2], cpu_env, offsetof(CPUSPARCState, qt0) +
+    tcg_gen_ld_i32(cpu_fpr[dst + 2], cpu_env, offsetof(CPUSPARCState, qt0) +
                    offsetof(CPU_QuadU, l.lower));
-    tcg_gen_ld_i32(cpu__fpr[dst + 3], cpu_env, offsetof(CPUSPARCState, qt0) +
+    tcg_gen_ld_i32(cpu_fpr[dst + 3], cpu_env, offsetof(CPUSPARCState, qt0) +
                    offsetof(CPU_QuadU, l.lowest));
 }
 
@@ -228,10 +228,10 @@ static void gen_move_Q(int rd, int rs)
     rd = QFPREG(rd);
     rs = QFPREG(rs);
 
-    tcg_gen_mov_i32(cpu__fpr[rd], cpu__fpr[rs]);
-    tcg_gen_mov_i32(cpu__fpr[rd + 1], cpu__fpr[rs + 1]);
-    tcg_gen_mov_i32(cpu__fpr[rd + 2], cpu__fpr[rs + 2]);
-    tcg_gen_mov_i32(cpu__fpr[rd + 3], cpu__fpr[rs + 3]);
+    tcg_gen_mov_i32(cpu_fpr[rd], cpu_fpr[rs]);
+    tcg_gen_mov_i32(cpu_fpr[rd + 1], cpu_fpr[rs + 1]);
+    tcg_gen_mov_i32(cpu_fpr[rd + 2], cpu_fpr[rs + 2]);
+    tcg_gen_mov_i32(cpu_fpr[rd + 3], cpu_fpr[rs + 3]);
     gen_update_fprs_dirty(rd);
 }
 #endif
@@ -5251,9 +5251,9 @@ void gen_intermediate_code_init(CPUSPARCState *env)
                                               offsetof(CPUState, gregs[i]),
                                               gregnames[i]);
         for (i = 0; i < TARGET_FPREGS; i++)
-            cpu__fpr[i] = tcg_global_mem_new_i32(TCG_AREG0,
-                                                 offsetof(CPUState, fpr[i]),
-                                                 fregnames[i]);
+            cpu_fpr[i] = tcg_global_mem_new_i32(TCG_AREG0,
+                                                offsetof(CPUState, fpr[i]),
+                                                fregnames[i]);
 
         /* register helpers */
 
