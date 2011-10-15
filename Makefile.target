@@ -370,7 +370,6 @@ obj-alpha-y += vga.o cirrus_vga.o
 obj-alpha-y += alpha_pci.o alpha_dp264.o alpha_typhoon.o
 
 obj-xtensa-y += xtensa_pic.o
-obj-xtensa-y += xtensa_sample.o
 obj-xtensa-y += xtensa_dc232b.o
 obj-xtensa-y += xtensa-semi.o
 
