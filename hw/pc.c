@@ -36,7 +36,7 @@
 #include "elf.h"
 #include "multiboot.h"
 #include "mc146818rtc.h"
-#include "msix.h"
+#include "msi.h"
 #include "sysbus.h"
 #include "sysemu.h"
 #include "blockdev.h"
@@ -896,7 +896,7 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
         apic_mapped = 1;
     }
 
-    msix_supported = 1;
+    msi_supported = true;
 
     return dev;
 }
