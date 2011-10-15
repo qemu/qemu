@@ -157,3 +157,15 @@ void xtensa_irq_init(CPUState *env)
             qemu_new_timer_ns(vm_clock, &xtensa_ccompare_cb, env);
     }
 }
+
+void *xtensa_get_extint(CPUState *env, unsigned extint)
+{
+    if (extint < env->config->nextint) {
+        unsigned irq = env->config->extint[extint];
+        return env->irq_inputs[irq];
+    } else {
+        qemu_log("%s: trying to acquire invalid external interrupt %d\n",
+                __func__, extint);
+        return NULL;
+    }
+}

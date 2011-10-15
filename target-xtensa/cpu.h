@@ -277,6 +277,8 @@ typedef struct XtensaConfig {
     } interrupt[MAX_NINTERRUPT];
     unsigned nccompare;
     uint32_t timerint[MAX_NCCOMPARE];
+    unsigned nextint;
+    unsigned extint[MAX_NINTERRUPT];
     uint32_t clock_freq_khz;
 
     xtensa_tlb itlb;
@@ -318,6 +320,7 @@ int cpu_xtensa_exec(CPUXtensaState *s);
 void do_interrupt(CPUXtensaState *s);
 void check_interrupts(CPUXtensaState *s);
 void xtensa_irq_init(CPUState *env);
+void *xtensa_get_extint(CPUState *env, unsigned extint);
 void xtensa_advance_ccount(CPUState *env, uint32_t d);
 void xtensa_timer_irq(CPUState *env, uint32_t id, uint32_t active);
 void xtensa_rearm_ccompare_timer(CPUState *env);
