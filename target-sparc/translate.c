@@ -222,6 +222,20 @@ static void gen_op_store_QT0_fpr(unsigned int dst)
                    offsetof(CPU_QuadU, l.lowest));
 }
 
+#ifdef TARGET_SPARC64
+static void gen_move_Q(int rd, int rs)
+{
+    rd = QFPREG(rd);
+    rs = QFPREG(rs);
+
+    tcg_gen_mov_i32(cpu__fpr[rd], cpu__fpr[rs]);
+    tcg_gen_mov_i32(cpu__fpr[rd + 1], cpu__fpr[rs + 1]);
+    tcg_gen_mov_i32(cpu__fpr[rd + 2], cpu__fpr[rs + 2]);
+    tcg_gen_mov_i32(cpu__fpr[rd + 3], cpu__fpr[rs + 3]);
+    gen_update_fprs_dirty(rd);
+}
+#endif
+
 /* moves */
 #ifdef CONFIG_USER_ONLY
 #define supervisor(dc) 0
@@ -2831,15 +2845,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x3: /* V9 fmovq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    tcg_gen_mov_i32(cpu__fpr[QFPREG(rd)],
-                                    cpu__fpr[QFPREG(rs2)]);
-                    tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 1],
-                                    cpu__fpr[QFPREG(rs2) + 1]);
-                    tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 2],
-                                    cpu__fpr[QFPREG(rs2) + 2]);
-                    tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 3],
-                                    cpu__fpr[QFPREG(rs2) + 3]);
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_move_Q(rd, rs2);
                     break;
                 case 0x6: /* V9 fnegd */
                     gen_ne_fop_DD(dc, rd, rs2, gen_helper_fnegd);
@@ -2924,11 +2930,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1 = get_src1(insn, cpu_src1);
                     tcg_gen_brcondi_tl(gen_tcg_cond_reg[cond], cpu_src1,
                                        0, l1);
-                    tcg_gen_mov_i32(cpu__fpr[QFPREG(rd)], cpu__fpr[QFPREG(rs2)]);
-                    tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 1], cpu__fpr[QFPREG(rs2) + 1]);
-                    tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 2], cpu__fpr[QFPREG(rs2) + 2]);
-                    tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 3], cpu__fpr[QFPREG(rs2) + 3]);
-                    gen_update_fprs_dirty(QFPREG(rd));
+                    gen_move_Q(rd, rs2);
                     gen_set_label(l1);
                     break;
                 }
@@ -2978,15 +2980,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_fcond(r_cond, fcc, cond);                   \
                         tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond,         \
                                            0, l1);                      \
-                        tcg_gen_mov_i32(cpu__fpr[QFPREG(rd)],           \
-                                        cpu__fpr[QFPREG(rs2)]);         \
-                        tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 1],       \
-                                        cpu__fpr[QFPREG(rs2) + 1]);     \
-                        tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 2],       \
-                                        cpu__fpr[QFPREG(rs2) + 2]);     \
-                        tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 3],       \
-                                        cpu__fpr[QFPREG(rs2) + 3]);     \
-                        gen_update_fprs_dirty(QFPREG(rd));              \
+                        gen_move_Q(rd, rs2);                            \
                         gen_set_label(l1);                              \
                         tcg_temp_free(r_cond);                          \
                     }
@@ -3077,15 +3071,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_cond(r_cond, icc, cond, dc);                \
                         tcg_gen_brcondi_tl(TCG_COND_EQ, r_cond,         \
                                            0, l1);                      \
-                        tcg_gen_mov_i32(cpu__fpr[QFPREG(rd)],           \
-                                        cpu__fpr[QFPREG(rs2)]);         \
-                        tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 1],       \
-                                        cpu__fpr[QFPREG(rs2) + 1]);     \
-                        tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 2],       \
-                                        cpu__fpr[QFPREG(rs2) + 2]);     \
-                        tcg_gen_mov_i32(cpu__fpr[QFPREG(rd) + 3],       \
-                                        cpu__fpr[QFPREG(rs2) + 3]);     \
-                        gen_update_fprs_dirty(QFPREG(rd));              \
+                        gen_move_Q(rd, rs2);                            \
                         gen_set_label(l1);                              \
                         tcg_temp_free(r_cond);                          \
                     }
