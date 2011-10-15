@@ -66,8 +66,6 @@
 #endif
 #endif
 
-#define DT0 (env->dt0)
-#define DT1 (env->dt1)
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
 
@@ -2213,56 +2211,6 @@ target_ulong helper_casx_asi(target_ulong addr, target_ulong val1,
     return ret;
 }
 #endif /* TARGET_SPARC64 */
-
-void helper_stdf(target_ulong addr, int mem_idx)
-{
-    helper_check_align(addr, 7);
-#if !defined(CONFIG_USER_ONLY)
-    switch (mem_idx) {
-    case MMU_USER_IDX:
-        stfq_user(addr, DT0);
-        break;
-    case MMU_KERNEL_IDX:
-        stfq_kernel(addr, DT0);
-        break;
-#ifdef TARGET_SPARC64
-    case MMU_HYPV_IDX:
-        stfq_hypv(addr, DT0);
-        break;
-#endif
-    default:
-        DPRINTF_MMU("helper_stdf: need to check MMU idx %d\n", mem_idx);
-        break;
-    }
-#else
-    stfq_raw(address_mask(env, addr), DT0);
-#endif
-}
-
-void helper_lddf(target_ulong addr, int mem_idx)
-{
-    helper_check_align(addr, 7);
-#if !defined(CONFIG_USER_ONLY)
-    switch (mem_idx) {
-    case MMU_USER_IDX:
-        DT0 = ldfq_user(addr);
-        break;
-    case MMU_KERNEL_IDX:
-        DT0 = ldfq_kernel(addr);
-        break;
-#ifdef TARGET_SPARC64
-    case MMU_HYPV_IDX:
-        DT0 = ldfq_hypv(addr);
-        break;
-#endif
-    default:
-        DPRINTF_MMU("helper_lddf: need to check MMU idx %d\n", mem_idx);
-        break;
-    }
-#else
-    DT0 = ldfq_raw(address_mask(env, addr));
-#endif
-}
 
 void helper_ldqf(target_ulong addr, int mem_idx)
 {

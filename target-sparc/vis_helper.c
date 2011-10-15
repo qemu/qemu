@@ -20,11 +20,6 @@
 #include "cpu.h"
 #include "helper.h"
 
-#define DT0 (env->dt0)
-#define DT1 (env->dt1)
-#define QT0 (env->qt0)
-#define QT1 (env->qt1)
-
 /* This function uses non-native bit order */
 #define GET_FIELD(X, FROM, TO)                                  \
     ((X) >> (63 - (TO)) & ((1ULL << ((TO) - (FROM) + 1)) - 1))
@@ -58,16 +53,16 @@ target_ulong helper_alignaddr(CPUState *env, target_ulong addr,
     return tmp & ~7ULL;
 }
 
-void helper_faligndata(CPUState *env)
+uint64_t helper_faligndata(CPUState *env, uint64_t src1, uint64_t src2)
 {
     uint64_t tmp;
 
-    tmp = (*((uint64_t *)&DT0)) << ((env->gsr & 7) * 8);
+    tmp = src1 << ((env->gsr & 7) * 8);
     /* on many architectures a shift of 64 does nothing */
     if ((env->gsr & 7) != 0) {
-        tmp |= (*((uint64_t *)&DT1)) >> (64 - (env->gsr & 7) * 8);
+        tmp |= src2 >> (64 - (env->gsr & 7) * 8);
     }
-    *((uint64_t *)&DT0) = tmp;
+    return tmp;
 }
 
 #ifdef HOST_WORDS_BIGENDIAN
@@ -102,12 +97,12 @@ typedef union {
     float32 f;
 } VIS32;
 
-void helper_fpmerge(CPUState *env)
+uint64_t helper_fpmerge(CPUState *env, uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
 
-    s.d = DT0;
-    d.d = DT1;
+    s.ll = src1;
+    d.ll = src2;
 
     /* Reverse calculation order to handle overlap */
     d.VIS_B64(7) = s.VIS_B64(3);
@@ -119,16 +114,16 @@ void helper_fpmerge(CPUState *env)
     d.VIS_B64(1) = s.VIS_B64(0);
     /* d.VIS_B64(0) = d.VIS_B64(0); */
 
-    DT0 = d.d;
+    return d.ll;
 }
 
-void helper_fmul8x16(CPUState *env)
+uint64_t helper_fmul8x16(CPUState *env, uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
 
-    s.d = DT0;
-    d.d = DT1;
+    s.ll = src1;
+    d.ll = src2;
 
 #define PMUL(r)                                                 \
     tmp = (int32_t)d.VIS_SW64(r) * (int32_t)s.VIS_B64(r);       \
@@ -143,16 +138,16 @@ void helper_fmul8x16(CPUState *env)
     PMUL(3);
 #undef PMUL
 
-    DT0 = d.d;
+    return d.ll;
 }
 
-void helper_fmul8x16al(CPUState *env)
+uint64_t helper_fmul8x16al(CPUState *env, uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
 
-    s.d = DT0;
-    d.d = DT1;
+    s.ll = src1;
+    d.ll = src2;
 
 #define PMUL(r)                                                 \
     tmp = (int32_t)d.VIS_SW64(1) * (int32_t)s.VIS_B64(r);       \
@@ -167,16 +162,16 @@ void helper_fmul8x16al(CPUState *env)
     PMUL(3);
 #undef PMUL
 
-    DT0 = d.d;
+    return d.ll;
 }
 
-void helper_fmul8x16au(CPUState *env)
+uint64_t helper_fmul8x16au(CPUState *env, uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
 
-    s.d = DT0;
-    d.d = DT1;
+    s.ll = src1;
+    d.ll = src2;
 
 #define PMUL(r)                                                 \
     tmp = (int32_t)d.VIS_SW64(0) * (int32_t)s.VIS_B64(r);       \
@@ -191,16 +186,16 @@ void helper_fmul8x16au(CPUState *env)
     PMUL(3);
 #undef PMUL
 
-    DT0 = d.d;
+    return d.ll;
 }
 
-void helper_fmul8sux16(CPUState *env)
+uint64_t helper_fmul8sux16(CPUState *env, uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
 
-    s.d = DT0;
-    d.d = DT1;
+    s.ll = src1;
+    d.ll = src2;
 
 #define PMUL(r)                                                         \
     tmp = (int32_t)d.VIS_SW64(r) * ((int32_t)s.VIS_SW64(r) >> 8);       \
@@ -215,16 +210,16 @@ void helper_fmul8sux16(CPUState *env)
     PMUL(3);
 #undef PMUL
 
-    DT0 = d.d;
+    return d.ll;
 }
 
-void helper_fmul8ulx16(CPUState *env)
+uint64_t helper_fmul8ulx16(CPUState *env, uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
 
-    s.d = DT0;
-    d.d = DT1;
+    s.ll = src1;
+    d.ll = src2;
 
 #define PMUL(r)                                                         \
     tmp = (int32_t)d.VIS_SW64(r) * ((uint32_t)s.VIS_B64(r * 2));        \
@@ -239,16 +234,16 @@ void helper_fmul8ulx16(CPUState *env)
     PMUL(3);
 #undef PMUL
 
-    DT0 = d.d;
+    return d.ll;
 }
 
-void helper_fmuld8sux16(CPUState *env)
+uint64_t helper_fmuld8sux16(CPUState *env, uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
 
-    s.d = DT0;
-    d.d = DT1;
+    s.ll = src1;
+    d.ll = src2;
 
 #define PMUL(r)                                                         \
     tmp = (int32_t)d.VIS_SW64(r) * ((int32_t)s.VIS_SW64(r) >> 8);       \
@@ -262,16 +257,16 @@ void helper_fmuld8sux16(CPUState *env)
     PMUL(0);
 #undef PMUL
 
-    DT0 = d.d;
+    return d.ll;
 }
 
-void helper_fmuld8ulx16(CPUState *env)
+uint64_t helper_fmuld8ulx16(CPUState *env, uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
 
-    s.d = DT0;
-    d.d = DT1;
+    s.ll = src1;
+    d.ll = src2;
 
 #define PMUL(r)                                                         \
     tmp = (int32_t)d.VIS_SW64(r) * ((uint32_t)s.VIS_B64(r * 2));        \
@@ -285,38 +280,38 @@ void helper_fmuld8ulx16(CPUState *env)
     PMUL(0);
 #undef PMUL
 
-    DT0 = d.d;
+    return d.ll;
 }
 
-void helper_fexpand(CPUState *env)
+uint64_t helper_fexpand(CPUState *env, uint64_t src1, uint64_t src2)
 {
     VIS32 s;
     VIS64 d;
 
-    s.l = (uint32_t)(*(uint64_t *)&DT0 & 0xffffffff);
-    d.d = DT1;
+    s.l = (uint32_t)src1;
+    d.ll = src2;
     d.VIS_W64(0) = s.VIS_B32(0) << 4;
     d.VIS_W64(1) = s.VIS_B32(1) << 4;
     d.VIS_W64(2) = s.VIS_B32(2) << 4;
     d.VIS_W64(3) = s.VIS_B32(3) << 4;
 
-    DT0 = d.d;
+    return d.ll;
 }
 
 #define VIS_HELPER(name, F)                             \
-    void name##16(CPUState *env)                        \
+    uint64_t name##16(CPUState *env, uint64_t src1, uint64_t src2) \
     {                                                   \
         VIS64 s, d;                                     \
                                                         \
-        s.d = DT0;                                      \
-        d.d = DT1;                                      \
+        s.ll = src1;                                    \
+        d.ll = src2;                                    \
                                                         \
         d.VIS_W64(0) = F(d.VIS_W64(0), s.VIS_W64(0));   \
         d.VIS_W64(1) = F(d.VIS_W64(1), s.VIS_W64(1));   \
         d.VIS_W64(2) = F(d.VIS_W64(2), s.VIS_W64(2));   \
         d.VIS_W64(3) = F(d.VIS_W64(3), s.VIS_W64(3));   \
                                                         \
-        DT0 = d.d;                                      \
+        return d.ll;                                    \
     }                                                   \
                                                         \
     uint32_t name##16s(CPUState *env, uint32_t src1,    \
@@ -333,17 +328,17 @@ void helper_fexpand(CPUState *env)
         return d.l;                                     \
     }                                                   \
                                                         \
-    void name##32(CPUState *env)                        \
+    uint64_t name##32(CPUState *env, uint64_t src1, uint64_t src2) \
     {                                                   \
         VIS64 s, d;                                     \
                                                         \
-        s.d = DT0;                                      \
-        d.d = DT1;                                      \
+        s.ll = src1;                                    \
+        d.ll = src2;                                    \
                                                         \
         d.VIS_L64(0) = F(d.VIS_L64(0), s.VIS_L64(0));   \
         d.VIS_L64(1) = F(d.VIS_L64(1), s.VIS_L64(1));   \
                                                         \
-        DT0 = d.d;                                      \
+        return d.ll;                                    \
     }                                                   \
                                                         \
     uint32_t name##32s(CPUState *env, uint32_t src1,    \
@@ -365,12 +360,12 @@ VIS_HELPER(helper_fpadd, FADD)
 VIS_HELPER(helper_fpsub, FSUB)
 
 #define VIS_CMPHELPER(name, F)                                    \
-    uint64_t name##16(CPUState *env)                              \
+    uint64_t name##16(CPUState *env, uint64_t src1, uint64_t src2) \
     {                                                             \
         VIS64 s, d;                                               \
                                                                   \
-        s.d = DT0;                                                \
-        d.d = DT1;                                                \
+        s.ll = src1;                                              \
+        d.ll = src2;                                              \
                                                                   \
         d.VIS_W64(0) = F(s.VIS_W64(0), d.VIS_W64(0)) ? 1 : 0;     \
         d.VIS_W64(0) |= F(s.VIS_W64(1), d.VIS_W64(1)) ? 2 : 0;    \
@@ -381,12 +376,12 @@ VIS_HELPER(helper_fpsub, FSUB)
         return d.ll;                                              \
     }                                                             \
                                                                   \
-    uint64_t name##32(CPUState *env)                              \
+    uint64_t name##32(CPUState *env, uint64_t src1, uint64_t src2) \
     {                                                             \
         VIS64 s, d;                                               \
                                                                   \
-        s.d = DT0;                                                \
-        d.d = DT1;                                                \
+        s.ll = src1;                                              \
+        d.ll = src2;                                              \
                                                                   \
         d.VIS_L64(0) = F(s.VIS_L64(0), d.VIS_L64(0)) ? 1 : 0;     \
         d.VIS_L64(0) |= F(s.VIS_L64(1), d.VIS_L64(1)) ? 2 : 0;    \
