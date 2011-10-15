@@ -491,7 +491,7 @@ static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
         NVRAM->addr |= val << 8;
         break;
     case 3:
-        m48t59_write(NVRAM, val, NVRAM->addr);
+        m48t59_write(NVRAM, NVRAM->addr, val);
         NVRAM->addr = 0x0000;
         break;
     default:
