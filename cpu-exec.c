@@ -219,6 +219,7 @@ int cpu_exec(CPUState *env)
 #elif defined(TARGET_ARM)
 #elif defined(TARGET_UNICORE32)
 #elif defined(TARGET_PPC)
+    env->reserve_addr = -1;
 #elif defined(TARGET_LM32)
 #elif defined(TARGET_MICROBLAZE)
 #elif defined(TARGET_MIPS)

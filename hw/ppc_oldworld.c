@@ -26,6 +26,7 @@
 #include "hw.h"
 #include "ppc.h"
 #include "ppc_mac.h"
+#include "adb.h"
 #include "mac_dbdma.h"
 #include "nvram.h"
 #include "pc.h"

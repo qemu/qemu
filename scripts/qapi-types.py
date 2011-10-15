@@ -70,7 +70,7 @@ const char *%(name)s_lookup[] = {
         ret += mcgen('''
     "%(value)s",
 ''',
-                     value=c_var(value).lower())
+                     value=value.lower())
 
     ret += mcgen('''
     NULL,
@@ -91,8 +91,11 @@ typedef enum %(name)s
 ''',
                 name=name)
 
+    # append automatically generated _MAX value
+    enum_values = values + [ 'MAX' ]
+
     i = 0
-    for value in values:
+    for value in enum_values:
         enum_decl += mcgen('''
     %(abbrev)s_%(value)s = %(i)d,
 ''',
@@ -254,6 +257,8 @@ for expr in exprs:
     ret = "\n"
     if expr.has_key('type'):
         ret += generate_struct(expr['type'], "", expr['data']) + "\n"
+        ret += generate_type_cleanup_decl(expr['type'] + "List")
+        fdef.write(generate_type_cleanup(expr['type'] + "List") + "\n")
         ret += generate_type_cleanup_decl(expr['type'])
         fdef.write(generate_type_cleanup(expr['type']) + "\n")
     elif expr.has_key('union'):
@@ -268,3 +273,6 @@ fdecl.write('''
 
 fdecl.flush()
 fdecl.close()
+
+fdef.flush()
+fdef.close()

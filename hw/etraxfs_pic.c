@@ -39,6 +39,7 @@
 struct etrax_pic
 {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     void *interrupt_vector;
     qemu_irq parent_irq;
     qemu_irq parent_nmi;
@@ -77,7 +78,8 @@ static void pic_update(struct etrax_pic *fs)
     qemu_set_irq(fs->parent_irq, !!vector);
 }
 
-static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t
+pic_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 {
     struct etrax_pic *fs = opaque;
     uint32_t rval;
@@ -87,8 +89,8 @@ static uint32_t pic_readl (void *opaque, target_phys_addr_t addr)
     return rval;
 }
 
-static void
-pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+static void pic_write(void *opaque, target_phys_addr_t addr,
+                      uint64_t value, unsigned int size)
 {
     struct etrax_pic *fs = opaque;
     D(printf("%s addr=%x val=%x\n", __func__, addr, value));
@@ -99,14 +101,14 @@ pic_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc * const pic_read[] = {
-    NULL, NULL,
-    &pic_readl,
-};
-
-static CPUWriteMemoryFunc * const pic_write[] = {
-    NULL, NULL,
-    &pic_writel,
+static const MemoryRegionOps pic_ops = {
+    .read = pic_read,
+    .write = pic_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void nmi_handler(void *opaque, int irq, int level)
@@ -139,15 +141,13 @@ static void irq_handler(void *opaque, int irq, int level)
 static int etraxfs_pic_init(SysBusDevice *dev)
 {
     struct etrax_pic *s = FROM_SYSBUS(typeof (*s), dev);
-    int intr_vect_regs;
 
     qdev_init_gpio_in(&dev->qdev, irq_handler, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_nmi);
 
-    intr_vect_regs = cpu_register_io_memory(pic_read, pic_write, s,
-                                            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, intr_vect_regs);
+    memory_region_init_io(&s->mmio, &pic_ops, s, "etraxfs-pic", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->mmio);
     return 0;
 }
 

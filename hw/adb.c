@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "hw.h"
-#include "ppc_mac.h"
+#include "adb.h"
 #include "console.h"
 
 /* debug ADB */

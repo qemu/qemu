@@ -27,11 +27,11 @@ static void visit_type_TestStruct(Visitor *v, TestStruct **obj, const char *name
 
 static void visit_type_TestStructList(Visitor *m, TestStructList ** obj, const char *name, Error **errp)
 {
-    GenericList *i;
+    GenericList *i, **head = (GenericList **)obj;
 
     visit_start_list(m, name, errp);
 
-    for (i = visit_next_list(m, (GenericList **)obj, errp); i; i = visit_next_list(m, &i, errp)) {
+    for (*head = i = visit_next_list(m, head, errp); i; i = visit_next_list(m, &i, errp)) {
         TestStructList *native_i = (TestStructList *)i;
         visit_type_TestStruct(m, &native_i->value, NULL, errp);
     }
@@ -50,6 +50,8 @@ static void test_visitor_core(void)
     TestStructList *lts = NULL;
     Error *err = NULL;
     QObject *obj;
+    QList *qlist;
+    QDict *qdict;
     QString *str;
     int64_t value = 0;
 
@@ -96,7 +98,9 @@ static void test_visitor_core(void)
     g_assert(pts->y == 84);
 
     qobject_decref(obj);
+    g_free(pts);
 
+    /* test list input visitor */
     obj = qobject_from_json("[{'x': 42, 'y': 84}, {'x': 12, 'y': 24}]");
     mi = qmp_input_visitor_new(obj);
     v = qmp_input_get_visitor(mi);
@@ -110,14 +114,41 @@ static void test_visitor_core(void)
     g_assert(lts->value->x == 42);
     g_assert(lts->value->y == 84);
 
-    lts = lts->next;
-    g_assert(lts != NULL);
-    g_assert(lts->value->x == 12);
-    g_assert(lts->value->y == 24);
-
-    g_assert(lts->next == NULL);
+    g_assert(lts->next != NULL);
+    g_assert(lts->next->value->x == 12);
+    g_assert(lts->next->value->y == 24);
+    g_assert(lts->next->next == NULL);
 
     qobject_decref(obj);
+
+    /* test list output visitor */
+    mo = qmp_output_visitor_new();
+    v = qmp_output_get_visitor(mo);
+    visit_type_TestStructList(v, &lts, NULL, &err);
+    if (err) {
+        g_error("%s", error_get_pretty(err));
+    }
+    obj = qmp_output_get_qobject(mo);
+    g_print("obj: %s\n", qstring_get_str(qobject_to_json(obj)));
+
+    qlist = qobject_to_qlist(obj);
+    assert(qlist);
+    obj = qlist_pop(qlist);
+    qdict = qobject_to_qdict(obj);
+    assert(qdict);
+    assert(qdict_get_int(qdict, "x") == 42);
+    assert(qdict_get_int(qdict, "y") == 84);
+    qobject_decref(obj);
+
+    obj = qlist_pop(qlist);
+    qdict = qobject_to_qdict(obj);
+    assert(qdict);
+    assert(qdict_get_int(qdict, "x") == 12);
+    assert(qdict_get_int(qdict, "y") == 24);
+    qobject_decref(obj);
+
+    qmp_output_visitor_cleanup(mo);
+    QDECREF(qlist);
 }
 
 /* test deep nesting with refs to other user-defined types */
@@ -286,7 +317,8 @@ static void test_nested_enums(void)
     g_assert(nested_enums_cpy->has_enum2 == false);
     g_assert(nested_enums_cpy->has_enum4 == true);
 
-    qobject_decref(obj);
+    qmp_output_visitor_cleanup(mo);
+    qmp_input_visitor_cleanup(mi);
     qapi_free_NestedEnumsOne(nested_enums);
     qapi_free_NestedEnumsOne(nested_enums_cpy);
 }

@@ -14,6 +14,7 @@
  *
  */
 
+#include <dirent.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
@@ -28,6 +29,10 @@
 #include "cpu.h"
 #include "device_tree.h"
 
+#include "hw/sysbus.h"
+#include "hw/spapr.h"
+#include "hw/spapr_vio.h"
+
 //#define DEBUG_KVM
 
 #ifdef DEBUG_KVM
@@ -37,6 +42,8 @@
 #define dprintf(fmt, ...) \
     do { } while (0)
 #endif
+
+#define PROC_DEVTREE_CPU      "/proc/device-tree/cpus/"
 
 const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
     KVM_CAP_LAST_INFO
@@ -105,6 +112,52 @@ static int kvm_arch_sync_sregs(CPUState *cenv)
     return kvm_vcpu_ioctl(cenv, KVM_SET_SREGS, &sregs);
 }
 
+/* Set up a shared TLB array with KVM */
+static int kvm_booke206_tlb_init(CPUState *env)
+{
+    struct kvm_book3e_206_tlb_params params = {};
+    struct kvm_config_tlb cfg = {};
+    struct kvm_enable_cap encap = {};
+    unsigned int entries = 0;
+    int ret, i;
+
+    if (!kvm_enabled() ||
+        !kvm_check_extension(env->kvm_state, KVM_CAP_SW_TLB)) {
+        return 0;
+    }
+
+    assert(ARRAY_SIZE(params.tlb_sizes) == BOOKE206_MAX_TLBN);
+
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        params.tlb_sizes[i] = booke206_tlb_size(env, i);
+        params.tlb_ways[i] = booke206_tlb_ways(env, i);
+        entries += params.tlb_sizes[i];
+    }
+
+    assert(entries == env->nb_tlb);
+    assert(sizeof(struct kvm_book3e_206_tlb_entry) == sizeof(ppcmas_tlb_t));
+
+    env->tlb_dirty = true;
+
+    cfg.array = (uintptr_t)env->tlb.tlbm;
+    cfg.array_len = sizeof(ppcmas_tlb_t) * entries;
+    cfg.params = (uintptr_t)&params;
+    cfg.mmu_type = KVM_MMU_FSL_BOOKE_NOHV;
+
+    encap.cap = KVM_CAP_SW_TLB;
+    encap.args[0] = (uintptr_t)&cfg;
+
+    ret = kvm_vcpu_ioctl(env, KVM_ENABLE_CAP, &encap);
+    if (ret < 0) {
+        fprintf(stderr, "%s: couldn't enable KVM_CAP_SW_TLB: %s\n",
+                __func__, strerror(-ret));
+        return ret;
+    }
+
+    env->kvm_sw_tlb = true;
+    return 0;
+}
+
 int kvm_arch_init_vcpu(CPUState *cenv)
 {
     int ret;
@@ -116,11 +169,45 @@ int kvm_arch_init_vcpu(CPUState *cenv)
 
     idle_timer = qemu_new_timer_ns(vm_clock, kvm_kick_env, cenv);
 
+    /* Some targets support access to KVM's guest TLB. */
+    switch (cenv->mmu_model) {
+    case POWERPC_MMU_BOOKE206:
+        ret = kvm_booke206_tlb_init(cenv);
+        break;
+    default:
+        break;
+    }
+
     return ret;
 }
 
 void kvm_arch_reset_vcpu(CPUState *env)
 {
+}
+
+static void kvm_sw_tlb_put(CPUState *env)
+{
+    struct kvm_dirty_tlb dirty_tlb;
+    unsigned char *bitmap;
+    int ret;
+
+    if (!env->kvm_sw_tlb) {
+        return;
+    }
+
+    bitmap = g_malloc((env->nb_tlb + 7) / 8);
+    memset(bitmap, 0xFF, (env->nb_tlb + 7) / 8);
+
+    dirty_tlb.bitmap = (uintptr_t)bitmap;
+    dirty_tlb.num_dirty = env->nb_tlb;
+
+    ret = kvm_vcpu_ioctl(env, KVM_DIRTY_TLB, &dirty_tlb);
+    if (ret) {
+        fprintf(stderr, "%s: KVM_DIRTY_TLB: %s\n",
+                __func__, strerror(-ret));
+    }
+
+    g_free(bitmap);
 }
 
 int kvm_arch_put_registers(CPUState *env, int level)
@@ -159,6 +246,11 @@ int kvm_arch_put_registers(CPUState *env, int level)
     ret = kvm_vcpu_ioctl(env, KVM_SET_REGS, &regs);
     if (ret < 0)
         return ret;
+
+    if (env->tlb_dirty) {
+        kvm_sw_tlb_put(env);
+        env->tlb_dirty = false;
+    }
 
     return ret;
 }
@@ -452,6 +544,14 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
         dprintf("handle halt\n");
         ret = kvmppc_handle_halt(env);
         break;
+#ifdef CONFIG_PSERIES
+    case KVM_EXIT_PAPR_HCALL:
+        dprintf("handle PAPR hypercall\n");
+        run->papr_hcall.ret = spapr_hypercall(env, run->papr_hcall.nr,
+                                              run->papr_hcall.args);
+        ret = 1;
+        break;
+#endif
     default:
         fprintf(stderr, "KVM: unknown exit reason %d\n", run->exit_reason);
         ret = -1;
@@ -509,6 +609,70 @@ uint32_t kvmppc_get_tbfreq(void)
     return retval;
 }
 
+/* Try to find a device tree node for a CPU with clock-frequency property */
+static int kvmppc_find_cpu_dt(char *buf, int buf_len)
+{
+    struct dirent *dirp;
+    DIR *dp;
+
+    if ((dp = opendir(PROC_DEVTREE_CPU)) == NULL) {
+        printf("Can't open directory " PROC_DEVTREE_CPU "\n");
+        return -1;
+    }
+
+    buf[0] = '\0';
+    while ((dirp = readdir(dp)) != NULL) {
+        FILE *f;
+        snprintf(buf, buf_len, "%s%s/clock-frequency", PROC_DEVTREE_CPU,
+                 dirp->d_name);
+        f = fopen(buf, "r");
+        if (f) {
+            snprintf(buf, buf_len, "%s%s", PROC_DEVTREE_CPU, dirp->d_name);
+            fclose(f);
+            break;
+        }
+        buf[0] = '\0';
+    }
+    closedir(dp);
+    if (buf[0] == '\0') {
+        printf("Unknown host!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+uint64_t kvmppc_get_clockfreq(void)
+{
+    char buf[512];
+    uint32_t tb[2];
+    FILE *f;
+    int len;
+
+    if (kvmppc_find_cpu_dt(buf, sizeof(buf))) {
+        return 0;
+    }
+
+    strncat(buf, "/clock-frequency", sizeof(buf) - strlen(buf));
+
+    f = fopen(buf, "rb");
+    if (!f) {
+        return -1;
+    }
+
+    len = fread(tb, sizeof(tb[0]), 2, f);
+    fclose(f);
+    switch (len) {
+    case 1:
+        /* freq is only a single cell */
+        return tb[0];
+    case 2:
+        return *(uint64_t*)tb;
+    }
+
+    return 0;
+}
+
 int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
 {
     uint32_t *hc = (uint32_t*)buf;
@@ -537,6 +701,53 @@ int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
     hc[3] = 0x60000000;
 
     return 0;
+}
+
+void kvmppc_set_papr(CPUState *env)
+{
+    struct kvm_enable_cap cap = {};
+    struct kvm_one_reg reg = {};
+    struct kvm_sregs sregs = {};
+    int ret;
+
+    cap.cap = KVM_CAP_PPC_PAPR;
+    ret = kvm_vcpu_ioctl(env, KVM_ENABLE_CAP, &cap);
+
+    if (ret) {
+        goto fail;
+    }
+
+    /*
+     * XXX We set HIOR here. It really should be a qdev property of
+     *     the CPU node, but we don't have CPUs converted to qdev yet.
+     *
+     *     Once we have qdev CPUs, move HIOR to a qdev property and
+     *     remove this chunk.
+     */
+    reg.id = KVM_ONE_REG_PPC_HIOR;
+    reg.u.reg64 = env->spr[SPR_HIOR];
+    ret = kvm_vcpu_ioctl(env, KVM_SET_ONE_REG, &reg);
+    if (ret) {
+        goto fail;
+    }
+
+    /* Set SDR1 so kernel space finds the HTAB */
+    ret = kvm_vcpu_ioctl(env, KVM_GET_SREGS, &sregs);
+    if (ret) {
+        goto fail;
+    }
+
+    sregs.u.s.sdr1 = env->spr[SPR_SDR1];
+
+    ret = kvm_vcpu_ioctl(env, KVM_SET_SREGS, &sregs);
+    if (ret) {
+        goto fail;
+    }
+
+    return;
+
+fail:
+    cpu_abort(env, "This KVM version does not support PAPR\n");
 }
 
 bool kvm_arch_stop_on_emulation_error(CPUState *env)

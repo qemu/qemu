@@ -20,6 +20,7 @@
 typedef struct QStackEntry
 {
     QObject *value;
+    bool is_list_head;
     QTAILQ_ENTRY(QStackEntry) node;
 } QStackEntry;
 
@@ -45,6 +46,9 @@ static void qmp_output_push_obj(QmpOutputVisitor *qov, QObject *value)
     QStackEntry *e = g_malloc0(sizeof(*e));
 
     e->value = value;
+    if (qobject_type(e->value) == QTYPE_QLIST) {
+        e->is_list_head = true;
+    }
     QTAILQ_INSERT_HEAD(&qov->stack, e, node);
 }
 
@@ -122,12 +126,20 @@ static void qmp_output_start_list(Visitor *v, const char *name, Error **errp)
     qmp_output_push(qov, list);
 }
 
-static GenericList *qmp_output_next_list(Visitor *v, GenericList **list,
+static GenericList *qmp_output_next_list(Visitor *v, GenericList **listp,
                                          Error **errp)
 {
-    GenericList *retval = *list;
-    *list = retval->next;
-    return retval;
+    GenericList *list = *listp;
+    QmpOutputVisitor *qov = to_qov(v);
+    QStackEntry *e = QTAILQ_FIRST(&qov->stack);
+
+    assert(e);
+    if (e->is_list_head) {
+        e->is_list_head = false;
+        return list;
+    }
+
+    return list ? list->next : NULL;
 }
 
 static void qmp_output_end_list(Visitor *v, Error **errp)

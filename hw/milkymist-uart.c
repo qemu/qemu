@@ -30,20 +30,56 @@
 enum {
     R_RXTX = 0,
     R_DIV,
+    R_STAT,
+    R_CTRL,
+    R_DBG,
     R_MAX
+};
+
+enum {
+    STAT_THRE   = (1<<0),
+    STAT_RX_EVT = (1<<1),
+    STAT_TX_EVT = (1<<2),
+};
+
+enum {
+    CTRL_RX_IRQ_EN = (1<<0),
+    CTRL_TX_IRQ_EN = (1<<1),
+    CTRL_THRU_EN   = (1<<2),
+};
+
+enum {
+    DBG_BREAK_EN = (1<<0),
 };
 
 struct MilkymistUartState {
     SysBusDevice busdev;
+    MemoryRegion regs_region;
     CharDriverState *chr;
-    qemu_irq rx_irq;
-    qemu_irq tx_irq;
+    qemu_irq irq;
 
     uint32_t regs[R_MAX];
 };
 typedef struct MilkymistUartState MilkymistUartState;
 
-static uint32_t uart_read(void *opaque, target_phys_addr_t addr)
+static void uart_update_irq(MilkymistUartState *s)
+{
+    int rx_event = s->regs[R_STAT] & STAT_RX_EVT;
+    int tx_event = s->regs[R_STAT] & STAT_TX_EVT;
+    int rx_irq_en = s->regs[R_CTRL] & CTRL_RX_IRQ_EN;
+    int tx_irq_en = s->regs[R_CTRL] & CTRL_TX_IRQ_EN;
+
+    if ((rx_irq_en && rx_event) || (tx_irq_en && tx_event)) {
+        trace_milkymist_uart_raise_irq();
+        qemu_irq_raise(s->irq);
+    } else {
+        trace_milkymist_uart_lower_irq();
+        qemu_irq_lower(s->irq);
+    }
+}
+
+static uint64_t uart_read(void *opaque, target_phys_addr_t addr,
+                          unsigned size)
 {
     MilkymistUartState *s = opaque;
     uint32_t r = 0;
@@ -51,7 +87,12 @@ static uint32_t uart_read(void *opaque, target_phys_addr_t addr)
     addr >>= 2;
     switch (addr) {
     case R_RXTX:
+        r = s->regs[addr];
+        break;
     case R_DIV:
+    case R_STAT:
+    case R_CTRL:
+    case R_DBG:
         r = s->regs[addr];
         break;
 
@@ -66,7 +107,8 @@ static uint32_t uart_read(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static void uart_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void uart_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+                       unsigned size)
 {
     MilkymistUartState *s = opaque;
     unsigned char ch = value;
@@ -79,11 +121,17 @@ static void uart_write(void *opaque, target_phys_addr_t addr, uint32_t value)
         if (s->chr) {
             qemu_chr_fe_write(s->chr, &ch, 1);
         }
-        trace_milkymist_uart_pulse_irq_tx();
-        qemu_irq_pulse(s->tx_irq);
+        s->regs[R_STAT] |= STAT_TX_EVT;
         break;
     case R_DIV:
+    case R_CTRL:
+    case R_DBG:
         s->regs[addr] = value;
+        break;
+
+    case R_STAT:
+        /* write one to clear bits */
+        s->regs[addr] &= ~(value & (STAT_RX_EVT | STAT_TX_EVT));
         break;
 
     default:
@@ -91,32 +139,37 @@ static void uart_write(void *opaque, target_phys_addr_t addr, uint32_t value)
                 TARGET_FMT_plx, addr << 2);
         break;
     }
+
+    uart_update_irq(s);
 }
 
-static CPUReadMemoryFunc * const uart_read_fn[] = {
-    NULL,
-    NULL,
-    &uart_read,
-};
-
-static CPUWriteMemoryFunc * const uart_write_fn[] = {
-    NULL,
-    NULL,
-    &uart_write,
+static const MemoryRegionOps uart_mmio_ops = {
+    .read = uart_read,
+    .write = uart_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void uart_rx(void *opaque, const uint8_t *buf, int size)
 {
     MilkymistUartState *s = opaque;
 
+    assert(!(s->regs[R_STAT] & STAT_RX_EVT));
+
+    s->regs[R_STAT] |= STAT_RX_EVT;
     s->regs[R_RXTX] = *buf;
-    trace_milkymist_uart_pulse_irq_rx();
-    qemu_irq_pulse(s->rx_irq);
+
+    uart_update_irq(s);
 }
 
 static int uart_can_rx(void *opaque)
 {
-    return 1;
+    MilkymistUartState *s = opaque;
+
+    return !(s->regs[R_STAT] & STAT_RX_EVT);
 }
 
 static void uart_event(void *opaque, int event)
@@ -131,19 +184,20 @@ static void milkymist_uart_reset(DeviceState *d)
     for (i = 0; i < R_MAX; i++) {
         s->regs[i] = 0;
     }
+
+    /* THRE is always set */
+    s->regs[R_STAT] = STAT_THRE;
 }
 
 static int milkymist_uart_init(SysBusDevice *dev)
 {
     MilkymistUartState *s = FROM_SYSBUS(typeof(*s), dev);
-    int uart_regs;
 
-    sysbus_init_irq(dev, &s->rx_irq);
-    sysbus_init_irq(dev, &s->tx_irq);
+    sysbus_init_irq(dev, &s->irq);
 
-    uart_regs = cpu_register_io_memory(uart_read_fn, uart_write_fn, s,
-            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, uart_regs);
+    memory_region_init_io(&s->regs_region, &uart_mmio_ops, s,
+            "milkymist-uart", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->regs_region);
 
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr) {

@@ -23,6 +23,7 @@
 #include "device_tree.h"
 #include "loader.h"
 #include "elf.h"
+#include "exec-memory.h"
 
 #define BINARY_DEVICE_TREE_FILE "bamboo.dtb"
 
@@ -43,6 +44,8 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
     char *filename;
     int fdt_size;
     void *fdt;
+    uint32_t tb_freq = 400000000;
+    uint32_t clock_freq = 400000000;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
     if (!filename) {
@@ -76,8 +79,18 @@ static int bamboo_load_device_tree(target_phys_addr_t addr,
     if (ret < 0)
         fprintf(stderr, "couldn't set /chosen/bootargs\n");
 
-    if (kvm_enabled())
-        kvmppc_fdt_update(fdt);
+    /* Copy data from the host device tree into the guest. Since the guest can
+     * directly access the timebase without host involvement, we must expose
+     * the correct frequencies. */
+    if (kvm_enabled()) {
+        tb_freq = kvmppc_get_tbfreq();
+        clock_freq = kvmppc_get_clockfreq();
+    }
+
+    qemu_devtree_setprop_cell(fdt, "/cpus/cpu@0", "clock-frequency",
+                              clock_freq);
+    qemu_devtree_setprop_cell(fdt, "/cpus/cpu@0", "timebase-frequency",
+                              tb_freq);
 
     ret = rom_add_blob_fixed(BINARY_DEVICE_TREE_FILE, fdt, fdt_size, addr);
     g_free(fdt);
@@ -96,6 +109,7 @@ static void bamboo_init(ram_addr_t ram_size,
                         const char *cpu_model)
 {
     unsigned int pci_irq_nrs[4] = { 28, 27, 26, 25 };
+    MemoryRegion *address_space_mem = get_system_memory();
     PCIBus *pcibus;
     CPUState *env;
     uint64_t elf_entry;
@@ -107,7 +121,8 @@ static void bamboo_init(ram_addr_t ram_size,
     int i;
 
     /* Setup CPU. */
-    env = ppc440ep_init(&ram_size, &pcibus, pci_irq_nrs, 1, cpu_model);
+    env = ppc440ep_init(address_space_mem, &ram_size, &pcibus,
+                        pci_irq_nrs, 1, cpu_model);
 
     if (pcibus) {
         /* Register network interfaces. */

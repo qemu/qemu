@@ -37,6 +37,7 @@
 #include "usb.h"
 #include "flash.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 #define FLASH_BASE 0x00000000
 #define FLASH_SIZE 0x02000000
@@ -235,6 +236,7 @@ static void r2d_init(ram_addr_t ram_size,
     qemu_irq *irq;
     DriveInfo *dinfo;
     int i;
+    MemoryRegion *address_space_mem = get_system_memory();
 
     if (!cpu_model)
         cpu_model = "SH7751R";
@@ -258,7 +260,8 @@ static void r2d_init(ram_addr_t ram_size,
     sysbus_create_varargs("sh_pci", 0x1e200000, irq[PCI_INTA], irq[PCI_INTB],
                           irq[PCI_INTC], irq[PCI_INTD], NULL);
 
-    sm501_init(0x10000000, SM501_VRAM_SIZE, irq[SM501], serial_hds[2]);
+    sm501_init(address_space_mem, 0x10000000, SM501_VRAM_SIZE,
+               irq[SM501], serial_hds[2]);
 
     /* onboard CF (True IDE mode, Master only). */
     dinfo = drive_get(IF_IDE, 0, 0);

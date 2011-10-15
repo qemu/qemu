@@ -26,6 +26,7 @@
 #include "boards.h"
 #include "pc.h"                 /* serial_isa_init */
 #include "dma.h"                /* QEMUSGList (in ide/internal.h) */
+#include "exec-memory.h"        /* get_system_memory */
 #include "ide/internal.h"       /* ide_cmd_write, ... */
 
 #include "s3c2410x.h"
@@ -513,13 +514,13 @@ static void stcb_init(ram_addr_t _ram_size,
     }
 
     chr = qemu_chr_new("uart0", "vc:80Cx24C", NULL);
-    serial_mm_init(SERIAL_BASE + 0x2f8, 0,
+    serial_mm_init(get_system_memory(), SERIAL_BASE + 0x2f8, 0,
                    s3c24xx_get_eirq(stcb->soc->gpio, 15),
-                   SERIAL_CLK, chr, 1, 0);
+                   SERIAL_CLK, chr, DEVICE_NATIVE_ENDIAN);
     chr = qemu_chr_new("uart1", "vc:80Cx24C", NULL);
-    serial_mm_init(SERIAL_BASE + 0x3f8, 0,
+    serial_mm_init(get_system_memory(), SERIAL_BASE + 0x3f8, 0,
                    s3c24xx_get_eirq(stcb->soc->gpio, 14),
-                   SERIAL_CLK, chr, 1, 0);
+                   SERIAL_CLK, chr, DEVICE_NATIVE_ENDIAN);
 #if 0
     /* Super I/O */
     isa_bus_new(NULL);

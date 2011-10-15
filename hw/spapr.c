@@ -38,6 +38,9 @@
 #include "hw/spapr_vio.h"
 #include "hw/xics.h"
 
+#include "kvm.h"
+#include "kvm_ppc.h"
+
 #include <libfdt.h>
 
 #define KERNEL_LOAD_ADDR        0x00000000
@@ -54,7 +57,33 @@
 #define MAX_CPUS                256
 #define XICS_IRQS		1024
 
+#define PHANDLE_XICP            0x00001111
+
 sPAPREnvironment *spapr;
+
+qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num)
+{
+    uint32_t irq;
+    qemu_irq qirq;
+
+    if (hint) {
+        irq = hint;
+        /* FIXME: we should probably check for collisions somehow */
+    } else {
+        irq = spapr->next_irq++;
+    }
+
+    qirq = xics_find_qirq(spapr->icp, irq);
+    if (!qirq) {
+        return NULL;
+    }
+
+    if (irq_num) {
+        *irq_num = irq;
+    }
+
+    return qirq;
+}
 
 static void *spapr_create_fdt_skel(const char *cpu_model,
                                    target_phys_addr_t initrd_base,
@@ -70,7 +99,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
     char hypertas_prop[] = "hcall-pft\0hcall-term\0hcall-dabr\0hcall-interrupt"
-        "\0hcall-tce\0hcall-vio\0hcall-splpar";
+        "\0hcall-tce\0hcall-vio\0hcall-splpar\0hcall-bulk";
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
     int i;
     char *modelname;
@@ -137,6 +166,8 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
         char *nodename;
         uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                            0xffffffff, 0xffffffff};
+        uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TIMEBASE_FREQ;
+        uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
 
         if (asprintf(&nodename, "%s@%x", modelname, index) < 0) {
             fprintf(stderr, "Allocation failure\n");
@@ -155,10 +186,8 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                                 env->dcache_line_size)));
         _FDT((fdt_property_cell(fdt, "icache-block-size",
                                 env->icache_line_size)));
-        _FDT((fdt_property_cell(fdt, "timebase-frequency", TIMEBASE_FREQ)));
-        /* Hardcode CPU frequency for now.  It's kind of arbitrary on
-         * full emu, for kvm we should copy it from the host */
-        _FDT((fdt_property_cell(fdt, "clock-frequency", 1000000000)));
+        _FDT((fdt_property_cell(fdt, "timebase-frequency", tbfreq)));
+        _FDT((fdt_property_cell(fdt, "clock-frequency", cpufreq)));
         _FDT((fdt_property_cell(fdt, "ibm,slb-size", env->slb_nr)));
         _FDT((fdt_property(fdt, "ibm,pft-size",
                            pft_size_prop, sizeof(pft_size_prop))));
@@ -189,16 +218,18 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_end_node(fdt)));
 
     /* interrupt controller */
-    _FDT((fdt_begin_node(fdt, "interrupt-controller@0")));
+    _FDT((fdt_begin_node(fdt, "interrupt-controller")));
 
     _FDT((fdt_property_string(fdt, "device_type",
                               "PowerPC-External-Interrupt-Presentation")));
     _FDT((fdt_property_string(fdt, "compatible", "IBM,ppc-xicp")));
-    _FDT((fdt_property_cell(fdt, "reg", 0)));
     _FDT((fdt_property(fdt, "interrupt-controller", NULL, 0)));
     _FDT((fdt_property(fdt, "ibm,interrupt-server-ranges",
                        interrupt_server_ranges_prop,
                        sizeof(interrupt_server_ranges_prop))));
+    _FDT((fdt_property_cell(fdt, "#interrupt-cells", 2)));
+    _FDT((fdt_property_cell(fdt, "linux,phandle", PHANDLE_XICP)));
+    _FDT((fdt_property_cell(fdt, "phandle", PHANDLE_XICP)));
 
     _FDT((fdt_end_node(fdt)));
 
@@ -298,7 +329,6 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     long kernel_size, initrd_size, fw_size;
     long pteg_shift = 17;
     char *filename;
-    int irq = 16;
 
     spapr = g_malloc(sizeof(*spapr));
     cpu_ppc_hypercall = emulate_spapr_hypercall;
@@ -330,19 +360,29 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     /* allocate RAM */
-    ram_offset = qemu_ram_alloc(NULL, "ppc_spapr.ram", ram_size);
+    spapr->ram_limit = ram_size;
+    ram_offset = qemu_ram_alloc(NULL, "ppc_spapr.ram", spapr->ram_limit);
     cpu_register_physical_memory(0, ram_size, ram_offset);
 
     /* allocate hash page table.  For now we always make this 16mb,
      * later we should probably make it scale to the size of guest
      * RAM */
     spapr->htab_size = 1ULL << (pteg_shift + 7);
-    spapr->htab = g_malloc(spapr->htab_size);
+    spapr->htab = qemu_memalign(spapr->htab_size, spapr->htab_size);
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         env->external_htab = spapr->htab;
         env->htab_base = -1;
         env->htab_mask = spapr->htab_size - 1;
+
+        /* Tell KVM that we're in PAPR mode */
+        env->spr[SPR_SDR1] = (unsigned long)spapr->htab |
+                             ((pteg_shift + 7) - 18);
+        env->spr[SPR_HIOR] = 0;
+
+        if (kvm_enabled()) {
+            kvmppc_set_papr(env);
+        }
     }
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
@@ -356,19 +396,19 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     /* Set up Interrupt Controller */
     spapr->icp = xics_system_init(XICS_IRQS);
+    spapr->next_irq = 16;
 
     /* Set up VIO bus */
     spapr->vio_bus = spapr_vio_bus_init();
 
-    for (i = 0; i < MAX_SERIAL_PORTS; i++, irq++) {
+    for (i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
             spapr_vty_create(spapr->vio_bus, SPAPR_VTY_BASE_ADDRESS + i,
-                             serial_hds[i], xics_find_qirq(spapr->icp, irq),
-                             irq);
+                             serial_hds[i]);
         }
     }
 
-    for (i = 0; i < nb_nics; i++, irq++) {
+    for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
 
         if (!nd->model) {
@@ -376,8 +416,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         }
 
         if (strcmp(nd->model, "ibmveth") == 0) {
-            spapr_vlan_create(spapr->vio_bus, 0x1000 + i, nd,
-                              xics_find_qirq(spapr->icp, irq), irq);
+            spapr_vlan_create(spapr->vio_bus, 0x1000 + i, nd);
         } else {
             fprintf(stderr, "pSeries (sPAPR) platform does not support "
                     "NIC model '%s' (only ibmveth is supported)\n",
@@ -387,9 +426,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     for (i = 0; i <= drive_get_max_bus(IF_SCSI); i++) {
-        spapr_vscsi_create(spapr->vio_bus, 0x2000 + i,
-                           xics_find_qirq(spapr->icp, irq), irq);
-        irq++;
+        spapr_vscsi_create(spapr->vio_bus, 0x2000 + i);
     }
 
     if (kernel_filename) {
@@ -430,7 +467,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                     "%ldM guest RAM\n", MIN_RAM_SLOF);
             exit(1);
         }
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "slof.bin");
+        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, FW_FILE_NAME);
         fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
         if (fw_size < 0) {
             hw_error("qemu: could not load LPAR rtas '%s'\n", filename);

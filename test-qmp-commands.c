@@ -98,6 +98,34 @@ static void test_dispatch_cmd_io(void)
     QDECREF(req);
 }
 
+/* test generated dealloc functions for generated types */
+static void test_dealloc_types(void)
+{
+    UserDefOne *ud1test, *ud1a, *ud1b;
+    UserDefOneList *ud1list;
+
+    ud1test = g_malloc0(sizeof(UserDefOne));
+    ud1test->integer = 42;
+    ud1test->string = g_strdup("hi there 42");
+
+    qapi_free_UserDefOne(ud1test);
+
+    ud1a = g_malloc0(sizeof(UserDefOne));
+    ud1a->integer = 43;
+    ud1a->string = g_strdup("hi there 43");
+
+    ud1b = g_malloc0(sizeof(UserDefOne));
+    ud1b->integer = 44;
+    ud1b->string = g_strdup("hi there 44");
+
+    ud1list = g_malloc0(sizeof(UserDefOneList));
+    ud1list->value = ud1a;
+    ud1list->next = g_malloc0(sizeof(UserDefOneList));
+    ud1list->next->value = ud1b;
+
+    qapi_free_UserDefOneList(ud1list);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -105,6 +133,7 @@ int main(int argc, char **argv)
     g_test_add_func("/0.15/dispatch_cmd", test_dispatch_cmd);
     g_test_add_func("/0.15/dispatch_cmd_error", test_dispatch_cmd_error);
     g_test_add_func("/0.15/dispatch_cmd_io", test_dispatch_cmd_io);
+    g_test_add_func("/0.15/dealloc_types", test_dealloc_types);
 
     module_call_init(MODULE_INIT_QAPI);
     g_test_run();

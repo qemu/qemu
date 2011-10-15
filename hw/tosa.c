@@ -20,6 +20,7 @@
 #include "ssi.h"
 #include "blockdev.h"
 #include "sysbus.h"
+#include "exec-memory.h"
 
 #define TOSA_RAM    0x04000000
 #define TOSA_ROM	0x00800000
@@ -206,6 +207,7 @@ static void tosa_init(ram_addr_t ram_size,
                 const char *kernel_filename, const char *kernel_cmdline,
                 const char *initrd_filename, const char *cpu_model)
 {
+    MemoryRegion *address_space_mem = get_system_memory();
     PXA2xxState *cpu;
     TC6393xbState *tmio;
     DeviceState *scp0, *scp1;
@@ -213,7 +215,7 @@ static void tosa_init(ram_addr_t ram_size,
     if (!cpu_model)
         cpu_model = "pxa255";
 
-    cpu = pxa255_init(tosa_binfo.ram_size);
+    cpu = pxa255_init(address_space_mem, tosa_binfo.ram_size);
 
     cpu_register_physical_memory(0, TOSA_ROM,
                     qemu_ram_alloc(NULL, "tosa.rom", TOSA_ROM) | IO_MEM_ROM);

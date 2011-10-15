@@ -97,6 +97,10 @@ bool error_is_type(Error *err, const char *fmt)
     char *ptr;
     char *end;
 
+    if (!err) {
+        return false;
+    }
+
     ptr = strstr(fmt, "'class': '");
     assert(ptr != NULL);
     ptr += strlen("'class': '");

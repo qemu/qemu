@@ -16,13 +16,13 @@
 SerialState *serial_16550_init(int base, qemu_irq irq, CharDriverState *chr);
 SerialState *serial_init(int base, qemu_irq irq, int baudbase,
                          CharDriverState *chr);
-SerialState *serial_mm_init (target_phys_addr_t base, int it_shift,
-                             qemu_irq irq, int baudbase,
-                             CharDriverState *chr, int ioregister,
-                             int be);
-uint32_t serial_mm_readb (void *opaque, target_phys_addr_t addr);
-void serial_mm_writeb (void *opaque, target_phys_addr_t addr, uint32_t value);
-
+SerialState *serial_mm_init(MemoryRegion *address_space,
+                            target_phys_addr_t base, int it_shift,
+                            qemu_irq irq, int baudbase,
+                            CharDriverState *chr, enum device_endian);
+uint64_t serial_mm_read(void *opaque, target_phys_addr_t addr, unsigned size);
+void serial_mm_write(void *opaque, target_phys_addr_t addr,
+                     uint64_t value, unsigned size);
 static inline bool serial_isa_init(int index, CharDriverState *chr)
 {
     ISADevice *dev;

@@ -42,12 +42,14 @@ enum {
 
 struct MilkymistHpdmcState {
     SysBusDevice busdev;
+    MemoryRegion regs_region;
 
     uint32_t regs[R_MAX];
 };
 typedef struct MilkymistHpdmcState MilkymistHpdmcState;
 
-static uint32_t hpdmc_read(void *opaque, target_phys_addr_t addr)
+static uint64_t hpdmc_read(void *opaque, target_phys_addr_t addr,
+                           unsigned size)
 {
     MilkymistHpdmcState *s = opaque;
     uint32_t r = 0;
@@ -72,7 +74,8 @@ static uint32_t hpdmc_read(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static void hpdmc_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void hpdmc_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+                        unsigned size)
 {
     MilkymistHpdmcState *s = opaque;
 
@@ -96,16 +99,14 @@ static void hpdmc_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     }
 }
 
-static CPUReadMemoryFunc * const hpdmc_read_fn[] = {
-    NULL,
-    NULL,
-    &hpdmc_read,
-};
-
-static CPUWriteMemoryFunc * const hpdmc_write_fn[] = {
-    NULL,
-    NULL,
-    &hpdmc_write,
+static const MemoryRegionOps hpdmc_mmio_ops = {
+    .read = hpdmc_read,
+    .write = hpdmc_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void milkymist_hpdmc_reset(DeviceState *d)
@@ -125,11 +126,10 @@ static void milkymist_hpdmc_reset(DeviceState *d)
 static int milkymist_hpdmc_init(SysBusDevice *dev)
 {
     MilkymistHpdmcState *s = FROM_SYSBUS(typeof(*s), dev);
-    int hpdmc_regs;
 
-    hpdmc_regs = cpu_register_io_memory(hpdmc_read_fn, hpdmc_write_fn, s,
-            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, hpdmc_regs);
+    memory_region_init_io(&s->regs_region, &hpdmc_mmio_ops, s,
+            "milkymist-hpdmc", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->regs_region);
 
     return 0;
 }

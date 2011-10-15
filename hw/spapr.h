@@ -1,6 +1,8 @@
 #if !defined(__HW_SPAPR_H__)
 #define __HW_SPAPR_H__
 
+#include "hw/xics.h"
+
 struct VIOsPAPRBus;
 struct icp_state;
 
@@ -8,12 +10,15 @@ typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
     struct icp_state *icp;
 
+    target_phys_addr_t ram_limit;
     void *htab;
     long htab_size;
     target_phys_addr_t fdt_addr, rtas_addr;
     long rtas_size;
     void *fdt_skel;
     target_ulong entry_point;
+    int next_irq;
+    int rtc_offset;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0
@@ -277,6 +282,8 @@ typedef target_ulong (*spapr_hcall_fn)(CPUState *env, sPAPREnvironment *spapr,
 void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn);
 target_ulong spapr_hypercall(CPUState *env, target_ulong opcode,
                              target_ulong *args);
+
+qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num);
 
 static inline uint32_t rtas_ld(target_ulong phys, int n)
 {

@@ -85,6 +85,7 @@ void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
     int ret;
 
     saved_env = env;
+    env = env1;
     ret = cpu_arm_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret)) {
         if (retaddr) {

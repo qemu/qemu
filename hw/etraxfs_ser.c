@@ -47,6 +47,7 @@
 struct etrax_serial
 {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     CharDriverState *chr;
     qemu_irq irq;
 
@@ -73,7 +74,8 @@ static void ser_update_irq(struct etrax_serial *s)
     qemu_set_irq(s->irq, !!s->regs[R_MASKED_INTR]);
 }
 
-static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t
+ser_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 {
     struct etrax_serial *s = opaque;
     D(CPUState *env = s->env);
@@ -108,10 +110,12 @@ static uint32_t ser_readl (void *opaque, target_phys_addr_t addr)
 }
 
 static void
-ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+ser_write(void *opaque, target_phys_addr_t addr,
+          uint64_t val64, unsigned int size)
 {
     struct etrax_serial *s = opaque;
-    unsigned char ch = value;
+    uint32_t value = val64;
+    unsigned char ch = val64;
     D(CPUState *env = s->env);
 
     D(qemu_log("%s " TARGET_FMT_plx "=%x\n",  __func__, addr, value));
@@ -142,14 +146,14 @@ ser_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
     ser_update_irq(s);
 }
 
-static CPUReadMemoryFunc * const ser_read[] = {
-    NULL, NULL,
-    &ser_readl,
-};
-
-static CPUWriteMemoryFunc * const ser_write[] = {
-    NULL, NULL,
-    &ser_writel,
+static const MemoryRegionOps ser_ops = {
+    .read = ser_read,
+    .write = ser_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void serial_receive(void *opaque, const uint8_t *buf, int size)
@@ -207,12 +211,11 @@ static void etraxfs_ser_reset(DeviceState *d)
 static int etraxfs_ser_init(SysBusDevice *dev)
 {
     struct etrax_serial *s = FROM_SYSBUS(typeof (*s), dev);
-    int ser_regs;
 
     sysbus_init_irq(dev, &s->irq);
-    ser_regs = cpu_register_io_memory(ser_read, ser_write, s,
-                                      DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, ser_regs);
+    memory_region_init_io(&s->mmio, &ser_ops, s, "etraxfs-serial", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->mmio);
+
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr)
         qemu_chr_add_handlers(s->chr,

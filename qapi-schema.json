@@ -1,0 +1,273 @@
+# -*- Mode: Python -*-
+#
+# QAPI Schema
+
+##
+# @NameInfo:
+#
+# Guest name information.
+#
+# @name: #optional The name of the guest
+#
+# Since 0.14.0
+##
+{ 'type': 'NameInfo', 'data': {'*name': 'str'} }
+
+##
+# @query-name:
+#
+# Return the name information of a guest.
+#
+# Returns: @NameInfo of the guest
+#
+# Since 0.14.0
+##
+{ 'command': 'query-name', 'returns': 'NameInfo' }
+
+##
+# @VersionInfo:
+#
+# A description of QEMU's version.
+#
+# @qemu.major:  The major version of QEMU
+#
+# @qemu.minor:  The minor version of QEMU
+#
+# @qemu.micro:  The micro version of QEMU.  By current convention, a micro
+#               version of 50 signifies a development branch.  A micro version
+#               greater than or equal to 90 signifies a release candidate for
+#               the next minor version.  A micro version of less than 50
+#               signifies a stable release.
+#
+# @package:     QEMU will always set this field to an empty string.  Downstream
+#               versions of QEMU should set this to a non-empty string.  The
+#               exact format depends on the downstream however it highly
+#               recommended that a unique name is used.
+#
+# Since: 0.14.0
+##
+{ 'type': 'VersionInfo',
+  'data': {'qemu': {'major': 'int', 'minor': 'int', 'micro': 'int'},
+           'package': 'str'} }
+
+##
+# @query-version:
+#
+# Returns the current version of QEMU.
+#
+# Returns:  A @VersionInfo object describing the current version of QEMU.
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-version', 'returns': 'VersionInfo' }
+
+##
+# @KvmInfo:
+#
+# Information about support for KVM acceleration
+#
+# @enabled: true if KVM acceleration is active
+#
+# @present: true if KVM acceleration is built into this executable
+#
+# Since: 0.14.0
+##
+{ 'type': 'KvmInfo', 'data': {'enabled': 'bool', 'present': 'bool'} }
+
+##
+# @query-kvm:
+#
+# Returns information about KVM acceleration
+#
+# Returns: @KvmInfo
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-kvm', 'returns': 'KvmInfo' }
+
+##
+# @RunState
+#
+# An enumation of VM run states.
+#
+# @debug: QEMU is running on a debugger
+#
+# @inmigrate: guest is paused waiting for an incoming migration
+#
+# @internal-error: An internal error that prevents further guest execution
+# has occurred
+#
+# @io-error: the last IOP has failed and the device is configured to pause
+# on I/O errors
+#
+# @paused: guest has been paused via the 'stop' command
+#
+# @postmigrate: guest is paused following a successful 'migrate'
+#
+# @prelaunch: QEMU was started with -S and guest has not started
+#
+# @finish-migrate: guest is paused to finish the migration process
+#
+# @restore-vm: guest is paused to restore VM state
+#
+# @running: guest is actively running
+#
+# @save-vm: guest is paused to save the VM state
+#
+# @shutdown: guest is shut down (and -no-shutdown is in use)
+#
+# @watchdog: the watchdog action is configured to pause and has been triggered
+##
+{ 'enum': 'RunState',
+  'data': [ 'debug', 'inmigrate', 'internal-error', 'io-error', 'paused',
+            'postmigrate', 'prelaunch', 'finish-migrate', 'restore-vm',
+            'running', 'save-vm', 'shutdown', 'watchdog' ] }
+
+##
+# @StatusInfo:
+#
+# Information about VCPU run state
+#
+# @running: true if all VCPUs are runnable, false if not runnable
+#
+# @singlestep: true if VCPUs are in single-step mode
+#
+# @status: the virtual machine @RunState
+#
+# Since:  0.14.0
+#
+# Notes: @singlestep is enabled through the GDB stub
+##
+{ 'type': 'StatusInfo',
+  'data': {'running': 'bool', 'singlestep': 'bool', 'status': 'RunState'} }
+
+##
+# @query-status:
+#
+# Query the run status of all VCPUs
+#
+# Returns: @StatusInfo reflecting all VCPUs
+#
+# Since:  0.14.0
+##
+{ 'command': 'query-status', 'returns': 'StatusInfo' }
+
+##
+# @UuidInfo:
+#
+# Guest UUID information.
+#
+# @UUID: the UUID of the guest
+#
+# Since: 0.14.0
+#
+# Notes: If no UUID was specified for the guest, a null UUID is returned.
+##
+{ 'type': 'UuidInfo', 'data': {'UUID': 'str'} }
+
+##
+# @query-uuid:
+#
+# Query the guest UUID information.
+#
+# Returns: The @UuidInfo for the guest
+#
+# Since 0.14.0
+##
+{ 'command': 'query-uuid', 'returns': 'UuidInfo' }
+
+##
+# @ChardevInfo:
+#
+# Information about a character device.
+#
+# @label: the label of the character device
+#
+# @filename: the filename of the character device
+#
+# Notes: @filename is encoded using the QEMU command line character device
+#        encoding.  See the QEMU man page for details.
+#
+# Since: 0.14.0
+##
+{ 'type': 'ChardevInfo', 'data': {'label': 'str', 'filename': 'str'} }
+
+##
+# @query-chardev:
+#
+# Returns information about current character devices.
+#
+# Returns: a list of @ChardevInfo
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-chardev', 'returns': ['ChardevInfo'] }
+
+##
+# @CommandInfo:
+#
+# Information about a QMP command
+#
+# @name: The command name
+#
+# Since: 0.14.0
+##
+{ 'type': 'CommandInfo', 'data': {'name': 'str'} }
+
+##
+# @query-commands:
+#
+# Return a list of supported QMP commands by this server
+#
+# Returns: A list of @CommandInfo for all supported commands
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-commands', 'returns': ['CommandInfo'] }
+
+##
+# @quit:
+#
+# This command will cause the QEMU process to exit gracefully.  While every
+# attempt is made to send the QMP response before terminating, this is not
+# guaranteed.  When using this interface, a premature EOF would not be
+# unexpected.
+#
+# Since: 0.14.0
+##
+{ 'command': 'quit' }
+
+##
+# @stop:
+#
+# Stop all guest VCPU execution.
+#
+# Since:  0.14.0
+#
+# Notes:  This function will succeed even if the guest is already in the stopped
+#         state
+##
+{ 'command': 'stop' }
+
+##
+# @system_reset:
+#
+# Performs a hard reset of a guest.
+#
+# Since: 0.14.0
+##
+{ 'command': 'system_reset' }
+
+##
+# @system_powerdown:
+#
+# Requests that a guest perform a powerdown operation.
+#
+# Since: 0.14.0
+#
+# Notes: A guest may or may not respond to this command.  This command
+#        returning does not indicate that a guest has accepted the request or
+#        that it has shut down.  Many guests will respond to this command by
+#        prompting the user in some way.
+##
+{ 'command': 'system_powerdown' }

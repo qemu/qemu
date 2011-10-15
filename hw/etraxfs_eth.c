@@ -320,6 +320,7 @@ static void mdio_cycle(struct qemu_mdio *bus)
 struct fs_eth
 {
 	SysBusDevice busdev;
+	MemoryRegion mmio;
 	NICState *nic;
 	NICConf conf;
 	int ethregs;
@@ -373,7 +374,8 @@ static void eth_validate_duplex(struct fs_eth *eth)
 	}
 }
 
-static uint32_t eth_readl (void *opaque, target_phys_addr_t addr)
+static uint64_t
+eth_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 {
 	struct fs_eth *eth = opaque;
 	uint32_t r = 0;
@@ -417,9 +419,11 @@ static void eth_update_ma(struct fs_eth *eth, int ma)
 }
 
 static void
-eth_writel (void *opaque, target_phys_addr_t addr, uint32_t value)
+eth_write(void *opaque, target_phys_addr_t addr,
+          uint64_t val64, unsigned int size)
 {
 	struct fs_eth *eth = opaque;
+	uint32_t value = val64;
 
 	addr >>= 2;
 	switch (addr)
@@ -553,14 +557,14 @@ static void eth_set_link(VLANClientState *nc)
 	eth->phy.link = !nc->link_down;
 }
 
-static CPUReadMemoryFunc * const eth_read[] = {
-	NULL, NULL,
-	&eth_readl,
-};
-
-static CPUWriteMemoryFunc * const eth_write[] = {
-	NULL, NULL,
-	&eth_writel,
+static const MemoryRegionOps eth_ops = {
+	.read = eth_read,
+	.write = eth_write,
+	.endianness = DEVICE_LITTLE_ENDIAN,
+	.valid = {
+		.min_access_size = 4,
+		.max_access_size = 4
+	}
 };
 
 static void eth_cleanup(VLANClientState *nc)
@@ -589,7 +593,6 @@ static NetClientInfo net_etraxfs_info = {
 static int fs_eth_init(SysBusDevice *dev)
 {
 	struct fs_eth *s = FROM_SYSBUS(typeof(*s), dev);
-	int eth_regs;
 
 	if (!s->dma_out || !s->dma_in) {
 		hw_error("Unconnected ETRAX-FS Ethernet MAC.\n");
@@ -600,9 +603,8 @@ static int fs_eth_init(SysBusDevice *dev)
 	s->dma_in->client.opaque = s;
 	s->dma_in->client.pull = NULL;
 
-	eth_regs = cpu_register_io_memory(eth_read, eth_write, s,
-					  DEVICE_LITTLE_ENDIAN);
-	sysbus_init_mmio(dev, 0x5c, eth_regs);
+	memory_region_init_io(&s->mmio, &eth_ops, s, "etraxfs-eth", 0x5c);
+	sysbus_init_mmio_region(dev, &s->mmio);
 
 	qemu_macaddr_default_if_unset(&s->conf.macaddr);
 	s->nic = qemu_new_nic(&net_etraxfs_info, &s->conf,

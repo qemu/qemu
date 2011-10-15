@@ -38,6 +38,7 @@
 #include "devices.h"
 #include "boards.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 static const int sector_len = 128 * 1024;
 
@@ -49,11 +50,12 @@ static void connex_init(ram_addr_t ram_size,
     PXA2xxState *cpu;
     DriveInfo *dinfo;
     int be;
+    MemoryRegion *address_space_mem = get_system_memory();
 
     uint32_t connex_rom = 0x01000000;
     uint32_t connex_ram = 0x04000000;
 
-    cpu = pxa255_init(connex_ram);
+    cpu = pxa255_init(address_space_mem, connex_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!dinfo) {
@@ -87,11 +89,12 @@ static void verdex_init(ram_addr_t ram_size,
     PXA2xxState *cpu;
     DriveInfo *dinfo;
     int be;
+    MemoryRegion *address_space_mem = get_system_memory();
 
     uint32_t verdex_rom = 0x02000000;
     uint32_t verdex_ram = 0x10000000;
 
-    cpu = pxa270_init(verdex_ram, cpu_model ?: "pxa270-c0");
+    cpu = pxa270_init(address_space_mem, verdex_ram, cpu_model ?: "pxa270-c0");
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     if (!dinfo) {

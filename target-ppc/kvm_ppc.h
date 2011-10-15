@@ -10,22 +10,42 @@
 #define __KVM_PPC_H__
 
 void kvmppc_init(void);
-void kvmppc_fdt_update(void *fdt);
-#ifndef CONFIG_KVM
-static inline int kvmppc_read_host_property(const char *node_path, const char *prop,
-                                            void *val, size_t len)
-{
-    assert(0);
-    return -ENOSYS;
-}
-#else
-int kvmppc_read_host_property(const char *node_path, const char *prop,
-                                     void *val, size_t len);
-#endif
+
+#ifdef CONFIG_KVM
 
 uint32_t kvmppc_get_tbfreq(void);
+uint64_t kvmppc_get_clockfreq(void);
 int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len);
 int kvmppc_set_interrupt(CPUState *env, int irq, int level);
+void kvmppc_set_papr(CPUState *env);
+
+#else
+
+static inline uint32_t kvmppc_get_tbfreq(void)
+{
+    return 0;
+}
+
+static inline uint64_t kvmppc_get_clockfreq(void)
+{
+    return 0;
+}
+
+static inline int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
+{
+    return -1;
+}
+
+static inline int kvmppc_set_interrupt(CPUState *env, int irq, int level)
+{
+    return -1;
+}
+
+static inline void kvmppc_set_papr(CPUState *env)
+{
+}
+
+#endif
 
 #ifndef CONFIG_KVM
 #define kvmppc_eieio() do { } while (0)

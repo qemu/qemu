@@ -246,7 +246,7 @@ obj-i386-$(CONFIG_KVM) += kvmclock.o
 obj-i386-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 
 # shared objects
-obj-ppc-y = ppc.o
+obj-ppc-y = ppc.o ppc_booke.o
 obj-ppc-y += vga.o
 # PREP target
 obj-ppc-y += i8259.o mc146818rtc.o
@@ -256,19 +256,19 @@ obj-ppc-y += ppc_oldworld.o
 # NewWorld PowerMac
 obj-ppc-y += ppc_newworld.o
 # IBM pSeries (sPAPR)
-ifeq ($(CONFIG_FDT)$(TARGET_PPC64),yy)
-obj-ppc-y += spapr.o spapr_hcall.o spapr_rtas.o spapr_vio.o
-obj-ppc-y += xics.o spapr_vty.o spapr_llan.o spapr_vscsi.o
-endif
+obj-ppc-$(CONFIG_PSERIES) += spapr.o spapr_hcall.o spapr_rtas.o spapr_vio.o
+obj-ppc-$(CONFIG_PSERIES) += xics.o spapr_vty.o spapr_llan.o spapr_vscsi.o
 # PowerPC 4xx boards
 obj-ppc-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 obj-ppc-y += ppc440.o ppc440_bamboo.o
 # PowerPC E500 boards
-obj-ppc-y += ppce500_mpc8544ds.o mpc8544_guts.o
+obj-ppc-y += ppce500_mpc8544ds.o mpc8544_guts.o ppce500_spin.o
 # PowerPC 440 Xilinx ML507 reference board.
 obj-ppc-y += virtex_ml507.o
 obj-ppc-$(CONFIG_KVM) += kvm_ppc.o
 obj-ppc-$(CONFIG_FDT) += device_tree.o
+# PowerPC OpenPIC
+obj-ppc-y += openpic.o
 
 # Xilinx PPC peripherals
 obj-ppc-y += xilinx_intc.o
@@ -395,6 +395,7 @@ obj-s390x-y = s390-virtio-bus.o s390-virtio.o
 
 obj-alpha-y = i8259.o mc146818rtc.o
 obj-alpha-y += vga.o cirrus_vga.o
+obj-alpha-y += alpha_pci.o alpha_dp264.o alpha_typhoon.o
 
 obj-xtensa-y += xtensa_pic.o
 obj-xtensa-y += xtensa_sample.o
@@ -408,7 +409,7 @@ endif
 
 main.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 
-monitor.o: hmp-commands.h qmp-commands.h
+monitor.o: hmp-commands.h qmp-commands-old.h
 
 $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y): $(GENERATED_HEADERS)
 
@@ -440,13 +441,13 @@ gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/scripts/feature_to_c.sh
 hmp-commands.h: $(SRC_PATH)/hmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
-qmp-commands.h: $(SRC_PATH)/qmp-commands.hx
+qmp-commands-old.h: $(SRC_PATH)/qmp-commands.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $(TARGET_DIR)$@")
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
 	rm -f *.d */*.d tcg/*.o ide/*.o 9pfs/*.o
-	rm -f hmp-commands.h qmp-commands.h gdbstub-xml.c
+	rm -f hmp-commands.h qmp-commands-old.h gdbstub-xml.c
 ifdef CONFIG_TRACE_SYSTEMTAP
 	rm -f *.stp
 endif

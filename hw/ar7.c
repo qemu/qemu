@@ -73,6 +73,7 @@
 #include "console.h"            /* console_select */
 #include "disas.h"              /* lookup_symbol */
 #include "elf.h"                /* EM_MIPS (needed by loader.h) */
+#include "exec-memory.h"        /* get_system_memory */
 #include "loader.h"             /* load_elf, load_image_targphys */
 #include "mips_cpudevs.h"       /* cpu_mips_kseg0_to_phys, ... */
 
@@ -2380,7 +2381,7 @@ static uint32_t uart_read(unsigned uart_index, uint32_t addr)
         reg -= UART_MEM_TO_IO(AVALANCHE_UART1_BASE);
     }
     assert(reg < 8);
-    val = serial_mm_readb(ar7.serial[uart_index], addr);
+    val = serial_mm_read(ar7.serial[uart_index], addr, 1);
     //~ if (reg != 5) {
         TRACE(UART, logout("uart%u[%s]=0x%08x\n", uart_index,
             uart_read_names[uart_name_index(uart_index, reg)], val));
@@ -2403,7 +2404,7 @@ static void uart_write(unsigned uart_index, uint32_t addr, uint32_t val)
     if (reg == 3) {
         dlab[uart_index] = (val & 0x80);
     }
-    serial_mm_writeb(ar7.serial[uart_index], addr, val);
+    serial_mm_write(ar7.serial[uart_index], addr, val, 1);
 }
 
 /*****************************************************************************
@@ -3297,14 +3298,15 @@ static void ar7_serial_init(CPUState * env)
         serial_hds[1] = qemu_chr_new("serial1", "vc:80Cx24C", NULL);
     }
     for (uart_index = 0; uart_index < 2; uart_index++) {
-        ar7.serial[uart_index] = serial_mm_init(uart_base[uart_index], 2,
+        ar7.serial[uart_index] = serial_mm_init(get_system_memory(),
+            uart_base[uart_index], 2,
             AR7_PRIMARY_IRQ(uart_interrupt[uart_index]), io_frequency,
-            serial_hds[uart_index], 0, env->bigendian);
+            serial_hds[uart_index], DEVICE_NATIVE_ENDIAN);
         serial_set_frequency(ar7.serial[uart_index], io_frequency / 16);
     }
 
     /* Set special init values. */
-    serial_mm_writeb(ar7.serial[0], AVALANCHE_UART0_BASE + (5 << 2), 0x20);
+    serial_mm_write(ar7.serial[0], AVALANCHE_UART0_BASE + (5 << 2), 0x20, 1);
 }
 
 static int ar7_nic_can_receive(VLANClientState *vc)

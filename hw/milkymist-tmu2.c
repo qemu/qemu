@@ -77,6 +77,7 @@ struct vertex {
 
 struct MilkymistTMU2State {
     SysBusDevice busdev;
+    MemoryRegion regs_region;
     CharDriverState *chr;
     qemu_irq irq;
 
@@ -309,7 +310,8 @@ static void tmu2_start(MilkymistTMU2State *s)
     qemu_irq_pulse(s->irq);
 }
 
-static uint32_t tmu2_read(void *opaque, target_phys_addr_t addr)
+static uint64_t tmu2_read(void *opaque, target_phys_addr_t addr,
+                          unsigned size)
 {
     MilkymistTMU2State *s = opaque;
     uint32_t r = 0;
@@ -370,7 +372,8 @@ static void tmu2_check_registers(MilkymistTMU2State *s)
     }
 }
 
-static void tmu2_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void tmu2_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+                       unsigned size)
 {
     MilkymistTMU2State *s = opaque;
 
@@ -414,16 +417,14 @@ static void tmu2_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     tmu2_check_registers(s);
 }
 
-static CPUReadMemoryFunc * const tmu2_read_fn[] = {
-    NULL,
-    NULL,
-    &tmu2_read,
-};
-
-static CPUWriteMemoryFunc * const tmu2_write_fn[] = {
-    NULL,
-    NULL,
-    &tmu2_write,
+static const MemoryRegionOps tmu2_mmio_ops = {
+    .read = tmu2_read,
+    .write = tmu2_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void milkymist_tmu2_reset(DeviceState *d)
@@ -439,7 +440,6 @@ static void milkymist_tmu2_reset(DeviceState *d)
 static int milkymist_tmu2_init(SysBusDevice *dev)
 {
     MilkymistTMU2State *s = FROM_SYSBUS(typeof(*s), dev);
-    int tmu2_regs;
 
     if (tmu2_glx_init(s)) {
         return 1;
@@ -447,9 +447,9 @@ static int milkymist_tmu2_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
 
-    tmu2_regs = cpu_register_io_memory(tmu2_read_fn, tmu2_write_fn, s,
-            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, tmu2_regs);
+    memory_region_init_io(&s->regs_region, &tmu2_mmio_ops, s,
+            "milkymist-tmu2", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->regs_region);
 
     return 0;
 }

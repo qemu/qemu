@@ -2059,7 +2059,8 @@ static void pxa2xx_reset(void *opaque, int line, int level)
 }
 
 /* Initialise a PXA270 integrated chip (ARM based core).  */
-PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
+PXA2xxState *pxa270_init(MemoryRegion *address_space,
+                         unsigned int sdram_size, const char *revision)
 {
     PXA2xxState *s;
     int iomemtype, i;
@@ -2113,13 +2114,16 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
 
-    for (i = 0; pxa270_serial[i].io_base; i ++)
-        if (serial_hds[i])
-            serial_mm_init(pxa270_serial[i].io_base, 2,
-                            qdev_get_gpio_in(s->pic, pxa270_serial[i].irqn),
-                            14857000 / 16, serial_hds[i], 1, s->env->bigendian);
-        else
+    for (i = 0; pxa270_serial[i].io_base; i++) {
+        if (serial_hds[i]) {
+            serial_mm_init(address_space, pxa270_serial[i].io_base, 2,
+                           qdev_get_gpio_in(s->pic, pxa270_serial[i].irqn),
+                           14857000 / 16, serial_hds[i],
+                           DEVICE_NATIVE_ENDIAN);
+        } else {
             break;
+        }
+    }
     if (serial_hds[i])
         s->fir = pxa2xx_fir_init(0x40800000,
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_ICP),
@@ -2195,7 +2199,7 @@ PXA2xxState *pxa270_init(unsigned int sdram_size, const char *revision)
 }
 
 /* Initialise a PXA255 integrated chip (ARM based core).  */
-PXA2xxState *pxa255_init(unsigned int sdram_size)
+PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
 {
     PXA2xxState *s;
     int iomemtype, i;
@@ -2242,14 +2246,16 @@ PXA2xxState *pxa255_init(unsigned int sdram_size)
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
 
-    for (i = 0; pxa255_serial[i].io_base; i ++)
+    for (i = 0; pxa255_serial[i].io_base; i++) {
         if (serial_hds[i]) {
-            serial_mm_init(pxa255_serial[i].io_base, 2,
-                            qdev_get_gpio_in(s->pic, pxa255_serial[i].irqn),
-                            14745600 / 16, serial_hds[i], 1, s->env->bigendian);
+            serial_mm_init(address_space, pxa255_serial[i].io_base, 2,
+                           qdev_get_gpio_in(s->pic, pxa255_serial[i].irqn),
+                           14745600 / 16, serial_hds[i],
+                           DEVICE_NATIVE_ENDIAN);
         } else {
             break;
         }
+    }
     if (serial_hds[i])
         s->fir = pxa2xx_fir_init(0x40800000,
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_ICP),

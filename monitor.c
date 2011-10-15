@@ -57,13 +57,15 @@
 #include "json-parser.h"
 #include "osdep.h"
 #include "cpu.h"
+#include "trace.h"
 #include "trace/control.h"
 #ifdef CONFIG_TRACE_SIMPLE
 #include "trace/simple.h"
 #endif
-#include "trace/control.h"
 #include "ui/qemu-spice.h"
 #include "memory.h"
+#include "qmp-commands.h"
+#include "hmp.h"
 
 //#define DEBUG
 //#define DEBUG_COMPLETION
@@ -122,6 +124,7 @@ typedef struct mon_cmd_t {
         int  (*cmd_async)(Monitor *mon, const QDict *params,
                           MonitorCompletion *cb, void *opaque);
     } mhandler;
+    bool qapi;
     int flags;
 } mon_cmd_t;
 
@@ -370,6 +373,8 @@ static void monitor_protocol_emitter(Monitor *mon, QObject *data)
 {
     QDict *qmp;
 
+    trace_monitor_protocol_emitter(mon);
+
     qmp = qdict_new();
 
     if (!monitor_has_error(mon)) {
@@ -606,7 +611,7 @@ static void do_trace_event_set_state(Monitor *mon, const QDict *qdict)
     }
 }
 
-#ifdef CONFIG_SIMPLE_TRACE
+#ifdef CONFIG_TRACE_SIMPLE
 static void do_trace_file(Monitor *mon, const QDict *qdict)
 {
     const char *op = qdict_get_try_str(qdict, "op");
@@ -728,105 +733,37 @@ help:
     help_cmd(mon, "info");
 }
 
-static void do_info_version_print(Monitor *mon, const QObject *data)
+static CommandInfoList *alloc_cmd_entry(const char *cmd_name)
 {
-    QDict *qdict;
-    QDict *qemu;
+    CommandInfoList *info;
 
-    qdict = qobject_to_qdict(data);
-    qemu = qdict_get_qdict(qdict, "qemu");
+    info = g_malloc0(sizeof(*info));
+    info->value = g_malloc0(sizeof(*info->value));
+    info->value->name = g_strdup(cmd_name);
 
-    monitor_printf(mon, "%" PRId64 ".%" PRId64 ".%" PRId64 "%s\n",
-                  qdict_get_int(qemu, "major"),
-                  qdict_get_int(qemu, "minor"),
-                  qdict_get_int(qemu, "micro"),
-                  qdict_get_str(qdict, "package"));
+    return info;
 }
 
-static void do_info_version(Monitor *mon, QObject **ret_data)
+CommandInfoList *qmp_query_commands(Error **errp)
 {
-    const char *version = QEMU_VERSION;
-    int major = 0, minor = 0, micro = 0;
-    char *tmp;
-
-    major = strtol(version, &tmp, 10);
-    tmp++;
-    minor = strtol(tmp, &tmp, 10);
-    tmp++;
-    micro = strtol(tmp, &tmp, 10);
-
-    *ret_data = qobject_from_jsonf("{ 'qemu': { 'major': %d, 'minor': %d, \
-        'micro': %d }, 'package': %s }", major, minor, micro, QEMU_PKGVERSION);
-}
-
-static void do_info_name_print(Monitor *mon, const QObject *data)
-{
-    QDict *qdict;
-
-    qdict = qobject_to_qdict(data);
-    if (qdict_size(qdict) == 0) {
-        return;
-    }
-
-    monitor_printf(mon, "%s\n", qdict_get_str(qdict, "name"));
-}
-
-static void do_info_name(Monitor *mon, QObject **ret_data)
-{
-    *ret_data = qemu_name ? qobject_from_jsonf("{'name': %s }", qemu_name) :
-                            qobject_from_jsonf("{}");
-}
-
-static QObject *get_cmd_dict(const char *name)
-{
-    const char *p;
-
-    /* Remove '|' from some commands */
-    p = strchr(name, '|');
-    if (p) {
-        p++;
-    } else {
-        p = name;
-    }
-
-    return qobject_from_jsonf("{ 'name': %s }", p);
-}
-
-static void do_info_commands(Monitor *mon, QObject **ret_data)
-{
-    QList *cmd_list;
+    CommandInfoList *info, *cmd_list = NULL;
     const mon_cmd_t *cmd;
 
-    cmd_list = qlist_new();
-
     for (cmd = qmp_cmds; cmd->name != NULL; cmd++) {
-        qlist_append_obj(cmd_list, get_cmd_dict(cmd->name));
+        info = alloc_cmd_entry(cmd->name);
+        info->next = cmd_list;
+        cmd_list = info;
     }
 
     for (cmd = qmp_query_cmds; cmd->name != NULL; cmd++) {
         char buf[128];
         snprintf(buf, sizeof(buf), "query-%s", cmd->name);
-        qlist_append_obj(cmd_list, get_cmd_dict(buf));
+        info = alloc_cmd_entry(buf);
+        info->next = cmd_list;
+        cmd_list = info;
     }
 
-    *ret_data = QOBJECT(cmd_list);
-}
-
-static void do_info_uuid_print(Monitor *mon, const QObject *data)
-{
-    monitor_printf(mon, "%s\n", qdict_get_str(qobject_to_qdict(data), "UUID"));
-}
-
-static void do_info_uuid(Monitor *mon, QObject **ret_data)
-{
-    char uuid[64];
-
-    snprintf(uuid, sizeof(uuid), UUID_FMT, qemu_uuid[0], qemu_uuid[1],
-                   qemu_uuid[2], qemu_uuid[3], qemu_uuid[4], qemu_uuid[5],
-                   qemu_uuid[6], qemu_uuid[7], qemu_uuid[8], qemu_uuid[9],
-                   qemu_uuid[10], qemu_uuid[11], qemu_uuid[12], qemu_uuid[13],
-                   qemu_uuid[14], qemu_uuid[15]);
-    *ret_data = qobject_from_jsonf("{ 'UUID': %s }", uuid);
+    return cmd_list;
 }
 
 /* get the current CPU defined by the user */
@@ -1009,18 +946,6 @@ static void do_info_trace(Monitor *mon)
 static void do_trace_print_events(Monitor *mon)
 {
     trace_print_events((FILE *)mon, &monitor_fprintf);
-}
-
-/**
- * do_quit(): Quit QEMU execution
- */
-static int do_quit(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    monitor_suspend(mon);
-    no_shutdown = 0;
-    qemu_system_shutdown_request();
-
-    return 0;
 }
 
 #ifdef CONFIG_VNC
@@ -1289,15 +1214,6 @@ static void do_singlestep(Monitor *mon, const QDict *qdict)
     }
 }
 
-/**
- * do_stop(): Stop VM execution
- */
-static int do_stop(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    vm_stop(RSTATE_PAUSED);
-    return 0;
-}
-
 static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs);
 
 struct bdrv_iterate_context {
@@ -1312,11 +1228,11 @@ static int do_cont(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     struct bdrv_iterate_context context = { mon, 0 };
 
-    if (runstate_check(RSTATE_IN_MIGRATE)) {
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
         qerror_report(QERR_MIGRATION_EXPECTED);
         return -1;
-    } else if (runstate_check(RSTATE_PANICKED) ||
-               runstate_check(RSTATE_SHUTDOWN)) {
+    } else if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
+               runstate_check(RUN_STATE_SHUTDOWN)) {
         qerror_report(QERR_RESET_REQUIRED);
         return -1;
     }
@@ -2016,16 +1932,6 @@ static void do_boot_set(Monitor *mon, const QDict *qdict)
 }
 
 /**
- * do_system_reset(): Issue a machine reset
- */
-static int do_system_reset(Monitor *mon, const QDict *qdict,
-                           QObject **ret_data)
-{
-    qemu_system_reset_request();
-    return 0;
-}
-
-/**
  * do_system_powerdown(): Issue a machine powerdown
  */
 static int do_system_powerdown(Monitor *mon, const QDict *qdict,
@@ -2462,7 +2368,7 @@ static void tlb_info(Monitor *mon)
 
 #endif
 
-#if defined(TARGET_SPARC)
+#if defined(TARGET_SPARC) || defined(TARGET_PPC)
 static void tlb_info(Monitor *mon)
 {
     CPUState *env1 = mon_get_cpu();
@@ -2474,31 +2380,6 @@ static void tlb_info(Monitor *mon)
 static void do_info_mtree(Monitor *mon)
 {
     mtree_info((fprintf_function)monitor_printf, mon);
-}
-
-static void do_info_kvm_print(Monitor *mon, const QObject *data)
-{
-    QDict *qdict;
-
-    qdict = qobject_to_qdict(data);
-
-    monitor_printf(mon, "kvm support: ");
-    if (qdict_get_bool(qdict, "present")) {
-        monitor_printf(mon, "%s\n", qdict_get_bool(qdict, "enabled") ?
-                                    "enabled" : "disabled");
-    } else {
-        monitor_printf(mon, "not compiled\n");
-    }
-}
-
-static void do_info_kvm(Monitor *mon, QObject **ret_data)
-{
-#ifdef CONFIG_KVM
-    *ret_data = qobject_from_jsonf("{ 'enabled': %i, 'present': true }",
-                                   kvm_enabled());
-#else
-    *ret_data = qobject_from_jsonf("{ 'enabled': false, 'present': false }");
-#endif
 }
 
 static void do_info_numa(Monitor *mon)
@@ -2620,36 +2501,6 @@ static int do_inject_nmi(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return -1;
 }
 #endif
-
-static void do_info_status_print(Monitor *mon, const QObject *data)
-{
-    QDict *qdict;
-    const char *status;
-
-    qdict = qobject_to_qdict(data);
-
-    monitor_printf(mon, "VM status: ");
-    if (qdict_get_bool(qdict, "running")) {
-        monitor_printf(mon, "running");
-        if (qdict_get_bool(qdict, "singlestep")) {
-            monitor_printf(mon, " (single step mode)");
-        }
-    } else {
-        monitor_printf(mon, "paused");
-    }
-
-    status = qdict_get_str(qdict, "status");
-    if (strcmp(status, "paused") && strcmp(status, "running")) {
-        monitor_printf(mon, " (%s)", status);
-    }
-
-    monitor_printf(mon, "\n");
-}
-
-static void do_info_status(Monitor *mon, QObject **ret_data)
-{
-    *ret_data = qobject_from_jsonf("{ 'running': %i, 'singlestep': %i, 'status': %s }", runstate_is_running(), singlestep, runstate_as_string());
-}
 
 static qemu_acl *find_acl(Monitor *mon, const char *name)
 {
@@ -2844,7 +2695,7 @@ static void do_loadvm(Monitor *mon, const QDict *qdict)
     int saved_vm_running  = runstate_is_running();
     const char *name = qdict_get_str(qdict, "name");
 
-    vm_stop(RSTATE_RESTORE);
+    vm_stop(RUN_STATE_RESTORE_VM);
 
     if (load_vmstate(name) == 0 && saved_vm_running) {
         vm_start();
@@ -2887,8 +2738,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the version of QEMU",
-        .user_print = do_info_version_print,
-        .mhandler.info_new = do_info_version,
+        .mhandler.info = hmp_info_version,
     },
     {
         .name       = "network",
@@ -2902,8 +2752,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the character devices",
-        .user_print = qemu_chr_info_print,
-        .mhandler.info_new = qemu_chr_info,
+        .mhandler.info = hmp_info_chardev,
     },
     {
         .name       = "block",
@@ -2965,7 +2814,8 @@ static const mon_cmd_t info_cmds[] = {
         .user_print = do_pci_info_print,
         .mhandler.info_new = do_pci_info,
     },
-#if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC)
+#if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC) || \
+    defined(TARGET_PPC)
     {
         .name       = "tlb",
         .args_type  = "",
@@ -3002,8 +2852,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show KVM information",
-        .user_print = do_info_kvm_print,
-        .mhandler.info_new = do_info_kvm,
+        .mhandler.info = hmp_info_kvm,
     },
     {
         .name       = "numa",
@@ -3052,8 +2901,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM status (running|paused)",
-        .user_print = do_info_status_print,
-        .mhandler.info_new = do_info_status,
+        .mhandler.info = hmp_info_status,
     },
     {
         .name       = "pcmcia",
@@ -3093,16 +2941,14 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM name",
-        .user_print = do_info_name_print,
-        .mhandler.info_new = do_info_name,
+        .mhandler.info = hmp_info_name,
     },
     {
         .name       = "uuid",
         .args_type  = "",
         .params     = "",
         .help       = "show the current VM UUID",
-        .user_print = do_info_uuid_print,
-        .mhandler.info_new = do_info_uuid,
+        .mhandler.info = hmp_info_uuid,
     },
 #if defined(TARGET_PPC)
     {
@@ -3182,35 +3028,11 @@ static const mon_cmd_t info_cmds[] = {
 };
 
 static const mon_cmd_t qmp_cmds[] = {
-#include "qmp-commands.h"
+#include "qmp-commands-old.h"
     { /* NULL */ },
 };
 
 static const mon_cmd_t qmp_query_cmds[] = {
-    {
-        .name       = "version",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the version of QEMU",
-        .user_print = do_info_version_print,
-        .mhandler.info_new = do_info_version,
-    },
-    {
-        .name       = "commands",
-        .args_type  = "",
-        .params     = "",
-        .help       = "list QMP available commands",
-        .user_print = monitor_user_noop,
-        .mhandler.info_new = do_info_commands,
-    },
-    {
-        .name       = "chardev",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the character devices",
-        .user_print = qemu_chr_info_print,
-        .mhandler.info_new = qemu_chr_info,
-    },
     {
         .name       = "block",
         .args_type  = "",
@@ -3244,22 +3066,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .mhandler.info_new = do_pci_info,
     },
     {
-        .name       = "kvm",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show KVM information",
-        .user_print = do_info_kvm_print,
-        .mhandler.info_new = do_info_kvm,
-    },
-    {
-        .name       = "status",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the current VM status (running|paused)",
-        .user_print = do_info_status_print,
-        .mhandler.info_new = do_info_status,
-    },
-    {
         .name       = "mice",
         .args_type  = "",
         .params     = "",
@@ -3285,22 +3091,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .mhandler.info_new = do_info_spice,
     },
 #endif
-    {
-        .name       = "name",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the current VM name",
-        .user_print = do_info_name_print,
-        .mhandler.info_new = do_info_name,
-    },
-    {
-        .name       = "uuid",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the current VM UUID",
-        .user_print = do_info_uuid_print,
-        .mhandler.info_new = do_info_uuid,
-    },
     {
         .name       = "migrate",
         .args_type  = "",
@@ -5102,17 +4892,16 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     qobject_incref(mon->mc->id);
 
     cmd_name = qdict_get_str(input, "execute");
+    trace_handle_qmp_command(mon, cmd_name);
     if (invalid_qmp_mode(mon, cmd_name)) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_out;
     }
 
-    if (strstart(cmd_name, "query-", &query_cmd)) {
+    cmd = qmp_find_cmd(cmd_name);
+    if (!cmd && strstart(cmd_name, "query-", &query_cmd)) {
         cmd = qmp_find_query_cmd(query_cmd);
-    } else {
-        cmd = qmp_find_cmd(cmd_name);
     }
-
     if (!cmd) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_out;
@@ -5211,9 +5000,9 @@ void monitor_resume(Monitor *mon)
 
 static QObject *get_qmp_greeting(void)
 {
-    QObject *ver;
+    QObject *ver = NULL;
 
-    do_info_version(NULL, &ver);
+    qmp_marshal_input_query_version(NULL, NULL, &ver);
     return qobject_from_jsonf("{'QMP':{'version': %p,'capabilities': []}}",ver);
 }
 

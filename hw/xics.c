@@ -185,17 +185,17 @@ static int ics_valid_irq(struct ics_state *ics, uint32_t nr)
         && (nr < (ics->offset + ics->nr_irqs));
 }
 
-static void ics_set_irq_msi(void *opaque, int nr, int val)
+static void ics_set_irq_msi(void *opaque, int srcno, int val)
 {
     struct ics_state *ics = (struct ics_state *)opaque;
-    struct ics_irq_state *irq = ics->irqs + nr;
+    struct ics_irq_state *irq = ics->irqs + srcno;
 
     if (val) {
         if (irq->priority == 0xff) {
             irq->masked_pending = 1;
             /* masked pending */ ;
         } else  {
-            icp_irq(ics->icp, irq->server, nr + ics->offset, irq->priority);
+            icp_irq(ics->icp, irq->server, srcno + ics->offset, irq->priority);
         }
     }
 }
@@ -227,7 +227,7 @@ static void ics_resend_msi(struct ics_state *ics)
 static void ics_write_xive_msi(struct ics_state *ics, int nr, int server,
                                uint8_t priority)
 {
-    struct ics_irq_state *irq = ics->irqs + nr;
+    struct ics_irq_state *irq = ics->irqs + nr - ics->offset;
 
     irq->server = server;
     irq->priority = priority;
@@ -237,7 +237,7 @@ static void ics_write_xive_msi(struct ics_state *ics, int nr, int server,
     }
 
     irq->masked_pending = 0;
-    icp_irq(ics->icp, server, nr + ics->offset, priority);
+    icp_irq(ics->icp, server, nr, priority);
 }
 
 static void ics_reject(struct ics_state *ics, int nr)
@@ -332,7 +332,7 @@ static void rtas_set_xive(sPAPREnvironment *spapr, uint32_t token,
         return;
     }
 
-    ics_write_xive_msi(ics, nr - ics->offset, server, priority);
+    ics_write_xive_msi(ics, nr, server, priority);
 
     rtas_st(rets, 0, 0); /* Success */
 }
@@ -386,7 +386,7 @@ static void rtas_int_off(sPAPREnvironment *spapr, uint32_t token,
     struct ics_irq_state *irq = xics->irqs + (nr - xics->offset);
 
     irq->saved_priority = irq->priority;
-    ics_write_xive_msi(xics, nr - xics->offset, irq->server, 0xff);
+    ics_write_xive_msi(xics, nr, irq->server, 0xff);
 #endif
 
     rtas_st(rets, 0, 0); /* Success */
@@ -416,8 +416,7 @@ static void rtas_int_on(sPAPREnvironment *spapr, uint32_t token,
 #if 0
     struct ics_irq_state *irq = xics->irqs + (nr - xics->offset);
 
-    ics_write_xive_msi(xics, nr - xics->offset,
-                       irq->server, irq->saved_priority);
+    ics_write_xive_msi(xics, nr, irq->server, irq->saved_priority);
 #endif
 
     rtas_st(rets, 0, 0); /* Success */

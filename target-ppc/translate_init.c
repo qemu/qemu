@@ -129,6 +129,19 @@ static void spr_write_lr (void *opaque, int sprn, int gprn)
     tcg_gen_mov_tl(cpu_lr, cpu_gpr[gprn]);
 }
 
+/* CFAR */
+#if defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY)
+static void spr_read_cfar (void *opaque, int gprn, int sprn)
+{
+    tcg_gen_mov_tl(cpu_gpr[gprn], cpu_cfar);
+}
+
+static void spr_write_cfar (void *opaque, int sprn, int gprn)
+{
+    tcg_gen_mov_tl(cpu_cfar, cpu_gpr[gprn]);
+}
+#endif /* defined(TARGET_PPC64) && !defined(CONFIG_USER_ONLY) */
+
 /* CTR */
 static void spr_read_ctr (void *opaque, int gprn, int sprn)
 {
@@ -3253,6 +3266,9 @@ static void init_proc_401 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
 /* PowerPC 401x2                                                             */
@@ -3291,6 +3307,9 @@ static void init_proc_401x2 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
 /* PowerPC 401x3                                                             */
@@ -3324,6 +3343,9 @@ static void init_proc_401x3 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
 /* IOP480                                                                    */
@@ -3362,6 +3384,9 @@ static void init_proc_IOP480 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+
+    SET_FIT_PERIOD(8, 12, 16, 20);
+    SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
 /* PowerPC 403                                                               */
@@ -3392,6 +3417,9 @@ static void init_proc_403 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+
+    SET_FIT_PERIOD(8, 12, 16, 20);
+    SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
 /* PowerPC 403 GCX                                                           */
@@ -3442,6 +3470,9 @@ static void init_proc_403GCX (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+
+    SET_FIT_PERIOD(8, 12, 16, 20);
+    SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
 /* PowerPC 405                                                               */
@@ -3491,6 +3522,9 @@ static void init_proc_405 (CPUPPCState *env)
     env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppc40x_irq_init(env);
+
+    SET_FIT_PERIOD(8, 12, 16, 20);
+    SET_WDT_PERIOD(16, 20, 24, 28);
 }
 
 /* PowerPC 440 EP                                                            */
@@ -3573,6 +3607,9 @@ static void init_proc_440EP (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
 /* PowerPC 440 GP                                                            */
@@ -3637,6 +3674,9 @@ static void init_proc_440GP (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
 /* PowerPC 440x4                                                             */
@@ -3701,6 +3741,9 @@ static void init_proc_440x4 (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
 /* PowerPC 440x5                                                             */
@@ -3782,6 +3825,9 @@ static void init_proc_440x5 (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     ppc40x_irq_init(env);
+
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
 /* PowerPC 460 (guessed)                                                     */
@@ -3870,6 +3916,9 @@ static void init_proc_460 (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
 /* PowerPC 460F (guessed)                                                    */
@@ -3961,6 +4010,9 @@ static void init_proc_460F (CPUPPCState *env)
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
     /* XXX: TODO: allocate internal IRQ controller */
+
+    SET_FIT_PERIOD(12, 16, 20, 24);
+    SET_WDT_PERIOD(20, 24, 28, 32);
 }
 
 /* Freescale 5xx cores (aka RCPU) */
@@ -6489,7 +6541,7 @@ static void init_proc_970MP (CPUPPCState *env)
 #define POWERPC_BFDM_POWER7   (bfd_mach_ppc64)
 #define POWERPC_FLAG_POWER7   (POWERPC_FLAG_VRE | POWERPC_FLAG_SE |            \
                               POWERPC_FLAG_BE | POWERPC_FLAG_PMM |            \
-                              POWERPC_FLAG_BUS_CLK)
+                              POWERPC_FLAG_BUS_CLK | POWERPC_FLAG_CFAR)
 #define check_pow_POWER7    check_pow_nocheck
 
 static void init_proc_POWER7 (CPUPPCState *env)
@@ -6507,6 +6559,14 @@ static void init_proc_POWER7 (CPUPPCState *env)
     spr_register(env, SPR_SPURR,   "SPURR",
                  &spr_read_purr, SPR_NOACCESS,
                  &spr_read_purr, SPR_NOACCESS,
+                 0x00000000);
+    spr_register(env, SPR_CFAR, "SPR_CFAR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_cfar, &spr_write_cfar,
+                 0x00000000);
+    spr_register(env, SPR_DSCR, "SPR_DSCR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_generic,
                  0x00000000);
 #endif /* !CONFIG_USER_ONLY */
     /* Memory management */
@@ -9679,8 +9739,7 @@ static int gdb_get_float_reg(CPUState *env, uint8_t *mem_buf, int n)
         return 8;
     }
     if (n == 32) {
-        /* FPSCR not implemented  */
-        memset(mem_buf, 0, 4);
+        stl_p(mem_buf, env->fpscr);
         return 4;
     }
     return 0;

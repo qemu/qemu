@@ -113,6 +113,11 @@ DEF_HELPER_2(stq_c_phys, i64, i64, i64)
 
 DEF_HELPER_FLAGS_0(tbia, TCG_CALL_CONST, void)
 DEF_HELPER_FLAGS_1(tbis, TCG_CALL_CONST, void, i64)
+
+DEF_HELPER_1(halt, void, i64);
+
+DEF_HELPER_FLAGS_0(get_time, TCG_CALL_CONST, i64)
+DEF_HELPER_FLAGS_1(set_alarm, TCG_CALL_CONST, void, i64)
 #endif
 
 #include "def-helper.h"

@@ -226,7 +226,6 @@ hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 hw-obj-$(CONFIG_USB_REDIR) += usb-redir.o
 
 # PPC devices
-hw-obj-$(CONFIG_OPENPIC) += openpic.o
 hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
 # Mac shared devices
 hw-obj-$(CONFIG_MACIO) += macio.o
@@ -419,6 +418,9 @@ libcacard-y = cac.o event.o vcard.o vreader.o vcard_emul_nss.o vcard_emul_type.o
 qapi-nested-y = qapi-visit-core.o qmp-input-visitor.o qmp-output-visitor.o qapi-dealloc-visitor.o
 qapi-nested-y += qmp-registry.o qmp-dispatch.o
 qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
+
+common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o $(qapi-obj-y)
+common-obj-y += qmp.o hmp.o
 
 ######################################################################
 # guest agent

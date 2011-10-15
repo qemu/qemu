@@ -32,6 +32,7 @@
 
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
+#include "hw/xics.h"
 
 #ifdef CONFIG_FDT
 #include <libfdt.h>
@@ -51,6 +52,10 @@
 static struct BusInfo spapr_vio_bus_info = {
     .name       = "spapr-vio",
     .size       = sizeof(VIOsPAPRBus),
+    .props = (Property[]) {
+        DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, vio_irq_num, 0), \
+        DEFINE_PROP_END_OF_LIST(),
+    },
 };
 
 VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
@@ -602,6 +607,11 @@ static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
     }
 
     dev->qdev.id = id;
+
+    dev->qirq = spapr_allocate_irq(dev->vio_irq_num, &dev->vio_irq_num);
+    if (!dev->qirq) {
+        return -1;
+    }
 
     rtce_init(dev);
 
