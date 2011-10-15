@@ -371,6 +371,7 @@ obj-alpha-y += alpha_pci.o alpha_dp264.o alpha_typhoon.o
 
 obj-xtensa-y += xtensa_pic.o
 obj-xtensa-y += xtensa_sim.o
+obj-xtensa-y += xtensa_lx60.o
 obj-xtensa-y += xtensa-semi.o
 obj-xtensa-y += core-dc232b.o
 obj-xtensa-y += core-fsf.o
