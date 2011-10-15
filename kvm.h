@@ -53,6 +53,8 @@ int kvm_has_xcrs(void);
 int kvm_has_many_ioeventfds(void);
 int kvm_has_gsi_routing(void);
 
+int kvm_allows_irq0_override(void);
+
 #ifdef NEED_CPU_H
 int kvm_init_vcpu(CPUState *env);
 

@@ -39,6 +39,7 @@
 #include "msi.h"
 #include "sysbus.h"
 #include "sysemu.h"
+#include "kvm.h"
 #include "blockdev.h"
 #include "ui/qemu-spice.h"
 #include "memory.h"
@@ -609,7 +610,7 @@ static void *bochs_bios_init(void)
     fw_cfg_add_i64(fw_cfg, FW_CFG_RAM_SIZE, (uint64_t)ram_size);
     fw_cfg_add_bytes(fw_cfg, FW_CFG_ACPI_TABLES, (uint8_t *)acpi_tables,
                      acpi_tables_len);
-    fw_cfg_add_bytes(fw_cfg, FW_CFG_IRQ0_OVERRIDE, &irq0override, 1);
+    fw_cfg_add_i32(fw_cfg, FW_CFG_IRQ0_OVERRIDE, kvm_allows_irq0_override());
 
     smbios_table = smbios_get_table(&smbios_len);
     if (smbios_table)

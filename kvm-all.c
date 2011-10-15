@@ -1307,6 +1307,11 @@ int kvm_has_gsi_routing(void)
     return kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING);
 }
 
+int kvm_allows_irq0_override(void)
+{
+    return !kvm_enabled() || !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
+}
+
 void kvm_setup_guest_memory(void *start, size_t size)
 {
     if (!kvm_has_sync_mmu()) {
