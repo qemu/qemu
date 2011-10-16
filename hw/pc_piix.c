@@ -69,6 +69,15 @@ static void kvm_piix3_setup_irq_routing(bool pci_enabled)
         for (i = 8; i < 16; ++i) {
             kvm_irqchip_add_route(s, i, KVM_IRQCHIP_PIC_SLAVE, i - 8);
         }
+        if (pci_enabled) {
+            for (i = 0; i < 24; ++i) {
+                if (i == 0) {
+                    kvm_irqchip_add_route(s, i, KVM_IRQCHIP_IOAPIC, 2);
+                } else if (i != 2) {
+                    kvm_irqchip_add_route(s, i, KVM_IRQCHIP_IOAPIC, i);
+                }
+            }
+        }
         ret = kvm_irqchip_commit_routes(s);
         if (ret < 0) {
             hw_error("KVM IRQ routing setup failed");
@@ -95,7 +104,11 @@ static void ioapic_init(GSIState *gsi_state)
     SysBusDevice *d;
     unsigned int i;
 
-    dev = qdev_create(NULL, "ioapic");
+    if (kvm_enabled() && kvm_irqchip_in_kernel()) {
+        dev = qdev_create(NULL, "kvm-ioapic");
+    } else {
+        dev = qdev_create(NULL, "ioapic");
+    }
     qdev_init_nofail(dev);
     d = sysbus_from_qdev(dev);
     sysbus_mmio_map(d, 0, 0xfec00000);
