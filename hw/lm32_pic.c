@@ -39,7 +39,7 @@ struct LM32PicState {
 typedef struct LM32PicState LM32PicState;
 
 static LM32PicState *pic;
-void pic_info(Monitor *mon)
+void lm32_do_pic_info(Monitor *mon)
 {
     if (pic == NULL) {
         return;
@@ -49,7 +49,7 @@ void pic_info(Monitor *mon)
             pic->im, pic->ip, pic->irq_state);
 }
 
-void irq_info(Monitor *mon)
+void lm32_irq_info(Monitor *mon)
 {
     int i;
     uint32_t count;

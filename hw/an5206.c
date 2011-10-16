@@ -7,7 +7,6 @@
  */
 
 #include "hw.h"
-#include "pc.h"
 #include "mcf.h"
 #include "boards.h"
 #include "loader.h"
@@ -17,15 +16,6 @@
 #define KERNEL_LOAD_ADDR 0x10000
 #define AN5206_MBAR_ADDR 0x10000000
 #define AN5206_RAMBAR_ADDR 0x20000000
-
-/* Stub functions for hardware that doesn't exist.  */
-void pic_info(Monitor *mon)
-{
-}
-
-void irq_info(Monitor *mon)
-{
-}
 
 /* Board init.  */
 

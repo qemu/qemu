@@ -26,18 +26,8 @@
  */
 
 #include "hw.h"
-#include "pc.h"
 #include "qemu-log.h"
 #include "qemu-timer.h"
-
-/* Stub functions for hardware that doesn't exist.  */
-void pic_info(Monitor *mon)
-{
-}
-
-void irq_info(Monitor *mon)
-{
-}
 
 void xtensa_advance_ccount(CPUState *env, uint32_t d)
 {
