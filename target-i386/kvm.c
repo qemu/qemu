@@ -1337,6 +1337,36 @@ static int kvm_get_mp_state(CPUState *env)
     return 0;
 }
 
+static int kvm_get_apic(CPUState *env)
+{
+    DeviceState *apic = env->apic_state;
+    struct kvm_lapic_state kapic;
+    int ret;
+
+    if (apic && kvm_enabled() && kvm_irqchip_in_kernel()) {
+        ret = kvm_vcpu_ioctl(env, KVM_GET_LAPIC, &kapic);
+        if (ret < 0) {
+            return ret;
+        }
+
+        kvm_get_apic_state(apic, &kapic);
+    }
+    return 0;
+}
+
+static int kvm_put_apic(CPUState *env)
+{
+    DeviceState *apic = env->apic_state;
+    struct kvm_lapic_state kapic;
+
+    if (apic && kvm_enabled() && kvm_irqchip_in_kernel()) {
+        kvm_put_apic_state(apic, &kapic);
+
+        return kvm_vcpu_ioctl(env, KVM_SET_LAPIC, &kapic);
+    }
+    return 0;
+}
+
 static int kvm_put_vcpu_events(CPUState *env, int level)
 {
     struct kvm_vcpu_events events;
@@ -1510,6 +1540,10 @@ int kvm_arch_put_registers(CPUState *env, int level)
         if (ret < 0) {
             return ret;
         }
+        ret = kvm_put_apic(env);
+        if (ret < 0) {
+            return ret;
+        }
     }
     ret = kvm_put_vcpu_events(env, level);
     if (ret < 0) {
@@ -1554,6 +1588,10 @@ int kvm_arch_get_registers(CPUState *env)
         return ret;
     }
     ret = kvm_get_mp_state(env);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = kvm_get_apic(env);
     if (ret < 0) {
         return ret;
     }

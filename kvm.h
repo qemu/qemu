@@ -31,6 +31,7 @@ extern int kvm_allowed;
 #endif
 
 struct kvm_run;
+struct kvm_lapic_state;
 
 typedef struct KVMCapabilityInfo {
     const char *name;
@@ -133,6 +134,9 @@ int kvm_irqchip_set_irq(KVMState *s, int irq, int level);
 
 void kvm_irqchip_add_route(KVMState *s, int gsi, int irqchip, int pin);
 int kvm_irqchip_commit_routes(KVMState *s);
+
+void kvm_put_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
+void kvm_get_apic_state(DeviceState *d, struct kvm_lapic_state *kapic);
 
 struct kvm_guest_debug;
 struct kvm_debug_exit_arch;
