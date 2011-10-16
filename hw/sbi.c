@@ -39,6 +39,7 @@
 
 typedef struct SBIState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t regs[SBI_NREGS];
     uint32_t intreg_pending[MAX_CPUS];
     qemu_irq cpu_irqs[MAX_CPUS];
@@ -51,7 +52,8 @@ static void sbi_set_irq(void *opaque, int irq, int level)
 {
 }
 
-static uint32_t sbi_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t sbi_mem_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
 {
     SBIState *s = opaque;
     uint32_t saddr, ret;
@@ -67,13 +69,14 @@ static uint32_t sbi_mem_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void sbi_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void sbi_mem_write(void *opaque, target_phys_addr_t addr,
+                          uint64_t val, unsigned dize)
 {
     SBIState *s = opaque;
     uint32_t saddr;
 
     saddr = addr >> 2;
-    DPRINTF("write system reg 0x" TARGET_FMT_plx " = %x\n", addr, val);
+    DPRINTF("write system reg 0x" TARGET_FMT_plx " = %x\n", addr, (int)val);
     switch (saddr) {
     default:
         s->regs[saddr] = val;
@@ -81,16 +84,14 @@ static void sbi_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static CPUReadMemoryFunc * const sbi_mem_read[3] = {
-    NULL,
-    NULL,
-    sbi_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const sbi_mem_write[3] = {
-    NULL,
-    NULL,
-    sbi_mem_writel,
+static const MemoryRegionOps sbi_mem_ops = {
+    .read = sbi_mem_read,
+    .write = sbi_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static const VMStateDescription vmstate_sbi = {
@@ -117,7 +118,6 @@ static void sbi_reset(DeviceState *d)
 static int sbi_init1(SysBusDevice *dev)
 {
     SBIState *s = FROM_SYSBUS(SBIState, dev);
-    int sbi_io_memory;
     unsigned int i;
 
     qdev_init_gpio_in(&dev->qdev, sbi_set_irq, 32 + MAX_CPUS);
@@ -125,9 +125,8 @@ static int sbi_init1(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->cpu_irqs[i]);
     }
 
-    sbi_io_memory = cpu_register_io_memory(sbi_mem_read, sbi_mem_write, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, SBI_SIZE, sbi_io_memory);
+    memory_region_init_io(&s->iomem, &sbi_mem_ops, s, "sbi", SBI_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     return 0;
 }
