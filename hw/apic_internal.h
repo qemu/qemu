@@ -92,6 +92,7 @@ struct APICCommonState {
     int64_t next_time;
     int idx;
     QEMUTimer *timer;
+    int64_t timer_expiry;
     int sipi_vector;
     int wait_for_sipi;
 };
@@ -104,9 +105,11 @@ struct APICCommonInfo {
     void (*set_base)(APICCommonState *s, uint64_t val);
     void (*set_tpr)(APICCommonState *s, uint8_t val);
     void (*external_nmi)(APICCommonState *s);
+    void (*post_load)(APICCommonState *s);
 };
 
 void apic_report_irq_delivered(int delivered);
 void apic_qdev_register(APICCommonInfo *info);
+bool apic_next_timer(APICCommonState *s, int64_t current_time);
 
 #endif /* !QEMU_APIC_INTERNAL_H */

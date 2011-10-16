@@ -521,25 +521,9 @@ static uint32_t apic_get_current_count(APICCommonState *s)
 
 static void apic_timer_update(APICCommonState *s, int64_t current_time)
 {
-    int64_t next_time, d;
-
-    if (!(s->lvt[APIC_LVT_TIMER] & APIC_LVT_MASKED)) {
-        d = (current_time - s->initial_count_load_time) >>
-            s->count_shift;
-        if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
-            if (!s->initial_count)
-                goto no_timer;
-            d = ((d / ((uint64_t)s->initial_count + 1)) + 1) * ((uint64_t)s->initial_count + 1);
-        } else {
-            if (d >= s->initial_count)
-                goto no_timer;
-            d = (uint64_t)s->initial_count + 1;
-        }
-        next_time = s->initial_count_load_time + (d << s->count_shift);
-        qemu_mod_timer(s->timer, next_time);
-        s->next_time = next_time;
+    if (apic_next_timer(s, current_time)) {
+        qemu_mod_timer(s->timer, s->next_time);
     } else {
-    no_timer:
         qemu_del_timer(s->timer);
     }
 }
@@ -753,6 +737,15 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
+static void apic_post_load(APICCommonState *s)
+{
+    if (s->timer_expiry != -1) {
+        qemu_mod_timer(s->timer, s->timer_expiry);
+    } else {
+        qemu_del_timer(s->timer);
+    }
+}
+
 static const MemoryRegionOps apic_io_ops = {
     .old_mmio = {
         .read = { apic_mem_readb, apic_mem_readw, apic_mem_readl, },
@@ -776,6 +769,7 @@ static APICCommonInfo apic_info = {
     .set_base = apic_set_base,
     .set_tpr = apic_set_tpr,
     .external_nmi = apic_external_nmi,
+    .post_load = apic_post_load,
 };
 
 static void apic_register_devices(void)

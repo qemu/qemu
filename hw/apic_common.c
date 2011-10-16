@@ -93,6 +93,39 @@ void apic_deliver_nmi(DeviceState *d)
     info->external_nmi(s);
 }
 
+bool apic_next_timer(APICCommonState *s, int64_t current_time)
+{
+    int64_t d;
+
+    /* We need to store the timer state separately to support APIC
+     * implementations that maintain a non-QEMU timer, e.g. inside the
+     * host kernel. This open-coded state allows us to migrate between
+     * both models. */
+    s->timer_expiry = -1;
+
+    if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_MASKED) {
+        return false;
+    }
+
+    d = (current_time - s->initial_count_load_time) >> s->count_shift;
+
+    if (s->lvt[APIC_LVT_TIMER] & APIC_LVT_TIMER_PERIODIC) {
+        if (!s->initial_count) {
+            return false;
+        }
+        d = ((d / ((uint64_t)s->initial_count + 1)) + 1) *
+            ((uint64_t)s->initial_count + 1);
+    } else {
+        if (d >= s->initial_count) {
+            return false;
+        }
+        d = (uint64_t)s->initial_count + 1;
+    }
+    s->next_time = s->initial_count_load_time + (d << s->count_shift);
+    s->timer_expiry = s->next_time;
+    return true;
+}
+
 void apic_init_reset(DeviceState *d)
 {
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
@@ -120,7 +153,10 @@ void apic_init_reset(DeviceState *d)
     s->next_time = 0;
     s->wait_for_sipi = 1;
 
-    qemu_del_timer(s->timer);
+    if (s->timer) {
+        qemu_del_timer(s->timer);
+    }
+    s->timer_expiry = -1;
 }
 
 static void apic_reset_common(DeviceState *d)
@@ -203,12 +239,25 @@ static int apic_init_common(SysBusDevice *dev)
     return 0;
 }
 
+static int apic_dispatch_post_load(void *opaque, int version_id)
+{
+    APICCommonState *s = opaque;
+    APICCommonInfo *info =
+        DO_UPCAST(APICCommonInfo, busdev.qdev, s->busdev.qdev.info);
+
+    if (info->post_load) {
+        info->post_load(s);
+    }
+    return 0;
+}
+
 static const VMStateDescription vmstate_apic_common = {
     .name = "apic",
     .version_id = 3,
     .minimum_version_id = 3,
     .minimum_version_id_old = 1,
     .load_state_old = apic_load_old,
+    .post_load = apic_dispatch_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(apicbase, APICCommonState),
         VMSTATE_UINT8(id, APICCommonState),
@@ -228,7 +277,8 @@ static const VMStateDescription vmstate_apic_common = {
         VMSTATE_UINT32(initial_count, APICCommonState),
         VMSTATE_INT64(initial_count_load_time, APICCommonState),
         VMSTATE_INT64(next_time, APICCommonState),
-        VMSTATE_TIMER(timer, APICCommonState),
+        VMSTATE_INT64(timer_expiry,
+                      APICCommonState), /* open-coded timer state */
         VMSTATE_END_OF_LIST()
     }
 };
