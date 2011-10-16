@@ -55,7 +55,7 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
             ram_addr_t ram_addr;
             bit -= 1;
             ram_addr = section->offset_within_region + bit * VHOST_LOG_PAGE;
-            memory_region_set_dirty(section->mr, ram_addr);
+            memory_region_set_dirty(section->mr, ram_addr, VHOST_LOG_PAGE);
             log &= ~(0x1ull << bit);
         }
         addr += VHOST_LOG_CHUNK;

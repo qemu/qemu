@@ -447,7 +447,8 @@ static void xen_sync_dirty_bitmap(XenIOState *state,
             j = ffsl(map) - 1;
             map &= ~(1ul << j);
             memory_region_set_dirty(framebuffer,
-                                    (i * width + j) * TARGET_PAGE_SIZE);
+                                    (i * width + j) * TARGET_PAGE_SIZE,
+                                    TARGET_PAGE_SIZE);
         };
     }
 }

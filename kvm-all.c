@@ -368,7 +368,7 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
                 page_number = i * HOST_LONG_BITS + j;
                 addr1 = page_number * TARGET_PAGE_SIZE;
                 addr = section->offset_within_region + addr1;
-                memory_region_set_dirty(section->mr, addr);
+                memory_region_set_dirty(section->mr, addr, TARGET_PAGE_SIZE);
             } while (c != 0);
         }
     }
@@ -379,8 +379,9 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
 
 /**
  * kvm_physical_sync_dirty_bitmap - Grab dirty bitmap from kernel space
- * This function updates qemu's dirty bitmap using cpu_physical_memory_set_dirty().
- * This means all bits are set to dirty.
+ * This function updates qemu's dirty bitmap using
+ * memory_region_set_dirty().  This means all bits are set
+ * to dirty.
  *
  * @start_add: start of logged region.
  * @end_addr: end of logged region.

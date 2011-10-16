@@ -285,7 +285,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
             for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
                 if (!memory_region_get_dirty(block->mr, addr,
                                              DIRTY_MEMORY_MIGRATION)) {
-                    memory_region_set_dirty(block->mr, addr);
+                    memory_region_set_dirty(block->mr, addr, TARGET_PAGE_SIZE);
                 }
             }
         }
