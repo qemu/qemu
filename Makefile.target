@@ -219,7 +219,7 @@ obj-$(CONFIG_IVSHMEM) += ivshmem.o
 
 # Hardware support
 obj-i386-y += vga.o
-obj-i386-y += mc146818rtc.o i8259.o pc.o
+obj-i386-y += mc146818rtc.o pc.o
 obj-i386-y += cirrus_vga.o sga.o apic.o ioapic.o piix_pci.o
 obj-i386-y += vmport.o
 obj-i386-y += device-hotplug.o pci-hotplug.o smbios.o wdt_ib700.o
@@ -232,7 +232,7 @@ obj-i386-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 obj-ppc-y = ppc.o ppc_booke.o
 obj-ppc-y += vga.o
 # PREP target
-obj-ppc-y += i8259.o mc146818rtc.o
+obj-ppc-y += mc146818rtc.o
 obj-ppc-y += ppc_prep.o
 # OldWorld PowerMac
 obj-ppc-y += ppc_oldworld.o
@@ -283,7 +283,7 @@ obj-lm32-y += framebuffer.o
 
 obj-mips-y = mips_r4k.o mips_jazz.o mips_malta.o mips_mipssim.o
 obj-mips-y += mips_addr.o mips_timer.o mips_int.o
-obj-mips-y += vga.o i8259.o
+obj-mips-y += vga.o
 obj-mips-y += jazz_led.o
 obj-mips-y += gt64xxx.o mc146818rtc.o
 obj-mips-y += cirrus_vga.o
@@ -365,7 +365,7 @@ obj-m68k-y += m68k-semi.o dummy_m68k.o
 
 obj-s390x-y = s390-virtio-bus.o s390-virtio.o
 
-obj-alpha-y = i8259.o mc146818rtc.o
+obj-alpha-y = mc146818rtc.o
 obj-alpha-y += vga.o cirrus_vga.o
 obj-alpha-y += alpha_pci.o alpha_dp264.o alpha_typhoon.o
 
