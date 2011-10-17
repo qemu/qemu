@@ -1626,23 +1626,16 @@ static inline void gen_op_clear_ieee_excp_and_FTT(void)
     tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_CEXC_NMASK);
 }
 
-static inline void gen_clear_float_exceptions(void)
-{
-    gen_helper_clear_float_exceptions(cpu_env);
-}
-
 static inline void gen_fop_FF(DisasContext *dc, int rd, int rs,
                               void (*gen)(TCGv_i32, TCGv_ptr, TCGv_i32))
 {
     TCGv_i32 dst, src;
 
-    gen_clear_float_exceptions();
     src = gen_load_fpr_F(dc, rs);
     dst = gen_dest_fpr_F();
 
     gen(dst, cpu_env, src);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_store_fpr_F(dc, rd, dst);
 }
 
@@ -1664,14 +1657,12 @@ static inline void gen_fop_FFF(DisasContext *dc, int rd, int rs1, int rs2,
 {
     TCGv_i32 dst, src1, src2;
 
-    gen_clear_float_exceptions();
     src1 = gen_load_fpr_F(dc, rs1);
     src2 = gen_load_fpr_F(dc, rs2);
     dst = gen_dest_fpr_F();
 
     gen(dst, cpu_env, src1, src2);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_store_fpr_F(dc, rd, dst);
 }
 
@@ -1696,13 +1687,11 @@ static inline void gen_fop_DD(DisasContext *dc, int rd, int rs,
 {
     TCGv_i64 dst, src;
 
-    gen_clear_float_exceptions();
     src = gen_load_fpr_D(dc, rs);
     dst = gen_dest_fpr_D();
 
     gen(dst, cpu_env, src);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_store_fpr_D(dc, rd, dst);
 }
 
@@ -1726,14 +1715,12 @@ static inline void gen_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
 {
     TCGv_i64 dst, src1, src2;
 
-    gen_clear_float_exceptions();
     src1 = gen_load_fpr_D(dc, rs1);
     src2 = gen_load_fpr_D(dc, rs2);
     dst = gen_dest_fpr_D();
 
     gen(dst, cpu_env, src1, src2);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_store_fpr_D(dc, rd, dst);
 }
 
@@ -1756,12 +1743,10 @@ static inline void gen_ne_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
 static inline void gen_fop_QQ(DisasContext *dc, int rd, int rs,
                               void (*gen)(TCGv_ptr))
 {
-    gen_clear_float_exceptions();
     gen_op_load_fpr_QT1(QFPREG(rs));
 
     gen(cpu_env);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_op_store_QT0_fpr(QFPREG(rd));
     gen_update_fprs_dirty(QFPREG(rd));
 }
@@ -1782,13 +1767,11 @@ static inline void gen_ne_fop_QQ(DisasContext *dc, int rd, int rs,
 static inline void gen_fop_QQQ(DisasContext *dc, int rd, int rs1, int rs2,
                                void (*gen)(TCGv_ptr))
 {
-    gen_clear_float_exceptions();
     gen_op_load_fpr_QT0(QFPREG(rs1));
     gen_op_load_fpr_QT1(QFPREG(rs2));
 
     gen(cpu_env);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_op_store_QT0_fpr(QFPREG(rd));
     gen_update_fprs_dirty(QFPREG(rd));
 }
@@ -1799,14 +1782,12 @@ static inline void gen_fop_DFF(DisasContext *dc, int rd, int rs1, int rs2,
     TCGv_i64 dst;
     TCGv_i32 src1, src2;
 
-    gen_clear_float_exceptions();
     src1 = gen_load_fpr_F(dc, rs1);
     src2 = gen_load_fpr_F(dc, rs2);
     dst = gen_dest_fpr_D();
 
     gen(dst, cpu_env, src1, src2);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_store_fpr_D(dc, rd, dst);
 }
 
@@ -1815,13 +1796,11 @@ static inline void gen_fop_QDD(DisasContext *dc, int rd, int rs1, int rs2,
 {
     TCGv_i64 src1, src2;
 
-    gen_clear_float_exceptions();
     src1 = gen_load_fpr_D(dc, rs1);
     src2 = gen_load_fpr_D(dc, rs2);
 
     gen(cpu_env, src1, src2);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_op_store_QT0_fpr(QFPREG(rd));
     gen_update_fprs_dirty(QFPREG(rd));
 }
@@ -1833,13 +1812,11 @@ static inline void gen_fop_DF(DisasContext *dc, int rd, int rs,
     TCGv_i64 dst;
     TCGv_i32 src;
 
-    gen_clear_float_exceptions();
     src = gen_load_fpr_F(dc, rs);
     dst = gen_dest_fpr_D();
 
     gen(dst, cpu_env, src);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_store_fpr_D(dc, rd, dst);
 }
 #endif
@@ -1864,13 +1841,11 @@ static inline void gen_fop_FD(DisasContext *dc, int rd, int rs,
     TCGv_i32 dst;
     TCGv_i64 src;
 
-    gen_clear_float_exceptions();
     src = gen_load_fpr_D(dc, rs);
     dst = gen_dest_fpr_F();
 
     gen(dst, cpu_env, src);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_store_fpr_F(dc, rd, dst);
 }
 
@@ -1879,13 +1854,11 @@ static inline void gen_fop_FQ(DisasContext *dc, int rd, int rs,
 {
     TCGv_i32 dst;
 
-    gen_clear_float_exceptions();
     gen_op_load_fpr_QT1(QFPREG(rs));
     dst = gen_dest_fpr_F();
 
     gen(dst, cpu_env);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_store_fpr_F(dc, rd, dst);
 }
 
@@ -1894,13 +1867,11 @@ static inline void gen_fop_DQ(DisasContext *dc, int rd, int rs,
 {
     TCGv_i64 dst;
 
-    gen_clear_float_exceptions();
     gen_op_load_fpr_QT1(QFPREG(rs));
     dst = gen_dest_fpr_D();
 
     gen(dst, cpu_env);
 
-    gen_helper_check_ieee_exceptions(cpu_env);
     gen_store_fpr_D(dc, rd, dst);
 }
 

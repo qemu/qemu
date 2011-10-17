@@ -46,8 +46,6 @@ DEF_HELPER_4(ld_asi, i64, tl, int, int, int)
 DEF_HELPER_4(st_asi, void, tl, i64, int, int)
 #endif
 DEF_HELPER_2(ldfsr, void, env, i32)
-DEF_HELPER_1(check_ieee_exceptions, void, env)
-DEF_HELPER_1(clear_float_exceptions, void, env)
 DEF_HELPER_FLAGS_1(fabss, TCG_CALL_CONST | TCG_CALL_PURE, f32, f32)
 DEF_HELPER_2(fsqrts, f32, env, f32)
 DEF_HELPER_2(fsqrtd, f64, env, f64)
