@@ -350,9 +350,9 @@ static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
 {
     SCSIDiskState *s = opaque;
 
-    if (!running)
+    if (!running) {
         return;
-
+    }
     if (!s->bh) {
         s->bh = qemu_bh_new(scsi_dma_restart_bh, s);
         qemu_bh_schedule(s->bh);
@@ -403,8 +403,9 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
                     "buffer size %zd\n", req->cmd.xfer);
             pages = buflen++;
             outbuf[buflen++] = 0x00; // list of supported pages (this page)
-            if (s->serial)
+            if (s->serial) {
                 outbuf[buflen++] = 0x80; // unit serial number
+            }
             outbuf[buflen++] = 0x83; // device identification
             if (s->qdev.type == TYPE_DISK) {
                 outbuf[buflen++] = 0xb0; // block limits
@@ -423,10 +424,12 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             }
 
             l = strlen(s->serial);
-            if (l > req->cmd.xfer)
+            if (l > req->cmd.xfer) {
                 l = req->cmd.xfer;
-            if (l > 20)
+            }
+            if (l > 20) {
                 l = 20;
+            }
 
             DPRINTF("Inquiry EVPD[Serial number] "
                     "buffer size %zd\n", req->cmd.xfer);
@@ -441,8 +444,9 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             int max_len = 255 - 8;
             int id_len = strlen(bdrv_get_device_name(s->bs));
 
-            if (id_len > max_len)
+            if (id_len > max_len) {
                 id_len = max_len;
+            }
             DPRINTF("Inquiry EVPD[Device identification] "
                     "buffer size %zd\n", req->cmd.xfer);
 
@@ -525,9 +529,9 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
     }
 
     buflen = req->cmd.xfer;
-    if (buflen > SCSI_MAX_INQUIRY_LEN)
+    if (buflen > SCSI_MAX_INQUIRY_LEN) {
         buflen = SCSI_MAX_INQUIRY_LEN;
-
+    }
     memset(outbuf, 0, buflen);
 
     outbuf[0] = s->qdev.type & 0x1f;
@@ -749,8 +753,9 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
             outbuf[7] = 8; /* Block descriptor length  */
         }
         nb_sectors /= s->cluster_size;
-        if (nb_sectors > 0xffffff)
+        if (nb_sectors > 0xffffff) {
             nb_sectors = 0;
+        }
         p[0] = 0; /* media density code */
         p[1] = (nb_sectors >> 16) & 0xff;
         p[2] = (nb_sectors >> 8) & 0xff;
@@ -791,8 +796,9 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
         outbuf[0] = ((buflen - 2) >> 8) & 0xff;
         outbuf[1] = (buflen - 2) & 0xff;
     }
-    if (buflen > r->req.cmd.xfer)
+    if (buflen > r->req.cmd.xfer) {
         buflen = r->req.cmd.xfer;
+    }
     return buflen;
 }
 
@@ -826,8 +832,9 @@ static int scsi_disk_emulate_read_toc(SCSIRequest *req, uint8_t *outbuf)
     default:
         return -1;
     }
-    if (toclen > req->cmd.xfer)
+    if (toclen > req->cmd.xfer) {
         toclen = req->cmd.xfer;
+    }
     return toclen;
 }
 
@@ -879,40 +886,48 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
     outbuf = r->iov.iov_base;
     switch (req->cmd.buf[0]) {
     case TEST_UNIT_READY:
-        if (s->tray_open || !bdrv_is_inserted(s->bs))
+        if (s->tray_open || !bdrv_is_inserted(s->bs)) {
             goto not_ready;
+        }
         break;
     case INQUIRY:
         buflen = scsi_disk_emulate_inquiry(req, outbuf);
-        if (buflen < 0)
+        if (buflen < 0) {
             goto illegal_request;
+        }
         break;
     case MODE_SENSE:
     case MODE_SENSE_10:
         buflen = scsi_disk_emulate_mode_sense(r, outbuf);
-        if (buflen < 0)
+        if (buflen < 0) {
             goto illegal_request;
+        }
         break;
     case READ_TOC:
         buflen = scsi_disk_emulate_read_toc(req, outbuf);
-        if (buflen < 0)
+        if (buflen < 0) {
             goto illegal_request;
+        }
         break;
     case RESERVE:
-        if (req->cmd.buf[1] & 1)
+        if (req->cmd.buf[1] & 1) {
             goto illegal_request;
+        }
         break;
     case RESERVE_10:
-        if (req->cmd.buf[1] & 3)
+        if (req->cmd.buf[1] & 3) {
             goto illegal_request;
+        }
         break;
     case RELEASE:
-        if (req->cmd.buf[1] & 1)
+        if (req->cmd.buf[1] & 1) {
             goto illegal_request;
+        }
         break;
     case RELEASE_10:
-        if (req->cmd.buf[1] & 3)
+        if (req->cmd.buf[1] & 3) {
             goto illegal_request;
+        }
         break;
     case START_STOP:
         if (scsi_disk_emulate_start_stop(r) < 0) {
@@ -927,16 +942,18 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
         /* The normal LEN field for this command is zero.  */
         memset(outbuf, 0, 8);
         bdrv_get_geometry(s->bs, &nb_sectors);
-        if (!nb_sectors)
+        if (!nb_sectors) {
             goto not_ready;
+        }
         nb_sectors /= s->cluster_size;
         /* Returned value is the address of the last sector.  */
         nb_sectors--;
         /* Remember the new size for read/write sanity checking. */
         s->max_lba = nb_sectors;
         /* Clip to 2TB, instead of returning capacity modulo 2TB. */
-        if (nb_sectors > UINT32_MAX)
+        if (nb_sectors > UINT32_MAX) {
             nb_sectors = UINT32_MAX;
+        }
         outbuf[0] = (nb_sectors >> 24) & 0xff;
         outbuf[1] = (nb_sectors >> 16) & 0xff;
         outbuf[2] = (nb_sectors >> 8) & 0xff;
@@ -960,8 +977,9 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
             DPRINTF("SAI READ CAPACITY(16)\n");
             memset(outbuf, 0, req->cmd.xfer);
             bdrv_get_geometry(s->bs, &nb_sectors);
-            if (!nb_sectors)
+            if (!nb_sectors) {
                 goto not_ready;
+            }
             nb_sectors /= s->cluster_size;
             /* Returned value is the address of the last sector.  */
             nb_sectors--;
@@ -1078,8 +1096,9 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case READ_16:
         len = r->req.cmd.xfer / s->qdev.blocksize;
         DPRINTF("Read (sector %" PRId64 ", count %d)\n", r->req.cmd.lba, len);
-        if (r->req.cmd.lba > s->max_lba)
+        if (r->req.cmd.lba > s->max_lba) {
             goto illegal_lba;
+        }
         r->sector = r->req.cmd.lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         break;
@@ -1094,8 +1113,9 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         DPRINTF("Write %s(sector %" PRId64 ", count %d)\n",
                 (command & 0xe) == 0xe ? "And Verify " : "",
                 r->req.cmd.lba, len);
-        if (r->req.cmd.lba > s->max_lba)
+        if (r->req.cmd.lba > s->max_lba) {
             goto illegal_lba;
+        }
         r->sector = r->req.cmd.lba * s->cluster_size;
         r->sector_count = len * s->cluster_size;
         break;
@@ -1168,8 +1188,9 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
         return -len;
     } else {
-        if (!r->sector_count)
+        if (!r->sector_count) {
             r->sector_count = -1;
+        }
         return len;
     }
 }
