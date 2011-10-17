@@ -45,6 +45,7 @@ typedef const struct {
 
 typedef struct gptm_state {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t config;
     uint32_t mode[2];
     uint32_t control;
@@ -140,7 +141,8 @@ static void gptm_tick(void *opaque)
     gptm_update_irq(s);
 }
 
-static uint32_t gptm_read(void *opaque, target_phys_addr_t offset)
+static uint64_t gptm_read(void *opaque, target_phys_addr_t offset,
+                          unsigned size)
 {
     gptm_state *s = (gptm_state *)opaque;
 
@@ -188,7 +190,8 @@ static uint32_t gptm_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void gptm_write(void *opaque, target_phys_addr_t offset, uint32_t value)
+static void gptm_write(void *opaque, target_phys_addr_t offset,
+                       uint64_t value, unsigned size)
 {
     gptm_state *s = (gptm_state *)opaque;
     uint32_t oldval;
@@ -268,16 +271,10 @@ static void gptm_write(void *opaque, target_phys_addr_t offset, uint32_t value)
     gptm_update_irq(s);
 }
 
-static CPUReadMemoryFunc * const gptm_readfn[] = {
-   gptm_read,
-   gptm_read,
-   gptm_read
-};
-
-static CPUWriteMemoryFunc * const gptm_writefn[] = {
-   gptm_write,
-   gptm_write,
-   gptm_write
+static const MemoryRegionOps gptm_ops = {
+    .read = gptm_read,
+    .write = gptm_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_stellaris_gptm = {
@@ -305,16 +302,14 @@ static const VMStateDescription vmstate_stellaris_gptm = {
 
 static int stellaris_gptm_init(SysBusDevice *dev)
 {
-    int iomemtype;
     gptm_state *s = FROM_SYSBUS(gptm_state, dev);
 
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_out(&dev->qdev, &s->trigger, 1);
 
-    iomemtype = cpu_register_io_memory(gptm_readfn,
-                                       gptm_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &gptm_ops, s,
+                          "gptm", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     s->opaque[0] = s->opaque[1] = s;
     s->timer[0] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[0]);
