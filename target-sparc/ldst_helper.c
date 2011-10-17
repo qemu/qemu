@@ -2045,7 +2045,7 @@ void helper_ldda_asi(target_ulong addr, int asi, int rd)
 void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
 {
     unsigned int i;
-    CPU_DoubleU u;
+    target_ulong val;
 
     helper_check_align(addr, 3);
     addr = asi_address_mask(env, asi, addr);
@@ -2060,13 +2060,11 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
             return;
         }
         helper_check_align(addr, 0x3f);
-        for (i = 0; i < 16; i++) {
-            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x8f, 4,
-                                                         0);
-            addr += 4;
+        for (i = 0; i < 8; i++, rd += 2, addr += 8) {
+            env->fpr[rd/2].ll = helper_ld_asi(addr, asi & 0x8f, 8, 0);
         }
-
         return;
+
     case 0x16: /* UA2007 Block load primary, user privilege */
     case 0x17: /* UA2007 Block load secondary, user privilege */
     case 0x1e: /* UA2007 Block load primary LE, user privilege */
@@ -2080,13 +2078,11 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
             return;
         }
         helper_check_align(addr, 0x3f);
-        for (i = 0; i < 16; i++) {
-            *(uint32_t *)&env->fpr[rd++] = helper_ld_asi(addr, asi & 0x19, 4,
-                                                         0);
-            addr += 4;
+        for (i = 0; i < 8; i++, rd += 2, addr += 4) {
+            env->fpr[rd/2].ll = helper_ld_asi(addr, asi & 0x19, 8, 0);
         }
-
         return;
+
     default:
         break;
     }
@@ -2094,20 +2090,19 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
     switch (size) {
     default:
     case 4:
-        *((uint32_t *)&env->fpr[rd]) = helper_ld_asi(addr, asi, size, 0);
+        val = helper_ld_asi(addr, asi, size, 0);
+        if (rd & 1) {
+            env->fpr[rd/2].l.lower = val;
+        } else {
+            env->fpr[rd/2].l.upper = val;
+        }
         break;
     case 8:
-        u.ll = helper_ld_asi(addr, asi, size, 0);
-        *((uint32_t *)&env->fpr[rd++]) = u.l.upper;
-        *((uint32_t *)&env->fpr[rd++]) = u.l.lower;
+        env->fpr[rd/2].ll = helper_ld_asi(addr, asi, size, 0);
         break;
     case 16:
-        u.ll = helper_ld_asi(addr, asi, 8, 0);
-        *((uint32_t *)&env->fpr[rd++]) = u.l.upper;
-        *((uint32_t *)&env->fpr[rd++]) = u.l.lower;
-        u.ll = helper_ld_asi(addr + 8, asi, 8, 0);
-        *((uint32_t *)&env->fpr[rd++]) = u.l.upper;
-        *((uint32_t *)&env->fpr[rd++]) = u.l.lower;
+        env->fpr[rd/2].ll = helper_ld_asi(addr, asi, 8, 0);
+        env->fpr[rd/2 + 1].ll = helper_ld_asi(addr + 8, asi, 8, 0);
         break;
     }
 }
@@ -2115,8 +2110,7 @@ void helper_ldf_asi(target_ulong addr, int asi, int size, int rd)
 void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
 {
     unsigned int i;
-    target_ulong val = 0;
-    CPU_DoubleU u;
+    target_ulong val;
 
     helper_check_align(addr, 3);
     addr = asi_address_mask(env, asi, addr);
@@ -2133,10 +2127,8 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
             return;
         }
         helper_check_align(addr, 0x3f);
-        for (i = 0; i < 16; i++) {
-            val = *(uint32_t *)&env->fpr[rd++];
-            helper_st_asi(addr, val, asi & 0x8f, 4);
-            addr += 4;
+        for (i = 0; i < 8; i++, rd += 2, addr += 8) {
+            helper_st_asi(addr, env->fpr[rd/2].ll, asi & 0x8f, 8);
         }
 
         return;
@@ -2153,10 +2145,8 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
             return;
         }
         helper_check_align(addr, 0x3f);
-        for (i = 0; i < 16; i++) {
-            val = *(uint32_t *)&env->fpr[rd++];
-            helper_st_asi(addr, val, asi & 0x19, 4);
-            addr += 4;
+        for (i = 0; i < 8; i++, rd += 2, addr += 8) {
+            helper_st_asi(addr, env->fpr[rd/2].ll, asi & 0x19, 8);
         }
 
         return;
@@ -2167,20 +2157,19 @@ void helper_stf_asi(target_ulong addr, int asi, int size, int rd)
     switch (size) {
     default:
     case 4:
-        helper_st_asi(addr, *(uint32_t *)&env->fpr[rd], asi, size);
+        if (rd & 1) {
+            val = env->fpr[rd/2].l.lower;
+        } else {
+            val = env->fpr[rd/2].l.upper;
+        }
+        helper_st_asi(addr, val, asi, size);
         break;
     case 8:
-        u.l.upper = *(uint32_t *)&env->fpr[rd++];
-        u.l.lower = *(uint32_t *)&env->fpr[rd++];
-        helper_st_asi(addr, u.ll, asi, size);
+        helper_st_asi(addr, env->fpr[rd/2].ll, asi, size);
         break;
     case 16:
-        u.l.upper = *(uint32_t *)&env->fpr[rd++];
-        u.l.lower = *(uint32_t *)&env->fpr[rd++];
-        helper_st_asi(addr, u.ll, asi, 8);
-        u.l.upper = *(uint32_t *)&env->fpr[rd++];
-        u.l.lower = *(uint32_t *)&env->fpr[rd++];
-        helper_st_asi(addr + 8, u.ll, asi, 8);
+        helper_st_asi(addr, env->fpr[rd/2].ll, asi, 8);
+        helper_st_asi(addr + 8, env->fpr[rd/2 + 1].ll, asi, 8);
         break;
     }
 }

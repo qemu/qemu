@@ -63,7 +63,7 @@ static TCGv cpu_tmp0;
 static TCGv_i32 cpu_tmp32;
 static TCGv_i64 cpu_tmp64;
 /* Floating point registers */
-static TCGv_i32 cpu_fpr[TARGET_FPREGS];
+static TCGv_i64 cpu_fpr[TARGET_DPREGS];
 
 static target_ulong gen_opc_npc[OPC_BUF_SIZE];
 static target_ulong gen_opc_jump_pc[2];
@@ -82,8 +82,8 @@ typedef struct DisasContext {
     uint32_t cc_op;  /* current CC operation */
     struct TranslationBlock *tb;
     sparc_def_t *def;
-    TCGv_i64 t64[3];
-    int n_t64;
+    TCGv_i32 t32[3];
+    int n_t32;
 } DisasContext;
 
 // This function uses non-native bit order
@@ -126,12 +126,44 @@ static inline void gen_update_fprs_dirty(int rd)
 /* floating point registers moves */
 static TCGv_i32 gen_load_fpr_F(DisasContext *dc, unsigned int src)
 {
-    return cpu_fpr[src];
+#if TCG_TARGET_REG_BITS == 32
+    if (src & 1) {
+        return TCGV_LOW(cpu_fpr[src / 2]);
+    } else {
+        return TCGV_HIGH(cpu_fpr[src / 2]);
+    }
+#else
+    if (src & 1) {
+        return MAKE_TCGV_I32(GET_TCGV_I64(cpu_fpr[src / 2]));
+    } else {
+        TCGv_i32 ret = tcg_temp_local_new_i32();
+        TCGv_i64 t = tcg_temp_new_i64();
+
+        tcg_gen_shri_i64(t, cpu_fpr[src / 2], 32);
+        tcg_gen_trunc_i64_i32(ret, t);
+        tcg_temp_free_i64(t);
+
+        dc->t32[dc->n_t32++] = ret;
+        assert(dc->n_t32 <= ARRAY_SIZE(dc->t32));
+
+        return ret;
+    }
+#endif
 }
 
 static void gen_store_fpr_F(DisasContext *dc, unsigned int dst, TCGv_i32 v)
 {
-    tcg_gen_mov_i32(cpu_fpr[dst], v);
+#if TCG_TARGET_REG_BITS == 32
+    if (dst & 1) {
+        tcg_gen_mov_i32(TCGV_LOW(cpu_fpr[dst / 2]), v);
+    } else {
+        tcg_gen_mov_i32(TCGV_HIGH(cpu_fpr[dst / 2]), v);
+    }
+#else
+    TCGv_i64 t = MAKE_TCGV_I64(GET_TCGV_I32(v));
+    tcg_gen_deposit_i64(cpu_fpr[dst / 2], cpu_fpr[dst / 2], t,
+                        (dst & 1 ? 0 : 32), 32);
+#endif
     gen_update_fprs_dirty(dst);
 }
 
@@ -142,42 +174,14 @@ static TCGv_i32 gen_dest_fpr_F(void)
 
 static TCGv_i64 gen_load_fpr_D(DisasContext *dc, unsigned int src)
 {
-    TCGv_i64 ret = tcg_temp_new_i64();
     src = DFPREG(src);
-
-#if TCG_TARGET_REG_BITS == 32
-    tcg_gen_mov_i32(TCGV_HIGH(ret), cpu_fpr[src]);
-    tcg_gen_mov_i32(TCGV_LOW(ret), cpu_fpr[src + 1]);
-#else
-    {
-        TCGv_i64 t = tcg_temp_new_i64();
-        tcg_gen_extu_i32_i64(ret, cpu_fpr[src]);
-        tcg_gen_extu_i32_i64(t, cpu_fpr[src + 1]);
-        tcg_gen_shli_i64(ret, ret, 32);
-        tcg_gen_or_i64(ret, ret, t);
-        tcg_temp_free_i64(t);
-    }
-#endif
-
-    dc->t64[dc->n_t64++] = ret;
-    assert(dc->n_t64 <= ARRAY_SIZE(dc->t64));
-
-    return ret;
+    return cpu_fpr[src / 2];
 }
 
 static void gen_store_fpr_D(DisasContext *dc, unsigned int dst, TCGv_i64 v)
 {
     dst = DFPREG(dst);
-
-#if TCG_TARGET_REG_BITS == 32
-    tcg_gen_mov_i32(cpu__fpu[dst], TCGV_HIGH(v));
-    tcg_gen_mov_i32(cpu__fpu[dst + 1], TCGV_LOW(v));
-#else
-    tcg_gen_trunc_i64_i32(cpu_fpr[dst + 1], v);
-    tcg_gen_shri_i64(v, v, 32);
-    tcg_gen_trunc_i64_i32(cpu_fpr[dst], v);
-#endif
-
+    tcg_gen_mov_i64(cpu_fpr[dst / 2], v);
     gen_update_fprs_dirty(dst);
 }
 
@@ -188,50 +192,36 @@ static TCGv_i64 gen_dest_fpr_D(void)
 
 static void gen_op_load_fpr_QT0(unsigned int src)
 {
-    tcg_gen_st_i32(cpu_fpr[src], cpu_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, l.upmost));
-    tcg_gen_st_i32(cpu_fpr[src + 1], cpu_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, l.upper));
-    tcg_gen_st_i32(cpu_fpr[src + 2], cpu_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, l.lower));
-    tcg_gen_st_i32(cpu_fpr[src + 3], cpu_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, l.lowest));
+    tcg_gen_st_i64(cpu_fpr[src / 2], cpu_env, offsetof(CPUSPARCState, qt0) +
+                   offsetof(CPU_QuadU, ll.upper));
+    tcg_gen_st_i64(cpu_fpr[src/2 + 1], cpu_env, offsetof(CPUSPARCState, qt0) +
+                   offsetof(CPU_QuadU, ll.lower));
 }
 
 static void gen_op_load_fpr_QT1(unsigned int src)
 {
-    tcg_gen_st_i32(cpu_fpr[src], cpu_env, offsetof(CPUSPARCState, qt1) +
-                   offsetof(CPU_QuadU, l.upmost));
-    tcg_gen_st_i32(cpu_fpr[src + 1], cpu_env, offsetof(CPUSPARCState, qt1) +
-                   offsetof(CPU_QuadU, l.upper));
-    tcg_gen_st_i32(cpu_fpr[src + 2], cpu_env, offsetof(CPUSPARCState, qt1) +
-                   offsetof(CPU_QuadU, l.lower));
-    tcg_gen_st_i32(cpu_fpr[src + 3], cpu_env, offsetof(CPUSPARCState, qt1) +
-                   offsetof(CPU_QuadU, l.lowest));
+    tcg_gen_st_i64(cpu_fpr[src / 2], cpu_env, offsetof(CPUSPARCState, qt1) +
+                   offsetof(CPU_QuadU, ll.upper));
+    tcg_gen_st_i64(cpu_fpr[src/2 + 1], cpu_env, offsetof(CPUSPARCState, qt1) +
+                   offsetof(CPU_QuadU, ll.lower));
 }
 
 static void gen_op_store_QT0_fpr(unsigned int dst)
 {
-    tcg_gen_ld_i32(cpu_fpr[dst], cpu_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, l.upmost));
-    tcg_gen_ld_i32(cpu_fpr[dst + 1], cpu_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, l.upper));
-    tcg_gen_ld_i32(cpu_fpr[dst + 2], cpu_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, l.lower));
-    tcg_gen_ld_i32(cpu_fpr[dst + 3], cpu_env, offsetof(CPUSPARCState, qt0) +
-                   offsetof(CPU_QuadU, l.lowest));
+    tcg_gen_ld_i64(cpu_fpr[dst / 2], cpu_env, offsetof(CPUSPARCState, qt0) +
+                   offsetof(CPU_QuadU, ll.upper));
+    tcg_gen_ld_i64(cpu_fpr[dst/2 + 1], cpu_env, offsetof(CPUSPARCState, qt0) +
+                   offsetof(CPU_QuadU, ll.lower));
 }
 
 #ifdef TARGET_SPARC64
-static void gen_move_Q(int rd, int rs)
+static void gen_move_Q(unsigned int rd, unsigned int rs)
 {
     rd = QFPREG(rd);
     rs = QFPREG(rs);
 
-    tcg_gen_mov_i32(cpu_fpr[rd], cpu_fpr[rs]);
-    tcg_gen_mov_i32(cpu_fpr[rd + 1], cpu_fpr[rs + 1]);
-    tcg_gen_mov_i32(cpu_fpr[rd + 2], cpu_fpr[rs + 2]);
-    tcg_gen_mov_i32(cpu_fpr[rd + 3], cpu_fpr[rs + 3]);
+    tcg_gen_mov_i64(cpu_fpr[rd / 2], cpu_fpr[rs / 2]);
+    tcg_gen_mov_i64(cpu_fpr[rd / 2 + 1], cpu_fpr[rs / 2 + 1]);
     gen_update_fprs_dirty(rd);
 }
 #endif
@@ -5001,6 +4991,13 @@ static void disas_sparc_insn(DisasContext * dc)
  egress:
     tcg_temp_free(cpu_tmp1);
     tcg_temp_free(cpu_tmp2);
+    if (dc->n_t32 != 0) {
+        int i;
+        for (i = dc->n_t32 - 1; i >= 0; --i) {
+            tcg_temp_free_i32(dc->t32[i]);
+        }
+        dc->n_t32 = 0;
+    }
 }
 
 static inline void gen_intermediate_code_internal(TranslationBlock * tb,
@@ -5100,9 +5097,6 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
     tcg_temp_free_i64(cpu_tmp64);
     tcg_temp_free_i32(cpu_tmp32);
     tcg_temp_free(cpu_tmp0);
-    for (j = dc->n_t64 - 1; j >= 0; --j) {
-        tcg_temp_free_i64(dc->t64[j]);
-    }
 
     if (tb->cflags & CF_LAST_IO)
         gen_io_end();
@@ -5168,15 +5162,11 @@ void gen_intermediate_code_init(CPUSPARCState *env)
         "g6",
         "g7",
     };
-    static const char * const fregnames[64] = {
-        "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7",
-        "f8", "f9", "f10", "f11", "f12", "f13", "f14", "f15",
-        "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
-        "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",
-        "f32", "f33", "f34", "f35", "f36", "f37", "f38", "f39",
-        "f40", "f41", "f42", "f43", "f44", "f45", "f46", "f47",
-        "f48", "f49", "f50", "f51", "f52", "f53", "f54", "f55",
-        "f56", "f57", "f58", "f59", "f60", "f61", "f62", "f63",
+    static const char * const fregnames[32] = {
+        "f0", "f2", "f4", "f6", "f8", "f10", "f12", "f14",
+        "f16", "f18", "f20", "f22", "f24", "f26", "f28", "f30",
+        "f32", "f34", "f36", "f38", "f40", "f42", "f44", "f46",
+        "f48", "f50", "f52", "f54", "f56", "f58", "f60", "f62",
     };
 
     /* init various static tables */
@@ -5246,14 +5236,16 @@ void gen_intermediate_code_init(CPUSPARCState *env)
         cpu_tbr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, tbr),
                                      "tbr");
 #endif
-        for (i = 1; i < 8; i++)
+        for (i = 1; i < 8; i++) {
             cpu_gregs[i] = tcg_global_mem_new(TCG_AREG0,
                                               offsetof(CPUState, gregs[i]),
                                               gregnames[i]);
-        for (i = 0; i < TARGET_FPREGS; i++)
-            cpu_fpr[i] = tcg_global_mem_new_i32(TCG_AREG0,
+        }
+        for (i = 0; i < TARGET_DPREGS; i++) {
+            cpu_fpr[i] = tcg_global_mem_new_i64(TCG_AREG0,
                                                 offsetof(CPUState, fpr[i]),
                                                 fregnames[i]);
+        }
 
         /* register helpers */
 

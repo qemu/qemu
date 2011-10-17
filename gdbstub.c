@@ -814,7 +814,11 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
     if (n < 64) {
         /* fprs */
-        GET_REG32(*((uint32_t *)&env->fpr[n - 32]));
+        if (n & 1) {
+            GET_REG32(env->fpr[(n - 32) / 2].l.lower);
+        } else {
+            GET_REG32(env->fpr[(n - 32) / 2].l.upper);
+        }
     }
     /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
     switch (n) {
@@ -831,15 +835,15 @@ static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
 #else
     if (n < 64) {
         /* f0-f31 */
-        GET_REG32(*((uint32_t *)&env->fpr[n - 32]));
+        if (n & 1) {
+            GET_REG32(env->fpr[(n - 32) / 2].l.lower);
+        } else {
+            GET_REG32(env->fpr[(n - 32) / 2].l.upper);
+        }
     }
     if (n < 80) {
         /* f32-f62 (double width, even numbers only) */
-        uint64_t val;
-
-        val = (uint64_t)*((uint32_t *)&env->fpr[(n - 64) * 2 + 32]) << 32;
-        val |= *((uint32_t *)&env->fpr[(n - 64) * 2 + 33]);
-        GET_REG64(val);
+        GET_REG64(env->fpr[(n - 32) / 2].ll);
     }
     switch (n) {
     case 80: GET_REGL(env->pc);
@@ -878,7 +882,12 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 #if defined(TARGET_ABI32) || !defined(TARGET_SPARC64)
     else if (n < 64) {
         /* fprs */
-        *((uint32_t *)&env->fpr[n - 32]) = tmp;
+        /* f0-f31 */
+        if (n & 1) {
+            env->fpr[(n - 32) / 2].l.lower = tmp;
+        } else {
+            env->fpr[(n - 32) / 2].l.upper = tmp;
+        }
     } else {
         /* Y, PSR, WIM, TBR, PC, NPC, FPSR, CPSR */
         switch (n) {
@@ -896,12 +905,16 @@ static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
 #else
     else if (n < 64) {
         /* f0-f31 */
-        env->fpr[n] = ldfl_p(mem_buf);
+        tmp = ldl_p(mem_buf);
+        if (n & 1) {
+            env->fpr[(n - 32) / 2].l.lower = tmp;
+        } else {
+            env->fpr[(n - 32) / 2].l.upper = tmp;
+        }
         return 4;
     } else if (n < 80) {
         /* f32-f62 (double width, even numbers only) */
-        *((uint32_t *)&env->fpr[(n - 64) * 2 + 32]) = tmp >> 32;
-        *((uint32_t *)&env->fpr[(n - 64) * 2 + 33]) = tmp;
+        env->fpr[(n - 32) / 2].ll = tmp;
     } else {
         switch (n) {
         case 80: env->pc = tmp; break;

@@ -21,13 +21,9 @@ void cpu_save(QEMUFile *f, void *opaque)
         qemu_put_betls(f, &env->regbase[i]);
 
     /* FPU */
-    for(i = 0; i < TARGET_FPREGS; i++) {
-        union {
-            float32 f;
-            uint32_t i;
-        } u;
-        u.f = env->fpr[i];
-        qemu_put_be32(f, u.i);
+    for (i = 0; i < TARGET_DPREGS; i++) {
+        qemu_put_be32(f, env->fpr[i].l.upper);
+        qemu_put_be32(f, env->fpr[i].l.lower);
     }
 
     qemu_put_betls(f, &env->pc);
@@ -128,13 +124,9 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         qemu_get_betls(f, &env->regbase[i]);
 
     /* FPU */
-    for(i = 0; i < TARGET_FPREGS; i++) {
-        union {
-            float32 f;
-            uint32_t i;
-        } u;
-        u.i = qemu_get_be32(f);
-        env->fpr[i] = u.f;
+    for (i = 0; i < TARGET_DPREGS; i++) {
+        env->fpr[i].l.upper = qemu_get_be32(f);
+        env->fpr[i].l.lower = qemu_get_be32(f);
     }
 
     qemu_get_betls(f, &env->pc);
