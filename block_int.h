@@ -83,6 +83,7 @@ struct BlockDriver {
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
     int coroutine_fn (*bdrv_co_writev)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
+    int coroutine_fn (*bdrv_co_flush)(BlockDriverState *bs);
 
     int (*bdrv_aio_multiwrite)(BlockDriverState *bs, BlockRequest *reqs,
         int num_reqs);
