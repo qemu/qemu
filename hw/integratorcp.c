@@ -18,6 +18,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t memsz;
     MemoryRegion flash;
     bool flash_mapped;
@@ -39,7 +40,8 @@ static uint8_t integrator_spd[128] = {
    0xe, 4, 0x1c, 1, 2, 0x20, 0xc0, 0, 0, 0, 0, 0x30, 0x28, 0x30, 0x28, 0x40
 };
 
-static uint32_t integratorcm_read(void *opaque, target_phys_addr_t offset)
+static uint64_t integratorcm_read(void *opaque, target_phys_addr_t offset,
+                                  unsigned size)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
     if (offset >= 0x100 && offset < 0x200) {
@@ -152,7 +154,7 @@ static void integratorcm_update(integratorcm_state *s)
 }
 
 static void integratorcm_write(void *opaque, target_phys_addr_t offset,
-                               uint32_t value)
+                               uint64_t value, unsigned size)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
     switch (offset >> 2) {
@@ -228,21 +230,14 @@ static void integratorcm_write(void *opaque, target_phys_addr_t offset,
 
 /* Integrator/CM control registers.  */
 
-static CPUReadMemoryFunc * const integratorcm_readfn[] = {
-   integratorcm_read,
-   integratorcm_read,
-   integratorcm_read
-};
-
-static CPUWriteMemoryFunc * const integratorcm_writefn[] = {
-   integratorcm_write,
-   integratorcm_write,
-   integratorcm_write
+static const MemoryRegionOps integratorcm_ops = {
+    .read = integratorcm_read,
+    .write = integratorcm_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int integratorcm_init(SysBusDevice *dev)
 {
-    int iomemtype;
     integratorcm_state *s = FROM_SYSBUS(integratorcm_state, dev);
 
     s->cm_osc = 0x01000048;
@@ -269,10 +264,10 @@ static int integratorcm_init(SysBusDevice *dev)
     memory_region_init_ram(&s->flash, NULL, "integrator.flash", 0x100000);
     s->flash_mapped = false;
 
-    iomemtype = cpu_register_io_memory(integratorcm_readfn,
-                                       integratorcm_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x00800000, iomemtype);
+    memory_region_init_io(&s->iomem, &integratorcm_ops, s,
+                          "integratorcm", 0x00800000);
+    sysbus_init_mmio_region(dev, &s->iomem);
+
     integratorcm_do_remap(s, 1);
     /* ??? Save/restore.  */
     return 0;
