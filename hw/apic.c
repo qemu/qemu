@@ -205,6 +205,13 @@ void apic_deliver_pic_intr(DeviceState *d, int level)
     }
 }
 
+void apic_deliver_nmi(DeviceState *d)
+{
+    APICState *s = DO_UPCAST(APICState, busdev.qdev, d);
+
+    apic_local_deliver(s, APIC_LVT_LINT1);
+}
+
 #define foreach_apic(apic, deliver_bitmask, code) \
 {\
     int __i, __j, __mask;\

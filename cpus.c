@@ -1217,7 +1217,11 @@ void qmp_inject_nmi(Error **errp)
     CPUState *env;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
-        cpu_interrupt(env, CPU_INTERRUPT_NMI);
+        if (!env->apic_state) {
+            cpu_interrupt(env, CPU_INTERRUPT_NMI);
+        } else {
+            apic_deliver_nmi(env->apic_state);
+        }
     }
 #else
     error_set(errp, QERR_UNSUPPORTED);
