@@ -95,3 +95,13 @@ void qmp_cpu(int64_t index, Error **errp)
 {
     /* Just do nothing */
 }
+
+#ifndef CONFIG_VNC
+/* If VNC support is enabled, the "true" query-vnc command is
+   defined in the VNC subsystem */
+VncInfo *qmp_query_vnc(Error **errp)
+{
+    error_set(errp, QERR_FEATURE_DISABLED, "vnc");
+    return NULL;
+};
+#endif

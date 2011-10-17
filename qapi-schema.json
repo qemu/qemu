@@ -504,6 +504,87 @@
 { 'command': 'query-blockstats', 'returns': ['BlockStats'] }
 
 ##
+# @VncClientInfo:
+#
+# Information about a connected VNC client.
+#
+# @host: The host name of the client.  QEMU tries to resolve this to a DNS name
+#        when possible.
+#
+# @family: 'ipv6' if the client is connected via IPv6 and TCP
+#          'ipv4' if the client is connected via IPv4 and TCP
+#          'unix' if the client is connected via a unix domain socket
+#          'unknown' otherwise
+#
+# @service: The service name of the client's port.  This may depends on the
+#           host system's service database so symbolic names should not be
+#           relied on.
+#
+# @x509_dname: #optional If x509 authentication is in use, the Distinguished
+#              Name of the client.
+#
+# @sasl_username: #optional If SASL authentication is in use, the SASL username
+#                 used for authentication.
+#
+# Since: 0.14.0
+##
+{ 'type': 'VncClientInfo',
+  'data': {'host': 'str', 'family': 'str', 'service': 'str',
+           '*x509_dname': 'str', '*sasl_username': 'str'} }
+
+##
+# @VncInfo:
+#
+# Information about the VNC session.
+#
+# @enabled: true if the VNC server is enabled, false otherwise
+#
+# @host: #optional The hostname the VNC server is bound to.  This depends on
+#        the name resolution on the host and may be an IP address.
+#
+# @family: #optional 'ipv6' if the host is listening for IPv6 connections
+#                    'ipv4' if the host is listening for IPv4 connections
+#                    'unix' if the host is listening on a unix domain socket
+#                    'unknown' otherwise
+#
+# @service: #optional The service name of the server's port.  This may depends
+#           on the host system's service database so symbolic names should not
+#           be relied on.
+#
+# @auth: #optional the current authentication type used by the server
+#        'none' if no authentication is being used
+#        'vnc' if VNC authentication is being used
+#        'vencrypt+plain' if VEncrypt is used with plain text authentication
+#        'vencrypt+tls+none' if VEncrypt is used with TLS and no authentication
+#        'vencrypt+tls+vnc' if VEncrypt is used with TLS and VNC authentication
+#        'vencrypt+tls+plain' if VEncrypt is used with TLS and plain text auth
+#        'vencrypt+x509+none' if VEncrypt is used with x509 and no auth
+#        'vencrypt+x509+vnc' if VEncrypt is used with x509 and VNC auth
+#        'vencrypt+x509+plain' if VEncrypt is used with x509 and plain text auth
+#        'vencrypt+tls+sasl' if VEncrypt is used with TLS and SASL auth
+#        'vencrypt+x509+sasl' if VEncrypt is used with x509 and SASL auth
+#
+# @clients: a list of @VncClientInfo of all currently connected clients
+#
+# Since: 0.14.0
+##
+{ 'type': 'VncInfo',
+  'data': {'enabled': 'bool', '*host': 'str', '*family': 'str',
+           '*service': 'str', '*auth': 'str', '*clients': ['VncClientInfo']} }
+
+##
+# @query-vnc:
+#
+# Returns information about the current VNC server
+#
+# Returns: @VncInfo
+#          If VNC support is not compiled in, FeatureDisabled
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-vnc', 'returns': 'VncInfo' }
+
+##
 # @quit:
 #
 # This command will cause the QEMU process to exit gracefully.  While every

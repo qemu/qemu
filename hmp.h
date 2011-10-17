@@ -28,6 +28,7 @@ void hmp_info_migrate(Monitor *mon);
 void hmp_info_cpus(Monitor *mon);
 void hmp_info_block(Monitor *mon);
 void hmp_info_blockstats(Monitor *mon);
+void hmp_info_vnc(Monitor *mon);
 void hmp_quit(Monitor *mon, const QDict *qdict);
 void hmp_stop(Monitor *mon, const QDict *qdict);
 void hmp_system_reset(Monitor *mon, const QDict *qdict);

@@ -2849,8 +2849,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the vnc server status",
-        .user_print = do_info_vnc_print,
-        .mhandler.info_new = do_info_vnc,
+        .mhandler.info = hmp_info_vnc,
     },
 #if defined(CONFIG_SPICE)
     {
@@ -2965,14 +2964,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .help       = "show PCI info",
         .user_print = do_pci_info_print,
         .mhandler.info_new = do_pci_info,
-    },
-    {
-        .name       = "vnc",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the vnc server status",
-        .user_print = do_info_vnc_print,
-        .mhandler.info_new = do_info_vnc,
     },
 #if defined(CONFIG_SPICE)
     {

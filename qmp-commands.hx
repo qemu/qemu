@@ -1741,6 +1741,12 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-vnc",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_vnc,
+    },
+
 SQMP
 query-spice
 -----------

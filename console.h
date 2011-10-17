@@ -383,8 +383,6 @@ char *vnc_display_local_addr(DisplayState *ds);
 #ifdef CONFIG_VNC
 int vnc_display_password(DisplayState *ds, const char *password);
 int vnc_display_pw_expire(DisplayState *ds, time_t expires);
-void do_info_vnc_print(Monitor *mon, const QObject *data);
-void do_info_vnc(Monitor *mon, QObject **ret_data);
 #else
 static inline int vnc_display_password(DisplayState *ds, const char *password)
 {
@@ -395,13 +393,6 @@ static inline int vnc_display_pw_expire(DisplayState *ds, time_t expires)
 {
     qerror_report(QERR_FEATURE_DISABLED, "vnc");
     return -ENODEV;
-};
-static inline void do_info_vnc(Monitor *mon, QObject **ret_data)
-{
-};
-static inline void do_info_vnc_print(Monitor *mon, const QObject *data)
-{
-    monitor_printf(mon, "VNC support disabled\n");
 };
 #endif
 
