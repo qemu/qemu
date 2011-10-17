@@ -3524,7 +3524,7 @@ includes=""
 ldflags=""
 
 if test "$tcg_interpreter" = "yes"; then
-  includes="-I\$(SRC_PATH)/tcg/bytecode $includes"
+  includes="-I\$(SRC_PATH)/tcg/tci $includes"
 elif test "$ARCH" = "sparc64" ; then
   includes="-I\$(SRC_PATH)/tcg/sparc $includes"
 elif test "$ARCH" = "s390x" ; then

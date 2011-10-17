@@ -21,7 +21,7 @@ This is what TCI (Tiny Code Interpreter) does.
 2) Implementation
 
 Like each TCG host frontend, TCI implements the code generator in
-tcg-target.c, tcg-target.h. Both files are in directory tcg/bytecode.
+tcg-target.c, tcg-target.h. Both files are in directory tcg/tci.
 
 The additional file tcg/tci.c adds the interpreter.
 
