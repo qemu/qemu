@@ -92,6 +92,7 @@ typedef struct {
        not the keyboard controller.  */
     int translate;
     int scancode_set; /* 1=XT, 2=AT, 3=PS/2 */
+    int ledstate;
 } PS2KbdState;
 
 typedef struct {
@@ -195,11 +196,17 @@ uint32_t ps2_read_data(void *opaque)
     return val;
 }
 
+static void ps2_set_ledstate(PS2KbdState *s, int ledstate)
+{
+    s->ledstate = ledstate;
+    kbd_put_ledstate(ledstate);
+}
+
 static void ps2_reset_keyboard(PS2KbdState *s)
 {
     s->scan_enabled = 1;
     s->scancode_set = 2;
-    kbd_put_ledstate(0);
+    ps2_set_ledstate(s, 0);
 }
 
 void ps2_write_keyboard(void *opaque, int val)
@@ -274,7 +281,7 @@ void ps2_write_keyboard(void *opaque, int val)
         s->common.write_cmd = -1;
         break;
     case KBD_CMD_SET_LEDS:
-        kbd_put_ledstate(val);
+        ps2_set_ledstate(s, val);
         ps2_queue(&s->common, KBD_REPLY_ACK);
         s->common.write_cmd = -1;
         break;
@@ -557,6 +564,33 @@ static const VMStateDescription vmstate_ps2_common = {
     }
 };
 
+static bool ps2_keyboard_ledstate_needed(void *opaque)
+{
+    PS2KbdState *s = opaque;
+
+    return s->ledstate != 0; /* 0 is default state */
+}
+
+static int ps2_kbd_ledstate_post_load(void *opaque, int version_id)
+{
+    PS2KbdState *s = opaque;
+
+    kbd_put_ledstate(s->ledstate);
+    return 0;
+}
+
+static const VMStateDescription vmstate_ps2_keyboard_ledstate = {
+    .name = "ps2kbd/ledstate",
+    .version_id = 3,
+    .minimum_version_id = 2,
+    .minimum_version_id_old = 2,
+    .post_load = ps2_kbd_ledstate_post_load,
+    .fields      = (VMStateField []) {
+        VMSTATE_INT32(ledstate, PS2KbdState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static int ps2_kbd_post_load(void* opaque, int version_id)
 {
     PS2KbdState *s = (PS2KbdState*)opaque;
@@ -578,6 +612,14 @@ static const VMStateDescription vmstate_ps2_keyboard = {
         VMSTATE_INT32(translate, PS2KbdState),
         VMSTATE_INT32_V(scancode_set, PS2KbdState,3),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection []) {
+        {
+            .vmsd = &vmstate_ps2_keyboard_ledstate,
+            .needed = ps2_keyboard_ledstate_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 
