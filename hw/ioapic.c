@@ -206,6 +206,9 @@ static uint32_t ioapic_mem_readl(void *opaque, target_phys_addr_t addr)
         val = s->ioregsel;
         break;
     case IOAPIC_IOWIN:
+        if (size != 4) {
+            break;
+        }
         switch (s->ioregsel) {
         case IOAPIC_REG_ID:
             val = s->id << IOAPIC_ID_SHIFT;
@@ -244,6 +247,9 @@ ioapic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
         s->ioregsel = val;
         break;
     case IOAPIC_IOWIN:
+        if (size != 4) {
+            break;
+        }
         DPRINTF("write: %08x = %08x\n", s->ioregsel, val);
         switch (s->ioregsel) {
         case IOAPIC_REG_ID:
