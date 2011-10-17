@@ -1092,24 +1092,6 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static int qcow2_flush(BlockDriverState *bs)
-{
-    BDRVQcowState *s = bs->opaque;
-    int ret;
-
-    ret = qcow2_cache_flush(bs, s->l2_table_cache);
-    if (ret < 0) {
-        return ret;
-    }
-
-    ret = qcow2_cache_flush(bs, s->refcount_block_cache);
-    if (ret < 0) {
-        return ret;
-    }
-
-    return bdrv_flush(bs->file);
-}
-
 static BlockDriverAIOCB *qcow2_aio_flush(BlockDriverState *bs,
                                          BlockDriverCompletionFunc *cb,
                                          void *opaque)
@@ -1242,7 +1224,6 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_open          = qcow2_open,
     .bdrv_close         = qcow2_close,
     .bdrv_create        = qcow2_create,
-    .bdrv_flush         = qcow2_flush,
     .bdrv_is_allocated  = qcow2_is_allocated,
     .bdrv_set_key       = qcow2_set_key,
     .bdrv_make_empty    = qcow2_make_empty,

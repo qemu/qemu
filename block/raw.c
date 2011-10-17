@@ -25,15 +25,9 @@ static void raw_close(BlockDriverState *bs)
 {
 }
 
-static int raw_flush(BlockDriverState *bs)
+static int coroutine_fn raw_co_flush(BlockDriverState *bs)
 {
-    return bdrv_flush(bs->file);
-}
-
-static BlockDriverAIOCB *raw_aio_flush(BlockDriverState *bs,
-    BlockDriverCompletionFunc *cb, void *opaque)
-{
-    return bdrv_aio_flush(bs->file, cb, opaque);
+    return bdrv_co_flush(bs->file);
 }
 
 static int64_t raw_getlength(BlockDriverState *bs)
@@ -117,12 +111,11 @@ static BlockDriver bdrv_raw = {
     .bdrv_close         = raw_close,
     .bdrv_co_readv      = raw_co_readv,
     .bdrv_co_writev     = raw_co_writev,
-    .bdrv_flush         = raw_flush,
+    .bdrv_co_flush      = raw_co_flush,
     .bdrv_probe         = raw_probe,
     .bdrv_getlength     = raw_getlength,
     .bdrv_truncate      = raw_truncate,
 
-    .bdrv_aio_flush     = raw_aio_flush,
     .bdrv_discard       = raw_discard,
 
     .bdrv_is_inserted   = raw_is_inserted,

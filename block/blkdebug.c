@@ -397,11 +397,6 @@ static void blkdebug_close(BlockDriverState *bs)
     }
 }
 
-static int blkdebug_flush(BlockDriverState *bs)
-{
-    return bdrv_flush(bs->file);
-}
-
 static BlockDriverAIOCB *blkdebug_aio_flush(BlockDriverState *bs,
     BlockDriverCompletionFunc *cb, void *opaque)
 {
@@ -454,7 +449,6 @@ static BlockDriver bdrv_blkdebug = {
 
     .bdrv_file_open     = blkdebug_open,
     .bdrv_close         = blkdebug_close,
-    .bdrv_flush         = blkdebug_flush,
 
     .bdrv_aio_readv     = blkdebug_aio_readv,
     .bdrv_aio_writev    = blkdebug_aio_writev,
