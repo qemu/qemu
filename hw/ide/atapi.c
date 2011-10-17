@@ -711,8 +711,8 @@ static void cmd_mode_sense(IDEState *s, uint8_t *buf)
             buf[6] = 0;
             buf[7] = 0;
 
-            buf[8] = 0x01;
-            buf[9] = 0x06;
+            buf[8] = MODE_PAGE_R_W_ERROR;
+            buf[9] = 16 - 10;
             buf[10] = 0x00;
             buf[11] = 0x05;
             buf[12] = 0x00;
@@ -730,6 +730,8 @@ static void cmd_mode_sense(IDEState *s, uint8_t *buf)
             buf[6] = 0;
             buf[7] = 0;
 
+            buf[8] = MODE_PAGE_AUDIO_CTL;
+            buf[9] = 24 - 10;
             /* Fill with CDROM audio volume */
             buf[17] = 0;
             buf[19] = 0;
@@ -747,8 +749,8 @@ static void cmd_mode_sense(IDEState *s, uint8_t *buf)
             buf[6] = 0;
             buf[7] = 0;
 
-            buf[8] = 0x2a;
-            buf[9] = 0x12;
+            buf[8] = MODE_PAGE_CAPABILITIES;
+            buf[9] = 28 - 10;
             buf[10] = 0x00;
             buf[11] = 0x00;
 
