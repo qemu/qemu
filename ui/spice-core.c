@@ -288,6 +288,38 @@ static SpiceCoreInterface core_interface = {
 #endif
 };
 
+#ifdef SPICE_INTERFACE_MIGRATION
+typedef struct SpiceMigration {
+    SpiceMigrateInstance sin;
+    struct {
+        MonitorCompletion *cb;
+        void *opaque;
+    } connect_complete;
+} SpiceMigration;
+
+static void migrate_connect_complete_cb(SpiceMigrateInstance *sin);
+
+static const SpiceMigrateInterface migrate_interface = {
+    .base.type = SPICE_INTERFACE_MIGRATION,
+    .base.description = "migration",
+    .base.major_version = SPICE_INTERFACE_MIGRATION_MAJOR,
+    .base.minor_version = SPICE_INTERFACE_MIGRATION_MINOR,
+    .migrate_connect_complete = migrate_connect_complete_cb,
+    .migrate_end_complete = NULL,
+};
+
+static SpiceMigration spice_migrate;
+
+static void migrate_connect_complete_cb(SpiceMigrateInstance *sin)
+{
+    SpiceMigration *sm = container_of(sin, SpiceMigration, sin);
+    if (sm->connect_complete.cb) {
+        sm->connect_complete.cb(sm->connect_complete.opaque, NULL);
+    }
+    sm->connect_complete.cb = NULL;
+}
+#endif
+
 /* config string parsing */
 
 static int name2enum(const char *string, const char *table[], int entries)
@@ -449,9 +481,19 @@ static void migration_state_notifier(Notifier *notifier, void *data)
 {
     MigrationState *s = data;
 
-    if (migration_has_finished(s)) {
+    if (migration_is_active(s)) {
+#ifdef SPICE_INTERFACE_MIGRATION
+        spice_server_migrate_start(spice_server);
+#endif
+    } else if (migration_has_finished(s)) {
 #if SPICE_SERVER_VERSION >= 0x000701 /* 0.7.1 */
+#ifndef SPICE_INTERFACE_MIGRATION
         spice_server_migrate_switch(spice_server);
+#else
+        spice_server_migrate_end(spice_server, true);
+    } else if (migration_has_failed(s)) {
+        spice_server_migrate_end(spice_server, false);
+#endif
 #endif
     }
 }
@@ -461,9 +503,16 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
                             MonitorCompletion *cb, void *opaque)
 {
     int ret;
+#ifdef SPICE_INTERFACE_MIGRATION
+    spice_migrate.connect_complete.cb = cb;
+    spice_migrate.connect_complete.opaque = opaque;
+    ret = spice_server_migrate_connect(spice_server, hostname,
+                                       port, tls_port, subject);
+#else
     ret = spice_server_migrate_info(spice_server, hostname,
                                     port, tls_port, subject);
     cb(opaque, NULL);
+#endif
     return ret;
 }
 
@@ -654,6 +703,11 @@ void qemu_spice_init(void)
 
     migration_state.notify = migration_state_notifier;
     add_migration_state_change_notifier(&migration_state);
+#ifdef SPICE_INTERFACE_MIGRATION
+    spice_migrate.sin.base.sif = &migrate_interface.base;
+    spice_migrate.connect_complete.cb = NULL;
+    qemu_spice_add_interface(&spice_migrate.sin.base);
+#endif
 
     qemu_spice_input_init();
     qemu_spice_audio_init();
