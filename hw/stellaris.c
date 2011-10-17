@@ -327,6 +327,7 @@ static int stellaris_gptm_init(SysBusDevice *dev)
 /* System controller.  */
 
 typedef struct {
+    MemoryRegion iomem;
     uint32_t pborctl;
     uint32_t ldopctl;
     uint32_t int_status;
@@ -414,7 +415,8 @@ static int ssys_board_class(const ssys_state *s)
     }
 }
 
-static uint32_t ssys_read(void *opaque, target_phys_addr_t offset)
+static uint64_t ssys_read(void *opaque, target_phys_addr_t offset,
+                          unsigned size)
 {
     ssys_state *s = (ssys_state *)opaque;
 
@@ -518,7 +520,8 @@ static void ssys_calculate_system_clock(ssys_state *s)
     }
 }
 
-static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
+static void ssys_write(void *opaque, target_phys_addr_t offset,
+                       uint64_t value, unsigned size)
 {
     ssys_state *s = (ssys_state *)opaque;
 
@@ -602,16 +605,10 @@ static void ssys_write(void *opaque, target_phys_addr_t offset, uint32_t value)
     ssys_update(s);
 }
 
-static CPUReadMemoryFunc * const ssys_readfn[] = {
-   ssys_read,
-   ssys_read,
-   ssys_read
-};
-
-static CPUWriteMemoryFunc * const ssys_writefn[] = {
-   ssys_write,
-   ssys_write,
-   ssys_write
+static const MemoryRegionOps ssys_ops = {
+    .read = ssys_read,
+    .write = ssys_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void ssys_reset(void *opaque)
@@ -667,7 +664,6 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
                               stellaris_board_info * board,
                               uint8_t *macaddr)
 {
-    int iomemtype;
     ssys_state *s;
 
     s = (ssys_state *)g_malloc0(sizeof(ssys_state));
@@ -677,10 +673,8 @@ static int stellaris_sys_init(uint32_t base, qemu_irq irq,
     s->user0 = macaddr[0] | (macaddr[1] << 8) | (macaddr[2] << 16);
     s->user1 = macaddr[3] | (macaddr[4] << 8) | (macaddr[5] << 16);
 
-    iomemtype = cpu_register_io_memory(ssys_readfn,
-                                       ssys_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+    memory_region_init_io(&s->iomem, &ssys_ops, s, "ssys", 0x00001000);
+    memory_region_add_subregion(get_system_memory(), base, &s->iomem);
     ssys_reset(s);
     vmstate_register(NULL, -1, &vmstate_stellaris_sys, s);
     return 0;
