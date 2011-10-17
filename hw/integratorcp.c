@@ -279,6 +279,7 @@ static int integratorcm_init(SysBusDevice *dev)
 typedef struct icp_pic_state
 {
   SysBusDevice busdev;
+  MemoryRegion iomem;
   uint32_t level;
   uint32_t irq_enabled;
   uint32_t fiq_enabled;
@@ -306,7 +307,8 @@ static void icp_pic_set_irq(void *opaque, int irq, int level)
     icp_pic_update(s);
 }
 
-static uint32_t icp_pic_read(void *opaque, target_phys_addr_t offset)
+static uint64_t icp_pic_read(void *opaque, target_phys_addr_t offset,
+                             unsigned size)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
 
@@ -335,7 +337,7 @@ static uint32_t icp_pic_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void icp_pic_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                          uint64_t value, unsigned size)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
 
@@ -371,30 +373,21 @@ static void icp_pic_write(void *opaque, target_phys_addr_t offset,
     icp_pic_update(s);
 }
 
-static CPUReadMemoryFunc * const icp_pic_readfn[] = {
-   icp_pic_read,
-   icp_pic_read,
-   icp_pic_read
-};
-
-static CPUWriteMemoryFunc * const icp_pic_writefn[] = {
-   icp_pic_write,
-   icp_pic_write,
-   icp_pic_write
+static const MemoryRegionOps icp_pic_ops = {
+    .read = icp_pic_read,
+    .write = icp_pic_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int icp_pic_init(SysBusDevice *dev)
 {
     icp_pic_state *s = FROM_SYSBUS(icp_pic_state, dev);
-    int iomemtype;
 
     qdev_init_gpio_in(&dev->qdev, icp_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_fiq);
-    iomemtype = cpu_register_io_memory(icp_pic_readfn,
-                                       icp_pic_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x00800000, iomemtype);
+    memory_region_init_io(&s->iomem, &icp_pic_ops, s, "icp-pic", 0x00800000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
