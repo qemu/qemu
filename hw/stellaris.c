@@ -687,6 +687,7 @@ typedef struct {
     SysBusDevice busdev;
     i2c_bus *bus;
     qemu_irq irq;
+    MemoryRegion iomem;
     uint32_t msa;
     uint32_t mcs;
     uint32_t mdr;
@@ -704,7 +705,8 @@ typedef struct {
 #define STELLARIS_I2C_MCS_IDLE    0x20
 #define STELLARIS_I2C_MCS_BUSBSY  0x40
 
-static uint32_t stellaris_i2c_read(void *opaque, target_phys_addr_t offset)
+static uint64_t stellaris_i2c_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
 
@@ -741,7 +743,7 @@ static void stellaris_i2c_update(stellaris_i2c_state *s)
 }
 
 static void stellaris_i2c_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     stellaris_i2c_state *s = (stellaris_i2c_state *)opaque;
 
@@ -832,16 +834,10 @@ static void stellaris_i2c_reset(stellaris_i2c_state *s)
     stellaris_i2c_update(s);
 }
 
-static CPUReadMemoryFunc * const stellaris_i2c_readfn[] = {
-   stellaris_i2c_read,
-   stellaris_i2c_read,
-   stellaris_i2c_read
-};
-
-static CPUWriteMemoryFunc * const stellaris_i2c_writefn[] = {
-   stellaris_i2c_write,
-   stellaris_i2c_write,
-   stellaris_i2c_write
+static const MemoryRegionOps stellaris_i2c_ops = {
+    .read = stellaris_i2c_read,
+    .write = stellaris_i2c_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_stellaris_i2c = {
@@ -865,16 +861,14 @@ static int stellaris_i2c_init(SysBusDevice * dev)
 {
     stellaris_i2c_state *s = FROM_SYSBUS(stellaris_i2c_state, dev);
     i2c_bus *bus;
-    int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
     bus = i2c_init_bus(&dev->qdev, "i2c");
     s->bus = bus;
 
-    iomemtype = cpu_register_io_memory(stellaris_i2c_readfn,
-                                       stellaris_i2c_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &stellaris_i2c_ops, s,
+                          "i2c", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     /* ??? For now we only implement the master interface.  */
     stellaris_i2c_reset(s);
     vmstate_register(&dev->qdev, -1, &vmstate_stellaris_i2c, s);
