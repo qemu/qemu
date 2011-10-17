@@ -86,6 +86,7 @@ typedef struct IOAPICState IOAPICState;
 
 struct IOAPICState {
     SysBusDevice busdev;
+    MemoryRegion io_memory;
     uint8_t id;
     uint8_t ioregsel;
     uint32_t irr;
@@ -195,7 +196,8 @@ void ioapic_eoi_broadcast(int vector)
     }
 }
 
-static uint32_t ioapic_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t
+ioapic_mem_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 {
     IOAPICState *s = opaque;
     int index;
@@ -237,7 +239,8 @@ static uint32_t ioapic_mem_readl(void *opaque, target_phys_addr_t addr)
 }
 
 static void
-ioapic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+ioapic_mem_write(void *opaque, target_phys_addr_t addr, uint64_t val,
+                 unsigned int size)
 {
     IOAPICState *s = opaque;
     int index;
@@ -315,32 +318,23 @@ static void ioapic_reset(DeviceState *d)
     }
 }
 
-static CPUReadMemoryFunc * const ioapic_mem_read[3] = {
-    ioapic_mem_readl,
-    ioapic_mem_readl,
-    ioapic_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const ioapic_mem_write[3] = {
-    ioapic_mem_writel,
-    ioapic_mem_writel,
-    ioapic_mem_writel,
+static const MemoryRegionOps ioapic_io_ops = {
+    .read = ioapic_mem_read,
+    .write = ioapic_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int ioapic_init1(SysBusDevice *dev)
 {
     IOAPICState *s = FROM_SYSBUS(IOAPICState, dev);
-    int io_memory;
     static int ioapic_no;
 
     if (ioapic_no >= MAX_IOAPICS) {
         return -1;
     }
 
-    io_memory = cpu_register_io_memory(ioapic_mem_read,
-                                       ioapic_mem_write, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, io_memory);
+    memory_region_init_io(&s->io_memory, &ioapic_io_ops, s, "ioapic", 0x1000);
+    sysbus_init_mmio_region(dev, &s->io_memory);
 
     qdev_init_gpio_in(&dev->qdev, ioapic_set_irq, IOAPIC_NUM_PINS);
 
