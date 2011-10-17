@@ -45,9 +45,10 @@ static int raw_probe(const uint8_t *buf, int buf_size, const char *filename)
    return 1; /* everything can be opened as raw image */
 }
 
-static int raw_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
+static int coroutine_fn raw_co_discard(BlockDriverState *bs,
+                                       int64_t sector_num, int nb_sectors)
 {
-    return bdrv_discard(bs->file, sector_num, nb_sectors);
+    return bdrv_co_discard(bs->file, sector_num, nb_sectors);
 }
 
 static int raw_is_inserted(BlockDriverState *bs)
@@ -109,14 +110,15 @@ static BlockDriver bdrv_raw = {
 
     .bdrv_open          = raw_open,
     .bdrv_close         = raw_close,
+
     .bdrv_co_readv      = raw_co_readv,
     .bdrv_co_writev     = raw_co_writev,
     .bdrv_co_flush      = raw_co_flush,
+    .bdrv_co_discard    = raw_co_discard,
+
     .bdrv_probe         = raw_probe,
     .bdrv_getlength     = raw_getlength,
     .bdrv_truncate      = raw_truncate,
-
-    .bdrv_discard       = raw_discard,
 
     .bdrv_is_inserted   = raw_is_inserted,
     .bdrv_media_changed = raw_media_changed,

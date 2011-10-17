@@ -1768,17 +1768,6 @@ int bdrv_has_zero_init(BlockDriverState *bs)
     return 1;
 }
 
-int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
-{
-    if (!bs->drv) {
-        return -ENOMEDIUM;
-    }
-    if (!bs->drv->bdrv_discard) {
-        return 0;
-    }
-    return bs->drv->bdrv_discard(bs, sector_num, nb_sectors);
-}
-
 /*
  * Returns true iff the specified sector is present in the disk image. Drivers
  * not implementing the functionality are assumed to not support backing files,
@@ -2754,6 +2743,34 @@ BlockDriverAIOCB *bdrv_aio_flush(BlockDriverState *bs,
     return &acb->common;
 }
 
+static void coroutine_fn bdrv_aio_discard_co_entry(void *opaque)
+{
+    BlockDriverAIOCBCoroutine *acb = opaque;
+    BlockDriverState *bs = acb->common.bs;
+
+    acb->req.error = bdrv_co_discard(bs, acb->req.sector, acb->req.nb_sectors);
+    acb->bh = qemu_bh_new(bdrv_co_em_bh, acb);
+    qemu_bh_schedule(acb->bh);
+}
+
+BlockDriverAIOCB *bdrv_aio_discard(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors,
+        BlockDriverCompletionFunc *cb, void *opaque)
+{
+    Coroutine *co;
+    BlockDriverAIOCBCoroutine *acb;
+
+    trace_bdrv_aio_discard(bs, sector_num, nb_sectors, opaque);
+
+    acb = qemu_aio_get(&bdrv_em_co_aio_pool, bs, cb, opaque);
+    acb->req.sector = sector_num;
+    acb->req.nb_sectors = nb_sectors;
+    co = qemu_coroutine_create(bdrv_aio_discard_co_entry);
+    qemu_coroutine_enter(co, acb);
+
+    return &acb->common;
+}
+
 void bdrv_init(void)
 {
     module_call_init(MODULE_INIT_BLOCK);
@@ -2906,6 +2923,69 @@ int bdrv_flush(BlockDriverState *bs)
         bdrv_flush_co_entry(&rwco);
     } else {
         co = qemu_coroutine_create(bdrv_flush_co_entry);
+        qemu_coroutine_enter(co, &rwco);
+        while (rwco.ret == NOT_DONE) {
+            qemu_aio_wait();
+        }
+    }
+
+    return rwco.ret;
+}
+
+static void coroutine_fn bdrv_discard_co_entry(void *opaque)
+{
+    RwCo *rwco = opaque;
+
+    rwco->ret = bdrv_co_discard(rwco->bs, rwco->sector_num, rwco->nb_sectors);
+}
+
+int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
+                                 int nb_sectors)
+{
+    if (!bs->drv) {
+        return -ENOMEDIUM;
+    } else if (bdrv_check_request(bs, sector_num, nb_sectors)) {
+        return -EIO;
+    } else if (bs->read_only) {
+        return -EROFS;
+    } else if (bs->drv->bdrv_co_discard) {
+        return bs->drv->bdrv_co_discard(bs, sector_num, nb_sectors);
+    } else if (bs->drv->bdrv_aio_discard) {
+        BlockDriverAIOCB *acb;
+        CoroutineIOCompletion co = {
+            .coroutine = qemu_coroutine_self(),
+        };
+
+        acb = bs->drv->bdrv_aio_discard(bs, sector_num, nb_sectors,
+                                        bdrv_co_io_em_complete, &co);
+        if (acb == NULL) {
+            return -EIO;
+        } else {
+            qemu_coroutine_yield();
+            return co.ret;
+        }
+    } else if (bs->drv->bdrv_discard) {
+        return bs->drv->bdrv_discard(bs, sector_num, nb_sectors);
+    } else {
+        return 0;
+    }
+}
+
+int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
+{
+    Coroutine *co;
+    RwCo rwco = {
+        .bs = bs,
+        .sector_num = sector_num,
+        .nb_sectors = nb_sectors,
+        .ret = NOT_DONE,
+    };
+
+    if (qemu_in_coroutine()) {
+        /* Fast-path if already in coroutine context */
+        bdrv_discard_co_entry(&rwco);
+    } else {
+        co = qemu_coroutine_create(bdrv_discard_co_entry);
         qemu_coroutine_enter(co, &rwco);
         while (rwco.ret == NOT_DONE) {
             qemu_aio_wait();
