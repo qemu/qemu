@@ -62,17 +62,6 @@
 static VirtIOS390Bus *s390_bus;
 static CPUState **ipi_states;
 
-void irq_info(Monitor *mon);
-void pic_info(Monitor *mon);
-
-void irq_info(Monitor *mon)
-{
-}
-
-void pic_info(Monitor *mon)
-{
-}
-
 CPUState *s390_cpu_addr2state(uint16_t cpu_addr)
 {
     if (cpu_addr >= smp_cpus) {

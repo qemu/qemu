@@ -14,6 +14,7 @@ test ccompare
     wsr     a2, intenable
     rsr     a2, interrupt
     wsr     a2, intclear
+    movi    a2, 0
     wsr     a2, ccompare1
     wsr     a2, ccompare2
 
@@ -37,6 +38,7 @@ test ccompare0_interrupt
     wsr     a2, intenable
     rsr     a2, interrupt
     wsr     a2, intclear
+    movi    a2, 0
     wsr     a2, ccompare1
     wsr     a2, ccompare2
 
@@ -66,6 +68,7 @@ test ccompare1_interrupt
     wsr     a2, intenable
     rsr     a2, interrupt
     wsr     a2, intclear
+    movi    a2, 0
     wsr     a2, ccompare0
     wsr     a2, ccompare2
 
@@ -92,6 +95,7 @@ test ccompare2_interrupt
     wsr     a2, intenable
     rsr     a2, interrupt
     wsr     a2, intclear
+    movi    a2, 0
     wsr     a2, ccompare0
     wsr     a2, ccompare1
 
@@ -110,6 +114,65 @@ test ccompare2_interrupt
 1:
     test_fail
 2:
+test_end
+
+test ccompare_interrupt_masked
+    set_vector kernel, 2f
+    movi    a2, 0
+    wsr     a2, intenable
+    rsr     a2, interrupt
+    wsr     a2, intclear
+    movi    a2, 0
+    wsr     a2, ccompare2
+
+    movi    a3, 40
+    rsr     a2, ccount
+    addi    a2, a2, 20
+    wsr     a2, ccompare1
+    addi    a2, a2, 20
+    wsr     a2, ccompare0
+    rsync
+    rsr     a2, interrupt
+    assert  eqi, a2, 0
+
+    movi    a2, 0x40
+    wsr     a2, intenable
+    rsil    a2, 0
+    loop    a3, 1f
+    nop
+1:
+    test_fail
+2:
+    rsr     a2, exccause
+    assert  eqi, a2, 4 /* LEVEL1_INTERRUPT_CAUSE */
+test_end
+
+test ccompare_interrupt_masked_waiti
+    set_vector kernel, 2f
+    movi    a2, 0
+    wsr     a2, intenable
+    rsr     a2, interrupt
+    wsr     a2, intclear
+    movi    a2, 0
+    wsr     a2, ccompare2
+
+    movi    a3, 40
+    rsr     a2, ccount
+    addi    a2, a2, 20
+    wsr     a2, ccompare1
+    addi    a2, a2, 20
+    wsr     a2, ccompare0
+    rsync
+    rsr     a2, interrupt
+    assert  eqi, a2, 0
+
+    movi    a2, 0x40
+    wsr     a2, intenable
+    waiti   0
+    test_fail
+2:
+    rsr     a2, exccause
+    assert  eqi, a2, 4 /* LEVEL1_INTERRUPT_CAUSE */
 test_end
 
 test_suite_end

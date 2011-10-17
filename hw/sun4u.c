@@ -243,14 +243,6 @@ static unsigned long sun4u_load_kernel(const char *kernel_filename,
     return kernel_size;
 }
 
-void pic_info(Monitor *mon)
-{
-}
-
-void irq_info(Monitor *mon)
-{
-}
-
 void cpu_check_irqs(CPUState *env)
 {
     uint32_t pil = env->pil_in |

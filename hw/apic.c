@@ -23,6 +23,7 @@
 #include "host-utils.h"
 #include "sysbus.h"
 #include "trace.h"
+#include "pc.h"
 
 /* APIC Local Vector Table */
 #define APIC_LVT_TIMER   0
@@ -399,6 +400,9 @@ static void apic_update_irq(APICState *s)
     }
     if (apic_irq_pending(s) > 0) {
         cpu_interrupt(s->cpu_env, CPU_INTERRUPT_HARD);
+    } else if (apic_accept_pic_intr(&s->busdev.qdev) &&
+               pic_get_output(isa_pic)) {
+        apic_deliver_pic_intr(&s->busdev.qdev, 1);
     }
 }
 

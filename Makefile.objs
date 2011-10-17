@@ -224,6 +224,7 @@ hw-obj-$(CONFIG_APPLESMC) += applesmc.o
 hw-obj-$(CONFIG_SMARTCARD) += usb-ccid.o ccid-card-passthru.o
 hw-obj-$(CONFIG_SMARTCARD_NSS) += ccid-card-emulated.o
 hw-obj-$(CONFIG_USB_REDIR) += usb-redir.o
+hw-obj-$(CONFIG_I8259) += i8259.o
 
 # PPC devices
 hw-obj-$(CONFIG_PREP_PCI) += prep_pci.o
@@ -272,6 +273,7 @@ hw-obj-$(CONFIG_VLYNQ) += tnetw1130-vlynq.o
 hw-obj-$(CONFIG_SMC91C111) += smc91c111.o
 hw-obj-$(CONFIG_LAN9118) += lan9118.o
 hw-obj-$(CONFIG_NE2000_ISA) += ne2000-isa.o
+hw-obj-$(CONFIG_OPENCORES_ETH) += opencores_eth.o
 
 # IDE
 hw-obj-$(CONFIG_IDE_CORE) += ide/core.o ide/atapi.o

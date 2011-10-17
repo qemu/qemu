@@ -23,15 +23,9 @@
  */
 
 #include "hw.h"
-#include "pc.h"
 #include "microblaze_pic_cpu.h"
 
 #define D(x)
-
-void pic_info(Monitor *mon)
-{}
-void irq_info(Monitor *mon)
-{}
 
 static void microblaze_pic_cpu_handler(void *opaque, int irq, int level)
 {

@@ -67,6 +67,12 @@
 #include "qmp-commands.h"
 #include "hmp.h"
 
+/* for pic/irq_info */
+#if defined(TARGET_SPARC)
+#include "hw/sun4m.h"
+#endif
+#include "hw/lm32_pic.h"
+
 //#define DEBUG
 //#define DEBUG_COMPLETION
 
@@ -2798,20 +2804,35 @@ static const mon_cmd_t info_cmds[] = {
         .help       = "show the command line history",
         .mhandler.info = do_info_history,
     },
+#if defined(TARGET_I386) || defined(TARGET_PPC) || defined(TARGET_MIPS) || \
+    defined(TARGET_LM32) || (defined(TARGET_SPARC) && !defined(TARGET_SPARC64))
     {
         .name       = "irq",
         .args_type  = "",
         .params     = "",
         .help       = "show the interrupts statistics (if available)",
+#ifdef TARGET_SPARC
+        .mhandler.info = sun4m_irq_info,
+#elif defined(TARGET_LM32)
+        .mhandler.info = lm32_irq_info,
+#else
         .mhandler.info = irq_info,
+#endif
     },
     {
         .name       = "pic",
         .args_type  = "",
         .params     = "",
         .help       = "show i8259 (PIC) state",
+#ifdef TARGET_SPARC
+        .mhandler.info = sun4m_pic_info,
+#elif defined(TARGET_LM32)
+        .mhandler.info = lm32_do_pic_info,
+#else
         .mhandler.info = pic_info,
+#endif
     },
+#endif
     {
         .name       = "pci",
         .args_type  = "",

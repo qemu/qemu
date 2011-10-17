@@ -37,12 +37,12 @@ static uint64_t translate_phys_addr(void *env, uint64_t addr)
     return cpu_get_phys_page_debug(env, addr);
 }
 
-static void dc232b_reset(void *env)
+static void sim_reset(void *env)
 {
     cpu_reset(env);
 }
 
-static void dc232b_init(ram_addr_t ram_size,
+static void sim_init(ram_addr_t ram_size,
         const char *boot_device,
         const char *kernel_filename, const char *kernel_cmdline,
         const char *initrd_filename, const char *cpu_model)
@@ -58,11 +58,11 @@ static void dc232b_init(ram_addr_t ram_size,
             exit(1);
         }
         env->sregs[PRID] = n;
-        qemu_register_reset(dc232b_reset, env);
+        qemu_register_reset(sim_reset, env);
         /* Need MMU initialized prior to ELF loading,
          * so that ELF gets loaded into virtual addresses
          */
-        dc232b_reset(env);
+        sim_reset(env);
     }
 
     ram = g_malloc(sizeof(*ram));
@@ -89,7 +89,7 @@ static void dc232b_init(ram_addr_t ram_size,
     }
 }
 
-static void xtensa_dc232b_init(ram_addr_t ram_size,
+static void xtensa_sim_init(ram_addr_t ram_size,
                      const char *boot_device,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
@@ -97,20 +97,20 @@ static void xtensa_dc232b_init(ram_addr_t ram_size,
     if (!cpu_model) {
         cpu_model = "dc232b";
     }
-    dc232b_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+    sim_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
             initrd_filename, cpu_model);
 }
 
-static QEMUMachine xtensa_dc232b_machine = {
-    .name = "dc232b",
-    .desc = "Diamond 232L Standard Core Rev.B (LE) (dc232b)",
-    .init = xtensa_dc232b_init,
+static QEMUMachine xtensa_sim_machine = {
+    .name = "sim",
+    .desc = "sim machine (dc232b)",
+    .init = xtensa_sim_init,
     .max_cpus = 4,
 };
 
-static void xtensa_dc232b_machine_init(void)
+static void xtensa_sim_machine_init(void)
 {
-    qemu_register_machine(&xtensa_dc232b_machine);
+    qemu_register_machine(&xtensa_sim_machine);
 }
 
-machine_init(xtensa_dc232b_machine_init);
+machine_init(xtensa_sim_machine_init);

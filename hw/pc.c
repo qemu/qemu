@@ -88,17 +88,16 @@ struct e820_table {
 static struct e820_table e820_table;
 struct hpet_fw_config hpet_cfg = {.count = UINT8_MAX};
 
-void isa_irq_handler(void *opaque, int n, int level)
+void gsi_handler(void *opaque, int n, int level)
 {
-    IsaIrqState *isa = (IsaIrqState *)opaque;
+    GSIState *s = opaque;
 
-    DPRINTF("isa_irqs: %s irq %d\n", level? "raise" : "lower", n);
-    if (n < 16) {
-        qemu_set_irq(isa->i8259[n], level);
+    DPRINTF("pc: %s GSI %d\n", level ? "raising" : "lowering", n);
+    if (n < ISA_NUM_IRQS) {
+        qemu_set_irq(s->i8259_irq[n], level);
     }
-    if (isa->ioapic)
-        qemu_set_irq(isa->ioapic[n], level);
-};
+    qemu_set_irq(s->ioapic_irq[n], level);
+}
 
 static void ioport80_write(void *opaque, uint32_t addr, uint32_t data)
 {
@@ -156,9 +155,6 @@ int cpu_get_pic_interrupt(CPUState *env)
 
     intno = apic_get_interrupt(env->apic_state);
     if (intno >= 0) {
-        /* set irq request if a PIC irq is still pending */
-        /* XXX: improve that */
-        pic_update_irq(isa_pic);
         return intno;
     }
     /* read the irq from the PIC */
@@ -1126,7 +1122,7 @@ static void cpu_request_exit(void *opaque, int irq, int level)
     }
 }
 
-void pc_basic_device_init(qemu_irq *isa_irq,
+void pc_basic_device_init(qemu_irq *gsi,
                           ISADevice **rtc_state,
                           bool no_vmport)
 {
@@ -1145,8 +1141,8 @@ void pc_basic_device_init(qemu_irq *isa_irq,
         DeviceState *hpet = sysbus_try_create_simple("hpet", HPET_BASE, NULL);
 
         if (hpet) {
-            for (i = 0; i < 24; i++) {
-                sysbus_connect_irq(sysbus_from_qdev(hpet), i, isa_irq[i]);
+            for (i = 0; i < GSI_NUM_PINS; i++) {
+                sysbus_connect_irq(sysbus_from_qdev(hpet), i, gsi[i]);
             }
             rtc_irq = qdev_get_gpio_in(hpet, 0);
         }

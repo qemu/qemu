@@ -52,9 +52,13 @@ enum {
     XTENSA_OPTION_EXTENDED_L32R,
     XTENSA_OPTION_16_BIT_IMUL,
     XTENSA_OPTION_32_BIT_IMUL,
+    XTENSA_OPTION_32_BIT_IMUL_HIGH,
     XTENSA_OPTION_32_BIT_IDIV,
     XTENSA_OPTION_MAC16,
-    XTENSA_OPTION_MISC_OP,
+    XTENSA_OPTION_MISC_OP_NSA,
+    XTENSA_OPTION_MISC_OP_MINMAX,
+    XTENSA_OPTION_MISC_OP_SEXT,
+    XTENSA_OPTION_MISC_OP_CLAMPS,
     XTENSA_OPTION_COPROCESSOR,
     XTENSA_OPTION_BOOLEAN,
     XTENSA_OPTION_FP_COPROCESSOR,
@@ -113,6 +117,9 @@ enum {
     BR = 4,
     LITBASE = 5,
     SCOMPARE1 = 12,
+    ACCLO = 16,
+    ACCHI = 17,
+    MR = 32,
     WINDOW_BASE = 72,
     WINDOW_START = 73,
     PTEVADDR = 83,
@@ -270,11 +277,18 @@ typedef struct XtensaConfig {
     } interrupt[MAX_NINTERRUPT];
     unsigned nccompare;
     uint32_t timerint[MAX_NCCOMPARE];
+    unsigned nextint;
+    unsigned extint[MAX_NINTERRUPT];
     uint32_t clock_freq_khz;
 
     xtensa_tlb itlb;
     xtensa_tlb dtlb;
 } XtensaConfig;
+
+typedef struct XtensaConfigList {
+    const XtensaConfig *config;
+    struct XtensaConfigList *next;
+} XtensaConfigList;
 
 typedef struct CPUXtensaState {
     const XtensaConfig *config;
@@ -308,11 +322,14 @@ typedef struct CPUXtensaState {
 CPUXtensaState *cpu_xtensa_init(const char *cpu_model);
 void xtensa_translate_init(void);
 int cpu_xtensa_exec(CPUXtensaState *s);
+void xtensa_register_core(XtensaConfigList *node);
 void do_interrupt(CPUXtensaState *s);
 void check_interrupts(CPUXtensaState *s);
 void xtensa_irq_init(CPUState *env);
+void *xtensa_get_extint(CPUState *env, unsigned extint);
 void xtensa_advance_ccount(CPUState *env, uint32_t d);
 void xtensa_timer_irq(CPUState *env, uint32_t id, uint32_t active);
+void xtensa_rearm_ccompare_timer(CPUState *env);
 int cpu_xtensa_signal_handler(int host_signum, void *pinfo, void *puc);
 void xtensa_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 void xtensa_sync_window_from_phys(CPUState *env);

@@ -42,13 +42,14 @@
 @chapter Introduction
 
 @menu
-* intro_features::        Features
-* intro_x86_emulation::   x86 and x86-64 emulation
-* intro_arm_emulation::   ARM emulation
-* intro_mips_emulation::  MIPS emulation
-* intro_ppc_emulation::   PowerPC emulation
-* intro_sparc_emulation:: Sparc32 and Sparc64 emulation
-* intro_other_emulation:: Other CPU emulation
+* intro_features::         Features
+* intro_x86_emulation::    x86 and x86-64 emulation
+* intro_arm_emulation::    ARM emulation
+* intro_mips_emulation::   MIPS emulation
+* intro_ppc_emulation::    PowerPC emulation
+* intro_sparc_emulation::  Sparc32 and Sparc64 emulation
+* intro_xtensa_emulation:: Xtensa emulation
+* intro_other_emulation::  Other CPU emulation
 @end menu
 
 @node intro_features
@@ -256,6 +257,31 @@ Current QEMU limitations:
 @item Atomic instructions are not correctly implemented.
 
 @item There are still some problems with Sparc64 emulators.
+
+@end itemize
+
+@node intro_xtensa_emulation
+@section Xtensa emulation
+
+@itemize
+
+@item Core Xtensa ISA emulation, including most options: code density,
+loop, extended L32R, 16- and 32-bit multiplication, 32-bit division,
+MAC16, miscellaneous operations, boolean, multiprocessor synchronization,
+conditional store, exceptions, relocatable vectors, unaligned exception,
+interrupts (including high priority and timer), hardware alignment,
+region protection, region translation, MMU, windowed registers, thread
+pointer, processor ID.
+
+@item Not implemented options: FP coprocessor, coprocessor context,
+data/instruction cache (including cache prefetch and locking), XLMI,
+processor interface, debug. Also options not covered by the core ISA
+(e.g. FLIX, wide branches) are not implemented.
+
+@item Can run most Xtensa Linux binaries.
+
+@item New core configuration that requires no additional instructions
+may be created from overlay with minimal amount of hand-written code.
 
 @end itemize
 

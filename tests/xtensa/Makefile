@@ -4,7 +4,7 @@ CROSS=xtensa-dc232b-elf-
 
 ifndef XT
 SIM = qemu-system-xtensa
-SIMFLAGS = -M dc232b -nographic -semihosting $(EXTFLAGS) -kernel
+SIMFLAGS = -M sim -cpu dc232b -nographic -semihosting $(EXTFLAGS) -kernel
 SIMDEBUG = -s -S
 else
 SIM = xt-run
@@ -28,6 +28,7 @@ TESTCASES += test_clamps.tst
 TESTCASES += test_fail.tst
 TESTCASES += test_interrupt.tst
 TESTCASES += test_loop.tst
+TESTCASES += test_mac16.tst
 TESTCASES += test_max.tst
 TESTCASES += test_min.tst
 TESTCASES += test_mmu.tst

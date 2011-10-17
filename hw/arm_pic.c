@@ -8,18 +8,7 @@
  */
 
 #include "hw.h"
-#include "pc.h"
 #include "arm-misc.h"
-
-/* Stub functions for hardware that doesn't exist.  */
-void pic_info(Monitor *mon)
-{
-}
-
-void irq_info(Monitor *mon)
-{
-}
-
 
 /* Input 0 is IRQ and input 1 is FIQ.  */
 static void arm_pic_cpu_handler(void *opaque, int irq, int level)

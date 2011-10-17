@@ -1842,6 +1842,8 @@ static void vga_update_display(void *opaque)
     VGACommonState *s = opaque;
     int full_update, graphic_mode;
 
+    qemu_flush_coalesced_mmio_buffer();
+
     if (ds_get_bits_per_pixel(s->ds) == 0) {
         /* nothing to do */
     } else {
@@ -1961,6 +1963,8 @@ static void vga_update_text(void *opaque, console_ch_t *chardata)
     console_ch_t *dst, val;
     char msg_buffer[80];
     int full_update = 0;
+
+    qemu_flush_coalesced_mmio_buffer();
 
     if (!(s->ar_index & 0x20)) {
         graphic_mode = GMODE_BLANK;

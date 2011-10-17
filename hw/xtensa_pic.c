@@ -26,18 +26,8 @@
  */
 
 #include "hw.h"
-#include "pc.h"
 #include "qemu-log.h"
 #include "qemu-timer.h"
-
-/* Stub functions for hardware that doesn't exist.  */
-void pic_info(Monitor *mon)
-{
-}
-
-void irq_info(Monitor *mon)
-{
-}
 
 void xtensa_advance_ccount(CPUState *env, uint32_t d)
 {
@@ -116,10 +106,35 @@ void xtensa_timer_irq(CPUState *env, uint32_t id, uint32_t active)
     qemu_set_irq(env->irq_inputs[env->config->timerint[id]], active);
 }
 
+void xtensa_rearm_ccompare_timer(CPUState *env)
+{
+    int i;
+    uint32_t wake_ccount = env->sregs[CCOUNT] - 1;
+
+    for (i = 0; i < env->config->nccompare; ++i) {
+        if (env->sregs[CCOMPARE + i] - env->sregs[CCOUNT] <
+                wake_ccount - env->sregs[CCOUNT]) {
+            wake_ccount = env->sregs[CCOMPARE + i];
+        }
+    }
+    env->wake_ccount = wake_ccount;
+    qemu_mod_timer(env->ccompare_timer, env->halt_clock +
+            muldiv64(wake_ccount - env->sregs[CCOUNT],
+                1000000, env->config->clock_freq_khz));
+}
+
 static void xtensa_ccompare_cb(void *opaque)
 {
     CPUState *env = opaque;
-    xtensa_advance_ccount(env, env->wake_ccount - env->sregs[CCOUNT]);
+
+    if (env->halted) {
+        env->halt_clock = qemu_get_clock_ns(vm_clock);
+        xtensa_advance_ccount(env, env->wake_ccount - env->sregs[CCOUNT]);
+        if (!cpu_has_work(env)) {
+            env->sregs[CCOUNT] = env->wake_ccount + 1;
+            xtensa_rearm_ccompare_timer(env);
+        }
+    }
 }
 
 void xtensa_irq_init(CPUState *env)
@@ -130,5 +145,17 @@ void xtensa_irq_init(CPUState *env)
             env->config->nccompare > 0) {
         env->ccompare_timer =
             qemu_new_timer_ns(vm_clock, &xtensa_ccompare_cb, env);
+    }
+}
+
+void *xtensa_get_extint(CPUState *env, unsigned extint)
+{
+    if (extint < env->config->nextint) {
+        unsigned irq = env->config->extint[extint];
+        return env->irq_inputs[irq];
+    } else {
+        qemu_log("%s: trying to acquire invalid external interrupt %d\n",
+                __func__, extint);
+        return NULL;
     }
 }
