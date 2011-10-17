@@ -1781,6 +1781,19 @@ static VMStateDescription qxl_vmstate = {
     },
 };
 
+static Property qxl_properties[] = {
+        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
+                           64 * 1024 * 1024),
+        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size,
+                           64 * 1024 * 1024),
+        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
+                           QXL_DEFAULT_REVISION),
+        DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
+        DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
+        DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
+        DEFINE_PROP_END_OF_LIST(),
+};
+
 static PCIDeviceInfo qxl_info_primary = {
     .qdev.name    = "qxl-vga",
     .qdev.desc    = "Spice QXL GPU (primary, vga compatible)",
@@ -1793,18 +1806,7 @@ static PCIDeviceInfo qxl_info_primary = {
     .vendor_id    = REDHAT_PCI_VENDOR_ID,
     .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_VGA,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
-                           64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size,
-                           64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
-                           QXL_DEFAULT_REVISION),
-        DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
-        DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
-        DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+    .qdev.props   = qxl_properties,
 };
 
 static PCIDeviceInfo qxl_info_secondary = {
@@ -1817,18 +1819,7 @@ static PCIDeviceInfo qxl_info_secondary = {
     .vendor_id    = REDHAT_PCI_VENDOR_ID,
     .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_OTHER,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
-                           64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size,
-                           64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
-                           QXL_DEFAULT_REVISION),
-        DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
-        DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
-        DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+    .qdev.props   = qxl_properties,
 };
 
 static void qxl_register(void)
