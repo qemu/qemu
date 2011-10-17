@@ -392,7 +392,9 @@ static int icp_pic_init(SysBusDevice *dev)
 }
 
 /* CP control registers.  */
-static uint32_t icp_control_read(void *opaque, target_phys_addr_t offset)
+
+static uint64_t icp_control_read(void *opaque, target_phys_addr_t offset,
+                                 unsigned size)
 {
     switch (offset >> 2) {
     case 0: /* CP_IDFIELD */
@@ -410,7 +412,7 @@ static uint32_t icp_control_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void icp_control_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                          uint64_t value, unsigned size)
 {
     switch (offset >> 2) {
     case 1: /* CP_FLASHPROG */
@@ -422,26 +424,21 @@ static void icp_control_write(void *opaque, target_phys_addr_t offset,
         hw_error("icp_control_write: Bad offset %x\n", (int)offset);
     }
 }
-static CPUReadMemoryFunc * const icp_control_readfn[] = {
-   icp_control_read,
-   icp_control_read,
-   icp_control_read
+
+static const MemoryRegionOps icp_control_ops = {
+    .read = icp_control_read,
+    .write = icp_control_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const icp_control_writefn[] = {
-   icp_control_write,
-   icp_control_write,
-   icp_control_write
-};
-
-static void icp_control_init(uint32_t base)
+static void icp_control_init(target_phys_addr_t base)
 {
-    int iomemtype;
+    MemoryRegion *io;
 
-    iomemtype = cpu_register_io_memory(icp_control_readfn,
-                                       icp_control_writefn, NULL,
-                                       DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x00800000, iomemtype);
+    io = (MemoryRegion *)g_malloc0(sizeof(MemoryRegion));
+    memory_region_init_io(io, &icp_control_ops, NULL,
+                          "control", 0x00800000);
+    memory_region_add_subregion(get_system_memory(), base, io);
     /* ??? Save/restore.  */
 }
 
