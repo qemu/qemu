@@ -892,6 +892,7 @@ static int stellaris_i2c_init(SysBusDevice * dev)
 typedef struct
 {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t actss;
     uint32_t ris;
     uint32_t im;
@@ -992,7 +993,8 @@ static void stellaris_adc_reset(stellaris_adc_state *s)
     }
 }
 
-static uint32_t stellaris_adc_read(void *opaque, target_phys_addr_t offset)
+static uint64_t stellaris_adc_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
 
@@ -1040,7 +1042,7 @@ static uint32_t stellaris_adc_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     stellaris_adc_state *s = (stellaris_adc_state *)opaque;
 
@@ -1054,7 +1056,7 @@ static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
             return;
         case 0x04: /* SSCTL */
             if (value != 6) {
-                hw_error("ADC: Unimplemented sequence %x\n",
+                hw_error("ADC: Unimplemented sequence %" PRIx64 "\n",
                           value);
             }
             s->ssctl[n] = value;
@@ -1097,16 +1099,10 @@ static void stellaris_adc_write(void *opaque, target_phys_addr_t offset,
     stellaris_adc_update(s);
 }
 
-static CPUReadMemoryFunc * const stellaris_adc_readfn[] = {
-   stellaris_adc_read,
-   stellaris_adc_read,
-   stellaris_adc_read
-};
-
-static CPUWriteMemoryFunc * const stellaris_adc_writefn[] = {
-   stellaris_adc_write,
-   stellaris_adc_write,
-   stellaris_adc_write
+static const MemoryRegionOps stellaris_adc_ops = {
+    .read = stellaris_adc_read,
+    .write = stellaris_adc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_stellaris_adc = {
@@ -1147,17 +1143,15 @@ static const VMStateDescription vmstate_stellaris_adc = {
 static int stellaris_adc_init(SysBusDevice *dev)
 {
     stellaris_adc_state *s = FROM_SYSBUS(stellaris_adc_state, dev);
-    int iomemtype;
     int n;
 
     for (n = 0; n < 4; n++) {
         sysbus_init_irq(dev, &s->irq[n]);
     }
 
-    iomemtype = cpu_register_io_memory(stellaris_adc_readfn,
-                                       stellaris_adc_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &stellaris_adc_ops, s,
+                          "adc", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     stellaris_adc_reset(s);
     qdev_init_gpio_in(&dev->qdev, stellaris_adc_trigger, 1);
     vmstate_register(&dev->qdev, -1, &vmstate_stellaris_adc, s);
