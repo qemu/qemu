@@ -858,6 +858,22 @@ enum {
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
 
+struct ppc_def_t {
+    const char *name;
+    uint32_t pvr;
+    uint32_t svr;
+    uint64_t insns_flags;
+    uint64_t insns_flags2;
+    uint64_t msr_mask;
+    powerpc_mmu_t   mmu_model;
+    powerpc_excp_t  excp_model;
+    powerpc_input_t bus_model;
+    uint32_t flags;
+    int bfd_mach;
+    void (*init_proc)(CPUPPCState *env);
+    int  (*check_pow)(CPUPPCState *env);
+};
+
 struct CPUPPCState {
     /* First are the most commonly used resources
      * during translated code execution
@@ -1844,6 +1860,10 @@ enum {
 
     /* BookE 2.06 PowerPC specification                                      */
     PPC2_BOOKE206      = 0x0000000000000001ULL,
+    /* VSX (extensions to Altivec / VMX)                                     */
+    PPC2_VSX           = 0x0000000000000002ULL,
+    /* Decimal Floating Point (DFP)                                          */
+    PPC2_DFP           = 0x0000000000000004ULL,
 };
 
 /*****************************************************************************/

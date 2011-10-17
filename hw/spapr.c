@@ -188,8 +188,6 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                            0xffffffff, 0xffffffff};
         uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TIMEBASE_FREQ;
         uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
-        uint32_t vmx = kvm_enabled() ? kvmppc_get_vmx() : 0;
-        uint32_t dfp = kvm_enabled() ? kvmppc_get_dfp() : 0;
 
         if ((index % smt) != 0) {
             continue;
@@ -241,15 +239,17 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
          *   0 / no property == no vector extensions
          *   1               == VMX / Altivec available
          *   2               == VSX available */
-        if (vmx) {
+        if (env->insns_flags & PPC_ALTIVEC) {
+            uint32_t vmx = (env->insns_flags2 & PPC2_VSX) ? 2 : 1;
+
             _FDT((fdt_property_cell(fdt, "ibm,vmx", vmx)));
         }
 
         /* Advertise DFP (Decimal Floating Point) if available
          *   0 / no property == no DFP
          *   1               == DFP available */
-        if (dfp) {
-            _FDT((fdt_property_cell(fdt, "ibm,dfp", dfp)));
+        if (env->insns_flags2 & PPC2_DFP) {
+            _FDT((fdt_property_cell(fdt, "ibm,dfp", 1)));
         }
 
         _FDT((fdt_end_node(fdt)));

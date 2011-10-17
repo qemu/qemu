@@ -34,22 +34,6 @@
 #define TODO_USER_ONLY 1
 #endif
 
-struct ppc_def_t {
-    const char *name;
-    uint32_t pvr;
-    uint32_t svr;
-    uint64_t insns_flags;
-    uint64_t insns_flags2;
-    uint64_t msr_mask;
-    powerpc_mmu_t   mmu_model;
-    powerpc_excp_t  excp_model;
-    powerpc_input_t bus_model;
-    uint32_t flags;
-    int bfd_mach;
-    void (*init_proc)(CPUPPCState *env);
-    int  (*check_pow)(CPUPPCState *env);
-};
-
 /* For user-mode emulation, we don't emulate any IRQ controller */
 #if defined(CONFIG_USER_ONLY)
 #define PPC_IRQ_INIT_FN(name)                                                 \
@@ -6535,6 +6519,8 @@ static void init_proc_970MP (CPUPPCState *env)
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_SEGMENT_64B | PPC_SLBI |                    \
                               PPC_POPCNTB | PPC_POPCNTWD)
+/* FIXME: Should also have PPC2_VSX and PPC2_DFP, but we don't
+ * implement those in TCG yet */
 #define POWERPC_INSNS2_POWER7 (PPC_NONE)
 #define POWERPC_MSRM_POWER7   (0x800000000204FF36ULL)
 #define POWERPC_MMU_POWER7    (POWERPC_MMU_2_06)
