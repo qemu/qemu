@@ -457,10 +457,14 @@ static void migration_state_notifier(Notifier *notifier, void *data)
 }
 
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
-                            const char *subject)
+                            const char *subject,
+                            MonitorCompletion *cb, void *opaque)
 {
-    return spice_server_migrate_info(spice_server, hostname,
-                                     port, tls_port, subject);
+    int ret;
+    ret = spice_server_migrate_info(spice_server, hostname,
+                                    port, tls_port, subject);
+    cb(opaque, NULL);
+    return ret;
 }
 
 static int add_channel(const char *name, const char *value, void *opaque)
