@@ -396,3 +396,24 @@ VIS_CMPHELPER(helper_fcmpgt, FCMPGT)
 VIS_CMPHELPER(helper_fcmpeq, FCMPEQ)
 VIS_CMPHELPER(helper_fcmple, FCMPLE)
 VIS_CMPHELPER(helper_fcmpne, FCMPNE)
+
+uint64_t helper_pdist(uint64_t sum, uint64_t src1, uint64_t src2)
+{
+    int i;
+    for (i = 0; i < 8; i++) {
+        int s1, s2;
+
+        s1 = (src1 >> (56 - (i * 8))) & 0xff;
+        s2 = (src2 >> (56 - (i * 8))) & 0xff;
+
+        /* Absolute value of difference. */
+        s1 -= s2;
+        if (s1 < 0) {
+            s1 = -s1;
+        }
+
+        sum += s1;
+    }
+
+    return sum;
+}

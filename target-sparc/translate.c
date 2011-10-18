@@ -1738,6 +1738,21 @@ static inline void gen_ne_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
 
     gen_store_fpr_D(dc, rd, dst);
 }
+
+static inline void gen_ne_fop_DDDD(DisasContext *dc, int rd, int rs1, int rs2,
+                           void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 dst, src0, src1, src2;
+
+    src1 = gen_load_fpr_D(dc, rs1);
+    src2 = gen_load_fpr_D(dc, rs2);
+    src0 = gen_load_fpr_D(dc, rd);
+    dst = gen_dest_fpr_D();
+
+    gen(dst, src0, src1, src2);
+
+    gen_store_fpr_D(dc, rd, dst);
+}
 #endif
 
 static inline void gen_fop_QQ(DisasContext *dc, int rd, int rs,
@@ -4059,9 +4074,11 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x03a: /* VIS I fpack32 */
                 case 0x03b: /* VIS I fpack16 */
                 case 0x03d: /* VIS I fpackfix */
-                case 0x03e: /* VIS I pdist */
-                    // XXX
                     goto illegal_insn;
+                case 0x03e: /* VIS I pdist */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    gen_ne_fop_DDDD(dc, rd, rs1, rs2, gen_helper_pdist);
+                    break;
                 case 0x048: /* VIS I faligndata */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
