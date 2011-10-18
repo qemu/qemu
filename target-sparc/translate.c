@@ -4192,8 +4192,13 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x019: /* VIS II bmask */
-                    // XXX
-                    goto illegal_insn;
+                    CHECK_FPU_FEATURE(dc, VIS2);
+                    cpu_src1 = get_src1(insn, cpu_src1);
+                    cpu_src2 = get_src1(insn, cpu_src2);
+                    tcg_gen_add_tl(cpu_dst, cpu_src1, cpu_src2);
+                    tcg_gen_deposit_tl(cpu_gsr, cpu_gsr, cpu_dst, 32, 32);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x020: /* VIS I fcmple16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
@@ -4314,8 +4319,9 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpmerge);
                     break;
                 case 0x04c: /* VIS II bshuffle */
-                    // XXX
-                    goto illegal_insn;
+                    CHECK_FPU_FEATURE(dc, VIS2);
+                    gen_gsr_fop_DDD(dc, rd, rs1, rs2, gen_helper_bshuffle);
+                    break;
                 case 0x04d: /* VIS I fexpand */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fexpand);

@@ -470,3 +470,32 @@ uint32_t helper_fpackfix(uint64_t gsr, uint64_t rs2)
 
     return ret;
 }
+
+uint64 helper_bshuffle(uint64_t gsr, uint64_t src1, uint64_t src2)
+{
+    union {
+        uint64_t ll[2];
+        uint8_t b[16];
+    } s;
+    VIS64 r;
+    uint32_t i, mask, host;
+
+    /* Set up S such that we can index across all of the bytes.  */
+#ifdef HOST_WORDS_BIGENDIAN
+    s.ll[0] = src1;
+    s.ll[1] = src2;
+    host = 0;
+#else
+    s.ll[1] = src1;
+    s.ll[0] = src2;
+    host = 15;
+#endif
+    mask = gsr >> 32;
+
+    for (i = 0; i < 8; ++i) {
+        unsigned e = (mask >> (28 - i*4)) & 0xf;
+        r.VIS_B64(i) = s.b[e ^ host];
+    }
+
+    return r.ll;
+}
