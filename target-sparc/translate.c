@@ -2221,6 +2221,109 @@ static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_ptr cpu_env)
 
     tcg_temp_free_i32(r_tl);
 }
+
+static void gen_edge(DisasContext *dc, TCGv dst, TCGv s1, TCGv s2,
+                     int width, bool cc, bool left)
+{
+    TCGv lo1, lo2, t1, t2;
+    uint64_t amask, tabl, tabr;
+    int shift, imask, omask;
+
+    if (cc) {
+        tcg_gen_mov_tl(cpu_cc_src, s1);
+        tcg_gen_mov_tl(cpu_cc_src2, s2);
+        tcg_gen_sub_tl(cpu_cc_dst, s1, s2);
+        tcg_gen_movi_i32(cpu_cc_op, CC_OP_SUB);
+        dc->cc_op = CC_OP_SUB;
+    }
+
+    /* Theory of operation: there are two tables, left and right (not to
+       be confused with the left and right versions of the opcode).  These
+       are indexed by the low 3 bits of the inputs.  To make things "easy",
+       these tables are loaded into two constants, TABL and TABR below.
+       The operation index = (input & imask) << shift calculates the index
+       into the constant, while val = (table >> index) & omask calculates
+       the value we're looking for.  */
+    switch (width) {
+    case 8:
+        imask = 0x7;
+        shift = 3;
+        omask = 0xff;
+        if (left) {
+            tabl = 0x80c0e0f0f8fcfeffULL;
+            tabr = 0xff7f3f1f0f070301ULL;
+        } else {
+            tabl = 0x0103070f1f3f7fffULL;
+            tabr = 0xfffefcf8f0e0c080ULL;
+        }
+        break;
+    case 16:
+        imask = 0x6;
+        shift = 1;
+        omask = 0xf;
+        if (left) {
+            tabl = 0x8cef;
+            tabr = 0xf731;
+        } else {
+            tabl = 0x137f;
+            tabr = 0xfec8;
+        }
+        break;
+    case 32:
+        imask = 0x4;
+        shift = 0;
+        omask = 0x3;
+        if (left) {
+            tabl = (2 << 2) | 3;
+            tabr = (3 << 2) | 1;
+        } else {
+            tabl = (1 << 2) | 3;
+            tabr = (3 << 2) | 2;
+        }
+        break;
+    default:
+        abort();
+    }
+
+    lo1 = tcg_temp_new();
+    lo2 = tcg_temp_new();
+    tcg_gen_andi_tl(lo1, s1, imask);
+    tcg_gen_andi_tl(lo2, s2, imask);
+    tcg_gen_shli_tl(lo1, lo1, shift);
+    tcg_gen_shli_tl(lo2, lo2, shift);
+
+    t1 = tcg_const_tl(tabl);
+    t2 = tcg_const_tl(tabr);
+    tcg_gen_shr_tl(lo1, t1, lo1);
+    tcg_gen_shr_tl(lo2, t2, lo2);
+    tcg_gen_andi_tl(dst, lo1, omask);
+    tcg_gen_andi_tl(lo2, lo2, omask);
+
+    amask = -8;
+    if (AM_CHECK(dc)) {
+        amask &= 0xffffffffULL;
+    }
+    tcg_gen_andi_tl(s1, s1, amask);
+    tcg_gen_andi_tl(s2, s2, amask);
+
+    /* We want to compute
+        dst = (s1 == s2 ? lo1 : lo1 & lo2).
+       We've already done dst = lo1, so this reduces to
+        dst &= (s1 == s2 ? -1 : lo2)
+       Which we perform by
+        lo2 |= -(s1 == s2)
+        dst &= lo2
+    */
+    tcg_gen_setcond_tl(TCG_COND_EQ, t1, s1, s2);
+    tcg_gen_neg_tl(t1, t1);
+    tcg_gen_or_tl(lo2, lo2, t1);
+    tcg_gen_and_tl(dst, dst, lo2);
+
+    tcg_temp_free(lo1);
+    tcg_temp_free(lo2);
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+}
 #endif
 
 #define CHECK_IU_FEATURE(dc, FEATURE)                      \
@@ -3954,19 +4057,89 @@ static void disas_sparc_insn(DisasContext * dc)
 
                 switch (opf) {
                 case 0x000: /* VIS I edge8cc */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 8, 1, 0);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x001: /* VIS II edge8n */
+                    CHECK_FPU_FEATURE(dc, VIS2);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 8, 0, 0);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x002: /* VIS I edge8lcc */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 8, 1, 1);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x003: /* VIS II edge8ln */
+                    CHECK_FPU_FEATURE(dc, VIS2);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 8, 0, 1);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x004: /* VIS I edge16cc */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 16, 1, 0);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x005: /* VIS II edge16n */
+                    CHECK_FPU_FEATURE(dc, VIS2);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 16, 0, 0);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x006: /* VIS I edge16lcc */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 16, 1, 1);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x007: /* VIS II edge16ln */
+                    CHECK_FPU_FEATURE(dc, VIS2);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 16, 0, 1);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x008: /* VIS I edge32cc */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 32, 1, 0);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x009: /* VIS II edge32n */
+                    CHECK_FPU_FEATURE(dc, VIS2);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 32, 0, 0);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x00a: /* VIS I edge32lcc */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 32, 1, 1);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x00b: /* VIS II edge32ln */
-                    // XXX
-                    goto illegal_insn;
+                    CHECK_FPU_FEATURE(dc, VIS2);
+                    gen_movl_reg_TN(rs1, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_edge(dc, cpu_dst, cpu_src1, cpu_src2, 32, 0, 1);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
                 case 0x010: /* VIS I array8 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1 = get_src1(insn, cpu_src1);
