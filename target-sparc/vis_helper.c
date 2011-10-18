@@ -41,18 +41,6 @@ target_ulong helper_array8(target_ulong pixel_addr, target_ulong cubesize)
         GET_FIELD_SP(pixel_addr, 11, 12);
 }
 
-uint64_t helper_faligndata(CPUState *env, uint64_t src1, uint64_t src2)
-{
-    uint64_t tmp;
-
-    tmp = src1 << ((env->gsr & 7) * 8);
-    /* on many architectures a shift of 64 does nothing */
-    if ((env->gsr & 7) != 0) {
-        tmp |= src2 >> (64 - (env->gsr & 7) * 8);
-    }
-    return tmp;
-}
-
 #ifdef HOST_WORDS_BIGENDIAN
 #define VIS_B64(n) b[7 - (n)]
 #define VIS_W64(n) w[3 - (n)]

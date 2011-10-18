@@ -2338,6 +2338,31 @@ static void gen_alignaddr(TCGv dst, TCGv s1, TCGv s2, bool left)
 
     tcg_temp_free(tmp);
 }
+
+static void gen_faligndata(TCGv dst, TCGv gsr, TCGv s1, TCGv s2)
+{
+    TCGv t1, t2, shift;
+
+    t1 = tcg_temp_new();
+    t2 = tcg_temp_new();
+    shift = tcg_temp_new();
+
+    tcg_gen_andi_tl(shift, gsr, 7);
+    tcg_gen_shli_tl(shift, shift, 3);
+    tcg_gen_shl_tl(t1, s1, shift);
+
+    /* A shift of 64 does not produce 0 in TCG.  Divide this into a
+       shift of (up to 63) followed by a constant shift of 1.  */
+    tcg_gen_xori_tl(shift, shift, 63);
+    tcg_gen_shr_tl(t2, s2, shift);
+    tcg_gen_shri_tl(t2, t2, 1);
+
+    tcg_gen_or_tl(dst, t1, t2);
+
+    tcg_temp_free(t1);
+    tcg_temp_free(t2);
+    tcg_temp_free(shift);
+}
 #endif
 
 #define CHECK_IU_FEATURE(dc, FEATURE)                      \
@@ -4307,12 +4332,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x048: /* VIS I faligndata */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    cpu_src1_64 = gen_load_fpr_D(dc, rs1);
-                    cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_faligndata(cpu_dst_64, cpu_env,
-                                          cpu_src1_64, cpu_src2_64);
-                    gen_store_fpr_D(dc, rd, cpu_dst_64);
+                    gen_gsr_fop_DDD(dc, rd, rs1, rs2, gen_faligndata);
                     break;
                 case 0x04b: /* VIS I fpmerge */
                     CHECK_FPU_FEATURE(dc, VIS1);

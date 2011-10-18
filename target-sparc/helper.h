@@ -125,7 +125,6 @@ DEF_HELPER_1(fqtoi, s32, env)
 DEF_HELPER_2(fstox, s64, env, f32)
 DEF_HELPER_2(fdtox, s64, env, f64)
 DEF_HELPER_1(fqtox, s64, env)
-DEF_HELPER_3(faligndata, i64, env, i64, i64)
 
 DEF_HELPER_FLAGS_2(fpmerge, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
 DEF_HELPER_FLAGS_2(fmul8x16, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
