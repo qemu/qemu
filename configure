@@ -3422,7 +3422,16 @@ case "$target_arch2" in
       fi
     fi
 esac
-if test "$target_arch2" = "ppc64" -a "$fdt" = "yes"; then
+if test "$fdt" != "yes" && test "$target_arch2" = "ppc" -o \
+        "$target_arch2" = "ppc64" -o "$target_arch2" = "ppcemb"; then
+  echo
+  echo "Error: libfdt missing"
+  echo "The PowerPC target requires libfdt to work properly."
+  echo "Please make sure to have it and its development packages installed."
+  echo
+  exit 1
+fi
+if test "$target_arch2" = "ppc64"; then
   echo "CONFIG_PSERIES=y" >> $config_target_mak
 fi
 if test "$target_bigendian" = "yes" ; then
