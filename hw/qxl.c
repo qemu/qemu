@@ -236,6 +236,9 @@ void qxl_spice_reset_image_cache(PCIQXLDevice *qxl)
 void qxl_spice_reset_cursor(PCIQXLDevice *qxl)
 {
     qxl->ssd.worker->reset_cursor(qxl->ssd.worker);
+    qemu_mutex_lock(&qxl->track_lock);
+    qxl->guest_cursor = 0;
+    qemu_mutex_unlock(&qxl->track_lock);
 }
 
 
@@ -400,7 +403,9 @@ static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
     {
         QXLCursorCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
         if (cmd->type == QXL_CURSOR_SET) {
+            qemu_mutex_lock(&qxl->track_lock);
             qxl->guest_cursor = ext->cmd.data;
+            qemu_mutex_unlock(&qxl->track_lock);
         }
         break;
     }
@@ -1065,6 +1070,7 @@ static int qxl_destroy_primary(PCIQXLDevice *d, qxl_async_io async)
 
     d->mode = QXL_MODE_UNDEFINED;
     qemu_spice_destroy_primary_surface(&d->ssd, 0, async);
+    qxl_spice_reset_cursor(d);
     return 1;
 }
 
@@ -1704,10 +1710,12 @@ static int qxl_post_load(void *opaque, int version)
             cmds[out].group_id = MEMSLOT_GROUP_GUEST;
             out++;
         }
-        cmds[out].cmd.data = d->guest_cursor;
-        cmds[out].cmd.type = QXL_CMD_CURSOR;
-        cmds[out].group_id = MEMSLOT_GROUP_GUEST;
-        out++;
+        if (d->guest_cursor) {
+            cmds[out].cmd.data = d->guest_cursor;
+            cmds[out].cmd.type = QXL_CMD_CURSOR;
+            cmds[out].group_id = MEMSLOT_GROUP_GUEST;
+            out++;
+        }
         qxl_spice_loadvm_commands(d, cmds, out);
         g_free(cmds);
 
