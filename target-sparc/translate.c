@@ -2324,6 +2324,20 @@ static void gen_edge(DisasContext *dc, TCGv dst, TCGv s1, TCGv s2,
     tcg_temp_free(t1);
     tcg_temp_free(t2);
 }
+
+static void gen_alignaddr(TCGv dst, TCGv s1, TCGv s2, bool left)
+{
+    TCGv tmp = tcg_temp_new();
+
+    tcg_gen_add_tl(tmp, s1, s2);
+    tcg_gen_andi_tl(dst, tmp, -8);
+    if (left) {
+        tcg_gen_neg_tl(tmp, tmp);
+    }
+    tcg_gen_deposit_tl(cpu_gsr, cpu_gsr, tmp, 0, 3);
+
+    tcg_temp_free(tmp);
+}
 #endif
 
 #define CHECK_IU_FEATURE(dc, FEATURE)                      \
@@ -4167,11 +4181,17 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
-                    gen_helper_alignaddr(cpu_dst, cpu_env, cpu_src1, cpu_src2);
+                    gen_alignaddr(cpu_dst, cpu_src1, cpu_src2, 0);
+                    gen_movl_TN_reg(rd, cpu_dst);
+                    break;
+                case 0x01a: /* VIS I alignaddrl */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    cpu_src1 = get_src1(insn, cpu_src1);
+                    gen_movl_reg_TN(rs2, cpu_src2);
+                    gen_alignaddr(cpu_dst, cpu_src1, cpu_src2, 1);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x019: /* VIS II bmask */
-                case 0x01a: /* VIS I alignaddrl */
                     // XXX
                     goto illegal_insn;
                 case 0x020: /* VIS I fcmple16 */

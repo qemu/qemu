@@ -41,17 +41,6 @@ target_ulong helper_array8(target_ulong pixel_addr, target_ulong cubesize)
         GET_FIELD_SP(pixel_addr, 11, 12);
 }
 
-target_ulong helper_alignaddr(CPUState *env, target_ulong addr,
-                              target_ulong offset)
-{
-    uint64_t tmp;
-
-    tmp = addr + offset;
-    env->gsr &= ~7ULL;
-    env->gsr |= tmp & 7ULL;
-    return tmp & ~7ULL;
-}
-
 uint64_t helper_faligndata(CPUState *env, uint64_t src1, uint64_t src2)
 {
     uint64_t tmp;
