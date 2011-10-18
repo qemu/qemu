@@ -434,6 +434,7 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
     FDCtrl *fdctrl = opaque;
     uint32_t retval;
 
+    reg &= 7;
     switch (reg) {
     case FD_REG_SRA:
         retval = fdctrl_read_statusA(fdctrl);
@@ -471,6 +472,7 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
 
     FLOPPY_DPRINTF("write reg%d: 0x%02x\n", reg & 7, value);
 
+    reg &= 7;
     switch (reg) {
     case FD_REG_DOR:
         fdctrl_write_dor(fdctrl, value);
