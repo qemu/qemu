@@ -10047,11 +10047,27 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
     return 0;
 }
 
+static bool ppc_cpu_usable(const ppc_def_t *def)
+{
+#if defined(TARGET_PPCEMB)
+    /* When using the ppcemb target, we only support 440 style cores */
+    if (def->mmu_model != POWERPC_MMU_BOOKE) {
+        return false;
+    }
+#endif
+
+    return true;
+}
+
 const ppc_def_t *ppc_find_by_pvr(uint32_t pvr)
 {
     int i;
 
     for (i = 0; i < ARRAY_SIZE(ppc_defs); i++) {
+        if (!ppc_cpu_usable(&ppc_defs[i])) {
+            continue;
+        }
+
         /* If we have an exact match, we're done */
         if (pvr == ppc_defs[i].pvr) {
             return &ppc_defs[i];
@@ -10091,6 +10107,10 @@ const ppc_def_t *cpu_ppc_find_by_name (const char *name)
     ret = NULL;
     max = ARRAY_SIZE(ppc_defs);
     for (i = 0; i < max; i++) {
+        if (!ppc_cpu_usable(&ppc_defs[i])) {
+            continue;
+        }
+
         if (strcasecmp(name, ppc_defs[i].name) == 0) {
             ret = &ppc_defs[i];
             break;
@@ -10106,6 +10126,10 @@ void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf)
 
     max = ARRAY_SIZE(ppc_defs);
     for (i = 0; i < max; i++) {
+        if (!ppc_cpu_usable(&ppc_defs[i])) {
+            continue;
+        }
+
         (*cpu_fprintf)(f, "PowerPC %-16s PVR %08x\n",
                        ppc_defs[i].name, ppc_defs[i].pvr);
     }
