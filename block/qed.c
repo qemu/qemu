@@ -388,7 +388,6 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
     if (ret < 0) {
         return ret;
     }
-    ret = 0; /* ret should always be 0 or -errno */
     qed_header_le_to_cpu(&le_header, &s->header);
 
     if (s->header.magic != QED_MAGIC) {
