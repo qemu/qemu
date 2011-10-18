@@ -1739,6 +1739,20 @@ static inline void gen_ne_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
     gen_store_fpr_D(dc, rd, dst);
 }
 
+static inline void gen_gsr_fop_DDD(DisasContext *dc, int rd, int rs1, int rs2,
+                           void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
+{
+    TCGv_i64 dst, src1, src2;
+
+    src1 = gen_load_fpr_D(dc, rs1);
+    src2 = gen_load_fpr_D(dc, rs2);
+    dst = gen_dest_fpr_D();
+
+    gen(dst, cpu_gsr, src1, src2);
+
+    gen_store_fpr_D(dc, rd, dst);
+}
+
 static inline void gen_ne_fop_DDDD(DisasContext *dc, int rd, int rs1, int rs2,
                            void (*gen)(TCGv_i64, TCGv_i64, TCGv_i64, TCGv_i64))
 {
@@ -4072,9 +4086,23 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_ne_fop_DDD(dc, rd, rs1, rs2, gen_helper_fmuld8ulx16);
                     break;
                 case 0x03a: /* VIS I fpack32 */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    gen_gsr_fop_DDD(dc, rd, rs1, rs2, gen_helper_fpack32);
+                    break;
                 case 0x03b: /* VIS I fpack16 */
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
+                    cpu_dst_32 = gen_dest_fpr_F();
+                    gen_helper_fpack16(cpu_dst_32, cpu_gsr, cpu_src1_64);
+                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    break;
                 case 0x03d: /* VIS I fpackfix */
-                    goto illegal_insn;
+                    CHECK_FPU_FEATURE(dc, VIS1);
+                    cpu_src1_64 = gen_load_fpr_D(dc, rs2);
+                    cpu_dst_32 = gen_dest_fpr_F();
+                    gen_helper_fpackfix(cpu_dst_32, cpu_gsr, cpu_src1_64);
+                    gen_store_fpr_F(dc, rd, cpu_dst_32);
+                    break;
                 case 0x03e: /* VIS I pdist */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_ne_fop_DDDD(dc, rd, rs1, rs2, gen_helper_pdist);

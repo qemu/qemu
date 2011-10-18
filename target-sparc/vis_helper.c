@@ -417,3 +417,67 @@ uint64_t helper_pdist(uint64_t sum, uint64_t src1, uint64_t src2)
 
     return sum;
 }
+
+uint32_t helper_fpack16(uint64_t gsr, uint64_t rs2)
+{
+    int scale = (gsr >> 3) & 0xf;
+    uint32_t ret = 0;
+    int byte;
+
+    for (byte = 0; byte < 4; byte++) {
+        uint32_t val;
+        int16_t src = rs2 >> (byte * 16);
+        int32_t scaled = src << scale;
+        int32_t from_fixed = scaled >> 7;
+
+        val = (from_fixed < 0 ?  0 :
+               from_fixed > 255 ?  255 : from_fixed);
+
+        ret |= val << (8 * byte);
+    }
+
+    return ret;
+}
+
+uint64_t helper_fpack32(uint64_t gsr, uint64_t rs1, uint64_t rs2)
+{
+    int scale = (gsr >> 3) & 0x1f;
+    uint64_t ret = 0;
+    int word;
+
+    ret = (rs1 << 8) & ~(0x000000ff000000ffULL);
+    for (word = 0; word < 2; word++) {
+        uint64_t val;
+        int32_t src = rs2 >> (word * 32);
+        int64_t scaled = (int64_t)src << scale;
+        int64_t from_fixed = scaled >> 23;
+
+        val = (from_fixed < 0 ? 0 :
+               (from_fixed > 255) ? 255 : from_fixed);
+
+        ret |= val << (32 * word);
+    }
+
+    return ret;
+}
+
+uint32_t helper_fpackfix(uint64_t gsr, uint64_t rs2)
+{
+    int scale = (gsr >> 3) & 0x1f;
+    uint32_t ret = 0;
+    int word;
+
+    for (word = 0; word < 2; word++) {
+        uint32_t val;
+        int32_t src = rs2 >> (word * 32);
+        int64_t scaled = src << scale;
+        int64_t from_fixed = scaled >> 16;
+
+        val = (from_fixed < -32768 ? -32768 :
+               from_fixed > 32767 ?  32767 : from_fixed);
+
+        ret |= (val & 0xffff) << (word * 16);
+    }
+
+    return ret;
+}

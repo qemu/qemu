@@ -138,6 +138,9 @@ DEF_HELPER_FLAGS_2(fmuld8sux16, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
 DEF_HELPER_FLAGS_2(fmuld8ulx16, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
 DEF_HELPER_FLAGS_2(fexpand, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
 DEF_HELPER_FLAGS_3(pdist, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fpack16, TCG_CALL_CONST | TCG_CALL_PURE, i32, i64, i64)
+DEF_HELPER_FLAGS_3(fpack32, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fpackfix, TCG_CALL_CONST | TCG_CALL_PURE, i32, i64, i64)
 #define VIS_HELPER(name)                                                 \
     DEF_HELPER_FLAGS_2(f ## name ## 16, TCG_CALL_CONST | TCG_CALL_PURE,  \
                        i64, i64, i64)                                    \
