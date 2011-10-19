@@ -3039,8 +3039,7 @@ float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
 
     val64 = float64_val(f64);
 
-    val = ((val64 >> 63)  & 0x80000000)
-        | ((result_exp & 0xff) << 23)
+    val = ((result_exp & 0xff) << 23)
         | ((val64 >> 29)  & 0x7fffff);
     return make_float32(val);
 }
