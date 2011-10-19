@@ -2722,7 +2722,7 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0xa: /* V9 fabsd */
                     cpu_src1_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fabsd(cpu_dst_64, cpu_env, cpu_src1_64);
+                    gen_helper_fabsd(cpu_dst_64, cpu_src1_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0xb: /* V9 fabsq */
@@ -3902,14 +3902,14 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
-                    gen_helper_array8(cpu_dst, cpu_env, cpu_src1, cpu_src2);
+                    gen_helper_array8(cpu_dst, cpu_src1, cpu_src2);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x012: /* VIS I array16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
-                    gen_helper_array8(cpu_dst, cpu_env, cpu_src1, cpu_src2);
+                    gen_helper_array8(cpu_dst, cpu_src1, cpu_src2);
                     tcg_gen_shli_i64(cpu_dst, cpu_dst, 1);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
@@ -3917,7 +3917,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
-                    gen_helper_array8(cpu_dst, cpu_env, cpu_src1, cpu_src2);
+                    gen_helper_array8(cpu_dst, cpu_src1, cpu_src2);
                     tcg_gen_shli_i64(cpu_dst, cpu_dst, 2);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
@@ -3936,64 +3936,56 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fcmple16(cpu_dst, cpu_env,
-                                        cpu_src1_64, cpu_src2_64);
+                    gen_helper_fcmple16(cpu_dst, cpu_src1_64, cpu_src2_64);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x022: /* VIS I fcmpne16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fcmpne16(cpu_dst, cpu_env,
-                                        cpu_src1_64, cpu_src2_64);
+                    gen_helper_fcmpne16(cpu_dst, cpu_src1_64, cpu_src2_64);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x024: /* VIS I fcmple32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fcmple32(cpu_dst, cpu_env,
-                                        cpu_src1_64, cpu_src2_64);
+                    gen_helper_fcmple32(cpu_dst, cpu_src1_64, cpu_src2_64);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x026: /* VIS I fcmpne32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fcmpne32(cpu_dst, cpu_env,
-                                        cpu_src1_64, cpu_src2_64);
+                    gen_helper_fcmpne32(cpu_dst, cpu_src1_64, cpu_src2_64);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x028: /* VIS I fcmpgt16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fcmpgt16(cpu_dst, cpu_env,
-                                        cpu_src1_64, cpu_src2_64);
+                    gen_helper_fcmpgt16(cpu_dst, cpu_src1_64, cpu_src2_64);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x02a: /* VIS I fcmpeq16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fcmpeq16(cpu_dst, cpu_env,
-                                        cpu_src1_64, cpu_src2_64);
+                    gen_helper_fcmpeq16(cpu_dst, cpu_src1_64, cpu_src2_64);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x02c: /* VIS I fcmpgt32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fcmpgt32(cpu_dst, cpu_env,
-                                        cpu_src1_64, cpu_src2_64);
+                    gen_helper_fcmpgt32(cpu_dst, cpu_src1_64, cpu_src2_64);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x02e: /* VIS I fcmpeq32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
-                    gen_helper_fcmpeq32(cpu_dst, cpu_env,
-                                        cpu_src1_64, cpu_src2_64);
+                    gen_helper_fcmpeq32(cpu_dst, cpu_src1_64, cpu_src2_64);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x031: /* VIS I fmul8x16 */
@@ -4001,8 +3993,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8x16(cpu_dst_64, cpu_env,
-                                        cpu_src1_64, cpu_src2_64);
+                    gen_helper_fmul8x16(cpu_dst_64, cpu_src1_64, cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x033: /* VIS I fmul8x16au */
@@ -4010,8 +4001,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8x16au(cpu_dst_64, cpu_env,
-                                          cpu_src1_64, cpu_src2_64);
+                    gen_helper_fmul8x16au(cpu_dst_64, cpu_src1_64,
+                                          cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x035: /* VIS I fmul8x16al */
@@ -4019,8 +4010,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8x16al(cpu_dst_64, cpu_env,
-                                          cpu_src1_64, cpu_src2_64);
+                    gen_helper_fmul8x16al(cpu_dst_64, cpu_src1_64,
+                                          cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x036: /* VIS I fmul8sux16 */
@@ -4028,8 +4019,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8sux16(cpu_dst_64, cpu_env,
-                                          cpu_src1_64, cpu_src2_64);
+                    gen_helper_fmul8sux16(cpu_dst_64, cpu_src1_64,
+                                          cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x037: /* VIS I fmul8ulx16 */
@@ -4037,8 +4028,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmul8ulx16(cpu_dst_64, cpu_env,
-                                          cpu_src1_64, cpu_src2_64);
+                    gen_helper_fmul8ulx16(cpu_dst_64, cpu_src1_64,
+                                          cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x038: /* VIS I fmuld8sux16 */
@@ -4046,8 +4037,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmuld8sux16(cpu_dst_64, cpu_env,
-                                           cpu_src1_64, cpu_src2_64);
+                    gen_helper_fmuld8sux16(cpu_dst_64, cpu_src1_64,
+                                           cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x039: /* VIS I fmuld8ulx16 */
@@ -4055,8 +4046,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fmuld8ulx16(cpu_dst_64, cpu_env,
-                                           cpu_src1_64, cpu_src2_64);
+                    gen_helper_fmuld8ulx16(cpu_dst_64, cpu_src1_64,
+                                           cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x03a: /* VIS I fpack32 */
@@ -4079,8 +4070,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpmerge(cpu_dst_64, cpu_env,
-                                       cpu_src1_64, cpu_src2_64);
+                    gen_helper_fpmerge(cpu_dst_64, cpu_src1_64, cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x04c: /* VIS II bshuffle */
@@ -4091,8 +4081,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fexpand(cpu_dst_64, cpu_env,
-                                       cpu_src1_64, cpu_src2_64);
+                    gen_helper_fexpand(cpu_dst_64, cpu_src1_64, cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x050: /* VIS I fpadd16 */
@@ -4100,8 +4089,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpadd16(cpu_dst_64, cpu_env,
-                                       cpu_src1_64, cpu_src2_64);
+                    gen_helper_fpadd16(cpu_dst_64, cpu_src1_64, cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x051: /* VIS I fpadd16s */
@@ -4109,8 +4097,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_32 = gen_load_fpr_F(dc, rs1);
                     cpu_src2_32 = gen_load_fpr_F(dc, rs2);
                     cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fpadd16s(cpu_dst_32, cpu_env,
-                                        cpu_src1_32, cpu_src2_32);
+                    gen_helper_fpadd16s(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
                     break;
                 case 0x052: /* VIS I fpadd32 */
@@ -4118,8 +4105,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpadd32(cpu_dst_64, cpu_env,
-                                       cpu_src1_64, cpu_src2_64);
+                    gen_helper_fpadd32(cpu_dst_64, cpu_src1_64, cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x053: /* VIS I fpadd32s */
@@ -4135,8 +4121,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpsub16(cpu_dst_64, cpu_env,
-                                       cpu_src1_64, cpu_src2_64);
+                    gen_helper_fpsub16(cpu_dst_64, cpu_src1_64, cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x055: /* VIS I fpsub16s */
@@ -4144,8 +4129,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_32 = gen_load_fpr_F(dc, rs1);
                     cpu_src2_32 = gen_load_fpr_F(dc, rs2);
                     cpu_dst_32 = gen_dest_fpr_F();
-                    gen_helper_fpsub16s(cpu_dst_32, cpu_env,
-                                        cpu_src1_32, cpu_src2_32);
+                    gen_helper_fpsub16s(cpu_dst_32, cpu_src1_32, cpu_src2_32);
                     gen_store_fpr_F(dc, rd, cpu_dst_32);
                     break;
                 case 0x056: /* VIS I fpsub32 */
@@ -4153,8 +4137,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     cpu_src1_64 = gen_load_fpr_D(dc, rs1);
                     cpu_src2_64 = gen_load_fpr_D(dc, rs2);
                     cpu_dst_64 = gen_dest_fpr_D();
-                    gen_helper_fpsub32(cpu_dst_64, cpu_env,
-                                       cpu_src1_64, cpu_src2_64);
+                    gen_helper_fpsub32(cpu_dst_64, cpu_src1_64, cpu_src2_64);
                     gen_store_fpr_D(dc, rd, cpu_dst_64);
                     break;
                 case 0x057: /* VIS I fpsub32s */

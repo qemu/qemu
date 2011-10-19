@@ -182,7 +182,7 @@ float32 helper_fabss(float32 src)
 }
 
 #ifdef TARGET_SPARC64
-float64 helper_fabsd(CPUState *env, float64 src)
+float64 helper_fabsd(float64 src)
 {
     return float64_abs(src);
 }

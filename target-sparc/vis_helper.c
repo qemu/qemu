@@ -28,8 +28,7 @@
 #define GET_FIELD_SP(X, FROM, TO)               \
     GET_FIELD(X, 63 - (TO), 63 - (FROM))
 
-target_ulong helper_array8(CPUState *env, target_ulong pixel_addr,
-                           target_ulong cubesize)
+target_ulong helper_array8(target_ulong pixel_addr, target_ulong cubesize)
 {
     return (GET_FIELD_SP(pixel_addr, 60, 63) << (17 + 2 * cubesize)) |
         (GET_FIELD_SP(pixel_addr, 39, 39 + cubesize - 1) << (17 + cubesize)) |
@@ -97,7 +96,7 @@ typedef union {
     float32 f;
 } VIS32;
 
-uint64_t helper_fpmerge(CPUState *env, uint64_t src1, uint64_t src2)
+uint64_t helper_fpmerge(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
 
@@ -117,7 +116,7 @@ uint64_t helper_fpmerge(CPUState *env, uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8x16(CPUState *env, uint64_t src1, uint64_t src2)
+uint64_t helper_fmul8x16(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -141,7 +140,7 @@ uint64_t helper_fmul8x16(CPUState *env, uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8x16al(CPUState *env, uint64_t src1, uint64_t src2)
+uint64_t helper_fmul8x16al(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -165,7 +164,7 @@ uint64_t helper_fmul8x16al(CPUState *env, uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8x16au(CPUState *env, uint64_t src1, uint64_t src2)
+uint64_t helper_fmul8x16au(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -189,7 +188,7 @@ uint64_t helper_fmul8x16au(CPUState *env, uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8sux16(CPUState *env, uint64_t src1, uint64_t src2)
+uint64_t helper_fmul8sux16(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -213,7 +212,7 @@ uint64_t helper_fmul8sux16(CPUState *env, uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmul8ulx16(CPUState *env, uint64_t src1, uint64_t src2)
+uint64_t helper_fmul8ulx16(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -237,7 +236,7 @@ uint64_t helper_fmul8ulx16(CPUState *env, uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmuld8sux16(CPUState *env, uint64_t src1, uint64_t src2)
+uint64_t helper_fmuld8sux16(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -260,7 +259,7 @@ uint64_t helper_fmuld8sux16(CPUState *env, uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fmuld8ulx16(CPUState *env, uint64_t src1, uint64_t src2)
+uint64_t helper_fmuld8ulx16(uint64_t src1, uint64_t src2)
 {
     VIS64 s, d;
     uint32_t tmp;
@@ -283,7 +282,7 @@ uint64_t helper_fmuld8ulx16(CPUState *env, uint64_t src1, uint64_t src2)
     return d.ll;
 }
 
-uint64_t helper_fexpand(CPUState *env, uint64_t src1, uint64_t src2)
+uint64_t helper_fexpand(uint64_t src1, uint64_t src2)
 {
     VIS32 s;
     VIS64 d;
@@ -299,7 +298,7 @@ uint64_t helper_fexpand(CPUState *env, uint64_t src1, uint64_t src2)
 }
 
 #define VIS_HELPER(name, F)                             \
-    uint64_t name##16(CPUState *env, uint64_t src1, uint64_t src2) \
+    uint64_t name##16(uint64_t src1, uint64_t src2)     \
     {                                                   \
         VIS64 s, d;                                     \
                                                         \
@@ -314,8 +313,7 @@ uint64_t helper_fexpand(CPUState *env, uint64_t src1, uint64_t src2)
         return d.ll;                                    \
     }                                                   \
                                                         \
-    uint32_t name##16s(CPUState *env, uint32_t src1,    \
-                       uint32_t src2)                   \
+    uint32_t name##16s(uint32_t src1, uint32_t src2)    \
     {                                                   \
         VIS32 s, d;                                     \
                                                         \
@@ -328,7 +326,7 @@ uint64_t helper_fexpand(CPUState *env, uint64_t src1, uint64_t src2)
         return d.l;                                     \
     }                                                   \
                                                         \
-    uint64_t name##32(CPUState *env, uint64_t src1, uint64_t src2) \
+    uint64_t name##32(uint64_t src1, uint64_t src2)     \
     {                                                   \
         VIS64 s, d;                                     \
                                                         \
@@ -341,8 +339,7 @@ uint64_t helper_fexpand(CPUState *env, uint64_t src1, uint64_t src2)
         return d.ll;                                    \
     }                                                   \
                                                         \
-    uint32_t name##32s(CPUState *env, uint32_t src1,    \
-                       uint32_t src2)                   \
+    uint32_t name##32s(uint32_t src1, uint32_t src2)    \
     {                                                   \
         VIS32 s, d;                                     \
                                                         \
@@ -360,7 +357,7 @@ VIS_HELPER(helper_fpadd, FADD)
 VIS_HELPER(helper_fpsub, FSUB)
 
 #define VIS_CMPHELPER(name, F)                                    \
-    uint64_t name##16(CPUState *env, uint64_t src1, uint64_t src2) \
+    uint64_t name##16(uint64_t src1, uint64_t src2)               \
     {                                                             \
         VIS64 s, d;                                               \
                                                                   \
@@ -376,7 +373,7 @@ VIS_HELPER(helper_fpsub, FSUB)
         return d.ll;                                              \
     }                                                             \
                                                                   \
-    uint64_t name##32(CPUState *env, uint64_t src1, uint64_t src2) \
+    uint64_t name##32(uint64_t src1, uint64_t src2)               \
     {                                                             \
         VIS64 s, d;                                               \
                                                                   \
