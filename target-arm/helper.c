@@ -204,6 +204,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_VFP3);
+        set_feature(env, ARM_FEATURE_VFP4);
         set_feature(env, ARM_FEATURE_VFP_FP16);
         set_feature(env, ARM_FEATURE_NEON);
         set_feature(env, ARM_FEATURE_THUMB2EE);
@@ -3082,6 +3083,19 @@ uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUState *env)
     f64 = recip_sqrt_estimate(f64, env);
 
     return 0x80000000 | ((float64_val(f64) >> 21) & 0x7fffffff);
+}
+
+/* VFPv4 fused multiply-accumulate */
+float32 VFP_HELPER(muladd, s)(float32 a, float32 b, float32 c, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float32_muladd(a, b, c, 0, fpst);
+}
+
+float64 VFP_HELPER(muladd, d)(float64 a, float64 b, float64 c, void *fpstp)
+{
+    float_status *fpst = fpstp;
+    return float64_muladd(a, b, c, 0, fpst);
 }
 
 void HELPER(set_teecr)(CPUState *env, uint32_t val)
