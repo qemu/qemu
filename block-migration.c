@@ -557,6 +557,8 @@ static void blk_mig_cleanup(Monitor *mon)
 
 static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 {
+    int ret;
+
     DPRINTF("Enter save live stage %d submitted %d transferred %d\n",
             stage, block_mig_state.submitted, block_mig_state.transferred);
 
@@ -580,9 +582,10 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 
     flush_blks(f);
 
-    if (qemu_file_get_error(f)) {
+    ret = qemu_file_get_error(f);
+    if (ret) {
         blk_mig_cleanup(mon);
-        return 0;
+        return ret;
     }
 
     blk_mig_reset_dirty_cursor();
@@ -608,9 +611,10 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 
         flush_blks(f);
 
-        if (qemu_file_get_error(f)) {
+        ret = qemu_file_get_error(f);
+        if (ret) {
             blk_mig_cleanup(mon);
-            return 0;
+            return ret;
         }
     }
 
@@ -625,8 +629,9 @@ static int block_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         /* report completion */
         qemu_put_be64(f, (100 << BDRV_SECTOR_BITS) | BLK_MIG_FLAG_PROGRESS);
 
-        if (qemu_file_get_error(f)) {
-            return 0;
+        ret = qemu_file_get_error(f);
+        if (ret) {
+            return ret;
         }
 
         monitor_printf(mon, "Block migration completed\n");
