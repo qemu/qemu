@@ -7569,11 +7569,16 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     }
                     break;
                 case 2: /* Multiplies (Type 3).  */
-                    tmp = load_reg(s, rm);
-                    tmp2 = load_reg(s, rs);
-                    if (insn & (1 << 20)) {
+                    switch ((insn >> 20) & 0x7) {
+                    case 5:
+                        if (((insn >> 6) ^ (insn >> 7)) & 1) {
+                            /* op2 not 00x or 11x : UNDEF */
+                            goto illegal_op;
+                        }
                         /* Signed multiply most significant [accumulate].
                            (SMMUL, SMMLA, SMMLS) */
+                        tmp = load_reg(s, rm);
+                        tmp2 = load_reg(s, rs);
                         tmp64 = gen_muls_i64_i32(tmp, tmp2);
 
                         if (rd != 15) {
@@ -7592,7 +7597,15 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         tcg_gen_trunc_i64_i32(tmp, tmp64);
                         tcg_temp_free_i64(tmp64);
                         store_reg(s, rn, tmp);
-                    } else {
+                        break;
+                    case 0:
+                    case 4:
+                        /* SMLAD, SMUAD, SMLSD, SMUSD, SMLALD, SMLSLD */
+                        if (insn & (1 << 7)) {
+                            goto illegal_op;
+                        }
+                        tmp = load_reg(s, rm);
+                        tmp2 = load_reg(s, rs);
                         if (insn & (1 << 5))
                             gen_swap_half(tmp2);
                         gen_smul_dual(tmp, tmp2);
@@ -7625,6 +7638,9 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                               }
                             store_reg(s, rn, tmp);
                         }
+                        break;
+                    default:
+                        goto illegal_op;
                     }
                     break;
                 case 3:
