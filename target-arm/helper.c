@@ -193,7 +193,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_V7);
         set_feature(env, ARM_FEATURE_M);
-        set_feature(env, ARM_FEATURE_DIV);
+        set_feature(env, ARM_FEATURE_THUMB_DIV);
         break;
     case ARM_CPUID_ANY: /* For userspace emulation.  */
         set_feature(env, ARM_FEATURE_V4T);
@@ -207,7 +207,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_VFP_FP16);
         set_feature(env, ARM_FEATURE_NEON);
         set_feature(env, ARM_FEATURE_THUMB2EE);
-        set_feature(env, ARM_FEATURE_DIV);
+        set_feature(env, ARM_FEATURE_THUMB_DIV);
         set_feature(env, ARM_FEATURE_V7MP);
         break;
     case ARM_CPUID_TI915T:

@@ -8513,8 +8513,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             tmp2 = load_reg(s, rm);
             if ((op & 0x50) == 0x10) {
                 /* sdiv, udiv */
-                if (!arm_feature(env, ARM_FEATURE_DIV))
+                if (!arm_feature(env, ARM_FEATURE_THUMB_DIV)) {
                     goto illegal_op;
+                }
                 if (op & 0x20)
                     gen_helper_udiv(tmp, tmp, tmp2);
                 else
