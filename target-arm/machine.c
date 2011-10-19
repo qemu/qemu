@@ -189,7 +189,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
         env->vfp.vec_stride = qemu_get_be32(f);
 
         if (arm_feature(env, ARM_FEATURE_VFP3)) {
-            for (i = 0;  i < 16; i++) {
+            for (i = 16;  i < 32; i++) {
                 CPU_DoubleU u;
                 u.l.upper = qemu_get_be32(f);
                 u.l.lower = qemu_get_be32(f);
