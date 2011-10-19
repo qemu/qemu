@@ -7639,6 +7639,25 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                             store_reg(s, rn, tmp);
                         }
                         break;
+                    case 1:
+                    case 3:
+                        /* SDIV, UDIV */
+                        if (!arm_feature(env, ARM_FEATURE_ARM_DIV)) {
+                            goto illegal_op;
+                        }
+                        if (((insn >> 5) & 7) || (rd != 15)) {
+                            goto illegal_op;
+                        }
+                        tmp = load_reg(s, rm);
+                        tmp2 = load_reg(s, rs);
+                        if (insn & (1 << 21)) {
+                            gen_helper_udiv(tmp, tmp, tmp2);
+                        } else {
+                            gen_helper_sdiv(tmp, tmp, tmp2);
+                        }
+                        tcg_temp_free_i32(tmp2);
+                        store_reg(s, rn, tmp);
+                        break;
                     default:
                         goto illegal_op;
                     }
