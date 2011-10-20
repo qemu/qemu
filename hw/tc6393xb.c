@@ -79,6 +79,7 @@
 #define NAND_MODE_ECC_RST   0x60
 
 struct TC6393xbState {
+    MemoryRegion iomem;
     qemu_irq irq;
     qemu_irq *sub_irqs;
     struct {
@@ -122,7 +123,7 @@ struct TC6393xbState {
     ECCState ecc;
 
     DisplayState *ds;
-    ram_addr_t vram_addr;
+    MemoryRegion vram;
     uint16_t *vram_ptr;
     uint32_t scr_width, scr_height; /* in pixels */
     qemu_irq l3v;
@@ -495,7 +496,9 @@ static void tc6393xb_update_display(void *opaque)
 }
 
 
-static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr) {
+static uint64_t tc6393xb_readb(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
+{
     TC6393xbState *s = opaque;
 
     switch (addr >> 8) {
@@ -516,7 +519,8 @@ static uint32_t tc6393xb_readb(void *opaque, target_phys_addr_t addr) {
     return 0;
 }
 
-static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr, uint32_t value) {
+static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr,
+                            uint64_t value, unsigned size) {
     TC6393xbState *s = opaque;
 
     switch (addr >> 8) {
@@ -532,51 +536,21 @@ static void tc6393xb_writeb(void *opaque, target_phys_addr_t addr, uint32_t valu
         tc6393xb_nand_writeb(s, addr & 0xff, value);
     else
         fprintf(stderr, "tc6393xb: unhandled write at %08x: %02x\n",
-					(uint32_t) addr, value & 0xff);
+                (uint32_t) addr, (int)value & 0xff);
 }
 
-static uint32_t tc6393xb_readw(void *opaque, target_phys_addr_t addr)
+TC6393xbState *tc6393xb_init(MemoryRegion *sysmem, uint32_t base, qemu_irq irq)
 {
-    return (tc6393xb_readb(opaque, addr) & 0xff) |
-        (tc6393xb_readb(opaque, addr + 1) << 8);
-}
-
-static uint32_t tc6393xb_readl(void *opaque, target_phys_addr_t addr)
-{
-    return (tc6393xb_readb(opaque, addr) & 0xff) |
-        ((tc6393xb_readb(opaque, addr + 1) & 0xff) << 8) |
-        ((tc6393xb_readb(opaque, addr + 2) & 0xff) << 16) |
-        ((tc6393xb_readb(opaque, addr + 3) & 0xff) << 24);
-}
-
-static void tc6393xb_writew(void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-    tc6393xb_writeb(opaque, addr, value);
-    tc6393xb_writeb(opaque, addr + 1, value >> 8);
-}
-
-static void tc6393xb_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
-{
-    tc6393xb_writeb(opaque, addr, value);
-    tc6393xb_writeb(opaque, addr + 1, value >> 8);
-    tc6393xb_writeb(opaque, addr + 2, value >> 16);
-    tc6393xb_writeb(opaque, addr + 3, value >> 24);
-}
-
-TC6393xbState *tc6393xb_init(uint32_t base, qemu_irq irq)
-{
-    int iomemtype;
     TC6393xbState *s;
     DriveInfo *nand;
-    CPUReadMemoryFunc * const tc6393xb_readfn[] = {
-        tc6393xb_readb,
-        tc6393xb_readw,
-        tc6393xb_readl,
-    };
-    CPUWriteMemoryFunc * const tc6393xb_writefn[] = {
-        tc6393xb_writeb,
-        tc6393xb_writew,
-        tc6393xb_writel,
+    static const MemoryRegionOps tc6393xb_ops = {
+        .read = tc6393xb_readb,
+        .write = tc6393xb_writeb,
+        .endianness = DEVICE_NATIVE_ENDIAN,
+        .impl = {
+            .min_access_size = 1,
+            .max_access_size = 1,
+        },
     };
 
     s = (TC6393xbState *) g_malloc0(sizeof(TC6393xbState));
@@ -591,13 +565,12 @@ TC6393xbState *tc6393xb_init(uint32_t base, qemu_irq irq)
     nand = drive_get(IF_MTD, 0, 0);
     s->flash = nand_init(nand ? nand->bdrv : NULL, NAND_MFR_TOSHIBA, 0x76);
 
-    iomemtype = cpu_register_io_memory(tc6393xb_readfn,
-                    tc6393xb_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x10000, iomemtype);
+    memory_region_init_io(&s->iomem, &tc6393xb_ops, s, "tc6393xb", 0x10000);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
-    s->vram_addr = qemu_ram_alloc(NULL, "tc6393xb.vram", 0x100000);
-    s->vram_ptr = qemu_get_ram_ptr(s->vram_addr);
-    cpu_register_physical_memory(base + 0x100000, 0x100000, s->vram_addr);
+    memory_region_init_ram(&s->vram, NULL, "tc6393xb.vram", 0x100000);
+    s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
+    memory_region_add_subregion(sysmem, base + 0x100000, &s->vram);
     s->scr_width = 480;
     s->scr_height = 640;
     s->ds = graphic_console_init(tc6393xb_update_display,

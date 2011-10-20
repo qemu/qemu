@@ -122,6 +122,11 @@ typedef struct {
     CPUState *env;
     DeviceState *pic;
     qemu_irq reset;
+    MemoryRegion sdram;
+    MemoryRegion internal;
+    MemoryRegion cm_iomem;
+    MemoryRegion mm_iomem;
+    MemoryRegion pm_iomem;
     DeviceState *dma;
     DeviceState *gpio;
     PXA2xxLCDState *lcd;
@@ -151,6 +156,7 @@ typedef struct {
 } PXA2xxState;
 
 struct PXA2xxI2SState {
+    MemoryRegion iomem;
     qemu_irq irq;
     qemu_irq rx_dma;
     qemu_irq tx_dma;

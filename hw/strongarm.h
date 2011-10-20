@@ -1,6 +1,8 @@
 #ifndef _STRONGARM_H
 #define _STRONGARM_H
 
+#include "memory.h"
+
 #define SA_CS0          0x00000000
 #define SA_CS1          0x08000000
 #define SA_CS2          0x10000000
@@ -52,6 +54,7 @@ enum {
 
 typedef struct {
     CPUState *env;
+    MemoryRegion sdram;
     DeviceState *pic;
     DeviceState *gpio;
     DeviceState *ppc;
@@ -59,6 +62,7 @@ typedef struct {
     SSIBus *ssp_bus;
 } StrongARMState;
 
-StrongARMState *sa1110_init(unsigned int sdram_size, const char *rev);
+StrongARMState *sa1110_init(MemoryRegion *sysmem,
+                            unsigned int sdram_size, const char *rev);
 
 #endif

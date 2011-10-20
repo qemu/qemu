@@ -13,6 +13,7 @@
 #include "arm-misc.h"
 #include "flash.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 static struct arm_boot_info collie_binfo = {
     .loader_start = SA_SDCS0,
@@ -26,12 +27,13 @@ static void collie_init(ram_addr_t ram_size,
 {
     StrongARMState *s;
     DriveInfo *dinfo;
+    MemoryRegion *sysmem = get_system_memory();
 
     if (!cpu_model) {
         cpu_model = "sa1110";
     }
 
-    s = sa1110_init(collie_binfo.ram_size, cpu_model);
+    s = sa1110_init(sysmem, collie_binfo.ram_size, cpu_model);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(SA_CS0, NULL, "collie.fl1", 0x02000000,

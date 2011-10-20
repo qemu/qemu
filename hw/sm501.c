@@ -459,7 +459,7 @@ typedef struct SM501State {
     target_phys_addr_t base;
     uint32_t local_mem_size_index;
     uint8_t * local_mem;
-    ram_addr_t local_mem_offset;
+    MemoryRegion local_mem_region;
     uint32_t last_width;
     uint32_t last_height;
 
@@ -726,7 +726,8 @@ static void sm501_2d_operation(SM501State * s)
     }
 }
 
-static uint32_t sm501_system_config_read(void *opaque, target_phys_addr_t addr)
+static uint64_t sm501_system_config_read(void *opaque, target_phys_addr_t addr,
+                                         unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
     uint32_t ret = 0;
@@ -778,12 +779,12 @@ static uint32_t sm501_system_config_read(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void sm501_system_config_write(void *opaque,
-				      target_phys_addr_t addr, uint32_t value)
+static void sm501_system_config_write(void *opaque, target_phys_addr_t addr,
+                                      uint64_t value, unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 system config regs : write addr=%x, val=%x\n",
-		  addr, value);
+		  (uint32_t)addr, (uint32_t)value);
 
     switch(addr) {
     case SM501_SYSTEM_CONTROL:
@@ -821,21 +822,19 @@ static void sm501_system_config_write(void *opaque,
 
     default:
 	printf("sm501 system config : not implemented register write."
-	       " addr=%x, val=%x\n", (int)addr, value);
+	       " addr=%x, val=%x\n", (int)addr, (uint32_t)value);
         abort();
     }
 }
 
-static CPUReadMemoryFunc * const sm501_system_config_readfn[] = {
-    NULL,
-    NULL,
-    &sm501_system_config_read,
-};
-
-static CPUWriteMemoryFunc * const sm501_system_config_writefn[] = {
-    NULL,
-    NULL,
-    &sm501_system_config_write,
+static const MemoryRegionOps sm501_system_config_ops = {
+    .read = sm501_system_config_read,
+    .write = sm501_system_config_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static uint32_t sm501_palette_read(void *opaque, target_phys_addr_t addr)
@@ -864,7 +863,8 @@ static void sm501_palette_write(void *opaque,
     *(uint32_t*)&s->dc_palette[addr] = value;
 }
 
-static uint32_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr)
+static uint64_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr,
+                                     unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
     uint32_t ret = 0;
@@ -958,13 +958,12 @@ static uint32_t sm501_disp_ctrl_read(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void sm501_disp_ctrl_write(void *opaque,
-					   target_phys_addr_t addr,
-					   uint32_t value)
+static void sm501_disp_ctrl_write(void *opaque, target_phys_addr_t addr,
+                                  uint64_t value, unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 disp ctrl regs : write addr=%x, val=%x\n",
-		  addr, value);
+		  (unsigned)addr, (unsigned)value);
 
     switch(addr) {
     case SM501_DC_PANEL_CONTROL:
@@ -1059,24 +1058,23 @@ static void sm501_disp_ctrl_write(void *opaque,
 
     default:
 	printf("sm501 disp ctrl : not implemented register write."
-	       " addr=%x, val=%x\n", (int)addr, value);
+	       " addr=%x, val=%x\n", (int)addr, (unsigned)value);
         abort();
     }
 }
 
-static CPUReadMemoryFunc * const sm501_disp_ctrl_readfn[] = {
-    NULL,
-    NULL,
-    &sm501_disp_ctrl_read,
+static const MemoryRegionOps sm501_disp_ctrl_ops = {
+    .read = sm501_disp_ctrl_read,
+    .write = sm501_disp_ctrl_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const sm501_disp_ctrl_writefn[] = {
-    NULL,
-    NULL,
-    &sm501_disp_ctrl_write,
-};
-
-static uint32_t sm501_2d_engine_read(void *opaque, target_phys_addr_t addr)
+static uint64_t sm501_2d_engine_read(void *opaque, target_phys_addr_t addr,
+                                     unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
     uint32_t ret = 0;
@@ -1095,12 +1093,12 @@ static uint32_t sm501_2d_engine_read(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void sm501_2d_engine_write(void *opaque,
-                                  target_phys_addr_t addr, uint32_t value)
+static void sm501_2d_engine_write(void *opaque, target_phys_addr_t addr,
+                                  uint64_t value, unsigned size)
 {
     SM501State * s = (SM501State *)opaque;
     SM501_DPRINTF("sm501 2d engine regs : write addr=%x, val=%x\n",
-                  addr, value);
+                  (unsigned)addr, (unsigned)value);
 
     switch(addr) {
     case SM501_2D_SOURCE:
@@ -1148,21 +1146,19 @@ static void sm501_2d_engine_write(void *opaque,
         break;
     default:
         printf("sm501 2d engine : not implemented register write."
-               " addr=%x, val=%x\n", (int)addr, value);
+               " addr=%x, val=%x\n", (int)addr, (unsigned)value);
         abort();
     }
 }
 
-static CPUReadMemoryFunc * const sm501_2d_engine_readfn[] = {
-    NULL,
-    NULL,
-    &sm501_2d_engine_read,
-};
-
-static CPUWriteMemoryFunc * const sm501_2d_engine_writefn[] = {
-    NULL,
-    NULL,
-    &sm501_2d_engine_write,
+static const MemoryRegionOps sm501_2d_engine_ops = {
+    .read = sm501_2d_engine_read,
+    .write = sm501_2d_engine_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* draw line functions for all console modes */
@@ -1276,7 +1272,7 @@ static void sm501_draw_crt(SM501State * s)
     int y_start = -1;
     ram_addr_t page_min = ~0l;
     ram_addr_t page_max = 0l;
-    ram_addr_t offset = s->local_mem_offset;
+    ram_addr_t offset = 0;
 
     /* choose draw_line function */
     switch (s->dc_crt_control & 3) {
@@ -1333,7 +1329,8 @@ static void sm501_draw_crt(SM501State * s)
 
 	/* check dirty flags for each line */
 	for (page = page0; page <= page1; page += TARGET_PAGE_SIZE)
-	    if (cpu_physical_memory_get_dirty(page, VGA_DIRTY_FLAG))
+            if (memory_region_get_dirty(&s->local_mem_region, page,
+                                        DIRTY_MEMORY_VGA))
 		update = 1;
 
 	/* draw line and change status */
@@ -1372,8 +1369,9 @@ static void sm501_draw_crt(SM501State * s)
 
     /* clear dirty flags */
     if (page_min != ~0l) {
-	cpu_physical_memory_reset_dirty(page_min, page_max + TARGET_PAGE_SIZE,
-					VGA_DIRTY_FLAG);
+	memory_region_reset_dirty(&s->local_mem_region,
+                                  page_min, page_max + TARGET_PAGE_SIZE,
+                                  DIRTY_MEMORY_VGA);
     }
 }
 
@@ -1390,9 +1388,9 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
 {
     SM501State * s;
     DeviceState *dev;
-    int sm501_system_config_index;
-    int sm501_disp_ctrl_index;
-    int sm501_2d_engine_index;
+    MemoryRegion *sm501_system_config = g_new(MemoryRegion, 1);
+    MemoryRegion *sm501_disp_ctrl = g_new(MemoryRegion, 1);
+    MemoryRegion *sm501_2d_engine = g_new(MemoryRegion, 1);
 
     /* allocate management data region */
     s = (SM501State *)g_malloc0(sizeof(SM501State));
@@ -1407,27 +1405,26 @@ void sm501_init(MemoryRegion *address_space_mem, uint32_t base,
     s->dc_crt_control = 0x00010000;
 
     /* allocate local memory */
-    s->local_mem_offset = qemu_ram_alloc(NULL, "sm501.local", local_mem_bytes);
-    s->local_mem = qemu_get_ram_ptr(s->local_mem_offset);
-    cpu_register_physical_memory(base, local_mem_bytes, s->local_mem_offset);
+    memory_region_init_ram(&s->local_mem_region, NULL, "sm501.local",
+                           local_mem_bytes);
+    s->local_mem = memory_region_get_ram_ptr(&s->local_mem_region);
+    memory_region_add_subregion(address_space_mem, base, &s->local_mem_region);
 
     /* map mmio */
-    sm501_system_config_index
-	= cpu_register_io_memory(sm501_system_config_readfn,
-				 sm501_system_config_writefn, s,
-                                 DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base + MMIO_BASE_OFFSET,
-				 0x6c, sm501_system_config_index);
-    sm501_disp_ctrl_index = cpu_register_io_memory(sm501_disp_ctrl_readfn,
-						   sm501_disp_ctrl_writefn, s,
-                                                   DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base + MMIO_BASE_OFFSET + SM501_DC,
-                                 0x1000, sm501_disp_ctrl_index);
-    sm501_2d_engine_index = cpu_register_io_memory(sm501_2d_engine_readfn,
-                                                   sm501_2d_engine_writefn, s,
-                                                   DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base + MMIO_BASE_OFFSET + SM501_2D_ENGINE,
-                                 0x54, sm501_2d_engine_index);
+    memory_region_init_io(sm501_system_config, &sm501_system_config_ops, s,
+                          "sm501-system-config", 0x6c);
+    memory_region_add_subregion(address_space_mem, base + MMIO_BASE_OFFSET,
+                                sm501_system_config);
+    memory_region_init_io(sm501_disp_ctrl, &sm501_disp_ctrl_ops, s,
+                          "sm501-disp-ctrl", 0x1000);
+    memory_region_add_subregion(address_space_mem,
+                                base + MMIO_BASE_OFFSET + SM501_DC,
+                                sm501_disp_ctrl);
+    memory_region_init_io(sm501_2d_engine, &sm501_2d_engine_ops, s,
+                          "sm501-2d-engine", 0x54);
+    memory_region_add_subregion(address_space_mem,
+                                base + MMIO_BASE_OFFSET + SM501_2D_ENGINE,
+                                sm501_2d_engine);
 
     /* bridge to usb host emulation module */
     dev = qdev_create(NULL, "sysbus-ohci");
