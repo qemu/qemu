@@ -1281,6 +1281,17 @@ DLOG(fprintf(stderr, "sector %d not allocated\n", (int)sector_num));
     return 0;
 }
 
+static coroutine_fn int vvfat_co_read(BlockDriverState *bs, int64_t sector_num,
+                                      uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVVVFATState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = vvfat_read(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 /* LATER TODO: statify all functions */
 
 /*
@@ -2805,7 +2816,7 @@ static BlockDriver bdrv_vvfat = {
     .format_name	= "vvfat",
     .instance_size	= sizeof(BDRVVVFATState),
     .bdrv_file_open	= vvfat_open,
-    .bdrv_read		= vvfat_read,
+    .bdrv_read          = vvfat_co_read,
     .bdrv_write		= vvfat_write,
     .bdrv_close		= vvfat_close,
     .bdrv_is_allocated	= vvfat_is_allocated,

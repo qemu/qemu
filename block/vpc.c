@@ -409,6 +409,17 @@ static int vpc_read(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+static coroutine_fn int vpc_co_read(BlockDriverState *bs, int64_t sector_num,
+                                    uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVVPCState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = vpc_read(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static int vpc_write(BlockDriverState *bs, int64_t sector_num,
     const uint8_t *buf, int nb_sectors)
 {
@@ -641,7 +652,7 @@ static BlockDriver bdrv_vpc = {
     .instance_size  = sizeof(BDRVVPCState),
     .bdrv_probe     = vpc_probe,
     .bdrv_open      = vpc_open,
-    .bdrv_read      = vpc_read,
+    .bdrv_read      = vpc_co_read,
     .bdrv_write     = vpc_write,
     .bdrv_flush     = vpc_flush,
     .bdrv_close     = vpc_close,

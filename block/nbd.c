@@ -240,6 +240,17 @@ static int nbd_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+static coroutine_fn int nbd_co_read(BlockDriverState *bs, int64_t sector_num,
+                                    uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVNBDState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = nbd_read(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static void nbd_close(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
@@ -260,7 +271,7 @@ static BlockDriver bdrv_nbd = {
     .format_name	= "nbd",
     .instance_size	= sizeof(BDRVNBDState),
     .bdrv_file_open	= nbd_open,
-    .bdrv_read		= nbd_read,
+    .bdrv_read          = nbd_co_read,
     .bdrv_write		= nbd_write,
     .bdrv_close		= nbd_close,
     .bdrv_getlength	= nbd_getlength,

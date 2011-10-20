@@ -209,6 +209,17 @@ static int bochs_read(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+static coroutine_fn int bochs_co_read(BlockDriverState *bs, int64_t sector_num,
+                                      uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVBochsState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = bochs_read(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static void bochs_close(BlockDriverState *bs)
 {
     BDRVBochsState *s = bs->opaque;
@@ -220,7 +231,7 @@ static BlockDriver bdrv_bochs = {
     .instance_size	= sizeof(BDRVBochsState),
     .bdrv_probe		= bochs_probe,
     .bdrv_open		= bochs_open,
-    .bdrv_read		= bochs_read,
+    .bdrv_read          = bochs_co_read,
     .bdrv_close		= bochs_close,
 };
 

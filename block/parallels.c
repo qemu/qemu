@@ -136,6 +136,17 @@ static int parallels_read(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+static coroutine_fn int parallels_co_read(BlockDriverState *bs, int64_t sector_num,
+                                          uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVParallelsState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = parallels_read(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static void parallels_close(BlockDriverState *bs)
 {
     BDRVParallelsState *s = bs->opaque;
@@ -147,7 +158,7 @@ static BlockDriver bdrv_parallels = {
     .instance_size	= sizeof(BDRVParallelsState),
     .bdrv_probe		= parallels_probe,
     .bdrv_open		= parallels_open,
-    .bdrv_read		= parallels_read,
+    .bdrv_read          = parallels_co_read,
     .bdrv_close		= parallels_close,
 };
 
