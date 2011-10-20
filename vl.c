@@ -2783,6 +2783,7 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_virtfs: {
                 QemuOpts *fsdev;
                 QemuOpts *device;
+                const char *writeout;
 
                 olist = qemu_find_opts("virtfs");
                 if (!olist) {
@@ -2795,16 +2796,14 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
 
-                if (qemu_opt_get(opts, "fstype") == NULL ||
+                if (qemu_opt_get(opts, "fsdriver") == NULL ||
                         qemu_opt_get(opts, "mount_tag") == NULL ||
-                        qemu_opt_get(opts, "path") == NULL ||
-                        qemu_opt_get(opts, "security_model") == NULL) {
-                    fprintf(stderr, "Usage: -virtfs fstype,path=/share_path/,"
-                            "security_model=[mapped|passthrough|none],"
+                        qemu_opt_get(opts, "path") == NULL) {
+                    fprintf(stderr, "Usage: -virtfs fsdriver,path=/share_path/,"
+                            "[security_model={mapped|passthrough|none}],"
                             "mount_tag=tag.\n");
                     exit(1);
                 }
-
                 fsdev = qemu_opts_create(qemu_find_opts("fsdev"),
                                          qemu_opt_get(opts, "mount_tag"), 1);
                 if (!fsdev) {
@@ -2812,7 +2811,18 @@ int main(int argc, char **argv, char **envp)
                             qemu_opt_get(opts, "mount_tag"));
                     exit(1);
                 }
-                qemu_opt_set(fsdev, "fstype", qemu_opt_get(opts, "fstype"));
+
+                writeout = qemu_opt_get(opts, "writeout");
+                if (writeout) {
+#ifdef CONFIG_SYNC_FILE_RANGE
+                    qemu_opt_set(fsdev, "writeout", writeout);
+#else
+                    fprintf(stderr, "writeout=immediate not supported on "
+                            "this platform\n");
+                    exit(1);
+#endif
+                }
+                qemu_opt_set(fsdev, "fsdriver", qemu_opt_get(opts, "fsdriver"));
                 qemu_opt_set(fsdev, "path", qemu_opt_get(opts, "path"));
                 qemu_opt_set(fsdev, "security_model",
                              qemu_opt_get(opts, "security_model"));
