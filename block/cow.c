@@ -226,6 +226,17 @@ static int cow_write(BlockDriverState *bs, int64_t sector_num,
     return cow_update_bitmap(bs, sector_num, nb_sectors);
 }
 
+static coroutine_fn int cow_co_write(BlockDriverState *bs, int64_t sector_num,
+                                     const uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVCowState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = cow_write(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static void cow_close(BlockDriverState *bs)
 {
 }
@@ -320,7 +331,7 @@ static BlockDriver bdrv_cow = {
     .bdrv_probe		= cow_probe,
     .bdrv_open		= cow_open,
     .bdrv_read          = cow_co_read,
-    .bdrv_write		= cow_write,
+    .bdrv_write         = cow_co_write,
     .bdrv_close		= cow_close,
     .bdrv_create	= cow_create,
     .bdrv_flush		= cow_flush,

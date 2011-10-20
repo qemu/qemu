@@ -2727,6 +2727,17 @@ DLOG(checkpoint());
     return 0;
 }
 
+static coroutine_fn int vvfat_co_write(BlockDriverState *bs, int64_t sector_num,
+                                       const uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVVVFATState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = vvfat_write(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static int vvfat_is_allocated(BlockDriverState *bs,
 	int64_t sector_num, int nb_sectors, int* n)
 {
@@ -2817,7 +2828,7 @@ static BlockDriver bdrv_vvfat = {
     .instance_size	= sizeof(BDRVVVFATState),
     .bdrv_file_open	= vvfat_open,
     .bdrv_read          = vvfat_co_read,
-    .bdrv_write		= vvfat_write,
+    .bdrv_write         = vvfat_co_write,
     .bdrv_close		= vvfat_close,
     .bdrv_is_allocated	= vvfat_is_allocated,
     .protocol_name	= "fat",
