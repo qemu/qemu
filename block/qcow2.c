@@ -978,11 +978,17 @@ static int qcow2_make_empty(BlockDriverState *bs)
     return 0;
 }
 
-static int qcow2_discard(BlockDriverState *bs, int64_t sector_num,
-    int nb_sectors)
+static coroutine_fn int qcow2_co_discard(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors)
 {
-    return qcow2_discard_clusters(bs, sector_num << BDRV_SECTOR_BITS,
+    int ret;
+    BDRVQcowState *s = bs->opaque;
+
+    qemu_co_mutex_lock(&s->lock);
+    ret = qcow2_discard_clusters(bs, sector_num << BDRV_SECTOR_BITS,
         nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
 }
 
 static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
@@ -1239,7 +1245,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_co_writev     = qcow2_co_writev,
     .bdrv_co_flush      = qcow2_co_flush,
 
-    .bdrv_discard           = qcow2_discard,
+    .bdrv_co_discard        = qcow2_co_discard,
     .bdrv_truncate          = qcow2_truncate,
     .bdrv_write_compressed  = qcow2_write_compressed,
 

@@ -2962,8 +2962,6 @@ int coroutine_fn bdrv_co_discard(BlockDriverState *bs, int64_t sector_num,
             qemu_coroutine_yield();
             return co.ret;
         }
-    } else if (bs->drv->bdrv_discard) {
-        return bs->drv->bdrv_discard(bs, sector_num, nb_sectors);
     } else {
         return 0;
     }
