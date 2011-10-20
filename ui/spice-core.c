@@ -27,6 +27,7 @@
 #include "qemu-queue.h"
 #include "qemu-x509.h"
 #include "qemu_socket.h"
+#include "qmp-commands.h"
 #include "qint.h"
 #include "qbool.h"
 #include "qstring.h"
@@ -194,22 +195,6 @@ static void add_channel_info(QDict *dict, SpiceChannelEventInfo *info)
     qdict_put(dict, "tls", qbool_from_int(tls));
 }
 
-static QList *channel_list_get(void)
-{
-    ChannelList *item;
-    QList *list;
-    QDict *dict;
-
-    list = qlist_new();
-    QTAILQ_FOREACH(item, &channel_list, link) {
-        dict = qdict_new();
-        add_addr_info(dict, &item->info->paddr, item->info->plen);
-        add_channel_info(dict, item->info);
-        qlist_append(list, dict);
-    }
-    return list;
-}
-
 static void channel_event(int event, SpiceChannelEventInfo *info)
 {
     static const int qevent[] = {
@@ -351,98 +336,90 @@ static const char *wan_compression_names[] = {
 
 /* functions for the rest of qemu */
 
-static void info_spice_iter(QObject *obj, void *opaque)
+static SpiceChannelList *qmp_query_spice_channels(void)
 {
-    QDict *client;
-    Monitor *mon = opaque;
+    SpiceChannelList *cur_item = NULL, *head = NULL;
+    ChannelList *item;
 
-    client = qobject_to_qdict(obj);
-    monitor_printf(mon, "Channel:\n");
-    monitor_printf(mon, "     address: %s:%s%s\n",
-                   qdict_get_str(client, "host"),
-                   qdict_get_str(client, "port"),
-                   qdict_get_bool(client, "tls") ? " [tls]" : "");
-    monitor_printf(mon, "     session: %" PRId64 "\n",
-                   qdict_get_int(client, "connection-id"));
-    monitor_printf(mon, "     channel: %d:%d\n",
-                   (int)qdict_get_int(client, "channel-type"),
-                   (int)qdict_get_int(client, "channel-id"));
+    QTAILQ_FOREACH(item, &channel_list, link) {
+        SpiceChannelList *chan;
+        char host[NI_MAXHOST], port[NI_MAXSERV];
+
+        chan = g_malloc0(sizeof(*chan));
+        chan->value = g_malloc0(sizeof(*chan->value));
+
+        getnameinfo(&item->info->paddr, item->info->plen,
+                    host, sizeof(host), port, sizeof(port),
+                    NI_NUMERICHOST | NI_NUMERICSERV);
+        chan->value->host = g_strdup(host);
+        chan->value->port = g_strdup(port);
+        chan->value->family = g_strdup(inet_strfamily(item->info->paddr.sa_family));
+
+        chan->value->connection_id = item->info->connection_id;
+        chan->value->channel_type = item->info->type;
+        chan->value->channel_id = item->info->id;
+        chan->value->tls = item->info->flags & SPICE_CHANNEL_EVENT_FLAG_TLS;
+
+       /* XXX: waiting for the qapi to support GSList */
+        if (!cur_item) {
+            head = cur_item = chan;
+        } else {
+            cur_item->next = chan;
+            cur_item = chan;
+        }
+    }
+
+    return head;
 }
 
-void do_info_spice_print(Monitor *mon, const QObject *data)
-{
-    QDict *server;
-    QList *channels;
-    const char *host;
-    int port;
-
-    server = qobject_to_qdict(data);
-    if (qdict_get_bool(server, "enabled") == 0) {
-        monitor_printf(mon, "Server: disabled\n");
-        return;
-    }
-
-    monitor_printf(mon, "Server:\n");
-    host = qdict_get_str(server, "host");
-    port = qdict_get_try_int(server, "port", -1);
-    if (port != -1) {
-        monitor_printf(mon, "     address: %s:%d\n", host, port);
-    }
-    port = qdict_get_try_int(server, "tls-port", -1);
-    if (port != -1) {
-        monitor_printf(mon, "     address: %s:%d [tls]\n", host, port);
-    }
-    monitor_printf(mon, "        auth: %s\n", qdict_get_str(server, "auth"));
-    monitor_printf(mon, "    compiled: %s\n",
-                   qdict_get_str(server, "compiled-version"));
-
-    channels = qdict_get_qlist(server, "channels");
-    if (qlist_empty(channels)) {
-        monitor_printf(mon, "Channels: none\n");
-    } else {
-        qlist_iter(channels, info_spice_iter, mon);
-    }
-}
-
-void do_info_spice(Monitor *mon, QObject **ret_data)
+SpiceInfo *qmp_query_spice(Error **errp)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
-    QDict *server;
-    QList *clist;
-    const char *addr;
     int port, tls_port;
+    const char *addr;
+    SpiceInfo *info;
     char version_string[20]; /* 12 = |255.255.255\0| is the max */
 
+    info = g_malloc0(sizeof(*info));
+
     if (!spice_server) {
-        *ret_data = qobject_from_jsonf("{ 'enabled': false }");
-        return;
+        info->enabled = false;
+        return info;
     }
+
+    info->enabled = true;
 
     addr = qemu_opt_get(opts, "addr");
     port = qemu_opt_get_number(opts, "port", 0);
     tls_port = qemu_opt_get_number(opts, "tls-port", 0);
-    clist = channel_list_get();
 
-    server = qdict_new();
-    qdict_put(server, "enabled", qbool_from_int(true));
-    qdict_put(server, "auth", qstring_from_str(auth));
-    qdict_put(server, "host", qstring_from_str(addr ? addr : "0.0.0.0"));
+    info->has_auth = true;
+    info->auth = g_strdup(auth);
+
+    info->has_host = true;
+    info->host = g_strdup(addr ? addr : "0.0.0.0");
+
+    info->has_compiled_version = true;
     snprintf(version_string, sizeof(version_string), "%d.%d.%d",
              (SPICE_SERVER_VERSION & 0xff0000) >> 16,
              (SPICE_SERVER_VERSION & 0xff00) >> 8,
              SPICE_SERVER_VERSION & 0xff);
-    qdict_put(server, "compiled-version", qstring_from_str(version_string));
+    info->compiled_version = g_strdup(version_string);
+
     if (port) {
-        qdict_put(server, "port", qint_from_int(port));
+        info->has_port = true;
+        info->port = port;
     }
     if (tls_port) {
-        qdict_put(server, "tls-port", qint_from_int(tls_port));
-    }
-    if (clist) {
-        qdict_put(server, "channels", clist);
+        info->has_tls_port = true;
+        info->tls_port = tls_port;
     }
 
-    *ret_data = QOBJECT(server);
+    /* for compatibility with the original command */
+    info->has_channels = true;
+    info->channels = qmp_query_spice_channels();
+
+    return info;
 }
 
 static void migration_state_notifier(Notifier *notifier, void *data)

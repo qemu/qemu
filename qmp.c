@@ -105,3 +105,15 @@ VncInfo *qmp_query_vnc(Error **errp)
     return NULL;
 };
 #endif
+
+#ifndef CONFIG_SPICE
+/* If SPICE support is enabled, the "true" query-spice command is
+   defined in the SPICE subsystem. Also note that we use a small
+   trick to maintain query-spice's original behavior, which is not
+   to be available in the namespace if SPICE is not compiled in */
+SpiceInfo *qmp_query_spice(Error **errp)
+{
+    error_set(errp, QERR_COMMAND_NOT_FOUND, "query-spice");
+    return NULL;
+};
+#endif

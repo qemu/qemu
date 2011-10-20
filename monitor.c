@@ -2857,8 +2857,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the spice server status",
-        .user_print = do_info_spice_print,
-        .mhandler.info_new = do_info_spice,
+        .mhandler.info = hmp_info_spice,
     },
 #endif
     {
@@ -2965,16 +2964,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .user_print = do_pci_info_print,
         .mhandler.info_new = do_pci_info,
     },
-#if defined(CONFIG_SPICE)
-    {
-        .name       = "spice",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the spice server status",
-        .user_print = do_info_spice_print,
-        .mhandler.info_new = do_info_spice,
-    },
-#endif
     {
         .name       = "balloon",
         .args_type  = "",

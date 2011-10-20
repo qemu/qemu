@@ -306,6 +306,49 @@ out:
     qapi_free_VncInfo(info);
 }
 
+void hmp_info_spice(Monitor *mon)
+{
+    SpiceChannelList *chan;
+    SpiceInfo *info;
+
+    info = qmp_query_spice(NULL);
+
+    if (!info->enabled) {
+        monitor_printf(mon, "Server: disabled\n");
+        goto out;
+    }
+
+    monitor_printf(mon, "Server:\n");
+    if (info->has_port) {
+        monitor_printf(mon, "     address: %s:%" PRId64 "\n",
+                       info->host, info->port);
+    }
+    if (info->has_tls_port) {
+        monitor_printf(mon, "     address: %s:%" PRId64 " [tls]\n",
+                       info->host, info->tls_port);
+    }
+    monitor_printf(mon, "        auth: %s\n", info->auth);
+    monitor_printf(mon, "    compiled: %s\n", info->compiled_version);
+
+    if (!info->has_channels || info->channels == NULL) {
+        monitor_printf(mon, "Channels: none\n");
+    } else {
+        for (chan = info->channels; chan; chan = chan->next) {
+            monitor_printf(mon, "Channel:\n");
+            monitor_printf(mon, "     address: %s:%s%s\n",
+                           chan->value->host, chan->value->port,
+                           chan->value->tls ? " [tls]" : "");
+            monitor_printf(mon, "     session: %" PRId64 "\n",
+                           chan->value->connection_id);
+            monitor_printf(mon, "     channel: %" PRId64 ":%" PRId64 "\n",
+                           chan->value->channel_type, chan->value->channel_id);
+        }
+    }
+
+out:
+    qapi_free_SpiceInfo(info);
+}
+
 void hmp_quit(Monitor *mon, const QDict *qdict)
 {
     monitor_suspend(mon);

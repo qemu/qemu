@@ -1817,6 +1817,14 @@ Example:
 
 EQMP
 
+#if defined(CONFIG_SPICE)
+    {
+        .name       = "query-spice",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_spice,
+    },
+#endif
+
 SQMP
 query-name
 ----------
