@@ -1947,6 +1947,18 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
     return fdctrl_init_common(fdctrl);
 }
 
+void fdc_get_bs(BlockDriverState *bs[], ISADevice *dev)
+{
+    FDCtrlISABus *isa = DO_UPCAST(FDCtrlISABus, busdev, dev);
+    FDCtrl *fdctrl = &isa->state;
+    int i;
+
+    for (i = 0; i < MAX_FD; i++) {
+        bs[i] = fdctrl->drives[i].bs;
+    }
+}
+
+
 static const VMStateDescription vmstate_isa_fdc ={
     .name = "fdc",
     .version_id = 2,
