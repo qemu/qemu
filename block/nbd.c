@@ -47,6 +47,7 @@
 #endif
 
 typedef struct BDRVNBDState {
+    CoMutex lock;
     int sock;
     uint32_t nbdflags;
     off_t size;
@@ -175,6 +176,7 @@ static int nbd_open(BlockDriverState *bs, const char* filename, int flags)
      */
     result = nbd_establish_connection(bs);
 
+    qemu_co_mutex_init(&s->lock);
     return result;
 }
 

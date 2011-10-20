@@ -42,6 +42,7 @@ struct cow_header_v2 {
 };
 
 typedef struct BDRVCowState {
+    CoMutex lock;
     int64_t cow_sectors_offset;
 } BDRVCowState;
 
@@ -84,6 +85,7 @@ static int cow_open(BlockDriverState *bs, int flags)
 
     bitmap_size = ((bs->total_sectors + 7) >> 3) + sizeof(cow_header);
     s->cow_sectors_offset = (bitmap_size + 511) & ~511;
+    qemu_co_mutex_init(&s->lock);
     return 0;
  fail:
     return -1;

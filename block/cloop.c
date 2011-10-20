@@ -27,6 +27,7 @@
 #include <zlib.h>
 
 typedef struct BDRVCloopState {
+    CoMutex lock;
     uint32_t block_size;
     uint32_t n_blocks;
     uint64_t* offsets;
@@ -93,6 +94,7 @@ static int cloop_open(BlockDriverState *bs, int flags)
 
     s->sectors_per_block = s->block_size/512;
     bs->total_sectors = s->n_blocks*s->sectors_per_block;
+    qemu_co_mutex_init(&s->lock);
     return 0;
 
 cloop_close:

@@ -80,6 +80,7 @@ struct bochs_header {
 };
 
 typedef struct BDRVBochsState {
+    CoMutex lock;
     uint32_t *catalog_bitmap;
     int catalog_size;
 
@@ -150,6 +151,7 @@ static int bochs_open(BlockDriverState *bs, int flags)
 
     s->extent_size = le32_to_cpu(bochs.extra.redolog.extent);
 
+    qemu_co_mutex_init(&s->lock);
     return 0;
  fail:
     return -1;

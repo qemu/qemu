@@ -90,6 +90,7 @@ typedef struct VmdkExtent {
 } VmdkExtent;
 
 typedef struct BDRVVmdkState {
+    CoMutex lock;
     int desc_offset;
     bool cid_updated;
     uint32_t parent_cid;
@@ -646,6 +647,7 @@ static int vmdk_open(BlockDriverState *bs, int flags)
         goto fail;
     }
     s->parent_cid = vmdk_read_cid(bs, 1);
+    qemu_co_mutex_init(&s->lock);
     return ret;
 
 fail:

@@ -110,6 +110,7 @@ struct vhd_dyndisk_header {
 };
 
 typedef struct BDRVVPCState {
+    CoMutex lock;
     uint8_t footer_buf[HEADER_SIZE];
     uint64_t free_data_block_offset;
     int max_table_entries;
@@ -226,6 +227,7 @@ static int vpc_open(BlockDriverState *bs, int flags)
     s->last_pagetable = -1;
 #endif
 
+    qemu_co_mutex_init(&s->lock);
     return 0;
  fail:
     return err;

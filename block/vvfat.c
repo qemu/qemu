@@ -317,6 +317,7 @@ static void print_mapping(const struct mapping_t* mapping);
 /* here begins the real VVFAT driver */
 
 typedef struct BDRVVVFATState {
+    CoMutex lock;
     BlockDriverState* bs; /* pointer to parent */
     unsigned int first_sectors_number; /* 1 for a single partition, 0x40 for a disk with partition table */
     unsigned char first_sectors[0x40*0x200];
@@ -1065,6 +1066,7 @@ DLOG(if (stderr == NULL) {
 	bs->heads = bs->cyls = bs->secs = 0;
 
     //    assert(is_consistent(s));
+    qemu_co_mutex_init(&s->lock);
     return 0;
 }
 
