@@ -2614,6 +2614,31 @@ EOF
 fi
 
 ##########################################
+# check if we have open_by_handle_at
+
+open_by_hande_at=no
+cat > $TMPC << EOF
+#include <fcntl.h>
+int main(void) { struct file_handle *fh; open_by_handle_at(0, fh, 0); }
+EOF
+if compile_prog "" "" ; then
+    open_by_handle_at=yes
+fi
+
+########################################
+# check if we have linux/magic.h
+
+linux_magic_h=no
+cat > $TMPC << EOF
+#include <linux/magic.h>
+int main(void) {
+}
+EOF
+if compile_prog "" "" ; then
+    linux_magic_h=yes
+fi
+
+##########################################
 # End of CC checks
 # After here, no more $cc or $ld runs
 
@@ -3112,6 +3137,14 @@ fi
 
 if test "$ucontext_coroutine" = "yes" ; then
   echo "CONFIG_UCONTEXT_COROUTINE=y" >> $config_host_mak
+fi
+
+if test "$open_by_handle_at" = "yes" ; then
+  echo "CONFIG_OPEN_BY_HANDLE=y" >> $config_host_mak
+fi
+
+if test "$linux_magic_h" = "yes" ; then
+  echo "CONFIG_LINUX_MAGIC_H=y" >> $config_host_mak
 fi
 
 # USB host support

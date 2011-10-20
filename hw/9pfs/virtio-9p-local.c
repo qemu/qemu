@@ -20,6 +20,24 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <attr/xattr.h>
+#include <linux/fs.h>
+#ifdef CONFIG_LINUX_MAGIC_H
+#include <linux/magic.h>
+#endif
+#include <sys/ioctl.h>
+
+#ifndef XFS_SUPER_MAGIC
+#define XFS_SUPER_MAGIC  0x58465342
+#endif
+#ifndef EXT2_SUPER_MAGIC
+#define EXT2_SUPER_MAGIC 0xEF53
+#endif
+#ifndef REISERFS_SUPER_MAGIC
+#define REISERFS_SUPER_MAGIC 0x52654973
+#endif
+#ifndef BTRFS_SUPER_MAGIC
+#define BTRFS_SUPER_MAGIC 0x9123683E
+#endif
 
 static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
 {
@@ -31,7 +49,7 @@ static int local_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
     if (err) {
         return err;
     }
-    if (fs_ctx->fs_sm == SM_MAPPED) {
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         /* Actual credentials are part of extended attrs */
         uid_t tmp_uid;
         gid_t tmp_gid;
@@ -106,7 +124,7 @@ static int local_post_create_passthrough(FsContext *fs_ctx, const char *path,
          * If we fail to change ownership and if we are
          * using security model none. Ignore the error
          */
-        if (fs_ctx->fs_sm != SM_NONE) {
+        if ((fs_ctx->export_flags & V9FS_SEC_MASK) != V9FS_SM_NONE) {
             return -1;
         }
     }
@@ -120,7 +138,7 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
     char buffer[PATH_MAX];
     char *path = fs_path->data;
 
-    if (fs_ctx->fs_sm == SM_MAPPED) {
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         int fd;
         fd = open(rpath(fs_ctx, path, buffer), O_RDONLY);
         if (fd == -1) {
@@ -131,8 +149,8 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
         } while (tsize == -1 && errno == EINTR);
         close(fd);
         return tsize;
-    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
-               (fs_ctx->fs_sm == SM_NONE)) {
+    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+               (fs_ctx->export_flags & V9FS_SM_NONE)) {
         tsize = readlink(rpath(fs_ctx, path, buffer), buf, bufsz);
     }
     return tsize;
@@ -203,16 +221,30 @@ static ssize_t local_preadv(FsContext *ctx, int fd, const struct iovec *iov,
 static ssize_t local_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
                              int iovcnt, off_t offset)
 {
+    ssize_t ret
+;
 #ifdef CONFIG_PREADV
-    return pwritev(fd, iov, iovcnt, offset);
+    ret = pwritev(fd, iov, iovcnt, offset);
 #else
     int err = lseek(fd, offset, SEEK_SET);
     if (err == -1) {
         return err;
     } else {
-        return writev(fd, iov, iovcnt);
+        ret = writev(fd, iov, iovcnt);
     }
 #endif
+#ifdef CONFIG_SYNC_FILE_RANGE
+    if (ret > 0 && ctx->export_flags & V9FS_IMMEDIATE_WRITEOUT) {
+        /*
+         * Initiate a writeback. This is not a data integrity sync.
+         * We want to ensure that we don't leave dirty pages in the cache
+         * after write when writeout=immediate is sepcified.
+         */
+        sync_file_range(fd, offset, ret,
+                        SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE);
+    }
+#endif
+    return ret;
 }
 
 static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
@@ -220,10 +252,10 @@ static int local_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     char buffer[PATH_MAX];
     char *path = fs_path->data;
 
-    if (fs_ctx->fs_sm == SM_MAPPED) {
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         return local_set_xattr(rpath(fs_ctx, path, buffer), credp);
-    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
-               (fs_ctx->fs_sm == SM_NONE)) {
+    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+               (fs_ctx->export_flags & V9FS_SM_NONE)) {
         return chmod(rpath(fs_ctx, path, buffer), credp->fc_mode);
     }
     return -1;
@@ -243,7 +275,7 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
     path = fullname.data;
 
     /* Determine the security model */
-    if (fs_ctx->fs_sm == SM_MAPPED) {
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         err = mknod(rpath(fs_ctx, path, buffer),
                 SM_LOCAL_MODE_BITS|S_IFREG, 0);
         if (err == -1) {
@@ -254,8 +286,8 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
             serrno = errno;
             goto err_end;
         }
-    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
-               (fs_ctx->fs_sm == SM_NONE)) {
+    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+               (fs_ctx->export_flags & V9FS_SM_NONE)) {
         err = mknod(rpath(fs_ctx, path, buffer), credp->fc_mode,
                 credp->fc_rdev);
         if (err == -1) {
@@ -291,7 +323,7 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
     path = fullname.data;
 
     /* Determine the security model */
-    if (fs_ctx->fs_sm == SM_MAPPED) {
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         err = mkdir(rpath(fs_ctx, path, buffer), SM_LOCAL_DIR_MODE_BITS);
         if (err == -1) {
             goto out;
@@ -302,8 +334,8 @@ static int local_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
             serrno = errno;
             goto err_end;
         }
-    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
-               (fs_ctx->fs_sm == SM_NONE)) {
+    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+               (fs_ctx->export_flags & V9FS_SM_NONE)) {
         err = mkdir(rpath(fs_ctx, path, buffer), credp->fc_mode);
         if (err == -1) {
             goto out;
@@ -331,7 +363,7 @@ static int local_fstat(FsContext *fs_ctx, int fd, struct stat *stbuf)
     if (err) {
         return err;
     }
-    if (fs_ctx->fs_sm == SM_MAPPED) {
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         /* Actual credentials are part of extended attrs */
         uid_t tmp_uid;
         gid_t tmp_gid;
@@ -369,7 +401,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     path = fullname.data;
 
     /* Determine the security model */
-    if (fs_ctx->fs_sm == SM_MAPPED) {
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         fd = open(rpath(fs_ctx, path, buffer), flags, SM_LOCAL_MODE_BITS);
         if (fd == -1) {
             err = fd;
@@ -382,8 +414,8 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
             serrno = errno;
             goto err_end;
         }
-    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
-               (fs_ctx->fs_sm == SM_NONE)) {
+    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+               (fs_ctx->export_flags & V9FS_SM_NONE)) {
         fd = open(rpath(fs_ctx, path, buffer), flags, credp->fc_mode);
         if (fd == -1) {
             err = fd;
@@ -422,7 +454,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
     newpath = fullname.data;
 
     /* Determine the security model */
-    if (fs_ctx->fs_sm == SM_MAPPED) {
+    if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         int fd;
         ssize_t oldpath_size, write_size;
         fd = open(rpath(fs_ctx, newpath, buffer), O_CREAT|O_EXCL|O_RDWR,
@@ -451,8 +483,8 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
             serrno = errno;
             goto err_end;
         }
-    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
-               (fs_ctx->fs_sm == SM_NONE)) {
+    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+               (fs_ctx->export_flags & V9FS_SM_NONE)) {
         err = symlink(oldpath, rpath(fs_ctx, newpath, buffer));
         if (err) {
             goto out;
@@ -464,7 +496,7 @@ static int local_symlink(FsContext *fs_ctx, const char *oldpath,
              * If we fail to change ownership and if we are
              * using security model none. Ignore the error
              */
-            if (fs_ctx->fs_sm != SM_NONE) {
+            if ((fs_ctx->export_flags & V9FS_SEC_MASK) != V9FS_SM_NONE) {
                 serrno = errno;
                 goto err_end;
             } else
@@ -519,13 +551,13 @@ static int local_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     char *path = fs_path->data;
 
     if ((credp->fc_uid == -1 && credp->fc_gid == -1) ||
-            (fs_ctx->fs_sm == SM_PASSTHROUGH)) {
+            (fs_ctx->export_flags & V9FS_SM_PASSTHROUGH)) {
         return lchown(rpath(fs_ctx, path, buffer), credp->fc_uid,
                 credp->fc_gid);
-    } else if (fs_ctx->fs_sm == SM_MAPPED) {
+    } else if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         return local_set_xattr(rpath(fs_ctx, path, buffer), credp);
-    } else if ((fs_ctx->fs_sm == SM_PASSTHROUGH) ||
-               (fs_ctx->fs_sm == SM_NONE)) {
+    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+               (fs_ctx->export_flags & V9FS_SM_NONE)) {
         return lchown(rpath(fs_ctx, path, buffer), credp->fc_uid,
                 credp->fc_gid);
     }
@@ -645,10 +677,44 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
     return ret;
 }
 
+static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
+                                mode_t st_mode, uint64_t *st_gen)
+{
+    int err, fd;
+    /*
+     * Do not try to open special files like device nodes, fifos etc
+     * We can get fd for regular files and directories only
+     */
+    if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
+            return 0;
+    }
+    fd = local_open(ctx, path, O_RDONLY);
+    if (fd < 0) {
+        return fd;
+    }
+    err = ioctl(fd, FS_IOC_GETVERSION, st_gen);
+    local_close(ctx, fd);
+    return err;
+}
+
 static int local_init(FsContext *ctx)
 {
-    ctx->flags |= PATHNAME_FSCONTEXT;
-    return 0;
+    int err;
+    struct statfs stbuf;
+
+    ctx->export_flags |= V9FS_PATHNAME_FSCONTEXT;
+    err = statfs(ctx->fs_root, &stbuf);
+    if (!err) {
+        switch (stbuf.f_type) {
+        case EXT2_SUPER_MAGIC:
+        case BTRFS_SUPER_MAGIC:
+        case REISERFS_SUPER_MAGIC:
+        case XFS_SUPER_MAGIC:
+            ctx->exops.get_st_gen = local_ioc_getversion;
+            break;
+        }
+    }
+    return err;
 }
 
 FileOperations local_ops = {

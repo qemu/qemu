@@ -323,7 +323,7 @@ int v9fs_co_name_to_path(V9fsPDU *pdu, V9fsPath *dirpath,
     int err;
     V9fsState *s = pdu->s;
 
-    if (s->ctx.flags & PATHNAME_FSCONTEXT) {
+    if (s->ctx.export_flags & V9FS_PATHNAME_FSCONTEXT) {
         err = s->ops->name_to_path(&s->ctx, dirpath, name, path);
         if (err < 0) {
             err = -errno;

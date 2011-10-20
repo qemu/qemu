@@ -998,17 +998,8 @@ static void pci_update_mappings(PCIDevice *d)
         }
         r->addr = new_addr;
         if (r->addr != PCI_BAR_UNMAPPED) {
-            if (r->type & PCI_BASE_ADDRESS_SPACE_IO) {
-                memory_region_add_subregion_overlap(r->address_space,
-                                                    r->addr,
-                                                    r->memory,
-                                                    1);
-            } else {
-                memory_region_add_subregion_overlap(r->address_space,
-                                                    r->addr,
-                                                    r->memory,
-                                                    1);
-            }
+            memory_region_add_subregion_overlap(r->address_space,
+                                                r->addr, r->memory, 1);
         }
     }
 }

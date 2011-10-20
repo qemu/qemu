@@ -29,28 +29,28 @@
  * -----------------
  *  etc
  */
-typedef struct FsTypeTable {
+typedef struct FsDriverTable {
     const char *name;
     FileOperations *ops;
-} FsTypeTable;
+} FsDriverTable;
 
 /*
  * Structure to store the various fsdev's passed through command line.
  */
-typedef struct FsTypeEntry {
+typedef struct FsDriverEntry {
     char *fsdev_id;
     char *path;
-    char *security_model;
+    int export_flags;
     FileOperations *ops;
-} FsTypeEntry;
+} FsDriverEntry;
 
-typedef struct FsTypeListEntry {
-    FsTypeEntry fse;
-    QTAILQ_ENTRY(FsTypeListEntry) next;
-} FsTypeListEntry;
+typedef struct FsDriverListEntry {
+    FsDriverEntry fse;
+    QTAILQ_ENTRY(FsDriverListEntry) next;
+} FsDriverListEntry;
 
 int qemu_fsdev_add(QemuOpts *opts);
-FsTypeEntry *get_fsdev_fsentry(char *id);
+FsDriverEntry *get_fsdev_fsentry(char *id);
 extern FileOperations local_ops;
 extern FileOperations handle_ops;
 #endif

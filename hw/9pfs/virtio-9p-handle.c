@@ -21,19 +21,48 @@
 #include <sys/un.h>
 #include <attr/xattr.h>
 #include <unistd.h>
+#include <linux/fs.h>
+#ifdef CONFIG_LINUX_MAGIC_H
+#include <linux/magic.h>
+#endif
+#include <sys/ioctl.h>
+
+#ifndef XFS_SUPER_MAGIC
+#define XFS_SUPER_MAGIC  0x58465342
+#endif
+#ifndef EXT2_SUPER_MAGIC
+#define EXT2_SUPER_MAGIC 0xEF53
+#endif
+#ifndef REISERFS_SUPER_MAGIC
+#define REISERFS_SUPER_MAGIC 0x52654973
+#endif
+#ifndef BTRFS_SUPER_MAGIC
+#define BTRFS_SUPER_MAGIC 0x9123683E
+#endif
 
 struct handle_data {
     int mountfd;
     int handle_bytes;
 };
 
-#if __GLIBC__ <= 2 && __GLIBC_MINOR__ < 14
+#ifdef CONFIG_OPEN_BY_HANDLE
+static inline int name_to_handle(int dirfd, const char *name,
+                                 struct file_handle *fh, int *mnt_id, int flags)
+{
+    return name_to_handle_at(dirfd, name, fh, mnt_id, flags);
+}
+
+static inline int open_by_handle(int mountfd, const char *fh, int flags)
+{
+    return open_by_handle_at(mountfd, (struct file_handle *)fh, flags);
+}
+#else
+
 struct file_handle {
-        unsigned int handle_bytes;
-        int handle_type;
-        unsigned char handle[0];
+    unsigned int handle_bytes;
+    int handle_type;
+    unsigned char handle[0];
 };
-#endif
 
 #ifndef AT_EMPTY_PATH
 #define AT_EMPTY_PATH   0x1000  /* Allow empty relative pathname */
@@ -42,28 +71,6 @@ struct file_handle {
 #define O_PATH    010000000
 #endif
 
-#ifndef __NR_name_to_handle_at
-#if defined(__i386__)
-#define __NR_name_to_handle_at  341
-#define __NR_open_by_handle_at  342
-#elif defined(__x86_64__)
-#define __NR_name_to_handle_at  303
-#define __NR_open_by_handle_at  304
-#endif
-#endif
-
-#ifdef __NR_name_to_handle_at
-static inline int name_to_handle(int dirfd, const char *name,
-                                 struct file_handle *fh, int *mnt_id, int flags)
-{
-    return syscall(__NR_name_to_handle_at, dirfd, name, fh, mnt_id, flags);
-}
-
-static inline int open_by_handle(int mountfd, const char *fh, int flags)
-{
-    return syscall(__NR_open_by_handle_at, mountfd, fh, flags);
-}
-#else
 static inline int name_to_handle(int dirfd, const char *name,
                                  struct file_handle *fh, int *mnt_id, int flags)
 {
@@ -192,16 +199,29 @@ static ssize_t handle_preadv(FsContext *ctx, int fd, const struct iovec *iov,
 static ssize_t handle_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
                               int iovcnt, off_t offset)
 {
+    ssize_t ret;
 #ifdef CONFIG_PREADV
-    return pwritev(fd, iov, iovcnt, offset);
+    ret = pwritev(fd, iov, iovcnt, offset);
 #else
     int err = lseek(fd, offset, SEEK_SET);
     if (err == -1) {
         return err;
     } else {
-        return writev(fd, iov, iovcnt);
+        ret = writev(fd, iov, iovcnt);
     }
 #endif
+#ifdef CONFIG_SYNC_FILE_RANGE
+    if (ret > 0 && ctx->export_flags & V9FS_IMMEDIATE_WRITEOUT) {
+        /*
+         * Initiate a writeback. This is not a data integrity sync.
+         * We want to ensure that we don't leave dirty pages in the cache
+         * after write when writeout=immediate is sepcified.
+         */
+        sync_file_range(fd, offset, ret,
+                        SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE);
+    }
+#endif
+    return ret;
 }
 
 static int handle_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
@@ -367,7 +387,9 @@ static int handle_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
 static int handle_utimensat(FsContext *ctx, V9fsPath *fs_path,
                             const struct timespec *buf)
 {
-    int fd, ret;
+    int ret;
+#ifdef CONFIG_UTIMENSAT
+    int fd;
     struct handle_data *data = (struct handle_data *)ctx->private;
 
     fd = open_by_handle(data->mountfd, fs_path->data, O_NONBLOCK);
@@ -376,6 +398,10 @@ static int handle_utimensat(FsContext *ctx, V9fsPath *fs_path,
     }
     ret = futimens(fd, buf);
     close(fd);
+#else
+    ret = -1;
+    errno = ENOSYS;
+#endif
     return ret;
 }
 
@@ -546,15 +572,49 @@ static int handle_unlinkat(FsContext *ctx, V9fsPath *dir,
     return ret;
 }
 
+static int handle_ioc_getversion(FsContext *ctx, V9fsPath *path,
+                                 mode_t st_mode, uint64_t *st_gen)
+{
+    int err, fd;
+
+    /*
+     * Do not try to open special files like device nodes, fifos etc
+     * We can get fd for regular files and directories only
+     */
+    if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
+            return 0;
+    }
+    fd = handle_open(ctx, path, O_RDONLY);
+    if (fd < 0) {
+        return fd;
+    }
+    err = ioctl(fd, FS_IOC_GETVERSION, st_gen);
+    handle_close(ctx, fd);
+    return err;
+}
+
 static int handle_init(FsContext *ctx)
 {
     int ret, mnt_id;
+    struct statfs stbuf;
     struct file_handle fh;
     struct handle_data *data = g_malloc(sizeof(struct handle_data));
+
     data->mountfd = open(ctx->fs_root, O_DIRECTORY);
     if (data->mountfd < 0) {
         ret = data->mountfd;
         goto err_out;
+    }
+    ret = statfs(ctx->fs_root, &stbuf);
+    if (!ret) {
+        switch (stbuf.f_type) {
+        case EXT2_SUPER_MAGIC:
+        case BTRFS_SUPER_MAGIC:
+        case REISERFS_SUPER_MAGIC:
+        case XFS_SUPER_MAGIC:
+            ctx->exops.get_st_gen = handle_ioc_getversion;
+            break;
+        }
     }
     memset(&fh, 0, sizeof(struct file_handle));
     ret = name_to_handle(data->mountfd, ".", &fh, &mnt_id, 0);

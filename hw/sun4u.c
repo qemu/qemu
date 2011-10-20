@@ -574,6 +574,11 @@ static void pci_ebus_register(void)
 
 device_init(pci_ebus_register);
 
+typedef struct PROMState {
+    SysBusDevice busdev;
+    MemoryRegion prom;
+} PROMState;
+
 static uint64_t translate_prom_address(void *opaque, uint64_t addr)
 {
     target_phys_addr_t *base_addr = (target_phys_addr_t *)opaque;
@@ -617,17 +622,18 @@ static void prom_init(target_phys_addr_t addr, const char *bios_name)
 
 static int prom_init1(SysBusDevice *dev)
 {
-    ram_addr_t prom_offset;
+    PROMState *s = FROM_SYSBUS(PROMState, dev);
 
-    prom_offset = qemu_ram_alloc(NULL, "sun4u.prom", PROM_SIZE_MAX);
-    sysbus_init_mmio(dev, PROM_SIZE_MAX, prom_offset | IO_MEM_ROM);
+    memory_region_init_ram(&s->prom, NULL, "sun4u.prom", PROM_SIZE_MAX);
+    memory_region_set_readonly(&s->prom, true);
+    sysbus_init_mmio_region(dev, &s->prom);
     return 0;
 }
 
 static SysBusDeviceInfo prom_info = {
     .init = prom_init1,
     .qdev.name  = "openprom",
-    .qdev.size  = sizeof(SysBusDevice),
+    .qdev.size  = sizeof(PROMState),
     .qdev.props = (Property[]) {
         {/* end of property list */}
     }
@@ -644,19 +650,17 @@ device_init(prom_register_devices);
 typedef struct RamDevice
 {
     SysBusDevice busdev;
+    MemoryRegion ram;
     uint64_t size;
 } RamDevice;
 
 /* System RAM */
 static int ram_init1(SysBusDevice *dev)
 {
-    ram_addr_t RAM_size, ram_offset;
     RamDevice *d = FROM_SYSBUS(RamDevice, dev);
 
-    RAM_size = d->size;
-
-    ram_offset = qemu_ram_alloc(NULL, "sun4u.ram", RAM_size);
-    sysbus_init_mmio(dev, RAM_size, ram_offset);
+    memory_region_init_ram(&d->ram, NULL, "sun4u.ram", d->size);
+    sysbus_init_mmio_region(dev, &d->ram);
     return 0;
 }
 

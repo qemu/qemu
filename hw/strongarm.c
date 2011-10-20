@@ -68,6 +68,7 @@ static struct {
 /* Interrupt Controller */
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq    irq;
     qemu_irq    fiq;
 
@@ -109,7 +110,8 @@ static void strongarm_pic_set_irq(void *opaque, int irq, int level)
     strongarm_pic_update(s);
 }
 
-static uint32_t strongarm_pic_mem_read(void *opaque, target_phys_addr_t offset)
+static uint64_t strongarm_pic_mem_read(void *opaque, target_phys_addr_t offset,
+                                       unsigned size)
 {
     StrongARMPICState *s = opaque;
 
@@ -134,7 +136,7 @@ static uint32_t strongarm_pic_mem_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void strongarm_pic_mem_write(void *opaque, target_phys_addr_t offset,
-                uint32_t value)
+                                    uint64_t value, unsigned size)
 {
     StrongARMPICState *s = opaque;
 
@@ -156,27 +158,19 @@ static void strongarm_pic_mem_write(void *opaque, target_phys_addr_t offset,
     strongarm_pic_update(s);
 }
 
-static CPUReadMemoryFunc * const strongarm_pic_readfn[] = {
-    strongarm_pic_mem_read,
-    strongarm_pic_mem_read,
-    strongarm_pic_mem_read,
-};
-
-static CPUWriteMemoryFunc * const strongarm_pic_writefn[] = {
-    strongarm_pic_mem_write,
-    strongarm_pic_mem_write,
-    strongarm_pic_mem_write,
+static const MemoryRegionOps strongarm_pic_ops = {
+    .read = strongarm_pic_mem_read,
+    .write = strongarm_pic_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int strongarm_pic_initfn(SysBusDevice *dev)
 {
     StrongARMPICState *s = FROM_SYSBUS(StrongARMPICState, dev);
-    int iomemtype;
 
     qdev_init_gpio_in(&dev->qdev, strongarm_pic_set_irq, SA_PIC_SRCS);
-    iomemtype = cpu_register_io_memory(strongarm_pic_readfn,
-                    strongarm_pic_writefn, s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &strongarm_pic_ops, s, "pic", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     sysbus_init_irq(dev, &s->fiq);
 
@@ -229,6 +223,7 @@ static SysBusDeviceInfo strongarm_pic_info = {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t rttr;
     uint32_t rtsr;
     uint32_t rtar;
@@ -287,7 +282,8 @@ static inline void strongarm_rtc_hz_tick(void *opaque)
     strongarm_rtc_int_update(s);
 }
 
-static uint32_t strongarm_rtc_read(void *opaque, target_phys_addr_t addr)
+static uint64_t strongarm_rtc_read(void *opaque, target_phys_addr_t addr,
+                                   unsigned size)
 {
     StrongARMRTCState *s = opaque;
 
@@ -309,7 +305,7 @@ static uint32_t strongarm_rtc_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void strongarm_rtc_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     StrongARMRTCState *s = opaque;
     uint32_t old_rtsr;
@@ -349,23 +345,16 @@ static void strongarm_rtc_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const strongarm_rtc_readfn[] = {
-    strongarm_rtc_read,
-    strongarm_rtc_read,
-    strongarm_rtc_read,
-};
-
-static CPUWriteMemoryFunc * const strongarm_rtc_writefn[] = {
-    strongarm_rtc_write,
-    strongarm_rtc_write,
-    strongarm_rtc_write,
+static const MemoryRegionOps strongarm_rtc_ops = {
+    .read = strongarm_rtc_read,
+    .write = strongarm_rtc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int strongarm_rtc_init(SysBusDevice *dev)
 {
     StrongARMRTCState *s = FROM_SYSBUS(StrongARMRTCState, dev);
     struct tm tm;
-    int iomemtype;
 
     s->rttr = 0x0;
     s->rtsr = 0;
@@ -381,9 +370,8 @@ static int strongarm_rtc_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->rtc_irq);
     sysbus_init_irq(dev, &s->rtc_hz_irq);
 
-    iomemtype = cpu_register_io_memory(strongarm_rtc_readfn,
-                    strongarm_rtc_writefn, s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x10000, iomemtype);
+    memory_region_init_io(&s->iomem, &strongarm_rtc_ops, s, "rtc", 0x10000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     return 0;
 }
@@ -443,6 +431,7 @@ static SysBusDeviceInfo strongarm_rtc_sysbus_info = {
 typedef struct StrongARMGPIOInfo StrongARMGPIOInfo;
 struct StrongARMGPIOInfo {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq handler[28];
     qemu_irq irqs[11];
     qemu_irq irqX;
@@ -507,7 +496,8 @@ static void strongarm_gpio_handler_update(StrongARMGPIOInfo *s)
     s->prev_level = level;
 }
 
-static uint32_t strongarm_gpio_read(void *opaque, target_phys_addr_t offset)
+static uint64_t strongarm_gpio_read(void *opaque, target_phys_addr_t offset,
+                                    unsigned size)
 {
     StrongARMGPIOInfo *s = opaque;
 
@@ -548,8 +538,8 @@ static uint32_t strongarm_gpio_read(void *opaque, target_phys_addr_t offset)
     return 0;
 }
 
-static void strongarm_gpio_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+static void strongarm_gpio_write(void *opaque, target_phys_addr_t offset,
+                                 uint64_t value, unsigned size)
 {
     StrongARMGPIOInfo *s = opaque;
 
@@ -592,16 +582,10 @@ static void strongarm_gpio_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc * const strongarm_gpio_readfn[] = {
-    strongarm_gpio_read,
-    strongarm_gpio_read,
-    strongarm_gpio_read
-};
-
-static CPUWriteMemoryFunc * const strongarm_gpio_writefn[] = {
-    strongarm_gpio_write,
-    strongarm_gpio_write,
-    strongarm_gpio_write
+static const MemoryRegionOps strongarm_gpio_ops = {
+    .read = strongarm_gpio_read,
+    .write = strongarm_gpio_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static DeviceState *strongarm_gpio_init(target_phys_addr_t base,
@@ -623,7 +607,6 @@ static DeviceState *strongarm_gpio_init(target_phys_addr_t base,
 
 static int strongarm_gpio_initfn(SysBusDevice *dev)
 {
-    int iomemtype;
     StrongARMGPIOInfo *s;
     int i;
 
@@ -632,10 +615,9 @@ static int strongarm_gpio_initfn(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, strongarm_gpio_set, 28);
     qdev_init_gpio_out(&dev->qdev, s->handler, 28);
 
-    iomemtype = cpu_register_io_memory(strongarm_gpio_readfn,
-                    strongarm_gpio_writefn, s, DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->iomem, &strongarm_gpio_ops, s, "gpio", 0x1000);
 
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    sysbus_init_mmio_region(dev, &s->iomem);
     for (i = 0; i < 11; i++) {
         sysbus_init_irq(dev, &s->irqs[i]);
     }
@@ -678,6 +660,7 @@ static SysBusDeviceInfo strongarm_gpio_info = {
 typedef struct StrongARMPPCInfo StrongARMPPCInfo;
 struct StrongARMPPCInfo {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq handler[28];
 
     uint32_t ilevel;
@@ -716,7 +699,8 @@ static void strongarm_ppc_handler_update(StrongARMPPCInfo *s)
     s->prev_level = level;
 }
 
-static uint32_t strongarm_ppc_read(void *opaque, target_phys_addr_t offset)
+static uint64_t strongarm_ppc_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     StrongARMPPCInfo *s = opaque;
 
@@ -745,8 +729,8 @@ static uint32_t strongarm_ppc_read(void *opaque, target_phys_addr_t offset)
     return 0;
 }
 
-static void strongarm_ppc_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+static void strongarm_ppc_write(void *opaque, target_phys_addr_t offset,
+                                uint64_t value, unsigned size)
 {
     StrongARMPPCInfo *s = opaque;
 
@@ -778,21 +762,14 @@ static void strongarm_ppc_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc * const strongarm_ppc_readfn[] = {
-    strongarm_ppc_read,
-    strongarm_ppc_read,
-    strongarm_ppc_read
-};
-
-static CPUWriteMemoryFunc * const strongarm_ppc_writefn[] = {
-    strongarm_ppc_write,
-    strongarm_ppc_write,
-    strongarm_ppc_write
+static const MemoryRegionOps strongarm_ppc_ops = {
+    .read = strongarm_ppc_read,
+    .write = strongarm_ppc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int strongarm_ppc_init(SysBusDevice *dev)
 {
-    int iomemtype;
     StrongARMPPCInfo *s;
 
     s = FROM_SYSBUS(StrongARMPPCInfo, dev);
@@ -800,10 +777,9 @@ static int strongarm_ppc_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, strongarm_ppc_set, 22);
     qdev_init_gpio_out(&dev->qdev, s->handler, 22);
 
-    iomemtype = cpu_register_io_memory(strongarm_ppc_readfn,
-                    strongarm_ppc_writefn, s, DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->iomem, &strongarm_ppc_ops, s, "ppc", 0x1000);
 
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     return 0;
 }
@@ -871,6 +847,7 @@ static SysBusDeviceInfo strongarm_ppc_info = {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     CharDriverState *chr;
     qemu_irq irq;
 
@@ -1079,7 +1056,8 @@ static void strongarm_uart_tx(void *opaque)
     strongarm_uart_update_int_status(s);
 }
 
-static uint32_t strongarm_uart_read(void *opaque, target_phys_addr_t addr)
+static uint64_t strongarm_uart_read(void *opaque, target_phys_addr_t addr,
+                                    unsigned size)
 {
     StrongARMUARTState *s = opaque;
     uint16_t ret;
@@ -1121,7 +1099,7 @@ static uint32_t strongarm_uart_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void strongarm_uart_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                                 uint64_t value, unsigned size)
 {
     StrongARMUARTState *s = opaque;
 
@@ -1176,26 +1154,18 @@ static void strongarm_uart_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const strongarm_uart_readfn[] = {
-    strongarm_uart_read,
-    strongarm_uart_read,
-    strongarm_uart_read,
-};
-
-static CPUWriteMemoryFunc * const strongarm_uart_writefn[] = {
-    strongarm_uart_write,
-    strongarm_uart_write,
-    strongarm_uart_write,
+static const MemoryRegionOps strongarm_uart_ops = {
+    .read = strongarm_uart_read,
+    .write = strongarm_uart_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int strongarm_uart_init(SysBusDevice *dev)
 {
     StrongARMUARTState *s = FROM_SYSBUS(StrongARMUARTState, dev);
-    int iomemtype;
 
-    iomemtype = cpu_register_io_memory(strongarm_uart_readfn,
-                    strongarm_uart_writefn, s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x10000, iomemtype);
+    memory_region_init_io(&s->iomem, &strongarm_uart_ops, s, "uart", 0x10000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
     s->rx_timeout_timer = qemu_new_timer_ns(vm_clock, strongarm_uart_rx_to, s);
@@ -1288,6 +1258,7 @@ static SysBusDeviceInfo strongarm_uart_info = {
 /* Synchronous Serial Ports */
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq irq;
     SSIBus *bus;
 
@@ -1355,7 +1326,8 @@ static void strongarm_ssp_fifo_update(StrongARMSSPState *s)
     strongarm_ssp_int_update(s);
 }
 
-static uint32_t strongarm_ssp_read(void *opaque, target_phys_addr_t addr)
+static uint64_t strongarm_ssp_read(void *opaque, target_phys_addr_t addr,
+                                   unsigned size)
 {
     StrongARMSSPState *s = opaque;
     uint32_t retval;
@@ -1388,7 +1360,7 @@ static uint32_t strongarm_ssp_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void strongarm_ssp_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     StrongARMSSPState *s = opaque;
 
@@ -1397,7 +1369,7 @@ static void strongarm_ssp_write(void *opaque, target_phys_addr_t addr,
         s->sscr[0] = value & 0xffbf;
         if ((s->sscr[0] & SSCR0_SSE) && SSCR0_DSS(value) < 4) {
             printf("%s: Wrong data size: %i bits\n", __func__,
-                            SSCR0_DSS(value));
+                   (int)SSCR0_DSS(value));
         }
         if (!(value & SSCR0_SSE)) {
             s->sssr = 0;
@@ -1452,16 +1424,10 @@ static void strongarm_ssp_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const strongarm_ssp_readfn[] = {
-    strongarm_ssp_read,
-    strongarm_ssp_read,
-    strongarm_ssp_read,
-};
-
-static CPUWriteMemoryFunc * const strongarm_ssp_writefn[] = {
-    strongarm_ssp_write,
-    strongarm_ssp_write,
-    strongarm_ssp_write,
+static const MemoryRegionOps strongarm_ssp_ops = {
+    .read = strongarm_ssp_read,
+    .write = strongarm_ssp_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int strongarm_ssp_post_load(void *opaque, int version_id)
@@ -1475,15 +1441,12 @@ static int strongarm_ssp_post_load(void *opaque, int version_id)
 
 static int strongarm_ssp_init(SysBusDevice *dev)
 {
-    int iomemtype;
     StrongARMSSPState *s = FROM_SYSBUS(StrongARMSSPState, dev);
 
     sysbus_init_irq(dev, &s->irq);
 
-    iomemtype = cpu_register_io_memory(strongarm_ssp_readfn,
-                                       strongarm_ssp_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &strongarm_ssp_ops, s, "ssp", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     s->bus = ssi_create_bus(&dev->qdev, "ssi");
     return 0;
@@ -1523,7 +1486,8 @@ static SysBusDeviceInfo strongarm_ssp_info = {
 };
 
 /* Main CPU functions */
-StrongARMState *sa1110_init(unsigned int sdram_size, const char *rev)
+StrongARMState *sa1110_init(MemoryRegion *sysmem,
+                            unsigned int sdram_size, const char *rev)
 {
     StrongARMState *s;
     qemu_irq *pic;
@@ -1547,9 +1511,8 @@ StrongARMState *sa1110_init(unsigned int sdram_size, const char *rev)
         exit(1);
     }
 
-    cpu_register_physical_memory(SA_SDCS0,
-                    sdram_size, qemu_ram_alloc(NULL, "strongarm.sdram",
-                                                sdram_size) | IO_MEM_RAM);
+    memory_region_init_ram(&s->sdram, NULL, "strongarm.sdram", sdram_size);
+    memory_region_add_subregion(sysmem, SA_SDCS0, &s->sdram);
 
     pic = arm_pic_init_cpu(s->env);
     s->pic = sysbus_create_varargs("strongarm_pic", 0x90050000,

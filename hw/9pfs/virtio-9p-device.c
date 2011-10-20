@@ -49,7 +49,8 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     V9fsState *s;
     int i, len;
     struct stat stat;
-    FsTypeEntry *fse;
+    FsDriverEntry *fse;
+    V9fsPath path;
 
     s = (V9fsState *)virtio_common_init("virtio-9p",
                                     VIRTIO_ID_9P,
@@ -82,55 +83,33 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         exit(1);
     }
 
-    if (!strcmp(fse->security_model, "passthrough")) {
-        /* Files on the Fileserver set to client user credentials */
-        s->ctx.fs_sm = SM_PASSTHROUGH;
-        s->ctx.xops = passthrough_xattr_ops;
-    } else if (!strcmp(fse->security_model, "mapped")) {
-        /* Files on the fileserver are set to QEMU credentials.
-         * Client user credentials are saved in extended attributes.
-         */
-        s->ctx.fs_sm = SM_MAPPED;
-        s->ctx.xops = mapped_xattr_ops;
-    } else if (!strcmp(fse->security_model, "none")) {
-        /*
-         * Files on the fileserver are set to QEMU credentials.
-         */
-        s->ctx.fs_sm = SM_NONE;
-        s->ctx.xops = none_xattr_ops;
-    } else {
-        fprintf(stderr, "Default to security_model=none. You may want"
-                " enable advanced security model using "
-                "security option:\n\t security_model=passthrough\n\t "
-                "security_model=mapped\n");
-        s->ctx.fs_sm = SM_NONE;
-        s->ctx.xops = none_xattr_ops;
-    }
-
-    if (lstat(fse->path, &stat)) {
-        fprintf(stderr, "share path %s does not exist\n", fse->path);
-        exit(1);
-    } else if (!S_ISDIR(stat.st_mode)) {
-        fprintf(stderr, "share path %s is not a directory\n", fse->path);
-        exit(1);
-    }
-
+    s->ctx.export_flags = fse->export_flags;
     s->ctx.fs_root = g_strdup(fse->path);
+    s->ctx.exops.get_st_gen = NULL;
+
+    if (fse->export_flags & V9FS_SM_PASSTHROUGH) {
+        s->ctx.xops = passthrough_xattr_ops;
+    } else if (fse->export_flags & V9FS_SM_MAPPED) {
+        s->ctx.xops = mapped_xattr_ops;
+    } else if (fse->export_flags & V9FS_SM_NONE) {
+        s->ctx.xops = none_xattr_ops;
+    }
+
     len = strlen(conf->tag);
     if (len > MAX_TAG_LEN) {
-        len = MAX_TAG_LEN;
+        fprintf(stderr, "mount tag '%s' (%d bytes) is longer than "
+                "maximum (%d bytes)", conf->tag, len, MAX_TAG_LEN);
+        exit(1);
     }
     /* s->tag is non-NULL terminated string */
     s->tag = g_malloc(len);
     memcpy(s->tag, conf->tag, len);
     s->tag_len = len;
     s->ctx.uid = -1;
-    s->ctx.flags = 0;
 
     s->ops = fse->ops;
     s->vdev.get_features = virtio_9p_get_features;
-    s->config_size = sizeof(struct virtio_9p_config) +
-                        s->tag_len;
+    s->config_size = sizeof(struct virtio_9p_config) + s->tag_len;
     s->vdev.get_config = virtio_9p_get_config;
     s->fid_list = NULL;
     qemu_co_rwlock_init(&s->rename_lock);
@@ -144,6 +123,27 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         fprintf(stderr, "worker thread initialization failed\n");
         exit(1);
     }
+
+    /*
+     * Check details of export path, We need to use fs driver
+     * call back to do that. Since we are in the init path, we don't
+     * use co-routines here.
+     */
+    v9fs_path_init(&path);
+    if (s->ops->name_to_path(&s->ctx, NULL, "/", &path) < 0) {
+        fprintf(stderr,
+                "error in converting name to path %s", strerror(errno));
+        exit(1);
+    }
+    if (s->ops->lstat(&s->ctx, &path, &stat)) {
+        fprintf(stderr, "share path %s does not exist\n", fse->path);
+        exit(1);
+    } else if (!S_ISDIR(stat.st_mode)) {
+        fprintf(stderr, "share path %s is not a directory\n", fse->path);
+        exit(1);
+    }
+    v9fs_path_free(&path);
+
     return &s->vdev;
 }
 
@@ -169,6 +169,8 @@ static PCIDeviceInfo virtio_9p_info = {
     .revision  = VIRTIO_PCI_ABI_VERSION,
     .class_id  = 0x2,
     .qdev.props = (Property[]) {
+        DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
+                        VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
         DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
         DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
         DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),

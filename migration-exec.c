@@ -32,17 +32,17 @@
     do { } while (0)
 #endif
 
-static int file_errno(FdMigrationState *s)
+static int file_errno(MigrationState *s)
 {
     return errno;
 }
 
-static int file_write(FdMigrationState *s, const void * buf, size_t size)
+static int file_write(MigrationState *s, const void * buf, size_t size)
 {
     return write(s->fd, buf, size);
 }
 
-static int exec_close(FdMigrationState *s)
+static int exec_close(MigrationState *s)
 {
     int ret = 0;
     DPRINTF("exec_close\n");
@@ -61,22 +61,14 @@ static int exec_close(FdMigrationState *s)
     return ret;
 }
 
-MigrationState *exec_start_outgoing_migration(Monitor *mon,
-                                              const char *command,
-					      int64_t bandwidth_limit,
-					      int detach,
-					      int blk,
-					      int inc)
+int exec_start_outgoing_migration(MigrationState *s, const char *command)
 {
-    FdMigrationState *s;
     FILE *f;
-
-    s = g_malloc0(sizeof(*s));
 
     f = popen(command, "w");
     if (f == NULL) {
         DPRINTF("Unable to popen exec target\n");
-        goto err_after_alloc;
+        goto err_after_popen;
     }
 
     s->fd = fileno(f);
@@ -92,29 +84,14 @@ MigrationState *exec_start_outgoing_migration(Monitor *mon,
     s->close = exec_close;
     s->get_error = file_errno;
     s->write = file_write;
-    s->mig_state.cancel = migrate_fd_cancel;
-    s->mig_state.get_status = migrate_fd_get_status;
-    s->mig_state.release = migrate_fd_release;
-
-    s->mig_state.blk = blk;
-    s->mig_state.shared = inc;
-
-    s->state = MIG_STATE_ACTIVE;
-    s->mon = NULL;
-    s->bandwidth_limit = bandwidth_limit;
-
-    if (!detach) {
-        migrate_fd_monitor_suspend(s, mon);
-    }
 
     migrate_fd_connect(s);
-    return &s->mig_state;
+    return 0;
 
 err_after_open:
     pclose(f);
-err_after_alloc:
-    g_free(s);
-    return NULL;
+err_after_popen:
+    return -1;
 }
 
 static void exec_accept_incoming_migration(void *opaque)

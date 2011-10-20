@@ -41,6 +41,8 @@
 #include "kvm.h"
 #include "kvm_ppc.h"
 
+#include "exec-memory.h"
+
 #include <libfdt.h>
 
 #define KERNEL_LOAD_ADDR        0x00000000
@@ -324,7 +326,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 {
     CPUState *env;
     int i;
-    ram_addr_t ram_offset;
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
     uint32_t initrd_base;
     long kernel_size, initrd_size, fw_size;
     long pteg_shift = 17;
@@ -361,8 +364,8 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     /* allocate RAM */
     spapr->ram_limit = ram_size;
-    ram_offset = qemu_ram_alloc(NULL, "ppc_spapr.ram", spapr->ram_limit);
-    cpu_register_physical_memory(0, ram_size, ram_offset);
+    memory_region_init_ram(ram, NULL, "ppc_spapr.ram", spapr->ram_limit);
+    memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate hash page table.  For now we always make this 16mb,
      * later we should probably make it scale to the size of guest

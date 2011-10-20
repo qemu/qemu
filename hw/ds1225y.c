@@ -29,7 +29,7 @@ typedef struct {
     DeviceState qdev;
     uint32_t chip_size;
     char *filename;
-    QEMUFile *file;
+    FILE *file;
     uint8_t *contents;
 } NvRamState;
 
@@ -70,9 +70,9 @@ static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
 
     s->contents[addr] = val;
     if (s->file) {
-        qemu_fseek(s->file, addr, SEEK_SET);
-        qemu_put_byte(s->file, (int)val);
-        qemu_fflush(s->file);
+        fseek(s->file, addr, SEEK_SET);
+        fputc(val, s->file);
+        fflush(s->file);
     }
 }
 
@@ -108,15 +108,17 @@ static int nvram_post_load(void *opaque, int version_id)
 
     /* Close file, as filename may has changed in load/store process */
     if (s->file) {
-        qemu_fclose(s->file);
+        fclose(s->file);
     }
 
     /* Write back nvram contents */
-    s->file = qemu_fopen(s->filename, "wb");
+    s->file = fopen(s->filename, "wb");
     if (s->file) {
         /* Write back contents, as 'wb' mode cleaned the file */
-        qemu_put_buffer(s->file, s->contents, s->chip_size);
-        qemu_fflush(s->file);
+        if (fwrite(s->contents, s->chip_size, 1, s->file) != 1) {
+            printf("nvram_post_load: short write\n");
+        }
+        fflush(s->file);
     }
 
     return 0;
@@ -143,7 +145,7 @@ typedef struct {
 static int nvram_sysbus_initfn(SysBusDevice *dev)
 {
     NvRamState *s = &FROM_SYSBUS(SysBusNvRamState, dev)->nvram;
-    QEMUFile *file;
+    FILE *file;
     int s_io;
 
     s->contents = g_malloc0(s->chip_size);
@@ -153,11 +155,13 @@ static int nvram_sysbus_initfn(SysBusDevice *dev)
     sysbus_init_mmio(dev, s->chip_size, s_io);
 
     /* Read current file */
-    file = qemu_fopen(s->filename, "rb");
+    file = fopen(s->filename, "rb");
     if (file) {
         /* Read nvram contents */
-        qemu_get_buffer(file, s->contents, s->chip_size);
-        qemu_fclose(file);
+        if (fread(s->contents, s->chip_size, 1, file) != 1) {
+            printf("nvram_sysbus_initfn: short read\n");
+        }
+        fclose(file);
     }
     nvram_post_load(s, 0);
 

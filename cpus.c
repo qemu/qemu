@@ -887,6 +887,17 @@ void vm_stop(RunState state)
     do_vm_stop(state);
 }
 
+/* does a state transition even if the VM is already stopped,
+   current state is forgotten forever */
+void vm_stop_force_state(RunState state)
+{
+    if (runstate_is_running()) {
+        vm_stop(state);
+    } else {
+        runstate_set(state);
+    }
+}
+
 static int tcg_cpu_exec(CPUState *env)
 {
     int ret;

@@ -35,6 +35,7 @@ void vm_state_notify(int running, RunState state);
 
 void vm_start(void);
 void vm_stop(RunState state);
+void vm_stop_force_state(RunState state);
 
 void qemu_system_reset_request(void);
 void qemu_system_shutdown_request(void);

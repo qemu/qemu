@@ -101,4 +101,7 @@ extern int v9fs_co_preadv(V9fsPDU *, V9fsFidState *,
                           struct iovec *, int, int64_t);
 extern int v9fs_co_name_to_path(V9fsPDU *, V9fsPath *,
                                 const char *, V9fsPath *);
+extern int v9fs_co_st_gen(V9fsPDU *pdu, V9fsPath *path, mode_t,
+                          V9fsStatDotl *v9stat);
+
 #endif

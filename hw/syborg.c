@@ -26,6 +26,7 @@
 #include "boards.h"
 #include "arm-misc.h"
 #include "net.h"
+#include "exec-memory.h"
 
 static struct arm_boot_info syborg_binfo;
 
@@ -35,9 +36,10 @@ static void syborg_init(ram_addr_t ram_size,
                         const char *initrd_filename, const char *cpu_model)
 {
     CPUState *env;
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
     qemu_irq *cpu_pic;
     qemu_irq pic[64];
-    ram_addr_t ram_addr;
     DeviceState *dev;
     int i;
 
@@ -50,8 +52,8 @@ static void syborg_init(ram_addr_t ram_size,
     }
 
     /* RAM at address zero. */
-    ram_addr = qemu_ram_alloc(NULL, "syborg.ram", ram_size);
-    cpu_register_physical_memory(0, ram_size, ram_addr | IO_MEM_RAM);
+    memory_region_init_ram(ram, NULL, "syborg.ram", ram_size);
+    memory_region_add_subregion(sysmem, 0, ram);
 
     cpu_pic = arm_pic_init_cpu(env);
     dev = sysbus_create_simple("syborg,interrupt", 0xC0000000,
