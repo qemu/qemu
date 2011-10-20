@@ -1494,14 +1494,14 @@ static void vmdk_close(BlockDriverState *bs)
     vmdk_free_extents(bs);
 }
 
-static int vmdk_flush(BlockDriverState *bs)
+static coroutine_fn int vmdk_co_flush(BlockDriverState *bs)
 {
     int i, ret, err;
     BDRVVmdkState *s = bs->opaque;
 
-    ret = bdrv_flush(bs->file);
+    ret = bdrv_co_flush(bs->file);
     for (i = 0; i < s->num_extents; i++) {
-        err = bdrv_flush(s->extents[i].file);
+        err = bdrv_co_flush(s->extents[i].file);
         if (err < 0) {
             ret = err;
         }
@@ -1568,7 +1568,7 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_write     = vmdk_co_write,
     .bdrv_close     = vmdk_close,
     .bdrv_create    = vmdk_create,
-    .bdrv_flush     = vmdk_flush,
+    .bdrv_co_flush  = vmdk_co_flush,
     .bdrv_is_allocated  = vmdk_is_allocated,
     .bdrv_get_allocated_file_size  = vmdk_get_allocated_file_size,
 

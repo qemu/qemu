@@ -1099,24 +1099,24 @@ fail:
     return ret;
 }
 
-static BlockDriverAIOCB *qcow2_aio_flush(BlockDriverState *bs,
-                                         BlockDriverCompletionFunc *cb,
-                                         void *opaque)
+static int qcow2_co_flush(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int ret;
 
+    qemu_co_mutex_lock(&s->lock);
     ret = qcow2_cache_flush(bs, s->l2_table_cache);
     if (ret < 0) {
-        return NULL;
+        return ret;
     }
 
     ret = qcow2_cache_flush(bs, s->refcount_block_cache);
     if (ret < 0) {
-        return NULL;
+        return ret;
     }
+    qemu_co_mutex_unlock(&s->lock);
 
-    return bdrv_aio_flush(bs->file, cb, opaque);
+    return bdrv_co_flush(bs->file);
 }
 
 static int64_t qcow2_vm_state_offset(BDRVQcowState *s)
@@ -1237,7 +1237,7 @@ static BlockDriver bdrv_qcow2 = {
 
     .bdrv_co_readv      = qcow2_co_readv,
     .bdrv_co_writev     = qcow2_co_writev,
-    .bdrv_aio_flush     = qcow2_aio_flush,
+    .bdrv_co_flush      = qcow2_co_flush,
 
     .bdrv_discard           = qcow2_discard,
     .bdrv_truncate          = qcow2_truncate,

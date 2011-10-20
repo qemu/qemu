@@ -306,9 +306,9 @@ exit:
     return ret;
 }
 
-static int cow_flush(BlockDriverState *bs)
+static coroutine_fn int cow_co_flush(BlockDriverState *bs)
 {
-    return bdrv_flush(bs->file);
+    return bdrv_co_flush(bs->file);
 }
 
 static QEMUOptionParameter cow_create_options[] = {
@@ -334,7 +334,7 @@ static BlockDriver bdrv_cow = {
     .bdrv_write         = cow_co_write,
     .bdrv_close		= cow_close,
     .bdrv_create	= cow_create,
-    .bdrv_flush		= cow_flush,
+    .bdrv_co_flush      = cow_co_flush,
     .bdrv_is_allocated	= cow_is_allocated,
 
     .create_options = cow_create_options,

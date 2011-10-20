@@ -2892,8 +2892,6 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
             qemu_coroutine_yield();
             return co.ret;
         }
-    } else if (bs->drv->bdrv_flush) {
-        return bs->drv->bdrv_flush(bs);
     } else {
         /*
          * Some block drivers always operate in either writethrough or unsafe

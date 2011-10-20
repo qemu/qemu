@@ -467,9 +467,9 @@ static coroutine_fn int vpc_co_write(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
-static int vpc_flush(BlockDriverState *bs)
+static coroutine_fn int vpc_co_flush(BlockDriverState *bs)
 {
-    return bdrv_flush(bs->file);
+    return bdrv_co_flush(bs->file);
 }
 
 /*
@@ -665,7 +665,7 @@ static BlockDriver bdrv_vpc = {
     .bdrv_open      = vpc_open,
     .bdrv_read      = vpc_co_read,
     .bdrv_write     = vpc_co_write,
-    .bdrv_flush     = vpc_flush,
+    .bdrv_co_flush  = vpc_co_flush,
     .bdrv_close     = vpc_close,
     .bdrv_create    = vpc_create,
 
