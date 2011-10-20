@@ -624,20 +624,7 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
         return -ENOTSUP;
     }
     s->desc_offset = 0;
-    ret = vmdk_parse_extents(buf, bs, bs->file->filename);
-    if (ret) {
-        vmdk_free_extents(bs);
-        return ret;
-    }
-
-    /* try to open parent images, if exist */
-    ret = vmdk_parent_open(bs);
-    if (ret) {
-        vmdk_free_extents(bs);
-        return ret;
-    }
-    s->parent_cid = vmdk_read_cid(bs, 1);
-    return 0;
+    return vmdk_parse_extents(buf, bs, bs->file->filename);
 }
 
 static int vmdk_open(BlockDriverState *bs, int flags)
@@ -647,17 +634,23 @@ static int vmdk_open(BlockDriverState *bs, int flags)
 
     if (vmdk_open_sparse(bs, bs->file, flags) == 0) {
         s->desc_offset = 0x200;
-        /* try to open parent images, if exist */
-        ret = vmdk_parent_open(bs);
-        if (ret) {
-            vmdk_free_extents(bs);
-            return ret;
-        }
-        s->parent_cid = vmdk_read_cid(bs, 1);
-        return 0;
     } else {
-        return vmdk_open_desc_file(bs, flags, 0);
+        ret = vmdk_open_desc_file(bs, flags, 0);
+        if (ret) {
+            goto fail;
+        }
     }
+    /* try to open parent images, if exist */
+    ret = vmdk_parent_open(bs);
+    if (ret) {
+        goto fail;
+    }
+    s->parent_cid = vmdk_read_cid(bs, 1);
+    return ret;
+
+fail:
+    vmdk_free_extents(bs);
+    return ret;
 }
 
 static int get_whole_cluster(BlockDriverState *bs,
