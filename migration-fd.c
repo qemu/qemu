@@ -30,17 +30,17 @@
     do { } while (0)
 #endif
 
-static int fd_errno(FdMigrationState *s)
+static int fd_errno(MigrationState *s)
 {
     return errno;
 }
 
-static int fd_write(FdMigrationState *s, const void * buf, size_t size)
+static int fd_write(MigrationState *s, const void * buf, size_t size)
 {
     return write(s->fd, buf, size);
 }
 
-static int fd_close(FdMigrationState *s)
+static int fd_close(MigrationState *s)
 {
     DPRINTF("fd_close\n");
     if (s->fd != -1) {
@@ -50,21 +50,12 @@ static int fd_close(FdMigrationState *s)
     return 0;
 }
 
-MigrationState *fd_start_outgoing_migration(Monitor *mon,
-					    const char *fdname,
-					    int64_t bandwidth_limit,
-					    int detach,
-					    int blk,
-					    int inc)
+int fd_start_outgoing_migration(MigrationState *s, const char *fdname)
 {
-    FdMigrationState *s;
-
-    s = g_malloc0(sizeof(*s));
-
-    s->fd = monitor_get_fd(mon, fdname);
+    s->fd = monitor_get_fd(s->mon, fdname);
     if (s->fd == -1) {
         DPRINTF("fd_migration: invalid file descriptor identifier\n");
-        goto err_after_alloc;
+        goto err_after_get_fd;
     }
 
     if (fcntl(s->fd, F_SETFL, O_NONBLOCK) == -1) {
@@ -75,29 +66,14 @@ MigrationState *fd_start_outgoing_migration(Monitor *mon,
     s->get_error = fd_errno;
     s->write = fd_write;
     s->close = fd_close;
-    s->mig_state.cancel = migrate_fd_cancel;
-    s->mig_state.get_status = migrate_fd_get_status;
-    s->mig_state.release = migrate_fd_release;
-
-    s->mig_state.blk = blk;
-    s->mig_state.shared = inc;
-
-    s->state = MIG_STATE_ACTIVE;
-    s->mon = NULL;
-    s->bandwidth_limit = bandwidth_limit;
-
-    if (!detach) {
-        migrate_fd_monitor_suspend(s, mon);
-    }
 
     migrate_fd_connect(s);
-    return &s->mig_state;
+    return 0;
 
 err_after_open:
     close(s->fd);
-err_after_alloc:
-    g_free(s);
-    return NULL;
+err_after_get_fd:
+    return -1;
 }
 
 static void fd_accept_incoming_migration(void *opaque)
