@@ -283,10 +283,12 @@ static int vmdk_parent_open(BlockDriverState *bs)
     char *p_name;
     char desc[DESC_SIZE + 1];
     BDRVVmdkState *s = bs->opaque;
+    int ret;
 
     desc[DESC_SIZE] = '\0';
-    if (bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE) != DESC_SIZE) {
-        return -1;
+    ret = bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE);
+    if (ret < 0) {
+        return ret;
     }
 
     p_name = strstr(desc, "parentFileNameHint");
@@ -296,10 +298,10 @@ static int vmdk_parent_open(BlockDriverState *bs)
         p_name += sizeof("parentFileNameHint") + 1;
         end_name = strchr(p_name, '\"');
         if (end_name == NULL) {
-            return -1;
+            return -EINVAL;
         }
         if ((end_name - p_name) > sizeof(bs->backing_file) - 1) {
-            return -1;
+            return -EINVAL;
         }
 
         pstrcpy(bs->backing_file, end_name - p_name + 1, p_name);
@@ -629,9 +631,10 @@ static int vmdk_open_desc_file(BlockDriverState *bs, int flags,
     }
 
     /* try to open parent images, if exist */
-    if (vmdk_parent_open(bs)) {
+    ret = vmdk_parent_open(bs);
+    if (ret) {
         vmdk_free_extents(bs);
-        return -EINVAL;
+        return ret;
     }
     s->parent_cid = vmdk_read_cid(bs, 1);
     return 0;
