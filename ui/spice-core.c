@@ -133,7 +133,7 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 
 static void watch_remove(SpiceWatch *watch)
 {
-    watch_update_mask(watch, 0);
+    qemu_set_fd_handler(watch->fd, NULL, NULL, NULL);
     QTAILQ_REMOVE(&watches, watch, next);
     g_free(watch);
 }
