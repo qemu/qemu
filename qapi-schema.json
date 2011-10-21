@@ -703,6 +703,134 @@
 { 'command': 'query-balloon', 'returns': 'BalloonInfo' }
 
 ##
+# @PciMemoryRange:
+#
+# A PCI device memory region
+#
+# @base: the starting address (guest physical)
+#
+# @limit: the ending address (guest physical)
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciMemoryRange', 'data': {'base': 'int', 'limit': 'int'} }
+
+##
+# @PciMemoryRegion
+#
+# Information about a PCI device I/O region.
+#
+# @bar: the index of the Base Address Register for this region
+#
+# @type: 'io' if the region is a PIO region
+#        'memory' if the region is a MMIO region
+#
+# @prefetch: #optional if @type is 'memory', true if the memory is prefetchable
+#
+# @mem_type_64: #optional if @type is 'memory', true if the BAR is 64-bit
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciMemoryRegion',
+  'data': {'bar': 'int', 'type': 'str', 'address': 'int', 'size': 'int',
+           '*prefetch': 'bool', '*mem_type_64': 'bool' } }
+
+##
+# @PciBridgeInfo:
+#
+# Information about a PCI Bridge device
+#
+# @bus.number: primary bus interface number.  This should be the number of the
+#              bus the device resides on.
+#
+# @bus.secondary: secondary bus interface number.  This is the number of the
+#                 main bus for the bridge
+#
+# @bus.subordinate: This is the highest number bus that resides below the
+#                   bridge.
+#
+# @bus.io_range: The PIO range for all devices on this bridge
+#
+# @bus.memory_range: The MMIO range for all devices on this bridge
+#
+# @bus.prefetchable_range: The range of prefetchable MMIO for all devices on
+#                          this bridge
+#
+# @devices: a list of @PciDeviceInfo for each device on this bridge
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciBridgeInfo',
+  'data': {'bus': { 'number': 'int', 'secondary': 'int', 'subordinate': 'int',
+                    'io_range': 'PciMemoryRange',
+                    'memory_range': 'PciMemoryRange',
+                    'prefetchable_range': 'PciMemoryRange' },
+           '*devices': ['PciDeviceInfo']} }
+
+##
+# @PciDeviceInfo:
+#
+# Information about a PCI device
+#
+# @bus: the bus number of the device
+#
+# @slot: the slot the device is located in
+#
+# @function: the function of the slot used by the device
+#
+# @class_info.desc: #optional a string description of the device's class
+#
+# @class_info.class: the class code of the device
+#
+# @id.device: the PCI device id
+#
+# @id.vendor: the PCI vendor id
+#
+# @irq: #optional if an IRQ is assigned to the device, the IRQ number
+#
+# @qdev_id: the device name of the PCI device
+#
+# @pci_bridge: if the device is a PCI bridge, the bridge information
+#
+# @regions: a list of the PCI I/O regions associated with the device
+#
+# Notes: the contents of @class_info.desc are not stable and should only be
+#        treated as informational.
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciDeviceInfo',
+  'data': {'bus': 'int', 'slot': 'int', 'function': 'int',
+           'class_info': {'*desc': 'str', 'class': 'int'},
+           'id': {'device': 'int', 'vendor': 'int'},
+           '*irq': 'int', 'qdev_id': 'str', '*pci_bridge': 'PciBridgeInfo',
+           'regions': ['PciMemoryRegion']} }
+
+##
+# @PciInfo:
+#
+# Information about a PCI bus
+#
+# @bus: the bus index
+#
+# @devices: a list of devices on this bus
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciInfo', 'data': {'bus': 'int', 'devices': ['PciDeviceInfo']} }
+
+##
+# @query-pci:
+#
+# Return information about the PCI bus topology of the guest.
+#
+# Returns: a list of @PciInfo for each PCI bus
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-pci', 'returns': ['PciInfo'] }
+
+##
 # @quit:
 #
 # This command will cause the QEMU process to exit gracefully.  While every

@@ -1576,6 +1576,12 @@ Note: This example has been shortened as the real response is too long.
 
 EQMP
 
+    {
+        .name       = "query-pci",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_pci,
+    },
+
 SQMP
 query-kvm
 ---------
