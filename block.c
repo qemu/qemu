@@ -27,7 +27,7 @@
 #include "monitor.h"
 #include "block_int.h"
 #include "module.h"
-#include "qemu-objects.h"
+#include "qjson.h"
 #include "qemu-coroutine.h"
 #include "qmp-commands.h"
 
