@@ -1989,3 +1989,8 @@ Example:
 
 EQMP
 
+    {
+        .name       = "query-balloon",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_balloon,
+    },

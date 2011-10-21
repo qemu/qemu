@@ -18,21 +18,13 @@
 #include "virtio.h"
 #include "pc.h"
 #include "cpu.h"
-#include "monitor.h"
 #include "balloon.h"
 #include "virtio-balloon.h"
 #include "kvm.h"
-#include "qlist.h"
-#include "qint.h"
-#include "qstring.h"
 
 #if defined(__linux__)
 #include <sys/mman.h>
 #endif
-
-/* Disable guest-provided stats by now (https://bugzilla.redhat.com/show_bug.cgi?id=623903) */
-#define ENABLE_GUEST_STATS   0
-
 
 typedef struct VirtIOBalloon
 {
@@ -43,8 +35,6 @@ typedef struct VirtIOBalloon
     uint64_t stats[VIRTIO_BALLOON_S_NR];
     VirtQueueElement stats_vq_elem;
     size_t stats_vq_offset;
-    MonitorCompletion *stats_callback;
-    void *stats_opaque_callback_data;
     DeviceState *qdev;
 } VirtIOBalloon;
 
@@ -74,31 +64,6 @@ static inline void reset_stats(VirtIOBalloon *dev)
 {
     int i;
     for (i = 0; i < VIRTIO_BALLOON_S_NR; dev->stats[i++] = -1);
-}
-
-static void stat_put(QDict *dict, const char *label, uint64_t val)
-{
-    if (val != -1)
-        qdict_put(dict, label, qint_from_int(val));
-}
-
-static QObject *get_stats_qobject(VirtIOBalloon *dev)
-{
-    QDict *dict = qdict_new();
-    uint64_t actual = ram_size - ((uint64_t) dev->actual <<
-                                  VIRTIO_BALLOON_PFN_SHIFT);
-
-    stat_put(dict, "actual", actual);
-#if ENABLE_GUEST_STATS
-    stat_put(dict, "mem_swapped_in", dev->stats[VIRTIO_BALLOON_S_SWAP_IN]);
-    stat_put(dict, "mem_swapped_out", dev->stats[VIRTIO_BALLOON_S_SWAP_OUT]);
-    stat_put(dict, "major_page_faults", dev->stats[VIRTIO_BALLOON_S_MAJFLT]);
-    stat_put(dict, "minor_page_faults", dev->stats[VIRTIO_BALLOON_S_MINFLT]);
-    stat_put(dict, "free_mem", dev->stats[VIRTIO_BALLOON_S_MEMFREE]);
-    stat_put(dict, "total_mem", dev->stats[VIRTIO_BALLOON_S_MEMTOT]);
-#endif
-
-    return QOBJECT(dict);
 }
 
 static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
@@ -131,20 +96,6 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
     }
 }
 
-static void complete_stats_request(VirtIOBalloon *vb)
-{
-    QObject *stats;
-
-    if (!vb->stats_opaque_callback_data)
-        return;
-
-    stats = get_stats_qobject(vb);
-    vb->stats_callback(vb->stats_opaque_callback_data, stats);
-    qobject_decref(stats);
-    vb->stats_opaque_callback_data = NULL;
-    vb->stats_callback = NULL;
-}
-
 static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBalloon *s = DO_UPCAST(VirtIOBalloon, vdev, vdev);
@@ -172,8 +123,6 @@ static void virtio_balloon_receive_stats(VirtIODevice *vdev, VirtQueue *vq)
             s->stats[tag] = val;
     }
     s->stats_vq_offset = offset;
-
-    complete_stats_request(s);
 }
 
 static void virtio_balloon_get_config(VirtIODevice *vdev, uint8_t *config_data)
@@ -202,32 +151,33 @@ static uint32_t virtio_balloon_get_features(VirtIODevice *vdev, uint32_t f)
     return f;
 }
 
-static void virtio_balloon_stat(void *opaque, MonitorCompletion cb,
-                                void *cb_data)
+static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
 {
     VirtIOBalloon *dev = opaque;
 
-    /* For now, only allow one request at a time.  This restriction can be
-     * removed later by queueing callback and data pairs.
+#if 0
+    /* Disable guest-provided stats for now. For more details please check:
+     * https://bugzilla.redhat.com/show_bug.cgi?id=623903
+     *
+     * If you do enable it (which is probably not going to happen as we
+     * need a new command for it), remember that you also need to fill the
+     * appropriate members of the BalloonInfo structure so that the stats
+     * are returned to the client.
      */
-    if (dev->stats_callback != NULL) {
-        return;
-    }
-    dev->stats_callback = cb;
-    dev->stats_opaque_callback_data = cb_data;
-
-    if (ENABLE_GUEST_STATS
-        && (dev->vdev.guest_features & (1 << VIRTIO_BALLOON_F_STATS_VQ))) {
+    if (dev->vdev.guest_features & (1 << VIRTIO_BALLOON_F_STATS_VQ)) {
         virtqueue_push(dev->svq, &dev->stats_vq_elem, dev->stats_vq_offset);
         virtio_notify(&dev->vdev, dev->svq);
         return;
     }
+#endif
 
     /* Stats are not supported.  Clear out any stale values that might
      * have been set by a more featureful guest kernel.
      */
     reset_stats(dev);
-    complete_stats_request(dev);
+
+    info->actual = ram_size - ((uint64_t) dev->actual <<
+                               VIRTIO_BALLOON_PFN_SHIFT);
 }
 
 static void virtio_balloon_to_target(void *opaque, ram_addr_t target)

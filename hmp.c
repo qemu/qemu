@@ -349,6 +349,45 @@ out:
     qapi_free_SpiceInfo(info);
 }
 
+void hmp_info_balloon(Monitor *mon)
+{
+    BalloonInfo *info;
+    Error *err = NULL;
+
+    info = qmp_query_balloon(&err);
+    if (err) {
+        monitor_printf(mon, "%s\n", error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+
+    monitor_printf(mon, "balloon: actual=%" PRId64, info->actual >> 20);
+    if (info->has_mem_swapped_in) {
+        monitor_printf(mon, " mem_swapped_in=%" PRId64, info->mem_swapped_in);
+    }
+    if (info->has_mem_swapped_out) {
+        monitor_printf(mon, " mem_swapped_out=%" PRId64, info->mem_swapped_out);
+    }
+    if (info->has_major_page_faults) {
+        monitor_printf(mon, " major_page_faults=%" PRId64,
+                       info->major_page_faults);
+    }
+    if (info->has_minor_page_faults) {
+        monitor_printf(mon, " minor_page_faults=%" PRId64,
+                       info->minor_page_faults);
+    }
+    if (info->has_free_mem) {
+        monitor_printf(mon, " free_mem=%" PRId64, info->free_mem);
+    }
+    if (info->has_total_mem) {
+        monitor_printf(mon, " total_mem=%" PRId64, info->total_mem);
+    }
+
+    monitor_printf(mon, "\n");
+
+    qapi_free_BalloonInfo(info);
+}
+
 void hmp_quit(Monitor *mon, const QDict *qdict)
 {
     monitor_suspend(mon);

@@ -2904,9 +2904,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show balloon information",
-        .user_print = monitor_print_balloon,
-        .mhandler.info_async = do_info_balloon,
-        .flags      = MONITOR_CMD_ASYNC,
+        .mhandler.info = hmp_info_balloon,
     },
     {
         .name       = "qtree",
@@ -2963,15 +2961,6 @@ static const mon_cmd_t qmp_query_cmds[] = {
         .help       = "show PCI info",
         .user_print = do_pci_info_print,
         .mhandler.info_new = do_pci_info,
-    },
-    {
-        .name       = "balloon",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show balloon information",
-        .user_print = monitor_print_balloon,
-        .mhandler.info_async = do_info_balloon,
-        .flags      = MONITOR_CMD_ASYNC,
     },
     { /* NULL */ },
 };
