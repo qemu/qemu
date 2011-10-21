@@ -123,8 +123,6 @@ typedef struct mon_cmd_t {
     void (*user_print)(Monitor *mon, const QObject *data);
     union {
         void (*info)(Monitor *mon);
-        void (*info_new)(Monitor *mon, QObject **ret_data);
-        int  (*info_async)(Monitor *mon, MonitorCompletion *cb, void *opaque);
         void (*cmd)(Monitor *mon, const QDict *qdict);
         int  (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
         int  (*cmd_async)(Monitor *mon, const QDict *params,
@@ -679,21 +677,6 @@ static void user_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
     }
 }
 
-static void user_async_info_handler(Monitor *mon, const mon_cmd_t *cmd)
-{
-    int ret;
-
-    MonitorCompletionData *cb_data = g_malloc(sizeof(*cb_data));
-    cb_data->mon = mon;
-    cb_data->user_print = cmd->user_print;
-    monitor_suspend(mon);
-    ret = cmd->mhandler.info_async(mon, user_monitor_complete, cb_data);
-    if (ret < 0) {
-        monitor_resume(mon);
-        g_free(cb_data);
-    }
-}
-
 static void do_info(Monitor *mon, const QDict *qdict)
 {
     const mon_cmd_t *cmd;
@@ -712,20 +695,7 @@ static void do_info(Monitor *mon, const QDict *qdict)
         goto help;
     }
 
-    if (handler_is_async(cmd)) {
-        user_async_info_handler(mon, cmd);
-    } else if (handler_is_qobject(cmd)) {
-        QObject *info_data = NULL;
-
-        cmd->mhandler.info_new(mon, &info_data);
-        if (info_data) {
-            cmd->user_print(mon, info_data);
-            qobject_decref(info_data);
-        }
-    } else {
-        cmd->mhandler.info(mon);
-    }
-
+    cmd->mhandler.info(mon);
     return;
 
 help:
