@@ -76,7 +76,14 @@ void qxl_render_update(PCIQXLDevice *qxl)
     VGACommonState *vga = &qxl->vga;
     QXLRect dirty[32], update;
     void *ptr;
-    int i;
+    int i, redraw = 0;
+
+    if (!is_buffer_shared(vga->ds->surface)) {
+        dprint(qxl, 1, "%s: restoring shared displaysurface\n", __func__);
+        qxl->guest_primary.resized++;
+        qxl->guest_primary.commands++;
+        redraw = 1;
+    }
 
     if (qxl->guest_primary.resized) {
         qxl->guest_primary.resized = 0;
@@ -127,6 +134,10 @@ void qxl_render_update(PCIQXLDevice *qxl)
     memset(dirty, 0, sizeof(dirty));
     qxl_spice_update_area(qxl, 0, &update,
                           dirty, ARRAY_SIZE(dirty), 1, QXL_SYNC);
+    if (redraw) {
+        memset(dirty, 0, sizeof(dirty));
+        dirty[0] = update;
+    }
 
     for (i = 0; i < ARRAY_SIZE(dirty); i++) {
         if (qemu_spice_rect_is_empty(dirty+i)) {
