@@ -469,7 +469,6 @@ static void code_gen_alloc(unsigned long tb_size)
     code_gen_buffer_size = tb_size;
     if (code_gen_buffer_size == 0) {
 #if defined(CONFIG_USER_ONLY)
-        /* in user mode, phys_ram_size is not meaningful */
         code_gen_buffer_size = DEFAULT_CODE_GEN_BUFFER_SIZE;
 #else
         /* XXX: needs adjustments */
