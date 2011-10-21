@@ -205,7 +205,6 @@ static const mon_cmd_t mon_cmds[];
 static const mon_cmd_t info_cmds[];
 
 static const mon_cmd_t qmp_cmds[];
-static const mon_cmd_t qmp_query_cmds[];
 
 Monitor *cur_mon;
 Monitor *default_mon;
@@ -663,11 +662,6 @@ static int qmp_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
     return cmd->mhandler.cmd_async(mon, params, qmp_monitor_complete, mon);
 }
 
-static void qmp_async_info_handler(Monitor *mon, const mon_cmd_t *cmd)
-{
-    cmd->mhandler.info_async(mon, qmp_monitor_complete, mon);
-}
-
 static void user_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
                                    const QDict *params)
 {
@@ -738,32 +732,16 @@ help:
     help_cmd(mon, "info");
 }
 
-static CommandInfoList *alloc_cmd_entry(const char *cmd_name)
-{
-    CommandInfoList *info;
-
-    info = g_malloc0(sizeof(*info));
-    info->value = g_malloc0(sizeof(*info->value));
-    info->value->name = g_strdup(cmd_name);
-
-    return info;
-}
-
 CommandInfoList *qmp_query_commands(Error **errp)
 {
     CommandInfoList *info, *cmd_list = NULL;
     const mon_cmd_t *cmd;
 
     for (cmd = qmp_cmds; cmd->name != NULL; cmd++) {
-        info = alloc_cmd_entry(cmd->name);
-        info->next = cmd_list;
-        cmd_list = info;
-    }
+        info = g_malloc0(sizeof(*info));
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->name = g_strdup(cmd->name);
 
-    for (cmd = qmp_query_cmds; cmd->name != NULL; cmd++) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "query-%s", cmd->name);
-        info = alloc_cmd_entry(buf);
         info->next = cmd_list;
         cmd_list = info;
     }
@@ -2952,10 +2930,6 @@ static const mon_cmd_t qmp_cmds[] = {
     { /* NULL */ },
 };
 
-static const mon_cmd_t qmp_query_cmds[] = {
-    { /* NULL */ },
-};
-
 /*******************************************************************/
 
 static const char *pch;
@@ -3748,11 +3722,6 @@ static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
 static const mon_cmd_t *monitor_find_command(const char *cmdname)
 {
     return search_dispatch_table(mon_cmds, cmdname);
-}
-
-static const mon_cmd_t *qmp_find_query_cmd(const char *info_item)
-{
-    return search_dispatch_table(qmp_query_cmds, info_item);
 }
 
 static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
@@ -4678,22 +4647,6 @@ static QDict *qmp_check_input_obj(QObject *input_obj)
     return input_dict;
 }
 
-static void qmp_call_query_cmd(Monitor *mon, const mon_cmd_t *cmd)
-{
-    QObject *ret_data = NULL;
-
-    if (handler_is_async(cmd)) {
-        qmp_async_info_handler(mon, cmd);
-        if (monitor_has_error(mon)) {
-            monitor_protocol_emitter(mon, NULL);
-        }
-    } else {
-        cmd->mhandler.info_new(mon, &ret_data);
-        monitor_protocol_emitter(mon, ret_data);
-        qobject_decref(ret_data);
-    }
-}
-
 static void qmp_call_cmd(Monitor *mon, const mon_cmd_t *cmd,
                          const QDict *params)
 {
@@ -4714,10 +4667,9 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     QObject *obj;
     QDict *input, *args;
     const mon_cmd_t *cmd;
+    const char *cmd_name;
     Monitor *mon = cur_mon;
-    const char *cmd_name, *query_cmd;
 
-    query_cmd = NULL;
     args = input = NULL;
 
     obj = json_parser_parse(tokens, NULL);
@@ -4744,9 +4696,6 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     }
 
     cmd = qmp_find_cmd(cmd_name);
-    if (!cmd && strstart(cmd_name, "query-", &query_cmd)) {
-        cmd = qmp_find_query_cmd(query_cmd);
-    }
     if (!cmd) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_out;
@@ -4765,9 +4714,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    if (query_cmd) {
-        qmp_call_query_cmd(mon, cmd);
-    } else if (handler_is_async(cmd)) {
+    if (handler_is_async(cmd)) {
         err = qmp_async_cmd_handler(mon, cmd, args);
         if (err) {
             /* emit the error response */
