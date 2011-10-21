@@ -352,6 +352,10 @@ static int nbd_co_writev_1(BlockDriverState *bs, int64_t sector_num,
     struct nbd_reply reply;
 
     request.type = NBD_CMD_WRITE;
+    if (!bdrv_enable_write_cache(bs) && (s->nbdflags & NBD_FLAG_SEND_FUA)) {
+        request.type |= NBD_CMD_FLAG_FUA;
+    }
+
     request.from = sector_num * 512;
     request.len = nb_sectors * 512;
 
