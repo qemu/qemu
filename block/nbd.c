@@ -407,6 +407,34 @@ static int nbd_co_writev(BlockDriverState *bs, int64_t sector_num,
     return nbd_co_writev_1(bs, sector_num, nb_sectors, qiov, offset);
 }
 
+static int nbd_co_flush(BlockDriverState *bs)
+{
+    BDRVNBDState *s = bs->opaque;
+    struct nbd_request request;
+    struct nbd_reply reply;
+
+    if (!(s->nbdflags & NBD_FLAG_SEND_FLUSH)) {
+        return 0;
+    }
+
+    request.type = NBD_CMD_FLUSH;
+    if (s->nbdflags & NBD_FLAG_SEND_FUA) {
+        request.type |= NBD_CMD_FLAG_FUA;
+    }
+
+    request.from = 0;
+    request.len = 0;
+
+    nbd_coroutine_start(s, &request);
+    if (nbd_co_send_request(s, &request, NULL, 0) == -1) {
+        reply.error = errno;
+    } else {
+        nbd_co_receive_reply(s, &request, &reply, NULL, 0);
+    }
+    nbd_coroutine_end(s, &request);
+    return -reply.error;
+}
+
 static void nbd_close(BlockDriverState *bs)
 {
     BDRVNBDState *s = bs->opaque;
@@ -424,14 +452,15 @@ static int64_t nbd_getlength(BlockDriverState *bs)
 }
 
 static BlockDriver bdrv_nbd = {
-    .format_name	= "nbd",
-    .instance_size	= sizeof(BDRVNBDState),
-    .bdrv_file_open	= nbd_open,
-    .bdrv_co_readv	= nbd_co_readv,
-    .bdrv_co_writev	= nbd_co_writev,
-    .bdrv_close		= nbd_close,
-    .bdrv_getlength	= nbd_getlength,
-    .protocol_name	= "nbd",
+    .format_name         = "nbd",
+    .instance_size       = sizeof(BDRVNBDState),
+    .bdrv_file_open      = nbd_open,
+    .bdrv_co_readv       = nbd_co_readv,
+    .bdrv_co_writev      = nbd_co_writev,
+    .bdrv_close          = nbd_close,
+    .bdrv_co_flush_to_os = nbd_co_flush,
+    .bdrv_getlength      = nbd_getlength,
+    .protocol_name       = "nbd",
 };
 
 static void bdrv_nbd_init(void)
