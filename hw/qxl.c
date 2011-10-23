@@ -331,6 +331,7 @@ static void init_qxl_ram(PCIQXLDevice *d)
     d->ram->magic       = cpu_to_le32(QXL_RAM_MAGIC);
     d->ram->int_pending = cpu_to_le32(0);
     d->ram->int_mask    = cpu_to_le32(0);
+    d->ram->update_surface = 0;
     SPICE_RING_INIT(&d->ram->cmd_ring);
     SPICE_RING_INIT(&d->ram->cursor_ring);
     SPICE_RING_INIT(&d->ram->release_ring);
