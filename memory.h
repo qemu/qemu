@@ -126,6 +126,7 @@ struct MemoryRegion {
     bool readonly; /* For RAM regions */
     bool enabled;
     bool rom_device;
+    bool warning_printed; /* For reservations */
     MemoryRegion *alias;
     target_phys_addr_t alias_offset;
     unsigned priority;
@@ -279,6 +280,21 @@ void memory_region_init_rom_device(MemoryRegion *mr,
                                    const char *name,
                                    uint64_t size);
 
+/**
+ * memory_region_init_reservation: Initialize a memory region that reserves
+ *                                 I/O space.
+ *
+ * A reservation region primariy serves debugging purposes.  It claims I/O
+ * space that is not supposed to be handled by QEMU itself.  Any access via
+ * the memory API will cause an abort().
+ *
+ * @mr: the #MemoryRegion to be initialized
+ * @name: used for debugging; not visible to the user or ABI
+ * @size: size of the region.
+ */
+void memory_region_init_reservation(MemoryRegion *mr,
+                                    const char *name,
+                                    uint64_t size);
 /**
  * memory_region_destroy: Destroy a memory region and reclaim all resources.
  *

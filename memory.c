@@ -1049,6 +1049,42 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->ram_addr |= cpu_register_io_memory(mr);
 }
 
+static uint64_t invalid_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
+{
+    MemoryRegion *mr = opaque;
+
+    if (!mr->warning_printed) {
+        fprintf(stderr, "Invalid read from memory region %s\n", mr->name);
+        mr->warning_printed = true;
+    }
+    return -1U;
+}
+
+static void invalid_write(void *opaque, target_phys_addr_t addr, uint64_t data,
+                          unsigned size)
+{
+    MemoryRegion *mr = opaque;
+
+    if (!mr->warning_printed) {
+        fprintf(stderr, "Invalid write to memory region %s\n", mr->name);
+        mr->warning_printed = true;
+    }
+}
+
+static const MemoryRegionOps reservation_ops = {
+    .read = invalid_read,
+    .write = invalid_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+void memory_region_init_reservation(MemoryRegion *mr,
+                                    const char *name,
+                                    uint64_t size)
+{
+    memory_region_init_io(mr, &reservation_ops, mr, name, size);
+}
+
 void memory_region_destroy(MemoryRegion *mr)
 {
     assert(QTAILQ_EMPTY(&mr->subregions));
