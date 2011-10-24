@@ -34,6 +34,7 @@
 
 typedef struct mst_irq_state{
 	SysBusDevice busdev;
+	MemoryRegion iomem;
 
 	qemu_irq parent;
 
@@ -86,8 +87,8 @@ mst_fpga_set_irq(void *opaque, int irq, int level)
 }
 
 
-static uint32_t
-mst_fpga_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t
+mst_fpga_readb(void *opaque, target_phys_addr_t addr, unsigned size)
 {
 	mst_irq_state *s = (mst_irq_state *) opaque;
 
@@ -124,7 +125,8 @@ mst_fpga_readb(void *opaque, target_phys_addr_t addr)
 }
 
 static void
-mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
+mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint64_t value,
+		unsigned size)
 {
 	mst_irq_state *s = (mst_irq_state *) opaque;
 	value &= 0xffffffff;
@@ -175,17 +177,11 @@ mst_fpga_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
 	}
 }
 
-static CPUReadMemoryFunc * const mst_fpga_readfn[] = {
-	mst_fpga_readb,
-	mst_fpga_readb,
-	mst_fpga_readb,
+static const MemoryRegionOps mst_fpga_ops = {
+	.read = mst_fpga_readb,
+	.write = mst_fpga_writeb,
+	.endianness = DEVICE_NATIVE_ENDIAN,
 };
-static CPUWriteMemoryFunc * const mst_fpga_writefn[] = {
-	mst_fpga_writeb,
-	mst_fpga_writeb,
-	mst_fpga_writeb,
-};
-
 
 static int mst_fpga_post_load(void *opaque, int version_id)
 {
@@ -198,7 +194,6 @@ static int mst_fpga_post_load(void *opaque, int version_id)
 static int mst_fpga_init(SysBusDevice *dev)
 {
 	mst_irq_state *s;
-	int iomemtype;
 
 	s = FROM_SYSBUS(mst_irq_state, dev);
 
@@ -210,9 +205,9 @@ static int mst_fpga_init(SysBusDevice *dev)
 	/* alloc the external 16 irqs */
 	qdev_init_gpio_in(&dev->qdev, mst_fpga_set_irq, MST_NUM_IRQS);
 
-	iomemtype = cpu_register_io_memory(mst_fpga_readfn,
-		mst_fpga_writefn, s, DEVICE_NATIVE_ENDIAN);
-	sysbus_init_mmio(dev, 0x00100000, iomemtype);
+	memory_region_init_io(&s->iomem, &mst_fpga_ops, s,
+			    "fpga", 0x00100000);
+	sysbus_init_mmio_region(dev, &s->iomem);
 	return 0;
 }
 
