@@ -62,6 +62,7 @@ enum {
 typedef struct {
     SysBusDevice busdev;
     VirtIODevice *vdev;
+    MemoryRegion iomem;
     qemu_irq irq;
     uint32_t int_enable;
     uint32_t id;
@@ -223,16 +224,12 @@ static void syborg_virtio_writeb(void *opaque, target_phys_addr_t offset,
     BADF("Bad byte write offset 0x%x\n", (int)offset);
 }
 
-static CPUReadMemoryFunc * const syborg_virtio_readfn[] = {
-     syborg_virtio_readb,
-     syborg_virtio_readw,
-     syborg_virtio_readl
-};
-
-static CPUWriteMemoryFunc * const syborg_virtio_writefn[] = {
-     syborg_virtio_writeb,
-     syborg_virtio_writew,
-     syborg_virtio_writel
+static const MemoryRegionOps syborg_virtio_ops = {
+    .old_mmio = {
+        .read = { syborg_virtio_readb, syborg_virtio_readw, syborg_virtio_readl },
+        .write = { syborg_virtio_writeb, syborg_virtio_writew, syborg_virtio_writel },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void syborg_virtio_update_irq(void *opaque, uint16_t vector)
@@ -258,17 +255,14 @@ static VirtIOBindings syborg_virtio_bindings = {
 
 static int syborg_virtio_init(SyborgVirtIOProxy *proxy, VirtIODevice *vdev)
 {
-    int iomemtype;
-
     proxy->vdev = vdev;
 
     /* Don't support multiple vectors */
     proxy->vdev->nvectors = 0;
     sysbus_init_irq(&proxy->busdev, &proxy->irq);
-    iomemtype = cpu_register_io_memory(syborg_virtio_readfn,
-                                       syborg_virtio_writefn, proxy,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(&proxy->busdev, 0x1000, iomemtype);
+    memory_region_init_io(&proxy->iomem, &syborg_virtio_ops, proxy,
+                          "virtio", 0x1000);
+    sysbus_init_mmio_region(&proxy->busdev, &proxy->iomem);
 
     proxy->id = ((uint32_t)0x1af4 << 16) | vdev->device_id;
 
