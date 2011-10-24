@@ -319,7 +319,7 @@ int pci_bridge_initfn(PCIDevice *dev)
     sec_bus->parent_dev = dev;
     sec_bus->map_irq = br->map_irq;
     sec_bus->address_space_mem = &br->address_space_mem;
-    memory_region_init(&br->address_space_mem, "pci_pridge_pci", INT64_MAX);
+    memory_region_init(&br->address_space_mem, "pci_bridge_pci", INT64_MAX);
     sec_bus->address_space_io = &br->address_space_io;
     memory_region_init(&br->address_space_io, "pci_bridge_io", 65536);
     pci_bridge_region_init(br);

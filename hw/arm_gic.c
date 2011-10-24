@@ -658,9 +658,6 @@ static void gic_save(QEMUFile *f, void *opaque)
     qemu_put_be32(f, s->enabled);
     for (i = 0; i < NUM_CPU(s); i++) {
         qemu_put_be32(f, s->cpu_enabled[i]);
-#ifndef NVIC
-        qemu_put_be32(f, s->irq_target[i]);
-#endif
         for (j = 0; j < 32; j++)
             qemu_put_be32(f, s->priority1[j][i]);
         for (j = 0; j < GIC_NIRQ; j++)
@@ -674,6 +671,9 @@ static void gic_save(QEMUFile *f, void *opaque)
         qemu_put_be32(f, s->priority2[i]);
     }
     for (i = 0; i < GIC_NIRQ; i++) {
+#ifndef NVIC
+        qemu_put_be32(f, s->irq_target[i]);
+#endif
         qemu_put_byte(f, s->irq_state[i].enabled);
         qemu_put_byte(f, s->irq_state[i].pending);
         qemu_put_byte(f, s->irq_state[i].active);
@@ -689,15 +689,12 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
     int i;
     int j;
 
-    if (version_id != 1)
+    if (version_id != 2)
         return -EINVAL;
 
     s->enabled = qemu_get_be32(f);
     for (i = 0; i < NUM_CPU(s); i++) {
         s->cpu_enabled[i] = qemu_get_be32(f);
-#ifndef NVIC
-        s->irq_target[i] = qemu_get_be32(f);
-#endif
         for (j = 0; j < 32; j++)
             s->priority1[j][i] = qemu_get_be32(f);
         for (j = 0; j < GIC_NIRQ; j++)
@@ -711,6 +708,9 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
         s->priority2[i] = qemu_get_be32(f);
     }
     for (i = 0; i < GIC_NIRQ; i++) {
+#ifndef NVIC
+        s->irq_target[i] = qemu_get_be32(f);
+#endif
         s->irq_state[i].enabled = qemu_get_byte(f);
         s->irq_state[i].pending = qemu_get_byte(f);
         s->irq_state[i].active = qemu_get_byte(f);
@@ -739,5 +739,5 @@ static void gic_init(gic_state *s)
     }
     memory_region_init_io(&s->iomem, &gic_dist_ops, s, "gic_dist", 0x1000);
     gic_reset(s);
-    register_savevm(NULL, "arm_gic", -1, 1, gic_save, gic_load, s);
+    register_savevm(NULL, "arm_gic", -1, 2, gic_save, gic_load, s);
 }

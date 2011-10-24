@@ -3124,6 +3124,7 @@ static void handle_arg_version(const char *arg)
 {
     printf("qemu-" TARGET_ARCH " version " QEMU_VERSION QEMU_PKGVERSION
            ", Copyright (c) 2003-2008 Fabrice Bellard\n");
+    exit(0);
 }
 
 struct qemu_argument {
@@ -3169,7 +3170,7 @@ struct qemu_argument arg_table[] = {
     {"strace",     "QEMU_STRACE",      false, handle_arg_strace,
      "",           "log system calls"},
     {"version",    "QEMU_VERSION",     false, handle_arg_version,
-     "",           "log system calls"},
+     "",           "display version information and exit"},
     {NULL, NULL, false, NULL, NULL, NULL}
 };
 
@@ -3271,16 +3272,15 @@ static int parse_args(int argc, char **argv)
 
         for (arginfo = arg_table; arginfo->handle_opt != NULL; arginfo++) {
             if (!strcmp(r, arginfo->argv)) {
-                if (optind >= argc) {
-                    usage();
-                }
-
-                arginfo->handle_opt(argv[optind]);
-
                 if (arginfo->has_arg) {
+                    if (optind >= argc) {
+                        usage();
+                    }
+                    arginfo->handle_opt(argv[optind]);
                     optind++;
+                } else {
+                    arginfo->handle_opt(NULL);
                 }
-
                 break;
             }
         }
@@ -3315,9 +3315,6 @@ int main(int argc, char **argv, char **envp)
     int target_argc;
     int i;
     int ret;
-
-    if (argc <= 1)
-        usage();
 
     qemu_cache_utils_init(envp);
 

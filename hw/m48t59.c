@@ -480,7 +480,6 @@ static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
 {
     M48t59State *NVRAM = opaque;
 
-    addr -= NVRAM->io_base;
     NVRAM_PRINTF("%s: 0x%08x => 0x%08x\n", __func__, addr, val);
     switch (addr) {
     case 0:
@@ -492,7 +491,7 @@ static void NVRAM_writeb (void *opaque, uint32_t addr, uint32_t val)
         NVRAM->addr |= val << 8;
         break;
     case 3:
-        m48t59_write(NVRAM, val, NVRAM->addr);
+        m48t59_write(NVRAM, NVRAM->addr, val);
         NVRAM->addr = 0x0000;
         break;
     default:
@@ -505,7 +504,6 @@ static uint32_t NVRAM_readb (void *opaque, uint32_t addr)
     M48t59State *NVRAM = opaque;
     uint32_t retval;
 
-    addr -= NVRAM->io_base;
     switch (addr) {
     case 3:
         retval = m48t59_read(NVRAM, NVRAM->addr);

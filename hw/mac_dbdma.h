@@ -41,5 +41,4 @@ struct DBDMA_io {
 void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
                             DBDMA_rw rw, DBDMA_flush flush,
                             void *opaque);
-void DBDMA_schedule(void);
 void* DBDMA_init (MemoryRegion **dbdma_mem);

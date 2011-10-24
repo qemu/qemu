@@ -2409,6 +2409,11 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_GPIO_BANK3));
     sysbus_connect_irq(busdev, 9,
                        qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_GPIO_BANK4));
+    if (s->mpu_model == omap2430) {
+        sysbus_connect_irq(busdev, 12,
+                           qdev_get_gpio_in(s->ih[0],
+                                            OMAP_INT_243X_GPIO_BANK5));
+    }
     ta = omap_l4ta(s->l4, 3);
     sysbus_mmio_map(busdev, 0, omap_l4_region_base(ta, 1));
     sysbus_mmio_map(busdev, 1, omap_l4_region_base(ta, 0));

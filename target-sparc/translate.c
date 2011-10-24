@@ -289,7 +289,7 @@ static inline void gen_add_tv(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
     tcg_gen_brcondi_tl(TCG_COND_EQ, r_temp, 0, l1);
     r_const = tcg_const_i32(TT_TOVF);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
     gen_set_label(l1);
     tcg_temp_free(r_temp);
@@ -305,7 +305,7 @@ static inline void gen_tag_tv(TCGv src1, TCGv src2)
     tcg_gen_andi_tl(cpu_tmp0, cpu_tmp0, 0x3);
     tcg_gen_brcondi_tl(TCG_COND_EQ, cpu_tmp0, 0, l1);
     r_const = tcg_const_i32(TT_TOVF);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
     gen_set_label(l1);
 }
@@ -423,7 +423,7 @@ static void gen_op_addx_int(DisasContext *dc, TCGv dst, TCGv src1,
     default:
         /* We need external help to produce the carry.  */
         carry_32 = tcg_temp_new_i32();
-        gen_helper_compute_C_icc(carry_32);
+        gen_helper_compute_C_icc(carry_32, cpu_env);
         break;
     }
 
@@ -487,7 +487,7 @@ static inline void gen_sub_tv(TCGv dst, TCGv src1, TCGv src2)
     tcg_gen_andi_tl(r_temp, r_temp, (1ULL << 31));
     tcg_gen_brcondi_tl(TCG_COND_EQ, r_temp, 0, l1);
     r_const = tcg_const_i32(TT_TOVF);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
     gen_set_label(l1);
     tcg_temp_free(r_temp);
@@ -562,7 +562,7 @@ static void gen_op_subx_int(DisasContext *dc, TCGv dst, TCGv src1,
     default:
         /* We need external help to produce the carry.  */
         carry_32 = tcg_temp_new_i32();
-        gen_helper_compute_C_icc(carry_32);
+        gen_helper_compute_C_icc(carry_32, cpu_env);
         break;
     }
 
@@ -714,7 +714,7 @@ static inline void gen_trap_ifdivzero_tl(TCGv divisor)
     l1 = gen_new_label();
     tcg_gen_brcondi_tl(TCG_COND_NE, divisor, 0, l1);
     r_const = tcg_const_i32(TT_DIV_ZERO);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
     gen_set_label(l1);
 }
@@ -1086,7 +1086,7 @@ static inline void save_state(DisasContext *dc, TCGv cond)
     /* flush pending conditional evaluations before exposing cpu state */
     if (dc->cc_op != CC_OP_FLAGS) {
         dc->cc_op = CC_OP_FLAGS;
-        gen_helper_compute_psr();
+        gen_helper_compute_psr(cpu_env);
     }
     save_npc(dc, cond);
 }
@@ -1128,7 +1128,7 @@ static inline void gen_cond(TCGv r_dst, unsigned int cc, unsigned int cond,
     case CC_OP_FLAGS:
         break;
     default:
-        gen_helper_compute_psr();
+        gen_helper_compute_psr(cpu_env);
         dc->cc_op = CC_OP_FLAGS;
         break;
     }
@@ -1400,16 +1400,16 @@ static inline void gen_op_fcmps(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmps(r_rs1, r_rs2);
+        gen_helper_fcmps(cpu_env, r_rs1, r_rs2);
         break;
     case 1:
-        gen_helper_fcmps_fcc1(r_rs1, r_rs2);
+        gen_helper_fcmps_fcc1(cpu_env, r_rs1, r_rs2);
         break;
     case 2:
-        gen_helper_fcmps_fcc2(r_rs1, r_rs2);
+        gen_helper_fcmps_fcc2(cpu_env, r_rs1, r_rs2);
         break;
     case 3:
-        gen_helper_fcmps_fcc3(r_rs1, r_rs2);
+        gen_helper_fcmps_fcc3(cpu_env, r_rs1, r_rs2);
         break;
     }
 }
@@ -1418,16 +1418,16 @@ static inline void gen_op_fcmpd(int fccno)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpd();
+        gen_helper_fcmpd(cpu_env);
         break;
     case 1:
-        gen_helper_fcmpd_fcc1();
+        gen_helper_fcmpd_fcc1(cpu_env);
         break;
     case 2:
-        gen_helper_fcmpd_fcc2();
+        gen_helper_fcmpd_fcc2(cpu_env);
         break;
     case 3:
-        gen_helper_fcmpd_fcc3();
+        gen_helper_fcmpd_fcc3(cpu_env);
         break;
     }
 }
@@ -1436,16 +1436,16 @@ static inline void gen_op_fcmpq(int fccno)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpq();
+        gen_helper_fcmpq(cpu_env);
         break;
     case 1:
-        gen_helper_fcmpq_fcc1();
+        gen_helper_fcmpq_fcc1(cpu_env);
         break;
     case 2:
-        gen_helper_fcmpq_fcc2();
+        gen_helper_fcmpq_fcc2(cpu_env);
         break;
     case 3:
-        gen_helper_fcmpq_fcc3();
+        gen_helper_fcmpq_fcc3(cpu_env);
         break;
     }
 }
@@ -1454,16 +1454,16 @@ static inline void gen_op_fcmpes(int fccno, TCGv_i32 r_rs1, TCGv_i32 r_rs2)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpes(r_rs1, r_rs2);
+        gen_helper_fcmpes(cpu_env, r_rs1, r_rs2);
         break;
     case 1:
-        gen_helper_fcmpes_fcc1(r_rs1, r_rs2);
+        gen_helper_fcmpes_fcc1(cpu_env, r_rs1, r_rs2);
         break;
     case 2:
-        gen_helper_fcmpes_fcc2(r_rs1, r_rs2);
+        gen_helper_fcmpes_fcc2(cpu_env, r_rs1, r_rs2);
         break;
     case 3:
-        gen_helper_fcmpes_fcc3(r_rs1, r_rs2);
+        gen_helper_fcmpes_fcc3(cpu_env, r_rs1, r_rs2);
         break;
     }
 }
@@ -1472,16 +1472,16 @@ static inline void gen_op_fcmped(int fccno)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmped();
+        gen_helper_fcmped(cpu_env);
         break;
     case 1:
-        gen_helper_fcmped_fcc1();
+        gen_helper_fcmped_fcc1(cpu_env);
         break;
     case 2:
-        gen_helper_fcmped_fcc2();
+        gen_helper_fcmped_fcc2(cpu_env);
         break;
     case 3:
-        gen_helper_fcmped_fcc3();
+        gen_helper_fcmped_fcc3(cpu_env);
         break;
     }
 }
@@ -1490,16 +1490,16 @@ static inline void gen_op_fcmpeq(int fccno)
 {
     switch (fccno) {
     case 0:
-        gen_helper_fcmpeq();
+        gen_helper_fcmpeq(cpu_env);
         break;
     case 1:
-        gen_helper_fcmpeq_fcc1();
+        gen_helper_fcmpeq_fcc1(cpu_env);
         break;
     case 2:
-        gen_helper_fcmpeq_fcc2();
+        gen_helper_fcmpeq_fcc2(cpu_env);
         break;
     case 3:
-        gen_helper_fcmpeq_fcc3();
+        gen_helper_fcmpeq_fcc3(cpu_env);
         break;
     }
 }
@@ -1508,32 +1508,32 @@ static inline void gen_op_fcmpeq(int fccno)
 
 static inline void gen_op_fcmps(int fccno, TCGv r_rs1, TCGv r_rs2)
 {
-    gen_helper_fcmps(r_rs1, r_rs2);
+    gen_helper_fcmps(cpu_env, r_rs1, r_rs2);
 }
 
 static inline void gen_op_fcmpd(int fccno)
 {
-    gen_helper_fcmpd();
+    gen_helper_fcmpd(cpu_env);
 }
 
 static inline void gen_op_fcmpq(int fccno)
 {
-    gen_helper_fcmpq();
+    gen_helper_fcmpq(cpu_env);
 }
 
 static inline void gen_op_fcmpes(int fccno, TCGv r_rs1, TCGv r_rs2)
 {
-    gen_helper_fcmpes(r_rs1, r_rs2);
+    gen_helper_fcmpes(cpu_env, r_rs1, r_rs2);
 }
 
 static inline void gen_op_fcmped(int fccno)
 {
-    gen_helper_fcmped();
+    gen_helper_fcmped(cpu_env);
 }
 
 static inline void gen_op_fcmpeq(int fccno)
 {
-    gen_helper_fcmpeq();
+    gen_helper_fcmpeq(cpu_env);
 }
 #endif
 
@@ -1544,7 +1544,7 @@ static inline void gen_op_fpexception_im(int fsr_flags)
     tcg_gen_andi_tl(cpu_fsr, cpu_fsr, FSR_FTT_NMASK);
     tcg_gen_ori_tl(cpu_fsr, cpu_fsr, fsr_flags);
     r_const = tcg_const_i32(TT_FP_EXCP);
-    gen_helper_raise_exception(r_const);
+    gen_helper_raise_exception(cpu_env, r_const);
     tcg_temp_free_i32(r_const);
 }
 
@@ -1556,7 +1556,7 @@ static int gen_trap_ifnofpu(DisasContext *dc, TCGv r_cond)
 
         save_state(dc, r_cond);
         r_const = tcg_const_i32(TT_NFPU_INSN);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
         return 1;
@@ -1579,7 +1579,7 @@ static inline void gen_op_clear_ieee_excp_and_FTT(void)
 
 static inline void gen_clear_float_exceptions(void)
 {
-    gen_helper_clear_float_exceptions();
+    gen_helper_clear_float_exceptions(cpu_env);
 }
 
 /* asi moves */
@@ -2033,7 +2033,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         gen_helper_shutdown();
 
                     } else {
-                        gen_helper_raise_exception(cpu_tmp32);
+                        gen_helper_raise_exception(cpu_env, cpu_tmp32);
                     }
                 } else if (cond != 0) {
                     TCGv r_cond = tcg_temp_new();
@@ -2063,7 +2063,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         tcg_gen_andi_tl(cpu_dst, cpu_dst, V8_TRAP_MASK);
                     tcg_gen_addi_tl(cpu_dst, cpu_dst, TT_TRAP);
                     tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_dst);
-                    gen_helper_raise_exception(cpu_tmp32);
+                    gen_helper_raise_exception(cpu_env, cpu_tmp32);
 
                     gen_set_label(l1);
                     tcg_temp_free(r_cond);
@@ -2101,7 +2101,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
 #ifdef TARGET_SPARC64
                 case 0x2: /* V9 rdccr */
-                    gen_helper_compute_psr();
+                    gen_helper_compute_psr(cpu_env);
                     gen_helper_rdccr(cpu_dst);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
@@ -2177,7 +2177,7 @@ static void disas_sparc_insn(DisasContext * dc)
 #ifndef TARGET_SPARC64
                 if (!supervisor(dc))
                     goto priv_insn;
-                gen_helper_compute_psr();
+                gen_helper_compute_psr(cpu_env);
                 dc->cc_op = CC_OP_FLAGS;
                 gen_helper_rdpsr(cpu_dst);
 #else
@@ -2378,8 +2378,8 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x29: /* fsqrts */
                     CHECK_FPU_FEATURE(dc, FSQRT);
                     gen_clear_float_exceptions();
-                    gen_helper_fsqrts(cpu_tmp32, cpu_fpr[rs2]);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fsqrts(cpu_tmp32, cpu_env, cpu_fpr[rs2]);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -2387,8 +2387,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, FSQRT);
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fsqrtd();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fsqrtd(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -2396,15 +2396,16 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fsqrtq();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fsqrtq(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0x41: /* fadds */
                     gen_clear_float_exceptions();
-                    gen_helper_fadds(cpu_tmp32, cpu_fpr[rs1], cpu_fpr[rs2]);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fadds(cpu_tmp32, cpu_env, cpu_fpr[rs1],
+                                     cpu_fpr[rs2]);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -2412,8 +2413,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_faddd();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_faddd(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -2422,15 +2423,16 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_QT0(QFPREG(rs1));
                     gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_faddq();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_faddq(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0x45: /* fsubs */
                     gen_clear_float_exceptions();
-                    gen_helper_fsubs(cpu_tmp32, cpu_fpr[rs1], cpu_fpr[rs2]);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fsubs(cpu_tmp32, cpu_env, cpu_fpr[rs1],
+                                     cpu_fpr[rs2]);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -2438,8 +2440,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fsubd();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fsubd(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -2448,16 +2450,17 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_QT0(QFPREG(rs1));
                     gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fsubq();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fsubq(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0x49: /* fmuls */
                     CHECK_FPU_FEATURE(dc, FMUL);
                     gen_clear_float_exceptions();
-                    gen_helper_fmuls(cpu_tmp32, cpu_fpr[rs1], cpu_fpr[rs2]);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fmuls(cpu_tmp32, cpu_env, cpu_fpr[rs1],
+                                     cpu_fpr[rs2]);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -2466,8 +2469,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fmuld();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fmuld(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -2477,15 +2480,16 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_QT0(QFPREG(rs1));
                     gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fmulq();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fmulq(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0x4d: /* fdivs */
                     gen_clear_float_exceptions();
-                    gen_helper_fdivs(cpu_tmp32, cpu_fpr[rs1], cpu_fpr[rs2]);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fdivs(cpu_tmp32, cpu_env, cpu_fpr[rs1],
+                                     cpu_fpr[rs2]);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -2493,8 +2497,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fdivd();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fdivd(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -2503,16 +2507,16 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_QT0(QFPREG(rs1));
                     gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fdivq();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fdivq(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0x69: /* fsmuld */
                     CHECK_FPU_FEATURE(dc, FSMULD);
                     gen_clear_float_exceptions();
-                    gen_helper_fsmuld(cpu_fpr[rs1], cpu_fpr[rs2]);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fsmuld(cpu_env, cpu_fpr[rs1], cpu_fpr[rs2]);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -2521,23 +2525,23 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fdmulq();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fdmulq(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0xc4: /* fitos */
                     gen_clear_float_exceptions();
-                    gen_helper_fitos(cpu_tmp32, cpu_fpr[rs2]);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fitos(cpu_tmp32, cpu_env, cpu_fpr[rs2]);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
                 case 0xc6: /* fdtos */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fdtos(cpu_tmp32);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fdtos(cpu_tmp32, cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -2545,18 +2549,18 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fqtos(cpu_tmp32);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fqtos(cpu_tmp32, cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
                 case 0xc8: /* fitod */
-                    gen_helper_fitod(cpu_fpr[rs2]);
+                    gen_helper_fitod(cpu_env, cpu_fpr[rs2]);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0xc9: /* fstod */
-                    gen_helper_fstod(cpu_fpr[rs2]);
+                    gen_helper_fstod(cpu_env, cpu_fpr[rs2]);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -2564,42 +2568,42 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fqtod();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fqtod(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0xcc: /* fitoq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_helper_fitoq(cpu_fpr[rs2]);
+                    gen_helper_fitoq(cpu_env, cpu_fpr[rs2]);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0xcd: /* fstoq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
-                    gen_helper_fstoq(cpu_fpr[rs2]);
+                    gen_helper_fstoq(cpu_env, cpu_fpr[rs2]);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0xce: /* fdtoq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fdtoq();
+                    gen_helper_fdtoq(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0xd1: /* fstoi */
                     gen_clear_float_exceptions();
-                    gen_helper_fstoi(cpu_tmp32, cpu_fpr[rs2]);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fstoi(cpu_tmp32, cpu_env, cpu_fpr[rs2]);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
                 case 0xd2: /* fdtoi */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fdtoi(cpu_tmp32);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fdtoi(cpu_tmp32, cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -2607,8 +2611,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fqtoi(cpu_tmp32);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fqtoi(cpu_tmp32, cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -2632,42 +2636,42 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x6: /* V9 fnegd */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fnegd();
+                    gen_helper_fnegd(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0x7: /* V9 fnegq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_helper_fnegq();
+                    gen_helper_fnegq(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0xa: /* V9 fabsd */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fabsd();
+                    gen_helper_fabsd(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0xb: /* V9 fabsq */
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_QT1(QFPREG(rs2));
-                    gen_helper_fabsq();
+                    gen_helper_fabsq(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
                 case 0x81: /* V9 fstox */
                     gen_clear_float_exceptions();
-                    gen_helper_fstox(cpu_fpr[rs2]);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fstox(cpu_env, cpu_fpr[rs2]);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0x82: /* V9 fdtox */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fdtox();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fdtox(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -2675,24 +2679,24 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_QT1(QFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fqtox();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fqtox(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0x84: /* V9 fxtos */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fxtos(cpu_tmp32);
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fxtos(cpu_tmp32, cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     tcg_gen_mov_i32(cpu_fpr[rd], cpu_tmp32);
                     gen_update_fprs_dirty(rd);
                     break;
                 case 0x88: /* V9 fxtod */
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fxtod();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fxtod(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -2700,8 +2704,8 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, FLOAT128);
                     gen_op_load_fpr_DT1(DFPREG(rs2));
                     gen_clear_float_exceptions();
-                    gen_helper_fxtoq();
-                    gen_helper_check_ieee_exceptions();
+                    gen_helper_fxtoq(cpu_env);
+                    gen_helper_check_ieee_exceptions(cpu_env);
                     gen_op_store_QT0_fpr(QFPREG(rd));
                     gen_update_fprs_dirty(QFPREG(rd));
                     break;
@@ -3312,7 +3316,7 @@ static void disas_sparc_insn(DisasContext * dc)
                         dc->cc_op = CC_OP_TSUBTV;
                         break;
                     case 0x24: /* mulscc */
-                        gen_helper_compute_psr();
+                        gen_helper_compute_psr(cpu_env);
                         gen_op_mulscc(cpu_dst, cpu_src1, cpu_src2);
                         gen_movl_TN_reg(rd, cpu_dst);
                         tcg_gen_movi_i32(cpu_cc_op, CC_OP_ADD);
@@ -3823,14 +3827,14 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
-                    gen_helper_array8(cpu_dst, cpu_src1, cpu_src2);
+                    gen_helper_array8(cpu_dst, cpu_env, cpu_src1, cpu_src2);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x012: /* VIS I array16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
-                    gen_helper_array8(cpu_dst, cpu_src1, cpu_src2);
+                    gen_helper_array8(cpu_dst, cpu_env, cpu_src1, cpu_src2);
                     tcg_gen_shli_i64(cpu_dst, cpu_dst, 1);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
@@ -3838,7 +3842,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
-                    gen_helper_array8(cpu_dst, cpu_src1, cpu_src2);
+                    gen_helper_array8(cpu_dst, cpu_env, cpu_src1, cpu_src2);
                     tcg_gen_shli_i64(cpu_dst, cpu_dst, 2);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
@@ -3846,7 +3850,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     cpu_src1 = get_src1(insn, cpu_src1);
                     gen_movl_reg_TN(rs2, cpu_src2);
-                    gen_helper_alignaddr(cpu_dst, cpu_src1, cpu_src2);
+                    gen_helper_alignaddr(cpu_dst, cpu_env, cpu_src1, cpu_src2);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x019: /* VIS II bmask */
@@ -3857,63 +3861,63 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmple16(cpu_dst);
+                    gen_helper_fcmple16(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x022: /* VIS I fcmpne16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpne16(cpu_dst);
+                    gen_helper_fcmpne16(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x024: /* VIS I fcmple32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmple32(cpu_dst);
+                    gen_helper_fcmple32(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x026: /* VIS I fcmpne32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpne32(cpu_dst);
+                    gen_helper_fcmpne32(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x028: /* VIS I fcmpgt16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpgt16(cpu_dst);
+                    gen_helper_fcmpgt16(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x02a: /* VIS I fcmpeq16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpeq16(cpu_dst);
+                    gen_helper_fcmpeq16(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x02c: /* VIS I fcmpgt32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpgt32(cpu_dst);
+                    gen_helper_fcmpgt32(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x02e: /* VIS I fcmpeq32 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fcmpeq32(cpu_dst);
+                    gen_helper_fcmpeq32(cpu_dst, cpu_env);
                     gen_movl_TN_reg(rd, cpu_dst);
                     break;
                 case 0x031: /* VIS I fmul8x16 */
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fmul8x16();
+                    gen_helper_fmul8x16(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -3921,7 +3925,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fmul8x16au();
+                    gen_helper_fmul8x16au(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -3929,7 +3933,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fmul8x16al();
+                    gen_helper_fmul8x16al(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -3937,7 +3941,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fmul8sux16();
+                    gen_helper_fmul8sux16(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -3945,7 +3949,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fmul8ulx16();
+                    gen_helper_fmul8ulx16(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -3953,7 +3957,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fmuld8sux16();
+                    gen_helper_fmuld8sux16(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -3961,7 +3965,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fmuld8ulx16();
+                    gen_helper_fmuld8ulx16(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -3975,7 +3979,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_faligndata();
+                    gen_helper_faligndata(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -3983,7 +3987,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fpmerge();
+                    gen_helper_fpmerge(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -3994,7 +3998,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fexpand();
+                    gen_helper_fexpand(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
@@ -4002,13 +4006,13 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fpadd16();
+                    gen_helper_fpadd16(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0x051: /* VIS I fpadd16s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_helper_fpadd16s(cpu_fpr[rd],
+                    gen_helper_fpadd16s(cpu_env, cpu_fpr[rd],
                                         cpu_fpr[rs1], cpu_fpr[rs2]);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -4016,13 +4020,13 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fpadd32();
+                    gen_helper_fpadd32(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0x053: /* VIS I fpadd32s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_helper_fpadd32s(cpu_fpr[rd],
+                    gen_helper_fpadd32s(cpu_env, cpu_fpr[rd],
                                         cpu_fpr[rs1], cpu_fpr[rs2]);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -4030,13 +4034,13 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fpsub16();
+                    gen_helper_fpsub16(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0x055: /* VIS I fpsub16s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_helper_fpsub16s(cpu_fpr[rd],
+                    gen_helper_fpsub16s(cpu_env, cpu_fpr[rd],
                                         cpu_fpr[rs1], cpu_fpr[rs2]);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -4044,13 +4048,13 @@ static void disas_sparc_insn(DisasContext * dc)
                     CHECK_FPU_FEATURE(dc, VIS1);
                     gen_op_load_fpr_DT0(DFPREG(rs1));
                     gen_op_load_fpr_DT1(DFPREG(rs2));
-                    gen_helper_fpsub32();
+                    gen_helper_fpsub32(cpu_env);
                     gen_op_store_DT0_fpr(DFPREG(rd));
                     gen_update_fprs_dirty(DFPREG(rd));
                     break;
                 case 0x057: /* VIS I fpsub32s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_helper_fpsub32s(cpu_fpr[rd],
+                    gen_helper_fpsub32s(cpu_env, cpu_fpr[rd],
                                         cpu_fpr[rs1], cpu_fpr[rs2]);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -4408,7 +4412,7 @@ static void disas_sparc_insn(DisasContext * dc)
                cpu state */
             if (dc->cc_op != CC_OP_FLAGS) {
                 dc->cc_op = CC_OP_FLAGS;
-                gen_helper_compute_psr();
+                gen_helper_compute_psr(cpu_env);
             }
             cpu_src1 = get_src1(insn, cpu_src1);
             if (xop == 0x3c || xop == 0x3e) { // V9 casa/casxa
@@ -4654,16 +4658,16 @@ static void disas_sparc_insn(DisasContext * dc)
                     gen_address_mask(dc, cpu_addr);
                     if (rd == 1) {
                         tcg_gen_qemu_ld64(cpu_tmp64, cpu_addr, dc->mem_idx);
-                        gen_helper_ldxfsr(cpu_tmp64);
+                        gen_helper_ldxfsr(cpu_env, cpu_tmp64);
                     } else {
                         tcg_gen_qemu_ld32u(cpu_tmp0, cpu_addr, dc->mem_idx);
                         tcg_gen_trunc_tl_i32(cpu_tmp32, cpu_tmp0);
-                        gen_helper_ldfsr(cpu_tmp32);
+                        gen_helper_ldfsr(cpu_env, cpu_tmp32);
                     }
 #else
                     {
                         tcg_gen_qemu_ld32u(cpu_tmp32, cpu_addr, dc->mem_idx);
-                        gen_helper_ldfsr(cpu_tmp32);
+                        gen_helper_ldfsr(cpu_env, cpu_tmp32);
                     }
 #endif
                     break;
@@ -4926,7 +4930,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
         save_state(dc, cpu_cond);
         r_const = tcg_const_i32(TT_ILL_INSN);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
     }
@@ -4937,7 +4941,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
         save_state(dc, cpu_cond);
         r_const = tcg_const_i32(TT_UNIMP_FLUSH);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
     }
@@ -4949,7 +4953,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
         save_state(dc, cpu_cond);
         r_const = tcg_const_i32(TT_PRIV_INSN);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free_i32(r_const);
         dc->is_br = 1;
     }
@@ -4974,7 +4978,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
         save_state(dc, cpu_cond);
         r_const = tcg_const_i32(TT_NCP_INSN);
-        gen_helper_raise_exception(r_const);
+        gen_helper_raise_exception(cpu_env, r_const);
         tcg_temp_free(r_const);
         dc->is_br = 1;
     }
@@ -5031,7 +5035,7 @@ static inline void gen_intermediate_code_internal(TranslationBlock * tb,
                 if (bp->pc == dc->pc) {
                     if (dc->pc != pc_start)
                         save_state(dc, cpu_cond);
-                    gen_helper_debug();
+                    gen_helper_debug(cpu_env);
                     tcg_gen_exit_tb(0);
                     dc->is_br = 1;
                     goto exit_gen_loop;
@@ -5260,6 +5264,6 @@ void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
 
     /* flush pending conditional evaluations before exposing cpu state */
     if (CC_OP != CC_OP_FLAGS) {
-        helper_compute_psr();
+        helper_compute_psr(env);
     }
 }

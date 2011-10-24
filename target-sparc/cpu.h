@@ -485,10 +485,11 @@ typedef struct CPUSPARCState {
 } CPUSPARCState;
 
 #ifndef NO_CPU_IO_DEFS
-/* helper.c */
+/* cpu_init.c */
 CPUSPARCState *cpu_sparc_init(const char *cpu_model);
 void cpu_sparc_set_id(CPUSPARCState *env, unsigned int cpu);
 void sparc_cpu_list(FILE *f, fprintf_function cpu_fprintf);
+/* helper.c */
 int cpu_sparc_handle_mmu_fault(CPUSPARCState *env1, target_ulong address, int rw,
                                int mmu_idx);
 #define cpu_handle_mmu_fault cpu_sparc_handle_mmu_fault
@@ -508,7 +509,7 @@ void gen_intermediate_code_init(CPUSPARCState *env);
 /* cpu-exec.c */
 int cpu_sparc_exec(CPUSPARCState *s);
 
-/* op_helper.c */
+/* win_helper.c */
 target_ulong cpu_get_psr(CPUState *env1);
 void cpu_put_psr(CPUState *env1, target_ulong val);
 #ifdef TARGET_SPARC64
@@ -521,6 +522,8 @@ void cpu_change_pstate(CPUState *env1, uint32_t new_pstate);
 int cpu_cwp_inc(CPUState *env1, int cwp);
 int cpu_cwp_dec(CPUState *env1, int cwp);
 void cpu_set_cwp(CPUState *env1, int new_cwp);
+
+/* op_helper.c */
 void leon3_irq_manager(void *irq_manager, int intno);
 
 /* sun4m.c, sun4u.c */

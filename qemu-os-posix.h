@@ -26,10 +26,6 @@
 #ifndef QEMU_OS_POSIX_H
 #define QEMU_OS_POSIX_H
 
-static inline void os_host_main_loop_wait(int *timeout)
-{
-}
-
 void os_set_line_buffering(void);
 void os_set_proc_name(const char *s);
 void os_setup_signal_handling(void);

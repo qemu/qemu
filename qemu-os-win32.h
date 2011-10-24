@@ -28,25 +28,10 @@
 
 #include <windows.h>
 #include <winsock2.h>
+#include "main-loop.h"
 
 /* Declaration of ffs() is missing in MinGW's strings.h. */
 int ffs(int i);
-
-/* Polling handling */
-
-/* return TRUE if no sleep should be done afterwards */
-typedef int PollingFunc(void *opaque);
-
-int qemu_add_polling_cb(PollingFunc *func, void *opaque);
-void qemu_del_polling_cb(PollingFunc *func, void *opaque);
-
-/* Wait objects handling */
-typedef void WaitObjectFunc(void *opaque);
-
-int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
-void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque);
-
-void os_host_main_loop_wait(int *timeout);
 
 static inline void os_setup_signal_handling(void) {}
 static inline void os_daemonize(void) {}
