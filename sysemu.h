@@ -8,6 +8,7 @@
 #include "qemu-timer.h"
 #include "qapi-types.h"
 #include "notify.h"
+#include "main-loop.h"
 
 /* vl.c */
 
@@ -63,8 +64,6 @@ void do_delvm(Monitor *mon, const QDict *qdict);
 void do_info_snapshots(Monitor *mon);
 
 void qemu_announce_self(void);
-
-int main_loop_wait(int nonblocking);
 
 bool qemu_savevm_state_blocked(Monitor *mon);
 int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,

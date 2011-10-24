@@ -13,7 +13,6 @@
 
 typedef struct QEMUTimer QEMUTimer;
 typedef struct QEMUFile QEMUFile;
-typedef struct QEMUBH QEMUBH;
 typedef struct DeviceState DeviceState;
 
 struct Monitor;
@@ -96,6 +95,10 @@ static inline char *realpath(const char *path, char *resolved_path)
 }
 #endif
 
+/* icount */
+void configure_icount(const char *option);
+extern int use_icount;
+
 /* FIXME: Remove NEED_CPU_H.  */
 #ifndef NEED_CPU_H
 
@@ -112,23 +115,6 @@ static inline char *realpath(const char *path, char *resolved_path)
 #if defined(CONFIG_COCOA)
 int qemu_main(int argc, char **argv, char **envp);
 #endif
-
-/* bottom halves */
-typedef void QEMUBHFunc(void *opaque);
-
-QEMUBH *qemu_bh_new(QEMUBHFunc *cb, void *opaque);
-void qemu_bh_schedule(QEMUBH *bh);
-/* Bottom halfs that are scheduled from a bottom half handler are instantly
- * invoked.  This can create an infinite loop if a bottom half handler
- * schedules itself.  qemu_bh_schedule_idle() avoids this infinite loop by
- * ensuring that the bottom half isn't executed until the next main loop
- * iteration.
- */
-void qemu_bh_schedule_idle(QEMUBH *bh);
-void qemu_bh_cancel(QEMUBH *bh);
-void qemu_bh_delete(QEMUBH *bh);
-int qemu_bh_poll(void);
-void qemu_bh_update_timeout(int *timeout);
 
 void qemu_get_timedate(struct tm *tm, int offset);
 int qemu_timedate_diff(struct tm *tm);
@@ -183,16 +169,12 @@ const char *path(const char *pathname);
 
 void *qemu_oom_check(void *ptr);
 
-void qemu_mutex_lock_iothread(void);
-void qemu_mutex_unlock_iothread(void);
-
 int qemu_open(const char *name, int flags, ...);
 ssize_t qemu_write_full(int fd, const void *buf, size_t count)
     QEMU_WARN_UNUSED_RESULT;
 void qemu_set_cloexec(int fd);
 
 #ifndef _WIN32
-int qemu_add_child_watch(pid_t pid);
 int qemu_eventfd(int pipefd[2]);
 int qemu_pipe(int pipefd[2]);
 #endif
@@ -206,14 +188,6 @@ int qemu_pipe(int pipefd[2]);
 /* Error handling.  */
 
 void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-
-/* IO callbacks.  */
-typedef void IOReadHandler(void *opaque, const uint8_t *buf, int size);
-typedef int IOCanReadHandler(void *opaque);
-typedef void IOHandler(void *opaque);
-
-void qemu_iohandler_fill(int *pnfds, fd_set *readfds, fd_set *writefds, fd_set *xfds);
-void qemu_iohandler_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds, int rc);
 
 struct ParallelIOArg {
     void *buffer;
@@ -275,9 +249,6 @@ void cpu_exec_init_all(void);
 /* CPU save/load.  */
 void cpu_save(QEMUFile *f, void *opaque);
 int cpu_load(QEMUFile *f, void *opaque, int version_id);
-
-/* Force QEMU to process pending events */
-void qemu_notify_event(void);
 
 /* Unblock cpu */
 void qemu_cpu_kick(void *env);

@@ -81,6 +81,7 @@
 #include "migration.h"
 #include "qemu_socket.h"
 #include "qemu-queue.h"
+#include "qemu-timer.h"
 #include "cpus.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
@@ -711,6 +712,30 @@ uint64_t qemu_get_be64(QEMUFile *f)
     v |= qemu_get_be32(f);
     return v;
 }
+
+
+/* timer */
+
+void qemu_put_timer(QEMUFile *f, QEMUTimer *ts)
+{
+    uint64_t expire_time;
+
+    expire_time = qemu_timer_expire_time_ns(ts);
+    qemu_put_be64(f, expire_time);
+}
+
+void qemu_get_timer(QEMUFile *f, QEMUTimer *ts)
+{
+    uint64_t expire_time;
+
+    expire_time = qemu_get_be64(f);
+    if (expire_time != -1) {
+        qemu_mod_timer_ns(ts, expire_time);
+    } else {
+        qemu_del_timer(ts);
+    }
+}
+
 
 /* bool */
 

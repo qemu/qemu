@@ -24,6 +24,7 @@
 
 #include "qemu-common.h"
 #include "qemu-aio.h"
+#include "main-loop.h"
 
 /* Anchor of the list of Bottom Halves belonging to the context */
 static struct QEMUBH *first_bh;

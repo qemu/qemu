@@ -661,11 +661,6 @@ void DBDMA_register_channel(void *dbdma, int nchan, qemu_irq irq,
     ch->io.channel = ch;
 }
 
-void DBDMA_schedule(void)
-{
-    qemu_notify_event();
-}
-
 static void
 dbdma_control_write(DBDMA_channel *ch)
 {
