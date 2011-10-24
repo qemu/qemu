@@ -65,6 +65,7 @@ enum {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     DisplayState *ds;
     /*QEMUConsole *console;*/
     uint32_t need_update : 1;
@@ -294,7 +295,8 @@ static void syborg_fb_invalidate_display(void * opaque)
     s->need_update = 1;
 }
 
-static uint32_t syborg_fb_read(void *opaque, target_phys_addr_t offset)
+static uint64_t syborg_fb_read(void *opaque, target_phys_addr_t offset,
+                               unsigned size)
 {
     SyborgFBState *s = opaque;
 
@@ -366,7 +368,7 @@ static uint32_t syborg_fb_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void syborg_fb_write(void *opaque, target_phys_addr_t offset,
-                            uint32_t val)
+                            uint64_t val, unsigned size)
 {
     SyborgFBState *s = opaque;
 
@@ -454,16 +456,10 @@ static void syborg_fb_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const syborg_fb_readfn[] = {
-    syborg_fb_read,
-    syborg_fb_read,
-    syborg_fb_read
-};
-
-static CPUWriteMemoryFunc * const syborg_fb_writefn[] = {
-    syborg_fb_write,
-    syborg_fb_write,
-    syborg_fb_write
+static const MemoryRegionOps syborg_fb_ops = {
+    .read = syborg_fb_read,
+    .write = syborg_fb_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void syborg_fb_save(QEMUFile *f, void *opaque)
@@ -515,13 +511,11 @@ static int syborg_fb_load(QEMUFile *f, void *opaque, int version_id)
 static int syborg_fb_init(SysBusDevice *dev)
 {
     SyborgFBState *s = FROM_SYSBUS(SyborgFBState, dev);
-    int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
-    iomemtype = cpu_register_io_memory(syborg_fb_readfn,
-                                       syborg_fb_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &syborg_fb_ops, s,
+                          "framebuffer", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     s->ds = graphic_console_init(syborg_fb_update_display,
                                  syborg_fb_invalidate_display,
