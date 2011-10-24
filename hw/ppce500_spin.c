@@ -168,17 +168,22 @@ static uint64_t spin_read(void *opaque, target_phys_addr_t addr, unsigned len)
 {
     SpinState *s = opaque;
     uint8_t *spin_p = &((uint8_t*)s->spin)[addr];
+    uint64_t result = 0;
 
     switch (len) {
     case 1:
-        return ldub_p(spin_p);
+        result = ldub_p(spin_p);
+        break;
     case 2:
-        return lduw_p(spin_p);
+        result = lduw_p(spin_p);
+        break;
     case 4:
-        return ldl_p(spin_p);
+        result = ldl_p(spin_p);
+        break;
     default:
         assert(0);
     }
+    return result;
 }
 
 const MemoryRegionOps spin_rw_ops = {
