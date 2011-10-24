@@ -969,7 +969,7 @@ static void complete_pdu(V9fsState *s, V9fsPDU *pdu, ssize_t len)
         if (s->proto_version == V9FS_PROTO_2000L) {
             id = P9_RLERROR;
         }
-        trace_complete_pdu(pdu->tag, pdu->id, err); /* Trace ERROR */
+        trace_v9fs_rerror(pdu->tag, pdu->id, err); /* Trace ERROR */
     }
 
     /* fill out the header */
@@ -1332,11 +1332,11 @@ static void v9fs_attach(void *opaque)
     }
     offset += pdu_marshal(pdu, offset, "Q", &qid);
     err = offset;
+    trace_v9fs_attach_return(pdu->tag, pdu->id,
+                             qid.type, qid.version, qid.path);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_attach_return(pdu->tag, pdu->id,
-                             qid.type, qid.version, qid.path);
     complete_pdu(s, pdu, err);
     v9fs_string_free(&uname);
     v9fs_string_free(&aname);
@@ -1371,13 +1371,12 @@ static void v9fs_stat(void *opaque)
     }
     offset += pdu_marshal(pdu, offset, "wS", 0, &v9stat);
     err = offset;
+    trace_v9fs_stat_return(pdu->tag, pdu->id, v9stat.mode,
+                           v9stat.atime, v9stat.mtime, v9stat.length);
     v9fs_stat_free(&v9stat);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_stat_return(pdu->tag, pdu->id, v9stat.mode,
-                           v9stat.atime, v9stat.mtime, v9stat.length);
-
     complete_pdu(s, pdu, err);
 }
 
@@ -1421,13 +1420,12 @@ static void v9fs_getattr(void *opaque)
     }
     retval = offset;
     retval += pdu_marshal(pdu, offset, "A", &v9stat_dotl);
-out:
-    put_fid(pdu, fidp);
-out_nofid:
     trace_v9fs_getattr_return(pdu->tag, pdu->id, v9stat_dotl.st_result_mask,
                               v9stat_dotl.st_mode, v9stat_dotl.st_uid,
                               v9stat_dotl.st_gid);
-
+out:
+    put_fid(pdu, fidp);
+out_nofid:
     complete_pdu(s, pdu, retval);
 }
 
@@ -1605,6 +1603,7 @@ static void v9fs_walk(void *opaque)
         v9fs_path_copy(&newfidp->path, &path);
     }
     err = v9fs_walk_marshal(pdu, nwnames, qids);
+    trace_v9fs_walk_return(pdu->tag, pdu->id, nwnames, qids);
 out:
     put_fid(pdu, fidp);
     if (newfidp) {
@@ -1613,7 +1612,6 @@ out:
     v9fs_path_free(&dpath);
     v9fs_path_free(&path);
 out_nofid:
-    trace_v9fs_walk_return(pdu->tag, pdu->id, nwnames, qids);
     complete_pdu(s, pdu, err);
     if (nwnames && nwnames <= P9_MAXWELEM) {
         for (name_idx = 0; name_idx < nwnames; name_idx++) {
@@ -1648,10 +1646,10 @@ static int32_t get_iounit(V9fsPDU *pdu, V9fsPath *path)
 static void v9fs_open(void *opaque)
 {
     int flags;
-    int iounit;
     int32_t fid;
     int32_t mode;
     V9fsQID qid;
+    int iounit = 0;
     ssize_t err = 0;
     size_t offset = 7;
     struct stat stbuf;
@@ -1709,11 +1707,11 @@ static void v9fs_open(void *opaque)
         offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
         err = offset;
     }
+    trace_v9fs_open_return(pdu->tag, pdu->id,
+                           qid.type, qid.version, qid.path, iounit);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_open_return(pdu->tag, pdu->id,
-                           qid.type, qid.version, qid.path, iounit);
     complete_pdu(s, pdu, err);
 }
 
@@ -1759,11 +1757,11 @@ static void v9fs_lcreate(void *opaque)
     stat_to_qid(&stbuf, &qid);
     offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
     err = offset;
+    trace_v9fs_lcreate_return(pdu->tag, pdu->id,
+                              qid.type, qid.version, qid.path, iounit);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_lcreate_return(pdu->tag, pdu->id,
-                              qid.type, qid.version, qid.path, iounit);
     complete_pdu(pdu->s, pdu, err);
     v9fs_string_free(&name);
 }
@@ -1978,10 +1976,10 @@ static void v9fs_read(void *opaque)
     } else {
         err = -EINVAL;
     }
+    trace_v9fs_read_return(pdu->tag, pdu->id, count, err);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_read_return(pdu->tag, pdu->id, count, err);
     complete_pdu(s, pdu, err);
 }
 
@@ -2090,10 +2088,10 @@ static void v9fs_readdir(void *opaque)
     retval = offset;
     retval += pdu_marshal(pdu, offset, "d", count);
     retval += count;
+    trace_v9fs_readdir_return(pdu->tag, pdu->id, count, retval);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_readdir_return(pdu->tag, pdu->id, count, retval);
     complete_pdu(s, pdu, retval);
 }
 
@@ -2202,10 +2200,10 @@ static void v9fs_write(void *opaque)
     } while (total < count && len > 0);
     offset += pdu_marshal(pdu, offset, "d", total);
     err = offset;
+    trace_v9fs_write_return(pdu->tag, pdu->id, total, err);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_write_return(pdu->tag, pdu->id, total, err);
     complete_pdu(s, pdu, err);
 }
 
@@ -2362,11 +2360,11 @@ static void v9fs_create(void *opaque)
     stat_to_qid(&stbuf, &qid);
     offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
     err = offset;
+    trace_v9fs_create_return(pdu->tag, pdu->id,
+                             qid.type, qid.version, qid.path, iounit);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-   trace_v9fs_create_return(pdu->tag, pdu->id,
-                            qid.type, qid.version, qid.path, iounit);
    complete_pdu(pdu->s, pdu, err);
    v9fs_string_free(&name);
    v9fs_string_free(&extension);
@@ -2401,11 +2399,11 @@ static void v9fs_symlink(void *opaque)
     stat_to_qid(&stbuf, &qid);
     offset += pdu_marshal(pdu, offset, "Q", &qid);
     err = offset;
+    trace_v9fs_symlink_return(pdu->tag, pdu->id,
+                              qid.type, qid.version, qid.path);
 out:
     put_fid(pdu, dfidp);
 out_nofid:
-    trace_v9fs_symlink_return(pdu->tag, pdu->id,
-                              qid.type, qid.version, qid.path);
     complete_pdu(pdu->s, pdu, err);
     v9fs_string_free(&name);
     v9fs_string_free(&symname);
@@ -2950,10 +2948,11 @@ static void v9fs_mknod(void *opaque)
     stat_to_qid(&stbuf, &qid);
     err = offset;
     err += pdu_marshal(pdu, offset, "Q", &qid);
+    trace_v9fs_mknod_return(pdu->tag, pdu->id,
+                            qid.type, qid.version, qid.path);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_mknod_return(pdu->tag, pdu->id, qid.type, qid.version, qid.path);
     complete_pdu(s, pdu, err);
     v9fs_string_free(&name);
 }
@@ -3049,12 +3048,11 @@ static void v9fs_getlock(void *opaque)
                           glock->start, glock->length, glock->proc_id,
                           &glock->client_id);
     err = offset;
+    trace_v9fs_getlock_return(pdu->tag, pdu->id, glock->type, glock->start,
+                              glock->length, glock->proc_id);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_getlock_return(pdu->tag, pdu->id, glock->type, glock->start,
-                              glock->length, glock->proc_id);
-
     complete_pdu(s, pdu, err);
     v9fs_string_free(&glock->client_id);
     g_free(glock);
@@ -3089,11 +3087,11 @@ static void v9fs_mkdir(void *opaque)
     stat_to_qid(&stbuf, &qid);
     offset += pdu_marshal(pdu, offset, "Q", &qid);
     err = offset;
+    trace_v9fs_mkdir_return(pdu->tag, pdu->id,
+                            qid.type, qid.version, qid.path, err);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_mkdir_return(pdu->tag, pdu->id,
-                            qid.type, qid.version, qid.path, err);
     complete_pdu(pdu->s, pdu, err);
     v9fs_string_free(&name);
 }
@@ -3183,13 +3181,13 @@ static void v9fs_xattrwalk(void *opaque)
         offset += pdu_marshal(pdu, offset, "q", size);
         err = offset;
     }
+    trace_v9fs_xattrwalk_return(pdu->tag, pdu->id, size);
 out:
     put_fid(pdu, file_fidp);
     if (xattr_fidp) {
         put_fid(pdu, xattr_fidp);
     }
 out_nofid:
-    trace_v9fs_xattrwalk_return(pdu->tag, pdu->id, size);
     complete_pdu(s, pdu, err);
     v9fs_string_free(&name);
 }
@@ -3260,11 +3258,11 @@ static void v9fs_readlink(void *opaque)
     }
     offset += pdu_marshal(pdu, offset, "s", &target);
     err = offset;
+    trace_v9fs_readlink_return(pdu->tag, pdu->id, target.data);
     v9fs_string_free(&target);
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    trace_v9fs_readlink_return(pdu->tag, pdu->id, target.data);
     complete_pdu(pdu->s, pdu, err);
 }
 

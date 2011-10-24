@@ -555,7 +555,7 @@ open_eth_desc_read(uint32_t addr, uint32_t v) "DESC[%04x] -> %08x"
 open_eth_desc_write(uint32_t addr, uint32_t v) "DESC[%04x] <- %08x"
 
 # hw/9pfs/virtio-9p.c
-complete_pdu(uint16_t tag, uint8_t id, int err) "tag %d id %d err %d"
+v9fs_rerror(uint16_t tag, uint8_t id, int err) "tag %d id %d err %d"
 v9fs_version(uint16_t tag, uint8_t id, int32_t msize, char* version) "tag %d id %d msize %d version %s"
 v9fs_version_return(uint16_t tag, uint8_t id, int32_t msize, char* version) "tag %d id %d msize %d version %s"
 v9fs_attach(uint16_t tag, uint8_t id, int32_t fid, int32_t afid, char* uname, char* aname) "tag %u id %u fid %d afid %d uname %s aname %s"
