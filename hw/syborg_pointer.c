@@ -44,6 +44,7 @@ typedef struct {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     int int_enabled;
     uint32_t fifo_size;
     event_data *event_fifo;
@@ -57,7 +58,8 @@ static void syborg_pointer_update(SyborgPointerState *s)
     qemu_set_irq(s->irq, s->read_count && s->int_enabled);
 }
 
-static uint32_t syborg_pointer_read(void *opaque, target_phys_addr_t offset)
+static uint64_t syborg_pointer_read(void *opaque, target_phys_addr_t offset,
+                                    unsigned size)
 {
     SyborgPointerState *s = (SyborgPointerState *)opaque;
 
@@ -87,7 +89,7 @@ static uint32_t syborg_pointer_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void syborg_pointer_write(void *opaque, target_phys_addr_t offset,
-                                 uint32_t value)
+                                 uint64_t value, unsigned size)
 {
     SyborgPointerState *s = (SyborgPointerState *)opaque;
 
@@ -110,16 +112,10 @@ static void syborg_pointer_write(void *opaque, target_phys_addr_t offset,
     syborg_pointer_update(s);
 }
 
-static CPUReadMemoryFunc * const syborg_pointer_readfn[] = {
-   syborg_pointer_read,
-   syborg_pointer_read,
-   syborg_pointer_read
-};
-
-static CPUWriteMemoryFunc * const syborg_pointer_writefn[] = {
-   syborg_pointer_write,
-   syborg_pointer_write,
-   syborg_pointer_write
+static const MemoryRegionOps syborg_pointer_ops = {
+    .read = syborg_pointer_read,
+    .write = syborg_pointer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void syborg_pointer_event(void *opaque, int dx, int dy, int dz,
@@ -186,13 +182,11 @@ static const VMStateDescription vmstate_syborg_pointer = {
 static int syborg_pointer_init(SysBusDevice *dev)
 {
     SyborgPointerState *s = FROM_SYSBUS(SyborgPointerState, dev);
-    int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
-    iomemtype = cpu_register_io_memory(syborg_pointer_readfn,
-				       syborg_pointer_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &syborg_pointer_ops, s,
+                          "pointer", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     if (s->fifo_size <= 0) {
         fprintf(stderr, "syborg_pointer: fifo too small\n");
