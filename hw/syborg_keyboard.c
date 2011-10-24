@@ -51,6 +51,7 @@ enum {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t int_enabled;
     int extension_bit;
     uint32_t fifo_size;
@@ -66,7 +67,8 @@ static void syborg_keyboard_update(SyborgKeyboardState *s)
     qemu_set_irq(s->irq, level);
 }
 
-static uint32_t syborg_keyboard_read(void *opaque, target_phys_addr_t offset)
+static uint64_t syborg_keyboard_read(void *opaque, target_phys_addr_t offset,
+                                    unsigned size)
 {
     SyborgKeyboardState *s = (SyborgKeyboardState *)opaque;
     int c;
@@ -104,7 +106,7 @@ static uint32_t syborg_keyboard_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void syborg_keyboard_write(void *opaque, target_phys_addr_t offset,
-                                  uint32_t value)
+                                  uint64_t value, unsigned size)
 {
     SyborgKeyboardState *s = (SyborgKeyboardState *)opaque;
 
@@ -121,16 +123,10 @@ static void syborg_keyboard_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const syborg_keyboard_readfn[] = {
-     syborg_keyboard_read,
-     syborg_keyboard_read,
-     syborg_keyboard_read
-};
-
-static CPUWriteMemoryFunc * const syborg_keyboard_writefn[] = {
-     syborg_keyboard_write,
-     syborg_keyboard_write,
-     syborg_keyboard_write
+static const MemoryRegionOps syborg_keyboard_ops = {
+    .read = syborg_keyboard_read,
+    .write = syborg_keyboard_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void syborg_keyboard_event(void *opaque, int keycode)
@@ -184,13 +180,11 @@ static const VMStateDescription vmstate_syborg_keyboard = {
 static int syborg_keyboard_init(SysBusDevice *dev)
 {
     SyborgKeyboardState *s = FROM_SYSBUS(SyborgKeyboardState, dev);
-    int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
-    iomemtype = cpu_register_io_memory(syborg_keyboard_readfn,
-                                       syborg_keyboard_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &syborg_keyboard_ops, s,
+                              "keyboard", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     if (s->fifo_size <= 0) {
         fprintf(stderr, "syborg_keyboard: fifo too small\n");
         s->fifo_size = 16;
