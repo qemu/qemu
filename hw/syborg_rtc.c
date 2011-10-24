@@ -35,12 +35,14 @@ enum {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     int64_t offset;
     int64_t data;
     qemu_irq irq;
 } SyborgRTCState;
 
-static uint32_t syborg_rtc_read(void *opaque, target_phys_addr_t offset)
+static uint64_t syborg_rtc_read(void *opaque, target_phys_addr_t offset,
+                                unsigned size)
 {
     SyborgRTCState *s = (SyborgRTCState *)opaque;
     offset &= 0xfff;
@@ -58,7 +60,8 @@ static uint32_t syborg_rtc_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void syborg_rtc_write(void *opaque, target_phys_addr_t offset, uint32_t value)
+static void syborg_rtc_write(void *opaque, target_phys_addr_t offset,
+                             uint64_t value, unsigned size)
 {
     SyborgRTCState *s = (SyborgRTCState *)opaque;
     uint64_t now;
@@ -90,16 +93,10 @@ static void syborg_rtc_write(void *opaque, target_phys_addr_t offset, uint32_t v
     }
 }
 
-static CPUReadMemoryFunc * const syborg_rtc_readfn[] = {
-    syborg_rtc_read,
-    syborg_rtc_read,
-    syborg_rtc_read
-};
-
-static CPUWriteMemoryFunc * const syborg_rtc_writefn[] = {
-    syborg_rtc_write,
-    syborg_rtc_write,
-    syborg_rtc_write
+static const MemoryRegionOps syborg_rtc_ops = {
+    .read = syborg_rtc_read,
+    .write = syborg_rtc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_syborg_rtc = {
@@ -118,12 +115,9 @@ static int syborg_rtc_init(SysBusDevice *dev)
 {
     SyborgRTCState *s = FROM_SYSBUS(SyborgRTCState, dev);
     struct tm tm;
-    int iomemtype;
 
-    iomemtype = cpu_register_io_memory(syborg_rtc_readfn,
-                                       syborg_rtc_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &syborg_rtc_ops, s, "rtc", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     qemu_get_timedate(&tm, 0);
     s->offset = (uint64_t)mktime(&tm) * 1000000000;
