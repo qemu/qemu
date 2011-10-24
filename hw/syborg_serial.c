@@ -58,6 +58,7 @@ enum {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t int_enable;
     uint32_t fifo_size;
     uint32_t *read_fifo;
@@ -152,7 +153,8 @@ static void dma_rx_start(SyborgSerialState *s, uint32_t len)
     syborg_serial_update(s);
 }
 
-static uint32_t syborg_serial_read(void *opaque, target_phys_addr_t offset)
+static uint64_t syborg_serial_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     SyborgSerialState *s = (SyborgSerialState *)opaque;
     uint32_t c;
@@ -192,7 +194,7 @@ static uint32_t syborg_serial_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void syborg_serial_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     SyborgSerialState *s = (SyborgSerialState *)opaque;
     unsigned char ch;
@@ -261,16 +263,10 @@ static void syborg_serial_event(void *opaque, int event)
     /* TODO: Report BREAK events?  */
 }
 
-static CPUReadMemoryFunc * const syborg_serial_readfn[] = {
-     syborg_serial_read,
-     syborg_serial_read,
-     syborg_serial_read
-};
-
-static CPUWriteMemoryFunc * const syborg_serial_writefn[] = {
-     syborg_serial_write,
-     syborg_serial_write,
-     syborg_serial_write
+static const MemoryRegionOps syborg_serial_ops = {
+    .read = syborg_serial_read,
+    .write = syborg_serial_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_syborg_serial = {
@@ -295,13 +291,11 @@ static const VMStateDescription vmstate_syborg_serial = {
 static int syborg_serial_init(SysBusDevice *dev)
 {
     SyborgSerialState *s = FROM_SYSBUS(SyborgSerialState, dev);
-    int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
-    iomemtype = cpu_register_io_memory(syborg_serial_readfn,
-                                       syborg_serial_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &syborg_serial_ops, s,
+                          "serial", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, syborg_serial_can_receive,
