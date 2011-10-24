@@ -912,9 +912,15 @@ const ppc_def_t *kvmppc_host_cpu_def(void)
 
     /* Now fix up the spec with information we can query from the host */
 
-    alter_insns(&spec->insns_flags, PPC_ALTIVEC, vmx > 0);
-    alter_insns(&spec->insns_flags2, PPC2_VSX, vmx > 1);
-    alter_insns(&spec->insns_flags2, PPC2_DFP, dfp);
+    if (vmx != -1) {
+        /* Only override when we know what the host supports */
+        alter_insns(&spec->insns_flags, PPC_ALTIVEC, vmx > 0);
+        alter_insns(&spec->insns_flags2, PPC2_VSX, vmx > 1);
+    }
+    if (dfp != -1) {
+        /* Only override when we know what the host supports */
+        alter_insns(&spec->insns_flags2, PPC2_DFP, dfp);
+    }
 
     return spec;
 }
