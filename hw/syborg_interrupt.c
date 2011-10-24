@@ -55,6 +55,7 @@ typedef struct {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     int pending_count;
     uint32_t num_irqs;
     syborg_int_flags *flags;
@@ -84,7 +85,8 @@ static void syborg_int_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static uint32_t syborg_int_read(void *opaque, target_phys_addr_t offset)
+static uint64_t syborg_int_read(void *opaque, target_phys_addr_t offset,
+                                unsigned size)
 {
     SyborgIntState *s = (SyborgIntState *)opaque;
     int i;
@@ -114,7 +116,8 @@ static uint32_t syborg_int_read(void *opaque, target_phys_addr_t offset)
     }
 }
 
-static void syborg_int_write(void *opaque, target_phys_addr_t offset, uint32_t value)
+static void syborg_int_write(void *opaque, target_phys_addr_t offset,
+                             uint64_t value, unsigned size)
 {
     SyborgIntState *s = (SyborgIntState *)opaque;
     int i;
@@ -156,16 +159,10 @@ static void syborg_int_write(void *opaque, target_phys_addr_t offset, uint32_t v
     syborg_int_update(s);
 }
 
-static CPUReadMemoryFunc * const syborg_int_readfn[] = {
-    syborg_int_read,
-    syborg_int_read,
-    syborg_int_read
-};
-
-static CPUWriteMemoryFunc * const syborg_int_writefn[] = {
-    syborg_int_write,
-    syborg_int_write,
-    syborg_int_write
+static const MemoryRegionOps syborg_int_ops = {
+    .read = syborg_int_read,
+    .write = syborg_int_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void syborg_int_save(QEMUFile *f, void *opaque)
@@ -205,14 +202,12 @@ static int syborg_int_load(QEMUFile *f, void *opaque, int version_id)
 static int syborg_int_init(SysBusDevice *dev)
 {
     SyborgIntState *s = FROM_SYSBUS(SyborgIntState, dev);
-    int iomemtype;
 
     sysbus_init_irq(dev, &s->parent_irq);
     qdev_init_gpio_in(&dev->qdev, syborg_int_set_irq, s->num_irqs);
-    iomemtype = cpu_register_io_memory(syborg_int_readfn,
-                                       syborg_int_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &syborg_int_ops, s,
+                          "interrupt", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     s->flags = g_malloc0(s->num_irqs * sizeof(syborg_int_flags));
 
     register_savevm(&dev->qdev, "syborg_int", -1, 1, syborg_int_save,
