@@ -53,6 +53,7 @@ enum {
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     ptimer_state *timer;
     int running;
     int oneshot;
@@ -83,7 +84,8 @@ static void syborg_timer_tick(void *opaque)
     syborg_timer_update(s);
 }
 
-static uint32_t syborg_timer_read(void *opaque, target_phys_addr_t offset)
+static uint64_t syborg_timer_read(void *opaque, target_phys_addr_t offset,
+                                  unsigned size)
 {
     SyborgTimerState *s = (SyborgTimerState *)opaque;
 
@@ -114,7 +116,7 @@ static uint32_t syborg_timer_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void syborg_timer_write(void *opaque, target_phys_addr_t offset,
-                               uint32_t value)
+                               uint64_t value, unsigned size)
 {
     SyborgTimerState *s = (SyborgTimerState *)opaque;
 
@@ -162,16 +164,10 @@ static void syborg_timer_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const syborg_timer_readfn[] = {
-    syborg_timer_read,
-    syborg_timer_read,
-    syborg_timer_read
-};
-
-static CPUWriteMemoryFunc * const syborg_timer_writefn[] = {
-    syborg_timer_write,
-    syborg_timer_write,
-    syborg_timer_write
+static const MemoryRegionOps syborg_timer_ops = {
+    .read = syborg_timer_read,
+    .write = syborg_timer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_syborg_timer = {
@@ -194,17 +190,14 @@ static int syborg_timer_init(SysBusDevice *dev)
 {
     SyborgTimerState *s = FROM_SYSBUS(SyborgTimerState, dev);
     QEMUBH *bh;
-    int iomemtype;
 
     if (s->freq == 0) {
         fprintf(stderr, "syborg_timer: Zero/unset frequency\n");
         exit(1);
     }
     sysbus_init_irq(dev, &s->irq);
-    iomemtype = cpu_register_io_memory(syborg_timer_readfn,
-                                       syborg_timer_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &syborg_timer_ops, s, "timer", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     bh = qemu_bh_new(syborg_timer_tick, s);
     s->timer = ptimer_init(bh);
