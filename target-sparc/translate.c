@@ -4012,7 +4012,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x051: /* VIS I fpadd16s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_helper_fpadd16s(cpu_env, cpu_fpr[rd],
+                    gen_helper_fpadd16s(cpu_fpr[rd], cpu_env,
                                         cpu_fpr[rs1], cpu_fpr[rs2]);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -4026,7 +4026,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x053: /* VIS I fpadd32s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_helper_fpadd32s(cpu_env, cpu_fpr[rd],
+                    gen_helper_fpadd32s(cpu_fpr[rd], cpu_env,
                                         cpu_fpr[rs1], cpu_fpr[rs2]);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -4040,7 +4040,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x055: /* VIS I fpsub16s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_helper_fpsub16s(cpu_env, cpu_fpr[rd],
+                    gen_helper_fpsub16s(cpu_fpr[rd], cpu_env,
                                         cpu_fpr[rs1], cpu_fpr[rs2]);
                     gen_update_fprs_dirty(rd);
                     break;
@@ -4054,7 +4054,7 @@ static void disas_sparc_insn(DisasContext * dc)
                     break;
                 case 0x057: /* VIS I fpsub32s */
                     CHECK_FPU_FEATURE(dc, VIS1);
-                    gen_helper_fpsub32s(cpu_env, cpu_fpr[rd],
+                    gen_helper_fpsub32s(cpu_fpr[rd], cpu_env,
                                         cpu_fpr[rs1], cpu_fpr[rs2]);
                     gen_update_fprs_dirty(rd);
                     break;
