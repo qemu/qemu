@@ -794,6 +794,11 @@ static CPUState *mon_get_cpu(void)
     return cur_mon->mon_cpu;
 }
 
+int monitor_get_cpu_index(void)
+{
+    return mon_get_cpu()->cpu_index;
+}
+
 static void do_info_registers(Monitor *mon)
 {
     CPUState *env;
