@@ -22,6 +22,7 @@
  * THE SOFTWARE.
  */
 #include "config-host.h"
+#include <stdint.h>     /* uint8_t, ... */
 #include <unistd.h>
 #include <signal.h>
 #include <time.h>
