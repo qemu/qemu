@@ -1148,7 +1148,7 @@ void cpu_loop (CPUSPARCState *env)
         case TT_TFAULT:
         case TT_DFAULT:
             {
-                info.si_signo = SIGSEGV;
+                info.si_signo = TARGET_SIGSEGV;
                 info.si_errno = 0;
                 /* XXX: check env->error_code */
                 info.si_code = TARGET_SEGV_MAPERR;
@@ -1166,7 +1166,7 @@ void cpu_loop (CPUSPARCState *env)
         case TT_TFAULT:
         case TT_DFAULT:
             {
-                info.si_signo = SIGSEGV;
+                info.si_signo = TARGET_SIGSEGV;
                 info.si_errno = 0;
                 /* XXX: check env->error_code */
                 info.si_code = TARGET_SEGV_MAPERR;
