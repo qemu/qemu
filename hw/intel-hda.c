@@ -485,7 +485,7 @@ static void intel_hda_parse_bdl(IntelHDAState *d, IntelHDAStream *st)
     st->bp    = 0;
 }
 
-static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool running)
+static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool running, bool output)
 {
     DeviceState *qdev;
     HDACodecDevice *cdev;
@@ -493,7 +493,7 @@ static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool runn
     QLIST_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
         if (cdev->info->stream) {
-            cdev->info->stream(cdev, stream, running);
+            cdev->info->stream(cdev, stream, running, output);
         }
     }
 }
@@ -567,6 +567,7 @@ static void intel_hda_set_ics(IntelHDAState *d, const IntelHDAReg *reg, uint32_t
 
 static void intel_hda_set_st_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint32_t old)
 {
+    bool output = reg->stream >= 4;
     IntelHDAStream *st = d->st + reg->stream;
 
     if (st->ctl & 0x01) {
@@ -582,11 +583,11 @@ static void intel_hda_set_st_ctl(IntelHDAState *d, const IntelHDAReg *reg, uint3
             dprint(d, 1, "st #%d: start %d (ring buf %d bytes)\n",
                    reg->stream, stnr, st->cbl);
             intel_hda_parse_bdl(d, st);
-            intel_hda_notify_codecs(d, stnr, true);
+            intel_hda_notify_codecs(d, stnr, true, output);
         } else {
             /* stop */
             dprint(d, 1, "st #%d: stop %d\n", reg->stream, stnr);
-            intel_hda_notify_codecs(d, stnr, false);
+            intel_hda_notify_codecs(d, stnr, false, output);
         }
     }
     intel_hda_update_irq(d);
