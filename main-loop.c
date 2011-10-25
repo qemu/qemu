@@ -21,35 +21,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "config-host.h"
-#include <unistd.h>
-#include <signal.h>
-#include <time.h>
-#include <errno.h>
-#include <sys/time.h>
-#include <stdbool.h>
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <net/if.h>
-#include <arpa/inet.h>
-#include <sys/select.h>
-#include <sys/stat.h>
-#include "compatfd.h"
-#endif
-
-#include <glib.h>
-
-#include "main-loop.h"
+#include "qemu-common.h"
 #include "qemu-timer.h"
-#include "slirp/libslirp.h"
+#include "slirp/slirp.h"
+#include "main-loop.h"
 
 #ifndef _WIN32
+
+#include "compatfd.h"
 
 static int io_thread_fd = -1;
 
