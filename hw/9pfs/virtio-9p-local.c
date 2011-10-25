@@ -281,7 +281,7 @@ static int local_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
         if (err == -1) {
             goto out;
         }
-        local_set_xattr(rpath(fs_ctx, path, buffer), credp);
+        err = local_set_xattr(rpath(fs_ctx, path, buffer), credp);
         if (err == -1) {
             serrno = errno;
             goto err_end;
@@ -551,15 +551,12 @@ static int local_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
     char *path = fs_path->data;
 
     if ((credp->fc_uid == -1 && credp->fc_gid == -1) ||
-            (fs_ctx->export_flags & V9FS_SM_PASSTHROUGH)) {
-        return lchown(rpath(fs_ctx, path, buffer), credp->fc_uid,
-                credp->fc_gid);
+        (fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
+        (fs_ctx->export_flags & V9FS_SM_NONE)) {
+        return lchown(rpath(fs_ctx, path, buffer),
+                      credp->fc_uid, credp->fc_gid);
     } else if (fs_ctx->export_flags & V9FS_SM_MAPPED) {
         return local_set_xattr(rpath(fs_ctx, path, buffer), credp);
-    } else if ((fs_ctx->export_flags & V9FS_SM_PASSTHROUGH) ||
-               (fs_ctx->export_flags & V9FS_SM_NONE)) {
-        return lchown(rpath(fs_ctx, path, buffer), credp->fc_uid,
-                credp->fc_gid);
     }
     return -1;
 }
