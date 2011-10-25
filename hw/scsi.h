@@ -51,6 +51,7 @@ struct SCSIRequest {
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     bool enqueued;
+    bool io_canceled;
     void *hba_private;
     QTAILQ_ENTRY(SCSIRequest) next;
 };

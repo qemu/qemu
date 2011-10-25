@@ -1107,8 +1107,12 @@ void scsi_req_continue(SCSIRequest *req)
    Once it completes, calling scsi_req_continue will restart I/O.  */
 void scsi_req_data(SCSIRequest *req, int len)
 {
-    trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
-    req->bus->info->transfer_data(req, len);
+    if (req->io_canceled) {
+        trace_scsi_req_data_canceled(req->dev->id, req->lun, req->tag, len);
+    } else {
+        trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
+        req->bus->info->transfer_data(req, len);
+    }
 }
 
 void scsi_req_print(SCSIRequest *req)
@@ -1173,11 +1177,15 @@ void scsi_req_complete(SCSIRequest *req, int status)
 
 void scsi_req_cancel(SCSIRequest *req)
 {
-    if (req->ops->cancel_io) {
-        req->ops->cancel_io(req);
+    if (!req->enqueued) {
+        return;
     }
     scsi_req_ref(req);
     scsi_req_dequeue(req);
+    req->io_canceled = true;
+    if (req->ops->cancel_io) {
+        req->ops->cancel_io(req);
+    }
     if (req->bus->info->cancel) {
         req->bus->info->cancel(req);
     }
@@ -1186,10 +1194,17 @@ void scsi_req_cancel(SCSIRequest *req)
 
 void scsi_req_abort(SCSIRequest *req, int status)
 {
+    if (!req->enqueued) {
+        return;
+    }
+    scsi_req_ref(req);
+    scsi_req_dequeue(req);
+    req->io_canceled = true;
     if (req->ops->cancel_io) {
         req->ops->cancel_io(req);
     }
     scsi_req_complete(req, status);
+    scsi_req_unref(req);
 }
 
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
