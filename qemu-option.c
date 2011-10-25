@@ -168,7 +168,7 @@ QEMUOptionParameter *get_option_parameter(QEMUOptionParameter *list,
     return NULL;
 }
 
-static int parse_option_bool(const char *name, const char *value, int *ret)
+static int parse_option_bool(const char *name, const char *value, bool *ret)
 {
     if (value != NULL) {
         if (!strcmp(value, "on")) {
@@ -258,7 +258,7 @@ static int parse_option_size(const char *name, const char *value, uint64_t *ret)
 int set_option_parameter(QEMUOptionParameter *list, const char *name,
     const char *value)
 {
-    int flag;
+    bool flag;
 
     // Find a matching parameter
     list = get_option_parameter(list, name);
@@ -508,7 +508,7 @@ struct QemuOpt {
 
     const QemuOptDesc *desc;
     union {
-        int      boolean;
+        bool boolean;
         uint64_t uint;
     } value;
 
@@ -542,7 +542,7 @@ const char *qemu_opt_get(QemuOpts *opts, const char *name)
     return opt ? opt->str : NULL;
 }
 
-int qemu_opt_get_bool(QemuOpts *opts, const char *name, int defval)
+bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval)
 {
     QemuOpt *opt = qemu_opt_find(opts, name);
 
@@ -633,6 +633,37 @@ int qemu_opt_set(QemuOpts *opts, const char *name, const char *value)
         qemu_opt_del(opt);
         return -1;
     }
+    return 0;
+}
+
+int qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val)
+{
+    QemuOpt *opt;
+    const QemuOptDesc *desc = opts->list->desc;
+    int i;
+
+    for (i = 0; desc[i].name != NULL; i++) {
+        if (strcmp(desc[i].name, name) == 0) {
+            break;
+        }
+    }
+    if (desc[i].name == NULL) {
+        if (i == 0) {
+            /* empty list -> allow any */;
+        } else {
+            qerror_report(QERR_INVALID_PARAMETER, name);
+            return -1;
+        }
+    }
+
+    opt = g_malloc0(sizeof(*opt));
+    opt->name = g_strdup(name);
+    opt->opts = opts;
+    QTAILQ_INSERT_TAIL(&opts->head, opt, next);
+    if (desc[i].name != NULL) {
+        opt->desc = desc+i;
+    }
+    opt->value.boolean = !!val;
     return 0;
 }
 
