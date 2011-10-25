@@ -182,6 +182,7 @@ usb_redir=""
 opengl=""
 zlib="yes"
 guest_agent="yes"
+libiscsi=""
 
 # parse CC options first
 for opt do
@@ -657,6 +658,10 @@ for opt do
   ;;
   --enable-spice) spice="yes"
   ;;
+  --disable-libiscsi) libiscsi="no"
+  ;;
+  --enable-libiscsi) libiscsi="yes"
+  ;;
   --enable-profiler) profiler="yes"
   ;;
   --enable-cocoa)
@@ -1046,6 +1051,8 @@ echo "                           Default:trace-<pid>"
 echo "  --disable-spice          disable spice"
 echo "  --enable-spice           enable spice"
 echo "  --enable-rbd             enable building the rados block device (rbd)"
+echo "  --disable-libiscsi       disable iscsi support"
+echo "  --enable-libiscsi        enable iscsi support"
 echo "  --disable-smartcard      disable smartcard support"
 echo "  --enable-smartcard       enable smartcard support"
 echo "  --disable-smartcard-nss  disable smartcard nss support"
@@ -2335,6 +2342,25 @@ if compile_prog "" "" ; then
 fi
 
 ##########################################
+# Do we have libiscsi
+if test "$libiscsi" != "no" ; then
+  cat > $TMPC << EOF
+#include <iscsi/iscsi.h>
+int main(void) { iscsi_create_context(""); return 0; }
+EOF
+  if compile_prog "-Werror" "-liscsi" ; then
+    libiscsi="yes"
+    LIBS="$LIBS -liscsi"
+  else
+    if test "$libiscsi" = "yes" ; then
+      feature_not_found "libiscsi"
+    fi
+    libiscsi="no"
+  fi
+fi
+
+
+##########################################
 # Do we need librt
 cat > $TMPC <<EOF
 #include <signal.h>
@@ -2744,6 +2770,7 @@ echo "xfsctl support    $xfs"
 echo "nss used          $smartcard_nss"
 echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
+echo "libiscsi support  $libiscsi"
 echo "build guest agent $guest_agent"
 
 if test "$sdl_too_old" = "yes"; then
@@ -3040,6 +3067,10 @@ fi
 
 if test "$opengl" = "yes" ; then
   echo "CONFIG_OPENGL=y" >> $config_host_mak
+fi
+
+if test "$libiscsi" = "yes" ; then
+  echo "CONFIG_LIBISCSI=y" >> $config_host_mak
 fi
 
 # XXX: suppress that
