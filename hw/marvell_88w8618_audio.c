@@ -36,6 +36,7 @@
 
 typedef struct mv88w8618_audio_state {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq irq;
     uint32_t playback_mode;
     uint32_t status;
@@ -134,7 +135,8 @@ static void mv88w8618_audio_clock_update(mv88w8618_audio_state *s)
     wm8750_set_bclk_in(s->wm, rate);
 }
 
-static uint32_t mv88w8618_audio_read(void *opaque, target_phys_addr_t offset)
+static uint64_t mv88w8618_audio_read(void *opaque, target_phys_addr_t offset,
+                                    unsigned size)
 {
     mv88w8618_audio_state *s = opaque;
 
@@ -160,7 +162,7 @@ static uint32_t mv88w8618_audio_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void mv88w8618_audio_write(void *opaque, target_phys_addr_t offset,
-                                 uint32_t value)
+                                  uint64_t value, unsigned size)
 {
     mv88w8618_audio_state *s = opaque;
 
@@ -227,31 +229,23 @@ static void mv88w8618_audio_reset(DeviceState *d)
     s->phys_buf = 0;
 }
 
-static CPUReadMemoryFunc * const mv88w8618_audio_readfn[] = {
-    mv88w8618_audio_read,
-    mv88w8618_audio_read,
-    mv88w8618_audio_read
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_audio_writefn[] = {
-    mv88w8618_audio_write,
-    mv88w8618_audio_write,
-    mv88w8618_audio_write
+static const MemoryRegionOps mv88w8618_audio_ops = {
+    .read = mv88w8618_audio_read,
+    .write = mv88w8618_audio_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int mv88w8618_audio_init(SysBusDevice *dev)
 {
     mv88w8618_audio_state *s = FROM_SYSBUS(mv88w8618_audio_state, dev);
-    int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
 
     wm8750_data_req_set(s->wm, mv88w8618_audio_callback, s);
 
-    iomemtype = cpu_register_io_memory(mv88w8618_audio_readfn,
-                                       mv88w8618_audio_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_AUDIO_SIZE, iomemtype);
+    memory_region_init_io(&s->iomem, &mv88w8618_audio_ops, s,
+                          "audio", MP_AUDIO_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     return 0;
 }
