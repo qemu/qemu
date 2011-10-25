@@ -35,7 +35,7 @@ int qemu_fsdev_add(QemuOpts *opts)
     const char *path = qemu_opt_get(opts, "path");
     const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *writeout = qemu_opt_get(opts, "writeout");
-
+    bool ro = qemu_opt_get_bool(opts, "readonly", 0);
 
     if (!fsdev_id) {
         fprintf(stderr, "fsdev: No id specified\n");
@@ -85,6 +85,11 @@ int qemu_fsdev_add(QemuOpts *opts)
         if (!strcmp(writeout, "immediate")) {
             fsle->fse.export_flags |= V9FS_IMMEDIATE_WRITEOUT;
         }
+    }
+    if (ro) {
+        fsle->fse.export_flags |= V9FS_RDONLY;
+    } else {
+        fsle->fse.export_flags &= ~V9FS_RDONLY;
     }
 
     if (strcmp(fsdriver, "local")) {

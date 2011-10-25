@@ -2707,6 +2707,8 @@ int main(int argc, char **argv, char **envp)
                 qemu_opt_set(fsdev, "security_model",
                              qemu_opt_get(opts, "security_model"));
 
+                qemu_opt_set_bool(fsdev, "readonly",
+                                qemu_opt_get_bool(opts, "readonly", 0));
                 device = qemu_opts_create(qemu_find_opts("device"), NULL, 0);
                 qemu_opt_set(device, "driver", "virtio-9p-pci");
                 qemu_opt_set(device, "fsdev",

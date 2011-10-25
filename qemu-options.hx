@@ -528,12 +528,12 @@ DEFHEADING(File system options:)
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
     "-fsdev fsdriver,id=id,path=path,[security_model={mapped|passthrough|none}]\n"
-    "       [,writeout=immediate]\n",
+    "       [,writeout=immediate][,readonly]\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -fsdev @var{fsdriver},id=@var{id},path=@var{path},[security_model=@var{security_model}][,writeout=@var{writeout}]
+@item -fsdev @var{fsdriver},id=@var{id},path=@var{path},[security_model=@var{security_model}][,writeout=@var{writeout}][,readonly]
 @findex -fsdev
 Define a new file system device. Valid options are:
 @table @option
@@ -563,6 +563,9 @@ This is an optional argument. The only supported value is "immediate".
 This means that host page cache will be used to read and write data but
 write notification will be sent to the guest only when the data has been
 reported as written by the storage subsystem.
+@item readonly
+Enables exporting 9p share as a readonly mount for guests. By default
+read-write access is given.
 @end table
 
 -fsdev option is used along with -device driver "virtio-9p-pci".
@@ -583,12 +586,12 @@ DEFHEADING(Virtual File system pass-through options:)
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=[mapped|passthrough|none]\n"
-    "        [,writeout=immediate]\n",
+    "        [,writeout=immediate][,readonly]\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -virtfs @var{fsdriver},path=@var{path},mount_tag=@var{mount_tag},security_model=@var{security_model}[,writeout=@var{writeout}]
+@item -virtfs @var{fsdriver},path=@var{path},mount_tag=@var{mount_tag},security_model=@var{security_model}[,writeout=@var{writeout}][,readonly]
 @findex -virtfs
 
 The general form of a Virtual File system pass-through options are:
@@ -619,6 +622,9 @@ This is an optional argument. The only supported value is "immediate".
 This means that host page cache will be used to read and write data but
 write notification will be sent to the guest only when the data has been
 reported as written by the storage subsystem.
+@item readonly
+Enables exporting 9p share as a readonly mount for guests. By default
+read-write access is given.
 @end table
 ETEXI
 
