@@ -42,12 +42,6 @@ do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #define SCSI_DMA_BUF_SIZE    131072
 #define SCSI_MAX_INQUIRY_LEN 256
 
-#define SCSI_REQ_STATUS_RETRY           0x01
-#define SCSI_REQ_STATUS_RETRY_TYPE_MASK 0x06
-#define SCSI_REQ_STATUS_RETRY_READ      0x00
-#define SCSI_REQ_STATUS_RETRY_WRITE     0x02
-#define SCSI_REQ_STATUS_RETRY_FLUSH     0x04
-
 typedef struct SCSIDiskState SCSIDiskState;
 
 typedef struct SCSIDiskReq {
@@ -58,7 +52,6 @@ typedef struct SCSIDiskReq {
     uint32_t buflen;
     struct iovec iov;
     QEMUIOVector qiov;
-    uint32_t status;
     BlockAcctCookie acct;
 } SCSIDiskReq;
 
@@ -75,8 +68,7 @@ struct SCSIDiskState
     bool tray_locked;
 };
 
-static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type);
-static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf);
+static int scsi_handle_rw_error(SCSIDiskReq *r, int error);
 
 static void scsi_free_request(SCSIRequest *req)
 {
@@ -102,7 +94,6 @@ static void scsi_cancel_io(SCSIRequest *req)
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
 
     DPRINTF("Cancel tag=0x%x\n", req->tag);
-    r->status &= ~(SCSI_REQ_STATUS_RETRY | SCSI_REQ_STATUS_RETRY_TYPE_MASK);
     if (r->req.aiocb) {
         bdrv_aio_cancel(r->req.aiocb);
 
@@ -139,7 +130,7 @@ static void scsi_read_complete(void * opaque, int ret)
     }
 
     if (ret) {
-        if (scsi_handle_rw_error(r, -ret, SCSI_REQ_STATUS_RETRY_READ)) {
+        if (scsi_handle_rw_error(r, -ret)) {
             goto done;
         }
     }
@@ -168,7 +159,7 @@ static void scsi_flush_complete(void * opaque, int ret)
     }
 
     if (ret < 0) {
-        if (scsi_handle_rw_error(r, -ret, SCSI_REQ_STATUS_RETRY_FLUSH)) {
+        if (scsi_handle_rw_error(r, -ret)) {
             goto done;
         }
     }
@@ -233,9 +224,9 @@ static void scsi_read_data(SCSIRequest *req)
  * scsi_handle_rw_error always manages its reference counts, independent
  * of the return value.
  */
-static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
+static int scsi_handle_rw_error(SCSIDiskReq *r, int error)
 {
-    int is_read = (type == SCSI_REQ_STATUS_RETRY_READ);
+    int is_read = (r->req.cmd.xfer == SCSI_XFER_FROM_DEV);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     BlockErrorAction action = bdrv_get_on_error(s->qdev.conf.bs, is_read);
 
@@ -247,17 +238,10 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
     if ((error == ENOSPC && action == BLOCK_ERR_STOP_ENOSPC)
             || action == BLOCK_ERR_STOP_ANY) {
 
-        type &= SCSI_REQ_STATUS_RETRY_TYPE_MASK;
-        r->status |= SCSI_REQ_STATUS_RETRY | type;
-
         bdrv_mon_event(s->qdev.conf.bs, BDRV_ACTION_STOP, is_read);
         vm_stop(RUN_STATE_IO_ERROR);
         bdrv_iostatus_set_err(s->qdev.conf.bs, error);
-
-        /* No need to save a reference, because scsi_dma_restart_bh just
-         * looks at the request list.  If a request is canceled, the
-         * retry request is just dropped.
-         */
+        scsi_req_retry(&r->req);
     } else {
         switch (error) {
         case ENOMEDIUM:
@@ -290,7 +274,7 @@ static void scsi_write_complete(void * opaque, int ret)
     }
 
     if (ret) {
-        if (scsi_handle_rw_error(r, -ret, SCSI_REQ_STATUS_RETRY_WRITE)) {
+        if (scsi_handle_rw_error(r, -ret)) {
             goto done;
         }
     }
@@ -344,51 +328,6 @@ static void scsi_write_data(SCSIRequest *req)
     } else {
         /* Called for the first time.  Ask the driver to send us more data.  */
         scsi_write_complete(r, 0);
-    }
-}
-
-static void scsi_dma_restart_bh(void *opaque)
-{
-    SCSIDiskState *s = opaque;
-    SCSIRequest *req;
-    SCSIDiskReq *r;
-
-    qemu_bh_delete(s->bh);
-    s->bh = NULL;
-
-    QTAILQ_FOREACH(req, &s->qdev.requests, next) {
-        r = DO_UPCAST(SCSIDiskReq, req, req);
-        if (r->status & SCSI_REQ_STATUS_RETRY) {
-            int status = r->status;
-
-            r->status &=
-                ~(SCSI_REQ_STATUS_RETRY | SCSI_REQ_STATUS_RETRY_TYPE_MASK);
-
-            switch (status & SCSI_REQ_STATUS_RETRY_TYPE_MASK) {
-            case SCSI_REQ_STATUS_RETRY_READ:
-                scsi_read_data(&r->req);
-                break;
-            case SCSI_REQ_STATUS_RETRY_WRITE:
-                scsi_write_data(&r->req);
-                break;
-            case SCSI_REQ_STATUS_RETRY_FLUSH:
-                scsi_send_command(&r->req, r->req.cmd.buf);
-                break;
-            }
-        }
-    }
-}
-
-static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
-{
-    SCSIDiskState *s = opaque;
-
-    if (!running) {
-        return;
-    }
-    if (!s->bh) {
-        s->bh = qemu_bh_new(scsi_dma_restart_bh, s);
-        qemu_bh_schedule(s->bh);
     }
 }
 
@@ -1591,7 +1530,6 @@ static int scsi_initfn(SCSIDevice *dev)
     }
     bdrv_set_buffer_alignment(s->qdev.conf.bs, s->qdev.blocksize);
 
-    qemu_add_vm_change_state_handler(scsi_dma_restart_cb, s);
     bdrv_iostatus_enable(s->qdev.conf.bs);
     add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, ",0");
     return 0;

@@ -3,6 +3,7 @@
 
 #include "qdev.h"
 #include "block.h"
+#include "sysemu.h"
 
 #define MAX_SCSI_DEVS	255
 
@@ -52,6 +53,7 @@ struct SCSIRequest {
     uint32_t sense_len;
     bool enqueued;
     bool io_canceled;
+    bool retry;
     void *hba_private;
     QTAILQ_ENTRY(SCSIRequest) next;
 };
@@ -59,6 +61,8 @@ struct SCSIRequest {
 struct SCSIDevice
 {
     DeviceState qdev;
+    VMChangeStateEntry *vmsentry;
+    QEMUBH *bh;
     uint32_t id;
     BlockConf conf;
     SCSIDeviceInfo *info;
@@ -194,6 +198,7 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req);
 int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len);
 void scsi_req_abort(SCSIRequest *req, int status);
 void scsi_req_cancel(SCSIRequest *req);
+void scsi_req_retry(SCSIRequest *req);
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense);
 int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
 SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun);

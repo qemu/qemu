@@ -8,6 +8,7 @@
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
+static void scsi_req_dequeue(SCSIRequest *req);
 static int scsi_build_sense(uint8_t *in_buf, int in_len,
                             uint8_t *buf, int len, bool fixed);
 
@@ -31,6 +32,53 @@ void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info)
     bus->busnr = next_scsi_bus++;
     bus->info = info;
     bus->qbus.allow_hotplug = 1;
+}
+
+static void scsi_dma_restart_bh(void *opaque)
+{
+    SCSIDevice *s = opaque;
+    SCSIRequest *req, *next;
+
+    qemu_bh_delete(s->bh);
+    s->bh = NULL;
+
+    QTAILQ_FOREACH_SAFE(req, &s->requests, next, next) {
+        scsi_req_ref(req);
+        if (req->retry) {
+            req->retry = false;
+            switch (req->cmd.mode) {
+            case SCSI_XFER_FROM_DEV:
+            case SCSI_XFER_TO_DEV:
+                scsi_req_continue(req);
+                break;
+            case SCSI_XFER_NONE:
+                scsi_req_dequeue(req);
+                scsi_req_enqueue(req);
+                break;
+            }
+        }
+        scsi_req_unref(req);
+    }
+}
+
+void scsi_req_retry(SCSIRequest *req)
+{
+    /* No need to save a reference, because scsi_dma_restart_bh just
+     * looks at the request list.  */
+    req->retry = true;
+}
+
+static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
+{
+    SCSIDevice *s = opaque;
+
+    if (!running) {
+        return;
+    }
+    if (!s->bh) {
+        s->bh = qemu_bh_new(scsi_dma_restart_bh, s);
+        qemu_bh_schedule(s->bh);
+    }
 }
 
 static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
@@ -83,6 +131,10 @@ static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
     dev->info = info;
     QTAILQ_INIT(&dev->requests);
     rc = dev->info->init(dev);
+    if (rc == 0) {
+        dev->vmsentry = qemu_add_vm_change_state_handler(scsi_dma_restart_cb,
+                                                         dev);
+    }
 
 err:
     return rc;
@@ -92,6 +144,9 @@ static int scsi_qdev_exit(DeviceState *qdev)
 {
     SCSIDevice *dev = DO_UPCAST(SCSIDevice, qdev, qdev);
 
+    if (dev->vmsentry) {
+        qemu_del_vm_change_state_handler(dev->vmsentry);
+    }
     if (dev->info->destroy) {
         dev->info->destroy(dev);
     }
@@ -586,6 +641,7 @@ int32_t scsi_req_enqueue(SCSIRequest *req)
 static void scsi_req_dequeue(SCSIRequest *req)
 {
     trace_scsi_req_dequeue(req->dev->id, req->lun, req->tag);
+    req->retry = false;
     if (req->enqueued) {
         QTAILQ_REMOVE(&req->dev->requests, req, next);
         req->enqueued = false;
