@@ -1191,6 +1191,15 @@ void cpu_loop (CPUSPARCState *env)
         case EXCP_INTERRUPT:
             /* just indicate that signals should be handled asap */
             break;
+        case TT_ILL_INSN:
+            {
+                info.si_signo = TARGET_SIGILL;
+                info.si_errno = 0;
+                info.si_code = TARGET_ILL_ILLOPC;
+                info._sifields._sigfault._addr = env->pc;
+                queue_signal(env, info.si_signo, &info);
+            }
+            break;
         case EXCP_DEBUG:
             {
                 int sig;
