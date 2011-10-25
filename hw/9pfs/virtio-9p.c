@@ -455,11 +455,11 @@ static int free_fid(V9fsPDU *pdu, V9fsFidState *fidp)
     if (fidp->fid_type == P9_FID_FILE) {
         /* If we reclaimed the fd no need to close */
         if (fidp->fs.fd != -1) {
-            retval = v9fs_co_close(pdu, fidp->fs.fd);
+            retval = v9fs_co_close(pdu, &fidp->fs);
         }
     } else if (fidp->fid_type == P9_FID_DIR) {
         if (fidp->fs.dir != NULL) {
-            retval = v9fs_co_closedir(pdu, fidp->fs.dir);
+            retval = v9fs_co_closedir(pdu, &fidp->fs);
         }
     } else if (fidp->fid_type == P9_FID_XATTR) {
         retval = v9fs_xattr_fid_clunk(pdu, fidp);
@@ -567,9 +567,9 @@ void v9fs_reclaim_fd(V9fsPDU *pdu)
         f = reclaim_list;
         reclaim_list = f->rclm_lst;
         if (f->fid_type == P9_FID_FILE) {
-            v9fs_co_close(pdu, f->fs_reclaim.fd);
+            v9fs_co_close(pdu, &f->fs_reclaim);
         } else if (f->fid_type == P9_FID_DIR) {
-            v9fs_co_closedir(pdu, f->fs_reclaim.dir);
+            v9fs_co_closedir(pdu, &f->fs_reclaim);
         }
         f->rclm_lst = NULL;
         /*
@@ -3009,7 +3009,7 @@ static void v9fs_lock(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_fstat(pdu, fidp->fs.fd, &stbuf);
+    err = v9fs_co_fstat(pdu, fidp, &stbuf);
     if (err < 0) {
         goto out;
     }
@@ -3052,7 +3052,7 @@ static void v9fs_getlock(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_fstat(pdu, fidp->fs.fd, &stbuf);
+    err = v9fs_co_fstat(pdu, fidp, &stbuf);
     if (err < 0) {
         goto out;
     }

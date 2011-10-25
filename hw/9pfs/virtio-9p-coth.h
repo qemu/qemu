@@ -80,7 +80,7 @@ extern int v9fs_co_rename(V9fsPDU *, V9fsPath *, V9fsPath *);
 extern int v9fs_co_unlinkat(V9fsPDU *, V9fsPath *, V9fsString *, int flags);
 extern int v9fs_co_renameat(V9fsPDU *, V9fsPath *, V9fsString *,
                             V9fsPath *, V9fsString *);
-extern int v9fs_co_fstat(V9fsPDU *, int, struct stat *);
+extern int v9fs_co_fstat(V9fsPDU *, V9fsFidState *, struct stat *);
 extern int v9fs_co_opendir(V9fsPDU *, V9fsFidState *);
 extern int v9fs_co_open(V9fsPDU *, V9fsFidState *, int);
 extern int v9fs_co_open2(V9fsPDU *, V9fsFidState *, V9fsString *,
@@ -88,8 +88,8 @@ extern int v9fs_co_open2(V9fsPDU *, V9fsFidState *, V9fsString *,
 extern int v9fs_co_lsetxattr(V9fsPDU *, V9fsPath *, V9fsString *,
                              void *, size_t, int);
 extern int v9fs_co_lremovexattr(V9fsPDU *, V9fsPath *, V9fsString *);
-extern int v9fs_co_closedir(V9fsPDU *, DIR *);
-extern int v9fs_co_close(V9fsPDU *, int);
+extern int v9fs_co_closedir(V9fsPDU *, V9fsFidOpenState *);
+extern int v9fs_co_close(V9fsPDU *, V9fsFidOpenState *);
 extern int v9fs_co_fsync(V9fsPDU *, V9fsFidState *, int);
 extern int v9fs_co_symlink(V9fsPDU *, V9fsFidState *, V9fsString *,
                            const char *, gid_t, struct stat *);

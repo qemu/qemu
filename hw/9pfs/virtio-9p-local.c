@@ -156,81 +156,91 @@ static ssize_t local_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
     return tsize;
 }
 
-static int local_close(FsContext *ctx, int fd)
+static int local_close(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return close(fd);
+    return close(fs->fd);
 }
 
-static int local_closedir(FsContext *ctx, DIR *dir)
+static int local_closedir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return closedir(dir);
+    return closedir(fs->dir);
 }
 
-static int local_open(FsContext *ctx, V9fsPath *fs_path, int flags)
-{
-    char buffer[PATH_MAX];
-    char *path = fs_path->data;
-
-    return open(rpath(ctx, path, buffer), flags);
-}
-
-static DIR *local_opendir(FsContext *ctx, V9fsPath *fs_path)
+static int local_open(FsContext *ctx, V9fsPath *fs_path,
+                      int flags, V9fsFidOpenState *fs)
 {
     char buffer[PATH_MAX];
     char *path = fs_path->data;
 
-    return opendir(rpath(ctx, path, buffer));
+    fs->fd = open(rpath(ctx, path, buffer), flags);
+    return fs->fd;
 }
 
-static void local_rewinddir(FsContext *ctx, DIR *dir)
+static int local_opendir(FsContext *ctx,
+                         V9fsPath *fs_path, V9fsFidOpenState *fs)
 {
-    return rewinddir(dir);
+    char buffer[PATH_MAX];
+    char *path = fs_path->data;
+
+    fs->dir = opendir(rpath(ctx, path, buffer));
+    if (!fs->dir) {
+        return -1;
+    }
+    return 0;
 }
 
-static off_t local_telldir(FsContext *ctx, DIR *dir)
+static void local_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return telldir(dir);
+    return rewinddir(fs->dir);
 }
 
-static int local_readdir_r(FsContext *ctx, DIR *dir, struct dirent *entry,
+static off_t local_telldir(FsContext *ctx, V9fsFidOpenState *fs)
+{
+    return telldir(fs->dir);
+}
+
+static int local_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
+                           struct dirent *entry,
                            struct dirent **result)
 {
-    return readdir_r(dir, entry, result);
+    return readdir_r(fs->dir, entry, result);
 }
 
-static void local_seekdir(FsContext *ctx, DIR *dir, off_t off)
+static void local_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    return seekdir(dir, off);
+    return seekdir(fs->dir, off);
 }
 
-static ssize_t local_preadv(FsContext *ctx, int fd, const struct iovec *iov,
+static ssize_t local_preadv(FsContext *ctx, V9fsFidOpenState *fs,
+                            const struct iovec *iov,
                             int iovcnt, off_t offset)
 {
 #ifdef CONFIG_PREADV
-    return preadv(fd, iov, iovcnt, offset);
+    return preadv(fs->fd, iov, iovcnt, offset);
 #else
-    int err = lseek(fd, offset, SEEK_SET);
+    int err = lseek(fs->fd, offset, SEEK_SET);
     if (err == -1) {
         return err;
     } else {
-        return readv(fd, iov, iovcnt);
+        return readv(fs->fd, iov, iovcnt);
     }
 #endif
 }
 
-static ssize_t local_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
+static ssize_t local_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
+                             const struct iovec *iov,
                              int iovcnt, off_t offset)
 {
     ssize_t ret
 ;
 #ifdef CONFIG_PREADV
-    ret = pwritev(fd, iov, iovcnt, offset);
+    ret = pwritev(fs->fd, iov, iovcnt, offset);
 #else
-    int err = lseek(fd, offset, SEEK_SET);
+    int err = lseek(fs->fd, offset, SEEK_SET);
     if (err == -1) {
         return err;
     } else {
-        ret = writev(fd, iov, iovcnt);
+        ret = writev(fs->fd, iov, iovcnt);
     }
 #endif
 #ifdef CONFIG_SYNC_FILE_RANGE
@@ -240,7 +250,7 @@ static ssize_t local_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
          * We want to ensure that we don't leave dirty pages in the cache
          * after write when writeout=immediate is sepcified.
          */
-        sync_file_range(fd, offset, ret,
+        sync_file_range(fs->fd, offset, ret,
                         SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE);
     }
 #endif
@@ -356,10 +366,11 @@ out:
     return err;
 }
 
-static int local_fstat(FsContext *fs_ctx, int fd, struct stat *stbuf)
+static int local_fstat(FsContext *fs_ctx,
+                       V9fsFidOpenState *fs, struct stat *stbuf)
 {
     int err;
-    err = fstat(fd, stbuf);
+    err = fstat(fs->fd, stbuf);
     if (err) {
         return err;
     }
@@ -370,16 +381,20 @@ static int local_fstat(FsContext *fs_ctx, int fd, struct stat *stbuf)
         mode_t tmp_mode;
         dev_t tmp_dev;
 
-        if (fgetxattr(fd, "user.virtfs.uid", &tmp_uid, sizeof(uid_t)) > 0) {
+        if (fgetxattr(fs->fd, "user.virtfs.uid",
+                      &tmp_uid, sizeof(uid_t)) > 0) {
             stbuf->st_uid = tmp_uid;
         }
-        if (fgetxattr(fd, "user.virtfs.gid", &tmp_gid, sizeof(gid_t)) > 0) {
+        if (fgetxattr(fs->fd, "user.virtfs.gid",
+                      &tmp_gid, sizeof(gid_t)) > 0) {
             stbuf->st_gid = tmp_gid;
         }
-        if (fgetxattr(fd, "user.virtfs.mode", &tmp_mode, sizeof(mode_t)) > 0) {
+        if (fgetxattr(fs->fd, "user.virtfs.mode",
+                      &tmp_mode, sizeof(mode_t)) > 0) {
             stbuf->st_mode = tmp_mode;
         }
-        if (fgetxattr(fd, "user.virtfs.rdev", &tmp_dev, sizeof(dev_t)) > 0) {
+        if (fgetxattr(fs->fd, "user.virtfs.rdev",
+                      &tmp_dev, sizeof(dev_t)) > 0) {
                 stbuf->st_rdev = tmp_dev;
         }
     }
@@ -387,7 +402,7 @@ static int local_fstat(FsContext *fs_ctx, int fd, struct stat *stbuf)
 }
 
 static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
-                       int flags, FsCred *credp)
+                       int flags, FsCred *credp, V9fsFidOpenState *fs)
 {
     char *path;
     int fd = -1;
@@ -428,6 +443,7 @@ static int local_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
         }
     }
     err = fd;
+    fs->fd = fd;
     goto out;
 
 err_end:
@@ -577,12 +593,12 @@ static int local_remove(FsContext *ctx, const char *path)
     return remove(rpath(ctx, path, buffer));
 }
 
-static int local_fsync(FsContext *ctx, int fd, int datasync)
+static int local_fsync(FsContext *ctx, V9fsFidOpenState *fs, int datasync)
 {
     if (datasync) {
-        return qemu_fdatasync(fd);
+        return qemu_fdatasync(fs->fd);
     } else {
-        return fsync(fd);
+        return fsync(fs->fd);
     }
 }
 
@@ -677,7 +693,9 @@ static int local_unlinkat(FsContext *ctx, V9fsPath *dir,
 static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
                                 mode_t st_mode, uint64_t *st_gen)
 {
-    int err, fd;
+    int err;
+    V9fsFidOpenState fid_open;
+
     /*
      * Do not try to open special files like device nodes, fifos etc
      * We can get fd for regular files and directories only
@@ -685,12 +703,12 @@ static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
     if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
             return 0;
     }
-    fd = local_open(ctx, path, O_RDONLY);
-    if (fd < 0) {
-        return fd;
+    err = local_open(ctx, path, O_RDONLY, &fid_open);
+    if (err < 0) {
+        return err;
     }
-    err = ioctl(fd, FS_IOC_GETVERSION, st_gen);
-    local_close(ctx, fd);
+    err = ioctl(fid_open.fd, FS_IOC_GETVERSION, st_gen);
+    local_close(ctx, &fid_open);
     return err;
 }
 
