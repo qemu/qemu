@@ -389,14 +389,15 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
 {
     HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, dev->qdev.parent_bus);
     IntelHDAState *d = container_of(bus, IntelHDAState, codecs);
-    IntelHDAStream *st = NULL;
     target_phys_addr_t addr;
     uint32_t s, copy, left;
+    IntelHDAStream *st;
     bool irq = false;
 
-    for (s = 0; s < ARRAY_SIZE(d->st); s++) {
-        if (stnr == ((d->st[s].ctl >> 20) & 0x0f)) {
-            st = d->st + s;
+    st = output ? d->st + 4 : d->st;
+    for (s = 0; s < 4; s++) {
+        if (stnr == ((st[s].ctl >> 20) & 0x0f)) {
+            st = st + s;
             break;
         }
     }
