@@ -76,6 +76,8 @@
  * For details on the use of these macros, see the queue(3) manual page.
  */
 
+#include "qemu-barrier.h" /* for smp_wmb() */
+
 /*
  * List definitions.
  */
@@ -121,6 +123,17 @@ struct {                                                                \
         (head)->lh_first = (elm);                                       \
         (elm)->field.le_prev = &(head)->lh_first;                       \
 } while (/*CONSTCOND*/0)
+
+#define QLIST_INSERT_HEAD_RCU(head, elm, field) do {                    \
+        (elm)->field.le_prev = &(head)->lh_first;                       \
+        (elm)->field.le_next = (head)->lh_first;                        \
+        smp_wmb(); /* fill elm before linking it */                     \
+        if ((head)->lh_first != NULL)  {                                \
+            (head)->lh_first->field.le_prev = &(elm)->field.le_next;    \
+        }                                                               \
+        (head)->lh_first = (elm);                                       \
+        smp_wmb();                                                      \
+} while (/* CONSTCOND*/0)
 
 #define QLIST_REMOVE(elm, field) do {                                   \
         if ((elm)->field.le_next != NULL)                               \
