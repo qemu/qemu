@@ -102,8 +102,14 @@ static void scsi_cancel_io(SCSIRequest *req)
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
 
     DPRINTF("Cancel tag=0x%x\n", req->tag);
+    r->status &= ~(SCSI_REQ_STATUS_RETRY | SCSI_REQ_STATUS_RETRY_TYPE_MASK);
     if (r->req.aiocb) {
         bdrv_aio_cancel(r->req.aiocb);
+
+        /* This reference was left in by scsi_*_data.  We take ownership of
+         * it the moment scsi_req_cancel is called, independent of whether
+         * bdrv_aio_cancel completes the request or not.  */
+        scsi_req_unref(&r->req);
     }
     r->req.aiocb = NULL;
 }
@@ -134,7 +140,7 @@ static void scsi_read_complete(void * opaque, int ret)
 
     if (ret) {
         if (scsi_handle_rw_error(r, -ret, SCSI_REQ_STATUS_RETRY_READ)) {
-            return;
+            goto done;
         }
     }
 
@@ -144,6 +150,11 @@ static void scsi_read_complete(void * opaque, int ret)
     r->sector += n;
     r->sector_count -= n;
     scsi_req_data(&r->req, r->qiov.size);
+
+done:
+    if (!r->req.io_canceled) {
+        scsi_req_unref(&r->req);
+    }
 }
 
 static void scsi_flush_complete(void * opaque, int ret)
@@ -158,11 +169,16 @@ static void scsi_flush_complete(void * opaque, int ret)
 
     if (ret < 0) {
         if (scsi_handle_rw_error(r, -ret, SCSI_REQ_STATUS_RETRY_FLUSH)) {
-            return;
+            goto done;
         }
     }
 
     scsi_req_complete(&r->req, GOOD);
+
+done:
+    if (!r->req.io_canceled) {
+        scsi_req_unref(&r->req);
+    }
 }
 
 /* Read more data from scsi device into buffer.  */
@@ -188,6 +204,8 @@ static void scsi_read_data(SCSIRequest *req)
     /* No data transfer may already be in progress */
     assert(r->req.aiocb == NULL);
 
+    /* The request is used as the AIO opaque value, so add a ref.  */
+    scsi_req_ref(&r->req);
     if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
         DPRINTF("Data transfer direction invalid\n");
         scsi_read_complete(r, -EINVAL);
@@ -196,7 +214,9 @@ static void scsi_read_data(SCSIRequest *req)
 
     if (s->tray_open) {
         scsi_read_complete(r, -ENOMEDIUM);
+        return;
     }
+
     n = scsi_init_iovec(r);
     bdrv_acct_start(s->qdev.conf.bs, &r->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
     r->req.aiocb = bdrv_aio_readv(s->qdev.conf.bs, r->sector, &r->qiov, n,
@@ -206,6 +226,13 @@ static void scsi_read_data(SCSIRequest *req)
     }
 }
 
+/*
+ * scsi_handle_rw_error has two return values.  0 means that the error
+ * must be ignored, 1 means that the error has been processed and the
+ * caller should not do anything else for this request.  Note that
+ * scsi_handle_rw_error always manages its reference counts, independent
+ * of the return value.
+ */
 static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
 {
     int is_read = (type == SCSI_REQ_STATUS_RETRY_READ);
@@ -226,6 +253,11 @@ static int scsi_handle_rw_error(SCSIDiskReq *r, int error, int type)
         bdrv_mon_event(s->qdev.conf.bs, BDRV_ACTION_STOP, is_read);
         vm_stop(RUN_STATE_IO_ERROR);
         bdrv_iostatus_set_err(s->qdev.conf.bs, error);
+
+        /* No need to save a reference, because scsi_dma_restart_bh just
+         * looks at the request list.  If a request is canceled, the
+         * retry request is just dropped.
+         */
     } else {
         switch (error) {
         case ENOMEDIUM:
@@ -259,7 +291,7 @@ static void scsi_write_complete(void * opaque, int ret)
 
     if (ret) {
         if (scsi_handle_rw_error(r, -ret, SCSI_REQ_STATUS_RETRY_WRITE)) {
-            return;
+            goto done;
         }
     }
 
@@ -273,6 +305,11 @@ static void scsi_write_complete(void * opaque, int ret)
         DPRINTF("Write complete tag=0x%x more=%d\n", r->req.tag, r->qiov.size);
         scsi_req_data(&r->req, r->qiov.size);
     }
+
+done:
+    if (!r->req.io_canceled) {
+        scsi_req_unref(&r->req);
+    }
 }
 
 static void scsi_write_data(SCSIRequest *req)
@@ -284,6 +321,8 @@ static void scsi_write_data(SCSIRequest *req)
     /* No data transfer may already be in progress */
     assert(r->req.aiocb == NULL);
 
+    /* The request is used as the AIO opaque value, so add a ref.  */
+    scsi_req_ref(&r->req);
     if (r->req.cmd.mode != SCSI_XFER_TO_DEV) {
         DPRINTF("Data transfer direction invalid\n");
         scsi_write_complete(r, -EINVAL);
@@ -294,6 +333,7 @@ static void scsi_write_data(SCSIRequest *req)
     if (n) {
         if (s->tray_open) {
             scsi_write_complete(r, -ENOMEDIUM);
+            return;
         }
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_WRITE);
         r->req.aiocb = bdrv_aio_writev(s->qdev.conf.bs, r->sector, &r->qiov, n,
@@ -1332,6 +1372,8 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         r->iov.iov_len = rc;
         break;
     case SYNCHRONIZE_CACHE:
+        /* The request is used as the AIO opaque value, so add a ref.  */
+        scsi_req_ref(&r->req);
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
         r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_flush_complete, r);
         if (r->req.aiocb == NULL) {
