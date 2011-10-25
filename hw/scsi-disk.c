@@ -39,6 +39,10 @@ do { fprintf(stderr, "scsi-disk: " fmt , ## __VA_ARGS__); } while (0)
 #include "blockdev.h"
 #include "block_int.h"
 
+#ifdef __linux
+#include <scsi/sg.h>
+#endif
+
 #define SCSI_DMA_BUF_SIZE    131072
 #define SCSI_MAX_INQUIRY_LEN 256
 
@@ -1588,6 +1592,105 @@ static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
     return req;
 }
 
+#ifdef __linux__
+static int get_device_type(SCSIDiskState *s)
+{
+    BlockDriverState *bdrv = s->qdev.conf.bs;
+    uint8_t cmd[16];
+    uint8_t buf[36];
+    uint8_t sensebuf[8];
+    sg_io_hdr_t io_header;
+    int ret;
+
+    memset(cmd, 0, sizeof(cmd));
+    memset(buf, 0, sizeof(buf));
+    cmd[0] = INQUIRY;
+    cmd[4] = sizeof(buf);
+
+    memset(&io_header, 0, sizeof(io_header));
+    io_header.interface_id = 'S';
+    io_header.dxfer_direction = SG_DXFER_FROM_DEV;
+    io_header.dxfer_len = sizeof(buf);
+    io_header.dxferp = buf;
+    io_header.cmdp = cmd;
+    io_header.cmd_len = sizeof(cmd);
+    io_header.mx_sb_len = sizeof(sensebuf);
+    io_header.sbp = sensebuf;
+    io_header.timeout = 6000; /* XXX */
+
+    ret = bdrv_ioctl(bdrv, SG_IO, &io_header);
+    if (ret < 0 || io_header.driver_status || io_header.host_status) {
+        return -1;
+    }
+    s->qdev.type = buf[0];
+    s->removable = (buf[1] & 0x80) != 0;
+    return 0;
+}
+
+static int scsi_block_initfn(SCSIDevice *dev)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, dev);
+    int sg_version;
+    int rc;
+
+    if (!s->qdev.conf.bs) {
+        error_report("scsi-block: drive property not set");
+        return -1;
+    }
+
+    /* check we are using a driver managing SG_IO (version 3 and after) */
+    if (bdrv_ioctl(s->qdev.conf.bs, SG_GET_VERSION_NUM, &sg_version) < 0 ||
+        sg_version < 30000) {
+        error_report("scsi-block: scsi generic interface too old");
+        return -1;
+    }
+
+    /* get device type from INQUIRY data */
+    rc = get_device_type(s);
+    if (rc < 0) {
+        error_report("scsi-block: INQUIRY failed");
+        return -1;
+    }
+
+    /* Make a guess for the block size, we'll fix it when the guest sends.
+     * READ CAPACITY.  If they don't, they likely would assume these sizes
+     * anyway. (TODO: check in /sys).
+     */
+    if (s->qdev.type == TYPE_ROM || s->qdev.type == TYPE_WORM) {
+        s->qdev.blocksize = 2048;
+    } else {
+        s->qdev.blocksize = 512;
+    }
+    return scsi_initfn(&s->qdev);
+}
+
+static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
+                                           uint32_t lun, uint8_t *buf,
+                                           void *hba_private)
+{
+    SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
+
+    switch (buf[0]) {
+    case READ_6:
+    case READ_10:
+    case READ_12:
+    case READ_16:
+    case WRITE_6:
+    case WRITE_10:
+    case WRITE_12:
+    case WRITE_16:
+    case WRITE_VERIFY_10:
+    case WRITE_VERIFY_12:
+    case WRITE_VERIFY_16:
+        return scsi_req_alloc(&scsi_disk_reqops, &s->qdev, tag, lun,
+                              hba_private);
+    }
+
+    return scsi_req_alloc(&scsi_generic_req_ops, &s->qdev, tag, lun,
+                          hba_private);
+}
+#endif
+
 #define DEFINE_SCSI_DISK_PROPERTIES()                           \
     DEFINE_BLOCK_PROPERTIES(SCSIDiskState, qdev.conf),          \
     DEFINE_PROP_STRING("ver",  SCSIDiskState, version),         \
@@ -1623,6 +1726,21 @@ static SCSIDeviceInfo scsi_disk_info[] = {
             DEFINE_SCSI_DISK_PROPERTIES(),
             DEFINE_PROP_END_OF_LIST(),
         },
+#ifdef __linux__
+    },{
+        .qdev.name    = "scsi-block",
+        .qdev.fw_name = "disk",
+        .qdev.desc    = "SCSI block device passthrough",
+        .qdev.size    = sizeof(SCSIDiskState),
+        .qdev.reset   = scsi_disk_reset,
+        .init         = scsi_block_initfn,
+        .destroy      = scsi_destroy,
+        .alloc_req    = scsi_block_new_request,
+        .qdev.props   = (Property[]) {
+            DEFINE_SCSI_DISK_PROPERTIES(),
+            DEFINE_PROP_END_OF_LIST(),
+        },
+#endif
     },{
         .qdev.name    = "scsi-disk", /* legacy -device scsi-disk */
         .qdev.fw_name = "disk",
