@@ -24,6 +24,7 @@ static QTAILQ_HEAD(FsDriverEntry_head, FsDriverListEntry) fsdriver_entries =
 static FsDriverTable FsDrivers[] = {
     { .name = "local", .ops = &local_ops},
     { .name = "handle", .ops = &handle_ops},
+    { .name = "synth", .ops = &synth_ops},
 };
 
 int qemu_fsdev_add(QemuOpts *opts)

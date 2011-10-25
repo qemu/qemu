@@ -628,6 +628,15 @@ read-write access is given.
 @end table
 ETEXI
 
+DEF("virtfs_synth", 0, QEMU_OPTION_virtfs_synth,
+    "-virtfs_synth Create synthetic file system image\n",
+    QEMU_ARCH_ALL)
+STEXI
+@item -virtfs_synth
+@findex -virtfs_synth
+Create synthetic file system image
+ETEXI
+
 DEFHEADING()
 
 DEF("name", HAS_ARG, QEMU_OPTION_name,

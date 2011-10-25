@@ -212,6 +212,12 @@ union V9fsFidOpenState {
     int fd;
     DIR *dir;
     V9fsXattr xattr;
+    /*
+     * private pointer for fs drivers, that
+     * have its own internal representation of
+     * open files.
+     */
+    void *private;
 };
 
 struct V9fsFidState

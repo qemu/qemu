@@ -2717,6 +2717,24 @@ int main(int argc, char **argv, char **envp)
                              qemu_opt_get(opts, "mount_tag"));
                 break;
             }
+            case QEMU_OPTION_virtfs_synth: {
+                QemuOpts *fsdev;
+                QemuOpts *device;
+
+                fsdev = qemu_opts_create(qemu_find_opts("fsdev"), "v_synth", 1);
+                if (!fsdev) {
+                    fprintf(stderr, "duplicate option: %s\n", "virtfs_synth");
+                    exit(1);
+                }
+                qemu_opt_set(fsdev, "fsdriver", "synth");
+                qemu_opt_set(fsdev, "path", "/"); /* ignored */
+
+                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0);
+                qemu_opt_set(device, "driver", "virtio-9p-pci");
+                qemu_opt_set(device, "fsdev", "v_synth");
+                qemu_opt_set(device, "mount_tag", "v_synth");
+                break;
+            }
             case QEMU_OPTION_serial:
                 add_device_config(DEV_SERIAL, optarg);
                 default_serial = 0;
