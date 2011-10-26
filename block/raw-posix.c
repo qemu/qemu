@@ -583,19 +583,6 @@ static int raw_create(const char *filename, QEMUOptionParameter *options)
     return result;
 }
 
-static int raw_flush(BlockDriverState *bs)
-{
-    BDRVRawState *s = bs->opaque;
-    int ret;
-
-    ret = qemu_fdatasync(s->fd);
-    if (ret < 0) {
-        return -errno;
-    }
-
-    return 0;
-}
-
 #ifdef CONFIG_XFS
 static int xfs_discard(BDRVRawState *s, int64_t sector_num, int nb_sectors)
 {
@@ -615,7 +602,8 @@ static int xfs_discard(BDRVRawState *s, int64_t sector_num, int nb_sectors)
 }
 #endif
 
-static int raw_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors)
+static coroutine_fn int raw_co_discard(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors)
 {
 #ifdef CONFIG_XFS
     BDRVRawState *s = bs->opaque;
@@ -645,8 +633,7 @@ static BlockDriver bdrv_file = {
     .bdrv_file_open = raw_open,
     .bdrv_close = raw_close,
     .bdrv_create = raw_create,
-    .bdrv_flush = raw_flush,
-    .bdrv_discard = raw_discard,
+    .bdrv_co_discard = raw_co_discard,
 
     .bdrv_aio_readv = raw_aio_readv,
     .bdrv_aio_writev = raw_aio_writev,
@@ -915,7 +902,6 @@ static BlockDriver bdrv_host_device = {
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
     .bdrv_has_zero_init = hdev_has_zero_init,
-    .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv	= raw_aio_readv,
     .bdrv_aio_writev	= raw_aio_writev,
@@ -1035,7 +1021,6 @@ static BlockDriver bdrv_host_floppy = {
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
     .bdrv_has_zero_init = hdev_has_zero_init,
-    .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv     = raw_aio_readv,
     .bdrv_aio_writev    = raw_aio_writev,
@@ -1135,7 +1120,6 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
     .bdrv_has_zero_init = hdev_has_zero_init,
-    .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv     = raw_aio_readv,
     .bdrv_aio_writev    = raw_aio_writev,
@@ -1255,7 +1239,6 @@ static BlockDriver bdrv_host_cdrom = {
     .bdrv_create        = hdev_create,
     .create_options     = raw_create_options,
     .bdrv_has_zero_init = hdev_has_zero_init,
-    .bdrv_flush         = raw_flush,
 
     .bdrv_aio_readv     = raw_aio_readv,
     .bdrv_aio_writev    = raw_aio_writev,

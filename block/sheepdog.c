@@ -396,7 +396,7 @@ static inline int free_aio_req(BDRVSheepdogState *s, AIOReq *aio_req)
     return !QLIST_EMPTY(&acb->aioreq_head);
 }
 
-static void sd_finish_aiocb(SheepdogAIOCB *acb)
+static void coroutine_fn sd_finish_aiocb(SheepdogAIOCB *acb)
 {
     if (!acb->canceled) {
         qemu_coroutine_enter(acb->coroutine, NULL);
@@ -735,7 +735,7 @@ out:
     return ret;
 }
 
-static int add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
+static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
                            struct iovec *iov, int niov, int create,
                            enum AIOCBState aiocb_type);
 
@@ -743,7 +743,7 @@ static int add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
  * This function searchs pending requests to the object `oid', and
  * sends them.
  */
-static void send_pending_req(BDRVSheepdogState *s, uint64_t oid, uint32_t id)
+static void coroutine_fn send_pending_req(BDRVSheepdogState *s, uint64_t oid, uint32_t id)
 {
     AIOReq *aio_req, *next;
     SheepdogAIOCB *acb;
@@ -777,7 +777,7 @@ static void send_pending_req(BDRVSheepdogState *s, uint64_t oid, uint32_t id)
  * This function is registered as a fd handler, and called from the
  * main loop when s->fd is ready for reading responses.
  */
-static void aio_read_response(void *opaque)
+static void coroutine_fn aio_read_response(void *opaque)
 {
     SheepdogObjRsp rsp;
     BDRVSheepdogState *s = opaque;
@@ -1064,7 +1064,7 @@ out:
     return ret;
 }
 
-static int add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
+static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
                            struct iovec *iov, int niov, int create,
                            enum AIOCBState aiocb_type)
 {
@@ -1517,7 +1517,7 @@ static int sd_truncate(BlockDriverState *bs, int64_t offset)
  * update metadata, this sends a write request to the vdi object.
  * Otherwise, this switches back to sd_co_readv/writev.
  */
-static void sd_write_done(SheepdogAIOCB *acb)
+static void coroutine_fn sd_write_done(SheepdogAIOCB *acb)
 {
     int ret;
     BDRVSheepdogState *s = acb->common.bs->opaque;
@@ -1615,7 +1615,7 @@ out:
  * Returns 1 when we need to wait a response, 0 when there is no sent
  * request and -errno in error cases.
  */
-static int sd_co_rw_vector(void *p)
+static int coroutine_fn sd_co_rw_vector(void *p)
 {
     SheepdogAIOCB *acb = p;
     int ret = 0;

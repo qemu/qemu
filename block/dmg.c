@@ -28,6 +28,7 @@
 #include <zlib.h>
 
 typedef struct BDRVDMGState {
+    CoMutex lock;
     /* each chunk contains a certain number of sectors,
      * offsets[i] is the offset in the .dmg file,
      * lengths[i] is the length of the compressed chunk,
@@ -177,6 +178,7 @@ static int dmg_open(BlockDriverState *bs, int flags)
 
     s->current_chunk = s->n_chunks;
 
+    qemu_co_mutex_init(&s->lock);
     return 0;
 fail:
     return -1;
@@ -280,6 +282,17 @@ static int dmg_read(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+static coroutine_fn int dmg_co_read(BlockDriverState *bs, int64_t sector_num,
+                                    uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVDMGState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = dmg_read(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static void dmg_close(BlockDriverState *bs)
 {
     BDRVDMGState *s = bs->opaque;
@@ -300,7 +313,7 @@ static BlockDriver bdrv_dmg = {
     .instance_size	= sizeof(BDRVDMGState),
     .bdrv_probe		= dmg_probe,
     .bdrv_open		= dmg_open,
-    .bdrv_read		= dmg_read,
+    .bdrv_read          = dmg_co_read,
     .bdrv_close		= dmg_close,
 };
 

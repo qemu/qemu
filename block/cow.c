@@ -42,6 +42,7 @@ struct cow_header_v2 {
 };
 
 typedef struct BDRVCowState {
+    CoMutex lock;
     int64_t cow_sectors_offset;
 } BDRVCowState;
 
@@ -84,6 +85,7 @@ static int cow_open(BlockDriverState *bs, int flags)
 
     bitmap_size = ((bs->total_sectors + 7) >> 3) + sizeof(cow_header);
     s->cow_sectors_offset = (bitmap_size + 511) & ~511;
+    qemu_co_mutex_init(&s->lock);
     return 0;
  fail:
     return -1;
@@ -199,6 +201,17 @@ static int cow_read(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+static coroutine_fn int cow_co_read(BlockDriverState *bs, int64_t sector_num,
+                                    uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVCowState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = cow_read(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static int cow_write(BlockDriverState *bs, int64_t sector_num,
                      const uint8_t *buf, int nb_sectors)
 {
@@ -211,6 +224,17 @@ static int cow_write(BlockDriverState *bs, int64_t sector_num,
         return -1;
 
     return cow_update_bitmap(bs, sector_num, nb_sectors);
+}
+
+static coroutine_fn int cow_co_write(BlockDriverState *bs, int64_t sector_num,
+                                     const uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVCowState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = cow_write(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
 }
 
 static void cow_close(BlockDriverState *bs)
@@ -282,9 +306,9 @@ exit:
     return ret;
 }
 
-static int cow_flush(BlockDriverState *bs)
+static coroutine_fn int cow_co_flush(BlockDriverState *bs)
 {
-    return bdrv_flush(bs->file);
+    return bdrv_co_flush(bs->file);
 }
 
 static QEMUOptionParameter cow_create_options[] = {
@@ -306,11 +330,11 @@ static BlockDriver bdrv_cow = {
     .instance_size	= sizeof(BDRVCowState),
     .bdrv_probe		= cow_probe,
     .bdrv_open		= cow_open,
-    .bdrv_read		= cow_read,
-    .bdrv_write		= cow_write,
+    .bdrv_read          = cow_co_read,
+    .bdrv_write         = cow_co_write,
     .bdrv_close		= cow_close,
     .bdrv_create	= cow_create,
-    .bdrv_flush		= cow_flush,
+    .bdrv_co_flush      = cow_co_flush,
     .bdrv_is_allocated	= cow_is_allocated,
 
     .create_options = cow_create_options,

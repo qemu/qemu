@@ -533,11 +533,6 @@ static void bdrv_qed_close(BlockDriverState *bs)
     qemu_vfree(s->l1_table);
 }
 
-static int bdrv_qed_flush(BlockDriverState *bs)
-{
-    return bdrv_flush(bs->file);
-}
-
 static int qed_create(const char *filename, uint32_t cluster_size,
                       uint64_t image_size, uint32_t table_size,
                       const char *backing_file, const char *backing_fmt)
@@ -1479,7 +1474,6 @@ static BlockDriver bdrv_qed = {
     .bdrv_open                = bdrv_qed_open,
     .bdrv_close               = bdrv_qed_close,
     .bdrv_create              = bdrv_qed_create,
-    .bdrv_flush               = bdrv_qed_flush,
     .bdrv_is_allocated        = bdrv_qed_is_allocated,
     .bdrv_make_empty          = bdrv_qed_make_empty,
     .bdrv_aio_readv           = bdrv_qed_aio_readv,

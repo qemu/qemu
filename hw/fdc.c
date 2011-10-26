@@ -434,6 +434,7 @@ static uint32_t fdctrl_read (void *opaque, uint32_t reg)
     FDCtrl *fdctrl = opaque;
     uint32_t retval;
 
+    reg &= 7;
     switch (reg) {
     case FD_REG_SRA:
         retval = fdctrl_read_statusA(fdctrl);
@@ -471,6 +472,7 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
 
     FLOPPY_DPRINTF("write reg%d: 0x%02x\n", reg & 7, value);
 
+    reg &= 7;
     switch (reg) {
     case FD_REG_DOR:
         fdctrl_write_dor(fdctrl, value);
@@ -1944,6 +1946,18 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
     qdev_set_legacy_instance_id(&dev->qdev, io, 2);
     return fdctrl_init_common(fdctrl);
 }
+
+void fdc_get_bs(BlockDriverState *bs[], ISADevice *dev)
+{
+    FDCtrlISABus *isa = DO_UPCAST(FDCtrlISABus, busdev, dev);
+    FDCtrl *fdctrl = &isa->state;
+    int i;
+
+    for (i = 0; i < MAX_FD; i++) {
+        bs[i] = fdctrl->drives[i].bs;
+    }
+}
+
 
 static const VMStateDescription vmstate_isa_fdc ={
     .name = "fdc",

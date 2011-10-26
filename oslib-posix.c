@@ -103,6 +103,13 @@ void qemu_vfree(void *ptr)
     free(ptr);
 }
 
+void socket_set_block(int fd)
+{
+    int f;
+    f = fcntl(fd, F_GETFL);
+    fcntl(fd, F_SETFL, f & ~O_NONBLOCK);
+}
+
 void socket_set_nonblock(int fd)
 {
     int f;

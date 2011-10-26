@@ -568,8 +568,10 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
     }
 
     cluster_offset = be64_to_cpu(l2_table[l2_index]);
-    if (cluster_offset & QCOW_OFLAG_COPIED)
-        return cluster_offset & ~QCOW_OFLAG_COPIED;
+    if (cluster_offset & QCOW_OFLAG_COPIED) {
+        qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+        return 0;
+    }
 
     if (cluster_offset)
         qcow2_free_any_clusters(bs, cluster_offset, 1);

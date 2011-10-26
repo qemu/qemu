@@ -781,15 +781,9 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static int qcow_flush(BlockDriverState *bs)
+static coroutine_fn int qcow_co_flush(BlockDriverState *bs)
 {
-    return bdrv_flush(bs->file);
-}
-
-static BlockDriverAIOCB *qcow_aio_flush(BlockDriverState *bs,
-        BlockDriverCompletionFunc *cb, void *opaque)
-{
-    return bdrv_aio_flush(bs->file, cb, opaque);
+    return bdrv_co_flush(bs->file);
 }
 
 static int qcow_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
@@ -826,13 +820,12 @@ static BlockDriver bdrv_qcow = {
     .bdrv_open		= qcow_open,
     .bdrv_close		= qcow_close,
     .bdrv_create	= qcow_create,
-    .bdrv_flush		= qcow_flush,
     .bdrv_is_allocated	= qcow_is_allocated,
     .bdrv_set_key	= qcow_set_key,
     .bdrv_make_empty	= qcow_make_empty,
-    .bdrv_co_readv  = qcow_co_readv,
-    .bdrv_co_writev = qcow_co_writev,
-    .bdrv_aio_flush	= qcow_aio_flush,
+    .bdrv_co_readv      = qcow_co_readv,
+    .bdrv_co_writev     = qcow_co_writev,
+    .bdrv_co_flush      = qcow_co_flush,
     .bdrv_write_compressed = qcow_write_compressed,
     .bdrv_get_info	= qcow_get_info,
 
