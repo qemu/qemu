@@ -116,14 +116,6 @@ static void blkverify_close(BlockDriverState *bs)
     s->test_file = NULL;
 }
 
-static int blkverify_flush(BlockDriverState *bs)
-{
-    BDRVBlkverifyState *s = bs->opaque;
-
-    /* Only flush test file, the raw file is not important */
-    return bdrv_flush(s->test_file);
-}
-
 static int64_t blkverify_getlength(BlockDriverState *bs)
 {
     BDRVBlkverifyState *s = bs->opaque;
@@ -368,7 +360,6 @@ static BlockDriver bdrv_blkverify = {
 
     .bdrv_file_open     = blkverify_open,
     .bdrv_close         = blkverify_close,
-    .bdrv_flush         = blkverify_flush,
 
     .bdrv_aio_readv     = blkverify_aio_readv,
     .bdrv_aio_writev    = blkverify_aio_writev,

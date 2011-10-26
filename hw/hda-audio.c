@@ -466,7 +466,8 @@ struct HDAAudioState {
     QEMUSoundCard card;
     const desc_codec *desc;
     HDAAudioStream st[4];
-    bool running[16];
+    bool running_compat[16];
+    bool running_real[2 * 16];
 
     /* properties */
     uint32_t debug;
@@ -663,7 +664,7 @@ static void hda_audio_command(HDACodecDevice *hda, uint32_t nid, uint32_t data)
         st->channel = payload & 0x0f;
         dprint(a, 2, "%s: stream %d, channel %d\n",
                st->node->name, st->stream, st->channel);
-        hda_audio_set_running(st, a->running[st->stream]);
+        hda_audio_set_running(st, a->running_real[st->output * 16 + st->stream]);
         hda_codec_response(hda, true, 0);
         break;
     case AC_VERB_GET_CONV:
@@ -746,14 +747,18 @@ fail:
     hda_codec_response(hda, true, 0);
 }
 
-static void hda_audio_stream(HDACodecDevice *hda, uint32_t stnr, bool running)
+static void hda_audio_stream(HDACodecDevice *hda, uint32_t stnr, bool running, bool output)
 {
     HDAAudioState *a = DO_UPCAST(HDAAudioState, hda, hda);
     int s;
 
-    a->running[stnr] = running;
+    a->running_compat[stnr] = running;
+    a->running_real[output * 16 + stnr] = running;
     for (s = 0; s < ARRAY_SIZE(a->st); s++) {
         if (a->st[s].node == NULL) {
+            continue;
+        }
+        if (a->st[s].output != output) {
             continue;
         }
         if (a->st[s].stream != stnr) {
@@ -837,6 +842,12 @@ static int hda_audio_post_load(void *opaque, int version)
     int i;
 
     dprint(a, 1, "%s\n", __FUNCTION__);
+    if (version == 1) {
+        /* assume running_compat[] is for output streams */
+        for (i = 0; i < ARRAY_SIZE(a->running_compat); i++)
+            a->running_real[16 + i] = a->running_compat[i];
+    }
+
     for (i = 0; i < ARRAY_SIZE(a->st); i++) {
         st = a->st + i;
         if (st->node == NULL)
@@ -844,7 +855,7 @@ static int hda_audio_post_load(void *opaque, int version)
         hda_codec_parse_fmt(st->format, &st->as);
         hda_audio_setup(st);
         hda_audio_set_amp(st);
-        hda_audio_set_running(st, a->running[st->stream]);
+        hda_audio_set_running(st, a->running_real[st->output * 16 + st->stream]);
     }
     return 0;
 }
@@ -868,13 +879,14 @@ static const VMStateDescription vmstate_hda_audio_stream = {
 
 static const VMStateDescription vmstate_hda_audio = {
     .name = "hda-audio",
-    .version_id = 1,
+    .version_id = 2,
     .post_load = hda_audio_post_load,
     .fields = (VMStateField []) {
         VMSTATE_STRUCT_ARRAY(st, HDAAudioState, 4, 0,
                              vmstate_hda_audio_stream,
                              HDAAudioStream),
-        VMSTATE_BOOL_ARRAY(running, HDAAudioState, 16),
+        VMSTATE_BOOL_ARRAY(running_compat, HDAAudioState, 16),
+        VMSTATE_BOOL_ARRAY_V(running_real, HDAAudioState, 2 * 16, 2),
         VMSTATE_END_OF_LIST()
     }
 };

@@ -620,7 +620,7 @@ static void blk_alloc(struct XenDevice *xendev)
 static int blk_init(struct XenDevice *xendev)
 {
     struct XenBlkDev *blkdev = container_of(xendev, struct XenBlkDev, xendev);
-    int index, qflags, have_barriers, info = 0;
+    int index, qflags, info = 0;
 
     /* read xenstore entries */
     if (blkdev->params == NULL) {
@@ -706,7 +706,6 @@ static int blk_init(struct XenDevice *xendev)
                       blkdev->bs->drv ? blkdev->bs->drv->format_name : "-");
         blkdev->file_size = 0;
     }
-    have_barriers = blkdev->bs->drv && blkdev->bs->drv->bdrv_flush ? 1 : 0;
 
     xen_be_printf(xendev, 1, "type \"%s\", fileproto \"%s\", filename \"%s\","
                   " size %" PRId64 " (%" PRId64 " MB)\n",
@@ -714,7 +713,7 @@ static int blk_init(struct XenDevice *xendev)
                   blkdev->file_size, blkdev->file_size >> 20);
 
     /* fill info */
-    xenstore_write_be_int(&blkdev->xendev, "feature-barrier", have_barriers);
+    xenstore_write_be_int(&blkdev->xendev, "feature-barrier", 1);
     xenstore_write_be_int(&blkdev->xendev, "info",            info);
     xenstore_write_be_int(&blkdev->xendev, "sector-size",     blkdev->file_blk);
     xenstore_write_be_int(&blkdev->xendev, "sectors",

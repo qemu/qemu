@@ -980,11 +980,17 @@ static int qcow2_make_empty(BlockDriverState *bs)
     return 0;
 }
 
-static int qcow2_discard(BlockDriverState *bs, int64_t sector_num,
-    int nb_sectors)
+static coroutine_fn int qcow2_co_discard(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors)
 {
-    return qcow2_discard_clusters(bs, sector_num << BDRV_SECTOR_BITS,
+    int ret;
+    BDRVQcowState *s = bs->opaque;
+
+    qemu_co_mutex_lock(&s->lock);
+    ret = qcow2_discard_clusters(bs, sector_num << BDRV_SECTOR_BITS,
         nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
 }
 
 static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
@@ -1055,8 +1061,8 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
                        Z_DEFLATED, -12,
                        9, Z_DEFAULT_STRATEGY);
     if (ret != 0) {
-        g_free(out_buf);
-        return -1;
+        ret = -EINVAL;
+        goto fail;
     }
 
     strm.avail_in = s->cluster_size;
@@ -1066,9 +1072,9 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     ret = deflate(&strm, Z_FINISH);
     if (ret != Z_STREAM_END && ret != Z_OK) {
-        g_free(out_buf);
         deflateEnd(&strm);
-        return -1;
+        ret = -EINVAL;
+        goto fail;
     }
     out_len = strm.next_out - out_buf;
 
@@ -1076,29 +1082,37 @@ static int qcow2_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-        bdrv_write(bs, sector_num, buf, s->cluster_sectors);
+        ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
+        if (ret < 0) {
+            goto fail;
+        }
     } else {
         cluster_offset = qcow2_alloc_compressed_cluster_offset(bs,
             sector_num << 9, out_len);
-        if (!cluster_offset)
-            return -1;
+        if (!cluster_offset) {
+            ret = -EIO;
+            goto fail;
+        }
         cluster_offset &= s->cluster_offset_mask;
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_COMPRESSED);
-        if (bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len) != out_len) {
-            g_free(out_buf);
-            return -1;
+        ret = bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len);
+        if (ret < 0) {
+            goto fail;
         }
     }
 
+    ret = 0;
+fail:
     g_free(out_buf);
-    return 0;
+    return ret;
 }
 
-static int qcow2_flush(BlockDriverState *bs)
+static int qcow2_co_flush(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int ret;
 
+    qemu_co_mutex_lock(&s->lock);
     ret = qcow2_cache_flush(bs, s->l2_table_cache);
     if (ret < 0) {
         return ret;
@@ -1108,28 +1122,9 @@ static int qcow2_flush(BlockDriverState *bs)
     if (ret < 0) {
         return ret;
     }
+    qemu_co_mutex_unlock(&s->lock);
 
-    return bdrv_flush(bs->file);
-}
-
-static BlockDriverAIOCB *qcow2_aio_flush(BlockDriverState *bs,
-                                         BlockDriverCompletionFunc *cb,
-                                         void *opaque)
-{
-    BDRVQcowState *s = bs->opaque;
-    int ret;
-
-    ret = qcow2_cache_flush(bs, s->l2_table_cache);
-    if (ret < 0) {
-        return NULL;
-    }
-
-    ret = qcow2_cache_flush(bs, s->refcount_block_cache);
-    if (ret < 0) {
-        return NULL;
-    }
-
-    return bdrv_aio_flush(bs->file, cb, opaque);
+    return bdrv_co_flush(bs->file);
 }
 
 static int64_t qcow2_vm_state_offset(BDRVQcowState *s)
@@ -1244,16 +1239,15 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_open          = qcow2_open,
     .bdrv_close         = qcow2_close,
     .bdrv_create        = qcow2_create,
-    .bdrv_flush         = qcow2_flush,
     .bdrv_is_allocated  = qcow2_is_allocated,
     .bdrv_set_key       = qcow2_set_key,
     .bdrv_make_empty    = qcow2_make_empty,
 
     .bdrv_co_readv      = qcow2_co_readv,
     .bdrv_co_writev     = qcow2_co_writev,
-    .bdrv_aio_flush     = qcow2_aio_flush,
+    .bdrv_co_flush      = qcow2_co_flush,
 
-    .bdrv_discard           = qcow2_discard,
+    .bdrv_co_discard        = qcow2_co_discard,
     .bdrv_truncate          = qcow2_truncate,
     .bdrv_write_compressed  = qcow2_write_compressed,
 

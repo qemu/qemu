@@ -95,6 +95,7 @@ static void pc_init1(MemoryRegion *system_memory,
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     BusState *idebus[MAX_IDE_BUS];
     ISADevice *rtc_state;
+    ISADevice *floppy;
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
@@ -174,7 +175,7 @@ static void pc_init1(MemoryRegion *system_memory,
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(gsi, &rtc_state, xen_enabled());
+    pc_basic_device_init(gsi, &rtc_state, &floppy, xen_enabled());
 
     for(i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
@@ -207,7 +208,7 @@ static void pc_init1(MemoryRegion *system_memory,
     audio_init(gsi, pci_enabled ? pci_bus : NULL);
 
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device,
-                 idebus[0], idebus[1], rtc_state);
+                 floppy, idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled) {
         usb_uhci_piix3_init(pci_bus, piix3_devfn + 2);

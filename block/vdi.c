@@ -936,10 +936,10 @@ static void vdi_close(BlockDriverState *bs)
 {
 }
 
-static int vdi_flush(BlockDriverState *bs)
+static coroutine_fn int vdi_co_flush(BlockDriverState *bs)
 {
     logout("\n");
-    return bdrv_flush(bs->file);
+    return bdrv_co_flush(bs->file);
 }
 
 
@@ -975,7 +975,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_open = vdi_open,
     .bdrv_close = vdi_close,
     .bdrv_create = vdi_create,
-    .bdrv_flush = vdi_flush,
+    .bdrv_co_flush = vdi_co_flush,
     .bdrv_is_allocated = vdi_is_allocated,
     .bdrv_make_empty = vdi_make_empty,
 

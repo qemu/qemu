@@ -73,6 +73,12 @@ void qemu_vfree(void *ptr)
     VirtualFree(ptr, 0, MEM_RELEASE);
 }
 
+void socket_set_block(int fd)
+{
+    unsigned long opt = 0;
+    ioctlsocket(fd, FIONBIO, &opt);
+}
+
 void socket_set_nonblock(int fd)
 {
     unsigned long opt = 1;

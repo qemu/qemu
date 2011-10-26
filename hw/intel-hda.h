@@ -34,7 +34,7 @@ struct HDACodecDeviceInfo {
     int (*init)(HDACodecDevice *dev);
     int (*exit)(HDACodecDevice *dev);
     void (*command)(HDACodecDevice *dev, uint32_t nid, uint32_t data);
-    void (*stream)(HDACodecDevice *dev, uint32_t stnr, bool running);
+    void (*stream)(HDACodecDevice *dev, uint32_t stnr, bool running, bool output);
 };
 
 void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus,

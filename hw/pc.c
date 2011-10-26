@@ -331,12 +331,12 @@ static void pc_cmos_init_late(void *opaque)
 
 void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   const char *boot_device,
-                  BusState *idebus0, BusState *idebus1,
+                  ISADevice *floppy, BusState *idebus0, BusState *idebus1,
                   ISADevice *s)
 {
     int val, nb, nb_heads, max_track, last_sect, i;
     FDriveType fd_type[2];
-    DriveInfo *fd[2];
+    BlockDriverState *fd[MAX_FD];
     static pc_cmos_init_late_arg arg;
 
     /* various important CMOS locations needed by PC/Bochs bios */
@@ -378,14 +378,16 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
     }
 
     /* floppy type */
-    for (i = 0; i < 2; i++) {
-        fd[i] = drive_get(IF_FLOPPY, 0, i);
-        if (fd[i] && bdrv_is_inserted(fd[i]->bdrv)) {
-            bdrv_get_floppy_geometry_hint(fd[i]->bdrv, &nb_heads, &max_track,
-                                          &last_sect, FDRIVE_DRV_NONE,
-                                          &fd_type[i]);
-        } else {
-            fd_type[i] = FDRIVE_DRV_NONE;
+    if (floppy) {
+        fdc_get_bs(fd, floppy);
+        for (i = 0; i < 2; i++) {
+            if (fd[i] && bdrv_is_inserted(fd[i])) {
+                bdrv_get_floppy_geometry_hint(fd[i], &nb_heads, &max_track,
+                                              &last_sect, FDRIVE_DRV_NONE,
+                                              &fd_type[i]);
+            } else {
+                fd_type[i] = FDRIVE_DRV_NONE;
+            }
         }
     }
     val = (cmos_get_fd_drive_type(fd_type[0]) << 4) |
@@ -1124,6 +1126,7 @@ static void cpu_request_exit(void *opaque, int irq, int level)
 
 void pc_basic_device_init(qemu_irq *gsi,
                           ISADevice **rtc_state,
+                          ISADevice **floppy,
                           bool no_vmport)
 {
     int i;
@@ -1188,7 +1191,7 @@ void pc_basic_device_init(qemu_irq *gsi,
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    fdctrl_init_isa(fd);
+    *floppy = fdctrl_init_isa(fd);
 }
 
 void pc_pci_device_init(PCIBus *pci_bus)

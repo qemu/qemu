@@ -824,6 +824,8 @@ static int img_convert(int argc, char **argv)
     if (compress) {
         QEMUOptionParameter *encryption =
             get_option_parameter(param, BLOCK_OPT_ENCRYPT);
+        QEMUOptionParameter *preallocation =
+            get_option_parameter(param, BLOCK_OPT_PREALLOC);
 
         if (!drv->bdrv_write_compressed) {
             error_report("Compression not supported for this file format");
@@ -833,6 +835,15 @@ static int img_convert(int argc, char **argv)
 
         if (encryption && encryption->value.n) {
             error_report("Compression and encryption not supported at "
+                         "the same time");
+            ret = -1;
+            goto out;
+        }
+
+        if (preallocation && preallocation->value.s
+            && strcmp(preallocation->value.s, "off"))
+        {
+            error_report("Compression and preallocation not supported at "
                          "the same time");
             ret = -1;
             goto out;

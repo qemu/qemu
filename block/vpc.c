@@ -110,6 +110,7 @@ struct vhd_dyndisk_header {
 };
 
 typedef struct BDRVVPCState {
+    CoMutex lock;
     uint8_t footer_buf[HEADER_SIZE];
     uint64_t free_data_block_offset;
     int max_table_entries;
@@ -226,6 +227,7 @@ static int vpc_open(BlockDriverState *bs, int flags)
     s->last_pagetable = -1;
 #endif
 
+    qemu_co_mutex_init(&s->lock);
     return 0;
  fail:
     return err;
@@ -407,6 +409,17 @@ static int vpc_read(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
+static coroutine_fn int vpc_co_read(BlockDriverState *bs, int64_t sector_num,
+                                    uint8_t *buf, int nb_sectors)
+{
+    int ret;
+    BDRVVPCState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = vpc_read(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
 static int vpc_write(BlockDriverState *bs, int64_t sector_num,
     const uint8_t *buf, int nb_sectors)
 {
@@ -443,9 +456,20 @@ static int vpc_write(BlockDriverState *bs, int64_t sector_num,
     return 0;
 }
 
-static int vpc_flush(BlockDriverState *bs)
+static coroutine_fn int vpc_co_write(BlockDriverState *bs, int64_t sector_num,
+                                     const uint8_t *buf, int nb_sectors)
 {
-    return bdrv_flush(bs->file);
+    int ret;
+    BDRVVPCState *s = bs->opaque;
+    qemu_co_mutex_lock(&s->lock);
+    ret = vpc_write(bs, sector_num, buf, nb_sectors);
+    qemu_co_mutex_unlock(&s->lock);
+    return ret;
+}
+
+static coroutine_fn int vpc_co_flush(BlockDriverState *bs)
+{
+    return bdrv_co_flush(bs->file);
 }
 
 /*
@@ -639,9 +663,9 @@ static BlockDriver bdrv_vpc = {
     .instance_size  = sizeof(BDRVVPCState),
     .bdrv_probe     = vpc_probe,
     .bdrv_open      = vpc_open,
-    .bdrv_read      = vpc_read,
-    .bdrv_write     = vpc_write,
-    .bdrv_flush     = vpc_flush,
+    .bdrv_read      = vpc_co_read,
+    .bdrv_write     = vpc_co_write,
+    .bdrv_co_flush  = vpc_co_flush,
     .bdrv_close     = vpc_close,
     .bdrv_create    = vpc_create,
 

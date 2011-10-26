@@ -281,7 +281,7 @@ static BlockDriver bdrv_file = {
     .bdrv_file_open	= raw_open,
     .bdrv_close		= raw_close,
     .bdrv_create	= raw_create,
-    .bdrv_flush		= raw_flush,
+    .bdrv_co_flush      = raw_flush,
     .bdrv_read		= raw_read,
     .bdrv_write		= raw_write,
     .bdrv_truncate	= raw_truncate,
@@ -409,7 +409,7 @@ static BlockDriver bdrv_host_device = {
     .bdrv_probe_device	= hdev_probe_device,
     .bdrv_file_open	= hdev_open,
     .bdrv_close		= raw_close,
-    .bdrv_flush		= raw_flush,
+    .bdrv_co_flush      = raw_flush,
     .bdrv_has_zero_init = hdev_has_zero_init,
 
     .bdrv_read		= raw_read,
