@@ -3141,6 +3141,57 @@ static int disas_vfp_insn(CPUState * env, DisasContext *s, uint32_t insn)
                 case 8: /* div: fn / fm */
                     gen_vfp_div(dp);
                     break;
+                case 10: /* VFNMA : fd = muladd(-fd,  fn, fm) */
+                case 11: /* VFNMS : fd = muladd(-fd, -fn, fm) */
+                case 12: /* VFMA  : fd = muladd( fd,  fn, fm) */
+                case 13: /* VFMS  : fd = muladd( fd, -fn, fm) */
+                    /* These are fused multiply-add, and must be done as one
+                     * floating point operation with no rounding between the
+                     * multiplication and addition steps.
+                     * NB that doing the negations here as separate steps is
+                     * correct : an input NaN should come out with its sign bit
+                     * flipped if it is a negated-input.
+                     */
+                    if (!arm_feature(env, ARM_FEATURE_VFP4)) {
+                        return 1;
+                    }
+                    if (dp) {
+                        TCGv_ptr fpst;
+                        TCGv_i64 frd;
+                        if (op & 1) {
+                            /* VFNMS, VFMS */
+                            gen_helper_vfp_negd(cpu_F0d, cpu_F0d);
+                        }
+                        frd = tcg_temp_new_i64();
+                        tcg_gen_ld_f64(frd, cpu_env, vfp_reg_offset(dp, rd));
+                        if (op & 2) {
+                            /* VFNMA, VFNMS */
+                            gen_helper_vfp_negd(frd, frd);
+                        }
+                        fpst = get_fpstatus_ptr(0);
+                        gen_helper_vfp_muladdd(cpu_F0d, cpu_F0d,
+                                               cpu_F1d, frd, fpst);
+                        tcg_temp_free_ptr(fpst);
+                        tcg_temp_free_i64(frd);
+                    } else {
+                        TCGv_ptr fpst;
+                        TCGv_i32 frd;
+                        if (op & 1) {
+                            /* VFNMS, VFMS */
+                            gen_helper_vfp_negs(cpu_F0s, cpu_F0s);
+                        }
+                        frd = tcg_temp_new_i32();
+                        tcg_gen_ld_f32(frd, cpu_env, vfp_reg_offset(dp, rd));
+                        if (op & 2) {
+                            gen_helper_vfp_negs(frd, frd);
+                        }
+                        fpst = get_fpstatus_ptr(0);
+                        gen_helper_vfp_muladds(cpu_F0s, cpu_F0s,
+                                               cpu_F1s, frd, fpst);
+                        tcg_temp_free_ptr(fpst);
+                        tcg_temp_free_i32(frd);
+                    }
+                    break;
                 case 14: /* fconst */
                     if (!arm_feature(env, ARM_FEATURE_VFP3))
                       return 1;
@@ -4417,6 +4468,7 @@ static void gen_neon_narrow_op(int op, int u, int size, TCGv dest, TCGv_i64 src)
 #define NEON_3R_VPMIN 21
 #define NEON_3R_VQDMULH_VQRDMULH 22
 #define NEON_3R_VPADD 23
+#define NEON_3R_VFM 25 /* VFMA, VFMS : float fused multiply-add */
 #define NEON_3R_FLOAT_ARITH 26 /* float VADD, VSUB, VPADD, VABD */
 #define NEON_3R_FLOAT_MULTIPLY 27 /* float VMLA, VMLS, VMUL */
 #define NEON_3R_FLOAT_CMP 28 /* float VCEQ, VCGE, VCGT */
@@ -4449,6 +4501,7 @@ static const uint8_t neon_3r_sizes[] = {
     [NEON_3R_VPMIN] = 0x7,
     [NEON_3R_VQDMULH_VQRDMULH] = 0x6,
     [NEON_3R_VPADD] = 0x7,
+    [NEON_3R_VFM] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_ARITH] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_MULTIPLY] = 0x5, /* size bit 1 encodes op */
     [NEON_3R_FLOAT_CMP] = 0x5, /* size bit 1 encodes op */
@@ -4723,6 +4776,11 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
         case NEON_3R_VMUL:
             if (u && (size != 0)) {
                 /* UNDEF on invalid size for polynomial subcase */
+                return 1;
+            }
+            break;
+        case NEON_3R_VFM:
+            if (!arm_feature(env, ARM_FEATURE_VFP4) || u) {
                 return 1;
             }
             break;
@@ -5006,6 +5064,20 @@ static int disas_neon_data_insn(CPUState * env, DisasContext *s, uint32_t insn)
             else
                 gen_helper_rsqrts_f32(tmp, tmp, tmp2, cpu_env);
             break;
+        case NEON_3R_VFM:
+        {
+            /* VFMA, VFMS: fused multiply-add */
+            TCGv_ptr fpstatus = get_fpstatus_ptr(1);
+            TCGv_i32 tmp3 = neon_load_reg(rd, pass);
+            if (size) {
+                /* VFMS */
+                gen_helper_vfp_negs(tmp, tmp);
+            }
+            gen_helper_vfp_muladds(tmp, tmp, tmp2, tmp3, fpstatus);
+            tcg_temp_free_i32(tmp3);
+            tcg_temp_free_ptr(fpstatus);
+            break;
+        }
         default:
             abort();
         }
@@ -7569,11 +7641,16 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                     }
                     break;
                 case 2: /* Multiplies (Type 3).  */
-                    tmp = load_reg(s, rm);
-                    tmp2 = load_reg(s, rs);
-                    if (insn & (1 << 20)) {
+                    switch ((insn >> 20) & 0x7) {
+                    case 5:
+                        if (((insn >> 6) ^ (insn >> 7)) & 1) {
+                            /* op2 not 00x or 11x : UNDEF */
+                            goto illegal_op;
+                        }
                         /* Signed multiply most significant [accumulate].
                            (SMMUL, SMMLA, SMMLS) */
+                        tmp = load_reg(s, rm);
+                        tmp2 = load_reg(s, rs);
                         tmp64 = gen_muls_i64_i32(tmp, tmp2);
 
                         if (rd != 15) {
@@ -7592,7 +7669,15 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                         tcg_gen_trunc_i64_i32(tmp, tmp64);
                         tcg_temp_free_i64(tmp64);
                         store_reg(s, rn, tmp);
-                    } else {
+                        break;
+                    case 0:
+                    case 4:
+                        /* SMLAD, SMUAD, SMLSD, SMUSD, SMLALD, SMLSLD */
+                        if (insn & (1 << 7)) {
+                            goto illegal_op;
+                        }
+                        tmp = load_reg(s, rm);
+                        tmp2 = load_reg(s, rs);
                         if (insn & (1 << 5))
                             gen_swap_half(tmp2);
                         gen_smul_dual(tmp, tmp2);
@@ -7625,6 +7710,28 @@ static void disas_arm_insn(CPUState * env, DisasContext *s)
                               }
                             store_reg(s, rn, tmp);
                         }
+                        break;
+                    case 1:
+                    case 3:
+                        /* SDIV, UDIV */
+                        if (!arm_feature(env, ARM_FEATURE_ARM_DIV)) {
+                            goto illegal_op;
+                        }
+                        if (((insn >> 5) & 7) || (rd != 15)) {
+                            goto illegal_op;
+                        }
+                        tmp = load_reg(s, rm);
+                        tmp2 = load_reg(s, rs);
+                        if (insn & (1 << 21)) {
+                            gen_helper_udiv(tmp, tmp, tmp2);
+                        } else {
+                            gen_helper_sdiv(tmp, tmp, tmp2);
+                        }
+                        tcg_temp_free_i32(tmp2);
+                        store_reg(s, rn, tmp);
+                        break;
+                    default:
+                        goto illegal_op;
                     }
                     break;
                 case 3:
@@ -8497,8 +8604,9 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
             tmp2 = load_reg(s, rm);
             if ((op & 0x50) == 0x10) {
                 /* sdiv, udiv */
-                if (!arm_feature(env, ARM_FEATURE_DIV))
+                if (!arm_feature(env, ARM_FEATURE_THUMB_DIV)) {
                     goto illegal_op;
+                }
                 if (op & 0x20)
                     gen_helper_udiv(tmp, tmp, tmp2);
                 else
