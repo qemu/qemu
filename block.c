@@ -571,6 +571,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv)
 {
     int ret;
+    char tmp_filename[PATH_MAX];
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
@@ -578,7 +579,6 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         int is_protocol = 0;
         BlockDriver *bdrv_qcow2;
         QEMUOptionParameter *options;
-        char tmp_filename[PATH_MAX];
         char backing_filename[PATH_MAX];
 
         /* if snapshot, we create a temporary backing file and open it
