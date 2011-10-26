@@ -624,9 +624,9 @@ static void *bochs_bios_init(void)
      * of nodes, one word for each VCPU->node and one word for each node to
      * hold the amount of memory.
      */
-    numa_fw_cfg = g_malloc0((1 + smp_cpus + nb_numa_nodes) * 8);
+    numa_fw_cfg = g_malloc0((1 + max_cpus + nb_numa_nodes) * 8);
     numa_fw_cfg[0] = cpu_to_le64(nb_numa_nodes);
-    for (i = 0; i < smp_cpus; i++) {
+    for (i = 0; i < max_cpus; i++) {
         for (j = 0; j < nb_numa_nodes; j++) {
             if (node_cpumask[j] & (1 << i)) {
                 numa_fw_cfg[i + 1] = cpu_to_le64(j);
@@ -635,10 +635,10 @@ static void *bochs_bios_init(void)
         }
     }
     for (i = 0; i < nb_numa_nodes; i++) {
-        numa_fw_cfg[smp_cpus + 1 + i] = cpu_to_le64(node_mem[i]);
+        numa_fw_cfg[max_cpus + 1 + i] = cpu_to_le64(node_mem[i]);
     }
     fw_cfg_add_bytes(fw_cfg, FW_CFG_NUMA, (uint8_t *)numa_fw_cfg,
-                     (1 + smp_cpus + nb_numa_nodes) * 8);
+                     (1 + max_cpus + nb_numa_nodes) * 8);
 
     return fw_cfg;
 }

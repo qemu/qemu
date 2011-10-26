@@ -3305,7 +3305,7 @@ int main(int argc, char **argv, char **envp)
          * real machines which also use this scheme.
          */
         if (i == nb_numa_nodes) {
-            for (i = 0; i < smp_cpus; i++) {
+            for (i = 0; i < max_cpus; i++) {
                 node_cpumask[i % nb_numa_nodes] |= 1 << i;
             }
         }
