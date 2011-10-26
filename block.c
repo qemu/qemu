@@ -2028,11 +2028,7 @@ const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size)
 {
-    if (!bs->backing_file) {
-        pstrcpy(filename, filename_size, "");
-    } else {
-        pstrcpy(filename, filename_size, bs->backing_file);
-    }
+    pstrcpy(filename, filename_size, bs->backing_file);
 }
 
 int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,
