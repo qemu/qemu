@@ -227,6 +227,7 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
         cid_str_size = sizeof("CID");
     }
 
+    desc[DESC_SIZE - 1] = '\0';
     p_name = strstr(desc, cid_str);
     if (p_name != NULL) {
         p_name += cid_str_size;
@@ -243,13 +244,17 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
     BDRVVmdkState *s = bs->opaque;
     int ret;
 
-    memset(desc, 0, sizeof(desc));
     ret = bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE);
     if (ret < 0) {
         return ret;
     }
 
+    desc[DESC_SIZE - 1] = '\0';
     tmp_str = strstr(desc, "parentCID");
+    if (tmp_str == NULL) {
+        return -EINVAL;
+    }
+
     pstrcpy(tmp_desc, sizeof(tmp_desc), tmp_str);
     p_name = strstr(desc, "CID");
     if (p_name != NULL) {
