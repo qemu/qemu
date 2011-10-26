@@ -208,7 +208,7 @@ static void vmdk_free_last_extent(BlockDriverState *bs)
 static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
 {
     char desc[DESC_SIZE];
-    uint32_t cid;
+    uint32_t cid = 0;
     const char *p_name, *cid_str;
     size_t cid_str_size;
     BDRVVmdkState *s = bs->opaque;
