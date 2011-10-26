@@ -18,6 +18,8 @@
  */
 
 #include "cpu.h"
+#include "helper.h"
+#include "trace.h"
 
 //#define DEBUG_PCALL
 
@@ -161,4 +163,39 @@ void do_interrupt(CPUState *env)
 trap_state *cpu_tsptr(CPUState* env)
 {
     return &env->ts[env->tl & MAXTL_MASK];
+}
+
+static bool do_modify_softint(CPUState *env, uint32_t value)
+{
+    if (env->softint != value) {
+        env->softint = value;
+#if !defined(CONFIG_USER_ONLY)
+        if (cpu_interrupts_enabled(env)) {
+            cpu_check_irqs(env);
+        }
+#endif
+        return true;
+    }
+    return false;
+}
+
+void helper_set_softint(CPUState *env, uint64_t value)
+{
+    if (do_modify_softint(env, env->softint | (uint32_t)value)) {
+        trace_int_helper_set_softint(env->softint);
+    }
+}
+
+void helper_clear_softint(CPUState *env, uint64_t value)
+{
+    if (do_modify_softint(env, env->softint & (uint32_t)~value)) {
+        trace_int_helper_clear_softint(env->softint);
+    }
+}
+
+void helper_write_softint(CPUState *env, uint64_t value)
+{
+    if (do_modify_softint(env, (uint32_t)value)) {
+        trace_int_helper_write_softint(env->softint);
+    }
 }
