@@ -148,6 +148,9 @@ Define a new drive. Valid options are:
 This option defines which disk image (@pxref{disk_images}) to use with
 this drive. If the filename contains comma, you must double it
 (for instance, "file=my,,file" to use file "my,file").
+
+Special files such as iSCSI devices can be specified using protocol
+specific URLs. See the section for "Device URL Syntax" for more information.
 @item if=@var{interface}
 This option defines on which type on interface the drive is connected.
 Available types are: ide, scsi, sd, mtd, floppy, pflash, virtio.
@@ -1717,6 +1720,45 @@ Connect to a spice virtual machine channel, such as vdiport.
 ETEXI
 
 DEFHEADING()
+
+STEXI
+DEFHEADING(Device URL Syntax:)
+
+In addition to using normal file images for the emulated storage devices,
+QEMU can also use networked resources such as iSCSI devices. These are
+specified using a special URL syntax.
+
+@table @option
+@item iSCSI
+iSCSI support allows QEMU to access iSCSI resources directly and use as
+images for the guest storage. Both disk and cdrom images are supported.
+
+Syntax for specifying iSCSI LUNs is
+``iscsi://<target-ip>[:<port>]/<target-iqn>/<lun>''
+
+Example (without authentication):
+@example
+qemu -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
+--drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+@end example
+
+Example (CHAP username/password via URL):
+@example
+qemu --drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
+@end example
+
+Example (CHAP username/password via environment variables):
+@example
+LIBISCSI_CHAP_USERNAME="user" \
+LIBISCSI_CHAP_PASSWORD="password" \
+qemu --drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+@end example
+
+iSCSI support is an optional feature of QEMU and only available when
+compiled and linked against libiscsi.
+
+@end table
+ETEXI
 
 DEFHEADING(Bluetooth(R) options:)
 
