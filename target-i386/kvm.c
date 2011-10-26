@@ -1082,10 +1082,9 @@ static int kvm_get_sregs(CPUState *env)
     env->cr[3] = sregs.cr3;
     env->cr[4] = sregs.cr4;
 
-    cpu_set_apic_base(env->apic_state, sregs.apic_base);
-
     env->efer = sregs.efer;
-    //cpu_set_apic_tpr(env->apic_state, sregs.cr8);
+
+    /* changes to apic base and cr8/tpr are read back via kvm_arch_post_run */
 
 #define HFLAG_COPY_MASK \
     ~( HF_CPL_MASK | HF_PE_MASK | HF_MP_MASK | HF_EM_MASK | \
