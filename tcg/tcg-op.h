@@ -2045,38 +2045,75 @@ static inline void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1,
 				       TCGv_i32 arg2, unsigned int ofs,
 				       unsigned int len)
 {
+    uint32_t mask;
+    TCGv_i32 t1;
+
+    if (ofs == 0 && len == 32) {
+        tcg_gen_mov_i32(ret, arg2);
+        return;
+    }
     if (TCG_TARGET_HAS_deposit_i32 && TCG_TARGET_deposit_i32_valid(ofs, len)) {
         tcg_gen_op5ii_i32(INDEX_op_deposit_i32, ret, arg1, arg2, ofs, len);
-    } else {
-        uint32_t mask = (1u << len) - 1;
-        TCGv_i32 t1 = tcg_temp_new_i32 ();
+        return;
+    }
 
+    mask = (1u << len) - 1;
+    t1 = tcg_temp_new_i32();
+
+    if (ofs + len < 32) {
         tcg_gen_andi_i32(t1, arg2, mask);
         tcg_gen_shli_i32(t1, t1, ofs);
-        tcg_gen_andi_i32(ret, arg1, ~(mask << ofs));
-        tcg_gen_or_i32(ret, ret, t1);
-
-        tcg_temp_free_i32(t1);
+    } else {
+        tcg_gen_shli_i32(t1, arg2, ofs);
     }
+    tcg_gen_andi_i32(ret, arg1, ~(mask << ofs));
+    tcg_gen_or_i32(ret, ret, t1);
+
+    tcg_temp_free_i32(t1);
 }
 
 static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
 				       TCGv_i64 arg2, unsigned int ofs,
 				       unsigned int len)
 {
+    uint64_t mask;
+    TCGv_i64 t1;
+
+    if (ofs == 0 && len == 64) {
+        tcg_gen_mov_i64(ret, arg2);
+        return;
+    }
     if (TCG_TARGET_HAS_deposit_i64 && TCG_TARGET_deposit_i64_valid(ofs, len)) {
         tcg_gen_op5ii_i64(INDEX_op_deposit_i64, ret, arg1, arg2, ofs, len);
-    } else {
-        uint64_t mask = (1ull << len) - 1;
-        TCGv_i64 t1 = tcg_temp_new_i64 ();
+        return;
+    }
 
+#if TCG_TARGET_REG_BITS == 32
+    if (ofs >= 32) {
+        tcg_gen_deposit_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1),
+                            TCGV_LOW(arg2), ofs - 32, len);
+        return;
+    }
+    if (ofs + len <= 32) {
+        tcg_gen_deposit_i32(TCGV_LOW(ret), TCGV_LOW(arg1),
+                            TCGV_LOW(arg2), ofs, len);
+        return;
+    }
+#endif
+
+    mask = (1ull << len) - 1;
+    t1 = tcg_temp_new_i64();
+
+    if (ofs + len < 64) {
         tcg_gen_andi_i64(t1, arg2, mask);
         tcg_gen_shli_i64(t1, t1, ofs);
-        tcg_gen_andi_i64(ret, arg1, ~(mask << ofs));
-        tcg_gen_or_i64(ret, ret, t1);
-
-        tcg_temp_free_i64(t1);
+    } else {
+        tcg_gen_shli_i64(t1, arg2, ofs);
     }
+    tcg_gen_andi_i64(ret, arg1, ~(mask << ofs));
+    tcg_gen_or_i64(ret, ret, t1);
+
+    tcg_temp_free_i64(t1);
 }
 
 /***************************************/
