@@ -1582,7 +1582,7 @@ static const cmdinfo_t map_cmd = {
 
 static int close_f(int argc, char **argv)
 {
-    bdrv_close(bs);
+    bdrv_delete(bs);
     bs = NULL;
     return 0;
 }
@@ -1611,6 +1611,7 @@ static int openfile(char *name, int flags, int growable)
 
         if (bdrv_open(bs, name, flags, NULL) < 0) {
             fprintf(stderr, "%s: can't open device %s\n", progname, name);
+            bdrv_delete(bs);
             bs = NULL;
             return 1;
         }
@@ -1834,7 +1835,7 @@ int main(int argc, char **argv)
     qemu_aio_flush();
 
     if (bs) {
-        bdrv_close(bs);
+        bdrv_delete(bs);
     }
     return 0;
 }
