@@ -850,7 +850,7 @@ void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
     len = (window_size / SPAPR_VIO_TCE_PAGE_SIZE) * sizeof(VIOsPAPR_RTCE);
     /* FIXME: round this up to page size */
 
-    table = mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0);
+    table = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
     if (table == MAP_FAILED) {
         close(fd);
         return NULL;
