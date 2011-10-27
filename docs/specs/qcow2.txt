@@ -108,8 +108,8 @@ as follows:
 
     refcount_block_entries = (cluster_size / sizeof(uint16_t))
 
-    refcount_block_index = (offset / cluster_size) % refcount_table_entries
-    refcount_table_index = (offset / cluster_size) / refcount_table_entries
+    refcount_block_index = (offset / cluster_size) % refcount_block_entries
+    refcount_table_index = (offset / cluster_size) / refcount_block_entries
 
     refcount_block = load_cluster(refcount_table[refcount_table_index]);
     return refcount_block[refcount_block_index];
@@ -211,7 +211,7 @@ switch the active L1 table, so that a different set of host clusters are
 exposed to the guest.
 
 When creating a snapshot, the L1 table should be copied and the refcount of all
-L2 tables and clusters reachable form this L1 table must be increased, so that
+L2 tables and clusters reachable from this L1 table must be increased, so that
 a write causes a COW and isn't visible in other snapshots.
 
 When loading a snapshot, bit 63 of all entries in the new active L1 table and
