@@ -1757,6 +1757,27 @@ qemu --drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 iSCSI support is an optional feature of QEMU and only available when
 compiled and linked against libiscsi.
 
+@item NBD
+QEMU supports NBD (Network Block Devices) both using TCP protocol as well
+as Unix Domain Sockets.
+
+Syntax for specifying a NBD device using TCP
+``nbd:<server-ip>:<port>[:exportname=<export>]''
+
+Syntax for specifying a NBD device using Unix Domain Sockets
+``nbd:unix:<domain-socket>[:exportname=<export>]''
+
+
+Example for TCP
+@example
+qemu --drive file=nbd:192.0.2.1:30000
+@end example
+
+Example for Unix Domain Sockets
+@example
+qemu --drive file=nbd:unix:/tmp/nbd-socket
+@end example
+
 @end table
 ETEXI
 
