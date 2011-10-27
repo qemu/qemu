@@ -382,6 +382,7 @@ static ssize_t open_eth_receive(VLANClientState *nc,
     OpenEthState *s = DO_UPCAST(NICState, nc, nc)->opaque;
     size_t maxfl = GET_REGFIELD(s, PACKETLEN, MAXFL);
     size_t minfl = GET_REGFIELD(s, PACKETLEN, MINFL);
+    size_t fcsl = 4;
     bool miss = true;
 
     trace_open_eth_receive((unsigned)size);
@@ -418,6 +419,7 @@ static ssize_t open_eth_receive(VLANClientState *nc,
 #else
     {
 #endif
+        static const uint8_t zero[64] = {0};
         desc *desc = rx_desc(s);
         size_t copy_size = GET_REGBIT(s, MODER, HUGEN) ? 65536 : maxfl;
 
@@ -426,11 +428,13 @@ static ssize_t open_eth_receive(VLANClientState *nc,
 
         if (copy_size > size) {
             copy_size = size;
+        } else {
+            fcsl = 0;
         }
         if (miss) {
             desc->len_flags |= RXD_M;
         }
-        if (size > maxfl) {
+        if (GET_REGBIT(s, MODER, HUGEN) && size > maxfl) {
             desc->len_flags |= RXD_TL;
         }
 #ifdef USE_RECSMALL
@@ -442,12 +446,27 @@ static ssize_t open_eth_receive(VLANClientState *nc,
         cpu_physical_memory_write(desc->buf_ptr, buf, copy_size);
 
         if (GET_REGBIT(s, MODER, PAD) && copy_size < minfl) {
-            static const uint8_t zero[65536] = {0};
+            if (minfl - copy_size > fcsl) {
+                fcsl = 0;
+            } else {
+                fcsl -= minfl - copy_size;
+            }
+            while (copy_size < minfl) {
+                size_t zero_sz = minfl - copy_size < sizeof(zero) ?
+                    minfl - copy_size : sizeof(zero);
 
-            cpu_physical_memory_write(desc->buf_ptr + copy_size,
-                    zero, minfl - copy_size);
-            copy_size = minfl;
+                cpu_physical_memory_write(desc->buf_ptr + copy_size,
+                        zero, zero_sz);
+                copy_size += zero_sz;
+            }
         }
+
+        /* There's no FCS in the frames handed to us by the QEMU, zero fill it.
+         * Don't do it if the frame is cut at the MAXFL or padded with 4 or
+         * more bytes to the MINFL.
+         */
+        cpu_physical_memory_write(desc->buf_ptr + copy_size, zero, fcsl);
+        copy_size += fcsl;
 
         SET_FIELD(desc->len_flags, RXD_LEN, copy_size);
 
