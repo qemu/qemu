@@ -2296,12 +2296,14 @@ void sparc64_set_context(CPUSPARCState *env)
      */
     err |= __get_user(env->fprs, &(ucp->tuc_mcontext.mc_fpregs.mcfpu_fprs));
     {
-        uint32_t *src, *dst;
-        src = ucp->tuc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
-        dst = env->fpr;
-        /* XXX: check that the CPU storage is the same as user context */
-        for (i = 0; i < 64; i++, dst++, src++)
-            err |= __get_user(*dst, src);
+        uint32_t *src = ucp->tuc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
+        for (i = 0; i < 64; i++, src++) {
+            if (i & 1) {
+                err |= __get_user(env->fpr[i/2].l.lower, src);
+            } else {
+                err |= __get_user(env->fpr[i/2].l.upper, src);
+            }
+        }
     }
     err |= __get_user(env->fsr,
                       &(ucp->tuc_mcontext.mc_fpregs.mcfpu_fsr));
@@ -2390,12 +2392,14 @@ void sparc64_get_context(CPUSPARCState *env)
     err |= __put_user(i7, &(mcp->mc_i7));
 
     {
-        uint32_t *src, *dst;
-        src = env->fpr;
-        dst = ucp->tuc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
-        /* XXX: check that the CPU storage is the same as user context */
-        for (i = 0; i < 64; i++, dst++, src++)
-            err |= __put_user(*src, dst);
+        uint32_t *dst = ucp->tuc_mcontext.mc_fpregs.mcfpu_fregs.sregs;
+        for (i = 0; i < 64; i++, dst++) {
+            if (i & 1) {
+                err |= __put_user(env->fpr[i/2].l.lower, dst);
+            } else {
+                err |= __put_user(env->fpr[i/2].l.upper, dst);
+            }
+        }
     }
     err |= __put_user(env->fsr, &(mcp->mc_fpregs.mcfpu_fsr));
     err |= __put_user(env->gsr, &(mcp->mc_fpregs.mcfpu_gsr));

@@ -3,16 +3,17 @@
 
 #include "config.h"
 #include "qemu-common.h"
+#include "bswap.h"
 
 #if !defined(TARGET_SPARC64)
 #define TARGET_LONG_BITS 32
-#define TARGET_FPREGS 32
+#define TARGET_DPREGS 16
 #define TARGET_PAGE_BITS 12 /* 4k */
 #define TARGET_PHYS_ADDR_SPACE_BITS 36
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 #else
 #define TARGET_LONG_BITS 64
-#define TARGET_FPREGS 64
+#define TARGET_DPREGS 32
 #define TARGET_PAGE_BITS 13 /* 8k */
 #define TARGET_PHYS_ADDR_SPACE_BITS 41
 # ifdef TARGET_ABI32
@@ -395,7 +396,7 @@ typedef struct CPUSPARCState {
 
     uint32_t psr;      /* processor state register */
     target_ulong fsr;      /* FPU state register */
-    float32 fpr[TARGET_FPREGS];  /* floating point registers */
+    CPU_DoubleU fpr[TARGET_DPREGS];  /* floating point registers */
     uint32_t cwp;      /* index of current register window (extracted
                           from PSR) */
 #if !defined(TARGET_SPARC64) || defined(TARGET_ABI32)
@@ -463,7 +464,6 @@ typedef struct CPUSPARCState {
     uint64_t prom_addr;
 #endif
     /* temporary float registers */
-    float64 dt0, dt1;
     float128 qt0, qt1;
     float_status fp_status;
 #if defined(TARGET_SPARC64)
