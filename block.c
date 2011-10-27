@@ -500,6 +500,8 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
         open_flags |= BDRV_O_RDWR;
     }
 
+    bs->keep_read_only = bs->read_only = !(open_flags & BDRV_O_RDWR);
+
     /* Open the image, either directly or using a protocol */
     if (drv->bdrv_file_open) {
         ret = drv->bdrv_file_open(bs, filename, open_flags);
@@ -513,8 +515,6 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     if (ret < 0) {
         goto free_and_fail;
     }
-
-    bs->keep_read_only = bs->read_only = !(open_flags & BDRV_O_RDWR);
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
