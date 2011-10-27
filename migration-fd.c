@@ -42,10 +42,31 @@ static int fd_write(MigrationState *s, const void * buf, size_t size)
 
 static int fd_close(MigrationState *s)
 {
+    struct stat st;
+    int ret;
+
     DPRINTF("fd_close\n");
     if (s->fd != -1) {
-        close(s->fd);
+        ret = fstat(s->fd, &st);
+        if (ret == 0 && S_ISREG(st.st_mode)) {
+            /*
+             * If the file handle is a regular file make sure the
+             * data is flushed to disk before signaling success.
+             */
+            ret = fsync(s->fd);
+            if (ret != 0) {
+                ret = -errno;
+                perror("migration-fd: fsync");
+                return ret;
+            }
+        }
+        ret = close(s->fd);
         s->fd = -1;
+        if (ret != 0) {
+            ret = -errno;
+            perror("migration-fd: close");
+            return ret;
+        }
     }
     return 0;
 }
