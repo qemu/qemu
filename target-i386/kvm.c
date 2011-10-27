@@ -759,6 +759,8 @@ static int kvm_put_fpu(CPUState *env)
     return kvm_vcpu_ioctl(env, KVM_SET_FPU, &fpu);
 }
 
+#define XSAVE_FCW_FSW     0
+#define XSAVE_FTW_FOP     1
 #define XSAVE_CWD_RIP     2
 #define XSAVE_CWD_RDP     4
 #define XSAVE_MXCSR       6
@@ -786,8 +788,8 @@ static int kvm_put_xsave(CPUState *env)
     for (i = 0; i < 8; ++i) {
         twd |= (!env->fptags[i]) << i;
     }
-    xsave->region[0] = (uint32_t)(swd << 16) + cwd;
-    xsave->region[1] = (uint32_t)(env->fpop << 16) + twd;
+    xsave->region[XSAVE_FCW_FSW] = (uint32_t)(swd << 16) + cwd;
+    xsave->region[XSAVE_FTW_FOP] = (uint32_t)(env->fpop << 16) + twd;
     memcpy(&xsave->region[XSAVE_CWD_RIP], &env->fpip, sizeof(env->fpip));
     memcpy(&xsave->region[XSAVE_CWD_RDP], &env->fpdp, sizeof(env->fpdp));
     memcpy(&xsave->region[XSAVE_ST_SPACE], env->fpregs,
@@ -991,10 +993,10 @@ static int kvm_get_xsave(CPUState *env)
         return ret;
     }
 
-    cwd = (uint16_t)xsave->region[0];
-    swd = (uint16_t)(xsave->region[0] >> 16);
-    twd = (uint16_t)xsave->region[1];
-    env->fpop = (uint16_t)(xsave->region[1] >> 16);
+    cwd = (uint16_t)xsave->region[XSAVE_FCW_FSW];
+    swd = (uint16_t)(xsave->region[XSAVE_FCW_FSW] >> 16);
+    twd = (uint16_t)xsave->region[XSAVE_FTW_FOP];
+    env->fpop = (uint16_t)(xsave->region[XSAVE_FTW_FOP] >> 16);
     env->fpstt = (swd >> 11) & 7;
     env->fpus = swd;
     env->fpuc = cwd;
