@@ -472,10 +472,13 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     bs->total_sectors = 0;
     bs->encrypted = 0;
     bs->valid_key = 0;
+    bs->sg = 0;
     bs->open_flags = flags;
+    bs->growable = 0;
     bs->buffer_alignment = 512;
 
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
+    bs->backing_file[0] = '\0';
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
         return -ENOTSUP;
@@ -484,8 +487,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     bs->drv = drv;
     bs->opaque = g_malloc0(drv->instance_size);
 
-    if (flags & BDRV_O_CACHE_WB)
-        bs->enable_write_cache = 1;
+    bs->enable_write_cache = !!(flags & BDRV_O_CACHE_WB);
 
     /*
      * Clear flags that are internal to the block layer before opening the
