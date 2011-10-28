@@ -20,6 +20,7 @@
 #define CPU_ALL_H
 
 #include "qemu-common.h"
+#include "qemu-tls.h"
 #include "cpu-common.h"
 
 /* some important defines:
@@ -334,7 +335,8 @@ void cpu_dump_statistics(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
 void QEMU_NORETURN cpu_abort(CPUState *env, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
 extern CPUState *first_cpu;
-extern CPUState *cpu_single_env;
+DECLARE_TLS(CPUState *,cpu_single_env);
+#define cpu_single_env get_tls(cpu_single_env)
 
 /* Flags for use in ENV->INTERRUPT_PENDING.
 
