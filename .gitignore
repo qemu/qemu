@@ -17,6 +17,10 @@ libhw64
 libuser
 linux-headers/asm
 qapi-generated
+qapi-types.[ch]
+qapi-visit.[ch]
+qmp-commands.h
+qmp-marshal.c
 qemu-doc.html
 qemu-tech.html
 qemu-doc.info
