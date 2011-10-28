@@ -729,8 +729,6 @@ static void usage(void)
 
 /* XXX: currently only used for async signals (see signal.c) */
 CPUState *global_env;
-/* used only if single thread */
-CPUState *cpu_single_env = NULL;
 
 /* used to free thread contexts */
 TaskState *first_task_state;
