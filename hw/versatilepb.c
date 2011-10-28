@@ -182,6 +182,7 @@ static void versatile_init(ram_addr_t ram_size,
     qemu_irq sic[32];
     DeviceState *dev, *sysctl;
     SysBusDevice *busdev;
+    DeviceState *pl041;
     PCIBus *pci_bus;
     NICInfo *nd;
     int n;
@@ -272,6 +273,13 @@ static void versatile_init(ram_addr_t ram_size,
 
     /* Add PL031 Real Time Clock. */
     sysbus_create_simple("pl031", 0x101e8000, pic[10]);
+
+    /* Add PL041 AACI Interface to the LM4549 codec */
+    pl041 = qdev_create(NULL, "pl041");
+    qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
+    qdev_init_nofail(pl041);
+    sysbus_mmio_map(sysbus_from_qdev(pl041), 0, 0x10004000);
+    sysbus_connect_irq(sysbus_from_qdev(pl041), 0, sic[24]);
 
     /* Memory map for Versatile/PB:  */
     /* 0x10000000 System registers.  */
