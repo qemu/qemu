@@ -1778,6 +1778,33 @@ Example for Unix Domain Sockets
 qemu --drive file=nbd:unix:/tmp/nbd-socket
 @end example
 
+@item Sheepdog
+Sheepdog is a distributed storage system for QEMU.
+QEMU supports using either local sheepdog devices or remote networked
+devices.
+
+Syntax for specifying a sheepdog device
+@table @list
+``sheepdog:<vdiname>''
+
+``sheepdog:<vdiname>:<snapid>''
+
+``sheepdog:<vdiname>:<tag>''
+
+``sheepdog:<host>:<port>:<vdiname>''
+
+``sheepdog:<host>:<port>:<vdiname>:<snapid>''
+
+``sheepdog:<host>:<port>:<vdiname>:<tag>''
+@end table
+
+Example
+@example
+qemu --drive file=sheepdog:192.0.2.1:30000:MyVirtualMachine
+@end example
+
+See also @url{http://http://www.osrg.net/sheepdog/}.
+
 @end table
 ETEXI
 
