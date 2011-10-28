@@ -125,7 +125,7 @@ static void realview_init(ram_addr_t ram_size,
     MemoryRegion *ram_hi = g_new(MemoryRegion, 1);
     MemoryRegion *ram_alias = g_new(MemoryRegion, 1);
     MemoryRegion *ram_hack = g_new(MemoryRegion, 1);
-    DeviceState *dev, *sysctl, *gpio2;
+    DeviceState *dev, *sysctl, *gpio2, *pl041;
     SysBusDevice *busdev;
     qemu_irq *irqp;
     qemu_irq pic[64];
@@ -231,6 +231,12 @@ static void realview_init(ram_addr_t ram_size,
     for (n = 0; n < 64; n++) {
         pic[n] = qdev_get_gpio_in(dev, n);
     }
+
+    pl041 = qdev_create(NULL, "pl041");
+    qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
+    qdev_init_nofail(pl041);
+    sysbus_mmio_map(sysbus_from_qdev(pl041), 0, 0x10004000);
+    sysbus_connect_irq(sysbus_from_qdev(pl041), 0, pic[19]);
 
     sysbus_create_simple("pl050_keyboard", 0x10006000, pic[20]);
     sysbus_create_simple("pl050_mouse", 0x10007000, pic[21]);
