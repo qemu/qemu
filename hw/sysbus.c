@@ -198,6 +198,7 @@ DeviceState *sysbus_create_varargs(const char *name,
         sysbus_connect_irq(s, n, irq);
         n++;
     }
+    va_end(va);
     return dev;
 }
 
@@ -229,6 +230,7 @@ DeviceState *sysbus_try_create_varargs(const char *name,
         sysbus_connect_irq(s, n, irq);
         n++;
     }
+    va_end(va);
     return dev;
 }
 
