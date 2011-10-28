@@ -1,0 +1,642 @@
+= How to write QMP commands using the QAPI framework =
+
+This document is a step-by-step guide on how to write new QMP commands using
+the QAPI framework. It also shows how to implement new style HMP commands.
+
+This document doesn't discuss QMP protocol level details, nor does it dive
+into the QAPI framework implementation.
+
+For an in-depth introduction to the QAPI framework, please refer to
+docs/qapi-code-gen.txt. For documentation about the QMP protocol, please
+check the files in QMP/.
+
+== Overview ==
+
+Generally speaking, the following steps should be taken in order to write a
+new QMP command.
+
+1. Write the command's and type(s) specification in the QAPI schema file
+   (qapi-schema.json in the root source directory)
+
+2. Write the QMP command itself, which is a regular C function. Preferably,
+   the command should be exported by some QEMU subsystem. But it can also be
+   added to the qmp.c file
+
+3. At this point the command can be tested under the QMP protocol
+
+4. Write the HMP command equivalent. This is not required and should only be
+   done if it does make sense to have the functionality in HMP. The HMP command
+   is implemented in terms of the QMP command
+
+The following sections will demonstrate each of the steps above. We will start
+very simple and get more complex as we progress.
+
+=== Testing ===
+
+For all the examples in the next sections, the test setup is the same and is
+shown here.
+
+First, QEMU should be started as:
+
+# /path/to/your/source/qemu [...] \
+    -chardev socket,id=qmp,port=4444,host=localhost,server \
+    -mon chardev=qmp,mode=control,pretty=on
+
+Then, in a different terminal:
+
+$ telnet localhost 4444
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+{
+    "QMP": {
+        "version": {
+            "qemu": {
+                "micro": 50, 
+                "minor": 15, 
+                "major": 0
+            }, 
+            "package": ""
+        }, 
+        "capabilities": [
+        ]
+    }
+}
+
+The above output is the QMP server saying you're connected. The server is
+actually in capabilities negotiation mode. To enter in command mode type:
+
+{ "execute": "qmp_capabilities" }
+
+Then the server should respond:
+
+{
+    "return": {
+    }
+}
+
+Which is QMP's way of saying "the latest command executed OK and didn't return
+any data". Now you're ready to enter the QMP example commands as explained in
+the following sections.
+
+== Writing a command that doesn't return data ==
+
+That's the most simple QMP command that can be written. Usually, this kind of
+command carries some meaningful action in QEMU but here it will just print
+"Hello, world" to the standard output.
+
+Our command will be called "hello-world". It takes no arguments, nor does it
+return any data.
+
+The first step is to add the following line to the bottom of the
+qapi-schema.json file:
+
+{ 'command': 'hello-world' }
+
+The "command" keyword defines a new QMP command. It's an JSON object. All
+schema entries are JSON objects. The line above will instruct the QAPI to
+generate any prototypes and the necessary code to marshal and unmarshal
+protocol data.
+
+The next step is to write the "hello-world" implementation. As explained
+earlier, it's preferable for commands to live in QEMU subsystems. But
+"hello-world" doesn't pertain to any, so we put its implementation in qmp.c:
+
+void qmp_hello_world(Error **errp)
+{
+    printf("Hello, world!\n");
+}
+
+There are a few things to be noticed:
+
+1. QMP command implementation functions must be prefixed with "qmp_"
+2. qmp_hello_world() returns void, this is in accordance with the fact that the
+   command doesn't return any data
+3. It takes an "Error **" argument. This is required. Later we will see how to
+   return errors and take additional arguments. The Error argument should not
+   be touched if the command doesn't return errors
+4. We won't add the function's prototype. That's automatically done by the QAPI
+5. Printing to the terminal is discouraged for QMP commands, we do it here
+   because it's the easiest way to demonstrate a QMP command
+
+Now a little hack is needed. As we're still using the old QMP server we need
+to add the new command to its internal dispatch table. This step won't be
+required in the near future. Open the qmp-commands.hx file and add the
+following in the botton:
+
+    {
+        .name       = "hello-world",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_hello_world,
+    },
+
+You're done. Now build qemu, run it as suggested in the "Testing" section,
+and then type the following QMP command:
+
+{ "execute": "hello-world" }
+
+Then check the terminal running qemu and look for the "Hello, world" string. If
+you don't see it then something went wrong.
+
+=== Arguments ===
+
+Let's add an argument called "message" to our "hello-world" command. The new
+argument will contain the string to be printed to stdout. It's an optional
+argument, if it's not present we print our default "Hello, World" string.
+
+The first change we have to do is to modify the command specification in the
+schema file to the following:
+
+{ 'command': 'hello-world', 'data': { '*message': 'str' } }
+
+Notice the new 'data' member in the schema. It's an JSON object whose each
+element is an argument to the command in question. Also notice the asterisk,
+it's used to mark the argument optional (that means that you shouldn't use it
+for mandatory arguments). Finally, 'str' is the argument's type, which
+stands for "string". The QAPI also supports integers, booleans, enumerations
+and user defined types.
+
+Now, let's update our C implementation in qmp.c:
+
+void qmp_hello_world(bool has_message, const char *message, Error **errp)
+{
+    if (has_message) {
+        printf("%s\n", message);
+    } else {
+        printf("Hello, world\n");
+    }
+}
+
+There are two important details to be noticed:
+
+1. All optional arguments are accompanied by a 'has_' boolean, which is set
+   if the optional argument is present or false otherwise
+2. The C implementation signature must follow the schema's argument ordering,
+   which is defined by the "data" member
+
+The last step is to update the qmp-commands.hx file:
+
+    {
+        .name       = "hello-world",
+        .args_type  = "message:s?",
+        .mhandler.cmd_new = qmp_marshal_input_hello_world,
+    },
+
+Notice that the "args_type" member got our "message" argument. The character
+"s" stands for "string" and "?" means it's optional. This too must be ordered
+according to the C implementation and schema file. You can look for more
+examples in the qmp-commands.hx file if you need to define more arguments.
+
+Again, this step won't be required in the future.
+
+Time to test our new version of the "hello-world" command. Build qemu, run it as
+described in the "Testing" section and then send two commands:
+
+{ "execute": "hello-world" }
+{
+    "return": {
+    }
+}
+
+{ "execute": "hello-world", "arguments": { "message": "We love qemu" } }
+{
+    "return": {
+    }
+}
+
+You should see "Hello, world" and "we love qemu" in the terminal running qemu,
+if you don't see these strings, then something went wrong.
+
+=== Errors ===
+
+QMP commands should use the error interface exported by the error.h header
+file. The basic function used to set an error is the error_set() one.
+
+Let's say we don't accept the string "message" to contain the word "love". If
+it does contain it, we want the "hello-world" command to the return the
+InvalidParameter error.
+
+Only one change is required, and it's in the C implementation:
+
+void qmp_hello_world(bool has_message, const char *message, Error **errp)
+{
+    if (has_message) {
+        if (strstr(message, "love")) {
+            error_set(errp, QERR_INVALID_PARAMETER, "message");
+            return;
+        }
+        printf("%s\n", message);
+    } else {
+        printf("Hello, world\n");
+    }
+}
+
+Let's test it. Build qemu, run it as defined in the "Testing" section, and
+then issue the following command:
+
+{ "execute": "hello-world", "arguments": { "message": "we love qemu" } }
+
+The QMP server's response should be:
+
+{
+    "error": {
+        "class": "InvalidParameter",
+        "desc": "Invalid parameter 'message'",
+        "data": {
+            "name": "message"
+        }
+    }
+}
+
+Which is the InvalidParameter error.
+
+When you have to return an error but you're unsure what error to return or
+which arguments an error takes, you should look at the qerror.h file. Note
+that you might be required to add new errors if needed.
+
+FIXME: describe better the error API and how to add new errors.
+
+=== Command Documentation ===
+
+There's only one step missing to make "hello-world"'s implementation complete,
+and that's its documentation in the schema file.
+
+This is very important. No QMP command will be accepted in QEMU without proper
+documentation.
+
+There are many examples of such documentation in the schema file already, but
+here goes "hello-world"'s new entry for the qapi-schema.json file:
+
+##
+# @hello-world
+#
+# Print a client provided string to the standard output stream.
+#
+# @message: #optional string to be printed
+#
+# Returns: Nothing on success.
+#          If @message contains "love", InvalidParameter
+#
+# Notes: if @message is not provided, the "Hello, world" string will
+#        be printed instead
+#
+# Since: <next qemu stable release, eg. 1.0>
+##
+{ 'command': 'hello-world', 'data': { '*message': 'str' } }
+
+Please, note that the "Returns" clause is optional if a command doesn't return
+any data nor any errors.
+
+=== Implementing the HMP command ===
+
+Now that the QMP command is in place, we can also make it available in the human
+monitor (HMP).
+
+With the introduction of the QAPI, HMP commands make QMP calls. Most of the
+time HMP commands are simple wrappers. All HMP commands implementation exist in
+the hmp.c file.
+
+Here's the implementation of the "hello-world" HMP command:
+
+void hmp_hello_world(Monitor *mon, const QDict *qdict)
+{
+    const char *message = qdict_get_try_str(qdict, "message");
+    Error *errp = NULL;
+
+    qmp_hello_world(!!message, message, &errp);
+    if (error_is_set(&errp)) {
+        monitor_printf(mon, "%s\n", error_get_pretty(errp));
+        error_free(errp);
+        return;
+    }
+}
+
+Also, you have to add the function's prototype to the hmp.h file.
+
+There are three important points to be noticed:
+
+1. The "mon" and "qdict" arguments are mandatory for all HMP functions. The
+   former is the monitor object. The latter is how the monitor passes
+   arguments entered by the user to the command implementation
+2. hmp_hello_world() performs error checking. In this example we just print
+   the error description to the user, but we could do more, like taking
+   different actions depending on the error qmp_hello_world() returns
+3. The "errp" variable must be initialized to NULL before performing the
+   QMP call
+
+There's one last step to actually make the command available to monitor users,
+we should add it to the hmp-commands.hx file:
+
+    {
+        .name       = "hello-world",
+        .args_type  = "message:s?",
+        .params     = "hello-world [message]",
+        .help       = "Print message to the standard output",
+        .mhandler.cmd = hmp_hello_world,
+    },
+
+STEXI
+@item hello_world @var{message}
+@findex hello_world
+Print message to the standard output
+ETEXI
+
+To test this you have to open a user monitor and issue the "hello-world"
+command. It might be instructive to check the command's documentation with
+HMP's "help" command.
+
+Please, check the "-monitor" command-line option to know how to open a user
+monitor.
+
+== Writing a command that returns data ==
+
+A QMP command is capable of returning any data the QAPI supports like integers,
+strings, booleans, enumerations and user defined types.
+
+In this section we will focus on user defined types. Please, check the QAPI
+documentation for information about the other types.
+
+=== User Defined Types ===
+
+For this example we will write the query-alarm-clock command, which returns
+information about QEMU's timer alarm. For more information about it, please
+check the "-clock" command-line option.
+
+We want to return two pieces of information. The first one is the alarm clock's
+name. The second one is when the next alarm will fire. The former information is
+returned as a string, the latter is an integer in nanoseconds (which is not
+very useful in practice, as the timer has probably already fired when the
+information reaches the client).
+
+The best way to return that data is to create a new QAPI type, as shown below:
+
+##
+# @QemuAlarmClock
+#
+# QEMU alarm clock information.
+#
+# @clock-name: The alarm clock method's name.
+#
+# @next-deadline: #optional The time (in nanoseconds) the next alarm will fire.
+#
+# Since: 1.0
+##
+{ 'type': 'QemuAlarmClock',
+  'data': { 'clock-name': 'str', '*next-deadline': 'int' } }
+
+The "type" keyword defines a new QAPI type. Its "data" member contains the
+type's members. In this example our members are the "clock-name" and the
+"next-deadline" one, which is optional.
+
+Now let's define the query-alarm-clock command:
+
+##
+# @query-alarm-clock
+#
+# Return information about QEMU's alarm clock.
+#
+# Returns a @QemuAlarmClock instance describing the alarm clock method
+# being currently used by QEMU (this is usually set by the '-clock'
+# command-line option).
+#
+# Since: 1.0
+##
+{ 'command': 'query-alarm-clock', 'returns': 'QemuAlarmClock' }
+
+Notice the "returns" keyword. As its name suggests, it's used to define the
+data returned by a command.
+
+It's time to implement the qmp_query_alarm_clock() function, you can put it
+in the qemu-timer.c file:
+
+QemuAlarmClock *qmp_query_alarm_clock(Error **errp)
+{
+    QemuAlarmClock *clock;
+    int64_t deadline;
+
+    clock = g_malloc0(sizeof(*clock));
+
+    deadline = qemu_next_alarm_deadline();
+    if (deadline > 0) {
+        clock->has_next_deadline = true;
+        clock->next_deadline = deadline;
+    }
+    clock->clock_name = g_strdup(alarm_timer->name);
+
+    return clock;
+}
+
+There are a number of things to be noticed:
+
+1. The QemuAlarmClock type is automatically generated by the QAPI framework,
+   its members correspond to the type's specification in the schema file
+2. As specified in the schema file, the function returns a QemuAlarmClock
+   instance and takes no arguments (besides the "errp" one, which is mandatory
+   for all QMP functions)
+3. The "clock" variable (which will point to our QAPI type instance) is
+   allocated by the regular g_malloc0() function. Note that we chose to
+   initialize the memory to zero. This is recomended for all QAPI types, as
+   it helps avoiding bad surprises (specially with booleans)
+4. Remember that "next_deadline" is optional? All optional members have a
+   'has_TYPE_NAME' member that should be properly set by the implementation,
+   as shown above
+5. Even static strings, such as "alarm_timer->name", should be dynamically
+   allocated by the implementation. This is so because the QAPI also generates
+   a function to free its types and it cannot distinguish between dynamically
+   or statically allocated strings
+6. You have to include the "qmp-commands.h" header file in qemu-timer.c,
+   otherwise qemu won't build
+
+The last step is to add the correspoding entry in the qmp-commands.hx file:
+
+    {
+        .name       = "query-alarm-clock",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_alarm_clock,
+    },
+
+Time to test the new command. Build qemu, run it as described in the "Testing"
+section and try this:
+
+{ "execute": "query-alarm-clock" }
+{
+    "return": {
+        "next-deadline": 2368219,
+        "clock-name": "dynticks"
+    }
+}
+
+==== The HMP command ====
+
+Here's the HMP counterpart of the query-alarm-clock command:
+
+void hmp_info_alarm_clock(Monitor *mon)
+{
+    QemuAlarmClock *clock;
+    Error *errp = NULL;
+
+    clock = qmp_query_alarm_clock(&errp);
+    if (error_is_set(&errp)) {
+        monitor_printf(mon, "Could not query alarm clock information\n");
+        error_free(errp);
+        return;
+    }
+
+    monitor_printf(mon, "Alarm clock method in use: '%s'\n", clock->clock_name);
+    if (clock->has_next_deadline) {
+        monitor_printf(mon, "Next alarm will fire in %" PRId64 " nanoseconds\n",
+                       clock->next_deadline);
+    }
+
+   qapi_free_QemuAlarmClock(clock); 
+}
+
+It's important to notice that hmp_info_alarm_clock() calls
+qapi_free_QemuAlarmClock() to free the data returned by qmp_query_alarm_clock().
+For user defined types, the QAPI will generate a qapi_free_QAPI_TYPE_NAME()
+function and that's what you have to use to free the types you define and
+qapi_free_QAPI_TYPE_NAMEList() for list types (explained in the next section).
+If the QMP call returns a string, then you should g_free() to free it.
+
+Also note that hmp_info_alarm_clock() performs error handling. That's not
+strictly required if you're sure the QMP function doesn't return errors, but
+it's good practice to always check for errors.
+
+Another important detail is that HMP's "info" commands don't go into the
+hmp-commands.hx. Instead, they go into the info_cmds[] table, which is defined
+in the monitor.c file. The entry for the "info alarmclock" follows:
+
+    {
+        .name       = "alarmclock",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show information about the alarm clock",
+        .mhandler.info = hmp_info_alarm_clock,
+    },
+
+To test this, run qemu and type "info alarmclock" in the user monitor.
+
+=== Returning Lists ===
+
+For this example, we're going to return all available methods for the timer
+alarm, which is pretty much what the command-line option "-clock ?" does,
+except that we're also going to inform which method is in use.
+
+This first step is to define a new type:
+
+##
+# @TimerAlarmMethod
+#
+# Timer alarm method information.
+#
+# @method-name: The method's name.
+#
+# @current: true if this alarm method is currently in use, false otherwise
+#
+# Since: 1.0
+##
+{ 'type': 'TimerAlarmMethod',
+  'data': { 'method-name': 'str', 'current': 'bool' } }
+
+The command will be called "query-alarm-methods", here is its schema
+specification:
+
+##
+# @query-alarm-methods
+#
+# Returns information about available alarm methods.
+#
+# Returns: a list of @TimerAlarmMethod for each method
+#
+# Since: 1.0
+##
+{ 'command': 'query-alarm-methods', 'returns': ['TimerAlarmMethod'] }
+
+Notice the syntax for returning lists "'returns': ['TimerAlarmMethod']", this
+should be read as "returns a list of TimerAlarmMethod instances".
+
+The C implementation follows:
+
+TimerAlarmMethodList *qmp_query_alarm_methods(Error **errp)
+{
+    TimerAlarmMethodList *method_list = NULL;
+    const struct qemu_alarm_timer *p;
+    bool current = true;
+
+    for (p = alarm_timers; p->name; p++) {
+        TimerAlarmMethodList *info = g_malloc0(sizeof(*info));
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->method_name = g_strdup(p->name);
+        info->value->current = current;
+
+        current = false;
+
+        info->next = method_list;
+        method_list = info;
+    }
+
+    return method_list;
+}
+
+The most important difference from the previous examples is the
+TimerAlarmMethodList type, which is automatically generated by the QAPI from
+the TimerAlarmMethod type.
+
+Each list node is represented by a TimerAlarmMethodList instance. We have to
+allocate it, and that's done inside the for loop: the "info" pointer points to
+an allocated node. We also have to allocate the node's contents, which is
+stored in its "value" member. In our example, the "value" member is a pointer
+to an TimerAlarmMethod instance.
+
+Notice that the "current" variable is used as "true" only in the first
+interation of the loop. That's because the alarm timer method in use is the
+first element of the alarm_timers array. Also notice that QAPI lists are handled
+by hand and we return the head of the list.
+
+To test this you have to add the corresponding qmp-commands.hx entry:
+
+    {
+        .name       = "query-alarm-methods",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_alarm_methods,
+    },
+
+Now Build qemu, run it as explained in the "Testing" section and try our new
+command:
+
+{ "execute": "query-alarm-methods" }
+{
+    "return": [
+        {
+            "current": false, 
+            "method-name": "unix"
+        }, 
+        {
+            "current": true, 
+            "method-name": "dynticks"
+        }
+    ]
+}
+
+The HMP counterpart is a bit more complex than previous examples because it
+has to traverse the list, it's shown below for reference:
+
+void hmp_info_alarm_methods(Monitor *mon)
+{
+    TimerAlarmMethodList *method_list, *method;
+    Error *errp = NULL;
+
+    method_list = qmp_query_alarm_methods(&errp);
+    if (error_is_set(&errp)) {
+        monitor_printf(mon, "Could not query alarm methods\n");
+        error_free(errp);
+        return;
+    }
+
+    for (method = method_list; method; method = method->next) {
+        monitor_printf(mon, "%c %s\n", method->value->current ? '*' : ' ',
+                                       method->value->method_name);
+    }
+
+    qapi_free_TimerAlarmMethodList(method_list);
+}
