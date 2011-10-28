@@ -95,13 +95,13 @@ int qemu_acl_party_is_allowed(qemu_acl *acl,
 
 void qemu_acl_reset(qemu_acl *acl)
 {
-    qemu_acl_entry *entry;
+    qemu_acl_entry *entry, *next_entry;
 
     /* Put back to deny by default, so there is no window
      * of "open access" while the user re-initializes the
      * access control list */
     acl->defaultDeny = 1;
-    QTAILQ_FOREACH(entry, &acl->entries, next) {
+    QTAILQ_FOREACH_SAFE(entry, &acl->entries, next, next_entry) {
         QTAILQ_REMOVE(&acl->entries, entry, next);
         free(entry->match);
         free(entry);
