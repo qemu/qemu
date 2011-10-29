@@ -420,6 +420,82 @@ static int pickNaN(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
 #endif
 
 /*----------------------------------------------------------------------------
+| Select which NaN to propagate for a three-input operation.
+| For the moment we assume that no CPU needs the 'larger significand'
+| information.
+| Return values : 0 : a; 1 : b; 2 : c; 3 : default-NaN
+*----------------------------------------------------------------------------*/
+#if defined(TARGET_ARM)
+static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
+                         flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)
+{
+    /* For ARM, the (inf,zero,qnan) case sets InvalidOp and returns
+     * the default NaN
+     */
+    if (infzero && cIsQNaN) {
+        float_raise(float_flag_invalid STATUS_VAR);
+        return 3;
+    }
+
+    /* This looks different from the ARM ARM pseudocode, because the ARM ARM
+     * puts the operands to a fused mac operation (a*b)+c in the order c,a,b.
+     */
+    if (cIsSNaN) {
+        return 2;
+    } else if (aIsSNaN) {
+        return 0;
+    } else if (bIsSNaN) {
+        return 1;
+    } else if (cIsQNaN) {
+        return 2;
+    } else if (aIsQNaN) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+#elif defined(TARGET_PPC)
+static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
+                         flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)
+{
+    /* For PPC, the (inf,zero,qnan) case sets InvalidOp, but we prefer
+     * to return an input NaN if we have one (ie c) rather than generating
+     * a default NaN
+     */
+    if (infzero) {
+        float_raise(float_flag_invalid STATUS_VAR);
+        return 2;
+    }
+
+    /* If fRA is a NaN return it; otherwise if fRB is a NaN return it;
+     * otherwise return fRC. Note that muladd on PPC is (fRA * fRC) + frB
+     */
+    if (aIsSNaN || aIsQNaN) {
+        return 0;
+    } else if (cIsSNaN || cIsQNaN) {
+        return 2;
+    } else {
+        return 1;
+    }
+}
+#else
+/* A default implementation: prefer a to b to c.
+ * This is unlikely to actually match any real implementation.
+ */
+static int pickNaNMulAdd(flag aIsQNaN, flag aIsSNaN, flag bIsQNaN, flag bIsSNaN,
+                         flag cIsQNaN, flag cIsSNaN, flag infzero STATUS_PARAM)
+{
+    if (aIsSNaN || aIsQNaN) {
+        return 0;
+    } else if (bIsSNaN || bIsQNaN) {
+        return 1;
+    } else {
+        return 2;
+    }
+}
+#endif
+
+/*----------------------------------------------------------------------------
 | Takes two single-precision floating-point values `a' and `b', one of which
 | is a NaN, and returns the appropriate NaN result.  If either `a' or `b' is a
 | signaling NaN, the invalid exception is raised.
@@ -456,6 +532,57 @@ static float32 propagateFloat32NaN( float32 a, float32 b STATUS_PARAM)
         return float32_maybe_silence_nan(b);
     } else {
         return float32_maybe_silence_nan(a);
+    }
+}
+
+/*----------------------------------------------------------------------------
+| Takes three single-precision floating-point values `a', `b' and `c', one of
+| which is a NaN, and returns the appropriate NaN result.  If any of  `a',
+| `b' or `c' is a signaling NaN, the invalid exception is raised.
+| The input infzero indicates whether a*b was 0*inf or inf*0 (in which case
+| obviously c is a NaN, and whether to propagate c or some other NaN is
+| implementation defined).
+*----------------------------------------------------------------------------*/
+
+static float32 propagateFloat32MulAddNaN(float32 a, float32 b,
+                                         float32 c, flag infzero STATUS_PARAM)
+{
+    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
+        cIsQuietNaN, cIsSignalingNaN;
+    int which;
+
+    aIsQuietNaN = float32_is_quiet_nan(a);
+    aIsSignalingNaN = float32_is_signaling_nan(a);
+    bIsQuietNaN = float32_is_quiet_nan(b);
+    bIsSignalingNaN = float32_is_signaling_nan(b);
+    cIsQuietNaN = float32_is_quiet_nan(c);
+    cIsSignalingNaN = float32_is_signaling_nan(c);
+
+    if (aIsSignalingNaN | bIsSignalingNaN | cIsSignalingNaN) {
+        float_raise(float_flag_invalid STATUS_VAR);
+    }
+
+    which = pickNaNMulAdd(aIsQuietNaN, aIsSignalingNaN,
+                          bIsQuietNaN, bIsSignalingNaN,
+                          cIsQuietNaN, cIsSignalingNaN, infzero STATUS_VAR);
+
+    if (STATUS(default_nan_mode)) {
+        /* Note that this check is after pickNaNMulAdd so that function
+         * has an opportunity to set the Invalid flag.
+         */
+        return float32_default_nan;
+    }
+
+    switch (which) {
+    case 0:
+        return float32_maybe_silence_nan(a);
+    case 1:
+        return float32_maybe_silence_nan(b);
+    case 2:
+        return float32_maybe_silence_nan(c);
+    case 3:
+    default:
+        return float32_default_nan;
     }
 }
 
@@ -592,6 +719,57 @@ static float64 propagateFloat64NaN( float64 a, float64 b STATUS_PARAM)
         return float64_maybe_silence_nan(b);
     } else {
         return float64_maybe_silence_nan(a);
+    }
+}
+
+/*----------------------------------------------------------------------------
+| Takes three double-precision floating-point values `a', `b' and `c', one of
+| which is a NaN, and returns the appropriate NaN result.  If any of  `a',
+| `b' or `c' is a signaling NaN, the invalid exception is raised.
+| The input infzero indicates whether a*b was 0*inf or inf*0 (in which case
+| obviously c is a NaN, and whether to propagate c or some other NaN is
+| implementation defined).
+*----------------------------------------------------------------------------*/
+
+static float64 propagateFloat64MulAddNaN(float64 a, float64 b,
+                                         float64 c, flag infzero STATUS_PARAM)
+{
+    flag aIsQuietNaN, aIsSignalingNaN, bIsQuietNaN, bIsSignalingNaN,
+        cIsQuietNaN, cIsSignalingNaN;
+    int which;
+
+    aIsQuietNaN = float64_is_quiet_nan(a);
+    aIsSignalingNaN = float64_is_signaling_nan(a);
+    bIsQuietNaN = float64_is_quiet_nan(b);
+    bIsSignalingNaN = float64_is_signaling_nan(b);
+    cIsQuietNaN = float64_is_quiet_nan(c);
+    cIsSignalingNaN = float64_is_signaling_nan(c);
+
+    if (aIsSignalingNaN | bIsSignalingNaN | cIsSignalingNaN) {
+        float_raise(float_flag_invalid STATUS_VAR);
+    }
+
+    which = pickNaNMulAdd(aIsQuietNaN, aIsSignalingNaN,
+                          bIsQuietNaN, bIsSignalingNaN,
+                          cIsQuietNaN, cIsSignalingNaN, infzero STATUS_VAR);
+
+    if (STATUS(default_nan_mode)) {
+        /* Note that this check is after pickNaNMulAdd so that function
+         * has an opportunity to set the Invalid flag.
+         */
+        return float64_default_nan;
+    }
+
+    switch (which) {
+    case 0:
+        return float64_maybe_silence_nan(a);
+    case 1:
+        return float64_maybe_silence_nan(b);
+    case 2:
+        return float64_maybe_silence_nan(c);
+    case 3:
+    default:
+        return float64_default_nan;
     }
 }
 

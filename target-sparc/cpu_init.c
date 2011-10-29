@@ -813,11 +813,11 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
         }
     }
     cpu_fprintf(f, "\nFloating Point Registers:\n");
-    for (i = 0; i < TARGET_FPREGS; i++) {
+    for (i = 0; i < TARGET_DPREGS; i++) {
         if ((i & 3) == 0) {
-            cpu_fprintf(f, "%%f%02d:", i);
+            cpu_fprintf(f, "%%f%02d:", i * 2);
         }
-        cpu_fprintf(f, " %016f", *(float *)&env->fpr[i]);
+        cpu_fprintf(f, " %016" PRIx64, env->fpr[i].ll);
         if ((i & 3) == 3) {
             cpu_fprintf(f, "\n");
         }

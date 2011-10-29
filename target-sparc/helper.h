@@ -16,8 +16,7 @@ DEF_HELPER_1(rdccr, tl, env)
 DEF_HELPER_2(wrccr, void, env, tl)
 DEF_HELPER_1(rdcwp, tl, env)
 DEF_HELPER_2(wrcwp, void, env, tl)
-DEF_HELPER_3(array8, tl, env, tl, tl)
-DEF_HELPER_3(alignaddr, tl, env, tl, tl)
+DEF_HELPER_FLAGS_2(array8, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl, tl)
 DEF_HELPER_1(popc, tl, tl)
 DEF_HELPER_3(ldda_asi, void, tl, int, int)
 DEF_HELPER_4(ldf_asi, void, tl, int, int, int)
@@ -39,8 +38,6 @@ DEF_HELPER_3(udiv, tl, env, tl, tl)
 DEF_HELPER_3(udiv_cc, tl, env, tl, tl)
 DEF_HELPER_3(sdiv, tl, env, tl, tl)
 DEF_HELPER_3(sdiv_cc, tl, env, tl, tl)
-DEF_HELPER_2(stdf, void, tl, int)
-DEF_HELPER_2(lddf, void, tl, int)
 DEF_HELPER_2(ldqf, void, tl, int)
 DEF_HELPER_2(stqf, void, tl, int)
 #if !defined(CONFIG_USER_ONLY) || defined(TARGET_SPARC64)
@@ -48,33 +45,31 @@ DEF_HELPER_4(ld_asi, i64, tl, int, int, int)
 DEF_HELPER_4(st_asi, void, tl, i64, int, int)
 #endif
 DEF_HELPER_2(ldfsr, void, env, i32)
-DEF_HELPER_1(check_ieee_exceptions, void, env)
-DEF_HELPER_1(clear_float_exceptions, void, env)
-DEF_HELPER_1(fabss, f32, f32)
+DEF_HELPER_FLAGS_1(fabss, TCG_CALL_CONST | TCG_CALL_PURE, f32, f32)
 DEF_HELPER_2(fsqrts, f32, env, f32)
-DEF_HELPER_1(fsqrtd, void, env)
+DEF_HELPER_2(fsqrtd, f64, env, f64)
 DEF_HELPER_3(fcmps, void, env, f32, f32)
-DEF_HELPER_1(fcmpd, void, env)
+DEF_HELPER_3(fcmpd, void, env, f64, f64)
 DEF_HELPER_3(fcmpes, void, env, f32, f32)
-DEF_HELPER_1(fcmped, void, env)
+DEF_HELPER_3(fcmped, void, env, f64, f64)
 DEF_HELPER_1(fsqrtq, void, env)
 DEF_HELPER_1(fcmpq, void, env)
 DEF_HELPER_1(fcmpeq, void, env)
 #ifdef TARGET_SPARC64
 DEF_HELPER_2(ldxfsr, void, env, i64)
-DEF_HELPER_1(fabsd, void, env)
+DEF_HELPER_FLAGS_1(fabsd, TCG_CALL_CONST | TCG_CALL_PURE, f64, f64)
 DEF_HELPER_3(fcmps_fcc1, void, env, f32, f32)
 DEF_HELPER_3(fcmps_fcc2, void, env, f32, f32)
 DEF_HELPER_3(fcmps_fcc3, void, env, f32, f32)
-DEF_HELPER_1(fcmpd_fcc1, void, env)
-DEF_HELPER_1(fcmpd_fcc2, void, env)
-DEF_HELPER_1(fcmpd_fcc3, void, env)
+DEF_HELPER_3(fcmpd_fcc1, void, env, f64, f64)
+DEF_HELPER_3(fcmpd_fcc2, void, env, f64, f64)
+DEF_HELPER_3(fcmpd_fcc3, void, env, f64, f64)
 DEF_HELPER_3(fcmpes_fcc1, void, env, f32, f32)
 DEF_HELPER_3(fcmpes_fcc2, void, env, f32, f32)
 DEF_HELPER_3(fcmpes_fcc3, void, env, f32, f32)
-DEF_HELPER_1(fcmped_fcc1, void, env)
-DEF_HELPER_1(fcmped_fcc2, void, env)
-DEF_HELPER_1(fcmped_fcc3, void, env)
+DEF_HELPER_3(fcmped_fcc1, void, env, f64, f64)
+DEF_HELPER_3(fcmped_fcc2, void, env, f64, f64)
+DEF_HELPER_3(fcmped_fcc3, void, env, f64, f64)
 DEF_HELPER_1(fabsq, void, env)
 DEF_HELPER_1(fcmpq_fcc1, void, env)
 DEF_HELPER_1(fcmpq_fcc2, void, env)
@@ -86,77 +81,88 @@ DEF_HELPER_1(fcmpeq_fcc3, void, env)
 DEF_HELPER_2(raise_exception, noreturn, env, int)
 DEF_HELPER_0(shutdown, void)
 #define F_HELPER_0_1(name) DEF_HELPER_1(f ## name, void, env)
-#define F_HELPER_DQ_0_1(name)                   \
-    F_HELPER_0_1(name ## d);                    \
-    F_HELPER_0_1(name ## q)
 
-F_HELPER_DQ_0_1(add);
-F_HELPER_DQ_0_1(sub);
-F_HELPER_DQ_0_1(mul);
-F_HELPER_DQ_0_1(div);
+DEF_HELPER_3(faddd, f64, env, f64, f64)
+DEF_HELPER_3(fsubd, f64, env, f64, f64)
+DEF_HELPER_3(fmuld, f64, env, f64, f64)
+DEF_HELPER_3(fdivd, f64, env, f64, f64)
+F_HELPER_0_1(addq)
+F_HELPER_0_1(subq)
+F_HELPER_0_1(mulq)
+F_HELPER_0_1(divq)
 
 DEF_HELPER_3(fadds, f32, env, f32, f32)
 DEF_HELPER_3(fsubs, f32, env, f32, f32)
 DEF_HELPER_3(fmuls, f32, env, f32, f32)
 DEF_HELPER_3(fdivs, f32, env, f32, f32)
 
-DEF_HELPER_3(fsmuld, void, env, f32, f32)
-F_HELPER_0_1(dmulq);
+DEF_HELPER_3(fsmuld, f64, env, f32, f32)
+DEF_HELPER_3(fdmulq, void, env, f64, f64);
 
-DEF_HELPER_1(fnegs, f32, f32)
-DEF_HELPER_2(fitod, void, env, s32)
+DEF_HELPER_FLAGS_1(fnegs, TCG_CALL_CONST | TCG_CALL_PURE, f32, f32)
+DEF_HELPER_2(fitod, f64, env, s32)
 DEF_HELPER_2(fitoq, void, env, s32)
 
 DEF_HELPER_2(fitos, f32, env, s32)
 
 #ifdef TARGET_SPARC64
-DEF_HELPER_1(fnegd, void, env)
+DEF_HELPER_FLAGS_1(fnegd, TCG_CALL_CONST | TCG_CALL_PURE, f64, f64)
 DEF_HELPER_1(fnegq, void, env)
-DEF_HELPER_1(fxtos, i32, env)
-F_HELPER_DQ_0_1(xto);
+DEF_HELPER_2(fxtos, f32, env, s64)
+DEF_HELPER_2(fxtod, f64, env, s64)
+DEF_HELPER_2(fxtoq, void, env, s64)
 #endif
-DEF_HELPER_1(fdtos, f32, env)
-DEF_HELPER_2(fstod, void, env, f32)
+DEF_HELPER_2(fdtos, f32, env, f64)
+DEF_HELPER_2(fstod, f64, env, f32)
 DEF_HELPER_1(fqtos, f32, env)
 DEF_HELPER_2(fstoq, void, env, f32)
-F_HELPER_0_1(qtod);
-F_HELPER_0_1(dtoq);
+DEF_HELPER_1(fqtod, f64, env)
+DEF_HELPER_2(fdtoq, void, env, f64)
 DEF_HELPER_2(fstoi, s32, env, f32)
-DEF_HELPER_1(fdtoi, s32, env)
+DEF_HELPER_2(fdtoi, s32, env, f64)
 DEF_HELPER_1(fqtoi, s32, env)
 #ifdef TARGET_SPARC64
-DEF_HELPER_2(fstox, void, env, i32)
-F_HELPER_0_1(dtox);
-F_HELPER_0_1(qtox);
-F_HELPER_0_1(aligndata);
+DEF_HELPER_2(fstox, s64, env, f32)
+DEF_HELPER_2(fdtox, s64, env, f64)
+DEF_HELPER_1(fqtox, s64, env)
 
-F_HELPER_0_1(pmerge);
-F_HELPER_0_1(mul8x16);
-F_HELPER_0_1(mul8x16al);
-F_HELPER_0_1(mul8x16au);
-F_HELPER_0_1(mul8sux16);
-F_HELPER_0_1(mul8ulx16);
-F_HELPER_0_1(muld8sux16);
-F_HELPER_0_1(muld8ulx16);
-F_HELPER_0_1(expand);
-#define VIS_HELPER(name)                                 \
-    F_HELPER_0_1(name##16);                              \
-    DEF_HELPER_3(f ## name ## 16s, i32, env, i32, i32)   \
-    F_HELPER_0_1(name##32);                              \
-    DEF_HELPER_3(f ## name ## 32s, i32, env, i32, i32)
+DEF_HELPER_FLAGS_2(fpmerge, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fmul8x16, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fmul8x16al, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fmul8x16au, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fmul8sux16, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fmul8ulx16, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fmuld8sux16, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fmuld8ulx16, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fexpand, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
+DEF_HELPER_FLAGS_3(pdist, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fpack16, TCG_CALL_CONST | TCG_CALL_PURE, i32, i64, i64)
+DEF_HELPER_FLAGS_3(fpack32, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64, i64)
+DEF_HELPER_FLAGS_2(fpackfix, TCG_CALL_CONST | TCG_CALL_PURE, i32, i64, i64)
+DEF_HELPER_FLAGS_3(bshuffle, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64, i64)
+#define VIS_HELPER(name)                                                 \
+    DEF_HELPER_FLAGS_2(f ## name ## 16, TCG_CALL_CONST | TCG_CALL_PURE,  \
+                       i64, i64, i64)                                    \
+    DEF_HELPER_FLAGS_2(f ## name ## 16s, TCG_CALL_CONST | TCG_CALL_PURE, \
+                       i32, i32, i32)                                    \
+    DEF_HELPER_FLAGS_2(f ## name ## 32, TCG_CALL_CONST | TCG_CALL_PURE,  \
+                       i64, i64, i64)                                    \
+    DEF_HELPER_FLAGS_2(f ## name ## 32s, TCG_CALL_CONST | TCG_CALL_PURE, \
+                       i32, i32, i32)
 
 VIS_HELPER(padd);
 VIS_HELPER(psub);
-#define VIS_CMPHELPER(name)                              \
-    DEF_HELPER_1(f##name##16, i64, env);                 \
-    DEF_HELPER_1(f##name##32, i64, env)
+#define VIS_CMPHELPER(name)                                              \
+    DEF_HELPER_FLAGS_2(f##name##16, TCG_CALL_CONST | TCG_CALL_PURE,      \
+                       i64, i64, i64)                                    \
+    DEF_HELPER_FLAGS_2(f##name##32, TCG_CALL_CONST | TCG_CALL_PURE,      \
+                       i64, i64, i64)
 VIS_CMPHELPER(cmpgt);
 VIS_CMPHELPER(cmpeq);
 VIS_CMPHELPER(cmple);
 VIS_CMPHELPER(cmpne);
 #endif
 #undef F_HELPER_0_1
-#undef F_HELPER_DQ_0_1
 #undef VIS_HELPER
 #undef VIS_CMPHELPER
 DEF_HELPER_1(compute_psr, void, env);

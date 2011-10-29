@@ -369,8 +369,8 @@ enum arm_features {
     ARM_FEATURE_VFP3,
     ARM_FEATURE_VFP_FP16,
     ARM_FEATURE_NEON,
-    ARM_FEATURE_DIV,
-    ARM_FEATURE_M,      /* Microcontroller profile.  */
+    ARM_FEATURE_THUMB_DIV, /* divide supported in Thumb encoding */
+    ARM_FEATURE_M, /* Microcontroller profile.  */
     ARM_FEATURE_OMAPCP, /* OMAP specific CP15 ops handling.  */
     // TODO: long multiply instructions (M variant), standard for v4 and v5.
     // TODO: enhanced dsp instructions (E variant).
@@ -381,6 +381,8 @@ enum arm_features {
     ARM_FEATURE_V5,
     ARM_FEATURE_STRONGARM,
     ARM_FEATURE_VAPA, /* cp15 VA to PA lookups */
+    ARM_FEATURE_ARM_DIV, /* divide supported in ARM encoding */
+    ARM_FEATURE_VFP4, /* VFPv4 (implies that NEON is v2) */
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)
