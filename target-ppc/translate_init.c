@@ -6519,9 +6519,7 @@ static void init_proc_970MP (CPUPPCState *env)
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_SEGMENT_64B | PPC_SLBI |                    \
                               PPC_POPCNTB | PPC_POPCNTWD)
-/* FIXME: Should also have PPC2_VSX and PPC2_DFP, but we don't
- * implement those in TCG yet */
-#define POWERPC_INSNS2_POWER7 (PPC_NONE)
+#define POWERPC_INSNS2_POWER7 (PPC2_VSX | PPC2_DFP)
 #define POWERPC_MSRM_POWER7   (0x800000000204FF36ULL)
 #define POWERPC_MMU_POWER7    (POWERPC_MMU_2_06)
 #define POWERPC_EXCP_POWER7   (POWERPC_EXCP_POWER7)
@@ -9848,6 +9846,22 @@ int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def)
     env->bus_model = def->bus_model;
     env->insns_flags = def->insns_flags;
     env->insns_flags2 = def->insns_flags2;
+    if (!kvm_enabled()) {
+        /* TCG doesn't (yet) emulate some groups of instructions that
+         * are implemented on some otherwise supported CPUs (e.g. VSX
+         * and decimal floating point instructions on POWER7).  We
+         * remove unsupported instruction groups from the cpu state's
+         * instruction masks and hope the guest can cope.  For at
+         * least the pseries machine, the unavailability of these
+         * instructions can be advertise to the guest via the device
+         * tree.
+         *
+         * FIXME: we should have a similar masking for CPU features
+         * not accessible under KVM, but so far, there aren't any of
+         * those. */
+        env->insns_flags &= PPC_TCG_INSNS;
+        env->insns_flags2 &= PPC_TCG_INSNS2;
+    }
     env->flags = def->flags;
     env->bfd_mach = def->bfd_mach;
     env->check_pow = def->check_pow;

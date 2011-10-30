@@ -1856,6 +1856,30 @@ enum {
     /* popcntw and popcntd instructions                                      */
     PPC_POPCNTWD       = 0x8000000000000000ULL,
 
+#define PPC_TCG_INSNS  (PPC_INSNS_BASE | PPC_POWER | PPC_POWER2 \
+                        | PPC_POWER_RTC | PPC_POWER_BR | PPC_64B \
+                        | PPC_64BX | PPC_64H | PPC_WAIT | PPC_MFTB \
+                        | PPC_602_SPEC | PPC_ISEL | PPC_POPCNTB \
+                        | PPC_STRING | PPC_FLOAT | PPC_FLOAT_EXT \
+                        | PPC_FLOAT_FSQRT | PPC_FLOAT_FRES \
+                        | PPC_FLOAT_FRSQRTE | PPC_FLOAT_FRSQRTES \
+                        | PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX \
+                        | PPC_ALTIVEC | PPC_SPE | PPC_SPE_SINGLE \
+                        | PPC_SPE_DOUBLE | PPC_MEM_TLBIA \
+                        | PPC_MEM_TLBIE | PPC_MEM_TLBSYNC \
+                        | PPC_MEM_SYNC | PPC_MEM_EIEIO \
+                        | PPC_CACHE | PPC_CACHE_ICBI \
+                        | PPC_CACHE_DCBZ | PPC_CACHE_DCBZT \
+                        | PPC_CACHE_DCBA | PPC_CACHE_LOCK \
+                        | PPC_EXTERN | PPC_SEGMENT | PPC_6xx_TLB \
+                        | PPC_74xx_TLB | PPC_40x_TLB | PPC_SEGMENT_64B \
+                        | PPC_SLBI | PPC_WRTEE | PPC_40x_EXCP \
+                        | PPC_405_MAC | PPC_440_SPEC | PPC_BOOKE \
+                        | PPC_MFAPIDI | PPC_TLBIVA | PPC_TLBIVAX \
+                        | PPC_4xx_COMMON | PPC_40x_ICBT | PPC_RFMCI \
+                        | PPC_RFDI | PPC_DCR | PPC_DCRX | PPC_DCRUX \
+                        | PPC_POPCNTWD)
+
     /* extended type values */
 
     /* BookE 2.06 PowerPC specification                                      */
@@ -1864,6 +1888,8 @@ enum {
     PPC2_VSX           = 0x0000000000000002ULL,
     /* Decimal Floating Point (DFP)                                          */
     PPC2_DFP           = 0x0000000000000004ULL,
+
+#define PPC_TCG_INSNS2 (PPC2_BOOKE206)
 };
 
 /*****************************************************************************/
