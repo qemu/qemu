@@ -63,7 +63,7 @@ static uint64_t lx60_fpga_read(void *opaque, target_phys_addr_t addr,
 
     switch (addr) {
     case 0x0: /*build date code*/
-        return 0x27092011;
+        return 0x09272011;
 
     case 0x4: /*processor clock frequency, Hz*/
         return 10000000;
@@ -107,7 +107,7 @@ static Lx60FpgaState *lx60_fpga_init(MemoryRegion *address_space,
     Lx60FpgaState *s = g_malloc(sizeof(Lx60FpgaState));
 
     memory_region_init_io(&s->iomem, &lx60_fpga_ops, s,
-            "lx60-fpga", 0x10000);
+            "lx60.fpga", 0x10000);
     memory_region_add_subregion(address_space, base, &s->iomem);
     lx60_fpga_reset(s);
     qemu_register_reset(lx60_fpga_reset, s);
@@ -186,11 +186,11 @@ static void lx_init(const LxBoardDesc *board,
     }
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "xtensa.sram", ram_size);
+    memory_region_init_ram(ram, NULL, "lx60.dram", ram_size);
     memory_region_add_subregion(system_memory, 0, ram);
 
     system_io = g_malloc(sizeof(*system_io));
-    memory_region_init(system_io, "system.io", 224 * 1024 * 1024);
+    memory_region_init(system_io, "lx60.io", 224 * 1024 * 1024);
     memory_region_add_subregion(system_memory, 0xf0000000, system_io);
     lx60_fpga_init(system_io, 0x0d020000);
     if (nd_table[0].vlan) {
