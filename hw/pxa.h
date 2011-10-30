@@ -105,8 +105,9 @@ struct  keymap {
     int row;
 };
 typedef struct PXA2xxKeyPadState PXA2xxKeyPadState;
-PXA2xxKeyPadState *pxa27x_keypad_init(target_phys_addr_t base,
-                qemu_irq irq);
+PXA2xxKeyPadState *pxa27x_keypad_init(MemoryRegion *sysmem,
+                                      target_phys_addr_t base,
+                                      qemu_irq irq);
 void pxa27x_register_keypad(PXA2xxKeyPadState *kp, struct keymap *map,
                 int size);
 

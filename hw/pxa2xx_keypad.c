@@ -80,6 +80,7 @@
 #define PXAKBD_MAXCOL   8
 
 struct PXA2xxKeyPadState {
+    MemoryRegion iomem;
     qemu_irq    irq;
     struct  keymap *map;
     int         pressed_cnt;
@@ -174,7 +175,8 @@ out:
     return;
 }
 
-static uint32_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     PXA2xxKeyPadState *s = (PXA2xxKeyPadState *) opaque;
     uint32_t tmp;
@@ -235,8 +237,8 @@ static uint32_t pxa2xx_keypad_read(void *opaque, target_phys_addr_t offset)
     return 0;
 }
 
-static void pxa2xx_keypad_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+static void pxa2xx_keypad_write(void *opaque, target_phys_addr_t offset,
+                                uint64_t value, unsigned size)
 {
     PXA2xxKeyPadState *s = (PXA2xxKeyPadState *) opaque;
 
@@ -277,16 +279,10 @@ static void pxa2xx_keypad_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc * const pxa2xx_keypad_readfn[] = {
-    pxa2xx_keypad_read,
-    pxa2xx_keypad_read,
-    pxa2xx_keypad_read
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_keypad_writefn[] = {
-    pxa2xx_keypad_write,
-    pxa2xx_keypad_write,
-    pxa2xx_keypad_write
+static const MemoryRegionOps pxa2xx_keypad_ops = {
+    .read = pxa2xx_keypad_read,
+    .write = pxa2xx_keypad_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_pxa2xx_keypad = {
@@ -306,18 +302,18 @@ static const VMStateDescription vmstate_pxa2xx_keypad = {
     }
 };
 
-PXA2xxKeyPadState *pxa27x_keypad_init(target_phys_addr_t base,
-        qemu_irq irq)
+PXA2xxKeyPadState *pxa27x_keypad_init(MemoryRegion *sysmem,
+                                      target_phys_addr_t base,
+                                      qemu_irq irq)
 {
-    int iomemtype;
     PXA2xxKeyPadState *s;
 
     s = (PXA2xxKeyPadState *) g_malloc0(sizeof(PXA2xxKeyPadState));
     s->irq = irq;
 
-    iomemtype = cpu_register_io_memory(pxa2xx_keypad_readfn,
-                    pxa2xx_keypad_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x00100000, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa2xx_keypad_ops, s,
+                          "pxa2xx-keypad", 0x00100000);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     vmstate_register(NULL, 0, &vmstate_pxa2xx_keypad, s);
 

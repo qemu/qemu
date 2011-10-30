@@ -2149,7 +2149,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_I2S),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_I2S));
 
-    s->kp = pxa27x_keypad_init(0x41500000,
+    s->kp = pxa27x_keypad_init(address_space, 0x41500000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_KEYPAD));
 
     /* GPIO1 resets the processor */
