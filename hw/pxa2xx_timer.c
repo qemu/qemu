@@ -81,6 +81,7 @@ typedef struct {
 
 struct PXA2xxTimerInfo {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t flags;
 
     int32_t clock;
@@ -148,7 +149,8 @@ static void pxa2xx_timer_update4(void *opaque, uint64_t now_qemu, int n)
     qemu_mod_timer(s->tm4[n].tm.qtimer, new_qemu);
 }
 
-static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset,
+                                  unsigned size)
 {
     PXA2xxTimerInfo *s = (PXA2xxTimerInfo *) opaque;
     int tm = 0;
@@ -226,7 +228,7 @@ static uint32_t pxa2xx_timer_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
-                uint32_t value)
+                               uint64_t value, unsigned size)
 {
     int i, tm = 0;
     PXA2xxTimerInfo *s = (PXA2xxTimerInfo *) opaque;
@@ -325,16 +327,10 @@ static void pxa2xx_timer_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const pxa2xx_timer_readfn[] = {
-    pxa2xx_timer_read,
-    pxa2xx_timer_read,
-    pxa2xx_timer_read,
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_timer_writefn[] = {
-    pxa2xx_timer_write,
-    pxa2xx_timer_write,
-    pxa2xx_timer_write,
+static const MemoryRegionOps pxa2xx_timer_ops = {
+    .read = pxa2xx_timer_read,
+    .write = pxa2xx_timer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void pxa2xx_timer_tick(void *opaque)
@@ -387,7 +383,6 @@ static int pxa25x_timer_post_load(void *opaque, int version_id)
 static int pxa2xx_timer_init(SysBusDevice *dev)
 {
     int i;
-    int iomemtype;
     PXA2xxTimerInfo *s;
 
     s = FROM_SYSBUS(PXA2xxTimerInfo, dev);
@@ -419,9 +414,9 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
         }
     }
 
-    iomemtype = cpu_register_io_memory(pxa2xx_timer_readfn,
-                    pxa2xx_timer_writefn, s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x00001000, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa2xx_timer_ops, s,
+                          "pxa2xx-timer", 0x00001000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     return 0;
 }
