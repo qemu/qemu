@@ -14,13 +14,14 @@
 struct PXA2xxPCMCIAState {
     PCMCIASocket slot;
     PCMCIACardState *card;
+    MemoryRegion common_iomem;
 
     qemu_irq irq;
     qemu_irq cd_irq;
 };
 
-static uint32_t pxa2xx_pcmcia_common_read(void *opaque,
-                target_phys_addr_t offset)
+static uint64_t pxa2xx_pcmcia_common_read(void *opaque,
+                target_phys_addr_t offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -31,8 +32,8 @@ static uint32_t pxa2xx_pcmcia_common_read(void *opaque,
     return 0;
 }
 
-static void pxa2xx_pcmcia_common_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+static void pxa2xx_pcmcia_common_write(void *opaque, target_phys_addr_t offset,
+                                       uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -85,16 +86,10 @@ static void pxa2xx_pcmcia_io_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc * const pxa2xx_pcmcia_common_readfn[] = {
-    pxa2xx_pcmcia_common_read,
-    pxa2xx_pcmcia_common_read,
-    pxa2xx_pcmcia_common_read,
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_pcmcia_common_writefn[] = {
-    pxa2xx_pcmcia_common_write,
-    pxa2xx_pcmcia_common_write,
-    pxa2xx_pcmcia_common_write,
+static const MemoryRegionOps pxa2xx_pcmcia_common_ops = {
+    .read = pxa2xx_pcmcia_common_read,
+    .write = pxa2xx_pcmcia_common_write,
+    .endianness = DEVICE_NATIVE_ENDIAN
 };
 
 static CPUReadMemoryFunc * const pxa2xx_pcmcia_attr_readfn[] = {
@@ -130,7 +125,8 @@ static void pxa2xx_pcmcia_set_irq(void *opaque, int line, int level)
     qemu_set_irq(s->irq, level);
 }
 
-PXA2xxPCMCIAState *pxa2xx_pcmcia_init(target_phys_addr_t base)
+PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
+                                      target_phys_addr_t base)
 {
     int iomemtype;
     PXA2xxPCMCIAState *s;
@@ -151,9 +147,10 @@ PXA2xxPCMCIAState *pxa2xx_pcmcia_init(target_phys_addr_t base)
     cpu_register_physical_memory(base | 0x08000000, 0x04000000, iomemtype);
 
     /* Socket Common Memory Space */
-    iomemtype = cpu_register_io_memory(pxa2xx_pcmcia_common_readfn,
-                    pxa2xx_pcmcia_common_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base | 0x0c000000, 0x04000000, iomemtype);
+    memory_region_init_io(&s->common_iomem, &pxa2xx_pcmcia_common_ops, s,
+                          "pxa2xx-pcmcia-common", 0x04000000);
+    memory_region_add_subregion(sysmem, base | 0x0c000000,
+                                &s->common_iomem);
 
     if (base == 0x30000000)
         s->slot.slot_string = "PXA PC Card Socket 1";

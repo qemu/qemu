@@ -93,7 +93,8 @@ void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,
 
 /* pxa2xx_pcmcia.c */
 typedef struct PXA2xxPCMCIAState PXA2xxPCMCIAState;
-PXA2xxPCMCIAState *pxa2xx_pcmcia_init(target_phys_addr_t base);
+PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
+                                      target_phys_addr_t base);
 int pxa2xx_pcmcia_attach(void *opaque, PCMCIACardState *card);
 int pxa2xx_pcmcia_dettach(void *opaque);
 void pxa2xx_pcmcia_set_irq_cb(void *opaque, qemu_irq irq, qemu_irq cd_irq);

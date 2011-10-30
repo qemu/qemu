@@ -2133,8 +2133,8 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
     }
 
-    s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
-    s->pcmcia[1] = pxa2xx_pcmcia_init(0x30000000);
+    s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
+    s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
 
     sysbus_create_simple("pxa2xx_rtc", 0x40900000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));
@@ -2262,8 +2262,8 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
     }
 
-    s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
-    s->pcmcia[1] = pxa2xx_pcmcia_init(0x30000000);
+    s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
+    s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
 
     sysbus_create_simple("pxa2xx_rtc", 0x40900000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));
