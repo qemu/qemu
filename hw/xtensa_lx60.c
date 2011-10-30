@@ -34,6 +34,7 @@
 #include "pc.h"
 #include "sysbus.h"
 #include "flash.h"
+#include "xtensa_bootparam.h"
 
 typedef struct LxBoardDesc {
     size_t flash_size;
@@ -188,10 +189,6 @@ static void lx_init(const LxBoardDesc *board,
     memory_region_init_ram(ram, NULL, "xtensa.sram", ram_size);
     memory_region_add_subregion(system_memory, 0, ram);
 
-    rom = g_malloc(sizeof(*rom));
-    memory_region_init_ram(rom, NULL, "xtensa.rom", 0x1000);
-    memory_region_add_subregion(system_memory, 0xfe000000, rom);
-
     system_io = g_malloc(sizeof(*system_io));
     memory_region_init(system_io, "system.io", 224 * 1024 * 1024);
     memory_region_add_subregion(system_memory, 0xf0000000, system_io);
@@ -223,6 +220,25 @@ static void lx_init(const LxBoardDesc *board,
 
     /* Use presence of kernel file name as 'boot from SRAM' switch. */
     if (kernel_filename) {
+        rom = g_malloc(sizeof(*rom));
+        memory_region_init_ram(rom, NULL, "lx60.sram", board->sram_size);
+        memory_region_add_subregion(system_memory, 0xfe000000, rom);
+
+        /* Put kernel bootparameters to the end of that SRAM */
+        if (kernel_cmdline) {
+            size_t cmdline_size = strlen(kernel_cmdline) + 1;
+            size_t bp_size = sizeof(BpTag[4]) + cmdline_size;
+            uint32_t tagptr = (0xfe000000 + board->sram_size - bp_size) & ~0xff;
+
+            env->regs[2] = tagptr;
+
+            tagptr = put_tag(tagptr, 0x7b0b, 0, NULL);
+            if (cmdline_size > 1) {
+                tagptr = put_tag(tagptr, 0x1001,
+                        cmdline_size, kernel_cmdline);
+            }
+            tagptr = put_tag(tagptr, 0x7e0b, 0, NULL);
+        }
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
         int success = load_elf(kernel_filename, translate_phys_addr, env,
