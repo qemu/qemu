@@ -85,7 +85,8 @@ void pxa2xx_lcdc_oritentation(void *opaque, int angle);
 
 /* pxa2xx_mmci.c */
 typedef struct PXA2xxMMCIState PXA2xxMMCIState;
-PXA2xxMMCIState *pxa2xx_mmci_init(target_phys_addr_t base,
+PXA2xxMMCIState *pxa2xx_mmci_init(MemoryRegion *sysmem,
+                target_phys_addr_t base,
                 BlockDriverState *bd, qemu_irq irq,
                 qemu_irq rx_dma, qemu_irq tx_dma);
 void pxa2xx_mmci_handlers(PXA2xxMMCIState *s, qemu_irq readonly,

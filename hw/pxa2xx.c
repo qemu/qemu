@@ -2072,7 +2072,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = pxa2xx_mmci_init(0x41100000, dinfo->bdrv,
+    s->mmc = pxa2xx_mmci_init(address_space, 0x41100000, dinfo->bdrv,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC),
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
@@ -2201,7 +2201,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = pxa2xx_mmci_init(0x41100000, dinfo->bdrv,
+    s->mmc = pxa2xx_mmci_init(address_space, 0x41100000, dinfo->bdrv,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC),
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
