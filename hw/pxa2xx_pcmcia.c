@@ -17,6 +17,7 @@ struct PXA2xxPCMCIAState {
     PCMCIACardState *card;
     MemoryRegion common_iomem;
     MemoryRegion attr_iomem;
+    MemoryRegion iomem;
 
     qemu_irq irq;
     qemu_irq cd_irq;
@@ -66,8 +67,8 @@ static void pxa2xx_pcmcia_attr_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static uint32_t pxa2xx_pcmcia_io_read(void *opaque,
-                target_phys_addr_t offset)
+static uint64_t pxa2xx_pcmcia_io_read(void *opaque,
+                target_phys_addr_t offset, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -78,8 +79,8 @@ static uint32_t pxa2xx_pcmcia_io_read(void *opaque,
     return 0;
 }
 
-static void pxa2xx_pcmcia_io_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+static void pxa2xx_pcmcia_io_write(void *opaque, target_phys_addr_t offset,
+                                   uint64_t value, unsigned size)
 {
     PXA2xxPCMCIAState *s = (PXA2xxPCMCIAState *) opaque;
 
@@ -100,16 +101,10 @@ static const MemoryRegionOps pxa2xx_pcmcia_attr_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN
 };
 
-static CPUReadMemoryFunc * const pxa2xx_pcmcia_io_readfn[] = {
-    pxa2xx_pcmcia_io_read,
-    pxa2xx_pcmcia_io_read,
-    pxa2xx_pcmcia_io_read,
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_pcmcia_io_writefn[] = {
-    pxa2xx_pcmcia_io_write,
-    pxa2xx_pcmcia_io_write,
-    pxa2xx_pcmcia_io_write,
+static const MemoryRegionOps pxa2xx_pcmcia_io_ops = {
+    .read = pxa2xx_pcmcia_io_read,
+    .write = pxa2xx_pcmcia_io_write,
+    .endianness = DEVICE_NATIVE_ENDIAN
 };
 
 static void pxa2xx_pcmcia_set_irq(void *opaque, int line, int level)
@@ -124,16 +119,16 @@ static void pxa2xx_pcmcia_set_irq(void *opaque, int line, int level)
 PXA2xxPCMCIAState *pxa2xx_pcmcia_init(MemoryRegion *sysmem,
                                       target_phys_addr_t base)
 {
-    int iomemtype;
     PXA2xxPCMCIAState *s;
 
     s = (PXA2xxPCMCIAState *)
             g_malloc0(sizeof(PXA2xxPCMCIAState));
 
     /* Socket I/O Memory Space */
-    iomemtype = cpu_register_io_memory(pxa2xx_pcmcia_io_readfn,
-                    pxa2xx_pcmcia_io_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base | 0x00000000, 0x04000000, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa2xx_pcmcia_io_ops, s,
+                          "pxa2xx-pcmcia-io", 0x04000000);
+    memory_region_add_subregion(sysmem, base | 0x00000000,
+                                &s->iomem);
 
     /* Then next 64 MB is reserved */
 
