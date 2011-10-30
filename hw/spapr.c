@@ -39,10 +39,12 @@
 
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
+#include "hw/spapr_pci.h"
 #include "hw/xics.h"
 
 #include "kvm.h"
 #include "kvm_ppc.h"
+#include "pci.h"
 
 #include "exec-memory.h"
 
@@ -61,6 +63,11 @@
 
 #define MAX_CPUS                256
 #define XICS_IRQS		1024
+
+#define SPAPR_PCI_BUID          0x800000020000001ULL
+#define SPAPR_PCI_MEM_WIN_ADDR  (0x10000000000ULL + 0xA0000000)
+#define SPAPR_PCI_MEM_WIN_SIZE  0x20000000
+#define SPAPR_PCI_IO_WIN_ADDR   (0x10000000000ULL + 0x80000000)
 
 #define PHANDLE_XICP            0x00001111
 
@@ -145,6 +152,14 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_property(fdt, "linux,initrd-end",
                        &end_prop, sizeof(end_prop))));
     _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
+
+    /*
+     * Because we don't always invoke any firmware, we can't rely on
+     * that to do BAR allocation.  Long term, we should probably do
+     * that ourselves, but for now, this setting (plus advertising the
+     * current BARs as 0) causes sufficiently recent kernels to to the
+     * BAR assignment themselves */
+    _FDT((fdt_property_cell(fdt, "linux,pci-probe-only", 0)));
 
     _FDT((fdt_end_node(fdt)));
 
@@ -308,6 +323,7 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
 {
     int ret;
     void *fdt;
+    sPAPRPHBState *phb;
 
     fdt = g_malloc(FDT_MAX_SIZE);
 
@@ -317,6 +333,15 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
     ret = spapr_populate_vdevice(spapr->vio_bus, fdt);
     if (ret < 0) {
         fprintf(stderr, "couldn't setup vio devices in fdt\n");
+        exit(1);
+    }
+
+    QLIST_FOREACH(phb, &spapr->phbs, list) {
+        ret = spapr_populate_pci_devices(phb, PHANDLE_XICP, fdt);
+    }
+
+    if (ret < 0) {
+        fprintf(stderr, "couldn't setup PCI devices in fdt\n");
         exit(1);
     }
 
@@ -478,6 +503,12 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         }
     }
 
+    /* Set up PCI */
+    spapr_create_phb(spapr, "pci", SPAPR_PCI_BUID,
+                     SPAPR_PCI_MEM_WIN_ADDR,
+                     SPAPR_PCI_MEM_WIN_SIZE,
+                     SPAPR_PCI_IO_WIN_ADDR);
+
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
 
@@ -488,10 +519,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         if (strcmp(nd->model, "ibmveth") == 0) {
             spapr_vlan_create(spapr->vio_bus, 0x1000 + i, nd);
         } else {
-            fprintf(stderr, "pSeries (sPAPR) platform does not support "
-                    "NIC model '%s' (only ibmveth is supported)\n",
-                    nd->model);
-            exit(1);
+            pci_nic_init_nofail(&nd_table[i], nd->model, NULL);
         }
     }
 
