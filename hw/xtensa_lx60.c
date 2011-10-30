@@ -33,6 +33,13 @@
 #include "exec-memory.h"
 #include "pc.h"
 #include "sysbus.h"
+#include "flash.h"
+
+typedef struct LxBoardDesc {
+    size_t flash_size;
+    size_t flash_sector_size;
+    size_t sram_size;
+} LxBoardDesc;
 
 typedef struct Lx60FpgaState {
     MemoryRegion iomem;
@@ -142,8 +149,8 @@ static void lx60_reset(void *env)
     cpu_reset(env);
 }
 
-static void lx60_init(ram_addr_t ram_size,
-        const char *boot_device,
+static void lx_init(const LxBoardDesc *board,
+        ram_addr_t ram_size, const char *boot_device,
         const char *kernel_filename, const char *kernel_cmdline,
         const char *initrd_filename, const char *cpu_model)
 {
@@ -155,7 +162,13 @@ static void lx60_init(ram_addr_t ram_size,
     MemoryRegion *system_memory = get_system_memory();
     CPUState *env = NULL;
     MemoryRegion *ram, *rom, *system_io;
+    DriveInfo *dinfo;
+    pflash_t *flash = NULL;
     int n;
+
+    if (!cpu_model) {
+        cpu_model = "dc232b";
+    }
 
     for (n = 0; n < smp_cpus; n++) {
         env = cpu_init(cpu_model);
@@ -195,6 +208,20 @@ static void lx60_init(ram_addr_t ram_size,
     serial_mm_init(system_io, 0x0d050020, 2, xtensa_get_extint(env, 0),
             115200, serial_hds[0], DEVICE_NATIVE_ENDIAN);
 
+    dinfo = drive_get(IF_PFLASH, 0, 0);
+    if (dinfo) {
+        flash = pflash_cfi01_register(0xf8000000,
+                NULL, "lx60.io.flash", board->flash_size,
+                dinfo->bdrv, board->flash_sector_size,
+                board->flash_size / board->flash_sector_size,
+                4, 0x0000, 0x0000, 0x0000, 0x0000, be);
+        if (flash == NULL) {
+            fprintf(stderr, "Unable to mount pflash\n");
+            exit(1);
+        }
+    }
+
+    /* Use presence of kernel file name as 'boot from SRAM' switch. */
     if (kernel_filename) {
         uint64_t elf_entry;
         uint64_t elf_lowaddr;
@@ -202,6 +229,16 @@ static void lx60_init(ram_addr_t ram_size,
                 &elf_entry, &elf_lowaddr, NULL, be, ELF_MACHINE, 0);
         if (success > 0) {
             env->pc = elf_entry;
+        }
+    } else {
+        if (flash) {
+            MemoryRegion *flash_mr = pflash_cfi01_get_memory(flash);
+            MemoryRegion *flash_io = g_malloc(sizeof(*flash_io));
+
+            memory_region_init_alias(flash_io, "lx60.flash",
+                    flash_mr, 0, board->flash_size);
+            memory_region_add_subregion(system_memory, 0xfe000000,
+                    flash_io);
         }
     }
 }
@@ -211,10 +248,28 @@ static void xtensa_lx60_init(ram_addr_t ram_size,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    if (!cpu_model) {
-        cpu_model = "dc232b";
-    }
-    lx60_init(ram_size, boot_device, kernel_filename, kernel_cmdline,
+    static const LxBoardDesc lx60_board = {
+        .flash_size = 0x400000,
+        .flash_sector_size = 0x10000,
+        .sram_size = 0x20000,
+    };
+    lx_init(&lx60_board, ram_size, boot_device,
+            kernel_filename, kernel_cmdline,
+            initrd_filename, cpu_model);
+}
+
+static void xtensa_lx200_init(ram_addr_t ram_size,
+                     const char *boot_device,
+                     const char *kernel_filename, const char *kernel_cmdline,
+                     const char *initrd_filename, const char *cpu_model)
+{
+    static const LxBoardDesc lx200_board = {
+        .flash_size = 0x1000000,
+        .flash_sector_size = 0x20000,
+        .sram_size = 0x2000000,
+    };
+    lx_init(&lx200_board, ram_size, boot_device,
+            kernel_filename, kernel_cmdline,
             initrd_filename, cpu_model);
 }
 
@@ -225,9 +280,17 @@ static QEMUMachine xtensa_lx60_machine = {
     .max_cpus = 4,
 };
 
-static void xtensa_lx60_machine_init(void)
+static QEMUMachine xtensa_lx200_machine = {
+    .name = "lx200",
+    .desc = "lx200 EVB (dc232b)",
+    .init = xtensa_lx200_init,
+    .max_cpus = 4,
+};
+
+static void xtensa_lx_machines_init(void)
 {
     qemu_register_machine(&xtensa_lx60_machine);
+    qemu_register_machine(&xtensa_lx200_machine);
 }
 
-machine_init(xtensa_lx60_machine_init);
+machine_init(xtensa_lx_machines_init);
