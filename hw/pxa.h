@@ -78,8 +78,8 @@ DeviceState *pxa27x_dma_init(target_phys_addr_t base, qemu_irq irq);
 
 /* pxa2xx_lcd.c */
 typedef struct PXA2xxLCDState PXA2xxLCDState;
-PXA2xxLCDState *pxa2xx_lcdc_init(target_phys_addr_t base,
-                qemu_irq irq);
+PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
+                target_phys_addr_t base, qemu_irq irq);
 void pxa2xx_lcd_vsync_notifier(PXA2xxLCDState *s, qemu_irq handler);
 void pxa2xx_lcdc_oritentation(void *opaque, int angle);
 

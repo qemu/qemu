@@ -2094,7 +2094,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
                         qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_ICP),
                         serial_hds[i]);
 
-    s->lcd = pxa2xx_lcdc_init(0x44000000,
+    s->lcd = pxa2xx_lcdc_init(address_space, 0x44000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_LCD));
 
     s->cm_base = 0x41300000;
@@ -2223,7 +2223,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
                         qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_ICP),
                         serial_hds[i]);
 
-    s->lcd = pxa2xx_lcdc_init(0x44000000,
+    s->lcd = pxa2xx_lcdc_init(address_space, 0x44000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_LCD));
 
     s->cm_base = 0x41300000;
