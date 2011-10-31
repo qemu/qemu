@@ -36,8 +36,11 @@ extern int daemon(int, int);
 #endif
 
 #if defined(__linux__) && defined(__x86_64__)
-   /* Use 2MB alignment so transparent hugepages can be used by KVM */
+   /* Use 2 MiB alignment so transparent hugepages can be used by KVM.
+      Valgrind does not support alignments larger than 1 MiB,
+      therefore we need special code which handles running on Valgrind. */
 #  define QEMU_VMALLOC_ALIGN (512 * 4096)
+#  define CONFIG_VALGRIND
 #else
 #  define QEMU_VMALLOC_ALIGN getpagesize()
 #endif
@@ -47,7 +50,11 @@ extern int daemon(int, int);
 #include "trace.h"
 #include "qemu_socket.h"
 
-
+#if defined(CONFIG_VALGRIND)
+static int running_on_valgrind = -1;
+#else
+#  define running_on_valgrind 0
+#endif
 
 int qemu_daemon(int nochdir, int noclose)
 {
@@ -89,7 +96,16 @@ void *qemu_vmalloc(size_t size)
     void *ptr;
     size_t align = QEMU_VMALLOC_ALIGN;
 
-    if (size < align) {
+#if defined(CONFIG_VALGRIND)
+    if (running_on_valgrind < 0) {
+        /* First call, test whether we are running on Valgrind.
+           This is a substitute for RUNNING_ON_VALGRIND from valgrind.h. */
+        const char *ld = getenv("LD_PRELOAD");
+        running_on_valgrind = (ld != NULL && strstr(ld, "vgpreload"));
+    }
+#endif
+
+    if (size < align || running_on_valgrind) {
         align = getpagesize();
     }
     ptr = qemu_memalign(align, size);
