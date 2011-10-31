@@ -300,6 +300,10 @@
 
 #define MSR_IA32_PERF_STATUS            0x198
 
+#define MSR_IA32_MISC_ENABLE		0x1a0
+/* Indicates good rep/movs microcode on some processors: */
+#define MSR_IA32_MISC_ENABLE_DEFAULT    1
+
 #define MSR_MTRRphysBase(reg)		(0x200 + 2 * (reg))
 #define MSR_MTRRphysMask(reg)		(0x200 + 2 * (reg) + 1)
 
@@ -691,6 +695,7 @@ typedef struct CPUX86State {
     uint64_t tsc_deadline;
 
     uint64_t mcg_status;
+    uint64_t msr_ia32_misc_enable;
 
     /* exception/interrupt handling */
     int error_code;
@@ -949,7 +954,7 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define cpu_list_id x86_cpu_list
 #define cpudef_setup	x86_cpudef_setup
 
-#define CPU_SAVE_VERSION 13
+#define CPU_SAVE_VERSION 12
 
 /* MMU modes definitions */
 #define MMU_MODE0_SUFFIX _kernel

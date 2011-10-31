@@ -1,0 +1,224 @@
+#!/usr/bin/python
+#
+# tool for querying VMX capabilities
+#
+# Copyright 2009-2010 Red Hat, Inc.
+#
+# Authors:
+#  Avi Kivity <avi@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2.  See
+# the COPYING file in the top-level directory.
+
+MSR_IA32_VMX_BASIC = 0x480
+MSR_IA32_VMX_PINBASED_CTLS = 0x481
+MSR_IA32_VMX_PROCBASED_CTLS = 0x482
+MSR_IA32_VMX_EXIT_CTLS = 0x483
+MSR_IA32_VMX_ENTRY_CTLS = 0x484
+MSR_IA32_VMX_MISC_CTLS = 0x485
+MSR_IA32_VMX_PROCBASED_CTLS2 = 0x48B
+MSR_IA32_VMX_EPT_VPID_CAP = 0x48C
+MSR_IA32_VMX_TRUE_PINBASED_CTLS = 0x48D
+MSR_IA32_VMX_TRUE_PROCBASED_CTLS = 0x48E
+MSR_IA32_VMX_TRUE_EXIT_CTLS = 0x48F
+MSR_IA32_VMX_TRUE_ENTRY_CTLS = 0x490
+
+class msr(object):
+    def __init__(self):
+        try:
+            self.f = file('/dev/cpu/0/msr')
+        except:
+            self.f = file('/dev/msr0')
+    def read(self, index, default = None):
+        import struct
+        self.f.seek(index)
+        try:
+            return struct.unpack('Q', self.f.read(8))[0]
+        except:
+            return default
+
+class Control(object):
+    def __init__(self, name, bits, cap_msr, true_cap_msr = None):
+        self.name = name
+        self.bits = bits
+        self.cap_msr = cap_msr
+        self.true_cap_msr = true_cap_msr
+    def read2(self, nr):
+        m = msr()
+        val = m.read(nr, 0)
+        return (val & 0xffffffff, val >> 32)
+    def show(self):
+        print self.name
+        mbz, mb1 = self.read2(self.cap_msr)
+        tmbz, tmb1 = 0, 0
+        if self.true_cap_msr:
+            tmbz, tmb1 = self.read2(self.true_cap_msr)
+        for bit in sorted(self.bits.keys()):
+            zero = not (mbz & (1 << bit))
+            one = mb1 & (1 << bit)
+            true_zero = not (tmbz & (1 << bit))
+            true_one = tmb1 & (1 << bit)
+            s= '?'
+            if (self.true_cap_msr and true_zero and true_one
+                and one and not zero):
+                s = 'default'
+            elif zero and not one:
+                s = 'no'
+            elif one and not zero:
+                s = 'forced'
+            elif one and zero:
+                s = 'yes'
+            print '  %-40s %s' % (self.bits[bit], s)
+
+class Misc(object):
+    def __init__(self, name, bits, msr):
+        self.name = name
+        self.bits = bits
+        self.msr = msr
+    def show(self):
+        print self.name
+        value = msr().read(self.msr, 0)
+        def first_bit(key):
+            if type(key) is tuple:
+                return key[0]
+            else:
+                return key
+        for bits in sorted(self.bits.keys(), key = first_bit):
+            if type(bits) is tuple:
+                lo, hi = bits
+                fmt = int
+            else:
+                lo = hi = bits
+                def fmt(x):
+                    return { True: 'yes', False: 'no' }[x]
+            v = (value >> lo) & ((1 << (hi - lo + 1)) - 1)
+            print '  %-40s %s' % (self.bits[bits], fmt(v))
+
+controls = [
+    Control(
+        name = 'pin-based controls',
+        bits = {
+            0: 'External interrupt exiting',
+            3: 'NMI exiting',
+            5: 'Virtual NMIs',
+            6: 'Activate VMX-preemption timer',
+            },
+        cap_msr = MSR_IA32_VMX_PINBASED_CTLS,
+        true_cap_msr = MSR_IA32_VMX_TRUE_PINBASED_CTLS,
+        ),
+
+    Control(
+        name = 'primary processor-based controls',
+        bits = {
+            2: 'Interrupt window exiting',
+            3: 'Use TSC offsetting',
+            7: 'HLT exiting',
+            9: 'INVLPG exiting',
+            10: 'MWAIT exiting',
+            11: 'RDPMC exiting',
+            12: 'RDTSC exiting',
+            15: 'CR3-load exiting',
+            16: 'CR3-store exiting',
+            19: 'CR8-load exiting',
+            20: 'CR8-store exiting',
+            21: 'Use TPR shadow',
+            22: 'NMI-window exiting',
+            23: 'MOV-DR exiting',
+            24: 'Unconditional I/O exiting',
+            25: 'Use I/O bitmaps',
+            27: 'Monitor trap flag',
+            28: 'Use MSR bitmaps',
+            29: 'MONITOR exiting',
+            30: 'PAUSE exiting',
+            31: 'Activate secondary control',
+            },
+        cap_msr = MSR_IA32_VMX_PROCBASED_CTLS,
+        true_cap_msr = MSR_IA32_VMX_TRUE_PROCBASED_CTLS,
+        ),
+
+    Control(
+        name = 'secondary processor-based controls',
+        bits = {
+            0: 'Virtualize APIC accesses',
+            1: 'Enable EPT',
+            2: 'Descriptor-table exiting',
+            4: 'Virtualize x2APIC mode',
+            5: 'Enable VPID',
+            6: 'WBINVD exiting',
+            7: 'Unrestricted guest',
+            10: 'PAUSE-loop exiting',
+            },
+        cap_msr = MSR_IA32_VMX_PROCBASED_CTLS2,
+        ),
+
+    Control(
+        name = 'VM-Exit controls',
+        bits = {
+            2: 'Save debug controls',
+            9: 'Host address-space size',
+            12: 'Load IA32_PERF_GLOBAL_CTRL',
+            15: 'Acknowledge interrupt on exit',
+            18: 'Save IA32_PAT',
+            19: 'Load IA32_PAT',
+            20: 'Save IA32_EFER',
+            21: 'Load IA32_EFER',
+            22: 'Save VMX-preemption timer value',
+            },
+        cap_msr = MSR_IA32_VMX_EXIT_CTLS,
+        true_cap_msr = MSR_IA32_VMX_TRUE_EXIT_CTLS,
+        ),
+
+    Control(
+        name = 'VM-Entry controls',
+        bits = {
+            2: 'Load debug controls',
+            9: 'IA-64 mode guest',
+            10: 'Entry to SMM',
+            11: 'Deactivate dual-monitor treatment',
+            13: 'Load IA32_PERF_GLOBAL_CTRL',
+            14: 'Load IA32_PAT',
+            15: 'Load IA32_EFER',
+            },
+        cap_msr = MSR_IA32_VMX_ENTRY_CTLS,
+        true_cap_msr = MSR_IA32_VMX_TRUE_ENTRY_CTLS,
+        ),
+
+    Misc(
+        name = 'Miscellaneous data',
+        bits = {
+            (0,4): 'VMX-preemption timer scale (log2)',
+            5: 'Store EFER.LMA into IA-32e mode guest control',
+            6: 'HLT activity state',
+            7: 'Shutdown activity state',
+            8: 'Wait-for-SIPI activity state',
+            (16,24): 'Number of CR3-target values',
+            (25,27): 'MSR-load/store count recommenation',
+            (32,62): 'MSEG revision identifier',
+            },
+        msr = MSR_IA32_VMX_MISC_CTLS,
+        ),
+
+    Misc(
+        name = 'VPID and EPT capabilities',
+        bits = {
+            0: 'Execute-only EPT translations',
+            6: 'Page-walk length 4',
+            8: 'Paging-structure memory type UC',
+            14: 'Paging-structure memory type WB',
+            16: '2MB EPT pages',
+            17: '1GB EPT pages',
+            20: 'INVEPT supported',
+            25: 'Single-context INVEPT',
+            26: 'All-context INVEPT',
+            32: 'INVVPID supported',
+            40: 'Individual-address INVVPID',
+            41: 'Single-context INVVPID',
+            42: 'All-context INVVPID',
+            43: 'Single-context-retaining-globals INVVPID',
+            },
+        msr = MSR_IA32_VMX_EPT_VPID_CAP,
+        ),
+    ]
+
+for c in controls:
+    c.show()

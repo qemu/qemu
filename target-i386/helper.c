@@ -98,6 +98,7 @@ void cpu_reset(CPUX86State *env)
     env->mxcsr = 0x1f80;
 
     env->pat = 0x0007040600070406ULL;
+    env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT;
 
     memset(env->dr, 0, sizeof(env->dr));
     env->dr[6] = DR6_FIXED_1;
