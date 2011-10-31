@@ -960,21 +960,21 @@ static int multiwrite_f(int argc, char **argv)
     buf = g_malloc0(nr_reqs * sizeof(*buf));
     qiovs = g_malloc(nr_reqs * sizeof(*qiovs));
 
-    for (i = 0; i < nr_reqs; i++) {
+    for (i = 0; i < nr_reqs && optind < argc; i++) {
         int j;
 
         /* Read the offset of the request */
         offset = cvtnum(argv[optind]);
         if (offset < 0) {
             printf("non-numeric offset argument -- %s\n", argv[optind]);
-            return 0;
+            goto out;
         }
         optind++;
 
         if (offset & 0x1ff) {
             printf("offset %lld is not sector aligned\n",
                    (long long)offset);
-            return 0;
+            goto out;
         }
 
         if (i == 0) {
@@ -1004,6 +1004,9 @@ static int multiwrite_f(int argc, char **argv)
 
         pattern++;
     }
+
+    /* If there were empty requests at the end, ignore them */
+    nr_reqs = i;
 
     gettimeofday(&t1, NULL);
     cnt = do_aio_multiwrite(reqs, nr_reqs, &total);
