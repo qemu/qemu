@@ -136,6 +136,7 @@
 #define TARGET_NR_utimes             138 /* SunOS Specific                              */
 #define TARGET_NR_stat64		139 /* Linux sparc32 Specific			   */
 #define TARGET_NR_getpeername        141 /* Common                                      */
+#define TARGET_NR_futex              142 /* gethostid under SunOS                       */
 #define TARGET_NR_gettid             143 /* ENOSYS under SunOS                          */
 #define TARGET_NR_getrlimit          144 /* Common                                      */
 #define TARGET_NR_setrlimit          145 /* Common                                      */
@@ -153,6 +154,7 @@
 #define TARGET_NR_getdomainname      162 /* SunOS Specific                              */
 #define TARGET_NR_setdomainname      163 /* Common                                      */
 #define TARGET_NR_quotactl           165 /* Common                                      */
+#define TARGET_NR_set_tid_address    166 /* Linux specific, exportfs under SunOS        */
 #define TARGET_NR_mount              167 /* Common                                      */
 #define TARGET_NR_ustat              168 /* Common                                      */
 #define TARGET_NR_getdents           174 /* Common                                      */
@@ -177,6 +179,7 @@
 #define TARGET_NR_readahead          205 /* Linux Specific                              */
 #define TARGET_NR_socketcall         206 /* Linux Specific                              */
 #define TARGET_NR_syslog             207 /* Linux Specific                              */
+#define TARGET_NR_tgkill             211 /* Linux Specific                              */
 #define TARGET_NR_waitpid            212 /* Linux Specific                              */
 #define TARGET_NR_swapoff            213 /* Linux Specific                              */
 #define TARGET_NR_sysinfo            214 /* Linux Specific                              */

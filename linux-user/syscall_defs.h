@@ -209,9 +209,9 @@ __target_cmsg_nxthdr (struct target_msghdr *__mhdr, struct target_cmsghdr *__cms
   struct target_cmsghdr *__ptr;
 
   __ptr = (struct target_cmsghdr *)((unsigned char *) __cmsg
-                                    + TARGET_CMSG_ALIGN (tswapl(__cmsg->cmsg_len)));
-  if ((unsigned long)((char *)(__ptr+1) - (char *)(size_t)tswapl(__mhdr->msg_control))
-      > tswapl(__mhdr->msg_controllen))
+                                    + TARGET_CMSG_ALIGN (tswapal(__cmsg->cmsg_len)));
+  if ((unsigned long)((char *)(__ptr+1) - (char *)(size_t)tswapal(__mhdr->msg_control))
+      > tswapal(__mhdr->msg_controllen))
     /* No more entries.  */
     return (struct target_cmsghdr *)0;
   return __cmsg;
@@ -292,7 +292,7 @@ static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
 {
     int i;
     for(i = 0;i < TARGET_NSIG_WORDS; i++)
-        d->sig[i] = tswapl(s->sig[i]);
+        d->sig[i] = tswapal(s->sig[i]);
 }
 #else
 static inline void tswap_sigset(target_sigset_t *d, const target_sigset_t *s)
@@ -687,10 +687,10 @@ struct target_rlimit {
 
 #if defined(TARGET_ALPHA)
 #define TARGET_RLIM_INFINITY	0x7fffffffffffffffull
-#elif defined(TARGET_MIPS) || defined(TARGET_SPARC)
+#elif defined(TARGET_MIPS) || (defined(TARGET_SPARC) && TARGET_ABI_BITS == 32)
 #define TARGET_RLIM_INFINITY	0x7fffffffUL
 #else
-#define TARGET_RLIM_INFINITY	((target_ulong)~0UL)
+#define TARGET_RLIM_INFINITY	((abi_ulong)-1)
 #endif
 
 #if defined(TARGET_MIPS)
@@ -716,8 +716,13 @@ struct target_rlimit {
 #define TARGET_RLIMIT_STACK		3
 #define TARGET_RLIMIT_CORE		4
 #define TARGET_RLIMIT_RSS		5
+#if defined(TARGET_SPARC)
+#define TARGET_RLIMIT_NOFILE		6
+#define TARGET_RLIMIT_NPROC		7
+#else
 #define TARGET_RLIMIT_NPROC		6
 #define TARGET_RLIMIT_NOFILE		7
+#endif
 #define TARGET_RLIMIT_MEMLOCK		8
 #define TARGET_RLIMIT_AS		9
 #define TARGET_RLIMIT_LOCKS		10

@@ -432,7 +432,7 @@ int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
     env->eflags = (env->eflags & ~SAFE_MASK) |
         (tswap32(target_v86->regs.eflags) & SAFE_MASK) | VM_MASK;
 
-    ts->vm86plus.cpu_type = tswapl(target_v86->cpu_type);
+    ts->vm86plus.cpu_type = tswapal(target_v86->cpu_type);
     switch (ts->vm86plus.cpu_type) {
     case TARGET_CPU_286:
         ts->v86mask = 0;
@@ -468,7 +468,7 @@ int do_vm86(CPUX86State *env, long subfunction, abi_ulong vm86_addr)
            &target_v86->int_revectored, 32);
     memcpy(&ts->vm86plus.int21_revectored,
            &target_v86->int21_revectored, 32);
-    ts->vm86plus.vm86plus.flags = tswapl(target_v86->vm86plus.flags);
+    ts->vm86plus.vm86plus.flags = tswapal(target_v86->vm86plus.flags);
     memcpy(&ts->vm86plus.vm86plus.vm86dbg_intxxtab,
            target_v86->vm86plus.vm86dbg_intxxtab, 32);
     unlock_user_struct(target_v86, vm86_addr, 0);

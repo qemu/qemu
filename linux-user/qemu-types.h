@@ -9,6 +9,12 @@ typedef int32_t abi_long;
 #define TARGET_ABI_FMT_ld "%d"
 #define TARGET_ABI_FMT_lu "%u"
 #define TARGET_ABI_BITS 32
+
+static inline abi_ulong tswapal(abi_ulong v)
+{
+    return tswap32(v);
+}
+
 #else
 typedef target_ulong abi_ulong;
 typedef target_long abi_long;
@@ -20,5 +26,11 @@ typedef target_long abi_long;
 #if TARGET_ABI_BITS == 32
 #define TARGET_ABI32 1
 #endif
+
+static inline abi_ulong tswapal(abi_ulong v)
+{
+    return tswapl(v);
+}
+
 #endif
 #endif

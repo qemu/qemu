@@ -248,6 +248,8 @@ _syscall3(int, sys_sched_getaffinity, pid_t, pid, unsigned int, len,
 #define __NR_sys_sched_setaffinity __NR_sched_setaffinity
 _syscall3(int, sys_sched_setaffinity, pid_t, pid, unsigned int, len,
           unsigned long *, user_mask_ptr);
+_syscall4(int, reboot, int, magic1, int, magic2, unsigned int, cmd,
+          void *, arg);
 
 static bitmask_transtbl fcntl_flags_tbl[] = {
   { TARGET_O_ACCMODE,   TARGET_O_WRONLY,    O_ACCMODE,   O_WRONLY,    },
@@ -379,25 +381,13 @@ static int sys_mknodat(int dirfd, const char *pathname, mode_t mode,
 }
 #endif
 #ifdef TARGET_NR_openat
-static int sys_openat(int dirfd, const char *pathname, int flags, ...)
+static int sys_openat(int dirfd, const char *pathname, int flags, mode_t mode)
 {
   /*
    * open(2) has extra parameter 'mode' when called with
    * flag O_CREAT.
    */
   if ((flags & O_CREAT) != 0) {
-      va_list ap;
-      mode_t mode;
-
-      /*
-       * Get the 'mode' parameter and translate it to
-       * host bits.
-       */
-      va_start(ap, flags);
-      mode = va_arg(ap, mode_t);
-      mode = target_to_host_bitmask(mode, fcntl_flags_tbl);
-      va_end(ap);
-
       return (openat(dirfd, pathname, flags, mode));
   }
   return (openat(dirfd, pathname, flags));
@@ -931,53 +921,55 @@ static inline abi_long host_to_target_rusage(abi_ulong target_addr,
 
     if (!lock_user_struct(VERIFY_WRITE, target_rusage, target_addr, 0))
         return -TARGET_EFAULT;
-    target_rusage->ru_utime.tv_sec = tswapl(rusage->ru_utime.tv_sec);
-    target_rusage->ru_utime.tv_usec = tswapl(rusage->ru_utime.tv_usec);
-    target_rusage->ru_stime.tv_sec = tswapl(rusage->ru_stime.tv_sec);
-    target_rusage->ru_stime.tv_usec = tswapl(rusage->ru_stime.tv_usec);
-    target_rusage->ru_maxrss = tswapl(rusage->ru_maxrss);
-    target_rusage->ru_ixrss = tswapl(rusage->ru_ixrss);
-    target_rusage->ru_idrss = tswapl(rusage->ru_idrss);
-    target_rusage->ru_isrss = tswapl(rusage->ru_isrss);
-    target_rusage->ru_minflt = tswapl(rusage->ru_minflt);
-    target_rusage->ru_majflt = tswapl(rusage->ru_majflt);
-    target_rusage->ru_nswap = tswapl(rusage->ru_nswap);
-    target_rusage->ru_inblock = tswapl(rusage->ru_inblock);
-    target_rusage->ru_oublock = tswapl(rusage->ru_oublock);
-    target_rusage->ru_msgsnd = tswapl(rusage->ru_msgsnd);
-    target_rusage->ru_msgrcv = tswapl(rusage->ru_msgrcv);
-    target_rusage->ru_nsignals = tswapl(rusage->ru_nsignals);
-    target_rusage->ru_nvcsw = tswapl(rusage->ru_nvcsw);
-    target_rusage->ru_nivcsw = tswapl(rusage->ru_nivcsw);
+    target_rusage->ru_utime.tv_sec = tswapal(rusage->ru_utime.tv_sec);
+    target_rusage->ru_utime.tv_usec = tswapal(rusage->ru_utime.tv_usec);
+    target_rusage->ru_stime.tv_sec = tswapal(rusage->ru_stime.tv_sec);
+    target_rusage->ru_stime.tv_usec = tswapal(rusage->ru_stime.tv_usec);
+    target_rusage->ru_maxrss = tswapal(rusage->ru_maxrss);
+    target_rusage->ru_ixrss = tswapal(rusage->ru_ixrss);
+    target_rusage->ru_idrss = tswapal(rusage->ru_idrss);
+    target_rusage->ru_isrss = tswapal(rusage->ru_isrss);
+    target_rusage->ru_minflt = tswapal(rusage->ru_minflt);
+    target_rusage->ru_majflt = tswapal(rusage->ru_majflt);
+    target_rusage->ru_nswap = tswapal(rusage->ru_nswap);
+    target_rusage->ru_inblock = tswapal(rusage->ru_inblock);
+    target_rusage->ru_oublock = tswapal(rusage->ru_oublock);
+    target_rusage->ru_msgsnd = tswapal(rusage->ru_msgsnd);
+    target_rusage->ru_msgrcv = tswapal(rusage->ru_msgrcv);
+    target_rusage->ru_nsignals = tswapal(rusage->ru_nsignals);
+    target_rusage->ru_nvcsw = tswapal(rusage->ru_nvcsw);
+    target_rusage->ru_nivcsw = tswapal(rusage->ru_nivcsw);
     unlock_user_struct(target_rusage, target_addr, 1);
 
     return 0;
 }
 
-static inline rlim_t target_to_host_rlim(target_ulong target_rlim)
+static inline rlim_t target_to_host_rlim(abi_ulong target_rlim)
 {
-    target_ulong target_rlim_swap;
+    abi_ulong target_rlim_swap;
     rlim_t result;
     
-    target_rlim_swap = tswapl(target_rlim);
-    if (target_rlim_swap == TARGET_RLIM_INFINITY || target_rlim_swap != (rlim_t)target_rlim_swap)
-        result = RLIM_INFINITY;
-    else
-        result = target_rlim_swap;
+    target_rlim_swap = tswapal(target_rlim);
+    if (target_rlim_swap == TARGET_RLIM_INFINITY)
+        return RLIM_INFINITY;
+
+    result = target_rlim_swap;
+    if (target_rlim_swap != (rlim_t)result)
+        return RLIM_INFINITY;
     
     return result;
 }
 
-static inline target_ulong host_to_target_rlim(rlim_t rlim)
+static inline abi_ulong host_to_target_rlim(rlim_t rlim)
 {
-    target_ulong target_rlim_swap;
-    target_ulong result;
+    abi_ulong target_rlim_swap;
+    abi_ulong result;
     
-    if (rlim == RLIM_INFINITY || rlim != (target_long)rlim)
+    if (rlim == RLIM_INFINITY || rlim != (abi_long)rlim)
         target_rlim_swap = TARGET_RLIM_INFINITY;
     else
         target_rlim_swap = rlim;
-    result = tswapl(target_rlim_swap);
+    result = tswapal(target_rlim_swap);
     
     return result;
 }
@@ -1196,7 +1188,7 @@ static inline abi_long target_to_host_ip_mreq(struct ip_mreqn *mreqn,
     mreqn->imr_multiaddr.s_addr = target_smreqn->imr_multiaddr.s_addr;
     mreqn->imr_address.s_addr = target_smreqn->imr_address.s_addr;
     if (len == sizeof(struct target_ip_mreqn))
-        mreqn->imr_ifindex = tswapl(target_smreqn->imr_ifindex);
+        mreqn->imr_ifindex = tswapal(target_smreqn->imr_ifindex);
     unlock_user(target_smreqn, target_addr, 0);
 
     return 0;
@@ -1268,10 +1260,10 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
     struct target_cmsghdr *target_cmsg;
     socklen_t space = 0;
     
-    msg_controllen = tswapl(target_msgh->msg_controllen);
+    msg_controllen = tswapal(target_msgh->msg_controllen);
     if (msg_controllen < sizeof (struct target_cmsghdr)) 
         goto the_end;
-    target_cmsg_addr = tswapl(target_msgh->msg_control);
+    target_cmsg_addr = tswapal(target_msgh->msg_control);
     target_cmsg = lock_user(VERIFY_READ, target_cmsg_addr, msg_controllen, 1);
     if (!target_cmsg)
         return -TARGET_EFAULT;
@@ -1280,7 +1272,7 @@ static inline abi_long target_to_host_cmsg(struct msghdr *msgh,
         void *data = CMSG_DATA(cmsg);
         void *target_data = TARGET_CMSG_DATA(target_cmsg);
 
-        int len = tswapl(target_cmsg->cmsg_len)
+        int len = tswapal(target_cmsg->cmsg_len)
                   - TARGET_CMSG_ALIGN(sizeof (struct target_cmsghdr));
 
         space += CMSG_SPACE(len);
@@ -1325,10 +1317,10 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
     struct target_cmsghdr *target_cmsg;
     socklen_t space = 0;
 
-    msg_controllen = tswapl(target_msgh->msg_controllen);
+    msg_controllen = tswapal(target_msgh->msg_controllen);
     if (msg_controllen < sizeof (struct target_cmsghdr)) 
         goto the_end;
-    target_cmsg_addr = tswapl(target_msgh->msg_control);
+    target_cmsg_addr = tswapal(target_msgh->msg_control);
     target_cmsg = lock_user(VERIFY_WRITE, target_cmsg_addr, msg_controllen, 0);
     if (!target_cmsg)
         return -TARGET_EFAULT;
@@ -1348,7 +1340,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
 
         target_cmsg->cmsg_level = tswap32(cmsg->cmsg_level);
         target_cmsg->cmsg_type = tswap32(cmsg->cmsg_type);
-        target_cmsg->cmsg_len = tswapl(TARGET_CMSG_LEN(len));
+        target_cmsg->cmsg_len = tswapal(TARGET_CMSG_LEN(len));
 
         if (cmsg->cmsg_level != TARGET_SOL_SOCKET || cmsg->cmsg_type != SCM_RIGHTS) {
             gemu_log("Unsupported ancillary data: %d/%d\n", cmsg->cmsg_level, cmsg->cmsg_type);
@@ -1367,7 +1359,7 @@ static inline abi_long host_to_target_cmsg(struct target_msghdr *target_msgh,
     }
     unlock_user(target_cmsg, target_cmsg_addr, space);
  the_end:
-    target_msgh->msg_controllen = tswapl(space);
+    target_msgh->msg_controllen = tswapal(space);
     return 0;
 }
 
@@ -1687,8 +1679,8 @@ static abi_long lock_iovec(int type, struct iovec *vec, abi_ulong target_addr,
     if (!target_vec)
         return -TARGET_EFAULT;
     for(i = 0;i < count; i++) {
-        base = tswapl(target_vec[i].iov_base);
-        vec[i].iov_len = tswapl(target_vec[i].iov_len);
+        base = tswapal(target_vec[i].iov_base);
+        vec[i].iov_len = tswapal(target_vec[i].iov_len);
         if (vec[i].iov_len != 0) {
             vec[i].iov_base = lock_user(type, base, vec[i].iov_len, copy);
             /* Don't check lock_user return value. We must call writev even
@@ -1714,7 +1706,7 @@ static abi_long unlock_iovec(struct iovec *vec, abi_ulong target_addr,
         return -TARGET_EFAULT;
     for(i = 0;i < count; i++) {
         if (target_vec[i].iov_base) {
-            base = tswapl(target_vec[i].iov_base);
+            base = tswapal(target_vec[i].iov_base);
             unlock_user(vec[i].iov_base, base, copy ? vec[i].iov_len : 0);
         }
     }
@@ -1813,7 +1805,7 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
     if (msgp->msg_name) {
         msg.msg_namelen = tswap32(msgp->msg_namelen);
         msg.msg_name = alloca(msg.msg_namelen);
-        ret = target_to_host_sockaddr(msg.msg_name, tswapl(msgp->msg_name),
+        ret = target_to_host_sockaddr(msg.msg_name, tswapal(msgp->msg_name),
                                 msg.msg_namelen);
         if (ret) {
             unlock_user_struct(msgp, target_msg, send ? 0 : 1);
@@ -1823,13 +1815,13 @@ static abi_long do_sendrecvmsg(int fd, abi_ulong target_msg,
         msg.msg_name = NULL;
         msg.msg_namelen = 0;
     }
-    msg.msg_controllen = 2 * tswapl(msgp->msg_controllen);
+    msg.msg_controllen = 2 * tswapal(msgp->msg_controllen);
     msg.msg_control = alloca(msg.msg_controllen);
     msg.msg_flags = tswap32(msgp->msg_flags);
 
-    count = tswapl(msgp->msg_iovlen);
+    count = tswapal(msgp->msg_iovlen);
     vec = alloca(count * sizeof(struct iovec));
-    target_vec = tswapl(msgp->msg_iov);
+    target_vec = tswapal(msgp->msg_iov);
     lock_iovec(send ? VERIFY_READ : VERIFY_WRITE, vec, target_vec, count, send);
     msg.msg_iovlen = count;
     msg.msg_iov = vec;
@@ -2332,12 +2324,12 @@ static inline abi_long target_to_host_ipc_perm(struct ipc_perm *host_ip,
     if (!lock_user_struct(VERIFY_READ, target_sd, target_addr, 1))
         return -TARGET_EFAULT;
     target_ip = &(target_sd->sem_perm);
-    host_ip->__key = tswapl(target_ip->__key);
-    host_ip->uid = tswapl(target_ip->uid);
-    host_ip->gid = tswapl(target_ip->gid);
-    host_ip->cuid = tswapl(target_ip->cuid);
-    host_ip->cgid = tswapl(target_ip->cgid);
-    host_ip->mode = tswapl(target_ip->mode);
+    host_ip->__key = tswapal(target_ip->__key);
+    host_ip->uid = tswapal(target_ip->uid);
+    host_ip->gid = tswapal(target_ip->gid);
+    host_ip->cuid = tswapal(target_ip->cuid);
+    host_ip->cgid = tswapal(target_ip->cgid);
+    host_ip->mode = tswap16(target_ip->mode);
     unlock_user_struct(target_sd, target_addr, 0);
     return 0;
 }
@@ -2351,12 +2343,12 @@ static inline abi_long host_to_target_ipc_perm(abi_ulong target_addr,
     if (!lock_user_struct(VERIFY_WRITE, target_sd, target_addr, 0))
         return -TARGET_EFAULT;
     target_ip = &(target_sd->sem_perm);
-    target_ip->__key = tswapl(host_ip->__key);
-    target_ip->uid = tswapl(host_ip->uid);
-    target_ip->gid = tswapl(host_ip->gid);
-    target_ip->cuid = tswapl(host_ip->cuid);
-    target_ip->cgid = tswapl(host_ip->cgid);
-    target_ip->mode = tswapl(host_ip->mode);
+    target_ip->__key = tswapal(host_ip->__key);
+    target_ip->uid = tswapal(host_ip->uid);
+    target_ip->gid = tswapal(host_ip->gid);
+    target_ip->cuid = tswapal(host_ip->cuid);
+    target_ip->cgid = tswapal(host_ip->cgid);
+    target_ip->mode = tswap16(host_ip->mode);
     unlock_user_struct(target_sd, target_addr, 1);
     return 0;
 }
@@ -2370,9 +2362,9 @@ static inline abi_long target_to_host_semid_ds(struct semid_ds *host_sd,
         return -TARGET_EFAULT;
     if (target_to_host_ipc_perm(&(host_sd->sem_perm),target_addr))
         return -TARGET_EFAULT;
-    host_sd->sem_nsems = tswapl(target_sd->sem_nsems);
-    host_sd->sem_otime = tswapl(target_sd->sem_otime);
-    host_sd->sem_ctime = tswapl(target_sd->sem_ctime);
+    host_sd->sem_nsems = tswapal(target_sd->sem_nsems);
+    host_sd->sem_otime = tswapal(target_sd->sem_otime);
+    host_sd->sem_ctime = tswapal(target_sd->sem_ctime);
     unlock_user_struct(target_sd, target_addr, 0);
     return 0;
 }
@@ -2386,9 +2378,9 @@ static inline abi_long host_to_target_semid_ds(abi_ulong target_addr,
         return -TARGET_EFAULT;
     if (host_to_target_ipc_perm(target_addr,&(host_sd->sem_perm)))
         return -TARGET_EFAULT;;
-    target_sd->sem_nsems = tswapl(host_sd->sem_nsems);
-    target_sd->sem_otime = tswapl(host_sd->sem_otime);
-    target_sd->sem_ctime = tswapl(host_sd->sem_ctime);
+    target_sd->sem_nsems = tswapal(host_sd->sem_nsems);
+    target_sd->sem_otime = tswapal(host_sd->sem_otime);
+    target_sd->sem_ctime = tswapal(host_sd->sem_ctime);
     unlock_user_struct(target_sd, target_addr, 1);
     return 0;
 }
@@ -2516,9 +2508,9 @@ static inline abi_long do_semctl(int semid, int semnum, int cmd,
     switch( cmd ) {
 	case GETVAL:
 	case SETVAL:
-            arg.val = tswapl(target_su.val);
+            arg.val = tswap32(target_su.val);
             ret = get_errno(semctl(semid, semnum, cmd, arg));
-            target_su.val = tswapl(arg.val);
+            target_su.val = tswap32(arg.val);
             break;
 	case GETALL:
 	case SETALL:
@@ -2634,14 +2626,14 @@ static inline abi_long target_to_host_msqid_ds(struct msqid_ds *host_md,
         return -TARGET_EFAULT;
     if (target_to_host_ipc_perm(&(host_md->msg_perm),target_addr))
         return -TARGET_EFAULT;
-    host_md->msg_stime = tswapl(target_md->msg_stime);
-    host_md->msg_rtime = tswapl(target_md->msg_rtime);
-    host_md->msg_ctime = tswapl(target_md->msg_ctime);
-    host_md->__msg_cbytes = tswapl(target_md->__msg_cbytes);
-    host_md->msg_qnum = tswapl(target_md->msg_qnum);
-    host_md->msg_qbytes = tswapl(target_md->msg_qbytes);
-    host_md->msg_lspid = tswapl(target_md->msg_lspid);
-    host_md->msg_lrpid = tswapl(target_md->msg_lrpid);
+    host_md->msg_stime = tswapal(target_md->msg_stime);
+    host_md->msg_rtime = tswapal(target_md->msg_rtime);
+    host_md->msg_ctime = tswapal(target_md->msg_ctime);
+    host_md->__msg_cbytes = tswapal(target_md->__msg_cbytes);
+    host_md->msg_qnum = tswapal(target_md->msg_qnum);
+    host_md->msg_qbytes = tswapal(target_md->msg_qbytes);
+    host_md->msg_lspid = tswapal(target_md->msg_lspid);
+    host_md->msg_lrpid = tswapal(target_md->msg_lrpid);
     unlock_user_struct(target_md, target_addr, 0);
     return 0;
 }
@@ -2655,14 +2647,14 @@ static inline abi_long host_to_target_msqid_ds(abi_ulong target_addr,
         return -TARGET_EFAULT;
     if (host_to_target_ipc_perm(target_addr,&(host_md->msg_perm)))
         return -TARGET_EFAULT;
-    target_md->msg_stime = tswapl(host_md->msg_stime);
-    target_md->msg_rtime = tswapl(host_md->msg_rtime);
-    target_md->msg_ctime = tswapl(host_md->msg_ctime);
-    target_md->__msg_cbytes = tswapl(host_md->__msg_cbytes);
-    target_md->msg_qnum = tswapl(host_md->msg_qnum);
-    target_md->msg_qbytes = tswapl(host_md->msg_qbytes);
-    target_md->msg_lspid = tswapl(host_md->msg_lspid);
-    target_md->msg_lrpid = tswapl(host_md->msg_lrpid);
+    target_md->msg_stime = tswapal(host_md->msg_stime);
+    target_md->msg_rtime = tswapal(host_md->msg_rtime);
+    target_md->msg_ctime = tswapal(host_md->msg_ctime);
+    target_md->__msg_cbytes = tswapal(host_md->__msg_cbytes);
+    target_md->msg_qnum = tswapal(host_md->msg_qnum);
+    target_md->msg_qbytes = tswapal(host_md->msg_qbytes);
+    target_md->msg_lspid = tswapal(host_md->msg_lspid);
+    target_md->msg_lrpid = tswapal(host_md->msg_lrpid);
     unlock_user_struct(target_md, target_addr, 1);
     return 0;
 }
@@ -2743,7 +2735,7 @@ static inline abi_long do_msgsnd(int msqid, abi_long msgp,
     if (!lock_user_struct(VERIFY_READ, target_mb, msgp, 0))
         return -TARGET_EFAULT;
     host_mb = malloc(msgsz+sizeof(long));
-    host_mb->mtype = (abi_long) tswapl(target_mb->mtype);
+    host_mb->mtype = (abi_long) tswapal(target_mb->mtype);
     memcpy(host_mb->mtext, target_mb->mtext, msgsz);
     ret = get_errno(msgsnd(msqid, host_mb, msgsz, msgflg));
     free(host_mb);
@@ -2765,7 +2757,7 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
         return -TARGET_EFAULT;
 
     host_mb = malloc(msgsz+sizeof(long));
-    ret = get_errno(msgrcv(msqid, host_mb, msgsz, tswapl(msgtyp), msgflg));
+    ret = get_errno(msgrcv(msqid, host_mb, msgsz, tswapal(msgtyp), msgflg));
 
     if (ret > 0) {
         abi_ulong target_mtext_addr = msgp + sizeof(abi_ulong);
@@ -2778,7 +2770,7 @@ static inline abi_long do_msgrcv(int msqid, abi_long msgp,
         unlock_user(target_mtext, target_mtext_addr, ret);
     }
 
-    target_mb->mtype = tswapl(host_mb->mtype);
+    target_mb->mtype = tswapal(host_mb->mtype);
     free(host_mb);
 
 end:
@@ -3649,7 +3641,7 @@ static abi_long write_ldt(CPUX86State *env,
     if (!lock_user_struct(VERIFY_READ, target_ldt_info, ptr, 1))
         return -TARGET_EFAULT;
     ldt_info.entry_number = tswap32(target_ldt_info->entry_number);
-    ldt_info.base_addr = tswapl(target_ldt_info->base_addr);
+    ldt_info.base_addr = tswapal(target_ldt_info->base_addr);
     ldt_info.limit = tswap32(target_ldt_info->limit);
     ldt_info.flags = tswap32(target_ldt_info->flags);
     unlock_user_struct(target_ldt_info, ptr, 0);
@@ -3764,7 +3756,7 @@ static abi_long do_set_thread_area(CPUX86State *env, abi_ulong ptr)
     if (!target_ldt_info)
         return -TARGET_EFAULT;
     ldt_info.entry_number = tswap32(target_ldt_info->entry_number);
-    ldt_info.base_addr = tswapl(target_ldt_info->base_addr);
+    ldt_info.base_addr = tswapal(target_ldt_info->base_addr);
     ldt_info.limit = tswap32(target_ldt_info->limit);
     ldt_info.flags = tswap32(target_ldt_info->flags);
     if (ldt_info.entry_number == -1) {
@@ -3875,7 +3867,7 @@ static abi_long do_get_thread_area(CPUX86State *env, abi_ulong ptr)
     base_addr = (entry_1 >> 16) | 
         (entry_2 & 0xff000000) | 
         ((entry_2 & 0xff) << 16);
-    target_ldt_info->base_addr = tswapl(base_addr);
+    target_ldt_info->base_addr = tswapal(base_addr);
     target_ldt_info->limit = tswap32(limit);
     target_ldt_info->flags = tswap32(flags);
     unlock_user_struct(target_ldt_info, ptr, 1);
@@ -4175,8 +4167,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
             return -TARGET_EFAULT;
         fl.l_type = tswap16(target_fl->l_type);
         fl.l_whence = tswap16(target_fl->l_whence);
-        fl.l_start = tswapl(target_fl->l_start);
-        fl.l_len = tswapl(target_fl->l_len);
+        fl.l_start = tswapal(target_fl->l_start);
+        fl.l_len = tswapal(target_fl->l_len);
         fl.l_pid = tswap32(target_fl->l_pid);
         unlock_user_struct(target_fl, arg, 0);
         ret = get_errno(fcntl(fd, host_cmd, &fl));
@@ -4185,8 +4177,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
                 return -TARGET_EFAULT;
             target_fl->l_type = tswap16(fl.l_type);
             target_fl->l_whence = tswap16(fl.l_whence);
-            target_fl->l_start = tswapl(fl.l_start);
-            target_fl->l_len = tswapl(fl.l_len);
+            target_fl->l_start = tswapal(fl.l_start);
+            target_fl->l_len = tswapal(fl.l_len);
             target_fl->l_pid = tswap32(fl.l_pid);
             unlock_user_struct(target_fl, arg, 1);
         }
@@ -4198,8 +4190,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
             return -TARGET_EFAULT;
         fl.l_type = tswap16(target_fl->l_type);
         fl.l_whence = tswap16(target_fl->l_whence);
-        fl.l_start = tswapl(target_fl->l_start);
-        fl.l_len = tswapl(target_fl->l_len);
+        fl.l_start = tswapal(target_fl->l_start);
+        fl.l_len = tswapal(target_fl->l_len);
         fl.l_pid = tswap32(target_fl->l_pid);
         unlock_user_struct(target_fl, arg, 0);
         ret = get_errno(fcntl(fd, host_cmd, &fl));
@@ -4210,8 +4202,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
             return -TARGET_EFAULT;
         fl64.l_type = tswap16(target_fl64->l_type) >> 1;
         fl64.l_whence = tswap16(target_fl64->l_whence);
-        fl64.l_start = tswapl(target_fl64->l_start);
-        fl64.l_len = tswapl(target_fl64->l_len);
+        fl64.l_start = tswap64(target_fl64->l_start);
+        fl64.l_len = tswap64(target_fl64->l_len);
         fl64.l_pid = tswap32(target_fl64->l_pid);
         unlock_user_struct(target_fl64, arg, 0);
         ret = get_errno(fcntl(fd, host_cmd, &fl64));
@@ -4220,8 +4212,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
                 return -TARGET_EFAULT;
             target_fl64->l_type = tswap16(fl64.l_type) >> 1;
             target_fl64->l_whence = tswap16(fl64.l_whence);
-            target_fl64->l_start = tswapl(fl64.l_start);
-            target_fl64->l_len = tswapl(fl64.l_len);
+            target_fl64->l_start = tswap64(fl64.l_start);
+            target_fl64->l_len = tswap64(fl64.l_len);
             target_fl64->l_pid = tswap32(fl64.l_pid);
             unlock_user_struct(target_fl64, arg, 1);
         }
@@ -4232,8 +4224,8 @@ static abi_long do_fcntl(int fd, int cmd, abi_ulong arg)
             return -TARGET_EFAULT;
         fl64.l_type = tswap16(target_fl64->l_type) >> 1;
         fl64.l_whence = tswap16(target_fl64->l_whence);
-        fl64.l_start = tswapl(target_fl64->l_start);
-        fl64.l_len = tswapl(target_fl64->l_len);
+        fl64.l_start = tswap64(target_fl64->l_start);
+        fl64.l_len = tswap64(target_fl64->l_len);
         fl64.l_pid = tswap32(target_fl64->l_pid);
         unlock_user_struct(target_fl64, arg, 0);
         ret = get_errno(fcntl(fd, host_cmd, &fl64));
@@ -4426,8 +4418,8 @@ static inline abi_long target_to_host_timespec(struct timespec *host_ts,
 
     if (!lock_user_struct(VERIFY_READ, target_ts, target_addr, 1))
         return -TARGET_EFAULT;
-    host_ts->tv_sec = tswapl(target_ts->tv_sec);
-    host_ts->tv_nsec = tswapl(target_ts->tv_nsec);
+    host_ts->tv_sec = tswapal(target_ts->tv_sec);
+    host_ts->tv_nsec = tswapal(target_ts->tv_nsec);
     unlock_user_struct(target_ts, target_addr, 0);
     return 0;
 }
@@ -4439,8 +4431,8 @@ static inline abi_long host_to_target_timespec(abi_ulong target_addr,
 
     if (!lock_user_struct(VERIFY_WRITE, target_ts, target_addr, 0))
         return -TARGET_EFAULT;
-    target_ts->tv_sec = tswapl(host_ts->tv_sec);
-    target_ts->tv_nsec = tswapl(host_ts->tv_nsec);
+    target_ts->tv_sec = tswapal(host_ts->tv_sec);
+    target_ts->tv_nsec = tswapal(host_ts->tv_nsec);
     unlock_user_struct(target_ts, target_addr, 1);
     return 0;
 }
@@ -5004,8 +4996,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             if (arg2) {
                 if (!lock_user_struct(VERIFY_READ, target_tbuf, arg2, 1))
                     goto efault;
-                tbuf.actime = tswapl(target_tbuf->actime);
-                tbuf.modtime = tswapl(target_tbuf->modtime);
+                tbuf.actime = tswapal(target_tbuf->actime);
+                tbuf.modtime = tswapal(target_tbuf->modtime);
                 unlock_user_struct(target_tbuf, arg2, 0);
                 host_tbuf = &tbuf;
             } else {
@@ -5162,10 +5154,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 tmsp = lock_user(VERIFY_WRITE, arg1, sizeof(struct target_tms), 0);
                 if (!tmsp)
                     goto efault;
-                tmsp->tms_utime = tswapl(host_to_target_clock_t(tms.tms_utime));
-                tmsp->tms_stime = tswapl(host_to_target_clock_t(tms.tms_stime));
-                tmsp->tms_cutime = tswapl(host_to_target_clock_t(tms.tms_cutime));
-                tmsp->tms_cstime = tswapl(host_to_target_clock_t(tms.tms_cstime));
+                tmsp->tms_utime = tswapal(host_to_target_clock_t(tms.tms_utime));
+                tmsp->tms_stime = tswapal(host_to_target_clock_t(tms.tms_stime));
+                tmsp->tms_cutime = tswapal(host_to_target_clock_t(tms.tms_cutime));
+                tmsp->tms_cstime = tswapal(host_to_target_clock_t(tms.tms_cstime));
             }
             if (!is_error(ret))
                 ret = host_to_target_clock_t(ret);
@@ -5687,11 +5679,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 
             if (!lock_user_struct(VERIFY_READ, sel, arg1, 1))
                 goto efault;
-            nsel = tswapl(sel->n);
-            inp = tswapl(sel->inp);
-            outp = tswapl(sel->outp);
-            exp = tswapl(sel->exp);
-            tvp = tswapl(sel->tvp);
+            nsel = tswapal(sel->n);
+            inp = tswapal(sel->inp);
+            outp = tswapal(sel->outp);
+            exp = tswapal(sel->exp);
+            tvp = tswapal(sel->tvp);
             unlock_user_struct(sel, arg1, 0);
             ret = do_select(nsel, inp, outp, exp, tvp);
         }
@@ -5759,8 +5751,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 if (!arg7) {
                     goto efault;
                 }
-                arg_sigset = tswapl(arg7[0]);
-                arg_sigsize = tswapl(arg7[1]);
+                arg_sigset = tswapal(arg7[0]);
+                arg_sigsize = tswapal(arg7[1]);
                 unlock_user(arg7, arg6, 0);
 
                 if (arg_sigset) {
@@ -5882,7 +5874,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
 #endif
     case TARGET_NR_reboot:
-        goto unimplemented;
+        if (!(p = lock_user_string(arg4)))
+            goto efault;
+        ret = reboot(arg1, arg2, arg3, p);
+        unlock_user(p, arg4, 0);
+        break;
 #ifdef TARGET_NR_readdir
     case TARGET_NR_readdir:
         goto unimplemented;
@@ -5897,12 +5893,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             abi_ulong v1, v2, v3, v4, v5, v6;
             if (!(v = lock_user(VERIFY_READ, arg1, 6 * sizeof(abi_ulong), 1)))
                 goto efault;
-            v1 = tswapl(v[0]);
-            v2 = tswapl(v[1]);
-            v3 = tswapl(v[2]);
-            v4 = tswapl(v[3]);
-            v5 = tswapl(v[4]);
-            v6 = tswapl(v[5]);
+            v1 = tswapal(v[0]);
+            v2 = tswapal(v[1]);
+            v3 = tswapal(v[2]);
+            v4 = tswapal(v[3]);
+            v5 = tswapal(v[4]);
+            v6 = tswapal(v[5]);
             unlock_user(v, arg1, 0);
             ret = get_errno(target_mmap(v1, v2, v3,
                                         target_to_host_bitmask(v4, mmap_flags_tbl),
@@ -6525,8 +6521,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     reclen = de->d_reclen;
 		    treclen = reclen - (2 * (sizeof(long) - sizeof(abi_long)));
                     tde->d_reclen = tswap16(treclen);
-                    tde->d_ino = tswapl(de->d_ino);
-                    tde->d_off = tswapl(de->d_off);
+                    tde->d_ino = tswapal(de->d_ino);
+                    tde->d_off = tswapal(de->d_off);
 		    tnamelen = treclen - (2 * sizeof(abi_long) + 2);
 		    if (tnamelen > 256)
                         tnamelen = 256;
