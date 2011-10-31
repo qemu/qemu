@@ -18,6 +18,15 @@
 typedef struct ScatterGatherEntry ScatterGatherEntry;
 
 #if defined(TARGET_PHYS_ADDR_BITS)
+typedef target_phys_addr_t dma_addr_t;
+
+#define DMA_ADDR_FMT TARGET_FMT_plx
+
+typedef enum {
+    DMA_DIRECTION_TO_DEVICE = 0,
+    DMA_DIRECTION_FROM_DEVICE = 1,
+} DMADirection;
+
 struct ScatterGatherEntry {
     target_phys_addr_t base;
     target_phys_addr_t len;
