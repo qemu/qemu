@@ -36,6 +36,7 @@ block-nested-y += qed-check.o
 block-nested-y += parallels.o nbd.o blkdebug.o sheepdog.o blkverify.o
 block-nested-$(CONFIG_WIN32) += raw-win32.o
 block-nested-$(CONFIG_POSIX) += raw-posix.o
+block-nested-$(CONFIG_LIBISCSI) += iscsi.o
 block-nested-$(CONFIG_CURL) += curl.o
 block-nested-$(CONFIG_RBD) += rbd.o
 

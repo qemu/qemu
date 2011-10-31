@@ -473,10 +473,13 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     bs->total_sectors = 0;
     bs->encrypted = 0;
     bs->valid_key = 0;
+    bs->sg = 0;
     bs->open_flags = flags;
+    bs->growable = 0;
     bs->buffer_alignment = 512;
 
     pstrcpy(bs->filename, sizeof(bs->filename), filename);
+    bs->backing_file[0] = '\0';
 
     if (use_bdrv_whitelist && !bdrv_is_whitelisted(drv)) {
         return -ENOTSUP;
@@ -485,8 +488,7 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     bs->drv = drv;
     bs->opaque = g_malloc0(drv->instance_size);
 
-    if (flags & BDRV_O_CACHE_WB)
-        bs->enable_write_cache = 1;
+    bs->enable_write_cache = !!(flags & BDRV_O_CACHE_WB);
 
     /*
      * Clear flags that are internal to the block layer before opening the
@@ -501,6 +503,8 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
         open_flags |= BDRV_O_RDWR;
     }
 
+    bs->keep_read_only = bs->read_only = !(open_flags & BDRV_O_RDWR);
+
     /* Open the image, either directly or using a protocol */
     if (drv->bdrv_file_open) {
         ret = drv->bdrv_file_open(bs, filename, open_flags);
@@ -514,8 +518,6 @@ static int bdrv_open_common(BlockDriverState *bs, const char *filename,
     if (ret < 0) {
         goto free_and_fail;
     }
-
-    bs->keep_read_only = bs->read_only = !(open_flags & BDRV_O_RDWR);
 
     ret = refresh_total_sectors(bs, bs->total_sectors);
     if (ret < 0) {
@@ -572,6 +574,7 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
               BlockDriver *drv)
 {
     int ret;
+    char tmp_filename[PATH_MAX];
 
     if (flags & BDRV_O_SNAPSHOT) {
         BlockDriverState *bs1;
@@ -579,7 +582,6 @@ int bdrv_open(BlockDriverState *bs, const char *filename, int flags,
         int is_protocol = 0;
         BlockDriver *bdrv_qcow2;
         QEMUOptionParameter *options;
-        char tmp_filename[PATH_MAX];
         char backing_filename[PATH_MAX];
 
         /* if snapshot, we create a temporary backing file and open it
@@ -1939,11 +1941,7 @@ const char *bdrv_get_encrypted_filename(BlockDriverState *bs)
 void bdrv_get_backing_filename(BlockDriverState *bs,
                                char *filename, int filename_size)
 {
-    if (!bs->backing_file) {
-        pstrcpy(filename, filename_size, "");
-    } else {
-        pstrcpy(filename, filename_size, bs->backing_file);
-    }
+    pstrcpy(filename, filename_size, bs->backing_file);
 }
 
 int bdrv_write_compressed(BlockDriverState *bs, int64_t sector_num,

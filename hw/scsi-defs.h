@@ -113,6 +113,7 @@
 #define READ_12               0xa8
 #define WRITE_12              0xaa
 #define SERVICE_ACTION_IN_12  0xab
+#define READ_DVD_STRUCTURE    0xad
 #define WRITE_VERIFY_12       0xae
 #define VERIFY_12             0xaf
 #define SEARCH_HIGH_12        0xb0
@@ -122,6 +123,8 @@
 #define SEND_VOLUME_TAG       0xb6
 #define READ_DEFECT_DATA_12   0xb7
 #define SET_CD_SPEED          0xbb
+#define MECHANISM_STATUS      0xbd
+#define READ_CD               0xbe
 
 /*
  * SERVICE ACTION IN subcodes
@@ -188,3 +191,90 @@
 #define TYPE_INACTIVE       0x20
 #define TYPE_NO_LUN         0x7f
 
+/* Mode page codes for mode sense/set */
+#define MODE_PAGE_R_W_ERROR                   0x01
+#define MODE_PAGE_HD_GEOMETRY                 0x04
+#define MODE_PAGE_FLEXIBLE_DISK_GEOMETRY      0x05
+#define MODE_PAGE_CACHING                     0x08
+#define MODE_PAGE_AUDIO_CTL                   0x0e
+#define MODE_PAGE_POWER                       0x1a
+#define MODE_PAGE_FAULT_FAIL                  0x1c
+#define MODE_PAGE_TO_PROTECT                  0x1d
+#define MODE_PAGE_CAPABILITIES                0x2a
+#define MODE_PAGE_ALLS                        0x3f
+/* Not in Mt. Fuji, but in ATAPI 2.6 -- depricated now in favor
+ * of MODE_PAGE_SENSE_POWER */
+#define MODE_PAGE_CDROM                       0x0d
+
+/* Event notification classes for GET EVENT STATUS NOTIFICATION */
+#define GESN_NO_EVENTS                0
+#define GESN_OPERATIONAL_CHANGE       1
+#define GESN_POWER_MANAGEMENT         2
+#define GESN_EXTERNAL_REQUEST         3
+#define GESN_MEDIA                    4
+#define GESN_MULTIPLE_HOSTS           5
+#define GESN_DEVICE_BUSY              6
+
+/* Event codes for MEDIA event status notification */
+#define MEC_NO_CHANGE                 0
+#define MEC_EJECT_REQUESTED           1
+#define MEC_NEW_MEDIA                 2
+#define MEC_MEDIA_REMOVAL             3 /* only for media changers */
+#define MEC_MEDIA_CHANGED             4 /* only for media changers */
+#define MEC_BG_FORMAT_COMPLETED       5 /* MRW or DVD+RW b/g format completed */
+#define MEC_BG_FORMAT_RESTARTED       6 /* MRW or DVD+RW b/g format restarted */
+
+#define MS_TRAY_OPEN                  1
+#define MS_MEDIA_PRESENT              2
+
+/*
+ * Based on values from <linux/cdrom.h> but extending CD_MINS
+ * to the maximum common size allowed by the Orange's Book ATIP
+ *
+ * 90 and 99 min CDs are also available but using them as the
+ * upper limit reduces the effectiveness of the heuristic to
+ * detect DVDs burned to less than 25% of their maximum capacity
+ */
+
+/* Some generally useful CD-ROM information */
+#define CD_MINS                       80 /* max. minutes per CD */
+#define CD_SECS                       60 /* seconds per minute */
+#define CD_FRAMES                     75 /* frames per second */
+#define CD_FRAMESIZE                2048 /* bytes per frame, "cooked" mode */
+#define CD_MAX_BYTES       (CD_MINS * CD_SECS * CD_FRAMES * CD_FRAMESIZE)
+#define CD_MAX_SECTORS     (CD_MAX_BYTES / 512)
+
+/*
+ * The MMC values are not IDE specific and might need to be moved
+ * to a common header if they are also needed for the SCSI emulation
+ */
+
+/* Profile list from MMC-6 revision 1 table 91 */
+#define MMC_PROFILE_NONE                0x0000
+#define MMC_PROFILE_CD_ROM              0x0008
+#define MMC_PROFILE_CD_R                0x0009
+#define MMC_PROFILE_CD_RW               0x000A
+#define MMC_PROFILE_DVD_ROM             0x0010
+#define MMC_PROFILE_DVD_R_SR            0x0011
+#define MMC_PROFILE_DVD_RAM             0x0012
+#define MMC_PROFILE_DVD_RW_RO           0x0013
+#define MMC_PROFILE_DVD_RW_SR           0x0014
+#define MMC_PROFILE_DVD_R_DL_SR         0x0015
+#define MMC_PROFILE_DVD_R_DL_JR         0x0016
+#define MMC_PROFILE_DVD_RW_DL           0x0017
+#define MMC_PROFILE_DVD_DDR             0x0018
+#define MMC_PROFILE_DVD_PLUS_RW         0x001A
+#define MMC_PROFILE_DVD_PLUS_R          0x001B
+#define MMC_PROFILE_DVD_PLUS_RW_DL      0x002A
+#define MMC_PROFILE_DVD_PLUS_R_DL       0x002B
+#define MMC_PROFILE_BD_ROM              0x0040
+#define MMC_PROFILE_BD_R_SRM            0x0041
+#define MMC_PROFILE_BD_R_RRM            0x0042
+#define MMC_PROFILE_BD_RE               0x0043
+#define MMC_PROFILE_HDDVD_ROM           0x0050
+#define MMC_PROFILE_HDDVD_R             0x0051
+#define MMC_PROFILE_HDDVD_RAM           0x0052
+#define MMC_PROFILE_HDDVD_RW            0x0053
+#define MMC_PROFILE_HDDVD_R_DL          0x0058
+#define MMC_PROFILE_HDDVD_RW_DL         0x005A
+#define MMC_PROFILE_INVALID             0xFFFF

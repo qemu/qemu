@@ -278,6 +278,7 @@ usb_host_claim_port(int bus, int hub, int port) "bus %d, hub addr %d, port %d"
 # hw/scsi-bus.c
 scsi_req_alloc(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_data(int target, int lun, int tag, int len) "target %d lun %d tag %d len %d"
+scsi_req_data_canceled(int target, int lun, int tag, int len) "target %d lun %d tag %d len %d"
 scsi_req_dequeue(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_continue(int target, int lun, int tag) "target %d lun %d tag %d"
 scsi_req_parsed(int target, int lun, int tag, int cmd, int mode, int xfer) "target %d lun %d tag %d command %d dir %d length %d"
@@ -504,6 +505,12 @@ escc_sunkbd_event_in(int ch) "Untranslated keycode %2.2x"
 escc_sunkbd_event_out(int ch) "Translated keycode %2.2x"
 escc_kbd_command(int val) "Command %d"
 escc_sunmouse_event(int dx, int dy, int buttons_state) "dx=%d dy=%d buttons=%01x"
+
+# block/iscsi.c
+iscsi_aio_write10_cb(void *iscsi, int status, void *acb, int canceled) "iscsi %p status %d acb %p canceled %d"
+iscsi_aio_writev(void *iscsi, int64_t sector_num, int nb_sectors, void *opaque, void *acb) "iscsi %p sector_num %"PRId64" nb_sectors %d opaque %p acb %p"
+iscsi_aio_read10_cb(void *iscsi, int status, void *acb, int canceled) "iscsi %p status %d acb %p canceled %d"
+iscsi_aio_readv(void *iscsi, int64_t sector_num, int nb_sectors, void *opaque, void *acb) "iscsi %p sector_num %"PRId64" nb_sectors %d opaque %p acb %p"
 
 # hw/esp.c
 esp_raise_irq(void) "Raise IRQ"

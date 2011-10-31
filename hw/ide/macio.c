@@ -87,7 +87,7 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     if (!m->aiocb) {
         qemu_sglist_destroy(&s->sg);
         /* Note: media not present is the most likely case */
-        ide_atapi_cmd_error(s, SENSE_NOT_READY,
+        ide_atapi_cmd_error(s, NOT_READY,
                             ASC_MEDIUM_NOT_PRESENT);
         goto done;
     }

@@ -736,8 +736,6 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
         return -EINVAL;
 
     out_buf = g_malloc(s->cluster_size + (s->cluster_size / 1000) + 128);
-    if (!out_buf)
-        return -1;
 
     /* best compression, small window, no zlib header */
     memset(&strm, 0, sizeof(strm));
@@ -745,8 +743,8 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
                        Z_DEFLATED, -12,
                        9, Z_DEFAULT_STRATEGY);
     if (ret != 0) {
-        g_free(out_buf);
-        return -1;
+        ret = -EINVAL;
+        goto fail;
     }
 
     strm.avail_in = s->cluster_size;
@@ -756,9 +754,9 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     ret = deflate(&strm, Z_FINISH);
     if (ret != Z_STREAM_END && ret != Z_OK) {
-        g_free(out_buf);
         deflateEnd(&strm);
-        return -1;
+        ret = -EINVAL;
+        goto fail;
     }
     out_len = strm.next_out - out_buf;
 
@@ -766,19 +764,29 @@ static int qcow_write_compressed(BlockDriverState *bs, int64_t sector_num,
 
     if (ret != Z_STREAM_END || out_len >= s->cluster_size) {
         /* could not compress: write normal cluster */
-        bdrv_write(bs, sector_num, buf, s->cluster_sectors);
+        ret = bdrv_write(bs, sector_num, buf, s->cluster_sectors);
+        if (ret < 0) {
+            goto fail;
+        }
     } else {
         cluster_offset = get_cluster_offset(bs, sector_num << 9, 2,
                                             out_len, 0, 0);
+        if (cluster_offset == 0) {
+            ret = -EIO;
+            goto fail;
+        }
+
         cluster_offset &= s->cluster_offset_mask;
-        if (bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len) != out_len) {
-            g_free(out_buf);
-            return -1;
+        ret = bdrv_pwrite(bs->file, cluster_offset, out_buf, out_len);
+        if (ret < 0) {
+            goto fail;
         }
     }
 
+    ret = 0;
+fail:
     g_free(out_buf);
-    return 0;
+    return ret;
 }
 
 static coroutine_fn int qcow_co_flush(BlockDriverState *bs)

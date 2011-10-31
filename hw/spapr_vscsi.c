@@ -129,11 +129,38 @@ static void vscsi_put_req(vscsi_req *req)
     req->active = 0;
 }
 
-static void vscsi_decode_id_lun(uint64_t srp_lun, int *id, int *lun)
+static SCSIDevice *vscsi_device_find(SCSIBus *bus, uint64_t srp_lun, int *lun)
 {
-    /* XXX Figure that one out properly ! This is crackpot */
-    *id = (srp_lun >> 56) & 0x7f;
-    *lun = (srp_lun >> 48) & 0xff;
+    int channel = 0, id = 0;
+
+retry:
+    switch (srp_lun >> 62) {
+    case 0:
+        if ((srp_lun >> 56) != 0) {
+            channel = (srp_lun >> 56) & 0x3f;
+            id = (srp_lun >> 48) & 0xff;
+            srp_lun <<= 16;
+            goto retry;
+        }
+        *lun = (srp_lun >> 48) & 0xff;
+        break;
+
+    case 1:
+        *lun = (srp_lun >> 48) & 0x3fff;
+        break;
+    case 2:
+        channel = (srp_lun >> 53) & 0x7;
+        id = (srp_lun >> 56) & 0x3f;
+        *lun = (srp_lun >> 48) & 0x1f;
+        break;
+    case 3:
+        *lun = -1;
+        return NULL;
+    default:
+        abort();
+    }
+
+    return scsi_device_find(bus, channel, id, *lun);
 }
 
 static int vscsi_send_iu(VSCSIState *s, vscsi_req *req,
@@ -582,14 +609,11 @@ static int vscsi_queue_cmd(VSCSIState *s, vscsi_req *req)
 {
     union srp_iu *srp = &req->iu.srp;
     SCSIDevice *sdev;
-    int n, id, lun;
+    int n, lun;
 
-    vscsi_decode_id_lun(be64_to_cpu(srp->cmd.lun), &id, &lun);
-
-    /* Qemu vs. linux issue with LUNs to be sorted out ... */
-    sdev = (id < 8 && lun < 16) ? s->bus.devs[id] : NULL;
+    sdev = vscsi_device_find(&s->bus, be64_to_cpu(srp->cmd.lun), &lun);
     if (!sdev) {
-        dprintf("VSCSI: Command for id %d with no drive\n", id);
+        dprintf("VSCSI: Command for lun %08" PRIx64 " with no drive\n", be64_to_cpu(srp->cmd.lun));
         if (srp->cmd.cdb[0] == INQUIRY) {
             vscsi_inquiry_no_target(s, req);
         } else {
@@ -862,7 +886,12 @@ static int vscsi_do_crq(struct VIOsPAPRDevice *dev, uint8_t *crq_data)
     return 0;
 }
 
-static const struct SCSIBusOps vscsi_scsi_ops = {
+static const struct SCSIBusInfo vscsi_scsi_info = {
+    .tcq = true,
+    .max_channel = 7, /* logical unit addressing format */
+    .max_target = 63,
+    .max_lun = 31,
+
     .transfer_data = vscsi_transfer_data,
     .complete = vscsi_command_complete,
     .cancel = vscsi_request_cancelled
@@ -883,8 +912,7 @@ static int spapr_vscsi_init(VIOsPAPRDevice *dev)
 
     dev->crq.SendFunc = vscsi_do_crq;
 
-    scsi_bus_new(&s->bus, &dev->qdev, 1, VSCSI_REQ_LIMIT,
-                 &vscsi_scsi_ops);
+    scsi_bus_new(&s->bus, &dev->qdev, &vscsi_scsi_info);
     if (!dev->qdev.hotplugged) {
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }

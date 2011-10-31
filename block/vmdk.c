@@ -212,8 +212,10 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
     const char *p_name, *cid_str;
     size_t cid_str_size;
     BDRVVmdkState *s = bs->opaque;
+    int ret;
 
-    if (bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE) != DESC_SIZE) {
+    ret = bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE);
+    if (ret < 0) {
         return 0;
     }
 
@@ -225,6 +227,7 @@ static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
         cid_str_size = sizeof("CID");
     }
 
+    desc[DESC_SIZE - 1] = '\0';
     p_name = strstr(desc, cid_str);
     if (p_name != NULL) {
         p_name += cid_str_size;
@@ -239,13 +242,19 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
     char desc[DESC_SIZE], tmp_desc[DESC_SIZE];
     char *p_name, *tmp_str;
     BDRVVmdkState *s = bs->opaque;
+    int ret;
 
-    memset(desc, 0, sizeof(desc));
-    if (bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE) != DESC_SIZE) {
-        return -EIO;
+    ret = bdrv_pread(bs->file, s->desc_offset, desc, DESC_SIZE);
+    if (ret < 0) {
+        return ret;
     }
 
+    desc[DESC_SIZE - 1] = '\0';
     tmp_str = strstr(desc, "parentCID");
+    if (tmp_str == NULL) {
+        return -EINVAL;
+    }
+
     pstrcpy(tmp_desc, sizeof(tmp_desc), tmp_str);
     p_name = strstr(desc, "CID");
     if (p_name != NULL) {
@@ -254,9 +263,11 @@ static int vmdk_write_cid(BlockDriverState *bs, uint32_t cid)
         pstrcat(desc, sizeof(desc), tmp_desc);
     }
 
-    if (bdrv_pwrite_sync(bs->file, s->desc_offset, desc, DESC_SIZE) < 0) {
-        return -EIO;
+    ret = bdrv_pwrite_sync(bs->file, s->desc_offset, desc, DESC_SIZE);
+    if (ret < 0) {
+        return ret;
     }
+
     return 0;
 }
 
@@ -1109,7 +1120,10 @@ static int vmdk_write(BlockDriverState *bs, int64_t sector_num,
         /* update CID on the first write every time the virtual disk is
          * opened */
         if (!s->cid_updated) {
-            vmdk_write_cid(bs, time(NULL));
+            ret = vmdk_write_cid(bs, time(NULL));
+            if (ret < 0) {
+                return ret;
+            }
             s->cid_updated = true;
         }
     }
