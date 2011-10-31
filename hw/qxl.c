@@ -18,8 +18,6 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <pthread.h>
-
 #include "qemu-common.h"
 #include "qemu-timer.h"
 #include "qemu-queue.h"
@@ -238,6 +236,9 @@ void qxl_spice_reset_image_cache(PCIQXLDevice *qxl)
 void qxl_spice_reset_cursor(PCIQXLDevice *qxl)
 {
     qxl->ssd.worker->reset_cursor(qxl->ssd.worker);
+    qemu_mutex_lock(&qxl->track_lock);
+    qxl->guest_cursor = 0;
+    qemu_mutex_unlock(&qxl->track_lock);
 }
 
 
@@ -330,6 +331,7 @@ static void init_qxl_ram(PCIQXLDevice *d)
     d->ram->magic       = cpu_to_le32(QXL_RAM_MAGIC);
     d->ram->int_pending = cpu_to_le32(0);
     d->ram->int_mask    = cpu_to_le32(0);
+    d->ram->update_surface = 0;
     SPICE_RING_INIT(&d->ram->cmd_ring);
     SPICE_RING_INIT(&d->ram->cursor_ring);
     SPICE_RING_INIT(&d->ram->release_ring);
@@ -402,7 +404,9 @@ static void qxl_track_command(PCIQXLDevice *qxl, struct QXLCommandExt *ext)
     {
         QXLCursorCmd *cmd = qxl_phys2virt(qxl, ext->cmd.data, ext->group_id);
         if (cmd->type == QXL_CURSOR_SET) {
+            qemu_mutex_lock(&qxl->track_lock);
             qxl->guest_cursor = ext->cmd.data;
+            qemu_mutex_unlock(&qxl->track_lock);
         }
         break;
     }
@@ -1067,6 +1071,7 @@ static int qxl_destroy_primary(PCIQXLDevice *d, qxl_async_io async)
 
     d->mode = QXL_MODE_UNDEFINED;
     qemu_spice_destroy_primary_surface(&d->ssd, 0, async);
+    qxl_spice_reset_cursor(d);
     return 1;
 }
 
@@ -1212,10 +1217,6 @@ async_common:
         qxl_update_irq(d);
         break;
     case QXL_IO_NOTIFY_OOM:
-        if (!SPICE_RING_IS_EMPTY(&d->ram->release_ring)) {
-            break;
-        }
-        pthread_yield();
         if (!SPICE_RING_IS_EMPTY(&d->ram->release_ring)) {
             break;
         }
@@ -1372,7 +1373,7 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
     if ((old_pending & le_events) == le_events) {
         return;
     }
-    if (pthread_self() == d->main) {
+    if (qemu_thread_is_self(&d->main)) {
         qxl_update_irq(d);
     } else {
         if (write(d->pipe[1], d, 1) != 1) {
@@ -1391,7 +1392,7 @@ static void init_pipe_signaling(PCIQXLDevice *d)
    fcntl(d->pipe[1], F_SETFL, O_NONBLOCK);
    fcntl(d->pipe[0], F_SETOWN, getpid());
 
-   d->main = pthread_self();
+   qemu_thread_get_self(&d->main);
    qemu_set_fd_handler(d->pipe[0], pipe_read, NULL, d);
 }
 
@@ -1710,10 +1711,12 @@ static int qxl_post_load(void *opaque, int version)
             cmds[out].group_id = MEMSLOT_GROUP_GUEST;
             out++;
         }
-        cmds[out].cmd.data = d->guest_cursor;
-        cmds[out].cmd.type = QXL_CMD_CURSOR;
-        cmds[out].group_id = MEMSLOT_GROUP_GUEST;
-        out++;
+        if (d->guest_cursor) {
+            cmds[out].cmd.data = d->guest_cursor;
+            cmds[out].cmd.type = QXL_CMD_CURSOR;
+            cmds[out].group_id = MEMSLOT_GROUP_GUEST;
+            out++;
+        }
         qxl_spice_loadvm_commands(d, cmds, out);
         g_free(cmds);
 
@@ -1787,6 +1790,19 @@ static VMStateDescription qxl_vmstate = {
     },
 };
 
+static Property qxl_properties[] = {
+        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
+                           64 * 1024 * 1024),
+        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size,
+                           64 * 1024 * 1024),
+        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
+                           QXL_DEFAULT_REVISION),
+        DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
+        DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
+        DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
+        DEFINE_PROP_END_OF_LIST(),
+};
+
 static PCIDeviceInfo qxl_info_primary = {
     .qdev.name    = "qxl-vga",
     .qdev.desc    = "Spice QXL GPU (primary, vga compatible)",
@@ -1799,18 +1815,7 @@ static PCIDeviceInfo qxl_info_primary = {
     .vendor_id    = REDHAT_PCI_VENDOR_ID,
     .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_VGA,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
-                           64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size,
-                           64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
-                           QXL_DEFAULT_REVISION),
-        DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
-        DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
-        DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+    .qdev.props   = qxl_properties,
 };
 
 static PCIDeviceInfo qxl_info_secondary = {
@@ -1823,18 +1828,7 @@ static PCIDeviceInfo qxl_info_secondary = {
     .vendor_id    = REDHAT_PCI_VENDOR_ID,
     .device_id    = QXL_DEVICE_ID_STABLE,
     .class_id     = PCI_CLASS_DISPLAY_OTHER,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("ram_size", PCIQXLDevice, vga.vram_size,
-                           64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("vram_size", PCIQXLDevice, vram_size,
-                           64 * 1024 * 1024),
-        DEFINE_PROP_UINT32("revision", PCIQXLDevice, revision,
-                           QXL_DEFAULT_REVISION),
-        DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
-        DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
-        DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+    .qdev.props   = qxl_properties,
 };
 
 static void qxl_register(void)
