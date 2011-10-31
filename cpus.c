@@ -30,6 +30,7 @@
 #include "gdbstub.h"
 #include "dma.h"
 #include "kvm.h"
+#include "qmp-commands.h"
 
 #include "qemu-thread.h"
 #include "cpus.h"
@@ -1093,4 +1094,48 @@ void list_cpus(FILE *f, fprintf_function cpu_fprintf, const char *optarg)
 #elif defined(cpu_list)
     cpu_list(f, cpu_fprintf); /* deprecated */
 #endif
+}
+
+CpuInfoList *qmp_query_cpus(Error **errp)
+{
+    CpuInfoList *head = NULL, *cur_item = NULL;
+    CPUState *env;
+
+    for(env = first_cpu; env != NULL; env = env->next_cpu) {
+        CpuInfoList *info;
+
+        cpu_synchronize_state(env);
+
+        info = g_malloc0(sizeof(*info));
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->CPU = env->cpu_index;
+        info->value->current = (env == first_cpu);
+        info->value->halted = env->halted;
+        info->value->thread_id = env->thread_id;
+#if defined(TARGET_I386)
+        info->value->has_pc = true;
+        info->value->pc = env->eip + env->segs[R_CS].base;
+#elif defined(TARGET_PPC)
+        info->value->has_nip = true;
+        info->value->nip = env->nip;
+#elif defined(TARGET_SPARC)
+        info->value->has_pc = true;
+        info->value->pc = env->pc;
+        info->value->has_npc = true;
+        info->value->npc = env->npc;
+#elif defined(TARGET_MIPS)
+        info->value->has_PC = true;
+        info->value->PC = env->active_tc.PC;
+#endif
+
+        /* XXX: waiting for the qapi to support GSList */
+        if (!cur_item) {
+            head = cur_item = info;
+        } else {
+            cur_item->next = info;
+            cur_item = info;
+        }
+    }
+
+    return head;
 }

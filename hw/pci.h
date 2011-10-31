@@ -2,7 +2,6 @@
 #define QEMU_PCI_H
 
 #include "qemu-common.h"
-#include "qobject.h"
 
 #include "qdev.h"
 #include "memory.h"
@@ -270,9 +269,6 @@ int pci_parse_devaddr(const char *addr, int *domp, int *busp,
                       unsigned int *slotp, unsigned int *funcp);
 int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
                      unsigned *slotp);
-
-void do_pci_info_print(Monitor *mon, const QObject *data);
-void do_pci_info(Monitor *mon, QObject **ret_data);
 
 void pci_device_deassert_intx(PCIDevice *dev);
 

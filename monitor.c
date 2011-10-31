@@ -123,8 +123,6 @@ typedef struct mon_cmd_t {
     void (*user_print)(Monitor *mon, const QObject *data);
     union {
         void (*info)(Monitor *mon);
-        void (*info_new)(Monitor *mon, QObject **ret_data);
-        int  (*info_async)(Monitor *mon, MonitorCompletion *cb, void *opaque);
         void (*cmd)(Monitor *mon, const QDict *qdict);
         int  (*cmd_new)(Monitor *mon, const QDict *params, QObject **ret_data);
         int  (*cmd_async)(Monitor *mon, const QDict *params,
@@ -205,7 +203,6 @@ static const mon_cmd_t mon_cmds[];
 static const mon_cmd_t info_cmds[];
 
 static const mon_cmd_t qmp_cmds[];
-static const mon_cmd_t qmp_query_cmds[];
 
 Monitor *cur_mon;
 Monitor *default_mon;
@@ -514,7 +511,6 @@ static int do_qmp_capabilities(Monitor *mon, const QDict *params,
     return 0;
 }
 
-static int mon_set_cpu(int cpu_index);
 static void handle_user_command(Monitor *mon, const char *cmdline);
 
 static int do_hmp_passthrough(Monitor *mon, const QDict *params,
@@ -532,7 +528,7 @@ static int do_hmp_passthrough(Monitor *mon, const QDict *params,
     cur_mon = &hmp;
 
     if (qdict_haskey(params, "cpu-index")) {
-        ret = mon_set_cpu(qdict_get_int(params, "cpu-index"));
+        ret = monitor_set_cpu(qdict_get_int(params, "cpu-index"));
         if (ret < 0) {
             cur_mon = old_mon;
             qerror_report(QERR_INVALID_PARAMETER_VALUE, "cpu-index", "a CPU number");
@@ -664,11 +660,6 @@ static int qmp_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
     return cmd->mhandler.cmd_async(mon, params, qmp_monitor_complete, mon);
 }
 
-static void qmp_async_info_handler(Monitor *mon, const mon_cmd_t *cmd)
-{
-    cmd->mhandler.info_async(mon, qmp_monitor_complete, mon);
-}
-
 static void user_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
                                    const QDict *params)
 {
@@ -680,21 +671,6 @@ static void user_async_cmd_handler(Monitor *mon, const mon_cmd_t *cmd,
     monitor_suspend(mon);
     ret = cmd->mhandler.cmd_async(mon, params,
                                   user_monitor_complete, cb_data);
-    if (ret < 0) {
-        monitor_resume(mon);
-        g_free(cb_data);
-    }
-}
-
-static void user_async_info_handler(Monitor *mon, const mon_cmd_t *cmd)
-{
-    int ret;
-
-    MonitorCompletionData *cb_data = g_malloc(sizeof(*cb_data));
-    cb_data->mon = mon;
-    cb_data->user_print = cmd->user_print;
-    monitor_suspend(mon);
-    ret = cmd->mhandler.info_async(mon, user_monitor_complete, cb_data);
     if (ret < 0) {
         monitor_resume(mon);
         g_free(cb_data);
@@ -719,35 +695,11 @@ static void do_info(Monitor *mon, const QDict *qdict)
         goto help;
     }
 
-    if (handler_is_async(cmd)) {
-        user_async_info_handler(mon, cmd);
-    } else if (handler_is_qobject(cmd)) {
-        QObject *info_data = NULL;
-
-        cmd->mhandler.info_new(mon, &info_data);
-        if (info_data) {
-            cmd->user_print(mon, info_data);
-            qobject_decref(info_data);
-        }
-    } else {
-        cmd->mhandler.info(mon);
-    }
-
+    cmd->mhandler.info(mon);
     return;
 
 help:
     help_cmd(mon, "info");
-}
-
-static CommandInfoList *alloc_cmd_entry(const char *cmd_name)
-{
-    CommandInfoList *info;
-
-    info = g_malloc0(sizeof(*info));
-    info->value = g_malloc0(sizeof(*info->value));
-    info->value->name = g_strdup(cmd_name);
-
-    return info;
 }
 
 CommandInfoList *qmp_query_commands(Error **errp)
@@ -756,15 +708,10 @@ CommandInfoList *qmp_query_commands(Error **errp)
     const mon_cmd_t *cmd;
 
     for (cmd = qmp_cmds; cmd->name != NULL; cmd++) {
-        info = alloc_cmd_entry(cmd->name);
-        info->next = cmd_list;
-        cmd_list = info;
-    }
+        info = g_malloc0(sizeof(*info));
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->name = g_strdup(cmd->name);
 
-    for (cmd = qmp_query_cmds; cmd->name != NULL; cmd++) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "query-%s", cmd->name);
-        info = alloc_cmd_entry(buf);
         info->next = cmd_list;
         cmd_list = info;
     }
@@ -772,8 +719,8 @@ CommandInfoList *qmp_query_commands(Error **errp)
     return cmd_list;
 }
 
-/* get the current CPU defined by the user */
-static int mon_set_cpu(int cpu_index)
+/* set the current CPU defined by the user */
+int monitor_set_cpu(int cpu_index)
 {
     CPUState *env;
 
@@ -789,10 +736,15 @@ static int mon_set_cpu(int cpu_index)
 static CPUState *mon_get_cpu(void)
 {
     if (!cur_mon->mon_cpu) {
-        mon_set_cpu(0);
+        monitor_set_cpu(0);
     }
     cpu_synchronize_state(cur_mon->mon_cpu);
     return cur_mon->mon_cpu;
+}
+
+int monitor_get_cpu_index(void)
+{
+    return mon_get_cpu()->cpu_index;
 }
 
 static void do_info_registers(Monitor *mon)
@@ -806,107 +758,6 @@ static void do_info_registers(Monitor *mon)
     cpu_dump_state(env, (FILE *)mon, monitor_fprintf,
                    0);
 #endif
-}
-
-static void print_cpu_iter(QObject *obj, void *opaque)
-{
-    QDict *cpu;
-    int active = ' ';
-    Monitor *mon = opaque;
-
-    assert(qobject_type(obj) == QTYPE_QDICT);
-    cpu = qobject_to_qdict(obj);
-
-    if (qdict_get_bool(cpu, "current")) {
-        active = '*';
-    }
-
-    monitor_printf(mon, "%c CPU #%d: ", active, (int)qdict_get_int(cpu, "CPU"));
-
-#if defined(TARGET_I386)
-    monitor_printf(mon, "pc=0x" TARGET_FMT_lx,
-                   (target_ulong) qdict_get_int(cpu, "pc"));
-#elif defined(TARGET_PPC)
-    monitor_printf(mon, "nip=0x" TARGET_FMT_lx,
-                   (target_long) qdict_get_int(cpu, "nip"));
-#elif defined(TARGET_SPARC)
-    monitor_printf(mon, "pc=0x" TARGET_FMT_lx,
-                   (target_long) qdict_get_int(cpu, "pc"));
-    monitor_printf(mon, "npc=0x" TARGET_FMT_lx,
-                   (target_long) qdict_get_int(cpu, "npc"));
-#elif defined(TARGET_MIPS)
-    monitor_printf(mon, "PC=0x" TARGET_FMT_lx,
-                   (target_long) qdict_get_int(cpu, "PC"));
-#endif
-
-    if (qdict_get_bool(cpu, "halted")) {
-        monitor_printf(mon, " (halted)");
-    }
-
-    monitor_printf(mon, " thread_id=%" PRId64 " ",
-                   qdict_get_int(cpu, "thread_id"));
-
-    monitor_printf(mon, "\n");
-}
-
-static void monitor_print_cpus(Monitor *mon, const QObject *data)
-{
-    QList *cpu_list;
-
-    assert(qobject_type(data) == QTYPE_QLIST);
-    cpu_list = qobject_to_qlist(data);
-    qlist_iter(cpu_list, print_cpu_iter, mon);
-}
-
-static void do_info_cpus(Monitor *mon, QObject **ret_data)
-{
-    CPUState *env;
-    QList *cpu_list;
-
-    cpu_list = qlist_new();
-
-    /* just to set the default cpu if not already done */
-    mon_get_cpu();
-
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        QDict *cpu;
-        QObject *obj;
-
-        cpu_synchronize_state(env);
-
-        obj = qobject_from_jsonf("{ 'CPU': %d, 'current': %i, 'halted': %i }",
-                                 env->cpu_index, env == mon->mon_cpu,
-                                 env->halted);
-
-        cpu = qobject_to_qdict(obj);
-
-#if defined(TARGET_I386)
-        qdict_put(cpu, "pc", qint_from_int(env->eip + env->segs[R_CS].base));
-#elif defined(TARGET_PPC)
-        qdict_put(cpu, "nip", qint_from_int(env->nip));
-#elif defined(TARGET_SPARC)
-        qdict_put(cpu, "pc", qint_from_int(env->pc));
-        qdict_put(cpu, "npc", qint_from_int(env->npc));
-#elif defined(TARGET_MIPS)
-        qdict_put(cpu, "PC", qint_from_int(env->active_tc.PC));
-#endif
-        qdict_put(cpu, "thread_id", qint_from_int(env->thread_id));
-
-        qlist_append(cpu_list, cpu);
-    }
-
-    *ret_data = QOBJECT(cpu_list);
-}
-
-static int do_cpu_set(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    int index = qdict_get_int(qdict, "index");
-    if (mon_set_cpu(index) < 0) {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, "index",
-                      "a CPU number");
-        return -1;
-    }
-    return 0;
 }
 
 static void do_info_jit(Monitor *mon)
@@ -2773,16 +2624,14 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the block devices",
-        .user_print = bdrv_info_print,
-        .mhandler.info_new = bdrv_info,
+        .mhandler.info = hmp_info_block,
     },
     {
         .name       = "blockstats",
         .args_type  = "",
         .params     = "",
         .help       = "show block device statistics",
-        .user_print = bdrv_stats_print,
-        .mhandler.info_new = bdrv_info_stats,
+        .mhandler.info = hmp_info_blockstats,
     },
     {
         .name       = "registers",
@@ -2796,8 +2645,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show infos for each CPU",
-        .user_print = monitor_print_cpus,
-        .mhandler.info_new = do_info_cpus,
+        .mhandler.info = hmp_info_cpus,
     },
     {
         .name       = "history",
@@ -2840,8 +2688,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show PCI info",
-        .user_print = do_pci_info_print,
-        .mhandler.info_new = do_pci_info,
+        .mhandler.info = hmp_info_pci,
     },
 #if defined(TARGET_I386) || defined(TARGET_SH4) || defined(TARGET_SPARC) || \
     defined(TARGET_PPC)
@@ -2944,16 +2791,14 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show which guest mouse is receiving events",
-        .user_print = do_info_mice_print,
-        .mhandler.info_new = do_info_mice,
+        .mhandler.info = hmp_info_mice,
     },
     {
         .name       = "vnc",
         .args_type  = "",
         .params     = "",
         .help       = "show the vnc server status",
-        .user_print = do_info_vnc_print,
-        .mhandler.info_new = do_info_vnc,
+        .mhandler.info = hmp_info_vnc,
     },
 #if defined(CONFIG_SPICE)
     {
@@ -2961,8 +2806,7 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show the spice server status",
-        .user_print = do_info_spice_print,
-        .mhandler.info_new = do_info_spice,
+        .mhandler.info = hmp_info_spice,
     },
 #endif
     {
@@ -3002,17 +2846,14 @@ static const mon_cmd_t info_cmds[] = {
         .args_type  = "",
         .params     = "",
         .help       = "show migration status",
-        .user_print = do_info_migrate_print,
-        .mhandler.info_new = do_info_migrate,
+        .mhandler.info = hmp_info_migrate,
     },
     {
         .name       = "balloon",
         .args_type  = "",
         .params     = "",
         .help       = "show balloon information",
-        .user_print = monitor_print_balloon,
-        .mhandler.info_async = do_info_balloon,
-        .flags      = MONITOR_CMD_ASYNC,
+        .mhandler.info = hmp_info_balloon,
     },
     {
         .name       = "qtree",
@@ -3058,85 +2899,6 @@ static const mon_cmd_t info_cmds[] = {
 
 static const mon_cmd_t qmp_cmds[] = {
 #include "qmp-commands-old.h"
-    { /* NULL */ },
-};
-
-static const mon_cmd_t qmp_query_cmds[] = {
-    {
-        .name       = "block",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the block devices",
-        .user_print = bdrv_info_print,
-        .mhandler.info_new = bdrv_info,
-    },
-    {
-        .name       = "blockstats",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show block device statistics",
-        .user_print = bdrv_stats_print,
-        .mhandler.info_new = bdrv_info_stats,
-    },
-    {
-        .name       = "cpus",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show infos for each CPU",
-        .user_print = monitor_print_cpus,
-        .mhandler.info_new = do_info_cpus,
-    },
-    {
-        .name       = "pci",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show PCI info",
-        .user_print = do_pci_info_print,
-        .mhandler.info_new = do_pci_info,
-    },
-    {
-        .name       = "mice",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show which guest mouse is receiving events",
-        .user_print = do_info_mice_print,
-        .mhandler.info_new = do_info_mice,
-    },
-    {
-        .name       = "vnc",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the vnc server status",
-        .user_print = do_info_vnc_print,
-        .mhandler.info_new = do_info_vnc,
-    },
-#if defined(CONFIG_SPICE)
-    {
-        .name       = "spice",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show the spice server status",
-        .user_print = do_info_spice_print,
-        .mhandler.info_new = do_info_spice,
-    },
-#endif
-    {
-        .name       = "migrate",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show migration status",
-        .user_print = do_info_migrate_print,
-        .mhandler.info_new = do_info_migrate,
-    },
-    {
-        .name       = "balloon",
-        .args_type  = "",
-        .params     = "",
-        .help       = "show balloon information",
-        .user_print = monitor_print_balloon,
-        .mhandler.info_async = do_info_balloon,
-        .flags      = MONITOR_CMD_ASYNC,
-    },
     { /* NULL */ },
 };
 
@@ -3932,11 +3694,6 @@ static const mon_cmd_t *search_dispatch_table(const mon_cmd_t *disp_table,
 static const mon_cmd_t *monitor_find_command(const char *cmdname)
 {
     return search_dispatch_table(mon_cmds, cmdname);
-}
-
-static const mon_cmd_t *qmp_find_query_cmd(const char *info_item)
-{
-    return search_dispatch_table(qmp_query_cmds, info_item);
 }
 
 static const mon_cmd_t *qmp_find_cmd(const char *cmdname)
@@ -4862,22 +4619,6 @@ static QDict *qmp_check_input_obj(QObject *input_obj)
     return input_dict;
 }
 
-static void qmp_call_query_cmd(Monitor *mon, const mon_cmd_t *cmd)
-{
-    QObject *ret_data = NULL;
-
-    if (handler_is_async(cmd)) {
-        qmp_async_info_handler(mon, cmd);
-        if (monitor_has_error(mon)) {
-            monitor_protocol_emitter(mon, NULL);
-        }
-    } else {
-        cmd->mhandler.info_new(mon, &ret_data);
-        monitor_protocol_emitter(mon, ret_data);
-        qobject_decref(ret_data);
-    }
-}
-
 static void qmp_call_cmd(Monitor *mon, const mon_cmd_t *cmd,
                          const QDict *params)
 {
@@ -4898,10 +4639,9 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     QObject *obj;
     QDict *input, *args;
     const mon_cmd_t *cmd;
+    const char *cmd_name;
     Monitor *mon = cur_mon;
-    const char *cmd_name, *query_cmd;
 
-    query_cmd = NULL;
     args = input = NULL;
 
     obj = json_parser_parse(tokens, NULL);
@@ -4928,9 +4668,6 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
     }
 
     cmd = qmp_find_cmd(cmd_name);
-    if (!cmd && strstart(cmd_name, "query-", &query_cmd)) {
-        cmd = qmp_find_query_cmd(query_cmd);
-    }
     if (!cmd) {
         qerror_report(QERR_COMMAND_NOT_FOUND, cmd_name);
         goto err_out;
@@ -4949,9 +4686,7 @@ static void handle_qmp_command(JSONMessageParser *parser, QList *tokens)
         goto err_out;
     }
 
-    if (query_cmd) {
-        qmp_call_query_cmd(mon, cmd);
-    } else if (handler_is_async(cmd)) {
+    if (handler_is_async(cmd)) {
         err = qmp_async_cmd_handler(mon, cmd, args);
         if (err) {
             /* emit the error response */

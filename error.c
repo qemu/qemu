@@ -12,8 +12,9 @@
 
 #include "qemu-common.h"
 #include "error.h"
+#include "qjson.h"
+#include "qdict.h"
 #include "error_int.h"
-#include "qemu-objects.h"
 #include "qerror.h"
 
 struct Error

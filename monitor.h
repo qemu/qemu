@@ -57,6 +57,8 @@ void monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
 void monitor_printf(Monitor *mon, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 void monitor_print_filename(Monitor *mon, const char *filename);
 void monitor_flush(Monitor *mon);
+int monitor_set_cpu(int cpu_index);
+int monitor_get_cpu_index(void);
 
 typedef void (MonitorCompletion)(void *opaque, QObject *ret_data);
 

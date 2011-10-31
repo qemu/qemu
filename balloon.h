@@ -15,17 +15,15 @@
 #define _QEMU_BALLOON_H
 
 #include "monitor.h"
+#include "qapi-types.h"
 
 typedef void (QEMUBalloonEvent)(void *opaque, ram_addr_t target);
-typedef void (QEMUBalloonStatus)(void *opaque, MonitorCompletion cb,
-                                 void *cb_data);
+typedef void (QEMUBalloonStatus)(void *opaque, BalloonInfo *info);
 
 int qemu_add_balloon_handler(QEMUBalloonEvent *event_func,
 			     QEMUBalloonStatus *stat_func, void *opaque);
 void qemu_remove_balloon_handler(void *opaque);
 
-void monitor_print_balloon(Monitor *mon, const QObject *data);
-int do_info_balloon(Monitor *mon, MonitorCompletion cb, void *opaque);
 int do_balloon(Monitor *mon, const QDict *params,
                MonitorCompletion cb, void *opaque);
 
