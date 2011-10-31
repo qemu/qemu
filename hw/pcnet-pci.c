@@ -31,6 +31,7 @@
 #include "net.h"
 #include "loader.h"
 #include "qemu-timer.h"
+#include "dma.h"
 
 #include "pcnet.h"
 
@@ -230,13 +231,13 @@ static const MemoryRegionOps pcnet_mmio_ops = {
 static void pci_physical_memory_write(void *dma_opaque, target_phys_addr_t addr,
                                       uint8_t *buf, int len, int do_bswap)
 {
-    cpu_physical_memory_write(addr, buf, len);
+    pci_dma_write(dma_opaque, addr, buf, len);
 }
 
 static void pci_physical_memory_read(void *dma_opaque, target_phys_addr_t addr,
                                      uint8_t *buf, int len, int do_bswap)
 {
-    cpu_physical_memory_read(addr, buf, len);
+    pci_dma_read(dma_opaque, addr, buf, len);
 }
 
 static void pci_pcnet_cleanup(VLANClientState *nc)
@@ -302,6 +303,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     s->irq = pci_dev->irq[0];
     s->phys_mem_read = pci_physical_memory_read;
     s->phys_mem_write = pci_physical_memory_write;
+    s->dma_opaque = pci_dev;
 
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;
