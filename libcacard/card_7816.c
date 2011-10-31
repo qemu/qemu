@@ -754,7 +754,7 @@ vcard_process_apdu(VCard *card, VCardAPDU *apdu, VCardResponse **response)
         return vcard7816_vm_process_apdu(card, apdu, response);
     case VCARD_DIRECT:
         /* if we are type direct, then the applet should handle everything */
-        assert("VCARD_DIRECT: applet failure");
+        assert(!"VCARD_DIRECT: applet failure");
         break;
     }
     *response =
