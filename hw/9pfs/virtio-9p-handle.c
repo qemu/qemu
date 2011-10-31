@@ -133,81 +133,91 @@ static ssize_t handle_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
     return ret;
 }
 
-static int handle_close(FsContext *ctx, int fd)
+static int handle_close(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return close(fd);
+    return close(fs->fd);
 }
 
-static int handle_closedir(FsContext *ctx, DIR *dir)
+static int handle_closedir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return closedir(dir);
+    return closedir(fs->dir);
 }
 
-static int handle_open(FsContext *ctx, V9fsPath *fs_path, int flags)
+static int handle_open(FsContext *ctx, V9fsPath *fs_path,
+                       int flags, V9fsFidOpenState *fs)
 {
     struct handle_data *data = (struct handle_data *)ctx->private;
 
-    return open_by_handle(data->mountfd, fs_path->data, flags);
+    fs->fd = open_by_handle(data->mountfd, fs_path->data, flags);
+    return fs->fd;
 }
 
-static DIR *handle_opendir(FsContext *ctx, V9fsPath *fs_path)
+static int handle_opendir(FsContext *ctx,
+                          V9fsPath *fs_path, V9fsFidOpenState *fs)
 {
-    int fd;
-    fd = handle_open(ctx, fs_path, O_DIRECTORY);
-    if (fd < 0) {
-        return NULL;
+    int ret;
+    ret = handle_open(ctx, fs_path, O_DIRECTORY, fs);
+    if (ret < 0) {
+        return -1;
     }
-    return fdopendir(fd);
+    fs->dir = fdopendir(ret);
+    if (!fs->dir) {
+        return -1;
+    }
+    return 0;
 }
 
-static void handle_rewinddir(FsContext *ctx, DIR *dir)
+static void handle_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return rewinddir(dir);
+    return rewinddir(fs->dir);
 }
 
-static off_t handle_telldir(FsContext *ctx, DIR *dir)
+static off_t handle_telldir(FsContext *ctx, V9fsFidOpenState *fs)
 {
-    return telldir(dir);
+    return telldir(fs->dir);
 }
 
-static int handle_readdir_r(FsContext *ctx, DIR *dir, struct dirent *entry,
+static int handle_readdir_r(FsContext *ctx, V9fsFidOpenState *fs,
+                            struct dirent *entry,
                             struct dirent **result)
 {
-    return readdir_r(dir, entry, result);
+    return readdir_r(fs->dir, entry, result);
 }
 
-static void handle_seekdir(FsContext *ctx, DIR *dir, off_t off)
+static void handle_seekdir(FsContext *ctx, V9fsFidOpenState *fs, off_t off)
 {
-    return seekdir(dir, off);
+    return seekdir(fs->dir, off);
 }
 
-static ssize_t handle_preadv(FsContext *ctx, int fd, const struct iovec *iov,
+static ssize_t handle_preadv(FsContext *ctx, V9fsFidOpenState *fs,
+                             const struct iovec *iov,
                              int iovcnt, off_t offset)
 {
 #ifdef CONFIG_PREADV
-    return preadv(fd, iov, iovcnt, offset);
+    return preadv(fs->fd, iov, iovcnt, offset);
 #else
-    int err = lseek(fd, offset, SEEK_SET);
+    int err = lseek(fs->fd, offset, SEEK_SET);
     if (err == -1) {
         return err;
     } else {
-        return readv(fd, iov, iovcnt);
+        return readv(fs->fd, iov, iovcnt);
     }
 #endif
 }
 
-static ssize_t handle_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
+static ssize_t handle_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
+                              const struct iovec *iov,
                               int iovcnt, off_t offset)
 {
     ssize_t ret;
 #ifdef CONFIG_PREADV
-    ret = pwritev(fd, iov, iovcnt, offset);
+    ret = pwritev(fs->fd, iov, iovcnt, offset);
 #else
-    int err = lseek(fd, offset, SEEK_SET);
+    int err = lseek(fs->fd, offset, SEEK_SET);
     if (err == -1) {
         return err;
     } else {
-        ret = writev(fd, iov, iovcnt);
+        ret = writev(fs->fd, iov, iovcnt);
     }
 #endif
 #ifdef CONFIG_SYNC_FILE_RANGE
@@ -217,7 +227,7 @@ static ssize_t handle_pwritev(FsContext *ctx, int fd, const struct iovec *iov,
          * We want to ensure that we don't leave dirty pages in the cache
          * after write when writeout=immediate is sepcified.
          */
-        sync_file_range(fd, offset, ret,
+        sync_file_range(fs->fd, offset, ret,
                         SYNC_FILE_RANGE_WAIT_BEFORE | SYNC_FILE_RANGE_WRITE);
     }
 #endif
@@ -274,13 +284,14 @@ static int handle_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
     return ret;
 }
 
-static int handle_fstat(FsContext *fs_ctx, int fd, struct stat *stbuf)
+static int handle_fstat(FsContext *fs_ctx, V9fsFidOpenState *fs,
+                        struct stat *stbuf)
 {
-    return fstat(fd, stbuf);
+    return fstat(fs->fd, stbuf);
 }
 
 static int handle_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
-                       int flags, FsCred *credp)
+                        int flags, FsCred *credp, V9fsFidOpenState *fs)
 {
     int ret;
     int dirfd, fd;
@@ -296,6 +307,8 @@ static int handle_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
         if (ret < 0) {
             close(fd);
             fd = ret;
+        } else {
+            fs->fd = fd;
         }
     }
     close(dirfd);
@@ -411,12 +424,12 @@ static int handle_remove(FsContext *ctx, const char *path)
     return -1;
 }
 
-static int handle_fsync(FsContext *ctx, int fd, int datasync)
+static int handle_fsync(FsContext *ctx, V9fsFidOpenState *fs, int datasync)
 {
     if (datasync) {
-        return qemu_fdatasync(fd);
+        return qemu_fdatasync(fs->fd);
     } else {
-        return fsync(fd);
+        return fsync(fs->fd);
     }
 }
 
@@ -575,7 +588,8 @@ static int handle_unlinkat(FsContext *ctx, V9fsPath *dir,
 static int handle_ioc_getversion(FsContext *ctx, V9fsPath *path,
                                  mode_t st_mode, uint64_t *st_gen)
 {
-    int err, fd;
+    int err;
+    V9fsFidOpenState fid_open;
 
     /*
      * Do not try to open special files like device nodes, fifos etc
@@ -584,12 +598,12 @@ static int handle_ioc_getversion(FsContext *ctx, V9fsPath *path,
     if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
             return 0;
     }
-    fd = handle_open(ctx, path, O_RDONLY);
-    if (fd < 0) {
-        return fd;
+    err = handle_open(ctx, path, O_RDONLY, &fid_open);
+    if (err < 0) {
+        return err;
     }
-    err = ioctl(fd, FS_IOC_GETVERSION, st_gen);
-    handle_close(ctx, fd);
+    err = ioctl(fid_open.fd, FS_IOC_GETVERSION, st_gen);
+    handle_close(ctx, &fid_open);
     return err;
 }
 

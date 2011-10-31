@@ -105,10 +105,11 @@ struct QemuOptsList {
 };
 
 const char *qemu_opt_get(QemuOpts *opts, const char *name);
-int qemu_opt_get_bool(QemuOpts *opts, const char *name, int defval);
+bool qemu_opt_get_bool(QemuOpts *opts, const char *name, bool defval);
 uint64_t qemu_opt_get_number(QemuOpts *opts, const char *name, uint64_t defval);
 uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval);
 int qemu_opt_set(QemuOpts *opts, const char *name, const char *value);
+int qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val);
 typedef int (*qemu_opt_loopfunc)(const char *name, const char *value, void *opaque);
 int qemu_opt_foreach(QemuOpts *opts, qemu_opt_loopfunc func, void *opaque,
                      int abort_on_failure);

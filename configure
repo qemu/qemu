@@ -2562,7 +2562,7 @@ fi
 open_by_hande_at=no
 cat > $TMPC << EOF
 #include <fcntl.h>
-int main(void) { struct file_handle *fh; open_by_handle_at(0, fh, 0); }
+int main(void) { struct file_handle fh; open_by_handle_at(0, &fh, 0); }
 EOF
 if compile_prog "" "" ; then
     open_by_handle_at=yes

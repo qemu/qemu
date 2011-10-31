@@ -455,11 +455,11 @@ static int free_fid(V9fsPDU *pdu, V9fsFidState *fidp)
     if (fidp->fid_type == P9_FID_FILE) {
         /* If we reclaimed the fd no need to close */
         if (fidp->fs.fd != -1) {
-            retval = v9fs_co_close(pdu, fidp->fs.fd);
+            retval = v9fs_co_close(pdu, &fidp->fs);
         }
     } else if (fidp->fid_type == P9_FID_DIR) {
         if (fidp->fs.dir != NULL) {
-            retval = v9fs_co_closedir(pdu, fidp->fs.dir);
+            retval = v9fs_co_closedir(pdu, &fidp->fs);
         }
     } else if (fidp->fid_type == P9_FID_XATTR) {
         retval = v9fs_xattr_fid_clunk(pdu, fidp);
@@ -567,9 +567,9 @@ void v9fs_reclaim_fd(V9fsPDU *pdu)
         f = reclaim_list;
         reclaim_list = f->rclm_lst;
         if (f->fid_type == P9_FID_FILE) {
-            v9fs_co_close(pdu, f->fs_reclaim.fd);
+            v9fs_co_close(pdu, &f->fs_reclaim);
         } else if (f->fid_type == P9_FID_DIR) {
-            v9fs_co_closedir(pdu, f->fs_reclaim.dir);
+            v9fs_co_closedir(pdu, &f->fs_reclaim);
         }
         f->rclm_lst = NULL;
         /*
@@ -1271,6 +1271,11 @@ static void v9fs_fix_path(V9fsPath *dst, V9fsPath *src, int len)
     dst->size++;
 }
 
+static inline bool is_ro_export(FsContext *ctx)
+{
+    return ctx->export_flags & V9FS_RDONLY;
+}
+
 static void v9fs_version(void *opaque)
 {
     V9fsPDU *pdu = opaque;
@@ -1689,6 +1694,14 @@ static void v9fs_open(void *opaque)
             flags = get_dotl_openflags(s, mode);
         } else {
             flags = omode_to_uflags(mode);
+        }
+        if (is_ro_export(&s->ctx)) {
+            if (mode & O_WRONLY || mode & O_RDWR ||
+                mode & O_APPEND || mode & O_TRUNC) {
+                err = -EROFS;
+                goto out;
+            }
+            flags |= O_NOATIME;
         }
         err = v9fs_co_open(pdu, fidp, flags);
         if (err < 0) {
@@ -2996,7 +3009,7 @@ static void v9fs_lock(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_fstat(pdu, fidp->fs.fd, &stbuf);
+    err = v9fs_co_fstat(pdu, fidp, &stbuf);
     if (err < 0) {
         goto out;
     }
@@ -3039,7 +3052,7 @@ static void v9fs_getlock(void *opaque)
         err = -ENOENT;
         goto out_nofid;
     }
-    err = v9fs_co_fstat(pdu, fidp->fs.fd, &stbuf);
+    err = v9fs_co_fstat(pdu, fidp, &stbuf);
     if (err < 0) {
         goto out;
     }
@@ -3309,6 +3322,39 @@ static void v9fs_op_not_supp(void *opaque)
     complete_pdu(pdu->s, pdu, -EOPNOTSUPP);
 }
 
+static void v9fs_fs_ro(void *opaque)
+{
+    V9fsPDU *pdu = opaque;
+    complete_pdu(pdu->s, pdu, -EROFS);
+}
+
+static inline bool is_read_only_op(V9fsPDU *pdu)
+{
+    switch (pdu->id) {
+    case P9_TREADDIR:
+    case P9_TSTATFS:
+    case P9_TGETATTR:
+    case P9_TXATTRWALK:
+    case P9_TLOCK:
+    case P9_TGETLOCK:
+    case P9_TREADLINK:
+    case P9_TVERSION:
+    case P9_TLOPEN:
+    case P9_TATTACH:
+    case P9_TSTAT:
+    case P9_TWALK:
+    case P9_TCLUNK:
+    case P9_TFSYNC:
+    case P9_TOPEN:
+    case P9_TREAD:
+    case P9_TAUTH:
+    case P9_TFLUSH:
+        return 1;
+    default:
+        return 0;
+    }
+}
+
 static void submit_pdu(V9fsState *s, V9fsPDU *pdu)
 {
     Coroutine *co;
@@ -3319,6 +3365,10 @@ static void submit_pdu(V9fsState *s, V9fsPDU *pdu)
         handler = v9fs_op_not_supp;
     } else {
         handler = pdu_co_handlers[pdu->id];
+    }
+
+    if (is_ro_export(&s->ctx) && !is_read_only_op(pdu)) {
+        handler = v9fs_fs_ro;
     }
     co = qemu_coroutine_create(handler);
     qemu_coroutine_enter(co, pdu);

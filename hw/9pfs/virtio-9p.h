@@ -204,20 +204,29 @@ typedef struct V9fsXattr
     int flags;
 } V9fsXattr;
 
+/*
+ * Filled by fs driver on open and other
+ * calls.
+ */
+union V9fsFidOpenState {
+    int fd;
+    DIR *dir;
+    V9fsXattr xattr;
+    /*
+     * private pointer for fs drivers, that
+     * have its own internal representation of
+     * open files.
+     */
+    void *private;
+};
+
 struct V9fsFidState
 {
     int fid_type;
     int32_t fid;
     V9fsPath path;
-    union {
-        int fd;
-        DIR *dir;
-        V9fsXattr xattr;
-    } fs;
-    union {
-        int fd;
-        DIR *dir;
-    } fs_reclaim;
+    V9fsFidOpenState fs;
+    V9fsFidOpenState fs_reclaim;
     int flags;
     int open_flags;
     uid_t uid;
