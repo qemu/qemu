@@ -28,20 +28,19 @@ typedef enum {
 } DMADirection;
 
 struct ScatterGatherEntry {
-    target_phys_addr_t base;
-    target_phys_addr_t len;
+    dma_addr_t base;
+    dma_addr_t len;
 };
 
 struct QEMUSGList {
     ScatterGatherEntry *sg;
     int nsg;
     int nalloc;
-    target_phys_addr_t size;
+    dma_addr_t size;
 };
 
 void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint);
-void qemu_sglist_add(QEMUSGList *qsg, target_phys_addr_t base,
-                     target_phys_addr_t len);
+void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
 #endif
 
