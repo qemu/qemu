@@ -153,6 +153,7 @@ int qemu_devtree_add_subnode(void *fdt, const char *name)
     int retval;
 
     if (!basename) {
+        g_free(dupname);
         return -1;
     }
 

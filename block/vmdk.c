@@ -208,7 +208,7 @@ static void vmdk_free_last_extent(BlockDriverState *bs)
 static uint32_t vmdk_read_cid(BlockDriverState *bs, int parent)
 {
     char desc[DESC_SIZE];
-    uint32_t cid;
+    uint32_t cid = 0xffffffff;
     const char *p_name, *cid_str;
     size_t cid_str_size;
     BDRVVmdkState *s = bs->opaque;
@@ -1407,7 +1407,6 @@ static int vmdk_create(const char *filename, QEMUOptionParameter *options)
             bdrv_delete(bs);
             return -EINVAL;
         }
-        filesize = bdrv_getlength(bs);
         parent_cid = vmdk_read_cid(bs, 0);
         bdrv_delete(bs);
         relative_path(parent_filename, sizeof(parent_filename),

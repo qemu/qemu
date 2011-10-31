@@ -11,7 +11,7 @@ int Adlib_init(qemu_irq *pic);
 int GUS_init(qemu_irq *pic);
 
 /* ac97.c */
-int ac97_init(PCIBus *buf);
+int ac97_init(PCIBus *bus);
 
 /* cs4231a.c */
 int cs4231a_init(qemu_irq *pic);
