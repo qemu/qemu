@@ -47,7 +47,7 @@ compare(const void *a, const void *b)
 
 void add_command(const cmdinfo_t *ci)
 {
-    cmdtab = realloc((void *)cmdtab, ++ncmds * sizeof(*cmdtab));
+    cmdtab = g_realloc((void *)cmdtab, ++ncmds * sizeof(*cmdtab));
     cmdtab[ncmds - 1] = *ci;
     qsort(cmdtab, ncmds, sizeof(*cmdtab), compare);
 }
@@ -122,12 +122,7 @@ find_command(
 
 void add_user_command(char *optarg)
 {
-    ncmdline++;
-    cmdline = realloc(cmdline, ncmdline * sizeof(char *));
-    if (!cmdline) {
-        perror("realloc");
-        exit(1);
-    }
+    cmdline = g_realloc(cmdline, ++ncmdline * sizeof(char *));
     cmdline[ncmdline-1] = optarg;
 }
 
@@ -190,7 +185,7 @@ void command_loop(void)
         doneline(input, v);
     }
     if (cmdline) {
-        free(cmdline);
+        g_free(cmdline);
         return;
     }
 
