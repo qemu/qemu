@@ -182,7 +182,7 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_divu_i64, { R, R, R } },
     { INDEX_op_rem_i64, { R, R, R } },
     { INDEX_op_remu_i64, { R, R, R } },
-#elif defined(TCG_TARGET_HAS_div2_i64)
+#elif TCG_TARGET_HAS_div2_i64
     { INDEX_op_div2_i64, { R, R, "0", "1", R } },
     { INDEX_op_divu2_i64, { R, R, "0", "1", R } },
 #endif
