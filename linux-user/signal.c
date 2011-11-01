@@ -146,7 +146,7 @@ void host_to_target_sigset(target_sigset_t *d, const sigset_t *s)
 
     host_to_target_sigset_internal(&d1, s);
     for(i = 0;i < TARGET_NSIG_WORDS; i++)
-        d->sig[i] = tswapl(d1.sig[i]);
+        d->sig[i] = tswapal(d1.sig[i]);
 }
 
 static void target_to_host_sigset_internal(sigset_t *d,
@@ -167,7 +167,7 @@ void target_to_host_sigset(sigset_t *d, const target_sigset_t *s)
     int i;
 
     for(i = 0;i < TARGET_NSIG_WORDS; i++)
-        s1.sig[i] = tswapl(s->sig[i]);
+        s1.sig[i] = tswapal(s->sig[i]);
     target_to_host_sigset_internal(d, &s1);
 }
 
@@ -228,14 +228,14 @@ static void tswap_siginfo(target_siginfo_t *tinfo,
     if (sig == SIGILL || sig == SIGFPE || sig == SIGSEGV ||
         sig == SIGBUS || sig == SIGTRAP) {
         tinfo->_sifields._sigfault._addr =
-            tswapl(info->_sifields._sigfault._addr);
+            tswapal(info->_sifields._sigfault._addr);
     } else if (sig == SIGIO) {
 	tinfo->_sifields._sigpoll._fd = tswap32(info->_sifields._sigpoll._fd);
     } else if (sig >= TARGET_SIGRTMIN) {
         tinfo->_sifields._rt._pid = tswap32(info->_sifields._rt._pid);
         tinfo->_sifields._rt._uid = tswap32(info->_sifields._rt._uid);
         tinfo->_sifields._rt._sigval.sival_ptr =
-            tswapl(info->_sifields._rt._sigval.sival_ptr);
+            tswapal(info->_sifields._rt._sigval.sival_ptr);
     }
 }
 
@@ -256,7 +256,7 @@ void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo)
     info->si_pid = tswap32(tinfo->_sifields._rt._pid);
     info->si_uid = tswap32(tinfo->_sifields._rt._uid);
     info->si_value.sival_ptr =
-            (void *)(long)tswapl(tinfo->_sifields._rt._sigval.sival_ptr);
+            (void *)(long)tswapal(tinfo->_sifields._rt._sigval.sival_ptr);
 }
 
 static int fatal_signal (int sig)
@@ -580,19 +580,19 @@ int do_sigaction(int sig, const struct target_sigaction *act,
             sig, act, oact);
 #endif
     if (oact) {
-        oact->_sa_handler = tswapl(k->_sa_handler);
-        oact->sa_flags = tswapl(k->sa_flags);
+        oact->_sa_handler = tswapal(k->_sa_handler);
+        oact->sa_flags = tswapal(k->sa_flags);
 #if !defined(TARGET_MIPS)
-        oact->sa_restorer = tswapl(k->sa_restorer);
+        oact->sa_restorer = tswapal(k->sa_restorer);
 #endif
         oact->sa_mask = k->sa_mask;
     }
     if (act) {
         /* FIXME: This is not threadsafe.  */
-        k->_sa_handler = tswapl(act->_sa_handler);
-        k->sa_flags = tswapl(act->sa_flags);
+        k->_sa_handler = tswapal(act->_sa_handler);
+        k->sa_flags = tswapal(act->sa_flags);
 #if !defined(TARGET_MIPS)
-        k->sa_restorer = tswapl(act->sa_restorer);
+        k->sa_restorer = tswapal(act->sa_restorer);
 #endif
         k->sa_mask = act->sa_mask;
 

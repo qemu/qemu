@@ -531,7 +531,7 @@ static void lsi_bad_selection(LSIState *s, uint32_t id)
 /* Initiate a SCSI layer data transfer.  */
 static void lsi_do_dma(LSIState *s, int out)
 {
-    uint32_t count, id;
+    uint32_t count;
     target_phys_addr_t addr;
     SCSIDevice *dev;
 
@@ -542,12 +542,8 @@ static void lsi_do_dma(LSIState *s, int out)
         return;
     }
 
-    id = (s->current->tag >> 8) & 0xf;
-    dev = s->bus.devs[id];
-    if (!dev) {
-        lsi_bad_selection(s, id);
-        return;
-    }
+    dev = s->current->req->dev;
+    assert(dev);
 
     count = s->dbc;
     if (count > s->current->dma_len)
@@ -771,7 +767,7 @@ static void lsi_do_command(LSIState *s)
     s->command_complete = 0;
 
     id = (s->select_tag >> 8) & 0xf;
-    dev = s->bus.devs[id];
+    dev = scsi_device_find(&s->bus, 0, id, s->current_lun);
     if (!dev) {
         lsi_bad_selection(s, id);
         return;
@@ -1202,7 +1198,7 @@ again:
                 }
                 s->sstat0 |= LSI_SSTAT0_WOA;
                 s->scntl1 &= ~LSI_SCNTL1_IARB;
-                if (id >= LSI_MAX_DEVS || !s->bus.devs[id]) {
+                if (!scsi_device_find(&s->bus, 0, id, 0)) {
                     lsi_bad_selection(s, id);
                     break;
                 }
@@ -1684,13 +1680,9 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         if (val & LSI_SCNTL1_RST) {
             if (!(s->sstat0 & LSI_SSTAT0_RST)) {
                 DeviceState *dev;
-                int id;
 
-                for (id = 0; id < s->bus.ndev; id++) {
-                    if (s->bus.devs[id]) {
-                        dev = &s->bus.devs[id]->qdev;
-                        dev->info->reset(dev);
-                    }
+                QTAILQ_FOREACH(dev, &s->bus.qbus.children, sibling) {
+                    dev->info->reset(dev);
                 }
                 s->sstat0 |= LSI_SSTAT0_RST;
                 lsi_script_scsi_interrupt(s, LSI_SIST0_RST, 0);
@@ -2091,7 +2083,11 @@ static int lsi_scsi_uninit(PCIDevice *d)
     return 0;
 }
 
-static const struct SCSIBusOps lsi_scsi_ops = {
+static const struct SCSIBusInfo lsi_scsi_info = {
+    .tcq = true,
+    .max_target = LSI_MAX_DEVS,
+    .max_lun = 0,  /* LUN support is buggy */
+
     .transfer_data = lsi_transfer_data,
     .complete = lsi_command_complete,
     .cancel = lsi_request_cancelled
@@ -2118,7 +2114,7 @@ static int lsi_scsi_init(PCIDevice *dev)
     pci_register_bar(&s->dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ram_io);
     QTAILQ_INIT(&s->queue);
 
-    scsi_bus_new(&s->bus, &dev->qdev, 1, LSI_MAX_DEVS, &lsi_scsi_ops);
+    scsi_bus_new(&s->bus, &dev->qdev, &lsi_scsi_info);
     if (!dev->qdev.hotplugged) {
         return scsi_bus_legacy_handle_cmdline(&s->bus);
     }

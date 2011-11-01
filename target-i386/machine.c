@@ -310,6 +310,42 @@ static const VMStateDescription vmstate_fpop_ip_dp = {
     }
 };
 
+static bool tscdeadline_needed(void *opaque)
+{
+    CPUState *env = opaque;
+
+    return env->tsc_deadline != 0;
+}
+
+static const VMStateDescription vmstate_msr_tscdeadline = {
+    .name = "cpu/msr_tscdeadline",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(tsc_deadline, CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static bool misc_enable_needed(void *opaque)
+{
+    CPUState *env = opaque;
+
+    return env->msr_ia32_misc_enable != MSR_IA32_MISC_ENABLE_DEFAULT;
+}
+
+static const VMStateDescription vmstate_msr_ia32_misc_enable = {
+    .name = "cpu/msr_ia32_misc_enable",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField []) {
+        VMSTATE_UINT64(msr_ia32_misc_enable, CPUState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_cpu = {
     .name = "cpu",
     .version_id = CPU_SAVE_VERSION,
@@ -410,7 +446,6 @@ static const VMStateDescription vmstate_cpu = {
         VMSTATE_UINT64_V(xcr0, CPUState, 12),
         VMSTATE_UINT64_V(xstate_bv, CPUState, 12),
         VMSTATE_YMMH_REGS_VARS(ymmh_regs, CPUState, CPU_NB_REGS, 12),
-        VMSTATE_UINT64_V(tsc_deadline, CPUState, 13),
         VMSTATE_END_OF_LIST()
         /* The above list is not sorted /wrt version numbers, watch out! */
     },
@@ -421,6 +456,12 @@ static const VMStateDescription vmstate_cpu = {
         } , {
             .vmsd = &vmstate_fpop_ip_dp,
             .needed = fpop_ip_dp_needed,
+        }, {
+            .vmsd = &vmstate_msr_tscdeadline,
+            .needed = tscdeadline_needed,
+        }, {
+            .vmsd = &vmstate_msr_ia32_misc_enable,
+            .needed = misc_enable_needed,
         } , {
             /* empty */
         }

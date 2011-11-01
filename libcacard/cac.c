@@ -266,7 +266,8 @@ static void
 cac_delete_pki_applet_private(VCardAppletPrivate *applet_private)
 {
     CACPKIAppletData *pki_applet_data = NULL;
-    if (pki_applet_data == NULL) {
+
+    if (applet_private == NULL) {
         return;
     }
     pki_applet_data = &(applet_private->u.pki_data);

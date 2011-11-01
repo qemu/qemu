@@ -3,13 +3,14 @@
 
 #include "qdev.h"
 #include "block.h"
+#include "sysemu.h"
 
 #define MAX_SCSI_DEVS	255
 
 #define SCSI_CMD_BUF_SIZE     16
 
 typedef struct SCSIBus SCSIBus;
-typedef struct SCSIBusOps SCSIBusOps;
+typedef struct SCSIBusInfo SCSIBusInfo;
 typedef struct SCSICommand SCSICommand;
 typedef struct SCSIDevice SCSIDevice;
 typedef struct SCSIDeviceInfo SCSIDeviceInfo;
@@ -41,7 +42,7 @@ struct SCSICommand {
 struct SCSIRequest {
     SCSIBus           *bus;
     SCSIDevice        *dev;
-    SCSIReqOps        *ops;
+    const SCSIReqOps  *ops;
     uint32_t          refcount;
     uint32_t          tag;
     uint32_t          lun;
@@ -51,6 +52,8 @@ struct SCSIRequest {
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     bool enqueued;
+    bool io_canceled;
+    bool retry;
     void *hba_private;
     QTAILQ_ENTRY(SCSIRequest) next;
 };
@@ -58,16 +61,21 @@ struct SCSIRequest {
 struct SCSIDevice
 {
     DeviceState qdev;
+    VMChangeStateEntry *vmsentry;
+    QEMUBH *bh;
     uint32_t id;
     BlockConf conf;
     SCSIDeviceInfo *info;
     SCSISense unit_attention;
+    bool sense_is_ua;
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     QTAILQ_HEAD(, SCSIRequest) requests;
+    uint32_t channel;
     uint32_t lun;
     int blocksize;
     int type;
+    uint64_t max_lba;
 };
 
 /* cdrom.c */
@@ -91,11 +99,13 @@ struct SCSIDeviceInfo {
     scsi_qdev_initfn init;
     void (*destroy)(SCSIDevice *s);
     SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun,
-                              void *hba_private);
-    SCSIReqOps reqops;
+                              uint8_t *buf, void *hba_private);
+    void (*unit_attention_reported)(SCSIDevice *s);
 };
 
-struct SCSIBusOps {
+struct SCSIBusInfo {
+    int tcq;
+    int max_channel, max_target, max_lun;
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
     void (*complete)(SCSIRequest *req, uint32_t arg);
     void (*cancel)(SCSIRequest *req);
@@ -106,14 +116,10 @@ struct SCSIBus {
     int busnr;
 
     SCSISense unit_attention;
-    int tcq, ndev;
-    const SCSIBusOps *ops;
-
-    SCSIDevice *devs[MAX_SCSI_DEVS];
+    const SCSIBusInfo *info;
 };
 
-void scsi_bus_new(SCSIBus *bus, DeviceState *host, int tcq, int ndev,
-                  const SCSIBusOps *ops);
+void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info);
 void scsi_qdev_register(SCSIDeviceInfo *info);
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
@@ -159,6 +165,8 @@ extern const struct SCSISense sense_code_IO_ERROR;
 extern const struct SCSISense sense_code_I_T_NEXUS_LOSS;
 /* Command aborted, Logical Unit failure */
 extern const struct SCSISense sense_code_LUN_FAILURE;
+/* LUN not ready, Medium not present */
+extern const struct SCSISense sense_code_UNIT_ATTENTION_NO_MEDIUM;
 /* Unit attention, Power on, reset or bus device reset occurred */
 extern const struct SCSISense sense_code_RESET;
 /* Unit attention, Medium may have changed*/
@@ -172,8 +180,8 @@ extern const struct SCSISense sense_code_DEVICE_INTERNAL_RESET;
 
 int scsi_sense_valid(SCSISense sense);
 
-SCSIRequest *scsi_req_alloc(SCSIReqOps *reqops, SCSIDevice *d, uint32_t tag,
-                            uint32_t lun, void *hba_private);
+SCSIRequest *scsi_req_alloc(const SCSIReqOps *reqops, SCSIDevice *d,
+                            uint32_t tag, uint32_t lun, void *hba_private);
 SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                           uint8_t *buf, void *hba_private);
 int32_t scsi_req_enqueue(SCSIRequest *req);
@@ -190,7 +198,12 @@ uint8_t *scsi_req_get_buf(SCSIRequest *req);
 int scsi_req_get_sense(SCSIRequest *req, uint8_t *buf, int len);
 void scsi_req_abort(SCSIRequest *req, int status);
 void scsi_req_cancel(SCSIRequest *req);
+void scsi_req_retry(SCSIRequest *req);
 void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense);
 int scsi_device_get_sense(SCSIDevice *dev, uint8_t *buf, int len, bool fixed);
+SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int target, int lun);
+
+/* scsi-generic.c. */
+extern const SCSIReqOps scsi_generic_req_ops;
 
 #endif

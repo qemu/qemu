@@ -15,6 +15,7 @@ libdis*
 libhw32
 libhw64
 libuser
+linux-headers/asm
 qapi-generated
 qemu-doc.html
 qemu-tech.html

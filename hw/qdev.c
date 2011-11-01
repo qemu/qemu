@@ -91,7 +91,7 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
     qdev_prop_set_defaults(dev, dev->info->props);
     qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
     qdev_prop_set_globals(dev);
-    QLIST_INSERT_HEAD(&bus->children, dev, sibling);
+    QTAILQ_INSERT_HEAD(&bus->children, dev, sibling);
     if (qdev_hotplug) {
         assert(bus->allow_hotplug);
         dev->hotplugged = 1;
@@ -408,7 +408,7 @@ void qdev_free(DeviceState *dev)
         if (dev->opts)
             qemu_opts_del(dev->opts);
     }
-    QLIST_REMOVE(dev, sibling);
+    QTAILQ_REMOVE(&dev->parent_bus->children, dev, sibling);
     for (prop = dev->info->props; prop && prop->name; prop++) {
         if (prop->info->free) {
             prop->info->free(dev, prop);
@@ -510,7 +510,7 @@ int qbus_walk_children(BusState *bus, qdev_walkerfn *devfn,
         }
     }
 
-    QLIST_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->children, sibling) {
         err = qdev_walk_children(dev, devfn, busfn, opaque);
         if (err < 0) {
             return err;
@@ -560,7 +560,7 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
         return bus;
     }
 
-    QLIST_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->children, sibling) {
         QLIST_FOREACH(child, &dev->child_bus, sibling) {
             ret = qbus_find_recursive(child, name, info);
             if (ret) {
@@ -576,7 +576,7 @@ DeviceState *qdev_find_recursive(BusState *bus, const char *id)
     DeviceState *dev, *ret;
     BusState *child;
 
-    QLIST_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->children, sibling) {
         if (dev->id && strcmp(dev->id, id) == 0)
             return dev;
         QLIST_FOREACH(child, &dev->child_bus, sibling) {
@@ -609,7 +609,7 @@ static void qbus_list_dev(BusState *bus)
     const char *sep = " ";
 
     error_printf("devices at \"%s\":", bus->name);
-    QLIST_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->children, sibling) {
         error_printf("%s\"%s\"", sep, dev->info->name);
         if (dev->id)
             error_printf("/\"%s\"", dev->id);
@@ -640,17 +640,17 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
      *   (2) driver name
      *   (3) driver alias, if present
      */
-    QLIST_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->children, sibling) {
         if (dev->id  &&  strcmp(dev->id, elem) == 0) {
             return dev;
         }
     }
-    QLIST_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->children, sibling) {
         if (strcmp(dev->info->name, elem) == 0) {
             return dev;
         }
     }
-    QLIST_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->children, sibling) {
         if (dev->info->alias && strcmp(dev->info->alias, elem) == 0) {
             return dev;
         }
@@ -774,7 +774,7 @@ void qbus_create_inplace(BusState *bus, BusInfo *info,
         bus->name = buf;
     }
 
-    QLIST_INIT(&bus->children);
+    QTAILQ_INIT(&bus->children);
     if (parent) {
         QLIST_INSERT_HEAD(&parent->child_bus, bus, sibling);
         parent->num_child_bus++;
@@ -809,7 +809,7 @@ void qbus_free(BusState *bus)
 {
     DeviceState *dev;
 
-    while ((dev = QLIST_FIRST(&bus->children)) != NULL) {
+    while ((dev = QTAILQ_FIRST(&bus->children)) != NULL) {
         qdev_free(dev);
     }
     if (bus->parent) {
@@ -878,7 +878,7 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent)
     qdev_printf("bus: %s\n", bus->name);
     indent += 2;
     qdev_printf("type %s\n", bus->info->name);
-    QLIST_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(dev, &bus->children, sibling) {
         qdev_print(mon, dev, indent);
     }
 }

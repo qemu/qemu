@@ -4,6 +4,7 @@
 #include "hw.h"
 #include "pci.h"
 #include "vga_int.h"
+#include "qemu-thread.h"
 
 #include "ui/qemu-spice.h"
 #include "ui/spice-display.h"
@@ -63,7 +64,7 @@ typedef struct PCIQXLDevice {
     QemuMutex          track_lock;
 
     /* thread signaling */
-    pthread_t          main;
+    QemuThread         main;
     int                pipe[2];
 
     /* ram pci bar */

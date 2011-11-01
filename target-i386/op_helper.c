@@ -3286,6 +3286,9 @@ void helper_wrmsr(void)
     case MSR_TSC_AUX:
         env->tsc_aux = val;
         break;
+    case MSR_IA32_MISC_ENABLE:
+        env->msr_ia32_misc_enable = val;
+        break;
     default:
         if ((uint32_t)ECX >= MSR_MC0_CTL
             && (uint32_t)ECX < MSR_MC0_CTL + (4 * env->mcg_cap & 0xff)) {
@@ -3418,6 +3421,9 @@ void helper_rdmsr(void)
         break;
     case MSR_MCG_STATUS:
         val = env->mcg_status;
+        break;
+    case MSR_IA32_MISC_ENABLE:
+        val = env->msr_ia32_misc_enable;
         break;
     default:
         if ((uint32_t)ECX >= MSR_MC0_CTL

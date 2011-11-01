@@ -19,14 +19,15 @@
 #include <spice-experimental.h>
 
 #include <netdb.h>
-#include <pthread.h>
 
 #include "qemu-common.h"
 #include "qemu-spice.h"
+#include "qemu-thread.h"
 #include "qemu-timer.h"
 #include "qemu-queue.h"
 #include "qemu-x509.h"
 #include "qemu_socket.h"
+#include "qmp-commands.h"
 #include "qint.h"
 #include "qbool.h"
 #include "qstring.h"
@@ -45,7 +46,7 @@ static char *auth_passwd;
 static time_t auth_expires = TIME_MAX;
 int using_spice = 0;
 
-static pthread_t me;
+static QemuThread me;
 
 struct SpiceTimer {
     QEMUTimer *timer;
@@ -133,7 +134,7 @@ static SpiceWatch *watch_add(int fd, int event_mask, SpiceWatchFunc func, void *
 
 static void watch_remove(SpiceWatch *watch)
 {
-    watch_update_mask(watch, 0);
+    qemu_set_fd_handler(watch->fd, NULL, NULL, NULL);
     QTAILQ_REMOVE(&watches, watch, next);
     g_free(watch);
 }
@@ -194,22 +195,6 @@ static void add_channel_info(QDict *dict, SpiceChannelEventInfo *info)
     qdict_put(dict, "tls", qbool_from_int(tls));
 }
 
-static QList *channel_list_get(void)
-{
-    ChannelList *item;
-    QList *list;
-    QDict *dict;
-
-    list = qlist_new();
-    QTAILQ_FOREACH(item, &channel_list, link) {
-        dict = qdict_new();
-        add_addr_info(dict, &item->info->paddr, item->info->plen);
-        add_channel_info(dict, item->info);
-        qlist_append(list, dict);
-    }
-    return list;
-}
-
 static void channel_event(int event, SpiceChannelEventInfo *info)
 {
     static const int qevent[] = {
@@ -229,7 +214,7 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
      * thread and grab the iothread lock if so before calling qemu
      * functions.
      */
-    bool need_lock = !pthread_equal(me, pthread_self());
+    bool need_lock = !qemu_thread_is_self(&me);
     if (need_lock) {
         qemu_mutex_lock_iothread();
     }
@@ -287,6 +272,38 @@ static SpiceCoreInterface core_interface = {
     .channel_event      = channel_event,
 #endif
 };
+
+#ifdef SPICE_INTERFACE_MIGRATION
+typedef struct SpiceMigration {
+    SpiceMigrateInstance sin;
+    struct {
+        MonitorCompletion *cb;
+        void *opaque;
+    } connect_complete;
+} SpiceMigration;
+
+static void migrate_connect_complete_cb(SpiceMigrateInstance *sin);
+
+static const SpiceMigrateInterface migrate_interface = {
+    .base.type = SPICE_INTERFACE_MIGRATION,
+    .base.description = "migration",
+    .base.major_version = SPICE_INTERFACE_MIGRATION_MAJOR,
+    .base.minor_version = SPICE_INTERFACE_MIGRATION_MINOR,
+    .migrate_connect_complete = migrate_connect_complete_cb,
+    .migrate_end_complete = NULL,
+};
+
+static SpiceMigration spice_migrate;
+
+static void migrate_connect_complete_cb(SpiceMigrateInstance *sin)
+{
+    SpiceMigration *sm = container_of(sin, SpiceMigration, sin);
+    if (sm->connect_complete.cb) {
+        sm->connect_complete.cb(sm->connect_complete.opaque, NULL);
+    }
+    sm->connect_complete.cb = NULL;
+}
+#endif
 
 /* config string parsing */
 
@@ -351,116 +368,129 @@ static const char *wan_compression_names[] = {
 
 /* functions for the rest of qemu */
 
-static void info_spice_iter(QObject *obj, void *opaque)
+static SpiceChannelList *qmp_query_spice_channels(void)
 {
-    QDict *client;
-    Monitor *mon = opaque;
+    SpiceChannelList *cur_item = NULL, *head = NULL;
+    ChannelList *item;
 
-    client = qobject_to_qdict(obj);
-    monitor_printf(mon, "Channel:\n");
-    monitor_printf(mon, "     address: %s:%s%s\n",
-                   qdict_get_str(client, "host"),
-                   qdict_get_str(client, "port"),
-                   qdict_get_bool(client, "tls") ? " [tls]" : "");
-    monitor_printf(mon, "     session: %" PRId64 "\n",
-                   qdict_get_int(client, "connection-id"));
-    monitor_printf(mon, "     channel: %d:%d\n",
-                   (int)qdict_get_int(client, "channel-type"),
-                   (int)qdict_get_int(client, "channel-id"));
+    QTAILQ_FOREACH(item, &channel_list, link) {
+        SpiceChannelList *chan;
+        char host[NI_MAXHOST], port[NI_MAXSERV];
+
+        chan = g_malloc0(sizeof(*chan));
+        chan->value = g_malloc0(sizeof(*chan->value));
+
+        getnameinfo(&item->info->paddr, item->info->plen,
+                    host, sizeof(host), port, sizeof(port),
+                    NI_NUMERICHOST | NI_NUMERICSERV);
+        chan->value->host = g_strdup(host);
+        chan->value->port = g_strdup(port);
+        chan->value->family = g_strdup(inet_strfamily(item->info->paddr.sa_family));
+
+        chan->value->connection_id = item->info->connection_id;
+        chan->value->channel_type = item->info->type;
+        chan->value->channel_id = item->info->id;
+        chan->value->tls = item->info->flags & SPICE_CHANNEL_EVENT_FLAG_TLS;
+
+       /* XXX: waiting for the qapi to support GSList */
+        if (!cur_item) {
+            head = cur_item = chan;
+        } else {
+            cur_item->next = chan;
+            cur_item = chan;
+        }
+    }
+
+    return head;
 }
 
-void do_info_spice_print(Monitor *mon, const QObject *data)
-{
-    QDict *server;
-    QList *channels;
-    const char *host;
-    int port;
-
-    server = qobject_to_qdict(data);
-    if (qdict_get_bool(server, "enabled") == 0) {
-        monitor_printf(mon, "Server: disabled\n");
-        return;
-    }
-
-    monitor_printf(mon, "Server:\n");
-    host = qdict_get_str(server, "host");
-    port = qdict_get_try_int(server, "port", -1);
-    if (port != -1) {
-        monitor_printf(mon, "     address: %s:%d\n", host, port);
-    }
-    port = qdict_get_try_int(server, "tls-port", -1);
-    if (port != -1) {
-        monitor_printf(mon, "     address: %s:%d [tls]\n", host, port);
-    }
-    monitor_printf(mon, "        auth: %s\n", qdict_get_str(server, "auth"));
-    monitor_printf(mon, "    compiled: %s\n",
-                   qdict_get_str(server, "compiled-version"));
-
-    channels = qdict_get_qlist(server, "channels");
-    if (qlist_empty(channels)) {
-        monitor_printf(mon, "Channels: none\n");
-    } else {
-        qlist_iter(channels, info_spice_iter, mon);
-    }
-}
-
-void do_info_spice(Monitor *mon, QObject **ret_data)
+SpiceInfo *qmp_query_spice(Error **errp)
 {
     QemuOpts *opts = QTAILQ_FIRST(&qemu_spice_opts.head);
-    QDict *server;
-    QList *clist;
-    const char *addr;
     int port, tls_port;
+    const char *addr;
+    SpiceInfo *info;
     char version_string[20]; /* 12 = |255.255.255\0| is the max */
 
-    if (!spice_server) {
-        *ret_data = qobject_from_jsonf("{ 'enabled': false }");
-        return;
+    info = g_malloc0(sizeof(*info));
+
+    if (!spice_server || !opts) {
+        info->enabled = false;
+        return info;
     }
+
+    info->enabled = true;
 
     addr = qemu_opt_get(opts, "addr");
     port = qemu_opt_get_number(opts, "port", 0);
     tls_port = qemu_opt_get_number(opts, "tls-port", 0);
-    clist = channel_list_get();
 
-    server = qdict_new();
-    qdict_put(server, "enabled", qbool_from_int(true));
-    qdict_put(server, "auth", qstring_from_str(auth));
-    qdict_put(server, "host", qstring_from_str(addr ? addr : "0.0.0.0"));
+    info->has_auth = true;
+    info->auth = g_strdup(auth);
+
+    info->has_host = true;
+    info->host = g_strdup(addr ? addr : "0.0.0.0");
+
+    info->has_compiled_version = true;
     snprintf(version_string, sizeof(version_string), "%d.%d.%d",
              (SPICE_SERVER_VERSION & 0xff0000) >> 16,
              (SPICE_SERVER_VERSION & 0xff00) >> 8,
              SPICE_SERVER_VERSION & 0xff);
-    qdict_put(server, "compiled-version", qstring_from_str(version_string));
+    info->compiled_version = g_strdup(version_string);
+
     if (port) {
-        qdict_put(server, "port", qint_from_int(port));
+        info->has_port = true;
+        info->port = port;
     }
     if (tls_port) {
-        qdict_put(server, "tls-port", qint_from_int(tls_port));
-    }
-    if (clist) {
-        qdict_put(server, "channels", clist);
+        info->has_tls_port = true;
+        info->tls_port = tls_port;
     }
 
-    *ret_data = QOBJECT(server);
+    /* for compatibility with the original command */
+    info->has_channels = true;
+    info->channels = qmp_query_spice_channels();
+
+    return info;
 }
 
 static void migration_state_notifier(Notifier *notifier, void *data)
 {
     MigrationState *s = data;
 
-    if (migration_has_finished(s)) {
+    if (migration_is_active(s)) {
+#ifdef SPICE_INTERFACE_MIGRATION
+        spice_server_migrate_start(spice_server);
+#endif
+    } else if (migration_has_finished(s)) {
 #if SPICE_SERVER_VERSION >= 0x000701 /* 0.7.1 */
+#ifndef SPICE_INTERFACE_MIGRATION
         spice_server_migrate_switch(spice_server);
+#else
+        spice_server_migrate_end(spice_server, true);
+    } else if (migration_has_failed(s)) {
+        spice_server_migrate_end(spice_server, false);
+#endif
 #endif
     }
 }
 
 int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
-                            const char *subject)
+                            const char *subject,
+                            MonitorCompletion *cb, void *opaque)
 {
-    return spice_server_migrate_info(spice_server, hostname,
-                                     port, tls_port, subject);
+    int ret;
+#ifdef SPICE_INTERFACE_MIGRATION
+    spice_migrate.connect_complete.cb = cb;
+    spice_migrate.connect_complete.opaque = opaque;
+    ret = spice_server_migrate_connect(spice_server, hostname,
+                                       port, tls_port, subject);
+#else
+    ret = spice_server_migrate_info(spice_server, hostname,
+                                    port, tls_port, subject);
+    cb(opaque, NULL);
+#endif
+    return ret;
 }
 
 static int add_channel(const char *name, const char *value, void *opaque)
@@ -503,7 +533,7 @@ void qemu_spice_init(void)
     spice_image_compression_t compression;
     spice_wan_compression_t wan_compr;
 
-    me = pthread_self();
+    qemu_thread_get_self(&me);
 
    if (!opts) {
         return;
@@ -650,6 +680,11 @@ void qemu_spice_init(void)
 
     migration_state.notify = migration_state_notifier;
     add_migration_state_change_notifier(&migration_state);
+#ifdef SPICE_INTERFACE_MIGRATION
+    spice_migrate.sin.base.sif = &migrate_interface.base;
+    spice_migrate.connect_complete.cb = NULL;
+    qemu_spice_add_interface(&spice_migrate.sin.base);
+#endif
 
     qemu_spice_input_init();
     qemu_spice_audio_init();

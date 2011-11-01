@@ -26,7 +26,8 @@
 #include "net.h"
 #include "monitor.h"
 #include "console.h"
-#include "qjson.h"
+#include "error.h"
+#include "qmp-commands.h"
 
 static QEMUPutKBDEvent *qemu_put_kbd_event;
 static void *qemu_put_kbd_event_opaque;
@@ -211,60 +212,27 @@ int kbd_mouse_has_absolute(void)
     return 0;
 }
 
-static void info_mice_iter(QObject *data, void *opaque)
+MouseInfoList *qmp_query_mice(Error **errp)
 {
-    QDict *mouse;
-    Monitor *mon = opaque;
-
-    mouse = qobject_to_qdict(data);
-    monitor_printf(mon, "%c Mouse #%" PRId64 ": %s%s\n",
-                  (qdict_get_bool(mouse, "current") ? '*' : ' '),
-                   qdict_get_int(mouse, "index"), qdict_get_str(mouse, "name"),
-                   qdict_get_bool(mouse, "absolute") ? " (absolute)" : "");
-}
-
-void do_info_mice_print(Monitor *mon, const QObject *data)
-{
-    QList *mice_list;
-
-    mice_list = qobject_to_qlist(data);
-    if (qlist_empty(mice_list)) {
-        monitor_printf(mon, "No mouse devices connected\n");
-        return;
-    }
-
-    qlist_iter(mice_list, info_mice_iter, mon);
-}
-
-void do_info_mice(Monitor *mon, QObject **ret_data)
-{
+    MouseInfoList *mice_list = NULL;
     QEMUPutMouseEntry *cursor;
-    QList *mice_list;
-    int current;
-
-    mice_list = qlist_new();
-
-    if (QTAILQ_EMPTY(&mouse_handlers)) {
-        goto out;
-    }
-
-    current = QTAILQ_FIRST(&mouse_handlers)->index;
+    bool current = true;
 
     QTAILQ_FOREACH(cursor, &mouse_handlers, node) {
-        QObject *obj;
-        obj = qobject_from_jsonf("{ 'name': %s,"
-                                 "  'index': %d,"
-                                 "  'current': %i,"
-                                 "  'absolute': %i }",
-                                 cursor->qemu_put_mouse_event_name,
-                                 cursor->index,
-                                 cursor->index == current,
-                                 !!cursor->qemu_put_mouse_event_absolute);
-        qlist_append_obj(mice_list, obj);
+        MouseInfoList *info = g_malloc0(sizeof(*info));
+        info->value = g_malloc0(sizeof(*info->value));
+        info->value->name = g_strdup(cursor->qemu_put_mouse_event_name);
+        info->value->index = cursor->index;
+        info->value->absolute = !!cursor->qemu_put_mouse_event_absolute;
+        info->value->current = current;
+
+        current = false;
+
+        info->next = mice_list;
+        mice_list = info;
     }
 
-out:
-    *ret_data = QOBJECT(mice_list);
+    return mice_list;
 }
 
 void do_mouse_set(Monitor *mon, const QDict *qdict)

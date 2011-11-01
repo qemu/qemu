@@ -29,6 +29,7 @@
 #include "qemu-queue.h"
 #include "qemu-coroutine.h"
 #include "qemu-timer.h"
+#include "qapi-types.h"
 
 #define BLOCK_FLAG_ENCRYPT        1
 #define BLOCK_FLAG_COMPAT6        4
@@ -203,7 +204,8 @@ struct BlockDriverState {
        drivers. They are not used by the block driver */
     int cyls, heads, secs, translation;
     BlockErrorAction on_read_error, on_write_error;
-    BlockIOStatus iostatus;
+    bool iostatus_enabled;
+    BlockDeviceIoStatus iostatus;
     char device_name[32];
     unsigned long *dirty_bitmap;
     int64_t dirty_count;

@@ -2,7 +2,7 @@
 # QObject
 qobject-obj-y = qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o
 qobject-obj-y += qjson.o json-lexer.o json-streamer.o json-parser.o
-qobject-obj-y += qerror.o error.o
+qobject-obj-y += qerror.o error.o qemu-error.o
 
 #######################################################################
 # oslib-obj-y is code depending on the OS (win32 vs posix)
@@ -25,7 +25,7 @@ coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 
 block-obj-y = cutils.o cache-utils.o qemu-option.o module.o async.o
 block-obj-y += nbd.o block.o aio.o aes.o qemu-config.o qemu-progress.o qemu-sockets.o
-block-obj-y += $(coroutine-obj-y)
+block-obj-y += $(coroutine-obj-y) $(qobject-obj-y) $(version-obj-y)
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_LINUX_AIO) += linux-aio.o
 
@@ -37,6 +37,7 @@ block-nested-y += parallels.o nbd.o blkdebug.o sheepdog.o blkverify.o
 block-nested-$(CONFIG_POSIX) += blksim.o fvd.o
 block-nested-$(CONFIG_WIN32) += raw-win32.o
 block-nested-$(CONFIG_POSIX) += raw-posix.o
+block-nested-$(CONFIG_LIBISCSI) += iscsi.o
 block-nested-$(CONFIG_CURL) += curl.o
 block-nested-$(CONFIG_RBD) += rbd.o
 
@@ -77,7 +78,7 @@ common-obj-y = $(block-obj-y) blockdev.o
 common-obj-y += $(net-obj-y)
 common-obj-y += $(qobject-obj-y)
 common-obj-$(CONFIG_LINUX) += $(fsdev-obj-$(CONFIG_LINUX))
-common-obj-y += readline.o console.o cursor.o qemu-error.o
+common-obj-y += readline.o console.o cursor.o
 common-obj-y += $(oslib-obj-y)
 common-obj-$(CONFIG_WIN32) += os-win32.o
 common-obj-$(CONFIG_POSIX) += os-posix.o
@@ -324,6 +325,7 @@ hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 9pfs-nested-$(CONFIG_VIRTFS) += virtio-9p-xattr-user.o virtio-9p-posix-acl.o
 9pfs-nested-$(CONFIG_VIRTFS) += virtio-9p-coth.o cofs.o codir.o cofile.o
 9pfs-nested-$(CONFIG_VIRTFS) += coxattr.o virtio-9p-handle.o
+9pfs-nested-$(CONFIG_VIRTFS) += virtio-9p-synth.o
 
 hw-obj-$(CONFIG_REALLY_VIRTFS) += $(addprefix 9pfs/, $(9pfs-nested-y))
 $(addprefix 9pfs/, $(9pfs-nested-y)): QEMU_CFLAGS+=$(GLIB_CFLAGS)
@@ -429,7 +431,7 @@ common-obj-y += qmp.o hmp.o
 
 qga-nested-y = guest-agent-commands.o guest-agent-command-state.o
 qga-obj-y = $(addprefix qga/, $(qga-nested-y))
-qga-obj-y += qemu-ga.o qemu-tool.o qemu-error.o qemu-sockets.o module.o qemu-option.o cutils.o osdep.o
+qga-obj-y += qemu-ga.o qemu-sockets.o module.o qemu-option.o
 qga-obj-$(CONFIG_WIN32) += oslib-win32.o
 qga-obj-$(CONFIG_POSIX) += oslib-posix.o
 

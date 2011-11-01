@@ -327,7 +327,7 @@ static void ahci_mem_write(void *opaque, target_phys_addr_t addr,
     }
 
     if (addr < AHCI_GENERIC_HOST_CONTROL_REGS_MAX_ADDR) {
-        DPRINTF(-1, "(addr 0x%08X), val 0x%08X\n", (unsigned) addr, val);
+        DPRINTF(-1, "(addr 0x%08X), val 0x%08"PRIX64"\n", (unsigned) addr, val);
 
         switch (addr) {
             case HOST_CAP: /* R/WO, RO */
@@ -777,7 +777,8 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
     ncq_tfs->sector_count = ((uint16_t)ncq_fis->sector_count_high << 8) |
                                 ncq_fis->sector_count_low;
 
-    DPRINTF(port, "NCQ transfer LBA from %ld to %ld, drive max %ld\n",
+    DPRINTF(port, "NCQ transfer LBA from %"PRId64" to %"PRId64", "
+            "drive max %"PRId64"\n",
             ncq_tfs->lba, ncq_tfs->lba + ncq_tfs->sector_count - 2,
             s->dev[port].port.ifs[0].nb_sectors - 1);
 
@@ -786,10 +787,12 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
 
     switch(ncq_fis->command) {
         case READ_FPDMA_QUEUED:
-            DPRINTF(port, "NCQ reading %d sectors from LBA %ld, tag %d\n",
+            DPRINTF(port, "NCQ reading %d sectors from LBA %"PRId64", "
+                    "tag %d\n",
                     ncq_tfs->sector_count-1, ncq_tfs->lba, ncq_tfs->tag);
 
-            DPRINTF(port, "tag %d aio read %ld\n", ncq_tfs->tag, ncq_tfs->lba);
+            DPRINTF(port, "tag %d aio read %"PRId64"\n",
+                    ncq_tfs->tag, ncq_tfs->lba);
 
             bdrv_acct_start(ncq_tfs->drive->port.ifs[0].bs, &ncq_tfs->acct,
                             (ncq_tfs->sector_count-1) * BDRV_SECTOR_SIZE,
@@ -799,10 +802,11 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
                                            ncq_cb, ncq_tfs);
             break;
         case WRITE_FPDMA_QUEUED:
-            DPRINTF(port, "NCQ writing %d sectors to LBA %ld, tag %d\n",
+            DPRINTF(port, "NCQ writing %d sectors to LBA %"PRId64", tag %d\n",
                     ncq_tfs->sector_count-1, ncq_tfs->lba, ncq_tfs->tag);
 
-            DPRINTF(port, "tag %d aio write %ld\n", ncq_tfs->tag, ncq_tfs->lba);
+            DPRINTF(port, "tag %d aio write %"PRId64"\n",
+                    ncq_tfs->tag, ncq_tfs->lba);
 
             bdrv_acct_start(ncq_tfs->drive->port.ifs[0].bs, &ncq_tfs->acct,
                             (ncq_tfs->sector_count-1) * BDRV_SECTOR_SIZE,

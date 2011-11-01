@@ -29,7 +29,7 @@ int v9fs_co_readdir_r(V9fsPDU *pdu, V9fsFidState *fidp, struct dirent *dent,
     v9fs_co_run_in_worker(
         {
             errno = 0;
-            err = s->ops->readdir_r(&s->ctx, fidp->fs.dir, dent, result);
+            err = s->ops->readdir_r(&s->ctx, &fidp->fs, dent, result);
             if (!*result && errno) {
                 err = -errno;
             } else {
@@ -49,7 +49,7 @@ off_t v9fs_co_telldir(V9fsPDU *pdu, V9fsFidState *fidp)
     }
     v9fs_co_run_in_worker(
         {
-            err = s->ops->telldir(&s->ctx, fidp->fs.dir);
+            err = s->ops->telldir(&s->ctx, &fidp->fs);
             if (err < 0) {
                 err = -errno;
             }
@@ -65,7 +65,7 @@ void v9fs_co_seekdir(V9fsPDU *pdu, V9fsFidState *fidp, off_t offset)
     }
     v9fs_co_run_in_worker(
         {
-            s->ops->seekdir(&s->ctx, fidp->fs.dir, offset);
+            s->ops->seekdir(&s->ctx, &fidp->fs, offset);
         });
 }
 
@@ -77,7 +77,7 @@ void v9fs_co_rewinddir(V9fsPDU *pdu, V9fsFidState *fidp)
     }
     v9fs_co_run_in_worker(
         {
-            s->ops->rewinddir(&s->ctx, fidp->fs.dir);
+            s->ops->rewinddir(&s->ctx, &fidp->fs);
         });
 }
 
@@ -129,8 +129,8 @@ int v9fs_co_opendir(V9fsPDU *pdu, V9fsFidState *fidp)
     v9fs_path_read_lock(s);
     v9fs_co_run_in_worker(
         {
-            fidp->fs.dir = s->ops->opendir(&s->ctx, &fidp->path);
-            if (!fidp->fs.dir) {
+            err = s->ops->opendir(&s->ctx, &fidp->path, &fidp->fs);
+            if (err < 0) {
                 err = -errno;
             } else {
                 err = 0;
@@ -146,7 +146,7 @@ int v9fs_co_opendir(V9fsPDU *pdu, V9fsFidState *fidp)
     return err;
 }
 
-int v9fs_co_closedir(V9fsPDU *pdu, DIR *dir)
+int v9fs_co_closedir(V9fsPDU *pdu, V9fsFidOpenState *fs)
 {
     int err;
     V9fsState *s = pdu->s;
@@ -156,7 +156,7 @@ int v9fs_co_closedir(V9fsPDU *pdu, DIR *dir)
     }
     v9fs_co_run_in_worker(
         {
-            err = s->ops->closedir(&s->ctx, dir);
+            err = s->ops->closedir(&s->ctx, fs);
             if (err < 0) {
                 err = -errno;
             }

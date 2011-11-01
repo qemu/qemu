@@ -495,7 +495,11 @@ static void usb_msd_password_cb(void *opaque, int err)
         qdev_unplug(&s->dev.qdev);
 }
 
-static const struct SCSIBusOps usb_msd_scsi_ops = {
+static const struct SCSIBusInfo usb_msd_scsi_info = {
+    .tcq = false,
+    .max_target = 0,
+    .max_lun = 0,
+
     .transfer_data = usb_msd_transfer_data,
     .complete = usb_msd_command_complete,
     .cancel = usb_msd_request_cancelled
@@ -536,7 +540,7 @@ static int usb_msd_initfn(USBDevice *dev)
     }
 
     usb_desc_init(dev);
-    scsi_bus_new(&s->bus, &s->dev.qdev, 0, 1, &usb_msd_scsi_ops);
+    scsi_bus_new(&s->bus, &s->dev.qdev, &usb_msd_scsi_info);
     s->scsi_dev = scsi_bus_legacy_add_drive(&s->bus, bs, 0, !!s->removable);
     if (!s->scsi_dev) {
         return -1;

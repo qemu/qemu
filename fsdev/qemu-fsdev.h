@@ -53,4 +53,5 @@ int qemu_fsdev_add(QemuOpts *opts);
 FsDriverEntry *get_fsdev_fsentry(char *id);
 extern FileOperations local_ops;
 extern FileOperations handle_ops;
+extern FileOperations synth_ops;
 #endif

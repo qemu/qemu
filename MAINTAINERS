@@ -118,7 +118,7 @@ F: target-i386/
 
 Xtensa
 M: Max Filippov <jcmvbkbc@gmail.com>
-W: http://kkv.spb.su/doku.php?id=etc:users:jcmvbkbc:qemu-target-xtensa
+W: http://wiki.osll.spb.ru/doku.php?id=etc:users:jcmvbkbc:qemu-target-xtensa
 S: Maintained
 F: target-xtensa/
 
@@ -348,10 +348,15 @@ F: hw/pc.[ch] hw/pc_piix.c
 
 Xtensa Machines
 ---------------
-DC232B
+sim
 M: Max Filippov <jcmvbkbc@gmail.com>
 S: Maintained
-F: hw/xtensa_dc232b.c
+F: hw/xtensa_sim.c
+
+Avnet LX60
+M: Max Filippov <jcmvbkbc@gmail.com>
+S: Maintained
+F: hw/xtensa_lx60.c
 
 Devices
 -------

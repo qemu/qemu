@@ -169,7 +169,7 @@ print_fdset(int n, abi_ulong target_fds_addr)
             return;
 
         for (i=n; i>=0; i--) {
-            if ((tswapl(target_fds[i / TARGET_ABI_BITS]) >> (i & (TARGET_ABI_BITS - 1))) & 1)
+            if ((tswapal(target_fds[i / TARGET_ABI_BITS]) >> (i & (TARGET_ABI_BITS - 1))) & 1)
                 gemu_log("%d,", i );
             }
         unlock_user(target_fds, target_fds_addr, 0);
@@ -245,7 +245,7 @@ print_execve(const struct syscallname *name,
 	arg_ptr = lock_user(VERIFY_READ, arg_ptr_addr, sizeof(abi_ulong), 1);
         if (!arg_ptr)
             return;
-	arg_addr = tswapl(*arg_ptr);
+    arg_addr = tswapal(*arg_ptr);
 	unlock_user(arg_ptr, arg_ptr_addr, 0);
         if (!arg_addr)
             break;

@@ -228,7 +228,7 @@ QEMU uses YM3812 emulation by Tatsuyuki Satoh.
 QEMU uses GUS emulation (GUSEMU32 @url{http://www.deinmeister.de/gusemu/})
 by Tibor "TS" Schütz.
 
-Not that, by default, GUS shares IRQ(7) with parallel ports and so
+Note that, by default, GUS shares IRQ(7) with parallel ports and so
 qemu must be told to not have parallel ports to have working GUS
 
 @example

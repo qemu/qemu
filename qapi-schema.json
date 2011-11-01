@@ -226,6 +226,611 @@
 { 'command': 'query-commands', 'returns': ['CommandInfo'] }
 
 ##
+# @MigrationStats
+#
+# Detailed migration status.
+#
+# @transferred: amount of bytes already transferred to the target VM
+#
+# @remaining: amount of bytes remaining to be transferred to the target VM
+#
+# @total: total amount of bytes involved in the migration process
+#
+# Since: 0.14.0.
+##
+{ 'type': 'MigrationStats',
+  'data': {'transferred': 'int', 'remaining': 'int', 'total': 'int' } }
+
+##
+# @MigrationInfo
+#
+# Information about current migration process.
+#
+# @status: #optional string describing the current migration status.
+#          As of 0.14.0 this can be 'active', 'completed', 'failed' or
+#          'cancelled'. If this field is not returned, no migration process
+#          has been initiated
+#
+# @ram: #optional @MigrationStats containing detailed migration status,
+#       only returned if status is 'active'
+#
+# @disk: #optional @MigrationStats containing detailed disk migration
+#        status, only returned if status is 'active' and it is a block
+#        migration
+#
+# Since: 0.14.0
+##
+{ 'type': 'MigrationInfo',
+  'data': {'*status': 'str', '*ram': 'MigrationStats',
+           '*disk': 'MigrationStats'} }
+
+##
+# @query-migrate
+#
+# Returns information about current migration process.
+#
+# Returns: @MigrationInfo
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-migrate', 'returns': 'MigrationInfo' }
+
+##
+# @MouseInfo:
+#
+# Information about a mouse device.
+#
+# @name: the name of the mouse device
+#
+# @index: the index of the mouse device
+#
+# @current: true if this device is currently receiving mouse events
+#
+# @absolute: true if this device supports absolute coordinates as input
+#
+# Since: 0.14.0
+##
+{ 'type': 'MouseInfo',
+  'data': {'name': 'str', 'index': 'int', 'current': 'bool',
+           'absolute': 'bool'} }
+
+##
+# @query-mice:
+#
+# Returns information about each active mouse device
+#
+# Returns: a list of @MouseInfo for each device
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-mice', 'returns': ['MouseInfo'] }
+
+##
+# @CpuInfo:
+#
+# Information about a virtual CPU
+#
+# @CPU: the index of the virtual CPU
+#
+# @current: this only exists for backwards compatible and should be ignored
+# 
+# @halted: true if the virtual CPU is in the halt state.  Halt usually refers
+#          to a processor specific low power mode.
+#
+# @pc: #optional If the target is i386 or x86_64, this is the 64-bit instruction
+#                pointer.
+#                If the target is Sparc, this is the PC component of the
+#                instruction pointer.
+#
+# @nip: #optional If the target is PPC, the instruction pointer
+#
+# @npc: #optional If the target is Sparc, the NPC component of the instruction
+#                 pointer
+#
+# @PC: #optional If the target is MIPS, the instruction pointer
+#
+# @thread_id: ID of the underlying host thread
+#
+# Since: 0.14.0
+#
+# Notes: @halted is a transient state that changes frequently.  By the time the
+#        data is sent to the client, the guest may no longer be halted.
+##
+{ 'type': 'CpuInfo',
+  'data': {'CPU': 'int', 'current': 'bool', 'halted': 'bool', '*pc': 'int',
+           '*nip': 'int', '*npc': 'int', '*PC': 'int', 'thread_id': 'int'} }
+
+##
+# @query-cpus:
+#
+# Returns a list of information about each virtual CPU.
+#
+# Returns: a list of @CpuInfo for each virtual CPU
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-cpus', 'returns': ['CpuInfo'] }
+
+##
+# @BlockDeviceInfo:
+#
+# Information about the backing device for a block device.
+#
+# @file: the filename of the backing device
+#
+# @ro: true if the backing device was open read-only
+#
+# @drv: the name of the block format used to open the backing device. As of
+#       0.14.0 this can be: 'blkdebug', 'bochs', 'cloop', 'cow', 'dmg',
+#       'file', 'file', 'ftp', 'ftps', 'host_cdrom', 'host_device',
+#       'host_floppy', 'http', 'https', 'nbd', 'parallels', 'qcow',
+#       'qcow2', 'raw', 'tftp', 'vdi', 'vmdk', 'vpc', 'vvfat'
+#
+# @backing_file: #optional the name of the backing file (for copy-on-write)
+#
+# @encrypted: true if the backing device is encrypted
+#
+# Since: 0.14.0
+#
+# Notes: This interface is only found in @BlockInfo.
+##
+{ 'type': 'BlockDeviceInfo',
+  'data': { 'file': 'str', 'ro': 'bool', 'drv': 'str',
+            '*backing_file': 'str', 'encrypted': 'bool' } }
+
+##
+# @BlockDeviceIoStatus:
+#
+# An enumeration of block device I/O status.
+#
+# @ok: The last I/O operation has succeeded
+#
+# @failed: The last I/O operation has failed
+#
+# @nospace: The last I/O operation has failed due to a no-space condition
+#
+# Since: 1.0
+##
+{ 'enum': 'BlockDeviceIoStatus', 'data': [ 'ok', 'failed', 'nospace' ] }
+
+##
+# @BlockInfo:
+#
+# Block device information.  This structure describes a virtual device and
+# the backing device associated with it.
+#
+# @device: The device name associated with the virtual device.
+#
+# @type: This field is returned only for compatibility reasons, it should
+#        not be used (always returns 'unknown')
+#
+# @removable: True if the device supports removable media.
+#
+# @locked: True if the guest has locked this device from having its media
+#          removed
+#
+# @tray_open: #optional True if the device has a tray and it is open
+#             (only present if removable is true)
+#
+# @io-status: #optional @BlockDeviceIoStatus. Only present if the device
+#             supports it and the VM is configured to stop on errors
+#
+# @inserted: #optional @BlockDeviceInfo describing the device if media is
+#            present
+#
+# Since:  0.14.0
+##
+{ 'type': 'BlockInfo',
+  'data': {'device': 'str', 'type': 'str', 'removable': 'bool',
+           'locked': 'bool', '*inserted': 'BlockDeviceInfo',
+           '*tray_open': 'bool', '*io-status': 'BlockDeviceIoStatus'} }
+
+##
+# @query-block:
+#
+# Get a list of BlockInfo for all virtual block devices.
+#
+# Returns: a list of @BlockInfo describing each virtual block device
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-block', 'returns': ['BlockInfo'] }
+
+##
+# @BlockDeviceStats:
+#
+# Statistics of a virtual block device or a block backing device.
+#
+# @rd_bytes:      The number of bytes read by the device.
+#
+# @wr_bytes:      The number of bytes written by the device.
+#
+# @rd_operations: The number of read operations performed by the device.
+#
+# @wr_operations: The number of write operations performed by the device.
+#
+# @flush_operations: The number of cache flush operations performed by the
+#                    device (since 0.15.0)
+#
+# @flush_total_time_ns: Total time spend on cache flushes in nano-seconds
+#                       (since 0.15.0).
+#
+# @wr_total_time_ns: Total time spend on writes in nano-seconds (since 0.15.0).
+#
+# @rd_total_time_ns: Total_time_spend on reads in nano-seconds (since 0.15.0).
+#
+# @wr_highest_offset: The offset after the greatest byte written to the
+#                     device.  The intended use of this information is for
+#                     growable sparse files (like qcow2) that are used on top
+#                     of a physical device.
+#
+# Since: 0.14.0
+##
+{ 'type': 'BlockDeviceStats',
+  'data': {'rd_bytes': 'int', 'wr_bytes': 'int', 'rd_operations': 'int',
+           'wr_operations': 'int', 'flush_operations': 'int',
+           'flush_total_time_ns': 'int', 'wr_total_time_ns': 'int',
+           'rd_total_time_ns': 'int', 'wr_highest_offset': 'int' } }
+
+##
+# @BlockStats:
+#
+# Statistics of a virtual block device or a block backing device.
+#
+# @device: #optional If the stats are for a virtual block device, the name
+#          corresponding to the virtual block device.
+#
+# @stats:  A @BlockDeviceStats for the device.
+#
+# @parent: #optional This may point to the backing block device if this is a
+#          a virtual block device.  If it's a backing block, this will point
+#          to the backing file is one is present.
+#
+# Since: 0.14.0
+##
+{ 'type': 'BlockStats',
+  'data': {'*device': 'str', 'stats': 'BlockDeviceStats',
+           '*parent': 'BlockStats'} }
+
+##
+# @query-blockstats:
+#
+# Query the @BlockStats for all virtual block devices.
+#
+# Returns: A list of @BlockStats for each virtual block devices.
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-blockstats', 'returns': ['BlockStats'] }
+
+##
+# @VncClientInfo:
+#
+# Information about a connected VNC client.
+#
+# @host: The host name of the client.  QEMU tries to resolve this to a DNS name
+#        when possible.
+#
+# @family: 'ipv6' if the client is connected via IPv6 and TCP
+#          'ipv4' if the client is connected via IPv4 and TCP
+#          'unix' if the client is connected via a unix domain socket
+#          'unknown' otherwise
+#
+# @service: The service name of the client's port.  This may depends on the
+#           host system's service database so symbolic names should not be
+#           relied on.
+#
+# @x509_dname: #optional If x509 authentication is in use, the Distinguished
+#              Name of the client.
+#
+# @sasl_username: #optional If SASL authentication is in use, the SASL username
+#                 used for authentication.
+#
+# Since: 0.14.0
+##
+{ 'type': 'VncClientInfo',
+  'data': {'host': 'str', 'family': 'str', 'service': 'str',
+           '*x509_dname': 'str', '*sasl_username': 'str'} }
+
+##
+# @VncInfo:
+#
+# Information about the VNC session.
+#
+# @enabled: true if the VNC server is enabled, false otherwise
+#
+# @host: #optional The hostname the VNC server is bound to.  This depends on
+#        the name resolution on the host and may be an IP address.
+#
+# @family: #optional 'ipv6' if the host is listening for IPv6 connections
+#                    'ipv4' if the host is listening for IPv4 connections
+#                    'unix' if the host is listening on a unix domain socket
+#                    'unknown' otherwise
+#
+# @service: #optional The service name of the server's port.  This may depends
+#           on the host system's service database so symbolic names should not
+#           be relied on.
+#
+# @auth: #optional the current authentication type used by the server
+#        'none' if no authentication is being used
+#        'vnc' if VNC authentication is being used
+#        'vencrypt+plain' if VEncrypt is used with plain text authentication
+#        'vencrypt+tls+none' if VEncrypt is used with TLS and no authentication
+#        'vencrypt+tls+vnc' if VEncrypt is used with TLS and VNC authentication
+#        'vencrypt+tls+plain' if VEncrypt is used with TLS and plain text auth
+#        'vencrypt+x509+none' if VEncrypt is used with x509 and no auth
+#        'vencrypt+x509+vnc' if VEncrypt is used with x509 and VNC auth
+#        'vencrypt+x509+plain' if VEncrypt is used with x509 and plain text auth
+#        'vencrypt+tls+sasl' if VEncrypt is used with TLS and SASL auth
+#        'vencrypt+x509+sasl' if VEncrypt is used with x509 and SASL auth
+#
+# @clients: a list of @VncClientInfo of all currently connected clients
+#
+# Since: 0.14.0
+##
+{ 'type': 'VncInfo',
+  'data': {'enabled': 'bool', '*host': 'str', '*family': 'str',
+           '*service': 'str', '*auth': 'str', '*clients': ['VncClientInfo']} }
+
+##
+# @query-vnc:
+#
+# Returns information about the current VNC server
+#
+# Returns: @VncInfo
+#          If VNC support is not compiled in, FeatureDisabled
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-vnc', 'returns': 'VncInfo' }
+
+##
+# @SpiceChannel
+#
+# Information about a SPICE client channel.
+#
+# @host: The host name of the client.  QEMU tries to resolve this to a DNS name
+#        when possible.
+#
+# @family: 'ipv6' if the client is connected via IPv6 and TCP
+#          'ipv4' if the client is connected via IPv4 and TCP
+#          'unix' if the client is connected via a unix domain socket
+#          'unknown' otherwise
+#
+# @port: The client's port number.
+#
+# @connection-id: SPICE connection id number.  All channels with the same id
+#                 belong to the same SPICE session.
+#
+# @connection-type: SPICE channel type number.  "1" is the main control channel,
+#                   filter for this one if you want track spice sessions only
+#
+# @channel-id: SPICE channel ID number.  Usually "0", might be different needed
+#              when multiple channels of the same type exist, such as multiple
+#              display channels in a multihead setup
+#
+# @tls: true if the channel is encrypted, false otherwise.
+#
+# Since: 0.14.0
+##
+{ 'type': 'SpiceChannel',
+  'data': {'host': 'str', 'family': 'str', 'port': 'str',
+           'connection-id': 'int', 'channel-type': 'int', 'channel-id': 'int',
+           'tls': 'bool'} }
+
+##
+# @SpiceInfo
+#
+# Information about the SPICE session.
+# 
+# @enabled: true if the SPICE server is enabled, false otherwise
+#
+# @host: #optional The hostname the SPICE server is bound to.  This depends on
+#        the name resolution on the host and may be an IP address.
+#
+# @port: #optional The SPICE server's port number.
+#
+# @compiled-version: #optional SPICE server version.
+#
+# @tls-port: #optional The SPICE server's TLS port number.
+#
+# @auth: #optional the current authentication type used by the server
+#        'none' if no authentication is being used
+#        'spice' (TODO: describe)
+#
+# @channels: a list of @SpiceChannel for each active spice channel
+#
+# Since: 0.14.0
+##
+{ 'type': 'SpiceInfo',
+  'data': {'enabled': 'bool', '*host': 'str', '*port': 'int',
+           '*tls-port': 'int', '*auth': 'str', '*compiled-version': 'str',
+           '*channels': ['SpiceChannel']} }
+
+##
+# @query-spice
+#
+# Returns information about the current SPICE server
+#
+# Returns: @SpiceInfo
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-spice', 'returns': 'SpiceInfo' }
+
+##
+# @BalloonInfo:
+#
+# Information about the guest balloon device.
+#
+# @actual: the number of bytes the balloon currently contains
+#
+# @mem_swapped_in: #optional number of pages swapped in within the guest
+#
+# @mem_swapped_out: #optional number of pages swapped out within the guest
+#
+# @major_page_faults: #optional number of major page faults within the guest
+#
+# @minor_page_faults: #optional number of minor page faults within the guest
+#
+# @free_mem: #optional amount of memory (in bytes) free in the guest
+#
+# @total_mem: #optional amount of memory (in bytes) visible to the guest
+#
+# Since: 0.14.0
+#
+# Notes: all current versions of QEMU do not fill out optional information in
+#        this structure.
+##
+{ 'type': 'BalloonInfo',
+  'data': {'actual': 'int', '*mem_swapped_in': 'int',
+           '*mem_swapped_out': 'int', '*major_page_faults': 'int',
+           '*minor_page_faults': 'int', '*free_mem': 'int',
+           '*total_mem': 'int'} }
+
+##
+# @query-balloon:
+#
+# Return information about the balloon device.
+#
+# Returns: @BalloonInfo on success
+#          If the balloon driver is enabled but not functional because the KVM
+#          kernel module cannot support it, KvmMissingCap
+#          If no balloon device is present, DeviceNotActive
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-balloon', 'returns': 'BalloonInfo' }
+
+##
+# @PciMemoryRange:
+#
+# A PCI device memory region
+#
+# @base: the starting address (guest physical)
+#
+# @limit: the ending address (guest physical)
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciMemoryRange', 'data': {'base': 'int', 'limit': 'int'} }
+
+##
+# @PciMemoryRegion
+#
+# Information about a PCI device I/O region.
+#
+# @bar: the index of the Base Address Register for this region
+#
+# @type: 'io' if the region is a PIO region
+#        'memory' if the region is a MMIO region
+#
+# @prefetch: #optional if @type is 'memory', true if the memory is prefetchable
+#
+# @mem_type_64: #optional if @type is 'memory', true if the BAR is 64-bit
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciMemoryRegion',
+  'data': {'bar': 'int', 'type': 'str', 'address': 'int', 'size': 'int',
+           '*prefetch': 'bool', '*mem_type_64': 'bool' } }
+
+##
+# @PciBridgeInfo:
+#
+# Information about a PCI Bridge device
+#
+# @bus.number: primary bus interface number.  This should be the number of the
+#              bus the device resides on.
+#
+# @bus.secondary: secondary bus interface number.  This is the number of the
+#                 main bus for the bridge
+#
+# @bus.subordinate: This is the highest number bus that resides below the
+#                   bridge.
+#
+# @bus.io_range: The PIO range for all devices on this bridge
+#
+# @bus.memory_range: The MMIO range for all devices on this bridge
+#
+# @bus.prefetchable_range: The range of prefetchable MMIO for all devices on
+#                          this bridge
+#
+# @devices: a list of @PciDeviceInfo for each device on this bridge
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciBridgeInfo',
+  'data': {'bus': { 'number': 'int', 'secondary': 'int', 'subordinate': 'int',
+                    'io_range': 'PciMemoryRange',
+                    'memory_range': 'PciMemoryRange',
+                    'prefetchable_range': 'PciMemoryRange' },
+           '*devices': ['PciDeviceInfo']} }
+
+##
+# @PciDeviceInfo:
+#
+# Information about a PCI device
+#
+# @bus: the bus number of the device
+#
+# @slot: the slot the device is located in
+#
+# @function: the function of the slot used by the device
+#
+# @class_info.desc: #optional a string description of the device's class
+#
+# @class_info.class: the class code of the device
+#
+# @id.device: the PCI device id
+#
+# @id.vendor: the PCI vendor id
+#
+# @irq: #optional if an IRQ is assigned to the device, the IRQ number
+#
+# @qdev_id: the device name of the PCI device
+#
+# @pci_bridge: if the device is a PCI bridge, the bridge information
+#
+# @regions: a list of the PCI I/O regions associated with the device
+#
+# Notes: the contents of @class_info.desc are not stable and should only be
+#        treated as informational.
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciDeviceInfo',
+  'data': {'bus': 'int', 'slot': 'int', 'function': 'int',
+           'class_info': {'*desc': 'str', 'class': 'int'},
+           'id': {'device': 'int', 'vendor': 'int'},
+           '*irq': 'int', 'qdev_id': 'str', '*pci_bridge': 'PciBridgeInfo',
+           'regions': ['PciMemoryRegion']} }
+
+##
+# @PciInfo:
+#
+# Information about a PCI bus
+#
+# @bus: the bus index
+#
+# @devices: a list of devices on this bus
+#
+# Since: 0.14.0
+##
+{ 'type': 'PciInfo', 'data': {'bus': 'int', 'devices': ['PciDeviceInfo']} }
+
+##
+# @query-pci:
+#
+# Return information about the PCI bus topology of the guest.
+#
+# Returns: a list of @PciInfo for each PCI bus
+#
+# Since: 0.14.0
+##
+{ 'command': 'query-pci', 'returns': ['PciInfo'] }
+
+##
 # @quit:
 #
 # This command will cause the QEMU process to exit gracefully.  While every
@@ -271,3 +876,14 @@
 #        prompting the user in some way.
 ##
 { 'command': 'system_powerdown' }
+
+##
+# @cpu:
+#
+# This command is a nop that is only provided for the purposes of compatibility.
+#
+# Since: 0.14.0
+#
+# Notes: Do not use this command.
+##
+{ 'command': 'cpu', 'data': {'index': 'int'} }

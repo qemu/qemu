@@ -42,7 +42,7 @@ struct DeviceState {
     qemu_irq *gpio_in;
     QLIST_HEAD(, BusState) child_bus;
     int num_child_bus;
-    QLIST_ENTRY(DeviceState) sibling;
+    QTAILQ_ENTRY(DeviceState) sibling;
     int instance_id_alias;
     int alias_required_for_version;
 };
@@ -73,7 +73,7 @@ struct BusState {
     const char *name;
     int allow_hotplug;
     int qdev_allocated;
-    QLIST_HEAD(, DeviceState) children;
+    QTAILQ_HEAD(ChildrenHead, DeviceState) children;
     QLIST_ENTRY(BusState) sibling;
 };
 

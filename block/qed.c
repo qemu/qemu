@@ -388,7 +388,6 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
     if (ret < 0) {
         return ret;
     }
-    ret = 0; /* ret should always be 0 or -errno */
     qed_header_le_to_cpu(&le_header, &s->header);
 
     if (s->header.magic != QED_MAGIC) {
@@ -1420,8 +1419,10 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     memcpy(buffer, &le_header, sizeof(le_header));
     buffer_len = sizeof(le_header);
 
-    memcpy(buffer + buffer_len, backing_file, backing_file_len);
-    buffer_len += backing_file_len;
+    if (backing_file) {
+        memcpy(buffer + buffer_len, backing_file, backing_file_len);
+        buffer_len += backing_file_len;
+    }
 
     /* Write new header */
     ret = bdrv_pwrite_sync(bs->file, 0, buffer, buffer_len);
