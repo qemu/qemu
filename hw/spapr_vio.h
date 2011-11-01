@@ -57,6 +57,7 @@ typedef struct VIOsPAPRDevice {
     target_ulong signal_state;
     uint32_t rtce_window_size;
     VIOsPAPR_RTCE *rtce_table;
+    int kvmtce_fd;
     VIOsPAPR_CRQ crq;
 } VIOsPAPRDevice;
 
