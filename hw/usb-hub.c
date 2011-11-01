@@ -127,8 +127,8 @@ static const USBDescDevice desc_device_hub = {
 
 static const USBDesc desc_hub = {
     .id = {
-        .idVendor          = 0,
-        .idProduct         = 0,
+        .idVendor          = 0x0409,
+        .idProduct         = 0x55aa,
         .bcdDevice         = 0x0101,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT,
@@ -163,6 +163,7 @@ static void usb_hub_attach(USBPort *port1)
     } else {
         port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
     }
+    usb_wakeup(&s->dev);
 }
 
 static void usb_hub_detach(USBPort *port1)
