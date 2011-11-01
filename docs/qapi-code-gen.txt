@@ -41,7 +41,7 @@ dictionary.  This corresponds to a struct in C or an Object in JSON.  An
 example of a complex type is:
 
  { 'type': 'MyType',
-   'data' { 'member1': 'str', 'member2': 'int', '*member3': 'str } }
+   'data': { 'member1': 'str', 'member2': 'int', '*member3': 'str' } }
 
 The use of '*' as a prefix to the name means the member is optional.  Optional
 members should always be added to the end of the dictionary to preserve
@@ -63,7 +63,7 @@ An example command is:
 
  { 'command': 'my-command',
    'data': { 'arg1': 'str', '*arg2': 'str' },
-   'returns': 'str' ]
+   'returns': 'str' }
 
 Command names should be all lower case with words separated by a hyphen.
 
