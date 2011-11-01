@@ -1545,12 +1545,40 @@ static void mmubooke206_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
     }
 }
 
+#if defined(TARGET_PPC64)
+static void mmubooks_dump_mmu(FILE *f, fprintf_function cpu_fprintf,
+                              CPUState *env)
+{
+    int i;
+    uint64_t slbe, slbv;
+
+    cpu_synchronize_state(env);
+
+    cpu_fprintf(f, "SLB\tESID\t\t\tVSID\n");
+    for (i = 0; i < env->slb_nr; i++) {
+        slbe = env->slb[i].esid;
+        slbv = env->slb[i].vsid;
+        if (slbe == 0 && slbv == 0) {
+            continue;
+        }
+        cpu_fprintf(f, "%d\t0x%016" PRIx64 "\t0x%016" PRIx64 "\n",
+                    i, slbe, slbv);
+    }
+}
+#endif
+
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
 {
     switch (env->mmu_model) {
     case POWERPC_MMU_BOOKE206:
         mmubooke206_dump_mmu(f, cpu_fprintf, env);
         break;
+#if defined(TARGET_PPC64)
+    case POWERPC_MMU_64B:
+    case POWERPC_MMU_2_06:
+        mmubooks_dump_mmu(f, cpu_fprintf, env);
+        break;
+#endif
     default:
         cpu_fprintf(f, "%s: unimplemented\n", __func__);
     }
