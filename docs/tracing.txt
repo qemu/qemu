@@ -132,11 +132,18 @@ This functionality is also provided through monitor commands:
   means disabled.
 
 * trace-event NAME on|off
-  Enable/disable a given trace event.
+  Enable/disable a given trace event or a group of events having common prefix
+  through wildcard.
 
 The "-trace events=<file>" command line argument can be used to enable the
 events listed in <file> from the very beginning of the program. This file must
 contain one event name per line.
+
+A basic wildcard matching is supported in both the monitor command "trace
+-event" and the events list file. That means you can enable/disable the events
+having a common prefix in a batch. For example, virtio-blk trace events could
+be enabled using:
+  trace-event virtio_blk_* on
 
 == Trace backends ==
 
