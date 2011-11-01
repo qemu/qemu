@@ -18,6 +18,7 @@
 #include "audiodev.h"
 #include "audio/audio.h"
 #include "pci.h"
+#include "dma.h"
 
 enum {
     AC97_Reset                     = 0x00,
@@ -224,7 +225,7 @@ static void fetch_bd (AC97LinkState *s, AC97BusMasterRegs *r)
 {
     uint8_t b[8];
 
-    cpu_physical_memory_read (r->bdbar + r->civ * 8, b, 8);
+    pci_dma_read (&s->dev, r->bdbar + r->civ * 8, b, 8);
     r->bd_valid = 1;
     r->bd.addr = le32_to_cpu (*(uint32_t *) &b[0]) & ~3;
     r->bd.ctl_len = le32_to_cpu (*(uint32_t *) &b[4]);
@@ -973,7 +974,7 @@ static int write_audio (AC97LinkState *s, AC97BusMasterRegs *r,
     while (temp) {
         int copied;
         to_copy = audio_MIN (temp, sizeof (tmpbuf));
-        cpu_physical_memory_read (addr, tmpbuf, to_copy);
+        pci_dma_read (&s->dev, addr, tmpbuf, to_copy);
         copied = AUD_write (s->voice_po, tmpbuf, to_copy);
         dolog ("write_audio max=%x to_copy=%x copied=%x\n",
                max, to_copy, copied);
@@ -1054,7 +1055,7 @@ static int read_audio (AC97LinkState *s, AC97BusMasterRegs *r,
             *stop = 1;
             break;
         }
-        cpu_physical_memory_write (addr, tmpbuf, acquired);
+        pci_dma_write (&s->dev, addr, tmpbuf, acquired);
         temp -= acquired;
         addr += acquired;
         nread += acquired;

@@ -5,6 +5,7 @@
 
 #include "qdev.h"
 #include "memory.h"
+#include "dma.h"
 
 /* PCI includes legacy ISA access.  */
 #include "isa.h"
@@ -481,6 +482,72 @@ static inline int pci_is_express(const PCIDevice *d)
 static inline uint32_t pci_config_size(const PCIDevice *d)
 {
     return pci_is_express(d) ? PCIE_CONFIG_SPACE_SIZE : PCI_CONFIG_SPACE_SIZE;
+}
+
+/* DMA access functions */
+static inline int pci_dma_rw(PCIDevice *dev, dma_addr_t addr,
+                             void *buf, dma_addr_t len, DMADirection dir)
+{
+    cpu_physical_memory_rw(addr, buf, len, dir == DMA_DIRECTION_FROM_DEVICE);
+    return 0;
+}
+
+static inline int pci_dma_read(PCIDevice *dev, dma_addr_t addr,
+                               void *buf, dma_addr_t len)
+{
+    return pci_dma_rw(dev, addr, buf, len, DMA_DIRECTION_TO_DEVICE);
+}
+
+static inline int pci_dma_write(PCIDevice *dev, dma_addr_t addr,
+                                const void *buf, dma_addr_t len)
+{
+    return pci_dma_rw(dev, addr, (void *) buf, len, DMA_DIRECTION_FROM_DEVICE);
+}
+
+#define PCI_DMA_DEFINE_LDST(_l, _s, _bits)                              \
+    static inline uint##_bits##_t ld##_l##_pci_dma(PCIDevice *dev,      \
+                                                   dma_addr_t addr)     \
+    {                                                                   \
+        return ld##_l##_phys(addr);                                     \
+    }                                                                   \
+    static inline void st##_s##_pci_dma(PCIDevice *dev,                 \
+                          dma_addr_t addr, uint##_bits##_t val)         \
+    {                                                                   \
+        st##_s##_phys(addr, val);                                       \
+    }
+
+PCI_DMA_DEFINE_LDST(ub, b, 8);
+PCI_DMA_DEFINE_LDST(uw_le, w_le, 16)
+PCI_DMA_DEFINE_LDST(l_le, l_le, 32);
+PCI_DMA_DEFINE_LDST(q_le, q_le, 64);
+PCI_DMA_DEFINE_LDST(uw_be, w_be, 16)
+PCI_DMA_DEFINE_LDST(l_be, l_be, 32);
+PCI_DMA_DEFINE_LDST(q_be, q_be, 64);
+
+#undef PCI_DMA_DEFINE_LDST
+
+static inline void *pci_dma_map(PCIDevice *dev, dma_addr_t addr,
+                                dma_addr_t *plen, DMADirection dir)
+{
+    target_phys_addr_t len = *plen;
+    void *buf;
+
+    buf = cpu_physical_memory_map(addr, &len, dir == DMA_DIRECTION_FROM_DEVICE);
+    *plen = len;
+    return buf;
+}
+
+static inline void pci_dma_unmap(PCIDevice *dev, void *buffer, dma_addr_t len,
+                                 DMADirection dir, dma_addr_t access_len)
+{
+    cpu_physical_memory_unmap(buffer, len, dir == DMA_DIRECTION_FROM_DEVICE,
+                              access_len);
+}
+
+static inline void pci_dma_sglist_init(QEMUSGList *qsg, PCIDevice *dev,
+                                       int alloc_hint)
+{
+    qemu_sglist_init(qsg, alloc_hint);
 }
 
 #endif

@@ -51,7 +51,7 @@ static PCIDevice *find_dev(sPAPREnvironment *spapr,
             continue;
         }
 
-        QLIST_FOREACH(qdev, &phb->host_state.bus->qbus.children, sibling) {
+        QTAILQ_FOREACH(qdev, &phb->host_state.bus->qbus.children, sibling) {
             PCIDevice *dev = (PCIDevice *)qdev;
             if (dev->devfn == devfn) {
                 return dev;
@@ -397,7 +397,7 @@ int spapr_populate_pci_devices(sPAPRPHBState *phb,
 
     /* Populate PCI devices and allocate IRQs */
     devices = 0;
-    QLIST_FOREACH(qdev, &bus->qbus.children, sibling) {
+    QTAILQ_FOREACH(qdev, &bus->qbus.children, sibling) {
         PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
         int irq_index = pci_spapr_map_irq(dev, 0);
         uint32_t *irqmap = interrupt_map[devices];

@@ -178,7 +178,7 @@ static UHCIAsync *uhci_async_alloc(UHCIState *s)
     async->done  = 0;
     async->isoc  = 0;
     usb_packet_init(&async->packet);
-    qemu_sglist_init(&async->sgl, 1);
+    pci_dma_sglist_init(&async->sgl, &s->dev, 1);
 
     return async;
 }
@@ -876,7 +876,7 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
         uint32_t link = async->td;
         uint32_t int_mask = 0, val;
 
-        cpu_physical_memory_read(link & ~0xf, (uint8_t *) &td, sizeof(td));
+        pci_dma_read(&s->dev, link & ~0xf, (uint8_t *) &td, sizeof(td));
         le32_to_cpus(&td.link);
         le32_to_cpus(&td.ctrl);
         le32_to_cpus(&td.token);
@@ -888,8 +888,8 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
 
         /* update the status bits of the TD */
         val = cpu_to_le32(td.ctrl);
-        cpu_physical_memory_write((link & ~0xf) + 4,
-                                  (const uint8_t *)&val, sizeof(val));
+        pci_dma_write(&s->dev, (link & ~0xf) + 4,
+                      (const uint8_t *)&val, sizeof(val));
         uhci_async_free(s, async);
     } else {
         async->done = 1;
@@ -952,7 +952,7 @@ static void uhci_process_frame(UHCIState *s)
 
     DPRINTF("uhci: processing frame %d addr 0x%x\n" , s->frnum, frame_addr);
 
-    cpu_physical_memory_read(frame_addr, (uint8_t *)&link, 4);
+    pci_dma_read(&s->dev, frame_addr, (uint8_t *)&link, 4);
     le32_to_cpus(&link);
 
     int_mask = 0;
@@ -976,7 +976,7 @@ static void uhci_process_frame(UHCIState *s)
                 break;
             }
 
-            cpu_physical_memory_read(link & ~0xf, (uint8_t *) &qh, sizeof(qh));
+            pci_dma_read(&s->dev, link & ~0xf, (uint8_t *) &qh, sizeof(qh));
             le32_to_cpus(&qh.link);
             le32_to_cpus(&qh.el_link);
 
@@ -996,7 +996,7 @@ static void uhci_process_frame(UHCIState *s)
         }
 
         /* TD */
-        cpu_physical_memory_read(link & ~0xf, (uint8_t *) &td, sizeof(td));
+        pci_dma_read(&s->dev, link & ~0xf, (uint8_t *) &td, sizeof(td));
         le32_to_cpus(&td.link);
         le32_to_cpus(&td.ctrl);
         le32_to_cpus(&td.token);
@@ -1010,8 +1010,8 @@ static void uhci_process_frame(UHCIState *s)
         if (old_td_ctrl != td.ctrl) {
             /* update the status bits of the TD */
             val = cpu_to_le32(td.ctrl);
-            cpu_physical_memory_write((link & ~0xf) + 4,
-                                      (const uint8_t *)&val, sizeof(val));
+            pci_dma_write(&s->dev, (link & ~0xf) + 4,
+                          (const uint8_t *)&val, sizeof(val));
         }
 
         if (ret < 0) {
@@ -1039,8 +1039,8 @@ static void uhci_process_frame(UHCIState *s)
 	    /* update QH element link */
             qh.el_link = link;
             val = cpu_to_le32(qh.el_link);
-            cpu_physical_memory_write((curr_qh & ~0xf) + 4,
-                                          (const uint8_t *)&val, sizeof(val));
+            pci_dma_write(&s->dev, (curr_qh & ~0xf) + 4,
+                          (const uint8_t *)&val, sizeof(val));
 
             if (!depth_first(link)) {
                /* done with this QH */

@@ -129,6 +129,7 @@ time_t mktimegm(struct tm *tm);
 int qemu_fls(int i);
 int qemu_fdatasync(int fd);
 int fcntl_setfl(int fd, int flag);
+int qemu_parse_fd(const char *param);
 
 /*
  * strtosz() suffixes used to specify the default treatment of an

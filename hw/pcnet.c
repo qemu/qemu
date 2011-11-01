@@ -58,24 +58,6 @@ struct qemu_ether_header {
     uint16_t ether_type;
 };
 
-/* BUS CONFIGURATION REGISTERS */
-#define BCR_MSRDA    0
-#define BCR_MSWRA    1
-#define BCR_MC       2
-#define BCR_LNKST    4
-#define BCR_LED1     5
-#define BCR_LED2     6
-#define BCR_LED3     7
-#define BCR_FDC      9
-#define BCR_BSBC     18
-#define BCR_EECAS    19
-#define BCR_SWS      20
-#define BCR_PLAT     22
-
-#define BCR_DWIO(S)      !!((S)->bcr[BCR_BSBC] & 0x0080)
-#define BCR_SSIZE32(S)   !!((S)->bcr[BCR_SWS ] & 0x0100)
-#define BCR_SWSTYLE(S)     ((S)->bcr[BCR_SWS ] & 0x00FF)
-
 #define CSR_INIT(S)      !!(((S)->csr[0])&0x0001)
 #define CSR_STRT(S)      !!(((S)->csr[0])&0x0002)
 #define CSR_STOP(S)      !!(((S)->csr[0])&0x0004)
@@ -1213,6 +1195,13 @@ ssize_t pcnet_receive(VLANClientState *nc, const uint8_t *buf, size_t size_)
     pcnet_update_irq(s);
 
     return size_;
+}
+
+void pcnet_set_link_status(VLANClientState *nc)
+{
+    PCNetState *d = DO_UPCAST(NICState, nc, nc)->opaque;
+
+    d->lnkst = nc->link_down ? 0 : 0x40;
 }
 
 static void pcnet_transmit(PCNetState *s)

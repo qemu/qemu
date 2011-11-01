@@ -733,12 +733,7 @@ int net_handle_fd_param(Monitor *mon, const char *param)
             return -1;
         }
     } else {
-        char *endptr = NULL;
-
-        fd = strtol(param, &endptr, 10);
-        if (*endptr || (fd == 0 && param == endptr)) {
-            return -1;
-        }
+        fd = qemu_parse_fd(param);
     }
 
     return fd;

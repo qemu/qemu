@@ -31,6 +31,7 @@
 #include "net.h"
 #include "loader.h"
 #include "qemu-timer.h"
+#include "dma.h"
 
 #include "pcnet.h"
 
@@ -55,9 +56,9 @@ static void pcnet_aprom_writeb(void *opaque, uint32_t addr, uint32_t val)
 #ifdef PCNET_DEBUG
     printf("pcnet_aprom_writeb addr=0x%08x val=0x%02x\n", addr, val);
 #endif
-    /* Check APROMWE bit to enable write access */
-    if (pcnet_bcr_readw(s,2) & 0x100)
+    if (BCR_APROMWE(s)) {
         s->prom[addr & 15] = val;
+    }
 }
 
 static uint32_t pcnet_aprom_readb(void *opaque, uint32_t addr)
@@ -75,12 +76,24 @@ static uint64_t pcnet_ioport_read(void *opaque, target_phys_addr_t addr,
 {
     PCNetState *d = opaque;
 
-    if (addr < 16 && size == 1) {
-        return pcnet_aprom_readb(d, addr);
-    } else if (addr >= 0x10 && addr < 0x20 && size == 2) {
-        return pcnet_ioport_readw(d, addr);
-    } else if (addr >= 0x10 && addr < 0x20 && size == 4) {
-        return pcnet_ioport_readl(d, addr);
+    if (addr < 0x10) {
+        if (!BCR_DWIO(d) && size == 1) {
+            return pcnet_aprom_readb(d, addr);
+        } else if (!BCR_DWIO(d) && (addr & 1) == 0 && size == 2) {
+            return pcnet_aprom_readb(d, addr) |
+                   (pcnet_aprom_readb(d, addr + 1) << 8);
+        } else if (BCR_DWIO(d) && (addr & 3) == 0 && size == 4) {
+            return pcnet_aprom_readb(d, addr) |
+                   (pcnet_aprom_readb(d, addr + 1) << 8) |
+                   (pcnet_aprom_readb(d, addr + 2) << 16) |
+                   (pcnet_aprom_readb(d, addr + 3) << 24);
+        }
+    } else {
+        if (size == 2) {
+            return pcnet_ioport_readw(d, addr);
+        } else if (size == 4) {
+            return pcnet_ioport_readl(d, addr);
+        }
     }
     return ((uint64_t)1 << (size * 8)) - 1;
 }
@@ -90,12 +103,24 @@ static void pcnet_ioport_write(void *opaque, target_phys_addr_t addr,
 {
     PCNetState *d = opaque;
 
-    if (addr < 16 && size == 1) {
-        return pcnet_aprom_writeb(d, addr, data);
-    } else if (addr >= 0x10 && addr < 0x20 && size == 2) {
-        return pcnet_ioport_writew(d, addr, data);
-    } else if (addr >= 0x10 && addr < 0x20 && size == 4) {
-        return pcnet_ioport_writel(d, addr, data);
+    if (addr < 0x10) {
+        if (!BCR_DWIO(d) && size == 1) {
+            pcnet_aprom_writeb(d, addr, data);
+        } else if (!BCR_DWIO(d) && (addr & 1) == 0 && size == 2) {
+            pcnet_aprom_writeb(d, addr, data & 0xff);
+            pcnet_aprom_writeb(d, addr + 1, data >> 8);
+        } else if (BCR_DWIO(d) && (addr & 3) == 0 && size == 4) {
+            pcnet_aprom_writeb(d, addr, data & 0xff);
+            pcnet_aprom_writeb(d, addr + 1, (data >> 8) & 0xff);
+            pcnet_aprom_writeb(d, addr + 2, (data >> 16) & 0xff);
+            pcnet_aprom_writeb(d, addr + 3, data >> 24);
+        }
+    } else {
+        if (size == 2) {
+            pcnet_ioport_writew(d, addr, data);
+        } else if (size == 4) {
+            pcnet_ioport_writel(d, addr, data);
+        }
     }
 }
 
@@ -230,13 +255,13 @@ static const MemoryRegionOps pcnet_mmio_ops = {
 static void pci_physical_memory_write(void *dma_opaque, target_phys_addr_t addr,
                                       uint8_t *buf, int len, int do_bswap)
 {
-    cpu_physical_memory_write(addr, buf, len);
+    pci_dma_write(dma_opaque, addr, buf, len);
 }
 
 static void pci_physical_memory_read(void *dma_opaque, target_phys_addr_t addr,
                                      uint8_t *buf, int len, int do_bswap)
 {
-    cpu_physical_memory_read(addr, buf, len);
+    pci_dma_read(dma_opaque, addr, buf, len);
 }
 
 static void pci_pcnet_cleanup(VLANClientState *nc)
@@ -263,6 +288,7 @@ static NetClientInfo net_pci_pcnet_info = {
     .size = sizeof(NICState),
     .can_receive = pcnet_can_receive,
     .receive = pcnet_receive,
+    .link_status_changed = pcnet_set_link_status,
     .cleanup = pci_pcnet_cleanup,
 };
 
@@ -302,6 +328,7 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     s->irq = pci_dev->irq[0];
     s->phys_mem_read = pci_physical_memory_read;
     s->phys_mem_write = pci_physical_memory_write;
+    s->dma_opaque = pci_dev;
 
     if (!pci_dev->qdev.hotplugged) {
         static int loaded = 0;

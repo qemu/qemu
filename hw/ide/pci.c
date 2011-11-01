@@ -62,7 +62,8 @@ static int bmdma_prepare_buf(IDEDMA *dma, int is_write)
     } prd;
     int l, len;
 
-    qemu_sglist_init(&s->sg, s->nsector / (BMDMA_PAGE_SIZE / 512) + 1);
+    pci_dma_sglist_init(&s->sg, &bm->pci_dev->dev,
+                        s->nsector / (BMDMA_PAGE_SIZE / 512) + 1);
     s->io_buffer_size = 0;
     for(;;) {
         if (bm->cur_prd_len == 0) {
@@ -70,7 +71,7 @@ static int bmdma_prepare_buf(IDEDMA *dma, int is_write)
             if (bm->cur_prd_last ||
                 (bm->cur_addr - bm->addr) >= BMDMA_PAGE_SIZE)
                 return s->io_buffer_size != 0;
-            cpu_physical_memory_read(bm->cur_addr, (uint8_t *)&prd, 8);
+            pci_dma_read(&bm->pci_dev->dev, bm->cur_addr, (uint8_t *)&prd, 8);
             bm->cur_addr += 8;
             prd.addr = le32_to_cpu(prd.addr);
             prd.size = le32_to_cpu(prd.size);
@@ -112,7 +113,7 @@ static int bmdma_rw_buf(IDEDMA *dma, int is_write)
             if (bm->cur_prd_last ||
                 (bm->cur_addr - bm->addr) >= BMDMA_PAGE_SIZE)
                 return 0;
-            cpu_physical_memory_read(bm->cur_addr, (uint8_t *)&prd, 8);
+            pci_dma_read(&bm->pci_dev->dev, bm->cur_addr, (uint8_t *)&prd, 8);
             bm->cur_addr += 8;
             prd.addr = le32_to_cpu(prd.addr);
             prd.size = le32_to_cpu(prd.size);
@@ -127,11 +128,11 @@ static int bmdma_rw_buf(IDEDMA *dma, int is_write)
             l = bm->cur_prd_len;
         if (l > 0) {
             if (is_write) {
-                cpu_physical_memory_write(bm->cur_prd_addr,
-                                          s->io_buffer + s->io_buffer_index, l);
+                pci_dma_write(&bm->pci_dev->dev, bm->cur_prd_addr,
+                              s->io_buffer + s->io_buffer_index, l);
             } else {
-                cpu_physical_memory_read(bm->cur_prd_addr,
-                                          s->io_buffer + s->io_buffer_index, l);
+                pci_dma_read(&bm->pci_dev->dev, bm->cur_prd_addr,
+                             s->io_buffer + s->io_buffer_index, l);
             }
             bm->cur_prd_addr += l;
             bm->cur_prd_len -= l;
@@ -326,7 +327,7 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
     bm->cmd = val & 0x09;
 }
 
-static uint64_t bmdma_addr_read(void *opaque, target_phys_addr_t addr,
+static uint64_t bmdma_addr_read(void *opaque, dma_addr_t addr,
                                 unsigned width)
 {
     BMDMAState *bm = opaque;
@@ -340,7 +341,7 @@ static uint64_t bmdma_addr_read(void *opaque, target_phys_addr_t addr,
     return data;
 }
 
-static void bmdma_addr_write(void *opaque, target_phys_addr_t addr,
+static void bmdma_addr_write(void *opaque, dma_addr_t addr,
                              uint64_t data, unsigned width)
 {
     BMDMAState *bm = opaque;
