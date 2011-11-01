@@ -407,7 +407,9 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     long pteg_shift = 17;
     char *filename;
 
-    spapr = g_malloc(sizeof(*spapr));
+    spapr = g_malloc0(sizeof(*spapr));
+    QLIST_INIT(&spapr->phbs);
+
     cpu_ppc_hypercall = emulate_spapr_hypercall;
 
     /* Allocate RMA if necessary */
