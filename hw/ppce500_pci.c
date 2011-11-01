@@ -89,6 +89,7 @@ static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
     PPCE500PCIState *pci = opaque;
     unsigned long win;
     uint32_t value = 0;
+    int idx;
 
     win = addr & 0xfe0;
 
@@ -97,24 +98,44 @@ static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
     case PPCE500_PCI_OW2:
     case PPCE500_PCI_OW3:
     case PPCE500_PCI_OW4:
+        idx = (addr >> 5) & 0x7;
         switch (addr & 0xC) {
-        case PCI_POTAR: value = pci->pob[(addr >> 5) & 0x7].potar; break;
-        case PCI_POTEAR: value = pci->pob[(addr >> 5) & 0x7].potear; break;
-        case PCI_POWBAR: value = pci->pob[(addr >> 5) & 0x7].powbar; break;
-        case PCI_POWAR: value = pci->pob[(addr >> 5) & 0x7].powar; break;
-        default: break;
+        case PCI_POTAR:
+            value = pci->pob[idx].potar;
+            break;
+        case PCI_POTEAR:
+            value = pci->pob[idx].potear;
+            break;
+        case PCI_POWBAR:
+            value = pci->pob[idx].powbar;
+            break;
+        case PCI_POWAR:
+            value = pci->pob[idx].powar;
+            break;
+        default:
+            break;
         }
         break;
 
     case PPCE500_PCI_IW3:
     case PPCE500_PCI_IW2:
     case PPCE500_PCI_IW1:
+        idx = ((addr >> 5) & 0x3) - 1;
         switch (addr & 0xC) {
-        case PCI_PITAR: value = pci->pib[(addr >> 5) & 0x3].pitar; break;
-        case PCI_PIWBAR: value = pci->pib[(addr >> 5) & 0x3].piwbar; break;
-        case PCI_PIWBEAR: value = pci->pib[(addr >> 5) & 0x3].piwbear; break;
-        case PCI_PIWAR: value = pci->pib[(addr >> 5) & 0x3].piwar; break;
-        default: break;
+        case PCI_PITAR:
+            value = pci->pib[idx].pitar;
+            break;
+        case PCI_PIWBAR:
+            value = pci->pib[idx].piwbar;
+            break;
+        case PCI_PIWBEAR:
+            value = pci->pib[idx].piwbear;
+            break;
+        case PCI_PIWAR:
+            value = pci->pib[idx].piwar;
+            break;
+        default:
+            break;
         };
         break;
 
@@ -142,6 +163,7 @@ static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
 {
     PPCE500PCIState *pci = opaque;
     unsigned long win;
+    int idx;
 
     win = addr & 0xfe0;
 
@@ -153,24 +175,44 @@ static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
     case PPCE500_PCI_OW2:
     case PPCE500_PCI_OW3:
     case PPCE500_PCI_OW4:
+        idx = (addr >> 5) & 0x7;
         switch (addr & 0xC) {
-        case PCI_POTAR: pci->pob[(addr >> 5) & 0x7].potar = value; break;
-        case PCI_POTEAR: pci->pob[(addr >> 5) & 0x7].potear = value; break;
-        case PCI_POWBAR: pci->pob[(addr >> 5) & 0x7].powbar = value; break;
-        case PCI_POWAR: pci->pob[(addr >> 5) & 0x7].powar = value; break;
-        default: break;
+        case PCI_POTAR:
+            pci->pob[idx].potar = value;
+            break;
+        case PCI_POTEAR:
+            pci->pob[idx].potear = value;
+            break;
+        case PCI_POWBAR:
+            pci->pob[idx].powbar = value;
+            break;
+        case PCI_POWAR:
+            pci->pob[idx].powar = value;
+            break;
+        default:
+            break;
         };
         break;
 
     case PPCE500_PCI_IW3:
     case PPCE500_PCI_IW2:
     case PPCE500_PCI_IW1:
+        idx = ((addr >> 5) & 0x3) - 1;
         switch (addr & 0xC) {
-        case PCI_PITAR: pci->pib[(addr >> 5) & 0x3].pitar = value; break;
-        case PCI_PIWBAR: pci->pib[(addr >> 5) & 0x3].piwbar = value; break;
-        case PCI_PIWBEAR: pci->pib[(addr >> 5) & 0x3].piwbear = value; break;
-        case PCI_PIWAR: pci->pib[(addr >> 5) & 0x3].piwar = value; break;
-        default: break;
+        case PCI_PITAR:
+            pci->pib[idx].pitar = value;
+            break;
+        case PCI_PIWBAR:
+            pci->pib[idx].piwbar = value;
+            break;
+        case PCI_PIWBEAR:
+            pci->pib[idx].piwbear = value;
+            break;
+        case PCI_PIWAR:
+            pci->pib[idx].piwar = value;
+            break;
+        default:
+            break;
         };
         break;
 

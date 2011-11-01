@@ -4,10 +4,12 @@
 #include "hw/xics.h"
 
 struct VIOsPAPRBus;
+struct sPAPRPHBState;
 struct icp_state;
 
 typedef struct sPAPREnvironment {
     struct VIOsPAPRBus *vio_bus;
+    QLIST_HEAD(, sPAPRPHBState) phbs;
     struct icp_state *icp;
 
     target_phys_addr_t ram_limit;

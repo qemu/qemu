@@ -28,6 +28,8 @@
 #include "kvm_ppc.h"
 #include "cpu.h"
 #include "device_tree.h"
+#include "hw/sysbus.h"
+#include "hw/spapr.h"
 
 #include "hw/sysbus.h"
 #include "hw/spapr.h"
@@ -53,6 +55,9 @@ static int cap_interrupt_unset = false;
 static int cap_interrupt_level = false;
 static int cap_segstate;
 static int cap_booke_sregs;
+static int cap_ppc_smt;
+static int cap_ppc_rma;
+static int cap_spapr_tce;
 
 /* XXX We have a race condition where we actually have a level triggered
  *     interrupt, but the infrastructure can't expose that yet, so the guest
@@ -76,6 +81,9 @@ int kvm_arch_init(KVMState *s)
     cap_interrupt_level = kvm_check_extension(s, KVM_CAP_PPC_IRQ_LEVEL);
     cap_segstate = kvm_check_extension(s, KVM_CAP_PPC_SEGSTATE);
     cap_booke_sregs = kvm_check_extension(s, KVM_CAP_PPC_BOOKE_SREGS);
+    cap_ppc_smt = kvm_check_extension(s, KVM_CAP_PPC_SMT);
+    cap_ppc_rma = kvm_check_extension(s, KVM_CAP_PPC_RMA);
+    cap_spapr_tce = kvm_check_extension(s, KVM_CAP_SPAPR_TCE);
 
     if (!cap_interrupt_level) {
         fprintf(stderr, "KVM: Couldn't find level irq capability. Expect the "
@@ -642,35 +650,58 @@ static int kvmppc_find_cpu_dt(char *buf, int buf_len)
     return 0;
 }
 
-uint64_t kvmppc_get_clockfreq(void)
+/* Read a CPU node property from the host device tree that's a single
+ * integer (32-bit or 64-bit).  Returns 0 if anything goes wrong
+ * (can't find or open the property, or doesn't understand the
+ * format) */
+static uint64_t kvmppc_read_int_cpu_dt(const char *propname)
 {
-    char buf[512];
-    uint32_t tb[2];
+    char buf[PATH_MAX];
+    union {
+        uint32_t v32;
+        uint64_t v64;
+    } u;
     FILE *f;
     int len;
 
     if (kvmppc_find_cpu_dt(buf, sizeof(buf))) {
-        return 0;
+        return -1;
     }
 
-    strncat(buf, "/clock-frequency", sizeof(buf) - strlen(buf));
+    strncat(buf, "/", sizeof(buf) - strlen(buf));
+    strncat(buf, propname, sizeof(buf) - strlen(buf));
 
     f = fopen(buf, "rb");
     if (!f) {
         return -1;
     }
 
-    len = fread(tb, sizeof(tb[0]), 2, f);
+    len = fread(&u, 1, sizeof(u), f);
     fclose(f);
     switch (len) {
-    case 1:
-        /* freq is only a single cell */
-        return tb[0];
-    case 2:
-        return *(uint64_t*)tb;
+    case 4:
+        /* property is a 32-bit quantity */
+        return be32_to_cpu(u.v32);
+    case 8:
+        return be64_to_cpu(u.v64);
     }
 
     return 0;
+}
+
+uint64_t kvmppc_get_clockfreq(void)
+{
+    return kvmppc_read_int_cpu_dt("clock-frequency");
+}
+
+uint32_t kvmppc_get_vmx(void)
+{
+    return kvmppc_read_int_cpu_dt("ibm,vmx");
+}
+
+uint32_t kvmppc_get_dfp(void)
+{
+    return kvmppc_read_int_cpu_dt("ibm,dfp");
 }
 
 int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
@@ -748,6 +779,150 @@ void kvmppc_set_papr(CPUState *env)
 
 fail:
     cpu_abort(env, "This KVM version does not support PAPR\n");
+}
+
+int kvmppc_smt_threads(void)
+{
+    return cap_ppc_smt ? cap_ppc_smt : 1;
+}
+
+off_t kvmppc_alloc_rma(const char *name, MemoryRegion *sysmem)
+{
+    void *rma;
+    off_t size;
+    int fd;
+    struct kvm_allocate_rma ret;
+    MemoryRegion *rma_region;
+
+    /* If cap_ppc_rma == 0, contiguous RMA allocation is not supported
+     * if cap_ppc_rma == 1, contiguous RMA allocation is supported, but
+     *                      not necessary on this hardware
+     * if cap_ppc_rma == 2, contiguous RMA allocation is needed on this hardware
+     *
+     * FIXME: We should allow the user to force contiguous RMA
+     * allocation in the cap_ppc_rma==1 case.
+     */
+    if (cap_ppc_rma < 2) {
+        return 0;
+    }
+
+    fd = kvm_vm_ioctl(kvm_state, KVM_ALLOCATE_RMA, &ret);
+    if (fd < 0) {
+        fprintf(stderr, "KVM: Error on KVM_ALLOCATE_RMA: %s\n",
+                strerror(errno));
+        return -1;
+    }
+
+    size = MIN(ret.rma_size, 256ul << 20);
+
+    rma = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (rma == MAP_FAILED) {
+        fprintf(stderr, "KVM: Error mapping RMA: %s\n", strerror(errno));
+        return -1;
+    };
+
+    rma_region = g_new(MemoryRegion, 1);
+    memory_region_init_ram_ptr(rma_region, NULL, name, size, rma);
+    memory_region_add_subregion(sysmem, 0, rma_region);
+
+    return size;
+}
+
+void *kvmppc_create_spapr_tce(uint32_t liobn, uint32_t window_size, int *pfd)
+{
+    struct kvm_create_spapr_tce args = {
+        .liobn = liobn,
+        .window_size = window_size,
+    };
+    long len;
+    int fd;
+    void *table;
+
+    if (!cap_spapr_tce) {
+        return NULL;
+    }
+
+    fd = kvm_vm_ioctl(kvm_state, KVM_CREATE_SPAPR_TCE, &args);
+    if (fd < 0) {
+        return NULL;
+    }
+
+    len = (window_size / SPAPR_VIO_TCE_PAGE_SIZE) * sizeof(VIOsPAPR_RTCE);
+    /* FIXME: round this up to page size */
+
+    table = mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (table == MAP_FAILED) {
+        close(fd);
+        return NULL;
+    }
+
+    *pfd = fd;
+    return table;
+}
+
+int kvmppc_remove_spapr_tce(void *table, int fd, uint32_t window_size)
+{
+    long len;
+
+    if (fd < 0) {
+        return -1;
+    }
+
+    len = (window_size / SPAPR_VIO_TCE_PAGE_SIZE)*sizeof(VIOsPAPR_RTCE);
+    if ((munmap(table, len) < 0) ||
+        (close(fd) < 0)) {
+        fprintf(stderr, "KVM: Unexpected error removing KVM SPAPR TCE "
+                "table: %s", strerror(errno));
+        /* Leak the table */
+    }
+
+    return 0;
+}
+
+static inline uint32_t mfpvr(void)
+{
+    uint32_t pvr;
+
+    asm ("mfpvr %0"
+         : "=r"(pvr));
+    return pvr;
+}
+
+static void alter_insns(uint64_t *word, uint64_t flags, bool on)
+{
+    if (on) {
+        *word |= flags;
+    } else {
+        *word &= ~flags;
+    }
+}
+
+const ppc_def_t *kvmppc_host_cpu_def(void)
+{
+    uint32_t host_pvr = mfpvr();
+    const ppc_def_t *base_spec;
+    ppc_def_t *spec;
+    uint32_t vmx = kvmppc_get_vmx();
+    uint32_t dfp = kvmppc_get_dfp();
+
+    base_spec = ppc_find_by_pvr(host_pvr);
+
+    spec = g_malloc0(sizeof(*spec));
+    memcpy(spec, base_spec, sizeof(*spec));
+
+    /* Now fix up the spec with information we can query from the host */
+
+    if (vmx != -1) {
+        /* Only override when we know what the host supports */
+        alter_insns(&spec->insns_flags, PPC_ALTIVEC, vmx > 0);
+        alter_insns(&spec->insns_flags2, PPC2_VSX, vmx > 1);
+    }
+    if (dfp != -1) {
+        /* Only override when we know what the host supports */
+        alter_insns(&spec->insns_flags2, PPC2_DFP, dfp);
+    }
+
+    return spec;
 }
 
 bool kvm_arch_stop_on_emulation_error(CPUState *env)
