@@ -811,6 +811,8 @@ QemuCocoaView *cocoaView;
 
         char **argv = (char**)malloc( sizeof(char*)*3 );
 
+        [sheet close];
+
         asprintf(&argv[0], "%s", bin);
         asprintf(&argv[1], "-hda");
         asprintf(&argv[2], "%s", img);
