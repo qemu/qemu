@@ -48,7 +48,8 @@ typedef struct PCIQXLDevice {
         QXLSurfaceCreate surface;
         uint32_t       commands;
         uint32_t       resized;
-        int32_t        stride;
+        int32_t        qxl_stride;
+        uint32_t       abs_stride;
         uint32_t       bits_pp;
         uint32_t       bytes_pp;
         uint8_t        *data, *flipped;
