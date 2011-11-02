@@ -138,6 +138,7 @@ debug_tcg="no"
 debug_mon="no"
 debug="no"
 strip_opt="yes"
+tcg_interpreter="no"
 bigendian="no"
 mingw32="no"
 EXESUF=""
@@ -654,6 +655,10 @@ for opt do
   ;;
   --enable-kvm) kvm="yes"
   ;;
+  --disable-tcg-interpreter) tcg_interpreter="no"
+  ;;
+  --enable-tcg-interpreter) tcg_interpreter="yes"
+  ;;
   --disable-spice) spice="no"
   ;;
   --enable-spice) spice="yes"
@@ -1009,6 +1014,7 @@ echo "  --enable-bluez           enable bluez stack connectivity"
 echo "  --disable-slirp          disable SLIRP userspace network connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
 echo "  --enable-kvm             enable KVM acceleration support"
+echo "  --enable-tcg-interpreter enable TCG with bytecode interpreter (TCI)"
 echo "  --disable-nptl           disable usermode NPTL support"
 echo "  --enable-nptl            enable usermode NPTL support"
 echo "  --enable-system          enable all system emulation targets"
@@ -2755,6 +2761,7 @@ echo "Linux AIO support $linux_aio"
 echo "ATTR/XATTR support $attr"
 echo "Install blobs     $blobs"
 echo "KVM support       $kvm"
+echo "TCG interpreter   $tcg_interpreter"
 echo "fdt support       $fdt"
 echo "preadv support    $preadv"
 echo "fdatasync         $fdatasync"
@@ -2802,6 +2809,15 @@ case "$cpu" in
   ;;
   armv4b|armv4l)
     ARCH=arm
+  ;;
+  *)
+    if test "$tcg_interpreter" = "yes" ; then
+        echo "Unsupported CPU = $cpu, will use TCG with TCI (experimental)"
+        ARCH=tci
+    else
+        echo "Unsupported CPU = $cpu, try --enable-tcg-interpreter"
+        exit 1
+    fi
   ;;
 esac
 echo "ARCH=$ARCH" >> $config_host_mak
@@ -3035,6 +3051,9 @@ if test "$fdt" = "yes" ; then
 fi
 if test "$signalfd" = "yes" ; then
   echo "CONFIG_SIGNALFD=y" >> $config_host_mak
+fi
+if test "$tcg_interpreter" = "yes" ; then
+  echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
 fi
 if test "$need_offsetof" = "yes" ; then
   echo "CONFIG_NEED_OFFSETOF=y" >> $config_host_mak
@@ -3509,7 +3528,9 @@ cflags=""
 includes=""
 ldflags=""
 
-if test "$ARCH" = "sparc64" ; then
+if test "$tcg_interpreter" = "yes"; then
+  includes="-I\$(SRC_PATH)/tcg/tci $includes"
+elif test "$ARCH" = "sparc64" ; then
   includes="-I\$(SRC_PATH)/tcg/sparc $includes"
 elif test "$ARCH" = "s390x" ; then
   includes="-I\$(SRC_PATH)/tcg/s390 $includes"
@@ -3586,6 +3607,10 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   ;;
   esac
 done
+if test "$tcg_interpreter" = "yes" ; then
+  echo "CONFIG_TCI_DIS=y"  >> $config_target_mak
+  echo "CONFIG_TCI_DIS=y"  >> $libdis_config_mak
+fi
 
 case "$ARCH" in
 alpha)
@@ -3632,7 +3657,12 @@ if test "$gprof" = "yes" ; then
   fi
 fi
 
-linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
+if test "$ARCH" = "tci"; then
+  linker_script=""
+else
+  linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"
+fi
+
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   case "$ARCH" in
   sparc)
