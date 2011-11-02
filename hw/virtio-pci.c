@@ -654,8 +654,6 @@ void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev)
                           "virtio-pci", size);
     pci_register_bar(&proxy->pci_dev, 0, PCI_BASE_ADDRESS_SPACE_IO,
                      &proxy->bar);
-    pci_register_bar(&proxy->pci_dev, 2, PCI_BASE_ADDRESS_SPACE_MEMORY,
-                     &proxy->bar);
 
     if (!kvm_has_many_ioeventfds()) {
         proxy->flags &= ~VIRTIO_PCI_FLAG_USE_IOEVENTFD;
