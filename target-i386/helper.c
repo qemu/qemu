@@ -1257,6 +1257,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
         cpu_x86_close(env);
         return NULL;
     }
+    env->cpuid_apic_id = env->cpu_index;
     mce_init(env);
 
     qemu_init_vcpu(env);
