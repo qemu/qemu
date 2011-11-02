@@ -4614,6 +4614,31 @@ static int open_self_maps(void *cpu_env, int fd)
     return 0;
 }
 
+static int open_self_stat(void *cpu_env, int fd)
+{
+    TaskState *ts = ((CPUState *)cpu_env)->opaque;
+    abi_ulong start_stack = ts->info->start_stack;
+    int i;
+
+    for (i = 0; i < 44; i++) {
+      char buf[128];
+      int len;
+      uint64_t val = 0;
+
+      if (i == 27) {
+          /* stack bottom */
+          val = start_stack;
+      }
+      snprintf(buf, sizeof(buf), "%"PRId64 "%c", val, i == 43 ? '\n' : ' ');
+      len = strlen(buf);
+      if (write(fd, buf, len) != len) {
+          return -1;
+      }
+    }
+
+    return 0;
+}
+
 static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
 {
     struct fake_open {
@@ -4623,6 +4648,7 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
     const struct fake_open *fake_open;
     static const struct fake_open fakes[] = {
         { "/proc/self/maps", open_self_maps },
+        { "/proc/self/stat", open_self_stat },
         { NULL, NULL }
     };
 
