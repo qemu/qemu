@@ -4639,6 +4639,35 @@ static int open_self_stat(void *cpu_env, int fd)
     return 0;
 }
 
+static int open_self_auxv(void *cpu_env, int fd)
+{
+    TaskState *ts = ((CPUState *)cpu_env)->opaque;
+    abi_ulong auxv = ts->info->saved_auxv;
+    abi_ulong len = ts->info->auxv_len;
+    char *ptr;
+
+    /*
+     * Auxiliary vector is stored in target process stack.
+     * read in whole auxv vector and copy it to file
+     */
+    ptr = lock_user(VERIFY_READ, auxv, len, 0);
+    if (ptr != NULL) {
+        while (len > 0) {
+            ssize_t r;
+            r = write(fd, ptr, len);
+            if (r <= 0) {
+                break;
+            }
+            len -= r;
+            ptr += r;
+        }
+        lseek(fd, 0, SEEK_SET);
+        unlock_user(ptr, auxv, len);
+    }
+
+    return 0;
+}
+
 static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
 {
     struct fake_open {
@@ -4649,6 +4678,7 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
     static const struct fake_open fakes[] = {
         { "/proc/self/maps", open_self_maps },
         { "/proc/self/stat", open_self_stat },
+        { "/proc/self/auxv", open_self_auxv },
         { NULL, NULL }
     };
 
