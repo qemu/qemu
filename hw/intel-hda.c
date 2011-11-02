@@ -402,7 +402,7 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
             break;
         }
     }
-    if (st == NULL) {
+    if (s == 4) {
         return false;
     }
     if (st->bpl == NULL) {
