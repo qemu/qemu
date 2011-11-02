@@ -24,6 +24,7 @@
 #include "qemu-queue.h"
 #include "iorange.h"
 #include "ioport.h"
+#include "int128.h"
 
 typedef struct MemoryRegionOps MemoryRegionOps;
 typedef struct MemoryRegion MemoryRegion;
@@ -105,7 +106,7 @@ struct MemoryRegion {
     const MemoryRegionOps *ops;
     void *opaque;
     MemoryRegion *parent;
-    uint64_t size;
+    Int128 size;
     target_phys_addr_t addr;
     target_phys_addr_t offset;
     bool backend_registered;
