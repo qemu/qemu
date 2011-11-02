@@ -4600,6 +4600,20 @@ int get_osversion(void)
     return osversion;
 }
 
+
+static int open_self_maps(void *cpu_env, int fd)
+{
+    TaskState *ts = ((CPUState *)cpu_env)->opaque;
+
+    dprintf(fd, "%08llx-%08llx rw-p %08llx 00:00 0          [stack]\n",
+                (unsigned long long)ts->info->stack_limit,
+                (unsigned long long)(ts->stack_base + (TARGET_PAGE_SIZE - 1))
+                                     & TARGET_PAGE_MASK,
+                (unsigned long long)ts->stack_base);
+
+    return 0;
+}
+
 static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
 {
     struct fake_open {
@@ -4608,6 +4622,7 @@ static int do_open(void *cpu_env, const char *pathname, int flags, mode_t mode)
     };
     const struct fake_open *fake_open;
     static const struct fake_open fakes[] = {
+        { "/proc/self/maps", open_self_maps },
         { NULL, NULL }
     };
 
