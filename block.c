@@ -30,6 +30,7 @@
 #include "qjson.h"
 #include "qemu-coroutine.h"
 #include "qmp-commands.h"
+#include "qemu-timer.h"
 
 #ifdef CONFIG_BSD
 #include <sys/types.h>
@@ -104,6 +105,36 @@ int is_windows_drive(const char *filename)
     return 0;
 }
 #endif
+
+/* throttling disk I/O limits */
+static void bdrv_block_timer(void *opaque)
+{
+    BlockDriverState *bs = opaque;
+
+    qemu_co_queue_next(&bs->throttled_reqs);
+}
+
+void bdrv_io_limits_enable(BlockDriverState *bs)
+{
+    qemu_co_queue_init(&bs->throttled_reqs);
+    bs->block_timer = qemu_new_timer_ns(vm_clock, bdrv_block_timer, bs);
+    bs->slice_time  = 5 * BLOCK_IO_SLICE_TIME;
+    bs->slice_start = qemu_get_clock_ns(vm_clock);
+    bs->slice_end   = bs->slice_start + bs->slice_time;
+    memset(&bs->io_base, 0, sizeof(bs->io_base));
+    bs->io_limits_enabled = true;
+}
+
+bool bdrv_io_limits_enabled(BlockDriverState *bs)
+{
+    BlockIOLimit *io_limits = &bs->io_limits;
+    return io_limits->bps[BLOCK_IO_LIMIT_READ]
+         || io_limits->bps[BLOCK_IO_LIMIT_WRITE]
+         || io_limits->bps[BLOCK_IO_LIMIT_TOTAL]
+         || io_limits->iops[BLOCK_IO_LIMIT_READ]
+         || io_limits->iops[BLOCK_IO_LIMIT_WRITE]
+         || io_limits->iops[BLOCK_IO_LIMIT_TOTAL];
+}
 
 /* check if the path starts with "<protocol>:" */
 static int path_has_protocol(const char *path)
@@ -1524,6 +1555,14 @@ void bdrv_get_geometry_hint(BlockDriverState *bs,
     *pcyls = bs->cyls;
     *pheads = bs->heads;
     *psecs = bs->secs;
+}
+
+/* throttling disk io limits */
+void bdrv_set_io_limits(BlockDriverState *bs,
+                        BlockIOLimit *io_limits)
+{
+    bs->io_limits = *io_limits;
+    bs->io_limits_enabled = bdrv_io_limits_enabled(bs);
 }
 
 /* Recognize floppy formats */
