@@ -507,7 +507,7 @@ txdesc_writeback(E1000State *s, dma_addr_t base, struct e1000_tx_desc *dp)
                 ~(E1000_TXD_STAT_EC | E1000_TXD_STAT_LC | E1000_TXD_STAT_TU);
     dp->upper.data = cpu_to_le32(txd_upper);
     pci_dma_write(&s->dev, base + ((char *)&dp->upper - (char *)dp),
-                  (void *)&dp->upper, sizeof(dp->upper));
+                  &dp->upper, sizeof(dp->upper));
     return E1000_ICR_TXDW;
 }
 
@@ -534,7 +534,7 @@ start_xmit(E1000State *s)
     while (s->mac_reg[TDH] != s->mac_reg[TDT]) {
         base = tx_desc_base(s) +
                sizeof(struct e1000_tx_desc) * s->mac_reg[TDH];
-        pci_dma_read(&s->dev, base, (void *)&desc, sizeof(desc));
+        pci_dma_read(&s->dev, base, &desc, sizeof(desc));
 
         DBGOUT(TX, "index %d: %p : %x %x\n", s->mac_reg[TDH],
                (void *)(intptr_t)desc.buffer_addr, desc.lower.data,
@@ -714,7 +714,7 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
             desc_size = s->rxbuf_size;
         }
         base = rx_desc_base(s) + sizeof(desc) * s->mac_reg[RDH];
-        pci_dma_read(&s->dev, base, (void *)&desc, sizeof(desc));
+        pci_dma_read(&s->dev, base, &desc, sizeof(desc));
         desc.special = vlan_special;
         desc.status |= (vlan_status | E1000_RXD_STAT_DD);
         if (desc.buffer_addr) {
@@ -724,8 +724,7 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
                     copy_size = s->rxbuf_size;
                 }
                 pci_dma_write(&s->dev, le64_to_cpu(desc.buffer_addr),
-                                 (void *)(buf + desc_offset + vlan_offset),
-                                 copy_size);
+                              buf + desc_offset + vlan_offset, copy_size);
             }
             desc_offset += desc_size;
             desc.length = cpu_to_le16(desc_size);
@@ -739,7 +738,7 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
         } else { // as per intel docs; skip descriptors with null buf addr
             DBGOUT(RX, "Null RX descriptor!!\n");
         }
-        pci_dma_write(&s->dev, base, (void *)&desc, sizeof(desc));
+        pci_dma_write(&s->dev, base, &desc, sizeof(desc));
 
         if (++s->mac_reg[RDH] * sizeof(desc) >= s->mac_reg[RDLEN])
             s->mac_reg[RDH] = 0;
