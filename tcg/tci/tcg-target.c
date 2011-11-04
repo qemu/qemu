@@ -123,6 +123,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
     { INDEX_op_rotl_i32, { R, RI, RI } },
     { INDEX_op_rotr_i32, { R, RI, RI } },
 #endif
+#if TCG_TARGET_HAS_deposit_i32
+    { INDEX_op_deposit_i32, { R, "0", R } },
+#endif
 
     { INDEX_op_brcond_i32, { R, RI } },
 
@@ -200,6 +203,9 @@ static const TCGTargetOpDef tcg_target_op_defs[] = {
 #if TCG_TARGET_HAS_rot_i64
     { INDEX_op_rotl_i64, { R, RI, RI } },
     { INDEX_op_rotr_i64, { R, RI, RI } },
+#endif
+#if TCG_TARGET_HAS_deposit_i64
+    { INDEX_op_deposit_i64, { R, "0", R } },
 #endif
     { INDEX_op_brcond_i64, { R, RI } },
 
@@ -659,6 +665,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_ri32(s, const_args[1], args[1]);
         tcg_out_ri32(s, const_args[2], args[2]);
         break;
+    case INDEX_op_deposit_i32:  /* Optional (TCG_TARGET_HAS_deposit_i32). */
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_r(s, args[2]);
+        assert(args[3] <= UINT8_MAX);
+        tcg_out8(s, args[3]);
+        assert(args[4] <= UINT8_MAX);
+        tcg_out8(s, args[4]);
+        break;
 
 #if TCG_TARGET_REG_BITS == 64
     case INDEX_op_mov_i64:
@@ -685,6 +700,15 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
         tcg_out_ri64(s, const_args[2], args[2]);
+        break;
+    case INDEX_op_deposit_i64:  /* Optional (TCG_TARGET_HAS_deposit_i64). */
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        tcg_out_r(s, args[2]);
+        assert(args[3] <= UINT8_MAX);
+        tcg_out8(s, args[3]);
+        assert(args[4] <= UINT8_MAX);
+        tcg_out8(s, args[4]);
         break;
     case INDEX_op_div_i64:      /* Optional (TCG_TARGET_HAS_div_i64). */
     case INDEX_op_divu_i64:     /* Optional (TCG_TARGET_HAS_div_i64). */
