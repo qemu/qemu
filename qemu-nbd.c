@@ -460,22 +460,6 @@ int main(int argc, char **argv)
         }
     }
 
-    bdrv_init();
-
-    bs = bdrv_new("hda");
-
-    srcpath = argv[optind];
-    if ((ret = bdrv_open(bs, srcpath, flags, NULL)) < 0) {
-        errno = -ret;
-        err(EXIT_FAILURE, "Failed to bdrv_open '%s'", srcpath);
-    }
-
-    fd_size = bs->total_sectors * 512;
-
-    if (partition != -1 &&
-        find_partition(bs, partition, &dev_offset, &fd_size))
-        err(EXIT_FAILURE, "Could not find partition %d", partition);
-
     if (device) {
         /* Open before spawning new threads.  In the future, we may
          * drop privileges after opening.
@@ -489,6 +473,23 @@ int main(int argc, char **argv)
             sockpath = g_malloc(128);
             snprintf(sockpath, 128, SOCKET_PATH, basename(device));
         }
+    }
+
+    bdrv_init();
+    atexit(bdrv_close_all);
+
+    bs = bdrv_new("hda");
+    srcpath = argv[optind];
+    if ((ret = bdrv_open(bs, srcpath, flags, NULL)) < 0) {
+        errno = -ret;
+        err(EXIT_FAILURE, "Failed to bdrv_open '%s'", argv[optind]);
+    }
+
+    fd_size = bs->total_sectors * 512;
+
+    if (partition != -1 &&
+        find_partition(bs, partition, &dev_offset, &fd_size)) {
+        err(EXIT_FAILURE, "Could not find partition %d", partition);
     }
 
     sharing_fds = g_malloc((shared + 1) * sizeof(int));
@@ -568,7 +569,6 @@ int main(int argc, char **argv)
     qemu_vfree(data);
 
     close(sharing_fds[0]);
-    bdrv_close(bs);
     g_free(sharing_fds);
     if (sockpath) {
         unlink(sockpath);
