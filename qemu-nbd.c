@@ -31,6 +31,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <libgen.h>
+#include <pthread.h>
 
 #define SOCKET_PATH    "/var/lock/qemu-nbd-%s"
 
@@ -38,6 +39,9 @@
 
 static int sigterm_wfd;
 static int verbose;
+static char *device;
+static char *srcpath;
+static char *sockpath;
 
 static void usage(const char *name)
 {
@@ -172,21 +176,70 @@ static void termsig_handler(int signum)
     }
 }
 
-static void show_parts(const char *device)
+static void *show_parts(void *arg)
 {
-    if (fork() == 0) {
-        int nbd;
+    int nbd;
 
-        /* linux just needs an open() to trigger
-         * the partition table update
-         * but remember to load the module with max_part != 0 :
-         *     modprobe nbd max_part=63
-         */
-        nbd = open(device, O_RDWR);
-        if (nbd != -1)
-              close(nbd);
-        exit(0);
+    /* linux just needs an open() to trigger
+     * the partition table update
+     * but remember to load the module with max_part != 0 :
+     *     modprobe nbd max_part=63
+     */
+    nbd = open(device, O_RDWR);
+    if (nbd != -1) {
+        close(nbd);
     }
+    return NULL;
+}
+
+static void *nbd_client_thread(void *arg)
+{
+    int fd = *(int *)arg;
+    off_t size;
+    size_t blocksize;
+    uint32_t nbdflags;
+    int sock;
+    int ret;
+    pthread_t show_parts_thread;
+
+    do {
+        sock = unix_socket_outgoing(sockpath);
+        if (sock == -1) {
+            if (errno != ENOENT && errno != ECONNREFUSED) {
+                goto out;
+            }
+            sleep(1);  /* wait parent */
+        }
+    } while (sock == -1);
+
+    ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
+                                &size, &blocksize);
+    if (ret == -1) {
+        goto out;
+    }
+
+    ret = nbd_init(fd, sock, nbdflags, size, blocksize);
+    if (ret == -1) {
+        goto out;
+    }
+
+    /* update partition table */
+    pthread_create(&show_parts_thread, NULL, show_parts, NULL);
+
+    fprintf(stderr, "NBD device %s is now connected to %s\n",
+            device, srcpath);
+
+    ret = nbd_client(fd);
+    if (ret) {
+        goto out;
+    }
+    close(fd);
+    kill(getpid(), SIGTERM);
+    return (void *) EXIT_SUCCESS;
+
+out:
+    kill(getpid(), SIGTERM);
+    return (void *) EXIT_FAILURE;
 }
 
 int main(int argc, char **argv)
@@ -201,8 +254,6 @@ int main(int argc, char **argv)
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
     off_t fd_size;
-    char *device = NULL;
-    char *sockpath = NULL;
     const char *sopt = "hVb:o:p:rsnP:c:dvk:e:t";
     struct option lopt[] = {
         { "help", 0, NULL, 'h' },
@@ -238,8 +289,11 @@ int main(int argc, char **argv)
     int nb_fds = 0;
     int max_fd;
     int persistent = 0;
+    pthread_t client_thread;
 
-    /* Set up a SIGTERM handler so that we exit with a nice status code.  */
+    /* The client thread uses SIGTERM to interrupt the server.  A signal
+     * handler ensures that "qemu-nbd -v -c" exits with a nice status code.
+     */
     struct sigaction sa_sigterm;
     int sigterm_fd[2];
     if (qemu_pipe(sigterm_fd) == -1) {
@@ -356,9 +410,10 @@ int main(int argc, char **argv)
 
     bs = bdrv_new("hda");
 
-    if ((ret = bdrv_open(bs, argv[optind], flags, NULL)) < 0) {
+    srcpath = argv[optind];
+    if ((ret = bdrv_open(bs, srcpath, flags, NULL)) < 0) {
         errno = -ret;
-        err(EXIT_FAILURE, "Failed to bdrv_open '%s'", argv[optind]);
+        err(EXIT_FAILURE, "Failed to bdrv_open '%s'", srcpath);
     }
 
     fd_size = bs->total_sectors * 512;
@@ -368,12 +423,14 @@ int main(int argc, char **argv)
         err(EXIT_FAILURE, "Could not find partition %d", partition);
 
     if (device) {
-        pid_t pid;
-        int sock;
+        int ret;
 
-        /* want to fail before daemonizing */
-        if (access(device, R_OK|W_OK) == -1) {
-            err(EXIT_FAILURE, "Could not access '%s'", device);
+        /* Open before spawning new threads.  In the future, we may
+         * drop privileges after opening.
+         */
+        fd = open(device, O_RDWR);
+        if (fd == -1) {
+            err(EXIT_FAILURE, "Failed to open %s", device);
         }
 
         if (!verbose) {
@@ -388,64 +445,14 @@ int main(int argc, char **argv)
             snprintf(sockpath, 128, SOCKET_PATH, basename(device));
         }
 
-        pid = fork();
-        if (pid < 0)
-            return 1;
-        if (pid != 0) {
-            off_t size;
-            size_t blocksize;
-
-            ret = 0;
-            bdrv_close(bs);
-
-            do {
-                sock = unix_socket_outgoing(sockpath);
-                if (sock == -1) {
-                    if (errno != ENOENT && errno != ECONNREFUSED) {
-                        ret = 1;
-                        goto out;
-                    }
-                    sleep(1);	/* wait children */
-                }
-            } while (sock == -1);
-
-            fd = open(device, O_RDWR);
-            if (fd == -1) {
-                ret = 1;
-                goto out;
-            }
-
-            ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
-                                        &size, &blocksize);
-            if (ret == -1) {
-                ret = 1;
-                goto out;
-            }
-
-            ret = nbd_init(fd, sock, nbdflags, size, blocksize);
-            if (ret == -1) {
-                ret = 1;
-                goto out;
-            }
-
-            printf("NBD device %s is now connected to file %s\n",
-                    device, argv[optind]);
-
-	    /* update partition table */
-
-            show_parts(device);
-
-            ret = nbd_client(fd);
-            if (ret) {
-                ret = 1;
-            }
-            close(fd);
- out:
-            kill(pid, SIGTERM);
-
-            return ret;
+        ret = pthread_create(&client_thread, NULL, nbd_client_thread, &fd);
+        if (ret != 0) {
+            errx(EXIT_FAILURE, "Failed to create client thread: %s",
+                 strerror(ret));
         }
-        /* children */
+    } else {
+        /* Shut up GCC warnings.  */
+        memset(&client_thread, 0, sizeof(client_thread));
     }
 
     sharing_fds = g_malloc((shared + 1) * sizeof(int));
@@ -517,5 +524,11 @@ int main(int argc, char **argv)
         unlink(sockpath);
     }
 
-    return 0;
+    if (device) {
+        void *ret;
+        pthread_join(client_thread, &ret);
+        exit(ret != NULL);
+    } else {
+        exit(EXIT_SUCCESS);
+    }
 }
