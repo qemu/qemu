@@ -713,8 +713,7 @@ static void dump_statistics(EEPRO100State * s)
      * values which really matter.
      * Number of data should check configuration!!!
      */
-    pci_dma_write(&s->dev, s->statsaddr,
-                  (uint8_t *) &s->statistics, s->stats_size);
+    pci_dma_write(&s->dev, s->statsaddr, &s->statistics, s->stats_size);
     stl_le_pci_dma(&s->dev, s->statsaddr + 0,
                    s->statistics.tx_good_frames);
     stl_le_pci_dma(&s->dev, s->statsaddr + 36,
@@ -732,7 +731,7 @@ static void dump_statistics(EEPRO100State * s)
 
 static void read_cb(EEPRO100State *s)
 {
-    pci_dma_read(&s->dev, s->cb_address, (uint8_t *) &s->tx, sizeof(s->tx));
+    pci_dma_read(&s->dev, s->cb_address, &s->tx, sizeof(s->tx));
     s->tx.status = le16_to_cpu(s->tx.status);
     s->tx.command = le16_to_cpu(s->tx.command);
     s->tx.link = le32_to_cpu(s->tx.link);
@@ -1715,7 +1714,7 @@ static ssize_t nic_receive(VLANClientState *nc, const uint8_t * buf, size_t size
     /* !!! */
     eepro100_rx_t rx;
     pci_dma_read(&s->dev, s->ru_base + s->ru_offset,
-                 (uint8_t *) &rx, sizeof(eepro100_rx_t));
+                 &rx, sizeof(eepro100_rx_t));
     uint16_t rfd_command = le16_to_cpu(rx.command);
     uint16_t rfd_size = le16_to_cpu(rx.size);
 
