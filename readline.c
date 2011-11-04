@@ -236,7 +236,7 @@ static void readline_hist_add(ReadLineState *rs, const char *cmdline)
 	    new_entry = hist_entry;
 	    /* Put this entry at the end of history */
 	    memmove(&rs->history[idx], &rs->history[idx + 1],
-		    (READLINE_MAX_CMDS - idx + 1) * sizeof(char *));
+		    (READLINE_MAX_CMDS - (idx + 1)) * sizeof(char *));
 	    rs->history[READLINE_MAX_CMDS - 1] = NULL;
 	    for (; idx < READLINE_MAX_CMDS; idx++) {
 		if (rs->history[idx] == NULL)
