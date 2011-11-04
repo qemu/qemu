@@ -226,8 +226,13 @@ static void *nbd_client_thread(void *arg)
     /* update partition table */
     pthread_create(&show_parts_thread, NULL, show_parts, NULL);
 
-    fprintf(stderr, "NBD device %s is now connected to %s\n",
-            device, srcpath);
+    if (verbose) {
+        fprintf(stderr, "NBD device %s is now connected to %s\n",
+                device, srcpath);
+    } else {
+        /* Close stderr so that the qemu-nbd process exits.  */
+        dup2(STDOUT_FILENO, STDERR_FILENO);
+    }
 
     ret = nbd_client(fd);
     if (ret) {
@@ -406,6 +411,58 @@ int main(int argc, char **argv)
 	return 0;
     }
 
+    if (device && !verbose) {
+        int stderr_fd[2];
+        pid_t pid;
+        int ret;
+
+        if (qemu_pipe(stderr_fd) == -1) {
+            err(EXIT_FAILURE, "Error setting up communication pipe");
+        }
+
+        /* Now daemonize, but keep a communication channel open to
+         * print errors and exit with the proper status code.
+         */
+        pid = fork();
+        if (pid == 0) {
+            close(stderr_fd[0]);
+            ret = qemu_daemon(0, 0);
+
+            /* Temporarily redirect stderr to the parent's pipe...  */
+            dup2(stderr_fd[1], STDERR_FILENO);
+            if (ret == -1) {
+                err(EXIT_FAILURE, "Failed to daemonize");
+            }
+
+            /* ... close the descriptor we inherited and go on.  */
+            close(stderr_fd[1]);
+        } else {
+            bool errors = false;
+            char *buf;
+
+            /* In the parent.  Print error messages from the child until
+             * it closes the pipe.
+             */
+            close(stderr_fd[1]);
+            buf = g_malloc(1024);
+            while ((ret = read(stderr_fd[0], buf, 1024)) > 0) {
+                errors = true;
+                ret = qemu_write_full(STDERR_FILENO, buf, ret);
+                if (ret == -1) {
+                    exit(EXIT_FAILURE);
+                }
+            }
+            if (ret == -1) {
+                err(EXIT_FAILURE, "Cannot read from daemon");
+            }
+
+            /* Usually the daemon should not print any message.
+             * Exit with zero status in that case.
+             */
+            exit(errors);
+        }
+    }
+
     bdrv_init();
 
     bs = bdrv_new("hda");
@@ -431,13 +488,6 @@ int main(int argc, char **argv)
         fd = open(device, O_RDWR);
         if (fd == -1) {
             err(EXIT_FAILURE, "Failed to open %s", device);
-        }
-
-        if (!verbose) {
-            /* detach client and server */
-            if (qemu_daemon(0, 0) == -1) {
-                err(EXIT_FAILURE, "Failed to daemonize");
-            }
         }
 
         if (sockpath == NULL) {
