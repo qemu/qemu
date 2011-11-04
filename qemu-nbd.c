@@ -202,8 +202,7 @@ int main(int argc, char **argv)
     socklen_t addr_len = sizeof(addr);
     off_t fd_size;
     char *device = NULL;
-    char *socket = NULL;
-    char sockpath[128];
+    char *sockpath = NULL;
     const char *sopt = "hVb:o:p:rsnP:c:dvk:e:t";
     struct option lopt[] = {
         { "help", 0, NULL, 'h' },
@@ -294,8 +293,8 @@ int main(int argc, char **argv)
                 errx(EXIT_FAILURE, "Invalid partition %d", partition);
             break;
         case 'k':
-            socket = optarg;
-            if (socket[0] != '/')
+            sockpath = optarg;
+            if (sockpath[0] != '/')
                 errx(EXIT_FAILURE, "socket path must be absolute\n");
             break;
         case 'd':
@@ -384,10 +383,9 @@ int main(int argc, char **argv)
             }
         }
 
-        if (socket == NULL) {
-            snprintf(sockpath, sizeof(sockpath), SOCKET_PATH,
-                     basename(device));
-            socket = sockpath;
+        if (sockpath == NULL) {
+            sockpath = g_malloc(128);
+            snprintf(sockpath, 128, SOCKET_PATH, basename(device));
         }
 
         pid = fork();
@@ -401,7 +399,7 @@ int main(int argc, char **argv)
             bdrv_close(bs);
 
             do {
-                sock = unix_socket_outgoing(socket);
+                sock = unix_socket_outgoing(sockpath);
                 if (sock == -1) {
                     if (errno != ENOENT && errno != ECONNREFUSED) {
                         ret = 1;
@@ -452,8 +450,8 @@ int main(int argc, char **argv)
 
     sharing_fds = g_malloc((shared + 1) * sizeof(int));
 
-    if (socket) {
-        sharing_fds[0] = unix_socket_incoming(socket);
+    if (sockpath) {
+        sharing_fds[0] = unix_socket_incoming(sockpath);
     } else {
         sharing_fds[0] = tcp_socket_incoming(bindto, port);
     }
@@ -515,8 +513,9 @@ int main(int argc, char **argv)
     close(sharing_fds[0]);
     bdrv_close(bs);
     g_free(sharing_fds);
-    if (socket)
-        unlink(socket);
+    if (sockpath) {
+        unlink(sockpath);
+    }
 
     return 0;
 }
