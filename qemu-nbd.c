@@ -205,10 +205,7 @@ static void *nbd_client_thread(void *arg)
     do {
         sock = unix_socket_outgoing(sockpath);
         if (sock == -1) {
-            if (errno != ENOENT && errno != ECONNREFUSED) {
-                goto out;
-            }
-            sleep(1);  /* wait parent */
+            goto out;
         }
     } while (sock == -1);
 
@@ -480,8 +477,6 @@ int main(int argc, char **argv)
         err(EXIT_FAILURE, "Could not find partition %d", partition);
 
     if (device) {
-        int ret;
-
         /* Open before spawning new threads.  In the future, we may
          * drop privileges after opening.
          */
@@ -494,15 +489,6 @@ int main(int argc, char **argv)
             sockpath = g_malloc(128);
             snprintf(sockpath, 128, SOCKET_PATH, basename(device));
         }
-
-        ret = pthread_create(&client_thread, NULL, nbd_client_thread, &fd);
-        if (ret != 0) {
-            errx(EXIT_FAILURE, "Failed to create client thread: %s",
-                 strerror(ret));
-        }
-    } else {
-        /* Shut up GCC warnings.  */
-        memset(&client_thread, 0, sizeof(client_thread));
     }
 
     sharing_fds = g_malloc((shared + 1) * sizeof(int));
@@ -515,6 +501,20 @@ int main(int argc, char **argv)
 
     if (sharing_fds[0] == -1)
         return 1;
+
+    if (device) {
+        int ret;
+
+        ret = pthread_create(&client_thread, NULL, nbd_client_thread, &fd);
+        if (ret != 0) {
+            errx(EXIT_FAILURE, "Failed to create client thread: %s",
+                 strerror(ret));
+        }
+    } else {
+        /* Shut up GCC warnings.  */
+        memset(&client_thread, 0, sizeof(client_thread));
+    }
+
     max_fd = sharing_fds[0];
     nb_fds++;
 
