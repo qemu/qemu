@@ -876,7 +876,7 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
         uint32_t link = async->td;
         uint32_t int_mask = 0, val;
 
-        pci_dma_read(&s->dev, link & ~0xf, (uint8_t *) &td, sizeof(td));
+        pci_dma_read(&s->dev, link & ~0xf, &td, sizeof(td));
         le32_to_cpus(&td.link);
         le32_to_cpus(&td.ctrl);
         le32_to_cpus(&td.token);
@@ -888,8 +888,7 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
 
         /* update the status bits of the TD */
         val = cpu_to_le32(td.ctrl);
-        pci_dma_write(&s->dev, (link & ~0xf) + 4,
-                      (const uint8_t *)&val, sizeof(val));
+        pci_dma_write(&s->dev, (link & ~0xf) + 4, &val, sizeof(val));
         uhci_async_free(s, async);
     } else {
         async->done = 1;
@@ -952,7 +951,7 @@ static void uhci_process_frame(UHCIState *s)
 
     DPRINTF("uhci: processing frame %d addr 0x%x\n" , s->frnum, frame_addr);
 
-    pci_dma_read(&s->dev, frame_addr, (uint8_t *)&link, 4);
+    pci_dma_read(&s->dev, frame_addr, &link, 4);
     le32_to_cpus(&link);
 
     int_mask = 0;
@@ -976,7 +975,7 @@ static void uhci_process_frame(UHCIState *s)
                 break;
             }
 
-            pci_dma_read(&s->dev, link & ~0xf, (uint8_t *) &qh, sizeof(qh));
+            pci_dma_read(&s->dev, link & ~0xf, &qh, sizeof(qh));
             le32_to_cpus(&qh.link);
             le32_to_cpus(&qh.el_link);
 
@@ -996,7 +995,7 @@ static void uhci_process_frame(UHCIState *s)
         }
 
         /* TD */
-        pci_dma_read(&s->dev, link & ~0xf, (uint8_t *) &td, sizeof(td));
+        pci_dma_read(&s->dev, link & ~0xf, &td, sizeof(td));
         le32_to_cpus(&td.link);
         le32_to_cpus(&td.ctrl);
         le32_to_cpus(&td.token);
@@ -1010,8 +1009,7 @@ static void uhci_process_frame(UHCIState *s)
         if (old_td_ctrl != td.ctrl) {
             /* update the status bits of the TD */
             val = cpu_to_le32(td.ctrl);
-            pci_dma_write(&s->dev, (link & ~0xf) + 4,
-                          (const uint8_t *)&val, sizeof(val));
+            pci_dma_write(&s->dev, (link & ~0xf) + 4, &val, sizeof(val));
         }
 
         if (ret < 0) {
@@ -1039,8 +1037,7 @@ static void uhci_process_frame(UHCIState *s)
 	    /* update QH element link */
             qh.el_link = link;
             val = cpu_to_le32(qh.el_link);
-            pci_dma_write(&s->dev, (curr_qh & ~0xf) + 4,
-                          (const uint8_t *)&val, sizeof(val));
+            pci_dma_write(&s->dev, (curr_qh & ~0xf) + 4, &val, sizeof(val));
 
             if (!depth_first(link)) {
                /* done with this QH */
