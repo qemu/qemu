@@ -36,6 +36,7 @@
 
 #define NBD_BUFFER_SIZE (1024*1024)
 
+static int sigterm_wfd;
 static int verbose;
 
 static void usage(const char *name)
@@ -163,6 +164,14 @@ static int find_partition(BlockDriverState *bs, int partition,
     return -1;
 }
 
+static void termsig_handler(int signum)
+{
+    static int sigterm_reported;
+    if (!sigterm_reported) {
+        sigterm_reported = (write(sigterm_wfd, "", 1) == 1);
+    }
+}
+
 static void show_parts(const char *device)
 {
     if (fork() == 0) {
@@ -230,6 +239,18 @@ int main(int argc, char **argv)
     int nb_fds = 0;
     int max_fd;
     int persistent = 0;
+
+    /* Set up a SIGTERM handler so that we exit with a nice status code.  */
+    struct sigaction sa_sigterm;
+    int sigterm_fd[2];
+    if (qemu_pipe(sigterm_fd) == -1) {
+        err(EXIT_FAILURE, "Error setting up communication pipe");
+    }
+
+    sigterm_wfd = sigterm_fd[1];
+    memset(&sa_sigterm, 0, sizeof(sa_sigterm));
+    sa_sigterm.sa_handler = termsig_handler;
+    sigaction(SIGTERM, &sa_sigterm, NULL);
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -423,7 +444,6 @@ int main(int argc, char **argv)
             close(fd);
  out:
             kill(pid, SIGTERM);
-            unlink(socket);
 
             return ret;
         }
@@ -444,18 +464,22 @@ int main(int argc, char **argv)
     nb_fds++;
 
     data = qemu_blockalign(bs, NBD_BUFFER_SIZE);
-    if (data == NULL)
+    if (data == NULL) {
         errx(EXIT_FAILURE, "Cannot allocate data buffer");
+    }
 
     do {
-
         FD_ZERO(&fds);
+        FD_SET(sigterm_fd[0], &fds);
         for (i = 0; i < nb_fds; i++)
             FD_SET(sharing_fds[i], &fds);
 
-        ret = select(max_fd + 1, &fds, NULL, NULL, NULL);
-        if (ret == -1)
+        do {
+            ret = select(max_fd + 1, &fds, NULL, NULL, NULL);
+        } while (ret == -1 && errno == EINTR);
+        if (ret == -1 || FD_ISSET(sigterm_fd[0], &fds)) {
             break;
+        }
 
         if (FD_ISSET(sharing_fds[0], &fds))
             ret--;
