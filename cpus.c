@@ -891,6 +891,7 @@ void resume_all_vcpus(void)
 {
     CPUState *penv = first_cpu;
 
+    qemu_clock_enable(vm_clock, true);
     while (penv) {
         penv->stop = 0;
         penv->stopped = 0;
