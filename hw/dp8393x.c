@@ -515,7 +515,7 @@ static void write_register(dp8393xState *s, int reg, uint16_t val)
     switch (reg) {
         /* Command register */
         case SONIC_CR:
-            do_command(s, val);;
+            do_command(s, val);
             break;
         /* Prevent write to read-only registers */
         case SONIC_CAP2:
