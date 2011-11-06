@@ -177,7 +177,8 @@ static void mips_jazz_init(MemoryRegion *address_space,
     cpu_mips_clock_init(env);
 
     /* Chipset */
-    rc4030_opaque = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas);
+    rc4030_opaque = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas,
+                                address_space);
     memory_region_init_io(dma_dummy, &dma_dummy_ops, NULL, "dummy_dma", 0x1000);
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
