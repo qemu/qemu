@@ -99,6 +99,9 @@ libobj-$(TARGET_SPARC64) += int64_helper.o
 libobj-$(CONFIG_SCU2) += scu2.o
 
 libobj-y += disas.o
+libobj-$(CONFIG_TCI_DIS) += tci-dis.o
+
+tci-dis.o: QEMU_CFLAGS += -I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/tci
 
 $(libobj-y): $(GENERATED_HEADERS)
 
@@ -265,6 +268,7 @@ obj-ppc-y += ppc_newworld.o
 # IBM pSeries (sPAPR)
 obj-ppc-$(CONFIG_PSERIES) += spapr.o spapr_hcall.o spapr_rtas.o spapr_vio.o
 obj-ppc-$(CONFIG_PSERIES) += xics.o spapr_vty.o spapr_llan.o spapr_vscsi.o
+obj-ppc-$(CONFIG_PSERIES) += spapr_pci.o device-hotplug.o pci-hotplug.o
 # PowerPC 4xx boards
 obj-ppc-y += ppc4xx_devs.o ppc4xx_pci.o ppc405_uc.o ppc405_boards.o
 obj-ppc-y += ppc440.o ppc440_bamboo.o

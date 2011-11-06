@@ -28,43 +28,48 @@ typedef struct AddrRange AddrRange;
  * (large MemoryRegion::alias_offset).
  */
 struct AddrRange {
-    int64_t start;
-    int64_t size;
+    Int128 start;
+    Int128 size;
 };
 
-static AddrRange addrrange_make(int64_t start, int64_t size)
+static AddrRange addrrange_make(Int128 start, Int128 size)
 {
     return (AddrRange) { start, size };
 }
 
 static bool addrrange_equal(AddrRange r1, AddrRange r2)
 {
-    return r1.start == r2.start && r1.size == r2.size;
+    return int128_eq(r1.start, r2.start) && int128_eq(r1.size, r2.size);
 }
 
-static int64_t addrrange_end(AddrRange r)
+static Int128 addrrange_end(AddrRange r)
 {
-    return r.start + r.size;
+    return int128_add(r.start, r.size);
 }
 
-static AddrRange addrrange_shift(AddrRange range, int64_t delta)
+static AddrRange addrrange_shift(AddrRange range, Int128 delta)
 {
-    range.start += delta;
+    int128_addto(&range.start, delta);
     return range;
+}
+
+static bool addrrange_contains(AddrRange range, Int128 addr)
+{
+    return int128_ge(addr, range.start)
+        && int128_lt(addr, addrrange_end(range));
 }
 
 static bool addrrange_intersects(AddrRange r1, AddrRange r2)
 {
-    return (r1.start >= r2.start && (r1.start - r2.start) < r2.size)
-        || (r2.start >= r1.start && (r2.start - r1.start) < r1.size);
+    return addrrange_contains(r1, r2.start)
+        || addrrange_contains(r2, r1.start);
 }
 
 static AddrRange addrrange_intersection(AddrRange r1, AddrRange r2)
 {
-    int64_t start = MAX(r1.start, r2.start);
-    /* off-by-one arithmetic to prevent overflow */
-    int64_t end = MIN(addrrange_end(r1) - 1, addrrange_end(r2) - 1);
-    return addrrange_make(start, end - start + 1);
+    Int128 start = int128_max(r1.start, r2.start);
+    Int128 end = int128_min(addrrange_end(r1), addrrange_end(r2));
+    return addrrange_make(start, int128_sub(end, start));
 }
 
 struct CoalescedMemoryRange {
@@ -82,13 +87,13 @@ struct MemoryRegionIoeventfd {
 static bool memory_region_ioeventfd_before(MemoryRegionIoeventfd a,
                                            MemoryRegionIoeventfd b)
 {
-    if (a.addr.start < b.addr.start) {
+    if (int128_lt(a.addr.start, b.addr.start)) {
         return true;
-    } else if (a.addr.start > b.addr.start) {
+    } else if (int128_gt(a.addr.start, b.addr.start)) {
         return false;
-    } else if (a.addr.size < b.addr.size) {
+    } else if (int128_lt(a.addr.size, b.addr.size)) {
         return true;
-    } else if (a.addr.size > b.addr.size) {
+    } else if (int128_gt(a.addr.size, b.addr.size)) {
         return false;
     } else if (a.match_data < b.match_data) {
         return true;
@@ -201,9 +206,11 @@ static void flatview_destroy(FlatView *view)
 
 static bool can_merge(FlatRange *r1, FlatRange *r2)
 {
-    return addrrange_end(r1->addr) == r2->addr.start
+    return int128_eq(addrrange_end(r1->addr), r2->addr.start)
         && r1->mr == r2->mr
-        && r1->offset_in_region + r1->addr.size == r2->offset_in_region
+        && int128_eq(int128_add(int128_make64(r1->offset_in_region),
+                                r1->addr.size),
+                     int128_make64(r2->offset_in_region))
         && r1->dirty_log_mask == r2->dirty_log_mask
         && r1->readable == r2->readable
         && r1->readonly == r2->readonly;
@@ -219,7 +226,7 @@ static void flatview_simplify(FlatView *view)
         j = i + 1;
         while (j < view->nr
                && can_merge(&view->ranges[j-1], &view->ranges[j])) {
-            view->ranges[i].addr.size += view->ranges[j].addr.size;
+            int128_addto(&view->ranges[i].addr.size, view->ranges[j].addr.size);
             ++j;
         }
         ++i;
@@ -314,8 +321,8 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
         phys_offset |= IO_MEM_ROM;
     }
 
-    cpu_register_physical_memory_log(fr->addr.start,
-                                     fr->addr.size,
+    cpu_register_physical_memory_log(int128_get64(fr->addr.start),
+                                     int128_get64(fr->addr.size),
                                      phys_offset,
                                      region_offset,
                                      fr->dirty_log_mask);
@@ -324,30 +331,35 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
 static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
 {
     if (fr->dirty_log_mask) {
-        cpu_physical_sync_dirty_bitmap(fr->addr.start,
-                                       fr->addr.start + fr->addr.size);
+        Int128 end = addrrange_end(fr->addr);
+        cpu_physical_sync_dirty_bitmap(int128_get64(fr->addr.start),
+                                       int128_get64(end));
     }
-    cpu_register_physical_memory(fr->addr.start, fr->addr.size,
+    cpu_register_physical_memory(int128_get64(fr->addr.start),
+                                 int128_get64(fr->addr.size),
                                  IO_MEM_UNASSIGNED);
 }
 
 static void as_memory_log_start(AddressSpace *as, FlatRange *fr)
 {
-    cpu_physical_log_start(fr->addr.start, fr->addr.size);
+    cpu_physical_log_start(int128_get64(fr->addr.start),
+                           int128_get64(fr->addr.size));
 }
 
 static void as_memory_log_stop(AddressSpace *as, FlatRange *fr)
 {
-    cpu_physical_log_stop(fr->addr.start, fr->addr.size);
+    cpu_physical_log_stop(int128_get64(fr->addr.start),
+                          int128_get64(fr->addr.size));
 }
 
 static void as_memory_ioeventfd_add(AddressSpace *as, MemoryRegionIoeventfd *fd)
 {
     int r;
 
-    assert(fd->match_data && fd->addr.size == 4);
+    assert(fd->match_data && int128_get64(fd->addr.size) == 4);
 
-    r = kvm_set_ioeventfd_mmio_long(fd->fd, fd->addr.start, fd->data, true);
+    r = kvm_set_ioeventfd_mmio_long(fd->fd, int128_get64(fd->addr.start),
+                                    fd->data, true);
     if (r < 0) {
         abort();
     }
@@ -357,7 +369,8 @@ static void as_memory_ioeventfd_del(AddressSpace *as, MemoryRegionIoeventfd *fd)
 {
     int r;
 
-    r = kvm_set_ioeventfd_mmio_long(fd->fd, fd->addr.start, fd->data, false);
+    r = kvm_set_ioeventfd_mmio_long(fd->fd, int128_get64(fd->addr.start),
+                                    fd->data, false);
     if (r < 0) {
         abort();
     }
@@ -453,22 +466,24 @@ static const IORangeOps memory_region_iorange_ops = {
 static void as_io_range_add(AddressSpace *as, FlatRange *fr)
 {
     iorange_init(&fr->mr->iorange, &memory_region_iorange_ops,
-                 fr->addr.start,fr->addr.size);
+                 int128_get64(fr->addr.start), int128_get64(fr->addr.size));
     ioport_register(&fr->mr->iorange);
 }
 
 static void as_io_range_del(AddressSpace *as, FlatRange *fr)
 {
-    isa_unassign_ioport(fr->addr.start, fr->addr.size);
+    isa_unassign_ioport(int128_get64(fr->addr.start),
+                        int128_get64(fr->addr.size));
 }
 
 static void as_io_ioeventfd_add(AddressSpace *as, MemoryRegionIoeventfd *fd)
 {
     int r;
 
-    assert(fd->match_data && fd->addr.size == 2);
+    assert(fd->match_data && int128_get64(fd->addr.size) == 2);
 
-    r = kvm_set_ioeventfd_pio_word(fd->fd, fd->addr.start, fd->data, true);
+    r = kvm_set_ioeventfd_pio_word(fd->fd, int128_get64(fd->addr.start),
+                                   fd->data, true);
     if (r < 0) {
         abort();
     }
@@ -478,7 +493,8 @@ static void as_io_ioeventfd_del(AddressSpace *as, MemoryRegionIoeventfd *fd)
 {
     int r;
 
-    r = kvm_set_ioeventfd_pio_word(fd->fd, fd->addr.start, fd->data, false);
+    r = kvm_set_ioeventfd_pio_word(fd->fd, int128_get64(fd->addr.start),
+                                   fd->data, false);
     if (r < 0) {
         abort();
     }
@@ -500,19 +516,19 @@ static AddressSpace address_space_io = {
  */
 static void render_memory_region(FlatView *view,
                                  MemoryRegion *mr,
-                                 target_phys_addr_t base,
+                                 Int128 base,
                                  AddrRange clip,
                                  bool readonly)
 {
     MemoryRegion *subregion;
     unsigned i;
     target_phys_addr_t offset_in_region;
-    int64_t remain;
-    int64_t now;
+    Int128 remain;
+    Int128 now;
     FlatRange fr;
     AddrRange tmp;
 
-    base += mr->addr;
+    int128_addto(&base, int128_make64(mr->addr));
     readonly |= mr->readonly;
 
     tmp = addrrange_make(base, mr->size);
@@ -524,8 +540,8 @@ static void render_memory_region(FlatView *view,
     clip = addrrange_intersection(tmp, clip);
 
     if (mr->alias) {
-        base -= mr->alias->addr;
-        base -= mr->alias_offset;
+        int128_subfrom(&base, int128_make64(mr->alias->addr));
+        int128_subfrom(&base, int128_make64(mr->alias_offset));
         render_memory_region(view, mr->alias, base, clip, readonly);
         return;
     }
@@ -539,17 +555,18 @@ static void render_memory_region(FlatView *view,
         return;
     }
 
-    offset_in_region = clip.start - base;
+    offset_in_region = int128_get64(int128_sub(clip.start, base));
     base = clip.start;
     remain = clip.size;
 
     /* Render the region itself into any gaps left by the current view. */
-    for (i = 0; i < view->nr && remain; ++i) {
-        if (base >= addrrange_end(view->ranges[i].addr)) {
+    for (i = 0; i < view->nr && int128_nz(remain); ++i) {
+        if (int128_ge(base, addrrange_end(view->ranges[i].addr))) {
             continue;
         }
-        if (base < view->ranges[i].addr.start) {
-            now = MIN(remain, view->ranges[i].addr.start - base);
+        if (int128_lt(base, view->ranges[i].addr.start)) {
+            now = int128_min(remain,
+                             int128_sub(view->ranges[i].addr.start, base));
             fr.mr = mr;
             fr.offset_in_region = offset_in_region;
             fr.addr = addrrange_make(base, now);
@@ -558,18 +575,18 @@ static void render_memory_region(FlatView *view,
             fr.readonly = readonly;
             flatview_insert(view, i, &fr);
             ++i;
-            base += now;
-            offset_in_region += now;
-            remain -= now;
+            int128_addto(&base, now);
+            offset_in_region += int128_get64(now);
+            int128_subfrom(&remain, now);
         }
-        if (base == view->ranges[i].addr.start) {
-            now = MIN(remain, view->ranges[i].addr.size);
-            base += now;
-            offset_in_region += now;
-            remain -= now;
+        if (int128_eq(base, view->ranges[i].addr.start)) {
+            now = int128_min(remain, view->ranges[i].addr.size);
+            int128_addto(&base, now);
+            offset_in_region += int128_get64(now);
+            int128_subfrom(&remain, now);
         }
     }
-    if (remain) {
+    if (int128_nz(remain)) {
         fr.mr = mr;
         fr.offset_in_region = offset_in_region;
         fr.addr = addrrange_make(base, remain);
@@ -587,7 +604,8 @@ static FlatView generate_memory_topology(MemoryRegion *mr)
 
     flatview_init(&view);
 
-    render_memory_region(&view, mr, 0, addrrange_make(0, INT64_MAX), false);
+    render_memory_region(&view, mr, int128_zero(),
+                         addrrange_make(int128_zero(), int128_2_64()), false);
     flatview_simplify(&view);
 
     return view;
@@ -637,7 +655,8 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     FOR_EACH_FLAT_RANGE(fr, &as->current_map) {
         for (i = 0; i < fr->mr->ioeventfd_nb; ++i) {
             tmp = addrrange_shift(fr->mr->ioeventfds[i].addr,
-                                  fr->addr.start - fr->offset_in_region);
+                                  int128_sub(fr->addr.start,
+                                             int128_make64(fr->offset_in_region)));
             if (addrrange_intersects(fr->addr, tmp)) {
                 ++ioeventfd_nb;
                 ioeventfds = g_realloc(ioeventfds,
@@ -682,8 +701,8 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
         if (frold
             && (!frnew
-                || frold->addr.start < frnew->addr.start
-                || (frold->addr.start == frnew->addr.start
+                || int128_lt(frold->addr.start, frnew->addr.start)
+                || (int128_eq(frold->addr.start, frnew->addr.start)
                     && !flatrange_equal(frold, frnew)))) {
             /* In old, but (not in new, or in new but attributes changed). */
 
@@ -788,7 +807,10 @@ void memory_region_init(MemoryRegion *mr,
 {
     mr->ops = NULL;
     mr->parent = NULL;
-    mr->size = size;
+    mr->size = int128_make64(size);
+    if (size == UINT64_MAX) {
+        mr->size = int128_2_64();
+    }
     mr->addr = 0;
     mr->offset = 0;
     mr->terminates = false;
@@ -1014,7 +1036,10 @@ void memory_region_destroy(MemoryRegion *mr)
 
 uint64_t memory_region_size(MemoryRegion *mr)
 {
-    return mr->size;
+    if (int128_eq(mr->size, int128_2_64())) {
+        return UINT64_MAX;
+    }
+    return int128_get64(mr->size);
 }
 
 void memory_region_set_offset(MemoryRegion *mr, target_phys_addr_t offset)
@@ -1049,8 +1074,8 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 
     FOR_EACH_FLAT_RANGE(fr, &address_space_memory.current_map) {
         if (fr->mr == mr) {
-            cpu_physical_sync_dirty_bitmap(fr->addr.start,
-                                           fr->addr.start + fr->addr.size);
+            cpu_physical_sync_dirty_bitmap(int128_get64(fr->addr.start),
+                                           int128_get64(addrrange_end(fr->addr)));
         }
     }
 }
@@ -1099,15 +1124,18 @@ static void memory_region_update_coalesced_range(MemoryRegion *mr)
 
     FOR_EACH_FLAT_RANGE(fr, &address_space_memory.current_map) {
         if (fr->mr == mr) {
-            qemu_unregister_coalesced_mmio(fr->addr.start, fr->addr.size);
+            qemu_unregister_coalesced_mmio(int128_get64(fr->addr.start),
+                                           int128_get64(fr->addr.size));
             QTAILQ_FOREACH(cmr, &mr->coalesced, link) {
                 tmp = addrrange_shift(cmr->addr,
-                                      fr->addr.start - fr->offset_in_region);
+                                      int128_sub(fr->addr.start,
+                                                 int128_make64(fr->offset_in_region)));
                 if (!addrrange_intersects(tmp, fr->addr)) {
                     continue;
                 }
                 tmp = addrrange_intersection(tmp, fr->addr);
-                qemu_register_coalesced_mmio(tmp.start, tmp.size);
+                qemu_register_coalesced_mmio(int128_get64(tmp.start),
+                                             int128_get64(tmp.size));
             }
         }
     }
@@ -1116,7 +1144,7 @@ static void memory_region_update_coalesced_range(MemoryRegion *mr)
 void memory_region_set_coalescing(MemoryRegion *mr)
 {
     memory_region_clear_coalescing(mr);
-    memory_region_add_coalescing(mr, 0, mr->size);
+    memory_region_add_coalescing(mr, 0, int128_get64(mr->size));
 }
 
 void memory_region_add_coalescing(MemoryRegion *mr,
@@ -1125,7 +1153,7 @@ void memory_region_add_coalescing(MemoryRegion *mr,
 {
     CoalescedMemoryRange *cmr = g_malloc(sizeof(*cmr));
 
-    cmr->addr = addrrange_make(offset, size);
+    cmr->addr = addrrange_make(int128_make64(offset), int128_make64(size));
     QTAILQ_INSERT_TAIL(&mr->coalesced, cmr, link);
     memory_region_update_coalesced_range(mr);
 }
@@ -1150,8 +1178,8 @@ void memory_region_add_eventfd(MemoryRegion *mr,
                                int fd)
 {
     MemoryRegionIoeventfd mrfd = {
-        .addr.start = addr,
-        .addr.size = size,
+        .addr.start = int128_make64(addr),
+        .addr.size = int128_make64(size),
         .match_data = match_data,
         .data = data,
         .fd = fd,
@@ -1180,8 +1208,8 @@ void memory_region_del_eventfd(MemoryRegion *mr,
                                int fd)
 {
     MemoryRegionIoeventfd mrfd = {
-        .addr.start = addr,
-        .addr.size = size,
+        .addr.start = int128_make64(addr),
+        .addr.size = int128_make64(size),
         .match_data = match_data,
         .data = data,
         .fd = fd,
@@ -1215,18 +1243,20 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
         if (subregion->may_overlap || other->may_overlap) {
             continue;
         }
-        if (offset >= other->addr + other->size
-            || offset + subregion->size <= other->addr) {
+        if (int128_gt(int128_make64(offset),
+                      int128_add(int128_make64(other->addr), other->size))
+            || int128_le(int128_add(int128_make64(offset), subregion->size),
+                         int128_make64(other->addr))) {
             continue;
         }
 #if 0
         printf("warning: subregion collision %llx/%llx (%s) "
                "vs %llx/%llx (%s)\n",
                (unsigned long long)offset,
-               (unsigned long long)subregion->size,
+               (unsigned long long)int128_get64(subregion->size),
                subregion->name,
                (unsigned long long)other->addr,
-               (unsigned long long)other->size,
+               (unsigned long long)int128_get64(other->size),
                other->name);
 #endif
     }
@@ -1330,16 +1360,19 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
         mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d): alias %s @%s "
                    TARGET_FMT_plx "-" TARGET_FMT_plx "\n",
                    base + mr->addr,
-                   base + mr->addr + (target_phys_addr_t)mr->size - 1,
+                   base + mr->addr
+                   + (target_phys_addr_t)int128_get64(mr->size) - 1,
                    mr->priority,
                    mr->name,
                    mr->alias->name,
                    mr->alias_offset,
-                   mr->alias_offset + (target_phys_addr_t)mr->size - 1);
+                   mr->alias_offset
+                   + (target_phys_addr_t)int128_get64(mr->size) - 1);
     } else {
         mon_printf(f, TARGET_FMT_plx "-" TARGET_FMT_plx " (prio %d): %s\n",
                    base + mr->addr,
-                   base + mr->addr + (target_phys_addr_t)mr->size - 1,
+                   base + mr->addr
+                   + (target_phys_addr_t)int128_get64(mr->size) - 1,
                    mr->priority,
                    mr->name);
     }

@@ -199,8 +199,8 @@ static inline int mon_print_count_get(const Monitor *mon) { return 0; }
 
 static QLIST_HEAD(mon_list, Monitor) mon_list;
 
-static const mon_cmd_t mon_cmds[];
-static const mon_cmd_t info_cmds[];
+static mon_cmd_t mon_cmds[];
+static mon_cmd_t info_cmds[];
 
 static const mon_cmd_t qmp_cmds[];
 
@@ -2591,13 +2591,14 @@ int monitor_get_fd(Monitor *mon, const char *fdname)
     return -1;
 }
 
-static const mon_cmd_t mon_cmds[] = {
+/* mon_cmds and info_cmds would be sorted at runtime */
+static mon_cmd_t mon_cmds[] = {
 #include "hmp-commands.h"
     { NULL, NULL, },
 };
 
 /* Please update hmp-commands.hx when adding or changing commands */
-static const mon_cmd_t info_cmds[] = {
+static mon_cmd_t info_cmds[] = {
     {
         .name       = "version",
         .args_type  = "",
@@ -4832,6 +4833,25 @@ static void monitor_event(void *opaque, int event)
     }
 }
 
+static int
+compare_mon_cmd(const void *a, const void *b)
+{
+    return strcmp(((const mon_cmd_t *)a)->name,
+            ((const mon_cmd_t *)b)->name);
+}
+
+static void sortcmdlist(void)
+{
+    int array_num;
+    int elem_size = sizeof(mon_cmd_t);
+
+    array_num = sizeof(mon_cmds)/elem_size-1;
+    qsort((void *)mon_cmds, array_num, elem_size, compare_mon_cmd);
+
+    array_num = sizeof(info_cmds)/elem_size-1;
+    qsort((void *)info_cmds, array_num, elem_size, compare_mon_cmd);
+}
+
 
 /*
  * Local variables:
@@ -4874,6 +4894,8 @@ void monitor_init(CharDriverState *chr, int flags)
     QLIST_INSERT_HEAD(&mon_list, mon, entry);
     if (!default_mon || (flags & MONITOR_IS_DEFAULT))
         default_mon = mon;
+
+    sortcmdlist();
 }
 
 static void bdrv_password_cb(Monitor *mon, const char *password, void *opaque)

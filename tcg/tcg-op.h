@@ -2042,8 +2042,8 @@ static inline void tcg_gen_rotri_i64(TCGv_i64 ret, TCGv_i64 arg1, int64_t arg2)
 }
 
 static inline void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1,
-				       TCGv_i32 arg2, unsigned int ofs,
-				       unsigned int len)
+                                       TCGv_i32 arg2, unsigned int ofs,
+                                       unsigned int len)
 {
     uint32_t mask;
     TCGv_i32 t1;
@@ -2073,8 +2073,8 @@ static inline void tcg_gen_deposit_i32(TCGv_i32 ret, TCGv_i32 arg1,
 }
 
 static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
-				       TCGv_i64 arg2, unsigned int ofs,
-				       unsigned int len)
+                                       TCGv_i64 arg2, unsigned int ofs,
+                                       unsigned int len)
 {
     uint64_t mask;
     TCGv_i64 t1;
@@ -2090,6 +2090,7 @@ static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
 
 #if TCG_TARGET_REG_BITS == 32
     if (ofs >= 32) {
+        tcg_gen_mov_i32(TCGV_LOW(ret), TCGV_LOW(arg1));
         tcg_gen_deposit_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1),
                             TCGV_LOW(arg2), ofs - 32, len);
         return;
@@ -2097,6 +2098,7 @@ static inline void tcg_gen_deposit_i64(TCGv_i64 ret, TCGv_i64 arg1,
     if (ofs + len <= 32) {
         tcg_gen_deposit_i32(TCGV_LOW(ret), TCGV_LOW(arg1),
                             TCGV_LOW(arg2), ofs, len);
+        tcg_gen_mov_i32(TCGV_HIGH(ret), TCGV_HIGH(arg1));
         return;
     }
 #endif

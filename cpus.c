@@ -748,6 +748,8 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     return NULL;
 }
 
+static void tcg_exec_all(void);
+
 static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
     CPUState *env = arg;
@@ -769,7 +771,7 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     }
 
     while (1) {
-        cpu_exec_all();
+        tcg_exec_all();
         if (use_icount && qemu_clock_deadline(vm_clock) <= 0) {
             qemu_notify_event();
         }
@@ -1016,7 +1018,7 @@ static int tcg_cpu_exec(CPUState *env)
     return ret;
 }
 
-bool cpu_exec_all(void)
+static void tcg_exec_all(void)
 {
     int r;
 
@@ -1033,12 +1035,7 @@ bool cpu_exec_all(void)
                           (env->singlestep_enabled & SSTEP_NOTIMER) == 0);
 
         if (cpu_can_run(env)) {
-            if (kvm_enabled()) {
-                r = kvm_cpu_exec(env);
-                qemu_kvm_eat_signals(env);
-            } else {
-                r = tcg_cpu_exec(env);
-            }
+            r = tcg_cpu_exec(env);
             if (r == EXCP_DEBUG) {
                 cpu_handle_guest_debug(env);
                 break;
@@ -1048,7 +1045,6 @@ bool cpu_exec_all(void)
         }
     }
     exit_request = 0;
-    return !all_cpu_threads_idle();
 }
 
 void set_numa_modes(void)

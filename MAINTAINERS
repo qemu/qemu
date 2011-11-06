@@ -303,9 +303,9 @@ M: Alexander Graf <agraf@suse.de>
 S: Maintained
 F: hw/ppc_oldworld.c
 
-Prep
-M: qemu-devel@nongnu.org
-S: Orphan
+PReP
+M: Andreas Färber <andreas.faerber@web.de>
+S: Odd Fixes
 F: hw/ppc_prep.c
 
 SH4 Machines
@@ -450,6 +450,11 @@ Graphics
 M: Anthony Liguori <aliguori@us.ibm.com>
 S: Maintained
 F: ui/
+
+Cocoa graphics
+M: Andreas Färber <andreas.faerber@web.de>
+S: Odd Fixes
+F: ui/cocoa.m
 
 Main loop
 M: Anthony Liguori <aliguori@us.ibm.com>

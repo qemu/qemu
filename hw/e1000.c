@@ -31,6 +31,7 @@
 #include "net/checksum.h"
 #include "loader.h"
 #include "sysemu.h"
+#include "dma.h"
 
 #include "e1000_hw.h"
 
@@ -465,7 +466,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
             bytes = split_size;
             if (tp->size + bytes > msh)
                 bytes = msh - tp->size;
-            cpu_physical_memory_read(addr, tp->data + tp->size, bytes);
+            pci_dma_read(&s->dev, addr, tp->data + tp->size, bytes);
             if ((sz = tp->size + bytes) >= hdr && tp->size < hdr)
                 memmove(tp->header, tp->data, hdr);
             tp->size = sz;
@@ -480,7 +481,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
         // context descriptor TSE is not set, while data descriptor TSE is set
         DBGOUT(TXERR, "TCP segmentaion Error\n");
     } else {
-        cpu_physical_memory_read(addr, tp->data + tp->size, split_size);
+        pci_dma_read(&s->dev, addr, tp->data + tp->size, split_size);
         tp->size += split_size;
     }
 
@@ -496,7 +497,7 @@ process_tx_desc(E1000State *s, struct e1000_tx_desc *dp)
 }
 
 static uint32_t
-txdesc_writeback(target_phys_addr_t base, struct e1000_tx_desc *dp)
+txdesc_writeback(E1000State *s, dma_addr_t base, struct e1000_tx_desc *dp)
 {
     uint32_t txd_upper, txd_lower = le32_to_cpu(dp->lower.data);
 
@@ -505,8 +506,8 @@ txdesc_writeback(target_phys_addr_t base, struct e1000_tx_desc *dp)
     txd_upper = (le32_to_cpu(dp->upper.data) | E1000_TXD_STAT_DD) &
                 ~(E1000_TXD_STAT_EC | E1000_TXD_STAT_LC | E1000_TXD_STAT_TU);
     dp->upper.data = cpu_to_le32(txd_upper);
-    cpu_physical_memory_write(base + ((char *)&dp->upper - (char *)dp),
-                              (void *)&dp->upper, sizeof(dp->upper));
+    pci_dma_write(&s->dev, base + ((char *)&dp->upper - (char *)dp),
+                  (void *)&dp->upper, sizeof(dp->upper));
     return E1000_ICR_TXDW;
 }
 
@@ -521,7 +522,7 @@ static uint64_t tx_desc_base(E1000State *s)
 static void
 start_xmit(E1000State *s)
 {
-    target_phys_addr_t base;
+    dma_addr_t base;
     struct e1000_tx_desc desc;
     uint32_t tdh_start = s->mac_reg[TDH], cause = E1000_ICS_TXQE;
 
@@ -533,14 +534,14 @@ start_xmit(E1000State *s)
     while (s->mac_reg[TDH] != s->mac_reg[TDT]) {
         base = tx_desc_base(s) +
                sizeof(struct e1000_tx_desc) * s->mac_reg[TDH];
-        cpu_physical_memory_read(base, (void *)&desc, sizeof(desc));
+        pci_dma_read(&s->dev, base, (void *)&desc, sizeof(desc));
 
         DBGOUT(TX, "index %d: %p : %x %x\n", s->mac_reg[TDH],
                (void *)(intptr_t)desc.buffer_addr, desc.lower.data,
                desc.upper.data);
 
         process_tx_desc(s, &desc);
-        cause |= txdesc_writeback(base, &desc);
+        cause |= txdesc_writeback(s, base, &desc);
 
         if (++s->mac_reg[TDH] * sizeof(desc) >= s->mac_reg[TDLEN])
             s->mac_reg[TDH] = 0;
@@ -668,7 +669,7 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
 {
     E1000State *s = DO_UPCAST(NICState, nc, nc)->opaque;
     struct e1000_rx_desc desc;
-    target_phys_addr_t base;
+    dma_addr_t base;
     unsigned int n, rdt;
     uint32_t rdh_start;
     uint16_t vlan_special = 0;
@@ -713,7 +714,7 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
             desc_size = s->rxbuf_size;
         }
         base = rx_desc_base(s) + sizeof(desc) * s->mac_reg[RDH];
-        cpu_physical_memory_read(base, (void *)&desc, sizeof(desc));
+        pci_dma_read(&s->dev, base, (void *)&desc, sizeof(desc));
         desc.special = vlan_special;
         desc.status |= (vlan_status | E1000_RXD_STAT_DD);
         if (desc.buffer_addr) {
@@ -722,9 +723,9 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
                 if (copy_size > s->rxbuf_size) {
                     copy_size = s->rxbuf_size;
                 }
-                cpu_physical_memory_write(le64_to_cpu(desc.buffer_addr),
-                                          (void *)(buf + desc_offset + vlan_offset),
-                                          copy_size);
+                pci_dma_write(&s->dev, le64_to_cpu(desc.buffer_addr),
+                                 (void *)(buf + desc_offset + vlan_offset),
+                                 copy_size);
             }
             desc_offset += desc_size;
             desc.length = cpu_to_le16(desc_size);
@@ -738,7 +739,7 @@ e1000_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
         } else { // as per intel docs; skip descriptors with null buf addr
             DBGOUT(RX, "Null RX descriptor!!\n");
         }
-        cpu_physical_memory_write(base, (void *)&desc, sizeof(desc));
+        pci_dma_write(&s->dev, base, (void *)&desc, sizeof(desc));
 
         if (++s->mac_reg[RDH] * sizeof(desc) >= s->mac_reg[RDLEN])
             s->mac_reg[RDH] = 0;

@@ -1,6 +1,6 @@
 TCG Interpreter (TCI) - Copyright (c) 2011 Stefan Weil.
 
-This file is released under GPL 2 or later.
+This file is released under the BSD license.
 
 1) Introduction
 
@@ -26,11 +26,11 @@ tcg-target.c, tcg-target.h. Both files are in directory tcg/tci.
 The additional file tcg/tci.c adds the interpreter.
 
 The bytecode consists of opcodes (same numeric values as those used by
-TCG) and arguments of variable size and number.
+TCG), command length and arguments of variable size and number.
 
 3) Usage
 
-Hosts without native TCG, the interpreter TCI must be enabled by
+For hosts without native TCG, the interpreter TCI must be enabled by
 
         configure --enable-tcg-interpreter
 
@@ -40,7 +40,7 @@ additional code in configure which must be fixed when new native TCG
 implementations are added.
 
 System emulation should work on any 32 or 64 bit host.
-User mode emulation might work. Maybe a new loader (*.ld)
+User mode emulation might work. Maybe a new linker script (*.ld)
 is needed. Byte order might be wrong (on big endian hosts)
 and need fixes in configure.
 
@@ -48,11 +48,11 @@ For hosts with native TCG, the interpreter TCI can be enabled by
 
         configure --enable-tcg-interpreter
 
-The only difference from running qemu with TCI to running without TCI
+The only difference from running QEMU with TCI to running without TCI
 should be speed. Especially during development of TCI, it was very
 useful to compare runs with and without TCI. Create /tmp/qemu.log by
 
-        qemu -d in_asm,op_opt,cpu -singlestep
+        qemu-system-i386 -d in_asm,op_opt,cpu -singlestep
 
 once with interpreter and once without interpreter and compare the resulting
 qemu.log files. This is also useful to see the effects of additional
@@ -63,7 +63,8 @@ Hosts with native TCG can also enable TCI by claiming to be unsupported:
 
         configure --cpu=unknown --enable-tcg-interpreter
 
-configure then no longer uses the native loader (*.ld) for user mode emulation.
+configure then no longer uses the native linker script (*.ld) for
+user mode emulation.
 
 
 4) Status
@@ -92,7 +93,7 @@ s? = untested
 sc = compiles
 s0 = bios works
 s1 = grub works
-s2 = linux boots
+s2 = Linux boots
 
 Linux user mode emulation
 u? = untested
@@ -102,14 +103,14 @@ u1 = linux-user-test works
 
 5) Todo list
 
-* TCI is still experimental. It was written and tested on a x86_64 host
-  running i386 and x86_64 system emulation and linux user mode.
-  A cross compiled qemu for i386 host also works with the same basic tests.
-  A cross compiled qemu for mipsel host works, too. It is terribly slow
+* TCI is not widely tested. It was written and tested on a x86_64 host
+  running i386 and x86_64 system emulation and Linux user mode.
+  A cross compiled QEMU for i386 host also works with the same basic tests.
+  A cross compiled QEMU for mipsel host works, too. It is terribly slow
   because I run it in a mips malta emulation, so it is an interpreted
   emulation in an emulation.
-  A cross compiled qemu for arm host works (tested with pc bios).
-  A cross compiled qemu for ppc host works at least partially:
+  A cross compiled QEMU for arm host works (tested with pc bios).
+  A cross compiled QEMU for ppc host works at least partially:
   i386-linux-user/qemu-i386 can run a simple hello-world program
   (tested in a ppc emulation).
 
@@ -117,11 +118,13 @@ u1 = linux-user-test works
   in the interpreter. These opcodes raise a runtime exception, so it is
   possible to see where code must be added.
 
-* The pseudo code is not optimized and still ugly.
+* The pseudo code is not optimized and still ugly. For hosts with special
+  alignment requirements, it needs some fixes (maybe aligned bytecode
+  would also improve speed for hosts which support byte alignment).
 
 * A better disassembler for the pseudo code would be nice (a very primitive
   disassembler is included in tcg-target.c).
 
 * It might be useful to have a runtime option which selects the native TCG
-  or TCI, so qemu would have to include two TCGs. Today, selecting TCI
-  is a configure option, so you need two compilations of qemu.
+  or TCI, so QEMU would have to include two TCGs. Today, selecting TCI
+  is a configure option, so you need two compilations of QEMU.

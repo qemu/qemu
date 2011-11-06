@@ -163,4 +163,7 @@ typedef enum {
 
 void tci_disas(uint8_t opc);
 
+unsigned long tcg_qemu_tb_exec(CPUState *env, uint8_t *tb_ptr);
+#define tcg_qemu_tb_exec tcg_qemu_tb_exec
+
 #endif /* TCG_TARGET_H */

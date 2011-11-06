@@ -30,6 +30,7 @@
 #include "audiodev.h"
 #include "audio/audio.h"
 #include "pci.h"
+#include "dma.h"
 
 /* Missing stuff:
    SCTRL_P[12](END|ST)INC
@@ -803,7 +804,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
             if (!acquired)
                 break;
 
-            cpu_physical_memory_write (addr, tmpbuf, acquired);
+            pci_dma_write (&s->dev, addr, tmpbuf, acquired);
 
             temp -= acquired;
             addr += acquired;
@@ -817,7 +818,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
             int copied, to_copy;
 
             to_copy = audio_MIN ((size_t) temp, sizeof (tmpbuf));
-            cpu_physical_memory_read (addr, tmpbuf, to_copy);
+            pci_dma_read (&s->dev, addr, tmpbuf, to_copy);
             copied = AUD_write (voice, tmpbuf, to_copy);
             if (!copied)
                 break;

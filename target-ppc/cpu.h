@@ -66,7 +66,7 @@
 #define TARGET_PAGE_BITS 12
 #endif /* defined(TARGET_PPCEMB) */
 
-#define TARGET_PHYS_ADDR_SPACE_BITS 32
+#define TARGET_PHYS_ADDR_SPACE_BITS 36
 #define TARGET_VIRT_ADDR_SPACE_BITS 32
 
 #endif /* defined (TARGET_PPC64) */
@@ -858,6 +858,22 @@ enum {
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
 
+struct ppc_def_t {
+    const char *name;
+    uint32_t pvr;
+    uint32_t svr;
+    uint64_t insns_flags;
+    uint64_t insns_flags2;
+    uint64_t msr_mask;
+    powerpc_mmu_t   mmu_model;
+    powerpc_excp_t  excp_model;
+    powerpc_input_t bus_model;
+    uint32_t flags;
+    int bfd_mach;
+    void (*init_proc)(CPUPPCState *env);
+    int  (*check_pow)(CPUPPCState *env);
+};
+
 struct CPUPPCState {
     /* First are the most commonly used resources
      * during translated code execution
@@ -1107,6 +1123,7 @@ void ppc_store_msr (CPUPPCState *env, target_ulong value);
 
 void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf);
 
+const ppc_def_t *ppc_find_by_pvr(uint32_t pvr);
 const ppc_def_t *cpu_ppc_find_by_name (const char *name);
 int cpu_ppc_register_internal (CPUPPCState *env, const ppc_def_t *def);
 
@@ -1839,10 +1856,40 @@ enum {
     /* popcntw and popcntd instructions                                      */
     PPC_POPCNTWD       = 0x8000000000000000ULL,
 
+#define PPC_TCG_INSNS  (PPC_INSNS_BASE | PPC_POWER | PPC_POWER2 \
+                        | PPC_POWER_RTC | PPC_POWER_BR | PPC_64B \
+                        | PPC_64BX | PPC_64H | PPC_WAIT | PPC_MFTB \
+                        | PPC_602_SPEC | PPC_ISEL | PPC_POPCNTB \
+                        | PPC_STRING | PPC_FLOAT | PPC_FLOAT_EXT \
+                        | PPC_FLOAT_FSQRT | PPC_FLOAT_FRES \
+                        | PPC_FLOAT_FRSQRTE | PPC_FLOAT_FRSQRTES \
+                        | PPC_FLOAT_FSEL | PPC_FLOAT_STFIWX \
+                        | PPC_ALTIVEC | PPC_SPE | PPC_SPE_SINGLE \
+                        | PPC_SPE_DOUBLE | PPC_MEM_TLBIA \
+                        | PPC_MEM_TLBIE | PPC_MEM_TLBSYNC \
+                        | PPC_MEM_SYNC | PPC_MEM_EIEIO \
+                        | PPC_CACHE | PPC_CACHE_ICBI \
+                        | PPC_CACHE_DCBZ | PPC_CACHE_DCBZT \
+                        | PPC_CACHE_DCBA | PPC_CACHE_LOCK \
+                        | PPC_EXTERN | PPC_SEGMENT | PPC_6xx_TLB \
+                        | PPC_74xx_TLB | PPC_40x_TLB | PPC_SEGMENT_64B \
+                        | PPC_SLBI | PPC_WRTEE | PPC_40x_EXCP \
+                        | PPC_405_MAC | PPC_440_SPEC | PPC_BOOKE \
+                        | PPC_MFAPIDI | PPC_TLBIVA | PPC_TLBIVAX \
+                        | PPC_4xx_COMMON | PPC_40x_ICBT | PPC_RFMCI \
+                        | PPC_RFDI | PPC_DCR | PPC_DCRX | PPC_DCRUX \
+                        | PPC_POPCNTWD)
+
     /* extended type values */
 
     /* BookE 2.06 PowerPC specification                                      */
     PPC2_BOOKE206      = 0x0000000000000001ULL,
+    /* VSX (extensions to Altivec / VMX)                                     */
+    PPC2_VSX           = 0x0000000000000002ULL,
+    /* Decimal Floating Point (DFP)                                          */
+    PPC2_DFP           = 0x0000000000000004ULL,
+
+#define PPC_TCG_INSNS2 (PPC2_BOOKE206)
 };
 
 /*****************************************************************************/

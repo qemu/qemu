@@ -34,7 +34,7 @@ void vnc_sasl_client_cleanup(VncState *vs)
         vs->sasl.runSSF = vs->sasl.waitWriteSSF = vs->sasl.wantSSF = 0;
         vs->sasl.encodedLength = vs->sasl.encodedOffset = 0;
         vs->sasl.encoded = NULL;
-        free(vs->sasl.username);
+        g_free(vs->sasl.username);
         free(vs->sasl.mechlist);
         vs->sasl.username = vs->sasl.mechlist = NULL;
         sasl_dispose(&vs->sasl.conn);
@@ -506,7 +506,7 @@ void start_auth_sasl(VncState *vs)
         goto authabort;
 
     if (!(remoteAddr = vnc_socket_remote_addr("%s;%s", vs->csock))) {
-        free(localAddr);
+        g_free(localAddr);
         goto authabort;
     }
 
@@ -518,8 +518,8 @@ void start_auth_sasl(VncState *vs)
                           NULL, /* Callbacks, not needed */
                           SASL_SUCCESS_DATA,
                           &vs->sasl.conn);
-    free(localAddr);
-    free(remoteAddr);
+    g_free(localAddr);
+    g_free(remoteAddr);
     localAddr = remoteAddr = NULL;
 
     if (err != SASL_OK) {

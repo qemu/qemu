@@ -1349,7 +1349,7 @@ static int usb_host_close(USBHostDevice *dev)
 {
     int i;
 
-    if (dev->fd == -1 || !dev->dev.attached) {
+    if (dev->fd == -1) {
         return -1;
     }
 
@@ -1367,7 +1367,9 @@ static int usb_host_close(USBHostDevice *dev)
     }
     async_complete(dev);
     dev->closing = 0;
-    usb_device_detach(&dev->dev);
+    if (dev->dev.attached) {
+        usb_device_detach(&dev->dev);
+    }
     ioctl(dev->fd, USBDEVFS_RESET);
     close(dev->fd);
     dev->fd = -1;

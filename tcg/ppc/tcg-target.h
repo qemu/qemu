@@ -96,3 +96,7 @@ enum {
 #define TCG_AREG0 TCG_REG_R27
 
 #define TCG_TARGET_HAS_GUEST_BASE
+
+#define tcg_qemu_tb_exec(env, tb_ptr) \
+    ((long REGPARM __attribute__ ((longcall)) \
+      (*)(void *, void *))code_gen_prologue)(env, tb_ptr)

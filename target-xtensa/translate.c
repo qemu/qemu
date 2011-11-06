@@ -266,6 +266,10 @@ static void gen_exception_cause(DisasContext *dc, uint32_t cause)
     gen_helper_exception_cause(tpc, tcause);
     tcg_temp_free(tpc);
     tcg_temp_free(tcause);
+    if (cause == ILLEGAL_INSTRUCTION_CAUSE ||
+            cause == SYSCALL_CAUSE) {
+        dc->is_jmp = DISAS_UPDATE;
+    }
 }
 
 static void gen_exception_cause_vaddr(DisasContext *dc, uint32_t cause,
@@ -283,6 +287,7 @@ static void gen_check_privilege(DisasContext *dc)
 {
     if (dc->cring) {
         gen_exception_cause(dc, PRIVILEGED_CAUSE);
+        dc->is_jmp = DISAS_UPDATE;
     }
 }
 
@@ -466,7 +471,7 @@ static void gen_wsr_windowbase(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 
 static void gen_wsr_windowstart(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
-    tcg_gen_mov_i32(cpu_SR[sr], v);
+    tcg_gen_andi_i32(cpu_SR[sr], v, (1 << dc->config->nareg / 4) - 1);
     reset_used_window(dc);
 }
 
@@ -2378,7 +2383,7 @@ static void disas_xtensa_insn(DisasContext *dc)
 
 invalid_opcode:
     qemu_log("INVALID(pc = %08x)\n", dc->pc);
-    dc->pc = dc->next_pc;
+    gen_exception_cause(dc, ILLEGAL_INSTRUCTION_CAUSE);
 #undef HAS_OPTION
 }
 

@@ -18,21 +18,29 @@
 typedef struct ScatterGatherEntry ScatterGatherEntry;
 
 #if defined(TARGET_PHYS_ADDR_BITS)
+typedef target_phys_addr_t dma_addr_t;
+
+#define DMA_ADDR_FMT TARGET_FMT_plx
+
+typedef enum {
+    DMA_DIRECTION_TO_DEVICE = 0,
+    DMA_DIRECTION_FROM_DEVICE = 1,
+} DMADirection;
+
 struct ScatterGatherEntry {
-    target_phys_addr_t base;
-    target_phys_addr_t len;
+    dma_addr_t base;
+    dma_addr_t len;
 };
 
 struct QEMUSGList {
     ScatterGatherEntry *sg;
     int nsg;
     int nalloc;
-    target_phys_addr_t size;
+    dma_addr_t size;
 };
 
 void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint);
-void qemu_sglist_add(QEMUSGList *qsg, target_phys_addr_t base,
-                     target_phys_addr_t len);
+void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len);
 void qemu_sglist_destroy(QEMUSGList *qsg);
 #endif
 

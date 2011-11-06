@@ -192,7 +192,7 @@ extern TranslationBlock *tb_phys_hash[CODE_GEN_PHYS_HASH_SIZE];
 #if defined(USE_DIRECT_JUMP)
 
 #if defined(CONFIG_TCG_INTERPRETER)
-static inline void tb_set_jmp_target1(uintptr_t jmp_addr, unsigned long addr)
+static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
@@ -281,8 +281,12 @@ extern int tb_invalidated_flag;
 /* The return address may point to the start of the next instruction.
    Subtracting one gets us the call instruction itself.  */
 #if defined(CONFIG_TCG_INTERPRETER)
-extern uint8_t * tci_tb_ptr;
-# define GETPC() ((void *)tci_tb_ptr)
+/* Alpha and SH4 user mode emulations and Softmmu call GETPC().
+   For all others, GETPC remains undefined (which makes TCI a little faster. */
+# if defined(CONFIG_SOFTMMU) || defined(TARGET_ALPHA) || defined(TARGET_SH4)
+extern void *tci_tb_ptr;
+#  define GETPC() tci_tb_ptr
+# endif
 #elif defined(__s390__) && !defined(__s390x__)
 # define GETPC() ((void*)(((uintptr_t)__builtin_return_address(0) & 0x7fffffffUL) - 1))
 #elif defined(__arm__)

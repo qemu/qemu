@@ -1663,12 +1663,25 @@ static int qxl_pre_load(void *opaque)
     return 0;
 }
 
+static void qxl_create_memslots(PCIQXLDevice *d)
+{
+    int i;
+
+    for (i = 0; i < NUM_MEMSLOTS; i++) {
+        if (!d->guest_slots[i].active) {
+            continue;
+        }
+        dprint(d, 1, "%s: restoring guest slot %d\n", __func__, i);
+        qxl_add_memslot(d, i, 0, QXL_SYNC);
+    }
+}
+
 static int qxl_post_load(void *opaque, int version)
 {
     PCIQXLDevice* d = opaque;
     uint8_t *ram_start = d->vga.vram_ptr;
     QXLCommandExt *cmds;
-    int in, out, i, newmode;
+    int in, out, newmode;
 
     dprint(d, 1, "%s: start\n", __FUNCTION__);
 
@@ -1685,19 +1698,16 @@ static int qxl_post_load(void *opaque, int version)
         qxl_mode_to_string(d->mode));
     newmode = d->mode;
     d->mode = QXL_MODE_UNDEFINED;
+
     switch (newmode) {
     case QXL_MODE_UNDEFINED:
         break;
     case QXL_MODE_VGA:
+        qxl_create_memslots(d);
         qxl_enter_vga_mode(d);
         break;
     case QXL_MODE_NATIVE:
-        for (i = 0; i < NUM_MEMSLOTS; i++) {
-            if (!d->guest_slots[i].active) {
-                continue;
-            }
-            qxl_add_memslot(d, i, 0, QXL_SYNC);
-        }
+        qxl_create_memslots(d);
         qxl_create_guest_primary(d, 1, QXL_SYNC);
 
         /* replay surface-create and cursor-set commands */
@@ -1722,6 +1732,8 @@ static int qxl_post_load(void *opaque, int version)
 
         break;
     case QXL_MODE_COMPAT:
+        /* note: no need to call qxl_create_memslots, qxl_set_mode
+         * creates the mem slot. */
         qxl_set_mode(d, d->shadow_rom.mode, 1);
         break;
     }

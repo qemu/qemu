@@ -122,7 +122,7 @@ static MemoryRegion *system_io;
 CPUState *first_cpu;
 /* current CPU in the current thread. It is only valid inside
    cpu_exec() */
-CPUState *cpu_single_env;
+DEFINE_TLS(CPUState *,cpu_single_env);
 /* 0 = Do not count executed instructions.
    1 = Precise instruction counting.
    2 = Adaptive rate instruction counting.  */
@@ -2930,7 +2930,7 @@ static void *file_ram_alloc(RAMBlock *block,
 static ram_addr_t find_ram_offset(ram_addr_t size)
 {
     RAMBlock *block, *next_block;
-    ram_addr_t offset = 0, mingap = RAM_ADDR_MAX;
+    ram_addr_t offset = RAM_ADDR_MAX, mingap = RAM_ADDR_MAX;
 
     if (QLIST_EMPTY(&ram_list.blocks))
         return 0;
@@ -2946,10 +2946,17 @@ static ram_addr_t find_ram_offset(ram_addr_t size)
             }
         }
         if (next - end >= size && next - end < mingap) {
-            offset =  end;
+            offset = end;
             mingap = next - end;
         }
     }
+
+    if (offset == RAM_ADDR_MAX) {
+        fprintf(stderr, "Failed to find gap of requested size: %" PRIu64 "\n",
+                (uint64_t)size);
+        abort();
+    }
+
     return offset;
 }
 

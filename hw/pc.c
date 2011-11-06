@@ -941,7 +941,6 @@ static CPUState *pc_new_cpu(const char *cpu_model)
         exit(1);
     }
     if ((env->cpuid_features & CPUID_APIC) || smp_cpus > 1) {
-        env->cpuid_apic_id = env->cpu_index;
         env->apic_state = apic_init(env, env->cpuid_apic_id);
     }
     qemu_register_reset(pc_cpu_reset, env);

@@ -20,7 +20,10 @@
 #define __DYNGEN_EXEC_H__
 
 #if defined(CONFIG_TCG_INTERPRETER)
-/* The TCG interpreter does not use special registers. */
+/* The TCG interpreter does not need a special register AREG0,
+ * but it is possible to use one by defining AREG0.
+ * On i386, register edi seems to work. */
+/* Run without special register AREG0 or use a value defined elsewhere. */
 #elif defined(__i386__)
 #define AREG0 "ebp"
 #elif defined(__x86_64__)
@@ -60,6 +63,7 @@
 #if defined(AREG0)
 register CPUState *env asm(AREG0);
 #else
+/* TODO: Try env = cpu_single_env. */
 extern CPUState *env;
 #endif
 

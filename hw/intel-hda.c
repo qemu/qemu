@@ -24,6 +24,7 @@
 #include "audiodev.h"
 #include "intel-hda.h"
 #include "intel-hda-defs.h"
+#include "dma.h"
 
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */
@@ -328,7 +329,7 @@ static void intel_hda_corb_run(IntelHDAState *d)
 
         rp = (d->corb_rp + 1) & 0xff;
         addr = intel_hda_addr(d->corb_lbase, d->corb_ubase);
-        verb = ldl_le_phys(addr + 4*rp);
+        verb = ldl_le_pci_dma(&d->pci, addr + 4*rp);
         d->corb_rp = rp;
 
         dprint(d, 2, "%s: [rp 0x%x] verb 0x%08x\n", __FUNCTION__, rp, verb);
@@ -360,8 +361,8 @@ static void intel_hda_response(HDACodecDevice *dev, bool solicited, uint32_t res
     ex = (solicited ? 0 : (1 << 4)) | dev->cad;
     wp = (d->rirb_wp + 1) & 0xff;
     addr = intel_hda_addr(d->rirb_lbase, d->rirb_ubase);
-    stl_le_phys(addr + 8*wp, response);
-    stl_le_phys(addr + 8*wp + 4, ex);
+    stl_le_pci_dma(&d->pci, addr + 8*wp, response);
+    stl_le_pci_dma(&d->pci, addr + 8*wp + 4, ex);
     d->rirb_wp = wp;
 
     dprint(d, 2, "%s: [wp 0x%x] response 0x%x, extra 0x%x\n",
@@ -401,7 +402,7 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
             break;
         }
     }
-    if (st == NULL) {
+    if (s == 4) {
         return false;
     }
     if (st->bpl == NULL) {
@@ -426,8 +427,7 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
         dprint(d, 3, "dma: entry %d, pos %d/%d, copy %d\n",
                st->be, st->bp, st->bpl[st->be].len, copy);
 
-        cpu_physical_memory_rw(st->bpl[st->be].addr + st->bp,
-                               buf, copy, !output);
+        pci_dma_rw(&d->pci, st->bpl[st->be].addr + st->bp, buf, copy, !output);
         st->lpib += copy;
         st->bp += copy;
         buf += copy;
@@ -449,7 +449,7 @@ static bool intel_hda_xfer(HDACodecDevice *dev, uint32_t stnr, bool output,
     }
     if (d->dp_lbase & 0x01) {
         addr = intel_hda_addr(d->dp_lbase & ~0x01, d->dp_ubase);
-        stl_le_phys(addr + 8*s, st->lpib);
+        stl_le_pci_dma(&d->pci, addr + 8*s, st->lpib);
     }
     dprint(d, 3, "dma: --\n");
 
@@ -471,7 +471,7 @@ static void intel_hda_parse_bdl(IntelHDAState *d, IntelHDAStream *st)
     g_free(st->bpl);
     st->bpl = g_malloc(sizeof(bpl) * st->bentries);
     for (i = 0; i < st->bentries; i++, addr += 16) {
-        cpu_physical_memory_read(addr, buf, 16);
+        pci_dma_read(&d->pci, addr, buf, 16);
         st->bpl[i].addr  = le64_to_cpu(*(uint64_t *)buf);
         st->bpl[i].len   = le32_to_cpu(*(uint32_t *)(buf + 8));
         st->bpl[i].flags = le32_to_cpu(*(uint32_t *)(buf + 12));

@@ -29,6 +29,9 @@
 #include "elf.h"
 #include "net.h"
 #include "blockdev.h"
+#include "cpus.h"
+#include "kvm.h"
+#include "kvm_ppc.h"
 
 #include "hw/boards.h"
 #include "hw/ppc.h"
@@ -36,10 +39,12 @@
 
 #include "hw/spapr.h"
 #include "hw/spapr_vio.h"
+#include "hw/spapr_pci.h"
 #include "hw/xics.h"
 
 #include "kvm.h"
 #include "kvm_ppc.h"
+#include "pci.h"
 
 #include "exec-memory.h"
 
@@ -58,6 +63,11 @@
 
 #define MAX_CPUS                256
 #define XICS_IRQS		1024
+
+#define SPAPR_PCI_BUID          0x800000020000001ULL
+#define SPAPR_PCI_MEM_WIN_ADDR  (0x10000000000ULL + 0xA0000000)
+#define SPAPR_PCI_MEM_WIN_SIZE  0x20000000
+#define SPAPR_PCI_IO_WIN_ADDR   (0x10000000000ULL + 0x80000000)
 
 #define PHANDLE_XICP            0x00001111
 
@@ -88,6 +98,7 @@ qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num)
 }
 
 static void *spapr_create_fdt_skel(const char *cpu_model,
+                                   target_phys_addr_t rma_size,
                                    target_phys_addr_t initrd_base,
                                    target_phys_addr_t initrd_size,
                                    const char *boot_device,
@@ -96,7 +107,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 {
     void *fdt;
     CPUState *env;
-    uint64_t mem_reg_property[] = { 0, cpu_to_be64(ram_size) };
+    uint64_t mem_reg_property_rma[] = { 0, cpu_to_be64(rma_size) };
+    uint64_t mem_reg_property_nonrma[] = { cpu_to_be64(rma_size),
+                                           cpu_to_be64(ram_size - rma_size) };
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
@@ -105,6 +118,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     uint32_t interrupt_server_ranges_prop[] = {0, cpu_to_be32(smp_cpus)};
     int i;
     char *modelname;
+    int smt = kvmppc_smt_threads();
 
 #define _FDT(exp) \
     do { \
@@ -139,16 +153,34 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                        &end_prop, sizeof(end_prop))));
     _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
 
+    /*
+     * Because we don't always invoke any firmware, we can't rely on
+     * that to do BAR allocation.  Long term, we should probably do
+     * that ourselves, but for now, this setting (plus advertising the
+     * current BARs as 0) causes sufficiently recent kernels to to the
+     * BAR assignment themselves */
+    _FDT((fdt_property_cell(fdt, "linux,pci-probe-only", 0)));
+
     _FDT((fdt_end_node(fdt)));
 
-    /* memory node */
+    /* memory node(s) */
     _FDT((fdt_begin_node(fdt, "memory@0")));
 
     _FDT((fdt_property_string(fdt, "device_type", "memory")));
-    _FDT((fdt_property(fdt, "reg",
-                       mem_reg_property, sizeof(mem_reg_property))));
-
+    _FDT((fdt_property(fdt, "reg", mem_reg_property_rma,
+                       sizeof(mem_reg_property_rma))));
     _FDT((fdt_end_node(fdt)));
+
+    if (ram_size > rma_size) {
+        char mem_name[32];
+
+        sprintf(mem_name, "memory@%" PRIx64, (uint64_t)rma_size);
+        _FDT((fdt_begin_node(fdt, mem_name)));
+        _FDT((fdt_property_string(fdt, "device_type", "memory")));
+        _FDT((fdt_property(fdt, "reg", mem_reg_property_nonrma,
+                           sizeof(mem_reg_property_nonrma))));
+        _FDT((fdt_end_node(fdt)));
+    }
 
     /* cpus */
     _FDT((fdt_begin_node(fdt, "cpus")));
@@ -164,12 +196,17 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         int index = env->cpu_index;
-        uint32_t gserver_prop[] = {cpu_to_be32(index), 0}; /* HACK! */
+        uint32_t servers_prop[smp_threads];
+        uint32_t gservers_prop[smp_threads * 2];
         char *nodename;
         uint32_t segs[] = {cpu_to_be32(28), cpu_to_be32(40),
                            0xffffffff, 0xffffffff};
         uint32_t tbfreq = kvm_enabled() ? kvmppc_get_tbfreq() : TIMEBASE_FREQ;
         uint32_t cpufreq = kvm_enabled() ? kvmppc_get_clockfreq() : 1000000000;
+
+        if ((index % smt) != 0) {
+            continue;
+        }
 
         if (asprintf(&nodename, "%s@%x", modelname, index) < 0) {
             fprintf(stderr, "Allocation failure\n");
@@ -195,13 +232,39 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                            pft_size_prop, sizeof(pft_size_prop))));
         _FDT((fdt_property_string(fdt, "status", "okay")));
         _FDT((fdt_property(fdt, "64-bit", NULL, 0)));
-        _FDT((fdt_property_cell(fdt, "ibm,ppc-interrupt-server#s", index)));
+
+        /* Build interrupt servers and gservers properties */
+        for (i = 0; i < smp_threads; i++) {
+            servers_prop[i] = cpu_to_be32(index + i);
+            /* Hack, direct the group queues back to cpu 0 */
+            gservers_prop[i*2] = cpu_to_be32(index + i);
+            gservers_prop[i*2 + 1] = 0;
+        }
+        _FDT((fdt_property(fdt, "ibm,ppc-interrupt-server#s",
+                           servers_prop, sizeof(servers_prop))));
         _FDT((fdt_property(fdt, "ibm,ppc-interrupt-gserver#s",
-                           gserver_prop, sizeof(gserver_prop))));
+                           gservers_prop, sizeof(gservers_prop))));
 
         if (env->mmu_model & POWERPC_MMU_1TSEG) {
             _FDT((fdt_property(fdt, "ibm,processor-segment-sizes",
                                segs, sizeof(segs))));
+        }
+
+        /* Advertise VMX/VSX (vector extensions) if available
+         *   0 / no property == no vector extensions
+         *   1               == VMX / Altivec available
+         *   2               == VSX available */
+        if (env->insns_flags & PPC_ALTIVEC) {
+            uint32_t vmx = (env->insns_flags2 & PPC2_VSX) ? 2 : 1;
+
+            _FDT((fdt_property_cell(fdt, "ibm,vmx", vmx)));
+        }
+
+        /* Advertise DFP (Decimal Floating Point) if available
+         *   0 / no property == no DFP
+         *   1               == DFP available */
+        if (env->insns_flags2 & PPC2_DFP) {
+            _FDT((fdt_property_cell(fdt, "ibm,dfp", 1)));
         }
 
         _FDT((fdt_end_node(fdt)));
@@ -260,6 +323,7 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
 {
     int ret;
     void *fdt;
+    sPAPRPHBState *phb;
 
     fdt = g_malloc(FDT_MAX_SIZE);
 
@@ -269,6 +333,15 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
     ret = spapr_populate_vdevice(spapr->vio_bus, fdt);
     if (ret < 0) {
         fprintf(stderr, "couldn't setup vio devices in fdt\n");
+        exit(1);
+    }
+
+    QLIST_FOREACH(phb, &spapr->phbs, list) {
+        ret = spapr_populate_pci_devices(phb, PHANDLE_XICP, fdt);
+    }
+
+    if (ret < 0) {
+        fprintf(stderr, "couldn't setup PCI devices in fdt\n");
         exit(1);
     }
 
@@ -328,6 +401,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
+    target_phys_addr_t rma_alloc_size, rma_size;
     uint32_t initrd_base;
     long kernel_size, initrd_size, fw_size;
     long pteg_shift = 17;
@@ -336,15 +410,28 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     spapr = g_malloc(sizeof(*spapr));
     cpu_ppc_hypercall = emulate_spapr_hypercall;
 
-    /* We place the device tree just below either the top of RAM, or
-     * 2GB, so that it can be processed with 32-bit code if
-     * necessary */
-    spapr->fdt_addr = MIN(ram_size, 0x80000000) - FDT_MAX_SIZE;
+    /* Allocate RMA if necessary */
+    rma_alloc_size = kvmppc_alloc_rma("ppc_spapr.rma", sysmem);
+
+    if (rma_alloc_size == -1) {
+        hw_error("qemu: Unable to create RMA\n");
+        exit(1);
+    }
+    if (rma_alloc_size && (rma_alloc_size < ram_size)) {
+        rma_size = rma_alloc_size;
+    } else {
+        rma_size = ram_size;
+    }
+
+    /* We place the device tree just below either the top of the RMA,
+     * or just below 2GB, whichever is lowere, so that it can be
+     * processed with 32-bit real mode code if necessary */
+    spapr->fdt_addr = MIN(rma_size, 0x80000000) - FDT_MAX_SIZE;
     spapr->rtas_addr = spapr->fdt_addr - RTAS_MAX_SIZE;
 
     /* init CPUs */
     if (cpu_model == NULL) {
-        cpu_model = "POWER7";
+        cpu_model = kvm_enabled() ? "host" : "POWER7";
     }
     for (i = 0; i < smp_cpus; i++) {
         env = cpu_init(cpu_model);
@@ -364,8 +451,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     /* allocate RAM */
     spapr->ram_limit = ram_size;
-    memory_region_init_ram(ram, NULL, "ppc_spapr.ram", spapr->ram_limit);
-    memory_region_add_subregion(sysmem, 0, ram);
+    if (spapr->ram_limit > rma_alloc_size) {
+        ram_addr_t nonrma_base = rma_alloc_size;
+        ram_addr_t nonrma_size = spapr->ram_limit - rma_alloc_size;
+
+        memory_region_init_ram(ram, NULL, "ppc_spapr.ram", nonrma_size);
+        memory_region_add_subregion(sysmem, nonrma_base, ram);
+    }
 
     /* allocate hash page table.  For now we always make this 16mb,
      * later we should probably make it scale to the size of guest
@@ -411,6 +503,12 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         }
     }
 
+    /* Set up PCI */
+    spapr_create_phb(spapr, "pci", SPAPR_PCI_BUID,
+                     SPAPR_PCI_MEM_WIN_ADDR,
+                     SPAPR_PCI_MEM_WIN_SIZE,
+                     SPAPR_PCI_IO_WIN_ADDR);
+
     for (i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
 
@@ -421,10 +519,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         if (strcmp(nd->model, "ibmveth") == 0) {
             spapr_vlan_create(spapr->vio_bus, 0x1000 + i, nd);
         } else {
-            fprintf(stderr, "pSeries (sPAPR) platform does not support "
-                    "NIC model '%s' (only ibmveth is supported)\n",
-                    nd->model);
-            exit(1);
+            pci_nic_init_nofail(&nd_table[i], nd->model, NULL);
         }
     }
 
@@ -489,7 +584,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     }
 
     /* Prepare the device tree */
-    spapr->fdt_skel = spapr_create_fdt_skel(cpu_model,
+    spapr->fdt_skel = spapr_create_fdt_skel(cpu_model, rma_size,
                                             initrd_base, initrd_size,
                                             boot_device, kernel_cmdline,
                                             pteg_shift + 7);

@@ -740,6 +740,7 @@ int kvm_init(void)
         fprintf(stderr, "Please add the 'switch_amode' kernel parameter to "
                         "your host kernel command line\n");
 #endif
+        ret = s->vmfd;
         goto err;
     }
 
@@ -798,7 +799,7 @@ int kvm_init(void)
 
 err:
     if (s) {
-        if (s->vmfd != -1) {
+        if (s->vmfd >= 0) {
             close(s->vmfd);
         }
         if (s->fd != -1) {

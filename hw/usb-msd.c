@@ -162,8 +162,8 @@ static const USBDescDevice desc_device_high = {
 
 static const USBDesc desc = {
     .id = {
-        .idVendor          = 0,
-        .idProduct         = 0,
+        .idVendor          = 0x46f4, /* CRC16() of "QEMU" */
+        .idProduct         = 0x0001,
         .bcdDevice         = 0,
         .iManufacturer     = STR_MANUFACTURER,
         .iProduct          = STR_PRODUCT,

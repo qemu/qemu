@@ -2206,12 +2206,6 @@ sub process {
 			ERROR("space prohibited before that close parenthesis ')'\n" . $herecurr);
 		}
 
-#goto labels aren't indented, allow a single space however
-		if ($line=~/^.\s+[A-Za-z\d_]+:(?![0-9]+)/ and
-		   !($line=~/^. [A-Za-z\d_]+:/) and !($line=~/^.\s+default:/)) {
-			WARN("labels should not be indented\n" . $herecurr);
-		}
-
 # Return is not a function.
 		if (defined($stat) && $stat =~ /^.\s*return(\s*)(\(.*);/s) {
 			my $spacing = $1;

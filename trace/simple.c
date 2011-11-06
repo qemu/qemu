@@ -324,14 +324,29 @@ void trace_print_events(FILE *stream, fprintf_function stream_printf)
 bool trace_event_set_state(const char *name, bool state)
 {
     unsigned int i;
+    unsigned int len;
+    bool wildcard = false;
+    bool matched = false;
 
+    len = strlen(name);
+    if (len > 0 && name[len - 1] == '*') {
+        wildcard = true;
+        len -= 1;
+    }
     for (i = 0; i < NR_TRACE_EVENTS; i++) {
+        if (wildcard) {
+            if (!strncmp(trace_list[i].tp_name, name, len)) {
+                trace_list[i].state = state;
+                matched = true;
+            }
+            continue;
+        }
         if (!strcmp(trace_list[i].tp_name, name)) {
             trace_list[i].state = state;
             return true;
         }
     }
-    return false;
+    return matched;
 }
 
 /* Helper function to create a thread with signals blocked.  Use glib's

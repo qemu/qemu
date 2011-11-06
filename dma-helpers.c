@@ -18,8 +18,7 @@ void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint)
     qsg->size = 0;
 }
 
-void qemu_sglist_add(QEMUSGList *qsg, target_phys_addr_t base,
-                     target_phys_addr_t len)
+void qemu_sglist_add(QEMUSGList *qsg, dma_addr_t base, dma_addr_t len)
 {
     if (qsg->nsg == qsg->nalloc) {
         qsg->nalloc = 2 * qsg->nalloc + 1;
@@ -45,7 +44,7 @@ typedef struct {
     bool to_dev;
     bool in_cancel;
     int sg_cur_index;
-    target_phys_addr_t sg_cur_byte;
+    dma_addr_t sg_cur_byte;
     QEMUIOVector iov;
     QEMUBH *bh;
     DMAIOFunc *io_func;

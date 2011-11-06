@@ -10,7 +10,6 @@
  * the COPYING file in the top-level directory.
  */
 
-#include "hw.h"
 #include "event_notifier.h"
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>

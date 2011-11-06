@@ -73,7 +73,11 @@ int tap_open(char *ifname, int ifname_size, int *vnet_hdr, int vnet_hdr_required
         pstrcpy(ifr.ifr_name, IFNAMSIZ, "tap%d");
     ret = ioctl(fd, TUNSETIFF, (void *) &ifr);
     if (ret != 0) {
-        error_report("could not configure %s (%s): %m", PATH_NET_TUN, ifr.ifr_name);
+        if (ifname[0] != '\0') {
+            error_report("could not configure %s (%s): %m", PATH_NET_TUN, ifr.ifr_name);
+        } else {
+            error_report("could not configure %s: %m", PATH_NET_TUN);
+        }
         close(fd);
         return -1;
     }

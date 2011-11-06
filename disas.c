@@ -274,7 +274,7 @@ void disas(FILE *out, void *code, unsigned long size)
     disasm_info.endian = BFD_ENDIAN_LITTLE;
 #endif
 #if defined(CONFIG_TCG_INTERPRETER)
-    print_insn = print_insn_bytecode;
+    print_insn = print_insn_tci;
 #elif defined(__i386__)
     disasm_info.mach = bfd_mach_i386_i386;
     print_insn = print_insn_i386;

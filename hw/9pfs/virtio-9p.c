@@ -11,6 +11,9 @@
  *
  */
 
+#include <glib.h>
+#include <glib/gprintf.h>
+
 #include "hw/virtio.h"
 #include "hw/pc.h"
 #include "qemu_socket.h"
@@ -161,114 +164,16 @@ void v9fs_string_null(V9fsString *str)
     v9fs_string_free(str);
 }
 
-static int number_to_string(void *arg, char type)
-{
-    unsigned int ret = 0;
-
-    switch (type) {
-    case 'u': {
-        unsigned int num = *(unsigned int *)arg;
-
-        do {
-            ret++;
-            num = num/10;
-        } while (num);
-        break;
-    }
-    case 'U': {
-        unsigned long num = *(unsigned long *)arg;
-        do {
-            ret++;
-            num = num/10;
-        } while (num);
-        break;
-    }
-    default:
-        printf("Number_to_string: Unknown number format\n");
-        return -1;
-    }
-
-    return ret;
-}
-
-static int GCC_FMT_ATTR(2, 0)
-v9fs_string_alloc_printf(char **strp, const char *fmt, va_list ap)
-{
-    va_list ap2;
-    char *iter = (char *)fmt;
-    int len = 0;
-    int nr_args = 0;
-    char *arg_char_ptr;
-    unsigned int arg_uint;
-    unsigned long arg_ulong;
-
-    /* Find the number of %'s that denotes an argument */
-    for (iter = strstr(iter, "%"); iter; iter = strstr(iter, "%")) {
-        nr_args++;
-        iter++;
-    }
-
-    len = strlen(fmt) - 2*nr_args;
-
-    if (!nr_args) {
-        goto alloc_print;
-    }
-
-    va_copy(ap2, ap);
-
-    iter = (char *)fmt;
-
-    /* Now parse the format string */
-    for (iter = strstr(iter, "%"); iter; iter = strstr(iter, "%")) {
-        iter++;
-        switch (*iter) {
-        case 'u':
-            arg_uint = va_arg(ap2, unsigned int);
-            len += number_to_string((void *)&arg_uint, 'u');
-            break;
-        case 'l':
-            if (*++iter == 'u') {
-                arg_ulong = va_arg(ap2, unsigned long);
-                len += number_to_string((void *)&arg_ulong, 'U');
-            } else {
-                return -1;
-            }
-            break;
-        case 's':
-            arg_char_ptr = va_arg(ap2, char *);
-            len += strlen(arg_char_ptr);
-            break;
-        case 'c':
-            len += 1;
-            break;
-        default:
-            fprintf(stderr,
-		    "v9fs_string_alloc_printf:Incorrect format %c", *iter);
-            return -1;
-        }
-        iter++;
-    }
-
-alloc_print:
-    *strp = g_malloc((len + 1) * sizeof(**strp));
-
-    return vsprintf(*strp, fmt, ap);
-}
-
 void GCC_FMT_ATTR(2, 3)
 v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
 {
     va_list ap;
-    int err;
 
     v9fs_string_free(str);
 
     va_start(ap, fmt);
-    err = v9fs_string_alloc_printf(&str->data, fmt, ap);
-    BUG_ON(err == -1);
+    str->size = g_vasprintf(&str->data, fmt, ap);
     va_end(ap);
-
-    str->size = err;
 }
 
 void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)

@@ -172,7 +172,7 @@ mixemu="no"
 aix="no"
 blobs="yes"
 pkgversion=""
-check_utests="no"
+check_utests=""
 user_pie="no"
 zero_malloc=""
 trace_backend="nop"
@@ -1036,7 +1036,7 @@ echo "  --enable-bluez           enable bluez stack connectivity"
 echo "  --disable-slirp          disable SLIRP userspace network connectivity"
 echo "  --disable-kvm            disable KVM acceleration support"
 echo "  --enable-kvm             enable KVM acceleration support"
-echo "  --enable-tcg-interpreter enable TCG with bytecode interpreter TCI"
+echo "  --enable-tcg-interpreter enable TCG with bytecode interpreter (TCI)"
 echo "  --disable-nptl           disable usermode NPTL support"
 echo "  --enable-nptl            enable usermode NPTL support"
 echo "  --enable-system          enable all system emulation targets"
@@ -1872,7 +1872,7 @@ if test "$check_utests" != "no" ; then
 #include <check.h>
 int main(void) { suite_create("qemu test"); return 0; }
 EOF
-  check_libs=`$pkg_config --libs check`
+  check_libs=`$pkg_config --libs check 2>/dev/null`
   if compile_prog "" $check_libs ; then
     check_utests=yes
     libs_tools="$check_libs $libs_tools"
@@ -2725,8 +2725,8 @@ if test "$softmmu" = yes ; then
       tools="qemu-ga\$(EXESUF) $tools"
     fi
     if [ "$check_utests" = "yes" ]; then
-      tools="check-qint check-qstring check-qdict check-qlist $tools"
-      tools="check-qfloat check-qjson $tools"
+      checks="check-qint check-qstring check-qdict check-qlist"
+      checks="check-qfloat check-qjson test-coroutine $checks"
     fi
   fi
 fi
@@ -2868,7 +2868,7 @@ case "$cpu" in
   *)
     if test "$tcg_interpreter" = "yes" ; then
         echo "Unsupported CPU = $cpu, will use TCG with TCI (experimental)"
-        ARCH=unknown
+        ARCH=tci
         echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
     else
         echo "Unsupported CPU = $cpu, try --enable-tcg-interpreter"
@@ -3222,6 +3222,7 @@ if test "$trace_default" = "yes"; then
 fi
 
 echo "TOOLS=$tools" >> $config_host_mak
+echo "CHECKS=$checks" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
 echo "INSTALL=$install" >> $config_host_mak
@@ -3419,7 +3420,7 @@ case "$target_arch2" in
   ;;
   ppc)
     gdb_xml_files="power-core.xml power-fpu.xml power-altivec.xml power-spe.xml"
-    target_phys_bits=32
+    target_phys_bits=64
     target_nptl="yes"
     target_libs_softmmu="$fdt_libs"
   ;;
@@ -3666,6 +3667,10 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
   ;;
   esac
 done
+if test "$tcg_interpreter" = "yes" ; then
+  echo "CONFIG_TCI_DIS=y"  >> $config_target_mak
+  echo "CONFIG_TCI_DIS=y"  >> $libdis_config_mak
+fi
 
 case "$ARCH" in
 alpha)
@@ -3712,7 +3717,7 @@ if test "$gprof" = "yes" ; then
   fi
 fi
 
-if test "$ARCH" = "unknown"; then
+if test "$ARCH" = "tci"; then
   linker_script=""
 else
   linker_script="-Wl,-T../config-host.ld -Wl,-T,\$(SRC_PATH)/\$(ARCH).ld"

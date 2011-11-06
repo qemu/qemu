@@ -28,16 +28,16 @@ static void qxl_flip(PCIQXLDevice *qxl, QXLRect *rect)
     int len, i;
 
     src += (qxl->guest_primary.surface.height - rect->top - 1) *
-        qxl->guest_primary.stride;
-    dst += rect->top  * qxl->guest_primary.stride;
+        qxl->guest_primary.abs_stride;
+    dst += rect->top  * qxl->guest_primary.abs_stride;
     src += rect->left * qxl->guest_primary.bytes_pp;
     dst += rect->left * qxl->guest_primary.bytes_pp;
     len  = (rect->right - rect->left) * qxl->guest_primary.bytes_pp;
 
     for (i = rect->top; i < rect->bottom; i++) {
         memcpy(dst, src, len);
-        dst += qxl->guest_primary.stride;
-        src -= qxl->guest_primary.stride;
+        dst += qxl->guest_primary.abs_stride;
+        src -= qxl->guest_primary.abs_stride;
     }
 }
 
@@ -45,7 +45,8 @@ void qxl_render_resize(PCIQXLDevice *qxl)
 {
     QXLSurfaceCreate *sc = &qxl->guest_primary.surface;
 
-    qxl->guest_primary.stride = sc->stride;
+    qxl->guest_primary.qxl_stride = sc->stride;
+    qxl->guest_primary.abs_stride = abs(sc->stride);
     qxl->guest_primary.resized++;
     switch (sc->format) {
     case SPICE_SURFACE_FMT_16_555:
@@ -75,7 +76,14 @@ void qxl_render_update(PCIQXLDevice *qxl)
     VGACommonState *vga = &qxl->vga;
     QXLRect dirty[32], update;
     void *ptr;
-    int i;
+    int i, redraw = 0;
+
+    if (!is_buffer_shared(vga->ds->surface)) {
+        dprint(qxl, 1, "%s: restoring shared displaysurface\n", __func__);
+        qxl->guest_primary.resized++;
+        qxl->guest_primary.commands++;
+        redraw = 1;
+    }
 
     if (qxl->guest_primary.resized) {
         qxl->guest_primary.resized = 0;
@@ -87,11 +95,11 @@ void qxl_render_update(PCIQXLDevice *qxl)
         qemu_free_displaysurface(vga->ds);
 
         qxl->guest_primary.data = memory_region_get_ram_ptr(&qxl->vga.vram);
-        if (qxl->guest_primary.stride < 0) {
+        if (qxl->guest_primary.qxl_stride < 0) {
             /* spice surface is upside down -> need extra buffer to flip */
-            qxl->guest_primary.stride = -qxl->guest_primary.stride;
-            qxl->guest_primary.flipped = g_malloc(qxl->guest_primary.surface.width *
-                                                     qxl->guest_primary.stride);
+            qxl->guest_primary.flipped =
+                g_malloc(qxl->guest_primary.surface.width *
+                         qxl->guest_primary.abs_stride);
             ptr = qxl->guest_primary.flipped;
         } else {
             ptr = qxl->guest_primary.data;
@@ -100,7 +108,7 @@ void qxl_render_update(PCIQXLDevice *qxl)
                __FUNCTION__,
                qxl->guest_primary.surface.width,
                qxl->guest_primary.surface.height,
-               qxl->guest_primary.stride,
+               qxl->guest_primary.qxl_stride,
                qxl->guest_primary.bytes_pp,
                qxl->guest_primary.bits_pp,
                qxl->guest_primary.flipped ? "yes" : "no");
@@ -108,7 +116,7 @@ void qxl_render_update(PCIQXLDevice *qxl)
             qemu_create_displaysurface_from(qxl->guest_primary.surface.width,
                                             qxl->guest_primary.surface.height,
                                             qxl->guest_primary.bits_pp,
-                                            qxl->guest_primary.stride,
+                                            qxl->guest_primary.abs_stride,
                                             ptr);
         dpy_resize(vga->ds);
     }
@@ -126,6 +134,10 @@ void qxl_render_update(PCIQXLDevice *qxl)
     memset(dirty, 0, sizeof(dirty));
     qxl_spice_update_area(qxl, 0, &update,
                           dirty, ARRAY_SIZE(dirty), 1, QXL_SYNC);
+    if (redraw) {
+        memset(dirty, 0, sizeof(dirty));
+        dirty[0] = update;
+    }
 
     for (i = 0; i < ARRAY_SIZE(dirty); i++) {
         if (qemu_spice_rect_is_empty(dirty+i)) {

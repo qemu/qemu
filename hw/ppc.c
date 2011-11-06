@@ -662,6 +662,12 @@ static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
 
     LOG_TB("%s: %08" PRIx32 " => %08" PRIx32 "\n", __func__,
                 decr, value);
+
+    if (kvm_enabled()) {
+        /* KVM handles decrementer exceptions, we don't need our own timer */
+        return;
+    }
+
     now = qemu_get_clock_ns(vm_clock);
     next = now + muldiv64(value, get_ticks_per_sec(), tb_env->decr_freq);
     if (is_excp) {

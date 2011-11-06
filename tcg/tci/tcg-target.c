@@ -34,16 +34,6 @@
         tcg_abort(); \
     } while (0)
 
-/* Trace message to see program flow. */
-#if defined(CONFIG_DEBUG_TCG_INTERPRETER)
-#define TRACE() \
-    loglevel \
-    ? fprintf(stderr, "TCG %s:%u: %s()\n", __FILE__, __LINE__, __func__) \
-    : (void)0
-#else
-#define TRACE() ((void)0)
-#endif
-
 /* Single bit n. */
 #define BIT(n) (1 << (n))
 
@@ -76,11 +66,11 @@ static uint8_t *tb_ret_addr;
 
 /* TODO: documentation. */
 static const TCGTargetOpDef tcg_target_op_defs[] = {
-    { INDEX_op_exit_tb, { } },
-    { INDEX_op_goto_tb, { } },
+    { INDEX_op_exit_tb, { NULL } },
+    { INDEX_op_goto_tb, { NULL } },
     { INDEX_op_call, { RI } },
     { INDEX_op_jmp, { RI } },
-    { INDEX_op_br, { } },
+    { INDEX_op_br, { NULL } },
 
     { INDEX_op_mov_i32, { R, R } },
     { INDEX_op_movi_i32, { R } },
@@ -343,7 +333,7 @@ static const int tcg_target_call_oarg_regs[] = {
 };
 
 #ifndef NDEBUG
-static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
+static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
     "r00",
     "r01",
     "r02",
@@ -385,7 +375,6 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 
 static void flush_icache_range(unsigned long start, unsigned long stop)
 {
-    TRACE();
 }
 
 static void patch_reloc(uint8_t *code_ptr, int type,
@@ -417,77 +406,8 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
     return 0;
 }
 
-#include "dis-asm.h"
-int print_insn_bytecode(bfd_vma addr, disassemble_info *info)
-{
-    int length = 1;
-    uint8_t byte;
-    int status = info->read_memory_func(addr, &byte, 1, info);
-    TCGOpcode c = byte;
-
-    if (status != 0) {
-        info->memory_error_func(status, addr, info);
-        return -1;
-    }
-
-    if (c >= ARRAY_SIZE(tcg_op_defs)) {
-        return length;
-    }
-
-    const TCGOpDef *def = &tcg_op_defs[c];
-    int nb_oargs = def->nb_oargs;
-    int nb_iargs = def->nb_iargs;
-    int nb_cargs = def->nb_cargs;
-    FILE *f = info->stream;
-    info->fprintf_func(f, "%s\t%d %d %d",
-                       def->name, nb_oargs, nb_iargs, nb_cargs);
-    addr++;
-    length += nb_oargs;
-    addr += nb_oargs;
-    while (nb_iargs) {
-        if (nb_iargs == nb_cargs) {
-            uint8_t const_arg;
-            status = info->read_memory_func(addr, &const_arg, 1, info);
-            if (status != 0) {
-                info->memory_error_func(status, addr, info);
-                return -1;
-            }
-            length++;
-            addr++;
-            if (const_arg) {
-                length += TCG_TARGET_REG_BITS / 8;
-                addr += TCG_TARGET_REG_BITS / 8;
-            }
-            nb_iargs--;
-            nb_cargs--;
-        } else {
-            length++;
-            addr++;
-            nb_iargs--;
-        }
-    }
-    int cl = 4;
-#if TCG_TARGET_REG_BITS == 64
-    if (c == INDEX_op_movi_i64 ||
-        c == INDEX_op_st_i64) {
-        cl = 8;
-    }
-#endif
-    while (nb_cargs) {
-        length += cl;
-        addr += cl;
-        nb_cargs--;
-    }
-    info->fprintf_func(f, "\t%d", length);
-    if (length > info->buffer_length) {
-        length = info->buffer_length;
-    } else if (length == 0) {
-        length = 1;
-    }
-    return length;
-}
-
 #if defined(CONFIG_DEBUG_TCG_INTERPRETER)
+/* Show current bytecode. Used by tcg interpreter. */
 void tci_disas(uint8_t opc)
 {
     const TCGOpDef *def = &tcg_op_defs[opc];
@@ -495,141 +415,6 @@ void tci_disas(uint8_t opc)
             def->name, def->nb_oargs, def->nb_iargs, def->nb_cargs);
 }
 #endif
-
-static void tcg_disas3(TCGContext *s, TCGOpcode c, const TCGArg *args)
-{
-#if defined(CONFIG_DEBUG_TCG_INTERPRETER) && 0
-    char buf[128];
-    TCGArg arg;
-    FILE *outfile = stderr;
-    const TCGOpDef *def = &tcg_op_defs[c];
-    int nb_oargs, nb_iargs, nb_cargs;
-    int i, k;
-    if (!loglevel) {
-        return;
-    }
-    if (c == INDEX_op_debug_insn_start) {
-        uint64_t pc;
-#if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
-        pc = ((uint64_t)args[1] << 32) | args[0];
-#else
-        pc = args[0];
-#endif
-        fprintf(outfile, " ---- 0x%" PRIx64, pc);
-        nb_oargs = def->nb_oargs;
-        nb_iargs = def->nb_iargs;
-        nb_cargs = def->nb_cargs;
-    } else if (c == INDEX_op_call) {
-        TCGArg arg;
-
-        /* variable number of arguments */
-        arg = *args++;
-        nb_oargs = arg >> 16;
-        nb_iargs = arg & 0xffff;
-        nb_cargs = def->nb_cargs;
-
-        fprintf(outfile, " %s ", def->name);
-
-#if 0 /* TODO: code does not work (crash), need better code for disassembly. */
-        /* function name */
-        fprintf(outfile, "%s",
-                tcg_get_arg_str_idx(s, buf, sizeof(buf),
-                                    args[nb_oargs + nb_iargs - 1]));
-        /* flags */
-        fprintf(outfile, ",$0x%" TCG_PRIlx,
-                args[nb_oargs + nb_iargs]);
-        /* nb out args */
-        fprintf(outfile, ",$%d", nb_oargs);
-        for (i = 0; i < nb_oargs; i++) {
-            fprintf(outfile, ",");
-            fprintf(outfile, "%s",
-                    tcg_get_arg_str_idx(s, buf, sizeof(buf), args[i]));
-        }
-        for (i = 0; i < (nb_iargs - 1); i++) {
-            fprintf(outfile, ",");
-            if (args[nb_oargs + i] == TCG_CALL_DUMMY_ARG) {
-                fprintf(outfile, "<dummy>");
-            } else {
-                fprintf(outfile, "%s",
-                        tcg_get_arg_str_idx(s, buf, sizeof(buf),
-                                            args[nb_oargs + i]));
-            }
-        }
-#endif
-    } else if (c == INDEX_op_movi_i32
-#if TCG_TARGET_REG_BITS == 64
-               || c == INDEX_op_movi_i64
-#endif
-               ) {
-        tcg_target_ulong val;
-        TCGHelperInfo *th;
-
-        nb_oargs = def->nb_oargs;
-        nb_iargs = def->nb_iargs;
-        nb_cargs = def->nb_cargs;
-        fprintf(outfile, " %s %s,$", def->name,
-                tcg_get_arg_str_idx(s, buf, sizeof(buf), args[0]));
-        val = args[1];
-        th = tcg_find_helper(s, val);
-        if (th) {
-            fprintf(outfile, "%s", th->name);
-        } else {
-            if (c == INDEX_op_movi_i32) {
-                fprintf(outfile, "0x%x", (uint32_t)val);
-            } else {
-                fprintf(outfile, "0x%" PRIx64 , (uint64_t)val);
-            }
-        }
-    } else {
-        fprintf(outfile, " %s ", def->name);
-        if (c == INDEX_op_nopn) {
-            /* variable number of arguments */
-            nb_cargs = *args;
-            nb_oargs = 0;
-            nb_iargs = 0;
-        } else {
-            nb_oargs = def->nb_oargs;
-            nb_iargs = def->nb_iargs;
-            nb_cargs = def->nb_cargs;
-        }
-
-        k = 0;
-        for (i = 0; i < nb_oargs; i++) {
-            fprintf(outfile, "%s%s", (k != 0) ? "," : "",
-                    tcg_get_arg_str_idx(s, buf, sizeof(buf), args[k]));
-            k++;
-        }
-        for (i = 0; i < nb_iargs; i++) {
-            fprintf(outfile, "%s%s", (k != 0) ? "," : "",
-                    tcg_get_arg_str_idx(s, buf, sizeof(buf), args[k]));
-            k++;
-        }
-        if (c == INDEX_op_brcond_i32
-#if TCG_TARGET_REG_BITS == 32
-            || c == INDEX_op_brcond2_i32
-#elif TCG_TARGET_REG_BITS == 64
-            || c == INDEX_op_brcond_i64
-#endif
-            ) {
-            if (args[k] < ARRAY_SIZE(cond_name) && cond_name[args[k]]) {
-                fprintf(outfile, ",%s", cond_name[args[k++]]);
-            } else {
-                fprintf(outfile, ",$0x%" TCG_PRIlx, args[k++]);
-            }
-            i = 1;
-        } else {
-            i = 0;
-        }
-        for (; i < nb_cargs; i++) {
-            arg = args[k];
-            fprintf(outfile, "%s$0x%" TCG_PRIlx,  (k != 0) ? "," : "", arg);
-            k++;
-        }
-    }
-    fprintf(stderr, " %u, %u, %u\n",
-            def->nb_oargs, def->nb_iargs, def->nb_cargs);
-#endif
-}
 
 /* Write value (native size). */
 static void tcg_out_i(TCGContext *s, tcg_target_ulong v)
@@ -714,9 +499,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
                        tcg_target_long arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;
-    TCGArg args[3] = { ret, arg1, arg2 };
     if (type == TCG_TYPE_I32) {
-        tcg_disas3(s, INDEX_op_ld_i32, args);
         tcg_out_op_t(s, INDEX_op_ld_i32);
         tcg_out_r(s, ret);
         tcg_out_r(s, arg1);
@@ -724,7 +507,6 @@ static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
     } else {
         assert(type == TCG_TYPE_I64);
 #if TCG_TARGET_REG_BITS == 64
-        tcg_disas3(s, INDEX_op_ld_i64, args);
         tcg_out_op_t(s, INDEX_op_ld_i64);
         tcg_out_r(s, ret);
         tcg_out_r(s, arg1);
@@ -740,13 +522,10 @@ static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
 static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 {
     uint8_t *old_code_ptr = s->code_ptr;
-    TCGArg args[2] = { ret, arg };
     assert(ret != arg);
 #if TCG_TARGET_REG_BITS == 32
-    tcg_disas3(s, INDEX_op_mov_i32, args);
     tcg_out_op_t(s, INDEX_op_mov_i32);
 #else
-    tcg_disas3(s, INDEX_op_mov_i64, args);
     tcg_out_op_t(s, INDEX_op_mov_i64);
 #endif
     tcg_out_r(s, ret);
@@ -758,17 +537,14 @@ static void tcg_out_movi(TCGContext *s, TCGType type,
                          int t0, tcg_target_long arg)
 {
     uint8_t *old_code_ptr = s->code_ptr;
-    TCGArg args[2] = { t0, arg };
     uint32_t arg32 = arg;
     if (type == TCG_TYPE_I32 || arg == arg32) {
-        tcg_disas3(s, INDEX_op_movi_i32, args);
         tcg_out_op_t(s, INDEX_op_movi_i32);
         tcg_out_r(s, t0);
         tcg_out32(s, arg32);
     } else {
         assert(type == TCG_TYPE_I64);
 #if TCG_TARGET_REG_BITS == 64
-        tcg_disas3(s, INDEX_op_movi_i64, args);
         tcg_out_op_t(s, INDEX_op_movi_i64);
         tcg_out_r(s, t0);
         tcg_out64(s, arg);
@@ -784,7 +560,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 {
     uint8_t *old_code_ptr = s->code_ptr;
 
-    tcg_disas3(s, opc, args);
     tcg_out_op_t(s, opc);
 
     switch (opc) {
@@ -848,6 +623,17 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_st8_i32:
     case INDEX_op_st16_i32:
     case INDEX_op_st_i32:
+    case INDEX_op_ld8u_i64:
+    case INDEX_op_ld8s_i64:
+    case INDEX_op_ld16u_i64:
+    case INDEX_op_ld16s_i64:
+    case INDEX_op_ld32u_i64:
+    case INDEX_op_ld32s_i64:
+    case INDEX_op_ld_i64:
+    case INDEX_op_st8_i64:
+    case INDEX_op_st16_i64:
+    case INDEX_op_st32_i64:
+    case INDEX_op_st_i64:
         tcg_out_r(s, args[0]);
         tcg_out_r(s, args[1]);
         assert(args[2] == (uint32_t)args[2]);
@@ -857,30 +643,18 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_sub_i32:
     case INDEX_op_mul_i32:
     case INDEX_op_and_i32:
-#if TCG_TARGET_HAS_andc_i32
-    case INDEX_op_andc_i32:
-#endif
-#if TCG_TARGET_HAS_eqv_i32
-    case INDEX_op_eqv_i32:
-#endif
-#if TCG_TARGET_HAS_nand_i32
-    case INDEX_op_nand_i32:
-#endif
-#if TCG_TARGET_HAS_nor_i32
-    case INDEX_op_nor_i32:
-#endif
+    case INDEX_op_andc_i32:     /* Optional (TCG_TARGET_HAS_andc_i32). */
+    case INDEX_op_eqv_i32:      /* Optional (TCG_TARGET_HAS_eqv_i32). */
+    case INDEX_op_nand_i32:     /* Optional (TCG_TARGET_HAS_nand_i32). */
+    case INDEX_op_nor_i32:      /* Optional (TCG_TARGET_HAS_nor_i32). */
     case INDEX_op_or_i32:
-#if TCG_TARGET_HAS_orc_i32
-    case INDEX_op_orc_i32:
-#endif
+    case INDEX_op_orc_i32:      /* Optional (TCG_TARGET_HAS_orc_i32). */
     case INDEX_op_xor_i32:
     case INDEX_op_shl_i32:
     case INDEX_op_shr_i32:
     case INDEX_op_sar_i32:
-#if TCG_TARGET_HAS_rot_i32
-    case INDEX_op_rotl_i32:
-    case INDEX_op_rotr_i32:
-#endif
+    case INDEX_op_rotl_i32:     /* Optional (TCG_TARGET_HAS_rot_i32). */
+    case INDEX_op_rotr_i32:     /* Optional (TCG_TARGET_HAS_rot_i32). */
         tcg_out_r(s, args[0]);
         tcg_out_ri32(s, const_args[1], args[1]);
         tcg_out_ri32(s, const_args[2], args[2]);
@@ -891,126 +665,78 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_movi_i64:
         TODO();
         break;
-    case INDEX_op_ld8u_i64:
-    case INDEX_op_ld8s_i64:
-    case INDEX_op_ld16u_i64:
-    case INDEX_op_ld16s_i64:
-    case INDEX_op_ld32u_i64:
-    case INDEX_op_ld32s_i64:
-    case INDEX_op_ld_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        assert(args[2] == (uint32_t)args[2]);
-        tcg_out32(s, args[2]);
-        break;
-    case INDEX_op_st8_i64:
-    case INDEX_op_st16_i64:
-    case INDEX_op_st32_i64:
-    case INDEX_op_st_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        assert(args[2] == (uint32_t)args[2]);
-        tcg_out32(s, args[2]);
-        break;
     case INDEX_op_add_i64:
     case INDEX_op_sub_i64:
     case INDEX_op_mul_i64:
     case INDEX_op_and_i64:
-#if TCG_TARGET_HAS_andc_i64
-    case INDEX_op_andc_i64:
-#endif
-#if TCG_TARGET_HAS_eqv_i64
-    case INDEX_op_eqv_i64:
-#endif
-#if TCG_TARGET_HAS_nand_i64
-    case INDEX_op_nand_i64:
-#endif
-#if TCG_TARGET_HAS_nor_i64
-    case INDEX_op_nor_i64:
-#endif
+    case INDEX_op_andc_i64:     /* Optional (TCG_TARGET_HAS_andc_i64). */
+    case INDEX_op_eqv_i64:      /* Optional (TCG_TARGET_HAS_eqv_i64). */
+    case INDEX_op_nand_i64:     /* Optional (TCG_TARGET_HAS_nand_i64). */
+    case INDEX_op_nor_i64:      /* Optional (TCG_TARGET_HAS_nor_i64). */
     case INDEX_op_or_i64:
-#if TCG_TARGET_HAS_orc_i64
-    case INDEX_op_orc_i64:
-#endif
+    case INDEX_op_orc_i64:      /* Optional (TCG_TARGET_HAS_orc_i64). */
     case INDEX_op_xor_i64:
     case INDEX_op_shl_i64:
     case INDEX_op_shr_i64:
     case INDEX_op_sar_i64:
-#if TCG_TARGET_HAS_rot_i64
-    /* TODO: TCI implementation for rotl_i64, rotr_i64 missing. */
-    case INDEX_op_rotl_i64:
-    case INDEX_op_rotr_i64:
-#endif
+        /* TODO: Implementation of rotl_i64, rotr_i64 missing in tci.c. */
+    case INDEX_op_rotl_i64:     /* Optional (TCG_TARGET_HAS_rot_i64). */
+    case INDEX_op_rotr_i64:     /* Optional (TCG_TARGET_HAS_rot_i64). */
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
         tcg_out_ri64(s, const_args[2], args[2]);
         break;
-#if TCG_TARGET_HAS_div_i64
-    case INDEX_op_div_i64:
-    case INDEX_op_divu_i64:
-    case INDEX_op_rem_i64:
-    case INDEX_op_remu_i64:
+    case INDEX_op_div_i64:      /* Optional (TCG_TARGET_HAS_div_i64). */
+    case INDEX_op_divu_i64:     /* Optional (TCG_TARGET_HAS_div_i64). */
+    case INDEX_op_rem_i64:      /* Optional (TCG_TARGET_HAS_div_i64). */
+    case INDEX_op_remu_i64:     /* Optional (TCG_TARGET_HAS_div_i64). */
         TODO();
         break;
-#elif TCG_TARGET_HAS_div2_i64
-    case INDEX_op_div2_i64:
-    case INDEX_op_divu2_i64:
+    case INDEX_op_div2_i64:     /* Optional (TCG_TARGET_HAS_div2_i64). */
+    case INDEX_op_divu2_i64:    /* Optional (TCG_TARGET_HAS_div2_i64). */
         TODO();
         break;
-#endif
     case INDEX_op_brcond_i64:
         tcg_out_r(s, args[0]);
         tcg_out_ri64(s, const_args[1], args[1]);
         tcg_out8(s, args[2]);           /* condition */
         tci_out_label(s, args[3]);
         break;
-#if TCG_TARGET_HAS_bswap16_i64
-    case INDEX_op_bswap16_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_bswap32_i64
-    case INDEX_op_bswap32_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_bswap64_i64
-    case INDEX_op_bswap64_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_not_i64
-    case INDEX_op_not_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_neg_i64
-    case INDEX_op_neg_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
+    case INDEX_op_bswap16_i64:  /* Optional (TCG_TARGET_HAS_bswap16_i64). */
+    case INDEX_op_bswap32_i64:  /* Optional (TCG_TARGET_HAS_bswap32_i64). */
+    case INDEX_op_bswap64_i64:  /* Optional (TCG_TARGET_HAS_bswap64_i64). */
+    case INDEX_op_not_i64:      /* Optional (TCG_TARGET_HAS_not_i64). */
+    case INDEX_op_neg_i64:      /* Optional (TCG_TARGET_HAS_neg_i64). */
+    case INDEX_op_ext8s_i64:    /* Optional (TCG_TARGET_HAS_ext8s_i64). */
+    case INDEX_op_ext8u_i64:    /* Optional (TCG_TARGET_HAS_ext8u_i64). */
+    case INDEX_op_ext16s_i64:   /* Optional (TCG_TARGET_HAS_ext16s_i64). */
+    case INDEX_op_ext16u_i64:   /* Optional (TCG_TARGET_HAS_ext16u_i64). */
+    case INDEX_op_ext32s_i64:   /* Optional (TCG_TARGET_HAS_ext32s_i64). */
+    case INDEX_op_ext32u_i64:   /* Optional (TCG_TARGET_HAS_ext32u_i64). */
 #endif /* TCG_TARGET_REG_BITS == 64 */
-
-#if TCG_TARGET_HAS_div_i32
-    case INDEX_op_div_i32:
-    case INDEX_op_divu_i32:
-    case INDEX_op_rem_i32:
-    case INDEX_op_remu_i32:
+    case INDEX_op_neg_i32:      /* Optional (TCG_TARGET_HAS_neg_i32). */
+    case INDEX_op_not_i32:      /* Optional (TCG_TARGET_HAS_not_i32). */
+    case INDEX_op_ext8s_i32:    /* Optional (TCG_TARGET_HAS_ext8s_i32). */
+    case INDEX_op_ext16s_i32:   /* Optional (TCG_TARGET_HAS_ext16s_i32). */
+    case INDEX_op_ext8u_i32:    /* Optional (TCG_TARGET_HAS_ext8u_i32). */
+    case INDEX_op_ext16u_i32:   /* Optional (TCG_TARGET_HAS_ext16u_i32). */
+    case INDEX_op_bswap16_i32:  /* Optional (TCG_TARGET_HAS_bswap16_i32). */
+    case INDEX_op_bswap32_i32:  /* Optional (TCG_TARGET_HAS_bswap32_i32). */
+        tcg_out_r(s, args[0]);
+        tcg_out_r(s, args[1]);
+        break;
+    case INDEX_op_div_i32:      /* Optional (TCG_TARGET_HAS_div_i32). */
+    case INDEX_op_divu_i32:     /* Optional (TCG_TARGET_HAS_div_i32). */
+    case INDEX_op_rem_i32:      /* Optional (TCG_TARGET_HAS_div_i32). */
+    case INDEX_op_remu_i32:     /* Optional (TCG_TARGET_HAS_div_i32). */
         tcg_out_r(s, args[0]);
         tcg_out_ri32(s, const_args[1], args[1]);
         tcg_out_ri32(s, const_args[2], args[2]);
         break;
-#elif TCG_TARGET_HAS_div2_i32
-    case INDEX_op_div2_i32:
-    case INDEX_op_divu2_i32:
+    case INDEX_op_div2_i32:     /* Optional (TCG_TARGET_HAS_div2_i32). */
+    case INDEX_op_divu2_i32:    /* Optional (TCG_TARGET_HAS_div2_i32). */
         TODO();
         break;
-#endif
 #if TCG_TARGET_REG_BITS == 32
     case INDEX_op_add2_i32:
     case INDEX_op_sub2_i32:
@@ -1042,18 +768,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out8(s, args[2]);           /* condition */
         tci_out_label(s, args[3]);
         break;
-#if TCG_TARGET_HAS_neg_i32
-    case INDEX_op_neg_i32:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_not_i32
-    case INDEX_op_not_i32:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
     case INDEX_op_qemu_ld8u:
     case INDEX_op_qemu_ld8s:
     case INDEX_op_qemu_ld16u:
@@ -1110,80 +824,6 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         tcg_out_i(s, *args);
 #endif
         break;
-#if TCG_TARGET_HAS_ext8s_i32
-    case INDEX_op_ext8s_i32:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_ext16s_i32
-    case INDEX_op_ext16s_i32:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_ext8u_i32
-    case INDEX_op_ext8u_i32:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_ext16u_i32
-    case INDEX_op_ext16u_i32:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_REG_BITS == 64
-#if TCG_TARGET_HAS_ext8s_i64
-    case INDEX_op_ext8s_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_ext8u_i64
-    case INDEX_op_ext8u_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_ext16s_i64
-    case INDEX_op_ext16s_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_ext16u_i64
-    case INDEX_op_ext16u_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_ext32s_i64
-    case INDEX_op_ext32s_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_ext32u_i64
-    case INDEX_op_ext32u_i64:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#endif /* TCG_TARGET_REG_BITS == 64 */
-#if TCG_TARGET_HAS_bswap16_i32
-    case INDEX_op_bswap16_i32:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
-#if TCG_TARGET_HAS_bswap32_i32
-    case INDEX_op_bswap32_i32:
-        tcg_out_r(s, args[0]);
-        tcg_out_r(s, args[1]);
-        break;
-#endif
     case INDEX_op_end:
         TODO();
         break;
@@ -1198,9 +838,7 @@ static void tcg_out_st(TCGContext *s, TCGType type, int arg, int arg1,
                        tcg_target_long arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;
-    TCGArg args[3] = { arg, arg1, arg2 };
     if (type == TCG_TYPE_I32) {
-        tcg_disas3(s, INDEX_op_st_i32, args);
         tcg_out_op_t(s, INDEX_op_st_i32);
         tcg_out_r(s, arg);
         tcg_out_r(s, arg1);
@@ -1208,7 +846,6 @@ static void tcg_out_st(TCGContext *s, TCGType type, int arg, int arg1,
     } else {
         assert(type == TCG_TYPE_I64);
 #if TCG_TARGET_REG_BITS == 64
-        tcg_disas3(s, INDEX_op_st_i64, args);
         tcg_out_op_t(s, INDEX_op_st_i64);
         tcg_out_r(s, arg);
         tcg_out_r(s, arg1);
@@ -1242,7 +879,6 @@ static void tcg_target_init(TCGContext *s)
         loglevel = strtol(envval, NULL, 0);
     }
 #endif
-    TRACE();
 
     /* The current code uses uint8_t for tcg operations. */
     assert(ARRAY_SIZE(tcg_op_defs) <= UINT8_MAX);
@@ -1266,6 +902,5 @@ static void tcg_target_init(TCGContext *s)
 /* Generate global QEMU prologue and epilogue code. */
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
-    TRACE();
     tb_ret_addr = s->code_ptr;
 }

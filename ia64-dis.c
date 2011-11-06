@@ -781,6 +781,9 @@ ext_inc3 (const struct ia64_operand *self, ia64_insn code, ia64_insn *valuep)
   return 0;
 }
 
+/* glib.h defines ABS so we must undefine it to avoid a clash */
+#undef ABS
+
 #define CST	IA64_OPND_CLASS_CST
 #define REG	IA64_OPND_CLASS_REG
 #define IND	IA64_OPND_CLASS_IND

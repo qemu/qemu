@@ -16,6 +16,7 @@
 #include "trace.h"
 #include "blockdev.h"
 #include "virtio-blk.h"
+#include "scsi-defs.h"
 #ifdef __linux__
 # include <scsi/sg.h>
 #endif
@@ -231,7 +232,20 @@ static void virtio_blk_handle_scsi(VirtIOBlockReq *req)
         status = VIRTIO_BLK_S_OK;
     }
 
-    stl_p(&req->scsi->errors, hdr.status);
+    /*
+     * From SCSI-Generic-HOWTO: "Some lower level drivers (e.g. ide-scsi)
+     * clear the masked_status field [hence status gets cleared too, see
+     * block/scsi_ioctl.c] even when a CHECK_CONDITION or COMMAND_TERMINATED
+     * status has occurred.  However they do set DRIVER_SENSE in driver_status
+     * field. Also a (sb_len_wr > 0) indicates there is a sense buffer.
+     */
+    if (hdr.status == 0 && hdr.sb_len_wr > 0) {
+        hdr.status = CHECK_CONDITION;
+    }
+
+    stl_p(&req->scsi->errors,
+          hdr.status | (hdr.msg_status << 8) |
+          (hdr.host_status << 16) | (hdr.driver_status << 24));
     stl_p(&req->scsi->residual, hdr.resid);
     stl_p(&req->scsi->sense_len, hdr.sb_len_wr);
     stl_p(&req->scsi->data_len, hdr.dxfer_len);
