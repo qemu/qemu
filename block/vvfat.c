@@ -799,6 +799,7 @@ static int read_directory(BDRVVVFATState* s, int mapping_index)
 	/* root directory */
 	int cur = s->directory.next;
 	array_ensure_allocated(&(s->directory), ROOT_ENTRIES - 1);
+	s->directory.next = ROOT_ENTRIES;
 	memset(array_get(&(s->directory), cur), 0,
 		(ROOT_ENTRIES - cur) * sizeof(direntry_t));
     }
@@ -915,11 +916,8 @@ static int init_directories(BDRVVVFATState* s,
 	cluster = mapping->end;
 
 	if(cluster > s->cluster_count) {
-	    fprintf(stderr,"Directory does not fit in FAT%d (capacity %s)\n",
-		    s->fat_type,
-		    s->fat_type == 12 ? s->sector_count == 2880 ? "1.44 MB"
-								: "2.88 MB"
-				      : "504MB");
+	    fprintf(stderr,"Directory does not fit in FAT%d (capacity %.2f MB)\n",
+		    s->fat_type, s->sector_count / 2000.0);
 	    return -EINVAL;
 	}
 
@@ -953,7 +951,7 @@ static int init_directories(BDRVVVFATState* s,
     bootsector->number_of_fats=0x2; /* number of FATs */
     bootsector->root_entries=cpu_to_le16(s->sectors_of_root_directory*0x10);
     bootsector->total_sectors16=s->sector_count>0xffff?0:cpu_to_le16(s->sector_count);
-    bootsector->media_type=(s->fat_type!=12?0xf8:s->sector_count==5760?0xf9:0xf8); /* media descriptor */
+    bootsector->media_type=(s->first_sectors_number>1?0xf8:0xf0); /* media descriptor (f8=hd, f0=3.5 fd)*/
     s->fat.pointer[0] = bootsector->media_type;
     bootsector->sectors_per_fat=cpu_to_le16(s->sectors_per_fat);
     bootsector->sectors_per_track=cpu_to_le16(s->bs->secs);
@@ -962,7 +960,7 @@ static int init_directories(BDRVVVFATState* s,
     bootsector->total_sectors=cpu_to_le32(s->sector_count>0xffff?s->sector_count:0);
 
     /* LATER TODO: if FAT32, this is wrong */
-    bootsector->u.fat16.drive_number=s->fat_type==12?0:0x80; /* assume this is hda (TODO) */
+    bootsector->u.fat16.drive_number=s->first_sectors_number==1?0:0x80; /* fda=0, hda=0x80 */
     bootsector->u.fat16.current_head=0;
     bootsector->u.fat16.signature=0x29;
     bootsector->u.fat16.id=cpu_to_le32(0xfabe1afd);
@@ -984,7 +982,6 @@ static int is_consistent(BDRVVVFATState *s);
 static int vvfat_open(BlockDriverState *bs, const char* dirname, int flags)
 {
     BDRVVVFATState *s = bs->opaque;
-    int floppy = 0;
     int i;
 
 #ifdef DEBUG
@@ -998,11 +995,8 @@ DLOG(if (stderr == NULL) {
 
     s->bs = bs;
 
-    s->fat_type=16;
     /* LATER TODO: if FAT32, adjust */
     s->sectors_per_cluster=0x10;
-    /* 504MB disk*/
-    bs->cyls=1024; bs->heads=16; bs->secs=63;
 
     s->current_cluster=0xffffffff;
 
@@ -1017,16 +1011,6 @@ DLOG(if (stderr == NULL) {
     if (!strstart(dirname, "fat:", NULL))
 	return -1;
 
-    if (strstr(dirname, ":floppy:")) {
-	floppy = 1;
-	s->fat_type = 12;
-	s->first_sectors_number = 1;
-	s->sectors_per_cluster=2;
-	bs->cyls = 80; bs->heads = 2; bs->secs = 36;
-    }
-
-    s->sector_count=bs->cyls*bs->heads*bs->secs;
-
     if (strstr(dirname, ":32:")) {
 	fprintf(stderr, "Big fat greek warning: FAT32 has not been tested. You are welcome to do so!\n");
 	s->fat_type = 32;
@@ -1034,8 +1018,30 @@ DLOG(if (stderr == NULL) {
 	s->fat_type = 16;
     } else if (strstr(dirname, ":12:")) {
 	s->fat_type = 12;
-	s->sector_count=2880;
     }
+
+    if (strstr(dirname, ":floppy:")) {
+	/* 1.44MB or 2.88MB floppy.  2.88MB can be FAT12 (default) or FAT16. */
+	if (!s->fat_type) {
+	    s->fat_type = 12;
+	    bs->secs = 36;
+	    s->sectors_per_cluster=2;
+	} else {
+	    bs->secs=(s->fat_type == 12 ? 18 : 36);
+	    s->sectors_per_cluster=1;
+	}
+	s->first_sectors_number = 1;
+	bs->cyls=80; bs->heads=2;
+    } else {
+	/* 32MB or 504MB disk*/
+	if (!s->fat_type) {
+	    s->fat_type = 16;
+	}
+	bs->cyls=(s->fat_type == 12 ? 64 : 1024);
+	bs->heads=16; bs->secs=63;
+    }
+
+    s->sector_count=bs->cyls*bs->heads*bs->secs-(s->first_sectors_number-1);
 
     if (strstr(dirname, ":rw:")) {
 	if (enable_write_target(s))
@@ -1060,10 +1066,10 @@ DLOG(if (stderr == NULL) {
 
     if(s->first_sectors_number==0x40)
 	init_mbr(s);
-
-    /* for some reason or other, MS-DOS does not like to know about CHS... */
-    if (floppy)
+    else {
+        /* MS-DOS does not like to know about CHS (?). */
 	bs->heads = bs->cyls = bs->secs = 0;
+    }
 
     //    assert(is_consistent(s));
     qemu_co_mutex_init(&s->lock);
@@ -1244,7 +1250,7 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
     int i;
 
     for(i=0;i<nb_sectors;i++,sector_num++) {
-	if (sector_num >= s->sector_count)
+	if (sector_num >= bs->total_sectors)
 	   return -1;
 	if (s->qcow) {
 	    int n;
@@ -1270,7 +1276,7 @@ DLOG(fprintf(stderr, "sector %d not allocated\n", (int)sector_num));
 	    uint32_t sector=sector_num-s->faked_sectors,
 	    sector_offset_in_cluster=(sector%s->sectors_per_cluster),
 	    cluster_num=sector/s->sectors_per_cluster;
-	    if(read_cluster(s, cluster_num) != 0) {
+	    if(cluster_num > s->cluster_count || read_cluster(s, cluster_num) != 0) {
 		/* LATER TODO: strict: return -1; */
 		memset(buf+i*0x200,0,0x200);
 		continue;
