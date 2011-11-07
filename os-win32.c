@@ -130,14 +130,15 @@ int qemu_create_pidfile(const char *filename)
     memset(&overlap, 0, sizeof(overlap));
 
     file = CreateFile(filename, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-		      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 
     if (file == INVALID_HANDLE_VALUE) {
         return -1;
     }
     len = snprintf(buffer, sizeof(buffer), "%d\n", getpid());
-    ret = WriteFileEx(file, (LPCVOID)buffer, (DWORD)len,
-		      &overlap, NULL);
+    ret = WriteFile(file, (LPCVOID)buffer, (DWORD)len,
+                    NULL, &overlap);
+    CloseHandle(file);
     if (ret == 0) {
         return -1;
     }
