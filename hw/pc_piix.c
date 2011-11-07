@@ -347,6 +347,10 @@ static QEMUMachine pc_machine_v0_13 = {
             .driver   = "virtio-net-pci",
             .property = "event_idx",
             .value    = "off",
+        },{
+            .driver   = "AC97",
+            .property = "use_broken_id",
+            .value    = stringify(1),
         },
         { /* end of list */ }
     },
@@ -390,6 +394,10 @@ static QEMUMachine pc_machine_v0_12 = {
             .driver   = "virtio-net-pci",
             .property = "event_idx",
             .value    = "off",
+        },{
+            .driver   = "AC97",
+            .property = "use_broken_id",
+            .value    = stringify(1),
         },
         { /* end of list */ }
     }
@@ -441,6 +449,10 @@ static QEMUMachine pc_machine_v0_11 = {
             .driver   = "virtio-net-pci",
             .property = "event_idx",
             .value    = "off",
+        },{
+            .driver   = "AC97",
+            .property = "use_broken_id",
+            .value    = stringify(1),
         },
         { /* end of list */ }
     }
@@ -504,6 +516,10 @@ static QEMUMachine pc_machine_v0_10 = {
             .driver   = "virtio-net-pci",
             .property = "event_idx",
             .value    = "off",
+        },{
+            .driver   = "AC97",
+            .property = "use_broken_id",
+            .value    = stringify(1),
         },
         { /* end of list */ }
     },
