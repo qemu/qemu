@@ -816,6 +816,13 @@ bool bdrv_dev_has_removable_media(BlockDriverState *bs)
     return !bs->dev || (bs->dev_ops && bs->dev_ops->change_media_cb);
 }
 
+void bdrv_dev_eject_request(BlockDriverState *bs, bool force)
+{
+    if (bs->dev_ops && bs->dev_ops->eject_request_cb) {
+        bs->dev_ops->eject_request_cb(bs->dev_opaque, force);
+    }
+}
+
 bool bdrv_dev_is_tray_open(BlockDriverState *bs)
 {
     if (bs->dev_ops && bs->dev_ops->is_tray_open) {
