@@ -594,9 +594,9 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     uint32_t numvalue;
 
     for (def = x86_defs; def; def = def->next)
-        if (!strcmp(name, def->name))
+        if (name && !strcmp(name, def->name))
             break;
-    if (kvm_enabled() && strcmp(name, "host") == 0) {
+    if (kvm_enabled() && name && strcmp(name, "host") == 0) {
         cpu_x86_fill_host(x86_cpu_def);
     } else if (!def) {
         goto error;
