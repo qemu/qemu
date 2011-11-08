@@ -39,6 +39,7 @@
 #define BLOCK_IO_LIMIT_TOTAL    2
 
 #define BLOCK_IO_SLICE_TIME     100000000
+#define NANOSECONDS_PER_SECOND  1000000000.0
 
 #define BLOCK_OPT_SIZE          "size"
 #define BLOCK_OPT_ENCRYPT       "encryption"

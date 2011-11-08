@@ -100,6 +100,7 @@ void bdrv_info_stats(Monitor *mon, QObject **ret_data);
 
 /* disk I/O throttling */
 void bdrv_io_limits_enable(BlockDriverState *bs);
+void bdrv_io_limits_disable(BlockDriverState *bs);
 bool bdrv_io_limits_enabled(BlockDriverState *bs);
 
 void bdrv_init(void);
