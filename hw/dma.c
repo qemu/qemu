@@ -358,6 +358,14 @@ static void DMA_run (void)
     struct dma_cont *d;
     int icont, ichan;
     int rearm = 0;
+    static int running = 0;
+
+    if (running) {
+        rearm = 1;
+        goto out;
+    } else {
+        running = 1;
+    }
 
     d = dma_controllers;
 
@@ -374,6 +382,8 @@ static void DMA_run (void)
         }
     }
 
+    running = 0;
+out:
     if (rearm)
         qemu_bh_schedule_idle(dma_bh);
 }

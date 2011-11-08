@@ -896,6 +896,20 @@ static void qxl_vga_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     vga_ioport_write(opaque, addr, val);
 }
 
+static const MemoryRegionPortio qxl_vga_portio_list[] = {
+    { 0x04,  2, 1, .read  = vga_ioport_read,
+                   .write = qxl_vga_ioport_write }, /* 3b4 */
+    { 0x0a,  1, 1, .read  = vga_ioport_read,
+                   .write = qxl_vga_ioport_write }, /* 3ba */
+    { 0x10, 16, 1, .read  = vga_ioport_read,
+                   .write = qxl_vga_ioport_write }, /* 3c0 */
+    { 0x24,  2, 1, .read  = vga_ioport_read,
+                   .write = qxl_vga_ioport_write }, /* 3d4 */
+    { 0x2a,  1, 1, .read  = vga_ioport_read,
+                   .write = qxl_vga_ioport_write }, /* 3da */
+    PORTIO_END_OF_LIST(),
+};
+
 static void qxl_add_memslot(PCIQXLDevice *d, uint32_t slot_id, uint64_t delta,
                             qxl_async_io async)
 {
@@ -1595,6 +1609,7 @@ static int qxl_init_primary(PCIDevice *dev)
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
     VGACommonState *vga = &qxl->vga;
     ram_addr_t ram_size = msb_mask(qxl->vga.vram_size * 2 - 1);
+    PortioList *qxl_vga_port_list = g_new(PortioList, 1);
 
     qxl->id = 0;
 
@@ -1603,11 +1618,8 @@ static int qxl_init_primary(PCIDevice *dev)
     }
     vga_common_init(vga, ram_size);
     vga_init(vga, pci_address_space(dev), pci_address_space_io(dev), false);
-    register_ioport_write(0x3c0, 16, 1, qxl_vga_ioport_write, vga);
-    register_ioport_write(0x3b4,  2, 1, qxl_vga_ioport_write, vga);
-    register_ioport_write(0x3d4,  2, 1, qxl_vga_ioport_write, vga);
-    register_ioport_write(0x3ba,  1, 1, qxl_vga_ioport_write, vga);
-    register_ioport_write(0x3da,  1, 1, qxl_vga_ioport_write, vga);
+    portio_list_init(qxl_vga_port_list, qxl_vga_portio_list, vga, "vga");
+    portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
 
     vga->ds = graphic_console_init(qxl_hw_update, qxl_hw_invalidate,
                                    qxl_hw_screen_dump, qxl_hw_text_update, qxl);

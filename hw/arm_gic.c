@@ -37,9 +37,8 @@ static const uint8_t gic_id[] =
 
 typedef struct gic_irq_state
 {
-    /* ??? The documentation seems to imply the enable bits are global, even
-       for per-cpu interrupts.  This seems strange.  */
-    unsigned enabled:1;
+    /* The enable bits are only banked for per-cpu interrupts.  */
+    unsigned enabled:NCPU;
     unsigned pending:NCPU;
     unsigned active:NCPU;
     unsigned level:NCPU;
@@ -54,9 +53,9 @@ typedef struct gic_irq_state
 #define NUM_CPU(s) 1
 #endif
 
-#define GIC_SET_ENABLED(irq) s->irq_state[irq].enabled = 1
-#define GIC_CLEAR_ENABLED(irq) s->irq_state[irq].enabled = 0
-#define GIC_TEST_ENABLED(irq) s->irq_state[irq].enabled
+#define GIC_SET_ENABLED(irq, cm) s->irq_state[irq].enabled |= (cm)
+#define GIC_CLEAR_ENABLED(irq, cm) s->irq_state[irq].enabled &= ~(cm)
+#define GIC_TEST_ENABLED(irq, cm) ((s->irq_state[irq].enabled & (cm)) != 0)
 #define GIC_SET_PENDING(irq, cm) s->irq_state[irq].pending |= (cm)
 #define GIC_CLEAR_PENDING(irq, cm) s->irq_state[irq].pending &= ~(cm)
 #define GIC_TEST_PENDING(irq, cm) ((s->irq_state[irq].pending & (cm)) != 0)
@@ -128,7 +127,7 @@ static void gic_update(gic_state *s)
         best_prio = 0x100;
         best_irq = 1023;
         for (irq = 0; irq < GIC_NIRQ; irq++) {
-            if (GIC_TEST_ENABLED(irq) && GIC_TEST_PENDING(irq, cm)) {
+            if (GIC_TEST_ENABLED(irq, cm) && GIC_TEST_PENDING(irq, cm)) {
                 if (GIC_GET_PRIORITY(irq, cpu) < best_prio) {
                     best_prio = GIC_GET_PRIORITY(irq, cpu);
                     best_irq = irq;
@@ -171,7 +170,7 @@ static void gic_set_irq(void *opaque, int irq, int level)
 
     if (level) {
         GIC_SET_LEVEL(irq, ALL_CPU_MASK);
-        if (GIC_TEST_TRIGGER(irq) || GIC_TEST_ENABLED(irq)) {
+        if (GIC_TEST_TRIGGER(irq) || GIC_TEST_ENABLED(irq, ALL_CPU_MASK)) {
             DPRINTF("Set %d pending mask %x\n", irq, GIC_TARGET(irq));
             GIC_SET_PENDING(irq, GIC_TARGET(irq));
         }
@@ -221,7 +220,7 @@ static void gic_complete_irq(gic_state * s, int cpu, int irq)
     if (irq != 1023) {
         /* Mark level triggered interrupts as pending if they are still
            raised.  */
-        if (!GIC_TEST_TRIGGER(irq) && GIC_TEST_ENABLED(irq)
+        if (!GIC_TEST_TRIGGER(irq) && GIC_TEST_ENABLED(irq, cm)
                 && GIC_TEST_LEVEL(irq, cm) && (GIC_TARGET(irq) & cm) != 0) {
             DPRINTF("Set %d pending mask %x\n", irq, cm);
             GIC_SET_PENDING(irq, cm);
@@ -280,7 +279,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
             goto bad_reg;
         res = 0;
         for (i = 0; i < 8; i++) {
-            if (GIC_TEST_ENABLED(irq + i)) {
+            if (GIC_TEST_ENABLED(irq + i, cm)) {
                 res |= (1 << i);
             }
         }
@@ -412,9 +411,12 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
                 int mask = (irq < 32) ? (1 << cpu) : GIC_TARGET(irq);
-                if (!GIC_TEST_ENABLED(irq + i))
+                int cm = (irq < 32) ? (1 << cpu) : ALL_CPU_MASK;
+
+                if (!GIC_TEST_ENABLED(irq + i, cm)) {
                     DPRINTF("Enabled IRQ %d\n", irq + i);
-                GIC_SET_ENABLED(irq + i);
+                }
+                GIC_SET_ENABLED(irq + i, cm);
                 /* If a raised level triggered IRQ enabled then mark
                    is as pending.  */
                 if (GIC_TEST_LEVEL(irq + i, mask)
@@ -433,9 +435,12 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
           value = 0;
         for (i = 0; i < 8; i++) {
             if (value & (1 << i)) {
-                if (GIC_TEST_ENABLED(irq + i))
+                int cm = (irq < 32) ? (1 << cpu) : ALL_CPU_MASK;
+
+                if (GIC_TEST_ENABLED(irq + i, cm)) {
                     DPRINTF("Disabled IRQ %d\n", irq + i);
-                GIC_CLEAR_ENABLED(irq + i);
+                }
+                GIC_CLEAR_ENABLED(irq + i, cm);
             }
         }
     } else if (offset < 0x280) {
@@ -638,7 +643,7 @@ static void gic_reset(gic_state *s)
 #endif
     }
     for (i = 0; i < 16; i++) {
-        GIC_SET_ENABLED(i);
+        GIC_SET_ENABLED(i, ALL_CPU_MASK);
         GIC_SET_TRIGGER(i);
     }
 #ifdef NVIC

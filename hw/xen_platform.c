@@ -113,7 +113,7 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
 {
     PCIXenPlatformState *s = opaque;
 
-    switch (addr - XEN_PLATFORM_IOPORT) {
+    switch (addr) {
     case 0:
         /* Unplug devices.  Value is a bitmask of which devices to
            unplug, with bit 0 the IDE devices, bit 1 the network
@@ -152,7 +152,7 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
 static void platform_fixed_ioport_writel(void *opaque, uint32_t addr,
                                          uint32_t val)
 {
-    switch (addr - XEN_PLATFORM_IOPORT) {
+    switch (addr) {
     case 0:
         /* PV driver version */
         break;
@@ -163,7 +163,7 @@ static void platform_fixed_ioport_writeb(void *opaque, uint32_t addr, uint32_t v
 {
     PCIXenPlatformState *s = opaque;
 
-    switch (addr - XEN_PLATFORM_IOPORT) {
+    switch (addr) {
     case 0: /* Platform flags */ {
         hvmmem_type_t mem_type = (val & PFFLAG_ROM_LOCK) ?
             HVMMEM_ram_ro : HVMMEM_ram_rw;
@@ -186,7 +186,7 @@ static uint32_t platform_fixed_ioport_readw(void *opaque, uint32_t addr)
 {
     PCIXenPlatformState *s = opaque;
 
-    switch (addr - XEN_PLATFORM_IOPORT) {
+    switch (addr) {
     case 0:
         if (s->drivers_blacklisted) {
             /* The drivers will recognise this magic number and refuse
@@ -205,7 +205,7 @@ static uint32_t platform_fixed_ioport_readb(void *opaque, uint32_t addr)
 {
     PCIXenPlatformState *s = opaque;
 
-    switch (addr - XEN_PLATFORM_IOPORT) {
+    switch (addr) {
     case 0:
         /* Platform flags */
         return s->flags;
@@ -221,7 +221,7 @@ static void platform_fixed_ioport_reset(void *opaque)
 {
     PCIXenPlatformState *s = opaque;
 
-    platform_fixed_ioport_writeb(s, XEN_PLATFORM_IOPORT, 0);
+    platform_fixed_ioport_writeb(s, 0, 0);
 }
 
 const MemoryRegionPortio xen_platform_ioport[] = {
@@ -251,7 +251,7 @@ static void platform_fixed_ioport_init(PCIXenPlatformState* s)
 static uint32_t xen_platform_ioport_readb(void *opaque, uint32_t addr)
 {
     if (addr == 0) {
-        return platform_fixed_ioport_readb(opaque, XEN_PLATFORM_IOPORT);
+        return platform_fixed_ioport_readb(opaque, 0);
     } else {
         return ~0u;
     }
@@ -263,7 +263,7 @@ static void xen_platform_ioport_writeb(void *opaque, uint32_t addr, uint32_t val
 
     switch (addr) {
     case 0: /* Platform flags */
-        platform_fixed_ioport_writeb(opaque, XEN_PLATFORM_IOPORT, val);
+        platform_fixed_ioport_writeb(opaque, 0, val);
         break;
     case 8:
         log_writeb(s, val);
@@ -321,7 +321,7 @@ static int xen_platform_post_load(void *opaque, int version_id)
 {
     PCIXenPlatformState *s = opaque;
 
-    platform_fixed_ioport_writeb(s, XEN_PLATFORM_IOPORT, s->flags);
+    platform_fixed_ioport_writeb(s, 0, s->flags);
 
     return 0;
 }

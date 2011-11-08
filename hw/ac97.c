@@ -150,6 +150,7 @@ typedef struct AC97BusMasterRegs {
 typedef struct AC97LinkState {
     PCIDevice dev;
     QEMUSoundCard card;
+    uint32_t use_broken_id;
     uint32_t glob_cnt;
     uint32_t glob_sta;
     uint32_t cas;
@@ -1305,11 +1306,12 @@ static int ac97_initfn (PCIDevice *dev)
     c[PCI_BASE_ADDRESS_0 + 6] = 0x00;
     c[PCI_BASE_ADDRESS_0 + 7] = 0x00;
 
-    c[PCI_SUBSYSTEM_VENDOR_ID] = 0x86;      /* svid subsystem vendor id rwo */
-    c[PCI_SUBSYSTEM_VENDOR_ID + 1] = 0x80;
-
-    c[PCI_SUBSYSTEM_ID] = 0x00;      /* sid subsystem id rwo */
-    c[PCI_SUBSYSTEM_ID + 1] = 0x00;
+    if (s->use_broken_id) {
+        c[PCI_SUBSYSTEM_VENDOR_ID] = 0x86;
+        c[PCI_SUBSYSTEM_VENDOR_ID + 1] = 0x80;
+        c[PCI_SUBSYSTEM_ID] = 0x00;
+        c[PCI_SUBSYSTEM_ID + 1] = 0x00;
+    }
 
     c[PCI_INTERRUPT_LINE] = 0x00;      /* intr_ln interrupt line rw */
     c[PCI_INTERRUPT_PIN] = 0x01;      /* intr_pn interrupt pin ro */
@@ -1350,6 +1352,10 @@ static PCIDeviceInfo ac97_info = {
     .device_id    = PCI_DEVICE_ID_INTEL_82801AA_5,
     .revision     = 0x01,
     .class_id     = PCI_CLASS_MULTIMEDIA_AUDIO,
+    .qdev.props   = (Property[]) {
+        DEFINE_PROP_UINT32("use_broken_id", AC97LinkState, use_broken_id, 0),
+        DEFINE_PROP_END_OF_LIST(),
+    }
 };
 
 static void ac97_register (void)

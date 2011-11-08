@@ -45,13 +45,11 @@ compare(const void *a, const void *b)
 		      ((const cmdinfo_t *)b)->name);
 }
 
-void
-add_command(
-	const cmdinfo_t	*ci)
+void add_command(const cmdinfo_t *ci)
 {
-	cmdtab = realloc((void *)cmdtab, ++ncmds * sizeof(*cmdtab));
-	cmdtab[ncmds - 1] = *ci;
-	qsort(cmdtab, ncmds, sizeof(*cmdtab), compare);
+    cmdtab = g_realloc((void *)cmdtab, ++ncmds * sizeof(*cmdtab));
+    cmdtab[ncmds - 1] = *ci;
+    qsort(cmdtab, ncmds, sizeof(*cmdtab), compare);
 }
 
 static int
@@ -122,16 +120,10 @@ find_command(
 	return NULL;
 }
 
-void
-add_user_command(char *optarg)
+void add_user_command(char *optarg)
 {
-	ncmdline++;
-	cmdline = realloc(cmdline, sizeof(char*) * (ncmdline));
-	if (!cmdline) {
-		perror("realloc");
-		exit(1);
-	}
-	cmdline[ncmdline-1] = optarg;
+    cmdline = g_realloc(cmdline, ++ncmdline * sizeof(char *));
+    cmdline[ncmdline-1] = optarg;
 }
 
 static int
@@ -160,45 +152,44 @@ static void prep_fetchline(void *opaque)
 
 static char *get_prompt(void);
 
-void
-command_loop(void)
+void command_loop(void)
 {
-	int		c, i, j = 0, done = 0, fetchable = 0, prompted = 0;
-	char		*input;
-	char		**v;
-	const cmdinfo_t	*ct;
+    int c, i, j = 0, done = 0, fetchable = 0, prompted = 0;
+    char *input;
+    char **v;
+    const cmdinfo_t *ct;
 
-	for (i = 0; !done && i < ncmdline; i++) {
-		input = strdup(cmdline[i]);
-		if (!input) {
-			fprintf(stderr,
-				_("cannot strdup command '%s': %s\n"),
-				cmdline[i], strerror(errno));
-			exit(1);
-		}
-		v = breakline(input, &c);
-		if (c) {
-			ct = find_command(v[0]);
-			if (ct) {
-				if (ct->flags & CMD_FLAG_GLOBAL)
-					done = command(ct, c, v);
-				else {
-					j = 0;
-					while (!done && (j = args_command(j)))
-						done = command(ct, c, v);
-				}
-			} else
-				fprintf(stderr, _("command \"%s\" not found\n"),
-					v[0]);
-		}
-		doneline(input, v);
+    for (i = 0; !done && i < ncmdline; i++) {
+        input = strdup(cmdline[i]);
+        if (!input) {
+            fprintf(stderr, _("cannot strdup command '%s': %s\n"),
+                    cmdline[i], strerror(errno));
+            exit(1);
+        }
+        v = breakline(input, &c);
+        if (c) {
+            ct = find_command(v[0]);
+            if (ct) {
+                if (ct->flags & CMD_FLAG_GLOBAL) {
+                    done = command(ct, c, v);
+                } else {
+                    j = 0;
+                    while (!done && (j = args_command(j))) {
+                        done = command(ct, c, v);
+                    }
+                }
+            } else {
+                fprintf(stderr, _("command \"%s\" not found\n"), v[0]);
+            }
 	}
-	if (cmdline) {
-		free(cmdline);
-		return;
-	}
+        doneline(input, v);
+    }
+    if (cmdline) {
+        g_free(cmdline);
+        return;
+    }
 
-	while (!done) {
+    while (!done) {
         if (!prompted) {
             printf("%s", get_prompt());
             fflush(stdout);
@@ -212,22 +203,24 @@ command_loop(void)
         if (!fetchable) {
             continue;
         }
-		if ((input = fetchline()) == NULL)
-			break;
-		v = breakline(input, &c);
-		if (c) {
-			ct = find_command(v[0]);
-			if (ct)
-				done = command(ct, c, v);
-			else
-				fprintf(stderr, _("command \"%s\" not found\n"),
-					v[0]);
-		}
-		doneline(input, v);
+        input = fetchline();
+        if (input == NULL) {
+            break;
+        }
+        v = breakline(input, &c);
+        if (c) {
+            ct = find_command(v[0]);
+            if (ct) {
+                done = command(ct, c, v);
+            } else {
+                fprintf(stderr, _("command \"%s\" not found\n"), v[0]);
+            }
+        }
+        doneline(input, v);
 
         prompted = 0;
         fetchable = 0;
-	}
+    }
     qemu_aio_set_fd_handler(STDIN_FILENO, NULL, NULL, NULL, NULL, NULL);
 }
 
@@ -331,29 +324,32 @@ static char *qemu_strsep(char **input, const char *delim)
     return result;
 }
 
-char **
-breakline(
-	char	*input,
-	int	*count)
+char **breakline(char *input, int *count)
 {
-	int	c = 0;
-	char	*p;
-	char	**rval = calloc(sizeof(char *), 1);
+    int c = 0;
+    char *p;
+    char **rval = calloc(sizeof(char *), 1);
+    char **tmp;
 
-	while (rval && (p = qemu_strsep(&input, " ")) != NULL) {
-		if (!*p)
-			continue;
-		c++;
-		rval = realloc(rval, sizeof(*rval) * (c + 1));
-		if (!rval) {
-			c = 0;
-			break;
-		}
-		rval[c - 1] = p;
-		rval[c] = NULL;
-	}
-	*count = c;
-	return rval;
+    while (rval && (p = qemu_strsep(&input, " ")) != NULL) {
+        if (!*p) {
+            continue;
+        }
+        c++;
+        tmp = realloc(rval, sizeof(*rval) * (c + 1));
+        if (!tmp) {
+            free(rval);
+            rval = NULL;
+            c = 0;
+            break;
+        } else {
+            rval = tmp;
+        }
+        rval[c - 1] = p;
+        rval[c] = NULL;
+    }
+    *count = c;
+    return rval;
 }
 
 void
