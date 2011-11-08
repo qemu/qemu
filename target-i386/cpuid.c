@@ -581,7 +581,7 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
     unsigned int i;
     x86_def_t *def;
 
-    char *s = strdup(cpu_model);
+    char *s = g_strdup(cpu_model);
     char *featurestr, *name = strtok(s, ",");
     /* Features to be added*/
     uint32_t plus_features = 0, plus_ext_features = 0;
@@ -727,11 +727,11 @@ static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
         if (check_features_against_host(x86_cpu_def) && enforce_cpuid)
             goto error;
     }
-    free(s);
+    g_free(s);
     return 0;
 
 error:
-    free(s);
+    g_free(s);
     return -1;
 }
 
@@ -950,7 +950,7 @@ static int cpudef_setfield(const char *name, const char *str, void *opaque)
     int err = 0;
 
     if (!strcmp(name, "name")) {
-        def->name = strdup(str);
+        def->name = g_strdup(str);
     } else if (!strcmp(name, "model_id")) {
         strncpy(def->model_id, str, sizeof (def->model_id));
     } else if (!strcmp(name, "level")) {
