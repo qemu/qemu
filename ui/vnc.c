@@ -1552,9 +1552,11 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
         else
             kbd_put_keycode(keycode | SCANCODE_UP);
     } else {
+        bool numlock = vs->modifiers_state[0x45];
+        bool control = (vs->modifiers_state[0x1d] ||
+                        vs->modifiers_state[0x9d]);
         /* QEMU console emulation */
         if (down) {
-            int numlock = vs->modifiers_state[0x45];
             switch (keycode) {
             case 0x2a:                          /* Left Shift */
             case 0x36:                          /* Right Shift */
@@ -1642,7 +1644,11 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
                 break;
 
             default:
-                kbd_put_keysym(sym);
+                if (control) {
+                    kbd_put_keysym(sym & 0x1f);
+                } else {
+                    kbd_put_keysym(sym);
+                }
                 break;
             }
         }
