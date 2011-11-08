@@ -915,8 +915,8 @@ char *get_boot_devices_list(uint32_t *size)
         } else if (devpath) {
             bootpath = devpath;
         } else {
+            assert(i->suffix);
             bootpath = g_strdup(i->suffix);
-            assert(bootpath);
         }
 
         if (total) {
