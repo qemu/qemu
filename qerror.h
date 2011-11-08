@@ -204,4 +204,7 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_QGA_COMMAND_FAILED \
     "{ 'class': 'QgaCommandFailed', 'data': { 'message': %s } }"
 
+#define QERR_INVALID_PARAMETER_COMBINATION \
+    "{ 'class': 'InvalidParameterCombination', 'data': {} }"
+
 #endif /* QERROR_H */

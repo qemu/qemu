@@ -1207,6 +1207,21 @@ ETEXI
     },
 
 STEXI
+@item block_set_io_throttle @var{device} @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+@findex block_set_io_throttle
+Change I/O throttle limits for a block drive to @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+ETEXI
+
+    {
+        .name       = "block_set_io_throttle",
+        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l",
+        .params     = "device bps bps_rd bps_wr iops iops_rd iops_wr",
+        .help       = "change I/O throttle limits for a block drive",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_block_set_io_throttle,
+    },
+
+STEXI
 @item block_passwd @var{device} @var{password}
 @findex block_passwd
 Set the encrypted device @var{device} password to @var{password}

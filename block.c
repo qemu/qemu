@@ -1978,6 +1978,21 @@ BlockInfoList *qmp_query_block(Error **errp)
                 info->value->inserted->has_backing_file = true;
                 info->value->inserted->backing_file = g_strdup(bs->backing_file);
             }
+
+            if (bs->io_limits_enabled) {
+                info->value->inserted->bps =
+                               bs->io_limits.bps[BLOCK_IO_LIMIT_TOTAL];
+                info->value->inserted->bps_rd =
+                               bs->io_limits.bps[BLOCK_IO_LIMIT_READ];
+                info->value->inserted->bps_wr =
+                               bs->io_limits.bps[BLOCK_IO_LIMIT_WRITE];
+                info->value->inserted->iops =
+                               bs->io_limits.iops[BLOCK_IO_LIMIT_TOTAL];
+                info->value->inserted->iops_rd =
+                               bs->io_limits.iops[BLOCK_IO_LIMIT_READ];
+                info->value->inserted->iops_wr =
+                               bs->io_limits.iops[BLOCK_IO_LIMIT_WRITE];
+            }
         }
 
         /* XXX: waiting for the qapi to support GSList */

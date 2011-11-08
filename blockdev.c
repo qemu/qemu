@@ -759,6 +759,65 @@ int do_change_block(Monitor *mon, const char *device,
     return monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
 }
 
+/* throttling disk I/O limits */
+int do_block_set_io_throttle(Monitor *mon,
+                       const QDict *qdict, QObject **ret_data)
+{
+    BlockIOLimit io_limits;
+    const char *devname = qdict_get_str(qdict, "device");
+    BlockDriverState *bs;
+
+    io_limits.bps[BLOCK_IO_LIMIT_TOTAL]
+                        = qdict_get_try_int(qdict, "bps", -1);
+    io_limits.bps[BLOCK_IO_LIMIT_READ]
+                        = qdict_get_try_int(qdict, "bps_rd", -1);
+    io_limits.bps[BLOCK_IO_LIMIT_WRITE]
+                        = qdict_get_try_int(qdict, "bps_wr", -1);
+    io_limits.iops[BLOCK_IO_LIMIT_TOTAL]
+                        = qdict_get_try_int(qdict, "iops", -1);
+    io_limits.iops[BLOCK_IO_LIMIT_READ]
+                        = qdict_get_try_int(qdict, "iops_rd", -1);
+    io_limits.iops[BLOCK_IO_LIMIT_WRITE]
+                        = qdict_get_try_int(qdict, "iops_wr", -1);
+
+    bs = bdrv_find(devname);
+    if (!bs) {
+        qerror_report(QERR_DEVICE_NOT_FOUND, devname);
+        return -1;
+    }
+
+    if ((io_limits.bps[BLOCK_IO_LIMIT_TOTAL] == -1)
+        || (io_limits.bps[BLOCK_IO_LIMIT_READ] == -1)
+        || (io_limits.bps[BLOCK_IO_LIMIT_WRITE] == -1)
+        || (io_limits.iops[BLOCK_IO_LIMIT_TOTAL] == -1)
+        || (io_limits.iops[BLOCK_IO_LIMIT_READ] == -1)
+        || (io_limits.iops[BLOCK_IO_LIMIT_WRITE] == -1)) {
+        qerror_report(QERR_MISSING_PARAMETER,
+                      "bps/bps_rd/bps_wr/iops/iops_rd/iops_wr");
+        return -1;
+    }
+
+    if (!do_check_io_limits(&io_limits)) {
+        qerror_report(QERR_INVALID_PARAMETER_COMBINATION);
+        return -1;
+    }
+
+    bs->io_limits = io_limits;
+    bs->slice_time = BLOCK_IO_SLICE_TIME;
+
+    if (!bs->io_limits_enabled && bdrv_io_limits_enabled(bs)) {
+        bdrv_io_limits_enable(bs);
+    } else if (bs->io_limits_enabled && !bdrv_io_limits_enabled(bs)) {
+        bdrv_io_limits_disable(bs);
+    } else {
+        if (bs->block_timer) {
+            qemu_mod_timer(bs->block_timer, qemu_get_clock_ns(vm_clock));
+        }
+    }
+
+    return 0;
+}
+
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
