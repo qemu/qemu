@@ -617,7 +617,11 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
 
     memcpy(dyndisk_header->magic, "cxsparse", 8);
 
-    dyndisk_header->data_offset = be64_to_cpu(0xFFFFFFFF);
+    /*
+     * Note: The spec is actually wrong here for data_offset, it says
+     * 0xFFFFFFFF, but MS tools expect all 64 bits to be set.
+     */
+    dyndisk_header->data_offset = be64_to_cpu(0xFFFFFFFFFFFFFFFFULL);
     dyndisk_header->table_offset = be64_to_cpu(3 * 512);
     dyndisk_header->version = be32_to_cpu(0x00010000);
     dyndisk_header->block_size = be32_to_cpu(block_size);
