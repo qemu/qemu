@@ -114,7 +114,9 @@ static void pxa2xx_pm_write(void *opaque, target_phys_addr_t addr,
 
     switch (addr) {
     case PMCR:
-        s->pm_regs[addr >> 2] &= 0x15 & ~(value & 0x2a);
+        /* Clear the write-one-to-clear bits... */
+        s->pm_regs[addr >> 2] &= ~(value & 0x2a);
+        /* ...and set the plain r/w bits */
         s->pm_regs[addr >> 2] |= value & 0x15;
         break;
 
