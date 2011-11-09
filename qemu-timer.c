@@ -183,10 +183,8 @@ static struct qemu_alarm_timer alarm_timers[] = {
 #endif
     {"unix", unix_start_timer, unix_stop_timer, unix_rearm_timer},
 #else
-    {"mmtimer", mm_start_timer, mm_stop_timer, NULL},
-    {"mmtimer2", mm_start_timer, mm_stop_timer, mm_rearm_timer},
+    {"mmtimer", mm_start_timer, mm_stop_timer, mm_rearm_timer},
     {"dynticks", win32_start_timer, win32_stop_timer, win32_rearm_timer},
-    {"win32", win32_start_timer, win32_stop_timer, NULL},
 #endif
     {NULL, }
 };
