@@ -435,7 +435,7 @@ static const uint32_t tcg_to_bc[10] = {
     [TCG_COND_GTU] = BC | BI (7, CR_GT) | BO_COND_TRUE,
 };
 
-static void tcg_out_mov (TCGContext *s, TCGType type, int ret, int arg)
+static void tcg_out_mov (TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
     tcg_out32 (s, OR | SAB (arg, ret, arg));
 }
@@ -459,7 +459,7 @@ static void tcg_out_movi32 (TCGContext *s, int ret, int32_t arg)
 }
 
 static void tcg_out_movi (TCGContext *s, TCGType type,
-                          int ret, tcg_target_long arg)
+                          TCGReg ret, tcg_target_long arg)
 {
     int32_t arg32 = arg;
     arg = type == TCG_TYPE_I32 ? arg & 0xffffffff : arg;
@@ -930,7 +930,7 @@ static void tcg_target_qemu_prologue (TCGContext *s)
     tcg_out32 (s, BCLR | BO_ALWAYS);
 }
 
-static void tcg_out_ld (TCGContext *s, TCGType type, int ret, int arg1,
+static void tcg_out_ld (TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
                         tcg_target_long arg2)
 {
     if (type == TCG_TYPE_I32)
@@ -939,7 +939,7 @@ static void tcg_out_ld (TCGContext *s, TCGType type, int ret, int arg1,
         tcg_out_ldsta (s, ret, arg1, arg2, LD, LDX);
 }
 
-static void tcg_out_st (TCGContext *s, TCGType type, int arg, int arg1,
+static void tcg_out_st (TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                         tcg_target_long arg2)
 {
     if (type == TCG_TYPE_I32)
