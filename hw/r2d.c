@@ -260,7 +260,7 @@ static void r2d_init(ram_addr_t ram_size,
 
     /* onboard CF (True IDE mode, Master only). */
     dinfo = drive_get(IF_IDE, 0, 0);
-    mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
+    mmio_ide_init(0x14001000, 0x1400080c, address_space_mem, irq[CF_IDE], 1,
                   dinfo, NULL);
 
     /* onboard flash memory */
