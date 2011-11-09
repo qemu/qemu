@@ -473,11 +473,9 @@ static inline void tcg_out_nop(TCGContext *s)
 
 static void tcg_out_branch_i32(TCGContext *s, int opc, int label_index)
 {
-    int32_t val;
     TCGLabel *l = &s->labels[label_index];
 
     if (l->has_value) {
-        val = l->u.value - (tcg_target_long)s->code_ptr;
         tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x2)
                       | INSN_OFF22(l->u.value - (unsigned long)s->code_ptr)));
     } else {
@@ -489,11 +487,9 @@ static void tcg_out_branch_i32(TCGContext *s, int opc, int label_index)
 #if TCG_TARGET_REG_BITS == 64
 static void tcg_out_branch_i64(TCGContext *s, int opc, int label_index)
 {
-    int32_t val;
     TCGLabel *l = &s->labels[label_index];
 
     if (l->has_value) {
-        val = l->u.value - (tcg_target_long)s->code_ptr;
         tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x1) |
                       (0x5 << 19) |
                       INSN_OFF19(l->u.value - (unsigned long)s->code_ptr)));
