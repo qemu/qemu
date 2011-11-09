@@ -1105,8 +1105,7 @@ static abi_ulong copy_elf_strings(int argc,char ** argv, void **page,
                 offset = p % TARGET_PAGE_SIZE;
                 pag = (char *)page[p/TARGET_PAGE_SIZE];
                 if (!pag) {
-                    pag = (char *)malloc(TARGET_PAGE_SIZE);
-                    memset(pag, 0, TARGET_PAGE_SIZE);
+                    pag = g_try_malloc0(TARGET_PAGE_SIZE);
                     page[p/TARGET_PAGE_SIZE] = pag;
                     if (!pag)
                         return 0;
@@ -1164,7 +1163,7 @@ static abi_ulong setup_arg_pages(abi_ulong p, struct linux_binprm *bprm,
             info->rss++;
             /* FIXME - check return value of memcpy_to_target() for failure */
             memcpy_to_target(stack_base, bprm->page[i], TARGET_PAGE_SIZE);
-            free(bprm->page[i]);
+            g_free(bprm->page[i]);
         }
         stack_base += TARGET_PAGE_SIZE;
     }
