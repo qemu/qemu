@@ -150,7 +150,7 @@ typedef enum {
 #endif
     /* Special value UINT8_MAX is used by TCI to encode constant values. */
     TCG_CONST = UINT8_MAX
-} TCGRegister;
+} TCGReg;
 
 void tci_disas(uint8_t opc);
 

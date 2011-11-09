@@ -32,7 +32,7 @@
 
 #define TCG_TARGET_NB_REGS 32
 
-enum {
+typedef enum {
     TCG_REG_R0 = 0,
     TCG_REG_R1,
     TCG_REG_RP,
@@ -65,7 +65,7 @@ enum {
     TCG_REG_RET1,
     TCG_REG_SP,
     TCG_REG_R31,
-};
+} TCGReg;
 
 #define TCG_CT_CONST_0    0x0100
 #define TCG_CT_CONST_S5   0x0200
