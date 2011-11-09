@@ -180,6 +180,7 @@ static void omap_nand_setio(DeviceState *dev, uint64_t value,
             nand_setio(dev, (value >> 24) & 0xff);
             break;
         }
+        break;
     case OMAP_GPMC_16BIT:
         switch (size) {
         case 1:
@@ -195,6 +196,7 @@ static void omap_nand_setio(DeviceState *dev, uint64_t value,
             nand_setio(dev, (value >> 16) & 0xffff);
             break;
         }
+        break;
     }
 }
 
