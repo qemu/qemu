@@ -2046,6 +2046,7 @@ static void ehci_advance_state(EHCIState *ehci,
             break;
 
         case EST_WRITEBACK:
+            assert(q != NULL);
             again = ehci_state_writeback(q, async);
             break;
 
