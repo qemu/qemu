@@ -59,6 +59,7 @@ typedef struct HPETTimer {  /* timers */
 
 typedef struct HPETState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint64_t hpet_offset;
     qemu_irq irqs[HPET_NUM_IRQ_ROUTES];
     uint32_t flags;
@@ -354,7 +355,8 @@ static uint32_t hpet_ram_readw(void *opaque, target_phys_addr_t addr)
 }
 #endif
 
-static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t hpet_ram_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     HPETState *s = opaque;
     uint64_t cur_tick, index;
@@ -425,24 +427,8 @@ static uint32_t hpet_ram_readl(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-#ifdef HPET_DEBUG
-static void hpet_ram_writeb(void *opaque, target_phys_addr_t addr,
-                            uint32_t value)
-{
-    printf("qemu: invalid hpet_write b at %" PRIx64 " = %#x\n",
-           addr, value);
-}
-
-static void hpet_ram_writew(void *opaque, target_phys_addr_t addr,
-                            uint32_t value)
-{
-    printf("qemu: invalid hpet_write w at %" PRIx64 " = %#x\n",
-           addr, value);
-}
-#endif
-
-static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
-                            uint32_t value)
+static void hpet_ram_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t value, unsigned size)
 {
     int i;
     HPETState *s = opaque;
@@ -450,7 +436,7 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
 
     DPRINTF("qemu: Enter hpet_ram_writel at %" PRIx64 " = %#x\n", addr, value);
     index = addr;
-    old_val = hpet_ram_readl(opaque, addr);
+    old_val = hpet_ram_read(opaque, addr, 4);
     new_val = value;
 
     /*address range of all TN regs*/
@@ -605,26 +591,14 @@ static void hpet_ram_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const hpet_ram_read[] = {
-#ifdef HPET_DEBUG
-    hpet_ram_readb,
-    hpet_ram_readw,
-#else
-    NULL,
-    NULL,
-#endif
-    hpet_ram_readl,
-};
-
-static CPUWriteMemoryFunc * const hpet_ram_write[] = {
-#ifdef HPET_DEBUG
-    hpet_ram_writeb,
-    hpet_ram_writew,
-#else
-    NULL,
-    NULL,
-#endif
-    hpet_ram_writel,
+static const MemoryRegionOps hpet_ram_ops = {
+    .read = hpet_ram_read,
+    .write = hpet_ram_write,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void hpet_reset(DeviceState *d)
@@ -677,7 +651,7 @@ static void hpet_handle_rtc_irq(void *opaque, int n, int level)
 static int hpet_init(SysBusDevice *dev)
 {
     HPETState *s = FROM_SYSBUS(HPETState, dev);
-    int i, iomemtype;
+    int i;
     HPETTimer *timer;
 
     if (hpet_cfg.count == UINT8_MAX) {
@@ -716,10 +690,8 @@ static int hpet_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, hpet_handle_rtc_irq, 1);
 
     /* HPET Area */
-    iomemtype = cpu_register_io_memory(hpet_ram_read,
-                                       hpet_ram_write, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x400, iomemtype);
+    memory_region_init_io(&s->iomem, &hpet_ram_ops, s, "hpet", 0x400);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
