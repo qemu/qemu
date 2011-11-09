@@ -1268,8 +1268,9 @@ static ssize_t usbnet_receive(VLANClientState *nc, const uint8_t *buf, size_t si
 
     if (is_rndis(s)) {
         msg = (struct rndis_packet_msg_type *) s->in_buf;
-        if (!s->rndis_state == RNDIS_DATA_INITIALIZED)
+        if (s->rndis_state != RNDIS_DATA_INITIALIZED) {
             return -1;
+        }
         if (size + sizeof(struct rndis_packet_msg_type) > sizeof(s->in_buf))
             return -1;
 
@@ -1302,7 +1303,7 @@ static int usbnet_can_receive(VLANClientState *nc)
 {
     USBNetState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    if (is_rndis(s) && !s->rndis_state == RNDIS_DATA_INITIALIZED) {
+    if (is_rndis(s) && s->rndis_state != RNDIS_DATA_INITIALIZED) {
         return 1;
     }
 
