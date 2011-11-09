@@ -13,7 +13,7 @@
 #ifndef _QEMU_VIRTIO_9P_XATTR_H
 #define _QEMU_VIRTIO_9P_XATTR_H
 
-#include <attr/xattr.h>
+#include "qemu-xattr.h"
 
 typedef struct xattr_operations
 {

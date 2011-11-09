@@ -389,10 +389,11 @@ static void omap_disc_write(void *opaque, target_phys_addr_t addr,
         s->dig.enable = (value >> 1) & 1;
         s->lcd.enable = (value >> 0) & 1;
         if (value & (1 << 12))			/* OVERLAY_OPTIMIZATION */
-            if (~((s->dispc.l[1].attr | s->dispc.l[2].attr) & 1))
-                 fprintf(stderr, "%s: Overlay Optimization when no overlay "
-                                 "region effectively exists leads to "
-                                 "unpredictable behaviour!\n", __FUNCTION__);
+            if (!((s->dispc.l[1].attr | s->dispc.l[2].attr) & 1)) {
+                fprintf(stderr, "%s: Overlay Optimization when no overlay "
+                        "region effectively exists leads to "
+                        "unpredictable behaviour!\n", __func__);
+            }
         if (value & (1 << 6)) {				/* GODIGITAL */
             /* XXX: Shadowed fields are:
              * s->dispc.config

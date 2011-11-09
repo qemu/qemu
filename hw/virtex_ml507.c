@@ -202,7 +202,6 @@ static void virtex_init(ram_addr_t ram_size,
         cpu_model = "440-Xilinx";
     }
 
-    memset(clk_setup, 0, sizeof(clk_setup));
     env = ppc440_init_xilinx(&ram_size, 1, cpu_model, 400000000);
     qemu_register_reset(main_cpu_reset, env);
 

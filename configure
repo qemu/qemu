@@ -130,6 +130,7 @@ xen=""
 xen_ctrl_version=""
 linux_aio=""
 attr=""
+libattr=""
 xfs=""
 
 vhost_net="no"
@@ -2002,12 +2003,16 @@ if test "$attr" != "no" ; then
   cat > $TMPC <<EOF
 #include <stdio.h>
 #include <sys/types.h>
-#include <attr/xattr.h>
+#include <sys/xattr.h>
 int main(void) { getxattr(NULL, NULL, NULL, 0); setxattr(NULL, NULL, NULL, 0, 0); return 0; }
 EOF
-  if compile_prog "" "-lattr" ; then
+  if compile_prog "" "" ; then
+    attr=yes
+  # Older distros have <attr/xattr.h>, and need -lattr:
+  elif sed -i s,sys/xattr,attr/xattr, $TMPC && compile_prog "" "-lattr" ; then
     attr=yes
     LIBS="-lattr $LIBS"
+    libattr=yes
   else
     if test "$attr" = "yes" ; then
       feature_not_found "ATTR"
@@ -3091,6 +3096,9 @@ if test "$linux_aio" = "yes" ; then
 fi
 if test "$attr" = "yes" ; then
   echo "CONFIG_ATTR=y" >> $config_host_mak
+fi
+if test "$libattr" = "yes" ; then
+  echo "CONFIG_LIBATTR=y" >> $config_host_mak
 fi
 if test "$linux" = "yes" ; then
   if test "$attr" = "yes" ; then
