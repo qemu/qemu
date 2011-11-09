@@ -863,6 +863,7 @@ static void lan9118_eeprom_cmd(lan9118_state *s, int cmd, int addr)
         } else {
             DPRINTF("EEPROM Write All (ignored)\n");
         }
+        break;
     case 5: /* ERASE */
         if (s->eeprom_writable) {
             s->eeprom[addr] = 0xff;
