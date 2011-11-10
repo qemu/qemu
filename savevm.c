@@ -436,6 +436,22 @@ void qemu_file_set_error(QEMUFile *f, int ret)
     f->last_error = ret;
 }
 
+/** Sets last_error conditionally
+ *
+ * Sets last_error only if ret is negative _and_ no error
+ * was set before.
+ */
+static void qemu_file_set_if_error(QEMUFile *f, int ret)
+{
+    if (ret < 0 && !f->last_error) {
+        qemu_file_set_error(f, ret);
+    }
+}
+
+/** Flushes QEMUFile buffer
+ *
+ * In case of error, last_error is set.
+ */
 void qemu_fflush(QEMUFile *f)
 {
     if (!f->put_buffer)
@@ -482,12 +498,41 @@ static void qemu_fill_buffer(QEMUFile *f)
         qemu_file_set_error(f, len);
 }
 
-int qemu_fclose(QEMUFile *f)
+/** Calls close function and set last_error if needed
+ *
+ * Internal function. qemu_fflush() must be called before this.
+ *
+ * Returns f->close() return value, or 0 if close function is not set.
+ */
+static int qemu_close(QEMUFile *f)
 {
     int ret = 0;
-    qemu_fflush(f);
-    if (f->close)
+    if (f->close) {
         ret = f->close(f->opaque);
+        qemu_file_set_if_error(f, ret);
+    }
+    return ret;
+}
+
+/** Closes the file
+ *
+ * Returns negative error value if any error happened on previous operations or
+ * while closing the file. Returns 0 or positive number on success.
+ *
+ * The meaning of return value on success depends on the specific backend
+ * being used.
+ */
+int qemu_fclose(QEMUFile *f)
+{
+    int ret;
+    qemu_fflush(f);
+    ret = qemu_close(f);
+    /* If any error was spotted before closing, we should report it
+     * instead of the close() return value.
+     */
+    if (f->last_error) {
+        ret = f->last_error;
+    }
     g_free(f);
     return ret;
 }
