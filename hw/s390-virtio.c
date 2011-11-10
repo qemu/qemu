@@ -165,6 +165,9 @@ static void s390_init(ram_addr_t my_ram_size,
     ram_addr_t initrd_size = 0;
     int shift = 0;
     uint8_t *storage_keys;
+    void *virtio_region;
+    target_phys_addr_t virtio_region_len;
+    target_phys_addr_t virtio_region_start;
     int i;
 
     /* s390x ram size detection needs a 16bit multiplier + an increment. So
@@ -183,6 +186,15 @@ static void s390_init(ram_addr_t my_ram_size,
     /* allocate RAM */
     memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size);
     memory_region_add_subregion(sysmem, 0, ram);
+
+    /* clear virtio region */
+    virtio_region_len = my_ram_size - ram_size;
+    virtio_region_start = ram_size;
+    virtio_region = cpu_physical_memory_map(virtio_region_start,
+                                            &virtio_region_len, true);
+    memset(virtio_region, 0, virtio_region_len);
+    cpu_physical_memory_unmap(virtio_region, virtio_region_len, 1,
+                              virtio_region_len);
 
     /* allocate storage keys */
     storage_keys = g_malloc0(my_ram_size / TARGET_PAGE_SIZE);
