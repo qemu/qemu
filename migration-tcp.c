@@ -40,12 +40,15 @@ static int socket_write(MigrationState *s, const void * buf, size_t size)
 
 static int tcp_close(MigrationState *s)
 {
+    int r = 0;
     DPRINTF("tcp_close\n");
     if (s->fd != -1) {
-        close(s->fd);
+        if (close(s->fd) < 0) {
+            r = -errno;
+        }
         s->fd = -1;
     }
-    return 0;
+    return r;
 }
 
 static void tcp_wait_for_connect(void *opaque)
