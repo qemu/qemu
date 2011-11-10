@@ -174,9 +174,7 @@ static int migrate_fd_cleanup(MigrationState *s)
 
     if (s->file) {
         DPRINTF("closing file\n");
-        if (qemu_fclose(s->file) != 0) {
-            ret = -1;
-        }
+        ret = qemu_fclose(s->file);
         s->file = NULL;
     } else {
         if (s->mon) {
