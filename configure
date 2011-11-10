@@ -714,6 +714,8 @@ for opt do
   ;;
   --enable-profiler) profiler="yes"
   ;;
+  --disable-cocoa) cocoa="no"
+  ;;
   --enable-cocoa)
       cocoa="yes" ;
       sdl="no" ;
@@ -1027,7 +1029,8 @@ echo "  --disable-virtfs         disable VirtFS"
 echo "  --enable-virtfs          enable VirtFS"
 echo "  --disable-vnc            disable VNC"
 echo "  --enable-vnc             enable VNC"
-echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
+echo "  --disable-cocoa          disable Cocoa (Mac OS X only)"
+echo "  --enable-cocoa           enable Cocoa (default on Mac OS X)"
 echo "  --audio-drv-list=LIST    set audio drivers list:"
 echo "                           Available drivers: $audio_possible_drivers"
 echo "  --audio-card-list=LIST   set list of emulated audio cards [$audio_card_list]"
