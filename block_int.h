@@ -93,6 +93,13 @@ struct BlockDriver {
      */
     int coroutine_fn (*bdrv_co_flush_to_disk)(BlockDriverState *bs);
 
+    /*
+     * Flushes all internal caches to the OS. The data may still sit in a
+     * writeback cache of the host OS, but it will survive a crash of the qemu
+     * process.
+     */
+    int coroutine_fn (*bdrv_co_flush_to_os)(BlockDriverState *bs);
+
     int (*bdrv_aio_multiwrite)(BlockDriverState *bs, BlockRequest *reqs,
         int num_reqs);
     int (*bdrv_merge_requests)(BlockDriverState *bs, BlockRequest* a,

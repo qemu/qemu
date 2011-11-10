@@ -2789,11 +2789,22 @@ static void coroutine_fn bdrv_flush_co_entry(void *opaque)
 
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
+    int ret;
+
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
         return 0;
     } else if (!bs->drv) {
         return 0;
-    } else if (bs->drv->bdrv_co_flush_to_disk) {
+    }
+
+    if (bs->drv->bdrv_co_flush_to_os) {
+        ret = bs->drv->bdrv_co_flush_to_os(bs);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    if (bs->drv->bdrv_co_flush_to_disk) {
         return bs->drv->bdrv_co_flush_to_disk(bs);
     } else if (bs->drv->bdrv_aio_flush) {
         BlockDriverAIOCB *acb;
