@@ -245,9 +245,12 @@ static int stdio_pclose(void *opaque)
 static int stdio_fclose(void *opaque)
 {
     QEMUFileStdio *s = opaque;
-    fclose(s->stdio_file);
+    int ret = 0;
+    if (fclose(s->stdio_file) == EOF) {
+        ret = -errno;
+    }
     g_free(s);
-    return 0;
+    return ret;
 }
 
 QEMUFile *qemu_popen(FILE *stdio_file, const char *mode)
