@@ -50,12 +50,9 @@ static int exec_close(MigrationState *s)
         ret = qemu_fclose(s->opaque);
         s->opaque = NULL;
         s->fd = -1;
-        if (ret >= 0 &&
-            WIFEXITED(ret)
-            && WEXITSTATUS(ret) == 0) {
-            ret = 0;
-        } else {
-            ret = -1;
+        if (ret >= 0 && !(WIFEXITED(ret) && WEXITSTATUS(ret) == 0)) {
+            /* close succeeded, but non-zero exit code: */
+            ret = -EIO; /* fake errno value */
         }
     }
     return ret;
