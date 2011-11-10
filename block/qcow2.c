@@ -377,7 +377,7 @@ int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
     return n1;
 }
 
-static int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
+static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                           int remaining_sectors, QEMUIOVector *qiov)
 {
     BDRVQcowState *s = bs->opaque;
@@ -517,7 +517,7 @@ static void run_dependent_requests(BDRVQcowState *s, QCowL2Meta *m)
     }
 }
 
-static int qcow2_co_writev(BlockDriverState *bs,
+static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                            int64_t sector_num,
                            int remaining_sectors,
                            QEMUIOVector *qiov)
@@ -1137,7 +1137,7 @@ fail:
     return ret;
 }
 
-static int qcow2_co_flush_to_os(BlockDriverState *bs)
+static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int ret;
@@ -1159,7 +1159,7 @@ static int qcow2_co_flush_to_os(BlockDriverState *bs)
     return 0;
 }
 
-static int qcow2_co_flush_to_disk(BlockDriverState *bs)
+static coroutine_fn int qcow2_co_flush_to_disk(BlockDriverState *bs)
 {
     return bdrv_co_flush(bs->file);
 }

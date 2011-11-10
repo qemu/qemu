@@ -433,7 +433,7 @@ static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
     return 0;
 }
 
-static int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
+static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
                          int nb_sectors, QEMUIOVector *qiov)
 {
     BDRVQcowState *s = bs->opaque;
@@ -531,7 +531,7 @@ fail:
     goto done;
 }
 
-static int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
+static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
                           int nb_sectors, QEMUIOVector *qiov)
 {
     BDRVQcowState *s = bs->opaque;
