@@ -2791,17 +2791,21 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
     int ret;
 
-    if (bs->open_flags & BDRV_O_NO_FLUSH) {
-        return 0;
-    } else if (!bs->drv) {
+    if (!bs->drv) {
         return 0;
     }
 
+    /* Write back cached data to the OS even with cache=unsafe */
     if (bs->drv->bdrv_co_flush_to_os) {
         ret = bs->drv->bdrv_co_flush_to_os(bs);
         if (ret < 0) {
             return ret;
         }
+    }
+
+    /* But don't actually force it to the disk with cache=unsafe */
+    if (bs->open_flags & BDRV_O_NO_FLUSH) {
+        return 0;
     }
 
     if (bs->drv->bdrv_co_flush_to_disk) {
