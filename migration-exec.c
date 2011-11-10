@@ -50,7 +50,7 @@ static int exec_close(MigrationState *s)
         ret = qemu_fclose(s->opaque);
         s->opaque = NULL;
         s->fd = -1;
-        if (ret != -1 &&
+        if (ret >= 0 &&
             WIFEXITED(ret)
             && WEXITSTATUS(ret) == 0) {
             ret = 0;
