@@ -1581,8 +1581,8 @@ static BlockDriver bdrv_vmdk = {
     .bdrv_write     = vmdk_co_write,
     .bdrv_close     = vmdk_close,
     .bdrv_create    = vmdk_create,
-    .bdrv_co_flush  = vmdk_co_flush,
-    .bdrv_is_allocated  = vmdk_is_allocated,
+    .bdrv_co_flush_to_disk  = vmdk_co_flush,
+    .bdrv_is_allocated      = vmdk_is_allocated,
     .bdrv_get_allocated_file_size  = vmdk_get_allocated_file_size,
 
     .create_options = vmdk_create_options,

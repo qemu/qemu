@@ -2793,8 +2793,8 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
         return 0;
     } else if (!bs->drv) {
         return 0;
-    } else if (bs->drv->bdrv_co_flush) {
-        return bs->drv->bdrv_co_flush(bs);
+    } else if (bs->drv->bdrv_co_flush_to_disk) {
+        return bs->drv->bdrv_co_flush_to_disk(bs);
     } else if (bs->drv->bdrv_aio_flush) {
         BlockDriverAIOCB *acb;
         CoroutineIOCompletion co = {

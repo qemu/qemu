@@ -111,10 +111,10 @@ static BlockDriver bdrv_raw = {
     .bdrv_open          = raw_open,
     .bdrv_close         = raw_close,
 
-    .bdrv_co_readv      = raw_co_readv,
-    .bdrv_co_writev     = raw_co_writev,
-    .bdrv_co_flush      = raw_co_flush,
-    .bdrv_co_discard    = raw_co_discard,
+    .bdrv_co_readv          = raw_co_readv,
+    .bdrv_co_writev         = raw_co_writev,
+    .bdrv_co_flush_to_disk  = raw_co_flush,
+    .bdrv_co_discard        = raw_co_discard,
 
     .bdrv_probe         = raw_probe,
     .bdrv_getlength     = raw_getlength,

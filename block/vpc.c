@@ -665,13 +665,15 @@ static QEMUOptionParameter vpc_create_options[] = {
 static BlockDriver bdrv_vpc = {
     .format_name    = "vpc",
     .instance_size  = sizeof(BDRVVPCState),
+
     .bdrv_probe     = vpc_probe,
     .bdrv_open      = vpc_open,
-    .bdrv_read      = vpc_co_read,
-    .bdrv_write     = vpc_co_write,
-    .bdrv_co_flush  = vpc_co_flush,
     .bdrv_close     = vpc_close,
     .bdrv_create    = vpc_create,
+
+    .bdrv_read              = vpc_co_read,
+    .bdrv_write             = vpc_co_write,
+    .bdrv_co_flush_to_disk  = vpc_co_flush,
 
     .create_options = vpc_create_options,
 };

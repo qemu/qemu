@@ -326,16 +326,18 @@ static QEMUOptionParameter cow_create_options[] = {
 };
 
 static BlockDriver bdrv_cow = {
-    .format_name	= "cow",
-    .instance_size	= sizeof(BDRVCowState),
-    .bdrv_probe		= cow_probe,
-    .bdrv_open		= cow_open,
-    .bdrv_read          = cow_co_read,
-    .bdrv_write         = cow_co_write,
-    .bdrv_close		= cow_close,
-    .bdrv_create	= cow_create,
-    .bdrv_co_flush      = cow_co_flush,
-    .bdrv_is_allocated	= cow_is_allocated,
+    .format_name    = "cow",
+    .instance_size  = sizeof(BDRVCowState),
+
+    .bdrv_probe     = cow_probe,
+    .bdrv_open      = cow_open,
+    .bdrv_close     = cow_close,
+    .bdrv_create    = cow_create,
+
+    .bdrv_read              = cow_co_read,
+    .bdrv_write             = cow_co_write,
+    .bdrv_co_flush_to_disk  = cow_co_flush,
+    .bdrv_is_allocated      = cow_is_allocated,
 
     .create_options = cow_create_options,
 };
