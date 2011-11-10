@@ -3231,6 +3231,11 @@ int main(int argc, char **argv, char **envp)
         fprintf(stderr, "could not initialize alarm timer\n");
         exit(1);
     }
+
+    if (icount_option && (kvm_enabled() || xen_enabled())) {
+        fprintf(stderr, "-icount is not allowed with kvm or xen\n");
+        exit(1);
+    }
     configure_icount(icount_option);
 
     if (net_init_clients() < 0) {
