@@ -448,7 +448,7 @@ void qemu_fflush(QEMUFile *f)
         if (len > 0)
             f->buf_offset += f->buf_index;
         else
-            f->last_error = -EINVAL;
+            qemu_file_set_error(f, -EINVAL);
         f->buf_index = 0;
     }
 }
@@ -479,7 +479,7 @@ static void qemu_fill_buffer(QEMUFile *f)
     } else if (len == 0) {
         f->last_error = -EIO;
     } else if (len != -EAGAIN)
-        f->last_error = len;
+        qemu_file_set_error(f, len);
 }
 
 int qemu_fclose(QEMUFile *f)
