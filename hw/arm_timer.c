@@ -269,7 +269,7 @@ static uint64_t icp_pit_read(void *opaque, target_phys_addr_t offset,
 
     /* ??? Don't know the PrimeCell ID for this device.  */
     n = offset >> 8;
-    if (n > 3) {
+    if (n > 2) {
         hw_error("sp804_read: Bad timer %d\n", n);
     }
 
@@ -283,7 +283,7 @@ static void icp_pit_write(void *opaque, target_phys_addr_t offset,
     int n;
 
     n = offset >> 8;
-    if (n > 3) {
+    if (n > 2) {
         hw_error("sp804_write: Bad timer %d\n", n);
     }
 
