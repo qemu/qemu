@@ -92,15 +92,17 @@ static kbd_layout_t *parse_keyboard_layout(const name2keysym_t *table,
     int len;
 
     filename = qemu_find_file(QEMU_FILE_TYPE_KEYMAP, language);
-
-    if (!k)
-	k = g_malloc0(sizeof(kbd_layout_t));
-    if (!(filename && (f = fopen(filename, "r")))) {
+    f = filename ? fopen(filename, "r") : NULL;
+    g_free(filename);
+    if (!f) {
 	fprintf(stderr,
 		"Could not read keymap file: '%s'\n", language);
 	return NULL;
     }
-    g_free(filename);
+
+    if (!k)
+	k = g_malloc0(sizeof(kbd_layout_t));
+
     for(;;) {
 	if (fgets(line, 1024, f) == NULL)
             break;
