@@ -572,6 +572,7 @@ int unix_connect_opts(QemuOpts *opts)
     snprintf(un.sun_path, sizeof(un.sun_path), "%s", path);
     if (connect(sock, (struct sockaddr*) &un, sizeof(un)) < 0) {
         fprintf(stderr, "connect(unix:%s): %s\n", path, strerror(errno));
+        close(sock);
 	return -1;
     }
 
