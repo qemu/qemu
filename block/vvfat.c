@@ -1254,15 +1254,15 @@ static int vvfat_read(BlockDriverState *bs, int64_t sector_num,
 	   return -1;
 	if (s->qcow) {
 	    int n;
-	    if (s->qcow->drv->bdrv_is_allocated(s->qcow,
-			sector_num, nb_sectors-i, &n)) {
+            if (bdrv_is_allocated(s->qcow, sector_num, nb_sectors-i, &n)) {
 DLOG(fprintf(stderr, "sectors %d+%d allocated\n", (int)sector_num, n));
-		if (s->qcow->drv->bdrv_read(s->qcow, sector_num, buf+i*0x200, n))
-		    return -1;
-		i += n - 1;
-		sector_num += n - 1;
-		continue;
-	    }
+                if (bdrv_read(s->qcow, sector_num, buf + i*0x200, n)) {
+                    return -1;
+                }
+                i += n - 1;
+                sector_num += n - 1;
+                continue;
+            }
 DLOG(fprintf(stderr, "sector %d not allocated\n", (int)sector_num));
 	}
 	if(sector_num<s->faked_sectors) {
@@ -1516,7 +1516,7 @@ static inline int cluster_was_modified(BDRVVVFATState* s, uint32_t cluster_num)
 	return 0;
 
     for (i = 0; !was_modified && i < s->sectors_per_cluster; i++)
-	was_modified = s->qcow->drv->bdrv_is_allocated(s->qcow,
+	was_modified = bdrv_is_allocated(s->qcow,
 		cluster2sector(s, cluster_num) + i, 1, &dummy);
 
     return was_modified;
@@ -1665,16 +1665,16 @@ static uint32_t get_cluster_count_for_direntry(BDRVVVFATState* s,
 		int64_t offset = cluster2sector(s, cluster_num);
 
 		vvfat_close_current_file(s);
-		for (i = 0; i < s->sectors_per_cluster; i++)
-		    if (!s->qcow->drv->bdrv_is_allocated(s->qcow,
-				offset + i, 1, &dummy)) {
-			if (vvfat_read(s->bs,
-				    offset, s->cluster_buffer, 1))
-			    return -1;
-			if (s->qcow->drv->bdrv_write(s->qcow,
-				    offset, s->cluster_buffer, 1))
-			    return -2;
-		    }
+                for (i = 0; i < s->sectors_per_cluster; i++) {
+                    if (!bdrv_is_allocated(s->qcow, offset + i, 1, &dummy)) {
+                        if (vvfat_read(s->bs, offset, s->cluster_buffer, 1)) {
+                            return -1;
+                        }
+                        if (bdrv_write(s->qcow, offset, s->cluster_buffer, 1)) {
+                            return -2;
+                        }
+                    }
+                }
 	    }
 	}
 
@@ -2619,7 +2619,9 @@ static int do_commit(BDRVVVFATState* s)
 	return ret;
     }
 
-    s->qcow->drv->bdrv_make_empty(s->qcow);
+    if (s->qcow->drv->bdrv_make_empty) {
+        s->qcow->drv->bdrv_make_empty(s->qcow);
+    }
 
     memset(s->used_clusters, 0, sector2cluster(s, s->sector_count));
 
@@ -2714,7 +2716,7 @@ DLOG(checkpoint());
      * Use qcow backend. Commit later.
      */
 DLOG(fprintf(stderr, "Write to qcow backend: %d + %d\n", (int)sector_num, nb_sectors));
-    ret = s->qcow->drv->bdrv_write(s->qcow, sector_num, buf, nb_sectors);
+    ret = bdrv_write(s->qcow, sector_num, buf, nb_sectors);
     if (ret < 0) {
 	fprintf(stderr, "Error writing to qcow backend\n");
 	return ret;

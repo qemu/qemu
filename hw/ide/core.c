@@ -804,6 +804,18 @@ static void ide_cd_change_cb(void *opaque, bool load)
      */
     s->cdrom_changed = 1;
     s->events.new_media = true;
+    s->events.eject_request = false;
+    ide_set_irq(s->bus);
+}
+
+static void ide_cd_eject_request_cb(void *opaque, bool force)
+{
+    IDEState *s = opaque;
+
+    s->events.eject_request = true;
+    if (force) {
+        s->tray_locked = false;
+    }
     ide_set_irq(s->bus);
 }
 
@@ -1811,6 +1823,7 @@ static bool ide_cd_is_medium_locked(void *opaque)
 
 static const BlockDevOps ide_cd_block_ops = {
     .change_media_cb = ide_cd_change_cb,
+    .eject_request_cb = ide_cd_eject_request_cb,
     .is_tray_open = ide_cd_is_tray_open,
     .is_medium_locked = ide_cd_is_medium_locked,
 };

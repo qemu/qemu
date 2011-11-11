@@ -425,6 +425,13 @@ int nbd_client(int fd)
     TRACE("Doing NBD loop");
 
     ret = ioctl(fd, NBD_DO_IT);
+    if (ret == -1 && errno == EPIPE) {
+        /* NBD_DO_IT normally returns EPIPE when someone has disconnected
+         * the socket via NBD_DISCONNECT.  We do not want to return 1 in
+         * that case.
+         */
+        ret = 0;
+    }
     serrno = errno;
 
     TRACE("NBD loop returned %d: %s", ret, strerror(serrno));

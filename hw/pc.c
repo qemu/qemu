@@ -335,7 +335,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                   ISADevice *s)
 {
     int val, nb, nb_heads, max_track, last_sect, i;
-    FDriveType fd_type[2];
+    FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
     BlockDriverState *fd[MAX_FD];
     static pc_cmos_init_late_arg arg;
 
@@ -385,8 +385,6 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
                 bdrv_get_floppy_geometry_hint(fd[i], &nb_heads, &max_track,
                                               &last_sect, FDRIVE_DRV_NONE,
                                               &fd_type[i]);
-            } else {
-                fd_type[i] = FDRIVE_DRV_NONE;
             }
         }
     }

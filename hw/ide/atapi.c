@@ -516,9 +516,14 @@ static unsigned int event_status_media(IDEState *s,
 
     /* Event notification descriptor */
     event_code = MEC_NO_CHANGE;
-    if (media_status != MS_TRAY_OPEN && s->events.new_media) {
-        event_code = MEC_NEW_MEDIA;
-        s->events.new_media = false;
+    if (media_status != MS_TRAY_OPEN) {
+        if (s->events.new_media) {
+            event_code = MEC_NEW_MEDIA;
+            s->events.new_media = false;
+        } else if (s->events.eject_request) {
+            event_code = MEC_EJECT_REQUESTED;
+            s->events.eject_request = false;
+        }
     }
 
     buf[4] = event_code;
