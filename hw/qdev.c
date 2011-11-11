@@ -186,7 +186,7 @@ int qdev_device_help(QemuOpts *opts)
         return 1;
     }
 
-    if (!qemu_opt_get(opts, "?")) {
+    if (!driver || !qemu_opt_get(opts, "?")) {
         return 0;
     }
 

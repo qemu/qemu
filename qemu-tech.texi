@@ -435,7 +435,7 @@ generate an addition for the segment base.
 @node Translation cache
 @section Translation cache
 
-A 16 MByte cache holds the most recently used translations. For
+A 32 MByte cache holds the most recently used translations. For
 simplicity, it is completely flushed when it is full. A translation unit
 contains just a single basic block (a block of x86 instructions
 terminated by a jump or by a virtual CPU state change which the

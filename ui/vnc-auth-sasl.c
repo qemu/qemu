@@ -35,7 +35,7 @@ void vnc_sasl_client_cleanup(VncState *vs)
         vs->sasl.encodedLength = vs->sasl.encodedOffset = 0;
         vs->sasl.encoded = NULL;
         g_free(vs->sasl.username);
-        free(vs->sasl.mechlist);
+        g_free(vs->sasl.mechlist);
         vs->sasl.username = vs->sasl.mechlist = NULL;
         sasl_dispose(&vs->sasl.conn);
         vs->sasl.conn = NULL;
@@ -430,11 +430,7 @@ static int protocol_client_auth_sasl_start_len(VncState *vs, uint8_t *data, size
 
 static int protocol_client_auth_sasl_mechname(VncState *vs, uint8_t *data, size_t len)
 {
-    char *mechname = malloc(len + 1);
-    if (!mechname) {
-        VNC_DEBUG("Out of memory reading mechname\n");
-        vnc_client_error(vs);
-    }
+    char *mechname = g_malloc(len + 1);
     strncpy(mechname, (char*)data, len);
     mechname[len] = '\0';
     VNC_DEBUG("Got client mechname '%s' check against '%s'\n",
@@ -460,7 +456,7 @@ static int protocol_client_auth_sasl_mechname(VncState *vs, uint8_t *data, size_
         }
     }
 
-    free(vs->sasl.mechlist);
+    g_free(vs->sasl.mechlist);
     vs->sasl.mechlist = mechname;
 
     VNC_DEBUG("Validated mechname '%s'\n", mechname);
@@ -469,7 +465,7 @@ static int protocol_client_auth_sasl_mechname(VncState *vs, uint8_t *data, size_
 
  fail:
     vnc_client_error(vs);
-    free(mechname);
+    g_free(mechname);
     return -1;
 }
 
@@ -608,12 +604,7 @@ void start_auth_sasl(VncState *vs)
     }
     VNC_DEBUG("Available mechanisms for client: '%s'\n", mechlist);
 
-    if (!(vs->sasl.mechlist = strdup(mechlist))) {
-        VNC_DEBUG("Out of memory");
-        sasl_dispose(&vs->sasl.conn);
-        vs->sasl.conn = NULL;
-        goto authabort;
-    }
+    vs->sasl.mechlist = g_strdup(mechlist);
     mechlistlen = strlen(mechlist);
     vnc_write_u32(vs, mechlistlen);
     vnc_write(vs, mechlist, mechlistlen);
