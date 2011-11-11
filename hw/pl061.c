@@ -103,7 +103,7 @@ static void pl061_update(pl061_state *s)
     s->old_data = out;
     for (i = 0; i < 8; i++) {
         mask = 1 << i;
-        if ((changed & mask) && s->out) {
+        if (changed & mask) {
             DPRINTF("Set output %d = %d\n", i, (out & mask) != 0);
             qemu_set_irq(s->out[i], (out & mask) != 0);
         }

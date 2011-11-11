@@ -2004,13 +2004,17 @@ if test "$attr" != "no" ; then
   cat > $TMPC <<EOF
 #include <stdio.h>
 #include <sys/types.h>
+#ifdef CONFIG_LIBATTR
+#include <attr/xattr.h>
+#else
 #include <sys/xattr.h>
+#endif
 int main(void) { getxattr(NULL, NULL, NULL, 0); setxattr(NULL, NULL, NULL, 0, 0); return 0; }
 EOF
   if compile_prog "" "" ; then
     attr=yes
   # Older distros have <attr/xattr.h>, and need -lattr:
-  elif sed -i s,sys/xattr,attr/xattr, $TMPC && compile_prog "" "-lattr" ; then
+  elif compile_prog "-DCONFIG_LIBATTR" "-lattr" ; then
     attr=yes
     LIBS="-lattr $LIBS"
     libattr=yes

@@ -155,7 +155,6 @@ MigrationInfo *qmp_query_migrate(Error **errp)
 
 static void migrate_fd_monitor_suspend(MigrationState *s, Monitor *mon)
 {
-    s->mon = mon;
     if (monitor_suspend(mon) == 0) {
         DPRINTF("suspending monitor\n");
     } else {
@@ -383,7 +382,12 @@ static MigrationState *migrate_init(Monitor *mon, int detach, int blk, int inc)
     s->bandwidth_limit = bandwidth_limit;
     s->blk = blk;
     s->shared = inc;
-    s->mon = NULL;
+
+    /* s->mon is used for two things:
+       - pass fd in fd migration
+       - suspend/resume monitor for not detached migration
+    */
+    s->mon = mon;
     s->bandwidth_limit = bandwidth_limit;
     s->state = MIG_STATE_SETUP;
 
@@ -433,6 +437,10 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (ret < 0) {
         monitor_printf(mon, "migration failed: %s\n", strerror(-ret));
         return ret;
+    }
+
+    if (detach) {
+        s->mon = NULL;
     }
 
     notifier_list_notify(&migration_state_notifiers, s);

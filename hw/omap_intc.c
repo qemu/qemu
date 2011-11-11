@@ -398,6 +398,9 @@ static uint64_t omap2_inth_read(void *opaque, target_phys_addr_t addr,
         if (bank_no < s->nbanks) {
             offset &= ~0x60;
             bank = &s->bank[bank_no];
+        } else {
+            OMAP_BAD_REG(addr);
+            return 0;
         }
     }
 
@@ -476,6 +479,9 @@ static void omap2_inth_write(void *opaque, target_phys_addr_t addr,
         if (bank_no < s->nbanks) {
             offset &= ~0x60;
             bank = &s->bank[bank_no];
+        } else {
+            OMAP_BAD_REG(addr);
+            return;
         }
     }
 

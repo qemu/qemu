@@ -178,7 +178,7 @@ int loader_exec(const char * filename, char ** argv, char ** envp,
 
     /* Something went wrong, return the inode and free the argument pages*/
     for (i=0 ; i<MAX_ARG_PAGES ; i++) {
-        free(bprm->page[i]);
+        g_free(bprm->page[i]);
     }
     return(retval);
 }

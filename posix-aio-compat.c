@@ -667,6 +667,7 @@ int paio_init(void)
     s->first_aio = NULL;
     if (qemu_pipe(fds) == -1) {
         fprintf(stderr, "failed to create pipe\n");
+        g_free(s);
         return -1;
     }
 
