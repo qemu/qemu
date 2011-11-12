@@ -851,18 +851,18 @@ static BlockDriver bdrv_rbd = {
     .bdrv_file_open     = qemu_rbd_open,
     .bdrv_close         = qemu_rbd_close,
     .bdrv_create        = qemu_rbd_create,
-    .bdrv_co_flush      = qemu_rbd_co_flush,
     .bdrv_get_info      = qemu_rbd_getinfo,
     .create_options     = qemu_rbd_create_options,
     .bdrv_getlength     = qemu_rbd_getlength,
     .bdrv_truncate      = qemu_rbd_truncate,
     .protocol_name      = "rbd",
 
-    .bdrv_aio_readv     = qemu_rbd_aio_readv,
-    .bdrv_aio_writev    = qemu_rbd_aio_writev,
+    .bdrv_aio_readv         = qemu_rbd_aio_readv,
+    .bdrv_aio_writev        = qemu_rbd_aio_writev,
+    .bdrv_co_flush_to_disk  = qemu_rbd_co_flush,
 
-    .bdrv_snapshot_create = qemu_rbd_snap_create,
-    .bdrv_snapshot_list = qemu_rbd_snap_list,
+    .bdrv_snapshot_create   = qemu_rbd_snap_create,
+    .bdrv_snapshot_list     = qemu_rbd_snap_list,
 };
 
 static void bdrv_rbd_init(void)

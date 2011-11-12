@@ -816,6 +816,13 @@ bool bdrv_dev_has_removable_media(BlockDriverState *bs)
     return !bs->dev || (bs->dev_ops && bs->dev_ops->change_media_cb);
 }
 
+void bdrv_dev_eject_request(BlockDriverState *bs, bool force)
+{
+    if (bs->dev_ops && bs->dev_ops->eject_request_cb) {
+        bs->dev_ops->eject_request_cb(bs->dev_opaque, force);
+    }
+}
+
 bool bdrv_dev_is_tray_open(BlockDriverState *bs)
 {
     if (bs->dev_ops && bs->dev_ops->is_tray_open) {
@@ -2782,12 +2789,27 @@ static void coroutine_fn bdrv_flush_co_entry(void *opaque)
 
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
+    int ret;
+
+    if (!bs->drv) {
+        return 0;
+    }
+
+    /* Write back cached data to the OS even with cache=unsafe */
+    if (bs->drv->bdrv_co_flush_to_os) {
+        ret = bs->drv->bdrv_co_flush_to_os(bs);
+        if (ret < 0) {
+            return ret;
+        }
+    }
+
+    /* But don't actually force it to the disk with cache=unsafe */
     if (bs->open_flags & BDRV_O_NO_FLUSH) {
         return 0;
-    } else if (!bs->drv) {
-        return 0;
-    } else if (bs->drv->bdrv_co_flush) {
-        return bs->drv->bdrv_co_flush(bs);
+    }
+
+    if (bs->drv->bdrv_co_flush_to_disk) {
+        return bs->drv->bdrv_co_flush_to_disk(bs);
     } else if (bs->drv->bdrv_aio_flush) {
         BlockDriverAIOCB *acb;
         CoroutineIOCompletion co = {

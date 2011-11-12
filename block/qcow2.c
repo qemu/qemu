@@ -1107,7 +1107,7 @@ fail:
     return ret;
 }
 
-static int qcow2_co_flush(BlockDriverState *bs)
+static int qcow2_co_flush_to_os(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int ret;
@@ -1126,6 +1126,11 @@ static int qcow2_co_flush(BlockDriverState *bs)
     }
     qemu_co_mutex_unlock(&s->lock);
 
+    return 0;
+}
+
+static int qcow2_co_flush_to_disk(BlockDriverState *bs)
+{
     return bdrv_co_flush(bs->file);
 }
 
@@ -1245,9 +1250,10 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_set_key       = qcow2_set_key,
     .bdrv_make_empty    = qcow2_make_empty,
 
-    .bdrv_co_readv      = qcow2_co_readv,
-    .bdrv_co_writev     = qcow2_co_writev,
-    .bdrv_co_flush      = qcow2_co_flush,
+    .bdrv_co_readv          = qcow2_co_readv,
+    .bdrv_co_writev         = qcow2_co_writev,
+    .bdrv_co_flush_to_os    = qcow2_co_flush_to_os,
+    .bdrv_co_flush_to_disk  = qcow2_co_flush_to_disk,
 
     .bdrv_co_discard        = qcow2_co_discard,
     .bdrv_truncate          = qcow2_truncate,

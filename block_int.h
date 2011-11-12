@@ -84,9 +84,21 @@ struct BlockDriver {
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
     int coroutine_fn (*bdrv_co_writev)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
-    int coroutine_fn (*bdrv_co_flush)(BlockDriverState *bs);
     int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors);
+
+    /*
+     * Flushes all data that was already written to the OS all the way down to
+     * the disk (for example raw-posix calls fsync()).
+     */
+    int coroutine_fn (*bdrv_co_flush_to_disk)(BlockDriverState *bs);
+
+    /*
+     * Flushes all internal caches to the OS. The data may still sit in a
+     * writeback cache of the host OS, but it will survive a crash of the qemu
+     * process.
+     */
+    int coroutine_fn (*bdrv_co_flush_to_os)(BlockDriverState *bs);
 
     int (*bdrv_aio_multiwrite)(BlockDriverState *bs, BlockRequest *reqs,
         int num_reqs);

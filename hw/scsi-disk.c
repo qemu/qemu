@@ -65,6 +65,7 @@ struct SCSIDiskState
     uint32_t removable;
     bool media_changed;
     bool media_event;
+    bool eject_request;
     QEMUBH *bh;
     char *version;
     char *serial;
@@ -671,9 +672,14 @@ static int scsi_event_status_media(SCSIDiskState *s, uint8_t *outbuf)
 
     /* Event notification descriptor */
     event_code = MEC_NO_CHANGE;
-    if (media_status != MS_TRAY_OPEN && s->media_event) {
-        event_code = MEC_NEW_MEDIA;
-        s->media_event = false;
+    if (media_status != MS_TRAY_OPEN) {
+        if (s->media_event) {
+            event_code = MEC_NEW_MEDIA;
+            s->media_event = false;
+        } else if (s->eject_request) {
+            event_code = MEC_EJECT_REQUESTED;
+            s->eject_request = false;
+        }
     }
 
     outbuf[0] = event_code;
@@ -1470,6 +1476,17 @@ static void scsi_cd_change_media_cb(void *opaque, bool load)
     s->tray_open = !load;
     s->qdev.unit_attention = SENSE_CODE(UNIT_ATTENTION_NO_MEDIUM);
     s->media_event = true;
+    s->eject_request = false;
+}
+
+static void scsi_cd_eject_request_cb(void *opaque, bool force)
+{
+    SCSIDiskState *s = opaque;
+
+    s->eject_request = true;
+    if (force) {
+        s->tray_locked = false;
+    }
 }
 
 static bool scsi_cd_is_tray_open(void *opaque)
@@ -1484,6 +1501,7 @@ static bool scsi_cd_is_medium_locked(void *opaque)
 
 static const BlockDevOps scsi_cd_block_ops = {
     .change_media_cb = scsi_cd_change_media_cb,
+    .eject_request_cb = scsi_cd_eject_request_cb,
     .is_tray_open = scsi_cd_is_tray_open,
     .is_medium_locked = scsi_cd_is_medium_locked,
 };
