@@ -399,7 +399,7 @@ functions:
       This function will automatically generate the appropriate new reader
       events and add the reader to the list.
 
-  To create a new card, the virtual card emulator will call a similiar
+  To create a new card, the virtual card emulator will call a similar
   function.
 
            VCard *vcard_new(VCardEmul *card_emul,

@@ -1,7 +1,7 @@
 /*
  * QEMU/mipssim emulation
  *
- * Emulates a very simple machine model similiar to the one use by the
+ * Emulates a very simple machine model similar to the one used by the
  * proprietary MIPS emulator.
  * 
  * Copyright (c) 2007 Thiemo Seufer

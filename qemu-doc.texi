@@ -1749,7 +1749,7 @@ PC Keyboard
 IDE controller
 @end itemize
 
-The mipssim pseudo board emulation provides an environment similiar
+The mipssim pseudo board emulation provides an environment similar
 to what the proprietary MIPS emulator uses for running Linux.
 It supports:
 
@@ -2141,7 +2141,7 @@ Xtensa emulator pseudo board "sim"
 Avnet LX60/LX110/LX200 board
 @end itemize
 
-The sim pseudo board emulation provides an environment similiar
+The sim pseudo board emulation provides an environment similar
 to one provided by the proprietary Tensilica ISS.
 It supports:
 
