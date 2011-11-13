@@ -1401,7 +1401,7 @@ static void mtree_print_mr(fprintf_function mon_printf, void *f,
                        alias_print_queue);
     }
 
-    QTAILQ_FOREACH_SAFE(next_ml, &submr_print_queue, queue, ml) {
+    QTAILQ_FOREACH_SAFE(ml, &submr_print_queue, queue, next_ml) {
         g_free(ml);
     }
 }
@@ -1425,7 +1425,7 @@ void mtree_info(fprintf_function mon_printf, void *f)
     }
 
     QTAILQ_FOREACH_SAFE(ml, &ml_head, queue, ml2) {
-        g_free(ml2);
+        g_free(ml);
     }
 
     if (address_space_io.root &&
