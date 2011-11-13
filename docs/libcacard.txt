@@ -281,7 +281,7 @@ create card responses.
         VCardResponse *vcard_make_response(VCard7816Status status);
 
     This is the most basic function to get a response. This function will
-    return a response the consists soley one 2 byte status code. If that status
+    return a response the consists solely one 2 byte status code. If that status
     code is defined in card_7816t.h, then this function is guarrenteed to
     return a response with that status. If a cart type specific status code
     is passed and vcard_make_response fails to allocate the appropriate memory
@@ -327,7 +327,7 @@ and applet.
 
         int vcard_emul_get_login_count(VCard *card);
 
-    This function returns the the number of remaing login attempts for this
+    This function returns the the number of remaining login attempts for this
     card. If the card emulator does not know, or the card does not have a
     way of giving this information, this function returns -1.
 
@@ -373,7 +373,7 @@ functions:
 
   The options structure is built by another function in the virtual card
   interface where a string of virtual card emulator specific strings are
-  mapped to the options. The actual structure is defined by the virutal card
+  mapped to the options. The actual structure is defined by the virtual card
   emulator and is used to determine the configuration of soft cards, or to
   determine which physical cards to present to the guest.
 

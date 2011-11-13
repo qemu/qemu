@@ -14,7 +14,7 @@ To map QMP-defined interfaces to the native C QAPI implementations,
 a JSON-based schema is used to define types and function
 signatures, and a set of scripts is used to generate types/signatures,
 and marshaling/dispatch code. The QEMU Guest Agent also uses these
-scripts, paired with a seperate schema, to generate
+scripts, paired with a separate schema, to generate
 marshaling/dispatch code for the guest agent server running in the
 guest.
 

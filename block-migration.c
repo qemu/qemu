@@ -521,7 +521,7 @@ static int is_stage2_completed(void)
 
         if ((remaining_dirty / bwidth) <=
             migrate_max_downtime()) {
-            /* finish stage2 because we think that we can finish remaing work
+            /* finish stage2 because we think that we can finish remaining work
                below max_downtime */
 
             return 1;
