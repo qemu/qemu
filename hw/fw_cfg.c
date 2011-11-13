@@ -39,6 +39,7 @@
 #endif
 
 #define FW_CFG_SIZE 2
+#define FW_CFG_DATA_SIZE 1
 
 typedef struct FWCfgEntry {
     uint32_t len;
@@ -49,6 +50,7 @@ typedef struct FWCfgEntry {
 
 struct FWCfgState {
     SysBusDevice busdev;
+    MemoryRegion ctl_iomem, data_iomem, comb_iomem;
     uint32_t ctl_iobase, data_iobase;
     FWCfgEntry entries[2][FW_CFG_MAX_ENTRY];
     FWCfgFiles *files;
@@ -232,60 +234,76 @@ static uint8_t fw_cfg_read(FWCfgState *s)
     return ret;
 }
 
-static uint32_t fw_cfg_io_readb(void *opaque, uint32_t addr)
+static uint64_t fw_cfg_data_mem_read(void *opaque, target_phys_addr_t addr,
+                                     unsigned size)
 {
     return fw_cfg_read(opaque);
 }
 
-static void fw_cfg_io_writeb(void *opaque, uint32_t addr, uint32_t value)
+static void fw_cfg_data_mem_write(void *opaque, target_phys_addr_t addr,
+                                  uint64_t value, unsigned size)
 {
     fw_cfg_write(opaque, (uint8_t)value);
 }
 
-static void fw_cfg_io_writew(void *opaque, uint32_t addr, uint32_t value)
+static void fw_cfg_ctl_mem_write(void *opaque, target_phys_addr_t addr,
+                                 uint64_t value, unsigned size)
 {
     fw_cfg_select(opaque, (uint16_t)value);
 }
 
-static uint32_t fw_cfg_mem_readb(void *opaque, target_phys_addr_t addr)
+static bool fw_cfg_ctl_mem_valid(void *opaque, target_phys_addr_t addr,
+                                 unsigned size, bool is_write)
+{
+    return is_write && size == 2;
+}
+
+static uint64_t fw_cfg_comb_read(void *opaque, target_phys_addr_t addr,
+                                 unsigned size)
 {
     return fw_cfg_read(opaque);
 }
 
-static void fw_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
-                              uint32_t value)
+static void fw_cfg_comb_write(void *opaque, target_phys_addr_t addr,
+                              uint64_t value, unsigned size)
 {
-    fw_cfg_write(opaque, (uint8_t)value);
+    switch (size) {
+    case 1:
+        fw_cfg_write(opaque, (uint8_t)value);
+        break;
+    case 2:
+        fw_cfg_select(opaque, (uint16_t)value);
+        break;
+    }
 }
 
-static void fw_cfg_mem_writew(void *opaque, target_phys_addr_t addr,
-                              uint32_t value)
+static bool fw_cfg_comb_valid(void *opaque, target_phys_addr_t addr,
+                                  unsigned size, bool is_write)
 {
-    fw_cfg_select(opaque, (uint16_t)value);
+    return (size == 1) || (is_write && size == 2);
 }
 
-static CPUReadMemoryFunc * const fw_cfg_ctl_mem_read[3] = {
-    NULL,
-    NULL,
-    NULL,
+static const MemoryRegionOps fw_cfg_ctl_mem_ops = {
+    .write = fw_cfg_ctl_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.accepts = fw_cfg_ctl_mem_valid,
 };
 
-static CPUWriteMemoryFunc * const fw_cfg_ctl_mem_write[3] = {
-    NULL,
-    fw_cfg_mem_writew,
-    NULL,
+static const MemoryRegionOps fw_cfg_data_mem_ops = {
+    .read = fw_cfg_data_mem_read,
+    .write = fw_cfg_data_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
-static CPUReadMemoryFunc * const fw_cfg_data_mem_read[3] = {
-    fw_cfg_mem_readb,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const fw_cfg_data_mem_write[3] = {
-    fw_cfg_mem_writeb,
-    NULL,
-    NULL,
+static const MemoryRegionOps fw_cfg_comb_mem_ops = {
+    .read = fw_cfg_comb_read,
+    .write = fw_cfg_comb_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid.accepts = fw_cfg_comb_valid,
 };
 
 static void fw_cfg_reset(DeviceState *d)
@@ -489,24 +507,26 @@ FWCfgState *fw_cfg_init(uint32_t ctl_port, uint32_t data_port,
 static int fw_cfg_init1(SysBusDevice *dev)
 {
     FWCfgState *s = FROM_SYSBUS(FWCfgState, dev);
-    int io_ctl_memory, io_data_memory;
 
-    io_ctl_memory = cpu_register_io_memory(fw_cfg_ctl_mem_read,
-                                           fw_cfg_ctl_mem_write, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, FW_CFG_SIZE, io_ctl_memory);
+    memory_region_init_io(&s->ctl_iomem, &fw_cfg_ctl_mem_ops, s,
+                          "fwcfg.ctl", FW_CFG_SIZE);
+    sysbus_init_mmio_region(dev, &s->ctl_iomem);
+    memory_region_init_io(&s->data_iomem, &fw_cfg_data_mem_ops, s,
+                          "fwcfg.data", FW_CFG_DATA_SIZE);
+    sysbus_init_mmio_region(dev, &s->data_iomem);
+    /* In case ctl and data overlap: */
+    memory_region_init_io(&s->comb_iomem, &fw_cfg_comb_mem_ops, s,
+                          "fwcfg", FW_CFG_SIZE);
 
-    io_data_memory = cpu_register_io_memory(fw_cfg_data_mem_read,
-                                            fw_cfg_data_mem_write, s,
-                                            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, FW_CFG_SIZE, io_data_memory);
-
-    if (s->ctl_iobase) {
-        register_ioport_write(s->ctl_iobase, 2, 2, fw_cfg_io_writew, s);
-    }
-    if (s->data_iobase) {
-        register_ioport_read(s->data_iobase, 1, 1, fw_cfg_io_readb, s);
-        register_ioport_write(s->data_iobase, 1, 1, fw_cfg_io_writeb, s);
+    if (s->ctl_iobase + 1 == s->data_iobase) {
+        sysbus_add_io(dev, s->ctl_iobase, &s->comb_iomem);
+    } else {
+        if (s->ctl_iobase) {
+            sysbus_add_io(dev, s->ctl_iobase, &s->ctl_iomem);
+        }
+        if (s->data_iobase) {
+            sysbus_add_io(dev, s->data_iobase, &s->data_iomem);
+        }
     }
     return 0;
 }
