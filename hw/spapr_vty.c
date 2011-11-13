@@ -58,6 +58,11 @@ static int spapr_vty_init(VIOsPAPRDevice *sdev)
 {
     VIOsPAPRVTYDevice *dev = (VIOsPAPRVTYDevice *)sdev;
 
+    if (!dev->chardev) {
+        fprintf(stderr, "spapr-vty: Can't create vty without a chardev!\n");
+        exit(1);
+    }
+
     qemu_chr_add_handlers(dev->chardev, vty_can_receive,
                           vty_receive, NULL, dev);
 
