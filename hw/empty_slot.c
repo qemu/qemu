@@ -24,31 +24,27 @@
 
 typedef struct EmptySlot {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint64_t size;
 } EmptySlot;
 
-static uint32_t empty_slot_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t empty_slot_read(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
     DPRINTF("read from " TARGET_FMT_plx "\n", addr);
     return 0;
 }
 
-static void empty_slot_writel(void *opaque, target_phys_addr_t addr,
-                              uint32_t val)
+static void empty_slot_write(void *opaque, target_phys_addr_t addr,
+                             uint64_t val, unsigned size)
 {
-    DPRINTF("write 0x%x to " TARGET_FMT_plx "\n", val, addr);
+    DPRINTF("write 0x%x to " TARGET_FMT_plx "\n", (unsigned)val, addr);
 }
 
-CPUReadMemoryFunc * const empty_slot_read[3] = {
-    empty_slot_readl,
-    empty_slot_readl,
-    empty_slot_readl,
-};
-
-static CPUWriteMemoryFunc * const empty_slot_write[3] = {
-    empty_slot_writel,
-    empty_slot_writel,
-    empty_slot_writel,
+static const MemoryRegionOps empty_slot_ops = {
+    .read = empty_slot_read,
+    .write = empty_slot_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 void empty_slot_init(target_phys_addr_t addr, uint64_t slot_size)
@@ -73,12 +69,10 @@ void empty_slot_init(target_phys_addr_t addr, uint64_t slot_size)
 static int empty_slot_init1(SysBusDevice *dev)
 {
     EmptySlot *s = FROM_SYSBUS(EmptySlot, dev);
-    ram_addr_t empty_slot_offset;
 
-    empty_slot_offset = cpu_register_io_memory(empty_slot_read,
-                                               empty_slot_write, s,
-                                               DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, s->size, empty_slot_offset | IO_MEM_RAM);
+    memory_region_init_io(&s->iomem, &empty_slot_ops, s,
+                          "empty-slot", s->size);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
