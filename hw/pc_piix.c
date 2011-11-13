@@ -311,6 +311,18 @@ static QEMUMachine pc_machine_v0_14 = {
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        {
+            .driver   = "qxl",
+            .property = "revision",
+            .value    = stringify(2),
+        },{
+            .driver   = "qxl-vga",
+            .property = "revision",
+            .value    = stringify(2),
+        },
+        { /* end of list */ }
+    },
 };
 
 static QEMUMachine pc_machine_v0_13 = {
