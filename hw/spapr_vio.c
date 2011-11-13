@@ -66,11 +66,11 @@ VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
     QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
         dev = (VIOsPAPRDevice *)qdev;
         if (dev->reg == reg) {
-            break;
+            return dev;
         }
     }
 
-    return dev;
+    return NULL;
 }
 
 #ifdef CONFIG_FDT
