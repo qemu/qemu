@@ -49,6 +49,7 @@ typedef struct IRQMPState IRQMPState;
 
 typedef struct IRQMP {
     SysBusDevice busdev;
+    MemoryRegion iomem;
 
     void *set_pil_in;
     void *set_pil_in_opaque;
@@ -161,7 +162,8 @@ void grlib_irqmp_set_irq(void *opaque, int irq, int level)
     }
 }
 
-static uint32_t grlib_irqmp_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t grlib_irqmp_read(void *opaque, target_phys_addr_t addr,
+                                 unsigned size)
 {
     IRQMP      *irqmp = opaque;
     IRQMPState *state;
@@ -224,8 +226,8 @@ static uint32_t grlib_irqmp_readl(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void
-grlib_irqmp_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void grlib_irqmp_write(void *opaque, target_phys_addr_t addr,
+                              uint64_t value, unsigned size)
 {
     IRQMP      *irqmp = opaque;
     IRQMPState *state;
@@ -311,12 +313,14 @@ grlib_irqmp_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
     trace_grlib_irqmp_writel_unknown(addr, value);
 }
 
-static CPUReadMemoryFunc * const grlib_irqmp_read[] = {
-    NULL, NULL, &grlib_irqmp_readl,
-};
-
-static CPUWriteMemoryFunc * const grlib_irqmp_write[] = {
-    NULL, NULL, &grlib_irqmp_writel,
+static const MemoryRegionOps grlib_irqmp_ops = {
+    .read = grlib_irqmp_read,
+    .write = grlib_irqmp_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void grlib_irqmp_reset(DeviceState *d)
@@ -332,7 +336,6 @@ static void grlib_irqmp_reset(DeviceState *d)
 static int grlib_irqmp_init(SysBusDevice *dev)
 {
     IRQMP *irqmp = FROM_SYSBUS(typeof(*irqmp), dev);
-    int    irqmp_regs;
 
     assert(irqmp != NULL);
 
@@ -341,17 +344,12 @@ static int grlib_irqmp_init(SysBusDevice *dev)
         return -1;
     }
 
-    irqmp_regs = cpu_register_io_memory(grlib_irqmp_read,
-                                        grlib_irqmp_write,
-                                        irqmp, DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&irqmp->iomem, &grlib_irqmp_ops, irqmp,
+                          "irqmp", IRQMP_REG_SIZE);
 
     irqmp->state = g_malloc0(sizeof *irqmp->state);
 
-    if (irqmp_regs < 0) {
-        return -1;
-    }
-
-    sysbus_init_mmio(dev, IRQMP_REG_SIZE, irqmp_regs);
+    sysbus_init_mmio_region(dev, &irqmp->iomem);
 
     return 0;
 }
