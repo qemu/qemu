@@ -240,6 +240,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     s->cluster_data = qemu_blockalign(bs, QCOW_MAX_CRYPT_CLUSTERS * s->cluster_size
                                   + 512);
     s->cluster_cache_offset = -1;
+    s->flags = flags;
 
     ret = qcow2_refcount_init(bs);
     if (ret != 0) {
@@ -630,6 +631,37 @@ static void qcow2_close(BlockDriverState *bs)
     g_free(s->cluster_cache);
     qemu_vfree(s->cluster_data);
     qcow2_refcount_close(bs);
+}
+
+static void qcow2_invalidate_cache(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+    int flags = s->flags;
+    AES_KEY aes_encrypt_key;
+    AES_KEY aes_decrypt_key;
+    uint32_t crypt_method = 0;
+
+    /*
+     * Backing files are read-only which makes all of their metadata immutable,
+     * that means we don't have to worry about reopening them here.
+     */
+
+    if (s->crypt_method) {
+        crypt_method = s->crypt_method;
+        memcpy(&aes_encrypt_key, &s->aes_encrypt_key, sizeof(aes_encrypt_key));
+        memcpy(&aes_decrypt_key, &s->aes_decrypt_key, sizeof(aes_decrypt_key));
+    }
+
+    qcow2_close(bs);
+
+    memset(s, 0, sizeof(BDRVQcowState));
+    qcow2_open(bs, flags);
+
+    if (crypt_method) {
+        s->crypt_method = crypt_method;
+        memcpy(&s->aes_encrypt_key, &aes_encrypt_key, sizeof(aes_encrypt_key));
+        memcpy(&s->aes_decrypt_key, &aes_decrypt_key, sizeof(aes_decrypt_key));
+    }
 }
 
 /*
@@ -1268,6 +1300,8 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_load_vmstate    = qcow2_load_vmstate,
 
     .bdrv_change_backing_file   = qcow2_change_backing_file,
+
+    .bdrv_invalidate_cache      = qcow2_invalidate_cache,
 
     .create_options = qcow2_create_options,
     .bdrv_check = qcow2_check,
