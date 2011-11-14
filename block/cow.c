@@ -132,8 +132,8 @@ static inline int is_bit_set(BlockDriverState *bs, int64_t bitnum)
 /* Return true if first block has been changed (ie. current version is
  * in COW file).  Set the number of continuous blocks for which that
  * is true. */
-static int cow_is_allocated(BlockDriverState *bs, int64_t sector_num,
-        int nb_sectors, int *num_same)
+static int coroutine_fn cow_co_is_allocated(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, int *num_same)
 {
     int changed;
 
@@ -178,7 +178,7 @@ static int cow_read(BlockDriverState *bs, int64_t sector_num,
     int ret, n;
 
     while (nb_sectors > 0) {
-        if (cow_is_allocated(bs, sector_num, nb_sectors, &n)) {
+        if (bdrv_is_allocated(bs, sector_num, nb_sectors, &n)) {
             ret = bdrv_pread(bs->file,
                         s->cow_sectors_offset + sector_num * 512,
                         buf, n * 512);
@@ -335,7 +335,7 @@ static BlockDriver bdrv_cow = {
     .bdrv_read              = cow_co_read,
     .bdrv_write             = cow_co_write,
     .bdrv_co_flush_to_disk  = cow_co_flush,
-    .bdrv_is_allocated      = cow_is_allocated,
+    .bdrv_co_is_allocated   = cow_co_is_allocated,
 
     .create_options = cow_create_options,
 };
