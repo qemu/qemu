@@ -122,13 +122,15 @@
 
 typedef struct ECCState {
     SysBusDevice busdev;
+    MemoryRegion iomem, iomem_diag;
     qemu_irq irq;
     uint32_t regs[ECC_NREGS];
     uint8_t diag[ECC_DIAG_SIZE];
     uint32_t version;
 } ECCState;
 
-static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void ecc_mem_write(void *opaque, target_phys_addr_t addr, uint64_t val,
+                          unsigned size)
 {
     ECCState *s = opaque;
 
@@ -170,7 +172,8 @@ static void ecc_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static uint32_t ecc_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t ecc_mem_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
 {
     ECCState *s = opaque;
     uint32_t ret = 0;
@@ -216,20 +219,18 @@ static uint32_t ecc_mem_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc * const ecc_mem_read[3] = {
-    NULL,
-    NULL,
-    ecc_mem_readl,
+static const MemoryRegionOps ecc_mem_ops = {
+    .read = ecc_mem_read,
+    .write = ecc_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
-static CPUWriteMemoryFunc * const ecc_mem_write[3] = {
-    NULL,
-    NULL,
-    ecc_mem_writel,
-};
-
-static void ecc_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                uint32_t val)
+static void ecc_diag_mem_write(void *opaque, target_phys_addr_t addr,
+                               uint64_t val, unsigned size)
 {
     ECCState *s = opaque;
 
@@ -237,7 +238,8 @@ static void ecc_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
     s->diag[addr & ECC_DIAG_MASK] = val;
 }
 
-static uint32_t ecc_diag_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t ecc_diag_mem_read(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
 {
     ECCState *s = opaque;
     uint32_t ret = s->diag[(int)addr];
@@ -246,16 +248,14 @@ static uint32_t ecc_diag_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc * const ecc_diag_mem_read[3] = {
-    ecc_diag_mem_readb,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const ecc_diag_mem_write[3] = {
-    ecc_diag_mem_writeb,
-    NULL,
-    NULL,
+static const MemoryRegionOps ecc_diag_mem_ops = {
+    .read = ecc_diag_mem_read,
+    .write = ecc_diag_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static const VMStateDescription vmstate_ecc = {
@@ -292,20 +292,17 @@ static void ecc_reset(DeviceState *d)
 
 static int ecc_init1(SysBusDevice *dev)
 {
-    int ecc_io_memory;
     ECCState *s = FROM_SYSBUS(ECCState, dev);
 
     sysbus_init_irq(dev, &s->irq);
     s->regs[0] = s->version;
-    ecc_io_memory = cpu_register_io_memory(ecc_mem_read, ecc_mem_write, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, ECC_SIZE, ecc_io_memory);
+    memory_region_init_io(&s->iomem, &ecc_mem_ops, s, "ecc", ECC_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     if (s->version == ECC_MCC) { // SS-600MP only
-        ecc_io_memory = cpu_register_io_memory(ecc_diag_mem_read,
-                                               ecc_diag_mem_write, s,
-                                               DEVICE_NATIVE_ENDIAN);
-        sysbus_init_mmio(dev, ECC_DIAG_SIZE, ecc_io_memory);
+        memory_region_init_io(&s->iomem_diag, &ecc_diag_mem_ops, s,
+                              "ecc.diag", ECC_DIAG_SIZE);
+        sysbus_init_mmio_region(dev, &s->iomem_diag);
     }
 
     return 0;
