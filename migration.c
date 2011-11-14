@@ -398,6 +398,18 @@ static MigrationState *migrate_init(Monitor *mon, int detach, int blk, int inc)
     return s;
 }
 
+static GSList *migration_blockers;
+
+void migrate_add_blocker(Error *reason)
+{
+    migration_blockers = g_slist_prepend(migration_blockers, reason);
+}
+
+void migrate_del_blocker(Error *reason)
+{
+    migration_blockers = g_slist_remove(migration_blockers, reason);
+}
+
 int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     MigrationState *s = migrate_get_current();
@@ -414,6 +426,12 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     if (qemu_savevm_state_blocked(mon)) {
+        return -1;
+    }
+
+    if (migration_blockers) {
+        Error *err = migration_blockers->data;
+        qerror_report_err(err);
         return -1;
     }
 
