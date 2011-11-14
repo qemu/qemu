@@ -1315,6 +1315,7 @@ static SysBusDeviceInfo musicpal_gpio_info = {
 
 typedef struct musicpal_key_state {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t kbd_extended;
     uint32_t pressed_keys;
     qemu_irq out[8];
@@ -1401,7 +1402,8 @@ static int musicpal_key_init(SysBusDevice *dev)
 {
     musicpal_key_state *s = FROM_SYSBUS(musicpal_key_state, dev);
 
-    sysbus_init_mmio(dev, 0x0, 0);
+    memory_region_init(&s->iomem, "dummy", 0);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     s->kbd_extended = 0;
     s->pressed_keys = 0;
