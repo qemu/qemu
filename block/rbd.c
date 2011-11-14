@@ -632,9 +632,6 @@ static BlockDriverAIOCB *rbd_aio_rw_vector(BlockDriverState *bs,
     BDRVRBDState *s = bs->opaque;
 
     acb = qemu_aio_get(&rbd_aio_pool, bs, cb, opaque);
-    if (!acb) {
-        return NULL;
-    }
     acb->write = write;
     acb->qiov = qiov;
     acb->bounce = qemu_blockalign(bs, qiov->size);

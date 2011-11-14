@@ -515,28 +515,26 @@ static VdiAIOCB *vdi_aio_setup(BlockDriverState *bs, int64_t sector_num,
            bs, sector_num, qiov, nb_sectors, cb, opaque, is_write);
 
     acb = qemu_aio_get(&vdi_aio_pool, bs, cb, opaque);
-    if (acb) {
-        acb->hd_aiocb = NULL;
-        acb->sector_num = sector_num;
-        acb->qiov = qiov;
-        acb->is_write = is_write;
+    acb->hd_aiocb = NULL;
+    acb->sector_num = sector_num;
+    acb->qiov = qiov;
+    acb->is_write = is_write;
 
-        if (qiov->niov > 1) {
-            acb->buf = qemu_blockalign(bs, qiov->size);
-            acb->orig_buf = acb->buf;
-            if (is_write) {
-                qemu_iovec_to_buffer(qiov, acb->buf);
-            }
-        } else {
-            acb->buf = (uint8_t *)qiov->iov->iov_base;
+    if (qiov->niov > 1) {
+        acb->buf = qemu_blockalign(bs, qiov->size);
+        acb->orig_buf = acb->buf;
+        if (is_write) {
+            qemu_iovec_to_buffer(qiov, acb->buf);
         }
-        acb->nb_sectors = nb_sectors;
-        acb->n_sectors = 0;
-        acb->bmap_first = VDI_UNALLOCATED;
-        acb->bmap_last = VDI_UNALLOCATED;
-        acb->block_buffer = NULL;
-        acb->header_modified = 0;
+    } else {
+        acb->buf = (uint8_t *)qiov->iov->iov_base;
     }
+    acb->nb_sectors = nb_sectors;
+    acb->n_sectors = 0;
+    acb->bmap_first = VDI_UNALLOCATED;
+    acb->bmap_last = VDI_UNALLOCATED;
+    acb->block_buffer = NULL;
+    acb->header_modified = 0;
     return acb;
 }
 
@@ -653,10 +651,6 @@ static BlockDriverAIOCB *vdi_aio_readv(BlockDriverState *bs,
 
     logout("\n");
     acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
-    if (!acb) {
-        return NULL;
-    }
-
     ret = vdi_schedule_bh(vdi_aio_rw_bh, acb);
     if (ret < 0) {
         if (acb->qiov->niov > 1) {
@@ -807,10 +801,6 @@ static BlockDriverAIOCB *vdi_aio_writev(BlockDriverState *bs,
 
     logout("\n");
     acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
-    if (!acb) {
-        return NULL;
-    }
-
     ret = vdi_schedule_bh(vdi_aio_rw_bh, acb);
     if (ret < 0) {
         if (acb->qiov->niov > 1) {
