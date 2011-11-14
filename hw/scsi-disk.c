@@ -1703,8 +1703,20 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
     case WRITE_VERIFY_10:
     case WRITE_VERIFY_12:
     case WRITE_VERIFY_16:
-        return scsi_req_alloc(&scsi_disk_reqops, &s->qdev, tag, lun,
-                              hba_private);
+        /* MMC writing cannot be done via pread/pwrite, because it sometimes
+         * involves writing beyond the maximum LBA or to negative LBA (lead-in).
+         * And once you do these writes, reading from the block device is
+         * unreliable, too.  It is even possible that reads deliver random data
+         * from the host page cache (this is probably a Linux bug).
+         *
+         * We might use scsi_disk_reqops as long as no writing commands are
+         * seen, but performance usually isn't paramount on optical media.  So,
+         * just make scsi-block operate the same as scsi-generic for them.
+         */
+        if (s->qdev.type != TYPE_ROM) {
+            return scsi_req_alloc(&scsi_disk_reqops, &s->qdev, tag, lun,
+                                  hba_private);
+        }
     }
 
     return scsi_req_alloc(&scsi_generic_req_ops, &s->qdev, tag, lun,
