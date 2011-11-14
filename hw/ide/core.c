@@ -549,7 +549,6 @@ void ide_dma_cb(void *opaque, int ret)
     int n;
     int64_t sector_num;
 
-handle_rw_error:
     if (ret < 0) {
         int op = BM_STATUS_DMA_RETRY;
 
@@ -607,11 +606,6 @@ handle_rw_error:
         s->bus->dma->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
                                          ide_issue_trim, ide_dma_cb, s, true);
         break;
-    }
-
-    if (!s->bus->dma->aiocb) {
-        ret = -1;
-        goto handle_rw_error;
     }
     return;
 

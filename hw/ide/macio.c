@@ -152,10 +152,8 @@ static void pmac_ide_transfer_cb(void *opaque, int ret)
                                ide_issue_trim, pmac_ide_transfer_cb, s, true);
         break;
     }
-
-    if (!m->aiocb)
-        pmac_ide_transfer_cb(io, -1);
     return;
+
 done:
     if (s->dma_cmd == IDE_DMA_READ || s->dma_cmd == IDE_DMA_WRITE) {
         bdrv_acct_done(s->bs, &s->acct);
