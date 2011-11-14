@@ -1845,7 +1845,7 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
                 code);
         if (host_supports_vmx() && code == VMX_INVALID_GUEST_STATE) {
             fprintf(stderr,
-                    "\nIf you're runnning a guest on an Intel machine without "
+                    "\nIf you're running a guest on an Intel machine without "
                         "unrestricted mode\n"
                     "support, the failure can be most likely due to the guest "
                         "entering an invalid\n"
