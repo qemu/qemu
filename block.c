@@ -1921,25 +1921,8 @@ static void coroutine_fn bdrv_is_allocated_co_entry(void *opaque)
 int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
 	int *pnum)
 {
-    int64_t n;
-    if (bs->drv->bdrv_co_is_allocated) {
-        Coroutine *co;
-        BdrvCoIsAllocatedData data = {
-            .bs = bs,
-            .sector_num = sector_num,
-            .nb_sectors = nb_sectors,
-            .pnum = pnum,
-            .done = false,
-        };
-
-        co = qemu_coroutine_create(bdrv_is_allocated_co_entry);
-        qemu_coroutine_enter(co, &data);
-        while (!data.done) {
-            qemu_aio_wait();
-        }
-        return data.ret;
-    }
-    if (!bs->drv->bdrv_is_allocated) {
+    if (!bs->drv->bdrv_co_is_allocated) {
+        int64_t n;
         if (sector_num >= bs->total_sectors) {
             *pnum = 0;
             return 0;
@@ -1948,7 +1931,22 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
         *pnum = (n < nb_sectors) ? (n) : (nb_sectors);
         return 1;
     }
-    return bs->drv->bdrv_is_allocated(bs, sector_num, nb_sectors, pnum);
+
+    Coroutine *co;
+    BdrvCoIsAllocatedData data = {
+        .bs = bs,
+        .sector_num = sector_num,
+        .nb_sectors = nb_sectors,
+        .pnum = pnum,
+        .done = false,
+    };
+
+    co = qemu_coroutine_create(bdrv_is_allocated_co_entry);
+    qemu_coroutine_enter(co, &data);
+    while (!data.done) {
+        qemu_aio_wait();
+    }
+    return data.ret;
 }
 
 void bdrv_mon_event(const BlockDriverState *bdrv,
