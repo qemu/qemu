@@ -649,6 +649,31 @@ static void scsi_req_dequeue(SCSIRequest *req)
     }
 }
 
+static int scsi_get_performance_length(int num_desc, int type, int data_type)
+{
+    /* MMC-6, paragraph 6.7.  */
+    switch (type) {
+    case 0:
+        if ((data_type & 3) == 0) {
+            /* Each descriptor is as in Table 295 - Nominal performance.  */
+            return 16 * num_desc + 8;
+        } else {
+            /* Each descriptor is as in Table 296 - Exceptions.  */
+            return 6 * num_desc + 8;
+        }
+    case 1:
+    case 4:
+    case 5:
+        return 8 * num_desc + 8;
+    case 2:
+        return 2048 * num_desc + 8;
+    case 3:
+        return 16 * num_desc + 8;
+    default:
+        return 8;
+    }
+}
+
 static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
 {
     switch (buf[0] >> 5) {
@@ -666,11 +691,11 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
         cmd->len = 10;
         break;
     case 4:
-        cmd->xfer = ldl_be_p(&buf[10]);
+        cmd->xfer = ldl_be_p(&buf[10]) & 0xffffffffULL;
         cmd->len = 16;
         break;
     case 5:
-        cmd->xfer = ldl_be_p(&buf[6]);
+        cmd->xfer = ldl_be_p(&buf[6]) & 0xffffffffULL;
         cmd->len = 12;
         break;
     default:
@@ -683,6 +708,7 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case START_STOP:
     case SET_CAPACITY:
     case WRITE_FILEMARKS:
+    case WRITE_FILEMARKS_16:
     case SPACE:
     case RESERVE:
     case RELEASE:
@@ -691,6 +717,8 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case VERIFY_10:
     case SEEK_10:
     case SYNCHRONIZE_CACHE:
+    case SYNCHRONIZE_CACHE_16:
+    case LOCATE_16:
     case LOCK_UNLOCK_CACHE:
     case LOAD_UNLOAD:
     case SET_CD_SPEED:
@@ -698,6 +726,11 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case WRITE_LONG_10:
     case MOVE_MEDIUM:
     case UPDATE_BLOCK:
+    case RESERVE_TRACK:
+    case SET_READ_AHEAD:
+    case PRE_FETCH:
+    case PRE_FETCH_16:
+    case ALLOW_OVERWRITE:
         cmd->xfer = 0;
         break;
     case MODE_SENSE:
@@ -711,14 +744,13 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case READ_BLOCK_LIMITS:
         cmd->xfer = 6;
         break;
-    case READ_POSITION:
-        cmd->xfer = 20;
-        break;
     case SEND_VOLUME_TAG:
-        cmd->xfer *= 40;
-        break;
-    case MEDIUM_SCAN:
-        cmd->xfer *= 8;
+        /* GPCMD_SET_STREAMING from multimedia commands.  */
+        if (dev->type == TYPE_ROM) {
+            cmd->xfer = buf[10] | (buf[9] << 8);
+        } else {
+            cmd->xfer = buf[9] | (buf[8] << 8);
+        }
         break;
     case WRITE_10:
     case WRITE_VERIFY_10:
@@ -737,9 +769,39 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case READ_16:
         cmd->xfer *= dev->blocksize;
         break;
+    case FORMAT_UNIT:
+        /* MMC mandates the parameter list to be 12-bytes long.  Parameters
+         * for block devices are restricted to the header right now.  */
+        if (dev->type == TYPE_ROM && (buf[1] & 16)) {
+            cmd->xfer = 12;
+        } else {
+            cmd->xfer = (buf[1] & 16) == 0 ? 0 : (buf[1] & 32 ? 8 : 4);
+        }
+        break;
     case INQUIRY:
+    case RECEIVE_DIAGNOSTIC:
+    case SEND_DIAGNOSTIC:
         cmd->xfer = buf[4] | (buf[3] << 8);
         break;
+    case READ_CD:
+    case READ_BUFFER:
+    case WRITE_BUFFER:
+    case SEND_CUE_SHEET:
+        cmd->xfer = buf[8] | (buf[7] << 8) | (buf[6] << 16);
+        break;
+    case PERSISTENT_RESERVE_OUT:
+        cmd->xfer = ldl_be_p(&buf[5]) & 0xffffffffULL;
+        break;
+    case ERASE_12:
+        if (dev->type == TYPE_ROM) {
+            /* MMC command GET PERFORMANCE.  */
+            cmd->xfer = scsi_get_performance_length(buf[9] | (buf[8] << 8),
+                                                    buf[10], buf[1] & 0x1f);
+        }
+        break;
+    case MECHANISM_STATUS:
+    case READ_DVD_STRUCTURE:
+    case SEND_DVD_STRUCTURE:
     case MAINTENANCE_OUT:
     case MAINTENANCE_IN:
         if (dev->type == TYPE_ROM) {
@@ -755,6 +817,10 @@ static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *bu
 {
     switch (buf[0]) {
     /* stream commands */
+    case ERASE_12:
+    case ERASE_16:
+        cmd->xfer = 0;
+        break;
     case READ_6:
     case READ_REVERSE:
     case RECOVER_BUFFERED_DATA:
@@ -769,6 +835,15 @@ static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *bu
     case START_STOP:
         cmd->len = 6;
         cmd->xfer = 0;
+        break;
+    case SPACE_16:
+        cmd->xfer = buf[13] | (buf[12] << 8);
+        break;
+    case READ_POSITION:
+        cmd->xfer = buf[8] | (buf[7] << 8);
+        break;
+    case FORMAT_UNIT:
+        cmd->xfer = buf[4] | (buf[3] << 8);
         break;
     /* generic commands */
     default:
@@ -809,6 +884,8 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
     case SEARCH_LOW_12:
     case MEDIUM_SCAN:
     case SEND_VOLUME_TAG:
+    case SEND_CUE_SHEET:
+    case SEND_DVD_STRUCTURE:
     case PERSISTENT_RESERVE_OUT:
     case MAINTENANCE_OUT:
         cmd->mode = SCSI_XFER_TO_DEV;
@@ -835,7 +912,7 @@ static uint64_t scsi_cmd_lba(SCSICommand *cmd)
     case 1:
     case 2:
     case 5:
-        lba = ldl_be_p(&buf[2]);
+        lba = ldl_be_p(&buf[2]) & 0xffffffffULL;
         break;
     case 4:
         lba = ldq_be_p(&buf[2]);
