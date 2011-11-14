@@ -164,6 +164,8 @@ typedef struct {
 
     /* Periodic flush and clear need check flag */
     QEMUTimer *need_check_timer;
+
+    Error *migration_blocker;
 } BDRVQEDState;
 
 enum {
