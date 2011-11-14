@@ -89,6 +89,9 @@ void process_incoming_migration(QEMUFile *f)
     qemu_announce_self();
     DPRINTF("successfully loaded vm state\n");
 
+    /* Make sure all file formats flush their mutable metadata */
+    bdrv_invalidate_cache_all();
+
     if (autostart) {
         vm_start();
     } else {

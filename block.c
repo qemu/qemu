@@ -2839,6 +2839,22 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     }
 }
 
+void bdrv_invalidate_cache(BlockDriverState *bs)
+{
+    if (bs->drv && bs->drv->bdrv_invalidate_cache) {
+        bs->drv->bdrv_invalidate_cache(bs);
+    }
+}
+
+void bdrv_invalidate_cache_all(void)
+{
+    BlockDriverState *bs;
+
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        bdrv_invalidate_cache(bs);
+    }
+}
+
 int bdrv_flush(BlockDriverState *bs)
 {
     Coroutine *co;

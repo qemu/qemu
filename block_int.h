@@ -88,6 +88,11 @@ struct BlockDriver {
         int64_t sector_num, int nb_sectors);
 
     /*
+     * Invalidate any cached meta-data.
+     */
+    void (*bdrv_invalidate_cache)(BlockDriverState *bs);
+
+    /*
      * Flushes all data that was already written to the OS all the way down to
      * the disk (for example raw-posix calls fsync()).
      */
