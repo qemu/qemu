@@ -18,6 +18,8 @@
 #include "pci.h"
 #include "msix.h"
 #include "kvm.h"
+#include "migration.h"
+#include "qerror.h"
 
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -77,6 +79,8 @@ typedef struct IVShmemState {
     uint32_t vectors;
     uint32_t features;
     EventfdEntry *eventfd_table;
+
+    Error *migration_blocker;
 
     char * shmobj;
     char * sizearg;
@@ -646,7 +650,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
     }
 
     if (s->role_val == IVSHMEM_PEER) {
-        register_device_unmigratable(&s->dev.qdev, "ivshmem", s);
+        error_set(&s->migration_blocker, QERR_DEVICE_FEATURE_BLOCKS_MIGRATION, "ivshmem", "peer mode");
+        migrate_add_blocker(s->migration_blocker);
     }
 
     pci_conf = s->dev.config;
@@ -740,6 +745,11 @@ static int pci_ivshmem_init(PCIDevice *dev)
 static int pci_ivshmem_uninit(PCIDevice *dev)
 {
     IVShmemState *s = DO_UPCAST(IVShmemState, dev, dev);
+
+    if (s->migration_blocker) {
+        migrate_del_blocker(s->migration_blocker);
+        error_free(s->migration_blocker);
+    }
 
     memory_region_destroy(&s->ivshmem_mmio);
     memory_region_del_subregion(&s->bar, &s->ivshmem);

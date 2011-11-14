@@ -73,6 +73,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' is in use",
     },
     {
+        .error_fmt = QERR_DEVICE_FEATURE_BLOCKS_MIGRATION,
+        .desc      = "Migration is disabled when using feature '%(feature)' in device '%(device)'",
+    },
+    {
         .error_fmt = QERR_DEVICE_LOCKED,
         .desc      = "Device '%(device)' is locked",
     },
