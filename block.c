@@ -1896,17 +1896,6 @@ typedef struct BdrvCoIsAllocatedData {
     bool done;
 } BdrvCoIsAllocatedData;
 
-/* Coroutine wrapper for bdrv_is_allocated() */
-static void coroutine_fn bdrv_is_allocated_co_entry(void *opaque)
-{
-    BdrvCoIsAllocatedData *data = opaque;
-    BlockDriverState *bs = data->bs;
-
-    data->ret = bs->drv->bdrv_co_is_allocated(bs, data->sector_num,
-                                              data->nb_sectors, data->pnum);
-    data->done = true;
-}
-
 /*
  * Returns true iff the specified sector is present in the disk image. Drivers
  * not implementing the functionality are assumed to not support backing files,
@@ -1918,8 +1907,8 @@ static void coroutine_fn bdrv_is_allocated_co_entry(void *opaque)
  *
  * 'nb_sectors' is the max value 'pnum' should be set to.
  */
-int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
-	int *pnum)
+int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs, int64_t sector_num,
+                                      int nb_sectors, int *pnum)
 {
     if (!bs->drv->bdrv_co_is_allocated) {
         int64_t n;
@@ -1932,6 +1921,28 @@ int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
         return 1;
     }
 
+    return bs->drv->bdrv_co_is_allocated(bs, sector_num, nb_sectors, pnum);
+}
+
+/* Coroutine wrapper for bdrv_is_allocated() */
+static void coroutine_fn bdrv_is_allocated_co_entry(void *opaque)
+{
+    BdrvCoIsAllocatedData *data = opaque;
+    BlockDriverState *bs = data->bs;
+
+    data->ret = bdrv_co_is_allocated(bs, data->sector_num, data->nb_sectors,
+                                     data->pnum);
+    data->done = true;
+}
+
+/*
+ * Synchronous wrapper around bdrv_co_is_allocated().
+ *
+ * See bdrv_co_is_allocated() for details.
+ */
+int bdrv_is_allocated(BlockDriverState *bs, int64_t sector_num, int nb_sectors,
+                      int *pnum)
+{
     Coroutine *co;
     BdrvCoIsAllocatedData data = {
         .bs = bs,
