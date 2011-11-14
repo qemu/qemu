@@ -344,16 +344,19 @@ static int qcow2_set_key(BlockDriverState *bs, const char *key)
     return 0;
 }
 
-static int qcow2_is_allocated(BlockDriverState *bs, int64_t sector_num,
-                              int nb_sectors, int *pnum)
+static int coroutine_fn qcow2_co_is_allocated(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, int *pnum)
 {
+    BDRVQcowState *s = bs->opaque;
     uint64_t cluster_offset;
     int ret;
 
     *pnum = nb_sectors;
-    /* FIXME We can get errors here, but the bdrv_is_allocated interface can't
-     * pass them on today */
+    /* FIXME We can get errors here, but the bdrv_co_is_allocated interface
+     * can't pass them on today */
+    qemu_co_mutex_lock(&s->lock);
     ret = qcow2_get_cluster_offset(bs, sector_num << 9, pnum, &cluster_offset);
+    qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
         *pnum = 0;
     }
@@ -1277,7 +1280,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_open          = qcow2_open,
     .bdrv_close         = qcow2_close,
     .bdrv_create        = qcow2_create,
-    .bdrv_is_allocated  = qcow2_is_allocated,
+    .bdrv_co_is_allocated = qcow2_co_is_allocated,
     .bdrv_set_key       = qcow2_set_key,
     .bdrv_make_empty    = qcow2_make_empty,
 
