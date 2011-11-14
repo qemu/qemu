@@ -1374,10 +1374,8 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
             goto fail;
         }
         break;
-    case SEEK_6:
     case SEEK_10:
-        DPRINTF("Seek(%d) (sector %" PRId64 ")\n", command == SEEK_6 ? 6 : 10,
-                r->req.cmd.lba);
+        DPRINTF("Seek(10) (sector %" PRId64 ")\n", r->req.cmd.lba);
         if (r->req.cmd.lba > s->qdev.max_lba) {
             goto illegal_lba;
         }

@@ -681,7 +681,7 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case TEST_UNIT_READY:
     case REWIND:
     case START_STOP:
-    case SEEK_6:
+    case SET_CAPACITY:
     case WRITE_FILEMARKS:
     case SPACE:
     case RESERVE:
@@ -1036,7 +1036,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ REASSIGN_BLOCKS          ] = "REASSIGN_BLOCKS",
         [ READ_6                   ] = "READ_6",
         [ WRITE_6                  ] = "WRITE_6",
-        [ SEEK_6                   ] = "SEEK_6",
+        [ SET_CAPACITY             ] = "SET_CAPACITY",
         [ READ_REVERSE             ] = "READ_REVERSE",
         [ WRITE_FILEMARKS          ] = "WRITE_FILEMARKS",
         [ SPACE                    ] = "SPACE",
@@ -1064,7 +1064,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ SEARCH_EQUAL             ] = "SEARCH_EQUAL",
         [ SEARCH_LOW               ] = "SEARCH_LOW",
         [ SET_LIMITS               ] = "SET_LIMITS",
-        [ PRE_FETCH                ] = "PRE_FETCH",
+        [ PRE_FETCH                ] = "PRE_FETCH/READ_POSITION",
         /* READ_POSITION and PRE_FETCH use the same operation code */
         [ SYNCHRONIZE_CACHE        ] = "SYNCHRONIZE_CACHE",
         [ LOCK_UNLOCK_CACHE        ] = "LOCK_UNLOCK_CACHE",
@@ -1101,9 +1101,11 @@ static const char *scsi_command_name(uint8_t cmd)
         [ WRITE_16                 ] = "WRITE_16",
         [ WRITE_VERIFY_16          ] = "WRITE_VERIFY_16",
         [ VERIFY_16                ] = "VERIFY_16",
-        [ SYNCHRONIZE_CACHE_16     ] = "SYNCHRONIZE_CACHE_16",
+        [ PRE_FETCH_16             ] = "PRE_FETCH_16",
+        [ SYNCHRONIZE_CACHE_16     ] = "SPACE_16/SYNCHRONIZE_CACHE_16",
+        /* SPACE_16 and SYNCHRONIZE_CACHE_16 use the same operation code */
         [ LOCATE_16                ] = "LOCATE_16",
-        [ WRITE_SAME_16            ] = "WRITE_SAME_16",
+        [ WRITE_SAME_16            ] = "ERASE_16/WRITE_SAME_16",
         /* ERASE_16 and WRITE_SAME_16 use the same operation code */
         [ SERVICE_ACTION_IN_16     ] = "SERVICE_ACTION_IN_16",
         [ WRITE_LONG_16            ] = "WRITE_LONG_16",
@@ -1113,6 +1115,8 @@ static const char *scsi_command_name(uint8_t cmd)
         [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",
         [ READ_12                  ] = "READ_12",
         [ WRITE_12                 ] = "WRITE_12",
+        [ ERASE_12                 ] = "ERASE_12/GET_PERFORMANCE",
+        /* ERASE_12 and GET_PERFORMANCE use the same operation code */
         [ SERVICE_ACTION_IN_12     ] = "SERVICE_ACTION_IN_12",
         [ WRITE_VERIFY_12          ] = "WRITE_VERIFY_12",
         [ VERIFY_12                ] = "VERIFY_12",
@@ -1120,9 +1124,18 @@ static const char *scsi_command_name(uint8_t cmd)
         [ SEARCH_EQUAL_12          ] = "SEARCH_EQUAL_12",
         [ SEARCH_LOW_12            ] = "SEARCH_LOW_12",
         [ READ_ELEMENT_STATUS      ] = "READ_ELEMENT_STATUS",
-        [ SEND_VOLUME_TAG          ] = "SEND_VOLUME_TAG",
+        [ SEND_VOLUME_TAG          ] = "SEND_VOLUME_TAG/SET_STREAMING",
+        /* SEND_VOLUME_TAG and SET_STREAMING use the same operation code */
+        [ READ_CD                  ] = "READ_CD",
         [ READ_DEFECT_DATA_12      ] = "READ_DEFECT_DATA_12",
+        [ READ_DVD_STRUCTURE       ] = "READ_DVD_STRUCTURE",
+        [ RESERVE_TRACK            ] = "RESERVE_TRACK",
+        [ SEND_CUE_SHEET           ] = "SEND_CUE_SHEET",
+        [ SEND_DVD_STRUCTURE       ] = "SEND_DVD_STRUCTURE",
         [ SET_CD_SPEED             ] = "SET_CD_SPEED",
+        [ SET_READ_AHEAD           ] = "SET_READ_AHEAD",
+        [ ALLOW_OVERWRITE          ] = "ALLOW_OVERWRITE",
+        [ MECHANISM_STATUS         ] = "MECHANISM_STATUS",
     };
 
     if (cmd >= ARRAY_SIZE(names) || names[cmd] == NULL)
