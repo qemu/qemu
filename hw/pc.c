@@ -47,6 +47,7 @@
 #include "ui/qemu-spice.h"
 #include "memory.h"
 #include "exec-memory.h"
+#include "arch_init.h"
 
 /* output Bochs bios info messages */
 //#define DEBUG_BIOS
@@ -1097,7 +1098,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
     qemu_irq pit_alt_irq = NULL;
     qemu_irq rtc_irq = NULL;
     qemu_irq *a20_line;
-    ISADevice *i8042, *port92, *vmmouse, *pit;
+    ISADevice *i8042, *port92, *vmmouse, *pit = NULL;
     qemu_irq *cpu_exit_irq;
 
     register_ioport_write(0x80, 1, 1, ioport80_write, NULL);
@@ -1126,16 +1127,18 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
 
     qemu_register_boot_set(pc_boot_set, *rtc_state);
 
-    if (kvm_irqchip_in_kernel()) {
-        pit = kvm_pit_init(isa_bus, 0x40);
-    } else {
-        pit = pit_init(isa_bus, 0x40, pit_isa_irq, pit_alt_irq);
+    if (!xen_enabled()) {
+        if (kvm_irqchip_in_kernel()) {
+            pit = kvm_pit_init(isa_bus, 0x40);
+        } else {
+            pit = pit_init(isa_bus, 0x40, pit_isa_irq, pit_alt_irq);
+        }
+        if (hpet) {
+            /* connect PIT to output control line of the HPET */
+            qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(&pit->qdev, 0));
+        }
+        pcspk_init(isa_bus, pit);
     }
-    if (hpet) {
-        /* connect PIT to output control line of the HPET */
-        qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(&pit->qdev, 0));
-    }
-    pcspk_init(isa_bus, pit);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
