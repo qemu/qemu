@@ -956,8 +956,9 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
         p += 8;
     }
 
+    /* MMC prescribes that CD/DVD drives have no block descriptors.  */
     bdrv_get_geometry(s->qdev.conf.bs, &nb_sectors);
-    if (!dbd && nb_sectors) {
+    if (!dbd && s->qdev.type == TYPE_DISK && nb_sectors) {
         if (r->req.cmd.buf[0] == MODE_SENSE) {
             outbuf[3] = 8; /* Block descriptor length  */
         } else { /* MODE_SENSE_10 */
