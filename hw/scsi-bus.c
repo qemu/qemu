@@ -9,8 +9,6 @@
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
 static void scsi_req_dequeue(SCSIRequest *req);
-static int scsi_build_sense(uint8_t *in_buf, int in_len,
-                            uint8_t *buf, int len, bool fixed);
 
 static struct BusInfo scsi_bus_info = {
     .name  = "SCSI",
@@ -502,7 +500,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                                  hba_private);
         } else if (lun != d->lun ||
             buf[0] == REPORT_LUNS ||
-            buf[0] == REQUEST_SENSE) {
+            (buf[0] == REQUEST_SENSE && (d->sense_len || cmd.xfer < 4))) {
             req = scsi_req_alloc(&reqops_target_command, d, tag, lun,
                                  hba_private);
         } else {

@@ -1179,6 +1179,11 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
         outbuf[7] = 0;
         buflen = 8;
         break;
+    case REQUEST_SENSE:
+        /* Just return "NO SENSE".  */
+        buflen = scsi_build_sense(NULL, 0, outbuf, r->buflen,
+                                  (req->cmd.buf[1] & 1) == 0);
+        break;
     case MECHANISM_STATUS:
         buflen = scsi_emulate_mechanism_status(s, outbuf);
         if (buflen < 0) {
@@ -1313,6 +1318,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     case GET_EVENT_STATUS_NOTIFICATION:
     case MECHANISM_STATUS:
     case SERVICE_ACTION_IN_16:
+    case REQUEST_SENSE:
     case VERIFY_10:
         rc = scsi_disk_emulate_command(r);
         if (rc < 0) {
@@ -1407,8 +1413,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         }
 
         break;
-    case REQUEST_SENSE:
-        abort();
     default:
         DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
