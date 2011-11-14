@@ -2745,7 +2745,7 @@ if test "$softmmu" = yes ; then
       checks="check-qint check-qstring check-qdict check-qlist"
       checks="check-qfloat check-qjson $checks"
     fi
-    test_progs="$checks test-coroutine"
+    test_progs="$checks test-coroutine test-qmp-output-visitor"
   fi
 fi
 
