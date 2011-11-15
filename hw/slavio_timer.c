@@ -61,6 +61,7 @@ typedef struct SLAVIO_TIMERState {
 } SLAVIO_TIMERState;
 
 typedef struct TimerContext {
+    MemoryRegion iomem;
     SLAVIO_TIMERState *s;
     unsigned int timer_index; /* 0 for system, 1 ... MAX_CPUS for CPU timers */
 } TimerContext;
@@ -128,7 +129,8 @@ static void slavio_timer_irq(void *opaque)
     }
 }
 
-static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr,
+                                       unsigned size)
 {
     TimerContext *tc = opaque;
     SLAVIO_TIMERState *s = tc->s;
@@ -188,7 +190,7 @@ static uint32_t slavio_timer_mem_readl(void *opaque, target_phys_addr_t addr)
 }
 
 static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
-                                    uint32_t val)
+                                    uint64_t val, unsigned size)
 {
     TimerContext *tc = opaque;
     SLAVIO_TIMERState *s = tc->s;
@@ -311,16 +313,14 @@ static void slavio_timer_mem_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const slavio_timer_mem_read[3] = {
-    NULL,
-    NULL,
-    slavio_timer_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const slavio_timer_mem_write[3] = {
-    NULL,
-    NULL,
-    slavio_timer_mem_writel,
+static const MemoryRegionOps slavio_timer_mem_ops = {
+    .read = slavio_timer_mem_readl,
+    .write = slavio_timer_mem_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static const VMStateDescription vmstate_timer = {
@@ -374,13 +374,15 @@ static void slavio_timer_reset(DeviceState *d)
 
 static int slavio_timer_init1(SysBusDevice *dev)
 {
-    int io;
     SLAVIO_TIMERState *s = FROM_SYSBUS(SLAVIO_TIMERState, dev);
     QEMUBH *bh;
     unsigned int i;
     TimerContext *tc;
 
     for (i = 0; i <= MAX_CPUS; i++) {
+        uint64_t size;
+        char timer_name[20];
+
         tc = g_malloc0(sizeof(TimerContext));
         tc->s = s;
         tc->timer_index = i;
@@ -389,14 +391,11 @@ static int slavio_timer_init1(SysBusDevice *dev)
         s->cputimer[i].timer = ptimer_init(bh);
         ptimer_set_period(s->cputimer[i].timer, TIMER_PERIOD);
 
-        io = cpu_register_io_memory(slavio_timer_mem_read,
-                                    slavio_timer_mem_write, tc,
-                                    DEVICE_NATIVE_ENDIAN);
-        if (i == 0) {
-            sysbus_init_mmio(dev, SYS_TIMER_SIZE, io);
-        } else {
-            sysbus_init_mmio(dev, CPU_TIMER_SIZE, io);
-        }
+        size = i == 0 ? SYS_TIMER_SIZE : CPU_TIMER_SIZE;
+        snprintf(timer_name, sizeof(timer_name), "timer-%i", i);
+        memory_region_init_io(&tc->iomem, &slavio_timer_mem_ops, tc,
+                              timer_name, size);
+        sysbus_init_mmio_region(dev, &tc->iomem);
 
         sysbus_init_irq(dev, &s->cputimer[i].irq);
     }
