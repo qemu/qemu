@@ -41,6 +41,7 @@ typedef struct MiscState {
     MemoryRegion mdm_iomem;
     MemoryRegion led_iomem;
     MemoryRegion sysctrl_iomem;
+    MemoryRegion aux1_iomem;
     qemu_irq irq;
     qemu_irq fdc_tc;
     uint32_t dummy;
@@ -197,7 +198,7 @@ static const MemoryRegionOps slavio_mdm_mem_ops = {
 };
 
 static void slavio_aux1_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                   uint32_t val)
+                                   uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
 
@@ -213,7 +214,8 @@ static void slavio_aux1_mem_writeb(void *opaque, target_phys_addr_t addr,
     s->aux1 = val & 0xff;
 }
 
-static uint32_t slavio_aux1_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t slavio_aux1_mem_readb(void *opaque, target_phys_addr_t addr,
+                                      unsigned size)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -223,16 +225,14 @@ static uint32_t slavio_aux1_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc * const slavio_aux1_mem_read[3] = {
-    slavio_aux1_mem_readb,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const slavio_aux1_mem_write[3] = {
-    slavio_aux1_mem_writeb,
-    NULL,
-    NULL,
+static const MemoryRegionOps slavio_aux1_mem_ops = {
+    .read = slavio_aux1_mem_readb,
+    .write = slavio_aux1_mem_writeb,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static void slavio_aux2_mem_writeb(void *opaque, target_phys_addr_t addr,
@@ -455,10 +455,9 @@ static int slavio_misc_init1(SysBusDevice *dev)
     sysbus_init_mmio_region(dev, &s->sysctrl_iomem);
 
     /* AUX 1 (Misc System Functions) */
-    io = cpu_register_io_memory(slavio_aux1_mem_read,
-                                slavio_aux1_mem_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MISC_SIZE, io);
+    memory_region_init_io(&s->aux1_iomem, &slavio_aux1_mem_ops, s,
+                          "misc-system-functions", MISC_SIZE);
+    sysbus_init_mmio_region(dev, &s->aux1_iomem);
 
     /* AUX 2 (Software Powerdown Control) */
     io = cpu_register_io_memory(slavio_aux2_mem_read,
