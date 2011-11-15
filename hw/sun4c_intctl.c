@@ -46,6 +46,7 @@
 
 typedef struct Sun4c_INTCTLState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
 #ifdef DEBUG_IRQ_COUNT
     uint64_t irq_count;
 #endif
@@ -60,7 +61,8 @@ typedef struct Sun4c_INTCTLState {
 
 static void sun4c_check_interrupts(void *opaque);
 
-static uint32_t sun4c_intctl_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t sun4c_intctl_mem_read(void *opaque, target_phys_addr_t addr,
+                                      unsigned size)
 {
     Sun4c_INTCTLState *s = opaque;
     uint32_t ret;
@@ -71,27 +73,25 @@ static uint32_t sun4c_intctl_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void sun4c_intctl_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                    uint32_t val)
+static void sun4c_intctl_mem_write(void *opaque, target_phys_addr_t addr,
+                                   uint64_t val, unsigned size)
 {
     Sun4c_INTCTLState *s = opaque;
 
-    DPRINTF("write reg 0x" TARGET_FMT_plx " = %x\n", addr, val);
+    DPRINTF("write reg 0x" TARGET_FMT_plx " = %x\n", addr, (unsigned)val);
     val &= 0xbf;
     s->reg = val;
     sun4c_check_interrupts(s);
 }
 
-static CPUReadMemoryFunc * const sun4c_intctl_mem_read[3] = {
-    sun4c_intctl_mem_readb,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const sun4c_intctl_mem_write[3] = {
-    sun4c_intctl_mem_writeb,
-    NULL,
-    NULL,
+static const MemoryRegionOps sun4c_intctl_mem_ops = {
+    .read = sun4c_intctl_mem_read,
+    .write = sun4c_intctl_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 void sun4c_pic_info(Monitor *mon, void *opaque)
@@ -192,13 +192,11 @@ static void sun4c_intctl_reset(DeviceState *d)
 static int sun4c_intctl_init1(SysBusDevice *dev)
 {
     Sun4c_INTCTLState *s = FROM_SYSBUS(Sun4c_INTCTLState, dev);
-    int io_memory;
     unsigned int i;
 
-    io_memory = cpu_register_io_memory(sun4c_intctl_mem_read,
-                                       sun4c_intctl_mem_write, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, INTCTL_SIZE, io_memory);
+    memory_region_init_io(&s->iomem, &sun4c_intctl_mem_ops, s,
+                          "intctl", INTCTL_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
     qdev_init_gpio_in(&dev->qdev, sun4c_set_irq, 8);
 
     for (i = 0; i < MAX_PILS; i++) {
