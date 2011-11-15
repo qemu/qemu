@@ -36,6 +36,7 @@
 
 typedef struct MiscState {
     SysBusDevice busdev;
+    MemoryRegion cfg_iomem;
     qemu_irq irq;
     qemu_irq fdc_tc;
     uint32_t dummy;
@@ -101,7 +102,7 @@ static void slavio_set_power_fail(void *opaque, int irq, int power_failing)
 }
 
 static void slavio_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
+                                  uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
 
@@ -110,7 +111,8 @@ static void slavio_cfg_mem_writeb(void *opaque, target_phys_addr_t addr,
     slavio_misc_update_irq(s);
 }
 
-static uint32_t slavio_cfg_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t slavio_cfg_mem_readb(void *opaque, target_phys_addr_t addr,
+                                     unsigned size)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -120,16 +122,14 @@ static uint32_t slavio_cfg_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc * const slavio_cfg_mem_read[3] = {
-    slavio_cfg_mem_readb,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const slavio_cfg_mem_write[3] = {
-    slavio_cfg_mem_writeb,
-    NULL,
-    NULL,
+static const MemoryRegionOps slavio_cfg_mem_ops = {
+    .read = slavio_cfg_mem_readb,
+    .write = slavio_cfg_mem_writeb,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static void slavio_diag_mem_writeb(void *opaque, target_phys_addr_t addr,
@@ -428,10 +428,9 @@ static int slavio_misc_init1(SysBusDevice *dev)
 
     /* 8 bit registers */
     /* Slavio control */
-    io = cpu_register_io_memory(slavio_cfg_mem_read,
-                                slavio_cfg_mem_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MISC_SIZE, io);
+    memory_region_init_io(&s->cfg_iomem, &slavio_cfg_mem_ops, s,
+                          "configuration", MISC_SIZE);
+    sysbus_init_mmio_region(dev, &s->cfg_iomem);
 
     /* Diagnostics */
     io = cpu_register_io_memory(slavio_diag_mem_read,
