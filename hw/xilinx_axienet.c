@@ -308,6 +308,7 @@ struct TEMAC  {
 
 struct XilinxAXIEnet {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq irq;
     void *dmach;
     NICState *nic;
@@ -411,7 +412,7 @@ static void enet_update_irq(struct XilinxAXIEnet *s)
     qemu_set_irq(s->irq, !!s->regs[R_IP]);
 }
 
-static uint32_t enet_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t enet_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
     struct XilinxAXIEnet *s = opaque;
     uint32_t r = 0;
@@ -502,8 +503,8 @@ static uint32_t enet_readl(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static void
-enet_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void enet_write(void *opaque, target_phys_addr_t addr,
+                       uint64_t value, unsigned size)
 {
     struct XilinxAXIEnet *s = opaque;
     struct TEMAC *t = &s->TEMAC;
@@ -596,7 +597,7 @@ enet_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
 
         default:
             DENET(qemu_log("%s addr=" TARGET_FMT_plx " v=%x\n",
-                           __func__, addr * 4, value));
+                           __func__, addr * 4, (unsigned)value));
             if (addr < ARRAY_SIZE(s->regs)) {
                 s->regs[addr] = value;
             }
@@ -605,16 +606,10 @@ enet_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
     enet_update_irq(s);
 }
 
-static CPUReadMemoryFunc * const enet_read[] = {
-    &enet_readl,
-    &enet_readl,
-    &enet_readl,
-};
-
-static CPUWriteMemoryFunc * const enet_write[] = {
-    &enet_writel,
-    &enet_writel,
-    &enet_writel,
+static const MemoryRegionOps enet_ops = {
+    .read = enet_read,
+    .write = enet_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int eth_can_rx(VLANClientState *nc)
@@ -847,7 +842,6 @@ static NetClientInfo net_xilinx_enet_info = {
 static int xilinx_enet_init(SysBusDevice *dev)
 {
     struct XilinxAXIEnet *s = FROM_SYSBUS(typeof(*s), dev);
-    int enet_regs;
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -857,9 +851,8 @@ static int xilinx_enet_init(SysBusDevice *dev)
 
     xlx_dma_connect_client(s->dmach, s, axienet_stream_push);
 
-    enet_regs = cpu_register_io_memory(enet_read, enet_write, s,
-                                       DEVICE_LITTLE_ENDIAN);
-    sysbus_init_mmio(dev, 0x40000, enet_regs);
+    memory_region_init_io(&s->iomem, &enet_ops, s, "enet", 0x40000);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_enet_info, &s->conf,
