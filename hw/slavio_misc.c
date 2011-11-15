@@ -48,6 +48,7 @@ typedef struct MiscState {
 
 typedef struct APCState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq cpu_halt;
 } APCState;
 
@@ -270,7 +271,8 @@ static CPUWriteMemoryFunc * const slavio_aux2_mem_write[3] = {
     NULL,
 };
 
-static void apc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void apc_mem_writeb(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned size)
 {
     APCState *s = opaque;
 
@@ -278,7 +280,8 @@ static void apc_mem_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     qemu_irq_raise(s->cpu_halt);
 }
 
-static uint32_t apc_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t apc_mem_readb(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     uint32_t ret = 0;
 
@@ -286,16 +289,14 @@ static uint32_t apc_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc * const apc_mem_read[3] = {
-    apc_mem_readb,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const apc_mem_write[3] = {
-    apc_mem_writeb,
-    NULL,
-    NULL,
+static const MemoryRegionOps apc_mem_ops = {
+    .read = apc_mem_readb,
+    .write = apc_mem_writeb,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    }
 };
 
 static uint32_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr)
@@ -407,14 +408,13 @@ static const VMStateDescription vmstate_misc = {
 static int apc_init1(SysBusDevice *dev)
 {
     APCState *s = FROM_SYSBUS(APCState, dev);
-    int io;
 
     sysbus_init_irq(dev, &s->cpu_halt);
 
     /* Power management (APC) XXX: not a Slavio device */
-    io = cpu_register_io_memory(apc_mem_read, apc_mem_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MISC_SIZE, io);
+    memory_region_init_io(&s->iomem, &apc_mem_ops, s,
+                          "apc", MISC_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
