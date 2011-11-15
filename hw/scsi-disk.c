@@ -1553,7 +1553,7 @@ static int scsi_initfn(SCSIDevice *dev)
     bdrv_set_buffer_alignment(s->qdev.conf.bs, s->qdev.blocksize);
 
     bdrv_iostatus_enable(s->qdev.conf.bs);
-    add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, ",0");
+    add_boot_device_path(s->qdev.conf.bootindex, &dev->qdev, NULL);
     return 0;
 }
 
