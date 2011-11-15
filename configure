@@ -172,7 +172,7 @@ aix="no"
 blobs="yes"
 pkgversion=""
 check_utests=""
-user_pie="no"
+pie=""
 zero_malloc=""
 trace_backend="nop"
 trace_file="trace"
@@ -701,9 +701,9 @@ for opt do
   ;;
   --disable-guest-base) guest_base="no"
   ;;
-  --enable-user-pie) user_pie="yes"
+  --enable-pie) pie="yes"
   ;;
-  --disable-user-pie) user_pie="no"
+  --disable-pie) pie="no"
   ;;
   --enable-uname-release=*) uname_release="$optarg"
   ;;
@@ -1031,8 +1031,8 @@ echo "  --disable-bsd-user       disable all BSD usermode emulation targets"
 echo "  --enable-guest-base      enable GUEST_BASE support for usermode"
 echo "                           emulation targets"
 echo "  --disable-guest-base     disable GUEST_BASE support"
-echo "  --enable-user-pie        build usermode emulation targets as PIE"
-echo "  --disable-user-pie       do not build usermode emulation targets as PIE"
+echo "  --enable-pie             build Position Independent Executables"
+echo "  --disable-pie            do not build Position Independent Executables"
 echo "  --fmod-lib               path to FMOD library"
 echo "  --fmod-inc               path to FMOD includes"
 echo "  --oss-lib                path to OSS library"
@@ -1098,6 +1098,47 @@ for flag in $gcc_flags; do
 	QEMU_CFLAGS="$QEMU_CFLAGS $flag"
     fi
 done
+
+if test "$static" = "yes" ; then
+  if test "$pie" = "yes" ; then
+    echo "static and pie are mutually incompatible"
+    exit 1
+  else
+    pie="no"
+  fi
+fi
+
+if test "$pie" = ""; then
+  case "$cpu-$targetos" in
+    i386-Linux|x86_64-Linux)
+      ;;
+    *)
+      pie="no"
+      ;;
+  esac
+fi
+
+if test "$pie" != "no" ; then
+  cat > $TMPC << EOF
+int main(void) { return 0; }
+EOF
+  if compile_prog "-fPIE -DPIE" "-pie"; then
+    QEMU_CFLAGS="-fPIE -DPIE $QEMU_CFLAGS"
+    LDFLAGS="-pie $LDFLAGS"
+    pie="yes"
+    if compile_prog "" "-Wl,-z,relro -Wl,-z,now" ; then
+      LDFLAGS="-Wl,-z,relro -Wl,-z,now $LDFLAGS"
+    fi
+  else
+    if test "$pie" = "yes"; then
+      echo "PIE not available due to missing toolchain support"
+      exit 1
+    else
+      echo "Disabling PIE due to missing toolchain support"
+      pie="no"
+    fi
+  fi
+fi
 
 #
 # Solaris specific configure tool chain decisions
@@ -2765,7 +2806,7 @@ echo "Documentation     $docs"
 echo "uname -r          $uname_release"
 echo "NPTL support      $nptl"
 echo "GUEST_BASE        $guest_base"
-echo "PIE user targets  $user_pie"
+echo "PIE               $pie"
 echo "vde support       $vde"
 echo "Linux AIO support $linux_aio"
 echo "ATTR/XATTR support $attr"
@@ -3225,9 +3266,6 @@ for d in libdis libdis-user; do
     symlink $source_path/Makefile.dis $d/Makefile
     echo > $d/config.mak
 done
-if test "$static" = "no" -a "$user_pie" = "yes" ; then
-  echo "QEMU_CFLAGS+=-fpie" > libdis-user/config.mak
-fi
 
 for target in $target_list; do
 target_dir="$target"
@@ -3646,12 +3684,6 @@ if test "$target_softmmu" = "yes" ; then
   esac
 fi
 
-if test "$target_user_only" = "yes" -a "$static" = "no" -a \
-	"$user_pie" = "yes" ; then
-  cflags="-fpie $cflags"
-  ldflags="-pie $ldflags"
-fi
-
 if test "$target_softmmu" = "yes" -a \( \
         "$TARGET_ARCH" = "microblaze" -o \
         "$TARGET_ARCH" = "cris" \) ; then
@@ -3775,9 +3807,6 @@ d=libuser
 mkdir -p $d
 mkdir -p $d/trace
 symlink $source_path/Makefile.user $d/Makefile
-if test "$static" = "no" -a "$user_pie" = "yes" ; then
-  echo "QEMU_CFLAGS+=-fpie" > $d/config.mak
-fi
 
 if test "$docs" = "yes" ; then
   mkdir -p QMP
