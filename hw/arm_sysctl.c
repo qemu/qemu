@@ -231,14 +231,29 @@ static void arm_sysctl_write(void *opaque, target_phys_addr_t offset,
         s->nvflags &= ~val;
         break;
     case 0x40: /* RESETCTL */
-        if (board_id(s) == BOARD_ID_VEXPRESS) {
+        switch (board_id(s)) {
+        case BOARD_ID_PB926:
+            if (s->lockval == LOCK_VALUE) {
+                s->resetlevel = val;
+                if (val & 0x100) {
+                    qemu_system_reset_request();
+                }
+            }
+            break;
+        case BOARD_ID_PBX:
+        case BOARD_ID_PBA8:
+            if (s->lockval == LOCK_VALUE) {
+                s->resetlevel = val;
+                if (val & 0x04) {
+                    qemu_system_reset_request();
+                }
+            }
+            break;
+        case BOARD_ID_VEXPRESS:
+        case BOARD_ID_EB:
+        default:
             /* reserved: RAZ/WI */
             break;
-        }
-        if (s->lockval == LOCK_VALUE) {
-            s->resetlevel = val;
-            if (val & 0x100)
-                qemu_system_reset_request ();
         }
         break;
     case 0x44: /* PCICTL */

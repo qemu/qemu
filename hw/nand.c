@@ -19,6 +19,7 @@
 # include "flash.h"
 # include "blockdev.h"
 # include "sysbus.h"
+#include "qemu-error.h"
 
 # define NAND_CMD_READ0		0x00
 # define NAND_CMD_READ1		0x01
@@ -384,18 +385,23 @@ static int nand_device_init(SysBusDevice *dev)
         nand_init_2048(s);
         break;
     default:
-        hw_error("%s: Unsupported NAND block size.\n", __func__);
+        error_report("Unsupported NAND block size");
+        return -1;
     }
 
     pagesize = 1 << s->oob_shift;
     s->mem_oob = 1;
-    if (s->bdrv && bdrv_getlength(s->bdrv) >=
-            (s->pages << s->page_shift) + (s->pages << s->oob_shift)) {
-        pagesize = 0;
-        s->mem_oob = 0;
-    }
-
-    if (!s->bdrv) {
+    if (s->bdrv) {
+        if (bdrv_is_read_only(s->bdrv)) {
+            error_report("Can't use a read-only drive");
+            return -1;
+        }
+        if (bdrv_getlength(s->bdrv) >=
+                (s->pages << s->page_shift) + (s->pages << s->oob_shift)) {
+            pagesize = 0;
+            s->mem_oob = 0;
+        }
+    } else {
         pagesize += 1 << s->page_shift;
     }
     if (pagesize) {

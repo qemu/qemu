@@ -26,6 +26,7 @@
 #include "memory.h"
 #include "exec-memory.h"
 #include "sysbus.h"
+#include "qemu-error.h"
 
 /* 11 for 2kB-page OneNAND ("2nd generation") and 10 for 1kB-page chips */
 #define PAGE_SHIFT	11
@@ -772,6 +773,10 @@ static int onenand_initfn(SysBusDevice *dev)
         s->image = memset(g_malloc(size + (size >> 5)),
                           0xff, size + (size >> 5));
     } else {
+        if (bdrv_is_read_only(s->bdrv)) {
+            error_report("Can't use a read-only drive");
+            return -1;
+        }
         s->bdrv_cur = s->bdrv;
     }
     s->otp = memset(g_malloc((64 + 2) << PAGE_SHIFT),

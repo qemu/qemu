@@ -510,7 +510,7 @@ static void omap2_gpio_module_write(void *opaque, target_phys_addr_t addr,
 
 static uint32_t omap2_gpio_module_readp(void *opaque, target_phys_addr_t addr)
 {
-    return omap2_gpio_module_readp(opaque, addr) >> ((addr & 3) << 3);
+    return omap2_gpio_module_read(opaque, addr & ~3) >> ((addr & 3) << 3);
 }
 
 static void omap2_gpio_module_writep(void *opaque, target_phys_addr_t addr,
