@@ -54,6 +54,7 @@ typedef struct SLAVIO_CPUINTCTLState {
 
 typedef struct SLAVIO_INTCTLState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
 #ifdef DEBUG_IRQ_COUNT
     uint64_t irq_count[32];
 #endif
@@ -134,7 +135,8 @@ static CPUWriteMemoryFunc * const slavio_intctl_mem_write[3] = {
 };
 
 // master system interrupt controller
-static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr,
+                                         unsigned size)
 {
     SLAVIO_INTCTLState *s = opaque;
     uint32_t saddr, ret;
@@ -160,7 +162,7 @@ static uint32_t slavio_intctlm_mem_readl(void *opaque, target_phys_addr_t addr)
 }
 
 static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr,
-                                      uint32_t val)
+                                      uint64_t val, unsigned size)
 {
     SLAVIO_INTCTLState *s = opaque;
     uint32_t saddr;
@@ -192,16 +194,14 @@ static void slavio_intctlm_mem_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const slavio_intctlm_mem_read[3] = {
-    NULL,
-    NULL,
-    slavio_intctlm_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const slavio_intctlm_mem_write[3] = {
-    NULL,
-    NULL,
-    slavio_intctlm_mem_writel,
+static const MemoryRegionOps slavio_intctlm_mem_ops = {
+    .read = slavio_intctlm_mem_readl,
+    .write = slavio_intctlm_mem_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 void slavio_pic_info(Monitor *mon, DeviceState *dev)
@@ -426,10 +426,9 @@ static int slavio_intctl_init1(SysBusDevice *dev)
     unsigned int i, j;
 
     qdev_init_gpio_in(&dev->qdev, slavio_set_irq_all, 32 + MAX_CPUS);
-    io_memory = cpu_register_io_memory(slavio_intctlm_mem_read,
-                                       slavio_intctlm_mem_write, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, INTCTLM_SIZE, io_memory);
+    memory_region_init_io(&s->iomem, &slavio_intctlm_mem_ops, s,
+                          "master-interrupt-controller", INTCTLM_SIZE);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     for (i = 0; i < MAX_CPUS; i++) {
         for (j = 0; j < MAX_PILS; j++) {
