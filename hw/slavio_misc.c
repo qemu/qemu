@@ -38,6 +38,7 @@ typedef struct MiscState {
     SysBusDevice busdev;
     MemoryRegion cfg_iomem;
     MemoryRegion diag_iomem;
+    MemoryRegion mdm_iomem;
     qemu_irq irq;
     qemu_irq fdc_tc;
     uint32_t dummy;
@@ -164,7 +165,7 @@ static const MemoryRegionOps slavio_diag_mem_ops = {
 };
 
 static void slavio_mdm_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
+                                  uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
 
@@ -172,7 +173,8 @@ static void slavio_mdm_mem_writeb(void *opaque, target_phys_addr_t addr,
     s->mctrl = val & 0xff;
 }
 
-static uint32_t slavio_mdm_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t slavio_mdm_mem_readb(void *opaque, target_phys_addr_t addr,
+                                     unsigned size)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -182,16 +184,14 @@ static uint32_t slavio_mdm_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc * const slavio_mdm_mem_read[3] = {
-    slavio_mdm_mem_readb,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const slavio_mdm_mem_write[3] = {
-    slavio_mdm_mem_writeb,
-    NULL,
-    NULL,
+static const MemoryRegionOps slavio_mdm_mem_ops = {
+    .read = slavio_mdm_mem_readb,
+    .write = slavio_mdm_mem_writeb,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static void slavio_aux1_mem_writeb(void *opaque, target_phys_addr_t addr,
@@ -438,10 +438,9 @@ static int slavio_misc_init1(SysBusDevice *dev)
     sysbus_init_mmio_region(dev, &s->diag_iomem);
 
     /* Modem control */
-    io = cpu_register_io_memory(slavio_mdm_mem_read,
-                                slavio_mdm_mem_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MISC_SIZE, io);
+    memory_region_init_io(&s->mdm_iomem, &slavio_mdm_mem_ops, s,
+                          "modem", MISC_SIZE);
+    sysbus_init_mmio_region(dev, &s->mdm_iomem);
 
     /* 16 bit registers */
     /* ss600mp diag LEDs */
