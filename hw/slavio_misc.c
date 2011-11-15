@@ -40,6 +40,7 @@ typedef struct MiscState {
     MemoryRegion diag_iomem;
     MemoryRegion mdm_iomem;
     MemoryRegion led_iomem;
+    MemoryRegion sysctrl_iomem;
     qemu_irq irq;
     qemu_irq fdc_tc;
     uint32_t dummy;
@@ -300,7 +301,8 @@ static const MemoryRegionOps apc_mem_ops = {
     }
 };
 
-static uint32_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr,
+                                         unsigned size)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -317,7 +319,7 @@ static uint32_t slavio_sysctrl_mem_readl(void *opaque, target_phys_addr_t addr)
 }
 
 static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
-                                      uint32_t val)
+                                      uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
 
@@ -334,16 +336,14 @@ static void slavio_sysctrl_mem_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const slavio_sysctrl_mem_read[3] = {
-    NULL,
-    NULL,
-    slavio_sysctrl_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const slavio_sysctrl_mem_write[3] = {
-    NULL,
-    NULL,
-    slavio_sysctrl_mem_writel,
+static const MemoryRegionOps slavio_sysctrl_mem_ops = {
+    .read = slavio_sysctrl_mem_readl,
+    .write = slavio_sysctrl_mem_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static uint64_t slavio_led_mem_readw(void *opaque, target_phys_addr_t addr,
@@ -450,10 +450,9 @@ static int slavio_misc_init1(SysBusDevice *dev)
 
     /* 32 bit registers */
     /* System control */
-    io = cpu_register_io_memory(slavio_sysctrl_mem_read,
-                                slavio_sysctrl_mem_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, SYSCTRL_SIZE, io);
+    memory_region_init_io(&s->sysctrl_iomem, &slavio_sysctrl_mem_ops, s,
+                          "system-control", MISC_SIZE);
+    sysbus_init_mmio_region(dev, &s->sysctrl_iomem);
 
     /* AUX 1 (Misc System Functions) */
     io = cpu_register_io_memory(slavio_aux1_mem_read,
