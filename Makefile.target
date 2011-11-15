@@ -92,8 +92,6 @@ tci-dis.o: QEMU_CFLAGS += -I$(SRC_PATH)/tcg -I$(SRC_PATH)/tcg/tci
 
 $(libobj-y): $(GENERATED_HEADERS)
 
-# libqemu
-
 translate.o: translate.c cpu.h
 
 translate-all.o: translate-all.c cpu.h
