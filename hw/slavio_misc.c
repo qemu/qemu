@@ -42,6 +42,7 @@ typedef struct MiscState {
     MemoryRegion led_iomem;
     MemoryRegion sysctrl_iomem;
     MemoryRegion aux1_iomem;
+    MemoryRegion aux2_iomem;
     qemu_irq irq;
     qemu_irq fdc_tc;
     uint32_t dummy;
@@ -236,7 +237,7 @@ static const MemoryRegionOps slavio_aux1_mem_ops = {
 };
 
 static void slavio_aux2_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                   uint32_t val)
+                                   uint64_t val, unsigned size)
 {
     MiscState *s = opaque;
 
@@ -251,7 +252,8 @@ static void slavio_aux2_mem_writeb(void *opaque, target_phys_addr_t addr,
     slavio_misc_update_irq(s);
 }
 
-static uint32_t slavio_aux2_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t slavio_aux2_mem_readb(void *opaque, target_phys_addr_t addr,
+                                      unsigned size)
 {
     MiscState *s = opaque;
     uint32_t ret = 0;
@@ -261,16 +263,14 @@ static uint32_t slavio_aux2_mem_readb(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc * const slavio_aux2_mem_read[3] = {
-    slavio_aux2_mem_readb,
-    NULL,
-    NULL,
-};
-
-static CPUWriteMemoryFunc * const slavio_aux2_mem_write[3] = {
-    slavio_aux2_mem_writeb,
-    NULL,
-    NULL,
+static const MemoryRegionOps slavio_aux2_mem_ops = {
+    .read = slavio_aux2_mem_readb,
+    .write = slavio_aux2_mem_writeb,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
 };
 
 static void apc_mem_writeb(void *opaque, target_phys_addr_t addr,
@@ -421,7 +421,6 @@ static int apc_init1(SysBusDevice *dev)
 static int slavio_misc_init1(SysBusDevice *dev)
 {
     MiscState *s = FROM_SYSBUS(MiscState, dev);
-    int io;
 
     sysbus_init_irq(dev, &s->irq);
     sysbus_init_irq(dev, &s->fdc_tc);
@@ -460,10 +459,9 @@ static int slavio_misc_init1(SysBusDevice *dev)
     sysbus_init_mmio_region(dev, &s->aux1_iomem);
 
     /* AUX 2 (Software Powerdown Control) */
-    io = cpu_register_io_memory(slavio_aux2_mem_read,
-                                slavio_aux2_mem_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MISC_SIZE, io);
+    memory_region_init_io(&s->aux2_iomem, &slavio_aux2_mem_ops, s,
+                          "software-powerdown-control", MISC_SIZE);
+    sysbus_init_mmio_region(dev, &s->aux2_iomem);
 
     qdev_init_gpio_in(&dev->qdev, slavio_set_power_fail, 1);
 
