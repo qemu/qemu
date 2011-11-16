@@ -386,17 +386,32 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     QCowSnapshot *sn;
     int i, snapshot_index;
     int cur_l1_bytes, sn_l1_bytes;
+    int ret;
 
+    /* Search the snapshot */
     snapshot_index = find_snapshot_by_id_or_name(bs, snapshot_id);
-    if (snapshot_index < 0)
+    if (snapshot_index < 0) {
         return -ENOENT;
+    }
     sn = &s->snapshots[snapshot_index];
 
-    if (qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, -1) < 0)
+    /* Decrease refcount of clusters of current L1 table.
+     * FIXME This is too early! */
+    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset,
+                                         s->l1_size, -1);
+    if (ret < 0) {
         goto fail;
+    }
 
-    if (qcow2_grow_l1_table(bs, sn->l1_size, true) < 0)
+    /*
+     * Make sure that the current L1 table is big enough to contain the whole
+     * L1 table of the snapshot. If the snapshot L1 table is smaller, the
+     * current one must be padded with zeros.
+     */
+    ret = qcow2_grow_l1_table(bs, sn->l1_size, true);
+    if (ret < 0) {
         goto fail;
+    }
 
     cur_l1_bytes = s->l1_size * sizeof(uint64_t);
     sn_l1_bytes = sn->l1_size * sizeof(uint64_t);
@@ -405,19 +420,32 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
         memset(s->l1_table + sn->l1_size, 0, cur_l1_bytes - sn_l1_bytes);
     }
 
-    /* copy the snapshot l1 table to the current l1 table */
-    if (bdrv_pread(bs->file, sn->l1_table_offset,
-                   s->l1_table, sn_l1_bytes) < 0)
+    /*
+     * Copy the snapshot L1 table to the current L1 table.
+     *
+     * Before overwriting the old current L1 table on disk, make sure to
+     * increase all refcounts for the clusters referenced by the new one.
+     */
+    ret = bdrv_pread(bs->file, sn->l1_table_offset, s->l1_table, sn_l1_bytes);
+    if (ret < 0) {
         goto fail;
-    if (bdrv_pwrite_sync(bs->file, s->l1_table_offset,
-                    s->l1_table, cur_l1_bytes) < 0)
+    }
+
+    ret = bdrv_pwrite_sync(bs->file, s->l1_table_offset, s->l1_table,
+                           cur_l1_bytes);
+    if (ret < 0) {
         goto fail;
+    }
+
     for(i = 0;i < s->l1_size; i++) {
         be64_to_cpus(&s->l1_table[i]);
     }
 
-    if (qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1) < 0)
+    /* FIXME This is too late! */
+    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1);
+    if (ret < 0) {
         goto fail;
+    }
 
 #ifdef DEBUG_ALLOC
     {
@@ -426,8 +454,9 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     }
 #endif
     return 0;
- fail:
-    return -EIO;
+
+fail:
+    return ret;
 }
 
 int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
