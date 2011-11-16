@@ -305,7 +305,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict)
 {
     struct in_addr host_addr = { .s_addr = INADDR_ANY };
     int host_port;
-    char buf[256] = "";
+    char buf[256];
     const char *src_str, *p;
     SlirpState *s;
     int is_udp = 0;
@@ -325,11 +325,10 @@ void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    if (!src_str || !src_str[0])
-        goto fail_syntax;
-
     p = src_str;
-    get_str_sep(buf, sizeof(buf), &p, ':');
+    if (!p || get_str_sep(buf, sizeof(buf), &p, ':') < 0) {
+        goto fail_syntax;
+    }
 
     if (!strcmp(buf, "tcp") || buf[0] == '\0') {
         is_udp = 0;
