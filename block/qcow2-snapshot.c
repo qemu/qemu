@@ -284,21 +284,20 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 
     memset(sn, 0, sizeof(*sn));
 
+    /* Generate an ID if it wasn't passed */
     if (sn_info->id_str[0] == '\0') {
-        /* compute a new id */
         find_new_snapshot_id(bs, sn_info->id_str, sizeof(sn_info->id_str));
     }
 
-    /* check that the ID is unique */
-    if (find_snapshot_by_id(bs, sn_info->id_str) >= 0)
+    /* Check that the ID is unique */
+    if (find_snapshot_by_id(bs, sn_info->id_str) >= 0) {
         return -ENOENT;
+    }
 
+    /* Populate sn with passed data */
     sn->id_str = g_strdup(sn_info->id_str);
-    if (!sn->id_str)
-        goto fail;
     sn->name = g_strdup(sn_info->name);
-    if (!sn->name)
-        goto fail;
+
     sn->vm_state_size = sn_info->vm_state_size;
     sn->date_sec = sn_info->date_sec;
     sn->date_nsec = sn_info->date_nsec;
@@ -308,7 +307,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     if (ret < 0)
         goto fail;
 
-    /* create the L1 table of the snapshot */
+    /* Allocate the L1 table of the snapshot and copy the current one there. */
     l1_table_offset = qcow2_alloc_clusters(bs, s->l1_size * sizeof(uint64_t));
     if (l1_table_offset < 0) {
         goto fail;
@@ -318,12 +317,7 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     sn->l1_table_offset = l1_table_offset;
     sn->l1_size = s->l1_size;
 
-    if (s->l1_size != 0) {
-        l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
-    } else {
-        l1_table = NULL;
-    }
-
+    l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
     for(i = 0; i < s->l1_size; i++) {
         l1_table[i] = cpu_to_be64(s->l1_table[i]);
     }
@@ -350,7 +344,9 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     }
 #endif
     return 0;
- fail:
+
+fail:
+    g_free(sn->id_str);
     g_free(sn->name);
     g_free(l1_table);
     return -1;
