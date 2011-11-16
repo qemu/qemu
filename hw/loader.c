@@ -85,11 +85,11 @@ int load_image(const char *filename, uint8_t *addr)
 }
 
 /* read()-like version */
-int read_targphys(const char *name,
-                  int fd, target_phys_addr_t dst_addr, size_t nbytes)
+ssize_t read_targphys(const char *name,
+                      int fd, target_phys_addr_t dst_addr, size_t nbytes)
 {
     uint8_t *buf;
-    size_t did;
+    ssize_t did;
 
     buf = g_malloc(nbytes);
     did = read(fd, buf, nbytes);
@@ -176,7 +176,8 @@ static void bswap_ahdr(struct exec *e)
 int load_aout(const char *filename, target_phys_addr_t addr, int max_sz,
               int bswap_needed, target_phys_addr_t target_page_size)
 {
-    int fd, size, ret;
+    int fd;
+    ssize_t size, ret;
     struct exec e;
     uint32_t magic;
 
