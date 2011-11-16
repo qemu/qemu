@@ -273,8 +273,9 @@ static int qcow2_open(BlockDriverState *bs, int flags)
         }
         bs->backing_file[len] = '\0';
     }
-    if (qcow2_read_snapshots(bs) < 0) {
-        ret = -EINVAL;
+
+    ret = qcow2_read_snapshots(bs);
+    if (ret < 0) {
         goto fail;
     }
 

@@ -68,6 +68,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
     int i, id_str_size, name_size;
     int64_t offset;
     uint32_t extra_data_size;
+    int ret;
 
     if (!s->nb_snapshots) {
         s->snapshots = NULL;
@@ -77,10 +78,15 @@ int qcow2_read_snapshots(BlockDriverState *bs)
 
     offset = s->snapshots_offset;
     s->snapshots = g_malloc0(s->nb_snapshots * sizeof(QCowSnapshot));
+
     for(i = 0; i < s->nb_snapshots; i++) {
+        /* Read statically sized part of the snapshot header */
         offset = align_offset(offset, 8);
-        if (bdrv_pread(bs->file, offset, &h, sizeof(h)) != sizeof(h))
+        ret = bdrv_pread(bs->file, offset, &h, sizeof(h));
+        if (ret < 0) {
             goto fail;
+        }
+
         offset += sizeof(h);
         sn = s->snapshots + i;
         sn->l1_table_offset = be64_to_cpu(h.l1_table_offset);
@@ -94,25 +100,34 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         id_str_size = be16_to_cpu(h.id_str_size);
         name_size = be16_to_cpu(h.name_size);
 
+        /* Skip extra data */
         offset += extra_data_size;
 
+        /* Read snapshot ID */
         sn->id_str = g_malloc(id_str_size + 1);
-        if (bdrv_pread(bs->file, offset, sn->id_str, id_str_size) != id_str_size)
+        ret = bdrv_pread(bs->file, offset, sn->id_str, id_str_size);
+        if (ret < 0) {
             goto fail;
+        }
         offset += id_str_size;
         sn->id_str[id_str_size] = '\0';
 
+        /* Read snapshot name */
         sn->name = g_malloc(name_size + 1);
-        if (bdrv_pread(bs->file, offset, sn->name, name_size) != name_size)
+        ret = bdrv_pread(bs->file, offset, sn->name, name_size);
+        if (ret < 0) {
             goto fail;
+        }
         offset += name_size;
         sn->name[name_size] = '\0';
     }
+
     s->snapshots_size = offset - s->snapshots_offset;
     return 0;
- fail:
+
+fail:
     qcow2_free_snapshots(bs);
-    return -1;
+    return ret;
 }
 
 /* add at the end of the file a new list of snapshots */
