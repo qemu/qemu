@@ -140,6 +140,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     uint64_t data64;
     uint32_t data32;
     int64_t offset, snapshots_offset;
+    int ret;
 
     /* compute the size of the snapshots */
     offset = 0;
@@ -152,6 +153,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     }
     snapshots_size = offset;
 
+    /* Allocate space for the new snapshot list */
     snapshots_offset = qcow2_alloc_clusters(bs, snapshots_size);
     bdrv_flush(bs->file);
     offset = snapshots_offset;
@@ -159,6 +161,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         return offset;
     }
 
+    /* Write all snapshots to the new list */
     for(i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
         memset(&h, 0, sizeof(h));
@@ -174,34 +177,59 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         h.id_str_size = cpu_to_be16(id_str_size);
         h.name_size = cpu_to_be16(name_size);
         offset = align_offset(offset, 8);
-        if (bdrv_pwrite_sync(bs->file, offset, &h, sizeof(h)) < 0)
+
+        ret = bdrv_pwrite(bs->file, offset, &h, sizeof(h));
+        if (ret < 0) {
             goto fail;
+        }
         offset += sizeof(h);
-        if (bdrv_pwrite_sync(bs->file, offset, sn->id_str, id_str_size) < 0)
+
+        ret = bdrv_pwrite(bs->file, offset, sn->id_str, id_str_size);
+        if (ret < 0) {
             goto fail;
+        }
         offset += id_str_size;
-        if (bdrv_pwrite_sync(bs->file, offset, sn->name, name_size) < 0)
+
+        ret = bdrv_pwrite(bs->file, offset, sn->name, name_size);
+        if (ret < 0) {
             goto fail;
+        }
         offset += name_size;
     }
 
-    /* update the various header fields */
+    /*
+     * Update the header to point to the new snapshot table. This requires the
+     * new table and its refcounts to be stable on disk.
+     *
+     * FIXME This should be done with a single write
+     */
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
+        goto fail;
+    }
+
     data64 = cpu_to_be64(snapshots_offset);
-    if (bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, snapshots_offset),
-                    &data64, sizeof(data64)) < 0)
+    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, snapshots_offset),
+                      &data64, sizeof(data64));
+    if (ret < 0) {
         goto fail;
+    }
+
     data32 = cpu_to_be32(s->nb_snapshots);
-    if (bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, nb_snapshots),
-                    &data32, sizeof(data32)) < 0)
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, nb_snapshots),
+                           &data32, sizeof(data32));
+    if (ret < 0) {
         goto fail;
+    }
 
     /* free the old snapshot table */
     qcow2_free_clusters(bs, s->snapshots_offset, s->snapshots_size);
     s->snapshots_offset = snapshots_offset;
     s->snapshots_size = snapshots_size;
     return 0;
- fail:
-    return -1;
+
+fail:
+    return ret;
 }
 
 static void find_new_snapshot_id(BlockDriverState *bs,
