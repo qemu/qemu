@@ -109,6 +109,10 @@ static QemuOptsList qemu_drive_opts = {
             .name = "bps_wr",
             .type = QEMU_OPT_NUMBER,
             .help = "limit write bytes per second",
+        },{
+            .name = "copy-on-read",
+            .type = QEMU_OPT_BOOL,
+            .help = "copy read data from backing file into image file",
         },
         { /* end of list */ }
     },
