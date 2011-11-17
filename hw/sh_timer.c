@@ -11,6 +11,7 @@
 #include "hw.h"
 #include "sh.h"
 #include "qemu-timer.h"
+#include "exec-memory.h"
 
 //#define DEBUG_TIMER
 
@@ -210,6 +211,9 @@ static void *sh_timer_init(uint32_t freq, int feat, qemu_irq irq)
 }
 
 typedef struct {
+    MemoryRegion iomem;
+    MemoryRegion iomem_p4;
+    MemoryRegion iomem_a7;
     void *timer[3];
     int level[3];
     uint32_t tocr;
@@ -217,7 +221,8 @@ typedef struct {
     int feat;
 } tmu012_state;
 
-static uint32_t tmu012_read(void *opaque, target_phys_addr_t offset)
+static uint64_t tmu012_read(void *opaque, target_phys_addr_t offset,
+                            unsigned size)
 {
     tmu012_state *s = (tmu012_state *)opaque;
 
@@ -248,7 +253,7 @@ static uint32_t tmu012_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void tmu012_write(void *opaque, target_phys_addr_t offset,
-                        uint32_t value)
+                        uint64_t value, unsigned size)
 {
     tmu012_state *s = (tmu012_state *)opaque;
 
@@ -291,23 +296,17 @@ static void tmu012_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const tmu012_readfn[] = {
-    tmu012_read,
-    tmu012_read,
-    tmu012_read
+static const MemoryRegionOps tmu012_ops = {
+    .read = tmu012_read,
+    .write = tmu012_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const tmu012_writefn[] = {
-    tmu012_write,
-    tmu012_write,
-    tmu012_write
-};
-
-void tmu012_init(target_phys_addr_t base, int feat, uint32_t freq,
+void tmu012_init(MemoryRegion *sysmem, target_phys_addr_t base,
+                 int feat, uint32_t freq,
 		 qemu_irq ch0_irq, qemu_irq ch1_irq,
 		 qemu_irq ch2_irq0, qemu_irq ch2_irq1)
 {
-    int iomemtype;
     tmu012_state *s;
     int timer_feat = (feat & TMU012_FEAT_EXTCLK) ? TIMER_FEAT_EXTCLK : 0;
 
@@ -318,10 +317,16 @@ void tmu012_init(target_phys_addr_t base, int feat, uint32_t freq,
     if (feat & TMU012_FEAT_3CHAN)
         s->timer[2] = sh_timer_init(freq, timer_feat | TIMER_FEAT_CAPT,
 				    ch2_irq0); /* ch2_irq1 not supported */
-    iomemtype = cpu_register_io_memory(tmu012_readfn,
-                                       tmu012_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(P4ADDR(base), 0x00001000, iomemtype);
-    cpu_register_physical_memory(A7ADDR(base), 0x00001000, iomemtype);
+
+    memory_region_init_io(&s->iomem, &tmu012_ops, s,
+                          "timer", 0x100000000ULL);
+
+    memory_region_init_alias(&s->iomem_p4, "timer-p4",
+                             &s->iomem, 0, 0x1000);
+    memory_region_add_subregion(sysmem, P4ADDR(base), &s->iomem_p4);
+
+    memory_region_init_alias(&s->iomem_a7, "timer-a7",
+                             &s->iomem, 0, 0x1000);
+    memory_region_add_subregion(sysmem, A7ADDR(base), &s->iomem_a7);
     /* ??? Save/restore.  */
 }

@@ -780,7 +780,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
 		   NULL,
 		   s->intc.irqs[SCIF_BRI]);
 
-    tmu012_init(0x1fd80000,
+    tmu012_init(sysmem, 0x1fd80000,
 		TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,
 		s->periph_freq,
 		s->intc.irqs[TMU0],
@@ -804,7 +804,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
         sh_intc_register_sources(&s->intc,
 				 _INTC_ARRAY(vectors_tmu34),
 				 NULL, 0);
-        tmu012_init(0x1e100000, 0, s->periph_freq,
+        tmu012_init(sysmem, 0x1e100000, 0, s->periph_freq,
 		    s->intc.irqs[TMU3],
 		    s->intc.irqs[TMU4],
 		    NULL, NULL);
