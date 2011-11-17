@@ -51,6 +51,8 @@
 #define BLOCK_OPT_PREALLOC      "preallocation"
 #define BLOCK_OPT_SUBFMT        "subformat"
 
+typedef struct BdrvTrackedRequest BdrvTrackedRequest;
+
 typedef struct AIOPool {
     void (*cancel)(BlockDriverAIOCB *acb);
     int aiocb_size;
@@ -255,6 +257,8 @@ struct BlockDriverState {
     int in_use; /* users other than guest access, eg. block migration */
     QTAILQ_ENTRY(BlockDriverState) list;
     void *private;
+
+    QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
 };
 
 struct BlockDriverAIOCB {

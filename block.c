@@ -1071,6 +1071,42 @@ void bdrv_commit_all(void)
     }
 }
 
+struct BdrvTrackedRequest {
+    BlockDriverState *bs;
+    int64_t sector_num;
+    int nb_sectors;
+    bool is_write;
+    QLIST_ENTRY(BdrvTrackedRequest) list;
+};
+
+/**
+ * Remove an active request from the tracked requests list
+ *
+ * This function should be called when a tracked request is completing.
+ */
+static void tracked_request_end(BdrvTrackedRequest *req)
+{
+    QLIST_REMOVE(req, list);
+}
+
+/**
+ * Add an active request to the tracked requests list
+ */
+static void tracked_request_begin(BdrvTrackedRequest *req,
+                                  BlockDriverState *bs,
+                                  int64_t sector_num,
+                                  int nb_sectors, bool is_write)
+{
+    *req = (BdrvTrackedRequest){
+        .bs = bs,
+        .sector_num = sector_num,
+        .nb_sectors = nb_sectors,
+        .is_write = is_write,
+    };
+
+    QLIST_INSERT_HEAD(&bs->tracked_requests, req, list);
+}
+
 /*
  * Return values:
  * 0        - success
@@ -1350,6 +1386,8 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
 {
     BlockDriver *drv = bs->drv;
+    BdrvTrackedRequest req;
+    int ret;
 
     if (!drv) {
         return -ENOMEDIUM;
@@ -1363,7 +1401,10 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
         bdrv_io_limits_intercept(bs, false, nb_sectors);
     }
 
-    return drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
+    tracked_request_begin(&req, bs, sector_num, nb_sectors, false);
+    ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
+    tracked_request_end(&req);
+    return ret;
 }
 
 int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
@@ -1381,6 +1422,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
 {
     BlockDriver *drv = bs->drv;
+    BdrvTrackedRequest req;
     int ret;
 
     if (!bs->drv) {
@@ -1398,6 +1440,8 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
         bdrv_io_limits_intercept(bs, true, nb_sectors);
     }
 
+    tracked_request_begin(&req, bs, sector_num, nb_sectors, true);
+
     ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
 
     if (bs->dirty_bitmap) {
@@ -1407,6 +1451,8 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     if (bs->wr_highest_sector < sector_num + nb_sectors - 1) {
         bs->wr_highest_sector = sector_num + nb_sectors - 1;
     }
+
+    tracked_request_end(&req);
 
     return ret;
 }
