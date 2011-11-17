@@ -24,7 +24,10 @@
 #include <signal.h>
 
 #include "cpu.h"
+
+#if !defined(CONFIG_USER_ONLY)
 #include "hw/sh_intc.h"
+#endif
 
 #if defined(CONFIG_USER_ONLY)
 

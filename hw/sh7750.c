@@ -756,7 +756,7 @@ SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
                           "cache-and-tlb", 0x08000000);
     memory_region_add_subregion(sysmem, 0xf0000000, &s->mmct_iomem);
 
-    sh_intc_init(&s->intc, NR_SOURCES,
+    sh_intc_init(sysmem, &s->intc, NR_SOURCES,
 		 _INTC_ARRAY(mask_registers),
 		 _INTC_ARRAY(prio_registers));
 
