@@ -9,8 +9,9 @@
 
 /* sh7750.c */
 struct SH7750State;
+struct MemoryRegion;
 
-struct SH7750State *sh7750_init(CPUState * cpu);
+struct SH7750State *sh7750_init(CPUState * cpu, struct MemoryRegion *sysmem);
 
 typedef struct {
     /* The callback will be triggered if any of the designated lines change */

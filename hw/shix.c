@@ -80,7 +80,7 @@ static void shix_init(ram_addr_t ram_size,
     }
 
     /* Register peripherals */
-    s = sh7750_init(env);
+    s = sh7750_init(env, sysmem);
     /* XXXXX Check success */
     tc58128_init(s, "shix_linux_nand.bin", NULL);
     fprintf(stderr, "initialization terminated\n");
