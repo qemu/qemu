@@ -766,19 +766,21 @@ SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
 
     cpu->intc_handle = &s->intc;
 
-    sh_serial_init(0x1fe00000, 0, s->periph_freq, serial_hds[0],
-		   s->intc.irqs[SCI1_ERI],
-		   s->intc.irqs[SCI1_RXI],
-		   s->intc.irqs[SCI1_TXI],
-		   s->intc.irqs[SCI1_TEI],
-		   NULL);
-    sh_serial_init(0x1fe80000, SH_SERIAL_FEAT_SCIF,
-		   s->periph_freq, serial_hds[1],
-		   s->intc.irqs[SCIF_ERI],
-		   s->intc.irqs[SCIF_RXI],
-		   s->intc.irqs[SCIF_TXI],
-		   NULL,
-		   s->intc.irqs[SCIF_BRI]);
+    sh_serial_init(sysmem, 0x1fe00000,
+                   0, s->periph_freq, serial_hds[0],
+                   s->intc.irqs[SCI1_ERI],
+                   s->intc.irqs[SCI1_RXI],
+                   s->intc.irqs[SCI1_TXI],
+                   s->intc.irqs[SCI1_TEI],
+                   NULL);
+    sh_serial_init(sysmem, 0x1fe80000,
+                   SH_SERIAL_FEAT_SCIF,
+                   s->periph_freq, serial_hds[1],
+                   s->intc.irqs[SCIF_ERI],
+                   s->intc.irqs[SCIF_RXI],
+                   s->intc.irqs[SCIF_TXI],
+                   NULL,
+                   s->intc.irqs[SCIF_BRI]);
 
     tmu012_init(sysmem, 0x1fd80000,
 		TMU012_FEAT_TOCR | TMU012_FEAT_3CHAN | TMU012_FEAT_EXTCLK,
