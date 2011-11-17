@@ -1099,6 +1099,7 @@ struct BdrvTrackedRequest {
     int nb_sectors;
     bool is_write;
     QLIST_ENTRY(BdrvTrackedRequest) list;
+    CoQueue wait_queue; /* coroutines blocked on this request */
 };
 
 /**
@@ -1109,6 +1110,7 @@ struct BdrvTrackedRequest {
 static void tracked_request_end(BdrvTrackedRequest *req)
 {
     QLIST_REMOVE(req, list);
+    qemu_co_queue_restart_all(&req->wait_queue);
 }
 
 /**
@@ -1126,7 +1128,32 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
         .is_write = is_write,
     };
 
+    qemu_co_queue_init(&req->wait_queue);
+
     QLIST_INSERT_HEAD(&bs->tracked_requests, req, list);
+}
+
+static bool tracked_request_overlaps(BdrvTrackedRequest *req,
+                                     int64_t sector_num, int nb_sectors) {
+    return false; /* not yet implemented */
+}
+
+static void coroutine_fn wait_for_overlapping_requests(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors)
+{
+    BdrvTrackedRequest *req;
+    bool retry;
+
+    do {
+        retry = false;
+        QLIST_FOREACH(req, &bs->tracked_requests, list) {
+            if (tracked_request_overlaps(req, sector_num, nb_sectors)) {
+                qemu_co_queue_wait(&req->wait_queue);
+                retry = true;
+                break;
+            }
+        }
+    } while (retry);
 }
 
 /*
@@ -1423,6 +1450,10 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
         bdrv_io_limits_intercept(bs, false, nb_sectors);
     }
 
+    if (bs->copy_on_read) {
+        wait_for_overlapping_requests(bs, sector_num, nb_sectors);
+    }
+
     tracked_request_begin(&req, bs, sector_num, nb_sectors, false);
     ret = drv->bdrv_co_readv(bs, sector_num, nb_sectors, qiov);
     tracked_request_end(&req);
@@ -1460,6 +1491,10 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     /* throttling disk write I/O */
     if (bs->io_limits_enabled) {
         bdrv_io_limits_intercept(bs, true, nb_sectors);
+    }
+
+    if (bs->copy_on_read) {
+        wait_for_overlapping_requests(bs, sector_num, nb_sectors);
     }
 
     tracked_request_begin(&req, bs, sector_num, nb_sectors, true);
