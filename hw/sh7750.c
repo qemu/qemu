@@ -42,6 +42,7 @@ typedef struct SH7750State {
     MemoryRegion iomem_ff8;
     MemoryRegion iomem_1fc;
     MemoryRegion iomem_ffc;
+    MemoryRegion mmct_iomem;
     /* CPU */
     CPUSH4State *cpu;
     /* Peripheral frequency in Hz */
@@ -623,17 +624,22 @@ static struct intc_group groups_irl[] = {
 #define MM_UTLB_DATA     (7)
 #define MM_REGION_TYPE(addr)  ((addr & MM_REGION_MASK) >> 24)
 
-static uint32_t invalid_read(void *opaque, target_phys_addr_t addr)
+static uint64_t invalid_read(void *opaque, target_phys_addr_t addr)
 {
     abort();
 
     return 0;
 }
 
-static uint32_t sh7750_mmct_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t sh7750_mmct_read(void *opaque, target_phys_addr_t addr,
+                                 unsigned size)
 {
     SH7750State *s = opaque;
     uint32_t ret = 0;
+
+    if (size != 4) {
+        return invalid_read(opaque, addr);
+    }
 
     switch (MM_REGION_TYPE(addr)) {
     case MM_ICACHE_ADDR:
@@ -664,15 +670,19 @@ static uint32_t sh7750_mmct_readl(void *opaque, target_phys_addr_t addr)
 }
 
 static void invalid_write(void *opaque, target_phys_addr_t addr,
-			  uint32_t mem_value)
+                          uint64_t mem_value)
 {
     abort();
 }
 
-static void sh7750_mmct_writel(void *opaque, target_phys_addr_t addr,
-				uint32_t mem_value)
+static void sh7750_mmct_write(void *opaque, target_phys_addr_t addr,
+                              uint64_t mem_value, unsigned size)
 {
     SH7750State *s = opaque;
+
+    if (size != 4) {
+        invalid_write(opaque, addr, mem_value);
+    }
 
     switch (MM_REGION_TYPE(addr)) {
     case MM_ICACHE_ADDR:
@@ -702,22 +712,15 @@ static void sh7750_mmct_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const sh7750_mmct_read[] = {
-    invalid_read,
-    invalid_read,
-    sh7750_mmct_readl
-};
-
-static CPUWriteMemoryFunc * const sh7750_mmct_write[] = {
-    invalid_write,
-    invalid_write,
-    sh7750_mmct_writel
+static const struct MemoryRegionOps sh7750_mmct_ops = {
+    .read = sh7750_mmct_read,
+    .write = sh7750_mmct_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
 {
     SH7750State *s;
-    int sh7750_mm_cache_and_tlb; /* memory mapped cache and tlb */
 
     s = g_malloc0(sizeof(SH7750State));
     s->cpu = cpu;
@@ -749,11 +752,9 @@ SH7750State *sh7750_init(CPUSH4State * cpu, MemoryRegion *sysmem)
                              &s->iomem, 0x1fc00000, 0x1000);
     memory_region_add_subregion(sysmem, 0xffc00000, &s->iomem_ffc);
 
-    sh7750_mm_cache_and_tlb = cpu_register_io_memory(sh7750_mmct_read,
-						     sh7750_mmct_write, s,
-                                                     DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(0xf0000000, 0x08000000,
-				 sh7750_mm_cache_and_tlb);
+    memory_region_init_io(&s->mmct_iomem, &sh7750_mmct_ops, s,
+                          "cache-and-tlb", 0x08000000);
+    memory_region_add_subregion(sysmem, 0xf0000000, &s->mmct_iomem);
 
     sh_intc_init(&s->intc, NR_SOURCES,
 		 _INTC_ARRAY(mask_registers),
