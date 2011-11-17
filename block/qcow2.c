@@ -516,7 +516,7 @@ static void run_dependent_requests(BDRVQcowState *s, QCowL2Meta *m)
     /* Restart all dependent requests */
     if (!qemu_co_queue_empty(&m->dependent_requests)) {
         qemu_co_mutex_unlock(&s->lock);
-        while(qemu_co_queue_next(&m->dependent_requests));
+        qemu_co_queue_restart_all(&m->dependent_requests);
         qemu_co_mutex_lock(&s->lock);
     }
 }

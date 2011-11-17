@@ -84,6 +84,13 @@ bool qemu_co_queue_next(CoQueue *queue)
     return (next != NULL);
 }
 
+void qemu_co_queue_restart_all(CoQueue *queue)
+{
+    while (qemu_co_queue_next(queue)) {
+        /* Do nothing */
+    }
+}
+
 bool qemu_co_queue_empty(CoQueue *queue)
 {
     return (QTAILQ_FIRST(&queue->entries) == NULL);
@@ -144,13 +151,7 @@ void qemu_co_rwlock_unlock(CoRwlock *lock)
     assert(qemu_in_coroutine());
     if (lock->writer) {
         lock->writer = false;
-        while (!qemu_co_queue_empty(&lock->queue)) {
-            /*
-             * Wakeup every body. This will include some
-             * writers too.
-             */
-            qemu_co_queue_next(&lock->queue);
-        }
+        qemu_co_queue_restart_all(&lock->queue);
     } else {
         lock->reader--;
         assert(lock->reader >= 0);
