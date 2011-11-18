@@ -65,6 +65,9 @@ struct rpl_file_handle {
 };
 #define file_handle rpl_file_handle
 
+#ifndef AT_REMOVEDIR
+#define AT_REMOVEDIR    0x200
+#endif
 #ifndef AT_EMPTY_PATH
 #define AT_EMPTY_PATH   0x1000  /* Allow empty relative pathname */
 #endif
@@ -575,13 +578,20 @@ static int handle_unlinkat(FsContext *ctx, V9fsPath *dir,
 {
     int dirfd, ret;
     struct handle_data *data = (struct handle_data *)ctx->private;
+    int rflags;
 
     dirfd = open_by_handle(data->mountfd, dir->data, O_PATH);
     if (dirfd < 0) {
         return dirfd;
     }
 
-    ret = unlinkat(dirfd, name, flags);
+    rflags = 0;
+    if (flags & P9_DOTL_AT_REMOVEDIR) {
+        rflags |= AT_REMOVEDIR;
+    }
+
+    ret = unlinkat(dirfd, name, rflags);
+
     close(dirfd);
     return ret;
 }
