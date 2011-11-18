@@ -8,6 +8,7 @@ ifeq ($(TRACE_BACKEND),dtrace)
 GENERATED_HEADERS += trace-dtrace.h
 endif
 GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h
+GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c
 
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
@@ -171,34 +172,34 @@ qapi-dir := qapi-generated
 test-visitor.o test-qmp-commands.o qemu-ga$(EXESUF): QEMU_CFLAGS += -I $(qapi-dir)
 qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 
-$(qapi-dir)/test-qapi-types.c: $(qapi-dir)/test-qapi-types.h
-$(qapi-dir)/test-qapi-types.h: $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py
+$(qapi-dir)/test-qapi-types.c $(qapi-dir)/test-qapi-types.h :\
+$(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py -o "$(qapi-dir)" -p "test-" < $<, "  GEN   $@")
-$(qapi-dir)/test-qapi-visit.c: $(qapi-dir)/test-qapi-visit.h
-$(qapi-dir)/test-qapi-visit.h: $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-visit.py
+$(qapi-dir)/test-qapi-visit.c $(qapi-dir)/test-qapi-visit.h :\
+$(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-visit.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py -o "$(qapi-dir)" -p "test-" < $<, "  GEN   $@")
-$(qapi-dir)/test-qmp-commands.h: $(qapi-dir)/test-qmp-marshal.c
-$(qapi-dir)/test-qmp-marshal.c: $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py
+$(qapi-dir)/test-qmp-commands.h $(qapi-dir)/test-qmp-marshal.c :\
+$(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py
 	    $(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py -o "$(qapi-dir)" -p "test-" < $<, "  GEN   $@")
 
-$(qapi-dir)/qga-qapi-types.c: $(qapi-dir)/qga-qapi-types.h
-$(qapi-dir)/qga-qapi-types.h: $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-types.py
+$(qapi-dir)/qga-qapi-types.c $(qapi-dir)/qga-qapi-types.h :\
+$(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-types.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py -o "$(qapi-dir)" -p "qga-" < $<, "  GEN   $@")
-$(qapi-dir)/qga-qapi-visit.c: $(qapi-dir)/qga-qapi-visit.h
-$(qapi-dir)/qga-qapi-visit.h: $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-visit.py
+$(qapi-dir)/qga-qapi-visit.c $(qapi-dir)/qga-qapi-visit.h :\
+$(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-visit.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py -o "$(qapi-dir)" -p "qga-" < $<, "  GEN   $@")
-$(qapi-dir)/qga-qmp-commands.h: $(qapi-dir)/qga-qmp-marshal.c
-$(qapi-dir)/qga-qmp-marshal.c: $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-commands.py
+$(qapi-dir)/qga-qmp-commands.h $(qapi-dir)/qga-qmp-marshal.c :\
+$(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-commands.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py -o "$(qapi-dir)" -p "qga-" < $<, "  GEN   $@")
 
-qapi-types.c: qapi-types.h
-qapi-types.h: $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py
+qapi-types.c qapi-types.h :\
+$(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-types.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py -o "." < $<, "  GEN   $@")
-qapi-visit.c: qapi-visit.h
-qapi-visit.h: $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-visit.py
+qapi-visit.c qapi-visit.h :\
+$(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-visit.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py -o "."  < $<, "  GEN   $@")
-qmp-commands.h: qmp-marshal.c
-qmp-marshal.c: $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py
+qmp-commands.h qmp-marshal.c :\
+$(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py -m -o "." < $<, "  GEN   $@")
 
 test-visitor.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h) $(qapi-obj-y)
@@ -207,11 +208,12 @@ test-visitor: test-visitor.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qap
 test-qmp-commands.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h test-qmp-marshal.c test-qmp-commands.h) $(qapi-obj-y)
 test-qmp-commands: test-qmp-commands.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o $(qapi-dir)/test-qmp-marshal.o module.o
 
-QGALIB_GEN=$(addprefix $(qapi-dir)/, qga-qapi-types.c qga-qapi-types.h qga-qapi-visit.c qga-qmp-marshal.c)
-$(QGALIB_GEN): $(GENERATED_HEADERS)
-$(qga-obj-y) qemu-ga.o: $(QGALIB_GEN)
+QGALIB_OBJ=$(addprefix $(qapi-dir)/, qga-qapi-types.o qga-qapi-visit.o qga-qmp-marshal.o)
+QGALIB_GEN=$(addprefix $(qapi-dir)/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
+$(QGALIB_OBJ): $(QGALIB_GEN) $(GENERATED_HEADERS)
+$(qga-obj-y) qemu-ga.o: $(QGALIB_GEN) $(GENERATED_HEADERS)
 
-qemu-ga$(EXESUF): qemu-ga.o $(qga-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qobject-obj-y) $(version-obj-y) $(addprefix $(qapi-dir)/, qga-qapi-visit.o qga-qapi-types.o qga-qmp-marshal.o)
+qemu-ga$(EXESUF): qemu-ga.o $(qga-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qobject-obj-y) $(version-obj-y) $(QGALIB_OBJ)
 
 QEMULIBS=libhw32 libhw64 libuser libdis libdis-user
 
@@ -227,6 +229,7 @@ clean:
 	rm -f trace.c trace.h trace.c-timestamp trace.h-timestamp
 	rm -f trace-dtrace.dtrace trace-dtrace.dtrace-timestamp
 	rm -f trace-dtrace.h trace-dtrace.h-timestamp
+	rm -f $(GENERATED_SOURCES)
 	rm -rf $(qapi-dir)
 	$(MAKE) -C tests clean
 	for d in $(ALL_SUBDIRS) $(QEMULIBS) libcacard; do \
