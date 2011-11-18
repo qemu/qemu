@@ -421,6 +421,7 @@ snapshots.
 * disk_images_fat_images::    Virtual FAT disk images
 * disk_images_nbd::           NBD access
 * disk_images_sheepdog::      Sheepdog disk images
+* disk_images_iscsi::         iSCSI LUNs
 @end menu
 
 @node disk_images_quickstart
@@ -694,6 +695,61 @@ specify one of the Sheepdog servers to connect to.
 qemu-img create sheepdog:@var{hostname}:@var{port}:@var{image} @var{size}
 qemu sheepdog:@var{hostname}:@var{port}:@var{image}
 @end example
+
+@node disk_images_iscsi
+@subsection iSCSI LUNs
+
+iSCSI is a popular protocol used to access SCSI devices across a computer
+network.
+
+There are two different ways iSCSI devices can be used by QEMU.
+
+The first method is to mount the iSCSI LUN on the host, and make it appear as
+any other ordinary SCSI device on the host and then to access this device as a
+/dev/sd device from QEMU. How to do this differs between host OSes.
+
+The second method involves using the iSCSI initiator that is built into
+QEMU. This provides a mechanism that works the same way regardless of which
+host OS you are running QEMU on. This section will describe this second method
+of using iSCSI together with QEMU.
+
+In QEMU, iSCSI devices are described using special iSCSI URLs
+
+@example
+URL syntax:
+iscsi://[<username>[%<password>]@@]<host>[:<port>]/<target-iqn-name>/<lun>
+@end example
+
+Username and password are optional and only used if your target is set up
+using CHAP authentication for access control.
+Alternatively the username and password can also be set via environment
+variables to have these not show up in the process list
+
+@example
+export LIBISCSI_CHAP_USERNAME=<username>
+export LIBISCSI_CHAP_PASSWORD=<password>
+iscsi://<host>/<target-iqn-name>/<lun>
+@end example
+
+Howto set up a simple iSCSI target on loopback and accessing it via QEMU:
+@example
+This example shows how to set up an iSCSI target with one CDROM and one DISK
+using the Linux STGT software target. This target is available on Red Hat based
+systems as the package 'scsi-target-utils'.
+
+tgtd --iscsi portal=127.0.0.1:3260
+tgtadm --lld iscsi --op new --mode target --tid 1 -T iqn.qemu.test
+tgtadm --lld iscsi --mode logicalunit --op new --tid 1 --lun 1 \
+    -b /IMAGES/disk.img --device-type=disk
+tgtadm --lld iscsi --mode logicalunit --op new --tid 1 --lun 2 \
+    -b /IMAGES/cd.iso --device-type=cd
+tgtadm --lld iscsi --op bind --mode target --tid 1 -I ALL
+
+qemu-system-i386 -boot d -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
+    -cdrom iscsi://127.0.0.1/iqn.qemu.test/2
+@end example
+
+
 
 @node pcsys_network
 @section Network emulation

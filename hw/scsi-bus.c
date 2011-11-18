@@ -9,8 +9,6 @@
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
 static void scsi_req_dequeue(SCSIRequest *req);
-static int scsi_build_sense(uint8_t *in_buf, int in_len,
-                            uint8_t *buf, int len, bool fixed);
 
 static struct BusInfo scsi_bus_info = {
     .name  = "SCSI",
@@ -502,7 +500,7 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                                  hba_private);
         } else if (lun != d->lun ||
             buf[0] == REPORT_LUNS ||
-            buf[0] == REQUEST_SENSE) {
+            (buf[0] == REQUEST_SENSE && (d->sense_len || cmd.xfer < 4))) {
             req = scsi_req_alloc(&reqops_target_command, d, tag, lun,
                                  hba_private);
         } else {
@@ -649,6 +647,31 @@ static void scsi_req_dequeue(SCSIRequest *req)
     }
 }
 
+static int scsi_get_performance_length(int num_desc, int type, int data_type)
+{
+    /* MMC-6, paragraph 6.7.  */
+    switch (type) {
+    case 0:
+        if ((data_type & 3) == 0) {
+            /* Each descriptor is as in Table 295 - Nominal performance.  */
+            return 16 * num_desc + 8;
+        } else {
+            /* Each descriptor is as in Table 296 - Exceptions.  */
+            return 6 * num_desc + 8;
+        }
+    case 1:
+    case 4:
+    case 5:
+        return 8 * num_desc + 8;
+    case 2:
+        return 2048 * num_desc + 8;
+    case 3:
+        return 16 * num_desc + 8;
+    default:
+        return 8;
+    }
+}
+
 static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
 {
     switch (buf[0] >> 5) {
@@ -666,11 +689,11 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
         cmd->len = 10;
         break;
     case 4:
-        cmd->xfer = ldl_be_p(&buf[10]);
+        cmd->xfer = ldl_be_p(&buf[10]) & 0xffffffffULL;
         cmd->len = 16;
         break;
     case 5:
-        cmd->xfer = ldl_be_p(&buf[6]);
+        cmd->xfer = ldl_be_p(&buf[6]) & 0xffffffffULL;
         cmd->len = 12;
         break;
     default:
@@ -681,8 +704,9 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case TEST_UNIT_READY:
     case REWIND:
     case START_STOP:
-    case SEEK_6:
+    case SET_CAPACITY:
     case WRITE_FILEMARKS:
+    case WRITE_FILEMARKS_16:
     case SPACE:
     case RESERVE:
     case RELEASE:
@@ -691,6 +715,8 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case VERIFY_10:
     case SEEK_10:
     case SYNCHRONIZE_CACHE:
+    case SYNCHRONIZE_CACHE_16:
+    case LOCATE_16:
     case LOCK_UNLOCK_CACHE:
     case LOAD_UNLOAD:
     case SET_CD_SPEED:
@@ -698,6 +724,11 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case WRITE_LONG_10:
     case MOVE_MEDIUM:
     case UPDATE_BLOCK:
+    case RESERVE_TRACK:
+    case SET_READ_AHEAD:
+    case PRE_FETCH:
+    case PRE_FETCH_16:
+    case ALLOW_OVERWRITE:
         cmd->xfer = 0;
         break;
     case MODE_SENSE:
@@ -711,14 +742,13 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case READ_BLOCK_LIMITS:
         cmd->xfer = 6;
         break;
-    case READ_POSITION:
-        cmd->xfer = 20;
-        break;
     case SEND_VOLUME_TAG:
-        cmd->xfer *= 40;
-        break;
-    case MEDIUM_SCAN:
-        cmd->xfer *= 8;
+        /* GPCMD_SET_STREAMING from multimedia commands.  */
+        if (dev->type == TYPE_ROM) {
+            cmd->xfer = buf[10] | (buf[9] << 8);
+        } else {
+            cmd->xfer = buf[9] | (buf[8] << 8);
+        }
         break;
     case WRITE_10:
     case WRITE_VERIFY_10:
@@ -737,9 +767,39 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case READ_16:
         cmd->xfer *= dev->blocksize;
         break;
+    case FORMAT_UNIT:
+        /* MMC mandates the parameter list to be 12-bytes long.  Parameters
+         * for block devices are restricted to the header right now.  */
+        if (dev->type == TYPE_ROM && (buf[1] & 16)) {
+            cmd->xfer = 12;
+        } else {
+            cmd->xfer = (buf[1] & 16) == 0 ? 0 : (buf[1] & 32 ? 8 : 4);
+        }
+        break;
     case INQUIRY:
+    case RECEIVE_DIAGNOSTIC:
+    case SEND_DIAGNOSTIC:
         cmd->xfer = buf[4] | (buf[3] << 8);
         break;
+    case READ_CD:
+    case READ_BUFFER:
+    case WRITE_BUFFER:
+    case SEND_CUE_SHEET:
+        cmd->xfer = buf[8] | (buf[7] << 8) | (buf[6] << 16);
+        break;
+    case PERSISTENT_RESERVE_OUT:
+        cmd->xfer = ldl_be_p(&buf[5]) & 0xffffffffULL;
+        break;
+    case ERASE_12:
+        if (dev->type == TYPE_ROM) {
+            /* MMC command GET PERFORMANCE.  */
+            cmd->xfer = scsi_get_performance_length(buf[9] | (buf[8] << 8),
+                                                    buf[10], buf[1] & 0x1f);
+        }
+        break;
+    case MECHANISM_STATUS:
+    case READ_DVD_STRUCTURE:
+    case SEND_DVD_STRUCTURE:
     case MAINTENANCE_OUT:
     case MAINTENANCE_IN:
         if (dev->type == TYPE_ROM) {
@@ -755,6 +815,10 @@ static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *bu
 {
     switch (buf[0]) {
     /* stream commands */
+    case ERASE_12:
+    case ERASE_16:
+        cmd->xfer = 0;
+        break;
     case READ_6:
     case READ_REVERSE:
     case RECOVER_BUFFERED_DATA:
@@ -769,6 +833,15 @@ static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *bu
     case START_STOP:
         cmd->len = 6;
         cmd->xfer = 0;
+        break;
+    case SPACE_16:
+        cmd->xfer = buf[13] | (buf[12] << 8);
+        break;
+    case READ_POSITION:
+        cmd->xfer = buf[8] | (buf[7] << 8);
+        break;
+    case FORMAT_UNIT:
+        cmd->xfer = buf[4] | (buf[3] << 8);
         break;
     /* generic commands */
     default:
@@ -809,6 +882,8 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
     case SEARCH_LOW_12:
     case MEDIUM_SCAN:
     case SEND_VOLUME_TAG:
+    case SEND_CUE_SHEET:
+    case SEND_DVD_STRUCTURE:
     case PERSISTENT_RESERVE_OUT:
     case MAINTENANCE_OUT:
         cmd->mode = SCSI_XFER_TO_DEV;
@@ -835,7 +910,7 @@ static uint64_t scsi_cmd_lba(SCSICommand *cmd)
     case 1:
     case 2:
     case 5:
-        lba = ldl_be_p(&buf[2]);
+        lba = ldl_be_p(&buf[2]) & 0xffffffffULL;
         break;
     case 4:
         lba = ldq_be_p(&buf[2]);
@@ -1036,7 +1111,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ REASSIGN_BLOCKS          ] = "REASSIGN_BLOCKS",
         [ READ_6                   ] = "READ_6",
         [ WRITE_6                  ] = "WRITE_6",
-        [ SEEK_6                   ] = "SEEK_6",
+        [ SET_CAPACITY             ] = "SET_CAPACITY",
         [ READ_REVERSE             ] = "READ_REVERSE",
         [ WRITE_FILEMARKS          ] = "WRITE_FILEMARKS",
         [ SPACE                    ] = "SPACE",
@@ -1064,7 +1139,7 @@ static const char *scsi_command_name(uint8_t cmd)
         [ SEARCH_EQUAL             ] = "SEARCH_EQUAL",
         [ SEARCH_LOW               ] = "SEARCH_LOW",
         [ SET_LIMITS               ] = "SET_LIMITS",
-        [ PRE_FETCH                ] = "PRE_FETCH",
+        [ PRE_FETCH                ] = "PRE_FETCH/READ_POSITION",
         /* READ_POSITION and PRE_FETCH use the same operation code */
         [ SYNCHRONIZE_CACHE        ] = "SYNCHRONIZE_CACHE",
         [ LOCK_UNLOCK_CACHE        ] = "LOCK_UNLOCK_CACHE",
@@ -1101,9 +1176,11 @@ static const char *scsi_command_name(uint8_t cmd)
         [ WRITE_16                 ] = "WRITE_16",
         [ WRITE_VERIFY_16          ] = "WRITE_VERIFY_16",
         [ VERIFY_16                ] = "VERIFY_16",
-        [ SYNCHRONIZE_CACHE_16     ] = "SYNCHRONIZE_CACHE_16",
+        [ PRE_FETCH_16             ] = "PRE_FETCH_16",
+        [ SYNCHRONIZE_CACHE_16     ] = "SPACE_16/SYNCHRONIZE_CACHE_16",
+        /* SPACE_16 and SYNCHRONIZE_CACHE_16 use the same operation code */
         [ LOCATE_16                ] = "LOCATE_16",
-        [ WRITE_SAME_16            ] = "WRITE_SAME_16",
+        [ WRITE_SAME_16            ] = "ERASE_16/WRITE_SAME_16",
         /* ERASE_16 and WRITE_SAME_16 use the same operation code */
         [ SERVICE_ACTION_IN_16     ] = "SERVICE_ACTION_IN_16",
         [ WRITE_LONG_16            ] = "WRITE_LONG_16",
@@ -1113,6 +1190,8 @@ static const char *scsi_command_name(uint8_t cmd)
         [ LOAD_UNLOAD              ] = "LOAD_UNLOAD",
         [ READ_12                  ] = "READ_12",
         [ WRITE_12                 ] = "WRITE_12",
+        [ ERASE_12                 ] = "ERASE_12/GET_PERFORMANCE",
+        /* ERASE_12 and GET_PERFORMANCE use the same operation code */
         [ SERVICE_ACTION_IN_12     ] = "SERVICE_ACTION_IN_12",
         [ WRITE_VERIFY_12          ] = "WRITE_VERIFY_12",
         [ VERIFY_12                ] = "VERIFY_12",
@@ -1120,9 +1199,18 @@ static const char *scsi_command_name(uint8_t cmd)
         [ SEARCH_EQUAL_12          ] = "SEARCH_EQUAL_12",
         [ SEARCH_LOW_12            ] = "SEARCH_LOW_12",
         [ READ_ELEMENT_STATUS      ] = "READ_ELEMENT_STATUS",
-        [ SEND_VOLUME_TAG          ] = "SEND_VOLUME_TAG",
+        [ SEND_VOLUME_TAG          ] = "SEND_VOLUME_TAG/SET_STREAMING",
+        /* SEND_VOLUME_TAG and SET_STREAMING use the same operation code */
+        [ READ_CD                  ] = "READ_CD",
         [ READ_DEFECT_DATA_12      ] = "READ_DEFECT_DATA_12",
+        [ READ_DVD_STRUCTURE       ] = "READ_DVD_STRUCTURE",
+        [ RESERVE_TRACK            ] = "RESERVE_TRACK",
+        [ SEND_CUE_SHEET           ] = "SEND_CUE_SHEET",
+        [ SEND_DVD_STRUCTURE       ] = "SEND_DVD_STRUCTURE",
         [ SET_CD_SPEED             ] = "SET_CD_SPEED",
+        [ SET_READ_AHEAD           ] = "SET_READ_AHEAD",
+        [ ALLOW_OVERWRITE          ] = "ALLOW_OVERWRITE",
+        [ MECHANISM_STATUS         ] = "MECHANISM_STATUS",
     };
 
     if (cmd >= ARRAY_SIZE(names) || names[cmd] == NULL)
@@ -1279,7 +1367,7 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev)
     SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
     char path[100];
 
-    snprintf(path, sizeof(path), "%s@%d:%d:%d", qdev_fw_name(dev),
+    snprintf(path, sizeof(path), "%s@%d,%d,%d", qdev_fw_name(dev),
              d->channel, d->id, d->lun);
 
     return strdup(path);
