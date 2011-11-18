@@ -186,7 +186,9 @@ void vga_hw_screen_dump(const char *filename)
         consoles[0]->hw_screen_dump(consoles[0]->hw, filename);
     }
 
-    console_select(previous_active_console->index);
+    if (previous_active_console) {
+        console_select(previous_active_console->index);
+    }
 }
 
 void vga_hw_text_update(console_ch_t *chardata)
