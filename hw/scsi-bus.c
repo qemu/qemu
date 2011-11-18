@@ -1370,8 +1370,8 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev)
     SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
     char path[100];
 
-    snprintf(path, sizeof(path), "%s@%d,%d,%d", qdev_fw_name(dev),
-             d->channel, d->id, d->lun);
+    snprintf(path, sizeof(path), "channel@%x/%s@%x,%x", d->channel,
+             qdev_fw_name(dev), d->id, d->lun);
 
     return strdup(path);
 }
