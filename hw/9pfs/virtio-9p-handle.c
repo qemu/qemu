@@ -58,11 +58,12 @@ static inline int open_by_handle(int mountfd, const char *fh, int flags)
 }
 #else
 
-struct file_handle {
+struct rpl_file_handle {
     unsigned int handle_bytes;
     int handle_type;
     unsigned char handle[0];
 };
+#define file_handle rpl_file_handle
 
 #ifndef AT_EMPTY_PATH
 #define AT_EMPTY_PATH   0x1000  /* Allow empty relative pathname */
