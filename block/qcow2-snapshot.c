@@ -137,8 +137,10 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     QCowSnapshot *sn;
     QCowSnapshotHeader h;
     int i, name_size, id_str_size, snapshots_size;
-    uint64_t data64;
-    uint32_t data32;
+    struct {
+        uint32_t nb_snapshots;
+        uint64_t snapshots_offset;
+    } QEMU_PACKED header_data;
     int64_t offset, snapshots_offset;
     int ret;
 
@@ -200,24 +202,20 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     /*
      * Update the header to point to the new snapshot table. This requires the
      * new table and its refcounts to be stable on disk.
-     *
-     * FIXME This should be done with a single write
      */
     ret = bdrv_flush(bs);
     if (ret < 0) {
         goto fail;
     }
 
-    data64 = cpu_to_be64(snapshots_offset);
-    ret = bdrv_pwrite(bs->file, offsetof(QCowHeader, snapshots_offset),
-                      &data64, sizeof(data64));
-    if (ret < 0) {
-        goto fail;
-    }
+    QEMU_BUILD_BUG_ON(offsetof(QCowHeader, snapshots_offset) !=
+        offsetof(QCowHeader, nb_snapshots) + sizeof(header_data.nb_snapshots));
 
-    data32 = cpu_to_be32(s->nb_snapshots);
+    header_data.nb_snapshots        = cpu_to_be32(s->nb_snapshots);
+    header_data.snapshots_offset    = cpu_to_be64(snapshots_offset);
+
     ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, nb_snapshots),
-                           &data32, sizeof(data32));
+                           &header_data, sizeof(header_data));
     if (ret < 0) {
         goto fail;
     }
