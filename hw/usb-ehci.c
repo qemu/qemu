@@ -467,6 +467,8 @@ static const char *ehci_mmio_names[] = {
     [PORTSC_BEGIN + 4]  = "PORTSC #1",
     [PORTSC_BEGIN + 8]  = "PORTSC #2",
     [PORTSC_BEGIN + 12] = "PORTSC #3",
+    [PORTSC_BEGIN + 16] = "PORTSC #4",
+    [PORTSC_BEGIN + 20] = "PORTSC #5",
     [CONFIGFLAG]        = "CONFIGFLAG",
 };
 
