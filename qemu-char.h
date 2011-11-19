@@ -212,6 +212,16 @@ int qemu_chr_be_can_write(CharDriverState *s);
  */
 void qemu_chr_be_write(CharDriverState *s, uint8_t *buf, int len);
 
+
+/**
+ * @qemu_chr_be_event:
+ *
+ * Send an event from the back end to the front end.
+ *
+ * @event the event to send
+ */
+void qemu_chr_be_event(CharDriverState *s, int event);
+
 void qemu_chr_add_handlers(CharDriverState *s,
                            IOCanReadHandler *fd_can_read,
                            IOReadHandler *fd_read,
