@@ -814,6 +814,8 @@ static int usbredir_initfn(USBDevice *udev)
     /* We'll do the attach once we receive the speed from the usb-host */
     udev->auto_attach = 0;
 
+    /* Let the backend know we are ready */
+    qemu_chr_fe_open(dev->cs);
     qemu_chr_add_handlers(dev->cs, usbredir_chardev_can_read,
                           usbredir_chardev_read, usbredir_chardev_event, dev);
 
@@ -837,6 +839,7 @@ static void usbredir_handle_destroy(USBDevice *udev)
 {
     USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
 
+    qemu_chr_fe_close(dev->cs);
     qemu_chr_delete(dev->cs);
     /* Note must be done after qemu_chr_close, as that causes a close event */
     qemu_bh_delete(dev->open_close_bh);
