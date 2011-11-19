@@ -298,8 +298,10 @@ static inline void gen_debug_exception(DisasContext *ctx)
 {
     TCGv_i32 t0;
 
-    if (ctx->exception != POWERPC_EXCP_BRANCH)
+    if ((ctx->exception != POWERPC_EXCP_BRANCH) &&
+        (ctx->exception != POWERPC_EXCP_SYNC)) {
         gen_update_nip(ctx, ctx->nip);
+    }
     t0 = tcg_const_i32(EXCP_DEBUG);
     gen_helper_raise_exception(t0);
     tcg_temp_free_i32(t0);

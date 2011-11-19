@@ -616,18 +616,19 @@ static void tcg_out_tlb_read (TCGContext *s, int r0, int r1, int r2,
 
 static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, data_reg, r0, r1, rbase, mem_index, s_bits, bswap;
+    int addr_reg, data_reg, r0, r1, rbase, bswap;
 #ifdef CONFIG_SOFTMMU
-    int r2;
+    int r2, mem_index, s_bits;
     void *label1_ptr, *label2_ptr;
 #endif
 
     data_reg = *args++;
     addr_reg = *args++;
+
+#ifdef CONFIG_SOFTMMU
     mem_index = *args;
     s_bits = opc & 3;
 
-#ifdef CONFIG_SOFTMMU
     r0 = 3;
     r1 = 4;
     r2 = 0;
@@ -763,17 +764,18 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
 static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, r0, r1, rbase, data_reg, mem_index, bswap;
+    int addr_reg, r0, r1, rbase, data_reg, bswap;
 #ifdef CONFIG_SOFTMMU
-    int r2;
+    int r2, mem_index;
     void *label1_ptr, *label2_ptr;
 #endif
 
     data_reg = *args++;
     addr_reg = *args++;
-    mem_index = *args;
 
 #ifdef CONFIG_SOFTMMU
+    mem_index = *args;
+
     r0 = 3;
     r1 = 4;
     r2 = 0;
