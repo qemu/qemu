@@ -309,10 +309,21 @@ static inline void kvm_s390_interrupt_internal(CPUState *env, int type,
 }
 #endif
 CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
+void s390_add_running_cpu(CPUState *env);
+unsigned s390_del_running_cpu(CPUState *env);
 
 /* from s390-virtio-bus */
 extern const target_phys_addr_t virtio_size;
 
+#else
+static inline void s390_add_running_cpu(CPUState *env)
+{
+}
+
+static inline unsigned s390_del_running_cpu(CPUState *env)
+{
+    return 0;
+}
 #endif
 void cpu_lock(void);
 void cpu_unlock(void);
@@ -819,6 +830,10 @@ struct sysib_322 {
 #define _PAGE_RO        0x200            /* HW read-only bit  */
 #define _PAGE_INVALID   0x400            /* HW invalid bit    */
 
+#define SK_C                    (0x1 << 1)
+#define SK_R                    (0x1 << 2)
+#define SK_F                    (0x1 << 3)
+#define SK_ACC_MASK             (0xf << 4)
 
 
 /* EBCDIC handling */

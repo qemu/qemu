@@ -379,13 +379,14 @@ static inline void tcg_out_nop(TCGContext *s)
     tcg_out32(s, 0);
 }
 
-static inline void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type,
+                               TCGReg ret, TCGReg arg)
 {
     tcg_out_opc_reg(s, OPC_ADDU, ret, arg, TCG_REG_ZERO);
 }
 
 static inline void tcg_out_movi(TCGContext *s, TCGType type,
-                                int reg, int32_t arg)
+                                TCGReg reg, tcg_target_long arg)
 {
     if (arg == (int16_t)arg) {
         tcg_out_opc_imm(s, OPC_ADDIU, reg, TCG_REG_ZERO, arg);
@@ -480,14 +481,14 @@ static inline void tcg_out_ldst(TCGContext *s, int opc, int arg,
     }
 }
 
-static inline void tcg_out_ld(TCGContext *s, TCGType type, int arg,
-                              int arg1, tcg_target_long arg2)
+static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg arg,
+                              TCGReg arg1, tcg_target_long arg2)
 {
     tcg_out_ldst(s, OPC_LW, arg, arg1, arg2);
 }
 
-static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
-                              int arg1, tcg_target_long arg2)
+static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
+                              TCGReg arg1, tcg_target_long arg2)
 {
     tcg_out_ldst(s, OPC_SW, arg, arg1, arg2);
 }

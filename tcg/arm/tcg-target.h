@@ -27,7 +27,7 @@
 #undef TCG_TARGET_WORDS_BIGENDIAN
 #undef TCG_TARGET_STACK_GROWSUP
 
-enum {
+typedef enum {
     TCG_REG_R0 = 0,
     TCG_REG_R1,
     TCG_REG_R2,
@@ -44,7 +44,7 @@ enum {
     TCG_REG_R13,
     TCG_REG_R14,
     TCG_REG_PC,
-};
+} TCGReg;
 
 #define TCG_TARGET_NB_REGS 16
 

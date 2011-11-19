@@ -338,7 +338,7 @@ static int tcg_target_const_match(tcg_target_long val,
 /* supplied by libgcc */
 extern void *__canonicalize_funcptr_for_compare(void *);
 
-static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
+static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
     /* PA1.1 defines COPY as OR r,0,t; PA2.0 defines COPY as LDO 0(r),t
        but hppa-dis.c is unaware of this definition */
@@ -349,7 +349,7 @@ static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
-                         int ret, tcg_target_long arg)
+                         TCGReg ret, tcg_target_long arg)
 {
     if (check_fit_tl(arg, 14)) {
         tcg_out32(s, INSN_LDO | INSN_R1(ret)
@@ -393,15 +393,15 @@ static void tcg_out_ldst(TCGContext *s, int ret, int addr,
 }
 
 /* This function is required by tcg.c.  */
-static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
-                              int arg1, tcg_target_long arg2)
+static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
+                              TCGReg arg1, tcg_target_long arg2)
 {
     tcg_out_ldst(s, ret, arg1, arg2, INSN_LDW);
 }
 
 /* This function is required by tcg.c.  */
-static inline void tcg_out_st(TCGContext *s, TCGType type, int ret,
-                              int arg1, tcg_target_long arg2)
+static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg ret,
+                              TCGReg arg1, tcg_target_long arg2)
 {
     tcg_out_ldst(s, ret, arg1, arg2, INSN_STW);
 }

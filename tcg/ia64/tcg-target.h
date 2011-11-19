@@ -26,7 +26,7 @@
 
 /* We only map the first 64 registers */
 #define TCG_TARGET_NB_REGS 64
-enum {
+typedef enum {
     TCG_REG_R0 = 0,
     TCG_REG_R1,
     TCG_REG_R2,
@@ -91,7 +91,7 @@ enum {
     TCG_REG_R61,
     TCG_REG_R62,
     TCG_REG_R63,
-};
+} TCGReg;
 
 #define TCG_CT_CONST_ZERO 0x100
 #define TCG_CT_CONST_S22 0x200
