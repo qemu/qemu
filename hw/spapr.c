@@ -57,7 +57,7 @@
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
 
-#define MIN_RAM_SLOF		512UL
+#define MIN_RMA_SLOF		128UL
 
 #define TIMEBASE_FREQ           512000000ULL
 
@@ -407,7 +407,9 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     long pteg_shift = 17;
     char *filename;
 
-    spapr = g_malloc(sizeof(*spapr));
+    spapr = g_malloc0(sizeof(*spapr));
+    QLIST_INIT(&spapr->phbs);
+
     cpu_ppc_hypercall = emulate_spapr_hypercall;
 
     /* Allocate RMA if necessary */
@@ -560,9 +562,9 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
         spapr->entry_point = KERNEL_LOAD_ADDR;
     } else {
-        if (ram_size < (MIN_RAM_SLOF << 20)) {
+        if (rma_size < (MIN_RMA_SLOF << 20)) {
             fprintf(stderr, "qemu: pSeries SLOF firmware requires >= "
-                    "%ldM guest RAM\n", MIN_RAM_SLOF);
+                    "%ldM guest RMA (Real Mode Area memory)\n", MIN_RMA_SLOF);
             exit(1);
         }
         filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, FW_FILE_NAME);

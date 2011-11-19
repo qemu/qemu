@@ -34,13 +34,6 @@ void helper_debug(CPUState *env)
     cpu_loop_exit(env);
 }
 
-void helper_shutdown(void)
-{
-#if !defined(CONFIG_USER_ONLY)
-    qemu_system_shutdown_request();
-#endif
-}
-
 #ifdef TARGET_SPARC64
 target_ulong helper_popc(target_ulong val)
 {

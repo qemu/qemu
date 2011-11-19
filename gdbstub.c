@@ -1781,12 +1781,6 @@ void gdb_register_coprocessor(CPUState * env,
     GDBRegisterState **p;
     static int last_reg = NUM_CORE_REGS;
 
-    s = (GDBRegisterState *)g_malloc0(sizeof(GDBRegisterState));
-    s->base_reg = last_reg;
-    s->num_regs = num_regs;
-    s->get_reg = get_reg;
-    s->set_reg = set_reg;
-    s->xml = xml;
     p = &env->gdb_regs;
     while (*p) {
         /* Check for duplicates.  */
@@ -1794,6 +1788,14 @@ void gdb_register_coprocessor(CPUState * env,
             return;
         p = &(*p)->next;
     }
+
+    s = g_new0(GDBRegisterState, 1);
+    s->base_reg = last_reg;
+    s->num_regs = num_regs;
+    s->get_reg = get_reg;
+    s->set_reg = set_reg;
+    s->xml = xml;
+
     /* Add to end of list.  */
     last_reg += num_regs;
     *p = s;

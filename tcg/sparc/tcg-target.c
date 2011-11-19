@@ -306,7 +306,8 @@ static void tcg_out_arithc(TCGContext *s, int rd, int rs1,
               | (val2const ? INSN_IMM13(val2) : INSN_RS2(val2)));
 }
 
-static inline void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
+static inline void tcg_out_mov(TCGContext *s, TCGType type,
+                               TCGReg ret, TCGReg arg)
 {
     tcg_out_arith(s, ret, arg, TCG_REG_G0, ARITH_OR);
 }
@@ -333,7 +334,7 @@ static inline void tcg_out_movi_imm32(TCGContext *s, int ret, uint32_t arg)
 }
 
 static inline void tcg_out_movi(TCGContext *s, TCGType type,
-                                int ret, tcg_target_long arg)
+                                TCGReg ret, tcg_target_long arg)
 {
     /* All 32-bit constants, as well as 64-bit constants with
        no high bits set go through movi_imm32.  */
@@ -398,8 +399,8 @@ static inline void tcg_out_ldst_asi(TCGContext *s, int ret, int addr,
               INSN_ASI(asi) | INSN_RS2(addr));
 }
 
-static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
-                              int arg1, tcg_target_long arg2)
+static inline void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret,
+                              TCGReg arg1, tcg_target_long arg2)
 {
     if (type == TCG_TYPE_I32)
         tcg_out_ldst(s, ret, arg1, arg2, LDUW);
@@ -407,8 +408,8 @@ static inline void tcg_out_ld(TCGContext *s, TCGType type, int ret,
         tcg_out_ldst(s, ret, arg1, arg2, LDX);
 }
 
-static inline void tcg_out_st(TCGContext *s, TCGType type, int arg,
-                              int arg1, tcg_target_long arg2)
+static inline void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg,
+                              TCGReg arg1, tcg_target_long arg2)
 {
     if (type == TCG_TYPE_I32)
         tcg_out_ldst(s, arg, arg1, arg2, STW);
@@ -472,11 +473,9 @@ static inline void tcg_out_nop(TCGContext *s)
 
 static void tcg_out_branch_i32(TCGContext *s, int opc, int label_index)
 {
-    int32_t val;
     TCGLabel *l = &s->labels[label_index];
 
     if (l->has_value) {
-        val = l->u.value - (tcg_target_long)s->code_ptr;
         tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x2)
                       | INSN_OFF22(l->u.value - (unsigned long)s->code_ptr)));
     } else {
@@ -488,11 +487,9 @@ static void tcg_out_branch_i32(TCGContext *s, int opc, int label_index)
 #if TCG_TARGET_REG_BITS == 64
 static void tcg_out_branch_i64(TCGContext *s, int opc, int label_index)
 {
-    int32_t val;
     TCGLabel *l = &s->labels[label_index];
 
     if (l->has_value) {
-        val = l->u.value - (tcg_target_long)s->code_ptr;
         tcg_out32(s, (INSN_OP(0) | INSN_COND(opc, 0) | INSN_OP2(0x1) |
                       (0x5 << 19) |
                       INSN_OFF19(l->u.value - (unsigned long)s->code_ptr)));
