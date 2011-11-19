@@ -881,6 +881,11 @@ static void usbredir_device_connect(void *priv,
 {
     USBRedirDevice *dev = priv;
 
+    if (qemu_timer_pending(dev->attach_timer) || dev->dev.attached) {
+        ERROR("Received device connect while already connected\n");
+        return;
+    }
+
     switch (device_connect->speed) {
     case usb_redir_speed_low:
         DPRINTF("attaching low speed device\n");
@@ -909,18 +914,25 @@ static void usbredir_device_connect(void *priv,
 static void usbredir_device_disconnect(void *priv)
 {
     USBRedirDevice *dev = priv;
+    int i;
 
     /* Stop any pending attaches */
     qemu_del_timer(dev->attach_timer);
 
     if (dev->dev.attached) {
         usb_device_detach(&dev->dev);
-        usbredir_cleanup_device_queues(dev);
         /*
          * Delay next usb device attach to give the guest a chance to see
          * see the detach / attach in case of quick close / open succession
          */
         dev->next_attach_time = qemu_get_clock_ms(vm_clock) + 200;
+    }
+
+    /* Reset state so that the next dev connected starts with a clean slate */
+    usbredir_cleanup_device_queues(dev);
+    memset(dev->endpoint, 0, sizeof(dev->endpoint));
+    for (i = 0; i < MAX_ENDPOINTS; i++) {
+        QTAILQ_INIT(&dev->endpoint[i].bufpq);
     }
 }
 
@@ -1013,6 +1025,10 @@ static void usbredir_iso_stream_status(void *priv, uint32_t id,
     DPRINTF("iso status %d ep %02X id %u\n", iso_stream_status->status,
             ep, id);
 
+    if (!dev->dev.attached) {
+        return;
+    }
+
     dev->endpoint[EP2I(ep)].iso_error = iso_stream_status->status;
     if (iso_stream_status->status == usb_redir_stall) {
         DPRINTF("iso stream stopped by peer ep %02X\n", ep);
@@ -1029,6 +1045,10 @@ static void usbredir_interrupt_receiving_status(void *priv, uint32_t id,
 
     DPRINTF("interrupt recv status %d ep %02X id %u\n",
             interrupt_receiving_status->status, ep, id);
+
+    if (!dev->dev.attached) {
+        return;
+    }
 
     dev->endpoint[EP2I(ep)].interrupt_error =
         interrupt_receiving_status->status;
