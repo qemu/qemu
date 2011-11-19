@@ -225,6 +225,10 @@ static int usbredir_write(void *priv, uint8_t *data, int count)
 {
     USBRedirDevice *dev = priv;
 
+    if (!dev->cs->opened) {
+        return 0;
+    }
+
     return qemu_chr_fe_write(dev->cs, data, count);
 }
 
