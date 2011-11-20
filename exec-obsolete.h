@@ -33,7 +33,7 @@ void qemu_ram_free_from_ptr(ram_addr_t addr);
 
 int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                            CPUWriteMemoryFunc * const *mem_write,
-                           void *opaque, enum device_endian endian);
+                           void *opaque);
 void cpu_unregister_io_memory(int table_address);
 
 void cpu_register_physical_memory_log(target_phys_addr_t start_addr,

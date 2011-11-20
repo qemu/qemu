@@ -3507,8 +3507,7 @@ static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
     mmio = g_malloc0(sizeof(subpage_t));
 
     mmio->base = base;
-    subpage_memory = cpu_register_io_memory(subpage_read, subpage_write, mmio,
-                                            DEVICE_NATIVE_ENDIAN);
+    subpage_memory = cpu_register_io_memory(subpage_read, subpage_write, mmio);
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
            mmio, base, TARGET_PAGE_SIZE, subpage_memory);
@@ -3532,106 +3531,6 @@ static int get_free_io_mem_idx(void)
     return -1;
 }
 
-/*
- * Usually, devices operate in little endian mode. There are devices out
- * there that operate in big endian too. Each device gets byte swapped
- * mmio if plugged onto a CPU that does the other endianness.
- *
- * CPU          Device           swap?
- *
- * little       little           no
- * little       big              yes
- * big          little           yes
- * big          big              no
- */
-
-typedef struct SwapEndianContainer {
-    CPUReadMemoryFunc *read[3];
-    CPUWriteMemoryFunc *write[3];
-    void *opaque;
-} SwapEndianContainer;
-
-static uint32_t swapendian_mem_readb (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t val;
-    SwapEndianContainer *c = opaque;
-    val = c->read[0](c->opaque, addr);
-    return val;
-}
-
-static uint32_t swapendian_mem_readw(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t val;
-    SwapEndianContainer *c = opaque;
-    val = bswap16(c->read[1](c->opaque, addr));
-    return val;
-}
-
-static uint32_t swapendian_mem_readl(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t val;
-    SwapEndianContainer *c = opaque;
-    val = bswap32(c->read[2](c->opaque, addr));
-    return val;
-}
-
-static CPUReadMemoryFunc * const swapendian_readfn[3]={
-    swapendian_mem_readb,
-    swapendian_mem_readw,
-    swapendian_mem_readl
-};
-
-static void swapendian_mem_writeb(void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
-{
-    SwapEndianContainer *c = opaque;
-    c->write[0](c->opaque, addr, val);
-}
-
-static void swapendian_mem_writew(void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
-{
-    SwapEndianContainer *c = opaque;
-    c->write[1](c->opaque, addr, bswap16(val));
-}
-
-static void swapendian_mem_writel(void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
-{
-    SwapEndianContainer *c = opaque;
-    c->write[2](c->opaque, addr, bswap32(val));
-}
-
-static CPUWriteMemoryFunc * const swapendian_writefn[3]={
-    swapendian_mem_writeb,
-    swapendian_mem_writew,
-    swapendian_mem_writel
-};
-
-static void swapendian_init(int io_index)
-{
-    SwapEndianContainer *c = g_malloc(sizeof(SwapEndianContainer));
-    int i;
-
-    /* Swap mmio for big endian targets */
-    c->opaque = io_mem_opaque[io_index];
-    for (i = 0; i < 3; i++) {
-        c->read[i] = io_mem_read[io_index][i];
-        c->write[i] = io_mem_write[io_index][i];
-
-        io_mem_read[io_index][i] = swapendian_readfn[i];
-        io_mem_write[io_index][i] = swapendian_writefn[i];
-    }
-    io_mem_opaque[io_index] = c;
-}
-
-static void swapendian_del(int io_index)
-{
-    if (io_mem_read[io_index][0] == swapendian_readfn[0]) {
-        g_free(io_mem_opaque[io_index]);
-    }
-}
-
 /* mem_read and mem_write are arrays of functions containing the
    function to access byte (index 0), word (index 1) and dword (index
    2). Functions can be omitted with a NULL function pointer.
@@ -3642,7 +3541,7 @@ static void swapendian_del(int io_index)
 static int cpu_register_io_memory_fixed(int io_index,
                                         CPUReadMemoryFunc * const *mem_read,
                                         CPUWriteMemoryFunc * const *mem_write,
-                                        void *opaque, enum device_endian endian)
+                                        void *opaque)
 {
     int i;
 
@@ -3666,38 +3565,20 @@ static int cpu_register_io_memory_fixed(int io_index,
     }
     io_mem_opaque[io_index] = opaque;
 
-    switch (endian) {
-    case DEVICE_BIG_ENDIAN:
-#ifndef TARGET_WORDS_BIGENDIAN
-        swapendian_init(io_index);
-#endif
-        break;
-    case DEVICE_LITTLE_ENDIAN:
-#ifdef TARGET_WORDS_BIGENDIAN
-        swapendian_init(io_index);
-#endif
-        break;
-    case DEVICE_NATIVE_ENDIAN:
-    default:
-        break;
-    }
-
     return (io_index << IO_MEM_SHIFT);
 }
 
 int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                            CPUWriteMemoryFunc * const *mem_write,
-                           void *opaque, enum device_endian endian)
+                           void *opaque)
 {
-    return cpu_register_io_memory_fixed(0, mem_read, mem_write, opaque, endian);
+    return cpu_register_io_memory_fixed(0, mem_read, mem_write, opaque);
 }
 
 void cpu_unregister_io_memory(int io_table_address)
 {
     int i;
     int io_index = io_table_address >> IO_MEM_SHIFT;
-
-    swapendian_del(io_index);
 
     for (i=0;i < 3; i++) {
         io_mem_read[io_index][i] = unassigned_mem_read[i];
@@ -3712,23 +3593,18 @@ static void io_mem_init(void)
     int i;
 
     cpu_register_io_memory_fixed(IO_MEM_ROM, error_mem_read,
-                                 unassigned_mem_write, NULL,
-                                 DEVICE_NATIVE_ENDIAN);
+                                 unassigned_mem_write, NULL);
     cpu_register_io_memory_fixed(IO_MEM_UNASSIGNED, unassigned_mem_read,
-                                 unassigned_mem_write, NULL,
-                                 DEVICE_NATIVE_ENDIAN);
+                                 unassigned_mem_write, NULL);
     cpu_register_io_memory_fixed(IO_MEM_NOTDIRTY, error_mem_read,
-                                 notdirty_mem_write, NULL,
-                                 DEVICE_NATIVE_ENDIAN);
+                                 notdirty_mem_write, NULL);
     cpu_register_io_memory_fixed(IO_MEM_SUBPAGE_RAM, subpage_ram_read,
-                                 subpage_ram_write, NULL,
-                                 DEVICE_NATIVE_ENDIAN);
+                                 subpage_ram_write, NULL);
     for (i=0; i<5; i++)
         io_mem_used[i] = 1;
 
     io_mem_watch = cpu_register_io_memory(watch_mem_read,
-                                          watch_mem_write, NULL,
-                                          DEVICE_NATIVE_ENDIAN);
+                                          watch_mem_write, NULL);
 }
 
 static void memory_map_init(void)

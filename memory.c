@@ -857,6 +857,15 @@ static void memory_region_destructor_rom_device(MemoryRegion *mr)
     cpu_unregister_io_memory(mr->ram_addr & ~(TARGET_PAGE_MASK | IO_MEM_ROMD));
 }
 
+static bool memory_region_wrong_endianness(MemoryRegion *mr)
+{
+#ifdef TARGET_BIG_ENDIAN
+    return mr->ops->endianness == DEVICE_LITTLE_ENDIAN;
+#else
+    return mr->ops->endianness == DEVICE_BIG_ENDIAN;
+#endif
+}
+
 void memory_region_init(MemoryRegion *mr,
                         const char *name,
                         uint64_t size)
@@ -967,12 +976,24 @@ static uint32_t memory_region_read_thunk_b(void *mr, target_phys_addr_t addr)
 
 static uint32_t memory_region_read_thunk_w(void *mr, target_phys_addr_t addr)
 {
-    return memory_region_read_thunk_n(mr, addr, 2);
+    uint32_t data;
+
+    data = memory_region_read_thunk_n(mr, addr, 2);
+    if (memory_region_wrong_endianness(mr)) {
+        data = bswap16(data);
+    }
+    return data;
 }
 
 static uint32_t memory_region_read_thunk_l(void *mr, target_phys_addr_t addr)
 {
-    return memory_region_read_thunk_n(mr, addr, 4);
+    uint32_t data;
+
+    data = memory_region_read_thunk_n(mr, addr, 4);
+    if (memory_region_wrong_endianness(mr)) {
+        data = bswap32(data);
+    }
+    return data;
 }
 
 static void memory_region_write_thunk_b(void *mr, target_phys_addr_t addr,
@@ -984,12 +1005,18 @@ static void memory_region_write_thunk_b(void *mr, target_phys_addr_t addr,
 static void memory_region_write_thunk_w(void *mr, target_phys_addr_t addr,
                                         uint32_t data)
 {
+    if (memory_region_wrong_endianness(mr)) {
+        data = bswap16(data);
+    }
     memory_region_write_thunk_n(mr, addr, 2, data);
 }
 
 static void memory_region_write_thunk_l(void *mr, target_phys_addr_t addr,
                                         uint32_t data)
 {
+    if (memory_region_wrong_endianness(mr)) {
+        data = bswap32(data);
+    }
     memory_region_write_thunk_n(mr, addr, 4, data);
 }
 
@@ -1014,8 +1041,7 @@ static void memory_region_prepare_ram_addr(MemoryRegion *mr)
     mr->destructor = memory_region_destructor_iomem;
     mr->ram_addr = cpu_register_io_memory(memory_region_read_thunk,
                                           memory_region_write_thunk,
-                                          mr,
-                                          mr->ops->endianness);
+                                          mr);
     mr->backend_registered = true;
 }
 
@@ -1082,8 +1108,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->ram_addr = qemu_ram_alloc(size, mr);
     mr->ram_addr |= cpu_register_io_memory(memory_region_read_thunk,
                                            memory_region_write_thunk,
-                                           mr,
-                                           mr->ops->endianness);
+                                           mr);
     mr->ram_addr |= IO_MEM_ROMD;
     mr->backend_registered = true;
 }
