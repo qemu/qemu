@@ -51,6 +51,7 @@ enum {
 
 struct LM32TimerState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
 
     QEMUBH *bh;
     ptimer_state *ptimer;
@@ -70,7 +71,7 @@ static void timer_update_irq(LM32TimerState *s)
     qemu_set_irq(s->irq, state);
 }
 
-static uint32_t timer_read(void *opaque, target_phys_addr_t addr)
+static uint64_t timer_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
     LM32TimerState *s = opaque;
     uint32_t r = 0;
@@ -95,7 +96,8 @@ static uint32_t timer_read(void *opaque, target_phys_addr_t addr)
     return r;
 }
 
-static void timer_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void timer_write(void *opaque, target_phys_addr_t addr,
+                        uint64_t value, unsigned size)
 {
     LM32TimerState *s = opaque;
 
@@ -131,16 +133,14 @@ static void timer_write(void *opaque, target_phys_addr_t addr, uint32_t value)
     timer_update_irq(s);
 }
 
-static CPUReadMemoryFunc * const timer_read_fn[] = {
-    NULL,
-    NULL,
-    &timer_read,
-};
-
-static CPUWriteMemoryFunc * const timer_write_fn[] = {
-    NULL,
-    NULL,
-    &timer_write,
+static const MemoryRegionOps timer_ops = {
+    .read = timer_read,
+    .write = timer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void timer_hit(void *opaque)
@@ -172,7 +172,6 @@ static void timer_reset(DeviceState *d)
 static int lm32_timer_init(SysBusDevice *dev)
 {
     LM32TimerState *s = FROM_SYSBUS(typeof(*s), dev);
-    int timer_regs;
 
     sysbus_init_irq(dev, &s->irq);
 
@@ -180,9 +179,8 @@ static int lm32_timer_init(SysBusDevice *dev)
     s->ptimer = ptimer_init(s->bh);
     ptimer_set_freq(s->ptimer, s->freq_hz);
 
-    timer_regs = cpu_register_io_memory(timer_read_fn, timer_write_fn, s,
-            DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, R_MAX * 4, timer_regs);
+    memory_region_init_io(&s->iomem, &timer_ops, s, "timer", R_MAX * 4);
+    sysbus_init_mmio_region(dev, &s->iomem);
 
     return 0;
 }
