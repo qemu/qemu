@@ -438,9 +438,18 @@ static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
     return pd + (index & (L2_SIZE - 1));
 }
 
-static inline PhysPageDesc *phys_page_find(target_phys_addr_t index)
+static inline PhysPageDesc phys_page_find(target_phys_addr_t index)
 {
-    return phys_page_find_alloc(index, 0);
+    PhysPageDesc *p = phys_page_find_alloc(index, 0);
+
+    if (p) {
+        return *p;
+    } else {
+        return (PhysPageDesc) {
+            .phys_offset = IO_MEM_UNASSIGNED,
+            .region_offset = index << TARGET_PAGE_BITS,
+        };
+    }
 }
 
 static void tlb_protect_code(ram_addr_t ram_addr);
@@ -1402,15 +1411,11 @@ static void breakpoint_invalidate(CPUState *env, target_ulong pc)
     target_phys_addr_t addr;
     target_ulong pd;
     ram_addr_t ram_addr;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     addr = cpu_get_phys_page_debug(env, pc);
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
-    if (!p) {
-        pd = IO_MEM_UNASSIGNED;
-    } else {
-        pd = p->phys_offset;
-    }
+    pd = p.phys_offset;
     ram_addr = (pd & TARGET_PAGE_MASK) | (pc & ~TARGET_PAGE_MASK);
     tb_invalidate_phys_page_range(ram_addr, ram_addr + 1, 0);
 }
@@ -2086,7 +2091,7 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
                   target_phys_addr_t paddr, int prot,
                   int mmu_idx, target_ulong size)
 {
-    PhysPageDesc *p;
+    PhysPageDesc p;
     unsigned long pd;
     unsigned int index;
     target_ulong address;
@@ -2101,11 +2106,7 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
         tlb_add_large_page(env, vaddr, size);
     }
     p = phys_page_find(paddr >> TARGET_PAGE_BITS);
-    if (!p) {
-        pd = IO_MEM_UNASSIGNED;
-    } else {
-        pd = p->phys_offset;
-    }
+    pd = p.phys_offset;
 #if defined(DEBUG_TLB)
     printf("tlb_set_page: vaddr=" TARGET_FMT_lx " paddr=0x" TARGET_FMT_plx
            " prot=%x idx=%d pd=0x%08lx\n",
@@ -2133,11 +2134,7 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
            We can't use the high bits of pd for this because
            IO_MEM_ROMD uses these as a ram address.  */
         iotlb = (pd & ~TARGET_PAGE_MASK);
-        if (p) {
-            iotlb += p->region_offset;
-        } else {
-            iotlb += paddr;
-        }
+        iotlb += p.region_offset;
     }
 
     code_address = address;
@@ -2523,7 +2520,7 @@ void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
 
     addr = start_addr;
     do {
-        p = phys_page_find(addr >> TARGET_PAGE_BITS);
+        p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 0);
         if (p && p->phys_offset != IO_MEM_UNASSIGNED) {
             ram_addr_t orig_memory = p->phys_offset;
             target_phys_addr_t start_addr2, end_addr2;
@@ -3680,7 +3677,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
     uint32_t val;
     target_phys_addr_t page;
     ram_addr_t pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -3688,18 +3685,13 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         if (l > len)
             l = len;
         p = phys_page_find(page >> TARGET_PAGE_BITS);
-        if (!p) {
-            pd = IO_MEM_UNASSIGNED;
-        } else {
-            pd = p->phys_offset;
-        }
+        pd = p.phys_offset;
 
         if (is_write) {
             if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
-                target_phys_addr_t addr1 = addr;
+                target_phys_addr_t addr1;
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-                if (p)
-                    addr1 = (addr & ~TARGET_PAGE_MASK) + p->region_offset;
+                addr1 = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
                 /* XXX: could force cpu_single_env to NULL to avoid
                    potential bugs */
                 if (l >= 4 && ((addr1 & 3) == 0)) {
@@ -3736,11 +3728,10 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         } else {
             if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
                 !(pd & IO_MEM_ROMD)) {
-                target_phys_addr_t addr1 = addr;
+                target_phys_addr_t addr1;
                 /* I/O case */
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-                if (p)
-                    addr1 = (addr & ~TARGET_PAGE_MASK) + p->region_offset;
+                addr1 = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
                 if (l >= 4 && ((addr1 & 3) == 0)) {
                     /* 32 bit read access */
                     val = io_mem_read[io_index][2](io_mem_opaque[io_index], addr1);
@@ -3778,7 +3769,7 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
     uint8_t *ptr;
     target_phys_addr_t page;
     unsigned long pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     while (len > 0) {
         page = addr & TARGET_PAGE_MASK;
@@ -3786,11 +3777,7 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
         if (l > len)
             l = len;
         p = phys_page_find(page >> TARGET_PAGE_BITS);
-        if (!p) {
-            pd = IO_MEM_UNASSIGNED;
-        } else {
-            pd = p->phys_offset;
-        }
+        pd = p.phys_offset;
 
         if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM &&
             (pd & ~TARGET_PAGE_MASK) != IO_MEM_ROM &&
@@ -3872,7 +3859,7 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
     int l;
     target_phys_addr_t page;
     unsigned long pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
     ram_addr_t raddr = RAM_ADDR_MAX;
     ram_addr_t rlen;
     void *ret;
@@ -3883,11 +3870,7 @@ void *cpu_physical_memory_map(target_phys_addr_t addr,
         if (l > len)
             l = len;
         p = phys_page_find(page >> TARGET_PAGE_BITS);
-        if (!p) {
-            pd = IO_MEM_UNASSIGNED;
-        } else {
-            pd = p->phys_offset;
-        }
+        pd = p.phys_offset;
 
         if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
             if (todo || bounce.buffer) {
@@ -3964,21 +3947,16 @@ static inline uint32_t ldl_phys_internal(target_phys_addr_t addr,
     uint8_t *ptr;
     uint32_t val;
     unsigned long pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
-    if (!p) {
-        pd = IO_MEM_UNASSIGNED;
-    } else {
-        pd = p->phys_offset;
-    }
+    pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
         !(pd & IO_MEM_ROMD)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-        if (p)
-            addr = (addr & ~TARGET_PAGE_MASK) + p->region_offset;
+        addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
         val = io_mem_read[io_index][2](io_mem_opaque[io_index], addr);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
@@ -4031,21 +4009,16 @@ static inline uint64_t ldq_phys_internal(target_phys_addr_t addr,
     uint8_t *ptr;
     uint64_t val;
     unsigned long pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
-    if (!p) {
-        pd = IO_MEM_UNASSIGNED;
-    } else {
-        pd = p->phys_offset;
-    }
+    pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
         !(pd & IO_MEM_ROMD)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-        if (p)
-            addr = (addr & ~TARGET_PAGE_MASK) + p->region_offset;
+        addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
 
         /* XXX This is broken when device endian != cpu endian.
                Fix and add "endian" variable check */
@@ -4106,21 +4079,16 @@ static inline uint32_t lduw_phys_internal(target_phys_addr_t addr,
     uint8_t *ptr;
     uint64_t val;
     unsigned long pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
-    if (!p) {
-        pd = IO_MEM_UNASSIGNED;
-    } else {
-        pd = p->phys_offset;
-    }
+    pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
         !(pd & IO_MEM_ROMD)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-        if (p)
-            addr = (addr & ~TARGET_PAGE_MASK) + p->region_offset;
+        addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
         val = io_mem_read[io_index][1](io_mem_opaque[io_index], addr);
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
@@ -4173,19 +4141,14 @@ void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
     int io_index;
     uint8_t *ptr;
     unsigned long pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
-    if (!p) {
-        pd = IO_MEM_UNASSIGNED;
-    } else {
-        pd = p->phys_offset;
-    }
+    pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-        if (p)
-            addr = (addr & ~TARGET_PAGE_MASK) + p->region_offset;
+        addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
         io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val);
     } else {
         unsigned long addr1 = (pd & TARGET_PAGE_MASK) + (addr & ~TARGET_PAGE_MASK);
@@ -4209,19 +4172,14 @@ void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val)
     int io_index;
     uint8_t *ptr;
     unsigned long pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
-    if (!p) {
-        pd = IO_MEM_UNASSIGNED;
-    } else {
-        pd = p->phys_offset;
-    }
+    pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-        if (p)
-            addr = (addr & ~TARGET_PAGE_MASK) + p->region_offset;
+        addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
 #ifdef TARGET_WORDS_BIGENDIAN
         io_mem_write[io_index][2](io_mem_opaque[io_index], addr, val >> 32);
         io_mem_write[io_index][2](io_mem_opaque[io_index], addr + 4, val);
@@ -4243,19 +4201,14 @@ static inline void stl_phys_internal(target_phys_addr_t addr, uint32_t val,
     int io_index;
     uint8_t *ptr;
     unsigned long pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
-    if (!p) {
-        pd = IO_MEM_UNASSIGNED;
-    } else {
-        pd = p->phys_offset;
-    }
+    pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-        if (p)
-            addr = (addr & ~TARGET_PAGE_MASK) + p->region_offset;
+        addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap32(val);
@@ -4321,19 +4274,14 @@ static inline void stw_phys_internal(target_phys_addr_t addr, uint32_t val,
     int io_index;
     uint8_t *ptr;
     unsigned long pd;
-    PhysPageDesc *p;
+    PhysPageDesc p;
 
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
-    if (!p) {
-        pd = IO_MEM_UNASSIGNED;
-    } else {
-        pd = p->phys_offset;
-    }
+    pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM) {
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
-        if (p)
-            addr = (addr & ~TARGET_PAGE_MASK) + p->region_offset;
+        addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
             val = bswap16(val);
