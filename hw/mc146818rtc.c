@@ -179,8 +179,9 @@ static void rtc_periodic_timer(void *opaque)
     RTCState *s = opaque;
 
     rtc_timer_update(s, s->next_periodic_time);
+    s->cmos_data[RTC_REG_C] |= REG_C_PF;
     if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
-        s->cmos_data[RTC_REG_C] |= 0xc0;
+        s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
 #ifdef TARGET_I386
         if(rtc_td_hack) {
             if (s->irq_reinject_on_ack_count >= RTC_REINJECT_ON_ACK_COUNT)
