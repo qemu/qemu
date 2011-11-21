@@ -162,8 +162,7 @@ int qemu_pipe(int pipefd[2])
     return ret;
 }
 
-int qemu_utimensat(int dirfd, const char *path, const struct timespec *times,
-                   int flags)
+int qemu_utimens(const char *path, const struct timespec *times)
 {
     struct timeval tv[2], tv_now;
     struct stat st;
@@ -171,7 +170,7 @@ int qemu_utimensat(int dirfd, const char *path, const struct timespec *times,
 #ifdef CONFIG_UTIMENSAT
     int ret;
 
-    ret = utimensat(dirfd, path, times, flags);
+    ret = utimensat(AT_FDCWD, path, times, AT_SYMLINK_NOFOLLOW);
     if (ret != -1 || errno != ENOSYS) {
         return ret;
     }

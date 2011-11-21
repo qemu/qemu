@@ -583,8 +583,7 @@ static int local_utimensat(FsContext *s, V9fsPath *fs_path,
     char buffer[PATH_MAX];
     char *path = fs_path->data;
 
-    return qemu_utimensat(AT_FDCWD, rpath(s, path, buffer), buf,
-                          AT_SYMLINK_NOFOLLOW);
+    return qemu_utimens(rpath(s, path, buffer), buf);
 }
 
 static int local_remove(FsContext *ctx, const char *path)
@@ -694,6 +693,7 @@ static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
                                 mode_t st_mode, uint64_t *st_gen)
 {
     int err;
+#ifdef FS_IOC_GETVERSION
     V9fsFidOpenState fid_open;
 
     /*
@@ -709,6 +709,9 @@ static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
     }
     err = ioctl(fid_open.fd, FS_IOC_GETVERSION, st_gen);
     local_close(ctx, &fid_open);
+#else
+    err = -ENOTTY;
+#endif
     return err;
 }
 
