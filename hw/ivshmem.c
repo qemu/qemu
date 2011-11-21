@@ -699,7 +699,7 @@ static int pci_ivshmem_init(PCIDevice *dev)
         s->peers = g_malloc0(s->nb_peers * sizeof(Peer));
 
         pci_register_bar(&s->dev, 2,
-                         PCI_BASE_ADDRESS_SPACE_MEMORY, &s->ivshmem);
+                         PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar);
 
         s->eventfd_chr = g_malloc0(s->vectors * sizeof(CharDriverState *));
 
