@@ -644,13 +644,14 @@ static void qcow_close(BlockDriverState *bs)
 
 static int qcow_create(const char *filename, QEMUOptionParameter *options)
 {
-    int fd, header_size, backing_filename_len, l1_size, i, shift;
+    int header_size, backing_filename_len, l1_size, shift, i;
     QCowHeader header;
-    uint64_t tmp;
+    uint8_t *tmp;
     int64_t total_size = 0;
     const char *backing_file = NULL;
     int flags = 0;
     int ret;
+    BlockDriverState *qcow_bs;
 
     /* Read out options */
     while (options && options->name) {
@@ -664,9 +665,21 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
         options++;
     }
 
-    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
-    if (fd < 0)
-        return -errno;
+    ret = bdrv_create_file(filename, options);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = bdrv_file_open(&qcow_bs, filename, BDRV_O_RDWR);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = bdrv_truncate(qcow_bs, 0);
+    if (ret < 0) {
+        goto exit;
+    }
+
     memset(&header, 0, sizeof(header));
     header.magic = cpu_to_be32(QCOW_MAGIC);
     header.version = cpu_to_be32(QCOW_VERSION);
@@ -702,33 +715,34 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     }
 
     /* write all the data */
-    ret = qemu_write_full(fd, &header, sizeof(header));
+    ret = bdrv_pwrite(qcow_bs, 0, &header, sizeof(header));
     if (ret != sizeof(header)) {
-        ret = -errno;
         goto exit;
     }
 
     if (backing_file) {
-        ret = qemu_write_full(fd, backing_file, backing_filename_len);
+        ret = bdrv_pwrite(qcow_bs, sizeof(header),
+            backing_file, backing_filename_len);
         if (ret != backing_filename_len) {
-            ret = -errno;
-            goto exit;
-        }
-
-    }
-    lseek(fd, header_size, SEEK_SET);
-    tmp = 0;
-    for(i = 0;i < l1_size; i++) {
-        ret = qemu_write_full(fd, &tmp, sizeof(tmp));
-        if (ret != sizeof(tmp)) {
-            ret = -errno;
             goto exit;
         }
     }
 
+    tmp = g_malloc0(BDRV_SECTOR_SIZE);
+    for (i = 0; i < ((sizeof(uint64_t)*l1_size + BDRV_SECTOR_SIZE - 1)/
+        BDRV_SECTOR_SIZE); i++) {
+        ret = bdrv_pwrite(qcow_bs, header_size +
+            BDRV_SECTOR_SIZE*i, tmp, BDRV_SECTOR_SIZE);
+        if (ret != BDRV_SECTOR_SIZE) {
+            g_free(tmp);
+            goto exit;
+        }
+    }
+
+    g_free(tmp);
     ret = 0;
 exit:
-    close(fd);
+    bdrv_delete(qcow_bs);
     return ret;
 }
 
