@@ -194,6 +194,8 @@ static void usb_msd_send_status(MSDState *s, USBPacket *p)
     struct usb_msd_csw csw;
     int len;
 
+    DPRINTF("Command status %d tag 0x%x, len %zd\n",
+            s->result, s->tag, p->iov.size);
     csw.sig = cpu_to_le32(0x53425355);
     csw.tag = cpu_to_le32(s->tag);
     csw.residue = s->residue;
@@ -432,8 +434,6 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             break;
 
         case USB_MSDM_CSW:
-            DPRINTF("Command status %d tag 0x%x, len %zd\n",
-                    s->result, s->tag, p->iov.size);
             if (p->iov.size < 13) {
                 goto fail;
             }
