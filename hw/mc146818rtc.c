@@ -296,9 +296,11 @@ static void rtc_set_time(RTCState *s)
     tm->tm_sec = rtc_from_bcd(s, s->cmos_data[RTC_SECONDS]);
     tm->tm_min = rtc_from_bcd(s, s->cmos_data[RTC_MINUTES]);
     tm->tm_hour = rtc_from_bcd(s, s->cmos_data[RTC_HOURS] & 0x7f);
-    if (!(s->cmos_data[RTC_REG_B] & REG_B_24H) &&
-        (s->cmos_data[RTC_HOURS] & 0x80)) {
-        tm->tm_hour += 12;
+    if (!(s->cmos_data[RTC_REG_B] & REG_B_24H)) {
+        tm->tm_hour %= 12;
+        if (s->cmos_data[RTC_HOURS] & 0x80) {
+            tm->tm_hour += 12;
+        }
     }
     tm->tm_wday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_WEEK]) - 1;
     tm->tm_mday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_MONTH]);
@@ -320,7 +322,8 @@ static void rtc_copy_date(RTCState *s)
         s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, tm->tm_hour);
     } else {
         /* 12 hour format */
-        s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, tm->tm_hour % 12);
+        int h = (tm->tm_hour % 12) ? tm->tm_hour % 12 : 12;
+        s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, h);
         if (tm->tm_hour >= 12)
             s->cmos_data[RTC_HOURS] |= 0x80;
     }
