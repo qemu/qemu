@@ -59,7 +59,6 @@ typedef struct {
     char *serial;
     SCSIDevice *scsi_dev;
     uint32_t removable;
-    int result;
     /* For async completion.  */
     USBPacket *packet;
 } MSDState;
@@ -231,12 +230,11 @@ static void usb_msd_command_complete(SCSIRequest *req, uint32_t status)
 
     DPRINTF("Command complete %d tag 0x%x\n", status, req->tag);
     s->residue = s->data_len;
-    s->result = status != 0;
 
     s->csw.sig = cpu_to_le32(0x53425355);
     s->csw.tag = cpu_to_le32(req->tag);
     s->csw.residue = s->residue;
-    s->csw.status = s->result;
+    s->csw.status = status != 0;
 
     if (s->packet) {
         if (s->data_len == 0 && s->mode == USB_MSDM_DATAOUT) {
