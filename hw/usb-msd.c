@@ -378,9 +378,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
             s->scsi_len = 0;
             s->req = scsi_req_new(s->scsi_dev, tag, 0, cbw.cmd, NULL);
             scsi_req_enqueue(s->req);
-            /* ??? Should check that USB and SCSI data transfer
-               directions match.  */
-            if (s->mode != USB_MSDM_CSW && s->residue == 0) {
+            if (s->req && s->req->cmd.xfer != SCSI_XFER_NONE) {
                 scsi_req_continue(s->req);
             }
             ret = p->result;
@@ -439,9 +437,15 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 goto fail;
             }
 
-            usb_msd_send_status(s, p);
-            s->mode = USB_MSDM_CBW;
-            ret = 13;
+            if (s->req) {
+                /* still in flight */
+                s->packet = p;
+                ret = USB_RET_ASYNC;
+            } else {
+                usb_msd_send_status(s, p);
+                s->mode = USB_MSDM_CBW;
+                ret = 13;
+            }
             break;
 
         case USB_MSDM_DATAIN:
