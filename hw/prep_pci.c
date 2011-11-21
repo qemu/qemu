@@ -86,16 +86,12 @@ static uint32_t PPC_PCIIO_readl (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static CPUWriteMemoryFunc * const PPC_PCIIO_write[] = {
-    &PPC_PCIIO_writeb,
-    &PPC_PCIIO_writew,
-    &PPC_PCIIO_writel,
-};
-
-static CPUReadMemoryFunc * const PPC_PCIIO_read[] = {
-    &PPC_PCIIO_readb,
-    &PPC_PCIIO_readw,
-    &PPC_PCIIO_readl,
+static const MemoryRegionOps PPC_PCIIO_ops = {
+    .old_mmio = {
+        .read = { PPC_PCIIO_readb, PPC_PCIIO_readw, PPC_PCIIO_readl, },
+        .write = { PPC_PCIIO_writeb, PPC_PCIIO_writew, PPC_PCIIO_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -116,7 +112,6 @@ PCIBus *pci_prep_init(qemu_irq *pic,
 {
     PREPPCIState *s;
     PCIDevice *d;
-    int PPC_io_memory;
 
     s = g_malloc0(sizeof(PREPPCIState));
     s->bus = pci_register_bus(NULL, "pci",
@@ -135,10 +130,8 @@ PCIBus *pci_prep_init(qemu_irq *pic,
     memory_region_add_subregion(address_space_io, 0xcfc, &s->data_mem);
     sysbus_init_ioports(&s->busdev, 0xcfc, 1);
 
-    PPC_io_memory = cpu_register_io_memory(PPC_PCIIO_read,
-                                           PPC_PCIIO_write, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(0x80800000, 0x00400000, PPC_io_memory);
+    memory_region_init_io(&s->mmcfg, &PPC_PCIIO_ops, s, "pciio", 0x00400000);
+    memory_region_add_subregion(address_space_mem, 0x80800000, &s->mmcfg);
 
     /* PCI host bridge */
     d = pci_register_device(s->bus, "PREP Host Bridge - Motorola Raven",
