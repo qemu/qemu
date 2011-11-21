@@ -284,8 +284,13 @@ print_ipc(const struct syscallname *name,
 static void
 print_syscall_ret_addr(const struct syscallname *name, abi_long ret)
 {
-if( ret == -1 ) {
-        gemu_log(" = -1 errno=%d (%s)\n", errno, target_strerror(errno));
+    char *errstr = NULL;
+
+    if (ret == -1) {
+        errstr = target_strerror(errno);
+    }
+    if ((ret == -1) && errstr) {
+        gemu_log(" = -1 errno=%d (%s)\n", errno, errstr);
     } else {
         gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
     }
@@ -1515,14 +1520,19 @@ void
 print_syscall_ret(int num, abi_long ret)
 {
     int i;
+    char *errstr = NULL;
 
     for(i=0;i<nsyscalls;i++)
         if( scnames[i].nr == num ) {
             if( scnames[i].result != NULL ) {
                 scnames[i].result(&scnames[i],ret);
             } else {
-                if( ret < 0 ) {
-                    gemu_log(" = -1 errno=" TARGET_ABI_FMT_ld " (%s)\n", -ret, target_strerror(-ret));
+                if (ret < 0) {
+                    errstr = target_strerror(-ret);
+                }
+                if (errstr) {
+                    gemu_log(" = -1 errno=" TARGET_ABI_FMT_ld " (%s)\n",
+                             -ret, errstr);
                 } else {
                     gemu_log(" = " TARGET_ABI_FMT_ld "\n", ret);
                 }
