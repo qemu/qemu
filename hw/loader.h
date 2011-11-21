@@ -14,8 +14,8 @@ int load_aout(const char *filename, target_phys_addr_t addr, int max_sz,
 int load_uimage(const char *filename, target_phys_addr_t *ep,
                 target_phys_addr_t *loadaddr, int *is_linux);
 
-int read_targphys(const char *name,
-                  int fd, target_phys_addr_t dst_addr, size_t nbytes);
+ssize_t read_targphys(const char *name,
+                      int fd, target_phys_addr_t dst_addr, size_t nbytes);
 void pstrcpy_targphys(const char *name,
                       target_phys_addr_t dest, int buf_size,
                       const char *source);

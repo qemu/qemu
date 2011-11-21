@@ -26,6 +26,9 @@
 #include "gdbstub.h"
 #include "qemu-common.h"
 #include "qemu-timer.h"
+#ifndef CONFIG_USER_ONLY
+#include "sysemu.h"
+#endif
 
 //#define DEBUG_S390
 //#define DEBUG_S390_PTE
@@ -131,6 +134,7 @@ void cpu_reset(CPUS390XState *env)
     memset(env, 0, offsetof(CPUS390XState, breakpoints));
     /* FIXME: reset vector? */
     tlb_flush(env, 1);
+    s390_add_running_cpu(env);
 }
 
 #ifndef CONFIG_USER_ONLY
@@ -348,6 +352,7 @@ int mmu_translate(CPUState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags)
 {
     int r = -1;
+    uint8_t *sk;
 
     *flags = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     vaddr &= TARGET_PAGE_MASK;
@@ -388,6 +393,17 @@ out:
     /* Convert real address -> absolute address */
     if (*raddr < 0x2000) {
         *raddr = *raddr + env->psa;
+    }
+
+    if (*raddr <= ram_size) {
+        sk = &env->storage_keys[*raddr / TARGET_PAGE_SIZE];
+        if (*flags & PAGE_READ) {
+            *sk |= SK_R;
+        }
+
+        if (*flags & PAGE_WRITE) {
+            *sk |= SK_C;
+        }
     }
 
     return r;
@@ -454,11 +470,15 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong vaddr)
 void load_psw(CPUState *env, uint64_t mask, uint64_t addr)
 {
     if (mask & PSW_MASK_WAIT) {
+        if (!(mask & (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK))) {
+            if (s390_del_running_cpu(env) == 0) {
+#ifndef CONFIG_USER_ONLY
+                qemu_system_shutdown_request();
+#endif
+            }
+        }
         env->halted = 1;
         env->exception_index = EXCP_HLT;
-        if (!(mask & (PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK))) {
-            /* XXX disabled wait state - CPU is dead */
-        }
     }
 
     env->psw.addr = addr;
@@ -587,6 +607,7 @@ void do_interrupt (CPUState *env)
     qemu_log("%s: %d at pc=%" PRIx64 "\n", __FUNCTION__, env->exception_index,
              env->psw.addr);
 
+    s390_add_running_cpu(env);
     /* handle external interrupts */
     if ((env->psw.mask & PSW_MASK_EXT) &&
         env->exception_index == -1) {

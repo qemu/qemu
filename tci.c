@@ -63,90 +63,90 @@ void *tci_tb_ptr;
 
 static tcg_target_ulong tci_reg[TCG_TARGET_NB_REGS];
 
-static tcg_target_ulong tci_read_reg(TCGRegister index)
+static tcg_target_ulong tci_read_reg(TCGReg index)
 {
     assert(index < ARRAY_SIZE(tci_reg));
     return tci_reg[index];
 }
 
 #if TCG_TARGET_HAS_ext8s_i32 || TCG_TARGET_HAS_ext8s_i64
-static int8_t tci_read_reg8s(TCGRegister index)
+static int8_t tci_read_reg8s(TCGReg index)
 {
     return (int8_t)tci_read_reg(index);
 }
 #endif
 
 #if TCG_TARGET_HAS_ext16s_i32 || TCG_TARGET_HAS_ext16s_i64
-static int16_t tci_read_reg16s(TCGRegister index)
+static int16_t tci_read_reg16s(TCGReg index)
 {
     return (int16_t)tci_read_reg(index);
 }
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
-static int32_t tci_read_reg32s(TCGRegister index)
+static int32_t tci_read_reg32s(TCGReg index)
 {
     return (int32_t)tci_read_reg(index);
 }
 #endif
 
-static uint8_t tci_read_reg8(TCGRegister index)
+static uint8_t tci_read_reg8(TCGReg index)
 {
     return (uint8_t)tci_read_reg(index);
 }
 
-static uint16_t tci_read_reg16(TCGRegister index)
+static uint16_t tci_read_reg16(TCGReg index)
 {
     return (uint16_t)tci_read_reg(index);
 }
 
-static uint32_t tci_read_reg32(TCGRegister index)
+static uint32_t tci_read_reg32(TCGReg index)
 {
     return (uint32_t)tci_read_reg(index);
 }
 
 #if TCG_TARGET_REG_BITS == 64
-static uint64_t tci_read_reg64(TCGRegister index)
+static uint64_t tci_read_reg64(TCGReg index)
 {
     return tci_read_reg(index);
 }
 #endif
 
-static void tci_write_reg(TCGRegister index, tcg_target_ulong value)
+static void tci_write_reg(TCGReg index, tcg_target_ulong value)
 {
     assert(index < ARRAY_SIZE(tci_reg));
     assert(index != TCG_AREG0);
     tci_reg[index] = value;
 }
 
-static void tci_write_reg8s(TCGRegister index, int8_t value)
+static void tci_write_reg8s(TCGReg index, int8_t value)
 {
     tci_write_reg(index, value);
 }
 
-static void tci_write_reg16s(TCGRegister index, int16_t value)
+static void tci_write_reg16s(TCGReg index, int16_t value)
 {
     tci_write_reg(index, value);
 }
 
 #if TCG_TARGET_REG_BITS == 64
-static void tci_write_reg32s(TCGRegister index, int32_t value)
+static void tci_write_reg32s(TCGReg index, int32_t value)
 {
     tci_write_reg(index, value);
 }
 #endif
 
-static void tci_write_reg8(TCGRegister index, uint8_t value)
+static void tci_write_reg8(TCGReg index, uint8_t value)
 {
     tci_write_reg(index, value);
 }
 
-static void tci_write_reg16(TCGRegister index, uint16_t value)
+static void tci_write_reg16(TCGReg index, uint16_t value)
 {
     tci_write_reg(index, value);
 }
 
-static void tci_write_reg32(TCGRegister index, uint32_t value)
+static void tci_write_reg32(TCGReg index, uint32_t value)
 {
     tci_write_reg(index, value);
 }
@@ -159,7 +159,7 @@ static void tci_write_reg64(uint32_t high_index, uint32_t low_index,
     tci_write_reg(high_index, value >> 32);
 }
 #elif TCG_TARGET_REG_BITS == 64
-static void tci_write_reg64(TCGRegister index, uint64_t value)
+static void tci_write_reg64(TCGReg index, uint64_t value)
 {
     tci_write_reg(index, value);
 }
@@ -290,7 +290,7 @@ static target_ulong tci_read_ulong(uint8_t **tb_ptr)
 static tcg_target_ulong tci_read_ri(uint8_t **tb_ptr)
 {
     tcg_target_ulong value;
-    TCGRegister r = **tb_ptr;
+    TCGReg r = **tb_ptr;
     *tb_ptr += 1;
     if (r == TCG_CONST) {
         value = tci_read_i(tb_ptr);
@@ -304,7 +304,7 @@ static tcg_target_ulong tci_read_ri(uint8_t **tb_ptr)
 static uint32_t tci_read_ri32(uint8_t **tb_ptr)
 {
     uint32_t value;
-    TCGRegister r = **tb_ptr;
+    TCGReg r = **tb_ptr;
     *tb_ptr += 1;
     if (r == TCG_CONST) {
         value = tci_read_i32(tb_ptr);
@@ -326,7 +326,7 @@ static uint64_t tci_read_ri64(uint8_t **tb_ptr)
 static uint64_t tci_read_ri64(uint8_t **tb_ptr)
 {
     uint64_t value;
-    TCGRegister r = **tb_ptr;
+    TCGReg r = **tb_ptr;
     *tb_ptr += 1;
     if (r == TCG_CONST) {
         value = tci_read_i64(tb_ptr);

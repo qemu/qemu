@@ -58,11 +58,19 @@ static int spapr_vty_init(VIOsPAPRDevice *sdev)
 {
     VIOsPAPRVTYDevice *dev = (VIOsPAPRVTYDevice *)sdev;
 
+    if (!dev->chardev) {
+        fprintf(stderr, "spapr-vty: Can't create vty without a chardev!\n");
+        exit(1);
+    }
+
     qemu_chr_add_handlers(dev->chardev, vty_can_receive,
                           vty_receive, NULL, dev);
 
     return 0;
 }
+
+/* Forward declaration */
+static VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg);
 
 static target_ulong h_put_term_char(CPUState *env, sPAPREnvironment *spapr,
                                     target_ulong opcode, target_ulong *args)
@@ -71,9 +79,10 @@ static target_ulong h_put_term_char(CPUState *env, sPAPREnvironment *spapr,
     target_ulong len = args[1];
     target_ulong char0_7 = args[2];
     target_ulong char8_15 = args[3];
-    VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    VIOsPAPRDevice *sdev;
     uint8_t buf[16];
 
+    sdev = vty_lookup(spapr, reg);
     if (!sdev) {
         return H_PARAMETER;
     }
@@ -97,9 +106,10 @@ static target_ulong h_get_term_char(CPUState *env, sPAPREnvironment *spapr,
     target_ulong *len = args + 0;
     target_ulong *char0_7 = args + 1;
     target_ulong *char8_15 = args + 2;
-    VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    VIOsPAPRDevice *sdev;
     uint8_t buf[16];
 
+    sdev = vty_lookup(spapr, reg);
     if (!sdev) {
         return H_PARAMETER;
     }
@@ -140,11 +150,34 @@ static VIOsPAPRDeviceInfo spapr_vty = {
     .qdev.name = "spapr-vty",
     .qdev.size = sizeof(VIOsPAPRVTYDevice),
     .qdev.props = (Property[]) {
-        DEFINE_SPAPR_PROPERTIES(VIOsPAPRVTYDevice, sdev, 0, 0),
+        DEFINE_SPAPR_PROPERTIES(VIOsPAPRVTYDevice, sdev, SPAPR_VTY_BASE_ADDRESS, 0),
         DEFINE_PROP_CHR("chardev", VIOsPAPRVTYDevice, chardev),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
+
+static VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg)
+{
+    VIOsPAPRDevice *sdev;
+
+    sdev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
+    if (!sdev && reg == 0) {
+        DeviceState *qdev;
+
+        /* Hack for kernel early debug, which always specifies reg==0.
+         * We search all VIO devices, and grab the first available vty
+         * device.  This attempts to mimic existing PowerVM behaviour
+         * (early debug does work there, despite having no vty with
+         * reg==0. */
+        QTAILQ_FOREACH(qdev, &spapr->vio_bus->bus.children, sibling) {
+            if (qdev->info == &spapr_vty.qdev) {
+                return DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
+            }
+        }
+    }
+
+    return sdev;
+}
 
 static void spapr_vty_register(void)
 {

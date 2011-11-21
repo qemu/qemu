@@ -66,11 +66,24 @@ VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
     QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
         dev = (VIOsPAPRDevice *)qdev;
         if (dev->reg == reg) {
-            break;
+            return dev;
         }
     }
 
-    return dev;
+    return NULL;
+}
+
+static char *vio_format_dev_name(VIOsPAPRDevice *dev)
+{
+    VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)dev->qdev.info;
+    char *name;
+
+    /* Device tree style name device@reg */
+    if (asprintf(&name, "%s@%x", info->dt_name, dev->reg) < 0) {
+        return NULL;
+    }
+
+    return name;
 }
 
 #ifdef CONFIG_FDT
@@ -78,15 +91,21 @@ static int vio_make_devnode(VIOsPAPRDevice *dev,
                             void *fdt)
 {
     VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)dev->qdev.info;
-    int vdevice_off, node_off;
-    int ret;
+    int vdevice_off, node_off, ret;
+    char *dt_name;
 
     vdevice_off = fdt_path_offset(fdt, "/vdevice");
     if (vdevice_off < 0) {
         return vdevice_off;
     }
 
-    node_off = fdt_add_subnode(fdt, vdevice_off, dev->qdev.id);
+    dt_name = vio_format_dev_name(dev);
+    if (!dt_name) {
+        return -ENOMEM;
+    }
+
+    node_off = fdt_add_subnode(fdt, vdevice_off, dt_name);
+    free(dt_name);
     if (node_off < 0) {
         return node_off;
     }
@@ -608,11 +627,14 @@ static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
     char *id;
 
-    if (asprintf(&id, "%s@%x", info->dt_name, dev->reg) < 0) {
-        return -1;
+    /* Don't overwrite ids assigned on the command line */
+    if (!dev->qdev.id) {
+        id = vio_format_dev_name(dev);
+        if (!id) {
+            return -1;
+        }
+        dev->qdev.id = id;
     }
-
-    dev->qdev.id = id;
 
     dev->qirq = spapr_allocate_irq(dev->vio_irq_num, &dev->vio_irq_num);
     if (!dev->qirq) {

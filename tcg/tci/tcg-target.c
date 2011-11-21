@@ -495,7 +495,7 @@ static void tci_out_label(TCGContext *s, TCGArg arg)
     }
 }
 
-static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
+static void tcg_out_ld(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
                        tcg_target_long arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;
@@ -519,7 +519,7 @@ static void tcg_out_ld(TCGContext *s, TCGType type, int ret, int arg1,
     old_code_ptr[1] = s->code_ptr - old_code_ptr;
 }
 
-static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
+static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
     uint8_t *old_code_ptr = s->code_ptr;
     assert(ret != arg);
@@ -534,7 +534,7 @@ static void tcg_out_mov(TCGContext *s, TCGType type, int ret, int arg)
 }
 
 static void tcg_out_movi(TCGContext *s, TCGType type,
-                         int t0, tcg_target_long arg)
+                         TCGReg t0, tcg_target_long arg)
 {
     uint8_t *old_code_ptr = s->code_ptr;
     uint32_t arg32 = arg;
@@ -834,7 +834,7 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     old_code_ptr[1] = s->code_ptr - old_code_ptr;
 }
 
-static void tcg_out_st(TCGContext *s, TCGType type, int arg, int arg1,
+static void tcg_out_st(TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                        tcg_target_long arg2)
 {
     uint8_t *old_code_ptr = s->code_ptr;

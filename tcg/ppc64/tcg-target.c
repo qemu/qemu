@@ -435,7 +435,7 @@ static const uint32_t tcg_to_bc[10] = {
     [TCG_COND_GTU] = BC | BI (7, CR_GT) | BO_COND_TRUE,
 };
 
-static void tcg_out_mov (TCGContext *s, TCGType type, int ret, int arg)
+static void tcg_out_mov (TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
     tcg_out32 (s, OR | SAB (arg, ret, arg));
 }
@@ -459,7 +459,7 @@ static void tcg_out_movi32 (TCGContext *s, int ret, int32_t arg)
 }
 
 static void tcg_out_movi (TCGContext *s, TCGType type,
-                          int ret, tcg_target_long arg)
+                          TCGReg ret, tcg_target_long arg)
 {
     int32_t arg32 = arg;
     arg = type == TCG_TYPE_I32 ? arg & 0xffffffff : arg;
@@ -616,18 +616,19 @@ static void tcg_out_tlb_read (TCGContext *s, int r0, int r1, int r2,
 
 static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, data_reg, r0, r1, rbase, mem_index, s_bits, bswap;
+    int addr_reg, data_reg, r0, r1, rbase, bswap;
 #ifdef CONFIG_SOFTMMU
-    int r2;
+    int r2, mem_index, s_bits;
     void *label1_ptr, *label2_ptr;
 #endif
 
     data_reg = *args++;
     addr_reg = *args++;
+
+#ifdef CONFIG_SOFTMMU
     mem_index = *args;
     s_bits = opc & 3;
 
-#ifdef CONFIG_SOFTMMU
     r0 = 3;
     r1 = 4;
     r2 = 0;
@@ -763,17 +764,18 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
 
 static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
 {
-    int addr_reg, r0, r1, rbase, data_reg, mem_index, bswap;
+    int addr_reg, r0, r1, rbase, data_reg, bswap;
 #ifdef CONFIG_SOFTMMU
-    int r2;
+    int r2, mem_index;
     void *label1_ptr, *label2_ptr;
 #endif
 
     data_reg = *args++;
     addr_reg = *args++;
-    mem_index = *args;
 
 #ifdef CONFIG_SOFTMMU
+    mem_index = *args;
+
     r0 = 3;
     r1 = 4;
     r2 = 0;
@@ -930,7 +932,7 @@ static void tcg_target_qemu_prologue (TCGContext *s)
     tcg_out32 (s, BCLR | BO_ALWAYS);
 }
 
-static void tcg_out_ld (TCGContext *s, TCGType type, int ret, int arg1,
+static void tcg_out_ld (TCGContext *s, TCGType type, TCGReg ret, TCGReg arg1,
                         tcg_target_long arg2)
 {
     if (type == TCG_TYPE_I32)
@@ -939,7 +941,7 @@ static void tcg_out_ld (TCGContext *s, TCGType type, int ret, int arg1,
         tcg_out_ldsta (s, ret, arg1, arg2, LD, LDX);
 }
 
-static void tcg_out_st (TCGContext *s, TCGType type, int arg, int arg1,
+static void tcg_out_st (TCGContext *s, TCGType type, TCGReg arg, TCGReg arg1,
                         tcg_target_long arg2)
 {
     if (type == TCG_TYPE_I32)

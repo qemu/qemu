@@ -26,7 +26,7 @@
 #define TCG_TARGET_WORDS_BIGENDIAN
 #define TCG_TARGET_NB_REGS 32
 
-enum {
+typedef enum {
     TCG_REG_R0 = 0,
     TCG_REG_R1,
     TCG_REG_R2,
@@ -59,7 +59,7 @@ enum {
     TCG_REG_R29,
     TCG_REG_R30,
     TCG_REG_R31
-};
+} TCGReg;
 
 /* used for function call generation */
 #define TCG_REG_CALL_STACK TCG_REG_R1
