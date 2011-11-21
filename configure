@@ -2241,7 +2241,7 @@ cat > $TMPC << EOF
 
 int main(void)
 {
-    int efd = eventfd(0, 0);
+    int efd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
     return 0;
 }
 EOF
