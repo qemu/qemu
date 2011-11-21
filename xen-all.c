@@ -603,6 +603,10 @@ void xen_vcpu_init(void)
         qemu_register_reset(xen_reset_vcpu, first_cpu);
         xen_reset_vcpu(first_cpu);
     }
+    /* if rtc_clock is left to default (host_clock), disable it */
+    if (rtc_clock == host_clock) {
+        qemu_clock_enable(rtc_clock, false);
+    }
 }
 
 /* get the ioreq packets from share mem */
