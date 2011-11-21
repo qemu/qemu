@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <errno.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/sem.h>
@@ -286,11 +285,11 @@ print_syscall_ret_addr(const struct syscallname *name, abi_long ret)
 {
     char *errstr = NULL;
 
-    if (ret == -1) {
-        errstr = target_strerror(errno);
+    if (ret < 0) {
+        errstr = target_strerror(-ret);
     }
-    if ((ret == -1) && errstr) {
-        gemu_log(" = -1 errno=%d (%s)\n", errno, errstr);
+    if (errstr) {
+        gemu_log(" = -1 errno=%d (%s)\n", (int)-ret, errstr);
     } else {
         gemu_log(" = 0x" TARGET_ABI_FMT_lx "\n", ret);
     }
