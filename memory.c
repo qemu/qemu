@@ -1580,6 +1580,19 @@ void set_system_io_map(MemoryRegion *mr)
     memory_region_update_topology(NULL);
 }
 
+uint64_t io_mem_read(int io_index, target_phys_addr_t addr, unsigned size)
+{
+    return _io_mem_read[io_index][bitops_ffsl(size)](io_mem_opaque[io_index],
+                                                     addr);
+}
+
+void io_mem_write(int io_index, target_phys_addr_t addr,
+                  uint64_t val, unsigned size)
+{
+    _io_mem_write[io_index][bitops_ffsl(size)](io_mem_opaque[io_index],
+                                               addr, val);
+}
+
 typedef struct MemoryRegionList MemoryRegionList;
 
 struct MemoryRegionList {
