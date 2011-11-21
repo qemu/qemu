@@ -425,16 +425,17 @@ static void rtc_update_second2(void *opaque)
     }
 
     /* check alarm */
-    if (s->cmos_data[RTC_REG_B] & REG_B_AIE) {
-        if (((s->cmos_data[RTC_SECONDS_ALARM] & 0xc0) == 0xc0 ||
-             rtc_from_bcd(s, s->cmos_data[RTC_SECONDS_ALARM]) == s->current_tm.tm_sec) &&
-            ((s->cmos_data[RTC_MINUTES_ALARM] & 0xc0) == 0xc0 ||
-             rtc_from_bcd(s, s->cmos_data[RTC_MINUTES_ALARM]) == s->current_tm.tm_min) &&
-            ((s->cmos_data[RTC_HOURS_ALARM] & 0xc0) == 0xc0 ||
-             rtc_from_bcd(s, s->cmos_data[RTC_HOURS_ALARM]) == s->current_tm.tm_hour)) {
+    if (((s->cmos_data[RTC_SECONDS_ALARM] & 0xc0) == 0xc0 ||
+         rtc_from_bcd(s, s->cmos_data[RTC_SECONDS_ALARM]) == s->current_tm.tm_sec) &&
+        ((s->cmos_data[RTC_MINUTES_ALARM] & 0xc0) == 0xc0 ||
+         rtc_from_bcd(s, s->cmos_data[RTC_MINUTES_ALARM]) == s->current_tm.tm_min) &&
+        ((s->cmos_data[RTC_HOURS_ALARM] & 0xc0) == 0xc0 ||
+         rtc_from_bcd(s, s->cmos_data[RTC_HOURS_ALARM]) == s->current_tm.tm_hour)) {
 
-            s->cmos_data[RTC_REG_C] |= 0xa0;
+        s->cmos_data[RTC_REG_C] |= REG_C_AF;
+        if (s->cmos_data[RTC_REG_B] & REG_B_AIE) {
             qemu_irq_raise(s->irq);
+            s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
         }
     }
 
