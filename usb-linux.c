@@ -1568,7 +1568,12 @@ static int usb_host_scan_dev(void *opaque, USBScanFunc *func)
         if (line[0] == 'T' && line[1] == ':') {
             if (device_count && (vendor_id || product_id)) {
                 /* New device.  Add the previously discovered device.  */
-                ret = func(opaque, bus_num, addr, 0, class_id, vendor_id,
+                if (port > 0) {
+                    snprintf(buf, sizeof(buf), "%d", port);
+                } else {
+                    snprintf(buf, sizeof(buf), "?");
+                }
+                ret = func(opaque, bus_num, addr, buf, class_id, vendor_id,
                            product_id, product_name, speed);
                 if (ret) {
                     goto the_end;
