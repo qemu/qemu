@@ -52,7 +52,6 @@ typedef struct {
     uint8_t *scsi_buf;
     uint32_t data_len;
     uint32_t residue;
-    uint32_t tag;
     struct usb_msd_csw csw;
     SCSIRequest *req;
     SCSIBus bus;
@@ -230,12 +229,12 @@ static void usb_msd_command_complete(SCSIRequest *req, uint32_t status)
     MSDState *s = DO_UPCAST(MSDState, dev.qdev, req->bus->qbus.parent);
     USBPacket *p = s->packet;
 
-    DPRINTF("Command complete %d\n", status);
+    DPRINTF("Command complete %d tag 0x%x\n", status, req->tag);
     s->residue = s->data_len;
     s->result = status != 0;
 
     s->csw.sig = cpu_to_le32(0x53425355);
-    s->csw.tag = cpu_to_le32(s->tag);
+    s->csw.tag = cpu_to_le32(req->tag);
     s->csw.residue = s->residue;
     s->csw.status = s->result;
 
@@ -260,7 +259,6 @@ static void usb_msd_command_complete(SCSIRequest *req, uint32_t status)
     } else if (s->data_len == 0) {
         s->mode = USB_MSDM_CSW;
     }
-
     scsi_req_unref(req);
     s->req = NULL;
 }
@@ -340,6 +338,7 @@ static void usb_msd_cancel_io(USBDevice *dev, USBPacket *p)
 static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
 {
     MSDState *s = (MSDState *)dev;
+    uint32_t tag;
     int ret = 0;
     struct usb_msd_cbw cbw;
     uint8_t devep = p->devep;
@@ -366,7 +365,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 fprintf(stderr, "usb-msd: Bad LUN %d\n", cbw.lun);
                 goto fail;
             }
-            s->tag = le32_to_cpu(cbw.tag);
+            tag = le32_to_cpu(cbw.tag);
             s->data_len = le32_to_cpu(cbw.data_len);
             if (s->data_len == 0) {
                 s->mode = USB_MSDM_CSW;
@@ -376,10 +375,10 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
                 s->mode = USB_MSDM_DATAOUT;
             }
             DPRINTF("Command tag 0x%x flags %08x len %d data %d\n",
-                    s->tag, cbw.flags, cbw.cmd_len, s->data_len);
+                    tag, cbw.flags, cbw.cmd_len, s->data_len);
             s->residue = 0;
             s->scsi_len = 0;
-            s->req = scsi_req_new(s->scsi_dev, s->tag, 0, cbw.cmd, NULL);
+            s->req = scsi_req_new(s->scsi_dev, tag, 0, cbw.cmd, NULL);
             scsi_req_enqueue(s->req);
             /* ??? Should check that USB and SCSI data transfer
                directions match.  */
