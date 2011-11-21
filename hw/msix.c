@@ -118,17 +118,25 @@ static void msix_clr_pending(PCIDevice *dev, int vector)
     *msix_pending_byte(dev, vector) &= ~msix_pending_mask(vector);
 }
 
-static int msix_is_masked(PCIDevice *dev, int vector)
+static bool msix_vector_masked(PCIDevice *dev, int vector, bool fmask)
 {
-    unsigned offset =
-        vector * PCI_MSIX_ENTRY_SIZE + PCI_MSIX_ENTRY_VECTOR_CTRL;
-    return dev->msix_function_masked ||
-	   dev->msix_table_page[offset] & PCI_MSIX_ENTRY_CTRL_MASKBIT;
+    unsigned offset = vector * PCI_MSIX_ENTRY_SIZE + PCI_MSIX_ENTRY_VECTOR_CTRL;
+    return fmask || dev->msix_table_page[offset] & PCI_MSIX_ENTRY_CTRL_MASKBIT;
 }
 
-static void msix_handle_mask_update(PCIDevice *dev, int vector)
+static bool msix_is_masked(PCIDevice *dev, int vector)
 {
-    if (!msix_is_masked(dev, vector) && msix_is_pending(dev, vector)) {
+    return msix_vector_masked(dev, vector, dev->msix_function_masked);
+}
+
+static void msix_handle_mask_update(PCIDevice *dev, int vector, bool was_masked)
+{
+    bool is_masked = msix_is_masked(dev, vector);
+    if (is_masked == was_masked) {
+        return;
+    }
+
+    if (!is_masked && msix_is_pending(dev, vector)) {
         msix_clr_pending(dev, vector);
         msix_notify(dev, vector);
     }
@@ -166,7 +174,8 @@ void msix_write_config(PCIDevice *dev, uint32_t addr,
     }
 
     for (vector = 0; vector < dev->msix_entries_nr; ++vector) {
-        msix_handle_mask_update(dev, vector);
+        msix_handle_mask_update(dev, vector,
+                                msix_vector_masked(dev, vector, was_masked));
     }
 }
 
@@ -176,14 +185,16 @@ static void msix_mmio_write(void *opaque, target_phys_addr_t addr,
     PCIDevice *dev = opaque;
     unsigned int offset = addr & (MSIX_PAGE_SIZE - 1) & ~0x3;
     int vector = offset / PCI_MSIX_ENTRY_SIZE;
+    bool was_masked;
 
     /* MSI-X page includes a read-only PBA and a writeable Vector Control. */
     if (vector >= dev->msix_entries_nr) {
         return;
     }
 
+    was_masked = msix_is_masked(dev, vector);
     pci_set_long(dev->msix_table_page + offset, val);
-    msix_handle_mask_update(dev, vector);
+    msix_handle_mask_update(dev, vector, was_masked);
 }
 
 static const MemoryRegionOps msix_mmio_ops = {
