@@ -1004,7 +1004,7 @@ struct CPUPPCState {
     int error_code;
     uint32_t pending_interrupts;
 #if !defined(CONFIG_USER_ONLY)
-    /* This is the IRQ controller, which is implementation dependant
+    /* This is the IRQ controller, which is implementation dependent
      * and only relevant when emulating a complete machine.
      */
     uint32_t irq_input_state;
@@ -1024,7 +1024,7 @@ struct CPUPPCState {
 
     /* Those resources are used only in Qemu core */
     target_ulong hflags;      /* hflags is a MSR & HFLAGS_MASK         */
-    target_ulong hflags_nmsr; /* specific hflags, not comming from MSR */
+    target_ulong hflags_nmsr; /* specific hflags, not coming from MSR */
     int mmu_idx;         /* precomputed MMU index to speed up mem accesses */
 
     /* Power management */
