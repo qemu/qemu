@@ -256,7 +256,7 @@
         .way_size = { \
             (refill_way_size), (refill_way_size), \
             (refill_way_size), (refill_way_size), \
-            4, 2, 2, 1, 1, 1, \
+            4, (way56) ? 4 : 2, (way56) ? 8 : 2, 1, 1, 1, \
         }, \
         .varway56 = (way56), \
         .nrefillentries = (refill_way_size) * 4, \
