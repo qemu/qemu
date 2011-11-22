@@ -166,7 +166,7 @@ static void test_nested_structs(void)
     QString *str;
 
     ud1.integer = 42;
-    ud1.string = strdup("fourty two");
+    ud1.string = strdup("forty two");
 
     /* sanity check */
     mo = qmp_output_visitor_new();
@@ -179,13 +179,13 @@ static void test_nested_structs(void)
     g_assert(obj);
     qobject_decref(obj);
 
-    ud2.string = strdup("fourty three");
-    ud2.dict.string = strdup("fourty four");
+    ud2.string = strdup("forty three");
+    ud2.dict.string = strdup("forty four");
     ud2.dict.dict.userdef = ud1_p;
-    ud2.dict.dict.string = strdup("fourty five");
+    ud2.dict.dict.string = strdup("forty five");
     ud2.dict.has_dict2 = true;
     ud2.dict.dict2.userdef = ud1_p;
-    ud2.dict.dict2.string = strdup("fourty six");
+    ud2.dict.dict2.string = strdup("forty six");
 
     /* c type -> qobject */
     mo = qmp_output_visitor_new();

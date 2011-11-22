@@ -445,7 +445,7 @@ static int read_f(int argc, char **argv)
     }
 
     if ((pattern_count < 0) || (pattern_count + pattern_offset > count))  {
-        printf("pattern verfication range exceeds end of read data\n");
+        printf("pattern verification range exceeds end of read data\n");
         return 0;
     }
 

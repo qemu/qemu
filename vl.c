@@ -820,7 +820,7 @@ static void validate_bootdevices(char *devices)
         /* Allowed boot devices are:
          * a-b: floppy disk drives
          * c-f: IDE disk drives
-         * g-m: machine implementation dependant drives
+         * g-m: machine implementation dependent drives
          * n-p: network devices
          * It's up to each machine implementation to check if the given boot
          * devices match the actual hardware implementation and firmware
