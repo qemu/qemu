@@ -149,6 +149,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Password incorrect",
     },
     {
+        .error_fmt = QERR_IO_ERROR,
+        .desc      = "An IO error has occurred",
+    },
+    {
         .error_fmt = QERR_JSON_PARSING,
         .desc      = "Invalid JSON syntax",
     },

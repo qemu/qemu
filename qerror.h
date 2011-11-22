@@ -126,6 +126,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_INVALID_PASSWORD \
     "{ 'class': 'InvalidPassword', 'data': {} }"
 
+#define QERR_IO_ERROR \
+    "{ 'class': 'IOError', 'data': {} }"
+
 #define QERR_JSON_PARSING \
     "{ 'class': 'JSONParsing', 'data': {} }"
 
