@@ -27,6 +27,7 @@
 #include "qemu-common.h"
 #include "block_int.h"
 #include "module.h"
+#include "migration.h"
 
 #ifndef S_IWGRP
 #define S_IWGRP 0
@@ -350,6 +351,8 @@ typedef struct BDRVVVFATState {
     array_t commits;
     const char* path;
     int downcase_short_names;
+
+    Error *migration_blocker;
 } BDRVVVFATState;
 
 /* take the sector position spos and convert it to Cylinder/Head/Sector position
@@ -1073,6 +1076,15 @@ DLOG(if (stderr == NULL) {
 
     //    assert(is_consistent(s));
     qemu_co_mutex_init(&s->lock);
+
+    /* Disable migration when vvfat is used rw */
+    if (s->qcow) {
+        error_set(&s->migration_blocker,
+                  QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+                  "vvfat (rw)", bs->device_name, "live migration");
+        migrate_add_blocker(s->migration_blocker);
+    }
+
     return 0;
 }
 
@@ -2829,6 +2841,11 @@ static void vvfat_close(BlockDriverState *bs)
     array_free(&(s->directory));
     array_free(&(s->mapping));
     g_free(s->cluster_buffer);
+
+    if (s->qcow) {
+        migrate_del_blocker(s->migration_blocker);
+        error_free(s->migration_blocker);
+    }
 }
 
 static BlockDriver bdrv_vvfat = {
