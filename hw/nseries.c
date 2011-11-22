@@ -33,6 +33,7 @@
 #include "loader.h"
 #include "blockdev.h"
 #include "sysbus.h"
+#include "exec-memory.h"
 
 /* Nokia N8x0 support */
 struct n800_s {
@@ -1275,11 +1276,12 @@ static void n8x0_init(ram_addr_t ram_size, const char *boot_device,
                 const char *kernel_cmdline, const char *initrd_filename,
                 const char *cpu_model, struct arm_boot_info *binfo, int model)
 {
+    MemoryRegion *sysmem = get_system_memory();
     struct n800_s *s = (struct n800_s *) g_malloc0(sizeof(*s));
     int sdram_size = binfo->ram_size;
     DisplayState *ds;
 
-    s->cpu = omap2420_mpu_init(sdram_size, cpu_model);
+    s->cpu = omap2420_mpu_init(sysmem, sdram_size, cpu_model);
 
     /* Setup peripherals
      *

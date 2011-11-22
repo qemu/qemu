@@ -658,7 +658,8 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
                 qemu_irq txdma, qemu_irq rxdma,
                 const char *label, CharDriverState *chr);
-struct omap_uart_s *omap2_uart_init(struct omap_target_agent_s *ta,
+struct omap_uart_s *omap2_uart_init(MemoryRegion *sysmem,
+                struct omap_target_agent_s *ta,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
                 qemu_irq txdma, qemu_irq rxdma,
                 const char *label, CharDriverState *chr);
@@ -952,7 +953,8 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
                 const char *core);
 
 /* omap2.c */
-struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
+struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
+                unsigned long sdram_size,
                 const char *core);
 
 # if TARGET_PHYS_ADDR_BITS == 32

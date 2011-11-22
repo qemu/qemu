@@ -2223,7 +2223,8 @@ static const struct dma_irq_map omap2_dma_irq_map[] = {
     { 0, OMAP_INT_24XX_SDMA_IRQ3 },
 };
 
-struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
+struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
+                unsigned long sdram_size,
                 const char *core)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
@@ -2295,7 +2296,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
     soc_dma_port_add_mem(s->dma, qemu_get_ram_ptr(sram_base),
                          OMAP2_SRAM_BASE, s->sram_size);
 
-    s->uart[0] = omap2_uart_init(omap_l4ta(s->l4, 19),
+    s->uart[0] = omap2_uart_init(sysmem, omap_l4ta(s->l4, 19),
                                  qdev_get_gpio_in(s->ih[0],
                                                   OMAP_INT_24XX_UART1_IRQ),
                     omap_findclk(s, "uart1_fclk"),
@@ -2304,7 +2305,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     s->drq[OMAP24XX_DMA_UART1_RX],
                     "uart1",
                     serial_hds[0]);
-    s->uart[1] = omap2_uart_init(omap_l4ta(s->l4, 20),
+    s->uart[1] = omap2_uart_init(sysmem, omap_l4ta(s->l4, 20),
                                  qdev_get_gpio_in(s->ih[0],
                                                   OMAP_INT_24XX_UART2_IRQ),
                     omap_findclk(s, "uart2_fclk"),
@@ -2313,7 +2314,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     s->drq[OMAP24XX_DMA_UART2_RX],
                     "uart2",
                     serial_hds[0] ? serial_hds[1] : NULL);
-    s->uart[2] = omap2_uart_init(omap_l4ta(s->l4, 21),
+    s->uart[2] = omap2_uart_init(sysmem, omap_l4ta(s->l4, 21),
                                  qdev_get_gpio_in(s->ih[0],
                                                   OMAP_INT_24XX_UART3_IRQ),
                     omap_findclk(s, "uart3_fclk"),
