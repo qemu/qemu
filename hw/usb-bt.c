@@ -528,6 +528,9 @@ USBDevice *usb_bt_init(HCIInfo *hci)
     if (!hci)
         return NULL;
     dev = usb_create_simple(NULL /* FIXME */, "usb-bt-dongle");
+    if (!dev) {
+        return NULL;
+    }
     s = DO_UPCAST(struct USBBtState, dev, dev);
     s->dev.opaque = s;
 
