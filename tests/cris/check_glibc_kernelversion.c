@@ -70,7 +70,7 @@
                                                                               \
         /* Now we can test with the required version.  */                     \
         if (version < __LINUX_KERNEL_VERSION)                                 \
-          /* Not sufficent.  */                                               \
+          /* Not sufficient.  */                                               \
           FATAL ("FATAL: kernel too old\n");                                  \
                                                                               \
         _dl_osversion = version;                                              \
