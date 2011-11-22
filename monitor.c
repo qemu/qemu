@@ -1370,43 +1370,6 @@ static void do_print(Monitor *mon, const QDict *qdict)
     monitor_printf(mon, "\n");
 }
 
-static int do_physical_memory_save(Monitor *mon, const QDict *qdict,
-                                    QObject **ret_data)
-{
-    FILE *f;
-    uint32_t l;
-    uint8_t buf[1024];
-    uint32_t size = qdict_get_int(qdict, "size");
-    const char *filename = qdict_get_str(qdict, "filename");
-    target_phys_addr_t addr = qdict_get_int(qdict, "val");
-    int ret = -1;
-
-    f = fopen(filename, "wb");
-    if (!f) {
-        qerror_report(QERR_OPEN_FILE_FAILED, filename);
-        return -1;
-    }
-    while (size != 0) {
-        l = sizeof(buf);
-        if (l > size)
-            l = size;
-        cpu_physical_memory_read(addr, buf, l);
-        if (fwrite(buf, 1, l, f) != l) {
-            monitor_printf(mon, "fwrite() error in do_physical_memory_save\n");
-            goto exit;
-        }
-        fflush(f);
-        addr += l;
-        size -= l;
-    }
-
-    ret = 0;
-
-exit:
-    fclose(f);
-    return ret;
-}
-
 static void do_sum(Monitor *mon, const QDict *qdict)
 {
     uint32_t addr;

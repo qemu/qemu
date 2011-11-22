@@ -550,3 +550,14 @@ void hmp_memsave(Monitor *mon, const QDict *qdict)
     qmp_memsave(addr, size, filename, true, monitor_get_cpu_index(), &errp);
     hmp_handle_error(mon, &errp);
 }
+
+void hmp_pmemsave(Monitor *mon, const QDict *qdict)
+{
+    uint32_t size = qdict_get_int(qdict, "size");
+    const char *filename = qdict_get_str(qdict, "filename");
+    uint64_t addr = qdict_get_int(qdict, "val");
+    Error *errp = NULL;
+
+    qmp_pmemsave(addr, size, filename, &errp);
+    hmp_handle_error(mon, &errp);
+}
