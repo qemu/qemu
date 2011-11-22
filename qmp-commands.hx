@@ -352,11 +352,8 @@ EQMP
 
     {
         .name       = "memsave",
-        .args_type  = "val:l,size:i,filename:s",
-        .params     = "addr size file",
-        .help       = "save to disk virtual memory dump starting at 'addr' of size 'size'",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_memory_save,
+        .args_type  = "val:l,size:i,filename:s,cpu:i?",
+        .mhandler.cmd_new = qmp_marshal_input_memsave,
     },
 
 SQMP
@@ -370,6 +367,7 @@ Arguments:
 - "val": the starting address (json-int)
 - "size": the memory size, in bytes (json-int)
 - "filename": file path (json-string)
+- "cpu": virtual CPU index (json-int, optional)
 
 Example:
 
@@ -378,8 +376,6 @@ Example:
                             "size": 100,
                             "filename": "/tmp/virtual-mem-dump" } }
 <- { "return": {} }
-
-Note: Depends on the current CPU.
 
 EQMP
 

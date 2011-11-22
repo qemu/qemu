@@ -901,3 +901,29 @@
 # Notes: Do not use this command.
 ##
 { 'command': 'cpu', 'data': {'index': 'int'} }
+
+##
+# @memsave:
+#
+# Save a portion of guest memory to a file.
+#
+# @val: the virtual address of the guest to start from
+#
+# @size: the size of memory region to save
+#
+# @filename: the file to save the memory to as binary data
+#
+# @cpu-index: #optional the index of the virtual CPU to use for translating the
+#                       virtual address (defaults to CPU 0)
+#
+# Returns: Nothing on success
+#          If @cpu is not a valid VCPU, InvalidParameterValue
+#          If @filename cannot be opened, OpenFileFailed
+#          If an I/O error occurs while writing the file, IOError
+#
+# Since: 0.14.0
+#
+# Notes: Errors were not reliably returned until 1.1
+##
+{ 'command': 'memsave',
+  'data': {'val': 'int', 'size': 'int', 'filename': 'str', '*cpu-index': 'int'} }

@@ -14,6 +14,14 @@
 #include "hmp.h"
 #include "qmp-commands.h"
 
+static void hmp_handle_error(Monitor *mon, Error **errp)
+{
+    if (error_is_set(errp)) {
+        monitor_printf(mon, "%s\n", error_get_pretty(*errp));
+        error_free(*errp);
+    }
+}
+
 void hmp_info_name(Monitor *mon)
 {
     NameInfo *info;
@@ -530,4 +538,15 @@ void hmp_cpu(Monitor *mon, const QDict *qdict)
     if (monitor_set_cpu(cpu_index) < 0) {
         monitor_printf(mon, "invalid CPU index\n");
     }
+}
+
+void hmp_memsave(Monitor *mon, const QDict *qdict)
+{
+    uint32_t size = qdict_get_int(qdict, "size");
+    const char *filename = qdict_get_str(qdict, "filename");
+    uint64_t addr = qdict_get_int(qdict, "val");
+    Error *errp = NULL;
+
+    qmp_memsave(addr, size, filename, true, monitor_get_cpu_index(), &errp);
+    hmp_handle_error(mon, &errp);
 }
