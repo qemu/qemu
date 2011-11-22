@@ -126,7 +126,7 @@ the authentication ID is not provided.
 VNC_DISCONNECTED
 ----------------
 
-Emitted when the conection is closed.
+Emitted when the connection is closed.
 
 Data:
 
