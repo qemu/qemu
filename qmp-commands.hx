@@ -199,10 +199,7 @@ EQMP
     {
         .name       = "cont",
         .args_type  = "",
-        .params     = "",
-        .help       = "resume emulation",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_cont,
+        .mhandler.cmd_new = qmp_marshal_input_cont,
     },
 
 SQMP

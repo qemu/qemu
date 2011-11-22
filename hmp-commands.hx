@@ -304,8 +304,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "resume emulation",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_cont,
+        .mhandler.cmd = hmp_cont,
     },
 
 STEXI

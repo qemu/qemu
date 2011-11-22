@@ -1073,65 +1073,6 @@ static void do_singlestep(Monitor *mon, const QDict *qdict)
     }
 }
 
-static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs);
-
-struct bdrv_iterate_context {
-    Monitor *mon;
-    int err;
-};
-
-static void iostatus_bdrv_it(void *opaque, BlockDriverState *bs)
-{
-    bdrv_iostatus_reset(bs);
-}
-
-/**
- * do_cont(): Resume emulation.
- */
-static int do_cont(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    struct bdrv_iterate_context context = { mon, 0 };
-
-    if (runstate_check(RUN_STATE_INMIGRATE)) {
-        qerror_report(QERR_MIGRATION_EXPECTED);
-        return -1;
-    } else if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
-               runstate_check(RUN_STATE_SHUTDOWN)) {
-        qerror_report(QERR_RESET_REQUIRED);
-        return -1;
-    }
-
-    bdrv_iterate(iostatus_bdrv_it, NULL);
-    bdrv_iterate(encrypted_bdrv_it, &context);
-    /* only resume the vm if all keys are set and valid */
-    if (!context.err) {
-        vm_start();
-        return 0;
-    } else {
-        return -1;
-    }
-}
-
-static void bdrv_key_cb(void *opaque, int err)
-{
-    Monitor *mon = opaque;
-
-    /* another key was set successfully, retry to continue */
-    if (!err)
-        do_cont(mon, NULL, NULL);
-}
-
-static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
-{
-    struct bdrv_iterate_context *context = opaque;
-
-    if (!context->err && bdrv_key_required(bs)) {
-        context->err = -EBUSY;
-        monitor_read_bdrv_key_start(context->mon, bs, bdrv_key_cb,
-                                    context->mon);
-    }
-}
-
 static void do_gdbserver(Monitor *mon, const QDict *qdict)
 {
     const char *device = qdict_get_try_str(qdict, "device");
@@ -4857,4 +4798,19 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
         completion_cb(opaque, err);
 
     return err;
+}
+
+int monitor_read_block_device_key(Monitor *mon, const char *device,
+                                  BlockDriverCompletionFunc *completion_cb,
+                                  void *opaque)
+{
+    BlockDriverState *bs;
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        monitor_printf(mon, "Device not found %s\n", device);
+        return -1;
+    }
+
+    return monitor_read_bdrv_key_start(mon, bs, completion_cb, opaque);
 }

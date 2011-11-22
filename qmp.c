@@ -117,3 +117,40 @@ SpiceInfo *qmp_query_spice(Error **errp)
     return NULL;
 };
 #endif
+
+static void iostatus_bdrv_it(void *opaque, BlockDriverState *bs)
+{
+    bdrv_iostatus_reset(bs);
+}
+
+static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
+{
+    Error **err = opaque;
+
+    if (!error_is_set(err) && bdrv_key_required(bs)) {
+        error_set(err, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs));
+    }
+}
+
+void qmp_cont(Error **errp)
+{
+    Error *local_err = NULL;
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        error_set(errp, QERR_MIGRATION_EXPECTED);
+        return;
+    } else if (runstate_check(RUN_STATE_INTERNAL_ERROR) ||
+               runstate_check(RUN_STATE_SHUTDOWN)) {
+        error_set(errp, QERR_RESET_REQUIRED);
+        return;
+    }
+
+    bdrv_iterate(iostatus_bdrv_it, NULL);
+    bdrv_iterate(encrypted_bdrv_it, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    vm_start();
+}

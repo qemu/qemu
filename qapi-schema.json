@@ -949,3 +949,20 @@
 ##
 { 'command': 'pmemsave',
   'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
+
+##
+# @cont:
+#
+# Resume guest VCPU execution.
+#
+# Since:  0.14.0
+#
+# Returns:  If successful, nothing
+#           If the QEMU is waiting for an incoming migration, MigrationExpected
+#           If QEMU was started with an encrypted block device and a key has
+#              not yet been set, DeviceEncrypted.
+#
+# Notes:  This command will succeed if the guest is currently running.
+##
+{ 'command': 'cont' }
+
