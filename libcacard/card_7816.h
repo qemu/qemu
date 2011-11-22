@@ -23,7 +23,7 @@ VCardResponse *vcard_response_new_bytes(VCard *card, unsigned char *buf,
 /* response from just status bytes */
 VCardResponse *vcard_response_new_status_bytes(unsigned char sw1,
                                                unsigned char sw2);
-/* response from just status: NOTE this cannot fail, it will alwyas return a
+/* response from just status: NOTE this cannot fail, it will always return a
  * valid response, if it can't allocate memory, the response will be
  * VCARD7816_STATUS_EXC_ERROR_MEMORY_FAILURE */
 VCardResponse *vcard_make_response(vcard_7816_status_t status);

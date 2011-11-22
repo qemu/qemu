@@ -125,7 +125,7 @@ vcard_response_new_bytes(VCard *card, unsigned char *buf, int len, int Le,
 }
 
 /*
- * get a new Reponse buffer that only has a status.
+ * get a new Response buffer that only has a status.
  */
 static VCardResponse *
 vcard_response_new_status(vcard_7816_status_t status)
@@ -239,7 +239,7 @@ vcard_apdu_set_class(VCardAPDU *apdu) {
 }
 
 /*
- * set the Le and Lc fiels according to table 5 of the
+ * set the Le and Lc fields according to table 5 of the
  * 7816-4 part 4 spec
  */
 static vcard_7816_status_t
