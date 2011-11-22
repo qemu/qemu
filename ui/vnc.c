@@ -1732,7 +1732,7 @@ static void set_encodings(VncState *vs, int32_t *encodings, size_t n_encodings)
 
     /*
      * Start from the end because the encodings are sent in order of preference.
-     * This way the prefered encoding (first encoding defined in the array)
+     * This way the preferred encoding (first encoding defined in the array)
      * will be set at the end of the loop.
      */
     for (i = n_encodings - 1; i >= 0; i--) {
@@ -2117,7 +2117,7 @@ static int protocol_client_auth_vnc(VncState *vs, uint8_t *data, size_t len)
 
     /* Compare expected vs actual challenge response */
     if (memcmp(response, data, VNC_AUTH_CHALLENGE_SIZE) != 0) {
-        VNC_DEBUG("Client challenge reponse did not match\n");
+        VNC_DEBUG("Client challenge response did not match\n");
         goto reject;
     } else {
         VNC_DEBUG("Accepting VNC challenge response\n");
