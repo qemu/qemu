@@ -755,7 +755,7 @@ struct attrbuf_header {
 
 static inline void byteswap_attrbuf(struct attrbuf_header *attrbuf, struct attrlist *attrlist)
 {
-    DPRINTF("attrBuf.lenght %lx\n", attrbuf->length);
+    DPRINTF("attrBuf.length %lx\n", attrbuf->length);
 }
 
 static inline void byteswap_statfs(struct statfs *s)

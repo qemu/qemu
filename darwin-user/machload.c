@@ -460,7 +460,7 @@ int load_object(const char *filename, struct target_pt_regs * regs, void ** mh)
     int mach_hdr_pos = 0;
     struct mach_header mach_hdr;
 
-    /* for symbol lookup whith -d flag. */
+    /* for symbol lookup with -d flag. */
     struct symtab_command *    symtabcmd = 0;
     struct nlist_extended *symtab, *sym;
     struct nlist     *symtab_std, *syment;
@@ -645,7 +645,7 @@ int load_object(const char *filename, struct target_pt_regs * regs, void ** mh)
             case LC_PREBIND_CKSUM:
             case LC_SUB_LIBRARY:
                 break;
-            default: fprintf(stderr, "warning: unkown command 0x%x in '%s'\n", lc->cmd, filename);
+            default: fprintf(stderr, "warning: unknown command 0x%x in '%s'\n", lc->cmd, filename);
         }
         lc = (struct load_command*)((int)(lc)+(lc->cmdsize));
     }
@@ -809,7 +809,7 @@ unsigned long setup_arg_pages(void * mh, char ** argv, char ** env)
         page_set_flags((int)env[i], (int)(env[i]+strlen(env[i])), PROT_READ | PAGE_VALID);
     }
 
-    /* Add on the stack the interp_prefix choosen if so */
+    /* Add on the stack the interp_prefix chosen if so */
     if(interp_prefix[0])
     {
         char *dyld_root;
