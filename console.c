@@ -1688,6 +1688,7 @@ PixelFormat qemu_default_pixelformat(int bpp)
             pf.rbits = 8;
             pf.gbits = 8;
             pf.bbits = 8;
+            break;
         case 32:
             pf.rmask = 0x00FF0000;
             pf.gmask = 0x0000FF00;
