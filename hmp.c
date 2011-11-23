@@ -601,3 +601,13 @@ void hmp_inject_nmi(Monitor *mon, const QDict *qdict)
     qmp_inject_nmi(&errp);
     hmp_handle_error(mon, &errp);
 }
+
+void hmp_set_link(Monitor *mon, const QDict *qdict)
+{
+    const char *name = qdict_get_str(qdict, "name");
+    int up = qdict_get_bool(qdict, "up");
+    Error *errp = NULL;
+
+    qmp_set_link(name, up, &errp);
+    hmp_handle_error(mon, &errp);
+}

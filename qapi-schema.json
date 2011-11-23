@@ -979,3 +979,23 @@
 # Notes: Only x86 Virtual Machines support this command.
 ##
 { 'command': 'inject-nmi' }
+
+##
+# @set_link:
+#
+# Sets the link status of a virtual network adapter.
+#
+# @name: the device name of the virtual network adapter
+#
+# @up: true to set the link status to be up
+#
+# Returns: Nothing on success
+#          If @name is not a valid network device, DeviceNotFound
+#
+# Since: 0.14.0
+#
+# Notes: Not all network adapters support setting link status.  This command
+#        will succeed even if the network adapter does not support link status
+#        notification.
+##
+{ 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }

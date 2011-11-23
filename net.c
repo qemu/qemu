@@ -34,6 +34,7 @@
 #include "monitor.h"
 #include "qemu-common.h"
 #include "qemu_socket.h"
+#include "qmp-commands.h"
 #include "hw/qdev.h"
 #include "iov.h"
 
@@ -1258,12 +1259,10 @@ void do_info_network(Monitor *mon)
     }
 }
 
-int do_set_link(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_set_link(const char *name, bool up, Error **errp)
 {
     VLANState *vlan;
     VLANClientState *vc = NULL;
-    const char *name = qdict_get_str(qdict, "name");
-    int up = qdict_get_bool(qdict, "up");
 
     QTAILQ_FOREACH(vlan, &vlans, next) {
         QTAILQ_FOREACH(vc, &vlan->clients, next) {
@@ -1280,8 +1279,8 @@ int do_set_link(Monitor *mon, const QDict *qdict, QObject **ret_data)
 done:
 
     if (!vc) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, name);
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, name);
+        return;
     }
 
     vc->link_down = !up;
@@ -1300,7 +1299,6 @@ done:
     if (vc->peer && vc->peer->info->link_status_changed) {
         vc->peer->info->link_status_changed(vc->peer);
     }
-    return 0;
 }
 
 void net_cleanup(void)
