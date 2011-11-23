@@ -1120,7 +1120,17 @@ fi
 
 if test "$pie" != "no" ; then
   cat > $TMPC << EOF
-int main(void) { return 0; }
+
+#ifdef __linux__
+#  define THREAD __thread
+#else
+#  define THREAD
+#endif
+
+static THREAD int tls_var;
+
+int main(void) { return tls_var; }
+
 EOF
   if compile_prog "-fPIE -DPIE" "-pie"; then
     QEMU_CFLAGS="-fPIE -DPIE $QEMU_CFLAGS"
