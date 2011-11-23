@@ -249,7 +249,7 @@ source_path=`cd "$source_path"; pwd`
 check_define() {
 cat > $TMPC <<EOF
 #if !defined($1)
-#error Not defined
+#error $1 not defined
 #endif
 int main(void) { return 0; }
 EOF
