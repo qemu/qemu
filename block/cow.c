@@ -171,14 +171,14 @@ static int cow_update_bitmap(BlockDriverState *bs, int64_t sector_num,
     return error;
 }
 
-static int cow_read(BlockDriverState *bs, int64_t sector_num,
-                    uint8_t *buf, int nb_sectors)
+static int coroutine_fn cow_read(BlockDriverState *bs, int64_t sector_num,
+                                 uint8_t *buf, int nb_sectors)
 {
     BDRVCowState *s = bs->opaque;
     int ret, n;
 
     while (nb_sectors > 0) {
-        if (bdrv_is_allocated(bs, sector_num, nb_sectors, &n)) {
+        if (bdrv_co_is_allocated(bs, sector_num, nb_sectors, &n)) {
             ret = bdrv_pread(bs->file,
                         s->cow_sectors_offset + sector_num * 512,
                         buf, n * 512);
