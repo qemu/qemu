@@ -976,7 +976,15 @@ static void eepro100_cu_command(EEPRO100State * s, uint8_t val)
     case CU_STATSADDR:
         /* Load dump counters address. */
         s->statsaddr = e100_read_reg4(s, SCBPointer);
-        TRACE(OTHER, logout("val=0x%02x (status address)\n", val));
+        TRACE(OTHER, logout("val=0x%02x (dump counters address)\n", val));
+        if (s->statsaddr & 3) {
+            /* Memory must be Dword aligned. */
+            logout("unaligned dump counters address\n");
+            /* Handling of misaligned addresses is undefined.
+             * Here we align the address by ignoring the lower bits. */
+            /* TODO: Test unaligned dump counter address on real hardware. */
+            s->statsaddr &= ~3;
+        }
         break;
     case CU_SHOWSTATS:
         /* Dump statistical counters. */
