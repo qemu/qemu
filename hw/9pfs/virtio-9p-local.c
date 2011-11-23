@@ -717,10 +717,14 @@ static int local_ioc_getversion(FsContext *ctx, V9fsPath *path,
 
 static int local_init(FsContext *ctx)
 {
-    int err;
+    int err = 0;
     struct statfs stbuf;
 
     ctx->export_flags |= V9FS_PATHNAME_FSCONTEXT;
+#ifdef FS_IOC_GETVERSION
+    /*
+     * use ioc_getversion only if the iocl is definied
+     */
     err = statfs(ctx->fs_root, &stbuf);
     if (!err) {
         switch (stbuf.f_type) {
@@ -732,6 +736,7 @@ static int local_init(FsContext *ctx)
             break;
         }
     }
+#endif
     return err;
 }
 
