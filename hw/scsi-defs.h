@@ -32,7 +32,7 @@
 #define REASSIGN_BLOCKS       0x07
 #define READ_6                0x08
 #define WRITE_6               0x0a
-#define SEEK_6                0x0b
+#define SET_CAPACITY          0x0b
 #define READ_REVERSE          0x0f
 #define WRITE_FILEMARKS       0x10
 #define SPACE                 0x11
@@ -81,14 +81,17 @@
 #define GET_EVENT_STATUS_NOTIFICATION 0x4a
 #define LOG_SELECT            0x4c
 #define LOG_SENSE             0x4d
+#define RESERVE_TRACK         0x53
 #define MODE_SELECT_10        0x55
 #define RESERVE_10            0x56
 #define RELEASE_10            0x57
 #define MODE_SENSE_10         0x5a
+#define SEND_CUE_SHEET        0x5d
 #define PERSISTENT_RESERVE_IN 0x5e
 #define PERSISTENT_RESERVE_OUT 0x5f
 #define VARLENGTH_CDB         0x7f
 #define WRITE_FILEMARKS_16    0x80
+#define ALLOW_OVERWRITE       0x82
 #define EXTENDED_COPY         0x83
 #define ATA_PASSTHROUGH       0x85
 #define ACCESS_CONTROL_IN     0x86
@@ -98,6 +101,8 @@
 #define WRITE_16              0x8a
 #define WRITE_VERIFY_16       0x8e
 #define VERIFY_16             0x8f
+#define PRE_FETCH_16          0x90
+#define SPACE_16              0x91
 #define SYNCHRONIZE_CACHE_16  0x91
 #define LOCATE_16             0x92
 #define WRITE_SAME_16         0x93
@@ -110,9 +115,11 @@
 #define MAINTENANCE_OUT       0xa4
 #define MOVE_MEDIUM           0xa5
 #define LOAD_UNLOAD           0xa6
+#define SET_READ_AHEAD        0xa7
 #define READ_12               0xa8
 #define WRITE_12              0xaa
 #define SERVICE_ACTION_IN_12  0xab
+#define ERASE_12              0xac
 #define READ_DVD_STRUCTURE    0xad
 #define WRITE_VERIFY_12       0xae
 #define VERIFY_12             0xaf
@@ -125,6 +132,7 @@
 #define SET_CD_SPEED          0xbb
 #define MECHANISM_STATUS      0xbd
 #define READ_CD               0xbe
+#define SEND_DVD_STRUCTURE    0xbf
 
 /*
  * SERVICE ACTION IN subcodes

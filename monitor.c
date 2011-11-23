@@ -4207,9 +4207,9 @@ static void file_completion(const char *input)
             /* stat the file to find out if it's a directory.
              * In that case add a slash to speed up typing long paths
              */
-            stat(file, &sb);
-            if(S_ISDIR(sb.st_mode))
+            if (stat(file, &sb) == 0 && S_ISDIR(sb.st_mode)) {
                 pstrcat(file, sizeof(file), "/");
+            }
             readline_add_completion(cur_mon->rs, file);
         }
     }

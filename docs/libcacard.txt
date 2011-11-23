@@ -170,7 +170,7 @@ public entry point:
                                int cert_count);
 
   The parameters for this are:
-  card       - the virtual card structure which will prepresent this card.
+  card       - the virtual card structure which will represent this card.
   flags      - option flags that may be specific to this card type.
   cert       - array of binary certificates.
   cert_len   - array of lengths of each of the certificates specified in cert.
@@ -179,7 +179,7 @@ public entry point:
   cert_count - number of entries in cert, cert_len, and key arrays.
 
   Any cert, cert_len, or key with the same index are matching sets. That is
-  cert[0] is cert_len[0] long and has the corresponsing private key of key[0].
+  cert[0] is cert_len[0] long and has the corresponding private key of key[0].
 
 The card type emulator is expected to own the VCardKeys, but it should copy
 any raw cert data it wants to save. It can create new applets and add them to
@@ -261,7 +261,7 @@ Prior to processing calling the card type emulator's VCardProcessAPDU function, 
    apdu->a_Le   - The expected length of any returned data.
    apdu->a_cla  - The raw apdu class.
    apdu->a_channel - The channel (decoded from the class).
-   apdu->a_secure_messaging_type - The decoded secure messagin type
+   apdu->a_secure_messaging_type - The decoded secure messaging type
                                    (from class).
    apdu->a_type - The decode class type.
    apdu->a_gen_type - the generic class type (7816, PROPRIETARY, RFU, PTS).
@@ -273,7 +273,7 @@ Creating a Response --
 
 The expected result of any APDU call is a response. The card type emulator must
 set *response with an appropriate VCardResponse value if it returns VCARD_DONE.
-Reponses could be as simple as returning a 2 byte status word response, to as
+Responses could be as simple as returning a 2 byte status word response, to as
 complex as returning a block of data along with a 2 byte response. Which is
 returned will depend on the semantics of the APDU. The following functions will
 create card responses.
@@ -281,13 +281,13 @@ create card responses.
         VCardResponse *vcard_make_response(VCard7816Status status);
 
     This is the most basic function to get a response. This function will
-    return a response the consists soley one 2 byte status code. If that status
-    code is defined in card_7816t.h, then this function is guarrenteed to
+    return a response the consists solely one 2 byte status code. If that status
+    code is defined in card_7816t.h, then this function is guaranteed to
     return a response with that status. If a cart type specific status code
     is passed and vcard_make_response fails to allocate the appropriate memory
     for that response, then vcard_make_response will return a VCardResponse
     of VCARD7816_STATUS_EXC_ERROR_MEMORY. In any case, this function is
-    guarrenteed to return a valid VCardResponse.
+    guaranteed to return a valid VCardResponse.
 
         VCardResponse *vcard_response_new(unsigned char *buf, int len,
                                           VCard7816Status status);
@@ -327,7 +327,7 @@ and applet.
 
         int vcard_emul_get_login_count(VCard *card);
 
-    This function returns the the number of remaing login attempts for this
+    This function returns the the number of remaining login attempts for this
     card. If the card emulator does not know, or the card does not have a
     way of giving this information, this function returns -1.
 
@@ -373,7 +373,7 @@ functions:
 
   The options structure is built by another function in the virtual card
   interface where a string of virtual card emulator specific strings are
-  mapped to the options. The actual structure is defined by the virutal card
+  mapped to the options. The actual structure is defined by the virtual card
   emulator and is used to determine the configuration of soft cards, or to
   determine which physical cards to present to the guest.
 
@@ -399,7 +399,7 @@ functions:
       This function will automatically generate the appropriate new reader
       events and add the reader to the list.
 
-  To create a new card, the virtual card emulator will call a similiar
+  To create a new card, the virtual card emulator will call a similar
   function.
 
            VCard *vcard_new(VCardEmul *card_emul,

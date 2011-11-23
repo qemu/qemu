@@ -178,6 +178,8 @@ struct PCIDevice {
     unsigned *msix_entry_used;
     /* Region including the MSI-X table */
     uint32_t msix_bar_size;
+    /* MSIX function mask set or MSIX disabled */
+    bool msix_function_masked;
     /* Version id needed for VMState */
     int32_t version_id;
 

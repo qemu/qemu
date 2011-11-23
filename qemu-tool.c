@@ -15,6 +15,7 @@
 #include "monitor.h"
 #include "qemu-timer.h"
 #include "qemu-log.h"
+#include "migration.h"
 
 #include <sys/time.h>
 
@@ -91,4 +92,12 @@ void qemu_mod_timer(QEMUTimer *ts, int64_t expire_time)
 int64_t qemu_get_clock_ns(QEMUClock *clock)
 {
     return 0;
+}
+
+void migrate_add_blocker(Error *reason)
+{
+}
+
+void migrate_del_blocker(Error *reason)
+{
 }

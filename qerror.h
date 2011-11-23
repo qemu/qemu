@@ -54,6 +54,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_BAD_BUS_FOR_DEVICE \
     "{ 'class': 'BadBusForDevice', 'data': { 'device': %s, 'bad_bus_type': %s } }"
 
+#define QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED \
+    "{ 'class': 'BlockFormatFeatureNotSupported', 'data': { 'format': %s, 'name': %s, 'feature': %s } }"
+
 #define QERR_BUS_NOT_FOUND \
     "{ 'class': 'BusNotFound', 'data': { 'bus': %s } }"
 
@@ -71,6 +74,9 @@ QError *qobject_to_qerror(const QObject *obj);
 
 #define QERR_DEVICE_IN_USE \
     "{ 'class': 'DeviceInUse', 'data': { 'device': %s } }"
+
+#define QERR_DEVICE_FEATURE_BLOCKS_MIGRATION \
+    "{ 'class': 'DeviceFeatureBlocksMigration', 'data': { 'device': %s, 'feature': %s } }"
 
 #define QERR_DEVICE_LOCKED \
     "{ 'class': 'DeviceLocked', 'data': { 'device': %s } }"

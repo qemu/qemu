@@ -74,15 +74,6 @@ static int omode_to_uflags(int8_t mode)
     return ret;
 }
 
-static int dotl_to_at_flags(int flags)
-{
-    int rflags = 0;
-    if (flags & P9_DOTL_AT_REMOVEDIR) {
-        rflags |= AT_REMOVEDIR;
-    }
-    return rflags;
-}
-
 struct dotl_openflag_map {
     int dotl_flag;
     int open_flag;
@@ -2444,7 +2435,6 @@ static void v9fs_unlinkat(void *opaque)
     V9fsPDU *pdu = opaque;
 
     pdu_unmarshal(pdu, offset, "dsd", &dfid, &name, &flags);
-    flags = dotl_to_at_flags(flags);
 
     dfidp = get_fid(pdu, dfid);
     if (dfidp == NULL) {

@@ -190,7 +190,7 @@ static void qmp_output_type_enum(Visitor *v, int *obj, const char *strings[],
 
     assert(strings);
     while (strings[i++] != NULL);
-    if (value >= i - 1) {
+    if (value < 0 || value >= i - 1) {
         error_set(errp, QERR_INVALID_PARAMETER, name ? name : "null");
         return;
     }

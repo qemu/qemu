@@ -17,6 +17,7 @@
 #include "qdict.h"
 #include "qemu-common.h"
 #include "notify.h"
+#include "error.h"
 
 typedef struct MigrationState MigrationState;
 
@@ -88,5 +89,19 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque);
 int ram_load(QEMUFile *f, void *opaque, int version_id);
 
 extern int incoming_expected;
+
+/**
+ * @migrate_add_blocker - prevent migration from proceeding
+ *
+ * @reason - an error to be returned whenever migration is attempted
+ */
+void migrate_add_blocker(Error *reason);
+
+/**
+ * @migrate_del_blocker - remove a blocking error from migration
+ *
+ * @reason - the error blocking migration
+ */
+void migrate_del_blocker(Error *reason);
 
 #endif
