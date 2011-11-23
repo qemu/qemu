@@ -222,7 +222,22 @@ static void usb_hub_complete(USBPort *port, USBPacket *packet)
 
 static void usb_hub_handle_reset(USBDevice *dev)
 {
-    /* XXX: do it */
+    USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
+    USBHubPort *port;
+    int i;
+
+    for (i = 0; i < NUM_PORTS; i++) {
+        port = s->ports + i;
+        port->wPortStatus = PORT_STAT_POWER;
+        port->wPortChange = 0;
+        if (port->port.dev && port->port.dev->attached) {
+            port->wPortStatus |= PORT_STAT_CONNECTION;
+            port->wPortChange |= PORT_STAT_C_CONNECTION;
+            if (port->port.dev->speed == USB_SPEED_LOW) {
+                port->wPortStatus |= PORT_STAT_LOW_SPEED;
+            }
+        }
+    }
 }
 
 static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
@@ -497,9 +512,8 @@ static int usb_hub_initfn(USBDevice *dev)
                           &port->port, s, i, &usb_hub_port_ops,
                           USB_SPEED_MASK_LOW | USB_SPEED_MASK_FULL);
         usb_port_location(&port->port, dev->port, i+1);
-        port->wPortStatus = PORT_STAT_POWER;
-        port->wPortChange = 0;
     }
+    usb_hub_handle_reset(dev);
     return 0;
 }
 
