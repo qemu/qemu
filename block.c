@@ -1133,21 +1133,62 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
     QLIST_INSERT_HEAD(&bs->tracked_requests, req, list);
 }
 
+/**
+ * Round a region to cluster boundaries
+ */
+static void round_to_clusters(BlockDriverState *bs,
+                              int64_t sector_num, int nb_sectors,
+                              int64_t *cluster_sector_num,
+                              int *cluster_nb_sectors)
+{
+    BlockDriverInfo bdi;
+
+    if (bdrv_get_info(bs, &bdi) < 0 || bdi.cluster_size == 0) {
+        *cluster_sector_num = sector_num;
+        *cluster_nb_sectors = nb_sectors;
+    } else {
+        int64_t c = bdi.cluster_size / BDRV_SECTOR_SIZE;
+        *cluster_sector_num = QEMU_ALIGN_DOWN(sector_num, c);
+        *cluster_nb_sectors = QEMU_ALIGN_UP(sector_num - *cluster_sector_num +
+                                            nb_sectors, c);
+    }
+}
+
 static bool tracked_request_overlaps(BdrvTrackedRequest *req,
                                      int64_t sector_num, int nb_sectors) {
-    return false; /* not yet implemented */
+    /*        aaaa   bbbb */
+    if (sector_num >= req->sector_num + req->nb_sectors) {
+        return false;
+    }
+    /* bbbb   aaaa        */
+    if (req->sector_num >= sector_num + nb_sectors) {
+        return false;
+    }
+    return true;
 }
 
 static void coroutine_fn wait_for_overlapping_requests(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors)
 {
     BdrvTrackedRequest *req;
+    int64_t cluster_sector_num;
+    int cluster_nb_sectors;
     bool retry;
+
+    /* If we touch the same cluster it counts as an overlap.  This guarantees
+     * that allocating writes will be serialized and not race with each other
+     * for the same cluster.  For example, in copy-on-read it ensures that the
+     * CoR read and write operations are atomic and guest writes cannot
+     * interleave between them.
+     */
+    round_to_clusters(bs, sector_num, nb_sectors,
+                      &cluster_sector_num, &cluster_nb_sectors);
 
     do {
         retry = false;
         QLIST_FOREACH(req, &bs->tracked_requests, list) {
-            if (tracked_request_overlaps(req, sector_num, nb_sectors)) {
+            if (tracked_request_overlaps(req, cluster_sector_num,
+                                         cluster_nb_sectors)) {
                 qemu_co_queue_wait(&req->wait_queue);
                 retry = true;
                 break;
