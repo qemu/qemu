@@ -84,7 +84,8 @@ struct omap_target_agent_s {
     uint32_t control;
     uint32_t status;
 };
-struct omap_l4_s *omap_l4_init(target_phys_addr_t base, int ta_num);
+struct omap_l4_s *omap_l4_init(MemoryRegion *address_space,
+                               target_phys_addr_t base, int ta_num);
 
 struct omap_target_agent_s;
 struct omap_target_agent_s *omap_l4ta_get(
@@ -94,7 +95,11 @@ struct omap_target_agent_s *omap_l4ta_get(
     int cs);
 target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
                 int iotype);
+target_phys_addr_t omap_l4_attach_region(struct omap_target_agent_s *ta,
+                                         int region, MemoryRegion *mr);
 target_phys_addr_t omap_l4_region_base(struct omap_target_agent_s *ta,
+                                       int region);
+target_phys_addr_t omap_l4_region_size(struct omap_target_agent_s *ta,
                                        int region);
 
 /* OMAP2 SDRAM controller */

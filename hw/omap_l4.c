@@ -21,16 +21,19 @@
 #include "omap.h"
 
 struct omap_l4_s {
+    MemoryRegion *address_space;
     target_phys_addr_t base;
     int ta_num;
     struct omap_target_agent_s ta[0];
 };
 
-struct omap_l4_s *omap_l4_init(target_phys_addr_t base, int ta_num)
+struct omap_l4_s *omap_l4_init(MemoryRegion *address_space,
+                               target_phys_addr_t base, int ta_num)
 {
     struct omap_l4_s *bus = g_malloc0(
                     sizeof(*bus) + ta_num * sizeof(*bus->ta));
 
+    bus->address_space = address_space;
     bus->ta_num = ta_num;
     bus->base = base;
 
@@ -41,6 +44,12 @@ target_phys_addr_t omap_l4_region_base(struct omap_target_agent_s *ta,
                                        int region)
 {
     return ta->bus->base + ta->start[region].offset;
+}
+
+target_phys_addr_t omap_l4_region_size(struct omap_target_agent_s *ta,
+                                       int region)
+{
+    return ta->start[region].size;
 }
 
 static uint32_t omap_l4ta_read(void *opaque, target_phys_addr_t addr)
@@ -146,6 +155,24 @@ target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
     size = ta->start[region].size;
     if (iotype) {
         cpu_register_physical_memory(base, size, iotype);
+    }
+
+    return base;
+}
+
+target_phys_addr_t omap_l4_attach_region(struct omap_target_agent_s *ta,
+                                         int region, MemoryRegion *mr)
+{
+    target_phys_addr_t base;
+
+    if (region < 0 || region >= ta->regions) {
+        fprintf(stderr, "%s: bad io region (%i)\n", __FUNCTION__, region);
+        exit(-1);
+    }
+
+    base = ta->bus->base + ta->start[region].offset;
+    if (mr) {
+        memory_region_add_subregion(ta->bus->address_space, base, mr);
     }
 
     return base;

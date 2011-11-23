@@ -2260,7 +2260,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
                     (sram_base = qemu_ram_alloc(NULL, "omap2.sram",
                                                 s->sram_size)) | IO_MEM_RAM);
 
-    s->l4 = omap_l4_init(OMAP2_L4_BASE, 54);
+    s->l4 = omap_l4_init(sysmem, OMAP2_L4_BASE, 54);
 
     /* Actually mapped at any 2K boundary in the ARM11 private-peripheral if */
     cpu_irq = arm_pic_init_cpu(s->env);
