@@ -362,8 +362,11 @@ static int64_t alloc_block(BlockDriverState* bs, int64_t sector_num)
 
     // Initialize the block's bitmap
     memset(bitmap, 0xff, s->bitmap_size);
-    bdrv_pwrite_sync(bs->file, s->free_data_block_offset, bitmap,
+    ret = bdrv_pwrite_sync(bs->file, s->free_data_block_offset, bitmap,
         s->bitmap_size);
+    if (ret < 0) {
+        return ret;
+    }
 
     // Write new footer (the old one will be overwritten)
     s->free_data_block_offset += s->block_size + s->bitmap_size;
