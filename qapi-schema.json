@@ -999,3 +999,36 @@
 #        notification.
 ##
 { 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }
+
+##
+# @block_passwd:
+#
+# This command sets the password of a block device that has not been open
+# with a password and requires one.
+#
+# The two cases where this can happen are a block device is created through
+# QEMU's initial command line or a block device is changed through the legacy
+# @change interface.
+#
+# In the event that the block device is created through the initial command
+# line, the VM will start in the stopped state regardless of whether '-S' is
+# used.  The intention is for a management tool to query the block devices to
+# determine which ones are encrypted, set the passwords with this command, and
+# then start the guest with the @cont command.
+#
+# @device:   the name of the device to set the password on
+#
+# @password: the password to use for the device
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If @device is not encrypted, DeviceNotEncrypted
+#          If @password is not valid for this device, InvalidPassword
+#
+# Notes:  Not all block formats support encryption and some that do are not
+#         able to validate that a password is correct.  Disk corruption may
+#         occur if an invalid password is specified.
+#
+# Since: 0.14.0
+##
+{ 'command': 'block_passwd', 'data': {'device': 'str', 'password': 'str'} }

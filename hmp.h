@@ -42,5 +42,6 @@ void hmp_pmemsave(Monitor *mon, const QDict *qdict);
 void hmp_cont(Monitor *mon, const QDict *qdict);
 void hmp_inject_nmi(Monitor *mon, const QDict *qdict);
 void hmp_set_link(Monitor *mon, const QDict *qdict);
+void hmp_block_passwd(Monitor *mon, const QDict *qdict);
 
 #endif

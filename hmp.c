@@ -611,3 +611,13 @@ void hmp_set_link(Monitor *mon, const QDict *qdict)
     qmp_set_link(name, up, &errp);
     hmp_handle_error(mon, &errp);
 }
+
+void hmp_block_passwd(Monitor *mon, const QDict *qdict)
+{
+    const char *device = qdict_get_str(qdict, "device");
+    const char *password = qdict_get_str(qdict, "password");
+    Error *errp = NULL;
+
+    qmp_block_passwd(device, password, &errp);
+    hmp_handle_error(mon, &errp);
+}
