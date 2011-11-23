@@ -736,8 +736,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "inject an NMI on all guest's CPUs",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_inject_nmi,
+        .mhandler.cmd = hmp_inject_nmi,
     },
 #endif
 STEXI

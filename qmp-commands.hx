@@ -407,10 +407,7 @@ EQMP
     {
         .name       = "inject-nmi",
         .args_type  = "",
-        .params     = "",
-        .help       = "",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_inject_nmi,
+        .mhandler.cmd_new = qmp_marshal_input_inject_nmi,
     },
 
 SQMP

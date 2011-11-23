@@ -1213,3 +1213,16 @@ void qmp_pmemsave(int64_t addr, int64_t size, const char *filename,
 exit:
     fclose(f);
 }
+
+void qmp_inject_nmi(Error **errp)
+{
+#if defined(TARGET_I386)
+    CPUState *env;
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        cpu_interrupt(env, CPU_INTERRUPT_NMI);
+    }
+#else
+    error_set(errp, QERR_UNSUPPORTED);
+#endif
+}

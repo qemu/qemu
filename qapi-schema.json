@@ -966,3 +966,16 @@
 ##
 { 'command': 'cont' }
 
+##
+# @inject-nmi:
+#
+# Injects an Non-Maskable Interrupt into all guest's VCPUs.
+#
+# Returns:  If successful, nothing
+#           If the Virtual Machine doesn't support NMI injection, Unsupported
+#
+# Since:  0.14.0
+#
+# Notes: Only x86 Virtual Machines support this command.
+##
+{ 'command': 'inject-nmi' }

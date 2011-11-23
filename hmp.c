@@ -593,3 +593,11 @@ void hmp_cont(Monitor *mon, const QDict *qdict)
         hmp_handle_error(mon, &errp);
     }
 }
+
+void hmp_inject_nmi(Monitor *mon, const QDict *qdict)
+{
+    Error *errp = NULL;
+
+    qmp_inject_nmi(&errp);
+    hmp_handle_error(mon, &errp);
+}
