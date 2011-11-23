@@ -107,6 +107,7 @@ static CPUWriteMemoryFunc * const omap_tap_writefn[] = {
 void omap_tap_init(struct omap_target_agent_s *ta,
                 struct omap_mpu_state_s *mpu)
 {
-    omap_l4_attach(ta, 0, l4_register_io_memory(
-                            omap_tap_readfn, omap_tap_writefn, mpu));
+    omap_l4_attach(ta, 0, cpu_register_io_memory(
+                            omap_tap_readfn, omap_tap_writefn, mpu,
+                            DEVICE_NATIVE_ENDIAN));
 }

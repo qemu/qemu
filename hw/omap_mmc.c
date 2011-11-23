@@ -612,8 +612,8 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
 
     omap_mmc_reset(s);
 
-    iomemtype = l4_register_io_memory(omap_mmc_readfn,
-                    omap_mmc_writefn, s);
+    iomemtype = cpu_register_io_memory(omap_mmc_readfn,
+                    omap_mmc_writefn, s, DEVICE_NATIVE_ENDIAN);
     omap_l4_attach(ta, 0, iomemtype);
 
     /* Instantiate the storage */

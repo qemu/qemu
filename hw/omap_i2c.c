@@ -457,8 +457,8 @@ struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
     s->bus = i2c_init_bus(NULL, "i2c");
     omap_i2c_reset(s);
 
-    iomemtype = l4_register_io_memory(omap_i2c_readfn,
-                    omap_i2c_writefn, s);
+    iomemtype = cpu_register_io_memory(omap_i2c_readfn,
+                    omap_i2c_writefn, s, DEVICE_NATIVE_ENDIAN);
     omap_l4_attach(ta, 0, iomemtype);
 
     return s;

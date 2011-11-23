@@ -96,8 +96,6 @@ target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
                 int iotype);
 target_phys_addr_t omap_l4_region_base(struct omap_target_agent_s *ta,
                                        int region);
-int l4_register_io_memory(CPUReadMemoryFunc * const *mem_read,
-                CPUWriteMemoryFunc * const *mem_write, void *opaque);
 
 /* OMAP2 SDRAM controller */
 struct omap_sdrc_s;

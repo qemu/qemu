@@ -327,8 +327,8 @@ struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
     }
     omap_mcspi_reset(s);
 
-    iomemtype = l4_register_io_memory(omap_mcspi_readfn,
-                    omap_mcspi_writefn, s);
+    iomemtype = cpu_register_io_memory(omap_mcspi_readfn,
+                    omap_mcspi_writefn, s, DEVICE_NATIVE_ENDIAN);
     omap_l4_attach(ta, 0, iomemtype);
 
     return s;

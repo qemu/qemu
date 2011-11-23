@@ -784,8 +784,8 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
 
     s->chr = chr ?: qemu_chr_new("null", "null", NULL);
 
-    iomemtype = l4_register_io_memory(omap_sti_readfn,
-                    omap_sti_writefn, s);
+    iomemtype = cpu_register_io_memory(omap_sti_readfn,
+                    omap_sti_writefn, s, DEVICE_NATIVE_ENDIAN);
     omap_l4_attach(ta, 0, iomemtype);
 
     iomemtype = cpu_register_io_memory(omap_sti_fifo_readfn,
@@ -1798,8 +1798,8 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_prcm_coldreset(s);
 
-    iomemtype = l4_register_io_memory(omap_prcm_readfn,
-                    omap_prcm_writefn, s);
+    iomemtype = cpu_register_io_memory(omap_prcm_readfn,
+                    omap_prcm_writefn, s, DEVICE_NATIVE_ENDIAN);
     omap_l4_attach(ta, 0, iomemtype);
     omap_l4_attach(ta, 1, iomemtype);
 
@@ -2168,8 +2168,8 @@ static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_sysctl_reset(s);
 
-    iomemtype = l4_register_io_memory(omap_sysctl_readfn,
-                    omap_sysctl_writefn, s);
+    iomemtype = cpu_register_io_memory(omap_sysctl_readfn,
+                    omap_sysctl_writefn, s, DEVICE_NATIVE_ENDIAN);
     omap_l4_attach(ta, 0, iomemtype);
 
     return s;

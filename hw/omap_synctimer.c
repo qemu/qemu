@@ -89,8 +89,9 @@ struct omap_synctimer_s *omap_synctimer_init(struct omap_target_agent_s *ta,
     struct omap_synctimer_s *s = g_malloc0(sizeof(*s));
 
     omap_synctimer_reset(s);
-    omap_l4_attach(ta, 0, l4_register_io_memory(
-                      omap_synctimer_readfn, omap_synctimer_writefn, s));
+    omap_l4_attach(ta, 0, cpu_register_io_memory(
+                      omap_synctimer_readfn, omap_synctimer_writefn, s,
+                      DEVICE_NATIVE_ENDIAN));
 
     return s;
 }

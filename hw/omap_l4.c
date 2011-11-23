@@ -20,14 +20,6 @@
 #include "hw.h"
 #include "omap.h"
 
-int l4_register_io_memory(CPUReadMemoryFunc * const *mem_read,
-                          CPUWriteMemoryFunc * const *mem_write,
-                          void *opaque)
-{
-    return cpu_register_io_memory(mem_read, mem_write, opaque,
-                                  DEVICE_NATIVE_ENDIAN);
-}
-
 struct omap_l4_s {
     target_phys_addr_t base;
     int ta_num;
@@ -132,8 +124,8 @@ struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus,
     ta->status = 0x00000000;
     ta->control = 0x00000200;	/* XXX 01000200 for L4TAO */
 
-    iomemtype = l4_register_io_memory(omap_l4ta_readfn,
-                    omap_l4ta_writefn, ta);
+    iomemtype = cpu_register_io_memory(omap_l4ta_readfn,
+                    omap_l4ta_writefn, ta, DEVICE_NATIVE_ENDIAN);
     ta->base = omap_l4_attach(ta, info->ta_region, iomemtype);
 
     return ta;

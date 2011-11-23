@@ -476,8 +476,8 @@ struct omap_gp_timer_s *omap_gp_timer_init(struct omap_target_agent_s *ta,
     omap_gp_timer_reset(s);
     omap_gp_timer_clk_setup(s);
 
-    iomemtype = l4_register_io_memory(omap_gp_timer_readfn,
-                    omap_gp_timer_writefn, s);
+    iomemtype = cpu_register_io_memory(omap_gp_timer_readfn,
+                    omap_gp_timer_writefn, s, DEVICE_NATIVE_ENDIAN);
     omap_l4_attach(ta, 0, iomemtype);
 
     return s;
