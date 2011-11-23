@@ -1127,7 +1127,4 @@ inline static int debug_register_io_memory(CPUReadMemoryFunc * const *mem_read,
 #  define cpu_register_io_memory	debug_register_io_memory
 # endif
 
-/* Define when we want to reduce the number of IO regions registered.  */
-/*# define L4_MUX_HACK*/
-
 #endif /* hw_omap_h */
