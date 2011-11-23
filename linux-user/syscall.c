@@ -4867,7 +4867,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         {
             int status;
             ret = get_errno(waitpid(arg1, &status, arg3));
-            if (!is_error(ret) && arg2
+            if (!is_error(ret) && arg2 && ret
                 && put_user_s32(host_to_target_waitstatus(status), arg2))
                 goto efault;
         }
@@ -6423,7 +6423,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                 rusage_ptr = NULL;
             ret = get_errno(wait4(arg1, &status, arg3, rusage_ptr));
             if (!is_error(ret)) {
-                if (status_ptr) {
+                if (status_ptr && ret) {
                     status = host_to_target_waitstatus(status);
                     if (put_user_s32(status, status_ptr))
                         goto efault;
