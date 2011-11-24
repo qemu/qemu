@@ -9,6 +9,7 @@
 #include "mcf.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
+#include "exec-memory.h"
 
 /* General purpose timer module.  */
 typedef struct {
@@ -144,6 +145,7 @@ static m5206_timer_state *m5206_timer_init(qemu_irq irq)
 
 typedef struct {
     CPUState *env;
+    MemoryRegion iomem;
     m5206_timer_state *timer[2];
     void *uart[2];
     uint8_t scr;
@@ -505,29 +507,32 @@ static void m5206_mbar_writel(void *opaque, target_phys_addr_t offset,
     m5206_mbar_write(s, offset, value);
 }
 
-static CPUReadMemoryFunc * const m5206_mbar_readfn[] = {
-   m5206_mbar_readb,
-   m5206_mbar_readw,
-   m5206_mbar_readl
+static const MemoryRegionOps m5206_mbar_ops = {
+    .old_mmio = {
+        .read = {
+            m5206_mbar_readb,
+            m5206_mbar_readw,
+            m5206_mbar_readl,
+        },
+        .write = {
+            m5206_mbar_writeb,
+            m5206_mbar_writew,
+            m5206_mbar_writel,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const m5206_mbar_writefn[] = {
-   m5206_mbar_writeb,
-   m5206_mbar_writew,
-   m5206_mbar_writel
-};
-
-qemu_irq *mcf5206_init(uint32_t base, CPUState *env)
+qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, CPUState *env)
 {
     m5206_mbar_state *s;
     qemu_irq *pic;
-    int iomemtype;
 
     s = (m5206_mbar_state *)g_malloc0(sizeof(m5206_mbar_state));
-    iomemtype = cpu_register_io_memory(m5206_mbar_readfn,
-                                       m5206_mbar_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x00001000, iomemtype);
+
+    memory_region_init_io(&s->iomem, &m5206_mbar_ops, s,
+                          "mbar", 0x00001000);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     pic = qemu_allocate_irqs(m5206_mbar_set_irq, s, 14);
     s->timer[0] = m5206_timer_init(pic[9]);

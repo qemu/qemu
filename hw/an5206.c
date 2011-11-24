@@ -53,7 +53,7 @@ static void an5206_init(ram_addr_t ram_size,
     memory_region_init_ram(sram, NULL, "an5206.sram", 512);
     memory_region_add_subregion(address_space_mem, AN5206_RAMBAR_ADDR, sram);
 
-    mcf5206_init(AN5206_MBAR_ADDR, env);
+    mcf5206_init(address_space_mem, AN5206_MBAR_ADDR, env);
 
     /* Load kernel.  */
     if (!kernel_filename) {

@@ -2,6 +2,8 @@
 #define HW_MCF_H
 /* Motorola ColdFire device prototypes.  */
 
+struct MemoryRegion;
+
 /* mcf_uart.c */
 uint32_t mcf_uart_read(void *opaque, target_phys_addr_t addr);
 void mcf_uart_write(void *opaque, target_phys_addr_t addr, uint32_t val);
@@ -16,6 +18,7 @@ qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env);
 void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq);
 
 /* mcf5206.c */
-qemu_irq *mcf5206_init(uint32_t base, CPUState *env);
+qemu_irq *mcf5206_init(struct MemoryRegion *sysmem,
+                       uint32_t base, CPUState *env);
 
 #endif
