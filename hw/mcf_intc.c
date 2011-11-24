@@ -7,8 +7,10 @@
  */
 #include "hw.h"
 #include "mcf.h"
+#include "exec-memory.h"
 
 typedef struct {
+    MemoryRegion iomem;
     uint64_t ipr;
     uint64_t imr;
     uint64_t ifr;
@@ -41,7 +43,8 @@ static void mcf_intc_update(mcf_intc_state *s)
     m68k_set_irq_level(s->env, best_level, s->active_vector);
 }
 
-static uint32_t mcf_intc_read(void *opaque, target_phys_addr_t addr)
+static uint64_t mcf_intc_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     int offset;
     mcf_intc_state *s = (mcf_intc_state *)opaque;
@@ -73,7 +76,8 @@ static uint32_t mcf_intc_read(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static void mcf_intc_write(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void mcf_intc_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned size)
 {
     int offset;
     mcf_intc_state *s = (mcf_intc_state *)opaque;
@@ -127,31 +131,24 @@ static void mcf_intc_reset(mcf_intc_state *s)
     s->active_vector = 24;
 }
 
-static CPUReadMemoryFunc * const mcf_intc_readfn[] = {
-   mcf_intc_read,
-   mcf_intc_read,
-   mcf_intc_read
+static const MemoryRegionOps mcf_intc_ops = {
+    .read = mcf_intc_read,
+    .write = mcf_intc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const mcf_intc_writefn[] = {
-   mcf_intc_write,
-   mcf_intc_write,
-   mcf_intc_write
-};
-
-qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env)
+qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
+                        target_phys_addr_t base,
+                        CPUState *env)
 {
     mcf_intc_state *s;
-    int iomemtype;
 
     s = g_malloc0(sizeof(mcf_intc_state));
     s->env = env;
     mcf_intc_reset(s);
 
-    iomemtype = cpu_register_io_memory(mcf_intc_readfn,
-                                       mcf_intc_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x100, iomemtype);
+    memory_region_init_io(&s->iomem, &mcf_intc_ops, s, "mcf", 0x100);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     return qemu_allocate_irqs(mcf_intc_set_irq, s, 64);
 }

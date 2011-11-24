@@ -15,7 +15,9 @@ void mcf_uart_mm_init(struct MemoryRegion *sysmem,
                       qemu_irq irq, CharDriverState *chr);
 
 /* mcf_intc.c */
-qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env);
+qemu_irq *mcf_intc_init(struct MemoryRegion *sysmem,
+                        target_phys_addr_t base,
+                        CPUState *env);
 
 /* mcf_fec.c */
 void mcf_fec_init(struct MemoryRegion *sysmem, NICInfo *nd,

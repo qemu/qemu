@@ -221,7 +221,7 @@ static void mcf5208evb_init(ram_addr_t ram_size,
     memory_region_add_subregion(address_space_mem, 0x80000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(0xfc048000, env);
+    pic = mcf_intc_init(address_space_mem, 0xfc048000, env);
 
     mcf_uart_mm_init(address_space_mem, 0xfc060000, pic[26], serial_hds[0]);
     mcf_uart_mm_init(address_space_mem, 0xfc064000, pic[27], serial_hds[1]);
