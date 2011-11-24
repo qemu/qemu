@@ -223,9 +223,9 @@ static void mcf5208evb_init(ram_addr_t ram_size,
     /* Internal peripherals.  */
     pic = mcf_intc_init(0xfc048000, env);
 
-    mcf_uart_mm_init(0xfc060000, pic[26], serial_hds[0]);
-    mcf_uart_mm_init(0xfc064000, pic[27], serial_hds[1]);
-    mcf_uart_mm_init(0xfc068000, pic[28], serial_hds[2]);
+    mcf_uart_mm_init(address_space_mem, 0xfc060000, pic[26], serial_hds[0]);
+    mcf_uart_mm_init(address_space_mem, 0xfc064000, pic[27], serial_hds[1]);
+    mcf_uart_mm_init(address_space_mem, 0xfc068000, pic[28], serial_hds[2]);
 
     mcf5208_sys_init(address_space_mem, pic);
 

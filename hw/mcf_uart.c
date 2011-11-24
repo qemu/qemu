@@ -8,8 +8,10 @@
 #include "hw.h"
 #include "mcf.h"
 #include "qemu-char.h"
+#include "exec-memory.h"
 
 typedef struct {
+    MemoryRegion iomem;
     uint8_t mr[2];
     uint8_t sr;
     uint8_t isr;
@@ -64,7 +66,8 @@ static void mcf_uart_update(mcf_uart_state *s)
     qemu_set_irq(s->irq, (s->isr & s->imr) != 0);
 }
 
-uint32_t mcf_uart_read(void *opaque, target_phys_addr_t addr)
+uint64_t mcf_uart_read(void *opaque, target_phys_addr_t addr,
+                       unsigned size)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
     switch (addr & 0x3f) {
@@ -182,7 +185,8 @@ static void mcf_do_command(mcf_uart_state *s, uint8_t cmd)
     }
 }
 
-void mcf_uart_write(void *opaque, target_phys_addr_t addr, uint32_t val)
+void mcf_uart_write(void *opaque, target_phys_addr_t addr,
+                    uint64_t val, unsigned size)
 {
     mcf_uart_state *s = (mcf_uart_state *)opaque;
     switch (addr & 0x3f) {
@@ -283,28 +287,20 @@ void *mcf_uart_init(qemu_irq irq, CharDriverState *chr)
     return s;
 }
 
-
-static CPUReadMemoryFunc * const mcf_uart_readfn[] = {
-   mcf_uart_read,
-   mcf_uart_read,
-   mcf_uart_read
+static const MemoryRegionOps mcf_uart_ops = {
+    .read = mcf_uart_read,
+    .write = mcf_uart_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const mcf_uart_writefn[] = {
-   mcf_uart_write,
-   mcf_uart_write,
-   mcf_uart_write
-};
-
-void mcf_uart_mm_init(target_phys_addr_t base, qemu_irq irq,
+void mcf_uart_mm_init(MemoryRegion *sysmem,
+                      target_phys_addr_t base,
+                      qemu_irq irq,
                       CharDriverState *chr)
 {
     mcf_uart_state *s;
-    int iomemtype;
 
     s = mcf_uart_init(irq, chr);
-    iomemtype = cpu_register_io_memory(mcf_uart_readfn,
-                                       mcf_uart_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x40, iomemtype);
+    memory_region_init_io(&s->iomem, &mcf_uart_ops, s, "uart", 0x40);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 }

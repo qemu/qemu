@@ -263,16 +263,17 @@ static void m5206_mbar_reset(m5206_mbar_state *s)
     s->par = 0;
 }
 
-static uint32_t m5206_mbar_read(m5206_mbar_state *s, uint32_t offset)
+static uint64_t m5206_mbar_read(m5206_mbar_state *s,
+                                uint64_t offset, unsigned size)
 {
     if (offset >= 0x100 && offset < 0x120) {
         return m5206_timer_read(s->timer[0], offset - 0x100);
     } else if (offset >= 0x120 && offset < 0x140) {
         return m5206_timer_read(s->timer[1], offset - 0x120);
     } else if (offset >= 0x140 && offset < 0x160) {
-        return mcf_uart_read(s->uart[0], offset - 0x140);
+        return mcf_uart_read(s->uart[0], offset - 0x140, size);
     } else if (offset >= 0x180 && offset < 0x1a0) {
-        return mcf_uart_read(s->uart[1], offset - 0x180);
+        return mcf_uart_read(s->uart[1], offset - 0x180, size);
     }
     switch (offset) {
     case 0x03: return s->scr;
@@ -301,7 +302,7 @@ static uint32_t m5206_mbar_read(m5206_mbar_state *s, uint32_t offset)
 }
 
 static void m5206_mbar_write(m5206_mbar_state *s, uint32_t offset,
-                             uint32_t value)
+                             uint64_t value, unsigned size)
 {
     if (offset >= 0x100 && offset < 0x120) {
         m5206_timer_write(s->timer[0], offset - 0x100, value);
@@ -310,10 +311,10 @@ static void m5206_mbar_write(m5206_mbar_state *s, uint32_t offset,
         m5206_timer_write(s->timer[1], offset - 0x120, value);
         return;
     } else if (offset >= 0x140 && offset < 0x160) {
-        mcf_uart_write(s->uart[0], offset - 0x140, value);
+        mcf_uart_write(s->uart[0], offset - 0x140, value, size);
         return;
     } else if (offset >= 0x180 && offset < 0x1a0) {
-        mcf_uart_write(s->uart[1], offset - 0x180, value);
+        mcf_uart_write(s->uart[1], offset - 0x180, value, size);
         return;
     }
     switch (offset) {
@@ -387,7 +388,7 @@ static uint32_t m5206_mbar_readb(void *opaque, target_phys_addr_t offset)
         }
         return val & 0xff;
     }
-    return m5206_mbar_read(s, offset);
+    return m5206_mbar_read(s, offset, 1);
 }
 
 static uint32_t m5206_mbar_readw(void *opaque, target_phys_addr_t offset)
@@ -411,7 +412,7 @@ static uint32_t m5206_mbar_readw(void *opaque, target_phys_addr_t offset)
         val |= m5206_mbar_readb(opaque, offset + 1);
         return val;
     }
-    return m5206_mbar_read(s, offset);
+    return m5206_mbar_read(s, offset, 2);
 }
 
 static uint32_t m5206_mbar_readl(void *opaque, target_phys_addr_t offset)
@@ -429,7 +430,7 @@ static uint32_t m5206_mbar_readl(void *opaque, target_phys_addr_t offset)
         val |= m5206_mbar_readw(opaque, offset + 2);
         return val;
     }
-    return m5206_mbar_read(s, offset);
+    return m5206_mbar_read(s, offset, 4);
 }
 
 static void m5206_mbar_writew(void *opaque, target_phys_addr_t offset,
@@ -458,7 +459,7 @@ static void m5206_mbar_writeb(void *opaque, target_phys_addr_t offset,
         m5206_mbar_writew(opaque, offset & ~1, tmp);
         return;
     }
-    m5206_mbar_write(s, offset, value);
+    m5206_mbar_write(s, offset, value, 1);
 }
 
 static void m5206_mbar_writew(void *opaque, target_phys_addr_t offset,
@@ -486,7 +487,7 @@ static void m5206_mbar_writew(void *opaque, target_phys_addr_t offset,
         m5206_mbar_writeb(opaque, offset + 1, value & 0xff);
         return;
     }
-    m5206_mbar_write(s, offset, value);
+    m5206_mbar_write(s, offset, value, 2);
 }
 
 static void m5206_mbar_writel(void *opaque, target_phys_addr_t offset,
@@ -504,7 +505,7 @@ static void m5206_mbar_writel(void *opaque, target_phys_addr_t offset,
         m5206_mbar_writew(opaque, offset + 2, value & 0xffff);
         return;
     }
-    m5206_mbar_write(s, offset, value);
+    m5206_mbar_write(s, offset, value, 4);
 }
 
 static const MemoryRegionOps m5206_mbar_ops = {

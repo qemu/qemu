@@ -5,11 +5,14 @@
 struct MemoryRegion;
 
 /* mcf_uart.c */
-uint32_t mcf_uart_read(void *opaque, target_phys_addr_t addr);
-void mcf_uart_write(void *opaque, target_phys_addr_t addr, uint32_t val);
+uint64_t mcf_uart_read(void *opaque, target_phys_addr_t addr,
+                       unsigned size);
+void mcf_uart_write(void *opaque, target_phys_addr_t addr,
+                    uint64_t val, unsigned size);
 void *mcf_uart_init(qemu_irq irq, CharDriverState *chr);
-void mcf_uart_mm_init(target_phys_addr_t base, qemu_irq irq,
-                      CharDriverState *chr);
+void mcf_uart_mm_init(struct MemoryRegion *sysmem,
+                      target_phys_addr_t base,
+                      qemu_irq irq, CharDriverState *chr);
 
 /* mcf_intc.c */
 qemu_irq *mcf_intc_init(target_phys_addr_t base, CPUState *env);
