@@ -203,10 +203,6 @@ typedef struct PCIBonitoState
     /* Bonito registers */
     MemoryRegion iomem;
 
-    target_phys_addr_t bonito_pciconf_start;
-    target_phys_addr_t bonito_pciconf_length;
-    int bonito_pciconf_handle;
-
     target_phys_addr_t bonito_spciconf_start;
     target_phys_addr_t bonito_spciconf_length;
     int bonito_spciconf_handle;
@@ -322,7 +318,7 @@ static const MemoryRegionOps bonito_ops = {
 };
 
 static void bonito_pciconf_writel(void *opaque, target_phys_addr_t addr,
-                                  uint32_t val)
+                                  uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
 
@@ -330,7 +326,8 @@ static void bonito_pciconf_writel(void *opaque, target_phys_addr_t addr,
     s->dev.config_write(&s->dev, addr, val, 4);
 }
 
-static uint32_t bonito_pciconf_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t bonito_pciconf_readl(void *opaque, target_phys_addr_t addr,
+                                     unsigned size)
 {
 
     PCIBonitoState *s = opaque;
@@ -340,16 +337,15 @@ static uint32_t bonito_pciconf_readl(void *opaque, target_phys_addr_t addr)
 }
 
 /* north bridge PCI configure space. 0x1fe0 0000 - 0x1fe0 00ff */
-static CPUWriteMemoryFunc * const bonito_pciconf_write[] = {
-    NULL,
-    NULL,
-    bonito_pciconf_writel,
-};
 
-static CPUReadMemoryFunc * const bonito_pciconf_read[] = {
-    NULL,
-    NULL,
-    bonito_pciconf_readl,
+static const MemoryRegionOps bonito_pciconf_ops = {
+    .read = bonito_pciconf_readl,
+    .write = bonito_pciconf_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static uint32_t bonito_ldma_readl(void *opaque, target_phys_addr_t addr)
@@ -700,13 +696,10 @@ static int bonito_initfn(PCIDevice *dev)
     sysbus_mmio_map(sysbus, 0, BONITO_INTERNAL_REG_BASE);
 
     /* set the north bridge pci configure  mapping */
-    s->bonito_pciconf_handle = cpu_register_io_memory(bonito_pciconf_read,
-                                                      bonito_pciconf_write, s,
-                                                      DEVICE_NATIVE_ENDIAN);
-    s->bonito_pciconf_start = BONITO_PCICONFIG_BASE;
-    s->bonito_pciconf_length = BONITO_PCICONFIG_SIZE;
-    cpu_register_physical_memory(s->bonito_pciconf_start, s->bonito_pciconf_length,
-                                 s->bonito_pciconf_handle);
+    memory_region_init_io(&s->pcihost->conf_mem, &bonito_pciconf_ops, s,
+                          "north-bridge-pci-config", BONITO_PCICONFIG_SIZE);
+    sysbus_init_mmio_region(sysbus, &s->pcihost->conf_mem);
+    sysbus_mmio_map(sysbus, 1, BONITO_PCICONFIG_BASE);
 
     /* set the south bridge pci configure  mapping */
     s->bonito_spciconf_handle = cpu_register_io_memory(bonito_spciconf_read,
