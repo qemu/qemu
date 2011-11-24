@@ -202,6 +202,7 @@ typedef struct PCIBonitoState
 
     /* Bonito registers */
     MemoryRegion iomem;
+    MemoryRegion iomem_ldma;
 
     target_phys_addr_t bonito_pciio_start;
     target_phys_addr_t bonito_pciio_length;
@@ -210,10 +211,6 @@ typedef struct PCIBonitoState
     target_phys_addr_t bonito_localio_start;
     target_phys_addr_t bonito_localio_length;
     int bonito_localio_handle;
-
-    target_phys_addr_t bonito_ldma_start;
-    target_phys_addr_t bonito_ldma_length;
-    int bonito_ldma_handle;
 
     target_phys_addr_t bonito_cop_start;
     target_phys_addr_t bonito_cop_length;
@@ -344,7 +341,8 @@ static const MemoryRegionOps bonito_pciconf_ops = {
     },
 };
 
-static uint32_t bonito_ldma_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t bonito_ldma_readl(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
 {
     uint32_t val;
     PCIBonitoState *s = opaque;
@@ -355,23 +353,21 @@ static uint32_t bonito_ldma_readl(void *opaque, target_phys_addr_t addr)
 }
 
 static void bonito_ldma_writel(void *opaque, target_phys_addr_t addr,
-                               uint32_t val)
+                               uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
 
     ((uint32_t *)(&s->bonldma))[addr/sizeof(uint32_t)] = val & 0xffffffff;
 }
 
-static CPUWriteMemoryFunc * const bonito_ldma_write[] = {
-    NULL,
-    NULL,
-    bonito_ldma_writel,
-};
-
-static CPUReadMemoryFunc * const bonito_ldma_read[] = {
-    NULL,
-    NULL,
-    bonito_ldma_readl,
+static const MemoryRegionOps bonito_ldma_ops = {
+    .read = bonito_ldma_readl,
+    .write = bonito_ldma_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static uint32_t bonito_cop_readl(void *opaque, target_phys_addr_t addr)
@@ -707,13 +703,10 @@ static int bonito_initfn(PCIDevice *dev)
     sysbus_init_mmio_region(sysbus, &s->pcihost->data_mem);
     sysbus_mmio_map(sysbus, 2, BONITO_SPCICONFIG_BASE);
 
-    s->bonito_ldma_handle = cpu_register_io_memory(bonito_ldma_read,
-                                                   bonito_ldma_write, s,
-                                                   DEVICE_NATIVE_ENDIAN);
-    s->bonito_ldma_start = 0xbfe00200;
-    s->bonito_ldma_length = 0x100;
-    cpu_register_physical_memory(s->bonito_ldma_start, s->bonito_ldma_length,
-                                 s->bonito_ldma_handle);
+    memory_region_init_io(&s->iomem_ldma, &bonito_ldma_ops, s,
+                          "ldma", 0x100);
+    sysbus_init_mmio_region(sysbus, &s->iomem_ldma);
+    sysbus_mmio_map(sysbus, 3, 0xbfe00200);
 
     s->bonito_cop_handle = cpu_register_io_memory(bonito_cop_read,
                                                   bonito_cop_write, s,
