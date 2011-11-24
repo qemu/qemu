@@ -37,6 +37,7 @@ struct omap_gpio_s {
 
 struct omap_gpif_s {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     int mpu_model;
     void *clk;
     struct omap_gpio_s omap1;
@@ -60,10 +61,15 @@ static void omap_gpio_set(void *opaque, int line, int level)
     }
 }
 
-static uint32_t omap_gpio_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_gpio_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_gpio_s *s = (struct omap_gpio_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
+
+    if (size != 2) {
+        return omap_badwidth_read16(opaque, addr);
+    }
 
     switch (offset) {
     case 0x00:	/* DATA_INPUT */
@@ -94,12 +100,16 @@ static uint32_t omap_gpio_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_gpio_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_gpio_s *s = (struct omap_gpio_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
     uint16_t diff;
     int ln;
+
+    if (size != 2) {
+        return omap_badwidth_write16(opaque, addr, value);
+    }
 
     switch (offset) {
     case 0x00:	/* DATA_INPUT */
@@ -156,16 +166,10 @@ static void omap_gpio_write(void *opaque, target_phys_addr_t addr,
 }
 
 /* *Some* sources say the memory region is 32-bit.  */
-static CPUReadMemoryFunc * const omap_gpio_readfn[] = {
-    omap_badwidth_read16,
-    omap_gpio_read,
-    omap_badwidth_read16,
-};
-
-static CPUWriteMemoryFunc * const omap_gpio_writefn[] = {
-    omap_badwidth_write16,
-    omap_gpio_write,
-    omap_badwidth_write16,
+static const MemoryRegionOps omap_gpio_ops = {
+    .read = omap_gpio_read,
+    .write = omap_gpio_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_gpio_reset(struct omap_gpio_s *s)
@@ -183,6 +187,7 @@ struct omap2_gpio_s {
     qemu_irq irq[2];
     qemu_irq wkup;
     qemu_irq *handler;
+    MemoryRegion iomem;
 
     uint8_t revision;
     uint8_t config[2];
@@ -200,6 +205,7 @@ struct omap2_gpio_s {
 
 struct omap2_gpif_s {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     int mpu_model;
     void *iclk;
     void *fclk[6];
@@ -563,16 +569,20 @@ static void omap2_gpio_module_writep(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap2_gpio_module_readfn[] = {
-    omap2_gpio_module_readp,
-    omap2_gpio_module_readp,
-    omap2_gpio_module_read,
-};
-
-static CPUWriteMemoryFunc * const omap2_gpio_module_writefn[] = {
-    omap2_gpio_module_writep,
-    omap2_gpio_module_writep,
-    omap2_gpio_module_write,
+static const MemoryRegionOps omap2_gpio_module_ops = {
+    .old_mmio = {
+        .read = {
+            omap2_gpio_module_readp,
+            omap2_gpio_module_readp,
+            omap2_gpio_module_read,
+        },
+        .write = {
+            omap2_gpio_module_writep,
+            omap2_gpio_module_writep,
+            omap2_gpio_module_write,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_gpif_reset(DeviceState *dev)
@@ -594,7 +604,8 @@ static void omap2_gpif_reset(DeviceState *dev)
     s->gpo = 0;
 }
 
-static uint32_t omap2_gpif_top_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap2_gpif_top_read(void *opaque, target_phys_addr_t addr,
+                                    unsigned size)
 {
     struct omap2_gpif_s *s = (struct omap2_gpif_s *) opaque;
 
@@ -623,7 +634,7 @@ static uint32_t omap2_gpif_top_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap2_gpif_top_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                                 uint64_t value, unsigned size)
 {
     struct omap2_gpif_s *s = (struct omap2_gpif_s *) opaque;
 
@@ -651,16 +662,10 @@ static void omap2_gpif_top_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap2_gpif_top_readfn[] = {
-    omap2_gpif_top_read,
-    omap2_gpif_top_read,
-    omap2_gpif_top_read,
-};
-
-static CPUWriteMemoryFunc * const omap2_gpif_top_writefn[] = {
-    omap2_gpif_top_write,
-    omap2_gpif_top_write,
-    omap2_gpif_top_write,
+static const MemoryRegionOps omap2_gpif_top_ops = {
+    .read = omap2_gpif_top_read,
+    .write = omap2_gpif_top_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int omap_gpio_init(SysBusDevice *dev)
@@ -672,11 +677,9 @@ static int omap_gpio_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, omap_gpio_set, 16);
     qdev_init_gpio_out(&dev->qdev, s->omap1.handler, 16);
     sysbus_init_irq(dev, &s->omap1.irq);
-    sysbus_init_mmio(dev, 0x1000,
-                    cpu_register_io_memory(omap_gpio_readfn,
-                                    omap_gpio_writefn,
-                                    &s->omap1,
-                                    DEVICE_NATIVE_ENDIAN));
+    memory_region_init_io(&s->iomem, &omap_gpio_ops, &s->omap1,
+                          "omap.gpio", 0x1000);
+    sysbus_init_mmio_region(dev, &s->iomem);
     return 0;
 }
 
@@ -689,10 +692,9 @@ static int omap2_gpio_init(SysBusDevice *dev)
     }
     if (s->mpu_model < omap3430) {
         s->modulecount = (s->mpu_model < omap2430) ? 4 : 5;
-        sysbus_init_mmio(dev, 0x1000,
-                        cpu_register_io_memory(omap2_gpif_top_readfn,
-                                        omap2_gpif_top_writefn, s,
-                                        DEVICE_NATIVE_ENDIAN));
+        memory_region_init_io(&s->iomem, &omap2_gpif_top_ops, s,
+                              "omap2.gpio", 0x1000);
+        sysbus_init_mmio_region(dev, &s->iomem);
     } else {
         s->modulecount = 6;
     }
@@ -710,10 +712,9 @@ static int omap2_gpio_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &m->irq[0]); /* mpu irq */
         sysbus_init_irq(dev, &m->irq[1]); /* dsp irq */
         sysbus_init_irq(dev, &m->wkup);
-        sysbus_init_mmio(dev, 0x1000,
-                        cpu_register_io_memory(omap2_gpio_module_readfn,
-                                        omap2_gpio_module_writefn,
-                                        m, DEVICE_NATIVE_ENDIAN));
+        memory_region_init_io(&m->iomem, &omap2_gpio_module_ops, m,
+                              "omap.gpio-module", 0x1000);
+        sysbus_init_mmio_region(dev, &m->iomem);
     }
     return 0;
 }
