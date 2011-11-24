@@ -234,7 +234,8 @@ static void mcf5208evb_init(ram_addr_t ram_size,
         exit(1);
     }
     if (nd_table[0].vlan)
-        mcf_fec_init(&nd_table[0], 0xfc030000, pic + 36);
+        mcf_fec_init(address_space_mem, &nd_table[0],
+                     0xfc030000, pic + 36);
 
     /*  0xfc000000 SCM.  */
     /*  0xfc004000 XBS.  */
