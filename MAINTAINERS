@@ -559,3 +559,8 @@ SPARC target
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
 F: tcg/sparc/
+
+TCI target
+M: Stefan Weil <sw@weilnetz.de>
+S: Maintained
+F: tcg/tci
