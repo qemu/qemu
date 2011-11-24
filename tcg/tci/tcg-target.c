@@ -373,10 +373,6 @@ static const char *const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif
 
-static void flush_icache_range(unsigned long start, unsigned long stop)
-{
-}
-
 static void patch_reloc(uint8_t *code_ptr, int type,
                         tcg_target_long value, tcg_target_long addend)
 {
