@@ -2422,7 +2422,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     sysbus_mmio_map(busdev, 3, omap_l4_region_base(ta, 4));
     sysbus_mmio_map(busdev, 4, omap_l4_region_base(ta, 5));
 
-    s->sdrc = omap_sdrc_init(0x68009000);
+    s->sdrc = omap_sdrc_init(sysmem, 0x68009000);
     s->gpmc = omap_gpmc_init(s, 0x6800a000,
                              qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_GPMC_IRQ),
                              s->drq[OMAP24XX_DMA_GPMC]);

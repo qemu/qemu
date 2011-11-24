@@ -104,7 +104,8 @@ target_phys_addr_t omap_l4_region_size(struct omap_target_agent_s *ta,
 
 /* OMAP2 SDRAM controller */
 struct omap_sdrc_s;
-struct omap_sdrc_s *omap_sdrc_init(target_phys_addr_t base);
+struct omap_sdrc_s *omap_sdrc_init(MemoryRegion *sysmem,
+                                   target_phys_addr_t base);
 void omap_sdrc_reset(struct omap_sdrc_s *s);
 
 /* OMAP2 general purpose memory controller */
