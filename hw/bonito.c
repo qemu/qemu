@@ -203,6 +203,7 @@ typedef struct PCIBonitoState
     /* Bonito registers */
     MemoryRegion iomem;
     MemoryRegion iomem_ldma;
+    MemoryRegion iomem_cop;
 
     target_phys_addr_t bonito_pciio_start;
     target_phys_addr_t bonito_pciio_length;
@@ -211,10 +212,6 @@ typedef struct PCIBonitoState
     target_phys_addr_t bonito_localio_start;
     target_phys_addr_t bonito_localio_length;
     int bonito_localio_handle;
-
-    target_phys_addr_t bonito_cop_start;
-    target_phys_addr_t bonito_cop_length;
-    int bonito_cop_handle;
 
 } PCIBonitoState;
 
@@ -370,7 +367,8 @@ static const MemoryRegionOps bonito_ldma_ops = {
     },
 };
 
-static uint32_t bonito_cop_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t bonito_cop_readl(void *opaque, target_phys_addr_t addr,
+                                 unsigned size)
 {
     uint32_t val;
     PCIBonitoState *s = opaque;
@@ -381,23 +379,21 @@ static uint32_t bonito_cop_readl(void *opaque, target_phys_addr_t addr)
 }
 
 static void bonito_cop_writel(void *opaque, target_phys_addr_t addr,
-                              uint32_t val)
+                              uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
 
     ((uint32_t *)(&s->boncop))[addr/sizeof(uint32_t)] = val & 0xffffffff;
 }
 
-static CPUWriteMemoryFunc * const bonito_cop_write[] = {
-    NULL,
-    NULL,
-    bonito_cop_writel,
-};
-
-static CPUReadMemoryFunc * const bonito_cop_read[] = {
-    NULL,
-    NULL,
-    bonito_cop_readl,
+static const MemoryRegionOps bonito_cop_ops = {
+    .read = bonito_cop_readl,
+    .write = bonito_cop_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static uint32_t bonito_sbridge_pciaddr(void *opaque, target_phys_addr_t addr)
@@ -708,13 +704,10 @@ static int bonito_initfn(PCIDevice *dev)
     sysbus_init_mmio_region(sysbus, &s->iomem_ldma);
     sysbus_mmio_map(sysbus, 3, 0xbfe00200);
 
-    s->bonito_cop_handle = cpu_register_io_memory(bonito_cop_read,
-                                                  bonito_cop_write, s,
-                                                  DEVICE_NATIVE_ENDIAN);
-    s->bonito_cop_start = 0xbfe00300;
-    s->bonito_cop_length = 0x100;
-    cpu_register_physical_memory(s->bonito_cop_start, s->bonito_cop_length,
-                                 s->bonito_cop_handle);
+    memory_region_init_io(&s->iomem_cop, &bonito_cop_ops, s,
+                          "cop", 0x100);
+    sysbus_init_mmio_region(sysbus, &s->iomem_cop);
+    sysbus_mmio_map(sysbus, 4, 0xbfe00300);
 
     /* Map PCI IO Space  0x1fd0 0000 - 0x1fd1 0000 */
     s->bonito_pciio_start = BONITO_PCIIO_BASE;
