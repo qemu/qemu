@@ -185,6 +185,7 @@ void virtio_queue_set_vector(VirtIODevice *vdev, int n, uint16_t vector);
 void virtio_set_status(VirtIODevice *vdev, uint8_t val);
 void virtio_reset(void *opaque);
 void virtio_update_irq(VirtIODevice *vdev);
+int virtio_set_features(VirtIODevice *vdev, uint32_t val);
 
 void virtio_bind_device(VirtIODevice *vdev, const VirtIOBindings *binding,
                         void *opaque);
