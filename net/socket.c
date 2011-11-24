@@ -409,6 +409,7 @@ static int net_socket_listen_init(VLANState *vlan,
     fd = qemu_socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
         perror("socket");
+        g_free(s);
         return -1;
     }
     socket_set_nonblock(fd);
@@ -420,11 +421,13 @@ static int net_socket_listen_init(VLANState *vlan,
     ret = bind(fd, (struct sockaddr *)&saddr, sizeof(saddr));
     if (ret < 0) {
         perror("bind");
+        g_free(s);
         return -1;
     }
     ret = listen(fd, 0);
     if (ret < 0) {
         perror("listen");
+        g_free(s);
         return -1;
     }
     s->vlan = vlan;
