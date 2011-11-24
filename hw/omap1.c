@@ -3938,7 +3938,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = omap_mmc_init(0xfffb7800, dinfo->bdrv,
+    s->mmc = omap_mmc_init(0xfffb7800, system_memory, dinfo->bdrv,
                            qdev_get_gpio_in(s->ih[1], OMAP_INT_OQN),
                            &s->drq[OMAP_DMA_MMC_TX],
                     omap_findclk(s, "mmc_ck"));
