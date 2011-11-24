@@ -201,9 +201,7 @@ typedef struct PCIBonitoState
     } boncop;
 
     /* Bonito registers */
-    target_phys_addr_t bonito_reg_start;
-    target_phys_addr_t bonito_reg_length;
-    int bonito_reg_handle;
+    MemoryRegion iomem;
 
     target_phys_addr_t bonito_pciconf_start;
     target_phys_addr_t bonito_pciconf_length;
@@ -233,7 +231,8 @@ typedef struct PCIBonitoState
 
 PCIBonitoState * bonito_state;
 
-static void bonito_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void bonito_writel(void *opaque, target_phys_addr_t addr,
+                          uint64_t val, unsigned size)
 {
     PCIBonitoState *s = opaque;
     uint32_t saddr;
@@ -295,7 +294,8 @@ static void bonito_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static uint32_t bonito_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t bonito_readl(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
 {
     PCIBonitoState *s = opaque;
     uint32_t saddr;
@@ -311,16 +311,14 @@ static uint32_t bonito_readl(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static CPUWriteMemoryFunc * const bonito_write[] = {
-    NULL,
-    NULL,
-    bonito_writel,
-};
-
-static CPUReadMemoryFunc * const bonito_read[] = {
-    NULL,
-    NULL,
-    bonito_readl,
+static const MemoryRegionOps bonito_ops = {
+    .read = bonito_readl,
+    .write = bonito_writel,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void bonito_pciconf_writel(void *opaque, target_phys_addr_t addr,
@@ -690,17 +688,16 @@ static int bonito_pcihost_initfn(SysBusDevice *dev)
 static int bonito_initfn(PCIDevice *dev)
 {
     PCIBonitoState *s = DO_UPCAST(PCIBonitoState, dev, dev);
+    SysBusDevice *sysbus = &s->pcihost->busdev;
 
     /* Bonito North Bridge, built on FPGA, VENDOR_ID/DEVICE_ID are "undefined" */
     pci_config_set_prog_interface(dev->config, 0x00);
 
     /* set the north bridge register mapping */
-    s->bonito_reg_handle = cpu_register_io_memory(bonito_read, bonito_write, s,
-                                                  DEVICE_NATIVE_ENDIAN);
-    s->bonito_reg_start = BONITO_INTERNAL_REG_BASE;
-    s->bonito_reg_length = BONITO_INTERNAL_REG_SIZE;
-    cpu_register_physical_memory(s->bonito_reg_start, s->bonito_reg_length,
-                                 s->bonito_reg_handle);
+    memory_region_init_io(&s->iomem, &bonito_ops, s,
+                          "north-bridge-register", BONITO_INTERNAL_REG_SIZE);
+    sysbus_init_mmio_region(sysbus, &s->iomem);
+    sysbus_mmio_map(sysbus, 0, BONITO_INTERNAL_REG_BASE);
 
     /* set the north bridge pci configure  mapping */
     s->bonito_pciconf_handle = cpu_register_io_memory(bonito_pciconf_read,
@@ -780,10 +777,12 @@ PCIBus *bonito_init(qemu_irq *pic)
     pcihost->bus = b;
     qdev_init_nofail(dev);
 
-    d = pci_create_simple(b, PCI_DEVFN(0, 0), "Bonito");
+    /* set the pcihost pointer before bonito_initfn is called */
+    d = pci_create(b, PCI_DEVFN(0, 0), "Bonito");
     s = DO_UPCAST(PCIBonitoState, dev, d);
     s->pcihost = pcihost;
     bonito_state = s;
+    qdev_init_nofail(&d->qdev);
 
     return b;
 }
