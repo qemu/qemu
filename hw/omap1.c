@@ -3849,7 +3849,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
         dma_irqs[i] = qdev_get_gpio_in(s->ih[omap1_dma_irq_map[i].ih],
                                        omap1_dma_irq_map[i].intr);
     }
-    s->dma = omap_dma_init(0xfffed800, dma_irqs,
+    s->dma = omap_dma_init(0xfffed800, dma_irqs, system_memory,
                            qdev_get_gpio_in(s->ih[0], OMAP_INT_DMA_LCD),
                            s, omap_findclk(s, "dma_ck"), omap_dma_3_1);
 

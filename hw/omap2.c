@@ -2285,7 +2285,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
         dma_irqs[i] = qdev_get_gpio_in(s->ih[omap2_dma_irq_map[i].ih],
                                        omap2_dma_irq_map[i].intr);
     }
-    s->dma = omap_dma4_init(0x48056000, dma_irqs, s, 256, 32,
+    s->dma = omap_dma4_init(0x48056000, dma_irqs, sysmem, s, 256, 32,
                     omap_findclk(s, "sdma_iclk"),
                     omap_findclk(s, "sdma_fclk"));
     s->port->addr_valid = omap2_validate_addr;
