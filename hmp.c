@@ -643,3 +643,22 @@ void hmp_block_resize(Monitor *mon, const QDict *qdict)
     qmp_block_resize(device, size, &errp);
     hmp_handle_error(mon, &errp);
 }
+
+void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
+{
+    const char *device = qdict_get_str(qdict, "device");
+    const char *filename = qdict_get_try_str(qdict, "snapshot-file");
+    const char *format = qdict_get_try_str(qdict, "format");
+    Error *errp = NULL;
+
+    if (!filename) {
+        /* In the future, if 'snapshot-file' is not specified, the snapshot
+           will be taken internally. Today it's actually required. */
+        error_set(&errp, QERR_MISSING_PARAMETER, "snapshot-file");
+        hmp_handle_error(mon, &errp);
+        return;
+    }
+
+    qmp_blockdev_snapshot_sync(device, filename, !!format, format, &errp);
+    hmp_handle_error(mon, &errp);
+}

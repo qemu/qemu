@@ -665,10 +665,8 @@ EQMP
 
     {
         .name       = "blockdev-snapshot-sync",
-        .args_type  = "device:B,snapshot-file:s?,format:s?",
-        .params     = "device [new-image-file] [format]",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_snapshot_blkdev,
+        .args_type  = "device:B,snapshot-file:s,format:s?",
+        .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,
     },
 
 SQMP
