@@ -76,6 +76,7 @@ struct omap_l4_agent_info_s {
     int ta_region;
 };
 struct omap_target_agent_s {
+    MemoryRegion iomem;
     struct omap_l4_s *bus;
     int regions;
     const struct omap_l4_region_s *start;

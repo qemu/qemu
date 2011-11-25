@@ -52,9 +52,14 @@ target_phys_addr_t omap_l4_region_size(struct omap_target_agent_s *ta,
     return ta->start[region].size;
 }
 
-static uint32_t omap_l4ta_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_l4ta_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_target_agent_s *s = (struct omap_target_agent_s *) opaque;
+
+    if (size != 2) {
+        return omap_badwidth_read16(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* COMPONENT */
@@ -72,9 +77,13 @@ static uint32_t omap_l4ta_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_l4ta_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_target_agent_s *s = (struct omap_target_agent_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* COMPONENT */
@@ -93,16 +102,10 @@ static void omap_l4ta_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_l4ta_readfn[] = {
-    omap_badwidth_read16,
-    omap_l4ta_read,
-    omap_badwidth_read16,
-};
-
-static CPUWriteMemoryFunc * const omap_l4ta_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_l4ta_write,
+static const MemoryRegionOps omap_l4ta_ops = {
+    .read = omap_l4ta_read,
+    .write = omap_l4ta_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus,
@@ -110,7 +113,7 @@ struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus,
 	const struct omap_l4_agent_info_s *agents,
 	int cs)
 {
-    int i, iomemtype;
+    int i;
     struct omap_target_agent_s *ta = NULL;
     const struct omap_l4_agent_info_s *info = NULL;
 
@@ -133,9 +136,9 @@ struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus,
     ta->status = 0x00000000;
     ta->control = 0x00000200;	/* XXX 01000200 for L4TAO */
 
-    iomemtype = cpu_register_io_memory(omap_l4ta_readfn,
-                    omap_l4ta_writefn, ta, DEVICE_NATIVE_ENDIAN);
-    ta->base = omap_l4_attach(ta, info->ta_region, iomemtype);
+    memory_region_init_io(&ta->iomem, &omap_l4ta_ops, ta, "omap.l4ta",
+                          omap_l4_region_size(ta, info->ta_region));
+    omap_l4_attach_region(ta, info->ta_region, &ta->iomem);
 
     return ta;
 }
