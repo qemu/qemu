@@ -621,3 +621,15 @@ void hmp_block_passwd(Monitor *mon, const QDict *qdict)
     qmp_block_passwd(device, password, &errp);
     hmp_handle_error(mon, &errp);
 }
+
+void hmp_balloon(Monitor *mon, const QDict *qdict)
+{
+    int64_t value = qdict_get_int(qdict, "value");
+    Error *errp = NULL;
+
+    qmp_balloon(value, &errp);
+    if (error_is_set(&errp)) {
+        monitor_printf(mon, "balloon: %s\n", error_get_pretty(errp));
+        error_free(errp);
+    }
+}

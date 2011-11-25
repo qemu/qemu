@@ -1032,3 +1032,23 @@
 # Since: 0.14.0
 ##
 { 'command': 'block_passwd', 'data': {'device': 'str', 'password': 'str'} }
+
+##
+# @balloon:
+#
+# Request the balloon driver to change its balloon size.
+#
+# @value: the target size of the balloon in bytes
+#
+# Returns: Nothing on success
+#          If the balloon driver is enabled but not functional because the KVM
+#            kernel module cannot support it, KvmMissingCap
+#          If no balloon device is present, DeviceNotActive
+#
+# Notes: This command just issues a request to the guest.  When it returns,
+#        the balloon size may not have changed.  A guest can change the balloon
+#        size independent of this command.
+#
+# Since: 0.14.0
+##
+{ 'command': 'balloon', 'data': {'value': 'int'} }

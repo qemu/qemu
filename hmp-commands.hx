@@ -1022,9 +1022,7 @@ ETEXI
         .args_type  = "value:M",
         .params     = "target",
         .help       = "request VM to change its memory allocation (in MB)",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_async = do_balloon,
-        .flags      = MONITOR_CMD_ASYNC,
+        .mhandler.cmd = hmp_balloon,
     },
 
 STEXI
