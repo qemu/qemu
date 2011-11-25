@@ -1099,3 +1099,31 @@
 ##
 { 'command': 'blockdev-snapshot-sync',
   'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str' } }
+
+##
+# @human-monitor-command:
+#
+# Execute a command on the human monitor and return the output.
+#
+# @command-line: the command to execute in the human monitor
+#
+# @cpu-index: #optional The CPU to use for commands that require an implicit CPU
+#
+# Returns: the output of the command as a string
+#
+# Since: 0.14.0
+#
+# Notes: This command only exists as a stop-gap.  It's use is highly
+#        discouraged.  The semantics of this command are not guaranteed.
+#
+#        Known limitations:
+#
+#        o This command is stateless, this means that commands that depend
+#          on state information (such as getfd) might not work
+#
+#       o Commands that prompt the user for data (eg. 'cont' when the block
+#         device is encrypted) don't currently work
+##
+{ 'command': 'human-monitor-command',
+  'data': {'command-line': 'str', '*cpu-index': 'int'},
+  'returns': 'str' } 

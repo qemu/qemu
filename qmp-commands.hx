@@ -970,10 +970,7 @@ EQMP
     {
         .name       = "human-monitor-command",
         .args_type  = "command-line:s,cpu-index:i?",
-        .params     = "",
-        .help       = "",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_hmp_passthrough,
+        .mhandler.cmd_new = qmp_marshal_input_human_monitor_command,
     },
 
 SQMP

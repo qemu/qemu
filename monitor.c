@@ -513,10 +513,10 @@ static int do_qmp_capabilities(Monitor *mon, const QDict *params,
 
 static void handle_user_command(Monitor *mon, const char *cmdline);
 
-static int do_hmp_passthrough(Monitor *mon, const QDict *params,
-                              QObject **ret_data)
+char *qmp_human_monitor_command(const char *command_line, bool has_cpu_index,
+                                int64_t cpu_index, Error **errp)
 {
-    int ret = 0;
+    char *output = NULL;
     Monitor *old_mon, hmp;
     CharDriverState mchar;
 
@@ -527,25 +527,30 @@ static int do_hmp_passthrough(Monitor *mon, const QDict *params,
     old_mon = cur_mon;
     cur_mon = &hmp;
 
-    if (qdict_haskey(params, "cpu-index")) {
-        ret = monitor_set_cpu(qdict_get_int(params, "cpu-index"));
+    if (has_cpu_index) {
+        int ret = monitor_set_cpu(cpu_index);
         if (ret < 0) {
             cur_mon = old_mon;
-            qerror_report(QERR_INVALID_PARAMETER_VALUE, "cpu-index", "a CPU number");
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, "cpu-index",
+                      "a CPU number");
             goto out;
         }
     }
 
-    handle_user_command(&hmp, qdict_get_str(params, "command-line"));
+    handle_user_command(&hmp, command_line);
     cur_mon = old_mon;
 
     if (qemu_chr_mem_osize(hmp.chr) > 0) {
-        *ret_data = QOBJECT(qemu_chr_mem_to_qs(hmp.chr));
+        QString *str = qemu_chr_mem_to_qs(hmp.chr);
+        output = g_strdup(qstring_get_str(str));
+        QDECREF(str);
+    } else {
+        output = g_strdup("");
     }
 
 out:
     qemu_chr_close_mem(hmp.chr);
-    return ret;
+    return output;
 }
 
 static int compare_cmd(const char *name, const char *list)
