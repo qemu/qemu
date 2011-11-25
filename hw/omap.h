@@ -771,8 +771,11 @@ void omap_mmc_enable(struct omap_mmc_s *s, int enable);
 
 /* omap_i2c.c */
 struct omap_i2c_s;
-struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
-                qemu_irq irq, qemu_irq *dma, omap_clk clk);
+struct omap_i2c_s *omap_i2c_init(MemoryRegion *sysmem,
+                                 target_phys_addr_t base,
+                                 qemu_irq irq,
+                                 qemu_irq *dma,
+                                 omap_clk clk);
 struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, qemu_irq *dma, omap_clk fclk, omap_clk iclk);
 void omap_i2c_reset(struct omap_i2c_s *s);

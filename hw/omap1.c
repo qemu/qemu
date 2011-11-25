@@ -3964,7 +3964,7 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     omap_pwl_init(system_memory, 0xfffb5800, s, omap_findclk(s, "armxor_ck"));
     omap_pwt_init(system_memory, 0xfffb6000, s, omap_findclk(s, "armxor_ck"));
 
-    s->i2c[0] = omap_i2c_init(0xfffb3800,
+    s->i2c[0] = omap_i2c_init(system_memory, 0xfffb3800,
                               qdev_get_gpio_in(s->ih[1], OMAP_INT_I2C),
                     &s->drq[OMAP_DMA_I2C_RX], omap_findclk(s, "mpuper_ck"));
 
