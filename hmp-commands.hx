@@ -57,8 +57,7 @@ ETEXI
         .args_type  = "device:B,size:o",
         .params     = "device size",
         .help       = "resize a block image",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_block_resize,
+        .mhandler.cmd = hmp_block_resize,
     },
 
 STEXI

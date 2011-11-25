@@ -633,3 +633,13 @@ void hmp_balloon(Monitor *mon, const QDict *qdict)
         error_free(errp);
     }
 }
+
+void hmp_block_resize(Monitor *mon, const QDict *qdict)
+{
+    const char *device = qdict_get_str(qdict, "device");
+    int64_t size = qdict_get_int(qdict, "size");
+    Error *errp = NULL;
+
+    qmp_block_resize(device, size, &errp);
+    hmp_handle_error(mon, &errp);
+}

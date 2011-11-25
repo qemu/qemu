@@ -861,27 +861,23 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
  * existing QERR_ macro mess is cleaned up.  A good example for better
  * error reports can be found in the qemu-img resize code.
  */
-int do_block_resize(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_block_resize(const char *device, int64_t size, Error **errp)
 {
-    const char *device = qdict_get_str(qdict, "device");
-    int64_t size = qdict_get_int(qdict, "size");
     BlockDriverState *bs;
 
     bs = bdrv_find(device);
     if (!bs) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, device);
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
     }
 
     if (size < 0) {
-        qerror_report(QERR_UNDEFINED_ERROR);
-        return -1;
+        error_set(errp, QERR_UNDEFINED_ERROR);
+        return;
     }
 
     if (bdrv_truncate(bs, size)) {
-        qerror_report(QERR_UNDEFINED_ERROR);
-        return -1;
+        error_set(errp, QERR_UNDEFINED_ERROR);
+        return;
     }
-
-    return 0;
 }

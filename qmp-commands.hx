@@ -642,10 +642,7 @@ EQMP
     {
         .name       = "block_resize",
         .args_type  = "device:B,size:o",
-        .params     = "device size",
-        .help       = "resize a block image",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_block_resize,
+        .mhandler.cmd_new = qmp_marshal_input_block_resize,
     },
 
 SQMP

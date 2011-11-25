@@ -44,5 +44,6 @@ void hmp_inject_nmi(Monitor *mon, const QDict *qdict);
 void hmp_set_link(Monitor *mon, const QDict *qdict);
 void hmp_block_passwd(Monitor *mon, const QDict *qdict);
 void hmp_balloon(Monitor *mon, const QDict *qdict);
+void hmp_block_resize(Monitor *mon, const QDict *qdict);
 
 #endif

@@ -65,6 +65,5 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
 int do_block_set_io_throttle(Monitor *mon,
                              const QDict *qdict, QObject **ret_data);
 int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data);
-int do_block_resize(Monitor *mon, const QDict *qdict, QObject **ret_data);
 
 #endif

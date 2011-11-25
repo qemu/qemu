@@ -1052,3 +1052,21 @@
 # Since: 0.14.0
 ##
 { 'command': 'balloon', 'data': {'value': 'int'} }
+
+##
+# @block_resize
+#
+# Resize a block image while a guest is running.
+#
+# @device:  the name of the device to get the image resized
+#
+# @size:  new image size in bytes
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#
+# Notes: This command returns UndefinedError in a number of error conditions.
+#
+# Since: 0.14.0
+##
+{ 'command': 'block_resize', 'data': { 'device': 'str', 'size': 'int' }}
