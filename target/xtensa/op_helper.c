@@ -1027,3 +1027,15 @@ void HELPER(ule_s)(CPUXtensaState *env, uint32_t br, float32 a, float32 b)
     int v = float32_compare_quiet(a, b, &env->fp_status);
     set_br(env, v != float_relation_greater, br);
 }
+
+uint32_t HELPER(rer)(CPUXtensaState *env, uint32_t addr)
+{
+    return address_space_ldl(env->address_space_er, addr,
+                             (MemTxAttrs){0}, NULL);
+}
+
+void HELPER(wer)(CPUXtensaState *env, uint32_t data, uint32_t addr)
+{
+    address_space_stl(env->address_space_er, addr, data,
+                      (MemTxAttrs){0}, NULL);
+}

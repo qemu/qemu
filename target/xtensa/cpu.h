@@ -103,6 +103,7 @@ enum {
     XTENSA_OPTION_PROCESSOR_ID,
     XTENSA_OPTION_DEBUG,
     XTENSA_OPTION_TRACE_PORT,
+    XTENSA_OPTION_EXTERN_REGS,
 };
 
 enum {
@@ -393,6 +394,8 @@ typedef struct CPUXtensaState {
     xtensa_tlb_entry dtlb[10][MAX_TLB_WAY_SIZE];
     unsigned autorefill_idx;
     bool runstall;
+    AddressSpace *address_space_er;
+    MemoryRegion *system_er;
     int pending_irq_level; /* level of last raised IRQ */
     void **irq_inputs;
     XtensaCcompareTimer ccompare[MAX_NCCOMPARE];
@@ -488,6 +491,10 @@ int xtensa_get_physical_addr(CPUXtensaState *env, bool update_tlb,
 void reset_mmu(CPUXtensaState *env);
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUXtensaState *env);
 void debug_exception_env(CPUXtensaState *new_env, uint32_t cause);
+static inline MemoryRegion *xtensa_get_er_region(CPUXtensaState *env)
+{
+    return env->system_er;
+}
 
 static inline void xtensa_select_static_vectors(CPUXtensaState *env,
                                                 unsigned n)
