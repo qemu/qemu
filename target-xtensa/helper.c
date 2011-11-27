@@ -273,7 +273,7 @@ static void reset_tlb_mmu_ways56(CPUState *env,
             entry[6][ei].vaddr = ei << 29;
             entry[6][ei].paddr = ei << 29;
             entry[6][ei].asid = 1;
-            entry[6][ei].attr = 2;
+            entry[6][ei].attr = 3;
         }
     }
 }

@@ -485,6 +485,11 @@ S: Maintained
 F: trace/
 T: git://repo.or.cz/qemu/stefanha.git tracing
 
+Checkpatch
+M: Blue Swirl <blauwirbel@gmail.com>
+S: Odd Fixes
+F: scripts/checkpatch.pl
+
 Usermode Emulation
 ------------------
 BSD user
@@ -554,3 +559,8 @@ SPARC target
 M: Blue Swirl <blauwirbel@gmail.com>
 S: Maintained
 F: tcg/sparc/
+
+TCI target
+M: Stefan Weil <sw@weilnetz.de>
+S: Maintained
+F: tcg/tci
