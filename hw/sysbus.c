@@ -101,7 +101,7 @@ void sysbus_init_mmio_cb2(SysBusDevice *dev,
     dev->mmio[n].unmap = unmap;
 }
 
-void sysbus_init_mmio_region(SysBusDevice *dev, MemoryRegion *memory)
+void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory)
 {
     int n;
 

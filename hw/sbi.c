@@ -126,7 +126,7 @@ static int sbi_init1(SysBusDevice *dev)
     }
 
     memory_region_init_io(&s->iomem, &sbi_mem_ops, s, "sbi", SBI_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }

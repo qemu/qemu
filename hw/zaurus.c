@@ -171,7 +171,7 @@ static int scoop_init(SysBusDevice *dev)
     qdev_init_gpio_in(&s->busdev.qdev, scoop_gpio_set, 16);
     memory_region_init_io(&s->iomem, &scoop_ops, s, "scoop", 0x1000);
 
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }

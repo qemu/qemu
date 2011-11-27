@@ -121,7 +121,7 @@ static int lance_init(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, parent_lance_reset, 1);
 
-    sysbus_init_mmio_region(dev, &s->mmio);
+    sysbus_init_mmio(dev, &s->mmio);
 
     sysbus_init_irq(dev, &s->irq);
 

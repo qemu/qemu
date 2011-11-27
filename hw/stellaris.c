@@ -309,7 +309,7 @@ static int stellaris_gptm_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &gptm_ops, s,
                           "gptm", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     s->opaque[0] = s->opaque[1] = s;
     s->timer[0] = qemu_new_timer_ns(vm_clock, gptm_tick, &s->opaque[0]);
@@ -863,7 +863,7 @@ static int stellaris_i2c_init(SysBusDevice * dev)
 
     memory_region_init_io(&s->iomem, &stellaris_i2c_ops, s,
                           "i2c", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     /* ??? For now we only implement the master interface.  */
     stellaris_i2c_reset(s);
     vmstate_register(&dev->qdev, -1, &vmstate_stellaris_i2c, s);
@@ -1146,7 +1146,7 @@ static int stellaris_adc_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &stellaris_adc_ops, s,
                           "adc", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     stellaris_adc_reset(s);
     qdev_init_gpio_in(&dev->qdev, stellaris_adc_trigger, 1);
     vmstate_register(&dev->qdev, -1, &vmstate_stellaris_adc, s);

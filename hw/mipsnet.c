@@ -236,7 +236,7 @@ static int mipsnet_sysbus_init(SysBusDevice *dev)
     MIPSnetState *s = DO_UPCAST(MIPSnetState, busdev, dev);
 
     memory_region_init_io(&s->io, &mipsnet_ioport_ops, s, "mipsnet-io", 36);
-    sysbus_init_mmio_region(dev, &s->io);
+    sysbus_init_mmio(dev, &s->io);
     sysbus_init_irq(dev, &s->irq);
 
     s->nic = qemu_new_nic(&net_mipsnet_info, &s->conf,

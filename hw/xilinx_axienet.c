@@ -852,7 +852,7 @@ static int xilinx_enet_init(SysBusDevice *dev)
     xlx_dma_connect_client(s->dmach, s, axienet_stream_push);
 
     memory_region_init_io(&s->iomem, &enet_ops, s, "enet", 0x40000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_enet_info, &s->conf,

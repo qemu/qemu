@@ -813,7 +813,7 @@ static int pxa2xx_ssp_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     memory_region_init_io(&s->iomem, &pxa2xx_ssp_ops, s, "pxa2xx-ssp", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     register_savevm(&dev->qdev, "pxa2xx_ssp", -1, 0,
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
 
@@ -1180,7 +1180,7 @@ static int pxa2xx_rtc_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->rtc_irq);
 
     memory_region_init_io(&s->iomem, &pxa2xx_rtc_ops, s, "pxa2xx-rtc", 0x10000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }
@@ -1515,7 +1515,7 @@ static int pxa2xx_i2c_initfn(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &pxa2xx_i2c_ops, s,
                           "pxa2xx-i2x", s->region_size);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
     return 0;

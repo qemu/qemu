@@ -62,7 +62,7 @@ static int realview_gic_init(SysBusDevice *dev)
 
     gic_init(&s->gic);
     realview_gic_map_setup(s);
-    sysbus_init_mmio_region(dev, &s->container);
+    sysbus_init_mmio(dev, &s->container);
     return 0;
 }
 

@@ -77,7 +77,7 @@ static int realview_i2c_init(SysBusDevice *dev)
     s->bitbang = bitbang_i2c_init(bus);
     memory_region_init_io(&s->iomem, &realview_i2c_ops, s,
                           "realview-i2c", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 

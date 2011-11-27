@@ -117,7 +117,7 @@ static int syborg_rtc_init(SysBusDevice *dev)
     struct tm tm;
 
     memory_region_init_io(&s->iomem, &syborg_rtc_ops, s, "rtc", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     qemu_get_timedate(&tm, 0);
     s->offset = (uint64_t)mktime(&tm) * 1000000000;

@@ -275,7 +275,7 @@ static int pl061_init(SysBusDevice *dev, const unsigned char *id)
     pl061_state *s = FROM_SYSBUS(pl061_state, dev);
     s->id = id;
     memory_region_init_io(&s->iomem, &pl061_ops, s, "pl061", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     qdev_init_gpio_in(&dev->qdev, pl061_set_irq, 8);
     qdev_init_gpio_out(&dev->qdev, s->out, 8);

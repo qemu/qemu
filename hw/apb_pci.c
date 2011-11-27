@@ -410,18 +410,18 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     memory_region_init_io(&s->apb_config, &apb_config_ops, s, "apb-config",
                           0x10000);
     /* at region 0 */
-    sysbus_init_mmio_region(dev, &s->apb_config);
+    sysbus_init_mmio(dev, &s->apb_config);
 
     memory_region_init_io(&s->pci_config, &pci_config_ops, s, "apb-pci-config",
                           0x1000000);
     /* at region 1 */
-    sysbus_init_mmio_region(dev, &s->pci_config);
+    sysbus_init_mmio(dev, &s->pci_config);
 
     /* pci_ioport */
     memory_region_init_io(&s->pci_ioport, &pci_ioport_ops, s,
                           "apb-pci-ioport", 0x10000);
     /* at region 2 */
-    sysbus_init_mmio_region(dev, &s->pci_ioport);
+    sysbus_init_mmio(dev, &s->pci_ioport);
 
     return 0;
 }

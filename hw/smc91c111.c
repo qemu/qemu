@@ -748,7 +748,7 @@ static int smc91c111_init1(SysBusDevice *dev)
     smc91c111_state *s = FROM_SYSBUS(smc91c111_state, dev);
     memory_region_init_io(&s->mmio, &smc91c111_mem_ops, s,
                           "smc91c111-mmio", 16);
-    sysbus_init_mmio_region(dev, &s->mmio);
+    sysbus_init_mmio(dev, &s->mmio);
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_smc91c111_info, &s->conf,

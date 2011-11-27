@@ -184,7 +184,7 @@ static int syborg_keyboard_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_keyboard_ops, s,
                               "keyboard", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     if (s->fifo_size <= 0) {
         fprintf(stderr, "syborg_keyboard: fifo too small\n");
         s->fifo_size = 16;

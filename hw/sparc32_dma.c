@@ -275,7 +275,7 @@ static int sparc32_dma_init1(SysBusDevice *dev)
 
     reg_size = s->is_ledma ? DMA_ETH_SIZE : DMA_SIZE;
     memory_region_init_io(&s->iomem, &dma_mem_ops, s, "dma", reg_size);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);
     qdev_init_gpio_out(&dev->qdev, s->gpio, 2);

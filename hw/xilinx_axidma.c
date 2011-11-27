@@ -473,7 +473,7 @@ static int xilinx_axidma_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &axidma_ops, s,
                           "axidma", R_MAX * 4 * 2);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     for (i = 0; i < 2; i++) {
         stream_reset(&s->streams[i]);

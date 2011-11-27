@@ -395,7 +395,7 @@ static int slavio_timer_init1(SysBusDevice *dev)
         snprintf(timer_name, sizeof(timer_name), "timer-%i", i);
         memory_region_init_io(&tc->iomem, &slavio_timer_mem_ops, tc,
                               timer_name, size);
-        sysbus_init_mmio_region(dev, &tc->iomem);
+        sysbus_init_mmio(dev, &tc->iomem);
 
         sysbus_init_irq(dev, &s->cputimer[i].irq);
     }

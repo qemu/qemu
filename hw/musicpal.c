@@ -386,7 +386,7 @@ static int mv88w8618_eth_init(SysBusDevice *dev)
                           dev->qdev.info->name, dev->qdev.id, s);
     memory_region_init_io(&s->iomem, &mv88w8618_eth_ops, s, "mv88w8618-eth",
                           MP_ETH_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 
@@ -593,7 +593,7 @@ static int musicpal_lcd_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &musicpal_lcd_ops, s,
                           "musicpal-lcd", MP_LCD_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     s->ds = graphic_console_init(lcd_refresh, lcd_invalidate,
                                  NULL, NULL, s);
@@ -713,7 +713,7 @@ static int mv88w8618_pic_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->parent_irq);
     memory_region_init_io(&s->iomem, &mv88w8618_pic_ops, s,
                           "musicpal-pic", MP_PIC_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 
@@ -869,7 +869,7 @@ static int mv88w8618_pit_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &mv88w8618_pit_ops, s,
                           "musicpal-pit", MP_PIT_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 
@@ -954,7 +954,7 @@ static int mv88w8618_flashcfg_init(SysBusDevice *dev)
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
     memory_region_init_io(&s->iomem, &mv88w8618_flashcfg_ops, s,
                           "musicpal-flashcfg", MP_FLASHCFG_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 
@@ -1050,7 +1050,7 @@ static int mv88w8618_wlan_init(SysBusDevice *dev)
 
     memory_region_init_io(iomem, &mv88w8618_wlan_ops, NULL,
                           "musicpal-wlan", MP_WLAN_SIZE);
-    sysbus_init_mmio_region(dev, iomem);
+    sysbus_init_mmio(dev, iomem);
     return 0;
 }
 
@@ -1256,7 +1256,7 @@ static int musicpal_gpio_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &musicpal_gpio_ops, s,
                           "musicpal-gpio", MP_GPIO_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
 
@@ -1403,7 +1403,7 @@ static int musicpal_key_init(SysBusDevice *dev)
     musicpal_key_state *s = FROM_SYSBUS(musicpal_key_state, dev);
 
     memory_region_init(&s->iomem, "dummy", 0);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     s->kbd_extended = 0;
     s->pressed_keys = 0;

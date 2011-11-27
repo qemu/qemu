@@ -540,8 +540,8 @@ static int g364fb_sysbus_init(SysBusDevice *dev)
 
     g364fb_init(&dev->qdev, s);
     sysbus_init_irq(dev, &s->irq);
-    sysbus_init_mmio_region(dev, &s->mem_ctrl);
-    sysbus_init_mmio_region(dev, &s->mem_vram);
+    sysbus_init_mmio(dev, &s->mem_ctrl);
+    sysbus_init_mmio(dev, &s->mem_vram);
 
     return 0;
 }

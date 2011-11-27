@@ -167,7 +167,7 @@ static int sl_nand_init(SysBusDevice *dev) {
     s->nand = nand_init(nand ? nand->bdrv : NULL, s->manf_id, s->chip_id);
 
     memory_region_init_io(&s->iomem, &sl_ops, s, "sl", 0x40);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }

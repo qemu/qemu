@@ -266,7 +266,7 @@ DeviceState *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env)
     /* Enable IC memory-mapped registers access.  */
     memory_region_init_io(&s->iomem, &pxa2xx_pic_ops, s,
                           "pxa2xx-pic", 0x00100000);
-    sysbus_init_mmio_region(sysbus_from_qdev(dev), &s->iomem);
+    sysbus_init_mmio(sysbus_from_qdev(dev), &s->iomem);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
 
     /* Enable IC coprocessor access.  */

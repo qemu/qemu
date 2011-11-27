@@ -465,7 +465,7 @@ static int milkymist_minimac2_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->regs_region, &minimac2_ops, s,
                           "milkymist-minimac2", R_MAX * 4);
-    sysbus_init_mmio_region(dev, &s->regs_region);
+    sysbus_init_mmio(dev, &s->regs_region);
 
     /* register buffers memory */
     memory_region_init_ram(&s->buffers, NULL, "milkymist-minimac2.buffers",

@@ -266,7 +266,7 @@ static int integratorcm_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &integratorcm_ops, s,
                           "integratorcm", 0x00800000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     integratorcm_do_remap(s, 1);
     /* ??? Save/restore.  */
@@ -387,7 +387,7 @@ static int icp_pic_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_fiq);
     memory_region_init_io(&s->iomem, &icp_pic_ops, s, "icp-pic", 0x00800000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 

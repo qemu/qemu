@@ -713,7 +713,7 @@ static int m48t59_init1(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->IRQ);
 
     memory_region_init_io(&s->iomem, &nvram_ops, s, "m48t59.nvram", s->size);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     m48t59_init_common(s);
 
     return 0;

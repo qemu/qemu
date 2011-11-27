@@ -73,7 +73,7 @@ static int realview_mpcore_init(SysBusDevice *dev)
         }
     }
     qdev_init_gpio_in(&dev->qdev, mpcore_rirq_set_irq, 64);
-    sysbus_init_mmio_region(dev, sysbus_mmio_get_region(s->priv, 0));
+    sysbus_init_mmio(dev, sysbus_mmio_get_region(s->priv, 0));
     return 0;
 }
 

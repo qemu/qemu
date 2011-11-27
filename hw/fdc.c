@@ -1911,7 +1911,7 @@ static int sysbus_fdc_init1(SysBusDevice *dev)
     int ret;
 
     memory_region_init_io(&fdctrl->iomem, &fdctrl_mem_ops, fdctrl, "fdc", 0x08);
-    sysbus_init_mmio_region(dev, &fdctrl->iomem);
+    sysbus_init_mmio(dev, &fdctrl->iomem);
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
     fdctrl->dma_chann = -1;
@@ -1928,7 +1928,7 @@ static int sun4m_fdc_init1(SysBusDevice *dev)
 
     memory_region_init_io(&fdctrl->iomem, &fdctrl_mem_strict_ops, fdctrl,
                           "fdctrl", 0x08);
-    sysbus_init_mmio_region(dev, &fdctrl->iomem);
+    sysbus_init_mmio(dev, &fdctrl->iomem);
     sysbus_init_irq(dev, &fdctrl->irq);
     qdev_init_gpio_in(&dev->qdev, fdctrl_handle_tc, 1);
 

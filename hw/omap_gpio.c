@@ -679,7 +679,7 @@ static int omap_gpio_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->omap1.irq);
     memory_region_init_io(&s->iomem, &omap_gpio_ops, &s->omap1,
                           "omap.gpio", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 
@@ -694,7 +694,7 @@ static int omap2_gpio_init(SysBusDevice *dev)
         s->modulecount = (s->mpu_model < omap2430) ? 4 : 5;
         memory_region_init_io(&s->iomem, &omap2_gpif_top_ops, s,
                               "omap2.gpio", 0x1000);
-        sysbus_init_mmio_region(dev, &s->iomem);
+        sysbus_init_mmio(dev, &s->iomem);
     } else {
         s->modulecount = 6;
     }
@@ -714,7 +714,7 @@ static int omap2_gpio_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &m->wkup);
         memory_region_init_io(&m->iomem, &omap2_gpio_module_ops, m,
                               "omap.gpio-module", 0x1000);
-        sysbus_init_mmio_region(dev, &m->iomem);
+        sysbus_init_mmio(dev, &m->iomem);
     }
     return 0;
 }

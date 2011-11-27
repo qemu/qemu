@@ -302,7 +302,7 @@ static int milkymist_ac97_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->regs_region, &ac97_mmio_ops, s,
             "milkymist-ac97", R_MAX * 4);
-    sysbus_init_mmio_region(dev, &s->regs_region);
+    sysbus_init_mmio(dev, &s->regs_region);
 
     return 0;
 }

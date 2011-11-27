@@ -118,7 +118,7 @@ static int nvram_sysbus_initfn(SysBusDevice *dev)
     s->contents = g_malloc0(s->chip_size);
 
     memory_region_init_io(&s->iomem, &nvram_ops, s, "nvram", s->chip_size);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     /* Read current file */
     file = fopen(s->filename, "rb");

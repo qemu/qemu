@@ -186,7 +186,7 @@ static int syborg_pointer_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_pointer_ops, s,
                           "pointer", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     if (s->fifo_size <= 0) {
         fprintf(stderr, "syborg_pointer: fifo too small\n");

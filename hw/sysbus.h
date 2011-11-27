@@ -45,7 +45,7 @@ void sysbus_register_withprop(SysBusDeviceInfo *info);
 void *sysbus_new(void);
 void sysbus_init_mmio_cb2(SysBusDevice *dev,
                           mmio_mapfunc cb, mmio_mapfunc unmap);
-void sysbus_init_mmio_region(SysBusDevice *dev, MemoryRegion *memory);
+void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory);
 MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
 void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target);

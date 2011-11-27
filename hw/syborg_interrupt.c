@@ -207,7 +207,7 @@ static int syborg_int_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, syborg_int_set_irq, s->num_irqs);
     memory_region_init_io(&s->iomem, &syborg_int_ops, s,
                           "interrupt", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     s->flags = g_malloc0(s->num_irqs * sizeof(syborg_int_flags));
 
     register_savevm(&dev->qdev, "syborg_int", -1, 1, syborg_int_save,

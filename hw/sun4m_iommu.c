@@ -352,7 +352,7 @@ static int iommu_init1(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &iommu_mem_ops, s, "iommu",
                           IOMMU_NREGS * sizeof(uint32_t));
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }

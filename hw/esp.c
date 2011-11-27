@@ -745,7 +745,7 @@ static int esp_init1(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &esp_mem_ops, s,
                           "esp", ESP_REGS << s->it_shift);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     qdev_init_gpio_in(&dev->qdev, esp_gpio_demux, 2);
 

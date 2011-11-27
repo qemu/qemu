@@ -349,7 +349,7 @@ static int grlib_irqmp_init(SysBusDevice *dev)
 
     irqmp->state = g_malloc0(sizeof *irqmp->state);
 
-    sysbus_init_mmio_region(dev, &irqmp->iomem);
+    sysbus_init_mmio(dev, &irqmp->iomem);
 
     return 0;
 }

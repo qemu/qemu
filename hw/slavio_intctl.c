@@ -428,7 +428,7 @@ static int slavio_intctl_init1(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, slavio_set_irq_all, 32 + MAX_CPUS);
     memory_region_init_io(&s->iomem, &slavio_intctlm_mem_ops, s,
                           "master-interrupt-controller", INTCTLM_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     for (i = 0; i < MAX_CPUS; i++) {
         snprintf(slave_name, sizeof(slave_name),
@@ -438,7 +438,7 @@ static int slavio_intctl_init1(SysBusDevice *dev)
         }
         memory_region_init_io(&s->slaves[i].iomem, &slavio_intctl_mem_ops,
                               &s->slaves[i], slave_name, INTCTL_SIZE);
-        sysbus_init_mmio_region(dev, &s->slaves[i].iomem);
+        sysbus_init_mmio(dev, &s->slaves[i].iomem);
         s->slaves[i].cpu = i;
         s->slaves[i].master = s;
     }

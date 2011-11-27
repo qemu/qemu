@@ -369,7 +369,7 @@ static int omap_intc_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, omap_set_intr, s->nbanks * 32);
     memory_region_init_io(&s->mmio, &omap_inth_mem_ops, s,
                           "omap-intc", s->size);
-    sysbus_init_mmio_region(dev, &s->mmio);
+    sysbus_init_mmio(dev, &s->mmio);
     return 0;
 }
 
@@ -600,7 +600,7 @@ static int omap2_intc_init(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, omap_set_intr_noedge, s->nbanks * 32);
     memory_region_init_io(&s->mmio, &omap2_inth_mem_ops, s,
                           "omap2-intc", 0x1000);
-    sysbus_init_mmio_region(dev, &s->mmio);
+    sysbus_init_mmio(dev, &s->mmio);
     return 0;
 }
 

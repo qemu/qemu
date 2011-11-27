@@ -414,7 +414,7 @@ static int apc_init1(SysBusDevice *dev)
     /* Power management (APC) XXX: not a Slavio device */
     memory_region_init_io(&s->iomem, &apc_mem_ops, s,
                           "apc", MISC_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 
@@ -429,39 +429,39 @@ static int slavio_misc_init1(SysBusDevice *dev)
     /* Slavio control */
     memory_region_init_io(&s->cfg_iomem, &slavio_cfg_mem_ops, s,
                           "configuration", MISC_SIZE);
-    sysbus_init_mmio_region(dev, &s->cfg_iomem);
+    sysbus_init_mmio(dev, &s->cfg_iomem);
 
     /* Diagnostics */
     memory_region_init_io(&s->diag_iomem, &slavio_diag_mem_ops, s,
                           "diagnostic", MISC_SIZE);
-    sysbus_init_mmio_region(dev, &s->diag_iomem);
+    sysbus_init_mmio(dev, &s->diag_iomem);
 
     /* Modem control */
     memory_region_init_io(&s->mdm_iomem, &slavio_mdm_mem_ops, s,
                           "modem", MISC_SIZE);
-    sysbus_init_mmio_region(dev, &s->mdm_iomem);
+    sysbus_init_mmio(dev, &s->mdm_iomem);
 
     /* 16 bit registers */
     /* ss600mp diag LEDs */
     memory_region_init_io(&s->led_iomem, &slavio_led_mem_ops, s,
                           "leds", MISC_SIZE);
-    sysbus_init_mmio_region(dev, &s->led_iomem);
+    sysbus_init_mmio(dev, &s->led_iomem);
 
     /* 32 bit registers */
     /* System control */
     memory_region_init_io(&s->sysctrl_iomem, &slavio_sysctrl_mem_ops, s,
                           "system-control", MISC_SIZE);
-    sysbus_init_mmio_region(dev, &s->sysctrl_iomem);
+    sysbus_init_mmio(dev, &s->sysctrl_iomem);
 
     /* AUX 1 (Misc System Functions) */
     memory_region_init_io(&s->aux1_iomem, &slavio_aux1_mem_ops, s,
                           "misc-system-functions", MISC_SIZE);
-    sysbus_init_mmio_region(dev, &s->aux1_iomem);
+    sysbus_init_mmio(dev, &s->aux1_iomem);
 
     /* AUX 2 (Software Powerdown Control) */
     memory_region_init_io(&s->aux2_iomem, &slavio_aux2_mem_ops, s,
                           "software-powerdown-control", MISC_SIZE);
-    sysbus_init_mmio_region(dev, &s->aux2_iomem);
+    sysbus_init_mmio(dev, &s->aux2_iomem);
 
     qdev_init_gpio_in(&dev->qdev, slavio_set_power_fail, 1);
 

@@ -334,7 +334,7 @@ static int ioapic_init1(SysBusDevice *dev)
     }
 
     memory_region_init_io(&s->io_memory, &ioapic_io_ops, s, "ioapic", 0x1000);
-    sysbus_init_mmio_region(dev, &s->io_memory);
+    sysbus_init_mmio(dev, &s->io_memory);
 
     qdev_init_gpio_in(&dev->qdev, ioapic_set_irq, IOAPIC_NUM_PINS);
 

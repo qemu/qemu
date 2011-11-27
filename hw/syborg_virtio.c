@@ -262,7 +262,7 @@ static int syborg_virtio_init(SyborgVirtIOProxy *proxy, VirtIODevice *vdev)
     sysbus_init_irq(&proxy->busdev, &proxy->irq);
     memory_region_init_io(&proxy->iomem, &syborg_virtio_ops, proxy,
                           "virtio", 0x1000);
-    sysbus_init_mmio_region(&proxy->busdev, &proxy->iomem);
+    sysbus_init_mmio(&proxy->busdev, &proxy->iomem);
 
     proxy->id = ((uint32_t)0x1af4 << 16) | vdev->device_id;
 

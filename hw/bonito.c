@@ -684,29 +684,29 @@ static int bonito_initfn(PCIDevice *dev)
     /* set the north bridge register mapping */
     memory_region_init_io(&s->iomem, &bonito_ops, s,
                           "north-bridge-register", BONITO_INTERNAL_REG_SIZE);
-    sysbus_init_mmio_region(sysbus, &s->iomem);
+    sysbus_init_mmio(sysbus, &s->iomem);
     sysbus_mmio_map(sysbus, 0, BONITO_INTERNAL_REG_BASE);
 
     /* set the north bridge pci configure  mapping */
     memory_region_init_io(&s->pcihost->conf_mem, &bonito_pciconf_ops, s,
                           "north-bridge-pci-config", BONITO_PCICONFIG_SIZE);
-    sysbus_init_mmio_region(sysbus, &s->pcihost->conf_mem);
+    sysbus_init_mmio(sysbus, &s->pcihost->conf_mem);
     sysbus_mmio_map(sysbus, 1, BONITO_PCICONFIG_BASE);
 
     /* set the south bridge pci configure  mapping */
     memory_region_init_io(&s->pcihost->data_mem, &bonito_spciconf_ops, s,
                           "south-bridge-pci-config", BONITO_SPCICONFIG_SIZE);
-    sysbus_init_mmio_region(sysbus, &s->pcihost->data_mem);
+    sysbus_init_mmio(sysbus, &s->pcihost->data_mem);
     sysbus_mmio_map(sysbus, 2, BONITO_SPCICONFIG_BASE);
 
     memory_region_init_io(&s->iomem_ldma, &bonito_ldma_ops, s,
                           "ldma", 0x100);
-    sysbus_init_mmio_region(sysbus, &s->iomem_ldma);
+    sysbus_init_mmio(sysbus, &s->iomem_ldma);
     sysbus_mmio_map(sysbus, 3, 0xbfe00200);
 
     memory_region_init_io(&s->iomem_cop, &bonito_cop_ops, s,
                           "cop", 0x100);
-    sysbus_init_mmio_region(sysbus, &s->iomem_cop);
+    sysbus_init_mmio(sysbus, &s->iomem_cop);
     sysbus_mmio_map(sysbus, 4, 0xbfe00300);
 
     /* Map PCI IO Space  0x1fd0 0000 - 0x1fd1 0000 */

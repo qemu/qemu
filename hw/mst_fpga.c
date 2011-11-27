@@ -207,7 +207,7 @@ static int mst_fpga_init(SysBusDevice *dev)
 
 	memory_region_init_io(&s->iomem, &mst_fpga_ops, s,
 			    "fpga", 0x00100000);
-	sysbus_init_mmio_region(dev, &s->iomem);
+	sysbus_init_mmio(dev, &s->iomem);
 	return 0;
 }
 

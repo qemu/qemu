@@ -453,7 +453,7 @@ static int pl181_init(SysBusDevice *dev)
     DriveInfo *dinfo;
 
     memory_region_init_io(&s->iomem, &pl181_ops, s, "pl181", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq[0]);
     sysbus_init_irq(dev, &s->irq[1]);
     qdev_init_gpio_out(&s->busdev.qdev, s->cardstatus, 2);

@@ -207,7 +207,7 @@ static int gpio_i2c_init(SysBusDevice *dev)
     i2c_bus *bus;
 
     memory_region_init(&s->dummy_iomem, "gpio_i2c", 0);
-    sysbus_init_mmio_region(dev, &s->dummy_iomem);
+    sysbus_init_mmio(dev, &s->dummy_iomem);
 
     bus = i2c_init_bus(&dev->qdev, "i2c");
     s->bitbang = bitbang_i2c_init(bus);

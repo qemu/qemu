@@ -151,7 +151,7 @@ static int vpb_sic_init(SysBusDevice *dev)
     }
     s->irq = 31;
     memory_region_init_io(&s->iomem, &vpb_sic_ops, s, "vpb-sic", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 

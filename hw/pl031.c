@@ -200,7 +200,7 @@ static int pl031_init(SysBusDevice *dev)
     struct tm tm;
 
     memory_region_init_io(&s->iomem, &pl031_ops, s, "pl031", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     sysbus_init_irq(dev, &s->irq);
     /* ??? We assume vm_clock is zero at this point.  */

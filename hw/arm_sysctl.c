@@ -383,7 +383,7 @@ static int arm_sysctl_init1(SysBusDevice *dev)
     arm_sysctl_state *s = FROM_SYSBUS(arm_sysctl_state, dev);
 
     memory_region_init_io(&s->iomem, &arm_sysctl_ops, s, "arm-sysctl", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     qdev_init_gpio_in(&s->busdev.qdev, arm_sysctl_gpio_set, 2);
     qdev_init_gpio_out(&s->busdev.qdev, &s->pl110_mux_ctrl, 1);
     return 0;

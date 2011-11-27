@@ -164,7 +164,7 @@ static int grlib_apbuart_init(SysBusDevice *dev)
     memory_region_init_io(&uart->iomem, &grlib_apbuart_ops, uart,
                           "uart", UART_REG_SIZE);
 
-    sysbus_init_mmio_region(dev, &uart->iomem);
+    sysbus_init_mmio(dev, &uart->iomem);
 
     return 0;
 }

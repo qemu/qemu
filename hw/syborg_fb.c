@@ -515,7 +515,7 @@ static int syborg_fb_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_fb_ops, s,
                           "framebuffer", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     s->ds = graphic_console_init(syborg_fb_update_display,
                                  syborg_fb_invalidate_display,

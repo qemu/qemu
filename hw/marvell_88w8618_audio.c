@@ -245,7 +245,7 @@ static int mv88w8618_audio_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &mv88w8618_audio_ops, s,
                           "audio", MP_AUDIO_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }

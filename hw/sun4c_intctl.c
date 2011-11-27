@@ -196,7 +196,7 @@ static int sun4c_intctl_init1(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &sun4c_intctl_mem_ops, s,
                           "intctl", INTCTL_SIZE);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     qdev_init_gpio_in(&dev->qdev, sun4c_set_irq, 8);
 
     for (i = 0; i < MAX_PILS; i++) {

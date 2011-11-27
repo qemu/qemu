@@ -197,7 +197,7 @@ static int syborg_timer_init(SysBusDevice *dev)
     }
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_timer_ops, s, "timer", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     bh = qemu_bh_new(syborg_timer_tick, s);
     s->timer = ptimer_init(bh);

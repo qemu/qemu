@@ -275,7 +275,7 @@ static int mpcore_priv_init(SysBusDevice *dev)
 
     gic_init(&s->gic, s->num_cpu);
     mpcore_priv_map_setup(s);
-    sysbus_init_mmio_region(dev, &s->container);
+    sysbus_init_mmio(dev, &s->container);
     for (i = 0; i < s->num_cpu * 2; i++) {
         mpcore_timer_init(s, &s->timer[i], i);
     }

@@ -691,7 +691,7 @@ static int hpet_init(SysBusDevice *dev)
 
     /* HPET Area */
     memory_region_init_io(&s->iomem, &hpet_ram_ops, s, "hpet", 0x400);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 

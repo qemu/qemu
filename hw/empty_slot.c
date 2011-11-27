@@ -72,7 +72,7 @@ static int empty_slot_init1(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &empty_slot_ops, s,
                           "empty-slot", s->size);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 

@@ -416,7 +416,7 @@ static int pxa2xx_timer_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &pxa2xx_timer_ops, s,
                           "pxa2xx-timer", 0x00001000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }

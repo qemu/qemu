@@ -888,7 +888,7 @@ static int escc_init1(SysBusDevice *dev)
 
     memory_region_init_io(&s->mmio, &escc_mem_ops, s, "escc",
                           ESCC_SIZE << s->it_shift);
-    sysbus_init_mmio_region(dev, &s->mmio);
+    sysbus_init_mmio(dev, &s->mmio);
 
     if (s->chn[0].type == mouse) {
         qemu_add_mouse_event_handler(sunmouse_event, &s->chn[0], 0,

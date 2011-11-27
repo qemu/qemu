@@ -295,7 +295,7 @@ static int syborg_serial_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->iomem, &syborg_serial_ops, s,
                           "serial", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, syborg_serial_can_receive,
