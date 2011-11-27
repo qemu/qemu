@@ -21,10 +21,8 @@ struct SysBusDevice {
     int num_mmio;
     struct {
         target_phys_addr_t addr;
-        target_phys_addr_t size;
         mmio_mapfunc cb;
         mmio_mapfunc unmap;
-        ram_addr_t iofunc;
         MemoryRegion *memory;
     } mmio[QDEV_MAX_MMIO];
     int num_pio;
@@ -45,8 +43,6 @@ typedef struct {
 void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init);
 void sysbus_register_withprop(SysBusDeviceInfo *info);
 void *sysbus_new(void);
-void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size,
-                      ram_addr_t iofunc);
 void sysbus_init_mmio_cb2(SysBusDevice *dev,
                           mmio_mapfunc cb, mmio_mapfunc unmap);
 void sysbus_init_mmio_region(SysBusDevice *dev, MemoryRegion *memory);

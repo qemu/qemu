@@ -55,9 +55,6 @@ void sysbus_mmio_map(SysBusDevice *dev, int n, target_phys_addr_t addr)
                                         dev->mmio[n].memory);
         } else if (dev->mmio[n].unmap) {
             dev->mmio[n].unmap(dev, dev->mmio[n].addr);
-        } else {
-            cpu_register_physical_memory(dev->mmio[n].addr, dev->mmio[n].size,
-                                         IO_MEM_UNASSIGNED);
         }
     }
     dev->mmio[n].addr = addr;
@@ -67,9 +64,6 @@ void sysbus_mmio_map(SysBusDevice *dev, int n, target_phys_addr_t addr)
                                     dev->mmio[n].memory);
     } else if (dev->mmio[n].cb) {
         dev->mmio[n].cb(dev, addr);
-    } else {
-        cpu_register_physical_memory(addr, dev->mmio[n].size,
-                                     dev->mmio[n].iofunc);
     }
 }
 
@@ -95,18 +89,6 @@ void sysbus_pass_irq(SysBusDevice *dev, SysBusDevice *target)
     }
 }
 
-void sysbus_init_mmio(SysBusDevice *dev, target_phys_addr_t size,
-                      ram_addr_t iofunc)
-{
-    int n;
-
-    assert(dev->num_mmio < QDEV_MAX_MMIO);
-    n = dev->num_mmio++;
-    dev->mmio[n].addr = -1;
-    dev->mmio[n].size = size;
-    dev->mmio[n].iofunc = iofunc;
-}
-
 void sysbus_init_mmio_cb2(SysBusDevice *dev,
                           mmio_mapfunc cb, mmio_mapfunc unmap)
 {
@@ -115,7 +97,6 @@ void sysbus_init_mmio_cb2(SysBusDevice *dev,
     assert(dev->num_mmio < QDEV_MAX_MMIO);
     n = dev->num_mmio++;
     dev->mmio[n].addr = -1;
-    dev->mmio[n].size = 0;
     dev->mmio[n].cb = cb;
     dev->mmio[n].unmap = unmap;
 }
@@ -127,7 +108,6 @@ void sysbus_init_mmio_region(SysBusDevice *dev, MemoryRegion *memory)
     assert(dev->num_mmio < QDEV_MAX_MMIO);
     n = dev->num_mmio++;
     dev->mmio[n].addr = -1;
-    dev->mmio[n].size = memory_region_size(memory);
     dev->mmio[n].memory = memory;
 }
 
@@ -237,12 +217,17 @@ DeviceState *sysbus_try_create_varargs(const char *name,
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     SysBusDevice *s = sysbus_from_qdev(dev);
+    target_phys_addr_t size;
     int i;
 
     monitor_printf(mon, "%*sirq %d\n", indent, "", s->num_irq);
     for (i = 0; i < s->num_mmio; i++) {
+        size = 0;
+        if (s->mmio[i].memory) {
+            size = memory_region_size(s->mmio[i].memory);
+        }
         monitor_printf(mon, "%*smmio " TARGET_FMT_plx "/" TARGET_FMT_plx "\n",
-                       indent, "", s->mmio[i].addr, s->mmio[i].size);
+                       indent, "", s->mmio[i].addr, size);
     }
 }
 
