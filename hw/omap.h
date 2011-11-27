@@ -833,6 +833,8 @@ struct omap_mpu_state_s {
     MemoryRegion tap_iomem;
     MemoryRegion imif_ram;
     MemoryRegion emiff_ram;
+    MemoryRegion sdram;
+    MemoryRegion sram;
 
     struct omap_dma_port_if_s {
         uint32_t (*read[3])(struct omap_mpu_state_s *s,

@@ -1000,6 +1000,8 @@ static const struct omap_l4_agent_info_s omap_l4_agent_info[54] = {
 struct omap_prcm_s {
     qemu_irq irq[3];
     struct omap_mpu_state_s *mpu;
+    MemoryRegion iomem0;
+    MemoryRegion iomem1;
 
     uint32_t irqst[3];
     uint32_t irqen[3];
@@ -1038,10 +1040,15 @@ static void omap_prcm_int_update(struct omap_prcm_s *s, int dom)
     /* XXX or is the mask applied before PRCM_IRQSTATUS_* ? */
 }
 
-static uint32_t omap_prcm_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_prcm_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
     uint32_t ret;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x000:	/* PRCM_REVISION */
@@ -1346,9 +1353,13 @@ static void omap_prcm_dpll_update(struct omap_prcm_s *s)
 }
 
 static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x000:	/* PRCM_REVISION */
@@ -1699,16 +1710,10 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_prcm_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_prcm_read,
-};
-
-static CPUWriteMemoryFunc * const omap_prcm_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_prcm_write,
+static const MemoryRegionOps omap_prcm_ops = {
+    .read = omap_prcm_read,
+    .write = omap_prcm_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_prcm_reset(struct omap_prcm_s *s)
@@ -1795,7 +1800,6 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
                 qemu_irq mpu_int, qemu_irq dsp_int, qemu_irq iva_int,
                 struct omap_mpu_state_s *mpu)
 {
-    int iomemtype;
     struct omap_prcm_s *s = (struct omap_prcm_s *)
             g_malloc0(sizeof(struct omap_prcm_s));
 
@@ -1805,10 +1809,12 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_prcm_coldreset(s);
 
-    iomemtype = cpu_register_io_memory(omap_prcm_readfn,
-                    omap_prcm_writefn, s, DEVICE_NATIVE_ENDIAN);
-    omap_l4_attach(ta, 0, iomemtype);
-    omap_l4_attach(ta, 1, iomemtype);
+    memory_region_init_io(&s->iomem0, &omap_prcm_ops, s, "omap.pcrm0",
+                          omap_l4_region_size(ta, 0));
+    memory_region_init_io(&s->iomem1, &omap_prcm_ops, s, "omap.pcrm1",
+                          omap_l4_region_size(ta, 1));
+    omap_l4_attach_region(ta, 0, &s->iomem0);
+    omap_l4_attach_region(ta, 1, &s->iomem1);
 
     return s;
 }
@@ -1816,6 +1822,7 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
 /* System and Pinout control */
 struct omap_sysctl_s {
     struct omap_mpu_state_s *mpu;
+    MemoryRegion iomem;
 
     uint32_t sysconfig;
     uint32_t devconfig;
@@ -2069,16 +2076,20 @@ static void omap_sysctl_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_sysctl_readfn[] = {
-    omap_sysctl_read8,
-    omap_badwidth_read32,	/* TODO */
-    omap_sysctl_read,
-};
-
-static CPUWriteMemoryFunc * const omap_sysctl_writefn[] = {
-    omap_sysctl_write8,
-    omap_badwidth_write32,	/* TODO */
-    omap_sysctl_write,
+static const MemoryRegionOps omap_sysctl_ops = {
+    .old_mmio = {
+        .read = {
+            omap_sysctl_read8,
+            omap_badwidth_read32,	/* TODO */
+            omap_sysctl_read,
+        },
+        .write = {
+            omap_sysctl_write8,
+            omap_badwidth_write32,	/* TODO */
+            omap_sysctl_write,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_sysctl_reset(struct omap_sysctl_s *s)
@@ -2168,16 +2179,15 @@ static void omap_sysctl_reset(struct omap_sysctl_s *s)
 static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
                 omap_clk iclk, struct omap_mpu_state_s *mpu)
 {
-    int iomemtype;
     struct omap_sysctl_s *s = (struct omap_sysctl_s *)
             g_malloc0(sizeof(struct omap_sysctl_s));
 
     s->mpu = mpu;
     omap_sysctl_reset(s);
 
-    iomemtype = cpu_register_io_memory(omap_sysctl_readfn,
-                    omap_sysctl_writefn, s, DEVICE_NATIVE_ENDIAN);
-    omap_l4_attach(ta, 0, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_sysctl_ops, s, "omap.sysctl",
+                          omap_l4_region_size(ta, 0));
+    omap_l4_attach_region(ta, 0, &s->iomem);
 
     return s;
 }
@@ -2236,7 +2246,6 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             g_malloc0(sizeof(struct omap_mpu_state_s));
-    ram_addr_t sram_base, q2_base;
     qemu_irq *cpu_irq;
     qemu_irq dma_irqs[4];
     DriveInfo *dinfo;
@@ -2260,12 +2269,10 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     omap_clk_init(s);
 
     /* Memory-mapped stuff */
-    cpu_register_physical_memory(OMAP2_Q2_BASE, s->sdram_size,
-                    (q2_base = qemu_ram_alloc(NULL, "omap2.dram",
-                                              s->sdram_size)) | IO_MEM_RAM);
-    cpu_register_physical_memory(OMAP2_SRAM_BASE, s->sram_size,
-                    (sram_base = qemu_ram_alloc(NULL, "omap2.sram",
-                                                s->sram_size)) | IO_MEM_RAM);
+    memory_region_init_ram(&s->sdram, NULL, "omap2.dram", s->sdram_size);
+    memory_region_add_subregion(sysmem, OMAP2_Q2_BASE, &s->sdram);
+    memory_region_init_ram(&s->sram, NULL, "omap2.sram", s->sram_size);
+    memory_region_add_subregion(sysmem, OMAP2_SRAM_BASE, &s->sram);
 
     s->l4 = omap_l4_init(sysmem, OMAP2_L4_BASE, 54);
 
@@ -2298,9 +2305,9 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
     s->port->addr_valid = omap2_validate_addr;
 
     /* Register SDRAM and SRAM ports for fast DMA transfers.  */
-    soc_dma_port_add_mem(s->dma, qemu_get_ram_ptr(q2_base),
+    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(&s->sdram),
                          OMAP2_Q2_BASE, s->sdram_size);
-    soc_dma_port_add_mem(s->dma, qemu_get_ram_ptr(sram_base),
+    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(&s->sram),
                          OMAP2_SRAM_BASE, s->sram_size);
 
     s->uart[0] = omap2_uart_init(sysmem, omap_l4ta(s->l4, 19),
