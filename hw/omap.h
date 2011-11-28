@@ -733,8 +733,11 @@ void omap_tap_init(struct omap_target_agent_s *ta,
 /* omap_lcdc.c */
 struct omap_lcd_panel_s;
 void omap_lcdc_reset(struct omap_lcd_panel_s *s);
-struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
-                struct omap_dma_lcd_channel_s *dma, omap_clk clk);
+struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
+                                        target_phys_addr_t base,
+                                        qemu_irq irq,
+                                        struct omap_dma_lcd_channel_s *dma,
+                                        omap_clk clk);
 
 /* omap_dss.c */
 struct rfbi_chip_s {
