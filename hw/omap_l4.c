@@ -138,12 +138,12 @@ struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus,
 
     memory_region_init_io(&ta->iomem, &omap_l4ta_ops, ta, "omap.l4ta",
                           omap_l4_region_size(ta, info->ta_region));
-    omap_l4_attach_region(ta, info->ta_region, &ta->iomem);
+    omap_l4_attach(ta, info->ta_region, &ta->iomem);
 
     return ta;
 }
 
-target_phys_addr_t omap_l4_attach_region(struct omap_target_agent_s *ta,
+target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta,
                                          int region, MemoryRegion *mr)
 {
     target_phys_addr_t base;

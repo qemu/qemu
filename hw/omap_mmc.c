@@ -614,7 +614,7 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
 
     memory_region_init_io(&s->iomem, &omap_mmc_ops, s, "omap.mmc",
                           omap_l4_region_size(ta, 0));
-    omap_l4_attach_region(ta, 0, &s->iomem);
+    omap_l4_attach(ta, 0, &s->iomem);
 
     /* Instantiate the storage */
     s->card = sd_init(bd, 0);

@@ -94,7 +94,7 @@ struct omap_target_agent_s *omap_l4ta_get(
     const struct omap_l4_region_s *regions,
     const struct omap_l4_agent_info_s *agents,
     int cs);
-target_phys_addr_t omap_l4_attach_region(struct omap_target_agent_s *ta,
+target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta,
                                          int region, MemoryRegion *mr);
 target_phys_addr_t omap_l4_region_base(struct omap_target_agent_s *ta,
                                        int region);

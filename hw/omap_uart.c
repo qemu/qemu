@@ -165,7 +165,7 @@ struct omap_uart_s *omap2_uart_init(MemoryRegion *sysmem,
                 qemu_irq txdma, qemu_irq rxdma,
                 const char *label, CharDriverState *chr)
 {
-    target_phys_addr_t base = omap_l4_attach_region(ta, 0, NULL);
+    target_phys_addr_t base = omap_l4_attach(ta, 0, NULL);
     struct omap_uart_s *s = omap_uart_init(base, irq,
                     fclk, iclk, txdma, rxdma, label, chr);
 

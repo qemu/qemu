@@ -464,7 +464,7 @@ struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
 
     memory_region_init_io(&s->iomem, &omap_i2c_ops, s, "omap2.i2c",
                           omap_l4_region_size(ta, 0));
-    omap_l4_attach_region(ta, 0, &s->iomem);
+    omap_l4_attach(ta, 0, &s->iomem);
 
     return s;
 }

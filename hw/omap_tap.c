@@ -112,5 +112,5 @@ void omap_tap_init(struct omap_target_agent_s *ta,
 {
     memory_region_init_io(&mpu->tap_iomem, &omap_tap_ops, mpu, "omap.tap",
                           omap_l4_region_size(ta, 0));
-    omap_l4_attach_region(ta, 0, &mpu->tap_iomem);
+    omap_l4_attach(ta, 0, &mpu->tap_iomem);
 }

@@ -332,7 +332,7 @@ struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
 
     memory_region_init_io(&s->iomem, &omap_mcspi_ops, s, "omap.mcspi",
                           omap_l4_region_size(ta, 0));
-    omap_l4_attach_region(ta, 0, &s->iomem);
+    omap_l4_attach(ta, 0, &s->iomem);
 
     return s;
 }

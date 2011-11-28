@@ -1064,10 +1064,10 @@ struct omap_dss_s *omap_dss_init(struct omap_target_agent_s *ta,
     memory_region_init_io(&s->iomem_im3, &omap_im3_ops, s,
                           "omap.im3", 0x1000);
 
-    omap_l4_attach_region(ta, 0, &s->iomem_diss1);
-    omap_l4_attach_region(ta, 1, &s->iomem_disc1);
-    omap_l4_attach_region(ta, 2, &s->iomem_rfbi1);
-    omap_l4_attach_region(ta, 3, &s->iomem_venc1);
+    omap_l4_attach(ta, 0, &s->iomem_diss1);
+    omap_l4_attach(ta, 1, &s->iomem_disc1);
+    omap_l4_attach(ta, 2, &s->iomem_rfbi1);
+    omap_l4_attach(ta, 3, &s->iomem_venc1);
     memory_region_add_subregion(sysmem, l3_base, &s->iomem_im3);
 
 #if 0

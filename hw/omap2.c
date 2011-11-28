@@ -605,7 +605,7 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 
     memory_region_init_io(&s->iomem, &omap_eac_ops, s, "omap.eac",
                           omap_l4_region_size(ta, 0));
-    omap_l4_attach_region(ta, 0, &s->iomem);
+    omap_l4_attach(ta, 0, &s->iomem);
 
     return s;
 }
@@ -793,7 +793,7 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
 
     memory_region_init_io(&s->iomem, &omap_sti_ops, s, "omap.sti",
                           omap_l4_region_size(ta, 0));
-    omap_l4_attach_region(ta, 0, &s->iomem);
+    omap_l4_attach(ta, 0, &s->iomem);
 
     memory_region_init_io(&s->iomem_fifo, &omap_sti_fifo_ops, s,
                           "omap.sti.fifo", 0x10000);
@@ -1813,8 +1813,8 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
                           omap_l4_region_size(ta, 0));
     memory_region_init_io(&s->iomem1, &omap_prcm_ops, s, "omap.pcrm1",
                           omap_l4_region_size(ta, 1));
-    omap_l4_attach_region(ta, 0, &s->iomem0);
-    omap_l4_attach_region(ta, 1, &s->iomem1);
+    omap_l4_attach(ta, 0, &s->iomem0);
+    omap_l4_attach(ta, 1, &s->iomem1);
 
     return s;
 }
@@ -2187,7 +2187,7 @@ static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
 
     memory_region_init_io(&s->iomem, &omap_sysctl_ops, s, "omap.sysctl",
                           omap_l4_region_size(ta, 0));
-    omap_l4_attach_region(ta, 0, &s->iomem);
+    omap_l4_attach(ta, 0, &s->iomem);
 
     return s;
 }
