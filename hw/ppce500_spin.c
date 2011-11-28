@@ -112,6 +112,7 @@ static void spin_kick(void *data)
 
     env->halted = 0;
     env->exception_index = -1;
+    env->stopped = 0;
     qemu_cpu_kick(env);
 }
 
