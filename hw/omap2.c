@@ -2462,7 +2462,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
                     omap_findclk(s, "spi2_fclk"),
                     omap_findclk(s, "spi2_iclk"));
 
-    s->dss = omap_dss_init(omap_l4ta(s->l4, 10), 0x68000800,
+    s->dss = omap_dss_init(omap_l4ta(s->l4, 10), sysmem, 0x68000800,
                     /* XXX wire M_IRQ_25, D_L2_IRQ_30 and I_IRQ_13 together */
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_DSS_IRQ),
                            s->drq[OMAP24XX_DMA_DSS],
