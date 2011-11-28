@@ -1796,16 +1796,6 @@ static void do_boot_set(Monitor *mon, const QDict *qdict)
     }
 }
 
-/**
- * do_system_powerdown(): Issue a machine powerdown
- */
-static int do_system_powerdown(Monitor *mon, const QDict *qdict,
-                               QObject **ret_data)
-{
-    qemu_system_powerdown_request();
-    return 0;
-}
-
 #if defined(TARGET_I386)
 static void print_pte(Monitor *mon, target_phys_addr_t addr,
                       target_phys_addr_t pte,
