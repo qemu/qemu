@@ -143,26 +143,6 @@ struct omap_target_agent_s *omap_l4ta_get(struct omap_l4_s *bus,
     return ta;
 }
 
-target_phys_addr_t omap_l4_attach(struct omap_target_agent_s *ta, int region,
-                int iotype)
-{
-    target_phys_addr_t base;
-    ssize_t size;
-
-    if (region < 0 || region >= ta->regions) {
-        fprintf(stderr, "%s: bad io region (%i)\n", __FUNCTION__, region);
-        exit(-1);
-    }
-
-    base = ta->bus->base + ta->start[region].offset;
-    size = ta->start[region].size;
-    if (iotype) {
-        cpu_register_physical_memory(base, size, iotype);
-    }
-
-    return base;
-}
-
 target_phys_addr_t omap_l4_attach_region(struct omap_target_agent_s *ta,
                                          int region, MemoryRegion *mr)
 {
