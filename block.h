@@ -70,6 +70,7 @@ typedef struct BlockDevOps {
 #define BDRV_O_NATIVE_AIO  0x0080 /* use native AIO instead of the thread pool */
 #define BDRV_O_NO_BACKING  0x0100 /* don't open the backing file */
 #define BDRV_O_NO_FLUSH    0x0200 /* disable flushing on this disk */
+#define BDRV_O_COPY_ON_READ 0x0400 /* copy read backing sectors into image */
 
 #define BDRV_O_CACHE_MASK  (BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NO_FLUSH)
 
@@ -311,6 +312,9 @@ int bdrv_get_dirty(BlockDriverState *bs, int64_t sector);
 void bdrv_reset_dirty(BlockDriverState *bs, int64_t cur_sector,
                       int nr_sectors);
 int64_t bdrv_get_dirty_count(BlockDriverState *bs);
+
+void bdrv_enable_copy_on_read(BlockDriverState *bs);
+void bdrv_disable_copy_on_read(BlockDriverState *bs);
 
 void bdrv_set_in_use(BlockDriverState *bs, int in_use);
 int bdrv_in_use(BlockDriverState *bs);
