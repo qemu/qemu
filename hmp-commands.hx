@@ -771,8 +771,7 @@ ETEXI
         .args_type  = "",
         .params     = "",
         .help       = "cancel the current VM migration",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_migrate_cancel,
+        .mhandler.cmd = hmp_migrate_cancel,
     },
 
 STEXI

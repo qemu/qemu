@@ -471,10 +471,7 @@ EQMP
     {
         .name       = "migrate_cancel",
         .args_type  = "",
-        .params     = "",
-        .help       = "cancel the current VM migration",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_migrate_cancel,
+        .mhandler.cmd_new = qmp_marshal_input_migrate_cancel,
     },
 
 SQMP

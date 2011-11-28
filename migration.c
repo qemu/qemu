@@ -468,10 +468,9 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
-int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_migrate_cancel(Error **errp)
 {
     migrate_fd_cancel(migrate_get_current());
-    return 0;
 }
 
 int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)

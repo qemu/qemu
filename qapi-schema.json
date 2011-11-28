@@ -1127,3 +1127,16 @@
 { 'command': 'human-monitor-command',
   'data': {'command-line': 'str', '*cpu-index': 'int'},
   'returns': 'str' } 
+
+##
+# @migrate_cancel
+#
+# Cancel the current executing migration process.
+#
+# Returns: nothing on success
+#
+# Notes: This command succeeds even if there is no migration process running.
+#
+# Since: 0.14.0
+##
+{ 'command': 'migrate_cancel' }

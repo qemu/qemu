@@ -662,3 +662,8 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
     qmp_blockdev_snapshot_sync(device, filename, !!format, format, &errp);
     hmp_handle_error(mon, &errp);
 }
+
+void hmp_migrate_cancel(Monitor *mon, const QDict *qdict)
+{
+    qmp_migrate_cancel(NULL);
+}
