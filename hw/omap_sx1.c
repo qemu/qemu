@@ -59,46 +59,28 @@
  * - 1 RTC
  */
 
-static uint32_t static_readb(void *opaque, target_phys_addr_t offset)
+static uint64_t static_read(void *opaque, target_phys_addr_t offset,
+                            unsigned size)
 {
     uint32_t *val = (uint32_t *) opaque;
+    uint32_t mask = (4 / size) - 1;
 
-    return *val >> ((offset & 3) << 3);
-}
-
-static uint32_t static_readh(void *opaque, target_phys_addr_t offset)
-{
-    uint32_t *val = (uint32_t *) opaque;
-
-    return *val >> ((offset & 1) << 3);
-}
-
-static uint32_t static_readw(void *opaque, target_phys_addr_t offset)
-{
-    uint32_t *val = (uint32_t *) opaque;
-
-    return *val >> ((offset & 0) << 3);
+    return *val >> ((offset & mask) << 3);
 }
 
 static void static_write(void *opaque, target_phys_addr_t offset,
-                uint32_t value)
+                         uint64_t value, unsigned size)
 {
 #ifdef SPY
-    printf("%s: value %08lx written at " PA_FMT "\n",
-                    __FUNCTION__, value, offset);
+    printf("%s: value %" PRIx64 " %u bytes written at 0x%x\n",
+                    __func__, value, size, (int)offset);
 #endif
 }
 
-static CPUReadMemoryFunc * const static_readfn[] = {
-    static_readb,
-    static_readh,
-    static_readw,
-};
-
-static CPUWriteMemoryFunc * const static_writefn[] = {
-    static_write,
-    static_write,
-    static_write,
+static const MemoryRegionOps static_ops = {
+    .read = static_read,
+    .write = static_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 #define sdram_size	0x02000000
@@ -123,7 +105,9 @@ static void sx1_init(ram_addr_t ram_size,
 {
     struct omap_mpu_state_s *cpu;
     MemoryRegion *address_space = get_system_memory();
-    int io;
+    MemoryRegion *flash = g_new(MemoryRegion, 1);
+    MemoryRegion *flash_1 = g_new(MemoryRegion, 1);
+    MemoryRegion *cs = g_new(MemoryRegion, 4);
     static uint32_t cs0val = 0x00213090;
     static uint32_t cs1val = 0x00215070;
     static uint32_t cs2val = 0x00001139;
@@ -140,20 +124,25 @@ static void sx1_init(ram_addr_t ram_size,
     cpu = omap310_mpu_init(address_space, sx1_binfo.ram_size, cpu_model);
 
     /* External Flash (EMIFS) */
-    cpu_register_physical_memory(OMAP_CS0_BASE, flash_size,
-                                 qemu_ram_alloc(NULL, "omap_sx1.flash0-0",
-                                                flash_size) | IO_MEM_ROM);
+    memory_region_init_ram(flash, NULL, "omap_sx1.flash0-0", flash_size);
+    memory_region_set_readonly(flash, true);
+    memory_region_add_subregion(address_space, OMAP_CS0_BASE, flash);
 
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs0val,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(OMAP_CS0_BASE + flash_size,
-                    OMAP_CS0_SIZE - flash_size, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs2val,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(OMAP_CS2_BASE, OMAP_CS2_SIZE, io);
-    io = cpu_register_io_memory(static_readfn, static_writefn, &cs3val,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(OMAP_CS3_BASE, OMAP_CS3_SIZE, io);
+    memory_region_init_io(&cs[0], &static_ops, &cs0val,
+                          "sx1.cs0", OMAP_CS0_SIZE - flash_size);
+    memory_region_add_subregion(address_space,
+                                OMAP_CS0_BASE + flash_size, &cs[0]);
+
+
+    memory_region_init_io(&cs[2], &static_ops, &cs2val,
+                          "sx1.cs2", OMAP_CS2_SIZE);
+    memory_region_add_subregion(address_space,
+                                OMAP_CS2_BASE, &cs[2]);
+
+    memory_region_init_io(&cs[3], &static_ops, &cs3val,
+                          "sx1.cs3", OMAP_CS3_SIZE);
+    memory_region_add_subregion(address_space,
+                                OMAP_CS2_BASE, &cs[3]);
 
     fl_idx = 0;
 #ifdef TARGET_WORDS_BIGENDIAN
@@ -176,13 +165,14 @@ static void sx1_init(ram_addr_t ram_size,
 
     if ((version == 1) &&
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
-        cpu_register_physical_memory(OMAP_CS1_BASE, flash1_size,
-                                     qemu_ram_alloc(NULL, "omap_sx1.flash1-0",
-                                                    flash1_size) | IO_MEM_ROM);
-        io = cpu_register_io_memory(static_readfn, static_writefn, &cs1val,
-                                    DEVICE_NATIVE_ENDIAN);
-        cpu_register_physical_memory(OMAP_CS1_BASE + flash1_size,
-                        OMAP_CS1_SIZE - flash1_size, io);
+        memory_region_init_ram(flash_1, NULL, "omap_sx1.flash1-0", flash1_size);
+        memory_region_set_readonly(flash_1, true);
+        memory_region_add_subregion(address_space, OMAP_CS1_BASE, flash_1);
+
+        memory_region_init_io(&cs[1], &static_ops, &cs1val,
+                              "sx1.cs1", OMAP_CS1_SIZE - flash1_size);
+        memory_region_add_subregion(address_space,
+                                OMAP_CS1_BASE + flash1_size, &cs[1]);
 
         if (!pflash_cfi01_register(OMAP_CS1_BASE, NULL,
                                    "omap_sx1.flash1-1", flash1_size,
@@ -194,9 +184,10 @@ static void sx1_init(ram_addr_t ram_size,
         }
         fl_idx++;
     } else {
-        io = cpu_register_io_memory(static_readfn, static_writefn, &cs1val,
-                                    DEVICE_NATIVE_ENDIAN);
-        cpu_register_physical_memory(OMAP_CS1_BASE, OMAP_CS1_SIZE, io);
+        memory_region_init_io(&cs[1], &static_ops, &cs1val,
+                              "sx1.cs1", OMAP_CS1_SIZE);
+        memory_region_add_subregion(address_space,
+                                OMAP_CS1_BASE, &cs[1]);
     }
 
     if (!kernel_filename && !fl_idx) {
