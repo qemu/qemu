@@ -1971,7 +1971,7 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
     cplus_tx_ring_desc += 16 * descriptor;
 
     DPRINTF("+++ C+ mode reading TX descriptor %d from host memory at "
-        "%08x0x%08x = 0x"DMA_ADDR_FMT"\n", descriptor, s->TxAddr[1],
+        "%08x %08x = 0x"DMA_ADDR_FMT"\n", descriptor, s->TxAddr[1],
         s->TxAddr[0], cplus_tx_ring_desc);
 
     uint32_t val, txdw0,txdw1,txbufLO,txbufHI;
@@ -2713,8 +2713,6 @@ static void rtl8139_io_writeb(void *opaque, uint8_t addr, uint32_t val)
 {
     RTL8139State *s = opaque;
 
-    addr &= 0xff;
-
     switch (addr)
     {
         case MAC0 ... MAC0+5:
@@ -2799,8 +2797,6 @@ static void rtl8139_io_writeb(void *opaque, uint8_t addr, uint32_t val)
 static void rtl8139_io_writew(void *opaque, uint8_t addr, uint32_t val)
 {
     RTL8139State *s = opaque;
-
-    addr &= 0xfe;
 
     switch (addr)
     {
@@ -2900,8 +2896,6 @@ static void rtl8139_io_writel(void *opaque, uint8_t addr, uint32_t val)
 {
     RTL8139State *s = opaque;
 
-    addr &= 0xfc;
-
     switch (addr)
     {
         case RxMissed:
@@ -2968,8 +2962,6 @@ static uint32_t rtl8139_io_readb(void *opaque, uint8_t addr)
 {
     RTL8139State *s = opaque;
     int ret;
-
-    addr &= 0xff;
 
     switch (addr)
     {
@@ -3042,8 +3034,6 @@ static uint32_t rtl8139_io_readw(void *opaque, uint8_t addr)
 {
     RTL8139State *s = opaque;
     uint32_t ret;
-
-    addr &= 0xfe; /* mask lower bit */
 
     switch (addr)
     {
@@ -3119,8 +3109,6 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
 {
     RTL8139State *s = opaque;
     uint32_t ret;
-
-    addr &= 0xfc; /* also mask low 2 bits */
 
     switch (addr)
     {
