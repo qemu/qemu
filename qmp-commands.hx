@@ -492,10 +492,7 @@ EQMP
     {
         .name       = "migrate_set_speed",
         .args_type  = "value:o",
-        .params     = "value",
-        .help       = "set maximum speed (in bytes) for migrations",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_migrate_set_speed,
+        .mhandler.cmd_new = qmp_marshal_input_migrate_set_speed,
     },
 
 SQMP

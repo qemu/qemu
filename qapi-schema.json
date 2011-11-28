@@ -1153,3 +1153,18 @@
 # Since: 0.14.0
 ##
 { 'command': 'migrate_set_downtime', 'data': {'value': 'number'} }
+
+##
+# @migrate_set_speed
+#
+# Set maximum speed for migration.
+#
+# @value: maximum speed in bytes.
+#
+# Returns: nothing on success
+#
+# Notes: A value lesser than zero will be automatically round up to zero.
+#
+# Since: 0.14.0
+##
+{ 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
