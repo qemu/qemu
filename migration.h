@@ -46,9 +46,6 @@ int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data);
 
 uint64_t migrate_max_downtime(void);
 
-int do_migrate_set_downtime(Monitor *mon, const QDict *qdict,
-                            QObject **ret_data);
-
 void do_info_migrate_print(Monitor *mon, const QObject *data);
 
 void do_info_migrate(Monitor *mon, QObject **ret_data);

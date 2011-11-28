@@ -47,5 +47,6 @@ void hmp_balloon(Monitor *mon, const QDict *qdict);
 void hmp_block_resize(Monitor *mon, const QDict *qdict);
 void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict);
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict);
+void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict);
 
 #endif

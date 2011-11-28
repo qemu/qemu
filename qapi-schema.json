@@ -1140,3 +1140,16 @@
 # Since: 0.14.0
 ##
 { 'command': 'migrate_cancel' }
+
+##
+# @migrate_set_downtime
+#
+# Set maximum tolerated downtime for migration.
+#
+# @value: maximum downtime in seconds
+#
+# Returns: nothing on success
+#
+# Since: 0.14.0
+##
+{ 'command': 'migrate_set_downtime', 'data': {'value': 'number'} }

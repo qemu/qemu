@@ -518,10 +518,7 @@ EQMP
     {
         .name       = "migrate_set_downtime",
         .args_type  = "value:T",
-        .params     = "value",
-        .help       = "set maximum tolerated downtime (in seconds) for migrations",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_migrate_set_downtime,
+        .mhandler.cmd_new = qmp_marshal_input_migrate_set_downtime,
     },
 
 SQMP

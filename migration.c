@@ -490,14 +490,9 @@ int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
-int do_migrate_set_downtime(Monitor *mon, const QDict *qdict,
-                            QObject **ret_data)
+void qmp_migrate_set_downtime(double value, Error **errp)
 {
-    double d;
-
-    d = qdict_get_double(qdict, "value") * 1e9;
-    d = MAX(0, MIN(UINT64_MAX, d));
-    max_downtime = (uint64_t)d;
-
-    return 0;
+    value *= 1e9;
+    value = MAX(0, MIN(UINT64_MAX, value));
+    max_downtime = (uint64_t)value;
 }
