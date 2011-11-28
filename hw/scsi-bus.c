@@ -162,7 +162,7 @@ void scsi_qdev_register(SCSIDeviceInfo *info)
 
 /* handle legacy '-drive if=scsi,...' cmd line args */
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
-                                      int unit, bool removable)
+                                      int unit, bool removable, int bootindex)
 {
     const char *driver;
     DeviceState *dev;
@@ -170,6 +170,9 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
     driver = bdrv_is_sg(bdrv) ? "scsi-generic" : "scsi-disk";
     dev = qdev_create(&bus->qbus, driver);
     qdev_prop_set_uint32(dev, "scsi-id", unit);
+    if (bootindex >= 0) {
+        qdev_prop_set_int32(dev, "bootindex", bootindex);
+    }
     if (qdev_prop_exists(dev, "removable")) {
         qdev_prop_set_bit(dev, "removable", removable);
     }
@@ -195,7 +198,7 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
             continue;
         }
         qemu_opts_loc_restore(dinfo->opts);
-        if (!scsi_bus_legacy_add_drive(bus, dinfo->bdrv, unit, false)) {
+        if (!scsi_bus_legacy_add_drive(bus, dinfo->bdrv, unit, false, -1)) {
             res = -1;
             break;
         }
@@ -1367,8 +1370,8 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev)
     SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
     char path[100];
 
-    snprintf(path, sizeof(path), "%s@%d,%d,%d", qdev_fw_name(dev),
-             d->channel, d->id, d->lun);
+    snprintf(path, sizeof(path), "channel@%x/%s@%x,%x", d->channel,
+             qdev_fw_name(dev), d->id, d->lun);
 
     return strdup(path);
 }

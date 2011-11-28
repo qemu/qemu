@@ -1116,6 +1116,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
     /* send a header */
     ret = do_write(s->fd, &hdr, sizeof(hdr));
     if (ret) {
+        qemu_co_mutex_unlock(&s->lock);
         error_report("failed to send a req, %s", strerror(errno));
         return -EIO;
     }
@@ -1123,6 +1124,7 @@ static int coroutine_fn add_aio_request(BDRVSheepdogState *s, AIOReq *aio_req,
     if (wlen) {
         ret = do_writev(s->fd, iov, wlen, aio_req->iov_offset);
         if (ret) {
+            qemu_co_mutex_unlock(&s->lock);
             error_report("failed to send a data, %s", strerror(errno));
             return -EIO;
         }
