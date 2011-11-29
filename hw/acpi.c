@@ -304,7 +304,7 @@ void acpi_pm_tmr_calc_overflow_time(ACPIPMTimer *tmr)
 
 uint32_t acpi_pm_tmr_get(ACPIPMTimer *tmr)
 {
-    uint32_t d = acpi_pm_tmr_get_clock();;
+    uint32_t d = acpi_pm_tmr_get_clock();
     return d & 0xffffff;
 }
 

@@ -1336,7 +1336,7 @@ void HELPER(meeb)(uint32_t f1, uint32_t val)
 uint32_t HELPER(cebr)(uint32_t f1, uint32_t f2)
 {
     float32 v1 = env->fregs[f1].l.upper;
-    float32 v2 = env->fregs[f2].l.upper;;
+    float32 v2 = env->fregs[f2].l.upper;
     HELPER_LOG("%s: comparing 0x%d from f%d and 0x%d\n", __FUNCTION__,
                v1, f1, v2);
     return set_cc_f32(v1, v2);
@@ -1346,7 +1346,7 @@ uint32_t HELPER(cebr)(uint32_t f1, uint32_t f2)
 uint32_t HELPER(cdbr)(uint32_t f1, uint32_t f2)
 {
     float64 v1 = env->fregs[f1].d;
-    float64 v2 = env->fregs[f2].d;;
+    float64 v2 = env->fregs[f2].d;
     HELPER_LOG("%s: comparing 0x%ld from f%d and 0x%ld\n", __FUNCTION__,
                v1, f1, v2);
     return set_cc_f64(v1, v2);

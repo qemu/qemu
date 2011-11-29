@@ -59,7 +59,7 @@ static inline int open_by_handle(int mountfd, const char *fh, int flags)
 static int handle_update_file_cred(int dirfd, const char *name, FsCred *credp)
 {
     int fd, ret;
-    fd = openat(dirfd, name, O_NONBLOCK | O_NOFOLLOW);;
+    fd = openat(dirfd, name, O_NONBLOCK | O_NOFOLLOW);
     if (fd < 0) {
         return fd;
     }

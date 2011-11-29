@@ -89,7 +89,7 @@ TimersState timers_state;
 int64_t cpu_get_icount(void)
 {
     int64_t icount;
-    CPUState *env = cpu_single_env;;
+    CPUState *env = cpu_single_env;
 
     icount = qemu_icount;
     if (env) {
