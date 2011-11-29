@@ -47,6 +47,7 @@
 #include "mc146818rtc.h"
 #include "blockdev.h"
 #include "exec-memory.h"
+#include "sysbus.h"             /* SysBusDevice */
 
 //#define DEBUG_BOARD_INIT
 
@@ -71,6 +72,11 @@ typedef struct {
     char display_text[9];
     SerialState *uart;
 } MaltaFPGAState;
+
+typedef struct {
+    SysBusDevice busdev;
+    qemu_irq *i8259;
+} MaltaState;
 
 static ISADevice *pit;
 
@@ -775,7 +781,7 @@ void mips_malta_init (ram_addr_t ram_size,
     int64_t kernel_entry;
     PCIBus *pci_bus;
     CPUState *env;
-    qemu_irq *i8259 = NULL, *isa_irq;
+    qemu_irq *isa_irq;
     qemu_irq *cpu_exit_irq;
     int piix4_devfn;
     i2c_bus *smbus;
@@ -786,6 +792,11 @@ void mips_malta_init (ram_addr_t ram_size,
     int fl_idx = 0;
     int fl_sectors = 0;
     int be;
+
+    DeviceState *dev = qdev_create(NULL, "mips-malta");
+    MaltaState *s = DO_UPCAST(MaltaState, busdev.qdev, dev);
+
+    qdev_init_nofail(dev);
 
     /* Make sure the first 3 serial ports are associated with a device. */
     for(i = 0; i < 3; i++) {
@@ -932,7 +943,7 @@ void mips_malta_init (ram_addr_t ram_size,
      * qemu_irq_proxy() adds an extra bit of indirection, allowing us
      * to resolve the isa_irq -> i8259 dependency after i8259 is initialized.
      */
-    isa_irq = qemu_irq_proxy(&i8259, 16);
+    isa_irq = qemu_irq_proxy(&s->i8259, 16);
 
     /* Northbridge */
     pci_bus = gt64120_register(isa_irq);
@@ -944,9 +955,9 @@ void mips_malta_init (ram_addr_t ram_size,
 
     /* Interrupt controller */
     /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
-    i8259 = i8259_init(env->irq[2]);
+    s->i8259 = i8259_init(env->irq[2]);
 
-    isa_bus_irqs(i8259);
+    isa_bus_irqs(s->i8259);
     pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
     usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
     smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, isa_get_irq(9),
@@ -990,6 +1001,20 @@ void mips_malta_init (ram_addr_t ram_size,
     }
 }
 
+static int mips_malta_sysbus_device_init(SysBusDevice *sysbusdev)
+{
+    return 0;
+}
+
+static SysBusDeviceInfo mips_malta_device = {
+    .init = mips_malta_sysbus_device_init,
+    .qdev.name  = "mips-malta",
+    .qdev.size  = sizeof(MaltaState),
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
 static QEMUMachine mips_malta_machine = {
     .name = "malta",
     .desc = "MIPS Malta Core LV",
@@ -998,9 +1023,15 @@ static QEMUMachine mips_malta_machine = {
     .is_default = 1,
 };
 
+static void mips_malta_device_init(void)
+{
+    sysbus_register_withprop(&mips_malta_device);
+}
+
 static void mips_malta_machine_init(void)
 {
     qemu_register_machine(&mips_malta_machine);
 }
 
+device_init(mips_malta_device_init);
 machine_init(mips_malta_machine_init);
