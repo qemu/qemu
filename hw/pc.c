@@ -983,7 +983,7 @@ void pc_memory_init(MemoryRegion *system_memory,
     linux_boot = (kernel_filename != NULL);
 
     /* Allocate RAM.  We allocate it as a single memory region and use
-     * aliases to address portions of it, mostly for backwards compatiblity
+     * aliases to address portions of it, mostly for backwards compatibility
      * with older qemus that used qemu_ram_alloc().
      */
     ram = g_malloc(sizeof(*ram));

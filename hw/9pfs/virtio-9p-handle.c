@@ -520,7 +520,7 @@ static int handle_name_to_path(FsContext *ctx, V9fsPath *dir_path,
     }
     fh = g_malloc(sizeof(struct file_handle) + data->handle_bytes);
     fh->handle_bytes = data->handle_bytes;
-    /* add a "./" at the begining of the path */
+    /* add a "./" at the beginning of the path */
     snprintf(buffer, PATH_MAX, "./%s", name);
     /* flag = 0 imply don't follow symlink */
     ret = name_to_handle(dirfd, buffer, fh, &mnt_id, 0);

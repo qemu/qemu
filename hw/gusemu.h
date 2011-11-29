@@ -83,7 +83,7 @@ void gus_dma_transferdata(GUSEmuState *state, char *dma_addr, unsigned int count
 /* it is possible to break down a single transfer into multiple ones, but take care that: */
 /* -dma_count is actually count-1 */
 /* -before and during a transfer, DREQ is set and TC cleared */
-/* -when calling gus_dma_transferdata(), TC is only set true for call transfering the last byte */
+/* -when calling gus_dma_transferdata(), TC is only set true for call transferring the last byte */
 /* -after the last transfer, DREQ is cleared and TC is set */
 
 /* ** GF1 mixer emulation functions: */

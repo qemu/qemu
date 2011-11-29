@@ -826,7 +826,7 @@ typedef struct PCIEAERErrorName {
 } PCIEAERErrorName;
 
 /*
- * AER error name -> value convertion table
+ * AER error name -> value conversion table
  * This naming scheme is same to linux aer-injection tool.
  */
 static const struct PCIEAERErrorName pcie_aer_error_list[] = {

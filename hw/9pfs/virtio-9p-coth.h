@@ -44,7 +44,7 @@ typedef struct V9fsThPool {
                             qemu_coroutine_self());                     \
         qemu_bh_schedule(co_bh);                                        \
         /*                                                              \
-         * yeild in qemu thread and re-enter back                       \
+         * yield in qemu thread and re-enter back                       \
          * in glib worker thread                                        \
          */                                                             \
         qemu_coroutine_yield();                                         \

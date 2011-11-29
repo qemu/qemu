@@ -2,7 +2,7 @@
  * QEMU Alpha DP264/CLIPPER hardware system emulator.
  *
  * Choose CLIPPER IRQ mappings over, say, DP264, MONET, or WEBBRICK
- * variants because CLIPPER doesn't have an SMC669 SuperIO controler
+ * variants because CLIPPER doesn't have an SMC669 SuperIO controller
  * that we need to emulate as well.
  */
 

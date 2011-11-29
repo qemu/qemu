@@ -697,7 +697,7 @@ static uint32_t do_phy_read(lan9118_state *s, int reg)
         return 0x0007;
     case 3: /* ID2 */
         return 0xc0d1;
-    case 4: /* Auto-neg advertisment */
+    case 4: /* Auto-neg advertisement */
         return s->phy_advertise;
     case 5: /* Auto-neg Link Partner Ability */
         return 0x0f71;
@@ -731,7 +731,7 @@ static void do_phy_write(lan9118_state *s, int reg, uint32_t val)
             s->phy_status |= 0x0020;
         }
         break;
-    case 4: /* Auto-neg advertisment */
+    case 4: /* Auto-neg advertisement */
         s->phy_advertise = (val & 0x2d7f) | 0x80;
         break;
         /* TODO 17, 18, 27, 31 */

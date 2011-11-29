@@ -715,7 +715,7 @@ static void OPLCloseTable( void )
 	free(VIB_TABLE);
 }
 
-/* CSM Key Controll */
+/* CSM Key Control */
 INLINE void CSMKeyControll(OPL_CH *CH)
 {
 	OPL_SLOT *slot1 = &CH->SLOT[SLOT1];
@@ -762,7 +762,7 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 
 	switch(r&0xe0)
 	{
-	case 0x00: /* 00-1f:controll */
+	case 0x00: /* 00-1f:control */
 		switch(r&0x1f)
 		{
 		case 0x01:
@@ -826,7 +826,7 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 					LOG(LOG_WAR,("OPL:write unmapped KEYBOARD port\n"));
 			}
 			return;
-		case 0x07:	/* DELTA-T controll : START,REC,MEMDATA,REPT,SPOFF,x,x,RST */
+		case 0x07:	/* DELTA-T control : START,REC,MEMDATA,REPT,SPOFF,x,x,RST */
 			if(OPL->type&OPL_TYPE_ADPCM)
 				YM_DELTAT_ADPCM_Write(OPL->deltat,r-0x07,v);
 			return;
@@ -1380,7 +1380,7 @@ int OPLTimerOver(FM_OPL *OPL,int c)
 	else
 	{	/* Timer A */
 		OPL_STATUS_SET(OPL,0x40);
-		/* CSM mode key,TL controll */
+		/* CSM mode key,TL control */
 		if( OPL->mode & 0x80 )
 		{	/* CSM mode total level latch and auto key on */
 			int ch;

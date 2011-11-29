@@ -42,7 +42,7 @@ typedef struct IB700state {
 
 /* This is the timer.  We use a global here because the watchdog
  * code ensures there is only one watchdog (it is located at a fixed,
- * unchangable IO port, so there could only ever be one anyway).
+ * unchangeable IO port, so there could only ever be one anyway).
  */
 
 /* A write to this register enables the timer. */

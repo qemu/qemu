@@ -311,9 +311,9 @@ static uint64_t pl181_read(void *opaque, target_phys_addr_t offset,
     case 0x48: /* FifoCnt */
         /* The documentation is somewhat vague about exactly what FifoCnt
            does.  On real hardware it appears to be when decrememnted
-           when a word is transfered between the FIFO and the serial
+           when a word is transferred between the FIFO and the serial
            data engine.  DataCnt is decremented after each byte is
-           transfered between the serial engine and the card.
+           transferred between the serial engine and the card.
            We don't emulate this level of detail, so both can be the same.  */
         tmp = (s->datacnt + 3) >> 2;
         if (s->linux_hack) {
