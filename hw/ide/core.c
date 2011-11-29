@@ -2103,7 +2103,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     s->smart_selftest_count = 0;
     if (kind == IDE_CD) {
         bdrv_set_dev_ops(bs, &ide_cd_block_ops, s);
-        bdrv_set_buffer_alignment(bs, 2048);
+        bdrv_set_guest_block_size(bs, 2048);
     } else {
         if (!bdrv_is_inserted(s->bs)) {
             error_report("Device needs media, but drive is empty");
