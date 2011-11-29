@@ -1217,6 +1217,7 @@ static int iscsi_open(BlockDriverState *bs, QDict *options, int flags,
         goto out;
     }
     bs->total_sectors = sector_lun2qemu(iscsilun->num_blocks, iscsilun);
+    bs->request_alignment = iscsilun->block_size;
 
     /* Medium changer or tape. We dont have any emulation for this so this must
      * be sg ioctl compatible. We force it to be sg, otherwise qemu will try
