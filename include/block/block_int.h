@@ -325,6 +325,9 @@ struct BlockDriverState {
     /* Whether produces zeros when read beyond eof */
     bool zero_beyond_eof;
 
+    /* Alignment requirement for offset/length of I/O requests */
+    unsigned int request_alignment;
+
     /* the block size for which the guest device expects atomicity */
     int guest_block_size;
 

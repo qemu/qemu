@@ -852,6 +852,7 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
 
     bs->open_flags = flags;
     bs->guest_block_size = 512;
+    bs->request_alignment = 512;
     bs->zero_beyond_eof = true;
     open_flags = bdrv_open_flags(bs, flags);
     bs->read_only = !(open_flags & BDRV_O_RDWR);
@@ -920,6 +921,8 @@ static int bdrv_open_common(BlockDriverState *bs, BlockDriverState *file,
     }
 
     bdrv_refresh_limits(bs);
+    assert(bdrv_opt_mem_align(bs) != 0);
+    assert(bs->request_alignment != 0);
 
 #ifndef _WIN32
     if (bs->is_temporary) {
