@@ -150,6 +150,7 @@ static void ccid_card_vscard_handle_message(PassthruState *card,
             error_report("ATR size exceeds spec, ignoring");
             ccid_card_vscard_send_error(card, scr_msg_header->reader_id,
                                         VSC_GENERAL_ERROR);
+            break;
         }
         memcpy(card->atr, data, scr_msg_header->length);
         card->atr_length = scr_msg_header->length;

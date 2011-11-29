@@ -254,10 +254,7 @@ void s390_virtio_device_update_status(VirtIOS390Device *dev)
     /* Update guest supported feature bitmap */
 
     features = bswap32(ldl_be_phys(dev->feat_offs));
-    if (vdev->set_features) {
-        vdev->set_features(vdev, features);
-    }
-    vdev->guest_features = features;
+    virtio_set_features(vdev, features);
 }
 
 VirtIOS390Device *s390_virtio_bus_console(VirtIOS390Bus *bus)

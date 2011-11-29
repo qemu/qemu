@@ -128,7 +128,7 @@ static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 }
 
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
-                                      int unit, bool removable);
+                                      int unit, bool removable, int bootindex);
 int scsi_bus_legacy_handle_cmdline(SCSIBus *bus);
 
 /*

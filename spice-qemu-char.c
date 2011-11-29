@@ -69,11 +69,40 @@ static int vmc_read(SpiceCharDeviceInstance *sin, uint8_t *buf, int len)
     return bytes;
 }
 
+static void vmc_state(SpiceCharDeviceInstance *sin, int connected)
+{
+    SpiceCharDriver *scd = container_of(sin, SpiceCharDriver, sin);
+
+#if SPICE_SERVER_VERSION < 0x000901
+    /*
+     * spice-server calls the state callback for the agent channel when the
+     * spice client connects / disconnects. Given that not the client but
+     * the server is doing the parsing of the messages this is wrong as the
+     * server is still listening. Worse, this causes the parser in the server
+     * to go out of sync, so we ignore state calls for subtype vdagent
+     * spicevmc chardevs. For the full story see:
+     * http://lists.freedesktop.org/archives/spice-devel/2011-July/004837.html
+     */
+    if (strcmp(sin->subtype, "vdagent") == 0) {
+        return;
+    }
+#endif
+
+    if ((scd->chr->opened && connected) ||
+        (!scd->chr->opened && !connected)) {
+        return;
+    }
+
+    qemu_chr_be_event(scd->chr,
+                      connected ? CHR_EVENT_OPENED : CHR_EVENT_CLOSED);
+}
+
 static SpiceCharDeviceInterface vmc_interface = {
     .base.type          = SPICE_INTERFACE_CHAR_DEVICE,
     .base.description   = "spice virtual channel char device",
     .base.major_version = SPICE_INTERFACE_CHAR_DEVICE_MAJOR,
     .base.minor_version = SPICE_INTERFACE_CHAR_DEVICE_MINOR,
+    .state              = vmc_state,
     .write              = vmc_write,
     .read               = vmc_read,
 };
@@ -197,7 +226,12 @@ int qemu_chr_open_spice(QemuOpts *opts, CharDriverState **_chr)
     chr->chr_guest_open = spice_chr_guest_open;
     chr->chr_guest_close = spice_chr_guest_close;
 
-    qemu_chr_generic_open(chr);
+#if SPICE_SERVER_VERSION < 0x000901
+    /* See comment in vmc_state() */
+    if (strcmp(subtype, "vdagent") == 0) {
+        qemu_chr_generic_open(chr);
+    }
+#endif
 
     *_chr = chr;
     return 0;

@@ -225,6 +225,10 @@ static int usbredir_write(void *priv, uint8_t *data, int count)
 {
     USBRedirDevice *dev = priv;
 
+    if (!dev->cs->opened) {
+        return 0;
+    }
+
     return qemu_chr_fe_write(dev->cs, data, count);
 }
 
@@ -814,6 +818,8 @@ static int usbredir_initfn(USBDevice *udev)
     /* We'll do the attach once we receive the speed from the usb-host */
     udev->auto_attach = 0;
 
+    /* Let the backend know we are ready */
+    qemu_chr_fe_open(dev->cs);
     qemu_chr_add_handlers(dev->cs, usbredir_chardev_can_read,
                           usbredir_chardev_read, usbredir_chardev_event, dev);
 
@@ -837,6 +843,7 @@ static void usbredir_handle_destroy(USBDevice *udev)
 {
     USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
 
+    qemu_chr_fe_close(dev->cs);
     qemu_chr_delete(dev->cs);
     /* Note must be done after qemu_chr_close, as that causes a close event */
     qemu_bh_delete(dev->open_close_bh);
@@ -878,6 +885,11 @@ static void usbredir_device_connect(void *priv,
 {
     USBRedirDevice *dev = priv;
 
+    if (qemu_timer_pending(dev->attach_timer) || dev->dev.attached) {
+        ERROR("Received device connect while already connected\n");
+        return;
+    }
+
     switch (device_connect->speed) {
     case usb_redir_speed_low:
         DPRINTF("attaching low speed device\n");
@@ -906,18 +918,25 @@ static void usbredir_device_connect(void *priv,
 static void usbredir_device_disconnect(void *priv)
 {
     USBRedirDevice *dev = priv;
+    int i;
 
     /* Stop any pending attaches */
     qemu_del_timer(dev->attach_timer);
 
     if (dev->dev.attached) {
         usb_device_detach(&dev->dev);
-        usbredir_cleanup_device_queues(dev);
         /*
          * Delay next usb device attach to give the guest a chance to see
          * see the detach / attach in case of quick close / open succession
          */
         dev->next_attach_time = qemu_get_clock_ms(vm_clock) + 200;
+    }
+
+    /* Reset state so that the next dev connected starts with a clean slate */
+    usbredir_cleanup_device_queues(dev);
+    memset(dev->endpoint, 0, sizeof(dev->endpoint));
+    for (i = 0; i < MAX_ENDPOINTS; i++) {
+        QTAILQ_INIT(&dev->endpoint[i].bufpq);
     }
 }
 
@@ -1010,6 +1029,10 @@ static void usbredir_iso_stream_status(void *priv, uint32_t id,
     DPRINTF("iso status %d ep %02X id %u\n", iso_stream_status->status,
             ep, id);
 
+    if (!dev->dev.attached) {
+        return;
+    }
+
     dev->endpoint[EP2I(ep)].iso_error = iso_stream_status->status;
     if (iso_stream_status->status == usb_redir_stall) {
         DPRINTF("iso stream stopped by peer ep %02X\n", ep);
@@ -1026,6 +1049,10 @@ static void usbredir_interrupt_receiving_status(void *priv, uint32_t id,
 
     DPRINTF("interrupt recv status %d ep %02X id %u\n",
             interrupt_receiving_status->status, ep, id);
+
+    if (!dev->dev.attached) {
+        return;
+    }
 
     dev->endpoint[EP2I(ep)].interrupt_error =
         interrupt_receiving_status->status;

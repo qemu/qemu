@@ -52,6 +52,7 @@
 #include "qemu-common.h"
 #include "block_int.h"
 #include "module.h"
+#include "migration.h"
 
 #if defined(CONFIG_UUID)
 #include <uuid/uuid.h>
@@ -203,6 +204,8 @@ typedef struct {
     uint32_t bmap_sector;
     /* VDI header (converted to host endianness). */
     VdiHeader header;
+
+    Error *migration_blocker;
 } BDRVVdiState;
 
 /* Change UUID from little endian (IPRT = VirtualBox format) to big endian
@@ -453,6 +456,12 @@ static int vdi_open(BlockDriverState *bs, int flags)
     if (bdrv_read(bs->file, s->bmap_sector, (uint8_t *)s->bmap, bmap_size) < 0) {
         goto fail_free_bmap;
     }
+
+    /* Disable migration when vdi images are used */
+    error_set(&s->migration_blocker,
+              QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+              "vdi", bs->device_name, "live migration");
+    migrate_add_blocker(s->migration_blocker);
 
     return 0;
 
@@ -939,6 +948,12 @@ static int vdi_create(const char *filename, QEMUOptionParameter *options)
 
 static void vdi_close(BlockDriverState *bs)
 {
+    BDRVVdiState *s = bs->opaque;
+
+    g_free(s->bmap);
+
+    migrate_del_blocker(s->migration_blocker);
+    error_free(s->migration_blocker);
 }
 
 static coroutine_fn int vdi_co_flush(BlockDriverState *bs)

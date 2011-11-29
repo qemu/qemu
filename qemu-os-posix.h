@@ -44,7 +44,6 @@ typedef struct timeval qemu_timeval;
 #endif
 #endif
 typedef struct timespec qemu_timespec;
-int qemu_utimensat(int dirfd, const char *path, const qemu_timespec *times,
-    int flags);
+int qemu_utimens(const char *path, const qemu_timespec *times);
 
 #endif

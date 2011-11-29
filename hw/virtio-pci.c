@@ -285,14 +285,9 @@ static void virtio_ioport_write(void *opaque, uint32_t addr, uint32_t val)
     case VIRTIO_PCI_GUEST_FEATURES:
 	/* Guest does not negotiate properly?  We have to assume nothing. */
 	if (val & (1 << VIRTIO_F_BAD_FEATURE)) {
-	    if (vdev->bad_features)
-		val = proxy->host_features & vdev->bad_features(vdev);
-	    else
-		val = 0;
+            val = vdev->bad_features ? vdev->bad_features(vdev) : 0;
 	}
-        if (vdev->set_features)
-            vdev->set_features(vdev, val);
-        vdev->guest_features = val;
+        virtio_set_features(vdev, val);
         break;
     case VIRTIO_PCI_QUEUE_PFN:
         pa = (target_phys_addr_t)val << VIRTIO_PCI_QUEUE_ADDR_SHIFT;

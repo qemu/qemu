@@ -587,6 +587,14 @@ for opt do
   ;;
   --sysconfdir=*) sysconfdir="$optarg"
   ;;
+  --sbindir=*|--libexecdir=*|--sharedstatedir=*|--localstatedir=*|\
+  --oldincludedir=*|--datarootdir=*|--infodir=*|--localedir=*|\
+  --htmldir=*|--dvidir=*|--pdfdir=*|--psdir=*)
+    # These switches are silently ignored, for compatibility with
+    # autoconf-generated configure scripts. This allows QEMU's
+    # configure to be used by RPM and similar macros that set
+    # lots of directory switches by default.
+  ;;
   --disable-sdl) sdl="no"
   ;;
   --enable-sdl) sdl="yes"
@@ -780,8 +788,6 @@ for opt do
   --disable-opengl) opengl="no"
   ;;
   --enable-opengl) opengl="yes"
-  ;;
-  --*dir)
   ;;
   --disable-rbd) rbd="no"
   ;;
@@ -1143,7 +1149,17 @@ fi
 
 if test "$pie" != "no" ; then
   cat > $TMPC << EOF
-int main(void) { return 0; }
+
+#ifdef __linux__
+#  define THREAD __thread
+#else
+#  define THREAD
+#endif
+
+static THREAD int tls_var;
+
+int main(void) { return tls_var; }
+
 EOF
   if compile_prog "-fPIE -DPIE" "-pie"; then
     QEMU_CFLAGS="-fPIE -DPIE $QEMU_CFLAGS"

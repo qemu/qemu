@@ -9,6 +9,7 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
 
 static char *usb_get_dev_path(DeviceState *dev);
 static char *usb_get_fw_dev_path(DeviceState *qdev);
+static int usb_qdev_exit(DeviceState *qdev);
 
 static struct BusInfo usb_bus_info = {
     .name      = "USB",
@@ -75,12 +76,23 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
     dev->auto_attach = 1;
     QLIST_INIT(&dev->strings);
     rc = usb_claim_port(dev);
-    if (rc == 0) {
-        rc = dev->info->init(dev);
+    if (rc != 0) {
+        goto err;
     }
-    if (rc == 0 && dev->auto_attach) {
+    rc = dev->info->init(dev);
+    if (rc != 0) {
+        goto err;
+    }
+    if (dev->auto_attach) {
         rc = usb_device_attach(dev);
+        if (rc != 0) {
+            goto err;
+        }
     }
+    return 0;
+
+err:
+    usb_qdev_exit(qdev);
     return rc;
 }
 
@@ -139,10 +151,17 @@ USBDevice *usb_create(USBBus *bus, const char *name)
 USBDevice *usb_create_simple(USBBus *bus, const char *name)
 {
     USBDevice *dev = usb_create(bus, name);
+    int rc;
+
     if (!dev) {
-        hw_error("Failed to create USB device '%s'\n", name);
+        error_report("Failed to create USB device '%s'\n", name);
+        return NULL;
     }
-    qdev_init_nofail(&dev->qdev);
+    rc = qdev_init(&dev->qdev);
+    if (rc < 0) {
+        error_report("Failed to initialize USB device '%s'\n", name);
+        return NULL;
+    }
     return dev;
 }
 

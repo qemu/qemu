@@ -131,9 +131,7 @@ static void syborg_virtio_writel(void *opaque, target_phys_addr_t offset,
     }
     switch (offset >> 2) {
     case SYBORG_VIRTIO_GUEST_FEATURES:
-        if (vdev->set_features)
-            vdev->set_features(vdev, value);
-        vdev->guest_features = value;
+        virtio_set_features(vdev, value);
         break;
     case SYBORG_VIRTIO_QUEUE_BASE:
         if (value == 0)

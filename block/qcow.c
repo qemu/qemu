@@ -26,6 +26,7 @@
 #include "module.h"
 #include <zlib.h>
 #include "aes.h"
+#include "migration.h"
 
 /**************************************************************/
 /* QEMU COW block driver with compression and encryption support */
@@ -74,6 +75,7 @@ typedef struct BDRVQcowState {
     AES_KEY aes_encrypt_key;
     AES_KEY aes_decrypt_key;
     CoMutex lock;
+    Error *migration_blocker;
 } BDRVQcowState;
 
 static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset);
@@ -159,6 +161,12 @@ static int qcow_open(BlockDriverState *bs, int flags)
             goto fail;
         bs->backing_file[len] = '\0';
     }
+
+    /* Disable migration when qcow images are used */
+    error_set(&s->migration_blocker,
+              QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
+              "qcow", bs->device_name, "live migration");
+    migrate_add_blocker(s->migration_blocker);
 
     qemu_co_mutex_init(&s->lock);
     return 0;
@@ -604,10 +612,14 @@ static int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
 static void qcow_close(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
+
     g_free(s->l1_table);
     g_free(s->l2_cache);
     g_free(s->cluster_cache);
     g_free(s->cluster_data);
+
+    migrate_del_blocker(s->migration_blocker);
+    error_free(s->migration_blocker);
 }
 
 static int qcow_create(const char *filename, QEMUOptionParameter *options)
