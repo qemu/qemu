@@ -1116,7 +1116,7 @@ fi
 
 if test "$pie" = ""; then
   case "$cpu-$targetos" in
-    i386-Linux|x86_64-Linux)
+    i386-Linux|x86_64-Linux|i386-OpenBSD|x86_64-OpenBSD)
       ;;
     *)
       pie="no"
