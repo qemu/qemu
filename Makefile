@@ -168,7 +168,7 @@ check-qjson: check-qjson.o $(qobject-obj-y) $(tools-obj-y)
 test-coroutine: test-coroutine.o qemu-timer-common.o async.o $(coroutine-obj-y) $(tools-obj-y)
 
 $(qapi-obj-y): $(GENERATED_HEADERS)
-qapi-dir := qapi-generated
+qapi-dir := $(BUILD_DIR)/qapi-generated
 test-visitor.o test-qmp-commands.o qemu-ga$(EXESUF): QEMU_CFLAGS += -I $(qapi-dir)
 qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 
