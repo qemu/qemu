@@ -1099,6 +1099,7 @@ struct BdrvTrackedRequest {
     int nb_sectors;
     bool is_write;
     QLIST_ENTRY(BdrvTrackedRequest) list;
+    Coroutine *co; /* owner, used for deadlock detection */
     CoQueue wait_queue; /* coroutines blocked on this request */
 };
 
@@ -1126,6 +1127,7 @@ static void tracked_request_begin(BdrvTrackedRequest *req,
         .sector_num = sector_num,
         .nb_sectors = nb_sectors,
         .is_write = is_write,
+        .co = qemu_coroutine_self(),
     };
 
     qemu_co_queue_init(&req->wait_queue);
@@ -1189,6 +1191,12 @@ static void coroutine_fn wait_for_overlapping_requests(BlockDriverState *bs,
         QLIST_FOREACH(req, &bs->tracked_requests, list) {
             if (tracked_request_overlaps(req, cluster_sector_num,
                                          cluster_nb_sectors)) {
+                /* Hitting this means there was a reentrant request, for
+                 * example, a block driver issuing nested requests.  This must
+                 * never happen since it means deadlock.
+                 */
+                assert(qemu_coroutine_self() != req->co);
+
                 qemu_co_queue_wait(&req->wait_queue);
                 retry = true;
                 break;
