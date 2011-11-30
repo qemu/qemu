@@ -3286,6 +3286,22 @@ for d in libdis libdis-user; do
     echo > $d/config.mak
 done
 
+# use included Linux headers
+if test "$linux" = "yes" ; then
+  mkdir -p linux-headers
+  case "$cpu" in
+  i386|x86_64)
+    symlink $source_path/linux-headers/asm-x86 linux-headers/asm
+    ;;
+  ppcemb|ppc|ppc64)
+    symlink $source_path/linux-headers/asm-powerpc linux-headers/asm
+    ;;
+  s390x)
+    symlink $source_path/linux-headers/asm-s390 linux-headers/asm
+    ;;
+  esac
+fi
+
 for target in $target_list; do
 target_dir="$target"
 config_target_mak=$target_dir/config-target.mak
@@ -3611,6 +3627,10 @@ else
 fi
 includes="-I\$(SRC_PATH)/tcg $includes"
 
+if test "$linux" = "yes" ; then
+  includes="-I\$(SRC_PATH)/linux-headers $includes"
+fi
+
 if test "$target_user_only" = "yes" ; then
     libdis_config_mak=libdis-user/config.mak
 else
@@ -3738,23 +3758,6 @@ if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
     ;;
   *)
     ldflags="$linker_script $ldflags"
-    ;;
-  esac
-fi
-
-# use included Linux headers
-if test "$linux" = "yes" ; then
-  includes="-I\$(SRC_PATH)/linux-headers $includes"
-  mkdir -p linux-headers
-  case "$cpu" in
-  i386|x86_64)
-    symlink $source_path/linux-headers/asm-x86 linux-headers/asm
-    ;;
-  ppcemb|ppc|ppc64)
-    symlink $source_path/linux-headers/asm-powerpc linux-headers/asm
-    ;;
-  s390x)
-    symlink $source_path/linux-headers/asm-s390 linux-headers/asm
     ;;
   esac
 fi
