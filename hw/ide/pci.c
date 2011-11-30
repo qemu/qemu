@@ -309,7 +309,7 @@ void bmdma_cmd_writeb(BMDMAState *bm, uint32_t val)
              * aio operation with preadv/pwritev.
              */
             if (bm->bus->dma->aiocb) {
-                qemu_aio_flush();
+                bdrv_drain_all();
                 assert(bm->bus->dma->aiocb == NULL);
                 assert((bm->status & BM_STATUS_DMAING) == 0);
             }

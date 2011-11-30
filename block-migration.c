@@ -387,7 +387,7 @@ static int mig_save_device_dirty(Monitor *mon, QEMUFile *f,
 
     for (sector = bmds->cur_dirty; sector < bmds->total_sectors;) {
         if (bmds_aio_inflight(bmds, sector)) {
-            qemu_aio_flush();
+            bdrv_drain_all();
         }
         if (bdrv_get_dirty(bmds->bs, sector)) {
 

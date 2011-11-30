@@ -1853,9 +1853,9 @@ int main(int argc, char **argv)
     command_loop();
 
     /*
-     * Make sure all outstanding requests get flushed the program exits.
+     * Make sure all outstanding requests complete before the program exits.
      */
-    qemu_aio_flush();
+    bdrv_drain_all();
 
     if (bs) {
         bdrv_delete(bs);

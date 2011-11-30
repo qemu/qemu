@@ -653,7 +653,7 @@ int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data)
         goto out;
     }
 
-    qemu_aio_flush();
+    bdrv_drain_all();
     bdrv_flush(bs);
 
     bdrv_close(bs);
@@ -840,7 +840,7 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     }
 
     /* quiesce block driver; prevent further io */
-    qemu_aio_flush();
+    bdrv_drain_all();
     bdrv_flush(bs);
     bdrv_close(bs);
 

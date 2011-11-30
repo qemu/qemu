@@ -2104,7 +2104,7 @@ int load_vmstate(const char *name)
     }
 
     /* Flush all IO requests so they don't interfere with the new state.  */
-    qemu_aio_flush();
+    bdrv_drain_all();
 
     bs = NULL;
     while ((bs = bdrv_next(bs))) {

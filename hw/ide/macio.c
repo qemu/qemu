@@ -200,8 +200,9 @@ static void pmac_ide_flush(DBDMA_io *io)
 {
     MACIOIDEState *m = io->opaque;
 
-    if (m->aiocb)
-        qemu_aio_flush();
+    if (m->aiocb) {
+        bdrv_drain_all();
+    }
 }
 
 /* PowerMac IDE memory IO */

@@ -214,6 +214,7 @@ int bdrv_flush(BlockDriverState *bs);
 int coroutine_fn bdrv_co_flush(BlockDriverState *bs);
 void bdrv_flush_all(void);
 void bdrv_close_all(void);
+void bdrv_drain_all(void);
 
 int bdrv_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);
 int bdrv_co_discard(BlockDriverState *bs, int64_t sector_num, int nb_sectors);

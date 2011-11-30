@@ -846,6 +846,25 @@ void bdrv_close_all(void)
     }
 }
 
+/*
+ * Wait for pending requests to complete across all BlockDriverStates
+ *
+ * This function does not flush data to disk, use bdrv_flush_all() for that
+ * after calling this function.
+ */
+void bdrv_drain_all(void)
+{
+    BlockDriverState *bs;
+
+    qemu_aio_flush();
+
+    /* If requests are still pending there is a bug somewhere */
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        assert(QLIST_EMPTY(&bs->tracked_requests));
+        assert(qemu_co_queue_empty(&bs->throttled_reqs));
+    }
+}
+
 /* make a BlockDriverState anonymous by removing from bdrv_state list.
    Also, NULL terminate the device_name to prevent double remove */
 void bdrv_make_anon(BlockDriverState *bs)
