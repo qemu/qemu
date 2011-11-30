@@ -287,10 +287,8 @@ elif check_define __s390__ ; then
   else
     cpu="s390"
   fi
-elif check_define __ARMEB__ ; then
-  cpu="armv4b"
-elif check_define __ARMEL__ ; then
-  cpu="armv4l"
+elif check_define __arm__ ; then
+  cpu="arm"
 elif check_define __hppa__ ; then
   cpu="hppa"
 else
@@ -307,11 +305,8 @@ case "$cpu" in
   x86_64|amd64)
     cpu="x86_64"
   ;;
-  armv*b)
-    cpu="armv4b"
-  ;;
-  armv*l)
-    cpu="armv4l"
+  armv*b|armv*l|arm)
+    cpu="arm"
   ;;
   hppa|parisc|parisc64)
     cpu="hppa"
@@ -1243,7 +1238,13 @@ else
 
 # if cross compiling, cannot launch a program, so make a static guess
 case "$cpu" in
-  armv4b|hppa|m68k|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64)
+  arm)
+    # ARM can be either way; ask the compiler which one we are
+    if check_define __ARMEB__; then
+      bigendian=yes
+    fi
+  ;;
+  hppa|m68k|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64)
     bigendian=yes
   ;;
 esac
@@ -2871,11 +2872,8 @@ echo "docdir=$docdir" >> $config_host_mak
 echo "confdir=$confdir" >> $config_host_mak
 
 case "$cpu" in
-  i386|x86_64|alpha|cris|hppa|ia64|lm32|m68k|microblaze|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64|unicore32)
+  i386|x86_64|alpha|arm|cris|hppa|ia64|lm32|m68k|microblaze|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64|unicore32)
     ARCH=$cpu
-  ;;
-  armv4b|armv4l)
-    ARCH=arm
   ;;
   *)
     if test "$tcg_interpreter" = "yes" ; then
