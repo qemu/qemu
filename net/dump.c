@@ -106,7 +106,7 @@ static int net_dump_init(VLANState *vlan, const char *device,
     DumpState *s;
     int fd;
 
-    fd = open(filename, O_CREAT | O_WRONLY | O_BINARY, 0644);
+    fd = open(filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0644);
     if (fd < 0) {
         error_report("-net dump: can't open %s", filename);
         return -1;
