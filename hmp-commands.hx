@@ -923,7 +923,7 @@ ETEXI
                       "<tlb header> = 32bit x 4\n\t\t\t"
                       "<tlb header prefix> = 32bit x 4",
         .user_print  = pcie_aer_inject_error_print,
-        .mhandler.cmd_new = do_pcie_aer_inejct_error,
+        .mhandler.cmd_new = do_pcie_aer_inject_error,
     },
 
 STEXI
