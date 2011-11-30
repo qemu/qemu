@@ -3570,6 +3570,63 @@ static CPUWriteMemoryFunc * const subpage_write[] = {
     &subpage_writel,
 };
 
+static uint32_t subpage_ram_readb(void *opaque, target_phys_addr_t addr)
+{
+    ram_addr_t raddr = addr;
+    void *ptr = qemu_get_ram_ptr(raddr);
+    return ldub_p(ptr);
+}
+
+static void subpage_ram_writeb(void *opaque, target_phys_addr_t addr,
+                               uint32_t value)
+{
+    ram_addr_t raddr = addr;
+    void *ptr = qemu_get_ram_ptr(raddr);
+    stb_p(ptr, value);
+}
+
+static uint32_t subpage_ram_readw(void *opaque, target_phys_addr_t addr)
+{
+    ram_addr_t raddr = addr;
+    void *ptr = qemu_get_ram_ptr(raddr);
+    return lduw_p(ptr);
+}
+
+static void subpage_ram_writew(void *opaque, target_phys_addr_t addr,
+                               uint32_t value)
+{
+    ram_addr_t raddr = addr;
+    void *ptr = qemu_get_ram_ptr(raddr);
+    stw_p(ptr, value);
+}
+
+static uint32_t subpage_ram_readl(void *opaque, target_phys_addr_t addr)
+{
+    ram_addr_t raddr = addr;
+    void *ptr = qemu_get_ram_ptr(raddr);
+    return ldl_p(ptr);
+}
+
+static void subpage_ram_writel(void *opaque, target_phys_addr_t addr,
+                               uint32_t value)
+{
+    ram_addr_t raddr = addr;
+    void *ptr = qemu_get_ram_ptr(raddr);
+    stl_p(ptr, value);
+}
+
+static CPUReadMemoryFunc * const subpage_ram_read[] = {
+    &subpage_ram_readb,
+    &subpage_ram_readw,
+    &subpage_ram_readl,
+};
+
+static CPUWriteMemoryFunc * const subpage_ram_write[] = {
+    &subpage_ram_writeb,
+    &subpage_ram_writew,
+    &subpage_ram_writel,
+};
+
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              ram_addr_t memory, ram_addr_t region_offset)
 {
@@ -3583,8 +3640,9 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     printf("%s: %p start %08x end %08x idx %08x eidx %08x mem %ld\n", __func__,
            mmio, start, end, idx, eidx, memory);
 #endif
-    if ((memory & ~TARGET_PAGE_MASK) == IO_MEM_RAM)
-        memory = IO_MEM_UNASSIGNED;
+    if ((memory & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
+        memory = IO_MEM_SUBPAGE_RAM;
+    }
     memory = (memory >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
     for (; idx <= eidx; idx++) {
         mmio->sub_io_index[idx] = memory;
@@ -3816,6 +3874,9 @@ static void io_mem_init(void)
                                  DEVICE_NATIVE_ENDIAN);
     cpu_register_io_memory_fixed(IO_MEM_NOTDIRTY, error_mem_read,
                                  notdirty_mem_write, NULL,
+                                 DEVICE_NATIVE_ENDIAN);
+    cpu_register_io_memory_fixed(IO_MEM_SUBPAGE_RAM, subpage_ram_read,
+                                 subpage_ram_write, NULL,
                                  DEVICE_NATIVE_ENDIAN);
     for (i=0; i<5; i++)
         io_mem_used[i] = 1;
