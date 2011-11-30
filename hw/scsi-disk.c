@@ -217,9 +217,6 @@ static void scsi_read_data(SCSIRequest *req)
     bdrv_acct_start(s->qdev.conf.bs, &r->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
     r->req.aiocb = bdrv_aio_readv(s->qdev.conf.bs, r->sector, &r->qiov, n,
                               scsi_read_complete, r);
-    if (r->req.aiocb == NULL) {
-        scsi_read_complete(r, -EIO);
-    }
 }
 
 /*
@@ -327,9 +324,6 @@ static void scsi_write_data(SCSIRequest *req)
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_WRITE);
         r->req.aiocb = bdrv_aio_writev(s->qdev.conf.bs, r->sector, &r->qiov, n,
                                        scsi_write_complete, r);
-        if (r->req.aiocb == NULL) {
-            scsi_write_complete(r, -ENOMEM);
-        }
     } else {
         /* Called for the first time.  Ask the driver to send us more data.  */
         scsi_write_complete(r, 0);
@@ -1332,9 +1326,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         scsi_req_ref(&r->req);
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
         r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_flush_complete, r);
-        if (r->req.aiocb == NULL) {
-            scsi_flush_complete(r, -EIO);
-        }
         return 0;
     case READ_6:
     case READ_10:

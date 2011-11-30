@@ -633,10 +633,6 @@ static void vdi_aio_read_cb(void *opaque, int ret)
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_readv(bs->file, offset, &acb->hd_qiov,
                                        n_sectors, vdi_aio_read_cb, acb);
-        if (acb->hd_aiocb == NULL) {
-            ret = -EIO;
-            goto done;
-        }
     }
     return;
 done:
@@ -708,10 +704,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
             qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
             acb->hd_aiocb = bdrv_aio_writev(bs->file, 0, &acb->hd_qiov, 1,
                                             vdi_aio_write_cb, acb);
-            if (acb->hd_aiocb == NULL) {
-                ret = -EIO;
-                goto done;
-            }
             return;
         } else if (VDI_IS_ALLOCATED(acb->bmap_first)) {
             /* One or more new blocks were allocated. */
@@ -738,10 +730,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
                    n_sectors, bmap_first);
             acb->hd_aiocb = bdrv_aio_writev(bs->file, offset, &acb->hd_qiov,
                                             n_sectors, vdi_aio_write_cb, acb);
-            if (acb->hd_aiocb == NULL) {
-                ret = -EIO;
-                goto done;
-            }
             return;
         }
         ret = 0;
@@ -789,10 +777,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         acb->hd_aiocb = bdrv_aio_writev(bs->file, offset,
                                         &acb->hd_qiov, s->block_sectors,
                                         vdi_aio_write_cb, acb);
-        if (acb->hd_aiocb == NULL) {
-            ret = -EIO;
-            goto done;
-        }
     } else {
         uint64_t offset = s->header.offset_data / SECTOR_SIZE +
                           (uint64_t)bmap_entry * s->block_sectors +
@@ -802,10 +786,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_writev(bs->file, offset, &acb->hd_qiov,
                                         n_sectors, vdi_aio_write_cb, acb);
-        if (acb->hd_aiocb == NULL) {
-            ret = -EIO;
-            goto done;
-        }
     }
 
     return;

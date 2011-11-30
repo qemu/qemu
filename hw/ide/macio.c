@@ -84,13 +84,6 @@ static void pmac_ide_atapi_transfer_cb(void *opaque, int ret)
     m->aiocb = dma_bdrv_read(s->bs, &s->sg,
                              (int64_t)(s->lba << 2) + (s->io_buffer_index >> 9),
                              pmac_ide_atapi_transfer_cb, io);
-    if (!m->aiocb) {
-        qemu_sglist_destroy(&s->sg);
-        /* Note: media not present is the most likely case */
-        ide_atapi_cmd_error(s, NOT_READY,
-                            ASC_MEDIUM_NOT_PRESENT);
-        goto done;
-    }
     return;
 
 done:

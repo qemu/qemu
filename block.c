@@ -2812,7 +2812,6 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
  */
 int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
 {
-    BlockDriverAIOCB *acb;
     MultiwriteCB *mcb;
     int i;
 
@@ -2867,35 +2866,14 @@ int bdrv_aio_multiwrite(BlockDriverState *bs, BlockRequest *reqs, int num_reqs)
     // Run the aio requests
     for (i = 0; i < num_reqs; i++) {
         mcb->num_requests++;
-        acb = bdrv_aio_writev(bs, reqs[i].sector, reqs[i].qiov,
+        bdrv_aio_writev(bs, reqs[i].sector, reqs[i].qiov,
             reqs[i].nb_sectors, multiwrite_cb, mcb);
-
-        if (acb == NULL) {
-            // We can only fail the whole thing if no request has been
-            // submitted yet. Otherwise we'll wait for the submitted AIOs to
-            // complete and report the error in the callback.
-            if (i == 0) {
-                trace_bdrv_aio_multiwrite_earlyfail(mcb);
-                goto fail;
-            } else {
-                trace_bdrv_aio_multiwrite_latefail(mcb, i);
-                multiwrite_cb(mcb, -EIO);
-                break;
-            }
-        }
     }
 
     /* Complete the dummy request */
     multiwrite_cb(mcb, 0);
 
     return 0;
-
-fail:
-    for (i = 0; i < mcb->num_callbacks; i++) {
-        reqs[i].error = -EIO;
-    }
-    g_free(mcb);
-    return -1;
 }
 
 void bdrv_aio_cancel(BlockDriverAIOCB *acb)

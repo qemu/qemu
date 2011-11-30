@@ -251,22 +251,12 @@ static int mig_save_device_bulk(Monitor *mon, QEMUFile *f,
 
     blk->aiocb = bdrv_aio_readv(bs, cur_sector, &blk->qiov,
                                 nr_sectors, blk_mig_read_cb, blk);
-    if (!blk->aiocb) {
-        goto error;
-    }
     block_mig_state.submitted++;
 
     bdrv_reset_dirty(bs, cur_sector, nr_sectors);
     bmds->cur_sector = cur_sector + nr_sectors;
 
     return (bmds->cur_sector >= total_sectors);
-
-error:
-    monitor_printf(mon, "Error reading sector %" PRId64 "\n", cur_sector);
-    qemu_file_set_error(f, -EIO);
-    g_free(blk->buf);
-    g_free(blk);
-    return 0;
 }
 
 static void set_dirty_tracking(int enable)
@@ -413,9 +403,6 @@ static int mig_save_device_dirty(Monitor *mon, QEMUFile *f,
 
                 blk->aiocb = bdrv_aio_readv(bmds->bs, sector, &blk->qiov,
                                             nr_sectors, blk_mig_read_cb, blk);
-                if (!blk->aiocb) {
-                    goto error;
-                }
                 block_mig_state.submitted++;
                 bmds_set_aio_inflight(bmds, sector, nr_sectors, 1);
             } else {

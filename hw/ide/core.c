@@ -718,18 +718,13 @@ static void ide_flush_cb(void *opaque, int ret)
 
 void ide_flush_cache(IDEState *s)
 {
-    BlockDriverAIOCB *acb;
-
     if (s->bs == NULL) {
         ide_flush_cb(s, 0);
         return;
     }
 
     bdrv_acct_start(s->bs, &s->acct, 0, BDRV_ACCT_FLUSH);
-    acb = bdrv_aio_flush(s->bs, ide_flush_cb, s);
-    if (acb == NULL) {
-        ide_flush_cb(s, -EIO);
-    }
+    bdrv_aio_flush(s->bs, ide_flush_cb, s);
 }
 
 static void ide_cfata_metadata_inquiry(IDEState *s)
