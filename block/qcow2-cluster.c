@@ -289,12 +289,15 @@ void qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
     }
 }
 
-static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
-                        uint64_t cluster_offset, int n_start, int n_end)
+static int coroutine_fn copy_sectors(BlockDriverState *bs,
+                                     uint64_t start_sect,
+                                     uint64_t cluster_offset,
+                                     int n_start, int n_end)
 {
     BDRVQcowState *s = bs->opaque;
+    QEMUIOVector qiov;
+    struct iovec iov;
     int n, ret;
-    void *buf;
 
     /*
      * If this is the last cluster and it is only partially used, we must only
@@ -310,29 +313,37 @@ static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
         return 0;
     }
 
-    buf = qemu_blockalign(bs, n * BDRV_SECTOR_SIZE);
+    iov.iov_len = n * BDRV_SECTOR_SIZE;
+    iov.iov_base = qemu_blockalign(bs, iov.iov_len);
+
+    qemu_iovec_init_external(&qiov, &iov, 1);
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_READ);
-    ret = bdrv_read(bs, start_sect + n_start, buf, n);
+
+    /* Call .bdrv_co_readv() directly instead of using the public block-layer
+     * interface.  This avoids double I/O throttling and request tracking,
+     * which can lead to deadlock when block layer copy-on-read is enabled.
+     */
+    ret = bs->drv->bdrv_co_readv(bs, start_sect + n_start, n, &qiov);
     if (ret < 0) {
         goto out;
     }
 
     if (s->crypt_method) {
         qcow2_encrypt_sectors(s, start_sect + n_start,
-                        buf, buf, n, 1,
+                        iov.iov_base, iov.iov_base, n, 1,
                         &s->aes_encrypt_key);
     }
 
     BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
-    ret = bdrv_write(bs->file, (cluster_offset >> 9) + n_start, buf, n);
+    ret = bdrv_co_writev(bs->file, (cluster_offset >> 9) + n_start, n, &qiov);
     if (ret < 0) {
         goto out;
     }
 
     ret = 0;
 out:
-    qemu_vfree(buf);
+    qemu_vfree(iov.iov_base);
     return ret;
 }
 
