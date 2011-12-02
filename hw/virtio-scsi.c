@@ -237,6 +237,34 @@ static VirtIOSCSIReq *virtio_scsi_pop_req(VirtIOSCSI *s, VirtQueue *vq)
     return req;
 }
 
+static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
+{
+    VirtIOSCSIReq *req = sreq->hba_private;
+
+    qemu_put_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
+}
+
+static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
+{
+    SCSIBus *bus = sreq->bus;
+    VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
+    VirtIOSCSIReq *req;
+
+    req = g_malloc(sizeof(*req));
+    qemu_get_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
+    virtio_scsi_parse_req(s, s->cmd_vq, req);
+
+    scsi_req_ref(sreq);
+    req->sreq = sreq;
+    if (req->sreq->cmd.mode != SCSI_XFER_NONE) {
+        int req_mode =
+            (req->elem.in_num > 1 ? SCSI_XFER_FROM_DEV : SCSI_XFER_TO_DEV);
+
+        assert(req->sreq->cmd.mode == req_mode);
+    }
+    return req;
+}
+
 static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
     SCSIDevice *d = virtio_scsi_device_find(s, req->req.tmf->lun);
@@ -518,6 +546,22 @@ static void virtio_scsi_reset(VirtIODevice *vdev)
     s->cdb_size = VIRTIO_SCSI_CDB_SIZE;
 }
 
+/* The device does not have anything to save beyond the virtio data.
+ * Request data is saved with callbacks from SCSI devices.
+ */
+static void virtio_scsi_save(QEMUFile *f, void *opaque)
+{
+    VirtIOSCSI *s = opaque;
+    virtio_save(&s->vdev, f);
+}
+
+static int virtio_scsi_load(QEMUFile *f, void *opaque, int version_id)
+{
+    VirtIOSCSI *s = opaque;
+    virtio_load(&s->vdev, f);
+    return 0;
+}
+
 static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .tcq = true,
     .max_channel = VIRTIO_SCSI_MAX_CHANNEL,
@@ -527,11 +571,14 @@ static struct SCSIBusInfo virtio_scsi_scsi_info = {
     .complete = virtio_scsi_command_complete,
     .cancel = virtio_scsi_request_cancelled,
     .get_sg_list = virtio_scsi_get_sg_list,
+    .save_request = virtio_scsi_save_request,
+    .load_request = virtio_scsi_load_request,
 };
 
 VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *proxyconf)
 {
     VirtIOSCSI *s;
+    static int virtio_scsi_id;
 
     s = (VirtIOSCSI *)virtio_common_init("virtio-scsi", VIRTIO_ID_SCSI,
                                          sizeof(VirtIOSCSIConfig),
@@ -558,7 +605,8 @@ VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *proxyconf)
         scsi_bus_legacy_handle_cmdline(&s->bus);
     }
 
-    /* TODO savevm */
+    register_savevm(dev, "virtio-scsi", virtio_scsi_id++, 1,
+                    virtio_scsi_save, virtio_scsi_load, s);
 
     return &s->vdev;
 }
