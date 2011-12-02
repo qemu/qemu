@@ -5,7 +5,7 @@
  *
  * FB support code. Based on G364 fb emulator
  *
- * Copyright (c) 2007 Hervé Poussineau
+ * Copyright (c) 2007 HervÃ© Poussineau
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as

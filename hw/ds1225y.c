@@ -1,7 +1,7 @@
 /*
  * QEMU NVRAM emulation for DS1225Y chip
  *
- * Copyright (c) 2007-2008 Hervé Poussineau
+ * Copyright (c) 2007-2008 HervÃ© Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
