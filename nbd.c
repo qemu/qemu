@@ -358,6 +358,15 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
 #ifdef __linux__
 int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
 {
+    TRACE("Setting NBD socket");
+
+    if (ioctl(fd, NBD_SET_SOCK, csock) == -1) {
+        int serrno = errno;
+        LOG("Failed to set NBD socket");
+        errno = serrno;
+        return -1;
+    }
+
     TRACE("Setting block size to %lu", (unsigned long)blocksize);
 
     if (ioctl(fd, NBD_SET_BLKSIZE, blocksize) == -1) {
@@ -392,24 +401,6 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
         && errno != ENOTTY) {
         int serrno = errno;
         LOG("Failed setting flags");
-        errno = serrno;
-        return -1;
-    }
-
-    TRACE("Clearing NBD socket");
-
-    if (ioctl(fd, NBD_CLEAR_SOCK) == -1) {
-        int serrno = errno;
-        LOG("Failed clearing NBD socket");
-        errno = serrno;
-        return -1;
-    }
-
-    TRACE("Setting NBD socket");
-
-    if (ioctl(fd, NBD_SET_SOCK, csock) == -1) {
-        int serrno = errno;
-        LOG("Failed to set NBD socket");
         errno = serrno;
         return -1;
     }
