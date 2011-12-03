@@ -124,6 +124,9 @@ common-obj-$(CONFIG_WIN32) += version.o
 
 common-obj-$(CONFIG_SPICE) += ui/spice-core.o ui/spice-input.o ui/spice-display.o spice-qemu-char.o
 
+include $(SRC_PATH)/qom/Makefile
+common-obj-y += $(addprefix qom/, $(qom-y))
+
 audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
 audio-obj-$(CONFIG_SDL) += sdlaudio.o
 audio-obj-$(CONFIG_OSS) += ossaudio.o

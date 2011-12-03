@@ -11,6 +11,7 @@ $(call set-vpath, $(SRC_PATH):$(SRC_PATH)/hw)
 
 QEMU_CFLAGS+=-I..
 QEMU_CFLAGS += $(GLIB_CFLAGS)
+QEMU_CFLAGS += -I$(SRC_PATH)/include
 
 include $(SRC_PATH)/Makefile.objs
 

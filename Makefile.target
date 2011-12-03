@@ -22,6 +22,8 @@ QEMU_CFLAGS += -I.. -I$(TARGET_PATH) -DNEED_CPU_H
 
 include $(SRC_PATH)/Makefile.objs
 
+QEMU_CFLAGS+=-I$(SRC_PATH)/include
+
 ifdef CONFIG_USER_ONLY
 # user emulator name
 QEMU_PROG=qemu-$(TARGET_ARCH2)
