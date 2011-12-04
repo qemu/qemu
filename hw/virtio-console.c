@@ -109,10 +109,9 @@ static void chr_event(void *opaque, int event)
 static int virtconsole_initfn(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
-    VirtIOSerialPortInfo *info = DO_UPCAST(VirtIOSerialPortInfo, qdev,
-                                           qdev_get_info(&vcon->port.dev));
+    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_GET_CLASS(port);
 
-    if (port->id == 0 && !info->is_console) {
+    if (port->id == 0 && !k->is_console) {
         error_report("Port number 0 on virtio-serial devices reserved for virtconsole devices for backward compatibility.");
         return -1;
     }
@@ -125,18 +124,27 @@ static int virtconsole_initfn(VirtIOSerialPort *port)
     return 0;
 }
 
-static VirtIOSerialPortInfo virtconsole_info = {
-    .qdev.name     = "virtconsole",
-    .qdev.size     = sizeof(VirtConsole),
-    .is_console    = true,
-    .init          = virtconsole_initfn,
-    .have_data     = flush_buf,
-    .guest_open    = guest_open,
-    .guest_close   = guest_close,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_CHR("chardev", VirtConsole, chr),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property virtconsole_properties[] = {
+    DEFINE_PROP_CHR("chardev", VirtConsole, chr),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtconsole_class_init(ObjectClass *klass, void *data)
+{
+    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
+
+    k->is_console = true;
+    k->init = virtconsole_initfn;
+    k->have_data = flush_buf;
+    k->guest_open = guest_open;
+    k->guest_close = guest_close;
+}
+
+static DeviceInfo virtconsole_info = {
+    .name = "virtconsole",
+    .size = sizeof(VirtConsole),
+    .props = virtconsole_properties,
+    .class_init = virtconsole_class_init,
 };
 
 static void virtconsole_register(void)
@@ -145,17 +153,26 @@ static void virtconsole_register(void)
 }
 device_init(virtconsole_register)
 
-static VirtIOSerialPortInfo virtserialport_info = {
-    .qdev.name     = "virtserialport",
-    .qdev.size     = sizeof(VirtConsole),
-    .init          = virtconsole_initfn,
-    .have_data     = flush_buf,
-    .guest_open    = guest_open,
-    .guest_close   = guest_close,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_CHR("chardev", VirtConsole, chr),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property virtserialport_properties[] = {
+    DEFINE_PROP_CHR("chardev", VirtConsole, chr),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtserialport_class_init(ObjectClass *klass, void *data)
+{
+    VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
+
+    k->init = virtconsole_initfn;
+    k->have_data = flush_buf;
+    k->guest_open = guest_open;
+    k->guest_close = guest_close;
+}
+
+static DeviceInfo virtserialport_info = {
+    .name = "virtserialport",
+    .size = sizeof(VirtConsole),
+    .props = virtserialport_properties,
+    .class_init = virtserialport_class_init,
 };
 
 static void virtserialport_register(void)
