@@ -235,6 +235,11 @@ static const QErrorStringTable qerror_table[] = {
                      "supported by this qemu version: %(feature)",
     },
     {
+        .error_fmt = QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
+        .desc      = "Migration is disabled when VirtFS export path '%(path)' "
+                     "is mounted in the guest using mount_tag '%(tag)'",
+    },
+    {
         .error_fmt = QERR_VNC_SERVER_FAILED,
         .desc      = "Could not start VNC server on %(target)",
     },

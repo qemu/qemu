@@ -246,8 +246,7 @@ typedef struct V9fsState
     V9fsFidState *fid_list;
     FileOperations *ops;
     FsContext ctx;
-    uint16_t tag_len;
-    uint8_t *tag;
+    char *tag;
     size_t config_size;
     enum p9_proto_version proto_version;
     int32_t msize;
@@ -256,6 +255,8 @@ typedef struct V9fsState
      * on rename.
      */
     CoRwlock rename_lock;
+    int32_t root_fid;
+    Error *migration_blocker;
 } V9fsState;
 
 typedef struct V9fsStatState {
