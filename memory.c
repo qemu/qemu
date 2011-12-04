@@ -1345,6 +1345,20 @@ void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr)
     memory_region_transaction_commit();
 }
 
+void memory_region_set_alias_offset(MemoryRegion *mr, target_phys_addr_t offset)
+{
+    target_phys_addr_t old_offset = mr->alias_offset;
+
+    assert(mr->alias);
+    mr->alias_offset = offset;
+
+    if (offset == old_offset || !mr->parent) {
+        return;
+    }
+
+    memory_region_update_topology(mr);
+}
+
 void set_system_memory_map(MemoryRegion *mr)
 {
     address_space_memory.root = mr;

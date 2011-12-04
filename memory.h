@@ -529,6 +529,18 @@ void memory_region_set_enabled(MemoryRegion *mr, bool enabled);
  */
 void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr);
 
+/*
+ * memory_region_set_alias_offset: dynamically update a memory alias's offset
+ *
+ * Dynamically updates the offset into the target region that an alias points
+ * to, as if the fourth argument to memory_region_init_alias() has changed.
+ *
+ * @mr: the #MemoryRegion to be updated; should be an alias.
+ * @offset: the new offset into the target memory region
+ */
+void memory_region_set_alias_offset(MemoryRegion *mr,
+                                    target_phys_addr_t offset);
+
 /* Start a transaction; changes will be accumulated and made visible only
  * when the transaction ends.
  */
