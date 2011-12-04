@@ -23,7 +23,9 @@ static QTAILQ_HEAD(FsDriverEntry_head, FsDriverListEntry) fsdriver_entries =
 
 static FsDriverTable FsDrivers[] = {
     { .name = "local", .ops = &local_ops},
+#ifdef CONFIG_OPEN_BY_HANDLE
     { .name = "handle", .ops = &handle_ops},
+#endif
     { .name = "synth", .ops = &synth_ops},
 };
 
