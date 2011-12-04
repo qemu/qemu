@@ -717,7 +717,7 @@ static int sysbus_open_eth_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     s->nic = qemu_new_nic(&net_open_eth_info, &s->conf,
-                          qdev_get_info(&s->dev.qdev)->name, s->dev.qdev.id, s);
+                          object_get_typename(OBJECT(s)), s->dev.qdev.id, s);
     return 0;
 }
 

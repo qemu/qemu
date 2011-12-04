@@ -1878,7 +1878,7 @@ static int e100_nic_init(PCIDevice *pci_dev)
     nic_reset(s);
 
     s->nic = qemu_new_nic(&net_eepro100_info, &s->conf,
-                          qdev_get_info(&pci_dev->qdev)->name, pci_dev->qdev.id, s);
+                          object_get_typename(OBJECT(pci_dev)), pci_dev->qdev.id, s);
 
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     TRACE(OTHER, logout("%s\n", s->nic->nc.info_str));

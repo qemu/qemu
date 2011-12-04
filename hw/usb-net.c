@@ -1337,7 +1337,7 @@ static int usb_net_initfn(USBDevice *dev)
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_usbnet_info, &s->conf,
-                          qdev_get_info(&s->dev.qdev)->name, s->dev.qdev.id, s);
+                          object_get_typename(OBJECT(s)), s->dev.qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     snprintf(s->usbstring_mac, sizeof(s->usbstring_mac),
              "%02x%02x%02x%02x%02x%02x",

@@ -403,7 +403,7 @@ static inline const char *qdev_fw_name(DeviceState *dev)
         return info->alias;
     }
 
-    return info->name;
+    return object_get_typename(OBJECT(dev));
 }
 
 char *qdev_get_fw_dev_path(DeviceState *dev);

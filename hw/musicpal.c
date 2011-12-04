@@ -387,7 +387,7 @@ static int mv88w8618_eth_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
     s->nic = qemu_new_nic(&net_mv88w8618_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
     memory_region_init_io(&s->iomem, &mv88w8618_eth_ops, s, "mv88w8618-eth",
                           MP_ETH_SIZE);
     sysbus_init_mmio(dev, &s->iomem);

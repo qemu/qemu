@@ -189,7 +189,7 @@ static int spapr_vlan_init(VIOsPAPRDevice *sdev)
     qemu_macaddr_default_if_unset(&dev->nicconf.macaddr);
 
     dev->nic = qemu_new_nic(&net_spapr_vlan_info, &dev->nicconf,
-                            sdev->qdev.info->name, sdev->qdev.id, dev);
+                            object_get_typename(OBJECT(sdev)), sdev->qdev.id, dev);
     qemu_format_nic_info_str(&dev->nic->nc, dev->nicconf.macaddr.a);
 
     return 0;

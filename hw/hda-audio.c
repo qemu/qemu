@@ -777,7 +777,7 @@ static int hda_audio_init(HDACodecDevice *hda, const struct desc_codec *desc)
     uint32_t i, type;
 
     a->desc = desc;
-    a->name = qdev_get_info(&a->hda.qdev)->name;
+    a->name = object_get_typename(OBJECT(a));
     dprint(a, 1, "%s: cad %d\n", __FUNCTION__, a->hda.cad);
 
     AUD_register_card("hda", &a->card);

@@ -1777,7 +1777,7 @@ static int usb_ohci_init(OHCIState *ohci, DeviceState *dev,
     memory_region_init_io(&ohci->mem, &ohci_mem_ops, ohci, "ohci", 256);
     ohci->localmem_base = localmem_base;
 
-    ohci->name = qdev_get_info(dev)->name;
+    ohci->name = object_get_typename(OBJECT(dev));
     usb_packet_init(&ohci->usb_packet);
 
     ohci->async_td = 0;

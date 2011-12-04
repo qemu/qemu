@@ -1129,7 +1129,7 @@ static int intel_hda_init(PCIDevice *pci)
     IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
     uint8_t *conf = d->pci.config;
 
-    d->name = qdev_get_info(&d->pci.qdev)->name;
+    d->name = object_get_typename(OBJECT(d));
 
     pci_config_set_interrupt_pin(conf, 1);
 

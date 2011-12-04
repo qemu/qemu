@@ -1493,7 +1493,7 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     if (pci_dev == NULL)
         return -1;
     if (qdev->hotplugged && info->no_hotplug) {
-        qerror_report(QERR_DEVICE_NO_HOTPLUG, info->qdev.name);
+        qerror_report(QERR_DEVICE_NO_HOTPLUG, object_get_typename(OBJECT(pci_dev)));
         do_pci_unregister_device(pci_dev);
         return -1;
     }
@@ -1534,7 +1534,7 @@ static int pci_unplug_device(DeviceState *qdev)
     PCIDeviceInfo *info = container_of(qdev_get_info(qdev), PCIDeviceInfo, qdev);
 
     if (info->no_hotplug) {
-        qerror_report(QERR_DEVICE_NO_HOTPLUG, info->qdev.name);
+        qerror_report(QERR_DEVICE_NO_HOTPLUG, object_get_typename(OBJECT(dev)));
         return -1;
     }
     return dev->bus->hotplug(dev->bus->hotplug_qdev, dev,
@@ -1742,7 +1742,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     if (qdev_get_info(&pdev->qdev)->vmsd)
         snprintf(name, sizeof(name), "%s.rom", qdev_get_info(&pdev->qdev)->vmsd->name);
     else
-        snprintf(name, sizeof(name), "%s.rom", qdev_get_info(&pdev->qdev)->name);
+        snprintf(name, sizeof(name), "%s.rom", object_get_typename(OBJECT(pdev)));
     pdev->has_rom = true;
     memory_region_init_ram(&pdev->rom, name, size);
     vmstate_register_ram(&pdev->rom, &pdev->qdev);
