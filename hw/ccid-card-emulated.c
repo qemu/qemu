@@ -564,16 +564,23 @@ static int emulated_exitfn(CCIDCardState *base)
     return 0;
 }
 
-static CCIDCardInfo emulated_card_info = {
-    .qdev.name = EMULATED_DEV_NAME,
-    .qdev.desc = "emulated smartcard",
-    .qdev.size = sizeof(EmulatedState),
-    .initfn = emulated_initfn,
-    .exitfn = emulated_exitfn,
-    .get_atr = emulated_get_atr,
-    .apdu_from_guest = emulated_apdu_from_guest,
-    .qdev.unplug    = qdev_simple_unplug_cb,
-    .qdev.props     = (Property[]) {
+static void emulated_class_initfn(ObjectClass *klass, void *data)
+{
+    CCIDCardClass *cc = CCID_CARD_CLASS(klass);
+
+    cc->initfn = emulated_initfn;
+    cc->exitfn = emulated_exitfn;
+    cc->get_atr = emulated_get_atr;
+    cc->apdu_from_guest = emulated_apdu_from_guest;
+}
+
+static DeviceInfo emulated_card_info = {
+    .name = EMULATED_DEV_NAME,
+    .desc = "emulated smartcard",
+    .size = sizeof(EmulatedState),
+    .unplug    = qdev_simple_unplug_cb,
+    .class_init = emulated_class_initfn,
+    .props     = (Property[]) {
         DEFINE_PROP_STRING("backend", EmulatedState, backend_str),
         DEFINE_PROP_STRING("cert1", EmulatedState, cert1),
         DEFINE_PROP_STRING("cert2", EmulatedState, cert2),
