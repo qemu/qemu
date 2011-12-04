@@ -176,7 +176,8 @@ static PCIDeviceInfo virtio_9p_info = {
         DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
         DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
         DEFINE_PROP_END_OF_LIST(),
-    }
+    },
+    .qdev.reset = virtio_pci_reset,
 };
 
 static void virtio_9p_register_devices(void)
