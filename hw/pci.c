@@ -159,11 +159,8 @@ void pci_device_deassert_intx(PCIDevice *dev)
 void pci_device_reset(PCIDevice *dev)
 {
     int r;
-    /* TODO: call the below unconditionally once all pci devices
-     * are qdevified */
-    if (dev->qdev.info) {
-        qdev_reset_all(&dev->qdev);
-    }
+
+    qdev_reset_all(&dev->qdev);
 
     dev->irq_state = 0;
     pci_update_irq_status(dev);
