@@ -166,7 +166,7 @@ static int v9fs_synth_lstat(FsContext *fs_ctx,
     return 0;
 }
 
-static int v9fs_synth_fstat(FsContext *fs_ctx,
+static int v9fs_synth_fstat(FsContext *fs_ctx, int fid_type,
                             V9fsFidOpenState *fs, struct stat *stbuf)
 {
     V9fsSynthOpenState *synth_open = fs->private;
@@ -414,7 +414,8 @@ static int v9fs_synth_remove(FsContext *ctx, const char *path)
     return -1;
 }
 
-static int v9fs_synth_fsync(FsContext *ctx, V9fsFidOpenState *fs, int datasync)
+static int v9fs_synth_fsync(FsContext *ctx, int fid_type,
+                            V9fsFidOpenState *fs, int datasync)
 {
     errno = ENOSYS;
     return 0;

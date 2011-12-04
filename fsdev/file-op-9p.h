@@ -112,10 +112,10 @@ typedef struct FileOperations
     ssize_t (*pwritev)(FsContext *, V9fsFidOpenState *,
                        const struct iovec *, int, off_t);
     int (*mkdir)(FsContext *, V9fsPath *, const char *, FsCred *);
-    int (*fstat)(FsContext *, V9fsFidOpenState *, struct stat *);
+    int (*fstat)(FsContext *, int, V9fsFidOpenState *, struct stat *);
     int (*rename)(FsContext *, const char *, const char *);
     int (*truncate)(FsContext *, V9fsPath *, off_t);
-    int (*fsync)(FsContext *, V9fsFidOpenState *, int);
+    int (*fsync)(FsContext *, int, V9fsFidOpenState *, int);
     int (*statfs)(FsContext *s, V9fsPath *path, struct statfs *stbuf);
     ssize_t (*lgetxattr)(FsContext *, V9fsPath *,
                          const char *, void *, size_t);

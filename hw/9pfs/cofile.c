@@ -71,7 +71,7 @@ int v9fs_co_fstat(V9fsPDU *pdu, V9fsFidState *fidp, struct stat *stbuf)
     }
     v9fs_co_run_in_worker(
         {
-            err = s->ops->fstat(&s->ctx, &fidp->fs, stbuf);
+            err = s->ops->fstat(&s->ctx, fidp->fid_type, &fidp->fs, stbuf);
             if (err < 0) {
                 err = -errno;
             }
@@ -192,7 +192,7 @@ int v9fs_co_fsync(V9fsPDU *pdu, V9fsFidState *fidp, int datasync)
     }
     v9fs_co_run_in_worker(
         {
-            err = s->ops->fsync(&s->ctx, &fidp->fs, datasync);
+            err = s->ops->fsync(&s->ctx, fidp->fid_type, &fidp->fs, datasync);
             if (err < 0) {
                 err = -errno;
             }
