@@ -54,6 +54,10 @@ static void qdev_subclass_init(ObjectClass *klass, void *data)
 
     /* Poison to try to detect future uses */
     dc->info->reset = NULL;
+
+    if (dc->info->class_init) {
+        dc->info->class_init(klass, data);
+    }
 }
 
 DeviceInfo *qdev_get_info(DeviceState *dev)

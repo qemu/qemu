@@ -231,6 +231,11 @@ struct DeviceInfo {
     /* device state */
     const VMStateDescription *vmsd;
 
+    /**
+     * See #TypeInfo::class_init()
+     */
+    void (*class_init)(ObjectClass *klass, void *data);
+
     /* Private to qdev / bus.  */
     qdev_initfn init;
     qdev_event unplug;
