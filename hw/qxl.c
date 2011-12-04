@@ -1824,32 +1824,46 @@ static Property qxl_properties[] = {
         DEFINE_PROP_END_OF_LIST(),
 };
 
-static PCIDeviceInfo qxl_primary_info = {
-    .qdev.name    = "qxl-vga",
-    .qdev.desc    = "Spice QXL GPU (primary, vga compatible)",
-    .qdev.size    = sizeof(PCIQXLDevice),
-    .qdev.reset   = qxl_reset_handler,
-    .qdev.vmsd    = &qxl_vmstate,
-    .no_hotplug   = 1,
-    .init         = qxl_init_primary,
-    .romfile      = "vgabios-qxl.bin",
-    .vendor_id    = REDHAT_PCI_VENDOR_ID,
-    .device_id    = QXL_DEVICE_ID_STABLE,
-    .class_id     = PCI_CLASS_DISPLAY_VGA,
-    .qdev.props   = qxl_properties,
+static void qxl_primary_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->no_hotplug = 1;
+    k->init = qxl_init_primary;
+    k->romfile = "vgabios-qxl.bin";
+    k->vendor_id = REDHAT_PCI_VENDOR_ID;
+    k->device_id = QXL_DEVICE_ID_STABLE;
+    k->class_id = PCI_CLASS_DISPLAY_VGA;
+}
+
+static DeviceInfo qxl_primary_info = {
+    .name = "qxl-vga",
+    .desc = "Spice QXL GPU (primary, vga compatible)",
+    .size = sizeof(PCIQXLDevice),
+    .reset = qxl_reset_handler,
+    .vmsd = &qxl_vmstate,
+    .props = qxl_properties,
+    .class_init = qxl_primary_class_init,
 };
 
-static PCIDeviceInfo qxl_secondary_info = {
-    .qdev.name    = "qxl",
-    .qdev.desc    = "Spice QXL GPU (secondary)",
-    .qdev.size    = sizeof(PCIQXLDevice),
-    .qdev.reset   = qxl_reset_handler,
-    .qdev.vmsd    = &qxl_vmstate,
-    .init         = qxl_init_secondary,
-    .vendor_id    = REDHAT_PCI_VENDOR_ID,
-    .device_id    = QXL_DEVICE_ID_STABLE,
-    .class_id     = PCI_CLASS_DISPLAY_OTHER,
-    .qdev.props   = qxl_properties,
+static void qxl_secondary_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = qxl_init_secondary;
+    k->vendor_id = REDHAT_PCI_VENDOR_ID;
+    k->device_id = QXL_DEVICE_ID_STABLE;
+    k->class_id = PCI_CLASS_DISPLAY_OTHER;
+}
+
+static DeviceInfo qxl_secondary_info = {
+    .name = "qxl",
+    .desc = "Spice QXL GPU (secondary)",
+    .size = sizeof(PCIQXLDevice),
+    .reset = qxl_reset_handler,
+    .vmsd = &qxl_vmstate,
+    .props = qxl_properties,
+    .class_init = qxl_secondary_class_init,
 };
 
 static void qxl_register(void)

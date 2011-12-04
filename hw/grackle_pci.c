@@ -121,15 +121,22 @@ static int grackle_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo grackle_pci_info = {
-    .qdev.name = "grackle",
-    .qdev.size = sizeof(PCIDevice),
-    .qdev.no_user = 1,
-    .init      = grackle_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_MOTOROLA,
-    .device_id = PCI_DEVICE_ID_MOTOROLA_MPC106,
-    .revision  = 0x00,
-    .class_id  = PCI_CLASS_BRIDGE_HOST,
+static void grackle_pci_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init      = grackle_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_MOTOROLA;
+    k->device_id = PCI_DEVICE_ID_MOTOROLA_MPC106;
+    k->revision  = 0x00;
+    k->class_id  = PCI_CLASS_BRIDGE_HOST;
+}
+
+static DeviceInfo grackle_pci_info = {
+    .name = "grackle",
+    .size = sizeof(PCIDevice),
+    .no_user = 1,
+    .class_init = grackle_pci_class_init,
 };
 
 static SysBusDeviceInfo grackle_pci_host_info = {

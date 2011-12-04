@@ -1031,18 +1031,25 @@ int es1370_init (PCIBus *bus)
     return 0;
 }
 
-static PCIDeviceInfo es1370_info = {
-    .qdev.name    = "ES1370",
-    .qdev.desc    = "ENSONIQ AudioPCI ES1370",
-    .qdev.size    = sizeof (ES1370State),
-    .qdev.vmsd    = &vmstate_es1370,
-    .init         = es1370_initfn,
-    .exit         = es1370_exitfn,
-    .vendor_id    = PCI_VENDOR_ID_ENSONIQ,
-    .device_id    = PCI_DEVICE_ID_ENSONIQ_ES1370,
-    .class_id     = PCI_CLASS_MULTIMEDIA_AUDIO,
-    .subsystem_vendor_id = 0x4942,
-    .subsystem_id = 0x4c4c,
+static void es1370_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = es1370_initfn;
+    k->exit = es1370_exitfn;
+    k->vendor_id = PCI_VENDOR_ID_ENSONIQ;
+    k->device_id = PCI_DEVICE_ID_ENSONIQ_ES1370;
+    k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
+    k->subsystem_vendor_id = 0x4942;
+    k->subsystem_id = 0x4c4c;
+}
+
+static DeviceInfo es1370_info = {
+    .name = "ES1370",
+    .desc = "ENSONIQ AudioPCI ES1370",
+    .size = sizeof (ES1370State),
+    .vmsd = &vmstate_es1370,
+    .class_init = es1370_class_init,
 };
 
 static void es1370_register (void)

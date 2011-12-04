@@ -1344,21 +1344,30 @@ int ac97_init (PCIBus *bus)
     return 0;
 }
 
-static PCIDeviceInfo ac97_info = {
-    .qdev.name    = "AC97",
-    .qdev.desc    = "Intel 82801AA AC97 Audio",
-    .qdev.size    = sizeof (AC97LinkState),
-    .qdev.vmsd    = &vmstate_ac97,
-    .init         = ac97_initfn,
-    .exit         = ac97_exitfn,
-    .vendor_id    = PCI_VENDOR_ID_INTEL,
-    .device_id    = PCI_DEVICE_ID_INTEL_82801AA_5,
-    .revision     = 0x01,
-    .class_id     = PCI_CLASS_MULTIMEDIA_AUDIO,
-    .qdev.props   = (Property[]) {
-        DEFINE_PROP_UINT32("use_broken_id", AC97LinkState, use_broken_id, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property ac97_properties[] = {
+    DEFINE_PROP_UINT32("use_broken_id", AC97LinkState, use_broken_id, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ac97_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = ac97_initfn;
+    k->exit = ac97_exitfn;
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = PCI_DEVICE_ID_INTEL_82801AA_5;
+    k->revision = 0x01;
+    k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
+}
+
+static DeviceInfo ac97_info = {
+    .name = "AC97",
+    .desc = "Intel 82801AA AC97 Audio",
+    .size = sizeof (AC97LinkState),
+    .vmsd = &vmstate_ac97,
+    .props = ac97_properties,
+    .class_init = ac97_class_init,
 };
 
 static void ac97_register (void)

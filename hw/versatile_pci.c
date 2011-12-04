@@ -109,14 +109,20 @@ static int versatile_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo versatile_pci_host_info = {
-    .qdev.name = "versatile_pci_host",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = versatile_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_XILINX,
-    /* Both boards have the same device ID.  Oh well.  */
-    .device_id = PCI_DEVICE_ID_XILINX_XC2VP30,
-    .class_id  = PCI_CLASS_PROCESSOR_CO,
+static void versatile_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = versatile_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_XILINX;
+    k->device_id = PCI_DEVICE_ID_XILINX_XC2VP30;
+    k->class_id = PCI_CLASS_PROCESSOR_CO;
+}
+
+static DeviceInfo versatile_pci_host_info = {
+    .name = "versatile_pci_host",
+    .size = sizeof(PCIDevice),
+    .class_init = versatile_pci_host_class_init,
 };
 
 static void versatile_pci_register_devices(void)

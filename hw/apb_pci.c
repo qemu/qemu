@@ -436,14 +436,21 @@ static int pbm_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo pbm_pci_host_info = {
-    .qdev.name = "pbm",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = pbm_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_SUN,
-    .device_id = PCI_DEVICE_ID_SUN_SABRE,
-    .class_id  = PCI_CLASS_BRIDGE_HOST,
-    .is_bridge = 1,
+static void pbm_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = pbm_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_SUN;
+    k->device_id = PCI_DEVICE_ID_SUN_SABRE;
+    k->class_id = PCI_CLASS_BRIDGE_HOST;
+    k->is_bridge = 1;
+}
+
+static DeviceInfo pbm_pci_host_info = {
+    .name = "pbm",
+    .size = sizeof(PCIDevice),
+    .class_init = pbm_pci_host_class_init,
 };
 
 static SysBusDeviceInfo pbm_host_info = {
@@ -453,18 +460,25 @@ static SysBusDeviceInfo pbm_host_info = {
     .init = pci_pbm_init_device,
 };
 
-static PCIDeviceInfo pbm_pci_bridge_info = {
-    .qdev.name = "pbm-bridge",
-    .qdev.size = sizeof(PCIBridge),
-    .qdev.vmsd = &vmstate_pci_device,
-    .qdev.reset = pci_bridge_reset,
-    .init = apb_pci_bridge_initfn,
-    .exit = pci_bridge_exitfn,
-    .vendor_id = PCI_VENDOR_ID_SUN,
-    .device_id = PCI_DEVICE_ID_SUN_SIMBA,
-    .revision = 0x11,
-    .config_write = pci_bridge_write_config,
-    .is_bridge = 1,
+static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = apb_pci_bridge_initfn;
+    k->exit = pci_bridge_exitfn;
+    k->vendor_id = PCI_VENDOR_ID_SUN;
+    k->device_id = PCI_DEVICE_ID_SUN_SIMBA;
+    k->revision = 0x11;
+    k->config_write = pci_bridge_write_config;
+    k->is_bridge = 1;
+}
+
+static DeviceInfo pbm_pci_bridge_info = {
+    .name = "pbm-bridge",
+    .size = sizeof(PCIBridge),
+    .vmsd = &vmstate_pci_device,
+    .reset = pci_bridge_reset,
+    .class_init = pbm_pci_bridge_class_init,
 };
 
 static void pbm_register_devices(void)

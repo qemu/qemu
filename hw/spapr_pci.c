@@ -214,10 +214,17 @@ static int spapr_main_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo spapr_main_pci_host_info = {
-    .qdev.name = "spapr-pci-host-bridge",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = spapr_main_pci_host_init,
+static void spapr_main_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = spapr_main_pci_host_init;
+}
+
+static DeviceInfo spapr_main_pci_host_info = {
+    .name = "spapr-pci-host-bridge",
+    .size = sizeof(PCIDevice),
+    .class_init = spapr_main_pci_host_class_init,
 };
 
 static void spapr_register_devices(void)

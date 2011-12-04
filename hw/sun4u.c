@@ -562,14 +562,21 @@ pci_ebus_init1(PCIDevice *pci_dev)
     return 0;
 }
 
-static PCIDeviceInfo ebus_info = {
-    .qdev.name = "ebus",
-    .qdev.size = sizeof(EbusState),
-    .init = pci_ebus_init1,
-    .vendor_id = PCI_VENDOR_ID_SUN,
-    .device_id = PCI_DEVICE_ID_SUN_EBUS,
-    .revision = 0x01,
-    .class_id = PCI_CLASS_BRIDGE_OTHER,
+static void ebus_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = pci_ebus_init1;
+    k->vendor_id = PCI_VENDOR_ID_SUN;
+    k->device_id = PCI_DEVICE_ID_SUN_EBUS;
+    k->revision = 0x01;
+    k->class_id = PCI_CLASS_BRIDGE_OTHER;
+}
+
+static DeviceInfo ebus_info = {
+    .name = "ebus",
+    .size = sizeof(EbusState),
+    .class_init = ebus_class_init,
 };
 
 static void pci_ebus_register(void)

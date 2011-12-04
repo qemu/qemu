@@ -147,12 +147,19 @@ static int sh_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo sh_pci_host_info = {
-    .qdev.name = "sh_pci_host",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = sh_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_HITACHI,
-    .device_id = PCI_DEVICE_ID_HITACHI_SH7751R,
+static void sh_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = sh_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_HITACHI;
+    k->device_id = PCI_DEVICE_ID_HITACHI_SH7751R;
+}
+
+static DeviceInfo sh_pci_host_info = {
+    .name = "sh_pci_host",
+    .size = sizeof(PCIDevice),
+    .class_init = sh_pci_host_class_init,
 };
 
 static void sh_pci_register_devices(void)

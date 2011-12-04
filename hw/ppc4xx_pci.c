@@ -366,13 +366,20 @@ static int ppc4xx_pcihost_initfn(SysBusDevice *dev)
     return 0;
 }
 
-static PCIDeviceInfo ppc4xx_host_bridge_info = {
-    .qdev.name    = "ppc4xx-host-bridge",
-    .qdev.desc    = "Host bridge",
-    .qdev.size    = sizeof(PCIDevice),
-    .vendor_id    = PCI_VENDOR_ID_IBM,
-    .device_id    = PCI_DEVICE_ID_IBM_440GX,
-    .class_id     = PCI_CLASS_BRIDGE_OTHER,
+static void ppc4xx_host_bridge_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->vendor_id    = PCI_VENDOR_ID_IBM;
+    k->device_id    = PCI_DEVICE_ID_IBM_440GX;
+    k->class_id     = PCI_CLASS_BRIDGE_OTHER;
+}
+
+static DeviceInfo ppc4xx_host_bridge_info = {
+    .name    = "ppc4xx-host-bridge",
+    .desc    = "Host bridge",
+    .size    = sizeof(PCIDevice),
+    .class_init = ppc4xx_host_bridge_class_init,
 };
 
 static SysBusDeviceInfo ppc4xx_pcihost_info = {

@@ -3494,22 +3494,31 @@ static int pci_rtl8139_init(PCIDevice *dev)
     return 0;
 }
 
-static PCIDeviceInfo rtl8139_info = {
-    .qdev.name  = "rtl8139",
-    .qdev.size  = sizeof(RTL8139State),
-    .qdev.reset = rtl8139_reset,
-    .qdev.vmsd  = &vmstate_rtl8139,
-    .init       = pci_rtl8139_init,
-    .exit       = pci_rtl8139_uninit,
-    .romfile    = "pxe-rtl8139.rom",
-    .vendor_id  = PCI_VENDOR_ID_REALTEK,
-    .device_id  = PCI_DEVICE_ID_REALTEK_8139,
-    .revision   = RTL8139_PCI_REVID, /* >=0x20 is for 8139C+ */
-    .class_id   = PCI_CLASS_NETWORK_ETHERNET,
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(RTL8139State, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property rtl8139_properties[] = {
+    DEFINE_NIC_PROPERTIES(RTL8139State, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void rtl8139_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = pci_rtl8139_init;
+    k->exit = pci_rtl8139_uninit;
+    k->romfile = "pxe-rtl8139.rom";
+    k->vendor_id = PCI_VENDOR_ID_REALTEK;
+    k->device_id = PCI_DEVICE_ID_REALTEK_8139;
+    k->revision = RTL8139_PCI_REVID; /* >=0x20 is for 8139C+ */
+    k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+}
+
+static DeviceInfo rtl8139_info = {
+    .name = "rtl8139",
+    .size = sizeof(RTL8139State),
+    .reset = rtl8139_reset,
+    .vmsd = &vmstate_rtl8139,
+    .props = rtl8139_properties,
+    .class_init = rtl8139_class_init,
 };
 
 static void rtl8139_register_devices(void)

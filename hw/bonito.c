@@ -766,18 +766,24 @@ PCIBus *bonito_init(qemu_irq *pic)
     return b;
 }
 
-static PCIDeviceInfo bonito_info = {
-    .qdev.name    = "Bonito",
-    .qdev.desc    = "Host bridge",
-    .qdev.size    = sizeof(PCIBonitoState),
-    .qdev.vmsd    = &vmstate_bonito,
-    .qdev.no_user = 1,
-    .init         = bonito_initfn,
-    /*Bonito North Bridge, built on FPGA, VENDOR_ID/DEVICE_ID are "undefined"*/
-    .vendor_id    = 0xdf53,
-    .device_id    = 0x00d5,
-    .revision     = 0x01,
-    .class_id     = PCI_CLASS_BRIDGE_HOST,
+static void bonito_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = bonito_initfn;
+    k->vendor_id = 0xdf53;
+    k->device_id = 0x00d5;
+    k->revision = 0x01;
+    k->class_id = PCI_CLASS_BRIDGE_HOST;
+}
+
+static DeviceInfo bonito_info = {
+    .name = "Bonito",
+    .desc = "Host bridge",
+    .size = sizeof(PCIBonitoState),
+    .vmsd = &vmstate_bonito,
+    .no_user = 1,
+    .class_init = bonito_class_init,
 };
 
 static SysBusDeviceInfo bonito_pcihost_info = {

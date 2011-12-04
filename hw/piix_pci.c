@@ -502,47 +502,68 @@ static int piix3_initfn(PCIDevice *dev)
     return 0;
 }
 
-static PCIDeviceInfo i440fx_info = {
-    .qdev.name    = "i440FX",
-    .qdev.desc    = "Host bridge",
-    .qdev.size    = sizeof(PCII440FXState),
-    .qdev.vmsd    = &vmstate_i440fx,
-    .qdev.no_user = 1,
-    .no_hotplug   = 1,
-    .init         = i440fx_initfn,
-    .config_write = i440fx_write_config,
-    .vendor_id    = PCI_VENDOR_ID_INTEL,
-    .device_id    = PCI_DEVICE_ID_INTEL_82441,
-    .revision     = 0x02,
-    .class_id     = PCI_CLASS_BRIDGE_HOST,
+static void piix3_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->no_hotplug   = 1;
+    k->init         = piix3_initfn;
+    k->config_write = piix3_write_config;
+    k->vendor_id    = PCI_VENDOR_ID_INTEL;
+    k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0; // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
+    k->class_id     = PCI_CLASS_BRIDGE_ISA;
+}
+
+static DeviceInfo piix3_info = {
+    .name    = "PIIX3",
+    .desc    = "ISA bridge",
+    .size    = sizeof(PIIX3State),
+    .vmsd    = &vmstate_piix3,
+    .no_user = 1,
+    .class_init = piix3_class_init,
 };
 
-static PCIDeviceInfo piix3_info = {
-    .qdev.name    = "PIIX3",
-    .qdev.desc    = "ISA bridge",
-    .qdev.size    = sizeof(PIIX3State),
-    .qdev.vmsd    = &vmstate_piix3,
-    .qdev.no_user = 1,
-    .no_hotplug   = 1,
-    .init         = piix3_initfn,
-    .config_write = piix3_write_config,
-    .vendor_id    = PCI_VENDOR_ID_INTEL,
-    .device_id    = PCI_DEVICE_ID_INTEL_82371SB_0, // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
-    .class_id     = PCI_CLASS_BRIDGE_ISA,
+static void piix3_xen_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->no_hotplug   = 1;
+    k->init         = piix3_initfn;
+    k->config_write = piix3_write_config_xen;
+    k->vendor_id    = PCI_VENDOR_ID_INTEL;
+    k->device_id    = PCI_DEVICE_ID_INTEL_82371SB_0; // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
+    k->class_id     = PCI_CLASS_BRIDGE_ISA;
 };
 
-static PCIDeviceInfo piix3_xen_info = {
-    .qdev.name    = "PIIX3-xen",
-    .qdev.desc    = "ISA bridge",
-    .qdev.size    = sizeof(PIIX3State),
-    .qdev.vmsd    = &vmstate_piix3,
-    .qdev.no_user = 1,
-    .no_hotplug   = 1,
-    .init         = piix3_initfn,
-    .config_write = piix3_write_config_xen,
-    .vendor_id    = PCI_VENDOR_ID_INTEL,
-    .device_id    = PCI_DEVICE_ID_INTEL_82371SB_0, // 82371SB PIIX3 PCI-to-ISA bridge (Step A1)
-    .class_id     = PCI_CLASS_BRIDGE_ISA,
+static DeviceInfo piix3_xen_info = {
+    .name    = "PIIX3-xen",
+    .desc    = "ISA bridge",
+    .size    = sizeof(PIIX3State),
+    .vmsd    = &vmstate_piix3,
+    .no_user = 1,
+    .class_init = piix3_xen_class_init,
+};
+
+static void i440fx_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->no_hotplug = 1;
+    k->init = i440fx_initfn;
+    k->config_write = i440fx_write_config;
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = PCI_DEVICE_ID_INTEL_82441;
+    k->revision = 0x02;
+    k->class_id = PCI_CLASS_BRIDGE_HOST;
+}
+
+static DeviceInfo i440fx_info = {
+    .name = "i440FX",
+    .desc = "Host bridge",
+    .size = sizeof(PCII440FXState),
+    .vmsd = &vmstate_i440fx,
+    .no_user = 1,
+    .class_init = i440fx_class_init,
 };
 
 static SysBusDeviceInfo i440fx_pcihost_info = {

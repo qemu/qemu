@@ -80,7 +80,7 @@ static void ioh3420_write_config(PCIDevice *d,
 
 static void ioh3420_reset(DeviceState *qdev)
 {
-    PCIDevice *d = DO_UPCAST(PCIDevice, qdev, qdev);
+    PCIDevice *d = PCI_DEVICE(qdev);
     msi_reset(d);
     ioh3420_aer_vector_update(d);
     pcie_cap_root_reset(d);
@@ -201,31 +201,38 @@ static const VMStateDescription vmstate_ioh3420 = {
     }
 };
 
-static PCIDeviceInfo ioh3420_info = {
-    .qdev.name = "ioh3420",
-    .qdev.desc = "Intel IOH device id 3420 PCIE Root Port",
-    .qdev.size = sizeof(PCIESlot),
-    .qdev.reset = ioh3420_reset,
-    .qdev.vmsd = &vmstate_ioh3420,
+static Property ioh3420_properties[] = {
+    DEFINE_PROP_UINT8("port", PCIESlot, port.port, 0),
+    DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
+    DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
+    DEFINE_PROP_UINT16("aer_log_max", PCIESlot,
+    port.br.dev.exp.aer_log.log_max,
+    PCIE_AER_LOG_MAX_DEFAULT),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
-    .is_express = 1,
-    .is_bridge = 1,
-    .config_write = ioh3420_write_config,
-    .init = ioh3420_initfn,
-    .exit = ioh3420_exitfn,
-    .vendor_id = PCI_VENDOR_ID_INTEL,
-    .device_id = PCI_DEVICE_ID_IOH_EPORT,
-    .revision = PCI_DEVICE_ID_IOH_REV,
+static void ioh3420_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT8("port", PCIESlot, port.port, 0),
-        DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
-        DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
-        DEFINE_PROP_UINT16("aer_log_max", PCIESlot,
-                           port.br.dev.exp.aer_log.log_max,
-                           PCIE_AER_LOG_MAX_DEFAULT),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+    k->is_express = 1;
+    k->is_bridge = 1;
+    k->config_write = ioh3420_write_config;
+    k->init = ioh3420_initfn;
+    k->exit = ioh3420_exitfn;
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = PCI_DEVICE_ID_IOH_EPORT;
+    k->revision = PCI_DEVICE_ID_IOH_REV;
+}
+
+static DeviceInfo ioh3420_info = {
+    .name = "ioh3420",
+    .desc = "Intel IOH device id 3420 PCIE Root Port",
+    .size = sizeof(PCIESlot),
+    .reset = ioh3420_reset,
+    .vmsd = &vmstate_ioh3420,
+    .props = ioh3420_properties,
+    .class_init = ioh3420_class_init,
 };
 
 static void ioh3420_register(void)

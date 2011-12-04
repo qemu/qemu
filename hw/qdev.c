@@ -119,6 +119,7 @@ bool qdev_exists(const char *name)
 {
     return !!qdev_find_info(NULL, name);
 }
+
 static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
                                      Error **errp);
 

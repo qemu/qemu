@@ -81,12 +81,19 @@ static int macio_initfn(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo macio_info = {
-    .qdev.name = "macio",
-    .qdev.size = sizeof(MacIOState),
-    .init = macio_initfn,
-    .vendor_id = PCI_VENDOR_ID_APPLE,
-    .class_id = PCI_CLASS_OTHERS << 8,
+static void macio_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = macio_initfn;
+    k->vendor_id = PCI_VENDOR_ID_APPLE;
+    k->class_id = PCI_CLASS_OTHERS << 8;
+}
+
+static DeviceInfo macio_info = {
+    .name = "macio",
+    .size = sizeof(MacIOState),
+    .class_init = macio_class_init,
 };
 
 static void macio_register(void)

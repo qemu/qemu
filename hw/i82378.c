@@ -238,18 +238,25 @@ static int pci_i82378_init(PCIDevice *dev)
     return 0;
 }
 
-static PCIDeviceInfo pci_i82378_info = {
-    .init = pci_i82378_init,
-    .qdev.name = "i82378",
-    .qdev.size = sizeof(PCIi82378State),
-    .qdev.vmsd = &vmstate_pci_i82378,
-    .vendor_id = PCI_VENDOR_ID_INTEL,
-    .device_id = PCI_DEVICE_ID_INTEL_82378,
-    .revision = 0x03,
-    .class_id = PCI_CLASS_BRIDGE_ISA,
-    .subsystem_vendor_id = 0x0,
-    .subsystem_id = 0x0,
-    .qdev.props = (Property[]) {
+static void pci_i82378_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = pci_i82378_init;
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = PCI_DEVICE_ID_INTEL_82378;
+    k->revision = 0x03;
+    k->class_id = PCI_CLASS_BRIDGE_ISA;
+    k->subsystem_vendor_id = 0x0;
+    k->subsystem_id = 0x0;
+}
+
+static DeviceInfo pci_i82378_info = {
+    .name = "i82378",
+    .size = sizeof(PCIi82378State),
+    .vmsd = &vmstate_pci_i82378,
+    .class_init = pci_i82378_class_init,
+    .props = (Property[]) {
         DEFINE_PROP_HEX32("iobase", PCIi82378State, isa_io_base, 0x80000000),
         DEFINE_PROP_HEX32("membase", PCIi82378State, isa_mem_base, 0xc0000000),
         DEFINE_PROP_END_OF_LIST()

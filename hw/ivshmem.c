@@ -766,25 +766,34 @@ static int pci_ivshmem_uninit(PCIDevice *dev)
     return 0;
 }
 
-static PCIDeviceInfo ivshmem_info = {
-    .qdev.name  = "ivshmem",
-    .qdev.size  = sizeof(IVShmemState),
-    .qdev.reset = ivshmem_reset,
-    .init       = pci_ivshmem_init,
-    .exit       = pci_ivshmem_uninit,
-    .vendor_id  = PCI_VENDOR_ID_REDHAT_QUMRANET,
-    .device_id  = 0x1110,
-    .class_id   = PCI_CLASS_MEMORY_RAM,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_CHR("chardev", IVShmemState, server_chr),
-        DEFINE_PROP_STRING("size", IVShmemState, sizearg),
-        DEFINE_PROP_UINT32("vectors", IVShmemState, vectors, 1),
-        DEFINE_PROP_BIT("ioeventfd", IVShmemState, features, IVSHMEM_IOEVENTFD, false),
-        DEFINE_PROP_BIT("msi", IVShmemState, features, IVSHMEM_MSI, true),
-        DEFINE_PROP_STRING("shm", IVShmemState, shmobj),
-        DEFINE_PROP_STRING("role", IVShmemState, role),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property ivshmem_properties[] = {
+    DEFINE_PROP_CHR("chardev", IVShmemState, server_chr),
+    DEFINE_PROP_STRING("size", IVShmemState, sizearg),
+    DEFINE_PROP_UINT32("vectors", IVShmemState, vectors, 1),
+    DEFINE_PROP_BIT("ioeventfd", IVShmemState, features, IVSHMEM_IOEVENTFD, false),
+    DEFINE_PROP_BIT("msi", IVShmemState, features, IVSHMEM_MSI, true),
+    DEFINE_PROP_STRING("shm", IVShmemState, shmobj),
+    DEFINE_PROP_STRING("role", IVShmemState, role),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ivshmem_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = pci_ivshmem_init;
+    k->exit = pci_ivshmem_uninit;
+    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    k->device_id = 0x1110;
+    k->class_id = PCI_CLASS_MEMORY_RAM;
+}
+
+static DeviceInfo ivshmem_info = {
+    .name = "ivshmem",
+    .size = sizeof(IVShmemState),
+    .reset = ivshmem_reset,
+    .props = ivshmem_properties,
+    .class_init = ivshmem_class_init,
 };
 
 static void ivshmem_register_devices(void)

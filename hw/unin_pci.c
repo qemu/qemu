@@ -339,44 +339,72 @@ static int unin_internal_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo unin_main_pci_host_info = {
-    .qdev.name = "uni-north-pci",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = unin_main_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_APPLE,
-    .device_id = PCI_DEVICE_ID_APPLE_UNI_N_PCI,
-    .revision  = 0x00,
-    .class_id  = PCI_CLASS_BRIDGE_HOST,
+static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init      = unin_main_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_APPLE;
+    k->device_id = PCI_DEVICE_ID_APPLE_UNI_N_PCI;
+    k->revision  = 0x00;
+    k->class_id  = PCI_CLASS_BRIDGE_HOST;
+}
+
+static DeviceInfo unin_main_pci_host_info = {
+    .name = "uni-north-pci",
+    .size = sizeof(PCIDevice),
+    .class_init = unin_main_pci_host_class_init,
 };
 
-static PCIDeviceInfo u3_agp_pci_host_info = {
-    .qdev.name = "u3-agp",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = u3_agp_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_APPLE,
-    .device_id = PCI_DEVICE_ID_APPLE_U3_AGP,
-    .revision  = 0x00,
-    .class_id  = PCI_CLASS_BRIDGE_HOST,
+static void u3_agp_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init      = u3_agp_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_APPLE;
+    k->device_id = PCI_DEVICE_ID_APPLE_U3_AGP;
+    k->revision  = 0x00;
+    k->class_id  = PCI_CLASS_BRIDGE_HOST;
+}
+
+static DeviceInfo u3_agp_pci_host_info = {
+    .name = "u3-agp",
+    .size = sizeof(PCIDevice),
+    .class_init = u3_agp_pci_host_class_init,
 };
 
-static PCIDeviceInfo unin_agp_pci_host_info = {
-    .qdev.name = "uni-north-agp",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = unin_agp_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_APPLE,
-    .device_id = PCI_DEVICE_ID_APPLE_UNI_N_AGP,
-    .revision  = 0x00,
-    .class_id  = PCI_CLASS_BRIDGE_HOST,
+static void unin_agp_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init      = unin_agp_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_APPLE;
+    k->device_id = PCI_DEVICE_ID_APPLE_UNI_N_AGP;
+    k->revision  = 0x00;
+    k->class_id  = PCI_CLASS_BRIDGE_HOST;
+}
+
+static DeviceInfo unin_agp_pci_host_info = {
+    .name = "uni-north-agp",
+    .size = sizeof(PCIDevice),
+    .class_init = unin_agp_pci_host_class_init,
 };
 
-static PCIDeviceInfo unin_internal_pci_host_info = {
-    .qdev.name = "uni-north-internal-pci",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = unin_internal_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_APPLE,
-    .device_id = PCI_DEVICE_ID_APPLE_UNI_N_I_PCI,
-    .revision  = 0x00,
-    .class_id  = PCI_CLASS_BRIDGE_HOST,
+static void unin_internal_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init      = unin_internal_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_APPLE;
+    k->device_id = PCI_DEVICE_ID_APPLE_UNI_N_I_PCI;
+    k->revision  = 0x00;
+    k->class_id  = PCI_CLASS_BRIDGE_HOST;
+}
+
+static DeviceInfo unin_internal_pci_host_info = {
+    .name = "uni-north-internal-pci",
+    .size = sizeof(PCIDevice),
+    .class_init = unin_internal_pci_host_class_init,
 };
 
 static SysBusDeviceInfo sysbus_unin_pci_host_info = {

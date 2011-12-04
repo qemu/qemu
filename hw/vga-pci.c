@@ -75,18 +75,23 @@ DeviceState *pci_vga_init(PCIBus *bus)
     return &pci_create_simple(bus, -1, "VGA")->qdev;
 }
 
-static PCIDeviceInfo vga_info = {
-    .qdev.name    = "VGA",
-    .qdev.size    = sizeof(PCIVGAState),
-    .qdev.vmsd    = &vmstate_vga_pci,
-    .no_hotplug   = 1,
-    .init         = pci_vga_initfn,
-    .romfile      = "vgabios-stdvga.bin",
+static void vga_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    /* dummy VGA (same as Bochs ID) */
-    .vendor_id    = PCI_VENDOR_ID_QEMU,
-    .device_id    = PCI_DEVICE_ID_QEMU_VGA,
-    .class_id     = PCI_CLASS_DISPLAY_VGA,
+    k->no_hotplug = 1;
+    k->init = pci_vga_initfn;
+    k->romfile = "vgabios-stdvga.bin";
+    k->vendor_id = PCI_VENDOR_ID_QEMU;
+    k->device_id = PCI_DEVICE_ID_QEMU_VGA;
+    k->class_id = PCI_CLASS_DISPLAY_VGA;
+}
+
+static DeviceInfo vga_info = {
+    .name = "VGA",
+    .size = sizeof(PCIVGAState),
+    .vmsd = &vmstate_vga_pci,
+    .class_init = vga_class_init,
 };
 
 static void vga_register(void)

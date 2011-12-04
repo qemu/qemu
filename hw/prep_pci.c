@@ -134,21 +134,24 @@ static const VMStateDescription vmstate_raven = {
     },
 };
 
-static PCIDeviceInfo raven_info = {
-    .qdev.name = "raven",
-    .qdev.desc = "PReP Host Bridge - Motorola Raven",
-    .qdev.size = sizeof(RavenPCIState),
-    .qdev.vmsd = &vmstate_raven,
-    .qdev.no_user = 1,
-    .no_hotplug = 1,
-    .init = raven_init,
-    .vendor_id = PCI_VENDOR_ID_MOTOROLA,
-    .device_id = PCI_DEVICE_ID_MOTOROLA_RAVEN,
-    .revision = 0x00,
-    .class_id = PCI_CLASS_BRIDGE_HOST,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_END_OF_LIST()
-    },
+static void raven_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = raven_init;
+    k->vendor_id = PCI_VENDOR_ID_MOTOROLA;
+    k->device_id = PCI_DEVICE_ID_MOTOROLA_RAVEN;
+    k->revision = 0x00;
+    k->class_id = PCI_CLASS_BRIDGE_HOST;
+}
+
+static DeviceInfo raven_info = {
+    .name = "raven",
+    .desc = "PReP Host Bridge - Motorola Raven",
+    .size = sizeof(RavenPCIState),
+    .vmsd = &vmstate_raven,
+    .no_user = 1,
+    .class_init = raven_class_init,
 };
 
 static SysBusDeviceInfo raven_pcihost_info = {

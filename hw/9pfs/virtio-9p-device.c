@@ -163,23 +163,32 @@ static int virtio_9p_init_pci(PCIDevice *pci_dev)
     return 0;
 }
 
-static PCIDeviceInfo virtio_9p_info = {
-    .qdev.name = "virtio-9p-pci",
-    .qdev.size = sizeof(VirtIOPCIProxy),
-    .init      = virtio_9p_init_pci,
-    .vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET,
-    .device_id = 0x1009,
-    .revision  = VIRTIO_PCI_ABI_VERSION,
-    .class_id  = 0x2,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
-        DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-        DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
-        DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
-        DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
-        DEFINE_PROP_END_OF_LIST(),
-    },
-    .qdev.reset = virtio_pci_reset,
+static Property virtio_9p_properties[] = {
+    DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
+    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
+    DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+    DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
+    DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_9p_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = virtio_9p_init_pci;
+    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    k->device_id = 0x1009;
+    k->revision = VIRTIO_PCI_ABI_VERSION;
+    k->class_id = 0x2;
+}
+
+static DeviceInfo virtio_9p_info = {
+    .name = "virtio-9p-pci",
+    .size = sizeof(VirtIOPCIProxy),
+    .props = virtio_9p_properties,
+    .class_init = virtio_9p_class_init,
+    .reset = virtio_pci_reset,
 };
 
 static void virtio_9p_register_devices(void)

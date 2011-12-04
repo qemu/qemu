@@ -47,7 +47,7 @@ static void xio3130_downstream_write_config(PCIDevice *d, uint32_t address,
 
 static void xio3130_downstream_reset(DeviceState *qdev)
 {
-    PCIDevice *d = DO_UPCAST(PCIDevice, qdev, qdev);
+    PCIDevice *d = PCI_DEVICE(qdev);
     msi_reset(d);
     pcie_cap_deverr_reset(d);
     pcie_cap_slot_reset(d);
@@ -167,31 +167,38 @@ static const VMStateDescription vmstate_xio3130_downstream = {
     }
 };
 
-static PCIDeviceInfo xio3130_downstream_info = {
-    .qdev.name = "xio3130-downstream",
-    .qdev.desc = "TI X3130 Downstream Port of PCI Express Switch",
-    .qdev.size = sizeof(PCIESlot),
-    .qdev.reset = xio3130_downstream_reset,
-    .qdev.vmsd = &vmstate_xio3130_downstream,
+static Property xio3130_downstream_properties[] = {
+    DEFINE_PROP_UINT8("port", PCIESlot, port.port, 0),
+    DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
+    DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
+    DEFINE_PROP_UINT16("aer_log_max", PCIESlot,
+    port.br.dev.exp.aer_log.log_max,
+    PCIE_AER_LOG_MAX_DEFAULT),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
-    .is_express = 1,
-    .is_bridge = 1,
-    .config_write = xio3130_downstream_write_config,
-    .init = xio3130_downstream_initfn,
-    .exit = xio3130_downstream_exitfn,
-    .vendor_id = PCI_VENDOR_ID_TI,
-    .device_id = PCI_DEVICE_ID_TI_XIO3130D,
-    .revision = XIO3130_REVISION,
+static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT8("port", PCIESlot, port.port, 0),
-        DEFINE_PROP_UINT8("chassis", PCIESlot, chassis, 0),
-        DEFINE_PROP_UINT16("slot", PCIESlot, slot, 0),
-        DEFINE_PROP_UINT16("aer_log_max", PCIESlot,
-                           port.br.dev.exp.aer_log.log_max,
-                           PCIE_AER_LOG_MAX_DEFAULT),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+    k->is_express = 1;
+    k->is_bridge = 1;
+    k->config_write = xio3130_downstream_write_config;
+    k->init = xio3130_downstream_initfn;
+    k->exit = xio3130_downstream_exitfn;
+    k->vendor_id = PCI_VENDOR_ID_TI;
+    k->device_id = PCI_DEVICE_ID_TI_XIO3130D;
+    k->revision = XIO3130_REVISION;
+}
+
+static DeviceInfo xio3130_downstream_info = {
+    .name = "xio3130-downstream",
+    .desc = "TI X3130 Downstream Port of PCI Express Switch",
+    .size = sizeof(PCIESlot),
+    .reset = xio3130_downstream_reset,
+    .vmsd = &vmstate_xio3130_downstream,
+    .props = xio3130_downstream_properties,
+    .class_init = xio3130_downstream_class_init,
 };
 
 static void xio3130_downstream_register(void)

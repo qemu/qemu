@@ -50,18 +50,25 @@ static int dec_map_irq(PCIDevice *pci_dev, int irq_num)
     return irq_num;
 }
 
-static PCIDeviceInfo dec_21154_pci_bridge_info = {
-    .qdev.name = "dec-21154-p2p-bridge",
-    .qdev.desc = "DEC 21154 PCI-PCI bridge",
-    .qdev.size = sizeof(PCIBridge),
-    .qdev.vmsd = &vmstate_pci_device,
-    .qdev.reset = pci_bridge_reset,
-    .init = pci_bridge_initfn,
-    .exit = pci_bridge_exitfn,
-    .vendor_id = PCI_VENDOR_ID_DEC,
-    .device_id = PCI_DEVICE_ID_DEC_21154,
-    .config_write = pci_bridge_write_config,
-    .is_bridge = 1,
+static void dec_21154_pci_bridge_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = pci_bridge_initfn;
+    k->exit = pci_bridge_exitfn;
+    k->vendor_id = PCI_VENDOR_ID_DEC;
+    k->device_id = PCI_DEVICE_ID_DEC_21154;
+    k->config_write = pci_bridge_write_config;
+    k->is_bridge = 1;
+}
+
+static DeviceInfo dec_21154_pci_bridge_info = {
+    .name = "dec-21154-p2p-bridge",
+    .desc = "DEC 21154 PCI-PCI bridge",
+    .size = sizeof(PCIBridge),
+    .vmsd = &vmstate_pci_device,
+    .reset = pci_bridge_reset,
+    .class_init = dec_21154_pci_bridge_class_init,
 };
 
 PCIBus *pci_dec_21154_init(PCIBus *parent_bus, int devfn)
@@ -98,21 +105,29 @@ static int dec_21154_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo dec_21154_pci_host_info = {
-    .qdev.name = "dec-21154",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = dec_21154_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_DEC,
-    .device_id = PCI_DEVICE_ID_DEC_21154,
-    .revision = 0x02,
-    .class_id = PCI_CLASS_BRIDGE_PCI,
-    .is_bridge  = 1,
+static void dec_21154_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = dec_21154_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_DEC;
+    k->device_id = PCI_DEVICE_ID_DEC_21154;
+    k->revision = 0x02;
+    k->class_id = PCI_CLASS_BRIDGE_PCI;
+    k->is_bridge = 1;
+}
+
+static DeviceInfo dec_21154_pci_host_info = {
+    .name = "dec-21154",
+    .size = sizeof(PCIDevice),
+    .class_init = dec_21154_pci_host_class_init,
 };
 
 static void dec_register_devices(void)
 {
     sysbus_register_dev("dec-21154", sizeof(DECState),
                         pci_dec_21154_init_device);
+
     pci_qdev_register(&dec_21154_pci_host_info);
     pci_qdev_register(&dec_21154_pci_bridge_info);
 }
