@@ -1391,13 +1391,19 @@ int SB16_init (ISABus *bus)
     return 0;
 }
 
-static ISADeviceInfo sb16_info = {
-    .qdev.name     = "sb16",
-    .qdev.desc     = "Creative Sound Blaster 16",
-    .qdev.size     = sizeof (SB16State),
-    .qdev.vmsd     = &vmstate_sb16,
-    .init          = sb16_initfn,
-    .qdev.props    = (Property[]) {
+static void sb16_class_initfn(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    ic->init = sb16_initfn;
+}
+
+static DeviceInfo sb16_info = {
+    .name     = "sb16",
+    .desc     = "Creative Sound Blaster 16",
+    .size     = sizeof (SB16State),
+    .vmsd     = &vmstate_sb16,
+    .class_init          = sb16_class_initfn,
+    .props    = (Property[]) {
         DEFINE_PROP_HEX32  ("version", SB16State, ver,  0x0405), /* 4.5 */
         DEFINE_PROP_HEX32  ("iobase",  SB16State, port, 0x220),
         DEFINE_PROP_UINT32 ("irq",     SB16State, irq,  5),

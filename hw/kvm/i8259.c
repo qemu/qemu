@@ -112,12 +112,19 @@ qemu_irq *kvm_i8259_init(ISABus *bus)
     return qemu_allocate_irqs(kvm_pic_set_irq, NULL, ISA_NUM_IRQS);
 }
 
-static PICCommonInfo kvm_i8259_info = {
-    .isadev.qdev.name  = "kvm-i8259",
-    .isadev.qdev.reset = kvm_pic_reset,
-    .init       = kvm_pic_init,
-    .pre_save   = kvm_pic_get,
-    .post_load  = kvm_pic_put,
+static void kvm_i8259_class_init(ObjectClass *klass, void *data)
+{
+    PICCommonClass *k = PIC_COMMON_CLASS(klass);
+
+    k->init       = kvm_pic_init;
+    k->pre_save   = kvm_pic_get;
+    k->post_load  = kvm_pic_put;
+}
+
+static DeviceInfo kvm_i8259_info = {
+    .name  = "kvm-i8259",
+    .reset = kvm_pic_reset,
+    .class_init = kvm_i8259_class_init,
 };
 
 static void kvm_pic_register(void)

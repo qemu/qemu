@@ -87,11 +87,17 @@ static int debugcon_isa_initfn(ISADevice *dev)
     return 0;
 }
 
-static ISADeviceInfo debugcon_isa_info = {
-    .qdev.name  = "isa-debugcon",
-    .qdev.size  = sizeof(ISADebugconState),
-    .init       = debugcon_isa_initfn,
-    .qdev.props = (Property[]) {
+static void debugcon_isa_class_initfn(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    ic->init = debugcon_isa_initfn;
+}
+
+static DeviceInfo debugcon_isa_info = {
+    .name  = "isa-debugcon",
+    .size  = sizeof(ISADebugconState),
+    .class_init = debugcon_isa_class_initfn,
+    .props = (Property[]) {
         DEFINE_PROP_HEX32("iobase", ISADebugconState, iobase, 0xe9),
         DEFINE_PROP_CHR("chardev",  ISADebugconState, state.chr),
         DEFINE_PROP_HEX32("readback", ISADebugconState, state.readback, 0xe9),

@@ -48,8 +48,7 @@ void pic_reset_common(PICCommonState *s)
 static void pic_dispatch_pre_save(void *opaque)
 {
     PICCommonState *s = opaque;
-    PICCommonInfo *info =
-        DO_UPCAST(PICCommonInfo, isadev.qdev, qdev_get_info(&s->dev.qdev));
+    PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
 
     if (info->pre_save) {
         info->pre_save(s);
@@ -59,8 +58,7 @@ static void pic_dispatch_pre_save(void *opaque)
 static int pic_dispatch_post_load(void *opaque, int version_id)
 {
     PICCommonState *s = opaque;
-    PICCommonInfo *info =
-        DO_UPCAST(PICCommonInfo, isadev.qdev, qdev_get_info(&s->dev.qdev));
+    PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
 
     if (info->post_load) {
         info->post_load(s);
@@ -71,8 +69,7 @@ static int pic_dispatch_post_load(void *opaque, int version_id)
 static int pic_init_common(ISADevice *dev)
 {
     PICCommonState *s = DO_UPCAST(PICCommonState, dev, dev);
-    PICCommonInfo *info =
-        DO_UPCAST(PICCommonInfo, isadev.qdev, qdev_get_info(&dev->qdev));
+    PICCommonClass *info = PIC_COMMON_GET_CLASS(s);
 
     info->init(s);
 
@@ -136,12 +133,34 @@ static Property pic_properties_common[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-void pic_qdev_register(PICCommonInfo *info)
+void pic_qdev_register(DeviceInfo *info)
 {
-    info->isadev.init = pic_init_common;
-    info->isadev.qdev.size = sizeof(PICCommonState);
-    info->isadev.qdev.vmsd = &vmstate_pic_common;
-    info->isadev.qdev.no_user = 1;
-    info->isadev.qdev.props = pic_properties_common;
-    isa_qdev_register(&info->isadev);
+    info->size = sizeof(PICCommonState);
+    info->vmsd = &vmstate_pic_common;
+    info->no_user = 1;
+    info->props = pic_properties_common;
+    isa_qdev_register_subclass(info, TYPE_PIC_COMMON);
 }
+
+static void pic_common_class_init(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+
+    ic->init = pic_init_common;
+}
+
+static TypeInfo pic_common_type = {
+    .name = TYPE_PIC_COMMON,
+    .parent = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(PICCommonState),
+    .class_size = sizeof(PICCommonClass),
+    .class_init = pic_common_class_init,
+    .abstract = true,
+};
+
+static void register_devices(void)
+{
+    type_register_static(&pic_common_type);
+}
+
+device_init(register_devices);

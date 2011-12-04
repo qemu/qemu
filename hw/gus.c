@@ -299,13 +299,19 @@ int GUS_init (ISABus *bus)
     return 0;
 }
 
-static ISADeviceInfo gus_info = {
-    .qdev.name     = "gus",
-    .qdev.desc     = "Gravis Ultrasound GF1",
-    .qdev.size     = sizeof (GUSState),
-    .qdev.vmsd     = &vmstate_gus,
-    .init          = gus_initfn,
-    .qdev.props    = (Property[]) {
+static void gus_class_initfn(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    ic->init = gus_initfn;
+}
+
+static DeviceInfo gus_info = {
+    .name     = "gus",
+    .desc     = "Gravis Ultrasound GF1",
+    .size     = sizeof (GUSState),
+    .vmsd     = &vmstate_gus,
+    .class_init          = gus_class_initfn,
+    .props    = (Property[]) {
         DEFINE_PROP_UINT32 ("freq",    GUSState, freq,        44100),
         DEFINE_PROP_HEX32  ("iobase",  GUSState, port,        0x240),
         DEFINE_PROP_UINT32 ("irq",     GUSState, emu.gusirq,  7),

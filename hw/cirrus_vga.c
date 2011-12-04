@@ -2898,11 +2898,18 @@ static int vga_initfn(ISADevice *dev)
     return 0;
 }
 
-static ISADeviceInfo isa_cirrus_vga_info = {
-    .qdev.name     = "isa-cirrus-vga",
-    .qdev.size     = sizeof(ISACirrusVGAState),
-    .qdev.vmsd     = &vmstate_cirrus_vga,
-    .init          = vga_initfn,
+static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *k = ISA_DEVICE_CLASS(klass);
+
+    k->init          = vga_initfn;
+}
+
+static DeviceInfo isa_cirrus_vga_info = {
+    .name     = "isa-cirrus-vga",
+    .size     = sizeof(ISACirrusVGAState),
+    .vmsd     = &vmstate_cirrus_vga,
+    .class_init = isa_cirrus_vga_class_init,
 };
 
 static void isa_cirrus_vga_register(void)

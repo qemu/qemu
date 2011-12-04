@@ -10,7 +10,19 @@
 #define ISA_NUM_IRQS 16
 
 typedef struct ISADevice ISADevice;
-typedef struct ISADeviceInfo ISADeviceInfo;
+
+#define TYPE_ISA_DEVICE "isa-device"
+#define ISA_DEVICE(obj) \
+     OBJECT_CHECK(ISADevice, (obj), TYPE_ISA_DEVICE)
+#define ISA_DEVICE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(ISADeviceClass, (klass), TYPE_ISA_DEVICE)
+#define ISA_DEVICE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(ISADeviceClass, (obj), TYPE_ISA_DEVICE)
+
+typedef struct ISADeviceClass {
+    DeviceClass parent_class;
+    int (*init)(ISADevice *dev);
+} ISADeviceClass;
 
 struct ISABus {
     BusState qbus;
@@ -25,17 +37,12 @@ struct ISADevice {
     int ioport_id;
 };
 
-typedef int (*isa_qdev_initfn)(ISADevice *dev);
-struct ISADeviceInfo {
-    DeviceInfo qdev;
-    isa_qdev_initfn init;
-};
-
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io);
 void isa_bus_irqs(ISABus *bus, qemu_irq *irqs);
 qemu_irq isa_get_irq(ISADevice *dev, int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq);
-void isa_qdev_register(ISADeviceInfo *info);
+void isa_qdev_register(DeviceInfo *info);
+void isa_qdev_register_subclass(DeviceInfo *info, const char *parent);
 MemoryRegion *isa_address_space(ISADevice *dev);
 ISADevice *isa_create(ISABus *bus, const char *name);
 ISADevice *isa_try_create(ISABus *bus, const char *name);

@@ -135,12 +135,19 @@ static int i82374_isa_init(ISADevice *dev)
     return 0;
 }
 
-static ISADeviceInfo i82374_isa_info = {
-    .qdev.name  = "i82374",
-    .qdev.size  = sizeof(ISAi82374State),
-    .qdev.vmsd  = &vmstate_isa_i82374,
-    .init       = i82374_isa_init,
-    .qdev.props = (Property[]) {
+static void i82374_class_init(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *k = ISA_DEVICE_CLASS(klass);
+    
+    k->init       = i82374_isa_init;
+}
+
+static DeviceInfo i82374_isa_info = {
+    .name  = "i82374",
+    .size  = sizeof(ISAi82374State),
+    .vmsd  = &vmstate_isa_i82374,
+    .class_init = i82374_class_init,
+    .props = (Property[]) {
         DEFINE_PROP_HEX32("iobase", ISAi82374State, iobase, 0x400),
         DEFINE_PROP_END_OF_LIST()
     },

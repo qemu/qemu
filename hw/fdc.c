@@ -1959,15 +1959,21 @@ static const VMStateDescription vmstate_isa_fdc ={
     }
 };
 
-static ISADeviceInfo isa_fdc_info = {
-    .init = isabus_fdc_init1,
-    .qdev.name  = "isa-fdc",
-    .qdev.fw_name  = "fdc",
-    .qdev.size  = sizeof(FDCtrlISABus),
-    .qdev.no_user = 1,
-    .qdev.vmsd  = &vmstate_isa_fdc,
-    .qdev.reset = fdctrl_external_reset_isa,
-    .qdev.props = (Property[]) {
+static void isabus_fdc_class_init1(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    ic->init = isabus_fdc_init1;
+}
+
+static DeviceInfo isa_fdc_info = {
+    .class_init = isabus_fdc_class_init1,
+    .name  = "isa-fdc",
+    .fw_name  = "fdc",
+    .size  = sizeof(FDCtrlISABus),
+    .no_user = 1,
+    .vmsd  = &vmstate_isa_fdc,
+    .reset = fdctrl_external_reset_isa,
+    .props = (Property[]) {
         DEFINE_PROP_DRIVE("driveA", FDCtrlISABus, state.drives[0].bs),
         DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].bs),
         DEFINE_PROP_INT32("bootindexA", FDCtrlISABus, bootindexA, -1),

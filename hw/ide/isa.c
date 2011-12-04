@@ -94,13 +94,19 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
     return dev;
 }
 
-static ISADeviceInfo isa_ide_info = {
-    .qdev.name  = "isa-ide",
-    .qdev.fw_name  = "ide",
-    .qdev.size  = sizeof(ISAIDEState),
-    .init       = isa_ide_initfn,
-    .qdev.reset = isa_ide_reset,
-    .qdev.props = (Property[]) {
+static void isa_ide_class_initfn(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    ic->init = isa_ide_initfn;
+}
+
+static DeviceInfo isa_ide_info = {
+    .name  = "isa-ide",
+    .fw_name  = "ide",
+    .size  = sizeof(ISAIDEState),
+    .class_init       = isa_ide_class_initfn,
+    .reset = isa_ide_reset,
+    .props = (Property[]) {
         DEFINE_PROP_HEX32("iobase",  ISAIDEState, iobase,  0x1f0),
         DEFINE_PROP_HEX32("iobase2", ISAIDEState, iobase2, 0x3f6),
         DEFINE_PROP_UINT32("irq",    ISAIDEState, isairq,  14),

@@ -69,12 +69,18 @@ static int vga_initfn(ISADevice *dev)
     return 0;
 }
 
-static ISADeviceInfo vga_info = {
-    .qdev.name     = "isa-vga",
-    .qdev.size     = sizeof(ISAVGAState),
-    .qdev.vmsd     = &vmstate_vga_common,
-    .qdev.reset     = vga_reset_isa,
-    .init          = vga_initfn,
+static void vga_class_initfn(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    ic->init = vga_initfn;
+}
+
+static DeviceInfo vga_info = {
+    .name     = "isa-vga",
+    .size     = sizeof(ISAVGAState),
+    .vmsd     = &vmstate_vga_common,
+    .reset     = vga_reset_isa,
+    .class_init          = vga_class_initfn,
 };
 
 static void vga_register(void)

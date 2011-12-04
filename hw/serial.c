@@ -879,12 +879,18 @@ SerialState *serial_mm_init(MemoryRegion *address_space,
     return s;
 }
 
-static ISADeviceInfo serial_isa_info = {
-    .qdev.name  = "isa-serial",
-    .qdev.size  = sizeof(ISASerialState),
-    .qdev.vmsd  = &vmstate_isa_serial,
-    .init       = serial_isa_initfn,
-    .qdev.props = (Property[]) {
+static void serial_isa_class_initfn(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    ic->init = serial_isa_initfn;
+}
+
+static DeviceInfo serial_isa_info = {
+    .name  = "isa-serial",
+    .size  = sizeof(ISASerialState),
+    .vmsd  = &vmstate_isa_serial,
+    .class_init       = serial_isa_class_initfn,
+    .props = (Property[]) {
         DEFINE_PROP_UINT32("index", ISASerialState, index,   -1),
         DEFINE_PROP_HEX32("iobase", ISASerialState, iobase,  -1),
         DEFINE_PROP_UINT32("irq",   ISASerialState, isairq,  -1),
