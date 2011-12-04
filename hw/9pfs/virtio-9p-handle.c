@@ -255,10 +255,17 @@ static int handle_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
     return ret;
 }
 
-static int handle_fstat(FsContext *fs_ctx, V9fsFidOpenState *fs,
-                        struct stat *stbuf)
+static int handle_fstat(FsContext *fs_ctx, int fid_type,
+                        V9fsFidOpenState *fs, struct stat *stbuf)
 {
-    return fstat(fs->fd, stbuf);
+    int fd;
+
+    if (fid_type == P9_FID_DIR) {
+        fd = dirfd(fs->dir);
+    } else {
+        fd = fs->fd;
+    }
+    return fstat(fd, stbuf);
 }
 
 static int handle_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
@@ -395,12 +402,21 @@ static int handle_remove(FsContext *ctx, const char *path)
     return -1;
 }
 
-static int handle_fsync(FsContext *ctx, V9fsFidOpenState *fs, int datasync)
+static int handle_fsync(FsContext *ctx, int fid_type,
+                        V9fsFidOpenState *fs, int datasync)
 {
-    if (datasync) {
-        return qemu_fdatasync(fs->fd);
+    int fd;
+
+    if (fid_type == P9_FID_DIR) {
+        fd = dirfd(fs->dir);
     } else {
-        return fsync(fs->fd);
+        fd = fs->fd;
+    }
+
+    if (datasync) {
+        return qemu_fdatasync(fd);
+    } else {
+        return fsync(fd);
     }
 }
 
