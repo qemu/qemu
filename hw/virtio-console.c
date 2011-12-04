@@ -110,7 +110,7 @@ static int virtconsole_initfn(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
     VirtIOSerialPortInfo *info = DO_UPCAST(VirtIOSerialPortInfo, qdev,
-                                           vcon->port.dev.info);
+                                           qdev_get_info(&vcon->port.dev));
 
     if (port->id == 0 && !info->is_console) {
         error_report("Port number 0 on virtio-serial devices reserved for virtconsole devices for backward compatibility.");

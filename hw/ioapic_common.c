@@ -40,7 +40,7 @@ static void ioapic_dispatch_pre_save(void *opaque)
 {
     IOAPICCommonState *s = opaque;
     IOAPICCommonInfo *info =
-        DO_UPCAST(IOAPICCommonInfo, busdev.qdev, s->busdev.qdev.info);
+        DO_UPCAST(IOAPICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
 
     if (info->pre_save) {
         info->pre_save(s);
@@ -51,7 +51,7 @@ static int ioapic_dispatch_post_load(void *opaque, int version_id)
 {
     IOAPICCommonState *s = opaque;
     IOAPICCommonInfo *info =
-        DO_UPCAST(IOAPICCommonInfo, busdev.qdev, s->busdev.qdev.info);
+        DO_UPCAST(IOAPICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
 
     if (info->post_load) {
         info->post_load(s);
@@ -69,7 +69,7 @@ static int ioapic_init_common(SysBusDevice *dev)
         return -1;
     }
 
-    info = DO_UPCAST(IOAPICCommonInfo, busdev.qdev, s->busdev.qdev.info);
+    info = DO_UPCAST(IOAPICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
     info->init(s, ioapic_no);
 
     sysbus_init_mmio(&s->busdev, &s->io_memory);

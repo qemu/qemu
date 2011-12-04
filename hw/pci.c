@@ -841,7 +841,7 @@ static void pci_unregister_io_regions(PCIDevice *pci_dev)
 static int pci_unregister_device(DeviceState *dev)
 {
     PCIDevice *pci_dev = DO_UPCAST(PCIDevice, qdev, dev);
-    PCIDeviceInfo *info = DO_UPCAST(PCIDeviceInfo, qdev, dev->info);
+    PCIDeviceInfo *info = DO_UPCAST(PCIDeviceInfo, qdev, qdev_get_info(dev));
     int ret = 0;
 
     if (info->exit)
@@ -1531,7 +1531,7 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
 static int pci_unplug_device(DeviceState *qdev)
 {
     PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
-    PCIDeviceInfo *info = container_of(qdev->info, PCIDeviceInfo, qdev);
+    PCIDeviceInfo *info = container_of(qdev_get_info(qdev), PCIDeviceInfo, qdev);
 
     if (info->no_hotplug) {
         qerror_report(QERR_DEVICE_NO_HOTPLUG, info->qdev.name);
@@ -1544,7 +1544,9 @@ static int pci_unplug_device(DeviceState *qdev)
 void pci_qdev_register(PCIDeviceInfo *info)
 {
     info->qdev.init = pci_qdev_init;
-    info->qdev.unplug = pci_unplug_device;
+    if (!info->qdev.unplug) {
+        info->qdev.unplug = pci_unplug_device;
+    }
     info->qdev.exit = pci_unregister_device;
     info->qdev.bus_info = &pci_bus_info;
     qdev_register(&info->qdev);
@@ -1737,10 +1739,10 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
         size = 1 << qemu_fls(size);
     }
 
-    if (pdev->qdev.info->vmsd)
-        snprintf(name, sizeof(name), "%s.rom", pdev->qdev.info->vmsd->name);
+    if (qdev_get_info(&pdev->qdev)->vmsd)
+        snprintf(name, sizeof(name), "%s.rom", qdev_get_info(&pdev->qdev)->vmsd->name);
     else
-        snprintf(name, sizeof(name), "%s.rom", pdev->qdev.info->name);
+        snprintf(name, sizeof(name), "%s.rom", qdev_get_info(&pdev->qdev)->name);
     pdev->has_rom = true;
     memory_region_init_ram(&pdev->rom, name, size);
     vmstate_register_ram(&pdev->rom, &pdev->qdev);
@@ -1981,7 +1983,7 @@ static int pci_qdev_find_recursive(PCIBus *bus,
     }
 
     /* roughly check if given qdev is pci device */
-    if (qdev->info->init == &pci_qdev_init &&
+    if (qdev_get_info(qdev)->init == &pci_qdev_init &&
         qdev->parent_bus->info == &pci_bus_info) {
         *pdev = DO_UPCAST(PCIDevice, qdev, qdev);
         return 0;

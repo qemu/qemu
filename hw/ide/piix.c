@@ -195,7 +195,6 @@ PCIDevice *pci_piix3_xen_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
     PCIDevice *dev;
 
     dev = pci_create_simple(bus, devfn, "piix3-ide-xen");
-    dev->qdev.info->unplug = pci_piix3_xen_ide_unplug;
     pci_ide_create_devs(dev, hd_table);
     return dev;
 }
@@ -253,6 +252,7 @@ static PCIDeviceInfo piix_ide_info[] = {
         .qdev.name    = "piix3-ide-xen",
         .qdev.size    = sizeof(PCIIDEState),
         .qdev.no_user = 1,
+        .qdev.unplug  = pci_piix3_xen_ide_unplug,
         .init         = pci_piix_ide_initfn,
         .vendor_id    = PCI_VENDOR_ID_INTEL,
         .device_id    = PCI_DEVICE_ID_INTEL_82371SB_1,

@@ -250,7 +250,7 @@ int usb_claim_port(USBDevice *dev)
             return -1;
         }
     } else {
-        if (bus->nfree == 1 && strcmp(dev->qdev.info->name, "usb-hub") != 0) {
+        if (bus->nfree == 1 && strcmp(qdev_get_info(&dev->qdev)->name, "usb-hub") != 0) {
             /* Create a new hub and chain it on */
             usb_create_simple(bus, "usb-hub");
         }

@@ -1116,8 +1116,8 @@ static void intel_hda_reset(DeviceState *dev)
     /* reset codecs */
     QTAILQ_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
-        if (qdev->info->reset) {
-            qdev->info->reset(qdev);
+        if (qdev_get_info(qdev)->reset) {
+            qdev_get_info(qdev)->reset(qdev);
         }
         d->state_sts |= (1 << cdev->cad);
     }
@@ -1129,7 +1129,7 @@ static int intel_hda_init(PCIDevice *pci)
     IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
     uint8_t *conf = d->pci.config;
 
-    d->name = d->pci.qdev.info->name;
+    d->name = qdev_get_info(&d->pci.qdev)->name;
 
     pci_config_set_interrupt_pin(conf, 1);
 

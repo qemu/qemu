@@ -49,7 +49,7 @@ static void pic_dispatch_pre_save(void *opaque)
 {
     PICCommonState *s = opaque;
     PICCommonInfo *info =
-        DO_UPCAST(PICCommonInfo, isadev.qdev, s->dev.qdev.info);
+        DO_UPCAST(PICCommonInfo, isadev.qdev, qdev_get_info(&s->dev.qdev));
 
     if (info->pre_save) {
         info->pre_save(s);
@@ -60,7 +60,7 @@ static int pic_dispatch_post_load(void *opaque, int version_id)
 {
     PICCommonState *s = opaque;
     PICCommonInfo *info =
-        DO_UPCAST(PICCommonInfo, isadev.qdev, s->dev.qdev.info);
+        DO_UPCAST(PICCommonInfo, isadev.qdev, qdev_get_info(&s->dev.qdev));
 
     if (info->post_load) {
         info->post_load(s);
@@ -72,7 +72,7 @@ static int pic_init_common(ISADevice *dev)
 {
     PICCommonState *s = DO_UPCAST(PICCommonState, dev, dev);
     PICCommonInfo *info =
-        DO_UPCAST(PICCommonInfo, isadev.qdev, dev->qdev.info);
+        DO_UPCAST(PICCommonInfo, isadev.qdev, qdev_get_info(&dev->qdev));
 
     info->init(s);
 

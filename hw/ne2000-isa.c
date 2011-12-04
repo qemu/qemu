@@ -76,7 +76,7 @@ static int isa_ne2000_initfn(ISADevice *dev)
     ne2000_reset(s);
 
     s->nic = qemu_new_nic(&net_ne2000_isa_info, &s->c,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          qdev_get_info(&dev->qdev)->name, dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
 
     return 0;

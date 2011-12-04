@@ -1848,7 +1848,7 @@ static int e100_nic_init(PCIDevice *pci_dev)
 {
     EEPRO100State *s = DO_UPCAST(EEPRO100State, dev, pci_dev);
     E100PCIDeviceInfo *e100_device = DO_UPCAST(E100PCIDeviceInfo, pci.qdev,
-                                               pci_dev->qdev.info);
+                                               qdev_get_info(&pci_dev->qdev));
 
     TRACE(OTHER, logout("\n"));
 
@@ -1878,7 +1878,7 @@ static int e100_nic_init(PCIDevice *pci_dev)
     nic_reset(s);
 
     s->nic = qemu_new_nic(&net_eepro100_info, &s->conf,
-                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
+                          qdev_get_info(&pci_dev->qdev)->name, pci_dev->qdev.id, s);
 
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     TRACE(OTHER, logout("%s\n", s->nic->nc.info_str));

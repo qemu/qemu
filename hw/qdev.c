@@ -45,6 +45,17 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
 static BusState *qbus_find(const char *path);
 
 /* Register a new device type.  */
+static void qdev_subclass_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    dc->info = data;
+}
+
+DeviceInfo *qdev_get_info(DeviceState *dev)
+{
+    return DEVICE_GET_CLASS(dev)->info;
+}
+
 void qdev_register(DeviceInfo *info)
 {
     TypeInfo type_info = {};
@@ -55,6 +66,8 @@ void qdev_register(DeviceInfo *info)
     type_info.name = info->name;
     type_info.parent = TYPE_DEVICE;
     type_info.instance_size = info->size;
+    type_info.class_init = qdev_subclass_init;
+    type_info.class_data = info;
 
     type_register_static(&type_info);
 
@@ -102,9 +115,8 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
 
     assert(bus->info == info->bus_info);
     dev = DEVICE(object_new(info->name));
-    dev->info = info;
     dev->parent_bus = bus;
-    qdev_prop_set_defaults(dev, dev->info->props);
+    qdev_prop_set_defaults(dev, qdev_get_info(dev)->props);
     qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
     qdev_prop_set_globals(dev);
     QTAILQ_INSERT_HEAD(&bus->children, dev, sibling);
@@ -117,12 +129,12 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
     QTAILQ_INIT(&dev->properties);
     dev->state = DEV_STATE_CREATED;
 
-    for (prop = dev->info->props; prop && prop->name; prop++) {
+    for (prop = qdev_get_info(dev)->props; prop && prop->name; prop++) {
         qdev_property_add_legacy(dev, prop, NULL);
         qdev_property_add_static(dev, prop, NULL);
     }
 
-    for (prop = dev->info->bus_info->props; prop && prop->name; prop++) {
+    for (prop = qdev_get_info(dev)->bus_info->props; prop && prop->name; prop++) {
         qdev_property_add_legacy(dev, prop, NULL);
         qdev_property_add_static(dev, prop, NULL);
     }
@@ -355,19 +367,19 @@ int qdev_init(DeviceState *dev)
     int rc;
 
     assert(dev->state == DEV_STATE_CREATED);
-    rc = dev->info->init(dev, dev->info);
+    rc = qdev_get_info(dev)->init(dev, qdev_get_info(dev));
     if (rc < 0) {
         qdev_free(dev);
         return rc;
     }
-    if (dev->info->vmsd) {
-        vmstate_register_with_alias_id(dev, -1, dev->info->vmsd, dev,
+    if (qdev_get_info(dev)->vmsd) {
+        vmstate_register_with_alias_id(dev, -1, qdev_get_info(dev)->vmsd, dev,
                                        dev->instance_id_alias,
                                        dev->alias_required_for_version);
     }
     dev->state = DEV_STATE_INITIALIZED;
-    if (dev->hotplugged && dev->info->reset) {
-        dev->info->reset(dev);
+    if (dev->hotplugged && qdev_get_info(dev)->reset) {
+        qdev_get_info(dev)->reset(dev);
     }
     return 0;
 }
@@ -386,17 +398,17 @@ int qdev_unplug(DeviceState *dev)
         qerror_report(QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
         return -1;
     }
-    assert(dev->info->unplug != NULL);
+    assert(qdev_get_info(dev)->unplug != NULL);
 
     qdev_hot_removed = true;
 
-    return dev->info->unplug(dev);
+    return qdev_get_info(dev)->unplug(dev);
 }
 
 static int qdev_reset_one(DeviceState *dev, void *opaque)
 {
-    if (dev->info->reset) {
-        dev->info->reset(dev);
+    if (qdev_get_info(dev)->reset) {
+        qdev_get_info(dev)->reset(dev);
     }
 
     return 0;
@@ -447,7 +459,7 @@ int qdev_simple_unplug_cb(DeviceState *dev)
    way is somewhat unclean, and best avoided.  */
 void qdev_init_nofail(DeviceState *dev)
 {
-    DeviceInfo *info = dev->info;
+    DeviceInfo *info = qdev_get_info(dev);
 
     if (qdev_init(dev) < 0) {
         error_report("Initialization of device %s failed", info->name);
@@ -508,15 +520,15 @@ void qdev_free(DeviceState *dev)
             bus = QLIST_FIRST(&dev->child_bus);
             qbus_free(bus);
         }
-        if (dev->info->vmsd)
-            vmstate_unregister(dev, dev->info->vmsd, dev);
-        if (dev->info->exit)
-            dev->info->exit(dev);
+        if (qdev_get_info(dev)->vmsd)
+            vmstate_unregister(dev, qdev_get_info(dev)->vmsd, dev);
+        if (qdev_get_info(dev)->exit)
+            qdev_get_info(dev)->exit(dev);
         if (dev->opts)
             qemu_opts_del(dev->opts);
     }
     QTAILQ_REMOVE(&dev->parent_bus->children, dev, sibling);
-    for (prop = dev->info->props; prop && prop->name; prop++) {
+    for (prop = qdev_get_info(dev)->props; prop && prop->name; prop++) {
         if (prop->info->free) {
             prop->info->free(dev, prop);
         }
@@ -708,7 +720,7 @@ static void qbus_list_bus(DeviceState *dev)
     const char *sep = " ";
 
     error_printf("child busses at \"%s\":",
-                 dev->id ? dev->id : dev->info->name);
+                 dev->id ? dev->id : qdev_get_info(dev)->name);
     QLIST_FOREACH(child, &dev->child_bus, sibling) {
         error_printf("%s\"%s\"", sep, child->name);
         sep = ", ";
@@ -723,7 +735,7 @@ static void qbus_list_dev(BusState *bus)
 
     error_printf("devices at \"%s\":", bus->name);
     QTAILQ_FOREACH(dev, &bus->children, sibling) {
-        error_printf("%s\"%s\"", sep, dev->info->name);
+        error_printf("%s\"%s\"", sep, qdev_get_info(dev)->name);
         if (dev->id)
             error_printf("/\"%s\"", dev->id);
         sep = ", ";
@@ -759,12 +771,12 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
         }
     }
     QTAILQ_FOREACH(dev, &bus->children, sibling) {
-        if (strcmp(dev->info->name, elem) == 0) {
+        if (strcmp(qdev_get_info(dev)->name, elem) == 0) {
             return dev;
         }
     }
     QTAILQ_FOREACH(dev, &bus->children, sibling) {
-        if (dev->info->alias && strcmp(dev->info->alias, elem) == 0) {
+        if (qdev_get_info(dev)->alias && strcmp(qdev_get_info(dev)->alias, elem) == 0) {
             return dev;
         }
     }
@@ -966,7 +978,7 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
 static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 {
     BusState *child;
-    qdev_printf("dev: %s, id \"%s\"\n", dev->info->name,
+    qdev_printf("dev: %s, id \"%s\"\n", qdev_get_info(dev)->name,
                 dev->id ? dev->id : "");
     indent += 2;
     if (dev->num_gpio_in) {
@@ -975,7 +987,7 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     if (dev->num_gpio_out) {
         qdev_printf("gpio-out %d\n", dev->num_gpio_out);
     }
-    qdev_print_props(mon, dev, dev->info->props, "dev", indent);
+    qdev_print_props(mon, dev, qdev_get_info(dev)->props, "dev", indent);
     qdev_print_props(mon, dev, dev->parent_bus->info->props, "bus", indent);
     if (dev->parent_bus->info->print_dev)
         dev->parent_bus->info->print_dev(mon, dev, indent);
@@ -1056,7 +1068,7 @@ static int qdev_get_fw_dev_path_helper(DeviceState *dev, char *p, int size)
             l += snprintf(p + l, size - l, "%s", d);
             g_free(d);
         } else {
-            l += snprintf(p + l, size - l, "%s", dev->info->name);
+            l += snprintf(p + l, size - l, "%s", qdev_get_info(dev)->name);
         }
     }
     l += snprintf(p + l , size - l, "/");
@@ -1078,7 +1090,7 @@ char* qdev_get_fw_dev_path(DeviceState *dev)
 
 char *qdev_get_type(DeviceState *dev, Error **errp)
 {
-    return g_strdup(dev->info->name);
+    return g_strdup(qdev_get_info(dev)->name);
 }
 
 void qdev_ref(DeviceState *dev)
@@ -1288,7 +1300,7 @@ void qdev_property_add_child(DeviceState *dev, const char *name,
 {
     gchar *type;
 
-    type = g_strdup_printf("child<%s>", child->info->name);
+    type = g_strdup_printf("child<%s>", qdev_get_info(child)->name);
 
     qdev_property_add(dev, name, type, qdev_get_child_property,
                       NULL, qdev_release_child_property,
@@ -1340,7 +1352,7 @@ static void qdev_set_link_property(DeviceState *dev, Visitor *v, void *opaque,
         if (target) {
             gchar *target_type;
 
-            target_type = g_strdup_printf("link<%s>", target->info->name);
+            target_type = g_strdup_printf("link<%s>", qdev_get_info(target)->name);
             if (strcmp(target_type, type) == 0) {
                 *child = target;
                 qdev_ref(target);

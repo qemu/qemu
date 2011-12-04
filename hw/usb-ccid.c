@@ -1114,7 +1114,7 @@ static int ccid_card_exit(DeviceState *qdev)
 {
     int ret = 0;
     CCIDCardState *card = DO_UPCAST(CCIDCardState, qdev, qdev);
-    CCIDCardInfo *info = DO_UPCAST(CCIDCardInfo, qdev, qdev->info);
+    CCIDCardInfo *info = DO_UPCAST(CCIDCardInfo, qdev, qdev_get_info(qdev));
     USBCCIDState *s =
         DO_UPCAST(USBCCIDState, dev.qdev, card->qdev.parent_bus->parent);
 

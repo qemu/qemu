@@ -390,7 +390,7 @@ static int xgmac_enet_init(SysBusDevice *dev)
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xgmac_enet_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          qdev_get_info(&dev->qdev)->name, dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     s->regs[XGMAC_ADDR_HIGH(0)] = (s->conf.macaddr.a[5] << 8) |

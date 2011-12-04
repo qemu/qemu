@@ -163,7 +163,7 @@ VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
     selected = NULL;
     QTAILQ_FOREACH(iter, &bus->bus.children, sibling) {
         /* Only look at VTY devices */
-        if (iter->info != &spapr_vty.qdev) {
+        if (qdev_get_info(iter) != &spapr_vty.qdev) {
             continue;
         }
 

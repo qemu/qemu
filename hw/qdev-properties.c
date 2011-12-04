@@ -966,7 +966,7 @@ static Property *qdev_prop_find(DeviceState *dev, const char *name)
     Property *prop;
 
     /* device properties */
-    prop = qdev_prop_walk(dev->info->props, name);
+    prop = qdev_prop_walk(qdev_get_info(dev)->props, name);
     if (prop)
         return prop;
 
@@ -989,16 +989,16 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
     switch (ret) {
     case -EEXIST:
         error_set(errp, QERR_PROPERTY_VALUE_IN_USE,
-                  dev->info->name, prop->name, value);
+                  qdev_get_info(dev)->name, prop->name, value);
         break;
     default:
     case -EINVAL:
         error_set(errp, QERR_PROPERTY_VALUE_BAD,
-                  dev->info->name, prop->name, value);
+                  qdev_get_info(dev)->name, prop->name, value);
         break;
     case -ENOENT:
         error_set(errp, QERR_PROPERTY_VALUE_NOT_FOUND,
-                  dev->info->name, prop->name, value);
+                  qdev_get_info(dev)->name, prop->name, value);
         break;
     case 0:
         break;
@@ -1018,7 +1018,7 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
      * removed along with it.
      */
     if (!prop || !prop->info->parse) {
-        qerror_report(QERR_PROPERTY_NOT_FOUND, dev->info->name, name);
+        qerror_report(QERR_PROPERTY_NOT_FOUND, qdev_get_info(dev)->name, name);
         return -1;
     }
     ret = prop->info->parse(dev, prop, value);
@@ -1039,12 +1039,12 @@ void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyT
     prop = qdev_prop_find(dev, name);
     if (!prop) {
         fprintf(stderr, "%s: property \"%s.%s\" not found\n",
-                __FUNCTION__, dev->info->name, name);
+                __FUNCTION__, qdev_get_info(dev)->name, name);
         abort();
     }
     if (prop->info->type != type) {
         fprintf(stderr, "%s: property \"%s.%s\" type mismatch\n",
-                __FUNCTION__, dev->info->name, name);
+                __FUNCTION__, qdev_get_info(dev)->name, name);
         abort();
     }
     qdev_prop_cpy(dev, prop, src);
@@ -1093,7 +1093,7 @@ int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *va
     if (res < 0) {
         error_report("Can't attach drive %s to %s.%s: %s",
                      bdrv_get_device_name(value),
-                     dev->id ? dev->id : dev->info->name,
+                     dev->id ? dev->id : qdev_get_info(dev)->name,
                      name, strerror(-res));
         return -1;
     }
@@ -1165,8 +1165,8 @@ void qdev_prop_set_globals(DeviceState *dev)
     GlobalProperty *prop;
 
     QTAILQ_FOREACH(prop, &global_props, next) {
-        if (strcmp(dev->info->name, prop->driver) != 0 &&
-            strcmp(dev->info->bus_info->name, prop->driver) != 0) {
+        if (strcmp(qdev_get_info(dev)->name, prop->driver) != 0 &&
+            strcmp(qdev_get_info(dev)->bus_info->name, prop->driver) != 0) {
             continue;
         }
         if (qdev_prop_parse(dev, prop->property, prop->value) != 0) {

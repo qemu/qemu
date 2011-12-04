@@ -31,7 +31,7 @@ void cpu_set_apic_base(DeviceState *d, uint64_t val)
     trace_cpu_set_apic_base(val);
 
     if (s) {
-        info = DO_UPCAST(APICCommonInfo, busdev.qdev, s->busdev.qdev.info);
+        info = DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
         info->set_base(s, val);
     }
 }
@@ -51,7 +51,7 @@ void cpu_set_apic_tpr(DeviceState *d, uint8_t val)
     APICCommonInfo *info;
 
     if (s) {
-        info = DO_UPCAST(APICCommonInfo, busdev.qdev, s->busdev.qdev.info);
+        info = DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
         info->set_tpr(s, val);
     }
 }
@@ -89,7 +89,7 @@ void apic_deliver_nmi(DeviceState *d)
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
     APICCommonInfo *info;
 
-    info = DO_UPCAST(APICCommonInfo, busdev.qdev, s->busdev.qdev.info);
+    info = DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
     info->external_nmi(s);
 }
 
@@ -232,7 +232,7 @@ static int apic_init_common(SysBusDevice *dev)
     }
     s->idx = apic_no++;
 
-    info = DO_UPCAST(APICCommonInfo, busdev.qdev, s->busdev.qdev.info);
+    info = DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
     info->init(s);
 
     sysbus_init_mmio(&s->busdev, &s->io_memory);
@@ -243,7 +243,7 @@ static int apic_dispatch_post_load(void *opaque, int version_id)
 {
     APICCommonState *s = opaque;
     APICCommonInfo *info =
-        DO_UPCAST(APICCommonInfo, busdev.qdev, s->busdev.qdev.info);
+        DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
 
     if (info->post_load) {
         info->post_load(s);

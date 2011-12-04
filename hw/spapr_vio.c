@@ -75,7 +75,7 @@ VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
 
 static char *vio_format_dev_name(VIOsPAPRDevice *dev)
 {
-    VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)dev->qdev.info;
+    VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qdev_get_info(&dev->qdev);
     char *name;
 
     /* Device tree style name device@reg */
@@ -90,7 +90,7 @@ static char *vio_format_dev_name(VIOsPAPRDevice *dev)
 static int vio_make_devnode(VIOsPAPRDevice *dev,
                             void *fdt)
 {
-    VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)dev->qdev.info;
+    VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qdev_get_info(&dev->qdev);
     int vdevice_off, node_off, ret;
     char *dt_name;
 
@@ -700,7 +700,7 @@ static target_ulong h_vio_signal(CPUState *env, sPAPREnvironment *spapr,
         return H_PARAMETER;
     }
 
-    info = (VIOsPAPRDeviceInfo *)dev->qdev.info;
+    info = (VIOsPAPRDeviceInfo *)qdev_get_info(&dev->qdev);
 
     if (mode & ~info->signal_mask) {
         return H_PARAMETER;
