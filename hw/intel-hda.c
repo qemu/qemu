@@ -1116,9 +1116,7 @@ static void intel_hda_reset(DeviceState *dev)
     /* reset codecs */
     QTAILQ_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
-        if (qdev_get_info(qdev)->reset) {
-            qdev_get_info(qdev)->reset(qdev);
-        }
+        device_reset(DEVICE(cdev));
         d->state_sts |= (1 << cdev->cad);
     }
     intel_hda_update_irq(d);

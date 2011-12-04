@@ -75,6 +75,7 @@ typedef struct DeviceProperty
 typedef struct DeviceClass {
     ObjectClass parent_class;
     DeviceInfo *info;
+    void (*reset)(DeviceState *dev);
 } DeviceClass;
 
 /* This structure should not be accessed directly.  We declare it here
@@ -646,5 +647,12 @@ char *qdev_get_type(DeviceState *dev, Error **errp);
  * support for composition is added.
  */
 void qdev_machine_init(void);
+
+/**
+ * @device_reset
+ *
+ * Reset a single device (by calling the reset method).
+ */
+void device_reset(DeviceState *dev);
 
 #endif
