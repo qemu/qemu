@@ -4,6 +4,7 @@ obj-y += core-de212.o
 obj-y += core-fsf.o
 obj-y += core-sample_controller.o
 obj-y += core-test_kc705_be.o
+obj-y += core-test_mmuhifi_c3.o
 obj-$(CONFIG_SOFTMMU) += monitor.o xtensa-semi.o
 obj-y += xtensa-isa.o
 obj-y += translate.o op_helper.o helper.o cpu.o
