@@ -111,7 +111,7 @@ typedef int PollingFunc(void *opaque);
  * qemu_add_wait_object.
  *
  * Polling callbacks really have nothing Windows specific in them, but
- * as they are a hack and are currenly not necessary under POSIX systems,
+ * as they are a hack and are currently not necessary under POSIX systems,
  * they are only available when QEMU is running under Windows.
  *
  * @func: The function that does the polling, and returns 1 to force

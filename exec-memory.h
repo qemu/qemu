@@ -1,5 +1,5 @@
 /*
- * Internal memory managment interfaces
+ * Internal memory management interfaces
  *
  * Copyright 2011 Red Hat, Inc. and/or its affiliates
  *

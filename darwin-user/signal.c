@@ -270,8 +270,7 @@ int do_sigaction(int sig, const struct sigaction *act,
         host_sig = target_to_host_signal(sig);
         if (host_sig != SIGSEGV && host_sig != SIGBUS) {
 #if defined(DEBUG_SIGNAL)
-    fprintf(stderr, "sigaction handler going to call sigaction\n",
-            act->sa_handler, act->sa_flags, act->sa_mask);
+            fprintf(stderr, "sigaction handler going to call sigaction\n");
 #endif
 
             sigfillset(&act1.sa_mask);

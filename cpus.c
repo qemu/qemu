@@ -281,7 +281,7 @@ void qemu_clock_warp(QEMUClock *clock)
          * (related to the time left until the next event) has passed.  This
          * rt_clock timer will do this.  This avoids that the warps are too
          * visible externally---for example, you will not be sending network
-         * packets continously instead of every 100ms.
+         * packets continuously instead of every 100ms.
          */
         qemu_mod_timer(icount_warp_timer, vm_clock_warp_start + deadline);
     } else {

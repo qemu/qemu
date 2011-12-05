@@ -394,7 +394,7 @@ void cpu_loop(CPUPPCState *env)
             queue_signal(info.si_signo, &info);
             break;
         case POWERPC_EXCP_PIT:      /* Programmable interval timer IRQ       */
-            cpu_abort(env, "Programable interval timer interrupt "
+            cpu_abort(env, "Programmable interval timer interrupt "
                       "while in user mode. Aborting\n");
             break;
         case POWERPC_EXCP_IO:       /* IO error exception                    */

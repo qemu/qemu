@@ -480,7 +480,7 @@ void print_option_parameters(QEMUOptionParameter *list)
                 printf("%s=%" PRId64 " ", list->name, list->value.n);
                 break;
             default:
-                printf("%s=(unkown type) ", list->name);
+                printf("%s=(unknown type) ", list->name);
                 break;
         }
         list++;

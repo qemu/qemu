@@ -302,7 +302,7 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     for (i = 0; i < MIPS_FPU_MAX; i++)
         load_fpu(f, &env->fpus[i]);
 
-    /* XXX: ensure compatiblity for halted bit ? */
+    /* XXX: ensure compatibility for halted bit ? */
     tlb_flush(env, 1);
     return 0;
 }

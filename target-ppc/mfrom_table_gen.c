@@ -11,7 +11,7 @@ int main (void)
 
     printf("static const uint8_t mfrom_ROM_table[602] =\n{\n    ");
     for (i = 0; i < 602; i++) {
-        /* Extremly decomposed:
+        /* Extremely decomposed:
          *                    -T0 / 256
          * T0 = 256 * log10(10          + 1.0) + 0.5
          */

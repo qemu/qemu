@@ -2339,7 +2339,7 @@ static void fill_auxv_note(struct memelfnote *note, const TaskState *ts)
      * strictly necessary but we do it here for sake of completeness.
      */
 
-    /* find out lenght of the vector, AT_NULL is terminator */
+    /* find out length of the vector, AT_NULL is terminator */
     i = len = 0;
     do {
         get_user_ual(val, auxv);

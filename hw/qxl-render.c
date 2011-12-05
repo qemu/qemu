@@ -157,7 +157,7 @@ static QEMUCursor *qxl_cursor(PCIQXLDevice *qxl, QXLCursor *cursor)
 {
     QEMUCursor *c;
     uint8_t *image, *mask;
-    int size;
+    size_t size;
 
     c = cursor_alloc(cursor->header.width, cursor->header.height);
     c->hot_x = cursor->header.hot_spot_x;

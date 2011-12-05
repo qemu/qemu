@@ -20,7 +20,7 @@ int main(void)
 	if (t != 10)
 		err();
 
-	/* make sure moveq doesnt clobber the zflag.  */
+	/* make sure moveq doesn't clobber the zflag.  */
 	cris_tst_cc_init();
 	asm volatile ("setf vnc\n");
 	asm volatile ("clearf z\n");
@@ -29,7 +29,7 @@ int main(void)
 	if (t != 0)
 		err();
 
-	/* make sure moveq doesnt clobber the nflag.
+	/* make sure moveq doesn't clobber the nflag.
 	   Also check large immediates  */
 	cris_tst_cc_init();
 	asm volatile ("setf zvc\n");

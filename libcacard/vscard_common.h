@@ -44,7 +44,7 @@
  * to the existing messages, addition of fields.
  *
  * The major digit is for a breaking change of protocol, presumably
- * something that cannot be accomodated with the existing protocol.
+ * something that cannot be accommodated with the existing protocol.
  */
 
 #define VSCARD_VERSION MAKE_VERSION(0, 0, 2)

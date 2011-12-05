@@ -678,7 +678,7 @@ static inline int mips_vpe_active(CPUState *env)
     if (!(env->mvp->CP0_MVPControl & (1 << CP0MVPCo_EVP))) {
         active = 0;
     }
-    /* Check that the VPE is actived.  */
+    /* Check that the VPE is activated.  */
     if (!(env->CP0_VPEConf0 & (1 << CP0VPEC0_VPA))) {
         active = 0;
     }

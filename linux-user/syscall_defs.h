@@ -1,7 +1,7 @@
 /* common syscall defines for all architectures */
 
 /* Note: although the syscall numbers change between architectures,
-   most of them stay the same, so we handle it by puting ifdefs if
+   most of them stay the same, so we handle it by putting ifdefs if
    necessary */
 
 #include "syscall_nr.h"
@@ -669,7 +669,7 @@ typedef struct target_siginfo {
  * SIGBUS si_codes
  */
 #define TARGET_BUS_ADRALN       (1)	/* invalid address alignment */
-#define TARGET_BUS_ADRERR       (2)	/* non-existant physical address */
+#define TARGET_BUS_ADRERR       (2)	/* non-existent physical address */
 #define TARGET_BUS_OBJERR       (3)	/* object specific hardware error */
 
 /*
@@ -868,7 +868,7 @@ struct target_pollfd {
 #define TARGET_CDROM_GET_MCN		0x5311 /* Obtain the "Universal Product Code"
                                            if available (struct cdrom_mcn) */
 #define TARGET_CDROM_GET_UPC		TARGET_CDROM_GET_MCN  /* This one is depricated,
-                                          but here anyway for compatability */
+                                          but here anyway for compatibility */
 #define TARGET_CDROMRESET		0x5312 /* hard-reset the drive */
 #define TARGET_CDROMVOLREAD		0x5313 /* Get the drive's volume setting
                                           (struct cdrom_volctrl) */

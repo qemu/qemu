@@ -92,7 +92,7 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
         if (offset > s->cluster_size)
             printf("qcow2_read_extension: suspicious offset %lu\n", offset);
 
-        printf("attemting to read extended header in offset %lu\n", offset);
+        printf("attempting to read extended header in offset %lu\n", offset);
 #endif
 
         if (bdrv_pread(bs->file, offset, &ext, sizeof(ext)) != sizeof(ext)) {
@@ -821,7 +821,7 @@ static int qcow2_create2(const char *filename, int64_t total_size,
                          int flags, size_t cluster_size, int prealloc,
                          QEMUOptionParameter *options)
 {
-    /* Calulate cluster_bits */
+    /* Calculate cluster_bits */
     int cluster_bits;
     cluster_bits = ffs(cluster_size) - 1;
     if (cluster_bits < MIN_CLUSTER_BITS || cluster_bits > MAX_CLUSTER_BITS ||

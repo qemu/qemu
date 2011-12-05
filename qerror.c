@@ -223,7 +223,7 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_UNDEFINED_ERROR,
-        .desc      = "An undefined error has ocurred",
+        .desc      = "An undefined error has occurred",
     },
     {
         .error_fmt = QERR_UNSUPPORTED,

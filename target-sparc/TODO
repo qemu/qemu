@@ -15,7 +15,7 @@ CPU common:
  - NPC/PC static optimisations (use JUMP_TB when possible)? (Is this
  obsolete?)
  - Synthetic instructions
- - MMU model dependant on CPU model
+ - MMU model dependent on CPU model
  - Select ASI helper at translation time (on V9 only if known)
  - KQemu/KVM support for VM only
  - Hardware breakpoint/watchpoint support

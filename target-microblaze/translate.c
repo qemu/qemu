@@ -120,7 +120,7 @@ static inline int sign_extend(unsigned int val, unsigned int width)
 
 static inline void t_sync_flags(DisasContext *dc)
 {
-    /* Synch the tb dependant flags between translator and runtime.  */
+    /* Synch the tb dependent flags between translator and runtime.  */
     if (dc->tb_flags != dc->synced_flags) {
         tcg_gen_movi_tl(env_iflags, dc->tb_flags);
         dc->synced_flags = dc->tb_flags;
@@ -1122,7 +1122,7 @@ static void dec_store(DisasContext *dc)
     if ((dc->env->pvr.regs[2] & PVR2_UNALIGNED_EXC_MASK) && size > 1) {
         tcg_gen_movi_tl(cpu_SR[SR_PC], dc->pc);
         /* FIXME: if the alignment is wrong, we should restore the value
-         *        in memory. One possible way to acheive this is to probe
+         *        in memory. One possible way to achieve this is to probe
          *        the MMU prior to the memaccess, thay way we could put
          *        the alignment checks in between the probe and the mem
          *        access.

@@ -1153,7 +1153,7 @@ static int cdrom_open(BlockDriverState *bs, const char *filename, int flags)
     if (ret)
         return ret;
 
-    /* make sure the door isnt locked at this time */
+    /* make sure the door isn't locked at this time */
     ioctl(s->fd, CDIOCALLOW);
     return 0;
 }
@@ -1184,7 +1184,7 @@ static int cdrom_reopen(BlockDriverState *bs)
     }
     s->fd = fd;
 
-    /* make sure the door isnt locked at this time */
+    /* make sure the door isn't locked at this time */
     ioctl(s->fd, CDIOCALLOW);
     return 0;
 }
