@@ -16,6 +16,7 @@
 typedef struct PXA2xxGPIOInfo PXA2xxGPIOInfo;
 struct PXA2xxGPIOInfo {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq irq0, irq1, irqX;
     int lines;
     int ncpu;
@@ -137,7 +138,8 @@ static void pxa2xx_gpio_handler_update(PXA2xxGPIOInfo *s) {
     }
 }
 
-static uint32_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset,
+                                 unsigned size)
 {
     PXA2xxGPIOInfo *s = (PXA2xxGPIOInfo *) opaque;
     uint32_t ret;
@@ -188,8 +190,8 @@ static uint32_t pxa2xx_gpio_read(void *opaque, target_phys_addr_t offset)
     return 0;
 }
 
-static void pxa2xx_gpio_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+static void pxa2xx_gpio_write(void *opaque, target_phys_addr_t offset,
+                              uint64_t value, unsigned size)
 {
     PXA2xxGPIOInfo *s = (PXA2xxGPIOInfo *) opaque;
     int bank;
@@ -240,16 +242,10 @@ static void pxa2xx_gpio_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc * const pxa2xx_gpio_readfn[] = {
-    pxa2xx_gpio_read,
-    pxa2xx_gpio_read,
-    pxa2xx_gpio_read
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_gpio_writefn[] = {
-    pxa2xx_gpio_write,
-    pxa2xx_gpio_write,
-    pxa2xx_gpio_write
+static const MemoryRegionOps pxa_gpio_ops = {
+    .read = pxa2xx_gpio_read,
+    .write = pxa2xx_gpio_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 DeviceState *pxa2xx_gpio_init(target_phys_addr_t base,
@@ -275,7 +271,6 @@ DeviceState *pxa2xx_gpio_init(target_phys_addr_t base,
 
 static int pxa2xx_gpio_initfn(SysBusDevice *dev)
 {
-    int iomemtype;
     PXA2xxGPIOInfo *s;
 
     s = FROM_SYSBUS(PXA2xxGPIOInfo, dev);
@@ -285,10 +280,8 @@ static int pxa2xx_gpio_initfn(SysBusDevice *dev)
     qdev_init_gpio_in(&dev->qdev, pxa2xx_gpio_set, s->lines);
     qdev_init_gpio_out(&dev->qdev, s->handler, s->lines);
 
-    iomemtype = cpu_register_io_memory(pxa2xx_gpio_readfn,
-                    pxa2xx_gpio_writefn, s, DEVICE_NATIVE_ENDIAN);
-
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa_gpio_ops, s, "pxa2xx-gpio", 0x1000);
+    sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq0);
     sysbus_init_irq(dev, &s->irq1);
     sysbus_init_irq(dev, &s->irqX);

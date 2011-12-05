@@ -217,7 +217,7 @@ static int xilinx_ethlite_init(SysBusDevice *dev)
     s->rxbuf = 0;
 
     memory_region_init_io(&s->mmio, &eth_ops, s, "xilinx-ethlite", R_MAX * 4);
-    sysbus_init_mmio_region(dev, &s->mmio);
+    sysbus_init_mmio(dev, &s->mmio);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_ethlite_info, &s->conf,

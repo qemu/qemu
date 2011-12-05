@@ -24,6 +24,7 @@ struct omap_mmc_s {
     qemu_irq irq;
     qemu_irq *dma;
     qemu_irq coverswitch;
+    MemoryRegion iomem;
     omap_clk clk;
     SDState *card;
     uint16_t last_cmd;
@@ -305,11 +306,15 @@ void omap_mmc_reset(struct omap_mmc_s *host)
     host->clkdiv = 0;
 }
 
-static uint32_t omap_mmc_read(void *opaque, target_phys_addr_t offset)
+static uint64_t omap_mmc_read(void *opaque, target_phys_addr_t offset,
+                              unsigned size)
 {
     uint16_t i;
     struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
-    offset &= OMAP_MPUI_REG_MASK;
+
+    if (size != 2) {
+        return omap_badwidth_read16(opaque, offset);
+    }
 
     switch (offset) {
     case 0x00:	/* MMC_CMD */
@@ -395,11 +400,14 @@ static uint32_t omap_mmc_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void omap_mmc_write(void *opaque, target_phys_addr_t offset,
-                uint32_t value)
+                           uint64_t value, unsigned size)
 {
     int i;
     struct omap_mmc_s *s = (struct omap_mmc_s *) opaque;
-    offset &= OMAP_MPUI_REG_MASK;
+
+    if (size != 2) {
+        return omap_badwidth_write16(opaque, offset, value);
+    }
 
     switch (offset) {
     case 0x00:	/* MMC_CMD */
@@ -540,16 +548,10 @@ static void omap_mmc_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const omap_mmc_readfn[] = {
-    omap_badwidth_read16,
-    omap_mmc_read,
-    omap_badwidth_read16,
-};
-
-static CPUWriteMemoryFunc * const omap_mmc_writefn[] = {
-    omap_badwidth_write16,
-    omap_mmc_write,
-    omap_badwidth_write16,
+static const MemoryRegionOps omap_mmc_ops = {
+    .read = omap_mmc_read,
+    .write = omap_mmc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_mmc_cover_cb(void *opaque, int line, int level)
@@ -571,10 +573,10 @@ static void omap_mmc_cover_cb(void *opaque, int line, int level)
 }
 
 struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
+                MemoryRegion *sysmem,
                 BlockDriverState *bd,
                 qemu_irq irq, qemu_irq dma[], omap_clk clk)
 {
-    int iomemtype;
     struct omap_mmc_s *s = (struct omap_mmc_s *)
             g_malloc0(sizeof(struct omap_mmc_s));
 
@@ -586,9 +588,8 @@ struct omap_mmc_s *omap_mmc_init(target_phys_addr_t base,
 
     omap_mmc_reset(s);
 
-    iomemtype = cpu_register_io_memory(omap_mmc_readfn,
-                    omap_mmc_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x800, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_mmc_ops, s, "omap.mmc", 0x800);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     /* Instantiate the storage */
     s->card = sd_init(bd, 0);
@@ -600,7 +601,6 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
                 BlockDriverState *bd, qemu_irq irq, qemu_irq dma[],
                 omap_clk fclk, omap_clk iclk)
 {
-    int iomemtype;
     struct omap_mmc_s *s = (struct omap_mmc_s *)
             g_malloc0(sizeof(struct omap_mmc_s));
 
@@ -612,9 +612,9 @@ struct omap_mmc_s *omap2_mmc_init(struct omap_target_agent_s *ta,
 
     omap_mmc_reset(s);
 
-    iomemtype = l4_register_io_memory(omap_mmc_readfn,
-                    omap_mmc_writefn, s);
-    omap_l4_attach(ta, 0, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_mmc_ops, s, "omap.mmc",
+                          omap_l4_region_size(ta, 0));
+    omap_l4_attach(ta, 0, &s->iomem);
 
     /* Instantiate the storage */
     s->card = sd_init(bd, 0);

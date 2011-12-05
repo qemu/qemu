@@ -203,7 +203,7 @@ static int xilinx_uartlite_init(SysBusDevice *dev)
 
     uart_update_status(s);
     memory_region_init_io(&s->mmio, &uart_ops, s, "xilinx-uartlite", R_MAX * 4);
-    sysbus_init_mmio_region(dev, &s->mmio);
+    sysbus_init_mmio(dev, &s->mmio);
 
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr)

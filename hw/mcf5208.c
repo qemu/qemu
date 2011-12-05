@@ -221,11 +221,11 @@ static void mcf5208evb_init(ram_addr_t ram_size,
     memory_region_add_subregion(address_space_mem, 0x80000000, sram);
 
     /* Internal peripherals.  */
-    pic = mcf_intc_init(0xfc048000, env);
+    pic = mcf_intc_init(address_space_mem, 0xfc048000, env);
 
-    mcf_uart_mm_init(0xfc060000, pic[26], serial_hds[0]);
-    mcf_uart_mm_init(0xfc064000, pic[27], serial_hds[1]);
-    mcf_uart_mm_init(0xfc068000, pic[28], serial_hds[2]);
+    mcf_uart_mm_init(address_space_mem, 0xfc060000, pic[26], serial_hds[0]);
+    mcf_uart_mm_init(address_space_mem, 0xfc064000, pic[27], serial_hds[1]);
+    mcf_uart_mm_init(address_space_mem, 0xfc068000, pic[28], serial_hds[2]);
 
     mcf5208_sys_init(address_space_mem, pic);
 
@@ -234,7 +234,8 @@ static void mcf5208evb_init(ram_addr_t ram_size,
         exit(1);
     }
     if (nd_table[0].vlan)
-        mcf_fec_init(&nd_table[0], 0xfc030000, pic + 36);
+        mcf_fec_init(address_space_mem, &nd_table[0],
+                     0xfc030000, pic + 36);
 
     /*  0xfc000000 SCM.  */
     /*  0xfc004000 XBS.  */

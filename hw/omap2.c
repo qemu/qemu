@@ -33,6 +33,7 @@
 /* Enhanced Audio Controller (CODEC only) */
 struct omap_eac_s {
     qemu_irq irq;
+    MemoryRegion iomem;
 
     uint16_t sysconfig;
     uint8_t config[4];
@@ -323,10 +324,15 @@ static void omap_eac_reset(struct omap_eac_s *s)
     omap_eac_interrupt_update(s);
 }
 
-static uint32_t omap_eac_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_eac_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     struct omap_eac_s *s = (struct omap_eac_s *) opaque;
     uint32_t ret;
+
+    if (size != 2) {
+        return omap_badwidth_read16(opaque, addr);
+    }
 
     switch (addr) {
     case 0x000:	/* CPCFR1 */
@@ -435,9 +441,13 @@ static uint32_t omap_eac_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_eac_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                           uint64_t value, unsigned size)
 {
     struct omap_eac_s *s = (struct omap_eac_s *) opaque;
+
+    if (size != 2) {
+        return omap_badwidth_write16(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x098:	/* APD1LCR */
@@ -574,22 +584,15 @@ static void omap_eac_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_eac_readfn[] = {
-    omap_badwidth_read16,
-    omap_eac_read,
-    omap_badwidth_read16,
-};
-
-static CPUWriteMemoryFunc * const omap_eac_writefn[] = {
-    omap_badwidth_write16,
-    omap_eac_write,
-    omap_badwidth_write16,
+static const MemoryRegionOps omap_eac_ops = {
+    .read = omap_eac_read,
+    .write = omap_eac_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk)
 {
-    int iomemtype;
     struct omap_eac_s *s = (struct omap_eac_s *)
             g_malloc0(sizeof(struct omap_eac_s));
 
@@ -600,9 +603,9 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 
     AUD_register_card("OMAP EAC", &s->codec.card);
 
-    iomemtype = cpu_register_io_memory(omap_eac_readfn,
-                    omap_eac_writefn, s, DEVICE_NATIVE_ENDIAN);
-    omap_l4_attach(ta, 0, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_eac_ops, s, "omap.eac",
+                          omap_l4_region_size(ta, 0));
+    omap_l4_attach(ta, 0, &s->iomem);
 
     return s;
 }
@@ -610,6 +613,8 @@ static struct omap_eac_s *omap_eac_init(struct omap_target_agent_s *ta,
 /* STI/XTI (emulation interface) console - reverse engineered only */
 struct omap_sti_s {
     qemu_irq irq;
+    MemoryRegion iomem;
+    MemoryRegion iomem_fifo;
     CharDriverState *chr;
 
     uint32_t sysconfig;
@@ -639,9 +644,14 @@ static void omap_sti_reset(struct omap_sti_s *s)
     omap_sti_interrupt_update(s);
 }
 
-static uint32_t omap_sti_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_sti_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     struct omap_sti_s *s = (struct omap_sti_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* STI_REVISION */
@@ -676,9 +686,13 @@ static uint32_t omap_sti_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_sti_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                           uint64_t value, unsigned size)
 {
     struct omap_sti_s *s = (struct omap_sti_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* STI_REVISION */
@@ -721,30 +735,29 @@ static void omap_sti_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_sti_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_sti_read,
+static const MemoryRegionOps omap_sti_ops = {
+    .read = omap_sti_read,
+    .write = omap_sti_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const omap_sti_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_sti_write,
-};
-
-static uint32_t omap_sti_fifo_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_sti_fifo_read(void *opaque, target_phys_addr_t addr,
+                                   unsigned size)
 {
     OMAP_BAD_REG(addr);
     return 0;
 }
 
 static void omap_sti_fifo_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     struct omap_sti_s *s = (struct omap_sti_s *) opaque;
     int ch = addr >> 6;
     uint8_t byte = value;
+
+    if (size != 1) {
+        return omap_badwidth_write8(opaque, addr, size);
+    }
 
     if (ch == STI_TRACE_CONTROL_CHANNEL) {
         /* Flush channel <i>value</i>.  */
@@ -759,23 +772,17 @@ static void omap_sti_fifo_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_sti_fifo_readfn[] = {
-    omap_sti_fifo_read,
-    omap_badwidth_read8,
-    omap_badwidth_read8,
-};
-
-static CPUWriteMemoryFunc * const omap_sti_fifo_writefn[] = {
-    omap_sti_fifo_write,
-    omap_badwidth_write8,
-    omap_badwidth_write8,
+static const MemoryRegionOps omap_sti_fifo_ops = {
+    .read = omap_sti_fifo_read,
+    .write = omap_sti_fifo_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
+                MemoryRegion *sysmem,
                 target_phys_addr_t channel_base, qemu_irq irq, omap_clk clk,
                 CharDriverState *chr)
 {
-    int iomemtype;
     struct omap_sti_s *s = (struct omap_sti_s *)
             g_malloc0(sizeof(struct omap_sti_s));
 
@@ -784,13 +791,13 @@ static struct omap_sti_s *omap_sti_init(struct omap_target_agent_s *ta,
 
     s->chr = chr ?: qemu_chr_new("null", "null", NULL);
 
-    iomemtype = l4_register_io_memory(omap_sti_readfn,
-                    omap_sti_writefn, s);
-    omap_l4_attach(ta, 0, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_sti_ops, s, "omap.sti",
+                          omap_l4_region_size(ta, 0));
+    omap_l4_attach(ta, 0, &s->iomem);
 
-    iomemtype = cpu_register_io_memory(omap_sti_fifo_readfn,
-                    omap_sti_fifo_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(channel_base, 0x10000, iomemtype);
+    memory_region_init_io(&s->iomem_fifo, &omap_sti_fifo_ops, s,
+                          "omap.sti.fifo", 0x10000);
+    memory_region_add_subregion(sysmem, channel_base, &s->iomem_fifo);
 
     return s;
 }
@@ -993,6 +1000,8 @@ static const struct omap_l4_agent_info_s omap_l4_agent_info[54] = {
 struct omap_prcm_s {
     qemu_irq irq[3];
     struct omap_mpu_state_s *mpu;
+    MemoryRegion iomem0;
+    MemoryRegion iomem1;
 
     uint32_t irqst[3];
     uint32_t irqen[3];
@@ -1031,10 +1040,15 @@ static void omap_prcm_int_update(struct omap_prcm_s *s, int dom)
     /* XXX or is the mask applied before PRCM_IRQSTATUS_* ? */
 }
 
-static uint32_t omap_prcm_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_prcm_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
     uint32_t ret;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x000:	/* PRCM_REVISION */
@@ -1339,9 +1353,13 @@ static void omap_prcm_dpll_update(struct omap_prcm_s *s)
 }
 
 static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_prcm_s *s = (struct omap_prcm_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x000:	/* PRCM_REVISION */
@@ -1692,16 +1710,10 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_prcm_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_prcm_read,
-};
-
-static CPUWriteMemoryFunc * const omap_prcm_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_prcm_write,
+static const MemoryRegionOps omap_prcm_ops = {
+    .read = omap_prcm_read,
+    .write = omap_prcm_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_prcm_reset(struct omap_prcm_s *s)
@@ -1788,7 +1800,6 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
                 qemu_irq mpu_int, qemu_irq dsp_int, qemu_irq iva_int,
                 struct omap_mpu_state_s *mpu)
 {
-    int iomemtype;
     struct omap_prcm_s *s = (struct omap_prcm_s *)
             g_malloc0(sizeof(struct omap_prcm_s));
 
@@ -1798,10 +1809,12 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
     s->mpu = mpu;
     omap_prcm_coldreset(s);
 
-    iomemtype = l4_register_io_memory(omap_prcm_readfn,
-                    omap_prcm_writefn, s);
-    omap_l4_attach(ta, 0, iomemtype);
-    omap_l4_attach(ta, 1, iomemtype);
+    memory_region_init_io(&s->iomem0, &omap_prcm_ops, s, "omap.pcrm0",
+                          omap_l4_region_size(ta, 0));
+    memory_region_init_io(&s->iomem1, &omap_prcm_ops, s, "omap.pcrm1",
+                          omap_l4_region_size(ta, 1));
+    omap_l4_attach(ta, 0, &s->iomem0);
+    omap_l4_attach(ta, 1, &s->iomem1);
 
     return s;
 }
@@ -1809,6 +1822,7 @@ static struct omap_prcm_s *omap_prcm_init(struct omap_target_agent_s *ta,
 /* System and Pinout control */
 struct omap_sysctl_s {
     struct omap_mpu_state_s *mpu;
+    MemoryRegion iomem;
 
     uint32_t sysconfig;
     uint32_t devconfig;
@@ -2062,16 +2076,20 @@ static void omap_sysctl_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_sysctl_readfn[] = {
-    omap_sysctl_read8,
-    omap_badwidth_read32,	/* TODO */
-    omap_sysctl_read,
-};
-
-static CPUWriteMemoryFunc * const omap_sysctl_writefn[] = {
-    omap_sysctl_write8,
-    omap_badwidth_write32,	/* TODO */
-    omap_sysctl_write,
+static const MemoryRegionOps omap_sysctl_ops = {
+    .old_mmio = {
+        .read = {
+            omap_sysctl_read8,
+            omap_badwidth_read32,	/* TODO */
+            omap_sysctl_read,
+        },
+        .write = {
+            omap_sysctl_write8,
+            omap_badwidth_write32,	/* TODO */
+            omap_sysctl_write,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_sysctl_reset(struct omap_sysctl_s *s)
@@ -2161,16 +2179,15 @@ static void omap_sysctl_reset(struct omap_sysctl_s *s)
 static struct omap_sysctl_s *omap_sysctl_init(struct omap_target_agent_s *ta,
                 omap_clk iclk, struct omap_mpu_state_s *mpu)
 {
-    int iomemtype;
     struct omap_sysctl_s *s = (struct omap_sysctl_s *)
             g_malloc0(sizeof(struct omap_sysctl_s));
 
     s->mpu = mpu;
     omap_sysctl_reset(s);
 
-    iomemtype = l4_register_io_memory(omap_sysctl_readfn,
-                    omap_sysctl_writefn, s);
-    omap_l4_attach(ta, 0, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_sysctl_ops, s, "omap.sysctl",
+                          omap_l4_region_size(ta, 0));
+    omap_l4_attach(ta, 0, &s->iomem);
 
     return s;
 }
@@ -2223,12 +2240,12 @@ static const struct dma_irq_map omap2_dma_irq_map[] = {
     { 0, OMAP_INT_24XX_SDMA_IRQ3 },
 };
 
-struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
+struct omap_mpu_state_s *omap2420_mpu_init(MemoryRegion *sysmem,
+                unsigned long sdram_size,
                 const char *core)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *)
             g_malloc0(sizeof(struct omap_mpu_state_s));
-    ram_addr_t sram_base, q2_base;
     qemu_irq *cpu_irq;
     qemu_irq dma_irqs[4];
     DriveInfo *dinfo;
@@ -2252,14 +2269,12 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
     omap_clk_init(s);
 
     /* Memory-mapped stuff */
-    cpu_register_physical_memory(OMAP2_Q2_BASE, s->sdram_size,
-                    (q2_base = qemu_ram_alloc(NULL, "omap2.dram",
-                                              s->sdram_size)) | IO_MEM_RAM);
-    cpu_register_physical_memory(OMAP2_SRAM_BASE, s->sram_size,
-                    (sram_base = qemu_ram_alloc(NULL, "omap2.sram",
-                                                s->sram_size)) | IO_MEM_RAM);
+    memory_region_init_ram(&s->sdram, NULL, "omap2.dram", s->sdram_size);
+    memory_region_add_subregion(sysmem, OMAP2_Q2_BASE, &s->sdram);
+    memory_region_init_ram(&s->sram, NULL, "omap2.sram", s->sram_size);
+    memory_region_add_subregion(sysmem, OMAP2_SRAM_BASE, &s->sram);
 
-    s->l4 = omap_l4_init(OMAP2_L4_BASE, 54);
+    s->l4 = omap_l4_init(sysmem, OMAP2_L4_BASE, 54);
 
     /* Actually mapped at any 2K boundary in the ARM11 private-peripheral if */
     cpu_irq = arm_pic_init_cpu(s->env);
@@ -2284,18 +2299,18 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
         dma_irqs[i] = qdev_get_gpio_in(s->ih[omap2_dma_irq_map[i].ih],
                                        omap2_dma_irq_map[i].intr);
     }
-    s->dma = omap_dma4_init(0x48056000, dma_irqs, s, 256, 32,
+    s->dma = omap_dma4_init(0x48056000, dma_irqs, sysmem, s, 256, 32,
                     omap_findclk(s, "sdma_iclk"),
                     omap_findclk(s, "sdma_fclk"));
     s->port->addr_valid = omap2_validate_addr;
 
     /* Register SDRAM and SRAM ports for fast DMA transfers.  */
-    soc_dma_port_add_mem(s->dma, qemu_get_ram_ptr(q2_base),
+    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(&s->sdram),
                          OMAP2_Q2_BASE, s->sdram_size);
-    soc_dma_port_add_mem(s->dma, qemu_get_ram_ptr(sram_base),
+    soc_dma_port_add_mem(s->dma, memory_region_get_ram_ptr(&s->sram),
                          OMAP2_SRAM_BASE, s->sram_size);
 
-    s->uart[0] = omap2_uart_init(omap_l4ta(s->l4, 19),
+    s->uart[0] = omap2_uart_init(sysmem, omap_l4ta(s->l4, 19),
                                  qdev_get_gpio_in(s->ih[0],
                                                   OMAP_INT_24XX_UART1_IRQ),
                     omap_findclk(s, "uart1_fclk"),
@@ -2304,7 +2319,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     s->drq[OMAP24XX_DMA_UART1_RX],
                     "uart1",
                     serial_hds[0]);
-    s->uart[1] = omap2_uart_init(omap_l4ta(s->l4, 20),
+    s->uart[1] = omap2_uart_init(sysmem, omap_l4ta(s->l4, 20),
                                  qdev_get_gpio_in(s->ih[0],
                                                   OMAP_INT_24XX_UART2_IRQ),
                     omap_findclk(s, "uart2_fclk"),
@@ -2313,7 +2328,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     s->drq[OMAP24XX_DMA_UART2_RX],
                     "uart2",
                     serial_hds[0] ? serial_hds[1] : NULL);
-    s->uart[2] = omap2_uart_init(omap_l4ta(s->l4, 21),
+    s->uart[2] = omap2_uart_init(sysmem, omap_l4ta(s->l4, 21),
                                  qdev_get_gpio_in(s->ih[0],
                                                   OMAP_INT_24XX_UART3_IRQ),
                     omap_findclk(s, "uart3_fclk"),
@@ -2421,7 +2436,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
     sysbus_mmio_map(busdev, 3, omap_l4_region_base(ta, 4));
     sysbus_mmio_map(busdev, 4, omap_l4_region_base(ta, 5));
 
-    s->sdrc = omap_sdrc_init(0x68009000);
+    s->sdrc = omap_sdrc_init(sysmem, 0x68009000);
     s->gpmc = omap_gpmc_init(s, 0x6800a000,
                              qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_GPMC_IRQ),
                              s->drq[OMAP24XX_DMA_GPMC]);
@@ -2447,7 +2462,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "spi2_fclk"),
                     omap_findclk(s, "spi2_iclk"));
 
-    s->dss = omap_dss_init(omap_l4ta(s->l4, 10), 0x68000800,
+    s->dss = omap_dss_init(omap_l4ta(s->l4, 10), sysmem, 0x68000800,
                     /* XXX wire M_IRQ_25, D_L2_IRQ_30 and I_IRQ_13 together */
                     qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_DSS_IRQ),
                            s->drq[OMAP24XX_DMA_DSS],
@@ -2456,7 +2471,7 @@ struct omap_mpu_state_s *omap2420_mpu_init(unsigned long sdram_size,
                     omap_findclk(s, "dss_l3_iclk"),
                     omap_findclk(s, "dss_l4_iclk"));
 
-    omap_sti_init(omap_l4ta(s->l4, 18), 0x54000000,
+    omap_sti_init(omap_l4ta(s->l4, 18), sysmem, 0x54000000,
                   qdev_get_gpio_in(s->ih[0], OMAP_INT_24XX_STI),
                   omap_findclk(s, "emul_ck"),
                     serial_hds[0] && serial_hds[1] && serial_hds[2] ?

@@ -3,6 +3,7 @@
 
 #include "qemu-common.h"
 #include "irq.h"
+#include "exec-memory.h"
 
 typedef unsigned char intc_enum;
 
@@ -46,6 +47,8 @@ struct intc_source {
 };
 
 struct intc_desc {
+    MemoryRegion iomem;
+    MemoryRegion *iomem_aliases;
     qemu_irq *irqs;
     struct intc_source *sources;
     int nr_sources;
@@ -53,7 +56,6 @@ struct intc_desc {
     int nr_mask_regs;
     struct intc_prio_reg *prio_regs;
     int nr_prio_regs;
-    int iomemtype;
     int pending; /* number of interrupt sources that has pending set */
 };
 
@@ -68,7 +70,8 @@ void sh_intc_register_sources(struct intc_desc *desc,
 			      struct intc_group *groups,
 			      int nr_groups);
 
-int sh_intc_init(struct intc_desc *desc,
+int sh_intc_init(MemoryRegion *sysmem,
+                 struct intc_desc *desc,
 		 int nr_sources,
 		 struct intc_mask_reg *mask_regs,
 		 int nr_mask_regs,

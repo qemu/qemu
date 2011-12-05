@@ -71,6 +71,13 @@ struct MemoryRegionOps {
          * accesses throw machine checks.
          */
          bool unaligned;
+        /*
+         * If present, and returns #false, the transaction is not accepted
+         * by the device (and results in machine dependent behaviour such
+         * as a machine check exception).
+         */
+        bool (*accepts)(void *opaque, target_phys_addr_t addr,
+                        unsigned size, bool is_write);
     } valid;
     /* Internal implementation constraints: */
     struct {

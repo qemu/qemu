@@ -64,6 +64,7 @@ typedef struct DMAState DMAState;
 
 struct DMAState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t dmaregs[DMA_REGS];
     qemu_irq irq;
     void *iommu;
@@ -164,7 +165,8 @@ void espdma_memory_write(void *opaque, uint8_t *buf, int len)
     s->dmaregs[1] += len;
 }
 
-static uint32_t dma_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t dma_mem_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
 {
     DMAState *s = opaque;
     uint32_t saddr;
@@ -180,7 +182,8 @@ static uint32_t dma_mem_readl(void *opaque, target_phys_addr_t addr)
     return s->dmaregs[saddr];
 }
 
-static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void dma_mem_write(void *opaque, target_phys_addr_t addr,
+                          uint64_t val, unsigned size)
 {
     DMAState *s = opaque;
     uint32_t saddr;
@@ -234,16 +237,14 @@ static void dma_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static CPUReadMemoryFunc * const dma_mem_read[3] = {
-    NULL,
-    NULL,
-    dma_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const dma_mem_write[3] = {
-    NULL,
-    NULL,
-    dma_mem_writel,
+static const MemoryRegionOps dma_mem_ops = {
+    .read = dma_mem_read,
+    .write = dma_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void dma_reset(DeviceState *d)
@@ -268,15 +269,13 @@ static const VMStateDescription vmstate_dma = {
 static int sparc32_dma_init1(SysBusDevice *dev)
 {
     DMAState *s = FROM_SYSBUS(DMAState, dev);
-    int dma_io_memory;
     int reg_size;
 
     sysbus_init_irq(dev, &s->irq);
 
-    dma_io_memory = cpu_register_io_memory(dma_mem_read, dma_mem_write, s,
-                                           DEVICE_NATIVE_ENDIAN);
     reg_size = s->is_ledma ? DMA_ETH_SIZE : DMA_SIZE;
-    sysbus_init_mmio(dev, reg_size, dma_io_memory);
+    memory_region_init_io(&s->iomem, &dma_mem_ops, s, "dma", reg_size);
+    sysbus_init_mmio(dev, &s->iomem);
 
     qdev_init_gpio_in(&dev->qdev, dma_set_irq, 1);
     qdev_init_gpio_out(&dev->qdev, s->gpio, 2);

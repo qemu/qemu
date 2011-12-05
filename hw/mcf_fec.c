@@ -10,6 +10,7 @@
 #include "mcf.h"
 /* For crc32 */
 #include <zlib.h>
+#include "exec-memory.h"
 
 //#define DEBUG_FEC 1
 
@@ -23,8 +24,9 @@ do { printf("mcf_fec: " fmt , ## __VA_ARGS__); } while (0)
 #define FEC_MAX_FRAME_SIZE 2032
 
 typedef struct {
+    MemoryRegion *sysmem;
+    MemoryRegion iomem;
     qemu_irq *irq;
-    int mmio_index;
     NICState *nic;
     NICConf conf;
     uint32_t irq_state;
@@ -214,7 +216,8 @@ static void mcf_fec_reset(mcf_fec_state *s)
     s->rfsr = 0x500;
 }
 
-static uint32_t mcf_fec_read(void *opaque, target_phys_addr_t addr)
+static uint64_t mcf_fec_read(void *opaque, target_phys_addr_t addr,
+                             unsigned size)
 {
     mcf_fec_state *s = (mcf_fec_state *)opaque;
     switch (addr & 0x3ff) {
@@ -251,7 +254,8 @@ static uint32_t mcf_fec_read(void *opaque, target_phys_addr_t addr)
     }
 }
 
-static void mcf_fec_write(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void mcf_fec_write(void *opaque, target_phys_addr_t addr,
+                          uint64_t value, unsigned size)
 {
     mcf_fec_state *s = (mcf_fec_state *)opaque;
     switch (addr & 0x3ff) {
@@ -429,23 +433,18 @@ static ssize_t mcf_fec_receive(VLANClientState *nc, const uint8_t *buf, size_t s
     return size;
 }
 
-static CPUReadMemoryFunc * const mcf_fec_readfn[] = {
-   mcf_fec_read,
-   mcf_fec_read,
-   mcf_fec_read
-};
-
-static CPUWriteMemoryFunc * const mcf_fec_writefn[] = {
-   mcf_fec_write,
-   mcf_fec_write,
-   mcf_fec_write
+static const MemoryRegionOps mcf_fec_ops = {
+    .read = mcf_fec_read,
+    .write = mcf_fec_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void mcf_fec_cleanup(VLANClientState *nc)
 {
     mcf_fec_state *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    cpu_unregister_io_memory(s->mmio_index);
+    memory_region_del_subregion(s->sysmem, &s->iomem);
+    memory_region_destroy(&s->iomem);
 
     g_free(s);
 }
@@ -458,18 +457,19 @@ static NetClientInfo net_mcf_fec_info = {
     .cleanup = mcf_fec_cleanup,
 };
 
-void mcf_fec_init(NICInfo *nd, target_phys_addr_t base, qemu_irq *irq)
+void mcf_fec_init(MemoryRegion *sysmem, NICInfo *nd,
+                  target_phys_addr_t base, qemu_irq *irq)
 {
     mcf_fec_state *s;
 
     qemu_check_nic_model(nd, "mcf_fec");
 
     s = (mcf_fec_state *)g_malloc0(sizeof(mcf_fec_state));
+    s->sysmem = sysmem;
     s->irq = irq;
-    s->mmio_index = cpu_register_io_memory(mcf_fec_readfn,
-                                           mcf_fec_writefn, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x400, s->mmio_index);
+
+    memory_region_init_io(&s->iomem, &mcf_fec_ops, s, "fec", 0x400);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     s->conf.macaddr = nd->macaddr;
     s->conf.vlan = nd->vlan;

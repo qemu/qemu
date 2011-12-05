@@ -33,6 +33,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     CPUState *cpu_env;
     uint32_t int_enabled[2];
     uint32_t int_pending[2];
@@ -115,7 +116,8 @@ static inline uint32_t pxa2xx_pic_highest(PXA2xxPICState *s) {
     return ichp;
 }
 
-static uint32_t pxa2xx_pic_mem_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pxa2xx_pic_mem_read(void *opaque, target_phys_addr_t offset,
+                                    unsigned size)
 {
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
 
@@ -155,7 +157,7 @@ static uint32_t pxa2xx_pic_mem_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void pxa2xx_pic_mem_write(void *opaque, target_phys_addr_t offset,
-                uint32_t value)
+                                 uint64_t value, unsigned size)
 {
     PXA2xxPICState *s = (PXA2xxPICState *) opaque;
 
@@ -214,7 +216,7 @@ static uint32_t pxa2xx_pic_cp_read(void *opaque, int op2, int reg, int crm)
     }
 
     offset = pxa2xx_cp_reg_map[reg];
-    return pxa2xx_pic_mem_read(opaque, offset);
+    return pxa2xx_pic_mem_read(opaque, offset, 4);
 }
 
 static void pxa2xx_pic_cp_write(void *opaque, int op2, int reg, int crm,
@@ -228,19 +230,13 @@ static void pxa2xx_pic_cp_write(void *opaque, int op2, int reg, int crm,
     }
 
     offset = pxa2xx_cp_reg_map[reg];
-    pxa2xx_pic_mem_write(opaque, offset, value);
+    pxa2xx_pic_mem_write(opaque, offset, value, 4);
 }
 
-static CPUReadMemoryFunc * const pxa2xx_pic_readfn[] = {
-    pxa2xx_pic_mem_read,
-    pxa2xx_pic_mem_read,
-    pxa2xx_pic_mem_read,
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_pic_writefn[] = {
-    pxa2xx_pic_mem_write,
-    pxa2xx_pic_mem_write,
-    pxa2xx_pic_mem_write,
+static const MemoryRegionOps pxa2xx_pic_ops = {
+    .read = pxa2xx_pic_mem_read,
+    .write = pxa2xx_pic_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int pxa2xx_pic_post_load(void *opaque, int version_id)
@@ -252,7 +248,6 @@ static int pxa2xx_pic_post_load(void *opaque, int version_id)
 DeviceState *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env)
 {
     DeviceState *dev = qdev_create(NULL, "pxa2xx_pic");
-    int iomemtype;
     PXA2xxPICState *s = FROM_SYSBUS(PXA2xxPICState, sysbus_from_qdev(dev));
 
     s->cpu_env = env;
@@ -269,9 +264,9 @@ DeviceState *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env)
     qdev_init_gpio_in(dev, pxa2xx_pic_set_irq, PXA2XX_PIC_SRCS);
 
     /* Enable IC memory-mapped registers access.  */
-    iomemtype = cpu_register_io_memory(pxa2xx_pic_readfn,
-                    pxa2xx_pic_writefn, s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(sysbus_from_qdev(dev), 0x00100000, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa2xx_pic_ops, s,
+                          "pxa2xx-pic", 0x00100000);
+    sysbus_init_mmio(sysbus_from_qdev(dev), &s->iomem);
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
 
     /* Enable IC coprocessor access.  */

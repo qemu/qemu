@@ -43,6 +43,7 @@ typedef enum {
 } screen_state_t;
 
 typedef struct LedState {
+    MemoryRegion iomem;
     uint8_t segments;
     DisplayState *ds;
     screen_state_t state;
@@ -140,16 +141,12 @@ static void led_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
 #endif
 }
 
-static CPUReadMemoryFunc * const led_read[3] = {
-    led_readb,
-    led_readw,
-    led_readl,
-};
-
-static CPUWriteMemoryFunc * const led_write[3] = {
-    led_writeb,
-    led_writew,
-    led_writel,
+static const MemoryRegionOps led_ops = {
+    .old_mmio = {
+        .read = { led_readb, led_readw, led_readl, },
+        .write = { led_writeb, led_writew, led_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /***********************************************************/
@@ -307,18 +304,16 @@ static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
     dpy_update(s->ds, 0, 0, 2, 1);
 }
 
-void jazz_led_init(target_phys_addr_t base)
+void jazz_led_init(MemoryRegion *address_space, target_phys_addr_t base)
 {
     LedState *s;
-    int io;
 
     s = g_malloc0(sizeof(LedState));
 
     s->state = REDRAW_SEGMENTS | REDRAW_BACKGROUND;
 
-    io = cpu_register_io_memory(led_read, led_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 1, io);
+    memory_region_init_io(&s->iomem, &led_ops, s, "led", 1);
+    memory_region_add_subregion(address_space, base, &s->iomem);
 
     s->ds = graphic_console_init(jazz_led_update_display,
                                  jazz_led_invalidate_display,

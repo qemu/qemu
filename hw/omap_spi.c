@@ -24,6 +24,7 @@
 
 /* Multichannel SPI */
 struct omap_mcspi_s {
+    MemoryRegion iomem;
     qemu_irq irq;
     int chnum;
 
@@ -129,11 +130,16 @@ void omap_mcspi_reset(struct omap_mcspi_s *s)
     omap_mcspi_interrupt_update(s);
 }
 
-static uint32_t omap_mcspi_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_mcspi_read(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
 {
     struct omap_mcspi_s *s = (struct omap_mcspi_s *) opaque;
     int ch = 0;
     uint32_t ret;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* MCSPI_REVISION */
@@ -199,10 +205,14 @@ static uint32_t omap_mcspi_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_mcspi_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                             uint64_t value, unsigned size)
 {
     struct omap_mcspi_s *s = (struct omap_mcspi_s *) opaque;
     int ch = 0;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* MCSPI_REVISION */
@@ -267,7 +277,7 @@ static void omap_mcspi_write(void *opaque, target_phys_addr_t addr,
         if (((value >> 12) & 3) == 3)			/* TRM */
             fprintf(stderr, "%s: invalid TRM value (3)\n", __FUNCTION__);
         if (((value >> 7) & 0x1f) < 3)			/* WL */
-            fprintf(stderr, "%s: invalid WL value (%i)\n",
+            fprintf(stderr, "%s: invalid WL value (%" PRIx64 ")\n",
                             __FUNCTION__, (value >> 7) & 0x1f);
         s->ch[ch].config = value & 0x7fffff;
         break;
@@ -298,22 +308,15 @@ static void omap_mcspi_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_mcspi_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_mcspi_read,
-};
-
-static CPUWriteMemoryFunc * const omap_mcspi_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_mcspi_write,
+static const MemoryRegionOps omap_mcspi_ops = {
+    .read = omap_mcspi_read,
+    .write = omap_mcspi_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
                 qemu_irq irq, qemu_irq *drq, omap_clk fclk, omap_clk iclk)
 {
-    int iomemtype;
     struct omap_mcspi_s *s = (struct omap_mcspi_s *)
             g_malloc0(sizeof(struct omap_mcspi_s));
     struct omap_mcspi_ch_s *ch = s->ch;
@@ -327,9 +330,9 @@ struct omap_mcspi_s *omap_mcspi_init(struct omap_target_agent_s *ta, int chnum,
     }
     omap_mcspi_reset(s);
 
-    iomemtype = l4_register_io_memory(omap_mcspi_readfn,
-                    omap_mcspi_writefn, s);
-    omap_l4_attach(ta, 0, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_mcspi_ops, s, "omap.mcspi",
+                          omap_l4_region_size(ta, 0));
+    omap_l4_attach(ta, 0, &s->iomem);
 
     return s;
 }

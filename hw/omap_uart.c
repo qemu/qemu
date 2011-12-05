@@ -26,6 +26,7 @@
 
 /* UARTs */
 struct omap_uart_s {
+    MemoryRegion iomem;
     target_phys_addr_t base;
     SerialState *serial; /* TODO */
     struct omap_target_agent_s *ta;
@@ -68,11 +69,15 @@ struct omap_uart_s *omap_uart_init(target_phys_addr_t base,
     return s;
 }
 
-static uint32_t omap_uart_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_uart_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_uart_s *s = (struct omap_uart_s *) opaque;
 
-    addr &= 0xff;
+    if (size == 4) {
+        return omap_badwidth_read8(opaque, addr);
+    }
+
     switch (addr) {
     case 0x20:	/* MDR1 */
         return s->mdr[0];
@@ -103,11 +108,14 @@ static uint32_t omap_uart_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_uart_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_uart_s *s = (struct omap_uart_s *) opaque;
 
-    addr &= 0xff;
+    if (size == 4) {
+        return omap_badwidth_write8(opaque, addr, value);
+    }
+
     switch (addr) {
     case 0x20:	/* MDR1 */
         s->mdr[0] = value & 0x7f;
@@ -145,32 +153,27 @@ static void omap_uart_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_uart_readfn[] = {
-    omap_uart_read,
-    omap_uart_read,
-    omap_badwidth_read8,
+static const MemoryRegionOps omap_uart_ops = {
+    .read = omap_uart_read,
+    .write = omap_uart_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const omap_uart_writefn[] = {
-    omap_uart_write,
-    omap_uart_write,
-    omap_badwidth_write8,
-};
-
-struct omap_uart_s *omap2_uart_init(struct omap_target_agent_s *ta,
+struct omap_uart_s *omap2_uart_init(MemoryRegion *sysmem,
+                struct omap_target_agent_s *ta,
                 qemu_irq irq, omap_clk fclk, omap_clk iclk,
                 qemu_irq txdma, qemu_irq rxdma,
                 const char *label, CharDriverState *chr)
 {
-    target_phys_addr_t base = omap_l4_attach(ta, 0, 0);
+    target_phys_addr_t base = omap_l4_attach(ta, 0, NULL);
     struct omap_uart_s *s = omap_uart_init(base, irq,
                     fclk, iclk, txdma, rxdma, label, chr);
-    int iomemtype = cpu_register_io_memory(omap_uart_readfn,
-                    omap_uart_writefn, s, DEVICE_NATIVE_ENDIAN);
+
+    memory_region_init_io(&s->iomem, &omap_uart_ops, s, "omap.uart", 0x100);
 
     s->ta = ta;
 
-    cpu_register_physical_memory(base + 0x20, 0x100, iomemtype);
+    memory_region_add_subregion(sysmem, base + 0x20, &s->iomem);
 
     return s;
 }

@@ -998,7 +998,7 @@ static int apic_init1(SysBusDevice *dev)
     }
     memory_region_init_io(&s->io_memory, &apic_io_ops, s, "apic",
                           MSI_ADDR_SIZE);
-    sysbus_init_mmio_region(dev, &s->io_memory);
+    sysbus_init_mmio(dev, &s->io_memory);
 
     s->timer = qemu_new_timer_ns(vm_clock, apic_timer, s);
     s->idx = last_apic_idx++;

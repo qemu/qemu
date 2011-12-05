@@ -35,6 +35,7 @@
 
 typedef struct CSState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     qemu_irq irq;
     uint32_t regs[CS_REGS];
     uint8_t dregs[CS_DREGS];
@@ -54,7 +55,8 @@ static void cs_reset(DeviceState *d)
     s->dregs[25] = CS_VER;
 }
 
-static uint32_t cs_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t cs_mem_read(void *opaque, target_phys_addr_t addr,
+                            unsigned size)
 {
     CSState *s = opaque;
     uint32_t saddr, ret;
@@ -80,7 +82,8 @@ static uint32_t cs_mem_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void cs_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void cs_mem_write(void *opaque, target_phys_addr_t addr,
+                         uint64_t val, unsigned size)
 {
     CSState *s = opaque;
     uint32_t saddr;
@@ -119,16 +122,10 @@ static void cs_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static CPUReadMemoryFunc * const cs_mem_read[3] = {
-    cs_mem_readl,
-    cs_mem_readl,
-    cs_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const cs_mem_write[3] = {
-    cs_mem_writel,
-    cs_mem_writel,
-    cs_mem_writel,
+static const MemoryRegionOps cs_mem_ops = {
+    .read = cs_mem_read,
+    .write = cs_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_cs4231 = {
@@ -145,12 +142,10 @@ static const VMStateDescription vmstate_cs4231 = {
 
 static int cs4231_init1(SysBusDevice *dev)
 {
-    int io;
     CSState *s = FROM_SYSBUS(CSState, dev);
 
-    io = cpu_register_io_memory(cs_mem_read, cs_mem_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, CS_SIZE, io);
+    memory_region_init_io(&s->iomem, &cs_mem_ops, s, "cs4321", CS_SIZE);
+    sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
     return 0;

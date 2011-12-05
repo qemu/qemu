@@ -1132,7 +1132,7 @@ static int lan9118_init1(SysBusDevice *dev)
     int i;
 
     memory_region_init_io(&s->mmio, &lan9118_mem_ops, s, "lan9118-mmio", 0x100);
-    sysbus_init_mmio_region(dev, &s->mmio);
+    sysbus_init_mmio(dev, &s->mmio);
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 

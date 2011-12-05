@@ -22,6 +22,7 @@
 #include "framebuffer.h"
 
 struct omap_lcd_panel_s {
+    MemoryRegion iomem;
     qemu_irq irq;
     DisplayState *state;
 
@@ -323,7 +324,8 @@ static void omap_lcd_update(struct omap_lcd_panel_s *s) {
     }
 }
 
-static uint32_t omap_lcdc_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_lcdc_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
 
@@ -356,7 +358,7 @@ static uint32_t omap_lcdc_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_lcdc_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *) opaque;
 
@@ -399,16 +401,10 @@ static void omap_lcdc_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_lcdc_readfn[] = {
-    omap_lcdc_read,
-    omap_lcdc_read,
-    omap_lcdc_read,
-};
-
-static CPUWriteMemoryFunc * const omap_lcdc_writefn[] = {
-    omap_lcdc_write,
-    omap_lcdc_write,
-    omap_lcdc_write,
+static const MemoryRegionOps omap_lcdc_ops = {
+    .read = omap_lcdc_read,
+    .write = omap_lcdc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 void omap_lcdc_reset(struct omap_lcd_panel_s *s)
@@ -433,10 +429,12 @@ void omap_lcdc_reset(struct omap_lcd_panel_s *s)
     s->ctrl = 0;
 }
 
-struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
-                struct omap_dma_lcd_channel_s *dma, omap_clk clk)
+struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
+                                        target_phys_addr_t base,
+                                        qemu_irq irq,
+                                        struct omap_dma_lcd_channel_s *dma,
+                                        omap_clk clk)
 {
-    int iomemtype;
     struct omap_lcd_panel_s *s = (struct omap_lcd_panel_s *)
             g_malloc0(sizeof(struct omap_lcd_panel_s));
 
@@ -444,9 +442,8 @@ struct omap_lcd_panel_s *omap_lcdc_init(target_phys_addr_t base, qemu_irq irq,
     s->dma = dma;
     omap_lcdc_reset(s);
 
-    iomemtype = cpu_register_io_memory(omap_lcdc_readfn,
-                    omap_lcdc_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x100, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_lcdc_ops, s, "omap.lcdc", 0x100);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     s->state = graphic_console_init(omap_update_display,
                                     omap_invalidate_display,

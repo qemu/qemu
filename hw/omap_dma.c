@@ -102,6 +102,7 @@ struct omap_dma_channel_s {
 
 struct omap_dma_s {
     struct soc_dma_s *dma;
+    MemoryRegion iomem;
 
     struct omap_mpu_state_s *mpu;
     omap_clk clk;
@@ -1445,11 +1446,16 @@ static int omap_dma_sys_read(struct omap_dma_s *s, int offset,
     return 0;
 }
 
-static uint32_t omap_dma_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_dma_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
     int reg, ch;
     uint16_t ret;
+
+    if (size != 2) {
+        return omap_badwidth_read16(opaque, addr);
+    }
 
     switch (addr) {
     case 0x300 ... 0x3fe:
@@ -1489,10 +1495,14 @@ static uint32_t omap_dma_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_dma_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                           uint64_t value, unsigned size)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
     int reg, ch;
+
+    if (size != 2) {
+        return omap_badwidth_write16(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x300 ... 0x3fe:
@@ -1530,16 +1540,10 @@ static void omap_dma_write(void *opaque, target_phys_addr_t addr,
     OMAP_BAD_REG(addr);
 }
 
-static CPUReadMemoryFunc * const omap_dma_readfn[] = {
-    omap_badwidth_read16,
-    omap_dma_read,
-    omap_badwidth_read16,
-};
-
-static CPUWriteMemoryFunc * const omap_dma_writefn[] = {
-    omap_badwidth_write16,
-    omap_dma_write,
-    omap_badwidth_write16,
+static const MemoryRegionOps omap_dma_ops = {
+    .read = omap_dma_read,
+    .write = omap_dma_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void omap_dma_request(void *opaque, int drq, int req)
@@ -1615,10 +1619,11 @@ static void omap_dma_setcaps(struct omap_dma_s *s)
 }
 
 struct soc_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
+                MemoryRegion *sysmem,
                 qemu_irq lcd_irq, struct omap_mpu_state_s *mpu, omap_clk clk,
                 enum omap_dma_model model)
 {
-    int iomemtype, num_irqs, memsize, i;
+    int num_irqs, memsize, i;
     struct omap_dma_s *s = (struct omap_dma_s *)
             g_malloc0(sizeof(struct omap_dma_s));
 
@@ -1658,9 +1663,8 @@ struct soc_dma_s *omap_dma_init(target_phys_addr_t base, qemu_irq *irqs,
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, 1);
 
-    iomemtype = cpu_register_io_memory(omap_dma_readfn,
-                    omap_dma_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, memsize, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_dma_ops, s, "omap.dma", memsize);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     mpu->drq = s->dma->drq;
 
@@ -1688,11 +1692,16 @@ static void omap_dma_interrupts_4_update(struct omap_dma_s *s)
         qemu_irq_raise(s->irq[3]);
 }
 
-static uint32_t omap_dma4_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_dma4_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
     int irqn = 0, chnum;
     struct omap_dma_channel_s *ch;
+
+    if (size == 1) {
+        return omap_badwidth_read16(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* DMA4_REVISION */
@@ -1834,11 +1843,15 @@ static uint32_t omap_dma4_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_dma4_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_dma_s *s = (struct omap_dma_s *) opaque;
     int chnum, irqn = 0;
     struct omap_dma_channel_s *ch;
+
+    if (size == 1) {
+        return omap_badwidth_write16(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x14:	/* DMA4_IRQSTATUS_L3 */
@@ -2021,23 +2034,18 @@ static void omap_dma4_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_dma4_readfn[] = {
-    omap_badwidth_read16,
-    omap_dma4_read,
-    omap_dma4_read,
-};
-
-static CPUWriteMemoryFunc * const omap_dma4_writefn[] = {
-    omap_badwidth_write16,
-    omap_dma4_write,
-    omap_dma4_write,
+static const MemoryRegionOps omap_dma4_ops = {
+    .read = omap_dma4_read,
+    .write = omap_dma4_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 struct soc_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
+                MemoryRegion *sysmem,
                 struct omap_mpu_state_s *mpu, int fifo,
                 int chans, omap_clk iclk, omap_clk fclk)
 {
-    int iomemtype, i;
+    int i;
     struct omap_dma_s *s = (struct omap_dma_s *)
             g_malloc0(sizeof(struct omap_dma_s));
 
@@ -2065,9 +2073,8 @@ struct soc_dma_s *omap_dma4_init(target_phys_addr_t base, qemu_irq *irqs,
     omap_dma_reset(s->dma);
     omap_dma_clk_update(s, 0, !!s->dma->freq);
 
-    iomemtype = cpu_register_io_memory(omap_dma4_readfn,
-                    omap_dma4_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_dma4_ops, s, "omap.dma4", 0x1000);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     mpu->drq = s->dma->drq;
 

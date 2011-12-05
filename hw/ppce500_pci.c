@@ -79,12 +79,13 @@ struct PPCE500PCIState {
     uint32_t gasket_time;
     qemu_irq irq[4];
     /* mmio maps */
-    int reg;
+    MemoryRegion iomem;
 };
 
 typedef struct PPCE500PCIState PPCE500PCIState;
 
-static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
+static uint64_t pci_reg_read4(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     PPCE500PCIState *pci = opaque;
     unsigned long win;
@@ -152,14 +153,8 @@ static uint32_t pci_reg_read4(void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUReadMemoryFunc * const e500_pci_reg_read[] = {
-    &pci_reg_read4,
-    &pci_reg_read4,
-    &pci_reg_read4,
-};
-
 static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
-                               uint32_t value)
+                           uint64_t value, unsigned size)
 {
     PPCE500PCIState *pci = opaque;
     unsigned long win;
@@ -168,7 +163,7 @@ static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
     win = addr & 0xfe0;
 
     pci_debug("%s: value:%x -> win:%lx(addr:" TARGET_FMT_plx ")\n",
-              __func__, value, win, addr);
+              __func__, (unsigned)value, win, addr);
 
     switch (win) {
     case PPCE500_PCI_OW1:
@@ -225,10 +220,10 @@ static void pci_reg_write4(void *opaque, target_phys_addr_t addr,
     };
 }
 
-static CPUWriteMemoryFunc * const e500_pci_reg_write[] = {
-    &pci_reg_write4,
-    &pci_reg_write4,
-    &pci_reg_write4,
+static const MemoryRegionOps e500_pci_reg_ops = {
+    .read = pci_reg_read4,
+    .write = pci_reg_write4,
+    .endianness = DEVICE_BIG_ENDIAN,
 };
 
 static int mpc85xx_pci_map_irq(PCIDevice *pci_dev, int irq_num)
@@ -310,18 +305,17 @@ static void e500_pci_map(SysBusDevice *dev, target_phys_addr_t base)
 
     sysbus_add_memory(dev, base + PCIE500_CFGADDR, &h->conf_mem);
     sysbus_add_memory(dev, base + PCIE500_CFGDATA, &h->data_mem);
-    cpu_register_physical_memory(base + PCIE500_REG_BASE, PCIE500_REG_SIZE,
-                                 s->reg);
+    sysbus_add_memory(dev, base + PCIE500_REG_BASE, &s->iomem);
 }
 
 static void e500_pci_unmap(SysBusDevice *dev, target_phys_addr_t base)
 {
     PCIHostState *h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
+    PPCE500PCIState *s = DO_UPCAST(PPCE500PCIState, pci_state, h);
 
     sysbus_del_memory(dev, &h->conf_mem);
     sysbus_del_memory(dev, &h->data_mem);
-    cpu_register_physical_memory(base + PCIE500_REG_BASE, PCIE500_REG_SIZE,
-                                 IO_MEM_UNASSIGNED);
+    sysbus_del_memory(dev, &s->iomem);
 }
 
 #include "exec-memory.h"
@@ -353,8 +347,8 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
                           "pci-conf-idx", 4);
     memory_region_init_io(&h->data_mem, &pci_host_data_le_ops, h,
                           "pci-conf-data", 4);
-    s->reg = cpu_register_io_memory(e500_pci_reg_read, e500_pci_reg_write, s,
-                                    DEVICE_BIG_ENDIAN);
+    memory_region_init_io(&s->iomem, &e500_pci_reg_ops, s,
+                          "pci.reg", PCIE500_REG_SIZE);
     sysbus_init_mmio_cb2(dev, e500_pci_map, e500_pci_unmap);
 
     return 0;

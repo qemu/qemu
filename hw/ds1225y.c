@@ -27,13 +27,14 @@
 
 typedef struct {
     DeviceState qdev;
+    MemoryRegion iomem;
     uint32_t chip_size;
     char *filename;
     FILE *file;
     uint8_t *contents;
 } NvRamState;
 
-static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
+static uint64_t nvram_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
     NvRamState *s = opaque;
     uint32_t val;
@@ -43,25 +44,8 @@ static uint32_t nvram_readb (void *opaque, target_phys_addr_t addr)
     return val;
 }
 
-static uint32_t nvram_readw (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-    v = nvram_readb(opaque, addr);
-    v |= nvram_readb(opaque, addr + 1) << 8;
-    return v;
-}
-
-static uint32_t nvram_readl (void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-    v = nvram_readb(opaque, addr);
-    v |= nvram_readb(opaque, addr + 1) << 8;
-    v |= nvram_readb(opaque, addr + 2) << 16;
-    v |= nvram_readb(opaque, addr + 3) << 24;
-    return v;
-}
-
-static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void nvram_write(void *opaque, target_phys_addr_t addr, uint64_t val,
+                        unsigned size)
 {
     NvRamState *s = opaque;
 
@@ -76,30 +60,14 @@ static void nvram_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
-static void nvram_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    nvram_writeb(opaque, addr, val & 0xff);
-    nvram_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-}
-
-static void nvram_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    nvram_writeb(opaque, addr, val & 0xff);
-    nvram_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-    nvram_writeb(opaque, addr + 2, (val >> 16) & 0xff);
-    nvram_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-}
-
-static CPUReadMemoryFunc * const nvram_read[] = {
-    &nvram_readb,
-    &nvram_readw,
-    &nvram_readl,
-};
-
-static CPUWriteMemoryFunc * const nvram_write[] = {
-    &nvram_writeb,
-    &nvram_writew,
-    &nvram_writel,
+static const MemoryRegionOps nvram_ops = {
+    .read = nvram_read,
+    .write = nvram_write,
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 1,
+    },
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int nvram_post_load(void *opaque, int version_id)
@@ -146,13 +114,11 @@ static int nvram_sysbus_initfn(SysBusDevice *dev)
 {
     NvRamState *s = &FROM_SYSBUS(SysBusNvRamState, dev)->nvram;
     FILE *file;
-    int s_io;
 
     s->contents = g_malloc0(s->chip_size);
 
-    s_io = cpu_register_io_memory(nvram_read, nvram_write, s,
-                                  DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, s->chip_size, s_io);
+    memory_region_init_io(&s->iomem, &nvram_ops, s, "nvram", s->chip_size);
+    sysbus_init_mmio(dev, &s->iomem);
 
     /* Read current file */
     file = fopen(s->filename, "rb");

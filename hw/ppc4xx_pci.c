@@ -54,6 +54,8 @@ struct PPC4xxPCIState {
 
     PCIHostState pci_state;
     PCIDevice *pci_dev;
+    MemoryRegion iomem_addr;
+    MemoryRegion iomem_regs;
 };
 typedef struct PPC4xxPCIState PPC4xxPCIState;
 
@@ -84,35 +86,30 @@ typedef struct PPC4xxPCIState PPC4xxPCIState;
 #define PCI_REG_SIZE        0x40
 
 
-static uint32_t pci4xx_cfgaddr_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t pci4xx_cfgaddr_read(void *opaque, target_phys_addr_t addr,
+                                    unsigned size)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
 
     return ppc4xx_pci->pci_state.config_reg;
 }
 
-static CPUReadMemoryFunc * const pci4xx_cfgaddr_read[] = {
-    &pci4xx_cfgaddr_readl,
-    &pci4xx_cfgaddr_readl,
-    &pci4xx_cfgaddr_readl,
-};
-
-static void pci4xx_cfgaddr_writel(void *opaque, target_phys_addr_t addr,
-                                  uint32_t value)
+static void pci4xx_cfgaddr_write(void *opaque, target_phys_addr_t addr,
+                                  uint64_t value, unsigned size)
 {
     PPC4xxPCIState *ppc4xx_pci = opaque;
 
     ppc4xx_pci->pci_state.config_reg = value & ~0x3;
 }
 
-static CPUWriteMemoryFunc * const pci4xx_cfgaddr_write[] = {
-    &pci4xx_cfgaddr_writel,
-    &pci4xx_cfgaddr_writel,
-    &pci4xx_cfgaddr_writel,
+static const MemoryRegionOps pci4xx_cfgaddr_ops = {
+    .read = pci4xx_cfgaddr_read,
+    .write = pci4xx_cfgaddr_write,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void ppc4xx_pci_reg_write4(void *opaque, target_phys_addr_t offset,
-                                  uint32_t value)
+                                  uint64_t value, unsigned size)
 {
     struct PPC4xxPCIState *pci = opaque;
 
@@ -179,7 +176,8 @@ static void ppc4xx_pci_reg_write4(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static uint32_t ppc4xx_pci_reg_read4(void *opaque, target_phys_addr_t offset)
+static uint64_t ppc4xx_pci_reg_read4(void *opaque, target_phys_addr_t offset,
+                                     unsigned size)
 {
     struct PPC4xxPCIState *pci = opaque;
     uint32_t value;
@@ -246,16 +244,10 @@ static uint32_t ppc4xx_pci_reg_read4(void *opaque, target_phys_addr_t offset)
     return value;
 }
 
-static CPUReadMemoryFunc * const pci_reg_read[] = {
-    &ppc4xx_pci_reg_read4,
-    &ppc4xx_pci_reg_read4,
-    &ppc4xx_pci_reg_read4,
-};
-
-static CPUWriteMemoryFunc * const pci_reg_write[] = {
-    &ppc4xx_pci_reg_write4,
-    &ppc4xx_pci_reg_write4,
-    &ppc4xx_pci_reg_write4,
+static const MemoryRegionOps pci_reg_ops = {
+    .read = ppc4xx_pci_reg_read4,
+    .write = ppc4xx_pci_reg_write4,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static void ppc4xx_pci_reset(void *opaque)
@@ -337,7 +329,6 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
                         target_phys_addr_t registers)
 {
     PPC4xxPCIState *controller;
-    int index;
     static int ppc4xx_pci_id;
     uint8_t *pci_conf;
 
@@ -360,12 +351,11 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
     pci_config_set_class(pci_conf, PCI_CLASS_BRIDGE_OTHER);
 
     /* CFGADDR */
-    index = cpu_register_io_memory(pci4xx_cfgaddr_read,
-                                   pci4xx_cfgaddr_write, controller,
-                                   DEVICE_LITTLE_ENDIAN);
-    if (index < 0)
-        goto free;
-    cpu_register_physical_memory(config_space + PCIC0_CFGADDR, 4, index);
+    memory_region_init_io(&controller->iomem_addr, &pci4xx_cfgaddr_ops,
+                          controller, "pci.cfgaddr", 4);
+    memory_region_add_subregion(get_system_memory(),
+                                config_space + PCIC0_CFGADDR,
+                                &controller->iomem_addr);
 
     /* CFGDATA */
     memory_region_init_io(&controller->pci_state.data_mem,
@@ -376,11 +366,10 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
                                 &controller->pci_state.data_mem);
 
     /* Internal registers */
-    index = cpu_register_io_memory(pci_reg_read, pci_reg_write, controller,
-                                   DEVICE_LITTLE_ENDIAN);
-    if (index < 0)
-        goto free;
-    cpu_register_physical_memory(registers, PCI_REG_SIZE, index);
+    memory_region_init_io(&controller->iomem_regs, &pci_reg_ops, controller,
+                          "pci.regs", PCI_REG_SIZE);
+    memory_region_add_subregion(get_system_memory(), registers,
+                                &controller->iomem_regs);
 
     qemu_register_reset(ppc4xx_pci_reset, controller);
 
@@ -389,9 +378,4 @@ PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
                      &vmstate_ppc4xx_pci, controller);
 
     return controller->pci_state.bus;
-
-free:
-    printf("%s error\n", __func__);
-    g_free(controller);
-    return NULL;
 }

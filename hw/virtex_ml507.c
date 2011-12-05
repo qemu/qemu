@@ -192,7 +192,7 @@ static void virtex_init(ram_addr_t ram_size,
     CPUState *env;
     target_phys_addr_t ram_base = 0;
     DriveInfo *dinfo;
-    ram_addr_t phys_ram;
+    MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
     qemu_irq irq[32], *cpu_irq;
     int kernel_size;
     int i;
@@ -205,8 +205,8 @@ static void virtex_init(ram_addr_t ram_size,
     env = ppc440_init_xilinx(&ram_size, 1, cpu_model, 400000000);
     qemu_register_reset(main_cpu_reset, env);
 
-    phys_ram = qemu_ram_alloc(NULL, "ram", ram_size);
-    cpu_register_physical_memory(ram_base, ram_size, phys_ram | IO_MEM_RAM);
+    memory_region_init_ram(phys_ram, NULL, "ram", ram_size);
+    memory_region_add_subregion(address_space_mem, ram_base, phys_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
     pflash_cfi01_register(0xfc000000, NULL, "virtex.flash", FLASH_SIZE,

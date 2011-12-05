@@ -208,6 +208,7 @@ static void tosa_init(ram_addr_t ram_size,
                 const char *initrd_filename, const char *cpu_model)
 {
     MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *rom = g_new(MemoryRegion, 1);
     PXA2xxState *cpu;
     TC6393xbState *tmio;
     DeviceState *scp0, *scp1;
@@ -217,8 +218,9 @@ static void tosa_init(ram_addr_t ram_size,
 
     cpu = pxa255_init(address_space_mem, tosa_binfo.ram_size);
 
-    cpu_register_physical_memory(0, TOSA_ROM,
-                    qemu_ram_alloc(NULL, "tosa.rom", TOSA_ROM) | IO_MEM_ROM);
+    memory_region_init_ram(rom, NULL, "tosa.rom", TOSA_ROM);
+    memory_region_set_readonly(rom, true);
+    memory_region_add_subregion(address_space_mem, 0, rom);
 
     tmio = tc6393xb_init(address_space_mem, 0x10000000,
             qdev_get_gpio_in(cpu->gpio, TOSA_GPIO_TC6393XB_INT));
