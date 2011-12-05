@@ -509,11 +509,29 @@ static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
     return;
 }
 
+/* Select the MSI-X vectors used by device.
+ * ivshmem maps events to vectors statically, so
+ * we just enable all vectors on init and after reset. */
+static void ivshmem_use_msix(IVShmemState * s)
+{
+    int i;
+
+    if (!msix_present(&s->dev)) {
+        return;
+    }
+
+    for (i = 0; i < s->vectors; i++) {
+        msix_vector_use(&s->dev, i);
+    }
+}
+
 static void ivshmem_reset(DeviceState *d)
 {
     IVShmemState *s = DO_UPCAST(IVShmemState, dev.qdev, d);
 
     s->intrstatus = 0;
+    msix_reset(&s->dev);
+    ivshmem_use_msix(s);
     return;
 }
 
@@ -544,12 +562,8 @@ static uint64_t ivshmem_get_size(IVShmemState * s) {
     return value;
 }
 
-static void ivshmem_setup_msi(IVShmemState * s) {
-
-    int i;
-
-    /* allocate the MSI-X vectors */
-
+static void ivshmem_setup_msi(IVShmemState * s)
+{
     memory_region_init(&s->msix_bar, "ivshmem-msix", 4096);
     if (!msix_init(&s->dev, s->vectors, &s->msix_bar, 1, 0)) {
         pci_register_bar(&s->dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY,
@@ -560,13 +574,10 @@ static void ivshmem_setup_msi(IVShmemState * s) {
         exit(1);
     }
 
-    /* 'activate' the vectors */
-    for (i = 0; i < s->vectors; i++) {
-        msix_vector_use(&s->dev, i);
-    }
-
     /* allocate QEMU char devices for receiving interrupts */
     s->eventfd_table = g_malloc0(s->vectors * sizeof(EventfdEntry));
+
+    ivshmem_use_msix(s);
 }
 
 static void ivshmem_save(QEMUFile* f, void *opaque)
@@ -590,7 +601,7 @@ static int ivshmem_load(QEMUFile* f, void *opaque, int version_id)
     IVSHMEM_DPRINTF("ivshmem_load\n");
 
     IVShmemState *proxy = opaque;
-    int ret, i;
+    int ret;
 
     if (version_id > 0) {
         return -EINVAL;
@@ -608,15 +619,20 @@ static int ivshmem_load(QEMUFile* f, void *opaque, int version_id)
 
     if (ivshmem_has_feature(proxy, IVSHMEM_MSI)) {
         msix_load(&proxy->dev, f);
-        for (i = 0; i < proxy->vectors; i++) {
-            msix_vector_use(&proxy->dev, i);
-        }
+	ivshmem_use_msix(proxy);
     } else {
         proxy->intrstatus = qemu_get_be32(f);
         proxy->intrmask = qemu_get_be32(f);
     }
 
     return 0;
+}
+
+static void ivshmem_write_config(PCIDevice *pci_dev, uint32_t address,
+				 uint32_t val, int len)
+{
+    pci_default_write_config(pci_dev, address, val, len);
+    msix_write_config(pci_dev, address, val, len);
 }
 
 static int pci_ivshmem_init(PCIDevice *dev)
@@ -743,6 +759,8 @@ static int pci_ivshmem_init(PCIDevice *dev)
         create_shared_memory_BAR(s, fd);
 
     }
+
+    s->dev.config_write = ivshmem_write_config;
 
     return 0;
 }
