@@ -41,7 +41,7 @@ static uint64_t mpcore_priv_read(void *opaque, target_phys_addr_t offset,
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
     int id;
-    offset &= 0xfff;
+    offset &= 0xff;
     if (offset < 0x100) {
         /* SCU */
         switch (offset) {
@@ -57,17 +57,6 @@ static uint64_t mpcore_priv_read(void *opaque, target_phys_addr_t offset,
         default:
             goto bad_reg;
         }
-    } else if (offset < 0x600) {
-        /* Interrupt controller.  */
-        if (offset < 0x200) {
-            id = gic_get_current_cpu();
-        } else {
-            id = (offset - 0x200) >> 8;
-            if (id >= s->num_cpu) {
-                return 0;
-            }
-        }
-        return gic_cpu_read(&s->gic, id, offset & 0xff);
     }
 bad_reg:
     hw_error("mpcore_priv_read: Bad offset %x\n", (int)offset);
@@ -78,8 +67,7 @@ static void mpcore_priv_write(void *opaque, target_phys_addr_t offset,
                               uint64_t value, unsigned size)
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
-    int id;
-    offset &= 0xfff;
+    offset &= 0xff;
     if (offset < 0x100) {
         /* SCU */
         switch (offset) {
@@ -91,16 +79,6 @@ static void mpcore_priv_write(void *opaque, target_phys_addr_t offset,
             break;
         default:
             goto bad_reg;
-        }
-    } else if (offset < 0x600) {
-        /* Interrupt controller.  */
-        if (offset < 0x200) {
-            id = gic_get_current_cpu();
-        } else {
-            id = (offset - 0x200) >> 8;
-        }
-        if (id < s->num_cpu) {
-            gic_cpu_write(&s->gic, id, offset & 0xff, value);
         }
     }
     return;
@@ -129,8 +107,15 @@ static void mpcore_priv_map_setup(mpcore_priv_state *s)
     SysBusDevice *busdev = sysbus_from_qdev(s->mptimer);
     memory_region_init(&s->container, "mpcode-priv-container", 0x2000);
     memory_region_init_io(&s->iomem, &mpcore_priv_ops, s, "mpcode-priv",
-                          0x1000);
+                          0x100);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
+    /* GIC CPU interfaces: "current CPU" at 0x100, then specific CPUs
+     * at 0x200, 0x300...
+     */
+    for (i = 0; i < (s->num_cpu + 1); i++) {
+        target_phys_addr_t offset = 0x100 + (i * 0x100);
+        memory_region_add_subregion(&s->container, offset, &s->gic.cpuiomem[i]);
+    }
     /* Add the regions for timer and watchdog for "current CPU" and
      * for each specific CPU.
      */
