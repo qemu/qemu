@@ -258,7 +258,7 @@ static void migrate_fd_put_ready(void *opaque)
     }
 
     DPRINTF("iterate\n");
-    ret = qemu_savevm_state_iterate(s->mon, s->file);
+    ret = qemu_savevm_state_iterate(s->file);
     if (ret < 0) {
         migrate_fd_error(s);
     } else if (ret == 1) {
@@ -267,7 +267,7 @@ static void migrate_fd_put_ready(void *opaque)
         DPRINTF("done iterating\n");
         vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
 
-        if (qemu_savevm_state_complete(s->mon, s->file) < 0) {
+        if (qemu_savevm_state_complete(s->file) < 0) {
             migrate_fd_error(s);
         } else {
             migrate_fd_completed(s);
@@ -289,7 +289,7 @@ static void migrate_fd_cancel(MigrationState *s)
 
     s->state = MIG_STATE_CANCELLED;
     notifier_list_notify(&migration_state_notifiers, s);
-    qemu_savevm_state_cancel(s->mon, s->file);
+    qemu_savevm_state_cancel(s->file);
 
     migrate_fd_cleanup(s);
 }
@@ -367,7 +367,7 @@ void migrate_fd_connect(MigrationState *s)
                                       migrate_fd_close);
 
     DPRINTF("beginning savevm\n");
-    ret = qemu_savevm_state_begin(s->mon, s->file, s->blk, s->shared);
+    ret = qemu_savevm_state_begin(s->file, s->blk, s->shared);
     if (ret < 0) {
         DPRINTF("failed, %d\n", ret);
         migrate_fd_error(s);

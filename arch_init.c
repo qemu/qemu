@@ -260,7 +260,7 @@ static void sort_ram_list(void)
     g_free(blocks);
 }
 
-int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
+int ram_save_live(QEMUFile *f, int stage, void *opaque)
 {
     ram_addr_t addr;
     uint64_t bytes_transferred_last;
