@@ -15,14 +15,16 @@ enum i2c_event {
     I2C_NACK /* Masker NACKed a receive byte.  */
 };
 
-/* Master to slave.  */
-typedef int (*i2c_send_cb)(i2c_slave *s, uint8_t data);
-/* Slave to master.  */
-typedef int (*i2c_recv_cb)(i2c_slave *s);
-/* Notify the slave of a bus state change.  */
-typedef void (*i2c_event_cb)(i2c_slave *s, enum i2c_event event);
+typedef struct I2CSlave I2CSlave;
 
-typedef int (*i2c_slave_initfn)(i2c_slave *dev);
+/* Master to slave.  */
+typedef int (*i2c_send_cb)(I2CSlave *s, uint8_t data);
+/* Slave to master.  */
+typedef int (*i2c_recv_cb)(I2CSlave *s);
+/* Notify the slave of a bus state change.  */
+typedef void (*i2c_event_cb)(I2CSlave *s, enum i2c_event event);
+
+typedef int (*i2c_slave_initfn)(I2CSlave *dev);
 
 typedef struct {
     DeviceInfo qdev;
@@ -34,7 +36,7 @@ typedef struct {
     i2c_send_cb send;
 } I2CSlaveInfo;
 
-struct i2c_slave
+struct I2CSlave
 {
     DeviceState qdev;
     I2CSlaveInfo *info;
@@ -44,7 +46,7 @@ struct i2c_slave
 };
 
 i2c_bus *i2c_init_bus(DeviceState *parent, const char *name);
-void i2c_set_slave_address(i2c_slave *dev, uint8_t address);
+void i2c_set_slave_address(I2CSlave *dev, uint8_t address);
 int i2c_bus_busy(i2c_bus *bus);
 int i2c_start_transfer(i2c_bus *bus, uint8_t address, int recv);
 void i2c_end_transfer(i2c_bus *bus);
@@ -52,7 +54,7 @@ void i2c_nack(i2c_bus *bus);
 int i2c_send(i2c_bus *bus, uint8_t data);
 int i2c_recv(i2c_bus *bus);
 
-#define I2C_SLAVE_FROM_QDEV(dev) DO_UPCAST(i2c_slave, qdev, dev)
+#define I2C_SLAVE_FROM_QDEV(dev) DO_UPCAST(I2CSlave, qdev, dev)
 #define FROM_I2C_SLAVE(type, dev) DO_UPCAST(type, i2c, dev)
 
 void i2c_register_slave(I2CSlaveInfo *type);
@@ -69,7 +71,7 @@ void wm8750_dac_commit(void *opaque);
 void wm8750_set_bclk_in(void *opaque, int new_hz);
 
 /* tmp105.c */
-void tmp105_set(i2c_slave *i2c, int temp);
+void tmp105_set(I2CSlave *i2c, int temp);
 
 /* lm832x.c */
 void lm832x_key_event(DeviceState *dev, int key, int state);
@@ -78,10 +80,10 @@ extern const VMStateDescription vmstate_i2c_slave;
 
 #define VMSTATE_I2C_SLAVE(_field, _state) {                          \
     .name       = (stringify(_field)),                               \
-    .size       = sizeof(i2c_slave),                                 \
+    .size       = sizeof(I2CSlave),                                  \
     .vmsd       = &vmstate_i2c_slave,                                \
     .flags      = VMS_STRUCT,                                        \
-    .offset     = vmstate_offset_value(_state, _field, i2c_slave),   \
+    .offset     = vmstate_offset_value(_state, _field, I2CSlave),    \
 }
 
 #endif

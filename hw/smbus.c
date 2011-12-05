@@ -65,7 +65,7 @@ static void smbus_do_write(SMBusDevice *dev)
     }
 }
 
-static void smbus_i2c_event(i2c_slave *s, enum i2c_event event)
+static void smbus_i2c_event(I2CSlave *s, enum i2c_event event)
 {
     SMBusDevice *dev = FROM_I2C_SLAVE(SMBusDevice, s);
 
@@ -148,7 +148,7 @@ static void smbus_i2c_event(i2c_slave *s, enum i2c_event event)
     }
 }
 
-static int smbus_i2c_recv(i2c_slave *s)
+static int smbus_i2c_recv(I2CSlave *s)
 {
     SMBusDeviceInfo *t = container_of(s->info, SMBusDeviceInfo, i2c);
     SMBusDevice *dev = FROM_I2C_SLAVE(SMBusDevice, s);
@@ -182,7 +182,7 @@ static int smbus_i2c_recv(i2c_slave *s)
     return ret;
 }
 
-static int smbus_i2c_send(i2c_slave *s, uint8_t data)
+static int smbus_i2c_send(I2CSlave *s, uint8_t data)
 {
     SMBusDevice *dev = FROM_I2C_SLAVE(SMBusDevice, s);
 
@@ -198,7 +198,7 @@ static int smbus_i2c_send(i2c_slave *s, uint8_t data)
     return 0;
 }
 
-static int smbus_device_init(i2c_slave *i2c)
+static int smbus_device_init(I2CSlave *i2c)
 {
     SMBusDeviceInfo *t = container_of(i2c->info, SMBusDeviceInfo, i2c);
     SMBusDevice *dev = FROM_I2C_SLAVE(SMBusDevice, i2c);

@@ -133,12 +133,12 @@ static int tosa_ssp_init(SSISlave *dev)
 }
 
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
     int len;
     char buf[3];
 } TosaDACState;
 
-static int tosa_dac_send(i2c_slave *i2c, uint8_t data)
+static int tosa_dac_send(I2CSlave *i2c, uint8_t data)
 {
     TosaDACState *s = FROM_I2C_SLAVE(TosaDACState, i2c);
     s->buf[s->len] = data;
@@ -157,7 +157,7 @@ static int tosa_dac_send(i2c_slave *i2c, uint8_t data)
     return 0;
 }
 
-static void tosa_dac_event(i2c_slave *i2c, enum i2c_event event)
+static void tosa_dac_event(I2CSlave *i2c, enum i2c_event event)
 {
     TosaDACState *s = FROM_I2C_SLAVE(TosaDACState, i2c);
     s->len = 0;
@@ -180,13 +180,13 @@ static void tosa_dac_event(i2c_slave *i2c, enum i2c_event event)
     }
 }
 
-static int tosa_dac_recv(i2c_slave *s)
+static int tosa_dac_recv(I2CSlave *s)
 {
     printf("%s: recv not supported!!!\n", __FUNCTION__);
     return -1;
 }
 
-static int tosa_dac_init(i2c_slave *i2c)
+static int tosa_dac_init(I2CSlave *i2c)
 {
     /* Nothing to do.  */
     return 0;

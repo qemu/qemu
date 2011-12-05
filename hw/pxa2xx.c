@@ -1243,7 +1243,7 @@ static SysBusDeviceInfo pxa2xx_rtc_sysbus_info = {
 
 /* I2C Interface */
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
     PXA2xxI2CState *host;
 } PXA2xxI2CSlaveState;
 
@@ -1279,7 +1279,7 @@ static void pxa2xx_i2c_update(PXA2xxI2CState *s)
 }
 
 /* These are only stubs now.  */
-static void pxa2xx_i2c_event(i2c_slave *i2c, enum i2c_event event)
+static void pxa2xx_i2c_event(I2CSlave *i2c, enum i2c_event event)
 {
     PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
     PXA2xxI2CState *s = slave->host;
@@ -1303,7 +1303,7 @@ static void pxa2xx_i2c_event(i2c_slave *i2c, enum i2c_event event)
     pxa2xx_i2c_update(s);
 }
 
-static int pxa2xx_i2c_rx(i2c_slave *i2c)
+static int pxa2xx_i2c_rx(I2CSlave *i2c)
 {
     PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
     PXA2xxI2CState *s = slave->host;
@@ -1318,7 +1318,7 @@ static int pxa2xx_i2c_rx(i2c_slave *i2c)
     return s->data;
 }
 
-static int pxa2xx_i2c_tx(i2c_slave *i2c, uint8_t data)
+static int pxa2xx_i2c_tx(I2CSlave *i2c, uint8_t data)
 {
     PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
     PXA2xxI2CState *s = slave->host;
@@ -1466,7 +1466,7 @@ static const VMStateDescription vmstate_pxa2xx_i2c = {
     }
 };
 
-static int pxa2xx_i2c_slave_init(i2c_slave *i2c)
+static int pxa2xx_i2c_slave_init(I2CSlave *i2c)
 {
     /* Nothing to do.  */
     return 0;

@@ -12,8 +12,8 @@
 struct i2c_bus
 {
     BusState qbus;
-    i2c_slave *current_dev;
-    i2c_slave *dev;
+    I2CSlave *current_dev;
+    I2CSlave *dev;
     uint8_t saved_address;
 };
 
@@ -21,7 +21,7 @@ static struct BusInfo i2c_bus_info = {
     .name = "I2C",
     .size = sizeof(i2c_bus),
     .props = (Property[]) {
-        DEFINE_PROP_UINT8("address", struct i2c_slave, address, 0),
+        DEFINE_PROP_UINT8("address", struct I2CSlave, address, 0),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
@@ -66,7 +66,7 @@ i2c_bus *i2c_init_bus(DeviceState *parent, const char *name)
     return bus;
 }
 
-void i2c_set_slave_address(i2c_slave *dev, uint8_t address)
+void i2c_set_slave_address(I2CSlave *dev, uint8_t address)
 {
     dev->address = address;
 }
@@ -82,10 +82,10 @@ int i2c_bus_busy(i2c_bus *bus)
 int i2c_start_transfer(i2c_bus *bus, uint8_t address, int recv)
 {
     DeviceState *qdev;
-    i2c_slave *slave = NULL;
+    I2CSlave *slave = NULL;
 
     QTAILQ_FOREACH(qdev, &bus->qbus.children, sibling) {
-        i2c_slave *candidate = I2C_SLAVE_FROM_QDEV(qdev);
+        I2CSlave *candidate = I2C_SLAVE_FROM_QDEV(qdev);
         if (candidate->address == address) {
             slave = candidate;
             break;
@@ -104,7 +104,7 @@ int i2c_start_transfer(i2c_bus *bus, uint8_t address, int recv)
 
 void i2c_end_transfer(i2c_bus *bus)
 {
-    i2c_slave *dev = bus->current_dev;
+    I2CSlave *dev = bus->current_dev;
 
     if (!dev)
         return;
@@ -116,7 +116,7 @@ void i2c_end_transfer(i2c_bus *bus)
 
 int i2c_send(i2c_bus *bus, uint8_t data)
 {
-    i2c_slave *dev = bus->current_dev;
+    I2CSlave *dev = bus->current_dev;
 
     if (!dev)
         return -1;
@@ -126,7 +126,7 @@ int i2c_send(i2c_bus *bus, uint8_t data)
 
 int i2c_recv(i2c_bus *bus)
 {
-    i2c_slave *dev = bus->current_dev;
+    I2CSlave *dev = bus->current_dev;
 
     if (!dev)
         return -1;
@@ -136,7 +136,7 @@ int i2c_recv(i2c_bus *bus)
 
 void i2c_nack(i2c_bus *bus)
 {
-    i2c_slave *dev = bus->current_dev;
+    I2CSlave *dev = bus->current_dev;
 
     if (!dev)
         return;
@@ -146,7 +146,7 @@ void i2c_nack(i2c_bus *bus)
 
 static int i2c_slave_post_load(void *opaque, int version_id)
 {
-    i2c_slave *dev = opaque;
+    I2CSlave *dev = opaque;
     i2c_bus *bus;
     bus = FROM_QBUS(i2c_bus, qdev_get_parent_bus(&dev->qdev));
     if (bus->saved_address == dev->address) {
@@ -156,13 +156,13 @@ static int i2c_slave_post_load(void *opaque, int version_id)
 }
 
 const VMStateDescription vmstate_i2c_slave = {
-    .name = "i2c_slave",
+    .name = "I2CSlave",
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .post_load = i2c_slave_post_load,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT8(address, i2c_slave),
+        VMSTATE_UINT8(address, I2CSlave),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -170,7 +170,7 @@ const VMStateDescription vmstate_i2c_slave = {
 static int i2c_slave_qdev_init(DeviceState *dev, DeviceInfo *base)
 {
     I2CSlaveInfo *info = container_of(base, I2CSlaveInfo, qdev);
-    i2c_slave *s = I2C_SLAVE_FROM_QDEV(dev);
+    I2CSlave *s = I2C_SLAVE_FROM_QDEV(dev);
 
     s->info = info;
 
@@ -179,7 +179,7 @@ static int i2c_slave_qdev_init(DeviceState *dev, DeviceInfo *base)
 
 void i2c_register_slave(I2CSlaveInfo *info)
 {
-    assert(info->qdev.size >= sizeof(i2c_slave));
+    assert(info->qdev.size >= sizeof(I2CSlave));
     info->qdev.init = i2c_slave_qdev_init;
     info->qdev.bus_info = &i2c_bus_info;
     qdev_register(&info->qdev);

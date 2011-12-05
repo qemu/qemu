@@ -22,7 +22,7 @@
 #include "i2c.h"
 
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
     uint8_t len;
     uint8_t buf[2];
     qemu_irq pin;
@@ -65,7 +65,7 @@ static void tmp105_alarm_update(TMP105State *s)
 }
 
 /* Units are 0.001 centigrades relative to 0 C.  */
-void tmp105_set(i2c_slave *i2c, int temp)
+void tmp105_set(I2CSlave *i2c, int temp)
 {
     TMP105State *s = (TMP105State *) i2c;
 
@@ -138,7 +138,7 @@ static void tmp105_write(TMP105State *s)
     }
 }
 
-static int tmp105_rx(i2c_slave *i2c)
+static int tmp105_rx(I2CSlave *i2c)
 {
     TMP105State *s = (TMP105State *) i2c;
 
@@ -148,7 +148,7 @@ static int tmp105_rx(i2c_slave *i2c)
         return 0xff;
 }
 
-static int tmp105_tx(i2c_slave *i2c, uint8_t data)
+static int tmp105_tx(I2CSlave *i2c, uint8_t data)
 {
     TMP105State *s = (TMP105State *) i2c;
 
@@ -163,7 +163,7 @@ static int tmp105_tx(i2c_slave *i2c, uint8_t data)
     return 0;
 }
 
-static void tmp105_event(i2c_slave *i2c, enum i2c_event event)
+static void tmp105_event(I2CSlave *i2c, enum i2c_event event)
 {
     TMP105State *s = (TMP105State *) i2c;
 
@@ -202,7 +202,7 @@ static const VMStateDescription vmstate_tmp105 = {
     }
 };
 
-static void tmp105_reset(i2c_slave *i2c)
+static void tmp105_reset(I2CSlave *i2c)
 {
     TMP105State *s = (TMP105State *) i2c;
 
@@ -215,7 +215,7 @@ static void tmp105_reset(i2c_slave *i2c)
     tmp105_interrupt_update(s);
 }
 
-static int tmp105_init(i2c_slave *i2c)
+static int tmp105_init(I2CSlave *i2c)
 {
     TMP105State *s = FROM_I2C_SLAVE(TMP105State, i2c);
 

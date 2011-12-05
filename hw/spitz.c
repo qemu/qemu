@@ -717,7 +717,7 @@ static void spitz_microdrive_attach(PXA2xxState *cpu, int slot)
 
 static void spitz_wm8750_addr(void *opaque, int line, int level)
 {
-    i2c_slave *wm = (i2c_slave *) opaque;
+    I2CSlave *wm = (I2CSlave *) opaque;
     if (level)
         i2c_set_slave_address(wm, SPITZ_WM_ADDRH);
     else

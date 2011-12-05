@@ -26,7 +26,7 @@
 
 struct SMBusDevice {
     /* The SMBus protocol is implemented on top of I2C.  */
-    i2c_slave i2c;
+    I2CSlave i2c;
 
     /* Remaining fields for internal use only.  */
     int mode;

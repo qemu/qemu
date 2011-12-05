@@ -10,7 +10,7 @@
 #include "i2c.h"
 
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
     int i2c_command_byte;
     int len;
 
@@ -33,7 +33,7 @@ static void max7310_reset(DeviceState *dev)
     s->command = 0x00;
 }
 
-static int max7310_rx(i2c_slave *i2c)
+static int max7310_rx(I2CSlave *i2c)
 {
     MAX7310State *s = (MAX7310State *) i2c;
 
@@ -68,7 +68,7 @@ static int max7310_rx(i2c_slave *i2c)
     return 0xff;
 }
 
-static int max7310_tx(i2c_slave *i2c, uint8_t data)
+static int max7310_tx(I2CSlave *i2c, uint8_t data)
 {
     MAX7310State *s = (MAX7310State *) i2c;
     uint8_t diff;
@@ -123,7 +123,7 @@ static int max7310_tx(i2c_slave *i2c, uint8_t data)
     return 0;
 }
 
-static void max7310_event(i2c_slave *i2c, enum i2c_event event)
+static void max7310_event(I2CSlave *i2c, enum i2c_event event)
 {
     MAX7310State *s = (MAX7310State *) i2c;
     s->len = 0;
@@ -175,7 +175,7 @@ static void max7310_gpio_set(void *opaque, int line, int level)
 
 /* MAX7310 is SMBus-compatible (can be used with only SMBus protocols),
  * but also accepts sequences that are not SMBus so return an I2C device.  */
-static int max7310_init(i2c_slave *i2c)
+static int max7310_init(I2CSlave *i2c)
 {
     MAX7310State *s = FROM_I2C_SLAVE(MAX7310State, i2c);
 

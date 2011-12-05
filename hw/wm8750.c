@@ -24,7 +24,7 @@ typedef struct {
 } WMRate;
 
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
     uint8_t i2c_data[2];
     int i2c_len;
     QEMUSoundCard card;
@@ -254,7 +254,7 @@ static void wm8750_clk_update(WM8750State *s, int ext)
     }
 }
 
-static void wm8750_reset(i2c_slave *i2c)
+static void wm8750_reset(I2CSlave *i2c)
 {
     WM8750State *s = (WM8750State *) i2c;
     s->rate = &wm_rate_table[0];
@@ -297,7 +297,7 @@ static void wm8750_reset(i2c_slave *i2c)
     s->i2c_len = 0;
 }
 
-static void wm8750_event(i2c_slave *i2c, enum i2c_event event)
+static void wm8750_event(I2CSlave *i2c, enum i2c_event event)
 {
     WM8750State *s = (WM8750State *) i2c;
 
@@ -354,7 +354,7 @@ static void wm8750_event(i2c_slave *i2c, enum i2c_event event)
 #define WM8750_ROUT2V	0x29
 #define WM8750_MOUTV	0x2a
 
-static int wm8750_tx(i2c_slave *i2c, uint8_t data)
+static int wm8750_tx(I2CSlave *i2c, uint8_t data)
 {
     WM8750State *s = (WM8750State *) i2c;
     uint8_t cmd;
@@ -554,7 +554,7 @@ static int wm8750_tx(i2c_slave *i2c, uint8_t data)
     return 0;
 }
 
-static int wm8750_rx(i2c_slave *i2c)
+static int wm8750_rx(I2CSlave *i2c)
 {
     return 0x00;
 }
@@ -609,7 +609,7 @@ static const VMStateDescription vmstate_wm8750 = {
     }
 };
 
-static int wm8750_init(i2c_slave *i2c)
+static int wm8750_init(I2CSlave *i2c)
 {
     WM8750State *s = FROM_I2C_SLAVE(WM8750State, i2c);
 
@@ -620,7 +620,7 @@ static int wm8750_init(i2c_slave *i2c)
 }
 
 #if 0
-static void wm8750_fini(i2c_slave *i2c)
+static void wm8750_fini(I2CSlave *i2c)
 {
     WM8750State *s = (WM8750State *) i2c;
     wm8750_reset(&s->i2c);

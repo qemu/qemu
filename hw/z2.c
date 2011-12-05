@@ -190,12 +190,12 @@ static DeviceInfo zipit_lcd_info = {
 };
 
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
     int len;
     uint8_t buf[3];
 } AER915State;
 
-static int aer915_send(i2c_slave *i2c, uint8_t data)
+static int aer915_send(I2CSlave *i2c, uint8_t data)
 {
     AER915State *s = FROM_I2C_SLAVE(AER915State, i2c);
     s->buf[s->len] = data;
@@ -213,7 +213,7 @@ static int aer915_send(i2c_slave *i2c, uint8_t data)
     return 0;
 }
 
-static void aer915_event(i2c_slave *i2c, enum i2c_event event)
+static void aer915_event(I2CSlave *i2c, enum i2c_event event)
 {
     AER915State *s = FROM_I2C_SLAVE(AER915State, i2c);
     switch (event) {
@@ -232,7 +232,7 @@ static void aer915_event(i2c_slave *i2c, enum i2c_event event)
     }
 }
 
-static int aer915_recv(i2c_slave *slave)
+static int aer915_recv(I2CSlave *slave)
 {
     int retval = 0x00;
     AER915State *s = FROM_I2C_SLAVE(AER915State, slave);
@@ -255,7 +255,7 @@ static int aer915_recv(i2c_slave *slave)
     return retval;
 }
 
-static int aer915_init(i2c_slave *i2c)
+static int aer915_init(I2CSlave *i2c)
 {
     /* Nothing to do.  */
     return 0;
