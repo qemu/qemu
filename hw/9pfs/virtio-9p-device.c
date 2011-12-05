@@ -33,13 +33,15 @@ static V9fsState *to_virtio_9p(VirtIODevice *vdev)
 
 static void virtio_9p_get_config(VirtIODevice *vdev, uint8_t *config)
 {
+    int len;
     struct virtio_9p_config *cfg;
     V9fsState *s = to_virtio_9p(vdev);
 
-    cfg = g_malloc0(sizeof(struct virtio_9p_config) +
-                        s->tag_len);
-    stw_raw(&cfg->tag_len, s->tag_len);
-    memcpy(cfg->tag, s->tag, s->tag_len);
+    len = strlen(s->tag);
+    cfg = g_malloc0(sizeof(struct virtio_9p_config) + len);
+    stw_raw(&cfg->tag_len, len);
+    /* We don't copy the terminating null to config space */
+    memcpy(cfg->tag, s->tag, len);
     memcpy(config, cfg, s->config_size);
     g_free(cfg);
 }
@@ -96,20 +98,18 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
     }
 
     len = strlen(conf->tag);
-    if (len > MAX_TAG_LEN) {
+    if (len > MAX_TAG_LEN - 1) {
         fprintf(stderr, "mount tag '%s' (%d bytes) is longer than "
-                "maximum (%d bytes)", conf->tag, len, MAX_TAG_LEN);
+                "maximum (%d bytes)", conf->tag, len, MAX_TAG_LEN - 1);
         exit(1);
     }
-    /* s->tag is non-NULL terminated string */
-    s->tag = g_malloc(len);
-    memcpy(s->tag, conf->tag, len);
-    s->tag_len = len;
+
+    s->tag = strdup(conf->tag);
     s->ctx.uid = -1;
 
     s->ops = fse->ops;
     s->vdev.get_features = virtio_9p_get_features;
-    s->config_size = sizeof(struct virtio_9p_config) + s->tag_len;
+    s->config_size = sizeof(struct virtio_9p_config) + len;
     s->vdev.get_config = virtio_9p_get_config;
     s->fid_list = NULL;
     qemu_co_rwlock_init(&s->rename_lock);
@@ -176,7 +176,8 @@ static PCIDeviceInfo virtio_9p_info = {
         DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),
         DEFINE_PROP_STRING("fsdev", VirtIOPCIProxy, fsconf.fsdev_id),
         DEFINE_PROP_END_OF_LIST(),
-    }
+    },
+    .qdev.reset = virtio_pci_reset,
 };
 
 static void virtio_9p_register_devices(void)

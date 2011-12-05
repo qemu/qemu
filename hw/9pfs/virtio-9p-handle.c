@@ -45,7 +45,6 @@ struct handle_data {
     int handle_bytes;
 };
 
-#ifdef CONFIG_OPEN_BY_HANDLE
 static inline int name_to_handle(int dirfd, const char *name,
                                  struct file_handle *fh, int *mnt_id, int flags)
 {
@@ -56,38 +55,6 @@ static inline int open_by_handle(int mountfd, const char *fh, int flags)
 {
     return open_by_handle_at(mountfd, (struct file_handle *)fh, flags);
 }
-#else
-
-struct rpl_file_handle {
-    unsigned int handle_bytes;
-    int handle_type;
-    unsigned char handle[0];
-};
-#define file_handle rpl_file_handle
-
-#ifndef AT_REMOVEDIR
-#define AT_REMOVEDIR    0x200
-#endif
-#ifndef AT_EMPTY_PATH
-#define AT_EMPTY_PATH   0x1000  /* Allow empty relative pathname */
-#endif
-#ifndef O_PATH
-#define O_PATH    010000000
-#endif
-
-static inline int name_to_handle(int dirfd, const char *name,
-                                 struct file_handle *fh, int *mnt_id, int flags)
-{
-    errno = ENOSYS;
-    return -1;
-}
-
-static inline int open_by_handle(int mountfd, const char *fh, int flags)
-{
-    errno = ENOSYS;
-    return -1;
-}
-#endif
 
 static int handle_update_file_cred(int dirfd, const char *name, FsCred *credp)
 {
@@ -288,10 +255,17 @@ static int handle_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
     return ret;
 }
 
-static int handle_fstat(FsContext *fs_ctx, V9fsFidOpenState *fs,
-                        struct stat *stbuf)
+static int handle_fstat(FsContext *fs_ctx, int fid_type,
+                        V9fsFidOpenState *fs, struct stat *stbuf)
 {
-    return fstat(fs->fd, stbuf);
+    int fd;
+
+    if (fid_type == P9_FID_DIR) {
+        fd = dirfd(fs->dir);
+    } else {
+        fd = fs->fd;
+    }
+    return fstat(fd, stbuf);
 }
 
 static int handle_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
@@ -428,12 +402,21 @@ static int handle_remove(FsContext *ctx, const char *path)
     return -1;
 }
 
-static int handle_fsync(FsContext *ctx, V9fsFidOpenState *fs, int datasync)
+static int handle_fsync(FsContext *ctx, int fid_type,
+                        V9fsFidOpenState *fs, int datasync)
 {
-    if (datasync) {
-        return qemu_fdatasync(fs->fd);
+    int fd;
+
+    if (fid_type == P9_FID_DIR) {
+        fd = dirfd(fs->dir);
     } else {
-        return fsync(fs->fd);
+        fd = fs->fd;
+    }
+
+    if (datasync) {
+        return qemu_fdatasync(fd);
+    } else {
+        return fsync(fd);
     }
 }
 

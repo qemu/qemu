@@ -192,6 +192,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_UNKNOWN_BLOCK_FORMAT_FEATURE \
     "{ 'class': 'UnknownBlockFormatFeature', 'data': { 'device': %s, 'format': %s, 'feature': %s } }"
 
+#define QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION \
+    "{ 'class': 'VirtFSFeatureBlocksMigration', 'data': { 'path': %s, 'tag': %s } }"
+
 #define QERR_VNC_SERVER_FAILED \
     "{ 'class': 'VNCServerFailed', 'data': { 'target': %s } }"
 
