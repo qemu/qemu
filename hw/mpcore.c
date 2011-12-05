@@ -36,59 +36,49 @@ typedef struct mpcore_priv_state {
 
 /* Per-CPU private memory mapped IO.  */
 
-static uint64_t mpcore_priv_read(void *opaque, target_phys_addr_t offset,
-                                 unsigned size)
+static uint64_t mpcore_scu_read(void *opaque, target_phys_addr_t offset,
+                                unsigned size)
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
     int id;
     offset &= 0xff;
-    if (offset < 0x100) {
-        /* SCU */
-        switch (offset) {
-        case 0x00: /* Control.  */
-            return s->scu_control;
-        case 0x04: /* Configuration.  */
-            id = ((1 << s->num_cpu) - 1) << 4;
-            return id | (s->num_cpu - 1);
-        case 0x08: /* CPU status.  */
-            return 0;
-        case 0x0c: /* Invalidate all.  */
-            return 0;
-        default:
-            goto bad_reg;
-        }
+    /* SCU */
+    switch (offset) {
+    case 0x00: /* Control.  */
+        return s->scu_control;
+    case 0x04: /* Configuration.  */
+        id = ((1 << s->num_cpu) - 1) << 4;
+        return id | (s->num_cpu - 1);
+    case 0x08: /* CPU status.  */
+        return 0;
+    case 0x0c: /* Invalidate all.  */
+        return 0;
+    default:
+        hw_error("mpcore_priv_read: Bad offset %x\n", (int)offset);
     }
-bad_reg:
-    hw_error("mpcore_priv_read: Bad offset %x\n", (int)offset);
-    return 0;
 }
 
-static void mpcore_priv_write(void *opaque, target_phys_addr_t offset,
-                              uint64_t value, unsigned size)
+static void mpcore_scu_write(void *opaque, target_phys_addr_t offset,
+                             uint64_t value, unsigned size)
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
     offset &= 0xff;
-    if (offset < 0x100) {
-        /* SCU */
-        switch (offset) {
-        case 0: /* Control register.  */
-            s->scu_control = value & 1;
-            break;
-        case 0x0c: /* Invalidate all.  */
-            /* This is a no-op as cache is not emulated.  */
-            break;
-        default:
-            goto bad_reg;
-        }
+    /* SCU */
+    switch (offset) {
+    case 0: /* Control register.  */
+        s->scu_control = value & 1;
+        break;
+    case 0x0c: /* Invalidate all.  */
+        /* This is a no-op as cache is not emulated.  */
+        break;
+    default:
+        hw_error("mpcore_priv_read: Bad offset %x\n", (int)offset);
     }
-    return;
-bad_reg:
-    hw_error("mpcore_priv_read: Bad offset %x\n", (int)offset);
 }
 
-static const MemoryRegionOps mpcore_priv_ops = {
-    .read = mpcore_priv_read,
-    .write = mpcore_priv_write,
+static const MemoryRegionOps mpcore_scu_ops = {
+    .read = mpcore_scu_read,
+    .write = mpcore_scu_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
@@ -106,8 +96,7 @@ static void mpcore_priv_map_setup(mpcore_priv_state *s)
     int i;
     SysBusDevice *busdev = sysbus_from_qdev(s->mptimer);
     memory_region_init(&s->container, "mpcode-priv-container", 0x2000);
-    memory_region_init_io(&s->iomem, &mpcore_priv_ops, s, "mpcode-priv",
-                          0x100);
+    memory_region_init_io(&s->iomem, &mpcore_scu_ops, s, "mpcore-scu", 0x100);
     memory_region_add_subregion(&s->container, 0, &s->iomem);
     /* GIC CPU interfaces: "current CPU" at 0x100, then specific CPUs
      * at 0x200, 0x300...
