@@ -860,9 +860,10 @@ ETEXI
         .args_type  = "pci_addr:s,opts:s",
         .params     = "[[<domain>:]<bus>:]<slot>\n"
                       "[file=file][,if=type][,bus=n]\n"
-                      "[,unit=m][,media=d][index=i]\n"
+                      "[,unit=m][,media=d][,index=i]\n"
                       "[,cyls=c,heads=h,secs=s[,trans=t]]\n"
-                      "[snapshot=on|off][,cache=on|off]",
+                      "[,snapshot=on|off][,cache=on|off]\n"
+                      "[,readonly=on|off][,copy-on-read=on|off]",
         .help       = "add drive to PCI storage controller",
         .mhandler.cmd = drive_hot_add,
     },
@@ -1204,6 +1205,21 @@ ETEXI
         .help       = "set the password of encrypted block devices",
         .user_print = monitor_user_noop,
         .mhandler.cmd_new = do_block_set_passwd,
+    },
+
+STEXI
+@item block_set_io_throttle @var{device} @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+@findex block_set_io_throttle
+Change I/O throttle limits for a block drive to @var{bps} @var{bps_rd} @var{bps_wr} @var{iops} @var{iops_rd} @var{iops_wr}
+ETEXI
+
+    {
+        .name       = "block_set_io_throttle",
+        .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l",
+        .params     = "device bps bps_rd bps_wr iops iops_rd iops_wr",
+        .help       = "change I/O throttle limits for a block drive",
+        .user_print = monitor_user_noop,
+        .mhandler.cmd_new = do_block_set_io_throttle,
     },
 
 STEXI

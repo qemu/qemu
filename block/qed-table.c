@@ -29,7 +29,7 @@ static void qed_read_table_cb(void *opaque, int ret)
 {
     QEDReadTableCB *read_table_cb = opaque;
     QEDTable *table = read_table_cb->table;
-    int noffsets = read_table_cb->iov.iov_len / sizeof(uint64_t);
+    int noffsets = read_table_cb->qiov.size / sizeof(uint64_t);
     int i;
 
     /* Handle I/O error */
@@ -65,7 +65,7 @@ static void qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
 
     qemu_iovec_init_external(qiov, &read_table_cb->iov, 1);
     aiocb = bdrv_aio_readv(s->bs->file, offset / BDRV_SECTOR_SIZE, qiov,
-                           read_table_cb->iov.iov_len / BDRV_SECTOR_SIZE,
+                           qiov->size / BDRV_SECTOR_SIZE,
                            qed_read_table_cb, read_table_cb);
     if (!aiocb) {
         qed_read_table_cb(read_table_cb, -EIO);
@@ -160,7 +160,7 @@ static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
 
     aiocb = bdrv_aio_writev(s->bs->file, offset / BDRV_SECTOR_SIZE,
                             &write_table_cb->qiov,
-                            write_table_cb->iov.iov_len / BDRV_SECTOR_SIZE,
+                            write_table_cb->qiov.size / BDRV_SECTOR_SIZE,
                             qed_write_table_cb, write_table_cb);
     if (!aiocb) {
         qed_write_table_cb(write_table_cb, -EIO);

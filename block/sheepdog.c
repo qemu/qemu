@@ -1715,7 +1715,7 @@ out:
     return 1;
 }
 
-static int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
+static coroutine_fn int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
                         int nb_sectors, QEMUIOVector *qiov)
 {
     SheepdogAIOCB *acb;
@@ -1744,7 +1744,7 @@ static int sd_co_writev(BlockDriverState *bs, int64_t sector_num,
     return acb->ret;
 }
 
-static int sd_co_readv(BlockDriverState *bs, int64_t sector_num,
+static coroutine_fn int sd_co_readv(BlockDriverState *bs, int64_t sector_num,
                        int nb_sectors, QEMUIOVector *qiov)
 {
     SheepdogAIOCB *acb;

@@ -216,6 +216,16 @@ void hmp_info_block(Monitor *mon)
                            info->value->inserted->ro,
                            info->value->inserted->drv,
                            info->value->inserted->encrypted);
+
+            monitor_printf(mon, " bps=%" PRId64 " bps_rd=%" PRId64
+                            " bps_wr=%" PRId64 " iops=%" PRId64
+                            " iops_rd=%" PRId64 " iops_wr=%" PRId64,
+                            info->value->inserted->bps,
+                            info->value->inserted->bps_rd,
+                            info->value->inserted->bps_wr,
+                            info->value->inserted->iops,
+                            info->value->inserted->iops_rd,
+                            info->value->inserted->iops_wr);
         } else {
             monitor_printf(mon, " [not inserted]");
         }

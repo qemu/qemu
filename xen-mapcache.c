@@ -351,7 +351,7 @@ void xen_invalidate_map_cache(void)
     MapCacheRev *reventry;
 
     /* Flush pending AIO before destroying the mapcache */
-    qemu_aio_flush();
+    bdrv_drain_all();
 
     QTAILQ_FOREACH(reventry, &mapcache->locked_entries, next) {
         DPRINTF("There should be no locked mappings at this time, "

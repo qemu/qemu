@@ -370,13 +370,27 @@
 #
 # @encrypted: true if the backing device is encrypted
 #
+# @bps: total throughput limit in bytes per second is specified
+#
+# @bps_rd: read throughput limit in bytes per second is specified
+#
+# @bps_wr: write throughput limit in bytes per second is specified
+#
+# @iops: total I/O operations per second is specified
+#
+# @iops_rd: read I/O operations per second is specified
+#
+# @iops_wr: write I/O operations per second is specified
+#
 # Since: 0.14.0
 #
 # Notes: This interface is only found in @BlockInfo.
 ##
 { 'type': 'BlockDeviceInfo',
   'data': { 'file': 'str', 'ro': 'bool', 'drv': 'str',
-            '*backing_file': 'str', 'encrypted': 'bool' } }
+            '*backing_file': 'str', 'encrypted': 'bool',
+            'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
+            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int'} }
 
 ##
 # @BlockDeviceIoStatus:

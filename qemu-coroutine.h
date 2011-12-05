@@ -118,11 +118,22 @@ void qemu_co_queue_init(CoQueue *queue);
 void coroutine_fn qemu_co_queue_wait(CoQueue *queue);
 
 /**
+ * Adds the current coroutine to the head of the CoQueue and transfers control to the
+ * caller of the coroutine.
+ */
+void coroutine_fn qemu_co_queue_wait_insert_head(CoQueue *queue);
+
+/**
  * Restarts the next coroutine in the CoQueue and removes it from the queue.
  *
  * Returns true if a coroutine was restarted, false if the queue is empty.
  */
 bool qemu_co_queue_next(CoQueue *queue);
+
+/**
+ * Restarts all coroutines in the CoQueue and leaves the queue empty.
+ */
+void qemu_co_queue_restart_all(CoQueue *queue);
 
 /**
  * Checks if the CoQueue is empty.

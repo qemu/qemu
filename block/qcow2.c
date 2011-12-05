@@ -273,8 +273,9 @@ static int qcow2_open(BlockDriverState *bs, int flags)
         }
         bs->backing_file[len] = '\0';
     }
-    if (qcow2_read_snapshots(bs) < 0) {
-        ret = -EINVAL;
+
+    ret = qcow2_read_snapshots(bs);
+    if (ret < 0) {
         goto fail;
     }
 
@@ -343,16 +344,19 @@ static int qcow2_set_key(BlockDriverState *bs, const char *key)
     return 0;
 }
 
-static int qcow2_is_allocated(BlockDriverState *bs, int64_t sector_num,
-                              int nb_sectors, int *pnum)
+static int coroutine_fn qcow2_co_is_allocated(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, int *pnum)
 {
+    BDRVQcowState *s = bs->opaque;
     uint64_t cluster_offset;
     int ret;
 
     *pnum = nb_sectors;
-    /* FIXME We can get errors here, but the bdrv_is_allocated interface can't
-     * pass them on today */
+    /* FIXME We can get errors here, but the bdrv_co_is_allocated interface
+     * can't pass them on today */
+    qemu_co_mutex_lock(&s->lock);
     ret = qcow2_get_cluster_offset(bs, sector_num << 9, pnum, &cluster_offset);
+    qemu_co_mutex_unlock(&s->lock);
     if (ret < 0) {
         *pnum = 0;
     }
@@ -377,7 +381,7 @@ int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
     return n1;
 }
 
-static int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
+static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                           int remaining_sectors, QEMUIOVector *qiov)
 {
     BDRVQcowState *s = bs->opaque;
@@ -512,12 +516,12 @@ static void run_dependent_requests(BDRVQcowState *s, QCowL2Meta *m)
     /* Restart all dependent requests */
     if (!qemu_co_queue_empty(&m->dependent_requests)) {
         qemu_co_mutex_unlock(&s->lock);
-        while(qemu_co_queue_next(&m->dependent_requests));
+        qemu_co_queue_restart_all(&m->dependent_requests);
         qemu_co_mutex_lock(&s->lock);
     }
 }
 
-static int qcow2_co_writev(BlockDriverState *bs,
+static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
                            int64_t sector_num,
                            int remaining_sectors,
                            QEMUIOVector *qiov)
@@ -1137,7 +1141,7 @@ fail:
     return ret;
 }
 
-static int qcow2_co_flush_to_os(BlockDriverState *bs)
+static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     int ret;
@@ -1159,7 +1163,7 @@ static int qcow2_co_flush_to_os(BlockDriverState *bs)
     return 0;
 }
 
-static int qcow2_co_flush_to_disk(BlockDriverState *bs)
+static coroutine_fn int qcow2_co_flush_to_disk(BlockDriverState *bs)
 {
     return bdrv_co_flush(bs->file);
 }
@@ -1276,7 +1280,7 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_open          = qcow2_open,
     .bdrv_close         = qcow2_close,
     .bdrv_create        = qcow2_create,
-    .bdrv_is_allocated  = qcow2_is_allocated,
+    .bdrv_co_is_allocated = qcow2_co_is_allocated,
     .bdrv_set_key       = qcow2_set_key,
     .bdrv_make_empty    = qcow2_make_empty,
 

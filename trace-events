@@ -69,6 +69,7 @@ bdrv_lock_medium(void *bs, bool locked) "bs %p locked %d"
 bdrv_co_readv(void *bs, int64_t sector_num, int nb_sector) "bs %p sector_num %"PRId64" nb_sectors %d"
 bdrv_co_writev(void *bs, int64_t sector_num, int nb_sector) "bs %p sector_num %"PRId64" nb_sectors %d"
 bdrv_co_io_em(void *bs, int64_t sector_num, int nb_sectors, int is_write, void *acb) "bs %p sector_num %"PRId64" nb_sectors %d is_write %d acb %p"
+bdrv_co_copy_on_readv(void *bs, int64_t sector_num, int nb_sectors, int64_t cluster_sector_num, int cluster_nb_sectors) "bs %p sector_num %"PRId64" nb_sectors %d cluster_sector_num %"PRId64" cluster_nb_sectors %d"
 
 # hw/virtio-blk.c
 virtio_blk_req_complete(void *req, int status) "req %p status %d"
@@ -631,3 +632,10 @@ win_helper_no_switch_pstate(uint32_t new_pstate_regs) "change_pstate: regs new=%
 win_helper_wrpil(uint32_t psrpil, uint32_t new_pil) "old=%x new=%x"
 win_helper_done(uint32_t tl) "tl=%d"
 win_helper_retry(uint32_t tl) "tl=%d"
+
+# dma-helpers.c
+dma_bdrv_io(void *dbs, void *bs, int64_t sector_num, bool to_dev) "dbs=%p bs=%p sector_num=%" PRId64 " to_dev=%d"
+dma_aio_cancel(void *dbs) "dbs=%p"
+dma_complete(void *dbs, int ret, void *cb) "dbs=%p ret=%d cb=%p"
+dma_bdrv_cb(void *dbs, int ret) "dbs=%p ret=%d"
+dma_map_wait(void *dbs) "dbs=%p"

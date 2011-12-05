@@ -68,6 +68,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
     int i, id_str_size, name_size;
     int64_t offset;
     uint32_t extra_data_size;
+    int ret;
 
     if (!s->nb_snapshots) {
         s->snapshots = NULL;
@@ -77,10 +78,15 @@ int qcow2_read_snapshots(BlockDriverState *bs)
 
     offset = s->snapshots_offset;
     s->snapshots = g_malloc0(s->nb_snapshots * sizeof(QCowSnapshot));
+
     for(i = 0; i < s->nb_snapshots; i++) {
+        /* Read statically sized part of the snapshot header */
         offset = align_offset(offset, 8);
-        if (bdrv_pread(bs->file, offset, &h, sizeof(h)) != sizeof(h))
+        ret = bdrv_pread(bs->file, offset, &h, sizeof(h));
+        if (ret < 0) {
             goto fail;
+        }
+
         offset += sizeof(h);
         sn = s->snapshots + i;
         sn->l1_table_offset = be64_to_cpu(h.l1_table_offset);
@@ -94,25 +100,34 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         id_str_size = be16_to_cpu(h.id_str_size);
         name_size = be16_to_cpu(h.name_size);
 
+        /* Skip extra data */
         offset += extra_data_size;
 
+        /* Read snapshot ID */
         sn->id_str = g_malloc(id_str_size + 1);
-        if (bdrv_pread(bs->file, offset, sn->id_str, id_str_size) != id_str_size)
+        ret = bdrv_pread(bs->file, offset, sn->id_str, id_str_size);
+        if (ret < 0) {
             goto fail;
+        }
         offset += id_str_size;
         sn->id_str[id_str_size] = '\0';
 
+        /* Read snapshot name */
         sn->name = g_malloc(name_size + 1);
-        if (bdrv_pread(bs->file, offset, sn->name, name_size) != name_size)
+        ret = bdrv_pread(bs->file, offset, sn->name, name_size);
+        if (ret < 0) {
             goto fail;
+        }
         offset += name_size;
         sn->name[name_size] = '\0';
     }
+
     s->snapshots_size = offset - s->snapshots_offset;
     return 0;
- fail:
+
+fail:
     qcow2_free_snapshots(bs);
-    return -1;
+    return ret;
 }
 
 /* add at the end of the file a new list of snapshots */
@@ -122,9 +137,12 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     QCowSnapshot *sn;
     QCowSnapshotHeader h;
     int i, name_size, id_str_size, snapshots_size;
-    uint64_t data64;
-    uint32_t data32;
+    struct {
+        uint32_t nb_snapshots;
+        uint64_t snapshots_offset;
+    } QEMU_PACKED header_data;
     int64_t offset, snapshots_offset;
+    int ret;
 
     /* compute the size of the snapshots */
     offset = 0;
@@ -137,6 +155,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     }
     snapshots_size = offset;
 
+    /* Allocate space for the new snapshot list */
     snapshots_offset = qcow2_alloc_clusters(bs, snapshots_size);
     bdrv_flush(bs->file);
     offset = snapshots_offset;
@@ -144,6 +163,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         return offset;
     }
 
+    /* Write all snapshots to the new list */
     for(i = 0; i < s->nb_snapshots; i++) {
         sn = s->snapshots + i;
         memset(&h, 0, sizeof(h));
@@ -159,34 +179,55 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         h.id_str_size = cpu_to_be16(id_str_size);
         h.name_size = cpu_to_be16(name_size);
         offset = align_offset(offset, 8);
-        if (bdrv_pwrite_sync(bs->file, offset, &h, sizeof(h)) < 0)
+
+        ret = bdrv_pwrite(bs->file, offset, &h, sizeof(h));
+        if (ret < 0) {
             goto fail;
+        }
         offset += sizeof(h);
-        if (bdrv_pwrite_sync(bs->file, offset, sn->id_str, id_str_size) < 0)
+
+        ret = bdrv_pwrite(bs->file, offset, sn->id_str, id_str_size);
+        if (ret < 0) {
             goto fail;
+        }
         offset += id_str_size;
-        if (bdrv_pwrite_sync(bs->file, offset, sn->name, name_size) < 0)
+
+        ret = bdrv_pwrite(bs->file, offset, sn->name, name_size);
+        if (ret < 0) {
             goto fail;
+        }
         offset += name_size;
     }
 
-    /* update the various header fields */
-    data64 = cpu_to_be64(snapshots_offset);
-    if (bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, snapshots_offset),
-                    &data64, sizeof(data64)) < 0)
+    /*
+     * Update the header to point to the new snapshot table. This requires the
+     * new table and its refcounts to be stable on disk.
+     */
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
         goto fail;
-    data32 = cpu_to_be32(s->nb_snapshots);
-    if (bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, nb_snapshots),
-                    &data32, sizeof(data32)) < 0)
+    }
+
+    QEMU_BUILD_BUG_ON(offsetof(QCowHeader, snapshots_offset) !=
+        offsetof(QCowHeader, nb_snapshots) + sizeof(header_data.nb_snapshots));
+
+    header_data.nb_snapshots        = cpu_to_be32(s->nb_snapshots);
+    header_data.snapshots_offset    = cpu_to_be64(snapshots_offset);
+
+    ret = bdrv_pwrite_sync(bs->file, offsetof(QCowHeader, nb_snapshots),
+                           &header_data, sizeof(header_data));
+    if (ret < 0) {
         goto fail;
+    }
 
     /* free the old snapshot table */
     qcow2_free_clusters(bs, s->snapshots_offset, s->snapshots_size);
     s->snapshots_offset = snapshots_offset;
     s->snapshots_size = snapshots_size;
     return 0;
- fail:
-    return -1;
+
+fail:
+    return ret;
 }
 
 static void find_new_snapshot_id(BlockDriverState *bs,
@@ -236,72 +277,92 @@ static int find_snapshot_by_id_or_name(BlockDriverState *bs, const char *name)
 int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
 {
     BDRVQcowState *s = bs->opaque;
-    QCowSnapshot *snapshots1, sn1, *sn = &sn1;
+    QCowSnapshot *new_snapshot_list = NULL;
+    QCowSnapshot *old_snapshot_list = NULL;
+    QCowSnapshot sn1, *sn = &sn1;
     int i, ret;
     uint64_t *l1_table = NULL;
     int64_t l1_table_offset;
 
     memset(sn, 0, sizeof(*sn));
 
+    /* Generate an ID if it wasn't passed */
     if (sn_info->id_str[0] == '\0') {
-        /* compute a new id */
         find_new_snapshot_id(bs, sn_info->id_str, sizeof(sn_info->id_str));
     }
 
-    /* check that the ID is unique */
-    if (find_snapshot_by_id(bs, sn_info->id_str) >= 0)
+    /* Check that the ID is unique */
+    if (find_snapshot_by_id(bs, sn_info->id_str) >= 0) {
         return -ENOENT;
+    }
 
+    /* Populate sn with passed data */
     sn->id_str = g_strdup(sn_info->id_str);
-    if (!sn->id_str)
-        goto fail;
     sn->name = g_strdup(sn_info->name);
-    if (!sn->name)
-        goto fail;
+
     sn->vm_state_size = sn_info->vm_state_size;
     sn->date_sec = sn_info->date_sec;
     sn->date_nsec = sn_info->date_nsec;
     sn->vm_clock_nsec = sn_info->vm_clock_nsec;
 
-    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1);
-    if (ret < 0)
-        goto fail;
-
-    /* create the L1 table of the snapshot */
+    /* Allocate the L1 table of the snapshot and copy the current one there. */
     l1_table_offset = qcow2_alloc_clusters(bs, s->l1_size * sizeof(uint64_t));
     if (l1_table_offset < 0) {
+        ret = l1_table_offset;
         goto fail;
     }
-    bdrv_flush(bs->file);
 
     sn->l1_table_offset = l1_table_offset;
     sn->l1_size = s->l1_size;
 
-    if (s->l1_size != 0) {
-        l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
-    } else {
-        l1_table = NULL;
-    }
-
+    l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
     for(i = 0; i < s->l1_size; i++) {
         l1_table[i] = cpu_to_be64(s->l1_table[i]);
     }
-    if (bdrv_pwrite_sync(bs->file, sn->l1_table_offset,
-                    l1_table, s->l1_size * sizeof(uint64_t)) < 0)
+
+    ret = bdrv_pwrite(bs->file, sn->l1_table_offset, l1_table,
+                      s->l1_size * sizeof(uint64_t));
+    if (ret < 0) {
         goto fail;
+    }
+
     g_free(l1_table);
     l1_table = NULL;
 
-    snapshots1 = g_malloc((s->nb_snapshots + 1) * sizeof(QCowSnapshot));
-    if (s->snapshots) {
-        memcpy(snapshots1, s->snapshots, s->nb_snapshots * sizeof(QCowSnapshot));
-        g_free(s->snapshots);
+    /*
+     * Increase the refcounts of all clusters and make sure everything is
+     * stable on disk before updating the snapshot table to contain a pointer
+     * to the new L1 table.
+     */
+    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1);
+    if (ret < 0) {
+        goto fail;
     }
-    s->snapshots = snapshots1;
+
+    ret = bdrv_flush(bs);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    /* Append the new snapshot to the snapshot list */
+    new_snapshot_list = g_malloc((s->nb_snapshots + 1) * sizeof(QCowSnapshot));
+    if (s->snapshots) {
+        memcpy(new_snapshot_list, s->snapshots,
+               s->nb_snapshots * sizeof(QCowSnapshot));
+        old_snapshot_list = s->snapshots;
+    }
+    s->snapshots = new_snapshot_list;
     s->snapshots[s->nb_snapshots++] = *sn;
 
-    if (qcow2_write_snapshots(bs) < 0)
+    ret = qcow2_write_snapshots(bs);
+    if (ret < 0) {
+        g_free(s->snapshots);
+        s->snapshots = old_snapshot_list;
         goto fail;
+    }
+
+    g_free(old_snapshot_list);
+
 #ifdef DEBUG_ALLOC
     {
       BdrvCheckResult result = {0};
@@ -309,10 +370,13 @@ int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info)
     }
 #endif
     return 0;
- fail:
+
+fail:
+    g_free(sn->id_str);
     g_free(sn->name);
     g_free(l1_table);
-    return -1;
+
+    return ret;
 }
 
 /* copy the snapshot 'snapshot_name' into the current disk image */
@@ -322,38 +386,92 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     QCowSnapshot *sn;
     int i, snapshot_index;
     int cur_l1_bytes, sn_l1_bytes;
+    int ret;
+    uint64_t *sn_l1_table = NULL;
 
+    /* Search the snapshot */
     snapshot_index = find_snapshot_by_id_or_name(bs, snapshot_id);
-    if (snapshot_index < 0)
+    if (snapshot_index < 0) {
         return -ENOENT;
+    }
     sn = &s->snapshots[snapshot_index];
 
-    if (qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, -1) < 0)
+    /*
+     * Make sure that the current L1 table is big enough to contain the whole
+     * L1 table of the snapshot. If the snapshot L1 table is smaller, the
+     * current one must be padded with zeros.
+     */
+    ret = qcow2_grow_l1_table(bs, sn->l1_size, true);
+    if (ret < 0) {
         goto fail;
-
-    if (qcow2_grow_l1_table(bs, sn->l1_size, true) < 0)
-        goto fail;
+    }
 
     cur_l1_bytes = s->l1_size * sizeof(uint64_t);
     sn_l1_bytes = sn->l1_size * sizeof(uint64_t);
 
-    if (cur_l1_bytes > sn_l1_bytes) {
-        memset(s->l1_table + sn->l1_size, 0, cur_l1_bytes - sn_l1_bytes);
+    /*
+     * Copy the snapshot L1 table to the current L1 table.
+     *
+     * Before overwriting the old current L1 table on disk, make sure to
+     * increase all refcounts for the clusters referenced by the new one.
+     * Decrease the refcount referenced by the old one only when the L1
+     * table is overwritten.
+     */
+    sn_l1_table = g_malloc0(cur_l1_bytes);
+
+    ret = bdrv_pread(bs->file, sn->l1_table_offset, sn_l1_table, sn_l1_bytes);
+    if (ret < 0) {
+        goto fail;
     }
 
-    /* copy the snapshot l1 table to the current l1 table */
-    if (bdrv_pread(bs->file, sn->l1_table_offset,
-                   s->l1_table, sn_l1_bytes) < 0)
+    ret = qcow2_update_snapshot_refcount(bs, sn->l1_table_offset,
+                                         sn->l1_size, 1);
+    if (ret < 0) {
         goto fail;
-    if (bdrv_pwrite_sync(bs->file, s->l1_table_offset,
-                    s->l1_table, cur_l1_bytes) < 0)
+    }
+
+    ret = bdrv_pwrite_sync(bs->file, s->l1_table_offset, sn_l1_table,
+                           cur_l1_bytes);
+    if (ret < 0) {
         goto fail;
+    }
+
+    /*
+     * Decrease refcount of clusters of current L1 table.
+     *
+     * At this point, the in-memory s->l1_table points to the old L1 table,
+     * whereas on disk we already have the new one.
+     *
+     * qcow2_update_snapshot_refcount special cases the current L1 table to use
+     * the in-memory data instead of really using the offset to load a new one,
+     * which is why this works.
+     */
+    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset,
+                                         s->l1_size, -1);
+
+    /*
+     * Now update the in-memory L1 table to be in sync with the on-disk one. We
+     * need to do this even if updating refcounts failed.
+     */
     for(i = 0;i < s->l1_size; i++) {
-        be64_to_cpus(&s->l1_table[i]);
+        s->l1_table[i] = be64_to_cpu(sn_l1_table[i]);
     }
 
-    if (qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 1) < 0)
+    if (ret < 0) {
         goto fail;
+    }
+
+    g_free(sn_l1_table);
+    sn_l1_table = NULL;
+
+    /*
+     * Update QCOW_OFLAG_COPIED in the active L1 table (it may have changed
+     * when we decreased the refcount of the old snapshot.
+     */
+    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 0);
+    if (ret < 0) {
+        goto fail;
+    }
 
 #ifdef DEBUG_ALLOC
     {
@@ -362,39 +480,59 @@ int qcow2_snapshot_goto(BlockDriverState *bs, const char *snapshot_id)
     }
 #endif
     return 0;
- fail:
-    return -EIO;
+
+fail:
+    g_free(sn_l1_table);
+    return ret;
 }
 
 int qcow2_snapshot_delete(BlockDriverState *bs, const char *snapshot_id)
 {
     BDRVQcowState *s = bs->opaque;
-    QCowSnapshot *sn;
+    QCowSnapshot sn;
     int snapshot_index, ret;
 
+    /* Search the snapshot */
     snapshot_index = find_snapshot_by_id_or_name(bs, snapshot_id);
-    if (snapshot_index < 0)
+    if (snapshot_index < 0) {
         return -ENOENT;
-    sn = &s->snapshots[snapshot_index];
+    }
+    sn = s->snapshots[snapshot_index];
 
-    ret = qcow2_update_snapshot_refcount(bs, sn->l1_table_offset, sn->l1_size, -1);
-    if (ret < 0)
-        return ret;
-    /* must update the copied flag on the current cluster offsets */
-    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 0);
-    if (ret < 0)
-        return ret;
-    qcow2_free_clusters(bs, sn->l1_table_offset, sn->l1_size * sizeof(uint64_t));
-
-    g_free(sn->id_str);
-    g_free(sn->name);
-    memmove(sn, sn + 1, (s->nb_snapshots - snapshot_index - 1) * sizeof(*sn));
+    /* Remove it from the snapshot list */
+    memmove(s->snapshots + snapshot_index,
+            s->snapshots + snapshot_index + 1,
+            (s->nb_snapshots - snapshot_index - 1) * sizeof(sn));
     s->nb_snapshots--;
     ret = qcow2_write_snapshots(bs);
     if (ret < 0) {
-        /* XXX: restore snapshot if error ? */
         return ret;
     }
+
+    /*
+     * The snapshot is now unused, clean up. If we fail after this point, we
+     * won't recover but just leak clusters.
+     */
+    g_free(sn.id_str);
+    g_free(sn.name);
+
+    /*
+     * Now decrease the refcounts of clusters referenced by the snapshot and
+     * free the L1 table.
+     */
+    ret = qcow2_update_snapshot_refcount(bs, sn.l1_table_offset,
+                                         sn.l1_size, -1);
+    if (ret < 0) {
+        return ret;
+    }
+    qcow2_free_clusters(bs, sn.l1_table_offset, sn.l1_size * sizeof(uint64_t));
+
+    /* must update the copied flag on the current cluster offsets */
+    ret = qcow2_update_snapshot_refcount(bs, s->l1_table_offset, s->l1_size, 0);
+    if (ret < 0) {
+        return ret;
+    }
+
 #ifdef DEBUG_ALLOC
     {
         BdrvCheckResult result = {0};
@@ -435,32 +573,42 @@ int qcow2_snapshot_list(BlockDriverState *bs, QEMUSnapshotInfo **psn_tab)
 
 int qcow2_snapshot_load_tmp(BlockDriverState *bs, const char *snapshot_name)
 {
-    int i, snapshot_index, l1_size2;
+    int i, snapshot_index;
     BDRVQcowState *s = bs->opaque;
     QCowSnapshot *sn;
+    uint64_t *new_l1_table;
+    int new_l1_bytes;
+    int ret;
 
+    assert(bs->read_only);
+
+    /* Search the snapshot */
     snapshot_index = find_snapshot_by_id_or_name(bs, snapshot_name);
     if (snapshot_index < 0) {
         return -ENOENT;
     }
-
     sn = &s->snapshots[snapshot_index];
+
+    /* Allocate and read in the snapshot's L1 table */
+    new_l1_bytes = s->l1_size * sizeof(uint64_t);
+    new_l1_table = g_malloc0(align_offset(new_l1_bytes, 512));
+
+    ret = bdrv_pread(bs->file, sn->l1_table_offset, new_l1_table, new_l1_bytes);
+    if (ret < 0) {
+        g_free(new_l1_table);
+        return ret;
+    }
+
+    /* Switch the L1 table */
+    g_free(s->l1_table);
+
     s->l1_size = sn->l1_size;
-    l1_size2 = s->l1_size * sizeof(uint64_t);
-    if (s->l1_table != NULL) {
-        g_free(s->l1_table);
-    }
-
     s->l1_table_offset = sn->l1_table_offset;
-    s->l1_table = g_malloc0(align_offset(l1_size2, 512));
-
-    if (bdrv_pread(bs->file, sn->l1_table_offset,
-                   s->l1_table, l1_size2) != l1_size2) {
-        return -1;
-    }
+    s->l1_table = new_l1_table;
 
     for(i = 0;i < s->l1_size; i++) {
         be64_to_cpus(&s->l1_table[i]);
     }
+
     return 0;
 }
