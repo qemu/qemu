@@ -35,6 +35,10 @@ enum {
     POOL_MAX_SIZE = 64,
 };
 
+/** Free list to speed up creation */
+static QLIST_HEAD(, Coroutine) pool = QLIST_HEAD_INITIALIZER(pool);
+static unsigned int pool_size;
+
 typedef struct {
     Coroutine base;
     void *stack;
@@ -47,10 +51,6 @@ typedef struct {
 typedef struct {
     /** Currently executing coroutine */
     Coroutine *current;
-
-    /** Free list to speed up creation */
-    QLIST_HEAD(, Coroutine) pool;
-    unsigned int pool_size;
 
     /** The default coroutine */
     CoroutineUContext leader;
@@ -75,7 +75,6 @@ static CoroutineThreadState *coroutine_get_thread_state(void)
     if (!s) {
         s = g_malloc0(sizeof(*s));
         s->current = &s->leader.base;
-        QLIST_INIT(&s->pool);
         pthread_setspecific(thread_state_key, s);
     }
     return s;
@@ -84,14 +83,19 @@ static CoroutineThreadState *coroutine_get_thread_state(void)
 static void qemu_coroutine_thread_cleanup(void *opaque)
 {
     CoroutineThreadState *s = opaque;
+
+    g_free(s);
+}
+
+static void __attribute__((destructor)) coroutine_cleanup(void)
+{
     Coroutine *co;
     Coroutine *tmp;
 
-    QLIST_FOREACH_SAFE(co, &s->pool, pool_next, tmp) {
+    QLIST_FOREACH_SAFE(co, &pool, pool_next, tmp) {
         g_free(DO_UPCAST(CoroutineUContext, base, co)->stack);
         g_free(co);
     }
-    g_free(s);
 }
 
 static void __attribute__((constructor)) coroutine_init(void)
@@ -169,13 +173,12 @@ static Coroutine *coroutine_new(void)
 
 Coroutine *qemu_coroutine_new(void)
 {
-    CoroutineThreadState *s = coroutine_get_thread_state();
     Coroutine *co;
 
-    co = QLIST_FIRST(&s->pool);
+    co = QLIST_FIRST(&pool);
     if (co) {
         QLIST_REMOVE(co, pool_next);
-        s->pool_size--;
+        pool_size--;
     } else {
         co = coroutine_new();
     }
@@ -184,13 +187,12 @@ Coroutine *qemu_coroutine_new(void)
 
 void qemu_coroutine_delete(Coroutine *co_)
 {
-    CoroutineThreadState *s = coroutine_get_thread_state();
     CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
 
-    if (s->pool_size < POOL_MAX_SIZE) {
-        QLIST_INSERT_HEAD(&s->pool, &co->base, pool_next);
+    if (pool_size < POOL_MAX_SIZE) {
+        QLIST_INSERT_HEAD(&pool, &co->base, pool_next);
         co->base.caller = NULL;
-        s->pool_size++;
+        pool_size++;
         return;
     }
 
