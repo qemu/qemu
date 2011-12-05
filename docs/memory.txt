@@ -7,7 +7,7 @@ machine.  It attempts to allow modelling of:
  - ordinary RAM
  - memory-mapped I/O (MMIO)
  - memory controllers that can dynamically reroute physical memory regions
-  to different destinations
+   to different destinations
 
 The memory model provides support for
 
@@ -121,7 +121,7 @@ pci (0-2^32-1)
 
 ram: ram@0x00000000-0xffffffff
 
-The is a (simplified) PC memory map. The 4GB RAM block is mapped into the
+This is a (simplified) PC memory map. The 4GB RAM block is mapped into the
 system address space via two aliases: "lomem" is a 1:1 mapping of the first
 3.5GB; "himem" maps the last 0.5GB at address 4GB.  This leaves 0.5GB for the
 so-called PCI hole, that allows a 32-bit PCI bus to exist in a system with
@@ -164,7 +164,7 @@ various constraints can be supplied to control how these callbacks are called:
  - .impl.min_access_size, .impl.max_access_size define the access sizes
    (in bytes) supported by the *implementation*; other access sizes will be
    emulated using the ones available.  For example a 4-byte write will be
-   emulated using four 1-byte write, if .impl.max_access_size = 1.
+   emulated using four 1-byte writes, if .impl.max_access_size = 1.
  - .impl.valid specifies that the *implementation* only supports unaligned
    accesses; unaligned accesses will be emulated by two aligned accesses.
  - .old_portio and .old_mmio can be used to ease porting from code using
