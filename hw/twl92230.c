@@ -857,14 +857,21 @@ static int twl92230_init(I2CSlave *i2c)
     return 0;
 }
 
-static I2CSlaveInfo twl92230_info = {
-    .qdev.name ="twl92230",
-    .qdev.size = sizeof(MenelausState),
-    .qdev.vmsd = &vmstate_menelaus,
-    .init = twl92230_init,
-    .event = menelaus_event,
-    .recv = menelaus_rx,
-    .send = menelaus_tx
+static void twl92230_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+
+    sc->init = twl92230_init;
+    sc->event = menelaus_event;
+    sc->recv = menelaus_rx;
+    sc->send = menelaus_tx;
+}
+
+static DeviceInfo twl92230_info = {
+    .name ="twl92230",
+    .size = sizeof(MenelausState),
+    .vmsd = &vmstate_menelaus,
+    .class_init = twl92230_class_init,
 };
 
 static void twl92230_register_devices(void)

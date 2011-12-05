@@ -1472,13 +1472,20 @@ static int pxa2xx_i2c_slave_init(I2CSlave *i2c)
     return 0;
 }
 
-static I2CSlaveInfo pxa2xx_i2c_slave_info = {
-    .qdev.name = "pxa2xx-i2c-slave",
-    .qdev.size = sizeof(PXA2xxI2CSlaveState),
-    .init = pxa2xx_i2c_slave_init,
-    .event = pxa2xx_i2c_event,
-    .recv = pxa2xx_i2c_rx,
-    .send = pxa2xx_i2c_tx
+static void pxapxa2xx_i2c_slave_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = pxa2xx_i2c_slave_init;
+    k->event = pxa2xx_i2c_event;
+    k->recv = pxa2xx_i2c_rx;
+    k->send = pxa2xx_i2c_tx;
+}
+
+static DeviceInfo pxa2xx_i2c_slave_info = {
+    .name = "pxa2xx-i2c-slave",
+    .size = sizeof(PXA2xxI2CSlaveState),
+    .class_init = pxapxa2xx_i2c_slave_class_init,
 };
 
 PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,

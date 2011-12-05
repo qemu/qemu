@@ -185,15 +185,22 @@ static int max7310_init(I2CSlave *i2c)
     return 0;
 }
 
-static I2CSlaveInfo max7310_info = {
-    .qdev.name = "max7310",
-    .qdev.size = sizeof(MAX7310State),
-    .qdev.vmsd = &vmstate_max7310,
-    .qdev.reset = max7310_reset,
-    .init = max7310_init,
-    .event = max7310_event,
-    .recv = max7310_rx,
-    .send = max7310_tx
+static void max7310_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = max7310_init;
+    k->event = max7310_event;
+    k->recv = max7310_rx;
+    k->send = max7310_tx;
+}
+
+static DeviceInfo max7310_info = {
+    .name = "max7310",
+    .size = sizeof(MAX7310State),
+    .vmsd = &vmstate_max7310,
+    .reset = max7310_reset,
+    .class_init = max7310_class_init,
 };
 
 static void max7310_register_devices(void)

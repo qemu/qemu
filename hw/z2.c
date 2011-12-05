@@ -273,14 +273,21 @@ static VMStateDescription vmstate_aer915_state = {
     }
 };
 
-static I2CSlaveInfo aer915_info = {
-    .qdev.name = "aer915",
-    .qdev.size = sizeof(AER915State),
-    .qdev.vmsd = &vmstate_aer915_state,
-    .init = aer915_init,
-    .event = aer915_event,
-    .recv = aer915_recv,
-    .send = aer915_send
+static void aer915_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = aer915_init;
+    k->event = aer915_event;
+    k->recv = aer915_recv;
+    k->send = aer915_send;
+}
+
+static DeviceInfo aer915_info = {
+    .name = "aer915",
+    .size = sizeof(AER915State),
+    .vmsd = &vmstate_aer915_state,
+    .class_init = aer915_class_init,
 };
 
 static void z2_init(ram_addr_t ram_size,

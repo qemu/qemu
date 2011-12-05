@@ -259,13 +259,20 @@ static void tosapda_machine_init(void)
 
 machine_init(tosapda_machine_init);
 
-static I2CSlaveInfo tosa_dac_info = {
-    .qdev.name = "tosa_dac",
-    .qdev.size = sizeof(TosaDACState),
-    .init = tosa_dac_init,
-    .event = tosa_dac_event,
-    .recv = tosa_dac_recv,
-    .send = tosa_dac_send
+static void tosa_dac_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = tosa_dac_init;
+    k->event = tosa_dac_event;
+    k->recv = tosa_dac_recv;
+    k->send = tosa_dac_send;
+}
+
+static DeviceInfo tosa_dac_info = {
+    .name = "tosa_dac",
+    .size = sizeof(TosaDACState),
+    .class_init = tosa_dac_class_init,
  };
 
 static void tosa_ssp_class_init(ObjectClass *klass, void *data)

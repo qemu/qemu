@@ -118,13 +118,20 @@ static int ds1338_init(I2CSlave *i2c)
     return 0;
 }
 
-static I2CSlaveInfo ds1338_info = {
-    .qdev.name = "ds1338",
-    .qdev.size = sizeof(DS1338State),
-    .init = ds1338_init,
-    .event = ds1338_event,
-    .recv = ds1338_recv,
-    .send = ds1338_send,
+static void ds1338_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = ds1338_init;
+    k->event = ds1338_event;
+    k->recv = ds1338_recv;
+    k->send = ds1338_send;
+}
+
+static DeviceInfo ds1338_info = {
+    .name = "ds1338",
+    .size = sizeof(DS1338State),
+    .class_init = ds1338_class_init,
 };
 
 static void ds1338_register_devices(void)

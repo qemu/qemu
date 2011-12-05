@@ -494,14 +494,21 @@ void lm832x_key_event(DeviceState *dev, int key, int state)
     lm_kbd_irq_update(s);
 }
 
-static I2CSlaveInfo lm8323_info = {
-    .qdev.name = "lm8323",
-    .qdev.size = sizeof(LM823KbdState),
-    .qdev.vmsd = &vmstate_lm_kbd,
-    .init = lm8323_init,
-    .event = lm_i2c_event,
-    .recv = lm_i2c_rx,
-    .send = lm_i2c_tx
+static void lm8323_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = lm8323_init;
+    k->event = lm_i2c_event;
+    k->recv = lm_i2c_rx;
+    k->send = lm_i2c_tx;
+}
+
+static DeviceInfo lm8323_info = {
+    .name = "lm8323",
+    .size = sizeof(LM823KbdState),
+    .vmsd = &vmstate_lm_kbd,
+    .class_init = lm8323_class_init,
 };
 
 static void lm832x_register_devices(void)

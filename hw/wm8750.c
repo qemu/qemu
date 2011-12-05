@@ -689,14 +689,21 @@ void wm8750_set_bclk_in(void *opaque, int new_hz)
     wm8750_clk_update(s, 1);
 }
 
-static I2CSlaveInfo wm8750_info = {
-    .qdev.name = "wm8750",
-    .qdev.size = sizeof(WM8750State),
-    .qdev.vmsd = &vmstate_wm8750,
-    .init = wm8750_init,
-    .event = wm8750_event,
-    .recv = wm8750_rx,
-    .send = wm8750_tx
+static void wm8750_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+
+    sc->init = wm8750_init;
+    sc->event = wm8750_event;
+    sc->recv = wm8750_rx;
+    sc->send = wm8750_tx;
+}
+
+static DeviceInfo wm8750_info = {
+    .name = "wm8750",
+    .size = sizeof(WM8750State),
+    .vmsd = &vmstate_wm8750,
+    .class_init = wm8750_class_init,
 };
 
 static void wm8750_register_devices(void)
