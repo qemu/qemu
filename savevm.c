@@ -1540,14 +1540,13 @@ static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
 #define QEMU_VM_SECTION_FULL         0x04
 #define QEMU_VM_SUBSECTION           0x05
 
-bool qemu_savevm_state_blocked(Monitor *mon)
+bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->no_migrate) {
-            monitor_printf(mon, "state blocked by non-migratable device '%s'\n",
-                           se->idstr);
+            error_set(errp, QERR_MIGRATION_NOT_SUPPORTED, se->idstr);
             return true;
         }
     }
@@ -1698,11 +1697,11 @@ void qemu_savevm_state_cancel(QEMUFile *f)
     }
 }
 
-static int qemu_savevm_state(Monitor *mon, QEMUFile *f)
+static int qemu_savevm_state(QEMUFile *f)
 {
     int ret;
 
-    if (qemu_savevm_state_blocked(mon)) {
+    if (qemu_savevm_state_blocked(NULL)) {
         ret = -EINVAL;
         goto out;
     }
@@ -1836,7 +1835,7 @@ int qemu_loadvm_state(QEMUFile *f)
     unsigned int v;
     int ret;
 
-    if (qemu_savevm_state_blocked(default_mon)) {
+    if (qemu_savevm_state_blocked(NULL)) {
         return -EINVAL;
     }
 
@@ -2080,7 +2079,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Could not open VM state file\n");
         goto the_end;
     }
-    ret = qemu_savevm_state(mon, f);
+    ret = qemu_savevm_state(f);
     vm_state_size = qemu_ftell(f);
     qemu_fclose(f);
     if (ret < 0) {

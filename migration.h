@@ -26,7 +26,6 @@ struct MigrationState
     int64_t bandwidth_limit;
     QEMUFile *file;
     int fd;
-    Monitor *mon;
     int state;
     int (*get_error)(MigrationState *s);
     int (*close)(MigrationState *s);
@@ -39,8 +38,6 @@ struct MigrationState
 void process_incoming_migration(QEMUFile *f);
 
 int qemu_start_incoming_migration(const char *uri);
-
-int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data);
 
 uint64_t migrate_max_downtime(void);
 
