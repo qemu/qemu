@@ -564,7 +564,7 @@ If not, see <http://www.gnu.org/licenses/>. */
  */
 
 /* There are two kinds of delay slot nullification: normal which is
- * controled by the nullification bit, and conditional, which depends
+ * controlled by the nullification bit, and conditional, which depends
  * on the direction of the branch and its success or failure.
  *
  * NONE is unfortunately #defined in the hiux system include files.

@@ -264,7 +264,7 @@ static int milkymist_softusb_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->regs_region, &softusb_mmio_ops, s,
                           "milkymist-softusb", R_MAX * 4);
-    sysbus_init_mmio_region(dev, &s->regs_region);
+    sysbus_init_mmio(dev, &s->regs_region);
 
     /* register pmem and dmem */
     memory_region_init_ram(&s->pmem, NULL, "milkymist-softusb.pmem",

@@ -203,7 +203,7 @@ int nbd_negotiate(int csock, off_t size, uint32_t flags)
         return -1;
     }
 
-    TRACE("Negotation succeeded.");
+    TRACE("Negotiation succeeded.");
 
     return 0;
 }
@@ -215,7 +215,7 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
     uint64_t magic, s;
     uint16_t tmp;
 
-    TRACE("Receiving negotation.");
+    TRACE("Receiving negotiation.");
 
     if (read_sync(csock, buf, 8) != 8) {
         LOG("read failed");

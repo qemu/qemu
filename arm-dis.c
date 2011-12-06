@@ -1624,7 +1624,7 @@ arm_decode_shift (long given, fprintf_function func, void *stream,
 }
 
 /* Print one coprocessor instruction on INFO->STREAM.
-   Return true if the instuction matched, false if this is not a
+   Return true if the instruction matched, false if this is not a
    recognised coprocessor instruction.  */
 
 static bfd_boolean
@@ -2214,7 +2214,7 @@ print_arm_address (bfd_vma pc, struct disassemble_info *info, long given)
 }
 
 /* Print one neon instruction on INFO->STREAM.
-   Return true if the instuction matched, false if this is not a
+   Return true if the instruction matched, false if this is not a
    recognised neon instruction.  */
 
 static bfd_boolean
@@ -3927,7 +3927,7 @@ print_insn_arm (bfd_vma pc, struct disassemble_info *info)
 	    n = last_mapping_sym - 1;
 
 	  /* No mapping symbol found at this address.  Look backwards
-	     for a preceeding one.  */
+	     for a preceding one.  */
 	  for (; n >= 0; n--)
 	    {
 	      if (get_sym_code_type (info, n, &type))

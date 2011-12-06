@@ -626,7 +626,7 @@ static int prom_init1(SysBusDevice *dev)
 
     memory_region_init_ram(&s->prom, NULL, "sun4u.prom", PROM_SIZE_MAX);
     memory_region_set_readonly(&s->prom, true);
-    sysbus_init_mmio_region(dev, &s->prom);
+    sysbus_init_mmio(dev, &s->prom);
     return 0;
 }
 
@@ -660,7 +660,7 @@ static int ram_init1(SysBusDevice *dev)
     RamDevice *d = FROM_SYSBUS(RamDevice, dev);
 
     memory_region_init_ram(&d->ram, NULL, "sun4u.ram", d->size);
-    sysbus_init_mmio_region(dev, &d->ram);
+    sysbus_init_mmio(dev, &d->ram);
     return 0;
 }
 

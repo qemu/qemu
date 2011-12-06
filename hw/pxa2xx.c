@@ -813,7 +813,7 @@ static int pxa2xx_ssp_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     memory_region_init_io(&s->iomem, &pxa2xx_ssp_ops, s, "pxa2xx-ssp", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     register_savevm(&dev->qdev, "pxa2xx_ssp", -1, 0,
                     pxa2xx_ssp_save, pxa2xx_ssp_load, s);
 
@@ -1180,7 +1180,7 @@ static int pxa2xx_rtc_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->rtc_irq);
 
     memory_region_init_io(&s->iomem, &pxa2xx_rtc_ops, s, "pxa2xx-rtc", 0x10000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }
@@ -1515,7 +1515,7 @@ static int pxa2xx_i2c_initfn(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &pxa2xx_i2c_ops, s,
                           "pxa2xx-i2x", s->region_size);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
     return 0;
@@ -2072,7 +2072,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = pxa2xx_mmci_init(0x41100000, dinfo->bdrv,
+    s->mmc = pxa2xx_mmci_init(address_space, 0x41100000, dinfo->bdrv,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC),
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
@@ -2094,7 +2094,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
                         qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_ICP),
                         serial_hds[i]);
 
-    s->lcd = pxa2xx_lcdc_init(0x44000000,
+    s->lcd = pxa2xx_lcdc_init(address_space, 0x44000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_LCD));
 
     s->cm_base = 0x41300000;
@@ -2133,8 +2133,8 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
     }
 
-    s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
-    s->pcmcia[1] = pxa2xx_pcmcia_init(0x30000000);
+    s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
+    s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
 
     sysbus_create_simple("pxa2xx_rtc", 0x40900000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));
@@ -2149,7 +2149,7 @@ PXA2xxState *pxa270_init(MemoryRegion *address_space,
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_I2S),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_I2S));
 
-    s->kp = pxa27x_keypad_init(0x41500000,
+    s->kp = pxa27x_keypad_init(address_space, 0x41500000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_KEYPAD));
 
     /* GPIO1 resets the processor */
@@ -2201,7 +2201,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
         fprintf(stderr, "qemu: missing SecureDigital device\n");
         exit(1);
     }
-    s->mmc = pxa2xx_mmci_init(0x41100000, dinfo->bdrv,
+    s->mmc = pxa2xx_mmci_init(address_space, 0x41100000, dinfo->bdrv,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_MMC),
                     qdev_get_gpio_in(s->dma, PXA2XX_RX_RQ_MMCI),
                     qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_MMCI));
@@ -2223,7 +2223,7 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
                         qdev_get_gpio_in(s->dma, PXA2XX_TX_RQ_ICP),
                         serial_hds[i]);
 
-    s->lcd = pxa2xx_lcdc_init(0x44000000,
+    s->lcd = pxa2xx_lcdc_init(address_space, 0x44000000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_LCD));
 
     s->cm_base = 0x41300000;
@@ -2262,8 +2262,8 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
                         qdev_get_gpio_in(s->pic, PXA2XX_PIC_USBH1));
     }
 
-    s->pcmcia[0] = pxa2xx_pcmcia_init(0x20000000);
-    s->pcmcia[1] = pxa2xx_pcmcia_init(0x30000000);
+    s->pcmcia[0] = pxa2xx_pcmcia_init(address_space, 0x20000000);
+    s->pcmcia[1] = pxa2xx_pcmcia_init(address_space, 0x30000000);
 
     sysbus_create_simple("pxa2xx_rtc", 0x40900000,
                     qdev_get_gpio_in(s->pic, PXA2XX_PIC_RTCALARM));

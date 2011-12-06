@@ -1675,7 +1675,7 @@ void cpu_loop(CPUPPCState *env)
             queue_signal(env, info.si_signo, &info);
             break;
         case POWERPC_EXCP_PIT:      /* Programmable interval timer IRQ       */
-            cpu_abort(env, "Programable interval timer interrupt "
+            cpu_abort(env, "Programmable interval timer interrupt "
                       "while in user mode. Aborting\n");
             break;
         case POWERPC_EXCP_IO:       /* IO error exception                    */
@@ -2471,7 +2471,7 @@ void cpu_loop (CPUState *env)
             if (env->iflags & D_FLAG) {
                 env->sregs[SR_ESR] |= 1 << 12;
                 env->sregs[SR_PC] -= 4;
-                /* FIXME: if branch was immed, replay the imm aswell.  */
+                /* FIXME: if branch was immed, replay the imm as well.  */
             }
 
             env->iflags &= ~(IMM_FLAG | D_FLAG);

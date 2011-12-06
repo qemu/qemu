@@ -18,6 +18,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t memsz;
     MemoryRegion flash;
     bool flash_mapped;
@@ -39,7 +40,8 @@ static uint8_t integrator_spd[128] = {
    0xe, 4, 0x1c, 1, 2, 0x20, 0xc0, 0, 0, 0, 0, 0x30, 0x28, 0x30, 0x28, 0x40
 };
 
-static uint32_t integratorcm_read(void *opaque, target_phys_addr_t offset)
+static uint64_t integratorcm_read(void *opaque, target_phys_addr_t offset,
+                                  unsigned size)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
     if (offset >= 0x100 && offset < 0x200) {
@@ -152,7 +154,7 @@ static void integratorcm_update(integratorcm_state *s)
 }
 
 static void integratorcm_write(void *opaque, target_phys_addr_t offset,
-                               uint32_t value)
+                               uint64_t value, unsigned size)
 {
     integratorcm_state *s = (integratorcm_state *)opaque;
     switch (offset >> 2) {
@@ -228,21 +230,14 @@ static void integratorcm_write(void *opaque, target_phys_addr_t offset,
 
 /* Integrator/CM control registers.  */
 
-static CPUReadMemoryFunc * const integratorcm_readfn[] = {
-   integratorcm_read,
-   integratorcm_read,
-   integratorcm_read
-};
-
-static CPUWriteMemoryFunc * const integratorcm_writefn[] = {
-   integratorcm_write,
-   integratorcm_write,
-   integratorcm_write
+static const MemoryRegionOps integratorcm_ops = {
+    .read = integratorcm_read,
+    .write = integratorcm_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int integratorcm_init(SysBusDevice *dev)
 {
-    int iomemtype;
     integratorcm_state *s = FROM_SYSBUS(integratorcm_state, dev);
 
     s->cm_osc = 0x01000048;
@@ -269,10 +264,10 @@ static int integratorcm_init(SysBusDevice *dev)
     memory_region_init_ram(&s->flash, NULL, "integrator.flash", 0x100000);
     s->flash_mapped = false;
 
-    iomemtype = cpu_register_io_memory(integratorcm_readfn,
-                                       integratorcm_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x00800000, iomemtype);
+    memory_region_init_io(&s->iomem, &integratorcm_ops, s,
+                          "integratorcm", 0x00800000);
+    sysbus_init_mmio(dev, &s->iomem);
+
     integratorcm_do_remap(s, 1);
     /* ??? Save/restore.  */
     return 0;
@@ -284,6 +279,7 @@ static int integratorcm_init(SysBusDevice *dev)
 typedef struct icp_pic_state
 {
   SysBusDevice busdev;
+  MemoryRegion iomem;
   uint32_t level;
   uint32_t irq_enabled;
   uint32_t fiq_enabled;
@@ -311,7 +307,8 @@ static void icp_pic_set_irq(void *opaque, int irq, int level)
     icp_pic_update(s);
 }
 
-static uint32_t icp_pic_read(void *opaque, target_phys_addr_t offset)
+static uint64_t icp_pic_read(void *opaque, target_phys_addr_t offset,
+                             unsigned size)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
 
@@ -340,7 +337,7 @@ static uint32_t icp_pic_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void icp_pic_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                          uint64_t value, unsigned size)
 {
     icp_pic_state *s = (icp_pic_state *)opaque;
 
@@ -376,35 +373,28 @@ static void icp_pic_write(void *opaque, target_phys_addr_t offset,
     icp_pic_update(s);
 }
 
-static CPUReadMemoryFunc * const icp_pic_readfn[] = {
-   icp_pic_read,
-   icp_pic_read,
-   icp_pic_read
-};
-
-static CPUWriteMemoryFunc * const icp_pic_writefn[] = {
-   icp_pic_write,
-   icp_pic_write,
-   icp_pic_write
+static const MemoryRegionOps icp_pic_ops = {
+    .read = icp_pic_read,
+    .write = icp_pic_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int icp_pic_init(SysBusDevice *dev)
 {
     icp_pic_state *s = FROM_SYSBUS(icp_pic_state, dev);
-    int iomemtype;
 
     qdev_init_gpio_in(&dev->qdev, icp_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
     sysbus_init_irq(dev, &s->parent_fiq);
-    iomemtype = cpu_register_io_memory(icp_pic_readfn,
-                                       icp_pic_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x00800000, iomemtype);
+    memory_region_init_io(&s->iomem, &icp_pic_ops, s, "icp-pic", 0x00800000);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 
 /* CP control registers.  */
-static uint32_t icp_control_read(void *opaque, target_phys_addr_t offset)
+
+static uint64_t icp_control_read(void *opaque, target_phys_addr_t offset,
+                                 unsigned size)
 {
     switch (offset >> 2) {
     case 0: /* CP_IDFIELD */
@@ -422,7 +412,7 @@ static uint32_t icp_control_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void icp_control_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                          uint64_t value, unsigned size)
 {
     switch (offset >> 2) {
     case 1: /* CP_FLASHPROG */
@@ -434,26 +424,21 @@ static void icp_control_write(void *opaque, target_phys_addr_t offset,
         hw_error("icp_control_write: Bad offset %x\n", (int)offset);
     }
 }
-static CPUReadMemoryFunc * const icp_control_readfn[] = {
-   icp_control_read,
-   icp_control_read,
-   icp_control_read
+
+static const MemoryRegionOps icp_control_ops = {
+    .read = icp_control_read,
+    .write = icp_control_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const icp_control_writefn[] = {
-   icp_control_write,
-   icp_control_write,
-   icp_control_write
-};
-
-static void icp_control_init(uint32_t base)
+static void icp_control_init(target_phys_addr_t base)
 {
-    int iomemtype;
+    MemoryRegion *io;
 
-    iomemtype = cpu_register_io_memory(icp_control_readfn,
-                                       icp_control_writefn, NULL,
-                                       DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x00800000, iomemtype);
+    io = (MemoryRegion *)g_malloc0(sizeof(MemoryRegion));
+    memory_region_init_io(io, &icp_control_ops, NULL,
+                          "control", 0x00800000);
+    memory_region_add_subregion(get_system_memory(), base, io);
     /* ??? Save/restore.  */
 }
 

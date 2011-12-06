@@ -128,13 +128,15 @@
 
 typedef struct IOMMUState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
     uint32_t regs[IOMMU_NREGS];
     target_phys_addr_t iostart;
     qemu_irq irq;
     uint32_t version;
 } IOMMUState;
 
-static uint32_t iommu_mem_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t iommu_mem_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     IOMMUState *s = opaque;
     target_phys_addr_t saddr;
@@ -155,8 +157,8 @@ static uint32_t iommu_mem_readl(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
-                             uint32_t val)
+static void iommu_mem_write(void *opaque, target_phys_addr_t addr,
+                            uint64_t val, unsigned size)
 {
     IOMMUState *s = opaque;
     target_phys_addr_t saddr;
@@ -237,16 +239,14 @@ static void iommu_mem_writel(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const iommu_mem_read[3] = {
-    NULL,
-    NULL,
-    iommu_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const iommu_mem_write[3] = {
-    NULL,
-    NULL,
-    iommu_mem_writel,
+static const MemoryRegionOps iommu_mem_ops = {
+    .read = iommu_mem_read,
+    .write = iommu_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static uint32_t iommu_page_get_flags(IOMMUState *s, target_phys_addr_t addr)
@@ -347,13 +347,12 @@ static void iommu_reset(DeviceState *d)
 static int iommu_init1(SysBusDevice *dev)
 {
     IOMMUState *s = FROM_SYSBUS(IOMMUState, dev);
-    int io;
 
     sysbus_init_irq(dev, &s->irq);
 
-    io = cpu_register_io_memory(iommu_mem_read, iommu_mem_write, s,
-                                DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, IOMMU_NREGS * sizeof(uint32_t), io);
+    memory_region_init_io(&s->iomem, &iommu_mem_ops, s, "iommu",
+                          IOMMU_NREGS * sizeof(uint32_t));
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }

@@ -472,8 +472,8 @@ static int vdi_open(BlockDriverState *bs, int flags)
     return -1;
 }
 
-static int vdi_is_allocated(BlockDriverState *bs, int64_t sector_num,
-                             int nb_sectors, int *pnum)
+static int coroutine_fn vdi_co_is_allocated(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, int *pnum)
 {
     /* TODO: Check for too large sector_num (in bdrv_is_allocated or here). */
     BDRVVdiState *s = (BDRVVdiState *)bs->opaque;
@@ -996,7 +996,7 @@ static BlockDriver bdrv_vdi = {
     .bdrv_close = vdi_close,
     .bdrv_create = vdi_create,
     .bdrv_co_flush_to_disk = vdi_co_flush,
-    .bdrv_is_allocated = vdi_is_allocated,
+    .bdrv_co_is_allocated = vdi_co_is_allocated,
     .bdrv_make_empty = vdi_make_empty,
 
     .bdrv_aio_readv = vdi_aio_readv,

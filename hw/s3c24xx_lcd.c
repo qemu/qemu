@@ -16,6 +16,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     qemu_irq irq;
     //~ target_phys_addr_t base;
     DisplayState *ds;
@@ -105,7 +106,8 @@ static void s3c24xx_lcd_reset(S3C24xxLCD_State *s)
 #define S3C24XX_PALETTE	0x400	/* Palette IO start offset */
 #define S3C24XX_PALETTEEND 0x7fc	/* Palette IO end offset */
 
-static uint32_t s3c24xx_lcd_read(void *opaque, target_phys_addr_t addr)
+static uint64_t s3c24xx_lcd_read(void *opaque,
+                                 target_phys_addr_t addr, unsigned size)
 {
     S3C24xxLCD_State *s = opaque;
 
@@ -155,7 +157,7 @@ static uint32_t s3c24xx_lcd_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void s3c24xx_lcd_write(void *opaque, target_phys_addr_t addr,
-                              uint32_t value)
+                              uint64_t value, unsigned size)
 {
     S3C24xxLCD_State *s = opaque;
 
@@ -245,16 +247,14 @@ static void s3c24xx_lcd_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const s3c24xx_lcd_readfn[] = {
-    s3c24xx_lcd_read,
-    s3c24xx_lcd_read,
-    s3c24xx_lcd_read
-};
-
-static CPUWriteMemoryFunc * const s3c24xx_lcd_writefn[] = {
-    s3c24xx_lcd_write,
-    s3c24xx_lcd_write,
-    s3c24xx_lcd_write
+static const MemoryRegionOps s3c24xx_lcd_ops = {
+    .read = s3c24xx_lcd_read,
+    .write = s3c24xx_lcd_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static inline void s3c24xx_lcd_resize(S3C24xxLCD_State *s)
@@ -456,10 +456,9 @@ static int s3c24xx_lcd_init(SysBusDevice *dev)
 
     //~ s->brightness = 7;
 
-    int iomemtype = cpu_register_io_memory(s3c24xx_lcd_readfn,
-                                           s3c24xx_lcd_writefn,
-                                           s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, S3C24XX_LCD_SIZE, iomemtype);
+    memory_region_init_io(&s->mmio, &s3c24xx_lcd_ops, s,
+                          "s3c24xx-lcd", S3C24XX_LCD_SIZE);
+    sysbus_init_mmio(dev, &s->mmio);
 
     sysbus_init_irq(dev, &s->irq);
 

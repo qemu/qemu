@@ -154,8 +154,8 @@ static int sh_pci_init_device(SysBusDevice *dev)
                              0, 0x224);
     isa_mmio_setup(&s->isa, 0x40000);
     sysbus_init_mmio_cb2(dev, sh_pci_map, sh_pci_unmap);
-    sysbus_init_mmio_region(dev, &s->memconfig_a7);
-    sysbus_init_mmio_region(dev, &s->isa);
+    sysbus_init_mmio(dev, &s->memconfig_a7);
+    sysbus_init_mmio(dev, &s->isa);
     s->dev = pci_create_simple(s->bus, PCI_DEVFN(0, 0), "sh_pci_host");
     return 0;
 }

@@ -1795,7 +1795,7 @@ void helper_rfsvc (void)
 /* 602 specific instructions */
 /* mfrom is the most crazy instruction ever seen, imho ! */
 /* Real implementation uses a ROM table. Do the same */
-/* Extremly decomposed:
+/* Extremely decomposed:
  *                      -arg / 256
  * return 256 * log10(10           + 1.0) + 0.5
  */
@@ -3070,7 +3070,7 @@ static inline uint32_t word_reverse(uint32_t val)
         (byte_reverse(val >> 8) << 16) | (byte_reverse(val) << 24);
 }
 
-#define MASKBITS 16 // Random value - to be fixed (implementation dependant)
+#define MASKBITS 16 // Random value - to be fixed (implementation dependent)
 target_ulong helper_brinc (target_ulong arg1, target_ulong arg2)
 {
     uint32_t a, b, d, mask;

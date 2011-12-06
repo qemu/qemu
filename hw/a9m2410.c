@@ -38,6 +38,7 @@
 static int bigendian = 0;
 
 typedef struct {
+    MemoryRegion mmio;
     S3CState *soc;
     DeviceState *nand[4];
     uint8_t cpld_ctrl2;
@@ -53,7 +54,8 @@ typedef struct {
 #define A9M2410_CS5_CPLD_BASE (CPU_S3C2410X_CS5 | (0xc << 23))
 #define A9M2410_CPLD_SIZE (4<<23)
 
-static uint32_t cpld_read(void *opaque, target_phys_addr_t address)
+static uint64_t cpld_read(void *opaque, target_phys_addr_t address,
+                          unsigned size)
 {
     STCBState *stcb = opaque;
     int reg = (address >> 23) & 0xf;
@@ -64,7 +66,7 @@ static uint32_t cpld_read(void *opaque, target_phys_addr_t address)
 }
 
 static void cpld_write(void *opaque, target_phys_addr_t address,
-                       uint32_t value)
+                       uint64_t value, unsigned size)
 {
     STCBState *stcb = opaque;
     int reg = (address >> 23) & 0xf;
@@ -74,25 +76,23 @@ static void cpld_write(void *opaque, target_phys_addr_t address,
     }
 }
 
-static CPUReadMemoryFunc * const cpld_readfn[] = {
-    cpld_read,
-    cpld_read,
-    cpld_read
+static const MemoryRegionOps cpld_ops = {
+    .read = cpld_read,
+    .write = cpld_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
-static CPUWriteMemoryFunc * const cpld_writefn[] = {
-    cpld_write,
-    cpld_write,
-    cpld_write
-};
-
-static void stcb_cpld_register(STCBState *stcb)
+static void stcb_cpld_register(STCBState *s)
 {
-    int tag = cpu_register_io_memory(cpld_readfn, cpld_writefn, stcb,
-                                     DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(A9M2410_CS1_CPLD_BASE, A9M2410_CPLD_SIZE, tag);
-    cpu_register_physical_memory(A9M2410_CS5_CPLD_BASE, A9M2410_CPLD_SIZE, tag);
-    stcb->cpld_ctrl2 = 0;
+    memory_region_init_io(&s->mmio, &cpld_ops, s, "cpld", A9M2410_CPLD_SIZE);
+    assert(!"TODO: fix code");
+    //~ cpu_register_physical_memory(A9M2410_CS1_CPLD_BASE, A9M2410_CPLD_SIZE, tag);
+    //~ cpu_register_physical_memory(A9M2410_CS5_CPLD_BASE, A9M2410_CPLD_SIZE, tag);
+    s->cpld_ctrl2 = 0;
 }
 
 #define A9M2410_IDE_PRI_SLOW    (CPU_S3C2410X_CS3 | 0x02000000)
@@ -122,8 +122,8 @@ typedef struct {
     int shift;
 } MMIOState;
 
-static void stcb_ide_write_f(void *opaque,
-                             target_phys_addr_t addr, uint32_t val)
+static void stcb_ide_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned size)
 {
     MMIOState *s= opaque;
     int reg = (addr & 0x3ff) >> 5; /* 0x200 long, 0x20 stride */
@@ -141,7 +141,8 @@ static void stcb_ide_write_f(void *opaque,
     }
 }
 
-static uint32_t stcb_ide_read_f(void *opaque, target_phys_addr_t addr)
+static uint64_t stcb_ide_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     MMIOState *s= opaque;
     int reg = (addr & 0x3ff) >> 5; /* 0x200 long, 0x20 stride */
@@ -158,16 +159,14 @@ static uint32_t stcb_ide_read_f(void *opaque, target_phys_addr_t addr)
 }
 
 
-static CPUWriteMemoryFunc * const stcb_ide_write[] = {
-    stcb_ide_write_f,
-    stcb_ide_write_f,
-    stcb_ide_write_f,
-};
-
-static CPUReadMemoryFunc * const stcb_ide_read[] = {
-    stcb_ide_read_f,
-    stcb_ide_read_f,
-    stcb_ide_read_f,
+static const MemoryRegionOps stcb_ide_ops = {
+    .read = stcb_ide_read,
+    .write = stcb_ide_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 /* hd_table must contain 2 block drivers */
@@ -178,11 +177,12 @@ static CPUReadMemoryFunc * const stcb_ide_read[] = {
 static int stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
 {
     MMIOState *s = g_malloc0(sizeof(MMIOState));
-    int stcb_ide_memory;
+    int stcb_ide_memory = 0;
     ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
 
-    stcb_ide_memory = cpu_register_io_memory(stcb_ide_read, stcb_ide_write,
-                                             s, DEVICE_NATIVE_ENDIAN);
+    assert(!"TODO: fix code");
+    //~ stcb_ide_memory = cpu_register_io_memory(stcb_ide_read, stcb_ide_write,
+                                             //~ s, DEVICE_NATIVE_ENDIAN);
     return stcb_ide_memory;
 }
 
@@ -234,11 +234,13 @@ static void stcb_register_ide(STCBState *stcb)
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     NICState *nic;
     NICConf conf;
 } AX88796State;
 
-static uint32_t ax88796_read(void *opaque, target_phys_addr_t offset)
+static uint64_t ax88796_read(void *opaque, target_phys_addr_t offset,
+                             unsigned size)
 {
     //~ AX88796State *s = opaque;
     uint32_t value = 0;
@@ -263,7 +265,7 @@ static uint32_t ax88796_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void ax88796_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                          uint64_t value, unsigned size)
 {
     //~ AX88796State *s = opaque;
     switch (offset) {
@@ -280,32 +282,28 @@ static void ax88796_write(void *opaque, target_phys_addr_t offset,
         case 0x03e0:
             return; // FIXME
     }
-    logout("0x" TARGET_FMT_plx " 0x%08x\n", offset, value);
+    logout("0x" TARGET_FMT_plx " 0x%08" PRIx64 "\n", offset, value);
 }
 
-static CPUReadMemoryFunc * const ax88796_readfn[] = {
-    ax88796_read,
-    ax88796_read,
-    ax88796_read
-};
-
-static CPUWriteMemoryFunc * const ax88796_writefn[] = {
-    ax88796_write,
-    ax88796_write,
-    ax88796_write
+static const MemoryRegionOps ax88796_ops = {
+    .read = ax88796_read,
+    .write = ax88796_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static int ax88796_init(SysBusDevice *dev)
 {
     AX88796State *s = FROM_SYSBUS(AX88796State, dev);
-    int iomemtype;
 
     logout("\n");
 
-    iomemtype = cpu_register_io_memory(ax88796_readfn, ax88796_writefn,
-                                       s, DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->mmio, &ax88796_ops, s, "ax88796", ASIXNET_SIZE);
     //~ sysbus_init_mmio(dev, AX88796_SIZE, iomemtype);
-    sysbus_init_mmio(dev, ASIXNET_SIZE, iomemtype);
+    sysbus_init_mmio(dev, &s->mmio);
     //~ sysbus_init_irq(dev, &s->irq);
     //~ ax88796_reset(s);
 #if 0

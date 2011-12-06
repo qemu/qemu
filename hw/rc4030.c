@@ -95,6 +95,9 @@ typedef struct rc4030State
 
     qemu_irq timer_irq;
     qemu_irq jazz_bus_irq;
+
+    MemoryRegion iomem_chipset;
+    MemoryRegion iomem_jazzio;
 } rc4030State;
 
 static void set_next_tick(rc4030State *s)
@@ -419,16 +422,12 @@ static void rc4030_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
     rc4030_writel(opaque, addr & ~0x3, val);
 }
 
-static CPUReadMemoryFunc * const rc4030_read[3] = {
-    rc4030_readb,
-    rc4030_readw,
-    rc4030_readl,
-};
-
-static CPUWriteMemoryFunc * const rc4030_write[3] = {
-    rc4030_writeb,
-    rc4030_writew,
-    rc4030_writel,
+static const MemoryRegionOps rc4030_ops = {
+    .old_mmio = {
+        .read = { rc4030_readb, rc4030_readw, rc4030_readl, },
+        .write = { rc4030_writeb, rc4030_writew, rc4030_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void update_jazz_irq(rc4030State *s)
@@ -573,16 +572,12 @@ static void jazzio_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     jazzio_writew(opaque, addr + 2, (val >> 16) & 0xffff);
 }
 
-static CPUReadMemoryFunc * const jazzio_read[3] = {
-    jazzio_readb,
-    jazzio_readw,
-    jazzio_readl,
-};
-
-static CPUWriteMemoryFunc * const jazzio_write[3] = {
-    jazzio_writeb,
-    jazzio_writew,
-    jazzio_writel,
+static const MemoryRegionOps jazzio_ops = {
+    .old_mmio = {
+        .read = { jazzio_readb, jazzio_readw, jazzio_readl, },
+        .write = { jazzio_writeb, jazzio_writew, jazzio_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static void rc4030_reset(void *opaque)
@@ -801,10 +796,10 @@ static rc4030_dma *rc4030_allocate_dmas(void *opaque, int n)
 }
 
 void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
-                  qemu_irq **irqs, rc4030_dma **dmas)
+                  qemu_irq **irqs, rc4030_dma **dmas,
+                  MemoryRegion *sysmem)
 {
     rc4030State *s;
-    int s_chipset, s_jazzio;
 
     s = g_malloc0(sizeof(rc4030State));
 
@@ -819,12 +814,12 @@ void *rc4030_init(qemu_irq timer, qemu_irq jazz_bus,
     register_savevm(NULL, "rc4030", 0, 2, rc4030_save, rc4030_load, s);
     rc4030_reset(s);
 
-    s_chipset = cpu_register_io_memory(rc4030_read, rc4030_write, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(0x80000000, 0x300, s_chipset);
-    s_jazzio = cpu_register_io_memory(jazzio_read, jazzio_write, s,
-                                      DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(0xf0000000, 0x00001000, s_jazzio);
+    memory_region_init_io(&s->iomem_chipset, &rc4030_ops, s,
+                          "rc4030.chipset", 0x300);
+    memory_region_add_subregion(sysmem, 0x80000000, &s->iomem_chipset);
+    memory_region_init_io(&s->iomem_jazzio, &jazzio_ops, s,
+                          "rc4030.jazzio", 0x00001000);
+    memory_region_add_subregion(sysmem, 0xf0000000, &s->iomem_jazzio);
 
     return s;
 }

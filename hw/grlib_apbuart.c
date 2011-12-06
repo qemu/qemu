@@ -67,7 +67,7 @@
 
 typedef struct UART {
     SysBusDevice busdev;
-
+    MemoryRegion iomem;
     qemu_irq irq;
 
     CharDriverState *chr;
@@ -103,7 +103,8 @@ static void grlib_apbuart_event(void *opaque, int event)
 }
 
 static void
-grlib_apbuart_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
+grlib_apbuart_write(void *opaque, target_phys_addr_t addr,
+                    uint64_t value, unsigned size)
 {
     UART          *uart = opaque;
     unsigned char  c    = 0;
@@ -136,18 +137,21 @@ grlib_apbuart_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
     trace_grlib_apbuart_writel_unknown(addr, value);
 }
 
-static CPUReadMemoryFunc * const grlib_apbuart_read[] = {
-    NULL, NULL, NULL,
-};
+static bool grlib_apbuart_accepts(void *opaque, target_phys_addr_t addr,
+                                  unsigned size, bool is_write)
+{
+    return is_write && size == 4;
+}
 
-static CPUWriteMemoryFunc * const grlib_apbuart_write[] = {
-    NULL, NULL, grlib_apbuart_writel,
+static const MemoryRegionOps grlib_apbuart_ops = {
+    .write = grlib_apbuart_write,
+    .valid.accepts = grlib_apbuart_accepts,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int grlib_apbuart_init(SysBusDevice *dev)
 {
     UART *uart      = FROM_SYSBUS(typeof(*uart), dev);
-    int   uart_regs = 0;
 
     qemu_chr_add_handlers(uart->chr,
                           grlib_apbuart_can_receive,
@@ -157,14 +161,10 @@ static int grlib_apbuart_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &uart->irq);
 
-    uart_regs = cpu_register_io_memory(grlib_apbuart_read,
-                                       grlib_apbuart_write,
-                                       uart, DEVICE_NATIVE_ENDIAN);
-    if (uart_regs < 0) {
-        return -1;
-    }
+    memory_region_init_io(&uart->iomem, &grlib_apbuart_ops, uart,
+                          "uart", UART_REG_SIZE);
 
-    sysbus_init_mmio(dev, UART_REG_SIZE, uart_regs);
+    sysbus_init_mmio(dev, &uart->iomem);
 
     return 0;
 }

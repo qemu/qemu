@@ -223,7 +223,7 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_UNDEFINED_ERROR,
-        .desc      = "An undefined error has ocurred",
+        .desc      = "An undefined error has occurred",
     },
     {
         .error_fmt = QERR_UNSUPPORTED,
@@ -233,6 +233,11 @@ static const QErrorStringTable qerror_table[] = {
         .error_fmt = QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
         .desc      = "'%(device)' uses a %(format) feature which is not "
                      "supported by this qemu version: %(feature)",
+    },
+    {
+        .error_fmt = QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
+        .desc      = "Migration is disabled when VirtFS export path '%(path)' "
+                     "is mounted in the guest using mount_tag '%(tag)'",
     },
     {
         .error_fmt = QERR_VNC_SERVER_FAILED,
@@ -245,6 +250,10 @@ static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt = QERR_QGA_COMMAND_FAILED,
         .desc      = "Guest agent command failed, error was '%(message)'",
+    },
+    {
+        .error_fmt = QERR_INVALID_PARAMETER_COMBINATION,
+        .desc      = "Invalid paramter combination",
     },
     {}
 };

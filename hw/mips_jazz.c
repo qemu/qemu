@@ -177,7 +177,8 @@ static void mips_jazz_init(MemoryRegion *address_space,
     cpu_mips_clock_init(env);
 
     /* Chipset */
-    rc4030_opaque = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas);
+    rc4030_opaque = rc4030_init(env->irq[6], env->irq[3], &rc4030, &dmas,
+                                address_space);
     memory_region_init_io(dma_dummy, &dma_dummy_ops, NULL, "dummy_dma", 0x1000);
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
@@ -226,7 +227,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
         if (!nd->model)
             nd->model = g_strdup("dp83932");
         if (strcmp(nd->model, "dp83932") == 0) {
-            dp83932_init(nd, 0x80001000, 2, rc4030[4],
+            dp83932_init(nd, 0x80001000, 2, get_system_memory(), rc4030[4],
                          rc4030_opaque, rc4030_dma_memory_rw);
             break;
         } else if (strcmp(nd->model, "?") == 0) {
@@ -274,7 +275,8 @@ static void mips_jazz_init(MemoryRegion *address_space,
 
     /* Parallel port */
     if (parallel_hds[0])
-        parallel_mm_init(0x80008000, 0, rc4030[0], parallel_hds[0]);
+        parallel_mm_init(address_space, 0x80008000, 0, rc4030[0],
+                         parallel_hds[0]);
 
     /* Sound card */
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
@@ -287,7 +289,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
     sysbus_mmio_map(sysbus, 0, 0x80009000);
 
     /* LED indicator */
-    jazz_led_init(0x8000f000);
+    jazz_led_init(address_space, 0x8000f000);
 }
 
 static

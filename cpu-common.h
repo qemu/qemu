@@ -1,7 +1,7 @@
 #ifndef CPU_COMMON_H
 #define CPU_COMMON_H 1
 
-/* CPU interfaces that are target indpendent.  */
+/* CPU interfaces that are target independent.  */
 
 #ifdef TARGET_PHYS_ADDR_BITS
 #include "targphys.h"

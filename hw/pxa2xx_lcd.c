@@ -30,6 +30,7 @@ struct DMAChannel {
 };
 
 struct PXA2xxLCDState {
+    MemoryRegion iomem;
     qemu_irq irq;
     int irqlevel;
 
@@ -315,7 +316,8 @@ static void pxa2xx_descriptor_load(PXA2xxLCDState *s)
     }
 }
 
-static uint32_t pxa2xx_lcdc_read(void *opaque, target_phys_addr_t offset)
+static uint64_t pxa2xx_lcdc_read(void *opaque, target_phys_addr_t offset,
+                                 unsigned size)
 {
     PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
     int ch;
@@ -408,8 +410,8 @@ static uint32_t pxa2xx_lcdc_read(void *opaque, target_phys_addr_t offset)
     return 0;
 }
 
-static void pxa2xx_lcdc_write(void *opaque,
-                target_phys_addr_t offset, uint32_t value)
+static void pxa2xx_lcdc_write(void *opaque, target_phys_addr_t offset,
+                              uint64_t value, unsigned size)
 {
     PXA2xxLCDState *s = (PXA2xxLCDState *) opaque;
     int ch;
@@ -561,16 +563,10 @@ static void pxa2xx_lcdc_write(void *opaque,
     }
 }
 
-static CPUReadMemoryFunc * const pxa2xx_lcdc_readfn[] = {
-    pxa2xx_lcdc_read,
-    pxa2xx_lcdc_read,
-    pxa2xx_lcdc_read
-};
-
-static CPUWriteMemoryFunc * const pxa2xx_lcdc_writefn[] = {
-    pxa2xx_lcdc_write,
-    pxa2xx_lcdc_write,
-    pxa2xx_lcdc_write
+static const MemoryRegionOps pxa2xx_lcdc_ops = {
+    .read = pxa2xx_lcdc_read,
+    .write = pxa2xx_lcdc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* Load new palette for a given DMA channel, convert to internal format */
@@ -981,9 +977,9 @@ static const VMStateDescription vmstate_pxa2xx_lcdc = {
 #define BITS 32
 #include "pxa2xx_template.h"
 
-PXA2xxLCDState *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq)
+PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
+                                 target_phys_addr_t base, qemu_irq irq)
 {
-    int iomemtype;
     PXA2xxLCDState *s;
 
     s = (PXA2xxLCDState *) g_malloc0(sizeof(PXA2xxLCDState));
@@ -992,9 +988,9 @@ PXA2xxLCDState *pxa2xx_lcdc_init(target_phys_addr_t base, qemu_irq irq)
 
     pxa2xx_lcdc_orientation(s, graphic_rotate);
 
-    iomemtype = cpu_register_io_memory(pxa2xx_lcdc_readfn,
-                    pxa2xx_lcdc_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x00100000, iomemtype);
+    memory_region_init_io(&s->iomem, &pxa2xx_lcdc_ops, s,
+                          "pxa2xx-lcd-controller", 0x00100000);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     s->ds = graphic_console_init(pxa2xx_update_display,
                                  pxa2xx_invalidate_display,

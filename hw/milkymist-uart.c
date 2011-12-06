@@ -197,7 +197,7 @@ static int milkymist_uart_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->regs_region, &uart_mmio_ops, s,
             "milkymist-uart", R_MAX * 4);
-    sysbus_init_mmio_region(dev, &s->regs_region);
+    sysbus_init_mmio(dev, &s->regs_region);
 
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr) {

@@ -115,6 +115,7 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     NICState *nic;
     NICConf conf;
     qemu_irq irq;
@@ -289,9 +290,9 @@ static void dm9000_mii_write(dm9000_state *state)
 }
 
 static void dm9000_write(void *opaque, target_phys_addr_t address,
-                         uint32_t value)
+                         uint64_t value, unsigned size)
 {
-    dm9000_state *state = (dm9000_state *)opaque;
+    dm9000_state *state = opaque;
 #ifdef DM9000_DEBUG
     int suppress_debug = 0;
 #endif
@@ -420,9 +421,10 @@ static void dm9000_write(void *opaque, target_phys_addr_t address,
 #endif
 }
 
-static uint32_t dm9000_read(void *opaque, target_phys_addr_t address)
+static uint64_t dm9000_read(void *opaque, target_phys_addr_t address,
+                            unsigned size)
 {
-    dm9000_state *state = (dm9000_state *)opaque;
+    dm9000_state *state = opaque;
     uint32_t ret = 0;
 #ifdef DM9000_DEBUG
     int suppress_debug = 0;
@@ -631,16 +633,14 @@ static ssize_t dm9000_receive(VLANClientState *nc, const uint8_t *buf, size_t si
 }
 
 
-static CPUReadMemoryFunc * const dm9000_readfn[] = {
-    dm9000_read,
-    dm9000_read,
-    dm9000_read
-};
-
-static CPUWriteMemoryFunc * const dm9000_writefn[] = {
-    dm9000_write,
-    dm9000_write,
-    dm9000_write
+static const MemoryRegionOps dm9000_ops = {
+    .read = dm9000_read,
+    .write = dm9000_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static NetClientInfo net_dm9000_info = {
@@ -657,15 +657,13 @@ static NetClientInfo net_dm9000_info = {
  */
 static int dm9000_init(SysBusDevice *dev)
 {
-    int mmio_index;
     dm9000_state *s = FROM_SYSBUS(dm9000_state, dev);
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_dm9000_info, &s->conf,
                           dev->qdev.info->name, dev->qdev.id, s);
-    mmio_index = cpu_register_io_memory(dm9000_readfn, dm9000_writefn,
-                                        s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, mmio_index);
+    memory_region_init_io(&s->mmio, &dm9000_ops, s, "dm9000", 0x1000);
+    sysbus_init_mmio(dev, &s->mmio);
     dm9000_hard_reset(s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 

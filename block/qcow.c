@@ -368,14 +368,16 @@ static uint64_t get_cluster_offset(BlockDriverState *bs,
     return cluster_offset;
 }
 
-static int qcow_is_allocated(BlockDriverState *bs, int64_t sector_num,
-                             int nb_sectors, int *pnum)
+static int coroutine_fn qcow_co_is_allocated(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, int *pnum)
 {
     BDRVQcowState *s = bs->opaque;
     int index_in_cluster, n;
     uint64_t cluster_offset;
 
+    qemu_co_mutex_lock(&s->lock);
     cluster_offset = get_cluster_offset(bs, sector_num << 9, 0, 0, 0, 0);
+    qemu_co_mutex_unlock(&s->lock);
     index_in_cluster = sector_num & (s->cluster_sectors - 1);
     n = s->cluster_sectors - index_in_cluster;
     if (n > nb_sectors)
@@ -433,7 +435,7 @@ static int decompress_cluster(BlockDriverState *bs, uint64_t cluster_offset)
     return 0;
 }
 
-static int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
+static coroutine_fn int qcow_co_readv(BlockDriverState *bs, int64_t sector_num,
                          int nb_sectors, QEMUIOVector *qiov)
 {
     BDRVQcowState *s = bs->opaque;
@@ -531,7 +533,7 @@ fail:
     goto done;
 }
 
-static int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
+static coroutine_fn int qcow_co_writev(BlockDriverState *bs, int64_t sector_num,
                           int nb_sectors, QEMUIOVector *qiov)
 {
     BDRVQcowState *s = bs->opaque;
@@ -844,7 +846,7 @@ static BlockDriver bdrv_qcow = {
     .bdrv_co_readv          = qcow_co_readv,
     .bdrv_co_writev         = qcow_co_writev,
     .bdrv_co_flush_to_disk  = qcow_co_flush,
-    .bdrv_is_allocated      = qcow_is_allocated,
+    .bdrv_co_is_allocated   = qcow_co_is_allocated,
 
     .bdrv_set_key           = qcow_set_key,
     .bdrv_make_empty        = qcow_make_empty,

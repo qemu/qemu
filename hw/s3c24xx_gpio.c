@@ -32,6 +32,7 @@
 /* GPIO controller state */
 typedef struct s3c24xx_gpio_state_s {
     SysBusDevice busdev;
+    MemoryRegion mmio;
 
     uint32_t gpio_reg[S3C_GPIO_MAX];
 
@@ -75,7 +76,8 @@ gpio_con_to_mask(uint32_t con)
 }
 
 static void
-s3c24xx_gpio_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
+s3c24xx_gpio_write_f(void *opaque, target_phys_addr_t addr_, uint64_t value,
+                     unsigned size)
 {
     S3C24xxGpioState *s = opaque;
     uint32_t addr = (addr_ >> 2) & 0x3f;
@@ -110,8 +112,8 @@ s3c24xx_gpio_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
     }
 }
 
-static uint32_t
-s3c24xx_gpio_read_f(void *opaque, target_phys_addr_t addr_)
+static uint64_t
+s3c24xx_gpio_read_f(void *opaque, target_phys_addr_t addr_, unsigned size)
 {
     S3C24xxGpioState *s = opaque;
     uint32_t addr = (addr_ >> 2);
@@ -139,17 +141,14 @@ s3c24xx_gpio_read_f(void *opaque, target_phys_addr_t addr_)
     return ret;
 }
 
-
-static CPUReadMemoryFunc * const s3c24xx_gpio_read[] = {
-    s3c24xx_gpio_read_f,
-    s3c24xx_gpio_read_f,
-    s3c24xx_gpio_read_f
-};
-
-static CPUWriteMemoryFunc * const s3c24xx_gpio_write[] = {
-    s3c24xx_gpio_write_f,
-    s3c24xx_gpio_write_f,
-    s3c24xx_gpio_write_f
+static const MemoryRegionOps s3c24xx_gpio_ops = {
+    .read = s3c24xx_gpio_read_f,
+    .write = s3c24xx_gpio_write_f,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void
@@ -167,13 +166,12 @@ s3c24xx_gpio_irq_handler(void *opaque, int n, int level)
 static int s3c24xx_gpio_init_(SysBusDevice *dev)
 {
     S3C24xxGpioState *s = FROM_SYSBUS(S3C24xxGpioState, dev);
-    int iomemtype;
 
     //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     //~ sysbus_init_irq(dev, &s->parent_irq);
-    iomemtype = cpu_register_io_memory(s3c24xx_gpio_read, s3c24xx_gpio_write,
-                                       s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, S3C_GPIO_MAX * 4, iomemtype);
+    memory_region_init_io(&s->mmio, &s3c24xx_gpio_ops, s,
+                          "s3c24xx-gpio", S3C_GPIO_MAX * 4);
+    sysbus_init_mmio(dev, &s->mmio);
 
     /* Set non zero default values. */
     GPR(0x00) = 0x7fffff;
@@ -198,7 +196,6 @@ s3c24xx_gpio_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t cpu_id)
      * The primary operation here is the ID register and IRQs
      */
     struct s3c24xx_gpio_state_s *s;
-    int tag;
     int i;
 
     s = g_malloc0(sizeof(S3C24xxGpioState));
@@ -206,9 +203,11 @@ s3c24xx_gpio_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t cpu_id)
         return NULL;
     }
 
-    tag = cpu_register_io_memory(s3c24xx_gpio_read, s3c24xx_gpio_write,
-                                 s, DEVICE_NATIVE_ENDIAN);
+#if 0
+    memory_region_init_io(&s->mmio, &s3c24xx_gpio_ops, s,
+                          "s3c24xx-gpio", S3C_GPIO_MAX * 4);
     cpu_register_physical_memory(base_addr, S3C_GPIO_MAX * 4, tag);
+#endif
 
     /* Set non zero default values. */
     GPR(0x00) = 0x7fffff;

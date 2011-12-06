@@ -250,7 +250,7 @@ static void r2d_init(ram_addr_t ram_size,
     memory_region_init_ram(sdram, NULL, "r2d.sdram", SDRAM_SIZE);
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */
-    s = sh7750_init(env);
+    s = sh7750_init(env, address_space_mem);
     irq = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
     sysbus_create_varargs("sh_pci", 0x1e200000, irq[PCI_INTA], irq[PCI_INTB],
                           irq[PCI_INTC], irq[PCI_INTD], NULL);
@@ -260,7 +260,7 @@ static void r2d_init(ram_addr_t ram_size,
 
     /* onboard CF (True IDE mode, Master only). */
     dinfo = drive_get(IF_IDE, 0, 0);
-    mmio_ide_init(0x14001000, 0x1400080c, irq[CF_IDE], 1,
+    mmio_ide_init(0x14001000, 0x1400080c, address_space_mem, irq[CF_IDE], 1,
                   dinfo, NULL);
 
     /* onboard flash memory */

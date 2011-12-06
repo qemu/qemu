@@ -17,12 +17,14 @@
 #include "usb-ohci.h"
 #include "boards.h"
 #include "blockdev.h"
+#include "exec-memory.h"
 
 /* Primary interrupt controller.  */
 
 typedef struct vpb_sic_state
 {
   SysBusDevice busdev;
+  MemoryRegion iomem;
   uint32_t level;
   uint32_t mask;
   uint32_t pic_enable;
@@ -75,7 +77,8 @@ static void vpb_sic_set_irq(void *opaque, int irq, int level)
     vpb_sic_update(s);
 }
 
-static uint32_t vpb_sic_read(void *opaque, target_phys_addr_t offset)
+static uint64_t vpb_sic_read(void *opaque, target_phys_addr_t offset,
+                             unsigned size)
 {
     vpb_sic_state *s = (vpb_sic_state *)opaque;
 
@@ -97,7 +100,7 @@ static uint32_t vpb_sic_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void vpb_sic_write(void *opaque, target_phys_addr_t offset,
-                          uint32_t value)
+                          uint64_t value, unsigned size)
 {
     vpb_sic_state *s = (vpb_sic_state *)opaque;
 
@@ -131,22 +134,15 @@ static void vpb_sic_write(void *opaque, target_phys_addr_t offset,
     vpb_sic_update(s);
 }
 
-static CPUReadMemoryFunc * const vpb_sic_readfn[] = {
-   vpb_sic_read,
-   vpb_sic_read,
-   vpb_sic_read
-};
-
-static CPUWriteMemoryFunc * const vpb_sic_writefn[] = {
-   vpb_sic_write,
-   vpb_sic_write,
-   vpb_sic_write
+static const MemoryRegionOps vpb_sic_ops = {
+    .read = vpb_sic_read,
+    .write = vpb_sic_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int vpb_sic_init(SysBusDevice *dev)
 {
     vpb_sic_state *s = FROM_SYSBUS(vpb_sic_state, dev);
-    int iomemtype;
     int i;
 
     qdev_init_gpio_in(&dev->qdev, vpb_sic_set_irq, 32);
@@ -154,10 +150,8 @@ static int vpb_sic_init(SysBusDevice *dev)
         sysbus_init_irq(dev, &s->parent[i]);
     }
     s->irq = 31;
-    iomemtype = cpu_register_io_memory(vpb_sic_readfn,
-                                       vpb_sic_writefn, s,
-                                       DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &vpb_sic_ops, s, "vpb-sic", 0x1000);
+    sysbus_init_mmio(dev, &s->iomem);
     return 0;
 }
 
@@ -176,7 +170,8 @@ static void versatile_init(ram_addr_t ram_size,
                      int board_id)
 {
     CPUState *env;
-    ram_addr_t ram_offset;
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
     qemu_irq *cpu_pic;
     qemu_irq pic[32];
     qemu_irq sic[32];
@@ -195,10 +190,10 @@ static void versatile_init(ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    ram_offset = qemu_ram_alloc(NULL, "versatile.ram", ram_size);
+    memory_region_init_ram(ram, NULL, "versatile.ram", ram_size);
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero.  */
-    cpu_register_physical_memory(0, ram_size, ram_offset | IO_MEM_RAM);
+    memory_region_add_subregion(sysmem, 0, ram);
 
     sysctl = qdev_create(NULL, "realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", 0x41007004);

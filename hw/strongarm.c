@@ -170,7 +170,7 @@ static int strongarm_pic_initfn(SysBusDevice *dev)
 
     qdev_init_gpio_in(&dev->qdev, strongarm_pic_set_irq, SA_PIC_SRCS);
     memory_region_init_io(&s->iomem, &strongarm_pic_ops, s, "pic", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     sysbus_init_irq(dev, &s->fiq);
 
@@ -371,7 +371,7 @@ static int strongarm_rtc_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->rtc_hz_irq);
 
     memory_region_init_io(&s->iomem, &strongarm_rtc_ops, s, "rtc", 0x10000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }
@@ -617,7 +617,7 @@ static int strongarm_gpio_initfn(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &strongarm_gpio_ops, s, "gpio", 0x1000);
 
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     for (i = 0; i < 11; i++) {
         sysbus_init_irq(dev, &s->irqs[i]);
     }
@@ -779,7 +779,7 @@ static int strongarm_ppc_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->iomem, &strongarm_ppc_ops, s, "ppc", 0x1000);
 
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }
@@ -1165,7 +1165,7 @@ static int strongarm_uart_init(SysBusDevice *dev)
     StrongARMUARTState *s = FROM_SYSBUS(StrongARMUARTState, dev);
 
     memory_region_init_io(&s->iomem, &strongarm_uart_ops, s, "uart", 0x10000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
 
     s->rx_timeout_timer = qemu_new_timer_ns(vm_clock, strongarm_uart_rx_to, s);
@@ -1446,7 +1446,7 @@ static int strongarm_ssp_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     memory_region_init_io(&s->iomem, &strongarm_ssp_ops, s, "ssp", 0x1000);
-    sysbus_init_mmio_region(dev, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     s->bus = ssi_create_bus(&dev->qdev, "ssi");
     return 0;

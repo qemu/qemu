@@ -214,7 +214,7 @@ static int etraxfs_ser_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
     memory_region_init_io(&s->mmio, &ser_ops, s, "etraxfs-serial", R_MAX * 4);
-    sysbus_init_mmio_region(dev, &s->mmio);
+    sysbus_init_mmio(dev, &s->mmio);
 
     s->chr = qdev_init_chardev(&dev->qdev);
     if (s->chr)

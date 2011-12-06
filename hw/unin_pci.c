@@ -144,8 +144,8 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
                           &s->host_state, "pci-conf-idx", 0x1000);
     memory_region_init_io(&s->host_state.data_mem, &unin_data_ops, s,
                           "pci-conf-data", 0x1000);
-    sysbus_init_mmio_region(dev, &s->host_state.conf_mem);
-    sysbus_init_mmio_region(dev, &s->host_state.data_mem);
+    sysbus_init_mmio(dev, &s->host_state.conf_mem);
+    sysbus_init_mmio(dev, &s->host_state.data_mem);
 
     qemu_register_reset(pci_unin_reset, &s->host_state);
     return 0;
@@ -163,8 +163,8 @@ static int pci_u3_agp_init_device(SysBusDevice *dev)
                           &s->host_state, "pci-conf-idx", 0x1000);
     memory_region_init_io(&s->host_state.data_mem, &unin_data_ops, s,
                           "pci-conf-data", 0x1000);
-    sysbus_init_mmio_region(dev, &s->host_state.conf_mem);
-    sysbus_init_mmio_region(dev, &s->host_state.data_mem);
+    sysbus_init_mmio(dev, &s->host_state.conf_mem);
+    sysbus_init_mmio(dev, &s->host_state.data_mem);
 
     qemu_register_reset(pci_unin_reset, &s->host_state);
 
@@ -182,8 +182,8 @@ static int pci_unin_agp_init_device(SysBusDevice *dev)
                           &s->host_state, "pci-conf-idx", 0x1000);
     memory_region_init_io(&s->host_state.data_mem, &pci_host_data_le_ops,
                           &s->host_state, "pci-conf-data", 0x1000);
-    sysbus_init_mmio_region(dev, &s->host_state.conf_mem);
-    sysbus_init_mmio_region(dev, &s->host_state.data_mem);
+    sysbus_init_mmio(dev, &s->host_state.conf_mem);
+    sysbus_init_mmio(dev, &s->host_state.data_mem);
     return 0;
 }
 
@@ -198,8 +198,8 @@ static int pci_unin_internal_init_device(SysBusDevice *dev)
                           &s->host_state, "pci-conf-idx", 0x1000);
     memory_region_init_io(&s->host_state.data_mem, &pci_host_data_le_ops,
                           &s->host_state, "pci-conf-data", 0x1000);
-    sysbus_init_mmio_region(dev, &s->host_state.conf_mem);
-    sysbus_init_mmio_region(dev, &s->host_state.data_mem);
+    sysbus_init_mmio(dev, &s->host_state.conf_mem);
+    sysbus_init_mmio(dev, &s->host_state.data_mem);
     return 0;
 }
 

@@ -529,21 +529,21 @@ static int tcx_init1(SysBusDevice *dev)
     size = s->vram_size;
     memory_region_init_alias(&s->vram_8bit, "tcx.vram.8bit",
                              &s->vram_mem, vram_offset, size);
-    sysbus_init_mmio_region(dev, &s->vram_8bit);
+    sysbus_init_mmio(dev, &s->vram_8bit);
     vram_offset += size;
     vram_base += size;
 
     /* DAC */
     memory_region_init_io(&s->dac, &tcx_dac_ops, s, "tcx.dac", TCX_DAC_NREGS);
-    sysbus_init_mmio_region(dev, &s->dac);
+    sysbus_init_mmio(dev, &s->dac);
 
     /* TEC (dummy) */
     memory_region_init_io(&s->tec, &dummy_ops, s, "tcx.tec", TCX_TEC_NREGS);
-    sysbus_init_mmio_region(dev, &s->tec);
+    sysbus_init_mmio(dev, &s->tec);
     /* THC: NetBSD writes here even with 8-bit display: dummy */
     memory_region_init_io(&s->thc24, &dummy_ops, s, "tcx.thc24",
                           TCX_THC_NREGS_24);
-    sysbus_init_mmio_region(dev, &s->thc24);
+    sysbus_init_mmio(dev, &s->thc24);
 
     if (s->depth == 24) {
         /* 24-bit plane */
@@ -552,7 +552,7 @@ static int tcx_init1(SysBusDevice *dev)
         s->vram24_offset = vram_offset;
         memory_region_init_alias(&s->vram_24bit, "tcx.vram.24bit",
                                  &s->vram_mem, vram_offset, size);
-        sysbus_init_mmio_region(dev, &s->vram_24bit);
+        sysbus_init_mmio(dev, &s->vram_24bit);
         vram_offset += size;
         vram_base += size;
 
@@ -562,7 +562,7 @@ static int tcx_init1(SysBusDevice *dev)
         s->cplane_offset = vram_offset;
         memory_region_init_alias(&s->vram_cplane, "tcx.vram.cplane",
                                  &s->vram_mem, vram_offset, size);
-        sysbus_init_mmio_region(dev, &s->vram_cplane);
+        sysbus_init_mmio(dev, &s->vram_cplane);
 
         s->ds = graphic_console_init(tcx24_update_display,
                                      tcx24_invalidate_display,
@@ -571,7 +571,7 @@ static int tcx_init1(SysBusDevice *dev)
         /* THC 8 bit (dummy) */
         memory_region_init_io(&s->thc8, &dummy_ops, s, "tcx.thc8",
                               TCX_THC_NREGS_8);
-        sysbus_init_mmio_region(dev, &s->thc8);
+        sysbus_init_mmio(dev, &s->thc8);
 
         s->ds = graphic_console_init(tcx_update_display,
                                      tcx_invalidate_display,

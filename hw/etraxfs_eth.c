@@ -604,7 +604,7 @@ static int fs_eth_init(SysBusDevice *dev)
 	s->dma_in->client.pull = NULL;
 
 	memory_region_init_io(&s->mmio, &eth_ops, s, "etraxfs-eth", 0x5c);
-	sysbus_init_mmio_region(dev, &s->mmio);
+	sysbus_init_mmio(dev, &s->mmio);
 
 	qemu_macaddr_default_if_unset(&s->conf.macaddr);
 	s->nic = qemu_new_nic(&net_etraxfs_info, &s->conf,

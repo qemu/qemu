@@ -1,12 +1,12 @@
 /*
  * TomTom GO 730 with Samsung S3C2443X emulation.
  *
- * Copyright (c) 2010 Stefan Weil
+ * Copyright (c) 2010-2011 Stefan Weil
  *
  * Code based on hw/musicpal.c
  * Copyright (c) 2008 Jan Kiszka
  *
- * This code is licenced under the GNU GPL v2.
+ * This code is licenced under the GNU GPL v2 or later.
  *
  * References:
  * http://www.opentom.org/TomTom_GO_730
@@ -159,6 +159,7 @@ static const char *offset2name(const OffsetNamePair *o2n, unsigned offset)
 
 typedef struct tt_lcd_state {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     uint32_t brightness;
     uint32_t mode;
     uint32_t irqctrl;
@@ -243,7 +244,8 @@ static void tt_lcd_gpio_brigthness_in(void *opaque, int irq, int level)
     s->brightness |= level << irq;
 }
 
-static uint32_t tt_lcd_read(void *opaque, target_phys_addr_t offset)
+static uint64_t tt_lcd_read(void *opaque, target_phys_addr_t offset,
+                            unsigned size)
 {
     tt_lcd_state *s = opaque;
 
@@ -257,7 +259,7 @@ static uint32_t tt_lcd_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void tt_lcd_write(void *opaque, target_phys_addr_t offset,
-                               uint32_t value)
+                         uint64_t value, unsigned size)
 {
     tt_lcd_state *s = opaque;
 
@@ -296,28 +298,24 @@ static void tt_lcd_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const tt_lcd_readfn[] = {
-    tt_lcd_read,
-    tt_lcd_read,
-    tt_lcd_read
-};
-
-static CPUWriteMemoryFunc * const tt_lcd_writefn[] = {
-    tt_lcd_write,
-    tt_lcd_write,
-    tt_lcd_write
+static const MemoryRegionOps tt_lcd_ops = {
+    .read = tt_lcd_read,
+    .write = tt_lcd_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static int tt_lcd_init(SysBusDevice *dev)
 {
     tt_lcd_state *s = FROM_SYSBUS(tt_lcd_state, dev);
-    int iomemtype;
 
     s->brightness = 7;
 
-    iomemtype = cpu_register_io_memory(tt_lcd_readfn, tt_lcd_writefn,
-                                       s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_LCD_SIZE, iomemtype);
+    memory_region_init_io(&s->mmio, &tt_lcd_ops, s, "tt-lcd", MP_LCD_SIZE);
+    sysbus_init_mmio(dev, &s->mmio);
 
     s->ds = graphic_console_init(lcd_refresh, lcd_invalidate,
                                  NULL, NULL, s);
@@ -359,6 +357,7 @@ static SysBusDeviceInfo tt_lcd_info = {
 typedef struct mv88w8618_pic_state
 {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     uint32_t level;
     uint32_t enabled;
     qemu_irq parent_irq;
@@ -381,7 +380,8 @@ static void mv88w8618_pic_set_irq(void *opaque, int irq, int level)
     mv88w8618_pic_update(s);
 }
 
-static uint32_t mv88w8618_pic_read(void *opaque, target_phys_addr_t offset)
+static uint64_t mv88w8618_pic_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     mv88w8618_pic_state *s = opaque;
 
@@ -395,7 +395,7 @@ static uint32_t mv88w8618_pic_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void mv88w8618_pic_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     mv88w8618_pic_state *s = opaque;
 
@@ -421,29 +421,25 @@ static void mv88w8618_pic_reset(DeviceState *d)
     s->enabled = 0;
 }
 
-static CPUReadMemoryFunc * const mv88w8618_pic_readfn[] = {
-    mv88w8618_pic_read,
-    mv88w8618_pic_read,
-    mv88w8618_pic_read
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_pic_writefn[] = {
-    mv88w8618_pic_write,
-    mv88w8618_pic_write,
-    mv88w8618_pic_write
+static const MemoryRegionOps mv88w8618_pic_ops = {
+    .read = mv88w8618_pic_read,
+    .write = mv88w8618_pic_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static int mv88w8618_pic_init(SysBusDevice *dev)
 {
     mv88w8618_pic_state *s = FROM_SYSBUS(mv88w8618_pic_state, dev);
-    int iomemtype;
 
     qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     sysbus_init_irq(dev, &s->parent_irq);
-    iomemtype = cpu_register_io_memory(mv88w8618_pic_readfn,
-                                       mv88w8618_pic_writefn,
-                                       s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_PIC_SIZE, iomemtype);
+    memory_region_init_io(&s->mmio, &mv88w8618_pic_ops, s,
+                          "mv88w8618-pic", MP_PIC_SIZE);
+    sysbus_init_mmio(dev, &s->mmio);
     return 0;
 }
 
@@ -489,6 +485,7 @@ typedef struct mv88w8618_timer_state {
 
 typedef struct mv88w8618_pit_state {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     mv88w8618_timer_state timer[4];
 } mv88w8618_pit_state;
 
@@ -511,7 +508,8 @@ static void mv88w8618_timer_init(SysBusDevice *dev, mv88w8618_timer_state *s,
     s->ptimer = ptimer_init(bh);
 }
 
-static uint32_t mv88w8618_pit_read(void *opaque, target_phys_addr_t offset)
+static uint64_t mv88w8618_pit_read(void *opaque, target_phys_addr_t offset,
+                                   unsigned size)
 {
     mv88w8618_pit_state *s = opaque;
     mv88w8618_timer_state *t;
@@ -527,7 +525,7 @@ static uint32_t mv88w8618_pit_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void mv88w8618_pit_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     mv88w8618_pit_state *s = opaque;
     mv88w8618_timer_state *t;
@@ -578,21 +576,18 @@ static void mv88w8618_pit_reset(DeviceState *d)
     }
 }
 
-static CPUReadMemoryFunc * const mv88w8618_pit_readfn[] = {
-    mv88w8618_pit_read,
-    mv88w8618_pit_read,
-    mv88w8618_pit_read
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_pit_writefn[] = {
-    mv88w8618_pit_write,
-    mv88w8618_pit_write,
-    mv88w8618_pit_write
+static const MemoryRegionOps mv88w8618_pit_ops = {
+    .read = mv88w8618_pit_read,
+    .write = mv88w8618_pit_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static int mv88w8618_pit_init(SysBusDevice *dev)
 {
-    int iomemtype;
     mv88w8618_pit_state *s = FROM_SYSBUS(mv88w8618_pit_state, dev);
     int i;
 
@@ -602,10 +597,9 @@ static int mv88w8618_pit_init(SysBusDevice *dev)
         mv88w8618_timer_init(dev, &s->timer[i], 1000000);
     }
 
-    iomemtype = cpu_register_io_memory(mv88w8618_pit_readfn,
-                                       mv88w8618_pit_writefn,
-                                       s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_PIT_SIZE, iomemtype);
+    memory_region_init_io(&s->mmio, &mv88w8618_pit_ops, s,
+                          "mv88w8618-pit", MP_PIT_SIZE);
+    sysbus_init_mmio(dev, &s->mmio);
     return 0;
 }
 
@@ -646,11 +640,13 @@ static SysBusDeviceInfo mv88w8618_pit_info = {
 
 typedef struct mv88w8618_flashcfg_state {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     uint32_t cfgr0;
 } mv88w8618_flashcfg_state;
 
-static uint32_t mv88w8618_flashcfg_read(void *opaque,
-                                        target_phys_addr_t offset)
+static uint64_t mv88w8618_flashcfg_read(void *opaque,
+                                        target_phys_addr_t offset,
+                                        unsigned size)
 {
     mv88w8618_flashcfg_state *s = opaque;
 
@@ -664,7 +660,7 @@ static uint32_t mv88w8618_flashcfg_read(void *opaque,
 }
 
 static void mv88w8618_flashcfg_write(void *opaque, target_phys_addr_t offset,
-                                     uint32_t value)
+                                     uint64_t value, unsigned size)
 {
     mv88w8618_flashcfg_state *s = opaque;
 
@@ -675,28 +671,24 @@ static void mv88w8618_flashcfg_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const mv88w8618_flashcfg_readfn[] = {
-    mv88w8618_flashcfg_read,
-    mv88w8618_flashcfg_read,
-    mv88w8618_flashcfg_read
-};
-
-static CPUWriteMemoryFunc * const mv88w8618_flashcfg_writefn[] = {
-    mv88w8618_flashcfg_write,
-    mv88w8618_flashcfg_write,
-    mv88w8618_flashcfg_write
+static const MemoryRegionOps mv88w8618_flashcfg_ops = {
+    .read = mv88w8618_flashcfg_read,
+    .write = mv88w8618_flashcfg_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static int mv88w8618_flashcfg_init(SysBusDevice *dev)
 {
-    int iomemtype;
     mv88w8618_flashcfg_state *s = FROM_SYSBUS(mv88w8618_flashcfg_state, dev);
 
     s->cfgr0 = 0xfffe4285; /* Default as set by U-Boot for 8 MB flash */
-    iomemtype = cpu_register_io_memory(mv88w8618_flashcfg_readfn,
-                                       mv88w8618_flashcfg_writefn,
-                                       s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_FLASHCFG_SIZE, iomemtype);
+    memory_region_init_io(&s->mmio, &mv88w8618_flashcfg_ops, s,
+                          "mv88w8618-flashcfg", MP_FLASHCFG_SIZE);
+    sysbus_init_mmio(dev, &s->mmio);
     return 0;
 }
 
@@ -733,7 +725,8 @@ static const OffsetNamePair tt_syscon_names[] = {
     {}
 };
 
-static uint32_t tt_syscon_read(void *opaque, target_phys_addr_t offset)
+static uint64_t tt_syscon_read(void *opaque, target_phys_addr_t offset,
+                               unsigned size)
 {
     uint32_t value = 0;
     logout("%s\n", offset2name(tt_syscon_names, offset));
@@ -747,25 +740,23 @@ static uint32_t tt_syscon_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void tt_syscon_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
-    logout("%s 0x%08x\n", offset2name(tt_syscon_names, offset), value);
+    logout("%s 0x%08" PRIx64 "\n", offset2name(tt_syscon_names, offset), value);
     switch (offset) {
         default:
             TODO();
     }
 }
 
-static CPUReadMemoryFunc * const tt_syscon_readfn[] = {
-    tt_syscon_read,
-    tt_syscon_read,
-    tt_syscon_read,
-};
-
-static CPUWriteMemoryFunc * const tt_syscon_writefn[] = {
-    tt_syscon_write,
-    tt_syscon_write,
-    tt_syscon_write,
+static const MemoryRegionOps tt_syscon_ops = {
+    .read = tt_syscon_read,
+    .write = tt_syscon_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 /******************************************************************************/
@@ -790,7 +781,8 @@ static const OffsetNamePair tt_ioport_names[] = {
     {}
 };
 
-static uint32_t tt_ioport_read(void *opaque, target_phys_addr_t offset)
+static uint64_t tt_ioport_read(void *opaque, target_phys_addr_t offset,
+                               unsigned size)
 {
     uint32_t value = 0;
     logout("%s\n", offset2name(tt_ioport_names, offset));
@@ -817,9 +809,9 @@ static uint32_t tt_ioport_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void tt_ioport_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
-    logout("%s 0x%08x\n", offset2name(tt_ioport_names, offset), value);
+    logout("%s 0x%08" PRIx64 "\n", offset2name(tt_ioport_names, offset), value);
     switch (offset) {
         case IOPORT_GPBCON:
             TODO();
@@ -843,16 +835,14 @@ static void tt_ioport_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const tt_ioport_readfn[] = {
-    tt_ioport_read,
-    tt_ioport_read,
-    tt_ioport_read,
-};
-
-static CPUWriteMemoryFunc * const tt_ioport_writefn[] = {
-    tt_ioport_write,
-    tt_ioport_write,
-    tt_ioport_write,
+static const MemoryRegionOps tt_ioport_ops = {
+    .read = tt_ioport_read,
+    .write = tt_ioport_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 /******************************************************************************/
@@ -860,17 +850,15 @@ static CPUWriteMemoryFunc * const tt_ioport_writefn[] = {
 #if 0
 static void tt_syscon_init(void)
 {
-    int iomemtype = cpu_register_io_memory(tt_syscon_readfn,
-                                           tt_syscon_writefn,
-                                           NULL, DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->mmio, &tt_syscon_ops, s,
+                          "tt-syscon", 0x10000);
     cpu_register_physical_memory(S3C2443X_SYSCON, 0x10000, iomemtype);
 }
 
 static void tt_ioport_init(void)
 {
-    int iomemtype = cpu_register_io_memory(tt_ioport_readfn,
-                                           tt_ioport_writefn,
-                                           NULL, DEVICE_NATIVE_ENDIAN);
+    memory_region_init_io(&s->mmio, &tt_ioport_ops, s,
+                          "tt-ioport", 0x10000);
     cpu_register_physical_memory(S3C2443X_IO_PORT, 0x10000, iomemtype);
 }
 #endif
@@ -899,6 +887,7 @@ static void tt_ioport_init(void)
 
 typedef struct tt_gpio_state {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     uint32_t lcd_brightness;
     uint32_t out_state;
     uint32_t in_state;
@@ -971,7 +960,8 @@ static void tt_gpio_pin_event(void *opaque, int pin, int level)
     }
 }
 
-static uint32_t tt_gpio_read(void *opaque, target_phys_addr_t offset)
+static uint64_t tt_gpio_read(void *opaque, target_phys_addr_t offset,
+                             unsigned size)
 {
     tt_gpio_state *s = opaque;
 
@@ -1010,7 +1000,7 @@ static uint32_t tt_gpio_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void tt_gpio_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                                uint64_t value, unsigned size)
 {
     tt_gpio_state *s = opaque;
     switch (offset) {
@@ -1048,16 +1038,14 @@ static void tt_gpio_write(void *opaque, target_phys_addr_t offset,
     }
 }
 
-static CPUReadMemoryFunc * const tt_gpio_readfn[] = {
-    tt_gpio_read,
-    tt_gpio_read,
-    tt_gpio_read,
-};
-
-static CPUWriteMemoryFunc * const tt_gpio_writefn[] = {
-    tt_gpio_write,
-    tt_gpio_write,
-    tt_gpio_write,
+static const MemoryRegionOps tt_gpio_ops = {
+    .read = tt_gpio_read,
+    .write = tt_gpio_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void tt_gpio_reset(DeviceState *d)
@@ -1075,13 +1063,12 @@ static void tt_gpio_reset(DeviceState *d)
 static int tt_gpio_init(SysBusDevice *dev)
 {
     tt_gpio_state *s = FROM_SYSBUS(tt_gpio_state, dev);
-    int iomemtype;
 
     sysbus_init_irq(dev, &s->irq);
 
-    iomemtype = cpu_register_io_memory(tt_gpio_readfn, tt_gpio_writefn,
-                                       s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, MP_GPIO_SIZE, iomemtype);
+    memory_region_init_io(&s->mmio, &tt_gpio_ops, s,
+                          "tt-gpio", MP_GPIO_SIZE);
+    sysbus_init_mmio(dev, &s->mmio);
 
     qdev_init_gpio_out(&dev->qdev, s->out, ARRAY_SIZE(s->out));
 
@@ -1140,6 +1127,7 @@ static SysBusDeviceInfo tt_gpio_info = {
 
 typedef struct tt_key_state {
     SysBusDevice busdev;
+    MemoryRegion mmio;
     uint32_t kbd_extended;
     uint32_t pressed_keys;
     qemu_irq out[8];
@@ -1226,7 +1214,7 @@ static int tt_key_init(SysBusDevice *dev)
 {
     tt_key_state *s = FROM_SYSBUS(tt_key_state, dev);
 
-    sysbus_init_mmio(dev, 0x0, 0);
+    sysbus_init_mmio(dev, &s->mmio);
 
     s->kbd_extended = 0;
     s->pressed_keys = 0;

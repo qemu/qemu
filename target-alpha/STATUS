@@ -18,7 +18,7 @@ Linux user mode emulation status:
 a few programs start to run. Most crash at a certain point, dereferencing a
 NULL pointer. It seems that the UNIQUE register is not initialized properly.
 It may appear that old executables, not relying on TLS support, run but
-this is to be prooved...
+this is to be proved...
 
 Full system emulation status:
 * Alpha PALCode emulation is in a very early stage and is not sufficient

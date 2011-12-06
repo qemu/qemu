@@ -22,9 +22,14 @@
 #include "omap.h"
 
 /* TEST-Chip-level TAP */
-static uint32_t omap_tap_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_tap_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x204:	/* IDCODE_reg */
@@ -87,26 +92,25 @@ static uint32_t omap_tap_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_tap_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                           uint64_t value, unsigned size)
 {
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
+
     OMAP_BAD_REG(addr);
 }
 
-static CPUReadMemoryFunc * const omap_tap_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_tap_read,
-};
-
-static CPUWriteMemoryFunc * const omap_tap_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_tap_write,
+static const MemoryRegionOps omap_tap_ops = {
+    .read = omap_tap_read,
+    .write = omap_tap_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 void omap_tap_init(struct omap_target_agent_s *ta,
                 struct omap_mpu_state_s *mpu)
 {
-    omap_l4_attach(ta, 0, l4_register_io_memory(
-                            omap_tap_readfn, omap_tap_writefn, mpu));
+    memory_region_init_io(&mpu->tap_iomem, &omap_tap_ops, mpu, "omap.tap",
+                          omap_l4_region_size(ta, 0));
+    omap_l4_attach(ta, 0, &mpu->tap_iomem);
 }

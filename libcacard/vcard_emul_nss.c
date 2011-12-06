@@ -1250,7 +1250,7 @@ vcard_emul_usage(void)
 "  {card_type_to_emulate}  What card interface to present to the guest\n"
 "  {param_for_card}        Card interface specific parameters\n"
 "  {slot_name}             NSS slot that contains the certs\n"
-"  {vreader_name}          Virutal reader name to present to the guest\n"
+"  {vreader_name}          Virtual reader name to present to the guest\n"
 "  {certN}                 Nickname of the certificate n on the virtual card\n"
 "\n"
 "These parameters come as a single string separated by blanks or newlines."

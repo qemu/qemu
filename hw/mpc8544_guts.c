@@ -53,11 +53,13 @@
 
 struct GutsState {
     SysBusDevice busdev;
+    MemoryRegion iomem;
 };
 
 typedef struct GutsState GutsState;
 
-static uint32_t mpc8544_guts_read32(void *opaque, target_phys_addr_t addr)
+static uint64_t mpc8544_guts_read(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
 {
     uint32_t value = 0;
     CPUState *env = cpu_single_env;
@@ -78,14 +80,8 @@ static uint32_t mpc8544_guts_read32(void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static CPUReadMemoryFunc * const mpc8544_guts_read[] = {
-    NULL,
-    NULL,
-    &mpc8544_guts_read32,
-};
-
-static void mpc8544_guts_write32(void *opaque, target_phys_addr_t addr,
-                              uint32_t value)
+static void mpc8544_guts_write(void *opaque, target_phys_addr_t addr,
+                               uint64_t value, unsigned size)
 {
     addr &= MPC8544_GUTS_MMIO_SIZE - 1;
 
@@ -97,27 +93,30 @@ static void mpc8544_guts_write32(void *opaque, target_phys_addr_t addr,
         break;
     default:
         fprintf(stderr, "guts: Unknown register write: %x = %x\n",
-                (int)addr, value);
+                (int)addr, (unsigned)value);
         break;
     }
 }
 
-static CPUWriteMemoryFunc * const mpc8544_guts_write[] = {
-    NULL,
-    NULL,
-    &mpc8544_guts_write32,
+static const MemoryRegionOps mpc8544_guts_ops = {
+    .read = mpc8544_guts_read,
+    .write = mpc8544_guts_write,
+    .endianness = DEVICE_BIG_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static int mpc8544_guts_initfn(SysBusDevice *dev)
 {
     GutsState *s;
-    int iomem;
 
     s = FROM_SYSBUS(GutsState, sysbus_from_qdev(dev));
 
-    iomem = cpu_register_io_memory(mpc8544_guts_read, mpc8544_guts_write, s,
-                                   DEVICE_BIG_ENDIAN);
-    sysbus_init_mmio(dev, MPC8544_GUTS_MMIO_SIZE, iomem);
+    memory_region_init_io(&s->iomem, &mpc8544_guts_ops, s,
+                          "mpc6544.guts", MPC8544_GUTS_MMIO_SIZE);
+    sysbus_init_mmio(dev, &s->iomem);
 
     return 0;
 }

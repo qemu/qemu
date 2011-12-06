@@ -445,7 +445,7 @@ static int read_f(int argc, char **argv)
     }
 
     if ((pattern_count < 0) || (pattern_count + pattern_offset > count))  {
-        printf("pattern verfication range exceeds end of read data\n");
+        printf("pattern verification range exceeds end of read data\n");
         return 0;
     }
 
@@ -1857,9 +1857,9 @@ int main(int argc, char **argv)
     command_loop();
 
     /*
-     * Make sure all outstanding requests get flushed the program exits.
+     * Make sure all outstanding requests complete before the program exits.
      */
-    qemu_aio_flush();
+    bdrv_drain_all();
 
     if (bs) {
         bdrv_delete(bs);

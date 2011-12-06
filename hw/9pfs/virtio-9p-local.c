@@ -366,11 +366,18 @@ out:
     return err;
 }
 
-static int local_fstat(FsContext *fs_ctx,
+static int local_fstat(FsContext *fs_ctx, int fid_type,
                        V9fsFidOpenState *fs, struct stat *stbuf)
 {
-    int err;
-    err = fstat(fs->fd, stbuf);
+    int err, fd;
+
+    if (fid_type == P9_FID_DIR) {
+        fd = dirfd(fs->dir);
+    } else {
+        fd = fs->fd;
+    }
+
+    err = fstat(fd, stbuf);
     if (err) {
         return err;
     }
@@ -381,19 +388,19 @@ static int local_fstat(FsContext *fs_ctx,
         mode_t tmp_mode;
         dev_t tmp_dev;
 
-        if (fgetxattr(fs->fd, "user.virtfs.uid",
+        if (fgetxattr(fd, "user.virtfs.uid",
                       &tmp_uid, sizeof(uid_t)) > 0) {
             stbuf->st_uid = tmp_uid;
         }
-        if (fgetxattr(fs->fd, "user.virtfs.gid",
+        if (fgetxattr(fd, "user.virtfs.gid",
                       &tmp_gid, sizeof(gid_t)) > 0) {
             stbuf->st_gid = tmp_gid;
         }
-        if (fgetxattr(fs->fd, "user.virtfs.mode",
+        if (fgetxattr(fd, "user.virtfs.mode",
                       &tmp_mode, sizeof(mode_t)) > 0) {
             stbuf->st_mode = tmp_mode;
         }
-        if (fgetxattr(fs->fd, "user.virtfs.rdev",
+        if (fgetxattr(fd, "user.virtfs.rdev",
                       &tmp_dev, sizeof(dev_t)) > 0) {
                 stbuf->st_rdev = tmp_dev;
         }
@@ -592,12 +599,21 @@ static int local_remove(FsContext *ctx, const char *path)
     return remove(rpath(ctx, path, buffer));
 }
 
-static int local_fsync(FsContext *ctx, V9fsFidOpenState *fs, int datasync)
+static int local_fsync(FsContext *ctx, int fid_type,
+                       V9fsFidOpenState *fs, int datasync)
 {
-    if (datasync) {
-        return qemu_fdatasync(fs->fd);
+    int fd;
+
+    if (fid_type == P9_FID_DIR) {
+        fd = dirfd(fs->dir);
     } else {
-        return fsync(fs->fd);
+        fd = fs->fd;
+    }
+
+    if (datasync) {
+        return qemu_fdatasync(fd);
+    } else {
+        return fsync(fd);
     }
 }
 

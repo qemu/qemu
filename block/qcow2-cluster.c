@@ -289,89 +289,62 @@ void qcow2_encrypt_sectors(BDRVQcowState *s, int64_t sector_num,
     }
 }
 
-
-static int qcow2_read(BlockDriverState *bs, int64_t sector_num,
-                      uint8_t *buf, int nb_sectors)
+static int coroutine_fn copy_sectors(BlockDriverState *bs,
+                                     uint64_t start_sect,
+                                     uint64_t cluster_offset,
+                                     int n_start, int n_end)
 {
     BDRVQcowState *s = bs->opaque;
-    int ret, index_in_cluster, n, n1;
-    uint64_t cluster_offset;
-    struct iovec iov;
     QEMUIOVector qiov;
-
-    while (nb_sectors > 0) {
-        n = nb_sectors;
-
-        ret = qcow2_get_cluster_offset(bs, sector_num << 9, &n,
-            &cluster_offset);
-        if (ret < 0) {
-            return ret;
-        }
-
-        index_in_cluster = sector_num & (s->cluster_sectors - 1);
-        if (!cluster_offset) {
-            if (bs->backing_hd) {
-                /* read from the base image */
-                iov.iov_base = buf;
-                iov.iov_len = n * 512;
-                qemu_iovec_init_external(&qiov, &iov, 1);
-
-                n1 = qcow2_backing_read1(bs->backing_hd, &qiov, sector_num, n);
-                if (n1 > 0) {
-                    BLKDBG_EVENT(bs->file, BLKDBG_READ_BACKING);
-                    ret = bdrv_read(bs->backing_hd, sector_num, buf, n1);
-                    if (ret < 0)
-                        return -1;
-                }
-            } else {
-                memset(buf, 0, 512 * n);
-            }
-        } else if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
-            if (qcow2_decompress_cluster(bs, cluster_offset) < 0)
-                return -1;
-            memcpy(buf, s->cluster_cache + index_in_cluster * 512, 512 * n);
-        } else {
-            BLKDBG_EVENT(bs->file, BLKDBG_READ);
-            ret = bdrv_pread(bs->file, cluster_offset + index_in_cluster * 512, buf, n * 512);
-            if (ret != n * 512)
-                return -1;
-            if (s->crypt_method) {
-                qcow2_encrypt_sectors(s, sector_num, buf, buf, n, 0,
-                                &s->aes_decrypt_key);
-            }
-        }
-        nb_sectors -= n;
-        sector_num += n;
-        buf += n * 512;
-    }
-    return 0;
-}
-
-static int copy_sectors(BlockDriverState *bs, uint64_t start_sect,
-                        uint64_t cluster_offset, int n_start, int n_end)
-{
-    BDRVQcowState *s = bs->opaque;
+    struct iovec iov;
     int n, ret;
 
+    /*
+     * If this is the last cluster and it is only partially used, we must only
+     * copy until the end of the image, or bdrv_check_request will fail for the
+     * bdrv_read/write calls below.
+     */
+    if (start_sect + n_end > bs->total_sectors) {
+        n_end = bs->total_sectors - start_sect;
+    }
+
     n = n_end - n_start;
-    if (n <= 0)
+    if (n <= 0) {
         return 0;
+    }
+
+    iov.iov_len = n * BDRV_SECTOR_SIZE;
+    iov.iov_base = qemu_blockalign(bs, iov.iov_len);
+
+    qemu_iovec_init_external(&qiov, &iov, 1);
+
     BLKDBG_EVENT(bs->file, BLKDBG_COW_READ);
-    ret = qcow2_read(bs, start_sect + n_start, s->cluster_data, n);
-    if (ret < 0)
-        return ret;
+
+    /* Call .bdrv_co_readv() directly instead of using the public block-layer
+     * interface.  This avoids double I/O throttling and request tracking,
+     * which can lead to deadlock when block layer copy-on-read is enabled.
+     */
+    ret = bs->drv->bdrv_co_readv(bs, start_sect + n_start, n, &qiov);
+    if (ret < 0) {
+        goto out;
+    }
+
     if (s->crypt_method) {
         qcow2_encrypt_sectors(s, start_sect + n_start,
-                        s->cluster_data,
-                        s->cluster_data, n, 1,
+                        iov.iov_base, iov.iov_base, n, 1,
                         &s->aes_encrypt_key);
     }
+
     BLKDBG_EVENT(bs->file, BLKDBG_COW_WRITE);
-    ret = bdrv_write(bs->file, (cluster_offset >> 9) + n_start,
-        s->cluster_data, n);
-    if (ret < 0)
-        return ret;
-    return 0;
+    ret = bdrv_co_writev(bs->file, (cluster_offset >> 9) + n_start, n, &qiov);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = 0;
+out:
+    qemu_vfree(iov.iov_base);
+    return ret;
 }
 
 
@@ -620,7 +593,9 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     start_sect = (m->offset & ~(s->cluster_size - 1)) >> 9;
     if (m->n_start) {
         cow = true;
+        qemu_co_mutex_unlock(&s->lock);
         ret = copy_sectors(bs, start_sect, cluster_offset, 0, m->n_start);
+        qemu_co_mutex_lock(&s->lock);
         if (ret < 0)
             goto err;
     }
@@ -628,8 +603,10 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     if (m->nb_available & (s->cluster_sectors - 1)) {
         uint64_t end = m->nb_available & ~(uint64_t)(s->cluster_sectors - 1);
         cow = true;
+        qemu_co_mutex_unlock(&s->lock);
         ret = copy_sectors(bs, start_sect + end, cluster_offset + (end << 9),
                 m->nb_available - end, s->cluster_sectors);
+        qemu_co_mutex_lock(&s->lock);
         if (ret < 0)
             goto err;
     }

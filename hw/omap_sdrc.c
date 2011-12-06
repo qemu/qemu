@@ -22,6 +22,7 @@
 
 /* SDRAM Controller Subsystem */
 struct omap_sdrc_s {
+    MemoryRegion iomem;
     uint8_t config;
 };
 
@@ -30,9 +31,14 @@ void omap_sdrc_reset(struct omap_sdrc_s *s)
     s->config = 0x10;
 }
 
-static uint32_t omap_sdrc_read(void *opaque, target_phys_addr_t addr)
+static uint64_t omap_sdrc_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
     struct omap_sdrc_s *s = (struct omap_sdrc_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_read32(opaque, addr);
+    }
 
     switch (addr) {
     case 0x00:	/* SDRC_REVISION */
@@ -81,9 +87,13 @@ static uint32_t omap_sdrc_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void omap_sdrc_write(void *opaque, target_phys_addr_t addr,
-                uint32_t value)
+                            uint64_t value, unsigned size)
 {
     struct omap_sdrc_s *s = (struct omap_sdrc_s *) opaque;
+
+    if (size != 4) {
+        return omap_badwidth_write32(opaque, addr, value);
+    }
 
     switch (addr) {
     case 0x00:	/* SDRC_REVISION */
@@ -97,7 +107,7 @@ static void omap_sdrc_write(void *opaque, target_phys_addr_t addr,
     case 0x10:	/* SDRC_SYSCONFIG */
         if ((value >> 3) != 0x2)
             fprintf(stderr, "%s: bad SDRAM idle mode %i\n",
-                            __FUNCTION__, value >> 3);
+                    __FUNCTION__, (unsigned)value >> 3);
         if (value & 2)
             omap_sdrc_reset(s);
         s->config = value & 0x18;
@@ -137,29 +147,22 @@ static void omap_sdrc_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_sdrc_readfn[] = {
-    omap_badwidth_read32,
-    omap_badwidth_read32,
-    omap_sdrc_read,
+static const MemoryRegionOps omap_sdrc_ops = {
+    .read = omap_sdrc_read,
+    .write = omap_sdrc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const omap_sdrc_writefn[] = {
-    omap_badwidth_write32,
-    omap_badwidth_write32,
-    omap_sdrc_write,
-};
-
-struct omap_sdrc_s *omap_sdrc_init(target_phys_addr_t base)
+struct omap_sdrc_s *omap_sdrc_init(MemoryRegion *sysmem,
+                                   target_phys_addr_t base)
 {
-    int iomemtype;
     struct omap_sdrc_s *s = (struct omap_sdrc_s *)
             g_malloc0(sizeof(struct omap_sdrc_s));
 
     omap_sdrc_reset(s);
 
-    iomemtype = cpu_register_io_memory(omap_sdrc_readfn,
-                    omap_sdrc_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x1000, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_sdrc_ops, s, "omap.sdrc", 0x1000);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     return s;
 }

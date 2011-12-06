@@ -214,7 +214,7 @@ static int xilinx_timer_init(SysBusDevice *dev)
 
     memory_region_init_io(&t->mmio, &timer_ops, t, "xilinx-timer",
                           R_MAX * 4 * t->nr_timers);
-    sysbus_init_mmio_region(dev, &t->mmio);
+    sysbus_init_mmio(dev, &t->mmio);
     return 0;
 }
 

@@ -255,7 +255,7 @@ static int milkymist_memcard_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->regs_region, &memcard_mmio_ops, s,
             "milkymist-memcard", R_MAX * 4);
-    sysbus_init_mmio_region(dev, &s->regs_region);
+    sysbus_init_mmio(dev, &s->regs_region);
 
     return 0;
 }

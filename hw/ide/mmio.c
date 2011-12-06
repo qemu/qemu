@@ -37,6 +37,7 @@
 typedef struct {
     IDEBus bus;
     int shift;
+    MemoryRegion iomem1, iomem2;
 } MMIOState;
 
 static void mmio_ide_reset(void *opaque)
@@ -46,7 +47,8 @@ static void mmio_ide_reset(void *opaque)
     ide_bus_reset(&s->bus);
 }
 
-static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
+static uint64_t mmio_ide_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     MMIOState *s = opaque;
     addr >>= s->shift;
@@ -56,8 +58,8 @@ static uint32_t mmio_ide_read (void *opaque, target_phys_addr_t addr)
         return ide_data_readw(&s->bus, 0);
 }
 
-static void mmio_ide_write (void *opaque, target_phys_addr_t addr,
-	uint32_t val)
+static void mmio_ide_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned size)
 {
     MMIOState *s = opaque;
     addr >>= s->shift;
@@ -67,41 +69,30 @@ static void mmio_ide_write (void *opaque, target_phys_addr_t addr,
         ide_data_writew(&s->bus, 0, val);
 }
 
-static CPUReadMemoryFunc * const mmio_ide_reads[] = {
-    mmio_ide_read,
-    mmio_ide_read,
-    mmio_ide_read,
+static const MemoryRegionOps mmio_ide_ops = {
+    .read = mmio_ide_read,
+    .write = mmio_ide_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const mmio_ide_writes[] = {
-    mmio_ide_write,
-    mmio_ide_write,
-    mmio_ide_write,
-};
-
-static uint32_t mmio_ide_status_read (void *opaque, target_phys_addr_t addr)
+static uint64_t mmio_ide_status_read(void *opaque, target_phys_addr_t addr,
+                                     unsigned size)
 {
     MMIOState *s= opaque;
     return ide_status_read(&s->bus, 0);
 }
 
-static void mmio_ide_cmd_write (void *opaque, target_phys_addr_t addr,
-	uint32_t val)
+static void mmio_ide_cmd_write(void *opaque, target_phys_addr_t addr,
+                               uint64_t val, unsigned size)
 {
     MMIOState *s = opaque;
     ide_cmd_write(&s->bus, 0, val);
 }
 
-static CPUReadMemoryFunc * const mmio_ide_status[] = {
-    mmio_ide_status_read,
-    mmio_ide_status_read,
-    mmio_ide_status_read,
-};
-
-static CPUWriteMemoryFunc * const mmio_ide_cmd[] = {
-    mmio_ide_cmd_write,
-    mmio_ide_cmd_write,
-    mmio_ide_cmd_write,
+static const MemoryRegionOps mmio_ide_cs_ops = {
+    .read = mmio_ide_status_read,
+    .write = mmio_ide_cmd_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static const VMStateDescription vmstate_ide_mmio = {
@@ -117,22 +108,22 @@ static const VMStateDescription vmstate_ide_mmio = {
 };
 
 void mmio_ide_init (target_phys_addr_t membase, target_phys_addr_t membase2,
+                    MemoryRegion *address_space,
                     qemu_irq irq, int shift,
                     DriveInfo *hd0, DriveInfo *hd1)
 {
     MMIOState *s = g_malloc0(sizeof(MMIOState));
-    int mem1, mem2;
 
     ide_init2_with_non_qdev_drives(&s->bus, hd0, hd1, irq);
 
     s->shift = shift;
 
-    mem1 = cpu_register_io_memory(mmio_ide_reads, mmio_ide_writes, s,
-                                  DEVICE_NATIVE_ENDIAN);
-    mem2 = cpu_register_io_memory(mmio_ide_status, mmio_ide_cmd, s,
-                                  DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(membase, 16 << shift, mem1);
-    cpu_register_physical_memory(membase2, 2 << shift, mem2);
+    memory_region_init_io(&s->iomem1, &mmio_ide_ops, s,
+                          "ide-mmio.1", 16 << shift);
+    memory_region_init_io(&s->iomem2, &mmio_ide_cs_ops, s,
+                          "ide-mmio.2", 2 << shift);
+    memory_region_add_subregion(address_space, membase, &s->iomem1);
+    memory_region_add_subregion(address_space, membase2, &s->iomem2);
     vmstate_register(NULL, 0, &vmstate_ide_mmio, s);
     qemu_register_reset(mmio_ide_reset, s);
 }

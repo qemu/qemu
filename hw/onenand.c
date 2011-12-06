@@ -791,7 +791,7 @@ static int onenand_initfn(SysBusDevice *dev)
     s->data[1][1] = ram + ((0x8010 + (1 << (PAGE_SHIFT - 6))) << s->shift);
     onenand_mem_setup(s);
     sysbus_init_irq(dev, &s->intr);
-    sysbus_init_mmio_region(dev, &s->container);
+    sysbus_init_mmio(dev, &s->container);
     vmstate_register(&dev->qdev,
                      ((s->shift & 0x7f) << 24)
                      | ((s->id.man & 0xff) << 16)

@@ -68,6 +68,7 @@ struct GPTimer {
 
 struct GPTimerUnit {
     SysBusDevice  busdev;
+    MemoryRegion iomem;
 
     uint32_t nr_timers;         /* Number of timers available */
     uint32_t freq_hz;           /* System frequency */
@@ -153,7 +154,8 @@ static void grlib_gptimer_hit(void *opaque)
     }
 }
 
-static uint32_t grlib_gptimer_readl(void *opaque, target_phys_addr_t addr)
+static uint64_t grlib_gptimer_read(void *opaque, target_phys_addr_t addr,
+                                   unsigned size)
 {
     GPTimerUnit        *unit  = opaque;
     target_phys_addr_t  timer_addr;
@@ -211,8 +213,8 @@ static uint32_t grlib_gptimer_readl(void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static void
-grlib_gptimer_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void grlib_gptimer_write(void *opaque, target_phys_addr_t addr,
+                                uint64_t value, unsigned size)
 {
     GPTimerUnit        *unit = opaque;
     target_phys_addr_t  timer_addr;
@@ -299,12 +301,14 @@ grlib_gptimer_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
     trace_grlib_gptimer_writel(-1, addr, value);
 }
 
-static CPUReadMemoryFunc * const grlib_gptimer_read[] = {
-    NULL, NULL, grlib_gptimer_readl,
-};
-
-static CPUWriteMemoryFunc * const grlib_gptimer_write[] = {
-    NULL, NULL, grlib_gptimer_writel,
+static const MemoryRegionOps grlib_gptimer_ops = {
+    .read = grlib_gptimer_read,
+    .write = grlib_gptimer_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
 };
 
 static void grlib_gptimer_reset(DeviceState *d)
@@ -340,7 +344,6 @@ static int grlib_gptimer_init(SysBusDevice *dev)
 {
     GPTimerUnit  *unit = FROM_SYSBUS(typeof(*unit), dev);
     unsigned int  i;
-    int           timer_regs;
 
     assert(unit->nr_timers > 0);
     assert(unit->nr_timers <= GPTIMER_MAX_TIMERS);
@@ -361,15 +364,10 @@ static int grlib_gptimer_init(SysBusDevice *dev)
         ptimer_set_freq(timer->ptimer, unit->freq_hz);
     }
 
-    timer_regs = cpu_register_io_memory(grlib_gptimer_read,
-                                        grlib_gptimer_write,
-                                        unit, DEVICE_NATIVE_ENDIAN);
-    if (timer_regs < 0) {
-        return -1;
-    }
+    memory_region_init_io(&unit->iomem, &grlib_gptimer_ops, unit, "gptimer",
+                          UNIT_REG_SIZE + GPTIMER_REG_SIZE * unit->nr_timers);
 
-    sysbus_init_mmio(dev, UNIT_REG_SIZE + GPTIMER_REG_SIZE * unit->nr_timers,
-                     timer_regs);
+    sysbus_init_mmio(dev, &unit->iomem);
     return 0;
 }
 

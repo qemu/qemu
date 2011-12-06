@@ -156,7 +156,8 @@ typedef struct dp8393xState {
     int64_t wt_last_update;
     NICConf conf;
     NICState *nic;
-    int mmio_index;
+    MemoryRegion *address_space;
+    MemoryRegion mmio;
 
     /* Registers */
     uint8_t cam[16][6];
@@ -515,7 +516,7 @@ static void write_register(dp8393xState *s, int reg, uint16_t val)
     switch (reg) {
         /* Command register */
         case SONIC_CR:
-            do_command(s, val);;
+            do_command(s, val);
             break;
         /* Prevent write to read-only registers */
         case SONIC_CAP2:
@@ -664,16 +665,12 @@ static void dp8393x_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     dp8393x_writew(opaque, addr + 2, (val >> 16) & 0xffff);
 }
 
-static CPUReadMemoryFunc * const dp8393x_read[3] = {
-    dp8393x_readb,
-    dp8393x_readw,
-    dp8393x_readl,
-};
-
-static CPUWriteMemoryFunc * const dp8393x_write[3] = {
-    dp8393x_writeb,
-    dp8393x_writew,
-    dp8393x_writel,
+static const MemoryRegionOps dp8393x_ops = {
+    .old_mmio = {
+        .read = { dp8393x_readb, dp8393x_readw, dp8393x_readl, },
+        .write = { dp8393x_writeb, dp8393x_writew, dp8393x_writel, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int nic_can_receive(VLANClientState *nc)
@@ -865,7 +862,8 @@ static void nic_cleanup(VLANClientState *nc)
 {
     dp8393xState *s = DO_UPCAST(NICState, nc, nc)->opaque;
 
-    cpu_unregister_io_memory(s->mmio_index);
+    memory_region_del_subregion(s->address_space, &s->mmio);
+    memory_region_destroy(&s->mmio);
 
     qemu_del_timer(s->watchdog);
     qemu_free_timer(s->watchdog);
@@ -882,6 +880,7 @@ static NetClientInfo net_dp83932_info = {
 };
 
 void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
+                  MemoryRegion *address_space,
                   qemu_irq irq, void* mem_opaque,
                   void (*memory_rw)(void *opaque, target_phys_addr_t addr, uint8_t *buf, int len, int is_write))
 {
@@ -891,6 +890,7 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
 
     s = g_malloc0(sizeof(dp8393xState));
 
+    s->address_space = address_space;
     s->mem_opaque = mem_opaque;
     s->memory_rw = memory_rw;
     s->it_shift = it_shift;
@@ -908,7 +908,7 @@ void dp83932_init(NICInfo *nd, target_phys_addr_t base, int it_shift,
     qemu_register_reset(nic_reset, s);
     nic_reset(s);
 
-    s->mmio_index = cpu_register_io_memory(dp8393x_read, dp8393x_write, s,
-                                           DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x40 << it_shift, s->mmio_index);
+    memory_region_init_io(&s->mmio, &dp8393x_ops, s,
+                          "dp8393x", 0x40 << it_shift);
+    memory_region_add_subregion(address_space, base, &s->mmio);
 }

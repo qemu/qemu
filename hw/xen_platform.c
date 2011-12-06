@@ -120,7 +120,7 @@ static void platform_fixed_ioport_writew(void *opaque, uint32_t addr, uint32_t v
            devices, and bit 2 the non-primary-master IDE devices. */
         if (val & UNPLUG_ALL_IDE_DISKS) {
             DPRINTF("unplug disks\n");
-            qemu_aio_flush();
+            bdrv_drain_all();
             bdrv_flush_all();
             pci_unplug_disks(s->pci_dev.bus);
         }

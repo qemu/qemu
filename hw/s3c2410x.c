@@ -71,9 +71,11 @@
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion mmio;
 } S3C24xxWdgState;
 
-static uint32_t s3c24xx_wdg_read(void *opaque, target_phys_addr_t offset)
+static uint64_t s3c24xx_wdg_read(void *opaque, target_phys_addr_t offset,
+                                 unsigned size)
 {
     //~ S3C24xxWdgState *s = opaque;
     logout("0x" TARGET_FMT_plx "\n", offset);
@@ -85,11 +87,11 @@ static uint32_t s3c24xx_wdg_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void s3c24xx_wdg_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                              uint64_t value, unsigned size)
 {
     //~ S3C24xxWdgState *s = opaque;
 
-    logout("0x" TARGET_FMT_plx " 0x%08x\n", offset, value);
+    logout("0x" TARGET_FMT_plx " 0x%08" PRIx64 "\n", offset, value);
 
     switch (offset) {
     }
@@ -100,27 +102,24 @@ static void s3c24xx_wdg_reset(DeviceState *d)
     //~ S3C24xxWdgState *s = FROM_SYSBUS(S3C24xxWdgState, sysbus_from_qdev(d));
 }
 
-static CPUReadMemoryFunc * const s3c24xx_wdg_readfn[] = {
-    s3c24xx_wdg_read,
-    s3c24xx_wdg_read,
-    s3c24xx_wdg_read
-};
-
-static CPUWriteMemoryFunc * const s3c24xx_wdg_writefn[] = {
-    s3c24xx_wdg_write,
-    s3c24xx_wdg_write,
-    s3c24xx_wdg_write
+static const MemoryRegionOps s3c24xx_wdg_ops = {
+    .read = s3c24xx_wdg_read,
+    .write = s3c24xx_wdg_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static int s3c24xx_wdg_init(SysBusDevice *dev)
 {
     S3C24xxWdgState *s = FROM_SYSBUS(S3C24xxWdgState, dev);
-    int iomemtype;
 
     logout("\n");
-    iomemtype = cpu_register_io_memory(s3c24xx_wdg_readfn, s3c24xx_wdg_writefn,
-                                       s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 3 * 4, iomemtype);
+    memory_region_init_io(&s->mmio, &s3c24xx_wdg_ops, s,
+                          "s3c24xx-wdg", 3 * 4);
+    sysbus_init_mmio(dev, &s->mmio);
 
     //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     //~ sysbus_init_irq(dev, &s->parent_irq);
@@ -158,9 +157,11 @@ device_init(s3c24xx_wdg_register)
 
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion mmio;
 } S3C24xxAdcState;
 
-static uint32_t s3c24xx_adc_read(void *opaque, target_phys_addr_t offset)
+static uint64_t s3c24xx_adc_read(void *opaque, target_phys_addr_t offset,
+                                 unsigned size)
 {
     //~ S3C24xxAdcState *s = opaque;
     logout("0x" TARGET_FMT_plx "\n", offset);
@@ -175,11 +176,11 @@ static uint32_t s3c24xx_adc_read(void *opaque, target_phys_addr_t offset)
 }
 
 static void s3c24xx_adc_write(void *opaque, target_phys_addr_t offset,
-                                uint32_t value)
+                              uint64_t value, unsigned size)
 {
     //~ S3C24xxAdcState *s = opaque;
 
-    logout("0x" TARGET_FMT_plx " 0x%08x\n", offset, value);
+    logout("0x" TARGET_FMT_plx " 0x%08" PRIx64 "\n", offset, value);
 
     switch (offset) {
     //~ case MP_PIC_ENABLE_SET:
@@ -199,27 +200,24 @@ static void s3c24xx_adc_reset(DeviceState *d)
     //~ S3C24xxAdcState *s = FROM_SYSBUS(S3C24xxAdcState, sysbus_from_qdev(d));
 }
 
-static CPUReadMemoryFunc * const s3c24xx_adc_readfn[] = {
-    s3c24xx_adc_read,
-    s3c24xx_adc_read,
-    s3c24xx_adc_read
-};
-
-static CPUWriteMemoryFunc * const s3c24xx_adc_writefn[] = {
-    s3c24xx_adc_write,
-    s3c24xx_adc_write,
-    s3c24xx_adc_write
+static const MemoryRegionOps s3c24xx_adc_ops = {
+    .read = s3c24xx_adc_read,
+    .write = s3c24xx_adc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static int s3c24xx_adc_init(SysBusDevice *dev)
 {
     S3C24xxAdcState *s = FROM_SYSBUS(S3C24xxAdcState, dev);
-    int iomemtype;
 
     logout("\n");
-    iomemtype = cpu_register_io_memory(s3c24xx_adc_readfn, s3c24xx_adc_writefn,
-                                       s, DEVICE_NATIVE_ENDIAN);
-    sysbus_init_mmio(dev, 7 * 4, iomemtype);
+    memory_region_init_io(&s->mmio, &s3c24xx_adc_ops, s,
+                          "s3c24xx-adc", 7 * 4);
+    sysbus_init_mmio(dev, &s->mmio);
 
     //~ qdev_init_gpio_in(&dev->qdev, mv88w8618_pic_set_irq, 32);
     //~ sysbus_init_irq(dev, &s->parent_irq);

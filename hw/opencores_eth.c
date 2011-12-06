@@ -708,11 +708,11 @@ static int sysbus_open_eth_init(SysBusDevice *dev)
 
     memory_region_init_io(&s->reg_io, &open_eth_reg_ops, s,
             "open_eth.regs", 0x54);
-    sysbus_init_mmio_region(dev, &s->reg_io);
+    sysbus_init_mmio(dev, &s->reg_io);
 
     memory_region_init_io(&s->desc_io, &open_eth_desc_ops, s,
             "open_eth.desc", 0x400);
-    sysbus_init_mmio_region(dev, &s->desc_io);
+    sysbus_init_mmio(dev, &s->desc_io);
 
     sysbus_init_irq(dev, &s->irq);
 

@@ -21,6 +21,7 @@
 #include "omap.h"
 
 struct omap_i2c_s {
+    MemoryRegion iomem;
     qemu_irq irq;
     qemu_irq drq[2];
     i2c_bus *bus;
@@ -409,22 +410,28 @@ static void omap_i2c_writeb(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const omap_i2c_readfn[] = {
-    omap_badwidth_read16,
-    omap_i2c_read,
-    omap_badwidth_read16,
+static const MemoryRegionOps omap_i2c_ops = {
+    .old_mmio = {
+        .read = {
+            omap_badwidth_read16,
+            omap_i2c_read,
+            omap_badwidth_read16,
+        },
+        .write = {
+            omap_i2c_writeb, /* Only the last fifo write can be 8 bit.  */
+            omap_i2c_write,
+            omap_badwidth_write16,
+        },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static CPUWriteMemoryFunc * const omap_i2c_writefn[] = {
-    omap_i2c_writeb,	/* Only the last fifo write can be 8 bit.  */
-    omap_i2c_write,
-    omap_badwidth_write16,
-};
-
-struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
-                qemu_irq irq, qemu_irq *dma, omap_clk clk)
+struct omap_i2c_s *omap_i2c_init(MemoryRegion *sysmem,
+                                 target_phys_addr_t base,
+                                 qemu_irq irq,
+                                 qemu_irq *dma,
+                                 omap_clk clk)
 {
-    int iomemtype;
     struct omap_i2c_s *s = (struct omap_i2c_s *)
             g_malloc0(sizeof(struct omap_i2c_s));
 
@@ -436,9 +443,8 @@ struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
     s->bus = i2c_init_bus(NULL, "i2c");
     omap_i2c_reset(s);
 
-    iomemtype = cpu_register_io_memory(omap_i2c_readfn,
-                    omap_i2c_writefn, s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base, 0x800, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_i2c_ops, s, "omap.i2c", 0x800);
+    memory_region_add_subregion(sysmem, base, &s->iomem);
 
     return s;
 }
@@ -446,7 +452,6 @@ struct omap_i2c_s *omap_i2c_init(target_phys_addr_t base,
 struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
                 qemu_irq irq, qemu_irq *dma, omap_clk fclk, omap_clk iclk)
 {
-    int iomemtype;
     struct omap_i2c_s *s = (struct omap_i2c_s *)
             g_malloc0(sizeof(struct omap_i2c_s));
 
@@ -457,9 +462,9 @@ struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
     s->bus = i2c_init_bus(NULL, "i2c");
     omap_i2c_reset(s);
 
-    iomemtype = l4_register_io_memory(omap_i2c_readfn,
-                    omap_i2c_writefn, s);
-    omap_l4_attach(ta, 0, iomemtype);
+    memory_region_init_io(&s->iomem, &omap_i2c_ops, s, "omap2.i2c",
+                          omap_l4_region_size(ta, 0));
+    omap_l4_attach(ta, 0, &s->iomem);
 
     return s;
 }

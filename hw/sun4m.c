@@ -604,7 +604,7 @@ static int idreg_init1(SysBusDevice *dev)
 
     memory_region_init_ram(&s->mem, NULL, "sun4m.idreg", sizeof(idreg_data));
     memory_region_set_readonly(&s->mem, true);
-    sysbus_init_mmio_region(dev, &s->mem);
+    sysbus_init_mmio(dev, &s->mem);
     return 0;
 }
 
@@ -644,7 +644,7 @@ static int afx_init1(SysBusDevice *dev)
     AFXState *s = FROM_SYSBUS(AFXState, dev);
 
     memory_region_init_ram(&s->mem, NULL, "sun4m.afx", 4);
-    sysbus_init_mmio_region(dev, &s->mem);
+    sysbus_init_mmio(dev, &s->mem);
     return 0;
 }
 
@@ -713,7 +713,7 @@ static int prom_init1(SysBusDevice *dev)
 
     memory_region_init_ram(&s->prom, NULL, "sun4m.prom", PROM_SIZE_MAX);
     memory_region_set_readonly(&s->prom, true);
-    sysbus_init_mmio_region(dev, &s->prom);
+    sysbus_init_mmio(dev, &s->prom);
     return 0;
 }
 
@@ -746,7 +746,7 @@ static int ram_init1(SysBusDevice *dev)
     RamDevice *d = FROM_SYSBUS(RamDevice, dev);
 
     memory_region_init_ram(&d->ram, NULL, "sun4m.ram", d->size);
-    sysbus_init_mmio_region(dev, &d->ram);
+    sysbus_init_mmio(dev, &d->ram);
     return 0;
 }
 
