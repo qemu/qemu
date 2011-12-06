@@ -454,7 +454,7 @@ int spapr_populate_pci_devices(sPAPRPHBState *phb,
         reg[0].size = 0;
 
         n = 0;
-        for (i = 0; i < PCI_NUM_REGIONS; ++i) {
+        for (i = 0; i < ARRAY_SIZE(bars); ++i) {
             if (0 == dev->io_regions[i].size) {
                 continue;
             }

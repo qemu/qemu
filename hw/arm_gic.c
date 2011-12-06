@@ -215,17 +215,26 @@ static void gic_complete_irq(gic_state * s, int cpu, int irq)
     int update = 0;
     int cm = 1 << cpu;
     DPRINTF("EOI %d\n", irq);
+    if (irq >= GIC_NIRQ) {
+        /* This handles two cases:
+         * 1. If software writes the ID of a spurious interrupt [ie 1023]
+         * to the GICC_EOIR, the GIC ignores that write.
+         * 2. If software writes the number of a non-existent interrupt
+         * this must be a subcase of "value written does not match the last
+         * valid interrupt value read from the Interrupt Acknowledge
+         * register" and so this is UNPREDICTABLE. We choose to ignore it.
+         */
+        return;
+    }
     if (s->running_irq[cpu] == 1023)
         return; /* No active IRQ.  */
-    if (irq != 1023) {
-        /* Mark level triggered interrupts as pending if they are still
-           raised.  */
-        if (!GIC_TEST_TRIGGER(irq) && GIC_TEST_ENABLED(irq, cm)
-                && GIC_TEST_LEVEL(irq, cm) && (GIC_TARGET(irq) & cm) != 0) {
-            DPRINTF("Set %d pending mask %x\n", irq, cm);
-            GIC_SET_PENDING(irq, cm);
-            update = 1;
-        }
+    /* Mark level triggered interrupts as pending if they are still
+       raised.  */
+    if (!GIC_TEST_TRIGGER(irq) && GIC_TEST_ENABLED(irq, cm)
+        && GIC_TEST_LEVEL(irq, cm) && (GIC_TARGET(irq) & cm) != 0) {
+        DPRINTF("Set %d pending mask %x\n", irq, cm);
+        GIC_SET_PENDING(irq, cm);
+        update = 1;
     }
     if (irq != s->running_irq[cpu]) {
         /* Complete an IRQ that is not currently running.  */

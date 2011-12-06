@@ -9021,14 +9021,16 @@ static int disas_thumb2_insn(CPUState *env, DisasContext *s, uint16_t insn_hw1)
                     goto illegal_op;
                 }
                 if (rn == 15) {
-                    /* UNPREDICTABLE or unallocated hint */
+                    /* UNPREDICTABLE, unallocated hint or
+                     * PLD/PLDW/PLI (literal)
+                     */
                     return 0;
                 }
                 if (op1 & 1) {
-                    return 0; /* PLD* or unallocated hint */
+                    return 0; /* PLD/PLDW/PLI or unallocated hint */
                 }
                 if ((op2 == 0) || ((op2 & 0x3c) == 0x30)) {
-                    return 0; /* PLD* or unallocated hint */
+                    return 0; /* PLD/PLDW/PLI or unallocated hint */
                 }
                 /* UNDEF space, or an UNPREDICTABLE */
                 return 1;

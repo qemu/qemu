@@ -393,7 +393,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
         return NULL;
     env = g_malloc0(sizeof(CPUARMState));
     cpu_exec_init(env);
-    if (!inited) {
+    if (tcg_enabled() && !inited) {
         inited = 1;
         arm_translate_init();
     }
