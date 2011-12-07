@@ -266,14 +266,13 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
             if (saddr.sin_addr.s_addr == 0) {
                 fprintf(stderr, "qemu: error: init_dgram: fd=%d unbound, "
                         "cannot setup multicast dst addr\n", fd);
-                return NULL;
+                goto err;
             }
             /* clone dgram socket */
             newfd = net_socket_mcast_create(&saddr, NULL);
             if (newfd < 0) {
                 /* error already reported by net_socket_mcast_create() */
-                close(fd);
-                return NULL;
+                goto err;
             }
             /* clone newfd to fd, close newfd */
             dup2(newfd, fd);
@@ -283,7 +282,7 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
             fprintf(stderr,
                     "qemu: error: init_dgram: fd=%d failed getsockname(): %s\n",
                     fd, strerror(errno));
-            return NULL;
+            goto err;
         }
     }
 
@@ -304,6 +303,10 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
     if (is_connected) s->dgram_dst=saddr;
 
     return s;
+
+err:
+    closesocket(fd);
+    return NULL;
 }
 
 static void net_socket_connect(void *opaque)
@@ -353,6 +356,7 @@ static NetSocketState *net_socket_fd_init(VLANState *vlan,
         (socklen_t *)&optlen)< 0) {
         fprintf(stderr, "qemu: error: getsockopt(SO_TYPE) for fd=%d failed\n",
                 fd);
+        closesocket(fd);
         return NULL;
     }
     switch(so_type) {
@@ -386,9 +390,7 @@ static void net_socket_accept(void *opaque)
         }
     }
     s1 = net_socket_fd_init(s->vlan, s->model, s->name, fd, 1);
-    if (!s1) {
-        closesocket(fd);
-    } else {
+    if (s1) {
         snprintf(s1->nc.info_str, sizeof(s1->nc.info_str),
                  "socket: connection from %s:%d",
                  inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
@@ -549,7 +551,6 @@ int net_init_socket(QemuOpts *opts,
         }
 
         if (!net_socket_fd_init(vlan, "socket", name, fd, 1)) {
-            close(fd);
             return -1;
         }
     } else if (qemu_opt_get(opts, "listen")) {
