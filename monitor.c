@@ -929,7 +929,12 @@ static int set_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
         }
         /* Note that setting an empty password will not disable login through
          * this interface. */
-        return vnc_display_password(NULL, password);
+        rc = vnc_display_password(NULL, password);
+        if (rc < 0) {
+            qerror_report(QERR_SET_PASSWD_FAILED);
+            return -1;
+        }
+        return 0;
     }
 
     qerror_report(QERR_INVALID_PARAMETER, "protocol");

@@ -384,7 +384,6 @@ int vnc_display_pw_expire(DisplayState *ds, time_t expires);
 #else
 static inline int vnc_display_password(DisplayState *ds, const char *password)
 {
-    qerror_report(QERR_FEATURE_DISABLED, "vnc");
     return -ENODEV;
 }
 static inline int vnc_display_pw_expire(DisplayState *ds, time_t expires)
