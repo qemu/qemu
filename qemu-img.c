@@ -1420,6 +1420,8 @@ static int img_rebase(int argc, char **argv)
      */
     if (!unsafe) {
         uint64_t num_sectors;
+        uint64_t old_backing_num_sectors;
+        uint64_t new_backing_num_sectors;
         uint64_t sector;
         int n;
         uint8_t * buf_old;
@@ -1430,6 +1432,8 @@ static int img_rebase(int argc, char **argv)
         buf_new = qemu_blockalign(bs, IO_BUF_SIZE);
 
         bdrv_get_geometry(bs, &num_sectors);
+        bdrv_get_geometry(bs_old_backing, &old_backing_num_sectors);
+        bdrv_get_geometry(bs_new_backing, &new_backing_num_sectors);
 
         local_progress = (float)100 /
             (num_sectors / MIN(num_sectors, IO_BUF_SIZE / 512));
@@ -1448,16 +1452,36 @@ static int img_rebase(int argc, char **argv)
                 continue;
             }
 
-            /* Read old and new backing file */
-            ret = bdrv_read(bs_old_backing, sector, buf_old, n);
-            if (ret < 0) {
-                error_report("error while reading from old backing file");
-                goto out;
+            /*
+             * Read old and new backing file and take into consideration that
+             * backing files may be smaller than the COW image.
+             */
+            if (sector >= old_backing_num_sectors) {
+                memset(buf_old, 0, n * BDRV_SECTOR_SIZE);
+            } else {
+                if (sector + n > old_backing_num_sectors) {
+                    n = old_backing_num_sectors - sector;
+                }
+
+                ret = bdrv_read(bs_old_backing, sector, buf_old, n);
+                if (ret < 0) {
+                    error_report("error while reading from old backing file");
+                    goto out;
+                }
             }
-            ret = bdrv_read(bs_new_backing, sector, buf_new, n);
-            if (ret < 0) {
-                error_report("error while reading from new backing file");
-                goto out;
+
+            if (sector >= new_backing_num_sectors) {
+                memset(buf_new, 0, n * BDRV_SECTOR_SIZE);
+            } else {
+                if (sector + n > new_backing_num_sectors) {
+                    n = new_backing_num_sectors - sector;
+                }
+
+                ret = bdrv_read(bs_new_backing, sector, buf_new, n);
+                if (ret < 0) {
+                    error_report("error while reading from new backing file");
+                    goto out;
+                }
             }
 
             /* If they differ, we need to write to the COW file */
