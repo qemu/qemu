@@ -38,7 +38,8 @@
 static int bigendian = 0;
 
 typedef struct {
-    MemoryRegion mmio;
+    MemoryRegion cpld1;
+    MemoryRegion cpld5;
     S3CState *soc;
     DeviceState *nand[4];
     uint8_t cpld_ctrl2;
@@ -88,10 +89,11 @@ static const MemoryRegionOps cpld_ops = {
 
 static void stcb_cpld_register(STCBState *s)
 {
-    memory_region_init_io(&s->mmio, &cpld_ops, s, "cpld", A9M2410_CPLD_SIZE);
-    assert(!"TODO: fix code");
-    //~ cpu_register_physical_memory(A9M2410_CS1_CPLD_BASE, A9M2410_CPLD_SIZE, tag);
-    //~ cpu_register_physical_memory(A9M2410_CS5_CPLD_BASE, A9M2410_CPLD_SIZE, tag);
+    MemoryRegion *sysmem = get_system_memory();
+    memory_region_init_io(&s->cpld1, &cpld_ops, s, "cpld1", A9M2410_CPLD_SIZE);
+    memory_region_init_alias(&s->cpld5, "cpld5", &s->cpld1, 0, A9M2410_CPLD_SIZE);
+    memory_region_add_subregion(sysmem, A9M2410_CS1_CPLD_BASE, &s->cpld1);
+    memory_region_add_subregion(sysmem, A9M2410_CS5_CPLD_BASE, &s->cpld5);
     s->cpld_ctrl2 = 0;
 }
 
@@ -119,6 +121,10 @@ static void stcb_cpld_register(STCBState *s)
 
 typedef struct {
     IDEBus bus;
+    MemoryRegion slow;
+    MemoryRegion fast;
+    MemoryRegion slowb;
+    MemoryRegion fastb;
     int shift;
 } MMIOState;
 
@@ -174,24 +180,23 @@ static const MemoryRegionOps stcb_ide_ops = {
  * I/O tag to access the ide.
  * The A9M2410 description will register it into the map in the right place.
  */
-static int stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
+static MMIOState *stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
 {
     MMIOState *s = g_malloc0(sizeof(MMIOState));
-    int stcb_ide_memory = 0;
     ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
-
-    assert(!"TODO: fix code");
-    //~ stcb_ide_memory = cpu_register_io_memory(stcb_ide_read, stcb_ide_write,
-                                             //~ s, DEVICE_NATIVE_ENDIAN);
-    return stcb_ide_memory;
+    memory_region_init_io(&s->slow, &stcb_ide_ops, s, "stcb-ide", 0x1000000);
+    memory_region_init_alias(&s->fast, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_alias(&s->slowb, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_alias(&s->fastb, "stcb-ide", &s->slow, 0, 0x1000000);
+    return s;
 }
 
 static void stcb_register_ide(STCBState *stcb)
 {
-    int ide0_mem;
-    int ide1_mem;
     DriveInfo *dinfo0;
     DriveInfo *dinfo1;
+    MMIOState *s;
+    MemoryRegion *sysmem = get_system_memory();
 
     if (drive_get_max_bus(IF_IDE) >= 2) {
         fprintf(stderr, "qemu: too many IDE busses\n");
@@ -200,19 +205,19 @@ static void stcb_register_ide(STCBState *stcb)
 
     dinfo0 = drive_get(IF_IDE, 0, 0);
     dinfo1 = drive_get(IF_IDE, 0, 1);
-    ide0_mem = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 16));
-    cpu_register_physical_memory(A9M2410_IDE_PRI_SLOW, 0x1000000, ide0_mem);
-    cpu_register_physical_memory(A9M2410_IDE_PRI_FAST, 0x1000000, ide0_mem);
-    cpu_register_physical_memory(A9M2410_IDE_PRI_SLOW_BYTE, 0x1000000, ide0_mem);
-    cpu_register_physical_memory(A9M2410_IDE_PRI_FAST_BYTE, 0x1000000, ide0_mem);
+    s = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 16));
+    memory_region_add_subregion(sysmem, A9M2410_IDE_PRI_SLOW, &s->slow);
+    memory_region_add_subregion(sysmem, A9M2410_IDE_PRI_FAST, &s->fast);
+    memory_region_add_subregion(sysmem, A9M2410_IDE_PRI_SLOW_BYTE, &s->slowb);
+    memory_region_add_subregion(sysmem, A9M2410_IDE_PRI_FAST_BYTE, &s->fastb);
 
     dinfo0 = drive_get(IF_IDE, 1, 0);
     dinfo1 = drive_get(IF_IDE, 1, 1);
-    ide1_mem = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 17));
-    cpu_register_physical_memory(A9M2410_IDE_SEC_SLOW, 0x1000000, ide1_mem);
-    cpu_register_physical_memory(A9M2410_IDE_SEC_FAST, 0x1000000, ide1_mem);
-    cpu_register_physical_memory(A9M2410_IDE_SEC_SLOW_BYTE, 0x1000000, ide1_mem);
-    cpu_register_physical_memory(A9M2410_IDE_SEC_FAST_BYTE, 0x1000000, ide1_mem);
+    s = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 17));
+    memory_region_add_subregion(sysmem, A9M2410_IDE_SEC_SLOW, &s->slow);
+    memory_region_add_subregion(sysmem, A9M2410_IDE_SEC_FAST, &s->fast);
+    memory_region_add_subregion(sysmem, A9M2410_IDE_SEC_SLOW_BYTE, &s->slowb);
+    memory_region_add_subregion(sysmem, A9M2410_IDE_SEC_FAST_BYTE, &s->fastb);
 }
 
 #define A9M2410_PA_ASIXNET 0x01000000
@@ -530,10 +535,18 @@ static void stcb_init(ram_addr_t _ram_size,
 #endif
 }
 
+#if 0 // TODO: unsupported by QEMU API.
+void stcb_exit()
+{
+    // TODO: Add calls to memory_region_destroy.
+}
+#endif
+
 static QEMUMachine a9m2410_machine = {
     .name = "a9m2410",
     .desc = "Digi A9M2410 (S3C2410A, ARM920T)",
     .init = stcb_init,
+    //~ .exit = stcb_exit,
     .max_cpus = 1,
 };
 
