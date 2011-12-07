@@ -4111,69 +4111,58 @@ static QEMUMachine ar7_machines[] = {
     .name = "ar7",
     .desc = "MIPS 4KEc / AR7 platform",
     .init = mips_ar7_init,
-    .max_cpus = 1,
   },
   {
     .name = "ar7-amd",
     .desc = "MIPS AR7 with AMD flash",
     .init = ar7_amd_init,
-    .max_cpus = 1,
   },
   {
     .name = "tnetd7200",
     .desc = "MIPS 4KEc / TNETD7200 platform",
     .init = mips_tnetd7200_init,
-    .max_cpus = 1,
   },
   {
     .name = "tnetd7300",
     .desc = "MIPS 4KEc / TNETD7300 platform",
     .init = mips_tnetd7300_init,
-    .max_cpus = 1,
   },
 #if defined(TARGET_WORDS_BIGENDIAN)
   {
     .name = "zyxel",
     .desc = "Zyxel 2 MiB flash (AR7 platform)",
     .init = zyxel_init,
-    .max_cpus = 1,
   },
 #else
   {
     .name = "fbox-4mb",
     .desc = "FBox 4 MiB flash (AR7 platform)",
     .init = fbox4_init,
-    .max_cpus = 1,
   },
   {
     .name = "fbox-8mb",
     .desc = "FBox 8 MiB flash (AR7 platform)",
     .init = fbox8_init,
-    .max_cpus = 1,
   },
   {
     .name = "sinus-basic-se",
     .desc = "Sinus DSL Basic SE (AR7 platform)",
     .init = sinus_basic_se_init,
-    .max_cpus = 1,
   },
   {
     .name = "sinus-se",
     .desc = "Sinus DSL SE (AR7 platform)",
     .init = sinus_se_init,
-    .max_cpus = 1,
   },
   {
     .name = "sinus-basic-3",
     .desc = "Sinus DSL Basic 3 (AR7 platform)",
     .init = sinus_basic_3_init,
-    .max_cpus = 1,
   },
   {
     .name = "speedport",
     .desc = "Speedport (AR7 platform)",
     .init = speedport_init,
-    .max_cpus = 1,
   },
 #endif
 };
@@ -4275,7 +4264,10 @@ static void ar7_machine_init(void)
 {
     size_t i;
     for (i = 0; i < ARRAY_SIZE(ar7_machines); i++) {
-        qemu_register_machine(&ar7_machines[i]);
+        QEMUMachine *machine = &ar7_machines[i];
+        machine->max_cpus = 1;
+        machine->no_vga = true;
+        qemu_register_machine(machine);
     }
 }
 
