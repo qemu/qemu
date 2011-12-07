@@ -702,3 +702,13 @@ void hmp_expire_password(Monitor *mon, const QDict *qdict)
     qmp_expire_password(protocol, whenstr, &err);
     hmp_handle_error(mon, &err);
 }
+
+void hmp_eject(Monitor *mon, const QDict *qdict)
+{
+    int force = qdict_get_try_bool(qdict, "force", 0);
+    const char *device = qdict_get_str(qdict, "device");
+    Error *err = NULL;
+
+    qmp_eject(device, true, force, &err);
+    hmp_handle_error(mon, &err);
+}

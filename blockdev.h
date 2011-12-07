@@ -58,7 +58,6 @@ DriveInfo *drive_init(QemuOpts *arg, int default_to_scsi);
 DriveInfo *add_init_drive(const char *opts);
 
 void do_commit(Monitor *mon, const QDict *qdict);
-int do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data);
 int do_change_block(Monitor *mon, const char *device,
                     const char *filename, const char *fmt);
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data);

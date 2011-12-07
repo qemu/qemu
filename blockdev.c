@@ -683,27 +683,17 @@ static void eject_device(BlockDriverState *bs, int force, Error **errp)
     bdrv_close(bs);
 }
 
-int do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_eject(const char *device, bool has_force, bool force, Error **errp)
 {
     BlockDriverState *bs;
-    int force = qdict_get_try_bool(qdict, "force", 0);
-    const char *filename = qdict_get_str(qdict, "device");
-    Error *err = NULL;
 
-    bs = bdrv_find(filename);
+    bs = bdrv_find(device);
     if (!bs) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, filename);
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
     }
 
-    eject_device(bs, force, &err);
-    if (error_is_set(&err)) {
-        qerror_report_err(err);
-        error_free(err);
-        return -1;
-    }
-
-    return 0;
+    eject_device(bs, force, errp);
 }
 
 void qmp_block_passwd(const char *device, const char *password, Error **errp)
