@@ -808,7 +808,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
     } while (snap_count == -ERANGE);
 
     if (snap_count <= 0) {
-        return snap_count;
+        goto done;
     }
 
     sn_tab = g_malloc0(snap_count * sizeof(QEMUSnapshotInfo));
@@ -827,6 +827,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
     }
     rbd_snap_list_end(snaps);
 
+ done:
     *psn_tab = sn_tab;
     return snap_count;
 }
