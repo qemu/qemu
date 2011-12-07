@@ -161,10 +161,11 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
 #endif
 
     if (!IN_MULTICAST(ntohl(mcastaddr->sin_addr.s_addr))) {
-	fprintf(stderr, "qemu: error: specified mcastaddr \"%s\" (0x%08x) does not contain a multicast address\n",
-		inet_ntoa(mcastaddr->sin_addr),
+        fprintf(stderr, "qemu: error: specified mcastaddr \"%s\" (0x%08x) "
+                "does not contain a multicast address\n",
+                inet_ntoa(mcastaddr->sin_addr),
                 (int)ntohl(mcastaddr->sin_addr.s_addr));
-	return -1;
+        return -1;
 
     }
     fd = qemu_socket(PF_INET, SOCK_DGRAM, 0);
@@ -177,8 +178,8 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
     ret=setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
                    (const char *)&val, sizeof(val));
     if (ret < 0) {
-	perror("setsockopt(SOL_SOCKET, SO_REUSEADDR)");
-	goto fail;
+        perror("setsockopt(SOL_SOCKET, SO_REUSEADDR)");
+        goto fail;
     }
 
     ret = bind(fd, (struct sockaddr *)mcastaddr, sizeof(*mcastaddr));
@@ -198,8 +199,8 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
     ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                      (const char *)&imr, sizeof(struct ip_mreq));
     if (ret < 0) {
-	perror("setsockopt(IP_ADD_MEMBERSHIP)");
-	goto fail;
+        perror("setsockopt(IP_ADD_MEMBERSHIP)");
+        goto fail;
     }
 
     /* Force mcast msgs to loopback (eg. several QEMUs in same host */
@@ -207,8 +208,8 @@ static int net_socket_mcast_create(struct sockaddr_in *mcastaddr, struct in_addr
     ret=setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP,
                    (const char *)&loop, sizeof(loop));
     if (ret < 0) {
-	perror("setsockopt(SOL_IP, IP_MULTICAST_LOOP)");
-	goto fail;
+        perror("setsockopt(SOL_IP, IP_MULTICAST_LOOP)");
+        goto fail;
     }
 
     /* If a bind address is given, only send packets from that address */
@@ -260,37 +261,38 @@ static NetSocketState *net_socket_fd_init_dgram(VLANState *vlan,
      */
 
     if (is_connected) {
-	if (getsockname(fd, (struct sockaddr *) &saddr, &saddr_len) == 0) {
-	    /* must be bound */
-	    if (saddr.sin_addr.s_addr==0) {
-		fprintf(stderr, "qemu: error: init_dgram: fd=%d unbound, cannot setup multicast dst addr\n",
-			fd);
-		return NULL;
-	    }
-	    /* clone dgram socket */
-	    newfd = net_socket_mcast_create(&saddr, NULL);
-	    if (newfd < 0) {
-		/* error already reported by net_socket_mcast_create() */
-		close(fd);
-		return NULL;
-	    }
-	    /* clone newfd to fd, close newfd */
-	    dup2(newfd, fd);
-	    close(newfd);
+        if (getsockname(fd, (struct sockaddr *) &saddr, &saddr_len) == 0) {
+            /* must be bound */
+            if (saddr.sin_addr.s_addr == 0) {
+                fprintf(stderr, "qemu: error: init_dgram: fd=%d unbound, "
+                        "cannot setup multicast dst addr\n", fd);
+                return NULL;
+            }
+            /* clone dgram socket */
+            newfd = net_socket_mcast_create(&saddr, NULL);
+            if (newfd < 0) {
+                /* error already reported by net_socket_mcast_create() */
+                close(fd);
+                return NULL;
+            }
+            /* clone newfd to fd, close newfd */
+            dup2(newfd, fd);
+            close(newfd);
 
-	} else {
-	    fprintf(stderr, "qemu: error: init_dgram: fd=%d failed getsockname(): %s\n",
-		    fd, strerror(errno));
-	    return NULL;
-	}
+        } else {
+            fprintf(stderr,
+                    "qemu: error: init_dgram: fd=%d failed getsockname(): %s\n",
+                    fd, strerror(errno));
+            return NULL;
+        }
     }
 
     nc = qemu_new_net_client(&net_dgram_socket_info, vlan, NULL, model, name);
 
     snprintf(nc->info_str, sizeof(nc->info_str),
-	    "socket: fd=%d (%s mcast=%s:%d)",
-	    fd, is_connected ? "cloned" : "",
-	    inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
+            "socket: fd=%d (%s mcast=%s:%d)",
+            fd, is_connected ? "cloned" : "",
+            inet_ntoa(saddr.sin_addr), ntohs(saddr.sin_port));
 
     s = DO_UPCAST(NetSocketState, nc, nc);
 
@@ -349,8 +351,9 @@ static NetSocketState *net_socket_fd_init(VLANState *vlan,
 
     if(getsockopt(fd, SOL_SOCKET, SO_TYPE, (char *)&so_type,
         (socklen_t *)&optlen)< 0) {
-	fprintf(stderr, "qemu: error: getsockopt(SO_TYPE) for fd=%d failed\n", fd);
-	return NULL;
+        fprintf(stderr, "qemu: error: getsockopt(SO_TYPE) for fd=%d failed\n",
+                fd);
+        return NULL;
     }
     switch(so_type) {
     case SOCK_DGRAM:
@@ -509,7 +512,7 @@ static int net_socket_mcast_init(VLANState *vlan,
 
     fd = net_socket_mcast_create(&saddr, param_localaddr);
     if (fd < 0)
-	return -1;
+        return -1;
 
     s = net_socket_fd_init(vlan, model, name, fd, 0);
     if (!s)
