@@ -303,3 +303,43 @@ void qmp_set_password(const char *protocol, const char *password,
 
     error_set(errp, QERR_INVALID_PARAMETER, "protocol");
 }
+
+void qmp_expire_password(const char *protocol, const char *whenstr,
+                         Error **errp)
+{
+    time_t when;
+    int rc;
+
+    if (strcmp(whenstr, "now") == 0) {
+        when = 0;
+    } else if (strcmp(whenstr, "never") == 0) {
+        when = TIME_MAX;
+    } else if (whenstr[0] == '+') {
+        when = time(NULL) + strtoull(whenstr+1, NULL, 10);
+    } else {
+        when = strtoull(whenstr, NULL, 10);
+    }
+
+    if (strcmp(protocol, "spice") == 0) {
+        if (!using_spice) {
+            /* correct one? spice isn't a device ,,, */
+            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+            return;
+        }
+        rc = qemu_spice_set_pw_expire(when);
+        if (rc != 0) {
+            error_set(errp, QERR_SET_PASSWD_FAILED);
+        }
+        return;
+    }
+
+    if (strcmp(protocol, "vnc") == 0) {
+        rc = vnc_display_pw_expire(NULL, when);
+        if (rc != 0) {
+            error_set(errp, QERR_SET_PASSWD_FAILED);
+        }
+        return;
+    }
+
+    error_set(errp, QERR_INVALID_PARAMETER, "protocol");
+}

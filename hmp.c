@@ -692,3 +692,13 @@ void hmp_set_password(Monitor *mon, const QDict *qdict)
     qmp_set_password(protocol, password, !!connected, connected, &err);
     hmp_handle_error(mon, &err);
 }
+
+void hmp_expire_password(Monitor *mon, const QDict *qdict)
+{
+    const char *protocol  = qdict_get_str(qdict, "protocol");
+    const char *whenstr = qdict_get_str(qdict, "time");
+    Error *err = NULL;
+
+    qmp_expire_password(protocol, whenstr, &err);
+    hmp_handle_error(mon, &err);
+}

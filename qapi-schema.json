@@ -1304,3 +1304,30 @@
 ##
 { 'command': 'set_password',
   'data': {'protocol': 'str', 'password': 'str', '*connected': 'str'} }
+
+##
+# @expire_password:
+#
+# Expire the password of a remote display server.
+#
+# @protocol: the name of the remote display protocol `vnc' or `spice'
+#
+# @time: when to expire the password.
+#        `now' to expire the password immediately
+#        `never' to cancel password expiration
+#        `+INT' where INT is the number of seconds from now (integer)
+#        `INT' where INT is the absolute time in seconds
+#
+# Returns: Nothing on success
+#          If @protocol is `spice' and Spice is not active, DeviceNotFound
+#          If an error occurs setting password expiration, SetPasswdFailed
+#          If @protocol is not `spice' or 'vnc', InvalidParameter
+#
+# Since: 0.14.0
+#
+# Notes: Time is relative to the server and currently there is no way to
+#        coordinate server time with client time.  It is not recommended to
+#        use the absolute time version of the @time parameter unless you're
+#        sure you are on the same machine as the QEMU instance.
+##
+{ 'command': 'expire_password', 'data': {'protocol': 'str', 'time': 'str'} }

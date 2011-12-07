@@ -884,45 +884,6 @@ static int do_change(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return ret;
 }
 
-static int expire_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    const char *protocol  = qdict_get_str(qdict, "protocol");
-    const char *whenstr = qdict_get_str(qdict, "time");
-    time_t when;
-    int rc;
-
-    if (strcmp(whenstr, "now") == 0) {
-        when = 0;
-    } else if (strcmp(whenstr, "never") == 0) {
-        when = TIME_MAX;
-    } else if (whenstr[0] == '+') {
-        when = time(NULL) + strtoull(whenstr+1, NULL, 10);
-    } else {
-        when = strtoull(whenstr, NULL, 10);
-    }
-
-    if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            /* correct one? spice isn't a device ,,, */
-            qerror_report(QERR_DEVICE_NOT_ACTIVE, "spice");
-            return -1;
-        }
-        rc = qemu_spice_set_pw_expire(when);
-        if (rc != 0) {
-            qerror_report(QERR_SET_PASSWD_FAILED);
-            return -1;
-        }
-        return 0;
-    }
-
-    if (strcmp(protocol, "vnc") == 0) {
-        return vnc_display_pw_expire(NULL, when);
-    }
-
-    qerror_report(QERR_INVALID_PARAMETER, "protocol");
-    return -1;
-}
-
 static int add_graphics_client(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");

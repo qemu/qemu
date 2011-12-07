@@ -1239,8 +1239,7 @@ ETEXI
         .args_type  = "protocol:s,time:s",
         .params     = "protocol time",
         .help       = "set spice/vnc password expire-time",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = expire_password,
+        .mhandler.cmd = hmp_expire_password,
     },
 
 STEXI
