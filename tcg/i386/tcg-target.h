@@ -23,11 +23,6 @@
  */
 #define TCG_TARGET_I386 1
 
-#if defined(__x86_64__)
-# define TCG_TARGET_REG_BITS 64
-#else
-# define TCG_TARGET_REG_BITS 32
-#endif
 //#define TCG_TARGET_WORDS_BIGENDIAN
 
 #if TCG_TARGET_REG_BITS == 64
