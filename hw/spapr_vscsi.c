@@ -947,7 +947,7 @@ static int spapr_vscsi_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
     return 0;
 }
 
-static VIOsPAPRDeviceInfo spapr_vscsi = {
+static VIOsPAPRDeviceInfo spapr_vscsi_info = {
     .init = spapr_vscsi_init,
     .devnode = spapr_vscsi_devnode,
     .dt_name = "v-scsi",
@@ -964,6 +964,6 @@ static VIOsPAPRDeviceInfo spapr_vscsi = {
 
 static void spapr_vscsi_register(void)
 {
-    spapr_vio_bus_register_withprop(&spapr_vscsi);
+    spapr_vio_bus_register_withprop(&spapr_vscsi_info);
 }
 device_init(spapr_vscsi_register);

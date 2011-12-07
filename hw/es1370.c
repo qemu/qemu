@@ -1041,13 +1041,8 @@ static PCIDeviceInfo es1370_info = {
     .vendor_id    = PCI_VENDOR_ID_ENSONIQ,
     .device_id    = PCI_DEVICE_ID_ENSONIQ_ES1370,
     .class_id     = PCI_CLASS_MULTIMEDIA_AUDIO,
-#if 1
     .subsystem_vendor_id = 0x4942,
     .subsystem_id = 0x4c4c,
-#else
-    .subsystem_vendor_id = 0x1274,
-    .subsystem_id = 0x1371,
-#endif
 };
 
 static void es1370_register (void)

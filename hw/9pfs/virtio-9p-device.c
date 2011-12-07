@@ -172,8 +172,7 @@ static PCIDeviceInfo virtio_9p_info = {
     .revision  = VIRTIO_PCI_ABI_VERSION,
     .class_id  = 0x2,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
-                        VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
+        DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
         DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
         DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
         DEFINE_PROP_STRING("mount_tag", VirtIOPCIProxy, fsconf.tag),

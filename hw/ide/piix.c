@@ -237,43 +237,45 @@ PCIDevice *pci_piix4_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
     return dev;
 }
 
-static PCIDeviceInfo piix_ide_info[] = {
-    {
-        .qdev.name    = "piix3-ide",
-        .qdev.size    = sizeof(PCIIDEState),
-        .qdev.no_user = 1,
-        .no_hotplug   = 1,
-        .init         = pci_piix_ide_initfn,
-        .exit         = pci_piix_ide_exitfn,
-        .vendor_id    = PCI_VENDOR_ID_INTEL,
-        .device_id    = PCI_DEVICE_ID_INTEL_82371SB_1,
-        .class_id     = PCI_CLASS_STORAGE_IDE,
-    },{
-        .qdev.name    = "piix3-ide-xen",
-        .qdev.size    = sizeof(PCIIDEState),
-        .qdev.no_user = 1,
-        .qdev.unplug  = pci_piix3_xen_ide_unplug,
-        .init         = pci_piix_ide_initfn,
-        .vendor_id    = PCI_VENDOR_ID_INTEL,
-        .device_id    = PCI_DEVICE_ID_INTEL_82371SB_1,
-        .class_id     = PCI_CLASS_STORAGE_IDE,
-    },{
-        .qdev.name    = "piix4-ide",
-        .qdev.size    = sizeof(PCIIDEState),
-        .qdev.no_user = 1,
-        .no_hotplug   = 1,
-        .init         = pci_piix_ide_initfn,
-        .exit         = pci_piix_ide_exitfn,
-        .vendor_id    = PCI_VENDOR_ID_INTEL,
-        .device_id    = PCI_DEVICE_ID_INTEL_82371AB,
-        .class_id     = PCI_CLASS_STORAGE_IDE,
-    },{
-        /* end of list */
-    }
+static PCIDeviceInfo piix3_ide_info = {
+    .qdev.name    = "piix3-ide",
+    .qdev.size    = sizeof(PCIIDEState),
+    .qdev.no_user = 1,
+    .no_hotplug   = 1,
+    .init         = pci_piix_ide_initfn,
+    .exit         = pci_piix_ide_exitfn,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = PCI_DEVICE_ID_INTEL_82371SB_1,
+    .class_id     = PCI_CLASS_STORAGE_IDE,
+};
+
+static PCIDeviceInfo piix3_ide_xen_info = {
+    .qdev.name    = "piix3-ide-xen",
+    .qdev.size    = sizeof(PCIIDEState),
+    .qdev.no_user = 1,
+    .qdev.unplug  = pci_piix3_xen_ide_unplug,
+    .init         = pci_piix_ide_initfn,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = PCI_DEVICE_ID_INTEL_82371SB_1,
+    .class_id     = PCI_CLASS_STORAGE_IDE,
+};
+
+static PCIDeviceInfo piix4_ide_info = {
+    .qdev.name    = "piix4-ide",
+    .qdev.size    = sizeof(PCIIDEState),
+    .qdev.no_user = 1,
+    .no_hotplug   = 1,
+    .init         = pci_piix_ide_initfn,
+    .exit         = pci_piix_ide_exitfn,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = PCI_DEVICE_ID_INTEL_82371AB,
+    .class_id     = PCI_CLASS_STORAGE_IDE,
 };
 
 static void piix_ide_register(void)
 {
-    pci_qdev_register_many(piix_ide_info);
+    pci_qdev_register(&piix3_ide_info);
+    pci_qdev_register(&piix3_ide_xen_info);
+    pci_qdev_register(&piix4_ide_info);
 }
 device_init(piix_ide_register);

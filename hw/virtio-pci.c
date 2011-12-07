@@ -806,98 +806,96 @@ static int virtio_balloon_exit_pci(PCIDevice *pci_dev)
     return virtio_exit_pci(pci_dev);
 }
 
-static PCIDeviceInfo virtio_info[] = {
-    {
-        .qdev.name = "virtio-blk-pci",
-        .qdev.alias = "virtio-blk",
-        .qdev.size = sizeof(VirtIOPCIProxy),
-        .init      = virtio_blk_init_pci,
-        .exit      = virtio_blk_exit_pci,
-        .vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET,
-        .device_id = PCI_DEVICE_ID_VIRTIO_BLOCK,
-        .revision  = VIRTIO_PCI_ABI_VERSION,
-        .class_id  = PCI_CLASS_STORAGE_SCSI,
-        .qdev.props = (Property[]) {
-            DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
-            DEFINE_BLOCK_PROPERTIES(VirtIOPCIProxy, block),
-            DEFINE_PROP_STRING("serial", VirtIOPCIProxy, block_serial),
-            DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
-                            VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
-            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
-            DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),
-            DEFINE_PROP_END_OF_LIST(),
-        },
-        .qdev.reset = virtio_pci_reset,
-    },{
-        .qdev.name  = "virtio-net-pci",
-        .qdev.alias = "virtio-net",
-        .qdev.size  = sizeof(VirtIOPCIProxy),
-        .init       = virtio_net_init_pci,
-        .exit       = virtio_net_exit_pci,
-        .romfile    = "pxe-virtio.rom",
-        .vendor_id  = PCI_VENDOR_ID_REDHAT_QUMRANET,
-        .device_id  = PCI_DEVICE_ID_VIRTIO_NET,
-        .revision   = VIRTIO_PCI_ABI_VERSION,
-        .class_id   = PCI_CLASS_NETWORK_ETHERNET,
-        .qdev.props = (Property[]) {
-            DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
-                            VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false),
-            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
-            DEFINE_VIRTIO_NET_FEATURES(VirtIOPCIProxy, host_features),
-            DEFINE_NIC_PROPERTIES(VirtIOPCIProxy, nic),
-            DEFINE_PROP_UINT32("x-txtimer", VirtIOPCIProxy,
-                               net.txtimer, TX_TIMER_INTERVAL),
-            DEFINE_PROP_INT32("x-txburst", VirtIOPCIProxy,
-                              net.txburst, TX_BURST),
-            DEFINE_PROP_STRING("tx", VirtIOPCIProxy, net.tx),
-            DEFINE_PROP_END_OF_LIST(),
-        },
-        .qdev.reset = virtio_pci_reset,
-    },{
-        .qdev.name = "virtio-serial-pci",
-        .qdev.alias = "virtio-serial",
-        .qdev.size = sizeof(VirtIOPCIProxy),
-        .init      = virtio_serial_init_pci,
-        .exit      = virtio_serial_exit_pci,
-        .vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET,
-        .device_id = PCI_DEVICE_ID_VIRTIO_CONSOLE,
-        .revision  = VIRTIO_PCI_ABI_VERSION,
-        .class_id  = PCI_CLASS_COMMUNICATION_OTHER,
-        .qdev.props = (Property[]) {
-            DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags,
-                            VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
-            DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors,
-                               DEV_NVECTORS_UNSPECIFIED),
-            DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
-            DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
-            DEFINE_PROP_UINT32("max_ports", VirtIOPCIProxy,
-                               serial.max_virtserial_ports, 31),
-            DEFINE_PROP_END_OF_LIST(),
-        },
-        .qdev.reset = virtio_pci_reset,
-    },{
-        .qdev.name = "virtio-balloon-pci",
-        .qdev.alias = "virtio-balloon",
-        .qdev.size = sizeof(VirtIOPCIProxy),
-        .init      = virtio_balloon_init_pci,
-        .exit      = virtio_balloon_exit_pci,
-        .vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET,
-        .device_id = PCI_DEVICE_ID_VIRTIO_BALLOON,
-        .revision  = VIRTIO_PCI_ABI_VERSION,
-        .class_id  = PCI_CLASS_MEMORY_RAM,
-        .qdev.props = (Property[]) {
-            DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
-            DEFINE_PROP_END_OF_LIST(),
-        },
-        .qdev.reset = virtio_pci_reset,
-    },{
-        /* end of list */
-    }
+static PCIDeviceInfo virtio_blk_info = {
+    .qdev.name = "virtio-blk-pci",
+    .qdev.alias = "virtio-blk",
+    .qdev.size = sizeof(VirtIOPCIProxy),
+    .init      = virtio_blk_init_pci,
+    .exit      = virtio_blk_exit_pci,
+    .vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET,
+    .device_id = PCI_DEVICE_ID_VIRTIO_BLOCK,
+    .revision  = VIRTIO_PCI_ABI_VERSION,
+    .class_id  = PCI_CLASS_STORAGE_SCSI,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
+        DEFINE_BLOCK_PROPERTIES(VirtIOPCIProxy, block),
+        DEFINE_PROP_STRING("serial", VirtIOPCIProxy, block_serial),
+        DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
+        DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
+        DEFINE_VIRTIO_BLK_FEATURES(VirtIOPCIProxy, host_features),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+    .qdev.reset = virtio_pci_reset,
+};
+
+static PCIDeviceInfo virtio_net_info = {
+    .qdev.name  = "virtio-net-pci",
+    .qdev.alias = "virtio-net",
+    .qdev.size  = sizeof(VirtIOPCIProxy),
+    .init       = virtio_net_init_pci,
+    .exit       = virtio_net_exit_pci,
+    .romfile    = "pxe-virtio.rom",
+    .vendor_id  = PCI_VENDOR_ID_REDHAT_QUMRANET,
+    .device_id  = PCI_DEVICE_ID_VIRTIO_NET,
+    .revision   = VIRTIO_PCI_ABI_VERSION,
+    .class_id   = PCI_CLASS_NETWORK_ETHERNET,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, false),
+        DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 3),
+        DEFINE_VIRTIO_NET_FEATURES(VirtIOPCIProxy, host_features),
+        DEFINE_NIC_PROPERTIES(VirtIOPCIProxy, nic),
+        DEFINE_PROP_UINT32("x-txtimer", VirtIOPCIProxy, net.txtimer, TX_TIMER_INTERVAL),
+        DEFINE_PROP_INT32("x-txburst", VirtIOPCIProxy, net.txburst, TX_BURST),
+        DEFINE_PROP_STRING("tx", VirtIOPCIProxy, net.tx),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+    .qdev.reset = virtio_pci_reset,
+};
+
+static PCIDeviceInfo virtio_serial_info = {
+    .qdev.name = "virtio-serial-pci",
+    .qdev.alias = "virtio-serial",
+    .qdev.size = sizeof(VirtIOPCIProxy),
+    .init      = virtio_serial_init_pci,
+    .exit      = virtio_serial_exit_pci,
+    .vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET,
+    .device_id = PCI_DEVICE_ID_VIRTIO_CONSOLE,
+    .revision  = VIRTIO_PCI_ABI_VERSION,
+    .class_id  = PCI_CLASS_COMMUNICATION_OTHER,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_BIT("ioeventfd", VirtIOPCIProxy, flags, VIRTIO_PCI_FLAG_USE_IOEVENTFD_BIT, true),
+        DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, DEV_NVECTORS_UNSPECIFIED),
+        DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
+        DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+        DEFINE_PROP_UINT32("max_ports", VirtIOPCIProxy, serial.max_virtserial_ports, 31),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+    .qdev.reset = virtio_pci_reset,
+};
+
+static PCIDeviceInfo virtio_balloon_info = {
+    .qdev.name = "virtio-balloon-pci",
+    .qdev.alias = "virtio-balloon",
+    .qdev.size = sizeof(VirtIOPCIProxy),
+    .init      = virtio_balloon_init_pci,
+    .exit      = virtio_balloon_exit_pci,
+    .vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET,
+    .device_id = PCI_DEVICE_ID_VIRTIO_BALLOON,
+    .revision  = VIRTIO_PCI_ABI_VERSION,
+    .class_id  = PCI_CLASS_MEMORY_RAM,
+    .qdev.props = (Property[]) {
+        DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+    .qdev.reset = virtio_pci_reset,
 };
 
 static void virtio_pci_register_devices(void)
 {
-    pci_qdev_register_many(virtio_info);
+    pci_qdev_register(&virtio_blk_info);
+    pci_qdev_register(&virtio_net_info);
+    pci_qdev_register(&virtio_serial_info);
+    pci_qdev_register(&virtio_balloon_info);
 }
 
 device_init(virtio_pci_register_devices)

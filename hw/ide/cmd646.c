@@ -325,27 +325,24 @@ void pci_cmd646_ide_init(PCIBus *bus, DriveInfo **hd_table,
     pci_ide_create_devs(dev, hd_table);
 }
 
-static PCIDeviceInfo cmd646_ide_info[] = {
-    {
-        .qdev.name    = "cmd646-ide",
-        .qdev.size    = sizeof(PCIIDEState),
-        .init         = pci_cmd646_ide_initfn,
-        .exit         = pci_cmd646_ide_exitfn,
-        .vendor_id    = PCI_VENDOR_ID_CMD,
-        .device_id    = PCI_DEVICE_ID_CMD_646,
-        .revision     = 0x07, // IDE controller revision
-        .class_id     = PCI_CLASS_STORAGE_IDE,
-        .qdev.props   = (Property[]) {
-            DEFINE_PROP_UINT32("secondary", PCIIDEState, secondary, 0),
-            DEFINE_PROP_END_OF_LIST(),
-        },
-    },{
-        /* end of list */
-    }
+static PCIDeviceInfo cmd646_ide_info = {
+    .qdev.name    = "cmd646-ide",
+    .qdev.size    = sizeof(PCIIDEState),
+    .init         = pci_cmd646_ide_initfn,
+    .exit         = pci_cmd646_ide_exitfn,
+    .vendor_id    = PCI_VENDOR_ID_CMD,
+    .device_id    = PCI_DEVICE_ID_CMD_646,
+    /* IDE controller revision */
+    .revision     = 0x07,
+    .class_id     = PCI_CLASS_STORAGE_IDE,
+    .qdev.props   = (Property[]) {
+        DEFINE_PROP_UINT32("secondary", PCIIDEState, secondary, 0),
+        DEFINE_PROP_END_OF_LIST(),
+    },
 };
 
 static void cmd646_ide_register(void)
 {
-    pci_qdev_register_many(cmd646_ide_info);
+    pci_qdev_register(&cmd646_ide_info);
 }
 device_init(cmd646_ide_register);

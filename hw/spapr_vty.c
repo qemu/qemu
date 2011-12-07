@@ -135,7 +135,7 @@ void spapr_vty_create(VIOsPAPRBus *bus, uint32_t reg, CharDriverState *chardev)
     qdev_init_nofail(dev);
 }
 
-static VIOsPAPRDeviceInfo spapr_vty = {
+static VIOsPAPRDeviceInfo spapr_vty_info = {
     .init = spapr_vty_init,
     .dt_name = "vty",
     .dt_type = "serial",
@@ -163,7 +163,7 @@ VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
     selected = NULL;
     QTAILQ_FOREACH(iter, &bus->bus.children, sibling) {
         /* Only look at VTY devices */
-        if (qdev_get_info(iter) != &spapr_vty.qdev) {
+        if (qdev_get_info(iter) != &spapr_vty_info.qdev) {
             continue;
         }
 
@@ -203,8 +203,8 @@ static VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg)
 
 static void spapr_vty_register(void)
 {
-    spapr_vio_bus_register_withprop(&spapr_vty);
     spapr_register_hypercall(H_PUT_TERM_CHAR, h_put_term_char);
     spapr_register_hypercall(H_GET_TERM_CHAR, h_get_term_char);
+    spapr_vio_bus_register_withprop(&spapr_vty_info);
 }
 device_init(spapr_vty_register);

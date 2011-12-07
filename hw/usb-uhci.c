@@ -1192,8 +1192,7 @@ static Property uhci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static PCIDeviceInfo uhci_info[] = {
-    {
+static PCIDeviceInfo piix3_uhci_info = {
         .qdev.name    = "piix3-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
         .qdev.vmsd    = &vmstate_uhci,
@@ -1204,7 +1203,9 @@ static PCIDeviceInfo uhci_info[] = {
         .revision     = 0x01,
         .class_id     = PCI_CLASS_SERIAL_USB,
         .qdev.props   = uhci_properties,
-    },{
+};
+
+static PCIDeviceInfo piix4_uhci_info = {
         .qdev.name    = "piix4-usb-uhci",
         .qdev.size    = sizeof(UHCIState),
         .qdev.vmsd    = &vmstate_uhci,
@@ -1215,55 +1216,65 @@ static PCIDeviceInfo uhci_info[] = {
         .revision     = 0x01,
         .class_id     = PCI_CLASS_SERIAL_USB,
         .qdev.props   = uhci_properties,
-    },{
-        .qdev.name    = "vt82c686b-usb-uhci",
-        .qdev.size    = sizeof(UHCIState),
-        .qdev.vmsd    = &vmstate_uhci,
-        .init         = usb_uhci_vt82c686b_initfn,
-        .exit         = usb_uhci_exit,
-        .vendor_id    = PCI_VENDOR_ID_VIA,
-        .device_id    = PCI_DEVICE_ID_VIA_UHCI,
-        .revision     = 0x01,
-        .class_id     = PCI_CLASS_SERIAL_USB,
-        .qdev.props   = uhci_properties,
-    },{
-        .qdev.name    = "ich9-usb-uhci1",
-        .qdev.size    = sizeof(UHCIState),
-        .qdev.vmsd    = &vmstate_uhci,
-        .init         = usb_uhci_common_initfn,
-        .vendor_id    = PCI_VENDOR_ID_INTEL,
-        .device_id    = PCI_DEVICE_ID_INTEL_82801I_UHCI1,
-        .revision     = 0x03,
-        .class_id     = PCI_CLASS_SERIAL_USB,
-        .qdev.props   = uhci_properties,
-    },{
-        .qdev.name    = "ich9-usb-uhci2",
-        .qdev.size    = sizeof(UHCIState),
-        .qdev.vmsd    = &vmstate_uhci,
-        .init         = usb_uhci_common_initfn,
-        .vendor_id    = PCI_VENDOR_ID_INTEL,
-        .device_id    = PCI_DEVICE_ID_INTEL_82801I_UHCI2,
-        .revision     = 0x03,
-        .class_id     = PCI_CLASS_SERIAL_USB,
-        .qdev.props   = uhci_properties,
-    },{
-        .qdev.name    = "ich9-usb-uhci3",
-        .qdev.size    = sizeof(UHCIState),
-        .qdev.vmsd    = &vmstate_uhci,
-        .init         = usb_uhci_common_initfn,
-        .vendor_id    = PCI_VENDOR_ID_INTEL,
-        .device_id    = PCI_DEVICE_ID_INTEL_82801I_UHCI3,
-        .revision     = 0x03,
-        .class_id     = PCI_CLASS_SERIAL_USB,
-        .qdev.props   = uhci_properties,
-    },{
-        /* end of list */
-    }
+};
+
+static PCIDeviceInfo vt82c686b_uhci_info = {
+    .qdev.name    = "vt82c686b-usb-uhci",
+    .qdev.size    = sizeof(UHCIState),
+    .qdev.vmsd    = &vmstate_uhci,
+    .init         = usb_uhci_vt82c686b_initfn,
+    .exit         = usb_uhci_exit,
+    .vendor_id    = PCI_VENDOR_ID_VIA,
+    .device_id    = PCI_DEVICE_ID_VIA_UHCI,
+    .revision     = 0x01,
+    .class_id     = PCI_CLASS_SERIAL_USB,
+    .qdev.props   = uhci_properties,
+};
+
+static PCIDeviceInfo ich9_uhci1_info = {
+    .qdev.name    = "ich9-usb-uhci1",
+    .qdev.size    = sizeof(UHCIState),
+    .qdev.vmsd    = &vmstate_uhci,
+    .init         = usb_uhci_common_initfn,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = PCI_DEVICE_ID_INTEL_82801I_UHCI1,
+    .revision     = 0x03,
+    .class_id     = PCI_CLASS_SERIAL_USB,
+    .qdev.props   = uhci_properties,
+};
+
+static PCIDeviceInfo ich9_uhci2_info = {
+    .qdev.name    = "ich9-usb-uhci2",
+    .qdev.size    = sizeof(UHCIState),
+    .qdev.vmsd    = &vmstate_uhci,
+    .init         = usb_uhci_common_initfn,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = PCI_DEVICE_ID_INTEL_82801I_UHCI2,
+    .revision     = 0x03,
+    .class_id     = PCI_CLASS_SERIAL_USB,
+    .qdev.props   = uhci_properties,
+};
+
+static PCIDeviceInfo ich9_uhci3_info = {
+    .qdev.name    = "ich9-usb-uhci3",
+    .qdev.size    = sizeof(UHCIState),
+    .qdev.vmsd    = &vmstate_uhci,
+    .init         = usb_uhci_common_initfn,
+    .vendor_id    = PCI_VENDOR_ID_INTEL,
+    .device_id    = PCI_DEVICE_ID_INTEL_82801I_UHCI3,
+    .revision     = 0x03,
+    .class_id     = PCI_CLASS_SERIAL_USB,
+    .qdev.props   = uhci_properties,
 };
 
 static void uhci_register(void)
 {
-    pci_qdev_register_many(uhci_info);
+    pci_qdev_register(&piix3_uhci_info);
+    pci_qdev_register(&piix4_uhci_info);
+    pci_qdev_register(&vt82c686b_uhci_info);
+    pci_qdev_register(&ich9_uhci1_info);
+    pci_qdev_register(&ich9_uhci2_info);
+    pci_qdev_register(&ich9_uhci3_info);
 }
 device_init(uhci_register);
 

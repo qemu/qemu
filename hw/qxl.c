@@ -1824,7 +1824,7 @@ static Property qxl_properties[] = {
         DEFINE_PROP_END_OF_LIST(),
 };
 
-static PCIDeviceInfo qxl_info_primary = {
+static PCIDeviceInfo qxl_primary_info = {
     .qdev.name    = "qxl-vga",
     .qdev.desc    = "Spice QXL GPU (primary, vga compatible)",
     .qdev.size    = sizeof(PCIQXLDevice),
@@ -1839,7 +1839,7 @@ static PCIDeviceInfo qxl_info_primary = {
     .qdev.props   = qxl_properties,
 };
 
-static PCIDeviceInfo qxl_info_secondary = {
+static PCIDeviceInfo qxl_secondary_info = {
     .qdev.name    = "qxl",
     .qdev.desc    = "Spice QXL GPU (secondary)",
     .qdev.size    = sizeof(PCIQXLDevice),
@@ -1854,8 +1854,8 @@ static PCIDeviceInfo qxl_info_secondary = {
 
 static void qxl_register(void)
 {
-    pci_qdev_register(&qxl_info_primary);
-    pci_qdev_register(&qxl_info_secondary);
+    pci_qdev_register(&qxl_primary_info);
+    pci_qdev_register(&qxl_secondary_info);
 }
 
 device_init(qxl_register);
