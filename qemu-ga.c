@@ -27,6 +27,7 @@
 #include "signal.h"
 #include "qerror.h"
 #include "error_int.h"
+#include "qapi/qmp-core.h"
 
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
 #define QGA_PIDFILE_DEFAULT "/var/run/qemu-ga.pid"
@@ -91,6 +92,8 @@ static void usage(const char *cmd)
 "  -v, --verbose     log extra debugging information\n"
 "  -V, --version     print version information and exit\n"
 "  -d, --daemonize   become a daemon\n"
+"  -b, --blacklist   comma-seperated list of RPCs to disable (no spaces, \"?\""
+"                    to list available RPCs)\n"
 "  -h, --help        display this help and exit\n"
 "\n"
 "Report bugs to <mdroth@linux.vnet.ibm.com>\n"
@@ -548,7 +551,7 @@ static void init_guest_agent(GAState *s)
 
 int main(int argc, char **argv)
 {
-    const char *sopt = "hVvdm:p:l:f:";
+    const char *sopt = "hVvdm:p:l:f:b:";
     const char *method = NULL, *path = NULL, *pidfile = QGA_PIDFILE_DEFAULT;
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
@@ -559,12 +562,15 @@ int main(int argc, char **argv)
         { "method", 0, NULL, 'm' },
         { "path", 0, NULL, 'p' },
         { "daemonize", 0, NULL, 'd' },
+        { "blacklist", 0, NULL, 'b' },
         { NULL, 0, NULL, 0 }
     };
-    int opt_ind = 0, ch, daemonize = 0;
+    int opt_ind = 0, ch, daemonize = 0, i, j, len;
     GLogLevelFlags log_level = G_LOG_LEVEL_ERROR | G_LOG_LEVEL_CRITICAL;
     FILE *log_file = stderr;
     GAState *s;
+
+    module_call_init(MODULE_INIT_QAPI);
 
     while ((ch = getopt_long(argc, argv, sopt, lopt, &opt_ind)) != -1) {
         switch (ch) {
@@ -595,6 +601,32 @@ int main(int argc, char **argv)
         case 'd':
             daemonize = 1;
             break;
+        case 'b': {
+            char **list_head, **list;
+            if (*optarg == '?') {
+                list_head = list = qmp_get_command_list();
+                while (*list != NULL) {
+                    printf("%s\n", *list);
+                    g_free(*list);
+                    list++;
+                }
+                g_free(list_head);
+                return 0;
+            }
+            for (j = 0, i = 0, len = strlen(optarg); i < len; i++) {
+                if (optarg[i] == ',') {
+                    optarg[i] = 0;
+                    qmp_disable_command(&optarg[j]);
+                    g_debug("disabling command: %s", &optarg[j]);
+                    j = i + 1;
+                }
+            }
+            if (j < i) {
+                qmp_disable_command(&optarg[j]);
+                g_debug("disabling command: %s", &optarg[j]);
+            }
+            break;
+        }
         case 'h':
             usage(argv[0]);
             return 0;
@@ -624,7 +656,6 @@ int main(int argc, char **argv)
     ga_command_state_init_all(s->command_state);
     ga_state = s;
 
-    module_call_init(MODULE_INIT_QAPI);
     init_guest_agent(ga_state);
     register_signal_handlers();
 

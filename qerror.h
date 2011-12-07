@@ -66,6 +66,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_COMMAND_NOT_FOUND \
     "{ 'class': 'CommandNotFound', 'data': { 'name': %s } }"
 
+#define QERR_COMMAND_DISABLED \
+    "{ 'class': 'CommandDisabled', 'data': { 'name': %s } }"
+
 #define QERR_DEVICE_ENCRYPTED \
     "{ 'class': 'DeviceEncrypted', 'data': { 'device': %s } }"
 
