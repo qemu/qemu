@@ -884,63 +884,6 @@ static int do_change(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return ret;
 }
 
-static int set_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
-{
-    const char *protocol  = qdict_get_str(qdict, "protocol");
-    const char *password  = qdict_get_str(qdict, "password");
-    const char *connected = qdict_get_try_str(qdict, "connected");
-    int disconnect_if_connected = 0;
-    int fail_if_connected = 0;
-    int rc;
-
-    if (connected) {
-        if (strcmp(connected, "fail") == 0) {
-            fail_if_connected = 1;
-        } else if (strcmp(connected, "disconnect") == 0) {
-            disconnect_if_connected = 1;
-        } else if (strcmp(connected, "keep") == 0) {
-            /* nothing */
-        } else {
-            qerror_report(QERR_INVALID_PARAMETER, "connected");
-            return -1;
-        }
-    }
-
-    if (strcmp(protocol, "spice") == 0) {
-        if (!using_spice) {
-            /* correct one? spice isn't a device ,,, */
-            qerror_report(QERR_DEVICE_NOT_ACTIVE, "spice");
-            return -1;
-        }
-        rc = qemu_spice_set_passwd(password, fail_if_connected,
-                                   disconnect_if_connected);
-        if (rc != 0) {
-            qerror_report(QERR_SET_PASSWD_FAILED);
-            return -1;
-        }
-        return 0;
-    }
-
-    if (strcmp(protocol, "vnc") == 0) {
-        if (fail_if_connected || disconnect_if_connected) {
-            /* vnc supports "connected=keep" only */
-            qerror_report(QERR_INVALID_PARAMETER, "connected");
-            return -1;
-        }
-        /* Note that setting an empty password will not disable login through
-         * this interface. */
-        rc = vnc_display_password(NULL, password);
-        if (rc < 0) {
-            qerror_report(QERR_SET_PASSWD_FAILED);
-            return -1;
-        }
-        return 0;
-    }
-
-    qerror_report(QERR_INVALID_PARAMETER, "protocol");
-    return -1;
-}
-
 static int expire_password(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *protocol  = qdict_get_str(qdict, "protocol");

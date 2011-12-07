@@ -1275,3 +1275,32 @@
 { 'command': 'qom-set',
   'data': { 'path': 'str', 'property': 'str', 'value': 'visitor' },
   'gen': 'no' }
+
+##
+# @set_password:
+#
+# Sets the password of a remote display session.
+#
+# @protocol: `vnc' to modify the VNC server password
+#            `spice' to modify the Spice server password
+#
+# @password: the new password
+#
+# @connected: #optional how to handle existing clients when changing the
+#                       password.  If nothing is specified, defaults to `keep' 
+#                       `fail' to fail the command if clients are connected
+#                       `disconnect' to disconnect existing clients
+#                       `keep' to maintain existing clients
+#
+# Returns: Nothing on success
+#          If Spice is not enabled, DeviceNotFound
+#          If @protocol does not support connected, InvalidParameter
+#          If @protocol is invalid, InvalidParameter
+#          If any other error occurs, SetPasswdFailed
+#
+# Notes: If VNC is not enabled, SetPasswdFailed is returned.
+#
+# Since: 0.14.0
+##
+{ 'command': 'set_password',
+  'data': {'protocol': 'str', 'password': 'str', '*connected': 'str'} }

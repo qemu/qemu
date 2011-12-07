@@ -681,3 +681,14 @@ void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict)
     int64_t value = qdict_get_int(qdict, "value");
     qmp_migrate_set_speed(value, NULL);
 }
+
+void hmp_set_password(Monitor *mon, const QDict *qdict)
+{
+    const char *protocol  = qdict_get_str(qdict, "protocol");
+    const char *password  = qdict_get_str(qdict, "password");
+    const char *connected = qdict_get_try_str(qdict, "connected");
+    Error *err = NULL;
+
+    qmp_set_password(protocol, password, !!connected, connected, &err);
+    hmp_handle_error(mon, &err);
+}

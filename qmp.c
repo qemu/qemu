@@ -16,6 +16,8 @@
 #include "qemu-common.h"
 #include "sysemu.h"
 #include "qmp-commands.h"
+#include "ui/qemu-spice.h"
+#include "ui/vnc.h"
 #include "kvm.h"
 #include "arch_init.h"
 #include "hw/qdev.h"
@@ -248,4 +250,56 @@ out:
     }
 
     return 0;
+}
+
+void qmp_set_password(const char *protocol, const char *password,
+                      bool has_connected, const char *connected, Error **errp)
+{
+    int disconnect_if_connected = 0;
+    int fail_if_connected = 0;
+    int rc;
+
+    if (has_connected) {
+        if (strcmp(connected, "fail") == 0) {
+            fail_if_connected = 1;
+        } else if (strcmp(connected, "disconnect") == 0) {
+            disconnect_if_connected = 1;
+        } else if (strcmp(connected, "keep") == 0) {
+            /* nothing */
+        } else {
+            error_set(errp, QERR_INVALID_PARAMETER, "connected");
+            return;
+        }
+    }
+
+    if (strcmp(protocol, "spice") == 0) {
+        if (!using_spice) {
+            /* correct one? spice isn't a device ,,, */
+            error_set(errp, QERR_DEVICE_NOT_ACTIVE, "spice");
+            return;
+        }
+        rc = qemu_spice_set_passwd(password, fail_if_connected,
+                                   disconnect_if_connected);
+        if (rc != 0) {
+            error_set(errp, QERR_SET_PASSWD_FAILED);
+        }
+        return;
+    }
+
+    if (strcmp(protocol, "vnc") == 0) {
+        if (fail_if_connected || disconnect_if_connected) {
+            /* vnc supports "connected=keep" only */
+            error_set(errp, QERR_INVALID_PARAMETER, "connected");
+            return;
+        }
+        /* Note that setting an empty password will not disable login through
+         * this interface. */
+        rc = vnc_display_password(NULL, password);
+        if (rc < 0) {
+            error_set(errp, QERR_SET_PASSWD_FAILED);
+        }
+        return;
+    }
+
+    error_set(errp, QERR_INVALID_PARAMETER, "protocol");
 }
