@@ -43,7 +43,11 @@
 #
 # Since: 0.15.0
 ##
-{ 'type': 'GuestAgentInfo', 'data': {'version': 'str'} }
+{ 'type': 'GuestAgentCommandInfo',
+  'data': { 'name': 'str', 'enabled': 'bool' } }
+{ 'type': 'GuestAgentInfo',
+  'data': { 'version': 'str',
+            'supported_commands': ['GuestAgentCommandInfo'] } }
 { 'command': 'guest-info',
   'returns': 'GuestAgentInfo' }
 
