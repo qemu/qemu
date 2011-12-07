@@ -123,7 +123,7 @@ typedef struct TCGRelocation {
     int type;
     uint8_t *ptr;
     tcg_target_long addend;
-} TCGRelocation; 
+} TCGRelocation;
 
 typedef struct TCGLabel {
     int has_value;
@@ -260,7 +260,7 @@ typedef int TCGv_i64;
 /* A pure function only reads its arguments and TCG global variables
    and cannot raise exceptions. Hence a call to a pure function can be
    safely suppressed if the return value is not used. */
-#define TCG_CALL_PURE           0x0010 
+#define TCG_CALL_PURE           0x0010
 /* A const function only reads its arguments and does not use TCG
    global variables. Hence a call to such a function does not
    save TCG global variables back to their canonical location. */
@@ -344,7 +344,7 @@ struct TCGContext {
     int nb_globals;
     int nb_temps;
     /* index of free temps, -1 if none */
-    int first_free_temp[TCG_TYPE_COUNT * 2]; 
+    int first_free_temp[TCG_TYPE_COUNT * 2];
 
     /* goto_tb support */
     uint8_t *code_buf;
@@ -355,7 +355,7 @@ struct TCGContext {
     /* liveness analysis */
     uint16_t *op_dead_args; /* for each operation, each bit tells if the
                                corresponding argument is dead */
-    
+
     /* tells in which temporary a given register is. It does not take
        into account fixed registers */
     int reg_to_temp[TCG_TARGET_NB_REGS];
