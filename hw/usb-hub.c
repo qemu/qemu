@@ -557,6 +557,6 @@ static struct DeviceInfo hub_info = {
 
 static void usb_hub_register_devices(void)
 {
-    usb_qdev_register(&hub_info, NULL, NULL);
+    usb_qdev_register(&hub_info);
 }
 device_init(usb_hub_register_devices)

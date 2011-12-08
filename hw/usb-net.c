@@ -1413,6 +1413,7 @@ static struct DeviceInfo net_info = {
 
 static void usb_net_register_devices(void)
 {
-    usb_qdev_register(&net_info, "net", usb_net_init);
+    usb_qdev_register(&net_info);
+    usb_legacy_register("usb-net", "net", usb_net_init);
 }
 device_init(usb_net_register_devices)

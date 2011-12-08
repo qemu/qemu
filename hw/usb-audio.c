@@ -704,7 +704,8 @@ static struct DeviceInfo usb_audio_info = {
 
 static void usb_audio_register_devices(void)
 {
-    usb_qdev_register(&usb_audio_info, "audio", NULL);
+    usb_qdev_register(&usb_audio_info);
+    usb_legacy_register("usb-audio", "audio", NULL);
 }
 
 device_init(usb_audio_register_devices)

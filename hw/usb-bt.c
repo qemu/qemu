@@ -550,6 +550,6 @@ static struct DeviceInfo bt_info = {
 
 static void usb_bt_register_devices(void)
 {
-    usb_qdev_register(&bt_info, NULL, NULL);
+    usb_qdev_register(&bt_info);
 }
 device_init(usb_bt_register_devices)
