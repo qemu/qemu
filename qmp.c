@@ -343,3 +343,10 @@ void qmp_expire_password(const char *protocol, const char *whenstr,
 
     error_set(errp, QERR_INVALID_PARAMETER, "protocol");
 }
+
+void qmp_change_vnc_password(const char *password, Error **errp)
+{
+    if (vnc_display_password(NULL, password) < 0) {
+        error_set(errp, QERR_SET_PASSWD_FAILED);
+    }
+}

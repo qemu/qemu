@@ -2018,3 +2018,9 @@ EQMP
 	.args_type  = "path:s,property:s",
 	.mhandler.cmd_new = qmp_qom_get,
     },
+
+    {
+        .name       = "change-vnc-password",
+        .args_type  = "password:s",
+        .mhandler.cmd_new = qmp_marshal_input_change_vnc_password,
+    },
