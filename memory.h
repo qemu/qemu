@@ -277,6 +277,15 @@ uint64_t memory_region_size(MemoryRegion *mr);
 bool memory_region_is_ram(MemoryRegion *mr);
 
 /**
+ * memory_region_is_rom: check whether a memory region is ROM
+ *
+ * Returns %true is a memory region is read-only memory.
+ *
+ * @mr: the memory region being queried
+ */
+bool memory_region_is_rom(MemoryRegion *mr);
+
+/**
  * memory_region_get_ram_ptr: Get a pointer into a RAM memory region.
  *
  * Returns a host pointer to a RAM memory region (created with

@@ -1074,6 +1074,11 @@ bool memory_region_is_ram(MemoryRegion *mr)
     return mr->ram;
 }
 
+bool memory_region_is_rom(MemoryRegion *mr)
+{
+    return mr->ram && mr->readonly;
+}
+
 void memory_region_set_offset(MemoryRegion *mr, target_phys_addr_t offset)
 {
     mr->offset = offset;
