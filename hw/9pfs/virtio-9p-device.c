@@ -174,6 +174,7 @@ static Property virtio_9p_properties[] = {
 
 static void virtio_9p_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = virtio_9p_init_pci;
@@ -181,19 +182,20 @@ static void virtio_9p_class_init(ObjectClass *klass, void *data)
     k->device_id = 0x1009;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = 0x2;
+    dc->props = virtio_9p_properties;
+    dc->reset = virtio_pci_reset;
 }
 
-static DeviceInfo virtio_9p_info = {
-    .name = "virtio-9p-pci",
-    .size = sizeof(VirtIOPCIProxy),
-    .props = virtio_9p_properties,
-    .class_init = virtio_9p_class_init,
-    .reset = virtio_pci_reset,
+static TypeInfo virtio_9p_info = {
+    .name          = "virtio-9p-pci",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(VirtIOPCIProxy),
+    .class_init    = virtio_9p_class_init,
 };
 
 static void virtio_9p_register_devices(void)
 {
-    pci_qdev_register(&virtio_9p_info);
+    type_register_static(&virtio_9p_info);
     virtio_9p_set_fd_limit();
 }
 

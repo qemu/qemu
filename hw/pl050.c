@@ -159,36 +159,40 @@ static int pl050_init_mouse(SysBusDevice *dev)
 
 static void pl050_kbd_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl050_init_keyboard;
+    dc->vmsd = &vmstate_pl050;
 }
 
-static DeviceInfo pl050_kbd_info = {
-    .name = "pl050_keyboard",
-    .size = sizeof(pl050_state),
-    .vmsd = &vmstate_pl050,
-    .class_init = pl050_kbd_class_init,
+static TypeInfo pl050_kbd_info = {
+    .name          = "pl050_keyboard",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(pl050_state),
+    .class_init    = pl050_kbd_class_init,
 };
 
 static void pl050_mouse_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl050_init_mouse;
+    dc->vmsd = &vmstate_pl050;
 }
 
-static DeviceInfo pl050_mouse_info = {
-    .name = "pl050_mouse",
-    .size = sizeof(pl050_state),
-    .vmsd = &vmstate_pl050,
-    .class_init = pl050_mouse_class_init,
+static TypeInfo pl050_mouse_info = {
+    .name          = "pl050_mouse",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(pl050_state),
+    .class_init    = pl050_mouse_class_init,
 };
 
 static void pl050_register_devices(void)
 {
-    sysbus_register_withprop(&pl050_kbd_info);
-    sysbus_register_withprop(&pl050_mouse_info);
+    type_register_static(&pl050_kbd_info);
+    type_register_static(&pl050_mouse_info);
 }
 
 device_init(pl050_register_devices)

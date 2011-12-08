@@ -161,15 +161,16 @@ static void ads7846_class_init(ObjectClass *klass, void *data)
     k->transfer = ads7846_transfer;
 }
 
-static DeviceInfo ads7846_info = {
-    .name = "ads7846",
-    .size = sizeof(ADS7846State),
-    .class_init = ads7846_class_init,
+static TypeInfo ads7846_info = {
+    .name          = "ads7846",
+    .parent        = TYPE_SSI_SLAVE,
+    .instance_size = sizeof(ADS7846State),
+    .class_init    = ads7846_class_init,
 };
 
 static void ads7846_register_devices(void)
 {
-    ssi_register_slave(&ads7846_info);
+    type_register_static(&ads7846_info);
 }
 
 device_init(ads7846_register_devices)

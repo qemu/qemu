@@ -496,24 +496,26 @@ void lm832x_key_event(DeviceState *dev, int key, int state)
 
 static void lm8323_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     k->init = lm8323_init;
     k->event = lm_i2c_event;
     k->recv = lm_i2c_rx;
     k->send = lm_i2c_tx;
+    dc->vmsd = &vmstate_lm_kbd;
 }
 
-static DeviceInfo lm8323_info = {
-    .name = "lm8323",
-    .size = sizeof(LM823KbdState),
-    .vmsd = &vmstate_lm_kbd,
-    .class_init = lm8323_class_init,
+static TypeInfo lm8323_info = {
+    .name          = "lm8323",
+    .parent        = TYPE_I2C_SLAVE,
+    .instance_size = sizeof(LM823KbdState),
+    .class_init    = lm8323_class_init,
 };
 
 static void lm832x_register_devices(void)
 {
-    i2c_register_slave(&lm8323_info);
+    type_register_static(&lm8323_info);
 }
 
 device_init(lm832x_register_devices)

@@ -915,23 +915,25 @@ static Property escc_properties[] = {
 
 static void escc_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = escc_init1;
+    dc->reset = escc_reset;
+    dc->vmsd = &vmstate_escc;
+    dc->props = escc_properties;
 }
 
-static DeviceInfo escc_info = {
-    .name = "escc",
-    .size = sizeof(SerialState),
-    .vmsd = &vmstate_escc,
-    .reset = escc_reset,
-    .props = escc_properties,
-    .class_init = escc_class_init,
+static TypeInfo escc_info = {
+    .name          = "escc",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SerialState),
+    .class_init    = escc_class_init,
 };
 
 static void escc_register_devices(void)
 {
-    sysbus_register_withprop(&escc_info);
+    type_register_static(&escc_info);
 }
 
 device_init(escc_register_devices)

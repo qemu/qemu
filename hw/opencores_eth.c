@@ -734,23 +734,25 @@ static Property open_eth_properties[] = {
 
 static void open_eth_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = sysbus_open_eth_init;
+    dc->desc = "Opencores 10/100 Mbit Ethernet";
+    dc->reset = qdev_open_eth_reset;
+    dc->props = open_eth_properties;
 }
 
-static DeviceInfo open_eth_info = {
-    .name = "open_eth",
-    .desc = "Opencores 10/100 Mbit Ethernet",
-    .size = sizeof(OpenEthState),
-    .reset = qdev_open_eth_reset,
-    .props = open_eth_properties,
-    .class_init = open_eth_class_init,
+static TypeInfo open_eth_info = {
+    .name          = "open_eth",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(OpenEthState),
+    .class_init    = open_eth_class_init,
 };
 
 static void open_eth_register_devices(void)
 {
-    sysbus_register_withprop(&open_eth_info);
+    type_register_static(&open_eth_info);
 }
 
 device_init(open_eth_register_devices)

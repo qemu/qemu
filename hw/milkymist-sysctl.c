@@ -306,23 +306,25 @@ static Property milkymist_sysctl_properties[] = {
 
 static void milkymist_sysctl_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = milkymist_sysctl_init;
+    dc->reset = milkymist_sysctl_reset;
+    dc->vmsd = &vmstate_milkymist_sysctl;
+    dc->props = milkymist_sysctl_properties;
 }
 
-static DeviceInfo milkymist_sysctl_info = {
-    .name = "milkymist-sysctl",
-    .size = sizeof(MilkymistSysctlState),
-    .vmsd = &vmstate_milkymist_sysctl,
-    .reset = milkymist_sysctl_reset,
-    .props = milkymist_sysctl_properties,
-    .class_init = milkymist_sysctl_class_init,
+static TypeInfo milkymist_sysctl_info = {
+    .name          = "milkymist-sysctl",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MilkymistSysctlState),
+    .class_init    = milkymist_sysctl_class_init,
 };
 
 static void milkymist_sysctl_register(void)
 {
-    sysbus_register_withprop(&milkymist_sysctl_info);
+    type_register_static(&milkymist_sysctl_info);
 }
 
 device_init(milkymist_sysctl_register)

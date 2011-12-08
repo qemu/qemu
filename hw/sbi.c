@@ -133,22 +133,24 @@ static int sbi_init1(SysBusDevice *dev)
 
 static void sbi_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = sbi_init1;
+    dc->reset = sbi_reset;
+    dc->vmsd = &vmstate_sbi;
 }
 
-static DeviceInfo sbi_info = {
-    .name = "sbi",
-    .size = sizeof(SBIState),
-    .vmsd = &vmstate_sbi,
-    .reset = sbi_reset,
-    .class_init = sbi_class_init,
+static TypeInfo sbi_info = {
+    .name          = "sbi",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SBIState),
+    .class_init    = sbi_class_init,
 };
 
 static void sbi_register_devices(void)
 {
-    sysbus_register_withprop(&sbi_info);
+    type_register_static(&sbi_info);
 }
 
 device_init(sbi_register_devices)

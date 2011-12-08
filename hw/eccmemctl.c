@@ -315,24 +315,26 @@ static Property ecc_properties[] = {
 
 static void ecc_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = ecc_init1;
+    dc->reset = ecc_reset;
+    dc->vmsd = &vmstate_ecc;
+    dc->props = ecc_properties;
 }
 
-static DeviceInfo ecc_info = {
-    .name = "eccmemctl",
-    .size = sizeof(ECCState),
-    .vmsd = &vmstate_ecc,
-    .reset = ecc_reset,
-    .props = ecc_properties,
-    .class_init = ecc_class_init,
+static TypeInfo ecc_info = {
+    .name          = "eccmemctl",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(ECCState),
+    .class_init    = ecc_class_init,
 };
 
 
 static void ecc_register_devices(void)
 {
-    sysbus_register_withprop(&ecc_info);
+    type_register_static(&ecc_info);
 }
 
 device_init(ecc_register_devices)

@@ -223,21 +223,23 @@ static int gpio_i2c_init(SysBusDevice *dev)
 
 static void gpio_i2c_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = gpio_i2c_init;
+    dc->desc = "Virtual GPIO to I2C bridge";
 }
 
-static DeviceInfo gpio_i2c_info = {
-    .name = "gpio_i2c",
-    .desc = "Virtual GPIO to I2C bridge",
-    .size = sizeof(GPIOI2CState),
-    .class_init = gpio_i2c_class_init,
+static TypeInfo gpio_i2c_info = {
+    .name          = "gpio_i2c",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(GPIOI2CState),
+    .class_init    = gpio_i2c_class_init,
 };
 
 static void bitbang_i2c_register(void)
 {
-    sysbus_register_withprop(&gpio_i2c_info);
+    type_register_static(&gpio_i2c_info);
 }
 
 device_init(bitbang_i2c_register)

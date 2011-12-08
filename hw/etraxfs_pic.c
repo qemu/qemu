@@ -158,21 +158,23 @@ static Property etraxfs_pic_properties[] = {
 
 static void etraxfs_pic_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = etraxfs_pic_init;
+    dc->props = etraxfs_pic_properties;
 }
 
-static DeviceInfo etraxfs_pic_info = {
-    .name = "etraxfs,pic",
-    .size = sizeof(struct etrax_pic),
-    .props = etraxfs_pic_properties,
-    .class_init = etraxfs_pic_class_init,
+static TypeInfo etraxfs_pic_info = {
+    .name          = "etraxfs,pic",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(struct etrax_pic),
+    .class_init    = etraxfs_pic_class_init,
 };
 
 static void etraxfs_pic_register(void)
 {
-    sysbus_register_withprop(&etraxfs_pic_info);
+    type_register_static(&etraxfs_pic_info);
 }
 
 device_init(etraxfs_pic_register)

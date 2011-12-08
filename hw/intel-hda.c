@@ -74,14 +74,6 @@ static int hda_codec_dev_exit(DeviceState *qdev)
     return 0;
 }
 
-void hda_codec_register(DeviceInfo *info)
-{
-    info->init = hda_codec_dev_init;
-    info->exit = hda_codec_dev_exit;
-    info->bus_info = &hda_codec_bus_info;
-    qdev_register_subclass(info, TYPE_HDA_CODEC_DEVICE);
-}
-
 HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
 {
     DeviceState *qdev;
@@ -1255,6 +1247,7 @@ static Property intel_hda_properties[] = {
 
 static void intel_hda_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = intel_hda_init;
@@ -1264,17 +1257,26 @@ static void intel_hda_class_init(ObjectClass *klass, void *data)
     k->device_id = 0x2668;
     k->revision = 1;
     k->class_id = PCI_CLASS_MULTIMEDIA_HD_AUDIO;
+    dc->desc = "Intel HD Audio Controller";
+    dc->reset = intel_hda_reset;
+    dc->vmsd = &vmstate_intel_hda;
+    dc->props = intel_hda_properties;
 }
 
-static DeviceInfo intel_hda_info = {
-    .name = "intel-hda",
-    .desc = "Intel HD Audio Controller",
-    .size = sizeof(IntelHDAState),
-    .vmsd = &vmstate_intel_hda,
-    .reset = intel_hda_reset,
-    .props = intel_hda_properties,
-    .class_init = intel_hda_class_init,
+static TypeInfo intel_hda_info = {
+    .name          = "intel-hda",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(IntelHDAState),
+    .class_init    = intel_hda_class_init,
 };
+
+static void hda_codec_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->init = hda_codec_dev_init;
+    k->exit = hda_codec_dev_exit;
+    k->bus_info = &hda_codec_bus_info;
+}
 
 static TypeInfo hda_codec_device_type_info = {
     .name = TYPE_HDA_CODEC_DEVICE,
@@ -1282,11 +1284,12 @@ static TypeInfo hda_codec_device_type_info = {
     .instance_size = sizeof(HDACodecDevice),
     .abstract = true,
     .class_size = sizeof(HDACodecDeviceClass),
+    .class_init = hda_codec_device_class_init,
 };
 
 static void intel_hda_register(void)
 {
-    pci_qdev_register(&intel_hda_info);
+    type_register_static(&intel_hda_info);
     type_register_static(&hda_codec_device_type_info);
 }
 device_init(intel_hda_register);

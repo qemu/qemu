@@ -336,15 +336,16 @@ static void etraxfs_timer_class_init(ObjectClass *klass, void *data)
     sdc->init = etraxfs_timer_init;
 }
 
-static DeviceInfo etraxfs_timer_info = {
-    .name = "etraxfs,timer",
-    .size = sizeof (struct etrax_timer),
-    .class_init = etraxfs_timer_class_init,
+static TypeInfo etraxfs_timer_info = {
+    .name          = "etraxfs,timer",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof (struct etrax_timer),
+    .class_init    = etraxfs_timer_class_init,
 };
 
 static void etraxfs_timer_register(void)
 {
-    sysbus_qdev_register(&etraxfs_timer_info);
+    type_register_static(&etraxfs_timer_info);
 }
 
 device_init(etraxfs_timer_register)

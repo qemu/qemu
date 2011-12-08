@@ -91,13 +91,6 @@ err:
     return -1;
 }
 
-static void ide_qdev_register(DeviceInfo *info)
-{
-    info->init = ide_qdev_init;
-    info->bus_info = &ide_bus_info;
-    qdev_register_subclass(info, TYPE_IDE_DEVICE);
-}
-
 IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
 {
     DeviceState *dev;
@@ -182,59 +175,78 @@ static int ide_drive_initfn(IDEDevice *dev)
     DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),  \
     DEFINE_PROP_STRING("serial",  IDEDrive, dev.serial)
 
+static Property ide_hd_properties[] = {
+    DEFINE_IDE_DEV_PROPERTIES(),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ide_hd_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
     k->init = ide_hd_initfn;
+    dc->fw_name = "drive";
+    dc->desc = "virtual IDE disk";
+    dc->props = ide_hd_properties;
 }
 
-static DeviceInfo ide_hd_info = {
-    .name    = "ide-hd",
-    .fw_name = "drive",
-    .desc    = "virtual IDE disk",
-    .size    = sizeof(IDEDrive),
-    .class_init = ide_hd_class_init,
-    .props   = (Property[]) {
-        DEFINE_IDE_DEV_PROPERTIES(),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo ide_hd_info = {
+    .name          = "ide-hd",
+    .parent        = TYPE_IDE_DEVICE,
+    .instance_size = sizeof(IDEDrive),
+    .class_init    = ide_hd_class_init,
+};
+
+static Property ide_cd_properties[] = {
+    DEFINE_IDE_DEV_PROPERTIES(),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ide_cd_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
     k->init = ide_cd_initfn;
+    dc->fw_name = "drive";
+    dc->desc = "virtual IDE CD-ROM";
+    dc->props = ide_cd_properties;
 }
 
-static DeviceInfo ide_cd_info = {
-    .name    = "ide-cd",
-    .fw_name = "drive",
-    .desc    = "virtual IDE CD-ROM",
-    .size    = sizeof(IDEDrive),
-    .class_init = ide_cd_class_init,
-    .props   = (Property[]) {
-        DEFINE_IDE_DEV_PROPERTIES(),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo ide_cd_info = {
+    .name          = "ide-cd",
+    .parent        = TYPE_IDE_DEVICE,
+    .instance_size = sizeof(IDEDrive),
+    .class_init    = ide_cd_class_init,
+};
+
+static Property ide_drive_properties[] = {
+    DEFINE_IDE_DEV_PROPERTIES(),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void ide_drive_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
     k->init = ide_drive_initfn;
+    dc->fw_name = "drive";
+    dc->desc = "virtual IDE disk or CD-ROM (legacy)";
+    dc->props = ide_drive_properties;
 }
 
-static DeviceInfo ide_drive_info = {
-    .name    = "ide-drive", /* legacy -device ide-drive */
-    .fw_name = "drive",
-    .desc    = "virtual IDE disk or CD-ROM (legacy)",
-    .size    = sizeof(IDEDrive),
-    .class_init = ide_drive_class_init,
-    .props   = (Property[]) {
-        DEFINE_IDE_DEV_PROPERTIES(),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo ide_drive_info = {
+    .name          = "ide-drive",
+    .parent        = TYPE_IDE_DEVICE,
+    .instance_size = sizeof(IDEDrive),
+    .class_init    = ide_drive_class_init,
 };
+
+static void ide_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->init = ide_qdev_init;
+    k->bus_info = &ide_bus_info;
+}
 
 static TypeInfo ide_device_type_info = {
     .name = TYPE_IDE_DEVICE,
@@ -242,13 +254,14 @@ static TypeInfo ide_device_type_info = {
     .instance_size = sizeof(IDEDevice),
     .abstract = true,
     .class_size = sizeof(IDEDeviceClass),
+    .class_init = ide_device_class_init,
 };
 
 static void ide_dev_register(void)
 {
-    ide_qdev_register(&ide_hd_info);
-    ide_qdev_register(&ide_cd_info);
-    ide_qdev_register(&ide_drive_info);
+    type_register_static(&ide_hd_info);
+    type_register_static(&ide_cd_info);
+    type_register_static(&ide_drive_info);
     type_register_static(&ide_device_type_info);
 }
 device_init(ide_dev_register);

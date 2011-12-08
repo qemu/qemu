@@ -135,27 +135,31 @@ static int i82374_isa_init(ISADevice *dev)
     return 0;
 }
 
+static Property i82374_properties[] = {
+    DEFINE_PROP_HEX32("iobase", ISAi82374State, iobase, 0x400),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void i82374_class_init(ObjectClass *klass, void *data)
 {
     ISADeviceClass *k = ISA_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
     
-    k->init       = i82374_isa_init;
+    k->init  = i82374_isa_init;
+    dc->vmsd = &vmstate_isa_i82374;
+    dc->props = i82374_properties;
 }
 
-static DeviceInfo i82374_isa_info = {
+static TypeInfo i82374_isa_info = {
     .name  = "i82374",
-    .size  = sizeof(ISAi82374State),
-    .vmsd  = &vmstate_isa_i82374,
+    .parent = TYPE_ISA_DEVICE,
+    .instance_size  = sizeof(ISAi82374State),
     .class_init = i82374_class_init,
-    .props = (Property[]) {
-        DEFINE_PROP_HEX32("iobase", ISAi82374State, iobase, 0x400),
-        DEFINE_PROP_END_OF_LIST()
-    },
 };
 
 static void i82374_register_devices(void)
 {
-    isa_qdev_register(&i82374_isa_info);
+    type_register_static(&i82374_isa_info);
 }
 
 device_init(i82374_register_devices)

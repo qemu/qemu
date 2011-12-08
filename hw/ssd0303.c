@@ -296,24 +296,26 @@ static int ssd0303_init(I2CSlave *i2c)
 
 static void ssd0303_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     k->init = ssd0303_init;
     k->event = ssd0303_event;
     k->recv = ssd0303_recv;
     k->send = ssd0303_send;
+    dc->vmsd = &vmstate_ssd0303;
 }
 
-static DeviceInfo ssd0303_info = {
-    .name = "ssd0303",
-    .size = sizeof(ssd0303_state),
-    .vmsd = &vmstate_ssd0303,
-    .class_init = ssd0303_class_init,
+static TypeInfo ssd0303_info = {
+    .name          = "ssd0303",
+    .parent        = TYPE_I2C_SLAVE,
+    .instance_size = sizeof(ssd0303_state),
+    .class_init    = ssd0303_class_init,
 };
 
 static void ssd0303_register_devices(void)
 {
-    i2c_register_slave(&ssd0303_info);
+    type_register_static(&ssd0303_info);
 }
 
 device_init(ssd0303_register_devices)

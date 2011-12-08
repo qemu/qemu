@@ -409,23 +409,25 @@ static Property arm_sysctl_properties[] = {
 
 static void arm_sysctl_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = arm_sysctl_init1;
+    dc->reset = arm_sysctl_reset;
+    dc->vmsd = &vmstate_arm_sysctl;
+    dc->props = arm_sysctl_properties;
 }
 
-static DeviceInfo arm_sysctl_info = {
-    .name = "realview_sysctl",
-    .size = sizeof(arm_sysctl_state),
-    .vmsd = &vmstate_arm_sysctl,
-    .reset = arm_sysctl_reset,
-    .props = arm_sysctl_properties,
-    .class_init = arm_sysctl_class_init,
+static TypeInfo arm_sysctl_info = {
+    .name          = "realview_sysctl",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(arm_sysctl_state),
+    .class_init    = arm_sysctl_class_init,
 };
 
 static void arm_sysctl_register_devices(void)
 {
-    sysbus_register_withprop(&arm_sysctl_info);
+    type_register_static(&arm_sysctl_info);
 }
 
 device_init(arm_sysctl_register_devices)

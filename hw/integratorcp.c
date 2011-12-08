@@ -525,16 +525,18 @@ static Property core_properties[] = {
 
 static void core_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = integratorcm_init;
+    dc->props = core_properties;
 }
 
-static DeviceInfo core_info = {
-    .name = "integrator_core",
-    .size = sizeof(integratorcm_state),
-    .props = core_properties,
-    .class_init = core_class_init,
+static TypeInfo core_info = {
+    .name          = "integrator_core",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(integratorcm_state),
+    .class_init    = core_class_init,
 };
 
 static void icp_pic_class_init(ObjectClass *klass, void *data)
@@ -544,16 +546,17 @@ static void icp_pic_class_init(ObjectClass *klass, void *data)
     sdc->init = icp_pic_init;
 }
 
-static DeviceInfo icp_pic_info = {
-    .name = "integrator_pic",
-    .size = sizeof(icp_pic_state),
-    .class_init = icp_pic_class_init,
+static TypeInfo icp_pic_info = {
+    .name          = "integrator_pic",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(icp_pic_state),
+    .class_init    = icp_pic_class_init,
 };
 
 static void integratorcp_register_devices(void)
 {
-    sysbus_qdev_register(&icp_pic_info);
-    sysbus_register_withprop(&core_info);
+    type_register_static(&icp_pic_info);
+    type_register_static(&core_info);
 }
 
 device_init(integratorcp_register_devices)

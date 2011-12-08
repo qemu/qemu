@@ -82,27 +82,31 @@ static int isa_ne2000_initfn(ISADevice *dev)
     return 0;
 }
 
+static Property ne2000_isa_properties[] = {
+    DEFINE_PROP_HEX32("iobase", ISANE2000State, iobase, 0x300),
+    DEFINE_PROP_UINT32("irq",   ISANE2000State, isairq, 9),
+    DEFINE_NIC_PROPERTIES(ISANE2000State, ne2000.c),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void isa_ne2000_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = isa_ne2000_initfn;
+    dc->props = ne2000_isa_properties;
 }
 
-static DeviceInfo ne2000_isa_info = {
-    .name  = "ne2k_isa",
-    .size  = sizeof(ISANE2000State),
-    .class_init       = isa_ne2000_class_initfn,
-    .props = (Property[]) {
-        DEFINE_PROP_HEX32("iobase", ISANE2000State, iobase, 0x300),
-        DEFINE_PROP_UINT32("irq",   ISANE2000State, isairq, 9),
-        DEFINE_NIC_PROPERTIES(ISANE2000State, ne2000.c),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo ne2000_isa_info = {
+    .name          = "ne2k_isa",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(ISANE2000State),
+    .class_init    = isa_ne2000_class_initfn,
 };
 
 static void ne2000_isa_register_devices(void)
 {
-    isa_qdev_register(&ne2000_isa_info);
+    type_register_static(&ne2000_isa_info);
 }
 
 device_init(ne2000_isa_register_devices)

@@ -207,12 +207,6 @@ static int smbus_device_init(I2CSlave *i2c)
     return sc->init(dev);
 }
 
-void smbus_register_device(DeviceInfo *info)
-{
-    assert(info->size >= sizeof(SMBusDevice));
-    i2c_register_slave_subclass(info, TYPE_SMBUS_DEVICE);
-}
-
 /* Master device commands.  */
 void smbus_quick_command(i2c_bus *bus, uint8_t addr, int read)
 {

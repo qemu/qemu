@@ -50,20 +50,6 @@ struct BusInfo s390_virtio_bus_info = {
     .size       = sizeof(VirtIOS390Bus),
 };
 
-typedef struct VirtIOS390DeviceClass
-{
-    DeviceClass parent_class;
-    int (*init)(VirtIOS390Device *dev);
-} VirtIOS390DeviceClass;
-
-#define TYPE_VIRTIO_S390_DEVICE "virtio-s390-device"
-#define VIRTIO_S390_DEVICE(obj) \
-     OBJECT_CHECK(VirtIOS390Device, (obj), TYPE_VIRTIO_S390_DEVICE)
-#define VIRTIO_S390_DEVICE_CLASS(klass) \
-     OBJECT_CLASS_CHECK(VirtIOS390DeviceClass, (klass), TYPE_VIRTIO_S390_DEVICE)
-#define VIRTIO_S390_DEVICE_GET_CLASS(obj) \
-    OBJECT_GET_CLASS(VirtIOS390DeviceClass, (obj), TYPE_VIRTIO_S390_DEVICE)
-
 static const VirtIOBindings virtio_s390_bindings;
 
 static ram_addr_t s390_virtio_device_num_vq(VirtIOS390Device *dev);
@@ -351,65 +337,77 @@ static const VirtIOBindings virtio_s390_bindings = {
     .get_features = virtio_s390_get_features,
 };
 
+static Property s390_virtio_net_properties[] = {
+    DEFINE_NIC_PROPERTIES(VirtIOS390Device, nic),
+    DEFINE_PROP_UINT32("x-txtimer", VirtIOS390Device,
+                       net.txtimer, TX_TIMER_INTERVAL),
+    DEFINE_PROP_INT32("x-txburst", VirtIOS390Device,
+                      net.txburst, TX_BURST),
+    DEFINE_PROP_STRING("tx", VirtIOS390Device, net.tx),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void s390_virtio_net_class_init(ObjectClass *klass, void *data)
 {
-    VirtIOS390DeviceClass *dc = VIRTIO_S390_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtIOS390DeviceClass *k = VIRTIO_S390_DEVICE_CLASS(klass);
 
-    dc->init = s390_virtio_net_init;
+    k->init = s390_virtio_net_init;
+    dc->props = s390_virtio_net_properties;
+    dc->alias = "virtio-net";
 }
 
-static DeviceInfo s390_virtio_net = {
-    .name = "virtio-net-s390",
-    .alias = "virtio-net",
-    .size = sizeof(VirtIOS390Device),
-    .class_init = s390_virtio_net_class_init,
-    .props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(VirtIOS390Device, nic),
-        DEFINE_PROP_UINT32("x-txtimer", VirtIOS390Device,
-                           net.txtimer, TX_TIMER_INTERVAL),
-        DEFINE_PROP_INT32("x-txburst", VirtIOS390Device,
-                          net.txburst, TX_BURST),
-        DEFINE_PROP_STRING("tx", VirtIOS390Device, net.tx),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo s390_virtio_net = {
+    .name          = "virtio-net-s390",
+    .parent        = TYPE_VIRTIO_S390_DEVICE,
+    .instance_size = sizeof(VirtIOS390Device),
+    .class_init    = s390_virtio_net_class_init,
+};
+
+static Property s390_virtio_blk_properties[] = {
+    DEFINE_BLOCK_PROPERTIES(VirtIOS390Device, block),
+    DEFINE_PROP_STRING("serial", VirtIOS390Device, block_serial),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void s390_virtio_blk_class_init(ObjectClass *klass, void *data)
 {
-    VirtIOS390DeviceClass *dc = VIRTIO_S390_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtIOS390DeviceClass *k = VIRTIO_S390_DEVICE_CLASS(klass);
 
-    dc->init = s390_virtio_blk_init;
+    k->init = s390_virtio_blk_init;
+    dc->props = s390_virtio_blk_properties;
+    dc->alias = "virtio-blk";
 }
 
-static DeviceInfo s390_virtio_blk = {
-    .name = "virtio-blk-s390",
-    .alias = "virtio-blk",
-    .size = sizeof(VirtIOS390Device),
-    .class_init = s390_virtio_blk_class_init,
-    .props = (Property[]) {
-        DEFINE_BLOCK_PROPERTIES(VirtIOS390Device, block),
-        DEFINE_PROP_STRING("serial", VirtIOS390Device, block_serial),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo s390_virtio_blk = {
+    .name          = "virtio-blk-s390",
+    .parent        = TYPE_VIRTIO_S390_DEVICE,
+    .instance_size = sizeof(VirtIOS390Device),
+    .class_init    = s390_virtio_blk_class_init,
+};
+
+static Property s390_virtio_serial_properties[] = {
+    DEFINE_PROP_UINT32("max_ports", VirtIOS390Device,
+                       serial.max_virtserial_ports, 31),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void s390_virtio_serial_class_init(ObjectClass *klass, void *data)
 {
-    VirtIOS390DeviceClass *dc = VIRTIO_S390_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtIOS390DeviceClass *k = VIRTIO_S390_DEVICE_CLASS(klass);
 
-    dc->init = s390_virtio_serial_init;
+    k->init = s390_virtio_serial_init;
+    dc->props = s390_virtio_serial_properties;
+    dc->alias = "virtio-serial";
 }
 
-static DeviceInfo s390_virtio_serial = {
-    .name = "virtio-serial-s390",
-    .alias = "virtio-serial",
-    .size = sizeof(VirtIOS390Device),
-    .class_init = s390_virtio_serial_class_init,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("max_ports", VirtIOS390Device,
-                           serial.max_virtserial_ports, 31),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo s390_virtio_serial = {
+    .name          = "virtio-serial-s390",
+    .parent        = TYPE_VIRTIO_S390_DEVICE,
+    .instance_size = sizeof(VirtIOS390Device),
+    .class_init    = s390_virtio_serial_class_init,
 };
 
 static int s390_virtio_busdev_init(DeviceState *dev, DeviceInfo *info)
@@ -420,29 +418,29 @@ static int s390_virtio_busdev_init(DeviceState *dev, DeviceInfo *info)
     return _info->init(_dev);
 }
 
-static void s390_virtio_bus_register_withprop(DeviceInfo *info)
+static void virtio_s390_device_class_init(ObjectClass *klass, void *data)
 {
-    info->init = s390_virtio_busdev_init;
-    info->bus_info = &s390_virtio_bus_info;
-    info->unplug = qdev_simple_unplug_cb;
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    assert(info->size >= sizeof(VirtIOS390Device));
-    qdev_register_subclass(info, TYPE_VIRTIO_S390_DEVICE);
+    dc->init = s390_virtio_busdev_init;
+    dc->bus_info = &s390_virtio_bus_info;
+    dc->unplug = qdev_simple_unplug_cb;
 }
 
 static TypeInfo virtio_s390_device_info = {
     .name = TYPE_VIRTIO_S390_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(VirtIOS390Device),
+    .class_init = virtio_s390_device_class_init,
     .abstract = true,
 };
 
 static void s390_virtio_register(void)
 {
     type_register_static(&virtio_s390_device_info);
-    s390_virtio_bus_register_withprop(&s390_virtio_serial);
-    s390_virtio_bus_register_withprop(&s390_virtio_blk);
-    s390_virtio_bus_register_withprop(&s390_virtio_net);
+    type_register_static(&s390_virtio_serial);
+    type_register_static(&s390_virtio_blk);
+    type_register_static(&s390_virtio_net);
 }
 device_init(s390_virtio_register);
 
@@ -458,21 +456,23 @@ static int s390_virtio_bridge_init(SysBusDevice *dev)
 
 static void s390_virtio_bridge_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = s390_virtio_bridge_init;
+    dc->no_user = 1;
 }
 
-static DeviceInfo s390_virtio_bridge_info = {
-    .name = "s390-virtio-bridge",
-    .size = sizeof(SysBusDevice),
-    .no_user = 1,
-    .class_init = s390_virtio_bridge_class_init,
+static TypeInfo s390_virtio_bridge_info = {
+    .name          = "s390-virtio-bridge",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SysBusDevice),
+    .class_init    = s390_virtio_bridge_class_init,
 };
 
 static void s390_virtio_register_devices(void)
 {
-    sysbus_register_withprop(&s390_virtio_bridge_info);
+    type_register_static(&s390_virtio_bridge_info);
 }
 
 device_init(s390_virtio_register_devices)

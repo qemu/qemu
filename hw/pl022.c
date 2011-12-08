@@ -292,15 +292,16 @@ static void pl022_class_init(ObjectClass *klass, void *data)
     sdc->init = pl022_init;
 }
 
-static DeviceInfo pl022_info = {
-    .name = "pl022",
-    .size = sizeof(pl022_state),
-    .class_init = pl022_class_init,
+static TypeInfo pl022_info = {
+    .name          = "pl022",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(pl022_state),
+    .class_init    = pl022_class_init,
 };
 
 static void pl022_register_devices(void)
 {
-    sysbus_qdev_register(&pl022_info);
+    type_register_static(&pl022_info);
 }
 
 device_init(pl022_register_devices)

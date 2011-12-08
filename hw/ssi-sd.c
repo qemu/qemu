@@ -252,15 +252,16 @@ static void ssi_sd_class_init(ObjectClass *klass, void *data)
     k->transfer = ssi_sd_transfer;
 }
 
-static DeviceInfo ssi_sd_info = {
-    .name = "ssi-sd",
-    .size = sizeof(ssi_sd_state),
-    .class_init = ssi_sd_class_init,
+static TypeInfo ssi_sd_info = {
+    .name          = "ssi-sd",
+    .parent        = TYPE_SSI_SLAVE,
+    .instance_size = sizeof(ssi_sd_state),
+    .class_init    = ssi_sd_class_init,
 };
 
 static void ssi_sd_register_devices(void)
 {
-    ssi_register_slave(&ssi_sd_info);
+    type_register_static(&ssi_sd_info);
 }
 
 device_init(ssi_sd_register_devices)

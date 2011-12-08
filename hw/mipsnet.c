@@ -259,24 +259,26 @@ static Property mipsnet_properties[] = {
 
 static void mipsnet_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = mipsnet_sysbus_init;
+    dc->desc = "MIPS Simulator network device";
+    dc->reset = mipsnet_sysbus_reset;
+    dc->vmsd = &vmstate_mipsnet;
+    dc->props = mipsnet_properties;
 }
 
-static DeviceInfo mipsnet_info = {
-    .name = "mipsnet",
-    .desc = "MIPS Simulator network device",
-    .size = sizeof(MIPSnetState),
-    .vmsd = &vmstate_mipsnet,
-    .reset = mipsnet_sysbus_reset,
-    .props = mipsnet_properties,
-    .class_init = mipsnet_class_init,
+static TypeInfo mipsnet_info = {
+    .name          = "mipsnet",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MIPSnetState),
+    .class_init    = mipsnet_class_init,
 };
 
 static void mipsnet_register_devices(void)
 {
-    sysbus_register_withprop(&mipsnet_info);
+    type_register_static(&mipsnet_info);
 }
 
 device_init(mipsnet_register_devices)

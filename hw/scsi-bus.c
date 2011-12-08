@@ -183,15 +183,6 @@ static int scsi_qdev_exit(DeviceState *qdev)
     return 0;
 }
 
-void scsi_qdev_register(DeviceInfo *info)
-{
-    info->bus_info = &scsi_bus_info;
-    info->init     = scsi_qdev_init;
-    info->unplug   = qdev_simple_unplug_cb;
-    info->exit     = scsi_qdev_exit;
-    qdev_register_subclass(info, TYPE_SCSI_DEVICE);
-}
-
 /* handle legacy '-drive if=scsi,...' cmd line args */
 SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockDriverState *bdrv,
                                       int unit, bool removable, int bootindex)
@@ -1422,12 +1413,22 @@ SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
     return target_dev;
 }
 
+static void scsi_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->bus_info = &scsi_bus_info;
+    k->init     = scsi_qdev_init;
+    k->unplug   = qdev_simple_unplug_cb;
+    k->exit     = scsi_qdev_exit;
+}
+
 static TypeInfo scsi_device_type_info = {
     .name = TYPE_SCSI_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(SCSIDevice),
     .abstract = true,
     .class_size = sizeof(SCSIDeviceClass),
+    .class_init = scsi_device_class_init,
 };
 
 static void scsi_register_devices(void)

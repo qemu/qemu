@@ -348,6 +348,7 @@ void vt82c686b_ac97_init(PCIBus *bus, int devfn)
 
 static void via_ac97_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = vt82c686b_ac97_initfn;
@@ -355,18 +356,19 @@ static void via_ac97_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_AC97;
     k->revision = 0x50;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
+    dc->desc = "AC97";
 }
 
-static DeviceInfo via_ac97_info = {
-    .name = "VT82C686B_AC97",
-    .desc = "AC97",
-    .size = sizeof(VT686AC97State),
-    .class_init = via_ac97_class_init,
+static TypeInfo via_ac97_info = {
+    .name          = "VT82C686B_AC97",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(VT686AC97State),
+    .class_init    = via_ac97_class_init,
 };
 
 static void vt82c686b_ac97_register(void)
 {
-    pci_qdev_register(&via_ac97_info);
+    type_register_static(&via_ac97_info);
 }
 
 device_init(vt82c686b_ac97_register);
@@ -394,6 +396,7 @@ void vt82c686b_mc97_init(PCIBus *bus, int devfn)
 
 static void via_mc97_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = vt82c686b_mc97_initfn;
@@ -401,18 +404,19 @@ static void via_mc97_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_MC97;
     k->class_id = PCI_CLASS_COMMUNICATION_OTHER;
     k->revision = 0x30;
+    dc->desc = "MC97";
 }
 
-static DeviceInfo via_mc97_info = {
-    .name = "VT82C686B_MC97",
-    .desc = "MC97",
-    .size = sizeof(VT686MC97State),
-    .class_init = via_mc97_class_init,
+static TypeInfo via_mc97_info = {
+    .name          = "VT82C686B_MC97",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(VT686MC97State),
+    .class_init    = via_mc97_class_init,
 };
 
 static void vt82c686b_mc97_register(void)
 {
-    pci_qdev_register(&via_mc97_info);
+    type_register_static(&via_mc97_info);
 }
 
 device_init(vt82c686b_mc97_register);
@@ -472,6 +476,7 @@ static Property via_pm_properties[] = {
 
 static void via_pm_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = vt82c686b_pm_initfn;
@@ -480,20 +485,21 @@ static void via_pm_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_ACPI;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
     k->revision = 0x40;
+    dc->desc = "PM";
+    dc->vmsd = &vmstate_acpi;
+    dc->props = via_pm_properties;
 }
 
-static DeviceInfo via_pm_info = {
-    .name = "VT82C686B_PM",
-    .desc = "PM",
-    .size = sizeof(VT686PMState),
-    .vmsd = &vmstate_acpi,
-    .props = via_pm_properties,
-    .class_init = via_pm_class_init,
+static TypeInfo via_pm_info = {
+    .name          = "VT82C686B_PM",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(VT686PMState),
+    .class_init    = via_pm_class_init,
 };
 
 static void vt82c686b_pm_register(void)
 {
-    pci_qdev_register(&via_pm_info);
+    type_register_static(&via_pm_info);
 }
 
 device_init(vt82c686b_pm_register);
@@ -544,6 +550,7 @@ ISABus *vt82c686b_init(PCIBus *bus, int devfn)
 
 static void via_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = vt82c686b_initfn;
@@ -552,19 +559,20 @@ static void via_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_ISA_BRIDGE;
     k->class_id = PCI_CLASS_BRIDGE_ISA;
     k->revision = 0x40;
+    dc->desc = "ISA bridge";
+    dc->no_user = 1;
+    dc->vmsd = &vmstate_via;
 }
 
-static DeviceInfo via_info = {
-    .name = "VT82C686B",
-    .desc = "ISA bridge",
-    .size = sizeof(VT82C686BState),
-    .vmsd = &vmstate_via,
-    .no_user = 1,
-    .class_init = via_class_init,
+static TypeInfo via_info = {
+    .name          = "VT82C686B",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(VT82C686BState),
+    .class_init    = via_class_init,
 };
 
 static void vt82c686b_register(void)
 {
-    pci_qdev_register(&via_info);
+    type_register_static(&via_info);
 }
 device_init(vt82c686b_register);

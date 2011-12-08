@@ -529,6 +529,7 @@ static const VMStateDescription vmstate_usb_bt = {
 
 static void usb_bt_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->init           = usb_bt_initfn;
@@ -539,17 +540,18 @@ static void usb_bt_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_bt_handle_control;
     uc->handle_data    = usb_bt_handle_data;
     uc->handle_destroy = usb_bt_handle_destroy;
+    dc->vmsd = &vmstate_usb_bt;
 }
 
-static struct DeviceInfo bt_info = {
-    .name      = "usb-bt-dongle",
-    .size      = sizeof(struct USBBtState),
-    .vmsd      = &vmstate_usb_bt,
-    .class_init= usb_bt_class_initfn,
+static TypeInfo bt_info = {
+    .name          = "usb-bt-dongle",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(struct USBBtState),
+    .class_init    = usb_bt_class_initfn,
 };
 
 static void usb_bt_register_devices(void)
 {
-    usb_qdev_register(&bt_info);
+    type_register_static(&bt_info);
 }
 device_init(usb_bt_register_devices)

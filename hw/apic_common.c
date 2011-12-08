@@ -295,7 +295,12 @@ static Property apic_properties_common[] = {
 static void apic_common_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->vmsd = &vmstate_apic_common;
+    dc->reset = apic_reset_common;
+    dc->no_user = 1;
+    dc->props = apic_properties_common;
     sc->init = apic_init_common;
 }
 
@@ -307,16 +312,6 @@ static TypeInfo apic_common_type = {
     .class_init = apic_common_class_init,
     .abstract = true,
 };
-
-void apic_qdev_register(DeviceInfo *info)
-{
-    info->size = sizeof(APICCommonState),
-    info->vmsd = &vmstate_apic_common;
-    info->reset = apic_reset_common;
-    info->no_user = 1;
-    info->props = apic_properties_common;
-    sysbus_qdev_register_subclass(info, TYPE_APIC_COMMON);
-}
 
 static void register_devices(void)
 {

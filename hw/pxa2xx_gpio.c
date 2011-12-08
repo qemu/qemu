@@ -325,21 +325,23 @@ static Property pxa2xx_gpio_properties[] = {
 
 static void pxa2xx_gpio_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pxa2xx_gpio_initfn;
+    dc->desc = "PXA2xx GPIO controller";
+    dc->props = pxa2xx_gpio_properties;
 }
 
-static DeviceInfo pxa2xx_gpio_info = {
-    .name = "pxa2xx-gpio",
-    .desc = "PXA2xx GPIO controller",
-    .size = sizeof(PXA2xxGPIOInfo),
-    .props = pxa2xx_gpio_properties,
-    .class_init = pxa2xx_gpio_class_init,
+static TypeInfo pxa2xx_gpio_info = {
+    .name          = "pxa2xx-gpio",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PXA2xxGPIOInfo),
+    .class_init    = pxa2xx_gpio_class_init,
 };
 
 static void pxa2xx_gpio_register(void)
 {
-    sysbus_register_withprop(&pxa2xx_gpio_info);
+    type_register_static(&pxa2xx_gpio_info);
 }
 device_init(pxa2xx_gpio_register);

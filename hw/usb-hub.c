@@ -533,8 +533,9 @@ static const VMStateDescription vmstate_usb_hub = {
     }
 };
 
-static void  usb_hub_class_initfn(ObjectClass *klass, void *data)
+static void usb_hub_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->init           = usb_hub_initfn;
@@ -545,18 +546,19 @@ static void  usb_hub_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_hub_handle_control;
     uc->handle_data    = usb_hub_handle_data;
     uc->handle_destroy = usb_hub_handle_destroy;
+    dc->fw_name = "hub";
+    dc->vmsd = &vmstate_usb_hub;
 }
 
-static struct DeviceInfo hub_info = {
-    .name      = "usb-hub",
-    .fw_name   = "hub",
-    .size      = sizeof(USBHubState),
-    .vmsd      = &vmstate_usb_hub,
-    .class_init= usb_hub_class_initfn,
+static TypeInfo hub_info = {
+    .name          = "usb-hub",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBHubState),
+    .class_init    = usb_hub_class_initfn,
 };
 
 static void usb_hub_register_devices(void)
 {
-    usb_qdev_register(&hub_info);
+    type_register_static(&hub_info);
 }
 device_init(usb_hub_register_devices)

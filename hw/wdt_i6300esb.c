@@ -427,6 +427,7 @@ static WatchdogTimerModel model = {
 
 static void i6300esb_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->config_read = i6300esb_config_read;
@@ -436,20 +437,21 @@ static void i6300esb_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_INTEL_ESB_9;
     k->class_id = PCI_CLASS_SYSTEM_OTHER;
+    dc->reset = i6300esb_reset;
+    dc->vmsd = &vmstate_i6300esb;
 }
 
-static DeviceInfo i6300esb_info = {
-    .name = "i6300esb",
-    .size = sizeof(I6300State),
-    .vmsd = &vmstate_i6300esb,
-    .reset = i6300esb_reset,
-    .class_init = i6300esb_class_init,
+static TypeInfo i6300esb_info = {
+    .name          = "i6300esb",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(I6300State),
+    .class_init    = i6300esb_class_init,
 };
 
 static void i6300esb_register_devices(void)
 {
     watchdog_add_model(&model);
-    pci_qdev_register(&i6300esb_info);
+    type_register_static(&i6300esb_info);
 }
 
 device_init(i6300esb_register_devices);

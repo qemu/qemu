@@ -539,24 +539,26 @@ static Property fw_cfg_properties[] = {
 
 static void fw_cfg_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = fw_cfg_init1;
+    dc->no_user = 1;
+    dc->reset = fw_cfg_reset;
+    dc->vmsd = &vmstate_fw_cfg;
+    dc->props = fw_cfg_properties;
 }
 
-static DeviceInfo fw_cfg_info = {
-    .name = "fw_cfg",
-    .size = sizeof(FWCfgState),
-    .vmsd = &vmstate_fw_cfg,
-    .reset = fw_cfg_reset,
-    .no_user = 1,
-    .props = fw_cfg_properties,
-    .class_init = fw_cfg_class_init,
+static TypeInfo fw_cfg_info = {
+    .name          = "fw_cfg",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(FWCfgState),
+    .class_init    = fw_cfg_class_init,
 };
 
 static void fw_cfg_register_devices(void)
 {
-    sysbus_register_withprop(&fw_cfg_info);
+    type_register_static(&fw_cfg_info);
 }
 
 device_init(fw_cfg_register_devices)

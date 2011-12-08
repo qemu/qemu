@@ -168,21 +168,23 @@ static Property xilinx_intc_properties[] = {
 
 static void xilinx_intc_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = xilinx_intc_init;
+    dc->props = xilinx_intc_properties;
 }
 
-static DeviceInfo xilinx_intc_info = {
-    .name = "xilinx,intc",
-    .size = sizeof(struct xlx_pic),
-    .props = xilinx_intc_properties,
-    .class_init = xilinx_intc_class_init,
+static TypeInfo xilinx_intc_info = {
+    .name          = "xilinx,intc",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(struct xlx_pic),
+    .class_init    = xilinx_intc_class_init,
 };
 
 static void xilinx_intc_register(void)
 {
-    sysbus_register_withprop(&xilinx_intc_info);
+    type_register_static(&xilinx_intc_info);
 }
 
 device_init(xilinx_intc_register)

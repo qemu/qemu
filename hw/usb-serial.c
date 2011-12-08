@@ -570,8 +570,14 @@ static const VMStateDescription vmstate_usb_serial = {
     .unmigratable = 1,
 };
 
+static Property serial_properties[] = {
+    DEFINE_PROP_CHR("chardev", USBSerialState, cs),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void usb_serial_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->init = usb_serial_initfn;
@@ -582,21 +588,25 @@ static void usb_serial_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_serial_handle_control;
     uc->handle_data    = usb_serial_handle_data;
     uc->handle_destroy = usb_serial_handle_destroy;
+    dc->vmsd = &vmstate_usb_serial;
+    dc->props = serial_properties;
 }
 
-static struct DeviceInfo serial_info = {
-    .name      = "usb-serial",
-    .size      = sizeof(USBSerialState),
-    .vmsd      = &vmstate_usb_serial,
-    .class_init= usb_serial_class_initfn,
-    .props     = (Property[]) {
-        DEFINE_PROP_CHR("chardev", USBSerialState, cs),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo serial_info = {
+    .name          = "usb-serial",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBSerialState),
+    .class_init    = usb_serial_class_initfn,
+};
+
+static Property braille_properties[] = {
+    DEFINE_PROP_CHR("chardev", USBSerialState, cs),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void usb_braille_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->init           = usb_serial_initfn;
@@ -607,24 +617,22 @@ static void usb_braille_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_serial_handle_control;
     uc->handle_data    = usb_serial_handle_data;
     uc->handle_destroy = usb_serial_handle_destroy;
+    dc->vmsd = &vmstate_usb_serial;
+    dc->props = braille_properties;
 }
 
-static struct DeviceInfo braille_info = {
-    .name      = "usb-braille",
-    .size      = sizeof(USBSerialState),
-    .vmsd      = &vmstate_usb_serial,
-    .class_init= usb_braille_class_initfn,
-    .props     = (Property[]) {
-        DEFINE_PROP_CHR("chardev", USBSerialState, cs),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo braille_info = {
+    .name          = "usb-braille",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBSerialState),
+    .class_init    = usb_braille_class_initfn,
 };
 
 static void usb_serial_register_devices(void)
 {
-    usb_qdev_register(&serial_info);
+    type_register_static(&serial_info);
     usb_legacy_register("usb-serial", "serial", usb_serial_init);
-    usb_qdev_register(&braille_info);
+    type_register_static(&braille_info);
     usb_legacy_register("usb-braille", "braille", usb_braille_init);
 }
 device_init(usb_serial_register_devices)

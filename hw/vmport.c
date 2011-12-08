@@ -146,19 +146,21 @@ static int vmport_initfn(ISADevice *dev)
 
 static void vmport_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = vmport_initfn;
+    dc->no_user = 1;
 }
 
-static DeviceInfo vmport_info = {
-    .name     = "vmport",
-    .size     = sizeof(VMPortState),
-    .no_user  = 1,
-    .class_init          = vmport_class_initfn,
+static TypeInfo vmport_info = {
+    .name          = "vmport",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(VMPortState),
+    .class_init    = vmport_class_initfn,
 };
 
 static void vmport_dev_register(void)
 {
-    isa_qdev_register(&vmport_info);
+    type_register_static(&vmport_info);
 }
 device_init(vmport_dev_register)

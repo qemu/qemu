@@ -375,40 +375,44 @@ static int pl081_init(SysBusDevice *dev)
 
 static void pl080_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl080_init;
+    dc->no_user = 1;
+    dc->vmsd = &vmstate_pl080;
 }
 
-static DeviceInfo pl080_info = {
-    .name = "pl080",
-    .size = sizeof(pl080_state),
-    .vmsd = &vmstate_pl080,
-    .no_user = 1,
-    .class_init = pl080_class_init,
+static TypeInfo pl080_info = {
+    .name          = "pl080",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(pl080_state),
+    .class_init    = pl080_class_init,
 };
 
 static void pl081_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl081_init;
+    dc->no_user = 1;
+    dc->vmsd = &vmstate_pl080;
 }
 
-static DeviceInfo pl081_info = {
-    .name = "pl081",
-    .size = sizeof(pl080_state),
-    .vmsd = &vmstate_pl080,
-    .no_user = 1,
-    .class_init = pl081_class_init,
+static TypeInfo pl081_info = {
+    .name          = "pl081",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(pl080_state),
+    .class_init    = pl081_class_init,
 };
 
 /* The PL080 and PL081 are the same except for the number of channels
    they implement (8 and 2 respectively).  */
 static void pl080_register_devices(void)
 {
-    sysbus_register_withprop(&pl080_info);
-    sysbus_register_withprop(&pl081_info);
+    type_register_static(&pl080_info);
+    type_register_static(&pl081_info);
 }
 
 device_init(pl080_register_devices)

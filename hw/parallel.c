@@ -583,28 +583,32 @@ bool parallel_mm_init(MemoryRegion *address_space,
     return true;
 }
 
+static Property parallel_isa_properties[] = {
+    DEFINE_PROP_UINT32("index", ISAParallelState, index,   -1),
+    DEFINE_PROP_HEX32("iobase", ISAParallelState, iobase,  -1),
+    DEFINE_PROP_UINT32("irq",   ISAParallelState, isairq,  7),
+    DEFINE_PROP_CHR("chardev",  ISAParallelState, state.chr),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void parallel_isa_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = parallel_isa_initfn;
+    dc->props = parallel_isa_properties;
 }
 
-static DeviceInfo parallel_isa_info = {
-    .name  = "isa-parallel",
-    .size  = sizeof(ISAParallelState),
-    .class_init       = parallel_isa_class_initfn,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("index", ISAParallelState, index,   -1),
-        DEFINE_PROP_HEX32("iobase", ISAParallelState, iobase,  -1),
-        DEFINE_PROP_UINT32("irq",   ISAParallelState, isairq,  7),
-        DEFINE_PROP_CHR("chardev",  ISAParallelState, state.chr),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo parallel_isa_info = {
+    .name          = "isa-parallel",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(ISAParallelState),
+    .class_init    = parallel_isa_class_initfn,
 };
 
 static void parallel_register_devices(void)
 {
-    isa_qdev_register(&parallel_isa_info);
+    type_register_static(&parallel_isa_info);
 }
 
 device_init(parallel_register_devices)

@@ -128,14 +128,15 @@ static void mpc8544_guts_class_init(ObjectClass *klass, void *data)
     k->init = mpc8544_guts_initfn;
 }
 
-static DeviceInfo mpc8544_guts_info = {
-    .name = "mpc8544-guts",
-    .size = sizeof(GutsState),
-    .class_init = mpc8544_guts_class_init,
+static TypeInfo mpc8544_guts_info = {
+    .name          = "mpc8544-guts",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(GutsState),
+    .class_init    = mpc8544_guts_class_init,
 };
 
 static void mpc8544_guts_register(void)
 {
-    sysbus_register_withprop(&mpc8544_guts_info);
+    type_register_static(&mpc8544_guts_info);
 }
 device_init(mpc8544_guts_register);

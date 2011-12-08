@@ -220,15 +220,6 @@ void usb_legacy_register(const char *typename, const char *usbdevice_name,
     }
 }
 
-void usb_qdev_register(DeviceInfo *info)
-{
-    info->bus_info = &usb_bus_info;
-    info->init     = usb_qdev_init;
-    info->unplug   = qdev_simple_unplug_cb;
-    info->exit     = usb_qdev_exit;
-    qdev_register_subclass(info, TYPE_USB_DEVICE);
-}
-
 USBDevice *usb_create(USBBus *bus, const char *name)
 {
     DeviceState *dev;
@@ -577,12 +568,22 @@ USBDevice *usbdevice_create(const char *cmdline)
     return f->usbdevice_init(params);
 }
 
+static void usb_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->bus_info = &usb_bus_info;
+    k->init     = usb_qdev_init;
+    k->unplug   = qdev_simple_unplug_cb;
+    k->exit     = usb_qdev_exit;
+}
+
 static TypeInfo usb_device_type_info = {
     .name = TYPE_USB_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(USBDevice),
     .abstract = true,
     .class_size = sizeof(USBDeviceClass),
+    .class_init = usb_device_class_init,
 };
 
 static void usb_register_devices(void)

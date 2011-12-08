@@ -362,22 +362,24 @@ static Property grlib_irqmp_properties[] = {
 
 static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = grlib_irqmp_init;
+    dc->reset = grlib_irqmp_reset;
+    dc->props = grlib_irqmp_properties;
 }
 
-static DeviceInfo grlib_irqmp_info = {
-    .name = "grlib,irqmp",
-    .reset = grlib_irqmp_reset,
-    .size = sizeof(IRQMP),
-    .props = grlib_irqmp_properties,
-    .class_init = grlib_irqmp_class_init,
+static TypeInfo grlib_irqmp_info = {
+    .name          = "grlib,irqmp",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(IRQMP),
+    .class_init    = grlib_irqmp_class_init,
 };
 
 static void grlib_irqmp_register(void)
 {
-    sysbus_register_withprop(&grlib_irqmp_info);
+    type_register_static(&grlib_irqmp_info);
 }
 
 device_init(grlib_irqmp_register)

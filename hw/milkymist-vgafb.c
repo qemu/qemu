@@ -307,23 +307,25 @@ static Property milkymist_vgafb_properties[] = {
 
 static void milkymist_vgafb_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = milkymist_vgafb_init;
+    dc->reset = milkymist_vgafb_reset;
+    dc->vmsd = &vmstate_milkymist_vgafb;
+    dc->props = milkymist_vgafb_properties;
 }
 
-static DeviceInfo milkymist_vgafb_info = {
-    .name = "milkymist-vgafb",
-    .size = sizeof(MilkymistVgafbState),
-    .vmsd = &vmstate_milkymist_vgafb,
-    .reset = milkymist_vgafb_reset,
-    .props = milkymist_vgafb_properties,
-    .class_init = milkymist_vgafb_class_init,
+static TypeInfo milkymist_vgafb_info = {
+    .name          = "milkymist-vgafb",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MilkymistVgafbState),
+    .class_init    = milkymist_vgafb_class_init,
 };
 
 static void milkymist_vgafb_register(void)
 {
-    sysbus_register_withprop(&milkymist_vgafb_info);
+    type_register_static(&milkymist_vgafb_info);
 }
 
 device_init(milkymist_vgafb_register)

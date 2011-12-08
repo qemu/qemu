@@ -859,24 +859,26 @@ static int twl92230_init(I2CSlave *i2c)
 
 static void twl92230_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
 
     sc->init = twl92230_init;
     sc->event = menelaus_event;
     sc->recv = menelaus_rx;
     sc->send = menelaus_tx;
+    dc->vmsd = &vmstate_menelaus;
 }
 
-static DeviceInfo twl92230_info = {
-    .name ="twl92230",
-    .size = sizeof(MenelausState),
-    .vmsd = &vmstate_menelaus,
-    .class_init = twl92230_class_init,
+static TypeInfo twl92230_info = {
+    .name          = "twl92230",
+    .parent        = TYPE_I2C_SLAVE,
+    .instance_size = sizeof(MenelausState),
+    .class_init    = twl92230_class_init,
 };
 
 static void twl92230_register_devices(void)
 {
-    i2c_register_slave(&twl92230_info);
+    type_register_static(&twl92230_info);
 }
 
 device_init(twl92230_register_devices)

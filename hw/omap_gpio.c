@@ -739,17 +739,19 @@ static Property omap_gpio_properties[] = {
 
 static void omap_gpio_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = omap_gpio_init;
+    dc->reset = omap_gpif_reset;
+    dc->props = omap_gpio_properties;
 }
 
-static DeviceInfo omap_gpio_info = {
-    .name = "omap-gpio",
-    .size = sizeof(struct omap_gpif_s),
-    .reset = omap_gpif_reset,
-    .props = omap_gpio_properties,
-    .class_init = omap_gpio_class_init,
+static TypeInfo omap_gpio_info = {
+    .name          = "omap-gpio",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(struct omap_gpif_s),
+    .class_init    = omap_gpio_class_init,
 };
 
 static Property omap2_gpio_properties[] = {
@@ -766,23 +768,25 @@ static Property omap2_gpio_properties[] = {
 
 static void omap2_gpio_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = omap2_gpio_init;
+    dc->reset = omap2_gpif_reset;
+    dc->props = omap2_gpio_properties;
 }
 
-static DeviceInfo omap2_gpio_info = {
-    .name = "omap2-gpio",
-    .size = sizeof(struct omap2_gpif_s),
-    .reset = omap2_gpif_reset,
-    .props = omap2_gpio_properties,
-    .class_init = omap2_gpio_class_init,
+static TypeInfo omap2_gpio_info = {
+    .name          = "omap2-gpio",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(struct omap2_gpif_s),
+    .class_init    = omap2_gpio_class_init,
 };
 
 static void omap_gpio_register_device(void)
 {
-    sysbus_register_withprop(&omap_gpio_info);
-    sysbus_register_withprop(&omap2_gpio_info);
+    type_register_static(&omap_gpio_info);
+    type_register_static(&omap2_gpio_info);
 }
 
 device_init(omap_gpio_register_device)

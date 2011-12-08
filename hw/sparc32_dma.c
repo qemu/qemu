@@ -291,23 +291,25 @@ static Property sparc32_dma_properties[] = {
 
 static void sparc32_dma_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = sparc32_dma_init1;
+    dc->reset = dma_reset;
+    dc->vmsd = &vmstate_dma;
+    dc->props = sparc32_dma_properties;
 }
 
-static DeviceInfo sparc32_dma_info = {
-    .name = "sparc32_dma",
-    .size = sizeof(DMAState),
-    .vmsd = &vmstate_dma,
-    .reset = dma_reset,
-    .props = sparc32_dma_properties,
-    .class_init = sparc32_dma_class_init,
+static TypeInfo sparc32_dma_info = {
+    .name          = "sparc32_dma",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(DMAState),
+    .class_init    = sparc32_dma_class_init,
 };
 
 static void sparc32_dma_register_devices(void)
 {
-    sysbus_register_withprop(&sparc32_dma_info);
+    type_register_static(&sparc32_dma_info);
 }
 
 device_init(sparc32_dma_register_devices)

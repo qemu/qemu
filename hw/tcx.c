@@ -649,23 +649,25 @@ static Property tcx_properties[] = {
 
 static void tcx_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = tcx_init1;
+    dc->reset = tcx_reset;
+    dc->vmsd = &vmstate_tcx;
+    dc->props = tcx_properties;
 }
 
-static DeviceInfo tcx_info = {
-    .name = "SUNW,tcx",
-    .size = sizeof(TCXState),
-    .reset = tcx_reset,
-    .vmsd = &vmstate_tcx,
-    .props = tcx_properties,
-    .class_init = tcx_class_init,
+static TypeInfo tcx_info = {
+    .name          = "SUNW,tcx",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(TCXState),
+    .class_init    = tcx_class_init,
 };
 
 static void tcx_register_devices(void)
 {
-    sysbus_register_withprop(&tcx_info);
+    type_register_static(&tcx_info);
 }
 
 device_init(tcx_register_devices)

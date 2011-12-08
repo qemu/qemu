@@ -467,22 +467,24 @@ static const VMStateDescription vmstate_milkymist_tmu2 = {
 
 static void milkymist_tmu2_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = milkymist_tmu2_init;
+    dc->reset = milkymist_tmu2_reset;
+    dc->vmsd = &vmstate_milkymist_tmu2;
 }
 
-static DeviceInfo milkymist_tmu2_info = {
-    .name = "milkymist-tmu2",
-    .size = sizeof(MilkymistTMU2State),
-    .vmsd = &vmstate_milkymist_tmu2,
-    .reset = milkymist_tmu2_reset,
-    .class_init = milkymist_tmu2_class_init,
+static TypeInfo milkymist_tmu2_info = {
+    .name          = "milkymist-tmu2",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MilkymistTMU2State),
+    .class_init    = milkymist_tmu2_class_init,
 };
 
 static void milkymist_tmu2_register(void)
 {
-    sysbus_register_withprop(&milkymist_tmu2_info);
+    type_register_static(&milkymist_tmu2_info);
 }
 
 device_init(milkymist_tmu2_register)

@@ -228,24 +228,26 @@ static int tmp105_init(I2CSlave *i2c)
 
 static void tmp105_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
 
     k->init = tmp105_init;
     k->event = tmp105_event;
     k->recv = tmp105_rx;
     k->send = tmp105_tx;
+    dc->vmsd = &vmstate_tmp105;
 }
 
-static DeviceInfo tmp105_info = {
-    .name = "tmp105",
-    .size = sizeof(TMP105State),
-    .vmsd = &vmstate_tmp105,
-    .class_init = tmp105_class_init,
+static TypeInfo tmp105_info = {
+    .name          = "tmp105",
+    .parent        = TYPE_I2C_SLAVE,
+    .instance_size = sizeof(TMP105State),
+    .class_init    = tmp105_class_init,
 };
 
 static void tmp105_register_devices(void)
 {
-    i2c_register_slave(&tmp105_info);
+    type_register_static(&tmp105_info);
 }
 
 device_init(tmp105_register_devices)

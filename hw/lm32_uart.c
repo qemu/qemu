@@ -273,22 +273,24 @@ static const VMStateDescription vmstate_lm32_uart = {
 
 static void lm32_uart_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = lm32_uart_init;
+    dc->reset = uart_reset;
+    dc->vmsd = &vmstate_lm32_uart;
 }
 
-static DeviceInfo lm32_uart_info = {
-    .name = "lm32-uart",
-    .size = sizeof(LM32UartState),
-    .vmsd = &vmstate_lm32_uart,
-    .reset = uart_reset,
-    .class_init = lm32_uart_class_init,
+static TypeInfo lm32_uart_info = {
+    .name          = "lm32-uart",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(LM32UartState),
+    .class_init    = lm32_uart_class_init,
 };
 
 static void lm32_uart_register(void)
 {
-    sysbus_register_withprop(&lm32_uart_info);
+    type_register_static(&lm32_uart_info);
 }
 
 device_init(lm32_uart_register)

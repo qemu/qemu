@@ -128,8 +128,8 @@
 #define DRVR_INT        0x0200  /* Driver generated interrupt. */
 
 typedef struct {
-    DeviceInfo qdev;
-
+    const char *name;
+    const char *desc;
     uint16_t device_id;
     uint8_t revision;
     uint16_t subsystem_vendor_id;
@@ -1905,8 +1905,8 @@ static int e100_nic_init(PCIDevice *pci_dev)
 
 static E100PCIDeviceInfo e100_devices[] = {
     {
-        .qdev.name = "i82550",
-        .qdev.desc = "Intel i82550 Ethernet",
+        .name = "i82550",
+        .desc = "Intel i82550 Ethernet",
         .device = i82550,
         /* TODO: check device id. */
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
@@ -1918,8 +1918,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
-        .qdev.name = "i82551",
-        .qdev.desc = "Intel i82551 Ethernet",
+        .name = "i82551",
+        .desc = "Intel i82551 Ethernet",
         .device = i82551,
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
         /* Revision ID: 0x0f, 0x10. */
@@ -1929,29 +1929,29 @@ static E100PCIDeviceInfo e100_devices[] = {
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
-        .qdev.name = "i82557a",
-        .qdev.desc = "Intel i82557A Ethernet",
+        .name = "i82557a",
+        .desc = "Intel i82557A Ethernet",
         .device = i82557A,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x01,
         .power_management = false,
     },{
-        .qdev.name = "i82557b",
-        .qdev.desc = "Intel i82557B Ethernet",
+        .name = "i82557b",
+        .desc = "Intel i82557B Ethernet",
         .device = i82557B,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x02,
         .power_management = false,
     },{
-        .qdev.name = "i82557c",
-        .qdev.desc = "Intel i82557C Ethernet",
+        .name = "i82557c",
+        .desc = "Intel i82557C Ethernet",
         .device = i82557C,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x03,
         .power_management = false,
     },{
-        .qdev.name = "i82558a",
-        .qdev.desc = "Intel i82558A Ethernet",
+        .name = "i82558a",
+        .desc = "Intel i82558A Ethernet",
         .device = i82558A,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x04,
@@ -1959,8 +1959,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
-        .qdev.name = "i82558b",
-        .qdev.desc = "Intel i82558B Ethernet",
+        .name = "i82558b",
+        .desc = "Intel i82558B Ethernet",
         .device = i82558B,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x05,
@@ -1968,8 +1968,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
-        .qdev.name = "i82559a",
-        .qdev.desc = "Intel i82559A Ethernet",
+        .name = "i82559a",
+        .desc = "Intel i82559A Ethernet",
         .device = i82559A,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x06,
@@ -1977,8 +1977,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
-        .qdev.name = "i82559b",
-        .qdev.desc = "Intel i82559B Ethernet",
+        .name = "i82559b",
+        .desc = "Intel i82559B Ethernet",
         .device = i82559B,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
         .revision = 0x07,
@@ -1986,8 +1986,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
-        .qdev.name = "i82559c",
-        .qdev.desc = "Intel i82559C Ethernet",
+        .name = "i82559c",
+        .desc = "Intel i82559C Ethernet",
         .device = i82559C,
         .device_id = PCI_DEVICE_ID_INTEL_82557,
 #if 0
@@ -2003,8 +2003,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
-        .qdev.name = "i82559er",
-        .qdev.desc = "Intel i82559ER Ethernet",
+        .name = "i82559er",
+        .desc = "Intel i82559ER Ethernet",
         .device = i82559ER,
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
         .revision = 0x09,
@@ -2012,8 +2012,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .has_extended_tcb_support = true,
         .power_management = true,
     },{
-        .qdev.name = "i82562",
-        .qdev.desc = "Intel i82562 Ethernet",
+        .name = "i82562",
+        .desc = "Intel i82562 Ethernet",
         .device = i82562,
         /* TODO: check device id. */
         .device_id = PCI_DEVICE_ID_INTEL_82551IT,
@@ -2024,8 +2024,8 @@ static E100PCIDeviceInfo e100_devices[] = {
         .power_management = true,
     },{
         /* Toshiba Tecra 8200. */
-        .qdev.name = "i82801",
-        .qdev.desc = "Intel i82801 Ethernet",
+        .name = "i82801",
+        .desc = "Intel i82801 Ethernet",
         .device = i82801,
         .device_id = 0x2449,
         .revision = 0x03,
@@ -2048,7 +2048,7 @@ static E100PCIDeviceInfo *eepro100_get_class_by_name(const char *typename)
      * do this in a much more elegant fashion.
      */
     for (i = 0; i < ARRAY_SIZE(e100_devices); i++) {
-        if (strcmp(e100_devices[i].qdev.name, typename) == 0) {
+        if (strcmp(e100_devices[i].name, typename) == 0) {
             info = &e100_devices[i];
             break;
         }
@@ -2063,13 +2063,21 @@ static E100PCIDeviceInfo *eepro100_get_class(EEPRO100State *s)
     return eepro100_get_class_by_name(object_get_typename(OBJECT(s)));
 }
 
+static Property e100_properties[] = {
+    DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void eepro100_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
     E100PCIDeviceInfo *info;
 
     info = eepro100_get_class_by_name(object_class_get_name(klass));
 
+    dc->props = e100_properties;
+    dc->desc = info->desc;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     k->romfile = "pxe-eepro100.rom";
@@ -2081,22 +2089,19 @@ static void eepro100_class_init(ObjectClass *klass, void *data)
     k->subsystem_id = info->subsystem_id;
 }
 
-static Property e100_properties[] = {
-    DEFINE_NIC_PROPERTIES(EEPRO100State, conf),
-    DEFINE_PROP_END_OF_LIST(),
-};
-
 static void eepro100_register_devices(void)
 {
     size_t i;
     for (i = 0; i < ARRAY_SIZE(e100_devices); i++) {
-        DeviceInfo *info = &e100_devices[i].qdev;
+        TypeInfo type_info = {};
+        E100PCIDeviceInfo *info = &e100_devices[i];
 
-        info->class_init = eepro100_class_init;
-        info->size = sizeof(EEPRO100State);
-        info->props = e100_properties;
+        type_info.name = info->name;
+        type_info.parent = TYPE_PCI_DEVICE;
+        type_info.class_init = eepro100_class_init;
+        type_info.instance_size = sizeof(EEPRO100State);
         
-        pci_qdev_register(info);
+        type_register(&type_info);
     }
 }
 

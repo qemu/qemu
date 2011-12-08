@@ -148,6 +148,7 @@ static void pci_ich9_write_config(PCIDevice *pci, uint32_t addr,
 
 static void ich_ahci_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = pci_ich9_ahci_init;
@@ -157,18 +158,20 @@ static void ich_ahci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82801IR;
     k->revision = 0x02;
     k->class_id = PCI_CLASS_STORAGE_SATA;
+    dc->alias = "ahci";
+    dc->vmsd = &vmstate_ahci;
 }
 
-static DeviceInfo ich_ahci_info = {
-    .name = "ich9-ahci",
-    .alias = "ahci",
-    .size = sizeof(AHCIPCIState),
-    .vmsd = &vmstate_ahci,
-    .class_init = ich_ahci_class_init,
+static TypeInfo ich_ahci_info = {
+    .name          = "ich9-ahci",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(AHCIPCIState),
+    .class_init    = ich_ahci_class_init,
 };
 
 static void ich_ahci_register(void)
 {
-    pci_qdev_register(&ich_ahci_info);
+    type_register_static(&ich_ahci_info);
+    type_register_static_alias(&ich_ahci_info, "ahci");
 }
 device_init(ich_ahci_register);

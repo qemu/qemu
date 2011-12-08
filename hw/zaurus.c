@@ -227,23 +227,25 @@ static Property scoop_sysbus_properties[] = {
 
 static void scoop_sysbus_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = scoop_init;
+    dc->desc = "Scoop2 Sharp custom ASIC";
+    dc->vmsd = &vmstate_scoop_regs;
+    dc->props = scoop_sysbus_properties;
 }
 
-static DeviceInfo scoop_sysbus_info = {
-    .name = "scoop",
-    .desc = "Scoop2 Sharp custom ASIC",
-    .size = sizeof(ScoopInfo),
-    .vmsd = &vmstate_scoop_regs,
-    .props = scoop_sysbus_properties,
-    .class_init = scoop_sysbus_class_init,
+static TypeInfo scoop_sysbus_info = {
+    .name          = "scoop",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(ScoopInfo),
+    .class_init    = scoop_sysbus_class_init,
 };
 
 static void scoop_register(void)
 {
-    sysbus_register_withprop(&scoop_sysbus_info);
+    type_register_static(&scoop_sysbus_info);
 }
 device_init(scoop_register);
 

@@ -623,21 +623,23 @@ static Property etraxfs_eth_properties[] = {
 
 static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = fs_eth_init;
+    dc->props = etraxfs_eth_properties;
 }
 
-static DeviceInfo etraxfs_eth_info = {
-    .name = "etraxfs-eth",
-    .size = sizeof(struct fs_eth),
-    .props = etraxfs_eth_properties,
-    .class_init = etraxfs_eth_class_init,
+static TypeInfo etraxfs_eth_info = {
+    .name          = "etraxfs-eth",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(struct fs_eth),
+    .class_init    = etraxfs_eth_class_init,
 };
 
 static void etraxfs_eth_register(void)
 {
-	sysbus_register_withprop(&etraxfs_eth_info);
+    type_register_static(&etraxfs_eth_info);
 }
 
 device_init(etraxfs_eth_register)

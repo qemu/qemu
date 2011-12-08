@@ -160,29 +160,33 @@ static int l2x0_priv_init(SysBusDevice *dev)
     return 0;
 }
 
+static Property l2x0_properties[] = {
+    DEFINE_PROP_UINT32("type", l2x0_state, cache_type, 0x1c100100),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void l2x0_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = l2x0_priv_init;
+    dc->vmsd = &vmstate_l2x0;
+    dc->no_user = 1;
+    dc->props = l2x0_properties;
+    dc->reset = l2x0_priv_reset;
 }
 
-static DeviceInfo l2x0_info = {
+static TypeInfo l2x0_info = {
     .name = "l2x0",
-    .size = sizeof(l2x0_state),
-    .vmsd = &vmstate_l2x0,
-    .no_user = 1,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("type", l2x0_state, cache_type, 0x1c100100),
-        DEFINE_PROP_END_OF_LIST(),
-    },
-    .reset = l2x0_priv_reset,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(l2x0_state),
     .class_init = l2x0_class_init,
 };
 
 static void l2x0_register_device(void)
 {
-    sysbus_qdev_register(&l2x0_info);
+    type_register_static(&l2x0_info);
 }
 
 device_init(l2x0_register_device)

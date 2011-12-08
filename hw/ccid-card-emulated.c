@@ -564,36 +564,39 @@ static int emulated_exitfn(CCIDCardState *base)
     return 0;
 }
 
+static Property emulated_card_properties[] = {
+    DEFINE_PROP_STRING("backend", EmulatedState, backend_str),
+    DEFINE_PROP_STRING("cert1", EmulatedState, cert1),
+    DEFINE_PROP_STRING("cert2", EmulatedState, cert2),
+    DEFINE_PROP_STRING("cert3", EmulatedState, cert3),
+    DEFINE_PROP_STRING("db", EmulatedState, db),
+    DEFINE_PROP_UINT8("debug", EmulatedState, debug, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void emulated_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     CCIDCardClass *cc = CCID_CARD_CLASS(klass);
 
     cc->initfn = emulated_initfn;
     cc->exitfn = emulated_exitfn;
     cc->get_atr = emulated_get_atr;
     cc->apdu_from_guest = emulated_apdu_from_guest;
+    dc->desc = "emulated smartcard";
+    dc->props = emulated_card_properties;
 }
 
-static DeviceInfo emulated_card_info = {
-    .name = EMULATED_DEV_NAME,
-    .desc = "emulated smartcard",
-    .size = sizeof(EmulatedState),
-    .unplug    = qdev_simple_unplug_cb,
-    .class_init = emulated_class_initfn,
-    .props     = (Property[]) {
-        DEFINE_PROP_STRING("backend", EmulatedState, backend_str),
-        DEFINE_PROP_STRING("cert1", EmulatedState, cert1),
-        DEFINE_PROP_STRING("cert2", EmulatedState, cert2),
-        DEFINE_PROP_STRING("cert3", EmulatedState, cert3),
-        DEFINE_PROP_STRING("db", EmulatedState, db),
-        DEFINE_PROP_UINT8("debug", EmulatedState, debug, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo emulated_card_info = {
+    .name          = EMULATED_DEV_NAME,
+    .parent        = TYPE_CCID_CARD,
+    .instance_size = sizeof(EmulatedState),
+    .class_init    = emulated_class_initfn,
 };
 
 static void ccid_card_emulated_register_devices(void)
 {
-    ccid_card_qdev_register(&emulated_card_info);
+    type_register_static(&emulated_card_info);
 }
 
 device_init(ccid_card_emulated_register_devices)

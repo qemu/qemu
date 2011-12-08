@@ -396,6 +396,8 @@ const char *object_get_typename(Object *obj);
  */
 Type type_register_static(const TypeInfo *info);
 
+#define type_register_static_alias(info, name) do { } while (0)
+
 /**
  * type_register:
  * @info: The #TypeInfo of the new type

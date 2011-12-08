@@ -1402,8 +1402,19 @@ static const VMStateDescription vmstate_usb_host = {
     .unmigratable = 1,
 };
 
+static Property usb_host_dev_properties[] = {
+    DEFINE_PROP_UINT32("hostbus",  USBHostDevice, match.bus_num,    0),
+    DEFINE_PROP_UINT32("hostaddr", USBHostDevice, match.addr,       0),
+    DEFINE_PROP_STRING("hostport", USBHostDevice, match.port),
+    DEFINE_PROP_HEX32("vendorid",  USBHostDevice, match.vendor_id,  0),
+    DEFINE_PROP_HEX32("productid", USBHostDevice, match.product_id, 0),
+    DEFINE_PROP_UINT32("isobufs",  USBHostDevice, iso_urb_count,    4),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void usb_host_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->init           = usb_host_initfn;
@@ -1414,27 +1425,20 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_host_handle_control;
     uc->handle_reset   = usb_host_handle_reset;
     uc->handle_destroy = usb_host_handle_destroy;
+    dc->vmsd = &vmstate_usb_host;
+    dc->props = usb_host_dev_properties;
 }
 
-static struct DeviceInfo usb_host_dev_info = {
-    .name      = "usb-host",
-    .size      = sizeof(USBHostDevice),
-    .vmsd      = &vmstate_usb_host,
-    .class_init= usb_host_class_initfn,
-    .props     = (Property[]) {
-        DEFINE_PROP_UINT32("hostbus",  USBHostDevice, match.bus_num,    0),
-        DEFINE_PROP_UINT32("hostaddr", USBHostDevice, match.addr,       0),
-        DEFINE_PROP_STRING("hostport", USBHostDevice, match.port),
-        DEFINE_PROP_HEX32("vendorid",  USBHostDevice, match.vendor_id,  0),
-        DEFINE_PROP_HEX32("productid", USBHostDevice, match.product_id, 0),
-        DEFINE_PROP_UINT32("isobufs",  USBHostDevice, iso_urb_count,    4),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo usb_host_dev_info = {
+    .name          = "usb-host",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBHostDevice),
+    .class_init    = usb_host_class_initfn,
 };
 
 static void usb_host_register_devices(void)
 {
-    usb_qdev_register(&usb_host_dev_info);
+    type_register_static(&usb_host_dev_info);
     usb_legacy_register("usb-host", "host", usb_host_device_open);
 }
 device_init(usb_host_register_devices)

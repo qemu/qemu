@@ -1521,17 +1521,6 @@ static int pci_unplug_device(DeviceState *qdev)
                              PCI_HOTPLUG_DISABLED);
 }
 
-void pci_qdev_register(DeviceInfo *info)
-{
-    info->init = pci_qdev_init;
-    if (!info->unplug) {
-        info->unplug = pci_unplug_device;
-    }
-    info->exit = pci_unregister_device;
-    info->bus_info = &pci_bus_info;
-    qdev_register_subclass(info, TYPE_PCI_DEVICE);
-}
-
 PCIDevice *pci_create_multifunction(PCIBus *bus, int devfn, bool multifunction,
                                     const char *name)
 {
@@ -1995,12 +1984,22 @@ MemoryRegion *pci_address_space_io(PCIDevice *dev)
     return dev->bus->address_space_io;
 }
 
+static void pci_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->init = pci_qdev_init;
+    k->unplug = pci_unplug_device;
+    k->exit = pci_unregister_device;
+    k->bus_info = &pci_bus_info;
+}
+
 static TypeInfo pci_device_type_info = {
     .name = TYPE_PCI_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .abstract = true,
     .class_size = sizeof(PCIDeviceClass),
+    .class_init = pci_device_class_init,
 };
 
 static void pci_register_devices(void)

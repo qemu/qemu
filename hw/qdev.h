@@ -260,7 +260,6 @@ struct DeviceInfo {
     BusInfo *bus_info;
 };
 
-void qdev_register(DeviceInfo *info);
 void qdev_register_subclass(DeviceInfo *info, const char *parent);
 
 /* Register device properties.  */

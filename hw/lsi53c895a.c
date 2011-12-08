@@ -2122,6 +2122,7 @@ static int lsi_scsi_init(PCIDevice *dev)
 
 static void lsi_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = lsi_scsi_init;
@@ -2130,20 +2131,22 @@ static void lsi_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_LSI_53C895A;
     k->class_id = PCI_CLASS_STORAGE_SCSI;
     k->subsystem_id = 0x1000;
+    dc->alias = "lsi";
+    dc->reset = lsi_scsi_reset;
+    dc->vmsd = &vmstate_lsi_scsi;
 }
 
-static DeviceInfo lsi_info = {
-    .name = "lsi53c895a",
-    .alias = "lsi",
-    .size = sizeof(LSIState),
-    .reset = lsi_scsi_reset,
-    .vmsd = &vmstate_lsi_scsi,
-    .class_init = lsi_class_init,
+static TypeInfo lsi_info = {
+    .name          = "lsi53c895a",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(LSIState),
+    .class_init    = lsi_class_init,
 };
 
 static void lsi53c895a_register_devices(void)
 {
-    pci_qdev_register(&lsi_info);
+    type_register_static(&lsi_info);
+    type_register_static_alias(&lsi_info, "lsi");
 }
 
 device_init(lsi53c895a_register_devices);

@@ -131,6 +131,7 @@ static Property virtconsole_properties[] = {
 
 static void virtconsole_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
 
     k->is_console = true;
@@ -138,18 +139,19 @@ static void virtconsole_class_init(ObjectClass *klass, void *data)
     k->have_data = flush_buf;
     k->guest_open = guest_open;
     k->guest_close = guest_close;
+    dc->props = virtconsole_properties;
 }
 
-static DeviceInfo virtconsole_info = {
-    .name = "virtconsole",
-    .size = sizeof(VirtConsole),
-    .props = virtconsole_properties,
-    .class_init = virtconsole_class_init,
+static TypeInfo virtconsole_info = {
+    .name          = "virtconsole",
+    .parent        = TYPE_VIRTIO_SERIAL_PORT,
+    .instance_size = sizeof(VirtConsole),
+    .class_init    = virtconsole_class_init,
 };
 
 static void virtconsole_register(void)
 {
-    virtio_serial_port_qdev_register(&virtconsole_info);
+    type_register_static(&virtconsole_info);
 }
 device_init(virtconsole_register)
 
@@ -160,23 +162,25 @@ static Property virtserialport_properties[] = {
 
 static void virtserialport_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     VirtIOSerialPortClass *k = VIRTIO_SERIAL_PORT_CLASS(klass);
 
     k->init = virtconsole_initfn;
     k->have_data = flush_buf;
     k->guest_open = guest_open;
     k->guest_close = guest_close;
+    dc->props = virtserialport_properties;
 }
 
-static DeviceInfo virtserialport_info = {
-    .name = "virtserialport",
-    .size = sizeof(VirtConsole),
-    .props = virtserialport_properties,
-    .class_init = virtserialport_class_init,
+static TypeInfo virtserialport_info = {
+    .name          = "virtserialport",
+    .parent        = TYPE_VIRTIO_SERIAL_PORT,
+    .instance_size = sizeof(VirtConsole),
+    .class_init    = virtserialport_class_init,
 };
 
 static void virtserialport_register(void)
 {
-    virtio_serial_port_qdev_register(&virtserialport_info);
+    type_register_static(&virtserialport_info);
 }
 device_init(virtserialport_register)

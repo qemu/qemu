@@ -403,6 +403,7 @@ static Property piix4_pm_properties[] = {
 
 static void piix4_pm_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->no_hotplug = 1;
@@ -412,21 +413,22 @@ static void piix4_pm_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82371AB_3;
     k->revision = 0x03;
     k->class_id = PCI_CLASS_BRIDGE_OTHER;
+    dc->desc = "PM";
+    dc->no_user = 1;
+    dc->vmsd = &vmstate_acpi;
+    dc->props = piix4_pm_properties;
 }
 
-static DeviceInfo piix4_pm_info = {
-    .name = "PIIX4_PM",
-    .desc = "PM",
-    .size = sizeof(PIIX4PMState),
-    .vmsd = &vmstate_acpi,
-    .no_user = 1,
-    .props = piix4_pm_properties,
-    .class_init = piix4_pm_class_init,
+static TypeInfo piix4_pm_info = {
+    .name          = "PIIX4_PM",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PIIX4PMState),
+    .class_init    = piix4_pm_class_init,
 };
 
 static void piix4_pm_register(void)
 {
-    pci_qdev_register(&piix4_pm_info);
+    type_register_static(&piix4_pm_info);
 }
 
 device_init(piix4_pm_register);

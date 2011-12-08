@@ -680,15 +680,6 @@ static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
     return pc->init(dev);
 }
 
-void spapr_vio_bus_register_withprop(DeviceInfo *info)
-{
-    info->init = spapr_vio_busdev_init;
-    info->bus_info = &spapr_vio_bus_info;
-
-    assert(info->size >= sizeof(VIOsPAPRDevice));
-    qdev_register_subclass(info, TYPE_VIO_SPAPR_DEVICE);
-}
-
 static target_ulong h_vio_signal(CPUState *env, sPAPREnvironment *spapr,
                                  target_ulong opcode,
                                  target_ulong *args)
@@ -757,17 +748,26 @@ static int spapr_vio_bridge_init(SysBusDevice *dev)
 
 static void spapr_vio_bridge_class_init(ObjectClass *klass, void *data)
 {
-    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
-    sbc->init = spapr_vio_bridge_init;
+    k->init = spapr_vio_bridge_init;
+    dc->no_user = 1;
 }
 
-static DeviceInfo spapr_vio_bridge_info = {
-    .name  = "spapr-vio-bridge",
-    .size  = sizeof(SysBusDevice),
-    .no_user = 1,
-    .class_init = spapr_vio_bridge_class_init,
+static TypeInfo spapr_vio_bridge_info = {
+    .name          = "spapr-vio-bridge",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SysBusDevice),
+    .class_init    = spapr_vio_bridge_class_init,
 };
+
+static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->init = spapr_vio_busdev_init;
+    k->bus_info = &spapr_vio_bus_info;
+}
 
 static TypeInfo spapr_vio_type_info = {
     .name = TYPE_VIO_SPAPR_DEVICE,
@@ -775,11 +775,12 @@ static TypeInfo spapr_vio_type_info = {
     .instance_size = sizeof(VIOsPAPRDevice),
     .abstract = true,
     .class_size = sizeof(VIOsPAPRDeviceClass),
+    .class_init = vio_spapr_device_class_init,
 };
 
 static void spapr_vio_register_devices(void)
 {
-    sysbus_register_withprop(&spapr_vio_bridge_info);
+    type_register_static(&spapr_vio_bridge_info);
     type_register_static(&spapr_vio_type_info);
 }
 

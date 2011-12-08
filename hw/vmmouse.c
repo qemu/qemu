@@ -271,27 +271,31 @@ static int vmmouse_initfn(ISADevice *dev)
     return 0;
 }
 
+static Property vmmouse_properties[] = {
+    DEFINE_PROP_PTR("ps2_mouse", VMMouseState, ps2_mouse),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void vmmouse_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = vmmouse_initfn;
+    dc->no_user = 1;
+    dc->reset = vmmouse_reset;
+    dc->vmsd = &vmstate_vmmouse;
+    dc->props = vmmouse_properties;
 }
 
-static DeviceInfo vmmouse_info = {
-    .class_init          = vmmouse_class_initfn,
-    .name     = "vmmouse",
-    .size     = sizeof(VMMouseState),
-    .vmsd     = &vmstate_vmmouse,
-    .no_user  = 1,
-    .reset    = vmmouse_reset,
-    .props = (Property[]) {
-        DEFINE_PROP_PTR("ps2_mouse", VMMouseState, ps2_mouse),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo vmmouse_info = {
+    .name          = "vmmouse",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(VMMouseState),
+    .class_init    = vmmouse_class_initfn,
 };
 
 static void vmmouse_dev_register(void)
 {
-    isa_qdev_register(&vmmouse_info);
+    type_register_static(&vmmouse_info);
 }
 device_init(vmmouse_dev_register)

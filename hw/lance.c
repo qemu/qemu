@@ -145,23 +145,25 @@ static Property lance_properties[] = {
 
 static void lance_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = lance_init;
+    dc->fw_name = "ethernet";
+    dc->reset = lance_reset;
+    dc->vmsd = &vmstate_lance;
+    dc->props = lance_properties;
 }
 
-static DeviceInfo lance_info = {
-    .name = "lance",
-    .fw_name = "ethernet",
-    .size = sizeof(SysBusPCNetState),
-    .reset = lance_reset,
-    .vmsd = &vmstate_lance,
-    .props = lance_properties,
-    .class_init = lance_class_init,
+static TypeInfo lance_info = {
+    .name          = "lance",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SysBusPCNetState),
+    .class_init    = lance_class_init,
 };
 
 static void lance_register_devices(void)
 {
-    sysbus_register_withprop(&lance_info);
+    type_register_static(&lance_info);
 }
 device_init(lance_register_devices)

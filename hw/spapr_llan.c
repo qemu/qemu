@@ -482,6 +482,7 @@ static Property spapr_vlan_properties[] = {
 
 static void spapr_vlan_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     VIOsPAPRDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
 
     k->init = spapr_vlan_init;
@@ -490,13 +491,14 @@ static void spapr_vlan_class_init(ObjectClass *klass, void *data)
     k->dt_type = "network";
     k->dt_compatible = "IBM,l-lan";
     k->signal_mask = 0x1;
+    dc->props = spapr_vlan_properties;
 }
 
-static DeviceInfo spapr_vlan_info = {
-    .name = "spapr-vlan",
-    .size = sizeof(VIOsPAPRVLANDevice),
-    .props = spapr_vlan_properties,
-    .class_init = spapr_vlan_class_init,
+static TypeInfo spapr_vlan_info = {
+    .name          = "spapr-vlan",
+    .parent        = TYPE_VIO_SPAPR_DEVICE,
+    .instance_size = sizeof(VIOsPAPRVLANDevice),
+    .class_init    = spapr_vlan_class_init,
 };
 
 static void spapr_vlan_register(void)
@@ -507,6 +509,6 @@ static void spapr_vlan_register(void)
     spapr_register_hypercall(H_ADD_LOGICAL_LAN_BUFFER,
                              h_add_logical_lan_buffer);
     spapr_register_hypercall(H_MULTICAST_CTRL, h_multicast_ctrl);
-    spapr_vio_bus_register_withprop(&spapr_vlan_info);
+    type_register_static(&spapr_vlan_info);
 }
 device_init(spapr_vlan_register);

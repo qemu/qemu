@@ -42,20 +42,22 @@ static int sga_initfn(ISADevice *dev)
 }
 static void sga_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = sga_initfn;
+    dc->desc = "Serial Graphics Adapter";
 }
 
-static DeviceInfo sga_info = {
-    .name    = "sga",
-    .desc    = "Serial Graphics Adapter",
-    .size    = sizeof(ISASGAState),
-    .class_init         = sga_class_initfn,
+static TypeInfo sga_info = {
+    .name          = "sga",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(ISASGAState),
+    .class_init    = sga_class_initfn,
 };
 
 static void sga_register(void)
 {
-      isa_qdev_register(&sga_info);
+    type_register_static(&sga_info);
 }
 
 device_init(sga_register);

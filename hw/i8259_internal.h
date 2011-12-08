@@ -78,6 +78,5 @@ void pic_reset_common(PICCommonState *s);
 
 ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master);
 
-void pic_qdev_register(DeviceInfo *info);
 
 #endif /* !QEMU_I8259_INTERNAL_H */

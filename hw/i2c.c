@@ -204,19 +204,6 @@ static int i2c_slave_qdev_init(DeviceState *dev, DeviceInfo *base)
     return sc->init(s);
 }
 
-void i2c_register_slave_subclass(DeviceInfo *info, const char *parent)
-{
-    assert(info->size >= sizeof(I2CSlave));
-    info->init = i2c_slave_qdev_init;
-    info->bus_info = &i2c_bus_info;
-    qdev_register_subclass(info, parent);
-}
-
-void i2c_register_slave(DeviceInfo *info)
-{
-    i2c_register_slave_subclass(info, TYPE_I2C_SLAVE);
-}
-
 DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, uint8_t addr)
 {
     DeviceState *dev;
@@ -227,12 +214,20 @@ DeviceState *i2c_create_slave(i2c_bus *bus, const char *name, uint8_t addr)
     return dev;
 }
 
+static void i2c_slave_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->init = i2c_slave_qdev_init;
+    k->bus_info = &i2c_bus_info;
+}
+
 static TypeInfo i2c_slave_type_info = {
     .name = TYPE_I2C_SLAVE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(I2CSlave),
     .abstract = true,
     .class_size = sizeof(I2CSlaveClass),
+    .class_init = i2c_slave_class_init,
 };
 
 static void i2c_slave_register_devices(void)

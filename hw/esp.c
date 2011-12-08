@@ -759,23 +759,25 @@ static Property esp_properties[] = {
 
 static void esp_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = esp_init1;
+    dc->reset = esp_hard_reset;
+    dc->vmsd = &vmstate_esp;
+    dc->props = esp_properties;
 }
 
-static DeviceInfo esp_info = {
-    .name = "esp",
-    .size = sizeof(ESPState),
-    .vmsd = &vmstate_esp,
-    .reset = esp_hard_reset,
-    .props = esp_properties,
-    .class_init = esp_class_init,
+static TypeInfo esp_info = {
+    .name          = "esp",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(ESPState),
+    .class_init    = esp_class_init,
 };
 
 static void esp_register_devices(void)
 {
-    sysbus_register_withprop(&esp_info);
+    type_register_static(&esp_info);
 }
 
 device_init(esp_register_devices)

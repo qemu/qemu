@@ -280,22 +280,24 @@ static const VMStateDescription vmstate_milkymist_memcard = {
 
 static void milkymist_memcard_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = milkymist_memcard_init;
+    dc->reset = milkymist_memcard_reset;
+    dc->vmsd = &vmstate_milkymist_memcard;
 }
 
-static DeviceInfo milkymist_memcard_info = {
-    .name = "milkymist-memcard",
-    .size = sizeof(MilkymistMemcardState),
-    .vmsd = &vmstate_milkymist_memcard,
-    .reset = milkymist_memcard_reset,
-    .class_init = milkymist_memcard_class_init,
+static TypeInfo milkymist_memcard_info = {
+    .name          = "milkymist-memcard",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MilkymistMemcardState),
+    .class_init    = milkymist_memcard_class_init,
 };
 
 static void milkymist_memcard_register(void)
 {
-    sysbus_register_withprop(&milkymist_memcard_info);
+    type_register_static(&milkymist_memcard_info);
 }
 
 device_init(milkymist_memcard_register)

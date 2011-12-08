@@ -1201,6 +1201,7 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
 
 static void vmsvga_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->no_hotplug = 1;
@@ -1211,18 +1212,19 @@ static void vmsvga_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_DISPLAY_VGA;
     k->subsystem_vendor_id = PCI_VENDOR_ID_VMWARE;
     k->subsystem_id = SVGA_PCI_DEVICE_ID;
+    dc->reset = vmsvga_reset;
+    dc->vmsd = &vmstate_vmware_vga;
 }
 
-static DeviceInfo vmsvga_info = {
-    .name = "vmware-svga",
-    .size = sizeof(struct pci_vmsvga_state_s),
-    .vmsd = &vmstate_vmware_vga,
-    .reset = vmsvga_reset,
-    .class_init = vmsvga_class_init,
+static TypeInfo vmsvga_info = {
+    .name          = "vmware-svga",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(struct pci_vmsvga_state_s),
+    .class_init    = vmsvga_class_init,
 };
 
 static void vmsvga_register(void)
 {
-    pci_qdev_register(&vmsvga_info);
+    type_register_static(&vmsvga_info);
 }
 device_init(vmsvga_register);

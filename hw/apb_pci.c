@@ -447,28 +447,32 @@ static void pbm_pci_host_class_init(ObjectClass *klass, void *data)
     k->is_bridge = 1;
 }
 
-static DeviceInfo pbm_pci_host_info = {
-    .name = "pbm-pci",
-    .size = sizeof(PCIDevice),
-    .class_init = pbm_pci_host_class_init,
+static TypeInfo pbm_pci_host_info = {
+    .name          = "pbm-pci",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIDevice),
+    .class_init    = pbm_pci_host_class_init,
 };
 
 static void pbm_host_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pci_pbm_init_device;
+    dc->reset = pci_pbm_reset;
 }
 
-static DeviceInfo pbm_host_info = {
-    .name = "pbm",
-    .size = sizeof(APBState),
-    .reset = pci_pbm_reset,
-    .class_init = pbm_host_class_init,
+static TypeInfo pbm_host_info = {
+    .name          = "pbm",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(APBState),
+    .class_init    = pbm_host_class_init,
 };
 
 static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = apb_pci_bridge_initfn;
@@ -478,21 +482,22 @@ static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)
     k->revision = 0x11;
     k->config_write = pci_bridge_write_config;
     k->is_bridge = 1;
+    dc->reset = pci_bridge_reset;
+    dc->vmsd = &vmstate_pci_device;
 }
 
-static DeviceInfo pbm_pci_bridge_info = {
-    .name = "pbm-bridge",
-    .size = sizeof(PCIBridge),
-    .vmsd = &vmstate_pci_device,
-    .reset = pci_bridge_reset,
-    .class_init = pbm_pci_bridge_class_init,
+static TypeInfo pbm_pci_bridge_info = {
+    .name          = "pbm-bridge",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIBridge),
+    .class_init    = pbm_pci_bridge_class_init,
 };
 
 static void pbm_register_devices(void)
 {
-    sysbus_register_withprop(&pbm_host_info);
-    pci_qdev_register(&pbm_pci_host_info);
-    pci_qdev_register(&pbm_pci_bridge_info);
+    type_register_static(&pbm_host_info);
+    type_register_static(&pbm_pci_host_info);
+    type_register_static(&pbm_pci_bridge_info);
 }
 
 device_init(pbm_register_devices)

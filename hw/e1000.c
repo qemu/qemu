@@ -1204,6 +1204,7 @@ static Property e1000_properties[] = {
 
 static void e1000_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = pci_e1000_init;
@@ -1213,21 +1214,22 @@ static void e1000_class_init(ObjectClass *klass, void *data)
     k->device_id = E1000_DEVID;
     k->revision = 0x03;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    dc->desc = "Intel Gigabit Ethernet";
+    dc->reset = qdev_e1000_reset;
+    dc->vmsd = &vmstate_e1000;
+    dc->props = e1000_properties;
 }
 
-static DeviceInfo e1000_info = {
-    .name = "e1000",
-    .desc = "Intel Gigabit Ethernet",
-    .size = sizeof(E1000State),
-    .reset = qdev_e1000_reset,
-    .vmsd = &vmstate_e1000,
-    .props = e1000_properties,
-    .class_init = e1000_class_init,
+static TypeInfo e1000_info = {
+    .name          = "e1000",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(E1000State),
+    .class_init    = e1000_class_init,
 };
 
 static void e1000_register_devices(void)
 {
-    pci_qdev_register(&e1000_info);
+    type_register_static(&e1000_info);
 }
 
 device_init(e1000_register_devices)

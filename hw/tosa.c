@@ -269,11 +269,12 @@ static void tosa_dac_class_init(ObjectClass *klass, void *data)
     k->send = tosa_dac_send;
 }
 
-static DeviceInfo tosa_dac_info = {
-    .name = "tosa_dac",
-    .size = sizeof(TosaDACState),
-    .class_init = tosa_dac_class_init,
- };
+static TypeInfo tosa_dac_info = {
+    .name          = "tosa_dac",
+    .parent        = TYPE_I2C_SLAVE,
+    .instance_size = sizeof(TosaDACState),
+    .class_init    = tosa_dac_class_init,
+};
 
 static void tosa_ssp_class_init(ObjectClass *klass, void *data)
 {
@@ -283,16 +284,17 @@ static void tosa_ssp_class_init(ObjectClass *klass, void *data)
     k->transfer = tosa_ssp_tansfer;
 }
 
-static DeviceInfo tosa_ssp_info = {
-    .name = "tosa-ssp",
-    .size = sizeof(SSISlave),
-    .class_init = tosa_ssp_class_init,
+static TypeInfo tosa_ssp_info = {
+    .name          = "tosa-ssp",
+    .parent        = TYPE_SSI_SLAVE,
+    .instance_size = sizeof(SSISlave),
+    .class_init    = tosa_ssp_class_init,
 };
 
 static void tosa_register_devices(void)
 {
-    i2c_register_slave(&tosa_dac_info);
-    ssi_register_slave(&tosa_ssp_info);
+    type_register_static(&tosa_dac_info);
+    type_register_static(&tosa_ssp_info);
 }
 
 device_init(tosa_register_devices)

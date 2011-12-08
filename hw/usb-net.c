@@ -1385,8 +1385,14 @@ static const VMStateDescription vmstate_usb_net = {
     .unmigratable = 1,
 };
 
+static Property net_properties[] = {
+    DEFINE_NIC_PROPERTIES(USBNetState, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void usb_net_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->init           = usb_net_initfn;
@@ -1397,23 +1403,21 @@ static void usb_net_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = usb_net_handle_control;
     uc->handle_data    = usb_net_handle_data;
     uc->handle_destroy = usb_net_handle_destroy;
+    dc->fw_name = "network";
+    dc->vmsd = &vmstate_usb_net;
+    dc->props = net_properties;
 }
 
-static struct DeviceInfo net_info = {
-    .name      = "usb-net",
-    .fw_name   = "network",
-    .size      = sizeof(USBNetState),
-    .vmsd      = &vmstate_usb_net,
-    .class_init= usb_net_class_initfn,
-    .props     = (Property[]) {
-        DEFINE_NIC_PROPERTIES(USBNetState, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo net_info = {
+    .name          = "usb-net",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBNetState),
+    .class_init    = usb_net_class_initfn,
 };
 
 static void usb_net_register_devices(void)
 {
-    usb_qdev_register(&net_info);
+    type_register_static(&net_info);
     usb_legacy_register("usb-net", "net", usb_net_init);
 }
 device_init(usb_net_register_devices)

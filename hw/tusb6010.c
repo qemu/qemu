@@ -791,21 +791,23 @@ static int tusb6010_init(SysBusDevice *dev)
 
 static void tusb6010_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = tusb6010_init;
+    dc->reset = tusb6010_reset;
 }
 
-static DeviceInfo tusb6010_info = {
-    .name = "tusb6010",
-    .size = sizeof(TUSBState),
-    .reset = tusb6010_reset,
-    .class_init = tusb6010_class_init,
+static TypeInfo tusb6010_info = {
+    .name          = "tusb6010",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(TUSBState),
+    .class_init    = tusb6010_class_init,
 };
 
 static void tusb6010_register_device(void)
 {
-    sysbus_register_withprop(&tusb6010_info);
+    type_register_static(&tusb6010_info);
 }
 
 device_init(tusb6010_register_device)

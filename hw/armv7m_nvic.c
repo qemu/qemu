@@ -391,31 +391,35 @@ static int armv7m_nvic_init(SysBusDevice *dev)
     return 0;
 }
 
+static Property armv7m_nvic_properties[] = {
+    /* The ARM v7m may have anything from 0 to 496 external interrupt
+     * IRQ lines. We default to 64. Other boards may differ and should
+     * set this property appropriately.
+     */
+    DEFINE_PROP_UINT32("num-irq", nvic_state, num_irq, 64),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
 
     sdc->init = armv7m_nvic_init;
+    dc->vmsd  = &vmstate_nvic;
+    dc->props = armv7m_nvic_properties;
 }
 
-static DeviceInfo armv7m_nvic_priv_info = {
-    .name = "armv7m_nvic",
-    .size = sizeof(nvic_state),
-    .vmsd  = &vmstate_nvic,
-    .class_init = armv7m_nvic_class_init,
-    .props = (Property[]) {
-        /* The ARM v7m may have anything from 0 to 496 external interrupt
-         * IRQ lines. We default to 64. Other boards may differ and should
-         * set this property appropriately.
-         */
-        DEFINE_PROP_UINT32("num-irq", nvic_state, num_irq, 64),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo armv7m_nvic_info = {
+    .name          = "armv7m_nvic",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(nvic_state),
+    .class_init    = armv7m_nvic_class_init,
 };
 
 static void armv7m_nvic_register_devices(void)
 {
-    sysbus_qdev_register(&armv7m_nvic_priv_info);
+    type_register_static(&armv7m_nvic_info);
 }
 
 device_init(armv7m_nvic_register_devices)

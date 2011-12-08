@@ -279,23 +279,25 @@ static Property mv88w8618_audio_properties[] = {
 
 static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = mv88w8618_audio_init;
+    dc->reset = mv88w8618_audio_reset;
+    dc->vmsd = &mv88w8618_audio_vmsd;
+    dc->props = mv88w8618_audio_properties;
 }
 
-static DeviceInfo mv88w8618_audio_info = {
-    .name = "mv88w8618_audio",
-    .size = sizeof(mv88w8618_audio_state),
-    .reset = mv88w8618_audio_reset,
-    .vmsd = &mv88w8618_audio_vmsd,
-    .props = mv88w8618_audio_properties,
-    .class_init = mv88w8618_audio_class_init,
+static TypeInfo mv88w8618_audio_info = {
+    .name          = "mv88w8618_audio",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(mv88w8618_audio_state),
+    .class_init    = mv88w8618_audio_class_init,
 };
 
 static void mv88w8618_register_devices(void)
 {
-    sysbus_register_withprop(&mv88w8618_audio_info);
+    type_register_static(&mv88w8618_audio_info);
 }
 
 device_init(mv88w8618_register_devices)

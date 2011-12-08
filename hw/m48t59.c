@@ -720,24 +720,28 @@ static int m48t59_init1(SysBusDevice *dev)
     return 0;
 }
 
+static Property m48t59_isa_properties[] = {
+    DEFINE_PROP_UINT32("size",    M48t59ISAState, state.size,    -1),
+    DEFINE_PROP_UINT32("type",    M48t59ISAState, state.type,    -1),
+    DEFINE_PROP_HEX32( "io_base", M48t59ISAState, state.io_base,  0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void m48t59_init_class_isa1(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = m48t59_init_isa1;
+    dc->no_user = 1;
+    dc->reset = m48t59_reset_isa;
+    dc->props = m48t59_isa_properties;
 }
 
-static DeviceInfo m48t59_isa_info = {
-    .class_init = m48t59_init_class_isa1,
-    .name = "m48t59_isa",
-    .size = sizeof(M48t59ISAState),
-    .reset = m48t59_reset_isa,
-    .no_user = 1,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("size",    M48t59ISAState, state.size,    -1),
-        DEFINE_PROP_UINT32("type",    M48t59ISAState, state.type,    -1),
-        DEFINE_PROP_HEX32( "io_base", M48t59ISAState, state.io_base,  0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo m48t59_isa_info = {
+    .name          = "m48t59_isa",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(M48t59ISAState),
+    .class_init    = m48t59_init_class_isa1,
 };
 
 static Property m48t59_properties[] = {
@@ -749,23 +753,25 @@ static Property m48t59_properties[] = {
 
 static void m48t59_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = m48t59_init1;
+    dc->reset = m48t59_reset_sysbus;
+    dc->props = m48t59_properties;
 }
 
-static DeviceInfo m48t59_info = {
-    .name = "m48t59",
-    .size = sizeof(M48t59SysBusState),
-    .reset = m48t59_reset_sysbus,
-    .props = m48t59_properties,
-    .class_init = m48t59_class_init,
+static TypeInfo m48t59_info = {
+    .name          = "m48t59",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(M48t59SysBusState),
+    .class_init    = m48t59_class_init,
 };
 
 static void m48t59_register_devices(void)
 {
-    sysbus_register_withprop(&m48t59_info);
-    isa_qdev_register(&m48t59_isa_info);
+    type_register_static(&m48t59_info);
+    type_register_static(&m48t59_isa_info);
 }
 
 device_init(m48t59_register_devices)

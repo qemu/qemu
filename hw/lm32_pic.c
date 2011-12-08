@@ -176,22 +176,24 @@ static const VMStateDescription vmstate_lm32_pic = {
 
 static void lm32_pic_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = lm32_pic_init;
+    dc->reset = pic_reset;
+    dc->vmsd = &vmstate_lm32_pic;
 }
 
-static DeviceInfo lm32_pic_info = {
-    .name = "lm32-pic",
-    .size = sizeof(LM32PicState),
-    .vmsd = &vmstate_lm32_pic,
-    .reset = pic_reset,
-    .class_init = lm32_pic_class_init,
+static TypeInfo lm32_pic_info = {
+    .name          = "lm32-pic",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(LM32PicState),
+    .class_init    = lm32_pic_class_init,
 };
 
 static void lm32_pic_register(void)
 {
-    sysbus_register_withprop(&lm32_pic_info);
+    type_register_static(&lm32_pic_info);
 }
 
 device_init(lm32_pic_register)

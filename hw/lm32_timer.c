@@ -206,23 +206,25 @@ static Property lm32_timer_properties[] = {
 
 static void lm32_timer_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = lm32_timer_init;
+    dc->reset = timer_reset;
+    dc->vmsd = &vmstate_lm32_timer;
+    dc->props = lm32_timer_properties;
 }
 
-static DeviceInfo lm32_timer_info = {
-    .name = "lm32-timer",
-    .size = sizeof(LM32TimerState),
-    .vmsd = &vmstate_lm32_timer,
-    .reset = timer_reset,
-    .props = lm32_timer_properties,
-    .class_init = lm32_timer_class_init,
+static TypeInfo lm32_timer_info = {
+    .name          = "lm32-timer",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(LM32TimerState),
+    .class_init    = lm32_timer_class_init,
 };
 
 static void lm32_timer_register(void)
 {
-    sysbus_register_withprop(&lm32_timer_info);
+    type_register_static(&lm32_timer_info);
 }
 
 device_init(lm32_timer_register)

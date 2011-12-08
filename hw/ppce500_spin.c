@@ -210,14 +210,15 @@ static void ppce500_spin_class_init(ObjectClass *klass, void *data)
     k->init = ppce500_spin_initfn;
 }
 
-static DeviceInfo ppce500_spin_info = {
-    .name = "e500-spin",
-    .size = sizeof(SpinState),
-    .class_init = ppce500_spin_class_init,
+static TypeInfo ppce500_spin_info = {
+    .name          = "e500-spin",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SpinState),
+    .class_init    = ppce500_spin_class_init,
 };
 
 static void ppce500_spin_register(void)
 {
-    sysbus_register_withprop(&ppce500_spin_info);
+    type_register_static(&ppce500_spin_info);
 }
 device_init(ppce500_spin_register);

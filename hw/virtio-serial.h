@@ -176,12 +176,6 @@ struct VirtIOSerialPort {
 /* Interface to the virtio-serial bus */
 
 /*
- * Individual ports/apps should call this function to register the port
- * with the virtio-serial bus
- */
-void virtio_serial_port_qdev_register(DeviceInfo *info);
-
-/*
  * Open a connection to the port
  *   Returns 0 on success (always).
  */

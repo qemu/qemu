@@ -137,42 +137,46 @@ static const VMStateDescription vmstate_raven = {
 static void raven_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = raven_init;
     k->vendor_id = PCI_VENDOR_ID_MOTOROLA;
     k->device_id = PCI_DEVICE_ID_MOTOROLA_RAVEN;
     k->revision = 0x00;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
+    dc->desc = "PReP Host Bridge - Motorola Raven";
+    dc->vmsd = &vmstate_raven;
+    dc->no_user = 1;
 }
 
-static DeviceInfo raven_info = {
+static TypeInfo raven_info = {
     .name = "raven",
-    .desc = "PReP Host Bridge - Motorola Raven",
-    .size = sizeof(RavenPCIState),
-    .vmsd = &vmstate_raven,
-    .no_user = 1,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(RavenPCIState),
     .class_init = raven_class_init,
 };
 
 static void raven_pcihost_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = raven_pcihost_init;
+    dc->fw_name = "pci";
+    dc->no_user = 1;
 }
 
-static DeviceInfo raven_pcihost_info = {
+static TypeInfo raven_pcihost_info = {
     .name = "raven-pcihost",
-    .fw_name = "pci",
-    .size = sizeof(PREPPCIState),
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PREPPCIState),
     .class_init = raven_pcihost_class_init,
-    .no_user = 1,
 };
 
 static void raven_register_devices(void)
 {
-    sysbus_register_withprop(&raven_pcihost_info);
-    pci_qdev_register(&raven_info);
+    type_register_static(&raven_pcihost_info);
+    type_register_static(&raven_info);
 }
 
 device_init(raven_register_devices)

@@ -1351,6 +1351,7 @@ static Property ac97_properties[] = {
 
 static void ac97_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = ac97_initfn;
@@ -1359,20 +1360,21 @@ static void ac97_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82801AA_5;
     k->revision = 0x01;
     k->class_id = PCI_CLASS_MULTIMEDIA_AUDIO;
+    dc->desc = "Intel 82801AA AC97 Audio";
+    dc->vmsd = &vmstate_ac97;
+    dc->props = ac97_properties;
 }
 
-static DeviceInfo ac97_info = {
-    .name = "AC97",
-    .desc = "Intel 82801AA AC97 Audio",
-    .size = sizeof (AC97LinkState),
-    .vmsd = &vmstate_ac97,
-    .props = ac97_properties,
-    .class_init = ac97_class_init,
+static TypeInfo ac97_info = {
+    .name          = "AC97",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof (AC97LinkState),
+    .class_init    = ac97_class_init,
 };
 
 static void ac97_register (void)
 {
-    pci_qdev_register (&ac97_info);
+    type_register_static(&ac97_info);
 }
 device_init (ac97_register);
 

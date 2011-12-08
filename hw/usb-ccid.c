@@ -1184,14 +1184,6 @@ static int ccid_card_init(DeviceState *qdev, DeviceInfo *base)
     return ret;
 }
 
-void ccid_card_qdev_register(DeviceInfo *info)
-{
-    info->bus_info = &ccid_bus_info;
-    info->init = ccid_card_init;
-    info->exit = ccid_card_exit;
-    qdev_register_subclass(info, TYPE_CCID_CARD);
-}
-
 static int ccid_initfn(USBDevice *dev)
 {
     USBCCIDState *s = DO_UPCAST(USBCCIDState, dev, dev);
@@ -1315,8 +1307,14 @@ static VMStateDescription ccid_vmstate = {
     }
 };
 
+static Property ccid_properties[] = {
+    DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void ccid_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
     uc->init           = ccid_initfn;
@@ -1327,19 +1325,25 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     uc->handle_control = ccid_handle_control;
     uc->handle_data    = ccid_handle_data;
     uc->handle_destroy = ccid_handle_destroy;
+    dc->desc = "CCID Rev 1.1 smartcard reader";
+    dc->vmsd = &ccid_vmstate;
+    dc->props = ccid_properties;
 }
 
-static struct DeviceInfo ccid_info = {
-    .name      = CCID_DEV_NAME,
-    .desc      = "CCID Rev 1.1 smartcard reader",
-    .size      = sizeof(USBCCIDState),
-    .class_init= ccid_class_initfn,
-    .vmsd      = &ccid_vmstate,
-    .props     = (Property[]) {
-        DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo ccid_info = {
+    .name          = CCID_DEV_NAME,
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBCCIDState),
+    .class_init    = ccid_class_initfn,
 };
+
+static void ccid_card_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->bus_info = &ccid_bus_info;
+    k->init = ccid_card_init;
+    k->exit = ccid_card_exit;
+}
 
 static TypeInfo ccid_card_type_info = {
     .name = TYPE_CCID_CARD,
@@ -1347,12 +1351,13 @@ static TypeInfo ccid_card_type_info = {
     .instance_size = sizeof(CCIDCardState),
     .abstract = true,
     .class_size = sizeof(CCIDCardClass),
+    .class_init = ccid_card_class_init,
 };
 
 static void ccid_register_devices(void)
 {
     type_register_static(&ccid_card_type_info);
-    usb_qdev_register(&ccid_info);
+    type_register_static(&ccid_info);
     usb_legacy_register(CCID_DEV_NAME, "ccid", NULL);
 }
 device_init(ccid_register_devices)

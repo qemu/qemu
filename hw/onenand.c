@@ -813,22 +813,24 @@ static Property onenand_properties[] = {
 
 static void onenand_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = onenand_initfn;
+    dc->reset = onenand_system_reset;
+    dc->props = onenand_properties;
 }
 
-static DeviceInfo onenand_info = {
-    .name = "onenand",
-    .size = sizeof(OneNANDState),
-    .reset = onenand_system_reset,
-    .props = onenand_properties,
-    .class_init = onenand_class_init,
+static TypeInfo onenand_info = {
+    .name          = "onenand",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(OneNANDState),
+    .class_init    = onenand_class_init,
 };
 
 static void onenand_register_device(void)
 {
-    sysbus_register_withprop(&onenand_info);
+    type_register_static(&onenand_info);
 }
 
 void *onenand_raw_otp(DeviceState *onenand_device)

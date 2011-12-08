@@ -1147,10 +1147,11 @@ static void gt64120_pci_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_BRIDGE_HOST;
 }
 
-static DeviceInfo gt64120_pci_info = {
-    .name = "gt64120_pci",
-    .size = sizeof(PCIDevice),
-    .class_init = gt64120_pci_class_init,
+static TypeInfo gt64120_pci_info = {
+    .name          = "gt64120_pci",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIDevice),
+    .class_init    = gt64120_pci_class_init,
 };
 
 static void gt64120_class_init(ObjectClass *klass, void *data)
@@ -1160,16 +1161,17 @@ static void gt64120_class_init(ObjectClass *klass, void *data)
     sdc->init = gt64120_init;
 }
 
-static DeviceInfo gt64120_info = {
-    .name = "gt64120",
-    .size = sizeof(GT64120State),
-    .class_init = gt64120_class_init,
+static TypeInfo gt64120_info = {
+    .name          = "gt64120",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(GT64120State),
+    .class_init    = gt64120_class_init,
 };
 
 static void gt64120_pci_register_devices(void)
 {
-    sysbus_qdev_register(&gt64120_info);
-    pci_qdev_register(&gt64120_pci_info);
+    type_register_static(&gt64120_info);
+    type_register_static(&gt64120_pci_info);
 }
 
 device_init(gt64120_pci_register_devices)

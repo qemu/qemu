@@ -2901,20 +2901,22 @@ static int vga_initfn(ISADevice *dev)
 static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)
 {
     ISADeviceClass *k = ISA_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
-    k->init          = vga_initfn;
+    dc->vmsd  = &vmstate_cirrus_vga;
+    k->init   = vga_initfn;
 }
 
-static DeviceInfo isa_cirrus_vga_info = {
-    .name     = "isa-cirrus-vga",
-    .size     = sizeof(ISACirrusVGAState),
-    .vmsd     = &vmstate_cirrus_vga,
+static TypeInfo isa_cirrus_vga_info = {
+    .name          = "isa-cirrus-vga",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(ISACirrusVGAState),
     .class_init = isa_cirrus_vga_class_init,
 };
 
 static void isa_cirrus_vga_register(void)
 {
-    isa_qdev_register(&isa_cirrus_vga_info);
+    type_register_static(&isa_cirrus_vga_info);
 }
 device_init(isa_cirrus_vga_register)
 
@@ -2965,6 +2967,7 @@ DeviceState *pci_cirrus_vga_init(PCIBus *bus)
 
 static void cirrus_vga_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->no_hotplug = 1;
@@ -2973,18 +2976,19 @@ static void cirrus_vga_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_CIRRUS;
     k->device_id = CIRRUS_ID_CLGD5446;
     k->class_id = PCI_CLASS_DISPLAY_VGA;
+    dc->desc = "Cirrus CLGD 54xx VGA";
+    dc->vmsd = &vmstate_pci_cirrus_vga;
 }
 
-static DeviceInfo cirrus_vga_info = {
-    .name = "cirrus-vga",
-    .desc = "Cirrus CLGD 54xx VGA",
-    .size = sizeof(PCICirrusVGAState),
-    .vmsd = &vmstate_pci_cirrus_vga,
-    .class_init = cirrus_vga_class_init,
+static TypeInfo cirrus_vga_info = {
+    .name          = "cirrus-vga",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCICirrusVGAState),
+    .class_init    = cirrus_vga_class_init,
 };
 
 static void cirrus_vga_register(void)
 {
-    pci_qdev_register(&cirrus_vga_info);
+    type_register_static(&cirrus_vga_info);
 }
 device_init(cirrus_vga_register);

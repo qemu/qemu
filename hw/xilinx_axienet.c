@@ -881,20 +881,22 @@ static Property xilinx_enet_properties[] = {
 
 static void xilinx_enet_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = xilinx_enet_init;
+    dc->props = xilinx_enet_properties;
 }
 
-static DeviceInfo xilinx_enet_info = {
-    .name = "xilinx,axienet",
-    .size = sizeof(struct XilinxAXIEnet),
-    .props = xilinx_enet_properties,
-    .class_init = xilinx_enet_class_init,
+static TypeInfo xilinx_enet_info = {
+    .name          = "xilinx,axienet",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(struct XilinxAXIEnet),
+    .class_init    = xilinx_enet_class_init,
 };
 static void xilinx_enet_register(void)
 {
-    sysbus_register_withprop(&xilinx_enet_info);
+    type_register_static(&xilinx_enet_info);
 }
 
 device_init(xilinx_enet_register)

@@ -793,6 +793,7 @@ static Property ne2000_properties[] = {
 
 static void ne2000_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = pci_ne2000_init;
@@ -800,19 +801,20 @@ static void ne2000_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REALTEK;
     k->device_id = PCI_DEVICE_ID_REALTEK_8029;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    dc->vmsd = &vmstate_pci_ne2000;
+    dc->props = ne2000_properties;
 }
 
-static DeviceInfo ne2000_info = {
-    .name = "ne2k_pci",
-    .size = sizeof(PCINE2000State),
-    .vmsd = &vmstate_pci_ne2000,
-    .props = ne2000_properties,
-    .class_init = ne2000_class_init,
+static TypeInfo ne2000_info = {
+    .name          = "ne2k_pci",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCINE2000State),
+    .class_init    = ne2000_class_init,
 };
 
 static void ne2000_register_devices(void)
 {
-    pci_qdev_register(&ne2000_info);
+    type_register_static(&ne2000_info);
 }
 
 device_init(ne2000_register_devices)

@@ -136,22 +136,24 @@ static const VMStateDescription vmstate_lm32_juart = {
 
 static void lm32_juart_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = lm32_juart_init;
+    dc->reset = juart_reset;
+    dc->vmsd = &vmstate_lm32_juart;
 }
 
-static DeviceInfo lm32_juart_info = {
-    .name = "lm32-juart",
-    .size = sizeof(LM32JuartState),
-    .vmsd = &vmstate_lm32_juart,
-    .reset = juart_reset,
-    .class_init = lm32_juart_class_init,
+static TypeInfo lm32_juart_info = {
+    .name          = "lm32-juart",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(LM32JuartState),
+    .class_init    = lm32_juart_class_init,
 };
 
 static void lm32_juart_register(void)
 {
-    sysbus_register_withprop(&lm32_juart_info);
+    type_register_static(&lm32_juart_info);
 }
 
 device_init(lm32_juart_register)
