@@ -22,6 +22,7 @@
    
 void framebuffer_update_display(
     DisplayState *ds,
+    MemoryRegion *address_space,
     target_phys_addr_t base,
     int cols, /* Width in pixels.  */
     int rows, /* Leight in pixels.  */
@@ -42,27 +43,21 @@ void framebuffer_update_display(
     int dirty;
     int i;
     ram_addr_t addr;
-    ram_addr_t pd;
-    ram_addr_t pd2;
+    MemoryRegionSection mem_section;
+    MemoryRegion *mem;
 
     i = *first_row;
     *first_row = -1;
     src_len = src_width * rows;
 
     cpu_physical_sync_dirty_bitmap(base, base + src_len);
-    pd = cpu_get_physical_page_desc(base);
-    pd2 = cpu_get_physical_page_desc(base + src_len - 1);
-    /* We should reall check that this is a continuous ram region.
-       Instead we just check that the first and last pages are
-       both ram, and the right distance apart.  */
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM
-        || (pd2 & ~TARGET_PAGE_MASK) > IO_MEM_ROM) {
+    mem_section = memory_region_find(address_space, base, src_len);
+    if (mem_section.size != src_len || !memory_region_is_ram(mem_section.mr)) {
         return;
     }
-    pd = (pd & TARGET_PAGE_MASK) + (base & ~TARGET_PAGE_MASK);
-    if (((pd + src_len - 1) & TARGET_PAGE_MASK) != (pd2 & TARGET_PAGE_MASK)) {
-        return;
-    }
+    mem = mem_section.mr;
+    assert(mem);
+    assert(mem_section.offset_within_address_space == base);
 
     src_base = cpu_physical_memory_map(base, &src_len, 0);
     /* If we can't map the framebuffer then bail.  We could try harder,
@@ -82,7 +77,7 @@ void framebuffer_update_display(
         dest -= dest_row_pitch * (rows - 1);
     }
     first = -1;
-    addr = pd;
+    addr = mem_section.offset_within_region;
 
     addr += i * src_width;
     src += i * src_width;
@@ -93,8 +88,8 @@ void framebuffer_update_display(
         dirty = 0;
         dirty_offset = 0;
         while (addr + dirty_offset < TARGET_PAGE_ALIGN(addr + src_width)) {
-            dirty |= cpu_physical_memory_get_dirty(addr + dirty_offset,
-                                                   VGA_DIRTY_FLAG);
+            dirty |= memory_region_get_dirty(mem, addr + dirty_offset,
+                                             DIRTY_MEMORY_VGA);
             dirty_offset += TARGET_PAGE_SIZE;
         }
 
@@ -112,7 +107,8 @@ void framebuffer_update_display(
     if (first < 0) {
         return;
     }
-    cpu_physical_memory_reset_dirty(pd, pd + src_len, VGA_DIRTY_FLAG);
+    memory_region_reset_dirty(mem, mem_section.offset_within_region, src_len,
+                              DIRTY_MEMORY_VGA);
     *first_row = first;
     *last_row = last;
     return;

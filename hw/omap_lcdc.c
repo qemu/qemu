@@ -22,6 +22,7 @@
 #include "framebuffer.h"
 
 struct omap_lcd_panel_s {
+    MemoryRegion *sysmem;
     MemoryRegion iomem;
     qemu_irq irq;
     DisplayState *state;
@@ -211,7 +212,7 @@ static void omap_update_display(void *opaque)
 
     step = width * bpp >> 3;
     linesize = ds_get_linesize(omap_lcd->state);
-    framebuffer_update_display(omap_lcd->state,
+    framebuffer_update_display(omap_lcd->state, omap_lcd->sysmem,
                                frame_base, width, height,
                                step, linesize, 0,
                                omap_lcd->invalidate,
@@ -440,6 +441,7 @@ struct omap_lcd_panel_s *omap_lcdc_init(MemoryRegion *sysmem,
 
     s->irq = irq;
     s->dma = dma;
+    s->sysmem = sysmem;
     omap_lcdc_reset(s);
 
     memory_region_init_io(&s->iomem, &omap_lcdc_ops, s, "omap.lcdc", 0x100);

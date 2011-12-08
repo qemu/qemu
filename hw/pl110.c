@@ -229,7 +229,7 @@ static void pl110_update_display(void *opaque)
     }
     dest_width *= s->cols;
     first = 0;
-    framebuffer_update_display(s->ds,
+    framebuffer_update_display(s->ds, sysbus_address_space(&s->busdev),
                                s->upbase, s->cols, s->rows,
                                src_width, dest_width, 0,
                                s->invalidate,
