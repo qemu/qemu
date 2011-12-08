@@ -57,6 +57,7 @@ void sysbus_del_memory(SysBusDevice *dev, MemoryRegion *mem);
 void sysbus_add_io(SysBusDevice *dev, target_phys_addr_t addr,
                    MemoryRegion *mem);
 void sysbus_del_io(SysBusDevice *dev, MemoryRegion *mem);
+MemoryRegion *sysbus_address_space(SysBusDevice *dev);
 
 /* Legacy helper function for creating devices.  */
 DeviceState *sysbus_create_varargs(const char *name,
