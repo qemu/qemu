@@ -832,6 +832,7 @@ void memory_region_init(MemoryRegion *mr,
     mr->offset = 0;
     mr->enabled = true;
     mr->terminates = false;
+    mr->ram = false;
     mr->readable = true;
     mr->readonly = false;
     mr->destructor = memory_region_destructor_none;
@@ -998,6 +999,7 @@ void memory_region_init_ram(MemoryRegion *mr,
                             uint64_t size)
 {
     memory_region_init(mr, name, size);
+    mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_addr = qemu_ram_alloc(dev, name, size, mr);
@@ -1011,6 +1013,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
                                 void *ptr)
 {
     memory_region_init(mr, name, size);
+    mr->ram = true;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram_from_ptr;
     mr->ram_addr = qemu_ram_alloc_from_ptr(dev, name, size, ptr, mr);
@@ -1064,6 +1067,11 @@ uint64_t memory_region_size(MemoryRegion *mr)
         return UINT64_MAX;
     }
     return int128_get64(mr->size);
+}
+
+bool memory_region_is_ram(MemoryRegion *mr)
+{
+    return mr->ram;
 }
 
 void memory_region_set_offset(MemoryRegion *mr, target_phys_addr_t offset)

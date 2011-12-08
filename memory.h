@@ -122,6 +122,7 @@ struct MemoryRegion {
     IORange iorange;
     bool terminates;
     bool readable;
+    bool ram;
     bool readonly; /* For RAM regions */
     bool enabled;
     MemoryRegion *alias;
@@ -265,6 +266,15 @@ void memory_region_destroy(MemoryRegion *mr);
  * @mr: the memory region being queried.
  */
 uint64_t memory_region_size(MemoryRegion *mr);
+
+/**
+ * memory_region_is_ram: check whether a memory region is random access
+ *
+ * Returns %true is a memory region is random access.
+ *
+ * @mr: the memory region being queried
+ */
+bool memory_region_is_ram(MemoryRegion *mr);
 
 /**
  * memory_region_get_ram_ptr: Get a pointer into a RAM memory region.
