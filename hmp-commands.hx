@@ -107,8 +107,7 @@ ETEXI
         .args_type  = "device:B,target:F,arg:s?",
         .params     = "device filename [format]",
         .help       = "change a removable medium, optional format",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_change,
+        .mhandler.cmd = hmp_change,
     },
 
 STEXI

@@ -717,8 +717,31 @@ void qmp_block_passwd(const char *device, const char *password, Error **errp)
     }
 }
 
-int do_change_block(Monitor *mon, const char *device,
-                    const char *filename, const char *fmt)
+static void qmp_bdrv_open_encrypted(BlockDriverState *bs, const char *filename,
+                                    int bdrv_flags, BlockDriver *drv,
+                                    const char *password, Error **errp)
+{
+    if (bdrv_open(bs, filename, bdrv_flags, drv) < 0) {
+        error_set(errp, QERR_OPEN_FILE_FAILED, filename);
+        return;
+    }
+
+    if (bdrv_key_required(bs)) {
+        if (password) {
+            if (bdrv_set_key(bs, password) < 0) {
+                error_set(errp, QERR_INVALID_PASSWORD);
+            }
+        } else {
+            error_set(errp, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
+                      bdrv_get_encrypted_filename(bs));
+        }
+    } else if (password) {
+        error_set(errp, QERR_DEVICE_NOT_ENCRYPTED, bdrv_get_device_name(bs));
+    }
+}
+
+void qmp_change_blockdev(const char *device, const char *filename,
+                         bool has_format, const char *format, Error **errp)
 {
     BlockDriverState *bs;
     BlockDriver *drv = NULL;
@@ -727,29 +750,28 @@ int do_change_block(Monitor *mon, const char *device,
 
     bs = bdrv_find(device);
     if (!bs) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, device);
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
     }
-    if (fmt) {
-        drv = bdrv_find_whitelisted_format(fmt);
+
+    if (format) {
+        drv = bdrv_find_whitelisted_format(format);
         if (!drv) {
-            qerror_report(QERR_INVALID_BLOCK_FORMAT, fmt);
-            return -1;
+            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            return;
         }
     }
+
     eject_device(bs, 0, &err);
     if (error_is_set(&err)) {
-        qerror_report_err(err);
-        error_free(err);
-        return -1;
+        error_propagate(errp, err);
+        return;
     }
+
     bdrv_flags = bdrv_is_read_only(bs) ? 0 : BDRV_O_RDWR;
     bdrv_flags |= bdrv_is_snapshot(bs) ? BDRV_O_SNAPSHOT : 0;
-    if (bdrv_open(bs, filename, bdrv_flags, drv) < 0) {
-        qerror_report(QERR_OPEN_FILE_FAILED, filename);
-        return -1;
-    }
-    return monitor_read_bdrv_key_start(mon, bs, NULL, NULL);
+
+    qmp_bdrv_open_encrypted(bs, filename, bdrv_flags, drv, NULL, errp);
 }
 
 /* throttling disk I/O limits */

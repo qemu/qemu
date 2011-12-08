@@ -23,6 +23,7 @@
 #include "hw/qdev.h"
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
+#include "blockdev.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -345,9 +346,52 @@ void qmp_expire_password(const char *protocol, const char *whenstr,
     error_set(errp, QERR_INVALID_PARAMETER, "protocol");
 }
 
+#ifdef CONFIG_VNC
 void qmp_change_vnc_password(const char *password, Error **errp)
 {
     if (vnc_display_password(NULL, password) < 0) {
         error_set(errp, QERR_SET_PASSWD_FAILED);
+    }
+}
+
+static void qmp_change_vnc_listen(const char *target, Error **err)
+{
+    if (vnc_display_open(NULL, target) < 0) {
+        error_set(err, QERR_VNC_SERVER_FAILED, target);
+    }
+}
+
+static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
+                           Error **errp)
+{
+    if (strcmp(target, "passwd") == 0 || strcmp(target, "password") == 0) {
+        if (!has_arg) {
+            error_set(errp, QERR_MISSING_PARAMETER, "password");
+        } else {
+            qmp_change_vnc_password(arg, errp);
+        }
+    } else {
+        qmp_change_vnc_listen(target, errp);
+    }
+}
+#else
+void qmp_change_vnc_password(const char *password, Error **errp)
+{
+    error_set(errp, QERR_FEATURE_DISABLED, "vnc");
+}
+static void qmp_change_vnc(const char *target, bool has_arg, const char *arg,
+                           Error **errp)
+{
+    error_set(errp, QERR_FEATURE_DISABLED, "vnc");
+}
+#endif /* !CONFIG_VNC */
+
+void qmp_change(const char *device, const char *target,
+                bool has_arg, const char *arg, Error **err)
+{
+    if (strcmp(device, "vnc") == 0) {
+        qmp_change_vnc(target, has_arg, arg, err);
+    } else {
+        qmp_change_blockdev(device, target, has_arg, arg, err);
     }
 }

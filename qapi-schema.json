@@ -1366,3 +1366,39 @@
 #         string.  Existing clients are unaffected by executing this command.
 ##
 { 'command': 'change-vnc-password', 'data': {'password': 'str'} }
+
+##
+# @change:
+#
+# This command is multiple commands multiplexed together.
+#
+# @device: This is normally the name of a block device but it may also be 'vnc'.
+#          when it's 'vnc', then sub command depends on @target
+#
+# @target: If @device is a block device, then this is the new filename.
+#          If @device is 'vnc', then if the value 'password' selects the vnc
+#          change password command.   Otherwise, this specifies a new server URI
+#          address to listen to for VNC connections.
+#
+# @arg:    If @device is a block device, then this is an optional format to open
+#          the device with.
+#          If @device is 'vnc' and @target is 'password', this is the new VNC
+#          password to set.  If this argument is an empty string, then no future
+#          logins will be allowed.
+#
+# Returns: Nothing on success.
+#          If @device is not a valid block device, DeviceNotFound
+#          If @format is not a valid block format, InvalidBlockFormat
+#          If the new block device is encrypted, DeviceEncrypted.  Note that
+#          if this error is returned, the device has been opened successfully
+#          and an additional call to @block_passwd is required to set the
+#          device's password.  The behavior of reads and writes to the block
+#          device between when these calls are executed is undefined.
+#
+# Notes:  It is strongly recommended that this interface is not used especially
+#         for changing block devices.
+#
+# Since: 0.14.0
+##
+{ 'command': 'change',
+  'data': {'device': 'str', 'target': 'str', '*arg': 'str'} }
