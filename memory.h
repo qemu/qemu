@@ -148,6 +148,24 @@ struct MemoryRegionPortio {
 
 #define PORTIO_END_OF_LIST() { }
 
+typedef struct MemoryRegionSection MemoryRegionSection;
+
+/**
+ * MemoryRegionSection: describes a fragment of a #MemoryRegion
+ *
+ * @mr: the region, or %NULL if empty
+ * @offset_within_region: the beginning of the section, relative to @mr's start
+ * @size: the size of the section; will not exceed @mr's boundaries
+ * @offset_within_address_space: the address of the first byte of the section
+ *     relative to the region's address space
+ */
+struct MemoryRegionSection {
+    MemoryRegion *mr;
+    target_phys_addr_t offset_within_region;
+    uint64_t size;
+    target_phys_addr_t offset_within_address_space;
+};
+
 /**
  * memory_region_init: Initialize a memory region
  *
@@ -567,6 +585,27 @@ void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr);
  */
 void memory_region_set_alias_offset(MemoryRegion *mr,
                                     target_phys_addr_t offset);
+
+/**
+ * memory_region_find: locate a MemoryRegion in an address space
+ *
+ * Locates the first #MemoryRegion within an address space given by
+ * @address_space that overlaps the range given by @addr and @size.
+ *
+ * Returns a #MemoryRegionSection that describes a contiguous overlap.
+ * It will have the following characteristics:
+ *    .@offset_within_address_space >= @addr
+ *    .@offset_within_address_space + .@size <= @addr + @size
+ *    .@size = 0 iff no overlap was found
+ *    .@mr is non-%NULL iff an overlap was found
+ *
+ * @address_space: a top-level (i.e. parentless) region that contains
+ *       the region to be found
+ * @addr: start of the area within @address_space to be searched
+ * @size: size of the area to be searched
+ */
+MemoryRegionSection memory_region_find(MemoryRegion *address_space,
+                                       target_phys_addr_t addr, uint64_t size);
 
 /**
  * memory_region_transaction_begin: Start a transaction.
