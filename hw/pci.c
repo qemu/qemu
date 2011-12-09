@@ -1673,6 +1673,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     char *path;
     void *ptr;
     char name[32];
+    const VMStateDescription *vmsd;
 
     if (!pdev->romfile)
         return 0;
@@ -1709,10 +1710,13 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
         size = 1 << qemu_fls(size);
     }
 
-    if (qdev_get_info(&pdev->qdev)->vmsd)
-        snprintf(name, sizeof(name), "%s.rom", qdev_get_info(&pdev->qdev)->vmsd->name);
-    else
+    vmsd = qdev_get_vmsd(DEVICE(pdev));
+
+    if (vmsd) {
+        snprintf(name, sizeof(name), "%s.rom", vmsd->name);
+    } else {
         snprintf(name, sizeof(name), "%s.rom", object_get_typename(OBJECT(pdev)));
+    }
     pdev->has_rom = true;
     memory_region_init_ram(&pdev->rom, name, size);
     vmstate_register_ram(&pdev->rom, &pdev->qdev);
@@ -1953,8 +1957,7 @@ static int pci_qdev_find_recursive(PCIBus *bus,
     }
 
     /* roughly check if given qdev is pci device */
-    if (qdev_get_info(qdev)->init == &pci_qdev_init &&
-        qdev->parent_bus->info == &pci_bus_info) {
+    if (object_dynamic_cast(OBJECT(qdev), TYPE_PCI_DEVICE)) {
         *pdev = PCI_DEVICE(qdev);
         return 0;
     }

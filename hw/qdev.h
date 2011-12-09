@@ -405,22 +405,8 @@ void qdev_prop_set_globals(DeviceState *dev);
 void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
                                     Property *prop, const char *value);
 
-DeviceInfo *qdev_get_info(DeviceState *dev);
-
-static inline const char *qdev_fw_name(DeviceState *dev)
-{
-    DeviceInfo *info = qdev_get_info(dev);
-
-    if (info->fw_name) {
-        return info->fw_name;
-    } else if (info->alias) {
-        return info->alias;
-    }
-
-    return object_get_typename(OBJECT(dev));
-}
-
 char *qdev_get_fw_dev_path(DeviceState *dev);
+
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 extern struct BusInfo system_bus_info;
 
@@ -667,5 +653,13 @@ void qdev_machine_init(void);
  * Reset a single device (by calling the reset method).
  */
 void device_reset(DeviceState *dev);
+
+const VMStateDescription *qdev_get_vmsd(DeviceState *dev);
+
+const char *qdev_fw_name(DeviceState *dev);
+
+BusInfo *qdev_get_bus_info(DeviceState *dev);
+
+Property *qdev_get_props(DeviceState *dev);
 
 #endif

@@ -1015,7 +1015,7 @@ static Property *qdev_prop_find(DeviceState *dev, const char *name)
     Property *prop;
 
     /* device properties */
-    prop = qdev_prop_walk(qdev_get_info(dev)->props, name);
+    prop = qdev_prop_walk(qdev_get_props(dev), name);
     if (prop)
         return prop;
 
@@ -1221,7 +1221,7 @@ void qdev_prop_set_globals(DeviceState *dev)
 
     QTAILQ_FOREACH(prop, &global_props, next) {
         if (strcmp(object_get_typename(OBJECT(dev)), prop->driver) != 0 &&
-            strcmp(qdev_get_info(dev)->bus_info->name, prop->driver) != 0) {
+            strcmp(qdev_get_bus_info(dev)->name, prop->driver) != 0) {
             continue;
         }
         if (qdev_prop_parse(dev, prop->property, prop->value) != 0) {

@@ -60,9 +60,37 @@ static void qdev_subclass_init(ObjectClass *klass, void *data)
     }
 }
 
-DeviceInfo *qdev_get_info(DeviceState *dev)
+static DeviceInfo *qdev_get_info(DeviceState *dev)
 {
     return DEVICE_GET_CLASS(dev)->info;
+}
+
+const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
+{
+    return qdev_get_info(dev)->vmsd;
+}
+
+BusInfo *qdev_get_bus_info(DeviceState *dev)
+{
+    return qdev_get_info(dev)->bus_info;
+}
+
+Property *qdev_get_props(DeviceState *dev)
+{
+    return qdev_get_info(dev)->props;
+}
+
+const char *qdev_fw_name(DeviceState *dev)
+{
+    DeviceInfo *info = qdev_get_info(dev);
+
+    if (info->fw_name) {
+        return info->fw_name;
+    } else if (info->alias) {
+        return info->alias;
+    }
+
+    return object_get_typename(OBJECT(dev));
 }
 
 void qdev_register_subclass(DeviceInfo *info, const char *parent)
