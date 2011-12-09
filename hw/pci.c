@@ -1467,7 +1467,9 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     }
 
     bus = FROM_QBUS(PCIBus, qdev_get_parent_bus(qdev));
-    pci_dev = do_pci_register_device(pci_dev, bus, base->name, pci_dev->devfn);
+    pci_dev = do_pci_register_device(pci_dev, bus,
+                                     object_get_typename(OBJECT(qdev)),
+                                     pci_dev->devfn);
     if (pci_dev == NULL)
         return -1;
     if (qdev->hotplugged && pc->no_hotplug) {

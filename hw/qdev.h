@@ -72,10 +72,30 @@ typedef struct DeviceProperty
 #define DEVICE_CLASS(klass) OBJECT_CLASS_CHECK(DeviceClass, (klass), TYPE_DEVICE)
 #define DEVICE_GET_CLASS(obj) OBJECT_GET_CLASS(DeviceClass, (obj), TYPE_DEVICE)
 
+typedef int (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
+typedef int (*qdev_event)(DeviceState *dev);
+typedef void (*qdev_resetfn)(DeviceState *dev);
+
 typedef struct DeviceClass {
     ObjectClass parent_class;
-    DeviceInfo *info;
+
+    const char *fw_name;
+    const char *alias;
+    const char *desc;
+    Property *props;
+    int no_user;
+
+    /* callbacks */
     void (*reset)(DeviceState *dev);
+
+    /* device state */
+    const VMStateDescription *vmsd;
+
+    /* Private to qdev / bus.  */
+    qdev_initfn init;
+    qdev_event unplug;
+    qdev_event exit;
+    BusInfo *bus_info;
 } DeviceClass;
 
 /* This structure should not be accessed directly.  We declare it here
@@ -212,10 +232,6 @@ void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
 /*** Device API.  ***/
-
-typedef int (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
-typedef int (*qdev_event)(DeviceState *dev);
-typedef void (*qdev_resetfn)(DeviceState *dev);
 
 struct DeviceInfo {
     const char *name;
