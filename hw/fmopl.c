@@ -362,8 +362,8 @@ INLINE UINT32 OPL_CALC_SLOT( OPL_SLOT *SLOT )
 	return SLOT->TLL+ENV_CURVE[SLOT->evc>>ENV_BITS]+(SLOT->ams ? ams : 0);
 }
 
-/* set algorythm connection */
-static void set_algorythm( OPL_CH *CH)
+/* set algorithm connection */
+static void set_algorithm( OPL_CH *CH)
 {
 	INT32 *carrier = &outd[0];
 	CH->connect1 = CH->CON ? carrier : &feedback2;
@@ -498,7 +498,7 @@ INLINE void OPL_CALC_CH( OPL_CH *CH )
 	}
 }
 
-/* ---------- calcrate rythm block ---------- */
+/* ---------- calcrate rhythm block ---------- */
 #define WHITE_NOISE_db 6.0
 INLINE void OPL_CALC_RH( OPL_CH *CH )
 {
@@ -895,14 +895,14 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 		case 0xbd:
 			/* amsep,vibdep,r,bd,sd,tom,tc,hh */
 			{
-			UINT8 rkey = OPL->rythm^v;
+			UINT8 rkey = OPL->rhythm^v;
 			OPL->ams_table = &AMS_TABLE[v&0x80 ? AMS_ENT : 0];
 			OPL->vib_table = &VIB_TABLE[v&0x40 ? VIB_ENT : 0];
-			OPL->rythm  = v&0x3f;
-			if(OPL->rythm&0x20)
+			OPL->rhythm  = v&0x3f;
+			if(OPL->rhythm&0x20)
 			{
 #if 0
-				usrintf_showmessage("OPL Rythm mode select");
+				usrintf_showmessage("OPL Rhythm mode select");
 #endif
 				/* BD key on/off */
 				if(rkey&0x10)
@@ -995,7 +995,7 @@ static void OPLWriteReg(FM_OPL *OPL, int r, int v)
 		int feedback = (v>>1)&7;
 		CH->FB   = feedback ? (8+1) - feedback : 0;
 		CH->CON = v&1;
-		set_algorythm(CH);
+		set_algorithm(CH);
 		}
 		return;
 	case 0xe0: /* wave type */
@@ -1049,7 +1049,7 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 	OPLSAMPLE *buf = buffer;
 	UINT32 amsCnt  = OPL->amsCnt;
 	UINT32 vibCnt  = OPL->vibCnt;
-	UINT8 rythm = OPL->rythm&0x20;
+	UINT8 rhythm = OPL->rhythm&0x20;
 	OPL_CH *CH,*R_CH;
 
 	if( (void *)OPL != cur_chip ){
@@ -1057,7 +1057,7 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 		/* channel pointers */
 		S_CH = OPL->P_CH;
 		E_CH = &S_CH[9];
-		/* rythm slot */
+		/* rhythm slot */
 		SLOT7_1 = &S_CH[7].SLOT[SLOT1];
 		SLOT7_2 = &S_CH[7].SLOT[SLOT2];
 		SLOT8_1 = &S_CH[8].SLOT[SLOT1];
@@ -1068,7 +1068,7 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 		ams_table = OPL->ams_table;
 		vib_table = OPL->vib_table;
 	}
-	R_CH = rythm ? &S_CH[6] : E_CH;
+	R_CH = rhythm ? &S_CH[6] : E_CH;
     for( i=0; i < length ; i++ )
 	{
 		/*            channel A         channel B         channel C      */
@@ -1080,7 +1080,7 @@ void YM3812UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 		for(CH=S_CH ; CH < R_CH ; CH++)
 			OPL_CALC_CH(CH);
 		/* Rythn part */
-		if(rythm)
+		if(rhythm)
 			OPL_CALC_RH(S_CH);
 		/* limit check */
 		data = Limit( outd[0] , OPL_MAXOUT, OPL_MINOUT );
@@ -1110,7 +1110,7 @@ void Y8950UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 	OPLSAMPLE *buf = buffer;
 	UINT32 amsCnt  = OPL->amsCnt;
 	UINT32 vibCnt  = OPL->vibCnt;
-	UINT8 rythm = OPL->rythm&0x20;
+	UINT8 rhythm = OPL->rhythm&0x20;
 	OPL_CH *CH,*R_CH;
 	YM_DELTAT *DELTAT = OPL->deltat;
 
@@ -1122,7 +1122,7 @@ void Y8950UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 		/* channel pointers */
 		S_CH = OPL->P_CH;
 		E_CH = &S_CH[9];
-		/* rythm slot */
+		/* rhythm slot */
 		SLOT7_1 = &S_CH[7].SLOT[SLOT1];
 		SLOT7_2 = &S_CH[7].SLOT[SLOT2];
 		SLOT8_1 = &S_CH[8].SLOT[SLOT1];
@@ -1133,7 +1133,7 @@ void Y8950UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 		ams_table = OPL->ams_table;
 		vib_table = OPL->vib_table;
 	}
-	R_CH = rythm ? &S_CH[6] : E_CH;
+	R_CH = rhythm ? &S_CH[6] : E_CH;
     for( i=0; i < length ; i++ )
 	{
 		/*            channel A         channel B         channel C      */
@@ -1148,7 +1148,7 @@ void Y8950UpdateOne(FM_OPL *OPL, INT16 *buffer, int length)
 		for(CH=S_CH ; CH < R_CH ; CH++)
 			OPL_CALC_CH(CH);
 		/* Rythn part */
-		if(rythm)
+		if(rhythm)
 			OPL_CALC_RH(S_CH);
 		/* limit check */
 		data = Limit( outd[0] , OPL_MAXOUT, OPL_MINOUT );
