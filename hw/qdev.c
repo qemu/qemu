@@ -50,21 +50,39 @@ static void qdev_subclass_init(ObjectClass *klass, void *data)
     DeviceClass *dc = DEVICE_CLASS(klass);
     DeviceInfo *info = data;
 
-    dc->fw_name = info->fw_name;
-    dc->alias = info->alias;
-    dc->desc = info->desc;
-    dc->props = info->props;
-    dc->no_user = info->no_user;
-
-    dc->reset = info->reset;
-
-    dc->vmsd = info->vmsd;
-
-    dc->init = info->init;
-    dc->unplug = info->unplug;
-    dc->exit = info->exit;
-    dc->bus_info = info->bus_info;
-
+    if (info->fw_name) {
+        dc->fw_name = info->fw_name;
+    }
+    if (info->alias) {
+        dc->alias = info->alias;
+    }
+    if (info->desc) {
+        dc->desc = info->desc;
+    }
+    if (info->props) {
+        dc->props = info->props;
+    }
+    if (info->no_user) {
+        dc->no_user = info->no_user;
+    }
+    if (info->reset) {
+        dc->reset = info->reset;
+    }
+    if (info->vmsd) {
+        dc->vmsd = info->vmsd;
+    }
+    if (info->init) {
+        dc->init = info->init;
+    }
+    if (info->unplug) {
+        dc->unplug = info->unplug;
+    }
+    if (info->exit) {
+        dc->exit = info->exit;
+    }
+    if (info->bus_info) {
+        dc->bus_info = info->bus_info;
+    }
     if (info->class_init) {
         info->class_init(klass, data);
     }
@@ -131,8 +149,6 @@ static DeviceInfo *qdev_find_info(BusInfo *bus_info, const char *name)
 
     /* first check device names */
     for (info = device_info_list; info != NULL; info = info->next) {
-        if (bus_info && info->bus_info != bus_info)
-            continue;
         if (strcmp(info->name, name) != 0)
             continue;
         return info;
@@ -140,8 +156,6 @@ static DeviceInfo *qdev_find_info(BusInfo *bus_info, const char *name)
 
     /* failing that check the aliases */
     for (info = device_info_list; info != NULL; info = info->next) {
-        if (bus_info && info->bus_info != bus_info)
-            continue;
         if (!info->alias)
             continue;
         if (strcmp(info->alias, name) != 0)
@@ -164,7 +178,6 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
     DeviceState *dev;
     Property *prop;
 
-    assert(bus->info == info->bus_info);
     dev = DEVICE(object_new(info->name));
     dev->parent_bus = bus;
     qdev_prop_set_defaults(dev, qdev_get_props(dev));
