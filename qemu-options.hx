@@ -217,7 +217,7 @@ qcow2.  If performance is more important than correctness,
 In case you don't care about data integrity over host failures, use
 cache=unsafe. This option tells qemu that it never needs to write any data
 to the disk but can instead keeps things in cache. If anything goes wrong,
-like your host losing power, the disk storage getting disconnected accidently,
+like your host losing power, the disk storage getting disconnected accidentally,
 etc. you're image will most probably be rendered unusable.   When using
 the @option{-snapshot} option, unsafe caching is always used.
 

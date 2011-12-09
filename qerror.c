@@ -253,7 +253,7 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_INVALID_PARAMETER_COMBINATION,
-        .desc      = "Invalid paramter combination",
+        .desc      = "Invalid parameter combination",
     },
     {}
 };

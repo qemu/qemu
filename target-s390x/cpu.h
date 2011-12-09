@@ -513,15 +513,15 @@ enum cc_op {
 
     CC_OP_ADD_64,               /* overflow on add (64bit) */
     CC_OP_ADDU_64,              /* overflow on unsigned add (64bit) */
-    CC_OP_SUB_64,               /* overflow on substraction (64bit) */
-    CC_OP_SUBU_64,              /* overflow on unsigned substraction (64bit) */
+    CC_OP_SUB_64,               /* overflow on subtraction (64bit) */
+    CC_OP_SUBU_64,              /* overflow on unsigned subtraction (64bit) */
     CC_OP_ABS_64,               /* sign eval on abs (64bit) */
     CC_OP_NABS_64,              /* sign eval on nabs (64bit) */
 
     CC_OP_ADD_32,               /* overflow on add (32bit) */
     CC_OP_ADDU_32,              /* overflow on unsigned add (32bit) */
-    CC_OP_SUB_32,               /* overflow on substraction (32bit) */
-    CC_OP_SUBU_32,              /* overflow on unsigned substraction (32bit) */
+    CC_OP_SUB_32,               /* overflow on subtraction (32bit) */
+    CC_OP_SUBU_32,              /* overflow on unsigned subtraction (32bit) */
     CC_OP_ABS_32,               /* sign eval on abs (64bit) */
     CC_OP_NABS_32,              /* sign eval on nabs (64bit) */
 

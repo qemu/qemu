@@ -1065,7 +1065,7 @@ diff -wruN --exclude '*~' --exclude '*.o' --exclude '*.bin' --exclude '*.out' --
 +                        tab, 4 * sizeof(uint32_t));
 +    }
 +#if 0
-     /* escc is usefull to get MacOS X debug messages */
+     /* escc is useful to get MacOS X debug messages */
      {
          OF_regprop_t regs[8];
 @@ -2645,85 +2843,12 @@

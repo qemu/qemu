@@ -50,7 +50,7 @@ run_multiboot:
 	shr		$0x4, %ecx
 	mov		%cx, %gs
 
-	/* now push the indirect jump decriptor there */
+	/* now push the indirect jump descriptor there */
 	mov		(prot_jump), %ebx
 	add		%eax, %ebx
 	movl		%ebx, %gs:GS_PROT_JUMP

@@ -2678,7 +2678,7 @@ gdb_handlesig (CPUState *env, int sig)
         }
       else if (n == 0 || errno != EAGAIN)
         {
-          /* XXX: Connection closed.  Should probably wait for annother
+          /* XXX: Connection closed.  Should probably wait for another
              connection before continuing.  */
           return sig;
         }
