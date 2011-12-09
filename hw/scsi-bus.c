@@ -115,7 +115,7 @@ static void scsi_dma_restart_cb(void *opaque, int running, RunState state)
     }
 }
 
-static int scsi_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int scsi_qdev_init(DeviceState *qdev)
 {
     SCSIDevice *dev = SCSI_DEVICE(qdev);
     SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, dev->qdev.parent_bus);

@@ -410,7 +410,7 @@ static TypeInfo s390_virtio_serial = {
     .class_init    = s390_virtio_serial_class_init,
 };
 
-static int s390_virtio_busdev_init(DeviceState *dev, DeviceInfo *info)
+static int s390_virtio_busdev_init(DeviceState *dev)
 {
     VirtIOS390Device *_dev = (VirtIOS390Device *)dev;
     VirtIOS390DeviceClass *_info = VIRTIO_S390_DEVICE_GET_CLASS(dev);

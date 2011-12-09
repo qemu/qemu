@@ -47,7 +47,7 @@ void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus,
     bus->xfer = xfer;
 }
 
-static int hda_codec_dev_init(DeviceState *qdev, DeviceInfo *base)
+static int hda_codec_dev_init(DeviceState *qdev)
 {
     HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, qdev->parent_bus);
     HDACodecDevice *dev = DO_UPCAST(HDACodecDevice, qdev, qdev);

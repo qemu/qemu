@@ -14,8 +14,6 @@ typedef struct PropertyInfo PropertyInfo;
 
 typedef struct CompatProperty CompatProperty;
 
-typedef struct DeviceInfo DeviceInfo;
-
 typedef struct BusState BusState;
 
 typedef struct BusInfo BusInfo;
@@ -72,7 +70,7 @@ typedef struct DeviceProperty
 #define DEVICE_CLASS(klass) OBJECT_CLASS_CHECK(DeviceClass, (klass), TYPE_DEVICE)
 #define DEVICE_GET_CLASS(obj) OBJECT_GET_CLASS(DeviceClass, (obj), TYPE_DEVICE)
 
-typedef int (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
+typedef int (*qdev_initfn)(DeviceState *dev);
 typedef int (*qdev_event)(DeviceState *dev);
 typedef void (*qdev_resetfn)(DeviceState *dev);
 
@@ -232,35 +230,6 @@ void qdev_connect_gpio_out(DeviceState *dev, int n, qemu_irq pin);
 BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
 /*** Device API.  ***/
-
-struct DeviceInfo {
-    const char *name;
-    const char *fw_name;
-    const char *alias;
-    const char *desc;
-    size_t size;
-    Property *props;
-    int no_user;
-
-    /* callbacks */
-    qdev_resetfn reset;
-
-    /* device state */
-    const VMStateDescription *vmsd;
-
-    /**
-     * See #TypeInfo::class_init()
-     */
-    void (*class_init)(ObjectClass *klass, void *data);
-
-    /* Private to qdev / bus.  */
-    qdev_initfn init;
-    qdev_event unplug;
-    qdev_event exit;
-    BusInfo *bus_info;
-};
-
-void qdev_register_subclass(DeviceInfo *info, const char *parent);
 
 /* Register device properties.  */
 /* GPIO inputs also double as IRQ sinks.  */

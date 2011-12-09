@@ -748,7 +748,7 @@ static void remove_port(VirtIOSerial *vser, uint32_t port_id)
     send_control_event(port, VIRTIO_CONSOLE_PORT_REMOVE, 1);
 }
 
-static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int virtser_port_qdev_init(DeviceState *qdev)
 {
     VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, qdev);
     VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);

@@ -105,7 +105,7 @@ void sysbus_init_ioports(SysBusDevice *dev, pio_addr_t ioport, pio_addr_t size)
     }
 }
 
-static int sysbus_device_init(DeviceState *dev, DeviceInfo *base)
+static int sysbus_device_init(DeviceState *dev)
 {
     SysBusDevice *sd = SYS_BUS_DEVICE(dev);
     SysBusDeviceClass *sbc = SYS_BUS_DEVICE_GET_CLASS(sd);

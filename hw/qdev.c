@@ -43,49 +43,6 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
 static BusState *qbus_find(const char *path);
 
 /* Register a new device type.  */
-static void qdev_subclass_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    DeviceInfo *info = data;
-
-    if (info->fw_name) {
-        dc->fw_name = info->fw_name;
-    }
-    if (info->alias) {
-        dc->alias = info->alias;
-    }
-    if (info->desc) {
-        dc->desc = info->desc;
-    }
-    if (info->props) {
-        dc->props = info->props;
-    }
-    if (info->no_user) {
-        dc->no_user = info->no_user;
-    }
-    if (info->reset) {
-        dc->reset = info->reset;
-    }
-    if (info->vmsd) {
-        dc->vmsd = info->vmsd;
-    }
-    if (info->init) {
-        dc->init = info->init;
-    }
-    if (info->unplug) {
-        dc->unplug = info->unplug;
-    }
-    if (info->exit) {
-        dc->exit = info->exit;
-    }
-    if (info->bus_info) {
-        dc->bus_info = info->bus_info;
-    }
-    if (info->class_init) {
-        info->class_init(klass, data);
-    }
-}
-
 const VMStateDescription *qdev_get_vmsd(DeviceState *dev)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
@@ -115,30 +72,6 @@ const char *qdev_fw_name(DeviceState *dev)
     }
 
     return object_get_typename(OBJECT(dev));
-}
-
-static void qdev_do_register_subclass(DeviceInfo *info, const char *parent,
-                                      const char *name)
-{
-    TypeInfo type_info = {};
-
-    assert(info->size >= sizeof(DeviceState));
-
-    type_info.name = name;
-    type_info.parent = parent;
-    type_info.instance_size = info->size;
-    type_info.class_init = qdev_subclass_init;
-    type_info.class_data = info;
-
-    type_register_static(&type_info);
-}
-
-void qdev_register_subclass(DeviceInfo *info, const char *parent)
-{
-    qdev_do_register_subclass(info, parent, info->name);
-    if (info->alias) {
-        qdev_do_register_subclass(info, parent, info->alias);
-    }
 }
 
 bool qdev_exists(const char *name)
@@ -406,8 +339,7 @@ int qdev_init(DeviceState *dev)
 
     assert(dev->state == DEV_STATE_CREATED);
 
-    /* FIXME hopefully this doesn't break anything */
-    rc = dc->init(dev, NULL);
+    rc = dc->init(dev);
     if (rc < 0) {
         qdev_free(dev);
         return rc;

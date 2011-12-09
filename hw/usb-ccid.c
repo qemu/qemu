@@ -1161,7 +1161,7 @@ static int ccid_card_exit(DeviceState *qdev)
     return ret;
 }
 
-static int ccid_card_init(DeviceState *qdev, DeviceInfo *base)
+static int ccid_card_init(DeviceState *qdev)
 {
     CCIDCardState *card = CCID_CARD(qdev);
     USBCCIDState *s =

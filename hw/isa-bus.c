@@ -110,7 +110,7 @@ void isa_register_portio_list(ISADevice *dev, uint16_t start,
     portio_list_add(piolist, isabus->address_space_io, start);
 }
 
-static int isa_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int isa_qdev_init(DeviceState *qdev)
 {
     ISADevice *dev = ISA_DEVICE(qdev);
     ISADeviceClass *klass = ISA_DEVICE_GET_CLASS(dev);

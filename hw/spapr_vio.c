@@ -649,7 +649,7 @@ static int spapr_vio_check_reg(VIOsPAPRDevice *sdev)
     return 0;
 }
 
-static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
+static int spapr_vio_busdev_init(DeviceState *qdev)
 {
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
     VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);

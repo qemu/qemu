@@ -156,7 +156,7 @@ void usb_device_set_interface(USBDevice *dev, int interface,
     }
 }
 
-static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int usb_qdev_init(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);
     int rc;

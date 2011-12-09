@@ -53,7 +53,7 @@ static char *idebus_get_fw_dev_path(DeviceState *dev)
     return strdup(path);
 }
 
-static int ide_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int ide_qdev_init(DeviceState *qdev)
 {
     IDEDevice *dev = IDE_DEVICE(qdev);
     IDEDeviceClass *dc = IDE_DEVICE_GET_CLASS(dev);

@@ -1453,7 +1453,7 @@ PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
     return bus->devices[devfn];
 }
 
-static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int pci_qdev_init(DeviceState *qdev)
 {
     PCIDevice *pci_dev = (PCIDevice *)qdev;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);

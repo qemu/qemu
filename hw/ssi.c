@@ -21,7 +21,7 @@ static struct BusInfo ssi_bus_info = {
     .size = sizeof(SSIBus),
 };
 
-static int ssi_slave_init(DeviceState *dev, DeviceInfo *base_info)
+static int ssi_slave_init(DeviceState *dev)
 {
     SSISlave *s = SSI_SLAVE(dev);
     SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
