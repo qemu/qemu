@@ -389,7 +389,7 @@ static inline void tcg_gen_helperN(void *func, int flags, int sizemask,
                                    TCGArg ret, int nargs, TCGArg *args)
 {
     TCGv_ptr fn;
-    fn = tcg_const_ptr((tcg_target_long)func);
+    fn = tcg_const_ptr(func);
     tcg_gen_callN(&tcg_ctx, fn, flags, sizemask, ret,
                   nargs, args);
     tcg_temp_free_ptr(fn);
@@ -405,7 +405,7 @@ static inline void tcg_gen_helper32(void *func, int sizemask, TCGv_i32 ret,
 {
     TCGv_ptr fn;
     TCGArg args[2];
-    fn = tcg_const_ptr((tcg_target_long)func);
+    fn = tcg_const_ptr(func);
     args[0] = GET_TCGV_I32(a);
     args[1] = GET_TCGV_I32(b);
     tcg_gen_callN(&tcg_ctx, fn, TCG_CALL_CONST | TCG_CALL_PURE, sizemask,
@@ -418,7 +418,7 @@ static inline void tcg_gen_helper64(void *func, int sizemask, TCGv_i64 ret,
 {
     TCGv_ptr fn;
     TCGArg args[2];
-    fn = tcg_const_ptr((tcg_target_long)func);
+    fn = tcg_const_ptr(func);
     args[0] = GET_TCGV_I64(a);
     args[1] = GET_TCGV_I64(b);
     tcg_gen_callN(&tcg_ctx, fn, TCG_CALL_CONST | TCG_CALL_PURE, sizemask,
