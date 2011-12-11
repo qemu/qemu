@@ -4870,20 +4870,23 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             tcg_gen_sub_tl(t2, cpu_regs[R_EAX], t0);
             gen_extu(ot, t2);
             tcg_gen_brcondi_tl(TCG_COND_EQ, t2, 0, label1);
+            label2 = gen_new_label();
             if (mod == 3) {
-                label2 = gen_new_label();
                 gen_op_mov_reg_v(ot, R_EAX, t0);
                 tcg_gen_br(label2);
                 gen_set_label(label1);
                 gen_op_mov_reg_v(ot, rm, t1);
-                gen_set_label(label2);
             } else {
-                tcg_gen_mov_tl(t1, t0);
+                /* perform no-op store cycle like physical cpu; must be
+                   before changing accumulator to ensure idempotency if
+                   the store faults and the instruction is restarted */
+                gen_op_st_v(ot + s->mem_index, t0, a0);
                 gen_op_mov_reg_v(ot, R_EAX, t0);
+                tcg_gen_br(label2);
                 gen_set_label(label1);
-                /* always store */
                 gen_op_st_v(ot + s->mem_index, t1, a0);
             }
+            gen_set_label(label2);
             tcg_gen_mov_tl(cpu_cc_src, t0);
             tcg_gen_mov_tl(cpu_cc_dst, t2);
             s->cc_op = CC_OP_SUBB + ot;
