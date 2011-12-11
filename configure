@@ -1111,7 +1111,7 @@ fi
 
 if test "$pie" = ""; then
   case "$cpu-$targetos" in
-    i386-Linux|x86_64-Linux)
+    i386-Linux|x86_64-Linux|i386-OpenBSD|x86_64-OpenBSD)
       ;;
     *)
       pie="no"
@@ -1522,9 +1522,6 @@ int main(void) { return 0; }
 EOF
   if compile_prog "$sdl_cflags" "$sdl_libs" ; then
     sdl_libs="$sdl_libs -lX11"
-  fi
-  if test "$mingw32" = "yes" ; then
-    sdl_libs="`echo $sdl_libs | sed s/-mwindows//g` -mconsole"
   fi
   libs_softmmu="$sdl_libs $libs_softmmu"
 fi
