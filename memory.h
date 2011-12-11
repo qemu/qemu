@@ -154,6 +154,7 @@ typedef struct MemoryRegionSection MemoryRegionSection;
  * MemoryRegionSection: describes a fragment of a #MemoryRegion
  *
  * @mr: the region, or %NULL if empty
+ * @address_space: the address space the region is mapped in
  * @offset_within_region: the beginning of the section, relative to @mr's start
  * @size: the size of the section; will not exceed @mr's boundaries
  * @offset_within_address_space: the address of the first byte of the section
@@ -161,9 +162,29 @@ typedef struct MemoryRegionSection MemoryRegionSection;
  */
 struct MemoryRegionSection {
     MemoryRegion *mr;
+    MemoryRegion *address_space;
     target_phys_addr_t offset_within_region;
     uint64_t size;
     target_phys_addr_t offset_within_address_space;
+};
+
+typedef struct MemoryListener MemoryListener;
+
+/**
+ * MemoryListener: callbacks structure for updates to the physical memory map
+ *
+ * Allows a component to adjust to changes in the guest-visible memory map.
+ * Use with memory_listener_register() and memory_listener_unregister().
+ */
+struct MemoryListener {
+    void (*region_add)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*region_del)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_start)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*log_global_start)(MemoryListener *listener);
+    void (*log_global_stop)(MemoryListener *listener);
+    QLIST_ENTRY(MemoryListener) link;
 };
 
 /**
@@ -630,6 +651,32 @@ void memory_region_transaction_begin(void);
  *                                   visible to the guest.
  */
 void memory_region_transaction_commit(void);
+
+/**
+ * memory_listener_register: register callbacks to be called when memory
+ *                           sections are mapped or unmapped into an address
+ *                           space
+ *
+ * @listener: an object containing the callbacks to be called
+ */
+void memory_listener_register(MemoryListener *listener);
+
+/**
+ * memory_listener_unregister: undo the effect of memory_listener_register()
+ *
+ * @listener: an object containing the callbacks to be removed
+ */
+void memory_listener_unregister(MemoryListener *listener);
+
+/**
+ * memory_global_dirty_log_start: begin dirty logging for all regions
+ */
+void memory_global_dirty_log_start(void);
+
+/**
+ * memory_global_dirty_log_stop: begin dirty logging for all regions
+ */
+void memory_global_dirty_log_stop(void);
 
 void mtree_info(fprintf_function mon_printf, void *f);
 

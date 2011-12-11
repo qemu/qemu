@@ -23,6 +23,10 @@
 
 unsigned memory_region_transaction_depth = 0;
 static bool memory_region_update_pending = false;
+static bool global_dirty_log = false;
+
+static QLIST_HEAD(, MemoryListener) memory_listeners
+    = QLIST_HEAD_INITIALIZER(memory_listeners);
 
 typedef struct AddrRange AddrRange;
 
@@ -697,6 +701,32 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     as->ioeventfd_nb = ioeventfd_nb;
 }
 
+typedef void ListenerCallback(MemoryListener *listener,
+                              MemoryRegionSection *mrs);
+
+/* Want "void (&MemoryListener::*callback)(const MemoryRegionSection& s)" */
+static void memory_listener_update_region(FlatRange *fr, AddressSpace *as,
+                                          size_t callback_offset)
+{
+    MemoryRegionSection section = {
+        .mr = fr->mr,
+        .address_space = as->root,
+        .offset_within_region = fr->offset_in_region,
+        .size = int128_get64(fr->addr.size),
+        .offset_within_address_space = int128_get64(fr->addr.start),
+    };
+    MemoryListener *listener;
+
+    QLIST_FOREACH(listener, &memory_listeners, link) {
+        ListenerCallback *callback
+            = *(ListenerCallback **)((void *)listener + callback_offset);
+        callback(listener, &section);
+    }
+}
+
+#define MEMORY_LISTENER_UPDATE_REGION(fr, as, callback) \
+    memory_listener_update_region(fr, as, offsetof(MemoryListener, callback))
+
 static void address_space_update_topology_pass(AddressSpace *as,
                                                FlatView old_view,
                                                FlatView new_view,
@@ -729,6 +759,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
             /* In old, but (not in new, or in new but attributes changed). */
 
             if (!adding) {
+                MEMORY_LISTENER_UPDATE_REGION(frold, as, region_del);
                 as->ops->range_del(as, frold);
             }
 
@@ -738,9 +769,11 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             if (adding) {
                 if (frold->dirty_log_mask && !frnew->dirty_log_mask) {
+                    MEMORY_LISTENER_UPDATE_REGION(frold, as, log_stop);
                     as->ops->log_stop(as, frnew);
                 } else if (frnew->dirty_log_mask && !frold->dirty_log_mask) {
                     as->ops->log_start(as, frnew);
+                    MEMORY_LISTENER_UPDATE_REGION(frold, as, log_start);
                 }
             }
 
@@ -751,6 +784,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             if (adding) {
                 as->ops->range_add(as, frnew);
+                MEMORY_LISTENER_UPDATE_REGION(frold, as, region_add);
             }
 
             ++inew;
@@ -1130,6 +1164,7 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
 
     FOR_EACH_FLAT_RANGE(fr, &address_space_memory.current_map) {
         if (fr->mr == mr) {
+            MEMORY_LISTENER_UPDATE_REGION(fr, &address_space_memory, log_sync);
             cpu_physical_sync_dirty_bitmap(int128_get64(fr->addr.start),
                                            int128_get64(addrrange_end(fr->addr)));
         }
@@ -1449,7 +1484,65 @@ MemoryRegionSection memory_region_find(MemoryRegion *address_space,
 
 void memory_global_sync_dirty_bitmap(MemoryRegion *address_space)
 {
+    AddressSpace *as = memory_region_to_address_space(address_space);
+    FlatRange *fr;
+
     cpu_physical_sync_dirty_bitmap(0, TARGET_PHYS_ADDR_MAX);
+    FOR_EACH_FLAT_RANGE(fr, &as->current_map) {
+        MEMORY_LISTENER_UPDATE_REGION(fr, as, log_sync);
+    }
+}
+
+void memory_global_dirty_log_start(void)
+{
+    MemoryListener *listener;
+
+    global_dirty_log = true;
+    QLIST_FOREACH(listener, &memory_listeners, link) {
+        listener->log_global_start(listener);
+    }
+}
+
+void memory_global_dirty_log_stop(void)
+{
+    MemoryListener *listener;
+
+    global_dirty_log = false;
+    QLIST_FOREACH(listener, &memory_listeners, link) {
+        listener->log_global_stop(listener);
+    }
+}
+
+static void listener_add_address_space(MemoryListener *listener,
+                                       AddressSpace *as)
+{
+    FlatRange *fr;
+
+    if (global_dirty_log) {
+        listener->log_global_start(listener);
+    }
+    FOR_EACH_FLAT_RANGE(fr, &as->current_map) {
+        MemoryRegionSection section = {
+            .mr = fr->mr,
+            .address_space = as->root,
+            .offset_within_region = fr->offset_in_region,
+            .size = int128_get64(fr->addr.size),
+            .offset_within_address_space = int128_get64(fr->addr.start),
+        };
+        listener->region_add(listener, &section);
+    }
+}
+
+void memory_listener_register(MemoryListener *listener)
+{
+    QLIST_INSERT_HEAD(&memory_listeners, listener, link);
+    listener_add_address_space(listener, &address_space_memory);
+    listener_add_address_space(listener, &address_space_io);
+}
+
+void memory_listener_unregister(MemoryListener *listener)
+{
+    QLIST_REMOVE(listener, link);
 }
 
 void set_system_memory_map(MemoryRegion *mr)

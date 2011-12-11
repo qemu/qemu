@@ -1762,6 +1762,11 @@ static int cpu_notify_sync_dirty_bitmap(target_phys_addr_t start,
 static int cpu_notify_migration_log(int enable)
 {
     CPUPhysMemoryClient *client;
+    if (enable) {
+        memory_global_dirty_log_start();
+    } else {
+        memory_global_dirty_log_stop();
+    }
     QLIST_FOREACH(client, &memory_client_list, list) {
         int r = client->migration_log(client, enable);
         if (r < 0)
