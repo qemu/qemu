@@ -186,6 +186,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Could not open '%(filename)'",
     },
     {
+        .error_fmt = QERR_PERMISSION_DENIED,
+        .desc      = "Insufficient permission to perform this operation",
+    },
+    {
         .error_fmt = QERR_PROPERTY_NOT_FOUND,
         .desc      = "Property '%(device).%(property)' not found",
     },

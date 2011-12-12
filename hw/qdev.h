@@ -5,6 +5,7 @@
 #include "qemu-queue.h"
 #include "qemu-char.h"
 #include "qemu-option.h"
+#include "qapi/qapi-visit-core.h"
 
 typedef struct Property Property;
 
@@ -26,6 +27,44 @@ enum DevState {
 enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
 };
+
+/**
+ * @DevicePropertyAccessor - called when trying to get/set a property
+ *
+ * @dev the device that owns the property
+ * @v the visitor that contains the property data
+ * @opaque the device property opaque
+ * @name the name of the property
+ * @errp a pointer to an Error that is filled if getting/setting fails.
+ */
+typedef void (DevicePropertyAccessor)(DeviceState *dev,
+                                      Visitor *v,
+                                      void *opaque,
+                                      const char *name,
+                                      Error **errp);
+
+/**
+ * @DevicePropertyRelease - called when a property is removed from a device
+ *
+ * @dev the device that owns the property
+ * @name the name of the property
+ * @opaque the opaque registered with the property
+ */
+typedef void (DevicePropertyRelease)(DeviceState *dev,
+                                     const char *name,
+                                     void *opaque);
+
+typedef struct DeviceProperty
+{
+    gchar *name;
+    gchar *type;
+    DevicePropertyAccessor *get;
+    DevicePropertyAccessor *set;
+    DevicePropertyRelease *release;
+    void *opaque;
+
+    QTAILQ_ENTRY(DeviceProperty) node;
+} DeviceProperty;
 
 /* This structure should not be accessed directly.  We declare it here
    so that it can be embedded in individual device state structures.  */
@@ -51,6 +90,8 @@ struct DeviceState {
      * more information.
      */
     uint32_t ref;
+
+    QTAILQ_HEAD(, DeviceProperty) properties;
 };
 
 typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
@@ -354,5 +395,84 @@ void qdev_ref(DeviceState *dev);
  * @dev - the device
  */
 void qdev_unref(DeviceState *dev);
+
+/**
+ * @qdev_property_add - add a new property to a device
+ *
+ * @dev - the device to add a property to
+ *
+ * @name - the name of the property.  This can contain any character except for
+ *         a forward slash.  In general, you should use hyphens '-' instead of
+ *         underscores '_' when naming properties.
+ *
+ * @type - the type name of the property.  This namespace is pretty loosely
+ *         defined.  Sub namespaces are constructed by using a prefix and then
+ *         to angle brackets.  For instance, the type 'virtio-net-pci' in the
+ *         'link' namespace would be 'link<virtio-net-pci>'.
+ *
+ * @get - the getter to be called to read a property.  If this is NULL, then
+ *        the property cannot be read.
+ *
+ * @set - the setter to be called to write a property.  If this is NULL,
+ *        then the property cannot be written.
+ *
+ * @release - called when the property is removed from the device.  This is
+ *            meant to allow a property to free its opaque upon device
+ *            destruction.  This may be NULL.
+ *
+ * @opaque - an opaque pointer to pass to the callbacks for the property
+ *
+ * @errp - returns an error if this function fails
+ */
+void qdev_property_add(DeviceState *dev, const char *name, const char *type,
+                       DevicePropertyAccessor *get, DevicePropertyAccessor *set,
+                       DevicePropertyRelease *release,
+                       void *opaque, Error **errp);
+
+/**
+ * @qdev_property_get - reads a property from a device
+ *
+ * @dev - the device
+ *
+ * @v - the visitor that will receive the property value.  This should be an
+ *      Output visitor and the data will be written with @name as the name.
+ *
+ * @name - the name of the property
+ *
+ * @errp - returns an error if this function fails
+ */
+void qdev_property_get(DeviceState *dev, Visitor *v, const char *name,
+                       Error **errp);
+
+/**
+ * @qdev_property_set - writes a property to a device
+ *
+ * @dev - the device
+ *
+ * @v - the visitor that will be used to write the property value.  This should
+ *      be an Input visitor and the data will be first read with @name as the
+ *      name and then written as the property value.
+ *
+ * @name - the name of the property
+ *
+ * @errp - returns an error if this function fails
+ */
+void qdev_property_set(DeviceState *dev, Visitor *v, const char *name,
+                       Error **errp);
+
+/**
+ * @qdev_property_get_type - returns the type of a property
+ *
+ * @dev - the device
+ *
+ * @name - the name of the property
+ *
+ * @errp - returns an error if this function fails
+ *
+ * Returns:
+ *   The type name of the property.
+ */
+const char *qdev_property_get_type(DeviceState *dev, const char *name,
+                                   Error **errp);
 
 #endif
