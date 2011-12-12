@@ -45,6 +45,12 @@ struct DeviceState {
     QTAILQ_ENTRY(DeviceState) sibling;
     int instance_id_alias;
     int alias_required_for_version;
+
+    /**
+     * This tracks the number of references between devices.  See @qdev_ref for
+     * more information.
+     */
+    uint32_t ref;
 };
 
 typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
@@ -328,5 +334,25 @@ static inline const char *qdev_fw_name(DeviceState *dev)
 char *qdev_get_fw_dev_path(DeviceState *dev);
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 extern struct BusInfo system_bus_info;
+
+/**
+ * @qdev_ref
+ *
+ * Increase the reference count of a device.  A device cannot be freed as long
+ * as its reference count is greater than zero.
+ *
+ * @dev - the device
+ */
+void qdev_ref(DeviceState *dev);
+
+/**
+ * @qdef_unref
+ *
+ * Decrease the reference count of a device.  A device cannot be freed as long
+ * as its reference count is greater than zero.
+ *
+ * @dev - the device
+ */
+void qdev_unref(DeviceState *dev);
 
 #endif

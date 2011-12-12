@@ -323,6 +323,11 @@ int qdev_unplug(DeviceState *dev)
     }
     assert(dev->info->unplug != NULL);
 
+    if (dev->ref != 0) {
+        qerror_report(QERR_DEVICE_IN_USE, dev->id?:"");
+        return -1;
+    }
+
     qdev_hot_removed = true;
 
     return dev->info->unplug(dev);
@@ -961,4 +966,15 @@ char* qdev_get_fw_dev_path(DeviceState *dev)
     path[l-1] = '\0';
 
     return strdup(path);
+}
+
+void qdev_ref(DeviceState *dev)
+{
+    dev->ref++;
+}
+
+void qdev_unref(DeviceState *dev)
+{
+    g_assert(dev->ref > 0);
+    dev->ref--;
 }
