@@ -103,7 +103,14 @@ typedef struct gic_state
     int num_cpu;
 #endif
 
-    MemoryRegion iomem;
+    MemoryRegion iomem; /* Distributor */
+#ifndef NVIC
+    /* This is just so we can have an opaque pointer which identifies
+     * both this GIC and which CPU interface we should be accessing.
+     */
+    struct gic_state *backref[NCPU];
+    MemoryRegion cpuiomem[NCPU+1]; /* CPU interfaces */
+#endif
 } gic_state;
 
 /* TODO: Many places that call this routine could be optimized.  */
@@ -633,6 +640,54 @@ static void gic_cpu_write(gic_state *s, int cpu, int offset, uint32_t value)
     }
     gic_update(s);
 }
+
+/* Wrappers to read/write the GIC CPU interface for the current CPU */
+static uint64_t gic_thiscpu_read(void *opaque, target_phys_addr_t addr,
+                                 unsigned size)
+{
+    gic_state *s = (gic_state *)opaque;
+    return gic_cpu_read(s, gic_get_current_cpu(), addr & 0xff);
+}
+
+static void gic_thiscpu_write(void *opaque, target_phys_addr_t addr,
+                              uint64_t value, unsigned size)
+{
+    gic_state *s = (gic_state *)opaque;
+    gic_cpu_write(s, gic_get_current_cpu(), addr & 0xff, value);
+}
+
+/* Wrappers to read/write the GIC CPU interface for a specific CPU.
+ * These just decode the opaque pointer into gic_state* + cpu id.
+ */
+static uint64_t gic_do_cpu_read(void *opaque, target_phys_addr_t addr,
+                                unsigned size)
+{
+    gic_state **backref = (gic_state **)opaque;
+    gic_state *s = *backref;
+    int id = (backref - s->backref);
+    return gic_cpu_read(s, id, addr & 0xff);
+}
+
+static void gic_do_cpu_write(void *opaque, target_phys_addr_t addr,
+                             uint64_t value, unsigned size)
+{
+    gic_state **backref = (gic_state **)opaque;
+    gic_state *s = *backref;
+    int id = (backref - s->backref);
+    gic_cpu_write(s, id, addr & 0xff, value);
+}
+
+static const MemoryRegionOps gic_thiscpu_ops = {
+    .read = gic_thiscpu_read,
+    .write = gic_thiscpu_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
+
+static const MemoryRegionOps gic_cpu_ops = {
+    .read = gic_do_cpu_read,
+    .write = gic_do_cpu_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+};
 #endif
 
 static void gic_reset(gic_state *s)
@@ -752,6 +807,24 @@ static void gic_init(gic_state *s)
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
     memory_region_init_io(&s->iomem, &gic_dist_ops, s, "gic_dist", 0x1000);
+#ifndef NVIC
+    /* Memory regions for the CPU interfaces (NVIC doesn't have these):
+     * a region for "CPU interface for this core", then a region for
+     * "CPU interface for core 0", "for core 1", ...
+     * NB that the memory region size of 0x100 applies for the 11MPCore
+     * and also cores following the GIC v1 spec (ie A9).
+     * GIC v2 defines a larger memory region (0x1000) so this will need
+     * to be extended when we implement A15.
+     */
+    memory_region_init_io(&s->cpuiomem[0], &gic_thiscpu_ops, s,
+                          "gic_cpu", 0x100);
+    for (i = 0; i < NUM_CPU(s); i++) {
+        s->backref[i] = s;
+        memory_region_init_io(&s->cpuiomem[i+1], &gic_cpu_ops, &s->backref[i],
+                              "gic_cpu", 0x100);
+    }
+#endif
+
     gic_reset(s);
     register_savevm(NULL, "arm_gic", -1, 2, gic_save, gic_load, s);
 }

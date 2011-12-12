@@ -170,9 +170,9 @@ static arm_timer_state *arm_timer_init(uint32_t freq)
 }
 
 /* ARM PrimeCell SP804 dual timer module.
-   Docs for this device don't seem to be publicly available.  This
-   implementation is based on guesswork, the linux kernel sources and the
-   Integrator/CP timer modules.  */
+ * Docs at
+ * http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0271d/index.html
+*/
 
 typedef struct {
     SysBusDevice busdev;
@@ -181,6 +181,13 @@ typedef struct {
     int level[2];
     qemu_irq irq;
 } sp804_state;
+
+static const uint8_t sp804_ids[] = {
+    /* Timer ID */
+    0x04, 0x18, 0x14, 0,
+    /* PrimeCell ID */
+    0xd, 0xf0, 0x05, 0xb1
+};
 
 /* Merge the IRQs from the two component devices.  */
 static void sp804_set_irq(void *opaque, int irq, int level)
@@ -196,12 +203,27 @@ static uint64_t sp804_read(void *opaque, target_phys_addr_t offset,
 {
     sp804_state *s = (sp804_state *)opaque;
 
-    /* ??? Don't know the PrimeCell ID for this device.  */
     if (offset < 0x20) {
         return arm_timer_read(s->timer[0], offset);
-    } else {
+    }
+    if (offset < 0x40) {
         return arm_timer_read(s->timer[1], offset - 0x20);
     }
+
+    /* TimerPeriphID */
+    if (offset >= 0xfe0 && offset <= 0xffc) {
+        return sp804_ids[(offset - 0xfe0) >> 2];
+    }
+
+    switch (offset) {
+    /* Integration Test control registers, which we won't support */
+    case 0xf00: /* TimerITCR */
+    case 0xf04: /* TimerITOP (strictly write only but..) */
+        return 0;
+    }
+
+    hw_error("%s: Bad offset %x\n", __func__, (int)offset);
+    return 0;
 }
 
 static void sp804_write(void *opaque, target_phys_addr_t offset,
@@ -211,9 +233,16 @@ static void sp804_write(void *opaque, target_phys_addr_t offset,
 
     if (offset < 0x20) {
         arm_timer_write(s->timer[0], offset, value);
-    } else {
-        arm_timer_write(s->timer[1], offset - 0x20, value);
+        return;
     }
+
+    if (offset < 0x40) {
+        arm_timer_write(s->timer[1], offset - 0x20, value);
+        return;
+    }
+
+    /* Technically we could be writing to the Test Registers, but not likely */
+    hw_error("%s: Bad offset %x\n", __func__, (int)offset);
 }
 
 static const MemoryRegionOps sp804_ops = {
