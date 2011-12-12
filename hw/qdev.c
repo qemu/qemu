@@ -227,6 +227,19 @@ int qdev_device_help(QemuOpts *opts)
     return 1;
 }
 
+static DeviceState *qdev_get_peripheral(void)
+{
+    static DeviceState *dev;
+
+    if (dev == NULL) {
+        dev = qdev_create(NULL, "container");
+        qdev_property_add_child(qdev_get_root(), "peripheral", dev, NULL);
+        qdev_init_nofail(dev);
+    }
+
+    return dev;
+}
+
 DeviceState *qdev_device_add(QemuOpts *opts)
 {
     const char *driver, *path, *id;
@@ -278,6 +291,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     id = qemu_opts_id(opts);
     if (id) {
         qdev->id = id;
+        qdev_property_add_child(qdev_get_peripheral(), qdev->id, qdev, NULL);
     }
     if (qemu_opt_foreach(opts, set_property, qdev, 1) != 0) {
         qdev_free(qdev);
