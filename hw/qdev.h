@@ -527,4 +527,24 @@ gchar *qdev_get_canonical_path(DeviceState *dev);
  */
 DeviceState *qdev_resolve_path(const char *path, bool *ambiguous);
 
+/**
+ * @qdev_property_add_child - Add a child property to a device
+ *
+ * Child properties form the composition tree.  All devices need to be a child
+ * of another device.  Devices can only be a child of one device.
+ *
+ * There is no way for a child to determine what its parent is.  It is not
+ * a bidirectional relationship.  This is by design.
+ *
+ * @dev - the device to add a property to
+ *
+ * @name - the name of the property
+ *
+ * @child - the child device
+ *
+ * @errp - if an error occurs, a pointer to an area to store the area
+ */
+void qdev_property_add_child(DeviceState *dev, const char *name,
+                             DeviceState *child, Error **errp);
+
 #endif
