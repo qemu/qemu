@@ -1168,3 +1168,51 @@
 # Since: 0.14.0
 ##
 { 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
+
+##
+# @DevicePropertyInfo:
+#
+# @name: the name of the property
+#
+# @type: the type of the property.  This will typically come in one of four
+#        forms:
+#
+#        1) A primitive type such as 'u8', 'u16', 'bool', 'str', or 'double'.
+#           These types are mapped to the appropriate JSON type.
+#
+#        2) A legacy type in the form 'legacy<subtype>' where subtype is the
+#           legacy qdev typename.  These types are always treated as strings.
+#
+#        3) A child type in the form 'child<subtype>' where subtype is a qdev
+#           device type name.  Child properties create the composition tree.
+#
+#        4) A link type in the form 'link<subtype>' where subtype is a qdev
+#           device type name.  Link properties form the device model graph.
+#
+# Since: 1.1
+#
+# Notes: This type is experimental.  Its syntax may change in future releases.
+##
+{ 'type': 'DevicePropertyInfo',
+  'data': { 'name': 'str', 'type': 'str' } }
+
+##
+# @qom-list:
+#
+# This command will list any properties of a device given a path in the device
+# model.
+#
+# @path: the path within the device model.  See @qom-get for a description of
+#        this parameter.
+#
+# Returns: a list of @DevicePropertyInfo that describe the properties of the
+#          device.
+#
+# Since: 1.1
+#
+# Notes: This command is experimental.  It's syntax may change in future
+#        releases.
+##
+{ 'command': 'qom-list',
+  'data': { 'path': 'str' },
+  'returns': [ 'DevicePropertyInfo' ] }
