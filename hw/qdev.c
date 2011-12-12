@@ -1200,6 +1200,80 @@ void qdev_property_add_child(DeviceState *dev, const char *name,
     g_free(type);
 }
 
+static void qdev_get_link_property(DeviceState *dev, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    DeviceState **child = opaque;
+    gchar *path;
+
+    if (*child) {
+        path = qdev_get_canonical_path(*child);
+        visit_type_str(v, &path, name, errp);
+        g_free(path);
+    } else {
+        path = (gchar *)"";
+        visit_type_str(v, &path, name, errp);
+    }
+}
+
+static void qdev_set_link_property(DeviceState *dev, Visitor *v, void *opaque,
+                                   const char *name, Error **errp)
+{
+    DeviceState **child = opaque;
+    bool ambiguous = false;
+    const char *type;
+    char *path;
+
+    type = qdev_property_get_type(dev, name, NULL);
+
+    visit_type_str(v, &path, name, errp);
+
+    if (*child) {
+        qdev_unref(*child);
+    }
+
+    if (strcmp(path, "") != 0) {
+        DeviceState *target;
+
+        target = qdev_resolve_path(path, &ambiguous);
+        if (target) {
+            gchar *target_type;
+
+            target_type = g_strdup_printf("link<%s>", target->info->name);
+            if (strcmp(target_type, type) == 0) {
+                *child = target;
+                qdev_ref(target);
+            } else {
+                error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, type);
+            }
+
+            g_free(target_type);
+        } else {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+        }
+    } else {
+        *child = NULL;
+    }
+
+    g_free(path);
+}
+
+void qdev_property_add_link(DeviceState *dev, const char *name,
+                            const char *type, DeviceState **child,
+                            Error **errp)
+{
+    gchar *full_type;
+
+    full_type = g_strdup_printf("link<%s>", type);
+
+    qdev_property_add(dev, name, full_type,
+                      qdev_get_link_property,
+                      qdev_set_link_property,
+                      NULL, child, errp);
+
+    g_free(full_type);
+}
+
 static gchar *qdev_get_path_in(DeviceState *parent, DeviceState *dev)
 {
     DeviceProperty *prop;

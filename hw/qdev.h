@@ -547,4 +547,27 @@ DeviceState *qdev_resolve_path(const char *path, bool *ambiguous);
 void qdev_property_add_child(DeviceState *dev, const char *name,
                              DeviceState *child, Error **errp);
 
+/**
+ * @qdev_property_add_link - Add a link property to a device
+ *
+ * Links establish relationships between devices.  Links are unidirectional
+ * although two links can be combined to form a bidirectional relationship
+ * between devices.
+ *
+ * Links form the graph in the device model.
+ *
+ * @dev - the device to add a property to
+ *
+ * @name - the name of the property
+ *
+ * @type - the qdev type of the link
+ *
+ * @child - a pointer to where the link device reference is stored
+ *
+ * @errp - if an error occurs, a pointer to an area to store the area
+ */
+void qdev_property_add_link(DeviceState *dev, const char *name,
+                            const char *type, DeviceState **child,
+                            Error **errp);
+
 #endif
