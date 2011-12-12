@@ -482,4 +482,12 @@ const char *qdev_property_get_type(DeviceState *dev, const char *name,
  */
 void qdev_property_add_legacy(DeviceState *dev, Property *prop, Error **errp);
 
+/**
+ * @qdev_get_root - returns the root device of the composition tree
+ *
+ * Returns:
+ *   The root of the composition tree.
+ */
+DeviceState *qdev_get_root(void);
+
 #endif

@@ -1161,3 +1161,15 @@ void qdev_property_add_legacy(DeviceState *dev, Property *prop,
 
     g_free(type);
 }
+
+DeviceState *qdev_get_root(void)
+{
+    static DeviceState *qdev_root;
+
+    if (!qdev_root) {
+        qdev_root = qdev_create(NULL, "container");
+        qdev_init_nofail(qdev_root);
+    }
+
+    return qdev_root;
+}
