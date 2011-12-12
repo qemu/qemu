@@ -62,6 +62,65 @@ static inline void cris_illegal_insn(DisasContext *dc)
     t_gen_raise_exception(EXCP_BREAK);
 }
 
+static void gen_store_v10_conditional(DisasContext *dc, TCGv addr, TCGv val,
+                       unsigned int size, int mem_index)
+{
+    int l1 = gen_new_label();
+    TCGv taddr = tcg_temp_local_new();
+    TCGv tval = tcg_temp_local_new();
+    TCGv t1 = tcg_temp_local_new();
+    dc->postinc = 0;
+    cris_evaluate_flags(dc);
+
+    tcg_gen_mov_tl(taddr, addr);
+    tcg_gen_mov_tl(tval, val);
+
+    /* Store only if F flag isn't set */
+    tcg_gen_andi_tl(t1, cpu_PR[PR_CCS], F_FLAG_V10);
+    tcg_gen_brcondi_tl(TCG_COND_NE, t1, 0, l1);
+    if (size == 1) {
+        tcg_gen_qemu_st8(tval, taddr, mem_index);
+    } else if (size == 2) {
+        tcg_gen_qemu_st16(tval, taddr, mem_index);
+    } else {
+        tcg_gen_qemu_st32(tval, taddr, mem_index);
+    }
+    gen_set_label(l1);
+    tcg_gen_shri_tl(t1, t1, 1);  /* shift F to P position */
+    tcg_gen_or_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], t1); /*P=F*/
+    tcg_temp_free(t1);
+    tcg_temp_free(tval);
+    tcg_temp_free(taddr);
+}
+
+static void gen_store_v10(DisasContext *dc, TCGv addr, TCGv val,
+                       unsigned int size)
+{
+    int mem_index = cpu_mmu_index(dc->env);
+
+    /* If we get a fault on a delayslot we must keep the jmp state in
+       the cpu-state to be able to re-execute the jmp.  */
+    if (dc->delayed_branch == 1) {
+        cris_store_direct_jmp(dc);
+    }
+
+    /* Conditional writes. We only support the kind were X is known
+       at translation time.  */
+    if (dc->flagx_known && dc->flags_x) {
+        gen_store_v10_conditional(dc, addr, val, size, mem_index);
+        return;
+    }
+
+    if (size == 1) {
+        tcg_gen_qemu_st8(val, addr, mem_index);
+    } else if (size == 2) {
+        tcg_gen_qemu_st16(val, addr, mem_index);
+    } else {
+        tcg_gen_qemu_st32(val, addr, mem_index);
+    }
+}
+
+
 /* Prefix flag and register are used to handle the more complex
    addressing modes.  */
 static void cris_set_prefix(DisasContext *dc)
@@ -313,7 +372,8 @@ static unsigned int dec10_setclrf(DisasContext *dc)
     if (set) {
         tcg_gen_ori_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], flags);
     } else {
-        tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS], ~flags);
+        tcg_gen_andi_tl(cpu_PR[PR_CCS], cpu_PR[PR_CCS],
+                        ~(flags|F_FLAG_V10|P_FLAG_V10));
     }
 
     dc->flags_uptodate = 1;
@@ -723,7 +783,7 @@ static unsigned int dec10_ind_move_r_m(DisasContext *dc, unsigned int size)
     LOG_DIS("move.%d $r%d, [$r%d]\n", dc->size, dc->src, dc->dst);
     addr = tcg_temp_new();
     crisv10_prepare_memaddr(dc, addr, size);
-    gen_store(dc, addr, cpu_R[dc->dst], size);
+    gen_store_v10(dc, addr, cpu_R[dc->dst], size);
     insn_len += crisv10_post_memaddr(dc, size);
 
     return insn_len;
@@ -767,10 +827,10 @@ static unsigned int dec10_ind_move_pr_m(DisasContext *dc)
         t0 = tcg_temp_new();
         cris_evaluate_flags(dc);
         tcg_gen_andi_tl(t0, cpu_PR[PR_CCS], ~PFIX_FLAG);
-        gen_store(dc, addr, t0, size);
+        gen_store_v10(dc, addr, t0, size);
         tcg_temp_free(t0);
     } else {
-        gen_store(dc, addr, cpu_PR[dc->dst], size);
+        gen_store_v10(dc, addr, cpu_PR[dc->dst], size);
     }
     t0 = tcg_temp_new();
     insn_len += crisv10_post_memaddr(dc, size);
@@ -793,9 +853,9 @@ static void dec10_movem_r_m(DisasContext *dc)
     tcg_gen_mov_tl(t0, addr);
     for (i = dc->dst; i >= 0; i--) {
         if ((pfix && dc->mode == CRISV10_MODE_AUTOINC) && dc->src == i) {
-            gen_store(dc, addr, t0, 4);
+            gen_store_v10(dc, addr, t0, 4);
         } else {
-            gen_store(dc, addr, cpu_R[i], 4);
+            gen_store_v10(dc, addr, cpu_R[i], 4);
         }
         tcg_gen_addi_tl(addr, addr, 4);
     }
