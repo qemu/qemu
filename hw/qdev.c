@@ -110,6 +110,8 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
         qdev_property_add_legacy(dev, prop, NULL);
     }
 
+    qdev_property_add_str(dev, "type", qdev_get_type, NULL, NULL);
+
     return dev;
 }
 
@@ -1029,6 +1031,11 @@ char* qdev_get_fw_dev_path(DeviceState *dev)
     path[l-1] = '\0';
 
     return strdup(path);
+}
+
+char *qdev_get_type(DeviceState *dev, Error **errp)
+{
+    return g_strdup(dev->info->name);
 }
 
 void qdev_ref(DeviceState *dev)

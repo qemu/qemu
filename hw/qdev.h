@@ -596,4 +596,18 @@ void qdev_property_add_str(DeviceState *dev, const char *name,
                            void (*set)(DeviceState *, const char *, Error **),
                            Error **errp);
 
+/**
+ * @qdev_get_type
+ *
+ * Returns the string representation of the type of this object.
+ *
+ * @dev - the device
+ *
+ * @errp - if an error occurs, a pointer to an area to store the error
+ *
+ * Returns: a string representing the type.  This must be freed by the caller
+ *          with g_free().
+ */
+char *qdev_get_type(DeviceState *dev, Error **errp);
+
 #endif
