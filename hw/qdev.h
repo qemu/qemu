@@ -92,6 +92,10 @@ struct DeviceState {
     uint32_t ref;
 
     QTAILQ_HEAD(, DeviceProperty) properties;
+
+    /* Do not, under any circumstance, use this parent link below anywhere
+     * outside of qdev.c.  You have been warned. */
+    DeviceState *parent;
 };
 
 typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
