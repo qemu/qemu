@@ -288,6 +288,7 @@ static PCIBus *i440fx_common_init(const char *device_name,
                     address_space_io, 0);
     s->bus = b;
     qdev_init_nofail(dev);
+    qdev_property_add_child(qdev_get_root(), "i440fx", dev, NULL);
 
     d = pci_create_simple(b, 0, device_name);
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
@@ -323,6 +324,8 @@ static PCIBus *i440fx_common_init(const char *device_name,
                 pci_create_simple_multifunction(b, -1, true, "PIIX3"));
         pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
                 PIIX_NUM_PIRQS);
+
+        qdev_property_add_child(dev, "piix3", &piix3->dev.qdev, NULL);
     }
     piix3->pic = pic;
 

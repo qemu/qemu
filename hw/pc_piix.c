@@ -205,6 +205,17 @@ static void pc_init1(MemoryRegion *system_memory,
         }
     }
 
+    /* FIXME there's some major spaghetti here.  Somehow we create the devices
+     * on the PIIX before we actually create it.  We create the PIIX3 deep in
+     * the recess of the i440fx creation too and then lose the DeviceState.
+     *
+     * For now, let's "fix" this by making judicious use of paths.  This is not
+     * generally the right way to do this.
+     */
+
+    qdev_property_add_child(qdev_resolve_path("/i440fx/piix3", NULL),
+                            "rtc", (DeviceState *)rtc_state, NULL);
+
     audio_init(gsi, pci_enabled ? pci_bus : NULL);
 
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device,
