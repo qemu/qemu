@@ -117,13 +117,14 @@ void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex)
 
 void qemu_thread_create(QemuThread *thread,
                        void *(*start_routine)(void*),
-                       void *arg)
+                       void *arg, int mode)
 {
+    sigset_t set, oldset;
     int err;
 
-    /* Leave signal handling to the iothread.  */
-    sigset_t set, oldset;
+    assert(mode == QEMU_THREAD_DETACHED);
 
+    /* Leave signal handling to the iothread.  */
     sigfillset(&set);
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
     err = pthread_create(&thread->thread, NULL, start_routine, arg);

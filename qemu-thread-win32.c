@@ -243,9 +243,11 @@ static inline void qemu_thread_init(void)
 
 void qemu_thread_create(QemuThread *thread,
                        void *(*start_routine)(void *),
-                       void *arg)
+                       void *arg, int mode)
 {
     HANDLE hThread;
+
+    assert(mode == QEMU_THREAD_DETACHED);
 
     struct QemuThreadData *data;
     qemu_thread_init();
