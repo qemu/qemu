@@ -749,21 +749,61 @@ static void spapr_vio_register_devices(void)
 device_init(spapr_vio_register_devices)
 
 #ifdef CONFIG_FDT
+static int compare_reg(const void *p1, const void *p2)
+{
+    VIOsPAPRDevice const *dev1, *dev2;
+
+    dev1 = (VIOsPAPRDevice *)*(DeviceState **)p1;
+    dev2 = (VIOsPAPRDevice *)*(DeviceState **)p2;
+
+    if (dev1->reg < dev2->reg) {
+        return -1;
+    }
+    if (dev1->reg == dev2->reg) {
+        return 0;
+    }
+
+    /* dev1->reg > dev2->reg */
+    return 1;
+}
+
 int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt)
 {
-    DeviceState *qdev;
-    int ret = 0;
+    DeviceState *qdev, **qdevs;
+    int i, num, ret = 0;
 
+    /* Count qdevs on the bus list */
+    num = 0;
     QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
+        num++;
+    }
+
+    /* Copy out into an array of pointers */
+    qdevs = g_malloc(sizeof(qdev) * num);
+    num = 0;
+    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
+        qdevs[num++] = qdev;
+    }
+
+    /* Sort the array */
+    qsort(qdevs, num, sizeof(qdev), compare_reg);
+
+    /* Hack alert. Give the devices to libfdt in reverse order, we happen
+     * to know that will mean they are in forward order in the tree. */
+    for (i = num - 1; i >= 0; i--) {
+        VIOsPAPRDevice *dev = (VIOsPAPRDevice *)(qdevs[i]);
 
         ret = vio_make_devnode(dev, fdt);
 
         if (ret < 0) {
-            return ret;
+            goto out;
         }
     }
 
-    return 0;
+    ret = 0;
+out:
+    free(qdevs);
+
+    return ret;
 }
 #endif /* CONFIG_FDT */
