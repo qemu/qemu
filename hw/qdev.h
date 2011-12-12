@@ -574,4 +574,26 @@ void qdev_property_add_link(DeviceState *dev, const char *name,
                             const char *type, DeviceState **child,
                             Error **errp);
 
+/**
+ * @qdev_property_add_str
+ *
+ * Add a string property using getters/setters.  This function will add a
+ * property of type 'string'.
+ *
+ * @dev - the device to add a property to
+ *
+ * @name - the name of the property
+ *
+ * @get - the getter or NULL if the property is write-only.  This function must
+ *        return a string to be freed by @g_free().
+ *
+ * @set - the setter or NULL if the property is read-only
+ *
+ * @errp - if an error occurs, a pointer to an area to store the error
+ */
+void qdev_property_add_str(DeviceState *dev, const char *name,
+                           char *(*get)(DeviceState *, Error **),
+                           void (*set)(DeviceState *, const char *, Error **),
+                           Error **errp);
+
 #endif

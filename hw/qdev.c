@@ -1449,3 +1449,62 @@ DeviceState *qdev_resolve_path(const char *path, bool *ambiguous)
     return dev;
 }
 
+typedef struct StringProperty
+{
+    char *(*get)(DeviceState *, Error **);
+    void (*set)(DeviceState *, const char *, Error **);
+} StringProperty;
+
+static void qdev_property_get_str(DeviceState *dev, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    StringProperty *prop = opaque;
+    char *value;
+
+    value = prop->get(dev, errp);
+    if (value) {
+        visit_type_str(v, &value, name, errp);
+        g_free(value);
+    }
+}
+
+static void qdev_property_set_str(DeviceState *dev, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    StringProperty *prop = opaque;
+    char *value;
+    Error *local_err = NULL;
+
+    visit_type_str(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    prop->set(dev, value, errp);
+    g_free(value);
+}
+
+static void qdev_property_release_str(DeviceState *dev, const char *name,
+                                      void *opaque)
+{
+    StringProperty *prop = opaque;
+    g_free(prop);
+}
+
+void qdev_property_add_str(DeviceState *dev, const char *name,
+                           char *(*get)(DeviceState *, Error **),
+                           void (*set)(DeviceState *, const char *, Error **),
+                           Error **errp)
+{
+    StringProperty *prop = g_malloc0(sizeof(*prop));
+
+    prop->get = get;
+    prop->set = set;
+
+    qdev_property_add(dev, name, "string",
+                      get ? qdev_property_get_str : NULL,
+                      set ? qdev_property_set_str : NULL,
+                      qdev_property_release_str,
+                      prop, errp);
+}
