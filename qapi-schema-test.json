@@ -16,6 +16,12 @@
                       'dict': { 'userdef': 'UserDefOne', 'string': 'str' },
                       '*dict2': { 'userdef': 'UserDefOne', 'string': 'str' } } } }
 
+{ 'type': 'UserDefNested',
+  'data': { 'string0': 'str',
+            'dict1': { 'string1': 'str',
+                       'dict2': { 'userdef1': 'UserDefOne', 'string2': 'str' },
+                       '*dict3': { 'userdef2': 'UserDefOne', 'string3': 'str' } } } }
+
 # testing commands
 { 'command': 'user_def_cmd', 'data': {} }
 { 'command': 'user_def_cmd1', 'data': {'ud1a': 'UserDefOne'} }

@@ -71,7 +71,7 @@ static int bmdma_prepare_buf(IDEDMA *dma, int is_write)
             if (bm->cur_prd_last ||
                 (bm->cur_addr - bm->addr) >= BMDMA_PAGE_SIZE)
                 return s->io_buffer_size != 0;
-            pci_dma_read(&bm->pci_dev->dev, bm->cur_addr, (uint8_t *)&prd, 8);
+            pci_dma_read(&bm->pci_dev->dev, bm->cur_addr, &prd, 8);
             bm->cur_addr += 8;
             prd.addr = le32_to_cpu(prd.addr);
             prd.size = le32_to_cpu(prd.size);
@@ -113,7 +113,7 @@ static int bmdma_rw_buf(IDEDMA *dma, int is_write)
             if (bm->cur_prd_last ||
                 (bm->cur_addr - bm->addr) >= BMDMA_PAGE_SIZE)
                 return 0;
-            pci_dma_read(&bm->pci_dev->dev, bm->cur_addr, (uint8_t *)&prd, 8);
+            pci_dma_read(&bm->pci_dev->dev, bm->cur_addr, &prd, 8);
             bm->cur_addr += 8;
             prd.addr = le32_to_cpu(prd.addr);
             prd.size = le32_to_cpu(prd.size);

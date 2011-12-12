@@ -40,12 +40,15 @@ static int unix_write(MigrationState *s, const void * buf, size_t size)
 
 static int unix_close(MigrationState *s)
 {
+    int r = 0;
     DPRINTF("unix_close\n");
     if (s->fd != -1) {
-        close(s->fd);
+        if (close(s->fd) < 0) {
+            r = -errno;
+        }
         s->fd = -1;
     }
-    return 0;
+    return r;
 }
 
 static void unix_wait_for_connect(void *opaque)

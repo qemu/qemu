@@ -1109,7 +1109,7 @@ static inline int get_dwords(EHCIState *ehci, uint32_t addr,
     int i;
 
     for(i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
-        pci_dma_read(&ehci->dev, addr, (uint8_t *)buf, sizeof(*buf));
+        pci_dma_read(&ehci->dev, addr, buf, sizeof(*buf));
         *buf = le32_to_cpu(*buf);
     }
 
@@ -1124,7 +1124,7 @@ static inline int put_dwords(EHCIState *ehci, uint32_t addr,
 
     for(i = 0; i < num; i++, buf++, addr += sizeof(*buf)) {
         uint32_t tmp = cpu_to_le32(*buf);
-        pci_dma_write(&ehci->dev, addr, (uint8_t *)&tmp, sizeof(tmp));
+        pci_dma_write(&ehci->dev, addr, &tmp, sizeof(tmp));
     }
 
     return 1;
@@ -2157,7 +2157,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         }
         list |= ((ehci->frindex & 0x1ff8) >> 1);
 
-        pci_dma_read(&ehci->dev, list, (uint8_t *) &entry, sizeof entry);
+        pci_dma_read(&ehci->dev, list, &entry, sizeof entry);
         entry = le32_to_cpu(entry);
 
         DPRINTF("PERIODIC state adv fr=%d.  [%08X] -> %08X\n",

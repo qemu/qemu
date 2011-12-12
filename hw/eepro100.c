@@ -768,12 +768,9 @@ static void dump_statistics(EEPRO100State * s)
      * values which really matter.
      * Number of data should check configuration!!!
      */
-    pci_dma_write(&s->dev, s->statsaddr,
-                  (uint8_t *) &s->statistics, s->stats_size);
-    stl_le_pci_dma(&s->dev, s->statsaddr + 0,
-                   s->statistics.tx_good_frames);
-    stl_le_pci_dma(&s->dev, s->statsaddr + 36,
-                   s->statistics.rx_good_frames);
+    pci_dma_write(&s->dev, s->statsaddr, &s->statistics, s->stats_size);
+    stl_le_pci_dma(&s->dev, s->statsaddr + 0, s->statistics.tx_good_frames);
+    stl_le_pci_dma(&s->dev, s->statsaddr + 36, s->statistics.rx_good_frames);
     stl_le_pci_dma(&s->dev, s->statsaddr + 48,
                    s->statistics.rx_resource_errors);
     stl_le_pci_dma(&s->dev, s->statsaddr + 60,
@@ -787,7 +784,7 @@ static void dump_statistics(EEPRO100State * s)
 
 static void read_cb(EEPRO100State *s)
 {
-    pci_dma_read(&s->dev, s->cb_address, (uint8_t *) &s->tx, sizeof(s->tx));
+    pci_dma_read(&s->dev, s->cb_address, &s->tx, sizeof(s->tx));
     s->tx.status = le16_to_cpu(s->tx.status);
     s->tx.command = le16_to_cpu(s->tx.command);
     s->tx.link = le32_to_cpu(s->tx.link);

@@ -59,13 +59,9 @@ DriveInfo *add_init_drive(const char *opts);
 
 void do_commit(Monitor *mon, const QDict *qdict);
 int do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data);
-int do_block_set_passwd(Monitor *mon, const QDict *qdict, QObject **ret_data);
 int do_change_block(Monitor *mon, const char *device,
                     const char *filename, const char *fmt);
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
 int do_block_set_io_throttle(Monitor *mon,
                              const QDict *qdict, QObject **ret_data);
-int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data);
-int do_block_resize(Monitor *mon, const QDict *qdict, QObject **ret_data);
-
 #endif

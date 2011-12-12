@@ -2787,8 +2787,9 @@ if test "$softmmu" = yes ; then
     fi
     if [ "$check_utests" = "yes" ]; then
       checks="check-qint check-qstring check-qdict check-qlist"
-      checks="check-qfloat check-qjson test-coroutine $checks"
+      checks="check-qfloat check-qjson $checks"
     fi
+    test_progs="$checks test-coroutine test-qmp-output-visitor test-qmp-input-visitor"
   fi
 fi
 
@@ -3283,7 +3284,7 @@ if test "$trace_default" = "yes"; then
 fi
 
 echo "TOOLS=$tools" >> $config_host_mak
-echo "CHECKS=$checks" >> $config_host_mak
+echo "CHECKS=$test_progs" >> $config_host_mak
 echo "ROMS=$roms" >> $config_host_mak
 echo "MAKE=$make" >> $config_host_mak
 echo "INSTALL=$install" >> $config_host_mak

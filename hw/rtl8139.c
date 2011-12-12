@@ -991,13 +991,13 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
 
         uint32_t val, rxdw0,rxdw1,rxbufLO,rxbufHI;
 
-        pci_dma_read(&s->dev, cplus_rx_ring_desc, (uint8_t *)&val, 4);
+        pci_dma_read(&s->dev, cplus_rx_ring_desc, &val, 4);
         rxdw0 = le32_to_cpu(val);
-        pci_dma_read(&s->dev, cplus_rx_ring_desc+4, (uint8_t *)&val, 4);
+        pci_dma_read(&s->dev, cplus_rx_ring_desc+4, &val, 4);
         rxdw1 = le32_to_cpu(val);
-        pci_dma_read(&s->dev, cplus_rx_ring_desc+8, (uint8_t *)&val, 4);
+        pci_dma_read(&s->dev, cplus_rx_ring_desc+8, &val, 4);
         rxbufLO = le32_to_cpu(val);
-        pci_dma_read(&s->dev, cplus_rx_ring_desc+12, (uint8_t *)&val, 4);
+        pci_dma_read(&s->dev, cplus_rx_ring_desc+12, &val, 4);
         rxbufHI = le32_to_cpu(val);
 
         DPRINTF("+++ C+ mode RX descriptor %d %08x %08x %08x %08x\n",

@@ -199,10 +199,7 @@ EQMP
     {
         .name       = "cont",
         .args_type  = "",
-        .params     = "",
-        .help       = "resume emulation",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_cont,
+        .mhandler.cmd_new = qmp_marshal_input_cont,
     },
 
 SQMP
@@ -244,10 +241,7 @@ EQMP
     {
         .name       = "system_powerdown",
         .args_type  = "",
-        .params     = "",
-        .help       = "send system power down event",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_system_powerdown,
+        .mhandler.cmd_new = qmp_marshal_input_system_powerdown,
     },
 
 SQMP
@@ -355,11 +349,8 @@ EQMP
 
     {
         .name       = "memsave",
-        .args_type  = "val:l,size:i,filename:s",
-        .params     = "addr size file",
-        .help       = "save to disk virtual memory dump starting at 'addr' of size 'size'",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_memory_save,
+        .args_type  = "val:l,size:i,filename:s,cpu:i?",
+        .mhandler.cmd_new = qmp_marshal_input_memsave,
     },
 
 SQMP
@@ -373,6 +364,7 @@ Arguments:
 - "val": the starting address (json-int)
 - "size": the memory size, in bytes (json-int)
 - "filename": file path (json-string)
+- "cpu": virtual CPU index (json-int, optional)
 
 Example:
 
@@ -382,17 +374,12 @@ Example:
                             "filename": "/tmp/virtual-mem-dump" } }
 <- { "return": {} }
 
-Note: Depends on the current CPU.
-
 EQMP
 
     {
         .name       = "pmemsave",
         .args_type  = "val:l,size:i,filename:s",
-        .params     = "addr size file",
-        .help       = "save to disk physical memory dump starting at 'addr' of size 'size'",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_physical_memory_save,
+        .mhandler.cmd_new = qmp_marshal_input_pmemsave,
     },
 
 SQMP
@@ -420,10 +407,7 @@ EQMP
     {
         .name       = "inject-nmi",
         .args_type  = "",
-        .params     = "",
-        .help       = "",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_inject_nmi,
+        .mhandler.cmd_new = qmp_marshal_input_inject_nmi,
     },
 
 SQMP
@@ -487,10 +471,7 @@ EQMP
     {
         .name       = "migrate_cancel",
         .args_type  = "",
-        .params     = "",
-        .help       = "cancel the current VM migration",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_migrate_cancel,
+        .mhandler.cmd_new = qmp_marshal_input_migrate_cancel,
     },
 
 SQMP
@@ -511,10 +492,7 @@ EQMP
     {
         .name       = "migrate_set_speed",
         .args_type  = "value:o",
-        .params     = "value",
-        .help       = "set maximum speed (in bytes) for migrations",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_migrate_set_speed,
+        .mhandler.cmd_new = qmp_marshal_input_migrate_set_speed,
     },
 
 SQMP
@@ -537,10 +515,7 @@ EQMP
     {
         .name       = "migrate_set_downtime",
         .args_type  = "value:T",
-        .params     = "value",
-        .help       = "set maximum tolerated downtime (in seconds) for migrations",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_migrate_set_downtime,
+        .mhandler.cmd_new = qmp_marshal_input_migrate_set_downtime,
     },
 
 SQMP
@@ -658,10 +633,7 @@ EQMP
     {
         .name       = "block_resize",
         .args_type  = "device:B,size:o",
-        .params     = "device size",
-        .help       = "resize a block image",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_block_resize,
+        .mhandler.cmd_new = qmp_marshal_input_block_resize,
     },
 
 SQMP
@@ -684,10 +656,8 @@ EQMP
 
     {
         .name       = "blockdev-snapshot-sync",
-        .args_type  = "device:B,snapshot-file:s?,format:s?",
-        .params     = "device [new-image-file] [format]",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_snapshot_blkdev,
+        .args_type  = "device:B,snapshot-file:s,format:s?",
+        .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,
     },
 
 SQMP
@@ -719,11 +689,7 @@ EQMP
     {
         .name       = "balloon",
         .args_type  = "value:M",
-        .params     = "target",
-        .help       = "request VM to change its memory allocation (in MB)",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_async = do_balloon,
-        .flags      = MONITOR_CMD_ASYNC,
+        .mhandler.cmd_new = qmp_marshal_input_balloon,
     },
 
 SQMP
@@ -746,10 +712,7 @@ EQMP
     {
         .name       = "set_link",
         .args_type  = "name:s,up:b",
-        .params     = "name on|off",
-        .help       = "change the link status of a network adapter",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_set_link,
+        .mhandler.cmd_new = qmp_marshal_input_set_link,
     },
 
 SQMP
@@ -825,10 +788,7 @@ EQMP
     {
         .name       = "block_passwd",
         .args_type  = "device:B,password:s",
-        .params     = "block_passwd device password",
-        .help       = "set the password of encrypted block devices",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_block_set_passwd,
+        .mhandler.cmd_new = qmp_marshal_input_block_passwd,
     },
 
 SQMP
@@ -1001,10 +961,7 @@ EQMP
     {
         .name       = "human-monitor-command",
         .args_type  = "command-line:s,cpu-index:i?",
-        .params     = "",
-        .help       = "",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_hmp_passthrough,
+        .mhandler.cmd_new = qmp_marshal_input_human_monitor_command,
     },
 
 SQMP

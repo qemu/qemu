@@ -392,7 +392,7 @@ static inline uint32_t read_dword(LSIState *s, uint32_t addr)
 {
     uint32_t buf;
 
-    pci_dma_read(&s->dev, addr, (uint8_t *)&buf, 4);
+    pci_dma_read(&s->dev, addr, &buf, 4);
     return cpu_to_le32(buf);
 }
 
@@ -1079,7 +1079,7 @@ again:
 
             /* 32-bit Table indirect */
             offset = sxt24(addr);
-            pci_dma_read(&s->dev, s->dsa + offset, (uint8_t *)buf, 8);
+            pci_dma_read(&s->dev, s->dsa + offset, buf, 8);
             /* byte count is stored in bits 0:23 only */
             s->dbc = cpu_to_le32(buf[0]) & 0xffffff;
             s->rbc = s->dbc;

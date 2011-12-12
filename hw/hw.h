@@ -27,7 +27,13 @@ typedef int (QEMUFilePutBufferFunc)(void *opaque, const uint8_t *buf,
 typedef int (QEMUFileGetBufferFunc)(void *opaque, uint8_t *buf,
                                     int64_t pos, int size);
 
-/* Close a file and return an error code */
+/* Close a file
+ *
+ * Return negative error number on error, 0 or positive value on success.
+ *
+ * The meaning of return value on success depends on the specific back-end being
+ * used.
+ */
 typedef int (QEMUFileCloseFunc)(void *opaque);
 
 /* Called to determine if the file has exceeded it's bandwidth allocation.  The

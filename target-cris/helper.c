@@ -157,6 +157,7 @@ static void do_interruptv10(CPUState *env)
 	/* Now that we are in kernel mode, load the handlers address.  */
 	env->pc = ldl_code(env->pregs[PR_EBP] + ex_vec * 4);
 	env->locked_irq = 1;
+	env->pregs[PR_CCS] |= F_FLAG_V10; /* set F.  */
 
 	qemu_log_mask(CPU_LOG_INT, "%s isr=%x vec=%x ccs=%x pid=%d erp=%x\n", 
 		      __func__, env->pc, ex_vec, 
