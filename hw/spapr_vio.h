@@ -75,7 +75,6 @@ typedef struct {
     const char *dt_name, *dt_type, *dt_compatible;
     target_ulong signal_mask;
     int (*init)(VIOsPAPRDevice *dev);
-    void (*hcalls)(VIOsPAPRBus *bus);
     int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
 } VIOsPAPRDeviceInfo;
 

@@ -135,18 +135,11 @@ void spapr_vty_create(VIOsPAPRBus *bus, uint32_t reg, CharDriverState *chardev)
     qdev_init_nofail(dev);
 }
 
-static void vty_hcalls(VIOsPAPRBus *bus)
-{
-    spapr_register_hypercall(H_PUT_TERM_CHAR, h_put_term_char);
-    spapr_register_hypercall(H_GET_TERM_CHAR, h_get_term_char);
-}
-
 static VIOsPAPRDeviceInfo spapr_vty = {
     .init = spapr_vty_init,
     .dt_name = "vty",
     .dt_type = "serial",
     .dt_compatible = "hvterm1",
-    .hcalls = vty_hcalls,
     .qdev.name = "spapr-vty",
     .qdev.size = sizeof(VIOsPAPRVTYDevice),
     .qdev.props = (Property[]) {
@@ -182,5 +175,7 @@ static VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg)
 static void spapr_vty_register(void)
 {
     spapr_vio_bus_register_withprop(&spapr_vty);
+    spapr_register_hypercall(H_PUT_TERM_CHAR, h_put_term_char);
+    spapr_register_hypercall(H_GET_TERM_CHAR, h_get_term_char);
 }
 device_init(spapr_vty_register);

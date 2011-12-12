@@ -684,7 +684,6 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
     VIOsPAPRBus *bus;
     BusState *qbus;
     DeviceState *dev;
-    DeviceInfo *qinfo;
 
     /* Create bridge device */
     dev = qdev_create(NULL, "spapr-vio-bridge");
@@ -710,18 +709,6 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
     /* RTAS calls */
     spapr_rtas_register("ibm,set-tce-bypass", rtas_set_tce_bypass);
     spapr_rtas_register("quiesce", rtas_quiesce);
-
-    for (qinfo = device_info_list; qinfo; qinfo = qinfo->next) {
-        VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;
-
-        if (qinfo->bus_info != &spapr_vio_bus_info) {
-            continue;
-        }
-
-        if (info->hcalls) {
-            info->hcalls(bus);
-        }
-    }
 
     return bus;
 }
