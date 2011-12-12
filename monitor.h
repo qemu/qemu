@@ -67,4 +67,8 @@ typedef void (MonitorCompletion)(void *opaque, QObject *ret_data);
 
 void monitor_set_error(Monitor *mon, QError *qerror);
 
+int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret);
+
+int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret);
+
 #endif /* !MONITOR_H */

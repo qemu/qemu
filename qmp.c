@@ -17,6 +17,8 @@
 #include "kvm.h"
 #include "arch_init.h"
 #include "hw/qdev.h"
+#include "qapi/qmp-input-visitor.h"
+#include "qapi/qmp-output-visitor.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -181,4 +183,67 @@ DevicePropertyInfoList *qmp_qom_list(const char *path, Error **errp)
     }
 
     return props;
+}
+
+/* FIXME: teach qapi about how to pass through Visitors */
+int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret)
+{
+    const char *path = qdict_get_str(qdict, "path");
+    const char *property = qdict_get_str(qdict, "property");
+    QObject *value = qdict_get(qdict, "value");
+    Error *local_err = NULL;
+    QmpInputVisitor *mi;
+    DeviceState *dev;
+
+    dev = qdev_resolve_path(path, NULL);
+    if (!dev) {
+        error_set(&local_err, QERR_DEVICE_NOT_FOUND, path);
+        goto out;
+    }
+
+    mi = qmp_input_visitor_new(value);
+    qdev_property_set(dev, qmp_input_get_visitor(mi), property, &local_err);
+
+    qmp_input_visitor_cleanup(mi);
+
+out:
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -1;
+    }
+
+    return 0;
+}
+
+int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret)
+{
+    const char *path = qdict_get_str(qdict, "path");
+    const char *property = qdict_get_str(qdict, "property");
+    Error *local_err = NULL;
+    QmpOutputVisitor *mo;
+    DeviceState *dev;
+
+    dev = qdev_resolve_path(path, NULL);
+    if (!dev) {
+        error_set(&local_err, QERR_DEVICE_NOT_FOUND, path);
+        goto out;
+    }
+
+    mo = qmp_output_visitor_new();
+    qdev_property_get(dev, qmp_output_get_visitor(mo), property, &local_err);
+    if (!local_err) {
+        *ret = qmp_output_get_qobject(mo);
+    }
+
+    qmp_output_visitor_cleanup(mo);
+
+out:
+    if (local_err) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -1;
+    }
+
+    return 0;
 }
