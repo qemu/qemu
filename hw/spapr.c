@@ -97,6 +97,44 @@ qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num)
     return qirq;
 }
 
+static int spapr_set_associativity(void *fdt, sPAPREnvironment *spapr)
+{
+    int ret = 0, offset;
+    CPUState *env;
+    char cpu_model[32];
+    int smt = kvmppc_smt_threads();
+
+    assert(spapr->cpu_model);
+
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        uint32_t associativity[] = {cpu_to_be32(0x5),
+                                    cpu_to_be32(0x0),
+                                    cpu_to_be32(0x0),
+                                    cpu_to_be32(0x0),
+                                    cpu_to_be32(env->numa_node),
+                                    cpu_to_be32(env->cpu_index)};
+
+        if ((env->cpu_index % smt) != 0) {
+            continue;
+        }
+
+        snprintf(cpu_model, 32, "/cpus/%s@%x", spapr->cpu_model,
+                 env->cpu_index);
+
+        offset = fdt_path_offset(fdt, cpu_model);
+        if (offset < 0) {
+            return offset;
+        }
+
+        ret = fdt_setprop(fdt, offset, "ibm,associativity", associativity,
+                          sizeof(associativity));
+        if (ret < 0) {
+            return ret;
+        }
+    }
+    return ret;
+}
+
 static void *spapr_create_fdt_skel(const char *cpu_model,
                                    target_phys_addr_t rma_size,
                                    target_phys_addr_t initrd_base,
@@ -107,9 +145,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
 {
     void *fdt;
     CPUState *env;
-    uint64_t mem_reg_property_rma[] = { 0, cpu_to_be64(rma_size) };
-    uint64_t mem_reg_property_nonrma[] = { cpu_to_be64(rma_size),
-                                           cpu_to_be64(ram_size - rma_size) };
+    uint64_t mem_reg_property[2];
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
     uint32_t pft_size_prop[] = {0, cpu_to_be32(hash_shift)};
@@ -119,6 +155,13 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     int i;
     char *modelname;
     int smt = kvmppc_smt_threads();
+    unsigned char vec5[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x80};
+    uint32_t refpoints[] = {cpu_to_be32(0x4), cpu_to_be32(0x4)};
+    uint32_t associativity[] = {cpu_to_be32(0x4), cpu_to_be32(0x0),
+                                cpu_to_be32(0x0), cpu_to_be32(0x0),
+                                cpu_to_be32(0x0)};
+    char mem_name[32];
+    target_phys_addr_t node0_size, mem_start;
 
 #define _FDT(exp) \
     do { \
@@ -146,6 +189,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     /* /chosen */
     _FDT((fdt_begin_node(fdt, "chosen")));
 
+    /* Set Form1_affinity */
+    _FDT((fdt_property(fdt, "ibm,architecture-vec-5", vec5, sizeof(vec5))));
+
     _FDT((fdt_property_string(fdt, "bootargs", kernel_cmdline)));
     _FDT((fdt_property(fdt, "linux,initrd-start",
                        &start_prop, sizeof(start_prop))));
@@ -164,22 +210,52 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_end_node(fdt)));
 
     /* memory node(s) */
-    _FDT((fdt_begin_node(fdt, "memory@0")));
+    node0_size = (nb_numa_nodes > 1) ? node_mem[0] : ram_size;
+    if (rma_size > node0_size) {
+        rma_size = node0_size;
+    }
 
+    /* RMA */
+    mem_reg_property[0] = 0;
+    mem_reg_property[1] = cpu_to_be64(rma_size);
+    _FDT((fdt_begin_node(fdt, "memory@0")));
     _FDT((fdt_property_string(fdt, "device_type", "memory")));
-    _FDT((fdt_property(fdt, "reg", mem_reg_property_rma,
-                       sizeof(mem_reg_property_rma))));
+    _FDT((fdt_property(fdt, "reg", mem_reg_property,
+        sizeof(mem_reg_property))));
+    _FDT((fdt_property(fdt, "ibm,associativity", associativity,
+        sizeof(associativity))));
     _FDT((fdt_end_node(fdt)));
 
-    if (ram_size > rma_size) {
-        char mem_name[32];
+    /* RAM: Node 0 */
+    if (node0_size > rma_size) {
+        mem_reg_property[0] = cpu_to_be64(rma_size);
+        mem_reg_property[1] = cpu_to_be64(node0_size - rma_size);
 
-        sprintf(mem_name, "memory@%" PRIx64, (uint64_t)rma_size);
+        sprintf(mem_name, "memory@" TARGET_FMT_lx, rma_size);
         _FDT((fdt_begin_node(fdt, mem_name)));
         _FDT((fdt_property_string(fdt, "device_type", "memory")));
-        _FDT((fdt_property(fdt, "reg", mem_reg_property_nonrma,
-                           sizeof(mem_reg_property_nonrma))));
+        _FDT((fdt_property(fdt, "reg", mem_reg_property,
+                           sizeof(mem_reg_property))));
+        _FDT((fdt_property(fdt, "ibm,associativity", associativity,
+                           sizeof(associativity))));
         _FDT((fdt_end_node(fdt)));
+    }
+
+    /* RAM: Node 1 and beyond */
+    mem_start = node0_size;
+    for (i = 1; i < nb_numa_nodes; i++) {
+        mem_reg_property[0] = cpu_to_be64(mem_start);
+        mem_reg_property[1] = cpu_to_be64(node_mem[i]);
+        associativity[3] = associativity[4] = cpu_to_be32(i);
+        sprintf(mem_name, "memory@" TARGET_FMT_lx, mem_start);
+        _FDT((fdt_begin_node(fdt, mem_name)));
+        _FDT((fdt_property_string(fdt, "device_type", "memory")));
+        _FDT((fdt_property(fdt, "reg", mem_reg_property,
+            sizeof(mem_reg_property))));
+        _FDT((fdt_property(fdt, "ibm,associativity", associativity,
+            sizeof(associativity))));
+        _FDT((fdt_end_node(fdt)));
+        mem_start += node_mem[i];
     }
 
     /* cpus */
@@ -193,6 +269,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     for (i = 0; i < strlen(modelname); i++) {
         modelname[i] = toupper(modelname[i]);
     }
+
+    /* This is needed during FDT finalization */
+    spapr->cpu_model = g_strdup(modelname);
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         int index = env->cpu_index;
@@ -280,6 +359,9 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     _FDT((fdt_property(fdt, "ibm,hypertas-functions", hypertas_prop,
                        sizeof(hypertas_prop))));
 
+    _FDT((fdt_property(fdt, "ibm,associativity-reference-points",
+        refpoints, sizeof(refpoints))));
+
     _FDT((fdt_end_node(fdt)));
 
     /* interrupt controller */
@@ -349,6 +431,14 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
     ret = spapr_rtas_device_tree_setup(fdt, rtas_addr, rtas_size);
     if (ret < 0) {
         fprintf(stderr, "Couldn't set up RTAS device tree properties\n");
+    }
+
+    /* Advertise NUMA via ibm,associativity */
+    if (nb_numa_nodes > 1) {
+        ret = spapr_set_associativity(fdt, spapr);
+        if (ret < 0) {
+            fprintf(stderr, "Couldn't set up NUMA device tree properties\n");
+        }
     }
 
     _FDT((fdt_pack(fdt)));
