@@ -1173,3 +1173,51 @@ DeviceState *qdev_get_root(void)
 
     return qdev_root;
 }
+
+static gchar *qdev_get_path_in(DeviceState *parent, DeviceState *dev)
+{
+    DeviceProperty *prop;
+
+    if (parent == dev) {
+        return g_strdup("");
+    }
+
+    QTAILQ_FOREACH(prop, &parent->properties, node) {
+        gchar *subpath;
+
+        if (!strstart(prop->type, "child<", NULL)) {
+            continue;
+        }
+
+        /* Check to see if the device is one of parent's children */
+        if (prop->opaque == dev) {
+            return g_strdup(prop->name);
+        }
+
+        /* Check to see if the device is a child of our child */
+        subpath = qdev_get_path_in(prop->opaque, dev);
+        if (subpath) {
+            gchar *path;
+
+            path = g_strdup_printf("%s/%s", prop->name, subpath);
+            g_free(subpath);
+
+            return path;
+        }
+    }
+
+    return NULL;
+}
+
+gchar *qdev_get_canonical_path(DeviceState *dev)
+{
+    gchar *path, *newpath;
+
+    path = qdev_get_path_in(qdev_get_root(), dev);
+    g_assert(path != NULL);
+
+    newpath = g_strdup_printf("/%s", path);
+    g_free(path);
+
+    return newpath;
+}

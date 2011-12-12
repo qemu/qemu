@@ -490,4 +490,13 @@ void qdev_property_add_legacy(DeviceState *dev, Property *prop, Error **errp);
  */
 DeviceState *qdev_get_root(void);
 
+/**
+ * @qdev_get_canonical_path - returns the canonical path for a device.  This
+ * is the path within the composition tree starting from the root.
+ *
+ * Returns:
+ *   The canonical path in the composition tree.
+ */
+gchar *qdev_get_canonical_path(DeviceState *dev);
+
 #endif
