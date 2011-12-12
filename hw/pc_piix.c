@@ -99,6 +99,7 @@ static void pc_init1(MemoryRegion *system_memory,
     MemoryRegion *ram_memory;
     MemoryRegion *pci_memory;
     MemoryRegion *rom_memory;
+    DeviceState *dev;
 
     pc_cpus_init(cpu_model);
 
@@ -168,7 +169,10 @@ static void pc_init1(MemoryRegion *system_memory,
 
     pc_register_ferr_irq(gsi[13]);
 
-    pc_vga_init(pci_enabled? pci_bus: NULL);
+    dev = pc_vga_init(pci_enabled? pci_bus: NULL);
+    if (dev) {
+        qdev_property_add_child(qdev_get_root(), "vga", dev, NULL);
+    }
 
     if (xen_enabled()) {
         pci_create_simple(pci_bus, -1, "xen-platform");

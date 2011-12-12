@@ -140,7 +140,7 @@ void pc_memory_init(MemoryRegion *system_memory,
                     MemoryRegion *rom_memory,
                     MemoryRegion **ram_memory);
 qemu_irq *pc_allocate_cpu_irq(void);
-void pc_vga_init(PCIBus *pci_bus);
+DeviceState *pc_vga_init(PCIBus *pci_bus);
 void pc_basic_device_init(qemu_irq *gsi,
                           ISADevice **rtc_state,
                           ISADevice **floppy,
@@ -205,27 +205,27 @@ enum vga_retrace_method {
 
 extern enum vga_retrace_method vga_retrace_method;
 
-static inline int isa_vga_init(void)
+static inline DeviceState *isa_vga_init(void)
 {
     ISADevice *dev;
 
     dev = isa_try_create("isa-vga");
     if (!dev) {
         fprintf(stderr, "Warning: isa-vga not available\n");
-        return 0;
+        return NULL;
     }
     qdev_init_nofail(&dev->qdev);
-    return 1;
+    return &dev->qdev;
 }
 
-int pci_vga_init(PCIBus *bus);
+DeviceState *pci_vga_init(PCIBus *bus);
 int isa_vga_mm_init(target_phys_addr_t vram_base,
                     target_phys_addr_t ctrl_base, int it_shift,
                     MemoryRegion *address_space);
 
 /* cirrus_vga.c */
-void pci_cirrus_vga_init(PCIBus *bus);
-void isa_cirrus_vga_init(MemoryRegion *address_space);
+DeviceState *pci_cirrus_vga_init(PCIBus *bus);
+DeviceState *isa_cirrus_vga_init(MemoryRegion *address_space);
 
 /* ne2000.c */
 static inline bool isa_ne2000_init(int base, int irq, NICInfo *nd)

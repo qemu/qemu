@@ -70,10 +70,9 @@ static int pci_vga_initfn(PCIDevice *dev)
      return 0;
 }
 
-int pci_vga_init(PCIBus *bus)
+DeviceState *pci_vga_init(PCIBus *bus)
 {
-    pci_create_simple(bus, -1, "VGA");
-    return 0;
+    return &pci_create_simple(bus, -1, "VGA")->qdev;
 }
 
 static PCIDeviceInfo vga_info = {
