@@ -37,5 +37,17 @@ void hmp_stop(Monitor *mon, const QDict *qdict);
 void hmp_system_reset(Monitor *mon, const QDict *qdict);
 void hmp_system_powerdown(Monitor *mon, const QDict *qdict);
 void hmp_cpu(Monitor *mon, const QDict *qdict);
+void hmp_memsave(Monitor *mon, const QDict *qdict);
+void hmp_pmemsave(Monitor *mon, const QDict *qdict);
+void hmp_cont(Monitor *mon, const QDict *qdict);
+void hmp_inject_nmi(Monitor *mon, const QDict *qdict);
+void hmp_set_link(Monitor *mon, const QDict *qdict);
+void hmp_block_passwd(Monitor *mon, const QDict *qdict);
+void hmp_balloon(Monitor *mon, const QDict *qdict);
+void hmp_block_resize(Monitor *mon, const QDict *qdict);
+void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict);
+void hmp_migrate_cancel(Monitor *mon, const QDict *qdict);
+void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict);
+void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict);
 
 #endif

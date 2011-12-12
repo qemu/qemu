@@ -100,31 +100,19 @@ BalloonInfo *qmp_query_balloon(Error **errp)
     return info;
 }
 
-/**
- * do_balloon(): Request VM to change its memory allocation
- */
-int do_balloon(Monitor *mon, const QDict *params,
-	       MonitorCompletion cb, void *opaque)
+void qmp_balloon(int64_t value, Error **errp)
 {
-    int64_t target;
-    int ret;
-
     if (kvm_enabled() && !kvm_has_sync_mmu()) {
-        qerror_report(QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
-        return -1;
+        error_set(errp, QERR_KVM_MISSING_CAP, "synchronous MMU", "balloon");
+        return;
     }
 
-    target = qdict_get_int(params, "value");
-    if (target <= 0) {
+    if (value <= 0) {
         qerror_report(QERR_INVALID_PARAMETER_VALUE, "target", "a size");
-        return -1;
+        return;
     }
-    ret = qemu_balloon(target);
-    if (ret == 0) {
-        qerror_report(QERR_DEVICE_NOT_ACTIVE, "balloon");
-        return -1;
+    
+    if (qemu_balloon(value) == 0) {
+        error_set(errp, QERR_DEVICE_NOT_ACTIVE, "balloon");
     }
-
-    cb(opaque, NULL);
-    return 0;
 }

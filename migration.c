@@ -468,37 +468,27 @@ int do_migrate(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
-int do_migrate_cancel(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_migrate_cancel(Error **errp)
 {
     migrate_fd_cancel(migrate_get_current());
-    return 0;
 }
 
-int do_migrate_set_speed(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_migrate_set_speed(int64_t value, Error **errp)
 {
-    int64_t d;
     MigrationState *s;
 
-    d = qdict_get_int(qdict, "value");
-    if (d < 0) {
-        d = 0;
+    if (value < 0) {
+        value = 0;
     }
 
     s = migrate_get_current();
-    s->bandwidth_limit = d;
+    s->bandwidth_limit = value;
     qemu_file_set_rate_limit(s->file, s->bandwidth_limit);
-
-    return 0;
 }
 
-int do_migrate_set_downtime(Monitor *mon, const QDict *qdict,
-                            QObject **ret_data)
+void qmp_migrate_set_downtime(double value, Error **errp)
 {
-    double d;
-
-    d = qdict_get_double(qdict, "value") * 1e9;
-    d = MAX(0, MIN(UINT64_MAX, d));
-    max_downtime = (uint64_t)d;
-
-    return 0;
+    value *= 1e9;
+    value = MAX(0, MIN(UINT64_MAX, value));
+    max_downtime = (uint64_t)value;
 }

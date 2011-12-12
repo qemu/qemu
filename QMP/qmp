@@ -1,0 +1,126 @@
+#!/usr/bin/python
+#
+# QMP command line tool
+#
+# Copyright IBM, Corp. 2011
+#
+# Authors:
+#  Anthony Liguori <aliguori@us.ibm.com>
+#
+# This work is licensed under the terms of the GNU GPLv2 or later.
+# See the COPYING file in the top-level directory.
+
+import sys, os
+from qmp import QEMUMonitorProtocol
+
+def print_response(rsp, prefix=[]):
+    if type(rsp) == list:
+        i = 0
+        for item in rsp:
+            if prefix == []:
+                prefix = ['item']
+            print_response(item, prefix[:-1] + ['%s[%d]' % (prefix[-1], i)])
+            i += 1
+    elif type(rsp) == dict:
+        for key in rsp.keys():
+            print_response(rsp[key], prefix + [key])
+    else:
+        if len(prefix):
+            print '%s: %s' % ('.'.join(prefix), rsp)
+        else:
+            print '%s' % (rsp)
+
+def main(args):
+    path = None
+
+    # Use QMP_PATH if it's set
+    if os.environ.has_key('QMP_PATH'):
+        path = os.environ['QMP_PATH']
+
+    while len(args):
+        arg = args[0]
+
+        if arg.startswith('--'):
+            arg = arg[2:]
+            if arg.find('=') == -1:
+                value = True
+            else:
+                arg, value = arg.split('=', 1)
+
+            if arg in ['path']:
+                if type(value) == str:
+                    path = value
+            elif arg in ['help']:
+                os.execlp('man', 'man', 'qmp')
+            else:
+                print 'Unknown argument "%s"' % arg
+
+            args = args[1:]
+        else:
+            break
+
+    if not path:
+        print "QMP path isn't set, use --path=qmp-monitor-address or set QMP_PATH"
+        return 1
+
+    if len(args):
+        command, args = args[0], args[1:]
+    else:
+        print 'No command found'
+        print 'Usage: "qmp [--path=qmp-monitor-address] qmp-cmd arguments"'
+        return 1
+
+    if command in ['help']:
+        os.execlp('man', 'man', 'qmp')
+
+    srv = QEMUMonitorProtocol(path)
+    srv.connect()
+
+    def do_command(srv, cmd, **kwds):
+        rsp = srv.cmd(cmd, kwds)
+        if rsp.has_key('error'):
+            raise Exception(rsp['error']['desc'])
+        return rsp['return']
+
+    commands = map(lambda x: x['name'], do_command(srv, 'query-commands'))
+
+    srv.close()
+
+    if command not in commands:
+        fullcmd = 'qmp-%s' % command
+        try:
+            os.environ['QMP_PATH'] = path
+            os.execvp(fullcmd, [fullcmd] + args)
+        except OSError, (errno, msg):
+            if errno == 2:
+                print 'Command "%s" not found.' % (fullcmd)
+                return 1
+            raise
+        return 0
+
+    srv = QEMUMonitorProtocol(path)
+    srv.connect()
+
+    arguments = {}
+    for arg in args:
+        if not arg.startswith('--'):
+            print 'Unknown argument "%s"' % arg
+            return 1
+
+        arg = arg[2:]
+        if arg.find('=') == -1:
+            value = True
+        else:
+            arg, value = arg.split('=', 1)
+
+        if arg in ['help']:
+            os.execlp('man', 'man', 'qmp-%s' % command)
+            return 1
+
+        arguments[arg] = value
+
+    rsp = do_command(srv, command, **arguments)
+    print_response(rsp)
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

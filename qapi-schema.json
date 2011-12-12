@@ -901,3 +901,270 @@
 # Notes: Do not use this command.
 ##
 { 'command': 'cpu', 'data': {'index': 'int'} }
+
+##
+# @memsave:
+#
+# Save a portion of guest memory to a file.
+#
+# @val: the virtual address of the guest to start from
+#
+# @size: the size of memory region to save
+#
+# @filename: the file to save the memory to as binary data
+#
+# @cpu-index: #optional the index of the virtual CPU to use for translating the
+#                       virtual address (defaults to CPU 0)
+#
+# Returns: Nothing on success
+#          If @cpu is not a valid VCPU, InvalidParameterValue
+#          If @filename cannot be opened, OpenFileFailed
+#          If an I/O error occurs while writing the file, IOError
+#
+# Since: 0.14.0
+#
+# Notes: Errors were not reliably returned until 1.1
+##
+{ 'command': 'memsave',
+  'data': {'val': 'int', 'size': 'int', 'filename': 'str', '*cpu-index': 'int'} }
+
+##
+# @pmemsave:
+#
+# Save a portion of guest physical memory to a file.
+#
+# @val: the physical address of the guest to start from
+#
+# @size: the size of memory region to save
+#
+# @filename: the file to save the memory to as binary data
+#
+# Returns: Nothing on success
+#          If @filename cannot be opened, OpenFileFailed
+#          If an I/O error occurs while writing the file, IOError
+#
+# Since: 0.14.0
+#
+# Notes: Errors were not reliably returned until 1.1
+##
+{ 'command': 'pmemsave',
+  'data': {'val': 'int', 'size': 'int', 'filename': 'str'} }
+
+##
+# @cont:
+#
+# Resume guest VCPU execution.
+#
+# Since:  0.14.0
+#
+# Returns:  If successful, nothing
+#           If the QEMU is waiting for an incoming migration, MigrationExpected
+#           If QEMU was started with an encrypted block device and a key has
+#              not yet been set, DeviceEncrypted.
+#
+# Notes:  This command will succeed if the guest is currently running.
+##
+{ 'command': 'cont' }
+
+##
+# @inject-nmi:
+#
+# Injects an Non-Maskable Interrupt into all guest's VCPUs.
+#
+# Returns:  If successful, nothing
+#           If the Virtual Machine doesn't support NMI injection, Unsupported
+#
+# Since:  0.14.0
+#
+# Notes: Only x86 Virtual Machines support this command.
+##
+{ 'command': 'inject-nmi' }
+
+##
+# @set_link:
+#
+# Sets the link status of a virtual network adapter.
+#
+# @name: the device name of the virtual network adapter
+#
+# @up: true to set the link status to be up
+#
+# Returns: Nothing on success
+#          If @name is not a valid network device, DeviceNotFound
+#
+# Since: 0.14.0
+#
+# Notes: Not all network adapters support setting link status.  This command
+#        will succeed even if the network adapter does not support link status
+#        notification.
+##
+{ 'command': 'set_link', 'data': {'name': 'str', 'up': 'bool'} }
+
+##
+# @block_passwd:
+#
+# This command sets the password of a block device that has not been open
+# with a password and requires one.
+#
+# The two cases where this can happen are a block device is created through
+# QEMU's initial command line or a block device is changed through the legacy
+# @change interface.
+#
+# In the event that the block device is created through the initial command
+# line, the VM will start in the stopped state regardless of whether '-S' is
+# used.  The intention is for a management tool to query the block devices to
+# determine which ones are encrypted, set the passwords with this command, and
+# then start the guest with the @cont command.
+#
+# @device:   the name of the device to set the password on
+#
+# @password: the password to use for the device
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If @device is not encrypted, DeviceNotEncrypted
+#          If @password is not valid for this device, InvalidPassword
+#
+# Notes:  Not all block formats support encryption and some that do are not
+#         able to validate that a password is correct.  Disk corruption may
+#         occur if an invalid password is specified.
+#
+# Since: 0.14.0
+##
+{ 'command': 'block_passwd', 'data': {'device': 'str', 'password': 'str'} }
+
+##
+# @balloon:
+#
+# Request the balloon driver to change its balloon size.
+#
+# @value: the target size of the balloon in bytes
+#
+# Returns: Nothing on success
+#          If the balloon driver is enabled but not functional because the KVM
+#            kernel module cannot support it, KvmMissingCap
+#          If no balloon device is present, DeviceNotActive
+#
+# Notes: This command just issues a request to the guest.  When it returns,
+#        the balloon size may not have changed.  A guest can change the balloon
+#        size independent of this command.
+#
+# Since: 0.14.0
+##
+{ 'command': 'balloon', 'data': {'value': 'int'} }
+
+##
+# @block_resize
+#
+# Resize a block image while a guest is running.
+#
+# @device:  the name of the device to get the image resized
+#
+# @size:  new image size in bytes
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#
+# Notes: This command returns UndefinedError in a number of error conditions.
+#
+# Since: 0.14.0
+##
+{ 'command': 'block_resize', 'data': { 'device': 'str', 'size': 'int' }}
+
+##
+# @blockdev-snapshot-sync
+#
+# Generates a synchronous snapshot of a block device.
+#
+# @device:  the name of the device to generate the snapshot from.
+#
+# @snapshot-file: the target of the new image. If the file exists, or if it
+#                 is a device, the snapshot will be created in the existing
+#                 file/device. If does not exist, a new file will be created.
+#
+# @format: #optional the format of the snapshot image, default is 'qcow2'.
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If @snapshot-file can't be opened, OpenFileFailed
+#          If @format is invalid, InvalidBlockFormat
+#
+# Notes: One of the last steps taken by this command is to close the current
+#        image being used by @device and open the @snapshot-file one. If that
+#        fails, the command will try to reopen the original image file. If
+#        that also fails OpenFileFailed will be returned and the guest may get
+#        unexpected errors.
+#
+# Since 0.14.0
+##
+{ 'command': 'blockdev-snapshot-sync',
+  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str' } }
+
+##
+# @human-monitor-command:
+#
+# Execute a command on the human monitor and return the output.
+#
+# @command-line: the command to execute in the human monitor
+#
+# @cpu-index: #optional The CPU to use for commands that require an implicit CPU
+#
+# Returns: the output of the command as a string
+#
+# Since: 0.14.0
+#
+# Notes: This command only exists as a stop-gap.  It's use is highly
+#        discouraged.  The semantics of this command are not guaranteed.
+#
+#        Known limitations:
+#
+#        o This command is stateless, this means that commands that depend
+#          on state information (such as getfd) might not work
+#
+#       o Commands that prompt the user for data (eg. 'cont' when the block
+#         device is encrypted) don't currently work
+##
+{ 'command': 'human-monitor-command',
+  'data': {'command-line': 'str', '*cpu-index': 'int'},
+  'returns': 'str' } 
+
+##
+# @migrate_cancel
+#
+# Cancel the current executing migration process.
+#
+# Returns: nothing on success
+#
+# Notes: This command succeeds even if there is no migration process running.
+#
+# Since: 0.14.0
+##
+{ 'command': 'migrate_cancel' }
+
+##
+# @migrate_set_downtime
+#
+# Set maximum tolerated downtime for migration.
+#
+# @value: maximum downtime in seconds
+#
+# Returns: nothing on success
+#
+# Since: 0.14.0
+##
+{ 'command': 'migrate_set_downtime', 'data': {'value': 'number'} }
+
+##
+# @migrate_set_speed
+#
+# Set maximum speed for migration.
+#
+# @value: maximum speed in bytes.
+#
+# Returns: nothing on success
+#
+# Notes: A value lesser than zero will be automatically round up to zero.
+#
+# Since: 0.14.0
+##
+{ 'command': 'migrate_set_speed', 'data': {'value': 'int'} }

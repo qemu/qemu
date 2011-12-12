@@ -15,6 +15,7 @@
 #include "qemu-config.h"
 #include "sysemu.h"
 #include "block_int.h"
+#include "qmp-commands.h"
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
@@ -600,28 +601,20 @@ void do_commit(Monitor *mon, const QDict *qdict)
     }
 }
 
-int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
+                                bool has_format, const char *format,
+                                Error **errp)
 {
-    const char *device = qdict_get_str(qdict, "device");
-    const char *filename = qdict_get_try_str(qdict, "snapshot-file");
-    const char *format = qdict_get_try_str(qdict, "format");
     BlockDriverState *bs;
     BlockDriver *drv, *old_drv, *proto_drv;
     int ret = 0;
     int flags;
     char old_filename[1024];
 
-    if (!filename) {
-        qerror_report(QERR_MISSING_PARAMETER, "snapshot-file");
-        ret = -1;
-        goto out;
-    }
-
     bs = bdrv_find(device);
     if (!bs) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, device);
-        ret = -1;
-        goto out;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
     }
 
     pstrcpy(old_filename, sizeof(old_filename), bs->filename);
@@ -629,35 +622,34 @@ int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data)
     old_drv = bs->drv;
     flags = bs->open_flags;
 
-    if (!format) {
+    if (!has_format) {
         format = "qcow2";
     }
 
     drv = bdrv_find_format(format);
     if (!drv) {
-        qerror_report(QERR_INVALID_BLOCK_FORMAT, format);
-        ret = -1;
-        goto out;
+        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+        return;
     }
 
-    proto_drv = bdrv_find_protocol(filename);
+    proto_drv = bdrv_find_protocol(snapshot_file);
     if (!proto_drv) {
-        qerror_report(QERR_INVALID_BLOCK_FORMAT, format);
-        ret = -1;
-        goto out;
+        error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+        return;
     }
 
-    ret = bdrv_img_create(filename, format, bs->filename,
+    ret = bdrv_img_create(snapshot_file, format, bs->filename,
                           bs->drv->format_name, NULL, -1, flags);
     if (ret) {
-        goto out;
+        error_set(errp, QERR_UNDEFINED_ERROR);
+        return;
     }
 
     bdrv_drain_all();
     bdrv_flush(bs);
 
     bdrv_close(bs);
-    ret = bdrv_open(bs, filename, flags, drv);
+    ret = bdrv_open(bs, snapshot_file, flags, drv);
     /*
      * If reopening the image file we just created fails, fall back
      * and try to re-open the original image. If that fails too, we
@@ -666,17 +658,11 @@ int do_snapshot_blkdev(Monitor *mon, const QDict *qdict, QObject **ret_data)
     if (ret != 0) {
         ret = bdrv_open(bs, old_filename, flags, old_drv);
         if (ret != 0) {
-            qerror_report(QERR_OPEN_FILE_FAILED, old_filename);
+            error_set(errp, QERR_OPEN_FILE_FAILED, old_filename);
         } else {
-            qerror_report(QERR_OPEN_FILE_FAILED, filename);
+            error_set(errp, QERR_OPEN_FILE_FAILED, snapshot_file);
         }
     }
-out:
-    if (ret) {
-        ret = -1;
-    }
-
-    return ret;
 }
 
 static int eject_device(Monitor *mon, BlockDriverState *bs, int force)
@@ -710,28 +696,25 @@ int do_eject(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return eject_device(mon, bs, force);
 }
 
-int do_block_set_passwd(Monitor *mon, const QDict *qdict,
-                        QObject **ret_data)
+void qmp_block_passwd(const char *device, const char *password, Error **errp)
 {
     BlockDriverState *bs;
     int err;
 
-    bs = bdrv_find(qdict_get_str(qdict, "device"));
+    bs = bdrv_find(device);
     if (!bs) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, qdict_get_str(qdict, "device"));
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
     }
 
-    err = bdrv_set_key(bs, qdict_get_str(qdict, "password"));
+    err = bdrv_set_key(bs, password);
     if (err == -EINVAL) {
-        qerror_report(QERR_DEVICE_NOT_ENCRYPTED, bdrv_get_device_name(bs));
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_ENCRYPTED, bdrv_get_device_name(bs));
+        return;
     } else if (err < 0) {
-        qerror_report(QERR_INVALID_PASSWORD);
-        return -1;
+        error_set(errp, QERR_INVALID_PASSWORD);
+        return;
     }
-
-    return 0;
 }
 
 int do_change_block(Monitor *mon, const char *device,
@@ -863,27 +846,23 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
  * existing QERR_ macro mess is cleaned up.  A good example for better
  * error reports can be found in the qemu-img resize code.
  */
-int do_block_resize(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_block_resize(const char *device, int64_t size, Error **errp)
 {
-    const char *device = qdict_get_str(qdict, "device");
-    int64_t size = qdict_get_int(qdict, "size");
     BlockDriverState *bs;
 
     bs = bdrv_find(device);
     if (!bs) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, device);
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
     }
 
     if (size < 0) {
-        qerror_report(QERR_UNDEFINED_ERROR);
-        return -1;
+        error_set(errp, QERR_UNDEFINED_ERROR);
+        return;
     }
 
     if (bdrv_truncate(bs, size)) {
-        qerror_report(QERR_UNDEFINED_ERROR);
-        return -1;
+        error_set(errp, QERR_UNDEFINED_ERROR);
+        return;
     }
-
-    return 0;
 }
