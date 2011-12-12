@@ -83,6 +83,7 @@ static DeviceInfo *qdev_find_info(BusInfo *bus_info, const char *name)
 static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
 {
     DeviceState *dev;
+    Property *prop;
 
     assert(bus->info == info->bus_info);
     dev = g_malloc0(info->size);
@@ -100,6 +101,15 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
     dev->instance_id_alias = -1;
     QTAILQ_INIT(&dev->properties);
     dev->state = DEV_STATE_CREATED;
+
+    for (prop = dev->info->props; prop && prop->name; prop++) {
+        qdev_property_add_legacy(dev, prop, NULL);
+    }
+
+    for (prop = dev->info->bus_info->props; prop && prop->name; prop++) {
+        qdev_property_add_legacy(dev, prop, NULL);
+    }
+
     return dev;
 }
 
@@ -1074,4 +1084,80 @@ const char *qdev_property_get_type(DeviceState *dev, const char *name, Error **e
     }
 
     return prop->type;
+}
+
+/**
+ * Legacy property handling
+ */
+
+static void qdev_get_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
+                                     const char *name, Error **errp)
+{
+    Property *prop = opaque;
+
+    if (prop->info->print) {
+        char buffer[1024];
+        char *ptr = buffer;
+
+        prop->info->print(dev, prop, buffer, sizeof(buffer));
+        visit_type_str(v, &ptr, name, errp);
+    } else {
+        error_set(errp, QERR_PERMISSION_DENIED);
+    }
+}
+
+static void qdev_set_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
+                                     const char *name, Error **errp)
+{
+    Property *prop = opaque;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    if (prop->info->parse) {
+        Error *local_err = NULL;
+        char *ptr = NULL;
+
+        visit_type_str(v, &ptr, name, &local_err);
+        if (!local_err) {
+            int ret;
+            ret = prop->info->parse(dev, prop, ptr);
+            if (ret != 0) {
+                error_set(errp, QERR_INVALID_PARAMETER_VALUE,
+                          name, prop->info->name);
+            }
+            g_free(ptr);
+        } else {
+            error_propagate(errp, local_err);
+        }
+    } else {
+        error_set(errp, QERR_PERMISSION_DENIED);
+    }
+}
+
+/**
+ * @qdev_add_legacy_property - adds a legacy property
+ *
+ * Do not use this is new code!  Properties added through this interface will
+ * be given types in the "legacy<>" type namespace.
+ *
+ * Legacy properties are always processed as strings.  The format of the string
+ * depends on the property type.
+ */
+void qdev_property_add_legacy(DeviceState *dev, Property *prop,
+                              Error **errp)
+{
+    gchar *type;
+
+    type = g_strdup_printf("legacy<%s>", prop->info->name);
+
+    qdev_property_add(dev, prop->name, type,
+                      qdev_get_legacy_property,
+                      qdev_set_legacy_property,
+                      NULL,
+                      prop, errp);
+
+    g_free(type);
 }

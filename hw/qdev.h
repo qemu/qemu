@@ -475,4 +475,11 @@ void qdev_property_set(DeviceState *dev, Visitor *v, const char *name,
 const char *qdev_property_get_type(DeviceState *dev, const char *name,
                                    Error **errp);
 
+/**
+ * @qdev_property_add_legacy - add a legacy @Property to a device
+ *
+ * DO NOT USE THIS IN NEW CODE!
+ */
+void qdev_property_add_legacy(DeviceState *dev, Property *prop, Error **errp);
+
 #endif
