@@ -499,4 +499,32 @@ DeviceState *qdev_get_root(void);
  */
 gchar *qdev_get_canonical_path(DeviceState *dev);
 
+/**
+ * @qdev_resolve_path - resolves a path returning a device
+ *
+ * There are two types of supported paths--absolute paths and partial paths.
+ * 
+ * Absolute paths are derived from the root device and can follow child<> or
+ * link<> properties.  Since they can follow link<> properties, they can be
+ * arbitrarily long.  Absolute paths look like absolute filenames and are
+ * prefixed with a leading slash.
+ * 
+ * Partial paths look like relative filenames.  They do not begin with a
+ * prefix.  The matching rules for partial paths are subtle but designed to make
+ * specifying devices easy.  At each level of the composition tree, the partial
+ * path is matched as an absolute path.  The first match is not returned.  At
+ * least two matches are searched for.  A successful result is only returned if
+ * only one match is founded.  If more than one match is found, a flag is
+ * return to indicate that the match was ambiguous.
+ *
+ * @path - the path to resolve
+ *
+ * @ambiguous - returns true if the path resolution failed because of an
+ *              ambiguous match
+ *
+ * Returns:
+ *   The matched device or NULL on path lookup failure.
+ */
+DeviceState *qdev_resolve_path(const char *path, bool *ambiguous);
+
 #endif
