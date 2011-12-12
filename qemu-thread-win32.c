@@ -193,41 +193,78 @@ void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex)
 }
 
 struct QemuThreadData {
-    QemuThread *thread;
-    void *(*start_routine)(void *);
-    void *arg;
+    /* Passed to win32_start_routine.  */
+    void             *(*start_routine)(void *);
+    void             *arg;
+    short             mode;
+
+    /* Only used for joinable threads. */
+    bool              exited;
+    void             *ret;
+    CRITICAL_SECTION  cs;
 };
 
 static int qemu_thread_tls_index = TLS_OUT_OF_INDEXES;
 
 static unsigned __stdcall win32_start_routine(void *arg)
 {
-    struct QemuThreadData data = *(struct QemuThreadData *) arg;
-    QemuThread *thread = data.thread;
+    QemuThreadData *data = (QemuThreadData *) arg;
+    void *(*start_routine)(void *) = data->start_routine;
+    void *thread_arg = data->arg;
 
-    free(arg);
-    TlsSetValue(qemu_thread_tls_index, thread);
-
-    /*
-     * Use DuplicateHandle instead of assigning thread->thread in the
-     * creating thread to avoid races.  It's simpler this way than with
-     * synchronization.
-     */
-    DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
-                    GetCurrentProcess(), &thread->thread,
-                    0, FALSE, DUPLICATE_SAME_ACCESS);
-
-    qemu_thread_exit(data.start_routine(data.arg));
+    if (data->mode == QEMU_THREAD_DETACHED) {
+        g_free(data);
+        data = NULL;
+    } else {
+        InitializeCriticalSection(&data->cs);
+    }
+    TlsSetValue(qemu_thread_tls_index, data);
+    qemu_thread_exit(start_routine(thread_arg));
     abort();
 }
 
 void qemu_thread_exit(void *arg)
 {
-    QemuThread *thread = TlsGetValue(qemu_thread_tls_index);
-    thread->ret = arg;
-    CloseHandle(thread->thread);
-    thread->thread = NULL;
-    ExitThread(0);
+    QemuThreadData *data = TlsGetValue(qemu_thread_tls_index);
+    if (data) {
+        data->ret = arg;
+        EnterCriticalSection(&data->cs);
+        data->exited = true;
+        LeaveCriticalSection(&data->cs);
+    }
+    _endthreadex(0);
+}
+
+void *qemu_thread_join(QemuThread *thread)
+{
+    QemuThreadData *data;
+    void *ret;
+    HANDLE handle;
+
+    data = thread->data;
+    if (!data) {
+        return NULL;
+    }
+    /*
+     * Because multiple copies of the QemuThread can exist via
+     * qemu_thread_get_self, we need to store a value that cannot
+     * leak there.  The simplest, non racy way is to store the TID,
+     * discard the handle that _beginthreadex gives back, and
+     * get another copy of the handle here.
+     */
+    EnterCriticalSection(&data->cs);
+    if (!data->exited) {
+        handle = OpenThread(SYNCHRONIZE, FALSE, thread->tid);
+        LeaveCriticalSection(&data->cs);
+        WaitForSingleObject(handle, INFINITE);
+        CloseHandle(handle);
+    } else {
+        LeaveCriticalSection(&data->cs);
+    }
+    ret = data->ret;
+    DeleteCriticalSection(&data->cs);
+    g_free(data);
+    return ret;
 }
 
 static inline void qemu_thread_init(void)
@@ -247,37 +284,31 @@ void qemu_thread_create(QemuThread *thread,
 {
     HANDLE hThread;
 
-    assert(mode == QEMU_THREAD_DETACHED);
-
     struct QemuThreadData *data;
     qemu_thread_init();
     data = g_malloc(sizeof *data);
-    data->thread = thread;
     data->start_routine = start_routine;
     data->arg = arg;
+    data->mode = mode;
+    data->exited = false;
 
     hThread = (HANDLE) _beginthreadex(NULL, 0, win32_start_routine,
-                                      data, 0, NULL);
+                                      data, 0, &thread->tid);
     if (!hThread) {
         error_exit(GetLastError(), __func__);
     }
     CloseHandle(hThread);
+    thread->data = (mode == QEMU_THREAD_DETACHED) ? NULL : data;
 }
 
 void qemu_thread_get_self(QemuThread *thread)
 {
-    if (!thread->thread) {
-        /* In the main thread of the process.  Initialize the QemuThread
-           pointer in TLS, and use the dummy GetCurrentThread handle as
-           the identifier for qemu_thread_is_self.  */
-        qemu_thread_init();
-        TlsSetValue(qemu_thread_tls_index, thread);
-        thread->thread = GetCurrentThread();
-    }
+    qemu_thread_init();
+    thread->data = TlsGetValue(qemu_thread_tls_index);
+    thread->tid = GetCurrentThreadId();
 }
 
 int qemu_thread_is_self(QemuThread *thread)
 {
-    QemuThread *this_thread = TlsGetValue(qemu_thread_tls_index);
-    return this_thread->thread == thread->thread;
+    return GetCurrentThreadId() == thread->tid;
 }

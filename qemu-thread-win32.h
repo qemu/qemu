@@ -13,9 +13,10 @@ struct QemuCond {
     HANDLE continue_event;
 };
 
+typedef struct QemuThreadData QemuThreadData;
 struct QemuThread {
-    HANDLE thread;
-    void *ret;
+    QemuThreadData *data;
+    unsigned tid;
 };
 
 #endif
