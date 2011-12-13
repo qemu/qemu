@@ -84,7 +84,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
          */
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_VFP);
-        set_feature(env, ARM_FEATURE_AUXCR);
         /* These ID register values are correct for 1136 but may be wrong
          * for 1136_r2 (in particular r0p2 does not actually implement most
          * of the ID registers).
@@ -100,7 +99,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_ARM1176:
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_VFP);
-        set_feature(env, ARM_FEATURE_AUXCR);
         set_feature(env, ARM_FEATURE_VAPA);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410120b5;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
@@ -113,7 +111,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_ARM11MPCORE:
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_VFP);
-        set_feature(env, ARM_FEATURE_AUXCR);
         set_feature(env, ARM_FEATURE_VAPA);
         env->vfp.xregs[ARM_VFP_FPSID] = 0x410120b4;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11111111;
@@ -124,7 +121,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     case ARM_CPUID_CORTEXA8:
         set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_AUXCR);
         set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_VFP3);
@@ -144,7 +140,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     case ARM_CPUID_CORTEXA9:
         set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_AUXCR);
         set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_VFP3);
@@ -244,6 +239,9 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     }
     if (arm_feature(env, ARM_FEATURE_V6)) {
         set_feature(env, ARM_FEATURE_V5);
+        if (!arm_feature(env, ARM_FEATURE_M)) {
+            set_feature(env, ARM_FEATURE_AUXCR);
+        }
     }
     if (arm_feature(env, ARM_FEATURE_V5)) {
         set_feature(env, ARM_FEATURE_V4T);
