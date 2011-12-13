@@ -4682,7 +4682,8 @@ int monitor_read_bdrv_key_start(Monitor *mon, BlockDriverState *bs,
     }
 
     if (monitor_ctrl_mode(mon)) {
-        qerror_report(QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs));
+        qerror_report(QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
+                      bdrv_get_encrypted_filename(bs));
         return -1;
     }
 

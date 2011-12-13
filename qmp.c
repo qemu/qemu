@@ -135,7 +135,8 @@ static void encrypted_bdrv_it(void *opaque, BlockDriverState *bs)
     Error **err = opaque;
 
     if (!error_is_set(err) && bdrv_key_required(bs)) {
-        error_set(err, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs));
+        error_set(err, QERR_DEVICE_ENCRYPTED, bdrv_get_device_name(bs),
+                  bdrv_get_encrypted_filename(bs));
     }
 }
 

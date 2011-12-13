@@ -70,7 +70,7 @@ QError *qobject_to_qerror(const QObject *obj);
     "{ 'class': 'CommandDisabled', 'data': { 'name': %s } }"
 
 #define QERR_DEVICE_ENCRYPTED \
-    "{ 'class': 'DeviceEncrypted', 'data': { 'device': %s } }"
+    "{ 'class': 'DeviceEncrypted', 'data': { 'device': %s, 'filename': %s } }"
 
 #define QERR_DEVICE_INIT_FAILED \
     "{ 'class': 'DeviceInitFailed', 'data': { 'device': %s } }"
