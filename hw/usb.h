@@ -177,6 +177,7 @@ struct USBEndpoint {
     uint8_t type;
     uint8_t ifnum;
     int max_packet_size;
+    USBDevice *dev;
 };
 
 /* definition of a USB device */
@@ -204,6 +205,7 @@ struct USBDevice {
     int32_t setup_len;
     int32_t setup_index;
 
+    USBEndpoint ep_ctl;
     USBEndpoint ep_in[USB_MAX_ENDPOINTS];
     USBEndpoint ep_out[USB_MAX_ENDPOINTS];
 
@@ -317,7 +319,7 @@ struct USBPacket {
     QEMUIOVector iov;
     int result; /* transfer length or USB_RET_* status code */
     /* Internal use by the USB layer.  */
-    USBDevice *owner;
+    USBEndpoint *owner;
 };
 
 void usb_packet_init(USBPacket *p);

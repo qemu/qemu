@@ -329,7 +329,7 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     ret = dev->info->handle_packet(dev, p);
     if (ret == USB_RET_ASYNC) {
         if (p->owner == NULL) {
-            p->owner = dev;
+            p->owner = usb_ep_get(dev, p->pid, p->devep);
         } else {
             /* We'll end up here when usb_handle_packet is called
              * recursively due to a hub being in the chain.  Nothing
@@ -357,7 +357,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
 void usb_cancel_packet(USBPacket * p)
 {
     assert(p->owner != NULL);
-    p->owner->info->cancel_packet(p->owner, p);
+    p->owner->dev->info->cancel_packet(p->owner->dev, p);
     p->owner = NULL;
 }
 
@@ -419,11 +419,16 @@ void usb_ep_init(USBDevice *dev)
 {
     int ep;
 
+    dev->ep_ctl.type = USB_ENDPOINT_XFER_CONTROL;
+    dev->ep_ctl.ifnum = 0;
+    dev->ep_ctl.dev = dev;
     for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
         dev->ep_in[ep].type = USB_ENDPOINT_XFER_INVALID;
         dev->ep_out[ep].type = USB_ENDPOINT_XFER_INVALID;
         dev->ep_in[ep].ifnum = 0;
         dev->ep_out[ep].ifnum = 0;
+        dev->ep_in[ep].dev = dev;
+        dev->ep_out[ep].dev = dev;
     }
 }
 
@@ -472,6 +477,9 @@ void usb_ep_dump(USBDevice *dev)
 struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)
 {
     struct USBEndpoint *eps = pid == USB_TOKEN_IN ? dev->ep_in : dev->ep_out;
+    if (ep == 0) {
+        return &dev->ep_ctl;
+    }
     assert(pid == USB_TOKEN_IN || pid == USB_TOKEN_OUT);
     assert(ep > 0 && ep <= USB_MAX_ENDPOINTS);
     return eps + ep - 1;
