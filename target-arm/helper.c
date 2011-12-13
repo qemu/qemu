@@ -121,7 +121,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     case ARM_CPUID_CORTEXA8:
         set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_VFP3);
         set_feature(env, ARM_FEATURE_NEON);
@@ -140,7 +139,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         break;
     case ARM_CPUID_CORTEXA9:
         set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_VFP3);
         set_feature(env, ARM_FEATURE_VFP_FP16);
@@ -163,14 +161,12 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXM3:
-        set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_V7);
         set_feature(env, ARM_FEATURE_M);
         set_feature(env, ARM_FEATURE_THUMB_DIV);
         break;
     case ARM_CPUID_ANY: /* For userspace emulation.  */
         set_feature(env, ARM_FEATURE_V7);
-        set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_VFP3);
         set_feature(env, ARM_FEATURE_VFP4);
@@ -228,6 +224,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     /* Some features automatically imply others: */
     if (arm_feature(env, ARM_FEATURE_V7)) {
         set_feature(env, ARM_FEATURE_VAPA);
+        set_feature(env, ARM_FEATURE_THUMB2);
         if (!arm_feature(env, ARM_FEATURE_M)) {
             set_feature(env, ARM_FEATURE_V6K);
         } else {
