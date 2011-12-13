@@ -1141,15 +1141,18 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     length = s->descr_len - 18;
     i = 0;
 
-    if (descriptors[i + 1] != USB_DT_CONFIG ||
-        descriptors[i + 5] != s->configuration) {
-        fprintf(stderr, "invalid descriptor data - configuration %d\n",
-                s->configuration);
-        return 1;
-    }
-    i += descriptors[i];
-
     while (i < length) {
+        if (descriptors[i + 1] != USB_DT_CONFIG) {
+            fprintf(stderr, "invalid descriptor data\n");
+            return 1;
+        } else if (descriptors[i + 5] != s->configuration) {
+            DPRINTF("not requested configuration %d\n", s->configuration);
+            i += (descriptors[i + 3] << 8) + descriptors[i + 2];
+            continue;
+        }
+
+        i += descriptors[i];
+
         if (descriptors[i + 1] != USB_DT_INTERFACE ||
             (descriptors[i + 1] == USB_DT_INTERFACE &&
              descriptors[i + 4] == 0)) {
