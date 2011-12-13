@@ -252,14 +252,10 @@ void *qemu_thread_join(QemuThread *thread)
      * discard the handle that _beginthreadex gives back, and
      * get another copy of the handle here.
      */
-    EnterCriticalSection(&data->cs);
-    if (!data->exited) {
-        handle = OpenThread(SYNCHRONIZE, FALSE, thread->tid);
-        LeaveCriticalSection(&data->cs);
+    handle = qemu_thread_get_handle(thread);
+    if (handle) {
         WaitForSingleObject(handle, INFINITE);
         CloseHandle(handle);
-    } else {
-        LeaveCriticalSection(&data->cs);
     }
     ret = data->ret;
     DeleteCriticalSection(&data->cs);
@@ -306,6 +302,27 @@ void qemu_thread_get_self(QemuThread *thread)
     qemu_thread_init();
     thread->data = TlsGetValue(qemu_thread_tls_index);
     thread->tid = GetCurrentThreadId();
+}
+
+HANDLE qemu_thread_get_handle(QemuThread *thread)
+{
+    QemuThreadData *data;
+    HANDLE handle;
+
+    data = thread->data;
+    if (!data) {
+        return NULL;
+    }
+
+    EnterCriticalSection(&data->cs);
+    if (!data->exited) {
+        handle = OpenThread(SYNCHRONIZE | THREAD_SUSPEND_RESUME, FALSE,
+                            thread->tid);
+    } else {
+        handle = NULL;
+    }
+    LeaveCriticalSection(&data->cs);
+    return handle;
 }
 
 int qemu_thread_is_self(QemuThread *thread)

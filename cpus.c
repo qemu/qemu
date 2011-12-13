@@ -793,9 +793,9 @@ static void qemu_cpu_kick_thread(CPUState *env)
     }
 #else /* _WIN32 */
     if (!qemu_cpu_is_self(env)) {
-        SuspendThread(env->thread->thread);
+        SuspendThread(env->hThread);
         cpu_signal(0);
-        ResumeThread(env->thread->thread);
+        ResumeThread(env->hThread);
     }
 #endif
 }
@@ -911,7 +911,10 @@ static void qemu_tcg_init_vcpu(void *_env)
         qemu_cond_init(env->halt_cond);
         tcg_halt_cond = env->halt_cond;
         qemu_thread_create(env->thread, qemu_tcg_cpu_thread_fn, env,
-                           QEMU_THREAD_DETACHED);
+                           QEMU_THREAD_JOINABLE);
+#ifdef _WIN32
+        env->hThread = qemu_thread_get_handle(env->thread);
+#endif
         while (env->created == 0) {
             qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
         }
@@ -928,7 +931,7 @@ static void qemu_kvm_start_vcpu(CPUState *env)
     env->halt_cond = g_malloc0(sizeof(QemuCond));
     qemu_cond_init(env->halt_cond);
     qemu_thread_create(env->thread, qemu_kvm_cpu_thread_fn, env,
-                       QEMU_THREAD_DETACHED);
+                       QEMU_THREAD_JOINABLE);
     while (env->created == 0) {
         qemu_cond_wait(&qemu_cpu_cond, &qemu_global_mutex);
     }
