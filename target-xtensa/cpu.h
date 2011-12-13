@@ -137,6 +137,7 @@ enum {
     PS = 230,
     VECBASE = 231,
     EXCCAUSE = 232,
+    DEBUGCAUSE = 233,
     CCOUNT = 234,
     PRID = 235,
     EXCVADDR = 238,
@@ -160,6 +161,15 @@ enum {
 #define PS_CALLINC_LEN 2
 
 #define PS_WOE 0x40000
+
+#define DEBUGCAUSE_IC 0x1
+#define DEBUGCAUSE_IB 0x2
+#define DEBUGCAUSE_DB 0x4
+#define DEBUGCAUSE_BI 0x8
+#define DEBUGCAUSE_BN 0x10
+#define DEBUGCAUSE_DI 0x20
+#define DEBUGCAUSE_DBNUM 0xf00
+#define DEBUGCAUSE_DBNUM_SHIFT 8
 
 #define MAX_NAREG 64
 #define MAX_NINTERRUPT 32
@@ -279,6 +289,11 @@ typedef struct XtensaConfig {
     uint32_t timerint[MAX_NCCOMPARE];
     unsigned nextint;
     unsigned extint[MAX_NINTERRUPT];
+
+    unsigned debug_level;
+    unsigned nibreak;
+    unsigned ndbreak;
+
     uint32_t clock_freq_khz;
 
     xtensa_tlb itlb;

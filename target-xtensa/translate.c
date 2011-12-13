@@ -119,6 +119,7 @@ static const char * const sregnames[256] = {
     [PS] = "PS",
     [VECBASE] = "VECBASE",
     [EXCCAUSE] = "EXCCAUSE",
+    [DEBUGCAUSE] = "DEBUGCAUSE",
     [CCOUNT] = "CCOUNT",
     [PRID] = "PRID",
     [EXCVADDR] = "EXCVADDR",
@@ -535,6 +536,10 @@ static void gen_wsr_ps(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     gen_jumpi_check_loop_end(dc, -1);
 }
 
+static void gen_wsr_debugcause(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+}
+
 static void gen_wsr_prid(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
 }
@@ -571,6 +576,7 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [INTCLEAR] = gen_wsr_intclear,
         [INTENABLE] = gen_wsr_intenable,
         [PS] = gen_wsr_ps,
+        [DEBUGCAUSE] = gen_wsr_debugcause,
         [PRID] = gen_wsr_prid,
         [CCOMPARE] = gen_wsr_ccompare,
         [CCOMPARE + 1] = gen_wsr_ccompare,
