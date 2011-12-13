@@ -418,6 +418,7 @@ static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
     pd = *lp;
     if (pd == NULL) {
         int i;
+        int first_index = index & ~(L2_SIZE - 1);
 
         if (!alloc) {
             return NULL;
@@ -427,7 +428,7 @@ static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
 
         for (i = 0; i < L2_SIZE; i++) {
             pd[i].phys_offset = IO_MEM_UNASSIGNED;
-            pd[i].region_offset = (index + i) << TARGET_PAGE_BITS;
+            pd[i].region_offset = (first_index + i) << TARGET_PAGE_BITS;
         }
     }
 
