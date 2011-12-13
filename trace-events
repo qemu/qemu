@@ -95,9 +95,9 @@ cpu_get_apic_base(uint64_t val) "%016"PRIx64
 apic_mem_readl(uint64_t addr, uint32_t val)  "%"PRIx64" = %08x"
 apic_mem_writel(uint64_t addr, uint32_t val) "%"PRIx64" = %08x"
 # coalescing
+apic_report_irq_delivered(int apic_irq_delivered) "coalescing %d"
 apic_reset_irq_delivered(int apic_irq_delivered) "old coalescing %d"
 apic_get_irq_delivered(int apic_irq_delivered) "returning coalescing %d"
-apic_set_irq(int apic_irq_delivered) "coalescing %d"
 
 # hw/cs4231.c
 cs4231_mem_readl_dreg(uint32_t reg, uint32_t ret) "read dreg %d: 0x%02x"

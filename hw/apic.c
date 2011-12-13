@@ -413,6 +413,13 @@ static void apic_update_irq(APICState *s)
     }
 }
 
+void apic_report_irq_delivered(int delivered)
+{
+    apic_irq_delivered += delivered;
+
+    trace_apic_report_irq_delivered(apic_irq_delivered);
+}
+
 void apic_reset_irq_delivered(void)
 {
     trace_apic_reset_irq_delivered(apic_irq_delivered);
@@ -429,9 +436,7 @@ int apic_get_irq_delivered(void)
 
 static void apic_set_irq(APICState *s, int vector_num, int trigger_mode)
 {
-    apic_irq_delivered += !get_bit(s->irr, vector_num);
-
-    trace_apic_set_irq(apic_irq_delivered);
+    apic_report_irq_delivered(!get_bit(s->irr, vector_num));
 
     set_bit(s->irr, vector_num);
     if (trigger_mode)
