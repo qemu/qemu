@@ -82,7 +82,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
          * older core than plain "arm1136". In particular this does not
          * have the v6K features.
          */
-        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_VFP);
         set_feature(env, ARM_FEATURE_AUXCR);
@@ -99,7 +98,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00050078;
         break;
     case ARM_CPUID_ARM1176:
-        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_VFP);
@@ -114,7 +112,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00050078;
         break;
     case ARM_CPUID_ARM11MPCORE:
-        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_VFP);
@@ -128,7 +125,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_cachetype = 0x1dd20d2;
         break;
     case ARM_CPUID_CORTEXA8:
-        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_V7);
@@ -151,7 +147,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXA9:
-        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_V7);
@@ -179,7 +174,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXM3:
-        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_THUMB2);
         set_feature(env, ARM_FEATURE_V7);
@@ -187,7 +181,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         set_feature(env, ARM_FEATURE_THUMB_DIV);
         break;
     case ARM_CPUID_ANY: /* For userspace emulation.  */
-        set_feature(env, ARM_FEATURE_V5);
         set_feature(env, ARM_FEATURE_V6);
         set_feature(env, ARM_FEATURE_V6K);
         set_feature(env, ARM_FEATURE_V7);
@@ -249,6 +242,9 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     /* Some features automatically imply others: */
     if (arm_feature(env, ARM_FEATURE_V7)) {
         set_feature(env, ARM_FEATURE_VAPA);
+    }
+    if (arm_feature(env, ARM_FEATURE_V6)) {
+        set_feature(env, ARM_FEATURE_V5);
     }
     if (arm_feature(env, ARM_FEATURE_V5)) {
         set_feature(env, ARM_FEATURE_V4T);
