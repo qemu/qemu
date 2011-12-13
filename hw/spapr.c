@@ -441,6 +441,8 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
         }
     }
 
+    spapr_populate_chosen_stdout(fdt, spapr->vio_bus);
+
     _FDT((fdt_pack(fdt)));
 
     cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
