@@ -88,8 +88,6 @@ uint64_t ram_bytes_total(void);
 int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque);
 int ram_load(QEMUFile *f, void *opaque, int version_id);
 
-extern int incoming_expected;
-
 /**
  * @migrate_add_blocker - prevent migration from proceeding
  *
