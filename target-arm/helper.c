@@ -951,13 +951,14 @@ void do_interrupt(CPUARMState *env)
 /* Check section/page access permissions.
    Returns the page protection flags, or zero if the access is not
    permitted.  */
-static inline int check_ap(CPUState *env, int ap, int domain, int access_type,
-                           int is_user)
+static inline int check_ap(CPUState *env, int ap, int domain_prot,
+                           int access_type, int is_user)
 {
   int prot_ro;
 
-  if (domain == 3)
+  if (domain_prot == 3) {
     return PAGE_READ | PAGE_WRITE;
+  }
 
   if (access_type == 1)
       prot_ro = 0;
@@ -1023,6 +1024,7 @@ static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
     int type;
     int ap;
     int domain;
+    int domain_prot;
     uint32_t phys_addr;
 
     /* Pagetable walk.  */
@@ -1030,13 +1032,14 @@ static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
     table = get_level1_table_address(env, address);
     desc = ldl_phys(table);
     type = (desc & 3);
-    domain = (env->cp15.c3 >> ((desc >> 4) & 0x1e)) & 3;
+    domain = (desc >> 5) & 0x0f;
+    domain_prot = (env->cp15.c3 >> (domain * 2)) & 3;
     if (type == 0) {
         /* Section translation fault.  */
         code = 5;
         goto do_fault;
     }
-    if (domain == 0 || domain == 2) {
+    if (domain_prot == 0 || domain_prot == 2) {
         if (type == 2)
             code = 9; /* Section domain fault.  */
         else
@@ -1094,7 +1097,7 @@ static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
         }
         code = 15;
     }
-    *prot = check_ap(env, ap, domain, access_type, is_user);
+    *prot = check_ap(env, ap, domain_prot, access_type, is_user);
     if (!*prot) {
         /* Access permission fault.  */
         goto do_fault;
@@ -1117,6 +1120,7 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
     int type;
     int ap;
     int domain;
+    int domain_prot;
     uint32_t phys_addr;
 
     /* Pagetable walk.  */
@@ -1134,10 +1138,10 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
         domain = 0;
     } else {
         /* Section or page.  */
-        domain = (desc >> 4) & 0x1e;
+        domain = (desc >> 5) & 0x0f;
     }
-    domain = (env->cp15.c3 >> domain) & 3;
-    if (domain == 0 || domain == 2) {
+    domain_prot = (env->cp15.c3 >> (domain * 2)) & 3;
+    if (domain_prot == 0 || domain_prot == 2) {
         if (type == 2)
             code = 9; /* Section domain fault.  */
         else
@@ -1182,7 +1186,7 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
         }
         code = 15;
     }
-    if (domain == 3) {
+    if (domain_prot == 3) {
         *prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
     } else {
         if (xn && access_type == 2)
@@ -1194,7 +1198,7 @@ static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
             code = (code == 15) ? 6 : 3;
             goto do_fault;
         }
-        *prot = check_ap(env, ap, domain, access_type, is_user);
+        *prot = check_ap(env, ap, domain_prot, access_type, is_user);
         if (!*prot) {
             /* Access permission fault.  */
             goto do_fault;
