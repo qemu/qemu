@@ -163,7 +163,6 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     case ARM_CPUID_CORTEXM3:
         set_feature(env, ARM_FEATURE_V7);
         set_feature(env, ARM_FEATURE_M);
-        set_feature(env, ARM_FEATURE_THUMB_DIV);
         break;
     case ARM_CPUID_ANY: /* For userspace emulation.  */
         set_feature(env, ARM_FEATURE_V7);
@@ -242,6 +241,9 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     }
     if (arm_feature(env, ARM_FEATURE_V5)) {
         set_feature(env, ARM_FEATURE_V4T);
+    }
+    if (arm_feature(env, ARM_FEATURE_M)) {
+        set_feature(env, ARM_FEATURE_THUMB_DIV);
     }
     if (arm_feature(env, ARM_FEATURE_ARM_DIV)) {
         set_feature(env, ARM_FEATURE_THUMB_DIV);
