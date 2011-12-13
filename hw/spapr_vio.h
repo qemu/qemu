@@ -83,6 +83,7 @@ extern VIOsPAPRBus *spapr_vio_bus_init(void);
 extern VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg);
 extern void spapr_vio_bus_register_withprop(VIOsPAPRDeviceInfo *info);
 extern int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt);
+extern int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus);
 
 extern int spapr_vio_signal(VIOsPAPRDevice *dev, target_ulong mode);
 
@@ -107,6 +108,8 @@ void vty_putchars(VIOsPAPRDevice *sdev, uint8_t *buf, int len);
 void spapr_vty_create(VIOsPAPRBus *bus, uint32_t reg, CharDriverState *chardev);
 void spapr_vlan_create(VIOsPAPRBus *bus, uint32_t reg, NICInfo *nd);
 void spapr_vscsi_create(VIOsPAPRBus *bus, uint32_t reg);
+
+VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus);
 
 int spapr_tce_set_bypass(uint32_t unit, uint32_t enable);
 void spapr_vio_quiesce(void);

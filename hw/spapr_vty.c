@@ -156,7 +156,7 @@ static VIOsPAPRDeviceInfo spapr_vty = {
     },
 };
 
-static VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
+VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
 {
     VIOsPAPRDevice *sdev, *selected;
     DeviceState *iter;
