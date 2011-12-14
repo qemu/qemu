@@ -211,6 +211,10 @@ QemuOptsList qemu_fsdev_opts = {
         }, {
             .name = "readonly",
             .type = QEMU_OPT_BOOL,
+
+        }, {
+            .name = "socket",
+            .type = QEMU_OPT_STRING,
         }, {
             .name = "sock_fd",
             .type = QEMU_OPT_NUMBER,
@@ -243,6 +247,9 @@ QemuOptsList qemu_virtfs_opts = {
         }, {
             .name = "readonly",
             .type = QEMU_OPT_BOOL,
+        }, {
+            .name = "socket",
+            .type = QEMU_OPT_STRING,
         }, {
             .name = "sock_fd",
             .type = QEMU_OPT_NUMBER,

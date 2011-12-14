@@ -57,6 +57,9 @@ static struct option helper_opts[] = {
     {"fd", required_argument, NULL, 'f'},
     {"path", required_argument, NULL, 'p'},
     {"nodaemon", no_argument, NULL, 'n'},
+    {"socket", required_argument, NULL, 's'},
+    {"uid", required_argument, NULL, 'u'},
+    {"gid", required_argument, NULL, 'g'},
 };
 
 static bool is_daemon;
@@ -695,11 +698,61 @@ err_out:
     return ret;
 }
 
+/* create unix domain socket and return the descriptor */
+static int proxy_socket(const char *path, uid_t uid, gid_t gid)
+{
+    int sock, client;
+    struct sockaddr_un proxy, qemu;
+    socklen_t size;
+
+    /* requested socket already exists, refuse to start */
+    if (!access(path, F_OK)) {
+        do_log(LOG_CRIT, "socket already exists\n");
+        return -1;
+    }
+
+    sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock < 0) {
+        do_perror("socket");
+        return -1;
+    }
+
+    /* mask other part of mode bits */
+    umask(7);
+
+    proxy.sun_family = AF_UNIX;
+    strcpy(proxy.sun_path, path);
+    if (bind(sock, (struct sockaddr *)&proxy,
+            sizeof(struct sockaddr_un)) < 0) {
+        do_perror("bind");
+        return -1;
+    }
+    if (chown(proxy.sun_path, uid, gid) < 0) {
+        do_perror("chown");
+        return -1;
+    }
+    if (listen(sock, 1) < 0) {
+        do_perror("listen");
+        return -1;
+    }
+
+    client = accept(sock, (struct sockaddr *)&qemu, &size);
+    if (client < 0) {
+        do_perror("accept");
+        return -1;
+    }
+    return client;
+}
+
 static void usage(char *prog)
 {
     fprintf(stderr, "usage: %s\n"
             " -p|--path <path> 9p path to export\n"
             " {-f|--fd <socket-descriptor>} socket file descriptor to be used\n"
+            " {-s|--socket <socketname> socket file used for communication\n"
+            " \t-u|--uid <uid> -g|--gid <gid>} - uid:gid combination to give "
+            " access to this socket\n"
+            " \tNote: -s & -f can not be used together\n"
             " [-n|--nodaemon] Run as a normal program\n",
             basename(prog));
 }
@@ -939,7 +992,10 @@ err_out:
 int main(int argc, char **argv)
 {
     int sock;
+    uid_t own_u;
+    gid_t own_g;
     char *rpath = NULL;
+    char *sock_name = NULL;
     struct stat stbuf;
     int c, option_index;
 #ifdef FS_IOC_GETVERSION
@@ -949,9 +1005,10 @@ int main(int argc, char **argv)
 
     is_daemon = true;
     sock = -1;
+    own_u = own_g = -1;
     while (1) {
         option_index = 0;
-        c = getopt_long(argc, argv, "p:nh?f:", helper_opts,
+        c = getopt_long(argc, argv, "p:nh?f:s:u:g:", helper_opts,
                         &option_index);
         if (c == -1) {
             break;
@@ -966,6 +1023,15 @@ int main(int argc, char **argv)
         case 'f':
             sock = atoi(optarg);
             break;
+        case 's':
+            sock_name = strdup(optarg);
+            break;
+        case 'u':
+            own_u = atoi(optarg);
+            break;
+        case 'g':
+            own_g = atoi(optarg);
+            break;
         case '?':
         case 'h':
         default:
@@ -975,8 +1041,16 @@ int main(int argc, char **argv)
     }
 
     /* Parameter validation */
-    if (sock == -1 || rpath == NULL) {
-        fprintf(stderr, "socket descriptor or path not specified\n");
+    if ((sock_name == NULL && sock == -1) || rpath == NULL) {
+        fprintf(stderr, "socket, socket descriptor or path not specified\n");
+        usage(argv[0]);
+        return -1;
+    }
+
+    if (*sock_name && (own_u == -1 || own_g == -1)) {
+        fprintf(stderr, "owner uid:gid not specified, ");
+        fprintf(stderr,
+                "owner uid:gid specifies who can access the socket file\n");
         usage(argv[0]);
         exit(EXIT_FAILURE);
     }
@@ -1001,6 +1075,12 @@ int main(int argc, char **argv)
     }
 
     do_log(LOG_INFO, "Started\n");
+    if (*sock_name) {
+        sock = proxy_socket(sock_name, own_u, own_g);
+        if (sock < 0) {
+            goto error;
+        }
+    }
 
     get_version = false;
 #ifdef FS_IOC_GETVERSION

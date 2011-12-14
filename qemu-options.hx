@@ -552,12 +552,12 @@ DEFHEADING(File system options:)
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
     "-fsdev fsdriver,id=id[,path=path,][security_model={mapped|passthrough|none}]\n"
-    " [,writeout=immediate][,readonly][,sock_fd=sock_fd]\n",
+    " [,writeout=immediate][,readonly][,socket=socket|sock_fd=sock_fd]\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -fsdev @var{fsdriver},id=@var{id},path=@var{path},[security_model=@var{security_model}][,writeout=@var{writeout}][,readonly][,sock_fd=@var{sock_fd}]
+@item -fsdev @var{fsdriver},id=@var{id},path=@var{path},[security_model=@var{security_model}][,writeout=@var{writeout}][,readonly][,socket=@var{socket}|sock_fd=@var{sock_fd}]
 @findex -fsdev
 Define a new file system device. Valid options are:
 @table @option
@@ -590,6 +590,9 @@ reported as written by the storage subsystem.
 @item readonly
 Enables exporting 9p share as a readonly mount for guests. By default
 read-write access is given.
+@item socket=@var{socket}
+Enables proxy filesystem driver to use passed socket file for communicating
+with virtfs-proxy-helper
 @item sock_fd=@var{sock_fd}
 Enables proxy filesystem driver to use passed socket descriptor for
 communicating with virtfs-proxy-helper. Usually a helper like libvirt
@@ -614,12 +617,12 @@ DEFHEADING(Virtual File system pass-through options:)
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=[mapped|passthrough|none]\n"
-    "        [,writeout=immediate][,readonly][,sock_fd=sock_fd]\n",
+    "        [,writeout=immediate][,readonly][,socket=socket|sock_fd=sock_fd]\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -virtfs @var{fsdriver}[,path=@var{path}],mount_tag=@var{mount_tag}[,security_model=@var{security_model}][,writeout=@var{writeout}][,readonly][,sock_fd=@var{sock_fd}]
+@item -virtfs @var{fsdriver}[,path=@var{path}],mount_tag=@var{mount_tag}[,security_model=@var{security_model}][,writeout=@var{writeout}][,readonly][,socket=@var{socket}|sock_fd=@var{sock_fd}]
 @findex -virtfs
 
 The general form of a Virtual File system pass-through options are:
@@ -653,6 +656,10 @@ reported as written by the storage subsystem.
 @item readonly
 Enables exporting 9p share as a readonly mount for guests. By default
 read-write access is given.
+@item socket=@var{socket}
+Enables proxy filesystem driver to use passed socket file for
+communicating with virtfs-proxy-helper. Usually a helper like libvirt
+will create socketpair and pass one of the fds as sock_fd
 @item sock_fd
 Enables proxy filesystem driver to use passed 'sock_fd' as the socket
 descriptor for interfacing with virtfs-proxy-helper

@@ -1095,15 +1095,49 @@ static int proxy_ioc_getversion(FsContext *fs_ctx, V9fsPath *path,
     return err;
 }
 
-static int proxy_parse_opts(QemuOpts *opts, struct FsDriverEntry *fs)
+static int connect_namedsocket(const char *path)
 {
-    const char *sock_fd = qemu_opt_get(opts, "sock_fd");
+    int sockfd, size;
+    struct sockaddr_un helper;
 
-    if (sock_fd) {
-        fprintf(stderr, "sock_fd option not specified\n");
+    sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sockfd < 0) {
+        fprintf(stderr, "socket %s\n", strerror(errno));
         return -1;
     }
-    fs->path = g_strdup(sock_fd);
+    strcpy(helper.sun_path, path);
+    helper.sun_family = AF_UNIX;
+    size = strlen(helper.sun_path) + sizeof(helper.sun_family);
+    if (connect(sockfd, (struct sockaddr *)&helper, size) < 0) {
+        fprintf(stderr, "socket error\n");
+        return -1;
+    }
+
+    /* remove the socket for security reasons */
+    unlink(path);
+    return sockfd;
+}
+
+static int proxy_parse_opts(QemuOpts *opts, struct FsDriverEntry *fs)
+{
+    const char *socket = qemu_opt_get(opts, "socket");
+    const char *sock_fd = qemu_opt_get(opts, "sock_fd");
+
+    if (!socket && !sock_fd) {
+        fprintf(stderr, "socket and sock_fd none of the option specified\n");
+        return -1;
+    }
+    if (socket && sock_fd) {
+        fprintf(stderr, "Both socket and sock_fd options specified\n");
+        return -1;
+    }
+    if (socket) {
+        fs->path = g_strdup(socket);
+        fs->export_flags = V9FS_PROXY_SOCK_NAME;
+    } else {
+        fs->path = g_strdup(sock_fd);
+        fs->export_flags = V9FS_PROXY_SOCK_FD;
+    }
     return 0;
 }
 
@@ -1112,10 +1146,14 @@ static int proxy_init(FsContext *ctx)
     V9fsProxy *proxy = g_malloc(sizeof(V9fsProxy));
     int sock_id;
 
-    sock_id = atoi(ctx->fs_root);
-    if (sock_id < 0) {
-        fprintf(stderr, "socket descriptor not initialized\n");
-        return -1;
+    if (ctx->export_flags & V9FS_PROXY_SOCK_NAME) {
+        sock_id = connect_namedsocket(ctx->fs_root);
+    } else {
+        sock_id = atoi(ctx->fs_root);
+        if (sock_id < 0) {
+            fprintf(stderr, "socket descriptor not initialized\n");
+            return -1;
+        }
     }
     g_free(ctx->fs_root);
 

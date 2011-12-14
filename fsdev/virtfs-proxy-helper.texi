@@ -46,6 +46,10 @@ Path to export for proxy filesystem driver
 Use given file descriptor as socket descriptor for communicating with
 qemu proxy fs drier. Usually a helper like libvirt will create
 socketpair and pass one of the fds as parameter to -f|--fd
+@item -s|--socket socket-file
+Creates named socket file for communicating with qemu proxy fs driver
+@item -u|--uid uid -g|--gid gid
+uid:gid combination to give access to named socket file
 @item -n|--nodaemon
 Run as a normal program. By default program will run in daemon mode
 @end table
