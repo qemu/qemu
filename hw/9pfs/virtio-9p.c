@@ -11,9 +11,6 @@
  *
  */
 
-#include <glib.h>
-#include <glib/gprintf.h>
-
 #include "hw/virtio.h"
 #include "hw/pc.h"
 #include "qemu_socket.h"
@@ -136,42 +133,6 @@ static int get_dotl_openflags(V9fsState *s, int oflags)
      */
     flags &= ~O_DIRECT;
     return flags;
-}
-
-void v9fs_string_init(V9fsString *str)
-{
-    str->data = NULL;
-    str->size = 0;
-}
-
-void v9fs_string_free(V9fsString *str)
-{
-    g_free(str->data);
-    str->data = NULL;
-    str->size = 0;
-}
-
-void v9fs_string_null(V9fsString *str)
-{
-    v9fs_string_free(str);
-}
-
-void GCC_FMT_ATTR(2, 3)
-v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
-{
-    va_list ap;
-
-    v9fs_string_free(str);
-
-    va_start(ap, fmt);
-    str->size = g_vasprintf(&str->data, fmt, ap);
-    va_end(ap);
-}
-
-void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)
-{
-    v9fs_string_free(lhs);
-    v9fs_string_sprintf(lhs, "%s", rhs->data);
 }
 
 void v9fs_path_init(V9fsPath *path)
@@ -627,211 +588,6 @@ static void free_pdu(V9fsState *s, V9fsPDU *pdu)
             QLIST_INSERT_HEAD(&s->free_list, pdu, next);
         }
     }
-}
-
-size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
-                        size_t offset, size_t size, int pack)
-{
-    int i = 0;
-    size_t copied = 0;
-
-    for (i = 0; size && i < sg_count; i++) {
-        size_t len;
-        if (offset >= sg[i].iov_len) {
-            /* skip this sg */
-            offset -= sg[i].iov_len;
-            continue;
-        } else {
-            len = MIN(sg[i].iov_len - offset, size);
-            if (pack) {
-                memcpy(sg[i].iov_base + offset, addr, len);
-            } else {
-                memcpy(addr, sg[i].iov_base + offset, len);
-            }
-            size -= len;
-            copied += len;
-            addr += len;
-            if (size) {
-                offset = 0;
-                continue;
-            }
-        }
-    }
-
-    return copied;
-}
-
-static size_t pdu_unpack(void *dst, V9fsPDU *pdu, size_t offset, size_t size)
-{
-    return pdu_packunpack(dst, pdu->elem.out_sg, pdu->elem.out_num,
-                         offset, size, 0);
-}
-
-static size_t pdu_pack(V9fsPDU *pdu, size_t offset, const void *src,
-                        size_t size)
-{
-    return pdu_packunpack((void *)src, pdu->elem.in_sg, pdu->elem.in_num,
-                             offset, size, 1);
-}
-
-static size_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
-{
-    size_t old_offset = offset;
-    va_list ap;
-    int i;
-
-    va_start(ap, fmt);
-    for (i = 0; fmt[i]; i++) {
-        switch (fmt[i]) {
-        case 'b': {
-            uint8_t *valp = va_arg(ap, uint8_t *);
-            offset += pdu_unpack(valp, pdu, offset, sizeof(*valp));
-            break;
-        }
-        case 'w': {
-            uint16_t val, *valp;
-            valp = va_arg(ap, uint16_t *);
-            offset += pdu_unpack(&val, pdu, offset, sizeof(val));
-            *valp = le16_to_cpu(val);
-            break;
-        }
-        case 'd': {
-            uint32_t val, *valp;
-            valp = va_arg(ap, uint32_t *);
-            offset += pdu_unpack(&val, pdu, offset, sizeof(val));
-            *valp = le32_to_cpu(val);
-            break;
-        }
-        case 'q': {
-            uint64_t val, *valp;
-            valp = va_arg(ap, uint64_t *);
-            offset += pdu_unpack(&val, pdu, offset, sizeof(val));
-            *valp = le64_to_cpu(val);
-            break;
-        }
-        case 's': {
-            V9fsString *str = va_arg(ap, V9fsString *);
-            offset += pdu_unmarshal(pdu, offset, "w", &str->size);
-            /* FIXME: sanity check str->size */
-            str->data = g_malloc(str->size + 1);
-            offset += pdu_unpack(str->data, pdu, offset, str->size);
-            str->data[str->size] = 0;
-            break;
-        }
-        case 'Q': {
-            V9fsQID *qidp = va_arg(ap, V9fsQID *);
-            offset += pdu_unmarshal(pdu, offset, "bdq",
-                        &qidp->type, &qidp->version, &qidp->path);
-            break;
-        }
-        case 'S': {
-            V9fsStat *statp = va_arg(ap, V9fsStat *);
-            offset += pdu_unmarshal(pdu, offset, "wwdQdddqsssssddd",
-                        &statp->size, &statp->type, &statp->dev,
-                        &statp->qid, &statp->mode, &statp->atime,
-                        &statp->mtime, &statp->length,
-                        &statp->name, &statp->uid, &statp->gid,
-                        &statp->muid, &statp->extension,
-                        &statp->n_uid, &statp->n_gid,
-                        &statp->n_muid);
-            break;
-        }
-        case 'I': {
-            V9fsIattr *iattr = va_arg(ap, V9fsIattr *);
-            offset += pdu_unmarshal(pdu, offset, "ddddqqqqq",
-                        &iattr->valid, &iattr->mode,
-                        &iattr->uid, &iattr->gid, &iattr->size,
-                        &iattr->atime_sec, &iattr->atime_nsec,
-                        &iattr->mtime_sec, &iattr->mtime_nsec);
-            break;
-        }
-        default:
-            break;
-        }
-    }
-
-    va_end(ap);
-
-    return offset - old_offset;
-}
-
-static size_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
-{
-    size_t old_offset = offset;
-    va_list ap;
-    int i;
-
-    va_start(ap, fmt);
-    for (i = 0; fmt[i]; i++) {
-        switch (fmt[i]) {
-        case 'b': {
-            uint8_t val = va_arg(ap, int);
-            offset += pdu_pack(pdu, offset, &val, sizeof(val));
-            break;
-        }
-        case 'w': {
-            uint16_t val;
-            cpu_to_le16w(&val, va_arg(ap, int));
-            offset += pdu_pack(pdu, offset, &val, sizeof(val));
-            break;
-        }
-        case 'd': {
-            uint32_t val;
-            cpu_to_le32w(&val, va_arg(ap, uint32_t));
-            offset += pdu_pack(pdu, offset, &val, sizeof(val));
-            break;
-        }
-        case 'q': {
-            uint64_t val;
-            cpu_to_le64w(&val, va_arg(ap, uint64_t));
-            offset += pdu_pack(pdu, offset, &val, sizeof(val));
-            break;
-        }
-        case 's': {
-            V9fsString *str = va_arg(ap, V9fsString *);
-            offset += pdu_marshal(pdu, offset, "w", str->size);
-            offset += pdu_pack(pdu, offset, str->data, str->size);
-            break;
-        }
-        case 'Q': {
-            V9fsQID *qidp = va_arg(ap, V9fsQID *);
-            offset += pdu_marshal(pdu, offset, "bdq",
-                        qidp->type, qidp->version, qidp->path);
-            break;
-        }
-        case 'S': {
-            V9fsStat *statp = va_arg(ap, V9fsStat *);
-            offset += pdu_marshal(pdu, offset, "wwdQdddqsssssddd",
-                        statp->size, statp->type, statp->dev,
-                        &statp->qid, statp->mode, statp->atime,
-                        statp->mtime, statp->length, &statp->name,
-                        &statp->uid, &statp->gid, &statp->muid,
-                        &statp->extension, statp->n_uid,
-                        statp->n_gid, statp->n_muid);
-            break;
-        }
-        case 'A': {
-            V9fsStatDotl *statp = va_arg(ap, V9fsStatDotl *);
-            offset += pdu_marshal(pdu, offset, "qQdddqqqqqqqqqqqqqqq",
-                        statp->st_result_mask,
-                        &statp->qid, statp->st_mode,
-                        statp->st_uid, statp->st_gid,
-                        statp->st_nlink, statp->st_rdev,
-                        statp->st_size, statp->st_blksize, statp->st_blocks,
-                        statp->st_atime_sec, statp->st_atime_nsec,
-                        statp->st_mtime_sec, statp->st_mtime_nsec,
-                        statp->st_ctime_sec, statp->st_ctime_nsec,
-                        statp->st_btime_sec, statp->st_btime_nsec,
-                        statp->st_gen, statp->st_data_version);
-            break;
-        }
-        default:
-            break;
-        }
-    }
-    va_end(ap);
-
-    return offset - old_offset;
 }
 
 static void complete_pdu(V9fsState *s, V9fsPDU *pdu, ssize_t len)
@@ -1713,9 +1469,10 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
         read_count = 0;
     }
     offset += pdu_marshal(pdu, offset, "d", read_count);
-    offset += pdu_pack(pdu, offset,
-                       ((char *)fidp->fs.xattr.value) + off,
-                       read_count);
+    offset += v9fs_pack(pdu->elem.in_sg, pdu->elem.in_num, offset,
+                        ((char *)fidp->fs.xattr.value) + off,
+                        read_count);
+
     return offset;
 }
 

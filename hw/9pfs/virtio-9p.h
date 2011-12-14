@@ -8,8 +8,10 @@
 #include <sys/resource.h>
 #include "hw/virtio.h"
 #include "fsdev/file-op-9p.h"
+#include "fsdev/virtio-9p-marshal.h"
 #include "qemu-thread.h"
 #include "qemu-coroutine.h"
+
 
 /* The feature bitmap for virtio 9P */
 /* The mount point is specified in a config variable */
@@ -154,40 +156,6 @@ struct V9fsPDU
 
 typedef struct V9fsFidState V9fsFidState;
 
-typedef struct V9fsString
-{
-    uint16_t size;
-    char *data;
-} V9fsString;
-
-typedef struct V9fsQID
-{
-    int8_t type;
-    int32_t version;
-    int64_t path;
-} V9fsQID;
-
-typedef struct V9fsStat
-{
-    int16_t size;
-    int16_t type;
-    int32_t dev;
-    V9fsQID qid;
-    int32_t mode;
-    int32_t atime;
-    int32_t mtime;
-    int64_t length;
-    V9fsString name;
-    V9fsString uid;
-    V9fsString gid;
-    V9fsString muid;
-    /* 9p2000.u */
-    V9fsString extension;
-   int32_t n_uid;
-    int32_t n_gid;
-    int32_t n_muid;
-} V9fsStat;
-
 enum {
     P9_FID_NONE = 0,
     P9_FID_FILE,
@@ -267,29 +235,6 @@ typedef struct V9fsStatState {
     struct stat stbuf;
 } V9fsStatState;
 
-typedef struct V9fsStatDotl {
-    uint64_t st_result_mask;
-    V9fsQID qid;
-    uint32_t st_mode;
-    uint32_t st_uid;
-    uint32_t st_gid;
-    uint64_t st_nlink;
-    uint64_t st_rdev;
-    uint64_t st_size;
-    uint64_t st_blksize;
-    uint64_t st_blocks;
-    uint64_t st_atime_sec;
-    uint64_t st_atime_nsec;
-    uint64_t st_mtime_sec;
-    uint64_t st_mtime_nsec;
-    uint64_t st_ctime_sec;
-    uint64_t st_ctime_nsec;
-    uint64_t st_btime_sec;
-    uint64_t st_btime_nsec;
-    uint64_t st_gen;
-    uint64_t st_data_version;
-} V9fsStatDotl;
-
 typedef struct V9fsOpenState {
     V9fsPDU *pdu;
     size_t offset;
@@ -331,19 +276,6 @@ typedef struct V9fsWriteState {
     struct iovec *sg;
     int cnt;
 } V9fsWriteState;
-
-typedef struct V9fsIattr
-{
-    int32_t valid;
-    int32_t mode;
-    int32_t uid;
-    int32_t gid;
-    int64_t size;
-    int64_t atime_sec;
-    int64_t atime_nsec;
-    int64_t mtime_sec;
-    int64_t mtime_nsec;
-} V9fsIattr;
 
 struct virtio_9p_config
 {
@@ -459,14 +391,15 @@ static inline uint8_t v9fs_request_cancelled(V9fsPDU *pdu)
 extern void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq);
 extern void virtio_9p_set_fd_limit(void);
 extern void v9fs_reclaim_fd(V9fsPDU *pdu);
-extern void v9fs_string_init(V9fsString *str);
-extern void v9fs_string_free(V9fsString *str);
-extern void v9fs_string_null(V9fsString *str);
-extern void v9fs_string_sprintf(V9fsString *str, const char *fmt, ...);
-extern void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs);
 extern void v9fs_path_init(V9fsPath *path);
 extern void v9fs_path_free(V9fsPath *path);
 extern void v9fs_path_copy(V9fsPath *lhs, V9fsPath *rhs);
 extern int v9fs_name_to_path(V9fsState *s, V9fsPath *dirpath,
                              const char *name, V9fsPath *path);
+
+#define pdu_marshal(pdu, offset, fmt, args...)  \
+    v9fs_marshal(pdu->elem.in_sg, pdu->elem.in_num, offset, 1, fmt, ##args)
+#define pdu_unmarshal(pdu, offset, fmt, args...)  \
+    v9fs_unmarshal(pdu->elem.out_sg, pdu->elem.out_num, offset, 1, fmt, ##args)
+
 #endif
