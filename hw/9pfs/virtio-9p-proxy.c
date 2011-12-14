@@ -287,7 +287,9 @@ static int v9fs_request(V9fsProxy *proxy, int type,
     va_list ap;
     int size = 0;
     int retval = 0;
+    uint64_t offset;
     ProxyHeader header = { 0, 0};
+    struct timespec spec[2];
     int flags, mode, uid, gid;
     V9fsString *path, *oldpath;
     struct iovec *iovec = NULL, *reply = NULL;
@@ -396,6 +398,65 @@ static int v9fs_request(V9fsProxy *proxy, int type,
             header.type = T_STATFS;
         }
         break;
+    case T_CHMOD:
+        path = va_arg(ap, V9fsString *);
+        mode = va_arg(ap, int);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "sd", path, mode);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_CHMOD;
+        }
+        break;
+    case T_CHOWN:
+        path = va_arg(ap, V9fsString *);
+        uid = va_arg(ap, int);
+        gid = va_arg(ap, int);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "sdd", path, uid, gid);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_CHOWN;
+        }
+        break;
+    case T_TRUNCATE:
+        path = va_arg(ap, V9fsString *);
+        offset = va_arg(ap, uint64_t);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "sq", path, offset);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_TRUNCATE;
+        }
+        break;
+    case T_UTIME:
+        path = va_arg(ap, V9fsString *);
+        spec[0].tv_sec = va_arg(ap, long);
+        spec[0].tv_nsec = va_arg(ap, long);
+        spec[1].tv_sec = va_arg(ap, long);
+        spec[1].tv_nsec = va_arg(ap, long);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "sqqqq", path,
+                                    spec[0].tv_sec, spec[1].tv_nsec,
+                                    spec[1].tv_sec, spec[1].tv_nsec);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_UTIME;
+        }
+        break;
+    case T_RENAME:
+        oldpath = va_arg(ap, V9fsString *);
+        path = va_arg(ap, V9fsString *);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "ss", oldpath, path);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_RENAME;
+        }
+        break;
+    case T_REMOVE:
+        path = va_arg(ap, V9fsString *);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "s", path);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_REMOVE;
+        }
+        break;
     default:
         error_report("Invalid type %d\n", type);
         retval = -EINVAL;
@@ -431,6 +492,12 @@ static int v9fs_request(V9fsProxy *proxy, int type,
     case T_MKDIR:
     case T_SYMLINK:
     case T_LINK:
+    case T_CHMOD:
+    case T_CHOWN:
+    case T_RENAME:
+    case T_TRUNCATE:
+    case T_UTIME:
+    case T_REMOVE:
         if (v9fs_receive_status(proxy, reply, &retval) < 0) {
             goto close_error;
         }
@@ -591,8 +658,13 @@ static ssize_t proxy_pwritev(FsContext *ctx, V9fsFidOpenState *fs,
 
 static int proxy_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    retval = v9fs_request(fs_ctx->private, T_CHMOD, NULL, "sd",
+                          fs_path, credp->fc_mode);
+    if (retval < 0) {
+        errno = -retval;
+    }
+    return retval;
 }
 
 static int proxy_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
@@ -710,34 +782,74 @@ static int proxy_link(FsContext *ctx, V9fsPath *oldpath,
 
 static int proxy_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+
+    retval = v9fs_request(ctx->private, T_TRUNCATE, NULL, "sq", fs_path, size);
+    if (retval < 0) {
+        errno = -retval;
+        return -1;
+    }
+    return 0;
 }
 
 static int proxy_rename(FsContext *ctx, const char *oldpath,
                         const char *newpath)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    V9fsString oldname, newname;
+
+    v9fs_string_init(&oldname);
+    v9fs_string_init(&newname);
+
+    v9fs_string_sprintf(&oldname, "%s", oldpath);
+    v9fs_string_sprintf(&newname, "%s", newpath);
+    retval = v9fs_request(ctx->private, T_RENAME, NULL, "ss",
+                          &oldname, &newname);
+    v9fs_string_free(&oldname);
+    v9fs_string_free(&newname);
+    if (retval < 0) {
+        errno = -retval;
+    }
+    return retval;
 }
 
 static int proxy_chown(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    retval = v9fs_request(fs_ctx->private, T_CHOWN, NULL, "sdd",
+                          fs_path, credp->fc_uid, credp->fc_gid);
+    if (retval < 0) {
+        errno = -retval;
+    }
+    return retval;
 }
 
 static int proxy_utimensat(FsContext *s, V9fsPath *fs_path,
                            const struct timespec *buf)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    retval = v9fs_request(s->private, T_UTIME, NULL, "sqqqq",
+                          fs_path,
+                          buf[0].tv_sec, buf[0].tv_nsec,
+                          buf[1].tv_sec, buf[1].tv_nsec);
+    if (retval < 0) {
+        errno = -retval;
+    }
+    return retval;
 }
 
 static int proxy_remove(FsContext *ctx, const char *path)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    V9fsString name;
+    v9fs_string_init(&name);
+    v9fs_string_sprintf(&name, "%s", path);
+    retval = v9fs_request(ctx->private, T_REMOVE, NULL, "s", &name);
+    v9fs_string_free(&name);
+    if (retval < 0) {
+        errno = -retval;
+    }
+    return retval;
 }
 
 static int proxy_fsync(FsContext *ctx, int fid_type,

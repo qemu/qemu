@@ -599,6 +599,12 @@ static int process_reply(int sock, int type,
     case T_MKDIR:
     case T_SYMLINK:
     case T_LINK:
+    case T_CHMOD:
+    case T_CHOWN:
+    case T_TRUNCATE:
+    case T_UTIME:
+    case T_RENAME:
+    case T_REMOVE:
         if (send_status(sock, out_iovec, retval) < 0) {
             return -1;
         }
@@ -620,7 +626,10 @@ static int process_reply(int sock, int type,
 static int process_requests(int sock)
 {
     int retval = 0;
+    uint64_t offset;
     ProxyHeader header;
+    int mode, uid, gid;
+    struct timespec spec[2];
     V9fsString oldpath, path;
     struct iovec in_iovec, out_iovec;
 
@@ -672,6 +681,80 @@ static int process_requests(int sock)
             break;
         case T_READLINK:
             retval = do_readlink(&in_iovec, &out_iovec);
+            break;
+        case T_CHMOD:
+            v9fs_string_init(&path);
+            retval = proxy_unmarshal(&in_iovec, PROXY_HDR_SZ,
+                                     "sd", &path, &mode);
+            if (retval > 0) {
+                retval = chmod(path.data, mode);
+                if (retval < 0) {
+                    retval = -errno;
+                }
+            }
+            v9fs_string_free(&path);
+            break;
+        case T_CHOWN:
+            v9fs_string_init(&path);
+            retval = proxy_unmarshal(&in_iovec, PROXY_HDR_SZ, "sdd", &path,
+                                     &uid, &gid);
+            if (retval > 0) {
+                retval = lchown(path.data, uid, gid);
+                if (retval < 0) {
+                    retval = -errno;
+                }
+            }
+            v9fs_string_free(&path);
+            break;
+        case T_TRUNCATE:
+            v9fs_string_init(&path);
+            retval = proxy_unmarshal(&in_iovec, PROXY_HDR_SZ, "sq",
+                                     &path, &offset);
+            if (retval > 0) {
+                retval = truncate(path.data, offset);
+                if (retval < 0) {
+                    retval = -errno;
+                }
+            }
+            v9fs_string_free(&path);
+            break;
+        case T_UTIME:
+            v9fs_string_init(&path);
+            retval = proxy_unmarshal(&in_iovec, PROXY_HDR_SZ, "sqqqq", &path,
+                                     &spec[0].tv_sec, &spec[0].tv_nsec,
+                                     &spec[1].tv_sec, &spec[1].tv_nsec);
+            if (retval > 0) {
+                retval = qemu_utimens(path.data, spec);
+                if (retval < 0) {
+                    retval = -errno;
+                }
+            }
+            v9fs_string_free(&path);
+            break;
+        case T_RENAME:
+            v9fs_string_init(&path);
+            v9fs_string_init(&oldpath);
+            retval = proxy_unmarshal(&in_iovec, PROXY_HDR_SZ,
+                                     "ss", &oldpath, &path);
+            if (retval > 0) {
+                retval = rename(oldpath.data, path.data);
+                if (retval < 0) {
+                    retval = -errno;
+                }
+            }
+            v9fs_string_free(&oldpath);
+            v9fs_string_free(&path);
+            break;
+        case T_REMOVE:
+            v9fs_string_init(&path);
+            retval = proxy_unmarshal(&in_iovec, PROXY_HDR_SZ, "s", &path);
+            if (retval > 0) {
+                retval = remove(path.data);
+                if (retval < 0) {
+                    retval = -errno;
+                }
+            }
+            v9fs_string_free(&path);
             break;
         default:
             goto err_out;

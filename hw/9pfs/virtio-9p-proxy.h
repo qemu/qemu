@@ -48,6 +48,12 @@ enum {
     T_LSTAT,
     T_READLINK,
     T_STATFS,
+    T_CHMOD,
+    T_CHOWN,
+    T_TRUNCATE,
+    T_UTIME,
+    T_RENAME,
+    T_REMOVE,
 };
 
 typedef struct {
