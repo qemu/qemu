@@ -1967,6 +1967,22 @@ else
 fi
 
 ##########################################
+# libcap probe
+
+if test "$cap" != "no" ; then
+  cat > $TMPC <<EOF
+#include <stdio.h>
+#include <sys/capability.h>
+int main(void) { cap_t caps; caps = cap_init(); }
+EOF
+  if compile_prog "" "-lcap" ; then
+    cap=yes
+  else
+    cap=no
+  fi
+fi
+
+##########################################
 # pthread probe
 PTHREADLIBS_LIST="-pthread -lpthread -lpthreadGC2"
 
@@ -2767,6 +2783,9 @@ confdir=$sysconfdir$confsuffix
 tools=
 if test "$softmmu" = yes ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
+  if [ "$cap" = "yes" -a "$linux" = "yes" ] ; then
+      tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
+  fi
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
       tools="qemu-nbd\$(EXESUF) $tools"
     if [ "$guest_agent" = "yes" ]; then
