@@ -37,8 +37,14 @@ typedef struct {
 #define PROXY_HDR_SZ (sizeof(ProxyHeader))
 
 enum {
-    T_OPEN = 1,
+    T_SUCCESS = 0,
+    T_ERROR,
+    T_OPEN,
     T_CREATE,
+    T_MKNOD,
+    T_MKDIR,
+    T_SYMLINK,
+    T_LINK,
 };
 
 #endif

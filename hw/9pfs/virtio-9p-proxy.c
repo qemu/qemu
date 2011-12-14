@@ -19,7 +19,8 @@
 typedef struct V9fsProxy {
     int sockfd;
     QemuMutex mutex;
-    struct iovec iovec;
+    struct iovec in_iovec;
+    struct iovec out_iovec;
 } V9fsProxy;
 
 /*
@@ -78,6 +79,60 @@ static int v9fs_receivefd(int sockfd, int *status)
     return 0;
 }
 
+static ssize_t socket_read(int sockfd, void *buff, size_t size)
+{
+    ssize_t retval, total = 0;
+
+    while (size) {
+        retval = read(sockfd, buff, size);
+        if (retval == 0) {
+            return -EIO;
+        }
+        if (retval < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return -errno;
+        }
+        size -= retval;
+        buff += retval;
+        total += retval;
+    }
+    return total;
+}
+
+/*
+ * return < 0 on transport error.
+ * *status is valid only if return >= 0
+ */
+static int v9fs_receive_status(V9fsProxy *proxy,
+                               struct iovec *reply, int *status)
+{
+    int retval;
+    ProxyHeader header;
+
+    *status = 0;
+    reply->iov_len = 0;
+    retval = socket_read(proxy->sockfd, reply->iov_base, PROXY_HDR_SZ);
+    if (retval < 0) {
+        return retval;
+    }
+    reply->iov_len = PROXY_HDR_SZ;
+    proxy_unmarshal(reply, 0, "dd", &header.type, &header.size);
+    if (header.size != sizeof(int)) {
+        *status = -ENOBUFS;
+        return 0;
+    }
+    retval = socket_read(proxy->sockfd,
+                         reply->iov_base + PROXY_HDR_SZ, header.size);
+    if (retval < 0) {
+        return retval;
+    }
+    reply->iov_len += header.size;
+    proxy_unmarshal(reply, PROXY_HDR_SZ, "d", status);
+    return 0;
+}
+
 /*
  * Proxy->header and proxy->request written to socket by QEMU process.
  * This request read by proxy helper process
@@ -86,12 +141,13 @@ static int v9fs_receivefd(int sockfd, int *status)
 static int v9fs_request(V9fsProxy *proxy, int type,
                         void *response, const char *fmt, ...)
 {
+    dev_t rdev;
     va_list ap;
     int retval = 0;
-    V9fsString *path;
     ProxyHeader header = { 0, 0};
-    struct iovec *iovec = NULL;
     int flags, mode, uid, gid;
+    V9fsString *path, *oldpath;
+    struct iovec *iovec = NULL, *reply = NULL;
 
     qemu_mutex_lock(&proxy->mutex);
 
@@ -99,8 +155,8 @@ static int v9fs_request(V9fsProxy *proxy, int type,
         retval = -EIO;
         goto err_out;
     }
-    iovec = &proxy->iovec;
-
+    iovec = &proxy->out_iovec;
+    reply = &proxy->in_iovec;
     va_start(ap, fmt);
     switch (type) {
     case T_OPEN:
@@ -123,6 +179,53 @@ static int v9fs_request(V9fsProxy *proxy, int type,
         if (retval > 0) {
             header.size = retval;
             header.type = T_CREATE;
+        }
+        break;
+    case T_MKNOD:
+        path = va_arg(ap, V9fsString *);
+        mode = va_arg(ap, int);
+        rdev = va_arg(ap, long int);
+        uid = va_arg(ap, int);
+        gid = va_arg(ap, int);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "ddsdq",
+                                    uid, gid, path, mode, rdev);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_MKNOD;
+        }
+        break;
+    case T_MKDIR:
+        path = va_arg(ap, V9fsString *);
+        mode = va_arg(ap, int);
+        uid = va_arg(ap, int);
+        gid = va_arg(ap, int);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "ddsd",
+                                    uid, gid, path, mode);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_MKDIR;
+        }
+        break;
+    case T_SYMLINK:
+        oldpath = va_arg(ap, V9fsString *);
+        path = va_arg(ap, V9fsString *);
+        uid = va_arg(ap, int);
+        gid = va_arg(ap, int);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "ddss",
+                                    uid, gid, oldpath, path);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_SYMLINK;
+        }
+        break;
+    case T_LINK:
+        oldpath = va_arg(ap, V9fsString *);
+        path = va_arg(ap, V9fsString *);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "ss",
+                                    oldpath, path);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_LINK;
         }
         break;
     default:
@@ -153,6 +256,14 @@ static int v9fs_request(V9fsProxy *proxy, int type,
          * T_OPEN,T_CREATE on success
          */
         if (v9fs_receivefd(proxy->sockfd, &retval) < 0) {
+            goto close_error;
+        }
+        break;
+    case T_MKNOD:
+    case T_MKDIR:
+    case T_SYMLINK:
+    case T_LINK:
+        if (v9fs_receive_status(proxy, reply, &retval) < 0) {
             goto close_error;
         }
         break;
@@ -301,15 +412,41 @@ static int proxy_chmod(FsContext *fs_ctx, V9fsPath *fs_path, FsCred *credp)
 static int proxy_mknod(FsContext *fs_ctx, V9fsPath *dir_path,
                        const char *name, FsCred *credp)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    V9fsString fullname;
+
+    v9fs_string_init(&fullname);
+    v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
+
+    retval = v9fs_request(fs_ctx->private, T_MKNOD, NULL, "sdqdd",
+                          &fullname, credp->fc_mode, credp->fc_rdev,
+                          credp->fc_uid, credp->fc_gid);
+    v9fs_string_free(&fullname);
+    if (retval < 0) {
+        errno = -retval;
+        retval = -1;
+    }
+    return retval;
 }
 
 static int proxy_mkdir(FsContext *fs_ctx, V9fsPath *dir_path,
                        const char *name, FsCred *credp)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    V9fsString fullname;
+
+    v9fs_string_init(&fullname);
+    v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
+
+    retval = v9fs_request(fs_ctx->private, T_MKDIR, NULL, "sddd", &fullname,
+                          credp->fc_mode, credp->fc_uid, credp->fc_gid);
+    v9fs_string_free(&fullname);
+    if (retval < 0) {
+        errno = -retval;
+        retval = -1;
+    }
+    v9fs_string_free(&fullname);
+    return retval;
 }
 
 static int proxy_fstat(FsContext *fs_ctx, int fid_type,
@@ -344,19 +481,46 @@ static int proxy_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
     return fs->fd;
 }
 
-
 static int proxy_symlink(FsContext *fs_ctx, const char *oldpath,
                          V9fsPath *dir_path, const char *name, FsCred *credp)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    V9fsString fullname, target;
+
+    v9fs_string_init(&fullname);
+    v9fs_string_init(&target);
+
+    v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
+    v9fs_string_sprintf(&target, "%s", oldpath);
+
+    retval = v9fs_request(fs_ctx->private, T_SYMLINK, NULL, "ssdd",
+                          &target, &fullname, credp->fc_uid, credp->fc_gid);
+    v9fs_string_free(&fullname);
+    v9fs_string_free(&target);
+    if (retval < 0) {
+        errno = -retval;
+        retval = -1;
+    }
+    return retval;
 }
 
 static int proxy_link(FsContext *ctx, V9fsPath *oldpath,
                       V9fsPath *dirpath, const char *name)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    V9fsString newpath;
+
+    v9fs_string_init(&newpath);
+    v9fs_string_sprintf(&newpath, "%s/%s", dirpath->data, name);
+
+    retval = v9fs_request(ctx->private, T_LINK, NULL, "ss",
+                          oldpath, &newpath);
+    v9fs_string_free(&newpath);
+    if (retval < 0) {
+        errno = -retval;
+        retval = -1;
+    }
+    return retval;
 }
 
 static int proxy_truncate(FsContext *ctx, V9fsPath *fs_path, off_t size)
@@ -514,8 +678,11 @@ static int proxy_init(FsContext *ctx)
     }
     g_free(ctx->fs_root);
 
-    proxy->iovec.iov_base = g_malloc(PROXY_MAX_IO_SZ + PROXY_HDR_SZ);
-    proxy->iovec.iov_len = PROXY_MAX_IO_SZ + PROXY_HDR_SZ;
+    proxy->in_iovec.iov_base  = g_malloc(PROXY_MAX_IO_SZ + PROXY_HDR_SZ);
+    proxy->in_iovec.iov_len   = PROXY_MAX_IO_SZ + PROXY_HDR_SZ;
+    proxy->out_iovec.iov_base = g_malloc(PROXY_MAX_IO_SZ + PROXY_HDR_SZ);
+    proxy->out_iovec.iov_len  = PROXY_MAX_IO_SZ + PROXY_HDR_SZ;
+
     ctx->private = proxy;
     proxy->sockfd = sock_id;
     qemu_mutex_init(&proxy->mutex);

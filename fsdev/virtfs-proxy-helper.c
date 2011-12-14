@@ -231,6 +231,30 @@ static int send_fd(int sockfd, int fd)
     return 0;
 }
 
+static int send_status(int sockfd, struct iovec *iovec, int status)
+{
+    ProxyHeader header;
+    int retval, msg_size;;
+
+    if (status < 0) {
+        header.type = T_ERROR;
+    } else {
+        header.type = T_SUCCESS;
+    }
+    header.size = sizeof(status);
+    /*
+     * marshal the return status. We don't check error.
+     * because we are sure we have enough space for the status
+     */
+    msg_size = proxy_marshal(iovec, 0, "ddd", header.type,
+                             header.size, status);
+    retval = socket_write(sockfd, iovec->iov_base, msg_size);
+    if (retval < 0) {
+        return retval;
+    }
+    return 0;
+}
+
 /*
  * from man 7 capabilities, section
  * Effect of User ID Changes on Capabilities:
@@ -259,6 +283,67 @@ static int setfsugid(int uid, int gid)
         return do_cap_set(cap_list, ARRAY_SIZE(cap_list), 0);
     }
     return 0;
+}
+
+/*
+ * create other filesystem objects and send 0 on success
+ * return -errno on error
+ */
+static int do_create_others(int type, struct iovec *iovec)
+{
+    dev_t rdev;
+    int retval = 0;
+    int offset = PROXY_HDR_SZ;
+    V9fsString oldpath, path;
+    int mode, uid, gid, cur_uid, cur_gid;
+
+    v9fs_string_init(&path);
+    v9fs_string_init(&oldpath);
+    cur_uid = geteuid();
+    cur_gid = getegid();
+
+    retval = proxy_unmarshal(iovec, offset, "dd", &uid, &gid);
+    if (retval < 0) {
+        return retval;
+    }
+    offset += retval;
+    retval = setfsugid(uid, gid);
+    if (retval < 0) {
+        retval = -errno;
+        goto err_out;
+    }
+    switch (type) {
+    case T_MKNOD:
+        retval = proxy_unmarshal(iovec, offset, "sdq", &path, &mode, &rdev);
+        if (retval < 0) {
+            goto err_out;
+        }
+        retval = mknod(path.data, mode, rdev);
+        break;
+    case T_MKDIR:
+        retval = proxy_unmarshal(iovec, offset, "sd", &path, &mode);
+        if (retval < 0) {
+            goto err_out;
+        }
+        retval = mkdir(path.data, mode);
+        break;
+    case T_SYMLINK:
+        retval = proxy_unmarshal(iovec, offset, "ss", &oldpath, &path);
+        if (retval < 0) {
+            goto err_out;
+        }
+        retval = symlink(oldpath.data, path.data);
+        break;
+    }
+    if (retval < 0) {
+        retval = -errno;
+    }
+
+err_out:
+    v9fs_string_free(&path);
+    v9fs_string_free(&oldpath);
+    setfsugid(cur_uid, cur_gid);
+    return retval;
 }
 
 /*
@@ -332,12 +417,21 @@ static void usage(char *prog)
             basename(prog));
 }
 
-static int process_reply(int sock, int type, int retval)
+static int process_reply(int sock, int type,
+                         struct iovec *out_iovec, int retval)
 {
     switch (type) {
     case T_OPEN:
     case T_CREATE:
         if (send_fd(sock, retval) < 0) {
+            return -1;
+        }
+        break;
+    case T_MKNOD:
+    case T_MKDIR:
+    case T_SYMLINK:
+    case T_LINK:
+        if (send_status(sock, out_iovec, retval) < 0) {
             return -1;
         }
         break;
@@ -352,10 +446,14 @@ static int process_requests(int sock)
 {
     int retval = 0;
     ProxyHeader header;
-    struct iovec in_iovec;
+    V9fsString oldpath, path;
+    struct iovec in_iovec, out_iovec;
 
-    in_iovec.iov_base = g_malloc(PROXY_MAX_IO_SZ + PROXY_HDR_SZ);
-    in_iovec.iov_len  = PROXY_MAX_IO_SZ + PROXY_HDR_SZ;
+    in_iovec.iov_base  = g_malloc(PROXY_MAX_IO_SZ + PROXY_HDR_SZ);
+    in_iovec.iov_len   = PROXY_MAX_IO_SZ + PROXY_HDR_SZ;
+    out_iovec.iov_base = g_malloc(PROXY_MAX_IO_SZ + PROXY_HDR_SZ);
+    out_iovec.iov_len  = PROXY_MAX_IO_SZ + PROXY_HDR_SZ;
+
     while (1) {
         /*
          * initialize the header type, so that we send
@@ -374,18 +472,37 @@ static int process_requests(int sock)
         case T_CREATE:
             retval = do_create(&in_iovec);
             break;
+        case T_MKNOD:
+        case T_MKDIR:
+        case T_SYMLINK:
+            retval = do_create_others(header.type, &in_iovec);
+            break;
+        case T_LINK:
+            v9fs_string_init(&path);
+            v9fs_string_init(&oldpath);
+            retval = proxy_unmarshal(&in_iovec, PROXY_HDR_SZ,
+                                     "ss", &oldpath, &path);
+            if (retval > 0) {
+                retval = link(oldpath.data, path.data);
+                if (retval < 0) {
+                    retval = -errno;
+                }
+            }
+            v9fs_string_free(&oldpath);
+            v9fs_string_free(&path);
+            break;
         default:
             goto err_out;
             break;
         }
 
-        if (process_reply(sock, header.type, retval) < 0) {
+        if (process_reply(sock, header.type, &out_iovec, retval) < 0) {
             goto err_out;
         }
     }
-    (void)socket_write;
 err_out:
     g_free(in_iovec.iov_base);
+    g_free(out_iovec.iov_base);
     return -1;
 }
 
