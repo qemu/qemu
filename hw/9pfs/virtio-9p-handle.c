@@ -641,7 +641,27 @@ out:
     return ret;
 }
 
+static int handle_parse_opts(QemuOpts *opts, struct FsDriverEntry *fse)
+{
+    const char *sec_model = qemu_opt_get(opts, "security_model");
+    const char *path = qemu_opt_get(opts, "path");
+
+    if (sec_model) {
+        fprintf(stderr, "Invalid argument security_model specified with handle fsdriver\n");
+        return -1;
+    }
+
+    if (!path) {
+        fprintf(stderr, "fsdev: No path specified.\n");
+        return -1;
+    }
+    fse->path = g_strdup(path);
+    return 0;
+
+}
+
 FileOperations handle_ops = {
+    .parse_opts   = handle_parse_opts,
     .init         = handle_init,
     .lstat        = handle_lstat,
     .readlink     = handle_readlink,

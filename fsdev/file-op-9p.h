@@ -61,6 +61,16 @@ typedef struct extended_ops {
 #define V9FS_SEC_MASK               0x0000001C
 
 
+typedef struct FileOperations FileOperations;
+/*
+ * Structure to store the various fsdev's passed through command line.
+ */
+typedef struct FsDriverEntry {
+    char *fsdev_id;
+    char *path;
+    int export_flags;
+    FileOperations *ops;
+} FsDriverEntry;
 
 typedef struct FsContext
 {
@@ -82,8 +92,9 @@ typedef union V9fsFidOpenState V9fsFidOpenState;
 
 void cred_init(FsCred *);
 
-typedef struct FileOperations
+struct FileOperations
 {
+    int (*parse_opts)(QemuOpts *, struct FsDriverEntry *);
     int (*init)(struct FsContext *);
     int (*lstat)(FsContext *, V9fsPath *, struct stat *);
     ssize_t (*readlink)(FsContext *, V9fsPath *, char *, size_t);
@@ -128,6 +139,6 @@ typedef struct FileOperations
                     V9fsPath *newdir, const char *new_name);
     int (*unlinkat)(FsContext *ctx, V9fsPath *dir, const char *name, int flags);
     void *opaque;
-} FileOperations;
+};
 
 #endif

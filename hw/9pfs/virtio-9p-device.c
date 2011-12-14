@@ -77,16 +77,19 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         exit(1);
     }
 
-    if (!fse->path || !conf->tag) {
-        /* we haven't specified a mount_tag or the path */
-        fprintf(stderr, "fsdev with id %s needs path "
-                "and Virtio-9p device needs mount_tag arguments\n",
+    if (!conf->tag) {
+        /* we haven't specified a mount_tag */
+        fprintf(stderr, "fsdev with id %s needs mount_tag arguments\n",
                 conf->fsdev_id);
         exit(1);
     }
 
     s->ctx.export_flags = fse->export_flags;
-    s->ctx.fs_root = g_strdup(fse->path);
+    if (fse->path) {
+        s->ctx.fs_root = g_strdup(fse->path);
+    } else {
+        s->ctx.fs_root = NULL;
+    }
     s->ctx.exops.get_st_gen = NULL;
 
     if (fse->export_flags & V9FS_SM_PASSTHROUGH) {

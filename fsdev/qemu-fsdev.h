@@ -34,16 +34,6 @@ typedef struct FsDriverTable {
     FileOperations *ops;
 } FsDriverTable;
 
-/*
- * Structure to store the various fsdev's passed through command line.
- */
-typedef struct FsDriverEntry {
-    char *fsdev_id;
-    char *path;
-    int export_flags;
-    FileOperations *ops;
-} FsDriverEntry;
-
 typedef struct FsDriverListEntry {
     FsDriverEntry fse;
     QTAILQ_ENTRY(FsDriverListEntry) next;
