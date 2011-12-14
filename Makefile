@@ -38,6 +38,7 @@ LIBS+=-lz $(LIBS_TOOLS)
 
 ifdef BUILD_DOCS
 DOCS=qemu-doc.html qemu-tech.html qemu.1 qemu-img.1 qemu-nbd.8 QMP/qmp-commands.txt
+DOCS+=fsdev/virtfs-proxy-helper.1
 else
 DOCS=
 endif
@@ -289,7 +290,10 @@ ifdef CONFIG_POSIX
 	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man8"
 	$(INSTALL_DATA) qemu-nbd.8 "$(DESTDIR)$(mandir)/man8"
 endif
-
+ifdef CONFIG_VIRTFS
+	$(INSTALL_DIR) "$(DESTDIR)$(mandir)/man1"
+	$(INSTALL_DATA) fsdev/virtfs-proxy-helper.1 "$(DESTDIR)$(mandir)/man1"
+endif
 install-sysconfig:
 	$(INSTALL_DIR) "$(DESTDIR)$(sysconfdir)/qemu"
 	$(INSTALL_DATA) $(SRC_PATH)/sysconfigs/target/target-x86_64.conf "$(DESTDIR)$(sysconfdir)/qemu"
@@ -371,6 +375,12 @@ qemu-img.1: qemu-img.texi qemu-img-cmds.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-img.pod && \
 	  pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@, \
+	  "  GEN   $@")
+
+fsdev/virtfs-proxy-helper.1: fsdev/virtfs-proxy-helper.texi
+	$(call quiet-command, \
+	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< fsdev/virtfs-proxy-helper.pod && \
+	  pod2man --section=1 --center=" " --release=" " fsdev/virtfs-proxy-helper.pod > $@, \
 	  "  GEN   $@")
 
 qemu-nbd.8: qemu-nbd.texi
