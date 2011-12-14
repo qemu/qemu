@@ -44,4 +44,5 @@ FsDriverEntry *get_fsdev_fsentry(char *id);
 extern FileOperations local_ops;
 extern FileOperations handle_ops;
 extern FileOperations synth_ops;
+extern FileOperations proxy_ops;
 #endif
