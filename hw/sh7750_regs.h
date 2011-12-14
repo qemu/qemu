@@ -157,7 +157,7 @@
  * Exeption-related registers
  */
 
-/* Immediate data for TRAPA instuction - TRA */
+/* Immediate data for TRAPA instruction - TRA */
 #define SH7750_TRA_REGOFS     0x000020	/* offset */
 #define SH7750_TRA            SH7750_P4_REG32(SH7750_TRA_REGOFS)
 #define SH7750_TRA_A7         SH7750_A7_REG32(SH7750_TRA_REGOFS)

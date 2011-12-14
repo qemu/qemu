@@ -79,6 +79,10 @@ static QObject *do_qmp_dispatch(QObject *request, Error **errp)
         error_set(errp, QERR_COMMAND_NOT_FOUND, command);
         return NULL;
     }
+    if (!cmd->enabled) {
+        error_set(errp, QERR_COMMAND_DISABLED, command);
+        return NULL;
+    }
 
     if (!qdict_haskey(dict, "arguments")) {
         args = qdict_new();

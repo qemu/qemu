@@ -41,12 +41,12 @@
 #ifdef __linux__
 #define DECLARE_TLS(type, x) extern DEFINE_TLS(type, x)
 #define DEFINE_TLS(type, x)  __thread __typeof__(type) tls__##x
-#define get_tls(x)           tls__##x
+#define tls_var(x)           tls__##x
 #else
 /* Dummy implementations which define plain global variables */
 #define DECLARE_TLS(type, x) extern DEFINE_TLS(type, x)
 #define DEFINE_TLS(type, x)  __typeof__(type) tls__##x
-#define get_tls(x)           tls__##x
+#define tls_var(x)           tls__##x
 #endif
 
 #endif

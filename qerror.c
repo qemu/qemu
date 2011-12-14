@@ -65,6 +65,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "The command %(name) has not been found",
     },
     {
+        .error_fmt = QERR_COMMAND_DISABLED,
+        .desc      = "The command %(name) has been disabled for this instance",
+    },
+    {
         .error_fmt = QERR_DEVICE_ENCRYPTED,
         .desc      = "Device '%(device)' is encrypted",
     },
@@ -257,7 +261,7 @@ static const QErrorStringTable qerror_table[] = {
     },
     {
         .error_fmt = QERR_INVALID_PARAMETER_COMBINATION,
-        .desc      = "Invalid paramter combination",
+        .desc      = "Invalid parameter combination",
     },
     {}
 };

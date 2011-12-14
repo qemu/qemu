@@ -789,7 +789,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     int cnt = d->frame_cnt >> 16;
     int size = d->frame_cnt & 0xffff;
     int left = ((size - cnt + 1) << 2) + d->leftover;
-    int transfered = 0;
+    int transferred = 0;
     int temp = audio_MIN (max, audio_MIN (left, csc_bytes));
     int index = d - &s->chan[0];
 
@@ -808,7 +808,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
 
             temp -= acquired;
             addr += acquired;
-            transfered += acquired;
+            transferred += acquired;
         }
     }
     else {
@@ -824,11 +824,11 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
                 break;
             temp -= copied;
             addr += copied;
-            transfered += copied;
+            transferred += copied;
         }
     }
 
-    if (csc_bytes == transfered) {
+    if (csc_bytes == transferred) {
         *irq = 1;
         d->scount = sc | (sc << 16);
         ldebug ("sc = %d, rate = %f\n",
@@ -837,10 +837,10 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
     }
     else {
         *irq = 0;
-        d->scount = sc | (((csc_bytes - transfered - 1) >> d->shift) << 16);
+        d->scount = sc | (((csc_bytes - transferred - 1) >> d->shift) << 16);
     }
 
-    cnt += (transfered + d->leftover) >> 2;
+    cnt += (transferred + d->leftover) >> 2;
 
     if (s->sctl & loop_sel) {
         /* Bah, how stupid is that having a 0 represent true value?
@@ -854,7 +854,7 @@ static void es1370_transfer_audio (ES1370State *s, struct chan *d, int loop_sel,
             d->frame_cnt |= cnt << 16;
     }
 
-    d->leftover = (transfered + d->leftover) & 3;
+    d->leftover = (transferred + d->leftover) & 3;
 }
 
 static void es1370_run_channel (ES1370State *s, size_t chan, int free_or_avail)

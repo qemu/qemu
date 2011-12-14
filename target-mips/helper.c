@@ -512,7 +512,7 @@ void do_interrupt (CPUState *env)
                 }
             } else {
                 /* For VEIC mode, the external interrupt controller feeds the
-                   vector throught the CP0Cause IP lines.  */
+                   vector through the CP0Cause IP lines.  */
                 vector = pending;
             }
             offset = 0x200 + vector * spacing;

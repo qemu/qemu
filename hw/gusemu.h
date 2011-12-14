@@ -27,7 +27,7 @@
 
 /* data types (need to be adjusted if neither a VC6 nor a C99 compatible compiler is used) */
 
-#if defined _WIN32 && defined _MSC_VER /* doesnt support other win32 compilers yet, do it yourself... */
+#if defined _WIN32 && defined _MSC_VER /* doesn't support other win32 compilers yet, do it yourself... */
  typedef unsigned char GUSbyte;
  typedef unsigned short GUSword;
  typedef unsigned int GUSdword;
@@ -83,7 +83,7 @@ void gus_dma_transferdata(GUSEmuState *state, char *dma_addr, unsigned int count
 /* it is possible to break down a single transfer into multiple ones, but take care that: */
 /* -dma_count is actually count-1 */
 /* -before and during a transfer, DREQ is set and TC cleared */
-/* -when calling gus_dma_transferdata(), TC is only set true for call transfering the last byte */
+/* -when calling gus_dma_transferdata(), TC is only set true for call transferring the last byte */
 /* -after the last transfer, DREQ is cleared and TC is set */
 
 /* ** GF1 mixer emulation functions: */

@@ -1492,7 +1492,7 @@ static void v9fs_walk(void *opaque)
     int32_t fid, newfid;
     V9fsString *wnames = NULL;
     V9fsFidState *fidp;
-    V9fsFidState *newfidp = NULL;;
+    V9fsFidState *newfidp = NULL;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
@@ -2398,7 +2398,7 @@ static void v9fs_link(void *opaque)
     V9fsState *s = pdu->s;
     int32_t dfid, oldfid;
     V9fsFidState *dfidp, *oldfidp;
-    V9fsString name;;
+    V9fsString name;
     size_t offset = 7;
     int err = 0;
 

@@ -96,10 +96,6 @@ Alpha and S390 hosts, but TCG (see below) doesn't support those yet.
 
 @item Precise exceptions support.
 
-@item The virtual CPU is a library (@code{libqemu}) which can be used
-in other projects (look at @file{qemu/tests/qruncom.c} to have an
-example of user mode @code{libqemu} usage).
-
 @item
 Floating point library supporting both full software emulation and
 native host FPU instructions.
@@ -685,7 +681,6 @@ are available. They are used for regression testing.
 @menu
 * test-i386::
 * linux-test::
-* qruncom.c::
 @end menu
 
 @node test-i386
@@ -710,11 +705,6 @@ exception reporting.
 This program tests various Linux system calls. It is used to verify
 that the system call parameters are correctly converted between target
 and host CPUs.
-
-@node qruncom.c
-@section @file{qruncom.c}
-
-Example of usage of @code{libqemu} to emulate a user mode i386 CPU.
 
 @node Index
 @chapter Index

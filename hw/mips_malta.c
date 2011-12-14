@@ -943,6 +943,7 @@ void mips_malta_init (ram_addr_t ram_size,
             while (addr < end) {
                 fprintf(stderr, "0x%08x\n", *addr);
                 bswap32s(addr);
+                addr++;
             }
         }
 #endif

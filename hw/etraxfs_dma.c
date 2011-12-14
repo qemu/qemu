@@ -180,7 +180,7 @@ struct fs_dma_channel
 	struct dma_descr_context current_c;
 	struct dma_descr_data current_d;
 
-	/* Controll registers.  */
+	/* Control registers.  */
 	uint32_t regs[DMA_REG_MAX];
 };
 

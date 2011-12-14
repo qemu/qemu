@@ -110,8 +110,8 @@ typedef struct fm_opl_f {
 	/* FM channel slots */
 	OPL_CH *P_CH;		/* pointer of CH                     */
 	int	max_ch;			/* maximum channel                   */
-	/* Rythm sention */
-	UINT8 rythm;		/* Rythm mode , key flag */
+	/* Rhythm sention */
+	UINT8 rhythm;		/* Rhythm mode , key flag */
 #if BUILD_Y8950
 	/* Delta-T ADPCM unit (Y8950) */
 	YM_DELTAT *deltat;			/* DELTA-T ADPCM       */

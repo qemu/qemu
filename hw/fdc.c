@@ -2,7 +2,7 @@
  * QEMU Floppy disk emulator (Intel 82078)
  *
  * Copyright (c) 2003, 2007 Jocelyn Mayer
- * Copyright (c) 2008 Hervé Poussineau
+ * Copyright (c) 2008 HervÃ© Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

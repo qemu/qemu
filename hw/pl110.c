@@ -358,7 +358,7 @@ static void pl110_write(void *opaque, target_phys_addr_t offset,
     int n;
 
     /* For simplicity invalidate the display whenever a control register
-       is writen to.  */
+       is written to.  */
     s->invalidate = 1;
     if (offset >= 0x200 && offset < 0x400) {
         /* Pallette.  */

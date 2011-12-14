@@ -502,7 +502,7 @@ void gus_dma_transferdata(GUSEmuState * state, char *dma_addr, unsigned int coun
     /* this function gets called by the callback function as soon as a DMA transfer is about to start
      * dma_addr is a translated address within accessible memory, not the physical one,
      * count is (real dma count register)+1
-     * note that the amount of bytes transfered is fully determined by values in the DMA registers
+     * note that the amount of bytes transferred is fully determined by values in the DMA registers
      * do not forget to update DMA states after transferring the entire block:
      * DREQ cleared & TC asserted after the _whole_ transfer */
 
@@ -517,7 +517,7 @@ void gus_dma_transferdata(GUSEmuState * state, char *dma_addr, unsigned int coun
         int             offset = (GUSregw(GUS42DMAStart) << 4) + (GUSregb(GUS50DMAHigh) & 0xf);
         if (state->gusdma >= 4)
             offset = (offset & 0xc0000) + (2 * (offset & 0x1fff0)); /* 16 bit address translation */
-        destaddr = (char *) state->himemaddr + offset; /* wavetable RAM adress */
+        destaddr = (char *) state->himemaddr + offset; /* wavetable RAM address */
     }
 
     GUSregw(GUS42DMAStart) += (GUSword)  (count >> 4);                           /* ToDo: add 16bit GUS page limit? */

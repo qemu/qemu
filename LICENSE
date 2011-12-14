@@ -6,9 +6,7 @@ The following points clarify the QEMU license:
 GNU General Public License. Hence each source file contains its own
 licensing information.
 
-In particular, the QEMU virtual CPU core library (libqemu.a) is
-released under the GNU Lesser General Public License. Many hardware
-device emulation sources are released under the BSD license.
+Many hardware device emulation sources are released under the BSD license.
 
 3) The Tiny Code Generator (TCG) is released under the BSD license
    (see license headers in files).

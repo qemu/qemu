@@ -264,7 +264,7 @@ typedef struct {
     /* Data in mem is always in the byte order of the controller (le).
      * It must be dword aligned to allow direct access to 32 bit values. */
     uint8_t mem[PCI_MEM_SIZE] __attribute__((aligned(8)));
-    
+
     /* Configuration bytes. */
     uint8_t configuration[22];
 

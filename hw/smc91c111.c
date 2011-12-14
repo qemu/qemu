@@ -732,7 +732,7 @@ static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
         default:
             logout(TARGET_FMT_plx "= %02" PRIx32 "\n", offset, value);
         }
-        break;;
+        break;
 
     case 3:
         switch (offset) {

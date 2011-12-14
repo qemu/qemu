@@ -120,6 +120,7 @@ struct EmulatedState {
     uint8_t  atr_length;
     QSIMPLEQ_HEAD(event_list, EmulEvent) event_list;
     QemuMutex event_list_mutex;
+    QemuThread event_thread_id;
     VReader *reader;
     QSIMPLEQ_HEAD(guest_apdu_list, EmulEvent) guest_apdu_list;
     QemuMutex vreader_mutex; /* and guest_apdu_list mutex */
@@ -127,8 +128,7 @@ struct EmulatedState {
     QemuCond handle_apdu_cond;
     int      pipe[2];
     int      quit_apdu_thread;
-    QemuMutex apdu_thread_quit_mutex;
-    QemuCond apdu_thread_quit_cond;
+    QemuThread apdu_thread_id;
 };
 
 static void emulated_apdu_from_guest(CCIDCardState *base,
@@ -271,9 +271,6 @@ static void *handle_apdu_thread(void* arg)
         }
         qemu_mutex_unlock(&card->vreader_mutex);
     }
-    qemu_mutex_lock(&card->apdu_thread_quit_mutex);
-    qemu_cond_signal(&card->apdu_thread_quit_cond);
-    qemu_mutex_unlock(&card->apdu_thread_quit_mutex);
     return NULL;
 }
 
@@ -489,7 +486,6 @@ static uint32_t parse_enumeration(char *str,
 static int emulated_initfn(CCIDCardState *base)
 {
     EmulatedState *card = DO_UPCAST(EmulatedState, base, base);
-    QemuThread thread_id;
     VCardEmulError ret;
     EnumTable *ptable;
 
@@ -541,8 +537,10 @@ static int emulated_initfn(CCIDCardState *base)
         printf("%s: failed to initialize vcard\n", EMULATED_DEV_NAME);
         return -1;
     }
-    qemu_thread_create(&thread_id, event_thread, card);
-    qemu_thread_create(&thread_id, handle_apdu_thread, card);
+    qemu_thread_create(&card->event_thread_id, event_thread, card,
+                       QEMU_THREAD_JOINABLE);
+    qemu_thread_create(&card->apdu_thread_id, handle_apdu_thread, card,
+                       QEMU_THREAD_JOINABLE);
     return 0;
 }
 
@@ -552,15 +550,14 @@ static int emulated_exitfn(CCIDCardState *base)
     VEvent *vevent = vevent_new(VEVENT_LAST, NULL, NULL);
 
     vevent_queue_vevent(vevent); /* stop vevent thread */
-    qemu_mutex_lock(&card->apdu_thread_quit_mutex);
+    qemu_thread_join(&card->event_thread_id);
+
     card->quit_apdu_thread = 1; /* stop handle_apdu thread */
     qemu_cond_signal(&card->handle_apdu_cond);
-    qemu_cond_wait(&card->apdu_thread_quit_cond,
-                      &card->apdu_thread_quit_mutex);
-    /* handle_apdu thread stopped, can destroy all of it's mutexes */
+    qemu_thread_join(&card->apdu_thread_id);
+
+    /* threads exited, can destroy all condvars/mutexes */
     qemu_cond_destroy(&card->handle_apdu_cond);
-    qemu_cond_destroy(&card->apdu_thread_quit_cond);
-    qemu_mutex_destroy(&card->apdu_thread_quit_mutex);
     qemu_mutex_destroy(&card->handle_apdu_mutex);
     qemu_mutex_destroy(&card->vreader_mutex);
     qemu_mutex_destroy(&card->event_list_mutex);

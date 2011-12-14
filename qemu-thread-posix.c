@@ -117,20 +117,33 @@ void qemu_cond_wait(QemuCond *cond, QemuMutex *mutex)
 
 void qemu_thread_create(QemuThread *thread,
                        void *(*start_routine)(void*),
-                       void *arg)
+                       void *arg, int mode)
 {
+    sigset_t set, oldset;
     int err;
+    pthread_attr_t attr;
+
+    err = pthread_attr_init(&attr);
+    if (err) {
+        error_exit(err, __func__);
+    }
+    if (mode == QEMU_THREAD_DETACHED) {
+        err = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        if (err) {
+            error_exit(err, __func__);
+        }
+    }
 
     /* Leave signal handling to the iothread.  */
-    sigset_t set, oldset;
-
     sigfillset(&set);
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
-    err = pthread_create(&thread->thread, NULL, start_routine, arg);
+    err = pthread_create(&thread->thread, &attr, start_routine, arg);
     if (err)
         error_exit(err, __func__);
 
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
+
+    pthread_attr_destroy(&attr);
 }
 
 void qemu_thread_get_self(QemuThread *thread)
@@ -146,4 +159,16 @@ int qemu_thread_is_self(QemuThread *thread)
 void qemu_thread_exit(void *retval)
 {
     pthread_exit(retval);
+}
+
+void *qemu_thread_join(QemuThread *thread)
+{
+    int err;
+    void *ret;
+
+    err = pthread_join(thread->thread, &ret);
+    if (err) {
+        error_exit(err, __func__);
+    }
+    return ret;
 }

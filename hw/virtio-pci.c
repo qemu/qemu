@@ -627,9 +627,10 @@ void virtio_init_pci(VirtIOPCIProxy *proxy, VirtIODevice *vdev)
     if (proxy->class_code) {
         pci_config_set_class(config, proxy->class_code);
     }
-    pci_set_word(config + 0x2c, pci_get_word(config + PCI_VENDOR_ID));
-    pci_set_word(config + 0x2e, vdev->device_id);
-    config[0x3d] = 1;
+    pci_set_word(config + PCI_SUBSYSTEM_VENDOR_ID,
+                 pci_get_word(config + PCI_VENDOR_ID));
+    pci_set_word(config + PCI_SUBSYSTEM_ID, vdev->device_id);
+    config[PCI_INTERRUPT_PIN] = 1;
 
     memory_region_init(&proxy->msix_bar, "virtio-msix", 4096);
     if (vdev->nvectors && !msix_init(&proxy->pci_dev, vdev->nvectors,
