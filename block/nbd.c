@@ -189,7 +189,7 @@ static int nbd_read(BlockDriverState *bs, int64_t sector_num,
 
     request.type = NBD_CMD_READ;
     request.handle = (uint64_t)(intptr_t)bs;
-    request.from = sector_num * 512;;
+    request.from = sector_num * 512;
     request.len = nb_sectors * 512;
 
     if (nbd_send_request(s->sock, &request) == -1)
@@ -219,7 +219,7 @@ static int nbd_write(BlockDriverState *bs, int64_t sector_num,
 
     request.type = NBD_CMD_WRITE;
     request.handle = (uint64_t)(intptr_t)bs;
-    request.from = sector_num * 512;;
+    request.from = sector_num * 512;
     request.len = nb_sectors * 512;
 
     if (nbd_send_request(s->sock, &request) == -1)

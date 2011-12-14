@@ -1616,7 +1616,7 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
     case 0x500:	/* CM_CLKEN_PLL */
         if (value & 0xffffff30)
             fprintf(stderr, "%s: write 0s in CM_CLKEN_PLL for "
-                            "future compatiblity\n", __FUNCTION__);
+                            "future compatibility\n", __FUNCTION__);
         if ((s->clken[9] ^ value) & 0xcc) {
             s->clken[9] &= ~0xcc;
             s->clken[9] |= value & 0xcc;
@@ -1635,7 +1635,7 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
     case 0x540:	/* CM_CLKSEL1_PLL */
         if (value & 0xfc4000d7)
             fprintf(stderr, "%s: write 0s in CM_CLKSEL1_PLL for "
-                            "future compatiblity\n", __FUNCTION__);
+                            "future compatibility\n", __FUNCTION__);
         if ((s->clksel[5] ^ value) & 0x003fff00) {
             s->clksel[5] = value & 0x03bfff28;
             omap_prcm_dpll_update(s);
@@ -1647,7 +1647,7 @@ static void omap_prcm_write(void *opaque, target_phys_addr_t addr,
     case 0x544:	/* CM_CLKSEL2_PLL */
         if (value & ~3)
             fprintf(stderr, "%s: write 0s in CM_CLKSEL2_PLL[31:2] for "
-                            "future compatiblity\n", __FUNCTION__);
+                            "future compatibility\n", __FUNCTION__);
         if (s->clksel[6] != (value & 3)) {
             s->clksel[6] = value & 3;
             omap_prcm_dpll_update(s);

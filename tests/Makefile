@@ -115,12 +115,6 @@ speed: sha1 sha1-i386
 	time ./sha1
 	time $(QEMU) ./sha1-i386
 
-# broken test
-# NOTE: -fomit-frame-pointer is currently needed : this is a bug in libqemu
-qruncom: qruncom.c ../ioport-user.c ../i386-user/libqemu.a
-	$(CC) $(CFLAGS) -fomit-frame-pointer $(LDFLAGS) -I../target-i386 -I.. -I../i386-user -I../fpu \
-              -o $@ $(filter %.c, $^) -L../i386-user -lqemu -lm
-
 # arm test
 hello-arm: hello-arm.o
 	arm-linux-ld -o $@ $<

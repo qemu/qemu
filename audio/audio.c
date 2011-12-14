@@ -1665,7 +1665,7 @@ static void audio_pp_nb_voices (const char *typ, int nb)
         printf ("Theoretically supports many %s voices\n", typ);
         break;
     default:
-        printf ("Theoretically supports upto %d %s voices\n", nb, typ);
+        printf ("Theoretically supports up to %d %s voices\n", nb, typ);
         break;
     }
 

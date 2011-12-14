@@ -1,7 +1,7 @@
 /*
  *  cpu to uname machine name map
  *
- *  Copyright (c) 2009 Loïc Minier
+ *  Copyright (c) 2009 LoÃ¯c Minier
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

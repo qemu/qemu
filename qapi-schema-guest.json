@@ -13,7 +13,7 @@
 # partially-delivered JSON text in such a way that this response
 # can be obtained.
 #
-# Such clients should also preceed this command
+# Such clients should also precede this command
 # with a 0xFF byte to make such the guest agent flushes any
 # partially read JSON data from a previous session.
 #

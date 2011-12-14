@@ -2377,7 +2377,7 @@ static inline abi_long host_to_target_semid_ds(abi_ulong target_addr,
     if (!lock_user_struct(VERIFY_WRITE, target_sd, target_addr, 0))
         return -TARGET_EFAULT;
     if (host_to_target_ipc_perm(target_addr,&(host_sd->sem_perm)))
-        return -TARGET_EFAULT;;
+        return -TARGET_EFAULT;
     target_sd->sem_nsems = tswapal(host_sd->sem_nsems);
     target_sd->sem_otime = tswapal(host_sd->sem_otime);
     target_sd->sem_ctime = tswapal(host_sd->sem_ctime);
@@ -7521,8 +7521,10 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 
 	cmd = target_to_host_fcntl_cmd(arg2);
-	if (cmd == -TARGET_EINVAL)
-		return cmd;
+        if (cmd == -TARGET_EINVAL) {
+            ret = cmd;
+            break;
+        }
 
         switch(arg2) {
         case TARGET_F_GETLK64:

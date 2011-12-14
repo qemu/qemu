@@ -148,7 +148,7 @@ void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict);
 
 /* pcie aer error injection */
 void pcie_aer_inject_error_print(Monitor *mon, const QObject *data);
-int do_pcie_aer_inejct_error(Monitor *mon,
+int do_pcie_aer_inject_error(Monitor *mon,
                              const QDict *qdict, QObject **ret_data);
 
 /* serial ports */

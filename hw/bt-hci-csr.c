@@ -222,7 +222,7 @@ static void csrhci_in_packet(struct csrhci_s *s, uint8_t *pkt)
 
         rpkt = csrhci_out_packet_csr(s, H4_NEG_PKT, 10);
 
-        *rpkt ++ = 0x20;	/* Operational settings negotation Ok */
+        *rpkt ++ = 0x20;	/* Operational settings negotiation Ok */
         memcpy(rpkt, pkt, 7); rpkt += 7;
         *rpkt ++ = 0xff;
         *rpkt = 0xff;

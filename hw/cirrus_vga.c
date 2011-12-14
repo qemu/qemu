@@ -783,7 +783,7 @@ static void cirrus_bitblt_cputovideo_next(CirrusVGAState * s)
                 s->cirrus_srccounter -= s->cirrus_blt_srcpitch;
                 if (s->cirrus_srccounter <= 0)
                     goto the_end;
-                /* more bytes than needed can be transfered because of
+                /* more bytes than needed can be transferred because of
                    word alignment, so we keep them for the next line */
                 /* XXX: keep alignment to speed up transfer */
                 end_ptr = s->cirrus_bltbuf + s->cirrus_blt_srcpitch;

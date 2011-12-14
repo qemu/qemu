@@ -4,7 +4,7 @@
  * Copyright (c) 2011
  * Written by Mathieu Sonet - www.elasticsheep.com
  *
- * This code is licenced under the GPL.
+ * This code is licensed under the GPL.
  *
  * *****************************************************************
  */

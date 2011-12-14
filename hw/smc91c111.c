@@ -429,7 +429,7 @@ static void smc91c111_writeb(void *opaque, target_phys_addr_t offset,
             smc91c111_update(s);
             return;
         }
-        break;;
+        break;
 
     case 3:
         switch (offset) {

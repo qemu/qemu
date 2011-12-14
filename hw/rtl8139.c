@@ -2662,7 +2662,7 @@ static void rtl8139_IntrStatus_write(RTL8139State *s, uint32_t val)
      * Computing if we miss an interrupt here is not that correct but
      * considered that we should have had already an interrupt
      * and probably emulated is slower is better to assume this resetting was
-     * done before testing on previous rtl8139_update_irq lead to IRQ loosing
+     * done before testing on previous rtl8139_update_irq lead to IRQ losing
      */
     rtl8139_set_next_tctr_time(s, qemu_get_clock_ns(vm_clock));
     rtl8139_update_irq(s);

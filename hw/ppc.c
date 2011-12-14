@@ -1153,7 +1153,7 @@ void PPC_debug_write (void *opaque, uint32_t addr, uint32_t val)
 /* NVRAM helpers */
 static inline uint32_t nvram_read (nvram_t *nvram, uint32_t addr)
 {
-    return (*nvram->read_fn)(nvram->opaque, addr);;
+    return (*nvram->read_fn)(nvram->opaque, addr);
 }
 
 static inline void nvram_write (nvram_t *nvram, uint32_t addr, uint32_t val)

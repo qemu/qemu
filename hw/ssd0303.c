@@ -123,7 +123,7 @@ static int ssd0303_send(i2c_slave *i2c, uint8_t data)
             case 0xa7: /* Inverse on.  */
                 s->inverse = 1;
                 break;
-            case 0xa8: /* Set multipled ratio (Ignored).  */
+            case 0xa8: /* Set multiplied ratio (Ignored).  */
                 s->cmd_state = SSD0303_CMD_SKIP1;
                 break;
             case 0xad: /* DC-DC power control.  */

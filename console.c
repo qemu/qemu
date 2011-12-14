@@ -1009,16 +1009,17 @@ static void console_putchar(TextConsole *s, int ch)
                             console_clear_xy(s, x, y);
                         }
                     }
-                break;
+                    break;
                 }
+                break;
             case 'K':
                 switch (s->esc_params[0]) {
                 case 0:
-                /* clear to eol */
-                for(x = s->x; x < s->width; x++) {
+                    /* clear to eol */
+                    for(x = s->x; x < s->width; x++) {
                         console_clear_xy(s, x, s->y);
-                }
-                break;
+                    }
+                    break;
                 case 1:
                     /* clear from beginning of line */
                     for (x = 0; x <= s->x; x++) {
@@ -1030,12 +1031,12 @@ static void console_putchar(TextConsole *s, int ch)
                     for(x = 0; x < s->width; x++) {
                         console_clear_xy(s, x, s->y);
                     }
-                break;
-            }
+                    break;
+                }
                 break;
             case 'm':
-            console_handle_escape(s);
-            break;
+                console_handle_escape(s);
+                break;
             case 'n':
                 /* report cursor position */
                 /* TODO: send ESC[row;colR */
@@ -1687,6 +1688,7 @@ PixelFormat qemu_default_pixelformat(int bpp)
             pf.rbits = 8;
             pf.gbits = 8;
             pf.bbits = 8;
+            break;
         case 32:
             pf.rmask = 0x00FF0000;
             pf.gmask = 0x0000FF00;

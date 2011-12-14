@@ -911,6 +911,7 @@ void mips_malta_init (ram_addr_t ram_size,
             uint32_t *end = addr + bios_size;
             while (addr < end) {
                 bswap32s(addr);
+                addr++;
             }
         }
 #endif
