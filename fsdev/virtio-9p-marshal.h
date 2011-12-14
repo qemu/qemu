@@ -71,17 +71,20 @@ typedef struct V9fsStatDotl {
     uint64_t st_data_version;
 } V9fsStatDotl;
 
-extern void v9fs_string_init(V9fsString *str);
+static inline void v9fs_string_init(V9fsString *str)
+{
+    str->data = NULL;
+    str->size = 0;
+}
 extern void v9fs_string_free(V9fsString *str);
 extern void v9fs_string_null(V9fsString *str);
 extern void v9fs_string_sprintf(V9fsString *str, const char *fmt, ...);
 extern void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs);
 
-size_t v9fs_pack(struct iovec *in_sg, int in_num, size_t offset,
-                 const void *src, size_t size);
-size_t v9fs_unmarshal(struct iovec *out_sg, int out_num, size_t offset,
-                      int bswap, const char *fmt, ...);
-size_t v9fs_marshal(struct iovec *in_sg, int in_num, size_t offset,
-                    int bswap, const char *fmt, ...);
-
+ssize_t v9fs_pack(struct iovec *in_sg, int in_num, size_t offset,
+                  const void *src, size_t size);
+ssize_t v9fs_unmarshal(struct iovec *out_sg, int out_num, size_t offset,
+                       int bswap, const char *fmt, ...);
+ssize_t v9fs_marshal(struct iovec *in_sg, int in_num, size_t offset,
+                     int bswap, const char *fmt, ...);
 #endif
