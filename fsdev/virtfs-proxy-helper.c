@@ -9,6 +9,7 @@
  * the COPYING file in the top-level directory.
  */
 #include <stdio.h>
+#include <sys/socket.h>
 #include <string.h>
 #include <sys/un.h>
 #include <limits.h>
@@ -27,6 +28,7 @@
 #include "qemu-common.h"
 #include "virtio-9p-marshal.h"
 #include "hw/9pfs/virtio-9p-proxy.h"
+#include "fsdev/virtio-9p-marshal.h"
 
 #define PROGNAME "virtfs-proxy-helper"
 
@@ -187,6 +189,140 @@ static int read_request(int sockfd, struct iovec *iovec, ProxyHeader *header)
     return 0;
 }
 
+static int send_fd(int sockfd, int fd)
+{
+    struct msghdr msg;
+    struct iovec iov;
+    int retval, data;
+    struct cmsghdr *cmsg;
+    union MsgControl msg_control;
+
+    iov.iov_base = &data;
+    iov.iov_len = sizeof(data);
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    /* No ancillary data on error */
+    if (fd < 0) {
+        /* fd is really negative errno if the request failed  */
+        data = fd;
+    } else {
+        data = V9FS_FD_VALID;
+        msg.msg_control = &msg_control;
+        msg.msg_controllen = sizeof(msg_control);
+
+        cmsg = &msg_control.cmsg;
+        cmsg->cmsg_len = CMSG_LEN(sizeof(fd));
+        cmsg->cmsg_level = SOL_SOCKET;
+        cmsg->cmsg_type = SCM_RIGHTS;
+        memcpy(CMSG_DATA(cmsg), &fd, sizeof(fd));
+    }
+
+    do {
+        retval = sendmsg(sockfd, &msg, 0);
+    } while (retval < 0 && errno == EINTR);
+    if (fd >= 0) {
+        close(fd);
+    }
+    if (retval < 0) {
+        return retval;
+    }
+    return 0;
+}
+
+/*
+ * from man 7 capabilities, section
+ * Effect of User ID Changes on Capabilities:
+ * 4. If the file system user ID is changed from 0 to nonzero (see setfsuid(2))
+ * then the following capabilities are cleared from the effective set:
+ * CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_DAC_READ_SEARCH,  CAP_FOWNER, CAP_FSETID,
+ * CAP_LINUX_IMMUTABLE  (since  Linux 2.2.30), CAP_MAC_OVERRIDE, and CAP_MKNOD
+ * (since Linux 2.2.30). If the file system UID is changed from nonzero to 0,
+ * then any of these capabilities that are enabled in the permitted set
+ * are enabled in the effective set.
+ */
+static int setfsugid(int uid, int gid)
+{
+    /*
+     * We still need DAC_OVERRIDE because  we don't change
+     * supplementary group ids, and hence may be subjected DAC rules
+     */
+    cap_value_t cap_list[] = {
+        CAP_DAC_OVERRIDE,
+    };
+
+    setfsgid(gid);
+    setfsuid(uid);
+
+    if (uid != 0 || gid != 0) {
+        return do_cap_set(cap_list, ARRAY_SIZE(cap_list), 0);
+    }
+    return 0;
+}
+
+/*
+ * create a file and send fd on success
+ * return -errno on error
+ */
+static int do_create(struct iovec *iovec)
+{
+    int ret;
+    V9fsString path;
+    int flags, mode, uid, gid, cur_uid, cur_gid;
+
+    v9fs_string_init(&path);
+    ret = proxy_unmarshal(iovec, PROXY_HDR_SZ, "sdddd",
+                          &path, &flags, &mode, &uid, &gid);
+    if (ret < 0) {
+        goto unmarshal_err_out;
+    }
+    cur_uid = geteuid();
+    cur_gid = getegid();
+    ret = setfsugid(uid, gid);
+    if (ret < 0) {
+        /*
+         * On failure reset back to the
+         * old uid/gid
+         */
+        ret = -errno;
+        goto err_out;
+    }
+    ret = open(path.data, flags, mode);
+    if (ret < 0) {
+        ret = -errno;
+    }
+
+err_out:
+    setfsugid(cur_uid, cur_gid);
+unmarshal_err_out:
+    v9fs_string_free(&path);
+    return ret;
+}
+
+/*
+ * open a file and send fd on success
+ * return -errno on error
+ */
+static int do_open(struct iovec *iovec)
+{
+    int flags, ret;
+    V9fsString path;
+
+    v9fs_string_init(&path);
+    ret = proxy_unmarshal(iovec, PROXY_HDR_SZ, "sd", &path, &flags);
+    if (ret < 0) {
+        goto err_out;
+    }
+    ret = open(path.data, flags);
+    if (ret < 0) {
+        ret = -errno;
+    }
+err_out:
+    v9fs_string_free(&path);
+    return ret;
+}
+
 static void usage(char *prog)
 {
     fprintf(stderr, "usage: %s\n"
@@ -196,22 +332,59 @@ static void usage(char *prog)
             basename(prog));
 }
 
+static int process_reply(int sock, int type, int retval)
+{
+    switch (type) {
+    case T_OPEN:
+    case T_CREATE:
+        if (send_fd(sock, retval) < 0) {
+            return -1;
+        }
+        break;
+    default:
+        return -1;
+        break;
+    }
+    return 0;
+}
+
 static int process_requests(int sock)
 {
-    int retval;
+    int retval = 0;
     ProxyHeader header;
     struct iovec in_iovec;
 
     in_iovec.iov_base = g_malloc(PROXY_MAX_IO_SZ + PROXY_HDR_SZ);
     in_iovec.iov_len  = PROXY_MAX_IO_SZ + PROXY_HDR_SZ;
     while (1) {
+        /*
+         * initialize the header type, so that we send
+         * response to proper request type.
+         */
+        header.type = 0;
         retval = read_request(sock, &in_iovec, &header);
         if (retval < 0) {
-            goto error;
+            goto err_out;
+        }
+
+        switch (header.type) {
+        case T_OPEN:
+            retval = do_open(&in_iovec);
+            break;
+        case T_CREATE:
+            retval = do_create(&in_iovec);
+            break;
+        default:
+            goto err_out;
+            break;
+        }
+
+        if (process_reply(sock, header.type, retval) < 0) {
+            goto err_out;
         }
     }
     (void)socket_write;
-error:
+err_out:
     g_free(in_iovec.iov_base);
     return -1;
 }

@@ -22,6 +22,153 @@ typedef struct V9fsProxy {
     struct iovec iovec;
 } V9fsProxy;
 
+/*
+ * Return received file descriptor on success in *status.
+ * errno is also returned on *status (which will be < 0)
+ * return < 0 on transport error.
+ */
+static int v9fs_receivefd(int sockfd, int *status)
+{
+    struct iovec iov;
+    struct msghdr msg;
+    struct cmsghdr *cmsg;
+    int retval, data, fd;
+    union MsgControl msg_control;
+
+    iov.iov_base = &data;
+    iov.iov_len = sizeof(data);
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_control = &msg_control;
+    msg.msg_controllen = sizeof(msg_control);
+
+    do {
+        retval = recvmsg(sockfd, &msg, 0);
+    } while (retval < 0 && errno == EINTR);
+    if (retval <= 0) {
+        return retval;
+    }
+    /*
+     * data is set to V9FS_FD_VALID, if ancillary data is sent.  If this
+     * request doesn't need ancillary data (fd) or an error occurred,
+     * data is set to negative errno value.
+     */
+    if (data != V9FS_FD_VALID) {
+        *status = data;
+        return 0;
+    }
+    /*
+     * File descriptor (fd) is sent in the ancillary data. Check if we
+     * indeed received it. One of the reasons to fail to receive it is if
+     * we exceeded the maximum number of file descriptors!
+     */
+    for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+        if (cmsg->cmsg_len != CMSG_LEN(sizeof(int)) ||
+            cmsg->cmsg_level != SOL_SOCKET ||
+            cmsg->cmsg_type != SCM_RIGHTS) {
+            continue;
+        }
+        fd = *((int *)CMSG_DATA(cmsg));
+        *status = fd;
+        return 0;
+    }
+    *status = -ENFILE;  /* Ancillary data sent but not received */
+    return 0;
+}
+
+/*
+ * Proxy->header and proxy->request written to socket by QEMU process.
+ * This request read by proxy helper process
+ * returns 0 on success and -errno on error
+ */
+static int v9fs_request(V9fsProxy *proxy, int type,
+                        void *response, const char *fmt, ...)
+{
+    va_list ap;
+    int retval = 0;
+    V9fsString *path;
+    ProxyHeader header = { 0, 0};
+    struct iovec *iovec = NULL;
+    int flags, mode, uid, gid;
+
+    qemu_mutex_lock(&proxy->mutex);
+
+    if (proxy->sockfd == -1) {
+        retval = -EIO;
+        goto err_out;
+    }
+    iovec = &proxy->iovec;
+
+    va_start(ap, fmt);
+    switch (type) {
+    case T_OPEN:
+        path = va_arg(ap, V9fsString *);
+        flags = va_arg(ap, int);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "sd", path, flags);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_OPEN;
+        }
+        break;
+    case T_CREATE:
+        path = va_arg(ap, V9fsString *);
+        flags = va_arg(ap, int);
+        mode = va_arg(ap, int);
+        uid = va_arg(ap, int);
+        gid = va_arg(ap, int);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "sdddd", path,
+                                    flags, mode, uid, gid);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_CREATE;
+        }
+        break;
+    default:
+        error_report("Invalid type %d\n", type);
+        retval = -EINVAL;
+        break;
+    }
+    va_end(ap);
+
+    if (retval < 0) {
+        goto err_out;
+    }
+
+    /* marshal the header details */
+    proxy_marshal(iovec, 0, "dd", header.type, header.size);
+    header.size += PROXY_HDR_SZ;
+
+    retval = qemu_write_full(proxy->sockfd, iovec->iov_base, header.size);
+    if (retval != header.size) {
+        goto close_error;
+    }
+
+    switch (type) {
+    case T_OPEN:
+    case T_CREATE:
+        /*
+         * A file descriptor is returned as response for
+         * T_OPEN,T_CREATE on success
+         */
+        if (v9fs_receivefd(proxy->sockfd, &retval) < 0) {
+            goto close_error;
+        }
+        break;
+    }
+
+err_out:
+    qemu_mutex_unlock(&proxy->mutex);
+    return retval;
+
+close_error:
+    close(proxy->sockfd);
+    proxy->sockfd = -1;
+    qemu_mutex_unlock(&proxy->mutex);
+    return -EIO;
+}
+
 static int proxy_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
 {
     errno = EOPNOTSUPP;
@@ -48,16 +195,33 @@ static int proxy_closedir(FsContext *ctx, V9fsFidOpenState *fs)
 static int proxy_open(FsContext *ctx, V9fsPath *fs_path,
                       int flags, V9fsFidOpenState *fs)
 {
-    fs->fd = -1;
+    fs->fd = v9fs_request(ctx->private, T_OPEN, NULL, "sd", fs_path, flags);
+    if (fs->fd < 0) {
+        errno = -fs->fd;
+        fs->fd = -1;
+    }
     return fs->fd;
 }
 
 static int proxy_opendir(FsContext *ctx,
                          V9fsPath *fs_path, V9fsFidOpenState *fs)
 {
+    int serrno, fd;
+
     fs->dir = NULL;
-    errno = EOPNOTSUPP;
-    return -1;
+    fd = v9fs_request(ctx->private, T_OPEN, NULL, "sd", fs_path, O_DIRECTORY);
+    if (fd < 0) {
+        errno = -fd;
+        return -1;
+    }
+    fs->dir = fdopendir(fd);
+    if (!fs->dir) {
+        serrno = errno;
+        close(fd);
+        errno = serrno;
+        return -1;
+    }
+    return 0;
 }
 
 static void proxy_rewinddir(FsContext *ctx, V9fsFidOpenState *fs)
@@ -164,9 +328,20 @@ static int proxy_fstat(FsContext *fs_ctx, int fid_type,
 static int proxy_open2(FsContext *fs_ctx, V9fsPath *dir_path, const char *name,
                        int flags, FsCred *credp, V9fsFidOpenState *fs)
 {
-    fs->fd = -1;
-    errno = EOPNOTSUPP;
-    return -1;
+    V9fsString fullname;
+
+    v9fs_string_init(&fullname);
+    v9fs_string_sprintf(&fullname, "%s/%s", dir_path->data, name);
+
+    fs->fd = v9fs_request(fs_ctx->private, T_CREATE, NULL, "sdddd",
+                          &fullname, flags, credp->fc_mode,
+                          credp->fc_uid, credp->fc_gid);
+    v9fs_string_free(&fullname);
+    if (fs->fd < 0) {
+        errno = -fs->fd;
+        fs->fd = -1;
+    }
+    return fs->fd;
 }
 
 
