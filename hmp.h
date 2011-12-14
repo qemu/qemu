@@ -53,5 +53,6 @@ void hmp_set_password(Monitor *mon, const QDict *qdict);
 void hmp_expire_password(Monitor *mon, const QDict *qdict);
 void hmp_eject(Monitor *mon, const QDict *qdict);
 void hmp_change(Monitor *mon, const QDict *qdict);
+void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict);
 
 #endif

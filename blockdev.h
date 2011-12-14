@@ -62,6 +62,4 @@ void qmp_change_blockdev(const char *device, const char *filename,
                          bool has_format, const char *format, Error **errp);
 void do_commit(Monitor *mon, const QDict *qdict);
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
-int do_block_set_io_throttle(Monitor *mon,
-                             const QDict *qdict, QObject **ret_data);
 #endif

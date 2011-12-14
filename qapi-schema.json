@@ -1402,3 +1402,32 @@
 ##
 { 'command': 'change',
   'data': {'device': 'str', 'target': 'str', '*arg': 'str'} }
+
+##
+# @block_set_io_throttle:
+#
+# Change I/O throttle limits for a block drive.
+#
+# @device: The name of the device
+#
+# @bps: total throughput limit in bytes per second
+#
+# @bps_rd: read throughput limit in bytes per second
+#
+# @bps_wr: write throughput limit in bytes per second
+#
+# @iops: total I/O operations per second
+#
+# @ops_rd: read I/O operations per second
+#
+# @iops_wr: write I/O operations per second
+#
+# Returns: Nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If the argument combination is invalid, InvalidParameterCombination
+#
+# Since: 1.1
+## 
+{ 'command': 'block_set_io_throttle',
+  'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
+            'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int' } }

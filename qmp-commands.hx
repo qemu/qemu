@@ -807,10 +807,7 @@ EQMP
     {
         .name       = "block_set_io_throttle",
         .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l",
-        .params     = "device bps bps_rd bps_wr iops iops_rd iops_wr",
-        .help       = "change I/O throttle limits for a block drive",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_block_set_io_throttle,
+        .mhandler.cmd_new = qmp_marshal_input_block_set_io_throttle,
     },
 
 SQMP

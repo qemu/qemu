@@ -775,46 +775,29 @@ void qmp_change_blockdev(const char *device, const char *filename,
 }
 
 /* throttling disk I/O limits */
-int do_block_set_io_throttle(Monitor *mon,
-                       const QDict *qdict, QObject **ret_data)
+void qmp_block_set_io_throttle(const char *device, int64_t bps, int64_t bps_rd,
+                               int64_t bps_wr, int64_t iops, int64_t iops_rd,
+                               int64_t iops_wr, Error **errp)
 {
     BlockIOLimit io_limits;
-    const char *devname = qdict_get_str(qdict, "device");
     BlockDriverState *bs;
 
-    io_limits.bps[BLOCK_IO_LIMIT_TOTAL]
-                        = qdict_get_try_int(qdict, "bps", -1);
-    io_limits.bps[BLOCK_IO_LIMIT_READ]
-                        = qdict_get_try_int(qdict, "bps_rd", -1);
-    io_limits.bps[BLOCK_IO_LIMIT_WRITE]
-                        = qdict_get_try_int(qdict, "bps_wr", -1);
-    io_limits.iops[BLOCK_IO_LIMIT_TOTAL]
-                        = qdict_get_try_int(qdict, "iops", -1);
-    io_limits.iops[BLOCK_IO_LIMIT_READ]
-                        = qdict_get_try_int(qdict, "iops_rd", -1);
-    io_limits.iops[BLOCK_IO_LIMIT_WRITE]
-                        = qdict_get_try_int(qdict, "iops_wr", -1);
-
-    bs = bdrv_find(devname);
+    bs = bdrv_find(device);
     if (!bs) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, devname);
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
     }
 
-    if ((io_limits.bps[BLOCK_IO_LIMIT_TOTAL] == -1)
-        || (io_limits.bps[BLOCK_IO_LIMIT_READ] == -1)
-        || (io_limits.bps[BLOCK_IO_LIMIT_WRITE] == -1)
-        || (io_limits.iops[BLOCK_IO_LIMIT_TOTAL] == -1)
-        || (io_limits.iops[BLOCK_IO_LIMIT_READ] == -1)
-        || (io_limits.iops[BLOCK_IO_LIMIT_WRITE] == -1)) {
-        qerror_report(QERR_MISSING_PARAMETER,
-                      "bps/bps_rd/bps_wr/iops/iops_rd/iops_wr");
-        return -1;
-    }
+    io_limits.bps[BLOCK_IO_LIMIT_TOTAL] = bps;
+    io_limits.bps[BLOCK_IO_LIMIT_READ]  = bps_rd;
+    io_limits.bps[BLOCK_IO_LIMIT_WRITE] = bps_wr;
+    io_limits.iops[BLOCK_IO_LIMIT_TOTAL]= iops;
+    io_limits.iops[BLOCK_IO_LIMIT_READ] = iops_rd;
+    io_limits.iops[BLOCK_IO_LIMIT_WRITE]= iops_wr;
 
     if (!do_check_io_limits(&io_limits)) {
-        qerror_report(QERR_INVALID_PARAMETER_COMBINATION);
-        return -1;
+        error_set(errp, QERR_INVALID_PARAMETER_COMBINATION);
+        return;
     }
 
     bs->io_limits = io_limits;
@@ -829,8 +812,6 @@ int do_block_set_io_throttle(Monitor *mon,
             qemu_mod_timer(bs->block_timer, qemu_get_clock_ns(vm_clock));
         }
     }
-
-    return 0;
 }
 
 int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
