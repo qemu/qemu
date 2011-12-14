@@ -243,6 +243,9 @@ static int v9fs_receive_response(V9fsProxy *proxy, int type,
         v9fs_string_free(&xattr);
         break;
     }
+    case T_GETVERSION:
+        proxy_unmarshal(reply, PROXY_HDR_SZ, "q", response);
+        break;
     default:
         return -1;
     }
@@ -509,6 +512,14 @@ static int v9fs_request(V9fsProxy *proxy, int type,
             header.type = T_LREMOVEXATTR;
         }
         break;
+    case T_GETVERSION:
+        path = va_arg(ap, V9fsString *);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "s", path);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_GETVERSION;
+        }
+        break;
     default:
         error_report("Invalid type %d\n", type);
         retval = -EINVAL;
@@ -559,6 +570,7 @@ static int v9fs_request(V9fsProxy *proxy, int type,
     case T_LSTAT:
     case T_READLINK:
     case T_STATFS:
+    case T_GETVERSION:
         if (v9fs_receive_response(proxy, type, &retval, response) < 0) {
             goto close_error;
         }
@@ -1064,6 +1076,25 @@ static int proxy_unlinkat(FsContext *ctx, V9fsPath *dir,
     return ret;
 }
 
+static int proxy_ioc_getversion(FsContext *fs_ctx, V9fsPath *path,
+                                mode_t st_mode, uint64_t *st_gen)
+{
+    int err;
+
+    /* Do not try to open special files like device nodes, fifos etc
+     * we can get fd for regular files and directories only
+     */
+    if (!S_ISREG(st_mode) && !S_ISDIR(st_mode)) {
+        return 0;
+    }
+    err = v9fs_request(fs_ctx->private, T_GETVERSION, st_gen, "s", path);
+    if (err < 0) {
+        errno = -err;
+        err = -1;
+    }
+    return err;
+}
+
 static int proxy_parse_opts(QemuOpts *opts, struct FsDriverEntry *fs)
 {
     const char *sock_fd = qemu_opt_get(opts, "sock_fd");
@@ -1098,6 +1129,7 @@ static int proxy_init(FsContext *ctx)
     qemu_mutex_init(&proxy->mutex);
 
     ctx->export_flags |= V9FS_PATHNAME_FSCONTEXT;
+    ctx->exops.get_st_gen = proxy_ioc_getversion;
     return 0;
 }
 

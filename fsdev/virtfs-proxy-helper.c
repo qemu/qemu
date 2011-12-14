@@ -28,12 +28,30 @@
 #include <sys/vfs.h>
 #include <sys/stat.h>
 #include <attr/xattr.h>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
+#ifdef CONFIG_LINUX_MAGIC_H
+#include <linux/magic.h>
+#endif
 #include "qemu-common.h"
 #include "virtio-9p-marshal.h"
 #include "hw/9pfs/virtio-9p-proxy.h"
 #include "fsdev/virtio-9p-marshal.h"
 
 #define PROGNAME "virtfs-proxy-helper"
+
+#ifndef XFS_SUPER_MAGIC
+#define XFS_SUPER_MAGIC  0x58465342
+#endif
+#ifndef EXT2_SUPER_MAGIC
+#define EXT2_SUPER_MAGIC 0xEF53
+#endif
+#ifndef REISERFS_SUPER_MAGIC
+#define REISERFS_SUPER_MAGIC 0x52654973
+#endif
+#ifndef BTRFS_SUPER_MAGIC
+#define BTRFS_SUPER_MAGIC 0x9123683E
+#endif
 
 static struct option helper_opts[] = {
     {"fd", required_argument, NULL, 'f'},
@@ -42,6 +60,7 @@ static struct option helper_opts[] = {
 };
 
 static bool is_daemon;
+static bool get_version; /* IOC getversion IOCTL supported */
 
 static void do_log(int loglevel, const char *format, ...)
 {
@@ -328,6 +347,49 @@ static int send_response(int sock, struct iovec *iovec, int size)
         return retval;;
     }
     return 0;
+}
+
+/*
+ * gets generation number
+ * returns -errno on failure and sizeof(generation number) on success
+ */
+static int do_getversion(struct iovec *iovec, struct iovec *out_iovec)
+{
+    uint64_t version;
+    int retval = -ENOTTY;
+#ifdef FS_IOC_GETVERSION
+    int fd;
+    V9fsString path;
+#endif
+
+
+    /* no need to issue ioctl */
+    if (!get_version) {
+        version = 0;
+        retval = proxy_marshal(out_iovec, PROXY_HDR_SZ, "q", version);
+        return retval;
+    }
+#ifdef FS_IOC_GETVERSION
+    retval = proxy_unmarshal(iovec, PROXY_HDR_SZ, "s", &path);
+    if (retval < 0) {
+        return retval;
+    }
+
+    fd = open(path.data, O_RDONLY);
+    if (fd < 0) {
+        retval = -errno;
+        goto err_out;
+    }
+    if (ioctl(fd, FS_IOC_GETVERSION, &version) < 0) {
+        retval = -errno;
+    } else {
+        retval = proxy_marshal(out_iovec, PROXY_HDR_SZ, "q", version);
+    }
+    close(fd);
+err_out:
+    v9fs_string_free(&path);
+#endif
+    return retval;
 }
 
 static int do_getxattr(int type, struct iovec *iovec, struct iovec *out_iovec)
@@ -673,6 +735,7 @@ static int process_reply(int sock, int type,
     case T_READLINK:
     case T_LGETXATTR:
     case T_LLISTXATTR:
+    case T_GETVERSION:
         if (send_response(sock, out_iovec, retval) < 0) {
             return -1;
         }
@@ -855,6 +918,9 @@ static int process_requests(int sock)
             v9fs_string_free(&path);
             v9fs_string_free(&name);
             break;
+        case T_GETVERSION:
+            retval = do_getversion(&in_iovec, &out_iovec);
+            break;
         default:
             goto err_out;
             break;
@@ -876,6 +942,10 @@ int main(int argc, char **argv)
     char *rpath = NULL;
     struct stat stbuf;
     int c, option_index;
+#ifdef FS_IOC_GETVERSION
+    int retval;
+    struct statfs st_fs;
+#endif
 
     is_daemon = true;
     sock = -1;
@@ -931,6 +1001,22 @@ int main(int argc, char **argv)
     }
 
     do_log(LOG_INFO, "Started\n");
+
+    get_version = false;
+#ifdef FS_IOC_GETVERSION
+    /* check whether underlying FS support IOC_GETVERSION */
+    retval = statfs(rpath, &st_fs);
+    if (!retval) {
+        switch (st_fs.f_type) {
+        case EXT2_SUPER_MAGIC:
+        case BTRFS_SUPER_MAGIC:
+        case REISERFS_SUPER_MAGIC:
+        case XFS_SUPER_MAGIC:
+            get_version = true;
+            break;
+        }
+    }
+#endif
 
     if (chdir("/") < 0) {
         do_perror("chdir");

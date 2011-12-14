@@ -58,6 +58,7 @@ enum {
     T_LLISTXATTR,
     T_LSETXATTR,
     T_LREMOVEXATTR,
+    T_GETVERSION,
 };
 
 typedef struct {
