@@ -101,6 +101,148 @@ static ssize_t socket_read(int sockfd, void *buff, size_t size)
     return total;
 }
 
+/* Converts proxy_statfs to VFS statfs structure */
+static void prstatfs_to_statfs(struct statfs *stfs, ProxyStatFS *prstfs)
+{
+    memset(stfs, 0, sizeof(*stfs));
+    stfs->f_type = prstfs->f_type;
+    stfs->f_bsize = prstfs->f_bsize;
+    stfs->f_blocks = prstfs->f_blocks;
+    stfs->f_bfree = prstfs->f_bfree;
+    stfs->f_bavail = prstfs->f_bavail;
+    stfs->f_files = prstfs->f_files;
+    stfs->f_ffree = prstfs->f_ffree;
+    stfs->f_fsid.__val[0] = prstfs->f_fsid[0] & 0xFFFFFFFFUL;
+    stfs->f_fsid.__val[1] = prstfs->f_fsid[1] >> 32 & 0xFFFFFFFFFUL;
+    stfs->f_namelen = prstfs->f_namelen;
+    stfs->f_frsize = prstfs->f_frsize;
+}
+
+/* Converts proxy_stat structure to VFS stat structure */
+static void prstat_to_stat(struct stat *stbuf, ProxyStat *prstat)
+{
+   memset(stbuf, 0, sizeof(*stbuf));
+   stbuf->st_dev = prstat->st_dev;
+   stbuf->st_ino = prstat->st_ino;
+   stbuf->st_nlink = prstat->st_nlink;
+   stbuf->st_mode = prstat->st_mode;
+   stbuf->st_uid = prstat->st_uid;
+   stbuf->st_gid = prstat->st_gid;
+   stbuf->st_rdev = prstat->st_rdev;
+   stbuf->st_size = prstat->st_size;
+   stbuf->st_blksize = prstat->st_blksize;
+   stbuf->st_blocks = prstat->st_blocks;
+   stbuf->st_atim.tv_sec = prstat->st_atim_sec;
+   stbuf->st_atim.tv_nsec = prstat->st_atim_nsec;
+   stbuf->st_mtime = prstat->st_mtim_sec;
+   stbuf->st_mtim.tv_nsec = prstat->st_mtim_nsec;
+   stbuf->st_ctime = prstat->st_ctim_sec;
+   stbuf->st_ctim.tv_nsec = prstat->st_ctim_nsec;
+}
+
+/*
+ * Response contains two parts
+ * {header, data}
+ * header.type == T_ERROR, data -> -errno
+ * header.type == T_SUCCESS, data -> response
+ * size of errno/response is given by header.size
+ * returns < 0, on transport error. response is
+ * valid only if status >= 0.
+ */
+static int v9fs_receive_response(V9fsProxy *proxy, int type,
+                                 int *status, void *response)
+{
+    int retval;
+    ProxyHeader header;
+    struct iovec *reply = &proxy->in_iovec;
+
+    *status = 0;
+    reply->iov_len = 0;
+    retval = socket_read(proxy->sockfd, reply->iov_base, PROXY_HDR_SZ);
+    if (retval < 0) {
+        return retval;
+    }
+    reply->iov_len = PROXY_HDR_SZ;
+    proxy_unmarshal(reply, 0, "dd", &header.type, &header.size);
+    /*
+     * if response size > PROXY_MAX_IO_SZ, read the response but ignore it and
+     * return -ENOBUFS
+     */
+    if (header.size > PROXY_MAX_IO_SZ) {
+        int count;
+        while (header.size > 0) {
+            count = MIN(PROXY_MAX_IO_SZ, header.size);
+            count = socket_read(proxy->sockfd, reply->iov_base, count);
+            if (count < 0) {
+                return count;
+            }
+            header.size -= count;
+        }
+        *status = -ENOBUFS;
+        return 0;
+    }
+
+    retval = socket_read(proxy->sockfd,
+                         reply->iov_base + PROXY_HDR_SZ, header.size);
+    if (retval < 0) {
+        return retval;
+    }
+    reply->iov_len += header.size;
+    /* there was an error during processing request */
+    if (header.type == T_ERROR) {
+        int ret;
+        ret = proxy_unmarshal(reply, PROXY_HDR_SZ, "d", status);
+        if (ret < 0) {
+            *status = ret;
+        }
+        return 0;
+    }
+
+    switch (type) {
+    case T_LSTAT: {
+        ProxyStat prstat;
+        retval = proxy_unmarshal(reply, PROXY_HDR_SZ,
+                                 "qqqdddqqqqqqqqqq", &prstat.st_dev,
+                                 &prstat.st_ino, &prstat.st_nlink,
+                                 &prstat.st_mode, &prstat.st_uid,
+                                 &prstat.st_gid, &prstat.st_rdev,
+                                 &prstat.st_size, &prstat.st_blksize,
+                                 &prstat.st_blocks,
+                                 &prstat.st_atim_sec, &prstat.st_atim_nsec,
+                                 &prstat.st_mtim_sec, &prstat.st_mtim_nsec,
+                                 &prstat.st_ctim_sec, &prstat.st_ctim_nsec);
+        prstat_to_stat(response, &prstat);
+        break;
+    }
+    case T_STATFS: {
+        ProxyStatFS prstfs;
+        retval = proxy_unmarshal(reply, PROXY_HDR_SZ,
+                                 "qqqqqqqqqqq", &prstfs.f_type,
+                                 &prstfs.f_bsize, &prstfs.f_blocks,
+                                 &prstfs.f_bfree, &prstfs.f_bavail,
+                                 &prstfs.f_files, &prstfs.f_ffree,
+                                 &prstfs.f_fsid[0], &prstfs.f_fsid[1],
+                                 &prstfs.f_namelen, &prstfs.f_frsize);
+        prstatfs_to_statfs(response, &prstfs);
+        break;
+    }
+    case T_READLINK: {
+        V9fsString target;
+        v9fs_string_init(&target);
+        retval = proxy_unmarshal(reply, PROXY_HDR_SZ, "s", &target);
+        strcpy(response, target.data);
+        v9fs_string_free(&target);
+        break;
+    }
+    default:
+        return -1;
+    }
+    if (retval < 0) {
+        *status  = retval;
+    }
+    return 0;
+}
+
 /*
  * return < 0 on transport error.
  * *status is valid only if return >= 0
@@ -143,6 +285,7 @@ static int v9fs_request(V9fsProxy *proxy, int type,
 {
     dev_t rdev;
     va_list ap;
+    int size = 0;
     int retval = 0;
     ProxyHeader header = { 0, 0};
     int flags, mode, uid, gid;
@@ -228,6 +371,31 @@ static int v9fs_request(V9fsProxy *proxy, int type,
             header.type = T_LINK;
         }
         break;
+    case T_LSTAT:
+        path = va_arg(ap, V9fsString *);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "s", path);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_LSTAT;
+        }
+        break;
+    case T_READLINK:
+        path = va_arg(ap, V9fsString *);
+        size = va_arg(ap, int);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "sd", path, size);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_READLINK;
+        }
+        break;
+    case T_STATFS:
+        path = va_arg(ap, V9fsString *);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "s", path);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_STATFS;
+        }
+        break;
     default:
         error_report("Invalid type %d\n", type);
         retval = -EINVAL;
@@ -267,6 +435,13 @@ static int v9fs_request(V9fsProxy *proxy, int type,
             goto close_error;
         }
         break;
+    case T_LSTAT:
+    case T_READLINK:
+    case T_STATFS:
+        if (v9fs_receive_response(proxy, type, &retval, response) < 0) {
+            goto close_error;
+        }
+        break;
     }
 
 err_out:
@@ -282,15 +457,26 @@ close_error:
 
 static int proxy_lstat(FsContext *fs_ctx, V9fsPath *fs_path, struct stat *stbuf)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    retval = v9fs_request(fs_ctx->private, T_LSTAT, stbuf, "s", fs_path);
+    if (retval < 0) {
+        errno = -retval;
+        return -1;
+    }
+    return retval;
 }
 
 static ssize_t proxy_readlink(FsContext *fs_ctx, V9fsPath *fs_path,
                               char *buf, size_t bufsz)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    retval = v9fs_request(fs_ctx->private, T_READLINK, buf, "sd",
+                          fs_path, bufsz);
+    if (retval < 0) {
+        errno = -retval;
+        return -1;
+    }
+    return strlen(buf);
 }
 
 static int proxy_close(FsContext *ctx, V9fsFidOpenState *fs)
@@ -513,8 +699,7 @@ static int proxy_link(FsContext *ctx, V9fsPath *oldpath,
     v9fs_string_init(&newpath);
     v9fs_string_sprintf(&newpath, "%s/%s", dirpath->data, name);
 
-    retval = v9fs_request(ctx->private, T_LINK, NULL, "ss",
-                          oldpath, &newpath);
+    retval = v9fs_request(ctx->private, T_LINK, NULL, "ss", oldpath, &newpath);
     v9fs_string_free(&newpath);
     if (retval < 0) {
         errno = -retval;
@@ -575,8 +760,13 @@ static int proxy_fsync(FsContext *ctx, int fid_type,
 
 static int proxy_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    retval = v9fs_request(s->private, T_STATFS, stbuf, "s", fs_path);
+    if (retval < 0) {
+        errno = -retval;
+        return -1;
+    }
+    return retval;
 }
 
 static ssize_t proxy_lgetxattr(FsContext *ctx, V9fsPath *fs_path,

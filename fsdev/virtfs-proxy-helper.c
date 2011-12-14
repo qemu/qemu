@@ -25,6 +25,8 @@
 #include <sys/fsuid.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <sys/vfs.h>
+#include <sys/stat.h>
 #include "qemu-common.h"
 #include "virtio-9p-marshal.h"
 #include "hw/9pfs/virtio-9p-proxy.h"
@@ -286,6 +288,172 @@ static int setfsugid(int uid, int gid)
 }
 
 /*
+ * send response in two parts
+ * 1) ProxyHeader
+ * 2) Response or error status
+ * This function should be called with marshaled response
+ * send_response constructs header part and error part only.
+ * send response sends {ProxyHeader,Response} if the request was success
+ * otherwise sends {ProxyHeader,error status}
+ */
+static int send_response(int sock, struct iovec *iovec, int size)
+{
+    int retval;
+    ProxyHeader header;
+
+    /*
+     * If response size exceeds available iovec->iov_len,
+     * we return ENOBUFS
+     */
+    if (size > PROXY_MAX_IO_SZ) {
+        size = -ENOBUFS;
+    }
+
+    if (size < 0) {
+        /*
+         * In case of error we would not have got the error encoded
+         * already so encode the error here.
+         */
+        header.type = T_ERROR;
+        header.size = sizeof(size);
+        proxy_marshal(iovec, PROXY_HDR_SZ, "d", size);
+    } else {
+        header.type = T_SUCCESS;
+        header.size = size;
+    }
+    proxy_marshal(iovec, 0, "dd", header.type, header.size);
+    retval = socket_write(sock, iovec->iov_base, header.size + PROXY_HDR_SZ);
+    if (retval < 0) {
+        return retval;;
+    }
+    return 0;
+}
+
+static void stat_to_prstat(ProxyStat *pr_stat, struct stat *stat)
+{
+    memset(pr_stat, 0, sizeof(*pr_stat));
+    pr_stat->st_dev = stat->st_dev;
+    pr_stat->st_ino = stat->st_ino;
+    pr_stat->st_nlink = stat->st_nlink;
+    pr_stat->st_mode = stat->st_mode;
+    pr_stat->st_uid = stat->st_uid;
+    pr_stat->st_gid = stat->st_gid;
+    pr_stat->st_rdev = stat->st_rdev;
+    pr_stat->st_size = stat->st_size;
+    pr_stat->st_blksize = stat->st_blksize;
+    pr_stat->st_blocks = stat->st_blocks;
+    pr_stat->st_atim_sec = stat->st_atim.tv_sec;
+    pr_stat->st_atim_nsec = stat->st_atim.tv_nsec;
+    pr_stat->st_mtim_sec = stat->st_mtim.tv_sec;
+    pr_stat->st_mtim_nsec = stat->st_mtim.tv_nsec;
+    pr_stat->st_ctim_sec = stat->st_ctim.tv_sec;
+    pr_stat->st_ctim_nsec = stat->st_ctim.tv_nsec;
+}
+
+static void statfs_to_prstatfs(ProxyStatFS *pr_stfs, struct statfs *stfs)
+{
+    memset(pr_stfs, 0, sizeof(*pr_stfs));
+    pr_stfs->f_type = stfs->f_type;
+    pr_stfs->f_bsize = stfs->f_bsize;
+    pr_stfs->f_blocks = stfs->f_blocks;
+    pr_stfs->f_bfree = stfs->f_bfree;
+    pr_stfs->f_bavail = stfs->f_bavail;
+    pr_stfs->f_files = stfs->f_files;
+    pr_stfs->f_ffree = stfs->f_ffree;
+    pr_stfs->f_fsid[0] = stfs->f_fsid.__val[0];
+    pr_stfs->f_fsid[1] = stfs->f_fsid.__val[1];
+    pr_stfs->f_namelen = stfs->f_namelen;
+    pr_stfs->f_frsize = stfs->f_frsize;
+}
+
+/*
+ * Gets stat/statfs information and packs in out_iovec structure
+ * on success returns number of bytes packed in out_iovec struture
+ * otherwise returns -errno
+ */
+static int do_stat(int type, struct iovec *iovec, struct iovec *out_iovec)
+{
+    int retval;
+    V9fsString path;
+    ProxyStat pr_stat;
+    ProxyStatFS pr_stfs;
+    struct stat st_buf;
+    struct statfs stfs_buf;
+
+    v9fs_string_init(&path);
+    retval = proxy_unmarshal(iovec, PROXY_HDR_SZ, "s", &path);
+    if (retval < 0) {
+        return retval;
+    }
+
+    switch (type) {
+    case T_LSTAT:
+        retval = lstat(path.data, &st_buf);
+        if (retval < 0) {
+            retval = -errno;
+        } else {
+            stat_to_prstat(&pr_stat, &st_buf);
+            retval = proxy_marshal(out_iovec, PROXY_HDR_SZ,
+                                   "qqqdddqqqqqqqqqq", pr_stat.st_dev,
+                                   pr_stat.st_ino, pr_stat.st_nlink,
+                                   pr_stat.st_mode, pr_stat.st_uid,
+                                   pr_stat.st_gid, pr_stat.st_rdev,
+                                   pr_stat.st_size, pr_stat.st_blksize,
+                                   pr_stat.st_blocks,
+                                   pr_stat.st_atim_sec, pr_stat.st_atim_nsec,
+                                   pr_stat.st_mtim_sec, pr_stat.st_mtim_nsec,
+                                   pr_stat.st_ctim_sec, pr_stat.st_ctim_nsec);
+        }
+        break;
+    case T_STATFS:
+        retval = statfs(path.data, &stfs_buf);
+        if (retval < 0) {
+            retval = -errno;
+        } else {
+            statfs_to_prstatfs(&pr_stfs, &stfs_buf);
+            retval = proxy_marshal(out_iovec, PROXY_HDR_SZ,
+                                   "qqqqqqqqqqq", pr_stfs.f_type,
+                                   pr_stfs.f_bsize, pr_stfs.f_blocks,
+                                   pr_stfs.f_bfree, pr_stfs.f_bavail,
+                                   pr_stfs.f_files, pr_stfs.f_ffree,
+                                   pr_stfs.f_fsid[0], pr_stfs.f_fsid[1],
+                                   pr_stfs.f_namelen, pr_stfs.f_frsize);
+        }
+        break;
+    }
+    v9fs_string_free(&path);
+    return retval;
+}
+
+static int do_readlink(struct iovec *iovec, struct iovec *out_iovec)
+{
+    char *buffer;
+    int size, retval;
+    V9fsString target, path;
+
+    v9fs_string_init(&path);
+    retval = proxy_unmarshal(iovec, PROXY_HDR_SZ, "sd", &path, &size);
+    if (retval < 0) {
+        v9fs_string_free(&path);
+        return retval;
+    }
+    buffer = g_malloc(size);
+    v9fs_string_init(&target);
+    retval = readlink(path.data, buffer, size);
+    if (retval > 0) {
+        buffer[retval] = '\0';
+        v9fs_string_sprintf(&target, "%s", buffer);
+        retval = proxy_marshal(out_iovec, PROXY_HDR_SZ, "s", &target);
+    } else {
+        retval = -errno;
+    }
+    g_free(buffer);
+    v9fs_string_free(&target);
+    v9fs_string_free(&path);
+    return retval;
+}
+
+/*
  * create other filesystem objects and send 0 on success
  * return -errno on error
  */
@@ -435,6 +603,13 @@ static int process_reply(int sock, int type,
             return -1;
         }
         break;
+    case T_LSTAT:
+    case T_STATFS:
+    case T_READLINK:
+        if (send_response(sock, out_iovec, retval) < 0) {
+            return -1;
+        }
+        break;
     default:
         return -1;
         break;
@@ -490,6 +665,13 @@ static int process_requests(int sock)
             }
             v9fs_string_free(&oldpath);
             v9fs_string_free(&path);
+            break;
+        case T_LSTAT:
+        case T_STATFS:
+            retval = do_stat(header.type, &in_iovec, &out_iovec);
+            break;
+        case T_READLINK:
+            retval = do_readlink(&in_iovec, &out_iovec);
             break;
         default:
             goto err_out;

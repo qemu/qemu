@@ -45,6 +45,40 @@ enum {
     T_MKDIR,
     T_SYMLINK,
     T_LINK,
+    T_LSTAT,
+    T_READLINK,
+    T_STATFS,
 };
 
+typedef struct {
+    uint64_t st_dev;
+    uint64_t st_ino;
+    uint64_t st_nlink;
+    uint32_t st_mode;
+    uint32_t st_uid;
+    uint32_t st_gid;
+    uint64_t st_rdev;
+    uint64_t st_size;
+    uint64_t st_blksize;
+    uint64_t st_blocks;
+    uint64_t st_atim_sec;
+    uint64_t st_atim_nsec;
+    uint64_t st_mtim_sec;
+    uint64_t st_mtim_nsec;
+    uint64_t st_ctim_sec;
+    uint64_t st_ctim_nsec;
+} ProxyStat;
+
+typedef struct {
+    uint64_t f_type;
+    uint64_t f_bsize;
+    uint64_t f_blocks;
+    uint64_t f_bfree;
+    uint64_t f_bavail;
+    uint64_t f_files;
+    uint64_t f_ffree;
+    uint64_t f_fsid[2];
+    uint64_t f_namelen;
+    uint64_t f_frsize;
+} ProxyStatFS;
 #endif
