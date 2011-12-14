@@ -7796,18 +7796,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif
 #ifdef CONFIG_ATTR
 #ifdef TARGET_NR_setxattr
-    case TARGET_NR_lsetxattr:
-    case TARGET_NR_fsetxattr:
-    case TARGET_NR_lgetxattr:
-    case TARGET_NR_fgetxattr:
     case TARGET_NR_listxattr:
     case TARGET_NR_llistxattr:
     case TARGET_NR_flistxattr:
-    case TARGET_NR_lremovexattr:
-    case TARGET_NR_fremovexattr:
         ret = -TARGET_EOPNOTSUPP;
         break;
     case TARGET_NR_setxattr:
+    case TARGET_NR_lsetxattr:
         {
             void *p, *n, *v = 0;
             if (arg3) {
@@ -7820,7 +7815,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             p = lock_user_string(arg1);
             n = lock_user_string(arg2);
             if (p && n) {
-                ret = get_errno(setxattr(p, n, v, arg4, arg5));
+                if (num == TARGET_NR_setxattr) {
+                    ret = get_errno(setxattr(p, n, v, arg4, arg5));
+                } else {
+                    ret = get_errno(lsetxattr(p, n, v, arg4, arg5));
+                }
             } else {
                 ret = -TARGET_EFAULT;
             }
@@ -7829,7 +7828,28 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(v, arg3, 0);
         }
         break;
+    case TARGET_NR_fsetxattr:
+        {
+            void *n, *v = 0;
+            if (arg3) {
+                v = lock_user(VERIFY_READ, arg3, arg4, 1);
+                if (!v) {
+                    ret = -TARGET_EFAULT;
+                    break;
+                }
+            }
+            n = lock_user_string(arg2);
+            if (n) {
+                ret = get_errno(fsetxattr(arg1, n, v, arg4, arg5));
+            } else {
+                ret = -TARGET_EFAULT;
+            }
+            unlock_user(n, arg2, 0);
+            unlock_user(v, arg3, 0);
+        }
+        break;
     case TARGET_NR_getxattr:
+    case TARGET_NR_lgetxattr:
         {
             void *p, *n, *v = 0;
             if (arg3) {
@@ -7842,7 +7862,11 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             p = lock_user_string(arg1);
             n = lock_user_string(arg2);
             if (p && n) {
-                ret = get_errno(getxattr(p, n, v, arg4));
+                if (num == TARGET_NR_getxattr) {
+                    ret = get_errno(getxattr(p, n, v, arg4));
+                } else {
+                    ret = get_errno(lgetxattr(p, n, v, arg4));
+                }
             } else {
                 ret = -TARGET_EFAULT;
             }
@@ -7851,17 +7875,54 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
             unlock_user(v, arg3, arg4);
         }
         break;
+    case TARGET_NR_fgetxattr:
+        {
+            void *n, *v = 0;
+            if (arg3) {
+                v = lock_user(VERIFY_WRITE, arg3, arg4, 0);
+                if (!v) {
+                    ret = -TARGET_EFAULT;
+                    break;
+                }
+            }
+            n = lock_user_string(arg2);
+            if (n) {
+                ret = get_errno(fgetxattr(arg1, n, v, arg4));
+            } else {
+                ret = -TARGET_EFAULT;
+            }
+            unlock_user(n, arg2, 0);
+            unlock_user(v, arg3, arg4);
+        }
+        break;
     case TARGET_NR_removexattr:
+    case TARGET_NR_lremovexattr:
         {
             void *p, *n;
             p = lock_user_string(arg1);
             n = lock_user_string(arg2);
             if (p && n) {
-                ret = get_errno(removexattr(p, n));
+                if (num == TARGET_NR_removexattr) {
+                    ret = get_errno(removexattr(p, n));
+                } else {
+                    ret = get_errno(lremovexattr(p, n));
+                }
             } else {
                 ret = -TARGET_EFAULT;
             }
             unlock_user(p, arg1, 0);
+            unlock_user(n, arg2, 0);
+        }
+        break;
+    case TARGET_NR_fremovexattr:
+        {
+            void *n;
+            n = lock_user_string(arg2);
+            if (n) {
+                ret = get_errno(fremovexattr(arg1, n));
+            } else {
+                ret = -TARGET_EFAULT;
+            }
             unlock_user(n, arg2, 0);
         }
         break;
