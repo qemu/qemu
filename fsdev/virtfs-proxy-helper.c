@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <sys/vfs.h>
 #include <sys/stat.h>
+#include <attr/xattr.h>
 #include "qemu-common.h"
 #include "virtio-9p-marshal.h"
 #include "hw/9pfs/virtio-9p-proxy.h"
@@ -329,6 +330,62 @@ static int send_response(int sock, struct iovec *iovec, int size)
     return 0;
 }
 
+static int do_getxattr(int type, struct iovec *iovec, struct iovec *out_iovec)
+{
+    int size = 0, offset, retval;
+    V9fsString path, name, xattr;
+
+    v9fs_string_init(&xattr);
+    v9fs_string_init(&path);
+    retval = proxy_unmarshal(iovec, PROXY_HDR_SZ, "ds", &size, &path);
+    if (retval < 0) {
+        return retval;
+    }
+    offset = PROXY_HDR_SZ + retval;
+
+    if (size) {
+        xattr.data = g_malloc(size);
+        xattr.size = size;
+    }
+    switch (type) {
+    case T_LGETXATTR:
+        v9fs_string_init(&name);
+        retval = proxy_unmarshal(iovec, offset, "s", &name);
+        if (retval > 0) {
+            retval = lgetxattr(path.data, name.data, xattr.data, size);
+            if (retval < 0) {
+                retval = -errno;
+            } else {
+                xattr.size = retval;
+            }
+        }
+        v9fs_string_free(&name);
+        break;
+    case T_LLISTXATTR:
+        retval = llistxattr(path.data, xattr.data, size);
+        if (retval < 0) {
+            retval = -errno;
+        } else {
+            xattr.size = retval;
+        }
+        break;
+    }
+    if (retval < 0) {
+        goto err_out;
+    }
+
+    if (!size) {
+        proxy_marshal(out_iovec, PROXY_HDR_SZ, "d", retval);
+        retval = sizeof(retval);
+    } else {
+        retval = proxy_marshal(out_iovec, PROXY_HDR_SZ, "s", &xattr);
+    }
+err_out:
+    v9fs_string_free(&xattr);
+    v9fs_string_free(&path);
+    return retval;
+}
+
 static void stat_to_prstat(ProxyStat *pr_stat, struct stat *stat)
 {
     memset(pr_stat, 0, sizeof(*pr_stat));
@@ -605,6 +662,8 @@ static int process_reply(int sock, int type,
     case T_UTIME:
     case T_RENAME:
     case T_REMOVE:
+    case T_LSETXATTR:
+    case T_LREMOVEXATTR:
         if (send_status(sock, out_iovec, retval) < 0) {
             return -1;
         }
@@ -612,6 +671,8 @@ static int process_reply(int sock, int type,
     case T_LSTAT:
     case T_STATFS:
     case T_READLINK:
+    case T_LGETXATTR:
+    case T_LLISTXATTR:
         if (send_response(sock, out_iovec, retval) < 0) {
             return -1;
         }
@@ -625,10 +686,13 @@ static int process_reply(int sock, int type,
 
 static int process_requests(int sock)
 {
+    int flags;
+    int size = 0;
     int retval = 0;
     uint64_t offset;
     ProxyHeader header;
     int mode, uid, gid;
+    V9fsString name, value;
     struct timespec spec[2];
     V9fsString oldpath, path;
     struct iovec in_iovec, out_iovec;
@@ -755,6 +819,41 @@ static int process_requests(int sock)
                 }
             }
             v9fs_string_free(&path);
+            break;
+        case T_LGETXATTR:
+        case T_LLISTXATTR:
+            retval = do_getxattr(header.type, &in_iovec, &out_iovec);
+            break;
+        case T_LSETXATTR:
+            v9fs_string_init(&path);
+            v9fs_string_init(&name);
+            v9fs_string_init(&value);
+            retval = proxy_unmarshal(&in_iovec, PROXY_HDR_SZ, "sssdd", &path,
+                                     &name, &value, &size, &flags);
+            if (retval > 0) {
+                retval = lsetxattr(path.data,
+                                   name.data, value.data, size, flags);
+                if (retval < 0) {
+                    retval = -errno;
+                }
+            }
+            v9fs_string_free(&path);
+            v9fs_string_free(&name);
+            v9fs_string_free(&value);
+            break;
+        case T_LREMOVEXATTR:
+            v9fs_string_init(&path);
+            v9fs_string_init(&name);
+            retval = proxy_unmarshal(&in_iovec,
+                                     PROXY_HDR_SZ, "ss", &path, &name);
+            if (retval > 0) {
+                retval = lremovexattr(path.data, name.data);
+                if (retval < 0) {
+                    retval = -errno;
+                }
+            }
+            v9fs_string_free(&path);
+            v9fs_string_free(&name);
             break;
         default:
             goto err_out;

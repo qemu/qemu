@@ -54,6 +54,10 @@ enum {
     T_UTIME,
     T_RENAME,
     T_REMOVE,
+    T_LGETXATTR,
+    T_LLISTXATTR,
+    T_LSETXATTR,
+    T_LREMOVEXATTR,
 };
 
 typedef struct {

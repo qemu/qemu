@@ -234,6 +234,15 @@ static int v9fs_receive_response(V9fsProxy *proxy, int type,
         v9fs_string_free(&target);
         break;
     }
+    case T_LGETXATTR:
+    case T_LLISTXATTR: {
+        V9fsString xattr;
+        v9fs_string_init(&xattr);
+        retval = proxy_unmarshal(reply, PROXY_HDR_SZ, "s", &xattr);
+        memcpy(response, xattr.data, xattr.size);
+        v9fs_string_free(&xattr);
+        break;
+    }
     default:
         return -1;
     }
@@ -291,6 +300,7 @@ static int v9fs_request(V9fsProxy *proxy, int type,
     ProxyHeader header = { 0, 0};
     struct timespec spec[2];
     int flags, mode, uid, gid;
+    V9fsString *name, *value;
     V9fsString *path, *oldpath;
     struct iovec *iovec = NULL, *reply = NULL;
 
@@ -457,6 +467,48 @@ static int v9fs_request(V9fsProxy *proxy, int type,
             header.type = T_REMOVE;
         }
         break;
+    case T_LGETXATTR:
+        size = va_arg(ap, int);
+        path = va_arg(ap, V9fsString *);
+        name = va_arg(ap, V9fsString *);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ,
+                                    "dss", size, path, name);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_LGETXATTR;
+        }
+        break;
+    case T_LLISTXATTR:
+        size = va_arg(ap, int);
+        path = va_arg(ap, V9fsString *);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "ds", size, path);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_LLISTXATTR;
+        }
+        break;
+    case T_LSETXATTR:
+        path = va_arg(ap, V9fsString *);
+        name = va_arg(ap, V9fsString *);
+        value = va_arg(ap, V9fsString *);
+        size = va_arg(ap, int);
+        flags = va_arg(ap, int);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "sssdd",
+                                    path, name, value, size, flags);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_LSETXATTR;
+        }
+        break;
+    case T_LREMOVEXATTR:
+        path = va_arg(ap, V9fsString *);
+        name = va_arg(ap, V9fsString *);
+        retval = proxy_marshal(iovec, PROXY_HDR_SZ, "ss", path, name);
+        if (retval > 0) {
+            header.size = retval;
+            header.type = T_LREMOVEXATTR;
+        }
+        break;
     default:
         error_report("Invalid type %d\n", type);
         retval = -EINVAL;
@@ -498,6 +550,8 @@ static int v9fs_request(V9fsProxy *proxy, int type,
     case T_TRUNCATE:
     case T_UTIME:
     case T_REMOVE:
+    case T_LSETXATTR:
+    case T_LREMOVEXATTR:
         if (v9fs_receive_status(proxy, reply, &retval) < 0) {
             goto close_error;
         }
@@ -507,6 +561,18 @@ static int v9fs_request(V9fsProxy *proxy, int type,
     case T_STATFS:
         if (v9fs_receive_response(proxy, type, &retval, response) < 0) {
             goto close_error;
+        }
+        break;
+    case T_LGETXATTR:
+    case T_LLISTXATTR:
+        if (!size) {
+            if (v9fs_receive_status(proxy, reply, &retval) < 0) {
+                goto close_error;
+            }
+        } else {
+            if (v9fs_receive_response(proxy, type, &retval, response) < 0) {
+                goto close_error;
+            }
         }
         break;
     }
@@ -884,29 +950,71 @@ static int proxy_statfs(FsContext *s, V9fsPath *fs_path, struct statfs *stbuf)
 static ssize_t proxy_lgetxattr(FsContext *ctx, V9fsPath *fs_path,
                                const char *name, void *value, size_t size)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    V9fsString xname;
+
+    v9fs_string_init(&xname);
+    v9fs_string_sprintf(&xname, "%s", name);
+    retval = v9fs_request(ctx->private, T_LGETXATTR, value, "dss", size,
+                          fs_path, &xname);
+    v9fs_string_free(&xname);
+    if (retval < 0) {
+        errno = -retval;
+    }
+    return retval;
 }
 
 static ssize_t proxy_llistxattr(FsContext *ctx, V9fsPath *fs_path,
                                 void *value, size_t size)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    retval = v9fs_request(ctx->private, T_LLISTXATTR, value, "ds", size,
+                        fs_path);
+    if (retval < 0) {
+        errno = -retval;
+    }
+    return retval;
 }
 
 static int proxy_lsetxattr(FsContext *ctx, V9fsPath *fs_path, const char *name,
                            void *value, size_t size, int flags)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    V9fsString xname, xvalue;
+
+    v9fs_string_init(&xname);
+    v9fs_string_sprintf(&xname, "%s", name);
+
+    v9fs_string_init(&xvalue);
+    xvalue.size = size;
+    xvalue.data = g_malloc(size);
+    memcpy(xvalue.data, value, size);
+
+    retval = v9fs_request(ctx->private, T_LSETXATTR, value, "sssdd",
+                          fs_path, &xname, &xvalue, size, flags);
+    v9fs_string_free(&xname);
+    v9fs_string_free(&xvalue);
+    if (retval < 0) {
+        errno = -retval;
+    }
+    return retval;
 }
 
 static int proxy_lremovexattr(FsContext *ctx, V9fsPath *fs_path,
                               const char *name)
 {
-    errno = EOPNOTSUPP;
-    return -1;
+    int retval;
+    V9fsString xname;
+
+    v9fs_string_init(&xname);
+    v9fs_string_sprintf(&xname, "%s", name);
+    retval = v9fs_request(ctx->private, T_LREMOVEXATTR, NULL, "ss",
+                          fs_path, &xname);
+    v9fs_string_free(&xname);
+    if (retval < 0) {
+        errno = -retval;
+    }
+    return retval;
 }
 
 static int proxy_name_to_path(FsContext *ctx, V9fsPath *dir_path,
