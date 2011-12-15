@@ -469,9 +469,9 @@ static int pic_initfn(ISADevice *dev)
     memory_region_init_io(&s->base_io, &pic_base_ioport_ops, s, "pic", 2);
     memory_region_init_io(&s->elcr_io, &pic_elcr_ioport_ops, s, "elcr", 1);
 
-    isa_register_ioport(NULL, &s->base_io, s->iobase);
+    isa_register_ioport(dev, &s->base_io, s->iobase);
     if (s->elcr_addr != -1) {
-        isa_register_ioport(NULL, &s->elcr_io, s->elcr_addr);
+        isa_register_ioport(dev, &s->elcr_io, s->elcr_addr);
     }
 
     qdev_init_gpio_out(&dev->qdev, s->int_out, ARRAY_SIZE(s->int_out));
