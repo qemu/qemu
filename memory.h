@@ -277,6 +277,15 @@ uint64_t memory_region_size(MemoryRegion *mr);
 bool memory_region_is_ram(MemoryRegion *mr);
 
 /**
+ * memory_region_is_logging: return whether a memory region is logging writes
+ *
+ * Returns %true if the memory region is logging writes
+ *
+ * @mr: the memory region being queried
+ */
+bool memory_region_is_logging(MemoryRegion *mr);
+
+/**
  * memory_region_is_rom: check whether a memory region is ROM
  *
  * Returns %true is a memory region is read-only memory.

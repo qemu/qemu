@@ -1074,6 +1074,11 @@ bool memory_region_is_ram(MemoryRegion *mr)
     return mr->ram;
 }
 
+bool memory_region_is_logging(MemoryRegion *mr)
+{
+    return mr->dirty_log_mask;
+}
+
 bool memory_region_is_rom(MemoryRegion *mr)
 {
     return mr->ram && mr->readonly;
