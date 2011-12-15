@@ -59,6 +59,28 @@ typedef struct SCSIGenericReq {
     sg_io_hdr_t io_header;
 } SCSIGenericReq;
 
+static void scsi_generic_save_request(QEMUFile *f, SCSIRequest *req)
+{
+    SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
+
+    qemu_put_sbe32s(f, &r->buflen);
+    if (r->buflen && r->req.cmd.mode == SCSI_XFER_TO_DEV) {
+        assert(!r->req.sg);
+        qemu_put_buffer(f, r->buf, r->req.cmd.xfer);
+    }
+}
+
+static void scsi_generic_load_request(QEMUFile *f, SCSIRequest *req)
+{
+    SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
+
+    qemu_get_sbe32s(f, &r->buflen);
+    if (r->buflen && r->req.cmd.mode == SCSI_XFER_TO_DEV) {
+        assert(!r->req.sg);
+        qemu_get_buffer(f, r->buf, r->req.cmd.xfer);
+    }
+}
+
 static void scsi_free_request(SCSIRequest *req)
 {
     SCSIGenericReq *r = DO_UPCAST(SCSIGenericReq, req, req);
@@ -446,6 +468,8 @@ const SCSIReqOps scsi_generic_req_ops = {
     .write_data   = scsi_write_data,
     .cancel_io    = scsi_cancel_io,
     .get_buf      = scsi_get_buf,
+    .load_request = scsi_generic_load_request,
+    .save_request = scsi_generic_save_request,
 };
 
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
@@ -474,6 +498,7 @@ static void scsi_generic_class_initfn(ObjectClass *klass, void *data)
     dc->desc = "pass through generic scsi device (/dev/sg*)";
     dc->reset = scsi_generic_reset;
     dc->props = scsi_generic_properties;
+    dc->vmsd  = &vmstate_scsi_device;
 }
 
 static TypeInfo scsi_generic_info = {
