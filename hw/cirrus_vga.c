@@ -2899,7 +2899,7 @@ static void cirrus_init_common(CirrusVGAState * s, int device_id, int is_pci,
  *
  ***************************************/
 
-void isa_cirrus_vga_init(MemoryRegion *system_memory)
+DeviceState *isa_cirrus_vga_init(MemoryRegion *system_memory)
 {
     CirrusVGAState *s;
 
@@ -2913,6 +2913,8 @@ void isa_cirrus_vga_init(MemoryRegion *system_memory)
     vmstate_register(NULL, 0, &vmstate_cirrus_vga, s);
     rom_add_vga(VGABIOS_CIRRUS_FILENAME);
     /* XXX ISA-LFB support */
+    /* FIXME not qdev yet */
+    return NULL;
 }
 
 /***************************************
@@ -2955,9 +2957,9 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
      return 0;
 }
 
-void pci_cirrus_vga_init(PCIBus *bus)
+DeviceState *pci_cirrus_vga_init(PCIBus *bus)
 {
-    pci_create_simple(bus, -1, "cirrus-vga");
+    return &pci_create_simple(bus, -1, "cirrus-vga")->qdev;
 }
 
 static PCIDeviceInfo cirrus_vga_info = {

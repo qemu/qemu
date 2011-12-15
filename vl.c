@@ -1520,7 +1520,7 @@ static void QEMU_NORETURN help(int exitcode)
            "ctrl-alt        toggle mouse and keyboard grab\n"
            "\n"
            "When using -nographic, press 'ctrl-a h' to get some help.\n",
-           "qemu",
+           error_get_progname(),
            options_help);
     exit(exitcode);
 }

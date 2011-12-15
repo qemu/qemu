@@ -346,14 +346,9 @@ static TAPState *net_tap_fd_init(VLANState *vlan,
 
 static int launch_script(const char *setup_script, const char *ifname, int fd)
 {
-    sigset_t oldmask, mask;
     int pid, status;
     char *args[3];
     char **parg;
-
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGCHLD);
-    sigprocmask(SIG_BLOCK, &mask, &oldmask);
 
     /* try to launch network script */
     pid = fork();
@@ -378,7 +373,6 @@ static int launch_script(const char *setup_script, const char *ifname, int fd)
         while (waitpid(pid, &status, 0) != pid) {
             /* loop */
         }
-        sigprocmask(SIG_SETMASK, &oldmask, NULL);
 
         if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
             return 0;

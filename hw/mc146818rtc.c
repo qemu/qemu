@@ -614,6 +614,29 @@ static const MemoryRegionOps cmos_ops = {
     .old_portio = cmos_portio
 };
 
+// FIXME add int32 visitor
+static void visit_type_int32(Visitor *v, int *value, const char *name, Error **errp)
+{
+    int64_t val = *value;
+    visit_type_int(v, &val, name, errp);
+}
+
+static void rtc_get_date(DeviceState *dev, Visitor *v, void *opaque,
+                         const char *name, Error **errp)
+{
+    ISADevice *isa = DO_UPCAST(ISADevice, qdev, dev);
+    RTCState *s = DO_UPCAST(RTCState, dev, isa);
+
+    visit_start_struct(v, NULL, "struct tm", name, 0, errp);
+    visit_type_int32(v, &s->current_tm.tm_year, "tm_year", errp);
+    visit_type_int32(v, &s->current_tm.tm_mon, "tm_mon", errp);
+    visit_type_int32(v, &s->current_tm.tm_mday, "tm_mday", errp);
+    visit_type_int32(v, &s->current_tm.tm_hour, "tm_hour", errp);
+    visit_type_int32(v, &s->current_tm.tm_min, "tm_min", errp);
+    visit_type_int32(v, &s->current_tm.tm_sec, "tm_sec", errp);
+    visit_end_struct(v, errp);
+}
+
 static int rtc_initfn(ISADevice *dev)
 {
     RTCState *s = DO_UPCAST(RTCState, dev, dev);
@@ -647,6 +670,10 @@ static int rtc_initfn(ISADevice *dev)
 
     qdev_set_legacy_instance_id(&dev->qdev, base, 2);
     qemu_register_reset(rtc_reset, s);
+
+    qdev_property_add(&s->dev.qdev, "date", "struct tm",
+                      rtc_get_date, NULL, NULL, s, NULL);
+
     return 0;
 }
 

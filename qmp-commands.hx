@@ -2009,3 +2009,21 @@ EQMP
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_query_balloon,
     },
+
+    {
+        .name       = "qom-list",
+        .args_type  = "path:s",
+        .mhandler.cmd_new = qmp_marshal_input_qom_list,
+    },
+
+    {
+        .name       = "qom-set",
+	.args_type  = "path:s,property:s,opts:O",
+	.mhandler.cmd_new = qmp_qom_set,
+    },
+
+    {
+        .name       = "qom-get",
+	.args_type  = "path:s,property:s",
+	.mhandler.cmd_new = qmp_qom_get,
+    },

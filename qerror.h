@@ -156,6 +156,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_OPEN_FILE_FAILED \
     "{ 'class': 'OpenFileFailed', 'data': { 'filename': %s } }"
 
+#define QERR_PERMISSION_DENIED \
+    "{ 'class': 'PermissionDenied', 'data': {} }"
+
 #define QERR_PROPERTY_NOT_FOUND \
     "{ 'class': 'PropertyNotFound', 'data': { 'device': %s, 'property': %s } }"
 

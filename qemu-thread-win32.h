@@ -19,4 +19,7 @@ struct QemuThread {
     unsigned tid;
 };
 
+/* Only valid for joinable threads.  */
+HANDLE qemu_thread_get_handle(QemuThread *thread);
+
 #endif

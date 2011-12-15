@@ -77,23 +77,21 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
     QLIST_INIT(&dev->strings);
     rc = usb_claim_port(dev);
     if (rc != 0) {
-        goto err;
+        return rc;
     }
     rc = dev->info->init(dev);
     if (rc != 0) {
-        goto err;
+        usb_release_port(dev);
+        return rc;
     }
     if (dev->auto_attach) {
         rc = usb_device_attach(dev);
         if (rc != 0) {
-            goto err;
+            usb_qdev_exit(qdev);
+            return rc;
         }
     }
     return 0;
-
-err:
-    usb_qdev_exit(qdev);
-    return rc;
 }
 
 static int usb_qdev_exit(DeviceState *qdev)

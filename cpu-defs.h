@@ -153,6 +153,14 @@ typedef struct CPUWatchpoint {
     QTAILQ_ENTRY(CPUWatchpoint) entry;
 } CPUWatchpoint;
 
+#ifdef _WIN32
+#define CPU_COMMON_THREAD \
+    void *hThread;
+
+#else
+#define CPU_COMMON_THREAD
+#endif
+
 #define CPU_TEMP_BUF_NLONGS 128
 #define CPU_COMMON                                                      \
     struct TranslationBlock *current_tb; /* currently executing TB  */  \
@@ -211,6 +219,7 @@ typedef struct CPUWatchpoint {
     uint32_t stop;   /* Stop request */                                 \
     uint32_t stopped; /* Artificially stopped */                        \
     struct QemuThread *thread;                                          \
+    CPU_COMMON_THREAD                                                   \
     struct QemuCond *halt_cond;                                         \
     int thread_kicked;                                                  \
     struct qemu_work_item *queued_work_first, *queued_work_last;        \

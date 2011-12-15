@@ -157,6 +157,11 @@ void error_set_progname(const char *argv0)
     progname = p ? p + 1 : argv0;
 }
 
+const char *error_get_progname(void)
+{
+    return progname;
+}
+
 /*
  * Print current location to current monitor if we have one, else to stderr.
  */

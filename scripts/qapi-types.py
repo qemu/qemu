@@ -238,6 +238,7 @@ fdecl.write(mcgen('''
                   guard=guardname(h_file)))
 
 exprs = parse_schema(sys.stdin)
+exprs = filter(lambda expr: not expr.has_key('gen'), exprs)
 
 for expr in exprs:
     ret = "\n"

@@ -405,6 +405,7 @@ except os.error, e:
 
 exprs = parse_schema(sys.stdin)
 commands = filter(lambda expr: expr.has_key('command'), exprs)
+commands = filter(lambda expr: not expr.has_key('gen'), commands)
 
 if dispatch_type == "sync":
     fdecl = open(h_file, 'w')
