@@ -130,12 +130,11 @@ ISADevice *isa_create(ISABus *bus, const char *name)
 {
     DeviceState *dev;
 
-    assert(!bus || bus == isabus);
-    if (!isabus) {
+    if (!bus) {
         hw_error("Tried to create isa device %s with no isa bus present.",
                  name);
     }
-    dev = qdev_create(&isabus->qbus, name);
+    dev = qdev_create(&bus->qbus, name);
     return DO_UPCAST(ISADevice, qdev, dev);
 }
 
@@ -143,12 +142,11 @@ ISADevice *isa_try_create(ISABus *bus, const char *name)
 {
     DeviceState *dev;
 
-    assert(!bus || bus == isabus);
-    if (!isabus) {
+    if (!bus) {
         hw_error("Tried to create isa device %s with no isa bus present.",
                  name);
     }
-    dev = qdev_try_create(&isabus->qbus, name);
+    dev = qdev_try_create(&bus->qbus, name);
     return DO_UPCAST(ISADevice, qdev, dev);
 }
 
