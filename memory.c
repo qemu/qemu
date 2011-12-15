@@ -769,11 +769,11 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             if (adding) {
                 if (frold->dirty_log_mask && !frnew->dirty_log_mask) {
-                    MEMORY_LISTENER_UPDATE_REGION(frold, as, log_stop);
+                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, log_stop);
                     as->ops->log_stop(as, frnew);
                 } else if (frnew->dirty_log_mask && !frold->dirty_log_mask) {
                     as->ops->log_start(as, frnew);
-                    MEMORY_LISTENER_UPDATE_REGION(frold, as, log_start);
+                    MEMORY_LISTENER_UPDATE_REGION(frnew, as, log_start);
                 }
             }
 
@@ -784,7 +784,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             if (adding) {
                 as->ops->range_add(as, frnew);
-                MEMORY_LISTENER_UPDATE_REGION(frold, as, region_add);
+                MEMORY_LISTENER_UPDATE_REGION(frnew, as, region_add);
             }
 
             ++inew;

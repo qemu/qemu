@@ -253,8 +253,7 @@ int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
     if ((env->mcg_cap & MCG_SER_P) && addr
         && (code == BUS_MCEERR_AR || code == BUS_MCEERR_AO)) {
         if (qemu_ram_addr_from_host(addr, &ram_addr) ||
-            !kvm_physical_memory_addr_from_ram(env->kvm_state, ram_addr,
-                                               &paddr)) {
+            !kvm_physical_memory_addr_from_host(env->kvm_state, addr, &paddr)) {
             fprintf(stderr, "Hardware memory error for memory used by "
                     "QEMU itself instead of guest system!\n");
             /* Hope we are lucky for AO MCE */
@@ -286,8 +285,8 @@ int kvm_arch_on_sigbus(int code, void *addr)
 
         /* Hope we are lucky for AO MCE */
         if (qemu_ram_addr_from_host(addr, &ram_addr) ||
-            !kvm_physical_memory_addr_from_ram(first_cpu->kvm_state, ram_addr,
-                                               &paddr)) {
+            !kvm_physical_memory_addr_from_host(first_cpu->kvm_state, addr,
+                                                &paddr)) {
             fprintf(stderr, "Hardware memory error for memory used by "
                     "QEMU itself instead of guest system!: %p\n", addr);
             return 0;

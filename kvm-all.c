@@ -50,7 +50,7 @@ typedef struct KVMSlot
 {
     target_phys_addr_t start_addr;
     ram_addr_t memory_size;
-    ram_addr_t phys_offset;
+    void *ram;
     int slot;
     int flags;
 } KVMSlot;
@@ -146,17 +146,16 @@ static KVMSlot *kvm_lookup_overlapping_slot(KVMState *s,
     return found;
 }
 
-int kvm_physical_memory_addr_from_ram(KVMState *s, ram_addr_t ram_addr,
-                                      target_phys_addr_t *phys_addr)
+int kvm_physical_memory_addr_from_host(KVMState *s, void *ram,
+                                       target_phys_addr_t *phys_addr)
 {
     int i;
 
     for (i = 0; i < ARRAY_SIZE(s->slots); i++) {
         KVMSlot *mem = &s->slots[i];
 
-        if (ram_addr >= mem->phys_offset &&
-            ram_addr < mem->phys_offset + mem->memory_size) {
-            *phys_addr = mem->start_addr + (ram_addr - mem->phys_offset);
+        if (ram >= mem->ram && ram < mem->ram + mem->memory_size) {
+            *phys_addr = mem->start_addr + (ram - mem->ram);
             return 1;
         }
     }
@@ -171,7 +170,7 @@ static int kvm_set_user_memory_region(KVMState *s, KVMSlot *slot)
     mem.slot = slot->slot;
     mem.guest_phys_addr = slot->start_addr;
     mem.memory_size = slot->memory_size;
-    mem.userspace_addr = (unsigned long)qemu_safe_ram_ptr(slot->phys_offset);
+    mem.userspace_addr = (unsigned long)slot->ram;
     mem.flags = slot->flags;
     if (s->migration_log) {
         mem.flags |= KVM_MEM_LOG_DIRTY_PAGES;
@@ -527,6 +526,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
     ram_addr_t flags = phys_offset & ~TARGET_PAGE_MASK;
     KVMSlot *mem, old;
     int err;
+    void *ram = NULL;
 
     /* kvm works in page size chunks, but the function may be called
        with sub-page size and unaligned start address. */
@@ -536,6 +536,10 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
     /* KVM does not support read-only slots */
     phys_offset &= ~IO_MEM_ROM;
 
+    if ((phys_offset & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
+        ram = qemu_safe_ram_ptr(phys_offset);
+    }
+
     while (1) {
         mem = kvm_lookup_overlapping_slot(s, start_addr, start_addr + size);
         if (!mem) {
@@ -544,7 +548,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
 
         if (flags < IO_MEM_UNASSIGNED && start_addr >= mem->start_addr &&
             (start_addr + size <= mem->start_addr + mem->memory_size) &&
-            (phys_offset - start_addr == mem->phys_offset - mem->start_addr)) {
+            (ram - start_addr == mem->ram - mem->start_addr)) {
             /* The new slot fits into the existing one and comes with
              * identical parameters - update flags and done. */
             kvm_slot_dirty_pages_log_change(mem, log_dirty);
@@ -576,7 +580,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             mem = kvm_alloc_slot(s);
             mem->memory_size = old.memory_size;
             mem->start_addr = old.start_addr;
-            mem->phys_offset = old.phys_offset;
+            mem->ram = old.ram;
             mem->flags = kvm_mem_flags(s, log_dirty);
 
             err = kvm_set_user_memory_region(s, mem);
@@ -588,6 +592,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
 
             start_addr += old.memory_size;
             phys_offset += old.memory_size;
+            ram += old.memory_size;
             size -= old.memory_size;
             continue;
         }
@@ -597,7 +602,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             mem = kvm_alloc_slot(s);
             mem->memory_size = start_addr - old.start_addr;
             mem->start_addr = old.start_addr;
-            mem->phys_offset = old.phys_offset;
+            mem->ram = old.ram;
             mem->flags =  kvm_mem_flags(s, log_dirty);
 
             err = kvm_set_user_memory_region(s, mem);
@@ -621,7 +626,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             mem->start_addr = start_addr + size;
             size_delta = mem->start_addr - old.start_addr;
             mem->memory_size = old.memory_size - size_delta;
-            mem->phys_offset = old.phys_offset + size_delta;
+            mem->ram = old.ram + size_delta;
             mem->flags = kvm_mem_flags(s, log_dirty);
 
             err = kvm_set_user_memory_region(s, mem);
@@ -644,7 +649,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
     mem = kvm_alloc_slot(s);
     mem->memory_size = size;
     mem->start_addr = start_addr;
-    mem->phys_offset = phys_offset;
+    mem->ram = ram;
     mem->flags = kvm_mem_flags(s, log_dirty);
 
     err = kvm_set_user_memory_region(s, mem);
