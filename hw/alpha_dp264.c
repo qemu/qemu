@@ -68,8 +68,8 @@ static void clipper_init(ram_addr_t ram_size,
     cpus[0]->trap_arg2 = smp_cpus;
 
     /* Init the chipset.  */
-    pci_bus = typhoon_init(ram_size, &rtc_irq, cpus, clipper_pci_map_irq);
-    isa_bus = NULL;
+    pci_bus = typhoon_init(ram_size, &isa_bus, &rtc_irq, cpus,
+                           clipper_pci_map_irq);
 
     rtc_init(isa_bus, 1980, rtc_irq);
     pit_init(isa_bus, 0x40, 0);
