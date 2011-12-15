@@ -241,6 +241,7 @@ struct DeviceInfo {
 extern DeviceInfo *device_info_list;
 
 void qdev_register(DeviceInfo *info);
+void qdev_register_subclass(DeviceInfo *info, const char *parent);
 
 /* Register device properties.  */
 /* GPIO inputs also double as IRQ sinks.  */

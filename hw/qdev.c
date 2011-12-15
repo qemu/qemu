@@ -61,7 +61,7 @@ DeviceInfo *qdev_get_info(DeviceState *dev)
     return DEVICE_GET_CLASS(dev)->info;
 }
 
-void qdev_register(DeviceInfo *info)
+void qdev_register_subclass(DeviceInfo *info, const char *parent)
 {
     TypeInfo type_info = {};
 
@@ -69,7 +69,7 @@ void qdev_register(DeviceInfo *info)
     assert(!info->next);
 
     type_info.name = info->name;
-    type_info.parent = TYPE_DEVICE;
+    type_info.parent = parent;
     type_info.instance_size = info->size;
     type_info.class_init = qdev_subclass_init;
     type_info.class_data = info;
@@ -78,6 +78,11 @@ void qdev_register(DeviceInfo *info)
 
     info->next = device_info_list;
     device_info_list = info;
+}
+
+void qdev_register(DeviceInfo *info)
+{
+    qdev_register_subclass(info, TYPE_DEVICE);
 }
 
 static DeviceInfo *qdev_find_info(BusInfo *bus_info, const char *name)
