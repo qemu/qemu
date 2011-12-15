@@ -38,37 +38,7 @@ typedef unsigned long ram_addr_t;
 typedef void CPUWriteMemoryFunc(void *opaque, target_phys_addr_t addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);
 
-void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
-                                      ram_addr_t size,
-                                      ram_addr_t phys_offset,
-                                      ram_addr_t region_offset,
-                                      bool log_dirty);
-
-static inline void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
-                                                       ram_addr_t size,
-                                                       ram_addr_t phys_offset,
-                                                       ram_addr_t region_offset)
-{
-    cpu_register_physical_memory_log(start_addr, size, phys_offset,
-                                     region_offset, false);
-}
-
-static inline void cpu_register_physical_memory(target_phys_addr_t start_addr,
-                                                ram_addr_t size,
-                                                ram_addr_t phys_offset)
-{
-    cpu_register_physical_memory_offset(start_addr, size, phys_offset, 0);
-}
-
 ram_addr_t cpu_get_physical_page_desc(target_phys_addr_t addr);
-struct MemoryRegion;
-ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
-                                   ram_addr_t size, void *host,
-                                   struct MemoryRegion *mr);
-ram_addr_t qemu_ram_alloc(DeviceState *dev, const char *name, ram_addr_t size,
-                          struct MemoryRegion *mr);
-void qemu_ram_free(ram_addr_t addr);
-void qemu_ram_free_from_ptr(ram_addr_t addr);
 void qemu_ram_remap(ram_addr_t addr, ram_addr_t length);
 /* This should only be used for ram local to a device.  */
 void *qemu_get_ram_ptr(ram_addr_t addr);
@@ -80,11 +50,6 @@ void qemu_put_ram_ptr(void *addr);
 /* This should not be used by devices.  */
 int qemu_ram_addr_from_host(void *ptr, ram_addr_t *ram_addr);
 ram_addr_t qemu_ram_addr_from_host_nofail(void *ptr);
-
-int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
-                           CPUWriteMemoryFunc * const *mem_write,
-                           void *opaque, enum device_endian endian);
-void cpu_unregister_io_memory(int table_address);
 
 void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                             int len, int is_write);
@@ -134,10 +99,6 @@ void cpu_unregister_phys_memory_client(CPUPhysMemoryClient *);
  * batching which can make a major impact on performance when using
  * virtualization.
  */
-void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
-
-void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
-
 void qemu_flush_coalesced_mmio_buffer(void);
 
 uint32_t ldub_phys(target_phys_addr_t addr);

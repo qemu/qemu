@@ -57,6 +57,9 @@
 #include "trace.h"
 #endif
 
+#define WANT_EXEC_OBSOLETE
+#include "exec-obsolete.h"
+
 //#define DEBUG_TB_INVALIDATE
 //#define DEBUG_FLUSH
 //#define DEBUG_TLB
