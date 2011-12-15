@@ -53,8 +53,10 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io)
 
 void isa_bus_irqs(ISABus *bus, qemu_irq *irqs)
 {
-    assert(!bus || bus == isabus);
-    isabus->irqs = irqs;
+    if (!bus) {
+        hw_error("Can't set isa irqs with no isa bus present.");
+    }
+    bus->irqs = irqs;
 }
 
 /*
