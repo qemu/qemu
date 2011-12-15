@@ -530,10 +530,12 @@ static ISABus *
 pci_ebus_init(PCIBus *bus, int devfn)
 {
     qemu_irq *isa_irq;
+    PCIDevice *pci_dev;
     ISABus *isa_bus;
 
-    pci_create_simple(bus, devfn, "ebus");
-    isa_bus = NULL;
+    pci_dev = pci_create_simple(bus, devfn, "ebus");
+    isa_bus = DO_UPCAST(ISABus, qbus,
+                        qdev_get_child_bus(&pci_dev->qdev, "isa.0"));
     isa_irq = qemu_allocate_irqs(dummy_isa_irq_handler, NULL, 16);
     isa_bus_irqs(isa_bus, isa_irq);
     return isa_bus;
