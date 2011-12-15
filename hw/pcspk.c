@@ -96,7 +96,7 @@ static void pcspk_callback(void *opaque, int free)
     }
 }
 
-int pcspk_audio_init(qemu_irq *pic)
+int pcspk_audio_init(ISABus *bus, qemu_irq *pic)
 {
     PCSpkState *s = &pcspk_state;
     struct audsettings as = {PCSPK_SAMPLE_RATE, 1, AUD_FMT_U8, 0};

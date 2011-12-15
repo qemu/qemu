@@ -5,7 +5,7 @@
 
 #define RTC_ISA_IRQ 8
 
-ISADevice *rtc_init(int base_year, qemu_irq intercept_irq);
+ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq);
 void rtc_set_memory(ISADevice *dev, int addr, int val);
 void rtc_set_date(ISADevice *dev, const struct tm *tm);
 

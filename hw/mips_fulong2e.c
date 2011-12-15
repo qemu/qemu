@@ -266,6 +266,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     qemu_irq *cpu_exit_irq;
     int via_devfn;
     PCIBus *pci_bus;
+    ISABus *isa_bus;
     i2c_bus *smbus;
     int i;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
@@ -342,11 +343,12 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
         fprintf(stderr, "vt82c686b_init error\n");
         exit(1);
     }
+    isa_bus = NULL;
 
     /* Interrupt controller */
     /* The 8259 -> IP5  */
-    i8259 = i8259_init(env->irq[5]);
-    isa_bus_irqs(i8259);
+    i8259 = i8259_init(isa_bus, env->irq[5]);
+    isa_bus_irqs(isa_bus, i8259);
 
     vt82c686b_ide_init(pci_bus, hd, PCI_DEVFN(FULONG2E_VIA_SLOT, 1));
     usb_uhci_vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 2));
@@ -358,23 +360,23 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     smbus_eeprom_init(smbus, 1, eeprom_spd, sizeof(eeprom_spd));
 
     /* init other devices */
-    pit = pit_init(0x40, 0);
+    pit = pit_init(isa_bus, 0x40, 0);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
 
     /* Super I/O */
-    isa_create_simple("i8042");
+    isa_create_simple(isa_bus, "i8042");
 
-    rtc_init(2000, NULL);
+    rtc_init(isa_bus, 2000, NULL);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_isa_init(i, serial_hds[i]);
+            serial_isa_init(isa_bus, i, serial_hds[i]);
         }
     }
 
     if (parallel_hds[0]) {
-        parallel_init(0, parallel_hds[0]);
+        parallel_init(isa_bus, 0, parallel_hds[0]);
     }
 
     /* Sound card */

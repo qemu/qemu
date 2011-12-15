@@ -7,11 +7,11 @@
 /* fdc.c */
 #define MAX_FD 2
 
-static inline ISADevice *fdctrl_init_isa(DriveInfo **fds)
+static inline ISADevice *fdctrl_init_isa(ISABus *bus, DriveInfo **fds)
 {
     ISADevice *dev;
 
-    dev = isa_try_create("isa-fdc");
+    dev = isa_try_create(bus, "isa-fdc");
     if (!dev) {
         return NULL;
     }

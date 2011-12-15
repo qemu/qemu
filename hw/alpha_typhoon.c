@@ -791,11 +791,12 @@ PCIBus *typhoon_init(ram_addr_t ram_size, qemu_irq *p_rtc_irq,
     /* ??? Technically there should be a cy82c693ub pci-isa bridge.  */
     {
         qemu_irq isa_pci_irq, *isa_irqs;
+        ISABus *isa_bus;
 
-        isa_bus_new(NULL, addr_space_io);
+        isa_bus = isa_bus_new(NULL, addr_space_io);
         isa_pci_irq = *qemu_allocate_irqs(typhoon_set_isa_irq, s, 1);
-        isa_irqs = i8259_init(isa_pci_irq);
-        isa_bus_irqs(isa_irqs);
+        isa_irqs = i8259_init(isa_bus, isa_pci_irq);
+        isa_bus_irqs(isa_bus, isa_irqs);
     }
 
     return b;

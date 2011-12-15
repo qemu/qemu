@@ -9,7 +9,6 @@
 
 #define ISA_NUM_IRQS 16
 
-typedef struct ISABus ISABus;
 typedef struct ISADevice ISADevice;
 typedef struct ISADeviceInfo ISADeviceInfo;
 
@@ -27,14 +26,14 @@ struct ISADeviceInfo {
 };
 
 ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io);
-void isa_bus_irqs(qemu_irq *irqs);
-qemu_irq isa_get_irq(int isairq);
+void isa_bus_irqs(ISABus *bus, qemu_irq *irqs);
+qemu_irq isa_get_irq(ISADevice *dev, int isairq);
 void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq);
 void isa_qdev_register(ISADeviceInfo *info);
 MemoryRegion *isa_address_space(ISADevice *dev);
-ISADevice *isa_create(const char *name);
-ISADevice *isa_try_create(const char *name);
-ISADevice *isa_create_simple(const char *name);
+ISADevice *isa_create(ISABus *bus, const char *name);
+ISADevice *isa_try_create(ISABus *bus, const char *name);
+ISADevice *isa_create_simple(ISABus *bus, const char *name);
 
 /**
  * isa_register_ioport: Install an I/O port region on the ISA bus.

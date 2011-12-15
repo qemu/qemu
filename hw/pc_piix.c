@@ -84,6 +84,7 @@ static void pc_init1(MemoryRegion *system_memory,
     int i;
     ram_addr_t below_4g_mem_size, above_4g_mem_size;
     PCIBus *pci_bus;
+    ISABus *isa_bus;
     PCII440FXState *i440fx_state;
     int piix3_devfn = -1;
     qemu_irq *cpu_irq;
@@ -145,17 +146,18 @@ static void pc_init1(MemoryRegion *system_memory,
                                ? 0
                                : ((uint64_t)1 << 62)),
                               pci_memory, ram_memory);
+        isa_bus = NULL;
     } else {
         pci_bus = NULL;
         i440fx_state = NULL;
-        isa_bus_new(NULL, system_io);
+        isa_bus = isa_bus_new(NULL, system_io);
         no_hpet = 1;
     }
-    isa_bus_irqs(gsi);
+    isa_bus_irqs(isa_bus, gsi);
 
     if (!xen_enabled()) {
         cpu_irq = pc_allocate_cpu_irq();
-        i8259 = i8259_init(cpu_irq[0]);
+        i8259 = i8259_init(isa_bus, cpu_irq[0]);
     } else {
         i8259 = xen_interrupt_controller_init();
     }
@@ -169,7 +171,7 @@ static void pc_init1(MemoryRegion *system_memory,
 
     pc_register_ferr_irq(gsi[13]);
 
-    dev = pc_vga_init(pci_enabled? pci_bus: NULL);
+    dev = pc_vga_init(isa_bus, pci_enabled ? pci_bus : NULL);
     if (dev) {
         qdev_property_add_child(qdev_get_root(), "vga", dev, NULL);
     }
@@ -179,13 +181,13 @@ static void pc_init1(MemoryRegion *system_memory,
     }
 
     /* init basic PC hardware */
-    pc_basic_device_init(gsi, &rtc_state, &floppy, xen_enabled());
+    pc_basic_device_init(isa_bus, gsi, &rtc_state, &floppy, xen_enabled());
 
     for(i = 0; i < nb_nics; i++) {
         NICInfo *nd = &nd_table[i];
 
         if (!pci_enabled || (nd->model && strcmp(nd->model, "ne2k_isa") == 0))
-            pc_init_ne2k_isa(nd);
+            pc_init_ne2k_isa(isa_bus, nd);
         else
             pci_nic_init_nofail(nd, "e1000", NULL);
     }
@@ -203,7 +205,8 @@ static void pc_init1(MemoryRegion *system_memory,
     } else {
         for(i = 0; i < MAX_IDE_BUS; i++) {
             ISADevice *dev;
-            dev = isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+            dev = isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i],
+                               ide_irq[i],
                                hd[MAX_IDE_DEVS * i], hd[MAX_IDE_DEVS * i + 1]);
             idebus[i] = qdev_get_child_bus(&dev->qdev, "ide.0");
         }
@@ -220,7 +223,7 @@ static void pc_init1(MemoryRegion *system_memory,
     qdev_property_add_child(qdev_resolve_path("/i440fx/piix3", NULL),
                             "rtc", (DeviceState *)rtc_state, NULL);
 
-    audio_init(gsi, pci_enabled ? pci_bus : NULL);
+    audio_init(isa_bus, gsi, pci_enabled ? pci_bus : NULL);
 
     pc_cmos_init(below_4g_mem_size, above_4g_mem_size, boot_device,
                  floppy, idebus[0], idebus[1], rtc_state);

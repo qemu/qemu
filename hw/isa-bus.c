@@ -56,8 +56,9 @@ ISABus *isa_bus_new(DeviceState *dev, MemoryRegion *address_space_io)
     return isabus;
 }
 
-void isa_bus_irqs(qemu_irq *irqs)
+void isa_bus_irqs(ISABus *bus, qemu_irq *irqs)
 {
+    assert(!bus || bus == isabus);
     isabus->irqs = irqs;
 }
 
@@ -67,8 +68,9 @@ void isa_bus_irqs(qemu_irq *irqs)
  * This function is only for special cases such as the 'ferr', and
  * temporary use for normal devices until they are converted to qdev.
  */
-qemu_irq isa_get_irq(int isairq)
+qemu_irq isa_get_irq(ISADevice *dev, int isairq)
 {
+    assert(!dev || DO_UPCAST(ISABus, qbus, dev->qdev.parent_bus) == isabus);
     if (isairq < 0 || isairq > 15) {
         hw_error("isa irq %d invalid", isairq);
     }
@@ -79,7 +81,7 @@ void isa_init_irq(ISADevice *dev, qemu_irq *p, int isairq)
 {
     assert(dev->nirqs < ARRAY_SIZE(dev->isairq));
     dev->isairq[dev->nirqs] = isairq;
-    *p = isa_get_irq(isairq);
+    *p = isa_get_irq(dev, isairq);
     dev->nirqs++;
 }
 
@@ -129,10 +131,11 @@ void isa_qdev_register(ISADeviceInfo *info)
     qdev_register(&info->qdev);
 }
 
-ISADevice *isa_create(const char *name)
+ISADevice *isa_create(ISABus *bus, const char *name)
 {
     DeviceState *dev;
 
+    assert(!bus || bus == isabus);
     if (!isabus) {
         hw_error("Tried to create isa device %s with no isa bus present.",
                  name);
@@ -141,10 +144,11 @@ ISADevice *isa_create(const char *name)
     return DO_UPCAST(ISADevice, qdev, dev);
 }
 
-ISADevice *isa_try_create(const char *name)
+ISADevice *isa_try_create(ISABus *bus, const char *name)
 {
     DeviceState *dev;
 
+    assert(!bus || bus == isabus);
     if (!isabus) {
         hw_error("Tried to create isa device %s with no isa bus present.",
                  name);
@@ -153,11 +157,11 @@ ISADevice *isa_try_create(const char *name)
     return DO_UPCAST(ISADevice, qdev, dev);
 }
 
-ISADevice *isa_create_simple(const char *name)
+ISADevice *isa_create_simple(ISABus *bus, const char *name)
 {
     ISADevice *dev;
 
-    dev = isa_create(name);
+    dev = isa_create(bus, name);
     qdev_init_nofail(&dev->qdev);
     return dev;
 }

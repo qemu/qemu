@@ -120,6 +120,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
     NICInfo *nd;
     DeviceState *dev;
     SysBusDevice *sysbus;
+    ISABus *isa_bus;
     ISADevice *pit;
     DriveInfo *fds[MAX_FD];
     qemu_irq esp_reset, dma_enable;
@@ -183,12 +184,12 @@ static void mips_jazz_init(MemoryRegion *address_space,
     memory_region_add_subregion(address_space, 0x8000d000, dma_dummy);
 
     /* ISA devices */
-    isa_bus_new(NULL, address_space_io);
-    i8259 = i8259_init(env->irq[4]);
-    isa_bus_irqs(i8259);
+    isa_bus = isa_bus_new(NULL, address_space_io);
+    i8259 = i8259_init(isa_bus, env->irq[4]);
+    isa_bus_irqs(isa_bus, i8259);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
-    pit = pit_init(0x40, 0);
+    pit = pit_init(isa_bus, 0x40, 0);
     pcspk_init(pit);
 
     /* ISA IO space at 0x90000000 */
@@ -255,7 +256,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
     fdctrl_init_sysbus(rc4030[1], 0, 0x80003000, fds);
 
     /* Real time clock */
-    rtc_init(1980, NULL);
+    rtc_init(isa_bus, 1980, NULL);
     memory_region_init_io(rtc, &rtc_ops, NULL, "rtc", 0x1000);
     memory_region_add_subregion(address_space, 0x80004000, rtc);
 
@@ -280,7 +281,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
 
     /* Sound card */
     /* FIXME: missing Jazz sound at 0x8000c000, rc4030[2] */
-    audio_init(i8259, NULL);
+    audio_init(isa_bus, i8259, NULL);
 
     /* NVRAM */
     dev = qdev_create(NULL, "ds1225y");

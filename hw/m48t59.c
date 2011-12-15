@@ -660,13 +660,14 @@ M48t59State *m48t59_init(qemu_irq IRQ, target_phys_addr_t mem_base,
     return state;
 }
 
-M48t59State *m48t59_init_isa(uint32_t io_base, uint16_t size, int type)
+M48t59State *m48t59_init_isa(ISABus *bus, uint32_t io_base, uint16_t size,
+                             int type)
 {
     M48t59ISAState *d;
     ISADevice *dev;
     M48t59State *s;
 
-    dev = isa_create("m48t59_isa");
+    dev = isa_create(bus, "m48t59_isa");
     qdev_prop_set_uint32(&dev->qdev, "type", type);
     qdev_prop_set_uint32(&dev->qdev, "size", size);
     qdev_prop_set_uint32(&dev->qdev, "io_base", io_base);

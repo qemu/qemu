@@ -526,14 +526,17 @@ static void dummy_isa_irq_handler(void *opaque, int n, int level)
 }
 
 /* EBUS (Eight bit bus) bridge */
-static void
+static ISABus *
 pci_ebus_init(PCIBus *bus, int devfn)
 {
     qemu_irq *isa_irq;
+    ISABus *isa_bus;
 
     pci_create_simple(bus, devfn, "ebus");
+    isa_bus = NULL;
     isa_irq = qemu_allocate_irqs(dummy_isa_irq_handler, NULL, 16);
-    isa_bus_irqs(isa_irq);
+    isa_bus_irqs(isa_bus, isa_irq);
+    return isa_bus;
 }
 
 static int
@@ -744,6 +747,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     unsigned int i;
     long initrd_size, kernel_size;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;
+    ISABus *isa_bus;
     qemu_irq *irq;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
@@ -764,7 +768,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     pci_vga_init(pci_bus);
 
     // XXX Should be pci_bus3
-    pci_ebus_init(pci_bus, -1);
+    isa_bus = pci_ebus_init(pci_bus, -1);
 
     i = 0;
     if (hwdef->console_serial_base) {
@@ -774,13 +778,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     }
     for(; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_isa_init(i, serial_hds[i]);
+            serial_isa_init(isa_bus, i, serial_hds[i]);
         }
     }
 
     for(i = 0; i < MAX_PARALLEL_PORTS; i++) {
         if (parallel_hds[i]) {
-            parallel_init(i, parallel_hds[i]);
+            parallel_init(isa_bus, i, parallel_hds[i]);
         }
     }
 
@@ -791,12 +795,12 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     pci_cmd646_ide_init(pci_bus, hd, 1);
 
-    isa_create_simple("i8042");
+    isa_create_simple(isa_bus, "i8042");
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    fdctrl_init_isa(fd);
-    nvram = m48t59_init_isa(0x0074, NVRAM_SIZE, 59);
+    fdctrl_init_isa(isa_bus, fd);
+    nvram = m48t59_init_isa(isa_bus, 0x0074, NVRAM_SIZE, 59);
 
     initrd_size = 0;
     kernel_size = sun4u_load_kernel(kernel_filename, initrd_filename,

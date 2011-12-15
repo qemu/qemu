@@ -50,6 +50,7 @@ static void clipper_init(ram_addr_t ram_size,
 {
     CPUState *cpus[4];
     PCIBus *pci_bus;
+    ISABus *isa_bus;
     qemu_irq rtc_irq;
     long size, i;
     const char *palcode_filename;
@@ -68,10 +69,11 @@ static void clipper_init(ram_addr_t ram_size,
 
     /* Init the chipset.  */
     pci_bus = typhoon_init(ram_size, &rtc_irq, cpus, clipper_pci_map_irq);
+    isa_bus = NULL;
 
-    rtc_init(1980, rtc_irq);
-    pit_init(0x40, 0);
-    isa_create_simple("i8042");
+    rtc_init(isa_bus, 1980, rtc_irq);
+    pit_init(isa_bus, 0x40, 0);
+    isa_create_simple(isa_bus, "i8042");
 
     /* VGA setup.  Don't bother loading the bios.  */
     alpha_pci_vga_setup(pci_bus);
@@ -79,7 +81,7 @@ static void clipper_init(ram_addr_t ram_size,
     /* Serial code setup.  */
     for (i = 0; i < MAX_SERIAL_PORTS; ++i) {
         if (serial_hds[i]) {
-            serial_isa_init(i, serial_hds[i]);
+            serial_isa_init(isa_bus, i, serial_hds[i]);
         }
     }
 
