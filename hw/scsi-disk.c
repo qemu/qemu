@@ -1712,75 +1712,108 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
     DEFINE_PROP_STRING("ver",  SCSIDiskState, version),         \
     DEFINE_PROP_STRING("serial",  SCSIDiskState, serial)
 
-static SCSIDeviceInfo scsi_disk_info[] = {
-    {
-        .qdev.name    = "scsi-hd",
-        .qdev.fw_name = "disk",
-        .qdev.desc    = "virtual SCSI disk",
-        .qdev.size    = sizeof(SCSIDiskState),
-        .qdev.reset   = scsi_disk_reset,
-        .init         = scsi_hd_initfn,
-        .destroy      = scsi_destroy,
-        .alloc_req    = scsi_new_request,
-        .unit_attention_reported = scsi_disk_unit_attention_reported,
-        .qdev.props   = (Property[]) {
-            DEFINE_SCSI_DISK_PROPERTIES(),
-            DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
-            DEFINE_PROP_END_OF_LIST(),
-        }
-    },{
-        .qdev.name    = "scsi-cd",
-        .qdev.fw_name = "disk",
-        .qdev.desc    = "virtual SCSI CD-ROM",
-        .qdev.size    = sizeof(SCSIDiskState),
-        .qdev.reset   = scsi_disk_reset,
-        .init         = scsi_cd_initfn,
-        .destroy      = scsi_destroy,
-        .alloc_req    = scsi_new_request,
-        .unit_attention_reported = scsi_disk_unit_attention_reported,
-        .qdev.props   = (Property[]) {
-            DEFINE_SCSI_DISK_PROPERTIES(),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+static void scsi_hd_class_initfn(ObjectClass *klass, void *data)
+{
+    SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
+
+    sc->init         = scsi_hd_initfn;
+    sc->destroy      = scsi_destroy;
+    sc->alloc_req    = scsi_new_request;
+    sc->unit_attention_reported = scsi_disk_unit_attention_reported;
+}
+
+static DeviceInfo scsi_hd_info = {
+    .name    = "scsi-hd",
+    .fw_name = "disk",
+    .desc    = "virtual SCSI disk",
+    .size    = sizeof(SCSIDiskState),
+    .reset   = scsi_disk_reset,
+    .class_init = scsi_hd_class_initfn,
+    .props   = (Property[]) {
+        DEFINE_SCSI_DISK_PROPERTIES(),
+        DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static void scsi_cd_class_initfn(ObjectClass *klass, void *data)
+{
+    SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
+
+    sc->init         = scsi_cd_initfn;
+    sc->destroy      = scsi_destroy;
+    sc->alloc_req    = scsi_new_request;
+    sc->unit_attention_reported = scsi_disk_unit_attention_reported;
+}
+
+static DeviceInfo scsi_cd_info = {
+    .name    = "scsi-cd",
+    .fw_name = "disk",
+    .desc    = "virtual SCSI CD-ROM",
+    .size    = sizeof(SCSIDiskState),
+    .reset   = scsi_disk_reset,
+    .class_init = scsi_cd_class_initfn,
+    .props   = (Property[]) {
+        DEFINE_SCSI_DISK_PROPERTIES(),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
 #ifdef __linux__
-    },{
-        .qdev.name    = "scsi-block",
-        .qdev.fw_name = "disk",
-        .qdev.desc    = "SCSI block device passthrough",
-        .qdev.size    = sizeof(SCSIDiskState),
-        .qdev.reset   = scsi_disk_reset,
-        .init         = scsi_block_initfn,
-        .destroy      = scsi_destroy,
-        .alloc_req    = scsi_block_new_request,
-        .qdev.props   = (Property[]) {
-            DEFINE_SCSI_DISK_PROPERTIES(),
-            DEFINE_PROP_END_OF_LIST(),
-        },
+static void scsi_block_class_initfn(ObjectClass *klass, void *data)
+{
+    SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
+
+    sc->init         = scsi_block_initfn;
+    sc->destroy      = scsi_destroy;
+    sc->alloc_req    = scsi_block_new_request;
+}
+
+static DeviceInfo scsi_block_info = {
+    .name    = "scsi-block",
+    .fw_name = "disk",
+    .desc    = "SCSI block device passthrough",
+    .size    = sizeof(SCSIDiskState),
+    .reset   = scsi_disk_reset,
+    .class_init = scsi_block_class_initfn,
+    .props   = (Property[]) {
+        DEFINE_SCSI_DISK_PROPERTIES(),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
 #endif
-    },{
-        .qdev.name    = "scsi-disk", /* legacy -device scsi-disk */
-        .qdev.fw_name = "disk",
-        .qdev.desc    = "virtual SCSI disk or CD-ROM (legacy)",
-        .qdev.size    = sizeof(SCSIDiskState),
-        .qdev.reset   = scsi_disk_reset,
-        .init         = scsi_disk_initfn,
-        .destroy      = scsi_destroy,
-        .alloc_req    = scsi_new_request,
-        .unit_attention_reported = scsi_disk_unit_attention_reported,
-        .qdev.props   = (Property[]) {
-            DEFINE_SCSI_DISK_PROPERTIES(),
-            DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
-            DEFINE_PROP_END_OF_LIST(),
-        }
+
+static void scsi_disk_class_initfn(ObjectClass *klass, void *data)
+{
+    SCSIDeviceClass *sc = SCSI_DEVICE_CLASS(klass);
+
+    sc->init         = scsi_disk_initfn;
+    sc->destroy      = scsi_destroy;
+    sc->alloc_req    = scsi_new_request;
+    sc->unit_attention_reported = scsi_disk_unit_attention_reported;
+}
+
+static DeviceInfo scsi_disk_info = {
+    .name    = "scsi-disk", /* legacy -device scsi-disk */
+    .fw_name = "disk",
+    .desc    = "virtual SCSI disk or CD-ROM (legacy)",
+    .size    = sizeof(SCSIDiskState),
+    .reset   = scsi_disk_reset,
+    .class_init = scsi_disk_class_initfn,
+    .props   = (Property[]) {
+        DEFINE_SCSI_DISK_PROPERTIES(),
+        DEFINE_PROP_BIT("removable", SCSIDiskState, removable, 0, false),
+        DEFINE_PROP_END_OF_LIST(),
     }
 };
 
 static void scsi_disk_register_devices(void)
 {
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(scsi_disk_info); i++) {
-        scsi_qdev_register(&scsi_disk_info[i]);
-    }
+    scsi_qdev_register(&scsi_hd_info);
+    scsi_qdev_register(&scsi_cd_info);
+#ifdef __linux__
+    scsi_qdev_register(&scsi_block_info);
+#endif
+    scsi_qdev_register(&scsi_disk_info);
 }
 device_init(scsi_disk_register_devices)

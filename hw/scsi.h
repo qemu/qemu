@@ -13,7 +13,6 @@ typedef struct SCSIBus SCSIBus;
 typedef struct SCSIBusInfo SCSIBusInfo;
 typedef struct SCSICommand SCSICommand;
 typedef struct SCSIDevice SCSIDevice;
-typedef struct SCSIDeviceInfo SCSIDeviceInfo;
 typedef struct SCSIRequest SCSIRequest;
 typedef struct SCSIReqOps SCSIReqOps;
 
@@ -58,6 +57,23 @@ struct SCSIRequest {
     QTAILQ_ENTRY(SCSIRequest) next;
 };
 
+#define TYPE_SCSI_DEVICE "scsi-device"
+#define SCSI_DEVICE(obj) \
+     OBJECT_CHECK(SCSIDevice, (obj), TYPE_SCSI_DEVICE)
+#define SCSI_DEVICE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(SCSIDeviceClass, (klass), TYPE_SCSI_DEVICE)
+#define SCSI_DEVICE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(SCSIDeviceClass, (obj), TYPE_SCSI_DEVICE)
+
+typedef struct SCSIDeviceClass {
+    DeviceClass parent_class;
+    int (*init)(SCSIDevice *dev);
+    void (*destroy)(SCSIDevice *s);
+    SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun,
+                              uint8_t *buf, void *hba_private);
+    void (*unit_attention_reported)(SCSIDevice *s);
+} SCSIDeviceClass;
+
 struct SCSIDevice
 {
     DeviceState qdev;
@@ -65,7 +81,6 @@ struct SCSIDevice
     QEMUBH *bh;
     uint32_t id;
     BlockConf conf;
-    SCSIDeviceInfo *info;
     SCSISense unit_attention;
     bool sense_is_ua;
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
@@ -93,16 +108,6 @@ struct SCSIReqOps {
     uint8_t *(*get_buf)(SCSIRequest *req);
 };
 
-typedef int (*scsi_qdev_initfn)(SCSIDevice *dev);
-struct SCSIDeviceInfo {
-    DeviceInfo qdev;
-    scsi_qdev_initfn init;
-    void (*destroy)(SCSIDevice *s);
-    SCSIRequest *(*alloc_req)(SCSIDevice *s, uint32_t tag, uint32_t lun,
-                              uint8_t *buf, void *hba_private);
-    void (*unit_attention_reported)(SCSIDevice *s);
-};
-
 struct SCSIBusInfo {
     int tcq;
     int max_channel, max_target, max_lun;
@@ -120,7 +125,7 @@ struct SCSIBus {
 };
 
 void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info);
-void scsi_qdev_register(SCSIDeviceInfo *info);
+void scsi_qdev_register(DeviceInfo *info);
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 {
