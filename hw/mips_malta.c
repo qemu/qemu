@@ -973,7 +973,7 @@ void mips_malta_init (ram_addr_t ram_size,
     fdctrl_init_isa(isa_bus, fd);
 
     /* Sound card */
-    audio_init(isa_bus, NULL, pci_bus);
+    audio_init(isa_bus, pci_bus);
 
     /* Network card */
     network_init();

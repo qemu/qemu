@@ -275,7 +275,7 @@ static void Adlib_fini (AdlibState *s)
     AUD_remove_card (&s->card);
 }
 
-int Adlib_init (ISABus *bus, qemu_irq *pic)
+int Adlib_init (ISABus *bus)
 {
     AdlibState *s = &glob_adlib;
     struct audsettings as;

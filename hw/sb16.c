@@ -1385,7 +1385,7 @@ static int sb16_initfn (ISADevice *dev)
     return 0;
 }
 
-int SB16_init (ISABus *bus, qemu_irq *pic)
+int SB16_init (ISABus *bus)
 {
     isa_create_simple (bus, "sb16");
     return 0;

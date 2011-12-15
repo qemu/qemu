@@ -293,7 +293,7 @@ static int gus_initfn (ISADevice *dev)
     return 0;
 }
 
-int GUS_init (ISABus *bus, qemu_irq *pic)
+int GUS_init (ISABus *bus)
 {
     isa_create_simple (bus, "gus");
     return 0;

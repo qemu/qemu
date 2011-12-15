@@ -176,7 +176,7 @@ extern int no_hpet;
 
 /* pcspk.c */
 void pcspk_init(ISADevice *pit);
-int pcspk_audio_init(ISABus *bus, qemu_irq *pic);
+int pcspk_audio_init(ISABus *bus);
 
 /* piix_pci.c */
 struct PCII440FXState;
