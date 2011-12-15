@@ -12,6 +12,12 @@
 typedef struct ISADevice ISADevice;
 typedef struct ISADeviceInfo ISADeviceInfo;
 
+struct ISABus {
+    BusState qbus;
+    MemoryRegion *address_space_io;
+    qemu_irq *irqs;
+};
+
 struct ISADevice {
     DeviceState qdev;
     uint32_t isairq[2];

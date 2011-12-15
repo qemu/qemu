@@ -22,11 +22,6 @@
 #include "isa.h"
 #include "exec-memory.h"
 
-struct ISABus {
-    BusState qbus;
-    MemoryRegion *address_space_io;
-    qemu_irq *irqs;
-};
 static ISABus *isabus;
 target_phys_addr_t isa_mem_base = 0;
 
