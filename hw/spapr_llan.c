@@ -474,20 +474,29 @@ static target_ulong h_multicast_ctrl(CPUState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static VIOsPAPRDeviceInfo spapr_vlan_info = {
-    .init = spapr_vlan_init,
-    .devnode = spapr_vlan_devnode,
-    .dt_name = "l-lan",
-    .dt_type = "network",
-    .dt_compatible = "IBM,l-lan",
-    .signal_mask = 0x1,
-    .qdev.name = "spapr-vlan",
-    .qdev.size = sizeof(VIOsPAPRVLANDevice),
-    .qdev.props = (Property[]) {
-        DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev, 0x1000, 0x10000000),
-        DEFINE_NIC_PROPERTIES(VIOsPAPRVLANDevice, nicconf),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property spapr_vlan_properties[] = {
+    DEFINE_SPAPR_PROPERTIES(VIOsPAPRVLANDevice, sdev, 0x1000, 0x10000000),
+    DEFINE_NIC_PROPERTIES(VIOsPAPRVLANDevice, nicconf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void spapr_vlan_class_init(ObjectClass *klass, void *data)
+{
+    VIOsPAPRDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
+
+    k->init = spapr_vlan_init;
+    k->devnode = spapr_vlan_devnode;
+    k->dt_name = "l-lan";
+    k->dt_type = "network";
+    k->dt_compatible = "IBM,l-lan";
+    k->signal_mask = 0x1;
+}
+
+static DeviceInfo spapr_vlan_info = {
+    .name = "spapr-vlan",
+    .size = sizeof(VIOsPAPRVLANDevice),
+    .props = spapr_vlan_properties,
+    .class_init = spapr_vlan_class_init,
 };
 
 static void spapr_vlan_register(void)

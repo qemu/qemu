@@ -947,19 +947,28 @@ static int spapr_vscsi_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)
     return 0;
 }
 
-static VIOsPAPRDeviceInfo spapr_vscsi_info = {
-    .init = spapr_vscsi_init,
-    .devnode = spapr_vscsi_devnode,
-    .dt_name = "v-scsi",
-    .dt_type = "vscsi",
-    .dt_compatible = "IBM,v-scsi",
-    .signal_mask = 0x00000001,
-    .qdev.name = "spapr-vscsi",
-    .qdev.size = sizeof(VSCSIState),
-    .qdev.props = (Property[]) {
-        DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev, 0x2000, 0x10000000),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property spapr_vscsi_properties[] = {
+    DEFINE_SPAPR_PROPERTIES(VSCSIState, vdev, 0x2000, 0x10000000),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void spapr_vscsi_class_init(ObjectClass *klass, void *data)
+{
+    VIOsPAPRDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
+
+    k->init = spapr_vscsi_init;
+    k->devnode = spapr_vscsi_devnode;
+    k->dt_name = "v-scsi";
+    k->dt_type = "vscsi";
+    k->dt_compatible = "IBM,v-scsi";
+    k->signal_mask = 0x00000001;
+}
+
+static DeviceInfo spapr_vscsi_info = {
+    .name = "spapr-vscsi",
+    .size = sizeof(VSCSIState),
+    .props = spapr_vscsi_properties,
+    .class_init = spapr_vscsi_class_init,
 };
 
 static void spapr_vscsi_register(void)

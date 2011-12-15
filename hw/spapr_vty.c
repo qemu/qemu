@@ -135,18 +135,27 @@ void spapr_vty_create(VIOsPAPRBus *bus, uint32_t reg, CharDriverState *chardev)
     qdev_init_nofail(dev);
 }
 
-static VIOsPAPRDeviceInfo spapr_vty_info = {
-    .init = spapr_vty_init,
-    .dt_name = "vty",
-    .dt_type = "serial",
-    .dt_compatible = "hvterm1",
-    .qdev.name = "spapr-vty",
-    .qdev.size = sizeof(VIOsPAPRVTYDevice),
-    .qdev.props = (Property[]) {
-        DEFINE_SPAPR_PROPERTIES(VIOsPAPRVTYDevice, sdev, SPAPR_VTY_BASE_ADDRESS, 0),
-        DEFINE_PROP_CHR("chardev", VIOsPAPRVTYDevice, chardev),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property spapr_vty_properties[] = {
+    DEFINE_SPAPR_PROPERTIES(VIOsPAPRVTYDevice, sdev, SPAPR_VTY_BASE_ADDRESS, 0),
+    DEFINE_PROP_CHR("chardev", VIOsPAPRVTYDevice, chardev),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void spapr_vty_class_init(ObjectClass *klass, void *data)
+{
+    VIOsPAPRDeviceClass *k = VIO_SPAPR_DEVICE_CLASS(klass);
+
+    k->init = spapr_vty_init;
+    k->dt_name = "vty";
+    k->dt_type = "serial";
+    k->dt_compatible = "hvterm1";
+}
+
+static DeviceInfo spapr_vty_info = {
+    .name = "spapr-vty",
+    .size = sizeof(VIOsPAPRVTYDevice),
+    .props = spapr_vty_properties,
+    .class_init = spapr_vty_class_init,
 };
 
 VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
@@ -163,7 +172,7 @@ VIOsPAPRDevice *spapr_vty_get_default(VIOsPAPRBus *bus)
     selected = NULL;
     QTAILQ_FOREACH(iter, &bus->bus.children, sibling) {
         /* Only look at VTY devices */
-        if (qdev_get_info(iter) != &spapr_vty_info.qdev) {
+        if (!object_dynamic_cast(OBJECT(iter), "spapr-vty")) {
             continue;
         }
 
