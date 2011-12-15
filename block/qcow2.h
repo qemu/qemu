@@ -33,7 +33,6 @@
 //#define DEBUG_EXT
 
 #define QCOW_MAGIC (('Q' << 24) | ('F' << 16) | ('I' << 8) | 0xfb)
-#define QCOW_VERSION 2
 
 #define QCOW_CRYPT_NONE 0
 #define QCOW_CRYPT_AES  1
@@ -71,6 +70,14 @@ typedef struct QCowHeader {
     uint32_t refcount_table_clusters;
     uint32_t nb_snapshots;
     uint64_t snapshots_offset;
+
+    /* The following fields are only valid for version >= 3 */
+    uint64_t incompatible_features;
+    uint64_t compatible_features;
+    uint64_t autoclear_features;
+
+    uint32_t refcount_order;
+    uint32_t header_length;
 } QCowHeader;
 
 typedef struct QCowSnapshot {
@@ -135,6 +142,14 @@ typedef struct BDRVQcowState {
     QCowSnapshot *snapshots;
 
     int flags;
+    int qcow_version;
+
+    uint64_t incompatible_features;
+    uint64_t compatible_features;
+    uint64_t autoclear_features;
+
+    size_t unknown_header_fields_size;
+    void* unknown_header_fields;
     QLIST_HEAD(, Qcow2UnknownHeaderExtension) unknown_header_ext;
 } BDRVQcowState;
 
