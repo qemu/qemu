@@ -63,6 +63,9 @@ static inline void cpu_register_physical_memory(target_phys_addr_t start_addr,
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 
+int cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
+                                   target_phys_addr_t end_addr);
+
 #endif
 
 #endif

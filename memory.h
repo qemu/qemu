@@ -607,6 +607,16 @@ void memory_region_set_alias_offset(MemoryRegion *mr,
 MemoryRegionSection memory_region_find(MemoryRegion *address_space,
                                        target_phys_addr_t addr, uint64_t size);
 
+
+/**
+ * memory_global_sync_dirty_bitmap: synchronize the dirty log for all memory
+ *
+ * Synchronizes the dirty page log for an entire address space.
+ * @address_space: a top-level (i.e. parentless) region that contains the
+ *       memory being synchronized
+ */
+void memory_global_sync_dirty_bitmap(MemoryRegion *address_space);
+
 /**
  * memory_region_transaction_begin: Start a transaction.
  *

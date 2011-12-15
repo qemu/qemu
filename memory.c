@@ -1447,6 +1447,10 @@ MemoryRegionSection memory_region_find(MemoryRegion *address_space,
     return ret;
 }
 
+void memory_global_sync_dirty_bitmap(MemoryRegion *address_space)
+{
+    cpu_physical_sync_dirty_bitmap(0, TARGET_PHYS_ADDR_MAX);
+}
 
 void set_system_memory_map(MemoryRegion *mr)
 {
