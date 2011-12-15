@@ -95,8 +95,8 @@ static int do_token_setup(USBDevice *s, USBPacket *p)
     index   = (s->setup_buf[5] << 8) | s->setup_buf[4];
 
     if (s->setup_buf[0] & USB_DIR_IN) {
-        ret = s->info->handle_control(s, p, request, value, index,
-                                      s->setup_len, s->data_buf);
+        ret = usb_device_handle_control(s, p, request, value, index,
+                                        s->setup_len, s->data_buf);
         if (ret == USB_RET_ASYNC) {
              s->setup_state = SETUP_STATE_SETUP;
              return USB_RET_ASYNC;
@@ -129,7 +129,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
     int ret = 0;
 
     if (p->devep != 0)
-        return s->info->handle_data(s, p);
+        return usb_device_handle_data(s, p);
 
     request = (s->setup_buf[0] << 8) | s->setup_buf[1];
     value   = (s->setup_buf[3] << 8) | s->setup_buf[2];
@@ -138,8 +138,8 @@ static int do_token_in(USBDevice *s, USBPacket *p)
     switch(s->setup_state) {
     case SETUP_STATE_ACK:
         if (!(s->setup_buf[0] & USB_DIR_IN)) {
-            ret = s->info->handle_control(s, p, request, value, index,
-                                          s->setup_len, s->data_buf);
+            ret = usb_device_handle_control(s, p, request, value, index,
+                                            s->setup_len, s->data_buf);
             if (ret == USB_RET_ASYNC) {
                 return USB_RET_ASYNC;
             }
@@ -176,7 +176,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
 static int do_token_out(USBDevice *s, USBPacket *p)
 {
     if (p->devep != 0)
-        return s->info->handle_data(s, p);
+        return usb_device_handle_data(s, p);
 
     switch(s->setup_state) {
     case SETUP_STATE_ACK:
@@ -220,9 +220,7 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
     switch(p->pid) {
     case USB_MSG_ATTACH:
         s->state = USB_STATE_ATTACHED;
-        if (s->info->handle_attach) {
-            s->info->handle_attach(s);
-        }
+        usb_device_handle_attach(s);
         return 0;
 
     case USB_MSG_DETACH:
@@ -233,9 +231,7 @@ int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
         s->remote_wakeup = 0;
         s->addr = 0;
         s->state = USB_STATE_DEFAULT;
-        if (s->info->handle_reset) {
-            s->info->handle_reset(s);
-        }
+        usb_device_handle_reset(s);
         return 0;
     }
 
@@ -326,7 +322,7 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     int ret;
 
     assert(p->owner == NULL);
-    ret = dev->info->handle_packet(dev, p);
+    ret = usb_device_handle_packet(dev, p);
     if (ret == USB_RET_ASYNC) {
         if (p->owner == NULL) {
             p->owner = usb_ep_get(dev, p->pid, p->devep);
@@ -357,7 +353,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
 void usb_cancel_packet(USBPacket * p)
 {
     assert(p->owner != NULL);
-    p->owner->dev->info->cancel_packet(p->owner->dev, p);
+    usb_device_cancel_packet(p->owner->dev, p);
     p->owner = NULL;
 }
 

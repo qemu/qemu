@@ -674,21 +674,27 @@ static const VMStateDescription vmstate_usb_audio = {
     .unmigratable = 1,
 };
 
-static struct USBDeviceInfo usb_audio_info = {
-    .product_desc   = "QEMU USB Audio Interface",
-    .usbdevice_name = "audio",
-    .qdev.name      = "usb-audio",
-    .qdev.size      = sizeof(USBAudioState),
-    .qdev.vmsd      = &vmstate_usb_audio,
-    .usb_desc       = &desc_audio,
-    .init           = usb_audio_initfn,
-    .handle_packet  = usb_generic_handle_packet,
-    .handle_reset   = usb_audio_handle_reset,
-    .handle_control = usb_audio_handle_control,
-    .handle_data    = usb_audio_handle_data,
-    .handle_destroy = usb_audio_handle_destroy,
-    .set_interface  = usb_audio_set_interface,
-    .qdev.props = (Property[]) {
+static void usb_audio_class_init(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *k = USB_DEVICE_CLASS(klass);
+
+    k->product_desc   = "QEMU USB Audio Interface";
+    k->usb_desc       = &desc_audio;
+    k->init           = usb_audio_initfn;
+    k->handle_packet  = usb_generic_handle_packet;
+    k->handle_reset   = usb_audio_handle_reset;
+    k->handle_control = usb_audio_handle_control;
+    k->handle_data    = usb_audio_handle_data;
+    k->handle_destroy = usb_audio_handle_destroy;
+    k->set_interface  = usb_audio_set_interface;
+}
+
+static struct DeviceInfo usb_audio_info = {
+    .name      = "usb-audio",
+    .size      = sizeof(USBAudioState),
+    .vmsd      = &vmstate_usb_audio,
+    .class_init = usb_audio_class_init,
+    .props = (Property[]) {
         DEFINE_PROP_UINT32("debug", USBAudioState, debug, 0),
         DEFINE_PROP_UINT32("buffer", USBAudioState, buffer,
                            8 * USBAUDIO_PACKET_SIZE),
@@ -698,7 +704,7 @@ static struct USBDeviceInfo usb_audio_info = {
 
 static void usb_audio_register_devices(void)
 {
-    usb_qdev_register(&usb_audio_info);
+    usb_qdev_register(&usb_audio_info, "audio", NULL);
 }
 
 device_init(usb_audio_register_devices)

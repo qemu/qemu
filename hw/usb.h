@@ -1,3 +1,6 @@
+#ifndef QEMU_USB_H
+#define QEMU_USB_H
+
 /*
  * QEMU USB API
  *
@@ -150,7 +153,6 @@ typedef struct USBBus USBBus;
 typedef struct USBBusOps USBBusOps;
 typedef struct USBPort USBPort;
 typedef struct USBDevice USBDevice;
-typedef struct USBDeviceInfo USBDeviceInfo;
 typedef struct USBPacket USBPacket;
 typedef struct USBEndpoint USBEndpoint;
 
@@ -183,7 +185,6 @@ struct USBEndpoint {
 /* definition of a USB device */
 struct USBDevice {
     DeviceState qdev;
-    USBDeviceInfo *info;
     USBPort *port;
     char *port_path;
     void *opaque;
@@ -219,8 +220,17 @@ struct USBDevice {
     const USBDescIface  *ifaces[USB_MAX_INTERFACES];
 };
 
-struct USBDeviceInfo {
-    DeviceInfo qdev;
+#define TYPE_USB_DEVICE "usb-device"
+#define USB_DEVICE(obj) \
+     OBJECT_CHECK(USBDevice, (obj), TYPE_USB_DEVICE)
+#define USB_DEVICE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(USBDeviceClass, (klass), TYPE_USB_DEVICE)
+#define USB_DEVICE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(USBDeviceClass, (obj), TYPE_USB_DEVICE)
+
+typedef struct USBDeviceClass {
+    DeviceClass parent_class;
+
     int (*init)(USBDevice *dev);
 
     /*
@@ -274,11 +284,7 @@ struct USBDeviceInfo {
 
     const char *product_desc;
     const USBDesc *usb_desc;
-
-    /* handle legacy -usbdevice command line options */
-    const char *usbdevice_name;
-    USBDevice *(*usbdevice_init)(const char *params);
-};
+} USBDeviceClass;
 
 typedef struct USBPortOps {
     void (*attach)(USBPort *port);
@@ -412,8 +418,9 @@ struct USBBusOps {
 
 void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);
 USBBus *usb_bus_find(int busnr);
-void usb_qdev_register(USBDeviceInfo *info);
-void usb_qdev_register_many(USBDeviceInfo *info);
+void usb_qdev_register(DeviceInfo *info,
+                       const char *usbdevice_name,
+                       USBDevice *(*usbdevice_init)(const char *params));
 USBDevice *usb_create(USBBus *bus, const char *name);
 USBDevice *usb_create_simple(USBBus *bus, const char *name);
 USBDevice *usbdevice_create(const char *cmdline);
@@ -445,4 +452,25 @@ extern const VMStateDescription vmstate_usb_device;
     .offset     = vmstate_offset_value(_state, _field, USBDevice),   \
 }
 
+int usb_device_handle_packet(USBDevice *dev, USBPacket *p);
+
+void usb_device_cancel_packet(USBDevice *dev, USBPacket *p);
+
+void usb_device_handle_attach(USBDevice *dev);
+
+void usb_device_handle_reset(USBDevice *dev);
+
+int usb_device_handle_control(USBDevice *dev, USBPacket *p, int request, int value,
+                              int index, int length, uint8_t *data);
+
+int usb_device_handle_data(USBDevice *dev, USBPacket *p);
+
+void usb_device_set_interface(USBDevice *dev, int interface,
+                              int alt_old, int alt_new);
+
+const char *usb_device_get_product_desc(USBDevice *dev);
+
+const USBDesc *usb_device_get_usb_desc(USBDevice *dev);
+
+#endif
 

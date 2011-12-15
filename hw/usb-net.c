@@ -1385,29 +1385,34 @@ static const VMStateDescription vmstate_usb_net = {
     .unmigratable = 1,
 };
 
-static struct USBDeviceInfo net_info = {
-    .product_desc   = "QEMU USB Network Interface",
-    .qdev.name      = "usb-net",
-    .qdev.fw_name    = "network",
-    .qdev.size      = sizeof(USBNetState),
-    .qdev.vmsd      = &vmstate_usb_net,
-    .usb_desc       = &desc_net,
-    .init           = usb_net_initfn,
-    .handle_packet  = usb_generic_handle_packet,
-    .handle_reset   = usb_net_handle_reset,
-    .handle_control = usb_net_handle_control,
-    .handle_data    = usb_net_handle_data,
-    .handle_destroy = usb_net_handle_destroy,
-    .usbdevice_name = "net",
-    .usbdevice_init = usb_net_init,
-    .qdev.props     = (Property[]) {
+static void usb_net_class_initfn(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->init           = usb_net_initfn;
+    uc->product_desc   = "QEMU USB Network Interface";
+    uc->usb_desc       = &desc_net;
+    uc->handle_packet  = usb_generic_handle_packet;
+    uc->handle_reset   = usb_net_handle_reset;
+    uc->handle_control = usb_net_handle_control;
+    uc->handle_data    = usb_net_handle_data;
+    uc->handle_destroy = usb_net_handle_destroy;
+}
+
+static struct DeviceInfo net_info = {
+    .name      = "usb-net",
+    .fw_name   = "network",
+    .size      = sizeof(USBNetState),
+    .vmsd      = &vmstate_usb_net,
+    .class_init= usb_net_class_initfn,
+    .props     = (Property[]) {
         DEFINE_NIC_PROPERTIES(USBNetState, conf),
         DEFINE_PROP_END_OF_LIST(),
-    }
+    },
 };
 
 static void usb_net_register_devices(void)
 {
-    usb_qdev_register(&net_info);
+    usb_qdev_register(&net_info, "net", usb_net_init);
 }
 device_init(usb_net_register_devices)

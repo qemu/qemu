@@ -65,14 +65,104 @@ USBBus *usb_bus_find(int busnr)
     return NULL;
 }
 
+static int usb_device_init(USBDevice *dev)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->init) {
+        return klass->init(dev);
+    }
+    return 0;
+}
+
+static void usb_device_handle_destroy(USBDevice *dev)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->handle_destroy) {
+        klass->handle_destroy(dev);
+    }
+}
+
+int usb_device_handle_packet(USBDevice *dev, USBPacket *p)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->handle_packet) {
+        return klass->handle_packet(dev, p);
+    }
+    return -ENOSYS;
+}
+
+void usb_device_cancel_packet(USBDevice *dev, USBPacket *p)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->cancel_packet) {
+        klass->cancel_packet(dev, p);
+    }
+}
+
+void usb_device_handle_attach(USBDevice *dev)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->handle_attach) {
+        klass->handle_attach(dev);
+    }
+}
+
+void usb_device_handle_reset(USBDevice *dev)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->handle_reset) {
+        klass->handle_reset(dev);
+    }
+}
+
+int usb_device_handle_control(USBDevice *dev, USBPacket *p, int request,
+                              int value, int index, int length, uint8_t *data)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->handle_control) {
+        return klass->handle_control(dev, p, request, value, index, length,
+                                         data);
+    }
+    return -ENOSYS;
+}
+
+int usb_device_handle_data(USBDevice *dev, USBPacket *p)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->handle_data) {
+        return klass->handle_data(dev, p);
+    }
+    return -ENOSYS;
+}
+
+const char *usb_device_get_product_desc(USBDevice *dev)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    return klass->product_desc;
+}
+
+const USBDesc *usb_device_get_usb_desc(USBDevice *dev)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    return klass->usb_desc;
+}
+
+void usb_device_set_interface(USBDevice *dev, int interface,
+                              int alt_old, int alt_new)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->set_interface) {
+        klass->set_interface(dev, interface, alt_old, alt_new);
+    }
+}
+
 static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
-    USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
-    USBDeviceInfo *info = DO_UPCAST(USBDeviceInfo, qdev, base);
+    USBDevice *dev = USB_DEVICE(qdev);
     int rc;
 
-    pstrcpy(dev->product_desc, sizeof(dev->product_desc), info->product_desc);
-    dev->info = info;
+    pstrcpy(dev->product_desc, sizeof(dev->product_desc),
+            usb_device_get_product_desc(dev));
     dev->auto_attach = 1;
     QLIST_INIT(&dev->strings);
     usb_ep_init(dev);
@@ -80,7 +170,7 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
     if (rc != 0) {
         return rc;
     }
-    rc = dev->info->init(dev);
+    rc = usb_device_init(dev);
     if (rc != 0) {
         usb_release_port(dev);
         return rc;
@@ -97,34 +187,43 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
 
 static int usb_qdev_exit(DeviceState *qdev)
 {
-    USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
+    USBDevice *dev = USB_DEVICE(qdev);
 
     if (dev->attached) {
         usb_device_detach(dev);
     }
-    if (dev->info->handle_destroy) {
-        dev->info->handle_destroy(dev);
-    }
+    usb_device_handle_destroy(dev);
     if (dev->port) {
         usb_release_port(dev);
     }
     return 0;
 }
 
-void usb_qdev_register(USBDeviceInfo *info)
+typedef struct LegacyUSBFactory
 {
-    info->qdev.bus_info = &usb_bus_info;
-    info->qdev.init     = usb_qdev_init;
-    info->qdev.unplug   = qdev_simple_unplug_cb;
-    info->qdev.exit     = usb_qdev_exit;
-    qdev_register(&info->qdev);
-}
+    const char *name;
+    const char *usbdevice_name;
+    USBDevice *(*usbdevice_init)(const char *params);
+} LegacyUSBFactory;
 
-void usb_qdev_register_many(USBDeviceInfo *info)
+static GSList *legacy_usb_factory;
+
+void usb_qdev_register(DeviceInfo *info,
+                       const char *usbdevice_name,
+                       USBDevice *(*usbdevice_init)(const char *params))
 {
-    while (info->qdev.name) {
-        usb_qdev_register(info);
-        info++;
+    info->bus_info = &usb_bus_info;
+    info->init     = usb_qdev_init;
+    info->unplug   = qdev_simple_unplug_cb;
+    info->exit     = usb_qdev_exit;
+    qdev_register_subclass(info, TYPE_USB_DEVICE);
+
+    if (usbdevice_name) {
+        LegacyUSBFactory *f = g_malloc0(sizeof(*f));
+        f->name = info->name;
+        f->usbdevice_name = usbdevice_name;
+        f->usbdevice_init = usbdevice_init;
+        legacy_usb_factory = g_slist_append(legacy_usb_factory, f);
     }
 }
 
@@ -144,7 +243,7 @@ USBDevice *usb_create(USBBus *bus, const char *name)
 #endif
 
     dev = qdev_create(&bus->qbus, name);
-    return DO_UPCAST(USBDevice, qdev, dev);
+    return USB_DEVICE(dev);
 }
 
 USBDevice *usb_create_simple(USBBus *bus, const char *name)
@@ -365,7 +464,7 @@ static const char *usb_speed(unsigned int speed)
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 {
-    USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
+    USBDevice *dev = USB_DEVICE(qdev);
     USBBus *bus = usb_bus_from_device(dev);
 
     monitor_printf(mon, "%*saddr %d.%d, port %s, speed %s, name %s%s\n",
@@ -377,13 +476,13 @@ static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
 
 static char *usb_get_dev_path(DeviceState *qdev)
 {
-    USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
+    USBDevice *dev = USB_DEVICE(qdev);
     return g_strdup(dev->port->path);
 }
 
 static char *usb_get_fw_dev_path(DeviceState *qdev)
 {
-    USBDevice *dev = DO_UPCAST(USBDevice, qdev, qdev);
+    USBDevice *dev = USB_DEVICE(qdev);
     char *fw_path, *in;
     ssize_t pos = 0, fw_len;
     long nr;
@@ -434,8 +533,8 @@ void usb_info(Monitor *mon)
 USBDevice *usbdevice_create(const char *cmdline)
 {
     USBBus *bus = usb_bus_find(-1 /* any */);
-    DeviceInfo *info;
-    USBDeviceInfo *usb;
+    LegacyUSBFactory *f = NULL;
+    GSList *i;
     char driver[32];
     const char *params;
     int len;
@@ -452,17 +551,13 @@ USBDevice *usbdevice_create(const char *cmdline)
         pstrcpy(driver, sizeof(driver), cmdline);
     }
 
-    for (info = device_info_list; info != NULL; info = info->next) {
-        if (info->bus_info != &usb_bus_info)
-            continue;
-        usb = DO_UPCAST(USBDeviceInfo, qdev, info);
-        if (usb->usbdevice_name == NULL)
-            continue;
-        if (strcmp(usb->usbdevice_name, driver) != 0)
-            continue;
-        break;
+    for (i = legacy_usb_factory; i; i = i->next) {
+        f = i->data;
+        if (strcmp(f->usbdevice_name, driver) == 0) {
+            break;
+        }
     }
-    if (info == NULL) {
+    if (i == NULL) {
 #if 0
         /* no error because some drivers are not converted (yet) */
         error_report("usbdevice %s not found", driver);
@@ -470,12 +565,27 @@ USBDevice *usbdevice_create(const char *cmdline)
         return NULL;
     }
 
-    if (!usb->usbdevice_init) {
+    if (!f->usbdevice_init) {
         if (*params) {
             error_report("usbdevice %s accepts no params", driver);
             return NULL;
         }
-        return usb_create_simple(bus, usb->qdev.name);
+        return usb_create_simple(bus, f->name);
     }
-    return usb->usbdevice_init(params);
+    return f->usbdevice_init(params);
 }
+
+static TypeInfo usb_device_type_info = {
+    .name = TYPE_USB_DEVICE,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(USBDevice),
+    .abstract = true,
+    .class_size = sizeof(USBDeviceClass),
+};
+
+static void usb_register_devices(void)
+{
+    type_register_static(&usb_device_type_info);
+}
+
+device_init(usb_register_devices);

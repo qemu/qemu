@@ -1286,28 +1286,34 @@ static VMStateDescription ccid_vmstate = {
     }
 };
 
-static struct USBDeviceInfo ccid_info = {
-    .product_desc   = "QEMU USB CCID",
-    .qdev.name      = CCID_DEV_NAME,
-    .qdev.desc      = "CCID Rev 1.1 smartcard reader",
-    .qdev.size      = sizeof(USBCCIDState),
-    .init           = ccid_initfn,
-    .usb_desc       = &desc_ccid,
-    .handle_packet  = usb_generic_handle_packet,
-    .handle_reset   = ccid_handle_reset,
-    .handle_control = ccid_handle_control,
-    .handle_data    = ccid_handle_data,
-    .handle_destroy = ccid_handle_destroy,
-    .usbdevice_name = "ccid",
-    .qdev.props     = (Property[]) {
+static void ccid_class_initfn(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->init           = ccid_initfn;
+    uc->product_desc   = "QEMU USB CCID";
+    uc->usb_desc       = &desc_ccid;
+    uc->handle_packet  = usb_generic_handle_packet;
+    uc->handle_reset   = ccid_handle_reset;
+    uc->handle_control = ccid_handle_control;
+    uc->handle_data    = ccid_handle_data;
+    uc->handle_destroy = ccid_handle_destroy;
+}
+
+static struct DeviceInfo ccid_info = {
+    .name      = CCID_DEV_NAME,
+    .desc      = "CCID Rev 1.1 smartcard reader",
+    .size      = sizeof(USBCCIDState),
+    .class_init= ccid_class_initfn,
+    .vmsd      = &ccid_vmstate,
+    .props     = (Property[]) {
         DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
         DEFINE_PROP_END_OF_LIST(),
     },
-    .qdev.vmsd      = &ccid_vmstate,
 };
 
 static void ccid_register_devices(void)
 {
-    usb_qdev_register(&ccid_info);
+    usb_qdev_register(&ccid_info, "ccid", NULL);
 }
 device_init(ccid_register_devices)

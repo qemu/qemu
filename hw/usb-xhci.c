@@ -1458,7 +1458,7 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     if (!xfer->in_xfer) {
         xhci_xfer_data(xfer, xfer->data, wLength, 0, 1, 0);
     }
-    ret = dev->info->handle_control(dev, &xfer->packet,
+    ret = usb_device_handle_control(dev, &xfer->packet,
                                     (bmRequestType << 8) | bRequest,
                                     wValue, wIndex, wLength, xfer->data);
 
@@ -1767,7 +1767,7 @@ static TRBCCode xhci_address_slot(XHCIState *xhci, unsigned int slotid,
         slot->devaddr = xhci->devaddr++;
         slot_ctx[3] = (SLOT_ADDRESSED << SLOT_STATE_SHIFT) | slot->devaddr;
         DPRINTF("xhci: device address is %d\n", slot->devaddr);
-        dev->info->handle_control(dev, NULL,
+        usb_device_handle_control(dev, NULL,
                                   DeviceOutRequest | USB_REQ_SET_ADDRESS,
                                   slot->devaddr, 0, 0, NULL);
     }

@@ -527,22 +527,29 @@ static const VMStateDescription vmstate_usb_bt = {
     .unmigratable = 1,
 };
 
-static struct USBDeviceInfo bt_info = {
-    .product_desc   = "QEMU BT dongle",
-    .qdev.name      = "usb-bt-dongle",
-    .qdev.size      = sizeof(struct USBBtState),
-    .qdev.vmsd      = &vmstate_usb_bt,
-    .usb_desc       = &desc_bluetooth,
-    .init           = usb_bt_initfn,
-    .handle_packet  = usb_generic_handle_packet,
-    .handle_reset   = usb_bt_handle_reset,
-    .handle_control = usb_bt_handle_control,
-    .handle_data    = usb_bt_handle_data,
-    .handle_destroy = usb_bt_handle_destroy,
+static void usb_bt_class_initfn(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->init           = usb_bt_initfn;
+    uc->product_desc   = "QEMU BT dongle";
+    uc->usb_desc       = &desc_bluetooth;
+    uc->handle_packet  = usb_generic_handle_packet;
+    uc->handle_reset   = usb_bt_handle_reset;
+    uc->handle_control = usb_bt_handle_control;
+    uc->handle_data    = usb_bt_handle_data;
+    uc->handle_destroy = usb_bt_handle_destroy;
+}
+
+static struct DeviceInfo bt_info = {
+    .name      = "usb-bt-dongle",
+    .size      = sizeof(struct USBBtState),
+    .vmsd      = &vmstate_usb_bt,
+    .class_init= usb_bt_class_initfn,
 };
 
 static void usb_bt_register_devices(void)
 {
-    usb_qdev_register(&bt_info);
+    usb_qdev_register(&bt_info, NULL, NULL);
 }
 device_init(usb_bt_register_devices)
