@@ -507,13 +507,13 @@ static int vt82c686b_initfn(PCIDevice *d)
     return 0;
 }
 
-int vt82c686b_init(PCIBus *bus, int devfn)
+ISABus *vt82c686b_init(PCIBus *bus, int devfn)
 {
     PCIDevice *d;
 
     d = pci_create_simple_multifunction(bus, devfn, true, "VT82C686B");
 
-    return d->devfn;
+    return DO_UPCAST(ISABus, qbus, qdev_get_child_bus(&d->qdev, "isa.0"));
 }
 
 static PCIDeviceInfo via_info = {

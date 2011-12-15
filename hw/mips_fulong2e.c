@@ -264,7 +264,6 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     int64_t kernel_entry;
     qemu_irq *i8259;
     qemu_irq *cpu_exit_irq;
-    int via_devfn;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     i2c_bus *smbus;
@@ -338,12 +337,11 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     /* South bridge */
     ide_drive_get(hd, MAX_IDE_BUS);
 
-    via_devfn = vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 0));
-    if (via_devfn < 0) {
+    isa_bus = vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 0));
+    if (!isa_bus) {
         fprintf(stderr, "vt82c686b_init error\n");
         exit(1);
     }
-    isa_bus = NULL;
 
     /* Interrupt controller */
     /* The 8259 -> IP5  */
