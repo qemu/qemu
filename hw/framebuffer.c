@@ -50,7 +50,6 @@ void framebuffer_update_display(
     *first_row = -1;
     src_len = src_width * rows;
 
-    cpu_physical_sync_dirty_bitmap(base, base + src_len);
     mem_section = memory_region_find(address_space, base, src_len);
     if (mem_section.size != src_len || !memory_region_is_ram(mem_section.mr)) {
         return;
@@ -59,6 +58,7 @@ void framebuffer_update_display(
     assert(mem);
     assert(mem_section.offset_within_address_space == base);
 
+    memory_region_sync_dirty_bitmap(mem);
     src_base = cpu_physical_memory_map(base, &src_len, 0);
     /* If we can't map the framebuffer then bail.  We could try harder,
        but it's not really worth it as dirty flag tracking will probably
