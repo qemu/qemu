@@ -93,11 +93,12 @@ static int piix4_initfn(PCIDevice *dev)
     return 0;
 }
 
-int piix4_init(PCIBus *bus, int devfn)
+int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn)
 {
     PCIDevice *d;
 
     d = pci_create_simple_multifunction(bus, devfn, true, "PIIX4");
+    *isa_bus = DO_UPCAST(ISABus, qbus, qdev_get_child_bus(&d->qdev, "isa.0"));
     return d->devfn;
 }
 

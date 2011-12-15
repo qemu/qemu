@@ -196,7 +196,7 @@ PCIBus *i440fx_init(PCII440FXState **pi440fx_state, int *piix_devfn,
 
 /* piix4.c */
 extern PCIDevice *piix4_dev;
-int piix4_init(PCIBus *bus, int devfn);
+int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn);
 
 /* vga.c */
 enum vga_retrace_method {
