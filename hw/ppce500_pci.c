@@ -79,6 +79,7 @@ struct PPCE500PCIState {
     uint32_t gasket_time;
     qemu_irq irq[4];
     /* mmio maps */
+    MemoryRegion container;
     MemoryRegion iomem;
 };
 
@@ -298,26 +299,6 @@ static const VMStateDescription vmstate_ppce500_pci = {
     }
 };
 
-static void e500_pci_map(SysBusDevice *dev, target_phys_addr_t base)
-{
-    PCIHostState *h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
-    PPCE500PCIState *s = DO_UPCAST(PPCE500PCIState, pci_state, h);
-
-    sysbus_add_memory(dev, base + PCIE500_CFGADDR, &h->conf_mem);
-    sysbus_add_memory(dev, base + PCIE500_CFGDATA, &h->data_mem);
-    sysbus_add_memory(dev, base + PCIE500_REG_BASE, &s->iomem);
-}
-
-static void e500_pci_unmap(SysBusDevice *dev, target_phys_addr_t base)
-{
-    PCIHostState *h = FROM_SYSBUS(PCIHostState, sysbus_from_qdev(dev));
-    PPCE500PCIState *s = DO_UPCAST(PPCE500PCIState, pci_state, h);
-
-    sysbus_del_memory(dev, &h->conf_mem);
-    sysbus_del_memory(dev, &h->data_mem);
-    sysbus_del_memory(dev, &s->iomem);
-}
-
 #include "exec-memory.h"
 
 static int e500_pcihost_initfn(SysBusDevice *dev)
@@ -343,13 +324,17 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
 
     pci_create_simple(b, 0, "e500-host-bridge");
 
+    memory_region_init(&s->container, "pci-container", PCIE500_ALL_SIZE);
     memory_region_init_io(&h->conf_mem, &pci_host_conf_be_ops, h,
                           "pci-conf-idx", 4);
     memory_region_init_io(&h->data_mem, &pci_host_data_le_ops, h,
                           "pci-conf-data", 4);
     memory_region_init_io(&s->iomem, &e500_pci_reg_ops, s,
                           "pci.reg", PCIE500_REG_SIZE);
-    sysbus_init_mmio_cb2(dev, e500_pci_map, e500_pci_unmap);
+    memory_region_add_subregion(&s->container, PCIE500_CFGADDR, &h->conf_mem);
+    memory_region_add_subregion(&s->container, PCIE500_CFGDATA, &h->data_mem);
+    memory_region_add_subregion(&s->container, PCIE500_REG_BASE, &s->iomem);
+    sysbus_init_mmio(dev, &s->container);
 
     return 0;
 }
