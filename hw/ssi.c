@@ -23,8 +23,8 @@ static struct BusInfo ssi_bus_info = {
 
 static int ssi_slave_init(DeviceState *dev, DeviceInfo *base_info)
 {
-    SSISlaveInfo *info = container_of(base_info, SSISlaveInfo, qdev);
-    SSISlave *s = SSI_SLAVE_FROM_QDEV(dev);
+    SSISlave *s = SSI_SLAVE(dev);
+    SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
     SSIBus *bus;
 
     bus = FROM_QBUS(SSIBus, qdev_get_parent_bus(dev));
@@ -33,16 +33,15 @@ static int ssi_slave_init(DeviceState *dev, DeviceInfo *base_info)
         hw_error("Too many devices on SSI bus");
     }
 
-    s->info = info;
-    return info->init(s);
+    return ssc->init(s);
 }
 
-void ssi_register_slave(SSISlaveInfo *info)
+void ssi_register_slave(DeviceInfo *info)
 {
-    assert(info->qdev.size >= sizeof(SSISlave));
-    info->qdev.init = ssi_slave_init;
-    info->qdev.bus_info = &ssi_bus_info;
-    qdev_register(&info->qdev);
+    assert(info->size >= sizeof(SSISlave));
+    info->init = ssi_slave_init;
+    info->bus_info = &ssi_bus_info;
+    qdev_register(info);
 }
 
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name)
@@ -64,10 +63,12 @@ uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
 {
     DeviceState *dev;
     SSISlave *slave;
+    SSISlaveClass *ssc;
     dev = QTAILQ_FIRST(&bus->qbus.children);
     if (!dev) {
         return 0;
     }
-    slave = SSI_SLAVE_FROM_QDEV(dev);
-    return slave->info->transfer(slave, val);
+    slave = SSI_SLAVE(dev);
+    ssc = SSI_SLAVE_GET_CLASS(slave);
+    return ssc->transfer(slave, val);
 }

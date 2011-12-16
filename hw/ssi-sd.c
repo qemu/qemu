@@ -244,11 +244,18 @@ static int ssi_sd_init(SSISlave *dev)
     return 0;
 }
 
-static SSISlaveInfo ssi_sd_info = {
-    .qdev.name = "ssi-sd",
-    .qdev.size = sizeof(ssi_sd_state),
-    .init = ssi_sd_init,
-    .transfer = ssi_sd_transfer
+static void ssi_sd_class_init(ObjectClass *klass, void *data)
+{
+    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+
+    k->init = ssi_sd_init;
+    k->transfer = ssi_sd_transfer;
+}
+
+static DeviceInfo ssi_sd_info = {
+    .name = "ssi-sd",
+    .size = sizeof(ssi_sd_state),
+    .class_init = ssi_sd_class_init,
 };
 
 static void ssi_sd_register_devices(void)

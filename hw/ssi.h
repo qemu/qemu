@@ -15,22 +15,30 @@
 
 typedef struct SSISlave SSISlave;
 
+#define TYPE_SSI_SLAVE "ssi-slave"
+#define SSI_SLAVE(obj) \
+     OBJECT_CHECK(SSISlave, (obj), TYPE_SSI_SLAVE)
+#define SSI_SLAVE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(SSISlaveClass, (klass), TYPE_SSI_SLAVE)
+#define SSI_SLAVE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(SSISlaveClass, (obj), TYPE_SSI_SLAVE)
+
 /* Slave devices.  */
-typedef struct {
-    DeviceInfo qdev;
+typedef struct SSISlaveClass {
+    DeviceClass parent_class;
+
     int (*init)(SSISlave *dev);
     uint32_t (*transfer)(SSISlave *dev, uint32_t val);
-} SSISlaveInfo;
+} SSISlaveClass;
 
 struct SSISlave {
     DeviceState qdev;
-    SSISlaveInfo *info;
 };
 
 #define SSI_SLAVE_FROM_QDEV(dev) DO_UPCAST(SSISlave, qdev, dev)
 #define FROM_SSI_SLAVE(type, dev) DO_UPCAST(type, ssidev, dev)
 
-void ssi_register_slave(SSISlaveInfo *info);
+void ssi_register_slave(DeviceInfo *info);
 
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name);
 

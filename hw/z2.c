@@ -174,12 +174,19 @@ static VMStateDescription vmstate_zipit_lcd_state = {
     }
 };
 
-static SSISlaveInfo zipit_lcd_info = {
-    .qdev.name = "zipit-lcd",
-    .qdev.size = sizeof(ZipitLCD),
-    .qdev.vmsd = &vmstate_zipit_lcd_state,
-    .init = zipit_lcd_init,
-    .transfer = zipit_lcd_transfer
+static void zipit_lcd_class_init(ObjectClass *klass, void *data)
+{
+    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+
+    k->init = zipit_lcd_init;
+    k->transfer = zipit_lcd_transfer;
+}
+
+static DeviceInfo zipit_lcd_info = {
+    .name = "zipit-lcd",
+    .size = sizeof(ZipitLCD),
+    .vmsd = &vmstate_zipit_lcd_state,
+    .class_init = zipit_lcd_class_init,
 };
 
 typedef struct {

@@ -1394,11 +1394,18 @@ static void stellaris_machine_init(void)
 
 machine_init(stellaris_machine_init);
 
-static SSISlaveInfo stellaris_ssi_bus_info = {
-    .qdev.name = "evb6965-ssi",
-    .qdev.size = sizeof(stellaris_ssi_bus_state),
-    .init = stellaris_ssi_bus_init,
-    .transfer = stellaris_ssi_bus_transfer
+static void stellaris_ssi_bus_class_init(ObjectClass *klass, void *data)
+{
+    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+
+    k->init = stellaris_ssi_bus_init;
+    k->transfer = stellaris_ssi_bus_transfer;
+}
+
+static DeviceInfo stellaris_ssi_bus_info = {
+    .name = "evb6965-ssi",
+    .size = sizeof(stellaris_ssi_bus_state),
+    .class_init = stellaris_ssi_bus_class_init,
 };
 
 static void stellaris_register_devices(void)
