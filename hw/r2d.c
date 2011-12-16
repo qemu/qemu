@@ -231,6 +231,8 @@ static void r2d_init(ram_addr_t ram_size,
     qemu_irq *irq;
     DriveInfo *dinfo;
     int i;
+    DeviceState *dev;
+    SysBusDevice *busdev;
     MemoryRegion *address_space_mem = get_system_memory();
 
     if (!cpu_model)
@@ -252,8 +254,16 @@ static void r2d_init(ram_addr_t ram_size,
     /* Register peripherals */
     s = sh7750_init(env, address_space_mem);
     irq = r2d_fpga_init(address_space_mem, 0x04000000, sh7750_irl(s));
-    sysbus_create_varargs("sh_pci", 0x1e200000, irq[PCI_INTA], irq[PCI_INTB],
-                          irq[PCI_INTC], irq[PCI_INTD], NULL);
+
+    dev = qdev_create(NULL, "sh_pci");
+    busdev = sysbus_from_qdev(dev);
+    qdev_init_nofail(dev);
+    sysbus_mmio_map(busdev, 0, P4ADDR(0x1e200000));
+    sysbus_mmio_map(busdev, 1, A7ADDR(0x1e200000));
+    sysbus_connect_irq(busdev, 0, irq[PCI_INTA]);
+    sysbus_connect_irq(busdev, 1, irq[PCI_INTB]);
+    sysbus_connect_irq(busdev, 2, irq[PCI_INTC]);
+    sysbus_connect_irq(busdev, 3, irq[PCI_INTD]);
 
     sm501_init(address_space_mem, 0x10000000, SM501_VRAM_SIZE,
                irq[SM501], serial_hds[2]);
