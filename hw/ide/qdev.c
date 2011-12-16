@@ -55,8 +55,8 @@ static char *idebus_get_fw_dev_path(DeviceState *dev)
 
 static int ide_qdev_init(DeviceState *qdev, DeviceInfo *base)
 {
-    IDEDevice *dev = DO_UPCAST(IDEDevice, qdev, qdev);
-    IDEDeviceInfo *info = DO_UPCAST(IDEDeviceInfo, qdev, base);
+    IDEDevice *dev = IDE_DEVICE(qdev);
+    IDEDeviceClass *dc = IDE_DEVICE_GET_CLASS(dev);
     IDEBus *bus = DO_UPCAST(IDEBus, qbus, qdev->parent_bus);
 
     if (!dev->conf.bs) {
@@ -85,17 +85,17 @@ static int ide_qdev_init(DeviceState *qdev, DeviceInfo *base)
         error_report("Invalid IDE unit %d", dev->unit);
         goto err;
     }
-    return info->init(dev);
+    return dc->init(dev);
 
 err:
     return -1;
 }
 
-static void ide_qdev_register(IDEDeviceInfo *info)
+static void ide_qdev_register(DeviceInfo *info)
 {
-    info->qdev.init = ide_qdev_init;
-    info->qdev.bus_info = &ide_bus_info;
-    qdev_register(&info->qdev);
+    info->init = ide_qdev_init;
+    info->bus_info = &ide_bus_info;
+    qdev_register_subclass(info, TYPE_IDE_DEVICE);
 }
 
 IDEDevice *ide_create_drive(IDEBus *bus, int unit, DriveInfo *drive)
@@ -182,46 +182,73 @@ static int ide_drive_initfn(IDEDevice *dev)
     DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),  \
     DEFINE_PROP_STRING("serial",  IDEDrive, dev.serial)
 
-static IDEDeviceInfo ide_dev_info[] = {
-    {
-        .qdev.name    = "ide-hd",
-        .qdev.fw_name = "drive",
-        .qdev.desc    = "virtual IDE disk",
-        .qdev.size    = sizeof(IDEDrive),
-        .init         = ide_hd_initfn,
-        .qdev.props   = (Property[]) {
-            DEFINE_IDE_DEV_PROPERTIES(),
-            DEFINE_PROP_END_OF_LIST(),
-        }
-    },{
-        .qdev.name    = "ide-cd",
-        .qdev.fw_name = "drive",
-        .qdev.desc    = "virtual IDE CD-ROM",
-        .qdev.size    = sizeof(IDEDrive),
-        .init         = ide_cd_initfn,
-        .qdev.props   = (Property[]) {
-            DEFINE_IDE_DEV_PROPERTIES(),
-            DEFINE_PROP_END_OF_LIST(),
-        }
-    },{
-        .qdev.name    = "ide-drive", /* legacy -device ide-drive */
-        .qdev.fw_name = "drive",
-        .qdev.desc    = "virtual IDE disk or CD-ROM (legacy)",
-        .qdev.size    = sizeof(IDEDrive),
-        .init         = ide_drive_initfn,
-        .qdev.props   = (Property[]) {
-            DEFINE_IDE_DEV_PROPERTIES(),
-            DEFINE_PROP_END_OF_LIST(),
-        }
+static void ide_hd_class_init(ObjectClass *klass, void *data)
+{
+    IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
+    k->init = ide_hd_initfn;
+}
+
+static DeviceInfo ide_hd_info = {
+    .name    = "ide-hd",
+    .fw_name = "drive",
+    .desc    = "virtual IDE disk",
+    .size    = sizeof(IDEDrive),
+    .class_init = ide_hd_class_init,
+    .props   = (Property[]) {
+        DEFINE_IDE_DEV_PROPERTIES(),
+        DEFINE_PROP_END_OF_LIST(),
     }
+};
+
+static void ide_cd_class_init(ObjectClass *klass, void *data)
+{
+    IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
+    k->init = ide_cd_initfn;
+}
+
+static DeviceInfo ide_cd_info = {
+    .name    = "ide-cd",
+    .fw_name = "drive",
+    .desc    = "virtual IDE CD-ROM",
+    .size    = sizeof(IDEDrive),
+    .class_init = ide_cd_class_init,
+    .props   = (Property[]) {
+        DEFINE_IDE_DEV_PROPERTIES(),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static void ide_drive_class_init(ObjectClass *klass, void *data)
+{
+    IDEDeviceClass *k = IDE_DEVICE_CLASS(klass);
+    k->init = ide_drive_initfn;
+}
+
+static DeviceInfo ide_drive_info = {
+    .name    = "ide-drive", /* legacy -device ide-drive */
+    .fw_name = "drive",
+    .desc    = "virtual IDE disk or CD-ROM (legacy)",
+    .size    = sizeof(IDEDrive),
+    .class_init = ide_drive_class_init,
+    .props   = (Property[]) {
+        DEFINE_IDE_DEV_PROPERTIES(),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
+static TypeInfo ide_device_type_info = {
+    .name = TYPE_IDE_DEVICE,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(IDEDevice),
+    .abstract = true,
+    .class_size = sizeof(IDEDeviceClass),
 };
 
 static void ide_dev_register(void)
 {
-    int i;
-
-    for (i = 0; i < ARRAY_SIZE(ide_dev_info); i++) {
-        ide_qdev_register(&ide_dev_info[i]);
-    }
+    ide_qdev_register(&ide_hd_info);
+    ide_qdev_register(&ide_cd_info);
+    ide_qdev_register(&ide_drive_info);
+    type_register_static(&ide_device_type_info);
 }
 device_init(ide_dev_register);
