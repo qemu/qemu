@@ -51,9 +51,8 @@ static int hda_codec_dev_init(DeviceState *qdev, DeviceInfo *base)
 {
     HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, qdev->parent_bus);
     HDACodecDevice *dev = DO_UPCAST(HDACodecDevice, qdev, qdev);
-    HDACodecDeviceInfo *info = DO_UPCAST(HDACodecDeviceInfo, qdev, base);
+    HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
-    dev->info = info;
     if (dev->cad == -1) {
         dev->cad = bus->next_cad;
     }
@@ -61,25 +60,26 @@ static int hda_codec_dev_init(DeviceState *qdev, DeviceInfo *base)
         return -1;
     }
     bus->next_cad = dev->cad + 1;
-    return info->init(dev);
+    return cdc->init(dev);
 }
 
 static int hda_codec_dev_exit(DeviceState *qdev)
 {
     HDACodecDevice *dev = DO_UPCAST(HDACodecDevice, qdev, qdev);
+    HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
-    if (dev->info->exit) {
-        dev->info->exit(dev);
+    if (cdc->exit) {
+        cdc->exit(dev);
     }
     return 0;
 }
 
-void hda_codec_register(HDACodecDeviceInfo *info)
+void hda_codec_register(DeviceInfo *info)
 {
-    info->qdev.init = hda_codec_dev_init;
-    info->qdev.exit = hda_codec_dev_exit;
-    info->qdev.bus_info = &hda_codec_bus_info;
-    qdev_register(&info->qdev);
+    info->init = hda_codec_dev_init;
+    info->exit = hda_codec_dev_exit;
+    info->bus_info = &hda_codec_bus_info;
+    qdev_register(info);
 }
 
 HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
@@ -283,6 +283,7 @@ static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
 {
     uint32_t cad, nid, data;
     HDACodecDevice *codec;
+    HDACodecDeviceClass *cdc;
 
     cad = (verb >> 28) & 0x0f;
     if (verb & (1 << 27)) {
@@ -298,7 +299,8 @@ static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
         dprint(d, 1, "%s: addressed non-existing codec\n", __FUNCTION__);
         return -1;
     }
-    codec->info->command(codec, nid, data);
+    cdc = HDA_CODEC_DEVICE_GET_CLASS(codec);
+    cdc->command(codec, nid, data);
     return 0;
 }
 
@@ -491,9 +493,12 @@ static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool runn
     HDACodecDevice *cdev;
 
     QTAILQ_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
+        HDACodecDeviceClass *cdc;
+
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
-        if (cdev->info->stream) {
-            cdev->info->stream(cdev, stream, running, output);
+        cdc = HDA_CODEC_DEVICE_GET_CLASS(cdev);
+        if (cdc->stream) {
+            cdc->stream(cdev, stream, running, output);
         }
     }
 }

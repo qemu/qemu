@@ -906,33 +906,47 @@ static int hda_audio_init_duplex(HDACodecDevice *hda)
     return hda_audio_init(hda, &duplex);
 }
 
-static HDACodecDeviceInfo hda_audio_info_output = {
-    .qdev.name    = "hda-output",
-    .qdev.desc    = "HDA Audio Codec, output-only",
-    .qdev.size    = sizeof(HDAAudioState),
-    .qdev.vmsd    = &vmstate_hda_audio,
-    .qdev.props   = hda_audio_properties,
-    .init         = hda_audio_init_output,
-    .exit         = hda_audio_exit,
-    .command      = hda_audio_command,
-    .stream       = hda_audio_stream,
+static void hda_audio_output_class_init(ObjectClass *klass, void *data)
+{
+    HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
+
+    k->init = hda_audio_init_output;
+    k->exit = hda_audio_exit;
+    k->command = hda_audio_command;
+    k->stream = hda_audio_stream;
+}
+
+static DeviceInfo hda_audio_output_info = {
+    .name = "hda-output",
+    .desc = "HDA Audio Codec, output-only",
+    .size = sizeof(HDAAudioState),
+    .vmsd = &vmstate_hda_audio,
+    .props = hda_audio_properties,
+    .class_init = hda_audio_output_class_init,
 };
 
-static HDACodecDeviceInfo hda_audio_info_duplex = {
-    .qdev.name    = "hda-duplex",
-    .qdev.desc    = "HDA Audio Codec, duplex",
-    .qdev.size    = sizeof(HDAAudioState),
-    .qdev.vmsd    = &vmstate_hda_audio,
-    .qdev.props   = hda_audio_properties,
-    .init         = hda_audio_init_duplex,
-    .exit         = hda_audio_exit,
-    .command      = hda_audio_command,
-    .stream       = hda_audio_stream,
+static void hda_audio_duplex_class_init(ObjectClass *klass, void *data)
+{
+    HDACodecDeviceClass *k = HDA_CODEC_DEVICE_CLASS(klass);
+
+    k->init = hda_audio_init_duplex;
+    k->exit = hda_audio_exit;
+    k->command = hda_audio_command;
+    k->stream = hda_audio_stream;
+}
+
+static DeviceInfo hda_audio_duplex_info = {
+    .name = "hda-duplex",
+    .desc = "HDA Audio Codec, duplex",
+    .size = sizeof(HDAAudioState),
+    .vmsd = &vmstate_hda_audio,
+    .props = hda_audio_properties,
+    .class_init = hda_audio_duplex_class_init,
 };
 
 static void hda_audio_register(void)
 {
-    hda_codec_register(&hda_audio_info_output);
-    hda_codec_register(&hda_audio_info_duplex);
+    hda_codec_register(&hda_audio_output_info);
+    hda_codec_register(&hda_audio_duplex_info);
 }
 device_init(hda_audio_register);

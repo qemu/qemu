@@ -6,9 +6,16 @@
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */
 
+#define TYPE_HDA_CODEC_DEVICE "hda-codec"
+#define HDA_CODEC_DEVICE(obj) \
+     OBJECT_CHECK(HDACodecDevice, (obj), TYPE_HDA_CODEC_DEVICE)
+#define HDA_CODEC_DEVICE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(HDACodecDeviceClass, (klass), TYPE_HDA_CODEC_DEVICE)
+#define HDA_CODEC_DEVICE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(HDACodecDeviceClass, (obj), TYPE_HDA_CODEC_DEVICE)
+
 typedef struct HDACodecBus HDACodecBus;
 typedef struct HDACodecDevice HDACodecDevice;
-typedef struct HDACodecDeviceInfo HDACodecDeviceInfo;
 
 typedef void (*hda_codec_response_func)(HDACodecDevice *dev,
                                         bool solicited, uint32_t response);
@@ -23,24 +30,25 @@ struct HDACodecBus {
     hda_codec_xfer_func xfer;
 };
 
-struct HDACodecDevice {
-    DeviceState         qdev;
-    HDACodecDeviceInfo  *info;
-    uint32_t            cad;    /* codec address */
-};
+typedef struct HDACodecDeviceClass
+{
+    DeviceClass parent_class;
 
-struct HDACodecDeviceInfo {
-    DeviceInfo qdev;
     int (*init)(HDACodecDevice *dev);
     int (*exit)(HDACodecDevice *dev);
     void (*command)(HDACodecDevice *dev, uint32_t nid, uint32_t data);
     void (*stream)(HDACodecDevice *dev, uint32_t stnr, bool running, bool output);
+} HDACodecDeviceClass;
+
+struct HDACodecDevice {
+    DeviceState         qdev;
+    uint32_t            cad;    /* codec address */
 };
 
 void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus,
                         hda_codec_response_func response,
                         hda_codec_xfer_func xfer);
-void hda_codec_register(HDACodecDeviceInfo *info);
+void hda_codec_register(DeviceInfo *info);
 HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad);
 
 void hda_codec_response(HDACodecDevice *dev, bool solicited, uint32_t response);
