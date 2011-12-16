@@ -6,6 +6,7 @@
 #include "qemu-char.h"
 #include "qemu-option.h"
 #include "qapi/qapi-visit-core.h"
+#include "qemu/object.h"
 
 typedef struct Property Property;
 
@@ -66,9 +67,18 @@ typedef struct DeviceProperty
     QTAILQ_ENTRY(DeviceProperty) node;
 } DeviceProperty;
 
+#define TYPE_DEVICE "device"
+#define DEVICE(obj) OBJECT_CHECK(DeviceState, (obj), TYPE_DEVICE)
+
+typedef struct DeviceClass {
+    ObjectClass parent_class;
+} DeviceClass;
+
 /* This structure should not be accessed directly.  We declare it here
    so that it can be embedded in individual device state structures.  */
 struct DeviceState {
+    Object parent_obj;
+
     const char *id;
     enum DevState state;
     QemuOpts *opts;

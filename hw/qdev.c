@@ -47,8 +47,16 @@ static BusState *qbus_find(const char *path);
 /* Register a new device type.  */
 void qdev_register(DeviceInfo *info)
 {
+    TypeInfo type_info = {};
+
     assert(info->size >= sizeof(DeviceState));
     assert(!info->next);
+
+    type_info.name = info->name;
+    type_info.parent = TYPE_DEVICE;
+    type_info.instance_size = info->size;
+
+    type_register_static(&type_info);
 
     info->next = device_info_list;
     device_info_list = info;
@@ -93,7 +101,7 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
     Property *prop;
 
     assert(bus->info == info->bus_info);
-    dev = g_malloc0(info->size);
+    dev = DEVICE(object_new(info->name));
     dev->info = info;
     dev->parent_bus = bus;
     qdev_prop_set_defaults(dev, dev->info->props);
@@ -519,7 +527,7 @@ void qdev_free(DeviceState *dev)
     if (dev->ref != 0) {
         qerror_report(QERR_DEVICE_IN_USE, dev->id?:"");
     }
-    g_free(dev);
+    object_delete(OBJECT(dev));
 }
 
 void qdev_machine_creation_done(void)
@@ -1572,3 +1580,18 @@ void qdev_machine_init(void)
     qdev_get_peripheral_anon();
     qdev_get_peripheral();
 }
+
+static TypeInfo device_type_info = {
+    .name = TYPE_DEVICE,
+    .parent = TYPE_OBJECT,
+    .instance_size = sizeof(DeviceState),
+    .abstract = true,
+    .class_size = sizeof(DeviceClass),
+};
+
+static void init_qdev(void)
+{
+    type_register_static(&device_type_info);
+}
+
+device_init(init_qdev);
