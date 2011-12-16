@@ -11,7 +11,6 @@
 #define QDEV_MAX_IRQ 256
 
 typedef struct SysBusDevice SysBusDevice;
-typedef void (*mmio_mapfunc)(SysBusDevice *dev, target_phys_addr_t addr);
 
 struct SysBusDevice {
     DeviceState qdev;
@@ -21,8 +20,6 @@ struct SysBusDevice {
     int num_mmio;
     struct {
         target_phys_addr_t addr;
-        mmio_mapfunc cb;
-        mmio_mapfunc unmap;
         MemoryRegion *memory;
     } mmio[QDEV_MAX_MMIO];
     int num_pio;
@@ -43,8 +40,6 @@ typedef struct {
 void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init);
 void sysbus_register_withprop(SysBusDeviceInfo *info);
 void *sysbus_new(void);
-void sysbus_init_mmio_cb2(SysBusDevice *dev,
-                          mmio_mapfunc cb, mmio_mapfunc unmap);
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory);
 MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);
 void sysbus_init_irq(SysBusDevice *dev, qemu_irq *p);
