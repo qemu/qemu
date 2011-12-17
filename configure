@@ -2074,7 +2074,7 @@ cat > $TMPC <<EOF
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-int main(void) { preadv; }
+int main(void) { return preadv == preadv; }
 EOF
 preadv=no
 if compile_prog "" "" ; then
@@ -2107,7 +2107,7 @@ if test "$opengl" != "no" ; then
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
-int main(void) { GL_VERSION; return 0; }
+int main(void) { return GL_VERSION != 0; }
 EOF
   if compile_prog "" "-lGL" ; then
     opengl=yes
@@ -2369,8 +2369,7 @@ int main(void)
      * warning but not an error, and will proceed to fail the
      * qemu compile where we compile with -Werror.)
      */
-    epoll_create1;
-    return 0;
+    return epoll_create1 == epoll_create1;
 }
 EOF
 if compile_prog "$ARCH_CFLAGS" "" ; then
