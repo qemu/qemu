@@ -1951,7 +1951,12 @@ PTHREADLIBS_LIST="-pthread -lpthread -lpthreadGC2"
 pthread=no
 cat > $TMPC << EOF
 #include <pthread.h>
-int main(void) { pthread_create(0,0,0,0); return 0; }
+static void *f(void *p) { return NULL; }
+int main(void) {
+  pthread_t thread;
+  pthread_create(&thread, 0, f, 0);
+  return 0;
+}
 EOF
 if compile_prog "" "" ; then
   pthread=yes
