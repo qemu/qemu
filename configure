@@ -1317,8 +1317,28 @@ fi
 if test "$xen" != "no" ; then
   xen_libs="-lxenstore -lxenctrl -lxenguest"
 
-  # Xen unstable
+  # First we test whether Xen headers and libraries are available.
+  # If no, we are done and there is no Xen support.
+  # If yes, more tests are run to detect the Xen version.
+
+  # Xen (any)
   cat > $TMPC <<EOF
+#include <xenctrl.h>
+#include <xs.h>
+int main(void) {
+  return 0;
+}
+EOF
+  if ! compile_prog "" "$xen_libs" ; then
+    # Xen not found
+    if test "$xen" = "yes" ; then
+      feature_not_found "xen"
+    fi
+    xen=no
+
+  # Xen unstable
+  elif (
+      cat > $TMPC <<EOF
 #include <xenctrl.h>
 #include <xs.h>
 #include <stdint.h>
@@ -1336,7 +1356,8 @@ int main(void) {
   return 0;
 }
 EOF
-  if compile_prog "" "$xen_libs" ; then
+      compile_prog "" "$xen_libs"
+    ) ; then
     xen_ctrl_version=410
     xen=yes
 
@@ -1407,10 +1428,10 @@ EOF
     xen_ctrl_version=330
     xen=yes
 
-  # Xen not found or unsupported
+  # Xen version unsupported
   else
     if test "$xen" = "yes" ; then
-      feature_not_found "xen"
+      feature_not_found "xen (unsupported version)"
     fi
     xen=no
   fi
