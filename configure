@@ -2060,7 +2060,7 @@ cat > $TMPC <<EOF
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-int main(void) { struct iovec iov; return 0; }
+int main(void) { return sizeof(struct iovec); }
 EOF
 iovec=no
 if compile_prog "" "" ; then
