@@ -1841,7 +1841,11 @@ if test "$curses" != "no" ; then
 #ifdef __OpenBSD__
 #define resize_term resizeterm
 #endif
-int main(void) { resize_term(0, 0); return curses_version(); }
+int main(void) {
+  const char *s = curses_version();
+  resize_term(0, 0);
+  return s != 0;
+}
 EOF
   for curses_lib in $curses_list; do
     if compile_prog "" "$curses_lib" ; then
