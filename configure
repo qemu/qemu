@@ -2237,7 +2237,7 @@ cat > $TMPC << EOF
 
 int main(void)
 {
-    int len, fd;
+    int len, fd = 0;
     len = tee(STDIN_FILENO, STDOUT_FILENO, INT_MAX, SPLICE_F_NONBLOCK);
     splice(STDIN_FILENO, NULL, fd, NULL, len, SPLICE_F_MOVE);
     return 0;
@@ -2449,7 +2449,7 @@ fi
 cat > $TMPC <<EOF
 #include <signal.h>
 #include <time.h>
-int main(void) { clockid_t id; return clock_gettime(id, NULL); }
+int main(void) { return clock_gettime(CLOCK_REALTIME, NULL); }
 EOF
 
 if compile_prog "" "" ; then
