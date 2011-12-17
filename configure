@@ -2269,8 +2269,7 @@ cat > $TMPC << EOF
 
 int main(void)
 {
-    int efd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-    return 0;
+    return eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
 }
 EOF
 if compile_prog "" "" ; then
