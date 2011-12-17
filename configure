@@ -2251,7 +2251,6 @@ fi
 # signalfd probe
 signalfd="no"
 cat > $TMPC << EOF
-#define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <signal.h>
