@@ -1082,7 +1082,7 @@ fi
 
 # check that the C compiler works.
 cat > $TMPC <<EOF
-int main(void) {}
+int main(void) { return 0; }
 EOF
 
 if compile_object ; then
@@ -2651,7 +2651,7 @@ ucontext_coroutine=no
 if test "$darwin" != "yes"; then
   cat > $TMPC << EOF
 #include <ucontext.h>
-int main(void) { makecontext(0, 0, 0); }
+int main(void) { makecontext(0, 0, 0); return 0; }
 EOF
   if compile_prog "" "" ; then
       ucontext_coroutine=yes
@@ -2664,7 +2664,7 @@ fi
 open_by_hande_at=no
 cat > $TMPC << EOF
 #include <fcntl.h>
-int main(void) { struct file_handle fh; open_by_handle_at(0, &fh, 0); }
+int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
 EOF
 if compile_prog "" "" ; then
     open_by_handle_at=yes
@@ -2677,6 +2677,7 @@ linux_magic_h=no
 cat > $TMPC << EOF
 #include <linux/magic.h>
 int main(void) {
+  return 0;
 }
 EOF
 if compile_prog "" "" ; then
