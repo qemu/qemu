@@ -1300,7 +1300,7 @@ int sd_do_command(SDState *sd, SDRequest *req,
     }
 
     if (sd_req_crc_validate(req)) {
-        sd->card_status &= ~COM_CRC_ERROR;
+        sd->card_status |= COM_CRC_ERROR;
         return 0;
     }
 
