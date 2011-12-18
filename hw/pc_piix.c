@@ -321,6 +321,14 @@ static QEMUMachine pc_machine_v1_0 = {
     .is_default = 1,
 };
 
+static QEMUMachine pc_machine_v0_15 = {
+    .name = "pc-0.15",
+    .desc = "Standard PC",
+    .init = pc_init_pci,
+    .max_cpus = 255,
+    .is_default = 1,
+};
+
 static QEMUMachine pc_machine_v0_14 = {
     .name = "pc-0.14",
     .desc = "Standard PC",
@@ -572,6 +580,7 @@ static QEMUMachine xenfv_machine = {
 static void pc_machine_init(void)
 {
     qemu_register_machine(&pc_machine_v1_0);
+    qemu_register_machine(&pc_machine_v0_15);
     qemu_register_machine(&pc_machine_v0_14);
     qemu_register_machine(&pc_machine_v0_13);
     qemu_register_machine(&pc_machine_v0_12);
