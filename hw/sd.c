@@ -1265,6 +1265,25 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
     return sd_r0;
 }
 
+static int cmd_valid_while_locked(SDState *sd, SDRequest *req)
+{
+    /* Valid commands in locked state:
+     * basic class (0)
+     * lock card class (7)
+     * CMD16
+     * implicitly, the ACMD prefix CMD55
+     * ACMD41 and ACMD42
+     * Anything else provokes an "illegal command" response.
+     */
+    if (sd->card_status & APP_CMD) {
+        return req->cmd == 41 || req->cmd == 42;
+    }
+    if (req->cmd == 16 || req->cmd == 55) {
+        return 1;
+    }
+    return sd_cmd_class[req->cmd] == 0 || sd_cmd_class[req->cmd] == 7;
+}
+
 int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response) {
     uint32_t last_status = sd->card_status;
@@ -1283,17 +1302,13 @@ int sd_do_command(SDState *sd, SDRequest *req,
     sd->card_status &= ~CARD_STATUS_B;
     sd_set_status(sd);
 
-    if (last_status & CARD_IS_LOCKED)
-        if (((last_status & APP_CMD) &&
-                                 req->cmd == 41) ||
-                        (!(last_status & APP_CMD) &&
-                         (sd_cmd_class[req->cmd] == 0 ||
-                          sd_cmd_class[req->cmd] == 7 ||
-                          req->cmd == 16 || req->cmd == 55))) {
+    if (last_status & CARD_IS_LOCKED) {
+        if (!cmd_valid_while_locked(sd, req)) {
             sd->card_status |= ILLEGAL_COMMAND;
             fprintf(stderr, "SD: Card is locked\n");
             return 0;
         }
+    }
 
     if (last_status & APP_CMD) {
         rtype = sd_app_command(sd, *req);
