@@ -1262,7 +1262,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
     }
 
     fprintf(stderr, "SD: ACMD%i in a wrong state\n", req.cmd);
-    return sd_r0;
+    return sd_illegal;
 }
 
 static int cmd_valid_while_locked(SDState *sd, SDRequest *req)
