@@ -156,6 +156,7 @@ enum PropertyType {
 
 struct PropertyInfo {
     const char *name;
+    const char *legacy_name;
     size_t size;
     enum PropertyType type;
     int64_t min;

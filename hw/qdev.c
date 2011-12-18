@@ -218,13 +218,15 @@ int qdev_device_help(QemuOpts *opts)
         if (!prop->info->parse) {
             continue;           /* no way to set it, don't show */
         }
-        error_printf("%s.%s=%s\n", info->name, prop->name, prop->info->name);
+        error_printf("%s.%s=%s\n", info->name, prop->name,
+                     prop->info->legacy_name ?: prop->info->name);
     }
     for (prop = info->bus_info->props; prop && prop->name; prop++) {
         if (!prop->info->parse) {
             continue;           /* no way to set it, don't show */
         }
-        error_printf("%s.%s=%s\n", info->name, prop->name, prop->info->name);
+        error_printf("%s.%s=%s\n", info->name, prop->name,
+                     prop->info->legacy_name ?: prop->info->name);
     }
     return 1;
 }
@@ -1180,7 +1182,8 @@ void qdev_property_add_legacy(DeviceState *dev, Property *prop,
 {
     gchar *type;
 
-    type = g_strdup_printf("legacy<%s>", prop->info->name);
+    type = g_strdup_printf("legacy<%s>",
+                           prop->info->legacy_name ?: prop->info->name);
 
     qdev_property_add(dev, prop->name, type,
                       prop->info->print ? qdev_get_legacy_property : NULL,

@@ -86,7 +86,8 @@ static void set_bit(DeviceState *dev, Visitor *v, void *opaque,
 }
 
 PropertyInfo qdev_prop_bit = {
-    .name  = "on/off",
+    .name  = "boolean",
+    .legacy_name  = "on/off",
     .type  = PROP_TYPE_BIT,
     .size  = sizeof(uint32_t),
     .parse = parse_bit,
@@ -189,7 +190,8 @@ static int print_hex8(DeviceState *dev, Property *prop, char *dest, size_t len)
 }
 
 PropertyInfo qdev_prop_hex8 = {
-    .name  = "hex8",
+    .name  = "uint8",
+    .legacy_name  = "hex8",
     .type  = PROP_TYPE_UINT8,
     .size  = sizeof(uint8_t),
     .parse = parse_hex8,
@@ -397,7 +399,8 @@ static int print_hex32(DeviceState *dev, Property *prop, char *dest, size_t len)
 }
 
 PropertyInfo qdev_prop_hex32 = {
-    .name  = "hex32",
+    .name  = "uint32",
+    .legacy_name  = "hex32",
     .type  = PROP_TYPE_UINT32,
     .size  = sizeof(uint32_t),
     .parse = parse_hex32,
@@ -485,7 +488,8 @@ static int print_hex64(DeviceState *dev, Property *prop, char *dest, size_t len)
 }
 
 PropertyInfo qdev_prop_hex64 = {
-    .name  = "hex64",
+    .name  = "uint64",
+    .legacy_name  = "hex64",
     .type  = PROP_TYPE_UINT64,
     .size  = sizeof(uint64_t),
     .parse = parse_hex64,
