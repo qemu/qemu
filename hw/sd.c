@@ -104,7 +104,7 @@ struct SDState {
     int enable;
 };
 
-static void sd_set_status(SDState *sd)
+static void sd_set_mode(SDState *sd)
 {
     switch (sd->state) {
     case sd_inactive_state:
@@ -126,9 +126,6 @@ static void sd_set_status(SDState *sd)
         sd->mode = sd_data_transfer_mode;
         break;
     }
-
-    sd->card_status &= ~CURRENT_STATE;
-    sd->card_status |= sd->state << 9;
 }
 
 static const sd_cmd_type_t sd_cmd_type[64] = {
@@ -341,13 +338,10 @@ static int sd_req_crc_validate(SDRequest *req)
     return sd_crc7(buffer, 5) != req->crc;	/* TODO */
 }
 
-static void sd_response_r1_make(SDState *sd,
-                                uint8_t *response, uint32_t last_status)
+static void sd_response_r1_make(SDState *sd, uint8_t *response)
 {
-    uint32_t mask = CARD_STATUS_B ^ ILLEGAL_COMMAND;
-    uint32_t status;
-
-    status = (sd->card_status & ~mask) | (last_status & mask);
+    uint32_t status = sd->card_status;
+    /* Clear the "clear on read" status bits (except APP_CMD) */
     sd->card_status &= ~CARD_STATUS_C | APP_CMD;
 
     response[0] = (status >> 24) & 0xff;
@@ -1286,7 +1280,7 @@ static int cmd_valid_while_locked(SDState *sd, SDRequest *req)
 
 int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response) {
-    uint32_t last_status = sd->card_status;
+    int last_state;
     sd_rsp_type_t rtype;
     int rsplen;
 
@@ -1300,10 +1294,7 @@ int sd_do_command(SDState *sd, SDRequest *req,
         goto send_response;
     }
 
-    sd->card_status &= ~CARD_STATUS_B;
-    sd_set_status(sd);
-
-    if (last_status & CARD_IS_LOCKED) {
+    if (sd->card_status & CARD_IS_LOCKED) {
         if (!cmd_valid_while_locked(sd, req)) {
             sd->card_status |= ILLEGAL_COMMAND;
             fprintf(stderr, "SD: Card is locked\n");
@@ -1312,7 +1303,10 @@ int sd_do_command(SDState *sd, SDRequest *req,
         }
     }
 
-    if (last_status & APP_CMD) {
+    last_state = sd->state;
+    sd_set_mode(sd);
+
+    if (sd->card_status & APP_CMD) {
         rtype = sd_app_command(sd, *req);
         sd->card_status &= ~APP_CMD;
     } else
@@ -1320,15 +1314,20 @@ int sd_do_command(SDState *sd, SDRequest *req,
 
     if (rtype == sd_illegal) {
         sd->card_status |= ILLEGAL_COMMAND;
+    } else {
+        /* Valid command, we can update the 'state before command' bits.
+         * (Do this now so they appear in r1 responses.)
+         */
+        sd->current_cmd = req->cmd;
+        sd->card_status &= ~CURRENT_STATE;
+        sd->card_status |= (last_state << 9);
     }
-
-    sd->current_cmd = req->cmd;
 
 send_response:
     switch (rtype) {
     case sd_r1:
     case sd_r1b:
-        sd_response_r1_make(sd, response, last_status);
+        sd_response_r1_make(sd, response);
         rsplen = 4;
         break;
 
@@ -1362,6 +1361,13 @@ send_response:
     default:
         rsplen = 0;
         break;
+    }
+
+    if (rtype != sd_illegal) {
+        /* Clear the "clear on valid command" status bits now we've
+         * sent any response
+         */
+        sd->card_status &= ~CARD_STATUS_B;
     }
 
 #ifdef DEBUG_SD
