@@ -57,12 +57,12 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
     }
 }
 
-static int vhost_client_sync_dirty_bitmap(CPUPhysMemoryClient *client,
-                                          target_phys_addr_t start_addr,
-                                          target_phys_addr_t end_addr)
+static int vhost_sync_dirty_bitmap(struct vhost_dev *dev,
+                                   target_phys_addr_t start_addr,
+                                   target_phys_addr_t end_addr)
 {
-    struct vhost_dev *dev = container_of(client, struct vhost_dev, client);
     int i;
+
     if (!dev->log_enabled || !dev->started) {
         return 0;
     }
@@ -79,6 +79,17 @@ static int vhost_client_sync_dirty_bitmap(CPUPhysMemoryClient *client,
                               range_get_last(vq->used_phys, vq->used_size));
     }
     return 0;
+}
+
+static void vhost_log_sync(MemoryListener *listener,
+                          MemoryRegionSection *section)
+{
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    target_phys_addr_t start_addr = section->offset_within_address_space;
+    target_phys_addr_t end_addr = start_addr + section->size;
+
+    vhost_sync_dirty_bitmap(dev, start_addr, end_addr);
 }
 
 /* Assign/unassign. Keep an unsorted array of non-overlapping
@@ -259,8 +270,7 @@ static inline void vhost_dev_log_resize(struct vhost_dev* dev, uint64_t size)
     log_base = (uint64_t)(unsigned long)log;
     r = ioctl(dev->control, VHOST_SET_LOG_BASE, &log_base);
     assert(r >= 0);
-    vhost_client_sync_dirty_bitmap(&dev->client, 0,
-                                   (target_phys_addr_t)~0x0ull);
+    vhost_sync_dirty_bitmap(dev, 0, (target_phys_addr_t)~0x0ull);
     if (dev->log) {
         g_free(dev->log);
     }
@@ -335,31 +345,37 @@ static bool vhost_dev_cmp_memory(struct vhost_dev *dev,
     return uaddr != reg->userspace_addr + start_addr - reg->guest_phys_addr;
 }
 
-static void vhost_client_set_memory(CPUPhysMemoryClient *client,
-                                    target_phys_addr_t start_addr,
-                                    ram_addr_t size,
-                                    ram_addr_t phys_offset,
-                                    bool log_dirty)
+static void vhost_set_memory(MemoryListener *listener,
+                             MemoryRegionSection *section,
+                             bool add)
 {
-    struct vhost_dev *dev = container_of(client, struct vhost_dev, client);
-    ram_addr_t flags = phys_offset & ~TARGET_PAGE_MASK;
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
+    target_phys_addr_t start_addr = section->offset_within_address_space;
+    ram_addr_t size = section->size;
+    bool log_dirty = memory_region_is_logging(section->mr);
     int s = offsetof(struct vhost_memory, regions) +
         (dev->mem->nregions + 1) * sizeof dev->mem->regions[0];
     uint64_t log_size;
     int r;
+    void *ram;
+
+    if (!memory_region_is_ram(section->mr)) {
+        return;
+    }
 
     dev->mem = g_realloc(dev->mem, s);
 
     if (log_dirty) {
-        flags = IO_MEM_UNASSIGNED;
+        add = false;
     }
 
     assert(size);
 
     /* Optimize no-change case. At least cirrus_vga does this a lot at this time. */
-    if (flags == IO_MEM_RAM) {
-        if (!vhost_dev_cmp_memory(dev, start_addr, size,
-                                  (uintptr_t)qemu_get_ram_ptr(phys_offset))) {
+    ram = memory_region_get_ram_ptr(section->mr);
+    if (add) {
+        if (!vhost_dev_cmp_memory(dev, start_addr, size, (uintptr_t)ram)) {
             /* Region exists with same address. Nothing to do. */
             return;
         }
@@ -371,10 +387,9 @@ static void vhost_client_set_memory(CPUPhysMemoryClient *client,
     }
 
     vhost_dev_unassign_memory(dev, start_addr, size);
-    if (flags == IO_MEM_RAM) {
+    if (add) {
         /* Add given mapping, merging adjacent regions if any */
-        vhost_dev_assign_memory(dev, start_addr, size,
-                                (uintptr_t)qemu_get_ram_ptr(phys_offset));
+        vhost_dev_assign_memory(dev, start_addr, size, (uintptr_t)ram);
     } else {
         /* Remove old mapping for this memory, if any. */
         vhost_dev_unassign_memory(dev, start_addr, size);
@@ -408,6 +423,18 @@ static void vhost_client_set_memory(CPUPhysMemoryClient *client,
     if (dev->log_size > log_size + VHOST_LOG_BUFFER) {
         vhost_dev_log_resize(dev, log_size);
     }
+}
+
+static void vhost_region_add(MemoryListener *listener,
+                             MemoryRegionSection *section)
+{
+    vhost_set_memory(listener, section, true);
+}
+
+static void vhost_region_del(MemoryListener *listener,
+                             MemoryRegionSection *section)
+{
+    vhost_set_memory(listener, section, false);
 }
 
 static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
@@ -467,10 +494,10 @@ err_features:
     return r;
 }
 
-static int vhost_client_migration_log(CPUPhysMemoryClient *client,
-                                      int enable)
+static int vhost_migration_log(MemoryListener *listener, int enable)
 {
-    struct vhost_dev *dev = container_of(client, struct vhost_dev, client);
+    struct vhost_dev *dev = container_of(listener, struct vhost_dev,
+                                         memory_listener);
     int r;
     if (!!enable == dev->log_enabled) {
         return 0;
@@ -498,6 +525,38 @@ static int vhost_client_migration_log(CPUPhysMemoryClient *client,
     }
     dev->log_enabled = enable;
     return 0;
+}
+
+static void vhost_log_global_start(MemoryListener *listener)
+{
+    int r;
+
+    r = vhost_migration_log(listener, true);
+    if (r < 0) {
+        abort();
+    }
+}
+
+static void vhost_log_global_stop(MemoryListener *listener)
+{
+    int r;
+
+    r = vhost_migration_log(listener, false);
+    if (r < 0) {
+        abort();
+    }
+}
+
+static void vhost_log_start(MemoryListener *listener,
+                            MemoryRegionSection *section)
+{
+    /* FIXME: implement */
+}
+
+static void vhost_log_stop(MemoryListener *listener,
+                           MemoryRegionSection *section)
+{
+    /* FIXME: implement */
 }
 
 static int vhost_virtqueue_init(struct vhost_dev *dev,
@@ -645,17 +704,21 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
     }
     hdev->features = features;
 
-    hdev->client.set_memory = vhost_client_set_memory;
-    hdev->client.sync_dirty_bitmap = vhost_client_sync_dirty_bitmap;
-    hdev->client.migration_log = vhost_client_migration_log;
-    hdev->client.log_start = NULL;
-    hdev->client.log_stop = NULL;
+    hdev->memory_listener = (MemoryListener) {
+        .region_add = vhost_region_add,
+        .region_del = vhost_region_del,
+        .log_start = vhost_log_start,
+        .log_stop = vhost_log_stop,
+        .log_sync = vhost_log_sync,
+        .log_global_start = vhost_log_global_start,
+        .log_global_stop = vhost_log_global_stop,
+    };
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
     hdev->log = NULL;
     hdev->log_size = 0;
     hdev->log_enabled = false;
     hdev->started = false;
-    cpu_register_phys_memory_client(&hdev->client);
+    memory_listener_register(&hdev->memory_listener);
     hdev->force = force;
     return 0;
 fail:
@@ -666,7 +729,7 @@ fail:
 
 void vhost_dev_cleanup(struct vhost_dev *hdev)
 {
-    cpu_unregister_phys_memory_client(&hdev->client);
+    memory_listener_unregister(&hdev->memory_listener);
     g_free(hdev->mem);
     close(hdev->control);
 }
@@ -808,8 +871,7 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev)
                                 hdev->vqs + i,
                                 i);
     }
-    vhost_client_sync_dirty_bitmap(&hdev->client, 0,
-                                   (target_phys_addr_t)~0x0ull);
+    vhost_sync_dirty_bitmap(hdev, 0, (target_phys_addr_t)~0x0ull);
     r = vdev->binding->set_guest_notifiers(vdev->binding_opaque, false);
     if (r < 0) {
         fprintf(stderr, "vhost guest notifier cleanup failed: %d\n", r);
