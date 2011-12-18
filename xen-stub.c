@@ -8,6 +8,7 @@
 
 #include "qemu-common.h"
 #include "hw/xen.h"
+#include "memory.h"
 
 void xenstore_store_pv_console_info(int i, CharDriverState *chr)
 {
@@ -30,7 +31,7 @@ void xen_cmos_set_s3_resume(void *opaque, int irq, int level)
 {
 }
 
-void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size)
+void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
 {
 }
 

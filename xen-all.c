@@ -181,7 +181,7 @@ static void xen_ram_init(ram_addr_t ram_size)
     }
 }
 
-void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size)
+void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
 {
     unsigned long nr_pfn;
     xen_pfn_t *pfn_list;

@@ -44,7 +44,9 @@ void xen_vcpu_init(void);
 void xenstore_store_pv_console_info(int i, struct CharDriverState *chr);
 
 #if defined(NEED_CPU_H) && !defined(CONFIG_USER_ONLY)
-void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size);
+struct MemoryRegion;
+void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
+                   struct MemoryRegion *mr);
 #endif
 
 #if defined(CONFIG_XEN) && CONFIG_XEN_CTRL_INTERFACE_VERSION < 400

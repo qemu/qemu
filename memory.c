@@ -982,7 +982,7 @@ void memory_region_init_ram(MemoryRegion *mr,
     memory_region_init(mr, name, size);
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
-    mr->ram_addr = qemu_ram_alloc(dev, name, size);
+    mr->ram_addr = qemu_ram_alloc(dev, name, size, mr);
     mr->backend_registered = true;
 }
 
@@ -995,7 +995,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
     memory_region_init(mr, name, size);
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram_from_ptr;
-    mr->ram_addr = qemu_ram_alloc_from_ptr(dev, name, size, ptr);
+    mr->ram_addr = qemu_ram_alloc_from_ptr(dev, name, size, ptr, mr);
     mr->backend_registered = true;
 }
 
@@ -1022,7 +1022,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->opaque = opaque;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_rom_device;
-    mr->ram_addr = qemu_ram_alloc(dev, name, size);
+    mr->ram_addr = qemu_ram_alloc(dev, name, size, mr);
     mr->ram_addr |= cpu_register_io_memory(memory_region_read_thunk,
                                            memory_region_write_thunk,
                                            mr,
