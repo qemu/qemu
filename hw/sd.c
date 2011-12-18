@@ -1296,7 +1296,8 @@ int sd_do_command(SDState *sd, SDRequest *req,
 
     if (sd_req_crc_validate(req)) {
         sd->card_status |= COM_CRC_ERROR;
-        return 0;
+        rtype = sd_illegal;
+        goto send_response;
     }
 
     sd->card_status &= ~CARD_STATUS_B;
@@ -1306,7 +1307,8 @@ int sd_do_command(SDState *sd, SDRequest *req,
         if (!cmd_valid_while_locked(sd, req)) {
             sd->card_status |= ILLEGAL_COMMAND;
             fprintf(stderr, "SD: Card is locked\n");
-            return 0;
+            rtype = sd_illegal;
+            goto send_response;
         }
     }
 
@@ -1322,6 +1324,7 @@ int sd_do_command(SDState *sd, SDRequest *req,
 
     sd->current_cmd = req->cmd;
 
+send_response:
     switch (rtype) {
     case sd_r1:
     case sd_r1b:
