@@ -1135,46 +1135,38 @@ static void qdev_get_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
 {
     Property *prop = opaque;
 
-    if (prop->info->print) {
-        char buffer[1024];
-        char *ptr = buffer;
+    char buffer[1024];
+    char *ptr = buffer;
 
-        prop->info->print(dev, prop, buffer, sizeof(buffer));
-        visit_type_str(v, &ptr, name, errp);
-    } else {
-        error_set(errp, QERR_PERMISSION_DENIED);
-    }
+    prop->info->print(dev, prop, buffer, sizeof(buffer));
+    visit_type_str(v, &ptr, name, errp);
 }
 
 static void qdev_set_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
     Property *prop = opaque;
+    Error *local_err = NULL;
+    char *ptr = NULL;
+    int ret;
 
     if (dev->state != DEV_STATE_CREATED) {
         error_set(errp, QERR_PERMISSION_DENIED);
         return;
     }
 
-    if (prop->info->parse) {
-        Error *local_err = NULL;
-        char *ptr = NULL;
-
-        visit_type_str(v, &ptr, name, &local_err);
-        if (!local_err) {
-            int ret;
-            ret = prop->info->parse(dev, prop, ptr);
-            if (ret != 0) {
-                error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                          name, prop->info->name);
-            }
-            g_free(ptr);
-        } else {
-            error_propagate(errp, local_err);
-        }
-    } else {
-        error_set(errp, QERR_PERMISSION_DENIED);
+    visit_type_str(v, &ptr, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
+
+    ret = prop->info->parse(dev, prop, ptr);
+    if (ret != 0) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
+                  name, prop->info->name);
+    }
+    g_free(ptr);
 }
 
 /**
@@ -1194,8 +1186,8 @@ void qdev_property_add_legacy(DeviceState *dev, Property *prop,
     type = g_strdup_printf("legacy<%s>", prop->info->name);
 
     qdev_property_add(dev, prop->name, type,
-                      qdev_get_legacy_property,
-                      qdev_set_legacy_property,
+                      prop->info->print ? qdev_get_legacy_property : NULL,
+                      prop->info->parse ? qdev_set_legacy_property : NULL,
                       NULL,
                       prop, errp);
 
