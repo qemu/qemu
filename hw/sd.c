@@ -309,6 +309,11 @@ static void sd_set_rca(SDState *sd)
     sd->rca += 0x4567;
 }
 
+/* Card status bits, split by clear condition:
+ * A : According to the card current state
+ * B : Always related to the previous command
+ * C : Cleared by read
+ */
 #define CARD_STATUS_A	0x02004100
 #define CARD_STATUS_B	0x00c01e00
 #define CARD_STATUS_C	0xfd39a028
