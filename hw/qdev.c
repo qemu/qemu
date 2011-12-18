@@ -1110,7 +1110,7 @@ void qdev_property_set(DeviceState *dev, Visitor *v, const char *name,
     if (!prop->set) {
         error_set(errp, QERR_PERMISSION_DENIED);
     } else {
-        prop->set(dev, prop->opaque, v, name, errp);
+        prop->set(dev, v, prop->opaque, name, errp);
     }
 }
 
