@@ -371,6 +371,7 @@ static void sd_response_r6_make(SDState *sd, uint8_t *response)
     status = ((sd->card_status >> 8) & 0xc000) |
              ((sd->card_status >> 6) & 0x2000) |
               (sd->card_status & 0x1fff);
+    sd->card_status &= ~(CARD_STATUS_C & 0xc81fff);
 
     response[0] = (arg >> 8) & 0xff;
     response[1] = arg & 0xff;
