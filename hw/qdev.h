@@ -158,9 +158,13 @@ struct PropertyInfo {
     const char *name;
     size_t size;
     enum PropertyType type;
+    int64_t min;
+    int64_t max;
     int (*parse)(DeviceState *dev, Property *prop, const char *str);
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     void (*free)(DeviceState *dev, Property *prop);
+    DevicePropertyAccessor *get;
+    DevicePropertyAccessor *set;
 };
 
 typedef struct GlobalProperty {
