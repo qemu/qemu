@@ -328,6 +328,22 @@ static QEMUMachine pc_machine_v0_14 = {
             .driver   = "qxl-vga",
             .property = "revision",
             .value    = stringify(2),
+        },{
+            .driver   = "virtio-blk-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-serial-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-net-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-balloon-pci",
+            .property = "event_idx",
+            .value    = "off",
         },
         { /* end of list */ }
     },
@@ -365,6 +381,10 @@ static QEMUMachine pc_machine_v0_13 = {
             .value    = "off",
         },{
             .driver   = "virtio-net-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-balloon-pci",
             .property = "event_idx",
             .value    = "off",
         },{
@@ -412,6 +432,10 @@ static QEMUMachine pc_machine_v0_12 = {
             .value    = "off",
         },{
             .driver   = "virtio-net-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-balloon-pci",
             .property = "event_idx",
             .value    = "off",
         },{
@@ -467,6 +491,10 @@ static QEMUMachine pc_machine_v0_11 = {
             .value    = "off",
         },{
             .driver   = "virtio-net-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-balloon-pci",
             .property = "event_idx",
             .value    = "off",
         },{
@@ -534,6 +562,10 @@ static QEMUMachine pc_machine_v0_10 = {
             .value    = "off",
         },{
             .driver   = "virtio-net-pci",
+            .property = "event_idx",
+            .value    = "off",
+        },{
+            .driver   = "virtio-balloon-pci",
             .property = "event_idx",
             .value    = "off",
         },{
