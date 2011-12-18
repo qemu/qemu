@@ -49,6 +49,9 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size,
                    struct MemoryRegion *mr);
 #endif
 
+struct MemoryRegion;
+void xen_register_framebuffer(struct MemoryRegion *mr);
+
 #if defined(CONFIG_XEN) && CONFIG_XEN_CTRL_INTERFACE_VERSION < 400
 #  define HVM_MAX_VCPUS 32
 #endif

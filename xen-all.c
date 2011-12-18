@@ -33,6 +33,7 @@
 #endif
 
 static MemoryRegion ram_memory, ram_640k, ram_lo, ram_hi;
+static MemoryRegion *framebuffer;
 
 /* Compatibility with older version */
 #if __XEN_LATEST_INTERFACE_VERSION__ < 0x0003020a
@@ -981,4 +982,9 @@ void destroy_hvm_domain(void)
         }
         xc_interface_close(xc_handle);
     }
+}
+
+void xen_register_framebuffer(MemoryRegion *mr)
+{
+    framebuffer = mr;
 }
