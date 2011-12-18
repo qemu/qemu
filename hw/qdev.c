@@ -80,6 +80,9 @@ static DeviceInfo *qdev_find_info(BusInfo *bus_info, const char *name)
     return NULL;
 }
 
+static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
+                                     Error **errp);
+
 static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
 {
     DeviceState *dev;
@@ -104,10 +107,12 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
 
     for (prop = dev->info->props; prop && prop->name; prop++) {
         qdev_property_add_legacy(dev, prop, NULL);
+        qdev_property_add_static(dev, prop, NULL);
     }
 
     for (prop = dev->info->bus_info->props; prop && prop->name; prop++) {
         qdev_property_add_legacy(dev, prop, NULL);
+        qdev_property_add_static(dev, prop, NULL);
     }
 
     qdev_property_add_str(dev, "type", qdev_get_type, NULL, NULL);
@@ -1172,7 +1177,7 @@ static void qdev_set_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
  * @qdev_add_legacy_property - adds a legacy property
  *
  * Do not use this is new code!  Properties added through this interface will
- * be given types in the "legacy<>" type namespace.
+ * be given names and types in the "legacy" namespace.
  *
  * Legacy properties are always processed as strings.  The format of the string
  * depends on the property type.
@@ -1180,18 +1185,35 @@ static void qdev_set_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
 void qdev_property_add_legacy(DeviceState *dev, Property *prop,
                               Error **errp)
 {
-    gchar *type;
+    gchar *name, *type;
 
+    name = g_strdup_printf("legacy-%s", prop->name);
     type = g_strdup_printf("legacy<%s>",
                            prop->info->legacy_name ?: prop->info->name);
 
-    qdev_property_add(dev, prop->name, type,
+    qdev_property_add(dev, name, type,
                       prop->info->print ? qdev_get_legacy_property : NULL,
                       prop->info->parse ? qdev_set_legacy_property : NULL,
                       NULL,
                       prop, errp);
 
     g_free(type);
+    g_free(name);
+}
+
+/**
+ * @qdev_property_add_static - add a @Property to a device.
+ *
+ * Static properties access data in a struct.  The actual type of the
+ * property and the field depends on the property type.
+ */
+void qdev_property_add_static(DeviceState *dev, Property *prop,
+                              Error **errp)
+{
+    qdev_property_add(dev, prop->name, prop->info->name,
+                      prop->info->get, prop->info->set,
+                      NULL,
+                      prop, errp);
 }
 
 DeviceState *qdev_get_root(void)

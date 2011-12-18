@@ -487,11 +487,10 @@ const char *qdev_property_get_type(DeviceState *dev, const char *name,
                                    Error **errp);
 
 /**
- * @qdev_property_add_legacy - add a legacy @Property to a device
- *
- * DO NOT USE THIS IN NEW CODE!
+ * @qdev_property_add_static - add a @Property to a device referencing a
+ * field in a struct.
  */
-void qdev_property_add_legacy(DeviceState *dev, Property *prop, Error **errp);
+void qdev_property_add_static(DeviceState *dev, Property *prop, Error **errp);
 
 /**
  * @qdev_get_root - returns the root device of the composition tree
