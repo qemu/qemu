@@ -370,6 +370,8 @@ void qdev_prop_set_defaults(DeviceState *dev, Property *props);
 
 void qdev_prop_register_global_list(GlobalProperty *props);
 void qdev_prop_set_globals(DeviceState *dev);
+void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
+                                    Property *prop, const char *value);
 
 static inline const char *qdev_fw_name(DeviceState *dev)
 {

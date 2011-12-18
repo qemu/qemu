@@ -1162,10 +1162,7 @@ static void qdev_set_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
     }
 
     ret = prop->info->parse(dev, prop, ptr);
-    if (ret != 0) {
-        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                  name, prop->info->name);
-    }
+    error_set_from_qdev_prop_error(errp, ret, dev, prop, ptr);
     g_free(ptr);
 }
 
