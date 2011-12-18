@@ -92,6 +92,10 @@ struct SDState {
 
     int spi;
     int current_cmd;
+    /* True if we will handle the next command as an ACMD. Note that this does
+     * *not* track the APP_CMD status bit!
+     */
+    int expecting_acmd;
     int blk_written;
     uint64_t data_start;
     uint32_t data_offset;
@@ -341,8 +345,8 @@ static int sd_req_crc_validate(SDRequest *req)
 static void sd_response_r1_make(SDState *sd, uint8_t *response)
 {
     uint32_t status = sd->card_status;
-    /* Clear the "clear on read" status bits (except APP_CMD) */
-    sd->card_status &= ~CARD_STATUS_C | APP_CMD;
+    /* Clear the "clear on read" status bits */
+    sd->card_status &= ~CARD_STATUS_C;
 
     response[0] = (status >> 24) & 0xff;
     response[1] = (status >> 16) & 0xff;
@@ -607,6 +611,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 {
     uint32_t rca = 0x0000;
     uint64_t addr = (sd->ocr & (1 << 30)) ? (uint64_t) req.arg << 9 : req.arg;
+
+    /* Not interpreting this as an app command */
+    sd->card_status &= ~APP_CMD;
 
     if (sd_cmd_type[req.cmd] == sd_ac || sd_cmd_type[req.cmd] == sd_adtc)
         rca = req.arg >> 16;
@@ -1116,6 +1123,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         if (sd->rca != rca)
             return sd_r0;
 
+        sd->expecting_acmd = 1;
         sd->card_status |= APP_CMD;
         return sd_r1;
 
@@ -1155,6 +1163,7 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
                                     SDRequest req)
 {
     DPRINTF("ACMD%d 0x%08x\n", req.cmd, req.arg);
+    sd->card_status |= APP_CMD;
     switch (req.cmd) {
     case 6:	/* ACMD6:  SET_BUS_WIDTH */
         switch (sd->state) {
@@ -1251,7 +1260,6 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
 
     default:
         /* Fall back to standard commands.  */
-        sd->card_status &= ~APP_CMD;
         return sd_normal_command(sd, req);
     }
 
@@ -1269,7 +1277,7 @@ static int cmd_valid_while_locked(SDState *sd, SDRequest *req)
      * ACMD41 and ACMD42
      * Anything else provokes an "illegal command" response.
      */
-    if (sd->card_status & APP_CMD) {
+    if (sd->expecting_acmd) {
         return req->cmd == 41 || req->cmd == 42;
     }
     if (req->cmd == 16 || req->cmd == 55) {
@@ -1297,6 +1305,7 @@ int sd_do_command(SDState *sd, SDRequest *req,
     if (sd->card_status & CARD_IS_LOCKED) {
         if (!cmd_valid_while_locked(sd, req)) {
             sd->card_status |= ILLEGAL_COMMAND;
+            sd->expecting_acmd = 0;
             fprintf(stderr, "SD: Card is locked\n");
             rtype = sd_illegal;
             goto send_response;
@@ -1306,11 +1315,12 @@ int sd_do_command(SDState *sd, SDRequest *req,
     last_state = sd->state;
     sd_set_mode(sd);
 
-    if (sd->card_status & APP_CMD) {
+    if (sd->expecting_acmd) {
+        sd->expecting_acmd = 0;
         rtype = sd_app_command(sd, *req);
-        sd->card_status &= ~APP_CMD;
-    } else
+    } else {
         rtype = sd_normal_command(sd, *req);
+    }
 
     if (rtype == sd_illegal) {
         sd->card_status |= ILLEGAL_COMMAND;
