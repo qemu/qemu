@@ -171,6 +171,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_PROPERTY_VALUE_NOT_FOUND \
     "{ 'class': 'PropertyValueNotFound', 'data': { 'device': %s, 'property': %s, 'value': %s } }"
 
+#define QERR_PROPERTY_VALUE_OUT_OF_RANGE \
+    "{ 'class': 'PropertyValueOutOfRange', 'data': { 'device': %s, 'property': %s, 'value': %"PRId64", 'min': %"PRId64", 'max': %"PRId64" } }"
+
 #define QERR_QMP_BAD_INPUT_OBJECT \
     "{ 'class': 'QMPBadInputObject', 'data': { 'expected': %s } }"
 
