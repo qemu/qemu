@@ -199,6 +199,8 @@ obj-$(CONFIG_NO_KVM) += kvm-stub.o
 obj-y += memory.o savevm.o
 LIBS+=-lz
 
+obj-i386-y +=hyperv.o
+
 QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
 QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
