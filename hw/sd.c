@@ -51,6 +51,7 @@ typedef enum {
     sd_r6 = 6,    /* Published RCA response */
     sd_r7,        /* Operating voltage */
     sd_r1b = -1,
+    sd_illegal = -2,
 } sd_rsp_type_t;
 
 struct SDState {
@@ -679,8 +680,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         break;
 
     case 5: /* CMD5: reserved for SDIO cards */
-        sd->card_status |= ILLEGAL_COMMAND;
-        return sd_r0;
+        return sd_illegal;
 
     case 6:	/* CMD6:   SWITCH_FUNCTION */
         if (sd->spi)
@@ -1115,8 +1115,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
          * on stderr, as some OSes may use these in their
          * probing for presence of an SDIO card.
          */
-        sd->card_status |= ILLEGAL_COMMAND;
-        return sd_r0;
+        return sd_illegal;
 
     /* Application specific commands (Class 8) */
     case 55:	/* CMD55:  APP_CMD */
@@ -1145,21 +1144,17 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
     default:
     bad_cmd:
-        sd->card_status |= ILLEGAL_COMMAND;
-
         fprintf(stderr, "SD: Unknown CMD%i\n", req.cmd);
-        return sd_r0;
+        return sd_illegal;
 
     unimplemented_cmd:
         /* Commands that are recognised but not yet implemented in SPI mode.  */
-        sd->card_status |= ILLEGAL_COMMAND;
         fprintf(stderr, "SD: CMD%i not implemented in SPI mode\n", req.cmd);
-        return sd_r0;
+        return sd_illegal;
     }
 
-    sd->card_status |= ILLEGAL_COMMAND;
     fprintf(stderr, "SD: CMD%i in a wrong state\n", req.cmd);
-    return sd_r0;
+    return sd_illegal;
 }
 
 static sd_rsp_type_t sd_app_command(SDState *sd,
@@ -1321,6 +1316,10 @@ int sd_do_command(SDState *sd, SDRequest *req,
     } else
         rtype = sd_normal_command(sd, *req);
 
+    if (rtype == sd_illegal) {
+        sd->card_status |= ILLEGAL_COMMAND;
+    }
+
     sd->current_cmd = req->cmd;
 
     switch (rtype) {
@@ -1356,13 +1355,11 @@ int sd_do_command(SDState *sd, SDRequest *req,
         break;
 
     case sd_r0:
+    case sd_illegal:
     default:
         rsplen = 0;
         break;
     }
-
-    if (sd->card_status & ILLEGAL_COMMAND)
-        rsplen = 0;
 
 #ifdef DEBUG_SD
     if (rsplen) {
