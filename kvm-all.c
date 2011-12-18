@@ -27,6 +27,7 @@
 #include "gdbstub.h"
 #include "kvm.h"
 #include "bswap.h"
+#include "memory.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
@@ -289,16 +290,28 @@ static int kvm_dirty_pages_log_change(target_phys_addr_t phys_addr,
     return kvm_slot_dirty_pages_log_change(mem, log_dirty);
 }
 
-static int kvm_log_start(CPUPhysMemoryClient *client,
-                         target_phys_addr_t phys_addr, ram_addr_t size)
+static void kvm_log_start(MemoryListener *listener,
+                          MemoryRegionSection *section)
 {
-    return kvm_dirty_pages_log_change(phys_addr, size, true);
+    int r;
+
+    r = kvm_dirty_pages_log_change(section->offset_within_address_space,
+                                   section->size, true);
+    if (r < 0) {
+        abort();
+    }
 }
 
-static int kvm_log_stop(CPUPhysMemoryClient *client,
-                        target_phys_addr_t phys_addr, ram_addr_t size)
+static void kvm_log_stop(MemoryListener *listener,
+                          MemoryRegionSection *section)
 {
-    return kvm_dirty_pages_log_change(phys_addr, size, false);
+    int r;
+
+    r = kvm_dirty_pages_log_change(section->offset_within_address_space,
+                                   section->size, false);
+    if (r < 0) {
+        abort();
+    }
 }
 
 static int kvm_set_migration_log(int enable)
@@ -519,13 +532,15 @@ kvm_check_extension_list(KVMState *s, const KVMCapabilityInfo *list)
     return NULL;
 }
 
-static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
-                             ram_addr_t phys_offset, bool log_dirty)
+static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
 {
     KVMState *s = kvm_state;
-    ram_addr_t flags = phys_offset & ~TARGET_PAGE_MASK;
     KVMSlot *mem, old;
     int err;
+    MemoryRegion *mr = section->mr;
+    bool log_dirty = memory_region_is_logging(mr);
+    target_phys_addr_t start_addr = section->offset_within_address_space;
+    ram_addr_t size = section->size;
     void *ram = NULL;
 
     /* kvm works in page size chunks, but the function may be called
@@ -533,12 +548,11 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
     size = TARGET_PAGE_ALIGN(size);
     start_addr = TARGET_PAGE_ALIGN(start_addr);
 
-    /* KVM does not support read-only slots */
-    phys_offset &= ~IO_MEM_ROM;
-
-    if ((phys_offset & ~TARGET_PAGE_MASK) == IO_MEM_RAM) {
-        ram = qemu_safe_ram_ptr(phys_offset);
+    if (!memory_region_is_ram(mr)) {
+        return;
     }
+
+    ram = memory_region_get_ram_ptr(mr) + section->offset_within_region;
 
     while (1) {
         mem = kvm_lookup_overlapping_slot(s, start_addr, start_addr + size);
@@ -546,7 +560,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             break;
         }
 
-        if (flags < IO_MEM_UNASSIGNED && start_addr >= mem->start_addr &&
+        if (add && start_addr >= mem->start_addr &&
             (start_addr + size <= mem->start_addr + mem->memory_size) &&
             (ram - start_addr == mem->ram - mem->start_addr)) {
             /* The new slot fits into the existing one and comes with
@@ -575,8 +589,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
          * slot comes around later, we will fail (not seen in practice so far)
          * - and actually require a recent KVM version. */
         if (s->broken_set_mem_region &&
-            old.start_addr == start_addr && old.memory_size < size &&
-            flags < IO_MEM_UNASSIGNED) {
+            old.start_addr == start_addr && old.memory_size < size && add) {
             mem = kvm_alloc_slot(s);
             mem->memory_size = old.memory_size;
             mem->start_addr = old.start_addr;
@@ -591,7 +604,6 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
             }
 
             start_addr += old.memory_size;
-            phys_offset += old.memory_size;
             ram += old.memory_size;
             size -= old.memory_size;
             continue;
@@ -642,8 +654,7 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
     if (!size) {
         return;
     }
-    /* KVM does not need to know about this memory */
-    if (flags >= IO_MEM_UNASSIGNED) {
+    if (!add) {
         return;
     }
     mem = kvm_alloc_slot(s);
@@ -660,33 +671,55 @@ static void kvm_set_phys_mem(target_phys_addr_t start_addr, ram_addr_t size,
     }
 }
 
-static void kvm_client_set_memory(struct CPUPhysMemoryClient *client,
-                                  target_phys_addr_t start_addr,
-                                  ram_addr_t size, ram_addr_t phys_offset,
-                                  bool log_dirty)
+static void kvm_region_add(MemoryListener *listener,
+                           MemoryRegionSection *section)
 {
-    kvm_set_phys_mem(start_addr, size, phys_offset, log_dirty);
+    kvm_set_phys_mem(section, true);
 }
 
-static int kvm_client_sync_dirty_bitmap(struct CPUPhysMemoryClient *client,
-                                        target_phys_addr_t start_addr,
-                                        target_phys_addr_t end_addr)
+static void kvm_region_del(MemoryListener *listener,
+                           MemoryRegionSection *section)
 {
-    return kvm_physical_sync_dirty_bitmap(start_addr, end_addr);
+    kvm_set_phys_mem(section, false);
 }
 
-static int kvm_client_migration_log(struct CPUPhysMemoryClient *client,
-                                    int enable)
+static void kvm_log_sync(MemoryListener *listener,
+                         MemoryRegionSection *section)
 {
-    return kvm_set_migration_log(enable);
+    target_phys_addr_t start = section->offset_within_address_space;
+    target_phys_addr_t end = start + section->size;
+    int r;
+
+    r = kvm_physical_sync_dirty_bitmap(start, end);
+    if (r < 0) {
+        abort();
+    }
 }
 
-static CPUPhysMemoryClient kvm_cpu_phys_memory_client = {
-    .set_memory = kvm_client_set_memory,
-    .sync_dirty_bitmap = kvm_client_sync_dirty_bitmap,
-    .migration_log = kvm_client_migration_log,
+static void kvm_log_global_start(struct MemoryListener *listener)
+{
+    int r;
+
+    r = kvm_set_migration_log(1);
+    assert(r >= 0);
+}
+
+static void kvm_log_global_stop(struct MemoryListener *listener)
+{
+    int r;
+
+    r = kvm_set_migration_log(0);
+    assert(r >= 0);
+}
+
+static MemoryListener kvm_memory_listener = {
+    .region_add = kvm_region_add,
+    .region_del = kvm_region_del,
     .log_start = kvm_log_start,
     .log_stop = kvm_log_stop,
+    .log_sync = kvm_log_sync,
+    .log_global_start = kvm_log_global_start,
+    .log_global_stop = kvm_log_global_stop,
 };
 
 static void kvm_handle_interrupt(CPUState *env, int mask)
@@ -794,7 +827,7 @@ int kvm_init(void)
     }
 
     kvm_state = s;
-    cpu_register_phys_memory_client(&kvm_cpu_phys_memory_client);
+    memory_listener_register(&kvm_memory_listener);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
 
