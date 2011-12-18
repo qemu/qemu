@@ -16,6 +16,7 @@
 #include "range.h"
 #include "xen-mapcache.h"
 #include "trace.h"
+#include "exec-memory.h"
 
 #include <xen/hvm/ioreq.h>
 #include <xen/hvm/params.h>
@@ -30,6 +31,8 @@
 #define DPRINTF(fmt, ...) \
     do { } while (0)
 #endif
+
+static MemoryRegion ram_memory, ram_640k, ram_lo, ram_hi;
 
 /* Compatibility with older version */
 #if __XEN_LATEST_INTERFACE_VERSION__ < 0x0003020a
@@ -137,27 +140,18 @@ qemu_irq *xen_interrupt_controller_init(void)
 
 static void xen_ram_init(ram_addr_t ram_size)
 {
-    RAMBlock *new_block;
+    MemoryRegion *sysmem = get_system_memory();
     ram_addr_t below_4g_mem_size, above_4g_mem_size = 0;
+    ram_addr_t block_len;
 
-    new_block = g_malloc0(sizeof (*new_block));
-    pstrcpy(new_block->idstr, sizeof (new_block->idstr), "xen.ram");
-    new_block->host = NULL;
-    new_block->offset = 0;
-    new_block->length = ram_size;
+    block_len = ram_size;
     if (ram_size >= HVM_BELOW_4G_RAM_END) {
         /* Xen does not allocate the memory continuously, and keep a hole at
          * HVM_BELOW_4G_MMIO_START of HVM_BELOW_4G_MMIO_LENGTH
          */
-        new_block->length += HVM_BELOW_4G_MMIO_LENGTH;
+        block_len += HVM_BELOW_4G_MMIO_LENGTH;
     }
-
-    QLIST_INSERT_HEAD(&ram_list.blocks, new_block, next);
-
-    ram_list.phys_dirty = g_realloc(ram_list.phys_dirty,
-                                       new_block->length >> TARGET_PAGE_BITS);
-    memset(ram_list.phys_dirty + (new_block->offset >> TARGET_PAGE_BITS),
-           0xff, new_block->length >> TARGET_PAGE_BITS);
+    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
 
     if (ram_size >= HVM_BELOW_4G_RAM_END) {
         above_4g_mem_size = ram_size - HVM_BELOW_4G_RAM_END;
@@ -166,18 +160,23 @@ static void xen_ram_init(ram_addr_t ram_size)
         below_4g_mem_size = ram_size;
     }
 
-    cpu_register_physical_memory(0, 0xa0000, 0);
+    memory_region_init_alias(&ram_640k, "xen.ram.640k",
+                             &ram_memory, 0, 0xa0000);
+    memory_region_add_subregion(sysmem, 0, &ram_640k);
     /* Skip of the VGA IO memory space, it will be registered later by the VGA
      * emulated device.
      *
      * The area between 0xc0000 and 0x100000 will be used by SeaBIOS to load
      * the Options ROM, so it is registered here as RAM.
      */
-    cpu_register_physical_memory(0xc0000, below_4g_mem_size - 0xc0000,
-                                 0xc0000);
+    memory_region_init_alias(&ram_lo, "xen.ram.lo",
+                             &ram_memory, 0xc0000, below_4g_mem_size - 0xc0000);
+    memory_region_add_subregion(sysmem, 0xc0000, &ram_lo);
     if (above_4g_mem_size > 0) {
-        cpu_register_physical_memory(0x100000000ULL, above_4g_mem_size,
-                                     0x100000000ULL);
+        memory_region_init_alias(&ram_hi, "xen.ram.hi",
+                                 &ram_memory, 0x100000000ULL,
+                                 above_4g_mem_size);
+        memory_region_add_subregion(sysmem, 0x100000000ULL, &ram_hi);
     }
 }
 
@@ -186,6 +185,10 @@ void xen_ram_alloc(ram_addr_t ram_addr, ram_addr_t size, MemoryRegion *mr)
     unsigned long nr_pfn;
     xen_pfn_t *pfn_list;
     int i;
+
+    if (mr == &ram_memory) {
+        return;
+    }
 
     trace_xen_ram_alloc(ram_addr, size);
 
