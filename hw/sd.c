@@ -999,7 +999,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         switch (sd->state) {
         case sd_transfer_state:
             if (addr >= sd->size) {
-                sd->card_status = ADDRESS_ERROR;
+                sd->card_status |= ADDRESS_ERROR;
                 return sd_r1b;
             }
 
@@ -1019,7 +1019,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         switch (sd->state) {
         case sd_transfer_state:
             if (addr >= sd->size) {
-                sd->card_status = ADDRESS_ERROR;
+                sd->card_status |= ADDRESS_ERROR;
                 return sd_r1b;
             }
 
