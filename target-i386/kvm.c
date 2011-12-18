@@ -29,6 +29,7 @@
 #include "hw/pc.h"
 #include "hw/apic.h"
 #include "ioport.h"
+#include "hyperv.h"
 
 //#define DEBUG_KVM
 
@@ -373,11 +374,16 @@ int kvm_arch_init_vcpu(CPUState *env)
     cpuid_i = 0;
 
     /* Paravirtualization CPUIDs */
-    memcpy(signature, "KVMKVMKVM\0\0\0", 12);
     c = &cpuid_data.entries[cpuid_i++];
     memset(c, 0, sizeof(*c));
     c->function = KVM_CPUID_SIGNATURE;
-    c->eax = 0;
+    if (!hyperv_enabled()) {
+        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+        c->eax = 0;
+    } else {
+        memcpy(signature, "Microsoft Hv", 12);
+        c->eax = HYPERV_CPUID_MIN;
+    }
     c->ebx = signature[0];
     c->ecx = signature[1];
     c->edx = signature[2];
@@ -387,6 +393,54 @@ int kvm_arch_init_vcpu(CPUState *env)
     c->function = KVM_CPUID_FEATURES;
     c->eax = env->cpuid_kvm_features &
         kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
+
+    if (hyperv_enabled()) {
+        memcpy(signature, "Hv#1\0\0\0\0\0\0\0\0", 12);
+        c->eax = signature[0];
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = HYPERV_CPUID_VERSION;
+        c->eax = 0x00001bbc;
+        c->ebx = 0x00060001;
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = HYPERV_CPUID_FEATURES;
+        if (hyperv_relaxed_timing_enabled()) {
+            c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+        }
+        if (hyperv_vapic_recommended()) {
+            c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+            c->eax |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
+        }
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
+        if (hyperv_relaxed_timing_enabled()) {
+            c->eax |= HV_X64_RELAXED_TIMING_RECOMMENDED;
+        }
+        if (hyperv_vapic_recommended()) {
+            c->eax |= HV_X64_APIC_ACCESS_RECOMMENDED;
+        }
+        c->ebx = hyperv_get_spinlock_retries();
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = HYPERV_CPUID_IMPLEMENT_LIMITS;
+        c->eax = 0x40;
+        c->ebx = 0x40;
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = KVM_CPUID_SIGNATURE_NEXT;
+        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+        c->eax = 0;
+        c->ebx = signature[0];
+        c->ecx = signature[1];
+        c->edx = signature[2];
+    }
 
     has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
 
@@ -932,6 +986,13 @@ static int kvm_put_msrs(CPUState *env, int level)
         if (has_msr_async_pf_en) {
             kvm_msr_entry_set(&msrs[n++], MSR_KVM_ASYNC_PF_EN,
                               env->async_pf_en_msr);
+        }
+        if (hyperv_hypercall_available()) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_GUEST_OS_ID, 0);
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_HYPERCALL, 0);
+        }
+        if (hyperv_vapic_recommended()) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
         }
     }
     if (env->mcg_cap) {
