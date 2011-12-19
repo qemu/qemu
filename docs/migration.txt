@@ -219,6 +219,18 @@ The functions to do that are inside a vmstate definition, and are called:
 Example: You can look at hpet.c, that uses the three function to
          massage the state that is transferred.
 
+If you use memory API functions that update memory layout outside
+initialization (i.e., in response to a guest action), this is a strong
+indication that you need to call these functions in a post_load callback.
+Examples of such memory API functions are:
+
+  - memory_region_add_subregion()
+  - memory_region_del_subregion()
+  - memory_region_set_readonly()
+  - memory_region_set_enabled()
+  - memory_region_set_address()
+  - memory_region_set_alias_offset()
+
 === Subsections ===
 
 The use of version_id allows to be able to migrate from older versions

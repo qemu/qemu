@@ -81,7 +81,6 @@ struct PCII440FXState {
     PAMMemoryRegion pam_regions[13];
     MemoryRegion smram_region;
     uint8_t smm_enabled;
-    bool smram_enabled;
     PIIX3State *piix3;
 };
 
@@ -141,6 +140,7 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
 {
     int i, r;
     uint32_t smram;
+    bool smram_enabled;
 
     memory_region_transaction_begin();
     update_pam(d, 0xf0000, 0x100000, (d->dev.config[I440FX_PAM] >> 4) & 3,
@@ -151,18 +151,8 @@ static void i440fx_update_memory_mappings(PCII440FXState *d)
                    &d->pam_regions[i+1]);
     }
     smram = d->dev.config[I440FX_SMRAM];
-    if ((d->smm_enabled && (smram & 0x08)) || (smram & 0x40)) {
-        if (!d->smram_enabled) {
-            memory_region_del_subregion(d->system_memory, &d->smram_region);
-            d->smram_enabled = true;
-        }
-    } else {
-        if (d->smram_enabled) {
-            memory_region_add_subregion_overlap(d->system_memory, 0xa0000,
-                                                &d->smram_region, 1);
-            d->smram_enabled = false;
-        }
-    }
+    smram_enabled = (d->smm_enabled && (smram & 0x08)) || (smram & 0x40);
+    memory_region_set_enabled(&d->smram_region, !smram_enabled);
     memory_region_transaction_commit();
 }
 
@@ -308,7 +298,9 @@ static PCIBus *i440fx_common_init(const char *device_name,
     }
     memory_region_init_alias(&f->smram_region, "smram-region",
                              f->pci_address_space, 0xa0000, 0x20000);
-    f->smram_enabled = true;
+    memory_region_add_subregion_overlap(f->system_memory, 0xa0000,
+                                        &f->smram_region, 1);
+    memory_region_set_enabled(&f->smram_region, false);
 
     /* Xen supports additional interrupt routes from the PCI devices to
      * the IOAPIC: the four pins of each PCI device on the bus are also
