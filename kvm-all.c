@@ -340,16 +340,12 @@ static int kvm_set_migration_log(int enable)
 }
 
 /* get kvm's dirty pages bitmap and update qemu's */
-static int kvm_get_dirty_pages_log_range(unsigned long start_addr,
-                                         unsigned long *bitmap,
-                                         unsigned long offset,
-                                         unsigned long mem_size)
+static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
+                                         unsigned long *bitmap)
 {
     unsigned int i, j;
     unsigned long page_number, addr, addr1, c;
-    ram_addr_t ram_addr;
-    unsigned int len = ((mem_size / TARGET_PAGE_SIZE) + HOST_LONG_BITS - 1) /
-        HOST_LONG_BITS;
+    unsigned int len = ((section->size / TARGET_PAGE_SIZE) + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
 
     /*
      * bitmap-traveling is faster than memory-traveling (for addr...)
@@ -363,9 +359,8 @@ static int kvm_get_dirty_pages_log_range(unsigned long start_addr,
                 c &= ~(1ul << j);
                 page_number = i * HOST_LONG_BITS + j;
                 addr1 = page_number * TARGET_PAGE_SIZE;
-                addr = offset + addr1;
-                ram_addr = cpu_get_physical_page_desc(addr);
-                cpu_physical_memory_set_dirty(ram_addr);
+                addr = section->offset_within_region + addr1;
+                memory_region_set_dirty(section->mr, addr);
             } while (c != 0);
         }
     }
@@ -382,14 +377,15 @@ static int kvm_get_dirty_pages_log_range(unsigned long start_addr,
  * @start_add: start of logged region.
  * @end_addr: end of logged region.
  */
-static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
-                                          target_phys_addr_t end_addr)
+static int kvm_physical_sync_dirty_bitmap(MemoryRegionSection *section)
 {
     KVMState *s = kvm_state;
     unsigned long size, allocated_size = 0;
     KVMDirtyLog d;
     KVMSlot *mem;
     int ret = 0;
+    target_phys_addr_t start_addr = section->offset_within_address_space;
+    target_phys_addr_t end_addr = start_addr + section->size;
 
     d.dirty_bitmap = NULL;
     while (start_addr < end_addr) {
@@ -428,8 +424,7 @@ static int kvm_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
             break;
         }
 
-        kvm_get_dirty_pages_log_range(mem->start_addr, d.dirty_bitmap,
-                                      mem->start_addr, mem->memory_size);
+        kvm_get_dirty_pages_log_range(section, d.dirty_bitmap);
         start_addr = mem->start_addr + mem->memory_size;
     }
     g_free(d.dirty_bitmap);
@@ -686,11 +681,9 @@ static void kvm_region_del(MemoryListener *listener,
 static void kvm_log_sync(MemoryListener *listener,
                          MemoryRegionSection *section)
 {
-    target_phys_addr_t start = section->offset_within_address_space;
-    target_phys_addr_t end = start + section->size;
     int r;
 
-    r = kvm_physical_sync_dirty_bitmap(start, end);
+    r = kvm_physical_sync_dirty_bitmap(section);
     if (r < 0) {
         abort();
     }
