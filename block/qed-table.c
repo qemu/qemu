@@ -54,7 +54,6 @@ static void qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
     QEDReadTableCB *read_table_cb = gencb_alloc(sizeof(*read_table_cb),
                                                 cb, opaque);
     QEMUIOVector *qiov = &read_table_cb->qiov;
-    BlockDriverAIOCB *aiocb;
 
     trace_qed_read_table(s, offset, table);
 
@@ -64,12 +63,9 @@ static void qed_read_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
     read_table_cb->iov.iov_len = s->header.cluster_size * s->header.table_size,
 
     qemu_iovec_init_external(qiov, &read_table_cb->iov, 1);
-    aiocb = bdrv_aio_readv(s->bs->file, offset / BDRV_SECTOR_SIZE, qiov,
-                           qiov->size / BDRV_SECTOR_SIZE,
-                           qed_read_table_cb, read_table_cb);
-    if (!aiocb) {
-        qed_read_table_cb(read_table_cb, -EIO);
-    }
+    bdrv_aio_readv(s->bs->file, offset / BDRV_SECTOR_SIZE, qiov,
+                   qiov->size / BDRV_SECTOR_SIZE,
+                   qed_read_table_cb, read_table_cb);
 }
 
 typedef struct {
@@ -127,7 +123,6 @@ static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
                             BlockDriverCompletionFunc *cb, void *opaque)
 {
     QEDWriteTableCB *write_table_cb;
-    BlockDriverAIOCB *aiocb;
     unsigned int sector_mask = BDRV_SECTOR_SIZE / sizeof(uint64_t) - 1;
     unsigned int start, end, i;
     size_t len_bytes;
@@ -158,13 +153,10 @@ static void qed_write_table(BDRVQEDState *s, uint64_t offset, QEDTable *table,
     /* Adjust for offset into table */
     offset += start * sizeof(uint64_t);
 
-    aiocb = bdrv_aio_writev(s->bs->file, offset / BDRV_SECTOR_SIZE,
-                            &write_table_cb->qiov,
-                            write_table_cb->qiov.size / BDRV_SECTOR_SIZE,
-                            qed_write_table_cb, write_table_cb);
-    if (!aiocb) {
-        qed_write_table_cb(write_table_cb, -EIO);
-    }
+    bdrv_aio_writev(s->bs->file, offset / BDRV_SECTOR_SIZE,
+                    &write_table_cb->qiov,
+                    write_table_cb->qiov.size / BDRV_SECTOR_SIZE,
+                    qed_write_table_cb, write_table_cb);
 }
 
 /**

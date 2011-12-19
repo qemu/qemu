@@ -632,9 +632,6 @@ static BlockDriverAIOCB *rbd_aio_rw_vector(BlockDriverState *bs,
     BDRVRBDState *s = bs->opaque;
 
     acb = qemu_aio_get(&rbd_aio_pool, bs, cb, opaque);
-    if (!acb) {
-        return NULL;
-    }
     acb->write = write;
     acb->qiov = qiov;
     acb->bounce = qemu_blockalign(bs, qiov->size);
@@ -808,7 +805,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
     } while (snap_count == -ERANGE);
 
     if (snap_count <= 0) {
-        return snap_count;
+        goto done;
     }
 
     sn_tab = g_malloc0(snap_count * sizeof(QEMUSnapshotInfo));
@@ -827,6 +824,7 @@ static int qemu_rbd_snap_list(BlockDriverState *bs,
     }
     rbd_snap_list_end(snaps);
 
+ done:
     *psn_tab = sn_tab;
     return snap_count;
 }

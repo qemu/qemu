@@ -635,6 +635,7 @@ static void qcow2_close(BlockDriverState *bs)
     g_free(s->cluster_cache);
     qemu_vfree(s->cluster_data);
     qcow2_refcount_close(bs);
+    qcow2_free_snapshots(bs);
 }
 
 static void qcow2_invalidate_cache(BlockDriverState *bs)

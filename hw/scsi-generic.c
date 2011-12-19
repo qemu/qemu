@@ -152,10 +152,6 @@ static int execute_command(BlockDriverState *bdrv,
     r->io_header.flags |= SG_FLAG_DIRECT_IO;
 
     r->req.aiocb = bdrv_aio_ioctl(bdrv, SG_IO, &r->io_header, complete, r);
-    if (r->req.aiocb == NULL) {
-        BADF("execute_command: read failed !\n");
-        return -ENOMEM;
-    }
 
     return 0;
 }

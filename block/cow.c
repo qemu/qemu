@@ -64,15 +64,26 @@ static int cow_open(BlockDriverState *bs, int flags)
     struct cow_header_v2 cow_header;
     int bitmap_size;
     int64_t size;
+    int ret;
 
     /* see if it is a cow image */
-    if (bdrv_pread(bs->file, 0, &cow_header, sizeof(cow_header)) !=
-            sizeof(cow_header)) {
+    ret = bdrv_pread(bs->file, 0, &cow_header, sizeof(cow_header));
+    if (ret < 0) {
         goto fail;
     }
 
-    if (be32_to_cpu(cow_header.magic) != COW_MAGIC ||
-        be32_to_cpu(cow_header.version) != COW_VERSION) {
+    if (be32_to_cpu(cow_header.magic) != COW_MAGIC) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    if (be32_to_cpu(cow_header.version) != COW_VERSION) {
+        char version[64];
+        snprintf(version, sizeof(version),
+               "COW version %d", cow_header.version);
+        qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+            bs->device_name, "cow", version);
+        ret = -ENOTSUP;
         goto fail;
     }
 
@@ -88,7 +99,7 @@ static int cow_open(BlockDriverState *bs, int flags)
     qemu_co_mutex_init(&s->lock);
     return 0;
  fail:
-    return -1;
+    return ret;
 }
 
 /*
@@ -182,17 +193,19 @@ static int coroutine_fn cow_read(BlockDriverState *bs, int64_t sector_num,
             ret = bdrv_pread(bs->file,
                         s->cow_sectors_offset + sector_num * 512,
                         buf, n * 512);
-            if (ret != n * 512)
-                return -1;
+            if (ret < 0) {
+                return ret;
+            }
         } else {
             if (bs->backing_hd) {
                 /* read from the base image */
                 ret = bdrv_read(bs->backing_hd, sector_num, buf, n);
-                if (ret < 0)
-                    return -1;
+                if (ret < 0) {
+                    return ret;
+                }
             } else {
-            memset(buf, 0, n * 512);
-        }
+                memset(buf, 0, n * 512);
+            }
         }
         nb_sectors -= n;
         sector_num += n;
@@ -220,8 +233,9 @@ static int cow_write(BlockDriverState *bs, int64_t sector_num,
 
     ret = bdrv_pwrite(bs->file, s->cow_sectors_offset + sector_num * 512,
                       buf, nb_sectors * 512);
-    if (ret != nb_sectors * 512)
-        return -1;
+    if (ret < 0) {
+        return ret;
+    }
 
     return cow_update_bitmap(bs, sector_num, nb_sectors);
 }
@@ -288,14 +302,14 @@ static int cow_create(const char *filename, QEMUOptionParameter *options)
     cow_header.sectorsize = cpu_to_be32(512);
     cow_header.size = cpu_to_be64(image_sectors * 512);
     ret = bdrv_pwrite(cow_bs, 0, &cow_header, sizeof(cow_header));
-    if (ret != sizeof(cow_header)) {
+    if (ret < 0) {
         goto exit;
     }
 
     /* resize to include at least all the bitmap */
     ret = bdrv_truncate(cow_bs,
         sizeof(cow_header) + ((image_sectors + 7) >> 3));
-    if (ret) {
+    if (ret < 0) {
         goto exit;
     }
 

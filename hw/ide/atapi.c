@@ -352,14 +352,8 @@ static void ide_atapi_cmd_read_dma_cb(void *opaque, int ret)
     s->bus->dma->aiocb = bdrv_aio_readv(s->bs, (int64_t)s->lba << 2,
                                        &s->bus->dma->qiov, n * 4,
                                        ide_atapi_cmd_read_dma_cb, s);
-    if (!s->bus->dma->aiocb) {
-        /* Note: media not present is the most likely case */
-        ide_atapi_cmd_error(s, NOT_READY,
-                            ASC_MEDIUM_NOT_PRESENT);
-        goto eot;
-    }
-
     return;
+
 eot:
     bdrv_acct_done(s->bs, &s->acct);
     s->bus->dma->ops->add_status(s->bus->dma, BM_STATUS_INT);
