@@ -71,29 +71,6 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
 void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque));
 void cpu_unregister_map_client(void *cookie);
 
-struct CPUPhysMemoryClient;
-typedef struct CPUPhysMemoryClient CPUPhysMemoryClient;
-struct CPUPhysMemoryClient {
-    void (*set_memory)(struct CPUPhysMemoryClient *client,
-                       target_phys_addr_t start_addr,
-                       ram_addr_t size,
-                       ram_addr_t phys_offset,
-                       bool log_dirty);
-    int (*sync_dirty_bitmap)(struct CPUPhysMemoryClient *client,
-                             target_phys_addr_t start_addr,
-                             target_phys_addr_t end_addr);
-    int (*migration_log)(struct CPUPhysMemoryClient *client,
-                         int enable);
-    int (*log_start)(struct CPUPhysMemoryClient *client,
-                     target_phys_addr_t phys_addr, ram_addr_t size);
-    int (*log_stop)(struct CPUPhysMemoryClient *client,
-                    target_phys_addr_t phys_addr, ram_addr_t size);
-    QLIST_ENTRY(CPUPhysMemoryClient) list;
-};
-
-void cpu_register_phys_memory_client(CPUPhysMemoryClient *);
-void cpu_unregister_phys_memory_client(CPUPhysMemoryClient *);
-
 /* Coalesced MMIO regions are areas where write operations can be reordered.
  * This usually implies that write operations are side-effect free.  This allows
  * batching which can make a major impact on performance when using

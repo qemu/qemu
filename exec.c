@@ -1732,129 +1732,6 @@ const CPULogItem cpu_log_items[] = {
     { 0, NULL, NULL },
 };
 
-#ifndef CONFIG_USER_ONLY
-static QLIST_HEAD(memory_client_list, CPUPhysMemoryClient) memory_client_list
-    = QLIST_HEAD_INITIALIZER(memory_client_list);
-
-static void cpu_notify_set_memory(target_phys_addr_t start_addr,
-                                  ram_addr_t size,
-                                  ram_addr_t phys_offset,
-                                  bool log_dirty)
-{
-    CPUPhysMemoryClient *client;
-    QLIST_FOREACH(client, &memory_client_list, list) {
-        client->set_memory(client, start_addr, size, phys_offset, log_dirty);
-    }
-}
-
-static int cpu_notify_sync_dirty_bitmap(target_phys_addr_t start,
-                                        target_phys_addr_t end)
-{
-    CPUPhysMemoryClient *client;
-    QLIST_FOREACH(client, &memory_client_list, list) {
-        int r = client->sync_dirty_bitmap(client, start, end);
-        if (r < 0)
-            return r;
-    }
-    return 0;
-}
-
-static int cpu_notify_migration_log(int enable)
-{
-    CPUPhysMemoryClient *client;
-    if (enable) {
-        memory_global_dirty_log_start();
-    } else {
-        memory_global_dirty_log_stop();
-    }
-    QLIST_FOREACH(client, &memory_client_list, list) {
-        int r = client->migration_log(client, enable);
-        if (r < 0)
-            return r;
-    }
-    return 0;
-}
-
-struct last_map {
-    target_phys_addr_t start_addr;
-    ram_addr_t size;
-    ram_addr_t phys_offset;
-};
-
-/* The l1_phys_map provides the upper P_L1_BITs of the guest physical
- * address.  Each intermediate table provides the next L2_BITs of guest
- * physical address space.  The number of levels vary based on host and
- * guest configuration, making it efficient to build the final guest
- * physical address by seeding the L1 offset and shifting and adding in
- * each L2 offset as we recurse through them. */
-static void phys_page_for_each_1(CPUPhysMemoryClient *client, int level,
-                                 void **lp, target_phys_addr_t addr,
-                                 struct last_map *map)
-{
-    int i;
-
-    if (*lp == NULL) {
-        return;
-    }
-    if (level == 0) {
-        PhysPageDesc *pd = *lp;
-        addr <<= L2_BITS + TARGET_PAGE_BITS;
-        for (i = 0; i < L2_SIZE; ++i) {
-            if (pd[i].phys_offset != IO_MEM_UNASSIGNED) {
-                target_phys_addr_t start_addr = addr | i << TARGET_PAGE_BITS;
-
-                if (map->size &&
-                    start_addr == map->start_addr + map->size &&
-                    pd[i].phys_offset == map->phys_offset + map->size) {
-
-                    map->size += TARGET_PAGE_SIZE;
-                    continue;
-                } else if (map->size) {
-                    client->set_memory(client, map->start_addr,
-                                       map->size, map->phys_offset, false);
-                }
-
-                map->start_addr = start_addr;
-                map->size = TARGET_PAGE_SIZE;
-                map->phys_offset = pd[i].phys_offset;
-            }
-        }
-    } else {
-        void **pp = *lp;
-        for (i = 0; i < L2_SIZE; ++i) {
-            phys_page_for_each_1(client, level - 1, pp + i,
-                                 (addr << L2_BITS) | i, map);
-        }
-    }
-}
-
-static void phys_page_for_each(CPUPhysMemoryClient *client)
-{
-    int i;
-    struct last_map map = { };
-
-    for (i = 0; i < P_L1_SIZE; ++i) {
-        phys_page_for_each_1(client, P_L1_SHIFT / L2_BITS - 1,
-                             l1_phys_map + i, i, &map);
-    }
-    if (map.size) {
-        client->set_memory(client, map.start_addr, map.size, map.phys_offset,
-                           false);
-    }
-}
-
-void cpu_register_phys_memory_client(CPUPhysMemoryClient *client)
-{
-    QLIST_INSERT_HEAD(&memory_client_list, client, list);
-    phys_page_for_each(client);
-}
-
-void cpu_unregister_phys_memory_client(CPUPhysMemoryClient *client)
-{
-    QLIST_REMOVE(client, list);
-}
-#endif
-
 static int cmp1(const char *s1, int n, const char *s2)
 {
     if (strlen(s2) != n)
@@ -2131,52 +2008,17 @@ int cpu_physical_memory_set_dirty_tracking(int enable)
 {
     int ret = 0;
     in_migration = enable;
-    ret = cpu_notify_migration_log(!!enable);
+    if (enable) {
+        memory_global_dirty_log_start();
+    } else {
+        memory_global_dirty_log_stop();
+    }
     return ret;
 }
 
 int cpu_physical_memory_get_dirty_tracking(void)
 {
     return in_migration;
-}
-
-int cpu_physical_sync_dirty_bitmap(target_phys_addr_t start_addr,
-                                   target_phys_addr_t end_addr)
-{
-    int ret;
-
-    ret = cpu_notify_sync_dirty_bitmap(start_addr, end_addr);
-    return ret;
-}
-
-int cpu_physical_log_start(target_phys_addr_t start_addr,
-                           ram_addr_t size)
-{
-    CPUPhysMemoryClient *client;
-    QLIST_FOREACH(client, &memory_client_list, list) {
-        if (client->log_start) {
-            int r = client->log_start(client, start_addr, size);
-            if (r < 0) {
-                return r;
-            }
-        }
-    }
-    return 0;
-}
-
-int cpu_physical_log_stop(target_phys_addr_t start_addr,
-                          ram_addr_t size)
-{
-    CPUPhysMemoryClient *client;
-    QLIST_FOREACH(client, &memory_client_list, list) {
-        if (client->log_stop) {
-            int r = client->log_stop(client, start_addr, size);
-            if (r < 0) {
-                return r;
-            }
-        }
-    }
-    return 0;
 }
 
 static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
@@ -2681,7 +2523,6 @@ void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
     subpage_t *subpage;
 
     assert(size);
-    cpu_notify_set_memory(start_addr, size, phys_offset, log_dirty);
 
     if (phys_offset == IO_MEM_UNASSIGNED) {
         region_offset = start_addr;

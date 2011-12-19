@@ -338,11 +338,6 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
 
 static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
 {
-    if (fr->dirty_log_mask) {
-        Int128 end = addrrange_end(fr->addr);
-        cpu_physical_sync_dirty_bitmap(int128_get64(fr->addr.start),
-                                       int128_get64(end));
-    }
     cpu_register_physical_memory(int128_get64(fr->addr.start),
                                  int128_get64(fr->addr.size),
                                  IO_MEM_UNASSIGNED);
@@ -350,14 +345,10 @@ static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
 
 static void as_memory_log_start(AddressSpace *as, FlatRange *fr)
 {
-    cpu_physical_log_start(int128_get64(fr->addr.start),
-                           int128_get64(fr->addr.size));
 }
 
 static void as_memory_log_stop(AddressSpace *as, FlatRange *fr)
 {
-    cpu_physical_log_stop(int128_get64(fr->addr.start),
-                          int128_get64(fr->addr.size));
 }
 
 static void as_memory_ioeventfd_add(AddressSpace *as, MemoryRegionIoeventfd *fd)
@@ -1165,8 +1156,6 @@ void memory_region_sync_dirty_bitmap(MemoryRegion *mr)
     FOR_EACH_FLAT_RANGE(fr, &address_space_memory.current_map) {
         if (fr->mr == mr) {
             MEMORY_LISTENER_UPDATE_REGION(fr, &address_space_memory, log_sync);
-            cpu_physical_sync_dirty_bitmap(int128_get64(fr->addr.start),
-                                           int128_get64(addrrange_end(fr->addr)));
         }
     }
 }
@@ -1493,7 +1482,6 @@ void memory_global_sync_dirty_bitmap(MemoryRegion *address_space)
     AddressSpace *as = memory_region_to_address_space(address_space);
     FlatRange *fr;
 
-    cpu_physical_sync_dirty_bitmap(0, TARGET_PHYS_ADDR_MAX);
     FOR_EACH_FLAT_RANGE(fr, &as->current_map) {
         MEMORY_LISTENER_UPDATE_REGION(fr, as, log_sync);
     }
