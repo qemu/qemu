@@ -18,6 +18,9 @@
 #include "kvm.h"
 #include <assert.h>
 
+#define WANT_EXEC_OBSOLETE
+#include "exec-obsolete.h"
+
 unsigned memory_region_transaction_depth = 0;
 static bool memory_region_update_pending = false;
 
