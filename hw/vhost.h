@@ -30,6 +30,8 @@ struct vhost_dev {
     MemoryListener memory_listener;
     int control;
     struct vhost_memory *mem;
+    int n_mem_sections;
+    MemoryRegionSection *mem_sections;
     struct vhost_virtqueue *vqs;
     int nvqs;
     unsigned long long features;
