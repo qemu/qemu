@@ -19,6 +19,7 @@
 
 #include "cpu.h"
 #include "trace.h"
+#include "exec-memory.h"
 
 /* Sparc MMU emulation */
 
@@ -839,13 +840,15 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
 {
     target_phys_addr_t phys_addr;
     int mmu_idx = cpu_mmu_index(env);
+    MemoryRegionSection section;
 
     if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 2, mmu_idx) != 0) {
         if (cpu_sparc_get_phys_page(env, &phys_addr, addr, 0, mmu_idx) != 0) {
             return -1;
         }
     }
-    if (cpu_get_physical_page_desc(phys_addr) == IO_MEM_UNASSIGNED) {
+    section = memory_region_find(get_system_memory(), phys_addr, 1);
+    if (!section.size) {
         return -1;
     }
     return phys_addr;
