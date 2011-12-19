@@ -616,4 +616,12 @@ void qdev_property_add_str(DeviceState *dev, const char *name,
  */
 char *qdev_get_type(DeviceState *dev, Error **errp);
 
+/**
+ * @qdev_machine_init
+ *
+ * Initialize platform devices before machine init.  This is a hack until full
+ * support for composition is added.
+ */
+void qdev_machine_init(void);
+
 #endif

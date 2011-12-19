@@ -1529,3 +1529,9 @@ void qdev_property_add_str(DeviceState *dev, const char *name,
                       qdev_property_release_str,
                       prop, errp);
 }
+
+void qdev_machine_init(void)
+{
+    qdev_get_peripheral_anon();
+    qdev_get_peripheral();
+}
