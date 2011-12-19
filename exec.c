@@ -2916,7 +2916,8 @@ static ram_addr_t last_ram_offset(void)
 }
 
 ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
-                                   ram_addr_t size, void *host)
+                                   ram_addr_t size, void *host,
+                                   MemoryRegion *mr)
 {
     RAMBlock *new_block, *block;
 
@@ -2972,7 +2973,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
             }
 #else
             if (xen_enabled()) {
-                xen_ram_alloc(new_block->offset, size);
+                xen_ram_alloc(new_block->offset, size, mr);
             } else {
                 new_block->host = qemu_vmalloc(size);
             }
@@ -2995,9 +2996,10 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
     return new_block->offset;
 }
 
-ram_addr_t qemu_ram_alloc(DeviceState *dev, const char *name, ram_addr_t size)
+ram_addr_t qemu_ram_alloc(DeviceState *dev, const char *name, ram_addr_t size,
+                          MemoryRegion *mr)
 {
-    return qemu_ram_alloc_from_ptr(dev, name, size, NULL);
+    return qemu_ram_alloc_from_ptr(dev, name, size, NULL, mr);
 }
 
 void qemu_ram_free_from_ptr(ram_addr_t addr)
