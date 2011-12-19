@@ -50,17 +50,12 @@ void sysbus_mmio_map(SysBusDevice *dev, int n, target_phys_addr_t addr)
     }
     if (dev->mmio[n].addr != (target_phys_addr_t)-1) {
         /* Unregister previous mapping.  */
-        if (dev->mmio[n].memory) {
-            memory_region_del_subregion(get_system_memory(),
-                                        dev->mmio[n].memory);
-        }
+        memory_region_del_subregion(get_system_memory(), dev->mmio[n].memory);
     }
     dev->mmio[n].addr = addr;
-    if (dev->mmio[n].memory) {
-        memory_region_add_subregion(get_system_memory(),
-                                    addr,
-                                    dev->mmio[n].memory);
-    }
+    memory_region_add_subregion(get_system_memory(),
+                                addr,
+                                dev->mmio[n].memory);
 }
 
 
@@ -206,10 +201,7 @@ static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent)
 
     monitor_printf(mon, "%*sirq %d\n", indent, "", s->num_irq);
     for (i = 0; i < s->num_mmio; i++) {
-        size = 0;
-        if (s->mmio[i].memory) {
-            size = memory_region_size(s->mmio[i].memory);
-        }
+        size = memory_region_size(s->mmio[i].memory);
         monitor_printf(mon, "%*smmio " TARGET_FMT_plx "/" TARGET_FMT_plx "\n",
                        indent, "", s->mmio[i].addr, size);
     }
