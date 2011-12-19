@@ -2595,17 +2595,6 @@ void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
     }
 }
 
-/* XXX: temporary until new memory mapping API */
-ram_addr_t cpu_get_physical_page_desc(target_phys_addr_t addr)
-{
-    PhysPageDesc *p;
-
-    p = phys_page_find(addr >> TARGET_PAGE_BITS);
-    if (!p)
-        return IO_MEM_UNASSIGNED;
-    return p->phys_offset;
-}
-
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
 {
     if (kvm_enabled())
