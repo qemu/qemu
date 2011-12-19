@@ -493,7 +493,7 @@ void ide_sector_read(IDEState *s)
     }
 }
 
-static void dma_buf_commit(IDEState *s, int is_write)
+static void dma_buf_commit(IDEState *s)
 {
     qemu_sglist_destroy(&s->sg);
 }
@@ -532,7 +532,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
         bdrv_iostatus_set_err(s->bs, error);
     } else {
         if (op & BM_STATUS_DMA_RETRY) {
-            dma_buf_commit(s, 0);
+            dma_buf_commit(s);
             ide_dma_error(s);
         } else {
             ide_rw_error(s);
@@ -565,7 +565,7 @@ void ide_dma_cb(void *opaque, int ret)
     n = s->io_buffer_size >> 9;
     sector_num = ide_get_sector(s);
     if (n > 0) {
-        dma_buf_commit(s, ide_cmd_is_read(s));
+        dma_buf_commit(s);
         sector_num += n;
         ide_set_sector(s, sector_num);
         s->nsector -= n;

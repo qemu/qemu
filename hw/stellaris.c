@@ -621,6 +621,7 @@ static void ssys_reset(void *opaque)
     s->rcgc[0] = 1;
     s->scgc[0] = 1;
     s->dcgc[0] = 1;
+    ssys_calculate_system_clock(s);
 }
 
 static int stellaris_sys_post_load(void *opaque, int version_id)
