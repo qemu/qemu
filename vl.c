@@ -1493,13 +1493,8 @@ static void version(void)
 static void help(int exitcode)
 {
     const char *options_help =
-#define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
-        opt_help
-#define DEFHEADING(text) stringify(text) "\n"
-#include "qemu-options.def"
-#undef DEF
-#undef DEFHEADING
-#undef GEN_DOCS
+#define QEMU_OPTIONS_GENERATE_HELP
+#include "qemu-options-wrapper.h"
         ;
     version();
     printf("usage: %s [options] [disk_image]\n"
@@ -1529,13 +1524,8 @@ typedef struct QEMUOption {
 
 static const QEMUOption qemu_options[] = {
     { "h", 0, QEMU_OPTION_h, QEMU_ARCH_ALL },
-#define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
-    { option, opt_arg, opt_enum, arch_mask },
-#define DEFHEADING(text)
-#include "qemu-options.def"
-#undef DEF
-#undef DEFHEADING
-#undef GEN_DOCS
+#define QEMU_OPTIONS_GENERATE_OPTIONS
+#include "qemu-options-wrapper.h"
     { NULL },
 };
 static void select_vgahw (const char *p)
