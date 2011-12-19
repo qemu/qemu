@@ -1435,6 +1435,12 @@ void memory_region_set_alias_offset(MemoryRegion *mr, target_phys_addr_t offset)
     memory_region_update_topology(mr);
 }
 
+ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
+{
+    assert(mr->backend_registered);
+    return mr->ram_addr;
+}
+
 static int cmp_flatrange_addr(const void *addr_, const void *fr_)
 {
     const AddrRange *addr = addr_;

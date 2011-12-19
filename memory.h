@@ -558,6 +558,16 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
                                          target_phys_addr_t offset,
                                          MemoryRegion *subregion,
                                          unsigned priority);
+
+/**
+ * memory_region_get_ram_addr: Get the ram address associated with a memory
+ *                             region
+ *
+ * DO NOT USE THIS FUCNTION.  This is a temporary workaround while the Xen
+ * code is being reworked.
+ */
+ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr);
+
 /**
  * memory_region_del_subregion: Remove a subregion.
  *
