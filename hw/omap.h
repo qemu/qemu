@@ -829,7 +829,6 @@ struct omap_mpu_state_s {
     MemoryRegion tcmi_iomem;
     MemoryRegion clkm_iomem;
     MemoryRegion clkdsp_iomem;
-    MemoryRegion pwt_iomem;
     MemoryRegion mpui_io_iomem;
     MemoryRegion tap_iomem;
     MemoryRegion imif_ram;
@@ -867,14 +866,7 @@ struct omap_mpu_state_s {
     struct omap_uwire_s *microwire;
 
     struct omap_pwl_s *pwl;
-
-    struct {
-        uint8_t frc;
-        uint8_t vrc;
-        uint8_t gcr;
-        omap_clk clk;
-    } pwt;
-
+    struct omap_pwt_s *pwt;
     struct omap_i2c_s *i2c[2];
 
     struct omap_rtc_s *rtc;
