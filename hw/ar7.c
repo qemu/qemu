@@ -389,10 +389,10 @@ typedef struct {
     CpmacState *cpmac[2];
     ar7_timer_t timer[2];
     uint8_t *vlynq[2];
-} ar7_status_t;
+} AR7State;
 
 static ar7_register_t av;
-static ar7_status_t ar7;
+static AR7State ar7;
 
 int ar7_afe_clock = 35328000;
 int ar7_ref_clock = 25000000;
@@ -3436,8 +3436,7 @@ static ssize_t ar7_nic_receive(VLANClientState *vc, const uint8_t * buf, size_t 
 
 static void ar7_nic_set_link_status(VLANClientState *vc)
 {
-    CpmacState *s = DO_UPCAST(NICState, nc, vc)->opaque;
-    (void)s;
+    //~ CpmacState *s = DO_UPCAST(NICState, nc, vc)->opaque;
     logout("%s:%u\n", __FILE__, __LINE__);
     MISSING();
 
@@ -3571,8 +3570,7 @@ static void ar7_display_init(CPUState *env)
 static void ar7_reset(DeviceState *d)
 {
     /* TODO: fix code. */
-    ar7_status_t *s = container_of(d, ar7_status_t, busdev.qdev);
-    (void)s;
+    //~ AR7State *s = container_of(d, AR7State, busdev.qdev);
     //~ CPUState *env = opaque;
     logout("%s:%u\n", __FILE__, __LINE__);
     //~ env->exception_index = EXCP_RESET;
@@ -3937,8 +3935,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
 static int ar7_sysbus_device_init(SysBusDevice *sysbusdev)
 {
     /* TODO */
-    ar7_status_t *s = FROM_SYSBUS(ar7_status_t, sysbusdev);
-    (void)s;
+    //~ AR7State *s = FROM_SYSBUS(AR7State, sysbusdev);
     return 0;
 }
 
@@ -4207,12 +4204,12 @@ static SysBusDeviceInfo ar7_info = {
     .qdev.name  = "ar7",
     .qdev.alias = "tnetd7xxx",
     .qdev.desc  = "TI TNETD7xxx (AR7)",
-    .qdev.size  = sizeof(ar7_status_t),
+    .qdev.size  = sizeof(AR7State),
     .qdev.vmsd  = &vmstate_ar7,
     .qdev.reset = ar7_reset,
     .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT8("phy addr", ar7_status_t, phyaddr, 31),
-        DEFINE_PROP_UINT8("vlynq tnetw1130", ar7_status_t, vlynq_tnetw1130, 0),
+        DEFINE_PROP_UINT8("phy addr", AR7State, phyaddr, 31),
+        DEFINE_PROP_UINT8("vlynq tnetw1130", AR7State, vlynq_tnetw1130, 0),
         DEFINE_PROP_END_OF_LIST(),
     }
 };
