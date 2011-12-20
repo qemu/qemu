@@ -92,7 +92,7 @@
 #define NUM_PRIMARY_IRQS        40
 #define NUM_SECONDARY_IRQS      32
 
-#define AR7_PRIMARY_IRQ(num)    ar7.primary_irq[(num) - MIPS_EXCEPTION_OFFSET]
+#define AR7_PRIMARY_IRQ(num)    ar7->primary_irq[(num) - MIPS_EXCEPTION_OFFSET]
 
 /* physical address of flash memory */
 #define FLASH_ADDR 0x10000000
@@ -392,7 +392,7 @@ typedef struct {
 } AR7State;
 
 static ar7_register_t av;
-static AR7State ar7;
+static AR7State *ar7;
 
 int ar7_afe_clock = 35328000;
 int ar7_ref_clock = 25000000;
@@ -1948,7 +1948,7 @@ typedef enum {
 static void ar7_led_display(unsigned led_index, int on)
 {
   static const uint8_t x[] = { 1, 7, 14, 23, 29 };
-  qemu_chr_fe_printf(ar7.gpio_display, "\e[10;%uH\e[%dm \e[m", x[led_index], (on) ? 42 : 40);
+  qemu_chr_fe_printf(ar7->gpio_display, "\e[10;%uH\e[%dm \e[m", x[led_index], (on) ? 42 : 40);
 }
 
 static void ar7_gpio_display(void)
@@ -1962,22 +1962,22 @@ static void ar7_gpio_display(void)
     for (bit_index = 0; bit_index < 32; bit_index++) {
         text[bit_index] = (in & BIT(bit_index)) ? '*' : '.';
     }
-    qemu_chr_fe_printf(ar7.gpio_display, "\e[5;1H%32.32s (in  0x%08x)",
+    qemu_chr_fe_printf(ar7->gpio_display, "\e[5;1H%32.32s (in  0x%08x)",
                        text, in);
     for (bit_index = 0; bit_index < 32; bit_index++) {
         text[bit_index] = (out & BIT(bit_index)) ? '*' : '.';
     }
-    qemu_chr_fe_printf(ar7.gpio_display, "\e[6;1H%32.32s (out 0x%08x)",
+    qemu_chr_fe_printf(ar7->gpio_display, "\e[6;1H%32.32s (out 0x%08x)",
                        text, out);
     for (bit_index = 0; bit_index < 32; bit_index++) {
         text[bit_index] = (dir & BIT(bit_index)) ? '*' : '.';
     }
-    qemu_chr_fe_printf(ar7.gpio_display, "\e[7;1H%32.32s (dir 0x%08x)",
+    qemu_chr_fe_printf(ar7->gpio_display, "\e[7;1H%32.32s (dir 0x%08x)",
                        text, dir);
     for (bit_index = 0; bit_index < 32; bit_index++) {
         text[bit_index] = (enable & BIT(bit_index)) ? '*' : '.';
     }
-    qemu_chr_fe_printf(ar7.gpio_display, "\e[8;1H%32.32s (ena 0x%08x)",
+    qemu_chr_fe_printf(ar7->gpio_display, "\e[8;1H%32.32s (ena 0x%08x)",
                        text, enable);
 
     /* LAN LED. */
@@ -1996,7 +1996,7 @@ static void ar7_gpio_display(void)
     ar7_led_display(4, 1);
 
     /* Hide cursor. */
-    qemu_chr_fe_printf(ar7.gpio_display, "\e[20;1H");
+    qemu_chr_fe_printf(ar7->gpio_display, "\e[20;1H");
 }
 
 #undef ENTRY
@@ -2120,7 +2120,7 @@ static void mdio_phy_write(unsigned phy_index, uint32_t val)
         if (!(mdio_control & MDIO_CONTROL_ENABLE)) {
             /* MDIO state machine is not enabled. */
             val = 0;
-        } else if (phyaddr == ar7.phyaddr) {
+        } else if (phyaddr == ar7->phyaddr) {
             if (writeflag) {
                 phy_write(regaddr, val & MDIO_USERACCESS_DATA);
             } else {
@@ -2184,7 +2184,7 @@ static void ar7_mdio_write(uint8_t *mdio, unsigned offset, uint32_t val)
             if (val & MDIO_CONTROL_ENABLE) {
               TRACE(MDIO, logout("enable MDIO state machine\n"));
               phy_enable();
-              reg_write(av.mdio, MDIO_ALIVE, BIT(ar7.phyaddr));
+              reg_write(av.mdio, MDIO_ALIVE, BIT(ar7->phyaddr));
             } else {
               TRACE(MDIO, logout("disable MDIO state machine\n"));
               phy_disable();
@@ -2278,7 +2278,7 @@ static void timer_cb(void *opaque)
 {
     ar7_timer_t *timer = (ar7_timer_t *)opaque;
 
-    TRACE(TIMER, logout("timer%d expired\n", timer == &ar7.timer[1]));
+    TRACE(TIMER, logout("timer%d expired\n", timer == &ar7->timer[1]));
     qemu_irq_raise(timer->interrupt);
     if (timer->cyclic) {
         int64_t t = qemu_get_clock_ns(vm_clock);
@@ -2288,7 +2288,7 @@ static void timer_cb(void *opaque)
 
 static uint32_t ar7_timer_read(unsigned timer_index, uint32_t addr)
 {
-    ar7_timer_t *timer = &ar7.timer[timer_index];
+    ar7_timer_t *timer = &ar7->timer[timer_index];
     uint32_t val;
     val = reg_read(timer->base, addr);
     TRACE(TIMER, logout("timer%u[%d]=0x%08x\n", timer_index, addr, val));
@@ -2297,7 +2297,7 @@ static uint32_t ar7_timer_read(unsigned timer_index, uint32_t addr)
 
 static void ar7_timer_write(unsigned timer_index, uint32_t addr, uint32_t val)
 {
-    ar7_timer_t *timer = &ar7.timer[timer_index];
+    ar7_timer_t *timer = &ar7->timer[timer_index];
     TRACE(TIMER, logout("timer%u[%d]=0x%08x\n", timer_index, addr, val));
     reg_write(timer->base, addr, val);
     if (addr == TIMER_CONTROL) {
@@ -2381,7 +2381,7 @@ static uint32_t uart_read(unsigned uart_index, uint32_t addr)
         reg -= UART_MEM_TO_IO(AVALANCHE_UART1_BASE);
     }
     assert(reg < 8);
-    val = serial_mm_read(ar7.serial[uart_index], addr, 1);
+    val = serial_mm_read(ar7->serial[uart_index], addr, 1);
     //~ if (reg != 5) {
         TRACE(UART, logout("uart%u[%s]=0x%08x\n", uart_index,
             uart_read_names[uart_name_index(uart_index, reg)], val));
@@ -2404,7 +2404,7 @@ static void uart_write(unsigned uart_index, uint32_t addr, uint32_t val)
     if (reg == 3) {
         dlab[uart_index] = (val & 0x80);
     }
-    serial_mm_write(ar7.serial[uart_index], addr, val, 1);
+    serial_mm_write(ar7->serial[uart_index], addr, val, 1);
 }
 
 /*****************************************************************************
@@ -2687,7 +2687,7 @@ struct _vlynq_registers_half {
 
 static uint32_t ar7_vlynq_read(unsigned vlynq_index, unsigned offset)
 {
-    uint8_t *vlynq = ar7.vlynq[vlynq_index];
+    uint8_t *vlynq = ar7->vlynq[vlynq_index];
     uint32_t val = reg_read(vlynq, offset);
     TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s)] = 0x%08lx\n",
                         vlynq_index, offset,
@@ -2697,7 +2697,7 @@ static uint32_t ar7_vlynq_read(unsigned vlynq_index, unsigned offset)
         val = cpu_to_le32(0x00010206);
     } else if (offset == VLYNQ_INTSTATCLR) {
         reg_write(vlynq, offset, 0);
-    } else if (offset == VLYNQ_RCHIPVER && vlynq_index == ar7.vlynq_tnetw1130) {
+    } else if (offset == VLYNQ_RCHIPVER && vlynq_index == ar7->vlynq_tnetw1130) {
         val = cpu_to_le32(0x00000009);
     } else {
     }
@@ -2706,13 +2706,13 @@ static uint32_t ar7_vlynq_read(unsigned vlynq_index, unsigned offset)
 
 static void ar7_vlynq_write(unsigned vlynq_index, unsigned offset, uint32_t val)
 {
-    uint8_t *vlynq = ar7.vlynq[vlynq_index];
+    uint8_t *vlynq = ar7->vlynq[vlynq_index];
     TRACE(VLYNQ, logout("vlynq%u[0x%02x (%s)] = 0x%08lx\n",
                         vlynq_index, offset,
                         vlynq_names[offset / 4],
                         (unsigned long)val));
     if (offset == VLYNQ_REVID) {
-    } else if (offset == VLYNQ_CTRL && vlynq_index == ar7.vlynq_tnetw1130) {
+    } else if (offset == VLYNQ_CTRL && vlynq_index == ar7->vlynq_tnetw1130) {
         /* Control and first vlynq emulates an established link. */
         if (!(val & BIT(0))) {
             /* Normal operation. Emulation sets link bit in status register. */
@@ -2776,7 +2776,7 @@ static void watchdog_trigger(void)
     wdtimer_t *wdt = (wdtimer_t *) & av.watchdog;
     if (wdt->disable == 0) {
         TRACE(WDOG, logout("disabled watchdog\n"));
-        qemu_del_timer(ar7.wd_timer);
+        qemu_del_timer(ar7->wd_timer);
     } else {
         int64_t t = ((uint64_t)wdt->change * (uint64_t)wdt->prescale) *
                     (get_ticks_per_sec() / io_frequency);
@@ -2785,7 +2785,7 @@ static void watchdog_trigger(void)
         TRACE(WDOG, logout("trigger value = %u ms\n",
               (unsigned)(t * 1000 / get_ticks_per_sec())));
         //~ logout("trigger value = %u\n", (unsigned)(get_ticks_per_sec() / 1000000));
-        qemu_mod_timer(ar7.wd_timer, qemu_get_clock_ns(vm_clock) + t);
+        qemu_mod_timer(ar7->wd_timer, qemu_get_clock_ns(vm_clock) + t);
     }
 }
 
@@ -2946,7 +2946,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         val = VALUE(AVALANCHE_VLYNQ1_REGION1_BASE, av.vlynq1region1);
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         logflag = 0;
-        val = ar7_cpmac_read(ar7.cpmac[0], addr - AVALANCHE_CPMAC0_BASE);
+        val = ar7_cpmac_read(ar7->cpmac[0], addr - AVALANCHE_CPMAC0_BASE);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
         logflag = 0;
         val = ar7_emif_read(addr - AVALANCHE_EMIF_BASE);
@@ -2999,7 +2999,7 @@ static uint32_t ar7_io_memread(void *opaque, uint32_t addr)
         val = ar7_intc_read(addr - AVALANCHE_INTC_BASE);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         logflag = 0;
-        val = ar7_cpmac_read(ar7.cpmac[1], addr - AVALANCHE_CPMAC1_BASE);
+        val = ar7_cpmac_read(ar7->cpmac[1], addr - AVALANCHE_CPMAC1_BASE);
     } else {
         //~ name = "???";
         logflag = 0;
@@ -3048,7 +3048,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         VALUE(AVALANCHE_VLYNQ1_REGION1_BASE, av.vlynq1region1) = val;
     } else if (INRANGE(AVALANCHE_CPMAC0_BASE, av.cpmac0)) {
         logflag = 0;
-        ar7_cpmac_write(ar7.cpmac[0], addr - AVALANCHE_CPMAC0_BASE, val);
+        ar7_cpmac_write(ar7->cpmac[0], addr - AVALANCHE_CPMAC0_BASE, val);
     } else if (INRANGE(AVALANCHE_EMIF_BASE, av.emif)) {
         logflag = 0;
         ar7_emif_write(addr - AVALANCHE_EMIF_BASE, val);
@@ -3100,7 +3100,7 @@ static void ar7_io_memwrite(void *opaque, uint32_t addr, uint32_t val)
         ar7_intc_write(addr - AVALANCHE_INTC_BASE, val);
     } else if (INRANGE(AVALANCHE_CPMAC1_BASE, av.cpmac1)) {
         logflag = 0;
-        ar7_cpmac_write(ar7.cpmac[1], addr - AVALANCHE_CPMAC1_BASE, val);
+        ar7_cpmac_write(ar7->cpmac[1], addr - AVALANCHE_CPMAC1_BASE, val);
     } else if (addr >= AVALANCHE_DISPLAY_BASE + 0x408 && addr < AVALANCHE_DISPLAY_BASE + 0x453) {
         uint32_t display_address = addr - AVALANCHE_DISPLAY_BASE;
         switch (display_address) {
@@ -3298,15 +3298,15 @@ static void ar7_serial_init(CPUState * env)
         serial_hds[1] = qemu_chr_new("serial1", "vc:80Cx24C", NULL);
     }
     for (uart_index = 0; uart_index < 2; uart_index++) {
-        ar7.serial[uart_index] = serial_mm_init(get_system_memory(),
+        ar7->serial[uart_index] = serial_mm_init(get_system_memory(),
             uart_base[uart_index], 2,
             AR7_PRIMARY_IRQ(uart_interrupt[uart_index]), io_frequency,
             serial_hds[uart_index], DEVICE_NATIVE_ENDIAN);
-        serial_set_frequency(ar7.serial[uart_index], io_frequency / 16);
+        serial_set_frequency(ar7->serial[uart_index], io_frequency / 16);
     }
 
     /* Set special init values. */
-    serial_mm_write(ar7.serial[0], AVALANCHE_UART0_BASE + (5 << 2), 0x20, 1);
+    serial_mm_write(ar7->serial[0], AVALANCHE_UART0_BASE + (5 << 2), 0x20, 1);
 }
 
 static int ar7_nic_can_receive(VLANClientState *vc)
@@ -3492,10 +3492,10 @@ static void ar7_nic_init(void)
                 qdev_set_nic_properties(dev, nd);
                 qdev_init_nofail(dev);
                 sysbus_connect_irq(sysbus_from_qdev(dev), 0,
-                                   ar7.primary_irq[cpmac_interrupt[n]]);
+                                   ar7->primary_irq[cpmac_interrupt[n]]);
                 s->addr = (n == 0) ? av.cpmac0 : av.cpmac1;
                 s->index = n;
-                ar7.cpmac[n] = s;
+                ar7->cpmac[n] = s;
                 n++;
             }
         }
@@ -3560,8 +3560,8 @@ static void ar7_gpio_display_init(CharDriverState *chr)
 
 static void ar7_display_init(CPUState *env)
 {
-    ar7.gpio_display = qemu_chr_new("gpio", "vc:400x300", ar7_gpio_display_init);
-    qemu_chr_add_handlers(ar7.gpio_display, ar7_display_can_receive,
+    ar7->gpio_display = qemu_chr_new("gpio", "vc:400x300", ar7_gpio_display_init);
+    qemu_chr_add_handlers(ar7->gpio_display, ar7_display_can_receive,
                           ar7_display_receive, ar7_display_event, 0);
 
     malta_display.display = qemu_chr_new("led-display", "vc:320x200", malta_fpga_led_init);
@@ -3617,8 +3617,8 @@ static void ar7_init(CPUState * env)
     if (env->bigendian) {
         reg_set(av.dcl, DCL_BOOT_CONFIG, CONFIG_ENDIAN);
     }
-    ar7.vlynq[0] = av.vlynq0;
-    ar7.vlynq[1] = av.vlynq1;
+    ar7->vlynq[0] = av.vlynq0;
+    ar7->vlynq[1] = av.vlynq1;
 
     ar7_serial_init(env);
     ar7_display_init(env);
@@ -3829,6 +3829,8 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     qdev_prop_set_uint8(dev, "vlynq tnetw1130", 0);
     qdev_init_nofail(dev);
 
+    ar7 = container_of(dev, AR7State, busdev.qdev);
+
     vlynq_bus0 = vlynq_create_bus(dev, "vlynq0");
     vlynq_bus1 = vlynq_create_bus(dev, "vlynq1");
     vlynq_create_slave(vlynq_bus0, "tnetw1130-vlynq");
@@ -3911,23 +3913,23 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
     //~ i8259 = i8259_init(env->irq[2]);
 
-    ar7.primary_irq = qemu_allocate_irqs(ar7_primary_irq, env, NUM_PRIMARY_IRQS);
-    ar7.secondary_irq = qemu_allocate_irqs(ar7_secondary_irq, env, NUM_SECONDARY_IRQS);
+    ar7->primary_irq = qemu_allocate_irqs(ar7_primary_irq, env, NUM_PRIMARY_IRQS);
+    ar7->secondary_irq = qemu_allocate_irqs(ar7_secondary_irq, env, NUM_SECONDARY_IRQS);
 
-    ar7.wd_timer = qemu_new_timer_ns(vm_clock, &watchdog_cb, env);
-    ar7.timer[0].qemu_timer = qemu_new_timer_ns(vm_clock, &timer_cb, &ar7.timer[0]);
-    ar7.timer[0].base = av.timer0;
-    ar7.timer[0].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER0);
-    ar7.timer[1].qemu_timer = qemu_new_timer_ns(vm_clock, &timer_cb, &ar7.timer[1]);
-    ar7.timer[1].base = av.timer1;
-    ar7.timer[1].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER1);
+    ar7->wd_timer = qemu_new_timer_ns(vm_clock, &watchdog_cb, env);
+    ar7->timer[0].qemu_timer = qemu_new_timer_ns(vm_clock, &timer_cb, &ar7->timer[0]);
+    ar7->timer[0].base = av.timer0;
+    ar7->timer[0].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER0);
+    ar7->timer[1].qemu_timer = qemu_new_timer_ns(vm_clock, &timer_cb, &ar7->timer[1]);
+    ar7->timer[1].base = av.timer1;
+    ar7->timer[1].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER1);
 
     /* Address 31 is the AR7 internal phy. */
-    ar7.phyaddr = 31;
+    ar7->phyaddr = 31;
 
     /* TNETW1130 is connected to VLYNQ0. */
-    ar7.vlynq_tnetw1130 = 0;
-    //~ ar7.vlynq_tnetw1130 = 99;
+    ar7->vlynq_tnetw1130 = 0;
+    //~ ar7->vlynq_tnetw1130 = 99;
 
     ar7_init(env);
 }
@@ -4079,7 +4081,7 @@ static void sinus_se_init(ram_addr_t machine_ram_size,
                     2 * MiB, kernel_filename, kernel_cmdline, initrd_filename,
                     cpu_model);
     /* Emulate external phy 0. */
-    ar7.phyaddr = 0;
+    ar7->phyaddr = 0;
 }
 
 static void speedport_init(ram_addr_t machine_ram_size,
