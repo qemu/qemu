@@ -20,11 +20,7 @@
 #include "arm-misc.h"
 #include "omap.h"
 #include "sysemu.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
 #include "soc_dma.h"
-/* We use pc-style serial ports.  */
-#include "pc.h"
 #include "blockdev.h"
 #include "range.h"
 #include "sysbus.h"
