@@ -829,7 +829,6 @@ struct omap_mpu_state_s {
     MemoryRegion tcmi_iomem;
     MemoryRegion clkm_iomem;
     MemoryRegion clkdsp_iomem;
-    MemoryRegion pwl_iomem;
     MemoryRegion pwt_iomem;
     MemoryRegion mpui_io_iomem;
     MemoryRegion tap_iomem;
@@ -867,12 +866,7 @@ struct omap_mpu_state_s {
 
     struct omap_uwire_s *microwire;
 
-    struct {
-        uint8_t output;
-        uint8_t level;
-        uint8_t enable;
-        int clk;
-    } pwl;
+    struct omap_pwl_s *pwl;
 
     struct {
         uint8_t frc;
