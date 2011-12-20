@@ -40,6 +40,8 @@
 static int bigendian = 0;
 
 typedef struct {
+    MemoryRegion cpld1;
+    MemoryRegion cpld5;
     S3CState *soc;
     DeviceState *nand[4];
     uint8_t cpld_ctrl2;
@@ -55,7 +57,8 @@ typedef struct {
 #define BAST_CS5_CPLD_BASE (CPU_S3C2410X_CS5 | (0xc << 23))
 #define BAST_CPLD_SIZE (4<<23)
 
-static uint32_t cpld_read(void *opaque, target_phys_addr_t address)
+static uint64_t cpld_read(void *opaque, target_phys_addr_t address,
+                          unsigned size)
 {
     STCBState *stcb = opaque;
     int reg = (address >> 23) & 0xf;
@@ -66,7 +69,7 @@ static uint32_t cpld_read(void *opaque, target_phys_addr_t address)
 }
 
 static void cpld_write(void *opaque, target_phys_addr_t address,
-                       uint32_t value)
+                       uint64_t value, unsigned size)
 {
     STCBState *stcb = opaque;
     int reg = (address >> 23) & 0xf;
@@ -76,25 +79,24 @@ static void cpld_write(void *opaque, target_phys_addr_t address,
     }
 }
 
-static CPUReadMemoryFunc * const cpld_readfn[] = {
-    cpld_read,
-    cpld_read,
-    cpld_read
+static const MemoryRegionOps cpld_ops = {
+    .read = cpld_read,
+    .write = cpld_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
-static CPUWriteMemoryFunc * const cpld_writefn[] = {
-    cpld_write,
-    cpld_write,
-    cpld_write
-};
-
-static void stcb_cpld_register(STCBState *stcb)
+static void stcb_cpld_register(STCBState *s)
 {
-    int tag = cpu_register_io_memory(cpld_readfn, cpld_writefn, stcb,
-                                     DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(BAST_CS1_CPLD_BASE, BAST_CPLD_SIZE, tag);
-    cpu_register_physical_memory(BAST_CS5_CPLD_BASE, BAST_CPLD_SIZE, tag);
-    stcb->cpld_ctrl2 = 0;
+    MemoryRegion *sysmem = get_system_memory();
+    memory_region_init_io(&s->cpld1, &cpld_ops, s, "cpld1", BAST_CPLD_SIZE);
+    memory_region_init_alias(&s->cpld5, "cpld5", &s->cpld1, 0, BAST_CPLD_SIZE);
+    memory_region_add_subregion(sysmem, BAST_CS1_CPLD_BASE, &s->cpld1);
+    memory_region_add_subregion(sysmem, BAST_CS5_CPLD_BASE, &s->cpld5);
+    s->cpld_ctrl2 = 0;
 }
 
 #define BAST_IDE_PRI_SLOW    (CPU_S3C2410X_CS3 | 0x02000000)
@@ -121,11 +123,15 @@ static void stcb_cpld_register(STCBState *stcb)
 
 typedef struct {
     IDEBus bus;
+    MemoryRegion slow;
+    MemoryRegion fast;
+    MemoryRegion slowb;
+    MemoryRegion fastb;
     int shift;
 } MMIOState;
 
-static void stcb_ide_write_f(void *opaque,
-                             target_phys_addr_t addr, uint32_t val)
+static void stcb_ide_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned size)
 {
     MMIOState *s= opaque;
     int reg = (addr & 0x3ff) >> 5; /* 0x200 long, 0x20 stride */
@@ -143,7 +149,8 @@ static void stcb_ide_write_f(void *opaque,
     }
 }
 
-static uint32_t stcb_ide_read_f(void *opaque, target_phys_addr_t addr)
+static uint64_t stcb_ide_read(void *opaque, target_phys_addr_t addr,
+                              unsigned size)
 {
     MMIOState *s= opaque;
     int reg = (addr & 0x3ff) >> 5; /* 0x200 long, 0x20 stride */
@@ -159,17 +166,14 @@ static uint32_t stcb_ide_read_f(void *opaque, target_phys_addr_t addr)
     }
 }
 
-
-static CPUWriteMemoryFunc * const stcb_ide_write[] = {
-    stcb_ide_write_f,
-    stcb_ide_write_f,
-    stcb_ide_write_f,
-};
-
-static CPUReadMemoryFunc * const stcb_ide_read[] = {
-    stcb_ide_read_f,
-    stcb_ide_read_f,
-    stcb_ide_read_f,
+static const MemoryRegionOps stcb_ide_ops = {
+    .read = stcb_ide_read,
+    .write = stcb_ide_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 /* hd_table must contain 2 block drivers */
@@ -177,23 +181,23 @@ static CPUReadMemoryFunc * const stcb_ide_read[] = {
  * I/O tag to access the ide.
  * The BAST description will register it into the map in the right place.
  */
-static int stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
+static MMIOState *stcb_ide_init(DriveInfo *dinfo0, DriveInfo *dinfo1, qemu_irq irq)
 {
     MMIOState *s = g_malloc0(sizeof(MMIOState));
-    int stcb_ide_memory;
     ide_init2_with_non_qdev_drives(&s->bus, dinfo0, dinfo1, irq);
-
-    stcb_ide_memory = cpu_register_io_memory(stcb_ide_read, stcb_ide_write,
-                                             s, DEVICE_NATIVE_ENDIAN);
-    return stcb_ide_memory;
+    memory_region_init_io(&s->slow, &stcb_ide_ops, s, "stcb-ide", 0x1000000);
+    memory_region_init_alias(&s->fast, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_alias(&s->slowb, "stcb-ide", &s->slow, 0, 0x1000000);
+    memory_region_init_alias(&s->fastb, "stcb-ide", &s->slow, 0, 0x1000000);
+    return s;
 }
 
 static void stcb_register_ide(STCBState *stcb)
 {
-    int ide0_mem;
-    int ide1_mem;
     DriveInfo *dinfo0;
     DriveInfo *dinfo1;
+    MMIOState *s;
+    MemoryRegion *sysmem = get_system_memory();
 
     if (drive_get_max_bus(IF_IDE) >= 2) {
         fprintf(stderr, "qemu: too many IDE busses\n");
@@ -202,19 +206,19 @@ static void stcb_register_ide(STCBState *stcb)
 
     dinfo0 = drive_get(IF_IDE, 0, 0);
     dinfo1 = drive_get(IF_IDE, 0, 1);
-    ide0_mem = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 16));
-    cpu_register_physical_memory(BAST_IDE_PRI_SLOW, 0x1000000, ide0_mem);
-    cpu_register_physical_memory(BAST_IDE_PRI_FAST, 0x1000000, ide0_mem);
-    cpu_register_physical_memory(BAST_IDE_PRI_SLOW_BYTE, 0x1000000, ide0_mem);
-    cpu_register_physical_memory(BAST_IDE_PRI_FAST_BYTE, 0x1000000, ide0_mem);
+    s = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 16));
+    memory_region_add_subregion(sysmem, BAST_IDE_PRI_SLOW, &s->slow);
+    memory_region_add_subregion(sysmem, BAST_IDE_PRI_FAST, &s->fast);
+    memory_region_add_subregion(sysmem, BAST_IDE_PRI_SLOW_BYTE, &s->slowb);
+    memory_region_add_subregion(sysmem, BAST_IDE_PRI_FAST_BYTE, &s->fastb);
 
     dinfo0 = drive_get(IF_IDE, 1, 0);
     dinfo1 = drive_get(IF_IDE, 1, 1);
-    ide1_mem = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 17));
-    cpu_register_physical_memory(BAST_IDE_SEC_SLOW, 0x1000000, ide1_mem);
-    cpu_register_physical_memory(BAST_IDE_SEC_FAST, 0x1000000, ide1_mem);
-    cpu_register_physical_memory(BAST_IDE_SEC_SLOW_BYTE, 0x1000000, ide1_mem);
-    cpu_register_physical_memory(BAST_IDE_SEC_FAST_BYTE, 0x1000000, ide1_mem);
+    s = stcb_ide_init(dinfo0, dinfo1, s3c24xx_get_eirq(stcb->soc->gpio, 17));
+    memory_region_add_subregion(sysmem, BAST_IDE_SEC_SLOW, &s->slow);
+    memory_region_add_subregion(sysmem, BAST_IDE_SEC_FAST, &s->fast);
+    memory_region_add_subregion(sysmem, BAST_IDE_SEC_SLOW_BYTE, &s->slowb);
+    memory_region_add_subregion(sysmem, BAST_IDE_SEC_FAST_BYTE, &s->fastb);
 }
 
 #define BAST_PA_ASIXNET 0x01000000
@@ -392,7 +396,7 @@ static void stcb_init(ram_addr_t _ram_size,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)
 {
-    MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *sysmem = get_system_memory();
     STCBState *stcb;
     CharDriverState *chr;
     DeviceState *dev;
@@ -446,20 +450,16 @@ static void stcb_init(ram_addr_t _ram_size,
         if (filename) {
             ret = load_image_targphys(filename,
                                       BAST_NOR_RO_BASE, BAST_NOR_SIZE);
-            g_free(filename);
             (void)ret;
+            g_free(filename);
         }
     }
 
     pflash_cfi02_register(BAST_NOR_RW_BASE, NULL, "bast.flash",
-                          BAST_NOR_SIZE, flash_bds,
-                          65536, 32, 1, 2,
+                          BAST_NOR_SIZE, flash_bds, 65536, 32, 1, 2,
                           0x00BF, 0x234B, 0x0000, 0x0000, 0x5555, 0x2AAA,
                           bigendian);
-    /* TODO: Read only ROM type mapping */
-    //~ cpu_register_physical_memory(BAST_NOR_RO_BASE,
-                                 //~ BAST_NOR_SIZE,
-                                 //~ flash_mem | IO_MEM_ROM);
+    /* TODO: Read only ROM type mapping to address BAST_NOR_RO_BASE. */
 
     /* if kernel is given, boot that directly */
     if (kernel_filename != NULL) {
@@ -512,13 +512,13 @@ static void stcb_init(ram_addr_t _ram_size,
     }
 
     chr = qemu_chr_new("uart0", "vc:80Cx24C", NULL);
-    serial_mm_init(address_space_mem, SERIAL_BASE + 0x2f8, 0,
+    serial_mm_init(sysmem, SERIAL_BASE + 0x2f8, 0,
                    s3c24xx_get_eirq(stcb->soc->gpio, 15),
-                   SERIAL_CLK, chr, 0);
+                   SERIAL_CLK, chr, DEVICE_NATIVE_ENDIAN);
     chr = qemu_chr_new("uart1", "vc:80Cx24C", NULL);
-    serial_mm_init(address_space_mem, SERIAL_BASE + 0x3f8, 0,
+    serial_mm_init(sysmem, SERIAL_BASE + 0x3f8, 0,
                    s3c24xx_get_eirq(stcb->soc->gpio, 14),
-                   SERIAL_CLK, chr, 0);
+                   SERIAL_CLK, chr, DEVICE_NATIVE_ENDIAN);
 #if 0
     /* Super I/O */
     isa_bus_new(NULL);
