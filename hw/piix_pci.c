@@ -81,7 +81,6 @@ struct PCII440FXState {
     PAMMemoryRegion pam_regions[13];
     MemoryRegion smram_region;
     uint8_t smm_enabled;
-    PIIX3State *piix3;
 };
 
 
@@ -319,8 +318,6 @@ static PCIBus *i440fx_common_init(const char *device_name,
     }
     qdev_property_add_child(dev, "piix3", &piix3->dev.qdev, NULL);
     piix3->pic = pic;
-
-    (*pi440fx_state)->piix3 = piix3;
 
     *piix3_devfn = piix3->dev.devfn;
 
