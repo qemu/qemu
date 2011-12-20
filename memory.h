@@ -224,14 +224,10 @@ void memory_region_init_io(MemoryRegion *mr,
  *                          region will modify memory directly.
  *
  * @mr: the #MemoryRegion to be initialized.
- * @dev: a device associated with the region; may be %NULL.
- * @name: the name of the region; the pair (@dev, @name) must be globally
- *        unique.  The name is part of the save/restore ABI and so cannot be
- *        changed.
+ * @name: the name of the region.
  * @size: size of the region.
  */
 void memory_region_init_ram(MemoryRegion *mr,
-                            DeviceState *dev, /* FIXME: layering violation */
                             const char *name,
                             uint64_t size);
 
@@ -241,15 +237,11 @@ void memory_region_init_ram(MemoryRegion *mr,
  *                          memory directly.
  *
  * @mr: the #MemoryRegion to be initialized.
- * @dev: a device associated with the region; may be %NULL.
- * @name: the name of the region; the pair (@dev, @name) must be globally
- *        unique.  The name is part of the save/restore ABI and so cannot be
- *        changed.
+ * @name: the name of the region.
  * @size: size of the region.
  * @ptr: memory to be mapped; must contain at least @size bytes.
  */
 void memory_region_init_ram_ptr(MemoryRegion *mr,
-                                DeviceState *dev, /* FIXME: layering violation */
                                 const char *name,
                                 uint64_t size,
                                 void *ptr);
@@ -277,16 +269,12 @@ void memory_region_init_alias(MemoryRegion *mr,
  *
  * @mr: the #MemoryRegion to be initialized.
  * @ops: callbacks for write access handling.
- * @dev: a device associated with the region; may be %NULL.
- * @name: the name of the region; the pair (@dev, @name) must be globally
- *        unique.  The name is part of the save/restore ABI and so cannot be
- *        changed.
+ * @name: the name of the region.
  * @size: size of the region.
  */
 void memory_region_init_rom_device(MemoryRegion *mr,
                                    const MemoryRegionOps *ops,
                                    void *opaque,
-                                   DeviceState *dev, /* FIXME: layering violation */
                                    const char *name,
                                    uint64_t size);
 

@@ -142,12 +142,14 @@ static void leon3_generic_hw_init(ram_addr_t  ram_size,
         exit(1);
     }
 
-    memory_region_init_ram(ram, NULL, "leon3.ram", ram_size);
+    memory_region_init_ram(ram, "leon3.ram", ram_size);
+    vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, 0x40000000, ram);
 
     /* Allocate BIOS */
     prom_size = 8 * 1024 * 1024; /* 8Mb */
-    memory_region_init_ram(prom, NULL, "Leon3.bios", prom_size);
+    memory_region_init_ram(prom, "Leon3.bios", prom_size);
+    vmstate_register_ram_global(prom);
     memory_region_set_readonly(prom, true);
     memory_region_add_subregion(address_space_mem, 0x00000000, prom);
 

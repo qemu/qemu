@@ -1511,7 +1511,8 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
         exit(1);
     }
 
-    memory_region_init_ram(&s->sdram, NULL, "strongarm.sdram", sdram_size);
+    memory_region_init_ram(&s->sdram, "strongarm.sdram", sdram_size);
+    vmstate_register_ram_global(&s->sdram);
     memory_region_add_subregion(sysmem, SA_SDCS0, &s->sdram);
 
     pic = arm_pic_init_cpu(s->env);

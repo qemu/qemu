@@ -2222,7 +2222,8 @@ void vga_common_init(VGACommonState *s, int vga_ram_size)
 #else
     s->is_vbe_vmstate = 0;
 #endif
-    memory_region_init_ram(&s->vram, NULL, "vga.vram", vga_ram_size);
+    memory_region_init_ram(&s->vram, "vga.vram", vga_ram_size);
+    vmstate_register_ram_global(&s->vram);
     xen_register_framebuffer(&s->vram);
     s->vram_ptr = memory_region_get_ram_ptr(&s->vram);
     s->vram_size = vga_ram_size;

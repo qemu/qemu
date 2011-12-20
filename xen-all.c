@@ -154,7 +154,8 @@ static void xen_ram_init(ram_addr_t ram_size)
          */
         block_len += HVM_BELOW_4G_MMIO_LENGTH;
     }
-    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
+    memory_region_init_ram(&ram_memory, "xen.ram", block_len);
+    vmstate_register_ram_global(&ram_memory);
 
     if (ram_size >= HVM_BELOW_4G_RAM_END) {
         above_4g_mem_size = ram_size - HVM_BELOW_4G_RAM_END;

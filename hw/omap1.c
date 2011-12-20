@@ -3819,9 +3819,11 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     omap_clk_init(s);
 
     /* Memory-mapped stuff */
-    memory_region_init_ram(&s->emiff_ram, NULL, "omap1.dram", s->sdram_size);
+    memory_region_init_ram(&s->emiff_ram, "omap1.dram", s->sdram_size);
+    vmstate_register_ram_global(&s->emiff_ram);
     memory_region_add_subregion(system_memory, OMAP_EMIFF_BASE, &s->emiff_ram);
-    memory_region_init_ram(&s->imif_ram, NULL, "omap1.sram", s->sram_size);
+    memory_region_init_ram(&s->imif_ram, "omap1.sram", s->sram_size);
+    vmstate_register_ram_global(&s->imif_ram);
     memory_region_add_subregion(system_memory, OMAP_IMIF_BASE, &s->imif_ram);
 
     omap_clkm_init(system_memory, 0xfffece00, 0xe1008000, s);

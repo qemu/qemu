@@ -249,7 +249,8 @@ static void r2d_init(ram_addr_t ram_size,
     qemu_register_reset(main_cpu_reset, reset_info);
 
     /* Allocate memory space */
-    memory_region_init_ram(sdram, NULL, "r2d.sdram", SDRAM_SIZE);
+    memory_region_init_ram(sdram, "r2d.sdram", SDRAM_SIZE);
+    vmstate_register_ram_global(sdram);
     memory_region_add_subregion(address_space_mem, SDRAM_BASE, sdram);
     /* Register peripherals */
     s = sh7750_init(env, address_space_mem);

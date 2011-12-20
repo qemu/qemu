@@ -554,11 +554,13 @@ static void ppc_prep_init (ram_addr_t ram_size,
     }
 
     /* allocate RAM */
-    memory_region_init_ram(ram, NULL, "ppc_prep.ram", ram_size);
+    memory_region_init_ram(ram, "ppc_prep.ram", ram_size);
+    vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, NULL, "ppc_prep.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, "ppc_prep.bios", BIOS_SIZE);
+    vmstate_register_ram_global(bios);
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);

@@ -987,8 +987,9 @@ void pc_memory_init(MemoryRegion *system_memory,
      * with older qemus that used qemu_ram_alloc().
      */
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "pc.ram",
+    memory_region_init_ram(ram, "pc.ram",
                            below_4g_mem_size + above_4g_mem_size);
+    vmstate_register_ram_global(ram);
     *ram_memory = ram;
     ram_below_4g = g_malloc(sizeof(*ram_below_4g));
     memory_region_init_alias(ram_below_4g, "ram-below-4g", ram,
@@ -1016,7 +1017,8 @@ void pc_memory_init(MemoryRegion *system_memory,
         goto bios_error;
     }
     bios = g_malloc(sizeof(*bios));
-    memory_region_init_ram(bios, NULL, "pc.bios", bios_size);
+    memory_region_init_ram(bios, "pc.bios", bios_size);
+    vmstate_register_ram_global(bios);
     memory_region_set_readonly(bios, true);
     ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
     if (ret != 0) {
@@ -1041,7 +1043,8 @@ void pc_memory_init(MemoryRegion *system_memory,
     memory_region_set_readonly(isa_bios, true);
 
     option_rom_mr = g_malloc(sizeof(*option_rom_mr));
-    memory_region_init_ram(option_rom_mr, NULL, "pc.rom", PC_ROM_SIZE);
+    memory_region_init_ram(option_rom_mr, "pc.rom", PC_ROM_SIZE);
+    vmstate_register_ram_global(option_rom_mr);
     memory_region_add_subregion_overlap(rom_memory,
                                         PC_ROM_MIN_VGA,
                                         option_rom_mr,

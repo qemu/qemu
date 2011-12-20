@@ -211,7 +211,8 @@ static void palmte_init(ram_addr_t ram_size,
     cpu = omap310_mpu_init(address_space_mem, sdram_size, cpu_model);
 
     /* External Flash (EMIFS) */
-    memory_region_init_ram(flash, NULL, "palmte.flash", flash_size);
+    memory_region_init_ram(flash, "palmte.flash", flash_size);
+    vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
     memory_region_add_subregion(address_space_mem, OMAP_CS0_BASE, flash);
 

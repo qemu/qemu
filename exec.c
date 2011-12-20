@@ -2753,14 +2753,19 @@ static ram_addr_t last_ram_offset(void)
     return last;
 }
 
-ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
-                                   ram_addr_t size, void *host,
-                                   MemoryRegion *mr)
+void qemu_ram_set_idstr(ram_addr_t addr, const char *name, DeviceState *dev)
 {
     RAMBlock *new_block, *block;
 
-    size = TARGET_PAGE_ALIGN(size);
-    new_block = g_malloc0(sizeof(*new_block));
+    new_block = NULL;
+    QLIST_FOREACH(block, &ram_list.blocks, next) {
+        if (block->offset == addr) {
+            new_block = block;
+            break;
+        }
+    }
+    assert(new_block);
+    assert(!new_block->idstr[0]);
 
     if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
         char *id = dev->parent_bus->info->get_dev_path(dev);
@@ -2772,12 +2777,21 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
     pstrcat(new_block->idstr, sizeof(new_block->idstr), name);
 
     QLIST_FOREACH(block, &ram_list.blocks, next) {
-        if (!strcmp(block->idstr, new_block->idstr)) {
+        if (block != new_block && !strcmp(block->idstr, new_block->idstr)) {
             fprintf(stderr, "RAMBlock \"%s\" already registered, abort!\n",
                     new_block->idstr);
             abort();
         }
     }
+}
+
+ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
+                                   MemoryRegion *mr)
+{
+    RAMBlock *new_block;
+
+    size = TARGET_PAGE_ALIGN(size);
+    new_block = g_malloc0(sizeof(*new_block));
 
     new_block->offset = find_ram_offset(size);
     if (host) {
@@ -2834,10 +2848,9 @@ ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
     return new_block->offset;
 }
 
-ram_addr_t qemu_ram_alloc(DeviceState *dev, const char *name, ram_addr_t size,
-                          MemoryRegion *mr)
+ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr)
 {
-    return qemu_ram_alloc_from_ptr(dev, name, size, NULL, mr);
+    return qemu_ram_alloc_from_ptr(size, NULL, mr);
 }
 
 void qemu_ram_free_from_ptr(ram_addr_t addr)

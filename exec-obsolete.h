@@ -25,11 +25,9 @@
 
 #ifndef CONFIG_USER_ONLY
 
-ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
-                                   ram_addr_t size, void *host,
+ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr);
-ram_addr_t qemu_ram_alloc(DeviceState *dev, const char *name, ram_addr_t size,
-                          MemoryRegion *mr);
+ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr);
 void qemu_ram_free(ram_addr_t addr);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
 
