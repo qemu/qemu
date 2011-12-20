@@ -857,8 +857,8 @@ The x509 file names can also be configured individually.
 @item tls-ciphers=<list>
 Specify which ciphers to use.
 
-@item tls-channel=[main|display|inputs|record|playback|tunnel]
-@item plaintext-channel=[main|display|inputs|record|playback|tunnel]
+@item tls-channel=[main|display|cursor|inputs|record|playback]
+@item plaintext-channel=[main|display|cursor|inputs|record|playback]
 Force specific channel to be used with or without TLS encryption.  The
 options can be specified multiple times to configure multiple
 channels.  The special name "default" can be used to set the default
