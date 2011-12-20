@@ -316,6 +316,15 @@ uint64_t memory_region_size(MemoryRegion *mr);
 bool memory_region_is_ram(MemoryRegion *mr);
 
 /**
+ * memory_region_name: get a memory region's name
+ *
+ * Returns the string that was used to initialize the memory region.
+ *
+ * @mr: the memory region being queried
+ */
+const char *memory_region_name(MemoryRegion *mr);
+
+/**
  * memory_region_is_logging: return whether a memory region is logging writes
  *
  * Returns %true if the memory region is logging writes

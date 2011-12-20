@@ -1108,6 +1108,11 @@ uint64_t memory_region_size(MemoryRegion *mr)
     return int128_get64(mr->size);
 }
 
+const char *memory_region_name(MemoryRegion *mr)
+{
+    return mr->name;
+}
+
 bool memory_region_is_ram(MemoryRegion *mr)
 {
     return mr->ram;
