@@ -174,7 +174,7 @@ static void usbredir_log(void *priv, int level, const char *msg)
         return;
     }
 
-    error_report("%s\n", msg);
+    error_report("%s", msg);
 }
 
 static void usbredir_log_data(USBRedirDevice *dev, const char *desc,
@@ -193,7 +193,7 @@ static void usbredir_log_data(USBRedirDevice *dev, const char *desc,
         for (j = 0; j < 8 && i + j < len; j++) {
             n += sprintf(buf + n, " %02X", data[i + j]);
         }
-        error_report("%s\n", buf);
+        error_report("%s", buf);
     }
 }
 
