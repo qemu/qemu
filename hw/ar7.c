@@ -376,6 +376,10 @@ typedef struct {
 /* Emulation registers of the AR7. */
 typedef struct {
     SysBusDevice busdev;
+    MemoryRegion mmio;
+    MemoryRegion ram;
+    MemoryRegion internal_ram;
+    MemoryRegion rom;
     QEMUTimer *wd_timer;
     qemu_irq *primary_irq;
     qemu_irq *secondary_irq;
@@ -2697,7 +2701,8 @@ static uint32_t ar7_vlynq_read(unsigned vlynq_index, unsigned offset)
         val = cpu_to_le32(0x00010206);
     } else if (offset == VLYNQ_INTSTATCLR) {
         reg_write(vlynq, offset, 0);
-    } else if (offset == VLYNQ_RCHIPVER && vlynq_index == ar7->vlynq_tnetw1130) {
+    } else if (offset == VLYNQ_RCHIPVER &&
+               vlynq_index == ar7->vlynq_tnetw1130) {
         val = cpu_to_le32(0x00000009);
     } else {
     }
@@ -3265,26 +3270,55 @@ static uint32_t io_readw(void *opaque, target_phys_addr_t addr)
     return value;
 }
 
-static void io_writel(void *opaque, target_phys_addr_t addr, uint32_t value)
+static uint64_t ar7_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
-    ar7_io_memwrite(opaque, addr, value);
+    AR7State *s = opaque;
+    uint64_t value = 0;
+    addr += 0x1000;
+    switch (size) {
+    case 1:
+        value = io_readb(s, addr);
+        break;
+    case 2:
+        value = io_readw(s, addr);
+        break;
+    case 4:
+        value = ar7_io_memread(s, addr);
+        break;
+    default:
+        assert(!"unexpected");
+    }
+    return value;
 }
 
-static uint32_t io_readl(void *opaque, target_phys_addr_t addr)
+static void ar7_write(void *opaque, target_phys_addr_t addr, uint64_t value,
+                      unsigned size)
 {
-    return ar7_io_memread(opaque, addr);
+    AR7State *s = opaque;
+    addr += 0x1000;
+    switch (size) {
+    case 1:
+        io_writeb(s, addr, value);
+        break;
+    case 2:
+        io_writew(s, addr, value);
+        break;
+    case 4:
+        ar7_io_memwrite(s, addr, value);
+        break;
+    default:
+        assert(!"unexpected");
+    }
 }
 
-static CPUWriteMemoryFunc *const io_write[] = {
-    io_writeb,
-    io_writew,
-    io_writel,
-};
-
-static CPUReadMemoryFunc *const io_read[] = {
-    io_readb,
-    io_readw,
-    io_readl,
+static const MemoryRegionOps ar7_io_ops = {
+    .read = ar7_read,
+    .write = ar7_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 4
+    }
 };
 
 static void ar7_serial_init(CPUState * env)
@@ -3560,7 +3594,8 @@ static void ar7_gpio_display_init(CharDriverState *chr)
 
 static void ar7_display_init(CPUState *env)
 {
-    ar7->gpio_display = qemu_chr_new("gpio", "vc:400x300", ar7_gpio_display_init);
+    ar7->gpio_display = qemu_chr_new("gpio", "vc:400x300",
+                                     ar7_gpio_display_init);
     qemu_chr_add_handlers(ar7->gpio_display, ar7_display_can_receive,
                           ar7_display_receive, ar7_display_event, 0);
 
@@ -3580,17 +3615,14 @@ static void ar7_reset(DeviceState *d)
     //~ cpu_interrupt(env, CPU_INTERRUPT_RESET);
 }
 
-static void ar7_init(CPUState * env)
+static void ar7_init(AR7State *s, CPUState *env)
 {
+    MemoryRegion *system_memory = get_system_memory();
     //~ target_phys_addr_t addr = (0x08610000 & 0xffff);
     //~ unsigned offset;
-    int io_memory = cpu_register_io_memory(io_read, io_write,
-                                           env, DEVICE_NATIVE_ENDIAN);
-    //~ cpu_register_physical_memory(0x08610000, 0x00002800, io_memory);
-    //~ cpu_register_physical_memory(0x00001000, 0x0860f000, io_memory);
-    cpu_register_physical_memory_offset(0x00001000, 0x0ffff000, io_memory, 0x00001000);
-    //~ cpu_register_physical_memory(0x00001000, 0x10000000, io_memory);
-    cpu_register_physical_memory_offset(0x1e000000, 0x01c00000, io_memory, 0x1e000000);
+    memory_region_init_io(&s->mmio, &ar7_io_ops, s, "ar7.io", 0x0ffff000);
+    memory_region_add_subregion(system_memory, 0x00001000, &s->mmio);
+    // TODO: i/o starting at 0x1e000000, 0x01c00000 bytes.
 
     //~ reg_write(av.gpio, GPIO_IN, 0x0cbea075);
     reg_write(av.gpio, GPIO_IN, 0x0cbea875);
@@ -3634,10 +3666,7 @@ static void ar7_init(CPUState * env)
     //~ register_ioport_write(addr + offset, 0x100, 2, ar7_io_memwrite, 0);
     //~ register_ioport_write(addr + offset, 0x100, 4, ar7_io_memwrite, 0);
     //~ }
-    //~ {
-    //~ s_io_memory = cpu_register_io_memory(mips_mm_read, mips_mm_write, 0);
-    //~ cpu_register_physical_memory(0x08610000, 0x2000, s_io_memory);
-    //~ }
+    // TODO: i/o starting at 0x08610000, 0x2000 bytes.
 }
 
 /* Kernel */
@@ -3790,11 +3819,11 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
 {
     char *filename;
     CPUState *env;
+    AR7State *s;
     DeviceState *dev;
     DriveInfo *dinfo;
     BlockDriverState *flash_driver = NULL;
-    ram_addr_t ram_offset;
-    ram_addr_t rom_offset;
+    MemoryRegion *system_memory = get_system_memory();
     int rom_size;
     VLYNQBus *vlynq_bus0;
     VLYNQBus *vlynq_bus1;
@@ -3828,8 +3857,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     qdev_prop_set_uint8(dev, "phy addr", 31);
     qdev_prop_set_uint8(dev, "vlynq tnetw1130", 0);
     qdev_init_nofail(dev);
-
-    ar7 = container_of(dev, AR7State, busdev.qdev);
+    ar7 = s = container_of(dev, AR7State, busdev.qdev);
 
     vlynq_bus0 = vlynq_create_bus(dev, "vlynq0");
     vlynq_bus1 = vlynq_create_bus(dev, "vlynq1");
@@ -3841,18 +3869,14 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     loaderparams.kernel_cmdline = kernel_cmdline;
     loaderparams.initrd_filename = initrd_filename;
 
-    ram_offset = qemu_ram_alloc(NULL, "ar7.ram", machine_ram_size);
-    cpu_register_physical_memory_offset(KERNEL_LOAD_ADDR, machine_ram_size, ram_offset | IO_MEM_RAM, KERNEL_LOAD_ADDR);
-    fprintf(stderr, "%s: ram_size = 0x%08x\n",
-        __func__, (unsigned)machine_ram_size);
-
-    /* kernel_init would fail when ram_offset != 0. */
-    assert(ram_offset == 0);
+    memory_region_init_ram(&s->ram, NULL, "ar7.ram", machine_ram_size);
+    memory_region_add_subregion(system_memory, KERNEL_LOAD_ADDR, &s->ram);
+    fprintf(stderr, "%s: ram_size = 0x" RAM_ADDR_FMT "\n",
+            __func__, machine_ram_size);
 
     /* The AR7 processor has 4 KiB internal RAM at physical address 0x00000000. */
-    ram_offset = qemu_ram_alloc(NULL, "ar7.internal", 4 * KiB);
-    logout("ram_offset (internal RAM) = %x\n", (unsigned)ram_offset);
-    cpu_register_physical_memory_offset(0, 4 * KiB, ram_offset | IO_MEM_RAM, 0);
+    memory_region_init_ram(&s->internal_ram, NULL, "ar7.internal", 4 * KiB);
+    memory_region_add_subregion(system_memory, 0, &s->internal_ram);
 
     /* Try to load a BIOS image. If this fails, we continue regardless,
        but initialize the hardware ourselves. When a kernel gets
@@ -3880,9 +3904,9 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
             __func__, "flashimage.bin", flash_size);
 
     /* The AR7 processor has 4 KiB internal ROM at physical address 0x1fc00000. */
-    rom_offset = qemu_ram_alloc(NULL, "ar7.rom", 4 * KiB);
-    cpu_register_physical_memory(PROM_ADDR,
-                                 4 * KiB, rom_offset | IO_MEM_ROM);
+    memory_region_init_ram(&s->rom, NULL, "ar7.rom", 4 * KiB);
+    memory_region_set_readonly(&s->rom, true);
+    memory_region_add_subregion(system_memory, PROM_ADDR, &s->rom);
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "mips_bios.bin");
     rom_size = load_image_targphys(filename, PROM_ADDR, 4 * KiB);
     g_free(filename);
@@ -3913,14 +3937,18 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
     //~ i8259 = i8259_init(env->irq[2]);
 
-    ar7->primary_irq = qemu_allocate_irqs(ar7_primary_irq, env, NUM_PRIMARY_IRQS);
-    ar7->secondary_irq = qemu_allocate_irqs(ar7_secondary_irq, env, NUM_SECONDARY_IRQS);
+    ar7->primary_irq =
+        qemu_allocate_irqs(ar7_primary_irq, env, NUM_PRIMARY_IRQS);
+    ar7->secondary_irq =
+        qemu_allocate_irqs(ar7_secondary_irq, env, NUM_SECONDARY_IRQS);
 
     ar7->wd_timer = qemu_new_timer_ns(vm_clock, &watchdog_cb, env);
-    ar7->timer[0].qemu_timer = qemu_new_timer_ns(vm_clock, &timer_cb, &ar7->timer[0]);
+    ar7->timer[0].qemu_timer =
+        qemu_new_timer_ns(vm_clock, &timer_cb, &ar7->timer[0]);
     ar7->timer[0].base = av.timer0;
     ar7->timer[0].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER0);
-    ar7->timer[1].qemu_timer = qemu_new_timer_ns(vm_clock, &timer_cb, &ar7->timer[1]);
+    ar7->timer[1].qemu_timer =
+        qemu_new_timer_ns(vm_clock, &timer_cb, &ar7->timer[1]);
     ar7->timer[1].base = av.timer1;
     ar7->timer[1].interrupt = AR7_PRIMARY_IRQ(INTERRUPT_TIMER1);
 
@@ -3931,7 +3959,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     ar7->vlynq_tnetw1130 = 0;
     //~ ar7->vlynq_tnetw1130 = 99;
 
-    ar7_init(env);
+    ar7_init(s, env);
 }
 
 static int ar7_sysbus_device_init(SysBusDevice *sysbusdev)
@@ -4225,10 +4253,6 @@ static int cpmac_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     s->nic = qemu_new_nic(&ar7_net_info, &s->conf,
                           dev->qdev.info->name, dev->qdev.id, s);
-    //~ s->mmio_index = cpu_register_io_memory(mv88w8618_eth_readfn,
-                                           //~ mv88w8618_eth_writefn, s,
-                                           //~ DEVICE_NATIVE_ENDIAN);
-    //~ sysbus_init_mmio(dev, MP_ETH_SIZE, s->mmio_index);
     return 0;
 }
 
