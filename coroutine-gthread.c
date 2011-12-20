@@ -36,7 +36,12 @@ static GStaticPrivate coroutine_key = G_STATIC_PRIVATE_INIT;
 static void __attribute__((constructor)) coroutine_init(void)
 {
     if (!g_thread_supported()) {
+#if !GLIB_CHECK_VERSION(2, 31, 0)
         g_thread_init(NULL);
+#else
+        fprintf(stderr, "glib threading failed to initialize.\n");
+        exit(1);
+#endif
     }
 
     coroutine_cond = g_cond_new();

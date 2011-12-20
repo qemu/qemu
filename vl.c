@@ -2176,7 +2176,12 @@ int main(int argc, char **argv, char **envp)
 
     g_mem_set_vtable(&mem_trace);
     if (!g_thread_supported()) {
+#if !GLIB_CHECK_VERSION(2, 31, 0)
         g_thread_init(NULL);
+#else
+        fprintf(stderr, "glib threading failed to initialize.\n");
+        exit(1);
+#endif
     }
 
     runstate_init();
