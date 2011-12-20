@@ -672,10 +672,6 @@ void omap_uart_reset(struct omap_uart_s *s);
 void omap_uart_attach(struct omap_uart_s *s, CharDriverState *chr);
 
 struct omap_mpuio_s;
-struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *system_memory,
-                target_phys_addr_t base,
-                qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
-                omap_clk clk);
 qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s);
 void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler);
 void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down);

@@ -2066,7 +2066,7 @@ static void omap_mpuio_onoff(void *opaque, int line, int on)
         omap_mpuio_kbd_update(s);
 }
 
-struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
+static struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
                 target_phys_addr_t base,
                 qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
                 omap_clk clk)
