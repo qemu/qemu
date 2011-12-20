@@ -1344,6 +1344,12 @@ static void omap_tcmi_init(MemoryRegion *memory, target_phys_addr_t base,
 }
 
 /* Digital phase-locked loops control */
+struct dpll_ctl_s {
+    MemoryRegion iomem;
+    uint16_t mode;
+    omap_clk dpll;
+};
+
 static uint64_t omap_dpll_read(void *opaque, target_phys_addr_t addr,
                                unsigned size)
 {
@@ -1409,15 +1415,17 @@ static void omap_dpll_reset(struct dpll_ctl_s *s)
     omap_clk_setrate(s->dpll, 1, 1);
 }
 
-static void omap_dpll_init(MemoryRegion *memory, struct dpll_ctl_s *s,
+static struct dpll_ctl_s  *omap_dpll_init(MemoryRegion *memory,
                            target_phys_addr_t base, omap_clk clk)
 {
+    struct dpll_ctl_s *s = g_malloc0(sizeof(*s));
     memory_region_init_io(&s->iomem, &omap_dpll_ops, s, "omap-dpll", 0x100);
 
     s->dpll = clk;
     omap_dpll_reset(s);
 
     memory_region_add_subregion(memory, base, &s->iomem);
+    return s;
 }
 
 /* MPU Clock/Reset/Power Mode Control */
@@ -3679,9 +3687,9 @@ static void omap1_mpu_reset(void *opaque)
     omap_mpui_reset(mpu);
     omap_tipb_bridge_reset(mpu->private_tipb);
     omap_tipb_bridge_reset(mpu->public_tipb);
-    omap_dpll_reset(&mpu->dpll[0]);
-    omap_dpll_reset(&mpu->dpll[1]);
-    omap_dpll_reset(&mpu->dpll[2]);
+    omap_dpll_reset(mpu->dpll[0]);
+    omap_dpll_reset(mpu->dpll[1]);
+    omap_dpll_reset(mpu->dpll[2]);
     omap_uart_reset(mpu->uart[0]);
     omap_uart_reset(mpu->uart[1]);
     omap_uart_reset(mpu->uart[2]);
@@ -3947,12 +3955,12 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
                     "uart3",
                     serial_hds[0] && serial_hds[1] ? serial_hds[2] : NULL);
 
-    omap_dpll_init(system_memory,
-                   &s->dpll[0], 0xfffecf00, omap_findclk(s, "dpll1"));
-    omap_dpll_init(system_memory,
-                   &s->dpll[1], 0xfffed000, omap_findclk(s, "dpll2"));
-    omap_dpll_init(system_memory,
-                   &s->dpll[2], 0xfffed100, omap_findclk(s, "dpll3"));
+    s->dpll[0] = omap_dpll_init(system_memory, 0xfffecf00,
+                                omap_findclk(s, "dpll1"));
+    s->dpll[1] = omap_dpll_init(system_memory, 0xfffed000,
+                                omap_findclk(s, "dpll2"));
+    s->dpll[2] = omap_dpll_init(system_memory, 0xfffed100,
+                                omap_findclk(s, "dpll3"));
 
     dinfo = drive_get(IF_SD, 0, 0);
     if (!dinfo) {

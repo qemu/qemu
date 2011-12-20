@@ -904,11 +904,7 @@ struct omap_mpu_state_s {
 
     uint32_t tcmi_regs[17];
 
-    struct dpll_ctl_s {
-        MemoryRegion iomem;
-        uint16_t mode;
-        omap_clk dpll;
-    } dpll[3];
+    struct dpll_ctl_s *dpll[3];
 
     omap_clk clks;
     struct {
