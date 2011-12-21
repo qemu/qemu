@@ -35,6 +35,9 @@
  * It does not implement software data protection as found in many real chips
  * It does not implement erase suspend/resume commands
  * It does not implement multiple sectors erase
+ *
+ * TODO:
+ * Support little endianness.
  */
 
 #include <assert.h>     /* assert */
@@ -64,6 +67,7 @@ typedef enum {
 } flash_mode_t;
 
 struct pflash_t {
+    MemoryRegion mem;
     BlockDriverState *bs;
     target_phys_addr_t base;
     uint32_t sector_len;
@@ -78,29 +82,26 @@ struct pflash_t {
     uint16_t ident[4];
     uint8_t cfi_table[0x52];
     QEMUTimer *timer;
-    ram_addr_t off;
-    int fl_mem;
     void *storage;
 };
 
 static void pflash_io_mode(pflash_t *pfl)
 {
-  if (pfl->mode != io_mode) {
-    DPRINTF("switch to i/o mode\n");
-    cpu_register_physical_memory(pfl->base, pfl->total_len, pfl->fl_mem);
-    //~ DPRINTF("0x%08x 0x%08x 0x%04x\n", pfl->base, pfl->total_len, pfl->fl_mem);
-    pfl->mode = io_mode;
-  }
+    if (pfl->mode != io_mode) {
+        DPRINTF("switch to i/o mode\n");
+        memory_region_rom_device_set_readable(&pfl->mem, false);
+        //~ DPRINTF("0x%08x 0x%08x\n", pfl->base, pfl->total_len);
+        pfl->mode = io_mode;
+    }
 }
 
 static void pflash_rom_mode(pflash_t *pfl)
 {
-  if (pfl->mode != rom_mode) {
-    DPRINTF("switch to rom mode\n");
-    cpu_register_physical_memory(pfl->base, pfl->total_len,
-                                 pfl->off | IO_MEM_ROMD | pfl->fl_mem);
-    pfl->mode = rom_mode;
-  }
+    if (pfl->mode != rom_mode) {
+        DPRINTF("switch to rom mode\n");
+        memory_region_rom_device_set_readable(&pfl->mem, true);
+        pfl->mode = rom_mode;
+    }
 }
 
 static void pflash_timer (void *opaque)
@@ -236,8 +237,8 @@ static void pflash_update(pflash_t *pfl, int offset,
     }
 }
 
-static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
-                          int width)
+static void pflash_write(pflash_t *pfl, uint32_t offset, uint32_t value,
+                         int width, bool be)
 {
     uint32_t boff;
     uint8_t *p;
@@ -473,57 +474,53 @@ static void pflash_write (pflash_t *pfl, uint32_t offset, uint32_t value,
 }
 
 
-static uint32_t pflash_readb (void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readb_be(void *opaque, target_phys_addr_t addr)
 {
     return pflash_read(opaque, addr, 1);
 }
 
-static uint32_t pflash_readw (void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readw_be(void *opaque, target_phys_addr_t addr)
 {
     pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 2);
 }
 
-static uint32_t pflash_readl (void *opaque, target_phys_addr_t addr)
+static uint32_t pflash_readl_be(void *opaque, target_phys_addr_t addr)
 {
     pflash_t *pfl = opaque;
 
     return pflash_read(pfl, addr, 4);
 }
 
-static void pflash_writeb (void *opaque, target_phys_addr_t addr,
-                           uint32_t value)
+static void pflash_writeb_be(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
 {
-    pflash_write(opaque, addr, value, 1);
+    pflash_write(opaque, addr, value, 1, true);
 }
 
-static void pflash_writew (void *opaque, target_phys_addr_t addr,
-                           uint32_t value)
-{
-    pflash_t *pfl = opaque;
-
-    pflash_write(pfl, addr, value, 2);
-}
-
-static void pflash_writel (void *opaque, target_phys_addr_t addr,
-                           uint32_t value)
+static void pflash_writew_be(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
 {
     pflash_t *pfl = opaque;
 
-    pflash_write(pfl, addr, value, 4);
+    pflash_write(pfl, addr, value, 2, true);
 }
 
-static CPUWriteMemoryFunc * const pflash_write_ops[] = {
-    pflash_writeb,
-    pflash_writew,
-    pflash_writel,
-};
+static void pflash_writel_be(void *opaque, target_phys_addr_t addr,
+                             uint32_t value)
+{
+    pflash_t *pfl = opaque;
 
-static CPUReadMemoryFunc * const pflash_read_ops[] = {
-    pflash_readb,
-    pflash_readw,
-    pflash_readl,
+    pflash_write(pfl, addr, value, 4, true);
+}
+
+static const MemoryRegionOps pflash_cfi01_ops_be = {
+    .old_mmio = {
+        .read = { pflash_readb_be, pflash_readw_be, pflash_readl_be, },
+        .write = { pflash_writeb_be, pflash_writew_be, pflash_writel_be, },
+    },
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 /* Count trailing zeroes of a 32 bits quantity */
@@ -596,12 +593,15 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
         total_len != (8 * MiB) && total_len != (16 * MiB) &&
         total_len != (32 * MiB) && total_len != (64 * MiB))
         return NULL;
-    pfl = g_malloc0(sizeof(pflash_t));
-    if (pfl == NULL)
-        return NULL;
-    pfl->storage = qemu_get_ram_ptr(off);
-    pfl->fl_mem = cpu_register_io_memory(pflash_read_ops, pflash_write_ops, pfl);
-    pfl->off = off;
+
+    pfl = g_new0(pflash_t, 1);
+
+    memory_region_init_rom_device(
+        &pfl->mem, be ? &pflash_cfi01_ops_be : &pflash_cfi01_ops_le, pfl,
+        qdev, name, size);
+    pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
+    memory_region_add_subregion(get_system_memory(), base, &pfl->mem);
+
     pfl->base = base;
     pfl->sector_len = sector_len;
     pfl->total_len = total_len;
@@ -610,6 +610,12 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
     if (pfl->bs) {
         /* read the initial flash content */
         bdrv_read(pfl->bs, 0, pfl->storage, total_len >> 9);
+        if (ret < 0) {
+            memory_region_del_subregion(get_system_memory(), &pfl->mem);
+            memory_region_destroy(&pfl->mem);
+            g_free(pfl);
+            return NULL;
+        }
     }
 #if 0 /* XXX: there should be a bit to set up read-only,
        *      the same way the hardware does (with WP pin).
@@ -746,3 +752,10 @@ pflash_t *pflash_amd_register (target_phys_addr_t base, ram_addr_t off,
 
     return pfl;
 }
+
+#if 0 // TODO
+MemoryRegion *pflash_amd_get_memory(pflash_t *fl)
+{
+    return &fl->mem;
+}
+#endif
