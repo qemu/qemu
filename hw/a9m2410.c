@@ -107,7 +107,7 @@ static void stcb_cpld_register(STCBState *s)
 #define A9M2410_IDE_PRI_FAST_BYTE    (CPU_S3C2410X_CS4 | 0x02000000)
 #define A9M2410_IDE_SEC_FAST_BYTE    (CPU_S3C2410X_CS4 | 0x03000000)
 
-/* MMIO interface to IDE on Simtec's A9M2410
+/* MMIO interface to IDE on A9M2410.
  *
  * Copyright Daniel Silverstone and Vincent Sanders
  *
@@ -163,7 +163,6 @@ static uint64_t stcb_ide_read(void *opaque, target_phys_addr_t addr,
         return ide_ioport_read(&s->bus, reg);
     }
 }
-
 
 static const MemoryRegionOps stcb_ide_ops = {
     .read = stcb_ide_read,
@@ -262,7 +261,8 @@ static uint64_t ax88796_read(void *opaque, target_phys_addr_t offset,
         case 0x00e0:
         case 0x02e0:
         case 0x03e0:
-            return 0; // FIXME
+            ;
+            //~ return 0; // FIXME
     }
 
     logout("0x" TARGET_FMT_plx " 0x%08x\n", offset, value);
@@ -285,7 +285,8 @@ static void ax88796_write(void *opaque, target_phys_addr_t offset,
         case 0x00e0:
         case 0x02e0:
         case 0x03e0:
-            return; // FIXME
+            ;
+            //~ return; // FIXME
     }
     logout("0x" TARGET_FMT_plx " 0x%08" PRIx64 "\n", offset, value);
 }
@@ -393,6 +394,7 @@ static void stcb_init(ram_addr_t _ram_size,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)
 {
+    MemoryRegion *sysmem = get_system_memory();
     STCBState *stcb;
     CharDriverState *chr;
     DeviceState *dev;
@@ -455,9 +457,7 @@ static void stcb_init(ram_addr_t _ram_size,
                           A9M2410_NOR_SIZE, flash_bds, 65536, 32, 1, 2,
                           0x00BF, 0x234B, 0x0000, 0x0000, 0x5555, 0x2AAA,
                           bigendian);
-    //~ cpu_register_physical_memory(A9M2410_NOR_RO_BASE,
-                                 //~ A9M2410_NOR_SIZE,
-                                 //~ flash_mem | IO_MEM_ROM);
+    // TODO: map flash readonly to address A9M2410_NOR_RO_BASE.
 
     /* if kernel is given, boot that directly */
     if (kernel_filename != NULL) {
@@ -517,11 +517,11 @@ static void stcb_init(ram_addr_t _ram_size,
     }
 
     chr = qemu_chr_new("uart0", "vc:80Cx24C", NULL);
-    serial_mm_init(get_system_memory(), SERIAL_BASE + 0x2f8, 0,
+    serial_mm_init(sysmem, SERIAL_BASE + 0x2f8, 0,
                    s3c24xx_get_eirq(stcb->soc->gpio, 15),
                    SERIAL_CLK, chr, DEVICE_NATIVE_ENDIAN);
     chr = qemu_chr_new("uart1", "vc:80Cx24C", NULL);
-    serial_mm_init(get_system_memory(), SERIAL_BASE + 0x3f8, 0,
+    serial_mm_init(sysmem, SERIAL_BASE + 0x3f8, 0,
                    s3c24xx_get_eirq(stcb->soc->gpio, 14),
                    SERIAL_CLK, chr, DEVICE_NATIVE_ENDIAN);
 #if 0
