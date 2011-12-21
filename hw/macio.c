@@ -27,8 +27,9 @@
 #include "pci.h"
 #include "escc.h"
 
-typedef struct macio_state_t macio_state_t;
-struct macio_state_t {
+typedef struct MacIOState
+{
+    PCIDevice parent;
     int is_oldworld;
     MemoryRegion bar;
     MemoryRegion *pic_mem;
@@ -38,9 +39,9 @@ struct macio_state_t {
     void *nvram;
     int nb_ide;
     MemoryRegion *ide_mem[4];
-};
+} MacIOState;
 
-static void macio_bar_setup(macio_state_t *macio_state)
+static void macio_bar_setup(MacIOState *macio_state)
 {
     int i;
     MemoryRegion *bar = &macio_state->bar;
@@ -74,6 +75,27 @@ static void macio_bar_setup(macio_state_t *macio_state)
         macio_nvram_setup_bar(macio_state->nvram, bar, 0x60000);
 }
 
+static int macio_initfn(PCIDevice *d)
+{
+    d->config[0x3d] = 0x01; // interrupt on pin 1
+    return 0;
+}
+
+static PCIDeviceInfo macio_info = {
+    .qdev.name = "macio",
+    .qdev.size = sizeof(MacIOState),
+    .init = macio_initfn,
+    .vendor_id = PCI_VENDOR_ID_APPLE,
+    .class_id = PCI_CLASS_OTHERS << 8,
+};
+
+static void macio_register(void)
+{
+    pci_qdev_register(&macio_info);
+}
+
+device_init(macio_register);
+
 void macio_init (PCIBus *bus, int device_id, int is_oldworld,
                  MemoryRegion *pic_mem, MemoryRegion *dbdma_mem,
                  MemoryRegion *cuda_mem, void *nvram,
@@ -81,13 +103,12 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld,
                  MemoryRegion *escc_mem)
 {
     PCIDevice *d;
-    macio_state_t *macio_state;
+    MacIOState *macio_state;
     int i;
 
-    d = pci_register_device(bus, "macio",
-                            sizeof(PCIDevice) + sizeof(macio_state_t),
-                            -1, NULL, NULL);
-    macio_state = (macio_state_t *)(d + 1);
+    d = pci_create_simple(bus, -1, "macio");
+
+    macio_state = DO_UPCAST(MacIOState, parent, d);
     macio_state->is_oldworld = is_oldworld;
     macio_state->pic_mem = pic_mem;
     macio_state->dbdma_mem = dbdma_mem;
@@ -104,11 +125,7 @@ void macio_init (PCIBus *bus, int device_id, int is_oldworld,
     /* Note: this code is strongly inspirated from the corresponding code
        in PearPC */
 
-    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_APPLE);
     pci_config_set_device_id(d->config, device_id);
-    pci_config_set_class(d->config, PCI_CLASS_OTHERS << 8);
-
-    d->config[0x3d] = 0x01; // interrupt on pin 1
 
     macio_bar_setup(macio_state);
     pci_register_bar(d, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &macio_state->bar);
