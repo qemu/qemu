@@ -1181,41 +1181,17 @@ static void openpic_irq_raise(openpic_t *opp, int n_CPU, IRQ_src_t *src)
     qemu_irq_raise(opp->dst[n_CPU].irqs[OPENPIC_OUTPUT_INT]);
 }
 
-qemu_irq *openpic_init (PCIBus *bus, MemoryRegion **pmem, int nb_cpus,
+qemu_irq *openpic_init (MemoryRegion **pmem, int nb_cpus,
                         qemu_irq **irqs, qemu_irq irq_out)
 {
     openpic_t *opp;
-    uint8_t *pci_conf;
     int i, m;
 
     /* XXX: for now, only one CPU is supported */
     if (nb_cpus != 1)
         return NULL;
-    if (bus) {
-        opp = (openpic_t *)pci_register_device(bus, "OpenPIC", sizeof(openpic_t),
-                                               -1, NULL, NULL);
-        pci_conf = opp->pci_dev.config;
-        pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_IBM);
-        pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_IBM_OPENPIC2);
-        pci_config_set_class(pci_conf, PCI_CLASS_SYSTEM_OTHER); // FIXME?
-        pci_conf[0x3d] = 0x00; // no interrupt pin
-
-        memory_region_init_io(&opp->mem, &openpic_ops, opp, "openpic", 0x40000);
-#if 0 // Don't implement ISU for now
-        opp_io_memory = cpu_register_io_memory(openpic_src_read,
-                                               openpic_src_write, NULL
-                                               DEVICE_NATIVE_ENDIAN);
-        cpu_register_physical_memory(isu_base, 0x20 * (EXT_IRQ + 2),
-                                     opp_io_memory);
-#endif
-
-        /* Register I/O spaces */
-        pci_register_bar(&opp->pci_dev, 0,
-                         PCI_BASE_ADDRESS_SPACE_MEMORY, &opp->mem);
-    } else {
-        opp = g_malloc0(sizeof(openpic_t));
-        memory_region_init_io(&opp->mem, &openpic_ops, opp, "openpic", 0x40000);
-    }
+    opp = g_malloc0(sizeof(openpic_t));
+    memory_region_init_io(&opp->mem, &openpic_ops, opp, "openpic", 0x40000);
 
     //    isu_base &= 0xFFFC0000;
     opp->nb_cpus = nb_cpus;
