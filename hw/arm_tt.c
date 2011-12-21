@@ -16,6 +16,7 @@
 #include "sysbus.h"
 #include "arm-misc.h"
 #include "devices.h"
+#include "exec-memory.h"        /* get_system_memory */
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
@@ -98,9 +99,6 @@ static const char *offset2name(const OffsetNamePair *o2n, unsigned offset)
 
 #define MP_MISC_BASE            0x80002000
 #define MP_MISC_SIZE            0x00001000
-
-#define MP_ETH_BASE             0x80008000
-#define MP_ETH_SIZE             0x00001000
 
 #define MP_GPIO_BASE            0x8000D000
 #define MP_GPIO_SIZE            0x00001000
@@ -850,16 +848,16 @@ static const MemoryRegionOps tt_ioport_ops = {
 #if 0
 static void tt_syscon_init(void)
 {
-    memory_region_init_io(&s->mmio, &tt_syscon_ops, s,
+    memory_region_init_io(&s->syscon, &tt_syscon_ops, s,
                           "tt-syscon", 0x10000);
-    cpu_register_physical_memory(S3C2443X_SYSCON, 0x10000, iomemtype);
+    memory_region_add_subregion(get_system_memory(), S3C2443X_SYSCON, &s->syscon);
 }
 
 static void tt_ioport_init(void)
 {
-    memory_region_init_io(&s->mmio, &tt_ioport_ops, s,
+    memory_region_init_io(&s->ioport, &tt_ioport_ops, s,
                           "tt-ioport", 0x10000);
-    cpu_register_physical_memory(S3C2443X_IO_PORT, 0x10000, iomemtype);
+    memory_region_add_subregion(get_system_memory(), S3C2443X_IO_PORT, &s->ioport);
 }
 #endif
 
@@ -1283,7 +1281,7 @@ static void tt_init(ram_addr_t ram_size,
     }
 
     /* Allocate storage for board state. */
-    s = g_malloc0(sizeof(TTState));
+    s = g_new0(TTState, 1);
 
     for (i = 0; i < 3; i++) {
         if (serial_hds[i] == NULL) {
@@ -1304,52 +1302,6 @@ static void tt_init(ram_addr_t ram_size,
     //~ cpu_register_physical_memory(0x30000000, ram_size, ram_off | IO_MEM_RAM);
     //~ cpu_register_physical_memory(0x80000000, ram_size, ram_off | IO_MEM_RAM);
     //~ cpu_register_physical_memory(0xc0000000, ram_size, ram_off | IO_MEM_RAM);
-
-#if 0
-    sram_off = qemu_ram_alloc(NULL, "musicpal.sram", TT_SRAM_SIZE);
-    cpu_register_physical_memory(TT_SRAM_BASE, TT_SRAM_SIZE, sram_off);
-
-    dev = sysbus_create_simple("mv88w8618_pic", MP_PIC_BASE,
-                               cpu_pic[ARM_PIC_CPU_IRQ]);
-    for (i = 0; i < 32; i++) {
-        pic[i] = qdev_get_gpio_in(dev, i);
-    }
-    sysbus_create_varargs("mv88w8618_pit", MP_PIT_BASE, pic[MP_TIMER1_IRQ],
-                          pic[MP_TIMER2_IRQ], pic[MP_TIMER3_IRQ],
-                          pic[MP_TIMER4_IRQ], NULL);
-
-    /* Register flash */
-    dinfo = drive_get(IF_PFLASH, 0, 0);
-    if (dinfo) {
-        flash_size = bdrv_getlength(dinfo->bdrv);
-        if (flash_size != 8*MiB && flash_size != 16*MiB &&
-            flash_size != 32*MiB) {
-            logout("Invalid flash image size\n");
-            exit(1);
-        }
-
-        /*
-         * The original U-Boot accesses the flash at 0xFE000000 instead of
-         * 0xFF800000 (if there is 8 MB flash). So remap flash access if the
-         * image is smaller than 32 MB.
-         */
-        pflash_cfi02_register(0-MP_FLASH_SIZE_MAX, qemu_ram_alloc(NULL,
-                              "musicpal.flash", flash_size),
-                              dinfo->bdrv, 0x10000,
-                              (flash_size + 0xffff) >> 16,
-                              MP_FLASH_SIZE_MAX / flash_size,
-                              2, 0x00BF, 0x236D, 0x0000, 0x0000,
-                              0x5555, 0x2AAA, bigendian);
-    }
-    sysbus_create_simple("mv88w8618_flashcfg", MP_FLASHCFG_BASE, NULL);
-
-    qemu_check_nic_model(&nd_table[0], "mv88w8618");
-    dev = qdev_create(NULL, "mv88w8618_eth");
-    qdev_set_nic_properties(dev, &nd_table[0]);
-    qdev_init_nofail(dev);
-    sysbus_mmio_map(sysbus_from_qdev(dev), 0, MP_ETH_BASE);
-    sysbus_connect_irq(sysbus_from_qdev(dev), 0, pic[MP_ETH_IRQ]);
-#endif
 
     //~ tt_syscon_init();
     //~ tt_ioport_init();
