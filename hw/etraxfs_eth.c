@@ -540,7 +540,7 @@ static ssize_t eth_receive(VLANClientState *nc, const uint8_t *buf, size_t size)
         return size;
 }
 
-static int eth_tx_push(void *opaque, unsigned char *buf, int len)
+static int eth_tx_push(void *opaque, unsigned char *buf, int len, bool eop)
 {
 	struct fs_eth *eth = opaque;
 

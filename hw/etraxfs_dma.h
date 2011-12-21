@@ -1,3 +1,8 @@
+struct dma_context_metadata {
+	/* data descriptor md */
+	uint16_t metadata;
+};
+
 struct etraxfs_dma_client
 {
 	/* DMA controller. */
@@ -5,10 +10,12 @@ struct etraxfs_dma_client
 	void *ctrl;
 
 	/* client.  */
-	struct
-	{
-		int (*push)(void *opaque, unsigned char *buf, int len);
+	struct {
+		int (*push)(void *opaque, unsigned char *buf,
+		            int len, bool eop);
 		void (*pull)(void *opaque);
+		void (*metadata_push)(void *opaque,
+		                      const struct dma_context_metadata *md);
 		void *opaque;
 	} client;
 };
