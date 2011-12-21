@@ -2793,6 +2793,7 @@ ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
     size = TARGET_PAGE_ALIGN(size);
     new_block = g_malloc0(sizeof(*new_block));
 
+    new_block->mr = mr;
     new_block->offset = find_ram_offset(size);
     if (host) {
         new_block->host = host;

@@ -476,6 +476,7 @@ extern ram_addr_t ram_size;
 #define RAM_PREALLOC_MASK   (1 << 0)
 
 typedef struct RAMBlock {
+    struct MemoryRegion *mr;
     uint8_t *host;
     ram_addr_t offset;
     ram_addr_t length;
