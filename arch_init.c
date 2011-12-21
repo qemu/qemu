@@ -366,7 +366,7 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
     int flags;
     int error;
 
-    if (version_id < 3 || version_id > 4) {
+    if (version_id < 4 || version_id > 4) {
         return -EINVAL;
     }
 
@@ -377,11 +377,7 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
         addr &= TARGET_PAGE_MASK;
 
         if (flags & RAM_SAVE_FLAG_MEM_SIZE) {
-            if (version_id == 3) {
-                if (addr != ram_bytes_total()) {
-                    return -EINVAL;
-                }
-            } else {
+            if (version_id == 4) {
                 /* Synchronize RAM block list */
                 char id[256];
                 ram_addr_t length;
@@ -419,10 +415,7 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
             void *host;
             uint8_t ch;
 
-            if (version_id == 3)
-                host = qemu_get_ram_ptr(addr);
-            else
-                host = host_from_stream_offset(f, addr, flags);
+            host = host_from_stream_offset(f, addr, flags);
             if (!host) {
                 return -EINVAL;
             }
@@ -438,10 +431,7 @@ int ram_load(QEMUFile *f, void *opaque, int version_id)
         } else if (flags & RAM_SAVE_FLAG_PAGE) {
             void *host;
 
-            if (version_id == 3)
-                host = qemu_get_ram_ptr(addr);
-            else
-                host = host_from_stream_offset(f, addr, flags);
+            host = host_from_stream_offset(f, addr, flags);
 
             qemu_get_buffer(f, host, TARGET_PAGE_SIZE);
         }
