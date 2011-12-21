@@ -172,6 +172,9 @@ static int s3c24xx_gpio_init_(SysBusDevice *dev)
     memory_region_init_io(&s->mmio, &s3c24xx_gpio_ops, s,
                           "s3c24xx-gpio", S3C_GPIO_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
+#if 0
+    TODO: i/o starting at base_addr, S3C_GPIO_MAX * 4 bytes.
+#endif
 
     /* Set non zero default values. */
     GPR(0x00) = 0x7fffff;
@@ -203,11 +206,7 @@ s3c24xx_gpio_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t cpu_id)
         return NULL;
     }
 
-#if 0
-    memory_region_init_io(&s->mmio, &s3c24xx_gpio_ops, s,
-                          "s3c24xx-gpio", S3C_GPIO_MAX * 4);
-    cpu_register_physical_memory(base_addr, S3C_GPIO_MAX * 4, tag);
-#endif
+    /* TODO: Diese Funktion ist veraltet und soll ersetzt werden, s.o. */
 
     /* Set non zero default values. */
     GPR(0x00) = 0x7fffff;

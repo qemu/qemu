@@ -9,6 +9,7 @@
  */
 
 #include "hw.h"
+#include "exec-memory.h"        /* get_system_memory */
 #include "qemu-char.h"
 #include "sysemu.h"
 
@@ -52,6 +53,7 @@
 
 /* S3C24XX serial port state */
 typedef struct s3c24xx_serial_dev_s {
+    MemoryRegion mmio;
     uint32_t ulcon, ucon, ufcon, umcon, ubrdiv;
     unsigned char rx_byte;
     /* Byte is available to be read */
@@ -63,8 +65,8 @@ typedef struct s3c24xx_serial_dev_s {
     qemu_irq rx_level;
 } s3c24xx_serial_dev;
 
-static void
-s3c24xx_serial_write_f(void *opaque, target_phys_addr_t addr, uint32_t value)
+static void s3c24xx_serial_write(void *opaque, target_phys_addr_t addr,
+                                 uint64_t value, unsigned size)
 {
     s3c24xx_serial_dev *s = opaque;
     int reg = addr & 0x3f;
@@ -141,8 +143,8 @@ s3c24xx_serial_write_f(void *opaque, target_phys_addr_t addr, uint32_t value)
     };
 }
 
-static uint32_t
-s3c24xx_serial_read_f(void *opaque, target_phys_addr_t addr)
+static uint64_t s3c24xx_serial_read(void *opaque, target_phys_addr_t addr,
+                                    unsigned size)
 {
     s3c24xx_serial_dev *s = opaque;
     int reg = addr & 0x3f;
@@ -192,18 +194,15 @@ s3c24xx_serial_read_f(void *opaque, target_phys_addr_t addr)
     };
 }
 
-static CPUReadMemoryFunc * const s3c24xx_serial_read[] = {
-    s3c24xx_serial_read_f,
-    s3c24xx_serial_read_f,
-    s3c24xx_serial_read_f,
+static const MemoryRegionOps s3c24xx_serial_ops = {
+    .read = s3c24xx_serial_read,
+    .write = s3c24xx_serial_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
-
-static CPUWriteMemoryFunc * const s3c24xx_serial_write[] = {
-    s3c24xx_serial_write_f,
-    s3c24xx_serial_write_f,
-    s3c24xx_serial_write_f,
-};
-
 
 static void s3c24xx_serial_event(void *opaque, int event)
 {
@@ -243,10 +242,7 @@ s3c24xx_serial_init(S3CState *soc,
                     int irqn)
 {
     /* Initialise a serial port at the given port address */
-    s3c24xx_serial_dev *s;
-    int serial_io;
-
-    s = g_malloc0(sizeof(s3c24xx_serial_dev));
+    s3c24xx_serial_dev *s = g_new0(s3c24xx_serial_dev, 1);
 
     /* initialise serial port context */
     s->rx_irq = s3c24xx_get_irq(soc->irq, irqn);
@@ -255,12 +251,10 @@ s3c24xx_serial_init(S3CState *soc,
     s->tx_irq = s3c24xx_get_irq(soc->irq, irqn + 1);
     s->tx_level = s3c24xx_get_irq(soc->irq, irqn + 1 + 64);
 
-    /* Prepare our MMIO tag */
-    serial_io = cpu_register_io_memory(s3c24xx_serial_read,
-                                       s3c24xx_serial_write,
-                                       s, DEVICE_NATIVE_ENDIAN);
-    /* Register the region with the tag */
-    cpu_register_physical_memory(base_addr, 44, serial_io);
+    /* Register the MMIO region. */
+    memory_region_init_io(&s->mmio, &s3c24xx_serial_ops, s,
+                          "s3c24xx.serial", 44);
+    memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
 
     if (chr) {
         /* If the port is present add to the character device's IO handlers. */

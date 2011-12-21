@@ -15,6 +15,11 @@
 
 /* This structure type encapsulates the state of a S3C24XX SoC. */
 typedef struct S3CState_s {
+    MemoryRegion sdram0;
+    MemoryRegion sdram1;
+    MemoryRegion sdram2;
+    MemoryRegion sram;
+
     CPUState *cpu_env;
 
     /* Memory controller state */

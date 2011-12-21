@@ -9,6 +9,7 @@
  */
 
 #include "hw.h"
+#include "exec-memory.h"        /* get_system_memory */
 
 #include "s3c24xx.h"
 
@@ -35,15 +36,16 @@
 
 /* Clock controller state */
 struct s3c24xx_clkcon_state_s {
+    MemoryRegion mmio;
     CPUState *cpu_env;
     uint32_t ref_freq; /* frequency of reference xtal or extclock */
     uint32_t clkcon_reg[7];
 };
 
-static void
-s3c24xx_clkcon_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
+static void s3c24xx_clkcon_write(void *opaque, target_phys_addr_t addr_,
+                                 uint64_t value, unsigned size)
 {
-    struct s3c24xx_clkcon_state_s *s = (struct s3c24xx_clkcon_state_s *)opaque;
+    struct s3c24xx_clkcon_state_s *s = opaque;
     unsigned addr = (addr_ & 0x1F) >> 2;
     int idle_rising_edge = 0;
 
@@ -62,10 +64,10 @@ s3c24xx_clkcon_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
     }
 }
 
-static uint32_t
-s3c24xx_clkcon_read_f(void *opaque, target_phys_addr_t addr_)
+static uint64_t s3c24xx_clkcon_read(void *opaque, target_phys_addr_t addr_,
+                                    unsigned size)
 {
-    struct s3c24xx_clkcon_state_s *s = (struct s3c24xx_clkcon_state_s *)opaque;
+    struct s3c24xx_clkcon_state_s *s = opaque;
     unsigned addr = (addr_ & 0x1F) >> 2;
 
     assert(addr < ARRAY_SIZE(s->clkcon_reg));
@@ -73,16 +75,14 @@ s3c24xx_clkcon_read_f(void *opaque, target_phys_addr_t addr_)
     return s->clkcon_reg[addr];
 }
 
-static CPUReadMemoryFunc * const s3c24xx_clkcon_read[] = {
-    s3c24xx_clkcon_read_f,
-    s3c24xx_clkcon_read_f,
-    s3c24xx_clkcon_read_f,
-};
-
-static CPUWriteMemoryFunc * const s3c24xx_clkcon_write[] = {
-    s3c24xx_clkcon_write_f,
-    s3c24xx_clkcon_write_f,
-    s3c24xx_clkcon_write_f,
+static const MemoryRegionOps s3c24xx_clkcon_ops = {
+    .read = s3c24xx_clkcon_read,
+    .write = s3c24xx_clkcon_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void s3c24xx_clkcon_save(QEMUFile *f, void *opaque)
@@ -97,7 +97,7 @@ static void s3c24xx_clkcon_save(QEMUFile *f, void *opaque)
 
 static int s3c24xx_clkcon_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct s3c24xx_clkcon_state_s *s = (struct s3c24xx_clkcon_state_s *)opaque;
+    struct s3c24xx_clkcon_state_s *s = opaque;
     int i;
 
     for (i = 0; i < ARRAY_SIZE(s->clkcon_reg); i ++) {
@@ -110,14 +110,11 @@ static int s3c24xx_clkcon_load(QEMUFile *f, void *opaque, int version_id)
 struct s3c24xx_clkcon_state_s *
 s3c24xx_clkcon_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t ref_freq)
 {
-    int tag;
-    struct s3c24xx_clkcon_state_s *s;
+    struct s3c24xx_clkcon_state_s *s = g_new0(struct s3c24xx_clkcon_state_s, 1);
 
-    s = g_malloc0(sizeof(struct s3c24xx_clkcon_state_s));
-
-    tag = cpu_register_io_memory(s3c24xx_clkcon_read, s3c24xx_clkcon_write, s,
-                                 DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base_addr, ARRAY_SIZE(s->clkcon_reg) * 4, tag);
+    memory_region_init_io(&s->mmio, &s3c24xx_clkcon_ops, s,
+                          "s3c24xx.clkcon", ARRAY_SIZE(s->clkcon_reg) * 4);
+    memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
     register_savevm(NULL, "s3c24xx_clkcon", 0, 0, s3c24xx_clkcon_save, s3c24xx_clkcon_load, s);
 
     s->cpu_env = soc->cpu_env;

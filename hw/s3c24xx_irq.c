@@ -9,6 +9,7 @@
  */
 
 #include "hw.h"
+#include "exec-memory.h"        /* get_system_memory */
 
 #include "s3c24xx.h"
 
@@ -31,6 +32,7 @@
 
 /* Interrupt controller state */
 struct s3c24xx_irq_state_s {
+    MemoryRegion mmio;
     CPUState *cpu_env;
 
     qemu_irq *irqs;
@@ -106,10 +108,10 @@ s3c24xx_percolate_subsrc_interrupt(struct s3c24xx_irq_state_s *s)
     s3c24xx_percolate_interrupt(s);
 }
 
-static void
-s3c24xx_irq_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
+static void s3c24xx_irq_write(void *opaque, target_phys_addr_t addr_,
+                              uint64_t value, unsigned size)
 {
-    struct s3c24xx_irq_state_s *s = (struct s3c24xx_irq_state_s *)opaque;
+    struct s3c24xx_irq_state_s *s = opaque;
     int addr = (addr_ >> 2) & 7;
 
     if (addr == S3C_IRQ_SRCPND ||
@@ -124,26 +126,23 @@ s3c24xx_irq_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
     s3c24xx_percolate_subsrc_interrupt(s);
 }
 
-static uint32_t
-s3c24xx_irq_read_f(void *opaque, target_phys_addr_t addr_)
+static uint64_t s3c24xx_irq_read(void *opaque, target_phys_addr_t addr_,
+                                 unsigned size)
 {
-    struct s3c24xx_irq_state_s *s = (struct s3c24xx_irq_state_s *)opaque;
+    struct s3c24xx_irq_state_s *s = opaque;
     int addr = (addr_ >> 2) & 0x7;
 
     return s->irq_reg[addr];
 }
 
-
-static CPUReadMemoryFunc * const s3c24xx_irq_read[] = {
-    s3c24xx_irq_read_f,
-    s3c24xx_irq_read_f,
-    s3c24xx_irq_read_f,
-};
-
-static CPUWriteMemoryFunc * const s3c24xx_irq_write[] = {
-    s3c24xx_irq_write_f,
-    s3c24xx_irq_write_f,
-    s3c24xx_irq_write_f,
+static const MemoryRegionOps s3c24xx_irq_ops = {
+    .read = s3c24xx_irq_read,
+    .write = s3c24xx_irq_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void
@@ -177,7 +176,7 @@ s3c24xx_irq_set_subsrc_interrupt_level(struct s3c24xx_irq_state_s *s, int irq_nu
 static void
 s3c24xx_irq_handler(void *opaque, int _n, int level)
 {
-    struct s3c24xx_irq_state_s *s = (struct s3c24xx_irq_state_s *)opaque;
+    struct s3c24xx_irq_state_s *s = opaque;
     int irq_num = _n % 32;
     int is_subsrc = (_n & 32)?1:0;
     int is_level = (_n & 64)?1:0;
@@ -190,7 +189,7 @@ s3c24xx_irq_handler(void *opaque, int _n, int level)
 
 static void s3c24xx_irq_save(QEMUFile *f, void *opaque)
 {
-    struct s3c24xx_irq_state_s *s = (struct s3c24xx_irq_state_s *)opaque;
+    struct s3c24xx_irq_state_s *s = opaque;
     int i;
 
     for (i = 0; i < 8; i ++)
@@ -199,7 +198,7 @@ static void s3c24xx_irq_save(QEMUFile *f, void *opaque)
 
 static int s3c24xx_irq_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct s3c24xx_irq_state_s *s = (struct s3c24xx_irq_state_s *)opaque;
+    struct s3c24xx_irq_state_s *s = opaque;
     int i;
 
     for (i = 0; i < 8; i ++)
@@ -211,15 +210,12 @@ static int s3c24xx_irq_load(QEMUFile *f, void *opaque, int version_id)
 struct s3c24xx_irq_state_s *
 s3c24xx_irq_init(S3CState *soc, target_phys_addr_t base_addr)
 {
-    struct s3c24xx_irq_state_s * s;
-    int tag;
-
-    s = g_malloc0(sizeof(struct s3c24xx_irq_state_s));
+    struct s3c24xx_irq_state_s *s = g_new0(struct s3c24xx_irq_state_s, 1);
 
     /* Samsung S3C24XX IRQ registration. */
-    tag = cpu_register_io_memory(s3c24xx_irq_read, s3c24xx_irq_write, s,
-                                 DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base_addr, 8 * 4, tag);
+    memory_region_init_io(&s->mmio, &s3c24xx_irq_ops, s,
+                          "s3c24xx.irq", 8 * 4);
+    memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
     register_savevm(NULL, "s3c24xx_irq", 0, 0, s3c24xx_irq_save, s3c24xx_irq_load, s);
 
     s->cpu_env = soc->cpu_env;

@@ -10,6 +10,7 @@
  */
 
 #include "hw.h"
+#include "exec-memory.h"        /* get_system_memory */
 #include "i2c.h"
 
 #include "s3c24xx.h"
@@ -53,6 +54,7 @@
 
 /* IIC-bus serial interface */
 struct s3c24xx_i2c_state_s {
+    MemoryRegion mmio;
     i2c_bus *bus;
     qemu_irq irq;
 
@@ -84,7 +86,7 @@ static void s3c24xx_i2c_reset(struct s3c24xx_i2c_state_s *s)
 
 static void s3c_master_work(void *opaque)
 {
-    struct s3c24xx_i2c_state_s *s = (struct s3c24xx_i2c_state_s *) opaque;
+    struct s3c24xx_i2c_state_s *s = opaque;
     int start = 0, stop = 0, ack = 1;
 
     if (s->control & (1 << 4))				/* Interrupt pending */
@@ -130,9 +132,10 @@ static void s3c_master_work(void *opaque)
     s3c24xx_i2c_irq(s);
 }
 
-static uint32_t s3c24xx_i2c_read(void *opaque, target_phys_addr_t addr)
+static uint64_t s3c24xx_i2c_read(void *opaque, target_phys_addr_t addr,
+                                 unsigned size)
 {
-    struct s3c24xx_i2c_state_s *s = (struct s3c24xx_i2c_state_s *) opaque;
+    struct s3c24xx_i2c_state_s *s = opaque;
 
     switch (addr) {
     case S3C_IICCON:
@@ -155,9 +158,9 @@ static uint32_t s3c24xx_i2c_read(void *opaque, target_phys_addr_t addr)
 }
 
 static void s3c24xx_i2c_write(void *opaque, target_phys_addr_t addr,
-                              uint32_t value)
+                              uint64_t value, unsigned size)
 {
-    struct s3c24xx_i2c_state_s *s = (struct s3c24xx_i2c_state_s *) opaque;
+    struct s3c24xx_i2c_state_s *s = opaque;
 
     switch (addr) {
     case S3C_IICCON:
@@ -189,21 +192,19 @@ static void s3c24xx_i2c_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static CPUReadMemoryFunc * const s3c24xx_i2c_readfn[] = {
-    s3c24xx_i2c_read,
-    s3c24xx_i2c_read,
-    s3c24xx_i2c_read
-};
-
-static CPUWriteMemoryFunc * const s3c24xx_i2c_writefn[] = {
-    s3c24xx_i2c_write,
-    s3c24xx_i2c_write,
-    s3c24xx_i2c_write
+static const MemoryRegionOps s3c24xx_i2c_ops = {
+    .read = s3c24xx_i2c_read,
+    .write = s3c24xx_i2c_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void s3c24xx_i2c_save(QEMUFile *f, void *opaque)
 {
-    struct s3c24xx_i2c_state_s *s = (struct s3c24xx_i2c_state_s *) opaque;
+    struct s3c24xx_i2c_state_s *s = opaque;
     qemu_put_8s(f, &s->control);
     qemu_put_8s(f, &s->status);
     qemu_put_8s(f, &s->data);
@@ -216,7 +217,7 @@ static void s3c24xx_i2c_save(QEMUFile *f, void *opaque)
 
 static int s3c24xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct s3c24xx_i2c_state_s *s = (struct s3c24xx_i2c_state_s *) opaque;
+    struct s3c24xx_i2c_state_s *s = opaque;
     qemu_get_8s(f, &s->control);
     qemu_get_8s(f, &s->status);
     qemu_get_8s(f, &s->data);
@@ -229,22 +230,21 @@ static int s3c24xx_i2c_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 
-struct s3c24xx_i2c_state_s *
-s3c24xx_iic_init(qemu_irq irq, target_phys_addr_t base_addr)
+struct s3c24xx_i2c_state_s *s3c24xx_iic_init(qemu_irq irq,
+                                             target_phys_addr_t base_addr)
 {
-    int tag;
-    struct s3c24xx_i2c_state_s *s;
-
-    s = g_malloc0(sizeof(struct s3c24xx_i2c_state_s));
+    MemoryRegion *system_memory = get_system_memory();
+    struct s3c24xx_i2c_state_s *s = g_malloc0(sizeof(struct s3c24xx_i2c_state_s));
 
     s->irq = irq;
     s->bus = i2c_init_bus(NULL, "i2c");
 
     s3c24xx_i2c_reset(s);
 
-    tag = cpu_register_io_memory(s3c24xx_i2c_readfn, s3c24xx_i2c_writefn,
-                                 s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base_addr, 0xffffff, tag);
+    memory_region_init_io(&s->mmio, &s3c24xx_i2c_ops, s, "s3c24xx-i2c",
+                          0x1000000);
+    memory_region_add_subregion(system_memory, base_addr, &s->mmio);
+
     register_savevm(NULL, "s3c24xx_i2c", 0, 0, s3c24xx_i2c_save, s3c24xx_i2c_load, s);
 
     return s;

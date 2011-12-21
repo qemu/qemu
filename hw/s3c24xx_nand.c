@@ -9,6 +9,7 @@
  */
 
 #include "hw.h"
+#include "exec-memory.h"        /* get_system_memory */
 
 #include "s3c24xx.h"
 
@@ -22,17 +23,17 @@
 #define NFCE ((s->nand_reg[NFCONF] & 1<<11) != 0)
 
 /* NAND controller state */
-struct s3c24xx_nand_state_s {
+typedef struct s3c24xx_nand_state_s {
+    MemoryRegion mmio;
     uint32_t nand_reg[13];
 
     DeviceState *nand;
-};
+} S3C24xxNandState;
 
-static void
-s3c24xx_nand_write_f(void *opaque, target_phys_addr_t addr,
-                     uint32_t value)
+static void s3c24xx_nand_write(void *opaque, target_phys_addr_t addr,
+                               uint64_t value, unsigned size)
 {
-    struct s3c24xx_nand_state_s *s = (struct s3c24xx_nand_state_s *)opaque;
+    S3C24xxNandState *s = opaque;
     int reg = (addr & 0x1f) >> 2;
 
     if ((reg != NFCONF) && ((s->nand_reg[NFCONF] & 1<<15) == 0)) {
@@ -76,30 +77,28 @@ s3c24xx_nand_write_f(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static uint32_t
-s3c24xx_nand_read_f(void *opaque, target_phys_addr_t addr)
+static uint64_t s3c24xx_nand_read(void *opaque, target_phys_addr_t addr,
+                                  unsigned size)
 {
-    struct s3c24xx_nand_state_s *s = (struct s3c24xx_nand_state_s *)opaque;
+    S3C24xxNandState *s = opaque;
     int reg = (addr & 0x1f) >> 2;
+    int value = 0;
     uint32_t ret = s->nand_reg[reg];
 
     switch (reg) {
     case NFDATA:
         if (s->nand != NULL) {
             nand_setpins(s->nand, 0, 0, NFCE, 1, 0);
-            ret = s->nand_reg[reg] = nand_getio(s->nand);
-        } else {
-            ret = s->nand_reg[ret] = 0;
+            value = nand_getio(s->nand);
         }
+        ret = s->nand_reg[ret] = value;
         break;
 
     case NFSTAT:
         if (s->nand != NULL) {
-            nand_getpins(s->nand, (int *)&ret);
-            s->nand_reg[reg] = ret;
-        } else {
-            ret = s->nand_reg[ret] = 0;
+            nand_getpins(s->nand, &value);
         }
+        ret = s->nand_reg[reg] = value;
 
     default:
         /* The rest read-back what was written to them */
@@ -109,35 +108,28 @@ s3c24xx_nand_read_f(void *opaque, target_phys_addr_t addr)
     return ret;
 }
 
-static CPUReadMemoryFunc * const s3c24xx_nand_read[] = {
-    s3c24xx_nand_read_f,
-    s3c24xx_nand_read_f,
-    s3c24xx_nand_read_f
+static const MemoryRegionOps s3c24xx_nand_ops = {
+    .read = s3c24xx_nand_read,
+    .write = s3c24xx_nand_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
-static CPUWriteMemoryFunc * const s3c24xx_nand_write[] = {
-    s3c24xx_nand_write_f,
-    s3c24xx_nand_write_f,
-    s3c24xx_nand_write_f
-};
-
-struct s3c24xx_nand_state_s *
-s3c24xx_nand_init(target_phys_addr_t base_addr)
+struct s3c24xx_nand_state_s *s3c24xx_nand_init(target_phys_addr_t base_addr)
 {
-    struct s3c24xx_nand_state_s *s;
-    int tag;
+    S3C24xxNandState *s = g_new0(S3C24xxNandState, 1);
 
-    s = g_malloc0(sizeof(struct s3c24xx_nand_state_s));
-
-    tag = cpu_register_io_memory(s3c24xx_nand_read, s3c24xx_nand_write,
-                                 s, DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base_addr, 0x40, tag);
+    memory_region_init_io(&s->mmio, &s3c24xx_nand_ops, s, "s3c24xx.nand", 0x40);
+    memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
 
     return s;
 }
 
 void
-s3c24xx_nand_attach(struct s3c24xx_nand_state_s *s, DeviceState *nand)
+s3c24xx_nand_attach(S3C24xxNandState *s, DeviceState *nand)
 {
     if (s->nand != NULL) {
         /* Detach current nand device */

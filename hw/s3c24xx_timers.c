@@ -9,6 +9,7 @@
  */
 
 #include "hw.h"
+#include "exec-memory.h"        /* get_system_memory */
 #include "qemu-timer.h"
 
 #include "s3c24xx.h"
@@ -71,6 +72,7 @@
 
 /* timer controller state */
 struct s3c24xx_timers_state_s {
+    MemoryRegion mmio;
     uint32_t tclk0; /* first timer clock source frequency */
     uint32_t tclk1; /* second timer clock source frequency */
 
@@ -109,10 +111,10 @@ s3c24xx_timer4_tick(void *opaque)
     }
 }
 
-static void
-s3c24xx_timers_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
+static void s3c24xx_timers_write_f(void *opaque, target_phys_addr_t addr_,
+                                   uint64_t value, unsigned size)
 {
-    struct s3c24xx_timers_state_s *s = (struct s3c24xx_timers_state_s *)opaque;
+    struct s3c24xx_timers_state_s *s = opaque;
     int addr = (addr_ >> 2) & 0x1f;
 
     s->timers_reg[addr] = value;
@@ -131,10 +133,10 @@ s3c24xx_timers_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
     }
 }
 
-static uint32_t
-s3c24xx_timers_read_f(void *opaque, target_phys_addr_t addr_)
+static uint64_t
+s3c24xx_timers_read_f(void *opaque, target_phys_addr_t addr_, unsigned size)
 {
-    struct s3c24xx_timers_state_s *s = (struct s3c24xx_timers_state_s *)opaque;
+    struct s3c24xx_timers_state_s *s = opaque;
     int addr = (addr_ >> 2) & 0x1f;
 
     if (addr == S3C_TIMERS_TCNTO4 ) {
@@ -144,17 +146,14 @@ s3c24xx_timers_read_f(void *opaque, target_phys_addr_t addr_)
     return s->timers_reg[addr];
 }
 
-
-static CPUReadMemoryFunc * const s3c24xx_timers_read[] = {
-    s3c24xx_timers_read_f,
-    s3c24xx_timers_read_f,
-    s3c24xx_timers_read_f,
-};
-
-static CPUWriteMemoryFunc * const s3c24xx_timers_write[] = {
-    s3c24xx_timers_write_f,
-    s3c24xx_timers_write_f,
-    s3c24xx_timers_write_f,
+static const MemoryRegionOps s3c24xx_timers_ops = {
+    .read = s3c24xx_timers_read_f,
+    .write = s3c24xx_timers_write_f,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void s3c24xx_timers_save(QEMUFile *f, void *opaque)
@@ -181,15 +180,16 @@ static int s3c24xx_timers_load(QEMUFile *f, void *opaque, int version_id)
 struct s3c24xx_timers_state_s *
 s3c24xx_timers_init(S3CState *soc, target_phys_addr_t base_addr, uint32_t tclk0, uint32_t tclk1)
 {
+    MemoryRegion *system_memory = get_system_memory();
     struct s3c24xx_timers_state_s *s;
-    int tag;
     int i;
 
     s = g_malloc0(sizeof(struct s3c24xx_timers_state_s));
 
-    tag = cpu_register_io_memory(s3c24xx_timers_read, s3c24xx_timers_write, s,
-                                 DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base_addr, 17 * 4, tag);
+    memory_region_init_io(&s->mmio, &s3c24xx_timers_ops, s, "s3c24xx-timers",
+                          17 * 4);
+    memory_region_add_subregion(system_memory, base_addr, &s->mmio);
+
     register_savevm(NULL, "s3c24xx_timers", 0, 0, s3c24xx_timers_save, s3c24xx_timers_load, s);
 
     s->tclk0 = tclk0;

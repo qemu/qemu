@@ -9,6 +9,7 @@
  */
 
 #include "hw.h"
+#include "exec-memory.h"        /* get_system_memory */
 
 #include "s3c24xx.h"
 
@@ -50,6 +51,7 @@
 
 /* Real Time clock state */
 struct s3c24xx_rtc_state_s {
+    MemoryRegion mmio;
     uint32_t rtc_reg[19];
 };
 
@@ -70,10 +72,10 @@ static void update_time(struct s3c24xx_rtc_state_s *s)
     s->rtc_reg[S3C_REG_BCDYEAR] =  to_bcd(tm->tm_year - 100);
 }
 
-static void
-s3c24xx_rtc_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
+static void s3c24xx_rtc_write(void *opaque, target_phys_addr_t addr_,
+                              uint64_t value, unsigned size)
 {
-    struct s3c24xx_rtc_state_s *s = (struct s3c24xx_rtc_state_s *)opaque;
+    struct s3c24xx_rtc_state_s *s = opaque;
     int addr = (addr_ - 0x40) >> 2;
     if (addr < 0 || addr > 18)
         addr = 18;
@@ -81,10 +83,10 @@ s3c24xx_rtc_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
     s->rtc_reg[addr] = value;
 }
 
-static uint32_t
-s3c24xx_rtc_read_f(void *opaque, target_phys_addr_t addr_)
+static uint64_t s3c24xx_rtc_read(void *opaque, target_phys_addr_t addr_,
+                                 unsigned size)
 {
-    struct s3c24xx_rtc_state_s *s = (struct s3c24xx_rtc_state_s *)opaque;
+    struct s3c24xx_rtc_state_s *s = opaque;
     int addr = (addr_ - 0x40) >> 2;
 
     if (addr < 0 || addr > 18)
@@ -95,34 +97,25 @@ s3c24xx_rtc_read_f(void *opaque, target_phys_addr_t addr_)
     return s->rtc_reg[addr];
 }
 
-static CPUReadMemoryFunc * const s3c24xx_rtc_read[] = {
-    s3c24xx_rtc_read_f,
-    s3c24xx_rtc_read_f,
-    s3c24xx_rtc_read_f
+static const MemoryRegionOps s3c24xx_rtc_ops = {
+    .read = s3c24xx_rtc_read,
+    .write = s3c24xx_rtc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
-static CPUWriteMemoryFunc * const s3c24xx_rtc_write[] = {
-    s3c24xx_rtc_write_f,
-    s3c24xx_rtc_write_f,
-    s3c24xx_rtc_write_f
-};
-
-
-struct s3c24xx_rtc_state_s *
-s3c24xx_rtc_init(target_phys_addr_t base_addr)
+struct s3c24xx_rtc_state_s *s3c24xx_rtc_init(target_phys_addr_t base_addr)
 {
-    int tag;
-    struct s3c24xx_rtc_state_s *s;
-
-    s = g_malloc0(sizeof(struct s3c24xx_rtc_state_s));
-
-    tag = cpu_register_io_memory(s3c24xx_rtc_read, s3c24xx_rtc_write,
-                                 s, DEVICE_NATIVE_ENDIAN);
+    struct s3c24xx_rtc_state_s *s = g_new0(struct s3c24xx_rtc_state_s, 1);
 
     /* there are only 19 real registers but they start at offset 0x40 into the
      * range so we have 35 registers mapped
      */
-    cpu_register_physical_memory(base_addr, 35 * 4, tag);
+    memory_region_init_io(&s->mmio, &s3c24xx_rtc_ops, s, "s3c24xx.rtc", 35 * 4);
+    memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
 
     /* set the RTC so it appears active */
     s->rtc_reg[S3C_REG_RTCCON] = 1;

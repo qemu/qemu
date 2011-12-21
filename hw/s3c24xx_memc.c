@@ -12,18 +12,20 @@
  */
 
 #include "hw.h"
+#include "exec-memory.h"        /* get_system_memory */
 
 #include "s3c24xx.h"
 
 /* Memory controller state */
 struct s3c24xx_memc_state_s {
+    MemoryRegion mmio;
     uint32_t memc_reg[13];
 };
 
-static void
-s3c24xx_memc_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
+static void s3c24xx_memc_write(void *opaque, target_phys_addr_t addr_,
+                               uint64_t value, unsigned size)
 {
-    struct s3c24xx_memc_state_s *s = (struct s3c24xx_memc_state_s *)opaque;
+    struct s3c24xx_memc_state_s *s = opaque;
     int addr = (addr_ & 0x3f) >> 2;
 
     if (addr < 0 || addr > 12)
@@ -32,10 +34,10 @@ s3c24xx_memc_write_f(void *opaque, target_phys_addr_t addr_, uint32_t value)
     s->memc_reg[addr] = value;
 }
 
-static uint32_t
-s3c24xx_memc_read_f(void *opaque, target_phys_addr_t addr_)
+static uint64_t s3c24xx_memc_read(void *opaque, target_phys_addr_t addr_,
+                                  unsigned size)
 {
-    struct s3c24xx_memc_state_s *s = (struct s3c24xx_memc_state_s *)opaque;
+    struct s3c24xx_memc_state_s *s = opaque;
     int addr = (addr_ & 0x3f) >> 2;
 
     if (addr < 0 || addr > 12)
@@ -44,21 +46,19 @@ s3c24xx_memc_read_f(void *opaque, target_phys_addr_t addr_)
     return s->memc_reg[addr];
 }
 
-static CPUReadMemoryFunc * const s3c24xx_memc_read[] = {
-    s3c24xx_memc_read_f,
-    s3c24xx_memc_read_f,
-    s3c24xx_memc_read_f,
-};
-
-static CPUWriteMemoryFunc * const s3c24xx_memc_write[] = {
-    s3c24xx_memc_write_f,
-    s3c24xx_memc_write_f,
-    s3c24xx_memc_write_f,
+static const MemoryRegionOps s3c24xx_memc_ops = {
+    .read = s3c24xx_memc_read,
+    .write = s3c24xx_memc_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 4,
+        .max_access_size = 4
+    }
 };
 
 static void s3c24xx_memc_save(QEMUFile *f, void *opaque)
 {
-    struct s3c24xx_memc_state_s *s = (struct s3c24xx_memc_state_s *)opaque;
+    struct s3c24xx_memc_state_s *s = opaque;
     int i;
 
     for (i = 0; i < 13; i ++)
@@ -67,7 +67,7 @@ static void s3c24xx_memc_save(QEMUFile *f, void *opaque)
 
 static int s3c24xx_memc_load(QEMUFile *f, void *opaque, int version_id)
 {
-    struct s3c24xx_memc_state_s *s = (struct s3c24xx_memc_state_s *)opaque;
+    struct s3c24xx_memc_state_s *s = opaque;
     int i;
 
     for (i = 0; i < 13; i ++)
@@ -85,12 +85,11 @@ s3c24xx_memc_init(target_phys_addr_t base_addr)
      *
      * There are 13 registers, each 4 bytes.
      */
-    struct s3c24xx_memc_state_s *s = g_malloc0(sizeof(struct s3c24xx_memc_state_s));
+    struct s3c24xx_memc_state_s *s = g_new0(struct s3c24xx_memc_state_s, 1);
 
-    int tag;
-    tag = cpu_register_io_memory(s3c24xx_memc_read, s3c24xx_memc_write, s,
-                                 DEVICE_NATIVE_ENDIAN);
-    cpu_register_physical_memory(base_addr, 13 * 4, tag);
+    memory_region_init_io(&s->mmio, &s3c24xx_memc_ops, s,
+                          "s3c24xx.memc", 13 * 4);
+    memory_region_add_subregion(get_system_memory(), base_addr, &s->mmio);
     register_savevm(NULL, "s3c24xx_memc", 0, 0, s3c24xx_memc_save, s3c24xx_memc_load, s);
 
     return s;
