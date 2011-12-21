@@ -117,24 +117,22 @@ static int ram_save_block(QEMUFile *f)
 {
     RAMBlock *block = last_block;
     ram_addr_t offset = last_offset;
-    ram_addr_t current_addr;
     int bytes_sent = 0;
+    MemoryRegion *mr;
 
     if (!block)
         block = QLIST_FIRST(&ram_list.blocks);
 
-    current_addr = block->offset + offset;
-
     do {
-        if (cpu_physical_memory_get_dirty(current_addr, MIGRATION_DIRTY_FLAG)) {
+        mr = block->mr;
+        if (memory_region_get_dirty(mr, offset, DIRTY_MEMORY_MIGRATION)) {
             uint8_t *p;
             int cont = (block == last_block) ? RAM_SAVE_FLAG_CONTINUE : 0;
 
-            cpu_physical_memory_reset_dirty(current_addr,
-                                            current_addr + TARGET_PAGE_SIZE,
-                                            MIGRATION_DIRTY_FLAG);
+            memory_region_reset_dirty(mr, offset, TARGET_PAGE_SIZE,
+                                      DIRTY_MEMORY_MIGRATION);
 
-            p = block->host + offset;
+            p = memory_region_get_ram_ptr(mr) + offset;
 
             if (is_dup_page(p, *p)) {
                 qemu_put_be64(f, offset | cont | RAM_SAVE_FLAG_COMPRESS);
@@ -166,10 +164,7 @@ static int ram_save_block(QEMUFile *f)
             if (!block)
                 block = QLIST_FIRST(&ram_list.blocks);
         }
-
-        current_addr = block->offset + offset;
-
-    } while (current_addr != last_block->offset + last_offset);
+    } while (block != last_block || offset != last_offset);
 
     last_block = block;
     last_offset = offset;
@@ -186,9 +181,9 @@ static ram_addr_t ram_save_remaining(void)
 
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         ram_addr_t addr;
-        for (addr = block->offset; addr < block->offset + block->length;
-             addr += TARGET_PAGE_SIZE) {
-            if (cpu_physical_memory_get_dirty(addr, MIGRATION_DIRTY_FLAG)) {
+        for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
+            if (memory_region_get_dirty(block->mr, addr,
+                                        DIRTY_MEMORY_MIGRATION)) {
                 count++;
             }
         }
@@ -275,11 +270,10 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
 
         /* Make sure all dirty bits are set */
         QLIST_FOREACH(block, &ram_list.blocks, next) {
-            for (addr = block->offset; addr < block->offset + block->length;
-                 addr += TARGET_PAGE_SIZE) {
-                if (!cpu_physical_memory_get_dirty(addr,
-                                                   MIGRATION_DIRTY_FLAG)) {
-                    cpu_physical_memory_set_dirty(addr);
+            for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
+                if (!memory_region_get_dirty(block->mr, addr,
+                                             DIRTY_MEMORY_MIGRATION)) {
+                    memory_region_set_dirty(block->mr, addr);
                 }
             }
         }
