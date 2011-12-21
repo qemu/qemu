@@ -517,7 +517,7 @@ static int usb_msd_initfn(USBDevice *dev)
     DriveInfo *dinfo;
 
     if (!bs) {
-        error_report("usb-msd: drive property not set");
+        error_report("drive property not set");
         return -1;
     }
 
