@@ -120,9 +120,6 @@ static int virtconsole_initfn(VirtIOSerialPort *port)
     if (vcon->chr) {
         qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read, chr_event,
                               vcon);
-        info->have_data = flush_buf;
-        info->guest_open = guest_open;
-        info->guest_close = guest_close;
     }
 
     return 0;
@@ -149,6 +146,9 @@ static VirtIOSerialPortInfo virtconsole_info = {
     .is_console    = true,
     .init          = virtconsole_initfn,
     .exit          = virtconsole_exitfn,
+    .have_data     = flush_buf,
+    .guest_open    = guest_open,
+    .guest_close   = guest_close,
     .qdev.props = (Property[]) {
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
         DEFINE_PROP_END_OF_LIST(),
@@ -166,6 +166,9 @@ static VirtIOSerialPortInfo virtserialport_info = {
     .qdev.size     = sizeof(VirtConsole),
     .init          = virtconsole_initfn,
     .exit          = virtconsole_exitfn,
+    .have_data     = flush_buf,
+    .guest_open    = guest_open,
+    .guest_close   = guest_close,
     .qdev.props = (Property[]) {
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
         DEFINE_PROP_END_OF_LIST(),
