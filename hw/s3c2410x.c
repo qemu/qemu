@@ -10,6 +10,7 @@
 
 #include "sysbus.h"
 #include "sysemu.h"
+#include "exec-memory.h"        /* get_system_memory */
 
 #include "s3c2410x.h"
 
@@ -256,29 +257,28 @@ S3CState *
 s3c2410x_init(int sdram_size)
 {
     DeviceState *dev;
-    ram_addr_t offset;
-    S3CState *s = g_malloc0(sizeof(S3CState));
+    MemoryRegion *sysmem = get_system_memory();
+    S3CState *s = g_new0(S3CState, 1);
 
     /* Prepare the ARM 920T core */
     s->cpu_env = cpu_init("arm920t");
 
-    /* S3C2410X SDRAM memory is always at the same physical location */
-    offset = qemu_ram_alloc(NULL, "s3c2410x.sdram", sdram_size);
-    cpu_register_physical_memory(CPU_S3C2410X_DRAM,
-                                 ram_size,
-                                 offset | IO_MEM_RAM);
-    cpu_register_physical_memory(CPU_S3C2410X_DRAM + 0x80000000,
-                                 ram_size,
-                                 offset | IO_MEM_RAM);
-    cpu_register_physical_memory(CPU_S3C2410X_DRAM + 0x90000000,
-                                 ram_size,
-                                 offset | IO_MEM_RAM);
+    /* S3C2410X SDRAM memory is always at the same physical location. */
+    memory_region_init_ram(&s->sdram0, NULL, "s3c2410x.sdram0", sdram_size);
+    memory_region_init_alias(&s->sdram1, "s3c2410x.sdram1",
+                             &s->sdram0, 0, sdram_size);
+    memory_region_init_alias(&s->sdram2, "s3c2410x.sdram2",
+                             &s->sdram0, 0, sdram_size);
+    memory_region_add_subregion(sysmem, CPU_S3C2410X_DRAM, &s->sdram0);
+    memory_region_add_subregion(sysmem,
+                                CPU_S3C2410X_DRAM + 0x80000000, &s->sdram1);
+    memory_region_add_subregion(sysmem,
+                                CPU_S3C2410X_DRAM + 0x90000000, &s->sdram2);
 
     /* S3C2410X SRAM */
-    offset = qemu_ram_alloc(NULL, "s3c2410x.sram", CPU_S3C2410X_SRAM_SIZE);
-    cpu_register_physical_memory(CPU_S3C2410X_SRAM_BASE,
-                                 CPU_S3C2410X_SRAM_SIZE,
-                                 offset | IO_MEM_RAM);
+    memory_region_init_ram(&s->sram, NULL, "s3c2410x.sram",
+                           CPU_S3C2410X_SRAM_SIZE);
+    memory_region_add_subregion(sysmem, CPU_S3C2410X_SRAM_BASE, &s->sram);
 
     /* SDRAM memory controller */
     s->memc = s3c24xx_memc_init(CPU_S3C2410X_MEMC_BASE);
