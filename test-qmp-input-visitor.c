@@ -38,8 +38,9 @@ static void visitor_input_teardown(TestInputVisitorData *data,
 /* This is provided instead of a test setup function so that the JSON
    string used by the tests are kept in the test functions (and not
    int main()) */
-static Visitor *visitor_input_test_init(TestInputVisitorData *data,
-                                        const char *json_string, ...)
+static GCC_FMT_ATTR(2, 3)
+Visitor * visitor_input_test_init(TestInputVisitorData *data,
+                                  const char *json_string, ...)
 {
     Visitor *v;
     va_list ap;
@@ -66,7 +67,7 @@ static void test_visitor_in_int(TestInputVisitorData *data,
     Error *errp = NULL;
     Visitor *v;
 
-    v = visitor_input_test_init(data, "%d", value);
+    v = visitor_input_test_init(data, "%" PRId64, value);
 
     visit_type_int(v, &res, NULL, &errp);
     g_assert(!error_is_set(&errp));
