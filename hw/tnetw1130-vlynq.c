@@ -129,7 +129,8 @@ static void tnetw1130_mem_map(VLYNQDevice *vlynq_dev, int region_num,
     assert((unsigned)region_num < TNETW1130_REGIONS);
     s->region[region_num] = addr;
 
-    cpu_register_physical_memory(addr, size, s->io_memory[region_num]);
+    logout("vlynq i/o is missing\n");
+    // TODO: map memory (addr, size, s->io_memory[region_num]).
 }
 
 static int vlynq_tnetw1130_init(VLYNQDevice* vlynq_dev)
