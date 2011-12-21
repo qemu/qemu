@@ -1293,17 +1293,18 @@ out_nofid:
     complete_pdu(s, pdu, retval);
 }
 
-/* From Linux kernel code */
-#define ATTR_MODE    (1 << 0)
-#define ATTR_UID     (1 << 1)
-#define ATTR_GID     (1 << 2)
-#define ATTR_SIZE    (1 << 3)
-#define ATTR_ATIME   (1 << 4)
-#define ATTR_MTIME   (1 << 5)
-#define ATTR_CTIME   (1 << 6)
-#define ATTR_MASK    127
-#define ATTR_ATIME_SET  (1 << 7)
-#define ATTR_MTIME_SET  (1 << 8)
+/* Attribute flags */
+#define P9_ATTR_MODE       (1 << 0)
+#define P9_ATTR_UID        (1 << 1)
+#define P9_ATTR_GID        (1 << 2)
+#define P9_ATTR_SIZE       (1 << 3)
+#define P9_ATTR_ATIME      (1 << 4)
+#define P9_ATTR_MTIME      (1 << 5)
+#define P9_ATTR_CTIME      (1 << 6)
+#define P9_ATTR_ATIME_SET  (1 << 7)
+#define P9_ATTR_MTIME_SET  (1 << 8)
+
+#define P9_ATTR_MASK    127
 
 static void v9fs_setattr(void *opaque)
 {
@@ -1322,16 +1323,16 @@ static void v9fs_setattr(void *opaque)
         err = -EINVAL;
         goto out_nofid;
     }
-    if (v9iattr.valid & ATTR_MODE) {
+    if (v9iattr.valid & P9_ATTR_MODE) {
         err = v9fs_co_chmod(pdu, &fidp->path, v9iattr.mode);
         if (err < 0) {
             goto out;
         }
     }
-    if (v9iattr.valid & (ATTR_ATIME | ATTR_MTIME)) {
+    if (v9iattr.valid & (P9_ATTR_ATIME | P9_ATTR_MTIME)) {
         struct timespec times[2];
-        if (v9iattr.valid & ATTR_ATIME) {
-            if (v9iattr.valid & ATTR_ATIME_SET) {
+        if (v9iattr.valid & P9_ATTR_ATIME) {
+            if (v9iattr.valid & P9_ATTR_ATIME_SET) {
                 times[0].tv_sec = v9iattr.atime_sec;
                 times[0].tv_nsec = v9iattr.atime_nsec;
             } else {
@@ -1340,8 +1341,8 @@ static void v9fs_setattr(void *opaque)
         } else {
             times[0].tv_nsec = UTIME_OMIT;
         }
-        if (v9iattr.valid & ATTR_MTIME) {
-            if (v9iattr.valid & ATTR_MTIME_SET) {
+        if (v9iattr.valid & P9_ATTR_MTIME) {
+            if (v9iattr.valid & P9_ATTR_MTIME_SET) {
                 times[1].tv_sec = v9iattr.mtime_sec;
                 times[1].tv_nsec = v9iattr.mtime_nsec;
             } else {
@@ -1359,13 +1360,13 @@ static void v9fs_setattr(void *opaque)
      * If the only valid entry in iattr is ctime we can call
      * chown(-1,-1) to update the ctime of the file
      */
-    if ((v9iattr.valid & (ATTR_UID | ATTR_GID)) ||
-        ((v9iattr.valid & ATTR_CTIME)
-         && !((v9iattr.valid & ATTR_MASK) & ~ATTR_CTIME))) {
-        if (!(v9iattr.valid & ATTR_UID)) {
+    if ((v9iattr.valid & (P9_ATTR_UID | P9_ATTR_GID)) ||
+        ((v9iattr.valid & P9_ATTR_CTIME)
+         && !((v9iattr.valid & P9_ATTR_MASK) & ~P9_ATTR_CTIME))) {
+        if (!(v9iattr.valid & P9_ATTR_UID)) {
             v9iattr.uid = -1;
         }
-        if (!(v9iattr.valid & ATTR_GID)) {
+        if (!(v9iattr.valid & P9_ATTR_GID)) {
             v9iattr.gid = -1;
         }
         err = v9fs_co_chown(pdu, &fidp->path, v9iattr.uid,
@@ -1374,7 +1375,7 @@ static void v9fs_setattr(void *opaque)
             goto out;
         }
     }
-    if (v9iattr.valid & (ATTR_SIZE)) {
+    if (v9iattr.valid & (P9_ATTR_SIZE)) {
         err = v9fs_co_truncate(pdu, &fidp->path, v9iattr.size);
         if (err < 0) {
             goto out;
