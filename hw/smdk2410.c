@@ -9,6 +9,7 @@
  */
 
 #include "hw.h"
+#include "exec-memory.h"        /* get_system_memory */
 #include "blockdev.h"           /* drive_get */
 #include "sysemu.h"
 #include "arm-misc.h"
@@ -23,6 +24,7 @@
 #define BIOS_FILENAME "smdk2410.bin"
 
 typedef struct {
+    MemoryRegion flash;
     S3CState *soc;
     unsigned char cpld_ctrl2;
     DeviceState *nand[4];
@@ -46,7 +48,6 @@ static void smdk2410_init(ram_addr_t _ram_size,
                       const char *kernel_filename, const char *kernel_cmdline,
                       const char *initrd_filename, const char *cpu_model)
 {
-    ram_addr_t offset;
     DriveInfo *dinfo;
     SMDK2410State *stcb;
     int ret;
@@ -58,16 +59,17 @@ static void smdk2410_init(ram_addr_t _ram_size,
     ram_size = _ram_size;
 
     /* allocate storage for board state */
-    stcb = malloc(sizeof(SMDK2410State));
+    stcb = g_new0(SMDK2410State, 1);
 
     /* initialise CPU and memory */
     stcb->soc = s3c2410x_init(ram_size);
 
     /* Register the NOR flash ROM */
-    offset = qemu_ram_alloc(NULL, "smdk2410.flash", SMDK2410_NOR_SIZE);
-    cpu_register_physical_memory(SMDK2410_NOR_BASE,
-                                 SMDK2410_NOR_SIZE,
-                                 offset | IO_MEM_ROM);
+    memory_region_init_ram(&stcb->flash, NULL,
+                           "smdk2410.flash", SMDK2410_NOR_SIZE);
+    memory_region_set_readonly(&stcb->flash, true);
+    memory_region_add_subregion(get_system_memory(),
+                                SMDK2410_NOR_BASE, &stcb->flash);
 
     /* initialise board informations */
     smdk2410_binfo.ram_size = ram_size;
