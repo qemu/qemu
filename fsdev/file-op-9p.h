@@ -74,7 +74,7 @@ typedef struct FsContext
 } FsContext;
 
 typedef struct V9fsPath {
-    int16_t size;
+    uint16_t size;
     char *data;
 } V9fsPath;
 

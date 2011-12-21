@@ -1694,8 +1694,8 @@ out_nofid:
     complete_pdu(s, pdu, err);
 }
 
-static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu,
-                           V9fsFidState *fidp, int64_t off, int32_t max_count)
+static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
+                           uint64_t off, uint32_t max_count)
 {
     size_t offset = 7;
     int read_count;
@@ -1719,7 +1719,7 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu,
 }
 
 static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
-                                     V9fsFidState *fidp, int32_t max_count)
+                                     V9fsFidState *fidp, uint32_t max_count)
 {
     V9fsPath path;
     V9fsStat v9stat;
@@ -1814,11 +1814,11 @@ static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
 static void v9fs_read(void *opaque)
 {
     int32_t fid;
-    int64_t off;
+    uint64_t off;
     ssize_t err = 0;
     int32_t count = 0;
     size_t offset = 7;
-    int32_t max_count;
+    uint32_t max_count;
     V9fsFidState *fidp;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
@@ -1962,8 +1962,9 @@ static void v9fs_readdir(void *opaque)
     V9fsFidState *fidp;
     ssize_t retval = 0;
     size_t offset = 7;
-    int64_t initial_offset;
-    int32_t count, max_count;
+    uint64_t initial_offset;
+    int32_t count;
+    uint32_t max_count;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
@@ -2001,7 +2002,7 @@ out_nofid:
 }
 
 static int v9fs_xattr_write(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
-                            int64_t off, int32_t count,
+                            uint64_t off, uint32_t count,
                             struct iovec *sg, int cnt)
 {
     int i, to_copy;
@@ -2048,8 +2049,8 @@ static void v9fs_write(void *opaque)
 {
     ssize_t err;
     int32_t fid;
-    int64_t off;
-    int32_t count;
+    uint64_t off;
+    uint32_t count;
     int32_t len = 0;
     int32_t total = 0;
     size_t offset = 7;
