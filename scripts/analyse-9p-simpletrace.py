@@ -3,15 +3,86 @@
 # Usage: ./analyse-9p-simpletrace <trace-events> <trace-pid>
 #
 # Author: Harsh Prateek Bora
-
+import os
 import simpletrace
+
+symbol_9p = {
+    6   : 'TLERROR',
+    7   : 'RLERROR',
+    8   : 'TSTATFS',
+    9   : 'RSTATFS',
+    12  : 'TLOPEN',
+    13  : 'RLOPEN',
+    14  : 'TLCREATE',
+    15  : 'RLCREATE',
+    16  : 'TSYMLINK',
+    17  : 'RSYMLINK',
+    18  : 'TMKNOD',
+    19  : 'RMKNOD',
+    20  : 'TRENAME',
+    21  : 'RRENAME',
+    22  : 'TREADLINK',
+    23  : 'RREADLINK',
+    24  : 'TGETATTR',
+    25  : 'RGETATTR',
+    26  : 'TSETATTR',
+    27  : 'RSETATTR',
+    30  : 'TXATTRWALK',
+    31  : 'RXATTRWALK',
+    32  : 'TXATTRCREATE',
+    33  : 'RXATTRCREATE',
+    40  : 'TREADDIR',
+    41  : 'RREADDIR',
+    50  : 'TFSYNC',
+    51  : 'RFSYNC',
+    52  : 'TLOCK',
+    53  : 'RLOCK',
+    54  : 'TGETLOCK',
+    55  : 'RGETLOCK',
+    70  : 'TLINK',
+    71  : 'RLINK',
+    72  : 'TMKDIR',
+    73  : 'RMKDIR',
+    74  : 'TRENAMEAT',
+    75  : 'RRENAMEAT',
+    76  : 'TUNLINKAT',
+    77  : 'RUNLINKAT',
+    100 : 'TVERSION',
+    101 : 'RVERSION',
+    102 : 'TAUTH',
+    103 : 'RAUTH',
+    104 : 'TATTACH',
+    105 : 'RATTACH',
+    106 : 'TERROR',
+    107 : 'RERROR',
+    108 : 'TFLUSH',
+    109 : 'RFLUSH',
+    110 : 'TWALK',
+    111 : 'RWALK',
+    112 : 'TOPEN',
+    113 : 'ROPEN',
+    114 : 'TCREATE',
+    115 : 'RCREATE',
+    116 : 'TREAD',
+    117 : 'RREAD',
+    118 : 'TWRITE',
+    119 : 'RWRITE',
+    120 : 'TCLUNK',
+    121 : 'RCLUNK',
+    122 : 'TREMOVE',
+    123 : 'RREMOVE',
+    124 : 'TSTAT',
+    125 : 'RSTAT',
+    126 : 'TWSTAT',
+    127 : 'RWSTAT'
+}
 
 class VirtFSRequestTracker(simpletrace.Analyzer):
         def begin(self):
                 print "Pretty printing 9p simpletrace log ..."
 
         def v9fs_rerror(self, tag, id, err):
-                print "RERROR (tag =", tag, ", id =", id, ",err =", err, ")"
+                print "RERROR (tag =", tag, ", id =", symbol_9p[id], ", err = \"", os.strerror(err), "\")"
 
         def v9fs_version(self, tag, id, msize, version):
                 print "TVERSION (tag =", tag, ", msize =", msize, ", version =", version, ")"
