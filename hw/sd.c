@@ -422,6 +422,7 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     sd->size = size;
     sd->blk_len = 0x200;
     sd->pwd_len = 0;
+    sd->expecting_acmd = 0;
 }
 
 static void sd_cardchange(void *opaque, bool load)
