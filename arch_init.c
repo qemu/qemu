@@ -344,7 +344,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
             return NULL;
         }
 
-        return block->host + offset;
+        return memory_region_get_ram_ptr(block->mr) + offset;
     }
 
     len = qemu_get_byte(f);
@@ -353,7 +353,7 @@ static inline void *host_from_stream_offset(QEMUFile *f,
 
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         if (!strncmp(id, block->idstr, sizeof(id)))
-            return block->host + offset;
+            return memory_region_get_ram_ptr(block->mr) + offset;
     }
 
     fprintf(stderr, "Can't find block %s!\n", id);
