@@ -323,7 +323,6 @@ struct fs_eth
 	MemoryRegion mmio;
 	NICState *nic;
 	NICConf conf;
-	int ethregs;
 
 	/* Two addrs in the filter.  */
 	uint8_t macaddr[2][6];
@@ -570,8 +569,6 @@ static const MemoryRegionOps eth_ops = {
 static void eth_cleanup(VLANClientState *nc)
 {
 	struct fs_eth *eth = DO_UPCAST(NICState, nc, nc)->opaque;
-
-        cpu_unregister_io_memory(eth->ethregs);
 
 	/* Disconnect the client.  */
 	eth->dma_out->client.push = NULL;

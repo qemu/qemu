@@ -509,10 +509,6 @@ static BlockDriverAIOCB *curl_aio_readv(BlockDriverState *bs,
 
     acb = qemu_aio_get(&curl_aio_pool, bs, cb, opaque);
 
-    if (!acb) {
-        return NULL;
-    }
-
     acb->qiov = qiov;
     acb->sector_num = sector_num;
     acb->nb_sectors = nb_sectors;

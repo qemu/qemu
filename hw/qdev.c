@@ -80,6 +80,9 @@ static DeviceInfo *qdev_find_info(BusInfo *bus_info, const char *name)
     return NULL;
 }
 
+static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
+                                     Error **errp);
+
 static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
 {
     DeviceState *dev;
@@ -104,10 +107,12 @@ static DeviceState *qdev_create_from_info(BusState *bus, DeviceInfo *info)
 
     for (prop = dev->info->props; prop && prop->name; prop++) {
         qdev_property_add_legacy(dev, prop, NULL);
+        qdev_property_add_static(dev, prop, NULL);
     }
 
     for (prop = dev->info->bus_info->props; prop && prop->name; prop++) {
         qdev_property_add_legacy(dev, prop, NULL);
+        qdev_property_add_static(dev, prop, NULL);
     }
 
     qdev_property_add_str(dev, "type", qdev_get_type, NULL, NULL);
@@ -218,13 +223,15 @@ int qdev_device_help(QemuOpts *opts)
         if (!prop->info->parse) {
             continue;           /* no way to set it, don't show */
         }
-        error_printf("%s.%s=%s\n", info->name, prop->name, prop->info->name);
+        error_printf("%s.%s=%s\n", info->name, prop->name,
+                     prop->info->legacy_name ?: prop->info->name);
     }
     for (prop = info->bus_info->props; prop && prop->name; prop++) {
         if (!prop->info->parse) {
             continue;           /* no way to set it, don't show */
         }
-        error_printf("%s.%s=%s\n", info->name, prop->name, prop->info->name);
+        error_printf("%s.%s=%s\n", info->name, prop->name,
+                     prop->info->legacy_name ?: prop->info->name);
     }
     return 1;
 }
@@ -1110,7 +1117,7 @@ void qdev_property_set(DeviceState *dev, Visitor *v, const char *name,
     if (!prop->set) {
         error_set(errp, QERR_PERMISSION_DENIED);
     } else {
-        prop->set(dev, prop->opaque, v, name, errp);
+        prop->set(dev, v, prop->opaque, name, errp);
     }
 }
 
@@ -1135,53 +1142,42 @@ static void qdev_get_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
 {
     Property *prop = opaque;
 
-    if (prop->info->print) {
-        char buffer[1024];
-        char *ptr = buffer;
+    char buffer[1024];
+    char *ptr = buffer;
 
-        prop->info->print(dev, prop, buffer, sizeof(buffer));
-        visit_type_str(v, &ptr, name, errp);
-    } else {
-        error_set(errp, QERR_PERMISSION_DENIED);
-    }
+    prop->info->print(dev, prop, buffer, sizeof(buffer));
+    visit_type_str(v, &ptr, name, errp);
 }
 
 static void qdev_set_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
     Property *prop = opaque;
+    Error *local_err = NULL;
+    char *ptr = NULL;
+    int ret;
 
     if (dev->state != DEV_STATE_CREATED) {
         error_set(errp, QERR_PERMISSION_DENIED);
         return;
     }
 
-    if (prop->info->parse) {
-        Error *local_err = NULL;
-        char *ptr = NULL;
-
-        visit_type_str(v, &ptr, name, &local_err);
-        if (!local_err) {
-            int ret;
-            ret = prop->info->parse(dev, prop, ptr);
-            if (ret != 0) {
-                error_set(errp, QERR_INVALID_PARAMETER_VALUE,
-                          name, prop->info->name);
-            }
-            g_free(ptr);
-        } else {
-            error_propagate(errp, local_err);
-        }
-    } else {
-        error_set(errp, QERR_PERMISSION_DENIED);
+    visit_type_str(v, &ptr, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
     }
+
+    ret = prop->info->parse(dev, prop, ptr);
+    error_set_from_qdev_prop_error(errp, ret, dev, prop, ptr);
+    g_free(ptr);
 }
 
 /**
  * @qdev_add_legacy_property - adds a legacy property
  *
  * Do not use this is new code!  Properties added through this interface will
- * be given types in the "legacy<>" type namespace.
+ * be given names and types in the "legacy" namespace.
  *
  * Legacy properties are always processed as strings.  The format of the string
  * depends on the property type.
@@ -1189,17 +1185,35 @@ static void qdev_set_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
 void qdev_property_add_legacy(DeviceState *dev, Property *prop,
                               Error **errp)
 {
-    gchar *type;
+    gchar *name, *type;
 
-    type = g_strdup_printf("legacy<%s>", prop->info->name);
+    name = g_strdup_printf("legacy-%s", prop->name);
+    type = g_strdup_printf("legacy<%s>",
+                           prop->info->legacy_name ?: prop->info->name);
 
-    qdev_property_add(dev, prop->name, type,
-                      qdev_get_legacy_property,
-                      qdev_set_legacy_property,
+    qdev_property_add(dev, name, type,
+                      prop->info->print ? qdev_get_legacy_property : NULL,
+                      prop->info->parse ? qdev_set_legacy_property : NULL,
                       NULL,
                       prop, errp);
 
     g_free(type);
+    g_free(name);
+}
+
+/**
+ * @qdev_property_add_static - add a @Property to a device.
+ *
+ * Static properties access data in a struct.  The actual type of the
+ * property and the field depends on the property type.
+ */
+void qdev_property_add_static(DeviceState *dev, Property *prop,
+                              Error **errp)
+{
+    qdev_property_add(dev, prop->name, prop->info->name,
+                      prop->info->get, prop->info->set,
+                      NULL,
+                      prop, errp);
 }
 
 DeviceState *qdev_get_root(void)
@@ -1514,4 +1528,10 @@ void qdev_property_add_str(DeviceState *dev, const char *name,
                       set ? qdev_property_set_str : NULL,
                       qdev_property_release_str,
                       prop, errp);
+}
+
+void qdev_machine_init(void)
+{
+    qdev_get_peripheral_anon();
+    qdev_get_peripheral();
 }

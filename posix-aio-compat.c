@@ -611,8 +611,6 @@ BlockDriverAIOCB *paio_submit(BlockDriverState *bs, int fd,
     struct qemu_paiocb *acb;
 
     acb = qemu_aio_get(&raw_aio_pool, bs, cb, opaque);
-    if (!acb)
-        return NULL;
     acb->aio_type = type;
     acb->aio_fildes = fd;
 
@@ -638,8 +636,6 @@ BlockDriverAIOCB *paio_ioctl(BlockDriverState *bs, int fd,
     struct qemu_paiocb *acb;
 
     acb = qemu_aio_get(&raw_aio_pool, bs, cb, opaque);
-    if (!acb)
-        return NULL;
     acb->aio_type = QEMU_AIO_IOCTL;
     acb->aio_fildes = fd;
     acb->aio_offset = 0;

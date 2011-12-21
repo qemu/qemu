@@ -156,11 +156,16 @@ enum PropertyType {
 
 struct PropertyInfo {
     const char *name;
+    const char *legacy_name;
     size_t size;
     enum PropertyType type;
+    int64_t min;
+    int64_t max;
     int (*parse)(DeviceState *dev, Property *prop, const char *str);
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     void (*free)(DeviceState *dev, Property *prop);
+    DevicePropertyAccessor *get;
+    DevicePropertyAccessor *set;
 };
 
 typedef struct GlobalProperty {
@@ -370,6 +375,8 @@ void qdev_prop_set_defaults(DeviceState *dev, Property *props);
 
 void qdev_prop_register_global_list(GlobalProperty *props);
 void qdev_prop_set_globals(DeviceState *dev);
+void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
+                                    Property *prop, const char *value);
 
 static inline const char *qdev_fw_name(DeviceState *dev)
 {
@@ -480,11 +487,10 @@ const char *qdev_property_get_type(DeviceState *dev, const char *name,
                                    Error **errp);
 
 /**
- * @qdev_property_add_legacy - add a legacy @Property to a device
- *
- * DO NOT USE THIS IN NEW CODE!
+ * @qdev_property_add_static - add a @Property to a device referencing a
+ * field in a struct.
  */
-void qdev_property_add_legacy(DeviceState *dev, Property *prop, Error **errp);
+void qdev_property_add_static(DeviceState *dev, Property *prop, Error **errp);
 
 /**
  * @qdev_get_root - returns the root device of the composition tree
@@ -609,5 +615,13 @@ void qdev_property_add_str(DeviceState *dev, const char *name,
  *          with g_free().
  */
 char *qdev_get_type(DeviceState *dev, Error **errp);
+
+/**
+ * @qdev_machine_init
+ *
+ * Initialize platform devices before machine init.  This is a hack until full
+ * support for composition is added.
+ */
+void qdev_machine_init(void);
 
 #endif

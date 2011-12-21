@@ -1102,7 +1102,7 @@ fi
 
 # check that the C compiler works.
 cat > $TMPC <<EOF
-int main(void) {}
+int main(void) { return 0; }
 EOF
 
 if compile_object ; then
@@ -1306,12 +1306,11 @@ if test "$nptl" != "no" ; then
   cat > $TMPC <<EOF
 #include <sched.h>
 #include <linux/futex.h>
-extern void foo(void);
-void foo(void)
-{
+int main(void) {
 #if !defined(CLONE_SETTLS) || !defined(FUTEX_WAIT)
 #error bork
 #endif
+  return 0;
 }
 EOF
 
@@ -1350,8 +1349,28 @@ fi
 if test "$xen" != "no" ; then
   xen_libs="-lxenstore -lxenctrl -lxenguest"
 
-  # Xen unstable
+  # First we test whether Xen headers and libraries are available.
+  # If no, we are done and there is no Xen support.
+  # If yes, more tests are run to detect the Xen version.
+
+  # Xen (any)
   cat > $TMPC <<EOF
+#include <xenctrl.h>
+#include <xs.h>
+int main(void) {
+  return 0;
+}
+EOF
+  if ! compile_prog "" "$xen_libs" ; then
+    # Xen not found
+    if test "$xen" = "yes" ; then
+      feature_not_found "xen"
+    fi
+    xen=no
+
+  # Xen unstable
+  elif (
+      cat > $TMPC <<EOF
 #include <xenctrl.h>
 #include <xs.h>
 #include <stdint.h>
@@ -1369,7 +1388,8 @@ int main(void) {
   return 0;
 }
 EOF
-  if compile_prog "" "$xen_libs" ; then
+      compile_prog "" "$xen_libs"
+    ) ; then
     xen_ctrl_version=410
     xen=yes
 
@@ -1440,10 +1460,10 @@ EOF
     xen_ctrl_version=330
     xen=yes
 
-  # Xen not found or unsupported
+  # Xen version unsupported
   else
     if test "$xen" = "yes" ; then
-      feature_not_found "xen"
+      feature_not_found "xen (unsupported version)"
     fi
     xen=no
   fi
@@ -1703,6 +1723,7 @@ fi
 # xfsctl() probe, used for raw-posix
 if test "$xfs" != "no" ; then
   cat > $TMPC << EOF
+#include <stddef.h>  /* NULL */
 #include <xfs/xfs.h>
 int main(void)
 {
@@ -1876,7 +1897,9 @@ if test "$curses" != "no" ; then
 #define resize_term resizeterm
 #endif
 int main(void) {
-  const char *s; resize_term(0, 0); s = curses_version(); (void)s; return 0;
+  const char *s = curses_version();
+  resize_term(0, 0);
+  return s != 0;
 }
 EOF
   for curses_lib in $curses_list; do
@@ -1984,7 +2007,11 @@ pthread=no
 cat > $TMPC << EOF
 #include <pthread.h>
 static void *f(void *p) { return NULL; }
-int main(void) { pthread_t thread; pthread_create(&thread,0,f,0); return 0; }
+int main(void) {
+  pthread_t thread;
+  pthread_create(&thread, 0, f, 0);
+  return 0;
+}
 EOF
 if compile_prog "" "" ; then
   pthread=yes
@@ -2090,7 +2117,7 @@ cat > $TMPC <<EOF
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-int main(void) { struct iovec iov; (void)iov; return 0; }
+int main(void) { return sizeof(struct iovec); }
 EOF
 iovec=no
 if compile_prog "" "" ; then
@@ -2103,7 +2130,7 @@ cat > $TMPC <<EOF
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-int main(void) { void *p = preadv; (void)p; return 0; }
+int main(void) { return preadv == preadv; }
 EOF
 preadv=no
 if compile_prog "" "" ; then
@@ -2136,7 +2163,7 @@ if test "$opengl" != "no" ; then
 #include <X11/Xlib.h>
 #include <GL/gl.h>
 #include <GL/glx.h>
-int main(void) { GL_VERSION; return 0; }
+int main(void) { return GL_VERSION != 0; }
 EOF
   if compile_prog "" "-lGL" ; then
     opengl=yes
@@ -2281,7 +2308,6 @@ fi
 # signalfd probe
 signalfd="no"
 cat > $TMPC << EOF
-#define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <signal.h>
@@ -2399,8 +2425,7 @@ int main(void)
      * warning but not an error, and will proceed to fail the
      * qemu compile where we compile with -Werror.)
      */
-    epoll_create1;
-    return 0;
+    return epoll_create1 == epoll_create1;
 }
 EOF
 if compile_prog "$ARCH_CFLAGS" "" ; then
@@ -2487,8 +2512,7 @@ fi
 cat > $TMPC <<EOF
 #include <signal.h>
 #include <time.h>
-static clockid_t id;
-int main(void) { return clock_gettime(id, NULL); }
+int main(void) { return clock_gettime(CLOCK_REALTIME, NULL); }
 EOF
 
 if compile_prog "" "" ; then
@@ -2698,7 +2722,7 @@ ucontext_coroutine=no
 if test "$darwin" != "yes"; then
   cat > $TMPC << EOF
 #include <ucontext.h>
-int main(void) { makecontext(0, 0, 0); }
+int main(void) { makecontext(0, 0, 0); return 0; }
 EOF
   if compile_prog "" "" ; then
       ucontext_coroutine=yes
@@ -2711,7 +2735,7 @@ fi
 open_by_hande_at=no
 cat > $TMPC << EOF
 #include <fcntl.h>
-int main(void) { struct file_handle fh; open_by_handle_at(0, &fh, 0); }
+int main(void) { struct file_handle fh; return open_by_handle_at(0, &fh, 0); }
 EOF
 if compile_prog "" "" ; then
     open_by_handle_at=yes
@@ -2724,6 +2748,7 @@ linux_magic_h=no
 cat > $TMPC << EOF
 #include <linux/magic.h>
 int main(void) {
+  return 0;
 }
 EOF
 if compile_prog "" "" ; then

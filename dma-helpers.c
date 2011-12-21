@@ -142,9 +142,7 @@ static void dma_bdrv_cb(void *opaque, int ret)
 
     dbs->acb = dbs->io_func(dbs->bs, dbs->sector_num, &dbs->iov,
                             dbs->iov.size / 512, dma_bdrv_cb, dbs);
-    if (!dbs->acb) {
-        dma_complete(dbs, -EIO);
-    }
+    assert(dbs->acb);
 }
 
 static void dma_aio_cancel(BlockDriverAIOCB *acb)

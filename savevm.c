@@ -2002,7 +2002,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
     int ret;
     QEMUFile *f;
     int saved_vm_running;
-    uint32_t vm_state_size;
+    uint64_t vm_state_size;
 #ifdef _WIN32
     struct _timeb tb;
     struct tm *ptm;

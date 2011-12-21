@@ -171,6 +171,7 @@ static void mips_init(ram_addr_t ram_size,
     ResetData *reset_info;
     int i;
     qemu_irq *i8259;
+    ISABus *isa_bus;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *dinfo;
 
@@ -260,36 +261,36 @@ static void mips_init(ram_addr_t ram_size,
     cpu_mips_clock_init(env);
 
     /* The PIC is attached to the MIPS CPU INT0 pin */
-    isa_bus_new(NULL, get_system_io());
-    i8259 = i8259_init(env->irq[2]);
-    isa_bus_irqs(i8259);
+    isa_bus = isa_bus_new(NULL, get_system_io());
+    i8259 = i8259_init(isa_bus, env->irq[2]);
+    isa_bus_irqs(isa_bus, i8259);
 
-    rtc_init(2000, NULL);
+    rtc_init(isa_bus, 2000, NULL);
 
     /* Register 64 KB of ISA IO space at 0x14000000 */
     isa_mmio_init(0x14000000, 0x00010000);
     isa_mem_base = 0x10000000;
 
-    pit = pit_init(0x40, 0);
+    pit = pit_init(isa_bus, 0x40, 0);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
-            serial_isa_init(i, serial_hds[i]);
+            serial_isa_init(isa_bus, i, serial_hds[i]);
         }
     }
 
-    isa_vga_init();
+    isa_vga_init(isa_bus);
 
     if (nd_table[0].vlan)
-        isa_ne2000_init(0x300, 9, &nd_table[0]);
+        isa_ne2000_init(isa_bus, 0x300, 9, &nd_table[0]);
 
     ide_drive_get(hd, MAX_IDE_BUS);
     for(i = 0; i < MAX_IDE_BUS; i++)
-        isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+        isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[MAX_IDE_DEVS * i],
 		     hd[MAX_IDE_DEVS * i + 1]);
 
-    isa_create_simple("i8042");
+    isa_create_simple(isa_bus, "i8042");
 }
 
 static

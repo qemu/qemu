@@ -18,7 +18,11 @@
 #include "kvm.h"
 #include <assert.h>
 
+#define WANT_EXEC_OBSOLETE
+#include "exec-obsolete.h"
+
 unsigned memory_region_transaction_depth = 0;
+static bool memory_region_update_pending = false;
 
 typedef struct AddrRange AddrRange;
 
@@ -528,6 +532,10 @@ static void render_memory_region(FlatView *view,
     FlatRange fr;
     AddrRange tmp;
 
+    if (!mr->enabled) {
+        return;
+    }
+
     int128_addto(&base, int128_make64(mr->addr));
     readonly |= mr->readonly;
 
@@ -750,9 +758,14 @@ static void address_space_update_topology(AddressSpace *as)
     address_space_update_ioeventfds(as);
 }
 
-static void memory_region_update_topology(void)
+static void memory_region_update_topology(MemoryRegion *mr)
 {
     if (memory_region_transaction_depth) {
+        memory_region_update_pending |= !mr || mr->enabled;
+        return;
+    }
+
+    if (mr && !mr->enabled) {
         return;
     }
 
@@ -762,6 +775,8 @@ static void memory_region_update_topology(void)
     if (address_space_io.root) {
         address_space_update_topology(&address_space_io);
     }
+
+    memory_region_update_pending = false;
 }
 
 void memory_region_transaction_begin(void)
@@ -773,7 +788,9 @@ void memory_region_transaction_commit(void)
 {
     assert(memory_region_transaction_depth);
     --memory_region_transaction_depth;
-    memory_region_update_topology();
+    if (!memory_region_transaction_depth && memory_region_update_pending) {
+        memory_region_update_topology(NULL);
+    }
 }
 
 static void memory_region_destructor_none(MemoryRegion *mr)
@@ -813,6 +830,7 @@ void memory_region_init(MemoryRegion *mr,
     }
     mr->addr = 0;
     mr->offset = 0;
+    mr->enabled = true;
     mr->terminates = false;
     mr->readable = true;
     mr->readonly = false;
@@ -982,7 +1000,7 @@ void memory_region_init_ram(MemoryRegion *mr,
     memory_region_init(mr, name, size);
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
-    mr->ram_addr = qemu_ram_alloc(dev, name, size);
+    mr->ram_addr = qemu_ram_alloc(dev, name, size, mr);
     mr->backend_registered = true;
 }
 
@@ -995,7 +1013,7 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
     memory_region_init(mr, name, size);
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram_from_ptr;
-    mr->ram_addr = qemu_ram_alloc_from_ptr(dev, name, size, ptr);
+    mr->ram_addr = qemu_ram_alloc_from_ptr(dev, name, size, ptr, mr);
     mr->backend_registered = true;
 }
 
@@ -1022,7 +1040,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->opaque = opaque;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_rom_device;
-    mr->ram_addr = qemu_ram_alloc(dev, name, size);
+    mr->ram_addr = qemu_ram_alloc(dev, name, size, mr);
     mr->ram_addr |= cpu_register_io_memory(memory_region_read_thunk,
                                            memory_region_write_thunk,
                                            mr,
@@ -1058,7 +1076,7 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
     uint8_t mask = 1 << client;
 
     mr->dirty_log_mask = (mr->dirty_log_mask & ~mask) | (log * mask);
-    memory_region_update_topology();
+    memory_region_update_topology(mr);
 }
 
 bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
@@ -1090,7 +1108,7 @@ void memory_region_set_readonly(MemoryRegion *mr, bool readonly)
 {
     if (mr->readonly != readonly) {
         mr->readonly = readonly;
-        memory_region_update_topology();
+        memory_region_update_topology(mr);
     }
 }
 
@@ -1098,7 +1116,7 @@ void memory_region_rom_device_set_readable(MemoryRegion *mr, bool readable)
 {
     if (mr->readable != readable) {
         mr->readable = readable;
-        memory_region_update_topology();
+        memory_region_update_topology(mr);
     }
 }
 
@@ -1203,7 +1221,7 @@ void memory_region_add_eventfd(MemoryRegion *mr,
     memmove(&mr->ioeventfds[i+1], &mr->ioeventfds[i],
             sizeof(*mr->ioeventfds) * (mr->ioeventfd_nb-1 - i));
     mr->ioeventfds[i] = mrfd;
-    memory_region_update_topology();
+    memory_region_update_topology(mr);
 }
 
 void memory_region_del_eventfd(MemoryRegion *mr,
@@ -1233,7 +1251,7 @@ void memory_region_del_eventfd(MemoryRegion *mr,
     --mr->ioeventfd_nb;
     mr->ioeventfds = g_realloc(mr->ioeventfds,
                                   sizeof(*mr->ioeventfds)*mr->ioeventfd_nb + 1);
-    memory_region_update_topology();
+    memory_region_update_topology(mr);
 }
 
 static void memory_region_add_subregion_common(MemoryRegion *mr,
@@ -1274,7 +1292,7 @@ static void memory_region_add_subregion_common(MemoryRegion *mr,
     }
     QTAILQ_INSERT_TAIL(&mr->subregions, subregion, subregions_link);
 done:
-    memory_region_update_topology();
+    memory_region_update_topology(mr);
 }
 
 
@@ -1303,19 +1321,63 @@ void memory_region_del_subregion(MemoryRegion *mr,
     assert(subregion->parent == mr);
     subregion->parent = NULL;
     QTAILQ_REMOVE(&mr->subregions, subregion, subregions_link);
-    memory_region_update_topology();
+    memory_region_update_topology(mr);
+}
+
+void memory_region_set_enabled(MemoryRegion *mr, bool enabled)
+{
+    if (enabled == mr->enabled) {
+        return;
+    }
+    mr->enabled = enabled;
+    memory_region_update_topology(NULL);
+}
+
+void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr)
+{
+    MemoryRegion *parent = mr->parent;
+    unsigned priority = mr->priority;
+    bool may_overlap = mr->may_overlap;
+
+    if (addr == mr->addr || !parent) {
+        mr->addr = addr;
+        return;
+    }
+
+    memory_region_transaction_begin();
+    memory_region_del_subregion(parent, mr);
+    if (may_overlap) {
+        memory_region_add_subregion_overlap(parent, addr, mr, priority);
+    } else {
+        memory_region_add_subregion(parent, addr, mr);
+    }
+    memory_region_transaction_commit();
+}
+
+void memory_region_set_alias_offset(MemoryRegion *mr, target_phys_addr_t offset)
+{
+    target_phys_addr_t old_offset = mr->alias_offset;
+
+    assert(mr->alias);
+    mr->alias_offset = offset;
+
+    if (offset == old_offset || !mr->parent) {
+        return;
+    }
+
+    memory_region_update_topology(mr);
 }
 
 void set_system_memory_map(MemoryRegion *mr)
 {
     address_space_memory.root = mr;
-    memory_region_update_topology();
+    memory_region_update_topology(NULL);
 }
 
 void set_system_io_map(MemoryRegion *mr)
 {
     address_space_io.root = mr;
-    memory_region_update_topology();
+    memory_region_update_topology(NULL);
 }
 
 typedef struct MemoryRegionList MemoryRegionList;

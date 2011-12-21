@@ -223,6 +223,7 @@ typedef struct VLANState VLANState;
 typedef struct VLANClientState VLANClientState;
 typedef struct i2c_bus i2c_bus;
 typedef struct i2c_slave i2c_slave;
+typedef struct ISABus ISABus;
 typedef struct SMBusDevice SMBusDevice;
 typedef struct PCIHostState PCIHostState;
 typedef struct PCIExpressHost PCIExpressHost;

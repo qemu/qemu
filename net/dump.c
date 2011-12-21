@@ -30,6 +30,7 @@
 
 typedef struct DumpState {
     VLANClientState nc;
+    int64_t start_ts;
     int fd;
     int pcap_caplen;
 } DumpState;
@@ -70,7 +71,7 @@ static ssize_t dump_receive(VLANClientState *nc, const uint8_t *buf, size_t size
     ts = muldiv64(qemu_get_clock_ns(vm_clock), 1000000, get_ticks_per_sec());
     caplen = size > s->pcap_caplen ? s->pcap_caplen : size;
 
-    hdr.ts.tv_sec = ts / 1000000;
+    hdr.ts.tv_sec = ts / 1000000 + s->start_ts;
     hdr.ts.tv_usec = ts % 1000000;
     hdr.caplen = caplen;
     hdr.len = size;
@@ -104,9 +105,10 @@ static int net_dump_init(VLANState *vlan, const char *device,
     struct pcap_file_hdr hdr;
     VLANClientState *nc;
     DumpState *s;
+    struct tm tm;
     int fd;
 
-    fd = open(filename, O_CREAT | O_WRONLY | O_BINARY, 0644);
+    fd = open(filename, O_CREAT | O_TRUNC | O_WRONLY | O_BINARY, 0644);
     if (fd < 0) {
         error_report("-net dump: can't open %s", filename);
         return -1;
@@ -135,6 +137,9 @@ static int net_dump_init(VLANState *vlan, const char *device,
 
     s->fd = fd;
     s->pcap_caplen = len;
+
+    qemu_get_timedate(&tm, 0);
+    s->start_ts = mktime(&tm);
 
     return 0;
 }

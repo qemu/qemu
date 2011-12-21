@@ -110,29 +110,6 @@ static void sh_pci_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-static void sh_pci_map(SysBusDevice *dev, target_phys_addr_t base)
-{
-    SHPCIState *s = FROM_SYSBUS(SHPCIState, dev);
-
-    memory_region_add_subregion(get_system_memory(),
-                                P4ADDR(base),
-                                &s->memconfig_p4);
-    memory_region_add_subregion(get_system_memory(),
-                                A7ADDR(base),
-                                &s->memconfig_a7);
-    s->iobr = 0xfe240000;
-    memory_region_add_subregion(get_system_memory(), s->iobr, &s->isa);
-}
-
-static void sh_pci_unmap(SysBusDevice *dev, target_phys_addr_t base)
-{
-    SHPCIState *s = FROM_SYSBUS(SHPCIState, dev);
-
-    memory_region_del_subregion(get_system_memory(), &s->memconfig_p4);
-    memory_region_del_subregion(get_system_memory(), &s->memconfig_a7);
-    memory_region_del_subregion(get_system_memory(), &s->isa);
-}
-
 static int sh_pci_init_device(SysBusDevice *dev)
 {
     SHPCIState *s;
@@ -153,9 +130,11 @@ static int sh_pci_init_device(SysBusDevice *dev)
     memory_region_init_alias(&s->memconfig_a7, "sh_pci.2", &s->memconfig_p4,
                              0, 0x224);
     isa_mmio_setup(&s->isa, 0x40000);
-    sysbus_init_mmio_cb2(dev, sh_pci_map, sh_pci_unmap);
+    sysbus_init_mmio(dev, &s->memconfig_p4);
     sysbus_init_mmio(dev, &s->memconfig_a7);
-    sysbus_init_mmio(dev, &s->isa);
+    s->iobr = 0xfe240000;
+    memory_region_add_subregion(get_system_memory(), s->iobr, &s->isa);
+
     s->dev = pci_create_simple(s->bus, PCI_DEVFN(0, 0), "sh_pci_host");
     return 0;
 }

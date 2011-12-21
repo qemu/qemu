@@ -55,12 +55,45 @@ static int print_bit(DeviceState *dev, Property *prop, char *dest, size_t len)
     return snprintf(dest, len, (*p & qdev_get_prop_mask(prop)) ? "on" : "off");
 }
 
+static void get_bit(DeviceState *dev, Visitor *v, void *opaque,
+                    const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *p = qdev_get_prop_ptr(dev, prop);
+    bool value = (*p & qdev_get_prop_mask(prop)) != 0;
+
+    visit_type_bool(v, &value, name, errp);
+}
+
+static void set_bit(DeviceState *dev, Visitor *v, void *opaque,
+                    const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    Error *local_err = NULL;
+    bool value;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_bool(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    bit_prop_set(dev, prop, value);
+}
+
 PropertyInfo qdev_prop_bit = {
-    .name  = "on/off",
+    .name  = "boolean",
+    .legacy_name  = "on/off",
     .type  = PROP_TYPE_BIT,
     .size  = sizeof(uint32_t),
     .parse = parse_bit,
     .print = print_bit,
+    .get   = get_bit,
+    .set   = set_bit,
 };
 
 /* --- 8bit integer --- */
@@ -85,12 +118,54 @@ static int print_uint8(DeviceState *dev, Property *prop, char *dest, size_t len)
     return snprintf(dest, len, "%" PRIu8, *ptr);
 }
 
+static void get_int8(DeviceState *dev, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    int8_t *ptr = qdev_get_prop_ptr(dev, prop);
+    int64_t value;
+
+    value = *ptr;
+    visit_type_int(v, &value, name, errp);
+}
+
+static void set_int8(DeviceState *dev, Visitor *v, void *opaque,
+                      const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    int8_t *ptr = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
+    int64_t value;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_int(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    if (value > prop->info->min && value <= prop->info->max) {
+        *ptr = value;
+    } else {
+        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+                  dev->id?:"", name, value, prop->info->min,
+                  prop->info->max);
+    }
+}
+
 PropertyInfo qdev_prop_uint8 = {
     .name  = "uint8",
     .type  = PROP_TYPE_UINT8,
     .size  = sizeof(uint8_t),
     .parse = parse_uint8,
     .print = print_uint8,
+    .get   = get_int8,
+    .set   = set_int8,
+    .min   = 0,
+    .max   = 255,
 };
 
 /* --- 8bit hex value --- */
@@ -115,11 +190,16 @@ static int print_hex8(DeviceState *dev, Property *prop, char *dest, size_t len)
 }
 
 PropertyInfo qdev_prop_hex8 = {
-    .name  = "hex8",
+    .name  = "uint8",
+    .legacy_name  = "hex8",
     .type  = PROP_TYPE_UINT8,
     .size  = sizeof(uint8_t),
     .parse = parse_hex8,
     .print = print_hex8,
+    .get   = get_int8,
+    .set   = set_int8,
+    .min   = 0,
+    .max   = 255,
 };
 
 /* --- 16bit integer --- */
@@ -144,12 +224,54 @@ static int print_uint16(DeviceState *dev, Property *prop, char *dest, size_t len
     return snprintf(dest, len, "%" PRIu16, *ptr);
 }
 
+static void get_int16(DeviceState *dev, Visitor *v, void *opaque,
+                      const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    int16_t *ptr = qdev_get_prop_ptr(dev, prop);
+    int64_t value;
+
+    value = *ptr;
+    visit_type_int(v, &value, name, errp);
+}
+
+static void set_int16(DeviceState *dev, Visitor *v, void *opaque,
+                      const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    int16_t *ptr = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
+    int64_t value;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_int(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    if (value > prop->info->min && value <= prop->info->max) {
+        *ptr = value;
+    } else {
+        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+                  dev->id?:"", name, value, prop->info->min,
+                  prop->info->max);
+    }
+}
+
 PropertyInfo qdev_prop_uint16 = {
     .name  = "uint16",
     .type  = PROP_TYPE_UINT16,
     .size  = sizeof(uint16_t),
     .parse = parse_uint16,
     .print = print_uint16,
+    .get   = get_int16,
+    .set   = set_int16,
+    .min   = 0,
+    .max   = 65535,
 };
 
 /* --- 32bit integer --- */
@@ -174,12 +296,54 @@ static int print_uint32(DeviceState *dev, Property *prop, char *dest, size_t len
     return snprintf(dest, len, "%" PRIu32, *ptr);
 }
 
+static void get_int32(DeviceState *dev, Visitor *v, void *opaque,
+                      const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    int32_t *ptr = qdev_get_prop_ptr(dev, prop);
+    int64_t value;
+
+    value = *ptr;
+    visit_type_int(v, &value, name, errp);
+}
+
+static void set_int32(DeviceState *dev, Visitor *v, void *opaque,
+                      const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    int32_t *ptr = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
+    int64_t value;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_int(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    if (value > prop->info->min && value <= prop->info->max) {
+        *ptr = value;
+    } else {
+        error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
+                  dev->id?:"", name, value, prop->info->min,
+                  prop->info->max);
+    }
+}
+
 PropertyInfo qdev_prop_uint32 = {
     .name  = "uint32",
     .type  = PROP_TYPE_UINT32,
     .size  = sizeof(uint32_t),
     .parse = parse_uint32,
     .print = print_uint32,
+    .get   = get_int32,
+    .set   = set_int32,
+    .min   = 0,
+    .max   = 0xFFFFFFFFULL,
 };
 
 static int parse_int32(DeviceState *dev, Property *prop, const char *str)
@@ -207,6 +371,10 @@ PropertyInfo qdev_prop_int32 = {
     .size  = sizeof(int32_t),
     .parse = parse_int32,
     .print = print_int32,
+    .get   = get_int32,
+    .set   = set_int32,
+    .min   = -0x80000000LL,
+    .max   = 0x7FFFFFFFLL,
 };
 
 /* --- 32bit hex value --- */
@@ -231,11 +399,16 @@ static int print_hex32(DeviceState *dev, Property *prop, char *dest, size_t len)
 }
 
 PropertyInfo qdev_prop_hex32 = {
-    .name  = "hex32",
+    .name  = "uint32",
+    .legacy_name  = "hex32",
     .type  = PROP_TYPE_UINT32,
     .size  = sizeof(uint32_t),
     .parse = parse_hex32,
     .print = print_hex32,
+    .get   = get_int32,
+    .set   = set_int32,
+    .min   = 0,
+    .max   = 0xFFFFFFFFULL,
 };
 
 /* --- 64bit integer --- */
@@ -260,12 +433,37 @@ static int print_uint64(DeviceState *dev, Property *prop, char *dest, size_t len
     return snprintf(dest, len, "%" PRIu64, *ptr);
 }
 
+static void get_int64(DeviceState *dev, Visitor *v, void *opaque,
+                      const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    int64_t *ptr = qdev_get_prop_ptr(dev, prop);
+
+    visit_type_int(v, ptr, name, errp);
+}
+
+static void set_int64(DeviceState *dev, Visitor *v, void *opaque,
+                      const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    int64_t *ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_int(v, ptr, name, errp);
+}
+
 PropertyInfo qdev_prop_uint64 = {
     .name  = "uint64",
     .type  = PROP_TYPE_UINT64,
     .size  = sizeof(uint64_t),
     .parse = parse_uint64,
     .print = print_uint64,
+    .get   = get_int64,
+    .set   = set_int64,
 };
 
 /* --- 64bit hex value --- */
@@ -290,11 +488,14 @@ static int print_hex64(DeviceState *dev, Property *prop, char *dest, size_t len)
 }
 
 PropertyInfo qdev_prop_hex64 = {
-    .name  = "hex64",
+    .name  = "uint64",
+    .legacy_name  = "hex64",
     .type  = PROP_TYPE_UINT64,
     .size  = sizeof(uint64_t),
     .parse = parse_hex64,
     .print = print_hex64,
+    .get   = get_int64,
+    .set   = set_int64,
 };
 
 /* --- string --- */
@@ -322,6 +523,48 @@ static int print_string(DeviceState *dev, Property *prop, char *dest, size_t len
     return snprintf(dest, len, "\"%s\"", *ptr);
 }
 
+static void get_string(DeviceState *dev, Visitor *v, void *opaque,
+                       const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    char **ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (!*ptr) {
+        char *str = (char *)"";
+        visit_type_str(v, &str, name, errp);
+    } else {
+        visit_type_str(v, ptr, name, errp);
+    }
+}
+
+static void set_string(DeviceState *dev, Visitor *v, void *opaque,
+                       const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    char **ptr = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
+    char *str;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_str(v, &str, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    if (!*str) {
+        g_free(str);
+        str = NULL;
+    }
+    if (*ptr) {
+        g_free(*ptr);
+    }
+    *ptr = str;
+}
+
 PropertyInfo qdev_prop_string = {
     .name  = "string",
     .type  = PROP_TYPE_STRING,
@@ -329,6 +572,8 @@ PropertyInfo qdev_prop_string = {
     .parse = parse_string,
     .print = print_string,
     .free  = free_string,
+    .get   = get_string,
+    .set   = set_string,
 };
 
 /* --- drive --- */
@@ -364,12 +609,57 @@ static int print_drive(DeviceState *dev, Property *prop, char *dest, size_t len)
                     *ptr ? bdrv_get_device_name(*ptr) : "<null>");
 }
 
+static void get_generic(DeviceState *dev, Visitor *v, void *opaque,
+                       const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    void **ptr = qdev_get_prop_ptr(dev, prop);
+    char buffer[1024];
+    char *p = buffer;
+
+    buffer[0] = 0;
+    if (*ptr) {
+        prop->info->print(dev, prop, buffer, sizeof(buffer));
+    }
+    visit_type_str(v, &p, name, errp);
+}
+
+static void set_generic(DeviceState *dev, Visitor *v, void *opaque,
+                        const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    Error *local_err = NULL;
+    char *str;
+    int ret;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_str(v, &str, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    if (!*str) {
+        g_free(str);
+        error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
+        return;
+    }
+    ret = prop->info->parse(dev, prop, str);
+    error_set_from_qdev_prop_error(errp, ret, dev, prop, str);
+    g_free(str);
+}
+
 PropertyInfo qdev_prop_drive = {
     .name  = "drive",
     .type  = PROP_TYPE_DRIVE,
     .size  = sizeof(BlockDriverState *),
     .parse = parse_drive,
     .print = print_drive,
+    .get   = get_generic,
+    .set   = set_generic,
     .free  = free_drive,
 };
 
@@ -407,6 +697,8 @@ PropertyInfo qdev_prop_chr = {
     .size  = sizeof(CharDriverState*),
     .parse = parse_chr,
     .print = print_chr,
+    .get   = get_generic,
+    .set   = set_generic,
 };
 
 /* --- netdev device --- */
@@ -441,6 +733,8 @@ PropertyInfo qdev_prop_netdev = {
     .size  = sizeof(VLANClientState*),
     .parse = parse_netdev,
     .print = print_netdev,
+    .get   = get_generic,
+    .set   = set_generic,
 };
 
 /* --- vlan --- */
@@ -469,12 +763,57 @@ static int print_vlan(DeviceState *dev, Property *prop, char *dest, size_t len)
     }
 }
 
+static void get_vlan(DeviceState *dev, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    VLANState **ptr = qdev_get_prop_ptr(dev, prop);
+    int64_t id;
+
+    id = *ptr ? (*ptr)->id : -1;
+    visit_type_int(v, &id, name, errp);
+}
+
+static void set_vlan(DeviceState *dev, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    VLANState **ptr = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
+    int64_t id;
+    VLANState *vlan;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_int(v, &id, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+    if (id == -1) {
+        *ptr = NULL;
+        return;
+    }
+    vlan = qemu_find_vlan(id, 1);
+    if (!vlan) {
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE,
+                  name, prop->info->name);
+        return;
+    }
+    *ptr = vlan;
+}
+
 PropertyInfo qdev_prop_vlan = {
     .name  = "vlan",
     .type  = PROP_TYPE_VLAN,
     .size  = sizeof(VLANClientState*),
     .parse = parse_vlan,
     .print = print_vlan,
+    .get   = get_vlan,
+    .set   = set_vlan,
 };
 
 /* --- pointer --- */
@@ -531,6 +870,8 @@ PropertyInfo qdev_prop_macaddr = {
     .size  = sizeof(MACAddr),
     .parse = parse_mac,
     .print = print_mac,
+    .get   = get_generic,
+    .set   = set_generic,
 };
 
 /* --- pci address --- */
@@ -570,12 +911,29 @@ static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t 
     }
 }
 
+static void get_pci_devfn(DeviceState *dev, Visitor *v, void *opaque,
+                          const char *name, Error **errp)
+{
+    Property *prop = opaque;
+    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
+    char buffer[32];
+    char *p = buffer;
+
+    buffer[0] = 0;
+    if (*ptr != -1) {
+        snprintf(buffer, sizeof(buffer), "%02x.%x", *ptr >> 3, *ptr & 7);
+    }
+    visit_type_str(v, &p, name, errp);
+}
+
 PropertyInfo qdev_prop_pci_devfn = {
     .name  = "pci-devfn",
     .type  = PROP_TYPE_UINT32,
     .size  = sizeof(uint32_t),
     .parse = parse_pci_devfn,
     .print = print_pci_devfn,
+    .get   = get_pci_devfn,
+    .set   = set_generic,
 };
 
 /* --- public helpers --- */
@@ -614,6 +972,28 @@ int qdev_prop_exists(DeviceState *dev, const char *name)
     return qdev_prop_find(dev, name) ? true : false;
 }
 
+void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
+                                    Property *prop, const char *value)
+{
+    switch (ret) {
+    case -EEXIST:
+        error_set(errp, QERR_PROPERTY_VALUE_IN_USE,
+                  dev->info->name, prop->name, value);
+        break;
+    default:
+    case -EINVAL:
+        error_set(errp, QERR_PROPERTY_VALUE_BAD,
+                  dev->info->name, prop->name, value);
+        break;
+    case -ENOENT:
+        error_set(errp, QERR_PROPERTY_VALUE_NOT_FOUND,
+                  dev->info->name, prop->name, value);
+        break;
+    case 0:
+        break;
+    }
+}
+
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
 {
     Property *prop;
@@ -632,21 +1012,10 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
     }
     ret = prop->info->parse(dev, prop, value);
     if (ret < 0) {
-        switch (ret) {
-        case -EEXIST:
-            qerror_report(QERR_PROPERTY_VALUE_IN_USE,
-                          dev->info->name, name, value);
-            break;
-        default:
-        case -EINVAL:
-            qerror_report(QERR_PROPERTY_VALUE_BAD,
-                          dev->info->name, name, value);
-            break;
-        case -ENOENT:
-            qerror_report(QERR_PROPERTY_VALUE_NOT_FOUND,
-                          dev->info->name, name, value);
-            break;
-        }
+        Error *err;
+        error_set_from_qdev_prop_error(&err, ret, dev, prop, value);
+        qerror_report_err(err);
+        error_free(err);
         return -1;
     }
     return 0;

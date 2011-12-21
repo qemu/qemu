@@ -46,6 +46,10 @@ typedef struct QEMU_PACKED QCowSnapshotHeader {
     /* name follows  */
 } QCowSnapshotHeader;
 
+typedef struct QEMU_PACKED QCowSnapshotExtraData {
+    uint64_t vm_state_size_large;
+} QCowSnapshotExtraData;
+
 void qcow2_free_snapshots(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
@@ -64,6 +68,7 @@ int qcow2_read_snapshots(BlockDriverState *bs)
 {
     BDRVQcowState *s = bs->opaque;
     QCowSnapshotHeader h;
+    QCowSnapshotExtraData extra;
     QCowSnapshot *sn;
     int i, id_str_size, name_size;
     int64_t offset;
@@ -100,8 +105,17 @@ int qcow2_read_snapshots(BlockDriverState *bs)
         id_str_size = be16_to_cpu(h.id_str_size);
         name_size = be16_to_cpu(h.name_size);
 
-        /* Skip extra data */
+        /* Read extra data */
+        ret = bdrv_pread(bs->file, offset, &extra,
+                         MIN(sizeof(extra), extra_data_size));
+        if (ret < 0) {
+            goto fail;
+        }
         offset += extra_data_size;
+
+        if (extra_data_size >= 8) {
+            sn->vm_state_size = be64_to_cpu(extra.vm_state_size_large);
+        }
 
         /* Read snapshot ID */
         sn->id_str = g_malloc(id_str_size + 1);
@@ -136,6 +150,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
     BDRVQcowState *s = bs->opaque;
     QCowSnapshot *sn;
     QCowSnapshotHeader h;
+    QCowSnapshotExtraData extra;
     int i, name_size, id_str_size, snapshots_size;
     struct {
         uint32_t nb_snapshots;
@@ -150,6 +165,7 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         sn = s->snapshots + i;
         offset = align_offset(offset, 8);
         offset += sizeof(h);
+        offset += sizeof(extra);
         offset += strlen(sn->id_str);
         offset += strlen(sn->name);
     }
@@ -169,10 +185,18 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
         memset(&h, 0, sizeof(h));
         h.l1_table_offset = cpu_to_be64(sn->l1_table_offset);
         h.l1_size = cpu_to_be32(sn->l1_size);
-        h.vm_state_size = cpu_to_be32(sn->vm_state_size);
+        /* If it doesn't fit in 32 bit, older implementations should treat it
+         * as a disk-only snapshot rather than truncate the VM state */
+        if (sn->vm_state_size <= 0xffffffff) {
+            h.vm_state_size = cpu_to_be32(sn->vm_state_size);
+        }
         h.date_sec = cpu_to_be32(sn->date_sec);
         h.date_nsec = cpu_to_be32(sn->date_nsec);
         h.vm_clock_nsec = cpu_to_be64(sn->vm_clock_nsec);
+        h.extra_data_size = cpu_to_be32(sizeof(extra));
+
+        memset(&extra, 0, sizeof(extra));
+        extra.vm_state_size_large = cpu_to_be64(sn->vm_state_size);
 
         id_str_size = strlen(sn->id_str);
         name_size = strlen(sn->name);
@@ -185,6 +209,12 @@ static int qcow2_write_snapshots(BlockDriverState *bs)
             goto fail;
         }
         offset += sizeof(h);
+
+        ret = bdrv_pwrite(bs->file, offset, &extra, sizeof(extra));
+        if (ret < 0) {
+            goto fail;
+        }
+        offset += sizeof(extra);
 
         ret = bdrv_pwrite(bs->file, offset, sn->id_str, id_str_size);
         if (ret < 0) {

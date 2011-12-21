@@ -515,28 +515,26 @@ static VdiAIOCB *vdi_aio_setup(BlockDriverState *bs, int64_t sector_num,
            bs, sector_num, qiov, nb_sectors, cb, opaque, is_write);
 
     acb = qemu_aio_get(&vdi_aio_pool, bs, cb, opaque);
-    if (acb) {
-        acb->hd_aiocb = NULL;
-        acb->sector_num = sector_num;
-        acb->qiov = qiov;
-        acb->is_write = is_write;
+    acb->hd_aiocb = NULL;
+    acb->sector_num = sector_num;
+    acb->qiov = qiov;
+    acb->is_write = is_write;
 
-        if (qiov->niov > 1) {
-            acb->buf = qemu_blockalign(bs, qiov->size);
-            acb->orig_buf = acb->buf;
-            if (is_write) {
-                qemu_iovec_to_buffer(qiov, acb->buf);
-            }
-        } else {
-            acb->buf = (uint8_t *)qiov->iov->iov_base;
+    if (qiov->niov > 1) {
+        acb->buf = qemu_blockalign(bs, qiov->size);
+        acb->orig_buf = acb->buf;
+        if (is_write) {
+            qemu_iovec_to_buffer(qiov, acb->buf);
         }
-        acb->nb_sectors = nb_sectors;
-        acb->n_sectors = 0;
-        acb->bmap_first = VDI_UNALLOCATED;
-        acb->bmap_last = VDI_UNALLOCATED;
-        acb->block_buffer = NULL;
-        acb->header_modified = 0;
+    } else {
+        acb->buf = (uint8_t *)qiov->iov->iov_base;
     }
+    acb->nb_sectors = nb_sectors;
+    acb->n_sectors = 0;
+    acb->bmap_first = VDI_UNALLOCATED;
+    acb->bmap_last = VDI_UNALLOCATED;
+    acb->block_buffer = NULL;
+    acb->header_modified = 0;
     return acb;
 }
 
@@ -633,10 +631,6 @@ static void vdi_aio_read_cb(void *opaque, int ret)
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_readv(bs->file, offset, &acb->hd_qiov,
                                        n_sectors, vdi_aio_read_cb, acb);
-        if (acb->hd_aiocb == NULL) {
-            ret = -EIO;
-            goto done;
-        }
     }
     return;
 done:
@@ -657,10 +651,6 @@ static BlockDriverAIOCB *vdi_aio_readv(BlockDriverState *bs,
 
     logout("\n");
     acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
-    if (!acb) {
-        return NULL;
-    }
-
     ret = vdi_schedule_bh(vdi_aio_rw_bh, acb);
     if (ret < 0) {
         if (acb->qiov->niov > 1) {
@@ -708,10 +698,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
             qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
             acb->hd_aiocb = bdrv_aio_writev(bs->file, 0, &acb->hd_qiov, 1,
                                             vdi_aio_write_cb, acb);
-            if (acb->hd_aiocb == NULL) {
-                ret = -EIO;
-                goto done;
-            }
             return;
         } else if (VDI_IS_ALLOCATED(acb->bmap_first)) {
             /* One or more new blocks were allocated. */
@@ -738,10 +724,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
                    n_sectors, bmap_first);
             acb->hd_aiocb = bdrv_aio_writev(bs->file, offset, &acb->hd_qiov,
                                             n_sectors, vdi_aio_write_cb, acb);
-            if (acb->hd_aiocb == NULL) {
-                ret = -EIO;
-                goto done;
-            }
             return;
         }
         ret = 0;
@@ -789,10 +771,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         acb->hd_aiocb = bdrv_aio_writev(bs->file, offset,
                                         &acb->hd_qiov, s->block_sectors,
                                         vdi_aio_write_cb, acb);
-        if (acb->hd_aiocb == NULL) {
-            ret = -EIO;
-            goto done;
-        }
     } else {
         uint64_t offset = s->header.offset_data / SECTOR_SIZE +
                           (uint64_t)bmap_entry * s->block_sectors +
@@ -802,10 +780,6 @@ static void vdi_aio_write_cb(void *opaque, int ret)
         qemu_iovec_init_external(&acb->hd_qiov, &acb->hd_iov, 1);
         acb->hd_aiocb = bdrv_aio_writev(bs->file, offset, &acb->hd_qiov,
                                         n_sectors, vdi_aio_write_cb, acb);
-        if (acb->hd_aiocb == NULL) {
-            ret = -EIO;
-            goto done;
-        }
     }
 
     return;
@@ -827,10 +801,6 @@ static BlockDriverAIOCB *vdi_aio_writev(BlockDriverState *bs,
 
     logout("\n");
     acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 1);
-    if (!acb) {
-        return NULL;
-    }
-
     ret = vdi_schedule_bh(vdi_aio_rw_bh, acb);
     if (ret < 0) {
         if (acb->qiov->niov > 1) {

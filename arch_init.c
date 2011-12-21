@@ -473,7 +473,7 @@ struct soundhw {
     int enabled;
     int isa;
     union {
-        int (*init_isa) (qemu_irq *pic);
+        int (*init_isa) (ISABus *bus);
         int (*init_pci) (PCIBus *bus);
     } init;
 };
@@ -628,15 +628,15 @@ void select_soundhw(const char *optarg)
     }
 }
 
-void audio_init(qemu_irq *isa_pic, PCIBus *pci_bus)
+void audio_init(ISABus *isa_bus, PCIBus *pci_bus)
 {
     struct soundhw *c;
 
     for (c = soundhw; c->name; ++c) {
         if (c->enabled) {
             if (c->isa) {
-                if (isa_pic) {
-                    c->init.init_isa(isa_pic);
+                if (isa_bus) {
+                    c->init.init_isa(isa_bus);
                 }
             } else {
                 if (pci_bus) {
@@ -650,7 +650,7 @@ void audio_init(qemu_irq *isa_pic, PCIBus *pci_bus)
 void select_soundhw(const char *optarg)
 {
 }
-void audio_init(qemu_irq *isa_pic, PCIBus *pci_bus)
+void audio_init(ISABus *isa_bus, PCIBus *pci_bus)
 {
 }
 #endif

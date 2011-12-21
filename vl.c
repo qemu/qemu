@@ -1499,29 +1499,21 @@ static void version(void)
 
 static void QEMU_NORETURN help(int exitcode)
 {
-    const char *options_help =
-#define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
-        opt_help
-#define DEFHEADING(text) stringify(text) "\n"
-#include "qemu-options.def"
-#undef DEF
-#undef DEFHEADING
-#undef GEN_DOCS
-        ;
     version();
-    printf("usage: %s [options] [disk_image]\n"
-           "\n"
-           "'disk_image' is a raw hard disk image for IDE hard disk 0\n"
-           "\n"
-           "%s\n"
-           "During emulation, the following keys are useful:\n"
+    printf("usage: %s [options] [disk_image]\n\n"
+           "'disk_image' is a raw hard disk image for IDE hard disk 0\n\n",
+            error_get_progname());
+
+#define QEMU_OPTIONS_GENERATE_HELP
+#include "qemu-options-wrapper.h"
+
+    printf("\nDuring emulation, the following keys are useful:\n"
            "ctrl-alt-f      toggle full screen\n"
            "ctrl-alt-n      switch to virtual console 'n'\n"
            "ctrl-alt        toggle mouse and keyboard grab\n"
            "\n"
-           "When using -nographic, press 'ctrl-a h' to get some help.\n",
-           error_get_progname(),
-           options_help);
+           "When using -nographic, press 'ctrl-a h' to get some help.\n");
+
     exit(exitcode);
 }
 
@@ -1536,13 +1528,8 @@ typedef struct QEMUOption {
 
 static const QEMUOption qemu_options[] = {
     { "h", 0, QEMU_OPTION_h, QEMU_ARCH_ALL },
-#define DEF(option, opt_arg, opt_enum, opt_help, arch_mask)     \
-    { option, opt_arg, opt_enum, arch_mask },
-#define DEFHEADING(text)
-#include "qemu-options.def"
-#undef DEF
-#undef DEFHEADING
-#undef GEN_DOCS
+#define QEMU_OPTIONS_GENERATE_OPTIONS
+#include "qemu-options-wrapper.h"
     { NULL },
 };
 static void select_vgahw (const char *p)
@@ -2232,7 +2219,12 @@ int main(int argc, char **argv, char **envp)
 
     g_mem_set_vtable(&mem_trace);
     if (!g_thread_supported()) {
+#if !GLIB_CHECK_VERSION(2, 31, 0)
         g_thread_init(NULL);
+#else
+        fprintf(stderr, "glib threading failed to initialize.\n");
+        exit(1);
+#endif
     }
 
     runstate_init();
@@ -3401,6 +3393,8 @@ int main(int argc, char **argv, char **envp)
         qdev_prop_register_global_list(machine->compat_props);
     }
     qemu_add_globals();
+
+    qdev_machine_init();
 
     machine->init(ram_size, boot_devices,
                   kernel_filename, kernel_cmdline, initrd_filename, cpu_model);

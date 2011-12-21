@@ -253,7 +253,13 @@ Snapshot table entry:
         36 - 39:    Size of extra data in the table entry (used for future
                     extensions of the format)
 
-        variable:   Extra data for future extensions. Must be ignored.
+        variable:   Extra data for future extensions. Unknown fields must be
+                    ignored. Currently defined are (offset relative to snapshot
+                    table entry):
+
+                    Byte 40 - 47:   Size of the VM state in bytes. 0 if no VM
+                                    state is saved. If this field is present,
+                                    the 32-bit value in bytes 32-35 is ignored.
 
         variable:   Unique ID string for the snapshot (not null terminated)
 

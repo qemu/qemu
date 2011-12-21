@@ -51,6 +51,7 @@ typedef enum {
     sd_r6 = 6,    /* Published RCA response */
     sd_r7,        /* Operating voltage */
     sd_r1b = -1,
+    sd_illegal = -2,
 } sd_rsp_type_t;
 
 struct SDState {
@@ -91,6 +92,10 @@ struct SDState {
 
     int spi;
     int current_cmd;
+    /* True if we will handle the next command as an ACMD. Note that this does
+     * *not* track the APP_CMD status bit!
+     */
+    int expecting_acmd;
     int blk_written;
     uint64_t data_start;
     uint32_t data_offset;
@@ -103,7 +108,7 @@ struct SDState {
     int enable;
 };
 
-static void sd_set_status(SDState *sd)
+static void sd_set_mode(SDState *sd)
 {
     switch (sd->state) {
     case sd_inactive_state:
@@ -125,9 +130,6 @@ static void sd_set_status(SDState *sd)
         sd->mode = sd_data_transfer_mode;
         break;
     }
-
-    sd->card_status &= ~CURRENT_STATE;
-    sd->card_status |= sd->state << 9;
 }
 
 static const sd_cmd_type_t sd_cmd_type[64] = {
@@ -309,6 +311,11 @@ static void sd_set_rca(SDState *sd)
     sd->rca += 0x4567;
 }
 
+/* Card status bits, split by clear condition:
+ * A : According to the card current state
+ * B : Always related to the previous command
+ * C : Cleared by read
+ */
 #define CARD_STATUS_A	0x02004100
 #define CARD_STATUS_B	0x00c01e00
 #define CARD_STATUS_C	0xfd39a028
@@ -335,14 +342,11 @@ static int sd_req_crc_validate(SDRequest *req)
     return sd_crc7(buffer, 5) != req->crc;	/* TODO */
 }
 
-static void sd_response_r1_make(SDState *sd,
-                                uint8_t *response, uint32_t last_status)
+static void sd_response_r1_make(SDState *sd, uint8_t *response)
 {
-    uint32_t mask = CARD_STATUS_B ^ ILLEGAL_COMMAND;
-    uint32_t status;
-
-    status = (sd->card_status & ~mask) | (last_status & mask);
-    sd->card_status &= ~CARD_STATUS_C | APP_CMD;
+    uint32_t status = sd->card_status;
+    /* Clear the "clear on read" status bits */
+    sd->card_status &= ~CARD_STATUS_C;
 
     response[0] = (status >> 24) & 0xff;
     response[1] = (status >> 16) & 0xff;
@@ -367,6 +371,7 @@ static void sd_response_r6_make(SDState *sd, uint8_t *response)
     status = ((sd->card_status >> 8) & 0xc000) |
              ((sd->card_status >> 6) & 0x2000) |
               (sd->card_status & 0x1fff);
+    sd->card_status &= ~(CARD_STATUS_C & 0xc81fff);
 
     response[0] = (arg >> 8) & 0xff;
     response[1] = arg & 0xff;
@@ -417,6 +422,7 @@ static void sd_reset(SDState *sd, BlockDriverState *bdrv)
     sd->size = size;
     sd->blk_len = 0x200;
     sd->pwd_len = 0;
+    sd->expecting_acmd = 0;
 }
 
 static void sd_cardchange(void *opaque, bool load)
@@ -608,6 +614,9 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
     uint32_t rca = 0x0000;
     uint64_t addr = (sd->ocr & (1 << 30)) ? (uint64_t) req.arg << 9 : req.arg;
 
+    /* Not interpreting this as an app command */
+    sd->card_status &= ~APP_CMD;
+
     if (sd_cmd_type[req.cmd] == sd_ac || sd_cmd_type[req.cmd] == sd_adtc)
         rca = req.arg >> 16;
 
@@ -674,8 +683,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         break;
 
     case 5: /* CMD5: reserved for SDIO cards */
-        sd->card_status |= ILLEGAL_COMMAND;
-        return sd_r0;
+        return sd_illegal;
 
     case 6:	/* CMD6:   SWITCH_FUNCTION */
         if (sd->spi)
@@ -994,7 +1002,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         switch (sd->state) {
         case sd_transfer_state:
             if (addr >= sd->size) {
-                sd->card_status = ADDRESS_ERROR;
+                sd->card_status |= ADDRESS_ERROR;
                 return sd_r1b;
             }
 
@@ -1014,7 +1022,7 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
         switch (sd->state) {
         case sd_transfer_state:
             if (addr >= sd->size) {
-                sd->card_status = ADDRESS_ERROR;
+                sd->card_status |= ADDRESS_ERROR;
                 return sd_r1b;
             }
 
@@ -1110,14 +1118,14 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
          * on stderr, as some OSes may use these in their
          * probing for presence of an SDIO card.
          */
-        sd->card_status |= ILLEGAL_COMMAND;
-        return sd_r0;
+        return sd_illegal;
 
     /* Application specific commands (Class 8) */
     case 55:	/* CMD55:  APP_CMD */
         if (sd->rca != rca)
             return sd_r0;
 
+        sd->expecting_acmd = 1;
         sd->card_status |= APP_CMD;
         return sd_r1;
 
@@ -1140,27 +1148,24 @@ static sd_rsp_type_t sd_normal_command(SDState *sd,
 
     default:
     bad_cmd:
-        sd->card_status |= ILLEGAL_COMMAND;
-
         fprintf(stderr, "SD: Unknown CMD%i\n", req.cmd);
-        return sd_r0;
+        return sd_illegal;
 
     unimplemented_cmd:
         /* Commands that are recognised but not yet implemented in SPI mode.  */
-        sd->card_status |= ILLEGAL_COMMAND;
         fprintf(stderr, "SD: CMD%i not implemented in SPI mode\n", req.cmd);
-        return sd_r0;
+        return sd_illegal;
     }
 
-    sd->card_status |= ILLEGAL_COMMAND;
     fprintf(stderr, "SD: CMD%i in a wrong state\n", req.cmd);
-    return sd_r0;
+    return sd_illegal;
 }
 
 static sd_rsp_type_t sd_app_command(SDState *sd,
                                     SDRequest req)
 {
     DPRINTF("ACMD%d 0x%08x\n", req.cmd, req.arg);
+    sd->card_status |= APP_CMD;
     switch (req.cmd) {
     case 6:	/* ACMD6:  SET_BUS_WIDTH */
         switch (sd->state) {
@@ -1257,17 +1262,35 @@ static sd_rsp_type_t sd_app_command(SDState *sd,
 
     default:
         /* Fall back to standard commands.  */
-        sd->card_status &= ~APP_CMD;
         return sd_normal_command(sd, req);
     }
 
     fprintf(stderr, "SD: ACMD%i in a wrong state\n", req.cmd);
-    return sd_r0;
+    return sd_illegal;
+}
+
+static int cmd_valid_while_locked(SDState *sd, SDRequest *req)
+{
+    /* Valid commands in locked state:
+     * basic class (0)
+     * lock card class (7)
+     * CMD16
+     * implicitly, the ACMD prefix CMD55
+     * ACMD41 and ACMD42
+     * Anything else provokes an "illegal command" response.
+     */
+    if (sd->expecting_acmd) {
+        return req->cmd == 41 || req->cmd == 42;
+    }
+    if (req->cmd == 16 || req->cmd == 55) {
+        return 1;
+    }
+    return sd_cmd_class[req->cmd] == 0 || sd_cmd_class[req->cmd] == 7;
 }
 
 int sd_do_command(SDState *sd, SDRequest *req,
                   uint8_t *response) {
-    uint32_t last_status = sd->card_status;
+    int last_state;
     sd_rsp_type_t rtype;
     int rsplen;
 
@@ -1276,37 +1299,47 @@ int sd_do_command(SDState *sd, SDRequest *req,
     }
 
     if (sd_req_crc_validate(req)) {
-        sd->card_status &= ~COM_CRC_ERROR;
-        return 0;
+        sd->card_status |= COM_CRC_ERROR;
+        rtype = sd_illegal;
+        goto send_response;
     }
 
-    sd->card_status &= ~CARD_STATUS_B;
-    sd_set_status(sd);
-
-    if (last_status & CARD_IS_LOCKED)
-        if (((last_status & APP_CMD) &&
-                                 req->cmd == 41) ||
-                        (!(last_status & APP_CMD) &&
-                         (sd_cmd_class[req->cmd] == 0 ||
-                          sd_cmd_class[req->cmd] == 7 ||
-                          req->cmd == 16 || req->cmd == 55))) {
+    if (sd->card_status & CARD_IS_LOCKED) {
+        if (!cmd_valid_while_locked(sd, req)) {
             sd->card_status |= ILLEGAL_COMMAND;
+            sd->expecting_acmd = 0;
             fprintf(stderr, "SD: Card is locked\n");
-            return 0;
+            rtype = sd_illegal;
+            goto send_response;
         }
+    }
 
-    if (last_status & APP_CMD) {
+    last_state = sd->state;
+    sd_set_mode(sd);
+
+    if (sd->expecting_acmd) {
+        sd->expecting_acmd = 0;
         rtype = sd_app_command(sd, *req);
-        sd->card_status &= ~APP_CMD;
-    } else
+    } else {
         rtype = sd_normal_command(sd, *req);
+    }
 
-    sd->current_cmd = req->cmd;
+    if (rtype == sd_illegal) {
+        sd->card_status |= ILLEGAL_COMMAND;
+    } else {
+        /* Valid command, we can update the 'state before command' bits.
+         * (Do this now so they appear in r1 responses.)
+         */
+        sd->current_cmd = req->cmd;
+        sd->card_status &= ~CURRENT_STATE;
+        sd->card_status |= (last_state << 9);
+    }
 
+send_response:
     switch (rtype) {
     case sd_r1:
     case sd_r1b:
-        sd_response_r1_make(sd, response, last_status);
+        sd_response_r1_make(sd, response);
         rsplen = 4;
         break;
 
@@ -1336,13 +1369,18 @@ int sd_do_command(SDState *sd, SDRequest *req,
         break;
 
     case sd_r0:
+    case sd_illegal:
     default:
         rsplen = 0;
         break;
     }
 
-    if (sd->card_status & ILLEGAL_COMMAND)
-        rsplen = 0;
+    if (rtype != sd_illegal) {
+        /* Clear the "clear on valid command" status bits now we've
+         * sent any response
+         */
+        sd->card_status &= ~CARD_STATUS_B;
+    }
 
 #ifdef DEBUG_SD
     if (rsplen) {

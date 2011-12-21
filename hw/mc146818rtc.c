@@ -677,12 +677,12 @@ static int rtc_initfn(ISADevice *dev)
     return 0;
 }
 
-ISADevice *rtc_init(int base_year, qemu_irq intercept_irq)
+ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
 {
     ISADevice *dev;
     RTCState *s;
 
-    dev = isa_create("mc146818rtc");
+    dev = isa_create(bus, "mc146818rtc");
     s = DO_UPCAST(RTCState, dev, dev);
     qdev_prop_set_int32(&dev->qdev, "base_year", base_year);
     qdev_init_nofail(&dev->qdev);

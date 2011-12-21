@@ -123,6 +123,7 @@ struct MemoryRegion {
     bool terminates;
     bool readable;
     bool readonly; /* For RAM regions */
+    bool enabled;
     MemoryRegion *alias;
     target_phys_addr_t alias_offset;
     unsigned priority;
@@ -500,6 +501,44 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
  */
 void memory_region_del_subregion(MemoryRegion *mr,
                                  MemoryRegion *subregion);
+
+/*
+ * memory_region_set_enabled: dynamically enable or disable a region
+ *
+ * Enables or disables a memory region.  A disabled memory region
+ * ignores all accesses to itself and its subregions.  It does not
+ * obscure sibling subregions with lower priority - it simply behaves as
+ * if it was removed from the hierarchy.
+ *
+ * Regions default to being enabled.
+ *
+ * @mr: the region to be updated
+ * @enabled: whether to enable or disable the region
+ */
+void memory_region_set_enabled(MemoryRegion *mr, bool enabled);
+
+/*
+ * memory_region_set_address: dynamically update the address of a region
+ *
+ * Dynamically updates the address of a region, relative to its parent.
+ * May be used on regions are currently part of a memory hierarchy.
+ *
+ * @mr: the region to be updated
+ * @addr: new address, relative to parent region
+ */
+void memory_region_set_address(MemoryRegion *mr, target_phys_addr_t addr);
+
+/*
+ * memory_region_set_alias_offset: dynamically update a memory alias's offset
+ *
+ * Dynamically updates the offset into the target region that an alias points
+ * to, as if the fourth argument to memory_region_init_alias() has changed.
+ *
+ * @mr: the #MemoryRegion to be updated; should be an alias.
+ * @offset: the new offset into the target memory region
+ */
+void memory_region_set_alias_offset(MemoryRegion *mr,
+                                    target_phys_addr_t offset);
 
 /**
  * memory_region_transaction_begin: Start a transaction.

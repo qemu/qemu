@@ -469,9 +469,9 @@ static int pic_initfn(ISADevice *dev)
     memory_region_init_io(&s->base_io, &pic_base_ioport_ops, s, "pic", 2);
     memory_region_init_io(&s->elcr_io, &pic_elcr_ioport_ops, s, "elcr", 1);
 
-    isa_register_ioport(NULL, &s->base_io, s->iobase);
+    isa_register_ioport(dev, &s->base_io, s->iobase);
     if (s->elcr_addr != -1) {
-        isa_register_ioport(NULL, &s->elcr_io, s->elcr_addr);
+        isa_register_ioport(dev, &s->elcr_io, s->elcr_addr);
     }
 
     qdev_init_gpio_out(&dev->qdev, s->int_out, ARRAY_SIZE(s->int_out));
@@ -518,7 +518,7 @@ void irq_info(Monitor *mon)
 #endif
 }
 
-qemu_irq *i8259_init(qemu_irq parent_irq)
+qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
 {
     qemu_irq *irq_set;
     ISADevice *dev;
@@ -526,7 +526,7 @@ qemu_irq *i8259_init(qemu_irq parent_irq)
 
     irq_set = g_malloc(ISA_NUM_IRQS * sizeof(qemu_irq));
 
-    dev = isa_create("isa-i8259");
+    dev = isa_create(bus, "isa-i8259");
     qdev_prop_set_uint32(&dev->qdev, "iobase", 0x20);
     qdev_prop_set_uint32(&dev->qdev, "elcr_addr", 0x4d0);
     qdev_prop_set_uint8(&dev->qdev, "elcr_mask", 0xf8);
@@ -540,7 +540,7 @@ qemu_irq *i8259_init(qemu_irq parent_irq)
 
     isa_pic = DO_UPCAST(PicState, dev, dev);
 
-    dev = isa_create("isa-i8259");
+    dev = isa_create(bus, "isa-i8259");
     qdev_prop_set_uint32(&dev->qdev, "iobase", 0xa0);
     qdev_prop_set_uint32(&dev->qdev, "elcr_addr", 0x4d1);
     qdev_prop_set_uint8(&dev->qdev, "elcr_mask", 0xde);

@@ -244,14 +244,10 @@ static void aio_rw_done(void *opaque, int ret)
 
 static int do_aio_readv(QEMUIOVector *qiov, int64_t offset, int *total)
 {
-    BlockDriverAIOCB *acb;
     int async_ret = NOT_DONE;
 
-    acb = bdrv_aio_readv(bs, offset >> 9, qiov, qiov->size >> 9,
-                         aio_rw_done, &async_ret);
-    if (!acb) {
-        return -EIO;
-    }
+    bdrv_aio_readv(bs, offset >> 9, qiov, qiov->size >> 9,
+                   aio_rw_done, &async_ret);
     while (async_ret == NOT_DONE) {
         qemu_aio_wait();
     }
@@ -262,15 +258,10 @@ static int do_aio_readv(QEMUIOVector *qiov, int64_t offset, int *total)
 
 static int do_aio_writev(QEMUIOVector *qiov, int64_t offset, int *total)
 {
-    BlockDriverAIOCB *acb;
     int async_ret = NOT_DONE;
 
-    acb = bdrv_aio_writev(bs, offset >> 9, qiov, qiov->size >> 9,
-                          aio_rw_done, &async_ret);
-    if (!acb) {
-        return -EIO;
-    }
-
+    bdrv_aio_writev(bs, offset >> 9, qiov, qiov->size >> 9,
+                    aio_rw_done, &async_ret);
     while (async_ret == NOT_DONE) {
         qemu_aio_wait();
     }
@@ -1151,7 +1142,6 @@ static int aio_read_f(int argc, char **argv)
 {
     int nr_iov, c;
     struct aio_ctx *ctx = calloc(1, sizeof(struct aio_ctx));
-    BlockDriverAIOCB *acb;
 
     while ((c = getopt(argc, argv, "CP:qv")) != EOF) {
         switch (c) {
@@ -1206,14 +1196,8 @@ static int aio_read_f(int argc, char **argv)
     }
 
     gettimeofday(&ctx->t1, NULL);
-    acb = bdrv_aio_readv(bs, ctx->offset >> 9, &ctx->qiov,
-                         ctx->qiov.size >> 9, aio_read_done, ctx);
-    if (!acb) {
-        free(ctx->buf);
-        free(ctx);
-        return -EIO;
-    }
-
+    bdrv_aio_readv(bs, ctx->offset >> 9, &ctx->qiov,
+                   ctx->qiov.size >> 9, aio_read_done, ctx);
     return 0;
 }
 
@@ -1254,7 +1238,6 @@ static int aio_write_f(int argc, char **argv)
     int nr_iov, c;
     int pattern = 0xcd;
     struct aio_ctx *ctx = calloc(1, sizeof(struct aio_ctx));
-    BlockDriverAIOCB *acb;
 
     while ((c = getopt(argc, argv, "CqP:")) != EOF) {
         switch (c) {
@@ -1305,14 +1288,8 @@ static int aio_write_f(int argc, char **argv)
     }
 
     gettimeofday(&ctx->t1, NULL);
-    acb = bdrv_aio_writev(bs, ctx->offset >> 9, &ctx->qiov,
-                          ctx->qiov.size >> 9, aio_write_done, ctx);
-    if (!acb) {
-        free(ctx->buf);
-        free(ctx);
-        return -EIO;
-    }
-
+    bdrv_aio_writev(bs, ctx->offset >> 9, &ctx->qiov,
+                    ctx->qiov.size >> 9, aio_write_done, ctx);
     return 0;
 }
 

@@ -376,7 +376,12 @@ bool trace_backend_init(const char *events, const char *file)
     GThread *thread;
 
     if (!g_thread_supported()) {
+#if !GLIB_CHECK_VERSION(2, 31, 0)
         g_thread_init(NULL);
+#else
+        fprintf(stderr, "glib threading failed to initialize.\n");
+        exit(1);
+#endif
     }
 
     trace_available_cond = g_cond_new();

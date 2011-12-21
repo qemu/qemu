@@ -47,6 +47,9 @@ hxtotexi()
             DEFHEADING*)
             echo "$(expr "$str" : "DEFHEADING(\(.*\))")"
             ;;
+            ARCHHEADING*)
+            echo "$(expr "$str" : "ARCHHEADING(\(.*\),.*)")"
+            ;;
             *)
             test $flag -eq 1 && echo "$str"
             ;;

@@ -456,6 +456,19 @@ modprobe i810_audio clocking=48000
 @end example
 ETEXI
 
+DEF("balloon", HAS_ARG, QEMU_OPTION_balloon,
+    "-balloon none   disable balloon device\n"
+    "-balloon virtio[,addr=str]\n"
+    "                enable virtio balloon device (default)\n", QEMU_ARCH_ALL)
+STEXI
+@item -balloon none
+@findex -balloon
+Disable balloon device.
+@item -balloon virtio[,addr=@var{addr}]
+Enable virtio balloon device (default), optionally with PCI address
+@var{addr}.
+ETEXI
+
 STEXI
 @end table
 ETEXI
@@ -1070,9 +1083,9 @@ STEXI
 @end table
 ETEXI
 
-DEFHEADING()
+ARCHHEADING(, QEMU_ARCH_I386)
 
-DEFHEADING(i386 target only:)
+ARCHHEADING(i386 target only:, QEMU_ARCH_I386)
 STEXI
 @table @option
 ETEXI
@@ -1118,19 +1131,6 @@ STEXI
 @item -no-hpet
 @findex -no-hpet
 Disable HPET support.
-ETEXI
-
-DEF("balloon", HAS_ARG, QEMU_OPTION_balloon,
-    "-balloon none   disable balloon device\n"
-    "-balloon virtio[,addr=str]\n"
-    "                enable virtio balloon device (default)\n", QEMU_ARCH_ALL)
-STEXI
-@item -balloon none
-@findex -balloon
-Disable balloon device.
-@item -balloon virtio[,addr=@var{addr}]
-Enable virtio balloon device (default), optionally with PCI address
-@var{addr}.
 ETEXI
 
 DEF("acpitable", HAS_ARG, QEMU_OPTION_acpitable,

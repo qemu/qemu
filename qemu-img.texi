@@ -45,6 +45,10 @@ indicates the consecutive number of bytes that must contain only zeros
 for qemu-img to create a sparse image during conversion. This value is rounded
 down to the nearest 512 bytes. You may use the common size suffixes like
 @code{k} for kilobytes.
+@item -t @var{cache}
+specifies the cache mode that should be used with the (destination) file. See
+the documentation of the emulator's @code{-drive cache=...} option for allowed
+values.
 @end table
 
 Parameters to snapshot subcommand:
@@ -87,11 +91,11 @@ this case. @var{backing_file} will never be modified unless you use the
 The size can also be specified using the @var{size} option with @code{-o},
 it doesn't need to be specified separately in this case.
 
-@item commit [-f @var{fmt}] @var{filename}
+@item commit [-f @var{fmt}] [-t @var{cache}] @var{filename}
 
 Commit the changes recorded in @var{filename} in its base image.
 
-@item convert [-c] [-p] [-f @var{fmt}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
+@item convert [-c] [-p] [-f @var{fmt}] [-t @var{cache}] [-O @var{output_fmt}] [-o @var{options}] [-s @var{snapshot_name}] [-S @var{sparse_size}] @var{filename} [@var{filename2} [...]] @var{output_filename}
 
 Convert the disk image @var{filename} or a snapshot @var{snapshot_name} to disk image @var{output_filename}
 using format @var{output_fmt}. It can be optionally compressed (@code{-c}
@@ -121,7 +125,7 @@ they are displayed too.
 
 List, apply, create or delete snapshots in image @var{filename}.
 
-@item rebase [-f @var{fmt}] [-p] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
+@item rebase [-f @var{fmt}] [-t @var{cache}] [-p] [-u] -b @var{backing_file} [-F @var{backing_fmt}] @var{filename}
 
 Changes the backing file of an image. Only the formats @code{qcow2} and
 @code{qed} support changing the backing file.

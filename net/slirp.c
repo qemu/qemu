@@ -351,7 +351,7 @@ void net_slirp_hostfwd_remove(Monitor *mon, const QDict *qdict)
                                host_addr, host_port);
 
     monitor_printf(mon, "host forwarding rule for %s %s\n", src_str,
-                   err ? "removed" : "not found");
+                   err ? "not found" : "removed");
     return;
 
  fail_syntax:

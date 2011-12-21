@@ -12,7 +12,8 @@
 #include "irq.h"
 
 
-PCIBus *typhoon_init(ram_addr_t, qemu_irq *, CPUState *[4], pci_map_irq_fn);
+PCIBus *typhoon_init(ram_addr_t, ISABus **, qemu_irq *, CPUState *[4],
+                     pci_map_irq_fn);
 
 /* alpha_pci.c.  */
 extern const MemoryRegionOps alpha_pci_bw_io_ops;

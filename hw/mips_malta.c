@@ -800,6 +800,7 @@ void mips_malta_init (ram_addr_t ram_size,
     MemoryRegion *bios, *bios_alias = g_new(MemoryRegion, 1);
     int64_t kernel_entry;
     PCIBus *pci_bus;
+    ISABus *isa_bus;
     CPUState *env;
     qemu_irq *isa_irq;
     qemu_irq *cpu_exit_irq;
@@ -973,38 +974,38 @@ void mips_malta_init (ram_addr_t ram_size,
     /* Southbridge */
     ide_drive_get(hd, MAX_IDE_BUS);
 
-    piix4_devfn = piix4_init(pci_bus, 80);
+    piix4_devfn = piix4_init(pci_bus, &isa_bus, 80);
 
     /* Interrupt controller */
     /* The 8259 is attached to the MIPS CPU INT0 pin, ie interrupt 2 */
-    s->i8259 = i8259_init(env->irq[2]);
+    s->i8259 = i8259_init(isa_bus, env->irq[2]);
 
-    isa_bus_irqs(s->i8259);
+    isa_bus_irqs(isa_bus, s->i8259);
     pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
     usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
-    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100, isa_get_irq(9),
-                          NULL, NULL, 0);
+    smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100,
+                          isa_get_irq(NULL, 9), NULL, NULL, 0);
     /* TODO: Populate SPD eeprom data.  */
     smbus_eeprom_init(smbus, 8, NULL, 0);
-    pit = pit_init(0x40, 0);
-    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, env, 1);
+    pit = pit_init(isa_bus, 0x40, 0);
+    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
 
     /* Super I/O */
-    isa_create_simple("i8042");
+    isa_create_simple(isa_bus, "i8042");
 
-    rtc_init(2000, NULL);
-    serial_isa_init(0, serial_hds[0]);
-    serial_isa_init(1, serial_hds[1]);
+    rtc_init(isa_bus, 2000, NULL);
+    serial_isa_init(isa_bus, 0, serial_hds[0]);
+    serial_isa_init(isa_bus, 1, serial_hds[1]);
     if (parallel_hds[0])
-        parallel_init(0, parallel_hds[0]);
+        parallel_init(isa_bus, 0, parallel_hds[0]);
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    fdctrl_init_isa(fd);
+    fdctrl_init_isa(isa_bus, fd);
 
     /* Sound card */
-    audio_init(NULL, pci_bus);
+    audio_init(isa_bus, pci_bus);
 
     /* Network card */
     network_init();

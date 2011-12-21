@@ -977,7 +977,8 @@ int kvm_cpu_exec(CPUState *env)
                 ret = EXCP_INTERRUPT;
                 break;
             }
-            DPRINTF("kvm run failed %s\n", strerror(-run_ret));
+            fprintf(stderr, "error: kvm run failed %s\n",
+                    strerror(-run_ret));
             abort();
         }
 

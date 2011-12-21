@@ -493,7 +493,7 @@ void ide_sector_read(IDEState *s)
     }
 }
 
-static void dma_buf_commit(IDEState *s, int is_write)
+static void dma_buf_commit(IDEState *s)
 {
     qemu_sglist_destroy(&s->sg);
 }
@@ -532,7 +532,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
         bdrv_iostatus_set_err(s->bs, error);
     } else {
         if (op & BM_STATUS_DMA_RETRY) {
-            dma_buf_commit(s, 0);
+            dma_buf_commit(s);
             ide_dma_error(s);
         } else {
             ide_rw_error(s);
@@ -549,7 +549,6 @@ void ide_dma_cb(void *opaque, int ret)
     int n;
     int64_t sector_num;
 
-handle_rw_error:
     if (ret < 0) {
         int op = BM_STATUS_DMA_RETRY;
 
@@ -566,7 +565,7 @@ handle_rw_error:
     n = s->io_buffer_size >> 9;
     sector_num = ide_get_sector(s);
     if (n > 0) {
-        dma_buf_commit(s, ide_cmd_is_read(s));
+        dma_buf_commit(s);
         sector_num += n;
         ide_set_sector(s, sector_num);
         s->nsector -= n;
@@ -607,11 +606,6 @@ handle_rw_error:
         s->bus->dma->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
                                          ide_issue_trim, ide_dma_cb, s, true);
         break;
-    }
-
-    if (!s->bus->dma->aiocb) {
-        ret = -1;
-        goto handle_rw_error;
     }
     return;
 
@@ -718,18 +712,13 @@ static void ide_flush_cb(void *opaque, int ret)
 
 void ide_flush_cache(IDEState *s)
 {
-    BlockDriverAIOCB *acb;
-
     if (s->bs == NULL) {
         ide_flush_cb(s, 0);
         return;
     }
 
     bdrv_acct_start(s->bs, &s->acct, 0, BDRV_ACCT_FLUSH);
-    acb = bdrv_aio_flush(s->bs, ide_flush_cb, s);
-    if (acb == NULL) {
-        ide_flush_cb(s, -EIO);
-    }
+    bdrv_aio_flush(s->bs, ide_flush_cb, s);
 }
 
 static void ide_cfata_metadata_inquiry(IDEState *s)

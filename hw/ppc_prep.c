@@ -523,6 +523,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     uint32_t kernel_base, initrd_base;
     long kernel_size, initrd_size;
     PCIBus *pci_bus;
+    ISABus *isa_bus;
     qemu_irq *i8259;
     qemu_irq *cpu_exit_irq;
     int ppc_boot_device;
@@ -628,10 +629,10 @@ static void ppc_prep_init (ram_addr_t ram_size,
         hw_error("Only 6xx bus is supported on PREP machine\n");
     }
     /* Hmm, prep has no pci-isa bridge ??? */
-    isa_bus_new(NULL, get_system_io());
-    i8259 = i8259_init(first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
+    isa_bus = isa_bus_new(NULL, get_system_io());
+    i8259 = i8259_init(isa_bus, first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
     pci_bus = pci_prep_init(i8259, get_system_memory(), get_system_io());
-    isa_bus_irqs(i8259);
+    isa_bus_irqs(isa_bus, i8259);
     //    pci_bus = i440fx_init();
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
     memory_region_init_io(PPC_io_memory, &PPC_prep_io_ops, sysctrl,
@@ -642,10 +643,10 @@ static void ppc_prep_init (ram_addr_t ram_size,
     pci_vga_init(pci_bus);
     //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
     //    pit = pit_init(0x40, 0);
-    rtc_init(2000, NULL);
+    rtc_init(isa_bus, 2000, NULL);
 
     if (serial_hds[0])
-        serial_isa_init(0, serial_hds[0]);
+        serial_isa_init(isa_bus, 0, serial_hds[0]);
     nb_nics1 = nb_nics;
     if (nb_nics1 > NE2000_NB_MAX)
         nb_nics1 = NE2000_NB_MAX;
@@ -654,7 +655,8 @@ static void ppc_prep_init (ram_addr_t ram_size,
 	    nd_table[i].model = g_strdup("ne2k_isa");
         }
         if (strcmp(nd_table[i].model, "ne2k_isa") == 0) {
-            isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
+            isa_ne2000_init(isa_bus, ne2000_io[i], ne2000_irq[i],
+                            &nd_table[i]);
         } else {
             pci_nic_init_nofail(&nd_table[i], "ne2k_pci", NULL);
         }
@@ -662,11 +664,11 @@ static void ppc_prep_init (ram_addr_t ram_size,
 
     ide_drive_get(hd, MAX_IDE_BUS);
     for(i = 0; i < MAX_IDE_BUS; i++) {
-        isa_ide_init(ide_iobase[i], ide_iobase2[i], ide_irq[i],
+        isa_ide_init(isa_bus, ide_iobase[i], ide_iobase2[i], ide_irq[i],
                      hd[2 * i],
 		     hd[2 * i + 1]);
     }
-    isa_create_simple("i8042");
+    isa_create_simple(isa_bus, "i8042");
 
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(1, cpu_exit_irq);
@@ -676,7 +678,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     for(i = 0; i < MAX_FD; i++) {
         fd[i] = drive_get(IF_FLOPPY, 0, i);
     }
-    fdctrl_init_isa(fd);
+    fdctrl_init_isa(isa_bus, fd);
 
     /* Register speaker port */
     register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);

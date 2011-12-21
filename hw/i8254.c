@@ -525,7 +525,7 @@ static int pit_initfn(ISADevice *dev)
     s = &pit->channels[0];
     /* the timer 0 is connected to an IRQ */
     s->irq_timer = qemu_new_timer_ns(vm_clock, pit_irq_timer, s);
-    s->irq = isa_get_irq(pit->irq);
+    s->irq = isa_get_irq(dev, pit->irq);
 
     memory_region_init_io(&pit->ioports, &pit_ioport_ops, pit, "pit", 4);
     isa_register_ioport(dev, &pit->ioports, pit->iobase);

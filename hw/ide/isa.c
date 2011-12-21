@@ -73,13 +73,13 @@ static int isa_ide_initfn(ISADevice *dev)
     return 0;
 };
 
-ISADevice *isa_ide_init(int iobase, int iobase2, int isairq,
+ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
                         DriveInfo *hd0, DriveInfo *hd1)
 {
     ISADevice *dev;
     ISAIDEState *s;
 
-    dev = isa_create("isa-ide");
+    dev = isa_create(bus, "isa-ide");
     qdev_prop_set_uint32(&dev->qdev, "iobase",  iobase);
     qdev_prop_set_uint32(&dev->qdev, "iobase2", iobase2);
     qdev_prop_set_uint32(&dev->qdev, "irq",     isairq);
