@@ -409,7 +409,6 @@ static int xen_sync_dirty_bitmap(XenIOState *state,
                                  ram_addr_t size)
 {
     target_phys_addr_t npages = size >> TARGET_PAGE_BITS;
-    target_phys_addr_t vram_offset = 0;
     const int width = sizeof(unsigned long) * 8;
     unsigned long bitmap[(npages + width - 1) / width];
     int rc, i, j;
@@ -426,7 +425,6 @@ static int xen_sync_dirty_bitmap(XenIOState *state,
     } else if (state->log_for_dirtybit != physmap) {
         return -1;
     }
-    vram_offset = physmap->phys_offset;
 
     rc = xc_hvm_track_dirty_vram(xen_xc, xen_domid,
                                  start_addr >> TARGET_PAGE_BITS, npages,
@@ -440,7 +438,8 @@ static int xen_sync_dirty_bitmap(XenIOState *state,
         while (map != 0) {
             j = ffsl(map) - 1;
             map &= ~(1ul << j);
-            cpu_physical_memory_set_dirty(vram_offset + (i * width + j) * TARGET_PAGE_SIZE);
+            memory_region_set_dirty(framebuffer,
+                                    (i * width + j) * TARGET_PAGE_SIZE);
         };
     }
 
