@@ -217,12 +217,8 @@ static int block_compar(const void *a, const void *b)
 {
     RAMBlock * const *ablock = a;
     RAMBlock * const *bblock = b;
-    if ((*ablock)->offset < (*bblock)->offset) {
-        return -1;
-    } else if ((*ablock)->offset > (*bblock)->offset) {
-        return 1;
-    }
-    return 0;
+
+    return strcmp((*ablock)->idstr, (*bblock)->idstr);
 }
 
 static void sort_ram_list(void)
