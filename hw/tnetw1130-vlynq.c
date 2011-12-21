@@ -176,8 +176,6 @@ static int vlynq_tnetw1130_uninit(VLYNQDevice *vlynq_dev)
     vlynq_tnetw1130_t *d = DO_UPCAST(vlynq_tnetw1130_t, dev, vlynq_dev);
     tnetw1130_t *s = &d->tnetw1130;
 
-    cpu_unregister_io_memory(s->io_memory[0]);
-    cpu_unregister_io_memory(s->io_memory[1]);
     //~ vmstate_unregister(s->vmstate, s);
     qemu_del_vlan_client(&s->nic->nc);
     return 0;
