@@ -566,10 +566,6 @@ void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
                                      int dirty_flags);
 void cpu_tlb_update_dirty(CPUState *env);
 
-int cpu_physical_memory_set_dirty_tracking(int enable);
-
-int cpu_physical_memory_get_dirty_tracking(void);
-
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 #endif /* !CONFIG_USER_ONLY */
 

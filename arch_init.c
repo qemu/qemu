@@ -251,7 +251,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
     int ret;
 
     if (stage < 0) {
-        cpu_physical_memory_set_dirty_tracking(0);
+        memory_global_dirty_log_stop();
         return 0;
     }
 
@@ -274,8 +274,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
             }
         }
 
-        /* Enable dirty memory tracking */
-        cpu_physical_memory_set_dirty_tracking(1);
+        memory_global_dirty_log_start();
 
         qemu_put_be64(f, ram_bytes_total() | RAM_SAVE_FLAG_MEM_SIZE);
 
@@ -320,7 +319,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         while ((bytes_sent = ram_save_block(f)) != 0) {
             bytes_transferred += bytes_sent;
         }
-        cpu_physical_memory_set_dirty_tracking(0);
+        memory_global_dirty_log_stop();
     }
 
     qemu_put_be64(f, RAM_SAVE_FLAG_EOS);

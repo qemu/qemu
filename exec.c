@@ -2008,17 +2008,7 @@ int cpu_physical_memory_set_dirty_tracking(int enable)
 {
     int ret = 0;
     in_migration = enable;
-    if (enable) {
-        memory_global_dirty_log_start();
-    } else {
-        memory_global_dirty_log_stop();
-    }
     return ret;
-}
-
-int cpu_physical_memory_get_dirty_tracking(void)
-{
-    return in_migration;
 }
 
 static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)

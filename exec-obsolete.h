@@ -61,6 +61,8 @@ static inline void cpu_register_physical_memory(target_phys_addr_t start_addr,
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 
+int cpu_physical_memory_set_dirty_tracking(int enable);
+
 #endif
 
 #endif

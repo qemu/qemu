@@ -1493,6 +1493,7 @@ void memory_global_dirty_log_start(void)
 {
     MemoryListener *listener;
 
+    cpu_physical_memory_set_dirty_tracking(1);
     global_dirty_log = true;
     QLIST_FOREACH(listener, &memory_listeners, link) {
         listener->log_global_start(listener);
@@ -1507,6 +1508,7 @@ void memory_global_dirty_log_stop(void)
     QLIST_FOREACH(listener, &memory_listeners, link) {
         listener->log_global_stop(listener);
     }
+    cpu_physical_memory_set_dirty_tracking(0);
 }
 
 static void listener_add_address_space(MemoryListener *listener,
