@@ -78,7 +78,6 @@ typedef struct DeviceClass {
     ObjectClass parent_class;
 
     const char *fw_name;
-    const char *alias;
     const char *desc;
     Property *props;
     int no_user;

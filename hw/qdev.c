@@ -61,14 +61,56 @@ Property *qdev_get_props(DeviceState *dev)
     return dc->props;
 }
 
+/*
+ * Aliases were a bad idea from the start.  Let's keep them
+ * from spreading further.
+ */
+typedef struct QDevAlias
+{
+    const char *typename;
+    const char *alias;
+} QDevAlias;
+
+static const QDevAlias qdev_alias_table[] = {
+    { "virtio-blk-pci", "virtio-blk" },
+    { "virtio-net-pci", "virtio-net" },
+    { "virtio-serial-pci", "virtio-serial" },
+    { "virtio-balloon-pci", "virtio-balloon" },
+    { "virtio-blk-s390", "virtio-blk" },
+    { "virtio-net-s390", "virtio-net" },
+    { "virtio-serial-s390", "virtio-serial" },
+    { "lsi53c895a", "lsi" },
+    { "ich9-ahci", "ahci" },
+    { }
+};
+
+static const char *qdev_class_get_alias(DeviceClass *dc)
+{
+    const char *typename = object_class_get_name(OBJECT_CLASS(dc));
+    int i;
+
+    for (i = 0; qdev_alias_table[i].typename; i++) {
+        if (strcmp(qdev_alias_table[i].typename, typename) == 0) {
+            return qdev_alias_table[i].alias;
+        }
+    }
+
+    return NULL;
+}
+
+static bool qdev_class_has_alias(DeviceClass *dc)
+{
+    return (qdev_class_get_alias(dc) != NULL);
+}
+
 const char *qdev_fw_name(DeviceState *dev)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
     if (dc->fw_name) {
         return dc->fw_name;
-    } else if (dc->alias) {
-        return dc->alias;
+    } else if (qdev_class_has_alias(dc)) {
+        return qdev_class_get_alias(dc);
     }
 
     return object_get_typename(OBJECT(dev));
@@ -161,8 +203,8 @@ static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
     if (dc->bus_info) {
         error_printf(", bus %s", dc->bus_info->name);
     }
-    if (dc->alias) {
-        error_printf(", alias \"%s\"", dc->alias);
+    if (qdev_class_has_alias(dc)) {
+        error_printf(", alias \"%s\"", qdev_class_get_alias(dc));
     }
     if (dc->desc) {
         error_printf(", desc \"%s\"", dc->desc);
@@ -188,6 +230,19 @@ static int set_property(const char *name, const char *value, void *opaque)
     return 0;
 }
 
+static const char *find_typename_by_alias(const char *alias)
+{
+    int i;
+
+    for (i = 0; qdev_alias_table[i].alias; i++) {
+        if (strcmp(qdev_alias_table[i].alias, alias) == 0) {
+            return qdev_alias_table[i].typename;
+        }
+    }
+
+    return NULL;
+}
+
 int qdev_device_help(QemuOpts *opts)
 {
     const char *driver;
@@ -207,6 +262,15 @@ int qdev_device_help(QemuOpts *opts)
     }
 
     klass = object_class_by_name(driver);
+    if (!klass) {
+        const char *typename = find_typename_by_alias(driver);
+
+        if (typename) {
+            driver = typename;
+            klass = object_class_by_name(driver);
+        }
+    }
+
     if (!klass) {
         return 0;
     }
@@ -263,6 +327,7 @@ static DeviceState *qdev_get_peripheral_anon(void)
 
 DeviceState *qdev_device_add(QemuOpts *opts)
 {
+    ObjectClass *obj;
     DeviceClass *k;
     const char *driver, *path, *id;
     DeviceState *qdev;
@@ -275,7 +340,22 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     }
 
     /* find driver */
-    k = DEVICE_CLASS(object_class_by_name(driver));
+    obj = object_class_by_name(driver);
+    if (!obj) {
+        const char *typename = find_typename_by_alias(driver);
+
+        if (typename) {
+            driver = typename;
+            obj = object_class_by_name(driver);
+        }
+    }
+
+    if (!obj) {
+        qerror_report(QERR_INVALID_PARAMETER_VALUE, "driver", "device type");
+        return NULL;
+    }
+
+    k = DEVICE_CLASS(obj);
 
     /* find bus */
     path = qemu_opt_get(opts, "bus");
@@ -753,7 +833,8 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
     QTAILQ_FOREACH(dev, &bus->children, sibling) {
         DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
-        if (dc->alias && strcmp(dc->alias, elem) == 0) {
+        if (qdev_class_has_alias(dc) &&
+            strcmp(qdev_class_get_alias(dc), elem) == 0) {
             return dev;
         }
     }

@@ -827,7 +827,6 @@ static void virtio_blk_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIRTIO_BLOCK;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_STORAGE_SCSI;
-    dc->alias = "virtio-blk";
     dc->reset = virtio_pci_reset;
     dc->props = virtio_blk_properties;
 }
@@ -862,7 +861,6 @@ static void virtio_net_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIRTIO_NET;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
-    dc->alias = "virtio-net";
     dc->reset = virtio_pci_reset;
     dc->props = virtio_net_properties;
 }
@@ -894,7 +892,6 @@ static void virtio_serial_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIRTIO_CONSOLE;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_COMMUNICATION_OTHER;
-    dc->alias = "virtio-serial";
     dc->reset = virtio_pci_reset;
     dc->props = virtio_serial_properties;
 }
@@ -922,7 +919,6 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIRTIO_BALLOON;
     k->revision = VIRTIO_PCI_ABI_VERSION;
     k->class_id = PCI_CLASS_MEMORY_RAM;
-    dc->alias = "virtio-balloon";
     dc->reset = virtio_pci_reset;
     dc->props = virtio_balloon_properties;
 }
@@ -937,13 +933,9 @@ static TypeInfo virtio_balloon_info = {
 static void virtio_pci_register_devices(void)
 {
     type_register_static(&virtio_blk_info);
-    type_register_static_alias(&virtio_blk_info, "virtio-blk");
     type_register_static(&virtio_net_info);
-    type_register_static_alias(&virtio_net_info, "virtio-net");
     type_register_static(&virtio_serial_info);
-    type_register_static_alias(&virtio_serial_info, "virtio-serial");
     type_register_static(&virtio_balloon_info);
-    type_register_static_alias(&virtio_balloon_info, "virtio-balloon");
 }
 
 device_init(virtio_pci_register_devices)

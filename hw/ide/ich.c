@@ -158,7 +158,6 @@ static void ich_ahci_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82801IR;
     k->revision = 0x02;
     k->class_id = PCI_CLASS_STORAGE_SATA;
-    dc->alias = "ahci";
     dc->vmsd = &vmstate_ahci;
 }
 
@@ -172,6 +171,5 @@ static TypeInfo ich_ahci_info = {
 static void ich_ahci_register(void)
 {
     type_register_static(&ich_ahci_info);
-    type_register_static_alias(&ich_ahci_info, "ahci");
 }
 device_init(ich_ahci_register);
