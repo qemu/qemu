@@ -2903,3 +2903,13 @@ CharDriverState *qemu_chr_find(const char *name)
     }
     return NULL;
 }
+
+/* Get a character (serial) device interface.  */
+CharDriverState *qemu_char_get_next_serial(void)
+{
+    static int next_serial;
+
+    /* FIXME: This function needs to go away: use chardev properties!  */
+    return serial_hds[next_serial++];
+}
+

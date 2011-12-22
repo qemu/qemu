@@ -235,8 +235,6 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
 
-CharDriverState *qdev_init_chardev(DeviceState *dev);
-
 BusState *qdev_get_parent_bus(DeviceState *dev);
 
 /*** BUS API. ***/

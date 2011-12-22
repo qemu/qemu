@@ -336,15 +336,6 @@ bool qdev_machine_modified(void)
     return qdev_hot_added || qdev_hot_removed;
 }
 
-/* Get a character (serial) device interface.  */
-CharDriverState *qdev_init_chardev(DeviceState *dev)
-{
-    static int next_serial;
-
-    /* FIXME: This function needs to go away: use chardev properties!  */
-    return serial_hds[next_serial++];
-}
-
 BusState *qdev_get_parent_bus(DeviceState *dev)
 {
     return dev->parent_bus;

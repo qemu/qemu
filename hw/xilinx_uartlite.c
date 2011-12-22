@@ -205,7 +205,7 @@ static int xilinx_uartlite_init(SysBusDevice *dev)
     memory_region_init_io(&s->mmio, &uart_ops, s, "xilinx-uartlite", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
-    s->chr = qdev_init_chardev(&dev->qdev);
+    s->chr = qemu_char_get_next_serial();
     if (s->chr)
         qemu_chr_add_handlers(s->chr, uart_can_rx, uart_rx, uart_event, s);
     return 0;

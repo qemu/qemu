@@ -216,7 +216,7 @@ static int etraxfs_ser_init(SysBusDevice *dev)
     memory_region_init_io(&s->mmio, &ser_ops, s, "etraxfs-serial", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
-    s->chr = qdev_init_chardev(&dev->qdev);
+    s->chr = qemu_char_get_next_serial();
     if (s->chr)
         qemu_chr_add_handlers(s->chr,
                       serial_can_receive, serial_receive,

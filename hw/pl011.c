@@ -264,7 +264,7 @@ static int pl011_init(SysBusDevice *dev, const unsigned char *id)
     sysbus_init_mmio(dev, &s->iomem);
     sysbus_init_irq(dev, &s->irq);
     s->id = id;
-    s->chr = qdev_init_chardev(&dev->qdev);
+    s->chr = qemu_char_get_next_serial();
 
     s->read_trigger = 1;
     s->ifl = 0x12;
