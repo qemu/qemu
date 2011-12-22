@@ -646,4 +646,6 @@ Property *qdev_get_props(DeviceState *dev);
 /* FIXME: make this a link<> */
 void qdev_set_parent_bus(DeviceState *dev, BusState *bus);
 
+extern int qdev_hotplug;
+
 #endif
