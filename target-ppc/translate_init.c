@@ -2,6 +2,7 @@
  *  PowerPC CPU initialization for qemu.
  *
  *  Copyright (c) 2003-2007 Jocelyn Mayer
+ *  Copyright 2011 Freescale Semiconductor, Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -4399,6 +4400,33 @@ static void init_proc_e300 (CPUPPCState *env)
 #define check_pow_e500v2       check_pow_hid0
 #define init_proc_e500v2       init_proc_e500v2
 
+/* e500mc core                                                               */
+#define POWERPC_INSNS_e500mc   (PPC_INSNS_BASE | PPC_ISEL |                 \
+                                PPC_WRTEE | PPC_RFDI | PPC_RFMCI |          \
+                                PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
+                                PPC_CACHE_DCBZ | PPC_CACHE_DCBA |           \
+                                PPC_FLOAT | PPC_FLOAT_FRES |                \
+                                PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |        \
+                                PPC_FLOAT_STFIWX | PPC_WAIT |               \
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX)
+#define POWERPC_INSNS2_e500mc  (PPC2_BOOKE206)
+#define POWERPC_MSRM_e500mc    (0x000000001402FB36ULL)
+#define POWERPC_MMU_e500mc     (POWERPC_MMU_BOOKE206)
+#define POWERPC_EXCP_e500mc    (POWERPC_EXCP_BOOKE)
+#define POWERPC_INPUT_e500mc   (PPC_FLAGS_INPUT_BookE)
+/* Fixme: figure out the correct flag for e500mc */
+#define POWERPC_BFDM_e500mc    (bfd_mach_ppc_e500)
+#define POWERPC_FLAG_e500mc    (POWERPC_FLAG_CE | POWERPC_FLAG_DE | \
+                                POWERPC_FLAG_PMM | POWERPC_FLAG_BUS_CLK)
+#define check_pow_e500mc       check_pow_none
+#define init_proc_e500mc       init_proc_e500mc
+
+enum fsl_e500_version {
+    fsl_e500v1,
+    fsl_e500v2,
+    fsl_e500mc,
+};
+
 static void init_proc_e500 (CPUPPCState *env, int version)
 {
     uint32_t tlbncfg[2];
@@ -4430,15 +4458,26 @@ static void init_proc_e500 (CPUPPCState *env, int version)
     env->nb_ways = 2;
     env->id_tlbs = 0;
     switch (version) {
-    case 1:
+    case fsl_e500v1:
         /* e500v1 */
         tlbncfg[0] = gen_tlbncfg(2, 1, 1, 0, 256);
         tlbncfg[1] = gen_tlbncfg(16, 1, 9, TLBnCFG_AVAIL | TLBnCFG_IPROT, 16);
+        env->dcache_line_size = 32;
+        env->icache_line_size = 32;
         break;
-    case 2:
+    case fsl_e500v2:
         /* e500v2 */
         tlbncfg[0] = gen_tlbncfg(4, 1, 1, 0, 512);
         tlbncfg[1] = gen_tlbncfg(16, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 16);
+        env->dcache_line_size = 32;
+        env->icache_line_size = 32;
+        break;
+    case fsl_e500mc:
+        /* e500mc */
+        tlbncfg[0] = gen_tlbncfg(4, 1, 1, 0, 512);
+        tlbncfg[1] = gen_tlbncfg(64, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 64);
+        env->dcache_line_size = 64;
+        env->icache_line_size = 64;
         break;
     default:
         cpu_abort(env, "Unknown CPU: " TARGET_FMT_lx "\n", env->spr[SPR_PVR]);
@@ -4522,20 +4561,23 @@ static void init_proc_e500 (CPUPPCState *env, int version)
 #endif
 
     init_excp_e200(env);
-    env->dcache_line_size = 32;
-    env->icache_line_size = 32;
     /* Allocate hardware IRQ controller */
     ppce500_irq_init(env);
 }
 
 static void init_proc_e500v1(CPUPPCState *env)
 {
-    init_proc_e500(env, 1);
+    init_proc_e500(env, fsl_e500v1);
 }
 
 static void init_proc_e500v2(CPUPPCState *env)
 {
-    init_proc_e500(env, 2);
+    init_proc_e500(env, fsl_e500v2);
+}
+
+static void init_proc_e500mc(CPUPPCState *env)
+{
+    init_proc_e500(env, fsl_e500mc);
 }
 
 /* Non-embedded PowerPC                                                      */
@@ -7070,6 +7112,7 @@ enum {
     CPU_POWERPC_e500v2_v21         = 0x80210021,
     CPU_POWERPC_e500v2_v22         = 0x80210022,
     CPU_POWERPC_e500v2_v30         = 0x80210030,
+    CPU_POWERPC_e500mc             = 0x80230020,
     /* MPC85xx microcontrollers */
 #define CPU_POWERPC_MPC8533          CPU_POWERPC_MPC8533_v11
 #define CPU_POWERPC_MPC8533_v10      CPU_POWERPC_e500v2_v21
@@ -8471,6 +8514,7 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("e500v2_v22",    CPU_POWERPC_e500v2_v22,             e500v2),
     /* PowerPC e500v2 v3.0 core                                              */
     POWERPC_DEF("e500v2_v30",    CPU_POWERPC_e500v2_v30,             e500v2),
+    POWERPC_DEF("e500mc",        CPU_POWERPC_e500mc,                 e500mc),
     /* PowerPC e500 microcontrollers                                         */
     /* MPC8533                                                               */
     POWERPC_DEF_SVR("MPC8533",
