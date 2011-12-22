@@ -431,6 +431,7 @@ const char *object_class_get_name(ObjectClass *klass);
 ObjectClass *object_class_by_name(const char *typename);
 
 void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
+                          const char *implements_type, bool include_abstract,
                           void *opaque);
 
 #endif
