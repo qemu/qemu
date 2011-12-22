@@ -1549,3 +1549,36 @@
 # Since: 1.1
 ##
 { 'command': 'block_job_cancel', 'data': { 'device': 'str' } }
+
+##
+# @ObjectTypeInfo:
+#
+# This structure describes a search result from @qom-list-types
+#
+# @name: the type name found in the search
+#
+# Since: 1.1
+#
+# Notes: This command is experimental and may change syntax in future releases.
+##
+{ 'type': 'ObjectTypeInfo',
+  'data': { 'name': 'str' } }
+
+##
+# @qom-list-types:
+#
+# This command will return a list of types given search parameters
+#
+# @implements: if specified, only return types that implement this type name
+#
+# @abstract: if true, include abstract types in the results
+#
+# Returns: a list of @ObjectTypeInfo or an empty list if no results are found
+#
+# Since: 1.1
+#
+# Notes: This command is experimental and may change syntax in future releases.
+##
+{ 'command': 'qom-list-types',
+  'data': { '*implements': 'str', '*abstract': 'bool' },
+  'returns': [ 'ObjectTypeInfo' ] }

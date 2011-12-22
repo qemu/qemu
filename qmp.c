@@ -395,3 +395,30 @@ void qmp_change(const char *device, const char *target,
         qmp_change_blockdev(device, target, has_arg, arg, err);
     }
 }
+
+static void qom_list_types_tramp(ObjectClass *klass, void *data)
+{
+    ObjectTypeInfoList *e, **pret = data;
+    ObjectTypeInfo *info;
+
+    info = g_malloc0(sizeof(*info));
+    info->name = g_strdup(object_class_get_name(klass));
+
+    e = g_malloc0(sizeof(*e));
+    e->value = info;
+    e->next = *pret;
+    *pret = e;
+}
+
+ObjectTypeInfoList *qmp_qom_list_types(bool has_implements,
+                                       const char *implements,
+                                       bool has_abstract,
+                                       bool abstract,
+                                       Error **errp)
+{
+    ObjectTypeInfoList *ret = NULL;
+
+    object_class_foreach(qom_list_types_tramp, implements, abstract, &ret);
+
+    return ret;
+}
