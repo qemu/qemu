@@ -124,30 +124,22 @@ bool qdev_exists(const char *name)
 static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
                                      Error **errp);
 
-static DeviceState *qdev_create_from_info(BusState *bus, const char *typename)
+void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
 {
-    DeviceState *dev;
     Property *prop;
-
-    dev = DEVICE(object_new(typename));
-
-    dev->parent_bus = bus;
-    qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
 
     if (qdev_hotplug) {
         assert(bus->allow_hotplug);
     }
 
+    dev->parent_bus = bus;
     QTAILQ_INSERT_HEAD(&bus->children, dev, sibling);
 
+    qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
     for (prop = qdev_get_bus_info(dev)->props; prop && prop->name; prop++) {
         qdev_property_add_legacy(dev, prop, NULL);
         qdev_property_add_static(dev, prop, NULL);
     }
-
-    qdev_prop_set_globals(dev);
-
-    return dev;
 }
 
 /* Create a new device.  This only initializes the device state structure
@@ -172,11 +164,21 @@ DeviceState *qdev_create(BusState *bus, const char *name)
 
 DeviceState *qdev_try_create(BusState *bus, const char *name)
 {
+    DeviceState *dev;
+
+    dev = DEVICE(object_new(name));
+    if (!dev) {
+        return NULL;
+    }
+
     if (!bus) {
         bus = sysbus_get_default();
     }
 
-    return qdev_create_from_info(bus, name);
+    qdev_set_parent_bus(dev, bus);
+    qdev_prop_set_globals(dev);
+
+    return dev;
 }
 
 static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
@@ -373,8 +375,15 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         return NULL;
     }
 
+    if (!bus) {
+        bus = sysbus_get_default();
+    }
+
     /* create device, set properties */
-    qdev = qdev_create_from_info(bus, driver);
+    qdev = DEVICE(object_new(driver));
+    qdev_set_parent_bus(qdev, bus);
+    qdev_prop_set_globals(qdev);
+
     id = qemu_opts_id(opts);
     if (id) {
         qdev->id = id;
