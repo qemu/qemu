@@ -1025,10 +1025,10 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         if (ret == len) {
             td.cbp = 0;
         } else {
-            td.cbp += ret;
             if ((td.cbp & 0xfff) + ret > 0xfff) {
-                td.cbp &= 0xfff;
-                td.cbp |= td.be & ~0xfff;
+                td.cbp = (td.be & ~0xfff) + ((td.cbp + ret) & 0xfff);
+            } else {
+                td.cbp += ret;
             }
         }
         td.flags |= OHCI_TD_T1;
