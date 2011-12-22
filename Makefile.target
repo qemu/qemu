@@ -29,10 +29,17 @@ ifdef CONFIG_USER_ONLY
 QEMU_PROG=qemu-$(TARGET_ARCH2)
 else
 # system emulator name
+ifneq (,$(findstring -mwindows,$(LIBS)))
+# Terminate program name with a 'w' because the linker builds a windows executable.
+QEMU_PROGW=qemu-system-$(TARGET_ARCH2)w$(EXESUF)
+endif # windows executable
 QEMU_PROG=qemu-system-$(TARGET_ARCH2)$(EXESUF)
 endif
 
 PROGS=$(QEMU_PROG)
+ifdef QEMU_PROGW
+PROGS+=$(QEMU_PROGW)
+endif
 STPFILES=
 
 ifndef CONFIG_HAIKU
@@ -407,9 +414,16 @@ endif # CONFIG_LINUX_USER
 
 obj-$(CONFIG_GDBSTUB_XML) += gdbstub-xml.o
 
+ifdef QEMU_PROGW
+# The linker builds a windows executable. Make also a console executable.
+$(QEMU_PROGW): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
+	$(call LINK,$^)
+$(QEMU_PROG): $(QEMU_PROGW)
+	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
+else
 $(QEMU_PROG): $(obj-y) $(obj-$(TARGET_BASE_ARCH)-y)
 	$(call LINK,$^)
-
+endif
 
 gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/scripts/feature_to_c.sh
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/scripts/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
