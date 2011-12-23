@@ -30,10 +30,11 @@ static int ssi_slave_init(DeviceState *dev)
     SSISlave *s = SSI_SLAVE(dev);
     SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
     SSIBus *bus;
+    BusChild *kid;
 
     bus = FROM_QBUS(SSIBus, qdev_get_parent_bus(dev));
-    if (QTAILQ_FIRST(&bus->qbus.children) != dev
-        || QTAILQ_NEXT(dev, sibling) != NULL) {
+    kid = QTAILQ_FIRST(&bus->qbus.children);
+    if (kid->child != dev || QTAILQ_NEXT(kid, sibling) != NULL) {
         hw_error("Too many devices on SSI bus");
     }
 
@@ -72,14 +73,15 @@ SSIBus *ssi_create_bus(DeviceState *parent, const char *name)
 
 uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
 {
-    DeviceState *dev;
+    BusChild *kid;
     SSISlave *slave;
     SSISlaveClass *ssc;
-    dev = QTAILQ_FIRST(&bus->qbus.children);
-    if (!dev) {
+
+    kid = QTAILQ_FIRST(&bus->qbus.children);
+    if (!kid) {
         return 0;
     }
-    slave = SSI_SLAVE(dev);
+    slave = SSI_SLAVE(kid->child);
     ssc = SSI_SLAVE_GET_CLASS(slave);
     return ssc->transfer(slave, val);
 }

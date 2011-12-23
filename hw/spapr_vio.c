@@ -62,11 +62,11 @@ static const TypeInfo spapr_vio_bus_info = {
 
 VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
 {
-    DeviceState *qdev;
+    BusChild *kid;
     VIOsPAPRDevice *dev = NULL;
 
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        dev = (VIOsPAPRDevice *)qdev;
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        dev = (VIOsPAPRDevice *)kid->child;
         if (dev->reg == reg) {
             return dev;
         }
@@ -606,7 +606,7 @@ static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
                          uint32_t nret, target_ulong rets)
 {
     VIOsPAPRBus *bus = spapr->vio_bus;
-    DeviceState *qdev;
+    BusChild *kid;
     VIOsPAPRDevice *dev = NULL;
 
     if (nargs != 0) {
@@ -614,8 +614,8 @@ static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
         return;
     }
 
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        dev = (VIOsPAPRDevice *)qdev;
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        dev = (VIOsPAPRDevice *)kid->child;
         spapr_vio_quiesce_one(dev);
     }
 
@@ -625,7 +625,7 @@ static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
 static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
 {
     VIOsPAPRBus *bus = DO_UPCAST(VIOsPAPRBus, bus, dev->qdev.parent_bus);
-    DeviceState *qdev;
+    BusChild *kid;
     VIOsPAPRDevice *other;
 
     /*
@@ -633,8 +633,8 @@ static VIOsPAPRDevice *reg_conflict(VIOsPAPRDevice *dev)
      * using the requested address. We have to open code this because
      * the given dev might already be in the list.
      */
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        other = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        other = DO_UPCAST(VIOsPAPRDevice, qdev, kid->child);
 
         if (other != dev && other->reg == dev->reg) {
             return other;
@@ -840,19 +840,20 @@ static int compare_reg(const void *p1, const void *p2)
 int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt)
 {
     DeviceState *qdev, **qdevs;
+    BusChild *kid;
     int i, num, ret = 0;
 
     /* Count qdevs on the bus list */
     num = 0;
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
         num++;
     }
 
     /* Copy out into an array of pointers */
     qdevs = g_malloc(sizeof(qdev) * num);
     num = 0;
-    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        qdevs[num++] = qdev;
+    QTAILQ_FOREACH(kid, &bus->bus.children, sibling) {
+        qdevs[num++] = kid->child;
     }
 
     /* Sort the array */

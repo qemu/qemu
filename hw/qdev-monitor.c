@@ -205,11 +205,12 @@ static void qbus_list_bus(DeviceState *dev)
 
 static void qbus_list_dev(BusState *bus)
 {
-    DeviceState *dev;
+    BusChild *kid;
     const char *sep = " ";
 
     error_printf("devices at \"%s\":", bus->name);
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         error_printf("%s\"%s\"", sep, object_get_typename(OBJECT(dev)));
         if (dev->id)
             error_printf("/\"%s\"", dev->id);
@@ -232,7 +233,7 @@ static BusState *qbus_find_bus(DeviceState *dev, char *elem)
 
 static DeviceState *qbus_find_dev(BusState *bus, char *elem)
 {
-    DeviceState *dev;
+    BusChild *kid;
 
     /*
      * try to match in order:
@@ -240,17 +241,20 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
      *   (2) driver name
      *   (3) driver alias, if present
      */
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         if (dev->id  &&  strcmp(dev->id, elem) == 0) {
             return dev;
         }
     }
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         if (strcmp(object_get_typename(OBJECT(dev)), elem) == 0) {
             return dev;
         }
     }
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
         if (qdev_class_has_alias(dc) &&
@@ -264,7 +268,7 @@ static DeviceState *qbus_find_dev(BusState *bus, char *elem)
 static BusState *qbus_find_recursive(BusState *bus, const char *name,
                                      const char *bus_typename)
 {
-    DeviceState *dev;
+    BusChild *kid;
     BusState *child, *ret;
     int match = 1;
 
@@ -279,7 +283,8 @@ static BusState *qbus_find_recursive(BusState *bus, const char *name,
         return bus;
     }
 
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         QLIST_FOREACH(child, &dev->child_bus, sibling) {
             ret = qbus_find_recursive(child, name, bus_typename);
             if (ret) {
@@ -533,12 +538,13 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 
 static void qbus_print(Monitor *mon, BusState *bus, int indent)
 {
-    struct DeviceState *dev;
+    BusChild *kid;
 
     qdev_printf("bus: %s\n", bus->name);
     indent += 2;
     qdev_printf("type %s\n", object_get_typename(OBJECT(bus)));
-    QTAILQ_FOREACH(dev, &bus->children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->children, sibling) {
+        DeviceState *dev = kid->child;
         qdev_print(mon, dev, indent);
     }
 }

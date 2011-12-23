@@ -689,9 +689,16 @@ void object_property_del(Object *obj, const char *name, Error **errp)
 {
     ObjectProperty *prop = object_property_find(obj, name);
 
-    QTAILQ_REMOVE(&obj->properties, prop, node);
+    if (prop == NULL) {
+        error_set(errp, QERR_PROPERTY_NOT_FOUND, "", name);
+        return;
+    }
 
-    prop->release(obj, prop->name, prop->opaque);
+    if (prop->release) {
+        prop->release(obj, name, prop->opaque);
+    }
+
+    QTAILQ_REMOVE(&obj->properties, prop, node);
 
     g_free(prop->name);
     g_free(prop->type);

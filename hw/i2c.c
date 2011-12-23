@@ -86,11 +86,12 @@ int i2c_bus_busy(i2c_bus *bus)
 /* TODO: Make this handle multiple masters.  */
 int i2c_start_transfer(i2c_bus *bus, uint8_t address, int recv)
 {
-    DeviceState *qdev;
+    BusChild *kid;
     I2CSlave *slave = NULL;
     I2CSlaveClass *sc;
 
-    QTAILQ_FOREACH(qdev, &bus->qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
         I2CSlave *candidate = I2C_SLAVE_FROM_QDEV(qdev);
         if (candidate->address == address) {
             slave = candidate;

@@ -74,7 +74,6 @@ struct DeviceState {
     qemu_irq *gpio_in;
     QLIST_HEAD(, BusState) child_bus;
     int num_child_bus;
-    QTAILQ_ENTRY(DeviceState) sibling;
     int instance_id_alias;
     int alias_required_for_version;
 };
@@ -100,6 +99,12 @@ struct BusClass {
     int (*reset)(BusState *bus);
 };
 
+typedef struct BusChild {
+    DeviceState *child;
+    int index;
+    QTAILQ_ENTRY(BusChild) sibling;
+} BusChild;
+
 /**
  * BusState:
  * @qom_allocated: Indicates whether the object was allocated by QOM.
@@ -113,7 +118,8 @@ struct BusState {
     int allow_hotplug;
     bool qom_allocated;
     bool glib_allocated;
-    QTAILQ_HEAD(ChildrenHead, DeviceState) children;
+    int max_index;
+    QTAILQ_HEAD(ChildrenHead, BusChild) children;
     QLIST_ENTRY(BusState) sibling;
 };
 

@@ -78,10 +78,11 @@ static int hda_codec_dev_exit(DeviceState *qdev)
 
 HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
 {
-    DeviceState *qdev;
+    BusChild *kid;
     HDACodecDevice *cdev;
 
-    QTAILQ_FOREACH(qdev, &bus->qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &bus->qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
         if (cdev->cad == cad) {
             return cdev;
@@ -483,10 +484,11 @@ static void intel_hda_parse_bdl(IntelHDAState *d, IntelHDAStream *st)
 
 static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool running, bool output)
 {
-    DeviceState *qdev;
+    BusChild *kid;
     HDACodecDevice *cdev;
 
-    QTAILQ_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &d->codecs.qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
         HDACodecDeviceClass *cdc;
 
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
@@ -1105,15 +1107,16 @@ static const MemoryRegionOps intel_hda_mmio_ops = {
 
 static void intel_hda_reset(DeviceState *dev)
 {
+    BusChild *kid;
     IntelHDAState *d = DO_UPCAST(IntelHDAState, pci.qdev, dev);
-    DeviceState *qdev;
     HDACodecDevice *cdev;
 
     intel_hda_regs_reset(d);
     d->wall_base_ns = qemu_get_clock_ns(vm_clock);
 
     /* reset codecs */
-    QTAILQ_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
+    QTAILQ_FOREACH(kid, &d->codecs.qbus.children, sibling) {
+        DeviceState *qdev = kid->child;
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
         device_reset(DEVICE(cdev));
         d->state_sts |= (1 << cdev->cad);

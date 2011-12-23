@@ -275,7 +275,7 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
 {
     SCSIDevice *d = virtio_scsi_device_find(s, req->req.tmf->lun);
     SCSIRequest *r, *next;
-    DeviceState *qdev;
+    BusChild *kid;
     int target;
 
     /* Here VIRTIO_SCSI_S_OK means "FUNCTION COMPLETE".  */
@@ -346,8 +346,8 @@ static void virtio_scsi_do_tmf(VirtIOSCSI *s, VirtIOSCSIReq *req)
     case VIRTIO_SCSI_T_TMF_I_T_NEXUS_RESET:
         target = req->req.tmf->lun[1];
         s->resetting++;
-        QTAILQ_FOREACH(qdev, &s->bus.qbus.children, sibling) {
-             d = DO_UPCAST(SCSIDevice, qdev, qdev);
+        QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
+             d = DO_UPCAST(SCSIDevice, qdev, kid->child);
              if (d->channel == 0 && d->id == target) {
                 qdev_reset_all(&d->qdev);
              }

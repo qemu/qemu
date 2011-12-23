@@ -1677,9 +1677,10 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
         }
         if (val & LSI_SCNTL1_RST) {
             if (!(s->sstat0 & LSI_SSTAT0_RST)) {
-                DeviceState *dev;
+                BusChild *kid;
 
-                QTAILQ_FOREACH(dev, &s->bus.qbus.children, sibling) {
+                QTAILQ_FOREACH(kid, &s->bus.qbus.children, sibling) {
+                    DeviceState *dev = kid->child;
                     device_reset(dev);
                 }
                 s->sstat0 |= LSI_SSTAT0_RST;
