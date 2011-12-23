@@ -735,11 +735,12 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
         if (target) {
             gchar *target_type;
 
-            target_type = g_strdup_printf("link<%s>",
-                                          object_get_typename(OBJECT(target)));
-            if (strcmp(target_type, type) == 0) {
-                *child = target;
+            target_type = g_strdup(&type[5]);
+            target_type[strlen(target_type) - 2] = 0;
+
+            if (object_dynamic_cast(target, target_type)) {
                 object_ref(target);
+                *child = target;
             } else {
                 error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, type);
             }
