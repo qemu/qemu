@@ -163,12 +163,14 @@ int qdev_device_help(QemuOpts *opts)
         error_printf("%s.%s=%s\n", driver, prop->name,
                      prop->info->legacy_name ?: prop->info->name);
     }
-    for (prop = info->bus_info->props; prop && prop->name; prop++) {
-        if (!prop->info->parse) {
-            continue;           /* no way to set it, don't show */
+    if (info->bus_info) {
+        for (prop = info->bus_info->props; prop && prop->name; prop++) {
+            if (!prop->info->parse) {
+                continue;           /* no way to set it, don't show */
+            }
+            error_printf("%s.%s=%s\n", driver, prop->name,
+                         prop->info->legacy_name ?: prop->info->name);
         }
-        error_printf("%s.%s=%s\n", driver, prop->name,
-                     prop->info->legacy_name ?: prop->info->name);
     }
     return 1;
 }
