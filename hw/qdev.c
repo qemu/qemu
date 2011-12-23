@@ -247,31 +247,6 @@ void qdev_init_nofail(DeviceState *dev)
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
-    BusState *bus;
-    Property *prop;
-    DeviceClass *dc = DEVICE_GET_CLASS(dev);
-
-    if (dev->state == DEV_STATE_INITIALIZED) {
-        while (dev->num_child_bus) {
-            bus = QLIST_FIRST(&dev->child_bus);
-            qbus_free(bus);
-        }
-        if (qdev_get_vmsd(dev)) {
-            vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
-        }
-        if (dc->exit) {
-            dc->exit(dev);
-        }
-        if (dev->opts) {
-            qemu_opts_del(dev->opts);
-        }
-    }
-    QTAILQ_REMOVE(&dev->parent_bus->children, dev, sibling);
-    for (prop = qdev_get_props(dev); prop && prop->name; prop++) {
-        if (prop->info->free) {
-            prop->info->free(dev, prop);
-        }
-    }
     object_delete(OBJECT(dev));
 }
 
@@ -634,6 +609,37 @@ static void device_initfn(Object *obj)
     object_property_add_str(OBJECT(dev), "type", qdev_get_type, NULL, NULL);
 }
 
+/* Unlink device from bus and free the structure.  */
+static void device_finalize(Object *obj)
+{
+    DeviceState *dev = DEVICE(obj);
+    BusState *bus;
+    Property *prop;
+    DeviceClass *dc = DEVICE_GET_CLASS(dev);
+
+    if (dev->state == DEV_STATE_INITIALIZED) {
+        while (dev->num_child_bus) {
+            bus = QLIST_FIRST(&dev->child_bus);
+            qbus_free(bus);
+        }
+        if (qdev_get_vmsd(dev)) {
+            vmstate_unregister(dev, qdev_get_vmsd(dev), dev);
+        }
+        if (dc->exit) {
+            dc->exit(dev);
+        }
+        if (dev->opts) {
+            qemu_opts_del(dev->opts);
+        }
+    }
+    QTAILQ_REMOVE(&dev->parent_bus->children, dev, sibling);
+    for (prop = qdev_get_props(dev); prop && prop->name; prop++) {
+        if (prop->info->free) {
+            prop->info->free(dev, prop);
+        }
+    }
+}
+
 void device_reset(DeviceState *dev)
 {
     DeviceClass *klass = DEVICE_GET_CLASS(dev);
@@ -648,6 +654,7 @@ static TypeInfo device_type_info = {
     .parent = TYPE_OBJECT,
     .instance_size = sizeof(DeviceState),
     .instance_init = device_initfn,
+    .instance_finalize = device_finalize,
     .abstract = true,
     .class_size = sizeof(DeviceClass),
 };
