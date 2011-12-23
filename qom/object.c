@@ -662,14 +662,13 @@ const char *object_property_get_type(Object *obj, const char *name, Error **errp
 
 Object *object_get_root(void)
 {
-    static DeviceState *object_root;
+    static Object *root;
 
-    if (!object_root) {
-        object_root = qdev_create(NULL, "container");
-        qdev_init_nofail(object_root);
+    if (!root) {
+        root = object_new("container");
     }
 
-    return OBJECT(object_root);
+    return root;
 }
 
 static void object_get_child_property(Object *obj, Visitor *v, void *opaque,

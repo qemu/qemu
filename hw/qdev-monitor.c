@@ -177,30 +177,28 @@ int qdev_device_help(QemuOpts *opts)
 
 static Object *qdev_get_peripheral(void)
 {
-    static DeviceState *dev;
+    static Object *dev;
 
     if (dev == NULL) {
-        dev = qdev_create(NULL, "container");
+        dev = object_new("container");
         object_property_add_child(object_get_root(), "peripheral",
                                   OBJECT(dev), NULL);
-        qdev_init_nofail(dev);
     }
 
-    return OBJECT(dev);
+    return dev;
 }
 
 static Object *qdev_get_peripheral_anon(void)
 {
-    static DeviceState *dev;
+    static Object *dev;
 
     if (dev == NULL) {
-        dev = qdev_create(NULL, "container");
+        dev = object_new("container");
         object_property_add_child(object_get_root(), "peripheral-anon",
                                   OBJECT(dev), NULL);
-        qdev_init_nofail(dev);
     }
 
-    return OBJECT(dev);
+    return dev;
 }
 
 static void qbus_list_bus(DeviceState *dev)

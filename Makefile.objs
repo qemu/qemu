@@ -286,7 +286,7 @@ hw-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
 hw-obj-$(CONFIG_ESP) += esp.o
 
 hw-obj-y += dma-helpers.o sysbus.o isa-bus.o
-hw-obj-y += qdev-addr.o container.o
+hw-obj-y += qdev-addr.o
 
 # VGA
 hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o
