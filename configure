@@ -300,8 +300,11 @@ else
   cpu=`uname -m`
 fi
 
+ARCH=
+# Normalise host CPU name and set ARCH.
+# Note that this case should only have supported host CPUs, not guests.
 case "$cpu" in
-  alpha|cris|ia64|lm32|m68k|microblaze|ppc|ppc64|sparc64|unicore32)
+  ia64|ppc|ppc64|s390|s390x|sparc64)
     cpu="$cpu"
   ;;
   i386|i486|i586|i686|i86pc|BePC)
@@ -319,20 +322,17 @@ case "$cpu" in
   mips*)
     cpu="mips"
   ;;
-  s390)
-    cpu="s390"
-  ;;
-  s390x)
-    cpu="s390x"
-  ;;
   sparc|sun4[cdmuv])
     cpu="sparc"
   ;;
   *)
-    echo "Unsupported CPU = $cpu"
-    exit 1
+    # This will result in either an error or falling back to TCI later
+    ARCH=unknown
   ;;
 esac
+if test -z "$ARCH"; then
+  ARCH="$cpu"
+fi
 
 # OS specific
 if check_define __linux__ ; then
@@ -1078,6 +1078,18 @@ echo "  --enable-guest-agent     enable building of the QEMU Guest Agent"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
+fi
+
+# Now we have handled --enable-tcg-interpreter and know we're not just
+# printing the help message, bail out if the host CPU isn't supported.
+if test "$ARCH" = "unknown"; then
+    if test "$tcg_interpreter" = "yes" ; then
+        echo "Unsupported CPU = $cpu, will use TCG with TCI (experimental)"
+        ARCH=tci
+    else
+        echo "Unsupported CPU = $cpu, try --enable-tcg-interpreter"
+        exit 1
+    fi
 fi
 
 # check that the C compiler works.
@@ -2903,20 +2915,6 @@ echo "sysconfdir=$sysconfdir" >> $config_host_mak
 echo "docdir=$docdir" >> $config_host_mak
 echo "confdir=$confdir" >> $config_host_mak
 
-case "$cpu" in
-  i386|x86_64|alpha|arm|cris|hppa|ia64|lm32|m68k|microblaze|mips|mips64|ppc|ppc64|s390|s390x|sparc|sparc64|unicore32)
-    ARCH=$cpu
-  ;;
-  *)
-    if test "$tcg_interpreter" = "yes" ; then
-        echo "Unsupported CPU = $cpu, will use TCG with TCI (experimental)"
-        ARCH=tci
-    else
-        echo "Unsupported CPU = $cpu, try --enable-tcg-interpreter"
-        exit 1
-    fi
-  ;;
-esac
 echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
   echo "CONFIG_DEBUG_TCG=y" >> $config_host_mak
