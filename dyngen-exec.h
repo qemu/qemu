@@ -31,7 +31,7 @@
 #elif defined(_ARCH_PPC)
 #define AREG0 "r27"
 #elif defined(__arm__)
-#define AREG0 "r7"
+#define AREG0 "r6"
 #elif defined(__hppa__)
 #define AREG0 "r17"
 #elif defined(__mips__)
