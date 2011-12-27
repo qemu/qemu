@@ -25,6 +25,8 @@
 #include "host-utils.h"
 #include <math.h>
 
+#include "qemu_socket.h"
+
 void pstrcpy(char *buf, int buf_size, const char *str)
 {
     int c;
@@ -403,3 +405,112 @@ int qemu_parse_fd(const char *param)
     }
     return fd;
 }
+
+/*
+ * Send/recv data with iovec buffers
+ *
+ * This function send/recv data from/to the iovec buffer directly.
+ * The first `offset' bytes in the iovec buffer are skipped and next
+ * `len' bytes are used.
+ *
+ * For example,
+ *
+ *   do_sendv_recvv(sockfd, iov, len, offset, 1);
+ *
+ * is equal to
+ *
+ *   char *buf = malloc(size);
+ *   iov_to_buf(iov, iovcnt, buf, offset, size);
+ *   send(sockfd, buf, size, 0);
+ *   free(buf);
+ */
+static int do_sendv_recvv(int sockfd, struct iovec *iov, int len, int offset,
+                          int do_sendv)
+{
+    int ret, diff, iovlen;
+    struct iovec *last_iov;
+
+    /* last_iov is inclusive, so count from one.  */
+    iovlen = 1;
+    last_iov = iov;
+    len += offset;
+
+    while (last_iov->iov_len < len) {
+        len -= last_iov->iov_len;
+
+        last_iov++;
+        iovlen++;
+    }
+
+    diff = last_iov->iov_len - len;
+    last_iov->iov_len -= diff;
+
+    while (iov->iov_len <= offset) {
+        offset -= iov->iov_len;
+
+        iov++;
+        iovlen--;
+    }
+
+    iov->iov_base = (char *) iov->iov_base + offset;
+    iov->iov_len -= offset;
+
+    {
+#if defined CONFIG_IOVEC && defined CONFIG_POSIX
+        struct msghdr msg;
+        memset(&msg, 0, sizeof(msg));
+        msg.msg_iov = iov;
+        msg.msg_iovlen = iovlen;
+
+        do {
+            if (do_sendv) {
+                ret = sendmsg(sockfd, &msg, 0);
+            } else {
+                ret = recvmsg(sockfd, &msg, 0);
+            }
+        } while (ret == -1 && errno == EINTR);
+#else
+        struct iovec *p = iov;
+        ret = 0;
+        while (iovlen > 0) {
+            int rc;
+            if (do_sendv) {
+                rc = send(sockfd, p->iov_base, p->iov_len, 0);
+            } else {
+                rc = qemu_recv(sockfd, p->iov_base, p->iov_len, 0);
+            }
+            if (rc == -1) {
+                if (errno == EINTR) {
+                    continue;
+                }
+                if (ret == 0) {
+                    ret = -1;
+                }
+                break;
+            }
+            if (rc == 0) {
+                break;
+            }
+            ret += rc;
+            iovlen--, p++;
+        }
+#endif
+    }
+
+    /* Undo the changes above */
+    iov->iov_base = (char *) iov->iov_base - offset;
+    iov->iov_len += offset;
+    last_iov->iov_len += diff;
+    return ret;
+}
+
+int qemu_recvv(int sockfd, struct iovec *iov, int len, int iov_offset)
+{
+    return do_sendv_recvv(sockfd, iov, len, iov_offset, 0);
+}
+
+int qemu_sendv(int sockfd, struct iovec *iov, int len, int iov_offset)
+{
+    return do_sendv_recvv(sockfd, iov, len, iov_offset, 1);
+}
+

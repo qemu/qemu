@@ -118,3 +118,8 @@ int qemu_gettimeofday(qemu_timeval *tp)
      Do not set errno on error.  */
   return 0;
 }
+
+int qemu_get_thread_id(void)
+{
+    return GetCurrentThreadId();
+}
