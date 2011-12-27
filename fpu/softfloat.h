@@ -129,6 +129,7 @@ typedef struct {
     uint16_t high;
 } floatx80;
 #define make_floatx80(exp, mant) ((floatx80) { mant, exp })
+#define make_floatx80_init(exp, mant) { .low = mant, .high = exp }
 typedef struct {
 #ifdef HOST_WORDS_BIGENDIAN
     uint64_t high, low;
@@ -137,6 +138,7 @@ typedef struct {
 #endif
 } float128;
 #define make_float128(high_, low_) ((float128) { .high = high_, .low = low_ })
+#define make_float128_init(high_, low_) { .high = high_, .low = low_ }
 
 /*----------------------------------------------------------------------------
 | Software IEC/IEEE floating-point underflow tininess-detection mode.
