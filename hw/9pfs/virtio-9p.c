@@ -674,40 +674,6 @@ static size_t pdu_pack(V9fsPDU *pdu, size_t offset, const void *src,
                              offset, size, 1);
 }
 
-static int pdu_copy_sg(V9fsPDU *pdu, size_t offset, int rx, struct iovec *sg)
-{
-    size_t pos = 0;
-    int i, j;
-    struct iovec *src_sg;
-    unsigned int num;
-
-    if (rx) {
-        src_sg = pdu->elem.in_sg;
-        num = pdu->elem.in_num;
-    } else {
-        src_sg = pdu->elem.out_sg;
-        num = pdu->elem.out_num;
-    }
-
-    j = 0;
-    for (i = 0; i < num; i++) {
-        if (offset <= pos) {
-            sg[j].iov_base = src_sg[i].iov_base;
-            sg[j].iov_len = src_sg[i].iov_len;
-            j++;
-        } else if (offset < (src_sg[i].iov_len + pos)) {
-            sg[j].iov_base = src_sg[i].iov_base;
-            sg[j].iov_len = src_sg[i].iov_len;
-            sg[j].iov_base += (offset - pos);
-            sg[j].iov_len -= (offset - pos);
-            j++;
-        }
-        pos += src_sg[i].iov_len;
-    }
-
-    return j;
-}
-
 static size_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
 {
     size_t old_offset = offset;
@@ -741,12 +707,6 @@ static size_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
             valp = va_arg(ap, uint64_t *);
             offset += pdu_unpack(&val, pdu, offset, sizeof(val));
             *valp = le64_to_cpu(val);
-            break;
-        }
-        case 'v': {
-            struct iovec *iov = va_arg(ap, struct iovec *);
-            int *iovcnt = va_arg(ap, int *);
-            *iovcnt = pdu_copy_sg(pdu, offset, 0, iov);
             break;
         }
         case 's': {
@@ -825,12 +785,6 @@ static size_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
             uint64_t val;
             cpu_to_le64w(&val, va_arg(ap, uint64_t));
             offset += pdu_pack(pdu, offset, &val, sizeof(val));
-            break;
-        }
-        case 'v': {
-            struct iovec *iov = va_arg(ap, struct iovec *);
-            int *iovcnt = va_arg(ap, int *);
-            *iovcnt = pdu_copy_sg(pdu, offset, 1, iov);
             break;
         }
         case 's': {
@@ -1143,42 +1097,6 @@ static void stat_to_v9stat_dotl(V9fsState *s, const struct stat *stbuf,
     stat_to_qid(stbuf, &v9lstat->qid);
 }
 
-static struct iovec *adjust_sg(struct iovec *sg, int len, int *iovcnt)
-{
-    while (len && *iovcnt) {
-        if (len < sg->iov_len) {
-            sg->iov_len -= len;
-            sg->iov_base += len;
-            len = 0;
-        } else {
-            len -= sg->iov_len;
-            sg++;
-            *iovcnt -= 1;
-        }
-    }
-
-    return sg;
-}
-
-static struct iovec *cap_sg(struct iovec *sg, int cap, int *cnt)
-{
-    int i;
-    int total = 0;
-
-    for (i = 0; i < *cnt; i++) {
-        if ((total + sg[i].iov_len) > cap) {
-            sg[i].iov_len -= ((total + sg[i].iov_len) - cap);
-            i++;
-            break;
-        }
-        total += sg[i].iov_len;
-    }
-
-    *cnt = i;
-
-    return sg;
-}
-
 static void print_sg(struct iovec *sg, int cnt)
 {
     int i;
@@ -1375,17 +1293,18 @@ out_nofid:
     complete_pdu(s, pdu, retval);
 }
 
-/* From Linux kernel code */
-#define ATTR_MODE    (1 << 0)
-#define ATTR_UID     (1 << 1)
-#define ATTR_GID     (1 << 2)
-#define ATTR_SIZE    (1 << 3)
-#define ATTR_ATIME   (1 << 4)
-#define ATTR_MTIME   (1 << 5)
-#define ATTR_CTIME   (1 << 6)
-#define ATTR_MASK    127
-#define ATTR_ATIME_SET  (1 << 7)
-#define ATTR_MTIME_SET  (1 << 8)
+/* Attribute flags */
+#define P9_ATTR_MODE       (1 << 0)
+#define P9_ATTR_UID        (1 << 1)
+#define P9_ATTR_GID        (1 << 2)
+#define P9_ATTR_SIZE       (1 << 3)
+#define P9_ATTR_ATIME      (1 << 4)
+#define P9_ATTR_MTIME      (1 << 5)
+#define P9_ATTR_CTIME      (1 << 6)
+#define P9_ATTR_ATIME_SET  (1 << 7)
+#define P9_ATTR_MTIME_SET  (1 << 8)
+
+#define P9_ATTR_MASK    127
 
 static void v9fs_setattr(void *opaque)
 {
@@ -1404,16 +1323,16 @@ static void v9fs_setattr(void *opaque)
         err = -EINVAL;
         goto out_nofid;
     }
-    if (v9iattr.valid & ATTR_MODE) {
+    if (v9iattr.valid & P9_ATTR_MODE) {
         err = v9fs_co_chmod(pdu, &fidp->path, v9iattr.mode);
         if (err < 0) {
             goto out;
         }
     }
-    if (v9iattr.valid & (ATTR_ATIME | ATTR_MTIME)) {
+    if (v9iattr.valid & (P9_ATTR_ATIME | P9_ATTR_MTIME)) {
         struct timespec times[2];
-        if (v9iattr.valid & ATTR_ATIME) {
-            if (v9iattr.valid & ATTR_ATIME_SET) {
+        if (v9iattr.valid & P9_ATTR_ATIME) {
+            if (v9iattr.valid & P9_ATTR_ATIME_SET) {
                 times[0].tv_sec = v9iattr.atime_sec;
                 times[0].tv_nsec = v9iattr.atime_nsec;
             } else {
@@ -1422,8 +1341,8 @@ static void v9fs_setattr(void *opaque)
         } else {
             times[0].tv_nsec = UTIME_OMIT;
         }
-        if (v9iattr.valid & ATTR_MTIME) {
-            if (v9iattr.valid & ATTR_MTIME_SET) {
+        if (v9iattr.valid & P9_ATTR_MTIME) {
+            if (v9iattr.valid & P9_ATTR_MTIME_SET) {
                 times[1].tv_sec = v9iattr.mtime_sec;
                 times[1].tv_nsec = v9iattr.mtime_nsec;
             } else {
@@ -1441,13 +1360,13 @@ static void v9fs_setattr(void *opaque)
      * If the only valid entry in iattr is ctime we can call
      * chown(-1,-1) to update the ctime of the file
      */
-    if ((v9iattr.valid & (ATTR_UID | ATTR_GID)) ||
-        ((v9iattr.valid & ATTR_CTIME)
-         && !((v9iattr.valid & ATTR_MASK) & ~ATTR_CTIME))) {
-        if (!(v9iattr.valid & ATTR_UID)) {
+    if ((v9iattr.valid & (P9_ATTR_UID | P9_ATTR_GID)) ||
+        ((v9iattr.valid & P9_ATTR_CTIME)
+         && !((v9iattr.valid & P9_ATTR_MASK) & ~P9_ATTR_CTIME))) {
+        if (!(v9iattr.valid & P9_ATTR_UID)) {
             v9iattr.uid = -1;
         }
-        if (!(v9iattr.valid & ATTR_GID)) {
+        if (!(v9iattr.valid & P9_ATTR_GID)) {
             v9iattr.gid = -1;
         }
         err = v9fs_co_chown(pdu, &fidp->path, v9iattr.uid,
@@ -1456,7 +1375,7 @@ static void v9fs_setattr(void *opaque)
             goto out;
         }
     }
-    if (v9iattr.valid & (ATTR_SIZE)) {
+    if (v9iattr.valid & (P9_ATTR_SIZE)) {
         err = v9fs_co_truncate(pdu, &fidp->path, v9iattr.size);
         if (err < 0) {
             goto out;
@@ -1776,8 +1695,8 @@ out_nofid:
     complete_pdu(s, pdu, err);
 }
 
-static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu,
-                           V9fsFidState *fidp, int64_t off, int32_t max_count)
+static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
+                           uint64_t off, uint32_t max_count)
 {
     size_t offset = 7;
     int read_count;
@@ -1801,7 +1720,7 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu,
 }
 
 static int v9fs_do_readdir_with_stat(V9fsPDU *pdu,
-                                     V9fsFidState *fidp, int32_t max_count)
+                                     V9fsFidState *fidp, uint32_t max_count)
 {
     V9fsPath path;
     V9fsStat v9stat;
@@ -1861,14 +1780,46 @@ out:
     return count;
 }
 
+/*
+ * Create a QEMUIOVector for a sub-region of PDU iovecs
+ *
+ * @qiov:       uninitialized QEMUIOVector
+ * @skip:       number of bytes to skip from beginning of PDU
+ * @size:       number of bytes to include
+ * @is_write:   true - write, false - read
+ *
+ * The resulting QEMUIOVector has heap-allocated iovecs and must be cleaned up
+ * with qemu_iovec_destroy().
+ */
+static void v9fs_init_qiov_from_pdu(QEMUIOVector *qiov, V9fsPDU *pdu,
+                                    uint64_t skip, size_t size,
+                                    bool is_write)
+{
+    QEMUIOVector elem;
+    struct iovec *iov;
+    unsigned int niov;
+
+    if (is_write) {
+        iov = pdu->elem.out_sg;
+        niov = pdu->elem.out_num;
+    } else {
+        iov = pdu->elem.in_sg;
+        niov = pdu->elem.in_num;
+    }
+
+    qemu_iovec_init_external(&elem, iov, niov);
+    qemu_iovec_init(qiov, niov);
+    qemu_iovec_copy(qiov, &elem, skip, size);
+}
+
 static void v9fs_read(void *opaque)
 {
     int32_t fid;
-    int64_t off;
+    uint64_t off;
     ssize_t err = 0;
     int32_t count = 0;
     size_t offset = 7;
-    int32_t max_count;
+    uint32_t max_count;
     V9fsFidState *fidp;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
@@ -1895,21 +1846,21 @@ static void v9fs_read(void *opaque)
         err += pdu_marshal(pdu, offset, "d", count);
         err += count;
     } else if (fidp->fid_type == P9_FID_FILE) {
-        int32_t cnt;
+        QEMUIOVector qiov_full;
+        QEMUIOVector qiov;
         int32_t len;
-        struct iovec *sg;
-        struct iovec iov[128]; /* FIXME: bad, bad, bad */
 
-        sg = iov;
-        pdu_marshal(pdu, offset + 4, "v", sg, &cnt);
-        sg = cap_sg(sg, max_count, &cnt);
+        v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset + 4, max_count, false);
+        qemu_iovec_init(&qiov, qiov_full.niov);
         do {
+            qemu_iovec_reset(&qiov);
+            qemu_iovec_copy(&qiov, &qiov_full, count, qiov_full.size - count);
             if (0) {
-                print_sg(sg, cnt);
+                print_sg(qiov.iov, qiov.niov);
             }
             /* Loop in case of EINTR */
             do {
-                len = v9fs_co_preadv(pdu, fidp, sg, cnt, off);
+                len = v9fs_co_preadv(pdu, fidp, qiov.iov, qiov.niov, off);
                 if (len >= 0) {
                     off   += len;
                     count += len;
@@ -1920,11 +1871,12 @@ static void v9fs_read(void *opaque)
                 err = len;
                 goto out;
             }
-            sg = adjust_sg(sg, len, &cnt);
         } while (count < max_count && len > 0);
         err = offset;
         err += pdu_marshal(pdu, offset, "d", count);
         err += count;
+        qemu_iovec_destroy(&qiov);
+        qemu_iovec_destroy(&qiov_full);
     } else if (fidp->fid_type == P9_FID_XATTR) {
         err = v9fs_xattr_read(s, pdu, fidp, off, max_count);
     } else {
@@ -2011,8 +1963,9 @@ static void v9fs_readdir(void *opaque)
     V9fsFidState *fidp;
     ssize_t retval = 0;
     size_t offset = 7;
-    int64_t initial_offset;
-    int32_t count, max_count;
+    uint64_t initial_offset;
+    int32_t count;
+    uint32_t max_count;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
@@ -2050,7 +2003,7 @@ out_nofid:
 }
 
 static int v9fs_xattr_write(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
-                            int64_t off, int32_t count,
+                            uint64_t off, uint32_t count,
                             struct iovec *sg, int cnt)
 {
     int i, to_copy;
@@ -2095,22 +2048,22 @@ out:
 
 static void v9fs_write(void *opaque)
 {
-    int cnt;
     ssize_t err;
     int32_t fid;
-    int64_t off;
-    int32_t count;
+    uint64_t off;
+    uint32_t count;
     int32_t len = 0;
     int32_t total = 0;
     size_t offset = 7;
     V9fsFidState *fidp;
-    struct iovec iov[128]; /* FIXME: bad, bad, bad */
-    struct iovec *sg = iov;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
+    QEMUIOVector qiov_full;
+    QEMUIOVector qiov;
 
-    pdu_unmarshal(pdu, offset, "dqdv", &fid, &off, &count, sg, &cnt);
-    trace_v9fs_write(pdu->tag, pdu->id, fid, off, count, cnt);
+    offset += pdu_unmarshal(pdu, offset, "dqd", &fid, &off, &count);
+    v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset, count, true);
+    trace_v9fs_write(pdu->tag, pdu->id, fid, off, count, qiov_full.niov);
 
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
@@ -2126,20 +2079,23 @@ static void v9fs_write(void *opaque)
         /*
          * setxattr operation
          */
-        err = v9fs_xattr_write(s, pdu, fidp, off, count, sg, cnt);
+        err = v9fs_xattr_write(s, pdu, fidp, off, count,
+                               qiov_full.iov, qiov_full.niov);
         goto out;
     } else {
         err = -EINVAL;
         goto out;
     }
-    sg = cap_sg(sg, count, &cnt);
+    qemu_iovec_init(&qiov, qiov_full.niov);
     do {
+        qemu_iovec_reset(&qiov);
+        qemu_iovec_copy(&qiov, &qiov_full, total, qiov_full.size - total);
         if (0) {
-            print_sg(sg, cnt);
+            print_sg(qiov.iov, qiov.niov);
         }
         /* Loop in case of EINTR */
         do {
-            len = v9fs_co_pwritev(pdu, fidp, sg, cnt, off);
+            len = v9fs_co_pwritev(pdu, fidp, qiov.iov, qiov.niov, off);
             if (len >= 0) {
                 off   += len;
                 total += len;
@@ -2148,16 +2104,20 @@ static void v9fs_write(void *opaque)
         if (len < 0) {
             /* IO error return the error */
             err = len;
-            goto out;
+            goto out_qiov;
         }
-        sg = adjust_sg(sg, len, &cnt);
     } while (total < count && len > 0);
+
+    offset = 7;
     offset += pdu_marshal(pdu, offset, "d", total);
     err = offset;
     trace_v9fs_write_return(pdu->tag, pdu->id, total, err);
+out_qiov:
+    qemu_iovec_destroy(&qiov);
 out:
     put_fid(pdu, fidp);
 out_nofid:
+    qemu_iovec_destroy(&qiov_full);
     complete_pdu(s, pdu, err);
 }
 

@@ -27,6 +27,11 @@ static ssize_t flush_buf(VirtIOSerialPort *port, const uint8_t *buf, size_t len)
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
     ssize_t ret;
 
+    if (!vcon->chr) {
+        /* If there's no backend, we can just say we consumed all data. */
+        return len;
+    }
+
     ret = qemu_chr_fe_write(vcon->chr, buf, len);
     trace_virtio_console_flush_buf(port->id, len, ret);
 
@@ -52,6 +57,9 @@ static void guest_open(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
+    if (!vcon->chr) {
+        return;
+    }
     qemu_chr_fe_open(vcon->chr);
 }
 
@@ -60,6 +68,9 @@ static void guest_close(VirtIOSerialPort *port)
 {
     VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
 
+    if (!vcon->chr) {
+        return;
+    }
     qemu_chr_fe_close(vcon->chr);
 }
 
@@ -109,9 +120,6 @@ static int virtconsole_initfn(VirtIOSerialPort *port)
     if (vcon->chr) {
         qemu_chr_add_handlers(vcon->chr, chr_can_read, chr_read, chr_event,
                               vcon);
-        info->have_data = flush_buf;
-        info->guest_open = guest_open;
-        info->guest_close = guest_close;
     }
 
     return 0;
@@ -138,6 +146,9 @@ static VirtIOSerialPortInfo virtconsole_info = {
     .is_console    = true,
     .init          = virtconsole_initfn,
     .exit          = virtconsole_exitfn,
+    .have_data     = flush_buf,
+    .guest_open    = guest_open,
+    .guest_close   = guest_close,
     .qdev.props = (Property[]) {
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
         DEFINE_PROP_END_OF_LIST(),
@@ -155,6 +166,9 @@ static VirtIOSerialPortInfo virtserialport_info = {
     .qdev.size     = sizeof(VirtConsole),
     .init          = virtconsole_initfn,
     .exit          = virtconsole_exitfn,
+    .have_data     = flush_buf,
+    .guest_open    = guest_open,
+    .guest_close   = guest_close,
     .qdev.props = (Property[]) {
         DEFINE_PROP_CHR("chardev", VirtConsole, chr),
         DEFINE_PROP_END_OF_LIST(),

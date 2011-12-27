@@ -42,11 +42,6 @@
 
 #ifdef CONFIG_LINUX
 #include <sys/prctl.h>
-#include <sys/syscall.h>
-#endif
-
-#ifdef CONFIG_EVENTFD
-#include <sys/eventfd.h>
 #endif
 
 static struct passwd *user_pwd;
@@ -333,34 +328,6 @@ void os_set_line_buffering(void)
     setvbuf(stdout, NULL, _IOLBF, 0);
 }
 
-/*
- * Creates an eventfd that looks like a pipe and has EFD_CLOEXEC set.
- */
-int qemu_eventfd(int fds[2])
-{
-#ifdef CONFIG_EVENTFD
-    int ret;
-
-    ret = eventfd(0, 0);
-    if (ret >= 0) {
-        fds[0] = ret;
-        qemu_set_cloexec(ret);
-        if ((fds[1] = dup(ret)) == -1) {
-            close(ret);
-            return -1;
-        }
-        qemu_set_cloexec(fds[1]);
-        return 0;
-    }
-
-    if (errno != ENOSYS) {
-        return -1;
-    }
-#endif
-
-    return qemu_pipe(fds);
-}
-
 int qemu_create_pidfile(const char *filename)
 {
     char buffer[128];
@@ -383,13 +350,4 @@ int qemu_create_pidfile(const char *filename)
 
     close(fd);
     return 0;
-}
-
-int qemu_get_thread_id(void)
-{
-#if defined (__linux__)
-    return syscall(SYS_gettid);
-#else
-    return getpid();
-#endif
 }

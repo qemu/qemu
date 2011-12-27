@@ -48,6 +48,15 @@ extern int madvise(caddr_t, size_t, int);
 #include "trace.h"
 #include "qemu_socket.h"
 
+int socket_set_cork(int fd, int v)
+{
+#if defined(SOL_TCP) && defined(TCP_CORK)
+    return setsockopt(fd, SOL_TCP, TCP_CORK, &v, sizeof(v));
+#else
+    return 0;
+#endif
+}
+
 int qemu_madvise(void *addr, size_t len, int advice)
 {
     if (advice == QEMU_MADV_INVALID) {
@@ -166,3 +175,70 @@ int qemu_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 
     return ret;
 }
+
+/*
+ * A variant of send(2) which handles partial write.
+ *
+ * Return the number of bytes transferred, which is only
+ * smaller than `count' if there is an error.
+ *
+ * This function won't work with non-blocking fd's.
+ * Any of the possibilities with non-bloking fd's is bad:
+ *   - return a short write (then name is wrong)
+ *   - busy wait adding (errno == EAGAIN) to the loop
+ */
+ssize_t qemu_send_full(int fd, const void *buf, size_t count, int flags)
+{
+    ssize_t ret = 0;
+    ssize_t total = 0;
+
+    while (count) {
+        ret = send(fd, buf, count, flags);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            break;
+        }
+
+        count -= ret;
+        buf += ret;
+        total += ret;
+    }
+
+    return total;
+}
+
+/*
+ * A variant of recv(2) which handles partial write.
+ *
+ * Return the number of bytes transferred, which is only
+ * smaller than `count' if there is an error.
+ *
+ * This function won't work with non-blocking fd's.
+ * Any of the possibilities with non-bloking fd's is bad:
+ *   - return a short write (then name is wrong)
+ *   - busy wait adding (errno == EAGAIN) to the loop
+ */
+ssize_t qemu_recv_full(int fd, void *buf, size_t count, int flags)
+{
+    ssize_t ret = 0;
+    ssize_t total = 0;
+
+    while (count) {
+        ret = qemu_recv(fd, buf, count, flags);
+        if (ret <= 0) {
+            if (ret < 0 && errno == EINTR) {
+                continue;
+            }
+            break;
+        }
+
+        count -= ret;
+        buf += ret;
+        total += ret;
+    }
+
+    return total;
+}
+

@@ -163,7 +163,8 @@ void qapi_free_%(type)s(%(c_type)s obj)
 
 
 try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "p:o:", ["prefix=", "output-dir="])
+    opts, args = getopt.gnu_getopt(sys.argv[1:], "chp:o:",
+                                   ["source", "header", "prefix=", "output-dir="])
 except getopt.GetoptError, err:
     print str(err)
     sys.exit(1)
@@ -173,11 +174,22 @@ prefix = ""
 c_file = 'qapi-types.c'
 h_file = 'qapi-types.h'
 
+do_c = False
+do_h = False
+
 for o, a in opts:
     if o in ("-p", "--prefix"):
         prefix = a
     elif o in ("-o", "--output-dir"):
         output_dir = a + "/"
+    elif o in ("-c", "--source"):
+        do_h = True
+    elif o in ("-h", "--header"):
+        do_c = True
+
+if not do_c and not do_h:
+    do_c = True
+    do_h = True
 
 c_file = output_dir + prefix + c_file
 h_file = output_dir + prefix + h_file
@@ -188,8 +200,17 @@ except os.error, e:
     if e.errno != errno.EEXIST:
         raise
 
-fdef = open(c_file, 'w')
-fdecl = open(h_file, 'w')
+def maybe_open(really, name, opt):
+    class Null(object):
+        def write(self, str):
+            pass
+        def read(self):
+            return ''
+    if really:
+        return open(name, opt)
+
+fdef = maybe_open(do_c, c_file, 'w')
+fdecl = maybe_open(do_h, h_file, 'w')
 
 fdef.write(mcgen('''
 /* AUTOMATICALLY GENERATED, DO NOT MODIFY */

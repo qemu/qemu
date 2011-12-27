@@ -466,13 +466,11 @@ static void handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOSerial *vser;
     VirtIOSerialPort *port;
-    VirtIOSerialPortInfo *info;
 
     vser = DO_UPCAST(VirtIOSerial, vdev, vdev);
     port = find_port_by_vq(vser, vq);
-    info = port ? DO_UPCAST(VirtIOSerialPortInfo, qdev, port->dev.info) : NULL;
 
-    if (!port || !port->host_connected || !info->have_data) {
+    if (!port || !port->host_connected) {
         discard_vq_data(vq, vdev);
         return;
     }
@@ -745,6 +743,8 @@ static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
 
     port->vser = bus->vser;
     port->bh = qemu_bh_new(flush_queued_data_bh, port);
+
+    assert(info->have_data);
 
     /*
      * Is the first console port we're seeing? If so, put it up at

@@ -372,7 +372,9 @@ def gen_command_def_prologue(prefix="", proxy=False):
 
 
 try:
-    opts, args = getopt.gnu_getopt(sys.argv[1:], "p:o:m", ["prefix=", "output-dir=", "type=", "middle"])
+    opts, args = getopt.gnu_getopt(sys.argv[1:], "chp:o:m",
+                                   ["source", "header", "prefix=",
+                                    "output-dir=", "type=", "middle"])
 except getopt.GetoptError, err:
     print str(err)
     sys.exit(1)
@@ -384,6 +386,9 @@ c_file = 'qmp-marshal.c'
 h_file = 'qmp-commands.h'
 middle_mode = False
 
+do_c = False
+do_h = False
+
 for o, a in opts:
     if o in ("-p", "--prefix"):
         prefix = a
@@ -393,9 +398,28 @@ for o, a in opts:
         dispatch_type = a
     elif o in ("-m", "--middle"):
         middle_mode = True
+    elif o in ("-c", "--source"):
+        do_h = True
+    elif o in ("-h", "--header"):
+        do_c = True
+
+if not do_c and not do_h:
+    do_c = True
+    do_h = True
 
 c_file = output_dir + prefix + c_file
 h_file = output_dir + prefix + h_file
+
+def maybe_open(really, name, opt):
+    class Null(object):
+        def write(self, str):
+            pass
+        def read(self):
+            return ''
+    if really:
+        return open(name, opt)
+    else:
+        return Null()
 
 try:
     os.makedirs(output_dir)
@@ -408,8 +432,8 @@ commands = filter(lambda expr: expr.has_key('command'), exprs)
 commands = filter(lambda expr: not expr.has_key('gen'), commands)
 
 if dispatch_type == "sync":
-    fdecl = open(h_file, 'w')
-    fdef = open(c_file, 'w')
+    fdecl = maybe_open(do_h, h_file, 'w')
+    fdef = maybe_open(do_c, c_file, 'w')
     ret = gen_command_decl_prologue(header=basename(h_file), guard=guardname(h_file), prefix=prefix)
     fdecl.write(ret)
     ret = gen_command_def_prologue(prefix=prefix)

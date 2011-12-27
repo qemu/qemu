@@ -519,6 +519,10 @@ int kvm_arch_init_vcpu(CPUState *env)
         }
     }
 
+    if (kvm_has_xsave()) {
+        env->kvm_xsave_buf = qemu_memalign(4096, sizeof(struct kvm_xsave));
+    }
+
     return 0;
 }
 
@@ -762,6 +766,8 @@ static int kvm_put_fpu(CPUState *env)
     return kvm_vcpu_ioctl(env, KVM_SET_FPU, &fpu);
 }
 
+#define XSAVE_FCW_FSW     0
+#define XSAVE_FTW_FOP     1
 #define XSAVE_CWD_RIP     2
 #define XSAVE_CWD_RDP     4
 #define XSAVE_MXCSR       6
@@ -772,15 +778,14 @@ static int kvm_put_fpu(CPUState *env)
 
 static int kvm_put_xsave(CPUState *env)
 {
-    int i, r;
-    struct kvm_xsave* xsave;
+    struct kvm_xsave* xsave = env->kvm_xsave_buf;
     uint16_t cwd, swd, twd;
+    int i, r;
 
     if (!kvm_has_xsave()) {
         return kvm_put_fpu(env);
     }
 
-    xsave = qemu_memalign(4096, sizeof(struct kvm_xsave));
     memset(xsave, 0, sizeof(struct kvm_xsave));
     twd = 0;
     swd = env->fpus & ~(7 << 11);
@@ -789,8 +794,8 @@ static int kvm_put_xsave(CPUState *env)
     for (i = 0; i < 8; ++i) {
         twd |= (!env->fptags[i]) << i;
     }
-    xsave->region[0] = (uint32_t)(swd << 16) + cwd;
-    xsave->region[1] = (uint32_t)(env->fpop << 16) + twd;
+    xsave->region[XSAVE_FCW_FSW] = (uint32_t)(swd << 16) + cwd;
+    xsave->region[XSAVE_FTW_FOP] = (uint32_t)(env->fpop << 16) + twd;
     memcpy(&xsave->region[XSAVE_CWD_RIP], &env->fpip, sizeof(env->fpip));
     memcpy(&xsave->region[XSAVE_CWD_RDP], &env->fpdp, sizeof(env->fpdp));
     memcpy(&xsave->region[XSAVE_ST_SPACE], env->fpregs,
@@ -802,7 +807,6 @@ static int kvm_put_xsave(CPUState *env)
     memcpy(&xsave->region[XSAVE_YMMH_SPACE], env->ymmh_regs,
             sizeof env->ymmh_regs);
     r = kvm_vcpu_ioctl(env, KVM_SET_XSAVE, xsave);
-    g_free(xsave);
     return r;
 }
 
@@ -979,7 +983,7 @@ static int kvm_get_fpu(CPUState *env)
 
 static int kvm_get_xsave(CPUState *env)
 {
-    struct kvm_xsave* xsave;
+    struct kvm_xsave* xsave = env->kvm_xsave_buf;
     int ret, i;
     uint16_t cwd, swd, twd;
 
@@ -987,17 +991,15 @@ static int kvm_get_xsave(CPUState *env)
         return kvm_get_fpu(env);
     }
 
-    xsave = qemu_memalign(4096, sizeof(struct kvm_xsave));
     ret = kvm_vcpu_ioctl(env, KVM_GET_XSAVE, xsave);
     if (ret < 0) {
-        g_free(xsave);
         return ret;
     }
 
-    cwd = (uint16_t)xsave->region[0];
-    swd = (uint16_t)(xsave->region[0] >> 16);
-    twd = (uint16_t)xsave->region[1];
-    env->fpop = (uint16_t)(xsave->region[1] >> 16);
+    cwd = (uint16_t)xsave->region[XSAVE_FCW_FSW];
+    swd = (uint16_t)(xsave->region[XSAVE_FCW_FSW] >> 16);
+    twd = (uint16_t)xsave->region[XSAVE_FTW_FOP];
+    env->fpop = (uint16_t)(xsave->region[XSAVE_FTW_FOP] >> 16);
     env->fpstt = (swd >> 11) & 7;
     env->fpus = swd;
     env->fpuc = cwd;
@@ -1014,7 +1016,6 @@ static int kvm_get_xsave(CPUState *env)
     env->xstate_bv = *(uint64_t *)&xsave->region[XSAVE_XSTATE_BV];
     memcpy(env->ymmh_regs, &xsave->region[XSAVE_YMMH_SPACE],
             sizeof env->ymmh_regs);
-    g_free(xsave);
     return 0;
 }
 
@@ -1084,10 +1085,9 @@ static int kvm_get_sregs(CPUState *env)
     env->cr[3] = sregs.cr3;
     env->cr[4] = sregs.cr4;
 
-    cpu_set_apic_base(env->apic_state, sregs.apic_base);
-
     env->efer = sregs.efer;
-    //cpu_set_apic_tpr(env->apic_state, sregs.cr8);
+
+    /* changes to apic base and cr8/tpr are read back via kvm_arch_post_run */
 
 #define HFLAG_COPY_MASK \
     ~( HF_CPL_MASK | HF_PE_MASK | HF_MP_MASK | HF_EM_MASK | \

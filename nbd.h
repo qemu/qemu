@@ -57,6 +57,8 @@ enum {
 
 #define NBD_DEFAULT_PORT	10809
 
+#define NBD_BUFFER_SIZE (1024*1024)
+
 size_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read);
 int tcp_socket_outgoing(const char *address, uint16_t port);
 int tcp_socket_incoming(const char *address, uint16_t port);
@@ -65,15 +67,21 @@ int tcp_socket_incoming_spec(const char *address_and_port);
 int unix_socket_outgoing(const char *path);
 int unix_socket_incoming(const char *path);
 
-int nbd_negotiate(int csock, off_t size, uint32_t flags);
 int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
                           off_t *size, size_t *blocksize);
 int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize);
 int nbd_send_request(int csock, struct nbd_request *request);
 int nbd_receive_reply(int csock, struct nbd_reply *reply);
-int nbd_trip(BlockDriverState *bs, int csock, off_t size, uint64_t dev_offset,
-             off_t *offset, uint32_t nbdflags, uint8_t *data, int data_size);
 int nbd_client(int fd);
 int nbd_disconnect(int fd);
+
+typedef struct NBDExport NBDExport;
+typedef struct NBDClient NBDClient;
+
+NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
+                          off_t size, uint32_t nbdflags);
+void nbd_export_close(NBDExport *exp);
+NBDClient *nbd_client_new(NBDExport *exp, int csock,
+                          void (*close)(NBDClient *));
 
 #endif

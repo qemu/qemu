@@ -156,7 +156,7 @@ typedef struct V9fsFidState V9fsFidState;
 
 typedef struct V9fsString
 {
-    int16_t size;
+    uint16_t size;
     char *data;
 } V9fsString;
 

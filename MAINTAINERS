@@ -473,6 +473,13 @@ M: Mark McLoughlin <markmc@redhat.com>
 S: Maintained
 F: net/
 
+Network Block Device (NBD)
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Odd Fixes
+F: block/nbd.c
+F: nbd.*
+F: qemu-nbd.c
+
 SLIRP
 M: Jan Kiszka <jan.kiszka@siemens.com>
 S: Maintained

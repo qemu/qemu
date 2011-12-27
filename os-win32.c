@@ -190,8 +190,3 @@ int qemu_create_pidfile(const char *filename)
     }
     return 0;
 }
-
-int qemu_get_thread_id(void)
-{
-    return GetCurrentThreadId();
-}

@@ -324,6 +324,9 @@ int qemu_add_child_watch(pid_t pid);
  * by threads other than the main loop thread when calling
  * qemu_bh_new(), qemu_set_fd_handler() and basically all other
  * functions documented in this file.
+ *
+ * NOTE: tools currently are single-threaded and qemu_mutex_lock_iothread
+ * is a no-op there.
  */
 void qemu_mutex_lock_iothread(void);
 
@@ -336,6 +339,9 @@ void qemu_mutex_lock_iothread(void);
  * as soon as possible by threads other than the main loop thread,
  * because it prevents the main loop from processing callbacks,
  * including timers and bottom halves.
+ *
+ * NOTE: tools currently are single-threaded and qemu_mutex_unlock_iothread
+ * is a no-op there.
  */
 void qemu_mutex_unlock_iothread(void);
 
