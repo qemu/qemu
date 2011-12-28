@@ -177,7 +177,7 @@ qapi-dir := $(BUILD_DIR)/qapi-generated
 test-qmp-input-visitor.o test-qmp-output-visitor.o test-qmp-commands.o qemu-ga$(EXESUF): QEMU_CFLAGS += -I $(qapi-dir)
 qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 
-gen-out-type = $(subst .,-,$@)
+gen-out-type = $(subst .,-,$(suffix $@))
 
 $(qapi-dir)/test-qapi-types.c $(qapi-dir)/test-qapi-types.h :\
 $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py

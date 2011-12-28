@@ -159,9 +159,9 @@ for o, a in opts:
     elif o in ("-o", "--output-dir"):
         output_dir = a + "/"
     elif o in ("-c", "--source"):
-        do_h = True
-    elif o in ("-h", "--header"):
         do_c = True
+    elif o in ("-h", "--header"):
+        do_h = True
 
 if not do_c and not do_h:
     do_c = True
@@ -177,13 +177,11 @@ except os.error, e:
         raise
 
 def maybe_open(really, name, opt):
-    class Null(object):
-        def write(self, str):
-            pass
-        def read(self):
-            return ''
     if really:
         return open(name, opt)
+    else:
+        import StringIO
+        return StringIO.StringIO()
 
 fdef = maybe_open(do_c, c_file, 'w')
 fdecl = maybe_open(do_h, h_file, 'w')

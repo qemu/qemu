@@ -399,9 +399,9 @@ for o, a in opts:
     elif o in ("-m", "--middle"):
         middle_mode = True
     elif o in ("-c", "--source"):
-        do_h = True
-    elif o in ("-h", "--header"):
         do_c = True
+    elif o in ("-h", "--header"):
+        do_h = True
 
 if not do_c and not do_h:
     do_c = True
@@ -411,15 +411,11 @@ c_file = output_dir + prefix + c_file
 h_file = output_dir + prefix + h_file
 
 def maybe_open(really, name, opt):
-    class Null(object):
-        def write(self, str):
-            pass
-        def read(self):
-            return ''
     if really:
         return open(name, opt)
     else:
-        return Null()
+        import StringIO
+        return StringIO.StringIO()
 
 try:
     os.makedirs(output_dir)
