@@ -224,13 +224,17 @@ static void s390_init(ram_addr_t my_ram_size,
     s390_add_running_cpu(env);
 
     if (kernel_filename) {
-        kernel_size = load_image(kernel_filename, qemu_get_ram_ptr(0));
 
-        if (lduw_be_phys(KERN_IMAGE_START) != 0x0dd0) {
-            fprintf(stderr, "Specified image is not an s390 boot image\n");
-            exit(1);
+        kernel_size = load_elf(kernel_filename, NULL, NULL, NULL, NULL,
+                               NULL, 1, ELF_MACHINE, 0);
+        if (kernel_size == -1UL) {
+            kernel_size = load_image_targphys(kernel_filename, 0, ram_size);
         }
-
+        /*
+         * we can not rely on the ELF entry point, since up to 3.2 this
+         * value was 0x800 (the SALIPL loader) and it wont work. For
+         * all (Linux) cases 0x10000 (KERN_IMAGE_START) should be fine.
+         */
         env->psw.addr = KERN_IMAGE_START;
         env->psw.mask = 0x0000000180000000ULL;
     } else {
@@ -243,7 +247,7 @@ static void s390_init(ram_addr_t my_ram_size,
         }
 
         bios_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-        bios_size = load_image(bios_filename, qemu_get_ram_ptr(ZIPL_LOAD_ADDR));
+        bios_size = load_image_targphys(bios_filename, ZIPL_LOAD_ADDR, 4096);
         g_free(bios_filename);
 
         if ((long)bios_size < 0) {
@@ -263,15 +267,17 @@ static void s390_init(ram_addr_t my_ram_size,
         while (kernel_size + 0x100000 > initrd_offset) {
             initrd_offset += 0x100000;
         }
-        initrd_size = load_image(initrd_filename, qemu_get_ram_ptr(initrd_offset));
-
-        stq_be_phys(INITRD_PARM_START, initrd_offset);
-        stq_be_phys(INITRD_PARM_SIZE, initrd_size);
+        initrd_size = load_image_targphys(initrd_filename, initrd_offset,
+                                          ram_size - initrd_offset);
+        /* we have to overwrite values in the kernel image, which are "rom" */
+        memcpy(rom_ptr(INITRD_PARM_START), &initrd_offset, 8);
+        memcpy(rom_ptr(INITRD_PARM_SIZE), &initrd_size, 8);
     }
 
     if (kernel_cmdline) {
-        cpu_physical_memory_write(KERN_PARM_AREA, kernel_cmdline,
-                                  strlen(kernel_cmdline) + 1);
+        /* we have to overwrite values in the kernel image, which are "rom" */
+        memcpy(rom_ptr(KERN_PARM_AREA), kernel_cmdline,
+               strlen(kernel_cmdline) + 1);
     }
 
     /* Create VirtIO network adapters */
