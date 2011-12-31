@@ -1197,13 +1197,9 @@ if test "$solaris" = "yes" ; then
   fi
 fi
 
-if test "$guest_agent" != "no" ; then
-  if has $python; then
-    :
-  else
-    echo "Python not found. Use --python=/path/to/python"
-    exit 1
-  fi
+if ! has $python; then
+  echo "Python not found. Use --python=/path/to/python"
+  exit 1
 fi
 
 if test -z "$target_list" ; then
