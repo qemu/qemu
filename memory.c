@@ -303,13 +303,9 @@ static void access_with_adjusted_size(target_phys_addr_t addr,
     }
 }
 
-static void memory_region_prepare_ram_addr(MemoryRegion *mr);
-
 static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
 {
     ram_addr_t phys_offset, region_offset;
-
-    memory_region_prepare_ram_addr(fr->mr);
 
     phys_offset = fr->mr->ram_addr;
     region_offset = fr->offset_in_region;
@@ -1032,19 +1028,6 @@ static CPUWriteMemoryFunc * const memory_region_write_thunk[] = {
     memory_region_write_thunk_l,
 };
 
-static void memory_region_prepare_ram_addr(MemoryRegion *mr)
-{
-    if (mr->backend_registered) {
-        return;
-    }
-
-    mr->destructor = memory_region_destructor_iomem;
-    mr->ram_addr = cpu_register_io_memory(memory_region_read_thunk,
-                                          memory_region_write_thunk,
-                                          mr);
-    mr->backend_registered = true;
-}
-
 void memory_region_init_io(MemoryRegion *mr,
                            const MemoryRegionOps *ops,
                            void *opaque,
@@ -1055,7 +1038,10 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->ops = ops;
     mr->opaque = opaque;
     mr->terminates = true;
-    mr->backend_registered = false;
+    mr->destructor = memory_region_destructor_iomem;
+    mr->ram_addr = cpu_register_io_memory(memory_region_read_thunk,
+                                          memory_region_write_thunk,
+                                          mr);
 }
 
 void memory_region_init_ram(MemoryRegion *mr,
@@ -1067,7 +1053,6 @@ void memory_region_init_ram(MemoryRegion *mr,
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram;
     mr->ram_addr = qemu_ram_alloc(size, mr);
-    mr->backend_registered = true;
 }
 
 void memory_region_init_ram_ptr(MemoryRegion *mr,
@@ -1080,7 +1065,6 @@ void memory_region_init_ram_ptr(MemoryRegion *mr,
     mr->terminates = true;
     mr->destructor = memory_region_destructor_ram_from_ptr;
     mr->ram_addr = qemu_ram_alloc_from_ptr(size, ptr, mr);
-    mr->backend_registered = true;
 }
 
 void memory_region_init_alias(MemoryRegion *mr,
@@ -1110,7 +1094,6 @@ void memory_region_init_rom_device(MemoryRegion *mr,
                                            memory_region_write_thunk,
                                            mr);
     mr->ram_addr |= IO_MEM_ROMD;
-    mr->backend_registered = true;
 }
 
 void memory_region_destroy(MemoryRegion *mr)
@@ -1453,7 +1436,6 @@ void memory_region_set_alias_offset(MemoryRegion *mr, target_phys_addr_t offset)
 
 ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
 {
-    assert(mr->backend_registered);
     return mr->ram_addr;
 }
 
