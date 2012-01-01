@@ -312,7 +312,8 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
     /* cpu_register_physical_memory_log() wants region_offset for
      * mmio, but prefers offseting phys_offset for RAM.  Humour it.
      */
-    if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM) {
+    if ((phys_offset & ~TARGET_PAGE_MASK) == IO_MEM_RAM
+        || (phys_offset & ~TARGET_PAGE_MASK) == IO_MEM_ROM) {
         phys_offset += region_offset;
         region_offset = 0;
     }

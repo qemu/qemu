@@ -65,7 +65,8 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
     index = (physaddr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     env->mem_io_pc = (unsigned long)retaddr;
-    if (index > (IO_MEM_NOTDIRTY >> IO_MEM_SHIFT)
+    if (index != IO_MEM_RAM && index != IO_MEM_ROM
+        && index != IO_MEM_UNASSIGNED && index != IO_MEM_NOTDIRTY
             && !can_do_io(env)) {
         cpu_io_recompile(env, retaddr);
     }
@@ -207,7 +208,8 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
     int index;
     index = (physaddr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    if (index > (IO_MEM_NOTDIRTY >> IO_MEM_SHIFT)
+    if (index != IO_MEM_RAM && index != IO_MEM_ROM
+        && index != IO_MEM_UNASSIGNED && index != IO_MEM_NOTDIRTY
             && !can_do_io(env)) {
         cpu_io_recompile(env, retaddr);
     }

@@ -2084,6 +2084,17 @@ static void tlb_add_large_page(CPUState *env, target_ulong vaddr,
     env->tlb_flush_mask = mask;
 }
 
+static bool is_ram_rom(ram_addr_t pd)
+{
+    pd &= ~TARGET_PAGE_MASK;
+    return pd == IO_MEM_RAM || pd == IO_MEM_ROM;
+}
+
+static bool is_ram_rom_romd(ram_addr_t pd)
+{
+    return is_ram_rom(pd) || (pd & IO_MEM_ROMD);
+}
+
 /* Add a new TLB entry. At most one entry for a given virtual address
    is permitted. Only a single TARGET_PAGE_SIZE region is mapped, the
    supplied size is only used by tlb_flush_page.  */
@@ -2114,12 +2125,12 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
 #endif
 
     address = vaddr;
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
+    if (!is_ram_rom_romd(pd)) {
         /* IO memory case (romd handled later) */
         address |= TLB_MMIO;
     }
     addend = (unsigned long)qemu_get_ram_ptr(pd & TARGET_PAGE_MASK);
-    if ((pd & ~TARGET_PAGE_MASK) <= IO_MEM_ROM) {
+    if (is_ram_rom(pd)) {
         /* Normal RAM.  */
         iotlb = pd & TARGET_PAGE_MASK;
         if ((pd & ~TARGET_PAGE_MASK) == IO_MEM_RAM)
@@ -2543,16 +2554,14 @@ void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
             } else {
                 p->phys_offset = phys_offset;
                 p->region_offset = region_offset;
-                if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM ||
-                    (phys_offset & IO_MEM_ROMD))
+                if (is_ram_rom_romd(phys_offset))
                     phys_offset += TARGET_PAGE_SIZE;
             }
         } else {
             p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
             p->phys_offset = phys_offset;
             p->region_offset = region_offset;
-            if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM ||
-                (phys_offset & IO_MEM_ROMD)) {
+            if (is_ram_rom_romd(phys_offset)) {
                 phys_offset += TARGET_PAGE_SIZE;
             } else {
                 target_phys_addr_t start_addr2, end_addr2;
@@ -3727,8 +3736,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 qemu_put_ram_ptr(ptr);
             }
         } else {
-            if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
-                !(pd & IO_MEM_ROMD)) {
+            if (!is_ram_rom_romd(pd)) {
                 target_phys_addr_t addr1;
                 /* I/O case */
                 io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
@@ -3780,9 +3788,7 @@ void cpu_physical_memory_write_rom(target_phys_addr_t addr,
         p = phys_page_find(page >> TARGET_PAGE_BITS);
         pd = p.phys_offset;
 
-        if ((pd & ~TARGET_PAGE_MASK) != IO_MEM_RAM &&
-            (pd & ~TARGET_PAGE_MASK) != IO_MEM_ROM &&
-            !(pd & IO_MEM_ROMD)) {
+        if (!is_ram_rom_romd(pd)) {
             /* do nothing */
         } else {
             unsigned long addr1;
@@ -3953,8 +3959,7 @@ static inline uint32_t ldl_phys_internal(target_phys_addr_t addr,
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
     pd = p.phys_offset;
 
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
-        !(pd & IO_MEM_ROMD)) {
+    if (!is_ram_rom_romd(pd)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
@@ -4015,8 +4020,7 @@ static inline uint64_t ldq_phys_internal(target_phys_addr_t addr,
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
     pd = p.phys_offset;
 
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
-        !(pd & IO_MEM_ROMD)) {
+    if (!is_ram_rom_romd(pd)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
@@ -4085,8 +4089,7 @@ static inline uint32_t lduw_phys_internal(target_phys_addr_t addr,
     p = phys_page_find(addr >> TARGET_PAGE_BITS);
     pd = p.phys_offset;
 
-    if ((pd & ~TARGET_PAGE_MASK) > IO_MEM_ROM &&
-        !(pd & IO_MEM_ROMD)) {
+    if (!is_ram_rom_romd(pd)) {
         /* I/O case */
         io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
