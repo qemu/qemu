@@ -312,8 +312,7 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
     /* cpu_register_physical_memory_log() wants region_offset for
      * mmio, but prefers offseting phys_offset for RAM.  Humour it.
      */
-    if ((phys_offset & ~TARGET_PAGE_MASK) == IO_MEM_RAM
-        || (phys_offset & ~TARGET_PAGE_MASK) == IO_MEM_ROM) {
+    if (memory_region_is_ram(fr->mr)) {
         phys_offset += region_offset;
         region_offset = 0;
     }
@@ -323,7 +322,7 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
     }
 
     if (fr->readonly) {
-        phys_offset |= IO_MEM_ROM;
+        phys_offset |= io_mem_rom.ram_addr;
     }
 
     cpu_register_physical_memory_log(int128_get64(fr->addr.start),
@@ -337,7 +336,7 @@ static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
 {
     cpu_register_physical_memory(int128_get64(fr->addr.start),
                                  int128_get64(fr->addr.size),
-                                 IO_MEM_UNASSIGNED);
+                                 io_mem_unassigned.ram_addr);
 }
 
 static void as_memory_log_start(AddressSpace *as, FlatRange *fr)
