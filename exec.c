@@ -2542,6 +2542,7 @@ void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
                 p->region_offset = 0;
             } else {
                 p->phys_offset = phys_offset;
+                p->region_offset = region_offset;
                 if ((phys_offset & ~TARGET_PAGE_MASK) <= IO_MEM_ROM ||
                     (phys_offset & IO_MEM_ROMD))
                     phys_offset += TARGET_PAGE_SIZE;
