@@ -212,7 +212,7 @@ CPUWriteMemoryFunc *_io_mem_write[IO_MEM_NB_ENTRIES][4];
 CPUReadMemoryFunc *_io_mem_read[IO_MEM_NB_ENTRIES][4];
 void *io_mem_opaque[IO_MEM_NB_ENTRIES];
 static char io_mem_used[IO_MEM_NB_ENTRIES];
-static int io_mem_watch;
+static MemoryRegion io_mem_watch;
 #endif
 
 /* log support */
@@ -2158,7 +2158,7 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
         if (vaddr == (wp->vaddr & TARGET_PAGE_MASK)) {
             /* Avoid trapping reads of pages with a write breakpoint. */
             if ((prot & PAGE_WRITE) || (wp->flags & BP_MEM_READ)) {
-                iotlb = io_mem_watch + paddr;
+                iotlb = io_mem_watch.ram_addr + paddr;
                 address |= TLB_MMIO;
                 break;
             }
@@ -3260,55 +3260,34 @@ static void check_watchpoint(int offset, int len_mask, int flags)
 /* Watchpoint access routines.  Watchpoints are inserted using TLB tricks,
    so these check for a hit then pass through to the normal out-of-line
    phys routines.  */
-static uint32_t watch_mem_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t watch_mem_read(void *opaque, target_phys_addr_t addr,
+                               unsigned size)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x0, BP_MEM_READ);
-    return ldub_phys(addr);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_READ);
+    switch (size) {
+    case 1: return ldub_phys(addr);
+    case 2: return lduw_phys(addr);
+    case 4: return ldl_phys(addr);
+    default: abort();
+    }
 }
 
-static uint32_t watch_mem_readw(void *opaque, target_phys_addr_t addr)
+static void watch_mem_write(void *opaque, target_phys_addr_t addr,
+                            uint64_t val, unsigned size)
 {
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x1, BP_MEM_READ);
-    return lduw_phys(addr);
+    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_WRITE);
+    switch (size) {
+    case 1: stb_phys(addr, val);
+    case 2: stw_phys(addr, val);
+    case 4: stl_phys(addr, val);
+    default: abort();
+    }
 }
 
-static uint32_t watch_mem_readl(void *opaque, target_phys_addr_t addr)
-{
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x3, BP_MEM_READ);
-    return ldl_phys(addr);
-}
-
-static void watch_mem_writeb(void *opaque, target_phys_addr_t addr,
-                             uint32_t val)
-{
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x0, BP_MEM_WRITE);
-    stb_phys(addr, val);
-}
-
-static void watch_mem_writew(void *opaque, target_phys_addr_t addr,
-                             uint32_t val)
-{
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x1, BP_MEM_WRITE);
-    stw_phys(addr, val);
-}
-
-static void watch_mem_writel(void *opaque, target_phys_addr_t addr,
-                             uint32_t val)
-{
-    check_watchpoint(addr & ~TARGET_PAGE_MASK, ~0x3, BP_MEM_WRITE);
-    stl_phys(addr, val);
-}
-
-static CPUReadMemoryFunc * const watch_mem_read[3] = {
-    watch_mem_readb,
-    watch_mem_readw,
-    watch_mem_readl,
-};
-
-static CPUWriteMemoryFunc * const watch_mem_write[3] = {
-    watch_mem_writeb,
-    watch_mem_writew,
-    watch_mem_writel,
+static const MemoryRegionOps watch_mem_ops = {
+    .read = watch_mem_read,
+    .write = watch_mem_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static uint64_t subpage_read(void *opaque, target_phys_addr_t addr,
@@ -3515,8 +3494,8 @@ static void io_mem_init(void)
     for (i=0; i<5; i++)
         io_mem_used[i] = 1;
 
-    io_mem_watch = cpu_register_io_memory(watch_mem_read,
-                                          watch_mem_write, NULL);
+    memory_region_init_io(&io_mem_watch, &watch_mem_ops, NULL,
+                          "watch", UINT64_MAX);
 }
 
 static void memory_map_init(void)
