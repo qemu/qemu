@@ -906,11 +906,10 @@ static bool memory_region_access_valid(MemoryRegion *mr,
     return true;
 }
 
-static uint32_t memory_region_read_thunk_n(void *_mr,
-                                           target_phys_addr_t addr,
-                                           unsigned size)
+static uint64_t memory_region_dispatch_read1(MemoryRegion *mr,
+                                             target_phys_addr_t addr,
+                                             unsigned size)
 {
-    MemoryRegion *mr = _mr;
     uint64_t data = 0;
 
     if (!memory_region_access_valid(mr, addr, size, false)) {
@@ -930,16 +929,44 @@ static uint32_t memory_region_read_thunk_n(void *_mr,
     return data;
 }
 
-static void memory_region_write_thunk_n(void *_mr,
-                                        target_phys_addr_t addr,
-                                        unsigned size,
-                                        uint64_t data)
+static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
 {
-    MemoryRegion *mr = _mr;
+    if (memory_region_wrong_endianness(mr)) {
+        switch (size) {
+        case 1:
+            break;
+        case 2:
+            *data = bswap16(*data);
+            break;
+        case 4:
+            *data = bswap32(*data);
+        default:
+            abort();
+        }
+    }
+}
 
+static uint64_t memory_region_dispatch_read(MemoryRegion *mr,
+                                            target_phys_addr_t addr,
+                                            unsigned size)
+{
+    uint64_t ret;
+
+    ret = memory_region_dispatch_read1(mr, addr, size);
+    adjust_endianness(mr, &ret, size);
+    return ret;
+}
+
+static void memory_region_dispatch_write(MemoryRegion *mr,
+                                         target_phys_addr_t addr,
+                                         uint64_t data,
+                                         unsigned size)
+{
     if (!memory_region_access_valid(mr, addr, size, true)) {
         return; /* FIXME: better signalling */
     }
+
+    adjust_endianness(mr, &data, size);
 
     if (!mr->ops->write) {
         mr->ops->old_mmio.write[bitops_ffsl(size)](mr->opaque, addr, data);
@@ -953,69 +980,6 @@ static void memory_region_write_thunk_n(void *_mr,
                               memory_region_write_accessor, mr);
 }
 
-static uint32_t memory_region_read_thunk_b(void *mr, target_phys_addr_t addr)
-{
-    return memory_region_read_thunk_n(mr, addr, 1);
-}
-
-static uint32_t memory_region_read_thunk_w(void *mr, target_phys_addr_t addr)
-{
-    uint32_t data;
-
-    data = memory_region_read_thunk_n(mr, addr, 2);
-    if (memory_region_wrong_endianness(mr)) {
-        data = bswap16(data);
-    }
-    return data;
-}
-
-static uint32_t memory_region_read_thunk_l(void *mr, target_phys_addr_t addr)
-{
-    uint32_t data;
-
-    data = memory_region_read_thunk_n(mr, addr, 4);
-    if (memory_region_wrong_endianness(mr)) {
-        data = bswap32(data);
-    }
-    return data;
-}
-
-static void memory_region_write_thunk_b(void *mr, target_phys_addr_t addr,
-                                        uint32_t data)
-{
-    memory_region_write_thunk_n(mr, addr, 1, data);
-}
-
-static void memory_region_write_thunk_w(void *mr, target_phys_addr_t addr,
-                                        uint32_t data)
-{
-    if (memory_region_wrong_endianness(mr)) {
-        data = bswap16(data);
-    }
-    memory_region_write_thunk_n(mr, addr, 2, data);
-}
-
-static void memory_region_write_thunk_l(void *mr, target_phys_addr_t addr,
-                                        uint32_t data)
-{
-    if (memory_region_wrong_endianness(mr)) {
-        data = bswap32(data);
-    }
-    memory_region_write_thunk_n(mr, addr, 4, data);
-}
-
-static CPUReadMemoryFunc * const memory_region_read_thunk[] = {
-    memory_region_read_thunk_b,
-    memory_region_read_thunk_w,
-    memory_region_read_thunk_l,
-};
-
-static CPUWriteMemoryFunc * const memory_region_write_thunk[] = {
-    memory_region_write_thunk_b,
-    memory_region_write_thunk_w,
-    memory_region_write_thunk_l,
-};
-
 void memory_region_init_io(MemoryRegion *mr,
                            const MemoryRegionOps *ops,
                            void *opaque,
@@ -1027,9 +991,7 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->opaque = opaque;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_iomem;
-    mr->ram_addr = cpu_register_io_memory(memory_region_read_thunk,
-                                          memory_region_write_thunk,
-                                          mr);
+    mr->ram_addr = cpu_register_io_memory(mr);
 }
 
 void memory_region_init_ram(MemoryRegion *mr,
@@ -1078,9 +1040,7 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->terminates = true;
     mr->destructor = memory_region_destructor_rom_device;
     mr->ram_addr = qemu_ram_alloc(size, mr);
-    mr->ram_addr |= cpu_register_io_memory(memory_region_read_thunk,
-                                           memory_region_write_thunk,
-                                           mr);
+    mr->ram_addr |= cpu_register_io_memory(mr);
     mr->ram_addr |= IO_MEM_ROMD;
 }
 
@@ -1552,15 +1512,13 @@ void set_system_io_map(MemoryRegion *mr)
 
 uint64_t io_mem_read(int io_index, target_phys_addr_t addr, unsigned size)
 {
-    return _io_mem_read[io_index][bitops_ffsl(size)](io_mem_opaque[io_index],
-                                                     addr);
+    return memory_region_dispatch_read(io_mem_region[io_index], addr, size);
 }
 
 void io_mem_write(int io_index, target_phys_addr_t addr,
                   uint64_t val, unsigned size)
 {
-    _io_mem_write[io_index][bitops_ffsl(size)](io_mem_opaque[io_index],
-                                               addr, val);
+    memory_region_dispatch_write(io_mem_region[io_index], addr, val, size);
 }
 
 typedef struct MemoryRegionList MemoryRegionList;

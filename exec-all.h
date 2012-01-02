@@ -302,9 +302,7 @@ extern void *tci_tb_ptr;
 uint64_t io_mem_read(int index, target_phys_addr_t addr, unsigned size);
 void io_mem_write(int index, target_phys_addr_t addr, uint64_t value,
                   unsigned size);
-extern CPUWriteMemoryFunc *_io_mem_write[IO_MEM_NB_ENTRIES][4];
-extern CPUReadMemoryFunc *_io_mem_read[IO_MEM_NB_ENTRIES][4];
-extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
+extern struct MemoryRegion *io_mem_region[IO_MEM_NB_ENTRIES];
 
 void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr);

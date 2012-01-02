@@ -31,9 +31,8 @@ ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr);
 void qemu_ram_free(ram_addr_t addr);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
 
-int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
-                           CPUWriteMemoryFunc * const *mem_write,
-                           void *opaque);
+struct MemoryRegion;
+int cpu_register_io_memory(MemoryRegion *mr);
 void cpu_unregister_io_memory(int table_address);
 
 struct MemoryRegionSection;

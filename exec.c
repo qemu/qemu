@@ -208,9 +208,7 @@ static void io_mem_init(void);
 static void memory_map_init(void);
 
 /* io memory support */
-CPUWriteMemoryFunc *_io_mem_write[IO_MEM_NB_ENTRIES][4];
-CPUReadMemoryFunc *_io_mem_read[IO_MEM_NB_ENTRIES][4];
-void *io_mem_opaque[IO_MEM_NB_ENTRIES];
+MemoryRegion *io_mem_region[IO_MEM_NB_ENTRIES];
 static char io_mem_used[IO_MEM_NB_ENTRIES];
 static MemoryRegion io_mem_watch;
 #endif
@@ -2563,8 +2561,10 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
                                            &p->phys_offset, orig_memory,
                                            p->region_offset);
                 } else {
-                    subpage = io_mem_opaque[(orig_memory & ~TARGET_PAGE_MASK)
-                                            >> IO_MEM_SHIFT];
+                    MemoryRegion *mr
+                        = io_mem_region[(orig_memory & ~TARGET_PAGE_MASK)
+                                        >> IO_MEM_SHIFT];
+                    subpage = container_of(mr, subpage_t, iomem);
                 }
                 subpage_register(subpage, start_addr2, end_addr2, phys_offset,
                                  region_offset);
@@ -3427,13 +3427,8 @@ static int get_free_io_mem_idx(void)
    modified. If it is zero, a new io zone is allocated. The return
    value can be used with cpu_register_physical_memory(). (-1) is
    returned if error. */
-static int cpu_register_io_memory_fixed(int io_index,
-                                        CPUReadMemoryFunc * const *mem_read,
-                                        CPUWriteMemoryFunc * const *mem_write,
-                                        void *opaque)
+static int cpu_register_io_memory_fixed(int io_index, MemoryRegion *mr)
 {
-    int i;
-
     if (io_index <= 0) {
         io_index = get_free_io_mem_idx();
         if (io_index == -1)
@@ -3444,36 +3439,21 @@ static int cpu_register_io_memory_fixed(int io_index,
             return -1;
     }
 
-    for (i = 0; i < 3; ++i) {
-        assert(mem_read[i]);
-        _io_mem_read[io_index][i] = mem_read[i];
-    }
-    for (i = 0; i < 3; ++i) {
-        assert(mem_write[i]);
-        _io_mem_write[io_index][i] = mem_write[i];
-    }
-    io_mem_opaque[io_index] = opaque;
+    io_mem_region[io_index] = mr;
 
     return (io_index << IO_MEM_SHIFT);
 }
 
-int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
-                           CPUWriteMemoryFunc * const *mem_write,
-                           void *opaque)
+int cpu_register_io_memory(MemoryRegion *mr)
 {
-    return cpu_register_io_memory_fixed(0, mem_read, mem_write, opaque);
+    return cpu_register_io_memory_fixed(0, mr);
 }
 
 void cpu_unregister_io_memory(int io_table_address)
 {
-    int i;
     int io_index = io_table_address >> IO_MEM_SHIFT;
 
-    for (i=0;i < 3; i++) {
-        _io_mem_read[io_index][i] = NULL;
-        _io_mem_write[io_index][i] = NULL;
-    }
-    io_mem_opaque[io_index] = NULL;
+    io_mem_region[io_index] = NULL;
     io_mem_used[io_index] = 0;
 }
 
