@@ -2472,6 +2472,7 @@ static inline void tlb_set_dirty(CPUState *env,
 
 #define SUBPAGE_IDX(addr) ((addr) & ~TARGET_PAGE_MASK)
 typedef struct subpage_t {
+    MemoryRegion iomem;
     target_phys_addr_t base;
     ram_addr_t sub_io_index[TARGET_PAGE_SIZE];
     ram_addr_t region_offset[TARGET_PAGE_SIZE];
@@ -3309,10 +3310,10 @@ static CPUWriteMemoryFunc * const watch_mem_write[3] = {
     watch_mem_writel,
 };
 
-static inline uint32_t subpage_readlen (subpage_t *mmio,
-                                        target_phys_addr_t addr,
-                                        unsigned int len)
+static uint64_t subpage_read(void *opaque, target_phys_addr_t addr,
+                             unsigned len)
 {
+    subpage_t *mmio = opaque;
     unsigned int idx = SUBPAGE_IDX(addr);
 #if defined(DEBUG_SUBPAGE)
     printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d\n", __func__,
@@ -3321,66 +3322,29 @@ static inline uint32_t subpage_readlen (subpage_t *mmio,
 
     addr += mmio->region_offset[idx];
     idx = mmio->sub_io_index[idx];
-    return io_mem_read(idx, addr, 1 <<len);
+    return io_mem_read(idx, addr, len);
 }
 
-static inline void subpage_writelen (subpage_t *mmio, target_phys_addr_t addr,
-                                     uint32_t value, unsigned int len)
+static void subpage_write(void *opaque, target_phys_addr_t addr,
+                          uint64_t value, unsigned len)
 {
+    subpage_t *mmio = opaque;
     unsigned int idx = SUBPAGE_IDX(addr);
 #if defined(DEBUG_SUBPAGE)
-    printf("%s: subpage %p len %d addr " TARGET_FMT_plx " idx %d value %08x\n",
+    printf("%s: subpage %p len %d addr " TARGET_FMT_plx
+           " idx %d value %"PRIx64"\n",
            __func__, mmio, len, addr, idx, value);
 #endif
 
     addr += mmio->region_offset[idx];
     idx = mmio->sub_io_index[idx];
-    io_mem_write(idx, addr, value, 1 << len);
+    io_mem_write(idx, addr, value, len);
 }
 
-static uint32_t subpage_readb (void *opaque, target_phys_addr_t addr)
-{
-    return subpage_readlen(opaque, addr, 0);
-}
-
-static void subpage_writeb (void *opaque, target_phys_addr_t addr,
-                            uint32_t value)
-{
-    subpage_writelen(opaque, addr, value, 0);
-}
-
-static uint32_t subpage_readw (void *opaque, target_phys_addr_t addr)
-{
-    return subpage_readlen(opaque, addr, 1);
-}
-
-static void subpage_writew (void *opaque, target_phys_addr_t addr,
-                            uint32_t value)
-{
-    subpage_writelen(opaque, addr, value, 1);
-}
-
-static uint32_t subpage_readl (void *opaque, target_phys_addr_t addr)
-{
-    return subpage_readlen(opaque, addr, 2);
-}
-
-static void subpage_writel (void *opaque, target_phys_addr_t addr,
-                            uint32_t value)
-{
-    subpage_writelen(opaque, addr, value, 2);
-}
-
-static CPUReadMemoryFunc * const subpage_read[] = {
-    &subpage_readb,
-    &subpage_readw,
-    &subpage_readl,
-};
-
-static CPUWriteMemoryFunc * const subpage_write[] = {
-    &subpage_writeb,
-    &subpage_writew,
-    &subpage_writel,
+static const MemoryRegionOps subpage_ops = {
+    .read = subpage_read,
+    .write = subpage_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static uint32_t subpage_ram_readb(void *opaque, target_phys_addr_t addr)
@@ -3475,7 +3439,9 @@ static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
     mmio = g_malloc0(sizeof(subpage_t));
 
     mmio->base = base;
-    subpage_memory = cpu_register_io_memory(subpage_read, subpage_write, mmio);
+    memory_region_init_io(&mmio->iomem, &subpage_ops, mmio,
+                          "subpage", TARGET_PAGE_SIZE);
+    subpage_memory = mmio->iomem.ram_addr;
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
            mmio, base, TARGET_PAGE_SIZE, subpage_memory);
