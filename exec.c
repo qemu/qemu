@@ -2552,18 +2552,17 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
             ram_addr_t orig_memory = p->phys_offset;
             target_phys_addr_t start_addr2, end_addr2;
             int need_subpage = 0;
+            MemoryRegion *mr = io_mem_region[(orig_memory & ~TARGET_PAGE_MASK)
+                                             >> IO_MEM_SHIFT];
 
             CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2,
                           need_subpage);
             if (need_subpage) {
-                if (!(orig_memory & IO_MEM_SUBPAGE)) {
+                if (!(mr->subpage)) {
                     subpage = subpage_init((addr & TARGET_PAGE_MASK),
                                            &p->phys_offset, orig_memory,
                                            p->region_offset);
                 } else {
-                    MemoryRegion *mr
-                        = io_mem_region[(orig_memory & ~TARGET_PAGE_MASK)
-                                        >> IO_MEM_SHIFT];
                     subpage = container_of(mr, subpage_t, iomem);
                 }
                 subpage_register(subpage, start_addr2, end_addr2, phys_offset,
@@ -3396,12 +3395,13 @@ static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
     mmio->base = base;
     memory_region_init_io(&mmio->iomem, &subpage_ops, mmio,
                           "subpage", TARGET_PAGE_SIZE);
+    mmio->iomem.subpage = true;
     subpage_memory = mmio->iomem.ram_addr;
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
            mmio, base, TARGET_PAGE_SIZE, subpage_memory);
 #endif
-    *phys = subpage_memory | IO_MEM_SUBPAGE;
+    *phys = subpage_memory;
     subpage_register(mmio, 0, TARGET_PAGE_SIZE-1, orig_memory, region_offset);
 
     return mmio;

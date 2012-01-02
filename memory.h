@@ -119,6 +119,7 @@ struct MemoryRegion {
     void (*destructor)(MemoryRegion *mr);
     ram_addr_t ram_addr;
     IORange iorange;
+    bool subpage;
     bool terminates;
     bool readable;
     bool ram;

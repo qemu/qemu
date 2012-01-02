@@ -116,7 +116,6 @@ extern struct MemoryRegion io_mem_notdirty;
 
 /* Acts like a ROM when read and like a device when written.  */
 #define IO_MEM_ROMD        (1)
-#define IO_MEM_SUBPAGE     (2)
 
 #endif
 

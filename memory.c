@@ -862,6 +862,7 @@ void memory_region_init(MemoryRegion *mr,
     }
     mr->addr = 0;
     mr->offset = 0;
+    mr->subpage = false;
     mr->enabled = true;
     mr->terminates = false;
     mr->ram = false;
