@@ -114,9 +114,6 @@ extern struct MemoryRegion io_mem_rom;
 extern struct MemoryRegion io_mem_unassigned;
 extern struct MemoryRegion io_mem_notdirty;
 
-/* Acts like a ROM when read and like a device when written.  */
-#define IO_MEM_ROMD        (1)
-
 #endif
 
 #endif /* !CPU_COMMON_H */

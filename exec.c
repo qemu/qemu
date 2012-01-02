@@ -2091,9 +2091,18 @@ static bool is_ram_rom(ram_addr_t pd)
     return pd == io_mem_ram.ram_addr || pd == io_mem_rom.ram_addr;
 }
 
+static bool is_romd(ram_addr_t pd)
+{
+    MemoryRegion *mr;
+
+    pd &= ~TARGET_PAGE_MASK;
+    mr = io_mem_region[pd >> IO_MEM_SHIFT];
+    return mr->rom_device && mr->readable;
+}
+
 static bool is_ram_rom_romd(ram_addr_t pd)
 {
-    return is_ram_rom(pd) || (pd & IO_MEM_ROMD);
+    return is_ram_rom(pd) || is_romd(pd);
 }
 
 /* Add a new TLB entry. At most one entry for a given virtual address
@@ -2179,8 +2188,7 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
         te->addr_code = -1;
     }
     if (prot & PAGE_WRITE) {
-        if ((pd & ~TARGET_PAGE_MASK) == io_mem_rom.ram_addr ||
-            (pd & IO_MEM_ROMD)) {
+        if ((pd & ~TARGET_PAGE_MASK) == io_mem_rom.ram_addr || is_romd(pd)) {
             /* Write access calls the I/O callback.  */
             te->addr_write = address | TLB_MMIO;
         } else if ((pd & ~TARGET_PAGE_MASK) == io_mem_ram.ram_addr &&
@@ -2526,10 +2534,6 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
     if (memory_region_is_ram(section->mr)) {
         phys_offset += region_offset;
         region_offset = 0;
-    }
-
-    if (!readable) {
-        phys_offset &= ~TARGET_PAGE_MASK & ~IO_MEM_ROMD;
     }
 
     if (readonly) {
@@ -4379,7 +4383,7 @@ tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong addr)
     }
     pd = env1->tlb_table[mmu_idx][page_index].addr_code & ~TARGET_PAGE_MASK;
     if (pd != io_mem_ram.ram_addr && pd != io_mem_rom.ram_addr
-        && !(pd & IO_MEM_ROMD)) {
+        && !is_romd(pd)) {
 #if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SPARC)
         cpu_unassigned_access(env1, addr, 0, 1, 0, 4);
 #else

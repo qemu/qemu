@@ -125,6 +125,7 @@ struct MemoryRegion {
     bool ram;
     bool readonly; /* For RAM regions */
     bool enabled;
+    bool rom_device;
     MemoryRegion *alias;
     target_phys_addr_t alias_offset;
     unsigned priority;
