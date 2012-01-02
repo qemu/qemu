@@ -503,7 +503,7 @@ extern int mem_prealloc;
    3 flags.  The ROMD code stores the page ram offset in iotlb entry, 
    so only a limited number of ids are avaiable.  */
 
-#define IO_MEM_NB_ENTRIES  (1 << (TARGET_PAGE_BITS  - IO_MEM_SHIFT))
+#define IO_MEM_NB_ENTRIES  (1 << TARGET_PAGE_BITS)
 
 /* Flags stored in the low bits of the TLB virtual address.  These are
    defined so that fast path ram access is all zeros.  */

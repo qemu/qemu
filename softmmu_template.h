@@ -63,7 +63,7 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
 {
     DATA_TYPE res;
     int index;
-    index = (physaddr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+    index = physaddr & (IO_MEM_NB_ENTRIES - 1);
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     env->mem_io_pc = (unsigned long)retaddr;
     if (index != io_mem_ram.ram_addr && index != io_mem_rom.ram_addr
@@ -208,7 +208,7 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
                                           void *retaddr)
 {
     int index;
-    index = (physaddr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+    index = physaddr & (IO_MEM_NB_ENTRIES - 1);
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     if (index != io_mem_ram.ram_addr && index != io_mem_rom.ram_addr
         && index != io_mem_unassigned.ram_addr

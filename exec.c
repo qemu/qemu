@@ -2096,7 +2096,7 @@ static bool is_romd(ram_addr_t pd)
     MemoryRegion *mr;
 
     pd &= ~TARGET_PAGE_MASK;
-    mr = io_mem_region[pd >> IO_MEM_SHIFT];
+    mr = io_mem_region[pd];
     return mr->rom_device && mr->readable;
 }
 
@@ -2556,8 +2556,7 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
             ram_addr_t orig_memory = p->phys_offset;
             target_phys_addr_t start_addr2, end_addr2;
             int need_subpage = 0;
-            MemoryRegion *mr = io_mem_region[(orig_memory & ~TARGET_PAGE_MASK)
-                                             >> IO_MEM_SHIFT];
+            MemoryRegion *mr = io_mem_region[orig_memory & ~TARGET_PAGE_MASK];
 
             CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2,
                           need_subpage);
@@ -3378,7 +3377,7 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     if ((memory & ~TARGET_PAGE_MASK) == io_mem_ram.ram_addr) {
         memory = io_mem_subpage_ram.ram_addr;
     }
-    memory = (memory >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+    memory &= IO_MEM_NB_ENTRIES - 1;
     for (; idx <= eidx; idx++) {
         mmio->sub_io_index[idx] = memory;
         mmio->region_offset[idx] = region_offset;
@@ -3438,14 +3437,13 @@ static int cpu_register_io_memory_fixed(int io_index, MemoryRegion *mr)
         if (io_index == -1)
             return io_index;
     } else {
-        io_index >>= IO_MEM_SHIFT;
         if (io_index >= IO_MEM_NB_ENTRIES)
             return -1;
     }
 
     io_mem_region[io_index] = mr;
 
-    return (io_index << IO_MEM_SHIFT);
+    return io_index;
 }
 
 int cpu_register_io_memory(MemoryRegion *mr)
@@ -3453,10 +3451,8 @@ int cpu_register_io_memory(MemoryRegion *mr)
     return cpu_register_io_memory_fixed(0, mr);
 }
 
-void cpu_unregister_io_memory(int io_table_address)
+void cpu_unregister_io_memory(int io_index)
 {
-    int io_index = io_table_address >> IO_MEM_SHIFT;
-
     io_mem_region[io_index] = NULL;
     io_mem_used[io_index] = 0;
 }
@@ -3568,7 +3564,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
         if (is_write) {
             if ((pd & ~TARGET_PAGE_MASK) != io_mem_ram.ram_addr) {
                 target_phys_addr_t addr1;
-                io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+                io_index = pd & (IO_MEM_NB_ENTRIES - 1);
                 addr1 = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
                 /* XXX: could force cpu_single_env to NULL to avoid
                    potential bugs */
@@ -3607,7 +3603,7 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
             if (!is_ram_rom_romd(pd)) {
                 target_phys_addr_t addr1;
                 /* I/O case */
-                io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+                io_index = pd & (IO_MEM_NB_ENTRIES - 1);
                 addr1 = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
                 if (l >= 4 && ((addr1 & 3) == 0)) {
                     /* 32 bit read access */
@@ -3829,7 +3825,7 @@ static inline uint32_t ldl_phys_internal(target_phys_addr_t addr,
 
     if (!is_ram_rom_romd(pd)) {
         /* I/O case */
-        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        io_index = pd & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
         val = io_mem_read(io_index, addr, 4);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -3890,7 +3886,7 @@ static inline uint64_t ldq_phys_internal(target_phys_addr_t addr,
 
     if (!is_ram_rom_romd(pd)) {
         /* I/O case */
-        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        io_index = pd & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
 
         /* XXX This is broken when device endian != cpu endian.
@@ -3959,7 +3955,7 @@ static inline uint32_t lduw_phys_internal(target_phys_addr_t addr,
 
     if (!is_ram_rom_romd(pd)) {
         /* I/O case */
-        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        io_index = pd & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
         val = io_mem_read(io_index, addr, 2);
 #if defined(TARGET_WORDS_BIGENDIAN)
@@ -4019,7 +4015,7 @@ void stl_phys_notdirty(target_phys_addr_t addr, uint32_t val)
     pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) != io_mem_ram.ram_addr) {
-        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        io_index = pd & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
         io_mem_write(io_index, addr, val, 4);
     } else {
@@ -4050,7 +4046,7 @@ void stq_phys_notdirty(target_phys_addr_t addr, uint64_t val)
     pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) != io_mem_ram.ram_addr) {
-        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        io_index = pd & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
 #ifdef TARGET_WORDS_BIGENDIAN
         io_mem_write(io_index, addr, val >> 32, 4);
@@ -4079,7 +4075,7 @@ static inline void stl_phys_internal(target_phys_addr_t addr, uint32_t val,
     pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) != io_mem_ram.ram_addr) {
-        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        io_index = pd & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {
@@ -4152,7 +4148,7 @@ static inline void stw_phys_internal(target_phys_addr_t addr, uint32_t val,
     pd = p.phys_offset;
 
     if ((pd & ~TARGET_PAGE_MASK) != io_mem_ram.ram_addr) {
-        io_index = (pd >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+        io_index = pd & (IO_MEM_NB_ENTRIES - 1);
         addr = (addr & ~TARGET_PAGE_MASK) + p.region_offset;
 #if defined(TARGET_WORDS_BIGENDIAN)
         if (endian == DEVICE_LITTLE_ENDIAN) {

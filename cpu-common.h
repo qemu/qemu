@@ -107,8 +107,6 @@ void stq_phys(target_phys_addr_t addr, uint64_t val);
 void cpu_physical_memory_write_rom(target_phys_addr_t addr,
                                    const uint8_t *buf, int len);
 
-#define IO_MEM_SHIFT       3
-
 extern struct MemoryRegion io_mem_ram;
 extern struct MemoryRegion io_mem_rom;
 extern struct MemoryRegion io_mem_unassigned;
