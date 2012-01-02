@@ -2510,17 +2510,31 @@ static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
    start_addr and region_offset are rounded down to a page boundary
    before calculating this offset.  This should not be a problem unless
    the low bits of start_addr and region_offset differ.  */
-void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
-                                         ram_addr_t size,
-                                         ram_addr_t phys_offset,
-                                         ram_addr_t region_offset,
-                                         bool log_dirty)
+void cpu_register_physical_memory_log(MemoryRegionSection *section,
+                                      bool readable, bool readonly)
 {
+    target_phys_addr_t start_addr = section->offset_within_address_space;
+    ram_addr_t size = section->size;
+    ram_addr_t phys_offset = section->mr->ram_addr;
+    ram_addr_t region_offset = section->offset_within_region;
     target_phys_addr_t addr, end_addr;
     PhysPageDesc *p;
     CPUState *env;
     ram_addr_t orig_size = size;
     subpage_t *subpage;
+
+    if (memory_region_is_ram(section->mr)) {
+        phys_offset += region_offset;
+        region_offset = 0;
+    }
+
+    if (!readable) {
+        phys_offset &= ~TARGET_PAGE_MASK & ~IO_MEM_ROMD;
+    }
+
+    if (readonly) {
+        phys_offset |= io_mem_rom.ram_addr;
+    }
 
     assert(size);
 

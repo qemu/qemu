@@ -305,38 +305,26 @@ static void access_with_adjusted_size(target_phys_addr_t addr,
 
 static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
 {
-    ram_addr_t phys_offset, region_offset;
+    MemoryRegionSection section = {
+        .mr = fr->mr,
+        .offset_within_address_space = int128_get64(fr->addr.start),
+        .offset_within_region = fr->offset_in_region,
+        .size = int128_get64(fr->addr.size),
+    };
 
-    phys_offset = fr->mr->ram_addr;
-    region_offset = fr->offset_in_region;
-    /* cpu_register_physical_memory_log() wants region_offset for
-     * mmio, but prefers offseting phys_offset for RAM.  Humour it.
-     */
-    if (memory_region_is_ram(fr->mr)) {
-        phys_offset += region_offset;
-        region_offset = 0;
-    }
-
-    if (!fr->readable) {
-        phys_offset &= ~TARGET_PAGE_MASK & ~IO_MEM_ROMD;
-    }
-
-    if (fr->readonly) {
-        phys_offset |= io_mem_rom.ram_addr;
-    }
-
-    cpu_register_physical_memory_log(int128_get64(fr->addr.start),
-                                     int128_get64(fr->addr.size),
-                                     phys_offset,
-                                     region_offset,
-                                     fr->dirty_log_mask);
+    cpu_register_physical_memory_log(&section, fr->readable, fr->readonly);
 }
 
 static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
 {
-    cpu_register_physical_memory(int128_get64(fr->addr.start),
-                                 int128_get64(fr->addr.size),
-                                 io_mem_unassigned.ram_addr);
+    MemoryRegionSection section = {
+        .mr = &io_mem_unassigned,
+        .offset_within_address_space = int128_get64(fr->addr.start),
+        .offset_within_region = int128_get64(fr->addr.start),
+        .size = int128_get64(fr->addr.size),
+    };
+
+    cpu_register_physical_memory_log(&section, true, false);
 }
 
 static void as_memory_log_start(AddressSpace *as, FlatRange *fr)

@@ -36,27 +36,9 @@ int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
                            void *opaque);
 void cpu_unregister_io_memory(int table_address);
 
-void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
-                                      ram_addr_t size,
-                                      ram_addr_t phys_offset,
-                                      ram_addr_t region_offset,
-                                      bool log_dirty);
-
-static inline void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
-                                                       ram_addr_t size,
-                                                       ram_addr_t phys_offset,
-                                                       ram_addr_t region_offset)
-{
-    cpu_register_physical_memory_log(start_addr, size, phys_offset,
-                                     region_offset, false);
-}
-
-static inline void cpu_register_physical_memory(target_phys_addr_t start_addr,
-                                                ram_addr_t size,
-                                                ram_addr_t phys_offset)
-{
-    cpu_register_physical_memory_offset(start_addr, size, phys_offset, 0);
-}
+struct MemoryRegionSection;
+void cpu_register_physical_memory_log(struct MemoryRegionSection *section,
+                                      bool readable, bool readonly);
 
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
