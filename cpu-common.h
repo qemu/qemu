@@ -113,7 +113,6 @@ extern struct MemoryRegion io_mem_ram;
 extern struct MemoryRegion io_mem_rom;
 extern struct MemoryRegion io_mem_unassigned;
 extern struct MemoryRegion io_mem_notdirty;
-#define IO_MEM_SUBPAGE_RAM (4 << IO_MEM_SHIFT)
 
 /* Acts like a ROM when read and like a device when written.  */
 #define IO_MEM_ROMD        (1)

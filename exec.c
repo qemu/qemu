@@ -119,6 +119,7 @@ static MemoryRegion *system_memory;
 static MemoryRegion *system_io;
 
 MemoryRegion io_mem_ram, io_mem_rom, io_mem_unassigned, io_mem_notdirty;
+static MemoryRegion io_mem_subpage_ram;
 
 #endif
 
@@ -3347,61 +3348,36 @@ static const MemoryRegionOps subpage_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static uint32_t subpage_ram_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t subpage_ram_read(void *opaque, target_phys_addr_t addr,
+                                 unsigned size)
 {
     ram_addr_t raddr = addr;
     void *ptr = qemu_get_ram_ptr(raddr);
-    return ldub_p(ptr);
+    switch (size) {
+    case 1: return ldub_p(ptr);
+    case 2: return lduw_p(ptr);
+    case 4: return ldl_p(ptr);
+    default: abort();
+    }
 }
 
-static void subpage_ram_writeb(void *opaque, target_phys_addr_t addr,
-                               uint32_t value)
+static void subpage_ram_write(void *opaque, target_phys_addr_t addr,
+                              uint64_t value, unsigned size)
 {
     ram_addr_t raddr = addr;
     void *ptr = qemu_get_ram_ptr(raddr);
-    stb_p(ptr, value);
+    switch (size) {
+    case 1: return stb_p(ptr, value);
+    case 2: return stw_p(ptr, value);
+    case 4: return stl_p(ptr, value);
+    default: abort();
+    }
 }
 
-static uint32_t subpage_ram_readw(void *opaque, target_phys_addr_t addr)
-{
-    ram_addr_t raddr = addr;
-    void *ptr = qemu_get_ram_ptr(raddr);
-    return lduw_p(ptr);
-}
-
-static void subpage_ram_writew(void *opaque, target_phys_addr_t addr,
-                               uint32_t value)
-{
-    ram_addr_t raddr = addr;
-    void *ptr = qemu_get_ram_ptr(raddr);
-    stw_p(ptr, value);
-}
-
-static uint32_t subpage_ram_readl(void *opaque, target_phys_addr_t addr)
-{
-    ram_addr_t raddr = addr;
-    void *ptr = qemu_get_ram_ptr(raddr);
-    return ldl_p(ptr);
-}
-
-static void subpage_ram_writel(void *opaque, target_phys_addr_t addr,
-                               uint32_t value)
-{
-    ram_addr_t raddr = addr;
-    void *ptr = qemu_get_ram_ptr(raddr);
-    stl_p(ptr, value);
-}
-
-static CPUReadMemoryFunc * const subpage_ram_read[] = {
-    &subpage_ram_readb,
-    &subpage_ram_readw,
-    &subpage_ram_readl,
-};
-
-static CPUWriteMemoryFunc * const subpage_ram_write[] = {
-    &subpage_ram_writeb,
-    &subpage_ram_writew,
-    &subpage_ram_writel,
+static const MemoryRegionOps subpage_ram_ops = {
+    .read = subpage_ram_read,
+    .write = subpage_ram_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
@@ -3418,7 +3394,7 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
            mmio, start, end, idx, eidx, memory);
 #endif
     if ((memory & ~TARGET_PAGE_MASK) == io_mem_ram.ram_addr) {
-        memory = IO_MEM_SUBPAGE_RAM;
+        memory = io_mem_subpage_ram.ram_addr;
     }
     memory = (memory >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
     for (; idx <= eidx; idx++) {
@@ -3534,8 +3510,8 @@ static void io_mem_init(void)
                           "unassigned", UINT64_MAX);
     memory_region_init_io(&io_mem_notdirty, &notdirty_mem_ops, NULL,
                           "notdirty", UINT64_MAX);
-    cpu_register_io_memory_fixed(IO_MEM_SUBPAGE_RAM, subpage_ram_read,
-                                 subpage_ram_write, NULL);
+    memory_region_init_io(&io_mem_subpage_ram, &subpage_ram_ops, NULL,
+                          "subpage-ram", UINT64_MAX);
     for (i=0; i<5; i++)
         io_mem_used[i] = 1;
 
