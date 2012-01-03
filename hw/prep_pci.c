@@ -29,6 +29,10 @@
 
 typedef PCIHostState PREPPCIState;
 
+typedef struct RavenPCIState {
+    PCIDevice dev;
+} RavenPCIState;
+
 static inline uint32_t PPC_PCIIO_config(target_phys_addr_t addr)
 {
     int i;
@@ -111,7 +115,6 @@ PCIBus *pci_prep_init(qemu_irq *pic,
                       MemoryRegion *address_space_io)
 {
     PREPPCIState *s;
-    PCIDevice *d;
 
     s = g_malloc0(sizeof(PREPPCIState));
     s->bus = pci_register_bus(NULL, "pci",
@@ -133,16 +136,50 @@ PCIBus *pci_prep_init(qemu_irq *pic,
     memory_region_init_io(&s->mmcfg, &PPC_PCIIO_ops, s, "pciio", 0x00400000);
     memory_region_add_subregion(address_space_mem, 0x80800000, &s->mmcfg);
 
-    /* PCI host bridge */
-    d = pci_register_device(s->bus, "PREP Host Bridge - Motorola Raven",
-                            sizeof(PCIDevice), 0, NULL, NULL);
-    pci_config_set_vendor_id(d->config, PCI_VENDOR_ID_MOTOROLA);
-    pci_config_set_device_id(d->config, PCI_DEVICE_ID_MOTOROLA_RAVEN);
-    d->config[0x08] = 0x00; // revision
-    pci_config_set_class(d->config, PCI_CLASS_BRIDGE_HOST);
+    pci_create_simple(s->bus, 0, "raven");
+
+    return s->bus;
+}
+
+static int raven_init(PCIDevice *d)
+{
     d->config[0x0C] = 0x08; // cache_line_size
     d->config[0x0D] = 0x10; // latency_timer
     d->config[0x34] = 0x00; // capabilities_pointer
 
-    return s->bus;
+    return 0;
 }
+
+static const VMStateDescription vmstate_raven = {
+    .name = "raven",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .fields = (VMStateField[]) {
+        VMSTATE_PCI_DEVICE(dev, RavenPCIState),
+        VMSTATE_END_OF_LIST()
+    },
+};
+
+static PCIDeviceInfo raven_info = {
+    .qdev.name = "raven",
+    .qdev.desc = "PReP Host Bridge - Motorola Raven",
+    .qdev.size = sizeof(RavenPCIState),
+    .qdev.vmsd = &vmstate_raven,
+    .qdev.no_user = 1,
+    .no_hotplug = 1,
+    .init = raven_init,
+    .vendor_id = PCI_VENDOR_ID_MOTOROLA,
+    .device_id = PCI_DEVICE_ID_MOTOROLA_RAVEN,
+    .revision = 0x00,
+    .class_id = PCI_CLASS_BRIDGE_HOST,
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_END_OF_LIST()
+    },
+};
+
+static void raven_register_devices(void)
+{
+    pci_qdev_register(&raven_info);
+}
+
+device_init(raven_register_devices)
