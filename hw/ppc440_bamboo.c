@@ -32,6 +32,8 @@
 #define FDT_ADDR     0x1800000
 #define RAMDISK_ADDR 0x1900000
 
+static target_phys_addr_t entry;
+
 static int bamboo_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
@@ -101,6 +103,16 @@ out:
     return ret;
 }
 
+static void main_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_reset(env);
+    env->gpr[1] = (16<<20) - 8;
+    env->gpr[3] = FDT_ADDR;
+    env->nip = entry;
+}
+
 static void bamboo_init(ram_addr_t ram_size,
                         const char *boot_device,
                         const char *kernel_filename,
@@ -114,7 +126,6 @@ static void bamboo_init(ram_addr_t ram_size,
     CPUState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
-    target_phys_addr_t entry = 0;
     target_phys_addr_t loadaddr = 0;
     target_long initrd_size = 0;
     int success;
@@ -123,6 +134,7 @@ static void bamboo_init(ram_addr_t ram_size,
     /* Setup CPU. */
     env = ppc440ep_init(address_space_mem, &ram_size, &pcibus,
                         pci_irq_nrs, 1, cpu_model);
+    qemu_register_reset(main_cpu_reset, env);
 
     if (pcibus) {
         /* Register network interfaces. */
@@ -169,11 +181,6 @@ static void bamboo_init(ram_addr_t ram_size,
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
         }
-
-        /* Set initial guest state. */
-        env->gpr[1] = (16<<20) - 8;
-        env->gpr[3] = FDT_ADDR;
-        env->nip = entry;
         /* XXX we currently depend on KVM to create some initial TLB entries. */
     }
 
