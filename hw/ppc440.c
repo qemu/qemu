@@ -56,6 +56,7 @@ CPUState *ppc440ep_init(MemoryRegion *address_space_mem, ram_addr_t *ram_size,
         exit(1);
     }
 
+    ppc_booke_timers_init(env, 400000000, 0);
     ppc_dcr_init(env, NULL, NULL);
 
     /* interrupt controller */
