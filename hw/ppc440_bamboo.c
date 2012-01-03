@@ -103,6 +103,29 @@ out:
     return ret;
 }
 
+/* Create reset TLB entries for BookE, spanning the 32bit addr space.  */
+static void mmubooke_create_initial_mapping(CPUState *env,
+                                     target_ulong va,
+                                     target_phys_addr_t pa)
+{
+    ppcemb_tlb_t *tlb = &env->tlb.tlbe[0];
+
+    tlb->attr = 0;
+    tlb->prot = PAGE_VALID | ((PAGE_READ | PAGE_WRITE | PAGE_EXEC) << 4);
+    tlb->size = 1 << 31; /* up to 0x80000000  */
+    tlb->EPN = va & TARGET_PAGE_MASK;
+    tlb->RPN = pa & TARGET_PAGE_MASK;
+    tlb->PID = 0;
+
+    tlb = &env->tlb.tlbe[1];
+    tlb->attr = 0;
+    tlb->prot = PAGE_VALID | ((PAGE_READ | PAGE_WRITE | PAGE_EXEC) << 4);
+    tlb->size = 1 << 31; /* up to 0xffffffff  */
+    tlb->EPN = 0x80000000 & TARGET_PAGE_MASK;
+    tlb->RPN = 0x80000000 & TARGET_PAGE_MASK;
+    tlb->PID = 0;
+}
+
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
@@ -111,6 +134,9 @@ static void main_cpu_reset(void *opaque)
     env->gpr[1] = (16<<20) - 8;
     env->gpr[3] = FDT_ADDR;
     env->nip = entry;
+
+    /* Create a mapping for the kernel.  */
+    mmubooke_create_initial_mapping(env, 0, 0);
 }
 
 static void bamboo_init(ram_addr_t ram_size,
@@ -181,7 +207,6 @@ static void bamboo_init(ram_addr_t ram_size,
             fprintf(stderr, "couldn't load device tree\n");
             exit(1);
         }
-        /* XXX we currently depend on KVM to create some initial TLB entries. */
     }
 
     if (kvm_enabled())
