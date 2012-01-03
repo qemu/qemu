@@ -4662,11 +4662,22 @@ static int open_self_stat(void *cpu_env, int fd)
       int len;
       uint64_t val = 0;
 
-      if (i == 27) {
-          /* stack bottom */
-          val = start_stack;
+      if (i == 0) {
+        /* pid */
+        val = getpid();
+        snprintf(buf, sizeof(buf), "%"PRId64 " ", val);
+      } else if (i == 1) {
+        /* app name */
+        snprintf(buf, sizeof(buf), "(%s) ", ts->bprm->argv[0]);
+      } else if (i == 27) {
+        /* stack bottom */
+        val = start_stack;
+        snprintf(buf, sizeof(buf), "%"PRId64 " ", val);
+      } else {
+        /* for the rest, there is MasterCard */
+        snprintf(buf, sizeof(buf), "0%c", i == 43 ? '\n' : ' ');
       }
-      snprintf(buf, sizeof(buf), "%"PRId64 "%c", val, i == 43 ? '\n' : ' ');
+
       len = strlen(buf);
       if (write(fd, buf, len) != len) {
           return -1;
