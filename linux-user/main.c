@@ -3486,11 +3486,6 @@ int main(int argc, char **argv, char **envp)
         _exit(1);
     }
 
-    for (i = 0; i < target_argc; i++) {
-        free(target_argv[i]);
-    }
-    free(target_argv);
-
     for (wrk = target_environ; *wrk; wrk++) {
         free(*wrk);
     }
