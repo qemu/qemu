@@ -2373,12 +2373,10 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
                 v = *(uint32_t *)d;
             else
                 v = (uint32_t) (*(uint16_t *)d);
-            r = ((v >> ds->pf.rshift) & ds->pf.rmax) * 256 /
-                (ds->pf.rmax + 1);
-            g = ((v >> ds->pf.gshift) & ds->pf.gmax) * 256 /
-                (ds->pf.gmax + 1);
-            b = ((v >> ds->pf.bshift) & ds->pf.bmax) * 256 /
-                (ds->pf.bmax + 1);
+            /* Limited to 8 or fewer bits per channel: */
+            r = ((v >> ds->pf.rshift) & ds->pf.rmax) << (8 - ds->pf.rbits);
+            g = ((v >> ds->pf.gshift) & ds->pf.gmax) << (8 - ds->pf.gbits);
+            b = ((v >> ds->pf.bshift) & ds->pf.bmax) << (8 - ds->pf.bbits);
             *pbuf++ = r;
             *pbuf++ = g;
             *pbuf++ = b;
