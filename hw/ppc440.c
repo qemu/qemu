@@ -48,7 +48,7 @@ CPUState *ppc440ep_init(MemoryRegion *address_space_mem, ram_addr_t *ram_size,
     qemu_irq *pci_irqs;
 
     if (cpu_model == NULL) {
-        cpu_model = "440-Xilinx"; // XXX: should be 440EP
+        cpu_model = "440EP";
     }
     env = cpu_init(cpu_model);
     if (!env) {
