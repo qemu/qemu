@@ -188,8 +188,8 @@ static inline void cpu_synchronize_post_init(CPUState *env)
 
 
 #if !defined(CONFIG_USER_ONLY)
-int kvm_physical_memory_addr_from_ram(KVMState *s, ram_addr_t ram_addr,
-                                      target_phys_addr_t *phys_addr);
+int kvm_physical_memory_addr_from_host(KVMState *s, void *ram_addr,
+                                       target_phys_addr_t *phys_addr);
 #endif
 
 #endif

@@ -3,6 +3,7 @@
 
 #include "hw/hw.h"
 #include "hw/virtio.h"
+#include "memory.h"
 
 /* Generic structures common for any vhost based device. */
 struct vhost_virtqueue {
@@ -26,9 +27,11 @@ typedef unsigned long vhost_log_chunk_t;
 
 struct vhost_memory;
 struct vhost_dev {
-    CPUPhysMemoryClient client;
+    MemoryListener memory_listener;
     int control;
     struct vhost_memory *mem;
+    int n_mem_sections;
+    MemoryRegionSection *mem_sections;
     struct vhost_virtqueue *vqs;
     int nvqs;
     unsigned long long features;

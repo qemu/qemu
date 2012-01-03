@@ -38,7 +38,6 @@ typedef unsigned long ram_addr_t;
 typedef void CPUWriteMemoryFunc(void *opaque, target_phys_addr_t addr, uint32_t value);
 typedef uint32_t CPUReadMemoryFunc(void *opaque, target_phys_addr_t addr);
 
-ram_addr_t cpu_get_physical_page_desc(target_phys_addr_t addr);
 void qemu_ram_remap(ram_addr_t addr, ram_addr_t length);
 /* This should only be used for ram local to a device.  */
 void *qemu_get_ram_ptr(ram_addr_t addr);
@@ -70,29 +69,6 @@ void cpu_physical_memory_unmap(void *buffer, target_phys_addr_t len,
                                int is_write, target_phys_addr_t access_len);
 void *cpu_register_map_client(void *opaque, void (*callback)(void *opaque));
 void cpu_unregister_map_client(void *cookie);
-
-struct CPUPhysMemoryClient;
-typedef struct CPUPhysMemoryClient CPUPhysMemoryClient;
-struct CPUPhysMemoryClient {
-    void (*set_memory)(struct CPUPhysMemoryClient *client,
-                       target_phys_addr_t start_addr,
-                       ram_addr_t size,
-                       ram_addr_t phys_offset,
-                       bool log_dirty);
-    int (*sync_dirty_bitmap)(struct CPUPhysMemoryClient *client,
-                             target_phys_addr_t start_addr,
-                             target_phys_addr_t end_addr);
-    int (*migration_log)(struct CPUPhysMemoryClient *client,
-                         int enable);
-    int (*log_start)(struct CPUPhysMemoryClient *client,
-                     target_phys_addr_t phys_addr, ram_addr_t size);
-    int (*log_stop)(struct CPUPhysMemoryClient *client,
-                    target_phys_addr_t phys_addr, ram_addr_t size);
-    QLIST_ENTRY(CPUPhysMemoryClient) list;
-};
-
-void cpu_register_phys_memory_client(CPUPhysMemoryClient *);
-void cpu_unregister_phys_memory_client(CPUPhysMemoryClient *);
 
 /* Coalesced MMIO regions are areas where write operations can be reordered.
  * This usually implies that write operations are side-effect free.  This allows

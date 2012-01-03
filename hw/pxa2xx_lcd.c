@@ -30,6 +30,7 @@ struct DMAChannel {
 };
 
 struct PXA2xxLCDState {
+    MemoryRegion *sysmem;
     MemoryRegion iomem;
     qemu_irq irq;
     int irqlevel;
@@ -681,7 +682,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot0(PXA2xxLCDState *s,
 
     dest_width = s->xres * s->dest_width;
     *miny = 0;
-    framebuffer_update_display(s->ds,
+    framebuffer_update_display(s->ds, s->sysmem,
                                addr, s->xres, s->yres,
                                src_width, dest_width, s->dest_width,
                                s->invalidated,
@@ -708,7 +709,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot90(PXA2xxLCDState *s,
 
     dest_width = s->yres * s->dest_width;
     *miny = 0;
-    framebuffer_update_display(s->ds,
+    framebuffer_update_display(s->ds, s->sysmem,
                                addr, s->xres, s->yres,
                                src_width, s->dest_width, -dest_width,
                                s->invalidated,
@@ -739,7 +740,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot180(PXA2xxLCDState *s,
 
     dest_width = s->xres * s->dest_width;
     *miny = 0;
-    framebuffer_update_display(s->ds,
+    framebuffer_update_display(s->ds, s->sysmem,
                                addr, s->xres, s->yres,
                                src_width, -dest_width, -s->dest_width,
                                s->invalidated,
@@ -769,7 +770,7 @@ static void pxa2xx_lcdc_dma0_redraw_rot270(PXA2xxLCDState *s,
 
     dest_width = s->yres * s->dest_width;
     *miny = 0;
-    framebuffer_update_display(s->ds,
+    framebuffer_update_display(s->ds, s->sysmem,
                                addr, s->xres, s->yres,
                                src_width, -s->dest_width, dest_width,
                                s->invalidated,
@@ -985,6 +986,7 @@ PXA2xxLCDState *pxa2xx_lcdc_init(MemoryRegion *sysmem,
     s = (PXA2xxLCDState *) g_malloc0(sizeof(PXA2xxLCDState));
     s->invalidated = 1;
     s->irq = irq;
+    s->sysmem = sysmem;
 
     pxa2xx_lcdc_orientation(s, graphic_rotate);
 

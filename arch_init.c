@@ -41,6 +41,7 @@
 #include "net.h"
 #include "gdbstub.h"
 #include "hw/smbios.h"
+#include "exec-memory.h"
 
 #ifdef TARGET_SPARC
 int graphic_width = 1024;
@@ -263,10 +264,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         return 0;
     }
 
-    if (cpu_physical_sync_dirty_bitmap(0, TARGET_PHYS_ADDR_MAX) != 0) {
-        qemu_file_set_error(f, -EINVAL);
-        return -EINVAL;
-    }
+    memory_global_sync_dirty_bitmap(get_system_memory());
 
     if (stage == 1) {
         RAMBlock *block;
