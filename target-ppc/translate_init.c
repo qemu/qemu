@@ -3516,6 +3516,9 @@ static void init_proc_405 (CPUPPCState *env)
 
 /* PowerPC 440 EP                                                            */
 #define POWERPC_INSNS_440EP  (PPC_INSNS_BASE | PPC_STRING |                   \
+                              PPC_FLOAT | PPC_FLOAT_FRES | PPC_FLOAT_FSEL |   \
+                              PPC_FLOAT_FSQRT | PPC_FLOAT_FRSQRTE |           \
+                              PPC_FLOAT_STFIWX |                              \
                               PPC_DCR | PPC_WRTEE | PPC_RFMCI |               \
                               PPC_CACHE | PPC_CACHE_ICBI |                    \
                               PPC_CACHE_DCBZ | PPC_CACHE_DCBA |               \
@@ -3523,7 +3526,7 @@ static void init_proc_405 (CPUPPCState *env)
                               PPC_BOOKE | PPC_4xx_COMMON | PPC_405_MAC |      \
                               PPC_440_SPEC)
 #define POWERPC_INSNS2_440EP (PPC_NONE)
-#define POWERPC_MSRM_440EP   (0x000000000006D630ULL)
+#define POWERPC_MSRM_440EP   (0x000000000006FF30ULL)
 #define POWERPC_MMU_440EP    (POWERPC_MMU_BOOKE)
 #define POWERPC_EXCP_440EP   (POWERPC_EXCP_BOOKE)
 #define POWERPC_INPUT_440EP  (PPC_FLAGS_INPUT_BookE)
@@ -3532,7 +3535,6 @@ static void init_proc_405 (CPUPPCState *env)
                               POWERPC_FLAG_DE | POWERPC_FLAG_BUS_CLK)
 #define check_pow_440EP      check_pow_nocheck
 
-__attribute__ (( unused ))
 static void init_proc_440EP (CPUPPCState *env)
 {
     /* Time base */
@@ -3593,7 +3595,7 @@ static void init_proc_440EP (CPUPPCState *env)
     init_excp_BookE(env);
     env->dcache_line_size = 32;
     env->icache_line_size = 32;
-    /* XXX: TODO: allocate internal IRQ controller */
+    ppc40x_irq_init(env);
 
     SET_FIT_PERIOD(12, 16, 20, 24);
     SET_WDT_PERIOD(20, 24, 28, 32);
@@ -7869,22 +7871,14 @@ static const ppc_def_t ppc_defs[] = {
     POWERPC_DEF("440H6",         CPU_POWERPC_440H6,                  440Gx5),
 #endif
     /* PowerPC 440 microcontrolers                                           */
-#if defined(TODO_USER_ONLY)
     /* PowerPC 440 EP                                                        */
     POWERPC_DEF("440EP",         CPU_POWERPC_440EP,                  440EP),
-#endif
-#if defined(TODO_USER_ONLY)
     /* PowerPC 440 EPa                                                       */
     POWERPC_DEF("440EPa",        CPU_POWERPC_440EPa,                 440EP),
-#endif
-#if defined(TODO_USER_ONLY)
     /* PowerPC 440 EPb                                                       */
     POWERPC_DEF("440EPb",        CPU_POWERPC_440EPb,                 440EP),
-#endif
-#if defined(TODO_USER_ONLY)
     /* PowerPC 440 EPX                                                       */
     POWERPC_DEF("440EPX",        CPU_POWERPC_440EPX,                 440EP),
-#endif
 #if defined(TODO_USER_ONLY)
     /* PowerPC 440 GP                                                        */
     POWERPC_DEF("440GP",         CPU_POWERPC_440GP,                  440GP),
