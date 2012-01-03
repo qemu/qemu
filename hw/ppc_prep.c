@@ -29,7 +29,7 @@
 #include "sysemu.h"
 #include "isa.h"
 #include "pci.h"
-#include "prep_pci.h"
+#include "pci_host.h"
 #include "usb-ohci.h"
 #include "ppc.h"
 #include "boards.h"
@@ -522,6 +522,9 @@ static void ppc_prep_init (ram_addr_t ram_size,
     MemoryRegion *bios = g_new(MemoryRegion, 1);
     uint32_t kernel_base, initrd_base;
     long kernel_size, initrd_size;
+    DeviceState *dev;
+    SysBusDevice *sys;
+    PCIHostState *pcihost;
     PCIBus *pci_bus;
     ISABus *isa_bus;
     qemu_irq *i8259;
@@ -633,7 +636,23 @@ static void ppc_prep_init (ram_addr_t ram_size,
     /* Hmm, prep has no pci-isa bridge ??? */
     isa_bus = isa_bus_new(NULL, get_system_io());
     i8259 = i8259_init(isa_bus, first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
-    pci_bus = pci_prep_init(i8259, get_system_memory(), get_system_io());
+
+    dev = qdev_create(NULL, "raven-pcihost");
+    sys = sysbus_from_qdev(dev);
+    pcihost = DO_UPCAST(PCIHostState, busdev, sys);
+    pcihost->address_space = get_system_memory();
+    qdev_init_nofail(dev);
+    qdev_property_add_child(qdev_get_root(), "raven", dev, NULL);
+    pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
+    if (pci_bus == NULL) {
+        fprintf(stderr, "Couldn't create PCI host controller.\n");
+        exit(1);
+    }
+    sysbus_connect_irq(&pcihost->busdev, 0, i8259[9]);
+    sysbus_connect_irq(&pcihost->busdev, 1, i8259[11]);
+    sysbus_connect_irq(&pcihost->busdev, 2, i8259[9]);
+    sysbus_connect_irq(&pcihost->busdev, 3, i8259[11]);
+
     isa_bus_irqs(isa_bus, i8259);
     //    pci_bus = i440fx_init();
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */

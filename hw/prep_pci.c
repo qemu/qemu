@@ -25,9 +25,12 @@
 #include "hw.h"
 #include "pci.h"
 #include "pci_host.h"
-#include "prep_pci.h"
+#include "exec-memory.h"
 
-typedef PCIHostState PREPPCIState;
+typedef struct PRePPCIState {
+    PCIHostState host_state;
+    qemu_irq irq[4];
+} PREPPCIState;
 
 typedef struct RavenPCIState {
     PCIDevice dev;
@@ -48,14 +51,14 @@ static void ppc_pci_io_write(void *opaque, target_phys_addr_t addr,
                              uint64_t val, unsigned int size)
 {
     PREPPCIState *s = opaque;
-    pci_data_write(s->bus, PPC_PCIIO_config(addr), val, size);
+    pci_data_write(s->host_state.bus, PPC_PCIIO_config(addr), val, size);
 }
 
 static uint64_t ppc_pci_io_read(void *opaque, target_phys_addr_t addr,
                                 unsigned int size)
 {
     PREPPCIState *s = opaque;
-    return pci_data_read(s->bus, PPC_PCIIO_config(addr), size);
+    return pci_data_read(s->host_state.bus, PPC_PCIIO_config(addr), size);
 }
 
 static const MemoryRegionOps PPC_PCIIO_ops = {
@@ -73,38 +76,43 @@ static void prep_set_irq(void *opaque, int irq_num, int level)
 {
     qemu_irq *pic = opaque;
 
-    qemu_set_irq(pic[(irq_num & 1) ? 11 : 9] , level);
+    qemu_set_irq(pic[irq_num] , level);
 }
 
-PCIBus *pci_prep_init(qemu_irq *pic,
-                      MemoryRegion *address_space_mem,
-                      MemoryRegion *address_space_io)
+static int raven_pcihost_init(SysBusDevice *dev)
 {
-    PREPPCIState *s;
+    PCIHostState *h = FROM_SYSBUS(PCIHostState, dev);
+    PREPPCIState *s = DO_UPCAST(PREPPCIState, host_state, h);
+    MemoryRegion *address_space_mem = get_system_memory();
+    MemoryRegion *address_space_io = get_system_io();
+    PCIBus *bus;
+    int i;
 
-    s = g_malloc0(sizeof(PREPPCIState));
-    s->bus = pci_register_bus(NULL, "pci",
-                              prep_set_irq, prep_map_irq, pic,
-                              address_space_mem,
-                              address_space_io,
-                              0, 4);
+    for (i = 0; i < 4; i++) {
+        sysbus_init_irq(dev, &s->irq[i]);
+    }
 
-    memory_region_init_io(&s->conf_mem, &pci_host_conf_be_ops, s,
+    bus = pci_register_bus(&h->busdev.qdev, NULL,
+                           prep_set_irq, prep_map_irq, s->irq,
+                           address_space_mem, address_space_io, 0, 4);
+    h->bus = bus;
+
+    memory_region_init_io(&h->conf_mem, &pci_host_conf_be_ops, s,
                           "pci-conf-idx", 1);
-    memory_region_add_subregion(address_space_io, 0xcf8, &s->conf_mem);
-    sysbus_init_ioports(&s->busdev, 0xcf8, 1);
+    sysbus_add_io(dev, 0xcf8, &h->conf_mem);
+    sysbus_init_ioports(&h->busdev, 0xcf8, 1);
 
-    memory_region_init_io(&s->data_mem, &pci_host_data_be_ops, s,
+    memory_region_init_io(&h->data_mem, &pci_host_data_be_ops, s,
                           "pci-conf-data", 1);
-    memory_region_add_subregion(address_space_io, 0xcfc, &s->data_mem);
-    sysbus_init_ioports(&s->busdev, 0xcfc, 1);
+    sysbus_add_io(dev, 0xcfc, &h->data_mem);
+    sysbus_init_ioports(&h->busdev, 0xcfc, 1);
 
-    memory_region_init_io(&s->mmcfg, &PPC_PCIIO_ops, s, "pciio", 0x00400000);
-    memory_region_add_subregion(address_space_mem, 0x80800000, &s->mmcfg);
+    memory_region_init_io(&h->mmcfg, &PPC_PCIIO_ops, s, "pciio", 0x00400000);
+    memory_region_add_subregion(address_space_mem, 0x80800000, &h->mmcfg);
 
-    pci_create_simple(s->bus, 0, "raven");
+    pci_create_simple(bus, 0, "raven");
 
-    return s->bus;
+    return 0;
 }
 
 static int raven_init(PCIDevice *d)
@@ -143,8 +151,17 @@ static PCIDeviceInfo raven_info = {
     },
 };
 
+static SysBusDeviceInfo raven_pcihost_info = {
+    .qdev.name = "raven-pcihost",
+    .qdev.fw_name = "pci",
+    .qdev.size = sizeof(PREPPCIState),
+    .qdev.no_user = 1,
+    .init = raven_pcihost_init,
+};
+
 static void raven_register_devices(void)
 {
+    sysbus_register_withprop(&raven_pcihost_info);
     pci_qdev_register(&raven_info);
 }
 
