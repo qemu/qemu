@@ -44,6 +44,10 @@ static const QType qerror_type = {
  */
 static const QErrorStringTable qerror_table[] = {
     {
+        .error_fmt = QERR_ADD_CLIENT_FAILED,
+        .desc      = "Could not add client",
+    },
+    {
         .error_fmt = QERR_BAD_BUS_FOR_DEVICE,
         .desc      = "Device '%(device)' can't go on a %(bad_bus_type) bus",
     },
@@ -52,24 +56,28 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Block format '%(format)' used by device '%(name)' does not support feature '%(feature)'",
     },
     {
-        .error_fmt = QERR_BUS_NOT_FOUND,
-        .desc      = "Bus '%(bus)' not found",
-    },
-    {
         .error_fmt = QERR_BUS_NO_HOTPLUG,
         .desc      = "Bus '%(bus)' does not support hotplugging",
     },
     {
-        .error_fmt = QERR_COMMAND_NOT_FOUND,
-        .desc      = "The command %(name) has not been found",
+        .error_fmt = QERR_BUS_NOT_FOUND,
+        .desc      = "Bus '%(bus)' not found",
     },
     {
         .error_fmt = QERR_COMMAND_DISABLED,
         .desc      = "The command %(name) has been disabled for this instance",
     },
     {
+        .error_fmt = QERR_COMMAND_NOT_FOUND,
+        .desc      = "The command %(name) has not been found",
+    },
+    {
         .error_fmt = QERR_DEVICE_ENCRYPTED,
         .desc      = "Device '%(device)' is encrypted",
+    },
+    {
+        .error_fmt = QERR_DEVICE_FEATURE_BLOCKS_MIGRATION,
+        .desc      = "Migration is disabled when using feature '%(feature)' in device '%(device)'",
     },
     {
         .error_fmt = QERR_DEVICE_INIT_FAILED,
@@ -80,16 +88,20 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' is in use",
     },
     {
-        .error_fmt = QERR_DEVICE_FEATURE_BLOCKS_MIGRATION,
-        .desc      = "Migration is disabled when using feature '%(feature)' in device '%(device)'",
-    },
-    {
         .error_fmt = QERR_DEVICE_LOCKED,
         .desc      = "Device '%(device)' is locked",
     },
     {
         .error_fmt = QERR_DEVICE_MULTIPLE_BUSSES,
         .desc      = "Device '%(device)' has multiple child busses",
+    },
+    {
+        .error_fmt = QERR_DEVICE_NO_BUS,
+        .desc      = "Device '%(device)' has no child bus",
+    },
+    {
+        .error_fmt = QERR_DEVICE_NO_HOTPLUG,
+        .desc      = "Device '%(device)' does not support hotplugging",
     },
     {
         .error_fmt = QERR_DEVICE_NOT_ACTIVE,
@@ -106,14 +118,6 @@ static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt = QERR_DEVICE_NOT_REMOVABLE,
         .desc      = "Device '%(device)' is not removable",
-    },
-    {
-        .error_fmt = QERR_DEVICE_NO_BUS,
-        .desc      = "Device '%(device)' has no child bus",
-    },
-    {
-        .error_fmt = QERR_DEVICE_NO_HOTPLUG,
-        .desc      = "Device '%(device)' does not support hotplugging",
     },
     {
         .error_fmt = QERR_DUPLICATE_ID,
@@ -140,6 +144,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Invalid parameter '%(name)'",
     },
     {
+        .error_fmt = QERR_INVALID_PARAMETER_COMBINATION,
+        .desc      = "Invalid parameter combination",
+    },
+    {
         .error_fmt = QERR_INVALID_PARAMETER_TYPE,
         .desc      = "Invalid parameter type, expected: %(expected)",
     },
@@ -156,13 +164,13 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "An IO error has occurred",
     },
     {
-        .error_fmt = QERR_JSON_PARSING,
-        .desc      = "Invalid JSON syntax",
-    },
-    {
         .error_fmt = QERR_JSON_PARSE_ERROR,
         .desc      = "JSON parse error, %(message)",
 
+    },
+    {
+        .error_fmt = QERR_JSON_PARSING,
+        .desc      = "Invalid JSON syntax",
     },
     {
         .error_fmt = QERR_KVM_MISSING_CAP,
@@ -210,6 +218,14 @@ static const QErrorStringTable qerror_table[] = {
                      "value %(value) (minimum: %(min), maximum: %(max)'",
     },
     {
+        .error_fmt = QERR_QGA_COMMAND_FAILED,
+        .desc      = "Guest agent command failed, error was '%(message)'",
+    },
+    {
+        .error_fmt = QERR_QGA_LOGGING_FAILED,
+        .desc      = "Guest agent failed to log non-optional log statement",
+    },
+    {
         .error_fmt = QERR_QMP_BAD_INPUT_OBJECT,
         .desc      = "Expected '%(expected)' in QMP input",
     },
@@ -230,10 +246,6 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Could not set password",
     },
     {
-        .error_fmt = QERR_ADD_CLIENT_FAILED,
-        .desc      = "Could not add client",
-    },
-    {
         .error_fmt = QERR_TOO_MANY_FILES,
         .desc      = "Too many open files",
     },
@@ -242,13 +254,13 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "An undefined error has occurred",
     },
     {
-        .error_fmt = QERR_UNSUPPORTED,
-        .desc      = "this feature or command is not currently supported",
-    },
-    {
         .error_fmt = QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
         .desc      = "'%(device)' uses a %(format) feature which is not "
                      "supported by this qemu version: %(feature)",
+    },
+    {
+        .error_fmt = QERR_UNSUPPORTED,
+        .desc      = "this feature or command is not currently supported",
     },
     {
         .error_fmt = QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
@@ -258,18 +270,6 @@ static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt = QERR_VNC_SERVER_FAILED,
         .desc      = "Could not start VNC server on %(target)",
-    },
-    {
-        .error_fmt = QERR_QGA_LOGGING_FAILED,
-        .desc      = "Guest agent failed to log non-optional log statement",
-    },
-    {
-        .error_fmt = QERR_QGA_COMMAND_FAILED,
-        .desc      = "Guest agent command failed, error was '%(message)'",
-    },
-    {
-        .error_fmt = QERR_INVALID_PARAMETER_COMBINATION,
-        .desc      = "Invalid parameter combination",
     },
     {}
 };
