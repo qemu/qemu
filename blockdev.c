@@ -848,11 +848,6 @@ int do_drive_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
-/*
- * XXX: replace the QERR_UNDEFINED_ERROR errors with real values once the
- * existing QERR_ macro mess is cleaned up.  A good example for better
- * error reports can be found in the qemu-img resize code.
- */
 void qmp_block_resize(const char *device, int64_t size, Error **errp)
 {
     BlockDriverState *bs;
@@ -864,12 +859,27 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
     }
 
     if (size < 0) {
-        error_set(errp, QERR_UNDEFINED_ERROR);
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, "size", "a >0 size");
         return;
     }
 
-    if (bdrv_truncate(bs, size)) {
+    switch (bdrv_truncate(bs, size)) {
+    case 0:
+        break;
+    case -ENOMEDIUM:
+        error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+        break;
+    case -ENOTSUP:
+        error_set(errp, QERR_UNSUPPORTED);
+        break;
+    case -EACCES:
+        error_set(errp, QERR_DEVICE_IS_READ_ONLY, device);
+        break;
+    case -EBUSY:
+        error_set(errp, QERR_DEVICE_IN_USE, device);
+        break;
+    default:
         error_set(errp, QERR_UNDEFINED_ERROR);
-        return;
+        break;
     }
 }

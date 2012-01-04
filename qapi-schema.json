@@ -1064,8 +1064,11 @@
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
-#
-# Notes: This command returns UndefinedError in a number of error conditions.
+#          If @size is negative, InvalidParameterValue
+#          If the block device has no medium inserted, DeviceHasNoMedium
+#          If the block device does not support resize, Unsupported
+#          If the block device is read-only, DeviceIsReadOnly
+#          If a long-running operation is using the device, DeviceInUse
 #
 # Since: 0.14.0
 ##

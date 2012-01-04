@@ -80,12 +80,20 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Migration is disabled when using feature '%(feature)' in device '%(device)'",
     },
     {
+        .error_fmt = QERR_DEVICE_HAS_NO_MEDIUM,
+        .desc      = "Device '%(device)' has no medium",
+    },
+    {
         .error_fmt = QERR_DEVICE_INIT_FAILED,
         .desc      = "Device '%(device)' could not be initialized",
     },
     {
         .error_fmt = QERR_DEVICE_IN_USE,
         .desc      = "Device '%(device)' is in use",
+    },
+    {
+        .error_fmt = QERR_DEVICE_IS_READ_ONLY,
+        .desc      = "Device '%(device)' is read only",
     },
     {
         .error_fmt = QERR_DEVICE_LOCKED,
