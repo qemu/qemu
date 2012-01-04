@@ -38,19 +38,44 @@ typedef struct {
     uint32_t datacnt;
     uint32_t status;
     uint32_t mask[2];
-    int fifo_pos;
-    int fifo_len;
+    int32_t fifo_pos;
+    int32_t fifo_len;
     /* The linux 2.6.21 driver is buggy, and misbehaves if new data arrives
        while it is reading the FIFO.  We hack around this be defering
        subsequent transfers until after the driver polls the status word.
        http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=4446/1
      */
-    int linux_hack;
+    int32_t linux_hack;
     uint32_t fifo[PL181_FIFO_LEN];
     qemu_irq irq[2];
     /* GPIO outputs for 'card is readonly' and 'card inserted' */
     qemu_irq cardstatus[2];
 } pl181_state;
+
+static const VMStateDescription vmstate_pl181 = {
+    .name = "pl181",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(clock, pl181_state),
+        VMSTATE_UINT32(power, pl181_state),
+        VMSTATE_UINT32(cmdarg, pl181_state),
+        VMSTATE_UINT32(cmd, pl181_state),
+        VMSTATE_UINT32(datatimer, pl181_state),
+        VMSTATE_UINT32(datalength, pl181_state),
+        VMSTATE_UINT32(respcmd, pl181_state),
+        VMSTATE_UINT32_ARRAY(response, pl181_state, 4),
+        VMSTATE_UINT32(datactrl, pl181_state),
+        VMSTATE_UINT32(datacnt, pl181_state),
+        VMSTATE_UINT32(status, pl181_state),
+        VMSTATE_UINT32_ARRAY(mask, pl181_state, 2),
+        VMSTATE_INT32(fifo_pos, pl181_state),
+        VMSTATE_INT32(fifo_len, pl181_state),
+        VMSTATE_INT32(linux_hack, pl181_state),
+        VMSTATE_UINT32_ARRAY(fifo, pl181_state, PL181_FIFO_LEN),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 #define PL181_CMD_INDEX     0x3f
 #define PL181_CMD_RESPONSE  (1 << 6)
@@ -420,9 +445,9 @@ static const MemoryRegionOps pl181_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void pl181_reset(void *opaque)
+static void pl181_reset(DeviceState *d)
 {
-    pl181_state *s = (pl181_state *)opaque;
+    pl181_state *s = DO_UPCAST(pl181_state, busdev.qdev, d);
 
     s->power = 0;
     s->cmdarg = 0;
@@ -459,15 +484,21 @@ static int pl181_init(SysBusDevice *dev)
     qdev_init_gpio_out(&s->busdev.qdev, s->cardstatus, 2);
     dinfo = drive_get_next(IF_SD);
     s->card = sd_init(dinfo ? dinfo->bdrv : NULL, 0);
-    qemu_register_reset(pl181_reset, s);
-    pl181_reset(s);
-    /* ??? Save/restore.  */
     return 0;
 }
 
+static SysBusDeviceInfo pl181_info = {
+    .init = pl181_init,
+    .qdev.name = "pl181",
+    .qdev.size = sizeof(pl181_state),
+    .qdev.vmsd = &vmstate_pl181,
+    .qdev.reset = pl181_reset,
+    .qdev.no_user = 1,
+};
+
 static void pl181_register_devices(void)
 {
-    sysbus_register_dev("pl181", sizeof(pl181_state), pl181_init);
+    sysbus_register_withprop(&pl181_info);
 }
 
 device_init(pl181_register_devices)

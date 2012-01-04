@@ -20,11 +20,7 @@
 #include "arm-misc.h"
 #include "omap.h"
 #include "sysemu.h"
-#include "qemu-timer.h"
-#include "qemu-char.h"
 #include "soc_dma.h"
-/* We use pc-style serial ports.  */
-#include "pc.h"
 #include "blockdev.h"
 #include "range.h"
 #include "sysbus.h"
@@ -1344,6 +1340,12 @@ static void omap_tcmi_init(MemoryRegion *memory, target_phys_addr_t base,
 }
 
 /* Digital phase-locked loops control */
+struct dpll_ctl_s {
+    MemoryRegion iomem;
+    uint16_t mode;
+    omap_clk dpll;
+};
+
 static uint64_t omap_dpll_read(void *opaque, target_phys_addr_t addr,
                                unsigned size)
 {
@@ -1409,15 +1411,17 @@ static void omap_dpll_reset(struct dpll_ctl_s *s)
     omap_clk_setrate(s->dpll, 1, 1);
 }
 
-static void omap_dpll_init(MemoryRegion *memory, struct dpll_ctl_s *s,
+static struct dpll_ctl_s  *omap_dpll_init(MemoryRegion *memory,
                            target_phys_addr_t base, omap_clk clk)
 {
+    struct dpll_ctl_s *s = g_malloc0(sizeof(*s));
     memory_region_init_io(&s->iomem, &omap_dpll_ops, s, "omap-dpll", 0x100);
 
     s->dpll = clk;
     omap_dpll_reset(s);
 
     memory_region_add_subregion(memory, base, &s->iomem);
+    return s;
 }
 
 /* MPU Clock/Reset/Power Mode Control */
@@ -2066,7 +2070,7 @@ static void omap_mpuio_onoff(void *opaque, int line, int on)
         omap_mpuio_kbd_update(s);
 }
 
-struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
+static struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *memory,
                 target_phys_addr_t base,
                 qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
                 omap_clk clk)
@@ -2289,12 +2293,20 @@ void omap_uwire_attach(struct omap_uwire_s *s,
 }
 
 /* Pseudonoise Pulse-Width Light Modulator */
-static void omap_pwl_update(struct omap_mpu_state_s *s)
-{
-    int output = (s->pwl.clk && s->pwl.enable) ? s->pwl.level : 0;
+struct omap_pwl_s {
+    MemoryRegion iomem;
+    uint8_t output;
+    uint8_t level;
+    uint8_t enable;
+    int clk;
+};
 
-    if (output != s->pwl.output) {
-        s->pwl.output = output;
+static void omap_pwl_update(struct omap_pwl_s *s)
+{
+    int output = (s->clk && s->enable) ? s->level : 0;
+
+    if (output != s->output) {
+        s->output = output;
         printf("%s: Backlight now at %i/256\n", __FUNCTION__, output);
     }
 }
@@ -2302,7 +2314,7 @@ static void omap_pwl_update(struct omap_mpu_state_s *s)
 static uint64_t omap_pwl_read(void *opaque, target_phys_addr_t addr,
                               unsigned size)
 {
-    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    struct omap_pwl_s *s = (struct omap_pwl_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -2311,9 +2323,9 @@ static uint64_t omap_pwl_read(void *opaque, target_phys_addr_t addr,
 
     switch (offset) {
     case 0x00:	/* PWL_LEVEL */
-        return s->pwl.level;
+        return s->level;
     case 0x04:	/* PWL_CTRL */
-        return s->pwl.enable;
+        return s->enable;
     }
     OMAP_BAD_REG(addr);
     return 0;
@@ -2322,7 +2334,7 @@ static uint64_t omap_pwl_read(void *opaque, target_phys_addr_t addr,
 static void omap_pwl_write(void *opaque, target_phys_addr_t addr,
                            uint64_t value, unsigned size)
 {
-    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    struct omap_pwl_s *s = (struct omap_pwl_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -2331,11 +2343,11 @@ static void omap_pwl_write(void *opaque, target_phys_addr_t addr,
 
     switch (offset) {
     case 0x00:	/* PWL_LEVEL */
-        s->pwl.level = value;
+        s->level = value;
         omap_pwl_update(s);
         break;
     case 0x04:	/* PWL_CTRL */
-        s->pwl.enable = value & 1;
+        s->enable = value & 1;
         omap_pwl_update(s);
         break;
     default:
@@ -2350,41 +2362,52 @@ static const MemoryRegionOps omap_pwl_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void omap_pwl_reset(struct omap_mpu_state_s *s)
+static void omap_pwl_reset(struct omap_pwl_s *s)
 {
-    s->pwl.output = 0;
-    s->pwl.level = 0;
-    s->pwl.enable = 0;
-    s->pwl.clk = 1;
+    s->output = 0;
+    s->level = 0;
+    s->enable = 0;
+    s->clk = 1;
     omap_pwl_update(s);
 }
 
 static void omap_pwl_clk_update(void *opaque, int line, int on)
 {
-    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    struct omap_pwl_s *s = (struct omap_pwl_s *) opaque;
 
-    s->pwl.clk = on;
+    s->clk = on;
     omap_pwl_update(s);
 }
 
-static void omap_pwl_init(MemoryRegion *system_memory,
-                target_phys_addr_t base, struct omap_mpu_state_s *s,
-                omap_clk clk)
+static struct omap_pwl_s *omap_pwl_init(MemoryRegion *system_memory,
+                                        target_phys_addr_t base,
+                                        omap_clk clk)
 {
+    struct omap_pwl_s *s = g_malloc0(sizeof(*s));
+
     omap_pwl_reset(s);
 
-    memory_region_init_io(&s->pwl_iomem, &omap_pwl_ops, s,
+    memory_region_init_io(&s->iomem, &omap_pwl_ops, s,
                           "omap-pwl", 0x800);
-    memory_region_add_subregion(system_memory, base, &s->pwl_iomem);
+    memory_region_add_subregion(system_memory, base, &s->iomem);
 
     omap_clk_adduser(clk, qemu_allocate_irqs(omap_pwl_clk_update, s, 1)[0]);
+    return s;
 }
 
 /* Pulse-Width Tone module */
+struct omap_pwt_s {
+    MemoryRegion iomem;
+    uint8_t frc;
+    uint8_t vrc;
+    uint8_t gcr;
+    omap_clk clk;
+};
+
 static uint64_t omap_pwt_read(void *opaque, target_phys_addr_t addr,
                               unsigned size)
 {
-    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    struct omap_pwt_s *s = (struct omap_pwt_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -2393,11 +2416,11 @@ static uint64_t omap_pwt_read(void *opaque, target_phys_addr_t addr,
 
     switch (offset) {
     case 0x00:	/* FRC */
-        return s->pwt.frc;
+        return s->frc;
     case 0x04:	/* VCR */
-        return s->pwt.vrc;
+        return s->vrc;
     case 0x08:	/* GCR */
-        return s->pwt.gcr;
+        return s->gcr;
     }
     OMAP_BAD_REG(addr);
     return 0;
@@ -2406,7 +2429,7 @@ static uint64_t omap_pwt_read(void *opaque, target_phys_addr_t addr,
 static void omap_pwt_write(void *opaque, target_phys_addr_t addr,
                            uint64_t value, unsigned size)
 {
-    struct omap_mpu_state_s *s = (struct omap_mpu_state_s *) opaque;
+    struct omap_pwt_s *s = (struct omap_pwt_s *) opaque;
     int offset = addr & OMAP_MPUI_REG_MASK;
 
     if (size != 1) {
@@ -2415,16 +2438,16 @@ static void omap_pwt_write(void *opaque, target_phys_addr_t addr,
 
     switch (offset) {
     case 0x00:	/* FRC */
-        s->pwt.frc = value & 0x3f;
+        s->frc = value & 0x3f;
         break;
     case 0x04:	/* VRC */
-        if ((value ^ s->pwt.vrc) & 1) {
+        if ((value ^ s->vrc) & 1) {
             if (value & 1)
                 printf("%s: %iHz buzz on\n", __FUNCTION__, (int)
                                 /* 1.5 MHz from a 12-MHz or 13-MHz PWT_CLK */
-                                ((omap_clk_getrate(s->pwt.clk) >> 3) /
+                                ((omap_clk_getrate(s->clk) >> 3) /
                                  /* Pre-multiplexer divider */
-                                 ((s->pwt.gcr & 2) ? 1 : 154) /
+                                 ((s->gcr & 2) ? 1 : 154) /
                                  /* Octave multiplexer */
                                  (2 << (value & 3)) *
                                  /* 101/107 divider */
@@ -2439,10 +2462,10 @@ static void omap_pwt_write(void *opaque, target_phys_addr_t addr,
             else
                 printf("%s: silence!\n", __FUNCTION__);
         }
-        s->pwt.vrc = value & 0x7f;
+        s->vrc = value & 0x7f;
         break;
     case 0x08:	/* GCR */
-        s->pwt.gcr = value & 3;
+        s->gcr = value & 3;
         break;
     default:
         OMAP_BAD_REG(addr);
@@ -2456,23 +2479,25 @@ static const MemoryRegionOps omap_pwt_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static void omap_pwt_reset(struct omap_mpu_state_s *s)
+static void omap_pwt_reset(struct omap_pwt_s *s)
 {
-    s->pwt.frc = 0;
-    s->pwt.vrc = 0;
-    s->pwt.gcr = 0;
+    s->frc = 0;
+    s->vrc = 0;
+    s->gcr = 0;
 }
 
-static void omap_pwt_init(MemoryRegion *system_memory,
-                target_phys_addr_t base, struct omap_mpu_state_s *s,
-                omap_clk clk)
+static struct omap_pwt_s *omap_pwt_init(MemoryRegion *system_memory,
+                                        target_phys_addr_t base,
+                                        omap_clk clk)
 {
-    s->pwt.clk = clk;
+    struct omap_pwt_s *s = g_malloc0(sizeof(*s));
+    s->clk = clk;
     omap_pwt_reset(s);
 
-    memory_region_init_io(&s->pwt_iomem, &omap_pwt_ops, s,
+    memory_region_init_io(&s->iomem, &omap_pwt_ops, s,
                           "omap-pwt", 0x800);
-    memory_region_add_subregion(system_memory, base, &s->pwt_iomem);
+    memory_region_add_subregion(system_memory, base, &s->iomem);
+    return s;
 }
 
 /* Real-time Clock module */
@@ -3658,17 +3683,17 @@ static void omap1_mpu_reset(void *opaque)
     omap_mpui_reset(mpu);
     omap_tipb_bridge_reset(mpu->private_tipb);
     omap_tipb_bridge_reset(mpu->public_tipb);
-    omap_dpll_reset(&mpu->dpll[0]);
-    omap_dpll_reset(&mpu->dpll[1]);
-    omap_dpll_reset(&mpu->dpll[2]);
+    omap_dpll_reset(mpu->dpll[0]);
+    omap_dpll_reset(mpu->dpll[1]);
+    omap_dpll_reset(mpu->dpll[2]);
     omap_uart_reset(mpu->uart[0]);
     omap_uart_reset(mpu->uart[1]);
     omap_uart_reset(mpu->uart[2]);
     omap_mmc_reset(mpu->mmc);
     omap_mpuio_reset(mpu->mpuio);
     omap_uwire_reset(mpu->microwire);
-    omap_pwl_reset(mpu);
-    omap_pwt_reset(mpu);
+    omap_pwl_reset(mpu->pwl);
+    omap_pwt_reset(mpu->pwt);
     omap_i2c_reset(mpu->i2c[0]);
     omap_rtc_reset(mpu->rtc);
     omap_mcbsp_reset(mpu->mcbsp1);
@@ -3928,12 +3953,12 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
                     "uart3",
                     serial_hds[0] && serial_hds[1] ? serial_hds[2] : NULL);
 
-    omap_dpll_init(system_memory,
-                   &s->dpll[0], 0xfffecf00, omap_findclk(s, "dpll1"));
-    omap_dpll_init(system_memory,
-                   &s->dpll[1], 0xfffed000, omap_findclk(s, "dpll2"));
-    omap_dpll_init(system_memory,
-                   &s->dpll[2], 0xfffed100, omap_findclk(s, "dpll3"));
+    s->dpll[0] = omap_dpll_init(system_memory, 0xfffecf00,
+                                omap_findclk(s, "dpll1"));
+    s->dpll[1] = omap_dpll_init(system_memory, 0xfffed000,
+                                omap_findclk(s, "dpll2"));
+    s->dpll[2] = omap_dpll_init(system_memory, 0xfffed100,
+                                omap_findclk(s, "dpll3"));
 
     dinfo = drive_get(IF_SD, 0, 0);
     if (!dinfo) {
@@ -3963,8 +3988,10 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
                                    qdev_get_gpio_in(s->ih[1], OMAP_INT_uWireRX),
                     s->drq[OMAP_DMA_UWIRE_TX], omap_findclk(s, "mpuper_ck"));
 
-    omap_pwl_init(system_memory, 0xfffb5800, s, omap_findclk(s, "armxor_ck"));
-    omap_pwt_init(system_memory, 0xfffb6000, s, omap_findclk(s, "armxor_ck"));
+    s->pwl = omap_pwl_init(system_memory, 0xfffb5800,
+                           omap_findclk(s, "armxor_ck"));
+    s->pwt = omap_pwt_init(system_memory, 0xfffb6000,
+                           omap_findclk(s, "armxor_ck"));
 
     s->i2c[0] = omap_i2c_init(system_memory, 0xfffb3800,
                               qdev_get_gpio_in(s->ih[1], OMAP_INT_I2C),
