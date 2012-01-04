@@ -101,6 +101,9 @@ static void pci_host_config_write(void *opaque, target_phys_addr_t addr,
 
     PCI_DPRINTF("%s addr " TARGET_FMT_plx " len %d val %"PRIx64"\n",
                 __func__, addr, len, val);
+    if (addr != 0 || len != 4) {
+        return;
+    }
     s->config_reg = val;
 }
 
