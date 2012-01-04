@@ -40,8 +40,7 @@ static const QType qerror_type = {
  * "running out of foo: %(foo)%%"
  *
  * Please keep the entries in alphabetical order.
- * Use "sed -n '/^static.*qerror_table\[\]/,/^};/s/QERR_/&/gp' qerror.c | sort -c"
- * to check.
+ * Use scripts/check-qerror.sh to check.
  */
 static const QErrorStringTable qerror_table[] = {
     {
