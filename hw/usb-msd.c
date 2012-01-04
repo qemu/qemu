@@ -278,6 +278,18 @@ static void usb_msd_handle_reset(USBDevice *dev)
     MSDState *s = (MSDState *)dev;
 
     DPRINTF("Reset\n");
+    if (s->req) {
+        scsi_req_cancel(s->req);
+    }
+    assert(s->req == NULL);
+
+    if (s->packet) {
+        USBPacket *p = s->packet;
+        s->packet = NULL;
+        p->result = USB_RET_STALL;
+        usb_packet_complete(dev, p);
+    }
+
     s->mode = USB_MSDM_CBW;
 }
 
