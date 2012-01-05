@@ -1796,6 +1796,20 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
                 goto bad_reg;
             }
         }
+        if (ARM_CPUID(env) == ARM_CPUID_CORTEXA9) {
+            switch (crm) {
+            case 0:
+                if ((op1 == 0) && (op2 == 0)) {
+                    env->cp15.c15_power_control = val;
+                } else if ((op1 == 0) && (op2 == 1)) {
+                    env->cp15.c15_diagnostic = val;
+                } else if ((op1 == 0) && (op2 == 2)) {
+                    env->cp15.c15_power_diagnostic = val;
+                }
+            default:
+                break;
+            }
+        }
         break;
     }
     return;
@@ -2137,6 +2151,40 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
              * On OMAP2 mcr p15, 0, rn, c15, c2, 4 sets up the interrupt
              * controller base address at $rn & ~0xfff and map size of
              * 0x200 << ($rn & 0xfff), when MMU is off.  */
+            goto bad_reg;
+        }
+        if (ARM_CPUID(env) == ARM_CPUID_CORTEXA9) {
+            switch (crm) {
+            case 0:
+                if ((op1 == 4) && (op2 == 0)) {
+                    /* The config_base_address should hold the value of
+                     * the peripheral base. ARM should get this from a CPU
+                     * object property, but that support isn't available in
+                     * December 2011. Default to 0 for now and board models
+                     * that care can set it by a private hook */
+                    return env->cp15.c15_config_base_address;
+                } else if ((op1 == 0) && (op2 == 0)) {
+                    /* power_control should be set to maximum latency. Again,
+                       default to 0 and set by private hook */
+                    return env->cp15.c15_power_control;
+                } else if ((op1 == 0) && (op2 == 1)) {
+                    return env->cp15.c15_diagnostic;
+                } else if ((op1 == 0) && (op2 == 2)) {
+                    return env->cp15.c15_power_diagnostic;
+                }
+                break;
+            case 1: /* NEON Busy */
+                return 0;
+            case 5: /* tlb lockdown */
+            case 6:
+            case 7:
+                if ((op1 == 5) && (op2 == 2)) {
+                    return 0;
+                }
+                break;
+            default:
+                break;
+            }
             goto bad_reg;
         }
         return 0;
