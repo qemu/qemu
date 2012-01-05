@@ -560,6 +560,8 @@ static void ppc_prep_init (ram_addr_t ram_size,
 
     /* allocate and load BIOS */
     memory_region_init_ram(bios, "ppc_prep.bios", BIOS_SIZE);
+    memory_region_set_readonly(bios, true);
+    memory_region_add_subregion(sysmem, (uint32_t)(-BIOS_SIZE), bios);
     vmstate_register_ram_global(bios);
     if (bios_name == NULL)
         bios_name = BIOS_FILENAME;
@@ -573,8 +575,6 @@ static void ppc_prep_init (ram_addr_t ram_size,
         target_phys_addr_t bios_addr;
         bios_size = (bios_size + 0xfff) & ~0xfff;
         bios_addr = (uint32_t)(-bios_size);
-        memory_region_set_readonly(bios, true);
-        memory_region_add_subregion(sysmem, bios_addr, bios);
         bios_size = load_image_targphys(filename, bios_addr, bios_size);
     }
     if (bios_size < 0 || bios_size > BIOS_SIZE) {
