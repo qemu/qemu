@@ -40,8 +40,6 @@
 #define USB_TOKEN_OUT   0xe1 /* host -> device */
 
 /* specific usb messages, also sent in the 'pid' parameter */
-#define USB_MSG_ATTACH   0x100
-#define USB_MSG_DETACH   0x101
 #define USB_MSG_RESET    0x102
 
 #define USB_RET_NODEV  (-1)

@@ -35,7 +35,8 @@ void usb_attach(USBPort *port)
     assert(dev->attached);
     assert(dev->state == USB_STATE_NOTATTACHED);
     port->ops->attach(port);
-    usb_send_msg(dev, USB_MSG_ATTACH);
+    dev->state = USB_STATE_ATTACHED;
+    usb_device_handle_attach(dev);
 }
 
 void usb_detach(USBPort *port)
@@ -45,7 +46,7 @@ void usb_detach(USBPort *port)
     assert(dev != NULL);
     assert(dev->state != USB_STATE_NOTATTACHED);
     port->ops->detach(port);
-    usb_send_msg(dev, USB_MSG_DETACH);
+    dev->state = USB_STATE_NOTATTACHED;
 }
 
 void usb_reset(USBPort *port)
@@ -218,15 +219,6 @@ static int do_token_out(USBDevice *s, USBPacket *p)
 int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
 {
     switch(p->pid) {
-    case USB_MSG_ATTACH:
-        s->state = USB_STATE_ATTACHED;
-        usb_device_handle_attach(s);
-        return 0;
-
-    case USB_MSG_DETACH:
-        s->state = USB_STATE_NOTATTACHED;
-        return 0;
-
     case USB_MSG_RESET:
         s->remote_wakeup = 0;
         s->addr = 0;
