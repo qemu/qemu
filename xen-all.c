@@ -404,9 +404,9 @@ static void xen_region_del(MemoryListener *listener,
     xen_set_memory(listener, section, false);
 }
 
-static int xen_sync_dirty_bitmap(XenIOState *state,
-                                 target_phys_addr_t start_addr,
-                                 ram_addr_t size)
+static void xen_sync_dirty_bitmap(XenIOState *state,
+                                  target_phys_addr_t start_addr,
+                                  ram_addr_t size)
 {
     target_phys_addr_t npages = size >> TARGET_PAGE_BITS;
     const int width = sizeof(unsigned long) * 8;
@@ -417,20 +417,26 @@ static int xen_sync_dirty_bitmap(XenIOState *state,
     physmap = get_physmapping(state, start_addr, size);
     if (physmap == NULL) {
         /* not handled */
-        return -1;
+        return;
     }
 
     if (state->log_for_dirtybit == NULL) {
         state->log_for_dirtybit = physmap;
     } else if (state->log_for_dirtybit != physmap) {
-        return -1;
+        /* Only one range for dirty bitmap can be tracked. */
+        return;
     }
 
     rc = xc_hvm_track_dirty_vram(xen_xc, xen_domid,
                                  start_addr >> TARGET_PAGE_BITS, npages,
                                  bitmap);
-    if (rc) {
-        return rc;
+    if (rc < 0) {
+        if (rc != -ENODATA) {
+            fprintf(stderr, "xen: track_dirty_vram failed (0x" TARGET_FMT_plx
+                    ", 0x" TARGET_FMT_plx "): %s\n",
+                    start_addr, start_addr + size, strerror(-rc));
+        }
+        return;
     }
 
     for (i = 0; i < ARRAY_SIZE(bitmap); i++) {
@@ -442,40 +448,32 @@ static int xen_sync_dirty_bitmap(XenIOState *state,
                                     (i * width + j) * TARGET_PAGE_SIZE);
         };
     }
-
-    return 0;
 }
 
 static void xen_log_start(MemoryListener *listener,
                           MemoryRegionSection *section)
 {
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
-    int r;
 
-    r = xen_sync_dirty_bitmap(state, section->offset_within_address_space,
-                              section->size);
-    assert(r >= 0);
+    xen_sync_dirty_bitmap(state, section->offset_within_address_space,
+                          section->size);
 }
 
 static void xen_log_stop(MemoryListener *listener, MemoryRegionSection *section)
 {
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
-    int r;
 
     state->log_for_dirtybit = NULL;
     /* Disable dirty bit tracking */
-    r = xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
-    assert(r >= 0);
+    xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
 }
 
 static void xen_log_sync(MemoryListener *listener, MemoryRegionSection *section)
 {
     XenIOState *state = container_of(listener, XenIOState, memory_listener);
-    int r;
 
-    r = xen_sync_dirty_bitmap(state, section->offset_within_address_space,
-                              section->size);
-    assert(r >= 0);
+    xen_sync_dirty_bitmap(state, section->offset_within_address_space,
+                          section->size);
 }
 
 static void xen_log_global_start(MemoryListener *listener)
