@@ -65,7 +65,7 @@ static void smdk2410_init(ram_addr_t _ram_size,
     stcb->soc = s3c2410x_init(ram_size);
 
     /* Register the NOR flash ROM */
-    memory_region_init_ram(&stcb->flash, NULL,
+    memory_region_init_ram(&stcb->flash,
                            "smdk2410.flash", SMDK2410_NOR_SIZE);
     memory_region_set_readonly(&stcb->flash, true);
     memory_region_add_subregion(get_system_memory(),

@@ -589,7 +589,8 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base,
 
     memory_region_init_rom_device(
         &pfl->mem, be ? &pflash_cfi01_ops_be : &pflash_cfi01_ops_le, pfl,
-        qdev, name, size);
+        name, size);
+    vmstate_register_ram(&pfl->mem, qdev);
     pfl->storage = memory_region_get_ram_ptr(&pfl->mem);
     memory_region_add_subregion(get_system_memory(), base, &pfl->mem);
 
@@ -599,6 +600,7 @@ pflash_t *pflash_cfi01_register(target_phys_addr_t base,
         ret = bdrv_read(pfl->bs, 0, pfl->storage, total_len >> 9);
         if (ret < 0) {
             memory_region_del_subregion(get_system_memory(), &pfl->mem);
+            vmstate_unregister_ram(&pfl->mem, qdev);
             memory_region_destroy(&pfl->mem);
             g_free(pfl);
             return NULL;

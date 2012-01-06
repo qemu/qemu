@@ -855,7 +855,8 @@ void mips_malta_init (ram_addr_t ram_size,
                 ((unsigned int)ram_size / (1 << 20)));
         exit(1);
     }
-    memory_region_init_ram(ram, NULL, "mips_malta.ram", ram_size);
+    memory_region_init_ram(ram, "mips_malta.ram", ram_size);
+    vmstate_register_ram_global(ram);
     memory_region_add_subregion(system_memory, 0, ram);
 
     /* FPGA */
@@ -865,7 +866,8 @@ void mips_malta_init (ram_addr_t ram_size,
     if (kernel_filename) {
         /* Write a small bootloader to the flash location. */
         bios = g_new(MemoryRegion, 1);
-        memory_region_init_ram(bios, NULL, "mips_malta.bios", BIOS_SIZE);
+        memory_region_init_ram(bios, "mips_malta.bios", BIOS_SIZE);
+        vmstate_register_ram_global(bios);
         memory_region_set_readonly(bios, true);
         memory_region_init_alias(bios_alias, "bios.1fc", bios, 0, BIOS_SIZE);
         /* Map the bios at two physical locations, as on the real board. */
@@ -909,7 +911,8 @@ void mips_malta_init (ram_addr_t ram_size,
             fl_idx++;
         } else {
             bios = g_new(MemoryRegion, 1);
-            memory_region_init_ram(bios, NULL, "mips_malta.bios", BIOS_SIZE);
+            memory_region_init_ram(bios, "mips_malta.bios", BIOS_SIZE);
+            vmstate_register_ram_global(bios);
             memory_region_set_readonly(bios, true);
             memory_region_init_alias(bios_alias, "bios.1fc",
                                      bios, 0, BIOS_SIZE);

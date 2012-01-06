@@ -124,7 +124,8 @@ static void sx1_init(ram_addr_t ram_size,
     cpu = omap310_mpu_init(address_space, sx1_binfo.ram_size, cpu_model);
 
     /* External Flash (EMIFS) */
-    memory_region_init_ram(flash, NULL, "omap_sx1.flash0-0", flash_size);
+    memory_region_init_ram(flash, "omap_sx1.flash0-0", flash_size);
+    vmstate_register_ram_global(flash);
     memory_region_set_readonly(flash, true);
     memory_region_add_subregion(address_space, OMAP_CS0_BASE, flash);
 
@@ -165,7 +166,8 @@ static void sx1_init(ram_addr_t ram_size,
 
     if ((version == 1) &&
             (dinfo = drive_get(IF_PFLASH, 0, fl_idx)) != NULL) {
-        memory_region_init_ram(flash_1, NULL, "omap_sx1.flash1-0", flash1_size);
+        memory_region_init_ram(flash_1, "omap_sx1.flash1-0", flash1_size);
+        vmstate_register_ram_global(flash_1);
         memory_region_set_readonly(flash_1, true);
         memory_region_add_subregion(address_space, OMAP_CS1_BASE, flash_1);
 

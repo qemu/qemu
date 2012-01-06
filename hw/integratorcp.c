@@ -261,7 +261,8 @@ static int integratorcm_init(SysBusDevice *dev)
     }
     memcpy(integrator_spd + 73, "QEMU-MEMORY", 11);
     s->cm_init = 0x00000112;
-    memory_region_init_ram(&s->flash, NULL, "integrator.flash", 0x100000);
+    memory_region_init_ram(&s->flash, "integrator.flash", 0x100000);
+    vmstate_register_ram_global(&s->flash);
     s->flash_mapped = false;
 
     memory_region_init_io(&s->iomem, &integratorcm_ops, s,
@@ -471,7 +472,8 @@ static void integratorcp_init(ram_addr_t ram_size,
         fprintf(stderr, "Unable to find CPU definition\n");
         exit(1);
     }
-    memory_region_init_ram(ram, NULL, "integrator.ram", ram_size);
+    memory_region_init_ram(ram, "integrator.ram", ram_size);
+    vmstate_register_ram_global(ram);
     /* ??? On a real system the first 1Mb is mapped as SSRAM or boot flash.  */
     /* ??? RAM should repeat to fill physical memory space.  */
     /* SDRAM at address zero*/

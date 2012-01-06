@@ -282,6 +282,10 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
             return ((GIC_NIRQ / 32) - 1) | ((NUM_CPU(s) - 1) << 5);
         if (offset < 0x08)
             return 0;
+        if (offset >= 0x80) {
+            /* Interrupt Security , RAZ/WI */
+            return 0;
+        }
 #endif
         goto bad_reg;
     } else if (offset < 0x200) {
@@ -413,6 +417,8 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
             DPRINTF("Distribution %sabled\n", s->enabled ? "En" : "Dis");
         } else if (offset < 4) {
             /* ignored.  */
+        } else if (offset >= 0x80) {
+            /* Interrupt Security Registers, RAZ/WI */
         } else {
             goto bad_reg;
         }

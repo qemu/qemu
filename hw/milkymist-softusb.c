@@ -267,11 +267,13 @@ static int milkymist_softusb_init(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->regs_region);
 
     /* register pmem and dmem */
-    memory_region_init_ram(&s->pmem, NULL, "milkymist-softusb.pmem",
+    memory_region_init_ram(&s->pmem, "milkymist-softusb.pmem",
                            s->pmem_size);
+    vmstate_register_ram_global(&s->pmem);
     sysbus_add_memory(dev, s->pmem_base, &s->pmem);
-    memory_region_init_ram(&s->dmem, NULL, "milkymist-softusb.dmem",
+    memory_region_init_ram(&s->dmem, "milkymist-softusb.dmem",
                            s->dmem_size);
+    vmstate_register_ram_global(&s->dmem);
     sysbus_add_memory(dev, s->dmem_base, &s->dmem);
 
     hid_init(&s->hid_kbd, HID_KEYBOARD, softusb_kbd_hid_datain);

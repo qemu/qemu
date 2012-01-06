@@ -397,9 +397,6 @@ static void s3c24xx_update_display(void *opaque)
 {
     S3C24xxLCD_State *s = opaque;
     int src_width, dest_width, miny = 0, maxy = 0;
-    target_phys_addr_t addr;
-
-    addr = s->fb;
 
     if (!s->enable || !s->dest_width)
         return;
@@ -415,9 +412,9 @@ static void s3c24xx_update_display(void *opaque)
     dest_width = s->width * s->dest_width;
 
     framebuffer_update_display(s->ds,
-                               addr, s->width, s->height,
+                               &s->mmio, s->width, s->height,
                                src_width, dest_width, s->dest_width,
-                               s->invalidate,
+                               0, s->invalidate,
                                s->fn, s->palette, &miny, &maxy);
 
 

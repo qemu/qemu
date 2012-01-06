@@ -120,7 +120,7 @@ static void vgafb_update_display(void *opaque)
         break;
     }
 
-    framebuffer_update_display(s->ds,
+    framebuffer_update_display(s->ds, sysbus_address_space(&s->busdev),
                                s->regs[R_BASEADDRESS] + s->fb_offset,
                                s->regs[R_HRES],
                                s->regs[R_VRES],

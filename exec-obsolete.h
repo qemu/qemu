@@ -25,44 +25,74 @@
 
 #ifndef CONFIG_USER_ONLY
 
-ram_addr_t qemu_ram_alloc_from_ptr(DeviceState *dev, const char *name,
-                                   ram_addr_t size, void *host,
+ram_addr_t qemu_ram_alloc_from_ptr(ram_addr_t size, void *host,
                                    MemoryRegion *mr);
-ram_addr_t qemu_ram_alloc(DeviceState *dev, const char *name, ram_addr_t size,
-                          MemoryRegion *mr);
+ram_addr_t qemu_ram_alloc(ram_addr_t size, MemoryRegion *mr);
 void qemu_ram_free(ram_addr_t addr);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
 
-int cpu_register_io_memory(CPUReadMemoryFunc * const *mem_read,
-                           CPUWriteMemoryFunc * const *mem_write,
-                           void *opaque, enum device_endian endian);
+struct MemoryRegion;
+int cpu_register_io_memory(MemoryRegion *mr);
 void cpu_unregister_io_memory(int table_address);
 
-void cpu_register_physical_memory_log(target_phys_addr_t start_addr,
-                                      ram_addr_t size,
-                                      ram_addr_t phys_offset,
-                                      ram_addr_t region_offset,
-                                      bool log_dirty);
-
-static inline void cpu_register_physical_memory_offset(target_phys_addr_t start_addr,
-                                                       ram_addr_t size,
-                                                       ram_addr_t phys_offset,
-                                                       ram_addr_t region_offset)
-{
-    cpu_register_physical_memory_log(start_addr, size, phys_offset,
-                                     region_offset, false);
-}
-
-static inline void cpu_register_physical_memory(target_phys_addr_t start_addr,
-                                                ram_addr_t size,
-                                                ram_addr_t phys_offset)
-{
-    cpu_register_physical_memory_offset(start_addr, size, phys_offset, 0);
-}
+struct MemoryRegionSection;
+void cpu_register_physical_memory_log(struct MemoryRegionSection *section,
+                                      bool readable, bool readonly);
 
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 
+int cpu_physical_memory_set_dirty_tracking(int enable);
+
+#define VGA_DIRTY_FLAG       0x01
+#define CODE_DIRTY_FLAG      0x02
+#define MIGRATION_DIRTY_FLAG 0x08
+
+/* read dirty bit (return 0 or 1) */
+static inline int cpu_physical_memory_is_dirty(ram_addr_t addr)
+{
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] == 0xff;
+}
+
+static inline int cpu_physical_memory_get_dirty_flags(ram_addr_t addr)
+{
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS];
+}
+
+static inline int cpu_physical_memory_get_dirty(ram_addr_t addr,
+                                                int dirty_flags)
+{
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] & dirty_flags;
+}
+
+static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)
+{
+    ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] = 0xff;
+}
+
+static inline int cpu_physical_memory_set_dirty_flags(ram_addr_t addr,
+                                                      int dirty_flags)
+{
+    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] |= dirty_flags;
+}
+
+static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,
+                                                        int length,
+                                                        int dirty_flags)
+{
+    int i, mask, len;
+    uint8_t *p;
+
+    len = length >> TARGET_PAGE_BITS;
+    mask = ~dirty_flags;
+    p = ram_list.phys_dirty + (start >> TARGET_PAGE_BITS);
+    for (i = 0; i < len; i++) {
+        p[i] &= mask;
+    }
+}
+
+void cpu_physical_memory_reset_dirty(ram_addr_t start, ram_addr_t end,
+                                     int dirty_flags);
 #endif
 
 #endif

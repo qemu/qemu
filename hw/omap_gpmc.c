@@ -443,6 +443,12 @@ void omap_gpmc_reset(struct omap_gpmc_s *s)
     s->irqst = 0;
     s->irqen = 0;
     omap_gpmc_int_update(s);
+    for (i = 0; i < 8; i++) {
+        /* This has to happen before we change any of the config
+         * used to determine which memory regions are mapped or unmapped.
+         */
+        omap_gpmc_cs_unmap(s, i);
+    }
     s->timeout = 0;
     s->config = 0xa00;
     s->prefetch.config1 = 0x00004000;
@@ -451,7 +457,6 @@ void omap_gpmc_reset(struct omap_gpmc_s *s)
     s->prefetch.fifopointer = 0;
     s->prefetch.count = 0;
     for (i = 0; i < 8; i ++) {
-        omap_gpmc_cs_unmap(s, i);
         s->cs_file[i].config[1] = 0x101001;
         s->cs_file[i].config[2] = 0x020201;
         s->cs_file[i].config[3] = 0x10031003;
@@ -716,24 +721,31 @@ static void omap_gpmc_write(void *opaque, target_phys_addr_t addr,
 
     case 0x1e0:	/* GPMC_PREFETCH_CONFIG1 */
         if (!s->prefetch.startengine) {
-            uint32_t oldconfig1 = s->prefetch.config1;
+            uint32_t newconfig1 = value & 0x7f8f7fbf;
             uint32_t changed;
-            s->prefetch.config1 = value & 0x7f8f7fbf;
-            changed = oldconfig1 ^ s->prefetch.config1;
+            changed = newconfig1 ^ s->prefetch.config1;
             if (changed & (0x80 | 0x7000000)) {
                 /* Turning the engine on or off, or mapping it somewhere else.
                  * cs_map() and cs_unmap() check the prefetch config and
                  * overall CSVALID bits, so it is sufficient to unmap-and-map
-                 * both the old cs and the new one.
+                 * both the old cs and the new one. Note that we adhere to
+                 * the "unmap/change config/map" order (and not unmap twice
+                 * if newcs == oldcs), otherwise we'll try to delete the wrong
+                 * memory region.
                  */
-                int oldcs = prefetch_cs(oldconfig1);
-                int newcs = prefetch_cs(s->prefetch.config1);
+                int oldcs = prefetch_cs(s->prefetch.config1);
+                int newcs = prefetch_cs(newconfig1);
                 omap_gpmc_cs_unmap(s, oldcs);
-                omap_gpmc_cs_map(s, oldcs);
-                if (newcs != oldcs) {
+                if (oldcs != newcs) {
                     omap_gpmc_cs_unmap(s, newcs);
+                }
+                s->prefetch.config1 = newconfig1;
+                omap_gpmc_cs_map(s, oldcs);
+                if (oldcs != newcs) {
                     omap_gpmc_cs_map(s, newcs);
                 }
+            } else {
+                s->prefetch.config1 = newconfig1;
             }
         }
         break;

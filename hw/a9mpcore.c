@@ -29,6 +29,7 @@ gic_get_current_cpu(void)
 typedef struct a9mp_priv_state {
     gic_state gic;
     uint32_t scu_control;
+    uint32_t scu_status;
     uint32_t old_timer_status[8];
     uint32_t num_cpu;
     qemu_irq *timer_irq;
@@ -48,7 +49,13 @@ static uint64_t a9_scu_read(void *opaque, target_phys_addr_t offset,
     case 0x04: /* Configuration */
         return (((1 << s->num_cpu) - 1) << 4) | (s->num_cpu - 1);
     case 0x08: /* CPU Power Status */
-        return 0;
+        return s->scu_status;
+    case 0x09: /* CPU status.  */
+        return s->scu_status >> 8;
+    case 0x0a: /* CPU status.  */
+        return s->scu_status >> 16;
+    case 0x0b: /* CPU status.  */
+        return s->scu_status >> 24;
     case 0x0c: /* Invalidate All Registers In Secure State */
         return 0;
     case 0x40: /* Filtering Start Address Register */
@@ -67,11 +74,34 @@ static void a9_scu_write(void *opaque, target_phys_addr_t offset,
                          uint64_t value, unsigned size)
 {
     a9mp_priv_state *s = (a9mp_priv_state *)opaque;
+    uint32_t mask;
+    uint32_t shift;
+    switch (size) {
+    case 1:
+        mask = 0xff;
+        break;
+    case 2:
+        mask = 0xffff;
+        break;
+    case 4:
+        mask = 0xffffffff;
+        break;
+    default:
+        fprintf(stderr, "Invalid size %u in write to a9 scu register %x\n",
+                size, offset);
+        return;
+    }
+
     switch (offset) {
     case 0x00: /* Control */
         s->scu_control = value & 1;
         break;
     case 0x4: /* Configuration: RO */
+        break;
+    case 0x08: case 0x09: case 0x0A: case 0x0B: /* Power Control */
+        shift = (offset - 0x8) * 8;
+        s->scu_status &= ~(mask << shift);
+        s->scu_status |= ((value & mask) << shift);
         break;
     case 0x0c: /* Invalidate All Registers In Secure State */
         /* no-op as we do not implement caches */
@@ -80,7 +110,6 @@ static void a9_scu_write(void *opaque, target_phys_addr_t offset,
     case 0x44: /* Filtering End Address Register */
         /* RAZ/WI, like an implementation with only one AXI master */
         break;
-    case 0x8: /* CPU Power Status */
     case 0x50: /* SCU Access Control Register */
     case 0x54: /* SCU Non-secure Access Control Register */
         /* unimplemented, fall through */
@@ -169,11 +198,12 @@ static int a9mp_priv_init(SysBusDevice *dev)
 
 static const VMStateDescription vmstate_a9mp_priv = {
     .name = "a9mpcore_priv",
-    .version_id = 1,
+    .version_id = 2,
     .minimum_version_id = 1,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(scu_control, a9mp_priv_state),
         VMSTATE_UINT32_ARRAY(old_timer_status, a9mp_priv_state, 8),
+        VMSTATE_UINT32_V(scu_status, a9mp_priv_state, 2),
         VMSTATE_END_OF_LIST()
     }
 };

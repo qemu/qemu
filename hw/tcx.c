@@ -520,8 +520,9 @@ static int tcx_init1(SysBusDevice *dev)
     int size;
     uint8_t *vram_base;
 
-    memory_region_init_ram(&s->vram_mem, NULL, "tcx.vram",
+    memory_region_init_ram(&s->vram_mem, "tcx.vram",
                            s->vram_size * (1 + 4 + 4));
+    vmstate_register_ram_global(&s->vram_mem);
     vram_base = memory_region_get_ram_ptr(&s->vram_mem);
 
     /* 8-bit plane */

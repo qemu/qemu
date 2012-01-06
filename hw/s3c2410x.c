@@ -264,7 +264,7 @@ s3c2410x_init(int sdram_size)
     s->cpu_env = cpu_init("arm920t");
 
     /* S3C2410X SDRAM memory is always at the same physical location. */
-    memory_region_init_ram(&s->sdram0, NULL, "s3c2410x.sdram0", sdram_size);
+    memory_region_init_ram(&s->sdram0, "s3c2410x.sdram0", sdram_size);
     memory_region_init_alias(&s->sdram1, "s3c2410x.sdram1",
                              &s->sdram0, 0, sdram_size);
     memory_region_init_alias(&s->sdram2, "s3c2410x.sdram2",
@@ -276,8 +276,7 @@ s3c2410x_init(int sdram_size)
                                 CPU_S3C2410X_DRAM + 0x90000000, &s->sdram2);
 
     /* S3C2410X SRAM */
-    memory_region_init_ram(&s->sram, NULL, "s3c2410x.sram",
-                           CPU_S3C2410X_SRAM_SIZE);
+    memory_region_init_ram(&s->sram, "s3c2410x.sram", CPU_S3C2410X_SRAM_SIZE);
     memory_region_add_subregion(sysmem, CPU_S3C2410X_SRAM_BASE, &s->sram);
 
     /* SDRAM memory controller */

@@ -57,14 +57,17 @@ static void shix_init(ram_addr_t ram_size,
 
     /* Allocate memory space */
     printf("Allocating ROM\n");
-    memory_region_init_ram(rom, NULL, "shix.rom", 0x4000);
+    memory_region_init_ram(rom, "shix.rom", 0x4000);
+    vmstate_register_ram_global(rom);
     memory_region_set_readonly(rom, true);
     memory_region_add_subregion(sysmem, 0x00000000, rom);
     printf("Allocating SDRAM 1\n");
-    memory_region_init_ram(&sdram[0], NULL, "shix.sdram1", 0x01000000);
+    memory_region_init_ram(&sdram[0], "shix.sdram1", 0x01000000);
+    vmstate_register_ram_global(&sdram[0]);
     memory_region_add_subregion(sysmem, 0x08000000, &sdram[0]);
     printf("Allocating SDRAM 2\n");
-    memory_region_init_ram(&sdram[1], NULL, "shix.sdram2", 0x01000000);
+    memory_region_init_ram(&sdram[1], "shix.sdram2", 0x01000000);
+    vmstate_register_ram_global(&sdram[1]);
     memory_region_add_subregion(sysmem, 0x0c000000, &sdram[1]);
 
     /* Load BIOS in 0 (and access it through P2, 0xA0000000) */

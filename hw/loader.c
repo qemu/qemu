@@ -49,6 +49,8 @@
 #include "uboot_image.h"
 #include "loader.h"
 #include "fw_cfg.h"
+#include "memory.h"
+#include "exec-memory.h"
 
 #include <zlib.h>
 
@@ -674,7 +676,7 @@ static void rom_reset(void *unused)
 int rom_load_all(void)
 {
     target_phys_addr_t addr = 0;
-    int memtype;
+    MemoryRegionSection section;
     Rom *rom;
 
     QTAILQ_FOREACH(rom, &roms, next) {
@@ -690,9 +692,8 @@ int rom_load_all(void)
         }
         addr  = rom->addr;
         addr += rom->romsize;
-        memtype = cpu_get_physical_page_desc(rom->addr) & (3 << IO_MEM_SHIFT);
-        if (memtype == IO_MEM_ROM)
-            rom->isrom = 1;
+        section = memory_region_find(get_system_memory(), rom->addr, 1);
+        rom->isrom = section.size && memory_region_is_rom(section.mr);
     }
     qemu_register_reset(rom_reset, NULL);
     roms_loaded = 1;

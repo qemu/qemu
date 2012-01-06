@@ -628,7 +628,8 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base,
     pfl = g_malloc0(sizeof(pflash_t));
     memory_region_init_rom_device(
         &pfl->orig_mem, be ? &pflash_cfi02_ops_be : &pflash_cfi02_ops_le, pfl,
-        qdev, name, size);
+        name, size);
+    vmstate_register_ram(&pfl->orig_mem, qdev);
     pfl->storage = memory_region_get_ram_ptr(&pfl->orig_mem);
     pfl->base = base;
     pfl->chip_len = chip_len;

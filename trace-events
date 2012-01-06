@@ -462,7 +462,7 @@ mipsnet_irq(uint32_t isr, uint32_t intctl) "set irq to %d (%02x)"
 
 # xen-all.c
 xen_ram_alloc(unsigned long ram_addr, unsigned long size) "requested: %#lx, size %#lx"
-xen_client_set_memory(uint64_t start_addr, unsigned long size, unsigned long phys_offset, bool log_dirty) "%#"PRIx64" size %#lx, offset %#lx, log_dirty %i"
+xen_client_set_memory(uint64_t start_addr, unsigned long size, bool log_dirty) "%#"PRIx64" size %#lx, log_dirty %i"
 
 # xen-mapcache.c
 xen_map_cache(uint64_t phys_addr) "want %#"PRIx64

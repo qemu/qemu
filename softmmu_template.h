@@ -22,6 +22,7 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "qemu-timer.h"
+#include "memory.h"
 
 #define DATA_SIZE (1 << SHIFT)
 
@@ -62,24 +63,26 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
 {
     DATA_TYPE res;
     int index;
-    index = (physaddr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+    index = physaddr & (IO_MEM_NB_ENTRIES - 1);
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     env->mem_io_pc = (uintptr_t)retaddr;
-    if (index > (IO_MEM_NOTDIRTY >> IO_MEM_SHIFT)
+    if (index != io_mem_ram.ram_addr && index != io_mem_rom.ram_addr
+        && index != io_mem_unassigned.ram_addr
+        && index != io_mem_notdirty.ram_addr
             && !can_do_io(env)) {
         cpu_io_recompile(env, retaddr);
     }
 
     env->mem_io_vaddr = addr;
 #if SHIFT <= 2
-    res = io_mem_read[index][SHIFT](io_mem_opaque[index], physaddr);
+    res = io_mem_read(index, physaddr, 1 << SHIFT);
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
-    res = (uint64_t)io_mem_read[index][2](io_mem_opaque[index], physaddr) << 32;
-    res |= io_mem_read[index][2](io_mem_opaque[index], physaddr + 4);
+    res = io_mem_read(index, physaddr, 4) << 32;
+    res |= io_mem_read(index, physaddr + 4, 4);
 #else
-    res = io_mem_read[index][2](io_mem_opaque[index], physaddr);
-    res |= (uint64_t)io_mem_read[index][2](io_mem_opaque[index], physaddr + 4) << 32;
+    res = io_mem_read(index, physaddr, 4);
+    res |= io_mem_read(index, physaddr + 4, 4) << 32;
 #endif
 #endif /* SHIFT > 2 */
     return res;
@@ -207,9 +210,11 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
                                           void *retaddr)
 {
     int index;
-    index = (physaddr >> IO_MEM_SHIFT) & (IO_MEM_NB_ENTRIES - 1);
+    index = physaddr & (IO_MEM_NB_ENTRIES - 1);
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    if (index > (IO_MEM_NOTDIRTY >> IO_MEM_SHIFT)
+    if (index != io_mem_ram.ram_addr && index != io_mem_rom.ram_addr
+        && index != io_mem_unassigned.ram_addr
+        && index != io_mem_notdirty.ram_addr
             && !can_do_io(env)) {
         cpu_io_recompile(env, retaddr);
     }
@@ -217,14 +222,14 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
     env->mem_io_vaddr = addr;
     env->mem_io_pc = (uintptr_t)retaddr;
 #if SHIFT <= 2
-    io_mem_write[index][SHIFT](io_mem_opaque[index], physaddr, val);
+    io_mem_write(index, physaddr, val, 1 << SHIFT);
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
-    io_mem_write[index][2](io_mem_opaque[index], physaddr, val >> 32);
-    io_mem_write[index][2](io_mem_opaque[index], physaddr + 4, val);
+    io_mem_write(index, physaddr, (val >> 32), 4);
+    io_mem_write(index, physaddr + 4, (uint32_t)val, 4);
 #else
-    io_mem_write[index][2](io_mem_opaque[index], physaddr, val);
-    io_mem_write[index][2](io_mem_opaque[index], physaddr + 4, val >> 32);
+    io_mem_write(index, physaddr, (uint32_t)val, 4);
+    io_mem_write(index, physaddr + 4, val >> 32, 4);
 #endif
 #endif /* SHIFT > 2 */
 }

@@ -60,10 +60,13 @@ typedef struct {
     qemu_irq irq;
 } pl110_state;
 
+static int vmstate_pl110_post_load(void *opaque, int version_id);
+
 static const VMStateDescription vmstate_pl110 = {
     .name = "pl110",
     .version_id = 2,
     .minimum_version_id = 1,
+    .post_load = vmstate_pl110_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_INT32(version, pl110_state),
         VMSTATE_UINT32_ARRAY(timing, pl110_state, 4),
@@ -229,7 +232,7 @@ static void pl110_update_display(void *opaque)
     }
     dest_width *= s->cols;
     first = 0;
-    framebuffer_update_display(s->ds,
+    framebuffer_update_display(s->ds, sysbus_address_space(&s->busdev),
                                s->upbase, s->cols, s->rows,
                                src_width, dest_width, 0,
                                s->invalidate,
@@ -428,6 +431,14 @@ static void pl110_mux_ctrl_set(void *opaque, int line, int level)
 {
     pl110_state *s = (pl110_state *)opaque;
     s->mux_ctrl = level;
+}
+
+static int vmstate_pl110_post_load(void *opaque, int version_id)
+{
+    pl110_state *s = opaque;
+    /* Make sure we redraw, and at the right size */
+    pl110_invalidate_display(s);
+    return 0;
 }
 
 static int pl110_init(SysBusDevice *dev)

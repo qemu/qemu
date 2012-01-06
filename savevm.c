@@ -83,6 +83,7 @@
 #include "qemu-queue.h"
 #include "qemu-timer.h"
 #include "cpus.h"
+#include "memory.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
@@ -2280,4 +2281,20 @@ void do_info_snapshots(Monitor *mon)
     g_free(sn_tab);
     g_free(available_snapshots);
 
+}
+
+void vmstate_register_ram(MemoryRegion *mr, DeviceState *dev)
+{
+    qemu_ram_set_idstr(memory_region_get_ram_addr(mr),
+                       memory_region_name(mr), dev);
+}
+
+void vmstate_unregister_ram(MemoryRegion *mr, DeviceState *dev)
+{
+    /* Nothing do to while the implementation is in RAMBlock */
+}
+
+void vmstate_register_ram_global(MemoryRegion *mr)
+{
+    vmstate_register_ram(mr, NULL);
 }

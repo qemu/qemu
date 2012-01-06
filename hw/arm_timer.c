@@ -9,6 +9,8 @@
 
 #include "sysbus.h"
 #include "qemu-timer.h"
+#include "qemu-common.h"
+#include "qdev.h"
 
 /* Common timer implementation.  */
 
@@ -178,6 +180,7 @@ typedef struct {
     SysBusDevice busdev;
     MemoryRegion iomem;
     arm_timer_state *timer[2];
+    uint32_t freq0, freq1;
     int level[2];
     qemu_irq irq;
 } sp804_state;
@@ -269,10 +272,11 @@ static int sp804_init(SysBusDevice *dev)
 
     qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
     sysbus_init_irq(dev, &s->irq);
-    /* ??? The timers are actually configurable between 32kHz and 1MHz, but
-       we don't implement that.  */
-    s->timer[0] = arm_timer_init(1000000);
-    s->timer[1] = arm_timer_init(1000000);
+    /* The timers are configurable between 32kHz and 1MHz
+     * defaulting to 1MHz but overrideable as individual properties */
+    s->timer[0] = arm_timer_init(s->freq0);
+    s->timer[1] = arm_timer_init(s->freq1);
+
     s->timer[0]->irq = qi[0];
     s->timer[1]->irq = qi[1];
     memory_region_init_io(&s->iomem, &sp804_ops, s, "sp804", 0x1000);
@@ -281,6 +285,16 @@ static int sp804_init(SysBusDevice *dev)
     return 0;
 }
 
+static SysBusDeviceInfo sp804_info = {
+    .init = sp804_init,
+    .qdev.name = "sp804",
+    .qdev.size = sizeof(sp804_state),
+    .qdev.props = (Property[]) {
+        DEFINE_PROP_UINT32("freq0", sp804_state, freq0, 1000000),
+        DEFINE_PROP_UINT32("freq1", sp804_state, freq1, 1000000),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
 
 /* Integrator/CP timer module.  */
 
@@ -349,7 +363,7 @@ static int icp_pit_init(SysBusDevice *dev)
 static void arm_timer_register_devices(void)
 {
     sysbus_register_dev("integrator_pit", sizeof(icp_pit_state), icp_pit_init);
-    sysbus_register_dev("sp804", sizeof(sp804_state), sp804_init);
+    sysbus_register_withprop(&sp804_info);
 }
 
 device_init(arm_timer_register_devices)

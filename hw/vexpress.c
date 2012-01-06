@@ -77,7 +77,8 @@ static void vexpress_a9_init(ram_addr_t ram_size,
         exit(1);
     }
 
-    memory_region_init_ram(ram, NULL, "vexpress.highmem", ram_size);
+    memory_region_init_ram(ram, "vexpress.highmem", ram_size);
+    vmstate_register_ram_global(ram);
     low_ram_size = ram_size;
     if (low_ram_size > 0x4000000) {
         low_ram_size = 0x4000000;
@@ -181,14 +182,16 @@ static void vexpress_a9_init(ram_addr_t ram_size,
     /* CS4: NOR1 flash          : 0x44000000 .. 0x48000000 */
     /* CS2: SRAM                : 0x48000000 .. 0x4a000000 */
     sram_size = 0x2000000;
-    memory_region_init_ram(sram, NULL, "vexpress.sram", sram_size);
+    memory_region_init_ram(sram, "vexpress.sram", sram_size);
+    vmstate_register_ram_global(sram);
     memory_region_add_subregion(sysmem, 0x48000000, sram);
 
     /* CS3: USB, ethernet, VRAM : 0x4c000000 .. 0x50000000 */
 
     /* 0x4c000000 Video RAM */
     vram_size = 0x800000;
-    memory_region_init_ram(vram, NULL, "vexpress.vram", vram_size);
+    memory_region_init_ram(vram, "vexpress.vram", vram_size);
+    vmstate_register_ram_global(vram);
     memory_region_add_subregion(sysmem, 0x4c000000, vram);
 
     /* 0x4e000000 LAN9118 Ethernet */
@@ -202,7 +205,8 @@ static void vexpress_a9_init(ram_addr_t ram_size,
        startup code.  I guess this works on real hardware because the
        BootROM happens to be in ROM/flash or in memory that isn't clobbered
        until after Linux boots the secondary CPUs.  */
-    memory_region_init_ram(hackram, NULL, "vexpress.hack", 0x1000);
+    memory_region_init_ram(hackram, "vexpress.hack", 0x1000);
+    vmstate_register_ram_global(hackram);
     memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, hackram);
 
     vexpress_binfo.ram_size = ram_size;

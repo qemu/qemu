@@ -136,7 +136,8 @@ static void lx60_net_init(MemoryRegion *address_space,
             sysbus_mmio_get_region(s, 1));
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "open_eth.ram", 16384);
+    memory_region_init_ram(ram, "open_eth.ram", 16384);
+    vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space, buffers, ram);
 }
 
@@ -186,7 +187,8 @@ static void lx_init(const LxBoardDesc *board,
     }
 
     ram = g_malloc(sizeof(*ram));
-    memory_region_init_ram(ram, NULL, "lx60.dram", ram_size);
+    memory_region_init_ram(ram, "lx60.dram", ram_size);
+    vmstate_register_ram_global(ram);
     memory_region_add_subregion(system_memory, 0, ram);
 
     system_io = g_malloc(sizeof(*system_io));
@@ -221,7 +223,8 @@ static void lx_init(const LxBoardDesc *board,
     /* Use presence of kernel file name as 'boot from SRAM' switch. */
     if (kernel_filename) {
         rom = g_malloc(sizeof(*rom));
-        memory_region_init_ram(rom, NULL, "lx60.sram", board->sram_size);
+        memory_region_init_ram(rom, "lx60.sram", board->sram_size);
+        vmstate_register_ram_global(rom);
         memory_region_add_subregion(system_memory, 0xfe000000, rom);
 
         /* Put kernel bootparameters to the end of that SRAM */

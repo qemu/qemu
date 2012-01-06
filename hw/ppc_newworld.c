@@ -171,11 +171,13 @@ static void ppc_core99_init (ram_addr_t ram_size,
     }
 
     /* allocate RAM */
-    memory_region_init_ram(ram, NULL, "ppc_core99.ram", ram_size);
+    memory_region_init_ram(ram, "ppc_core99.ram", ram_size);
+    vmstate_register_ram_global(ram);
     memory_region_add_subregion(get_system_memory(), 0, ram);
 
     /* allocate and load BIOS */
-    memory_region_init_ram(bios, NULL, "ppc_core99.bios", BIOS_SIZE);
+    memory_region_init_ram(bios, "ppc_core99.bios", BIOS_SIZE);
+    vmstate_register_ram_global(bios);
     if (bios_name == NULL)
         bios_name = PROM_FILENAME;
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);

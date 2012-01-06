@@ -44,3 +44,7 @@ int xen_init(void)
 {
     return -ENOSYS;
 }
+
+void xen_register_framebuffer(MemoryRegion *mr)
+{
+}

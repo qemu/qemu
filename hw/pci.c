@@ -1787,7 +1787,8 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     else
         snprintf(name, sizeof(name), "%s.rom", pdev->qdev.info->name);
     pdev->has_rom = true;
-    memory_region_init_ram(&pdev->rom, &pdev->qdev, name, size);
+    memory_region_init_ram(&pdev->rom, name, size);
+    vmstate_register_ram(&pdev->rom, &pdev->qdev);
     ptr = memory_region_get_ram_ptr(&pdev->rom);
     load_image(path, ptr);
     g_free(path);
@@ -1809,6 +1810,7 @@ static void pci_del_option_rom(PCIDevice *pdev)
     if (!pdev->has_rom)
         return;
 
+    vmstate_unregister_ram(&pdev->rom, &pdev->qdev);
     memory_region_destroy(&pdev->rom);
     pdev->has_rom = false;
 }

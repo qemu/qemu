@@ -184,7 +184,8 @@ static void s390_init(ram_addr_t my_ram_size,
     s390_bus = s390_virtio_bus_init(&my_ram_size);
 
     /* allocate RAM */
-    memory_region_init_ram(ram, NULL, "s390.ram", my_ram_size);
+    memory_region_init_ram(ram, "s390.ram", my_ram_size);
+    vmstate_register_ram_global(ram);
     memory_region_add_subregion(sysmem, 0, ram);
 
     /* clear virtio region */

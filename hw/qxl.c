@@ -1554,8 +1554,8 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     pci_set_byte(&config[PCI_INTERRUPT_PIN], 1);
 
     qxl->rom_size = qxl_rom_size();
-    memory_region_init_ram(&qxl->rom_bar, &qxl->pci.qdev, "qxl.vrom",
-                           qxl->rom_size);
+    memory_region_init_ram(&qxl->rom_bar, "qxl.vrom", qxl->rom_size);
+    vmstate_register_ram(&qxl->rom_bar, &qxl->pci.qdev);
     init_qxl_rom(qxl);
     init_qxl_ram(qxl);
 
@@ -1566,8 +1566,8 @@ static int qxl_init_common(PCIQXLDevice *qxl)
         qxl->vram_size = 4096;
     }
     qxl->vram_size = msb_mask(qxl->vram_size * 2 - 1);
-    memory_region_init_ram(&qxl->vram_bar, &qxl->pci.qdev, "qxl.vram",
-                           qxl->vram_size);
+    memory_region_init_ram(&qxl->vram_bar, "qxl.vram", qxl->vram_size);
+    vmstate_register_ram(&qxl->vram_bar, &qxl->pci.qdev);
 
     io_size = msb_mask(QXL_IO_RANGE_SIZE * 2 - 1);
     if (qxl->revision == 1) {
@@ -1643,8 +1643,8 @@ static int qxl_init_secondary(PCIDevice *dev)
         ram_size = 16 * 1024 * 1024;
     }
     qxl->vga.vram_size = ram_size;
-    memory_region_init_ram(&qxl->vga.vram, &qxl->pci.qdev, "qxl.vgavram",
-                           qxl->vga.vram_size);
+    memory_region_init_ram(&qxl->vga.vram, "qxl.vgavram", qxl->vga.vram_size);
+    vmstate_register_ram(&qxl->vga.vram, &qxl->pci.qdev);
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
 
     return qxl_init_common(qxl);

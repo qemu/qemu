@@ -33,6 +33,7 @@
 #endif
 
 static MemoryRegion ram_memory, ram_640k, ram_lo, ram_hi;
+static MemoryRegion *framebuffer;
 
 /* Compatibility with older version */
 #if __XEN_LATEST_INTERFACE_VERSION__ < 0x0003020a
@@ -62,6 +63,7 @@ static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
 typedef struct XenPhysmap {
     target_phys_addr_t start_addr;
     ram_addr_t size;
+    MemoryRegion *mr;
     target_phys_addr_t phys_offset;
 
     QLIST_ENTRY(XenPhysmap) list;
@@ -79,8 +81,9 @@ typedef struct XenIOState {
     int send_vcpu;
 
     struct xs_handle *xenstore;
-    CPUPhysMemoryClient client;
+    MemoryListener memory_listener;
     QLIST_HEAD(, XenPhysmap) physmap;
+    target_phys_addr_t free_phys_offset;
     const XenPhysmap *log_for_dirtybit;
 
     Notifier exit;
@@ -151,7 +154,8 @@ static void xen_ram_init(ram_addr_t ram_size)
          */
         block_len += HVM_BELOW_4G_MMIO_LENGTH;
     }
-    memory_region_init_ram(&ram_memory, NULL, "xen.ram", block_len);
+    memory_region_init_ram(&ram_memory, "xen.ram", block_len);
+    vmstate_register_ram_global(&ram_memory);
 
     if (ram_size >= HVM_BELOW_4G_RAM_END) {
         above_4g_mem_size = ram_size - HVM_BELOW_4G_RAM_END;
@@ -225,13 +229,14 @@ static XenPhysmap *get_physmapping(XenIOState *state,
 static int xen_add_to_physmap(XenIOState *state,
                               target_phys_addr_t start_addr,
                               ram_addr_t size,
-                              target_phys_addr_t phys_offset)
+                              MemoryRegion *mr,
+                              target_phys_addr_t offset_within_region)
 {
     unsigned long i = 0;
     int rc = 0;
     XenPhysmap *physmap = NULL;
     target_phys_addr_t pfn, start_gpfn;
-    RAMBlock *block;
+    target_phys_addr_t phys_offset = memory_region_get_ram_addr(mr);
 
     if (get_physmapping(state, start_addr, size)) {
         return 0;
@@ -244,17 +249,13 @@ static int xen_add_to_physmap(XenIOState *state,
      * the linear framebuffer to be that region.
      * Avoid tracking any regions that is not videoram and avoid tracking
      * the legacy vga region. */
-    QLIST_FOREACH(block, &ram_list.blocks, next) {
-        if (!strcmp(block->idstr, "vga.vram") && block->offset == phys_offset
-                && start_addr > 0xbffff) {
-            goto go_physmap;
-        }
+    if (mr == framebuffer && start_addr > 0xbffff) {
+        goto go_physmap;
     }
     return -1;
 
 go_physmap:
-    DPRINTF("mapping vram to %llx - %llx, from %llx\n",
-            start_addr, start_addr + size, phys_offset);
+    DPRINTF("mapping vram to %llx - %llx\n", start_addr, start_addr + size);
 
     pfn = phys_offset >> TARGET_PAGE_BITS;
     start_gpfn = start_addr >> TARGET_PAGE_BITS;
@@ -333,7 +334,8 @@ static int xen_remove_from_physmap(XenIOState *state,
 static int xen_add_to_physmap(XenIOState *state,
                               target_phys_addr_t start_addr,
                               ram_addr_t size,
-                              target_phys_addr_t phys_offset)
+                              MemoryRegion *mr,
+                              target_phys_addr_t offset_within_region)
 {
     return -ENOSYS;
 }
@@ -346,47 +348,60 @@ static int xen_remove_from_physmap(XenIOState *state,
 }
 #endif
 
-static void xen_client_set_memory(struct CPUPhysMemoryClient *client,
-                                  target_phys_addr_t start_addr,
-                                  ram_addr_t size,
-                                  ram_addr_t phys_offset,
-                                  bool log_dirty)
+static void xen_set_memory(struct MemoryListener *listener,
+                           MemoryRegionSection *section,
+                           bool add)
 {
-    XenIOState *state = container_of(client, XenIOState, client);
-    ram_addr_t flags = phys_offset & ~TARGET_PAGE_MASK;
+    XenIOState *state = container_of(listener, XenIOState, memory_listener);
+    target_phys_addr_t start_addr = section->offset_within_address_space;
+    ram_addr_t size = section->size;
+    bool log_dirty = memory_region_is_logging(section->mr);
     hvmmem_type_t mem_type;
 
-    if (!(start_addr != phys_offset
-          && ( (log_dirty && flags < IO_MEM_UNASSIGNED)
-               || (!log_dirty && flags == IO_MEM_UNASSIGNED)))) {
+    if (!memory_region_is_ram(section->mr)) {
         return;
     }
 
-    trace_xen_client_set_memory(start_addr, size, phys_offset, log_dirty);
+    if (!(section->mr != &ram_memory
+          && ( (log_dirty && add) || (!log_dirty && !add)))) {
+        return;
+    }
+
+    trace_xen_client_set_memory(start_addr, size, log_dirty);
 
     start_addr &= TARGET_PAGE_MASK;
     size = TARGET_PAGE_ALIGN(size);
-    phys_offset &= TARGET_PAGE_MASK;
 
-    switch (flags) {
-    case IO_MEM_RAM:
-        xen_add_to_physmap(state, start_addr, size, phys_offset);
-        break;
-    case IO_MEM_ROM:
-        mem_type = HVMMEM_ram_ro;
-        if (xc_hvm_set_mem_type(xen_xc, xen_domid, mem_type,
-                                start_addr >> TARGET_PAGE_BITS,
-                                size >> TARGET_PAGE_BITS)) {
-            DPRINTF("xc_hvm_set_mem_type error, addr: "TARGET_FMT_plx"\n",
-                    start_addr);
+    if (add) {
+        if (!memory_region_is_rom(section->mr)) {
+            xen_add_to_physmap(state, start_addr, size,
+                               section->mr, section->offset_within_region);
+        } else {
+            mem_type = HVMMEM_ram_ro;
+            if (xc_hvm_set_mem_type(xen_xc, xen_domid, mem_type,
+                                    start_addr >> TARGET_PAGE_BITS,
+                                    size >> TARGET_PAGE_BITS)) {
+                DPRINTF("xc_hvm_set_mem_type error, addr: "TARGET_FMT_plx"\n",
+                        start_addr);
+            }
         }
-        break;
-    case IO_MEM_UNASSIGNED:
+    } else {
         if (xen_remove_from_physmap(state, start_addr, size) < 0) {
             DPRINTF("physmapping does not exist at "TARGET_FMT_plx"\n", start_addr);
         }
-        break;
     }
+}
+
+static void xen_region_add(MemoryListener *listener,
+                           MemoryRegionSection *section)
+{
+    xen_set_memory(listener, section, true);
+}
+
+static void xen_region_del(MemoryListener *listener,
+                           MemoryRegionSection *section)
+{
+    xen_set_memory(listener, section, false);
 }
 
 static int xen_sync_dirty_bitmap(XenIOState *state,
@@ -394,7 +409,6 @@ static int xen_sync_dirty_bitmap(XenIOState *state,
                                  ram_addr_t size)
 {
     target_phys_addr_t npages = size >> TARGET_PAGE_BITS;
-    target_phys_addr_t vram_offset = 0;
     const int width = sizeof(unsigned long) * 8;
     unsigned long bitmap[(npages + width - 1) / width];
     int rc, i, j;
@@ -411,7 +425,6 @@ static int xen_sync_dirty_bitmap(XenIOState *state,
     } else if (state->log_for_dirtybit != physmap) {
         return -1;
     }
-    vram_offset = physmap->phys_offset;
 
     rc = xc_hvm_track_dirty_vram(xen_xc, xen_domid,
                                  start_addr >> TARGET_PAGE_BITS, npages,
@@ -425,50 +438,62 @@ static int xen_sync_dirty_bitmap(XenIOState *state,
         while (map != 0) {
             j = ffsl(map) - 1;
             map &= ~(1ul << j);
-            cpu_physical_memory_set_dirty(vram_offset + (i * width + j) * TARGET_PAGE_SIZE);
+            memory_region_set_dirty(framebuffer,
+                                    (i * width + j) * TARGET_PAGE_SIZE);
         };
     }
 
     return 0;
 }
 
-static int xen_log_start(CPUPhysMemoryClient *client, target_phys_addr_t phys_addr, ram_addr_t size)
+static void xen_log_start(MemoryListener *listener,
+                          MemoryRegionSection *section)
 {
-    XenIOState *state = container_of(client, XenIOState, client);
+    XenIOState *state = container_of(listener, XenIOState, memory_listener);
+    int r;
 
-    return xen_sync_dirty_bitmap(state, phys_addr, size);
+    r = xen_sync_dirty_bitmap(state, section->offset_within_address_space,
+                              section->size);
+    assert(r >= 0);
 }
 
-static int xen_log_stop(CPUPhysMemoryClient *client, target_phys_addr_t phys_addr, ram_addr_t size)
+static void xen_log_stop(MemoryListener *listener, MemoryRegionSection *section)
 {
-    XenIOState *state = container_of(client, XenIOState, client);
+    XenIOState *state = container_of(listener, XenIOState, memory_listener);
+    int r;
 
     state->log_for_dirtybit = NULL;
     /* Disable dirty bit tracking */
-    return xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
+    r = xc_hvm_track_dirty_vram(xen_xc, xen_domid, 0, 0, NULL);
+    assert(r >= 0);
 }
 
-static int xen_client_sync_dirty_bitmap(struct CPUPhysMemoryClient *client,
-                                        target_phys_addr_t start_addr,
-                                        target_phys_addr_t end_addr)
+static void xen_log_sync(MemoryListener *listener, MemoryRegionSection *section)
 {
-    XenIOState *state = container_of(client, XenIOState, client);
+    XenIOState *state = container_of(listener, XenIOState, memory_listener);
+    int r;
 
-    return xen_sync_dirty_bitmap(state, start_addr, end_addr - start_addr);
+    r = xen_sync_dirty_bitmap(state, section->offset_within_address_space,
+                              section->size);
+    assert(r >= 0);
 }
 
-static int xen_client_migration_log(struct CPUPhysMemoryClient *client,
-                                    int enable)
+static void xen_log_global_start(MemoryListener *listener)
 {
-    return 0;
 }
 
-static CPUPhysMemoryClient xen_cpu_phys_memory_client = {
-    .set_memory = xen_client_set_memory,
-    .sync_dirty_bitmap = xen_client_sync_dirty_bitmap,
-    .migration_log = xen_client_migration_log,
+static void xen_log_global_stop(MemoryListener *listener)
+{
+}
+
+static MemoryListener xen_memory_listener = {
+    .region_add = xen_region_add,
+    .region_del = xen_region_del,
     .log_start = xen_log_start,
     .log_stop = xen_log_stop,
+    .log_sync = xen_log_sync,
+    .log_global_start = xen_log_global_start,
+    .log_global_stop = xen_log_global_stop,
 };
 
 /* VCPU Operations, MMIO, IO ring ... */
@@ -946,9 +971,9 @@ int xen_hvm_init(void)
 
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
 
-    state->client = xen_cpu_phys_memory_client;
+    state->memory_listener = xen_memory_listener;
     QLIST_INIT(&state->physmap);
-    cpu_register_phys_memory_client(&state->client);
+    memory_listener_register(&state->memory_listener);
     state->log_for_dirtybit = NULL;
 
     /* Initialize backend core & drivers */
@@ -981,4 +1006,9 @@ void destroy_hvm_domain(void)
         }
         xc_interface_close(xc_handle);
     }
+}
+
+void xen_register_framebuffer(MemoryRegion *mr)
+{
+    framebuffer = mr;
 }

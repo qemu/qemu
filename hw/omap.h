@@ -672,10 +672,6 @@ void omap_uart_reset(struct omap_uart_s *s);
 void omap_uart_attach(struct omap_uart_s *s, CharDriverState *chr);
 
 struct omap_mpuio_s;
-struct omap_mpuio_s *omap_mpuio_init(MemoryRegion *system_memory,
-                target_phys_addr_t base,
-                qemu_irq kbd_int, qemu_irq gpio_int, qemu_irq wakeup,
-                omap_clk clk);
 qemu_irq *omap_mpuio_in_get(struct omap_mpuio_s *s);
 void omap_mpuio_out_set(struct omap_mpuio_s *s, int line, qemu_irq handler);
 void omap_mpuio_key(struct omap_mpuio_s *s, int row, int col, int down);
@@ -833,8 +829,6 @@ struct omap_mpu_state_s {
     MemoryRegion tcmi_iomem;
     MemoryRegion clkm_iomem;
     MemoryRegion clkdsp_iomem;
-    MemoryRegion pwl_iomem;
-    MemoryRegion pwt_iomem;
     MemoryRegion mpui_io_iomem;
     MemoryRegion tap_iomem;
     MemoryRegion imif_ram;
@@ -871,20 +865,8 @@ struct omap_mpu_state_s {
 
     struct omap_uwire_s *microwire;
 
-    struct {
-        uint8_t output;
-        uint8_t level;
-        uint8_t enable;
-        int clk;
-    } pwl;
-
-    struct {
-        uint8_t frc;
-        uint8_t vrc;
-        uint8_t gcr;
-        omap_clk clk;
-    } pwt;
-
+    struct omap_pwl_s *pwl;
+    struct omap_pwt_s *pwt;
     struct omap_i2c_s *i2c[2];
 
     struct omap_rtc_s *rtc;
@@ -922,11 +904,7 @@ struct omap_mpu_state_s {
 
     uint32_t tcmi_regs[17];
 
-    struct dpll_ctl_s {
-        MemoryRegion iomem;
-        uint16_t mode;
-        omap_clk dpll;
-    } dpll[3];
+    struct dpll_ctl_s *dpll[3];
 
     omap_clk clks;
     struct {

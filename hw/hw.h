@@ -949,4 +949,9 @@ int vmstate_register_with_alias_id(DeviceState *dev, int instance_id,
                                    int required_for_version);
 void vmstate_unregister(DeviceState *dev, const VMStateDescription *vmsd,
                         void *opaque);
+struct MemoryRegion;
+void vmstate_register_ram(struct MemoryRegion *memory, DeviceState *dev);
+void vmstate_unregister_ram(struct MemoryRegion *memory, DeviceState *dev);
+void vmstate_register_ram_global(struct MemoryRegion *memory);
+
 #endif

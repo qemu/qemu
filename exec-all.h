@@ -299,9 +299,10 @@ extern void *tci_tb_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
 
-extern CPUWriteMemoryFunc *io_mem_write[IO_MEM_NB_ENTRIES][4];
-extern CPUReadMemoryFunc *io_mem_read[IO_MEM_NB_ENTRIES][4];
-extern void *io_mem_opaque[IO_MEM_NB_ENTRIES];
+uint64_t io_mem_read(int index, target_phys_addr_t addr, unsigned size);
+void io_mem_write(int index, target_phys_addr_t addr, uint64_t value,
+                  unsigned size);
+extern struct MemoryRegion *io_mem_region[IO_MEM_NB_ENTRIES];
 
 void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr);
@@ -336,31 +337,7 @@ static inline tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong add
     return addr;
 }
 #else
-/* NOTE: this function can trigger an exception */
-/* NOTE2: the returned address is not exactly the physical address: it
-   is the offset relative to phys_ram_base */
-static inline tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong addr)
-{
-    int mmu_idx, page_index, pd;
-    void *p;
-
-    page_index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
-    mmu_idx = cpu_mmu_index(env1);
-    if (unlikely(env1->tlb_table[mmu_idx][page_index].addr_code !=
-                 (addr & TARGET_PAGE_MASK))) {
-        ldub_code(addr);
-    }
-    pd = env1->tlb_table[mmu_idx][page_index].addr_code & ~TARGET_PAGE_MASK;
-    if (pd > IO_MEM_ROM && !(pd & IO_MEM_ROMD)) {
-#if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SPARC)
-        cpu_unassigned_access(env1, addr, 0, 1, 0, 4);
-#else
-        cpu_abort(env1, "Trying to execute code outside RAM or ROM at 0x" TARGET_FMT_lx "\n", addr);
-#endif
-    }
-    p = (void *)((uintptr_t)addr + env1->tlb_table[mmu_idx][page_index].addend);
-    return qemu_ram_addr_from_host_nofail(p);
-}
+tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong addr);
 #endif
 
 typedef void (CPUDebugExcpHandler)(CPUState *env);

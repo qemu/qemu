@@ -292,7 +292,8 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     ram_size &= ~(RAM_SIZES_ALIGN - 1);
 
     /* Register Memory */
-    memory_region_init_ram(ram, NULL, "mpc8544ds.ram", ram_size);
+    memory_region_init_ram(ram, "mpc8544ds.ram", ram_size);
+    vmstate_register_ram_global(ram);
     memory_region_add_subregion(address_space_mem, 0, ram);
 
     /* MPIC */

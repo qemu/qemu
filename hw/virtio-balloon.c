@@ -21,6 +21,7 @@
 #include "balloon.h"
 #include "virtio-balloon.h"
 #include "kvm.h"
+#include "exec-memory.h"
 
 #if defined(__linux__)
 #include <sys/mman.h>
@@ -70,6 +71,7 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
 {
     VirtIOBalloon *s = to_virtio_balloon(vdev);
     VirtQueueElement elem;
+    MemoryRegionSection section;
 
     while (virtqueue_pop(vq, &elem)) {
         size_t offset = 0;
@@ -82,13 +84,16 @@ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
             pa = (ram_addr_t)ldl_p(&pfn) << VIRTIO_BALLOON_PFN_SHIFT;
             offset += 4;
 
-            addr = cpu_get_physical_page_desc(pa);
-            if ((addr & ~TARGET_PAGE_MASK) != IO_MEM_RAM)
+            /* FIXME: remove get_system_memory(), but how? */
+            section = memory_region_find(get_system_memory(), pa, 1);
+            if (!section.size || !memory_region_is_ram(section.mr))
                 continue;
 
-            /* Using qemu_get_ram_ptr is bending the rules a bit, but
+            /* Using memory_region_get_ram_ptr is bending the rules a bit, but
                should be OK because we only want a single page.  */
-            balloon_page(qemu_get_ram_ptr(addr), !!(vq == s->dvq));
+            addr = section.offset_within_region;
+            balloon_page(memory_region_get_ram_ptr(section.mr) + addr,
+                         !!(vq == s->dvq));
         }
 
         virtqueue_push(vq, &elem, offset);
