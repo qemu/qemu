@@ -569,7 +569,7 @@ VirtIODevice *virtio_blk_init(DeviceState *dev, BlockConf *conf,
     DriveInfo *dinfo;
 
     if (!conf->bs) {
-        error_report("virtio-blk-pci: drive property not set");
+        error_report("drive property not set");
         return NULL;
     }
     if (!bdrv_is_inserted(conf->bs)) {

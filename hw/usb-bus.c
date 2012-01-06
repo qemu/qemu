@@ -137,7 +137,7 @@ USBDevice *usb_create(USBBus *bus, const char *name)
         bus = usb_bus_find(-1);
         if (!bus)
             return NULL;
-        error_report("%s: no bus specified, using \"%s\" for \"%s\"\n",
+        error_report("%s: no bus specified, using \"%s\" for \"%s\"",
                 __FUNCTION__, bus->qbus.name, name);
     }
 #endif
@@ -152,12 +152,12 @@ USBDevice *usb_create_simple(USBBus *bus, const char *name)
     int rc;
 
     if (!dev) {
-        error_report("Failed to create USB device '%s'\n", name);
+        error_report("Failed to create USB device '%s'", name);
         return NULL;
     }
     rc = qdev_init(&dev->qdev);
     if (rc < 0) {
-        error_report("Failed to initialize USB device '%s'\n", name);
+        error_report("Failed to initialize USB device '%s'", name);
         return NULL;
     }
     return dev;
@@ -244,7 +244,7 @@ int usb_claim_port(USBDevice *dev)
             }
         }
         if (port == NULL) {
-            error_report("Error: usb port %s (bus %s) not found (in use?)\n",
+            error_report("Error: usb port %s (bus %s) not found (in use?)",
                          dev->port_path, bus->qbus.name);
             return -1;
         }
@@ -255,7 +255,7 @@ int usb_claim_port(USBDevice *dev)
         }
         if (bus->nfree == 0) {
             error_report("Error: tried to attach usb device %s to a bus "
-                         "with no free ports\n", dev->product_desc);
+                         "with no free ports", dev->product_desc);
             return -1;
         }
         port = QTAILQ_FIRST(&bus->free);
@@ -302,7 +302,7 @@ int usb_device_attach(USBDevice *dev)
 
     if (!(port->speedmask & dev->speedmask)) {
         error_report("Warning: speed mismatch trying to attach "
-                     "usb device %s to bus %s\n",
+                     "usb device %s to bus %s",
                      dev->product_desc, bus->qbus.name);
         return -1;
     }
