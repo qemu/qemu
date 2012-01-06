@@ -112,7 +112,7 @@ static uint64_t integratorcm_read(void *opaque, target_phys_addr_t offset,
 
 static void integratorcm_do_remap(integratorcm_state *s, int flash)
 {
-    if (flash) {
+    if (!flash) {
         if (s->flash_mapped) {
             sysbus_del_memory(&s->busdev, &s->flash);
             s->flash_mapped = false;
