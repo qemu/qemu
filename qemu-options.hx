@@ -551,19 +551,19 @@ DEFHEADING()
 DEFHEADING(File system options:)
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
-    "-fsdev fsdriver,id=id,path=path,[security_model={mapped|passthrough|none}]\n"
-    "       [,writeout=immediate][,readonly]\n",
+    "-fsdev fsdriver,id=id[,path=path,][security_model={mapped|passthrough|none}]\n"
+    " [,writeout=immediate][,readonly][,socket=socket|sock_fd=sock_fd]\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -fsdev @var{fsdriver},id=@var{id},path=@var{path},[security_model=@var{security_model}][,writeout=@var{writeout}][,readonly]
+@item -fsdev @var{fsdriver},id=@var{id},path=@var{path},[security_model=@var{security_model}][,writeout=@var{writeout}][,readonly][,socket=@var{socket}|sock_fd=@var{sock_fd}]
 @findex -fsdev
 Define a new file system device. Valid options are:
 @table @option
 @item @var{fsdriver}
 This option specifies the fs driver backend to use.
-Currently "local" and "handle" file system drivers are supported.
+Currently "local", "handle" and "proxy" file system drivers are supported.
 @item id=@var{id}
 Specifies identifier for this device
 @item path=@var{path}
@@ -580,7 +580,7 @@ file attributes. Directories exported by this security model cannot
 interact with other unix tools. "none" security model is same as
 passthrough except the sever won't report failures if it fails to
 set file attributes like ownership. Security model is mandatory
-only for local fsdriver. Other fsdrivers (like handle) don't take
+only for local fsdriver. Other fsdrivers (like handle, proxy) don't take
 security model as a parameter.
 @item writeout=@var{writeout}
 This is an optional argument. The only supported value is "immediate".
@@ -590,6 +590,13 @@ reported as written by the storage subsystem.
 @item readonly
 Enables exporting 9p share as a readonly mount for guests. By default
 read-write access is given.
+@item socket=@var{socket}
+Enables proxy filesystem driver to use passed socket file for communicating
+with virtfs-proxy-helper
+@item sock_fd=@var{sock_fd}
+Enables proxy filesystem driver to use passed socket descriptor for
+communicating with virtfs-proxy-helper. Usually a helper like libvirt
+will create socketpair and pass one of the fds as sock_fd
 @end table
 
 -fsdev option is used along with -device driver "virtio-9p-pci".
@@ -610,19 +617,19 @@ DEFHEADING(Virtual File system pass-through options:)
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
     "-virtfs local,path=path,mount_tag=tag,security_model=[mapped|passthrough|none]\n"
-    "        [,writeout=immediate][,readonly]\n",
+    "        [,writeout=immediate][,readonly][,socket=socket|sock_fd=sock_fd]\n",
     QEMU_ARCH_ALL)
 
 STEXI
 
-@item -virtfs @var{fsdriver},path=@var{path},mount_tag=@var{mount_tag},security_model=@var{security_model}[,writeout=@var{writeout}][,readonly]
+@item -virtfs @var{fsdriver}[,path=@var{path}],mount_tag=@var{mount_tag}[,security_model=@var{security_model}][,writeout=@var{writeout}][,readonly][,socket=@var{socket}|sock_fd=@var{sock_fd}]
 @findex -virtfs
 
 The general form of a Virtual File system pass-through options are:
 @table @option
 @item @var{fsdriver}
 This option specifies the fs driver backend to use.
-Currently "local" and "handle" file system drivers are supported.
+Currently "local", "handle" and "proxy" file system drivers are supported.
 @item id=@var{id}
 Specifies identifier for this device
 @item path=@var{path}
@@ -639,7 +646,7 @@ file attributes. Directories exported by this security model cannot
 interact with other unix tools. "none" security model is same as
 passthrough except the sever won't report failures if it fails to
 set file attributes like ownership. Security model is mandatory only
-for local fsdriver. Other fsdrivers (like handle) don't take security
+for local fsdriver. Other fsdrivers (like handle, proxy) don't take security
 model as a parameter.
 @item writeout=@var{writeout}
 This is an optional argument. The only supported value is "immediate".
@@ -649,6 +656,13 @@ reported as written by the storage subsystem.
 @item readonly
 Enables exporting 9p share as a readonly mount for guests. By default
 read-write access is given.
+@item socket=@var{socket}
+Enables proxy filesystem driver to use passed socket file for
+communicating with virtfs-proxy-helper. Usually a helper like libvirt
+will create socketpair and pass one of the fds as sock_fd
+@item sock_fd
+Enables proxy filesystem driver to use passed 'sock_fd' as the socket
+descriptor for interfacing with virtfs-proxy-helper
 @end table
 ETEXI
 

@@ -11,9 +11,6 @@
  *
  */
 
-#include <glib.h>
-#include <glib/gprintf.h>
-
 #include "hw/virtio.h"
 #include "hw/pc.h"
 #include "qemu_socket.h"
@@ -136,42 +133,6 @@ static int get_dotl_openflags(V9fsState *s, int oflags)
      */
     flags &= ~O_DIRECT;
     return flags;
-}
-
-void v9fs_string_init(V9fsString *str)
-{
-    str->data = NULL;
-    str->size = 0;
-}
-
-void v9fs_string_free(V9fsString *str)
-{
-    g_free(str->data);
-    str->data = NULL;
-    str->size = 0;
-}
-
-void v9fs_string_null(V9fsString *str)
-{
-    v9fs_string_free(str);
-}
-
-void GCC_FMT_ATTR(2, 3)
-v9fs_string_sprintf(V9fsString *str, const char *fmt, ...)
-{
-    va_list ap;
-
-    v9fs_string_free(str);
-
-    va_start(ap, fmt);
-    str->size = g_vasprintf(&str->data, fmt, ap);
-    va_end(ap);
-}
-
-void v9fs_string_copy(V9fsString *lhs, V9fsString *rhs)
-{
-    v9fs_string_free(lhs);
-    v9fs_string_sprintf(lhs, "%s", rhs->data);
 }
 
 void v9fs_path_init(V9fsPath *path)
@@ -629,211 +590,11 @@ static void free_pdu(V9fsState *s, V9fsPDU *pdu)
     }
 }
 
-size_t pdu_packunpack(void *addr, struct iovec *sg, int sg_count,
-                        size_t offset, size_t size, int pack)
-{
-    int i = 0;
-    size_t copied = 0;
-
-    for (i = 0; size && i < sg_count; i++) {
-        size_t len;
-        if (offset >= sg[i].iov_len) {
-            /* skip this sg */
-            offset -= sg[i].iov_len;
-            continue;
-        } else {
-            len = MIN(sg[i].iov_len - offset, size);
-            if (pack) {
-                memcpy(sg[i].iov_base + offset, addr, len);
-            } else {
-                memcpy(addr, sg[i].iov_base + offset, len);
-            }
-            size -= len;
-            copied += len;
-            addr += len;
-            if (size) {
-                offset = 0;
-                continue;
-            }
-        }
-    }
-
-    return copied;
-}
-
-static size_t pdu_unpack(void *dst, V9fsPDU *pdu, size_t offset, size_t size)
-{
-    return pdu_packunpack(dst, pdu->elem.out_sg, pdu->elem.out_num,
-                         offset, size, 0);
-}
-
-static size_t pdu_pack(V9fsPDU *pdu, size_t offset, const void *src,
-                        size_t size)
-{
-    return pdu_packunpack((void *)src, pdu->elem.in_sg, pdu->elem.in_num,
-                             offset, size, 1);
-}
-
-static size_t pdu_unmarshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
-{
-    size_t old_offset = offset;
-    va_list ap;
-    int i;
-
-    va_start(ap, fmt);
-    for (i = 0; fmt[i]; i++) {
-        switch (fmt[i]) {
-        case 'b': {
-            uint8_t *valp = va_arg(ap, uint8_t *);
-            offset += pdu_unpack(valp, pdu, offset, sizeof(*valp));
-            break;
-        }
-        case 'w': {
-            uint16_t val, *valp;
-            valp = va_arg(ap, uint16_t *);
-            offset += pdu_unpack(&val, pdu, offset, sizeof(val));
-            *valp = le16_to_cpu(val);
-            break;
-        }
-        case 'd': {
-            uint32_t val, *valp;
-            valp = va_arg(ap, uint32_t *);
-            offset += pdu_unpack(&val, pdu, offset, sizeof(val));
-            *valp = le32_to_cpu(val);
-            break;
-        }
-        case 'q': {
-            uint64_t val, *valp;
-            valp = va_arg(ap, uint64_t *);
-            offset += pdu_unpack(&val, pdu, offset, sizeof(val));
-            *valp = le64_to_cpu(val);
-            break;
-        }
-        case 's': {
-            V9fsString *str = va_arg(ap, V9fsString *);
-            offset += pdu_unmarshal(pdu, offset, "w", &str->size);
-            /* FIXME: sanity check str->size */
-            str->data = g_malloc(str->size + 1);
-            offset += pdu_unpack(str->data, pdu, offset, str->size);
-            str->data[str->size] = 0;
-            break;
-        }
-        case 'Q': {
-            V9fsQID *qidp = va_arg(ap, V9fsQID *);
-            offset += pdu_unmarshal(pdu, offset, "bdq",
-                        &qidp->type, &qidp->version, &qidp->path);
-            break;
-        }
-        case 'S': {
-            V9fsStat *statp = va_arg(ap, V9fsStat *);
-            offset += pdu_unmarshal(pdu, offset, "wwdQdddqsssssddd",
-                        &statp->size, &statp->type, &statp->dev,
-                        &statp->qid, &statp->mode, &statp->atime,
-                        &statp->mtime, &statp->length,
-                        &statp->name, &statp->uid, &statp->gid,
-                        &statp->muid, &statp->extension,
-                        &statp->n_uid, &statp->n_gid,
-                        &statp->n_muid);
-            break;
-        }
-        case 'I': {
-            V9fsIattr *iattr = va_arg(ap, V9fsIattr *);
-            offset += pdu_unmarshal(pdu, offset, "ddddqqqqq",
-                        &iattr->valid, &iattr->mode,
-                        &iattr->uid, &iattr->gid, &iattr->size,
-                        &iattr->atime_sec, &iattr->atime_nsec,
-                        &iattr->mtime_sec, &iattr->mtime_nsec);
-            break;
-        }
-        default:
-            break;
-        }
-    }
-
-    va_end(ap);
-
-    return offset - old_offset;
-}
-
-static size_t pdu_marshal(V9fsPDU *pdu, size_t offset, const char *fmt, ...)
-{
-    size_t old_offset = offset;
-    va_list ap;
-    int i;
-
-    va_start(ap, fmt);
-    for (i = 0; fmt[i]; i++) {
-        switch (fmt[i]) {
-        case 'b': {
-            uint8_t val = va_arg(ap, int);
-            offset += pdu_pack(pdu, offset, &val, sizeof(val));
-            break;
-        }
-        case 'w': {
-            uint16_t val;
-            cpu_to_le16w(&val, va_arg(ap, int));
-            offset += pdu_pack(pdu, offset, &val, sizeof(val));
-            break;
-        }
-        case 'd': {
-            uint32_t val;
-            cpu_to_le32w(&val, va_arg(ap, uint32_t));
-            offset += pdu_pack(pdu, offset, &val, sizeof(val));
-            break;
-        }
-        case 'q': {
-            uint64_t val;
-            cpu_to_le64w(&val, va_arg(ap, uint64_t));
-            offset += pdu_pack(pdu, offset, &val, sizeof(val));
-            break;
-        }
-        case 's': {
-            V9fsString *str = va_arg(ap, V9fsString *);
-            offset += pdu_marshal(pdu, offset, "w", str->size);
-            offset += pdu_pack(pdu, offset, str->data, str->size);
-            break;
-        }
-        case 'Q': {
-            V9fsQID *qidp = va_arg(ap, V9fsQID *);
-            offset += pdu_marshal(pdu, offset, "bdq",
-                        qidp->type, qidp->version, qidp->path);
-            break;
-        }
-        case 'S': {
-            V9fsStat *statp = va_arg(ap, V9fsStat *);
-            offset += pdu_marshal(pdu, offset, "wwdQdddqsssssddd",
-                        statp->size, statp->type, statp->dev,
-                        &statp->qid, statp->mode, statp->atime,
-                        statp->mtime, statp->length, &statp->name,
-                        &statp->uid, &statp->gid, &statp->muid,
-                        &statp->extension, statp->n_uid,
-                        statp->n_gid, statp->n_muid);
-            break;
-        }
-        case 'A': {
-            V9fsStatDotl *statp = va_arg(ap, V9fsStatDotl *);
-            offset += pdu_marshal(pdu, offset, "qQdddqqqqqqqqqqqqqqq",
-                        statp->st_result_mask,
-                        &statp->qid, statp->st_mode,
-                        statp->st_uid, statp->st_gid,
-                        statp->st_nlink, statp->st_rdev,
-                        statp->st_size, statp->st_blksize, statp->st_blocks,
-                        statp->st_atime_sec, statp->st_atime_nsec,
-                        statp->st_mtime_sec, statp->st_mtime_nsec,
-                        statp->st_ctime_sec, statp->st_ctime_nsec,
-                        statp->st_btime_sec, statp->st_btime_nsec,
-                        statp->st_gen, statp->st_data_version);
-            break;
-        }
-        default:
-            break;
-        }
-    }
-    va_end(ap);
-
-    return offset - old_offset;
-}
-
+/*
+ * We don't do error checking for pdu_marshal/unmarshal here
+ * because we always expect to have enough space to encode
+ * error details
+ */
 static void complete_pdu(V9fsState *s, V9fsPDU *pdu, ssize_t len)
 {
     int8_t id = pdu->id + 1; /* Response */
@@ -944,6 +705,15 @@ static int donttouch_stat(V9fsStat *stat)
     }
 
     return 0;
+}
+
+static void v9fs_stat_init(V9fsStat *stat)
+{
+    v9fs_string_init(&stat->name);
+    v9fs_string_init(&stat->uid);
+    v9fs_string_init(&stat->gid);
+    v9fs_string_init(&stat->muid);
+    v9fs_string_init(&stat->extension);
 }
 
 static void v9fs_stat_free(V9fsStat *stat)
@@ -1130,12 +900,18 @@ static inline bool is_ro_export(FsContext *ctx)
 
 static void v9fs_version(void *opaque)
 {
+    ssize_t err;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
     V9fsString version;
     size_t offset = 7;
 
-    pdu_unmarshal(pdu, offset, "ds", &s->msize, &version);
+    v9fs_string_init(&version);
+    err = pdu_unmarshal(pdu, offset, "ds", &s->msize, &version);
+    if (err < 0) {
+        offset = err;
+        goto out;
+    }
     trace_v9fs_version(pdu->tag, pdu->id, s->msize, version.data);
 
     virtfs_reset(pdu);
@@ -1148,11 +924,15 @@ static void v9fs_version(void *opaque)
         v9fs_string_sprintf(&version, "unknown");
     }
 
-    offset += pdu_marshal(pdu, offset, "ds", s->msize, &version);
+    err = pdu_marshal(pdu, offset, "ds", s->msize, &version);
+    if (err < 0) {
+        offset = err;
+        goto out;
+    }
+    offset += err;
     trace_v9fs_version_return(pdu->tag, pdu->id, s->msize, version.data);
-
+out:
     complete_pdu(s, pdu, offset);
-
     v9fs_string_free(&version);
     return;
 }
@@ -1168,7 +948,13 @@ static void v9fs_attach(void *opaque)
     V9fsQID qid;
     ssize_t err;
 
-    pdu_unmarshal(pdu, offset, "ddssd", &fid, &afid, &uname, &aname, &n_uname);
+    v9fs_string_init(&uname);
+    v9fs_string_init(&aname);
+    err = pdu_unmarshal(pdu, offset, "ddssd", &fid,
+                        &afid, &uname, &aname, &n_uname);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_attach(pdu->tag, pdu->id, fid, afid, uname.data, aname.data);
 
     fidp = alloc_fid(s, fid);
@@ -1189,8 +975,12 @@ static void v9fs_attach(void *opaque)
         clunk_fid(s, fid);
         goto out;
     }
-    offset += pdu_marshal(pdu, offset, "Q", &qid);
-    err = offset;
+    err = pdu_marshal(pdu, offset, "Q", &qid);
+    if (err < 0) {
+        clunk_fid(s, fid);
+        goto out;
+    }
+    err += offset;
     trace_v9fs_attach_return(pdu->tag, pdu->id,
                              qid.type, qid.version, qid.path);
     s->root_fid = fid;
@@ -1217,7 +1007,10 @@ static void v9fs_stat(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "d", &fid);
+    err = pdu_unmarshal(pdu, offset, "d", &fid);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_stat(pdu->tag, pdu->id, fid);
 
     fidp = get_fid(pdu, fid);
@@ -1233,10 +1026,14 @@ static void v9fs_stat(void *opaque)
     if (err < 0) {
         goto out;
     }
-    offset += pdu_marshal(pdu, offset, "wS", 0, &v9stat);
-    err = offset;
+    err = pdu_marshal(pdu, offset, "wS", 0, &v9stat);
+    if (err < 0) {
+        v9fs_stat_free(&v9stat);
+        goto out;
+    }
     trace_v9fs_stat_return(pdu->tag, pdu->id, v9stat.mode,
                            v9stat.atime, v9stat.mtime, v9stat.length);
+    err += offset;
     v9fs_stat_free(&v9stat);
 out:
     put_fid(pdu, fidp);
@@ -1256,7 +1053,10 @@ static void v9fs_getattr(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dq", &fid, &request_mask);
+    retval = pdu_unmarshal(pdu, offset, "dq", &fid, &request_mask);
+    if (retval < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_getattr(pdu->tag, pdu->id, fid, request_mask);
 
     fidp = get_fid(pdu, fid);
@@ -1282,8 +1082,11 @@ static void v9fs_getattr(void *opaque)
         }
         v9stat_dotl.st_result_mask |= P9_STATS_GEN;
     }
-    retval = offset;
-    retval += pdu_marshal(pdu, offset, "A", &v9stat_dotl);
+    retval = pdu_marshal(pdu, offset, "A", &v9stat_dotl);
+    if (retval < 0) {
+        goto out;
+    }
+    retval += offset;
     trace_v9fs_getattr_return(pdu->tag, pdu->id, v9stat_dotl.st_result_mask,
                               v9stat_dotl.st_mode, v9stat_dotl.st_uid,
                               v9stat_dotl.st_gid);
@@ -1316,7 +1119,10 @@ static void v9fs_setattr(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dI", &fid, &v9iattr);
+    err = pdu_unmarshal(pdu, offset, "dI", &fid, &v9iattr);
+    if (err < 0) {
+        goto out_nofid;
+    }
 
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
@@ -1391,10 +1197,20 @@ out_nofid:
 static int v9fs_walk_marshal(V9fsPDU *pdu, uint16_t nwnames, V9fsQID *qids)
 {
     int i;
+    ssize_t err;
     size_t offset = 7;
-    offset += pdu_marshal(pdu, offset, "w", nwnames);
+
+    err = pdu_marshal(pdu, offset, "w", nwnames);
+    if (err < 0) {
+        return err;
+    }
+    offset += err;
     for (i = 0; i < nwnames; i++) {
-        offset += pdu_marshal(pdu, offset, "Q", &qids[i]);
+        err = pdu_marshal(pdu, offset, "Q", &qids[i]);
+        if (err < 0) {
+            return err;
+        }
+        offset += err;
     }
     return offset;
 }
@@ -1415,8 +1231,12 @@ static void v9fs_walk(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    offset += pdu_unmarshal(pdu, offset, "ddw", &fid,
-                            &newfid, &nwnames);
+    err = pdu_unmarshal(pdu, offset, "ddw", &fid, &newfid, &nwnames);
+    if (err < 0) {
+        complete_pdu(s, pdu, err);
+        return ;
+    }
+    offset += err;
 
     trace_v9fs_walk(pdu->tag, pdu->id, fid, newfid, nwnames);
 
@@ -1424,7 +1244,11 @@ static void v9fs_walk(void *opaque)
         wnames = g_malloc0(sizeof(wnames[0]) * nwnames);
         qids   = g_malloc0(sizeof(qids[0]) * nwnames);
         for (i = 0; i < nwnames; i++) {
-            offset += pdu_unmarshal(pdu, offset, "s", &wnames[i]);
+            err = pdu_unmarshal(pdu, offset, "s", &wnames[i]);
+            if (err < 0) {
+                goto out_nofid;
+            }
+            offset += err;
         }
     } else if (nwnames > P9_MAXWELEM) {
         err = -EINVAL;
@@ -1523,9 +1347,12 @@ static void v9fs_open(void *opaque)
     V9fsState *s = pdu->s;
 
     if (s->proto_version == V9FS_PROTO_2000L) {
-        pdu_unmarshal(pdu, offset, "dd", &fid, &mode);
+        err = pdu_unmarshal(pdu, offset, "dd", &fid, &mode);
     } else {
-        pdu_unmarshal(pdu, offset, "db", &fid, &mode);
+        err = pdu_unmarshal(pdu, offset, "db", &fid, &mode);
+    }
+    if (err < 0) {
+        goto out_nofid;
     }
     trace_v9fs_open(pdu->tag, pdu->id, fid, mode);
 
@@ -1547,8 +1374,11 @@ static void v9fs_open(void *opaque)
             goto out;
         }
         fidp->fid_type = P9_FID_DIR;
-        offset += pdu_marshal(pdu, offset, "Qd", &qid, 0);
-        err = offset;
+        err = pdu_marshal(pdu, offset, "Qd", &qid, 0);
+        if (err < 0) {
+            goto out;
+        }
+        err += offset;
     } else {
         if (s->proto_version == V9FS_PROTO_2000L) {
             flags = get_dotl_openflags(s, mode);
@@ -1577,8 +1407,11 @@ static void v9fs_open(void *opaque)
             fidp->flags |= FID_NON_RECLAIMABLE;
         }
         iounit = get_iounit(pdu, &fidp->path);
-        offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
-        err = offset;
+        err = pdu_marshal(pdu, offset, "Qd", &qid, iounit);
+        if (err < 0) {
+            goto out;
+        }
+        err += offset;
     }
     trace_v9fs_open_return(pdu->tag, pdu->id,
                            qid.type, qid.version, qid.path, iounit);
@@ -1601,8 +1434,12 @@ static void v9fs_lcreate(void *opaque)
     int32_t iounit;
     V9fsPDU *pdu = opaque;
 
-    pdu_unmarshal(pdu, offset, "dsddd", &dfid, &name, &flags,
-                  &mode, &gid);
+    v9fs_string_init(&name);
+    err = pdu_unmarshal(pdu, offset, "dsddd", &dfid,
+                        &name, &flags, &mode, &gid);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_lcreate(pdu->tag, pdu->id, dfid, flags, mode, gid);
 
     fidp = get_fid(pdu, dfid);
@@ -1628,8 +1465,11 @@ static void v9fs_lcreate(void *opaque)
     }
     iounit =  get_iounit(pdu, &fidp->path);
     stat_to_qid(&stbuf, &qid);
-    offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
-    err = offset;
+    err = pdu_marshal(pdu, offset, "Qd", &qid, iounit);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
     trace_v9fs_lcreate_return(pdu->tag, pdu->id,
                               qid.type, qid.version, qid.path, iounit);
 out:
@@ -1649,7 +1489,10 @@ static void v9fs_fsync(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dd", &fid, &datasync);
+    err = pdu_unmarshal(pdu, offset, "dd", &fid, &datasync);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_fsync(pdu->tag, pdu->id, fid, datasync);
 
     fidp = get_fid(pdu, fid);
@@ -1675,7 +1518,10 @@ static void v9fs_clunk(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "d", &fid);
+    err = pdu_unmarshal(pdu, offset, "d", &fid);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_clunk(pdu->tag, pdu->id, fid);
 
     fidp = clunk_fid(s, fid);
@@ -1698,6 +1544,7 @@ out_nofid:
 static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
                            uint64_t off, uint32_t max_count)
 {
+    ssize_t err;
     size_t offset = 7;
     int read_count;
     int64_t xattr_len;
@@ -1712,10 +1559,18 @@ static int v9fs_xattr_read(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
          */
         read_count = 0;
     }
-    offset += pdu_marshal(pdu, offset, "d", read_count);
-    offset += pdu_pack(pdu, offset,
-                       ((char *)fidp->fs.xattr.value) + off,
-                       read_count);
+    err = pdu_marshal(pdu, offset, "d", read_count);
+    if (err < 0) {
+        return err;
+    }
+    offset += err;
+    err = v9fs_pack(pdu->elem.in_sg, pdu->elem.in_num, offset,
+                    ((char *)fidp->fs.xattr.value) + off,
+                    read_count);
+    if (err < 0) {
+        return err;
+    }
+    offset += err;
     return offset;
 }
 
@@ -1824,7 +1679,10 @@ static void v9fs_read(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dqd", &fid, &off, &max_count);
+    err = pdu_unmarshal(pdu, offset, "dqd", &fid, &off, &max_count);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_read(pdu->tag, pdu->id, fid, off, max_count);
 
     fidp = get_fid(pdu, fid);
@@ -1842,9 +1700,11 @@ static void v9fs_read(void *opaque)
             err = count;
             goto out;
         }
-        err = offset;
-        err += pdu_marshal(pdu, offset, "d", count);
-        err += count;
+        err = pdu_marshal(pdu, offset, "d", count);
+        if (err < 0) {
+            goto out;
+        }
+        err += offset + count;
     } else if (fidp->fid_type == P9_FID_FILE) {
         QEMUIOVector qiov_full;
         QEMUIOVector qiov;
@@ -1872,9 +1732,11 @@ static void v9fs_read(void *opaque)
                 goto out;
             }
         } while (count < max_count && len > 0);
-        err = offset;
-        err += pdu_marshal(pdu, offset, "d", count);
-        err += count;
+        err = pdu_marshal(pdu, offset, "d", count);
+        if (err < 0) {
+            goto out;
+        }
+        err += offset + count;
         qemu_iovec_destroy(&qiov);
         qemu_iovec_destroy(&qiov_full);
     } else if (fidp->fid_type == P9_FID_XATTR) {
@@ -1946,6 +1808,12 @@ static int v9fs_do_readdir(V9fsPDU *pdu,
         len = pdu_marshal(pdu, 11 + count, "Qqbs",
                           &qid, dent->d_off,
                           dent->d_type, &name);
+        if (len < 0) {
+            v9fs_co_seekdir(pdu, fidp, saved_dir_pos);
+            v9fs_string_free(&name);
+            g_free(dent);
+            return len;
+        }
         count += len;
         v9fs_string_free(&name);
         saved_dir_pos = dent->d_off;
@@ -1969,8 +1837,11 @@ static void v9fs_readdir(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dqd", &fid, &initial_offset, &max_count);
-
+    retval = pdu_unmarshal(pdu, offset, "dqd", &fid,
+                           &initial_offset, &max_count);
+    if (retval < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_readdir(pdu->tag, pdu->id, fid, initial_offset, max_count);
 
     fidp = get_fid(pdu, fid);
@@ -1992,9 +1863,11 @@ static void v9fs_readdir(void *opaque)
         retval = count;
         goto out;
     }
-    retval = offset;
-    retval += pdu_marshal(pdu, offset, "d", count);
-    retval += count;
+    retval = pdu_marshal(pdu, offset, "d", count);
+    if (retval < 0) {
+        goto out;
+    }
+    retval += count + offset;
     trace_v9fs_readdir_return(pdu->tag, pdu->id, count, retval);
 out:
     put_fid(pdu, fidp);
@@ -2025,8 +1898,11 @@ static int v9fs_xattr_write(V9fsState *s, V9fsPDU *pdu, V9fsFidState *fidp,
         err = -ENOSPC;
         goto out;
     }
-    offset += pdu_marshal(pdu, offset, "d", write_count);
-    err = offset;
+    err = pdu_marshal(pdu, offset, "d", write_count);
+    if (err < 0) {
+        return err;
+    }
+    err += offset;
     fidp->fs.xattr.copied_len += write_count;
     /*
      * Now copy the content from sg list
@@ -2061,7 +1937,11 @@ static void v9fs_write(void *opaque)
     QEMUIOVector qiov_full;
     QEMUIOVector qiov;
 
-    offset += pdu_unmarshal(pdu, offset, "dqd", &fid, &off, &count);
+    err = pdu_unmarshal(pdu, offset, "dqd", &fid, &off, &count);
+    if (err < 0) {
+        return complete_pdu(s, pdu, err);
+    }
+    offset += err;
     v9fs_init_qiov_from_pdu(&qiov_full, pdu, offset, count, true);
     trace_v9fs_write(pdu->tag, pdu->id, fid, off, count, qiov_full.niov);
 
@@ -2109,8 +1989,11 @@ static void v9fs_write(void *opaque)
     } while (total < count && len > 0);
 
     offset = 7;
-    offset += pdu_marshal(pdu, offset, "d", total);
-    err = offset;
+    err = pdu_marshal(pdu, offset, "d", total);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
     trace_v9fs_write_return(pdu->tag, pdu->id, total, err);
 out_qiov:
     qemu_iovec_destroy(&qiov);
@@ -2138,10 +2021,13 @@ static void v9fs_create(void *opaque)
     V9fsPDU *pdu = opaque;
 
     v9fs_path_init(&path);
-
-    pdu_unmarshal(pdu, offset, "dsdbs", &fid, &name,
-                  &perm, &mode, &extension);
-
+    v9fs_string_init(&name);
+    v9fs_string_init(&extension);
+    err = pdu_unmarshal(pdu, offset, "dsdbs", &fid, &name,
+                        &perm, &mode, &extension);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_create(pdu->tag, pdu->id, fid, name.data, perm, mode);
 
     fidp = get_fid(pdu, fid);
@@ -2272,8 +2158,11 @@ static void v9fs_create(void *opaque)
     }
     iounit = get_iounit(pdu, &fidp->path);
     stat_to_qid(&stbuf, &qid);
-    offset += pdu_marshal(pdu, offset, "Qd", &qid, iounit);
-    err = offset;
+    err = pdu_marshal(pdu, offset, "Qd", &qid, iounit);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
     trace_v9fs_create_return(pdu->tag, pdu->id,
                              qid.type, qid.version, qid.path, iounit);
 out:
@@ -2298,7 +2187,12 @@ static void v9fs_symlink(void *opaque)
     gid_t gid;
     size_t offset = 7;
 
-    pdu_unmarshal(pdu, offset, "dssd", &dfid, &name, &symname, &gid);
+    v9fs_string_init(&name);
+    v9fs_string_init(&symname);
+    err = pdu_unmarshal(pdu, offset, "dssd", &dfid, &name, &symname, &gid);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_symlink(pdu->tag, pdu->id, dfid, name.data, symname.data, gid);
 
     dfidp = get_fid(pdu, dfid);
@@ -2311,8 +2205,11 @@ static void v9fs_symlink(void *opaque)
         goto out;
     }
     stat_to_qid(&stbuf, &qid);
-    offset += pdu_marshal(pdu, offset, "Q", &qid);
-    err = offset;
+    err =  pdu_marshal(pdu, offset, "Q", &qid);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
     trace_v9fs_symlink_return(pdu->tag, pdu->id,
                               qid.type, qid.version, qid.path);
 out:
@@ -2325,13 +2222,18 @@ out_nofid:
 
 static void v9fs_flush(void *opaque)
 {
+    ssize_t err;
     int16_t tag;
     size_t offset = 7;
     V9fsPDU *cancel_pdu;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "w", &tag);
+    err = pdu_unmarshal(pdu, offset, "w", &tag);
+    if (err < 0) {
+        complete_pdu(s, pdu, err);
+        return;
+    }
     trace_v9fs_flush(pdu->tag, pdu->id, tag);
 
     QLIST_FOREACH(cancel_pdu, &s->active_list, next) {
@@ -2362,7 +2264,11 @@ static void v9fs_link(void *opaque)
     size_t offset = 7;
     int err = 0;
 
-    pdu_unmarshal(pdu, offset, "dds", &dfid, &oldfid, &name);
+    v9fs_string_init(&name);
+    err = pdu_unmarshal(pdu, offset, "dds", &dfid, &oldfid, &name);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_link(pdu->tag, pdu->id, dfid, oldfid, name.data);
 
     dfidp = get_fid(pdu, dfid);
@@ -2396,7 +2302,10 @@ static void v9fs_remove(void *opaque)
     V9fsFidState *fidp;
     V9fsPDU *pdu = opaque;
 
-    pdu_unmarshal(pdu, offset, "d", &fid);
+    err = pdu_unmarshal(pdu, offset, "d", &fid);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_remove(pdu->tag, pdu->id, fid);
 
     fidp = get_fid(pdu, fid);
@@ -2439,8 +2348,11 @@ static void v9fs_unlinkat(void *opaque)
     V9fsFidState *dfidp;
     V9fsPDU *pdu = opaque;
 
-    pdu_unmarshal(pdu, offset, "dsd", &dfid, &name, &flags);
-
+    v9fs_string_init(&name);
+    err = pdu_unmarshal(pdu, offset, "dsd", &dfid, &name, &flags);
+    if (err < 0) {
+        goto out_nofid;
+    }
     dfidp = get_fid(pdu, dfid);
     if (dfidp == NULL) {
         err = -EINVAL;
@@ -2542,8 +2454,11 @@ static void v9fs_rename(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dds", &fid, &newdirfid, &name);
-
+    v9fs_string_init(&name);
+    err = pdu_unmarshal(pdu, offset, "dds", &fid, &newdirfid, &name);
+    if (err < 0) {
+        goto out_nofid;
+    }
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         err = -ENOENT;
@@ -2648,8 +2563,13 @@ static void v9fs_renameat(void *opaque)
     int32_t olddirfid, newdirfid;
     V9fsString old_name, new_name;
 
-    pdu_unmarshal(pdu, offset, "dsds", &olddirfid,
-                  &old_name, &newdirfid, &new_name);
+    v9fs_string_init(&old_name);
+    v9fs_string_init(&new_name);
+    err = pdu_unmarshal(pdu, offset, "dsds", &olddirfid,
+                        &old_name, &newdirfid, &new_name);
+    if (err < 0) {
+        goto out_err;
+    }
 
     v9fs_path_write_lock(s);
     err = v9fs_complete_renameat(pdu, olddirfid,
@@ -2658,6 +2578,8 @@ static void v9fs_renameat(void *opaque)
     if (!err) {
         err = offset;
     }
+
+out_err:
     complete_pdu(s, pdu, err);
     v9fs_string_free(&old_name);
     v9fs_string_free(&new_name);
@@ -2675,7 +2597,11 @@ static void v9fs_wstat(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dwS", &fid, &unused, &v9stat);
+    v9fs_stat_init(&v9stat);
+    err = pdu_unmarshal(pdu, offset, "dwS", &fid, &unused, &v9stat);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_wstat(pdu->tag, pdu->id, fid,
                      v9stat.mode, v9stat.atime, v9stat.mtime);
 
@@ -2809,7 +2735,10 @@ static void v9fs_statfs(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "d", &fid);
+    retval = pdu_unmarshal(pdu, offset, "d", &fid);
+    if (retval < 0) {
+        goto out_nofid;
+    }
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
         retval = -ENOENT;
@@ -2819,8 +2748,11 @@ static void v9fs_statfs(void *opaque)
     if (retval < 0) {
         goto out;
     }
-    retval = offset;
-    retval += v9fs_fill_statfs(s, pdu, &stbuf);
+    retval = v9fs_fill_statfs(s, pdu, &stbuf);
+    if (retval < 0) {
+        goto out;
+    }
+    retval += offset;
 out:
     put_fid(pdu, fidp);
 out_nofid:
@@ -2844,8 +2776,12 @@ static void v9fs_mknod(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dsdddd", &fid, &name, &mode,
-                  &major, &minor, &gid);
+    v9fs_string_init(&name);
+    err = pdu_unmarshal(pdu, offset, "dsdddd", &fid, &name, &mode,
+                        &major, &minor, &gid);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_mknod(pdu->tag, pdu->id, fid, mode, major, minor);
 
     fidp = get_fid(pdu, fid);
@@ -2859,8 +2795,11 @@ static void v9fs_mknod(void *opaque)
         goto out;
     }
     stat_to_qid(&stbuf, &qid);
-    err = offset;
-    err += pdu_marshal(pdu, offset, "Q", &qid);
+    err = pdu_marshal(pdu, offset, "Q", &qid);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
     trace_v9fs_mknod_return(pdu->tag, pdu->id,
                             qid.type, qid.version, qid.path);
 out:
@@ -2881,7 +2820,7 @@ out_nofid:
 static void v9fs_lock(void *opaque)
 {
     int8_t status;
-    V9fsFlock *flock;
+    V9fsFlock flock;
     size_t offset = 7;
     struct stat stbuf;
     V9fsFidState *fidp;
@@ -2889,18 +2828,20 @@ static void v9fs_lock(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    flock = g_malloc(sizeof(*flock));
-    pdu_unmarshal(pdu, offset, "dbdqqds", &fid, &flock->type,
-                  &flock->flags, &flock->start, &flock->length,
-                  &flock->proc_id, &flock->client_id);
-
-    trace_v9fs_lock(pdu->tag, pdu->id, fid,
-                    flock->type, flock->start, flock->length);
-
     status = P9_LOCK_ERROR;
+    v9fs_string_init(&flock.client_id);
+    err = pdu_unmarshal(pdu, offset, "dbdqqds", &fid, &flock.type,
+                        &flock.flags, &flock.start, &flock.length,
+                        &flock.proc_id, &flock.client_id);
+    if (err < 0) {
+        goto out_nofid;
+    }
+    trace_v9fs_lock(pdu->tag, pdu->id, fid,
+                    flock.type, flock.start, flock.length);
+
 
     /* We support only block flag now (that too ignored currently) */
-    if (flock->flags & ~P9_LOCK_FLAGS_BLOCK) {
+    if (flock.flags & ~P9_LOCK_FLAGS_BLOCK) {
         err = -EINVAL;
         goto out_nofid;
     }
@@ -2917,12 +2858,13 @@ static void v9fs_lock(void *opaque)
 out:
     put_fid(pdu, fidp);
 out_nofid:
-    err = offset;
-    err += pdu_marshal(pdu, offset, "b", status);
+    err = pdu_marshal(pdu, offset, "b", status);
+    if (err > 0) {
+        err += offset;
+    }
     trace_v9fs_lock_return(pdu->tag, pdu->id, status);
     complete_pdu(s, pdu, err);
-    v9fs_string_free(&flock->client_id);
-    g_free(flock);
+    v9fs_string_free(&flock.client_id);
 }
 
 /*
@@ -2934,18 +2876,20 @@ static void v9fs_getlock(void *opaque)
     size_t offset = 7;
     struct stat stbuf;
     V9fsFidState *fidp;
-    V9fsGetlock *glock;
+    V9fsGetlock glock;
     int32_t fid, err = 0;
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    glock = g_malloc(sizeof(*glock));
-    pdu_unmarshal(pdu, offset, "dbqqds", &fid, &glock->type,
-                  &glock->start, &glock->length, &glock->proc_id,
-                  &glock->client_id);
-
+    v9fs_string_init(&glock.client_id);
+    err = pdu_unmarshal(pdu, offset, "dbqqds", &fid, &glock.type,
+                        &glock.start, &glock.length, &glock.proc_id,
+                        &glock.client_id);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_getlock(pdu->tag, pdu->id, fid,
-                       glock->type, glock->start, glock->length);
+                       glock.type, glock.start, glock.length);
 
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
@@ -2956,19 +2900,21 @@ static void v9fs_getlock(void *opaque)
     if (err < 0) {
         goto out;
     }
-    glock->type = P9_LOCK_TYPE_UNLCK;
-    offset += pdu_marshal(pdu, offset, "bqqds", glock->type,
-                          glock->start, glock->length, glock->proc_id,
-                          &glock->client_id);
-    err = offset;
-    trace_v9fs_getlock_return(pdu->tag, pdu->id, glock->type, glock->start,
-                              glock->length, glock->proc_id);
+    glock.type = P9_LOCK_TYPE_UNLCK;
+    err = pdu_marshal(pdu, offset, "bqqds", glock.type,
+                          glock.start, glock.length, glock.proc_id,
+                          &glock.client_id);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
+    trace_v9fs_getlock_return(pdu->tag, pdu->id, glock.type, glock.start,
+                              glock.length, glock.proc_id);
 out:
     put_fid(pdu, fidp);
 out_nofid:
     complete_pdu(s, pdu, err);
-    v9fs_string_free(&glock->client_id);
-    g_free(glock);
+    v9fs_string_free(&glock.client_id);
 }
 
 static void v9fs_mkdir(void *opaque)
@@ -2984,8 +2930,11 @@ static void v9fs_mkdir(void *opaque)
     int mode;
     int err = 0;
 
-    pdu_unmarshal(pdu, offset, "dsdd", &fid, &name, &mode, &gid);
-
+    v9fs_string_init(&name);
+    err = pdu_unmarshal(pdu, offset, "dsdd", &fid, &name, &mode, &gid);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_mkdir(pdu->tag, pdu->id, fid, name.data, mode, gid);
 
     fidp = get_fid(pdu, fid);
@@ -2998,8 +2947,11 @@ static void v9fs_mkdir(void *opaque)
         goto out;
     }
     stat_to_qid(&stbuf, &qid);
-    offset += pdu_marshal(pdu, offset, "Q", &qid);
-    err = offset;
+    err = pdu_marshal(pdu, offset, "Q", &qid);
+    if (err < 0) {
+        goto out;
+    }
+    err += offset;
     trace_v9fs_mkdir_return(pdu->tag, pdu->id,
                             qid.type, qid.version, qid.path, err);
 out:
@@ -3021,7 +2973,11 @@ static void v9fs_xattrwalk(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dds", &fid, &newfid, &name);
+    v9fs_string_init(&name);
+    err = pdu_unmarshal(pdu, offset, "dds", &fid, &newfid, &name);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_xattrwalk(pdu->tag, pdu->id, fid, newfid, name.data);
 
     file_fidp = get_fid(pdu, fid);
@@ -3035,7 +2991,7 @@ static void v9fs_xattrwalk(void *opaque)
         goto out;
     }
     v9fs_path_copy(&xattr_fidp->path, &file_fidp->path);
-    if (name.data[0] == 0) {
+    if (name.data == NULL) {
         /*
          * listxattr request. Get the size first
          */
@@ -3061,8 +3017,11 @@ static void v9fs_xattrwalk(void *opaque)
                 goto out;
             }
         }
-        offset += pdu_marshal(pdu, offset, "q", size);
-        err = offset;
+        err = pdu_marshal(pdu, offset, "q", size);
+        if (err < 0) {
+            goto out;
+        }
+        err += offset;
     } else {
         /*
          * specific xattr fid. We check for xattr
@@ -3091,8 +3050,11 @@ static void v9fs_xattrwalk(void *opaque)
                 goto out;
             }
         }
-        offset += pdu_marshal(pdu, offset, "q", size);
-        err = offset;
+        err = pdu_marshal(pdu, offset, "q", size);
+        if (err < 0) {
+            goto out;
+        }
+        err += offset;
     }
     trace_v9fs_xattrwalk_return(pdu->tag, pdu->id, size);
 out:
@@ -3118,8 +3080,11 @@ static void v9fs_xattrcreate(void *opaque)
     V9fsPDU *pdu = opaque;
     V9fsState *s = pdu->s;
 
-    pdu_unmarshal(pdu, offset, "dsqd",
-                  &fid, &name, &size, &flags);
+    v9fs_string_init(&name);
+    err = pdu_unmarshal(pdu, offset, "dsqd", &fid, &name, &size, &flags);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_xattrcreate(pdu->tag, pdu->id, fid, name.data, size, flags);
 
     file_fidp = get_fid(pdu, fid);
@@ -3156,7 +3121,10 @@ static void v9fs_readlink(void *opaque)
     int err = 0;
     V9fsFidState *fidp;
 
-    pdu_unmarshal(pdu, offset, "d", &fid);
+    err = pdu_unmarshal(pdu, offset, "d", &fid);
+    if (err < 0) {
+        goto out_nofid;
+    }
     trace_v9fs_readlink(pdu->tag, pdu->id, fid);
     fidp = get_fid(pdu, fid);
     if (fidp == NULL) {
@@ -3169,8 +3137,12 @@ static void v9fs_readlink(void *opaque)
     if (err < 0) {
         goto out;
     }
-    offset += pdu_marshal(pdu, offset, "s", &target);
-    err = offset;
+    err = pdu_marshal(pdu, offset, "s", &target);
+    if (err < 0) {
+        v9fs_string_free(&target);
+        goto out;
+    }
+    err += offset;
     trace_v9fs_readlink_return(pdu->tag, pdu->id, target.data);
     v9fs_string_free(&target);
 out:
