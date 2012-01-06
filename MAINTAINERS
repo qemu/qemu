@@ -307,6 +307,7 @@ PReP
 M: Andreas Färber <andreas.faerber@web.de>
 S: Odd Fixes
 F: hw/ppc_prep.c
+F: hw/prep_pci.[hc]
 
 SH4 Machines
 ------------
