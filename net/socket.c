@@ -427,12 +427,14 @@ static int net_socket_listen_init(VLANState *vlan,
     if (ret < 0) {
         perror("bind");
         g_free(s);
+        closesocket(fd);
         return -1;
     }
     ret = listen(fd, 0);
     if (ret < 0) {
         perror("listen");
         g_free(s);
+        closesocket(fd);
         return -1;
     }
     s->vlan = vlan;

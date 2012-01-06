@@ -27,16 +27,15 @@ static FsDriverTable FsDrivers[] = {
     { .name = "handle", .ops = &handle_ops},
 #endif
     { .name = "synth", .ops = &synth_ops},
+    { .name = "proxy", .ops = &proxy_ops},
 };
 
 int qemu_fsdev_add(QemuOpts *opts)
 {
-    struct FsDriverListEntry *fsle;
     int i;
+    struct FsDriverListEntry *fsle;
     const char *fsdev_id = qemu_opts_id(opts);
     const char *fsdriver = qemu_opt_get(opts, "fsdriver");
-    const char *path = qemu_opt_get(opts, "path");
-    const char *sec_model = qemu_opt_get(opts, "security_model");
     const char *writeout = qemu_opt_get(opts, "writeout");
     bool ro = qemu_opt_get_bool(opts, "readonly", 0);
 
@@ -61,29 +60,9 @@ int qemu_fsdev_add(QemuOpts *opts)
         return -1;
     }
 
-    if (!strcmp(fsdriver, "local") && !sec_model) {
-        fprintf(stderr, "security model not specified, "
-                "local fs needs security model\nvalid options are:"
-                "\tsecurity_model=[passthrough|mapped|none]\n");
-        return -1;
-    }
-
-    if (strcmp(fsdriver, "local") && sec_model) {
-        fprintf(stderr, "only local fs driver needs security model\n");
-        return -1;
-    }
-
-    if (!path) {
-        fprintf(stderr, "fsdev: No path specified.\n");
-        return -1;
-    }
-
-    fsle = g_malloc(sizeof(*fsle));
-
+    fsle = g_malloc0(sizeof(*fsle));
     fsle->fse.fsdev_id = g_strdup(fsdev_id);
-    fsle->fse.path = g_strdup(path);
     fsle->fse.ops = FsDrivers[i].ops;
-    fsle->fse.export_flags = 0;
     if (writeout) {
         if (!strcmp(writeout, "immediate")) {
             fsle->fse.export_flags |= V9FS_IMMEDIATE_WRITEOUT;
@@ -95,22 +74,12 @@ int qemu_fsdev_add(QemuOpts *opts)
         fsle->fse.export_flags &= ~V9FS_RDONLY;
     }
 
-    if (strcmp(fsdriver, "local")) {
-        goto done;
+    if (fsle->fse.ops->parse_opts) {
+        if (fsle->fse.ops->parse_opts(opts, &fsle->fse)) {
+            return -1;
+        }
     }
 
-    if (!strcmp(sec_model, "passthrough")) {
-        fsle->fse.export_flags |= V9FS_SM_PASSTHROUGH;
-    } else if (!strcmp(sec_model, "mapped")) {
-        fsle->fse.export_flags |= V9FS_SM_MAPPED;
-    } else if (!strcmp(sec_model, "none")) {
-        fsle->fse.export_flags |= V9FS_SM_NONE;
-    } else {
-        fprintf(stderr, "Invalid security model %s specified, valid options are"
-                "\n\t [passthrough|mapped|none]\n", sec_model);
-        return -1;
-    }
-done:
     QTAILQ_INSERT_TAIL(&fsdriver_entries, fsle, next);
     return 0;
 }

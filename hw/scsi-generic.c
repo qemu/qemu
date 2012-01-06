@@ -374,13 +374,13 @@ static int scsi_generic_initfn(SCSIDevice *s)
     struct sg_scsi_id scsiid;
 
     if (!s->conf.bs) {
-        error_report("scsi-generic: drive property not set");
+        error_report("drive property not set");
         return -1;
     }
 
     /* check we are really using a /dev/sg* file */
     if (!bdrv_is_sg(s->conf.bs)) {
-        error_report("scsi-generic: not /dev/sg*");
+        error_report("not /dev/sg*");
         return -1;
     }
 
@@ -396,13 +396,13 @@ static int scsi_generic_initfn(SCSIDevice *s)
     /* check we are using a driver managing SG_IO (version 3 and after */
     if (bdrv_ioctl(s->conf.bs, SG_GET_VERSION_NUM, &sg_version) < 0 ||
         sg_version < 30000) {
-        error_report("scsi-generic: scsi generic interface too old");
+        error_report("scsi generic interface too old");
         return -1;
     }
 
     /* get LUN of the /dev/sg? */
     if (bdrv_ioctl(s->conf.bs, SG_GET_SCSI_ID, &scsiid)) {
-        error_report("scsi-generic: SG_GET_SCSI_ID ioctl failed");
+        error_report("SG_GET_SCSI_ID ioctl failed");
         return -1;
     }
 

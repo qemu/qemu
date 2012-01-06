@@ -202,12 +202,10 @@ static void *nbd_client_thread(void *arg)
     int ret;
     pthread_t show_parts_thread;
 
-    do {
-        sock = unix_socket_outgoing(sockpath);
-        if (sock == -1) {
-            goto out;
-        }
-    } while (sock == -1);
+    sock = unix_socket_outgoing(sockpath);
+    if (sock == -1) {
+        goto out;
+    }
 
     ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
                                 &size, &blocksize);

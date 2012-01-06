@@ -116,6 +116,7 @@ typedef struct USBHostDevice {
     USBDevice dev;
     int       fd;
     int       hub_fd;
+    int       hub_port;
 
     uint8_t   descr[8192];
     int       descr_len;
@@ -434,7 +435,7 @@ static int usb_host_claim_port(USBHostDevice *s)
 {
 #ifdef USBDEVFS_CLAIM_PORT
     char *h, hub_name[64], line[1024];
-    int hub_addr, portnr, ret;
+    int hub_addr, ret;
 
     snprintf(hub_name, sizeof(hub_name), "%d-%s",
              s->match.bus_num, s->match.port);
@@ -442,13 +443,13 @@ static int usb_host_claim_port(USBHostDevice *s)
     /* try strip off last ".$portnr" to get hub */
     h = strrchr(hub_name, '.');
     if (h != NULL) {
-        portnr = atoi(h+1);
+        s->hub_port = atoi(h+1);
         *h = '\0';
     } else {
         /* no dot in there -> it is the root hub */
         snprintf(hub_name, sizeof(hub_name), "usb%d",
                  s->match.bus_num);
-        portnr = atoi(s->match.port);
+        s->hub_port = atoi(s->match.port);
     }
 
     if (!usb_host_read_file(line, sizeof(line), "devnum",
@@ -469,18 +470,30 @@ static int usb_host_claim_port(USBHostDevice *s)
         return -1;
     }
 
-    ret = ioctl(s->hub_fd, USBDEVFS_CLAIM_PORT, &portnr);
+    ret = ioctl(s->hub_fd, USBDEVFS_CLAIM_PORT, &s->hub_port);
     if (ret < 0) {
         close(s->hub_fd);
         s->hub_fd = -1;
         return -1;
     }
 
-    trace_usb_host_claim_port(s->match.bus_num, hub_addr, portnr);
+    trace_usb_host_claim_port(s->match.bus_num, hub_addr, s->hub_port);
     return 0;
 #else
     return -1;
 #endif
+}
+
+static void usb_host_release_port(USBHostDevice *s)
+{
+    if (s->hub_fd == -1) {
+        return;
+    }
+#ifdef USBDEVFS_RELEASE_PORT
+    ioctl(s->hub_fd, USBDEVFS_RELEASE_PORT, &s->hub_port);
+#endif
+    close(s->hub_fd);
+    s->hub_fd = -1;
 }
 
 static int usb_host_disconnect_ifaces(USBHostDevice *dev, int nb_interfaces)
@@ -635,10 +648,8 @@ static void usb_host_handle_destroy(USBDevice *dev)
 {
     USBHostDevice *s = (USBHostDevice *)dev;
 
+    usb_host_release_port(s);
     usb_host_close(s);
-    if (s->hub_fd != -1) {
-        close(s->hub_fd);
-    }
     QTAILQ_REMOVE(&hostdevs, s, next);
     qemu_remove_exit_notifier(&s->exit);
 }
@@ -1141,15 +1152,18 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
     length = s->descr_len - 18;
     i = 0;
 
-    if (descriptors[i + 1] != USB_DT_CONFIG ||
-        descriptors[i + 5] != s->configuration) {
-        fprintf(stderr, "invalid descriptor data - configuration %d\n",
-                s->configuration);
-        return 1;
-    }
-    i += descriptors[i];
-
     while (i < length) {
+        if (descriptors[i + 1] != USB_DT_CONFIG) {
+            fprintf(stderr, "invalid descriptor data\n");
+            return 1;
+        } else if (descriptors[i + 5] != s->configuration) {
+            DPRINTF("not requested configuration %d\n", s->configuration);
+            i += (descriptors[i + 3] << 8) + descriptors[i + 2];
+            continue;
+        }
+
+        i += descriptors[i];
+
         if (descriptors[i + 1] != USB_DT_INTERFACE ||
             (descriptors[i + 1] == USB_DT_INTERFACE &&
              descriptors[i + 4] == 0)) {
@@ -1399,6 +1413,7 @@ static void usb_host_exit_notifier(struct Notifier *n, void *data)
 {
     USBHostDevice *s = container_of(n, USBHostDevice, exit);
 
+    usb_host_release_port(s);
     if (s->fd != -1) {
         usb_host_do_reset(s);;
     }
