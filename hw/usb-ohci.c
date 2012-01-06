@@ -449,7 +449,7 @@ static void ohci_reset(void *opaque)
         port = &ohci->rhport[i];
         port->ctrl = 0;
         if (port->port.dev && port->port.dev->attached) {
-            usb_reset(&port->port);
+            usb_port_reset(&port->port);
         }
       }
     if (ohci->async_td) {
@@ -1435,7 +1435,7 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
 
     if (ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PRS)) {
         DPRINTF("usb-ohci: port %d: RESET\n", portnum);
-        usb_send_msg(port->port.dev, USB_MSG_RESET);
+        usb_device_reset(port->port.dev);
         port->ctrl &= ~OHCI_PORT_PRS;
         /* ??? Should this also set OHCI_PORT_PESC.  */
         port->ctrl |= OHCI_PORT_PES | OHCI_PORT_PRSC;

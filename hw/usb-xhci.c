@@ -2346,9 +2346,7 @@ static void xhci_port_write(XHCIState *xhci, uint32_t reg, uint32_t val)
         /* write-1-to-start bits */
         if (val & PORTSC_PR) {
             DPRINTF("xhci: port %d reset\n", port);
-            if (xhci->ports[port].port.dev) {
-                usb_send_msg(xhci->ports[port].port.dev, USB_MSG_RESET);
-            }
+            usb_device_reset(xhci->ports[port].port.dev);
             portsc |= PORTSC_PRC | PORTSC_PED;
         }
         xhci->ports[port].portsc = portsc;

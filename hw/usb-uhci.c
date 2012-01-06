@@ -342,7 +342,7 @@ static void uhci_reset(void *opaque)
         port = &s->ports[i];
         port->ctrl = 0x0080;
         if (port->port.dev && port->port.dev->attached) {
-            usb_reset(&port->port);
+            usb_port_reset(&port->port);
         }
     }
 
@@ -440,16 +440,12 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         }
         if (val & UHCI_CMD_GRESET) {
             UHCIPort *port;
-            USBDevice *dev;
             int i;
 
             /* send reset on the USB bus */
             for(i = 0; i < NB_PORTS; i++) {
                 port = &s->ports[i];
-                dev = port->port.dev;
-                if (dev && dev->attached) {
-                    usb_send_msg(dev, USB_MSG_RESET);
-                }
+                usb_device_reset(port->port.dev);
             }
             uhci_reset(s);
             return;
@@ -491,7 +487,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
                 /* port reset */
                 if ( (val & UHCI_PORT_RESET) &&
                      !(port->ctrl & UHCI_PORT_RESET) ) {
-                    usb_send_msg(dev, USB_MSG_RESET);
+                    usb_device_reset(dev);
                 }
             }
             port->ctrl &= UHCI_PORT_READ_ONLY;

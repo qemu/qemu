@@ -39,9 +39,6 @@
 #define USB_TOKEN_IN    0x69 /* device -> host */
 #define USB_TOKEN_OUT   0xe1 /* host -> device */
 
-/* specific usb messages, also sent in the 'pid' parameter */
-#define USB_MSG_RESET    0x102
-
 #define USB_RET_NODEV  (-1)
 #define USB_RET_NAK    (-2)
 #define USB_RET_STALL  (-3)
@@ -352,7 +349,8 @@ int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
 
 void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);
-void usb_reset(USBPort *port);
+void usb_port_reset(USBPort *port);
+void usb_device_reset(USBDevice *dev);
 void usb_wakeup(USBDevice *dev);
 int usb_generic_handle_packet(USBDevice *s, USBPacket *p);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);

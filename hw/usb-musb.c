@@ -1310,7 +1310,7 @@ static void musb_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
         s->power = (value & 0xef) | (s->power & 0x10);
         /* MGC_M_POWER_RESET is also read-only in Peripheral Mode */
         if ((value & MGC_M_POWER_RESET) && s->port.dev) {
-            usb_send_msg(s->port.dev, USB_MSG_RESET);
+            usb_device_reset(s->port.dev);
             /* Negotiate high-speed operation if MGC_M_POWER_HSENAB is set.  */
             if ((value & MGC_M_POWER_HSENAB) &&
                             s->port.dev->speed == USB_SPEED_HIGH)

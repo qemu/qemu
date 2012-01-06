@@ -305,7 +305,7 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                 break;
             case PORT_RESET:
                 if (dev && dev->attached) {
-                    usb_send_msg(dev, USB_MSG_RESET);
+                    usb_device_reset(dev);
                     port->wPortChange |= PORT_STAT_C_RESET;
                     /* set enable bit */
                     port->wPortStatus |= PORT_STAT_ENABLE;

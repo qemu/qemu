@@ -49,14 +49,25 @@ void usb_detach(USBPort *port)
     dev->state = USB_STATE_NOTATTACHED;
 }
 
-void usb_reset(USBPort *port)
+void usb_port_reset(USBPort *port)
 {
     USBDevice *dev = port->dev;
 
     assert(dev != NULL);
     usb_detach(port);
     usb_attach(port);
-    usb_send_msg(dev, USB_MSG_RESET);
+    usb_device_reset(dev);
+}
+
+void usb_device_reset(USBDevice *dev)
+{
+    if (dev == NULL || !dev->attached) {
+        return;
+    }
+    dev->remote_wakeup = 0;
+    dev->addr = 0;
+    dev->state = USB_STATE_DEFAULT;
+    usb_device_handle_reset(dev);
 }
 
 void usb_wakeup(USBDevice *dev)
@@ -218,15 +229,6 @@ static int do_token_out(USBDevice *s, USBPacket *p)
  */
 int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
 {
-    switch(p->pid) {
-    case USB_MSG_RESET:
-        s->remote_wakeup = 0;
-        s->addr = 0;
-        s->state = USB_STATE_DEFAULT;
-        usb_device_handle_reset(s);
-        return 0;
-    }
-
     /* Rest of the PIDs must match our address */
     if (s->state < USB_STATE_DEFAULT || p->devaddr != s->addr)
         return USB_RET_NODEV;
