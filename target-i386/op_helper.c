@@ -52,11 +52,11 @@ static inline target_long lshift(target_long x, int n)
     }
 }
 
-#define RC_MASK         0xc00
-#define RC_NEAR         0x000
-#define RC_DOWN         0x400
-#define RC_UP           0x800
-#define RC_CHOP         0xc00
+#define FPU_RC_MASK         0xc00
+#define FPU_RC_NEAR         0x000
+#define FPU_RC_DOWN         0x400
+#define FPU_RC_UP           0x800
+#define FPU_RC_CHOP         0xc00
 
 #define MAXTAN 9223372036854775808.0
 
@@ -4024,18 +4024,18 @@ static void update_fp_status(void)
     int rnd_type;
 
     /* set rounding mode */
-    switch(env->fpuc & RC_MASK) {
+    switch(env->fpuc & FPU_RC_MASK) {
     default:
-    case RC_NEAR:
+    case FPU_RC_NEAR:
         rnd_type = float_round_nearest_even;
         break;
-    case RC_DOWN:
+    case FPU_RC_DOWN:
         rnd_type = float_round_down;
         break;
-    case RC_UP:
+    case FPU_RC_UP:
         rnd_type = float_round_up;
         break;
-    case RC_CHOP:
+    case FPU_RC_CHOP:
         rnd_type = float_round_to_zero;
         break;
     }
@@ -5629,6 +5629,50 @@ void helper_vmexit(uint32_t exit_code, uint64_t exit_info_1)
 
 /* MMX/SSE */
 /* XXX: optimize by storing fptt and fptags in the static cpu state */
+
+#define SSE_DAZ             0x0040
+#define SSE_RC_MASK         0x6000
+#define SSE_RC_NEAR         0x0000
+#define SSE_RC_DOWN         0x2000
+#define SSE_RC_UP           0x4000
+#define SSE_RC_CHOP         0x6000
+#define SSE_FZ              0x8000
+
+static void update_sse_status(void)
+{
+    int rnd_type;
+
+    /* set rounding mode */
+    switch(env->mxcsr & SSE_RC_MASK) {
+    default:
+    case SSE_RC_NEAR:
+        rnd_type = float_round_nearest_even;
+        break;
+    case SSE_RC_DOWN:
+        rnd_type = float_round_down;
+        break;
+    case SSE_RC_UP:
+        rnd_type = float_round_up;
+        break;
+    case SSE_RC_CHOP:
+        rnd_type = float_round_to_zero;
+        break;
+    }
+    set_float_rounding_mode(rnd_type, &env->sse_status);
+
+    /* set denormals are zero */
+    set_flush_inputs_to_zero((env->mxcsr & SSE_DAZ) ? 1 : 0, &env->sse_status);
+
+    /* set flush to zero */
+    set_flush_to_zero((env->mxcsr & SSE_FZ) ? 1 : 0, &env->fp_status);
+}
+
+void helper_ldmxcsr(uint32_t val)
+{
+    env->mxcsr = val;
+    update_sse_status();
+}
+
 void helper_enter_mmx(void)
 {
     env->fpstt = 0;
