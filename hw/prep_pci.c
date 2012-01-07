@@ -44,53 +44,23 @@ static inline uint32_t PPC_PCIIO_config(target_phys_addr_t addr)
     return (addr & 0x7ff) |  (i << 11);
 }
 
-static void PPC_PCIIO_writeb (void *opaque, target_phys_addr_t addr, uint32_t val)
+static void ppc_pci_io_write(void *opaque, target_phys_addr_t addr,
+                             uint64_t val, unsigned int size)
 {
     PREPPCIState *s = opaque;
-    pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 1);
+    pci_data_write(s->bus, PPC_PCIIO_config(addr), val, size);
 }
 
-static void PPC_PCIIO_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
+static uint64_t ppc_pci_io_read(void *opaque, target_phys_addr_t addr,
+                                unsigned int size)
 {
     PREPPCIState *s = opaque;
-    pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 2);
-}
-
-static void PPC_PCIIO_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-    PREPPCIState *s = opaque;
-    pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 4);
-}
-
-static uint32_t PPC_PCIIO_readb (void *opaque, target_phys_addr_t addr)
-{
-    PREPPCIState *s = opaque;
-    uint32_t val;
-    val = pci_data_read(s->bus, PPC_PCIIO_config(addr), 1);
-    return val;
-}
-
-static uint32_t PPC_PCIIO_readw (void *opaque, target_phys_addr_t addr)
-{
-    PREPPCIState *s = opaque;
-    uint32_t val;
-    val = pci_data_read(s->bus, PPC_PCIIO_config(addr), 2);
-    return val;
-}
-
-static uint32_t PPC_PCIIO_readl (void *opaque, target_phys_addr_t addr)
-{
-    PREPPCIState *s = opaque;
-    uint32_t val;
-    val = pci_data_read(s->bus, PPC_PCIIO_config(addr), 4);
-    return val;
+    return pci_data_read(s->bus, PPC_PCIIO_config(addr), size);
 }
 
 static const MemoryRegionOps PPC_PCIIO_ops = {
-    .old_mmio = {
-        .read = { PPC_PCIIO_readb, PPC_PCIIO_readw, PPC_PCIIO_readl, },
-        .write = { PPC_PCIIO_writeb, PPC_PCIIO_writew, PPC_PCIIO_writel, },
-    },
+    .read = ppc_pci_io_read,
+    .write = ppc_pci_io_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
