@@ -1653,10 +1653,10 @@ void glue(helper_roundps, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
             break;
         }
 
-    d->L(0) = float64_round_to_int(s->L(0), &env->sse_status);
-    d->L(1) = float64_round_to_int(s->L(1), &env->sse_status);
-    d->L(2) = float64_round_to_int(s->L(2), &env->sse_status);
-    d->L(3) = float64_round_to_int(s->L(3), &env->sse_status);
+    d->XMM_S(0) = float32_round_to_int(s->XMM_S(0), &env->sse_status);
+    d->XMM_S(1) = float32_round_to_int(s->XMM_S(1), &env->sse_status);
+    d->XMM_S(2) = float32_round_to_int(s->XMM_S(2), &env->sse_status);
+    d->XMM_S(3) = float32_round_to_int(s->XMM_S(3), &env->sse_status);
 
 #if 0 /* TODO */
     if (mode & (1 << 3))
@@ -1689,8 +1689,8 @@ void glue(helper_roundpd, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
             break;
         }
 
-    d->Q(0) = float64_round_to_int(s->Q(0), &env->sse_status);
-    d->Q(1) = float64_round_to_int(s->Q(1), &env->sse_status);
+    d->XMM_D(0) = float64_round_to_int(s->XMM_D(0), &env->sse_status);
+    d->XMM_D(1) = float64_round_to_int(s->XMM_D(1), &env->sse_status);
 
 #if 0 /* TODO */
     if (mode & (1 << 3))
@@ -1723,7 +1723,7 @@ void glue(helper_roundss, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
             break;
         }
 
-    d->L(0) = float64_round_to_int(s->L(0), &env->sse_status);
+    d->XMM_S(0) = float32_round_to_int(s->XMM_S(0), &env->sse_status);
 
 #if 0 /* TODO */
     if (mode & (1 << 3))
@@ -1756,7 +1756,7 @@ void glue(helper_roundsd, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
             break;
         }
 
-    d->Q(0) = float64_round_to_int(s->Q(0), &env->sse_status);
+    d->XMM_D(0) = float64_round_to_int(s->XMM_D(0), &env->sse_status);
 
 #if 0 /* TODO */
     if (mode & (1 << 3))
