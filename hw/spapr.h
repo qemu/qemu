@@ -21,6 +21,7 @@ typedef struct sPAPREnvironment {
     target_ulong entry_point;
     int next_irq;
     int rtc_offset;
+    char *cpu_model;
 } sPAPREnvironment;
 
 #define H_SUCCESS         0

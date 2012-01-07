@@ -504,7 +504,7 @@ void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
 
 int kvm_arch_process_async_events(CPUState *env)
 {
-    return 0;
+    return env->halted;
 }
 
 static int kvmppc_handle_halt(CPUState *env)

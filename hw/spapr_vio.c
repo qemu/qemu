@@ -621,11 +621,43 @@ static void rtas_quiesce(sPAPREnvironment *spapr, uint32_t token,
     rtas_st(rets, 0, 0);
 }
 
+static int spapr_vio_check_reg(VIOsPAPRDevice *sdev, VIOsPAPRDeviceInfo *info)
+{
+    VIOsPAPRDevice *other_sdev;
+    DeviceState *qdev;
+    VIOsPAPRBus *sbus;
+
+    sbus = DO_UPCAST(VIOsPAPRBus, bus, sdev->qdev.parent_bus);
+
+    /*
+     * Check two device aren't given clashing addresses by the user (or some
+     * other mechanism). We have to open code this because we have to check
+     * for matches with devices other than us.
+     */
+    QTAILQ_FOREACH(qdev, &sbus->bus.children, sibling) {
+        other_sdev = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
+
+        if (other_sdev != sdev && other_sdev->reg == sdev->reg) {
+            fprintf(stderr, "vio: %s and %s devices conflict at address %#x\n",
+                    info->qdev.name, other_sdev->qdev.info->name, sdev->reg);
+            return -EEXIST;
+        }
+    }
+
+    return 0;
+}
+
 static int spapr_vio_busdev_init(DeviceState *qdev, DeviceInfo *qinfo)
 {
     VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
     char *id;
+    int ret;
+
+    ret = spapr_vio_check_reg(dev, info);
+    if (ret) {
+        return ret;
+    }
 
     /* Don't overwrite ids assigned on the command line */
     if (!dev->qdev.id) {
@@ -684,7 +716,6 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
     VIOsPAPRBus *bus;
     BusState *qbus;
     DeviceState *dev;
-    DeviceInfo *qinfo;
 
     /* Create bridge device */
     dev = qdev_create(NULL, "spapr-vio-bridge");
@@ -710,18 +741,6 @@ VIOsPAPRBus *spapr_vio_bus_init(void)
     /* RTAS calls */
     spapr_rtas_register("ibm,set-tce-bypass", rtas_set_tce_bypass);
     spapr_rtas_register("quiesce", rtas_quiesce);
-
-    for (qinfo = device_info_list; qinfo; qinfo = qinfo->next) {
-        VIOsPAPRDeviceInfo *info = (VIOsPAPRDeviceInfo *)qinfo;
-
-        if (qinfo->bus_info != &spapr_vio_bus_info) {
-            continue;
-        }
-
-        if (info->hcalls) {
-            info->hcalls(bus);
-        }
-    }
 
     return bus;
 }
@@ -749,21 +768,95 @@ static void spapr_vio_register_devices(void)
 device_init(spapr_vio_register_devices)
 
 #ifdef CONFIG_FDT
+static int compare_reg(const void *p1, const void *p2)
+{
+    VIOsPAPRDevice const *dev1, *dev2;
+
+    dev1 = (VIOsPAPRDevice *)*(DeviceState **)p1;
+    dev2 = (VIOsPAPRDevice *)*(DeviceState **)p2;
+
+    if (dev1->reg < dev2->reg) {
+        return -1;
+    }
+    if (dev1->reg == dev2->reg) {
+        return 0;
+    }
+
+    /* dev1->reg > dev2->reg */
+    return 1;
+}
+
 int spapr_populate_vdevice(VIOsPAPRBus *bus, void *fdt)
 {
-    DeviceState *qdev;
-    int ret = 0;
+    DeviceState *qdev, **qdevs;
+    int i, num, ret = 0;
 
+    /* Count qdevs on the bus list */
+    num = 0;
     QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
-        VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
+        num++;
+    }
+
+    /* Copy out into an array of pointers */
+    qdevs = g_malloc(sizeof(qdev) * num);
+    num = 0;
+    QTAILQ_FOREACH(qdev, &bus->bus.children, sibling) {
+        qdevs[num++] = qdev;
+    }
+
+    /* Sort the array */
+    qsort(qdevs, num, sizeof(qdev), compare_reg);
+
+    /* Hack alert. Give the devices to libfdt in reverse order, we happen
+     * to know that will mean they are in forward order in the tree. */
+    for (i = num - 1; i >= 0; i--) {
+        VIOsPAPRDevice *dev = (VIOsPAPRDevice *)(qdevs[i]);
 
         ret = vio_make_devnode(dev, fdt);
 
         if (ret < 0) {
-            return ret;
+            goto out;
         }
     }
 
-    return 0;
+    ret = 0;
+out:
+    free(qdevs);
+
+    return ret;
+}
+
+int spapr_populate_chosen_stdout(void *fdt, VIOsPAPRBus *bus)
+{
+    VIOsPAPRDevice *dev;
+    char *name, *path;
+    int ret, offset;
+
+    dev = spapr_vty_get_default(bus);
+    if (!dev)
+        return 0;
+
+    offset = fdt_path_offset(fdt, "/chosen");
+    if (offset < 0) {
+        return offset;
+    }
+
+    name = vio_format_dev_name(dev);
+    if (!name) {
+        return -ENOMEM;
+    }
+
+    if (asprintf(&path, "/vdevice/%s", name) < 0) {
+        path = NULL;
+        ret = -ENOMEM;
+        goto out;
+    }
+
+    ret = fdt_setprop_string(fdt, offset, "linux,stdout-path", path);
+out:
+    free(name);
+    free(path);
+
+    return ret;
 }
 #endif /* CONFIG_FDT */
