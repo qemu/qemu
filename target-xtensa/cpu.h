@@ -344,6 +344,7 @@ void xtensa_tlb_set_entry(CPUState *env, bool dtlb,
 int xtensa_get_physical_addr(CPUState *env,
         uint32_t vaddr, int is_write, int mmu_idx,
         uint32_t *paddr, uint32_t *page_size, unsigned *access);
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env);
 
 
 #define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))

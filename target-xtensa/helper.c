@@ -540,3 +540,70 @@ int xtensa_get_physical_addr(CPUState *env,
         return 0;
     }
 }
+
+static void dump_tlb(FILE *f, fprintf_function cpu_fprintf,
+        CPUState *env, bool dtlb)
+{
+    unsigned wi, ei;
+    const xtensa_tlb *conf =
+        dtlb ? &env->config->dtlb : &env->config->itlb;
+    unsigned (*attr_to_access)(uint32_t) =
+        xtensa_option_enabled(env->config, XTENSA_OPTION_MMU) ?
+        mmu_attr_to_access : region_attr_to_access;
+
+    for (wi = 0; wi < conf->nways; ++wi) {
+        uint32_t sz = ~xtensa_tlb_get_addr_mask(env, dtlb, wi) + 1;
+        const char *sz_text;
+        bool print_header = true;
+
+        if (sz >= 0x100000) {
+            sz >>= 20;
+            sz_text = "MB";
+        } else {
+            sz >>= 10;
+            sz_text = "KB";
+        }
+
+        for (ei = 0; ei < conf->way_size[wi]; ++ei) {
+            const xtensa_tlb_entry *entry =
+                xtensa_tlb_get_entry(env, dtlb, wi, ei);
+
+            if (entry->asid) {
+                unsigned access = attr_to_access(entry->attr);
+
+                if (print_header) {
+                    print_header = false;
+                    cpu_fprintf(f, "Way %u (%d %s)\n", wi, sz, sz_text);
+                    cpu_fprintf(f,
+                            "\tVaddr       Paddr       ASID  Attr RWX\n"
+                            "\t----------  ----------  ----  ---- ---\n");
+                }
+                cpu_fprintf(f,
+                        "\t0x%08x  0x%08x  0x%02x  0x%02x %c%c%c\n",
+                        entry->vaddr,
+                        entry->paddr,
+                        entry->asid,
+                        entry->attr,
+                        (access & PAGE_READ) ? 'R' : '-',
+                        (access & PAGE_WRITE) ? 'W' : '-',
+                        (access & PAGE_EXEC) ? 'X' : '-');
+            }
+        }
+    }
+}
+
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
+{
+    if (xtensa_option_bits_enabled(env->config,
+                XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
+                XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION) |
+                XTENSA_OPTION_BIT(XTENSA_OPTION_MMU))) {
+
+        cpu_fprintf(f, "ITLB:\n");
+        dump_tlb(f, cpu_fprintf, env, false);
+        cpu_fprintf(f, "\nDTLB:\n");
+        dump_tlb(f, cpu_fprintf, env, true);
+    } else {
+        cpu_fprintf(f, "No TLB for this CPU core\n");
+    }
+}
