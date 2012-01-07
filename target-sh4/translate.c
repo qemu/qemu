@@ -1652,18 +1652,10 @@ static void _decode_opc(DisasContext * ctx)
 	}
 	return;
     case 0x00a3:		/* ocbp @Rn */
-	{
-	    TCGv dummy = tcg_temp_new();
-	    tcg_gen_qemu_ld32s(dummy, REG(B11_8), ctx->memidx);
-	    tcg_temp_free(dummy);
-	}
-	return;
     case 0x00b3:		/* ocbwb @Rn */
-	{
-	    TCGv dummy = tcg_temp_new();
-	    tcg_gen_qemu_ld32s(dummy, REG(B11_8), ctx->memidx);
-	    tcg_temp_free(dummy);
-	}
+        /* These instructions are supposed to do nothing in case of
+           a cache miss. Given that we only partially emulate caches
+           it is safe to simply ignore them. */
 	return;
     case 0x0083:		/* pref @Rn */
 	return;
