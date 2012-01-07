@@ -584,9 +584,14 @@ void helper_ ## name ## sd (Reg *d, Reg *s)\
 #define FPU_SUB(size, a, b) float ## size ## _sub(a, b, &env->sse_status)
 #define FPU_MUL(size, a, b) float ## size ## _mul(a, b, &env->sse_status)
 #define FPU_DIV(size, a, b) float ## size ## _div(a, b, &env->sse_status)
-#define FPU_MIN(size, a, b) (a) < (b) ? (a) : (b)
-#define FPU_MAX(size, a, b) (a) > (b) ? (a) : (b)
 #define FPU_SQRT(size, a, b) float ## size ## _sqrt(b, &env->sse_status)
+
+/* Note that the choice of comparison op here is important to get the
+ * special cases right: for min and max Intel specifies that (-0,0),
+ * (NaN, anything) and (anything, NaN) return the second argument.
+ */
+#define FPU_MIN(size, a, b) float ## size ## _lt(a, b, &env->sse_status) ? (a) : (b)
+#define FPU_MAX(size, a, b) float ## size ## _lt(b, a, &env->sse_status) ? (a) : (b)
 
 SSE_HELPER_S(add, FPU_ADD)
 SSE_HELPER_S(sub, FPU_SUB)
