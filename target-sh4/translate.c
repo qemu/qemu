@@ -1858,8 +1858,8 @@ static void _decode_opc(DisasContext * ctx)
         CHECK_FPU_ENABLED
         if ((ctx->fpscr & FPSCR_PR) == 0) {
             TCGv m, n;
-            m = tcg_const_i32((ctx->opcode >> 16) & 3);
-            n = tcg_const_i32((ctx->opcode >> 18) & 3);
+            m = tcg_const_i32((ctx->opcode >> 8) & 3);
+            n = tcg_const_i32((ctx->opcode >> 10) & 3);
             gen_helper_fipr(m, n);
             tcg_temp_free(m);
             tcg_temp_free(n);
@@ -1871,7 +1871,7 @@ static void _decode_opc(DisasContext * ctx)
         if ((ctx->opcode & 0x0300) == 0x0100 &&
             (ctx->fpscr & FPSCR_PR) == 0) {
             TCGv n;
-            n = tcg_const_i32((ctx->opcode >> 18) & 3);
+            n = tcg_const_i32((ctx->opcode >> 10) & 3);
             gen_helper_ftrv(n);
             tcg_temp_free(n);
             return;
