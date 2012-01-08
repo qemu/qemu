@@ -474,16 +474,6 @@ static target_ulong h_multicast_ctrl(CPUState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static void vlan_hcalls(VIOsPAPRBus *bus)
-{
-    spapr_register_hypercall(H_REGISTER_LOGICAL_LAN, h_register_logical_lan);
-    spapr_register_hypercall(H_FREE_LOGICAL_LAN, h_free_logical_lan);
-    spapr_register_hypercall(H_SEND_LOGICAL_LAN, h_send_logical_lan);
-    spapr_register_hypercall(H_ADD_LOGICAL_LAN_BUFFER,
-                             h_add_logical_lan_buffer);
-    spapr_register_hypercall(H_MULTICAST_CTRL, h_multicast_ctrl);
-}
-
 static VIOsPAPRDeviceInfo spapr_vlan = {
     .init = spapr_vlan_init,
     .devnode = spapr_vlan_devnode,
@@ -491,7 +481,6 @@ static VIOsPAPRDeviceInfo spapr_vlan = {
     .dt_type = "network",
     .dt_compatible = "IBM,l-lan",
     .signal_mask = 0x1,
-    .hcalls = vlan_hcalls,
     .qdev.name = "spapr-vlan",
     .qdev.size = sizeof(VIOsPAPRVLANDevice),
     .qdev.props = (Property[]) {
@@ -504,5 +493,11 @@ static VIOsPAPRDeviceInfo spapr_vlan = {
 static void spapr_vlan_register(void)
 {
     spapr_vio_bus_register_withprop(&spapr_vlan);
+    spapr_register_hypercall(H_REGISTER_LOGICAL_LAN, h_register_logical_lan);
+    spapr_register_hypercall(H_FREE_LOGICAL_LAN, h_free_logical_lan);
+    spapr_register_hypercall(H_SEND_LOGICAL_LAN, h_send_logical_lan);
+    spapr_register_hypercall(H_ADD_LOGICAL_LAN_BUFFER,
+                             h_add_logical_lan_buffer);
+    spapr_register_hypercall(H_MULTICAST_CTRL, h_multicast_ctrl);
 }
 device_init(spapr_vlan_register);

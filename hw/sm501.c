@@ -593,7 +593,7 @@ static inline uint32_t get_hwc_x(SM501State *state, int crt)
  */
 static inline uint16_t get_hwc_color(SM501State *state, int crt, int index)
 {
-    uint16_t color_reg = 0;
+    uint32_t color_reg = 0;
     uint16_t color_565 = 0;
 
     if (index == 0) {
