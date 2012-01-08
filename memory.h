@@ -115,7 +115,6 @@ struct MemoryRegion {
     MemoryRegion *parent;
     Int128 size;
     target_phys_addr_t addr;
-    target_phys_addr_t offset;
     void (*destructor)(MemoryRegion *mr);
     ram_addr_t ram_addr;
     IORange iorange;
@@ -357,14 +356,6 @@ bool memory_region_is_rom(MemoryRegion *mr);
  * @mr: the memory region being queried.
  */
 void *memory_region_get_ram_ptr(MemoryRegion *mr);
-
-/**
- * memory_region_set_offset: Sets an offset to be added to MemoryRegionOps
- *                           callbacks.
- *
- * This function is deprecated and should not be used in new code.
- */
-void memory_region_set_offset(MemoryRegion *mr, target_phys_addr_t offset);
 
 /**
  * memory_region_set_log: Turn dirty logging on or off for a region.

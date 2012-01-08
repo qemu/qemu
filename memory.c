@@ -401,17 +401,17 @@ static void memory_region_iorange_read(IORange *iorange,
 
         *data = ((uint64_t)1 << (width * 8)) - 1;
         if (mrp) {
-            *data = mrp->read(mr->opaque, offset + mr->offset);
+            *data = mrp->read(mr->opaque, offset);
         } else if (width == 2) {
             mrp = find_portio(mr, offset, 1, false);
             assert(mrp);
-            *data = mrp->read(mr->opaque, offset + mr->offset) |
-                    (mrp->read(mr->opaque, offset + mr->offset + 1) << 8);
+            *data = mrp->read(mr->opaque, offset) |
+                    (mrp->read(mr->opaque, offset + 1) << 8);
         }
         return;
     }
     *data = 0;
-    access_with_adjusted_size(offset + mr->offset, data, width,
+    access_with_adjusted_size(offset, data, width,
                               mr->ops->impl.min_access_size,
                               mr->ops->impl.max_access_size,
                               memory_region_read_accessor, mr);
@@ -428,16 +428,16 @@ static void memory_region_iorange_write(IORange *iorange,
         const MemoryRegionPortio *mrp = find_portio(mr, offset, width, true);
 
         if (mrp) {
-            mrp->write(mr->opaque, offset + mr->offset, data);
+            mrp->write(mr->opaque, offset, data);
         } else if (width == 2) {
             mrp = find_portio(mr, offset, 1, false);
             assert(mrp);
-            mrp->write(mr->opaque, offset + mr->offset, data & 0xff);
-            mrp->write(mr->opaque, offset + mr->offset + 1, data >> 8);
+            mrp->write(mr->opaque, offset, data & 0xff);
+            mrp->write(mr->opaque, offset + 1, data >> 8);
         }
         return;
     }
-    access_with_adjusted_size(offset + mr->offset, &data, width,
+    access_with_adjusted_size(offset, &data, width,
                               mr->ops->impl.min_access_size,
                               mr->ops->impl.max_access_size,
                               memory_region_write_accessor, mr);
@@ -863,7 +863,6 @@ void memory_region_init(MemoryRegion *mr,
         mr->size = int128_2_64();
     }
     mr->addr = 0;
-    mr->offset = 0;
     mr->subpage = false;
     mr->enabled = true;
     mr->terminates = false;
@@ -925,7 +924,7 @@ static uint64_t memory_region_dispatch_read1(MemoryRegion *mr,
     }
 
     /* FIXME: support unaligned access */
-    access_with_adjusted_size(addr + mr->offset, &data, size,
+    access_with_adjusted_size(addr, &data, size,
                               mr->ops->impl.min_access_size,
                               mr->ops->impl.max_access_size,
                               memory_region_read_accessor, mr);
@@ -979,7 +978,7 @@ static void memory_region_dispatch_write(MemoryRegion *mr,
     }
 
     /* FIXME: support unaligned access */
-    access_with_adjusted_size(addr + mr->offset, &data, size,
+    access_with_adjusted_size(addr, &data, size,
                               mr->ops->impl.min_access_size,
                               mr->ops->impl.max_access_size,
                               memory_region_write_accessor, mr);
@@ -1120,11 +1119,6 @@ bool memory_region_is_logging(MemoryRegion *mr)
 bool memory_region_is_rom(MemoryRegion *mr)
 {
     return mr->ram && mr->readonly;
-}
-
-void memory_region_set_offset(MemoryRegion *mr, target_phys_addr_t offset)
-{
-    mr->offset = offset;
 }
 
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
