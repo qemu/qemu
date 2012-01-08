@@ -561,7 +561,7 @@ void memory_region_add_subregion_overlap(MemoryRegion *mr,
  * memory_region_get_ram_addr: Get the ram address associated with a memory
  *                             region
  *
- * DO NOT USE THIS FUCNTION.  This is a temporary workaround while the Xen
+ * DO NOT USE THIS FUNCTION.  This is a temporary workaround while the Xen
  * code is being reworked.
  */
 ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr);
@@ -650,7 +650,7 @@ void memory_global_sync_dirty_bitmap(MemoryRegion *address_space);
  * memory_region_transaction_begin: Start a transaction.
  *
  * During a transaction, changes will be accumulated and made visible
- * only when the transaction ends (is commited).
+ * only when the transaction ends (is committed).
  */
 void memory_region_transaction_begin(void);
 
