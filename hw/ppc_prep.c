@@ -83,36 +83,8 @@ static const int ide_irq[2] = { 13, 13 };
 static uint32_t ne2000_io[NE2000_NB_MAX] = { 0x300, 0x320, 0x340, 0x360, 0x280, 0x380 };
 static int ne2000_irq[NE2000_NB_MAX] = { 9, 10, 11, 3, 4, 5 };
 
-//static ISADevice *pit;
-
 /* ISA IO ports bridge */
 #define PPC_IO_BASE 0x80000000
-
-#if 0
-/* Speaker port 0x61 */
-static int speaker_data_on;
-static int dummy_refresh_clock;
-#endif
-
-static void speaker_ioport_write (void *opaque, uint32_t addr, uint32_t val)
-{
-#if 0
-    speaker_data_on = (val >> 1) & 1;
-    pit_set_gate(pit, 2, val & 1);
-#endif
-}
-
-static uint32_t speaker_ioport_read (void *opaque, uint32_t addr)
-{
-#if 0
-    int out;
-    out = pit_get_out(pit, 2, qemu_get_clock_ns(vm_clock));
-    dummy_refresh_clock ^= 1;
-    return (speaker_data_on << 1) | pit_get_gate(pit, 2) | (out << 5) |
-        (dummy_refresh_clock << 4);
-#endif
-    return 0;
-}
 
 /* PCI intack register */
 /* Read-only register (?) */
@@ -526,8 +498,8 @@ static void ppc_prep_init (ram_addr_t ram_size,
     SysBusDevice *sys;
     PCIHostState *pcihost;
     PCIBus *pci_bus;
+    PCIDevice *pci;
     ISABus *isa_bus;
-    qemu_irq *i8259;
     qemu_irq *cpu_exit_irq;
     int ppc_boot_device;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
@@ -629,13 +601,9 @@ static void ppc_prep_init (ram_addr_t ram_size,
         }
     }
 
-    isa_mem_base = 0xc0000000;
     if (PPC_INPUT(env) != PPC_FLAGS_INPUT_6xx) {
         hw_error("Only 6xx bus is supported on PREP machine\n");
     }
-    /* Hmm, prep has no pci-isa bridge ??? */
-    isa_bus = isa_bus_new(NULL, get_system_io());
-    i8259 = i8259_init(isa_bus, first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
 
     dev = qdev_create(NULL, "raven-pcihost");
     sys = sysbus_from_qdev(dev);
@@ -648,13 +616,19 @@ static void ppc_prep_init (ram_addr_t ram_size,
         fprintf(stderr, "Couldn't create PCI host controller.\n");
         exit(1);
     }
-    sysbus_connect_irq(&pcihost->busdev, 0, i8259[9]);
-    sysbus_connect_irq(&pcihost->busdev, 1, i8259[11]);
-    sysbus_connect_irq(&pcihost->busdev, 2, i8259[9]);
-    sysbus_connect_irq(&pcihost->busdev, 3, i8259[11]);
 
-    isa_bus_irqs(isa_bus, i8259);
-    //    pci_bus = i440fx_init();
+    /* PCI -> ISA bridge */
+    pci = pci_create_simple(pci_bus, PCI_DEVFN(1, 0), "i82378");
+    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
+    qdev_connect_gpio_out(&pci->qdev, 0,
+                          first_cpu->irq_inputs[PPC6xx_INPUT_INT]);
+    qdev_connect_gpio_out(&pci->qdev, 1, *cpu_exit_irq);
+    sysbus_connect_irq(&pcihost->busdev, 0, qdev_get_gpio_in(&pci->qdev, 9));
+    sysbus_connect_irq(&pcihost->busdev, 1, qdev_get_gpio_in(&pci->qdev, 11));
+    sysbus_connect_irq(&pcihost->busdev, 2, qdev_get_gpio_in(&pci->qdev, 9));
+    sysbus_connect_irq(&pcihost->busdev, 3, qdev_get_gpio_in(&pci->qdev, 11));
+    isa_bus = DO_UPCAST(ISABus, qbus, qdev_get_child_bus(&pci->qdev, "isa.0"));
+
     /* Register 8 MB of ISA IO space (needed for non-contiguous map) */
     memory_region_init_io(PPC_io_memory, &PPC_prep_io_ops, sysctrl,
                           "ppc-io", 0x00800000);
@@ -662,9 +636,6 @@ static void ppc_prep_init (ram_addr_t ram_size,
 
     /* init basic PC hardware */
     pci_vga_init(pci_bus);
-    //    openpic = openpic_init(0x00000000, 0xF0000000, 1);
-    //    pit = pit_init(0x40, 0);
-    rtc_init(isa_bus, 2000, NULL);
 
     if (serial_hds[0])
         serial_isa_init(isa_bus, 0, serial_hds[0]);
@@ -691,9 +662,6 @@ static void ppc_prep_init (ram_addr_t ram_size,
     }
     isa_create_simple(isa_bus, "i8042");
 
-    cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
-    DMA_init(1, cpu_exit_irq);
-
     //    SB16_init();
 
     for(i = 0; i < MAX_FD; i++) {
@@ -701,9 +669,6 @@ static void ppc_prep_init (ram_addr_t ram_size,
     }
     fdctrl_init_isa(isa_bus, fd);
 
-    /* Register speaker port */
-    register_ioport_read(0x61, 1, 1, speaker_ioport_read, NULL);
-    register_ioport_write(0x61, 1, 1, speaker_ioport_write, NULL);
     /* Register fake IO ports for PREP */
     sysctrl->reset_irq = first_cpu->irq_inputs[PPC6xx_INPUT_HRESET];
     register_ioport_read(0x398, 2, 1, &PREP_io_read, sysctrl);
