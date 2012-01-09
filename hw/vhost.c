@@ -456,7 +456,7 @@ static void vhost_region_del(MemoryListener *listener,
             == section->offset_within_address_space) {
             --dev->n_mem_sections;
             memmove(&dev->mem_sections[i], &dev->mem_sections[i+1],
-                    dev->n_mem_sections - i);
+                    (dev->n_mem_sections - i) * sizeof(*dev->mem_sections));
             break;
         }
     }
