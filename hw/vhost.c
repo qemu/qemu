@@ -15,6 +15,7 @@
 #include "hw/hw.h"
 #include "range.h"
 #include <linux/vhost.h>
+#include "exec-memory.h"
 
 static void vhost_dev_sync_region(struct vhost_dev *dev,
                                   MemoryRegionSection *section,
@@ -365,10 +366,6 @@ static void vhost_set_memory(MemoryListener *listener,
     int r;
     void *ram;
 
-    if (!memory_region_is_ram(section->mr)) {
-        return;
-    }
-
     dev->mem = g_realloc(dev->mem, s);
 
     if (log_dirty) {
@@ -430,11 +427,21 @@ static void vhost_set_memory(MemoryListener *listener,
     }
 }
 
+static bool vhost_section(MemoryRegionSection *section)
+{
+    return section->address_space == get_system_memory()
+        && memory_region_is_ram(section->mr);
+}
+
 static void vhost_region_add(MemoryListener *listener,
                              MemoryRegionSection *section)
 {
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
+
+    if (!vhost_section(section)) {
+        return;
+    }
 
     ++dev->n_mem_sections;
     dev->mem_sections = g_renew(MemoryRegionSection, dev->mem_sections,
@@ -449,6 +456,10 @@ static void vhost_region_del(MemoryListener *listener,
     struct vhost_dev *dev = container_of(listener, struct vhost_dev,
                                          memory_listener);
     int i;
+
+    if (!vhost_section(section)) {
+        return;
+    }
 
     vhost_set_memory(listener, section, false);
     for (i = 0; i < dev->n_mem_sections; ++i) {
