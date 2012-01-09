@@ -378,7 +378,7 @@ static void vhost_set_memory(MemoryListener *listener,
     assert(size);
 
     /* Optimize no-change case. At least cirrus_vga does this a lot at this time. */
-    ram = memory_region_get_ram_ptr(section->mr);
+    ram = memory_region_get_ram_ptr(section->mr) + section->offset_within_region;
     if (add) {
         if (!vhost_dev_cmp_memory(dev, start_addr, size, (uintptr_t)ram)) {
             /* Region exists with same address. Nothing to do. */
