@@ -251,6 +251,8 @@
     .nextint = XCHAL_NUM_EXTINTERRUPTS, \
     .extint = EXTINTS
 
+#if XCHAL_HAVE_PTP_MMU
+
 #define TLB_TEMPLATE(ways, refill_way_size, way56) { \
         .nways = ways, \
         .way_size = { \
@@ -268,11 +270,23 @@
 #define DTLB(varway56) \
     TLB_TEMPLATE(10, 1 << XCHAL_DTLB_ARF_ENTRIES_LOG2, varway56)
 
-#if XCHAL_HAVE_PTP_MMU
 #define TLB_SECTION \
     .itlb = ITLB(XCHAL_HAVE_SPANNING_WAY), \
     .dtlb = DTLB(XCHAL_HAVE_SPANNING_WAY)
-#else
+
+#elif XCHAL_HAVE_XLT_CACHEATTR || XCHAL_HAVE_MIMIC_CACHEATTR
+
+#define TLB_TEMPLATE { \
+        .nways = 1, \
+        .way_size = { \
+            8, \
+        } \
+    }
+
+#define TLB_SECTION \
+    .itlb = TLB_TEMPLATE, \
+    .dtlb = TLB_TEMPLATE
+
 #endif
 
 #if (defined(TARGET_WORDS_BIGENDIAN) != 0) == (XCHAL_HAVE_BE != 0)
