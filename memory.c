@@ -1387,7 +1387,7 @@ void memory_region_set_alias_offset(MemoryRegion *mr, target_phys_addr_t offset)
 
 ram_addr_t memory_region_get_ram_addr(MemoryRegion *mr)
 {
-    return mr->ram_addr & TARGET_PAGE_MASK;
+    return mr->ram_addr;
 }
 
 static int cmp_flatrange_addr(const void *addr_, const void *fr_)
