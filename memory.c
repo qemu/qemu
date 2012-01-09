@@ -843,7 +843,7 @@ static void memory_region_destructor_rom_device(MemoryRegion *mr)
 
 static bool memory_region_wrong_endianness(MemoryRegion *mr)
 {
-#ifdef TARGET_BIG_ENDIAN
+#ifdef TARGET_WORDS_BIGENDIAN
     return mr->ops->endianness == DEVICE_LITTLE_ENDIAN;
 #else
     return mr->ops->endianness == DEVICE_BIG_ENDIAN;
@@ -942,6 +942,7 @@ static void adjust_endianness(MemoryRegion *mr, uint64_t *data, unsigned size)
             break;
         case 4:
             *data = bswap32(*data);
+            break;
         default:
             abort();
         }
