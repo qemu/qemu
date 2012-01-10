@@ -241,7 +241,7 @@ clean:
 	rm -f trace-dtrace.h trace-dtrace.h-timestamp
 	rm -f $(GENERATED_SOURCES)
 	rm -rf $(qapi-dir)
-	$(MAKE) -C tests clean
+	$(MAKE) -C tests/tcg clean
 	for d in $(ALL_SUBDIRS) $(QEMULIBS) libcacard; do \
 	if test -d $$d; then $(MAKE) -C $$d $@ || exit 1; fi; \
 	rm -f $$d/qemu-options.def; \
@@ -319,7 +319,7 @@ endif
 
 # various test targets
 test speed: all
-	$(MAKE) -C tests $@
+	$(MAKE) -C tests/tcg $@
 
 .PHONY: check
 check: $(patsubst %,run-check-%,$(CHECKS))
