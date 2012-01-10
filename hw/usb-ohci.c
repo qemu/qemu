@@ -408,6 +408,23 @@ static void ohci_child_detach(USBPort *port1, USBDevice *child)
     ohci_async_cancel_device(s, child);
 }
 
+static USBDevice *ohci_find_device(OHCIState *ohci, uint8_t addr)
+{
+    USBDevice *dev;
+    int i;
+
+    for (i = 0; i < ohci->num_ports; i++) {
+        if ((ohci->rhport[i].ctrl & OHCI_PORT_PES) == 0) {
+            continue;
+        }
+        dev = usb_find_device(&ohci->rhport[i].port, addr);
+        if (dev != NULL) {
+            return dev;
+        }
+    }
+    return NULL;
+}
+
 /* Reset the controller */
 static void ohci_reset(void *opaque)
 {
@@ -779,20 +796,12 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     if (completion) {
         ret = ohci->usb_packet.result;
     } else {
-        ret = USB_RET_NODEV;
-        for (i = 0; i < ohci->num_ports; i++) {
-            dev = ohci->rhport[i].port.dev;
-            if ((ohci->rhport[i].ctrl & OHCI_PORT_PES) == 0)
-                continue;
-            usb_packet_setup(&ohci->usb_packet, pid,
-                             OHCI_BM(ed->flags, ED_FA),
-                             OHCI_BM(ed->flags, ED_EN));
-            usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
-            ret = usb_handle_packet(dev, &ohci->usb_packet);
-            if (ret != USB_RET_NODEV)
-                break;
-        }
-    
+        usb_packet_setup(&ohci->usb_packet, pid,
+                         OHCI_BM(ed->flags, ED_FA),
+                         OHCI_BM(ed->flags, ED_EN));
+        usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
+        dev = ohci_find_device(ohci, ohci->usb_packet.devaddr);
+        ret = usb_handle_packet(dev, &ohci->usb_packet);
         if (ret == USB_RET_ASYNC) {
             return 1;
         }
@@ -972,31 +981,23 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         ohci->async_td = 0;
         ohci->async_complete = 0;
     } else {
-        ret = USB_RET_NODEV;
-        for (i = 0; i < ohci->num_ports; i++) {
-            dev = ohci->rhport[i].port.dev;
-            if ((ohci->rhport[i].ctrl & OHCI_PORT_PES) == 0)
-                continue;
-
-            if (ohci->async_td) {
-                /* ??? The hardware should allow one active packet per
-                   endpoint.  We only allow one active packet per controller.
-                   This should be sufficient as long as devices respond in a
-                   timely manner.
-                 */
+        if (ohci->async_td) {
+            /* ??? The hardware should allow one active packet per
+               endpoint.  We only allow one active packet per controller.
+               This should be sufficient as long as devices respond in a
+               timely manner.
+            */
 #ifdef DEBUG_PACKET
-                DPRINTF("Too many pending packets\n");
+            DPRINTF("Too many pending packets\n");
 #endif
-                return 1;
-            }
-            usb_packet_setup(&ohci->usb_packet, pid,
-                             OHCI_BM(ed->flags, ED_FA),
-                             OHCI_BM(ed->flags, ED_EN));
-            usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, pktlen);
-            ret = usb_handle_packet(dev, &ohci->usb_packet);
-            if (ret != USB_RET_NODEV)
-                break;
+            return 1;
         }
+        usb_packet_setup(&ohci->usb_packet, pid,
+                         OHCI_BM(ed->flags, ED_FA),
+                         OHCI_BM(ed->flags, ED_EN));
+        usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, pktlen);
+        dev = ohci_find_device(ohci, ohci->usb_packet.devaddr);
+        ret = usb_handle_packet(dev, &ohci->usb_packet);
 #ifdef DEBUG_PACKET
         DPRINTF("ret=%d\n", ret);
 #endif
