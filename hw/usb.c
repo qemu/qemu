@@ -315,6 +315,10 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
 {
     int ret;
 
+    if (dev == NULL) {
+        return USB_RET_NODEV;
+    }
+
     assert(p->owner == NULL);
     ret = usb_device_handle_packet(dev, p);
     if (ret == USB_RET_ASYNC) {
