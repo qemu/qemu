@@ -410,6 +410,7 @@ static void usbredir_stop_iso_stream(USBRedirDevice *dev, uint8_t ep)
         DPRINTF("iso stream stopped ep %02X\n", ep);
         dev->endpoint[EP2I(ep)].iso_started = 0;
     }
+    dev->endpoint[EP2I(ep)].iso_error = 0;
     usbredir_free_bufpq(dev, ep);
 }
 
@@ -522,6 +523,7 @@ static void usbredir_stop_interrupt_receiving(USBRedirDevice *dev,
         DPRINTF("interrupt recv stopped ep %02X\n", ep);
         dev->endpoint[EP2I(ep)].interrupt_started = 0;
     }
+    dev->endpoint[EP2I(ep)].interrupt_error = 0;
     usbredir_free_bufpq(dev, ep);
 }
 
@@ -1029,7 +1031,7 @@ static void usbredir_iso_stream_status(void *priv, uint32_t id,
     DPRINTF("iso status %d ep %02X id %u\n", iso_stream_status->status,
             ep, id);
 
-    if (!dev->dev.attached) {
+    if (!dev->dev.attached || !dev->endpoint[EP2I(ep)].iso_started) {
         return;
     }
 
@@ -1050,7 +1052,7 @@ static void usbredir_interrupt_receiving_status(void *priv, uint32_t id,
     DPRINTF("interrupt recv status %d ep %02X id %u\n",
             interrupt_receiving_status->status, ep, id);
 
-    if (!dev->dev.attached) {
+    if (!dev->dev.attached || !dev->endpoint[EP2I(ep)].interrupt_started) {
         return;
     }
 
