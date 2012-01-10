@@ -40,6 +40,8 @@
 //#define DEBUG_IRQ_LATENCY
 //#define DEBUG_IRQ_COUNT
 
+typedef struct PicState PicState;
+
 struct PicState {
     ISADevice dev;
     uint8_t last_irr; /* edge detection */
@@ -76,7 +78,7 @@ static uint64_t irq_count[16];
 #ifdef DEBUG_IRQ_LATENCY
 static int64_t irq_time[16];
 #endif
-PicState *isa_pic;
+DeviceState *isa_pic;
 static PicState *slave_pic;
 
 /* return the highest priority found in mask (highest = smallest
@@ -206,8 +208,9 @@ static void pic_intack(PicState *s, int irq)
     pic_update_irq(s);
 }
 
-int pic_read_irq(PicState *s)
+int pic_read_irq(DeviceState *d)
 {
+    PicState *s = DO_UPCAST(PicState, dev.qdev, d);
     int irq, irq2, intno;
 
     irq = pic_get_irq(s);
@@ -269,7 +272,7 @@ static void pic_init_reset(PicState *s)
 
 static void pic_reset(DeviceState *dev)
 {
-    PicState *s = container_of(dev, PicState, dev.qdev);
+    PicState *s = DO_UPCAST(PicState, dev.qdev, dev);
 
     pic_init_reset(s);
     s->elcr = 0;
@@ -399,8 +402,10 @@ static uint64_t pic_ioport_read(void *opaque, target_phys_addr_t addr,
     return ret;
 }
 
-int pic_get_output(PicState *s)
+int pic_get_output(DeviceState *d)
 {
+    PicState *s = DO_UPCAST(PicState, dev.qdev, d);
+
     return (pic_get_irq(s) >= 0);
 }
 
@@ -491,7 +496,7 @@ void pic_info(Monitor *mon)
         return;
     }
     for (i = 0; i < 2; i++) {
-        s = i == 0 ? isa_pic : slave_pic;
+        s = i == 0 ? DO_UPCAST(PicState, dev.qdev, isa_pic) : slave_pic;
         monitor_printf(mon, "pic%d: irr=%02x imr=%02x isr=%02x hprio=%d "
                        "irq_base=%02x rr_sel=%d elcr=%02x fnm=%d\n",
                        i, s->irr, s->imr, s->isr, s->priority_add,
@@ -538,7 +543,7 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
         irq_set[i] = qdev_get_gpio_in(&dev->qdev, i);
     }
 
-    isa_pic = DO_UPCAST(PicState, dev, dev);
+    isa_pic = &dev->qdev;
 
     dev = isa_create(bus, "isa-i8259");
     qdev_prop_set_uint32(&dev->qdev, "iobase", 0xa0);
