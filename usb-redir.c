@@ -395,7 +395,8 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
         /* No id, we look at the ep when receiving a status back */
         usbredirparser_send_start_iso_stream(dev->parser, 0, &start_iso);
         usbredirparser_do_write(dev->parser);
-        DPRINTF("iso stream started ep %02X\n", ep);
+        DPRINTF("iso stream started pkts/sec %d pkts/urb %d urbs %d ep %02X\n",
+                pkts_per_sec, start_iso.pkts_per_urb, start_iso.no_urbs, ep);
         dev->endpoint[EP2I(ep)].iso_started = 1;
         dev->endpoint[EP2I(ep)].bufpq_prefilled = 0;
         dev->endpoint[EP2I(ep)].bufpq_dropping_packets = 0;
@@ -415,7 +416,8 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
 
         isop = QTAILQ_FIRST(&dev->endpoint[EP2I(ep)].bufpq);
         if (isop == NULL) {
-            DPRINTF2("iso-token-in ep %02X, no isop\n", ep);
+            DPRINTF("iso-token-in ep %02X, no isop, iso_error: %d\n",
+                    ep, dev->endpoint[EP2I(ep)].iso_error);
             /* Re-fill the buffer */
             dev->endpoint[EP2I(ep)].bufpq_prefilled = 0;
             /* Check iso_error for stream errors, otherwise its an underrun */
@@ -423,8 +425,8 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
             dev->endpoint[EP2I(ep)].iso_error = 0;
             return usbredir_handle_status(dev, status, 0);
         }
-        DPRINTF2("iso-token-in ep %02X status %d len %d\n", ep, isop->status,
-                 isop->len);
+        DPRINTF2("iso-token-in ep %02X status %d len %d queue-size: %d\n", ep,
+                 isop->status, isop->len, dev->endpoint[EP2I(ep)].bufpq_size);
 
         status = isop->status;
         if (status != usb_redir_success) {
@@ -434,7 +436,8 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
 
         len = isop->len;
         if (len > p->iov.size) {
-            ERROR("received iso data is larger then packet ep %02X\n", ep);
+            ERROR("received iso data is larger then packet ep %02X (%d > %d)\n",
+                  ep, len, (int)p->iov.size);
             bufp_free(dev, isop, ep);
             return USB_RET_NAK;
         }
