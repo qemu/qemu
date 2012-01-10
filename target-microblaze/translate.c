@@ -809,6 +809,17 @@ static void dec_bit(DisasContext *dc)
                 return;
             }
             break;
+        case 0xe0:
+            if ((dc->tb_flags & MSR_EE_FLAG)
+                && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+                && !((dc->env->pvr.regs[2] & PVR2_USE_PCMP_INSTR))) {
+                tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
+                t_gen_raise_exception(dc, EXCP_HW_EXCP);
+            }
+            if (dc->env->pvr.regs[2] & PVR2_USE_PCMP_INSTR) {
+                gen_helper_clz(cpu_R[dc->rd], cpu_R[dc->ra]);
+            }
+            break;
         default:
             cpu_abort(dc->env, "unknown bit oc=%x op=%x rd=%d ra=%d rb=%d\n",
                      dc->pc, op, dc->rd, dc->ra, dc->rb);
