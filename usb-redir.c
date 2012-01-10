@@ -61,6 +61,7 @@ struct endp_data {
     uint8_t interrupt_started;
     uint8_t interrupt_error;
     QTAILQ_HEAD(, buf_packet) bufpq;
+    int bufpq_target_size;
 };
 
 struct USBRedirDevice {
@@ -332,15 +333,42 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
                                      uint8_t ep)
 {
     int status, len;
-
     if (!dev->endpoint[EP2I(ep)].iso_started &&
             !dev->endpoint[EP2I(ep)].iso_error) {
         struct usb_redir_start_iso_stream_header start_iso = {
             .endpoint = ep,
-            /* TODO maybe do something with these depending on ep interval? */
-            .pkts_per_urb = 32,
-            .no_urbs = 3,
         };
+        int pkts_per_sec;
+
+        if (dev->dev.speed == USB_SPEED_HIGH) {
+            pkts_per_sec = 8000 / dev->endpoint[EP2I(ep)].interval;
+        } else {
+            pkts_per_sec = 1000 / dev->endpoint[EP2I(ep)].interval;
+        }
+        /* Testing has shown that we need circa 60 ms buffer */
+        dev->endpoint[EP2I(ep)].bufpq_target_size = (pkts_per_sec * 60) / 1000;
+
+        /* Aim for approx 100 interrupts / second on the client to
+           balance latency and interrupt load */
+        start_iso.pkts_per_urb = pkts_per_sec / 100;
+        if (start_iso.pkts_per_urb < 1) {
+            start_iso.pkts_per_urb = 1;
+        } else if (start_iso.pkts_per_urb > 32) {
+            start_iso.pkts_per_urb = 32;
+        }
+
+        start_iso.no_urbs = (dev->endpoint[EP2I(ep)].bufpq_target_size +
+                             start_iso.pkts_per_urb - 1) /
+                            start_iso.pkts_per_urb;
+        /* Output endpoints pre-fill only 1/2 of the packets, keeping the rest
+           as overflow buffer. Also see the usbredir protocol documentation */
+        if (!(ep & USB_DIR_IN)) {
+            start_iso.no_urbs *= 2;
+        }
+        if (start_iso.no_urbs > 16) {
+            start_iso.no_urbs = 16;
+        }
+
         /* No id, we look at the ep when receiving a status back */
         usbredirparser_send_start_iso_stream(dev->parser, 0, &start_iso);
         usbredirparser_do_write(dev->parser);
@@ -961,9 +989,24 @@ static void usbredir_ep_info(void *priv,
         dev->endpoint[i].type = ep_info->type[i];
         dev->endpoint[i].interval = ep_info->interval[i];
         dev->endpoint[i].interface = ep_info->interface[i];
-        if (dev->endpoint[i].type != usb_redir_type_invalid) {
+        switch (dev->endpoint[i].type) {
+        case usb_redir_type_invalid:
+            break;
+        case usb_redir_type_iso:
+        case usb_redir_type_interrupt:
+            if (dev->endpoint[i].interval == 0) {
+                ERROR("Received 0 interval for isoc or irq endpoint\n");
+                usbredir_device_disconnect(dev);
+            }
+            /* Fall through */
+        case usb_redir_type_control:
+        case usb_redir_type_bulk:
             DPRINTF("ep: %02X type: %d interface: %d\n", I2EP(i),
                     dev->endpoint[i].type, dev->endpoint[i].interface);
+            break;
+        default:
+            ERROR("Received invalid endpoint type\n");
+            usbredir_device_disconnect(dev);
         }
     }
 }
