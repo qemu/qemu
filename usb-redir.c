@@ -61,6 +61,7 @@ struct endp_data {
     uint8_t interrupt_started;
     uint8_t interrupt_error;
     uint8_t bufpq_prefilled;
+    uint8_t bufpq_dropping_packets;
     QTAILQ_HEAD(, buf_packet) bufpq;
     int bufpq_size;
     int bufpq_target_size;
@@ -290,16 +291,34 @@ static void usbredir_cancel_packet(USBDevice *udev, USBPacket *p)
     }
 }
 
-static struct buf_packet *bufp_alloc(USBRedirDevice *dev,
+static void bufp_alloc(USBRedirDevice *dev,
     uint8_t *data, int len, int status, uint8_t ep)
 {
-    struct buf_packet *bufp = g_malloc(sizeof(struct buf_packet));
+    struct buf_packet *bufp;
+
+    if (!dev->endpoint[EP2I(ep)].bufpq_dropping_packets &&
+        dev->endpoint[EP2I(ep)].bufpq_size >
+            2 * dev->endpoint[EP2I(ep)].bufpq_target_size) {
+        DPRINTF("bufpq overflow, dropping packets ep %02X\n", ep);
+        dev->endpoint[EP2I(ep)].bufpq_dropping_packets = 1;
+    }
+    /* Since we're interupting the stream anyways, drop enough packets to get
+       back to our target buffer size */
+    if (dev->endpoint[EP2I(ep)].bufpq_dropping_packets) {
+        if (dev->endpoint[EP2I(ep)].bufpq_size >
+                dev->endpoint[EP2I(ep)].bufpq_target_size) {
+            free(data);
+            return;
+        }
+        dev->endpoint[EP2I(ep)].bufpq_dropping_packets = 0;
+    }
+
+    bufp = g_malloc(sizeof(struct buf_packet));
     bufp->data   = data;
     bufp->len    = len;
     bufp->status = status;
     QTAILQ_INSERT_TAIL(&dev->endpoint[EP2I(ep)].bufpq, bufp, next);
     dev->endpoint[EP2I(ep)].bufpq_size++;
-    return bufp;
 }
 
 static void bufp_free(USBRedirDevice *dev, struct buf_packet *bufp,
@@ -379,6 +398,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
         DPRINTF("iso stream started ep %02X\n", ep);
         dev->endpoint[EP2I(ep)].iso_started = 1;
         dev->endpoint[EP2I(ep)].bufpq_prefilled = 0;
+        dev->endpoint[EP2I(ep)].bufpq_dropping_packets = 0;
     }
 
     if (ep & USB_DIR_IN) {
@@ -505,6 +525,10 @@ static int usbredir_handle_interrupt_data(USBRedirDevice *dev,
             usbredirparser_do_write(dev->parser);
             DPRINTF("interrupt recv started ep %02X\n", ep);
             dev->endpoint[EP2I(ep)].interrupt_started = 1;
+            /* We don't really want to drop interrupt packets ever, but
+               having some upper limit to how much we buffer is good. */
+            dev->endpoint[EP2I(ep)].bufpq_target_size = 1000;
+            dev->endpoint[EP2I(ep)].bufpq_dropping_packets = 0;
         }
 
         intp = QTAILQ_FIRST(&dev->endpoint[EP2I(ep)].bufpq);
