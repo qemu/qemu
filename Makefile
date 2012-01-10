@@ -162,32 +162,13 @@ fsdev/virtfs-proxy-helper$(EXESUF): LIBS += -lcap
 qemu-img-cmds.h: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -h < $< > $@,"  GEN   $@")
 
-check-qint.o check-qstring.o check-qdict.o check-qlist.o check-qfloat.o check-qjson.o test-coroutine.o: $(GENERATED_HEADERS)
-
-check-qint: check-qint.o qint.o $(tools-obj-y)
-check-qstring: check-qstring.o qstring.o $(tools-obj-y)
-check-qdict: check-qdict.o qdict.o qfloat.o qint.o qstring.o qbool.o qlist.o $(tools-obj-y)
-check-qlist: check-qlist.o qlist.o qint.o $(tools-obj-y)
-check-qfloat: check-qfloat.o qfloat.o $(tools-obj-y)
-check-qjson: check-qjson.o $(qobject-obj-y) $(tools-obj-y)
-test-coroutine: test-coroutine.o qemu-timer-common.o async.o $(coroutine-obj-y) $(tools-obj-y)
-
 $(qapi-obj-y): $(GENERATED_HEADERS)
 qapi-dir := $(BUILD_DIR)/qapi-generated
-test-qmp-input-visitor.o test-qmp-output-visitor.o test-qmp-commands.o qemu-ga$(EXESUF): QEMU_CFLAGS += -I $(qapi-dir)
 qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 
 gen-out-type = $(subst .,-,$(suffix $@))
 
-$(qapi-dir)/test-qapi-types.c $(qapi-dir)/test-qapi-types.h :\
-$(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-types.py $(gen-out-type) -o "$(qapi-dir)" -p "test-" < $<, "  GEN   $@")
-$(qapi-dir)/test-qapi-visit.c $(qapi-dir)/test-qapi-visit.h :\
-$(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-visit.py
-	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-visit.py $(gen-out-type) -o "$(qapi-dir)" -p "test-" < $<, "  GEN   $@")
-$(qapi-dir)/test-qmp-commands.h $(qapi-dir)/test-qmp-marshal.c :\
-$(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-commands.py
-	    $(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py $(gen-out-type) -o "$(qapi-dir)" -p "test-" < $<, "  GEN   $@")
+include $(SRC_PATH)/tests/Makefile
 
 $(qapi-dir)/qga-qapi-types.c $(qapi-dir)/qga-qapi-types.h :\
 $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-types.py
@@ -208,15 +189,6 @@ $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-visit.py
 qmp-commands.h qmp-marshal.c :\
 $(SRC_PATH)/qapi-schema.json $(SRC_PATH)/scripts/qapi-commands.py
 	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/qapi-commands.py $(gen-out-type) -m -o "." < $<, "  GEN   $@")
-
-test-qmp-output-visitor.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h) $(qapi-obj-y)
-test-qmp-output-visitor: test-qmp-output-visitor.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o
-
-test-qmp-input-visitor.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h) $(qapi-obj-y)
-test-qmp-input-visitor: test-qmp-input-visitor.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o
-
-test-qmp-commands.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h test-qmp-marshal.c test-qmp-commands.h) $(qapi-obj-y)
-test-qmp-commands: test-qmp-commands.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o $(qapi-dir)/test-qmp-marshal.o module.o
 
 QGALIB_OBJ=$(addprefix $(qapi-dir)/, qga-qapi-types.o qga-qapi-visit.o qga-qmp-marshal.o)
 QGALIB_GEN=$(addprefix $(qapi-dir)/, qga-qapi-types.h qga-qapi-visit.h qga-qmp-commands.h)
@@ -320,12 +292,6 @@ endif
 # various test targets
 test speed: all
 	$(MAKE) -C tests/tcg $@
-
-.PHONY: check
-check: $(patsubst %,run-check-%,$(CHECKS))
-
-run-check-%: %
-	./$<
 
 .PHONY: TAGS
 TAGS:
