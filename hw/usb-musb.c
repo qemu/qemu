@@ -605,6 +605,7 @@ static int musb_timeout(int ttype, int speed, int val)
 static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
                 int epnum, int pid, int len, USBCallback cb, int dir)
 {
+    USBDevice *dev;
     int ret;
     int idx = epnum && dir;
     int ttype;
@@ -628,10 +629,8 @@ static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     ep->packey[dir].ep = ep;
     ep->packey[dir].dir = dir;
 
-    if (s->port.dev)
-        ret = usb_handle_packet(s->port.dev, &ep->packey[dir].p);
-    else
-        ret = USB_RET_NODEV;
+    dev = usb_find_device(&s->port, ep->packey[dir].p.devaddr);
+    ret = usb_handle_packet(dev, &ep->packey[dir].p);
 
     if (ret == USB_RET_ASYNC) {
         ep->status[dir] = len;
