@@ -20,31 +20,29 @@
  * (with some violations to access 'private' data)
  */
 
-START_TEST(qstring_from_str_test)
+static void qstring_from_str_test(void)
 {
     QString *qstring;
     const char *str = "QEMU";
 
     qstring = qstring_from_str(str);
-    fail_unless(qstring != NULL);
-    fail_unless(qstring->base.refcnt == 1);
-    fail_unless(strcmp(str, qstring->string) == 0);
-    fail_unless(qobject_type(QOBJECT(qstring)) == QTYPE_QSTRING);
+    g_assert(qstring != NULL);
+    g_assert(qstring->base.refcnt == 1);
+    g_assert(strcmp(str, qstring->string) == 0);
+    g_assert(qobject_type(QOBJECT(qstring)) == QTYPE_QSTRING);
 
     // destroy doesn't exit yet
     g_free(qstring->string);
     g_free(qstring);
 }
-END_TEST
 
-START_TEST(qstring_destroy_test)
+static void qstring_destroy_test(void)
 {
     QString *qstring = qstring_from_str("destroy test");
     QDECREF(qstring);
 }
-END_TEST
 
-START_TEST(qstring_get_str_test)
+static void qstring_get_str_test(void)
 {
     QString *qstring;
     const char *ret_str;
@@ -52,13 +50,12 @@ START_TEST(qstring_get_str_test)
 
     qstring = qstring_from_str(str);
     ret_str = qstring_get_str(qstring);
-    fail_unless(strcmp(ret_str, str) == 0);
+    g_assert(strcmp(ret_str, str) == 0);
 
     QDECREF(qstring);
 }
-END_TEST
 
-START_TEST(qstring_append_chr_test)
+static void qstring_append_chr_test(void)
 {
     int i;
     QString *qstring;
@@ -69,66 +66,42 @@ START_TEST(qstring_append_chr_test)
     for (i = 0; str[i]; i++)
         qstring_append_chr(qstring, str[i]);
 
-    fail_unless(strcmp(str, qstring_get_str(qstring)) == 0);
+    g_assert(strcmp(str, qstring_get_str(qstring)) == 0);
     QDECREF(qstring);
 }
-END_TEST
 
-START_TEST(qstring_from_substr_test)
+static void qstring_from_substr_test(void)
 {
     QString *qs;
 
     qs = qstring_from_substr("virtualization", 3, 9);
-    fail_unless(qs != NULL);
-    fail_unless(strcmp(qstring_get_str(qs), "tualiza") == 0);
+    g_assert(qs != NULL);
+    g_assert(strcmp(qstring_get_str(qs), "tualiza") == 0);
 
     QDECREF(qs);
 }
-END_TEST
 
 
-START_TEST(qobject_to_qstring_test)
+static void qobject_to_qstring_test(void)
 {
     QString *qstring;
 
     qstring = qstring_from_str("foo");
-    fail_unless(qobject_to_qstring(QOBJECT(qstring)) == qstring);
+    g_assert(qobject_to_qstring(QOBJECT(qstring)) == qstring);
 
     QDECREF(qstring);
 }
-END_TEST
 
-static Suite *qstring_suite(void)
+int main(int argc, char **argv)
 {
-    Suite *s;
-    TCase *qstring_public_tcase;
+    g_test_init(&argc, &argv, NULL);
 
-    s = suite_create("QString test-suite");
+    g_test_add_func("/public/from_str", qstring_from_str_test);
+    g_test_add_func("/public/destroy", qstring_destroy_test);
+    g_test_add_func("/public/get_str", qstring_get_str_test);
+    g_test_add_func("/public/append_chr", qstring_append_chr_test);
+    g_test_add_func("/public/from_substr", qstring_from_substr_test);
+    g_test_add_func("/public/to_qstring", qobject_to_qstring_test);
 
-    qstring_public_tcase = tcase_create("Public Interface");
-    suite_add_tcase(s, qstring_public_tcase);
-    tcase_add_test(qstring_public_tcase, qstring_from_str_test);
-    tcase_add_test(qstring_public_tcase, qstring_destroy_test);
-    tcase_add_test(qstring_public_tcase, qstring_get_str_test);
-    tcase_add_test(qstring_public_tcase, qstring_append_chr_test);
-    tcase_add_test(qstring_public_tcase, qstring_from_substr_test);
-    tcase_add_test(qstring_public_tcase, qobject_to_qstring_test);
-
-    return s;
-}
-
-int main(void)
-{
-	int nf;
-	Suite *s;
-	SRunner *sr;
-
-	s = qstring_suite();
-	sr = srunner_create(s);
-
-	srunner_run_all(sr, CK_NORMAL);
-	nf = srunner_ntests_failed(sr);
-	srunner_free(sr);
-
-	return (nf == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return g_test_run();
 }
