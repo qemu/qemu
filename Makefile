@@ -77,7 +77,7 @@ defconfig:
 
 -include config-all-devices.mak
 
-build-all: $(DOCS) $(TOOLS) $(CHECKS) recurse-all
+build-all: $(DOCS) $(TOOLS) recurse-all
 
 config-host.h: config-host.h-timestamp
 config-host.h-timestamp: config-host.mak
@@ -203,7 +203,7 @@ clean:
 # avoid old build problems by removing potentially incorrect old files
 	rm -f config.mak op-i386.h opc-i386.h gen-op-i386.h op-arm.h opc-arm.h gen-op-arm.h
 	rm -f qemu-options.def
-	rm -f *.o *.d *.a *.lo $(TOOLS) $(CHECKS) qemu-ga TAGS cscope.* *.pod *~ */*~
+	rm -f *.o *.d *.a *.lo $(TOOLS) qemu-ga TAGS cscope.* *.pod *~ */*~
 	rm -Rf .libs
 	rm -f slirp/*.o slirp/*.d audio/*.o audio/*.d block/*.o block/*.d net/*.o net/*.d fsdev/*.o fsdev/*.d ui/*.o ui/*.d qapi/*.o qapi/*.d qga/*.o qga/*.d
 	rm -f qemu-img-cmds.h

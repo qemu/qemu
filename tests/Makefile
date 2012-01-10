@@ -1,3 +1,7 @@
+CHECKS = check-qdict check-qfloat check-qint check-qstring check-qlist
+CHECKS += check-qjson test-qmp-output-visitor test-qmp-input-visitor
+CHECKS += test-coroutine
+
 check-qint.o check-qstring.o check-qdict.o check-qlist.o check-qfloat.o check-qjson.o test-coroutine.o: $(GENERATED_HEADERS)
 
 check-qint: check-qint.o qint.o $(tools-obj-y)
@@ -31,8 +35,5 @@ test-qmp-commands.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types
 test-qmp-commands: test-qmp-commands.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o $(qapi-dir)/test-qmp-marshal.o module.o
 
 .PHONY: check
-check: $(patsubst %,run-check-%,$(CHECKS))
-
-run-check-%: %
-	./$<
-
+check: $(CHECKS)
+	gtester $(CHECKS)
