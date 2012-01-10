@@ -1385,6 +1385,14 @@ static int xhci_complete_packet(XHCITransfer *xfer, int ret)
     return 0;
 }
 
+static USBDevice *xhci_find_device(XHCIPort *port, uint8_t addr)
+{
+    if (!(port->portsc & PORTSC_PED)) {
+        return NULL;
+    }
+    return usb_find_device(&port->port, addr);
+}
+
 static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 {
     XHCITRB *trb_setup, *trb_status;
@@ -1444,7 +1452,7 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     xfer->data_length = wLength;
 
     port = &xhci->ports[xhci->slots[xfer->slotid-1].port-1];
-    dev = port->port.dev;
+    dev = xhci_find_device(port, xhci->slots[xfer->slotid-1].devaddr);
     if (!dev) {
         fprintf(stderr, "xhci: slot %d port %d has no device\n", xfer->slotid,
                 xhci->slots[xfer->slotid-1].port);
@@ -1502,7 +1510,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
     }
 
     port = &xhci->ports[xhci->slots[xfer->slotid-1].port-1];
-    dev = port->port.dev;
+    dev = xhci_find_device(port, xhci->slots[xfer->slotid-1].devaddr);
     if (!dev) {
         fprintf(stderr, "xhci: slot %d port %d has no device\n", xfer->slotid,
                 xhci->slots[xfer->slotid-1].port);
