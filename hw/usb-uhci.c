@@ -94,15 +94,6 @@ static const char *pid2str(int pid)
 #define DPRINTF(...)
 #endif
 
-#ifdef DEBUG_DUMP_DATA
-static void dump_data(USBPacket *p, int ret)
-{
-    iov_hexdump(p->iov.iov, p->iov.niov, stderr, "uhci", ret);
-}
-#else
-static void dump_data(USBPacket *p, int ret) {}
-#endif
-
 typedef struct UHCIState UHCIState;
 
 /* 
@@ -643,30 +634,22 @@ static void uhci_wakeup(USBPort *port1)
     }
 }
 
-static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
+static USBDevice *uhci_find_device(UHCIState *s, uint8_t addr)
 {
-    int i, ret;
+    USBDevice *dev;
+    int i;
 
-    DPRINTF("uhci: packet enter. pid %s addr 0x%02x ep %d len %zd\n",
-           pid2str(p->pid), p->devaddr, p->devep, p->iov.size);
-    if (p->pid == USB_TOKEN_OUT || p->pid == USB_TOKEN_SETUP)
-        dump_data(p, 0);
-
-    ret = USB_RET_NODEV;
-    for (i = 0; i < NB_PORTS && ret == USB_RET_NODEV; i++) {
+    for (i = 0; i < NB_PORTS; i++) {
         UHCIPort *port = &s->ports[i];
-        USBDevice *dev = port->port.dev;
-
-        if (dev && dev->attached && (port->ctrl & UHCI_PORT_EN)) {
-            ret = usb_handle_packet(dev, p);
+        if (!(port->ctrl & UHCI_PORT_EN)) {
+            continue;
+        }
+        dev = usb_find_device(&port->port, addr);
+        if (dev != NULL) {
+            return dev;
         }
     }
-
-    DPRINTF("uhci: packet exit. ret %d len %zd\n", ret, p->iov.size);
-    if (p->pid == USB_TOKEN_IN && ret > 0)
-        dump_data(p, ret);
-
-    return ret;
+    return NULL;
 }
 
 static void uhci_async_complete(USBPort *port, USBPacket *packet);
@@ -830,13 +813,15 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     switch(pid) {
     case USB_TOKEN_OUT:
     case USB_TOKEN_SETUP:
-        len = uhci_broadcast_packet(s, &async->packet);
+        len = usb_handle_packet(uhci_find_device(s, async->packet.devaddr),
+                                &async->packet);
         if (len >= 0)
             len = max_len;
         break;
 
     case USB_TOKEN_IN:
-        len = uhci_broadcast_packet(s, &async->packet);
+        len = usb_handle_packet(uhci_find_device(s, async->packet.devaddr),
+                                &async->packet);
         break;
 
     default:
