@@ -526,6 +526,12 @@ static void dec_msr(DisasContext *dc)
             case 0x7:
                 tcg_gen_andi_tl(cpu_SR[SR_FSR], cpu_R[dc->ra], 31);
                 break;
+            case 0x800:
+                tcg_gen_st_tl(cpu_R[dc->ra], cpu_env, offsetof(CPUState, slr));
+                break;
+            case 0x802:
+                tcg_gen_st_tl(cpu_R[dc->ra], cpu_env, offsetof(CPUState, shr));
+                break;
             default:
                 cpu_abort(dc->env, "unknown mts reg %x\n", sr);
                 break;
@@ -551,6 +557,12 @@ static void dec_msr(DisasContext *dc)
                 break;
             case 0xb:
                 tcg_gen_mov_tl(cpu_R[dc->rd], cpu_SR[SR_BTR]);
+                break;
+            case 0x800:
+                tcg_gen_ld_tl(cpu_R[dc->rd], cpu_env, offsetof(CPUState, slr));
+                break;
+            case 0x802:
+                tcg_gen_ld_tl(cpu_R[dc->rd], cpu_env, offsetof(CPUState, shr));
                 break;
             case 0x2000:
             case 0x2001:
@@ -864,6 +876,13 @@ static inline void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
 static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
 {
     unsigned int extimm = dc->tb_flags & IMM_FLAG;
+    /* Should be set to one if r1 is used by loadstores.  */
+    int stackprot = 0;
+
+    /* All load/stores use ra.  */
+    if (dc->ra == 1) {
+        stackprot = 1;
+    }
 
     /* Treat the common cases first.  */
     if (!dc->type_b) {
@@ -874,8 +893,16 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
             return &cpu_R[dc->ra];
         }
 
+        if (dc->rb == 1) {
+            stackprot = 1;
+        }
+
         *t = tcg_temp_new();
         tcg_gen_add_tl(*t, cpu_R[dc->ra], cpu_R[dc->rb]);
+
+        if (stackprot) {
+            gen_helper_stackprot(*t);
+        }
         return t;
     }
     /* Immediate.  */
@@ -891,6 +918,9 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
         tcg_gen_add_tl(*t, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
     }
 
+    if (stackprot) {
+        gen_helper_stackprot(*t);
+    }
     return t;
 }
 
@@ -1916,6 +1946,9 @@ void cpu_reset (CPUState *env)
 
     memset(env, 0, offsetof(CPUMBState, breakpoints));
     tlb_flush(env, 1);
+
+    /* Disable stack protector.  */
+    env->shr = ~0;
 
     env->pvr.regs[0] = PVR0_PVR_FULL_MASK \
                        | PVR0_USE_BARREL_MASK \

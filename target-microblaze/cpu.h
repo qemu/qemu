@@ -93,6 +93,7 @@ struct CPUMBState;
 #define          ESR_EC_DIVZERO         5
 #define          ESR_EC_FPU             6
 #define          ESR_EC_PRIVINSN        7
+#define          ESR_EC_STACKPROT       7  /* Same as PRIVINSN.  */
 #define          ESR_EC_DATA_STORAGE    8
 #define          ESR_EC_INSN_STORAGE    9
 #define          ESR_EC_DATA_TLB        10
@@ -235,6 +236,8 @@ typedef struct CPUMBState {
     uint32_t regs[33];
     uint32_t sregs[24];
     float_status fp_status;
+    /* Stack protectors. Yes, it's a hw feature.  */
+    uint32_t slr, shr;
 
     /* Internal flags.  */
 #define IMM_FLAG	4

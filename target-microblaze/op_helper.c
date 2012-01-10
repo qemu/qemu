@@ -483,6 +483,17 @@ void helper_memalign(uint32_t addr, uint32_t dr, uint32_t wr, uint32_t mask)
     }
 }
 
+void helper_stackprot(uint32_t addr)
+{
+    if (addr < env->slr || addr > env->shr) {
+            qemu_log("Stack protector violation at %x %x %x\n",
+                     addr, env->slr, env->shr);
+            env->sregs[SR_EAR] = addr;
+            env->sregs[SR_ESR] = ESR_EC_STACKPROT;
+            helper_raise_exception(EXCP_HW_EXCP);
+    }
+}
+
 #if !defined(CONFIG_USER_ONLY)
 /* Writes/reads to the MMU's special regs end up here.  */
 uint32_t helper_mmu_read(uint32_t rn)
