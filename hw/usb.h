@@ -229,6 +229,12 @@ typedef struct USBDeviceClass {
     int (*init)(USBDevice *dev);
 
     /*
+     * Walk (enabled) downstream ports, check for a matching device.
+     * Only hubs implement this.
+     */
+    USBDevice *(*find_device)(USBDevice *dev, uint8_t addr);
+
+    /*
      * Process USB packet.
      * Called by the HC (Host Controller).
      *
@@ -331,6 +337,8 @@ void usb_packet_unmap(USBPacket *p);
 void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes);
 void usb_packet_skip(USBPacket *p, size_t bytes);
 void usb_packet_cleanup(USBPacket *p);
+
+USBDevice *usb_find_device(USBPort *port, uint8_t addr);
 
 int usb_handle_packet(USBDevice *dev, USBPacket *p);
 void usb_packet_complete(USBDevice *dev, USBPacket *p);
@@ -445,6 +453,8 @@ extern const VMStateDescription vmstate_usb_device;
     .flags      = VMS_STRUCT,                                        \
     .offset     = vmstate_offset_value(_state, _field, USBDevice),   \
 }
+
+USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr);
 
 int usb_device_handle_packet(USBDevice *dev, USBPacket *p);
 

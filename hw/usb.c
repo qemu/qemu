@@ -295,6 +295,19 @@ int set_usb_string(uint8_t *buf, const char *str)
     return q - buf;
 }
 
+USBDevice *usb_find_device(USBPort *port, uint8_t addr)
+{
+    USBDevice *dev = port->dev;
+
+    if (dev == NULL || !dev->attached || dev->state != USB_STATE_DEFAULT) {
+        return NULL;
+    }
+    if (dev->addr == addr) {
+        return dev;
+    }
+    return usb_device_find_device(dev, addr);
+}
+
 /* Hand over a packet to a device for processing.  Return value
    USB_RET_ASYNC indicates the processing isn't finished yet, the
    driver will call usb_packet_complete() when done processing it. */
