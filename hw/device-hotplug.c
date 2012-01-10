@@ -26,6 +26,9 @@
 #include "boards.h"
 #include "net.h"
 #include "blockdev.h"
+#include "qemu-config.h"
+#include "sysemu.h"
+#include "monitor.h"
 
 DriveInfo *add_init_drive(const char *optstr)
 {
@@ -43,4 +46,48 @@ DriveInfo *add_init_drive(const char *optstr)
     }
 
     return dinfo;
+}
+
+#if !defined(TARGET_I386)
+int pci_drive_hot_add(Monitor *mon, const QDict *qdict,
+                      DriveInfo *dinfo, int type)
+{
+    /* On non-x86 we don't do PCI hotplug */
+    monitor_printf(mon, "Can't hot-add drive to type %d\n", type);
+    return -1;
+}
+#endif
+
+void drive_hot_add(Monitor *mon, const QDict *qdict)
+{
+    int type;
+    DriveInfo *dinfo = NULL;
+    const char *opts = qdict_get_str(qdict, "opts");
+
+    dinfo = add_init_drive(opts);
+    if (!dinfo) {
+        goto err;
+    }
+    if (dinfo->devaddr) {
+        monitor_printf(mon, "Parameter addr not supported\n");
+        goto err;
+    }
+    type = dinfo->type;
+
+    switch (type) {
+    case IF_NONE:
+        monitor_printf(mon, "OK\n");
+        break;
+    default:
+        if (pci_drive_hot_add(mon, qdict, dinfo, type)) {
+            goto err;
+        }
+    }
+    return;
+
+err:
+    if (dinfo) {
+        drive_put_ref(dinfo);
+    }
+    return;
 }

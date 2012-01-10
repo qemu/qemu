@@ -563,7 +563,7 @@ static void wm8750_pre_save(void *opaque)
 {
     WM8750State *s = opaque;
 
-    s->rate_vmstate = (s->rate - wm_rate_table) / sizeof(*s->rate);
+    s->rate_vmstate = s->rate - wm_rate_table;
 }
 
 static int wm8750_post_load(void *opaque, int version_id)

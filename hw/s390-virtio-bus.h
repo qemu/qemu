@@ -35,6 +35,11 @@
 #define VIRTIO_RING_LEN			(TARGET_PAGE_SIZE * 3)
 #define S390_DEVICE_PAGES		512
 
+#define VIRTIO_PARAM_MASK               0xff
+#define VIRTIO_PARAM_VRING_INTERRUPT    0x0
+#define VIRTIO_PARAM_CONFIG_CHANGED     0x1
+#define VIRTIO_PARAM_DEV_ADD            0x2
+
 typedef struct VirtIOS390Device {
     DeviceState qdev;
     ram_addr_t dev_offs;

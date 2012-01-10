@@ -54,8 +54,20 @@ SECTIONS
       *(.rela.sbss2 .rela.sbss2.* .rela.gnu.linkonce.sb2.*)
       *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
     }
-  .rel.plt        : { *(.rel.plt) }
-  .rela.plt       : { *(.rela.plt) }
+  .rel.plt      :
+  {
+    *(.rel.plt)
+    PROVIDE (__rel_iplt_start = .);
+    *(.rel.iplt)
+    PROVIDE (__rel_iplt_end = .);
+  }
+  .rela.plt       :
+  {
+    *(.rela.plt)
+    PROVIDE (__rela_iplt_start = .);
+    *(.rela.iplt)
+    PROVIDE (__rela_iplt_end = .);
+  }
   .rela.tocbss	  : { *(.rela.tocbss) }
   .init           :
   {

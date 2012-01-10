@@ -62,12 +62,12 @@ static struct elf_shdr *glue(find_section, SZ)(struct elf_shdr *shdr_table,
 
 static int glue(symfind, SZ)(const void *s0, const void *s1)
 {
-    struct elf_sym *key = (struct elf_sym *)s0;
+    target_phys_addr_t addr = *(target_phys_addr_t *)s0;
     struct elf_sym *sym = (struct elf_sym *)s1;
     int result = 0;
-    if (key->st_value < sym->st_value) {
+    if (addr < sym->st_value) {
         result = -1;
-    } else if (key->st_value >= sym->st_value + sym->st_size) {
+    } else if (addr >= sym->st_value + sym->st_size) {
         result = 1;
     }
     return result;
@@ -77,12 +77,10 @@ static const char *glue(lookup_symbol, SZ)(struct syminfo *s,
                                            target_phys_addr_t orig_addr)
 {
     struct elf_sym *syms = glue(s->disas_symtab.elf, SZ);
-    struct elf_sym key;
     struct elf_sym *sym;
 
-    key.st_value = orig_addr;
-
-    sym = bsearch(&key, syms, s->disas_num_syms, sizeof(*syms), glue(symfind, SZ));
+    sym = bsearch(&orig_addr, syms, s->disas_num_syms, sizeof(*syms),
+                  glue(symfind, SZ));
     if (sym != NULL) {
         return s->disas_strtab + sym->st_name;
     }
