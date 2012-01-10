@@ -278,21 +278,9 @@ ioapic_mem_write(void *opaque, target_phys_addr_t addr, uint64_t val,
     }
 }
 
-static int ioapic_post_load(void *opaque, int version_id)
-{
-    IOAPICState *s = opaque;
-
-    if (version_id == 1) {
-        /* set sane value */
-        s->irr = 0;
-    }
-    return 0;
-}
-
 static const VMStateDescription vmstate_ioapic = {
     .name = "ioapic",
     .version_id = 3,
-    .post_load = ioapic_post_load,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
