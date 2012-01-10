@@ -60,7 +60,9 @@ struct endp_data {
     uint8_t iso_error; /* For reporting iso errors to the HC */
     uint8_t interrupt_started;
     uint8_t interrupt_error;
+    uint8_t bufpq_prefilled;
     QTAILQ_HEAD(, buf_packet) bufpq;
+    int bufpq_size;
     int bufpq_target_size;
 };
 
@@ -296,6 +298,7 @@ static struct buf_packet *bufp_alloc(USBRedirDevice *dev,
     bufp->len    = len;
     bufp->status = status;
     QTAILQ_INSERT_TAIL(&dev->endpoint[EP2I(ep)].bufpq, bufp, next);
+    dev->endpoint[EP2I(ep)].bufpq_size++;
     return bufp;
 }
 
@@ -303,6 +306,7 @@ static void bufp_free(USBRedirDevice *dev, struct buf_packet *bufp,
     uint8_t ep)
 {
     QTAILQ_REMOVE(&dev->endpoint[EP2I(ep)].bufpq, bufp, next);
+    dev->endpoint[EP2I(ep)].bufpq_size--;
     free(bufp->data);
     g_free(bufp);
 }
@@ -374,14 +378,26 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
         usbredirparser_do_write(dev->parser);
         DPRINTF("iso stream started ep %02X\n", ep);
         dev->endpoint[EP2I(ep)].iso_started = 1;
+        dev->endpoint[EP2I(ep)].bufpq_prefilled = 0;
     }
 
     if (ep & USB_DIR_IN) {
         struct buf_packet *isop;
 
+        if (dev->endpoint[EP2I(ep)].iso_started &&
+                !dev->endpoint[EP2I(ep)].bufpq_prefilled) {
+            if (dev->endpoint[EP2I(ep)].bufpq_size <
+                    dev->endpoint[EP2I(ep)].bufpq_target_size) {
+                return usbredir_handle_status(dev, 0, 0);
+            }
+            dev->endpoint[EP2I(ep)].bufpq_prefilled = 1;
+        }
+
         isop = QTAILQ_FIRST(&dev->endpoint[EP2I(ep)].bufpq);
         if (isop == NULL) {
             DPRINTF2("iso-token-in ep %02X, no isop\n", ep);
+            /* Re-fill the buffer */
+            dev->endpoint[EP2I(ep)].bufpq_prefilled = 0;
             /* Check iso_error for stream errors, otherwise its an underrun */
             status = dev->endpoint[EP2I(ep)].iso_error;
             dev->endpoint[EP2I(ep)].iso_error = 0;
