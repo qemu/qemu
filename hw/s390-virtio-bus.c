@@ -82,10 +82,22 @@ VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
     bus->dev_offs = bus->dev_page;
     bus->next_ring = bus->dev_page + TARGET_PAGE_SIZE;
 
+    /* Enable hotplugging */
+    _bus->allow_hotplug = 1;
+
     /* Allocate RAM for VirtIO device pages (descriptors, queues, rings) */
     *ram_size += S390_DEVICE_PAGES * TARGET_PAGE_SIZE;
 
     return bus;
+}
+
+static void s390_virtio_irq(CPUState *env, int config_change, uint64_t token)
+{
+    if (kvm_enabled()) {
+        kvm_s390_virtio_irq(env, config_change, token);
+    } else {
+        cpu_inject_ext(env, VIRTIO_EXT_CODE, config_change, token);
+    }
 }
 
 static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
@@ -108,6 +120,11 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
     virtio_bind_device(vdev, &virtio_s390_bindings, dev);
     dev->host_features = vdev->get_features(vdev, dev->host_features);
     s390_virtio_device_sync(dev);
+
+    if (dev->qdev.hotplugged) {
+        CPUState *env = s390_cpu_addr2state(0);
+        s390_virtio_irq(env, VIRTIO_PARAM_DEV_ADD, dev->dev_offs);
+    }
 
     return 0;
 }
@@ -310,11 +327,7 @@ static void virtio_s390_notify(void *opaque, uint16_t vector)
     uint64_t token = s390_virtio_device_vq_token(dev, vector);
     CPUState *env = s390_cpu_addr2state(0);
 
-    if (kvm_enabled()) {
-        kvm_s390_virtio_irq(env, 0, token);
-    } else {
-        cpu_inject_ext(env, VIRTIO_EXT_CODE, 0, token);
-    }
+    s390_virtio_irq(env, 0, token);
 }
 
 static unsigned virtio_s390_get_features(void *opaque)
@@ -382,6 +395,7 @@ static void s390_virtio_bus_register_withprop(VirtIOS390DeviceInfo *info)
 {
     info->qdev.init = s390_virtio_busdev_init;
     info->qdev.bus_info = &s390_virtio_bus_info;
+    info->qdev.unplug = qdev_simple_unplug_cb;
 
     assert(info->qdev.size >= sizeof(VirtIOS390Device));
     qdev_register(&info->qdev);

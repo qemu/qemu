@@ -636,6 +636,9 @@ uint32_t HELPER(ex)(uint32_t cc, uint64_t v1, uint64_t addr, uint64_t ret)
         case 0x700:
             cc = helper_xc(l, get_address(0, b1, d1), get_address(0, b2, d2));
             break;
+        case 0xc00:
+            helper_tr(l, get_address(0, b1, d1), get_address(0, b2, d2));
+            break;
         default:
             goto abort;
             break;
