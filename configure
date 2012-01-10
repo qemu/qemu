@@ -2800,9 +2800,9 @@ if test "$softmmu" = yes ; then
       tools="qemu-ga\$(EXESUF) $tools"
     fi
     if [ "$check_utests" = "yes" ]; then
-      checks="check-qjson $checks"
+      checks="$checks"
     fi
-    test_progs="$checks check-qdict check-qfloat check-qint check-qstring check-qlist test-coroutine test-qmp-output-visitor test-qmp-input-visitor"
+    test_progs="$checks check-qdict check-qfloat check-qint check-qstring check-qlist check-qjson test-coroutine test-qmp-output-visitor test-qmp-input-visitor"
   fi
 fi
 
