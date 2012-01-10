@@ -1249,12 +1249,22 @@ static void dec_bcc(DisasContext *dc)
 
 static void dec_br(DisasContext *dc)
 {
-    unsigned int dslot, link, abs;
+    unsigned int dslot, link, abs, mbar;
     int mem_index = cpu_mmu_index(dc->env);
 
     dslot = dc->ir & (1 << 20);
     abs = dc->ir & (1 << 19);
     link = dc->ir & (1 << 18);
+
+    /* Memory barrier.  */
+    mbar = (dc->ir >> 16) & 31;
+    if (mbar == 2 && dc->imm == 4) {
+        LOG_DIS("mbar %d\n", dc->rd);
+        /* Break the TB.  */
+        dc->cpustate_changed = 1;
+        return;
+    }
+
     LOG_DIS("br%s%s%s%s imm=%x\n",
              abs ? "a" : "", link ? "l" : "",
              dc->type_b ? "i" : "", dslot ? "d" : "",
