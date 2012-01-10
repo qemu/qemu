@@ -678,7 +678,6 @@ static void unterminated_dict_comma(void)
     g_assert(obj == NULL);
 }
 
-#if 0
 static void invalid_dict_comma(void)
 {
     QObject *obj = qobject_from_json("{'abc':32,}");
@@ -690,7 +689,6 @@ static void unterminated_literal(void)
     QObject *obj = qobject_from_json("nul");
     g_assert(obj == NULL);
 }
-#endif
 
 int main(int argc, char **argv)
 {
@@ -723,11 +721,8 @@ int main(int argc, char **argv)
     g_test_add_func("/errors/unterminated/dict", unterminated_dict);
     g_test_add_func("/errors/unterminated/dict_comma", unterminated_dict_comma);
     g_test_add_func("/errors/invalid_array_comma", invalid_array_comma);
-#if 0
-    /* FIXME: this print parse error messages on stderr.  */
     g_test_add_func("/errors/invalid_dict_comma", invalid_dict_comma);
     g_test_add_func("/errors/unterminated/literal", unterminated_literal);
-#endif
 
     return g_test_run();
 }
