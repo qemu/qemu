@@ -34,6 +34,15 @@
 
 static target_phys_addr_t entry;
 
+static PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
+                               target_phys_addr_t config_space,
+                               target_phys_addr_t int_ack,
+                               target_phys_addr_t special_cycle,
+                               target_phys_addr_t registers)
+{
+    return NULL;
+}
+
 static int bamboo_load_device_tree(target_phys_addr_t addr,
                                      uint32_t ramsize,
                                      target_phys_addr_t initrd_base,
