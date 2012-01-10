@@ -220,6 +220,26 @@ static void usb_hub_complete(USBPort *port, USBPacket *packet)
     s->dev.port->ops->complete(s->dev.port, packet);
 }
 
+static USBDevice *usb_hub_find_device(USBDevice *dev, uint8_t addr)
+{
+    USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
+    USBHubPort *port;
+    USBDevice *downstream;
+    int i;
+
+    for (i = 0; i < NUM_PORTS; i++) {
+        port = &s->ports[i];
+        if (!(port->wPortStatus & PORT_STAT_ENABLE)) {
+            continue;
+        }
+        downstream = usb_find_device(&port->port, addr);
+        if (downstream != NULL) {
+            return downstream;
+        }
+    }
+    return NULL;
+}
+
 static void usb_hub_handle_reset(USBDevice *dev)
 {
     USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
@@ -541,6 +561,7 @@ static void usb_hub_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_hub_initfn;
     uc->product_desc   = "QEMU USB Hub";
     uc->usb_desc       = &desc_hub;
+    uc->find_device    = usb_hub_find_device;
     uc->handle_packet  = usb_hub_handle_packet;
     uc->handle_reset   = usb_hub_handle_reset;
     uc->handle_control = usb_hub_handle_control;
