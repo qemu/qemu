@@ -15,7 +15,6 @@ Correctness issues:
 - DRx register support
 - CR0.AC emulation
 - SSE alignment checks
-- fix SSE min/max with nans
 
 Optimizations/Features:
 

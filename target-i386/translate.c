@@ -7545,7 +7545,7 @@ static target_ulong disas_insn(DisasContext *s, target_ulong pc_start)
             gen_lea_modrm(s, modrm, &reg_addr, &offset_addr);
             if (op == 2) {
                 gen_op_ld_T0_A0(OT_LONG + s->mem_index);
-                tcg_gen_st32_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, mxcsr));
+                gen_helper_ldmxcsr(cpu_T[0]);
             } else {
                 tcg_gen_ld32u_tl(cpu_T[0], cpu_env, offsetof(CPUX86State, mxcsr));
                 gen_op_st_T0_A0(OT_LONG + s->mem_index);

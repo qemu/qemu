@@ -584,9 +584,14 @@ void helper_ ## name ## sd (Reg *d, Reg *s)\
 #define FPU_SUB(size, a, b) float ## size ## _sub(a, b, &env->sse_status)
 #define FPU_MUL(size, a, b) float ## size ## _mul(a, b, &env->sse_status)
 #define FPU_DIV(size, a, b) float ## size ## _div(a, b, &env->sse_status)
-#define FPU_MIN(size, a, b) (a) < (b) ? (a) : (b)
-#define FPU_MAX(size, a, b) (a) > (b) ? (a) : (b)
 #define FPU_SQRT(size, a, b) float ## size ## _sqrt(b, &env->sse_status)
+
+/* Note that the choice of comparison op here is important to get the
+ * special cases right: for min and max Intel specifies that (-0,0),
+ * (NaN, anything) and (anything, NaN) return the second argument.
+ */
+#define FPU_MIN(size, a, b) float ## size ## _lt(a, b, &env->sse_status) ? (a) : (b)
+#define FPU_MAX(size, a, b) float ## size ## _lt(b, a, &env->sse_status) ? (a) : (b)
 
 SSE_HELPER_S(add, FPU_ADD)
 SSE_HELPER_S(sub, FPU_SUB)
@@ -1648,10 +1653,10 @@ void glue(helper_roundps, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
             break;
         }
 
-    d->L(0) = float64_round_to_int(s->L(0), &env->sse_status);
-    d->L(1) = float64_round_to_int(s->L(1), &env->sse_status);
-    d->L(2) = float64_round_to_int(s->L(2), &env->sse_status);
-    d->L(3) = float64_round_to_int(s->L(3), &env->sse_status);
+    d->XMM_S(0) = float32_round_to_int(s->XMM_S(0), &env->sse_status);
+    d->XMM_S(1) = float32_round_to_int(s->XMM_S(1), &env->sse_status);
+    d->XMM_S(2) = float32_round_to_int(s->XMM_S(2), &env->sse_status);
+    d->XMM_S(3) = float32_round_to_int(s->XMM_S(3), &env->sse_status);
 
 #if 0 /* TODO */
     if (mode & (1 << 3))
@@ -1684,8 +1689,8 @@ void glue(helper_roundpd, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
             break;
         }
 
-    d->Q(0) = float64_round_to_int(s->Q(0), &env->sse_status);
-    d->Q(1) = float64_round_to_int(s->Q(1), &env->sse_status);
+    d->XMM_D(0) = float64_round_to_int(s->XMM_D(0), &env->sse_status);
+    d->XMM_D(1) = float64_round_to_int(s->XMM_D(1), &env->sse_status);
 
 #if 0 /* TODO */
     if (mode & (1 << 3))
@@ -1718,7 +1723,7 @@ void glue(helper_roundss, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
             break;
         }
 
-    d->L(0) = float64_round_to_int(s->L(0), &env->sse_status);
+    d->XMM_S(0) = float32_round_to_int(s->XMM_S(0), &env->sse_status);
 
 #if 0 /* TODO */
     if (mode & (1 << 3))
@@ -1751,7 +1756,7 @@ void glue(helper_roundsd, SUFFIX) (Reg *d, Reg *s, uint32_t mode)
             break;
         }
 
-    d->Q(0) = float64_round_to_int(s->Q(0), &env->sse_status);
+    d->XMM_D(0) = float64_round_to_int(s->XMM_D(0), &env->sse_status);
 
 #if 0 /* TODO */
     if (mode & (1 << 3))
@@ -1770,44 +1775,44 @@ SSE_HELPER_I(helper_pblendw, W, 8, FBLENDP)
 
 void glue(helper_dpps, SUFFIX) (Reg *d, Reg *s, uint32_t mask)
 {
-    float32 iresult = 0 /*float32_zero*/;
+    float32 iresult = float32_zero;
 
     if (mask & (1 << 4))
         iresult = float32_add(iresult,
-                        float32_mul(d->L(0), s->L(0), &env->sse_status),
+                        float32_mul(d->XMM_S(0), s->XMM_S(0), &env->sse_status),
                         &env->sse_status);
     if (mask & (1 << 5))
         iresult = float32_add(iresult,
-                        float32_mul(d->L(1), s->L(1), &env->sse_status),
+                        float32_mul(d->XMM_S(1), s->XMM_S(1), &env->sse_status),
                         &env->sse_status);
     if (mask & (1 << 6))
         iresult = float32_add(iresult,
-                        float32_mul(d->L(2), s->L(2), &env->sse_status),
+                        float32_mul(d->XMM_S(2), s->XMM_S(2), &env->sse_status),
                         &env->sse_status);
     if (mask & (1 << 7))
         iresult = float32_add(iresult,
-                        float32_mul(d->L(3), s->L(3), &env->sse_status),
+                        float32_mul(d->XMM_S(3), s->XMM_S(3), &env->sse_status),
                         &env->sse_status);
-    d->L(0) = (mask & (1 << 0)) ? iresult : 0 /*float32_zero*/;
-    d->L(1) = (mask & (1 << 1)) ? iresult : 0 /*float32_zero*/;
-    d->L(2) = (mask & (1 << 2)) ? iresult : 0 /*float32_zero*/;
-    d->L(3) = (mask & (1 << 3)) ? iresult : 0 /*float32_zero*/;
+    d->XMM_S(0) = (mask & (1 << 0)) ? iresult : float32_zero;
+    d->XMM_S(1) = (mask & (1 << 1)) ? iresult : float32_zero;
+    d->XMM_S(2) = (mask & (1 << 2)) ? iresult : float32_zero;
+    d->XMM_S(3) = (mask & (1 << 3)) ? iresult : float32_zero;
 }
 
 void glue(helper_dppd, SUFFIX) (Reg *d, Reg *s, uint32_t mask)
 {
-    float64 iresult = 0 /*float64_zero*/;
+    float64 iresult = float64_zero;
 
     if (mask & (1 << 4))
         iresult = float64_add(iresult,
-                        float64_mul(d->Q(0), s->Q(0), &env->sse_status),
+                        float64_mul(d->XMM_D(0), s->XMM_D(0), &env->sse_status),
                         &env->sse_status);
     if (mask & (1 << 5))
         iresult = float64_add(iresult,
-                        float64_mul(d->Q(1), s->Q(1), &env->sse_status),
+                        float64_mul(d->XMM_D(1), s->XMM_D(1), &env->sse_status),
                         &env->sse_status);
-    d->Q(0) = (mask & (1 << 0)) ? iresult : 0 /*float64_zero*/;
-    d->Q(1) = (mask & (1 << 1)) ? iresult : 0 /*float64_zero*/;
+    d->XMM_D(0) = (mask & (1 << 0)) ? iresult : float64_zero;
+    d->XMM_D(1) = (mask & (1 << 1)) ? iresult : float64_zero;
 }
 
 void glue(helper_mpsadbw, SUFFIX) (Reg *d, Reg *s, uint32_t offset)
