@@ -82,7 +82,7 @@ static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
     }
     size = rtas_ld(args, 3);
     addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    val = pci_default_read_config(dev, addr, size);
+    val = pci_host_config_read_common(dev, addr, pci_config_size(dev), size);
     rtas_st(rets, 0, 0);
     rtas_st(rets, 1, val);
 }
@@ -101,7 +101,7 @@ static void rtas_read_pci_config(sPAPREnvironment *spapr,
     }
     size = rtas_ld(args, 1);
     addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    val = pci_default_read_config(dev, addr, size);
+    val = pci_host_config_read_common(dev, addr, pci_config_size(dev), size);
     rtas_st(rets, 0, 0);
     rtas_st(rets, 1, val);
 }
@@ -122,7 +122,7 @@ static void rtas_ibm_write_pci_config(sPAPREnvironment *spapr,
     val = rtas_ld(args, 4);
     size = rtas_ld(args, 3);
     addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    pci_default_write_config(dev, addr, val, size);
+    pci_host_config_write_common(dev, addr, pci_config_size(dev), val, size);
     rtas_st(rets, 0, 0);
 }
 
@@ -141,7 +141,7 @@ static void rtas_write_pci_config(sPAPREnvironment *spapr,
     val = rtas_ld(args, 2);
     size = rtas_ld(args, 1);
     addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    pci_default_write_config(dev, addr, val, size);
+    pci_host_config_write_common(dev, addr, pci_config_size(dev), val, size);
     rtas_st(rets, 0, 0);
 }
 
