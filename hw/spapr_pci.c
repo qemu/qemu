@@ -62,6 +62,11 @@ static PCIDevice *find_dev(sPAPREnvironment *spapr,
     return NULL;
 }
 
+static uint32_t rtas_pci_cfgaddr(uint32_t arg)
+{
+    return ((arg >> 20) & 0xf00) | (arg & 0xff);
+}
+
 static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
                                      uint32_t token, uint32_t nargs,
                                      target_ulong args,
@@ -76,7 +81,7 @@ static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
         return;
     }
     size = rtas_ld(args, 3);
-    addr = rtas_ld(args, 0) & 0xFF;
+    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
     val = pci_default_read_config(dev, addr, size);
     rtas_st(rets, 0, 0);
     rtas_st(rets, 1, val);
@@ -95,7 +100,7 @@ static void rtas_read_pci_config(sPAPREnvironment *spapr,
         return;
     }
     size = rtas_ld(args, 1);
-    addr = rtas_ld(args, 0) & 0xFF;
+    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
     val = pci_default_read_config(dev, addr, size);
     rtas_st(rets, 0, 0);
     rtas_st(rets, 1, val);
@@ -116,7 +121,7 @@ static void rtas_ibm_write_pci_config(sPAPREnvironment *spapr,
     }
     val = rtas_ld(args, 4);
     size = rtas_ld(args, 3);
-    addr = rtas_ld(args, 0) & 0xFF;
+    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
     pci_default_write_config(dev, addr, val, size);
     rtas_st(rets, 0, 0);
 }
@@ -135,7 +140,7 @@ static void rtas_write_pci_config(sPAPREnvironment *spapr,
     }
     val = rtas_ld(args, 2);
     size = rtas_ld(args, 1);
-    addr = rtas_ld(args, 0) & 0xFF;
+    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
     pci_default_write_config(dev, addr, val, size);
     rtas_st(rets, 0, 0);
 }
@@ -394,6 +399,7 @@ int spapr_populate_pci_devices(sPAPRPHBState *phb,
     _FDT(fdt_setprop(fdt, bus_off, "reg", &bus_reg, sizeof(bus_reg)));
     _FDT(fdt_setprop(fdt, bus_off, "interrupt-map-mask",
                      &interrupt_map_mask, sizeof(interrupt_map_mask)));
+    _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pci-config-space-type", 0x1));
 
     /* Populate PCI devices and allocate IRQs */
     devices = 0;
