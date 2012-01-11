@@ -1239,6 +1239,8 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net socket[,vlan=n][,name=str][,fd=h][,mcast=maddr:port[,localaddr=addr]]\n"
     "                connect the vlan 'n' to multicast maddr and port\n"
     "                use 'localaddr=addr' to specify the host address to send packets from\n"
+    "-net socket[,vlan=n][,name=str][,fd=h][,udp=host:port][,localaddr=host:port]\n"
+    "                connect the vlan 'n' to another VLAN using an UDP tunnel\n"
 #ifdef CONFIG_VDE
     "-net vde[,vlan=n][,name=str][,sock=socketpath][,port=n][,group=groupname][,mode=octalmode]\n"
     "                connect the vlan 'n' to port 'n' of a vde switch running\n"
