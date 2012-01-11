@@ -140,8 +140,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
     int request, value, index;
     int ret = 0;
 
-    if (p->devep != 0)
-        return usb_device_handle_data(s, p);
+    assert(p->devep == 0);
 
     request = (s->setup_buf[0] << 8) | s->setup_buf[1];
     value   = (s->setup_buf[3] << 8) | s->setup_buf[2];
@@ -187,8 +186,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
 
 static int do_token_out(USBDevice *s, USBPacket *p)
 {
-    if (p->devep != 0)
-        return usb_device_handle_data(s, p);
+    assert(p->devep == 0);
 
     switch(s->setup_state) {
     case SETUP_STATE_ACK:
@@ -216,33 +214,6 @@ static int do_token_out(USBDevice *s, USBPacket *p)
         s->setup_state = SETUP_STATE_IDLE;
         return USB_RET_STALL;
 
-    default:
-        return USB_RET_STALL;
-    }
-}
-
-/*
- * Generic packet handler.
- * Called by the HC (host controller).
- *
- * Returns length of the transaction or one of the USB_RET_XXX codes.
- */
-static int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
-{
-    /* Rest of the PIDs must match our address */
-    if (s->state < USB_STATE_DEFAULT || p->devaddr != s->addr)
-        return USB_RET_NODEV;
-
-    switch (p->pid) {
-    case USB_TOKEN_SETUP:
-        return do_token_setup(s, p);
-
-    case USB_TOKEN_IN:
-        return do_token_in(s, p);
-
-    case USB_TOKEN_OUT:
-        return do_token_out(s, p);
- 
     default:
         return USB_RET_STALL;
     }
@@ -319,9 +290,30 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
         return USB_RET_NODEV;
     }
     assert(dev->addr == p->devaddr);
-
+    assert(dev->state == USB_STATE_DEFAULT);
     assert(p->owner == NULL);
-    ret = usb_generic_handle_packet(dev, p);
+
+    if (p->devep == 0) {
+        /* control pipe */
+        switch (p->pid) {
+        case USB_TOKEN_SETUP:
+            ret = do_token_setup(dev, p);
+            break;
+        case USB_TOKEN_IN:
+            ret = do_token_in(dev, p);
+            break;
+        case USB_TOKEN_OUT:
+            ret = do_token_out(dev, p);
+            break;
+        default:
+            ret = USB_RET_STALL;
+            break;
+        }
+    } else {
+        /* data pipe */
+        ret = usb_device_handle_data(dev, p);
+    }
+
     if (ret == USB_RET_ASYNC) {
         p->owner = usb_ep_get(dev, p->pid, p->devep);
     }
