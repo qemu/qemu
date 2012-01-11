@@ -344,7 +344,8 @@ static int kvm_get_dirty_pages_log_range(MemoryRegionSection *section,
                                          unsigned long *bitmap)
 {
     unsigned int i, j;
-    unsigned long page_number, addr, addr1, c;
+    unsigned long page_number, c;
+    target_phys_addr_t addr, addr1;
     unsigned int len = ((section->size / TARGET_PAGE_SIZE) + HOST_LONG_BITS - 1) / HOST_LONG_BITS;
 
     /*
