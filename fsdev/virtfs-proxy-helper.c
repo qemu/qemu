@@ -54,7 +54,7 @@ static struct option helper_opts[] = {
 static bool is_daemon;
 static bool get_version; /* IOC getversion IOCTL supported */
 
-static void do_log(int loglevel, const char *format, ...)
+static void GCC_FMT_ATTR(2, 3) do_log(int loglevel, const char *format, ...)
 {
     va_list ap;
 
