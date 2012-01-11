@@ -50,19 +50,29 @@
 
 #include <libfdt.h>
 
-#define KERNEL_LOAD_ADDR        0x00000000
-#define INITRD_LOAD_ADDR        0x02800000
+/* SLOF memory layout:
+ *
+ * SLOF raw image loaded at 0, copies its romfs right below the flat
+ * device-tree, then position SLOF itself 31M below that
+ *
+ * So we set FW_OVERHEAD to 40MB which should account for all of that
+ * and more
+ *
+ * We load our kernel at 4M, leaving space for SLOF initial image
+ */
 #define FDT_MAX_SIZE            0x10000
 #define RTAS_MAX_SIZE           0x10000
 #define FW_MAX_SIZE             0x400000
 #define FW_FILE_NAME            "slof.bin"
+#define FW_OVERHEAD             0x2800000
+#define KERNEL_LOAD_ADDR        FW_MAX_SIZE
 
-#define MIN_RMA_SLOF		128UL
+#define MIN_RMA_SLOF            128UL
 
 #define TIMEBASE_FREQ           512000000ULL
 
 #define MAX_CPUS                256
-#define XICS_IRQS		1024
+#define XICS_IRQS               1024
 
 #define SPAPR_PCI_BUID          0x800000020000001ULL
 #define SPAPR_PCI_MEM_WIN_ADDR  (0x10000000000ULL + 0xA0000000)
@@ -139,6 +149,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                                    target_phys_addr_t rma_size,
                                    target_phys_addr_t initrd_base,
                                    target_phys_addr_t initrd_size,
+                                   target_phys_addr_t kernel_size,
                                    const char *boot_device,
                                    const char *kernel_cmdline,
                                    long hash_shift)
@@ -176,6 +187,12 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
     fdt = g_malloc0(FDT_MAX_SIZE);
     _FDT((fdt_create(fdt, FDT_MAX_SIZE)));
 
+    if (kernel_size) {
+        _FDT((fdt_add_reservemap_entry(fdt, KERNEL_LOAD_ADDR, kernel_size)));
+    }
+    if (initrd_size) {
+        _FDT((fdt_add_reservemap_entry(fdt, initrd_base, initrd_size)));
+    }
     _FDT((fdt_finish_reservemap(fdt)));
 
     /* Root node */
@@ -197,15 +214,13 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                        &start_prop, sizeof(start_prop))));
     _FDT((fdt_property(fdt, "linux,initrd-end",
                        &end_prop, sizeof(end_prop))));
-    _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
+    if (kernel_size) {
+        uint64_t kprop[2] = { cpu_to_be64(KERNEL_LOAD_ADDR),
+                              cpu_to_be64(kernel_size) };
 
-    /*
-     * Because we don't always invoke any firmware, we can't rely on
-     * that to do BAR allocation.  Long term, we should probably do
-     * that ourselves, but for now, this setting (plus advertising the
-     * current BARs as 0) causes sufficiently recent kernels to to the
-     * BAR assignment themselves */
-    _FDT((fdt_property_cell(fdt, "linux,pci-probe-only", 0)));
+        _FDT((fdt_property(fdt, "qemu,boot-kernel", &kprop, sizeof(kprop))));
+    }
+    _FDT((fdt_property_string(fdt, "qemu,boot-device", boot_device)));
 
     _FDT((fdt_end_node(fdt)));
 
@@ -445,6 +460,12 @@ static void spapr_finalize_fdt(sPAPREnvironment *spapr,
 
     _FDT((fdt_pack(fdt)));
 
+    if (fdt_totalsize(fdt) > FDT_MAX_SIZE) {
+        hw_error("FDT too big ! 0x%x bytes (max is 0x%x)\n",
+                 fdt_totalsize(fdt), FDT_MAX_SIZE);
+        exit(1);
+    }
+
     cpu_physical_memory_write(fdt_addr, fdt, fdt_totalsize(fdt));
 
     g_free(fdt);
@@ -494,8 +515,9 @@ static void ppc_spapr_init(ram_addr_t ram_size,
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     target_phys_addr_t rma_alloc_size, rma_size;
-    uint32_t initrd_base;
-    long kernel_size, initrd_size, fw_size;
+    uint32_t initrd_base = 0;
+    long kernel_size = 0, initrd_size = 0;
+    long load_limit, rtas_limit, fw_size;
     long pteg_shift = 17;
     char *filename;
 
@@ -517,11 +539,13 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         rma_size = ram_size;
     }
 
-    /* We place the device tree just below either the top of the RMA,
+    /* We place the device tree and RTAS just below either the top of the RMA,
      * or just below 2GB, whichever is lowere, so that it can be
      * processed with 32-bit real mode code if necessary */
-    spapr->fdt_addr = MIN(rma_size, 0x80000000) - FDT_MAX_SIZE;
-    spapr->rtas_addr = spapr->fdt_addr - RTAS_MAX_SIZE;
+    rtas_limit = MIN(rma_size, 0x80000000);
+    spapr->rtas_addr = rtas_limit - RTAS_MAX_SIZE;
+    spapr->fdt_addr = spapr->rtas_addr - FDT_MAX_SIZE;
+    load_limit = spapr->fdt_addr - FW_OVERHEAD;
 
     /* init CPUs */
     if (cpu_model == NULL) {
@@ -577,12 +601,18 @@ static void ppc_spapr_init(ram_addr_t ram_size,
 
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, "spapr-rtas.bin");
     spapr->rtas_size = load_image_targphys(filename, spapr->rtas_addr,
-                                           ram_size - spapr->rtas_addr);
+                                           rtas_limit - spapr->rtas_addr);
     if (spapr->rtas_size < 0) {
         hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
         exit(1);
     }
+    if (spapr->rtas_size > RTAS_MAX_SIZE) {
+        hw_error("RTAS too big ! 0x%lx bytes (max is 0x%x)\n",
+                 spapr->rtas_size, RTAS_MAX_SIZE);
+        exit(1);
+    }
     g_free(filename);
+
 
     /* Set up Interrupt Controller */
     spapr->icp = xics_system_init(XICS_IRQS);
@@ -622,6 +652,20 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         spapr_vscsi_create(spapr->vio_bus, 0x2000 + i);
     }
 
+    if (rma_size < (MIN_RMA_SLOF << 20)) {
+        fprintf(stderr, "qemu: pSeries SLOF firmware requires >= "
+                "%ldM guest RMA (Real Mode Area memory)\n", MIN_RMA_SLOF);
+        exit(1);
+    }
+
+    fprintf(stderr, "sPAPR memory map:\n");
+    fprintf(stderr, "RTAS                 : 0x%08lx..%08lx\n",
+            (unsigned long)spapr->rtas_addr,
+            (unsigned long)(spapr->rtas_addr + spapr->rtas_size - 1));
+    fprintf(stderr, "FDT                  : 0x%08lx..%08lx\n",
+            (unsigned long)spapr->fdt_addr,
+            (unsigned long)(spapr->fdt_addr + FDT_MAX_SIZE - 1));
+
     if (kernel_filename) {
         uint64_t lowaddr = 0;
 
@@ -630,57 +674,60 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(kernel_filename,
                                               KERNEL_LOAD_ADDR,
-                                              ram_size - KERNEL_LOAD_ADDR);
+                                              load_limit - KERNEL_LOAD_ADDR);
         }
         if (kernel_size < 0) {
             fprintf(stderr, "qemu: could not load kernel '%s'\n",
                     kernel_filename);
             exit(1);
         }
+        fprintf(stderr, "Kernel               : 0x%08x..%08lx\n",
+                KERNEL_LOAD_ADDR, KERNEL_LOAD_ADDR + kernel_size - 1);
 
         /* load initrd */
         if (initrd_filename) {
-            initrd_base = INITRD_LOAD_ADDR;
+            /* Try to locate the initrd in the gap between the kernel
+             * and the firmware. Add a bit of space just in case
+             */
+            initrd_base = (KERNEL_LOAD_ADDR + kernel_size + 0x1ffff) & ~0xffff;
             initrd_size = load_image_targphys(initrd_filename, initrd_base,
-                                              ram_size - initrd_base);
+                                              load_limit - initrd_base);
             if (initrd_size < 0) {
                 fprintf(stderr, "qemu: could not load initial ram disk '%s'\n",
                         initrd_filename);
                 exit(1);
             }
+            fprintf(stderr, "Ramdisk              : 0x%08lx..%08lx\n",
+                    (long)initrd_base, (long)(initrd_base + initrd_size - 1));
         } else {
             initrd_base = 0;
             initrd_size = 0;
         }
+    }
 
-        spapr->entry_point = KERNEL_LOAD_ADDR;
-    } else {
-        if (rma_size < (MIN_RMA_SLOF << 20)) {
-            fprintf(stderr, "qemu: pSeries SLOF firmware requires >= "
-                    "%ldM guest RMA (Real Mode Area memory)\n", MIN_RMA_SLOF);
-            exit(1);
-        }
-        filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, FW_FILE_NAME);
-        fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
-        if (fw_size < 0) {
-            hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
-            exit(1);
-        }
-        g_free(filename);
-        spapr->entry_point = 0x100;
-        initrd_base = 0;
-        initrd_size = 0;
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, FW_FILE_NAME);
+    fw_size = load_image_targphys(filename, 0, FW_MAX_SIZE);
+    if (fw_size < 0) {
+        hw_error("qemu: could not load LPAR rtas '%s'\n", filename);
+        exit(1);
+    }
+    g_free(filename);
+    fprintf(stderr, "Firmware load        : 0x%08x..%08lx\n",
+            0, fw_size);
+    fprintf(stderr, "Firmware runtime     : 0x%08lx..%08lx\n",
+            load_limit, (unsigned long)spapr->fdt_addr);
 
-        /* SLOF will startup the secondary CPUs using RTAS,
-           rather than expecting a kexec() style entry */
-        for (env = first_cpu; env != NULL; env = env->next_cpu) {
-            env->halted = 1;
-        }
+    spapr->entry_point = 0x100;
+
+    /* SLOF will startup the secondary CPUs using RTAS */
+    for (env = first_cpu; env != NULL; env = env->next_cpu) {
+        env->halted = 1;
     }
 
     /* Prepare the device tree */
     spapr->fdt_skel = spapr_create_fdt_skel(cpu_model, rma_size,
                                             initrd_base, initrd_size,
+                                            kernel_size,
                                             boot_device, kernel_cmdline,
                                             pteg_shift + 7);
     assert(spapr->fdt_skel != NULL);
