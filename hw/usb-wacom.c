@@ -357,7 +357,6 @@ static void usb_wacom_class_init(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU PenPartner Tablet";
     uc->usb_desc       = &desc_wacom;
     uc->init           = usb_wacom_initfn;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_wacom_handle_reset;
     uc->handle_control = usb_wacom_handle_control;
     uc->handle_data    = usb_wacom_handle_data;

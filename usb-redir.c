@@ -1424,7 +1424,6 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usbredir_initfn;
     uc->product_desc   = "USB Redirection Device";
     uc->handle_destroy = usbredir_handle_destroy;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->cancel_packet  = usbredir_cancel_packet;
     uc->handle_reset   = usbredir_handle_reset;
     uc->handle_data    = usbredir_handle_data;

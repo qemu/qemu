@@ -1398,7 +1398,6 @@ static void usb_net_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_net_initfn;
     uc->product_desc   = "QEMU USB Network Interface";
     uc->usb_desc       = &desc_net;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_net_handle_reset;
     uc->handle_control = usb_net_handle_control;
     uc->handle_data    = usb_net_handle_data;

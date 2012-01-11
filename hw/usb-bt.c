@@ -535,7 +535,6 @@ static void usb_bt_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_bt_initfn;
     uc->product_desc   = "QEMU BT dongle";
     uc->usb_desc       = &desc_bluetooth;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_bt_handle_reset;
     uc->handle_control = usb_bt_handle_control;
     uc->handle_data    = usb_bt_handle_data;

@@ -1320,7 +1320,6 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     uc->init           = ccid_initfn;
     uc->product_desc   = "QEMU USB CCID";
     uc->usb_desc       = &desc_ccid;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = ccid_handle_reset;
     uc->handle_control = ccid_handle_control;
     uc->handle_data    = ccid_handle_data;

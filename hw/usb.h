@@ -235,15 +235,6 @@ typedef struct USBDeviceClass {
     USBDevice *(*find_device)(USBDevice *dev, uint8_t addr);
 
     /*
-     * Process USB packet.
-     * Called by the HC (Host Controller).
-     *
-     * Returns length of the transaction
-     * or one of the USB_RET_XXX codes.
-     */
-    int (*handle_packet)(USBDevice *dev, USBPacket *p);
-
-    /*
      * Called when a packet is canceled.
      */
     void (*cancel_packet)(USBDevice *dev, USBPacket *p);
@@ -360,7 +351,6 @@ void usb_detach(USBPort *port);
 void usb_port_reset(USBPort *port);
 void usb_device_reset(USBDevice *dev);
 void usb_wakeup(USBDevice *dev);
-int usb_generic_handle_packet(USBDevice *s, USBPacket *p);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
 
@@ -455,8 +445,6 @@ extern const VMStateDescription vmstate_usb_device;
 }
 
 USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr);
-
-int usb_device_handle_packet(USBDevice *dev, USBPacket *p);
 
 void usb_device_cancel_packet(USBDevice *dev, USBPacket *p);
 

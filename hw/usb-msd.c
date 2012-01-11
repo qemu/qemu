@@ -651,7 +651,6 @@ static void usb_msd_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_msd_initfn;
     uc->product_desc   = "QEMU USB MSD";
     uc->usb_desc       = &desc;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->cancel_packet  = usb_msd_cancel_io;
     uc->handle_attach  = usb_desc_attach;
     uc->handle_reset   = usb_msd_handle_reset;

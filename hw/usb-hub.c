@@ -455,44 +455,6 @@ static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static int usb_hub_broadcast_packet(USBHubState *s, USBPacket *p)
-{
-    USBHubPort *port;
-    USBDevice *dev;
-    int i, ret;
-
-    for(i = 0; i < NUM_PORTS; i++) {
-        port = &s->ports[i];
-        dev = port->port.dev;
-        if (dev && dev->attached && (port->wPortStatus & PORT_STAT_ENABLE)) {
-            ret = usb_handle_packet(dev, p);
-            if (ret != USB_RET_NODEV) {
-                return ret;
-            }
-        }
-    }
-    return USB_RET_NODEV;
-}
-
-static int usb_hub_handle_packet(USBDevice *dev, USBPacket *p)
-{
-    USBHubState *s = (USBHubState *)dev;
-
-#if defined(DEBUG) && 0
-    printf("usb_hub: pid=0x%x\n", pid);
-#endif
-    if (dev->state == USB_STATE_DEFAULT &&
-        dev->addr != 0 &&
-        p->devaddr != dev->addr &&
-        (p->pid == USB_TOKEN_SETUP ||
-         p->pid == USB_TOKEN_OUT ||
-         p->pid == USB_TOKEN_IN)) {
-        /* broadcast the packet to the devices */
-        return usb_hub_broadcast_packet(s, p);
-    }
-    return usb_generic_handle_packet(dev, p);
-}
-
 static void usb_hub_handle_destroy(USBDevice *dev)
 {
     USBHubState *s = (USBHubState *)dev;
@@ -562,7 +524,6 @@ static void usb_hub_class_initfn(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU USB Hub";
     uc->usb_desc       = &desc_hub;
     uc->find_device    = usb_hub_find_device;
-    uc->handle_packet  = usb_hub_handle_packet;
     uc->handle_reset   = usb_hub_handle_reset;
     uc->handle_control = usb_hub_handle_control;
     uc->handle_data    = usb_hub_handle_data;

@@ -227,7 +227,7 @@ static int do_token_out(USBDevice *s, USBPacket *p)
  *
  * Returns length of the transaction or one of the USB_RET_XXX codes.
  */
-int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
+static int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
 {
     /* Rest of the PIDs must match our address */
     if (s->state < USB_STATE_DEFAULT || p->devaddr != s->addr)
@@ -318,18 +318,12 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     if (dev == NULL) {
         return USB_RET_NODEV;
     }
+    assert(dev->addr == p->devaddr);
 
     assert(p->owner == NULL);
-    ret = usb_device_handle_packet(dev, p);
+    ret = usb_generic_handle_packet(dev, p);
     if (ret == USB_RET_ASYNC) {
-        if (p->owner == NULL) {
-            p->owner = usb_ep_get(dev, p->pid, p->devep);
-        } else {
-            /* We'll end up here when usb_handle_packet is called
-             * recursively due to a hub being in the chain.  Nothing
-             * to do.  Leave p->owner pointing to the device, not the
-             * hub. */;
-        }
+        p->owner = usb_ep_get(dev, p->pid, p->devep);
     }
     return ret;
 }
@@ -339,7 +333,6 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
    handle_packet. */
 void usb_packet_complete(USBDevice *dev, USBPacket *p)
 {
-    /* Note: p->owner != dev is possible in case dev is a hub */
     assert(p->owner != NULL);
     p->owner = NULL;
     dev->port->ops->complete(dev->port, p);

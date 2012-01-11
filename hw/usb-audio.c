@@ -691,7 +691,6 @@ static void usb_audio_class_init(ObjectClass *klass, void *data)
     k->product_desc   = "QEMU USB Audio Interface";
     k->usb_desc       = &desc_audio;
     k->init           = usb_audio_initfn;
-    k->handle_packet  = usb_generic_handle_packet;
     k->handle_reset   = usb_audio_handle_reset;
     k->handle_control = usb_audio_handle_control;
     k->handle_data    = usb_audio_handle_data;

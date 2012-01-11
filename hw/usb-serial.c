@@ -583,7 +583,6 @@ static void usb_serial_class_initfn(ObjectClass *klass, void *data)
     uc->init = usb_serial_initfn;
     uc->product_desc   = "QEMU USB Serial";
     uc->usb_desc       = &desc_serial;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_serial_handle_reset;
     uc->handle_control = usb_serial_handle_control;
     uc->handle_data    = usb_serial_handle_data;
@@ -612,7 +611,6 @@ static void usb_braille_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_serial_initfn;
     uc->product_desc   = "QEMU USB Braille";
     uc->usb_desc       = &desc_braille;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_serial_handle_reset;
     uc->handle_control = usb_serial_handle_control;
     uc->handle_data    = usb_serial_handle_data;

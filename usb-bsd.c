@@ -403,7 +403,6 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
 
     uc->product_desc   = "USB Host Device";
     uc->init           = usb_host_initfn;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_host_handle_reset;
     uc->handle_control = usb_host_handle_control;
     uc->handle_data    = usb_host_handle_data;

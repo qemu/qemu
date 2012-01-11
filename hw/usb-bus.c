@@ -91,15 +91,6 @@ static void usb_device_handle_destroy(USBDevice *dev)
     }
 }
 
-int usb_device_handle_packet(USBDevice *dev, USBPacket *p)
-{
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
-    if (klass->handle_packet) {
-        return klass->handle_packet(dev, p);
-    }
-    return -ENOSYS;
-}
-
 void usb_device_cancel_packet(USBDevice *dev, USBPacket *p)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
