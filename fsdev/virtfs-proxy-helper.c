@@ -27,13 +27,13 @@
 #include <stdbool.h>
 #include <sys/vfs.h>
 #include <sys/stat.h>
-#include <attr/xattr.h>
 #include <sys/ioctl.h>
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H
 #include <linux/magic.h>
 #endif
 #include "qemu-common.h"
+#include "qemu-xattr.h"
 #include "virtio-9p-marshal.h"
 #include "hw/9pfs/virtio-9p-proxy.h"
 #include "fsdev/virtio-9p-marshal.h"
