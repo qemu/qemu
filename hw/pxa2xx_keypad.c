@@ -129,48 +129,45 @@ static void pxa27x_keyboard_event (PXA2xxKeyPadState *kp, int keycode)
     if(!(kp->kpc & KPC_ME)) /* skip if not enabled */
         return;
 
-    if(kp->kpc & KPC_AS || kp->kpc & KPC_ASACT) {
-        if(kp->kpc & KPC_AS)
-            kp->kpc &= ~(KPC_AS);
-
-        rel = (keycode & 0x80) ? 1 : 0; /* key release from qemu */
-        keycode &= ~(0x80); /* strip qemu key release bit */
-        if (kp->alt_code) {
-            keycode |= 0x80;
-            kp->alt_code = 0;
-        }
-
-        row = kp->map[keycode].row;
-        col = kp->map[keycode].column;
-        if(row == -1 || col == -1)
-            return;
-
-        val = KPASMKPx_MKC(row, col);
-        if (rel) {
-            if (kp->kpasmkp[col / 2] & val) {
-                kp->kpasmkp[col / 2] &= ~val;
-                kp->pressed_cnt--;
-                assert_irq = 1;
-            }
-        } else {
-            if (!(kp->kpasmkp[col / 2] & val)) {
-                kp->kpasmkp[col / 2] |= val;
-                kp->pressed_cnt++;
-                assert_irq = 1;
-            }
-        }
-        kp->kpas = ((kp->pressed_cnt & 0x1f) << 26) | (0xf << 4) | 0xf;
-        if (kp->pressed_cnt == 1) {
-            kp->kpas &= ~((0xf << 4) | 0xf);
-            if (rel)
-                pxa27x_keypad_find_pressed_key(kp, &row, &col);
-            kp->kpas |= ((row & 0xf) << 4) | (col & 0xf);
-        }
-        goto out;
+    rel = (keycode & 0x80) ? 1 : 0; /* key release from qemu */
+    keycode &= ~0x80; /* strip qemu key release bit */
+    if (kp->alt_code) {
+        keycode |= 0x80;
+        kp->alt_code = 0;
     }
-    return;
 
-out:
+    row = kp->map[keycode].row;
+    col = kp->map[keycode].column;
+    if (row == -1 || col == -1) {
+        return;
+    }
+
+    val = KPASMKPx_MKC(row, col);
+    if (rel) {
+        if (kp->kpasmkp[col / 2] & val) {
+            kp->kpasmkp[col / 2] &= ~val;
+            kp->pressed_cnt--;
+            assert_irq = 1;
+        }
+    } else {
+        if (!(kp->kpasmkp[col / 2] & val)) {
+            kp->kpasmkp[col / 2] |= val;
+            kp->pressed_cnt++;
+            assert_irq = 1;
+        }
+    }
+    kp->kpas = ((kp->pressed_cnt & 0x1f) << 26) | (0xf << 4) | 0xf;
+    if (kp->pressed_cnt == 1) {
+        kp->kpas &= ~((0xf << 4) | 0xf);
+        if (rel) {
+            pxa27x_keypad_find_pressed_key(kp, &row, &col);
+        }
+        kp->kpas |= ((row & 0xf) << 4) | (col & 0xf);
+    }
+
+    if (!(kp->kpc & (KPC_AS | KPC_ASACT))
+        assert_irq = 0;
+
     if (assert_irq && (kp->kpc & KPC_MIE)) {
         kp->kpc |= KPC_MI;
         qemu_irq_raise(kp->irq);
@@ -248,6 +245,9 @@ static void pxa2xx_keypad_write(void *opaque, target_phys_addr_t offset,
     switch (offset) {
     case KPC:
         s->kpc = value;
+        if (s->kpc & KPC_AS) {
+            s->kpc &= ~(KPC_AS);
+        }
         break;
     case KPDK:
         s->kpdk = value;
