@@ -291,7 +291,7 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     }
     assert(dev->addr == p->devaddr);
     assert(dev->state == USB_STATE_DEFAULT);
-    assert(p->owner == NULL);
+    assert(p->state == USB_PACKET_SETUP);
 
     if (p->devep == 0) {
         /* control pipe */
@@ -315,7 +315,8 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     }
 
     if (ret == USB_RET_ASYNC) {
-        p->owner = usb_ep_get(dev, p->pid, p->devep);
+        p->ep = usb_ep_get(dev, p->pid, p->devep);
+        p->state = USB_PACKET_ASYNC;
     }
     return ret;
 }
@@ -325,8 +326,8 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
    handle_packet. */
 void usb_packet_complete(USBDevice *dev, USBPacket *p)
 {
-    assert(p->owner != NULL);
-    p->owner = NULL;
+    assert(p->state == USB_PACKET_ASYNC);
+    p->state = USB_PACKET_COMPLETE;
     dev->port->ops->complete(dev->port, p);
 }
 
@@ -335,9 +336,9 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
    completed.  */
 void usb_cancel_packet(USBPacket * p)
 {
-    assert(p->owner != NULL);
-    usb_device_cancel_packet(p->owner->dev, p);
-    p->owner = NULL;
+    assert(p->state == USB_PACKET_ASYNC);
+    p->state = USB_PACKET_CANCELED;
+    usb_device_cancel_packet(p->ep->dev, p);
 }
 
 
@@ -348,6 +349,8 @@ void usb_packet_init(USBPacket *p)
 
 void usb_packet_setup(USBPacket *p, int pid, uint8_t addr, uint8_t ep)
 {
+    assert(!usb_packet_is_inflight(p));
+    p->state = USB_PACKET_SETUP;
     p->pid = pid;
     p->devaddr = addr;
     p->devep = ep;
@@ -391,6 +394,7 @@ void usb_packet_skip(USBPacket *p, size_t bytes)
 
 void usb_packet_cleanup(USBPacket *p)
 {
+    assert(!usb_packet_is_inflight(p));
     qemu_iovec_destroy(&p->iov);
 }
 

@@ -289,8 +289,7 @@ typedef struct USBPortOps {
     void (*wakeup)(USBPort *port);
     /*
      * Note that port->dev will be different then the device from which
-     * the packet originated when a hub is involved, if you want the orginating
-     * device use p->owner
+     * the packet originated when a hub is involved.
      */
     void (*complete)(USBPort *port, USBPacket *p);
 } USBPortOps;
@@ -309,15 +308,24 @@ struct USBPort {
 typedef void USBCallback(USBPacket * packet, void *opaque);
 
 /* Structure used to hold information about an active USB packet.  */
+typedef enum USBPacketState {
+    USB_PACKET_UNDEFINED = 0,
+    USB_PACKET_SETUP,
+    USB_PACKET_ASYNC,
+    USB_PACKET_COMPLETE,
+    USB_PACKET_CANCELED,
+} USBPacketState;
+
 struct USBPacket {
     /* Data fields for use by the driver.  */
     int pid;
     uint8_t devaddr;
     uint8_t devep;
+    USBEndpoint *ep;
     QEMUIOVector iov;
     int result; /* transfer length or USB_RET_* status code */
     /* Internal use by the USB layer.  */
-    USBEndpoint *owner;
+    USBPacketState state;
 };
 
 void usb_packet_init(USBPacket *p);
@@ -328,6 +336,11 @@ void usb_packet_unmap(USBPacket *p);
 void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes);
 void usb_packet_skip(USBPacket *p, size_t bytes);
 void usb_packet_cleanup(USBPacket *p);
+
+static inline bool usb_packet_is_inflight(USBPacket *p)
+{
+    return p->state == USB_PACKET_ASYNC;
+}
 
 USBDevice *usb_find_device(USBPort *port, uint8_t addr);
 
