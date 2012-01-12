@@ -761,6 +761,8 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     int len = 0, max_len;
     uint8_t pid, isoc;
     uint32_t token;
+    USBDevice *dev;
+    USBEndpoint *ep;
 
     /* Is active ? */
     if (!(td->ctrl & TD_CTRL_ACTIVE))
@@ -805,23 +807,22 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
 
-    usb_packet_setup(&async->packet, pid, (td->token >> 8) & 0x7f,
-                     (td->token >> 15) & 0xf);
+    dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
+    ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
+    usb_packet_setup(&async->packet, pid, ep);
     qemu_sglist_add(&async->sgl, td->buffer, max_len);
     usb_packet_map(&async->packet, &async->sgl);
 
     switch(pid) {
     case USB_TOKEN_OUT:
     case USB_TOKEN_SETUP:
-        len = usb_handle_packet(uhci_find_device(s, async->packet.devaddr),
-                                &async->packet);
+        len = usb_handle_packet(dev, &async->packet);
         if (len >= 0)
             len = max_len;
         break;
 
     case USB_TOKEN_IN:
-        len = usb_handle_packet(uhci_find_device(s, async->packet.devaddr),
-                                &async->packet);
+        len = usb_handle_packet(dev, &async->packet);
         break;
 
     default:

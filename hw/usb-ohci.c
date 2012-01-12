@@ -657,6 +657,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     int ret;
     int i;
     USBDevice *dev;
+    USBEndpoint *ep;
     struct ohci_iso_td iso_td;
     uint32_t addr;
     uint16_t starting_frame;
@@ -796,11 +797,10 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     if (completion) {
         ret = ohci->usb_packet.result;
     } else {
-        usb_packet_setup(&ohci->usb_packet, pid,
-                         OHCI_BM(ed->flags, ED_FA),
-                         OHCI_BM(ed->flags, ED_EN));
+        dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
+        ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
+        usb_packet_setup(&ohci->usb_packet, pid, ep);
         usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
-        dev = ohci_find_device(ohci, ohci->usb_packet.devaddr);
         ret = usb_handle_packet(dev, &ohci->usb_packet);
         if (ret == USB_RET_ASYNC) {
             return 1;
@@ -889,6 +889,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     int ret;
     int i;
     USBDevice *dev;
+    USBEndpoint *ep;
     struct ohci_td td;
     uint32_t addr;
     int flag_r;
@@ -992,11 +993,10 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
 #endif
             return 1;
         }
-        usb_packet_setup(&ohci->usb_packet, pid,
-                         OHCI_BM(ed->flags, ED_FA),
-                         OHCI_BM(ed->flags, ED_EN));
+        dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
+        ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
+        usb_packet_setup(&ohci->usb_packet, pid, ep);
         usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, pktlen);
-        dev = ohci_find_device(ohci, ohci->usb_packet.devaddr);
         ret = usb_handle_packet(dev, &ohci->usb_packet);
 #ifdef DEBUG_PACKET
         DPRINTF("ret=%d\n", ret);

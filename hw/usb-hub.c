@@ -416,7 +416,7 @@ static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
 
     switch(p->pid) {
     case USB_TOKEN_IN:
-        if (p->devep == 1) {
+        if (p->ep->nr == 1) {
             USBHubPort *port;
             unsigned int status;
             uint8_t buf[4];

@@ -995,7 +995,7 @@ static int ccid_handle_data(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_TOKEN_IN:
-        switch (p->devep & 0xf) {
+        switch (p->ep->nr) {
         case CCID_BULK_IN_EP:
             if (!p->iov.size) {
                 ret = USB_RET_NAK;

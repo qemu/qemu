@@ -341,7 +341,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     uint32_t tag;
     int ret = 0;
     struct usb_msd_cbw cbw;
-    uint8_t devep = p->devep;
+    uint8_t devep = p->ep->nr;
 
     switch (p->pid) {
     case USB_TOKEN_OUT:

@@ -306,7 +306,7 @@ static int usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
 
     switch (p->pid) {
     case USB_TOKEN_IN:
-        if (p->devep == 1) {
+        if (p->ep->nr == 1) {
             if (!(s->changed || s->idle))
                 return USB_RET_NAK;
             s->changed = 0;

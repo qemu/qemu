@@ -321,8 +321,6 @@ typedef enum USBPacketState {
 struct USBPacket {
     /* Data fields for use by the driver.  */
     int pid;
-    uint8_t devaddr;
-    uint8_t devep;
     USBEndpoint *ep;
     QEMUIOVector iov;
     int result; /* transfer length or USB_RET_* status code */
@@ -331,7 +329,7 @@ struct USBPacket {
 };
 
 void usb_packet_init(USBPacket *p);
-void usb_packet_setup(USBPacket *p, int pid, uint8_t addr, uint8_t ep);
+void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep);
 void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len);
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl);
 void usb_packet_unmap(USBPacket *p);

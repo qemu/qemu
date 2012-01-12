@@ -140,7 +140,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
     int request, value, index;
     int ret = 0;
 
-    assert(p->devep == 0);
+    assert(p->ep->nr == 0);
 
     request = (s->setup_buf[0] << 8) | s->setup_buf[1];
     value   = (s->setup_buf[3] << 8) | s->setup_buf[2];
@@ -186,7 +186,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
 
 static int do_token_out(USBDevice *s, USBPacket *p)
 {
-    assert(p->devep == 0);
+    assert(p->ep->nr == 0);
 
     switch(s->setup_state) {
     case SETUP_STATE_ACK:
@@ -289,11 +289,11 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     if (dev == NULL) {
         return USB_RET_NODEV;
     }
-    assert(dev->addr == p->devaddr);
+    assert(dev == p->ep->dev);
     assert(dev->state == USB_STATE_DEFAULT);
     assert(p->state == USB_PACKET_SETUP);
 
-    if (p->devep == 0) {
+    if (p->ep->nr == 0) {
         /* control pipe */
         switch (p->pid) {
         case USB_TOKEN_SETUP:
@@ -315,7 +315,6 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     }
 
     if (ret == USB_RET_ASYNC) {
-        p->ep = usb_ep_get(dev, p->pid, p->devep);
         p->state = USB_PACKET_ASYNC;
     }
     return ret;
@@ -347,13 +346,12 @@ void usb_packet_init(USBPacket *p)
     qemu_iovec_init(&p->iov, 1);
 }
 
-void usb_packet_setup(USBPacket *p, int pid, uint8_t addr, uint8_t ep)
+void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep)
 {
     assert(!usb_packet_is_inflight(p));
     p->state = USB_PACKET_SETUP;
     p->pid = pid;
-    p->devaddr = addr;
-    p->devep = ep;
+    p->ep = ep;
     p->result = 0;
     qemu_iovec_reset(&p->iov);
 }
@@ -464,7 +462,12 @@ void usb_ep_dump(USBDevice *dev)
 
 struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)
 {
-    struct USBEndpoint *eps = pid == USB_TOKEN_IN ? dev->ep_in : dev->ep_out;
+    struct USBEndpoint *eps;
+
+    if (dev == NULL) {
+        return NULL;
+    }
+    eps = (pid == USB_TOKEN_IN) ? dev->ep_in : dev->ep_out;
     if (ep == 0) {
         return &dev->ep_ctl;
     }

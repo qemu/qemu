@@ -214,7 +214,7 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     int ret, fd, mode;
     int one = 1, shortpacket = 0, timeout = 50;
     sigset_t new_mask, old_mask;
-    uint8_t devep = p->devep;
+    uint8_t devep = p->ep->nr;
 
     /* protect data transfers from SIGALRM signal */
     sigemptyset(&new_mask);

@@ -423,7 +423,7 @@ static int usb_bt_handle_data(USBDevice *dev, USBPacket *p)
 
     switch (p->pid) {
     case USB_TOKEN_IN:
-        switch (p->devep & 0xf) {
+        switch (p->ep->nr) {
         case USB_EVT_EP:
             ret = usb_bt_fifo_dequeue(&s->evt, p);
             break;
@@ -442,7 +442,7 @@ static int usb_bt_handle_data(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_TOKEN_OUT:
-        switch (p->devep & 0xf) {
+        switch (p->ep->nr) {
         case USB_ACL_EP:
             usb_bt_fifo_out_enqueue(s, &s->outacl, s->hci->acl_send,
                             usb_bt_hci_acl_complete, p);

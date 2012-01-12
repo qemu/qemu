@@ -463,7 +463,7 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
 
     switch (p->pid) {
     case USB_TOKEN_IN:
-        if (p->devep == 1) {
+        if (p->ep->nr == 1) {
             int64_t curtime = qemu_get_clock_ns(vm_clock);
             if (!hid_has_events(hs) &&
                 (!hs->idle || hs->next_idle_clock - curtime > 0)) {

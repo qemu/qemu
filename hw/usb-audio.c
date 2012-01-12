@@ -607,7 +607,7 @@ static int usb_audio_handle_data(USBDevice *dev, USBPacket *p)
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
-        switch (p->devep) {
+        switch (p->ep->nr) {
         case 1:
             ret = usb_audio_handle_dataout(s, p);
             break;
@@ -624,7 +624,7 @@ fail:
     if (ret == USB_RET_STALL && s->debug) {
         fprintf(stderr, "usb-audio: failed data transaction: "
                         "pid 0x%x ep 0x%x len 0x%zx\n",
-                        p->pid, p->devep, p->iov.size);
+                        p->pid, p->ep->nr, p->iov.size);
     }
     return ret;
 }

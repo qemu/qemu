@@ -353,7 +353,7 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBSerialState *s = (USBSerialState *)dev;
     int i, ret = 0;
-    uint8_t devep = p->devep;
+    uint8_t devep = p->ep->nr;
     struct iovec *iov;
     uint8_t header[2];
     int first_len, len;

@@ -1336,15 +1336,17 @@ static int xhci_hle_control(XHCIState *xhci, XHCITransfer *xfer,
 }
 #endif
 
-static int xhci_setup_packet(XHCITransfer *xfer, XHCIPort *port, int ep)
+static int xhci_setup_packet(XHCITransfer *xfer, XHCIPort *port, USBDevice *dev)
 {
-    usb_packet_setup(&xfer->packet,
-                     xfer->in_xfer ? USB_TOKEN_IN : USB_TOKEN_OUT,
-                     xfer->xhci->slots[xfer->slotid-1].devaddr,
-                     ep & 0x7f);
+    USBEndpoint *ep;
+    int dir;
+
+    dir = xfer->in_xfer ? USB_TOKEN_IN : USB_TOKEN_OUT;
+    ep = usb_ep_get(dev, dir, xfer->epid >> 1);
+    usb_packet_setup(&xfer->packet, dir, ep);
     usb_packet_addbuf(&xfer->packet, xfer->data, xfer->data_length);
     DPRINTF("xhci: setup packet pid 0x%x addr %d ep %d\n",
-            xfer->packet.pid, xfer->packet.devaddr, xfer->packet.devep);
+            xfer->packet.pid, dev->addr, ep->nr);
     return 0;
 }
 
@@ -1462,7 +1464,7 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     xfer->in_xfer = bmRequestType & USB_DIR_IN;
     xfer->iso_xfer = false;
 
-    xhci_setup_packet(xfer, port, 0);
+    xhci_setup_packet(xfer, port, dev);
     if (!xfer->in_xfer) {
         xhci_xfer_data(xfer, xfer->data, wLength, 0, 1, 0);
     }
@@ -1484,12 +1486,8 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
     int ret;
 
     DPRINTF("xhci_submit(slotid=%d,epid=%d)\n", xfer->slotid, xfer->epid);
-    uint8_t ep = xfer->epid>>1;
 
     xfer->in_xfer = epctx->type>>2;
-    if (xfer->in_xfer) {
-        ep |= 0x80;
-    }
 
     if (xfer->data && xfer->data_alloced < xfer->data_length) {
         xfer->data_alloced = 0;
@@ -1517,7 +1515,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         return -1;
     }
 
-    xhci_setup_packet(xfer, port, ep);
+    xhci_setup_packet(xfer, port, dev);
 
     switch(epctx->type) {
     case ET_INTR_OUT:
@@ -1530,8 +1528,9 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         FIXME();
         break;
     default:
-        fprintf(stderr, "xhci: unknown or unhandled EP type %d (ep %02x)\n",
-                epctx->type, ep);
+        fprintf(stderr, "xhci: unknown or unhandled EP "
+                "(type %d, in %d, ep %02x)\n",
+                epctx->type, xfer->in_xfer, xfer->epid);
         return -1;
     }
 

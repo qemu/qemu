@@ -1357,6 +1357,7 @@ err:
 static int ehci_execute(EHCIQueue *q)
 {
     USBDevice *dev;
+    USBEndpoint *ep;
     int ret;
     int endp;
     int devadr;
@@ -1387,13 +1388,13 @@ static int ehci_execute(EHCIQueue *q)
     endp = get_field(q->qh.epchar, QH_EPCHAR_EP);
     devadr = get_field(q->qh.epchar, QH_EPCHAR_DEVADDR);
 
-    ret = USB_RET_NODEV;
+    /* TODO: associating device with ehci port */
+    dev = ehci_find_device(q->ehci, devadr);
+    ep = usb_ep_get(dev, q->pid, endp);
 
-    usb_packet_setup(&q->packet, q->pid, devadr, endp);
+    usb_packet_setup(&q->packet, q->pid, ep);
     usb_packet_map(&q->packet, &q->sgl);
 
-    // TO-DO: associating device with ehci port
-    dev = ehci_find_device(q->ehci, q->packet.devaddr);
     ret = usb_handle_packet(dev, &q->packet);
     DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd "
             "(total %d) endp %x ret %d\n",
@@ -1415,6 +1416,7 @@ static int ehci_process_itd(EHCIState *ehci,
                             EHCIitd *itd)
 {
     USBDevice *dev;
+    USBEndpoint *ep;
     int ret;
     uint32_t i, len, pid, dir, devaddr, endp;
     uint32_t pg, off, ptr1, ptr2, max, mult;
@@ -1454,10 +1456,11 @@ static int ehci_process_itd(EHCIState *ehci,
 
             pid = dir ? USB_TOKEN_IN : USB_TOKEN_OUT;
 
-            usb_packet_setup(&ehci->ipacket, pid, devaddr, endp);
+            dev = ehci_find_device(ehci, devaddr);
+            ep = usb_ep_get(dev, pid, endp);
+            usb_packet_setup(&ehci->ipacket, pid, ep);
             usb_packet_map(&ehci->ipacket, &ehci->isgl);
 
-            dev = ehci_find_device(ehci, ehci->ipacket.devaddr);
             ret = usb_handle_packet(dev, &ehci->ipacket);
 
             usb_packet_unmap(&ehci->ipacket);

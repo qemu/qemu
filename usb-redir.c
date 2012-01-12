@@ -610,7 +610,7 @@ static int usbredir_handle_data(USBDevice *udev, USBPacket *p)
     USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
     uint8_t ep;
 
-    ep = p->devep;
+    ep = p->ep->nr;
     if (p->pid == USB_TOKEN_IN) {
         ep |= USB_DIR_IN;
     }
