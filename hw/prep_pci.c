@@ -53,14 +53,12 @@ static void PPC_PCIIO_writeb (void *opaque, target_phys_addr_t addr, uint32_t va
 static void PPC_PCIIO_writew (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PREPPCIState *s = opaque;
-    val = bswap16(val);
     pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 2);
 }
 
 static void PPC_PCIIO_writel (void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     PREPPCIState *s = opaque;
-    val = bswap32(val);
     pci_data_write(s->bus, PPC_PCIIO_config(addr), val, 4);
 }
 
@@ -77,7 +75,6 @@ static uint32_t PPC_PCIIO_readw (void *opaque, target_phys_addr_t addr)
     PREPPCIState *s = opaque;
     uint32_t val;
     val = pci_data_read(s->bus, PPC_PCIIO_config(addr), 2);
-    val = bswap16(val);
     return val;
 }
 
@@ -86,7 +83,6 @@ static uint32_t PPC_PCIIO_readl (void *opaque, target_phys_addr_t addr)
     PREPPCIState *s = opaque;
     uint32_t val;
     val = pci_data_read(s->bus, PPC_PCIIO_config(addr), 4);
-    val = bswap32(val);
     return val;
 }
 
@@ -95,7 +91,7 @@ static const MemoryRegionOps PPC_PCIIO_ops = {
         .read = { PPC_PCIIO_readb, PPC_PCIIO_readw, PPC_PCIIO_readl, },
         .write = { PPC_PCIIO_writeb, PPC_PCIIO_writew, PPC_PCIIO_writel, },
     },
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
 };
 
 static int prep_map_irq(PCIDevice *pci_dev, int irq_num)
