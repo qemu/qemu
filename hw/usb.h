@@ -171,6 +171,8 @@ struct USBDescString {
 #define USB_MAX_INTERFACES 16
 
 struct USBEndpoint {
+    uint8_t nr;
+    uint8_t pid;
     uint8_t type;
     uint8_t ifnum;
     int max_packet_size;
