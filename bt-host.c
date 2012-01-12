@@ -130,6 +130,7 @@ static void bt_host_read(void *opaque)
             pktlen = MIN(pkt[2] + 3, s->len);
             s->len -= pktlen;
             pkt += pktlen;
+            break;
 
         default:
         bad_pkt:
