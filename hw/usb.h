@@ -177,6 +177,7 @@ struct USBEndpoint {
     uint8_t ifnum;
     int max_packet_size;
     USBDevice *dev;
+    QTAILQ_HEAD(, USBPacket) queue;
 };
 
 /* definition of a USB device */
@@ -309,15 +310,16 @@ struct USBPort {
 
 typedef void USBCallback(USBPacket * packet, void *opaque);
 
-/* Structure used to hold information about an active USB packet.  */
 typedef enum USBPacketState {
     USB_PACKET_UNDEFINED = 0,
     USB_PACKET_SETUP,
+    USB_PACKET_QUEUED,
     USB_PACKET_ASYNC,
     USB_PACKET_COMPLETE,
     USB_PACKET_CANCELED,
 } USBPacketState;
 
+/* Structure used to hold information about an active USB packet.  */
 struct USBPacket {
     /* Data fields for use by the driver.  */
     int pid;
@@ -326,9 +328,11 @@ struct USBPacket {
     int result; /* transfer length or USB_RET_* status code */
     /* Internal use by the USB layer.  */
     USBPacketState state;
+    QTAILQ_ENTRY(USBPacket) queue;
 };
 
 void usb_packet_init(USBPacket *p);
+void usb_packet_set_state(USBPacket *p, USBPacketState state);
 void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep);
 void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len);
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl);
@@ -339,7 +343,8 @@ void usb_packet_cleanup(USBPacket *p);
 
 static inline bool usb_packet_is_inflight(USBPacket *p)
 {
-    return p->state == USB_PACKET_ASYNC;
+    return (p->state == USB_PACKET_QUEUED ||
+            p->state == USB_PACKET_ASYNC);
 }
 
 USBDevice *usb_find_device(USBPort *port, uint8_t addr);
