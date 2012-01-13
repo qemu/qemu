@@ -126,6 +126,8 @@ enum {
     RASID = 90,
     ITLBCFG = 91,
     DTLBCFG = 92,
+    IBREAKENABLE = 96,
+    IBREAKA = 128,
     EPC1 = 177,
     DEPC = 192,
     EPS2 = 194,
@@ -196,6 +198,7 @@ enum {
     EXC_KERNEL,
     EXC_USER,
     EXC_DOUBLE,
+    EXC_DEBUG,
     EXC_MAX
 };
 
@@ -425,6 +428,7 @@ static inline int cpu_mmu_index(CPUState *env)
 #define XTENSA_TBFLAG_RING_MASK 0x3
 #define XTENSA_TBFLAG_EXCM 0x4
 #define XTENSA_TBFLAG_LITBASE 0x8
+#define XTENSA_TBFLAG_DEBUG 0x10
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
@@ -439,6 +443,11 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_EXTENDED_L32R) &&
             (env->sregs[LITBASE] & 1)) {
         *flags |= XTENSA_TBFLAG_LITBASE;
+    }
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_DEBUG)) {
+        if (xtensa_get_cintlevel(env) < env->config->debug_level) {
+            *flags |= XTENSA_TBFLAG_DEBUG;
+        }
     }
 }
 

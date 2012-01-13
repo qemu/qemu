@@ -61,6 +61,8 @@ typedef struct DisasContext {
 
     uint32_t ccount_delta;
     unsigned used_window;
+
+    bool debug;
 } DisasContext;
 
 static TCGv_ptr cpu_env;
@@ -91,6 +93,9 @@ static const char * const sregnames[256] = {
     [RASID] = "RASID",
     [ITLBCFG] = "ITLBCFG",
     [DTLBCFG] = "DTLBCFG",
+    [IBREAKENABLE] = "IBREAKENABLE",
+    [IBREAKA] = "IBREAKA0",
+    [IBREAKA + 1] = "IBREAKA1",
     [EPC1] = "EPC1",
     [EPC1 + 1] = "EPC2",
     [EPC1 + 2] = "EPC3",
@@ -282,6 +287,19 @@ static void gen_exception_cause_vaddr(DisasContext *dc, uint32_t cause,
     gen_helper_exception_cause_vaddr(tpc, tcause, vaddr);
     tcg_temp_free(tpc);
     tcg_temp_free(tcause);
+}
+
+static void gen_debug_exception(DisasContext *dc, uint32_t cause)
+{
+    TCGv_i32 tpc = tcg_const_i32(dc->pc);
+    TCGv_i32 tcause = tcg_const_i32(cause);
+    gen_advance_ccount(dc);
+    gen_helper_debug_exception(tpc, tcause);
+    tcg_temp_free(tpc);
+    tcg_temp_free(tcause);
+    if (cause & (DEBUGCAUSE_IB | DEBUGCAUSE_BI | DEBUGCAUSE_BN)) {
+        dc->is_jmp = DISAS_UPDATE;
+    }
 }
 
 static void gen_check_privilege(DisasContext *dc)
@@ -493,6 +511,24 @@ static void gen_wsr_tlbcfg(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     tcg_gen_andi_i32(cpu_SR[sr], v, 0x01130000);
 }
 
+static void gen_wsr_ibreakenable(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    gen_helper_wsr_ibreakenable(v);
+    gen_jumpi_check_loop_end(dc, 0);
+}
+
+static void gen_wsr_ibreaka(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    unsigned id = sr - IBREAKA;
+
+    if (id < dc->config->nibreak) {
+        TCGv_i32 tmp = tcg_const_i32(id);
+        gen_helper_wsr_ibreaka(tmp, v);
+        tcg_temp_free(tmp);
+        gen_jumpi_check_loop_end(dc, 0);
+    }
+}
+
 static void gen_wsr_intset(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     tcg_gen_andi_i32(cpu_SR[sr], v,
@@ -572,6 +608,9 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [RASID] = gen_wsr_rasid,
         [ITLBCFG] = gen_wsr_tlbcfg,
         [DTLBCFG] = gen_wsr_tlbcfg,
+        [IBREAKENABLE] = gen_wsr_ibreakenable,
+        [IBREAKA] = gen_wsr_ibreaka,
+        [IBREAKA + 1] = gen_wsr_ibreaka,
         [INTSET] = gen_wsr_intset,
         [INTCLEAR] = gen_wsr_intclear,
         [INTENABLE] = gen_wsr_intenable,
@@ -975,8 +1014,10 @@ static void disas_xtensa_insn(DisasContext *dc)
                     break;
 
                 case 4: /*BREAKx*/
-                    HAS_OPTION(XTENSA_OPTION_EXCEPTION);
-                    TBD();
+                    HAS_OPTION(XTENSA_OPTION_DEBUG);
+                    if (dc->debug) {
+                        gen_debug_exception(dc, DEBUGCAUSE_BI);
+                    }
                     break;
 
                 case 5: /*SYSCALLx*/
@@ -2356,7 +2397,10 @@ static void disas_xtensa_insn(DisasContext *dc)
                 break;
 
             case 2: /*BREAK.Nn*/
-                TBD();
+                HAS_OPTION(XTENSA_OPTION_DEBUG);
+                if (dc->debug) {
+                    gen_debug_exception(dc, DEBUGCAUSE_BN);
+                }
                 break;
 
             case 3: /*NOP.Nn*/
@@ -2409,6 +2453,19 @@ static void check_breakpoint(CPUState *env, DisasContext *dc)
     }
 }
 
+static void gen_ibreak_check(CPUState *env, DisasContext *dc)
+{
+    unsigned i;
+
+    for (i = 0; i < dc->config->nibreak; ++i) {
+        if ((env->sregs[IBREAKENABLE] & (1 << i)) &&
+                env->sregs[IBREAKA + i] == dc->pc) {
+            gen_debug_exception(dc, DEBUGCAUSE_IB);
+            break;
+        }
+    }
+}
+
 static void gen_intermediate_code_internal(
         CPUState *env, TranslationBlock *tb, int search_pc)
 {
@@ -2435,6 +2492,7 @@ static void gen_intermediate_code_internal(
     dc.lend = env->sregs[LEND];
     dc.is_jmp = DISAS_NEXT;
     dc.ccount_delta = 0;
+    dc.debug = tb->flags & XTENSA_TBFLAG_DEBUG;
 
     init_litbase(&dc);
     init_sar_tracker(&dc);
@@ -2472,6 +2530,10 @@ static void gen_intermediate_code_internal(
 
         if (insn_count + 1 == max_insns && (tb->cflags & CF_LAST_IO)) {
             gen_io_start();
+        }
+
+        if (dc.debug) {
+            gen_ibreak_check(env, &dc);
         }
 
         disas_xtensa_insn(&dc);

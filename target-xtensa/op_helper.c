@@ -134,6 +134,19 @@ void HELPER(exception_cause_vaddr)(uint32_t pc, uint32_t cause, uint32_t vaddr)
     HELPER(exception_cause)(pc, cause);
 }
 
+void HELPER(debug_exception)(uint32_t pc, uint32_t cause)
+{
+    unsigned level = env->config->debug_level;
+
+    env->pc = pc;
+    env->sregs[DEBUGCAUSE] = cause;
+    env->sregs[EPC1 + level - 1] = pc;
+    env->sregs[EPS2 + level - 2] = env->sregs[PS];
+    env->sregs[PS] = (env->sregs[PS] & ~PS_INTLEVEL) | PS_EXCM |
+        (level << PS_INTLEVEL_SHIFT);
+    HELPER(exception)(EXC_DEBUG);
+}
+
 uint32_t HELPER(nsa)(uint32_t v)
 {
     if (v & 0x80000000) {
@@ -661,4 +674,29 @@ void HELPER(wtlb)(uint32_t p, uint32_t v, uint32_t dtlb)
     uint32_t ei;
     split_tlb_entry_spec(v, dtlb, &vpn, &wi, &ei);
     xtensa_tlb_set_entry(env, dtlb, wi, ei, vpn, p);
+}
+
+
+void HELPER(wsr_ibreakenable)(uint32_t v)
+{
+    uint32_t change = v ^ env->sregs[IBREAKENABLE];
+    unsigned i;
+
+    for (i = 0; i < env->config->nibreak; ++i) {
+        if (change & (1 << i)) {
+            tb_invalidate_phys_page_range(
+                    env->sregs[IBREAKA + i], env->sregs[IBREAKA + i] + 1, 0);
+        }
+    }
+    env->sregs[IBREAKENABLE] = v & ((1 << env->config->nibreak) - 1);
+}
+
+void HELPER(wsr_ibreaka)(uint32_t i, uint32_t v)
+{
+    if (env->sregs[IBREAKENABLE] & (1 << i) && env->sregs[IBREAKA + i] != v) {
+        tb_invalidate_phys_page_range(
+                env->sregs[IBREAKA + i], env->sregs[IBREAKA + i] + 1, 0);
+        tb_invalidate_phys_page_range(v, v + 1, 0);
+    }
+    env->sregs[IBREAKA + i] = v;
 }

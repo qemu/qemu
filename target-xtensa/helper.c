@@ -44,6 +44,7 @@ void cpu_reset(CPUXtensaState *env)
     env->sregs[PS] = xtensa_option_enabled(env->config,
             XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;
     env->sregs[VECBASE] = env->config->vecbase;
+    env->sregs[IBREAKENABLE] = 0;
 
     env->pending_irq_level = 0;
     reset_mmu(env);
@@ -193,6 +194,7 @@ void do_interrupt(CPUState *env)
     case EXC_KERNEL:
     case EXC_USER:
     case EXC_DOUBLE:
+    case EXC_DEBUG:
         qemu_log_mask(CPU_LOG_INT, "%s(%d) "
                 "pc = %08x, a0 = %08x, ps = %08x, ccount = %08x\n",
                 __func__, env->exception_index,
