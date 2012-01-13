@@ -9710,15 +9710,15 @@ static void disas_thumb_insn(CPUState *env, DisasContext *s)
                 break;
             if (IS_M(env)) {
                 tmp = tcg_const_i32((insn & (1 << 4)) != 0);
-                /* PRIMASK */
+                /* FAULTMASK */
                 if (insn & 1) {
-                    addr = tcg_const_i32(16);
+                    addr = tcg_const_i32(19);
                     gen_helper_v7m_msr(cpu_env, addr, tmp);
                     tcg_temp_free_i32(addr);
                 }
-                /* FAULTMASK */
+                /* PRIMASK */
                 if (insn & 2) {
-                    addr = tcg_const_i32(17);
+                    addr = tcg_const_i32(16);
                     gen_helper_v7m_msr(cpu_env, addr, tmp);
                     tcg_temp_free_i32(addr);
                 }
