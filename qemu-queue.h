@@ -2,8 +2,8 @@
 
 /*
  * Qemu version: Copy from netbsd, removed debug code, removed some of
- * the implementations.  Left in lists, simple queues, tail queues and
- * circular queues.
+ * the implementations.  Left in singly-linked lists, lists, simple
+ * queues, tail queues and circular queues.
  */
 
 /*
@@ -41,8 +41,18 @@
 #define QEMU_SYS_QUEUE_H_
 
 /*
- * This file defines four types of data structures:
+ * This file defines five types of data structures: singly-linked lists,
  * lists, simple queues, tail queues, and circular queues.
+ *
+ * A singly-linked list is headed by a single forward pointer. The
+ * elements are singly linked for minimum space and pointer manipulation
+ * overhead at the expense of O(n) removal for arbitrary elements. New
+ * elements can be added to the list after an existing element or at the
+ * head of the list.  Elements being removed from the head of the list
+ * should use the explicit macro for this purpose for optimum
+ * efficiency. A singly-linked list may only be traversed in the forward
+ * direction.  Singly-linked lists are ideal for applications with large
+ * datasets and few or no removals or for implementing a LIFO queue.
  *
  * A list is headed by a single forward pointer (or an array of forward
  * pointers for a hash table header). The elements are doubly linked
@@ -158,6 +168,64 @@ struct {                                                                \
 #define QLIST_EMPTY(head)                ((head)->lh_first == NULL)
 #define QLIST_FIRST(head)                ((head)->lh_first)
 #define QLIST_NEXT(elm, field)           ((elm)->field.le_next)
+
+
+/*
+ * Singly-linked List definitions.
+ */
+#define QSLIST_HEAD(name, type)                                          \
+struct name {                                                           \
+        struct type *slh_first; /* first element */                     \
+}
+
+#define QSLIST_HEAD_INITIALIZER(head)                                    \
+        { NULL }
+
+#define QSLIST_ENTRY(type)                                               \
+struct {                                                                \
+        struct type *sle_next;  /* next element */                      \
+}
+
+/*
+ * Singly-linked List functions.
+ */
+#define QSLIST_INIT(head) do {                                           \
+        (head)->slh_first = NULL;                                       \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_INSERT_AFTER(slistelm, elm, field) do {                   \
+        (elm)->field.sle_next = (slistelm)->field.sle_next;             \
+        (slistelm)->field.sle_next = (elm);                             \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_INSERT_HEAD(head, elm, field) do {                        \
+        (elm)->field.sle_next = (head)->slh_first;                      \
+        (head)->slh_first = (elm);                                      \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_REMOVE_HEAD(head, field) do {                             \
+        (head)->slh_first = (head)->slh_first->field.sle_next;          \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_REMOVE_AFTER(slistelm, field) do {                        \
+        (slistelm)->field.sle_next =                                    \
+            QSLIST_NEXT(QSLIST_NEXT((slistelm), field), field);           \
+} while (/*CONSTCOND*/0)
+
+#define QSLIST_FOREACH(var, head, field)                                 \
+        for((var) = (head)->slh_first; (var); (var) = (var)->field.sle_next)
+
+#define QSLIST_FOREACH_SAFE(var, head, field, tvar)                      \
+        for ((var) = QSLIST_FIRST((head));                               \
+            (var) && ((tvar) = QSLIST_NEXT((var), field), 1);            \
+            (var) = (tvar))
+
+/*
+ * Singly-linked List access methods.
+ */
+#define QSLIST_EMPTY(head)       ((head)->slh_first == NULL)
+#define QSLIST_FIRST(head)       ((head)->slh_first)
+#define QSLIST_NEXT(elm, field)  ((elm)->field.sle_next)
 
 
 /*
