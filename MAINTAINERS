@@ -93,6 +93,7 @@ F: target-mips/
 
 PowerPC
 M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
 S: Maintained
 F: target-ppc/
 
@@ -290,21 +291,25 @@ PowerPC Machines
 ----------------
 405
 M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc405_boards.c
 
 New World
 M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc_newworld.c
 
 Old World
 M: Alexander Graf <agraf@suse.de>
+L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc_oldworld.c
 
 PReP
 M: Andreas Färber <andreas.faerber@web.de>
+L: qemu-ppc@nongnu.org
 S: Odd Fixes
 F: hw/ppc_prep.c
 
