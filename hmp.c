@@ -9,6 +9,8 @@
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
  *
+ * Contributions after 2012-01-13 are licensed under the terms of the
+ * GNU GPL, version 2 or (at your option) any later version.
  */
 
 #include "hmp.h"
@@ -486,17 +488,17 @@ static void hmp_info_pci_device(Monitor *mon, const PciDeviceInfo *dev)
 
 void hmp_info_pci(Monitor *mon)
 {
-    PciInfoList *info;
+    PciInfoList *info_list, *info;
     Error *err = NULL;
 
-    info = qmp_query_pci(&err);
+    info_list = qmp_query_pci(&err);
     if (err) {
         monitor_printf(mon, "PCI devices not supported\n");
         error_free(err);
         return;
     }
 
-    for (; info; info = info->next) {
+    for (info = info_list; info; info = info->next) {
         PciDeviceInfoList *dev;
 
         for (dev = info->value->devices; dev; dev = dev->next) {
@@ -504,7 +506,7 @@ void hmp_info_pci(Monitor *mon)
         }
     }
 
-    qapi_free_PciInfoList(info);
+    qapi_free_PciInfoList(info_list);
 }
 
 void hmp_quit(Monitor *mon, const QDict *qdict)

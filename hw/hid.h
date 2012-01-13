@@ -1,6 +1,8 @@
 #ifndef QEMU_HID_H
 #define QEMU_HID_H
 
+#include "vmstate.h"
+
 #define HID_MOUSE     1
 #define HID_TABLET    2
 #define HID_KEYBOARD  3
@@ -55,5 +57,26 @@ void hid_pointer_activate(HIDState *hs);
 int hid_pointer_poll(HIDState *hs, uint8_t *buf, int len);
 int hid_keyboard_poll(HIDState *hs, uint8_t *buf, int len);
 int hid_keyboard_write(HIDState *hs, uint8_t *buf, int len);
+
+extern const VMStateDescription vmstate_hid_keyboard_device;
+
+#define VMSTATE_HID_KEYBOARD_DEVICE(_field, _state) {                \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(HIDState),                                  \
+    .vmsd       = &vmstate_hid_keyboard_device,                      \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, HIDState),    \
+}
+
+extern const VMStateDescription vmstate_hid_ptr_device;
+
+#define VMSTATE_HID_POINTER_DEVICE(_field, _state) {                 \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(HIDState),                                  \
+    .vmsd       = &vmstate_hid_ptr_device,                           \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, HIDState),    \
+}
+
 
 #endif /* QEMU_HID_H */

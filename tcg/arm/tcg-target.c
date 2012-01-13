@@ -843,7 +843,7 @@ static inline void tcg_out_st8(TCGContext *s, int cond,
 }
 
 /* The _goto case is normally between TBs within the same code buffer,
- * and with the code buffer limited to 16GB we shouldn't need the long
+ * and with the code buffer limited to 16MB we shouldn't need the long
  * case.
  *
  * .... except to the prologue that is in its own buffer.

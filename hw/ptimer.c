@@ -7,6 +7,7 @@
  */
 #include "hw.h"
 #include "qemu-timer.h"
+#include "ptimer.h"
 #include "host-utils.h"
 
 struct ptimer_state

@@ -214,13 +214,17 @@ static int parse_option_size(const char *name, const char *value, uint64_t *ret)
         switch (*postfix) {
         case 'T':
             sizef *= 1024;
+            /* fall through */
         case 'G':
             sizef *= 1024;
+            /* fall through */
         case 'M':
             sizef *= 1024;
+            /* fall through */
         case 'K':
         case 'k':
             sizef *= 1024;
+            /* fall through */
         case 'b':
         case '\0':
             *ret = (uint64_t) sizef;

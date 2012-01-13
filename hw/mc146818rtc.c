@@ -179,8 +179,9 @@ static void rtc_periodic_timer(void *opaque)
     RTCState *s = opaque;
 
     rtc_timer_update(s, s->next_periodic_time);
+    s->cmos_data[RTC_REG_C] |= REG_C_PF;
     if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
-        s->cmos_data[RTC_REG_C] |= 0xc0;
+        s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
 #ifdef TARGET_I386
         if(rtc_td_hack) {
             if (s->irq_reinject_on_ack_count >= RTC_REINJECT_ON_ACK_COUNT)
@@ -296,9 +297,11 @@ static void rtc_set_time(RTCState *s)
     tm->tm_sec = rtc_from_bcd(s, s->cmos_data[RTC_SECONDS]);
     tm->tm_min = rtc_from_bcd(s, s->cmos_data[RTC_MINUTES]);
     tm->tm_hour = rtc_from_bcd(s, s->cmos_data[RTC_HOURS] & 0x7f);
-    if (!(s->cmos_data[RTC_REG_B] & REG_B_24H) &&
-        (s->cmos_data[RTC_HOURS] & 0x80)) {
-        tm->tm_hour += 12;
+    if (!(s->cmos_data[RTC_REG_B] & REG_B_24H)) {
+        tm->tm_hour %= 12;
+        if (s->cmos_data[RTC_HOURS] & 0x80) {
+            tm->tm_hour += 12;
+        }
     }
     tm->tm_wday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_WEEK]) - 1;
     tm->tm_mday = rtc_from_bcd(s, s->cmos_data[RTC_DAY_OF_MONTH]);
@@ -320,7 +323,8 @@ static void rtc_copy_date(RTCState *s)
         s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, tm->tm_hour);
     } else {
         /* 12 hour format */
-        s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, tm->tm_hour % 12);
+        int h = (tm->tm_hour % 12) ? tm->tm_hour % 12 : 12;
+        s->cmos_data[RTC_HOURS] = rtc_to_bcd(s, h);
         if (tm->tm_hour >= 12)
             s->cmos_data[RTC_HOURS] |= 0x80;
     }
@@ -422,16 +426,17 @@ static void rtc_update_second2(void *opaque)
     }
 
     /* check alarm */
-    if (s->cmos_data[RTC_REG_B] & REG_B_AIE) {
-        if (((s->cmos_data[RTC_SECONDS_ALARM] & 0xc0) == 0xc0 ||
-             rtc_from_bcd(s, s->cmos_data[RTC_SECONDS_ALARM]) == s->current_tm.tm_sec) &&
-            ((s->cmos_data[RTC_MINUTES_ALARM] & 0xc0) == 0xc0 ||
-             rtc_from_bcd(s, s->cmos_data[RTC_MINUTES_ALARM]) == s->current_tm.tm_min) &&
-            ((s->cmos_data[RTC_HOURS_ALARM] & 0xc0) == 0xc0 ||
-             rtc_from_bcd(s, s->cmos_data[RTC_HOURS_ALARM]) == s->current_tm.tm_hour)) {
+    if (((s->cmos_data[RTC_SECONDS_ALARM] & 0xc0) == 0xc0 ||
+         rtc_from_bcd(s, s->cmos_data[RTC_SECONDS_ALARM]) == s->current_tm.tm_sec) &&
+        ((s->cmos_data[RTC_MINUTES_ALARM] & 0xc0) == 0xc0 ||
+         rtc_from_bcd(s, s->cmos_data[RTC_MINUTES_ALARM]) == s->current_tm.tm_min) &&
+        ((s->cmos_data[RTC_HOURS_ALARM] & 0xc0) == 0xc0 ||
+         rtc_from_bcd(s, s->cmos_data[RTC_HOURS_ALARM]) == s->current_tm.tm_hour)) {
 
-            s->cmos_data[RTC_REG_C] |= 0xa0;
+        s->cmos_data[RTC_REG_C] |= REG_C_AF;
+        if (s->cmos_data[RTC_REG_B] & REG_B_AIE) {
             qemu_irq_raise(s->irq);
+            s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
         }
     }
 
@@ -472,10 +477,13 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
         case RTC_REG_C:
             ret = s->cmos_data[s->cmos_index];
             qemu_irq_lower(s->irq);
+            s->cmos_data[RTC_REG_C] = 0x00;
 #ifdef TARGET_I386
             if(s->irq_coalesced &&
+                    (s->cmos_data[RTC_REG_B] & REG_B_PIE) &&
                     s->irq_reinject_on_ack_count < RTC_REINJECT_ON_ACK_COUNT) {
                 s->irq_reinject_on_ack_count++;
+                s->cmos_data[RTC_REG_C] |= REG_C_IRQF | REG_C_PF;
                 apic_reset_irq_delivered();
                 DPRINTF_C("cmos: injecting on ack\n");
                 qemu_irq_raise(s->irq);
@@ -484,11 +492,8 @@ static uint32_t cmos_ioport_read(void *opaque, uint32_t addr)
                     DPRINTF_C("cmos: coalesced irqs decreased to %d\n",
                               s->irq_coalesced);
                 }
-                break;
             }
 #endif
-
-            s->cmos_data[RTC_REG_C] = 0x00;
             break;
         default:
             ret = s->cmos_data[s->cmos_index];

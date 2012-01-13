@@ -139,19 +139,6 @@ static inline int64_t get_clock(void)
 void qemu_get_timer(QEMUFile *f, QEMUTimer *ts);
 void qemu_put_timer(QEMUFile *f, QEMUTimer *ts);
 
-/* ptimer.c */
-typedef struct ptimer_state ptimer_state;
-typedef void (*ptimer_cb)(void *opaque);
-
-ptimer_state *ptimer_init(QEMUBH *bh);
-void ptimer_set_period(ptimer_state *s, int64_t period);
-void ptimer_set_freq(ptimer_state *s, uint32_t freq);
-void ptimer_set_limit(ptimer_state *s, uint64_t limit, int reload);
-uint64_t ptimer_get_count(ptimer_state *s);
-void ptimer_set_count(ptimer_state *s, uint64_t count);
-void ptimer_run(ptimer_state *s, int oneshot);
-void ptimer_stop(ptimer_state *s);
-
 /* icount */
 int64_t cpu_get_icount(void);
 int64_t cpu_get_clock(void);

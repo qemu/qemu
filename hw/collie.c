@@ -4,6 +4,9 @@
  * Copyright (C) 2011 Dmitry Eremin-Solenikov
  *
  * This code is licensed under GNU GPL v2.
+ *
+ * Contributions after 2012-01-13 are licensed under the terms of the
+ * GNU GPL, version 2 or (at your option) any later version.
  */
 #include "hw.h"
 #include "sysbus.h"

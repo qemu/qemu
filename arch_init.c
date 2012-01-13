@@ -95,14 +95,30 @@ const uint32_t arch_type = QEMU_ARCH;
 #define RAM_SAVE_FLAG_EOS      0x10
 #define RAM_SAVE_FLAG_CONTINUE 0x20
 
-static int is_dup_page(uint8_t *page, uint8_t ch)
+#ifdef __ALTIVEC__
+#include <altivec.h>
+#define VECTYPE        vector unsigned char
+#define SPLAT(p)       vec_splat(vec_ld(0, p), 0)
+#define ALL_EQ(v1, v2) vec_all_eq(v1, v2)
+#elif defined __SSE2__
+#include <emmintrin.h>
+#define VECTYPE        __m128i
+#define SPLAT(p)       _mm_set1_epi8(*(p))
+#define ALL_EQ(v1, v2) (_mm_movemask_epi8(_mm_cmpeq_epi8(v1, v2)) == 0xFFFF)
+#else
+#define VECTYPE        unsigned long
+#define SPLAT(p)       (*(p) * (~0UL / 255))
+#define ALL_EQ(v1, v2) ((v1) == (v2))
+#endif
+
+static int is_dup_page(uint8_t *page)
 {
-    uint32_t val = ch << 24 | ch << 16 | ch << 8 | ch;
-    uint32_t *array = (uint32_t *)page;
+    VECTYPE *p = (VECTYPE *)page;
+    VECTYPE val = SPLAT(page);
     int i;
 
-    for (i = 0; i < (TARGET_PAGE_SIZE / 4); i++) {
-        if (array[i] != val) {
+    for (i = 0; i < TARGET_PAGE_SIZE / sizeof(VECTYPE); i++) {
+        if (!ALL_EQ(val, p[i])) {
             return 0;
         }
     }
@@ -134,7 +150,7 @@ static int ram_save_block(QEMUFile *f)
 
             p = memory_region_get_ram_ptr(mr) + offset;
 
-            if (is_dup_page(p, *p)) {
+            if (is_dup_page(p)) {
                 qemu_put_be64(f, offset | cont | RAM_SAVE_FLAG_COMPRESS);
                 if (!cont) {
                     qemu_put_byte(f, strlen(block->idstr));

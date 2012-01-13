@@ -8,32 +8,21 @@
  * This work is licensed under the terms of the GNU GPL, version 2. See
  * the COPYING file in the top-level directory.
  */
-#include <stdio.h>
-#include <sys/socket.h>
-#include <string.h>
-#include <sys/un.h>
-#include <limits.h>
-#include <signal.h>
-#include <errno.h>
-#include <stdlib.h>
+
 #include <sys/resource.h>
-#include <sys/stat.h>
 #include <getopt.h>
-#include <unistd.h>
 #include <syslog.h>
 #include <sys/capability.h>
 #include <sys/fsuid.h>
-#include <stdarg.h>
-#include <stdbool.h>
 #include <sys/vfs.h>
-#include <sys/stat.h>
-#include <attr/xattr.h>
 #include <sys/ioctl.h>
 #include <linux/fs.h>
 #ifdef CONFIG_LINUX_MAGIC_H
 #include <linux/magic.h>
 #endif
 #include "qemu-common.h"
+#include "qemu_socket.h"
+#include "qemu-xattr.h"
 #include "virtio-9p-marshal.h"
 #include "hw/9pfs/virtio-9p-proxy.h"
 #include "fsdev/virtio-9p-marshal.h"
@@ -65,7 +54,7 @@ static struct option helper_opts[] = {
 static bool is_daemon;
 static bool get_version; /* IOC getversion IOCTL supported */
 
-static void do_log(int loglevel, const char *format, ...)
+static void GCC_FMT_ATTR(2, 3) do_log(int loglevel, const char *format, ...)
 {
     va_list ap;
 

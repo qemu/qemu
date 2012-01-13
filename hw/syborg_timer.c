@@ -25,6 +25,7 @@
 #include "sysbus.h"
 #include "qemu-timer.h"
 #include "syborg.h"
+#include "ptimer.h"             /* ptimer_state */
 
 //#define DEBUG_SYBORG_TIMER
 

@@ -12,6 +12,9 @@
  * If you received this file as part of a commercial VirtualBox
  * distribution, then only the terms of your commercial VirtualBox
  * license agreement apply instead of the previous paragraph.
+ *
+ * Contributions after 2012-01-13 are licensed under the terms of the
+ * GNU GPL, version 2 or (at your option) any later version.
  */
 
 #include "hw.h"

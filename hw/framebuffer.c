@@ -5,6 +5,9 @@
  * Written by Paul Brook <paul@codesourcery.com>
  *
  * This code is licensed under the GNU GPLv2.
+ *
+ * Contributions after 2012-01-13 are licensed under the terms of the
+ * GNU GPL, version 2 or (at your option) any later version.
  */
 
 /* TODO:

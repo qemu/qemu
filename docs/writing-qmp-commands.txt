@@ -435,7 +435,7 @@ There are a number of things to be noticed:
    for all QMP functions)
 3. The "clock" variable (which will point to our QAPI type instance) is
    allocated by the regular g_malloc0() function. Note that we chose to
-   initialize the memory to zero. This is recomended for all QAPI types, as
+   initialize the memory to zero. This is recommended for all QAPI types, as
    it helps avoiding bad surprises (specially with booleans)
 4. Remember that "next_deadline" is optional? All optional members have a
    'has_TYPE_NAME' member that should be properly set by the implementation,

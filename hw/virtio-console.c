@@ -125,27 +125,11 @@ static int virtconsole_initfn(VirtIOSerialPort *port)
     return 0;
 }
 
-static int virtconsole_exitfn(VirtIOSerialPort *port)
-{
-    VirtConsole *vcon = DO_UPCAST(VirtConsole, port, port);
-
-    if (vcon->chr) {
-	/*
-	 * Instead of closing the chardev, free it so it can be used
-	 * for other purposes.
-	 */
-	qemu_chr_add_handlers(vcon->chr, NULL, NULL, NULL, NULL);
-    }
-
-    return 0;
-}
-
 static VirtIOSerialPortInfo virtconsole_info = {
     .qdev.name     = "virtconsole",
     .qdev.size     = sizeof(VirtConsole),
     .is_console    = true,
     .init          = virtconsole_initfn,
-    .exit          = virtconsole_exitfn,
     .have_data     = flush_buf,
     .guest_open    = guest_open,
     .guest_close   = guest_close,
@@ -165,7 +149,6 @@ static VirtIOSerialPortInfo virtserialport_info = {
     .qdev.name     = "virtserialport",
     .qdev.size     = sizeof(VirtConsole),
     .init          = virtconsole_initfn,
-    .exit          = virtconsole_exitfn,
     .have_data     = flush_buf,
     .guest_open    = guest_open,
     .guest_close   = guest_close,

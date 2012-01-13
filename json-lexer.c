@@ -301,6 +301,7 @@ static int json_lexer_feed_char(JSONLexer *lexer, char ch, bool flush)
         case JSON_KEYWORD:
         case JSON_STRING:
             lexer->emit(lexer, lexer->token, new_state, lexer->x, lexer->y);
+            /* fall through */
         case JSON_SKIP:
             QDECREF(lexer->token);
             lexer->token = qstring_new();

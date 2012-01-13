@@ -4,6 +4,9 @@
  * Copyright (c) 2008 Jan Kiszka
  *
  * This code is licensed under the GNU GPL v2.
+ *
+ * Contributions after 2012-01-13 are licensed under the terms of the
+ * GNU GPL, version 2 or (at your option) any later version.
  */
 
 #include "sysbus.h"
@@ -14,6 +17,7 @@
 #include "boards.h"
 #include "pc.h"
 #include "qemu-timer.h"
+#include "ptimer.h"
 #include "block.h"
 #include "flash.h"
 #include "console.h"

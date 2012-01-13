@@ -1,7 +1,7 @@
--include ../../config-host.mak
+-include ../../../config-host.mak
 
 CROSS=crisv32-axis-linux-gnu-
-SIM=../../cris-linux-user/qemu-cris -L ./
+SIM=../../../cris-linux-user/qemu-cris -L ./
 SIMG=cris-axis-linux-gnu-run --sysroot=./
 
 CC      = $(CROSS)gcc
@@ -14,7 +14,7 @@ OBJCOPY = $(CROSS)objcopy
 # we rely on GCC inline:ing the stuff we tell it to in many places here.
 CFLAGS  = -Winline -Wall -g -O2 -static
 NOSTDFLAGS = -nostartfiles -nostdlib
-ASFLAGS += -g -Wa,-I,$(SRC_PATH)/tests/cris/
+ASFLAGS += -g -Wa,-I,$(SRC_PATH)/tests/tcg/cris/
 LDLIBS  =
 NOSTDLIBS = -lgcc
 
@@ -124,10 +124,10 @@ TESTCASES += check_gcctorture_pr28634-1.ctst
 
 all: build
 
-%.o: $(SRC_PATH)/tests/cris/%.c
+%.o: $(SRC_PATH)/tests/tcg/cris/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-%.o: $(SRC_PATH)/tests/cris/%.s
+%.o: $(SRC_PATH)/tests/tcg/cris/%.s
 	$(AS) $(ASFLAGS) -c $< -o $@
 
 %.tst: %.o

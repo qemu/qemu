@@ -21,6 +21,7 @@
 #include "sysemu.h"
 #include "boards.h"
 #include "pc.h"
+#include "ptimer.h"             /* ptimer_state */
 #include "qemu-timer.h"
 #include "block.h"
 #include "flash.h"
