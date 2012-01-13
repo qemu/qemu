@@ -24,6 +24,7 @@
 
 #include "sysbus.h"
 #include "qemu-timer.h"
+#include "ptimer.h"
 
 #define D(x)
 

@@ -26,6 +26,7 @@
 #include "sysemu.h"
 #include "trace.h"
 #include "qemu-timer.h"
+#include "ptimer.h"
 #include "qemu-error.h"
 
 enum {

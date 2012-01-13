@@ -24,6 +24,7 @@
 
 #include "sysbus.h"
 #include "qemu-char.h"
+#include "ptimer.h"
 
 #include "trace.h"
 

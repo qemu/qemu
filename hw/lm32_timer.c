@@ -25,6 +25,7 @@
 #include "sysbus.h"
 #include "trace.h"
 #include "qemu-timer.h"
+#include "ptimer.h"
 #include "qemu-error.h"
 
 #define DEFAULT_FREQUENCY (50*1000000)
