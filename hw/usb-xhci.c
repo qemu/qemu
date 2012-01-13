@@ -2672,7 +2672,10 @@ static void usb_xhci_init(XHCIState *xhci, DeviceState *dev)
     for (i = 0; i < MAXPORTS; i++) {
         memset(&xhci->ports[i], 0, sizeof(xhci->ports[i]));
         usb_register_port(&xhci->bus, &xhci->ports[i].port, xhci, i,
-                          &xhci_port_ops, USB_SPEED_MASK_HIGH);
+                          &xhci_port_ops,
+                          USB_SPEED_MASK_LOW  |
+                          USB_SPEED_MASK_FULL |
+                          USB_SPEED_MASK_HIGH);
     }
     for (i = 0; i < MAXSLOTS; i++) {
         xhci->slots[i].enabled = 0;
