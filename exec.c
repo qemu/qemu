@@ -511,7 +511,7 @@ static void code_gen_alloc(unsigned long tb_size)
         if (code_gen_buffer_size > (512 * 1024 * 1024))
             code_gen_buffer_size = (512 * 1024 * 1024);
 #elif defined(__arm__)
-        /* Keep the buffer no bigger than 16GB to branch between blocks */
+        /* Keep the buffer no bigger than 16MB to branch between blocks */
         if (code_gen_buffer_size > 16 * 1024 * 1024)
             code_gen_buffer_size = 16 * 1024 * 1024;
 #elif defined(__s390x__)

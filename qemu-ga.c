@@ -92,7 +92,7 @@ static void usage(const char *cmd)
 "  -v, --verbose     log extra debugging information\n"
 "  -V, --version     print version information and exit\n"
 "  -d, --daemonize   become a daemon\n"
-"  -b, --blacklist   comma-seperated list of RPCs to disable (no spaces, \"?\""
+"  -b, --blacklist   comma-separated list of RPCs to disable (no spaces, \"?\""
 "                    to list available RPCs)\n"
 "  -h, --help        display this help and exit\n"
 "\n"
