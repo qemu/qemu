@@ -300,12 +300,14 @@ M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc_newworld.c
+F: hw/unin_pci.c
 
 Old World
 M: Alexander Graf <agraf@suse.de>
 L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc_oldworld.c
+F: hw/grackle_pci.c
 
 PReP
 M: Andreas Färber <andreas.faerber@web.de>
