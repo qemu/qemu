@@ -3,7 +3,7 @@
 /*
  * Qemu version: Copy from netbsd, removed debug code, removed some of
  * the implementations.  Left in singly-linked lists, lists, simple
- * queues, tail queues and circular queues.
+ * queues, and tail queues.
  */
 
 /*
@@ -41,8 +41,8 @@
 #define QEMU_SYS_QUEUE_H_
 
 /*
- * This file defines five types of data structures: singly-linked lists,
- * lists, simple queues, tail queues, and circular queues.
+ * This file defines four types of data structures: singly-linked lists,
+ * lists, simple queues, and tail queues.
  *
  * A singly-linked list is headed by a single forward pointer. The
  * elements are singly linked for minimum space and pointer manipulation
@@ -74,14 +74,6 @@
  * traverse the list. New elements can be added to the list before or
  * after an existing element, at the head of the list, or at the end of
  * the list. A tail queue may be traversed in either direction.
- *
- * A circle queue is headed by a pair of pointers, one to the head of the
- * list and the other to the tail of the list. The elements are doubly
- * linked so that an arbitrary element can be removed without a need to
- * traverse the list. New elements can be added to the list before or after
- * an existing element, at the head of the list, or at the end of the list.
- * A circle queue may be traversed in either direction, but has a more
- * complex end of list detection.
  *
  * For details on the use of these macros, see the queue(3) manual page.
  */
@@ -418,113 +410,5 @@ struct {                                                                \
         (*(((struct headname *)((head)->tqh_last))->tqh_last))
 #define QTAILQ_PREV(elm, headname, field) \
         (*(((struct headname *)((elm)->field.tqe_prev))->tqh_last))
-
-
-/*
- * Circular queue definitions.
- */
-#define QCIRCLEQ_HEAD(name, type)                                       \
-struct name {                                                           \
-        struct type *cqh_first;         /* first element */             \
-        struct type *cqh_last;          /* last element */              \
-}
-
-#define QCIRCLEQ_HEAD_INITIALIZER(head)                                 \
-        { (void *)&head, (void *)&head }
-
-#define QCIRCLEQ_ENTRY(type)                                            \
-struct {                                                                \
-        struct type *cqe_next;          /* next element */              \
-        struct type *cqe_prev;          /* previous element */          \
-}
-
-/*
- * Circular queue functions.
- */
-#define QCIRCLEQ_INIT(head) do {                                        \
-        (head)->cqh_first = (void *)(head);                             \
-        (head)->cqh_last = (void *)(head);                              \
-} while (/*CONSTCOND*/0)
-
-#define QCIRCLEQ_INSERT_AFTER(head, listelm, elm, field) do {           \
-        (elm)->field.cqe_next = (listelm)->field.cqe_next;              \
-        (elm)->field.cqe_prev = (listelm);                              \
-        if ((listelm)->field.cqe_next == (void *)(head))                \
-                (head)->cqh_last = (elm);                               \
-        else                                                            \
-                (listelm)->field.cqe_next->field.cqe_prev = (elm);      \
-        (listelm)->field.cqe_next = (elm);                              \
-} while (/*CONSTCOND*/0)
-
-#define QCIRCLEQ_INSERT_BEFORE(head, listelm, elm, field) do {          \
-        (elm)->field.cqe_next = (listelm);                              \
-        (elm)->field.cqe_prev = (listelm)->field.cqe_prev;              \
-        if ((listelm)->field.cqe_prev == (void *)(head))                \
-                (head)->cqh_first = (elm);                              \
-        else                                                            \
-                (listelm)->field.cqe_prev->field.cqe_next = (elm);      \
-        (listelm)->field.cqe_prev = (elm);                              \
-} while (/*CONSTCOND*/0)
-
-#define QCIRCLEQ_INSERT_HEAD(head, elm, field) do {                     \
-        (elm)->field.cqe_next = (head)->cqh_first;                      \
-        (elm)->field.cqe_prev = (void *)(head);                         \
-        if ((head)->cqh_last == (void *)(head))                         \
-                (head)->cqh_last = (elm);                               \
-        else                                                            \
-                (head)->cqh_first->field.cqe_prev = (elm);              \
-        (head)->cqh_first = (elm);                                      \
-} while (/*CONSTCOND*/0)
-
-#define QCIRCLEQ_INSERT_TAIL(head, elm, field) do {                     \
-        (elm)->field.cqe_next = (void *)(head);                         \
-        (elm)->field.cqe_prev = (head)->cqh_last;                       \
-        if ((head)->cqh_first == (void *)(head))                        \
-                (head)->cqh_first = (elm);                              \
-        else                                                            \
-                (head)->cqh_last->field.cqe_next = (elm);               \
-        (head)->cqh_last = (elm);                                       \
-} while (/*CONSTCOND*/0)
-
-#define QCIRCLEQ_REMOVE(head, elm, field) do {                          \
-        if ((elm)->field.cqe_next == (void *)(head))                    \
-                (head)->cqh_last = (elm)->field.cqe_prev;               \
-        else                                                            \
-                (elm)->field.cqe_next->field.cqe_prev =                 \
-                    (elm)->field.cqe_prev;                              \
-        if ((elm)->field.cqe_prev == (void *)(head))                    \
-                (head)->cqh_first = (elm)->field.cqe_next;              \
-        else                                                            \
-                (elm)->field.cqe_prev->field.cqe_next =                 \
-                    (elm)->field.cqe_next;                              \
-} while (/*CONSTCOND*/0)
-
-#define QCIRCLEQ_FOREACH(var, head, field)                              \
-        for ((var) = ((head)->cqh_first);                               \
-                (var) != (const void *)(head);                          \
-                (var) = ((var)->field.cqe_next))
-
-#define QCIRCLEQ_FOREACH_REVERSE(var, head, field)                      \
-        for ((var) = ((head)->cqh_last);                                \
-                (var) != (const void *)(head);                          \
-                (var) = ((var)->field.cqe_prev))
-
-/*
- * Circular queue access methods.
- */
-#define QCIRCLEQ_EMPTY(head)             ((head)->cqh_first == (void *)(head))
-#define QCIRCLEQ_FIRST(head)             ((head)->cqh_first)
-#define QCIRCLEQ_LAST(head)              ((head)->cqh_last)
-#define QCIRCLEQ_NEXT(elm, field)        ((elm)->field.cqe_next)
-#define QCIRCLEQ_PREV(elm, field)        ((elm)->field.cqe_prev)
-
-#define QCIRCLEQ_LOOP_NEXT(head, elm, field)                            \
-        (((elm)->field.cqe_next == (void *)(head))                      \
-            ? ((head)->cqh_first)                                       \
-            : (elm->field.cqe_next))
-#define QCIRCLEQ_LOOP_PREV(head, elm, field)                            \
-        (((elm)->field.cqe_prev == (void *)(head))                      \
-            ? ((head)->cqh_last)                                        \
-            : (elm->field.cqe_prev))
 
 #endif  /* !QEMU_SYS_QUEUE_H_ */
