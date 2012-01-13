@@ -765,6 +765,11 @@ static void ehci_detach(USBPort *port)
         USBPort *companion = s->companion_ports[port->index];
         companion->ops->detach(companion);
         companion->dev = NULL;
+        /*
+         * EHCI spec 4.2.2: "When a disconnect occurs... On the event,
+         * the port ownership is returned immediately to the EHCI controller."
+         */
+        *portsc &= ~PORTSC_POWNER;
         return;
     }
 
