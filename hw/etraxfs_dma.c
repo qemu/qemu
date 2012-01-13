@@ -401,14 +401,28 @@ static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 	uint32_t saved_data_buf;
 	unsigned char buf[2 * 1024];
 
+	struct dma_context_metadata meta;
+	bool send_context = true;
+
 	if (ctrl->channels[c].eol)
 		return 0;
 
 	do {
+		bool out_eop;
 		D(printf("ch=%d buf=%x after=%x\n",
 			 c,
 			 (uint32_t)ctrl->channels[c].current_d.buf,
 			 (uint32_t)ctrl->channels[c].current_d.after));
+
+		if (send_context) {
+			if (ctrl->channels[c].client->client.metadata_push) {
+				meta.metadata = ctrl->channels[c].current_d.md;
+				ctrl->channels[c].client->client.metadata_push(
+					ctrl->channels[c].client->client.opaque,
+					&meta);
+			}
+			send_context = false;
+		}
 
 		channel_load_d(ctrl, c);
 		saved_data_buf = channel_reg(ctrl, c, RW_SAVED_DATA_BUF);
@@ -420,13 +434,17 @@ static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 			len = sizeof buf;
 		cpu_physical_memory_read (saved_data_buf, buf, len);
 
-		D(printf("channel %d pushes %x %u bytes\n", c, 
-			 saved_data_buf, len));
+		out_eop = ((saved_data_buf + len) ==
+		           ctrl->channels[c].current_d.after) &&
+			ctrl->channels[c].current_d.out_eop;
+
+		D(printf("channel %d pushes %x %u bytes eop=%u\n", c,
+		         saved_data_buf, len, out_eop));
 
 		if (ctrl->channels[c].client->client.push)
 			ctrl->channels[c].client->client.push(
 				ctrl->channels[c].client->client.opaque,
-				buf, len);
+				buf, len, out_eop);
 		else
 			printf("WARNING: DMA ch%d dataloss,"
 			       " no attached client.\n", c);
@@ -437,11 +455,9 @@ static int channel_out_run(struct fs_dma_ctrl *ctrl, int c)
 				ctrl->channels[c].current_d.after) {
 			/* Done. Step to next.  */
 			if (ctrl->channels[c].current_d.out_eop) {
-				/* TODO: signal eop to the client.  */
-				D(printf("signal eop\n"));
+				send_context = true;
 			}
 			if (ctrl->channels[c].current_d.intr) {
-				/* TODO: signal eop to the client.  */
 				/* data intr.  */
 				D(printf("signal intr %d eol=%d\n",
 					len, ctrl->channels[c].current_d.eol));

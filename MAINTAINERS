@@ -490,7 +490,7 @@ Tracing
 M: Stefan Hajnoczi <stefanha@linux.vnet.ibm.com>
 S: Maintained
 F: trace/
-T: git://repo.or.cz/qemu/stefanha.git tracing
+T: git://github.com/stefanha/qemu.git tracing
 
 Checkpatch
 M: Blue Swirl <blauwirbel@gmail.com>

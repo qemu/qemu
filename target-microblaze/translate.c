@@ -526,6 +526,12 @@ static void dec_msr(DisasContext *dc)
             case 0x7:
                 tcg_gen_andi_tl(cpu_SR[SR_FSR], cpu_R[dc->ra], 31);
                 break;
+            case 0x800:
+                tcg_gen_st_tl(cpu_R[dc->ra], cpu_env, offsetof(CPUState, slr));
+                break;
+            case 0x802:
+                tcg_gen_st_tl(cpu_R[dc->ra], cpu_env, offsetof(CPUState, shr));
+                break;
             default:
                 cpu_abort(dc->env, "unknown mts reg %x\n", sr);
                 break;
@@ -551,6 +557,12 @@ static void dec_msr(DisasContext *dc)
                 break;
             case 0xb:
                 tcg_gen_mov_tl(cpu_R[dc->rd], cpu_SR[SR_BTR]);
+                break;
+            case 0x800:
+                tcg_gen_ld_tl(cpu_R[dc->rd], cpu_env, offsetof(CPUState, slr));
+                break;
+            case 0x802:
+                tcg_gen_ld_tl(cpu_R[dc->rd], cpu_env, offsetof(CPUState, shr));
                 break;
             case 0x2000:
             case 0x2001:
@@ -809,6 +821,17 @@ static void dec_bit(DisasContext *dc)
                 return;
             }
             break;
+        case 0xe0:
+            if ((dc->tb_flags & MSR_EE_FLAG)
+                && (dc->env->pvr.regs[2] & PVR2_ILL_OPCODE_EXC_MASK)
+                && !((dc->env->pvr.regs[2] & PVR2_USE_PCMP_INSTR))) {
+                tcg_gen_movi_tl(cpu_SR[SR_ESR], ESR_EC_ILLEGAL_OP);
+                t_gen_raise_exception(dc, EXCP_HW_EXCP);
+            }
+            if (dc->env->pvr.regs[2] & PVR2_USE_PCMP_INSTR) {
+                gen_helper_clz(cpu_R[dc->rd], cpu_R[dc->ra]);
+            }
+            break;
         default:
             cpu_abort(dc->env, "unknown bit oc=%x op=%x rd=%d ra=%d rb=%d\n",
                      dc->pc, op, dc->rd, dc->ra, dc->rb);
@@ -853,6 +876,13 @@ static inline void gen_load(DisasContext *dc, TCGv dst, TCGv addr,
 static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
 {
     unsigned int extimm = dc->tb_flags & IMM_FLAG;
+    /* Should be set to one if r1 is used by loadstores.  */
+    int stackprot = 0;
+
+    /* All load/stores use ra.  */
+    if (dc->ra == 1) {
+        stackprot = 1;
+    }
 
     /* Treat the common cases first.  */
     if (!dc->type_b) {
@@ -863,8 +893,16 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
             return &cpu_R[dc->ra];
         }
 
+        if (dc->rb == 1) {
+            stackprot = 1;
+        }
+
         *t = tcg_temp_new();
         tcg_gen_add_tl(*t, cpu_R[dc->ra], cpu_R[dc->rb]);
+
+        if (stackprot) {
+            gen_helper_stackprot(*t);
+        }
         return t;
     }
     /* Immediate.  */
@@ -880,6 +918,9 @@ static inline TCGv *compute_ldst_addr(DisasContext *dc, TCGv *t)
         tcg_gen_add_tl(*t, cpu_R[dc->ra], *(dec_alu_op_b(dc)));
     }
 
+    if (stackprot) {
+        gen_helper_stackprot(*t);
+    }
     return t;
 }
 
@@ -1208,12 +1249,22 @@ static void dec_bcc(DisasContext *dc)
 
 static void dec_br(DisasContext *dc)
 {
-    unsigned int dslot, link, abs;
+    unsigned int dslot, link, abs, mbar;
     int mem_index = cpu_mmu_index(dc->env);
 
     dslot = dc->ir & (1 << 20);
     abs = dc->ir & (1 << 19);
     link = dc->ir & (1 << 18);
+
+    /* Memory barrier.  */
+    mbar = (dc->ir >> 16) & 31;
+    if (mbar == 2 && dc->imm == 4) {
+        LOG_DIS("mbar %d\n", dc->rd);
+        /* Break the TB.  */
+        dc->cpustate_changed = 1;
+        return;
+    }
+
     LOG_DIS("br%s%s%s%s imm=%x\n",
              abs ? "a" : "", link ? "l" : "",
              dc->type_b ? "i" : "", dslot ? "d" : "",
@@ -1905,6 +1956,9 @@ void cpu_reset (CPUState *env)
 
     memset(env, 0, offsetof(CPUMBState, breakpoints));
     tlb_flush(env, 1);
+
+    /* Disable stack protector.  */
+    env->shr = ~0;
 
     env->pvr.regs[0] = PVR0_PVR_FULL_MASK \
                        | PVR0_USE_BARREL_MASK \

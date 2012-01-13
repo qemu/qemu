@@ -9,7 +9,7 @@
  * This work is licensed under the terms of the GNU LGPL, version 2.1 or later.
  * See the COPYING.LIB file in the top-level directory.
  */
-#include <check.h>
+#include <glib.h>
 
 #include "qint.h"
 #include "qlist.h"
@@ -20,21 +20,20 @@
  * (with some violations to access 'private' data)
  */
 
-START_TEST(qlist_new_test)
+static void qlist_new_test(void)
 {
     QList *qlist;
 
     qlist = qlist_new();
-    fail_unless(qlist != NULL);
-    fail_unless(qlist->base.refcnt == 1);
-    fail_unless(qobject_type(QOBJECT(qlist)) == QTYPE_QLIST);
+    g_assert(qlist != NULL);
+    g_assert(qlist->base.refcnt == 1);
+    g_assert(qobject_type(QOBJECT(qlist)) == QTYPE_QLIST);
 
     // destroy doesn't exist yet
     g_free(qlist);
 }
-END_TEST
 
-START_TEST(qlist_append_test)
+static void qlist_append_test(void)
 {
     QInt *qi;
     QList *qlist;
@@ -46,30 +45,28 @@ START_TEST(qlist_append_test)
     qlist_append(qlist, qi);
 
     entry = QTAILQ_FIRST(&qlist->head);
-    fail_unless(entry != NULL);
-    fail_unless(entry->value == QOBJECT(qi));
+    g_assert(entry != NULL);
+    g_assert(entry->value == QOBJECT(qi));
 
     // destroy doesn't exist yet
     QDECREF(qi);
     g_free(entry);
     g_free(qlist);
 }
-END_TEST
 
-START_TEST(qobject_to_qlist_test)
+static void qobject_to_qlist_test(void)
 {
     QList *qlist;
 
     qlist = qlist_new();
 
-    fail_unless(qobject_to_qlist(QOBJECT(qlist)) == qlist);
+    g_assert(qobject_to_qlist(QOBJECT(qlist)) == qlist);
 
     // destroy doesn't exist yet
     g_free(qlist);
 }
-END_TEST
 
-START_TEST(qlist_destroy_test)
+static void qlist_destroy_test(void)
 {
     int i;
     QList *qlist;
@@ -81,7 +78,6 @@ START_TEST(qlist_destroy_test)
 
     QDECREF(qlist);
 }
-END_TEST
 
 static int iter_called;
 static const int iter_max = 42;
@@ -90,16 +86,16 @@ static void iter_func(QObject *obj, void *opaque)
 {
     QInt *qi;
 
-    fail_unless(opaque == NULL);
+    g_assert(opaque == NULL);
 
     qi = qobject_to_qint(obj);
-    fail_unless(qi != NULL);
-    fail_unless((qint_get_int(qi) >= 0) && (qint_get_int(qi) <= iter_max));
+    g_assert(qi != NULL);
+    g_assert((qint_get_int(qi) >= 0) && (qint_get_int(qi) <= iter_max));
 
     iter_called++;
 }
 
-START_TEST(qlist_iter_test)
+static void qlist_iter_test(void)
 {
     int i;
     QList *qlist;
@@ -112,42 +108,20 @@ START_TEST(qlist_iter_test)
     iter_called = 0;
     qlist_iter(qlist, iter_func, NULL);
 
-    fail_unless(iter_called == iter_max);
+    g_assert(iter_called == iter_max);
 
     QDECREF(qlist);
 }
-END_TEST
 
-static Suite *QList_suite(void)
+int main(int argc, char **argv)
 {
-    Suite *s;
-    TCase *qlist_public_tcase;
+    g_test_init(&argc, &argv, NULL);
 
-    s = suite_create("QList suite");
+    g_test_add_func("/public/new", qlist_new_test);
+    g_test_add_func("/public/append", qlist_append_test);
+    g_test_add_func("/public/to_qlist", qobject_to_qlist_test);
+    g_test_add_func("/public/destroy", qlist_destroy_test);
+    g_test_add_func("/public/iter", qlist_iter_test);
 
-    qlist_public_tcase = tcase_create("Public Interface");
-    suite_add_tcase(s, qlist_public_tcase);
-    tcase_add_test(qlist_public_tcase, qlist_new_test);
-    tcase_add_test(qlist_public_tcase, qlist_append_test);
-    tcase_add_test(qlist_public_tcase, qobject_to_qlist_test);
-    tcase_add_test(qlist_public_tcase, qlist_destroy_test);
-    tcase_add_test(qlist_public_tcase, qlist_iter_test);
-
-    return s;
-}
-
-int main(void)
-{
-	int nf;
-	Suite *s;
-	SRunner *sr;
-
-	s = QList_suite();
-	sr = srunner_create(s);
-
-	srunner_run_all(sr, CK_NORMAL);
-	nf = srunner_ntests_failed(sr);
-	srunner_free(sr);
-
-	return (nf == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return g_test_run();
 }

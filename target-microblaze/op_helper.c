@@ -164,6 +164,11 @@ uint32_t helper_cmpu(uint32_t a, uint32_t b)
     return t;
 }
 
+uint32_t helper_clz(uint32_t t0)
+{
+    return clz32(t0);
+}
+
 uint32_t helper_carry(uint32_t a, uint32_t b, uint32_t cf)
 {
     uint32_t ncf;
@@ -473,6 +478,17 @@ void helper_memalign(uint32_t addr, uint32_t dr, uint32_t wr, uint32_t mask)
             if (!(env->sregs[SR_MSR] & MSR_EE)) {
                 return;
             }
+            helper_raise_exception(EXCP_HW_EXCP);
+    }
+}
+
+void helper_stackprot(uint32_t addr)
+{
+    if (addr < env->slr || addr > env->shr) {
+            qemu_log("Stack protector violation at %x %x %x\n",
+                     addr, env->slr, env->shr);
+            env->sregs[SR_EAR] = addr;
+            env->sregs[SR_ESR] = ESR_EC_STACKPROT;
             helper_raise_exception(EXCP_HW_EXCP);
     }
 }

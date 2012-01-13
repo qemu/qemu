@@ -1000,7 +1000,11 @@ static const struct {
             }, {
                 .name = "localaddr",
                 .type = QEMU_OPT_STRING,
-                .help = "source address for multicast packets",
+                .help = "source address and port for multicast and udp packets",
+            }, {
+                .name = "udp",
+                .type = QEMU_OPT_STRING,
+                .help = "UDP unicast address and port number",
             },
             { /* end of list */ }
         },
