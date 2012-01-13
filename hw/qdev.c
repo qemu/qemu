@@ -376,11 +376,6 @@ int qdev_unplug(DeviceState *dev)
     }
     assert(dev->info->unplug != NULL);
 
-    if (dev->ref != 0) {
-        qerror_report(QERR_DEVICE_IN_USE, dev->id?:"");
-        return -1;
-    }
-
     qdev_hot_removed = true;
 
     return dev->info->unplug(dev);
@@ -465,6 +460,29 @@ static void qdev_property_del_all(DeviceState *dev)
     }
 }
 
+static void qdev_property_del_child(DeviceState *dev, DeviceState *child, Error **errp)
+{
+    DeviceProperty *prop;
+
+    QTAILQ_FOREACH(prop, &dev->properties, node) {
+        if (strstart(prop->type, "child<", NULL) && prop->opaque == child) {
+            break;
+        }
+    }
+
+    g_assert(prop != NULL);
+
+    QTAILQ_REMOVE(&dev->properties, prop, node);
+
+    if (prop->release) {
+        prop->release(dev, prop->name, prop->opaque);
+    }
+
+    g_free(prop->name);
+    g_free(prop->type);
+    g_free(prop);
+}
+
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
@@ -490,6 +508,12 @@ void qdev_free(DeviceState *dev)
         if (prop->info->free) {
             prop->info->free(dev, prop);
         }
+    }
+    if (dev->parent) {
+        qdev_property_del_child(dev->parent, dev, NULL);
+    }
+    if (dev->ref != 0) {
+        qerror_report(QERR_DEVICE_IN_USE, dev->id?:"");
     }
     g_free(dev);
 }
@@ -1239,6 +1263,14 @@ static void qdev_get_child_property(DeviceState *dev, Visitor *v, void *opaque,
     g_free(path);
 }
 
+static void qdev_release_child_property(DeviceState *dev, const char *name,
+                                        void *opaque)
+{
+    DeviceState *child = opaque;
+
+    qdev_unref(child);
+}
+
 void qdev_property_add_child(DeviceState *dev, const char *name,
                              DeviceState *child, Error **errp)
 {
@@ -1247,7 +1279,8 @@ void qdev_property_add_child(DeviceState *dev, const char *name,
     type = g_strdup_printf("child<%s>", child->info->name);
 
     qdev_property_add(dev, name, type, qdev_get_child_property,
-                      NULL, NULL, child, errp);
+                      NULL, qdev_release_child_property,
+                      child, errp);
 
     qdev_ref(child);
     g_assert(child->parent == NULL);
