@@ -37,7 +37,7 @@ struct Coroutine {
     CoroutineEntry *entry;
     void *entry_arg;
     Coroutine *caller;
-    QLIST_ENTRY(Coroutine) pool_next;
+    QSLIST_ENTRY(Coroutine) pool_next;
     QTAILQ_ENTRY(Coroutine) co_queue_next;
 };
 
