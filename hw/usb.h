@@ -392,3 +392,15 @@ static inline USBBus *usb_bus_from_device(USBDevice *d)
 {
     return DO_UPCAST(USBBus, qbus, d->qdev.parent_bus);
 }
+
+extern const VMStateDescription vmstate_usb_device;
+
+#define VMSTATE_USB_DEVICE(_field, _state) {                         \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(USBDevice),                                 \
+    .vmsd       = &vmstate_usb_device,                               \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, USBDevice),   \
+}
+
+

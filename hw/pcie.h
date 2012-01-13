@@ -129,4 +129,15 @@ void pcie_add_capability(PCIDevice *dev,
 
 void pcie_ari_init(PCIDevice *dev, uint16_t offset, uint16_t nextfn);
 
+extern const VMStateDescription vmstate_pcie_device;
+
+#define VMSTATE_PCIE_DEVICE(_field, _state) {                        \
+    .name       = (stringify(_field)),                               \
+    .version_id = 2,                                                 \
+    .size       = sizeof(PCIDevice),                                 \
+    .vmsd       = &vmstate_pcie_device,                              \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, PCIDevice),   \
+}
+
 #endif /* QEMU_PCIE_H */

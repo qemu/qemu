@@ -74,4 +74,14 @@ void tmp105_set(i2c_slave *i2c, int temp);
 /* lm832x.c */
 void lm832x_key_event(DeviceState *dev, int key, int state);
 
+extern const VMStateDescription vmstate_i2c_slave;
+
+#define VMSTATE_I2C_SLAVE(_field, _state) {                          \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(i2c_slave),                                 \
+    .vmsd       = &vmstate_i2c_slave,                                \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, i2c_slave),   \
+}
+
 #endif

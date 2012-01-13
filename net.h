@@ -6,6 +6,7 @@
 #include "qdict.h"
 #include "qemu-option.h"
 #include "net/queue.h"
+#include "vmstate.h"
 
 struct MACAddr {
     uint8_t a[6];
@@ -177,5 +178,17 @@ int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
 int net_handle_fd_param(Monitor *mon, const char *param);
+
+#define vmstate_offset_macaddr(_state, _field)                       \
+    vmstate_offset_array(_state, _field.a, uint8_t,                \
+                         sizeof(typeof_field(_state, _field)))
+
+#define VMSTATE_MACADDR(_field, _state) {                            \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(MACAddr),                                   \
+    .info       = &vmstate_info_buffer,                              \
+    .flags      = VMS_BUFFER,                                        \
+    .offset     = vmstate_offset_macaddr(_state, _field),            \
+}
 
 #endif
