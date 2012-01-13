@@ -18,24 +18,24 @@
 
 void notifier_list_init(NotifierList *list)
 {
-    QTAILQ_INIT(&list->notifiers);
+    QLIST_INIT(&list->notifiers);
 }
 
 void notifier_list_add(NotifierList *list, Notifier *notifier)
 {
-    QTAILQ_INSERT_HEAD(&list->notifiers, notifier, node);
+    QLIST_INSERT_HEAD(&list->notifiers, notifier, node);
 }
 
-void notifier_list_remove(NotifierList *list, Notifier *notifier)
+void notifier_remove(Notifier *notifier)
 {
-    QTAILQ_REMOVE(&list->notifiers, notifier, node);
+    QLIST_REMOVE(notifier, node);
 }
 
 void notifier_list_notify(NotifierList *list, void *data)
 {
     Notifier *notifier, *next;
 
-    QTAILQ_FOREACH_SAFE(notifier, &list->notifiers, node, next) {
+    QLIST_FOREACH_SAFE(notifier, &list->notifiers, node, next) {
         notifier->notify(notifier, data);
     }
 }

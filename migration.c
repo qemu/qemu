@@ -335,7 +335,7 @@ void add_migration_state_change_notifier(Notifier *notify)
 
 void remove_migration_state_change_notifier(Notifier *notify)
 {
-    notifier_list_remove(&migration_state_notifiers, notify);
+    notifier_remove(notify);
 }
 
 bool migration_is_active(MigrationState *s)

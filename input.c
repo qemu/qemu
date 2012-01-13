@@ -268,5 +268,5 @@ void qemu_add_mouse_mode_change_notifier(Notifier *notify)
 
 void qemu_remove_mouse_mode_change_notifier(Notifier *notify)
 {
-    notifier_list_remove(&mouse_mode_notifiers, notify);
+    notifier_remove(notify);
 }
