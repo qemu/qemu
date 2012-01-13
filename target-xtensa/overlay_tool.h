@@ -114,6 +114,7 @@
         [EXC_KERNEL] = XCHAL_KERNEL_VECTOR_VADDR, \
         [EXC_USER] = XCHAL_USER_VECTOR_VADDR, \
         [EXC_DOUBLE] = XCHAL_DOUBLEEXC_VECTOR_VADDR, \
+        [EXC_DEBUG] = XCHAL_DEBUG_VECTOR_VADDR, \
     }
 
 #define INTERRUPT_VECTORS { \
@@ -302,6 +303,10 @@
 #define REGISTER_CORE(core)
 #endif
 
+#define DEBUG_SECTION \
+    .debug_level = XCHAL_DEBUGLEVEL, \
+    .nibreak = XCHAL_NUM_IBREAK, \
+    .ndbreak = XCHAL_NUM_DBREAK
 
 #if XCHAL_NUM_INTLEVELS + XCHAL_HAVE_NMI + 1 <= 2
 #define XCHAL_INTLEVEL2_VECTOR_VADDR 0

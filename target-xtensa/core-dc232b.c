@@ -22,6 +22,7 @@ static const XtensaConfig dc232b = {
     EXCEPTIONS_SECTION,
     INTERRUPTS_SECTION,
     TLB_SECTION,
+    DEBUG_SECTION,
     .clock_freq_khz = 10000,
 };
 
