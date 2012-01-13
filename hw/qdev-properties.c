@@ -680,6 +680,16 @@ static int parse_chr(DeviceState *dev, Property *prop, const char *str)
     return 0;
 }
 
+static void free_chr(DeviceState *dev, Property *prop)
+{
+    CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+
+    if (*ptr) {
+        qemu_chr_add_handlers(*ptr, NULL, NULL, NULL, NULL);
+    }
+}
+
+
 static int print_chr(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
@@ -699,6 +709,7 @@ PropertyInfo qdev_prop_chr = {
     .print = print_chr,
     .get   = get_generic,
     .set   = set_generic,
+    .free  = free_chr,
 };
 
 /* --- netdev device --- */
