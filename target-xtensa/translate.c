@@ -749,7 +749,7 @@ static void disas_xtensa_insn(DisasContext *dc)
 
     uint8_t b0 = ldub_code(dc->pc);
     uint8_t b1 = ldub_code(dc->pc + 1);
-    uint8_t b2 = ldub_code(dc->pc + 2);
+    uint8_t b2 = 0;
 
     static const uint32_t B4CONST[] = {
         0xffffffff, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 16, 32, 64, 128, 256
@@ -764,6 +764,7 @@ static void disas_xtensa_insn(DisasContext *dc)
         HAS_OPTION(XTENSA_OPTION_CODE_DENSITY);
     } else {
         dc->next_pc = dc->pc + 3;
+        b2 = ldub_code(dc->pc + 2);
     }
 
     switch (OP0) {
