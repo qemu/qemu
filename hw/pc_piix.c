@@ -201,6 +201,17 @@ static void pc_init1(MemoryRegion *system_memory,
         }
         idebus[0] = qdev_get_child_bus(&dev->qdev, "ide.0");
         idebus[1] = qdev_get_child_bus(&dev->qdev, "ide.1");
+
+        /* FIXME there's some major spaghetti here.  Somehow we create the
+         * devices on the PIIX before we actually create it.  We create the
+         * PIIX3 deep in the recess of the i440fx creation too and then lose
+         * the DeviceState.
+         *
+         * For now, let's "fix" this by making judicious use of paths.  This
+         * is not generally the right way to do this.
+         */
+        qdev_property_add_child(qdev_resolve_path("/i440fx/piix3", NULL),
+                                "rtc", (DeviceState *)rtc_state, NULL);
     } else {
         for(i = 0; i < MAX_IDE_BUS; i++) {
             ISADevice *dev;
@@ -210,17 +221,6 @@ static void pc_init1(MemoryRegion *system_memory,
             idebus[i] = qdev_get_child_bus(&dev->qdev, "ide.0");
         }
     }
-
-    /* FIXME there's some major spaghetti here.  Somehow we create the devices
-     * on the PIIX before we actually create it.  We create the PIIX3 deep in
-     * the recess of the i440fx creation too and then lose the DeviceState.
-     *
-     * For now, let's "fix" this by making judicious use of paths.  This is not
-     * generally the right way to do this.
-     */
-
-    qdev_property_add_child(qdev_resolve_path("/i440fx/piix3", NULL),
-                            "rtc", (DeviceState *)rtc_state, NULL);
 
     audio_init(isa_bus, pci_enabled ? pci_bus : NULL);
 
