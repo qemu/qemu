@@ -142,6 +142,8 @@ enum {
     DEBUGCAUSE = 233,
     CCOUNT = 234,
     PRID = 235,
+    ICOUNT = 236,
+    ICOUNTLEVEL = 237,
     EXCVADDR = 238,
     CCOMPARE = 240,
 };
@@ -429,6 +431,7 @@ static inline int cpu_mmu_index(CPUState *env)
 #define XTENSA_TBFLAG_EXCM 0x4
 #define XTENSA_TBFLAG_LITBASE 0x8
 #define XTENSA_TBFLAG_DEBUG 0x10
+#define XTENSA_TBFLAG_ICOUNT 0x20
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
@@ -447,6 +450,9 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_DEBUG)) {
         if (xtensa_get_cintlevel(env) < env->config->debug_level) {
             *flags |= XTENSA_TBFLAG_DEBUG;
+        }
+        if (xtensa_get_cintlevel(env) < env->sregs[ICOUNTLEVEL]) {
+            *flags |= XTENSA_TBFLAG_ICOUNT;
         }
     }
 }

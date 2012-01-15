@@ -63,6 +63,8 @@ typedef struct DisasContext {
     unsigned used_window;
 
     bool debug;
+    bool icount;
+    TCGv_i32 next_icount;
 } DisasContext;
 
 static TCGv_ptr cpu_env;
@@ -127,6 +129,8 @@ static const char * const sregnames[256] = {
     [DEBUGCAUSE] = "DEBUGCAUSE",
     [CCOUNT] = "CCOUNT",
     [PRID] = "PRID",
+    [ICOUNT] = "ICOUNT",
+    [ICOUNTLEVEL] = "ICOUNTLEVEL",
     [EXCVADDR] = "EXCVADDR",
     [CCOMPARE] = "CCOMPARE0",
     [CCOMPARE + 1] = "CCOMPARE1",
@@ -313,10 +317,13 @@ static void gen_check_privilege(DisasContext *dc)
 static void gen_jump_slot(DisasContext *dc, TCGv dest, int slot)
 {
     tcg_gen_mov_i32(cpu_pc, dest);
+    gen_advance_ccount(dc);
+    if (dc->icount) {
+        tcg_gen_mov_i32(cpu_SR[ICOUNT], dc->next_icount);
+    }
     if (dc->singlestep_enabled) {
         gen_exception(dc, EXCP_DEBUG);
     } else {
-        gen_advance_ccount(dc);
         if (slot >= 0) {
             tcg_gen_goto_tb(slot);
             tcg_gen_exit_tb((tcg_target_long)dc->tb + slot);
@@ -580,6 +587,22 @@ static void gen_wsr_prid(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
 }
 
+static void gen_wsr_icount(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    if (dc->icount) {
+        tcg_gen_mov_i32(dc->next_icount, v);
+    } else {
+        tcg_gen_mov_i32(cpu_SR[sr], v);
+    }
+}
+
+static void gen_wsr_icountlevel(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    tcg_gen_andi_i32(cpu_SR[sr], v, 0xf);
+    /* This can change tb->flags, so exit tb */
+    gen_jumpi_check_loop_end(dc, -1);
+}
+
 static void gen_wsr_ccompare(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     uint32_t id = sr - CCOMPARE;
@@ -617,6 +640,8 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [PS] = gen_wsr_ps,
         [DEBUGCAUSE] = gen_wsr_debugcause,
         [PRID] = gen_wsr_prid,
+        [ICOUNT] = gen_wsr_icount,
+        [ICOUNTLEVEL] = gen_wsr_icountlevel,
         [CCOMPARE] = gen_wsr_ccompare,
         [CCOMPARE + 1] = gen_wsr_ccompare,
         [CCOMPARE + 2] = gen_wsr_ccompare,
@@ -2493,10 +2518,14 @@ static void gen_intermediate_code_internal(
     dc.is_jmp = DISAS_NEXT;
     dc.ccount_delta = 0;
     dc.debug = tb->flags & XTENSA_TBFLAG_DEBUG;
+    dc.icount = tb->flags & XTENSA_TBFLAG_ICOUNT;
 
     init_litbase(&dc);
     init_sar_tracker(&dc);
     reset_used_window(&dc);
+    if (dc.icount) {
+        dc.next_icount = tcg_temp_local_new_i32();
+    }
 
     gen_icount_start();
 
@@ -2532,12 +2561,27 @@ static void gen_intermediate_code_internal(
             gen_io_start();
         }
 
+        if (dc.icount) {
+            int label = gen_new_label();
+
+            tcg_gen_addi_i32(dc.next_icount, cpu_SR[ICOUNT], 1);
+            tcg_gen_brcondi_i32(TCG_COND_NE, dc.next_icount, 0, label);
+            tcg_gen_mov_i32(dc.next_icount, cpu_SR[ICOUNT]);
+            if (dc.debug) {
+                gen_debug_exception(&dc, DEBUGCAUSE_IC);
+            }
+            gen_set_label(label);
+        }
+
         if (dc.debug) {
             gen_ibreak_check(env, &dc);
         }
 
         disas_xtensa_insn(&dc);
         ++insn_count;
+        if (dc.icount) {
+            tcg_gen_mov_i32(cpu_SR[ICOUNT], dc.next_icount);
+        }
         if (env->singlestep_enabled) {
             tcg_gen_movi_i32(cpu_pc, dc.pc);
             gen_exception(&dc, EXCP_DEBUG);
@@ -2550,6 +2594,9 @@ static void gen_intermediate_code_internal(
 
     reset_litbase(&dc);
     reset_sar_tracker(&dc);
+    if (dc.icount) {
+        tcg_temp_free(dc.next_icount);
+    }
 
     if (tb->cflags & CF_LAST_IO) {
         gen_io_end();
