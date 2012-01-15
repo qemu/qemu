@@ -566,6 +566,10 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
 
         old = *mem;
 
+        if (mem->flags & KVM_MEM_LOG_DIRTY_PAGES) {
+            kvm_physical_sync_dirty_bitmap(section);
+        }
+
         /* unregister the overlapping slot */
         mem->memory_size = 0;
         err = kvm_set_user_memory_region(s, mem);
