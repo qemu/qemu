@@ -429,7 +429,7 @@ int main(int argc, char **argv)
         pid = fork();
         if (pid == 0) {
             close(stderr_fd[0]);
-            ret = qemu_daemon(0, 0);
+            ret = qemu_daemon(1, 0);
 
             /* Temporarily redirect stderr to the parent's pipe...  */
             dup2(stderr_fd[1], STDERR_FILENO);
@@ -526,6 +526,12 @@ int main(int argc, char **argv)
     qemu_init_main_loop();
     qemu_set_fd_handler2(fd, nbd_can_accept, nbd_accept, NULL,
                          (void *)(uintptr_t)fd);
+
+    /* now when the initialization is (almost) complete, chdir("/")
+     * to free any busy filesystems */
+    if (chdir("/") < 0) {
+        err(EXIT_FAILURE, "Could not chdir to root directory");
+    }
 
     do {
         main_loop_wait(false);
