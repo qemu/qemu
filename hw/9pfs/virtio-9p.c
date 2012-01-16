@@ -1391,7 +1391,6 @@ static void v9fs_open(void *opaque)
                 err = -EROFS;
                 goto out;
             }
-            flags |= O_NOATIME;
         }
         err = v9fs_co_open(pdu, fidp, flags);
         if (err < 0) {
