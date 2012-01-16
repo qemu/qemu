@@ -36,4 +36,4 @@ test-qmp-commands: test-qmp-commands.o $(qobject-obj-y) $(qapi-obj-y) $(tools-ob
 
 .PHONY: check
 check: $(CHECKS)
-	gtester $(CHECKS)
+	$(call quiet-command, gtester $(CHECKS), "  CHECK")
