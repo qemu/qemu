@@ -59,12 +59,12 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
 {
 }
 
-int64 cpu_get_clock(void)
+int64_t cpu_get_clock(void)
 {
     abort();
 }
 
-int64 cpu_get_icount(void)
+int64_t cpu_get_icount(void)
 {
     abort();
 }
