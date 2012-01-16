@@ -87,10 +87,10 @@ static int blkverify_open(BlockDriverState *bs, const char *filename, int flags)
         return -EINVAL;
     }
 
-    raw = strdup(filename);
+    raw = g_strdup(filename);
     raw[c - filename] = '\0';
     ret = bdrv_file_open(&bs->file, raw, flags);
-    free(raw);
+    g_free(raw);
     if (ret < 0) {
         return ret;
     }
