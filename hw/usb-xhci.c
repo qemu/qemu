@@ -1721,10 +1721,14 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
             }
         }
 
+        if (epctx->state == EP_HALTED) {
+            DPRINTF("xhci: ep halted, stopping schedule\n");
+            break;
+        }
+
         /*
          * Qemu usb can't handle multiple in-flight xfers.
-         * Also xfers might be finished here already,
-         * possibly with an error.  Stop here for now.
+         * Stop here for now.
          */
         break;
     }
