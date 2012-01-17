@@ -213,6 +213,7 @@ clean:
 	rm -f trace.c trace.h trace.c-timestamp trace.h-timestamp
 	rm -f trace-dtrace.dtrace trace-dtrace.dtrace-timestamp
 	rm -f trace-dtrace.h trace-dtrace.h-timestamp
+	rm -f $(GENERATED_HEADERS)
 	rm -f $(GENERATED_SOURCES)
 	rm -rf $(qapi-dir)
 	$(MAKE) -C tests/tcg clean
