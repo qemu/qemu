@@ -420,6 +420,60 @@ typedef struct XHCIEvRingSeg {
     uint32_t rsvd;
 } XHCIEvRingSeg;
 
+#ifdef DEBUG_XHCI
+static const char *TRBType_names[] = {
+    [TRB_RESERVED]                     = "TRB_RESERVED",
+    [TR_NORMAL]                        = "TR_NORMAL",
+    [TR_SETUP]                         = "TR_SETUP",
+    [TR_DATA]                          = "TR_DATA",
+    [TR_STATUS]                        = "TR_STATUS",
+    [TR_ISOCH]                         = "TR_ISOCH",
+    [TR_LINK]                          = "TR_LINK",
+    [TR_EVDATA]                        = "TR_EVDATA",
+    [TR_NOOP]                          = "TR_NOOP",
+    [CR_ENABLE_SLOT]                   = "CR_ENABLE_SLOT",
+    [CR_DISABLE_SLOT]                  = "CR_DISABLE_SLOT",
+    [CR_ADDRESS_DEVICE]                = "CR_ADDRESS_DEVICE",
+    [CR_CONFIGURE_ENDPOINT]            = "CR_CONFIGURE_ENDPOINT",
+    [CR_EVALUATE_CONTEXT]              = "CR_EVALUATE_CONTEXT",
+    [CR_RESET_ENDPOINT]                = "CR_RESET_ENDPOINT",
+    [CR_STOP_ENDPOINT]                 = "CR_STOP_ENDPOINT",
+    [CR_SET_TR_DEQUEUE]                = "CR_SET_TR_DEQUEUE",
+    [CR_RESET_DEVICE]                  = "CR_RESET_DEVICE",
+    [CR_FORCE_EVENT]                   = "CR_FORCE_EVENT",
+    [CR_NEGOTIATE_BW]                  = "CR_NEGOTIATE_BW",
+    [CR_SET_LATENCY_TOLERANCE]         = "CR_SET_LATENCY_TOLERANCE",
+    [CR_GET_PORT_BANDWIDTH]            = "CR_GET_PORT_BANDWIDTH",
+    [CR_FORCE_HEADER]                  = "CR_FORCE_HEADER",
+    [CR_NOOP]                          = "CR_NOOP",
+    [ER_TRANSFER]                      = "ER_TRANSFER",
+    [ER_COMMAND_COMPLETE]              = "ER_COMMAND_COMPLETE",
+    [ER_PORT_STATUS_CHANGE]            = "ER_PORT_STATUS_CHANGE",
+    [ER_BANDWIDTH_REQUEST]             = "ER_BANDWIDTH_REQUEST",
+    [ER_DOORBELL]                      = "ER_DOORBELL",
+    [ER_HOST_CONTROLLER]               = "ER_HOST_CONTROLLER",
+    [ER_DEVICE_NOTIFICATION]           = "ER_DEVICE_NOTIFICATION",
+    [ER_MFINDEX_WRAP]                  = "ER_MFINDEX_WRAP",
+    [CR_VENDOR_VIA_CHALLENGE_RESPONSE] = "CR_VENDOR_VIA_CHALLENGE_RESPONSE",
+    [CR_VENDOR_NEC_FIRMWARE_REVISION]  = "CR_VENDOR_NEC_FIRMWARE_REVISION",
+    [CR_VENDOR_NEC_CHALLENGE_RESPONSE] = "CR_VENDOR_NEC_CHALLENGE_RESPONSE",
+};
+
+static const char *lookup_name(uint32_t index, const char **list, uint32_t llen)
+{
+    if (index >= llen || list[index] == NULL) {
+        return "???";
+    }
+    return list[index];
+}
+
+static const char *trb_name(XHCITRB *trb)
+{
+    return lookup_name(TRB_TYPE(*trb), TRBType_names,
+                       ARRAY_SIZE(TRBType_names));
+}
+#endif
+
 static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid,
                          unsigned int epid);
 
@@ -487,8 +541,9 @@ static void xhci_write_event(XHCIState *xhci, XHCIEvent *event)
     }
     ev_trb.control = cpu_to_le32(ev_trb.control);
 
-    DPRINTF("xhci_write_event(): [%d] %016"PRIx64" %08x %08x\n",
-            xhci->er_ep_idx, ev_trb.parameter, ev_trb.status, ev_trb.control);
+    DPRINTF("xhci_write_event(): [%d] %016"PRIx64" %08x %08x %s\n",
+            xhci->er_ep_idx, ev_trb.parameter, ev_trb.status, ev_trb.control,
+            trb_name(&ev_trb));
 
     addr = xhci->er_start + TRB_SIZE*xhci->er_ep_idx;
     cpu_physical_memory_write(addr, (uint8_t *) &ev_trb, TRB_SIZE);
@@ -649,8 +704,9 @@ static TRBType xhci_ring_fetch(XHCIState *xhci, XHCIRing *ring, XHCITRB *trb,
         le32_to_cpus(&trb->control);
 
         DPRINTF("xhci: TRB fetched [" TARGET_FMT_plx "]: "
-                "%016" PRIx64 " %08x %08x\n",
-                ring->dequeue, trb->parameter, trb->status, trb->control);
+                "%016" PRIx64 " %08x %08x %s\n",
+                ring->dequeue, trb->parameter, trb->status, trb->control,
+                trb_name(trb));
 
         if ((trb->control & TRB_C) != ring->ccs) {
             return 0;
