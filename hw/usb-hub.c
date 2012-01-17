@@ -37,6 +37,7 @@ typedef struct USBHubPort {
 
 typedef struct USBHubState {
     USBDevice dev;
+    USBEndpoint *intr;
     USBHubPort ports[NUM_PORTS];
 } USBHubState;
 
@@ -163,7 +164,7 @@ static void usb_hub_attach(USBPort *port1)
     } else {
         port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
     }
-    usb_wakeup(&s->dev);
+    usb_wakeup(s->intr);
 }
 
 static void usb_hub_detach(USBPort *port1)
@@ -171,7 +172,7 @@ static void usb_hub_detach(USBPort *port1)
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
 
-    usb_wakeup(&s->dev);
+    usb_wakeup(s->intr);
 
     /* Let upstream know the device on this port is gone */
     s->dev.port->ops->child_detach(s->dev.port, port1->dev);
@@ -199,7 +200,7 @@ static void usb_hub_wakeup(USBPort *port1)
 
     if (port->wPortStatus & PORT_STAT_SUSPEND) {
         port->wPortChange |= PORT_STAT_C_SUSPEND;
-        usb_wakeup(&s->dev);
+        usb_wakeup(s->intr);
     }
 }
 
@@ -481,6 +482,7 @@ static int usb_hub_initfn(USBDevice *dev)
     int i;
 
     usb_desc_init(dev);
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     for (i = 0; i < NUM_PORTS; i++) {
         port = &s->ports[i];
         usb_register_port(usb_bus_from_device(dev),

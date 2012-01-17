@@ -368,7 +368,7 @@ void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);
 void usb_port_reset(USBPort *port);
 void usb_device_reset(USBDevice *dev);
-void usb_wakeup(USBDevice *dev);
+void usb_wakeup(USBEndpoint *ep);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
 

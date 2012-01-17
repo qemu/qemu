@@ -267,6 +267,7 @@ typedef struct CCIDBus {
  */
 typedef struct USBCCIDState {
     USBDevice dev;
+    USBEndpoint *intr;
     CCIDBus bus;
     CCIDCardState *card;
     BulkIn bulk_in_pending[BULK_IN_PENDING_NUM]; /* circular */
@@ -839,7 +840,7 @@ static void ccid_on_slot_change(USBCCIDState *s, bool full)
         s->bmSlotICCState |= SLOT_0_CHANGED_MASK;
     }
     s->notify_slot_change = true;
-    usb_wakeup(&s->dev);
+    usb_wakeup(s->intr);
 }
 
 static void ccid_write_data_block_error(
@@ -1190,6 +1191,7 @@ static int ccid_initfn(USBDevice *dev)
 
     usb_desc_init(dev);
     qbus_create_inplace(&s->bus.qbus, &ccid_bus_info, &dev->qdev, NULL);
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, CCID_INT_IN_EP);
     s->bus.qbus.allow_hotplug = 1;
     s->card = NULL;
     s->migration_state = MIGRATION_NONE;
