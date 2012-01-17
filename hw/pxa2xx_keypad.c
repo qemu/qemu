@@ -165,7 +165,7 @@ static void pxa27x_keyboard_event (PXA2xxKeyPadState *kp, int keycode)
         kp->kpas |= ((row & 0xf) << 4) | (col & 0xf);
     }
 
-    if (!(kp->kpc & (KPC_AS | KPC_ASACT))
+    if (!(kp->kpc & (KPC_AS | KPC_ASACT)))
         assert_irq = 0;
 
     if (assert_irq && (kp->kpc & KPC_MIE)) {
