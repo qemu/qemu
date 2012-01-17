@@ -39,7 +39,7 @@
 #elif BITS == 24
 #define COPY_PIXEL(to, r, g, b)                    \
     do {                                           \
-        uint32 tmp = rgb_to_pixel24(r, g, b);      \
+        uint32_t tmp = rgb_to_pixel24(r, g, b);    \
         *(to++) =         tmp & 0xff;              \
         *(to++) =  (tmp >> 8) & 0xff;              \
         *(to++) = (tmp >> 16) & 0xff;              \
