@@ -140,16 +140,35 @@ enum tx_state {
 };
 
 typedef struct {
-    enum tx_state state;
+    /* state is a tx_state but we can't put enums in VMStateDescriptions. */
+    uint32_t state;
     uint32_t cmd_a;
     uint32_t cmd_b;
-    int buffer_size;
-    int offset;
-    int pad;
-    int fifo_used;
-    int len;
+    int32_t buffer_size;
+    int32_t offset;
+    int32_t pad;
+    int32_t fifo_used;
+    int32_t len;
     uint8_t data[2048];
 } LAN9118Packet;
+
+static const VMStateDescription vmstate_lan9118_packet = {
+    .name = "lan9118_packet",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(state, LAN9118Packet),
+        VMSTATE_UINT32(cmd_a, LAN9118Packet),
+        VMSTATE_UINT32(cmd_b, LAN9118Packet),
+        VMSTATE_INT32(buffer_size, LAN9118Packet),
+        VMSTATE_INT32(offset, LAN9118Packet),
+        VMSTATE_INT32(pad, LAN9118Packet),
+        VMSTATE_INT32(fifo_used, LAN9118Packet),
+        VMSTATE_INT32(len, LAN9118Packet),
+        VMSTATE_UINT8_ARRAY(data, LAN9118Packet, 2048),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 typedef struct {
     SysBusDevice busdev;
@@ -190,33 +209,94 @@ typedef struct {
     uint32_t phy_int;
     uint32_t phy_int_mask;
 
-    int eeprom_writable;
+    int32_t eeprom_writable;
     uint8_t eeprom[128];
 
-    int tx_fifo_size;
+    int32_t tx_fifo_size;
     LAN9118Packet *txp;
     LAN9118Packet tx_packet;
 
-    int tx_status_fifo_used;
-    int tx_status_fifo_head;
+    int32_t tx_status_fifo_used;
+    int32_t tx_status_fifo_head;
     uint32_t tx_status_fifo[512];
 
-    int rx_status_fifo_size;
-    int rx_status_fifo_used;
-    int rx_status_fifo_head;
+    int32_t rx_status_fifo_size;
+    int32_t rx_status_fifo_used;
+    int32_t rx_status_fifo_head;
     uint32_t rx_status_fifo[896];
-    int rx_fifo_size;
-    int rx_fifo_used;
-    int rx_fifo_head;
+    int32_t rx_fifo_size;
+    int32_t rx_fifo_used;
+    int32_t rx_fifo_head;
     uint32_t rx_fifo[3360];
-    int rx_packet_size_head;
-    int rx_packet_size_tail;
-    int rx_packet_size[1024];
+    int32_t rx_packet_size_head;
+    int32_t rx_packet_size_tail;
+    int32_t rx_packet_size[1024];
 
-    int rxp_offset;
-    int rxp_size;
-    int rxp_pad;
+    int32_t rxp_offset;
+    int32_t rxp_size;
+    int32_t rxp_pad;
 } lan9118_state;
+
+static const VMStateDescription vmstate_lan9118 = {
+    .name = "lan9118",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_PTIMER(timer, lan9118_state),
+        VMSTATE_UINT32(irq_cfg, lan9118_state),
+        VMSTATE_UINT32(int_sts, lan9118_state),
+        VMSTATE_UINT32(int_en, lan9118_state),
+        VMSTATE_UINT32(fifo_int, lan9118_state),
+        VMSTATE_UINT32(rx_cfg, lan9118_state),
+        VMSTATE_UINT32(tx_cfg, lan9118_state),
+        VMSTATE_UINT32(hw_cfg, lan9118_state),
+        VMSTATE_UINT32(pmt_ctrl, lan9118_state),
+        VMSTATE_UINT32(gpio_cfg, lan9118_state),
+        VMSTATE_UINT32(gpt_cfg, lan9118_state),
+        VMSTATE_UINT32(word_swap, lan9118_state),
+        VMSTATE_UINT32(free_timer_start, lan9118_state),
+        VMSTATE_UINT32(mac_cmd, lan9118_state),
+        VMSTATE_UINT32(mac_data, lan9118_state),
+        VMSTATE_UINT32(afc_cfg, lan9118_state),
+        VMSTATE_UINT32(e2p_cmd, lan9118_state),
+        VMSTATE_UINT32(e2p_data, lan9118_state),
+        VMSTATE_UINT32(mac_cr, lan9118_state),
+        VMSTATE_UINT32(mac_hashh, lan9118_state),
+        VMSTATE_UINT32(mac_hashl, lan9118_state),
+        VMSTATE_UINT32(mac_mii_acc, lan9118_state),
+        VMSTATE_UINT32(mac_mii_data, lan9118_state),
+        VMSTATE_UINT32(mac_flow, lan9118_state),
+        VMSTATE_UINT32(phy_status, lan9118_state),
+        VMSTATE_UINT32(phy_control, lan9118_state),
+        VMSTATE_UINT32(phy_advertise, lan9118_state),
+        VMSTATE_UINT32(phy_int, lan9118_state),
+        VMSTATE_UINT32(phy_int_mask, lan9118_state),
+        VMSTATE_INT32(eeprom_writable, lan9118_state),
+        VMSTATE_UINT8_ARRAY(eeprom, lan9118_state, 128),
+        VMSTATE_INT32(tx_fifo_size, lan9118_state),
+        /* txp always points at tx_packet so need not be saved */
+        VMSTATE_STRUCT(tx_packet, lan9118_state, 0,
+                       vmstate_lan9118_packet, LAN9118Packet),
+        VMSTATE_INT32(tx_status_fifo_used, lan9118_state),
+        VMSTATE_INT32(tx_status_fifo_head, lan9118_state),
+        VMSTATE_UINT32_ARRAY(tx_status_fifo, lan9118_state, 512),
+        VMSTATE_INT32(rx_status_fifo_size, lan9118_state),
+        VMSTATE_INT32(rx_status_fifo_used, lan9118_state),
+        VMSTATE_INT32(rx_status_fifo_head, lan9118_state),
+        VMSTATE_UINT32_ARRAY(rx_status_fifo, lan9118_state, 896),
+        VMSTATE_INT32(rx_fifo_size, lan9118_state),
+        VMSTATE_INT32(rx_fifo_used, lan9118_state),
+        VMSTATE_INT32(rx_fifo_head, lan9118_state),
+        VMSTATE_UINT32_ARRAY(rx_fifo, lan9118_state, 3360),
+        VMSTATE_INT32(rx_packet_size_head, lan9118_state),
+        VMSTATE_INT32(rx_packet_size_tail, lan9118_state),
+        VMSTATE_INT32_ARRAY(rx_packet_size, lan9118_state, 1024),
+        VMSTATE_INT32(rxp_offset, lan9118_state),
+        VMSTATE_INT32(rxp_size, lan9118_state),
+        VMSTATE_INT32(rxp_pad, lan9118_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void lan9118_update(lan9118_state *s)
 {
@@ -1155,7 +1235,6 @@ static int lan9118_init1(SysBusDevice *dev)
     ptimer_set_freq(s->timer, 10000);
     ptimer_set_limit(s->timer, 0xffff, 1);
 
-    /* ??? Save/restore.  */
     return 0;
 }
 
@@ -1164,6 +1243,7 @@ static SysBusDeviceInfo lan9118_info = {
     .qdev.name  = "lan9118",
     .qdev.size  = sizeof(lan9118_state),
     .qdev.reset = lan9118_reset,
+    .qdev.vmsd = &vmstate_lan9118,
     .qdev.props = (Property[]) {
         DEFINE_NIC_PROPERTIES(lan9118_state, conf),
         DEFINE_PROP_END_OF_LIST(),
