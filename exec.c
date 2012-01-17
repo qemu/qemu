@@ -1876,8 +1876,18 @@ static CPUTLBEntry s_cputlb_empty_entry = {
     .addend     = -1,
 };
 
-/* NOTE: if flush_global is true, also flush global entries (not
-   implemented yet) */
+/* NOTE:
+ * If flush_global is true (the usual case), flush all tlb entries.
+ * If flush_global is false, flush (at least) all tlb entries not
+ * marked global.
+ *
+ * Since QEMU doesn't currently implement a global/not-global flag
+ * for tlb entries, at the moment tlb_flush() will also flush all
+ * tlb entries in the flush_global == false case. This is OK because
+ * CPU architectures generally permit an implementation to drop
+ * entries from the TLB at any time, so flushing more entries than
+ * required is only an efficiency issue, not a correctness issue.
+ */
 void tlb_flush(CPUState *env, int flush_global)
 {
     int i;
