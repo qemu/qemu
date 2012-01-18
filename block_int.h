@@ -218,6 +218,9 @@ struct BlockDriverState {
     BlockDriverState *backing_hd;
     BlockDriverState *file;
 
+    /* number of in-flight copy-on-read requests */
+    unsigned int copy_on_read_in_flight;
+
     /* async read/write emulation */
 
     void *sync_aiocb;
