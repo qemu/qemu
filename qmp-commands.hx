@@ -2014,6 +2014,12 @@ EQMP
     },
 
     {
+        .name       = "query-block-jobs",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_query_block_jobs,
+    },
+
+    {
         .name       = "qom-list",
         .args_type  = "path:s",
         .mhandler.cmd_new = qmp_marshal_input_qom_list,

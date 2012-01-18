@@ -845,6 +845,38 @@
 { 'command': 'query-pci', 'returns': ['PciInfo'] }
 
 ##
+# @BlockJobInfo:
+#
+# Information about a long-running block device operation.
+#
+# @type: the job type ('stream' for image streaming)
+#
+# @device: the block device name
+#
+# @len: the maximum progress value
+#
+# @offset: the current progress value
+#
+# @speed: the rate limit, bytes per second
+#
+# Since: 1.1
+##
+{ 'type': 'BlockJobInfo',
+  'data': {'type': 'str', 'device': 'str', 'len': 'int',
+           'offset': 'int', 'speed': 'int'} }
+
+##
+# @query-block-jobs:
+#
+# Return information about long-running block device operations.
+#
+# Returns: a list of @BlockJobInfo for each active block job
+#
+# Since: 1.1
+##
+{ 'command': 'query-block-jobs', 'returns': ['BlockJobInfo'] }
+
+##
 # @quit:
 #
 # This command will cause the QEMU process to exit gracefully.  While every

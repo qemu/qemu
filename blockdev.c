@@ -1006,3 +1006,36 @@ void qmp_block_job_cancel(const char *device, Error **errp)
     trace_qmp_block_job_cancel(job);
     block_job_cancel(job);
 }
+
+static void do_qmp_query_block_jobs_one(void *opaque, BlockDriverState *bs)
+{
+    BlockJobInfoList **prev = opaque;
+    BlockJob *job = bs->job;
+
+    if (job) {
+        BlockJobInfoList *elem;
+        BlockJobInfo *info = g_new(BlockJobInfo, 1);
+        *info = (BlockJobInfo){
+            .type   = g_strdup(job->job_type->job_type),
+            .device = g_strdup(bdrv_get_device_name(bs)),
+            .len    = job->len,
+            .offset = job->offset,
+            .speed  = job->speed,
+        };
+
+        elem = g_new0(BlockJobInfoList, 1);
+        elem->value = info;
+
+        (*prev)->next = elem;
+        *prev = elem;
+    }
+}
+
+BlockJobInfoList *qmp_query_block_jobs(Error **errp)
+{
+    /* Dummy is a fake list element for holding the head pointer */
+    BlockJobInfoList dummy = {};
+    BlockJobInfoList *prev = &dummy;
+    bdrv_iterate(do_qmp_query_block_jobs_one, &prev);
+    return dummy.next;
+}

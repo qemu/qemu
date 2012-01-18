@@ -2318,6 +2318,13 @@ static mon_cmd_t info_cmds[] = {
         .mhandler.info = hmp_info_blockstats,
     },
     {
+        .name       = "block-jobs",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show progress of ongoing block device operations",
+        .mhandler.info = hmp_info_block_jobs,
+    },
+    {
         .name       = "registers",
         .args_type  = "",
         .params     = "",
