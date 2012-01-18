@@ -3099,6 +3099,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_incoming:
                 incoming = optarg;
+                runstate_set(RUN_STATE_INMIGRATE);
                 break;
             case QEMU_OPTION_nodefaults:
                 default_serial = 0;
@@ -3596,7 +3597,6 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (incoming) {
-        runstate_set(RUN_STATE_INMIGRATE);
         int ret = qemu_start_incoming_migration(incoming);
         if (ret < 0) {
             fprintf(stderr, "Migration failed. Exit code %s(%d), exiting.\n",
