@@ -23,8 +23,39 @@ enum {
     STREAM_BUFFER_SIZE = 512 * 1024, /* in bytes */
 };
 
+#define SLICE_TIME 100000000ULL /* ns */
+
+typedef struct {
+    int64_t next_slice_time;
+    uint64_t slice_quota;
+    uint64_t dispatched;
+} RateLimit;
+
+static int64_t ratelimit_calculate_delay(RateLimit *limit, uint64_t n)
+{
+    int64_t delay_ns = 0;
+    int64_t now = qemu_get_clock_ns(rt_clock);
+
+    if (limit->next_slice_time < now) {
+        limit->next_slice_time = now + SLICE_TIME;
+        limit->dispatched = 0;
+    }
+    if (limit->dispatched + n > limit->slice_quota) {
+        delay_ns = limit->next_slice_time - now;
+    } else {
+        limit->dispatched += n;
+    }
+    return delay_ns;
+}
+
+static void ratelimit_set_speed(RateLimit *limit, uint64_t speed)
+{
+    limit->slice_quota = speed / (1000000000ULL / SLICE_TIME);
+}
+
 typedef struct StreamBlockJob {
     BlockJob common;
+    RateLimit limit;
     BlockDriverState *base;
 } StreamBlockJob;
 
@@ -72,20 +103,24 @@ static void coroutine_fn stream_run(void *opaque)
     }
 
     for (sector_num = 0; sector_num < end; sector_num += n) {
+retry:
         if (block_job_is_cancelled(&s->common)) {
             break;
         }
-
-        /* TODO rate-limit */
-        /* Note that even when no rate limit is applied we need to yield with
-         * no pending I/O here so that qemu_aio_flush() is able to return.
-         */
-        co_sleep_ns(rt_clock, 0);
 
         ret = bdrv_co_is_allocated(bs, sector_num,
                                    STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
         trace_stream_one_iteration(s, sector_num, n, ret);
         if (ret == 0) {
+            if (s->common.speed) {
+                uint64_t delay_ns = ratelimit_calculate_delay(&s->limit, n);
+                if (delay_ns > 0) {
+                    co_sleep_ns(rt_clock, delay_ns);
+
+                    /* Recheck cancellation and that sectors are unallocated */
+                    goto retry;
+                }
+            }
             ret = stream_populate(bs, sector_num, n, buf);
         }
         if (ret < 0) {
@@ -94,6 +129,11 @@ static void coroutine_fn stream_run(void *opaque)
 
         /* Publish progress */
         s->common.offset += n * BDRV_SECTOR_SIZE;
+
+        /* Note that even when no rate limit is applied we need to yield
+         * with no pending I/O here so that qemu_aio_flush() returns.
+         */
+        co_sleep_ns(rt_clock, 0);
     }
 
     if (!base) {
@@ -108,9 +148,22 @@ static void coroutine_fn stream_run(void *opaque)
     block_job_complete(&s->common, ret);
 }
 
+static int stream_set_speed(BlockJob *job, int64_t value)
+{
+    StreamBlockJob *s = container_of(job, StreamBlockJob, common);
+
+    if (value < 0) {
+        return -EINVAL;
+    }
+    job->speed = value;
+    ratelimit_set_speed(&s->limit, value / BDRV_SECTOR_SIZE);
+    return 0;
+}
+
 static BlockJobType stream_job_type = {
     .instance_size = sizeof(StreamBlockJob),
     .job_type      = "stream",
+    .set_speed     = stream_set_speed,
 };
 
 int stream_start(BlockDriverState *bs, BlockDriverState *base,
