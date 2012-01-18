@@ -510,6 +510,7 @@ S: Odd Fixes
 F: block/nbd.c
 F: nbd.*
 F: qemu-nbd.c
+T: git://github.com/bonzini/qemu.git nbd-next
 
 SLIRP
 M: Jan Kiszka <jan.kiszka@siemens.com>
