@@ -1020,6 +1020,10 @@ int bdrv_commit(BlockDriverState *bs)
         return -EACCES;
     }
 
+    if (bdrv_in_use(bs) || bdrv_in_use(bs->backing_hd)) {
+        return -EBUSY;
+    }
+
     backing_drv = bs->backing_hd->drv;
     ro = bs->backing_hd->read_only;
     strncpy(filename, bs->backing_hd->filename, sizeof(filename));
