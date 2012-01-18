@@ -301,6 +301,7 @@ L: qemu-ppc@nongnu.org
 S: Maintained
 F: hw/ppc_newworld.c
 F: hw/unin_pci.c
+F: hw/dec_pci.[hc]
 
 Old World
 M: Alexander Graf <agraf@suse.de>
