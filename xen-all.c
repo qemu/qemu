@@ -225,6 +225,22 @@ static XenPhysmap *get_physmapping(XenIOState *state,
     return NULL;
 }
 
+static target_phys_addr_t xen_phys_offset_to_gaddr(target_phys_addr_t start_addr,
+                                                   ram_addr_t size, void *opaque)
+{
+    target_phys_addr_t addr = start_addr & TARGET_PAGE_MASK;
+    XenIOState *xen_io_state = opaque;
+    XenPhysmap *physmap = NULL;
+
+    QLIST_FOREACH(physmap, &xen_io_state->physmap, list) {
+        if (range_covers_byte(physmap->phys_offset, physmap->size, addr)) {
+            return physmap->start_addr;
+        }
+    }
+
+    return start_addr;
+}
+
 #if CONFIG_XEN_CTRL_INTERFACE_VERSION >= 340
 static int xen_add_to_physmap(XenIOState *state,
                               target_phys_addr_t start_addr,
@@ -1043,7 +1059,7 @@ int xen_hvm_init(void)
     }
 
     /* Init RAM management */
-    xen_map_cache_init();
+    xen_map_cache_init(xen_phys_offset_to_gaddr, state);
     xen_ram_init(ram_size);
 
     qemu_add_vm_change_state_handler(xen_hvm_change_state_handler, state);
