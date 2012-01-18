@@ -52,6 +52,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Device '%(device)' can't go on a %(bad_bus_type) bus",
     },
     {
+        .error_fmt = QERR_BASE_NOT_FOUND,
+        .desc      = "Base '%(base)' not found",
+    },
+    {
         .error_fmt = QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
         .desc      = "Block format '%(format)' used by device '%(name)' does not support feature '%(feature)'",
     },
