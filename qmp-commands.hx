@@ -661,6 +661,12 @@ EQMP
     },
 
     {
+        .name       = "block_job_cancel",
+        .args_type  = "device:B",
+        .mhandler.cmd_new = qmp_marshal_input_block_job_cancel,
+    },
+
+    {
         .name       = "blockdev-snapshot-sync",
         .args_type  = "device:B,snapshot-file:s,format:s?",
         .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,

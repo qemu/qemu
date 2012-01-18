@@ -805,3 +805,13 @@ void hmp_block_job_set_speed(Monitor *mon, const QDict *qdict)
 
     hmp_handle_error(mon, &error);
 }
+
+void hmp_block_job_cancel(Monitor *mon, const QDict *qdict)
+{
+    Error *error = NULL;
+    const char *device = qdict_get_str(qdict, "device");
+
+    qmp_block_job_cancel(device, &error);
+
+    hmp_handle_error(mon, &error);
+}

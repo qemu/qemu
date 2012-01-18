@@ -1487,3 +1487,32 @@
 ##
 { 'command': 'block_job_set_speed',
   'data': { 'device': 'str', 'value': 'int' } }
+
+##
+# @block_job_cancel:
+#
+# Stop an active block streaming operation.
+#
+# This command returns immediately after marking the active block streaming
+# operation for cancellation.  It is an error to call this command if no
+# operation is in progress.
+#
+# The operation will cancel as soon as possible and then emit the
+# BLOCK_JOB_CANCELLED event.  Before that happens the job is still visible when
+# enumerated using query-block-jobs.
+#
+# The image file retains its backing file unless the streaming operation happens
+# to complete just as it is being cancelled.
+#
+# A new block streaming operation can be started at a later time to finish
+# copying all data from the backing file.
+#
+# @device: the device name
+#
+# Returns: Nothing on success
+#          If streaming is not active on this device, DeviceNotActive
+#          If cancellation already in progress, DeviceInUse
+#
+# Since: 1.1
+##
+{ 'command': 'block_job_cancel', 'data': { 'device': 'str' } }

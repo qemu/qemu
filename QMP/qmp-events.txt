@@ -293,3 +293,27 @@ Example:
                "len": 10737418240, "offset": 10737418240,
                "speed": 0 },
      "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }
+
+
+BLOCK_JOB_CANCELLED
+-------------------
+
+Emitted when a block job has been cancelled.
+
+Data:
+
+- "type":     Job type ("stream" for image streaming, json-string)
+- "device":   Device name (json-string)
+- "len":      Maximum progress value (json-int)
+- "offset":   Current progress value (json-int)
+              On success this is equal to len.
+              On failure this is less than len.
+- "speed":    Rate limit, bytes per second (json-int)
+
+Example:
+
+{ "event": "BLOCK_JOB_CANCELLED",
+     "data": { "type": "stream", "device": "virtio-disk0",
+               "len": 10737418240, "offset": 134217728,
+               "speed": 0 },
+     "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }

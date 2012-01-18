@@ -928,7 +928,11 @@ static void block_stream_cb(void *opaque, int ret)
         qdict_put(dict, "error", qstring_from_str(strerror(-ret)));
     }
 
-    monitor_protocol_event(QEVENT_BLOCK_JOB_COMPLETED, obj);
+    if (block_job_is_cancelled(bs->job)) {
+        monitor_protocol_event(QEVENT_BLOCK_JOB_CANCELLED, obj);
+    } else {
+        monitor_protocol_event(QEVENT_BLOCK_JOB_COMPLETED, obj);
+    }
     qobject_decref(obj);
 }
 
@@ -988,4 +992,17 @@ void qmp_block_job_set_speed(const char *device, int64_t value, Error **errp)
     if (block_job_set_speed(job, value) < 0) {
         error_set(errp, QERR_NOT_SUPPORTED);
     }
+}
+
+void qmp_block_job_cancel(const char *device, Error **errp)
+{
+    BlockJob *job = find_block_job(device);
+
+    if (!job) {
+        error_set(errp, QERR_DEVICE_NOT_ACTIVE, device);
+        return;
+    }
+
+    trace_qmp_block_job_cancel(job);
+    block_job_cancel(job);
 }

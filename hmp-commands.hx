@@ -98,6 +98,20 @@ Set maximum speed for a background block operation.
 ETEXI
 
     {
+        .name       = "block_job_cancel",
+        .args_type  = "device:B",
+        .params     = "device",
+        .help       = "stop an active block streaming operation",
+        .mhandler.cmd = hmp_block_job_cancel,
+    },
+
+STEXI
+@item block_job_cancel
+@findex block_job_cancel
+Stop an active block streaming operation.
+ETEXI
+
+    {
         .name       = "eject",
         .args_type  = "force:-f,device:B",
         .params     = "[-f] device",
