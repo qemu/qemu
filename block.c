@@ -3858,3 +3858,51 @@ out:
 
     return ret;
 }
+
+void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
+                       BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BlockJob *job;
+
+    if (bs->job || bdrv_in_use(bs)) {
+        return NULL;
+    }
+    bdrv_set_in_use(bs, 1);
+
+    job = g_malloc0(job_type->instance_size);
+    job->job_type      = job_type;
+    job->bs            = bs;
+    job->cb            = cb;
+    job->opaque        = opaque;
+    bs->job = job;
+    return job;
+}
+
+void block_job_complete(BlockJob *job, int ret)
+{
+    BlockDriverState *bs = job->bs;
+
+    assert(bs->job == job);
+    job->cb(job->opaque, ret);
+    bs->job = NULL;
+    g_free(job);
+    bdrv_set_in_use(bs, 0);
+}
+
+int block_job_set_speed(BlockJob *job, int64_t value)
+{
+    if (!job->job_type->set_speed) {
+        return -ENOTSUP;
+    }
+    return job->job_type->set_speed(job, value);
+}
+
+void block_job_cancel(BlockJob *job)
+{
+    job->cancelled = true;
+}
+
+bool block_job_is_cancelled(BlockJob *job)
+{
+    return job->cancelled;
+}
