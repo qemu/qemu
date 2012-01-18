@@ -13,6 +13,7 @@ oslib-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-thread-posix.o
 #######################################################################
 # coroutines
 coroutine-obj-y = qemu-coroutine.o qemu-coroutine-lock.o qemu-coroutine-io.o
+coroutine-obj-y += qemu-coroutine-sleep.o
 ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
 coroutine-obj-$(CONFIG_POSIX) += coroutine-ucontext.o
 else
