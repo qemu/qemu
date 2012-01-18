@@ -31,11 +31,13 @@
 #include "exec-memory.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
+#define SMP_BOOTREG_ADDR 0x10000030
 
 #define VEXPRESS_BOARD_ID 0x8e0
 
 static struct arm_boot_info vexpress_binfo = {
     .smp_loader_start = SMP_BOOT_ADDR,
+    .smp_bootreg_addr = SMP_BOOTREG_ADDR,
 };
 
 static void vexpress_a9_init(ram_addr_t ram_size,

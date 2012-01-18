@@ -8,7 +8,7 @@
 
 #define QDEV_MAX_MMIO 32
 #define QDEV_MAX_PIO 32
-#define QDEV_MAX_IRQ 256
+#define QDEV_MAX_IRQ 512
 
 typedef struct SysBusDevice SysBusDevice;
 

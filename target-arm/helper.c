@@ -1443,6 +1443,11 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
         }
         goto bad_reg;
     case 1: /* System configuration.  */
+        if (arm_feature(env, ARM_FEATURE_V7)
+                && op1 == 0 && crm == 1 && op2 == 0) {
+            env->cp15.c1_scr = val;
+            break;
+        }
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
             op2 = 0;
         switch (op2) {
@@ -1911,6 +1916,10 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
             goto bad_reg;
         }
     case 1: /* System configuration.  */
+        if (arm_feature(env, ARM_FEATURE_V7)
+            && op1 == 0 && crm == 1 && op2 == 0) {
+            return env->cp15.c1_scr;
+        }
         if (arm_feature(env, ARM_FEATURE_OMAPCP))
             op2 = 0;
         switch (op2) {

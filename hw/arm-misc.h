@@ -31,6 +31,7 @@ struct arm_boot_info {
     const char *initrd_filename;
     target_phys_addr_t loader_start;
     target_phys_addr_t smp_loader_start;
+    target_phys_addr_t smp_bootreg_addr;
     target_phys_addr_t smp_priv_base;
     int nb_cpus;
     int board_id;

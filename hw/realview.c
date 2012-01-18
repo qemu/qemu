@@ -21,6 +21,7 @@
 #include "exec-memory.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
+#define SMP_BOOTREG_ADDR 0x10000030
 
 typedef struct {
     SysBusDevice busdev;
@@ -96,6 +97,7 @@ static void realview_register_devices(void)
 
 static struct arm_boot_info realview_binfo = {
     .smp_loader_start = SMP_BOOT_ADDR,
+    .smp_bootreg_addr = SMP_BOOTREG_ADDR,
 };
 
 /* The following two lists must be consistent.  */
