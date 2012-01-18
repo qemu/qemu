@@ -57,6 +57,7 @@ typedef struct StreamBlockJob {
     BlockJob common;
     RateLimit limit;
     BlockDriverState *base;
+    char backing_file_id[1024];
 } StreamBlockJob;
 
 static int coroutine_fn stream_populate(BlockDriverState *bs,
@@ -75,10 +76,76 @@ static int coroutine_fn stream_populate(BlockDriverState *bs,
     return bdrv_co_copy_on_readv(bs, sector_num, nb_sectors, &qiov);
 }
 
+/*
+ * Given an image chain: [BASE] -> [INTER1] -> [INTER2] -> [TOP]
+ *
+ * Return true if the given sector is allocated in top.
+ * Return false if the given sector is allocated in intermediate images.
+ * Return true otherwise.
+ *
+ * 'pnum' is set to the number of sectors (including and immediately following
+ *  the specified sector) that are known to be in the same
+ *  allocated/unallocated state.
+ *
+ */
+static int coroutine_fn is_allocated_base(BlockDriverState *top,
+                                          BlockDriverState *base,
+                                          int64_t sector_num,
+                                          int nb_sectors, int *pnum)
+{
+    BlockDriverState *intermediate;
+    int ret, n;
+
+    ret = bdrv_co_is_allocated(top, sector_num, nb_sectors, &n);
+    if (ret) {
+        *pnum = n;
+        return ret;
+    }
+
+    /*
+     * Is the unallocated chunk [sector_num, n] also
+     * unallocated between base and top?
+     */
+    intermediate = top->backing_hd;
+
+    while (intermediate) {
+        int pnum_inter;
+
+        /* reached base */
+        if (intermediate == base) {
+            *pnum = n;
+            return 1;
+        }
+        ret = bdrv_co_is_allocated(intermediate, sector_num, nb_sectors,
+                                   &pnum_inter);
+        if (ret < 0) {
+            return ret;
+        } else if (ret) {
+            *pnum = pnum_inter;
+            return 0;
+        }
+
+        /*
+         * [sector_num, nb_sectors] is unallocated on top but intermediate
+         * might have
+         *
+         * [sector_num+x, nr_sectors] allocated.
+         */
+        if (n > pnum_inter) {
+            n = pnum_inter;
+        }
+
+        intermediate = intermediate->backing_hd;
+    }
+
+    return 1;
+}
+
 static void coroutine_fn stream_run(void *opaque)
 {
     StreamBlockJob *s = opaque;
     BlockDriverState *bs = s->common.bs;
+    BlockDriverState *base = s->base;
     int64_t sector_num, end;
     int ret = 0;
     int n;
@@ -108,8 +175,15 @@ retry:
             break;
         }
 
-        ret = bdrv_co_is_allocated(bs, sector_num,
-                                   STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
+
+        if (base) {
+            ret = is_allocated_base(bs, base, sector_num,
+                                    STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
+        } else {
+            ret = bdrv_co_is_allocated(bs, sector_num,
+                                       STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE,
+                                       &n);
+        }
         trace_stream_one_iteration(s, sector_num, n, ret);
         if (ret == 0) {
             if (s->common.speed) {
@@ -126,6 +200,7 @@ retry:
         if (ret < 0) {
             break;
         }
+        ret = 0;
 
         /* Publish progress */
         s->common.offset += n * BDRV_SECTOR_SIZE;
@@ -141,7 +216,11 @@ retry:
     }
 
     if (sector_num == end && ret == 0) {
-        ret = bdrv_change_backing_file(bs, NULL, NULL);
+        const char *base_id = NULL;
+        if (base) {
+            base_id = s->backing_file_id;
+        }
+        ret = bdrv_change_backing_file(bs, base_id, NULL);
     }
 
     qemu_vfree(buf);
@@ -167,7 +246,8 @@ static BlockJobType stream_job_type = {
 };
 
 int stream_start(BlockDriverState *bs, BlockDriverState *base,
-                 BlockDriverCompletionFunc *cb, void *opaque)
+                 const char *base_id, BlockDriverCompletionFunc *cb,
+                 void *opaque)
 {
     StreamBlockJob *s;
     Coroutine *co;
@@ -178,6 +258,9 @@ int stream_start(BlockDriverState *bs, BlockDriverState *base,
     }
 
     s->base = base;
+    if (base_id) {
+        pstrcpy(s->backing_file_id, sizeof(s->backing_file_id), base_id);
+    }
 
     co = qemu_coroutine_create(stream_run);
     trace_stream_start(bs, base, s, co, opaque);

@@ -973,6 +973,7 @@ void qmp_block_stream(const char *device, bool has_base,
                       const char *base, Error **errp)
 {
     BlockDriverState *bs;
+    BlockDriverState *base_bs = NULL;
     int ret;
 
     bs = bdrv_find(device);
@@ -981,13 +982,15 @@ void qmp_block_stream(const char *device, bool has_base,
         return;
     }
 
-    /* Base device not supported */
     if (base) {
-        error_set(errp, QERR_NOT_SUPPORTED);
-        return;
+        base_bs = bdrv_find_backing_image(bs, base);
+        if (base_bs == NULL) {
+            error_set(errp, QERR_BASE_NOT_FOUND, base);
+            return;
+        }
     }
 
-    ret = stream_start(bs, NULL, block_stream_cb, bs);
+    ret = stream_start(bs, base_bs, base, block_stream_cb, bs);
     if (ret < 0) {
         switch (ret) {
         case -EBUSY:
