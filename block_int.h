@@ -327,4 +327,7 @@ int block_job_set_speed(BlockJob *job, int64_t value);
 void block_job_cancel(BlockJob *job);
 bool block_job_is_cancelled(BlockJob *job);
 
+int stream_start(BlockDriverState *bs, BlockDriverState *base,
+                 BlockDriverCompletionFunc *cb, void *opaque);
+
 #endif /* BLOCK_INT_H */
