@@ -84,6 +84,20 @@ Copy data from a backing file into a block device.
 ETEXI
 
     {
+        .name       = "block_job_set_speed",
+        .args_type  = "device:B,value:o",
+        .params     = "device value",
+        .help       = "set maximum speed for a background block operation",
+        .mhandler.cmd = hmp_block_job_set_speed,
+    },
+
+STEXI
+@item block_job_set_stream
+@findex block_job_set_stream
+Set maximum speed for a background block operation.
+ETEXI
+
+    {
         .name       = "eject",
         .args_type  = "force:-f,device:B",
         .params     = "[-f] device",

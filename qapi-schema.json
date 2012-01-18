@@ -1465,3 +1465,25 @@
 # Since: 1.1
 ##
 { 'command': 'block_stream', 'data': { 'device': 'str', '*base': 'str' } }
+
+##
+# @block_job_set_speed:
+#
+# Set maximum speed for a background block operation.
+#
+# This command can only be issued when there is an active block job.
+#
+# Throttling can be disabled by setting the speed to 0.
+#
+# @device: the device name
+#
+# @value:  the maximum speed, in bytes per second
+#
+# Returns: Nothing on success
+#          If the job type does not support throttling, NotSupported
+#          If streaming is not active on this device, DeviceNotActive
+#
+# Since: 1.1
+##
+{ 'command': 'block_job_set_speed',
+  'data': { 'device': 'str', 'value': 'int' } }

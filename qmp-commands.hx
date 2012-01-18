@@ -655,6 +655,12 @@ EQMP
     },
 
     {
+        .name       = "block_job_set_speed",
+        .args_type  = "device:B,value:o",
+        .mhandler.cmd_new = qmp_marshal_input_block_job_set_speed,
+    },
+
+    {
         .name       = "blockdev-snapshot-sync",
         .args_type  = "device:B,snapshot-file:s,format:s?",
         .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,

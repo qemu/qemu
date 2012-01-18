@@ -794,3 +794,14 @@ void hmp_block_stream(Monitor *mon, const QDict *qdict)
 
     hmp_handle_error(mon, &error);
 }
+
+void hmp_block_job_set_speed(Monitor *mon, const QDict *qdict)
+{
+    Error *error = NULL;
+    const char *device = qdict_get_str(qdict, "device");
+    int64_t value = qdict_get_int(qdict, "value");
+
+    qmp_block_job_set_speed(device, value, &error);
+
+    hmp_handle_error(mon, &error);
+}
