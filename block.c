@@ -2595,6 +2595,24 @@ int bdrv_snapshot_load_tmp(BlockDriverState *bs,
     return -ENOTSUP;
 }
 
+BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
+        const char *backing_file)
+{
+    if (!bs->drv) {
+        return NULL;
+    }
+
+    if (bs->backing_hd) {
+        if (strcmp(bs->backing_file, backing_file) == 0) {
+            return bs->backing_hd;
+        } else {
+            return bdrv_find_backing_image(bs->backing_hd, backing_file);
+        }
+    }
+
+    return NULL;
+}
+
 #define NB_SUFFIXES 4
 
 char *get_human_readable_size(char *buf, int buf_size, int64_t size)
