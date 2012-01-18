@@ -67,6 +67,25 @@ static uint32_t rtas_pci_cfgaddr(uint32_t arg)
     return ((arg >> 20) & 0xf00) | (arg & 0xff);
 }
 
+static uint32_t rtas_read_pci_config_do(PCIDevice *pci_dev, uint32_t addr,
+                                        uint32_t limit, uint32_t len)
+{
+    if ((addr + len) <= limit) {
+        return pci_host_config_read_common(pci_dev, addr, limit, len);
+    } else {
+        return ~0x0;
+    }
+}
+
+static void rtas_write_pci_config_do(PCIDevice *pci_dev, uint32_t addr,
+                                     uint32_t limit, uint32_t val,
+                                     uint32_t len)
+{
+    if ((addr + len) <= limit) {
+        pci_host_config_write_common(pci_dev, addr, limit, val, len);
+    }
+}
+
 static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
                                      uint32_t token, uint32_t nargs,
                                      target_ulong args,
@@ -82,7 +101,7 @@ static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
     }
     size = rtas_ld(args, 3);
     addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    val = pci_host_config_read_common(dev, addr, pci_config_size(dev), size);
+    val = rtas_read_pci_config_do(dev, addr, pci_config_size(dev), size);
     rtas_st(rets, 0, 0);
     rtas_st(rets, 1, val);
 }
@@ -101,7 +120,7 @@ static void rtas_read_pci_config(sPAPREnvironment *spapr,
     }
     size = rtas_ld(args, 1);
     addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    val = pci_host_config_read_common(dev, addr, pci_config_size(dev), size);
+    val = rtas_read_pci_config_do(dev, addr, pci_config_size(dev), size);
     rtas_st(rets, 0, 0);
     rtas_st(rets, 1, val);
 }
@@ -122,7 +141,7 @@ static void rtas_ibm_write_pci_config(sPAPREnvironment *spapr,
     val = rtas_ld(args, 4);
     size = rtas_ld(args, 3);
     addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    pci_host_config_write_common(dev, addr, pci_config_size(dev), val, size);
+    rtas_write_pci_config_do(dev, addr, pci_config_size(dev), val, size);
     rtas_st(rets, 0, 0);
 }
 
@@ -141,7 +160,7 @@ static void rtas_write_pci_config(sPAPREnvironment *spapr,
     val = rtas_ld(args, 2);
     size = rtas_ld(args, 1);
     addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    pci_host_config_write_common(dev, addr, pci_config_size(dev), val, size);
+    rtas_write_pci_config_do(dev, addr, pci_config_size(dev), val, size);
     rtas_st(rets, 0, 0);
 }
 
