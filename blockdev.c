@@ -13,9 +13,11 @@
 #include "qerror.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
+#include "qemu-objects.h"
 #include "sysemu.h"
 #include "block_int.h"
 #include "qmp-commands.h"
+#include "trace.h"
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
@@ -896,4 +898,69 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
         error_set(errp, QERR_UNDEFINED_ERROR);
         break;
     }
+}
+
+static QObject *qobject_from_block_job(BlockJob *job)
+{
+    return qobject_from_jsonf("{ 'type': %s,"
+                              "'device': %s,"
+                              "'len': %" PRId64 ","
+                              "'offset': %" PRId64 ","
+                              "'speed': %" PRId64 " }",
+                              job->job_type->job_type,
+                              bdrv_get_device_name(job->bs),
+                              job->len,
+                              job->offset,
+                              job->speed);
+}
+
+static void block_stream_cb(void *opaque, int ret)
+{
+    BlockDriverState *bs = opaque;
+    QObject *obj;
+
+    trace_block_stream_cb(bs, bs->job, ret);
+
+    assert(bs->job);
+    obj = qobject_from_block_job(bs->job);
+    if (ret < 0) {
+        QDict *dict = qobject_to_qdict(obj);
+        qdict_put(dict, "error", qstring_from_str(strerror(-ret)));
+    }
+
+    monitor_protocol_event(QEVENT_BLOCK_JOB_COMPLETED, obj);
+    qobject_decref(obj);
+}
+
+void qmp_block_stream(const char *device, bool has_base,
+                      const char *base, Error **errp)
+{
+    BlockDriverState *bs;
+    int ret;
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    /* Base device not supported */
+    if (base) {
+        error_set(errp, QERR_NOT_SUPPORTED);
+        return;
+    }
+
+    ret = stream_start(bs, NULL, block_stream_cb, bs);
+    if (ret < 0) {
+        switch (ret) {
+        case -EBUSY:
+            error_set(errp, QERR_DEVICE_IN_USE, device);
+            return;
+        default:
+            error_set(errp, QERR_NOT_SUPPORTED);
+            return;
+        }
+    }
+
+    trace_qmp_block_stream(bs, bs->job);
 }

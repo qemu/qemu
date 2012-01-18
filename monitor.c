@@ -479,6 +479,9 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         case QEVENT_SPICE_DISCONNECTED:
             event_name = "SPICE_DISCONNECTED";
             break;
+        case QEVENT_BLOCK_JOB_COMPLETED:
+            event_name = "BLOCK_JOB_COMPLETED";
+            break;
         default:
             abort();
             break;

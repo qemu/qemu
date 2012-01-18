@@ -264,3 +264,32 @@ Example:
 
 Note: If action is "reset", "shutdown", or "pause" the WATCHDOG event is
 followed respectively by the RESET, SHUTDOWN, or STOP events.
+
+
+BLOCK_JOB_COMPLETED
+-------------------
+
+Emitted when a block job has completed.
+
+Data:
+
+- "type":     Job type ("stream" for image streaming, json-string)
+- "device":   Device name (json-string)
+- "len":      Maximum progress value (json-int)
+- "offset":   Current progress value (json-int)
+              On success this is equal to len.
+              On failure this is less than len.
+- "speed":    Rate limit, bytes per second (json-int)
+- "error":    Error message (json-string, optional)
+              Only present on failure.  This field contains a human-readable
+              error message.  There are no semantics other than that streaming
+              has failed and clients should not try to interpret the error
+              string.
+
+Example:
+
+{ "event": "BLOCK_JOB_COMPLETED",
+     "data": { "type": "stream", "device": "virtio-disk0",
+               "len": 10737418240, "offset": 10737418240,
+               "speed": 0 },
+     "timestamp": { "seconds": 1267061043, "microseconds": 959568 } }

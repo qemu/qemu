@@ -649,6 +649,12 @@ Example:
 EQMP
 
     {
+        .name       = "block_stream",
+        .args_type  = "device:B,base:s?",
+        .mhandler.cmd_new = qmp_marshal_input_block_stream,
+    },
+
+    {
         .name       = "blockdev-snapshot-sync",
         .args_type  = "device:B,snapshot-file:s,format:s?",
         .mhandler.cmd_new = qmp_marshal_input_blockdev_snapshot_sync,
