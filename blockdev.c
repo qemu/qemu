@@ -202,6 +202,37 @@ void drive_get_ref(DriveInfo *dinfo)
     dinfo->refcount++;
 }
 
+typedef struct {
+    QEMUBH *bh;
+    DriveInfo *dinfo;
+} DrivePutRefBH;
+
+static void drive_put_ref_bh(void *opaque)
+{
+    DrivePutRefBH *s = opaque;
+
+    drive_put_ref(s->dinfo);
+    qemu_bh_delete(s->bh);
+    g_free(s);
+}
+
+/*
+ * Release a drive reference in a BH
+ *
+ * It is not possible to use drive_put_ref() from a callback function when the
+ * callers still need the drive.  In such cases we schedule a BH to release the
+ * reference.
+ */
+static void drive_put_ref_bh_schedule(DriveInfo *dinfo)
+{
+    DrivePutRefBH *s;
+
+    s = g_new(DrivePutRefBH, 1);
+    s->bh = qemu_bh_new(drive_put_ref_bh, s);
+    s->dinfo = dinfo;
+    qemu_bh_schedule(s->bh);
+}
+
 static int parse_block_error_action(const char *buf, int is_read)
 {
     if (!strcmp(buf, "ignore")) {
@@ -934,6 +965,8 @@ static void block_stream_cb(void *opaque, int ret)
         monitor_protocol_event(QEVENT_BLOCK_JOB_COMPLETED, obj);
     }
     qobject_decref(obj);
+
+    drive_put_ref_bh_schedule(drive_get_by_blockdev(bs));
 }
 
 void qmp_block_stream(const char *device, bool has_base,
@@ -965,6 +998,11 @@ void qmp_block_stream(const char *device, bool has_base,
             return;
         }
     }
+
+    /* Grab a reference so hotplug does not delete the BlockDriverState from
+     * underneath us.
+     */
+    drive_get_ref(drive_get_by_blockdev(bs));
 
     trace_qmp_block_stream(bs, bs->job);
 }
