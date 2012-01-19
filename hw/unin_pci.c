@@ -63,10 +63,6 @@ static void pci_unin_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[unin_irq_line[irq_num]], level);
 }
 
-static void pci_unin_reset(void *opaque)
-{
-}
-
 static uint32_t unin_get_config_reg(uint32_t reg, uint32_t addr)
 {
     uint32_t retval;
@@ -148,7 +144,6 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
     sysbus_init_mmio(dev, &s->host_state.conf_mem);
     sysbus_init_mmio(dev, &s->host_state.data_mem);
 
-    qemu_register_reset(pci_unin_reset, &s->host_state);
     return 0;
 }
 
@@ -168,8 +163,6 @@ static int pci_u3_agp_init_device(SysBusDevice *dev)
                           "pci-conf-data", 0x1000);
     sysbus_init_mmio(dev, &s->host_state.conf_mem);
     sysbus_init_mmio(dev, &s->host_state.data_mem);
-
-    qemu_register_reset(pci_unin_reset, &s->host_state);
 
     return 0;
 }
