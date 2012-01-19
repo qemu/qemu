@@ -4371,7 +4371,7 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_WRTEE | PPC_RFDI |                  \
                                 PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
                                 PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX)
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
 #define POWERPC_INSNS2_e500v1  (PPC2_BOOKE206)
 #define POWERPC_MSRM_e500v1    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e500v1     (POWERPC_MMU_BOOKE206)
@@ -4390,7 +4390,7 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_WRTEE | PPC_RFDI |                  \
                                 PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
                                 PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX)
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
 #define POWERPC_INSNS2_e500v2  (PPC2_BOOKE206)
 #define POWERPC_MSRM_e500v2    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e500v2     (POWERPC_MMU_BOOKE206)
@@ -4411,7 +4411,7 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_FLOAT | PPC_FLOAT_FRES |                \
                                 PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |        \
                                 PPC_FLOAT_STFIWX | PPC_WAIT |               \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX)
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
 #define POWERPC_INSNS2_e500mc  (PPC2_BOOKE206)
 #define POWERPC_MSRM_e500mc    (0x000000001402FB36ULL)
 #define POWERPC_MMU_e500mc     (POWERPC_MMU_BOOKE206)
