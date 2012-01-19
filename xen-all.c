@@ -65,7 +65,7 @@ static inline ioreq_t *xen_vcpu_ioreq(shared_iopage_t *shared_page, int vcpu)
 typedef struct XenPhysmap {
     target_phys_addr_t start_addr;
     ram_addr_t size;
-    MemoryRegion *mr;
+    char *name;
     target_phys_addr_t phys_offset;
 
     QLIST_ENTRY(XenPhysmap) list;
@@ -237,6 +237,7 @@ static int xen_add_to_physmap(XenIOState *state,
     XenPhysmap *physmap = NULL;
     target_phys_addr_t pfn, start_gpfn;
     target_phys_addr_t phys_offset = memory_region_get_ram_addr(mr);
+    char path[80], value[17];
 
     if (get_physmapping(state, start_addr, size)) {
         return 0;
@@ -275,6 +276,7 @@ go_physmap:
 
     physmap->start_addr = start_addr;
     physmap->size = size;
+    physmap->name = (char *)mr->name;
     physmap->phys_offset = phys_offset;
 
     QLIST_INSERT_HEAD(&state->physmap, physmap, list);
@@ -283,6 +285,30 @@ go_physmap:
                                    start_addr >> TARGET_PAGE_BITS,
                                    (start_addr + size) >> TARGET_PAGE_BITS,
                                    XEN_DOMCTL_MEM_CACHEATTR_WB);
+
+    snprintf(path, sizeof(path),
+            "/local/domain/0/device-model/%d/physmap/%"PRIx64"/start_addr",
+            xen_domid, (uint64_t)phys_offset);
+    snprintf(value, sizeof(value), "%"PRIx64, (uint64_t)start_addr);
+    if (!xs_write(state->xenstore, 0, path, value, strlen(value))) {
+        return -1;
+    }
+    snprintf(path, sizeof(path),
+            "/local/domain/0/device-model/%d/physmap/%"PRIx64"/size",
+            xen_domid, (uint64_t)phys_offset);
+    snprintf(value, sizeof(value), "%"PRIx64, (uint64_t)size);
+    if (!xs_write(state->xenstore, 0, path, value, strlen(value))) {
+        return -1;
+    }
+    if (mr->name) {
+        snprintf(path, sizeof(path),
+                "/local/domain/0/device-model/%d/physmap/%"PRIx64"/name",
+                xen_domid, (uint64_t)phys_offset);
+        if (!xs_write(state->xenstore, 0, path, mr->name, strlen(mr->name))) {
+            return -1;
+        }
+    }
+
     return 0;
 }
 
@@ -911,6 +937,55 @@ int xen_init(void)
     return 0;
 }
 
+static void xen_read_physmap(XenIOState *state)
+{
+    XenPhysmap *physmap = NULL;
+    unsigned int len, num, i;
+    char path[80], *value = NULL;
+    char **entries = NULL;
+
+    snprintf(path, sizeof(path),
+            "/local/domain/0/device-model/%d/physmap", xen_domid);
+    entries = xs_directory(state->xenstore, 0, path, &num);
+    if (entries == NULL)
+        return;
+
+    for (i = 0; i < num; i++) {
+        physmap = g_malloc(sizeof (XenPhysmap));
+        physmap->phys_offset = strtoull(entries[i], NULL, 16);
+        snprintf(path, sizeof(path),
+                "/local/domain/0/device-model/%d/physmap/%s/start_addr",
+                xen_domid, entries[i]);
+        value = xs_read(state->xenstore, 0, path, &len);
+        if (value == NULL) {
+            free(physmap);
+            continue;
+        }
+        physmap->start_addr = strtoull(value, NULL, 16);
+        free(value);
+
+        snprintf(path, sizeof(path),
+                "/local/domain/0/device-model/%d/physmap/%s/size",
+                xen_domid, entries[i]);
+        value = xs_read(state->xenstore, 0, path, &len);
+        if (value == NULL) {
+            free(physmap);
+            continue;
+        }
+        physmap->size = strtoull(value, NULL, 16);
+        free(value);
+
+        snprintf(path, sizeof(path),
+                "/local/domain/0/device-model/%d/physmap/%s/name",
+                xen_domid, entries[i]);
+        physmap->name = xs_read(state->xenstore, 0, path, &len);
+
+        QLIST_INSERT_HEAD(&state->physmap, physmap, list);
+    }
+    free(entries);
+    return;
+}
+
 int xen_hvm_init(void)
 {
     int i, rc;
@@ -986,6 +1061,7 @@ int xen_hvm_init(void)
     xen_be_register("console", &xen_console_ops);
     xen_be_register("vkbd", &xen_kbdmouse_ops);
     xen_be_register("qdisk", &xen_blkdev_ops);
+    xen_read_physmap(state);
 
     return 0;
 }
