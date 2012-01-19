@@ -39,7 +39,6 @@
 static const int unin_irq_line[] = { 0x1b, 0x1c, 0x1d, 0x1e };
 
 typedef struct UNINState {
-    SysBusDevice busdev;
     PCIHostState host_state;
     MemoryRegion pci_mmio;
     MemoryRegion pci_hole;
@@ -134,11 +133,13 @@ static const MemoryRegionOps unin_data_ops = {
 
 static int pci_unin_main_init_device(SysBusDevice *dev)
 {
+    PCIHostState *h;
     UNINState *s;
 
     /* Use values found on a real PowerMac */
     /* Uninorth main bus */
-    s = FROM_SYSBUS(UNINState, dev);
+    h = FROM_SYSBUS(PCIHostState, dev);
+    s = DO_UPCAST(UNINState, host_state, h);
 
     memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
                           &s->host_state, "pci-conf-idx", 0x1000);
@@ -154,10 +155,12 @@ static int pci_unin_main_init_device(SysBusDevice *dev)
 
 static int pci_u3_agp_init_device(SysBusDevice *dev)
 {
+    PCIHostState *h;
     UNINState *s;
 
     /* Uninorth U3 AGP bus */
-    s = FROM_SYSBUS(UNINState, dev);
+    h = FROM_SYSBUS(PCIHostState, dev);
+    s = DO_UPCAST(UNINState, host_state, h);
 
     memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
                           &s->host_state, "pci-conf-idx", 0x1000);
@@ -173,10 +176,12 @@ static int pci_u3_agp_init_device(SysBusDevice *dev)
 
 static int pci_unin_agp_init_device(SysBusDevice *dev)
 {
+    PCIHostState *h;
     UNINState *s;
 
     /* Uninorth AGP bus */
-    s = FROM_SYSBUS(UNINState, dev);
+    h = FROM_SYSBUS(PCIHostState, dev);
+    s = DO_UPCAST(UNINState, host_state, h);
 
     memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
                           &s->host_state, "pci-conf-idx", 0x1000);
@@ -189,10 +194,12 @@ static int pci_unin_agp_init_device(SysBusDevice *dev)
 
 static int pci_unin_internal_init_device(SysBusDevice *dev)
 {
+    PCIHostState *h;
     UNINState *s;
 
     /* Uninorth internal bus */
-    s = FROM_SYSBUS(UNINState, dev);
+    h = FROM_SYSBUS(PCIHostState, dev);
+    s = DO_UPCAST(UNINState, host_state, h);
 
     memory_region_init_io(&s->host_state.conf_mem, &pci_host_conf_le_ops,
                           &s->host_state, "pci-conf-idx", 0x1000);
@@ -209,6 +216,7 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
 {
     DeviceState *dev;
     SysBusDevice *s;
+    PCIHostState *h;
     UNINState *d;
 
     /* Use values found on a real PowerMac */
@@ -216,14 +224,15 @@ PCIBus *pci_pmac_init(qemu_irq *pic,
     dev = qdev_create(NULL, "uni-north-pci-pcihost");
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
-    d = FROM_SYSBUS(UNINState, s);
+    h = FROM_SYSBUS(PCIHostState, s);
+    d = DO_UPCAST(UNINState, host_state, h);
     memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
     memory_region_init_alias(&d->pci_hole, "pci-hole", &d->pci_mmio,
                              0x80000000ULL, 0x70000000ULL);
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
+    d->host_state.bus = pci_register_bus(dev, "pci",
                                          pci_unin_set_irq, pci_unin_map_irq,
                                          pic,
                                          &d->pci_mmio,
@@ -272,6 +281,7 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
 {
     DeviceState *dev;
     SysBusDevice *s;
+    PCIHostState *h;
     UNINState *d;
 
     /* Uninorth AGP bus */
@@ -279,7 +289,8 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
     dev = qdev_create(NULL, "u3-agp-pcihost");
     qdev_init_nofail(dev);
     s = sysbus_from_qdev(dev);
-    d = FROM_SYSBUS(UNINState, s);
+    h = FROM_SYSBUS(PCIHostState, s);
+    d = DO_UPCAST(UNINState, host_state, h);
 
     memory_region_init(&d->pci_mmio, "pci-mmio", 0x100000000ULL);
     memory_region_init_alias(&d->pci_hole, "pci-hole", &d->pci_mmio,
@@ -287,7 +298,7 @@ PCIBus *pci_pmac_u3_init(qemu_irq *pic,
     memory_region_add_subregion(address_space_mem, 0x80000000ULL,
                                 &d->pci_hole);
 
-    d->host_state.bus = pci_register_bus(&d->busdev.qdev, "pci",
+    d->host_state.bus = pci_register_bus(dev, "pci",
                                          pci_unin_set_irq, pci_unin_map_irq,
                                          pic,
                                          &d->pci_mmio,
