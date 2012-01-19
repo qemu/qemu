@@ -4433,6 +4433,7 @@ enum fsl_e500_version {
 static void init_proc_e500 (CPUPPCState *env, int version)
 {
     uint32_t tlbncfg[2];
+    uint64_t ivor_mask = 0x0000000F0000FFFFULL;
 #if !defined(CONFIG_USER_ONLY)
     int i;
 #endif
@@ -4444,7 +4445,10 @@ static void init_proc_e500 (CPUPPCState *env, int version)
      *     complain when accessing them.
      * gen_spr_BookE(env, 0x0000000F0000FD7FULL);
      */
-    gen_spr_BookE(env, 0x0000000F0000FFFFULL);
+    if (version == fsl_e500mc) {
+        ivor_mask = 0x000003FE0000FFFFULL;
+    }
+    gen_spr_BookE(env, ivor_mask);
     /* Processor identification */
     spr_register(env, SPR_BOOKE_PIR, "PIR",
                  SPR_NOACCESS, SPR_NOACCESS,
