@@ -90,9 +90,13 @@ typedef int (*fprintf_function)(FILE *f, const char *fmt, ...)
 
 #ifdef _WIN32
 #define fsync _commit
+#if !defined(lseek)
 #define lseek _lseeki64
+#endif
 int qemu_ftruncate64(int, int64_t);
+#if !defined(ftruncate)
 #define ftruncate qemu_ftruncate64
+#endif
 
 static inline char *realpath(const char *path, char *resolved_path)
 {
