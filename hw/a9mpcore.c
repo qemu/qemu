@@ -11,9 +11,8 @@
 #include "sysbus.h"
 
 /* Configuration for arm_gic.c:
- * number of external IRQ lines, max number of CPUs, how to ID current CPU
+ * max number of CPUs, how to ID current CPU
  */
-#define GIC_NIRQ 96
 #define NCPU 4
 
 static inline int
@@ -37,6 +36,7 @@ typedef struct a9mp_priv_state {
     MemoryRegion ptimer_iomem;
     MemoryRegion container;
     DeviceState *mptimer;
+    uint32_t num_irq;
 } a9mp_priv_state;
 
 static uint64_t a9_scu_read(void *opaque, target_phys_addr_t offset,
@@ -153,7 +153,7 @@ static int a9mp_priv_init(SysBusDevice *dev)
         hw_error("a9mp_priv_init: num-cpu may not be more than %d\n", NCPU);
     }
 
-    gic_init(&s->gic, s->num_cpu);
+    gic_init(&s->gic, s->num_cpu, s->num_irq);
 
     s->mptimer = qdev_create(NULL, "arm_mptimer");
     qdev_prop_set_uint32(s->mptimer, "num-cpu", s->num_cpu);
@@ -216,6 +216,13 @@ static SysBusDeviceInfo a9mp_priv_info = {
     .qdev.reset = a9mp_priv_reset,
     .qdev.props = (Property[]) {
         DEFINE_PROP_UINT32("num-cpu", a9mp_priv_state, num_cpu, 1),
+        /* The Cortex-A9MP may have anything from 0 to 224 external interrupt
+         * IRQ lines (with another 32 internal). We default to 64+32, which
+         * is the number provided by the Cortex-A9MP test chip in the
+         * Realview PBX-A9 and Versatile Express A9 development boards.
+         * Other boards may differ and should set this property appropriately.
+         */
+        DEFINE_PROP_UINT32("num-irq", a9mp_priv_state, num_irq, 96),
         DEFINE_PROP_END_OF_LIST(),
     }
 };

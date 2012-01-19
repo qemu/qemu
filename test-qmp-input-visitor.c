@@ -39,8 +39,8 @@ static void visitor_input_teardown(TestInputVisitorData *data,
    string used by the tests are kept in the test functions (and not
    int main()) */
 static GCC_FMT_ATTR(2, 3)
-Visitor * visitor_input_test_init(TestInputVisitorData *data,
-                                  const char *json_string, ...)
+Visitor *visitor_input_test_init(TestInputVisitorData *data,
+                                 const char *json_string, ...)
 {
     Visitor *v;
     va_list ap;

@@ -681,3 +681,105 @@ void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict)
     int64_t value = qdict_get_int(qdict, "value");
     qmp_migrate_set_speed(value, NULL);
 }
+
+void hmp_set_password(Monitor *mon, const QDict *qdict)
+{
+    const char *protocol  = qdict_get_str(qdict, "protocol");
+    const char *password  = qdict_get_str(qdict, "password");
+    const char *connected = qdict_get_try_str(qdict, "connected");
+    Error *err = NULL;
+
+    qmp_set_password(protocol, password, !!connected, connected, &err);
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_expire_password(Monitor *mon, const QDict *qdict)
+{
+    const char *protocol  = qdict_get_str(qdict, "protocol");
+    const char *whenstr = qdict_get_str(qdict, "time");
+    Error *err = NULL;
+
+    qmp_expire_password(protocol, whenstr, &err);
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_eject(Monitor *mon, const QDict *qdict)
+{
+    int force = qdict_get_try_bool(qdict, "force", 0);
+    const char *device = qdict_get_str(qdict, "device");
+    Error *err = NULL;
+
+    qmp_eject(device, true, force, &err);
+    hmp_handle_error(mon, &err);
+}
+
+static void hmp_change_read_arg(Monitor *mon, const char *password,
+                                void *opaque)
+{
+    qmp_change_vnc_password(password, NULL);
+    monitor_read_command(mon, 1);
+}
+
+static void cb_hmp_change_bdrv_pwd(Monitor *mon, const char *password,
+                                   void *opaque)
+{
+    Error *encryption_err = opaque;
+    Error *err = NULL;
+    const char *device;
+
+    device = error_get_field(encryption_err, "device");
+
+    qmp_block_passwd(device, password, &err);
+    hmp_handle_error(mon, &err);
+    error_free(encryption_err);
+
+    monitor_read_command(mon, 1);
+}
+
+void hmp_change(Monitor *mon, const QDict *qdict)
+{
+    const char *device = qdict_get_str(qdict, "device");
+    const char *target = qdict_get_str(qdict, "target");
+    const char *arg = qdict_get_try_str(qdict, "arg");
+    Error *err = NULL;
+
+    if (strcmp(device, "vnc") == 0 &&
+            (strcmp(target, "passwd") == 0 ||
+             strcmp(target, "password") == 0)) {
+        if (!arg) {
+            monitor_read_password(mon, hmp_change_read_arg, NULL);
+            return;
+        }
+    }
+
+    qmp_change(device, target, !!arg, arg, &err);
+    if (error_is_type(err, QERR_DEVICE_ENCRYPTED)) {
+        monitor_printf(mon, "%s (%s) is encrypted.\n",
+                       error_get_field(err, "device"),
+                       error_get_field(err, "filename"));
+        if (!monitor_get_rs(mon)) {
+            monitor_printf(mon,
+                    "terminal does not support password prompting\n");
+            error_free(err);
+            return;
+        }
+        readline_start(monitor_get_rs(mon), "Password: ", 1,
+                       cb_hmp_change_bdrv_pwd, err);
+        return;
+    }
+    hmp_handle_error(mon, &err);
+}
+
+void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict)
+{
+    Error *err = NULL;
+
+    qmp_block_set_io_throttle(qdict_get_str(qdict, "device"),
+                              qdict_get_int(qdict, "bps"),
+                              qdict_get_int(qdict, "bps_rd"),
+                              qdict_get_int(qdict, "bps_wr"),
+                              qdict_get_int(qdict, "iops"),
+                              qdict_get_int(qdict, "iops_rd"),
+                              qdict_get_int(qdict, "iops_wr"), &err);
+    hmp_handle_error(mon, &err);
+}

@@ -84,10 +84,7 @@ EQMP
     {
         .name       = "eject",
         .args_type  = "force:-f,device:B",
-        .params     = "[-f] device",
-        .help       = "eject a removable medium (use -f to force it)",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_eject,
+        .mhandler.cmd_new = qmp_marshal_input_eject,
     },
 
 SQMP
@@ -113,10 +110,7 @@ EQMP
     {
         .name       = "change",
         .args_type  = "device:B,target:F,arg:s?",
-        .params     = "device filename [format]",
-        .help       = "change a removable medium, optional format",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_change,
+        .mhandler.cmd_new = qmp_marshal_input_change,
     },
 
 SQMP
@@ -813,10 +807,7 @@ EQMP
     {
         .name       = "block_set_io_throttle",
         .args_type  = "device:B,bps:l,bps_rd:l,bps_wr:l,iops:l,iops_rd:l,iops_wr:l",
-        .params     = "device bps bps_rd bps_wr iops iops_rd iops_wr",
-        .help       = "change I/O throttle limits for a block drive",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = do_block_set_io_throttle,
+        .mhandler.cmd_new = qmp_marshal_input_block_set_io_throttle,
     },
 
 SQMP
@@ -851,10 +842,7 @@ EQMP
     {
         .name       = "set_password",
         .args_type  = "protocol:s,password:s,connected:s?",
-        .params     = "protocol password action-if-connected",
-        .help       = "set spice/vnc password",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = set_password,
+        .mhandler.cmd_new = qmp_marshal_input_set_password,
     },
 
 SQMP
@@ -880,10 +868,7 @@ EQMP
     {
         .name       = "expire_password",
         .args_type  = "protocol:s,time:s",
-        .params     = "protocol time",
-        .help       = "set spice/vnc password expire-time",
-        .user_print = monitor_user_noop,
-        .mhandler.cmd_new = expire_password,
+        .mhandler.cmd_new = qmp_marshal_input_expire_password,
     },
 
 SQMP
@@ -2026,4 +2011,10 @@ EQMP
         .name       = "qom-get",
 	.args_type  = "path:s,property:s",
 	.mhandler.cmd_new = qmp_qom_get,
+    },
+
+    {
+        .name       = "change-vnc-password",
+        .args_type  = "password:s",
+        .mhandler.cmd_new = qmp_marshal_input_change_vnc_password,
     },

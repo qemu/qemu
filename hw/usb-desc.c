@@ -192,9 +192,10 @@ int usb_desc_iface(const USBDescIface *iface, uint8_t *dest, size_t len)
 
 int usb_desc_endpoint(const USBDescEndpoint *ep, uint8_t *dest, size_t len)
 {
-    uint8_t bLength = 0x07;
+    uint8_t bLength = ep->is_audio ? 0x09 : 0x07;
+    uint8_t extralen = ep->extra ? ep->extra[0] : 0;
 
-    if (len < bLength) {
+    if (len < bLength + extralen) {
         return -1;
     }
 
@@ -205,8 +206,15 @@ int usb_desc_endpoint(const USBDescEndpoint *ep, uint8_t *dest, size_t len)
     dest[0x04] = usb_lo(ep->wMaxPacketSize);
     dest[0x05] = usb_hi(ep->wMaxPacketSize);
     dest[0x06] = ep->bInterval;
+    if (ep->is_audio) {
+        dest[0x07] = ep->bRefresh;
+        dest[0x08] = ep->bSynchAddress;
+    }
+    if (ep->extra) {
+        memcpy(dest + bLength, ep->extra, extralen);
+    }
 
-    return bLength;
+    return bLength + extralen;
 }
 
 int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
@@ -223,6 +231,111 @@ int usb_desc_other(const USBDescOther *desc, uint8_t *dest, size_t len)
 
 /* ------------------------------------------------------------------ */
 
+static void usb_desc_ep_init(USBDevice *dev)
+{
+    const USBDescIface *iface;
+    int i, e, pid, ep;
+
+    usb_ep_init(dev);
+    for (i = 0; i < dev->ninterfaces; i++) {
+        iface = dev->ifaces[i];
+        if (iface == NULL) {
+            continue;
+        }
+        for (e = 0; e < iface->bNumEndpoints; e++) {
+            pid = (iface->eps[e].bEndpointAddress & USB_DIR_IN) ?
+                USB_TOKEN_IN : USB_TOKEN_OUT;
+            ep = iface->eps[e].bEndpointAddress & 0x0f;
+            usb_ep_set_type(dev, pid, ep, iface->eps[e].bmAttributes & 0x03);
+            usb_ep_set_ifnum(dev, pid, ep, iface->bInterfaceNumber);
+            usb_ep_set_max_packet_size(dev, pid, ep,
+                                       iface->eps[e].wMaxPacketSize);
+        }
+    }
+}
+
+static const USBDescIface *usb_desc_find_interface(USBDevice *dev,
+                                                   int nif, int alt)
+{
+    const USBDescIface *iface;
+    int g, i;
+
+    if (!dev->config) {
+        return NULL;
+    }
+    for (g = 0; g < dev->config->nif_groups; g++) {
+        for (i = 0; i < dev->config->if_groups[g].nif; i++) {
+            iface = &dev->config->if_groups[g].ifs[i];
+            if (iface->bInterfaceNumber == nif &&
+                iface->bAlternateSetting == alt) {
+                return iface;
+            }
+        }
+    }
+    for (i = 0; i < dev->config->nif; i++) {
+        iface = &dev->config->ifs[i];
+        if (iface->bInterfaceNumber == nif &&
+            iface->bAlternateSetting == alt) {
+            return iface;
+        }
+    }
+    return NULL;
+}
+
+static int usb_desc_set_interface(USBDevice *dev, int index, int value)
+{
+    const USBDescIface *iface;
+    int old;
+
+    iface = usb_desc_find_interface(dev, index, value);
+    if (iface == NULL) {
+        return -1;
+    }
+
+    old = dev->altsetting[index];
+    dev->altsetting[index] = value;
+    dev->ifaces[index] = iface;
+    usb_desc_ep_init(dev);
+
+    if (dev->info->set_interface && old != value) {
+        dev->info->set_interface(dev, index, old, value);
+    }
+    return 0;
+}
+
+static int usb_desc_set_config(USBDevice *dev, int value)
+{
+    int i;
+
+    if (value == 0) {
+        dev->configuration = 0;
+        dev->ninterfaces   = 0;
+        dev->config = NULL;
+    } else {
+        for (i = 0; i < dev->device->bNumConfigurations; i++) {
+            if (dev->device->confs[i].bConfigurationValue == value) {
+                dev->configuration = value;
+                dev->ninterfaces   = dev->device->confs[i].bNumInterfaces;
+                dev->config = dev->device->confs + i;
+                assert(dev->ninterfaces <= USB_MAX_INTERFACES);
+            }
+        }
+        if (i < dev->device->bNumConfigurations) {
+            return -1;
+        }
+    }
+
+    for (i = 0; i < dev->ninterfaces; i++) {
+        usb_desc_set_interface(dev, i, 0);
+    }
+    for (; i < USB_MAX_INTERFACES; i++) {
+        dev->altsetting[i] = 0;
+        dev->ifaces[i] = NULL;
+    }
+
+    return 0;
+}
+
 static void usb_desc_setdefaults(USBDevice *dev)
 {
     const USBDesc *desc = dev->info->usb_desc;
@@ -237,7 +350,7 @@ static void usb_desc_setdefaults(USBDevice *dev)
         dev->device = desc->high;
         break;
     }
-    dev->config = dev->device->confs;
+    usb_desc_set_config(dev, 0);
 }
 
 void usb_desc_init(USBDevice *dev)
@@ -408,7 +521,7 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         int request, int value, int index, int length, uint8_t *data)
 {
     const USBDesc *desc = dev->info->usb_desc;
-    int i, ret = -1;
+    int ret = -1;
 
     assert(desc != NULL);
     switch(request) {
@@ -427,12 +540,7 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         ret = 1;
         break;
     case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        for (i = 0; i < dev->device->bNumConfigurations; i++) {
-            if (dev->device->confs[i].bConfigurationValue == value) {
-                dev->config = dev->device->confs + i;
-                ret = 0;
-            }
-        }
+        ret = usb_desc_set_config(dev, value);
         trace_usb_set_config(dev->addr, value, ret);
         break;
 
@@ -461,6 +569,19 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         }
         trace_usb_set_device_feature(dev->addr, value, ret);
         break;
+
+    case InterfaceRequest | USB_REQ_GET_INTERFACE:
+        if (index < 0 || index >= dev->ninterfaces) {
+            break;
+        }
+        data[0] = dev->altsetting[index];
+        ret = 1;
+        break;
+    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
+        ret = usb_desc_set_interface(dev, index, value);
+        trace_usb_set_interface(dev->addr, index, value, ret);
+        break;
+
     }
     return ret;
 }

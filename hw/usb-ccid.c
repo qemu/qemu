@@ -611,14 +611,6 @@ static int ccid_handle_control(USBDevice *dev, USBPacket *p, int request,
     }
 
     switch (request) {
-    case DeviceRequest | USB_REQ_GET_INTERFACE:
-        data[0] = 0;
-        ret = 1;
-        break;
-    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
-        ret = 0;
-        break;
-
         /* Class specific requests.  */
     case InterfaceOutClass | CCID_CONTROL_ABORT:
         DPRINTF(s, 1, "ccid_control abort UNIMPLEMENTED\n");

@@ -75,6 +75,7 @@ static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
     dev->info = info;
     dev->auto_attach = 1;
     QLIST_INIT(&dev->strings);
+    usb_ep_init(dev);
     rc = usb_claim_port(dev);
     if (rc != 0) {
         return rc;

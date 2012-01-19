@@ -124,3 +124,6 @@
 
 #define PCI_VENDOR_ID_XEN               0x5853
 #define PCI_DEVICE_ID_XEN_PLATFORM      0x0001
+
+#define PCI_VENDOR_ID_NEC                0x1033
+#define PCI_DEVICE_ID_NEC_UPD720200      0x0194

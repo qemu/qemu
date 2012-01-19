@@ -71,9 +71,6 @@ enum usbstring_idx {
 #define USB_CDC_UNION_TYPE		0x06	/* union_desc */
 #define USB_CDC_ETHERNET_TYPE		0x0f	/* ether_desc */
 
-#define USB_DT_CS_INTERFACE		0x24
-#define USB_DT_CS_ENDPOINT		0x25
-
 #define USB_CDC_SEND_ENCAPSULATED_COMMAND	0x00
 #define USB_CDC_GET_ENCAPSULATED_RESPONSE	0x01
 #define USB_CDC_REQ_SET_LINE_CODING		0x20
@@ -1096,17 +1093,6 @@ static int usb_net_handle_control(USBDevice *dev, USBPacket *p,
             fprintf(stderr, "\n\n");
         }
 #endif
-        break;
-
-    case DeviceRequest | USB_REQ_GET_INTERFACE:
-    case InterfaceRequest | USB_REQ_GET_INTERFACE:
-        data[0] = 0;
-        ret = 1;
-        break;
-
-    case DeviceOutRequest | USB_REQ_SET_INTERFACE:
-    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
-        ret = 0;
         break;
 
     default:

@@ -49,5 +49,10 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict);
 void hmp_migrate_cancel(Monitor *mon, const QDict *qdict);
 void hmp_migrate_set_downtime(Monitor *mon, const QDict *qdict);
 void hmp_migrate_set_speed(Monitor *mon, const QDict *qdict);
+void hmp_set_password(Monitor *mon, const QDict *qdict);
+void hmp_expire_password(Monitor *mon, const QDict *qdict);
+void hmp_eject(Monitor *mon, const QDict *qdict);
+void hmp_change(Monitor *mon, const QDict *qdict);
+void hmp_block_set_io_throttle(Monitor *mon, const QDict *qdict);
 
 #endif
