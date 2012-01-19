@@ -1036,7 +1036,13 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    if (*sock_name && (own_u == -1 || own_g == -1)) {
+    if (sock_name && sock != -1) {
+        fprintf(stderr, "both named socket and socket descriptor specified\n");
+        usage(argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
+    if (sock_name && (own_u == -1 || own_g == -1)) {
         fprintf(stderr, "owner uid:gid not specified, ");
         fprintf(stderr,
                 "owner uid:gid specifies who can access the socket file\n");
@@ -1064,7 +1070,7 @@ int main(int argc, char **argv)
     }
 
     do_log(LOG_INFO, "Started\n");
-    if (*sock_name) {
+    if (sock_name) {
         sock = proxy_socket(sock_name, own_u, own_g);
         if (sock < 0) {
             goto error;
