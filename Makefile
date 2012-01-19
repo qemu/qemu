@@ -168,7 +168,9 @@ qemu-ga$(EXESUF): LIBS = $(LIBS_QGA)
 
 gen-out-type = $(subst .,-,$(suffix $@))
 
+ifneq ($(wildcard config-host.mak),)
 include $(SRC_PATH)/tests/Makefile
+endif
 
 $(qapi-dir)/qga-qapi-types.c $(qapi-dir)/qga-qapi-types.h :\
 $(SRC_PATH)/qapi-schema-guest.json $(SRC_PATH)/scripts/qapi-types.py
@@ -211,6 +213,7 @@ clean:
 	rm -f trace.c trace.h trace.c-timestamp trace.h-timestamp
 	rm -f trace-dtrace.dtrace trace-dtrace.dtrace-timestamp
 	rm -f trace-dtrace.h trace-dtrace.h-timestamp
+	rm -f $(GENERATED_HEADERS)
 	rm -f $(GENERATED_SOURCES)
 	rm -rf $(qapi-dir)
 	$(MAKE) -C tests/tcg clean
