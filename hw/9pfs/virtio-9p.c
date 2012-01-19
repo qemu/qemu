@@ -986,7 +986,7 @@ static void v9fs_attach(void *opaque)
     s->root_fid = fid;
     /* disable migration */
     error_set(&s->migration_blocker, QERR_VIRTFS_FEATURE_BLOCKS_MIGRATION,
-              s->ctx.fs_root, s->tag);
+              s->ctx.fs_root ? s->ctx.fs_root : "NULL", s->tag);
     migrate_add_blocker(s->migration_blocker);
 out:
     put_fid(pdu, fidp);
