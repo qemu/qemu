@@ -28,7 +28,6 @@ struct USBBtState {
     USBDevice dev;
     struct HCIInfo *hci;
 
-    int altsetting;
     int config;
 
 #define CFIFO_LEN_MASK	255
@@ -362,7 +361,6 @@ static void usb_bt_handle_reset(USBDevice *dev)
     s->outcmd.len = 0;
     s->outacl.len = 0;
     s->outsco.len = 0;
-    s->altsetting = 0;
 }
 
 static int usb_bt_handle_control(USBDevice *dev, USBPacket *p,
@@ -401,26 +399,6 @@ static int usb_bt_handle_control(USBDevice *dev, USBPacket *p,
     case InterfaceOutRequest | USB_REQ_SET_FEATURE:
     case EndpointOutRequest | USB_REQ_SET_FEATURE:
         goto fail;
-        break;
-    case InterfaceRequest | USB_REQ_GET_INTERFACE:
-        if (value != 0 || (index & ~1) || length != 1)
-            goto fail;
-        if (index == 1)
-            data[0] = s->altsetting;
-        else
-            data[0] = 0;
-        ret = 1;
-        break;
-    case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
-        if ((index & ~1) || length != 0 ||
-                        (index == 1 && (value < 0 || value > 4)) ||
-                        (index == 0 && value != 0)) {
-            printf("%s: Wrong SET_INTERFACE request (%i, %i)\n",
-                            __FUNCTION__, index, value);
-            goto fail;
-        }
-        s->altsetting = value;
-        ret = 0;
         break;
     case ((USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_DEVICE) << 8):
         if (s->config)

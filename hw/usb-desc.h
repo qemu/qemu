@@ -71,6 +71,11 @@ struct USBDescEndpoint {
     uint8_t                   bmAttributes;
     uint16_t                  wMaxPacketSize;
     uint8_t                   bInterval;
+    uint8_t                   bRefresh;
+    uint8_t                   bSynchAddress;
+
+    uint8_t                   is_audio; /* has bRefresh + bSynchAddress */
+    uint8_t                   *extra;
 };
 
 struct USBDescOther {
