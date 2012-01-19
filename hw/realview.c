@@ -227,6 +227,8 @@ static void realview_init(ram_addr_t ram_size,
         for (n = 0; n < smp_cpus; n++) {
             sysbus_connect_irq(busdev, n, cpu_irq[n]);
         }
+        sysbus_create_varargs("l2x0", realview_binfo.smp_priv_base + 0x2000,
+                              NULL);
     } else {
         uint32_t gic_addr = is_pb ? 0x1e000000 : 0x10040000;
         /* For now just create the nIRQ GIC, and ignore the others.  */

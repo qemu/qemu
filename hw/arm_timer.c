@@ -273,11 +273,8 @@ static int sp804_init(SysBusDevice *dev)
 
     qi = qemu_allocate_irqs(sp804_set_irq, s, 2);
     sysbus_init_irq(dev, &s->irq);
-    /* The timers are configurable between 32kHz and 1MHz
-     * defaulting to 1MHz but overrideable as individual properties */
     s->timer[0] = arm_timer_init(s->freq0);
     s->timer[1] = arm_timer_init(s->freq1);
-
     s->timer[0]->irq = qi[0];
     s->timer[1]->irq = qi[1];
     memory_region_init_io(&s->iomem, &sp804_ops, s, "sp804", 0x1000);

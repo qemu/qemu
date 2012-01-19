@@ -15,9 +15,6 @@
 #include "arm-misc.h"
 #include "exec-memory.h"
 
-/* 32 internal lines (16 used for system exceptions) plus 64 external
-   interrupt lines.  */
-#define GIC_NIRQ 96
 #define NCPU 1
 #define NVIC 1
 
@@ -41,6 +38,7 @@ typedef struct {
         int64_t tick;
         QEMUTimer *timer;
     } systick;
+    uint32_t num_irq;
 } nvic_state;
 
 /* qemu timers run at 1GHz.   We want something closer to 1MHz.  */
@@ -125,7 +123,7 @@ static uint32_t nvic_readl(void *opaque, uint32_t offset)
 
     switch (offset) {
     case 4: /* Interrupt Control Type.  */
-        return (GIC_NIRQ / 32) - 1;
+        return (s->num_irq / 32) - 1;
     case 0x10: /* SysTick Control and Status.  */
         val = s->systick.control;
         s->systick.control &= ~SYSTICK_COUNTFLAG;
@@ -169,7 +167,7 @@ static uint32_t nvic_readl(void *opaque, uint32_t offset)
         if (s->gic.current_pending[0] != 1023)
             val |= (s->gic.current_pending[0] << 12);
         /* ISRPENDING */
-        for (irq = 32; irq < GIC_NIRQ; irq++) {
+        for (irq = 32; irq < s->num_irq; irq++) {
             if (s->gic.irq_state[irq].pending) {
                 val |= (1 << 22);
                 break;
@@ -384,16 +382,33 @@ static int armv7m_nvic_init(SysBusDevice *dev)
 {
     nvic_state *s= FROM_SYSBUSGIC(nvic_state, dev);
 
-    gic_init(&s->gic);
+   /* note that for the M profile gic_init() takes the number of external
+    * interrupt lines only.
+    */
+    gic_init(&s->gic, s->num_irq);
     memory_region_add_subregion(get_system_memory(), 0xe000e000, &s->gic.iomem);
     s->systick.timer = qemu_new_timer_ns(vm_clock, systick_timer_tick, s);
-    vmstate_register(&dev->qdev, -1, &vmstate_nvic, s);
     return 0;
 }
 
+static SysBusDeviceInfo armv7m_nvic_priv_info = {
+    .init = armv7m_nvic_init,
+    .qdev.name  = "armv7m_nvic",
+    .qdev.size  = sizeof(nvic_state),
+    .qdev.vmsd  = &vmstate_nvic,
+    .qdev.props = (Property[]) {
+        /* The ARM v7m may have anything from 0 to 496 external interrupt
+         * IRQ lines. We default to 64. Other boards may differ and should
+         * set this property appropriately.
+         */
+        DEFINE_PROP_UINT32("num-irq", nvic_state, num_irq, 64),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
 static void armv7m_nvic_register_devices(void)
 {
-    sysbus_register_dev("armv7m_nvic", sizeof(nvic_state), armv7m_nvic_init);
+    sysbus_register_withprop(&armv7m_nvic_priv_info);
 }
 
 device_init(armv7m_nvic_register_devices)

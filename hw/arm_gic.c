@@ -11,6 +11,8 @@
    controller, MPCore distributed interrupt controller and ARMv7-M
    Nested Vectored Interrupt Controller.  */
 
+/* Maximum number of possible interrupts, determined by the GIC architecture */
+#define GIC_MAXIRQ 1020
 //#define DEBUG_GIC
 
 #ifdef DEBUG_GIC
@@ -86,13 +88,13 @@ typedef struct gic_state
     int enabled;
     int cpu_enabled[NCPU];
 
-    gic_irq_state irq_state[GIC_NIRQ];
+    gic_irq_state irq_state[GIC_MAXIRQ];
 #ifndef NVIC
-    int irq_target[GIC_NIRQ];
+    int irq_target[GIC_MAXIRQ];
 #endif
     int priority1[32][NCPU];
-    int priority2[GIC_NIRQ - 32];
-    int last_active[GIC_NIRQ][NCPU];
+    int priority2[GIC_MAXIRQ - 32];
+    int last_active[GIC_MAXIRQ][NCPU];
 
     int priority_mask[NCPU];
     int running_irq[NCPU];
@@ -111,6 +113,7 @@ typedef struct gic_state
     struct gic_state *backref[NCPU];
     MemoryRegion cpuiomem[NCPU+1]; /* CPU interfaces */
 #endif
+    uint32_t num_irq;
 } gic_state;
 
 /* TODO: Many places that call this routine could be optimized.  */
@@ -133,7 +136,7 @@ static void gic_update(gic_state *s)
         }
         best_prio = 0x100;
         best_irq = 1023;
-        for (irq = 0; irq < GIC_NIRQ; irq++) {
+        for (irq = 0; irq < s->num_irq; irq++) {
             if (GIC_TEST_ENABLED(irq, cm) && GIC_TEST_PENDING(irq, cm)) {
                 if (GIC_GET_PRIORITY(irq, cpu) < best_prio) {
                     best_prio = GIC_GET_PRIORITY(irq, cpu);
@@ -222,7 +225,7 @@ static void gic_complete_irq(gic_state * s, int cpu, int irq)
     int update = 0;
     int cm = 1 << cpu;
     DPRINTF("EOI %d\n", irq);
-    if (irq >= GIC_NIRQ) {
+    if (irq >= s->num_irq) {
         /* This handles two cases:
          * 1. If software writes the ID of a spurious interrupt [ie 1023]
          * to the GICC_EOIR, the GIC ignores that write.
@@ -279,7 +282,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
         if (offset == 0)
             return s->enabled;
         if (offset == 4)
-            return ((GIC_NIRQ / 32) - 1) | ((NUM_CPU(s) - 1) << 5);
+            return ((s->num_irq / 32) - 1) | ((NUM_CPU(s) - 1) << 5);
         if (offset < 0x08)
             return 0;
         if (offset >= 0x80) {
@@ -295,7 +298,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
         else
             irq = (offset - 0x180) * 8;
         irq += GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         res = 0;
         for (i = 0; i < 8; i++) {
@@ -310,7 +313,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
         else
             irq = (offset - 0x280) * 8;
         irq += GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         res = 0;
         mask = (irq < 32) ?  cm : ALL_CPU_MASK;
@@ -322,7 +325,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
     } else if (offset < 0x400) {
         /* Interrupt Active.  */
         irq = (offset - 0x300) * 8 + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         res = 0;
         mask = (irq < 32) ?  cm : ALL_CPU_MASK;
@@ -334,14 +337,14 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
     } else if (offset < 0x800) {
         /* Interrupt Priority.  */
         irq = (offset - 0x400) + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         res = GIC_GET_PRIORITY(irq, cpu);
 #ifndef NVIC
     } else if (offset < 0xc00) {
         /* Interrupt CPU Target.  */
         irq = (offset - 0x800) + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         if (irq >= 29 && irq <= 31) {
             res = cm;
@@ -351,7 +354,7 @@ static uint32_t gic_dist_readb(void *opaque, target_phys_addr_t offset)
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
         irq = (offset - 0xc00) * 2 + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         res = 0;
         for (i = 0; i < 4; i++) {
@@ -426,7 +429,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     } else if (offset < 0x180) {
         /* Interrupt Set Enable.  */
         irq = (offset - 0x100) * 8 + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < 16)
           value = 0xff;
@@ -451,7 +454,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     } else if (offset < 0x200) {
         /* Interrupt Clear Enable.  */
         irq = (offset - 0x180) * 8 + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < 16)
           value = 0;
@@ -468,7 +471,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     } else if (offset < 0x280) {
         /* Interrupt Set Pending.  */
         irq = (offset - 0x200) * 8 + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < 16)
           irq = 0;
@@ -481,7 +484,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     } else if (offset < 0x300) {
         /* Interrupt Clear Pending.  */
         irq = (offset - 0x280) * 8 + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         for (i = 0; i < 8; i++) {
             /* ??? This currently clears the pending bit for all CPUs, even
@@ -497,7 +500,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     } else if (offset < 0x800) {
         /* Interrupt Priority.  */
         irq = (offset - 0x400) + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < 32) {
             s->priority1[irq][cpu] = value;
@@ -508,7 +511,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     } else if (offset < 0xc00) {
         /* Interrupt CPU Target.  */
         irq = (offset - 0x800) + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < 29)
             value = 0;
@@ -518,7 +521,7 @@ static void gic_dist_writeb(void *opaque, target_phys_addr_t offset,
     } else if (offset < 0xf00) {
         /* Interrupt Configuration.  */
         irq = (offset - 0xc00) * 4 + GIC_BASE_IRQ;
-        if (irq >= GIC_NIRQ)
+        if (irq >= s->num_irq)
             goto bad_reg;
         if (irq < 32)
             value |= 0xaa;
@@ -699,7 +702,7 @@ static const MemoryRegionOps gic_cpu_ops = {
 static void gic_reset(gic_state *s)
 {
     int i;
-    memset(s->irq_state, 0, GIC_NIRQ * sizeof(gic_irq_state));
+    memset(s->irq_state, 0, GIC_MAXIRQ * sizeof(gic_irq_state));
     for (i = 0 ; i < NUM_CPU(s); i++) {
         s->priority_mask[i] = 0xf0;
         s->current_pending[i] = 1023;
@@ -735,17 +738,17 @@ static void gic_save(QEMUFile *f, void *opaque)
         qemu_put_be32(f, s->cpu_enabled[i]);
         for (j = 0; j < 32; j++)
             qemu_put_be32(f, s->priority1[j][i]);
-        for (j = 0; j < GIC_NIRQ; j++)
+        for (j = 0; j < s->num_irq; j++)
             qemu_put_be32(f, s->last_active[j][i]);
         qemu_put_be32(f, s->priority_mask[i]);
         qemu_put_be32(f, s->running_irq[i]);
         qemu_put_be32(f, s->running_priority[i]);
         qemu_put_be32(f, s->current_pending[i]);
     }
-    for (i = 0; i < GIC_NIRQ - 32; i++) {
+    for (i = 0; i < s->num_irq - 32; i++) {
         qemu_put_be32(f, s->priority2[i]);
     }
-    for (i = 0; i < GIC_NIRQ; i++) {
+    for (i = 0; i < s->num_irq; i++) {
 #ifndef NVIC
         qemu_put_be32(f, s->irq_target[i]);
 #endif
@@ -772,17 +775,17 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
         s->cpu_enabled[i] = qemu_get_be32(f);
         for (j = 0; j < 32; j++)
             s->priority1[j][i] = qemu_get_be32(f);
-        for (j = 0; j < GIC_NIRQ; j++)
+        for (j = 0; j < s->num_irq; j++)
             s->last_active[j][i] = qemu_get_be32(f);
         s->priority_mask[i] = qemu_get_be32(f);
         s->running_irq[i] = qemu_get_be32(f);
         s->running_priority[i] = qemu_get_be32(f);
         s->current_pending[i] = qemu_get_be32(f);
     }
-    for (i = 0; i < GIC_NIRQ - 32; i++) {
+    for (i = 0; i < s->num_irq - 32; i++) {
         s->priority2[i] = qemu_get_be32(f);
     }
-    for (i = 0; i < GIC_NIRQ; i++) {
+    for (i = 0; i < s->num_irq; i++) {
 #ifndef NVIC
         s->irq_target[i] = qemu_get_be32(f);
 #endif
@@ -798,9 +801,9 @@ static int gic_load(QEMUFile *f, void *opaque, int version_id)
 }
 
 #if NCPU > 1
-static void gic_init(gic_state *s, int num_cpu)
+static void gic_init(gic_state *s, int num_cpu, int num_irq)
 #else
-static void gic_init(gic_state *s)
+static void gic_init(gic_state *s, int num_irq)
 #endif
 {
     int i;
@@ -808,7 +811,12 @@ static void gic_init(gic_state *s)
 #if NCPU > 1
     s->num_cpu = num_cpu;
 #endif
-    qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, GIC_NIRQ - 32);
+    s->num_irq = num_irq + GIC_BASE_IRQ;
+    if (s->num_irq > GIC_MAXIRQ) {
+        hw_error("requested %u interrupt lines exceeds GIC maximum %d\n",
+                 num_irq, GIC_MAXIRQ);
+    }
+    qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, s->num_irq - 32);
     for (i = 0; i < NUM_CPU(s); i++) {
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
     }
