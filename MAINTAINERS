@@ -428,9 +428,11 @@ S: Supported
 F: hw/virtio*
 
 virtio-9p
-M: Venkateswararao Jujjuri (JV) <jvrao@linux.vnet.ibm.com>
+M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 S: Supported
-F: hw/virtio-9p*
+F: hw/9pfs/ fsdev/
+T: https://github.com/kvaneesh/QEMU
+
 
 virtio-blk
 M: Kevin Wolf <kwolf@redhat.com>
