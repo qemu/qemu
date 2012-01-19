@@ -526,26 +526,27 @@ static void spr_write_excp_prefix (void *opaque, int sprn, int gprn)
 static void spr_write_excp_vector (void *opaque, int sprn, int gprn)
 {
     DisasContext *ctx = opaque;
+    int sprn_offs;
 
     if (sprn >= SPR_BOOKE_IVOR0 && sprn <= SPR_BOOKE_IVOR15) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, ivor_mask));
-        tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
-        tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_vectors[sprn - SPR_BOOKE_IVOR0]));
-        gen_store_spr(sprn, t0);
-        tcg_temp_free(t0);
+        sprn_offs = sprn - SPR_BOOKE_IVOR0;
     } else if (sprn >= SPR_BOOKE_IVOR32 && sprn <= SPR_BOOKE_IVOR37) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, ivor_mask));
-        tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
-        tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_vectors[sprn - SPR_BOOKE_IVOR32 + 32]));
-        gen_store_spr(sprn, t0);
-        tcg_temp_free(t0);
+        sprn_offs = sprn - SPR_BOOKE_IVOR32 + 32;
+    } else if (sprn >= SPR_BOOKE_IVOR38 && sprn <= SPR_BOOKE_IVOR42) {
+        sprn_offs = sprn - SPR_BOOKE_IVOR38 + 38;
     } else {
         printf("Trying to write an unknown exception vector %d %03x\n",
                sprn, sprn);
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
+        return;
     }
+
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, ivor_mask));
+    tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_vectors[sprn_offs]));
+    gen_store_spr(sprn, t0);
+    tcg_temp_free(t0);
 }
 #endif
 
@@ -1434,8 +1435,8 @@ static void gen_spr_BookE (CPUPPCState *env, uint64_t ivor_mask)
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVOR32, SPR_BOOKE_IVOR33, SPR_BOOKE_IVOR34, SPR_BOOKE_IVOR35,
-        SPR_BOOKE_IVOR36, SPR_BOOKE_IVOR37, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
-        SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
+        SPR_BOOKE_IVOR36, SPR_BOOKE_IVOR37, SPR_BOOKE_IVOR38, SPR_BOOKE_IVOR39,
+        SPR_BOOKE_IVOR40, SPR_BOOKE_IVOR41, SPR_BOOKE_IVOR42, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
