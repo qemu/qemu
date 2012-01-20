@@ -4228,6 +4228,7 @@ void helper_booke206_tlbwe(void)
 {
     uint32_t tlbncfg, tlbn;
     ppcmas_tlb_t *tlb;
+    uint32_t size_tlb, size_ps;
 
     switch (env->spr[SPR_BOOKE_MAS0] & MAS0_WQ_MASK) {
     case MAS0_WQ_ALWAYS:
@@ -4258,6 +4259,16 @@ void helper_booke206_tlbwe(void)
     tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
 
     tlb = booke206_cur_tlb(env);
+
+    /* check that we support the targeted size */
+    size_tlb = (env->spr[SPR_BOOKE_MAS1] & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
+    size_ps = booke206_tlbnps(env, tlbn);
+    if ((env->spr[SPR_BOOKE_MAS1] & MAS1_VALID) && (tlbncfg & TLBnCFG_AVAIL) &&
+        !(size_ps & (1 << size_tlb))) {
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL |
+                                   POWERPC_EXCP_INVAL_INVAL);
+    }
 
     if (msr_gs) {
         cpu_abort(env, "missing HV implementation\n");
