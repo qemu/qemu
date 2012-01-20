@@ -265,12 +265,9 @@ struct kvm_debug_exit_arch {
 struct kvm_guest_debug_arch {
 };
 
-#define KVM_REG_MASK		0x001f
-#define KVM_REG_EXT_MASK	0xffe0
-#define KVM_REG_GPR		0x0000
-#define KVM_REG_FPR		0x0020
-#define KVM_REG_QPR		0x0040
-#define KVM_REG_FQPR		0x0060
+/* definition of registers in kvm_run */
+struct kvm_sync_regs {
+};
 
 #define KVM_INTERRUPT_SET	-1U
 #define KVM_INTERRUPT_UNSET	-2U
