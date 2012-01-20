@@ -425,6 +425,7 @@ struct USBBus {
 struct USBBusOps {
     int (*register_companion)(USBBus *bus, USBPort *ports[],
                               uint32_t portcount, uint32_t firstport);
+    void (*wakeup_endpoint)(USBBus *bus, USBEndpoint *ep);
 };
 
 void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);

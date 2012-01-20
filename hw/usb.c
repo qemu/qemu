@@ -73,9 +73,13 @@ void usb_device_reset(USBDevice *dev)
 void usb_wakeup(USBEndpoint *ep)
 {
     USBDevice *dev = ep->dev;
+    USBBus *bus = usb_bus_from_device(dev);
 
     if (dev->remote_wakeup && dev->port && dev->port->ops->wakeup) {
         dev->port->ops->wakeup(dev->port);
+    }
+    if (bus->ops->wakeup_endpoint) {
+        bus->ops->wakeup_endpoint(bus, ep);
     }
 }
 
