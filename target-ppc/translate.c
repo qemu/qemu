@@ -6110,6 +6110,39 @@ static void gen_tlbivax_booke206(DisasContext *ctx)
 #endif
 }
 
+static void gen_tlbilx_booke206(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+#else
+    TCGv t0;
+    if (unlikely(!ctx->mem_idx)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(ctx, t0);
+
+    switch((ctx->opcode >> 21) & 0x3) {
+    case 0:
+        gen_helper_booke206_tlbilx0(t0);
+        break;
+    case 1:
+        gen_helper_booke206_tlbilx1(t0);
+        break;
+    case 3:
+        gen_helper_booke206_tlbilx3(t0);
+        break;
+    default:
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        break;
+    }
+
+    tcg_temp_free(t0);
+#endif
+}
+
 
 /* wrtee */
 static void gen_wrtee(DisasContext *ctx)
@@ -8573,6 +8606,8 @@ GEN_HANDLER2_E(tlbsx_booke206, "tlbsx", 0x1F, 0x12, 0x1C, 0x00000000,
 GEN_HANDLER2_E(tlbwe_booke206, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001,
                PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER2_E(tlbivax_booke206, "tlbivax", 0x1F, 0x12, 0x18, 0x00000001,
+               PPC_NONE, PPC2_BOOKE206),
+GEN_HANDLER2_E(tlbilx_booke206, "tlbilx", 0x1F, 0x12, 0x00, 0x03800001,
                PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE),
 GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000E7C01, PPC_WRTEE),

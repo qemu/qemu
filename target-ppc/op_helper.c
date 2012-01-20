@@ -4406,6 +4406,70 @@ void helper_booke206_tlbivax(target_ulong address)
     }
 }
 
+void helper_booke206_tlbilx0(target_ulong address)
+{
+    /* XXX missing LPID handling */
+    booke206_flush_tlb(env, -1, 1);
+}
+
+void helper_booke206_tlbilx1(target_ulong address)
+{
+    int i, j;
+    int tid = (env->spr[SPR_BOOKE_MAS6] & MAS6_SPID);
+    ppcmas_tlb_t *tlb = env->tlb.tlbm;
+    int tlb_size;
+
+    /* XXX missing LPID handling */
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        tlb_size = booke206_tlb_size(env, i);
+        for (j = 0; j < tlb_size; j++) {
+            if (!(tlb[j].mas1 & MAS1_IPROT) &&
+                ((tlb[j].mas1 & MAS1_TID_MASK) == tid)) {
+                tlb[j].mas1 &= ~MAS1_VALID;
+            }
+        }
+        tlb += booke206_tlb_size(env, i);
+    }
+    tlb_flush(env, 1);
+}
+
+void helper_booke206_tlbilx3(target_ulong address)
+{
+    int i, j;
+    ppcmas_tlb_t *tlb;
+    int tid = (env->spr[SPR_BOOKE_MAS6] & MAS6_SPID);
+    int pid = tid >> MAS6_SPID_SHIFT;
+    int sgs = env->spr[SPR_BOOKE_MAS5] & MAS5_SGS;
+    int ind = (env->spr[SPR_BOOKE_MAS6] & MAS6_SIND) ? MAS1_IND : 0;
+    /* XXX check for unsupported isize and raise an invalid opcode then */
+    int size = env->spr[SPR_BOOKE_MAS6] & MAS6_ISIZE_MASK;
+    /* XXX implement MAV2 handling */
+    bool mav2 = false;
+
+    /* XXX missing LPID handling */
+    /* flush by pid and ea */
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        int ways = booke206_tlb_ways(env, i);
+
+        for (j = 0; j < ways; j++) {
+            tlb = booke206_get_tlbm(env, i, address, j);
+            if ((ppcmas_tlb_check(env, tlb, NULL, address, pid) != 0) ||
+                (tlb->mas1 & MAS1_IPROT) ||
+                ((tlb->mas1 & MAS1_IND) != ind) ||
+                ((tlb->mas8 & MAS8_TGS) != sgs)) {
+                continue;
+            }
+            if (mav2 && ((tlb->mas1 & MAS1_TSIZE_MASK) != size)) {
+                /* XXX only check when MMUCFG[TWC] || TLBnCFG[HES] */
+                continue;
+            }
+            /* XXX e500mc doesn't match SAS, but other cores might */
+            tlb->mas1 &= ~MAS1_VALID;
+        }
+    }
+    tlb_flush(env, 1);
+}
+
 void helper_booke206_tlbflush(uint32_t type)
 {
     int flags = 0;
