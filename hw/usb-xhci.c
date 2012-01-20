@@ -2698,6 +2698,26 @@ static void xhci_detach(USBPort *usbport)
     xhci_update_port(xhci, port, 1);
 }
 
+static void xhci_wakeup(USBPort *usbport)
+{
+    XHCIState *xhci = usbport->opaque;
+    XHCIPort *port = &xhci->ports[usbport->index];
+    int nr = port->port.index + 1;
+    XHCIEvent ev = { ER_PORT_STATUS_CHANGE, CC_SUCCESS, nr << 24};
+    uint32_t pls;
+
+    pls = (port->portsc >> PORTSC_PLS_SHIFT) & PORTSC_PLS_MASK;
+    if (pls != 3) {
+        return;
+    }
+    port->portsc |= 0xf << PORTSC_PLS_SHIFT;
+    if (port->portsc & PORTSC_PLC) {
+        return;
+    }
+    port->portsc |= PORTSC_PLC;
+    xhci_event(xhci, &ev);
+}
+
 static void xhci_complete(USBPort *port, USBPacket *packet)
 {
     XHCITransfer *xfer = container_of(packet, XHCITransfer, packet);
@@ -2714,6 +2734,7 @@ static void xhci_child_detach(USBPort *port, USBDevice *child)
 static USBPortOps xhci_port_ops = {
     .attach   = xhci_attach,
     .detach   = xhci_detach,
+    .wakeup   = xhci_wakeup,
     .complete = xhci_complete,
     .child_detach = xhci_child_detach,
 };
