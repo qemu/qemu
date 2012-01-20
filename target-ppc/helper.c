@@ -1338,7 +1338,10 @@ int ppcmas_tlb_check(CPUState *env, ppcmas_tlb_t *tlb,
     if ((address & mask) != (tlb->mas2 & MAS2_EPN_MASK)) {
         return -1;
     }
-    *raddrp = (tlb->mas7_3 & mask) | (address & ~mask);
+
+    if (raddrp) {
+        *raddrp = (tlb->mas7_3 & mask) | (address & ~mask);
+    }
 
     return 0;
 }
