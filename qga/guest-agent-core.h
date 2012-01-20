@@ -29,3 +29,4 @@ GACommandState *ga_command_state_new(void);
 bool ga_logging_enabled(GAState *s);
 void ga_disable_logging(GAState *s);
 void ga_enable_logging(GAState *s);
+void slog(const gchar *fmt, ...);
