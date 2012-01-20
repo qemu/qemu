@@ -1392,7 +1392,7 @@ static int xhci_hle_control(XHCIState *xhci, XHCITransfer *xfer,
 }
 #endif
 
-static int xhci_setup_packet(XHCITransfer *xfer, XHCIPort *port, USBDevice *dev)
+static int xhci_setup_packet(XHCITransfer *xfer, USBDevice *dev)
 {
     USBEndpoint *ep;
     int dir;
@@ -1520,7 +1520,7 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     xfer->in_xfer = bmRequestType & USB_DIR_IN;
     xfer->iso_xfer = false;
 
-    xhci_setup_packet(xfer, port, dev);
+    xhci_setup_packet(xfer, dev);
     if (!xfer->in_xfer) {
         xhci_xfer_data(xfer, xfer->data, wLength, 0, 1, 0);
     }
@@ -1571,7 +1571,7 @@ static int xhci_submit(XHCIState *xhci, XHCITransfer *xfer, XHCIEPContext *epctx
         return -1;
     }
 
-    xhci_setup_packet(xfer, port, dev);
+    xhci_setup_packet(xfer, dev);
 
     switch(epctx->type) {
     case ET_INTR_OUT:
