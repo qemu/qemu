@@ -83,11 +83,12 @@ void qemu_clock_warp(QEMUClock *clock)
 {
 }
 
-static void __attribute__((constructor)) init_main_loop(void)
+int qemu_init_main_loop(void)
 {
     init_clocks();
     init_timer_alarm();
     qemu_clock_enable(vm_clock, false);
+    return main_loop_init();
 }
 
 void slirp_select_fill(int *pnfds, fd_set *readfds,

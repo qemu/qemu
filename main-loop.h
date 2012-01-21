@@ -41,8 +41,20 @@
  * SIGUSR2, thread signals (SIGFPE, SIGILL, SIGSEGV, SIGBUS) and real-time
  * signals if available.  Remember that Windows in practice does not have
  * signals, though.
+ *
+ * In the case of QEMU tools, this will also start/initialize timers.
  */
 int qemu_init_main_loop(void);
+
+/**
+ * main_loop_init: Initializes main loop
+ *
+ * Internal (but shared for compatibility reasons) initialization routine
+ * for the main loop. This should not be used by applications directly,
+ * use qemu_init_main_loop() instead.
+ *
+ */
+int main_loop_init(void);
 
 /**
  * main_loop_wait: Run one iteration of the main loop.

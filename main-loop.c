@@ -199,7 +199,7 @@ static int qemu_signal_init(void)
 }
 #endif
 
-int qemu_init_main_loop(void)
+int main_loop_init(void)
 {
     int ret;
 
