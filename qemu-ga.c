@@ -29,6 +29,10 @@
 #include "error_int.h"
 #include "qapi/qmp-core.h"
 #include "qga/channel.h"
+#ifdef _WIN32
+#include "qga/service-win32.h"
+#include <windows.h>
+#endif
 
 #ifndef _WIN32
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
@@ -46,11 +50,19 @@ struct GAState {
     GLogLevelFlags log_level;
     FILE *log_file;
     bool logging_enabled;
+#ifdef _WIN32
+    GAService service;
+#endif
 };
 
 static struct GAState *ga_state;
 
-#ifndef _WIN32
+#ifdef _WIN32
+DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
+                                  LPVOID ctx);
+VOID WINAPI service_main(DWORD argc, TCHAR *argv[]);
+#endif
+
 static void quit_handler(int sig)
 {
     g_debug("received signal num %d, quitting", sig);
@@ -60,6 +72,7 @@ static void quit_handler(int sig)
     }
 }
 
+#ifndef _WIN32
 static gboolean register_signal_handlers(void)
 {
     struct sigaction sigact;
@@ -95,8 +108,9 @@ static void usage(const char *cmd)
 "  -f, --pidfile     specify pidfile (default is %s)\n"
 "  -v, --verbose     log extra debugging information\n"
 "  -V, --version     print version information and exit\n"
-#ifndef _WIN32
 "  -d, --daemonize   become a daemon\n"
+#ifdef _WIN32
+"  -s, --service     service commands: install, uninstall\n"
 #endif
 "  -b, --blacklist   comma-separated list of RPCs to disable (no spaces, \"?\""
 "                    to list available RPCs)\n"
@@ -394,20 +408,77 @@ static gboolean channel_init(GAState *s, const gchar *method, const gchar *path)
     return true;
 }
 
+#ifdef _WIN32
+DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
+                                  LPVOID ctx)
+{
+    DWORD ret = NO_ERROR;
+    GAService *service = &ga_state->service;
+
+    switch (ctrl)
+    {
+        case SERVICE_CONTROL_STOP:
+        case SERVICE_CONTROL_SHUTDOWN:
+            quit_handler(SIGTERM);
+            service->status.dwCurrentState = SERVICE_STOP_PENDING;
+            SetServiceStatus(service->status_handle, &service->status);
+            break;
+
+        default:
+            ret = ERROR_CALL_NOT_IMPLEMENTED;
+    }
+    return ret;
+}
+
+VOID WINAPI service_main(DWORD argc, TCHAR *argv[])
+{
+    GAService *service = &ga_state->service;
+
+    service->status_handle = RegisterServiceCtrlHandlerEx(QGA_SERVICE_NAME,
+        service_ctrl_handler, NULL);
+
+    if (service->status_handle == 0) {
+        g_critical("Failed to register extended requests function!\n");
+        return;
+    }
+
+    service->status.dwServiceType = SERVICE_WIN32;
+    service->status.dwCurrentState = SERVICE_RUNNING;
+    service->status.dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
+    service->status.dwWin32ExitCode = NO_ERROR;
+    service->status.dwServiceSpecificExitCode = NO_ERROR;
+    service->status.dwCheckPoint = 0;
+    service->status.dwWaitHint = 0;
+    SetServiceStatus(service->status_handle, &service->status);
+
+    g_main_loop_run(ga_state->main_loop);
+
+    service->status.dwCurrentState = SERVICE_STOPPED;
+    SetServiceStatus(service->status_handle, &service->status);
+}
+#endif
+
 int main(int argc, char **argv)
 {
-    const char *sopt = "hVvdm:p:l:f:b:";
+    const char *sopt = "hVvdm:p:l:f:b:s:";
     const char *method = NULL, *path = NULL, *pidfile = QGA_PIDFILE_DEFAULT;
+    const char *log_file_name = NULL;
+#ifdef _WIN32
+    const char *service = NULL;
+#endif
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
-        { "logfile", 0, NULL, 'l' },
-        { "pidfile", 0, NULL, 'f' },
+        { "logfile", 1, NULL, 'l' },
+        { "pidfile", 1, NULL, 'f' },
         { "verbose", 0, NULL, 'v' },
-        { "method", 0, NULL, 'm' },
-        { "path", 0, NULL, 'p' },
+        { "method", 1, NULL, 'm' },
+        { "path", 1, NULL, 'p' },
         { "daemonize", 0, NULL, 'd' },
-        { "blacklist", 0, NULL, 'b' },
+        { "blacklist", 1, NULL, 'b' },
+#ifdef _WIN32
+        { "service", 1, NULL, 's' },
+#endif        
         { NULL, 0, NULL, 0 }
     };
     int opt_ind = 0, ch, daemonize = 0, i, j, len;
@@ -426,7 +497,8 @@ int main(int argc, char **argv)
             path = optarg;
             break;
         case 'l':
-            log_file = fopen(optarg, "a");
+            log_file_name = optarg;
+            log_file = fopen(log_file_name, "a");
             if (!log_file) {
                 g_critical("unable to open specified log file: %s",
                            strerror(errno));
@@ -472,6 +544,19 @@ int main(int argc, char **argv)
             }
             break;
         }
+#ifdef _WIN32
+        case 's':
+            service = optarg;
+            if (strcmp(service, "install") == 0) {
+                return ga_install_service(path, log_file_name);
+            } else if (strcmp(service, "uninstall") == 0) {
+                return ga_uninstall_service();
+            } else {
+                printf("Unknown service command.\n");
+                return EXIT_FAILURE;
+            }
+            break;
+#endif
         case 'h':
             usage(argv[0]);
             return 0;
@@ -512,7 +597,17 @@ int main(int argc, char **argv)
         g_critical("failed to initialize guest agent channel");
         goto out_bad;
     }
+#ifndef _WIN32
     g_main_loop_run(ga_state->main_loop);
+#else
+    if (daemonize) {
+        SERVICE_TABLE_ENTRY service_table[] = {
+            { (char *)QGA_SERVICE_NAME, service_main }, { NULL, NULL } };
+        StartServiceCtrlDispatcher(service_table);
+    } else {
+        g_main_loop_run(ga_state->main_loop);
+    }
+#endif
 
     ga_command_state_cleanup_all(ga_state->command_state);
     ga_channel_free(ga_state->channel);
