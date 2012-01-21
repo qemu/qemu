@@ -30,7 +30,11 @@
 #include "qapi/qmp-core.h"
 #include "qga/channel.h"
 
+#ifndef _WIN32
 #define QGA_VIRTIO_PATH_DEFAULT "/dev/virtio-ports/org.qemu.guest_agent.0"
+#else
+#define QGA_VIRTIO_PATH_DEFAULT "\\\\.\\Global\\org.qemu.guest_agent.0"
+#endif
 #define QGA_PIDFILE_DEFAULT "/var/run/qemu-ga.pid"
 
 struct GAState {

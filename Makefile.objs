@@ -426,7 +426,7 @@ common-obj-y += qmp.o hmp.o
 
 qga-nested-y = commands.o guest-agent-command-state.o
 qga-nested-$(CONFIG_POSIX) += commands-posix.o channel-posix.o
-qga-nested-$(CONFIG_WIN32) += commands-win32.o
+qga-nested-$(CONFIG_WIN32) += commands-win32.o channel-win32.o
 qga-obj-y = $(addprefix qga/, $(qga-nested-y))
 qga-obj-y += qemu-ga.o module.o
 qga-obj-$(CONFIG_WIN32) += oslib-win32.o
