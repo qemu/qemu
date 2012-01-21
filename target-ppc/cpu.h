@@ -1355,6 +1355,10 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define SPR_BOOKE_DVC2        (0x13F)
 #define SPR_BOOKE_TSR         (0x150)
 #define SPR_BOOKE_TCR         (0x154)
+#define SPR_BOOKE_TLB0PS      (0x158)
+#define SPR_BOOKE_TLB1PS      (0x159)
+#define SPR_BOOKE_TLB2PS      (0x15A)
+#define SPR_BOOKE_TLB3PS      (0x15B)
 #define SPR_BOOKE_IVOR0       (0x190)
 #define SPR_BOOKE_IVOR1       (0x191)
 #define SPR_BOOKE_IVOR2       (0x192)
@@ -2114,6 +2118,27 @@ static inline ppcmas_tlb_t *booke206_get_tlbm(CPUState *env, const int tlbn,
     }
 
     return &env->tlb.tlbm[r];
+}
+
+/* returns bitmap of supported page sizes for a given TLB */
+static inline uint32_t booke206_tlbnps(CPUState *env, const int tlbn)
+{
+    bool mav2 = false;
+    uint32_t ret = 0;
+
+    if (mav2) {
+        ret = env->spr[SPR_BOOKE_TLB0PS + tlbn];
+    } else {
+        uint32_t tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
+        uint32_t min = (tlbncfg & TLBnCFG_MINSIZE) >> TLBnCFG_MINSIZE_SHIFT;
+        uint32_t max = (tlbncfg & TLBnCFG_MAXSIZE) >> TLBnCFG_MAXSIZE_SHIFT;
+        int i;
+        for (i = min; i <= max; i++) {
+            ret |= (1 << (i << 1));
+        }
+    }
+
+    return ret;
 }
 
 #endif
