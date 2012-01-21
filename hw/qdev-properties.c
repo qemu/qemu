@@ -40,9 +40,9 @@ static void qdev_prop_cpy(DeviceState *dev, Property *props, void *src)
 /* Bit */
 static int parse_bit(DeviceState *dev, Property *prop, const char *str)
 {
-    if (!strncasecmp(str, "on", 2))
+    if (!strcasecmp(str, "on"))
         bit_prop_set(dev, prop, true);
-    else if (!strncasecmp(str, "off", 3))
+    else if (!strcasecmp(str, "off"))
         bit_prop_set(dev, prop, false);
     else
         return -EINVAL;
