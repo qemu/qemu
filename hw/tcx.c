@@ -178,15 +178,13 @@ static inline int check_dirty(TCXState *s, ram_addr_t page, ram_addr_t page24,
                               ram_addr_t cpage)
 {
     int ret;
-    unsigned int off;
 
-    ret = memory_region_get_dirty(&s->vram_mem, page, DIRTY_MEMORY_VGA);
-    for (off = 0; off < TARGET_PAGE_SIZE * 4; off += TARGET_PAGE_SIZE) {
-        ret |= memory_region_get_dirty(&s->vram_mem, page24 + off,
-                                       DIRTY_MEMORY_VGA);
-        ret |= memory_region_get_dirty(&s->vram_mem, cpage + off,
-                                       DIRTY_MEMORY_VGA);
-    }
+    ret = memory_region_get_dirty(&s->vram_mem, page, TARGET_PAGE_SIZE,
+                                  DIRTY_MEMORY_VGA);
+    ret |= memory_region_get_dirty(&s->vram_mem, page24, TARGET_PAGE_SIZE * 4,
+                                   DIRTY_MEMORY_VGA);
+    ret |= memory_region_get_dirty(&s->vram_mem, cpage, TARGET_PAGE_SIZE * 4,
+                                   DIRTY_MEMORY_VGA);
     return ret;
 }
 
@@ -245,7 +243,8 @@ static void tcx_update_display(void *opaque)
     }
 
     for(y = 0; y < ts->height; y += 4, page += TARGET_PAGE_SIZE) {
-        if (memory_region_get_dirty(&ts->vram_mem, page, DIRTY_MEMORY_VGA)) {
+        if (memory_region_get_dirty(&ts->vram_mem, page, TARGET_PAGE_SIZE,
+                                    DIRTY_MEMORY_VGA)) {
             if (y_start < 0)
                 y_start = y;
             if (page < page_min)

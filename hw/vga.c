@@ -1742,17 +1742,10 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         if (!(s->cr[0x17] & 2)) {
             addr = (addr & ~0x8000) | ((y1 & 2) << 14);
         }
-        page0 = addr & TARGET_PAGE_MASK;
-        page1 = (addr + bwidth - 1) & TARGET_PAGE_MASK;
-        update = full_update |
-            memory_region_get_dirty(&s->vram, page0, DIRTY_MEMORY_VGA) |
-            memory_region_get_dirty(&s->vram, page1, DIRTY_MEMORY_VGA);
-        if ((page1 - page0) > TARGET_PAGE_SIZE) {
-            /* if wide line, can use another page */
-            update |= memory_region_get_dirty(&s->vram,
-                                              page0 + TARGET_PAGE_SIZE,
-                                              DIRTY_MEMORY_VGA);
-        }
+        page0 = addr;
+        page1 = addr + bwidth - 1;
+        update = memory_region_get_dirty(&s->vram, page0, page1,
+                                         DIRTY_MEMORY_VGA);
         /* explicit invalidation for the hardware cursor */
         update |= (s->invalidated_y_table[y >> 5] >> (y & 0x1f)) & 1;
         if (update) {
@@ -1798,7 +1791,7 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
     if (page_max >= page_min) {
         memory_region_reset_dirty(&s->vram,
                                   page_min,
-                                  page_max + TARGET_PAGE_SIZE - page_min,
+                                  page_max - page_min,
                                   DIRTY_MEMORY_VGA);
     }
     memset(s->invalidated_y_table, 0, ((height + 31) >> 5) * 4);

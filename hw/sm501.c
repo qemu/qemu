@@ -1323,15 +1323,12 @@ static void sm501_draw_crt(SM501State * s)
     for (y = 0; y < height; y++) {
 	int update_hwc = draw_hwc_line ? within_hwc_y_range(s, y, 1) : 0;
 	int update = full_update || update_hwc;
-	ram_addr_t page0 = offset & TARGET_PAGE_MASK;
-	ram_addr_t page1 = (offset + width * src_bpp - 1) & TARGET_PAGE_MASK;
-	ram_addr_t page;
+        ram_addr_t page0 = offset;
+        ram_addr_t page1 = offset + width * src_bpp - 1;
 
 	/* check dirty flags for each line */
-	for (page = page0; page <= page1; page += TARGET_PAGE_SIZE)
-            if (memory_region_get_dirty(&s->local_mem_region, page,
-                                        DIRTY_MEMORY_VGA))
-		update = 1;
+        update = memory_region_get_dirty(&s->local_mem_region, page0, page1,
+                                         DIRTY_MEMORY_VGA);
 
 	/* draw line and change status */
 	if (update) {

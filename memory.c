@@ -1136,10 +1136,11 @@ void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client)
 }
 
 bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
-                             unsigned client)
+                             target_phys_addr_t size, unsigned client)
 {
     assert(mr->terminates);
-    return cpu_physical_memory_get_dirty(mr->ram_addr + addr, 1 << client);
+    return cpu_physical_memory_get_dirty(mr->ram_addr + addr, size,
+                                         1 << client);
 }
 
 void memory_region_set_dirty(MemoryRegion *mr, target_phys_addr_t addr,

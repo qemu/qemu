@@ -380,20 +380,21 @@ void memory_region_set_offset(MemoryRegion *mr, target_phys_addr_t offset);
 void memory_region_set_log(MemoryRegion *mr, bool log, unsigned client);
 
 /**
- * memory_region_get_dirty: Check whether a page is dirty for a specified
- *                          client.
+ * memory_region_get_dirty: Check whether a range of bytes is dirty
+ *                          for a specified client.
  *
- * Checks whether a page has been written to since the last
+ * Checks whether a range of bytes has been written to since the last
  * call to memory_region_reset_dirty() with the same @client.  Dirty logging
  * must be enabled.
  *
  * @mr: the memory region being queried.
  * @addr: the address (relative to the start of the region) being queried.
+ * @size: the size of the range being queried.
  * @client: the user of the logging information; %DIRTY_MEMORY_MIGRATION or
  *          %DIRTY_MEMORY_VGA.
  */
 bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
-                             unsigned client);
+                             target_phys_addr_t size, unsigned client);
 
 /**
  * memory_region_set_dirty: Mark a range of bytes as dirty in a memory region.
