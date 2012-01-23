@@ -4452,6 +4452,20 @@ tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong addr)
     return qemu_ram_addr_from_host_nofail(p);
 }
 
+/*
+ * A helper function for the _utterly broken_ virtio device model to find out if
+ * it's running on a big endian machine. Don't do this at home kids!
+ */
+bool virtio_is_big_endian(void);
+bool virtio_is_big_endian(void)
+{
+#if defined(TARGET_WORDS_BIGENDIAN)
+    return true;
+#else
+    return false;
+#endif
+}
+
 #define MMUSUFFIX _cmmu
 #undef GETPC
 #define GETPC() NULL

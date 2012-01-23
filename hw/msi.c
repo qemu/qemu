@@ -36,6 +36,9 @@
 
 #define PCI_MSI_VECTORS_MAX     32
 
+/* Flag for interrupt controller to declare MSI/MSI-X support */
+bool msi_supported;
+
 /* If we get rid of cap allocator, we won't need this. */
 static inline uint8_t msi_cap_sizeof(uint16_t flags)
 {
@@ -116,6 +119,11 @@ int msi_init(struct PCIDevice *dev, uint8_t offset,
     uint16_t flags;
     uint8_t cap_size;
     int config_offset;
+
+    if (!msi_supported) {
+        return -ENOTSUP;
+    }
+
     MSI_DEV_PRINTF(dev,
                    "init offset: 0x%"PRIx8" vector: %"PRId8
                    " 64bit %d mask %d\n",

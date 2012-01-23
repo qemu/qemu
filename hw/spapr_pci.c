@@ -62,6 +62,30 @@ static PCIDevice *find_dev(sPAPREnvironment *spapr,
     return NULL;
 }
 
+static uint32_t rtas_pci_cfgaddr(uint32_t arg)
+{
+    return ((arg >> 20) & 0xf00) | (arg & 0xff);
+}
+
+static uint32_t rtas_read_pci_config_do(PCIDevice *pci_dev, uint32_t addr,
+                                        uint32_t limit, uint32_t len)
+{
+    if ((addr + len) <= limit) {
+        return pci_host_config_read_common(pci_dev, addr, limit, len);
+    } else {
+        return ~0x0;
+    }
+}
+
+static void rtas_write_pci_config_do(PCIDevice *pci_dev, uint32_t addr,
+                                     uint32_t limit, uint32_t val,
+                                     uint32_t len)
+{
+    if ((addr + len) <= limit) {
+        pci_host_config_write_common(pci_dev, addr, limit, val, len);
+    }
+}
+
 static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
                                      uint32_t token, uint32_t nargs,
                                      target_ulong args,
@@ -76,8 +100,8 @@ static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
         return;
     }
     size = rtas_ld(args, 3);
-    addr = rtas_ld(args, 0) & 0xFF;
-    val = pci_default_read_config(dev, addr, size);
+    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
+    val = rtas_read_pci_config_do(dev, addr, pci_config_size(dev), size);
     rtas_st(rets, 0, 0);
     rtas_st(rets, 1, val);
 }
@@ -95,8 +119,8 @@ static void rtas_read_pci_config(sPAPREnvironment *spapr,
         return;
     }
     size = rtas_ld(args, 1);
-    addr = rtas_ld(args, 0) & 0xFF;
-    val = pci_default_read_config(dev, addr, size);
+    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
+    val = rtas_read_pci_config_do(dev, addr, pci_config_size(dev), size);
     rtas_st(rets, 0, 0);
     rtas_st(rets, 1, val);
 }
@@ -116,8 +140,8 @@ static void rtas_ibm_write_pci_config(sPAPREnvironment *spapr,
     }
     val = rtas_ld(args, 4);
     size = rtas_ld(args, 3);
-    addr = rtas_ld(args, 0) & 0xFF;
-    pci_default_write_config(dev, addr, val, size);
+    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
+    rtas_write_pci_config_do(dev, addr, pci_config_size(dev), val, size);
     rtas_st(rets, 0, 0);
 }
 
@@ -135,8 +159,8 @@ static void rtas_write_pci_config(sPAPREnvironment *spapr,
     }
     val = rtas_ld(args, 2);
     size = rtas_ld(args, 1);
-    addr = rtas_ld(args, 0) & 0xFF;
-    pci_default_write_config(dev, addr, val, size);
+    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
+    rtas_write_pci_config_do(dev, addr, pci_config_size(dev), val, size);
     rtas_st(rets, 0, 0);
 }
 
@@ -319,31 +343,13 @@ void spapr_create_phb(sPAPREnvironment *spapr,
 #define b_fff(x)        b_x((x), 8, 3)  /* function number */
 #define b_rrrrrrrr(x)   b_x((x), 0, 8)  /* register number */
 
-static uint32_t regtype_to_ss(uint8_t type)
-{
-    if (type & PCI_BASE_ADDRESS_MEM_TYPE_64) {
-        return 3;
-    }
-    if (type == PCI_BASE_ADDRESS_SPACE_IO) {
-        return 1;
-    }
-    return 2;
-}
-
 int spapr_populate_pci_devices(sPAPRPHBState *phb,
                                uint32_t xics_phandle,
                                void *fdt)
 {
     PCIBus *bus = phb->host_state.bus;
-    int bus_off, node_off = 0, devid, fn, i, n, devices;
-    DeviceState *qdev;
+    int bus_off, i;
     char nodename[256];
-    struct {
-        uint32_t hi;
-        uint64_t addr;
-        uint64_t size;
-    } __attribute__((packed)) reg[PCI_NUM_REGIONS + 1],
-          assigned_addresses[PCI_NUM_REGIONS];
     uint32_t bus_range[] = { cpu_to_be32(0), cpu_to_be32(0xff) };
     struct {
         uint32_t hi;
@@ -364,7 +370,7 @@ int spapr_populate_pci_devices(sPAPRPHBState *phb,
     };
     uint64_t bus_reg[] = { cpu_to_be64(phb->buid), 0 };
     uint32_t interrupt_map_mask[] = {
-        cpu_to_be32(b_ddddd(-1)|b_fff(-1)), 0x0, 0x0, 0x0};
+        cpu_to_be32(b_ddddd(-1)|b_fff(0)), 0x0, 0x0, 0x0};
     uint32_t interrupt_map[bus->nirq][7];
 
     /* Start populating the FDT */
@@ -392,117 +398,26 @@ int spapr_populate_pci_devices(sPAPRPHBState *phb,
     _FDT(fdt_setprop(fdt, bus_off, "bus-range", &bus_range, sizeof(bus_range)));
     _FDT(fdt_setprop(fdt, bus_off, "ranges", &ranges, sizeof(ranges)));
     _FDT(fdt_setprop(fdt, bus_off, "reg", &bus_reg, sizeof(bus_reg)));
+    _FDT(fdt_setprop_cell(fdt, bus_off, "ibm,pci-config-space-type", 0x1));
+
+    /* Build the interrupt-map, this must matches what is done
+     * in pci_spapr_map_irq
+     */
     _FDT(fdt_setprop(fdt, bus_off, "interrupt-map-mask",
                      &interrupt_map_mask, sizeof(interrupt_map_mask)));
-
-    /* Populate PCI devices and allocate IRQs */
-    devices = 0;
-    QTAILQ_FOREACH(qdev, &bus->qbus.children, sibling) {
-        PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
-        int irq_index = pci_spapr_map_irq(dev, 0);
-        uint32_t *irqmap = interrupt_map[devices];
-        uint8_t *config = dev->config;
-
-        devid = dev->devfn >> 3;
-        fn = dev->devfn & 7;
-
-        sprintf(nodename, "pci@%u,%u", devid, fn);
-
-        /* Allocate interrupt from the map */
-        if (devid > bus->nirq)  {
-            printf("Unexpected behaviour in spapr_populate_pci_devices,"
-                    "wrong devid %u\n", devid);
-            exit(-1);
-        }
-        irqmap[0] = cpu_to_be32(b_ddddd(devid)|b_fff(fn));
+    for (i = 0; i < 7; i++) {
+        uint32_t *irqmap = interrupt_map[i];
+        irqmap[0] = cpu_to_be32(b_ddddd(i)|b_fff(0));
         irqmap[1] = 0;
         irqmap[2] = 0;
         irqmap[3] = 0;
         irqmap[4] = cpu_to_be32(xics_phandle);
-        irqmap[5] = cpu_to_be32(phb->lsi_table[irq_index].dt_irq);
+        irqmap[5] = cpu_to_be32(phb->lsi_table[i % SPAPR_PCI_NUM_LSI].dt_irq);
         irqmap[6] = cpu_to_be32(0x8);
-
-        /* Add node to FDT */
-        node_off = fdt_add_subnode(fdt, bus_off, nodename);
-        if (node_off < 0) {
-            return node_off;
-        }
-
-        _FDT(fdt_setprop_cell(fdt, node_off, "vendor-id",
-                              pci_get_word(&config[PCI_VENDOR_ID])));
-        _FDT(fdt_setprop_cell(fdt, node_off, "device-id",
-                              pci_get_word(&config[PCI_DEVICE_ID])));
-        _FDT(fdt_setprop_cell(fdt, node_off, "revision-id",
-                              pci_get_byte(&config[PCI_REVISION_ID])));
-        _FDT(fdt_setprop_cell(fdt, node_off, "class-code",
-                              pci_get_long(&config[PCI_CLASS_REVISION]) >> 8));
-        _FDT(fdt_setprop_cell(fdt, node_off, "subsystem-id",
-                              pci_get_word(&config[PCI_SUBSYSTEM_ID])));
-        _FDT(fdt_setprop_cell(fdt, node_off, "subsystem-vendor-id",
-                              pci_get_word(&config[PCI_SUBSYSTEM_VENDOR_ID])));
-
-        /* Config space region comes first */
-        reg[0].hi = cpu_to_be32(
-            b_n(0) |
-            b_p(0) |
-            b_t(0) |
-            b_ss(0/*config*/) |
-            b_bbbbbbbb(0) |
-            b_ddddd(devid) |
-            b_fff(fn));
-        reg[0].addr = 0;
-        reg[0].size = 0;
-
-        n = 0;
-        for (i = 0; i < ARRAY_SIZE(bars); ++i) {
-            if (0 == dev->io_regions[i].size) {
-                continue;
-            }
-
-            reg[n+1].hi = cpu_to_be32(
-                b_n(0) |
-                b_p(0) |
-                b_t(0) |
-                b_ss(regtype_to_ss(dev->io_regions[i].type)) |
-                b_bbbbbbbb(0) |
-                b_ddddd(devid) |
-                b_fff(fn) |
-                b_rrrrrrrr(bars[i]));
-            reg[n+1].addr = 0;
-            reg[n+1].size = cpu_to_be64(dev->io_regions[i].size);
-
-            assigned_addresses[n].hi = cpu_to_be32(
-                b_n(1) |
-                b_p(0) |
-                b_t(0) |
-                b_ss(regtype_to_ss(dev->io_regions[i].type)) |
-                b_bbbbbbbb(0) |
-                b_ddddd(devid) |
-                b_fff(fn) |
-                b_rrrrrrrr(bars[i]));
-
-            /*
-             * Writing zeroes to assigned_addresses causes the guest kernel to
-             * reassign BARs
-             */
-            assigned_addresses[n].addr = cpu_to_be64(dev->io_regions[i].addr);
-            assigned_addresses[n].size = reg[n+1].size;
-
-            ++n;
-        }
-        _FDT(fdt_setprop(fdt, node_off, "reg", reg, sizeof(reg[0])*(n+1)));
-        _FDT(fdt_setprop(fdt, node_off, "assigned-addresses",
-                         assigned_addresses,
-                         sizeof(assigned_addresses[0])*(n)));
-        _FDT(fdt_setprop_cell(fdt, node_off, "interrupts",
-                              pci_get_byte(&config[PCI_INTERRUPT_PIN])));
-
-        ++devices;
     }
-
     /* Write interrupt map */
     _FDT(fdt_setprop(fdt, bus_off, "interrupt-map", &interrupt_map,
-                     devices * sizeof(interrupt_map[0])));
+                     7 * sizeof(interrupt_map[0])));
 
     return 0;
 }

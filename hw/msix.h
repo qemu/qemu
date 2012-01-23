@@ -29,6 +29,4 @@ void msix_notify(PCIDevice *dev, unsigned vector);
 
 void msix_reset(PCIDevice *dev);
 
-extern int msix_supported;
-
 #endif

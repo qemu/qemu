@@ -34,7 +34,7 @@
 #include "boards.h"
 #include "ide.h"
 #include "kvm.h"
-#include "kvmclock.h"
+#include "kvm/clock.h"
 #include "sysemu.h"
 #include "sysbus.h"
 #include "arch_init.h"
@@ -53,13 +53,62 @@ static const int ide_iobase[MAX_IDE_BUS] = { 0x1f0, 0x170 };
 static const int ide_iobase2[MAX_IDE_BUS] = { 0x3f6, 0x376 };
 static const int ide_irq[MAX_IDE_BUS] = { 14, 15 };
 
+static void kvm_piix3_setup_irq_routing(bool pci_enabled)
+{
+#ifdef CONFIG_KVM
+    KVMState *s = kvm_state;
+    int ret, i;
+
+    if (kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
+        for (i = 0; i < 8; ++i) {
+            if (i == 2) {
+                continue;
+            }
+            kvm_irqchip_add_route(s, i, KVM_IRQCHIP_PIC_MASTER, i);
+        }
+        for (i = 8; i < 16; ++i) {
+            kvm_irqchip_add_route(s, i, KVM_IRQCHIP_PIC_SLAVE, i - 8);
+        }
+        if (pci_enabled) {
+            for (i = 0; i < 24; ++i) {
+                if (i == 0) {
+                    kvm_irqchip_add_route(s, i, KVM_IRQCHIP_IOAPIC, 2);
+                } else if (i != 2) {
+                    kvm_irqchip_add_route(s, i, KVM_IRQCHIP_IOAPIC, i);
+                }
+            }
+        }
+        ret = kvm_irqchip_commit_routes(s);
+        if (ret < 0) {
+            hw_error("KVM IRQ routing setup failed");
+        }
+    }
+#endif /* CONFIG_KVM */
+}
+
+static void kvm_piix3_gsi_handler(void *opaque, int n, int level)
+{
+    GSIState *s = opaque;
+
+    if (n < ISA_NUM_IRQS) {
+        /* Kernel will forward to both PIC and IOAPIC */
+        qemu_set_irq(s->i8259_irq[n], level);
+    } else {
+        qemu_set_irq(s->ioapic_irq[n], level);
+    }
+}
+
 static void ioapic_init(GSIState *gsi_state)
 {
     DeviceState *dev;
     SysBusDevice *d;
     unsigned int i;
 
-    dev = qdev_create(NULL, "ioapic");
+    if (kvm_enabled() && kvm_irqchip_in_kernel()) {
+        dev = qdev_create(NULL, "kvm-ioapic");
+    } else {
+        dev = qdev_create(NULL, "ioapic");
+    }
     qdev_init_nofail(dev);
     d = sysbus_from_qdev(dev);
     sysbus_mmio_map(d, 0, 0xfec00000);
@@ -134,7 +183,13 @@ static void pc_init1(MemoryRegion *system_memory,
     }
 
     gsi_state = g_malloc0(sizeof(*gsi_state));
-    gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
+    if (kvm_enabled() && kvm_irqchip_in_kernel()) {
+        kvm_piix3_setup_irq_routing(pci_enabled);
+        gsi = qemu_allocate_irqs(kvm_piix3_gsi_handler, gsi_state,
+                                 GSI_NUM_PINS);
+    } else {
+        gsi = qemu_allocate_irqs(gsi_handler, gsi_state, GSI_NUM_PINS);
+    }
 
     if (pci_enabled) {
         pci_bus = i440fx_init(&i440fx_state, &piix3_devfn, &isa_bus, gsi,
@@ -154,11 +209,13 @@ static void pc_init1(MemoryRegion *system_memory,
     }
     isa_bus_irqs(isa_bus, gsi);
 
-    if (!xen_enabled()) {
+    if (kvm_enabled() && kvm_irqchip_in_kernel()) {
+        i8259 = kvm_i8259_init(isa_bus);
+    } else if (xen_enabled()) {
+        i8259 = xen_interrupt_controller_init();
+    } else {
         cpu_irq = pc_allocate_cpu_irq();
         i8259 = i8259_init(isa_bus, cpu_irq[0]);
-    } else {
-        i8259 = xen_interrupt_controller_init();
     }
 
     for (i = 0; i < ISA_NUM_IRQS; i++) {

@@ -30,6 +30,7 @@
 #include "hw/pc.h"
 #include "hw/apic.h"
 #include "ioport.h"
+#include "hyperv.h"
 
 //#define DEBUG_KVM
 
@@ -374,11 +375,16 @@ int kvm_arch_init_vcpu(CPUState *env)
     cpuid_i = 0;
 
     /* Paravirtualization CPUIDs */
-    memcpy(signature, "KVMKVMKVM\0\0\0", 12);
     c = &cpuid_data.entries[cpuid_i++];
     memset(c, 0, sizeof(*c));
     c->function = KVM_CPUID_SIGNATURE;
-    c->eax = 0;
+    if (!hyperv_enabled()) {
+        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+        c->eax = 0;
+    } else {
+        memcpy(signature, "Microsoft Hv", 12);
+        c->eax = HYPERV_CPUID_MIN;
+    }
     c->ebx = signature[0];
     c->ecx = signature[1];
     c->edx = signature[2];
@@ -388,6 +394,54 @@ int kvm_arch_init_vcpu(CPUState *env)
     c->function = KVM_CPUID_FEATURES;
     c->eax = env->cpuid_kvm_features &
         kvm_arch_get_supported_cpuid(s, KVM_CPUID_FEATURES, 0, R_EAX);
+
+    if (hyperv_enabled()) {
+        memcpy(signature, "Hv#1\0\0\0\0\0\0\0\0", 12);
+        c->eax = signature[0];
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = HYPERV_CPUID_VERSION;
+        c->eax = 0x00001bbc;
+        c->ebx = 0x00060001;
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = HYPERV_CPUID_FEATURES;
+        if (hyperv_relaxed_timing_enabled()) {
+            c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+        }
+        if (hyperv_vapic_recommended()) {
+            c->eax |= HV_X64_MSR_HYPERCALL_AVAILABLE;
+            c->eax |= HV_X64_MSR_APIC_ACCESS_AVAILABLE;
+        }
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = HYPERV_CPUID_ENLIGHTMENT_INFO;
+        if (hyperv_relaxed_timing_enabled()) {
+            c->eax |= HV_X64_RELAXED_TIMING_RECOMMENDED;
+        }
+        if (hyperv_vapic_recommended()) {
+            c->eax |= HV_X64_APIC_ACCESS_RECOMMENDED;
+        }
+        c->ebx = hyperv_get_spinlock_retries();
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = HYPERV_CPUID_IMPLEMENT_LIMITS;
+        c->eax = 0x40;
+        c->ebx = 0x40;
+
+        c = &cpuid_data.entries[cpuid_i++];
+        memset(c, 0, sizeof(*c));
+        c->function = KVM_CPUID_SIGNATURE_NEXT;
+        memcpy(signature, "KVMKVMKVM\0\0\0", 12);
+        c->eax = 0;
+        c->ebx = signature[0];
+        c->ecx = signature[1];
+        c->edx = signature[2];
+    }
 
     has_msr_async_pf_en = c->eax & (1 << KVM_FEATURE_ASYNC_PF);
 
@@ -936,6 +990,13 @@ static int kvm_put_msrs(CPUState *env, int level)
             kvm_msr_entry_set(&msrs[n++], MSR_KVM_ASYNC_PF_EN,
                               env->async_pf_en_msr);
         }
+        if (hyperv_hypercall_available()) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_GUEST_OS_ID, 0);
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_HYPERCALL, 0);
+        }
+        if (hyperv_vapic_recommended()) {
+            kvm_msr_entry_set(&msrs[n++], HV_X64_MSR_APIC_ASSIST_PAGE, 0);
+        }
     }
     if (env->mcg_cap) {
         int i;
@@ -1279,6 +1340,36 @@ static int kvm_get_mp_state(CPUState *env)
     return 0;
 }
 
+static int kvm_get_apic(CPUState *env)
+{
+    DeviceState *apic = env->apic_state;
+    struct kvm_lapic_state kapic;
+    int ret;
+
+    if (apic && kvm_enabled() && kvm_irqchip_in_kernel()) {
+        ret = kvm_vcpu_ioctl(env, KVM_GET_LAPIC, &kapic);
+        if (ret < 0) {
+            return ret;
+        }
+
+        kvm_get_apic_state(apic, &kapic);
+    }
+    return 0;
+}
+
+static int kvm_put_apic(CPUState *env)
+{
+    DeviceState *apic = env->apic_state;
+    struct kvm_lapic_state kapic;
+
+    if (apic && kvm_enabled() && kvm_irqchip_in_kernel()) {
+        kvm_put_apic_state(apic, &kapic);
+
+        return kvm_vcpu_ioctl(env, KVM_SET_LAPIC, &kapic);
+    }
+    return 0;
+}
+
 static int kvm_put_vcpu_events(CPUState *env, int level)
 {
     struct kvm_vcpu_events events;
@@ -1452,6 +1543,10 @@ int kvm_arch_put_registers(CPUState *env, int level)
         if (ret < 0) {
             return ret;
         }
+        ret = kvm_put_apic(env);
+        if (ret < 0) {
+            return ret;
+        }
     }
     ret = kvm_put_vcpu_events(env, level);
     if (ret < 0) {
@@ -1496,6 +1591,10 @@ int kvm_arch_get_registers(CPUState *env)
         return ret;
     }
     ret = kvm_get_mp_state(env);
+    if (ret < 0) {
+        return ret;
+    }
+    ret = kvm_get_apic(env);
     if (ret < 0) {
         return ret;
     }
@@ -1880,4 +1979,15 @@ bool kvm_arch_stop_on_emulation_error(CPUState *env)
 {
     return !(env->cr[0] & CR0_PE_MASK) ||
            ((env->segs[R_CS].selector  & 3) != 3);
+}
+
+void kvm_arch_init_irq_routing(KVMState *s)
+{
+    if (!kvm_check_extension(s, KVM_CAP_IRQ_ROUTING)) {
+        /* If kernel can't do irq routing, interrupt source
+         * override 0->2 cannot be set up as required by HPET.
+         * So we have to disable it.
+         */
+        no_hpet = 1;
+    }
 }

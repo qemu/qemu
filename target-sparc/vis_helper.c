@@ -459,7 +459,7 @@ uint32_t helper_fpackfix(uint64_t gsr, uint64_t rs2)
     return ret;
 }
 
-uint64 helper_bshuffle(uint64_t gsr, uint64_t src1, uint64_t src2)
+uint64_t helper_bshuffle(uint64_t gsr, uint64_t src1, uint64_t src2)
 {
     union {
         uint64_t ll[2];

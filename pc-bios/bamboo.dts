@@ -9,12 +9,14 @@
  * any warranty of any kind, whether express or implied.
  */
 
+/dts-v1/;
+
 / {
 	#address-cells = <2>;
 	#size-cells = <1>;
 	model = "amcc,bamboo";
 	compatible = "amcc,bamboo";
-	dcr-parent = <&/cpus/cpu@0>;
+	dcr-parent = <&{/cpus/cpu@0}>;
 
 	aliases {
 		serial0 = &UART0;
@@ -29,12 +31,12 @@
 			device_type = "cpu";
 			model = "PowerPC,440EP";
 			reg = <0>;
-			clock-frequency = <1fca0550>;
-			timebase-frequency = <017d7840>;
-			i-cache-line-size = <20>;
-			d-cache-line-size = <20>;
-			i-cache-size = <8000>;
-			d-cache-size = <8000>;
+			clock-frequency = <0x1fca0550>;
+			timebase-frequency = <0x017d7840>;
+			i-cache-line-size = <0x20>;
+			d-cache-line-size = <0x20>;
+			i-cache-size = <0x8000>;
+			d-cache-size = <0x8000>;
 			dcr-controller;
 			dcr-access-method = "native";
 		};
@@ -42,40 +44,27 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0 0 9000000>;
+		reg = <0x0 0x0 0x9000000>;
 	};
 
 	UIC0: interrupt-controller0 {
 		compatible = "ibm,uic-440ep","ibm,uic";
 		interrupt-controller;
-		cell-index = <0>;
-		dcr-reg = <0c0 009>;
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#interrupt-cells = <2>;
+		cell-index = <0x0>;
+		dcr-reg = <0x0c0 0x009>;
+		#address-cells = <0x0>;
+		#size-cells = <0x0>;
+		#interrupt-cells = <0x2>;
 	};
-/*
-	UIC1: interrupt-controller1 {
-		compatible = "ibm,uic-440ep","ibm,uic";
-		interrupt-controller;
-		cell-index = <1>;
-		dcr-reg = <0d0 009>;
-		#address-cells = <0>;
-		#size-cells = <0>;
-		#interrupt-cells = <2>;
-		interrupts = <1e 4 1f 4>;
-		interrupt-parent = <&UIC0>;
-	};
-*/
 
 	SDR0: sdr {
 		compatible = "ibm,sdr-440ep";
-		dcr-reg = <00e 002>;
+		dcr-reg = <0x00e 0x002>;
 	};
 
 	CPR0: cpr {
 		compatible = "ibm,cpr-440ep";
-		dcr-reg = <00c 002>;
+		dcr-reg = <0x00c 0x002>;
 	};
 
 	plb {
@@ -83,16 +72,16 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges;
-		clock-frequency = <07f28154>;
+		clock-frequency = <0x07f28154>;
 
 		SDRAM0: sdram {
 			compatible = "ibm,sdram-440ep", "ibm,sdram-405gp";
-			dcr-reg = <010 2>;
+			dcr-reg = <0x010 0x2>;
 		};
 
 		DMA0: dma {
 			compatible = "ibm,dma-440ep", "ibm,dma-440gp";
-			dcr-reg = <100 027>;
+			dcr-reg = <0x100 0x027>;
 		};
 
 		POB0: opb {
@@ -102,18 +91,18 @@
 			/* Bamboo is oddball in the 44x world and doesn't use the ERPN
 			 * bits.
 			 */
-			ranges = <00000000 0 00000000 80000000
-			          80000000 0 80000000 80000000>;
+			ranges = <0x00000000 0x0 0x00000000 0x80000000
+			          0x80000000 0x0 0x80000000 0x80000000>;
 			/* interrupt-parent = <&UIC1>; */
 			interrupts = <7 4>;
-			clock-frequency = <03f940aa>;
+			clock-frequency = <0x03f940aa>;
 
 			EBC0: ebc {
 				compatible = "ibm,ebc-440ep", "ibm,ebc-440gp", "ibm,ebc";
-				dcr-reg = <012 2>;
+				dcr-reg = <0x012 2>;
 				#address-cells = <2>;
 				#size-cells = <1>;
-				clock-frequency = <03f940aa>;
+				clock-frequency = <0x03f940aa>;
 				interrupts = <5 1>;
 			/* interrupt-parent = <&UIC1>; */
 			};
@@ -121,10 +110,10 @@
 			UART0: serial@ef600300 {
 				device_type = "serial";
 				compatible = "ns16550";
-				reg = <ef600300 8>;
-				virtual-reg = <ef600300>;
-				clock-frequency = <00a8c000>;
-				current-speed = <1c200>;
+				reg = <0xef600300 8>;
+				virtual-reg = <0xef600300>;
+				clock-frequency = <0x00a8c000>;
+				current-speed = <0x1c200>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0 4>;
 			};
@@ -132,41 +121,18 @@
 			UART1: serial@ef600400 {
 				device_type = "serial";
 				compatible = "ns16550";
-				reg = <ef600400 8>;
-				virtual-reg = <ef600400>;
-				clock-frequency = <00a8c000>;
+				reg = <0xef600400 8>;
+				virtual-reg = <0xef600400>;
+				clock-frequency = <0x00a8c000>;
 				current-speed = <0>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <1 4>;
 			};
-/*
-			UART2: serial@ef600500 {
-				device_type = "serial";
-				compatible = "ns16550";
-				reg = <ef600500 8>;
-				virtual-reg = <ef600500>;
-				clock-frequency = <0>;
-				current-speed = <0>;
-				interrupt-parent = <&UIC0>;
-				interrupts = <3 4>;
-			};
 
-			UART3: serial@ef600600 {
-				device_type = "serial";
-				compatible = "ns16550";
-				reg = <ef600600 8>;
-				virtual-reg = <ef600600>;
-				clock-frequency = <0>;
-				current-speed = <0>;
-				interrupt-parent = <&UIC0>;
-				interrupts = <4 4>;
-			};
-
-*/
 			IIC0: i2c@ef600700 {
 				device_type = "i2c";
 				compatible = "ibm,iic-440ep", "ibm,iic-440gp", "ibm,iic";
-				reg = <ef600700 14>;
+				reg = <0xef600700 0x14>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <2 4>;
 			};
@@ -174,7 +140,7 @@
 			IIC1: i2c@ef600800 {
 				device_type = "i2c";
 				compatible = "ibm,iic-440ep", "ibm,iic-440gp", "ibm,iic";
-				reg = <ef600800 14>;
+				reg = <0xef600800 14>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <7 4>;
 			};
@@ -182,7 +148,7 @@
 			ZMII0: emac-zmii@ef600d00 {
 				device_type = "zmii-interface";
 				compatible = "ibm,zmii-440ep", "ibm,zmii-440gp", "ibm,zmii";
-				reg = <ef600d00 c>;
+				reg = <0xef600d00 0xc>;
 			};
 
 		};
@@ -194,35 +160,35 @@
 			#address-cells = <3>;
 			compatible = "ibm,plb440ep-pci", "ibm,plb-pci";
 			primary;
-			reg = <0 eec00000 8     /* Config space access */
-			       0 eed00000 4     /* IACK */
-			       0 eed00000 4     /* Special cycle */
-			       0 ef400000 40>;  /* Internal registers */
+			reg = <0 0xeec00000 8     /* Config space access */
+			       0 0xeed00000 4     /* IACK */
+			       0 0xeed00000 4     /* Special cycle */
+			       0 0xef400000 0x40>;  /* Internal registers */
 
 			/* Outbound ranges, one memory and one IO,
 			 * later cannot be changed. Chip supports a second
 			 * IO range but we don't use it for now
 			 */
-			ranges = <02000000 0 a0000000 0 a0000000 0 20000000
-				  01000000 0 00000000 0 e8000000 0 00010000>;
+			ranges = <0x02000000 0 0xa0000000 0 0xa0000000 0 0x20000000
+				  0x01000000 0 0x00000000 0 0xe8000000 0 0x00010000>;
 
 			/* Inbound 2GB range starting at 0 */
-			dma-ranges = <42000000 0 0 0 0 0 80000000>;
+			dma-ranges = <0x42000000 0 0 0 0 0 0x80000000>;
 
 			/* Bamboo has all 4 IRQ pins tied together per slot */
-			interrupt-map-mask = <f800 0 0 0>;
+			interrupt-map-mask = <0xf800 0 0 0>;
 			interrupt-map = <
 				/* IDSEL 1 */
-				0800 0 0 0 &UIC0 1c 8
+				0x0800 0 0 0 &UIC0 0x1c 8
 
 				/* IDSEL 2 */
-				1000 0 0 0 &UIC0 1b 8
+				0x1000 0 0 0 &UIC0 0x1b 8
 
 				/* IDSEL 3 */
-				1800 0 0 0 &UIC0 1a 8
+				0x1800 0 0 0 &UIC0 0x1a 8
 
 				/* IDSEL 4 */
-				2000 0 0 0 &UIC0 19 8
+				0x2000 0 0 0 &UIC0 0x19 8
 			>;
 		};
 

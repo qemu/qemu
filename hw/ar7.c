@@ -4289,7 +4289,6 @@ static void ar7_machine_init(void)
     for (i = 0; i < ARRAY_SIZE(ar7_machines); i++) {
         QEMUMachine *machine = &ar7_machines[i];
         machine->max_cpus = 1;
-        machine->no_vga = true;
         qemu_register_machine(machine);
     }
 }

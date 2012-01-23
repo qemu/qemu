@@ -42,6 +42,10 @@ qemu-ga
 qemu-monitor.texi
 QMP/qmp-commands.txt
 test-coroutine
+test-qmp-input-visitor
+test-qmp-output-visitor
+fsdev/virtfs-proxy-helper.1
+fsdev/virtfs-proxy-helper.pod
 .gdbinit
 *.a
 *.aux

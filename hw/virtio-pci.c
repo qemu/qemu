@@ -91,6 +91,9 @@
  */
 #define wmb() do { } while (0)
 
+/* HACK for virtio to determine if it's running a big endian guest */
+bool virtio_is_big_endian(void);
+
 /* virtio device */
 
 static void virtio_pci_notify(void *opaque, uint16_t vector)
@@ -414,20 +417,35 @@ static uint32_t virtio_pci_config_readw(void *opaque, uint32_t addr)
 {
     VirtIOPCIProxy *proxy = opaque;
     uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
+    uint16_t val;
     if (addr < config)
         return virtio_ioport_read(proxy, addr);
     addr -= config;
-    return virtio_config_readw(proxy->vdev, addr);
+    val = virtio_config_readw(proxy->vdev, addr);
+    if (virtio_is_big_endian()) {
+        /*
+         * virtio is odd, ioports are LE but config space is target native
+         * endian. However, in qemu, all PIO is LE, so we need to re-swap
+         * on BE targets
+         */
+        val = bswap16(val);
+    }
+    return val;
 }
 
 static uint32_t virtio_pci_config_readl(void *opaque, uint32_t addr)
 {
     VirtIOPCIProxy *proxy = opaque;
     uint32_t config = VIRTIO_PCI_CONFIG(&proxy->pci_dev);
+    uint32_t val;
     if (addr < config)
         return virtio_ioport_read(proxy, addr);
     addr -= config;
-    return virtio_config_readl(proxy->vdev, addr);
+    val = virtio_config_readl(proxy->vdev, addr);
+    if (virtio_is_big_endian()) {
+        val = bswap32(val);
+    }
+    return val;
 }
 
 static void virtio_pci_config_writeb(void *opaque, uint32_t addr, uint32_t val)
@@ -451,6 +469,9 @@ static void virtio_pci_config_writew(void *opaque, uint32_t addr, uint32_t val)
         return;
     }
     addr -= config;
+    if (virtio_is_big_endian()) {
+        val = bswap16(val);
+    }
     virtio_config_writew(proxy->vdev, addr, val);
 }
 
@@ -463,6 +484,9 @@ static void virtio_pci_config_writel(void *opaque, uint32_t addr, uint32_t val)
         return;
     }
     addr -= config;
+    if (virtio_is_big_endian()) {
+        val = bswap32(val);
+    }
     virtio_config_writel(proxy->vdev, addr, val);
 }
 

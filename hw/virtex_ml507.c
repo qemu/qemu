@@ -38,7 +38,6 @@
 
 #include "ppc.h"
 #include "ppc4xx.h"
-#include "ppc440.h"
 #include "ppc405.h"
 
 #include "blockdev.h"

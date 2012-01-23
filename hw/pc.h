@@ -66,11 +66,11 @@ bool parallel_mm_init(MemoryRegion *address_space,
 
 /* i8259.c */
 
-typedef struct PicState PicState;
-extern PicState *isa_pic;
+extern DeviceState *isa_pic;
 qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq);
-int pic_read_irq(PicState *s);
-int pic_get_output(PicState *s);
+qemu_irq *kvm_i8259_init(ISABus *bus);
+int pic_read_irq(DeviceState *d);
+int pic_get_output(DeviceState *d);
 void pic_info(Monitor *mon);
 void irq_info(Monitor *mon);
 
@@ -230,7 +230,6 @@ int isa_vga_mm_init(target_phys_addr_t vram_base,
 
 /* cirrus_vga.c */
 DeviceState *pci_cirrus_vga_init(PCIBus *bus);
-DeviceState *isa_cirrus_vga_init(MemoryRegion *address_space);
 
 /* ne2000.c */
 static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)
