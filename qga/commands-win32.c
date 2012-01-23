@@ -15,9 +15,48 @@
 #include "qga-qmp-commands.h"
 #include "qerror.h"
 
+#ifndef SHTDN_REASON_FLAG_PLANNED
+#define SHTDN_REASON_FLAG_PLANNED 0x80000000
+#endif
+
 void qmp_guest_shutdown(bool has_mode, const char *mode, Error **err)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    HANDLE token;
+    TOKEN_PRIVILEGES priv;
+    UINT shutdown_flag = EWX_FORCE;
+
+    slog("guest-shutdown called, mode: %s", mode);
+
+    if (!has_mode || strcmp(mode, "powerdown") == 0) {
+        shutdown_flag |= EWX_POWEROFF;
+    } else if (strcmp(mode, "halt") == 0) {
+        shutdown_flag |= EWX_SHUTDOWN;
+    } else if (strcmp(mode, "reboot") == 0) {
+        shutdown_flag |= EWX_REBOOT;
+    } else {
+        error_set(err, QERR_INVALID_PARAMETER_VALUE, "mode",
+                  "halt|powerdown|reboot");
+        return;
+    }
+
+    /* Request a shutdown privilege, but try to shut down the system
+       anyway. */
+    if (OpenProcessToken(GetCurrentProcess(),
+        TOKEN_ADJUST_PRIVILEGES|TOKEN_QUERY, &token))
+    {
+        LookupPrivilegeValue(NULL, SE_SHUTDOWN_NAME,
+            &priv.Privileges[0].Luid);
+
+        priv.PrivilegeCount = 1;
+        priv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+        AdjustTokenPrivileges(token, FALSE, &priv, 0, NULL, 0);
+    }
+
+    if (!ExitWindowsEx(shutdown_flag, SHTDN_REASON_FLAG_PLANNED)) {
+        slog("guest-shutdown failed: %d", GetLastError());
+        error_set(err, QERR_UNDEFINED_ERROR);
+    }
 }
 
 int64_t qmp_guest_file_open(const char *path, bool has_mode, const char *mode, Error **err)
