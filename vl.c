@@ -201,7 +201,6 @@ CharDriverState *serial_hds[MAX_SERIAL_PORTS];
 CharDriverState *parallel_hds[MAX_PARALLEL_PORTS];
 CharDriverState *virtcon_hds[MAX_VIRTIO_CONSOLES];
 int win2k_install_hack = 0;
-int rtc_td_hack = 0;
 int usb_enabled = 0;
 int singlestep = 0;
 int smp_cpus = 1;
@@ -540,9 +539,18 @@ static void configure_rtc(QemuOpts *opts)
     value = qemu_opt_get(opts, "driftfix");
     if (value) {
         if (!strcmp(value, "slew")) {
-            rtc_td_hack = 1;
+            static GlobalProperty slew_lost_ticks[] = {
+                {
+                    .driver   = "mc146818rtc",
+                    .property = "lost_tick_policy",
+                    .value    = "slew",
+                },
+                { /* end of list */ }
+            };
+
+            qdev_prop_register_global_list(slew_lost_ticks);
         } else if (!strcmp(value, "none")) {
-            rtc_td_hack = 0;
+            /* discard is default */
         } else {
             fprintf(stderr, "qemu: invalid option value '%s'\n", value);
             exit(1);
@@ -2836,9 +2844,19 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_win2k_hack:
                 win2k_install_hack = 1;
                 break;
-            case QEMU_OPTION_rtc_td_hack:
-                rtc_td_hack = 1;
+            case QEMU_OPTION_rtc_td_hack: {
+                static GlobalProperty slew_lost_ticks[] = {
+                    {
+                        .driver   = "mc146818rtc",
+                        .property = "lost_tick_policy",
+                        .value    = "slew",
+                    },
+                    { /* end of list */ }
+                };
+
+                qdev_prop_register_global_list(slew_lost_ticks);
                 break;
+            }
             case QEMU_OPTION_acpitable:
                 do_acpitable_option(optarg);
                 break;
