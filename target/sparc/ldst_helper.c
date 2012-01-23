@@ -1664,14 +1664,25 @@ void sparc_cpu_unassigned_access(CPUState *cs, hwaddr addr,
 {
     SPARCCPU *cpu = SPARC_CPU(cs);
     CPUSPARCState *env = &cpu->env;
-    int tt = is_exec ? TT_CODE_ACCESS : TT_DATA_ACCESS;
 
 #ifdef DEBUG_UNASSIGNED
     printf("Unassigned mem access to " TARGET_FMT_plx " from " TARGET_FMT_lx
            "\n", addr, env->pc);
 #endif
 
-    cpu_raise_exception_ra(env, tt, GETPC());
+    if (is_exec) { /* XXX has_hypervisor */
+        if (env->lsu & (IMMU_E)) {
+            cpu_raise_exception_ra(env, TT_CODE_ACCESS, GETPC());
+        } else if (cpu_has_hypervisor(env) && !(env->hpstate & HS_PRIV)) {
+            cpu_raise_exception_ra(env, TT_INSN_REAL_TRANSLATION_MISS, GETPC());
+        }
+    } else {
+        if (env->lsu & (DMMU_E)) {
+            cpu_raise_exception_ra(env, TT_DATA_ACCESS, GETPC());
+        } else if (cpu_has_hypervisor(env) && !(env->hpstate & HS_PRIV)) {
+            cpu_raise_exception_ra(env, TT_DATA_REAL_TRANSLATION_MISS, GETPC());
+        }
+    }
 }
 #endif
 #endif

@@ -68,6 +68,8 @@
 #define TT_DATA_ACCESS 0x32
 #define TT_UNALIGNED 0x34
 #define TT_PRIV_ACT 0x37
+#define TT_INSN_REAL_TRANSLATION_MISS 0x3e
+#define TT_DATA_REAL_TRANSLATION_MISS 0x3f
 #define TT_EXTINT   0x40
 #define TT_IVEC     0x60
 #define TT_TMISS    0x64
