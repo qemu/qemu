@@ -531,6 +531,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "accel",
             .type = QEMU_OPT_STRING,
             .help = "accelerator list",
+        }, {
+            .name = "kernel_irqchip",
+            .type = QEMU_OPT_BOOL,
+            .help = "use KVM in-kernel irqchip",
         },
         { /* End of list */ }
     },

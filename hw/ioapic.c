@@ -24,9 +24,7 @@
 #include "pc.h"
 #include "apic.h"
 #include "ioapic.h"
-#include "qemu-timer.h"
-#include "host-utils.h"
-#include "sysbus.h"
+#include "ioapic_internal.h"
 
 //#define DEBUG_IOAPIC
 
@@ -37,65 +35,9 @@
 #define DPRINTF(fmt, ...)
 #endif
 
-#define MAX_IOAPICS                     1
+static IOAPICCommonState *ioapics[MAX_IOAPICS];
 
-#define IOAPIC_VERSION                  0x11
-
-#define IOAPIC_LVT_DEST_SHIFT           56
-#define IOAPIC_LVT_MASKED_SHIFT         16
-#define IOAPIC_LVT_TRIGGER_MODE_SHIFT   15
-#define IOAPIC_LVT_REMOTE_IRR_SHIFT     14
-#define IOAPIC_LVT_POLARITY_SHIFT       13
-#define IOAPIC_LVT_DELIV_STATUS_SHIFT   12
-#define IOAPIC_LVT_DEST_MODE_SHIFT      11
-#define IOAPIC_LVT_DELIV_MODE_SHIFT     8
-
-#define IOAPIC_LVT_MASKED               (1 << IOAPIC_LVT_MASKED_SHIFT)
-#define IOAPIC_LVT_REMOTE_IRR           (1 << IOAPIC_LVT_REMOTE_IRR_SHIFT)
-
-#define IOAPIC_TRIGGER_EDGE             0
-#define IOAPIC_TRIGGER_LEVEL            1
-
-/*io{apic,sapic} delivery mode*/
-#define IOAPIC_DM_FIXED                 0x0
-#define IOAPIC_DM_LOWEST_PRIORITY       0x1
-#define IOAPIC_DM_PMI                   0x2
-#define IOAPIC_DM_NMI                   0x4
-#define IOAPIC_DM_INIT                  0x5
-#define IOAPIC_DM_SIPI                  0x6
-#define IOAPIC_DM_EXTINT                0x7
-#define IOAPIC_DM_MASK                  0x7
-
-#define IOAPIC_VECTOR_MASK              0xff
-
-#define IOAPIC_IOREGSEL                 0x00
-#define IOAPIC_IOWIN                    0x10
-
-#define IOAPIC_REG_ID                   0x00
-#define IOAPIC_REG_VER                  0x01
-#define IOAPIC_REG_ARB                  0x02
-#define IOAPIC_REG_REDTBL_BASE          0x10
-#define IOAPIC_ID                       0x00
-
-#define IOAPIC_ID_SHIFT                 24
-#define IOAPIC_ID_MASK                  0xf
-
-#define IOAPIC_VER_ENTRIES_SHIFT        16
-
-typedef struct IOAPICState IOAPICState;
-
-struct IOAPICState {
-    SysBusDevice busdev;
-    MemoryRegion io_memory;
-    uint8_t id;
-    uint8_t ioregsel;
-    uint32_t irr;
-    uint64_t ioredtbl[IOAPIC_NUM_PINS];
-};
-
-static IOAPICState *ioapics[MAX_IOAPICS];
-
-static void ioapic_service(IOAPICState *s)
+static void ioapic_service(IOAPICCommonState *s)
 {
     uint8_t i;
     uint8_t trig_mode;
@@ -135,7 +77,7 @@ static void ioapic_service(IOAPICState *s)
 
 static void ioapic_set_irq(void *opaque, int vector, int level)
 {
-    IOAPICState *s = opaque;
+    IOAPICCommonState *s = opaque;
 
     /* ISA IRQs map to GSI 1-1 except for IRQ0 which maps
      * to GSI 2.  GSI maps to ioapic 1-1.  This is not
@@ -174,7 +116,7 @@ static void ioapic_set_irq(void *opaque, int vector, int level)
 
 void ioapic_eoi_broadcast(int vector)
 {
-    IOAPICState *s;
+    IOAPICCommonState *s;
     uint64_t entry;
     int i, n;
 
@@ -199,7 +141,7 @@ void ioapic_eoi_broadcast(int vector)
 static uint64_t
 ioapic_mem_read(void *opaque, target_phys_addr_t addr, unsigned int size)
 {
-    IOAPICState *s = opaque;
+    IOAPICCommonState *s = opaque;
     int index;
     uint32_t val = 0;
 
@@ -242,7 +184,7 @@ static void
 ioapic_mem_write(void *opaque, target_phys_addr_t addr, uint64_t val,
                  unsigned int size)
 {
-    IOAPICState *s = opaque;
+    IOAPICCommonState *s = opaque;
     int index;
 
     switch (addr & 0xff) {
@@ -278,83 +220,31 @@ ioapic_mem_write(void *opaque, target_phys_addr_t addr, uint64_t val,
     }
 }
 
-static int ioapic_post_load(void *opaque, int version_id)
-{
-    IOAPICState *s = opaque;
-
-    if (version_id == 1) {
-        /* set sane value */
-        s->irr = 0;
-    }
-    return 0;
-}
-
-static const VMStateDescription vmstate_ioapic = {
-    .name = "ioapic",
-    .version_id = 3,
-    .post_load = ioapic_post_load,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT8(id, IOAPICState),
-        VMSTATE_UINT8(ioregsel, IOAPICState),
-        VMSTATE_UNUSED_V(2, 8), /* to account for qemu-kvm's v2 format */
-        VMSTATE_UINT32_V(irr, IOAPICState, 2),
-        VMSTATE_UINT64_ARRAY(ioredtbl, IOAPICState, IOAPIC_NUM_PINS),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static void ioapic_reset(DeviceState *d)
-{
-    IOAPICState *s = DO_UPCAST(IOAPICState, busdev.qdev, d);
-    int i;
-
-    s->id = 0;
-    s->ioregsel = 0;
-    s->irr = 0;
-    for (i = 0; i < IOAPIC_NUM_PINS; i++) {
-        s->ioredtbl[i] = 1 << IOAPIC_LVT_MASKED_SHIFT;
-    }
-}
-
 static const MemoryRegionOps ioapic_io_ops = {
     .read = ioapic_mem_read,
     .write = ioapic_mem_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static int ioapic_init1(SysBusDevice *dev)
+static void ioapic_init(IOAPICCommonState *s, int instance_no)
 {
-    IOAPICState *s = FROM_SYSBUS(IOAPICState, dev);
-    static int ioapic_no;
-
-    if (ioapic_no >= MAX_IOAPICS) {
-        return -1;
-    }
-
     memory_region_init_io(&s->io_memory, &ioapic_io_ops, s, "ioapic", 0x1000);
-    sysbus_init_mmio(dev, &s->io_memory);
 
-    qdev_init_gpio_in(&dev->qdev, ioapic_set_irq, IOAPIC_NUM_PINS);
+    qdev_init_gpio_in(&s->busdev.qdev, ioapic_set_irq, IOAPIC_NUM_PINS);
 
-    ioapics[ioapic_no++] = s;
-
-    return 0;
+    ioapics[instance_no] = s;
 }
 
-static SysBusDeviceInfo ioapic_info = {
-    .init = ioapic_init1,
-    .qdev.name = "ioapic",
-    .qdev.size = sizeof(IOAPICState),
-    .qdev.vmsd = &vmstate_ioapic,
-    .qdev.reset = ioapic_reset,
-    .qdev.no_user = 1,
+static IOAPICCommonInfo ioapic_info = {
+    .busdev.qdev.name = "ioapic",
+    .busdev.qdev.size = sizeof(IOAPICCommonState),
+    .busdev.qdev.reset = ioapic_reset_common,
+    .init = ioapic_init,
 };
 
 static void ioapic_register_devices(void)
 {
-    sysbus_register_withprop(&ioapic_info);
+    ioapic_qdev_register(&ioapic_info);
 }
 
 device_init(ioapic_register_devices)

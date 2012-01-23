@@ -201,6 +201,8 @@ obj-$(CONFIG_VGA_CIRRUS) += cirrus_vga.o
 obj-y += memory.o savevm.o
 LIBS+=-lz
 
+obj-i386-y +=hyperv.o
+
 QEMU_CFLAGS += $(VNC_TLS_CFLAGS)
 QEMU_CFLAGS += $(VNC_SASL_CFLAGS)
 QEMU_CFLAGS += $(VNC_JPEG_CFLAGS)
@@ -227,12 +229,12 @@ obj-y += device-hotplug.o
 
 # Hardware support
 obj-i386-y += mc146818rtc.o pc.o
-obj-i386-y += sga.o apic.o ioapic.o piix_pci.o
+obj-i386-y += sga.o apic_common.o apic.o ioapic_common.o ioapic.o piix_pci.o
 obj-i386-y += vmport.o
 obj-i386-y += pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
 obj-i386-y += pc_piix.o
-obj-i386-$(CONFIG_KVM) += kvmclock.o
+obj-i386-$(CONFIG_KVM) += kvm/clock.o kvm/apic.o kvm/i8259.o kvm/ioapic.o
 obj-i386-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 
 # shared objects
@@ -417,7 +419,7 @@ qmp-commands-old.h: $(SRC_PATH)/qmp-commands.hx
 
 clean:
 	rm -f *.o *.a *~ $(PROGS) nwfpe/*.o fpu/*.o
-	rm -f *.d */*.d tcg/*.o ide/*.o 9pfs/*.o
+	rm -f *.d */*.d tcg/*.o ide/*.o 9pfs/*.o kvm/*.o
 	rm -f hmp-commands.h qmp-commands-old.h gdbstub-xml.c
 ifdef CONFIG_TRACE_SYSTEMTAP
 	rm -f *.stp

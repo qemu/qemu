@@ -31,7 +31,8 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "-machine [type=]name[,prop[=value][,...]]\n"
     "                selects emulated machine (-machine ? for list)\n"
     "                property accel=accel1[:accel2[:...]] selects accelerator\n"
-    "                supported accelerators are kvm, xen, tcg (default: tcg)\n",
+    "                supported accelerators are kvm, xen, tcg (default: tcg)\n"
+    "                kernel_irqchip=on|off controls accelerated irqchip support\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
@@ -44,6 +45,8 @@ This is used to enable an accelerator. Depending on the target architecture,
 kvm, xen, or tcg can be available. By default, tcg is used. If there is more
 than one accelerator specified, the next one is used if the previous one fails
 to initialize.
+@item kernel_irqchip=on|off
+Enables in-kernel irqchip support for the chosen accelerator when available.
 @end table
 ETEXI
 
