@@ -885,6 +885,55 @@ PropertyInfo qdev_prop_macaddr = {
     .set   = set_generic,
 };
 
+
+/* --- lost tick policy --- */
+
+static const struct {
+    const char *name;
+    LostTickPolicy code;
+} lost_tick_policy_table[] = {
+    { .name = "discard", .code = LOST_TICK_DISCARD },
+    { .name = "delay", .code = LOST_TICK_DELAY },
+    { .name = "merge", .code = LOST_TICK_MERGE },
+    { .name = "slew", .code = LOST_TICK_SLEW },
+};
+
+static int parse_lost_tick_policy(DeviceState *dev, Property *prop,
+                                  const char *str)
+{
+    LostTickPolicy *ptr = qdev_get_prop_ptr(dev, prop);
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(lost_tick_policy_table); i++) {
+        if (!strcasecmp(str, lost_tick_policy_table[i].name)) {
+            *ptr = lost_tick_policy_table[i].code;
+            break;
+        }
+    }
+    if (i == ARRAY_SIZE(lost_tick_policy_table)) {
+        return -EINVAL;
+    }
+    return 0;
+}
+
+static int print_lost_tick_policy(DeviceState *dev, Property *prop, char *dest,
+                                  size_t len)
+{
+    LostTickPolicy *ptr = qdev_get_prop_ptr(dev, prop);
+
+    return snprintf(dest, len, "%s", lost_tick_policy_table[*ptr].name);
+}
+
+PropertyInfo qdev_prop_losttickpolicy = {
+    .name  = "lost_tick_policy",
+    .type  = PROP_TYPE_LOSTTICKPOLICY,
+    .size  = sizeof(LostTickPolicy),
+    .parse = parse_lost_tick_policy,
+    .print = print_lost_tick_policy,
+    .get   = get_generic,
+    .set   = set_generic,
+};
+
 /* --- pci address --- */
 
 /*
@@ -1125,6 +1174,12 @@ void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value)
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)
 {
     qdev_prop_set(dev, name, value, PROP_TYPE_MACADDR);
+}
+
+void qdev_prop_set_losttickpolicy(DeviceState *dev, const char *name,
+                                  LostTickPolicy *value)
+{
+    qdev_prop_set(dev, name, value, PROP_TYPE_LOSTTICKPOLICY);
 }
 
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)

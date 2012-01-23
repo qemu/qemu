@@ -158,6 +158,7 @@ enum PropertyType {
     PROP_TYPE_UINT64,
     PROP_TYPE_TADDR,
     PROP_TYPE_MACADDR,
+    PROP_TYPE_LOSTTICKPOLICY,
     PROP_TYPE_DRIVE,
     PROP_TYPE_CHR,
     PROP_TYPE_STRING,
@@ -307,6 +308,7 @@ extern PropertyInfo qdev_prop_string;
 extern PropertyInfo qdev_prop_chr;
 extern PropertyInfo qdev_prop_ptr;
 extern PropertyInfo qdev_prop_macaddr;
+extern PropertyInfo qdev_prop_losttickpolicy;
 extern PropertyInfo qdev_prop_drive;
 extern PropertyInfo qdev_prop_netdev;
 extern PropertyInfo qdev_prop_vlan;
@@ -367,6 +369,9 @@ extern PropertyInfo qdev_prop_pci_devfn;
     DEFINE_PROP(_n, _s, _f, qdev_prop_drive, BlockDriverState *)
 #define DEFINE_PROP_MACADDR(_n, _s, _f)         \
     DEFINE_PROP(_n, _s, _f, qdev_prop_macaddr, MACAddr)
+#define DEFINE_PROP_LOSTTICKPOLICY(_n, _s, _f, _d) \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_losttickpolicy, \
+                        LostTickPolicy)
 
 #define DEFINE_PROP_END_OF_LIST()               \
     {}
@@ -389,6 +394,8 @@ void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value);
 int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value) QEMU_WARN_UNUSED_RESULT;
 void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name, BlockDriverState *value);
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
+void qdev_prop_set_losttickpolicy(DeviceState *dev, const char *name,
+                                  LostTickPolicy *value);
 /* FIXME: Remove opaque pointer properties.  */
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_prop_set_defaults(DeviceState *dev, Property *props);
