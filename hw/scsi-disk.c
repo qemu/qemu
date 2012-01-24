@@ -391,9 +391,6 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             }
 
             l = strlen(s->serial);
-            if (l > req->cmd.xfer) {
-                l = req->cmd.xfer;
-            }
             if (l > 20) {
                 l = 20;
             }
@@ -1002,9 +999,6 @@ static int scsi_disk_emulate_mode_sense(SCSIDiskReq *r, uint8_t *outbuf)
         outbuf[0] = ((buflen - 2) >> 8) & 0xff;
         outbuf[1] = (buflen - 2) & 0xff;
     }
-    if (buflen > r->req.cmd.xfer) {
-        buflen = r->req.cmd.xfer;
-    }
     return buflen;
 }
 
@@ -1037,9 +1031,6 @@ static int scsi_disk_emulate_read_toc(SCSIRequest *req, uint8_t *outbuf)
         break;
     default:
         return -1;
-    }
-    if (toclen > req->cmd.xfer) {
-        toclen = req->cmd.xfer;
     }
     return toclen;
 }
@@ -1251,6 +1242,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
         return -1;
     }
+    buflen = MIN(buflen, req->cmd.xfer);
     return buflen;
 
 not_ready:
