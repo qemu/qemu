@@ -688,7 +688,6 @@ static void pcnet_s_reset(PCNetState *s)
     printf("pcnet_s_reset\n");
 #endif
 
-    s->lnkst = 0x40;
     s->rdra = 0;
     s->tdra = 0;
     s->rap = 0;
@@ -1750,6 +1749,8 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
         checksum += s->prom[i];
     }
     *(uint16_t *)&s->prom[12] = cpu_to_le16(checksum);
+
+    s->lnkst = 0x40; /* initial link state: up */
 
     return 0;
 }
