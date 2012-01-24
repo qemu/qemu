@@ -766,6 +766,10 @@ for opt do
   ;;
   --enable-rbd) rbd="yes"
   ;;
+  --disable-xfsctl) xfs="no"
+  ;;
+  --enable-xfsctl) xfs="yes"
+  ;;
   --disable-smartcard) smartcard="no"
   ;;
   --enable-smartcard) smartcard="yes"
