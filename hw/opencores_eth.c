@@ -727,16 +727,25 @@ static void qdev_open_eth_reset(DeviceState *dev)
     open_eth_reset(d);
 }
 
-static SysBusDeviceInfo open_eth_info = {
-    .qdev.name  = "open_eth",
-    .qdev.desc  = "Opencores 10/100 Mbit Ethernet",
-    .qdev.size  = sizeof(OpenEthState),
-    .qdev.reset = qdev_open_eth_reset,
-    .init       = sysbus_open_eth_init,
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(OpenEthState, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property open_eth_properties[] = {
+    DEFINE_NIC_PROPERTIES(OpenEthState, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void open_eth_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = sysbus_open_eth_init;
+}
+
+static DeviceInfo open_eth_info = {
+    .name = "open_eth",
+    .desc = "Opencores 10/100 Mbit Ethernet",
+    .size = sizeof(OpenEthState),
+    .reset = qdev_open_eth_reset,
+    .props = open_eth_properties,
+    .class_init = open_eth_class_init,
 };
 
 static void open_eth_register_devices(void)

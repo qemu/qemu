@@ -151,15 +151,24 @@ static int cs4231_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo cs4231_info = {
-    .init = cs4231_init1,
-    .qdev.name  = "SUNW,CS4231",
-    .qdev.size  = sizeof(CSState),
-    .qdev.vmsd  = &vmstate_cs4231,
-    .qdev.reset = cs_reset,
-    .qdev.props = (Property[]) {
-        {.name = NULL}
-    }
+static Property cs4231_properties[] = {
+    {.name = NULL},
+};
+
+static void cs4231_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = cs4231_init1;
+}
+
+static DeviceInfo cs4231_info = {
+    .name = "SUNW,CS4231",
+    .size = sizeof(CSState),
+    .vmsd = &vmstate_cs4231,
+    .reset = cs_reset,
+    .props = cs4231_properties,
+    .class_init = cs4231_class_init,
 };
 
 static void cs4231_register_devices(void)

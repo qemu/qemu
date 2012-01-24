@@ -283,17 +283,26 @@ static int sparc32_dma_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo sparc32_dma_info = {
-    .init = sparc32_dma_init1,
-    .qdev.name  = "sparc32_dma",
-    .qdev.size  = sizeof(DMAState),
-    .qdev.vmsd  = &vmstate_dma,
-    .qdev.reset = dma_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_PTR("iommu_opaque", DMAState, iommu),
-        DEFINE_PROP_UINT32("is_ledma", DMAState, is_ledma, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property sparc32_dma_properties[] = {
+    DEFINE_PROP_PTR("iommu_opaque", DMAState, iommu),
+    DEFINE_PROP_UINT32("is_ledma", DMAState, is_ledma, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void sparc32_dma_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = sparc32_dma_init1;
+}
+
+static DeviceInfo sparc32_dma_info = {
+    .name = "sparc32_dma",
+    .size = sizeof(DMAState),
+    .vmsd = &vmstate_dma,
+    .reset = dma_reset,
+    .props = sparc32_dma_properties,
+    .class_init = sparc32_dma_class_init,
 };
 
 static void sparc32_dma_register_devices(void)

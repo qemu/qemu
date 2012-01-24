@@ -25,35 +25,40 @@ static int apic_irq_delivered;
 
 void cpu_set_apic_base(DeviceState *d, uint64_t val)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
-    APICCommonInfo *info;
-
     trace_cpu_set_apic_base(val);
 
-    if (s) {
-        info = DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
+    if (d) {
+        APICCommonState *s = APIC_COMMON(d);
+        APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
         info->set_base(s, val);
     }
 }
 
 uint64_t cpu_get_apic_base(DeviceState *d)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
-
-    trace_cpu_get_apic_base(s ? (uint64_t)s->apicbase : 0);
-
-    return s ? s->apicbase : 0;
+    if (d) {
+        APICCommonState *s = APIC_COMMON(d);
+        trace_cpu_get_apic_base((uint64_t)s->apicbase);
+        return s->apicbase;
+    } else {
+        trace_cpu_get_apic_base(0);
+        return 0;
+    }
 }
 
 void cpu_set_apic_tpr(DeviceState *d, uint8_t val)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
-    APICCommonInfo *info;
+    APICCommonState *s;
+    APICCommonClass *info;
 
-    if (s) {
-        info = DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
-        info->set_tpr(s, val);
+    if (!d) {
+        return;
     }
+
+    s = APIC_COMMON(d);
+    info = APIC_COMMON_GET_CLASS(s);
+
+    info->set_tpr(s, val);
 }
 
 uint8_t cpu_get_apic_tpr(DeviceState *d)
@@ -86,10 +91,9 @@ int apic_get_irq_delivered(void)
 
 void apic_deliver_nmi(DeviceState *d)
 {
-    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
-    APICCommonInfo *info;
+    APICCommonState *s = APIC_COMMON(d);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
-    info = DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
     info->external_nmi(s);
 }
 
@@ -223,8 +227,8 @@ static int apic_load_old(QEMUFile *f, void *opaque, int version_id)
 
 static int apic_init_common(SysBusDevice *dev)
 {
-    APICCommonState *s = FROM_SYSBUS(APICCommonState, dev);
-    APICCommonInfo *info;
+    APICCommonState *s = APIC_COMMON(dev);
+    APICCommonClass *info;
     static int apic_no;
 
     if (apic_no >= MAX_APICS) {
@@ -232,7 +236,7 @@ static int apic_init_common(SysBusDevice *dev)
     }
     s->idx = apic_no++;
 
-    info = DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
+    info = APIC_COMMON_GET_CLASS(s);
     info->init(s);
 
     sysbus_init_mmio(&s->busdev, &s->io_memory);
@@ -241,9 +245,8 @@ static int apic_init_common(SysBusDevice *dev)
 
 static int apic_dispatch_post_load(void *opaque, int version_id)
 {
-    APICCommonState *s = opaque;
-    APICCommonInfo *info =
-        DO_UPCAST(APICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
+    APICCommonState *s = APIC_COMMON(opaque);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
 
     if (info->post_load) {
         info->post_load(s);
@@ -289,14 +292,35 @@ static Property apic_properties_common[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-
-void apic_qdev_register(APICCommonInfo *info)
+static void apic_common_class_init(ObjectClass *klass, void *data)
 {
-    info->busdev.init = apic_init_common;
-    info->busdev.qdev.size = sizeof(APICCommonState),
-    info->busdev.qdev.vmsd = &vmstate_apic_common;
-    info->busdev.qdev.reset = apic_reset_common;
-    info->busdev.qdev.no_user = 1;
-    info->busdev.qdev.props = apic_properties_common;
-    sysbus_register_withprop(&info->busdev);
+    SysBusDeviceClass *sc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sc->init = apic_init_common;
 }
+
+static TypeInfo apic_common_type = {
+    .name = TYPE_APIC_COMMON,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(APICCommonState),
+    .class_size = sizeof(APICCommonClass),
+    .class_init = apic_common_class_init,
+    .abstract = true,
+};
+
+void apic_qdev_register(DeviceInfo *info)
+{
+    info->size = sizeof(APICCommonState),
+    info->vmsd = &vmstate_apic_common;
+    info->reset = apic_reset_common;
+    info->no_user = 1;
+    info->props = apic_properties_common;
+    sysbus_qdev_register_subclass(info, TYPE_APIC_COMMON);
+}
+
+static void register_devices(void)
+{
+    type_register_static(&apic_common_type);
+}
+
+device_init(register_devices);

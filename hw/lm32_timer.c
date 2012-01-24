@@ -199,18 +199,25 @@ static const VMStateDescription vmstate_lm32_timer = {
     }
 };
 
-static SysBusDeviceInfo lm32_timer_info = {
-    .init = lm32_timer_init,
-    .qdev.name  = "lm32-timer",
-    .qdev.size  = sizeof(LM32TimerState),
-    .qdev.vmsd  = &vmstate_lm32_timer,
-    .qdev.reset = timer_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32(
-                "frequency", LM32TimerState, freq_hz, DEFAULT_FREQUENCY
-        ),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property lm32_timer_properties[] = {
+    DEFINE_PROP_UINT32("frequency", LM32TimerState, freq_hz, DEFAULT_FREQUENCY),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void lm32_timer_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = lm32_timer_init;
+}
+
+static DeviceInfo lm32_timer_info = {
+    .name = "lm32-timer",
+    .size = sizeof(LM32TimerState),
+    .vmsd = &vmstate_lm32_timer,
+    .reset = timer_reset,
+    .props = lm32_timer_properties,
+    .class_init = lm32_timer_class_init,
 };
 
 static void lm32_timer_register(void)

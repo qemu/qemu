@@ -76,10 +76,17 @@ static int empty_slot_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo empty_slot_info = {
-    .init = empty_slot_init1,
-    .qdev.name  = "empty_slot",
-    .qdev.size  = sizeof(EmptySlot),
+static void empty_slot_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = empty_slot_init1;
+}
+
+static DeviceInfo empty_slot_info = {
+    .name = "empty_slot",
+    .size = sizeof(EmptySlot),
+    .class_init = empty_slot_class_init,
 };
 
 static void empty_slot_register_devices(void)

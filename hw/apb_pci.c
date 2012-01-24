@@ -453,11 +453,18 @@ static DeviceInfo pbm_pci_host_info = {
     .class_init = pbm_pci_host_class_init,
 };
 
-static SysBusDeviceInfo pbm_host_info = {
-    .qdev.name = "pbm",
-    .qdev.size = sizeof(APBState),
-    .qdev.reset = pci_pbm_reset,
-    .init = pci_pbm_init_device,
+static void pbm_host_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pci_pbm_init_device;
+}
+
+static DeviceInfo pbm_host_info = {
+    .name = "pbm",
+    .size = sizeof(APBState),
+    .reset = pci_pbm_reset,
+    .class_init = pbm_host_class_init,
 };
 
 static void pbm_pci_bridge_class_init(ObjectClass *klass, void *data)

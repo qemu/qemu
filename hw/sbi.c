@@ -131,12 +131,19 @@ static int sbi_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo sbi_info = {
-    .init = sbi_init1,
-    .qdev.name  = "sbi",
-    .qdev.size  = sizeof(SBIState),
-    .qdev.vmsd  = &vmstate_sbi,
-    .qdev.reset = sbi_reset,
+static void sbi_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = sbi_init1;
+}
+
+static DeviceInfo sbi_info = {
+    .name = "sbi",
+    .size = sizeof(SBIState),
+    .vmsd = &vmstate_sbi,
+    .reset = sbi_reset,
+    .class_init = sbi_class_init,
 };
 
 static void sbi_register_devices(void)

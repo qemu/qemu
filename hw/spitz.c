@@ -1023,16 +1023,25 @@ static VMStateDescription vmstate_sl_nand_info = {
     },
 };
 
-static SysBusDeviceInfo sl_nand_info = {
-    .init = sl_nand_init,
-    .qdev.name = "sl-nand",
-    .qdev.size = sizeof(SLNANDState),
-    .qdev.vmsd = &vmstate_sl_nand_info,
-    .qdev.props = (Property []) {
-        DEFINE_PROP_UINT8("manf_id", SLNANDState, manf_id, NAND_MFR_SAMSUNG),
-        DEFINE_PROP_UINT8("chip_id", SLNANDState, chip_id, 0xf1),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property sl_nand_properties[] = {
+    DEFINE_PROP_UINT8("manf_id", SLNANDState, manf_id, NAND_MFR_SAMSUNG),
+    DEFINE_PROP_UINT8("chip_id", SLNANDState, chip_id, 0xf1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void sl_nand_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = sl_nand_init;
+}
+
+static DeviceInfo sl_nand_info = {
+    .name = "sl-nand",
+    .size = sizeof(SLNANDState),
+    .vmsd = &vmstate_sl_nand_info,
+    .props = sl_nand_properties,
+    .class_init = sl_nand_class_init,
 };
 
 static VMStateDescription vmstate_spitz_kbd = {
@@ -1049,14 +1058,23 @@ static VMStateDescription vmstate_spitz_kbd = {
     },
 };
 
-static SysBusDeviceInfo spitz_keyboard_info = {
-    .init = spitz_keyboard_init,
-    .qdev.name = "spitz-keyboard",
-    .qdev.size = sizeof(SpitzKeyboardState),
-    .qdev.vmsd = &vmstate_spitz_kbd,
-    .qdev.props = (Property []) {
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property spitz_keyboard_properties[] = {
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void spitz_keyboard_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = spitz_keyboard_init;
+}
+
+static DeviceInfo spitz_keyboard_info = {
+    .name = "spitz-keyboard",
+    .size = sizeof(SpitzKeyboardState),
+    .vmsd = &vmstate_spitz_kbd,
+    .props = spitz_keyboard_properties,
+    .class_init = spitz_keyboard_class_init,
 };
 
 static const VMStateDescription vmstate_corgi_ssp_regs = {
@@ -1077,7 +1095,6 @@ static void corgi_ssp_class_init(ObjectClass *klass, void *data)
     k->init = corgi_ssp_init;
     k->transfer = corgi_ssp_transfer;
 }
-
 
 static DeviceInfo corgi_ssp_info = {
     .name = "corgi-ssp",

@@ -299,17 +299,26 @@ static const VMStateDescription vmstate_milkymist_vgafb = {
     }
 };
 
-static SysBusDeviceInfo milkymist_vgafb_info = {
-    .init = milkymist_vgafb_init,
-    .qdev.name  = "milkymist-vgafb",
-    .qdev.size  = sizeof(MilkymistVgafbState),
-    .qdev.vmsd  = &vmstate_milkymist_vgafb,
-    .qdev.reset = milkymist_vgafb_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("fb_offset", MilkymistVgafbState, fb_offset, 0x0),
-        DEFINE_PROP_UINT32("fb_mask", MilkymistVgafbState, fb_mask, 0xffffffff),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property milkymist_vgafb_properties[] = {
+    DEFINE_PROP_UINT32("fb_offset", MilkymistVgafbState, fb_offset, 0x0),
+    DEFINE_PROP_UINT32("fb_mask", MilkymistVgafbState, fb_mask, 0xffffffff),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void milkymist_vgafb_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = milkymist_vgafb_init;
+}
+
+static DeviceInfo milkymist_vgafb_info = {
+    .name = "milkymist-vgafb",
+    .size = sizeof(MilkymistVgafbState),
+    .vmsd = &vmstate_milkymist_vgafb,
+    .reset = milkymist_vgafb_reset,
+    .props = milkymist_vgafb_properties,
+    .class_init = milkymist_vgafb_class_init,
 };
 
 static void milkymist_vgafb_register(void)

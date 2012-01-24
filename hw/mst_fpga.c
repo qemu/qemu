@@ -238,12 +238,19 @@ static VMStateDescription vmstate_mst_fpga_regs = {
 	},
 };
 
-static SysBusDeviceInfo mst_fpga_info = {
-	.init = mst_fpga_init,
-	.qdev.name = "mainstone-fpga",
-	.qdev.desc = "Mainstone II FPGA",
-	.qdev.size = sizeof(mst_irq_state),
-	.qdev.vmsd = &vmstate_mst_fpga_regs,
+static void mst_fpga_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = mst_fpga_init;
+}
+
+static DeviceInfo mst_fpga_info = {
+    .name = "mainstone-fpga",
+    .desc = "Mainstone II FPGA",
+    .size = sizeof(mst_irq_state),
+    .vmsd = &vmstate_mst_fpga_regs,
+    .class_init = mst_fpga_class_init,
 };
 
 static void mst_fpga_register(void)

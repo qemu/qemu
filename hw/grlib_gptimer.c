@@ -372,17 +372,26 @@ static int grlib_gptimer_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo grlib_gptimer_info = {
-    .init       = grlib_gptimer_init,
-    .qdev.name  = "grlib,gptimer",
-    .qdev.reset = grlib_gptimer_reset,
-    .qdev.size  = sizeof(GPTimerUnit),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("frequency", GPTimerUnit, freq_hz,   40000000),
-        DEFINE_PROP_UINT32("irq-line",  GPTimerUnit, irq_line,  8),
-        DEFINE_PROP_UINT32("nr-timers", GPTimerUnit, nr_timers, 2),
-        DEFINE_PROP_END_OF_LIST()
-    }
+static Property grlib_gptimer_properties[] = {
+    DEFINE_PROP_UINT32("frequency", GPTimerUnit, freq_hz,   40000000),
+    DEFINE_PROP_UINT32("irq-line",  GPTimerUnit, irq_line,  8),
+    DEFINE_PROP_UINT32("nr-timers", GPTimerUnit, nr_timers, 2),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void grlib_gptimer_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = grlib_gptimer_init;
+}
+
+static DeviceInfo grlib_gptimer_info = {
+    .name = "grlib,gptimer",
+    .reset = grlib_gptimer_reset,
+    .size = sizeof(GPTimerUnit),
+    .props = grlib_gptimer_properties,
+    .class_init = grlib_gptimer_class_init,
 };
 
 static void grlib_gptimer_register(void)

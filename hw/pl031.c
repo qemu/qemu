@@ -213,12 +213,19 @@ static int pl031_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo pl031_info = {
-    .init = pl031_init,
-    .qdev.name = "pl031",
-    .qdev.size = sizeof(pl031_state),
-    .qdev.vmsd = &vmstate_pl031,
-    .qdev.no_user = 1,
+static void pl031_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl031_init;
+}
+
+static DeviceInfo pl031_info = {
+    .name = "pl031",
+    .size = sizeof(pl031_state),
+    .vmsd = &vmstate_pl031,
+    .no_user = 1,
+    .class_init = pl031_class_init,
 };
 
 static void pl031_register_devices(void)

@@ -139,16 +139,23 @@ static DeviceInfo grackle_pci_info = {
     .class_init = grackle_pci_class_init,
 };
 
-static SysBusDeviceInfo grackle_pci_host_info = {
-    .qdev.name = "grackle-pcihost",
-    .qdev.size = sizeof(GrackleState),
-    .qdev.no_user = 1,
-    .init = pci_grackle_init_device,
+static void pci_grackle_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pci_grackle_init_device;
+}
+
+static DeviceInfo grackle_pci_host_info = {
+    .name = "grackle-pcihost",
+    .size = sizeof(GrackleState),
+    .no_user = 1,
+    .class_init = pci_grackle_class_init,
 };
 
 static void grackle_register_devices(void)
 {
-    sysbus_register_withprop(&grackle_pci_host_info);
+    sysbus_qdev_register(&grackle_pci_host_info);
     pci_qdev_register(&grackle_pci_info);
 }
 

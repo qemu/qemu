@@ -189,12 +189,19 @@ static int isabus_bridge_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo isabus_bridge_info = {
-    .init = isabus_bridge_init,
-    .qdev.name  = "isabus-bridge",
-    .qdev.fw_name  = "isa",
-    .qdev.size  = sizeof(SysBusDevice),
-    .qdev.no_user = 1,
+static void isabus_bridge_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = isabus_bridge_init;
+}
+
+static DeviceInfo isabus_bridge_info = {
+    .name = "isabus-bridge",
+    .fw_name = "isa",
+    .size = sizeof(SysBusDevice),
+    .no_user = 1,
+    .class_init = isabus_bridge_class_init,
 };
 
 static TypeInfo isa_device_type_info = {

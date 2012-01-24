@@ -211,10 +211,22 @@ static int xilinx_uartlite_init(SysBusDevice *dev)
     return 0;
 }
 
+static void xilinx_uartlite_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = xilinx_uartlite_init;
+}
+
+static DeviceInfo xilinx_uartlite_info = {
+    .name = "xilinx,uartlite",
+    .size = sizeof (struct xlx_uartlite),
+    .class_init = xilinx_uartlite_class_init,
+};
+
 static void xilinx_uart_register(void)
 {
-    sysbus_register_dev("xilinx,uartlite", sizeof (struct xlx_uartlite),
-                        xilinx_uartlite_init);
+    sysbus_qdev_register(&xilinx_uartlite_info);
 }
 
 device_init(xilinx_uart_register)

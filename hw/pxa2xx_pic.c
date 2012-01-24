@@ -296,12 +296,19 @@ static int pxa2xx_pic_initfn(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo pxa2xx_pic_info = {
-    .init       = pxa2xx_pic_initfn,
-    .qdev.name  = "pxa2xx_pic",
-    .qdev.desc  = "PXA2xx PIC",
-    .qdev.size  = sizeof(PXA2xxPICState),
-    .qdev.vmsd  = &vmstate_pxa2xx_pic_regs,
+static void pxa2xx_pic_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pxa2xx_pic_initfn;
+}
+
+static DeviceInfo pxa2xx_pic_info = {
+    .name = "pxa2xx_pic",
+    .desc = "PXA2xx PIC",
+    .size = sizeof(PXA2xxPICState),
+    .vmsd = &vmstate_pxa2xx_pic_regs,
+    .class_init = pxa2xx_pic_class_init,
 };
 
 static void pxa2xx_pic_register(void)

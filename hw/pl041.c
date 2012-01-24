@@ -613,19 +613,27 @@ static const VMStateDescription vmstate_pl041 = {
     }
 };
 
-static SysBusDeviceInfo pl041_device_info = {
-    .init = pl041_init,
-    .qdev.name = "pl041",
-    .qdev.size = sizeof(pl041_state),
-    .qdev.vmsd = &vmstate_pl041,
-    .qdev.reset = pl041_device_reset,
-    .qdev.no_user = 1,
-    .qdev.props = (Property[]) {
-        /* Non-compact FIFO depth property */
-        DEFINE_PROP_UINT32("nc_fifo_depth", pl041_state,
-                           fifo_depth, DEFAULT_FIFO_DEPTH),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property pl041_device_properties[] = {
+    /* Non-compact FIFO depth property */
+    DEFINE_PROP_UINT32("nc_fifo_depth", pl041_state, fifo_depth, DEFAULT_FIFO_DEPTH),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pl041_device_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl041_init;
+}
+
+static DeviceInfo pl041_device_info = {
+    .name = "pl041",
+    .size = sizeof(pl041_state),
+    .vmsd = &vmstate_pl041,
+    .reset = pl041_device_reset,
+    .no_user = 1,
+    .props = pl041_device_properties,
+    .class_init = pl041_device_class_init,
 };
 
 static void pl041_register_device(void)

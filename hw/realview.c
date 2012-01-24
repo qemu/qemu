@@ -82,10 +82,17 @@ static int realview_i2c_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo realview_i2c_info = {
-    .init = realview_i2c_init,
-    .qdev.name  = "realview_i2c",
-    .qdev.size  = sizeof(RealViewI2CState),
+static void realview_i2c_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = realview_i2c_init;
+}
+
+static DeviceInfo realview_i2c_info = {
+    .name = "realview_i2c",
+    .size = sizeof(RealViewI2CState),
+    .class_init = realview_i2c_class_init,
 };
 
 static void realview_register_devices(void)

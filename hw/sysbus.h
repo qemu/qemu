@@ -12,6 +12,20 @@
 
 typedef struct SysBusDevice SysBusDevice;
 
+#define TYPE_SYS_BUS_DEVICE "sys-bus-device"
+#define SYS_BUS_DEVICE(obj) \
+     OBJECT_CHECK(SysBusDevice, (obj), TYPE_SYS_BUS_DEVICE)
+#define SYS_BUS_DEVICE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(SysBusDeviceClass, (klass), TYPE_SYS_BUS_DEVICE)
+#define SYS_BUS_DEVICE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(SysBusDeviceClass, (obj), TYPE_SYS_BUS_DEVICE)
+
+typedef struct SysBusDeviceClass {
+    DeviceClass parent_class;
+
+    int (*init)(SysBusDevice *dev);
+} SysBusDeviceClass;
+
 struct SysBusDevice {
     DeviceState qdev;
     int num_irq;
@@ -26,19 +40,14 @@ struct SysBusDevice {
     pio_addr_t pio[QDEV_MAX_PIO];
 };
 
-typedef int (*sysbus_initfn)(SysBusDevice *dev);
-
 /* Macros to compensate for lack of type inheritance in C.  */
 #define sysbus_from_qdev(dev) ((SysBusDevice *)(dev))
 #define FROM_SYSBUS(type, dev) DO_UPCAST(type, busdev, dev)
 
-typedef struct {
-    DeviceInfo qdev;
-    sysbus_initfn init;
-} SysBusDeviceInfo;
+#define sysbus_register_withprop(info) sysbus_qdev_register(info)
+void sysbus_qdev_register(DeviceInfo *info);
+void sysbus_qdev_register_subclass(DeviceInfo *info, const char *parent);
 
-void sysbus_register_dev(const char *name, size_t size, sysbus_initfn init);
-void sysbus_register_withprop(SysBusDeviceInfo *info);
 void *sysbus_new(void);
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory);
 MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);

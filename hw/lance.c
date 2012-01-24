@@ -137,18 +137,27 @@ static void lance_reset(DeviceState *dev)
     pcnet_h_reset(&d->state);
 }
 
-static SysBusDeviceInfo lance_info = {
-    .init       = lance_init,
-    .qdev.name  = "lance",
-    .qdev.fw_name  = "ethernet",
-    .qdev.size  = sizeof(SysBusPCNetState),
-    .qdev.reset = lance_reset,
-    .qdev.vmsd  = &vmstate_lance,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_PTR("dma", SysBusPCNetState, state.dma_opaque),
-        DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property lance_properties[] = {
+    DEFINE_PROP_PTR("dma", SysBusPCNetState, state.dma_opaque),
+    DEFINE_NIC_PROPERTIES(SysBusPCNetState, state.conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void lance_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = lance_init;
+}
+
+static DeviceInfo lance_info = {
+    .name = "lance",
+    .fw_name = "ethernet",
+    .size = sizeof(SysBusPCNetState),
+    .reset = lance_reset,
+    .vmsd = &vmstate_lance,
+    .props = lance_properties,
+    .class_init = lance_class_init,
 };
 
 static void lance_register_devices(void)

@@ -786,11 +786,18 @@ static DeviceInfo bonito_info = {
     .class_init = bonito_class_init,
 };
 
-static SysBusDeviceInfo bonito_pcihost_info = {
-    .init         = bonito_pcihost_initfn,
-    .qdev.name    = "Bonito-pcihost",
-    .qdev.size    = sizeof(BonitoState),
-    .qdev.no_user = 1,
+static void bonito_pcihost_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = bonito_pcihost_initfn;
+}
+
+static DeviceInfo bonito_pcihost_info = {
+    .name = "Bonito-pcihost",
+    .size = sizeof(BonitoState),
+    .no_user = 1,
+    .class_init = bonito_pcihost_class_init,
 };
 
 static void bonito_register(void)

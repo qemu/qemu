@@ -1408,14 +1408,50 @@ static DeviceInfo stellaris_ssi_bus_info = {
     .class_init = stellaris_ssi_bus_class_init,
 };
 
+static void stellaris_i2c_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = stellaris_i2c_init;
+}
+
+static DeviceInfo stellaris_i2c_info = {
+    .name = "stellaris-i2c",
+    .size = sizeof(stellaris_i2c_state),
+    .class_init = stellaris_i2c_class_init,
+};
+
+static void stellaris_gptm_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = stellaris_gptm_init;
+}
+
+static DeviceInfo stellaris_gptm_info = {
+    .name = "stellaris-gptm",
+    .size = sizeof(gptm_state),
+    .class_init = stellaris_gptm_class_init,
+};
+
+static void stellaris_adc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = stellaris_adc_init;
+}
+
+static DeviceInfo stellaris_adc_info = {
+    .name = "stellaris-adc",
+    .size = sizeof(stellaris_adc_state),
+    .class_init = stellaris_adc_class_init,
+};
+
 static void stellaris_register_devices(void)
 {
-    sysbus_register_dev("stellaris-i2c", sizeof(stellaris_i2c_state),
-                        stellaris_i2c_init);
-    sysbus_register_dev("stellaris-gptm", sizeof(gptm_state),
-                        stellaris_gptm_init);
-    sysbus_register_dev("stellaris-adc", sizeof(stellaris_adc_state),
-                        stellaris_adc_init);
+    sysbus_qdev_register(&stellaris_i2c_info);
+    sysbus_qdev_register(&stellaris_gptm_info);
+    sysbus_qdev_register(&stellaris_adc_info);
     ssi_register_slave(&stellaris_ssi_bus_info);
 }
 

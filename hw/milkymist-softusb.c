@@ -297,27 +297,28 @@ static const VMStateDescription vmstate_milkymist_softusb = {
     }
 };
 
-static SysBusDeviceInfo milkymist_softusb_info = {
-    .init = milkymist_softusb_init,
-    .qdev.name  = "milkymist-softusb",
-    .qdev.size  = sizeof(MilkymistSoftUsbState),
-    .qdev.vmsd  = &vmstate_milkymist_softusb,
-    .qdev.reset = milkymist_softusb_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32(
-                "pmem_base", MilkymistSoftUsbState, pmem_base, 0xa0000000
-        ),
-        DEFINE_PROP_UINT32(
-                "pmem_size", MilkymistSoftUsbState, pmem_size, 0x00001000
-        ),
-        DEFINE_PROP_UINT32(
-                "dmem_base", MilkymistSoftUsbState, dmem_base, 0xa0020000
-        ),
-        DEFINE_PROP_UINT32(
-                "dmem_size", MilkymistSoftUsbState, dmem_size, 0x00002000
-        ),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property milkymist_softusb_properties[] = {
+    DEFINE_PROP_UINT32("pmem_base", MilkymistSoftUsbState, pmem_base, 0xa0000000),
+    DEFINE_PROP_UINT32("pmem_size", MilkymistSoftUsbState, pmem_size, 0x00001000),
+    DEFINE_PROP_UINT32("dmem_base", MilkymistSoftUsbState, dmem_base, 0xa0020000),
+    DEFINE_PROP_UINT32("dmem_size", MilkymistSoftUsbState, dmem_size, 0x00002000),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void milkymist_softusb_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = milkymist_softusb_init;
+}
+
+static DeviceInfo milkymist_softusb_info = {
+    .name = "milkymist-softusb",
+    .size = sizeof(MilkymistSoftUsbState),
+    .vmsd = &vmstate_milkymist_softusb,
+    .reset = milkymist_softusb_reset,
+    .props = milkymist_softusb_properties,
+    .class_init = milkymist_softusb_class_init,
 };
 
 static void milkymist_softusb_register(void)

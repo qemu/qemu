@@ -420,14 +420,23 @@ static int stellaris_enet_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo stellaris_enet_info = {
-    .init = stellaris_enet_init,
-    .qdev.name  = "stellaris_enet",
-    .qdev.size  = sizeof(stellaris_enet_state),
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(stellaris_enet_state, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property stellaris_enet_properties[] = {
+    DEFINE_NIC_PROPERTIES(stellaris_enet_state, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void stellaris_enet_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = stellaris_enet_init;
+}
+
+static DeviceInfo stellaris_enet_info = {
+    .name = "stellaris_enet",
+    .size = sizeof(stellaris_enet_state),
+    .props = stellaris_enet_properties,
+    .class_init = stellaris_enet_class_init,
 };
 
 static void stellaris_enet_register_devices(void)

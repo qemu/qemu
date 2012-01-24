@@ -870,18 +870,27 @@ static int xilinx_enet_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo xilinx_enet_info = {
-    .init = xilinx_enet_init,
-    .qdev.name  = "xilinx,axienet",
-    .qdev.size  = sizeof(struct XilinxAXIEnet),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("phyaddr", struct XilinxAXIEnet, c_phyaddr, 7),
-        DEFINE_PROP_UINT32("c_rxmem", struct XilinxAXIEnet, c_rxmem, 0x1000),
-        DEFINE_PROP_UINT32("c_txmem", struct XilinxAXIEnet, c_txmem, 0x1000),
-        DEFINE_PROP_PTR("dmach", struct XilinxAXIEnet, dmach),
-        DEFINE_NIC_PROPERTIES(struct XilinxAXIEnet, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property xilinx_enet_properties[] = {
+    DEFINE_PROP_UINT32("phyaddr", struct XilinxAXIEnet, c_phyaddr, 7),
+    DEFINE_PROP_UINT32("c_rxmem", struct XilinxAXIEnet, c_rxmem, 0x1000),
+    DEFINE_PROP_UINT32("c_txmem", struct XilinxAXIEnet, c_txmem, 0x1000),
+    DEFINE_PROP_PTR("dmach", struct XilinxAXIEnet, dmach),
+    DEFINE_NIC_PROPERTIES(struct XilinxAXIEnet, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void xilinx_enet_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = xilinx_enet_init;
+}
+
+static DeviceInfo xilinx_enet_info = {
+    .name = "xilinx,axienet",
+    .size = sizeof(struct XilinxAXIEnet),
+    .props = xilinx_enet_properties,
+    .class_init = xilinx_enet_class_init,
 };
 static void xilinx_enet_register(void)
 {

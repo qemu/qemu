@@ -154,12 +154,19 @@ static DeviceInfo raven_info = {
     .class_init = raven_class_init,
 };
 
-static SysBusDeviceInfo raven_pcihost_info = {
-    .qdev.name = "raven-pcihost",
-    .qdev.fw_name = "pci",
-    .qdev.size = sizeof(PREPPCIState),
-    .qdev.no_user = 1,
-    .init = raven_pcihost_init,
+static void raven_pcihost_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = raven_pcihost_init;
+}
+
+static DeviceInfo raven_pcihost_info = {
+    .name = "raven-pcihost",
+    .fw_name = "pci",
+    .size = sizeof(PREPPCIState),
+    .class_init = raven_pcihost_class_init,
+    .no_user = 1,
 };
 
 static void raven_register_devices(void)

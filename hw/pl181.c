@@ -487,18 +487,25 @@ static int pl181_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo pl181_info = {
-    .init = pl181_init,
-    .qdev.name = "pl181",
-    .qdev.size = sizeof(pl181_state),
-    .qdev.vmsd = &vmstate_pl181,
-    .qdev.reset = pl181_reset,
-    .qdev.no_user = 1,
+static void pl181_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = pl181_init;
+}
+
+static DeviceInfo pl181_info = {
+    .name = "pl181",
+    .size = sizeof(pl181_state),
+    .class_init = pl181_class_init,
+    .vmsd = &vmstate_pl181,
+    .reset = pl181_reset,
+    .no_user = 1,
 };
 
 static void pl181_register_devices(void)
 {
-    sysbus_register_withprop(&pl181_info);
+    sysbus_qdev_register(&pl181_info);
 }
 
 device_init(pl181_register_devices)

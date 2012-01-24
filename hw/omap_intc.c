@@ -373,16 +373,25 @@ static int omap_intc_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo omap_intc_info = {
-    .init = omap_intc_init,
-    .qdev.name = "omap-intc",
-    .qdev.size = sizeof(struct omap_intr_handler_s),
-    .qdev.reset = omap_inth_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("size", struct omap_intr_handler_s, size, 0x100),
-        DEFINE_PROP_PTR("clk", struct omap_intr_handler_s, iclk),
-        DEFINE_PROP_END_OF_LIST()
-    }
+static Property omap_intc_properties[] = {
+    DEFINE_PROP_UINT32("size", struct omap_intr_handler_s, size, 0x100),
+    DEFINE_PROP_PTR("clk", struct omap_intr_handler_s, iclk),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void omap_intc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = omap_intc_init;
+}
+
+static DeviceInfo omap_intc_info = {
+    .name = "omap-intc",
+    .size = sizeof(struct omap_intr_handler_s),
+    .reset = omap_inth_reset,
+    .props = omap_intc_properties,
+    .class_init = omap_intc_class_init,
 };
 
 static uint64_t omap2_inth_read(void *opaque, target_phys_addr_t addr,
@@ -604,18 +613,27 @@ static int omap2_intc_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo omap2_intc_info = {
-    .init = omap2_intc_init,
-    .qdev.name = "omap2-intc",
-    .qdev.size = sizeof(struct omap_intr_handler_s),
-    .qdev.reset = omap_inth_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT8("revision", struct omap_intr_handler_s,
-                          revision, 0x21),
-        DEFINE_PROP_PTR("iclk", struct omap_intr_handler_s, iclk),
-        DEFINE_PROP_PTR("fclk", struct omap_intr_handler_s, fclk),
-        DEFINE_PROP_END_OF_LIST()
-    }
+static Property omap2_intc_properties[] = {
+    DEFINE_PROP_UINT8("revision", struct omap_intr_handler_s,
+    revision, 0x21),
+    DEFINE_PROP_PTR("iclk", struct omap_intr_handler_s, iclk),
+    DEFINE_PROP_PTR("fclk", struct omap_intr_handler_s, fclk),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void omap2_intc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = omap2_intc_init;
+}
+
+static DeviceInfo omap2_intc_info = {
+    .name = "omap2-intc",
+    .size = sizeof(struct omap_intr_handler_s),
+    .reset = omap_inth_reset,
+    .props = omap2_intc_properties,
+    .class_init = omap2_intc_class_init,
 };
 
 static void omap_intc_register_device(void)

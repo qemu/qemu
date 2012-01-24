@@ -292,23 +292,32 @@ static const VMStateDescription vmstate_milkymist_sysctl = {
     }
 };
 
-static SysBusDeviceInfo milkymist_sysctl_info = {
-    .init = milkymist_sysctl_init,
-    .qdev.name  = "milkymist-sysctl",
-    .qdev.size  = sizeof(MilkymistSysctlState),
-    .qdev.vmsd  = &vmstate_milkymist_sysctl,
-    .qdev.reset = milkymist_sysctl_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("frequency", MilkymistSysctlState,
-                freq_hz, 80000000),
-        DEFINE_PROP_UINT32("capabilities", MilkymistSysctlState,
-                capabilities, 0x00000000),
-        DEFINE_PROP_UINT32("systemid", MilkymistSysctlState,
-                systemid, 0x10014d31),
-        DEFINE_PROP_UINT32("gpio_strappings", MilkymistSysctlState,
-                strappings, 0x00000001),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property milkymist_sysctl_properties[] = {
+    DEFINE_PROP_UINT32("frequency", MilkymistSysctlState,
+    freq_hz, 80000000),
+    DEFINE_PROP_UINT32("capabilities", MilkymistSysctlState,
+    capabilities, 0x00000000),
+    DEFINE_PROP_UINT32("systemid", MilkymistSysctlState,
+    systemid, 0x10014d31),
+    DEFINE_PROP_UINT32("gpio_strappings", MilkymistSysctlState,
+    strappings, 0x00000001),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void milkymist_sysctl_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = milkymist_sysctl_init;
+}
+
+static DeviceInfo milkymist_sysctl_info = {
+    .name = "milkymist-sysctl",
+    .size = sizeof(MilkymistSysctlState),
+    .vmsd = &vmstate_milkymist_sysctl,
+    .reset = milkymist_sysctl_reset,
+    .props = milkymist_sysctl_properties,
+    .class_init = milkymist_sysctl_class_init,
 };
 
 static void milkymist_sysctl_register(void)

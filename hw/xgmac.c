@@ -403,12 +403,19 @@ static int xgmac_enet_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo xgmac_enet_info = {
-    .init = xgmac_enet_init,
-    .qdev.name  = "xgmac",
-    .qdev.size  = sizeof(struct XgmacState),
-    .qdev.vmsd = &vmstate_xgmac,
-    .qdev.props = (Property[]) {
+static void xgmac_enet_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sbc->init = xgmac_enet_init;
+}
+
+static DeviceInfo xgmac_enet_info = {
+    .name  = "xgmac",
+    .size  = sizeof(struct XgmacState),
+    .vmsd = &vmstate_xgmac,
+    .class_init = xgmac_enet_class_init,
+    .props = (Property[]) {
         DEFINE_NIC_PROPERTIES(struct XgmacState, conf),
         DEFINE_PROP_END_OF_LIST(),
     }

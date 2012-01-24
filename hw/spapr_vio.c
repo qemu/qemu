@@ -755,11 +755,18 @@ static int spapr_vio_bridge_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo spapr_vio_bridge_info = {
-    .init = spapr_vio_bridge_init,
-    .qdev.name  = "spapr-vio-bridge",
-    .qdev.size  = sizeof(SysBusDevice),
-    .qdev.no_user = 1,
+static void spapr_vio_bridge_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sbc->init = spapr_vio_bridge_init;
+}
+
+static DeviceInfo spapr_vio_bridge_info = {
+    .name  = "spapr-vio-bridge",
+    .size  = sizeof(SysBusDevice),
+    .no_user = 1,
+    .class_init = spapr_vio_bridge_class_init,
 };
 
 static TypeInfo spapr_vio_type_info = {

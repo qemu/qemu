@@ -519,12 +519,19 @@ static const VMStateDescription vmstate_milkymist_pfpu = {
     }
 };
 
-static SysBusDeviceInfo milkymist_pfpu_info = {
-    .init = milkymist_pfpu_init,
-    .qdev.name  = "milkymist-pfpu",
-    .qdev.size  = sizeof(MilkymistPFPUState),
-    .qdev.vmsd  = &vmstate_milkymist_pfpu,
-    .qdev.reset = milkymist_pfpu_reset,
+static void milkymist_pfpu_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = milkymist_pfpu_init;
+}
+
+static DeviceInfo milkymist_pfpu_info = {
+    .name = "milkymist-pfpu",
+    .size = sizeof(MilkymistPFPUState),
+    .vmsd = &vmstate_milkymist_pfpu,
+    .reset = milkymist_pfpu_reset,
+    .class_init = milkymist_pfpu_class_init,
 };
 
 static void milkymist_pfpu_register(void)

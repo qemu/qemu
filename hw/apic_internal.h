@@ -67,6 +67,25 @@
 
 typedef struct APICCommonState APICCommonState;
 
+#define TYPE_APIC_COMMON "apic-common"
+#define APIC_COMMON(obj) \
+     OBJECT_CHECK(APICCommonState, (obj), TYPE_APIC_COMMON)
+#define APIC_COMMON_CLASS(klass) \
+     OBJECT_CLASS_CHECK(APICCommonClass, (klass), TYPE_APIC_COMMON)
+#define APIC_COMMON_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(APICCommonClass, (obj), TYPE_APIC_COMMON)
+
+typedef struct APICCommonClass
+{
+    SysBusDeviceClass parent_class;
+
+    void (*init)(APICCommonState *s);
+    void (*set_base)(APICCommonState *s, uint64_t val);
+    void (*set_tpr)(APICCommonState *s, uint8_t val);
+    void (*external_nmi)(APICCommonState *s);
+    void (*post_load)(APICCommonState *s);
+} APICCommonClass;
+
 struct APICCommonState {
     SysBusDevice busdev;
     MemoryRegion io_memory;
@@ -97,19 +116,8 @@ struct APICCommonState {
     int wait_for_sipi;
 };
 
-typedef struct APICCommonInfo APICCommonInfo;
-
-struct APICCommonInfo {
-    SysBusDeviceInfo busdev;
-    void (*init)(APICCommonState *s);
-    void (*set_base)(APICCommonState *s, uint64_t val);
-    void (*set_tpr)(APICCommonState *s, uint8_t val);
-    void (*external_nmi)(APICCommonState *s);
-    void (*post_load)(APICCommonState *s);
-};
-
 void apic_report_irq_delivered(int delivered);
-void apic_qdev_register(APICCommonInfo *info);
+void apic_qdev_register(DeviceInfo *info);
 bool apic_next_timer(APICCommonState *s, int64_t current_time);
 
 #endif /* !QEMU_APIC_INTERNAL_H */

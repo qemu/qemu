@@ -93,17 +93,24 @@ static void kvm_ioapic_init(IOAPICCommonState *s, int instance_no)
     qdev_init_gpio_in(&s->busdev.qdev, kvm_ioapic_set_irq, IOAPIC_NUM_PINS);
 }
 
-static IOAPICCommonInfo kvm_ioapic_info = {
-    .busdev.qdev.name  = "kvm-ioapic",
-    .busdev.qdev.size = sizeof(KVMIOAPICState),
-    .busdev.qdev.reset = kvm_ioapic_reset,
-    .busdev.qdev.props = (Property[]) {
+static void kvm_ioapic_class_init(ObjectClass *klass, void *data)
+{
+    IOAPICCommonClass *k = IOAPIC_COMMON_CLASS(klass);
+
+    k->init      = kvm_ioapic_init;
+    k->pre_save  = kvm_ioapic_get;
+    k->post_load = kvm_ioapic_put;
+}
+
+static DeviceInfo kvm_ioapic_info = {
+    .name  = "kvm-ioapic",
+    .size = sizeof(KVMIOAPICState),
+    .reset = kvm_ioapic_reset,
+    .class_init = kvm_ioapic_class_init,
+    .props = (Property[]) {
         DEFINE_PROP_UINT32("gsi_base", KVMIOAPICState, kvm_gsi_base, 0),
         DEFINE_PROP_END_OF_LIST()
     },
-    .init      = kvm_ioapic_init,
-    .pre_save  = kvm_ioapic_get,
-    .post_load = kvm_ioapic_put,
 };
 
 static void kvm_ioapic_register_device(void)

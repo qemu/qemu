@@ -613,17 +613,26 @@ static int fs_eth_init(SysBusDevice *dev)
 	return 0;
 }
 
-static SysBusDeviceInfo etraxfs_eth_info = {
-	.init = fs_eth_init,
-	.qdev.name  = "etraxfs-eth",
-	.qdev.size  = sizeof(struct fs_eth),
-	.qdev.props = (Property[]) {
-		DEFINE_PROP_UINT32("phyaddr", struct fs_eth, phyaddr, 1),
-		DEFINE_PROP_PTR("dma_out", struct fs_eth, vdma_out),
-		DEFINE_PROP_PTR("dma_in", struct fs_eth, vdma_in),
-		DEFINE_NIC_PROPERTIES(struct fs_eth, conf),
-		DEFINE_PROP_END_OF_LIST(),
-	}
+static Property etraxfs_eth_properties[] = {
+    DEFINE_PROP_UINT32("phyaddr", struct fs_eth, phyaddr, 1),
+    DEFINE_PROP_PTR("dma_out", struct fs_eth, vdma_out),
+    DEFINE_PROP_PTR("dma_in", struct fs_eth, vdma_in),
+    DEFINE_NIC_PROPERTIES(struct fs_eth, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void etraxfs_eth_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = fs_eth_init;
+}
+
+static DeviceInfo etraxfs_eth_info = {
+    .name = "etraxfs-eth",
+    .size = sizeof(struct fs_eth),
+    .props = etraxfs_eth_properties,
+    .class_init = etraxfs_eth_class_init,
 };
 
 static void etraxfs_eth_register(void)

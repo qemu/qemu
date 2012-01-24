@@ -46,10 +46,22 @@ static int realview_gic_init(SysBusDevice *dev)
     return 0;
 }
 
+static void realview_gic_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = realview_gic_init;
+}
+
+static DeviceInfo realview_gic_info = {
+    .name = "realview_gic",
+    .size = sizeof(RealViewGICState),
+    .class_init = realview_gic_class_init,
+};
+
 static void realview_gic_register_devices(void)
 {
-    sysbus_register_dev("realview_gic", sizeof(RealViewGICState),
-                        realview_gic_init);
+    sysbus_qdev_register(&realview_gic_info);
 }
 
 device_init(realview_gic_register_devices)

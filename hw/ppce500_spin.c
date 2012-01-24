@@ -203,10 +203,17 @@ static int ppce500_spin_initfn(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo ppce500_spin_info = {
-    .init         = ppce500_spin_initfn,
-    .qdev.name    = "e500-spin",
-    .qdev.size    = sizeof(SpinState),
+static void ppce500_spin_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = ppce500_spin_initfn;
+}
+
+static DeviceInfo ppce500_spin_info = {
+    .name = "e500-spin",
+    .size = sizeof(SpinState),
+    .class_init = ppce500_spin_class_init,
 };
 
 static void ppce500_spin_register(void)

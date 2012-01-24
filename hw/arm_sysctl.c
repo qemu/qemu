@@ -401,17 +401,26 @@ void arm_sysctl_init(uint32_t base, uint32_t sys_id, uint32_t proc_id)
     sysbus_mmio_map(sysbus_from_qdev(dev), 0, base);
 }
 
-static SysBusDeviceInfo arm_sysctl_info = {
-    .init = arm_sysctl_init1,
-    .qdev.name  = "realview_sysctl",
-    .qdev.size  = sizeof(arm_sysctl_state),
-    .qdev.vmsd = &vmstate_arm_sysctl,
-    .qdev.reset = arm_sysctl_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("sys_id", arm_sysctl_state, sys_id, 0),
-        DEFINE_PROP_UINT32("proc_id", arm_sysctl_state, proc_id, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property arm_sysctl_properties[] = {
+    DEFINE_PROP_UINT32("sys_id", arm_sysctl_state, sys_id, 0),
+    DEFINE_PROP_UINT32("proc_id", arm_sysctl_state, proc_id, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void arm_sysctl_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = arm_sysctl_init1;
+}
+
+static DeviceInfo arm_sysctl_info = {
+    .name = "realview_sysctl",
+    .size = sizeof(arm_sysctl_state),
+    .vmsd = &vmstate_arm_sysctl,
+    .reset = arm_sysctl_reset,
+    .props = arm_sysctl_properties,
+    .class_init = arm_sysctl_class_init,
 };
 
 static void arm_sysctl_register_devices(void)

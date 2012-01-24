@@ -643,13 +643,22 @@ static int prom_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo prom_info = {
-    .init = prom_init1,
-    .qdev.name  = "openprom",
-    .qdev.size  = sizeof(PROMState),
-    .qdev.props = (Property[]) {
-        {/* end of property list */}
-    }
+static Property prom_properties[] = {
+    {/* end of property list */},
+};
+
+static void prom_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = prom_init1;
+}
+
+static DeviceInfo prom_info = {
+    .name = "openprom",
+    .size = sizeof(PROMState),
+    .props = prom_properties,
+    .class_init = prom_class_init,
 };
 
 static void prom_register_devices(void)
@@ -695,14 +704,23 @@ static void ram_init(target_phys_addr_t addr, ram_addr_t RAM_size)
     sysbus_mmio_map(s, 0, addr);
 }
 
-static SysBusDeviceInfo ram_info = {
-    .init = ram_init1,
-    .qdev.name  = "memory",
-    .qdev.size  = sizeof(RamDevice),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT64("size", RamDevice, size, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property ram_properties[] = {
+    DEFINE_PROP_UINT64("size", RamDevice, size, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ram_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = ram_init1;
+}
+
+static DeviceInfo ram_info = {
+    .name = "memory",
+    .size = sizeof(RamDevice),
+    .props = ram_properties,
+    .class_init = ram_class_init,
 };
 
 static void ram_register_devices(void)

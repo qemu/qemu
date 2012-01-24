@@ -25,7 +25,7 @@
 
 void ioapic_reset_common(DeviceState *dev)
 {
-    IOAPICCommonState *s = DO_UPCAST(IOAPICCommonState, busdev.qdev, dev);
+    IOAPICCommonState *s = IOAPIC_COMMON(dev);
     int i;
 
     s->id = 0;
@@ -38,9 +38,8 @@ void ioapic_reset_common(DeviceState *dev)
 
 static void ioapic_dispatch_pre_save(void *opaque)
 {
-    IOAPICCommonState *s = opaque;
-    IOAPICCommonInfo *info =
-        DO_UPCAST(IOAPICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
+    IOAPICCommonState *s = IOAPIC_COMMON(opaque);
+    IOAPICCommonClass *info = IOAPIC_COMMON_GET_CLASS(s);
 
     if (info->pre_save) {
         info->pre_save(s);
@@ -49,9 +48,8 @@ static void ioapic_dispatch_pre_save(void *opaque)
 
 static int ioapic_dispatch_post_load(void *opaque, int version_id)
 {
-    IOAPICCommonState *s = opaque;
-    IOAPICCommonInfo *info =
-        DO_UPCAST(IOAPICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
+    IOAPICCommonState *s = IOAPIC_COMMON(opaque);
+    IOAPICCommonClass *info = IOAPIC_COMMON_GET_CLASS(s);
 
     if (info->post_load) {
         info->post_load(s);
@@ -62,14 +60,14 @@ static int ioapic_dispatch_post_load(void *opaque, int version_id)
 static int ioapic_init_common(SysBusDevice *dev)
 {
     IOAPICCommonState *s = FROM_SYSBUS(IOAPICCommonState, dev);
-    IOAPICCommonInfo *info;
+    IOAPICCommonClass *info;
     static int ioapic_no;
 
     if (ioapic_no >= MAX_IOAPICS) {
         return -1;
     }
 
-    info = DO_UPCAST(IOAPICCommonInfo, busdev.qdev, qdev_get_info(&s->busdev.qdev));
+    info = IOAPIC_COMMON_GET_CLASS(s);
     info->init(s, ioapic_no);
 
     sysbus_init_mmio(&s->busdev, &s->io_memory);
@@ -95,10 +93,33 @@ static const VMStateDescription vmstate_ioapic_common = {
     }
 };
 
-void ioapic_qdev_register(IOAPICCommonInfo *info)
+static void ioapic_common_class_init(ObjectClass *klass, void *data)
 {
-    info->busdev.init = ioapic_init_common;
-    info->busdev.qdev.vmsd = &vmstate_ioapic_common;
-    info->busdev.qdev.no_user = 1;
-    sysbus_register_withprop(&info->busdev);
+    SysBusDeviceClass *sc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sc->init = ioapic_init_common;
 }
+
+static TypeInfo ioapic_common_type = {
+    .name = TYPE_IOAPIC_COMMON,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(IOAPICCommonState),
+    .class_size = sizeof(IOAPICCommonClass),
+    .class_init = ioapic_common_class_init,
+    .abstract = true,
+};
+
+void ioapic_qdev_register(DeviceInfo *info)
+{
+    info->vmsd = &vmstate_ioapic_common;
+    info->no_user = 1;
+    sysbus_qdev_register_subclass(info, TYPE_IOAPIC_COMMON);
+}
+
+static void register_devices(void)
+{
+    type_register_static(&ioapic_common_type);
+}
+
+device_init(register_devices);
+

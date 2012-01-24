@@ -141,16 +141,25 @@ static const VMStateDescription vmstate_lm32_sys = {
     }
 };
 
-static SysBusDeviceInfo lm32_sys_info = {
-    .init = lm32_sys_init,
-    .qdev.name  = "lm32-sys",
-    .qdev.size  = sizeof(LM32SysState),
-    .qdev.vmsd  = &vmstate_lm32_sys,
-    .qdev.reset = sys_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("base", LM32SysState, base, 0xffff0000),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property lm32_sys_properties[] = {
+    DEFINE_PROP_UINT32("base", LM32SysState, base, 0xffff0000),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void lm32_sys_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = lm32_sys_init;
+}
+
+static DeviceInfo lm32_sys_info = {
+    .name = "lm32-sys",
+    .size = sizeof(LM32SysState),
+    .vmsd = &vmstate_lm32_sys,
+    .reset = sys_reset,
+    .props = lm32_sys_properties,
+    .class_init = lm32_sys_class_init,
 };
 
 static void lm32_sys_register(void)

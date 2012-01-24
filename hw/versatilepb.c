@@ -365,12 +365,19 @@ static void versatile_machine_init(void)
 
 machine_init(versatile_machine_init);
 
-static SysBusDeviceInfo vpb_sic_info = {
-    .init = vpb_sic_init,
-    .qdev.name = "versatilepb_sic",
-    .qdev.size = sizeof(vpb_sic_state),
-    .qdev.vmsd = &vmstate_vpb_sic,
-    .qdev.no_user = 1,
+static void vpb_sic_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = vpb_sic_init;
+}
+
+static DeviceInfo vpb_sic_info = {
+    .name = "versatilepb_sic",
+    .size = sizeof(vpb_sic_state),
+    .vmsd = &vmstate_vpb_sic,
+    .no_user = 1,
+    .class_init = vpb_sic_class_init,
 };
 
 static void versatilepb_register_devices(void)

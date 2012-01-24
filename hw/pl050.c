@@ -157,18 +157,32 @@ static int pl050_init_mouse(SysBusDevice *dev)
     return pl050_init(dev, 1);
 }
 
-static SysBusDeviceInfo pl050_kbd_info = {
-    .init = pl050_init_keyboard,
-    .qdev.name  = "pl050_keyboard",
-    .qdev.size  = sizeof(pl050_state),
-    .qdev.vmsd = &vmstate_pl050,
+static void pl050_kbd_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl050_init_keyboard;
+}
+
+static DeviceInfo pl050_kbd_info = {
+    .name = "pl050_keyboard",
+    .size = sizeof(pl050_state),
+    .vmsd = &vmstate_pl050,
+    .class_init = pl050_kbd_class_init,
 };
 
-static SysBusDeviceInfo pl050_mouse_info = {
-    .init = pl050_init_mouse,
-    .qdev.name  = "pl050_mouse",
-    .qdev.size  = sizeof(pl050_state),
-    .qdev.vmsd = &vmstate_pl050,
+static void pl050_mouse_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl050_init_mouse;
+}
+
+static DeviceInfo pl050_mouse_info = {
+    .name = "pl050_mouse",
+    .size = sizeof(pl050_state),
+    .vmsd = &vmstate_pl050,
+    .class_init = pl050_mouse_class_init,
 };
 
 static void pl050_register_devices(void)

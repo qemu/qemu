@@ -110,7 +110,7 @@ static void sh_pci_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-static int sh_pci_init_device(SysBusDevice *dev)
+static int sh_pci_device_init(SysBusDevice *dev)
 {
     SHPCIState *s;
     int i;
@@ -162,10 +162,22 @@ static DeviceInfo sh_pci_host_info = {
     .class_init = sh_pci_host_class_init,
 };
 
+static void sh_pci_device_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = sh_pci_device_init;
+}
+
+static DeviceInfo sh_pci_device_info = {
+    .name = "sh_pci",
+    .size = sizeof(SHPCIState),
+    .class_init = sh_pci_device_class_init,
+};
+
 static void sh_pci_register_devices(void)
 {
-    sysbus_register_dev("sh_pci", sizeof(SHPCIState),
-                        sh_pci_init_device);
+    sysbus_qdev_register(&sh_pci_device_info);
     pci_qdev_register(&sh_pci_host_info);
 }
 

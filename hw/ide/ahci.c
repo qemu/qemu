@@ -1239,22 +1239,27 @@ static int sysbus_ahci_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo sysbus_ahci_info = {
-    .qdev.name    = "sysbus-ahci",
-    .qdev.size    = sizeof(SysbusAHCIState),
-    .qdev.vmsd    = &vmstate_sysbus_ahci,
-    .qdev.props = (Property[]) {
+static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sbc->init = sysbus_ahci_init;
+}
+
+static DeviceInfo sysbus_ahci_info = {
+    .name    = "sysbus-ahci",
+    .size    = sizeof(SysbusAHCIState),
+    .vmsd    = &vmstate_sysbus_ahci,
+    .class_init = sysbus_ahci_class_init,
+    .props = (Property[]) {
         DEFINE_PROP_UINT32("num-ports", SysbusAHCIState, num_ports, 1),
         DEFINE_PROP_END_OF_LIST(),
     },
-    .init         = sysbus_ahci_init,
-
-
 };
 
 static void sysbus_ahci_register(void)
 {
-    sysbus_register_withprop(&sysbus_ahci_info);
+    sysbus_qdev_register(&sysbus_ahci_info);
 }
 
 device_init(sysbus_ahci_register);

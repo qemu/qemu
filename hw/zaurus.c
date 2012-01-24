@@ -221,15 +221,24 @@ static const VMStateDescription vmstate_scoop_regs = {
     },
 };
 
-static SysBusDeviceInfo scoop_sysbus_info = {
-    .init           = scoop_init,
-    .qdev.name      = "scoop",
-    .qdev.desc      = "Scoop2 Sharp custom ASIC",
-    .qdev.size      = sizeof(ScoopInfo),
-    .qdev.vmsd      = &vmstate_scoop_regs,
-    .qdev.props     = (Property[]) {
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property scoop_sysbus_properties[] = {
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void scoop_sysbus_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = scoop_init;
+}
+
+static DeviceInfo scoop_sysbus_info = {
+    .name = "scoop",
+    .desc = "Scoop2 Sharp custom ASIC",
+    .size = sizeof(ScoopInfo),
+    .vmsd = &vmstate_scoop_regs,
+    .props = scoop_sysbus_properties,
+    .class_init = scoop_sysbus_class_init,
 };
 
 static void scoop_register(void)

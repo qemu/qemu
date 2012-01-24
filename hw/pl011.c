@@ -278,22 +278,46 @@ static int pl011_init(SysBusDevice *dev, const unsigned char *id)
     return 0;
 }
 
-static int pl011_init_arm(SysBusDevice *dev)
+static int pl011_arm_init(SysBusDevice *dev)
 {
     return pl011_init(dev, pl011_id_arm);
 }
 
-static int pl011_init_luminary(SysBusDevice *dev)
+static int pl011_luminary_init(SysBusDevice *dev)
 {
     return pl011_init(dev, pl011_id_luminary);
 }
 
+static void pl011_arm_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = pl011_arm_init;
+}
+
+static DeviceInfo pl011_arm_info = {
+    .name = "pl011",
+    .size = sizeof(pl011_state),
+    .class_init = pl011_arm_class_init,
+};
+
+static void pl011_luminary_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = pl011_luminary_init;
+}
+
+static DeviceInfo pl011_luminary_info = {
+    .name = "pl011_luminary",
+    .size = sizeof(pl011_state),
+    .class_init = pl011_luminary_class_init,
+};
+
 static void pl011_register_devices(void)
 {
-    sysbus_register_dev("pl011", sizeof(pl011_state),
-                        pl011_init_arm);
-    sysbus_register_dev("pl011_luminary", sizeof(pl011_state),
-                        pl011_init_luminary);
+    sysbus_qdev_register(&pl011_arm_info);
+    sysbus_qdev_register(&pl011_luminary_info);
 }
 
 device_init(pl011_register_devices)

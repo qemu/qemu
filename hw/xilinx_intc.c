@@ -161,14 +161,23 @@ static int xilinx_intc_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo xilinx_intc_info = {
-    .init = xilinx_intc_init,
-    .qdev.name  = "xilinx,intc",
-    .qdev.size  = sizeof(struct xlx_pic),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("kind-of-intr", struct xlx_pic, c_kind_of_intr, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property xilinx_intc_properties[] = {
+    DEFINE_PROP_UINT32("kind-of-intr", struct xlx_pic, c_kind_of_intr, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void xilinx_intc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = xilinx_intc_init;
+}
+
+static DeviceInfo xilinx_intc_info = {
+    .name = "xilinx,intc",
+    .size = sizeof(struct xlx_pic),
+    .props = xilinx_intc_properties,
+    .class_init = xilinx_intc_class_init,
 };
 
 static void xilinx_intc_register(void)

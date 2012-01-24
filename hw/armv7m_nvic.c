@@ -391,12 +391,19 @@ static int armv7m_nvic_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo armv7m_nvic_priv_info = {
-    .init = armv7m_nvic_init,
-    .qdev.name  = "armv7m_nvic",
-    .qdev.size  = sizeof(nvic_state),
-    .qdev.vmsd  = &vmstate_nvic,
-    .qdev.props = (Property[]) {
+static void armv7m_nvic_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = armv7m_nvic_init;
+}
+
+static DeviceInfo armv7m_nvic_priv_info = {
+    .name = "armv7m_nvic",
+    .size = sizeof(nvic_state),
+    .vmsd  = &vmstate_nvic,
+    .class_init = armv7m_nvic_class_init,
+    .props = (Property[]) {
         /* The ARM v7m may have anything from 0 to 496 external interrupt
          * IRQ lines. We default to 64. Other boards may differ and should
          * set this property appropriately.
@@ -408,7 +415,7 @@ static SysBusDeviceInfo armv7m_nvic_priv_info = {
 
 static void armv7m_nvic_register_devices(void)
 {
-    sysbus_register_withprop(&armv7m_nvic_priv_info);
+    sysbus_qdev_register(&armv7m_nvic_priv_info);
 }
 
 device_init(armv7m_nvic_register_devices)

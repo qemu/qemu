@@ -789,11 +789,18 @@ static int tusb6010_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo tusb6010_info = {
-    .init = tusb6010_init,
-    .qdev.name = "tusb6010",
-    .qdev.size = sizeof(TUSBState),
-    .qdev.reset = tusb6010_reset,
+static void tusb6010_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = tusb6010_init;
+}
+
+static DeviceInfo tusb6010_info = {
+    .name = "tusb6010",
+    .size = sizeof(TUSBState),
+    .reset = tusb6010_reset,
+    .class_init = tusb6010_class_init,
 };
 
 static void tusb6010_register_device(void)

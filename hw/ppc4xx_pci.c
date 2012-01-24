@@ -382,11 +382,18 @@ static DeviceInfo ppc4xx_host_bridge_info = {
     .class_init = ppc4xx_host_bridge_class_init,
 };
 
-static SysBusDeviceInfo ppc4xx_pcihost_info = {
-    .init         = ppc4xx_pcihost_initfn,
-    .qdev.name    = "ppc4xx-pcihost",
-    .qdev.size    = sizeof(PPC4xxPCIState),
-    .qdev.vmsd    = &vmstate_ppc4xx_pci,
+static void ppc4xx_pcihost_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = ppc4xx_pcihost_initfn;
+}
+
+static DeviceInfo ppc4xx_pcihost_info = {
+    .name    = "ppc4xx-pcihost",
+    .size    = sizeof(PPC4xxPCIState),
+    .vmsd    = &vmstate_ppc4xx_pci,
+    .class_init = ppc4xx_pcihost_class_init,
 };
 
 static void ppc4xx_pci_register(void)

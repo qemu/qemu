@@ -245,14 +245,23 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
     return pic;
 }
 
-static SysBusDeviceInfo bitband_info = {
-    .init = bitband_init,
-    .qdev.name  = "ARM,bitband-memory",
-    .qdev.size  = sizeof(BitBandState),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("base", BitBandState, base, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property bitband_properties[] = {
+    DEFINE_PROP_UINT32("base", BitBandState, base, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void bitband_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = bitband_init;
+}
+
+static DeviceInfo bitband_info = {
+    .name = "ARM,bitband-memory",
+    .size = sizeof(BitBandState),
+    .props = bitband_properties,
+    .class_init = bitband_class_init,
 };
 
 static void armv7m_register_devices(void)

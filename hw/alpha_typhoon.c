@@ -808,11 +808,18 @@ static int typhoon_pcihost_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo typhoon_pcihost_info = {
-    .init = typhoon_pcihost_init,
-    .qdev.name = "typhoon-pcihost",
-    .qdev.size = sizeof(TyphoonState),
-    .qdev.no_user = 1
+static void typhoon_pcihost_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = typhoon_pcihost_init;
+}
+
+static DeviceInfo typhoon_pcihost_info = {
+    .name = "typhoon-pcihost",
+    .size = sizeof(TyphoonState),
+    .no_user = 1,
+    .class_init = typhoon_pcihost_class_init,
 };
 
 static void typhoon_register(void)

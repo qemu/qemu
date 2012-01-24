@@ -283,17 +283,6 @@ static int sp804_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo sp804_info = {
-    .init = sp804_init,
-    .qdev.name = "sp804",
-    .qdev.size = sizeof(sp804_state),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("freq0", sp804_state, freq0, 1000000),
-        DEFINE_PROP_UINT32("freq1", sp804_state, freq1, 1000000),
-        DEFINE_PROP_END_OF_LIST(),
-    }
-};
-
 /* Integrator/CP timer module.  */
 
 typedef struct {
@@ -358,10 +347,41 @@ static int icp_pit_init(SysBusDevice *dev)
     return 0;
 }
 
+static void icp_pit_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = icp_pit_init;
+}
+
+static DeviceInfo icp_pit_info = {
+    .name = "integrator_pit",
+    .size = sizeof(icp_pit_state),
+    .class_init = icp_pit_class_init,
+};
+
+static void sp804_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = sp804_init;
+}
+
+static DeviceInfo sp804_info = {
+    .name = "sp804",
+    .size = sizeof(sp804_state),
+    .class_init = sp804_class_init,
+    .props = (Property[]) {
+        DEFINE_PROP_UINT32("freq0", sp804_state, freq0, 1000000),
+        DEFINE_PROP_UINT32("freq1", sp804_state, freq1, 1000000),
+        DEFINE_PROP_END_OF_LIST(),
+    }
+};
+
 static void arm_timer_register_devices(void)
 {
-    sysbus_register_dev("integrator_pit", sizeof(icp_pit_state), icp_pit_init);
-    sysbus_register_withprop(&sp804_info);
+    sysbus_qdev_register(&icp_pit_info);
+    sysbus_qdev_register(&sp804_info);
 }
 
 device_init(arm_timer_register_devices)

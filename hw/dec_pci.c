@@ -84,7 +84,7 @@ PCIBus *pci_dec_21154_init(PCIBus *parent_bus, int devfn)
     return pci_bridge_get_sec_bus(br);
 }
 
-static int pci_dec_21154_init_device(SysBusDevice *dev)
+static int pci_dec_21154_device_init(SysBusDevice *dev)
 {
     DECState *s;
 
@@ -123,11 +123,22 @@ static DeviceInfo dec_21154_pci_host_info = {
     .class_init = dec_21154_pci_host_class_init,
 };
 
+static void pci_dec_21154_device_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = pci_dec_21154_device_init;
+}
+
+static DeviceInfo pci_dec_21154_device_info = {
+    .name = "dec-21154",
+    .size = sizeof(DECState),
+    .class_init = pci_dec_21154_device_class_init,
+};
+
 static void dec_register_devices(void)
 {
-    sysbus_register_dev("dec-21154", sizeof(DECState),
-                        pci_dec_21154_init_device);
-
+    sysbus_qdev_register(&pci_dec_21154_device_info);
     pci_qdev_register(&dec_21154_pci_host_info);
     pci_qdev_register(&dec_21154_pci_bridge_info);
 }

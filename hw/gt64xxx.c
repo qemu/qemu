@@ -1153,10 +1153,22 @@ static DeviceInfo gt64120_pci_info = {
     .class_init = gt64120_pci_class_init,
 };
 
+static void gt64120_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = gt64120_init;
+}
+
+static DeviceInfo gt64120_info = {
+    .name = "gt64120",
+    .size = sizeof(GT64120State),
+    .class_init = gt64120_class_init,
+};
+
 static void gt64120_pci_register_devices(void)
 {
-    sysbus_register_dev("gt64120", sizeof(GT64120State),
-                        gt64120_init);
+    sysbus_qdev_register(&gt64120_info);
     pci_qdev_register(&gt64120_pci_info);
 }
 

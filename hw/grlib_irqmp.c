@@ -354,16 +354,25 @@ static int grlib_irqmp_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo grlib_irqmp_info = {
-    .init = grlib_irqmp_init,
-    .qdev.name  = "grlib,irqmp",
-    .qdev.reset = grlib_irqmp_reset,
-    .qdev.size  = sizeof(IRQMP),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_PTR("set_pil_in", IRQMP, set_pil_in),
-        DEFINE_PROP_PTR("set_pil_in_opaque", IRQMP, set_pil_in_opaque),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property grlib_irqmp_properties[] = {
+    DEFINE_PROP_PTR("set_pil_in", IRQMP, set_pil_in),
+    DEFINE_PROP_PTR("set_pil_in_opaque", IRQMP, set_pil_in_opaque),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void grlib_irqmp_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = grlib_irqmp_init;
+}
+
+static DeviceInfo grlib_irqmp_info = {
+    .name = "grlib,irqmp",
+    .reset = grlib_irqmp_reset,
+    .size = sizeof(IRQMP),
+    .props = grlib_irqmp_properties,
+    .class_init = grlib_irqmp_class_init,
 };
 
 static void grlib_irqmp_register(void)

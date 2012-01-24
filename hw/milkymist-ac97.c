@@ -319,12 +319,19 @@ static const VMStateDescription vmstate_milkymist_ac97 = {
     }
 };
 
-static SysBusDeviceInfo milkymist_ac97_info = {
-    .init = milkymist_ac97_init,
-    .qdev.name  = "milkymist-ac97",
-    .qdev.size  = sizeof(MilkymistAC97State),
-    .qdev.vmsd  = &vmstate_milkymist_ac97,
-    .qdev.reset = milkymist_ac97_reset,
+static void milkymist_ac97_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = milkymist_ac97_init;
+}
+
+static DeviceInfo milkymist_ac97_info = {
+    .name = "milkymist-ac97",
+    .size = sizeof(MilkymistAC97State),
+    .vmsd = &vmstate_milkymist_ac97,
+    .reset = milkymist_ac97_reset,
+    .class_init = milkymist_ac97_class_init,
 };
 
 static void milkymist_ac97_register(void)

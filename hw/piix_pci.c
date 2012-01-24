@@ -566,12 +566,19 @@ static DeviceInfo i440fx_info = {
     .class_init = i440fx_class_init,
 };
 
-static SysBusDeviceInfo i440fx_pcihost_info = {
-    .init         = i440fx_pcihost_initfn,
-    .qdev.name    = "i440FX-pcihost",
-    .qdev.fw_name = "pci",
-    .qdev.size    = sizeof(I440FXState),
-    .qdev.no_user = 1,
+static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = i440fx_pcihost_initfn;
+}
+
+static DeviceInfo i440fx_pcihost_info = {
+    .name = "i440FX-pcihost",
+    .fw_name = "pci",
+    .size = sizeof(I440FXState),
+    .no_user = 1,
+    .class_init = i440fx_pcihost_class_init,
 };
 
 static void i440fx_register(void)

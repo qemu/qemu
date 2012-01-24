@@ -227,10 +227,22 @@ static DeviceInfo spapr_main_pci_host_info = {
     .class_init = spapr_main_pci_host_class_init,
 };
 
+static void spapr_phb_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = spapr_phb_init;
+}
+
+static DeviceInfo spapr_phb_info = {
+    .name = "spapr-pci-host-bridge",
+    .size = sizeof(sPAPRPHBState),
+    .class_init = spapr_phb_class_init,
+};
+
 static void spapr_register_devices(void)
 {
-    sysbus_register_dev("spapr-pci-host-bridge", sizeof(sPAPRPHBState),
-                        spapr_phb_init);
+    sysbus_qdev_register(&spapr_phb_info);
     pci_qdev_register(&spapr_main_pci_host_info);
 }
 

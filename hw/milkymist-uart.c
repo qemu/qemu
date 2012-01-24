@@ -218,12 +218,19 @@ static const VMStateDescription vmstate_milkymist_uart = {
     }
 };
 
-static SysBusDeviceInfo milkymist_uart_info = {
-    .init = milkymist_uart_init,
-    .qdev.name  = "milkymist-uart",
-    .qdev.size  = sizeof(MilkymistUartState),
-    .qdev.vmsd  = &vmstate_milkymist_uart,
-    .qdev.reset = milkymist_uart_reset,
+static void milkymist_uart_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = milkymist_uart_init;
+}
+
+static DeviceInfo milkymist_uart_info = {
+    .name = "milkymist-uart",
+    .size = sizeof(MilkymistUartState),
+    .vmsd = &vmstate_milkymist_uart,
+    .reset = milkymist_uart_reset,
+    .class_init = milkymist_uart_class_init,
 };
 
 static void milkymist_uart_register(void)

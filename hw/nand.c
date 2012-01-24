@@ -417,18 +417,27 @@ static int nand_device_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo nand_info = {
-    .init = nand_device_init,
-    .qdev.name = "nand",
-    .qdev.size = sizeof(NANDFlashState),
-    .qdev.reset = nand_reset,
-    .qdev.vmsd = &vmstate_nand,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT8("manufacturer_id", NANDFlashState, manf_id, 0),
-        DEFINE_PROP_UINT8("chip_id", NANDFlashState, chip_id, 0),
-        DEFINE_PROP_DRIVE("drive", NANDFlashState, bdrv),
-        DEFINE_PROP_END_OF_LIST()
-    }
+static Property nand_properties[] = {
+    DEFINE_PROP_UINT8("manufacturer_id", NANDFlashState, manf_id, 0),
+    DEFINE_PROP_UINT8("chip_id", NANDFlashState, chip_id, 0),
+    DEFINE_PROP_DRIVE("drive", NANDFlashState, bdrv),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void nand_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = nand_device_init;
+}
+
+static DeviceInfo nand_info = {
+    .name = "nand",
+    .size = sizeof(NANDFlashState),
+    .reset = nand_reset,
+    .vmsd = &vmstate_nand,
+    .props = nand_properties,
+    .class_init = nand_class_init,
 };
 
 static void nand_create_device(void)

@@ -355,11 +355,18 @@ static DeviceInfo e500_host_bridge_info = {
     .class_init = e500_host_bridge_class_init,
 };
 
-static SysBusDeviceInfo e500_pcihost_info = {
-    .init         = e500_pcihost_initfn,
-    .qdev.name    = "e500-pcihost",
-    .qdev.size    = sizeof(PPCE500PCIState),
-    .qdev.vmsd    = &vmstate_ppce500_pci,
+static void e500_pcihost_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = e500_pcihost_initfn;
+}
+
+static DeviceInfo e500_pcihost_info = {
+    .name = "e500-pcihost",
+    .size = sizeof(PPCE500PCIState),
+    .vmsd = &vmstate_ppce500_pci,
+    .class_init = e500_pcihost_class_init,
 };
 
 static void e500_pci_register(void)

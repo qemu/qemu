@@ -1861,12 +1861,19 @@ static DeviceInfo ohci_pci_info = {
     .class_init = ohci_pci_class_init,
 };
 
-static SysBusDeviceInfo ohci_sysbus_info = {
-    .init         = ohci_init_pxa,
-    .qdev.name    = "sysbus-ohci",
-    .qdev.desc    = "OHCI USB Controller",
-    .qdev.size    = sizeof(OHCISysBusState),
-    .qdev.props = (Property[]) {
+static void ohci_sysbus_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sbc->init = ohci_init_pxa;
+}
+
+static DeviceInfo ohci_sysbus_info = {
+    .name    = "sysbus-ohci",
+    .desc    = "OHCI USB Controller",
+    .size    = sizeof(OHCISysBusState),
+    .class_init = ohci_sysbus_class_init,
+    .props = (Property[]) {
         DEFINE_PROP_UINT32("num-ports", OHCISysBusState, num_ports, 3),
         DEFINE_PROP_TADDR("dma-offset", OHCISysBusState, dma_offset, 3),
         DEFINE_PROP_END_OF_LIST(),

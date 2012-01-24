@@ -373,20 +373,34 @@ static int pl081_init(SysBusDevice *dev)
     return pl08x_init(dev, 2);
 }
 
-static SysBusDeviceInfo pl080_info = {
-    .init = pl080_init,
-    .qdev.name = "pl080",
-    .qdev.size = sizeof(pl080_state),
-    .qdev.vmsd = &vmstate_pl080,
-    .qdev.no_user = 1,
+static void pl080_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl080_init;
+}
+
+static DeviceInfo pl080_info = {
+    .name = "pl080",
+    .size = sizeof(pl080_state),
+    .vmsd = &vmstate_pl080,
+    .no_user = 1,
+    .class_init = pl080_class_init,
 };
 
-static SysBusDeviceInfo pl081_info = {
-    .init = pl081_init,
-    .qdev.name = "pl081",
-    .qdev.size = sizeof(pl080_state),
-    .qdev.vmsd = &vmstate_pl080,
-    .qdev.no_user = 1,
+static void pl081_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl081_init;
+}
+
+static DeviceInfo pl081_info = {
+    .name = "pl081",
+    .size = sizeof(pl080_state),
+    .vmsd = &vmstate_pl080,
+    .no_user = 1,
+    .class_init = pl081_class_init,
 };
 
 /* The PL080 and PL081 are the same except for the number of channels

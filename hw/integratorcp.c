@@ -518,19 +518,41 @@ static void integratorcp_machine_init(void)
 
 machine_init(integratorcp_machine_init);
 
-static SysBusDeviceInfo core_info = {
-    .init = integratorcm_init,
-    .qdev.name  = "integrator_core",
-    .qdev.size  = sizeof(integratorcm_state),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("memsz", integratorcm_state, memsz, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property core_properties[] = {
+    DEFINE_PROP_UINT32("memsz", integratorcm_state, memsz, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void core_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = integratorcm_init;
+}
+
+static DeviceInfo core_info = {
+    .name = "integrator_core",
+    .size = sizeof(integratorcm_state),
+    .props = core_properties,
+    .class_init = core_class_init,
+};
+
+static void icp_pic_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = icp_pic_init;
+}
+
+static DeviceInfo icp_pic_info = {
+    .name = "integrator_pic",
+    .size = sizeof(icp_pic_state),
+    .class_init = icp_pic_class_init,
 };
 
 static void integratorcp_register_devices(void)
 {
-    sysbus_register_dev("integrator_pic", sizeof(icp_pic_state), icp_pic_init);
+    sysbus_qdev_register(&icp_pic_info);
     sysbus_register_withprop(&core_info);
 }
 

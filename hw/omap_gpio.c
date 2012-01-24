@@ -731,34 +731,52 @@ static int omap2_gpio_init(SysBusDevice *dev)
  * translation.)
  */
 
-static SysBusDeviceInfo omap_gpio_info = {
-    .init = omap_gpio_init,
-    .qdev.name = "omap-gpio",
-    .qdev.size = sizeof(struct omap_gpif_s),
-    .qdev.reset = omap_gpif_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_INT32("mpu_model", struct omap_gpif_s, mpu_model, 0),
-        DEFINE_PROP_PTR("clk", struct omap_gpif_s, clk),
-        DEFINE_PROP_END_OF_LIST()
-    }
+static Property omap_gpio_properties[] = {
+    DEFINE_PROP_INT32("mpu_model", struct omap_gpif_s, mpu_model, 0),
+    DEFINE_PROP_PTR("clk", struct omap_gpif_s, clk),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
-static SysBusDeviceInfo omap2_gpio_info = {
-    .init = omap2_gpio_init,
-    .qdev.name = "omap2-gpio",
-    .qdev.size = sizeof(struct omap2_gpif_s),
-    .qdev.reset = omap2_gpif_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_INT32("mpu_model", struct omap2_gpif_s, mpu_model, 0),
-        DEFINE_PROP_PTR("iclk", struct omap2_gpif_s, iclk),
-        DEFINE_PROP_PTR("fclk0", struct omap2_gpif_s, fclk[0]),
-        DEFINE_PROP_PTR("fclk1", struct omap2_gpif_s, fclk[1]),
-        DEFINE_PROP_PTR("fclk2", struct omap2_gpif_s, fclk[2]),
-        DEFINE_PROP_PTR("fclk3", struct omap2_gpif_s, fclk[3]),
-        DEFINE_PROP_PTR("fclk4", struct omap2_gpif_s, fclk[4]),
-        DEFINE_PROP_PTR("fclk5", struct omap2_gpif_s, fclk[5]),
-        DEFINE_PROP_END_OF_LIST()
-    }
+static void omap_gpio_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = omap_gpio_init;
+}
+
+static DeviceInfo omap_gpio_info = {
+    .name = "omap-gpio",
+    .size = sizeof(struct omap_gpif_s),
+    .reset = omap_gpif_reset,
+    .props = omap_gpio_properties,
+    .class_init = omap_gpio_class_init,
+};
+
+static Property omap2_gpio_properties[] = {
+    DEFINE_PROP_INT32("mpu_model", struct omap2_gpif_s, mpu_model, 0),
+    DEFINE_PROP_PTR("iclk", struct omap2_gpif_s, iclk),
+    DEFINE_PROP_PTR("fclk0", struct omap2_gpif_s, fclk[0]),
+    DEFINE_PROP_PTR("fclk1", struct omap2_gpif_s, fclk[1]),
+    DEFINE_PROP_PTR("fclk2", struct omap2_gpif_s, fclk[2]),
+    DEFINE_PROP_PTR("fclk3", struct omap2_gpif_s, fclk[3]),
+    DEFINE_PROP_PTR("fclk4", struct omap2_gpif_s, fclk[4]),
+    DEFINE_PROP_PTR("fclk5", struct omap2_gpif_s, fclk[5]),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void omap2_gpio_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = omap2_gpio_init;
+}
+
+static DeviceInfo omap2_gpio_info = {
+    .name = "omap2-gpio",
+    .size = sizeof(struct omap2_gpif_s),
+    .reset = omap2_gpif_reset,
+    .props = omap2_gpio_properties,
+    .class_init = omap2_gpio_class_init,
 };
 
 static void omap_gpio_register_device(void)

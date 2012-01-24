@@ -308,16 +308,25 @@ static int ecc_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo ecc_info = {
-    .init = ecc_init1,
-    .qdev.name  = "eccmemctl",
-    .qdev.size  = sizeof(ECCState),
-    .qdev.vmsd  = &vmstate_ecc,
-    .qdev.reset = ecc_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_HEX32("version", ECCState, version, -1),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property ecc_properties[] = {
+    DEFINE_PROP_HEX32("version", ECCState, version, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ecc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = ecc_init1;
+}
+
+static DeviceInfo ecc_info = {
+    .name = "eccmemctl",
+    .size = sizeof(ECCState),
+    .vmsd = &vmstate_ecc,
+    .reset = ecc_reset,
+    .props = ecc_properties,
+    .class_init = ecc_class_init,
 };
 
 

@@ -224,11 +224,18 @@ static int etraxfs_ser_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo etraxfs_ser_info = {
-    .init = etraxfs_ser_init,
-    .qdev.name  = "etraxfs,serial",
-    .qdev.size  = sizeof(struct etrax_serial),
-    .qdev.reset = etraxfs_ser_reset,
+static void etraxfs_ser_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = etraxfs_ser_init;
+}
+
+static DeviceInfo etraxfs_ser_info = {
+    .name = "etraxfs,serial",
+    .size = sizeof(struct etrax_serial),
+    .reset = etraxfs_ser_reset,
+    .class_init = etraxfs_ser_class_init,
 };
 
 static void etraxfs_serial_register(void)

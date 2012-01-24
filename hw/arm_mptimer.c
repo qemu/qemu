@@ -311,14 +311,21 @@ static const VMStateDescription vmstate_arm_mptimer = {
     }
 };
 
-static SysBusDeviceInfo arm_mptimer_info = {
-    .init = arm_mptimer_init,
-    .qdev.name = "arm_mptimer",
-    .qdev.size = sizeof(arm_mptimer_state),
-    .qdev.vmsd = &vmstate_arm_mptimer,
-    .qdev.reset = arm_mptimer_reset,
-    .qdev.no_user = 1,
-    .qdev.props = (Property[]) {
+static void arm_mptimer_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sbc->init = arm_mptimer_init;
+}
+
+static DeviceInfo arm_mptimer_info = {
+    .name = "arm_mptimer",
+    .size = sizeof(arm_mptimer_state),
+    .vmsd = &vmstate_arm_mptimer,
+    .reset = arm_mptimer_reset,
+    .no_user = 1,
+    .class_init = arm_mptimer_class_init,
+    .props = (Property[]) {
         DEFINE_PROP_UINT32("num-cpu", arm_mptimer_state, num_cpu, 0),
         DEFINE_PROP_END_OF_LIST()
     }
