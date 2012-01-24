@@ -28,7 +28,7 @@
 void pic_reset_common(PICCommonState *s)
 {
     s->last_irr = 0;
-    s->irr = 0;
+    s->irr &= s->elcr;
     s->imr = 0;
     s->isr = 0;
     s->priority_add = 0;

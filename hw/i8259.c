@@ -231,8 +231,8 @@ static void pic_reset(DeviceState *dev)
 {
     PICCommonState *s = DO_UPCAST(PICCommonState, dev.qdev, dev);
 
-    pic_init_reset(s);
     s->elcr = 0;
+    pic_init_reset(s);
 }
 
 static void pic_ioport_write(void *opaque, target_phys_addr_t addr64,
