@@ -1133,6 +1133,11 @@ static void e1000_reset(void *opaque)
     memmove(d->mac_reg, mac_reg_init, sizeof mac_reg_init);
     d->rxbuf_min_shift = 1;
     memset(&d->tx, 0, sizeof d->tx);
+
+    if (d->nic->nc.link_down) {
+        d->mac_reg[STATUS] &= ~E1000_STATUS_LU;
+        d->phy_reg[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
+    }
 }
 
 static NetClientInfo net_e1000_info = {
