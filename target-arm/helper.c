@@ -2785,7 +2785,7 @@ DO_VFP_cmp(d, float64)
     float##fsz HELPER(name)(uint32_t x, void *fpstp) \
 { \
     float_status *fpst = fpstp; \
-    return sign##int32_to_##float##fsz(x, fpst); \
+    return sign##int32_to_##float##fsz((sign##int32_t)x, fpst); \
 }
 
 #define CONV_FTOI(name, fsz, sign, round) \
