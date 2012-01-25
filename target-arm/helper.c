@@ -255,6 +255,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
 void cpu_reset(CPUARMState *env)
 {
     uint32_t id;
+    uint32_t tmp = 0;
 
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
@@ -262,9 +263,11 @@ void cpu_reset(CPUARMState *env)
     }
 
     id = env->cp15.c0_cpuid;
+    tmp = env->cp15.c15_config_base_address;
     memset(env, 0, offsetof(CPUARMState, breakpoints));
     if (id)
         cpu_reset_model_id(env, id);
+    env->cp15.c15_config_base_address = tmp;
 #if defined (CONFIG_USER_ONLY)
     env->uncached_cpsr = ARM_CPU_MODE_USR;
     /* For user mode we must enable access to coprocessors */
