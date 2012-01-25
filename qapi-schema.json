@@ -1593,3 +1593,22 @@
 { 'command': 'qom-list-types',
   'data': { '*implements': 'str', '*abstract': 'bool' },
   'returns': [ 'ObjectTypeInfo' ] }
+
+##
+# @xen-save-devices-state:
+#
+# Save the state of all devices to file. The RAM and the block devices
+# of the VM are not saved by this command.
+#
+# @filename: the file to save the state of the devices to as binary
+# data. See xen-save-devices-state.txt for a description of the binary
+# format.
+#
+# Returns: Nothing on success
+#          If @filename cannot be opened, OpenFileFailed
+#          If an I/O error occurs while writing the file, IOError
+#
+# Since: 1.1
+##
+{ 'command': 'xen-save-devices-state', 'data': {'filename': 'str'} }
+
