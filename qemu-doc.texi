@@ -730,6 +730,57 @@ export LIBISCSI_CHAP_PASSWORD=<password>
 iscsi://<host>/<target-iqn-name>/<lun>
 @end example
 
+Various session related parameters can be set via special options, either
+in a configuration file provided via '-readconfig' or directly on the
+command line.
+
+@example
+Setting a specific initiator name to use when logging in to the target
+-iscsi initiator-name=iqn.qemu.test:my-initiator
+@end example
+
+@example
+Controlling which type of header digest to negotiate with the target
+-iscsi header-digest=CRC32C|CRC32C-NONE|NONE-CRC32C|NONE
+@end example
+
+These can also be set via a configuration file
+@example
+[iscsi]
+  user = "CHAP username"
+  password = "CHAP password"
+  initiator-name = "iqn.qemu.test:my-initiator"
+  # header digest is one of CRC32C|CRC32C-NONE|NONE-CRC32C|NONE
+  header-digest = "CRC32C"
+@end example
+
+
+Setting the target name allows different options for different targets
+@example
+[iscsi "iqn.target.name"]
+  user = "CHAP username"
+  password = "CHAP password"
+  initiator-name = "iqn.qemu.test:my-initiator"
+  # header digest is one of CRC32C|CRC32C-NONE|NONE-CRC32C|NONE
+  header-digest = "CRC32C"
+@end example
+
+
+Howto use a configuration file to set iSCSI configuration options:
+@example
+cat >iscsi.conf <<EOF
+[iscsi]
+  user = "me"
+  password = "my password"
+  initiator-name = "iqn.qemu.test:my-initiator"
+  header-digest = "CRC32C"
+EOF
+
+qemu-system-i386 -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
+    -readconfig iscsi.conf
+@end example
+
+
 Howto set up a simple iSCSI target on loopback and accessing it via QEMU:
 @example
 This example shows how to set up an iSCSI target with one CDROM and one DISK
@@ -744,7 +795,8 @@ tgtadm --lld iscsi --mode logicalunit --op new --tid 1 --lun 2 \
     -b /IMAGES/cd.iso --device-type=cd
 tgtadm --lld iscsi --op bind --mode target --tid 1 -I ALL
 
-qemu-system-i386 -boot d -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
+qemu-system-i386 -iscsi initiator-name=iqn.qemu.test:my-initiator \
+    -boot d -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
     -cdrom iscsi://127.0.0.1/iqn.qemu.test/2
 @end example
 

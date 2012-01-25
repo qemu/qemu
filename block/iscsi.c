@@ -455,6 +455,109 @@ iscsi_connect_cb(struct iscsi_context *iscsi, int status, void *command_data,
     }
 }
 
+static int parse_chap(struct iscsi_context *iscsi, const char *target)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    const char *user = NULL;
+    const char *password = NULL;
+
+    list = qemu_find_opts("iscsi");
+    if (!list) {
+        return 0;
+    }
+
+    opts = qemu_opts_find(list, target);
+    if (opts == NULL) {
+        opts = QTAILQ_FIRST(&list->head);
+        if (!opts) {
+            return 0;
+        }
+    }
+
+    user = qemu_opt_get(opts, "user");
+    if (!user) {
+        return 0;
+    }
+
+    password = qemu_opt_get(opts, "password");
+    if (!password) {
+        error_report("CHAP username specified but no password was given");
+        return -1;
+    }
+
+    if (iscsi_set_initiator_username_pwd(iscsi, user, password)) {
+        error_report("Failed to set initiator username and password");
+        return -1;
+    }
+
+    return 0;
+}
+
+static void parse_header_digest(struct iscsi_context *iscsi, const char *target)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    const char *digest = NULL;
+
+    list = qemu_find_opts("iscsi");
+    if (!list) {
+        return;
+    }
+
+    opts = qemu_opts_find(list, target);
+    if (opts == NULL) {
+        opts = QTAILQ_FIRST(&list->head);
+        if (!opts) {
+            return;
+        }
+    }
+
+    digest = qemu_opt_get(opts, "header-digest");
+    if (!digest) {
+        return;
+    }
+
+    if (!strcmp(digest, "CRC32C")) {
+        iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_CRC32C);
+    } else if (!strcmp(digest, "NONE")) {
+        iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE);
+    } else if (!strcmp(digest, "CRC32C-NONE")) {
+        iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_CRC32C_NONE);
+    } else if (!strcmp(digest, "NONE-CRC32C")) {
+        iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
+    } else {
+        error_report("Invalid header-digest setting : %s", digest);
+    }
+}
+
+static char *parse_initiator_name(const char *target)
+{
+    QemuOptsList *list;
+    QemuOpts *opts;
+    const char *name = NULL;
+
+    list = qemu_find_opts("iscsi");
+    if (!list) {
+        return g_strdup("iqn.2008-11.org.linux-kvm");
+    }
+
+    opts = qemu_opts_find(list, target);
+    if (opts == NULL) {
+        opts = QTAILQ_FIRST(&list->head);
+        if (!opts) {
+            return g_strdup("iqn.2008-11.org.linux-kvm");
+        }
+    }
+
+    name = qemu_opt_get(opts, "initiator-name");
+    if (!name) {
+        return g_strdup("iqn.2008-11.org.linux-kvm");
+    }
+
+    return g_strdup(name);
+}
+
 /*
  * We support iscsi url's on the form
  * iscsi://[<username>%<password>@]<host>[:<port>]/<targetname>/<lun>
@@ -465,6 +568,7 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     struct iscsi_context *iscsi = NULL;
     struct iscsi_url *iscsi_url = NULL;
     struct IscsiTask task;
+    char *initiator_name = NULL;
     int ret;
 
     if ((BDRV_SECTOR_SIZE % 512) != 0) {
@@ -474,21 +578,22 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
         return -EINVAL;
     }
 
-    memset(iscsilun, 0, sizeof(IscsiLun));
-
-    /* Should really append the KVM name after the ':' here */
-    iscsi = iscsi_create_context("iqn.2008-11.org.linux-kvm:");
-    if (iscsi == NULL) {
-        error_report("iSCSI: Failed to create iSCSI context.");
-        ret = -ENOMEM;
-        goto failed;
-    }
-
     iscsi_url = iscsi_parse_full_url(iscsi, filename);
     if (iscsi_url == NULL) {
         error_report("Failed to parse URL : %s %s", filename,
                      iscsi_get_error(iscsi));
         ret = -EINVAL;
+        goto failed;
+    }
+
+    memset(iscsilun, 0, sizeof(IscsiLun));
+
+    initiator_name = parse_initiator_name(iscsi_url->target);
+
+    iscsi = iscsi_create_context(initiator_name);
+    if (iscsi == NULL) {
+        error_report("iSCSI: Failed to create iSCSI context.");
+        ret = -ENOMEM;
         goto failed;
     }
 
@@ -507,6 +612,14 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
             goto failed;
         }
     }
+
+    /* check if we got CHAP username/password via the options */
+    if (parse_chap(iscsi, iscsi_url->target) != 0) {
+        error_report("iSCSI: Failed to set CHAP user/password");
+        ret = -EINVAL;
+        goto failed;
+    }
+
     if (iscsi_set_session_type(iscsi, ISCSI_SESSION_NORMAL) != 0) {
         error_report("iSCSI: Failed to set session type to normal.");
         ret = -EINVAL;
@@ -514,6 +627,9 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     }
 
     iscsi_set_header_digest(iscsi, ISCSI_HEADER_DIGEST_NONE_CRC32C);
+
+    /* check if we got HEADER_DIGEST via the options */
+    parse_header_digest(iscsi, iscsi_url->target);
 
     task.iscsilun = iscsilun;
     task.status = 0;
@@ -548,6 +664,9 @@ static int iscsi_open(BlockDriverState *bs, const char *filename, int flags)
     return 0;
 
 failed:
+    if (initiator_name != NULL) {
+        g_free(initiator_name);
+    }
     if (iscsi_url != NULL) {
         iscsi_destroy_url(iscsi_url);
     }

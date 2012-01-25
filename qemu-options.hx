@@ -1829,24 +1829,32 @@ Syntax for specifying iSCSI LUNs is
 
 Example (without authentication):
 @example
-qemu -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
---drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+qemu -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
+-cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
+-drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 Example (CHAP username/password via URL):
 @example
-qemu --drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
+qemu -drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 Example (CHAP username/password via environment variables):
 @example
 LIBISCSI_CHAP_USERNAME="user" \
 LIBISCSI_CHAP_PASSWORD="password" \
-qemu --drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+qemu -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 iSCSI support is an optional feature of QEMU and only available when
 compiled and linked against libiscsi.
+ETEXI
+DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
+    "-iscsi [user=user][,password=password]\n"
+    "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
+    "       [,initiator-name=iqn]\n"
+    "                iSCSI session parameters\n", QEMU_ARCH_ALL)
+STEXI
 
 @item NBD
 QEMU supports NBD (Network Block Devices) both using TCP protocol as well
