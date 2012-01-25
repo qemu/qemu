@@ -131,7 +131,7 @@ static void pci_dec_21154_device_class_init(ObjectClass *klass, void *data)
 }
 
 static DeviceInfo pci_dec_21154_device_info = {
-    .name = "dec-21154",
+    .name = "dec-21154-sysbus",
     .size = sizeof(DECState),
     .class_init = pci_dec_21154_device_class_init,
 };

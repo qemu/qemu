@@ -350,7 +350,7 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
         sysbus_connect_irq(s, i, pic[i]);
     }
 
-    pci_create_simple(d->bus, 0, "pbm");
+    pci_create_simple(d->bus, 0, "pbm-pci");
 
     /* APB secondary busses */
     pci_dev = pci_create_multifunction(d->bus, PCI_DEVFN(1, 0), true,
@@ -448,7 +448,7 @@ static void pbm_pci_host_class_init(ObjectClass *klass, void *data)
 }
 
 static DeviceInfo pbm_pci_host_info = {
-    .name = "pbm",
+    .name = "pbm-pci",
     .size = sizeof(PCIDevice),
     .class_init = pbm_pci_host_class_init,
 };

@@ -222,7 +222,7 @@ static void spapr_main_pci_host_class_init(ObjectClass *klass, void *data)
 }
 
 static DeviceInfo spapr_main_pci_host_info = {
-    .name = "spapr-pci-host-bridge",
+    .name = "spapr-pci-host-bridge-pci",
     .size = sizeof(PCIDevice),
     .class_init = spapr_main_pci_host_class_init,
 };

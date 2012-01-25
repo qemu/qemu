@@ -87,6 +87,11 @@ TypeImpl *type_register(const TypeInfo *info)
 
     g_assert(info->name != NULL);
 
+    if (type_table_lookup(info->name) != NULL) {
+        fprintf(stderr, "Registering `%s' which already exists\n", info->name);
+        abort();
+    }
+
     ti->name = g_strdup(info->name);
     ti->parent = g_strdup(info->parent);
 
