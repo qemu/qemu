@@ -382,6 +382,7 @@ enum arm_features {
     ARM_FEATURE_VAPA, /* cp15 VA to PA lookups */
     ARM_FEATURE_ARM_DIV, /* divide supported in ARM encoding */
     ARM_FEATURE_VFP4, /* VFPv4 (implies that NEON is v2) */
+    ARM_FEATURE_GENERIC_TIMER,
 };
 
 static inline int arm_feature(CPUARMState *env, int feature)

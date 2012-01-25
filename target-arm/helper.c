@@ -1764,7 +1764,11 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
             goto bad_reg;
         }
         break;
-    case 14: /* Reserved.  */
+    case 14: /* Generic timer */
+        if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
+            /* Dummy implementation: RAZ/WI for all */
+            break;
+        }
         goto bad_reg;
     case 15: /* Implementation specific.  */
         if (arm_feature(env, ARM_FEATURE_XSCALE)) {
@@ -2134,7 +2138,11 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
         default:
             goto bad_reg;
         }
-    case 14: /* Reserved.  */
+    case 14: /* Generic timer */
+        if (arm_feature(env, ARM_FEATURE_GENERIC_TIMER)) {
+            /* Dummy implementation: RAZ/WI for all */
+            return 0;
+        }
         goto bad_reg;
     case 15: /* Implementation specific.  */
         if (arm_feature(env, ARM_FEATURE_XSCALE)) {
