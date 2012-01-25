@@ -268,12 +268,9 @@ static void g364fb_update_display(void *opaque)
 static inline void g364fb_invalidate_display(void *opaque)
 {
     G364State *s = opaque;
-    int i;
 
     s->blanked = 0;
-    for (i = 0; i < s->vram_size; i += G364_PAGE_SIZE) {
-        memory_region_set_dirty(&s->mem_vram, i);
-    }
+    memory_region_set_dirty(&s->mem_vram, 0, s->vram_size);
 }
 
 static void g364fb_reset(G364State *s)
@@ -385,7 +382,7 @@ static void g364fb_update_depth(G364State *s)
 
 static void g364_invalidate_cursor_position(G364State *s)
 {
-    int ymin, ymax, start, end, i;
+    int ymin, ymax, start, end;
 
     /* invalidate only near the cursor */
     ymin = s->cursor_position & 0xfff;
@@ -393,9 +390,7 @@ static void g364_invalidate_cursor_position(G364State *s)
     start = ymin * ds_get_linesize(s->ds);
     end = (ymax + 1) * ds_get_linesize(s->ds);
 
-    for (i = start; i < end; i += G364_PAGE_SIZE) {
-        memory_region_set_dirty(&s->mem_vram, i);
-    }
+    memory_region_set_dirty(&s->mem_vram, start, end - start);
 }
 
 static void g364fb_ctrl_write(void *opaque,

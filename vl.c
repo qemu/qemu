@@ -3057,6 +3057,7 @@ int main(int argc, char **argv, char **envp)
                 default_floppy = 0;
                 default_cdrom = 0;
                 default_sdcard = 0;
+                vga_model = "none";
                 break;
             case QEMU_OPTION_xen_domid:
                 if (!(xen_available())) {

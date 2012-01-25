@@ -396,14 +396,17 @@ bool memory_region_get_dirty(MemoryRegion *mr, target_phys_addr_t addr,
                              unsigned client);
 
 /**
- * memory_region_set_dirty: Mark a page as dirty in a memory region.
+ * memory_region_set_dirty: Mark a range of bytes as dirty in a memory region.
  *
- * Marks a page as dirty, after it has been dirtied outside guest code.
+ * Marks a range of bytes as dirty, after it has been dirtied outside
+ * guest code.
  *
- * @mr: the memory region being queried.
+ * @mr: the memory region being dirtied.
  * @addr: the address (relative to the start of the region) being dirtied.
+ * @size: size of the range being dirtied.
  */
-void memory_region_set_dirty(MemoryRegion *mr, target_phys_addr_t addr);
+void memory_region_set_dirty(MemoryRegion *mr, target_phys_addr_t addr,
+                             target_phys_addr_t size);
 
 /**
  * memory_region_sync_dirty_bitmap: Synchronize a region's dirty bitmap with

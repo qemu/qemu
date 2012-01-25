@@ -343,10 +343,7 @@ static void init_qxl_ram(PCIQXLDevice *d)
 /* can be called from spice server thread context */
 static void qxl_set_dirty(MemoryRegion *mr, ram_addr_t addr, ram_addr_t end)
 {
-    while (addr < end) {
-        memory_region_set_dirty(mr, addr);
-        addr += TARGET_PAGE_SIZE;
-    }
+    memory_region_set_dirty(mr, addr, end - addr);
 }
 
 static void qxl_rom_set_dirty(PCIQXLDevice *qxl)

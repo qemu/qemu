@@ -14,7 +14,9 @@
 #define QEMU_HW_HYPERV_H 1
 
 #include "qemu-common.h"
+#ifdef CONFIG_KVM
 #include <asm/hyperv.h>
+#endif
 
 #ifndef HYPERV_SPINLOCK_NEVER_RETRY
 #define HYPERV_SPINLOCK_NEVER_RETRY             0xFFFFFFFF
@@ -24,7 +26,7 @@
 #define KVM_CPUID_SIGNATURE_NEXT                0x40000100
 #endif
 
-#ifndef CONFIG_USER_ONLY
+#if !defined(CONFIG_USER_ONLY) && defined(CONFIG_KVM)
 void hyperv_enable_vapic_recommended(bool val);
 void hyperv_enable_relaxed_timing(bool val);
 void hyperv_set_spinlock_retries(int val);

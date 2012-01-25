@@ -618,11 +618,7 @@ static void cirrus_invalidate_region(CirrusVGAState * s, int off_begin,
     for (y = 0; y < lines; y++) {
 	off_cur = off_begin;
 	off_cur_end = (off_cur + bytesperline) & s->cirrus_addr_mask;
-	off_cur &= TARGET_PAGE_MASK;
-	while (off_cur < off_cur_end) {
-	    memory_region_set_dirty(&s->vga.vram, off_cur);
-	    off_cur += TARGET_PAGE_SIZE;
-	}
+        memory_region_set_dirty(&s->vga.vram, off_cur, off_cur_end - off_cur);
 	off_begin += off_pitch;
     }
 }
@@ -1900,8 +1896,6 @@ static void cirrus_mmio_blt_write(CirrusVGAState * s, unsigned address,
  *
  *  write mode 4/5
  *
- * assume TARGET_PAGE_SIZE >= 16
- *
  ***************************************/
 
 static void cirrus_mem_writeb_mode4and5_8bpp(CirrusVGAState * s,
@@ -1923,8 +1917,7 @@ static void cirrus_mem_writeb_mode4and5_8bpp(CirrusVGAState * s,
 	val <<= 1;
 	dst++;
     }
-    memory_region_set_dirty(&s->vga.vram, offset);
-    memory_region_set_dirty(&s->vga.vram, offset + 7);
+    memory_region_set_dirty(&s->vga.vram, offset, 8);
 }
 
 static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
@@ -1948,8 +1941,7 @@ static void cirrus_mem_writeb_mode4and5_16bpp(CirrusVGAState * s,
 	val <<= 1;
 	dst += 2;
     }
-    memory_region_set_dirty(&s->vga.vram, offset);
-    memory_region_set_dirty(&s->vga.vram, offset + 15);
+    memory_region_set_dirty(&s->vga.vram, offset, 16);
 }
 
 /***************************************
@@ -2039,7 +2031,8 @@ static void cirrus_vga_mem_write(void *opaque,
 		mode = s->vga.gr[0x05] & 0x7;
 		if (mode < 4 || mode > 5 || ((s->vga.gr[0x0B] & 0x4) == 0)) {
 		    *(s->vga.vram_ptr + bank_offset) = mem_value;
-		    memory_region_set_dirty(&s->vga.vram, bank_offset);
+                    memory_region_set_dirty(&s->vga.vram, bank_offset,
+                                            sizeof(mem_value));
 		} else {
 		    if ((s->vga.gr[0x0B] & 0x14) != 0x14) {
 			cirrus_mem_writeb_mode4and5_8bpp(s, mode,
@@ -2311,7 +2304,7 @@ static void cirrus_linear_write(void *opaque, target_phys_addr_t addr,
 	mode = s->vga.gr[0x05] & 0x7;
 	if (mode < 4 || mode > 5 || ((s->vga.gr[0x0B] & 0x4) == 0)) {
 	    *(s->vga.vram_ptr + addr) = (uint8_t) val;
-	    memory_region_set_dirty(&s->vga.vram, addr);
+            memory_region_set_dirty(&s->vga.vram, addr, 1);
 	} else {
 	    if ((s->vga.gr[0x0B] & 0x14) != 0x14) {
 		cirrus_mem_writeb_mode4and5_8bpp(s, mode, addr, val);

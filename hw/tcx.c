@@ -61,21 +61,13 @@ static void tcx24_screen_dump(void *opaque, const char *filename);
 
 static void tcx_set_dirty(TCXState *s)
 {
-    unsigned int i;
-
-    for (i = 0; i < MAXX * MAXY; i += TARGET_PAGE_SIZE) {
-        memory_region_set_dirty(&s->vram_mem, i);
-    }
+    memory_region_set_dirty(&s->vram_mem, 0, MAXX * MAXY);
 }
 
 static void tcx24_set_dirty(TCXState *s)
 {
-    unsigned int i;
-
-    for (i = 0; i < MAXX * MAXY * 4; i += TARGET_PAGE_SIZE) {
-        memory_region_set_dirty(&s->vram_mem, s->vram24_offset + i);
-        memory_region_set_dirty(&s->vram_mem, s->cplane_offset + i);
-    }
+    memory_region_set_dirty(&s->vram_mem, s->vram24_offset, MAXX * MAXY * 4);
+    memory_region_set_dirty(&s->vram_mem, s->cplane_offset, MAXX * MAXY * 4);
 }
 
 static void update_palette_entries(TCXState *s, int start, int end)
