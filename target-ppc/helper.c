@@ -1448,6 +1448,9 @@ static int mmubooke206_get_physical_address(CPUState *env, mmu_ctx_t *ctx,
 
         for (j = 0; j < ways; j++) {
             tlb = booke206_get_tlbm(env, i, address, j);
+            if (!tlb) {
+                continue;
+            }
             ret = mmubooke206_check_tlb(env, tlb, &raddr, &ctx->prot, address,
                                         rw, access_type);
             if (ret != -1) {

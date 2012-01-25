@@ -4260,6 +4260,12 @@ void helper_booke206_tlbwe(void)
 
     tlb = booke206_cur_tlb(env);
 
+    if (!tlb) {
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL |
+                                   POWERPC_EXCP_INVAL_INVAL);
+    }
+
     /* check that we support the targeted size */
     size_tlb = (env->spr[SPR_BOOKE_MAS1] & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
     size_ps = booke206_tlbnps(env, tlbn);
@@ -4311,7 +4317,11 @@ void helper_booke206_tlbre(void)
     ppcmas_tlb_t *tlb = NULL;
 
     tlb = booke206_cur_tlb(env);
-    booke206_tlb_to_mas(env, tlb);
+    if (!tlb) {
+        env->spr[SPR_BOOKE_MAS1] = 0;
+    } else {
+        booke206_tlb_to_mas(env, tlb);
+    }
 }
 
 void helper_booke206_tlbsx(target_ulong address)
@@ -4329,6 +4339,10 @@ void helper_booke206_tlbsx(target_ulong address)
 
         for (j = 0; j < ways; j++) {
             tlb = booke206_get_tlbm(env, i, address, j);
+
+            if (!tlb) {
+                continue;
+            }
 
             if (ppcmas_tlb_check(env, tlb, &raddr, address, spid)) {
                 continue;
@@ -4373,6 +4387,9 @@ static inline void booke206_invalidate_ea_tlb(CPUState *env, int tlbn,
 
     for (i = 0; i < ways; i++) {
         ppcmas_tlb_t *tlb = booke206_get_tlbm(env, tlbn, ea, i);
+        if (!tlb) {
+            continue;
+        }
         mask = ~(booke206_tlb_to_page_size(env, tlb) - 1);
         if (((tlb->mas2 & MAS2_EPN_MASK) == (ea & mask)) &&
             !(tlb->mas1 & MAS1_IPROT)) {
@@ -4453,6 +4470,9 @@ void helper_booke206_tlbilx3(target_ulong address)
 
         for (j = 0; j < ways; j++) {
             tlb = booke206_get_tlbm(env, i, address, j);
+            if (!tlb) {
+                continue;
+            }
             if ((ppcmas_tlb_check(env, tlb, NULL, address, pid) != 0) ||
                 (tlb->mas1 & MAS1_IPROT) ||
                 ((tlb->mas1 & MAS1_IND) != ind) ||

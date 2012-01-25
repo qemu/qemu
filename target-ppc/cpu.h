@@ -2112,6 +2112,10 @@ static inline ppcmas_tlb_t *booke206_get_tlbm(CPUState *env, const int tlbn,
     ea &= (1 << (tlb_bits - ways_bits)) - 1;
     r = (ea << ways_bits) | way;
 
+    if (r >= booke206_tlb_size(env, tlbn)) {
+        return NULL;
+    }
+
     /* bump up to tlbn index */
     for (i = 0; i < tlbn; i++) {
         r += booke206_tlb_size(env, i);
