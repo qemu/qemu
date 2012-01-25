@@ -1306,7 +1306,11 @@ int kvm_has_many_ioeventfds(void)
 
 int kvm_has_gsi_routing(void)
 {
+#ifdef KVM_CAP_IRQ_ROUTING
     return kvm_check_extension(kvm_state, KVM_CAP_IRQ_ROUTING);
+#else
+    return false;
+#endif
 }
 
 int kvm_allows_irq0_override(void)
