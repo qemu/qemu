@@ -1610,18 +1610,17 @@ void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
         break;
     case 8: /* MMU TLB control.  */
         switch (op2) {
-        case 0: /* Invalidate all.  */
-            tlb_flush(env, 0);
+        case 0: /* Invalidate all (TLBIALL) */
+            tlb_flush(env, 1);
             break;
-        case 1: /* Invalidate single TLB entry.  */
+        case 1: /* Invalidate single TLB entry by MVA and ASID (TLBIMVA) */
             tlb_flush_page(env, val & TARGET_PAGE_MASK);
             break;
-        case 2: /* Invalidate on ASID.  */
+        case 2: /* Invalidate by ASID (TLBIASID) */
             tlb_flush(env, val == 0);
             break;
-        case 3: /* Invalidate single entry on MVA.  */
-            /* ??? This is like case 1, but ignores ASID.  */
-            tlb_flush(env, 1);
+        case 3: /* Invalidate single entry by MVA, all ASIDs (TLBIMVAA) */
+            tlb_flush_page(env, val & TARGET_PAGE_MASK);
             break;
         default:
             goto bad_reg;
