@@ -254,6 +254,8 @@ static void vmmouse_reset(DeviceState *d)
 
     s->status = 0xffff;
     s->queue_size = VMMOUSE_QUEUE_SIZE;
+
+    vmmouse_disable(s);
 }
 
 static int vmmouse_initfn(ISADevice *dev)
