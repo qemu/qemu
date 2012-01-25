@@ -4282,6 +4282,15 @@ void helper_booke206_tlbwe(void)
     tlb->mas7_3 = ((uint64_t)env->spr[SPR_BOOKE_MAS7] << 32) |
                   env->spr[SPR_BOOKE_MAS3];
     tlb->mas1 = env->spr[SPR_BOOKE_MAS1];
+
+    /* MAV 1.0 only */
+    if (!(tlbncfg & TLBnCFG_AVAIL)) {
+        /* force !AVAIL TLB entries to correct page size */
+        tlb->mas1 &= ~MAS1_TSIZE_MASK;
+        /* XXX can be configured in MMUCSR0 */
+        tlb->mas1 |= (tlbncfg & TLBnCFG_MINSIZE) >> 12;
+    }
+
     /* XXX needs to change when supporting 64-bit e500 */
     tlb->mas2 = env->spr[SPR_BOOKE_MAS2] & 0xffffffff;
 
