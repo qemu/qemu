@@ -10,6 +10,16 @@
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
 #endif
+#include "sysemu.h"
+
+static uint32_t cortexa15_cp15_c0_c1[8] = {
+    0x00001131, 0x00011011, 0x02010555, 0x00000000,
+    0x10201105, 0x20000000, 0x01240000, 0x02102211
+};
+
+static uint32_t cortexa15_cp15_c0_c2[8] = {
+    0x02101110, 0x13112111, 0x21232041, 0x11112131, 0x10011142, 0, 0, 0
+};
 
 static uint32_t cortexa9_cp15_c0_c1[8] =
 { 0x1031, 0x11, 0x000, 0, 0x00100103, 0x20000000, 0x01230000, 0x00002111 };
@@ -156,6 +166,27 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
         env->cp15.c0_clid = (1 << 27) | (1 << 24) | 3;
         env->cp15.c0_ccsid[0] = 0xe00fe015; /* 16k L1 dcache. */
         env->cp15.c0_ccsid[1] = 0x200fe015; /* 16k L1 icache. */
+        env->cp15.c1_sys = 0x00c50078;
+        break;
+    case ARM_CPUID_CORTEXA15:
+        set_feature(env, ARM_FEATURE_V7);
+        set_feature(env, ARM_FEATURE_VFP4);
+        set_feature(env, ARM_FEATURE_VFP_FP16);
+        set_feature(env, ARM_FEATURE_NEON);
+        set_feature(env, ARM_FEATURE_THUMB2EE);
+        set_feature(env, ARM_FEATURE_ARM_DIV);
+        set_feature(env, ARM_FEATURE_V7MP);
+        set_feature(env, ARM_FEATURE_GENERIC_TIMER);
+        env->vfp.xregs[ARM_VFP_FPSID] = 0x410430f0;
+        env->vfp.xregs[ARM_VFP_MVFR0] = 0x10110222;
+        env->vfp.xregs[ARM_VFP_MVFR1] = 0x11111111;
+        memcpy(env->cp15.c0_c1, cortexa15_cp15_c0_c1, 8 * sizeof(uint32_t));
+        memcpy(env->cp15.c0_c2, cortexa15_cp15_c0_c2, 8 * sizeof(uint32_t));
+        env->cp15.c0_cachetype = 0x8444c004;
+        env->cp15.c0_clid = 0x0a200023;
+        env->cp15.c0_ccsid[0] = 0x701fe00a; /* 32K L1 dcache */
+        env->cp15.c0_ccsid[1] = 0x201fe00a; /* 32K L1 icache */
+        env->cp15.c0_ccsid[2] = 0x711fe07a; /* 4096K L2 unified cache */
         env->cp15.c1_sys = 0x00c50078;
         break;
     case ARM_CPUID_CORTEXM3:
@@ -416,6 +447,7 @@ static const struct arm_cpu_t arm_cpu_names[] = {
     { ARM_CPUID_CORTEXM3, "cortex-m3"},
     { ARM_CPUID_CORTEXA8, "cortex-a8"},
     { ARM_CPUID_CORTEXA9, "cortex-a9"},
+    { ARM_CPUID_CORTEXA15, "cortex-a15" },
     { ARM_CPUID_TI925T, "ti925t" },
     { ARM_CPUID_PXA250, "pxa250" },
     { ARM_CPUID_SA1100,    "sa1100" },
@@ -669,8 +701,6 @@ uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
 }
 
 #else
-
-extern int semihosting_enabled;
 
 /* Map CPU modes onto saved register banks.  */
 static inline int bank_number(CPUState *env, int mode)
@@ -1945,6 +1975,7 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
             case ARM_CPUID_CORTEXA8:
                 return 2;
             case ARM_CPUID_CORTEXA9:
+            case ARM_CPUID_CORTEXA15:
                 return 0;
             default:
                 goto bad_reg;
@@ -2065,11 +2096,26 @@ uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
                     goto bad_reg;
                 }
             case 1: /* L2 cache */
-                if (crm != 0) {
+                /* L2 Lockdown and Auxiliary control.  */
+                switch (op2) {
+                case 0:
+                    /* L2 cache lockdown (A8 only) */
+                    return 0;
+                case 2:
+                    /* L2 cache auxiliary control (A8) or control (A15) */
+                    if (ARM_CPUID(env) == ARM_CPUID_CORTEXA15) {
+                        /* Linux wants the number of processors from here.
+                         * Might as well set the interrupt-controller bit too.
+                         */
+                        return ((smp_cpus - 1) << 24) | (1 << 23);
+                    }
+                    return 0;
+                case 3:
+                    /* L2 cache extended control (A15) */
+                    return 0;
+                default:
                     goto bad_reg;
                 }
-                /* L2 Lockdown and Auxiliary control.  */
-                return 0;
             default:
                 goto bad_reg;
             }
