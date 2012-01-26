@@ -133,6 +133,7 @@ vnc_thread="no"
 xen=""
 xen_ctrl_version=""
 linux_aio=""
+cap_ng=""
 attr=""
 libattr=""
 xfs=""
@@ -672,6 +673,10 @@ for opt do
   ;;
   --enable-tcg-interpreter) tcg_interpreter="yes"
   ;;
+  --disable-cap-ng)  cap_ng="no"
+  ;;
+  --enable-cap-ng) cap_ng="yes"
+  ;;
   --disable-spice) spice="no"
   ;;
   --enable-spice) spice="yes"
@@ -1053,6 +1058,8 @@ echo "  --disable-vde            disable support for vde network"
 echo "  --enable-vde             enable support for vde network"
 echo "  --disable-linux-aio      disable Linux AIO support"
 echo "  --enable-linux-aio       enable Linux AIO support"
+echo "  --disable-cap-ng         disable libcap-ng support"
+echo "  --enable-cap-ng          enable libcap-ng support"
 echo "  --disable-attr           disables attr and xattr support"
 echo "  --enable-attr            enable attr and xattr support"
 echo "  --disable-blobs          disable installing provided firmware blobs"
@@ -1741,6 +1748,29 @@ EOF
       feature_not_found "vde"
     fi
     vde=no
+  fi
+fi
+
+##########################################
+# libcap-ng library probe
+if test "$cap_ng" != "no" ; then
+  cap_libs="-lcap-ng"
+  cat > $TMPC << EOF
+#include <cap-ng.h>
+int main(void)
+{
+    capng_capability_to_name(CAPNG_EFFECTIVE);
+    return 0;
+}
+EOF
+  if compile_prog "" "$cap_libs" ; then
+    cap_ng=yes
+    libs_tools="$cap_libs $libs_tools"
+  else
+    if test "$cap_ng" = "yes" ; then
+      feature_not_found "cap_ng"
+    fi
+    cap_ng=no
   fi
 fi
 
@@ -2876,6 +2906,7 @@ echo "fdatasync         $fdatasync"
 echo "madvise           $madvise"
 echo "posix_madvise     $posix_madvise"
 echo "uuid support      $uuid"
+echo "libcap-ng support $cap_ng"
 echo "vhost-net support $vhost_net"
 echo "Trace backend     $trace_backend"
 echo "Trace output file $trace_file-<pid>"
@@ -2979,6 +3010,9 @@ if test "$slirp" = "yes" ; then
 fi
 if test "$vde" = "yes" ; then
   echo "CONFIG_VDE=y" >> $config_host_mak
+fi
+if test "$cap_ng" = "yes" ; then
+  echo "CONFIG_LIBCAP=y" >> $config_host_mak
 fi
 for card in $audio_card_list; do
     def=CONFIG_`echo $card | tr '[:lower:]' '[:upper:]'`

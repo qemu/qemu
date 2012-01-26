@@ -39,6 +39,10 @@
 
 #include "net/tap-linux.h"
 
+#ifdef CONFIG_LIBCAP
+#include <cap-ng.h>
+#endif
+
 #define DEFAULT_ACL_FILE CONFIG_QEMU_CONFDIR "/bridge.conf"
 
 enum {
@@ -193,6 +197,27 @@ static int send_fd(int c, int fd)
     return sendmsg(c, &msg, 0);
 }
 
+#ifdef CONFIG_LIBCAP
+static int drop_privileges(void)
+{
+    /* clear all capabilities */
+    capng_clear(CAPNG_SELECT_BOTH);
+
+    if (capng_update(CAPNG_ADD, CAPNG_EFFECTIVE | CAPNG_PERMITTED,
+                     CAP_NET_ADMIN) < 0) {
+        return -1;
+    }
+
+    /* change to calling user's real uid and gid, retaining supplemental
+     * groups and CAP_NET_ADMIN */
+    if (capng_change_id(getuid(), getgid(), CAPNG_CLEAR_BOUNDING)) {
+        return -1;
+    }
+
+    return 0;
+}
+#endif
+
 int main(int argc, char **argv)
 {
     struct ifreq ifr;
@@ -206,6 +231,17 @@ int main(int argc, char **argv)
     ACLList acl_list;
     int access_allowed, access_denied;
     int ret = EXIT_SUCCESS;
+
+#ifdef CONFIG_LIBCAP
+    /* if we're run from an suid binary, immediately drop privileges preserving
+     * cap_net_admin */
+    if (geteuid() == 0 && getuid() != geteuid()) {
+        if (drop_privileges() == -1) {
+            fprintf(stderr, "failed to drop privileges\n");
+            return 1;
+        }
+    }
+#endif
 
     /* parse arguments */
     for (index = 1; index < argc; index++) {
