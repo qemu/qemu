@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <glib.h>
 
 #include <sys/types.h>
 #include <sys/ioctl.h>
@@ -34,12 +35,114 @@
 
 #include <linux/sockios.h>
 
+#include "qemu-queue.h"
+
 #include "net/tap-linux.h"
+
+#define DEFAULT_ACL_FILE CONFIG_QEMU_CONFDIR "/bridge.conf"
+
+enum {
+    ACL_ALLOW = 0,
+    ACL_ALLOW_ALL,
+    ACL_DENY,
+    ACL_DENY_ALL,
+};
+
+typedef struct ACLRule {
+    int type;
+    char iface[IFNAMSIZ];
+    QSIMPLEQ_ENTRY(ACLRule) entry;
+} ACLRule;
+
+typedef QSIMPLEQ_HEAD(ACLList, ACLRule) ACLList;
 
 static void usage(void)
 {
     fprintf(stderr,
             "Usage: qemu-bridge-helper [--use-vnet] --br=bridge --fd=unixfd\n");
+}
+
+static int parse_acl_file(const char *filename, ACLList *acl_list)
+{
+    FILE *f;
+    char line[4096];
+    ACLRule *acl_rule;
+
+    f = fopen(filename, "r");
+    if (f == NULL) {
+        return -1;
+    }
+
+    while (fgets(line, sizeof(line), f) != NULL) {
+        char *ptr = line;
+        char *cmd, *arg, *argend;
+
+        while (isspace(*ptr)) {
+            ptr++;
+        }
+
+        /* skip comments and empty lines */
+        if (*ptr == '#' || *ptr == 0) {
+            continue;
+        }
+
+        cmd = ptr;
+        arg = strchr(cmd, ' ');
+        if (arg == NULL) {
+            arg = strchr(cmd, '\t');
+        }
+
+        if (arg == NULL) {
+            fprintf(stderr, "Invalid config line:\n  %s\n", line);
+            fclose(f);
+            errno = EINVAL;
+            return -1;
+        }
+
+        *arg = 0;
+        arg++;
+        while (isspace(*arg)) {
+            arg++;
+        }
+
+        argend = arg + strlen(arg);
+        while (arg != argend && isspace(*(argend - 1))) {
+            argend--;
+        }
+        *argend = 0;
+
+        if (strcmp(cmd, "deny") == 0) {
+            acl_rule = g_malloc(sizeof(*acl_rule));
+            if (strcmp(arg, "all") == 0) {
+                acl_rule->type = ACL_DENY_ALL;
+            } else {
+                acl_rule->type = ACL_DENY;
+                snprintf(acl_rule->iface, IFNAMSIZ, "%s", arg);
+            }
+            QSIMPLEQ_INSERT_TAIL(acl_list, acl_rule, entry);
+        } else if (strcmp(cmd, "allow") == 0) {
+            acl_rule = g_malloc(sizeof(*acl_rule));
+            if (strcmp(arg, "all") == 0) {
+                acl_rule->type = ACL_ALLOW_ALL;
+            } else {
+                acl_rule->type = ACL_ALLOW;
+                snprintf(acl_rule->iface, IFNAMSIZ, "%s", arg);
+            }
+            QSIMPLEQ_INSERT_TAIL(acl_list, acl_rule, entry);
+        } else if (strcmp(cmd, "include") == 0) {
+            /* ignore errors */
+            parse_acl_file(arg, acl_list);
+        } else {
+            fprintf(stderr, "Unknown command `%s'\n", cmd);
+            fclose(f);
+            errno = EINVAL;
+            return -1;
+        }
+    }
+
+    fclose(f);
+
+    return 0;
 }
 
 static bool has_vnet_hdr(int fd)
@@ -99,6 +202,9 @@ int main(int argc, char **argv)
     const char *bridge = NULL;
     char iface[IFNAMSIZ];
     int index;
+    ACLRule *acl_rule;
+    ACLList acl_list;
+    int access_allowed, access_denied;
     int ret = EXIT_SUCCESS;
 
     /* parse arguments */
@@ -118,6 +224,48 @@ int main(int argc, char **argv)
     if (bridge == NULL || unixfd == -1) {
         usage();
         return EXIT_FAILURE;
+    }
+
+    /* parse default acl file */
+    QSIMPLEQ_INIT(&acl_list);
+    if (parse_acl_file(DEFAULT_ACL_FILE, &acl_list) == -1) {
+        fprintf(stderr, "failed to parse default acl file `%s'\n",
+                DEFAULT_ACL_FILE);
+        ret = EXIT_FAILURE;
+        goto cleanup;
+    }
+
+    /* validate bridge against acl -- default policy is to deny
+     * according acl policy if we have a deny and allow both
+     * then deny should always win over allow
+     */
+    access_allowed = 0;
+    access_denied = 0;
+    QSIMPLEQ_FOREACH(acl_rule, &acl_list, entry) {
+        switch (acl_rule->type) {
+        case ACL_ALLOW_ALL:
+            access_allowed = 1;
+            break;
+        case ACL_ALLOW:
+            if (strcmp(bridge, acl_rule->iface) == 0) {
+                access_allowed = 1;
+            }
+            break;
+        case ACL_DENY_ALL:
+            access_denied = 1;
+            break;
+        case ACL_DENY:
+            if (strcmp(bridge, acl_rule->iface) == 0) {
+                access_denied = 1;
+            }
+            break;
+        }
+    }
+
+    if ((access_allowed == 0) || (access_denied == 1)) {
+        fprintf(stderr, "access denied by acl file\n");
+        ret = EXIT_FAILURE;
+        goto cleanup;
     }
 
     /* open a socket to use to control the network interfaces */
@@ -216,6 +364,11 @@ int main(int argc, char **argv)
     /* profit! */
 
 cleanup:
+
+    while ((acl_rule = QSIMPLEQ_FIRST(&acl_list)) != NULL) {
+        QSIMPLEQ_REMOVE_HEAD(&acl_list, entry);
+        g_free(acl_rule);
+    }
 
     return ret;
 }
