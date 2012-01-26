@@ -351,6 +351,7 @@ grlib_irqmp_writel_unknown(uint64_t addr, uint32_t value) "addr 0x%"PRIx64" valu
 # hw/grlib_apbuart.c
 grlib_apbuart_event(int event) "event:%d"
 grlib_apbuart_writel_unknown(uint64_t addr, uint32_t value) "addr 0x%"PRIx64" value 0x%x"
+grlib_apbuart_readl_unknown(uint64_t addr) "addr 0x%"PRIx64""
 
 # hw/leon3.c
 leon3_set_irq(int intno) "Set CPU IRQ %d"
