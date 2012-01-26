@@ -1222,11 +1222,14 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "-net tap[,vlan=n][,name=str],ifname=name\n"
     "                connect the host TAP network interface to VLAN 'n'\n"
 #else
-    "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off][,vhostfd=h][,vhostforce=on|off]\n"
-    "                connect the host TAP network interface to VLAN 'n' and use the\n"
-    "                network scripts 'file' (default=" DEFAULT_NETWORK_SCRIPT ")\n"
-    "                and 'dfile' (default=" DEFAULT_NETWORK_DOWN_SCRIPT ")\n"
+    "-net tap[,vlan=n][,name=str][,fd=h][,ifname=name][,script=file][,downscript=dfile][,helper=helper][,sndbuf=nbytes][,vnet_hdr=on|off][,vhost=on|off][,vhostfd=h][,vhostforce=on|off]\n"
+    "                connect the host TAP network interface to VLAN 'n' \n"
+    "                use network scripts 'file' (default=" DEFAULT_NETWORK_SCRIPT ")\n"
+    "                to configure it and 'dfile' (default=" DEFAULT_NETWORK_DOWN_SCRIPT ")\n"
+    "                to deconfigure it\n"
     "                use '[down]script=no' to disable script execution\n"
+    "                use network helper 'helper' (default=" DEFAULT_BRIDGE_HELPER ") to\n"
+    "                configure it\n"
     "                use 'fd=h' to connect to an already opened TAP interface\n"
     "                use 'sndbuf=nbytes' to limit the size of the send buffer (the\n"
     "                default is disabled 'sndbuf=0' to enable flow control set 'sndbuf=1048576')\n"
@@ -1236,6 +1239,10 @@ DEF("net", HAS_ARG, QEMU_OPTION_net,
     "                    (only has effect for virtio guests which use MSIX)\n"
     "                use vhostforce=on to force vhost on for non-MSIX virtio guests\n"
     "                use 'vhostfd=h' to connect to an already opened vhost net device\n"
+    "-net bridge[,vlan=n][,name=str][,br=bridge][,helper=helper]\n"
+    "                connects a host TAP network interface to a host bridge device 'br'\n"
+    "                (default=" DEFAULT_BRIDGE_INTERFACE ") using the program 'helper'\n"
+    "                (default=" DEFAULT_BRIDGE_HELPER ")\n"
 #endif
     "-net socket[,vlan=n][,name=str][,fd=h][,listen=[host]:port][,connect=host:port]\n"
     "                connect the vlan 'n' to another VLAN using a socket connection\n"
@@ -1261,6 +1268,7 @@ DEF("netdev", HAS_ARG, QEMU_OPTION_netdev,
     "user|"
 #endif
     "tap|"
+    "bridge|"
 #ifdef CONFIG_VDE
     "vde|"
 #endif
@@ -1397,24 +1405,63 @@ processed and applied to -net user. Mixing them with the new configuration
 syntax gives undefined results. Their use for new applications is discouraged
 as they will be removed from future versions.
 
-@item -net tap[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}][,ifname=@var{name}] [,script=@var{file}][,downscript=@var{dfile}]
-Connect the host TAP network interface @var{name} to VLAN @var{n}, use
-the network script @var{file} to configure it and the network script
+@item -net tap[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}][,ifname=@var{name}][,script=@var{file}][,downscript=@var{dfile}][,helper=@var{helper}]
+Connect the host TAP network interface @var{name} to VLAN @var{n}.
+
+Use the network script @var{file} to configure it and the network script
 @var{dfile} to deconfigure it. If @var{name} is not provided, the OS
-automatically provides one. @option{fd}=@var{h} can be used to specify
-the handle of an already opened host TAP interface. The default network
-configure script is @file{/etc/qemu-ifup} and the default network
-deconfigure script is @file{/etc/qemu-ifdown}. Use @option{script=no}
-or @option{downscript=no} to disable script execution. Example:
+automatically provides one. The default network configure script is
+@file{/etc/qemu-ifup} and the default network deconfigure script is
+@file{/etc/qemu-ifdown}. Use @option{script=no} or @option{downscript=no}
+to disable script execution.
+
+If running QEMU as an unprivileged user, use the network helper
+@var{helper} to configure the TAP interface. The default network
+helper executable is @file{/usr/local/libexec/qemu-bridge-helper}.
+
+@option{fd}=@var{h} can be used to specify the handle of an already
+opened host TAP interface.
+
+Examples:
 
 @example
+#launch a QEMU instance with the default network script
 qemu linux.img -net nic -net tap
 @end example
 
-More complicated example (two NICs, each one connected to a TAP device)
 @example
+#launch a QEMU instance with two NICs, each one connected
+#to a TAP device
 qemu linux.img -net nic,vlan=0 -net tap,vlan=0,ifname=tap0 \
                -net nic,vlan=1 -net tap,vlan=1,ifname=tap1
+@end example
+
+@example
+#launch a QEMU instance with the default network helper to
+#connect a TAP device to bridge br0
+qemu linux.img -net nic -net tap,"helper=/usr/local/libexec/qemu-bridge-helper"
+@end example
+
+@item -net bridge[,vlan=@var{n}][,name=@var{name}][,br=@var{bridge}][,helper=@var{helper}]
+Connect a host TAP network interface to a host bridge device.
+
+Use the network helper @var{helper} to configure the TAP interface and
+attach it to the bridge. The default network helper executable is
+@file{/usr/local/libexec/qemu-bridge-helper} and the default bridge
+device is @file{br0}.
+
+Examples:
+
+@example
+#launch a QEMU instance with the default network helper to
+#connect a TAP device to bridge br0
+qemu linux.img -net bridge -net nic,model=virtio
+@end example
+
+@example
+#launch a QEMU instance with the default network helper to
+#connect a TAP device to bridge qemubr0
+qemu linux.img -net bridge,br=qemubr0 -net nic,model=virtio
 @end example
 
 @item -net socket[,vlan=@var{n}][,name=@var{name}][,fd=@var{h}] [,listen=[@var{host}]:@var{port}][,connect=@var{host}:@var{port}]
