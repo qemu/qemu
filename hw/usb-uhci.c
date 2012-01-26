@@ -73,7 +73,7 @@
 
 #define FRAME_TIMER_FREQ 1000
 
-#define FRAME_MAX_LOOPS  100
+#define FRAME_MAX_LOOPS  256
 
 #define NB_PORTS 2
 
@@ -942,7 +942,7 @@ static int qhdb_insert(QhDb *db, uint32_t addr)
 static void uhci_process_frame(UHCIState *s)
 {
     uint32_t frame_addr, link, old_td_ctrl, val, int_mask;
-    uint32_t curr_qh;
+    uint32_t curr_qh, td_count = 0, bytes_count = 0;
     int cnt, ret;
     UHCI_TD td;
     UHCI_QH qh;
@@ -967,13 +967,26 @@ static void uhci_process_frame(UHCIState *s)
             if (qhdb_insert(&qhdb, link)) {
                 /*
                  * We're going in circles. Which is not a bug because
-                 * HCD is allowed to do that as part of the BW management. 
-                 * In our case though it makes no sense to spin here. Sync transations 
-                 * are already done, and async completion handler will re-process 
-                 * the frame when something is ready.
+                 * HCD is allowed to do that as part of the BW management.
+                 *
+                 * Stop processing here if
+                 *  (a) no transaction has been done since we've been
+                 *      here last time, or
+                 *  (b) we've reached the usb 1.1 bandwidth, which is
+                 *      1280 bytes/frame.
                  */
                 DPRINTF("uhci: detected loop. qh 0x%x\n", link);
-                break;
+                if (td_count == 0) {
+                    DPRINTF("uhci: no transaction last round, stop\n");
+                    break;
+                } else if (bytes_count >= 1280) {
+                    DPRINTF("uhci: bandwidth limit reached, stop\n");
+                    break;
+                } else {
+                    td_count = 0;
+                    qhdb_reset(&qhdb);
+                    qhdb_insert(&qhdb, link);
+                }
             }
 
             pci_dma_read(&s->dev, link & ~0xf, &qh, sizeof(qh));
@@ -1033,6 +1046,8 @@ static void uhci_process_frame(UHCIState *s)
                 link, td.link, td.ctrl, td.token, curr_qh);
 
         link = td.link;
+        td_count++;
+        bytes_count += (td.ctrl & 0x7ff) + 1;
 
         if (curr_qh) {
 	    /* update QH element link */
