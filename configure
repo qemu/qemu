@@ -2910,6 +2910,7 @@ echo "datadir=$datadir" >> $config_host_mak
 echo "sysconfdir=$sysconfdir" >> $config_host_mak
 echo "docdir=$docdir" >> $config_host_mak
 echo "confdir=$confdir" >> $config_host_mak
+echo "libexecdir=\${prefix}/libexec" >> $config_host_mak
 
 echo "ARCH=$ARCH" >> $config_host_mak
 if test "$debug_tcg" = "yes" ; then
