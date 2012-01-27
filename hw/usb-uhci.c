@@ -942,6 +942,34 @@ static int qhdb_insert(QhDb *db, uint32_t addr)
     return 0;
 }
 
+static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
+{
+    uint32_t int_mask = 0;
+    uint32_t plink = td->link;
+    uint32_t token = uhci_queue_token(td);
+    UHCI_TD ptd;
+    int ret;
+
+    fprintf(stderr, "%s: -- %x\n", __func__, token);
+    while (is_valid(plink)) {
+        pci_dma_read(&s->dev, plink & ~0xf, &ptd, sizeof(ptd));
+        le32_to_cpus(&ptd.link);
+        le32_to_cpus(&ptd.ctrl);
+        le32_to_cpus(&ptd.token);
+        le32_to_cpus(&ptd.buffer);
+        if (!(ptd.ctrl & TD_CTRL_ACTIVE)) {
+            break;
+        }
+        if (uhci_queue_token(&ptd) != token) {
+            break;
+        }
+        ret = uhci_handle_td(s, plink, &ptd, &int_mask);
+        assert(ret == 2); /* got USB_RET_ASYNC */
+        assert(int_mask == 0);
+        plink = ptd.link;
+    }
+}
+
 static void uhci_process_frame(UHCIState *s)
 {
     uint32_t frame_addr, link, old_td_ctrl, val, int_mask;
@@ -1044,8 +1072,9 @@ static void uhci_process_frame(UHCIState *s)
             DPRINTF("uhci: TD 0x%x async. "
                     "link 0x%x ctrl 0x%x token 0x%x qh 0x%x\n",
                     link, td.link, td.ctrl, td.token, curr_qh);
-            fprintf(stderr, "async td: link %x%s\n",
-                    td.link, is_valid(td.link) ? " valid" : "");
+            if (is_valid(td.link)) {
+                uhci_fill_queue(s, &td);
+            }
             link = curr_qh ? qh.link : td.link;
             continue;
 
