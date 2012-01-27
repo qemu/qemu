@@ -348,6 +348,6 @@ int qemu_create_pidfile(const char *filename)
         return -1;
     }
 
-    close(fd);
+    /* keep pidfile open & locked forever */
     return 0;
 }
