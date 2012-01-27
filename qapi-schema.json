@@ -845,6 +845,38 @@
 { 'command': 'query-pci', 'returns': ['PciInfo'] }
 
 ##
+# @BlockJobInfo:
+#
+# Information about a long-running block device operation.
+#
+# @type: the job type ('stream' for image streaming)
+#
+# @device: the block device name
+#
+# @len: the maximum progress value
+#
+# @offset: the current progress value
+#
+# @speed: the rate limit, bytes per second
+#
+# Since: 1.1
+##
+{ 'type': 'BlockJobInfo',
+  'data': {'type': 'str', 'device': 'str', 'len': 'int',
+           'offset': 'int', 'speed': 'int'} }
+
+##
+# @query-block-jobs:
+#
+# Return information about long-running block device operations.
+#
+# Returns: a list of @BlockJobInfo for each active block job
+#
+# Since: 1.1
+##
+{ 'command': 'query-block-jobs', 'returns': ['BlockJobInfo'] }
+
+##
 # @quit:
 #
 # This command will cause the QEMU process to exit gracefully.  While every
@@ -1434,3 +1466,86 @@
 { 'command': 'block_set_io_throttle',
   'data': { 'device': 'str', 'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
             'iops': 'int', 'iops_rd': 'int', 'iops_wr': 'int' } }
+
+# @block_stream:
+#
+# Copy data from a backing file into a block device.
+#
+# The block streaming operation is performed in the background until the entire
+# backing file has been copied.  This command returns immediately once streaming
+# has started.  The status of ongoing block streaming operations can be checked
+# with query-block-jobs.  The operation can be stopped before it has completed
+# using the block_job_cancel command.
+#
+# If a base file is specified then sectors are not copied from that base file and
+# its backing chain.  When streaming completes the image file will have the base
+# file as its backing file.  This can be used to stream a subset of the backing
+# file chain instead of flattening the entire image.
+#
+# On successful completion the image file is updated to drop the backing file
+# and the BLOCK_JOB_COMPLETED event is emitted.
+#
+# @device: the device name
+#
+# @base:   #optional the common backing file name
+#
+# Returns: Nothing on success
+#          If streaming is already active on this device, DeviceInUse
+#          If @device does not exist, DeviceNotFound
+#          If image streaming is not supported by this device, NotSupported
+#          If @base does not exist, BaseNotFound
+#
+# Since: 1.1
+##
+{ 'command': 'block_stream', 'data': { 'device': 'str', '*base': 'str' } }
+
+##
+# @block_job_set_speed:
+#
+# Set maximum speed for a background block operation.
+#
+# This command can only be issued when there is an active block job.
+#
+# Throttling can be disabled by setting the speed to 0.
+#
+# @device: the device name
+#
+# @value:  the maximum speed, in bytes per second
+#
+# Returns: Nothing on success
+#          If the job type does not support throttling, NotSupported
+#          If streaming is not active on this device, DeviceNotActive
+#
+# Since: 1.1
+##
+{ 'command': 'block_job_set_speed',
+  'data': { 'device': 'str', 'value': 'int' } }
+
+##
+# @block_job_cancel:
+#
+# Stop an active block streaming operation.
+#
+# This command returns immediately after marking the active block streaming
+# operation for cancellation.  It is an error to call this command if no
+# operation is in progress.
+#
+# The operation will cancel as soon as possible and then emit the
+# BLOCK_JOB_CANCELLED event.  Before that happens the job is still visible when
+# enumerated using query-block-jobs.
+#
+# The image file retains its backing file unless the streaming operation happens
+# to complete just as it is being cancelled.
+#
+# A new block streaming operation can be started at a later time to finish
+# copying all data from the backing file.
+#
+# @device: the device name
+#
+# Returns: Nothing on success
+#          If streaming is not active on this device, DeviceNotActive
+#          If cancellation already in progress, DeviceInUse
+#
+# Since: 1.1
+##
+{ 'command': 'block_job_cancel', 'data': { 'device': 'str' } }

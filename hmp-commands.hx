@@ -69,6 +69,47 @@ but should be used with extreme caution.  Note that this command only
 resizes image files, it can not resize block devices like LVM volumes.
 ETEXI
 
+    {
+        .name       = "block_stream",
+        .args_type  = "device:B,base:s?",
+        .params     = "device [base]",
+        .help       = "copy data from a backing file into a block device",
+        .mhandler.cmd = hmp_block_stream,
+    },
+
+STEXI
+@item block_stream
+@findex block_stream
+Copy data from a backing file into a block device.
+ETEXI
+
+    {
+        .name       = "block_job_set_speed",
+        .args_type  = "device:B,value:o",
+        .params     = "device value",
+        .help       = "set maximum speed for a background block operation",
+        .mhandler.cmd = hmp_block_job_set_speed,
+    },
+
+STEXI
+@item block_job_set_stream
+@findex block_job_set_stream
+Set maximum speed for a background block operation.
+ETEXI
+
+    {
+        .name       = "block_job_cancel",
+        .args_type  = "device:B",
+        .params     = "device",
+        .help       = "stop an active block streaming operation",
+        .mhandler.cmd = hmp_block_job_cancel,
+    },
+
+STEXI
+@item block_job_cancel
+@findex block_job_cancel
+Stop an active block streaming operation.
+ETEXI
 
     {
         .name       = "eject",

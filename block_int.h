@@ -69,6 +69,36 @@ typedef struct BlockIOBaseValue {
     uint64_t ios[2];
 } BlockIOBaseValue;
 
+typedef void BlockJobCancelFunc(void *opaque);
+typedef struct BlockJob BlockJob;
+typedef struct BlockJobType {
+    /** Derived BlockJob struct size */
+    size_t instance_size;
+
+    /** String describing the operation, part of query-block-jobs QMP API */
+    const char *job_type;
+
+    /** Optional callback for job types that support setting a speed limit */
+    int (*set_speed)(BlockJob *job, int64_t value);
+} BlockJobType;
+
+/**
+ * Long-running operation on a BlockDriverState
+ */
+struct BlockJob {
+    const BlockJobType *job_type;
+    BlockDriverState *bs;
+    bool cancelled;
+
+    /* These fields are published by the query-block-jobs QMP API */
+    int64_t offset;
+    int64_t len;
+    int64_t speed;
+
+    BlockDriverCompletionFunc *cb;
+    void *opaque;
+};
+
 struct BlockDriver {
     const char *format_name;
     int instance_size;
@@ -218,6 +248,9 @@ struct BlockDriverState {
     BlockDriverState *backing_hd;
     BlockDriverState *file;
 
+    /* number of in-flight copy-on-read requests */
+    unsigned int copy_on_read_in_flight;
+
     /* async read/write emulation */
 
     void *sync_aiocb;
@@ -261,6 +294,9 @@ struct BlockDriverState {
     void *private;
 
     QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
+
+    /* long-running background operation */
+    BlockJob *job;
 };
 
 struct BlockDriverAIOCB {
@@ -283,5 +319,16 @@ void bdrv_set_io_limits(BlockDriverState *bs,
 #ifdef _WIN32
 int is_windows_drive(const char *filename);
 #endif
+
+void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
+                       BlockDriverCompletionFunc *cb, void *opaque);
+void block_job_complete(BlockJob *job, int ret);
+int block_job_set_speed(BlockJob *job, int64_t value);
+void block_job_cancel(BlockJob *job);
+bool block_job_is_cancelled(BlockJob *job);
+
+int stream_start(BlockDriverState *bs, BlockDriverState *base,
+                 const char *base_id, BlockDriverCompletionFunc *cb,
+                 void *opaque);
 
 #endif /* BLOCK_INT_H */

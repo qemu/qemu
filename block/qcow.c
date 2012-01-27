@@ -95,11 +95,13 @@ static int qcow_probe(const uint8_t *buf, int buf_size, const char *filename)
 static int qcow_open(BlockDriverState *bs, int flags)
 {
     BDRVQcowState *s = bs->opaque;
-    int len, i, shift;
+    int len, i, shift, ret;
     QCowHeader header;
 
-    if (bdrv_pread(bs->file, 0, &header, sizeof(header)) != sizeof(header))
+    ret = bdrv_pread(bs->file, 0, &header, sizeof(header));
+    if (ret < 0) {
         goto fail;
+    }
     be32_to_cpus(&header.magic);
     be32_to_cpus(&header.version);
     be64_to_cpus(&header.backing_file_offset);
@@ -109,15 +111,31 @@ static int qcow_open(BlockDriverState *bs, int flags)
     be32_to_cpus(&header.crypt_method);
     be64_to_cpus(&header.l1_table_offset);
 
-    if (header.magic != QCOW_MAGIC || header.version != QCOW_VERSION)
+    if (header.magic != QCOW_MAGIC) {
+        ret = -EINVAL;
         goto fail;
-    if (header.size <= 1 || header.cluster_bits < 9)
+    }
+    if (header.version != QCOW_VERSION) {
+        char version[64];
+        snprintf(version, sizeof(version), "QCOW version %d", header.version);
+        qerror_report(QERR_UNKNOWN_BLOCK_FORMAT_FEATURE,
+            bs->device_name, "qcow", version);
+        ret = -ENOTSUP;
         goto fail;
-    if (header.crypt_method > QCOW_CRYPT_AES)
+    }
+
+    if (header.size <= 1 || header.cluster_bits < 9) {
+        ret = -EINVAL;
         goto fail;
+    }
+    if (header.crypt_method > QCOW_CRYPT_AES) {
+        ret = -EINVAL;
+        goto fail;
+    }
     s->crypt_method_header = header.crypt_method;
-    if (s->crypt_method_header)
+    if (s->crypt_method_header) {
         bs->encrypted = 1;
+    }
     s->cluster_bits = header.cluster_bits;
     s->cluster_size = 1 << s->cluster_bits;
     s->cluster_sectors = 1 << (s->cluster_bits - 9);
@@ -132,33 +150,33 @@ static int qcow_open(BlockDriverState *bs, int flags)
 
     s->l1_table_offset = header.l1_table_offset;
     s->l1_table = g_malloc(s->l1_size * sizeof(uint64_t));
-    if (!s->l1_table)
+
+    ret = bdrv_pread(bs->file, s->l1_table_offset, s->l1_table,
+               s->l1_size * sizeof(uint64_t));
+    if (ret < 0) {
         goto fail;
-    if (bdrv_pread(bs->file, s->l1_table_offset, s->l1_table, s->l1_size * sizeof(uint64_t)) !=
-        s->l1_size * sizeof(uint64_t))
-        goto fail;
+    }
+
     for(i = 0;i < s->l1_size; i++) {
         be64_to_cpus(&s->l1_table[i]);
     }
     /* alloc L2 cache */
     s->l2_cache = g_malloc(s->l2_size * L2_CACHE_SIZE * sizeof(uint64_t));
-    if (!s->l2_cache)
-        goto fail;
     s->cluster_cache = g_malloc(s->cluster_size);
-    if (!s->cluster_cache)
-        goto fail;
     s->cluster_data = g_malloc(s->cluster_size);
-    if (!s->cluster_data)
-        goto fail;
     s->cluster_cache_offset = -1;
 
     /* read the backing file name */
     if (header.backing_file_offset != 0) {
         len = header.backing_file_size;
-        if (len > 1023)
+        if (len > 1023) {
             len = 1023;
-        if (bdrv_pread(bs->file, header.backing_file_offset, bs->backing_file, len) != len)
+        }
+        ret = bdrv_pread(bs->file, header.backing_file_offset,
+                   bs->backing_file, len);
+        if (ret < 0) {
             goto fail;
+        }
         bs->backing_file[len] = '\0';
     }
 
@@ -176,7 +194,7 @@ static int qcow_open(BlockDriverState *bs, int flags)
     g_free(s->l2_cache);
     g_free(s->cluster_cache);
     g_free(s->cluster_data);
-    return -1;
+    return ret;
 }
 
 static int qcow_set_key(BlockDriverState *bs, const char *key)
@@ -626,13 +644,14 @@ static void qcow_close(BlockDriverState *bs)
 
 static int qcow_create(const char *filename, QEMUOptionParameter *options)
 {
-    int fd, header_size, backing_filename_len, l1_size, i, shift;
+    int header_size, backing_filename_len, l1_size, shift, i;
     QCowHeader header;
-    uint64_t tmp;
+    uint8_t *tmp;
     int64_t total_size = 0;
     const char *backing_file = NULL;
     int flags = 0;
     int ret;
+    BlockDriverState *qcow_bs;
 
     /* Read out options */
     while (options && options->name) {
@@ -646,9 +665,21 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
         options++;
     }
 
-    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
-    if (fd < 0)
-        return -errno;
+    ret = bdrv_create_file(filename, options);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = bdrv_file_open(&qcow_bs, filename, BDRV_O_RDWR);
+    if (ret < 0) {
+        return ret;
+    }
+
+    ret = bdrv_truncate(qcow_bs, 0);
+    if (ret < 0) {
+        goto exit;
+    }
+
     memset(&header, 0, sizeof(header));
     header.magic = cpu_to_be32(QCOW_MAGIC);
     header.version = cpu_to_be32(QCOW_VERSION);
@@ -684,33 +715,34 @@ static int qcow_create(const char *filename, QEMUOptionParameter *options)
     }
 
     /* write all the data */
-    ret = qemu_write_full(fd, &header, sizeof(header));
+    ret = bdrv_pwrite(qcow_bs, 0, &header, sizeof(header));
     if (ret != sizeof(header)) {
-        ret = -errno;
         goto exit;
     }
 
     if (backing_file) {
-        ret = qemu_write_full(fd, backing_file, backing_filename_len);
+        ret = bdrv_pwrite(qcow_bs, sizeof(header),
+            backing_file, backing_filename_len);
         if (ret != backing_filename_len) {
-            ret = -errno;
-            goto exit;
-        }
-
-    }
-    lseek(fd, header_size, SEEK_SET);
-    tmp = 0;
-    for(i = 0;i < l1_size; i++) {
-        ret = qemu_write_full(fd, &tmp, sizeof(tmp));
-        if (ret != sizeof(tmp)) {
-            ret = -errno;
             goto exit;
         }
     }
 
+    tmp = g_malloc0(BDRV_SECTOR_SIZE);
+    for (i = 0; i < ((sizeof(uint64_t)*l1_size + BDRV_SECTOR_SIZE - 1)/
+        BDRV_SECTOR_SIZE); i++) {
+        ret = bdrv_pwrite(qcow_bs, header_size +
+            BDRV_SECTOR_SIZE*i, tmp, BDRV_SECTOR_SIZE);
+        if (ret != BDRV_SECTOR_SIZE) {
+            g_free(tmp);
+            goto exit;
+        }
+    }
+
+    g_free(tmp);
     ret = 0;
 exit:
-    close(fd);
+    bdrv_delete(qcow_bs);
     return ret;
 }
 

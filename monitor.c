@@ -479,6 +479,12 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         case QEVENT_SPICE_DISCONNECTED:
             event_name = "SPICE_DISCONNECTED";
             break;
+        case QEVENT_BLOCK_JOB_COMPLETED:
+            event_name = "BLOCK_JOB_COMPLETED";
+            break;
+        case QEVENT_BLOCK_JOB_CANCELLED:
+            event_name = "BLOCK_JOB_CANCELLED";
+            break;
         default:
             abort();
             break;
@@ -2310,6 +2316,13 @@ static mon_cmd_t info_cmds[] = {
         .params     = "",
         .help       = "show block device statistics",
         .mhandler.info = hmp_info_blockstats,
+    },
+    {
+        .name       = "block-jobs",
+        .args_type  = "",
+        .params     = "",
+        .help       = "show progress of ongoing block device operations",
+        .mhandler.info = hmp_info_block_jobs,
     },
     {
         .name       = "registers",
