@@ -1029,49 +1029,61 @@ static void uhci_process_frame(UHCIState *s)
             pci_dma_write(&s->dev, (link & ~0xf) + 4, &val, sizeof(val));
         }
 
-        if (ret < 0) {
-            /* interrupted frame */
-            break;
-        }
+        switch (ret) {
+        case -1: /* interrupted frame */
+            goto out;
 
-        if (ret == 2 || ret == 1) {
-            DPRINTF("uhci: TD 0x%x %s. link 0x%x ctrl 0x%x token 0x%x qh 0x%x\n",
-                    link, ret == 2 ? "pend" : "skip",
-                    td.link, td.ctrl, td.token, curr_qh);
-
+        case 1: /* goto next queue */
+            DPRINTF("uhci: TD 0x%x skip. "
+                    "link 0x%x ctrl 0x%x token 0x%x qh 0x%x\n",
+                    link, td.link, td.ctrl, td.token, curr_qh);
             link = curr_qh ? qh.link : td.link;
             continue;
-        }
 
-        /* completed TD */
+        case 2: /* got USB_RET_ASYNC */
+            DPRINTF("uhci: TD 0x%x async. "
+                    "link 0x%x ctrl 0x%x token 0x%x qh 0x%x\n",
+                    link, td.link, td.ctrl, td.token, curr_qh);
+            fprintf(stderr, "async td: link %x%s\n",
+                    td.link, is_valid(td.link) ? " valid" : "");
+            link = curr_qh ? qh.link : td.link;
+            continue;
 
-        DPRINTF("uhci: TD 0x%x done. link 0x%x ctrl 0x%x token 0x%x qh 0x%x\n", 
-                link, td.link, td.ctrl, td.token, curr_qh);
+        case 0: /* completed TD */
+            DPRINTF("uhci: TD 0x%x done. "
+                    "link 0x%x ctrl 0x%x token 0x%x qh 0x%x\n",
+                    link, td.link, td.ctrl, td.token, curr_qh);
 
-        link = td.link;
-        td_count++;
-        bytes_count += (td.ctrl & 0x7ff) + 1;
+            link = td.link;
+            td_count++;
+            bytes_count += (td.ctrl & 0x7ff) + 1;
 
-        if (curr_qh) {
-	    /* update QH element link */
-            qh.el_link = link;
-            val = cpu_to_le32(qh.el_link);
-            pci_dma_write(&s->dev, (curr_qh & ~0xf) + 4, &val, sizeof(val));
+            if (curr_qh) {
+                /* update QH element link */
+                qh.el_link = link;
+                val = cpu_to_le32(qh.el_link);
+                pci_dma_write(&s->dev, (curr_qh & ~0xf) + 4, &val, sizeof(val));
 
-            if (!depth_first(link)) {
-               /* done with this QH */
+                if (!depth_first(link)) {
+                    /* done with this QH */
 
-               DPRINTF("uhci: QH 0x%x done. link 0x%x elink 0x%x\n",
-                       curr_qh, qh.link, qh.el_link);
+                    DPRINTF("uhci: QH 0x%x done. link 0x%x elink 0x%x\n",
+                            curr_qh, qh.link, qh.el_link);
 
-               curr_qh = 0;
-               link    = qh.link;
+                    curr_qh = 0;
+                    link    = qh.link;
+                }
             }
+            break;
+
+        default:
+            assert(!"unknown return code");
         }
 
         /* go to the next entry */
     }
 
+out:
     s->pending_int_mask |= int_mask;
 }
 
