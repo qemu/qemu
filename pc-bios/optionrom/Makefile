@@ -26,7 +26,7 @@ build-all: multiboot.bin linuxboot.bin kvmvapic.bin
 	$(call quiet-command,$(OBJCOPY) -O binary -j .text $< $@,"  Building $(TARGET_DIR)$@")
 
 %.bin: %.raw
-	$(call quiet-command,$(SHELL) $(SRC_PATH)/scripts/signrom.sh $< $@,"  Signing $(TARGET_DIR)$@")
+	$(call quiet-command,$(PYTHON) $(SRC_PATH)/scripts/signrom.py $< $@,"  Signing $(TARGET_DIR)$@")
 
 clean:
 	rm -f *.o *.d *.raw *.img *.bin *~
