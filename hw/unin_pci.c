@@ -415,7 +415,7 @@ static void pci_unin_main_class_init(ObjectClass *klass, void *data)
 }
 
 static DeviceInfo pci_unin_main_info = {
-    .name = "uni-north-pci-pchost",
+    .name = "uni-north-pci-pcihost",
     .size = sizeof(UNINState),
     .class_init = pci_unin_main_class_init,
 };
@@ -454,7 +454,7 @@ static void pci_unin_internal_class_init(ObjectClass *klass, void *data)
 }
 
 static DeviceInfo pci_unin_internal_info = {
-    .name = "uni-north-internal-pci-pichost",
+    .name = "uni-north-internal-pci-pcihost",
     .size = sizeof(UNINState),
     .class_init = pci_unin_internal_class_init,
 };
