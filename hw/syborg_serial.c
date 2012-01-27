@@ -310,15 +310,21 @@ static int syborg_serial_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo syborg_serial_info = {
-    .init = syborg_serial_init,
-    .qdev.name  = "syborg,serial",
-    .qdev.size  = sizeof(SyborgSerialState),
-    .qdev.vmsd  = &vmstate_syborg_serial,
-    .qdev.props = (Property[]) {
+static void syborg_serial_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = syborg_serial_init;
+}
+
+static DeviceInfo syborg_serial_info = {
+    .name  = "syborg,serial",
+    .size  = sizeof(SyborgSerialState),
+    .vmsd  = &vmstate_syborg_serial,
+    .props = (Property[]) {
         DEFINE_PROP_UINT32("fifo-size", SyborgSerialState, fifo_size, 16),
         DEFINE_PROP_END_OF_LIST(),
-    }
+    },
+    .class_init = syborg_serial_class_init
 };
 
 static void syborg_serial_register_devices(void)

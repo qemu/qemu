@@ -4,6 +4,8 @@
  *
  * Copyright 2006, 2007 Daniel Silverstone and Vincent Sanders
  *
+ * Copyright 2010, 2012 Stefan Weil
+ *
  * This file is under the terms of the GNU General Public
  * License Version 2
  */
@@ -250,14 +252,20 @@ static const VMStateDescription s3c24xx_gpio_vmstate = {
     }
 };
 
-static SysBusDeviceInfo s3c24xx_gpio_info = {
-    .init = s3c24xx_gpio_init_,
-    .qdev.name  = "s3c24xx_gpio",
-    .qdev.size  = sizeof(S3C24xxGpioState),
-    .qdev.vmsd = &s3c24xx_gpio_vmstate,
-    .qdev.props = (Property[]) {
+static void s3c24xx_gpio_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = s3c24xx_gpio_init_;
+}
+
+static DeviceInfo s3c24xx_gpio_info = {
+    .name = "s3c24xx_gpio",
+    .size = sizeof(S3C24xxGpioState),
+    .vmsd = &s3c24xx_gpio_vmstate,
+    .props = (Property[]) {
         DEFINE_PROP_END_OF_LIST(),
-    }
+    },
+    .class_init = s3c24xx_gpio_class_init
 };
 
 static void s3c24xx_register(void)

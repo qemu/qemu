@@ -1,7 +1,7 @@
 /*
  * QEMU VLYNQ Serial Interface support.
  *
- * Copyright (C) 2009-2011 Stefan Weil
+ * Copyright (C) 2009-2012 Stefan Weil
  *
  * Portions of the code are copies from ssi.c.
  *
@@ -56,13 +56,15 @@ static int vlynq_qdev_init(DeviceState *qdev, DeviceInfo *base)
 
 static int vlynq_unregister_device(DeviceState *dev)
 {
-    VLYNQDevice *vlynq_dev = DO_UPCAST(VLYNQDevice, qdev, dev);
-    VLYNQDeviceInfo *info = DO_UPCAST(VLYNQDeviceInfo, qdev, dev->info);
+    // TODO: missing implementation.
+
+    //~ VLYNQDevice *vlynq_dev = DO_UPCAST(VLYNQDevice, qdev, dev);
+    //~ VLYNQDeviceInfo *info = DO_UPCAST(VLYNQDeviceInfo, qdev, dev->info);
     int ret = 0;
 
-    if (info->exit) {
-        ret = info->exit(vlynq_dev);
-    }
+    //~ if (info->exit) {
+        //~ ret = info->exit(vlynq_dev);
+    //~ }
     if (ret) {
         return ret;
     }

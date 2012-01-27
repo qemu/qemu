@@ -20,16 +20,28 @@
 /* The worlds second smallest bootloader.  Set r0-r2, then jump to kernel.  */
 static uint32_t bootloader[] = {
   0xe3a00000, /* mov     r0, #0 */
-  0xe3a01000, /* mov     r1, #0x?? */
-  0xe3811c00, /* orr     r1, r1, #0x??00 */
-  0xe59f2000, /* ldr     r2, [pc, #0] */
-  0xe59ff000, /* ldr     pc, [pc, #0] */
+  0xe59f1004, /* ldr     r1, [pc, #4] */
+  0xe59f2004, /* ldr     r2, [pc, #4] */
+  0xe59ff004, /* ldr     pc, [pc, #4] */
+  0, /* Board ID */
   0, /* Address of kernel args. */
   0  /* Kernel entry point. */
 };
 
-/* Entry point for secondary CPUs.  Enable interrupt controller and
-   Issue WFI until start address is written to system controller.  */
+/* Handling for secondary CPU boot in a multicore system.
+ * Unlike the uniprocessor/primary CPU boot, this is platform
+ * dependent. The default code here is based on the secondary
+ * CPU boot protocol used on realview/vexpress boards, with
+ * some parameterisation to increase its flexibility.
+ * QEMU platform models for which this code is not appropriate
+ * should override write_secondary_boot and secondary_cpu_reset_hook
+ * instead.
+ *
+ * This code enables the interrupt controllers for the secondary
+ * CPUs and then puts all the secondary CPUs into a loop waiting
+ * for an interprocessor interrupt and polling a configurable
+ * location for the kernel secondary CPU entry point.
+ */
 static uint32_t smpboot[] = {
   0xe59f201c, /* ldr r2, privbase */
   0xe59f001c, /* ldr r0, startaddr */
@@ -43,6 +55,26 @@ static uint32_t smpboot[] = {
   0,          /* privbase: Private memory region base address.  */
   0           /* bootreg: Boot register address is held here */
 };
+
+static void default_write_secondary(CPUState *env,
+                                    const struct arm_boot_info *info)
+{
+    int n;
+    smpboot[ARRAY_SIZE(smpboot) - 1] = info->smp_bootreg_addr;
+    smpboot[ARRAY_SIZE(smpboot) - 2] = info->smp_priv_base;
+    for (n = 0; n < ARRAY_SIZE(smpboot); n++) {
+        smpboot[n] = tswap32(smpboot[n]);
+    }
+    rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot),
+                       info->smp_loader_start);
+}
+
+static void default_reset_secondary(CPUState *env,
+                                    const struct arm_boot_info *info)
+{
+    stl_phys_notdirty(info->smp_bootreg_addr, 0);
+    env->regs[15] = info->smp_loader_start;
+}
 
 #define WRITE_WORD(p, value) do { \
     stl_phys_notdirty(p, value);  \
@@ -198,8 +230,7 @@ static void do_cpu_reset(void *opaque)
                     set_kernel_args(info);
                 }
             } else {
-                stl_phys_notdirty(info->smp_bootreg_addr, 0);
-                env->regs[15] = info->smp_loader_start;
+                info->secondary_cpu_reset_hook(env, info);
             }
         }
     }
@@ -218,6 +249,13 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
     if (!info->kernel_filename) {
         fprintf(stderr, "Kernel image must be specified\n");
         exit(1);
+    }
+
+    if (!info->secondary_cpu_reset_hook) {
+        info->secondary_cpu_reset_hook = default_reset_secondary;
+    }
+    if (!info->write_secondary_boot) {
+        info->write_secondary_boot = default_write_secondary;
     }
 
     if (info->nb_cpus == 0)
@@ -259,8 +297,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         } else {
             initrd_size = 0;
         }
-        bootloader[1] |= info->board_id & 0xff;
-        bootloader[2] |= (info->board_id >> 8) & 0xff;
+        bootloader[4] = info->board_id;
         bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
         bootloader[6] = entry;
         for (n = 0; n < sizeof(bootloader) / 4; n++) {
@@ -269,13 +306,7 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         rom_add_blob_fixed("bootloader", bootloader, sizeof(bootloader),
                            info->loader_start);
         if (info->nb_cpus > 1) {
-            smpboot[ARRAY_SIZE(smpboot) - 1] = info->smp_bootreg_addr;
-            smpboot[ARRAY_SIZE(smpboot) - 2] = info->smp_priv_base;
-            for (n = 0; n < ARRAY_SIZE(smpboot); n++) {
-                smpboot[n] = tswap32(smpboot[n]);
-            }
-            rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot),
-                               info->smp_loader_start);
+            info->write_secondary_boot(env, info);
         }
         info->initrd_size = initrd_size;
     }

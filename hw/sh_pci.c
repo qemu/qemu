@@ -110,7 +110,7 @@ static void sh_pci_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(pic[irq_num], level);
 }
 
-static int sh_pci_init_device(SysBusDevice *dev)
+static int sh_pci_device_init(SysBusDevice *dev)
 {
     SHPCIState *s;
     int i;
@@ -147,18 +147,37 @@ static int sh_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo sh_pci_host_info = {
-    .qdev.name = "sh_pci_host",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = sh_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_HITACHI,
-    .device_id = PCI_DEVICE_ID_HITACHI_SH7751R,
+static void sh_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = sh_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_HITACHI;
+    k->device_id = PCI_DEVICE_ID_HITACHI_SH7751R;
+}
+
+static DeviceInfo sh_pci_host_info = {
+    .name = "sh_pci_host",
+    .size = sizeof(PCIDevice),
+    .class_init = sh_pci_host_class_init,
+};
+
+static void sh_pci_device_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = sh_pci_device_init;
+}
+
+static DeviceInfo sh_pci_device_info = {
+    .name = "sh_pci",
+    .size = sizeof(SHPCIState),
+    .class_init = sh_pci_device_class_init,
 };
 
 static void sh_pci_register_devices(void)
 {
-    sysbus_register_dev("sh_pci", sizeof(SHPCIState),
-                        sh_pci_init_device);
+    sysbus_qdev_register(&sh_pci_device_info);
     pci_qdev_register(&sh_pci_host_info);
 }
 

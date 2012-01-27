@@ -57,6 +57,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_BAD_BUS_FOR_DEVICE \
     "{ 'class': 'BadBusForDevice', 'data': { 'device': %s, 'bad_bus_type': %s } }"
 
+#define QERR_BASE_NOT_FOUND \
+    "{ 'class': 'BaseNotFound', 'data': { 'base': %s } }"
+
 #define QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED \
     "{ 'class': 'BlockFormatFeatureNotSupported', 'data': { 'format': %s, 'name': %s, 'feature': %s } }"
 
@@ -167,6 +170,9 @@ QError *qobject_to_qerror(const QObject *obj);
 
 #define QERR_NO_BUS_FOR_DEVICE \
     "{ 'class': 'NoBusForDevice', 'data': { 'device': %s, 'bus': %s } }"
+
+#define QERR_NOT_SUPPORTED \
+    "{ 'class': 'NotSupported', 'data': {} }"
 
 #define QERR_OPEN_FILE_FAILED \
     "{ 'class': 'OpenFileFailed', 'data': { 'filename': %s } }"

@@ -3,6 +3,8 @@
  * Copyright 2008 Daniel Silverstone <dsilvers@simtec.co.uk> and
  * Vincent Sanders <vince@simtec.co.uk>
  *
+ * Copyright 2010, 2012 Stefan Weil
+ *
  */
 
 #include "qemu-common.h"
@@ -17,14 +19,14 @@ static const char stcpmu_uniqueid[] = "\0\0QEMU";
 
 
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
     int reg;
     int rdidx;
     int wridx;
 } StcPMUState;
 
 static int
-stcpmu_rx(i2c_slave *i2c)
+stcpmu_rx(I2CSlave *i2c)
 {
     StcPMUState *s = FROM_I2C_SLAVE(StcPMUState, i2c);
     int ret = 0;
@@ -70,7 +72,7 @@ stcpmu_rx(i2c_slave *i2c)
 }
 
 static int
-stcpmu_tx(i2c_slave *i2c, uint8_t data)
+stcpmu_tx(I2CSlave *i2c, uint8_t data)
 {
     StcPMUState *s = FROM_I2C_SLAVE(StcPMUState, i2c);
     DBF("Write : %d\n", data);
@@ -83,7 +85,7 @@ stcpmu_tx(i2c_slave *i2c, uint8_t data)
 }
 
 static void
-stcpmu_event(i2c_slave *i2c, enum i2c_event event)
+stcpmu_event(I2CSlave *i2c, enum i2c_event event)
 {
     StcPMUState *s = FROM_I2C_SLAVE(StcPMUState, i2c);
     DBF("EV? %d\n", event);
@@ -100,7 +102,7 @@ stcpmu_event(i2c_slave *i2c, enum i2c_event event)
     }
 }
 
-static int stcpmu_init(i2c_slave *i2c)
+static int stcpmu_init(I2CSlave *i2c)
 {
     //~ StcPMUState *s = FROM_I2C_SLAVE(StcPMUState, i2c);
   //~ StcPMUState *s = (StcPMUState *)
@@ -122,14 +124,21 @@ static const VMStateDescription vmstate_stcpmu = {
     }
 };
 
-static I2CSlaveInfo stcpmu_info = {
-    .qdev.name ="stcpmu",
-    .qdev.size = sizeof(StcPMUState),
-    .qdev.vmsd = &vmstate_stcpmu,
-    .init = stcpmu_init,
-    .event = stcpmu_event,
-    .recv = stcpmu_rx,
-    .send = stcpmu_tx
+static void stcpmu_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = stcpmu_init;
+    k->event = stcpmu_event;
+    k->recv = stcpmu_rx;
+    k->send = stcpmu_tx;
+}
+
+static DeviceInfo stcpmu_info = {
+    .name ="stcpmu",
+    .size = sizeof(StcPMUState),
+    .vmsd = &vmstate_stcpmu,
+    .class_init = stcpmu_class_init
 };
 
 static void stcpmu_register_devices(void)

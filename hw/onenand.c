@@ -802,19 +802,28 @@ static int onenand_initfn(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo onenand_info = {
-    .init = onenand_initfn,
-    .qdev.name = "onenand",
-    .qdev.size = sizeof(OneNANDState),
-    .qdev.reset = onenand_system_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT16("manufacturer_id", OneNANDState, id.man, 0),
-        DEFINE_PROP_UINT16("device_id", OneNANDState, id.dev, 0),
-        DEFINE_PROP_UINT16("version_id", OneNANDState, id.ver, 0),
-        DEFINE_PROP_INT32("shift", OneNANDState, shift, 0),
-        DEFINE_PROP_DRIVE("drive", OneNANDState, bdrv),
-        DEFINE_PROP_END_OF_LIST()
-    }
+static Property onenand_properties[] = {
+    DEFINE_PROP_UINT16("manufacturer_id", OneNANDState, id.man, 0),
+    DEFINE_PROP_UINT16("device_id", OneNANDState, id.dev, 0),
+    DEFINE_PROP_UINT16("version_id", OneNANDState, id.ver, 0),
+    DEFINE_PROP_INT32("shift", OneNANDState, shift, 0),
+    DEFINE_PROP_DRIVE("drive", OneNANDState, bdrv),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void onenand_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = onenand_initfn;
+}
+
+static DeviceInfo onenand_info = {
+    .name = "onenand",
+    .size = sizeof(OneNANDState),
+    .reset = onenand_system_reset,
+    .props = onenand_properties,
+    .class_init = onenand_class_init,
 };
 
 static void onenand_register_device(void)

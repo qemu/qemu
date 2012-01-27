@@ -201,15 +201,21 @@ static int syborg_pointer_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo syborg_pointer_info = {
-    .init = syborg_pointer_init,
-    .qdev.name  = "syborg,pointer",
-    .qdev.size  = sizeof(SyborgPointerState),
-    .qdev.props = (Property[]) {
+static void syborg_pointer_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = syborg_pointer_init;
+}
+
+static DeviceInfo syborg_pointer_info = {
+    .name  = "syborg,pointer",
+    .size  = sizeof(SyborgPointerState),
+    .props = (Property[]) {
         DEFINE_PROP_UINT32("fifo-size", SyborgPointerState, fifo_size, 16),
         DEFINE_PROP_UINT32("absolute",  SyborgPointerState, absolute,   1),
         DEFINE_PROP_END_OF_LIST(),
-    }
+    },
+    .class_init = syborg_pointer_class_init
 };
 
 static void syborg_pointer_register_devices(void)

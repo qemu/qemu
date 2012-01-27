@@ -1,7 +1,7 @@
 /*
  * QEMU emulation for National Semiconductor DP83815 / DP83816.
  *
- * Copyright (C) 2006-2011 Stefan Weil
+ * Copyright (C) 2006-2012 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1329,9 +1329,6 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 
     logout("silicon revision = 0x%08x\n", silicon_revision);
 
-    /* National Semiconductor DP83815, DP83816 */
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_NS);
-    pci_config_set_device_id(pci_conf, PCI_DEVICE_ID_NS_83815);
     pci_set_word(pci_conf + PCI_STATUS, PCI_STATUS_DEVSEL_MEDIUM |
                               PCI_STATUS_FAST_BACK | PCI_STATUS_CAP_LIST);
     /* ethernet network controller */
@@ -1371,7 +1368,8 @@ static int pci_dp8381x_init(PCIDevice *pci_dev, uint32_t silicon_revision)
 #endif
 
     s->nic = qemu_new_nic(&net_info, &s->conf,
-                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
+                          object_get_typename(OBJECT(pci_dev)),
+                          pci_dev->qdev.id, s);
 
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
@@ -1420,27 +1418,41 @@ static const VMStateDescription vmstate_dp8381x = {
     }
 };
 
+static void dp8381x_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->romfile = "pxe-eepro100.rom";
+    k->init = dp8381x_init;
+    k->exit = dp8381x_exit;
+    /* National Semiconductor DP83815, DP83816 */
+    k->vendor_id = PCI_VENDOR_ID_NS;
+    k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    k->device_id = PCI_DEVICE_ID_NS_83815;
+    //~ k->revision = 0x01;
+    //~ k->subsystem_vendor_id = info->subsystem_vendor_id;
+    //~ k->subsystem_id = info->subsystem_id;
+}
+
 #if defined(DP83815)
-static PCIDeviceInfo dp8381x_info = {
-    .qdev.name = "dp83815",
-    .qdev.desc = "National Semiconductor DP83815",
-    .qdev.props = dp8381x_properties,
-    .qdev.size = sizeof(DP8381xState),
-    .qdev.reset = qdev_dp8381x_reset,
-    .qdev.vmsd = &vmstate_dp8381x,
-    .init      = dp8381x_init,
-    .exit      = dp8381x_exit,
+static DeviceInfo dp8381x_info = {
+    .name = "dp83815",
+    .desc = "National Semiconductor DP83815",
+    .props = dp8381x_properties,
+    .size = sizeof(DP8381xState),
+    .vmsd = &vmstate_dp8381x,
+    .class_init = dp8381x_class_init,
+    .reset = qdev_dp8381x_reset,
 };
 #else
-static PCIDeviceInfo dp8381x_info = {
-    .qdev.name = "dp83816",
-    .qdev.desc = "National Semiconductor DP83816",
-    .qdev.props = dp8381x_properties,
-    .qdev.size = sizeof(DP8381xState),
-    .qdev.reset = qdev_dp8381x_reset,
-    .qdev.vmsd = &vmstate_dp8381x,
-    .init      = dp8381x_init,
-    .exit      = dp8381x_exit,
+static DeviceInfo dp8381x_info = {
+    .name = "dp83816",
+    .desc = "National Semiconductor DP83816",
+    .props = dp8381x_properties,
+    .size = sizeof(DP8381xState),
+    .vmsd = &vmstate_dp8381x,
+    .class_init = dp8381x_class_init,
+    .reset = qdev_dp8381x_reset,
 };
 #endif
 

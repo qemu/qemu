@@ -548,18 +548,27 @@ static void g364fb_sysbus_reset(DeviceState *d)
     g364fb_reset(&s->g364);
 }
 
-static SysBusDeviceInfo g364fb_sysbus_info = {
-    .init = g364fb_sysbus_init,
-    .qdev.name = "sysbus-g364",
-    .qdev.desc = "G364 framebuffer",
-    .qdev.size = sizeof(G364SysBusState),
-    .qdev.vmsd = &vmstate_g364fb,
-    .qdev.reset = g364fb_sysbus_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_HEX32("vram_size", G364SysBusState, g364.vram_size,
-                          8 * 1024 * 1024),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property g364fb_sysbus_properties[] = {
+    DEFINE_PROP_HEX32("vram_size", G364SysBusState, g364.vram_size,
+    8 * 1024 * 1024),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void g364fb_sysbus_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = g364fb_sysbus_init;
+}
+
+static DeviceInfo g364fb_sysbus_info = {
+    .name = "sysbus-g364",
+    .desc = "G364 framebuffer",
+    .size = sizeof(G364SysBusState),
+    .vmsd = &vmstate_g364fb,
+    .reset = g364fb_sysbus_reset,
+    .props = g364fb_sysbus_properties,
+    .class_init = g364fb_sysbus_class_init,
 };
 
 static void g364fb_register(void)

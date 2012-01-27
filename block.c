@@ -48,6 +48,10 @@
 
 #define NOT_DONE 0x7fffffff /* used while emulated sync operation in progress */
 
+typedef enum {
+    BDRV_REQ_COPY_ON_READ = 0x1,
+} BdrvRequestFlags;
+
 static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load);
 static BlockDriverAIOCB *bdrv_aio_readv_em(BlockDriverState *bs,
         int64_t sector_num, QEMUIOVector *qiov, int nb_sectors,
@@ -62,7 +66,8 @@ static int coroutine_fn bdrv_co_writev_em(BlockDriverState *bs,
                                          int64_t sector_num, int nb_sectors,
                                          QEMUIOVector *iov);
 static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+    BdrvRequestFlags flags);
 static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
 static BlockDriverAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
@@ -1020,6 +1025,10 @@ int bdrv_commit(BlockDriverState *bs)
         return -EACCES;
     }
 
+    if (bdrv_in_use(bs) || bdrv_in_use(bs->backing_hd)) {
+        return -EBUSY;
+    }
+
     backing_drv = bs->backing_hd->drv;
     ro = bs->backing_hd->read_only;
     strncpy(filename, bs->backing_hd->filename, sizeof(filename));
@@ -1288,7 +1297,7 @@ static void coroutine_fn bdrv_rw_co_entry(void *opaque)
 
     if (!rwco->is_write) {
         rwco->ret = bdrv_co_do_readv(rwco->bs, rwco->sector_num,
-                                     rwco->nb_sectors, rwco->qiov);
+                                     rwco->nb_sectors, rwco->qiov, 0);
     } else {
         rwco->ret = bdrv_co_do_writev(rwco->bs, rwco->sector_num,
                                       rwco->nb_sectors, rwco->qiov);
@@ -1496,7 +1505,7 @@ int bdrv_pwrite_sync(BlockDriverState *bs, int64_t offset,
     return 0;
 }
 
-static int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
+static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
 {
     /* Perform I/O through a temporary buffer so that users who scribble over
@@ -1519,8 +1528,8 @@ static int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
     round_to_clusters(bs, sector_num, nb_sectors,
                       &cluster_sector_num, &cluster_nb_sectors);
 
-    trace_bdrv_co_copy_on_readv(bs, sector_num, nb_sectors,
-                                cluster_sector_num, cluster_nb_sectors);
+    trace_bdrv_co_do_copy_on_readv(bs, sector_num, nb_sectors,
+                                   cluster_sector_num, cluster_nb_sectors);
 
     iov.iov_len = cluster_nb_sectors * BDRV_SECTOR_SIZE;
     iov.iov_base = bounce_buffer = qemu_blockalign(bs, iov.iov_len);
@@ -1555,7 +1564,8 @@ err:
  * Handle a read request in coroutine context
  */
 static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+    BdrvRequestFlags flags)
 {
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
@@ -1574,12 +1584,19 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
     }
 
     if (bs->copy_on_read) {
+        flags |= BDRV_REQ_COPY_ON_READ;
+    }
+    if (flags & BDRV_REQ_COPY_ON_READ) {
+        bs->copy_on_read_in_flight++;
+    }
+
+    if (bs->copy_on_read_in_flight) {
         wait_for_overlapping_requests(bs, sector_num, nb_sectors);
     }
 
     tracked_request_begin(&req, bs, sector_num, nb_sectors, false);
 
-    if (bs->copy_on_read) {
+    if (flags & BDRV_REQ_COPY_ON_READ) {
         int pnum;
 
         ret = bdrv_co_is_allocated(bs, sector_num, nb_sectors, &pnum);
@@ -1588,7 +1605,7 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
         }
 
         if (!ret || pnum != nb_sectors) {
-            ret = bdrv_co_copy_on_readv(bs, sector_num, nb_sectors, qiov);
+            ret = bdrv_co_do_copy_on_readv(bs, sector_num, nb_sectors, qiov);
             goto out;
         }
     }
@@ -1597,6 +1614,11 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
 
 out:
     tracked_request_end(&req);
+
+    if (flags & BDRV_REQ_COPY_ON_READ) {
+        bs->copy_on_read_in_flight--;
+    }
+
     return ret;
 }
 
@@ -1605,7 +1627,16 @@ int coroutine_fn bdrv_co_readv(BlockDriverState *bs, int64_t sector_num,
 {
     trace_bdrv_co_readv(bs, sector_num, nb_sectors);
 
-    return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov);
+    return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov, 0);
+}
+
+int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+{
+    trace_bdrv_co_copy_on_readv(bs, sector_num, nb_sectors);
+
+    return bdrv_co_do_readv(bs, sector_num, nb_sectors, qiov,
+                            BDRV_REQ_COPY_ON_READ);
 }
 
 /*
@@ -1633,7 +1664,7 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
         bdrv_io_limits_intercept(bs, true, nb_sectors);
     }
 
-    if (bs->copy_on_read) {
+    if (bs->copy_on_read_in_flight) {
         wait_for_overlapping_requests(bs, sector_num, nb_sectors);
     }
 
@@ -2564,6 +2595,24 @@ int bdrv_snapshot_load_tmp(BlockDriverState *bs,
     return -ENOTSUP;
 }
 
+BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,
+        const char *backing_file)
+{
+    if (!bs->drv) {
+        return NULL;
+    }
+
+    if (bs->backing_hd) {
+        if (strcmp(bs->backing_file, backing_file) == 0) {
+            return bs->backing_hd;
+        } else {
+            return bdrv_find_backing_image(bs->backing_hd, backing_file);
+        }
+    }
+
+    return NULL;
+}
+
 #define NB_SUFFIXES 4
 
 char *get_human_readable_size(char *buf, int buf_size, int64_t size)
@@ -3140,7 +3189,7 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque)
 
     if (!acb->is_write) {
         acb->req.error = bdrv_co_do_readv(bs, acb->req.sector,
-            acb->req.nb_sectors, acb->req.qiov);
+            acb->req.nb_sectors, acb->req.qiov, 0);
     } else {
         acb->req.error = bdrv_co_do_writev(bs, acb->req.sector,
             acb->req.nb_sectors, acb->req.qiov);
@@ -3826,4 +3875,52 @@ out:
     }
 
     return ret;
+}
+
+void *block_job_create(const BlockJobType *job_type, BlockDriverState *bs,
+                       BlockDriverCompletionFunc *cb, void *opaque)
+{
+    BlockJob *job;
+
+    if (bs->job || bdrv_in_use(bs)) {
+        return NULL;
+    }
+    bdrv_set_in_use(bs, 1);
+
+    job = g_malloc0(job_type->instance_size);
+    job->job_type      = job_type;
+    job->bs            = bs;
+    job->cb            = cb;
+    job->opaque        = opaque;
+    bs->job = job;
+    return job;
+}
+
+void block_job_complete(BlockJob *job, int ret)
+{
+    BlockDriverState *bs = job->bs;
+
+    assert(bs->job == job);
+    job->cb(job->opaque, ret);
+    bs->job = NULL;
+    g_free(job);
+    bdrv_set_in_use(bs, 0);
+}
+
+int block_job_set_speed(BlockJob *job, int64_t value)
+{
+    if (!job->job_type->set_speed) {
+        return -ENOTSUP;
+    }
+    return job->job_type->set_speed(job, value);
+}
+
+void block_job_cancel(BlockJob *job)
+{
+    job->cancelled = true;
+}
+
+bool block_job_is_cancelled(BlockJob *job)
+{
+    return job->cancelled;
 }

@@ -2263,30 +2263,42 @@ static Property ehci_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static PCIDeviceInfo ehci_info[] = {
-    {
-        .qdev.name    = "usb-ehci",
-        .qdev.size    = sizeof(EHCIState),
-        .qdev.vmsd    = &vmstate_ehci,
-        .init         = usb_ehci_initfn,
-        .vendor_id    = PCI_VENDOR_ID_INTEL,
-        .device_id    = PCI_DEVICE_ID_INTEL_82801D, /* ich4 */
-        .revision     = 0x10,
-        .class_id     = PCI_CLASS_SERIAL_USB,
-        .qdev.props   = ehci_properties,
-    },{
-        .qdev.name    = "ich9-usb-ehci1",
-        .qdev.size    = sizeof(EHCIState),
-        .qdev.vmsd    = &vmstate_ehci,
-        .init         = usb_ehci_initfn,
-        .vendor_id    = PCI_VENDOR_ID_INTEL,
-        .device_id    = PCI_DEVICE_ID_INTEL_82801I_EHCI1,
-        .revision     = 0x03,
-        .class_id     = PCI_CLASS_SERIAL_USB,
-        .qdev.props   = ehci_properties,
-    },{
-        /* end of list */
-    }
+static void ehci_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = usb_ehci_initfn;
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = PCI_DEVICE_ID_INTEL_82801D; /* ich4 */
+    k->revision = 0x10;
+    k->class_id = PCI_CLASS_SERIAL_USB;
+}
+
+static DeviceInfo ehci_info = {
+    .name = "usb-ehci",
+    .size = sizeof(EHCIState),
+    .vmsd = &vmstate_ehci,
+    .props = ehci_properties,
+    .class_init = ehci_class_init,
+};
+
+static void ich9_ehci_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = usb_ehci_initfn;
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = PCI_DEVICE_ID_INTEL_82801I_EHCI1;
+    k->revision = 0x03;
+    k->class_id = PCI_CLASS_SERIAL_USB;
+}
+
+static DeviceInfo ich9_ehci_info = {
+    .name = "ich9-usb-ehci1",
+    .size = sizeof(EHCIState),
+    .vmsd = &vmstate_ehci,
+    .props = ehci_properties,
+    .class_init = ich9_ehci_class_init,
 };
 
 static int usb_ehci_initfn(PCIDevice *dev)
@@ -2362,7 +2374,8 @@ static int usb_ehci_initfn(PCIDevice *dev)
 
 static void ehci_register(void)
 {
-    pci_qdev_register_many(ehci_info);
+    pci_qdev_register(&ehci_info);
+    pci_qdev_register(&ich9_ehci_info);
 }
 device_init(ehci_register);
 

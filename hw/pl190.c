@@ -255,13 +255,20 @@ static const VMStateDescription vmstate_pl190 = {
     }
 };
 
-static SysBusDeviceInfo pl190_info = {
-    .init = pl190_init,
-    .qdev.name = "pl190",
-    .qdev.size = sizeof(pl190_state),
-    .qdev.vmsd = &vmstate_pl190,
-    .qdev.reset = pl190_reset,
-    .qdev.no_user = 1,
+static void pl190_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl190_init;
+}
+
+static DeviceInfo pl190_info = {
+    .name = "pl190",
+    .size = sizeof(pl190_state),
+    .vmsd = &vmstate_pl190,
+    .reset = pl190_reset,
+    .no_user = 1,
+    .class_init = pl190_class_init,
 };
 
 static void pl190_register_devices(void)

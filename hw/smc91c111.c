@@ -1077,22 +1077,31 @@ static int smc91c111_init1(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_smc91c111_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     /* ??? Save/restore.  */
     return 0;
 }
 
-static SysBusDeviceInfo smc91c111_info = {
-    .init = smc91c111_init1,
-    .qdev.name  = "smc91c111",
-    .qdev.size  = sizeof(smc91c111_state),
-    .qdev.vmsd = &vmstate_smc91c111,
-    .qdev.reset = smc91c111_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(smc91c111_state, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property smc91c111_properties[] = {
+    DEFINE_NIC_PROPERTIES(smc91c111_state, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void smc91c111_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = smc91c111_init1;
+}
+
+static DeviceInfo smc91c111_info = {
+    .name = "smc91c111",
+    .size = sizeof(smc91c111_state),
+    .vmsd = &vmstate_smc91c111,
+    .reset = smc91c111_reset,
+    .props = smc91c111_properties,
+    .class_init = smc91c111_class_init,
 };
 
 static void smc91c111_register_devices(void)

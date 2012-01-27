@@ -4229,15 +4229,21 @@ static const VMStateDescription vmstate_ar7 = {
     }
 };
 
-static SysBusDeviceInfo ar7_info = {
-    .init = ar7_sysbus_device_init,
-    .qdev.name  = "ar7",
-    .qdev.alias = "tnetd7xxx",
-    .qdev.desc  = "TI TNETD7xxx (AR7)",
-    .qdev.size  = sizeof(AR7State),
-    .qdev.vmsd  = &vmstate_ar7,
-    .qdev.reset = ar7_reset,
-    .qdev.props = (Property[]) {
+static void ar7_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = ar7_sysbus_device_init;
+}
+
+static DeviceInfo ar7_info = {
+    .name  = "ar7",
+    .alias = "tnetd7xxx",
+    .desc  = "TI TNETD7xxx (AR7)",
+    .size  = sizeof(AR7State),
+    .vmsd  = &vmstate_ar7,
+    .class_init = ar7_class_init,
+    .reset = ar7_reset,
+    .props = (Property[]) {
         DEFINE_PROP_UINT8("phy addr", AR7State, phyaddr, 31),
         DEFINE_PROP_UINT8("vlynq tnetw1130", AR7State, vlynq_tnetw1130, 0),
         DEFINE_PROP_END_OF_LIST(),
@@ -4252,7 +4258,7 @@ static int cpmac_init(SysBusDevice *dev)
 
     sysbus_init_irq(dev, &s->irq);
     s->nic = qemu_new_nic(&ar7_net_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
     return 0;
 }
 
@@ -4267,20 +4273,26 @@ static const VMStateDescription cpmac_vmsd = {
     }
 };
 
-static SysBusDeviceInfo ar7_cpmac_info = {
-    .init = cpmac_init,
-    .qdev.name = "ar7-cpmac",
-    .qdev.alias = "cpmac",
-    .qdev.desc = "TI AR7 CPMAC",
-    .qdev.size = sizeof(CpmacState),
-    .qdev.reset = cpmac_reset,
-    //~ .qdev.unplug = cpmac_unplug,
-    //~ .qdev.exit = cpmac_exit,
-    .qdev.vmsd = &cpmac_vmsd,
-    .qdev.props = (Property[]) {
+static void ar7_cpmac_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = cpmac_init;
+    //~ k->exit = cpmac_exit;
+}
+
+static DeviceInfo ar7_cpmac_info = {
+    .name = "ar7-cpmac",
+    .alias = "cpmac",
+    .desc = "TI AR7 CPMAC",
+    .size = sizeof(CpmacState),
+    .reset = cpmac_reset,
+    //~ .unplug = cpmac_unplug,
+    .vmsd = &cpmac_vmsd,
+    .props = (Property[]) {
         DEFINE_NIC_PROPERTIES(CpmacState, conf),
         DEFINE_PROP_END_OF_LIST(),
     },
+    .class_init = ar7_cpmac_class_init
 };
 
 static void ar7_machine_init(void)

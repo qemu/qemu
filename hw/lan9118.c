@@ -1221,7 +1221,7 @@ static int lan9118_init1(SysBusDevice *dev)
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
 
     s->nic = qemu_new_nic(&net_lan9118_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     s->eeprom[0] = 0xa5;
     for (i = 0; i < 6; i++) {
@@ -1238,16 +1238,25 @@ static int lan9118_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo lan9118_info = {
-    .init = lan9118_init1,
-    .qdev.name  = "lan9118",
-    .qdev.size  = sizeof(lan9118_state),
-    .qdev.reset = lan9118_reset,
-    .qdev.vmsd = &vmstate_lan9118,
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(lan9118_state, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property lan9118_properties[] = {
+    DEFINE_NIC_PROPERTIES(lan9118_state, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void lan9118_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = lan9118_init1;
+}
+
+static DeviceInfo lan9118_info = {
+    .name = "lan9118",
+    .size = sizeof(lan9118_state),
+    .reset = lan9118_reset,
+    .vmsd = &vmstate_lan9118,
+    .props = lan9118_properties,
+    .class_init = lan9118_class_init,
 };
 
 static void lan9118_register_devices(void)

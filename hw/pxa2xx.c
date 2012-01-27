@@ -1233,17 +1233,24 @@ static const VMStateDescription vmstate_pxa2xx_rtc_regs = {
     },
 };
 
-static SysBusDeviceInfo pxa2xx_rtc_sysbus_info = {
-    .init       = pxa2xx_rtc_init,
-    .qdev.name  = "pxa2xx_rtc",
-    .qdev.desc  = "PXA2xx RTC Controller",
-    .qdev.size  = sizeof(PXA2xxRTCState),
-    .qdev.vmsd  = &vmstate_pxa2xx_rtc_regs,
+static void pxa2xx_rtc_sysbus_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pxa2xx_rtc_init;
+}
+
+static DeviceInfo pxa2xx_rtc_sysbus_info = {
+    .name = "pxa2xx_rtc",
+    .desc = "PXA2xx RTC Controller",
+    .size = sizeof(PXA2xxRTCState),
+    .vmsd = &vmstate_pxa2xx_rtc_regs,
+    .class_init = pxa2xx_rtc_sysbus_class_init,
 };
 
 /* I2C Interface */
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
     PXA2xxI2CState *host;
 } PXA2xxI2CSlaveState;
 
@@ -1279,7 +1286,7 @@ static void pxa2xx_i2c_update(PXA2xxI2CState *s)
 }
 
 /* These are only stubs now.  */
-static void pxa2xx_i2c_event(i2c_slave *i2c, enum i2c_event event)
+static void pxa2xx_i2c_event(I2CSlave *i2c, enum i2c_event event)
 {
     PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
     PXA2xxI2CState *s = slave->host;
@@ -1303,7 +1310,7 @@ static void pxa2xx_i2c_event(i2c_slave *i2c, enum i2c_event event)
     pxa2xx_i2c_update(s);
 }
 
-static int pxa2xx_i2c_rx(i2c_slave *i2c)
+static int pxa2xx_i2c_rx(I2CSlave *i2c)
 {
     PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
     PXA2xxI2CState *s = slave->host;
@@ -1318,7 +1325,7 @@ static int pxa2xx_i2c_rx(i2c_slave *i2c)
     return s->data;
 }
 
-static int pxa2xx_i2c_tx(i2c_slave *i2c, uint8_t data)
+static int pxa2xx_i2c_tx(I2CSlave *i2c, uint8_t data)
 {
     PXA2xxI2CSlaveState *slave = FROM_I2C_SLAVE(PXA2xxI2CSlaveState, i2c);
     PXA2xxI2CState *s = slave->host;
@@ -1466,19 +1473,26 @@ static const VMStateDescription vmstate_pxa2xx_i2c = {
     }
 };
 
-static int pxa2xx_i2c_slave_init(i2c_slave *i2c)
+static int pxa2xx_i2c_slave_init(I2CSlave *i2c)
 {
     /* Nothing to do.  */
     return 0;
 }
 
-static I2CSlaveInfo pxa2xx_i2c_slave_info = {
-    .qdev.name = "pxa2xx-i2c-slave",
-    .qdev.size = sizeof(PXA2xxI2CSlaveState),
-    .init = pxa2xx_i2c_slave_init,
-    .event = pxa2xx_i2c_event,
-    .recv = pxa2xx_i2c_rx,
-    .send = pxa2xx_i2c_tx
+static void pxa2xx_i2c_slave_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = pxa2xx_i2c_slave_init;
+    k->event = pxa2xx_i2c_event;
+    k->recv = pxa2xx_i2c_rx;
+    k->send = pxa2xx_i2c_tx;
+}
+
+static DeviceInfo pxa2xx_i2c_slave_info = {
+    .name = "pxa2xx-i2c-slave",
+    .size = sizeof(PXA2xxI2CSlaveState),
+    .class_init = pxa2xx_i2c_slave_class_init,
 };
 
 PXA2xxI2CState *pxa2xx_i2c_init(target_phys_addr_t base,
@@ -1526,17 +1540,26 @@ i2c_bus *pxa2xx_i2c_bus(PXA2xxI2CState *s)
     return s->bus;
 }
 
-static SysBusDeviceInfo pxa2xx_i2c_info = {
-    .init       = pxa2xx_i2c_initfn,
-    .qdev.name  = "pxa2xx_i2c",
-    .qdev.desc  = "PXA2xx I2C Bus Controller",
-    .qdev.size  = sizeof(PXA2xxI2CState),
-    .qdev.vmsd  = &vmstate_pxa2xx_i2c,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("size", PXA2xxI2CState, region_size, 0x10000),
-        DEFINE_PROP_UINT32("offset", PXA2xxI2CState, offset, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property pxa2xx_i2c_properties[] = {
+    DEFINE_PROP_UINT32("size", PXA2xxI2CState, region_size, 0x10000),
+    DEFINE_PROP_UINT32("offset", PXA2xxI2CState, offset, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pxa2xx_i2c_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pxa2xx_i2c_initfn;
+}
+
+static DeviceInfo pxa2xx_i2c_info = {
+    .name = "pxa2xx_i2c",
+    .desc = "PXA2xx I2C Bus Controller",
+    .size = sizeof(PXA2xxI2CState),
+    .vmsd = &vmstate_pxa2xx_i2c,
+    .props = pxa2xx_i2c_properties,
+    .class_init = pxa2xx_i2c_class_init,
 };
 
 /* PXA Inter-IC Sound Controller */
@@ -2288,10 +2311,23 @@ PXA2xxState *pxa255_init(MemoryRegion *address_space, unsigned int sdram_size)
     return s;
 }
 
+static void pxa2xx_ssp_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = pxa2xx_ssp_init;
+}
+
+static DeviceInfo pxa2xx_ssp_info = {
+    .name = "pxa2xx-ssp",
+    .size = sizeof(PXA2xxSSPState),
+    .class_init = pxa2xx_ssp_class_init,
+};
+
 static void pxa2xx_register_devices(void)
 {
     i2c_register_slave(&pxa2xx_i2c_slave_info);
-    sysbus_register_dev("pxa2xx-ssp", sizeof(PXA2xxSSPState), pxa2xx_ssp_init);
+    sysbus_qdev_register(&pxa2xx_ssp_info);
     sysbus_register_withprop(&pxa2xx_i2c_info);
     sysbus_register_withprop(&pxa2xx_rtc_sysbus_info);
 }

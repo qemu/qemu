@@ -316,16 +316,23 @@ static VMStateDescription passthru_vmstate = {
     }
 };
 
-static CCIDCardInfo passthru_card_info = {
-    .qdev.name = PASSTHRU_DEV_NAME,
-    .qdev.desc = "passthrough smartcard",
-    .qdev.size = sizeof(PassthruState),
-    .qdev.vmsd = &passthru_vmstate,
-    .initfn = passthru_initfn,
-    .exitfn = passthru_exitfn,
-    .get_atr = passthru_get_atr,
-    .apdu_from_guest = passthru_apdu_from_guest,
-    .qdev.props     = (Property[]) {
+static void passthru_class_initfn(ObjectClass *klass, void *data)
+{
+    CCIDCardClass *cc = CCID_CARD_CLASS(klass);
+
+    cc->initfn = passthru_initfn;
+    cc->exitfn = passthru_exitfn;
+    cc->get_atr = passthru_get_atr;
+    cc->apdu_from_guest = passthru_apdu_from_guest;
+}
+
+static DeviceInfo passthru_card_info = {
+    .name = PASSTHRU_DEV_NAME,
+    .desc = "passthrough smartcard",
+    .size = sizeof(PassthruState),
+    .vmsd = &passthru_vmstate,
+    .class_init = passthru_class_initfn,
+    .props     = (Property[]) {
         DEFINE_PROP_CHR("chardev", PassthruState, cs),
         DEFINE_PROP_UINT8("debug", PassthruState, debug, 0),
         DEFINE_PROP_END_OF_LIST(),

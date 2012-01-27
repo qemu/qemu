@@ -24,7 +24,7 @@
 #include "console.h"
 
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
     uint8_t i2c_dir;
     uint8_t i2c_cycle;
     uint8_t reg;
@@ -378,7 +378,7 @@ static void lm_kbd_write(LM823KbdState *s, int reg, int byte, uint8_t value)
     }
 }
 
-static void lm_i2c_event(i2c_slave *i2c, enum i2c_event event)
+static void lm_i2c_event(I2CSlave *i2c, enum i2c_event event)
 {
     LM823KbdState *s = FROM_I2C_SLAVE(LM823KbdState, i2c);
 
@@ -394,14 +394,14 @@ static void lm_i2c_event(i2c_slave *i2c, enum i2c_event event)
     }
 }
 
-static int lm_i2c_rx(i2c_slave *i2c)
+static int lm_i2c_rx(I2CSlave *i2c)
 {
     LM823KbdState *s = FROM_I2C_SLAVE(LM823KbdState, i2c);
 
     return lm_kbd_read(s, s->reg, s->i2c_cycle ++);
 }
 
-static int lm_i2c_tx(i2c_slave *i2c, uint8_t data)
+static int lm_i2c_tx(I2CSlave *i2c, uint8_t data)
 {
     LM823KbdState *s = (LM823KbdState *) i2c;
 
@@ -458,7 +458,7 @@ static const VMStateDescription vmstate_lm_kbd = {
 };
 
 
-static int lm8323_init(i2c_slave *i2c)
+static int lm8323_init(I2CSlave *i2c)
 {
     LM823KbdState *s = FROM_I2C_SLAVE(LM823KbdState, i2c);
 
@@ -494,14 +494,21 @@ void lm832x_key_event(DeviceState *dev, int key, int state)
     lm_kbd_irq_update(s);
 }
 
-static I2CSlaveInfo lm8323_info = {
-    .qdev.name = "lm8323",
-    .qdev.size = sizeof(LM823KbdState),
-    .qdev.vmsd = &vmstate_lm_kbd,
-    .init = lm8323_init,
-    .event = lm_i2c_event,
-    .recv = lm_i2c_rx,
-    .send = lm_i2c_tx
+static void lm8323_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = lm8323_init;
+    k->event = lm_i2c_event;
+    k->recv = lm_i2c_rx;
+    k->send = lm_i2c_tx;
+}
+
+static DeviceInfo lm8323_info = {
+    .name = "lm8323",
+    .size = sizeof(LM823KbdState),
+    .vmsd = &vmstate_lm_kbd,
+    .class_init = lm8323_class_init,
 };
 
 static void lm832x_register_devices(void)

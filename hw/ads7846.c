@@ -153,11 +153,18 @@ static int ads7846_init(SSISlave *dev)
     return 0;
 }
 
-static SSISlaveInfo ads7846_info = {
-    .qdev.name ="ads7846",
-    .qdev.size = sizeof(ADS7846State),
-    .init = ads7846_init,
-    .transfer = ads7846_transfer
+static void ads7846_class_init(ObjectClass *klass, void *data)
+{
+    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+
+    k->init = ads7846_init;
+    k->transfer = ads7846_transfer;
+}
+
+static DeviceInfo ads7846_info = {
+    .name = "ads7846",
+    .size = sizeof(ADS7846State),
+    .class_init = ads7846_class_init,
 };
 
 static void ads7846_register_devices(void)

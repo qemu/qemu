@@ -472,10 +472,17 @@ qemu_irq *i8259_init(ISABus *bus, qemu_irq parent_irq)
     return irq_set;
 }
 
-static PICCommonInfo i8259_info = {
-    .isadev.qdev.name  = "isa-i8259",
-    .isadev.qdev.reset = pic_reset,
-    .init              = pic_init,
+static void i8259_class_init(ObjectClass *klass, void *data)
+{
+    PICCommonClass *k = PIC_COMMON_CLASS(klass);
+
+    k->init = pic_init;
+}
+
+static DeviceInfo i8259_info = {
+    .name  = "isa-i8259",
+    .reset = pic_reset,
+    .class_init = i8259_class_init,
 };
 
 static void pic_register(void)

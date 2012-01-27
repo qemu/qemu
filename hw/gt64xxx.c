@@ -1149,22 +1149,41 @@ static int gt64120_pci_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo gt64120_pci_info = {
-    .qdev.name = "gt64120_pci",
-    .qdev.desc = "System controller",
-    .qdev.size = sizeof(PCIDevice),
-    .qdev.no_user = 1,
-    .init      = gt64120_pci_init,
-    .vendor_id = PCI_VENDOR_ID_MARVELL,
-    .device_id = PCI_DEVICE_ID_MARVELL_GT6412X,
-    .revision  = 0x10,
-    .class_id  = PCI_CLASS_BRIDGE_HOST,
+static void gt64120_pci_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = gt64120_pci_init;
+    k->vendor_id = PCI_VENDOR_ID_MARVELL;
+    k->device_id = PCI_DEVICE_ID_MARVELL_GT6412X;
+    k->revision = 0x10;
+    k->class_id = PCI_CLASS_BRIDGE_HOST;
+}
+
+static DeviceInfo gt64120_pci_info = {
+    .name = "gt64120_pci",
+    .desc = "System controller",
+    .size = sizeof(PCIDevice),
+    .no_user = 1,
+    .class_init = gt64120_pci_class_init,
+};
+
+static void gt64120_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = gt64120_init;
+}
+
+static DeviceInfo gt64120_info = {
+    .name = "gt64120",
+    .size = sizeof(GT64120State),
+    .class_init = gt64120_class_init,
 };
 
 static void gt64120_pci_register_devices(void)
 {
-    sysbus_register_dev("gt64120", sizeof(GT64120State),
-                        gt64120_init);
+    sysbus_qdev_register(&gt64120_info);
     pci_qdev_register(&gt64120_pci_info);
 }
 

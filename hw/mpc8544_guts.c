@@ -121,10 +121,17 @@ static int mpc8544_guts_initfn(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo mpc8544_guts_info = {
-    .init         = mpc8544_guts_initfn,
-    .qdev.name    = "mpc8544-guts",
-    .qdev.size    = sizeof(GutsState),
+static void mpc8544_guts_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = mpc8544_guts_initfn;
+}
+
+static DeviceInfo mpc8544_guts_info = {
+    .name = "mpc8544-guts",
+    .size = sizeof(GutsState),
+    .class_init = mpc8544_guts_class_init,
 };
 
 static void mpc8544_guts_register(void)

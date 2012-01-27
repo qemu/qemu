@@ -240,7 +240,7 @@ static int mipsnet_sysbus_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
 
     s->nic = qemu_new_nic(&net_mipsnet_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     return 0;
@@ -252,17 +252,26 @@ static void mipsnet_sysbus_reset(DeviceState *dev)
     mipsnet_reset(s);
 }
 
-static SysBusDeviceInfo mipsnet_info = {
-    .init = mipsnet_sysbus_init,
-    .qdev.name = "mipsnet",
-    .qdev.desc = "MIPS Simulator network device",
-    .qdev.size = sizeof(MIPSnetState),
-    .qdev.vmsd = &vmstate_mipsnet,
-    .qdev.reset = mipsnet_sysbus_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(MIPSnetState, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property mipsnet_properties[] = {
+    DEFINE_NIC_PROPERTIES(MIPSnetState, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void mipsnet_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = mipsnet_sysbus_init;
+}
+
+static DeviceInfo mipsnet_info = {
+    .name = "mipsnet",
+    .desc = "MIPS Simulator network device",
+    .size = sizeof(MIPSnetState),
+    .vmsd = &vmstate_mipsnet,
+    .reset = mipsnet_sysbus_reset,
+    .props = mipsnet_properties,
+    .class_init = mipsnet_class_init,
 };
 
 static void mipsnet_register_devices(void)

@@ -134,16 +134,25 @@ static int nvram_sysbus_initfn(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo nvram_sysbus_info = {
-    .qdev.name  = "ds1225y",
-    .qdev.size  = sizeof(SysBusNvRamState),
-    .qdev.vmsd  = &vmstate_nvram,
-    .init       = nvram_sysbus_initfn,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("size", SysBusNvRamState, nvram.chip_size, 0x2000),
-        DEFINE_PROP_STRING("filename", SysBusNvRamState, nvram.filename),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property nvram_sysbus_properties[] = {
+    DEFINE_PROP_UINT32("size", SysBusNvRamState, nvram.chip_size, 0x2000),
+    DEFINE_PROP_STRING("filename", SysBusNvRamState, nvram.filename),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void nvram_sysbus_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = nvram_sysbus_initfn;
+}
+
+static DeviceInfo nvram_sysbus_info = {
+    .name = "ds1225y",
+    .size = sizeof(SysBusNvRamState),
+    .vmsd = &vmstate_nvram,
+    .props = nvram_sysbus_properties,
+    .class_init = nvram_sysbus_class_init,
 };
 
 static void nvram_register(void)

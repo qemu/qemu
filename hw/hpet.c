@@ -695,18 +695,27 @@ static int hpet_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo hpet_device_info = {
-    .qdev.name    = "hpet",
-    .qdev.size    = sizeof(HPETState),
-    .qdev.no_user = 1,
-    .qdev.vmsd    = &vmstate_hpet,
-    .qdev.reset   = hpet_reset,
-    .init         = hpet_init,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT8("timers", HPETState, num_timers, HPET_MIN_TIMERS),
-        DEFINE_PROP_BIT("msi", HPETState, flags, HPET_MSI_SUPPORT, false),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property hpet_device_properties[] = {
+    DEFINE_PROP_UINT8("timers", HPETState, num_timers, HPET_MIN_TIMERS),
+    DEFINE_PROP_BIT("msi", HPETState, flags, HPET_MSI_SUPPORT, false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void hpet_device_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = hpet_init;
+}
+
+static DeviceInfo hpet_device_info = {
+    .name = "hpet",
+    .size = sizeof(HPETState),
+    .no_user = 1,
+    .vmsd = &vmstate_hpet,
+    .reset = hpet_reset,
+    .props = hpet_device_properties,
+    .class_init = hpet_device_class_init,
 };
 
 static void hpet_register_device(void)

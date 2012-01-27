@@ -531,18 +531,27 @@ static int fw_cfg_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo fw_cfg_info = {
-    .init = fw_cfg_init1,
-    .qdev.name = "fw_cfg",
-    .qdev.size = sizeof(FWCfgState),
-    .qdev.vmsd = &vmstate_fw_cfg,
-    .qdev.reset = fw_cfg_reset,
-    .qdev.no_user = 1,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_HEX32("ctl_iobase", FWCfgState, ctl_iobase, -1),
-        DEFINE_PROP_HEX32("data_iobase", FWCfgState, data_iobase, -1),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property fw_cfg_properties[] = {
+    DEFINE_PROP_HEX32("ctl_iobase", FWCfgState, ctl_iobase, -1),
+    DEFINE_PROP_HEX32("data_iobase", FWCfgState, data_iobase, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void fw_cfg_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = fw_cfg_init1;
+}
+
+static DeviceInfo fw_cfg_info = {
+    .name = "fw_cfg",
+    .size = sizeof(FWCfgState),
+    .vmsd = &vmstate_fw_cfg,
+    .reset = fw_cfg_reset,
+    .no_user = 1,
+    .props = fw_cfg_properties,
+    .class_init = fw_cfg_class_init,
 };
 
 static void fw_cfg_register_devices(void)

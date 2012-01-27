@@ -348,21 +348,30 @@ static void pci_reset(DeviceState *dev)
     pcnet_h_reset(&d->state);
 }
 
-static PCIDeviceInfo pcnet_info = {
-    .qdev.name  = "pcnet",
-    .qdev.size  = sizeof(PCIPCNetState),
-    .qdev.reset = pci_reset,
-    .qdev.vmsd  = &vmstate_pci_pcnet,
-    .init       = pci_pcnet_init,
-    .exit       = pci_pcnet_uninit,
-    .vendor_id  = PCI_VENDOR_ID_AMD,
-    .device_id  = PCI_DEVICE_ID_AMD_LANCE,
-    .revision   = 0x10,
-    .class_id   = PCI_CLASS_NETWORK_ETHERNET,
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(PCIPCNetState, state.conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property pcnet_properties[] = {
+    DEFINE_NIC_PROPERTIES(PCIPCNetState, state.conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pcnet_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = pci_pcnet_init;
+    k->exit = pci_pcnet_uninit;
+    k->vendor_id = PCI_VENDOR_ID_AMD;
+    k->device_id = PCI_DEVICE_ID_AMD_LANCE;
+    k->revision = 0x10;
+    k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+}
+
+static DeviceInfo pcnet_info = {
+    .name = "pcnet",
+    .size = sizeof(PCIPCNetState),
+    .reset = pci_reset,
+    .vmsd = &vmstate_pci_pcnet,
+    .props = pcnet_properties,
+    .class_init = pcnet_class_init,
 };
 
 static void pci_pcnet_register_devices(void)

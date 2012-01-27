@@ -151,14 +151,23 @@ static int etraxfs_pic_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo etraxfs_pic_info = {
-    .init = etraxfs_pic_init,
-    .qdev.name  = "etraxfs,pic",
-    .qdev.size  = sizeof(struct etrax_pic),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_PTR("interrupt_vector", struct etrax_pic, interrupt_vector),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property etraxfs_pic_properties[] = {
+    DEFINE_PROP_PTR("interrupt_vector", struct etrax_pic, interrupt_vector),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void etraxfs_pic_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = etraxfs_pic_init;
+}
+
+static DeviceInfo etraxfs_pic_info = {
+    .name = "etraxfs,pic",
+    .size = sizeof(struct etrax_pic),
+    .props = etraxfs_pic_properties,
+    .class_init = etraxfs_pic_class_init,
 };
 
 static void etraxfs_pic_register(void)

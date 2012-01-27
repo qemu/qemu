@@ -46,7 +46,7 @@ static void xio3130_upstream_write_config(PCIDevice *d, uint32_t address,
 
 static void xio3130_upstream_reset(DeviceState *qdev)
 {
-    PCIDevice *d = DO_UPCAST(PCIDevice, qdev, qdev);
+    PCIDevice *d = PCI_DEVICE(qdev);
     msi_reset(d);
     pci_bridge_reset(qdev);
     pcie_cap_deverr_reset(d);
@@ -144,28 +144,35 @@ static const VMStateDescription vmstate_xio3130_upstream = {
     }
 };
 
-static PCIDeviceInfo xio3130_upstream_info = {
-    .qdev.name = "x3130-upstream",
-    .qdev.desc = "TI X3130 Upstream Port of PCI Express Switch",
-    .qdev.size = sizeof(PCIEPort),
-    .qdev.reset = xio3130_upstream_reset,
-    .qdev.vmsd = &vmstate_xio3130_upstream,
+static Property xio3130_upstream_properties[] = {
+    DEFINE_PROP_UINT8("port", PCIEPort, port, 0),
+    DEFINE_PROP_UINT16("aer_log_max", PCIEPort, br.dev.exp.aer_log.log_max,
+    PCIE_AER_LOG_MAX_DEFAULT),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
-    .is_express = 1,
-    .is_bridge = 1,
-    .config_write = xio3130_upstream_write_config,
-    .init = xio3130_upstream_initfn,
-    .exit = xio3130_upstream_exitfn,
-    .vendor_id = PCI_VENDOR_ID_TI,
-    .device_id = PCI_DEVICE_ID_TI_XIO3130U,
-    .revision = XIO3130_REVISION,
+static void xio3130_upstream_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT8("port", PCIEPort, port, 0),
-        DEFINE_PROP_UINT16("aer_log_max", PCIEPort, br.dev.exp.aer_log.log_max,
-                           PCIE_AER_LOG_MAX_DEFAULT),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+    k->is_express = 1;
+    k->is_bridge = 1;
+    k->config_write = xio3130_upstream_write_config;
+    k->init = xio3130_upstream_initfn;
+    k->exit = xio3130_upstream_exitfn;
+    k->vendor_id = PCI_VENDOR_ID_TI;
+    k->device_id = PCI_DEVICE_ID_TI_XIO3130U;
+    k->revision = XIO3130_REVISION;
+}
+
+static DeviceInfo xio3130_upstream_info = {
+    .name = "x3130-upstream",
+    .desc = "TI X3130 Upstream Port of PCI Express Switch",
+    .size = sizeof(PCIEPort),
+    .reset = xio3130_upstream_reset,
+    .vmsd = &vmstate_xio3130_upstream,
+    .props = xio3130_upstream_properties,
+    .class_init = xio3130_upstream_class_init,
 };
 
 static void xio3130_upstream_register(void)

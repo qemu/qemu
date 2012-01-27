@@ -126,9 +126,23 @@ static int syborg_rtc_init(SysBusDevice *dev)
     return 0;
 }
 
+static void syborg_rtc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = syborg_rtc_init;
+}
+
+static DeviceInfo syborg_rtc_info = {
+    .name = "syborg,rtc",
+    .size = sizeof(SyborgRTCState),
+    //~ .reset = syborg_rtc_reset,
+    //~ .vmsd = &syborg_rtc_vmsd,
+    .class_init = syborg_rtc_class_init
+};
+
 static void syborg_rtc_register_devices(void)
 {
-    sysbus_register_dev("syborg,rtc", sizeof(SyborgRTCState), syborg_rtc_init);
+    sysbus_qdev_register(&syborg_rtc_info);
 }
 
 device_init(syborg_rtc_register_devices)

@@ -636,23 +636,28 @@ static const VMStateDescription vmstate_usb_msd = {
     }
 };
 
-static struct USBDeviceInfo msd_info = {
-    .product_desc   = "QEMU USB MSD",
-    .qdev.name      = "usb-storage",
-    .qdev.fw_name      = "storage",
-    .qdev.size      = sizeof(MSDState),
-    .qdev.vmsd      = &vmstate_usb_msd,
-    .usb_desc       = &desc,
-    .init           = usb_msd_initfn,
-    .handle_packet  = usb_generic_handle_packet,
-    .cancel_packet  = usb_msd_cancel_io,
-    .handle_attach  = usb_desc_attach,
-    .handle_reset   = usb_msd_handle_reset,
-    .handle_control = usb_msd_handle_control,
-    .handle_data    = usb_msd_handle_data,
-    .usbdevice_name = "disk",
-    .usbdevice_init = usb_msd_init,
-    .qdev.props     = (Property[]) {
+static void usb_msd_class_initfn(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->init           = usb_msd_initfn;
+    uc->product_desc   = "QEMU USB MSD";
+    uc->usb_desc       = &desc;
+    uc->handle_packet  = usb_generic_handle_packet;
+    uc->cancel_packet  = usb_msd_cancel_io;
+    uc->handle_attach  = usb_desc_attach;
+    uc->handle_reset   = usb_msd_handle_reset;
+    uc->handle_control = usb_msd_handle_control;
+    uc->handle_data    = usb_msd_handle_data;
+}
+
+static struct DeviceInfo msd_info = {
+    .name      = "usb-storage",
+    .fw_name   = "storage",
+    .size      = sizeof(MSDState),
+    .vmsd      = &vmstate_usb_msd,
+    .class_init= usb_msd_class_initfn,
+    .props     = (Property[]) {
         DEFINE_BLOCK_PROPERTIES(MSDState, conf),
         DEFINE_PROP_STRING("serial", MSDState, serial),
         DEFINE_PROP_BIT("removable", MSDState, removable, 0, false),
@@ -662,6 +667,6 @@ static struct USBDeviceInfo msd_info = {
 
 static void usb_msd_register_devices(void)
 {
-    usb_qdev_register(&msd_info);
+    usb_qdev_register(&msd_info, "disk", usb_msd_init);
 }
 device_init(usb_msd_register_devices)

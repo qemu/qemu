@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  *
- * Copyright (c) 2006-2011 Stefan Weil
+ * Copyright (c) 2006-2012 Stefan Weil
  * Copyright (c) 2006-2007 Zhang Xin(xing.z.zhang@intel.com)
  *
  * Support OS:
@@ -486,6 +486,7 @@ typedef struct
 
 typedef struct {
     PCIDevice dev;
+
     MemoryRegion mmio_bar;
     MemoryRegion io_bar;
     MemoryRegion flash_bar;
@@ -534,6 +535,21 @@ typedef struct {
     }pci_mem;
 
 } E100State;
+
+typedef struct {
+    DeviceInfo qdev;
+
+    uint16_t device_id;
+    uint8_t revision;
+    uint16_t subsystem_vendor_id;
+    uint16_t subsystem_id;
+#if 0
+    uint32_t device;
+    uint8_t stats_size;
+    bool has_extended_tcb_support;
+    bool power_management;
+#endif
+} E100PCIDeviceInfo;
 
 /* CB structure, filled by device driver
  * This is a common structure of CB. In some
@@ -760,7 +776,7 @@ static void e100_dump(const char *comment, const uint8_t *info, int len) {}
 static void eeprom_trace(int eedo, int di, int dir, int next_op, int clr) {}
 #endif
 
-static void pci_reset(E100State * s)
+static void pci_reset(E100State *s)
 {
     uint8_t *pci_conf = s->dev.config;
 
@@ -818,7 +834,7 @@ static void e100_software_reset(E100State *s)
 
 static void e100_reset(void *opaque)
 {
-    E100State *s = (E100State *) opaque;
+    E100State *s = opaque;
     logout("%p\n", s);
     e100_software_reset(s);
 }
@@ -2377,7 +2393,8 @@ static int e100_init(PCIDevice *pci_dev, uint32_t device)
     e100_reset(s);
 
     s->nic = qemu_new_nic(&net_info, &s->conf,
-                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
+                          object_get_typename(OBJECT(pci_dev)),
+                          pci_dev->qdev.id, s);
 
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
@@ -2407,12 +2424,29 @@ static Property e100_properties[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-static PCIDeviceInfo e100_info = {
-    .qdev.name = "e100",
-    .qdev.props = e100_properties,
-    .qdev.size = sizeof(E100State),
-    .init      = pci_e100_init,
-    .exit      = e100_exit,
+static void e100_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    k->romfile = "pxe-eepro100.rom";
+    k->init = pci_e100_init;
+    k->exit = e100_exit;
+    //~ k->device_id = info->device_id;
+    k->revision = 0x01;
+    //~ k->subsystem_vendor_id = info->subsystem_vendor_id;
+    //~ k->subsystem_id = info->subsystem_id;
+}
+
+static DeviceInfo e100_info = {
+    .name = "e100",
+    .desc = "Intel Ethernet",
+    .size = sizeof(E100State),
+    //~ .reset = qdev_e100_reset,
+    //~ .vmsd = &vmstate_e100,
+    .props = e100_properties,
+    .class_init = e100_class_init,
 };
 
 static void e100_register_devices(void)

@@ -1,0 +1,1 @@
+qom-y = object.o

@@ -533,23 +533,30 @@ static const VMStateDescription vmstate_usb_hub = {
     }
 };
 
-static struct USBDeviceInfo hub_info = {
-    .product_desc   = "QEMU USB Hub",
-    .qdev.name      = "usb-hub",
-    .qdev.fw_name    = "hub",
-    .qdev.size      = sizeof(USBHubState),
-    .qdev.vmsd      = &vmstate_usb_hub,
-    .usb_desc       = &desc_hub,
-    .init           = usb_hub_initfn,
-    .handle_packet  = usb_hub_handle_packet,
-    .handle_reset   = usb_hub_handle_reset,
-    .handle_control = usb_hub_handle_control,
-    .handle_data    = usb_hub_handle_data,
-    .handle_destroy = usb_hub_handle_destroy,
+static void  usb_hub_class_initfn(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->init           = usb_hub_initfn;
+    uc->product_desc   = "QEMU USB Hub";
+    uc->usb_desc       = &desc_hub;
+    uc->handle_packet  = usb_hub_handle_packet;
+    uc->handle_reset   = usb_hub_handle_reset;
+    uc->handle_control = usb_hub_handle_control;
+    uc->handle_data    = usb_hub_handle_data;
+    uc->handle_destroy = usb_hub_handle_destroy;
+}
+
+static struct DeviceInfo hub_info = {
+    .name      = "usb-hub",
+    .fw_name   = "hub",
+    .size      = sizeof(USBHubState),
+    .vmsd      = &vmstate_usb_hub,
+    .class_init= usb_hub_class_initfn,
 };
 
 static void usb_hub_register_devices(void)
 {
-    usb_qdev_register(&hub_info);
+    usb_qdev_register(&hub_info, NULL, NULL);
 }
 device_init(usb_hub_register_devices)

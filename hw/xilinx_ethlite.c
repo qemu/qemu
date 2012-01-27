@@ -221,21 +221,30 @@ static int xilinx_ethlite_init(SysBusDevice *dev)
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_xilinx_ethlite_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
     return 0;
 }
 
-static SysBusDeviceInfo xilinx_ethlite_info = {
-    .init = xilinx_ethlite_init,
-    .qdev.name  = "xilinx,ethlite",
-    .qdev.size  = sizeof(struct xlx_ethlite),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("txpingpong", struct xlx_ethlite, c_tx_pingpong, 1),
-        DEFINE_PROP_UINT32("rxpingpong", struct xlx_ethlite, c_rx_pingpong, 1),
-        DEFINE_NIC_PROPERTIES(struct xlx_ethlite, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property xilinx_ethlite_properties[] = {
+    DEFINE_PROP_UINT32("txpingpong", struct xlx_ethlite, c_tx_pingpong, 1),
+    DEFINE_PROP_UINT32("rxpingpong", struct xlx_ethlite, c_rx_pingpong, 1),
+    DEFINE_NIC_PROPERTIES(struct xlx_ethlite, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void xilinx_ethlite_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = xilinx_ethlite_init;
+}
+
+static DeviceInfo xilinx_ethlite_info = {
+    .name = "xilinx,ethlite",
+    .size = sizeof(struct xlx_ethlite),
+    .props = xilinx_ethlite_properties,
+    .class_init = xilinx_ethlite_class_init,
 };
 
 static void xilinx_ethlite_register(void)

@@ -761,7 +761,7 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
     ne2000_reset(s);
 
     s->nic = qemu_new_nic(&net_ne2000_info, &s->c,
-                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
+                          object_get_typename(OBJECT(pci_dev)), pci_dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
 
     if (!pci_dev->qdev.hotplugged) {
@@ -787,19 +787,28 @@ static int pci_ne2000_exit(PCIDevice *pci_dev)
     return 0;
 }
 
-static PCIDeviceInfo ne2000_info = {
-    .qdev.name  = "ne2k_pci",
-    .qdev.size  = sizeof(PCINE2000State),
-    .qdev.vmsd  = &vmstate_pci_ne2000,
-    .init       = pci_ne2000_init,
-    .exit       = pci_ne2000_exit,
-    .vendor_id  = PCI_VENDOR_ID_REALTEK,
-    .device_id  = PCI_DEVICE_ID_REALTEK_8029,
-    .class_id   = PCI_CLASS_NETWORK_ETHERNET,
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(PCINE2000State, ne2000.c),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property ne2000_properties[] = {
+    DEFINE_NIC_PROPERTIES(PCINE2000State, ne2000.c),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void ne2000_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = pci_ne2000_init;
+    k->exit = pci_ne2000_exit;
+    k->vendor_id = PCI_VENDOR_ID_REALTEK;
+    k->device_id = PCI_DEVICE_ID_REALTEK_8029;
+    k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+}
+
+static DeviceInfo ne2000_info = {
+    .name = "ne2k_pci",
+    .size = sizeof(PCINE2000State),
+    .vmsd = &vmstate_pci_ne2000,
+    .props = ne2000_properties,
+    .class_init = ne2000_class_init,
 };
 
 static void ne2000_register_devices(void)

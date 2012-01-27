@@ -130,7 +130,7 @@ static void print_report(const char *op, struct timeval *t, int64_t offset,
 static void *
 create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
 {
-    size_t *sizes = calloc(nr_iov, sizeof(size_t));
+    size_t *sizes = g_new0(size_t, nr_iov);
     size_t count = 0;
     void *buf = NULL;
     void *p;
@@ -172,7 +172,7 @@ create_iovec(QEMUIOVector *qiov, char **argv, int nr_iov, int pattern)
     }
 
 fail:
-    free(sizes);
+    g_free(sizes);
     return buf;
 }
 
@@ -471,14 +471,14 @@ static int read_f(int argc, char **argv)
     }
 
     if (Pflag) {
-        void *cmp_buf = malloc(pattern_count);
+        void *cmp_buf = g_malloc(pattern_count);
         memset(cmp_buf, pattern, pattern_count);
         if (memcmp(buf + pattern_offset, cmp_buf, pattern_count)) {
             printf("Pattern verification failed at offset %"
                    PRId64 ", %d bytes\n",
                    offset + pattern_offset, pattern_count);
         }
-        free(cmp_buf);
+        g_free(cmp_buf);
     }
 
     if (qflag) {
@@ -601,13 +601,13 @@ static int readv_f(int argc, char **argv)
     }
 
     if (Pflag) {
-        void *cmp_buf = malloc(qiov.size);
+        void *cmp_buf = g_malloc(qiov.size);
         memset(cmp_buf, pattern, qiov.size);
         if (memcmp(buf, cmp_buf, qiov.size)) {
             printf("Pattern verification failed at offset %"
                    PRId64 ", %zd bytes\n", offset, qiov.size);
         }
-        free(cmp_buf);
+        g_free(cmp_buf);
     }
 
     if (qflag) {
@@ -1063,7 +1063,7 @@ static void aio_write_done(void *opaque, int ret)
                  ctx->qiov.size, 1, ctx->Cflag);
 out:
     qemu_io_free(ctx->buf);
-    free(ctx);
+    g_free(ctx);
 }
 
 static void aio_read_done(void *opaque, int ret)
@@ -1079,14 +1079,14 @@ static void aio_read_done(void *opaque, int ret)
     }
 
     if (ctx->Pflag) {
-        void *cmp_buf = malloc(ctx->qiov.size);
+        void *cmp_buf = g_malloc(ctx->qiov.size);
 
         memset(cmp_buf, ctx->pattern, ctx->qiov.size);
         if (memcmp(ctx->buf, cmp_buf, ctx->qiov.size)) {
             printf("Pattern verification failed at offset %"
                    PRId64 ", %zd bytes\n", ctx->offset, ctx->qiov.size);
         }
-        free(cmp_buf);
+        g_free(cmp_buf);
     }
 
     if (ctx->qflag) {
@@ -1103,7 +1103,7 @@ static void aio_read_done(void *opaque, int ret)
                  ctx->qiov.size, 1, ctx->Cflag);
 out:
     qemu_io_free(ctx->buf);
-    free(ctx);
+    g_free(ctx);
 }
 
 static void aio_read_help(void)
@@ -1118,7 +1118,7 @@ static void aio_read_help(void)
 " Reads a segment of the currently open file, optionally dumping it to the\n"
 " standard output stream (with -v option) for subsequent inspection.\n"
 " The read is performed asynchronously and the aio_flush command must be\n"
-" used to ensure all outstanding aio requests have been completed\n"
+" used to ensure all outstanding aio requests have been completed.\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -P, -- use a pattern to verify read data\n"
 " -v, -- dump buffer to standard output\n"
@@ -1141,7 +1141,7 @@ static const cmdinfo_t aio_read_cmd = {
 static int aio_read_f(int argc, char **argv)
 {
     int nr_iov, c;
-    struct aio_ctx *ctx = calloc(1, sizeof(struct aio_ctx));
+    struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
 
     while ((c = getopt(argc, argv, "CP:qv")) != EOF) {
         switch (c) {
@@ -1152,7 +1152,7 @@ static int aio_read_f(int argc, char **argv)
             ctx->Pflag = 1;
             ctx->pattern = parse_pattern(optarg);
             if (ctx->pattern < 0) {
-                free(ctx);
+                g_free(ctx);
                 return 0;
             }
             break;
@@ -1163,20 +1163,20 @@ static int aio_read_f(int argc, char **argv)
             ctx->vflag = 1;
             break;
         default:
-            free(ctx);
+            g_free(ctx);
             return command_usage(&aio_read_cmd);
         }
     }
 
     if (optind > argc - 2) {
-        free(ctx);
+        g_free(ctx);
         return command_usage(&aio_read_cmd);
     }
 
     ctx->offset = cvtnum(argv[optind]);
     if (ctx->offset < 0) {
         printf("non-numeric length argument -- %s\n", argv[optind]);
-        free(ctx);
+        g_free(ctx);
         return 0;
     }
     optind++;
@@ -1184,14 +1184,14 @@ static int aio_read_f(int argc, char **argv)
     if (ctx->offset & 0x1ff) {
         printf("offset %" PRId64 " is not sector aligned\n",
                ctx->offset);
-        free(ctx);
+        g_free(ctx);
         return 0;
     }
 
     nr_iov = argc - optind;
     ctx->buf = create_iovec(&ctx->qiov, &argv[optind], nr_iov, 0xab);
     if (ctx->buf == NULL) {
-        free(ctx);
+        g_free(ctx);
         return 0;
     }
 
@@ -1214,7 +1214,7 @@ static void aio_write_help(void)
 " Writes into a segment of the currently open file, using a buffer\n"
 " filled with a set pattern (0xcdcdcdcd).\n"
 " The write is performed asynchronously and the aio_flush command must be\n"
-" used to ensure all outstanding aio requests have been completed\n"
+" used to ensure all outstanding aio requests have been completed.\n"
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
@@ -1237,7 +1237,7 @@ static int aio_write_f(int argc, char **argv)
 {
     int nr_iov, c;
     int pattern = 0xcd;
-    struct aio_ctx *ctx = calloc(1, sizeof(struct aio_ctx));
+    struct aio_ctx *ctx = g_new0(struct aio_ctx, 1);
 
     while ((c = getopt(argc, argv, "CqP:")) != EOF) {
         switch (c) {
@@ -1250,25 +1250,25 @@ static int aio_write_f(int argc, char **argv)
         case 'P':
             pattern = parse_pattern(optarg);
             if (pattern < 0) {
-                free(ctx);
+                g_free(ctx);
                 return 0;
             }
             break;
         default:
-            free(ctx);
+            g_free(ctx);
             return command_usage(&aio_write_cmd);
         }
     }
 
     if (optind > argc - 2) {
-        free(ctx);
+        g_free(ctx);
         return command_usage(&aio_write_cmd);
     }
 
     ctx->offset = cvtnum(argv[optind]);
     if (ctx->offset < 0) {
         printf("non-numeric length argument -- %s\n", argv[optind]);
-        free(ctx);
+        g_free(ctx);
         return 0;
     }
     optind++;
@@ -1276,14 +1276,14 @@ static int aio_write_f(int argc, char **argv)
     if (ctx->offset & 0x1ff) {
         printf("offset %" PRId64 " is not sector aligned\n",
                ctx->offset);
-        free(ctx);
+        g_free(ctx);
         return 0;
     }
 
     nr_iov = argc - optind;
     ctx->buf = create_iovec(&ctx->qiov, &argv[optind], nr_iov, pattern);
     if (ctx->buf == NULL) {
-        free(ctx);
+        g_free(ctx);
         return 0;
     }
 

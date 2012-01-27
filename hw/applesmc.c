@@ -220,12 +220,18 @@ static int applesmc_isa_init(ISADevice *dev)
     return 0;
 }
 
-static ISADeviceInfo applesmc_isa_info = {
-    .qdev.name  = "isa-applesmc",
-    .qdev.size  = sizeof(struct AppleSMCStatus),
-    .qdev.reset = qdev_applesmc_isa_reset,
-    .init       = applesmc_isa_init,
-    .qdev.props = (Property[]) {
+static void qdev_applesmc_class_init(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    ic->init = applesmc_isa_init;
+}
+
+static DeviceInfo applesmc_isa_info = {
+    .name  = "isa-applesmc",
+    .size  = sizeof(struct AppleSMCStatus),
+    .reset = qdev_applesmc_isa_reset,
+    .class_init = qdev_applesmc_class_init,
+    .props = (Property[]) {
         DEFINE_PROP_HEX32("iobase", struct AppleSMCStatus, iobase,
                           APPLESMC_DEFAULT_IOBASE),
         DEFINE_PROP_STRING("osk", struct AppleSMCStatus, osk),

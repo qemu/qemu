@@ -27,7 +27,7 @@
 #define VERBOSE 1
 
 typedef struct {
-    i2c_slave i2c;
+    I2CSlave i2c;
 
     int firstbyte;
     uint8_t reg;
@@ -126,7 +126,7 @@ static void menelaus_rtc_hz(void *opaque)
     menelaus_update(s);
 }
 
-static void menelaus_reset(i2c_slave *i2c)
+static void menelaus_reset(I2CSlave *i2c)
 {
     MenelausState *s = (MenelausState *) i2c;
     s->reg = 0x00;
@@ -709,7 +709,7 @@ static void menelaus_write(void *opaque, uint8_t addr, uint8_t value)
     }
 }
 
-static void menelaus_event(i2c_slave *i2c, enum i2c_event event)
+static void menelaus_event(I2CSlave *i2c, enum i2c_event event)
 {
     MenelausState *s = (MenelausState *) i2c;
 
@@ -717,7 +717,7 @@ static void menelaus_event(i2c_slave *i2c, enum i2c_event event)
         s->firstbyte = 1;
 }
 
-static int menelaus_tx(i2c_slave *i2c, uint8_t data)
+static int menelaus_tx(I2CSlave *i2c, uint8_t data)
 {
     MenelausState *s = (MenelausState *) i2c;
     /* Interpret register address byte */
@@ -730,7 +730,7 @@ static int menelaus_tx(i2c_slave *i2c, uint8_t data)
     return 0;
 }
 
-static int menelaus_rx(i2c_slave *i2c)
+static int menelaus_rx(I2CSlave *i2c)
 {
     MenelausState *s = (MenelausState *) i2c;
 
@@ -842,7 +842,7 @@ static const VMStateDescription vmstate_menelaus = {
     }
 };
 
-static int twl92230_init(i2c_slave *i2c)
+static int twl92230_init(I2CSlave *i2c)
 {
     MenelausState *s = FROM_I2C_SLAVE(MenelausState, i2c);
 
@@ -857,14 +857,21 @@ static int twl92230_init(i2c_slave *i2c)
     return 0;
 }
 
-static I2CSlaveInfo twl92230_info = {
-    .qdev.name ="twl92230",
-    .qdev.size = sizeof(MenelausState),
-    .qdev.vmsd = &vmstate_menelaus,
-    .init = twl92230_init,
-    .event = menelaus_event,
-    .recv = menelaus_rx,
-    .send = menelaus_tx
+static void twl92230_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
+
+    sc->init = twl92230_init;
+    sc->event = menelaus_event;
+    sc->recv = menelaus_rx;
+    sc->send = menelaus_tx;
+}
+
+static DeviceInfo twl92230_info = {
+    .name ="twl92230",
+    .size = sizeof(MenelausState),
+    .vmsd = &vmstate_menelaus,
+    .class_init = twl92230_class_init,
 };
 
 static void twl92230_register_devices(void)

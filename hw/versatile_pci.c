@@ -109,21 +109,52 @@ static int versatile_pci_host_init(PCIDevice *d)
     return 0;
 }
 
-static PCIDeviceInfo versatile_pci_host_info = {
-    .qdev.name = "versatile_pci_host",
-    .qdev.size = sizeof(PCIDevice),
-    .init      = versatile_pci_host_init,
-    .vendor_id = PCI_VENDOR_ID_XILINX,
-    /* Both boards have the same device ID.  Oh well.  */
-    .device_id = PCI_DEVICE_ID_XILINX_XC2VP30,
-    .class_id  = PCI_CLASS_PROCESSOR_CO,
+static void versatile_pci_host_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = versatile_pci_host_init;
+    k->vendor_id = PCI_VENDOR_ID_XILINX;
+    k->device_id = PCI_DEVICE_ID_XILINX_XC2VP30;
+    k->class_id = PCI_CLASS_PROCESSOR_CO;
+}
+
+static DeviceInfo versatile_pci_host_info = {
+    .name = "versatile_pci_host",
+    .size = sizeof(PCIDevice),
+    .class_init = versatile_pci_host_class_init,
+};
+
+static void pci_vpb_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = pci_vpb_init;
+}
+
+static DeviceInfo pci_vpb_info = {
+    .name = "versatile_pci",
+    .size = sizeof(PCIVPBState),
+    .class_init = pci_vpb_class_init,
+};
+
+static void pci_realview_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = pci_realview_init;
+}
+
+static DeviceInfo pci_realview_info = {
+    .name = "realview_pci",
+    .size = sizeof(PCIVPBState),
+    .class_init = pci_realview_class_init,
 };
 
 static void versatile_pci_register_devices(void)
 {
-    sysbus_register_dev("versatile_pci", sizeof(PCIVPBState), pci_vpb_init);
-    sysbus_register_dev("realview_pci", sizeof(PCIVPBState),
-                        pci_realview_init);
+    sysbus_qdev_register(&pci_vpb_info);
+    sysbus_qdev_register(&pci_realview_info);
     pci_qdev_register(&versatile_pci_host_info);
 }
 

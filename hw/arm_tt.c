@@ -1,7 +1,7 @@
 /*
  * TomTom GO 730 with Samsung S3C2443X emulation.
  *
- * Copyright (c) 2010-2011 Stefan Weil
+ * Copyright (c) 2010, 2012 Stefan Weil
  *
  * Code based on hw/musicpal.c
  * Copyright (c) 2008 Jan Kiszka
@@ -341,11 +341,17 @@ static const VMStateDescription tt_lcd_vmsd = {
     }
 };
 
-static SysBusDeviceInfo tt_lcd_info = {
-    .init = tt_lcd_init,
-    .qdev.name = "tt_lcd",
-    .qdev.size = sizeof(tt_lcd_state),
-    .qdev.vmsd = &tt_lcd_vmsd,
+static void tt_lcd_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = tt_lcd_init;
+}
+
+static DeviceInfo tt_lcd_info = {
+    .name = "tt_lcd",
+    .size = sizeof(tt_lcd_state),
+    .vmsd = &tt_lcd_vmsd,
+    .class_init = tt_lcd_class_init,
 };
 
 /* PIC register offsets */
@@ -454,12 +460,18 @@ static const VMStateDescription mv88w8618_pic_vmsd = {
     }
 };
 
-static SysBusDeviceInfo mv88w8618_pic_info = {
-    .init = mv88w8618_pic_init,
-    .qdev.name = "mv88w8618_pic",
-    .qdev.size = sizeof(mv88w8618_pic_state),
-    .qdev.reset = mv88w8618_pic_reset,
-    .qdev.vmsd = &mv88w8618_pic_vmsd,
+static void mv88w8618_pic_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = mv88w8618_pic_init;
+}
+
+static DeviceInfo mv88w8618_pic_info = {
+    .name = "mv88w8618_pic",
+    .size = sizeof(mv88w8618_pic_state),
+    .vmsd = &mv88w8618_pic_vmsd,
+    .class_init = mv88w8618_pic_class_init,
+    .reset = mv88w8618_pic_reset,
 };
 
 /* PIT register offsets */
@@ -626,12 +638,18 @@ static const VMStateDescription mv88w8618_pit_vmsd = {
     }
 };
 
-static SysBusDeviceInfo mv88w8618_pit_info = {
-    .init = mv88w8618_pit_init,
-    .qdev.name  = "mv88w8618_pit",
-    .qdev.size  = sizeof(mv88w8618_pit_state),
-    .qdev.reset = mv88w8618_pit_reset,
-    .qdev.vmsd  = &mv88w8618_pit_vmsd,
+static void mv88w8618_pit_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = mv88w8618_pit_init;
+}
+
+static DeviceInfo mv88w8618_pit_info = {
+    .name  = "mv88w8618_pit",
+    .size  = sizeof(mv88w8618_pit_state),
+    .vmsd  = &mv88w8618_pit_vmsd,
+    .class_init = mv88w8618_pit_class_init,
+    .reset = mv88w8618_pit_reset,
 };
 
 /* Flash config register offsets */
@@ -702,11 +720,17 @@ static const VMStateDescription mv88w8618_flashcfg_vmsd = {
     }
 };
 
-static SysBusDeviceInfo mv88w8618_flashcfg_info = {
-    .init = mv88w8618_flashcfg_init,
-    .qdev.name  = "mv88w8618_flashcfg",
-    .qdev.size  = sizeof(mv88w8618_flashcfg_state),
-    .qdev.vmsd  = &mv88w8618_flashcfg_vmsd,
+static void mv88w8618_flashcfg_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = mv88w8618_flashcfg_init;
+}
+
+static DeviceInfo mv88w8618_flashcfg_info = {
+    .name  = "mv88w8618_flashcfg",
+    .size  = sizeof(mv88w8618_flashcfg_state),
+    .vmsd  = &mv88w8618_flashcfg_vmsd,
+    .class_init = mv88w8618_flashcfg_class_init,
 };
 
 /******************************************************************************/
@@ -1092,12 +1116,18 @@ static const VMStateDescription tt_gpio_vmsd = {
     }
 };
 
-static SysBusDeviceInfo tt_gpio_info = {
-    .init = tt_gpio_init,
-    .qdev.name  = "tt_gpio",
-    .qdev.size  = sizeof(tt_gpio_state),
-    .qdev.reset = tt_gpio_reset,
-    .qdev.vmsd  = &tt_gpio_vmsd,
+static void tt_gpio_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = tt_gpio_init;
+}
+
+static DeviceInfo tt_gpio_info = {
+    .name  = "tt_gpio",
+    .size  = sizeof(tt_gpio_state),
+    .vmsd  = &tt_gpio_vmsd,
+    .class_init = tt_gpio_class_init,
+    .reset = tt_gpio_reset,
 };
 
 /* Keyboard codes & masks */
@@ -1237,11 +1267,17 @@ static const VMStateDescription tt_key_vmsd = {
     }
 };
 
-static SysBusDeviceInfo tt_key_info = {
-    .init = tt_key_init,
-    .qdev.name  = "tt_key",
-    .qdev.size  = sizeof(tt_key_state),
-    .qdev.vmsd  = &tt_key_vmsd,
+static void tt_key_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = tt_key_init;
+}
+
+static DeviceInfo tt_key_info = {
+    .name  = "tt_key",
+    .size  = sizeof(tt_key_state),
+    .vmsd  = &tt_key_vmsd,
+    .class_init = tt_key_class_init,
 };
 
 static struct arm_boot_info tt_binfo = {

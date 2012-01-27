@@ -404,16 +404,25 @@ static int slavio_timer_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo slavio_timer_info = {
-    .init = slavio_timer_init1,
-    .qdev.name  = "slavio_timer",
-    .qdev.size  = sizeof(SLAVIO_TIMERState),
-    .qdev.vmsd  = &vmstate_slavio_timer,
-    .qdev.reset = slavio_timer_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("num_cpus",  SLAVIO_TIMERState, num_cpus,  0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property slavio_timer_properties[] = {
+    DEFINE_PROP_UINT32("num_cpus",  SLAVIO_TIMERState, num_cpus,  0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void slavio_timer_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = slavio_timer_init1;
+}
+
+static DeviceInfo slavio_timer_info = {
+    .name = "slavio_timer",
+    .size = sizeof(SLAVIO_TIMERState),
+    .vmsd = &vmstate_slavio_timer,
+    .reset = slavio_timer_reset,
+    .props = slavio_timer_properties,
+    .class_init = slavio_timer_class_init,
 };
 
 static void slavio_timer_register_devices(void)

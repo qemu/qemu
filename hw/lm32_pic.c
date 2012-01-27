@@ -174,12 +174,19 @@ static const VMStateDescription vmstate_lm32_pic = {
     }
 };
 
-static SysBusDeviceInfo lm32_pic_info = {
-    .init = lm32_pic_init,
-    .qdev.name  = "lm32-pic",
-    .qdev.size  = sizeof(LM32PicState),
-    .qdev.vmsd  = &vmstate_lm32_pic,
-    .qdev.reset = pic_reset,
+static void lm32_pic_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = lm32_pic_init;
+}
+
+static DeviceInfo lm32_pic_info = {
+    .name = "lm32-pic",
+    .size = sizeof(LM32PicState),
+    .vmsd = &vmstate_lm32_pic,
+    .reset = pic_reset,
+    .class_init = lm32_pic_class_init,
 };
 
 static void lm32_pic_register(void)

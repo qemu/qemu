@@ -215,14 +215,20 @@ static int syborg_int_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo syborg_int_info = {
-    .init = syborg_int_init,
-    .qdev.name  = "syborg,interrupt",
-    .qdev.size  = sizeof(SyborgIntState),
-    .qdev.props = (Property[]) {
+static void syborg_int_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = syborg_int_init;
+}
+
+static DeviceInfo syborg_int_info = {
+    .name  = "syborg,interrupt",
+    .size  = sizeof(SyborgIntState),
+    .props = (Property[]) {
         DEFINE_PROP_UINT32("num-interrupts", SyborgIntState, num_irqs, 64),
         DEFINE_PROP_END_OF_LIST(),
-    }
+    },
+    .class_init = syborg_int_class_init
 };
 
 static void syborg_interrupt_register_devices(void)

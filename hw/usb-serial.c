@@ -570,41 +570,51 @@ static const VMStateDescription vmstate_usb_serial = {
     .unmigratable = 1,
 };
 
-static struct USBDeviceInfo serial_info = {
-    .product_desc   = "QEMU USB Serial",
-    .qdev.name      = "usb-serial",
-    .qdev.size      = sizeof(USBSerialState),
-    .qdev.vmsd      = &vmstate_usb_serial,
-    .usb_desc       = &desc_serial,
-    .init           = usb_serial_initfn,
-    .handle_packet  = usb_generic_handle_packet,
-    .handle_reset   = usb_serial_handle_reset,
-    .handle_control = usb_serial_handle_control,
-    .handle_data    = usb_serial_handle_data,
-    .handle_destroy = usb_serial_handle_destroy,
-    .usbdevice_name = "serial",
-    .usbdevice_init = usb_serial_init,
-    .qdev.props     = (Property[]) {
+static void usb_serial_class_initfn(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->init = usb_serial_initfn;
+    uc->product_desc   = "QEMU USB Serial";
+    uc->usb_desc       = &desc_serial;
+    uc->handle_packet  = usb_generic_handle_packet;
+    uc->handle_reset   = usb_serial_handle_reset;
+    uc->handle_control = usb_serial_handle_control;
+    uc->handle_data    = usb_serial_handle_data;
+    uc->handle_destroy = usb_serial_handle_destroy;
+}
+
+static struct DeviceInfo serial_info = {
+    .name      = "usb-serial",
+    .size      = sizeof(USBSerialState),
+    .vmsd      = &vmstate_usb_serial,
+    .class_init= usb_serial_class_initfn,
+    .props     = (Property[]) {
         DEFINE_PROP_CHR("chardev", USBSerialState, cs),
         DEFINE_PROP_END_OF_LIST(),
     },
 };
 
-static struct USBDeviceInfo braille_info = {
-    .product_desc   = "QEMU USB Braille",
-    .qdev.name      = "usb-braille",
-    .qdev.size      = sizeof(USBSerialState),
-    .qdev.vmsd      = &vmstate_usb_serial,
-    .usb_desc       = &desc_braille,
-    .init           = usb_serial_initfn,
-    .handle_packet  = usb_generic_handle_packet,
-    .handle_reset   = usb_serial_handle_reset,
-    .handle_control = usb_serial_handle_control,
-    .handle_data    = usb_serial_handle_data,
-    .handle_destroy = usb_serial_handle_destroy,
-    .usbdevice_name = "braille",
-    .usbdevice_init = usb_braille_init,
-    .qdev.props     = (Property[]) {
+static void usb_braille_class_initfn(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->init           = usb_serial_initfn;
+    uc->product_desc   = "QEMU USB Braille";
+    uc->usb_desc       = &desc_braille;
+    uc->handle_packet  = usb_generic_handle_packet;
+    uc->handle_reset   = usb_serial_handle_reset;
+    uc->handle_control = usb_serial_handle_control;
+    uc->handle_data    = usb_serial_handle_data;
+    uc->handle_destroy = usb_serial_handle_destroy;
+}
+
+static struct DeviceInfo braille_info = {
+    .name      = "usb-braille",
+    .size      = sizeof(USBSerialState),
+    .vmsd      = &vmstate_usb_serial,
+    .class_init= usb_braille_class_initfn,
+    .props     = (Property[]) {
         DEFINE_PROP_CHR("chardev", USBSerialState, cs),
         DEFINE_PROP_END_OF_LIST(),
     },
@@ -612,7 +622,7 @@ static struct USBDeviceInfo braille_info = {
 
 static void usb_serial_register_devices(void)
 {
-    usb_qdev_register(&serial_info);
-    usb_qdev_register(&braille_info);
+    usb_qdev_register(&serial_info, "serial", usb_serial_init);
+    usb_qdev_register(&braille_info, "braille", usb_braille_init);
 }
 device_init(usb_serial_register_devices)

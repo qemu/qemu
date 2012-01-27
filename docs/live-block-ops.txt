@@ -1,0 +1,58 @@
+LIVE BLOCK OPERATIONS
+=====================
+
+High level description of live block operations. Note these are not
+supported for use with the raw format at the moment.
+
+Snapshot live merge
+===================
+
+Given a snapshot chain, described in this document in the following
+format:
+
+[A] -> [B] -> [C] -> [D]
+
+Where the rightmost object ([D] in the example) described is the current
+image which the guest OS has write access to. To the left of it is its base
+image, and so on accordingly until the leftmost image, which has no
+base.
+
+The snapshot live merge operation transforms such a chain into a
+smaller one with fewer elements, such as this transformation relative
+to the first example:
+
+[A] -> [D]
+
+Currently only forward merge with target being the active image is
+supported, that is, data copy is performed in the right direction with
+destination being the rightmost image.
+
+The operation is implemented in QEMU through image streaming facilities.
+
+The basic idea is to execute 'block_stream virtio0' while the guest is
+running. Progress can be monitored using 'info block-jobs'. When the
+streaming operation completes it raises a QMP event. 'block_stream'
+copies data from the backing file(s) into the active image. When finished,
+it adjusts the backing file pointer.
+
+The 'base' parameter specifies an image which data need not be streamed from.
+This image will be used as the backing file for the active image when the
+operation is finished.
+
+In the example above, the command would be:
+
+(qemu) block_stream virtio0 A
+
+
+Live block copy
+===============
+
+To copy an in use image to another destination in the filesystem, one
+should create a live snapshot in the desired destination, then stream
+into that image. Example:
+
+(qemu) snapshot_blkdev ide0-hd0 /new-path/disk.img qcow2
+
+(qemu) block_stream ide0-hd0
+
+

@@ -153,18 +153,32 @@ void max111x_set_input(DeviceState *dev, int line, uint8_t value)
     s->input[line] = value;
 }
 
-static SSISlaveInfo max1110_info = {
-    .qdev.name = "max1110",
-    .qdev.size = sizeof(MAX111xState),
-    .init = max1110_init,
-    .transfer = max111x_transfer
+static void max1110_class_init(ObjectClass *klass, void *data)
+{
+    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+
+    k->init = max1110_init;
+    k->transfer = max111x_transfer;
+}
+
+static DeviceInfo max1110_info = {
+    .name = "max1110",
+    .size = sizeof(MAX111xState),
+    .class_init = max1110_class_init,
 };
 
-static SSISlaveInfo max1111_info = {
-    .qdev.name = "max1111",
-    .qdev.size = sizeof(MAX111xState),
-    .init = max1111_init,
-    .transfer = max111x_transfer
+static void max1111_class_init(ObjectClass *klass, void *data)
+{
+    SSISlaveClass *k = SSI_SLAVE_CLASS(klass);
+
+    k->init = max1111_init;
+    k->transfer = max111x_transfer;
+}
+
+static DeviceInfo max1111_info = {
+    .name = "max1111",
+    .size = sizeof(MAX111xState),
+    .class_init = max1111_class_init,
 };
 
 static void max111x_register_devices(void)

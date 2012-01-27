@@ -15,26 +15,34 @@
 typedef struct CCIDCardState CCIDCardState;
 typedef struct CCIDCardInfo CCIDCardInfo;
 
-/*
- * state of the CCID Card device (i.e. hw/ccid-card-*.c)
- */
-struct CCIDCardState {
-    DeviceState qdev;
-    uint32_t    slot; /* For future use with multiple slot reader. */
-};
+#define TYPE_CCID_CARD "ccid-card"
+#define CCID_CARD(obj) \
+     OBJECT_CHECK(CCIDCardState, (obj), TYPE_CCID_CARD)
+#define CCID_CARD_CLASS(klass) \
+     OBJECT_CLASS_CHECK(CCIDCardClass, (klass), TYPE_CCID_CARD)
+#define CCID_CARD_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(CCIDCardClass, (obj), TYPE_CCID_CARD)
 
 /*
  * callbacks to be used by the CCID device (hw/usb-ccid.c) to call
  * into the smartcard device (hw/ccid-card-*.c)
  */
-struct CCIDCardInfo {
-    DeviceInfo qdev;
+typedef struct CCIDCardClass {
+    DeviceClass parent_class;
     const uint8_t *(*get_atr)(CCIDCardState *card, uint32_t *len);
     void (*apdu_from_guest)(CCIDCardState *card,
                             const uint8_t *apdu,
                             uint32_t len);
     int (*exitfn)(CCIDCardState *card);
     int (*initfn)(CCIDCardState *card);
+} CCIDCardClass;
+
+/*
+ * state of the CCID Card device (i.e. hw/ccid-card-*.c)
+ */
+struct CCIDCardState {
+    DeviceState qdev;
+    uint32_t    slot; /* For future use with multiple slot reader. */
 };
 
 /*
@@ -46,7 +54,7 @@ void ccid_card_send_apdu_to_guest(CCIDCardState *card,
 void ccid_card_card_removed(CCIDCardState *card);
 void ccid_card_card_inserted(CCIDCardState *card);
 void ccid_card_card_error(CCIDCardState *card, uint64_t error);
-void ccid_card_qdev_register(CCIDCardInfo *card);
+void ccid_card_qdev_register(DeviceInfo *card);
 
 /*
  * support guest visible insertion/removal of ccid devices based on actual

@@ -145,12 +145,19 @@ static const VMStateDescription vmstate_milkymist_hpdmc = {
     }
 };
 
-static SysBusDeviceInfo milkymist_hpdmc_info = {
-    .init = milkymist_hpdmc_init,
-    .qdev.name  = "milkymist-hpdmc",
-    .qdev.size  = sizeof(MilkymistHpdmcState),
-    .qdev.vmsd  = &vmstate_milkymist_hpdmc,
-    .qdev.reset = milkymist_hpdmc_reset,
+static void milkymist_hpdmc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = milkymist_hpdmc_init;
+}
+
+static DeviceInfo milkymist_hpdmc_info = {
+    .name = "milkymist-hpdmc",
+    .size = sizeof(MilkymistHpdmcState),
+    .vmsd = &vmstate_milkymist_hpdmc,
+    .reset = milkymist_hpdmc_reset,
+    .class_init = milkymist_hpdmc_class_init,
 };
 
 static void milkymist_hpdmc_register(void)

@@ -203,7 +203,7 @@ static void pcie_cap_slot_event(PCIDevice *dev, PCIExpressHotPlugEvent event)
 static int pcie_cap_slot_hotplug(DeviceState *qdev,
                                  PCIDevice *pci_dev, PCIHotplugState state)
 {
-    PCIDevice *d = DO_UPCAST(PCIDevice, qdev, qdev);
+    PCIDevice *d = PCI_DEVICE(qdev);
     uint8_t *exp_cap = d->config + d->exp.exp_cap;
     uint16_t sltsta = pci_get_word(exp_cap + PCI_EXP_SLTSTA);
 

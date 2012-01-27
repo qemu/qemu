@@ -629,7 +629,7 @@ static void visit_type_int32(Visitor *v, int *value, const char *name, Error **e
 static void rtc_get_date(DeviceState *dev, Visitor *v, void *opaque,
                          const char *name, Error **errp)
 {
-    ISADevice *isa = DO_UPCAST(ISADevice, qdev, dev);
+    ISADevice *isa = ISA_DEVICE(dev);
     RTCState *s = DO_UPCAST(RTCState, dev, isa);
 
     visit_start_struct(v, NULL, "struct tm", name, 0, errp);
@@ -699,13 +699,19 @@ ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
     return dev;
 }
 
-static ISADeviceInfo mc146818rtc_info = {
-    .qdev.name     = "mc146818rtc",
-    .qdev.size     = sizeof(RTCState),
-    .qdev.no_user  = 1,
-    .qdev.vmsd     = &vmstate_rtc,
-    .init          = rtc_initfn,
-    .qdev.props    = (Property[]) {
+static void rtc_class_initfn(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    ic->init = rtc_initfn;
+}
+
+static DeviceInfo mc146818rtc_info = {
+    .name     = "mc146818rtc",
+    .size     = sizeof(RTCState),
+    .no_user  = 1,
+    .vmsd     = &vmstate_rtc,
+    .class_init          = rtc_class_initfn,
+    .props    = (Property[]) {
         DEFINE_PROP_INT32("base_year", RTCState, base_year, 1980),
         DEFINE_PROP_END_OF_LIST(),
     }

@@ -50,7 +50,7 @@ typedef struct mv88w8618_audio_state {
     uint32_t play_pos;
     uint32_t last_free;
     uint32_t clock_div;
-    DeviceState *wm;
+    void *wm;
 } mv88w8618_audio_state;
 
 static void mv88w8618_audio_callback(void *opaque, int free_out, int free_in)
@@ -272,20 +272,25 @@ static const VMStateDescription mv88w8618_audio_vmsd = {
     }
 };
 
-static SysBusDeviceInfo mv88w8618_audio_info = {
-    .init = mv88w8618_audio_init,
-    .qdev.name  = "mv88w8618_audio",
-    .qdev.size  = sizeof(mv88w8618_audio_state),
-    .qdev.reset = mv88w8618_audio_reset,
-    .qdev.vmsd  = &mv88w8618_audio_vmsd,
-    .qdev.props = (Property[]) {
-        {
-            .name   = "wm8750",
-            .info   = &qdev_prop_ptr,
-            .offset = offsetof(mv88w8618_audio_state, wm),
-        },
-        {/* end of list */}
-    }
+static Property mv88w8618_audio_properties[] = {
+    DEFINE_PROP_PTR("wm8750", mv88w8618_audio_state, wm),
+    {/* end of list */},
+};
+
+static void mv88w8618_audio_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = mv88w8618_audio_init;
+}
+
+static DeviceInfo mv88w8618_audio_info = {
+    .name = "mv88w8618_audio",
+    .size = sizeof(mv88w8618_audio_state),
+    .reset = mv88w8618_audio_reset,
+    .vmsd = &mv88w8618_audio_vmsd,
+    .props = mv88w8618_audio_properties,
+    .class_init = mv88w8618_audio_class_init,
 };
 
 static void mv88w8618_register_devices(void)

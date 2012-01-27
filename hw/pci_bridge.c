@@ -294,7 +294,7 @@ void pci_bridge_reset_reg(PCIDevice *dev)
 /* default reset function for PCI-to-PCI bridge */
 void pci_bridge_reset(DeviceState *qdev)
 {
-    PCIDevice *dev = DO_UPCAST(PCIDevice, qdev, qdev);
+    PCIDevice *dev = PCI_DEVICE(qdev);
     pci_bridge_reset_reg(dev);
 }
 

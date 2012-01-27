@@ -336,7 +336,7 @@ static int ax88796_init(SysBusDevice *dev)
     ne2000_reset(s);
 
     s->nic = qemu_new_nic(&net_ne2000_isa_info, &s->c,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
 #endif
     return 0;
@@ -352,15 +352,21 @@ static const VMStateDescription ax88796_vmsd = {
     }
 };
 
-static SysBusDeviceInfo ax88796_info = {
-    .init = ax88796_init,
-    .qdev.name = "ax88796",
-    .qdev.size = sizeof(AX88796State),
-    .qdev.vmsd = &ax88796_vmsd,
-    .qdev.props = (Property[]) {
+static void ax88796_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = ax88796_init;
+}
+
+static DeviceInfo ax88796_info = {
+    .name = "ax88796",
+    .size = sizeof(AX88796State),
+    .vmsd = &ax88796_vmsd,
+    .props = (Property[]) {
         DEFINE_NIC_PROPERTIES(AX88796State, conf),
         DEFINE_PROP_END_OF_LIST(),
     },
+    .class_init = ax88796_class_init
 };
 
 static void ax88796_register_device(void)

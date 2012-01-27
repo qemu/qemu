@@ -1199,20 +1199,26 @@ static int pci_vmsvga_initfn(PCIDevice *dev)
     return 0;
 }
 
-static PCIDeviceInfo vmsvga_info = {
-    .qdev.name    = "vmware-svga",
-    .qdev.size    = sizeof(struct pci_vmsvga_state_s),
-    .qdev.vmsd    = &vmstate_vmware_vga,
-    .qdev.reset   = vmsvga_reset,
-    .no_hotplug   = 1,
-    .init         = pci_vmsvga_initfn,
-    .romfile      = "vgabios-vmware.bin",
+static void vmsvga_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    .vendor_id    =  PCI_VENDOR_ID_VMWARE,
-    .device_id    = SVGA_PCI_DEVICE_ID,
-    .class_id     = PCI_CLASS_DISPLAY_VGA,
-    .subsystem_vendor_id = PCI_VENDOR_ID_VMWARE,
-    .subsystem_id = SVGA_PCI_DEVICE_ID,
+    k->no_hotplug = 1;
+    k->init = pci_vmsvga_initfn;
+    k->romfile = "vgabios-vmware.bin";
+    k->vendor_id = PCI_VENDOR_ID_VMWARE;
+    k->device_id = SVGA_PCI_DEVICE_ID;
+    k->class_id = PCI_CLASS_DISPLAY_VGA;
+    k->subsystem_vendor_id = PCI_VENDOR_ID_VMWARE;
+    k->subsystem_id = SVGA_PCI_DEVICE_ID;
+}
+
+static DeviceInfo vmsvga_info = {
+    .name = "vmware-svga",
+    .size = sizeof(struct pci_vmsvga_state_s),
+    .vmsd = &vmstate_vmware_vga,
+    .reset = vmsvga_reset,
+    .class_init = vmsvga_class_init,
 };
 
 static void vmsvga_register(void)

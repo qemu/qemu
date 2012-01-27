@@ -317,16 +317,25 @@ static const VMStateDescription vmstate_pxa2xx_gpio_regs = {
     },
 };
 
-static SysBusDeviceInfo pxa2xx_gpio_info = {
-    .init       = pxa2xx_gpio_initfn,
-    .qdev.name  = "pxa2xx-gpio",
-    .qdev.desc  = "PXA2xx GPIO controller",
-    .qdev.size  = sizeof(PXA2xxGPIOInfo),
-    .qdev.props = (Property []) {
-        DEFINE_PROP_INT32("lines", PXA2xxGPIOInfo, lines, 0),
-        DEFINE_PROP_INT32("ncpu", PXA2xxGPIOInfo, ncpu, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property pxa2xx_gpio_properties[] = {
+    DEFINE_PROP_INT32("lines", PXA2xxGPIOInfo, lines, 0),
+    DEFINE_PROP_INT32("ncpu", PXA2xxGPIOInfo, ncpu, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pxa2xx_gpio_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pxa2xx_gpio_initfn;
+}
+
+static DeviceInfo pxa2xx_gpio_info = {
+    .name = "pxa2xx-gpio",
+    .desc = "PXA2xx GPIO controller",
+    .size = sizeof(PXA2xxGPIOInfo),
+    .props = pxa2xx_gpio_properties,
+    .class_init = pxa2xx_gpio_class_init,
 };
 
 static void pxa2xx_gpio_register(void)

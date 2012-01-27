@@ -688,7 +688,6 @@ static void pcnet_s_reset(PCNetState *s)
     printf("pcnet_s_reset\n");
 #endif
 
-    s->lnkst = 0x40;
     s->rdra = 0;
     s->tdra = 0;
     s->rap = 0;
@@ -1719,7 +1718,7 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
     s->poll_timer = qemu_new_timer_ns(vm_clock, pcnet_poll_timer, s);
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
-    s->nic = qemu_new_nic(info, &s->conf, dev->info->name, dev->id, s);
+    s->nic = qemu_new_nic(info, &s->conf, object_get_typename(OBJECT(dev)), dev->id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     add_boot_device_path(s->conf.bootindex, dev, "/ethernet-phy@0");
@@ -1750,6 +1749,8 @@ int pcnet_common_init(DeviceState *dev, PCNetState *s, NetClientInfo *info)
         checksum += s->prom[i];
     }
     *(uint16_t *)&s->prom[12] = cpu_to_le16(checksum);
+
+    s->lnkst = 0x40; /* initial link state: up */
 
     return 0;
 }

@@ -1,7 +1,7 @@
 /*
  * QEMU emulation for Texas Instruments TNETW1130 (ACX111) wireless.
  *
- * Copyright (C) 2007-2011 Stefan Weil
+ * Copyright (C) 2007-2012 Stefan Weil
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -673,14 +673,8 @@ static void nic_cleanup(VLANClientState *vc)
 
 static void tnetw1130_pci_config(uint8_t *pci_conf)
 {
-    /* PCI Vendor ID */
-    pci_config_set_vendor_id(pci_conf, PCI_VENDOR_ID_TI);
-    pci_config_set_device_id(pci_conf, 0x9066);
     pci_set_word(pci_conf + PCI_STATUS, 0x0210);
-    /* wireless network controller */
-    pci_config_set_class(pci_conf, PCI_CLASS_NETWORK_OTHER);
     pci_set_long(pci_conf + PCI_CARDBUS_CIS, 0x00001c02);
-    pci_set_long(pci_conf + PCI_SUBSYSTEM_VENDOR_ID, 0x90670000 | PCI_VENDOR_ID_TI);
     /* Address registers are set by pci_register_bar. */
     /* Capabilities Pointer, CLOFS */
     pci_set_long(pci_conf + PCI_CAPABILITY_LIST, 0x00000040);
@@ -730,7 +724,8 @@ static int tnetw1130_init(PCIDevice *pci_dev)
     tnetw1130_reset(s);
 
     s->nic = qemu_new_nic(&net_info, &s->conf,
-                          pci_dev->qdev.info->name, pci_dev->qdev.id, s);
+                          object_get_typename(OBJECT(pci_dev)),
+                          pci_dev->qdev.id, s);
 
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
@@ -834,17 +829,32 @@ static const VMStateDescription vmstate_pci_tnetw1130 = {
     }
 };
 
-static PCIDeviceInfo pci_tnetw1130_info = {
-    .qdev.name = "tnetw1130",
-    .qdev.desc = "Texas Instruments TNETW1130",
-    .qdev.size = sizeof(TNETW1130State),
-    .qdev.vmsd = &vmstate_pci_tnetw1130,
-    .init      = pci_tnetw1130_init,
-    .exit      = pci_tnetw1130_uninit,
-    .qdev.props = (Property[]) {
+static void tnetw1130_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    //~ k->romfile = "pxe-eepro100.rom";
+    k->init = pci_tnetw1130_init;
+    k->exit = pci_tnetw1130_uninit;
+    k->vendor_id = PCI_VENDOR_ID_TI;
+    /* wireless network controller */
+    k->class_id = PCI_CLASS_NETWORK_OTHER;
+    k->device_id = 0x9066;
+    //~ k->revision = 0x01;
+    k->subsystem_vendor_id = PCI_VENDOR_ID_TI;
+    k->subsystem_id = 0x9067;
+}
+
+static DeviceInfo pci_tnetw1130_info = {
+    .name = "tnetw1130",
+    .desc = "Texas Instruments TNETW1130",
+    .size = sizeof(TNETW1130State),
+    .vmsd = &vmstate_pci_tnetw1130,
+    .props = (Property[]) {
         DEFINE_NIC_PROPERTIES(TNETW1130State, tnetw1130.conf),
         DEFINE_PROP_END_OF_LIST(),
     },
+    .class_init = tnetw1130_class_init,
 };
 
 static void tnetw1130_register_device(void)

@@ -292,10 +292,10 @@ static int blkdebug_open(BlockDriverState *bs, const char *filename, int flags)
         return -EINVAL;
     }
 
-    config = strdup(filename);
+    config = g_strdup(filename);
     config[c - filename] = '\0';
     ret = read_config(s, config);
-    free(config);
+    g_free(config);
     if (ret < 0) {
         return ret;
     }

@@ -901,23 +901,32 @@ static int escc_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo escc_info = {
-    .init = escc_init1,
-    .qdev.name  = "escc",
-    .qdev.size  = sizeof(SerialState),
-    .qdev.vmsd  = &vmstate_escc,
-    .qdev.reset = escc_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("frequency", SerialState, frequency,   0),
-        DEFINE_PROP_UINT32("it_shift",  SerialState, it_shift,    0),
-        DEFINE_PROP_UINT32("disabled",  SerialState, disabled,    0),
-        DEFINE_PROP_UINT32("disabled",  SerialState, disabled,    0),
-        DEFINE_PROP_UINT32("chnBtype",  SerialState, chn[0].type, 0),
-        DEFINE_PROP_UINT32("chnAtype",  SerialState, chn[1].type, 0),
-        DEFINE_PROP_CHR("chrB", SerialState, chn[0].chr),
-        DEFINE_PROP_CHR("chrA", SerialState, chn[1].chr),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property escc_properties[] = {
+    DEFINE_PROP_UINT32("frequency", SerialState, frequency,   0),
+    DEFINE_PROP_UINT32("it_shift",  SerialState, it_shift,    0),
+    DEFINE_PROP_UINT32("disabled",  SerialState, disabled,    0),
+    DEFINE_PROP_UINT32("disabled",  SerialState, disabled,    0),
+    DEFINE_PROP_UINT32("chnBtype",  SerialState, chn[0].type, 0),
+    DEFINE_PROP_UINT32("chnAtype",  SerialState, chn[1].type, 0),
+    DEFINE_PROP_CHR("chrB", SerialState, chn[0].chr),
+    DEFINE_PROP_CHR("chrA", SerialState, chn[1].chr),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void escc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = escc_init1;
+}
+
+static DeviceInfo escc_info = {
+    .name = "escc",
+    .size = sizeof(SerialState),
+    .vmsd = &vmstate_escc,
+    .reset = escc_reset,
+    .props = escc_properties,
+    .class_init = escc_class_init,
 };
 
 static void escc_register_devices(void)

@@ -446,12 +446,19 @@ static int slavio_intctl_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo slavio_intctl_info = {
-    .init = slavio_intctl_init1,
-    .qdev.name  = "slavio_intctl",
-    .qdev.size  = sizeof(SLAVIO_INTCTLState),
-    .qdev.vmsd  = &vmstate_intctl,
-    .qdev.reset = slavio_intctl_reset,
+static void slavio_intctl_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = slavio_intctl_init1;
+}
+
+static DeviceInfo slavio_intctl_info = {
+    .name = "slavio_intctl",
+    .size = sizeof(SLAVIO_INTCTLState),
+    .vmsd = &vmstate_intctl,
+    .reset = slavio_intctl_reset,
+    .class_init = slavio_intctl_class_init,
 };
 
 static void slavio_intctl_register_devices(void)

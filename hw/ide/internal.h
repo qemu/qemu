@@ -21,7 +21,6 @@
 
 typedef struct IDEBus IDEBus;
 typedef struct IDEDevice IDEDevice;
-typedef struct IDEDeviceInfo IDEDeviceInfo;
 typedef struct IDEState IDEState;
 typedef struct IDEDMA IDEDMA;
 typedef struct IDEDMAOps IDEDMAOps;
@@ -450,18 +449,25 @@ struct IDEBus {
     int error_status;
 };
 
+#define TYPE_IDE_DEVICE "ide-device"
+#define IDE_DEVICE(obj) \
+     OBJECT_CHECK(IDEDevice, (obj), TYPE_IDE_DEVICE)
+#define IDE_DEVICE_CLASS(klass) \
+     OBJECT_CLASS_CHECK(IDEDeviceClass, (klass), TYPE_IDE_DEVICE)
+#define IDE_DEVICE_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(IDEDeviceClass, (obj), TYPE_IDE_DEVICE)
+
+typedef struct IDEDeviceClass {
+    DeviceClass parent_class;
+    int (*init)(IDEDevice *dev);
+} IDEDeviceClass;
+
 struct IDEDevice {
     DeviceState qdev;
     uint32_t unit;
     BlockConf conf;
     char *version;
     char *serial;
-};
-
-typedef int (*ide_qdev_initfn)(IDEDevice *dev);
-struct IDEDeviceInfo {
-    DeviceInfo qdev;
-    ide_qdev_initfn init;
 };
 
 #define BM_STATUS_DMAING 0x01

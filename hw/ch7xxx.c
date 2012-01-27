@@ -3,6 +3,8 @@
  * Copyright 2008 Daniel Silverstone <dsilvers@simtec.co.uk> and
  * Vincent Sanders <vince@simtec.co.uk>
  *
+ * Copyright 2010, 2012 Stefan Weil
+ *
  */
 
 #include "qemu-common.h"
@@ -12,13 +14,13 @@
 #define DBF(X...)
 
 typedef struct {
-  i2c_slave i2c;
+  I2CSlave i2c;
   int reg;
   int wridx;
 } CH7xxxState;
 
 static int
-ch7xxx_rx(i2c_slave *i2c)
+ch7xxx_rx(I2CSlave *i2c)
 {
     CH7xxxState *s = (CH7xxxState *)i2c;
     DBF("RX?\n");
@@ -32,7 +34,7 @@ ch7xxx_rx(i2c_slave *i2c)
 }
 
 static int
-ch7xxx_tx(i2c_slave *i2c, uint8_t data)
+ch7xxx_tx(I2CSlave *i2c, uint8_t data)
 {
   DBF("TX: %d\n", data);
   CH7xxxState *s = (CH7xxxState *)i2c;
@@ -46,7 +48,7 @@ ch7xxx_tx(i2c_slave *i2c, uint8_t data)
 }
 
 static void
-ch7xxx_event(i2c_slave *i2c, enum i2c_event event)
+ch7xxx_event(I2CSlave *i2c, enum i2c_event event)
 {
   CH7xxxState *s = (CH7xxxState *)i2c;
   DBF("EV? %d\n", event);
@@ -61,7 +63,7 @@ ch7xxx_event(i2c_slave *i2c, enum i2c_event event)
   }
 }
 
-static int ch7xxx_init(i2c_slave *i2c)
+static int ch7xxx_init(I2CSlave *i2c)
 {
     //~ StcPMUState *s = FROM_I2C_SLAVE(StcPMUState, i2c);
   //~ StcPMUState *s = (StcPMUState *)
@@ -83,14 +85,21 @@ static const VMStateDescription vmstate_ch7xxx = {
     }
 };
 
-static I2CSlaveInfo ch7xxx_info = {
-    .qdev.name ="ch7xxx",
-    .qdev.size = sizeof(CH7xxxState),
-    .qdev.vmsd = &vmstate_ch7xxx,
-    .init = ch7xxx_init,
-    .event = ch7xxx_event,
-    .recv = ch7xxx_rx,
-    .send = ch7xxx_tx
+static void ch7xx_class_init(ObjectClass *klass, void *data)
+{
+    I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
+
+    k->init = ch7xxx_init;
+    k->event = ch7xxx_event;
+    k->recv = ch7xxx_rx;
+    k->send = ch7xxx_tx;
+}
+
+static DeviceInfo ch7xxx_info = {
+    .name ="ch7xxx",
+    .size = sizeof(CH7xxxState),
+    .vmsd = &vmstate_ch7xxx,
+    .class_init = ch7xx_class_init,
 };
 
 static void ch7xxx_register_devices(void)

@@ -122,12 +122,19 @@ static void kvm_apic_init(APICCommonState *s)
                                    MSI_SPACE_SIZE);
 }
 
-static APICCommonInfo kvm_apic_info = {
-    .busdev.qdev.name = "kvm-apic",
-    .init = kvm_apic_init,
-    .set_base = kvm_apic_set_base,
-    .set_tpr = kvm_apic_set_tpr,
-    .external_nmi = kvm_apic_external_nmi,
+static void kvm_apic_class_init(ObjectClass *klass, void *data)
+{
+    APICCommonClass *k = APIC_COMMON_CLASS(klass);
+
+    k->init = kvm_apic_init;
+    k->set_base = kvm_apic_set_base;
+    k->set_tpr = kvm_apic_set_tpr;
+    k->external_nmi = kvm_apic_external_nmi;
+}
+
+static DeviceInfo kvm_apic_info = {
+    .name = "kvm-apic",
+    .class_init = kvm_apic_class_init,
 };
 
 static void kvm_apic_register_device(void)

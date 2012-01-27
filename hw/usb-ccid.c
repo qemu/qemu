@@ -269,7 +269,6 @@ typedef struct USBCCIDState {
     USBDevice dev;
     CCIDBus bus;
     CCIDCardState *card;
-    CCIDCardInfo *cardinfo; /* caching the info pointer */
     BulkIn bulk_in_pending[BULK_IN_PENDING_NUM]; /* circular */
     uint32_t bulk_in_pending_start;
     uint32_t bulk_in_pending_end; /* first free */
@@ -467,6 +466,43 @@ static const USBDesc desc_ccid = {
     .full = &desc_device,
     .str  = desc_strings,
 };
+
+static const uint8_t *ccid_card_get_atr(CCIDCardState *card, uint32_t *len)
+{
+    CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+    if (cc->get_atr) {
+        return cc->get_atr(card, len);
+    }
+    return NULL;
+}
+
+static void ccid_card_apdu_from_guest(CCIDCardState *card,
+                                      const uint8_t *apdu,
+                                      uint32_t len)
+{
+    CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+    if (cc->apdu_from_guest) {
+        cc->apdu_from_guest(card, apdu, len);
+    }
+}
+
+static int ccid_card_exitfn(CCIDCardState *card)
+{
+    CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+    if (cc->exitfn) {
+        return cc->exitfn(card);
+    }
+    return 0;
+}
+
+static int ccid_card_initfn(CCIDCardState *card)
+{
+    CCIDCardClass *cc = CCID_CARD_GET_CLASS(card);
+    if (cc->initfn) {
+        return cc->initfn(card);
+    }
+    return 0;
+}
 
 static bool ccid_has_pending_answers(USBCCIDState *s)
 {
@@ -741,7 +777,7 @@ static void ccid_write_data_block_atr(USBCCIDState *s, CCID_Header *recv)
     uint32_t len = 0;
 
     if (s->card) {
-        atr = s->cardinfo->get_atr(s->card, &len);
+        atr = ccid_card_get_atr(s->card, &len);
     }
     ccid_write_data_block(s, recv->bSlot, recv->bSeq, atr, len);
 }
@@ -827,7 +863,7 @@ static void ccid_on_apdu_from_guest(USBCCIDState *s, CCID_XferBlock *recv)
                 recv->hdr.bSeq, len);
     ccid_add_pending_answer(s, (CCID_Header *)recv);
     if (s->card) {
-        s->cardinfo->apdu_from_guest(s->card, recv->abData, len);
+        ccid_card_apdu_from_guest(s->card, recv->abData, len);
     } else {
         DPRINTF(s, D_WARN, "warning: discarded apdu\n");
     }
@@ -1113,26 +1149,21 @@ void ccid_card_card_inserted(CCIDCardState *card)
 static int ccid_card_exit(DeviceState *qdev)
 {
     int ret = 0;
-    CCIDCardState *card = DO_UPCAST(CCIDCardState, qdev, qdev);
-    CCIDCardInfo *info = DO_UPCAST(CCIDCardInfo, qdev, qdev->info);
+    CCIDCardState *card = CCID_CARD(qdev);
     USBCCIDState *s =
         DO_UPCAST(USBCCIDState, dev.qdev, card->qdev.parent_bus->parent);
 
     if (ccid_card_inserted(s)) {
         ccid_card_card_removed(card);
     }
-    if (info->exitfn) {
-        ret = info->exitfn(card);
-    }
+    ret = ccid_card_exitfn(card);
     s->card = NULL;
-    s->cardinfo = NULL;
     return ret;
 }
 
 static int ccid_card_init(DeviceState *qdev, DeviceInfo *base)
 {
-    CCIDCardState *card = DO_UPCAST(CCIDCardState, qdev, qdev);
-    CCIDCardInfo *info = DO_UPCAST(CCIDCardInfo, qdev, base);
+    CCIDCardState *card = CCID_CARD(qdev);
     USBCCIDState *s =
         DO_UPCAST(USBCCIDState, dev.qdev, card->qdev.parent_bus->parent);
     int ret = 0;
@@ -1146,20 +1177,19 @@ static int ccid_card_init(DeviceState *qdev, DeviceInfo *base)
         error_report("Warning: usb-ccid card already full, not adding");
         return -1;
     }
-    ret = info->initfn ? info->initfn(card) : ret;
+    ret = ccid_card_initfn(card);
     if (ret == 0) {
         s->card = card;
-        s->cardinfo = info;
     }
     return ret;
 }
 
-void ccid_card_qdev_register(CCIDCardInfo *card)
+void ccid_card_qdev_register(DeviceInfo *info)
 {
-    card->qdev.bus_info = &ccid_bus_info;
-    card->qdev.init = ccid_card_init;
-    card->qdev.exit = ccid_card_exit;
-    qdev_register(&card->qdev);
+    info->bus_info = &ccid_bus_info;
+    info->init = ccid_card_init;
+    info->exit = ccid_card_exit;
+    qdev_register_subclass(info, TYPE_CCID_CARD);
 }
 
 static int ccid_initfn(USBDevice *dev)
@@ -1170,7 +1200,6 @@ static int ccid_initfn(USBDevice *dev)
     qbus_create_inplace(&s->bus.qbus, &ccid_bus_info, &dev->qdev, NULL);
     s->bus.qbus.allow_hotplug = 1;
     s->card = NULL;
-    s->cardinfo = NULL;
     s->migration_state = MIGRATION_NONE;
     s->migration_target_ip = 0;
     s->migration_target_port = 0;
@@ -1286,28 +1315,43 @@ static VMStateDescription ccid_vmstate = {
     }
 };
 
-static struct USBDeviceInfo ccid_info = {
-    .product_desc   = "QEMU USB CCID",
-    .qdev.name      = CCID_DEV_NAME,
-    .qdev.desc      = "CCID Rev 1.1 smartcard reader",
-    .qdev.size      = sizeof(USBCCIDState),
-    .init           = ccid_initfn,
-    .usb_desc       = &desc_ccid,
-    .handle_packet  = usb_generic_handle_packet,
-    .handle_reset   = ccid_handle_reset,
-    .handle_control = ccid_handle_control,
-    .handle_data    = ccid_handle_data,
-    .handle_destroy = ccid_handle_destroy,
-    .usbdevice_name = "ccid",
-    .qdev.props     = (Property[]) {
+static void ccid_class_initfn(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->init           = ccid_initfn;
+    uc->product_desc   = "QEMU USB CCID";
+    uc->usb_desc       = &desc_ccid;
+    uc->handle_packet  = usb_generic_handle_packet;
+    uc->handle_reset   = ccid_handle_reset;
+    uc->handle_control = ccid_handle_control;
+    uc->handle_data    = ccid_handle_data;
+    uc->handle_destroy = ccid_handle_destroy;
+}
+
+static struct DeviceInfo ccid_info = {
+    .name      = CCID_DEV_NAME,
+    .desc      = "CCID Rev 1.1 smartcard reader",
+    .size      = sizeof(USBCCIDState),
+    .class_init= ccid_class_initfn,
+    .vmsd      = &ccid_vmstate,
+    .props     = (Property[]) {
         DEFINE_PROP_UINT8("debug", USBCCIDState, debug, 0),
         DEFINE_PROP_END_OF_LIST(),
     },
-    .qdev.vmsd      = &ccid_vmstate,
+};
+
+static TypeInfo ccid_card_type_info = {
+    .name = TYPE_CCID_CARD,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(CCIDCardState),
+    .abstract = true,
+    .class_size = sizeof(CCIDCardClass),
 };
 
 static void ccid_register_devices(void)
 {
-    usb_qdev_register(&ccid_info);
+    type_register_static(&ccid_card_type_info);
+    usb_qdev_register(&ccid_info, "ccid", NULL);
 }
 device_init(ccid_register_devices)

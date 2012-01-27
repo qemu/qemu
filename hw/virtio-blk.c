@@ -346,6 +346,8 @@ static void virtio_blk_handle_read(VirtIOBlockReq *req)
 
     bdrv_acct_start(req->dev->bs, &req->acct, req->qiov.size, BDRV_ACCT_READ);
 
+    trace_virtio_blk_handle_read(req, sector, req->qiov.size / 512);
+
     if (sector & req->dev->sector_mask) {
         virtio_blk_rw_complete(req, -EIO);
         return;

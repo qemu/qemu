@@ -102,25 +102,28 @@ int piix4_init(PCIBus *bus, ISABus **isa_bus, int devfn)
     return d->devfn;
 }
 
-static PCIDeviceInfo piix4_info[] = {
-    {
-        .qdev.name    = "PIIX4",
-        .qdev.desc    = "ISA bridge",
-        .qdev.size    = sizeof(PIIX4State),
-        .qdev.vmsd    = &vmstate_piix4,
-        .qdev.no_user = 1,
-        .no_hotplug   = 1,
-        .init         = piix4_initfn,
-        .vendor_id    = PCI_VENDOR_ID_INTEL,
-        .device_id    = PCI_DEVICE_ID_INTEL_82371AB_0, // 82371AB/EB/MB PIIX4 PCI-to-ISA bridge
-        .class_id     = PCI_CLASS_BRIDGE_ISA,
-    },{
-        /* end of list */
-    }
+static void piix4_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->no_hotplug = 1;
+    k->init = piix4_initfn;
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = PCI_DEVICE_ID_INTEL_82371AB_0;
+    k->class_id = PCI_CLASS_BRIDGE_ISA;
+}
+
+static DeviceInfo piix4_info = {
+    .name = "PIIX4",
+    .desc = "ISA bridge",
+    .size = sizeof(PIIX4State),
+    .vmsd = &vmstate_piix4,
+    .no_user = 1,
+    .class_init = piix4_class_init,
 };
 
 static void piix4_register(void)
 {
-    pci_qdev_register_many(piix4_info);
+    pci_qdev_register(&piix4_info);
 }
 device_init(piix4_register);

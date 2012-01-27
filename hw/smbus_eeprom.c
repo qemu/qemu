@@ -104,19 +104,26 @@ static int smbus_eeprom_initfn(SMBusDevice *dev)
     return 0;
 }
 
-static SMBusDeviceInfo smbus_eeprom_info = {
-    .i2c.qdev.name = "smbus-eeprom",
-    .i2c.qdev.size = sizeof(SMBusEEPROMDevice),
-    .i2c.qdev.props = (Property[]) {
+static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
+{
+    SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
+
+    sc->init = smbus_eeprom_initfn;
+    sc->quick_cmd = eeprom_quick_cmd;
+    sc->send_byte = eeprom_send_byte;
+    sc->receive_byte = eeprom_receive_byte;
+    sc->write_data = eeprom_write_data;
+    sc->read_data = eeprom_read_data;
+}
+
+static DeviceInfo smbus_eeprom_info = {
+    .name = "smbus-eeprom",
+    .size = sizeof(SMBusEEPROMDevice),
+    .class_init = smbus_eeprom_class_initfn,
+    .props = (Property[]) {
         DEFINE_PROP_PTR("data", SMBusEEPROMDevice, data),
         DEFINE_PROP_END_OF_LIST(),
     },
-    .init = smbus_eeprom_initfn,
-    .quick_cmd = eeprom_quick_cmd,
-    .send_byte = eeprom_send_byte,
-    .receive_byte = eeprom_receive_byte,
-    .write_data = eeprom_write_data,
-    .read_data = eeprom_read_data
 };
 
 static void smbus_eeprom_register_devices(void)

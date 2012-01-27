@@ -30,6 +30,11 @@ struct arm_boot_info {
     const char *kernel_cmdline;
     const char *initrd_filename;
     target_phys_addr_t loader_start;
+    /* multicore boards that use the default secondary core boot functions
+     * need to put the address of the secondary boot code, the boot reg,
+     * and the GIC address in the next 3 values, respectively. boards that
+     * have their own boot functions can use these values as they want.
+     */
     target_phys_addr_t smp_loader_start;
     target_phys_addr_t smp_bootreg_addr;
     target_phys_addr_t smp_priv_base;
@@ -37,6 +42,18 @@ struct arm_boot_info {
     int board_id;
     int (*atag_board)(const struct arm_boot_info *info, void *p);
     int32_t atag_revision;
+    /* multicore boards that use the default secondary core boot functions
+     * can ignore these two function calls. If the default functions won't
+     * work, then write_secondary_boot() should write a suitable blob of
+     * code mimicing the secondary CPU startup process used by the board's
+     * boot loader/boot ROM code, and secondary_cpu_reset_hook() should
+     * perform any necessary CPU reset handling and set the PC for thei
+     * secondary CPUs to point at this boot blob.
+     */
+    void (*write_secondary_boot)(CPUState *env,
+                                 const struct arm_boot_info *info);
+    void (*secondary_cpu_reset_hook)(CPUState *env,
+                                     const struct arm_boot_info *info);
     /* Used internally by arm_boot.c */
     int is_linux;
     target_phys_addr_t initrd_size;

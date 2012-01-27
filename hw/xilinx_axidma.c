@@ -486,15 +486,24 @@ static int xilinx_axidma_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo axidma_info = {
-    .init = xilinx_axidma_init,
-    .qdev.name  = "xilinx,axidma",
-    .qdev.size  = sizeof(struct XilinxAXIDMA),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("freqhz", struct XilinxAXIDMA, freqhz, 50000000),
-        DEFINE_PROP_PTR("dmach", struct XilinxAXIDMA, dmach),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property axidma_properties[] = {
+    DEFINE_PROP_UINT32("freqhz", struct XilinxAXIDMA, freqhz, 50000000),
+    DEFINE_PROP_PTR("dmach", struct XilinxAXIDMA, dmach),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void axidma_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = xilinx_axidma_init;
+}
+
+static DeviceInfo axidma_info = {
+    .name = "xilinx,axidma",
+    .size = sizeof(struct XilinxAXIDMA),
+    .props = axidma_properties,
+    .class_init = axidma_class_init,
 };
 
 static void xilinx_axidma_register(void)

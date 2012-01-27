@@ -51,9 +51,8 @@ static int hda_codec_dev_init(DeviceState *qdev, DeviceInfo *base)
 {
     HDACodecBus *bus = DO_UPCAST(HDACodecBus, qbus, qdev->parent_bus);
     HDACodecDevice *dev = DO_UPCAST(HDACodecDevice, qdev, qdev);
-    HDACodecDeviceInfo *info = DO_UPCAST(HDACodecDeviceInfo, qdev, base);
+    HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
-    dev->info = info;
     if (dev->cad == -1) {
         dev->cad = bus->next_cad;
     }
@@ -61,25 +60,26 @@ static int hda_codec_dev_init(DeviceState *qdev, DeviceInfo *base)
         return -1;
     }
     bus->next_cad = dev->cad + 1;
-    return info->init(dev);
+    return cdc->init(dev);
 }
 
 static int hda_codec_dev_exit(DeviceState *qdev)
 {
     HDACodecDevice *dev = DO_UPCAST(HDACodecDevice, qdev, qdev);
+    HDACodecDeviceClass *cdc = HDA_CODEC_DEVICE_GET_CLASS(dev);
 
-    if (dev->info->exit) {
-        dev->info->exit(dev);
+    if (cdc->exit) {
+        cdc->exit(dev);
     }
     return 0;
 }
 
-void hda_codec_register(HDACodecDeviceInfo *info)
+void hda_codec_register(DeviceInfo *info)
 {
-    info->qdev.init = hda_codec_dev_init;
-    info->qdev.exit = hda_codec_dev_exit;
-    info->qdev.bus_info = &hda_codec_bus_info;
-    qdev_register(&info->qdev);
+    info->init = hda_codec_dev_init;
+    info->exit = hda_codec_dev_exit;
+    info->bus_info = &hda_codec_bus_info;
+    qdev_register_subclass(info, TYPE_HDA_CODEC_DEVICE);
 }
 
 HDACodecDevice *hda_codec_find(HDACodecBus *bus, uint32_t cad)
@@ -283,6 +283,7 @@ static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
 {
     uint32_t cad, nid, data;
     HDACodecDevice *codec;
+    HDACodecDeviceClass *cdc;
 
     cad = (verb >> 28) & 0x0f;
     if (verb & (1 << 27)) {
@@ -298,7 +299,8 @@ static int intel_hda_send_command(IntelHDAState *d, uint32_t verb)
         dprint(d, 1, "%s: addressed non-existing codec\n", __FUNCTION__);
         return -1;
     }
-    codec->info->command(codec, nid, data);
+    cdc = HDA_CODEC_DEVICE_GET_CLASS(codec);
+    cdc->command(codec, nid, data);
     return 0;
 }
 
@@ -491,9 +493,12 @@ static void intel_hda_notify_codecs(IntelHDAState *d, uint32_t stream, bool runn
     HDACodecDevice *cdev;
 
     QTAILQ_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
+        HDACodecDeviceClass *cdc;
+
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
-        if (cdev->info->stream) {
-            cdev->info->stream(cdev, stream, running, output);
+        cdc = HDA_CODEC_DEVICE_GET_CLASS(cdev);
+        if (cdc->stream) {
+            cdc->stream(cdev, stream, running, output);
         }
     }
 }
@@ -1116,9 +1121,7 @@ static void intel_hda_reset(DeviceState *dev)
     /* reset codecs */
     QTAILQ_FOREACH(qdev, &d->codecs.qbus.children, sibling) {
         cdev = DO_UPCAST(HDACodecDevice, qdev, qdev);
-        if (qdev->info->reset) {
-            qdev->info->reset(qdev);
-        }
+        device_reset(DEVICE(cdev));
         d->state_sts |= (1 << cdev->cad);
     }
     intel_hda_update_irq(d);
@@ -1129,7 +1132,7 @@ static int intel_hda_init(PCIDevice *pci)
     IntelHDAState *d = DO_UPCAST(IntelHDAState, pci, pci);
     uint8_t *conf = d->pci.config;
 
-    d->name = d->pci.qdev.info->name;
+    d->name = object_get_typename(OBJECT(d));
 
     pci_config_set_interrupt_pin(conf, 1);
 
@@ -1244,29 +1247,47 @@ static const VMStateDescription vmstate_intel_hda = {
     }
 };
 
-static PCIDeviceInfo intel_hda_info = {
-    .qdev.name    = "intel-hda",
-    .qdev.desc    = "Intel HD Audio Controller",
-    .qdev.size    = sizeof(IntelHDAState),
-    .qdev.vmsd    = &vmstate_intel_hda,
-    .qdev.reset   = intel_hda_reset,
-    .init         = intel_hda_init,
-    .exit         = intel_hda_exit,
-    .config_write = intel_hda_write_config,
-    .vendor_id    = PCI_VENDOR_ID_INTEL,
-    .device_id    = 0x2668,
-    .revision     = 1,
-    .class_id     = PCI_CLASS_MULTIMEDIA_HD_AUDIO,
-    .qdev.props   = (Property[]) {
-        DEFINE_PROP_UINT32("debug", IntelHDAState, debug, 0),
-        DEFINE_PROP_UINT32("msi", IntelHDAState, msi, 1),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property intel_hda_properties[] = {
+    DEFINE_PROP_UINT32("debug", IntelHDAState, debug, 0),
+    DEFINE_PROP_UINT32("msi", IntelHDAState, msi, 1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void intel_hda_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = intel_hda_init;
+    k->exit = intel_hda_exit;
+    k->config_write = intel_hda_write_config;
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = 0x2668;
+    k->revision = 1;
+    k->class_id = PCI_CLASS_MULTIMEDIA_HD_AUDIO;
+}
+
+static DeviceInfo intel_hda_info = {
+    .name = "intel-hda",
+    .desc = "Intel HD Audio Controller",
+    .size = sizeof(IntelHDAState),
+    .vmsd = &vmstate_intel_hda,
+    .reset = intel_hda_reset,
+    .props = intel_hda_properties,
+    .class_init = intel_hda_class_init,
+};
+
+static TypeInfo hda_codec_device_type_info = {
+    .name = TYPE_HDA_CODEC_DEVICE,
+    .parent = TYPE_DEVICE,
+    .instance_size = sizeof(HDACodecDevice),
+    .abstract = true,
+    .class_size = sizeof(HDACodecDeviceClass),
 };
 
 static void intel_hda_register(void)
 {
     pci_qdev_register(&intel_hda_info);
+    type_register_static(&hda_codec_device_type_info);
 }
 device_init(intel_hda_register);
 

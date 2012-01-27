@@ -285,9 +285,22 @@ static int pl022_init(SysBusDevice *dev)
     return 0;
 }
 
+static void pl022_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sdc->init = pl022_init;
+}
+
+static DeviceInfo pl022_info = {
+    .name = "pl022",
+    .size = sizeof(pl022_state),
+    .class_init = pl022_class_init,
+};
+
 static void pl022_register_devices(void)
 {
-    sysbus_register_dev("pl022", sizeof(pl022_state), pl022_init);
+    sysbus_qdev_register(&pl022_info);
 }
 
 device_init(pl022_register_devices)

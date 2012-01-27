@@ -92,12 +92,19 @@ static const VMStateDescription kvmclock_vmsd = {
     }
 };
 
-static SysBusDeviceInfo kvmclock_info = {
-    .qdev.name = "kvmclock",
-    .qdev.size = sizeof(KVMClockState),
-    .qdev.vmsd = &kvmclock_vmsd,
-    .qdev.no_user = 1,
-    .init = kvmclock_init,
+static void kvmclock_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = kvmclock_init;
+}
+
+static DeviceInfo kvmclock_info = {
+    .name = "kvmclock",
+    .size = sizeof(KVMClockState),
+    .vmsd = &kvmclock_vmsd,
+    .no_user = 1,
+    .class_init = kvmclock_class_init,
 };
 
 /* Note: Must be called after VCPU initialization. */

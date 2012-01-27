@@ -468,18 +468,32 @@ static int slavio_misc_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo slavio_misc_info = {
-    .init = slavio_misc_init1,
-    .qdev.name  = "slavio_misc",
-    .qdev.size  = sizeof(MiscState),
-    .qdev.vmsd  = &vmstate_misc,
-    .qdev.reset  = slavio_misc_reset,
+static void slavio_misc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = slavio_misc_init1;
+}
+
+static DeviceInfo slavio_misc_info = {
+    .name = "slavio_misc",
+    .size = sizeof(MiscState),
+    .vmsd = &vmstate_misc,
+    .reset = slavio_misc_reset,
+    .class_init = slavio_misc_class_init,
 };
 
-static SysBusDeviceInfo apc_info = {
-    .init = apc_init1,
-    .qdev.name  = "apc",
-    .qdev.size  = sizeof(MiscState),
+static void apc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = apc_init1;
+}
+
+static DeviceInfo apc_info = {
+    .name = "apc",
+    .size = sizeof(MiscState),
+    .class_init = apc_class_init,
 };
 
 static void slavio_misc_register_devices(void)

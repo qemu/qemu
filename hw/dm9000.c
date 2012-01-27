@@ -3,6 +3,7 @@
  * DM9000 Ethernet interface
  *
  * Copyright 2006, 2008 Daniel Silverstone and Vincent Sanders
+ * Copyright 2010, 2012 Stefan Weil
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -661,7 +662,7 @@ static int dm9000_init(SysBusDevice *dev)
     sysbus_init_irq(dev, &s->irq);
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_dm9000_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
     memory_region_init_io(&s->mmio, &dm9000_ops, s, "dm9000", 0x1000);
     sysbus_init_mmio(dev, &s->mmio);
     dm9000_hard_reset(s);
@@ -689,15 +690,21 @@ static const VMStateDescription dm9000_vmsd = {
     }
 };
 
-static SysBusDeviceInfo dm9000_info = {
-    .init = dm9000_init,
-    .qdev.name = "dm9000",
-    .qdev.size = sizeof(dm9000_state),
-    .qdev.vmsd = &dm9000_vmsd,
-    .qdev.props = (Property[]) {
+static void dm9000_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = dm9000_init;
+}
+
+static DeviceInfo dm9000_info = {
+    .name = "dm9000",
+    .size = sizeof(dm9000_state),
+    .vmsd = &dm9000_vmsd,
+    .props = (Property[]) {
         DEFINE_NIC_PROPERTIES(dm9000_state, conf),
         DEFINE_PROP_END_OF_LIST(),
     },
+    .class_init = dm9000_class_init
 };
 
 static void dm9000_register_devices(void)

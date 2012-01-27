@@ -1133,6 +1133,11 @@ static void e1000_reset(void *opaque)
     memmove(d->mac_reg, mac_reg_init, sizeof mac_reg_init);
     d->rxbuf_min_shift = 1;
     memset(&d->tx, 0, sizeof d->tx);
+
+    if (d->nic->nc.link_down) {
+        d->mac_reg[STATUS] &= ~E1000_STATUS_LU;
+        d->phy_reg[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
+    }
 }
 
 static NetClientInfo net_e1000_info = {
@@ -1177,7 +1182,7 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     d->eeprom_data[EEPROM_CHECKSUM_REG] = checksum;
 
     d->nic = qemu_new_nic(&net_e1000_info, &d->conf,
-                          d->dev.qdev.info->name, d->dev.qdev.id, d);
+                          object_get_typename(OBJECT(d)), d->dev.qdev.id, d);
 
     qemu_format_nic_info_str(&d->nic->nc, macaddr);
 
@@ -1192,23 +1197,32 @@ static void qdev_e1000_reset(DeviceState *dev)
     e1000_reset(d);
 }
 
-static PCIDeviceInfo e1000_info = {
-    .qdev.name  = "e1000",
-    .qdev.desc  = "Intel Gigabit Ethernet",
-    .qdev.size  = sizeof(E1000State),
-    .qdev.reset = qdev_e1000_reset,
-    .qdev.vmsd  = &vmstate_e1000,
-    .init       = pci_e1000_init,
-    .exit       = pci_e1000_uninit,
-    .romfile    = "pxe-e1000.rom",
-    .vendor_id  = PCI_VENDOR_ID_INTEL,
-    .device_id  = E1000_DEVID,
-    .revision   = 0x03,
-    .class_id   = PCI_CLASS_NETWORK_ETHERNET,
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(E1000State, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property e1000_properties[] = {
+    DEFINE_NIC_PROPERTIES(E1000State, conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void e1000_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = pci_e1000_init;
+    k->exit = pci_e1000_uninit;
+    k->romfile = "pxe-e1000.rom";
+    k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->device_id = E1000_DEVID;
+    k->revision = 0x03;
+    k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+}
+
+static DeviceInfo e1000_info = {
+    .name = "e1000",
+    .desc = "Intel Gigabit Ethernet",
+    .size = sizeof(E1000State),
+    .reset = qdev_e1000_reset,
+    .vmsd = &vmstate_e1000,
+    .props = e1000_properties,
+    .class_init = e1000_class_init,
 };
 
 static void e1000_register_devices(void)

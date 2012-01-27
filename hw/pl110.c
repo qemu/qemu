@@ -469,28 +469,49 @@ static int pl111_init(SysBusDevice *dev)
     return pl110_init(dev);
 }
 
-static SysBusDeviceInfo pl110_info = {
-    .init = pl110_init,
-    .qdev.name = "pl110",
-    .qdev.size = sizeof(pl110_state),
-    .qdev.vmsd = &vmstate_pl110,
-    .qdev.no_user = 1,
+static void pl110_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl110_init;
+}
+
+static DeviceInfo pl110_info = {
+    .name = "pl110",
+    .size = sizeof(pl110_state),
+    .vmsd = &vmstate_pl110,
+    .no_user = 1,
+    .class_init = pl110_class_init,
 };
 
-static SysBusDeviceInfo pl110_versatile_info = {
-    .init = pl110_versatile_init,
-    .qdev.name = "pl110_versatile",
-    .qdev.size = sizeof(pl110_state),
-    .qdev.vmsd = &vmstate_pl110,
-    .qdev.no_user = 1,
+static void pl110_versatile_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl110_versatile_init;
+}
+
+static DeviceInfo pl110_versatile_info = {
+    .name = "pl110_versatile",
+    .size = sizeof(pl110_state),
+    .vmsd = &vmstate_pl110,
+    .no_user = 1,
+    .class_init = pl110_versatile_class_init,
 };
 
-static SysBusDeviceInfo pl111_info = {
-    .init = pl111_init,
-    .qdev.name = "pl111",
-    .qdev.size = sizeof(pl110_state),
-    .qdev.vmsd = &vmstate_pl110,
-    .qdev.no_user = 1,
+static void pl111_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pl111_init;
+}
+
+static DeviceInfo pl111_info = {
+    .name = "pl111",
+    .size = sizeof(pl110_state),
+    .vmsd = &vmstate_pl110,
+    .no_user = 1,
+    .class_init = pl111_class_init,
 };
 
 static void pl110_register_devices(void)

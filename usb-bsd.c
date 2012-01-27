@@ -397,21 +397,28 @@ fail:
     return ret;
 }
 
-static struct USBDeviceInfo usb_host_dev_info = {
-    .product_desc   = "USB Host Device",
-    .qdev.name      = "usb-host",
-    .qdev.size      = sizeof(USBHostDevice),
-    .init           = usb_host_initfn,
-    .handle_packet  = usb_generic_handle_packet,
-    .handle_reset   = usb_host_handle_reset,
-    .handle_control = usb_host_handle_control,
-    .handle_data    = usb_host_handle_data,
-    .handle_destroy = usb_host_handle_destroy,
+static void usb_host_class_initfn(ObjectClass *klass, void *data)
+{
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    uc->product_desc   = "USB Host Device";
+    uc->init           = usb_host_initfn;
+    uc->handle_packet  = usb_generic_handle_packet;
+    uc->handle_reset   = usb_host_handle_reset;
+    uc->handle_control = usb_host_handle_control;
+    uc->handle_data    = usb_host_handle_data;
+    uc->handle_destroy = usb_host_handle_destroy;
+}
+
+static struct DeviceInfo usb_host_dev_info = {
+    .name      = "usb-host",
+    .size      = sizeof(USBHostDevice),
+    .class_init= usb_host_initfn,
 };
 
 static void usb_host_register_devices(void)
 {
-    usb_qdev_register(&usb_host_dev_info);
+    usb_qdev_register(&usb_host_dev_info, NULL, NULL);
 }
 device_init(usb_host_register_devices)
 

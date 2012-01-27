@@ -4,6 +4,8 @@
  * Copyright (c) 2007 OpenMoko, Inc.
  * Author: Andrzej Zaborowski <andrew@openedhand.com>
  *
+ * Copyright 2010, 2012 Stefan Weil
+ *
  * This code is licenced under the GNU GPL v2.
  */
 
@@ -565,11 +567,17 @@ static const VMStateDescription s3c24xx_lcd_vmsd = {
     }
 };
 
-static SysBusDeviceInfo s3c24xx_lcd_info = {
-    .init = s3c24xx_lcd_init,
-    .qdev.name = "s3c24xx_lcd",
-    .qdev.size = sizeof(S3C24xxLCD_State),
-    .qdev.vmsd = &s3c24xx_lcd_vmsd,
+static void s3c24xx_lcd_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = s3c24xx_lcd_init;
+}
+
+static DeviceInfo s3c24xx_lcd_info = {
+    .name = "s3c24xx_lcd",
+    .size = sizeof(S3C24xxLCD_State),
+    .vmsd = &s3c24xx_lcd_vmsd,
+    .class_init = s3c24xx_lcd_class_init
 };
 
 static void s3c24xx_lcd_register_devices(void)

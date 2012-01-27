@@ -753,15 +753,24 @@ static int esp_init1(SysBusDevice *dev)
     return scsi_bus_legacy_handle_cmdline(&s->bus);
 }
 
-static SysBusDeviceInfo esp_info = {
-    .init = esp_init1,
-    .qdev.name  = "esp",
-    .qdev.size  = sizeof(ESPState),
-    .qdev.vmsd  = &vmstate_esp,
-    .qdev.reset = esp_hard_reset,
-    .qdev.props = (Property[]) {
-        {.name = NULL}
-    }
+static Property esp_properties[] = {
+    {.name = NULL},
+};
+
+static void esp_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = esp_init1;
+}
+
+static DeviceInfo esp_info = {
+    .name = "esp",
+    .size = sizeof(ESPState),
+    .vmsd = &vmstate_esp,
+    .reset = esp_hard_reset,
+    .props = esp_properties,
+    .class_init = esp_class_init,
 };
 
 static void esp_register_devices(void)

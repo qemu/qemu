@@ -763,13 +763,20 @@ static void apic_init(APICCommonState *s)
     local_apics[s->idx] = s;
 }
 
-static APICCommonInfo apic_info = {
-    .busdev.qdev.name = "apic",
-    .init = apic_init,
-    .set_base = apic_set_base,
-    .set_tpr = apic_set_tpr,
-    .external_nmi = apic_external_nmi,
-    .post_load = apic_post_load,
+static void apic_class_init(ObjectClass *klass, void *data)
+{
+    APICCommonClass *k = APIC_COMMON_CLASS(klass);
+
+    k->init = apic_init;
+    k->set_base = apic_set_base;
+    k->set_tpr = apic_set_tpr;
+    k->external_nmi = apic_external_nmi;
+    k->post_load = apic_post_load;
+}
+
+static DeviceInfo apic_info = {
+    .name = "apic",
+    .class_init = apic_class_init,
 };
 
 static void apic_register_devices(void)

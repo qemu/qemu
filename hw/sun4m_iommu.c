@@ -357,16 +357,25 @@ static int iommu_init1(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo iommu_info = {
-    .init = iommu_init1,
-    .qdev.name  = "iommu",
-    .qdev.size  = sizeof(IOMMUState),
-    .qdev.vmsd  = &vmstate_iommu,
-    .qdev.reset = iommu_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_HEX32("version", IOMMUState, version, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property iommu_properties[] = {
+    DEFINE_PROP_HEX32("version", IOMMUState, version, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void iommu_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = iommu_init1;
+}
+
+static DeviceInfo iommu_info = {
+    .name = "iommu",
+    .size = sizeof(IOMMUState),
+    .vmsd = &vmstate_iommu,
+    .reset = iommu_reset,
+    .props = iommu_properties,
+    .class_init = iommu_class_init,
 };
 
 static void iommu_register_devices(void)

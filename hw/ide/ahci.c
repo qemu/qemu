@@ -25,6 +25,7 @@
 #include <hw/msi.h>
 #include <hw/pc.h>
 #include <hw/pci.h>
+#include <hw/sysbus.h>
 
 #include "monitor.h"
 #include "dma.h"
@@ -1214,3 +1215,51 @@ void ahci_reset(void *opaque)
         ahci_reset_port(&d->ahci, i);
     }
 }
+
+typedef struct SysbusAHCIState {
+    SysBusDevice busdev;
+    AHCIState ahci;
+    uint32_t num_ports;
+} SysbusAHCIState;
+
+static const VMStateDescription vmstate_sysbus_ahci = {
+    .name = "sysbus-ahci",
+    .unmigratable = 1,
+};
+
+static int sysbus_ahci_init(SysBusDevice *dev)
+{
+    SysbusAHCIState *s = FROM_SYSBUS(SysbusAHCIState, dev);
+    ahci_init(&s->ahci, &dev->qdev, s->num_ports);
+
+    sysbus_init_mmio(dev, &s->ahci.mem);
+    sysbus_init_irq(dev, &s->ahci.irq);
+
+    qemu_register_reset(ahci_reset, &s->ahci);
+    return 0;
+}
+
+static void sysbus_ahci_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sbc = SYS_BUS_DEVICE_CLASS(klass);
+
+    sbc->init = sysbus_ahci_init;
+}
+
+static DeviceInfo sysbus_ahci_info = {
+    .name    = "sysbus-ahci",
+    .size    = sizeof(SysbusAHCIState),
+    .vmsd    = &vmstate_sysbus_ahci,
+    .class_init = sysbus_ahci_class_init,
+    .props = (Property[]) {
+        DEFINE_PROP_UINT32("num-ports", SysbusAHCIState, num_ports, 1),
+        DEFINE_PROP_END_OF_LIST(),
+    },
+};
+
+static void sysbus_ahci_register(void)
+{
+    sysbus_qdev_register(&sysbus_ahci_info);
+}
+
+device_init(sysbus_ahci_register);

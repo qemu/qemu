@@ -134,12 +134,18 @@ static const VMStateDescription s3c24xx_cam_vmsd = {
     }
 };
 
-static SysBusDeviceInfo s3c24xx_cam_info = {
-    .init = s3c24xx_cam_init,
-    .qdev.name = "s3c24xx_cam",
-    .qdev.size = sizeof(S3C24xxCamState),
-    .qdev.reset = s3c24xx_cam_reset,
-    .qdev.vmsd = &s3c24xx_cam_vmsd,
+static void s3c24xx_cam_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = s3c24xx_cam_init;
+}
+
+static DeviceInfo s3c24xx_cam_info = {
+    .name = "s3c24xx_cam",
+    .size = sizeof(S3C24xxCamState),
+    .reset = s3c24xx_cam_reset,
+    .vmsd = &s3c24xx_cam_vmsd,
+    .class_init = s3c24xx_cam_class_init
 };
 
 static void s3c24xx_cam_register(void)
@@ -219,12 +225,18 @@ static const VMStateDescription s3c24xx_wdg_vmsd = {
     }
 };
 
-static SysBusDeviceInfo s3c24xx_wdg_info = {
-    .init = s3c24xx_wdg_init,
-    .qdev.name = "s3c24xx_wdg",
-    .qdev.size = sizeof(S3C24xxWdgState),
-    .qdev.reset = s3c24xx_wdg_reset,
-    .qdev.vmsd = &s3c24xx_wdg_vmsd,
+static void s3c24xx_wdg_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = s3c24xx_wdg_init;
+}
+
+static DeviceInfo s3c24xx_wdg_info = {
+    .name = "s3c24xx_wdg",
+    .size = sizeof(S3C24xxWdgState),
+    .reset = s3c24xx_wdg_reset,
+    .vmsd = &s3c24xx_wdg_vmsd,
+    .class_init = s3c24xx_wdg_class_init
 };
 
 static void s3c24xx_wdg_register(void)
@@ -316,12 +328,18 @@ static const VMStateDescription s3c24xx_adc_vmsd = {
     }
 };
 
-static SysBusDeviceInfo s3c24xx_adc_info = {
-    .init = s3c24xx_adc_init,
-    .qdev.name = "s3c24xx_adc",
-    .qdev.size = sizeof(S3C24xxAdcState),
-    .qdev.reset = s3c24xx_adc_reset,
-    .qdev.vmsd = &s3c24xx_adc_vmsd,
+static void s3c24xx_adc_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    k->init = s3c24xx_adc_init;
+}
+
+static DeviceInfo s3c24xx_adc_info = {
+    .name = "s3c24xx_adc",
+    .size = sizeof(S3C24xxAdcState),
+    .reset = s3c24xx_adc_reset,
+    .vmsd = &s3c24xx_adc_vmsd,
+    .class_init = s3c24xx_adc_class_init
 };
 
 static void s3c24xx_adc_register(void)

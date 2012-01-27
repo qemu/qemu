@@ -73,6 +73,21 @@
 
 typedef struct IOAPICCommonState IOAPICCommonState;
 
+#define TYPE_IOAPIC_COMMON "ioapic-common"
+#define IOAPIC_COMMON(obj) \
+     OBJECT_CHECK(IOAPICCommonState, (obj), TYPE_IOAPIC_COMMON)
+#define IOAPIC_COMMON_CLASS(klass) \
+     OBJECT_CLASS_CHECK(IOAPICCommonClass, (klass), TYPE_IOAPIC_COMMON)
+#define IOAPIC_COMMON_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(IOAPICCommonClass, (obj), TYPE_IOAPIC_COMMON)
+
+typedef struct IOAPICCommonClass {
+    SysBusDeviceClass parent_class;
+    void (*init)(IOAPICCommonState *s, int instance_no);
+    void (*pre_save)(IOAPICCommonState *s);
+    void (*post_load)(IOAPICCommonState *s);
+} IOAPICCommonClass;
+
 struct IOAPICCommonState {
     SysBusDevice busdev;
     MemoryRegion io_memory;
@@ -82,16 +97,7 @@ struct IOAPICCommonState {
     uint64_t ioredtbl[IOAPIC_NUM_PINS];
 };
 
-typedef struct IOAPICCommonInfo IOAPICCommonInfo;
-
-struct IOAPICCommonInfo {
-    SysBusDeviceInfo busdev;
-    void (*init)(IOAPICCommonState *s, int instance_no);
-    void (*pre_save)(IOAPICCommonState *s);
-    void (*post_load)(IOAPICCommonState *s);
-};
-
-void ioapic_qdev_register(IOAPICCommonInfo *info);
+void ioapic_qdev_register(DeviceInfo *info);
 void ioapic_reset_common(DeviceState *dev);
 
 #endif /* !QEMU_IOAPIC_INTERNAL_H */

@@ -2898,11 +2898,18 @@ static int vga_initfn(ISADevice *dev)
     return 0;
 }
 
-static ISADeviceInfo isa_cirrus_vga_info = {
-    .qdev.name     = "isa-cirrus-vga",
-    .qdev.size     = sizeof(ISACirrusVGAState),
-    .qdev.vmsd     = &vmstate_cirrus_vga,
-    .init          = vga_initfn,
+static void isa_cirrus_vga_class_init(ObjectClass *klass, void *data)
+{
+    ISADeviceClass *k = ISA_DEVICE_CLASS(klass);
+
+    k->init          = vga_initfn;
+}
+
+static DeviceInfo isa_cirrus_vga_info = {
+    .name     = "isa-cirrus-vga",
+    .size     = sizeof(ISACirrusVGAState),
+    .vmsd     = &vmstate_cirrus_vga,
+    .class_init = isa_cirrus_vga_class_init,
 };
 
 static void isa_cirrus_vga_register(void)
@@ -2921,8 +2928,8 @@ static int pci_cirrus_vga_initfn(PCIDevice *dev)
 {
      PCICirrusVGAState *d = DO_UPCAST(PCICirrusVGAState, dev, dev);
      CirrusVGAState *s = &d->cirrus_vga;
-     PCIDeviceInfo *info = DO_UPCAST(PCIDeviceInfo, qdev, dev->qdev.info);
-     int16_t device_id = info->device_id;
+     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+     int16_t device_id = pc->device_id;
 
      /* setup VGA */
      vga_common_init(&s->vga, VGA_RAM_SIZE);
@@ -2956,17 +2963,24 @@ DeviceState *pci_cirrus_vga_init(PCIBus *bus)
     return &pci_create_simple(bus, -1, "cirrus-vga")->qdev;
 }
 
-static PCIDeviceInfo cirrus_vga_info = {
-    .qdev.name    = "cirrus-vga",
-    .qdev.desc    = "Cirrus CLGD 54xx VGA",
-    .qdev.size    = sizeof(PCICirrusVGAState),
-    .qdev.vmsd    = &vmstate_pci_cirrus_vga,
-    .no_hotplug   = 1,
-    .init         = pci_cirrus_vga_initfn,
-    .romfile      = VGABIOS_CIRRUS_FILENAME,
-    .vendor_id    = PCI_VENDOR_ID_CIRRUS,
-    .device_id    = CIRRUS_ID_CLGD5446,
-    .class_id     = PCI_CLASS_DISPLAY_VGA,
+static void cirrus_vga_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->no_hotplug = 1;
+    k->init = pci_cirrus_vga_initfn;
+    k->romfile = VGABIOS_CIRRUS_FILENAME;
+    k->vendor_id = PCI_VENDOR_ID_CIRRUS;
+    k->device_id = CIRRUS_ID_CLGD5446;
+    k->class_id = PCI_CLASS_DISPLAY_VGA;
+}
+
+static DeviceInfo cirrus_vga_info = {
+    .name = "cirrus-vga",
+    .desc = "Cirrus CLGD 54xx VGA",
+    .size = sizeof(PCICirrusVGAState),
+    .vmsd = &vmstate_pci_cirrus_vga,
+    .class_init = cirrus_vga_class_init,
 };
 
 static void cirrus_vga_register(void)

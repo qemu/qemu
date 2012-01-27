@@ -479,7 +479,7 @@ static int milkymist_minimac2_init(SysBusDevice *dev)
 
     qemu_macaddr_default_if_unset(&s->conf.macaddr);
     s->nic = qemu_new_nic(&net_milkymist_minimac2_info, &s->conf,
-                          dev->qdev.info->name, dev->qdev.id, s);
+                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->conf.macaddr.a);
 
     return 0;
@@ -516,19 +516,28 @@ static const VMStateDescription vmstate_milkymist_minimac2 = {
     }
 };
 
-static SysBusDeviceInfo milkymist_minimac2_info = {
-    .init = milkymist_minimac2_init,
-    .qdev.name  = "milkymist-minimac2",
-    .qdev.size  = sizeof(MilkymistMinimac2State),
-    .qdev.vmsd  = &vmstate_milkymist_minimac2,
-    .qdev.reset = milkymist_minimac2_reset,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_TADDR("buffers_base", MilkymistMinimac2State,
-                buffers_base, 0),
-        DEFINE_NIC_PROPERTIES(MilkymistMinimac2State, conf),
-        DEFINE_PROP_STRING("phy_model", MilkymistMinimac2State, phy_model),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property milkymist_minimac2_properties[] = {
+    DEFINE_PROP_TADDR("buffers_base", MilkymistMinimac2State,
+    buffers_base, 0),
+    DEFINE_NIC_PROPERTIES(MilkymistMinimac2State, conf),
+    DEFINE_PROP_STRING("phy_model", MilkymistMinimac2State, phy_model),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void milkymist_minimac2_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = milkymist_minimac2_init;
+}
+
+static DeviceInfo milkymist_minimac2_info = {
+    .name = "milkymist-minimac2",
+    .size = sizeof(MilkymistMinimac2State),
+    .vmsd = &vmstate_milkymist_minimac2,
+    .reset = milkymist_minimac2_reset,
+    .props = milkymist_minimac2_properties,
+    .class_init = milkymist_minimac2_class_init,
 };
 
 static void milkymist_minimac2_register(void)

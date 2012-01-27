@@ -219,15 +219,24 @@ static int xilinx_timer_init(SysBusDevice *dev)
     return 0;
 }
 
-static SysBusDeviceInfo xilinx_timer_info = {
-    .init = xilinx_timer_init,
-    .qdev.name  = "xilinx,timer",
-    .qdev.size  = sizeof(struct timerblock),
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_UINT32("frequency", struct timerblock, freq_hz,   0),
-        DEFINE_PROP_UINT32("nr-timers", struct timerblock, nr_timers, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static Property xilinx_timer_properties[] = {
+    DEFINE_PROP_UINT32("frequency", struct timerblock, freq_hz,   0),
+    DEFINE_PROP_UINT32("nr-timers", struct timerblock, nr_timers, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void xilinx_timer_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = xilinx_timer_init;
+}
+
+static DeviceInfo xilinx_timer_info = {
+    .name = "xilinx,timer",
+    .size = sizeof(struct timerblock),
+    .props = xilinx_timer_properties,
+    .class_init = xilinx_timer_class_init,
 };
 
 static void xilinx_timer_register(void)

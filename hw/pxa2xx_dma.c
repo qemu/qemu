@@ -543,16 +543,25 @@ static VMStateDescription vmstate_pxa2xx_dma = {
     },
 };
 
-static SysBusDeviceInfo pxa2xx_dma_info = {
-    .init       = pxa2xx_dma_init,
-    .qdev.name  = "pxa2xx-dma",
-    .qdev.desc  = "PXA2xx DMA controller",
-    .qdev.size  = sizeof(PXA2xxDMAState),
-    .qdev.vmsd  = &vmstate_pxa2xx_dma,
-    .qdev.props = (Property[]) {
-        DEFINE_PROP_INT32("channels", PXA2xxDMAState, channels, -1),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static Property pxa2xx_dma_properties[] = {
+    DEFINE_PROP_INT32("channels", PXA2xxDMAState, channels, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pxa2xx_dma_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = pxa2xx_dma_init;
+}
+
+static DeviceInfo pxa2xx_dma_info = {
+    .name = "pxa2xx-dma",
+    .desc = "PXA2xx DMA controller",
+    .size = sizeof(PXA2xxDMAState),
+    .vmsd = &vmstate_pxa2xx_dma,
+    .props = pxa2xx_dma_properties,
+    .class_init = pxa2xx_dma_class_init,
 };
 
 static void pxa2xx_dma_register(void)

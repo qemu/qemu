@@ -13,9 +13,11 @@
 #include "qerror.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
+#include "qemu-objects.h"
 #include "sysemu.h"
 #include "block_int.h"
 #include "qmp-commands.h"
+#include "trace.h"
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
@@ -198,6 +200,37 @@ void drive_put_ref(DriveInfo *dinfo)
 void drive_get_ref(DriveInfo *dinfo)
 {
     dinfo->refcount++;
+}
+
+typedef struct {
+    QEMUBH *bh;
+    DriveInfo *dinfo;
+} DrivePutRefBH;
+
+static void drive_put_ref_bh(void *opaque)
+{
+    DrivePutRefBH *s = opaque;
+
+    drive_put_ref(s->dinfo);
+    qemu_bh_delete(s->bh);
+    g_free(s);
+}
+
+/*
+ * Release a drive reference in a BH
+ *
+ * It is not possible to use drive_put_ref() from a callback function when the
+ * callers still need the drive.  In such cases we schedule a BH to release the
+ * reference.
+ */
+static void drive_put_ref_bh_schedule(DriveInfo *dinfo)
+{
+    DrivePutRefBH *s;
+
+    s = g_new(DrivePutRefBH, 1);
+    s->bh = qemu_bh_new(drive_put_ref_bh, s);
+    s->dinfo = dinfo;
+    qemu_bh_schedule(s->bh);
 }
 
 static int parse_block_error_action(const char *buf, int is_read)
@@ -592,12 +625,18 @@ void do_commit(Monitor *mon, const QDict *qdict)
     if (!strcmp(device, "all")) {
         bdrv_commit_all();
     } else {
+        int ret;
+
         bs = bdrv_find(device);
         if (!bs) {
             qerror_report(QERR_DEVICE_NOT_FOUND, device);
             return;
         }
-        bdrv_commit(bs);
+        ret = bdrv_commit(bs);
+        if (ret == -EBUSY) {
+            qerror_report(QERR_DEVICE_IN_USE, device);
+            return;
+        }
     }
 }
 
@@ -614,6 +653,10 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
     bs = bdrv_find(device);
     if (!bs) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+    if (bdrv_in_use(bs)) {
+        error_set(errp, QERR_DEVICE_IN_USE, device);
         return;
     }
 
@@ -667,6 +710,10 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
 
 static void eject_device(BlockDriverState *bs, int force, Error **errp)
 {
+    if (bdrv_in_use(bs)) {
+        error_set(errp, QERR_DEVICE_IN_USE, bdrv_get_device_name(bs));
+        return;
+    }
     if (!bdrv_dev_has_removable_media(bs)) {
         error_set(errp, QERR_DEVICE_NOT_REMOVABLE, bdrv_get_device_name(bs));
         return;
@@ -882,4 +929,154 @@ void qmp_block_resize(const char *device, int64_t size, Error **errp)
         error_set(errp, QERR_UNDEFINED_ERROR);
         break;
     }
+}
+
+static QObject *qobject_from_block_job(BlockJob *job)
+{
+    return qobject_from_jsonf("{ 'type': %s,"
+                              "'device': %s,"
+                              "'len': %" PRId64 ","
+                              "'offset': %" PRId64 ","
+                              "'speed': %" PRId64 " }",
+                              job->job_type->job_type,
+                              bdrv_get_device_name(job->bs),
+                              job->len,
+                              job->offset,
+                              job->speed);
+}
+
+static void block_stream_cb(void *opaque, int ret)
+{
+    BlockDriverState *bs = opaque;
+    QObject *obj;
+
+    trace_block_stream_cb(bs, bs->job, ret);
+
+    assert(bs->job);
+    obj = qobject_from_block_job(bs->job);
+    if (ret < 0) {
+        QDict *dict = qobject_to_qdict(obj);
+        qdict_put(dict, "error", qstring_from_str(strerror(-ret)));
+    }
+
+    if (block_job_is_cancelled(bs->job)) {
+        monitor_protocol_event(QEVENT_BLOCK_JOB_CANCELLED, obj);
+    } else {
+        monitor_protocol_event(QEVENT_BLOCK_JOB_COMPLETED, obj);
+    }
+    qobject_decref(obj);
+
+    drive_put_ref_bh_schedule(drive_get_by_blockdev(bs));
+}
+
+void qmp_block_stream(const char *device, bool has_base,
+                      const char *base, Error **errp)
+{
+    BlockDriverState *bs;
+    BlockDriverState *base_bs = NULL;
+    int ret;
+
+    bs = bdrv_find(device);
+    if (!bs) {
+        error_set(errp, QERR_DEVICE_NOT_FOUND, device);
+        return;
+    }
+
+    if (base) {
+        base_bs = bdrv_find_backing_image(bs, base);
+        if (base_bs == NULL) {
+            error_set(errp, QERR_BASE_NOT_FOUND, base);
+            return;
+        }
+    }
+
+    ret = stream_start(bs, base_bs, base, block_stream_cb, bs);
+    if (ret < 0) {
+        switch (ret) {
+        case -EBUSY:
+            error_set(errp, QERR_DEVICE_IN_USE, device);
+            return;
+        default:
+            error_set(errp, QERR_NOT_SUPPORTED);
+            return;
+        }
+    }
+
+    /* Grab a reference so hotplug does not delete the BlockDriverState from
+     * underneath us.
+     */
+    drive_get_ref(drive_get_by_blockdev(bs));
+
+    trace_qmp_block_stream(bs, bs->job);
+}
+
+static BlockJob *find_block_job(const char *device)
+{
+    BlockDriverState *bs;
+
+    bs = bdrv_find(device);
+    if (!bs || !bs->job) {
+        return NULL;
+    }
+    return bs->job;
+}
+
+void qmp_block_job_set_speed(const char *device, int64_t value, Error **errp)
+{
+    BlockJob *job = find_block_job(device);
+
+    if (!job) {
+        error_set(errp, QERR_DEVICE_NOT_ACTIVE, device);
+        return;
+    }
+
+    if (block_job_set_speed(job, value) < 0) {
+        error_set(errp, QERR_NOT_SUPPORTED);
+    }
+}
+
+void qmp_block_job_cancel(const char *device, Error **errp)
+{
+    BlockJob *job = find_block_job(device);
+
+    if (!job) {
+        error_set(errp, QERR_DEVICE_NOT_ACTIVE, device);
+        return;
+    }
+
+    trace_qmp_block_job_cancel(job);
+    block_job_cancel(job);
+}
+
+static void do_qmp_query_block_jobs_one(void *opaque, BlockDriverState *bs)
+{
+    BlockJobInfoList **prev = opaque;
+    BlockJob *job = bs->job;
+
+    if (job) {
+        BlockJobInfoList *elem;
+        BlockJobInfo *info = g_new(BlockJobInfo, 1);
+        *info = (BlockJobInfo){
+            .type   = g_strdup(job->job_type->job_type),
+            .device = g_strdup(bdrv_get_device_name(bs)),
+            .len    = job->len,
+            .offset = job->offset,
+            .speed  = job->speed,
+        };
+
+        elem = g_new0(BlockJobInfoList, 1);
+        elem->value = info;
+
+        (*prev)->next = elem;
+        *prev = elem;
+    }
+}
+
+BlockJobInfoList *qmp_query_block_jobs(Error **errp)
+{
+    /* Dummy is a fake list element for holding the head pointer */
+    BlockJobInfoList dummy = {};
+    BlockJobInfoList *prev = &dummy;
+    bdrv_iterate(do_qmp_query_block_jobs_one, &prev);
+    return dummy.next;
 }

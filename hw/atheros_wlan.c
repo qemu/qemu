@@ -2,6 +2,7 @@
  * QEMU WLAN device emulation
  *
  * Copyright (c) 2008 Clemens Kolbitsch
+ * Copyright (c) 2008-2012 Stefan Weil
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -344,11 +345,29 @@ static int Atheros_WLAN_exit(PCIDevice *pci_dev)
     return 0;
 }
 
-static PCIDeviceInfo atheros_info = {
-    .qdev.name = "Atheros_WLAN",
-    .qdev.size = sizeof(PCIAtheros_WLANState),
-    .init      = pci_Atheros_WLAN_init,
-    .exit      = Atheros_WLAN_exit,
+static void atheros_class_init(ObjectClass *klass, void *data)
+{
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    //~ k->vendor_id = PCI_VENDOR_ID_INTEL;
+    k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    //~ k->romfile = "pxe-atheros.rom";
+    k->init = pci_Atheros_WLAN_init;
+    k->exit = Atheros_WLAN_exit;
+    //~ k->device_id = info->device_id;
+    //~ k->revision = 0x01;
+    //~ k->subsystem_vendor_id = info->subsystem_vendor_id;
+    //~ k->subsystem_id = info->subsystem_id;
+}
+
+static DeviceInfo atheros_info = {
+    .name = "Atheros_WLAN",
+    .desc = "Atheros WLAN",
+    .size = sizeof(PCIAtheros_WLANState),
+    //~ .reset = qdev_atheros_reset,
+    //~ .vmsd = &vmstate_atheros,
+    //~ .props = atheros_properties,
+    .class_init = atheros_class_init,
 };
 
 static void Atheros_WLAN_register_devices(void)

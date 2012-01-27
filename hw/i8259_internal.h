@@ -31,6 +31,22 @@
 
 typedef struct PICCommonState PICCommonState;
 
+#define TYPE_PIC_COMMON "pic-common"
+#define PIC_COMMON(obj) \
+     OBJECT_CHECK(PICCommon, (obj), TYPE_PIC_COMMON)
+#define PIC_COMMON_CLASS(klass) \
+     OBJECT_CLASS_CHECK(PICCommonClass, (klass), TYPE_PIC_COMMON)
+#define PIC_COMMON_GET_CLASS(obj) \
+     OBJECT_GET_CLASS(PICCommonClass, (obj), TYPE_PIC_COMMON)
+
+typedef struct PICCommonClass
+{
+    ISADeviceClass parent_class;
+    void (*init)(PICCommonState *s);
+    void (*pre_save)(PICCommonState *s);
+    void (*post_load)(PICCommonState *s);
+} PICCommonClass;
+
 struct PICCommonState {
     ISADevice dev;
     uint8_t last_irr; /* edge detection */
@@ -58,19 +74,10 @@ struct PICCommonState {
     MemoryRegion elcr_io;
 };
 
-typedef struct PICCommonInfo PICCommonInfo;
-
-struct PICCommonInfo {
-    ISADeviceInfo isadev;
-    void (*init)(PICCommonState *s);
-    void (*pre_save)(PICCommonState *s);
-    void (*post_load)(PICCommonState *s);
-};
-
 void pic_reset_common(PICCommonState *s);
 
 ISADevice *i8259_init_chip(const char *name, ISABus *bus, bool master);
 
-void pic_qdev_register(PICCommonInfo *info);
+void pic_qdev_register(DeviceInfo *info);
 
 #endif /* !QEMU_I8259_INTERNAL_H */

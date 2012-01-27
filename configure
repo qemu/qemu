@@ -797,6 +797,10 @@ for opt do
   ;;
   --enable-rbd) rbd="yes"
   ;;
+  --disable-xfsctl) xfs="no"
+  ;;
+  --enable-xfsctl) xfs="yes"
+  ;;
   --disable-smartcard) smartcard="no"
   ;;
   --enable-smartcard) smartcard="yes"
@@ -3840,7 +3844,7 @@ DIRS="$DIRS pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS fsdev ui"
 DIRS="$DIRS qapi qapi-generated"
-DIRS="$DIRS qga trace"
+DIRS="$DIRS qga trace qom"
 FILES="Makefile tests/tcg/Makefile qdict-test-data.txt"
 FILES="$FILES tests/tcg/cris/Makefile tests/tcg/cris/.gdbinit"
 FILES="$FILES pc-bios/qemu-icon.bmp"
