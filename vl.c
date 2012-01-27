@@ -3153,21 +3153,8 @@ int main(int argc, char **argv, char **envp)
      * specified either by the configuration file or by the command line.
      */
     if (machine->default_machine_opts) {
-        QemuOptsList *list = qemu_find_opts("machine");
-        const char *p = NULL;
-
-        if (!QTAILQ_EMPTY(&list->head)) {
-            p = qemu_opt_get(QTAILQ_FIRST(&list->head), "accel");
-        }
-        if (p == NULL) {
-            qemu_opts_reset(list);
-            opts = qemu_opts_parse(list, machine->default_machine_opts, 0);
-            if (!opts) {
-                fprintf(stderr, "parse error for machine %s: %s\n",
-                        machine->name, machine->default_machine_opts);
-                exit(1);
-            }
-        }
+        qemu_opts_set_defaults(qemu_find_opts("machine"),
+                               machine->default_machine_opts, 0);
     }
 
     qemu_opts_foreach(qemu_find_opts("device"), default_driver_check, NULL, 0);
