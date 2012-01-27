@@ -95,23 +95,32 @@ static const char *pid2str(int pid)
 #endif
 
 typedef struct UHCIState UHCIState;
+typedef struct UHCIAsync UHCIAsync;
+typedef struct UHCIQueue UHCIQueue;
 
 /* 
  * Pending async transaction.
  * 'packet' must be the first field because completion
  * handler does "(UHCIAsync *) pkt" cast.
  */
-typedef struct UHCIAsync {
+
+struct UHCIAsync {
     USBPacket packet;
     QEMUSGList sgl;
-    UHCIState *uhci;
+    UHCIQueue *queue;
     QTAILQ_ENTRY(UHCIAsync) next;
     uint32_t  td;
-    uint32_t  token;
-    int8_t    valid;
     uint8_t   isoc;
     uint8_t   done;
-} UHCIAsync;
+};
+
+struct UHCIQueue {
+    uint32_t  token;
+    UHCIState *uhci;
+    QTAILQ_ENTRY(UHCIQueue) next;
+    QTAILQ_HEAD(, UHCIAsync) asyncs;
+    int8_t    valid;
+};
 
 typedef struct UHCIPort {
     USBPort port;
@@ -137,7 +146,7 @@ struct UHCIState {
     uint32_t pending_int_mask;
 
     /* Active packets */
-    QTAILQ_HEAD(,UHCIAsync) async_pending;
+    QTAILQ_HEAD(, UHCIQueue) queues;
     uint8_t num_ports_vmstate;
 
     /* Properties */
@@ -157,56 +166,90 @@ typedef struct UHCI_QH {
     uint32_t el_link;
 } UHCI_QH;
 
-static UHCIAsync *uhci_async_alloc(UHCIState *s)
+static inline int32_t uhci_queue_token(UHCI_TD *td)
+{
+    /* covers ep, dev, pid -> identifies the endpoint */
+    return td->token & 0x7ffff;
+}
+
+static UHCIQueue *uhci_queue_get(UHCIState *s, UHCI_TD *td)
+{
+    uint32_t token = uhci_queue_token(td);
+    UHCIQueue *queue;
+
+    QTAILQ_FOREACH(queue, &s->queues, next) {
+        if (queue->token == token) {
+            return queue;
+        }
+    }
+
+    queue = g_new0(UHCIQueue, 1);
+    queue->uhci = s;
+    queue->token = token;
+    QTAILQ_INIT(&queue->asyncs);
+    QTAILQ_INSERT_HEAD(&s->queues, queue, next);
+    return queue;
+}
+
+static void uhci_queue_free(UHCIQueue *queue)
+{
+    UHCIState *s = queue->uhci;
+
+    QTAILQ_REMOVE(&s->queues, queue, next);
+    g_free(queue);
+}
+
+static UHCIAsync *uhci_async_alloc(UHCIQueue *queue)
 {
     UHCIAsync *async = g_new0(UHCIAsync, 1);
 
-    async->uhci  = s;
+    async->queue = queue;
     usb_packet_init(&async->packet);
-    pci_dma_sglist_init(&async->sgl, &s->dev, 1);
+    pci_dma_sglist_init(&async->sgl, &queue->uhci->dev, 1);
 
     return async;
 }
 
-static void uhci_async_free(UHCIState *s, UHCIAsync *async)
+static void uhci_async_free(UHCIAsync *async)
 {
     usb_packet_cleanup(&async->packet);
     qemu_sglist_destroy(&async->sgl);
     g_free(async);
 }
 
-static void uhci_async_link(UHCIState *s, UHCIAsync *async)
+static void uhci_async_link(UHCIAsync *async)
 {
-    QTAILQ_INSERT_HEAD(&s->async_pending, async, next);
+    UHCIQueue *queue = async->queue;
+    QTAILQ_INSERT_TAIL(&queue->asyncs, async, next);
 }
 
-static void uhci_async_unlink(UHCIState *s, UHCIAsync *async)
+static void uhci_async_unlink(UHCIAsync *async)
 {
-    QTAILQ_REMOVE(&s->async_pending, async, next);
+    UHCIQueue *queue = async->queue;
+    QTAILQ_REMOVE(&queue->asyncs, async, next);
 }
 
-static void uhci_async_cancel(UHCIState *s, UHCIAsync *async)
+static void uhci_async_cancel(UHCIAsync *async)
 {
     DPRINTF("uhci: cancel td 0x%x token 0x%x done %u\n",
            async->td, async->token, async->done);
 
     if (!async->done)
         usb_cancel_packet(&async->packet);
-    uhci_async_free(s, async);
+    uhci_async_free(async);
 }
 
 /*
  * Mark all outstanding async packets as invalid.
  * This is used for canceling them when TDs are removed by the HCD.
  */
-static UHCIAsync *uhci_async_validate_begin(UHCIState *s)
+static void uhci_async_validate_begin(UHCIState *s)
 {
-    UHCIAsync *async;
+    UHCIQueue *queue;
 
-    QTAILQ_FOREACH(async, &s->async_pending, next) {
-        async->valid--;
+    QTAILQ_FOREACH(queue, &s->queues, next) {
+        queue->valid--;
     }
-    return NULL;
 }
 
 /*
@@ -214,77 +257,74 @@ static UHCIAsync *uhci_async_validate_begin(UHCIState *s)
  */
 static void uhci_async_validate_end(UHCIState *s)
 {
-    UHCIAsync *curr, *n;
+    UHCIQueue *queue, *n;
+    UHCIAsync *async;
 
-    QTAILQ_FOREACH_SAFE(curr, &s->async_pending, next, n) {
-        if (curr->valid > 0) {
+    QTAILQ_FOREACH_SAFE(queue, &s->queues, next, n) {
+        if (queue->valid > 0) {
             continue;
         }
-        uhci_async_unlink(s, curr);
-        uhci_async_cancel(s, curr);
+        while (!QTAILQ_EMPTY(&queue->asyncs)) {
+            async = QTAILQ_FIRST(&queue->asyncs);
+            uhci_async_unlink(async);
+            uhci_async_cancel(async);
+        }
+        uhci_queue_free(queue);
     }
 }
 
 static void uhci_async_cancel_device(UHCIState *s, USBDevice *dev)
 {
+    UHCIQueue *queue;
     UHCIAsync *curr, *n;
 
-    QTAILQ_FOREACH_SAFE(curr, &s->async_pending, next, n) {
-        if (!usb_packet_is_inflight(&curr->packet) ||
-            curr->packet.ep->dev != dev) {
-            continue;
+    QTAILQ_FOREACH(queue, &s->queues, next) {
+        QTAILQ_FOREACH_SAFE(curr, &queue->asyncs, next, n) {
+            if (!usb_packet_is_inflight(&curr->packet) ||
+                curr->packet.ep->dev != dev) {
+                continue;
+            }
+            uhci_async_unlink(curr);
+            uhci_async_cancel(curr);
         }
-        uhci_async_unlink(s, curr);
-        uhci_async_cancel(s, curr);
     }
 }
 
 static void uhci_async_cancel_all(UHCIState *s)
 {
+    UHCIQueue *queue;
     UHCIAsync *curr, *n;
 
-    QTAILQ_FOREACH_SAFE(curr, &s->async_pending, next, n) {
-        uhci_async_unlink(s, curr);
-        uhci_async_cancel(s, curr);
+    QTAILQ_FOREACH(queue, &s->queues, next) {
+        QTAILQ_FOREACH_SAFE(curr, &queue->asyncs, next, n) {
+            uhci_async_unlink(curr);
+            uhci_async_cancel(curr);
+        }
     }
 }
 
-static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t addr, uint32_t token)
+static UHCIAsync *uhci_async_find_td(UHCIState *s, uint32_t addr, UHCI_TD *td)
 {
+    uint32_t token = uhci_queue_token(td);
+    UHCIQueue *queue;
     UHCIAsync *async;
-    UHCIAsync *match = NULL;
-    int count = 0;
 
-    /*
-     * We're looking for the best match here. ie both td addr and token.
-     * Otherwise we return last good match. ie just token.
-     * It's ok to match just token because it identifies the transaction
-     * rather well, token includes: device addr, endpoint, size, etc.
-     *
-     * Also since we queue async transactions in reverse order by returning
-     * last good match we restores the order.
-     *
-     * It's expected that we wont have a ton of outstanding transactions.
-     * If we ever do we'd want to optimize this algorithm.
-     */
-
-    QTAILQ_FOREACH(async, &s->async_pending, next) {
-        if (async->token == token) {
-            /* Good match */
-            match = async;
-
-            if (async->td == addr) {
-                /* Best match */
-                break;
-            }
+    QTAILQ_FOREACH(queue, &s->queues, next) {
+        if (queue->token == token) {
+            break;
         }
-        count++;
+    }
+    if (queue == NULL) {
+        return NULL;
     }
 
-    if (count > 64)
-	fprintf(stderr, "uhci: warning lots of async transactions\n");
+    QTAILQ_FOREACH(async, &queue->asyncs, next) {
+        if (async->td == addr) {
+            return async;
+        }
+    }
 
-    return match;
+    return NULL;
 }
 
 static void uhci_update_irq(UHCIState *s)
@@ -753,8 +793,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
 {
     UHCIAsync *async;
     int len = 0, max_len;
-    uint8_t pid, isoc;
-    uint32_t token;
+    uint8_t pid;
     USBDevice *dev;
     USBEndpoint *ep;
 
@@ -762,41 +801,29 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     if (!(td->ctrl & TD_CTRL_ACTIVE))
         return 1;
 
-    /* token field is not unique for isochronous requests,
-     * so use the destination buffer 
-     */
-    if (td->ctrl & TD_CTRL_IOS) {
-        token = td->buffer;
-        isoc = 1;
-    } else {
-        token = td->token;
-        isoc = 0;
-    }
-
-    async = uhci_async_find_td(s, addr, token);
+    async = uhci_async_find_td(s, addr, td);
     if (async) {
         /* Already submitted */
-        async->valid = 32;
+        async->queue->valid = 32;
 
         if (!async->done)
             return 1;
 
-        uhci_async_unlink(s, async);
+        uhci_async_unlink(async);
         goto done;
     }
 
     /* Allocate new packet */
-    async = uhci_async_alloc(s);
+    async = uhci_async_alloc(uhci_queue_get(s, td));
     if (!async)
         return 1;
 
     /* valid needs to be large enough to handle 10 frame delay
      * for initial isochronous requests
      */
-    async->valid = 32;
+    async->queue->valid = 32;
     async->td    = addr;
-    async->token = token;
-    async->isoc  = isoc;
+    async->isoc  = td->ctrl & TD_CTRL_IOS;
 
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
@@ -821,14 +848,14 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
 
     default:
         /* invalid pid : frame interrupted */
-        uhci_async_free(s, async);
+        uhci_async_free(async);
         s->status |= UHCI_STS_HCPERR;
         uhci_update_irq(s);
         return -1;
     }
  
     if (len == USB_RET_ASYNC) {
-        uhci_async_link(s, async);
+        uhci_async_link(async);
         return 2;
     }
 
@@ -837,14 +864,14 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
 done:
     len = uhci_complete_td(s, td, async, int_mask);
     usb_packet_unmap(&async->packet);
-    uhci_async_free(s, async);
+    uhci_async_free(async);
     return len;
 }
 
 static void uhci_async_complete(USBPort *port, USBPacket *packet)
 {
     UHCIAsync *async = container_of(packet, UHCIAsync, packet);
-    UHCIState *s = async->uhci;
+    UHCIState *s = async->queue->uhci;
 
     DPRINTF("uhci: async complete. td 0x%x token 0x%x\n", async->td, async->token);
 
@@ -859,14 +886,14 @@ static void uhci_async_complete(USBPort *port, USBPacket *packet)
         le32_to_cpus(&td.token);
         le32_to_cpus(&td.buffer);
 
-        uhci_async_unlink(s, async);
+        uhci_async_unlink(async);
         uhci_complete_td(s, &td, async, &int_mask);
         s->pending_int_mask |= int_mask;
 
         /* update the status bits of the TD */
         val = cpu_to_le32(td.ctrl);
         pci_dma_write(&s->dev, (link & ~0xf) + 4, &val, sizeof(val));
-        uhci_async_free(s, async);
+        uhci_async_free(async);
     } else {
         async->done = 1;
         uhci_process_frame(s);
@@ -1142,7 +1169,7 @@ static int usb_uhci_common_initfn(PCIDevice *dev)
     }
     s->frame_timer = qemu_new_timer_ns(vm_clock, uhci_frame_timer, s);
     s->num_ports_vmstate = NB_PORTS;
-    QTAILQ_INIT(&s->async_pending);
+    QTAILQ_INIT(&s->queues);
 
     qemu_register_reset(uhci_reset, s);
 
