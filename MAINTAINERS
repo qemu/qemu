@@ -161,6 +161,26 @@ S: Supported
 F: xen-*
 F: */xen*
 
+Hosts:
+------
+
+LINUX
+L: qemu-devel@nongnu.org
+S: Maintained
+F: linux-*
+F: linux-headers/
+
+POSIX
+L: qemu-devel@nongnu.org
+S: Maintained
+F: *posix*
+
+W32, W64
+L: qemu-devel@nongnu.org
+M: Stefan Weil <sw@weilnetz.de>
+S: Maintained
+F: *win32*
+
 ARM Machines
 ------------
 Gumstix
