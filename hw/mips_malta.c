@@ -856,10 +856,7 @@ void mips_malta_init (ram_addr_t ram_size,
         memory_region_init_ram(bios, "mips_malta.bios", BIOS_SIZE);
         vmstate_register_ram_global(bios);
         memory_region_set_readonly(bios, true);
-        memory_region_init_alias(bios_alias, "bios.1fc", bios, 0, BIOS_SIZE);
-        /* Map the bios at two physical locations, as on the real board. */
         memory_region_add_subregion(system_memory, 0x1e000000LL, bios);
-        memory_region_add_subregion(system_memory, 0x1fc00000LL, bios_alias);
         loaderparams.ram_size = ram_size;
         loaderparams.kernel_filename = kernel_filename;
         loaderparams.kernel_cmdline = kernel_cmdline;
@@ -883,29 +880,19 @@ void mips_malta_init (ram_addr_t ram_size,
                                        dinfo->bdrv, 65536, fl_sectors,
                                        4, 0x0000, 0x0000, 0x0000, 0x0000, be);
             bios = pflash_cfi01_get_memory(fl);
-            /* Map the bios at two physical locations, as on the real board. */
-            memory_region_init_alias(bios_alias, "bios.1fc",
-                                     bios, 0, BIOS_SIZE);
-            memory_region_add_subregion(system_memory, 0x1fc00000LL,
-                                        bios_alias);
-           fl_idx++;
+            fl_idx++;
         } else {
             bios = g_new(MemoryRegion, 1);
             memory_region_init_ram(bios, "mips_malta.bios", BIOS_SIZE);
             vmstate_register_ram_global(bios);
             memory_region_set_readonly(bios, true);
-            memory_region_init_alias(bios_alias, "bios.1fc",
-                                     bios, 0, BIOS_SIZE);
-            /* Map the bios at two physical locations, as on the real board. */
             memory_region_add_subregion(system_memory, 0x1e000000LL, bios);
-            memory_region_add_subregion(system_memory, 0x1fc00000LL,
-                                        bios_alias);
             /* Load a BIOS image. */
             if (bios_name == NULL)
                 bios_name = BIOS_FILENAME;
             filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
             if (filename) {
-                bios_size = load_image_targphys(filename, 0x1fc00000LL,
+                bios_size = load_image_targphys(filename, 0x1e000000LL,
                                                 BIOS_SIZE);
                 g_free(filename);
             } else {
@@ -931,6 +918,10 @@ void mips_malta_init (ram_addr_t ram_size,
         }
 #endif
     }
+
+    /* Map the BIOS at a 2nd physical location, as on the real board. */
+    memory_region_init_alias(bios_alias, "bios.1fc", bios, 0, BIOS_SIZE);
+    memory_region_add_subregion(system_memory, 0x1fc00000LL, bios_alias);
 
     /* Board ID = 0x420 (Malta Board with CoreLV)
        XXX: theoretically 0x1e000010 should map to flash and 0x1fc00010 should
