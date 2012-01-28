@@ -1245,6 +1245,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
                                    struct image_info *interp_info)
 {
     abi_ulong sp;
+    abi_ulong sp_auxv;
     int size;
     int i;
     abi_ulong u_rand_bytes;
@@ -1316,6 +1317,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
         sp -= n; put_user_ual(id, sp);          \
     } while(0)
 
+    sp_auxv = sp;
     NEW_AUX_ENT (AT_NULL, 0);
 
     /* There must be exactly DLINFO_ITEMS entries here.  */
@@ -1346,6 +1348,7 @@ static abi_ulong create_elf_tables(abi_ulong p, int argc, int envc,
 #undef NEW_AUX_ENT
 
     info->saved_auxv = sp;
+    info->auxv_len = sp_auxv - sp;
 
     sp = loader_build_argptr(envc, argc, sp, p, 0);
     return sp;
@@ -2326,24 +2329,14 @@ static void fill_auxv_note(struct memelfnote *note, const TaskState *ts)
 {
     elf_addr_t auxv = (elf_addr_t)ts->info->saved_auxv;
     elf_addr_t orig_auxv = auxv;
-    abi_ulong val;
     void *ptr;
-    int i, len;
+    int len = ts->info->auxv_len;
 
     /*
      * Auxiliary vector is stored in target process stack.  It contains
      * {type, value} pairs that we need to dump into note.  This is not
      * strictly necessary but we do it here for sake of completeness.
      */
-
-    /* find out length of the vector, AT_NULL is terminator */
-    i = len = 0;
-    do {
-        get_user_ual(val, auxv);
-        i += 2;
-        auxv += 2 * sizeof (elf_addr_t);
-    } while (val != AT_NULL);
-    len = i * sizeof (elf_addr_t);
 
     /* read in whole auxv vector and copy it to memelfnote */
     ptr = lock_user(VERIFY_READ, orig_auxv, len, 0);

@@ -48,6 +48,7 @@ struct image_info {
         abi_ulong       code_offset;
         abi_ulong       data_offset;
         abi_ulong       saved_auxv;
+        abi_ulong       auxv_len;
         abi_ulong       arg_start;
         abi_ulong       arg_end;
 	int		personality;
