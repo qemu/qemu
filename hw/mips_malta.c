@@ -338,9 +338,9 @@ static void malta_fpga_write(void *opaque, target_phys_addr_t addr,
         break;
 
     /* LEDBAR Register */
-    /* XXX: implement a 8-LED array */
     case 0x00408:
         s->leds = val & 0xff;
+        malta_fpga_update_display(s);
         break;
 
     /* ASCIIWORD Register */
