@@ -1443,7 +1443,8 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
     CPUWatchpoint *wp;
 
     /* sanity checks: allow power-of-2 lengths, deny unaligned watchpoints */
-    if ((len != 1 && len != 2 && len != 4 && len != 8) || (addr & ~len_mask)) {
+    if ((len & (len - 1)) || (addr & ~len_mask) ||
+            len == 0 || len > TARGET_PAGE_SIZE) {
         fprintf(stderr, "qemu: tried to set invalid watchpoint at "
                 TARGET_FMT_lx ", len=" TARGET_FMT_lu "\n", addr, len);
         return -EINVAL;
