@@ -525,7 +525,7 @@ EOF
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
   confsuffix=""
-  libs_qga="-lws2_32 -lwinmm $lib_qga"
+  libs_qga="-lws2_32 -lwinmm -lpowrprof $lib_qga"
 fi
 
 werror=""
