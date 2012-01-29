@@ -37,6 +37,18 @@
 
 //#define DEBUG_BOCHS_VBE
 
+/*
+ * Video Graphics Array (VGA)
+ *
+ * Chipset docs for original IBM VGA:
+ * http://www.mcamafia.de/pdf/ibm_vgaxga_trm2.pdf
+ *
+ * FreeVGA site:
+ * http://www.osdever.net/FreeVGA/home.htm
+ *
+ * Standard VGA features and Bochs VBE extensions are implemented.
+ */
+
 /* force some bits to zero */
 const uint8_t sr_mask[8] = {
     0x03,
