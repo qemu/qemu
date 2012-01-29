@@ -161,7 +161,7 @@ static void glue(vga_draw_line2_, DEPTH)(VGACommonState *s1, uint8_t *d,
     int x;
 
     palette = s1->last_palette;
-    plane_mask = mask16[s1->ar[0x12] & 0xf];
+    plane_mask = mask16[s1->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
         data = ((uint32_t *)s)[0];
@@ -203,7 +203,7 @@ static void glue(vga_draw_line2d2_, DEPTH)(VGACommonState *s1, uint8_t *d,
     int x;
 
     palette = s1->last_palette;
-    plane_mask = mask16[s1->ar[0x12] & 0xf];
+    plane_mask = mask16[s1->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
         data = ((uint32_t *)s)[0];
@@ -236,7 +236,7 @@ static void glue(vga_draw_line4_, DEPTH)(VGACommonState *s1, uint8_t *d,
     int x;
 
     palette = s1->last_palette;
-    plane_mask = mask16[s1->ar[0x12] & 0xf];
+    plane_mask = mask16[s1->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
         data = ((uint32_t *)s)[0];
@@ -268,7 +268,7 @@ static void glue(vga_draw_line4d2_, DEPTH)(VGACommonState *s1, uint8_t *d,
     int x;
 
     palette = s1->last_palette;
-    plane_mask = mask16[s1->ar[0x12] & 0xf];
+    plane_mask = mask16[s1->ar[VGA_ATC_PLANE_ENABLE] & 0xf];
     width >>= 3;
     for(x = 0; x < width; x++) {
         data = ((uint32_t *)s)[0];

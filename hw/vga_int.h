@@ -25,9 +25,6 @@
 #include <hw/hw.h>
 #include "memory.h"
 
-#define MSR_COLOR_EMULATION 0x01
-#define MSR_PAGE_SELECT     0x20
-
 #define ST01_V_RETRACE      0x08
 #define ST01_DISP_ENABLE    0x01
 
