@@ -81,9 +81,10 @@ static void default_reset_secondary(CPUState *env,
     p += 4;                       \
 } while (0)
 
-static void set_kernel_args(const struct arm_boot_info *info,
-                int initrd_size, target_phys_addr_t base)
+static void set_kernel_args(const struct arm_boot_info *info)
 {
+    int initrd_size = info->initrd_size;
+    target_phys_addr_t base = info->loader_start;
     target_phys_addr_t p;
 
     p = base + KERNEL_ARGS_ADDR;
@@ -134,12 +135,12 @@ static void set_kernel_args(const struct arm_boot_info *info,
     WRITE_WORD(p, 0);
 }
 
-static void set_kernel_args_old(const struct arm_boot_info *info,
-                int initrd_size, target_phys_addr_t base)
+static void set_kernel_args_old(const struct arm_boot_info *info)
 {
     target_phys_addr_t p;
     const char *s;
-
+    int initrd_size = info->initrd_size;
+    target_phys_addr_t base = info->loader_start;
 
     /* see linux/include/asm-arm/setup.h */
     p = base + KERNEL_ARGS_ADDR;
@@ -222,11 +223,9 @@ static void do_cpu_reset(void *opaque)
             if (env == first_cpu) {
                 env->regs[15] = info->loader_start;
                 if (old_param) {
-                    set_kernel_args_old(info, info->initrd_size,
-                                        info->loader_start);
+                    set_kernel_args_old(info);
                 } else {
-                    set_kernel_args(info, info->initrd_size,
-                                    info->loader_start);
+                    set_kernel_args(info);
                 }
             } else {
                 info->secondary_cpu_reset_hook(env, info);
