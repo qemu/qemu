@@ -83,9 +83,10 @@ static inline void cpu_physical_memory_set_dirty_range(ram_addr_t start,
     uint8_t *p;
     ram_addr_t addr, end;
 
-    end = start + length;
+    end = TARGET_PAGE_ALIGN(start + length);
+    start &= TARGET_PAGE_MASK;
     p = ram_list.phys_dirty + (start >> TARGET_PAGE_BITS);
-    for (addr = start; addr <= end; addr += TARGET_PAGE_SIZE) {
+    for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
         *p++ |= dirty_flags;
     }
 }
@@ -98,10 +99,11 @@ static inline void cpu_physical_memory_mask_dirty_range(ram_addr_t start,
     uint8_t *p;
     ram_addr_t addr, end;
 
-    end = start + length;
+    end = TARGET_PAGE_ALIGN(start + length);
+    start &= TARGET_PAGE_MASK;
     mask = ~dirty_flags;
     p = ram_list.phys_dirty + (start >> TARGET_PAGE_BITS);
-    for (addr = start; addr <= end; addr += TARGET_PAGE_SIZE) {
+    for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
         *p++ &= mask;
     }
 }
