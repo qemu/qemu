@@ -128,6 +128,8 @@ enum {
     DTLBCFG = 92,
     IBREAKENABLE = 96,
     IBREAKA = 128,
+    DBREAKA = 144,
+    DBREAKC = 160,
     EPC1 = 177,
     DEPC = 192,
     EPS2 = 194,
@@ -175,12 +177,18 @@ enum {
 #define DEBUGCAUSE_DBNUM 0xf00
 #define DEBUGCAUSE_DBNUM_SHIFT 8
 
+#define DBREAKC_SB 0x80000000
+#define DBREAKC_LB 0x40000000
+#define DBREAKC_SB_LB (DBREAKC_SB | DBREAKC_LB)
+#define DBREAKC_MASK 0x3f
+
 #define MAX_NAREG 64
 #define MAX_NINTERRUPT 32
 #define MAX_NLEVEL 6
 #define MAX_NNMI 1
 #define MAX_NCCOMPARE 3
 #define MAX_TLB_WAY_SIZE 8
+#define MAX_NDBREAK 2
 
 #define REGION_PAGE_MASK 0xe0000000
 
@@ -330,6 +338,9 @@ typedef struct CPUXtensaState {
 
     int exception_taken;
 
+    /* Watchpoints for DBREAK registers */
+    CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
+
     CPU_COMMON
 } CPUXtensaState;
 
@@ -365,6 +376,7 @@ int xtensa_get_physical_addr(CPUState *env,
         uint32_t vaddr, int is_write, int mmu_idx,
         uint32_t *paddr, uint32_t *page_size, unsigned *access);
 void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env);
+void debug_exception_env(CPUState *new_env, uint32_t cause);
 
 
 #define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))

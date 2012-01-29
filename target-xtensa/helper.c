@@ -58,9 +58,44 @@ void xtensa_register_core(XtensaConfigList *node)
     xtensa_cores = node;
 }
 
+static uint32_t check_hw_breakpoints(CPUState *env)
+{
+    unsigned i;
+
+    for (i = 0; i < env->config->ndbreak; ++i) {
+        if (env->cpu_watchpoint[i] &&
+                env->cpu_watchpoint[i]->flags & BP_WATCHPOINT_HIT) {
+            return DEBUGCAUSE_DB | (i << DEBUGCAUSE_DBNUM_SHIFT);
+        }
+    }
+    return 0;
+}
+
+static CPUDebugExcpHandler *prev_debug_excp_handler;
+
+static void breakpoint_handler(CPUState *env)
+{
+    if (env->watchpoint_hit) {
+        if (env->watchpoint_hit->flags & BP_CPU) {
+            uint32_t cause;
+
+            env->watchpoint_hit = NULL;
+            cause = check_hw_breakpoints(env);
+            if (cause) {
+                debug_exception_env(env, cause);
+            }
+            cpu_resume_from_signal(env, NULL);
+        }
+    }
+    if (prev_debug_excp_handler) {
+        prev_debug_excp_handler(env);
+    }
+}
+
 CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
 {
     static int tcg_inited;
+    static int debug_handler_inited;
     CPUXtensaState *env;
     const XtensaConfig *config = NULL;
     XtensaConfigList *core = xtensa_cores;
@@ -82,6 +117,12 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
     if (!tcg_inited) {
         tcg_inited = 1;
         xtensa_translate_init();
+    }
+
+    if (!debug_handler_inited && tcg_enabled()) {
+        debug_handler_inited = 1;
+        prev_debug_excp_handler =
+            cpu_set_debug_excp_handler(breakpoint_handler);
     }
 
     xtensa_irq_init(env);

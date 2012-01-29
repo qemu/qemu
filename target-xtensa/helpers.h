@@ -33,5 +33,7 @@ DEF_HELPER_3(wtlb, void, i32, i32, i32)
 
 DEF_HELPER_1(wsr_ibreakenable, void, i32)
 DEF_HELPER_2(wsr_ibreaka, void, i32, i32)
+DEF_HELPER_2(wsr_dbreaka, void, i32, i32)
+DEF_HELPER_2(wsr_dbreakc, void, i32, i32)
 
 #include "def-helper.h"

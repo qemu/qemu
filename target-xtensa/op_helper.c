@@ -134,6 +134,14 @@ void HELPER(exception_cause_vaddr)(uint32_t pc, uint32_t cause, uint32_t vaddr)
     HELPER(exception_cause)(pc, cause);
 }
 
+void debug_exception_env(CPUState *new_env, uint32_t cause)
+{
+    if (xtensa_get_cintlevel(new_env) < new_env->config->debug_level) {
+        env = new_env;
+        HELPER(debug_exception)(env->pc, cause);
+    }
+}
+
 void HELPER(debug_exception)(uint32_t pc, uint32_t cause)
 {
     unsigned level = env->config->debug_level;
@@ -699,4 +707,58 @@ void HELPER(wsr_ibreaka)(uint32_t i, uint32_t v)
         tb_invalidate_phys_page_range(v, v + 1, 0);
     }
     env->sregs[IBREAKA + i] = v;
+}
+
+static void set_dbreak(unsigned i, uint32_t dbreaka, uint32_t dbreakc)
+{
+    int flags = BP_CPU | BP_STOP_BEFORE_ACCESS;
+    uint32_t mask = dbreakc | ~DBREAKC_MASK;
+
+    if (env->cpu_watchpoint[i]) {
+        cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[i]);
+    }
+    if (dbreakc & DBREAKC_SB) {
+        flags |= BP_MEM_WRITE;
+    }
+    if (dbreakc & DBREAKC_LB) {
+        flags |= BP_MEM_READ;
+    }
+    /* contiguous mask after inversion is one less than some power of 2 */
+    if ((~mask + 1) & ~mask) {
+        qemu_log("DBREAKC mask is not contiguous: 0x%08x\n", dbreakc);
+        /* cut mask after the first zero bit */
+        mask = 0xffffffff << (32 - clo32(mask));
+    }
+    if (cpu_watchpoint_insert(env, dbreaka & mask, ~mask + 1,
+            flags, &env->cpu_watchpoint[i])) {
+        env->cpu_watchpoint[i] = NULL;
+        qemu_log("Failed to set data breakpoint at 0x%08x/%d\n",
+                dbreaka & mask, ~mask + 1);
+    }
+}
+
+void HELPER(wsr_dbreaka)(uint32_t i, uint32_t v)
+{
+    uint32_t dbreakc = env->sregs[DBREAKC + i];
+
+    if ((dbreakc & DBREAKC_SB_LB) &&
+            env->sregs[DBREAKA + i] != v) {
+        set_dbreak(i, v, dbreakc);
+    }
+    env->sregs[DBREAKA + i] = v;
+}
+
+void HELPER(wsr_dbreakc)(uint32_t i, uint32_t v)
+{
+    if ((env->sregs[DBREAKC + i] ^ v) & (DBREAKC_SB_LB | DBREAKC_MASK)) {
+        if (v & DBREAKC_SB_LB) {
+            set_dbreak(i, env->sregs[DBREAKA + i], v);
+        } else {
+            if (env->cpu_watchpoint[i]) {
+                cpu_watchpoint_remove_by_ref(env, env->cpu_watchpoint[i]);
+                env->cpu_watchpoint[i] = NULL;
+            }
+        }
+    }
+    env->sregs[DBREAKC + i] = v;
 }

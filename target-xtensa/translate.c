@@ -98,6 +98,10 @@ static const char * const sregnames[256] = {
     [IBREAKENABLE] = "IBREAKENABLE",
     [IBREAKA] = "IBREAKA0",
     [IBREAKA + 1] = "IBREAKA1",
+    [DBREAKA] = "DBREAKA0",
+    [DBREAKA + 1] = "DBREAKA1",
+    [DBREAKC] = "DBREAKC0",
+    [DBREAKC + 1] = "DBREAKC1",
     [EPC1] = "EPC1",
     [EPC1 + 1] = "EPC2",
     [EPC1 + 2] = "EPC3",
@@ -536,6 +540,28 @@ static void gen_wsr_ibreaka(DisasContext *dc, uint32_t sr, TCGv_i32 v)
     }
 }
 
+static void gen_wsr_dbreaka(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    unsigned id = sr - DBREAKA;
+
+    if (id < dc->config->ndbreak) {
+        TCGv_i32 tmp = tcg_const_i32(id);
+        gen_helper_wsr_dbreaka(tmp, v);
+        tcg_temp_free(tmp);
+    }
+}
+
+static void gen_wsr_dbreakc(DisasContext *dc, uint32_t sr, TCGv_i32 v)
+{
+    unsigned id = sr - DBREAKC;
+
+    if (id < dc->config->ndbreak) {
+        TCGv_i32 tmp = tcg_const_i32(id);
+        gen_helper_wsr_dbreakc(tmp, v);
+        tcg_temp_free(tmp);
+    }
+}
+
 static void gen_wsr_intset(DisasContext *dc, uint32_t sr, TCGv_i32 v)
 {
     tcg_gen_andi_i32(cpu_SR[sr], v,
@@ -634,6 +660,10 @@ static void gen_wsr(DisasContext *dc, uint32_t sr, TCGv_i32 s)
         [IBREAKENABLE] = gen_wsr_ibreakenable,
         [IBREAKA] = gen_wsr_ibreaka,
         [IBREAKA + 1] = gen_wsr_ibreaka,
+        [DBREAKA] = gen_wsr_dbreaka,
+        [DBREAKA + 1] = gen_wsr_dbreaka,
+        [DBREAKC] = gen_wsr_dbreakc,
+        [DBREAKC + 1] = gen_wsr_dbreakc,
         [INTSET] = gen_wsr_intset,
         [INTCLEAR] = gen_wsr_intclear,
         [INTENABLE] = gen_wsr_intenable,
