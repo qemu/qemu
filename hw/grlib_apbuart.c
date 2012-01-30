@@ -24,7 +24,6 @@
 
 #include "sysbus.h"
 #include "qemu-char.h"
-#include "ptimer.h"
 
 #include "trace.h"
 
@@ -66,6 +65,8 @@
 #define SCALER_OFFSET     0x0C  /* not supported */
 #define FIFO_DEBUG_OFFSET 0x10  /* not supported */
 
+#define FIFO_LENGTH 1024
+
 typedef struct UART {
     SysBusDevice busdev;
     MemoryRegion iomem;
@@ -77,21 +78,67 @@ typedef struct UART {
     uint32_t receive;
     uint32_t status;
     uint32_t control;
+
+    /* FIFO */
+    char buffer[FIFO_LENGTH];
+    int  len;
+    int  current;
 } UART;
+
+static int uart_data_to_read(UART *uart)
+{
+    return uart->current < uart->len;
+}
+
+static char uart_pop(UART *uart)
+{
+    char ret;
+
+    if (uart->len == 0) {
+        uart->status &= ~UART_DATA_READY;
+        return 0;
+    }
+
+    ret = uart->buffer[uart->current++];
+
+    if (uart->current >= uart->len) {
+        /* Flush */
+        uart->len     = 0;
+        uart->current = 0;
+    }
+
+    if (!uart_data_to_read(uart)) {
+        uart->status &= ~UART_DATA_READY;
+    }
+
+    return ret;
+}
+
+static void uart_add_to_fifo(UART          *uart,
+                             const uint8_t *buffer,
+                             int            length)
+{
+    if (uart->len + length > FIFO_LENGTH) {
+        abort();
+    }
+    memcpy(uart->buffer + uart->len, buffer, length);
+    uart->len += length;
+}
 
 static int grlib_apbuart_can_receive(void *opaque)
 {
     UART *uart = opaque;
 
-    return !!(uart->status & UART_DATA_READY);
+    return FIFO_LENGTH - uart->len;
 }
 
 static void grlib_apbuart_receive(void *opaque, const uint8_t *buf, int size)
 {
     UART *uart = opaque;
 
-    uart->receive  = *buf;
-    uart->status  |= UART_DATA_READY;
+    uart_add_to_fifo(uart, buf, size);
+
+    uart->status |= UART_DATA_READY;
 
     if (uart->control & UART_RECEIVE_INTERRUPT) {
         qemu_irq_pulse(uart->irq);
@@ -103,9 +150,39 @@ static void grlib_apbuart_event(void *opaque, int event)
     trace_grlib_apbuart_event(event);
 }
 
-static void
-grlib_apbuart_write(void *opaque, target_phys_addr_t addr,
-                    uint64_t value, unsigned size)
+
+static uint64_t grlib_apbuart_read(void *opaque, target_phys_addr_t addr,
+                                   unsigned size)
+{
+    UART     *uart = opaque;
+
+    addr &= 0xff;
+
+    /* Unit registers */
+    switch (addr) {
+    case DATA_OFFSET:
+    case DATA_OFFSET + 3:       /* when only one byte read */
+        return uart_pop(uart);
+
+    case STATUS_OFFSET:
+        /* Read Only */
+        return uart->status;
+
+    case CONTROL_OFFSET:
+        return uart->control;
+
+    case SCALER_OFFSET:
+        /* Not supported */
+        return 0;
+
+    default:
+        trace_grlib_apbuart_readl_unknown(addr);
+        return 0;
+    }
+}
+
+static void grlib_apbuart_write(void *opaque, target_phys_addr_t addr,
+                                uint64_t value, unsigned size)
 {
     UART          *uart = opaque;
     unsigned char  c    = 0;
@@ -115,6 +192,7 @@ grlib_apbuart_write(void *opaque, target_phys_addr_t addr,
     /* Unit registers */
     switch (addr) {
     case DATA_OFFSET:
+    case DATA_OFFSET + 3:       /* When only one byte write */
         c = value & 0xFF;
         qemu_chr_fe_write(uart->chr, &c, 1);
         return;
@@ -124,7 +202,7 @@ grlib_apbuart_write(void *opaque, target_phys_addr_t addr,
         return;
 
     case CONTROL_OFFSET:
-        /* Not supported */
+        uart->control = value;
         return;
 
     case SCALER_OFFSET:
@@ -138,21 +216,15 @@ grlib_apbuart_write(void *opaque, target_phys_addr_t addr,
     trace_grlib_apbuart_writel_unknown(addr, value);
 }
 
-static bool grlib_apbuart_accepts(void *opaque, target_phys_addr_t addr,
-                                  unsigned size, bool is_write)
-{
-    return is_write && size == 4;
-}
-
 static const MemoryRegionOps grlib_apbuart_ops = {
-    .write = grlib_apbuart_write,
-    .valid.accepts = grlib_apbuart_accepts,
+    .write      = grlib_apbuart_write,
+    .read       = grlib_apbuart_read,
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
 static int grlib_apbuart_init(SysBusDevice *dev)
 {
-    UART *uart      = FROM_SYSBUS(typeof(*uart), dev);
+    UART *uart = FROM_SYSBUS(typeof(*uart), dev);
 
     qemu_chr_add_handlers(uart->chr,
                           grlib_apbuart_can_receive,
