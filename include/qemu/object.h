@@ -17,6 +17,10 @@
 #include <glib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "qemu-queue.h"
+
+struct Visitor;
+struct Error;
 
 struct TypeImpl;
 typedef struct TypeImpl *Type;
@@ -114,6 +118,47 @@ typedef struct InterfaceInfo InterfaceInfo;
  * to one of its #Interface types and vice versa.
  */
 
+
+/**
+ * ObjectPropertyAccessor:
+ * @obj: the object that owns the property
+ * @v: the visitor that contains the property data
+ * @opaque: the object property opaque
+ * @name: the name of the property
+ * @errp: a pointer to an Error that is filled if getting/setting fails.
+ *
+ * Called when trying to get/set a property.
+ */
+typedef void (ObjectPropertyAccessor)(Object *obj,
+                                      struct Visitor *v,
+                                      void *opaque,
+                                      const char *name,
+                                      struct Error **errp);
+
+/**
+ * ObjectPropertyRelease:
+ * @obj: the object that owns the property
+ * @name: the name of the property
+ * @opaque: the opaque registered with the property
+ *
+ * Called when a property is removed from a object.
+ */
+typedef void (ObjectPropertyRelease)(Object *obj,
+                                     const char *name,
+                                     void *opaque);
+
+typedef struct ObjectProperty
+{
+    gchar *name;
+    gchar *type;
+    ObjectPropertyAccessor *get;
+    ObjectPropertyAccessor *set;
+    ObjectPropertyRelease *release;
+    void *opaque;
+
+    QTAILQ_ENTRY(ObjectProperty) node;
+} ObjectProperty;
+
 /**
  * ObjectClass:
  *
@@ -145,8 +190,10 @@ struct Object
 {
     /*< private >*/
     ObjectClass *class;
-
     GSList *interfaces;
+    QTAILQ_HEAD(, ObjectProperty) properties;
+    uint32_t ref;
+    Object *parent;
 };
 
 /**
@@ -435,5 +482,181 @@ ObjectClass *object_class_by_name(const char *typename);
 void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
                           const char *implements_type, bool include_abstract,
                           void *opaque);
+/**
+ * object_ref:
+ * @obj: the object
+ *
+ * Increase the reference count of a object.  A object cannot be freed as long
+ * as its reference count is greater than zero.
+ */
+void object_ref(Object *obj);
+
+/**
+ * qdef_unref:
+ * @obj: the object
+ *
+ * Decrease the reference count of a object.  A object cannot be freed as long
+ * as its reference count is greater than zero.
+ */
+void object_unref(Object *obj);
+
+/**
+ * object_property_add:
+ * @obj: the object to add a property to
+ * @name: the name of the property.  This can contain any character except for
+ *  a forward slash.  In general, you should use hyphens '-' instead of
+ *  underscores '_' when naming properties.
+ * @type: the type name of the property.  This namespace is pretty loosely
+ *   defined.  Sub namespaces are constructed by using a prefix and then
+ *   to angle brackets.  For instance, the type 'virtio-net-pci' in the
+ *   'link' namespace would be 'link<virtio-net-pci>'.
+ * @get: The getter to be called to read a property.  If this is NULL, then
+ *   the property cannot be read.
+ * @set: the setter to be called to write a property.  If this is NULL,
+ *   then the property cannot be written.
+ * @release: called when the property is removed from the object.  This is
+ *   meant to allow a property to free its opaque upon object
+ *   destruction.  This may be NULL.
+ * @opaque: an opaque pointer to pass to the callbacks for the property
+ * @errp: returns an error if this function fails
+ */
+void object_property_add(Object *obj, const char *name, const char *type,
+                         ObjectPropertyAccessor *get,
+                         ObjectPropertyAccessor *set,
+                         ObjectPropertyRelease *release,
+                         void *opaque, struct Error **errp);
+
+void object_property_del(Object *obj, const char *name, struct Error **errp);
+
+void object_unparent(Object *obj);
+
+/**
+ * object_property_get:
+ * @obj: the object
+ * @v: the visitor that will receive the property value.  This should be an
+ *   Output visitor and the data will be written with @name as the name.
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Reads a property from a object.
+ */
+void object_property_get(Object *obj, struct Visitor *v, const char *name,
+                         struct Error **errp);
+
+/**
+ * object_property_set:
+ * @obj: the object
+ * @v: the visitor that will be used to write the property value.  This should
+ *   be an Input visitor and the data will be first read with @name as the
+ *   name and then written as the property value.
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Writes a property to a object.
+ */
+void object_property_set(Object *obj, struct Visitor *v, const char *name,
+                         struct Error **errp);
+
+/**
+ * @object_property_get_type:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns:  The type name of the property.
+ */
+const char *object_property_get_type(Object *obj, const char *name,
+                                     struct Error **errp);
+
+/**
+ * object_get_root:
+ *
+ * Returns: the root object of the composition tree
+ */
+Object *object_get_root(void);
+
+/**
+ * object_get_canonical_path:
+ *
+ * Returns: The canonical path for a object.  This is the path within the
+ * composition tree starting from the root.
+ */
+gchar *object_get_canonical_path(Object *obj);
+
+/**
+ * object_resolve_path:
+ * @path: the path to resolve
+ * @ambiguous: returns true if the path resolution failed because of an
+ *   ambiguous match
+ *
+ * There are two types of supported paths--absolute paths and partial paths.
+ * 
+ * Absolute paths are derived from the root object and can follow child<> or
+ * link<> properties.  Since they can follow link<> properties, they can be
+ * arbitrarily long.  Absolute paths look like absolute filenames and are
+ * prefixed with a leading slash.
+ * 
+ * Partial paths look like relative filenames.  They do not begin with a
+ * prefix.  The matching rules for partial paths are subtle but designed to make
+ * specifying objects easy.  At each level of the composition tree, the partial
+ * path is matched as an absolute path.  The first match is not returned.  At
+ * least two matches are searched for.  A successful result is only returned if
+ * only one match is founded.  If more than one match is found, a flag is
+ * return to indicate that the match was ambiguous.
+ *
+ * Returns: The matched object or NULL on path lookup failure.
+ */
+Object *object_resolve_path(const char *path, bool *ambiguous);
+
+/**
+ * object_property_add_child:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @child: the child object
+ * @errp: if an error occurs, a pointer to an area to store the area
+ *
+ * Child properties form the composition tree.  All objects need to be a child
+ * of another object.  Objects can only be a child of one object.
+ *
+ * There is no way for a child to determine what its parent is.  It is not
+ * a bidirectional relationship.  This is by design.
+ */
+void object_property_add_child(Object *obj, const char *name,
+                               Object *child, struct Error **errp);
+
+/**
+ * object_property_add_link:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @type: the qobj type of the link
+ * @child: a pointer to where the link object reference is stored
+ * @errp: if an error occurs, a pointer to an area to store the area
+ *
+ * Links establish relationships between objects.  Links are unidirectional
+ * although two links can be combined to form a bidirectional relationship
+ * between objects.
+ *
+ * Links form the graph in the object model.
+ */
+void object_property_add_link(Object *obj, const char *name,
+                              const char *type, Object **child,
+                              struct Error **errp);
+
+/**
+ * object_property_add_str:
+ * @obj: the object to add a property to
+ * @name: the name of the property
+ * @get: the getter or NULL if the property is write-only.  This function must
+ *   return a string to be freed by g_free().
+ * @set: the setter or NULL if the property is read-only
+ * @errp: if an error occurs, a pointer to an area to store the error
+ *
+ * Add a string property using getters/setters.  This function will add a
+ * property of type 'string'.
+ */
+void object_property_add_str(Object *obj, const char *name,
+                             char *(*get)(Object *, struct Error **),
+                             void (*set)(Object *, const char *, struct Error **),
+                             struct Error **errp);
 
 #endif

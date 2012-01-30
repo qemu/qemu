@@ -164,23 +164,23 @@ void qmp_cont(Error **errp)
     vm_start();
 }
 
-DevicePropertyInfoList *qmp_qom_list(const char *path, Error **errp)
+ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 {
-    DeviceState *dev;
+    Object *obj;
     bool ambiguous = false;
-    DevicePropertyInfoList *props = NULL;
-    DeviceProperty *prop;
+    ObjectPropertyInfoList *props = NULL;
+    ObjectProperty *prop;
 
-    dev = qdev_resolve_path(path, &ambiguous);
-    if (dev == NULL) {
+    obj = object_resolve_path(path, &ambiguous);
+    if (obj == NULL) {
         error_set(errp, QERR_DEVICE_NOT_FOUND, path);
         return NULL;
     }
 
-    QTAILQ_FOREACH(prop, &dev->properties, node) {
-        DevicePropertyInfoList *entry = g_malloc0(sizeof(*entry));
+    QTAILQ_FOREACH(prop, &obj->properties, node) {
+        ObjectPropertyInfoList *entry = g_malloc0(sizeof(*entry));
 
-        entry->value = g_malloc0(sizeof(DevicePropertyInfo));
+        entry->value = g_malloc0(sizeof(ObjectPropertyInfo));
         entry->next = props;
         props = entry;
 
@@ -199,16 +199,16 @@ int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret)
     QObject *value = qdict_get(qdict, "value");
     Error *local_err = NULL;
     QmpInputVisitor *mi;
-    DeviceState *dev;
+    Object *obj;
 
-    dev = qdev_resolve_path(path, NULL);
-    if (!dev) {
+    obj = object_resolve_path(path, NULL);
+    if (!obj) {
         error_set(&local_err, QERR_DEVICE_NOT_FOUND, path);
         goto out;
     }
 
     mi = qmp_input_visitor_new(value);
-    qdev_property_set(dev, qmp_input_get_visitor(mi), property, &local_err);
+    object_property_set(obj, qmp_input_get_visitor(mi), property, &local_err);
 
     qmp_input_visitor_cleanup(mi);
 
@@ -228,16 +228,16 @@ int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret)
     const char *property = qdict_get_str(qdict, "property");
     Error *local_err = NULL;
     QmpOutputVisitor *mo;
-    DeviceState *dev;
+    Object *obj;
 
-    dev = qdev_resolve_path(path, NULL);
-    if (!dev) {
+    obj = object_resolve_path(path, NULL);
+    if (!obj) {
         error_set(&local_err, QERR_DEVICE_NOT_FOUND, path);
         goto out;
     }
 
     mo = qmp_output_visitor_new();
-    qdev_property_get(dev, qmp_output_get_visitor(mo), property, &local_err);
+    object_property_get(obj, qmp_output_get_visitor(mo), property, &local_err);
     if (!local_err) {
         *ret = qmp_output_get_qobject(mo);
     }

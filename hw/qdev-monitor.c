@@ -173,30 +173,32 @@ int qdev_device_help(QemuOpts *opts)
     return 1;
 }
 
-static DeviceState *qdev_get_peripheral(void)
+static Object *qdev_get_peripheral(void)
 {
     static DeviceState *dev;
 
     if (dev == NULL) {
         dev = qdev_create(NULL, "container");
-        qdev_property_add_child(qdev_get_root(), "peripheral", dev, NULL);
+        object_property_add_child(object_get_root(), "peripheral",
+                                  OBJECT(dev), NULL);
         qdev_init_nofail(dev);
     }
 
-    return dev;
+    return OBJECT(dev);
 }
 
-static DeviceState *qdev_get_peripheral_anon(void)
+static Object *qdev_get_peripheral_anon(void)
 {
     static DeviceState *dev;
 
     if (dev == NULL) {
         dev = qdev_create(NULL, "container");
-        qdev_property_add_child(qdev_get_root(), "peripheral-anon", dev, NULL);
+        object_property_add_child(object_get_root(), "peripheral-anon",
+                                  OBJECT(dev), NULL);
         qdev_init_nofail(dev);
     }
 
-    return dev;
+    return OBJECT(dev);
 }
 
 static void qbus_list_bus(DeviceState *dev)
@@ -455,12 +457,13 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     id = qemu_opts_id(opts);
     if (id) {
         qdev->id = id;
-        qdev_property_add_child(qdev_get_peripheral(), qdev->id, qdev, NULL);
+        object_property_add_child(qdev_get_peripheral(), qdev->id,
+                                  OBJECT(qdev), NULL);
     } else {
         static int anon_count;
         gchar *name = g_strdup_printf("device[%d]", anon_count++);
-        qdev_property_add_child(qdev_get_peripheral_anon(), name,
-                                qdev, NULL);
+        object_property_add_child(qdev_get_peripheral_anon(), name,
+                                  OBJECT(qdev), NULL);
         g_free(name);
     }        
     if (qemu_opt_foreach(opts, set_property, qdev, 1) != 0) {

@@ -1228,20 +1228,20 @@
 #
 # Notes: This type is experimental.  Its syntax may change in future releases.
 ##
-{ 'type': 'DevicePropertyInfo',
+{ 'type': 'ObjectPropertyInfo',
   'data': { 'name': 'str', 'type': 'str' } }
 
 ##
 # @qom-list:
 #
-# This command will list any properties of a device given a path in the device
+# This command will list any properties of a object given a path in the object
 # model.
 #
-# @path: the path within the device model.  See @qom-get for a description of
+# @path: the path within the object model.  See @qom-get for a description of
 #        this parameter.
 #
-# Returns: a list of @DevicePropertyInfo that describe the properties of the
-#          device.
+# Returns: a list of @ObjectPropertyInfo that describe the properties of the
+#          object.
 #
 # Since: 1.1
 #
@@ -1250,25 +1250,25 @@
 ##
 { 'command': 'qom-list',
   'data': { 'path': 'str' },
-  'returns': [ 'DevicePropertyInfo' ] }
+  'returns': [ 'ObjectPropertyInfo' ] }
 
 ##
 # @qom-get:
 #
-# This command will get a property from a device model path and return the
+# This command will get a property from a object model path and return the
 # value.
 #
-# @path: The path within the device model.  There are two forms of supported
+# @path: The path within the object model.  There are two forms of supported
 #        paths--absolute and partial paths.
 #
-#        Absolute paths are derived from the root device and can follow child<>
+#        Absolute paths are derived from the root object and can follow child<>
 #        or link<> properties.  Since they can follow link<> properties, they
 #        can be arbitrarily long.  Absolute paths look like absolute filenames
 #        and are prefixed  with a leading slash.
 #
 #        Partial paths look like relative filenames.  They do not begin
 #        with a prefix.  The matching rules for partial paths are subtle but
-#        designed to make specifying devices easy.  At each level of the
+#        designed to make specifying objects easy.  At each level of the
 #        composition tree, the partial path is matched as an absolute path.
 #        The first match is not returned.  At least two matches are searched
 #        for.  A successful result is only returned if only one match is
@@ -1294,7 +1294,7 @@
 ##
 # @qom-set:
 #
-# This command will set a property from a device model path.
+# This command will set a property from a object model path.
 #
 # @path: see @qom-get for a description of this parameter
 #

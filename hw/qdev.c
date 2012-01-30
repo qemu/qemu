@@ -222,6 +222,7 @@ void qbus_reset_all_fn(void *opaque)
 int qdev_simple_unplug_cb(DeviceState *dev)
 {
     /* just zap it */
+    object_unparent(OBJECT(dev));
     qdev_free(dev);
     return 0;
 }
@@ -243,54 +244,12 @@ void qdev_init_nofail(DeviceState *dev)
     }
 }
 
-static void qdev_property_del_all(DeviceState *dev)
-{
-    while (!QTAILQ_EMPTY(&dev->properties)) {
-        DeviceProperty *prop = QTAILQ_FIRST(&dev->properties);
-
-        QTAILQ_REMOVE(&dev->properties, prop, node);
-
-        if (prop->release) {
-            prop->release(dev, prop->name, prop->opaque);
-        }
-
-        g_free(prop->name);
-        g_free(prop->type);
-        g_free(prop);
-    }
-}
-
-static void qdev_property_del_child(DeviceState *dev, DeviceState *child, Error **errp)
-{
-    DeviceProperty *prop;
-
-    QTAILQ_FOREACH(prop, &dev->properties, node) {
-        if (strstart(prop->type, "child<", NULL) && prop->opaque == child) {
-            break;
-        }
-    }
-
-    g_assert(prop != NULL);
-
-    QTAILQ_REMOVE(&dev->properties, prop, node);
-
-    if (prop->release) {
-        prop->release(dev, prop->name, prop->opaque);
-    }
-
-    g_free(prop->name);
-    g_free(prop->type);
-    g_free(prop);
-}
-
 /* Unlink device from bus and free the structure.  */
 void qdev_free(DeviceState *dev)
 {
     BusState *bus;
     Property *prop;
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
-
-    qdev_property_del_all(dev);
 
     if (dev->state == DEV_STATE_INITIALIZED) {
         while (dev->num_child_bus) {
@@ -312,12 +271,6 @@ void qdev_free(DeviceState *dev)
         if (prop->info->free) {
             prop->info->free(dev, prop);
         }
-    }
-    if (dev->parent) {
-        qdev_property_del_child(dev->parent, dev, NULL);
-    }
-    if (dev->ref != 0) {
-        qerror_report(QERR_DEVICE_IN_USE, dev->id?:"");
     }
     object_delete(OBJECT(dev));
 }
@@ -569,106 +522,19 @@ char* qdev_get_fw_dev_path(DeviceState *dev)
     return strdup(path);
 }
 
-char *qdev_get_type(DeviceState *dev, Error **errp)
+static char *qdev_get_type(Object *obj, Error **errp)
 {
-    return g_strdup(object_get_typename(OBJECT(dev)));
-}
-
-void qdev_ref(DeviceState *dev)
-{
-    dev->ref++;
-}
-
-void qdev_unref(DeviceState *dev)
-{
-    g_assert(dev->ref > 0);
-    dev->ref--;
-}
-
-void qdev_property_add(DeviceState *dev, const char *name, const char *type,
-                       DevicePropertyAccessor *get, DevicePropertyAccessor *set,
-                       DevicePropertyRelease *release,
-                       void *opaque, Error **errp)
-{
-    DeviceProperty *prop = g_malloc0(sizeof(*prop));
-
-    prop->name = g_strdup(name);
-    prop->type = g_strdup(type);
-
-    prop->get = get;
-    prop->set = set;
-    prop->release = release;
-    prop->opaque = opaque;
-
-    QTAILQ_INSERT_TAIL(&dev->properties, prop, node);
-}
-
-static DeviceProperty *qdev_property_find(DeviceState *dev, const char *name)
-{
-    DeviceProperty *prop;
-
-    QTAILQ_FOREACH(prop, &dev->properties, node) {
-        if (strcmp(prop->name, name) == 0) {
-            return prop;
-        }
-    }
-
-    return NULL;
-}
-
-void qdev_property_get(DeviceState *dev, Visitor *v, const char *name,
-                       Error **errp)
-{
-    DeviceProperty *prop = qdev_property_find(dev, name);
-
-    if (prop == NULL) {
-        error_set(errp, QERR_PROPERTY_NOT_FOUND, dev->id?:"", name);
-        return;
-    }
-
-    if (!prop->get) {
-        error_set(errp, QERR_PERMISSION_DENIED);
-    } else {
-        prop->get(dev, v, prop->opaque, name, errp);
-    }
-}
-
-void qdev_property_set(DeviceState *dev, Visitor *v, const char *name,
-                       Error **errp)
-{
-    DeviceProperty *prop = qdev_property_find(dev, name);
-
-    if (prop == NULL) {
-        error_set(errp, QERR_PROPERTY_NOT_FOUND, dev->id?:"", name);
-        return;
-    }
-
-    if (!prop->set) {
-        error_set(errp, QERR_PERMISSION_DENIED);
-    } else {
-        prop->set(dev, v, prop->opaque, name, errp);
-    }
-}
-
-const char *qdev_property_get_type(DeviceState *dev, const char *name, Error **errp)
-{
-    DeviceProperty *prop = qdev_property_find(dev, name);
-
-    if (prop == NULL) {
-        error_set(errp, QERR_PROPERTY_NOT_FOUND, dev->id?:"", name);
-        return NULL;
-    }
-
-    return prop->type;
+    return g_strdup(object_get_typename(obj));
 }
 
 /**
  * Legacy property handling
  */
 
-static void qdev_get_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
+static void qdev_get_legacy_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
 
     char buffer[1024];
@@ -678,9 +544,10 @@ static void qdev_get_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
     visit_type_str(v, &ptr, name, errp);
 }
 
-static void qdev_set_legacy_property(DeviceState *dev, Visitor *v, void *opaque,
+static void qdev_set_legacy_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     Error *local_err = NULL;
     char *ptr = NULL;
@@ -720,11 +587,11 @@ void qdev_property_add_legacy(DeviceState *dev, Property *prop,
     type = g_strdup_printf("legacy<%s>",
                            prop->info->legacy_name ?: prop->info->name);
 
-    qdev_property_add(dev, name, type,
-                      prop->info->print ? qdev_get_legacy_property : NULL,
-                      prop->info->parse ? qdev_set_legacy_property : NULL,
-                      NULL,
-                      prop, errp);
+    object_property_add(OBJECT(dev), name, type,
+                        prop->info->print ? qdev_get_legacy_property : NULL,
+                        prop->info->parse ? qdev_set_legacy_property : NULL,
+                        NULL,
+                        prop, errp);
 
     g_free(type);
     g_free(name);
@@ -739,333 +606,10 @@ void qdev_property_add_legacy(DeviceState *dev, Property *prop,
 void qdev_property_add_static(DeviceState *dev, Property *prop,
                               Error **errp)
 {
-    qdev_property_add(dev, prop->name, prop->info->name,
-                      prop->info->get, prop->info->set,
-                      NULL,
-                      prop, errp);
-}
-
-DeviceState *qdev_get_root(void)
-{
-    static DeviceState *qdev_root;
-
-    if (!qdev_root) {
-        qdev_root = qdev_create(NULL, "container");
-        qdev_init_nofail(qdev_root);
-    }
-
-    return qdev_root;
-}
-
-static void qdev_get_child_property(DeviceState *dev, Visitor *v, void *opaque,
-                                    const char *name, Error **errp)
-{
-    DeviceState *child = opaque;
-    gchar *path;
-
-    path = qdev_get_canonical_path(child);
-    visit_type_str(v, &path, name, errp);
-    g_free(path);
-}
-
-static void qdev_release_child_property(DeviceState *dev, const char *name,
-                                        void *opaque)
-{
-    DeviceState *child = opaque;
-
-    qdev_unref(child);
-}
-
-void qdev_property_add_child(DeviceState *dev, const char *name,
-                             DeviceState *child, Error **errp)
-{
-    gchar *type;
-
-    type = g_strdup_printf("child<%s>", object_get_typename(OBJECT(child)));
-
-    qdev_property_add(dev, name, type, qdev_get_child_property,
-                      NULL, qdev_release_child_property,
-                      child, errp);
-
-    qdev_ref(child);
-    g_assert(child->parent == NULL);
-    child->parent = dev;
-
-    g_free(type);
-}
-
-static void qdev_get_link_property(DeviceState *dev, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
-{
-    DeviceState **child = opaque;
-    gchar *path;
-
-    if (*child) {
-        path = qdev_get_canonical_path(*child);
-        visit_type_str(v, &path, name, errp);
-        g_free(path);
-    } else {
-        path = (gchar *)"";
-        visit_type_str(v, &path, name, errp);
-    }
-}
-
-static void qdev_set_link_property(DeviceState *dev, Visitor *v, void *opaque,
-                                   const char *name, Error **errp)
-{
-    DeviceState **child = opaque;
-    bool ambiguous = false;
-    const char *type;
-    char *path;
-
-    type = qdev_property_get_type(dev, name, NULL);
-
-    visit_type_str(v, &path, name, errp);
-
-    if (*child) {
-        qdev_unref(*child);
-    }
-
-    if (strcmp(path, "") != 0) {
-        DeviceState *target;
-
-        target = qdev_resolve_path(path, &ambiguous);
-        if (target) {
-            gchar *target_type;
-
-            target_type = g_strdup_printf("link<%s>", object_get_typename(OBJECT(target)));
-            if (strcmp(target_type, type) == 0) {
-                *child = target;
-                qdev_ref(target);
-            } else {
-                error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, type);
-            }
-
-            g_free(target_type);
-        } else {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
-        }
-    } else {
-        *child = NULL;
-    }
-
-    g_free(path);
-}
-
-void qdev_property_add_link(DeviceState *dev, const char *name,
-                            const char *type, DeviceState **child,
-                            Error **errp)
-{
-    gchar *full_type;
-
-    full_type = g_strdup_printf("link<%s>", type);
-
-    qdev_property_add(dev, name, full_type,
-                      qdev_get_link_property,
-                      qdev_set_link_property,
-                      NULL, child, errp);
-
-    g_free(full_type);
-}
-
-gchar *qdev_get_canonical_path(DeviceState *dev)
-{
-    DeviceState *root = qdev_get_root();
-    char *newpath = NULL, *path = NULL;
-
-    while (dev != root) {
-        DeviceProperty *prop = NULL;
-
-        g_assert(dev->parent != NULL);
-
-        QTAILQ_FOREACH(prop, &dev->parent->properties, node) {
-            if (!strstart(prop->type, "child<", NULL)) {
-                continue;
-            }
-
-            if (prop->opaque == dev) {
-                if (path) {
-                    newpath = g_strdup_printf("%s/%s", prop->name, path);
-                    g_free(path);
-                    path = newpath;
-                } else {
-                    path = g_strdup(prop->name);
-                }
-                break;
-            }
-        }
-
-        g_assert(prop != NULL);
-
-        dev = dev->parent;
-    }
-
-    newpath = g_strdup_printf("/%s", path);
-    g_free(path);
-
-    return newpath;
-}
-
-static DeviceState *qdev_resolve_abs_path(DeviceState *parent,
-                                          gchar **parts,
-                                          int index)
-{
-    DeviceProperty *prop;
-    DeviceState *child;
-
-    if (parts[index] == NULL) {
-        return parent;
-    }
-
-    if (strcmp(parts[index], "") == 0) {
-        return qdev_resolve_abs_path(parent, parts, index + 1);
-    }
-
-    prop = qdev_property_find(parent, parts[index]);
-    if (prop == NULL) {
-        return NULL;
-    }
-
-    child = NULL;
-    if (strstart(prop->type, "link<", NULL)) {
-        DeviceState **pchild = prop->opaque;
-        if (*pchild) {
-            child = *pchild;
-        }
-    } else if (strstart(prop->type, "child<", NULL)) {
-        child = prop->opaque;
-    }
-
-    if (!child) {
-        return NULL;
-    }
-
-    return qdev_resolve_abs_path(child, parts, index + 1);
-}
-
-static DeviceState *qdev_resolve_partial_path(DeviceState *parent,
-                                              gchar **parts,
-                                              bool *ambiguous)
-{
-    DeviceState *dev;
-    DeviceProperty *prop;
-
-    dev = qdev_resolve_abs_path(parent, parts, 0);
-
-    QTAILQ_FOREACH(prop, &parent->properties, node) {
-        DeviceState *found;
-
-        if (!strstart(prop->type, "child<", NULL)) {
-            continue;
-        }
-
-        found = qdev_resolve_partial_path(prop->opaque, parts, ambiguous);
-        if (found) {
-            if (dev) {
-                if (ambiguous) {
-                    *ambiguous = true;
-                }
-                return NULL;
-            }
-            dev = found;
-        }
-
-        if (ambiguous && *ambiguous) {
-            return NULL;
-        }
-    }
-
-    return dev;
-}
-
-DeviceState *qdev_resolve_path(const char *path, bool *ambiguous)
-{
-    bool partial_path = true;
-    DeviceState *dev;
-    gchar **parts;
-
-    parts = g_strsplit(path, "/", 0);
-    if (parts == NULL || parts[0] == NULL) {
-        g_strfreev(parts);
-        return qdev_get_root();
-    }
-
-    if (strcmp(parts[0], "") == 0) {
-        partial_path = false;
-    }
-
-    if (partial_path) {
-        if (ambiguous) {
-            *ambiguous = false;
-        }
-        dev = qdev_resolve_partial_path(qdev_get_root(), parts, ambiguous);
-    } else {
-        dev = qdev_resolve_abs_path(qdev_get_root(), parts, 1);
-    }
-
-    g_strfreev(parts);
-
-    return dev;
-}
-
-typedef struct StringProperty
-{
-    char *(*get)(DeviceState *, Error **);
-    void (*set)(DeviceState *, const char *, Error **);
-} StringProperty;
-
-static void qdev_property_get_str(DeviceState *dev, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
-{
-    StringProperty *prop = opaque;
-    char *value;
-
-    value = prop->get(dev, errp);
-    if (value) {
-        visit_type_str(v, &value, name, errp);
-        g_free(value);
-    }
-}
-
-static void qdev_property_set_str(DeviceState *dev, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
-{
-    StringProperty *prop = opaque;
-    char *value;
-    Error *local_err = NULL;
-
-    visit_type_str(v, &value, name, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
-        return;
-    }
-
-    prop->set(dev, value, errp);
-    g_free(value);
-}
-
-static void qdev_property_release_str(DeviceState *dev, const char *name,
-                                      void *opaque)
-{
-    StringProperty *prop = opaque;
-    g_free(prop);
-}
-
-void qdev_property_add_str(DeviceState *dev, const char *name,
-                           char *(*get)(DeviceState *, Error **),
-                           void (*set)(DeviceState *, const char *, Error **),
-                           Error **errp)
-{
-    StringProperty *prop = g_malloc0(sizeof(*prop));
-
-    prop->get = get;
-    prop->set = set;
-
-    qdev_property_add(dev, name, "string",
-                      get ? qdev_property_get_str : NULL,
-                      set ? qdev_property_set_str : NULL,
-                      qdev_property_release_str,
-                      prop, errp);
+    object_property_add(OBJECT(dev), prop->name, prop->info->name,
+                        prop->info->get, prop->info->set,
+                        NULL,
+                        prop, errp);
 }
 
 static void device_initfn(Object *obj)
@@ -1079,7 +623,6 @@ static void device_initfn(Object *obj)
     }
 
     dev->instance_id_alias = -1;
-    QTAILQ_INIT(&dev->properties);
     dev->state = DEV_STATE_CREATED;
 
     qdev_prop_set_defaults(dev, qdev_get_props(dev));
@@ -1088,7 +631,7 @@ static void device_initfn(Object *obj)
         qdev_property_add_static(dev, prop, NULL);
     }
 
-    qdev_property_add_str(dev, "type", qdev_get_type, NULL, NULL);
+    object_property_add_str(OBJECT(dev), "type", qdev_get_type, NULL, NULL);
 }
 
 void device_reset(DeviceState *dev)

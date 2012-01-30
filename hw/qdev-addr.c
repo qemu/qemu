@@ -18,9 +18,10 @@ static int print_taddr(DeviceState *dev, Property *prop, char *dest, size_t len)
     return snprintf(dest, len, "0x" TARGET_FMT_plx, *ptr);
 }
 
-static void get_taddr(DeviceState *dev, Visitor *v, void *opaque,
+static void get_taddr(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     target_phys_addr_t *ptr = qdev_get_prop_ptr(dev, prop);
     int64_t value;
@@ -29,9 +30,10 @@ static void get_taddr(DeviceState *dev, Visitor *v, void *opaque,
     visit_type_int(v, &value, name, errp);
 }
 
-static void set_taddr(DeviceState *dev, Visitor *v, void *opaque,
+static void set_taddr(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     target_phys_addr_t *ptr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;

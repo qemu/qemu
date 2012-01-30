@@ -12,6 +12,9 @@
 
 #include "qemu/object.h"
 #include "qemu-common.h"
+#include "qapi/qapi-visit-core.h"
+#include "hw/qdev.h"
+// FIXME remove above
 
 #define MAX_INTERFACES 32
 
@@ -258,6 +261,7 @@ void object_initialize_with_type(void *data, TypeImpl *type)
 
     memset(obj, 0, type->instance_size);
     obj->class = type->class;
+    QTAILQ_INIT(&obj->properties);
     object_init_with_type(obj, type);
 }
 
@@ -266,6 +270,45 @@ void object_initialize(void *data, const char *typename)
     TypeImpl *type = type_get_by_name(typename);
 
     object_initialize_with_type(data, type);
+}
+
+static void object_property_del_all(Object *obj)
+{
+    while (!QTAILQ_EMPTY(&obj->properties)) {
+        ObjectProperty *prop = QTAILQ_FIRST(&obj->properties);
+
+        QTAILQ_REMOVE(&obj->properties, prop, node);
+
+        if (prop->release) {
+            prop->release(obj, prop->name, prop->opaque);
+        }
+
+        g_free(prop->name);
+        g_free(prop->type);
+        g_free(prop);
+    }
+}
+
+static void object_property_del_child(Object *obj, Object *child, Error **errp)
+{
+    ObjectProperty *prop;
+
+    QTAILQ_FOREACH(prop, &obj->properties, node) {
+        if (!strstart(prop->type, "child<", NULL)) {
+            continue;
+        }
+
+        if (prop->opaque == child) {
+            object_property_del(obj, prop->name, errp);
+        }
+    }
+}
+
+void object_unparent(Object *obj)
+{
+    if (obj->parent) {
+        object_property_del_child(obj->parent, obj, NULL);
+    }
 }
 
 static void object_deinit(Object *obj, TypeImpl *type)
@@ -283,6 +326,8 @@ static void object_deinit(Object *obj, TypeImpl *type)
     if (type_has_parent(type)) {
         object_deinit(obj, type_get_parent(type));
     }
+
+    object_unparent(obj);
 }
 
 void object_finalize(void *data)
@@ -291,6 +336,7 @@ void object_finalize(void *data)
     TypeImpl *ti = obj->class->type;
 
     object_deinit(obj, ti);
+    object_property_del_all(obj);
 }
 
 Object *object_new_with_type(Type type)
@@ -501,4 +547,426 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
     OCFData data = { fn, implements_type, include_abstract, opaque };
 
     g_hash_table_foreach(type_table_get(), object_class_foreach_tramp, &data);
+}
+
+void object_ref(Object *obj)
+{
+    obj->ref++;
+}
+
+void object_unref(Object *obj)
+{
+    g_assert(obj->ref > 0);
+    obj->ref--;
+
+    /* parent always holds a reference to its children */
+    if (obj->ref == 0) {
+        object_finalize(obj);
+    }
+}
+
+void object_property_add(Object *obj, const char *name, const char *type,
+                         ObjectPropertyAccessor *get,
+                         ObjectPropertyAccessor *set,
+                         ObjectPropertyRelease *release,
+                         void *opaque, Error **errp)
+{
+    ObjectProperty *prop = g_malloc0(sizeof(*prop));
+
+    prop->name = g_strdup(name);
+    prop->type = g_strdup(type);
+
+    prop->get = get;
+    prop->set = set;
+    prop->release = release;
+    prop->opaque = opaque;
+
+    QTAILQ_INSERT_TAIL(&obj->properties, prop, node);
+}
+
+static ObjectProperty *object_property_find(Object *obj, const char *name)
+{
+    ObjectProperty *prop;
+
+    QTAILQ_FOREACH(prop, &obj->properties, node) {
+        if (strcmp(prop->name, name) == 0) {
+            return prop;
+        }
+    }
+
+    return NULL;
+}
+
+void object_property_del(Object *obj, const char *name, Error **errp)
+{
+    ObjectProperty *prop = object_property_find(obj, name);
+
+    QTAILQ_REMOVE(&obj->properties, prop, node);
+
+    prop->release(obj, prop->name, prop->opaque);
+
+    g_free(prop->name);
+    g_free(prop->type);
+    g_free(prop);
+}
+
+void object_property_get(Object *obj, Visitor *v, const char *name,
+                         Error **errp)
+{
+    ObjectProperty *prop = object_property_find(obj, name);
+
+    if (prop == NULL) {
+        error_set(errp, QERR_PROPERTY_NOT_FOUND, "", name);
+        return;
+    }
+
+    if (!prop->get) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+    } else {
+        prop->get(obj, v, prop->opaque, name, errp);
+    }
+}
+
+void object_property_set(Object *obj, Visitor *v, const char *name,
+                         Error **errp)
+{
+    ObjectProperty *prop = object_property_find(obj, name);
+
+    if (prop == NULL) {
+        error_set(errp, QERR_PROPERTY_NOT_FOUND, "", name);
+        return;
+    }
+
+    if (!prop->set) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+    } else {
+        prop->set(obj, v, prop->opaque, name, errp);
+    }
+}
+
+const char *object_property_get_type(Object *obj, const char *name, Error **errp)
+{
+    ObjectProperty *prop = object_property_find(obj, name);
+
+    if (prop == NULL) {
+        error_set(errp, QERR_PROPERTY_NOT_FOUND, "", name);
+        return NULL;
+    }
+
+    return prop->type;
+}
+
+Object *object_get_root(void)
+{
+    static DeviceState *object_root;
+
+    if (!object_root) {
+        object_root = qdev_create(NULL, "container");
+        qdev_init_nofail(object_root);
+    }
+
+    return OBJECT(object_root);
+}
+
+static void object_get_child_property(Object *obj, Visitor *v, void *opaque,
+                                      const char *name, Error **errp)
+{
+    Object *child = opaque;
+    gchar *path;
+
+    path = object_get_canonical_path(child);
+    visit_type_str(v, &path, name, errp);
+    g_free(path);
+}
+
+void object_property_add_child(Object *obj, const char *name,
+                               Object *child, Error **errp)
+{
+    gchar *type;
+
+    type = g_strdup_printf("child<%s>", object_get_typename(OBJECT(child)));
+
+    object_property_add(obj, name, type, object_get_child_property,
+                        NULL, NULL, child, errp);
+
+    object_ref(child);
+    g_assert(child->parent == NULL);
+    child->parent = obj;
+
+    g_free(type);
+}
+
+static void object_get_link_property(Object *obj, Visitor *v, void *opaque,
+                                     const char *name, Error **errp)
+{
+    Object **child = opaque;
+    gchar *path;
+
+    if (*child) {
+        path = object_get_canonical_path(*child);
+        visit_type_str(v, &path, name, errp);
+        g_free(path);
+    } else {
+        path = (gchar *)"";
+        visit_type_str(v, &path, name, errp);
+    }
+}
+
+static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
+                                     const char *name, Error **errp)
+{
+    Object **child = opaque;
+    bool ambiguous = false;
+    const char *type;
+    char *path;
+
+    type = object_property_get_type(obj, name, NULL);
+
+    visit_type_str(v, &path, name, errp);
+
+    if (*child) {
+        object_unref(*child);
+    }
+
+    if (strcmp(path, "") != 0) {
+        Object *target;
+
+        target = object_resolve_path(path, &ambiguous);
+        if (target) {
+            gchar *target_type;
+
+            target_type = g_strdup_printf("link<%s>",
+                                          object_get_typename(OBJECT(target)));
+            if (strcmp(target_type, type) == 0) {
+                *child = target;
+                object_ref(target);
+            } else {
+                error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, type);
+            }
+
+            g_free(target_type);
+        } else {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+        }
+    } else {
+        *child = NULL;
+    }
+
+    g_free(path);
+}
+
+void object_property_add_link(Object *obj, const char *name,
+                              const char *type, Object **child,
+                              Error **errp)
+{
+    gchar *full_type;
+
+    full_type = g_strdup_printf("link<%s>", type);
+
+    object_property_add(obj, name, full_type,
+                        object_get_link_property,
+                        object_set_link_property,
+                        NULL, child, errp);
+
+    g_free(full_type);
+}
+
+gchar *object_get_canonical_path(Object *obj)
+{
+    Object *root = object_get_root();
+    char *newpath = NULL, *path = NULL;
+
+    while (obj != root) {
+        ObjectProperty *prop = NULL;
+
+        g_assert(obj->parent != NULL);
+
+        QTAILQ_FOREACH(prop, &obj->parent->properties, node) {
+            if (!strstart(prop->type, "child<", NULL)) {
+                continue;
+            }
+
+            if (prop->opaque == obj) {
+                if (path) {
+                    newpath = g_strdup_printf("%s/%s", prop->name, path);
+                    g_free(path);
+                    path = newpath;
+                } else {
+                    path = g_strdup(prop->name);
+                }
+                break;
+            }
+        }
+
+        g_assert(prop != NULL);
+
+        obj = obj->parent;
+    }
+
+    newpath = g_strdup_printf("/%s", path);
+    g_free(path);
+
+    return newpath;
+}
+
+static Object *object_resolve_abs_path(Object *parent,
+                                          gchar **parts,
+                                          int index)
+{
+    ObjectProperty *prop;
+    Object *child;
+
+    if (parts[index] == NULL) {
+        return parent;
+    }
+
+    if (strcmp(parts[index], "") == 0) {
+        return object_resolve_abs_path(parent, parts, index + 1);
+    }
+
+    prop = object_property_find(parent, parts[index]);
+    if (prop == NULL) {
+        return NULL;
+    }
+
+    child = NULL;
+    if (strstart(prop->type, "link<", NULL)) {
+        Object **pchild = prop->opaque;
+        if (*pchild) {
+            child = *pchild;
+        }
+    } else if (strstart(prop->type, "child<", NULL)) {
+        child = prop->opaque;
+    }
+
+    if (!child) {
+        return NULL;
+    }
+
+    return object_resolve_abs_path(child, parts, index + 1);
+}
+
+static Object *object_resolve_partial_path(Object *parent,
+                                              gchar **parts,
+                                              bool *ambiguous)
+{
+    Object *obj;
+    ObjectProperty *prop;
+
+    obj = object_resolve_abs_path(parent, parts, 0);
+
+    QTAILQ_FOREACH(prop, &parent->properties, node) {
+        Object *found;
+
+        if (!strstart(prop->type, "child<", NULL)) {
+            continue;
+        }
+
+        found = object_resolve_partial_path(prop->opaque, parts, ambiguous);
+        if (found) {
+            if (obj) {
+                if (ambiguous) {
+                    *ambiguous = true;
+                }
+                return NULL;
+            }
+            obj = found;
+        }
+
+        if (ambiguous && *ambiguous) {
+            return NULL;
+        }
+    }
+
+    return obj;
+}
+
+Object *object_resolve_path(const char *path, bool *ambiguous)
+{
+    bool partial_path = true;
+    Object *obj;
+    gchar **parts;
+
+    parts = g_strsplit(path, "/", 0);
+    if (parts == NULL || parts[0] == NULL) {
+        g_strfreev(parts);
+        return object_get_root();
+    }
+
+    if (strcmp(parts[0], "") == 0) {
+        partial_path = false;
+    }
+
+    if (partial_path) {
+        if (ambiguous) {
+            *ambiguous = false;
+        }
+        obj = object_resolve_partial_path(object_get_root(), parts, ambiguous);
+    } else {
+        obj = object_resolve_abs_path(object_get_root(), parts, 1);
+    }
+
+    g_strfreev(parts);
+
+    return obj;
+}
+
+typedef struct StringProperty
+{
+    char *(*get)(Object *, Error **);
+    void (*set)(Object *, const char *, Error **);
+} StringProperty;
+
+static void object_property_get_str(Object *obj, Visitor *v, void *opaque,
+                                    const char *name, Error **errp)
+{
+    StringProperty *prop = opaque;
+    char *value;
+
+    value = prop->get(obj, errp);
+    if (value) {
+        visit_type_str(v, &value, name, errp);
+        g_free(value);
+    }
+}
+
+static void object_property_set_str(Object *obj, Visitor *v, void *opaque,
+                                  const char *name, Error **errp)
+{
+    StringProperty *prop = opaque;
+    char *value;
+    Error *local_err = NULL;
+
+    visit_type_str(v, &value, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
+
+    prop->set(obj, value, errp);
+    g_free(value);
+}
+
+static void object_property_release_str(Object *obj, const char *name,
+                                      void *opaque)
+{
+    StringProperty *prop = opaque;
+    g_free(prop);
+}
+
+void object_property_add_str(Object *obj, const char *name,
+                           char *(*get)(Object *, Error **),
+                           void (*set)(Object *, const char *, Error **),
+                           Error **errp)
+{
+    StringProperty *prop = g_malloc0(sizeof(*prop));
+
+    prop->get = get;
+    prop->set = set;
+
+    object_property_add(obj, name, "string",
+                        get ? object_property_get_str : NULL,
+                        set ? object_property_set_str : NULL,
+                        object_property_release_str,
+                        prop, errp);
 }

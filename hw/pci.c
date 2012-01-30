@@ -1517,6 +1517,7 @@ static int pci_unplug_device(DeviceState *qdev)
         qerror_report(QERR_DEVICE_NO_HOTPLUG, object_get_typename(OBJECT(dev)));
         return -1;
     }
+    object_unparent(OBJECT(dev));
     return dev->bus->hotplug(dev->bus->hotplug_qdev, dev,
                              PCI_HOTPLUG_DISABLED);
 }
