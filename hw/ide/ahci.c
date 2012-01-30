@@ -146,6 +146,7 @@ static void ahci_check_irq(AHCIState *s)
 
     DPRINTF(-1, "check irq %#x\n", s->control_regs.irqstatus);
 
+    s->control_regs.irqstatus = 0;
     for (i = 0; i < s->ports; i++) {
         AHCIPortRegs *pr = &s->dev[i].port_regs;
         if (pr->irq_stat & pr->irq_mask) {
@@ -216,6 +217,7 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             break;
         case PORT_IRQ_STAT:
             pr->irq_stat &= ~val;
+            ahci_check_irq(s);
             break;
         case PORT_IRQ_MASK:
             pr->irq_mask = val & 0xfdc000ff;
