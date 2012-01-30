@@ -560,6 +560,11 @@ static void ahci_reset_port(AHCIState *s, int port)
             ncq_tfs->aiocb = NULL;
         }
 
+        /* Maybe we just finished the request thanks to bdrv_aio_cancel() */
+        if (!ncq_tfs->used) {
+            continue;
+        }
+
         qemu_sglist_destroy(&ncq_tfs->sglist);
         ncq_tfs->used = 0;
     }
