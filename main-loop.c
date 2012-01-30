@@ -368,7 +368,7 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
 
 static void os_host_main_loop_wait(int *timeout)
 {
-    int ret, ret2, i;
+    int ret, i;
     PollingEntry *pe;
 
     /* XXX: need to suppress polling by better using win32 events */
@@ -377,33 +377,36 @@ static void os_host_main_loop_wait(int *timeout)
         ret |= pe->func(pe->opaque);
     }
     if (ret == 0) {
+        DWORD event;
         int err;
         WaitObjects *w = &wait_objects;
 
         qemu_mutex_unlock_iothread();
-        ret = WaitForMultipleObjects(w->num, w->events, FALSE, *timeout);
+        event = WaitForMultipleObjects(w->num, w->events, FALSE, *timeout);
         qemu_mutex_lock_iothread();
-        if (WAIT_OBJECT_0 + 0 <= ret && ret <= WAIT_OBJECT_0 + w->num - 1) {
-            if (w->func[ret - WAIT_OBJECT_0]) {
-                w->func[ret - WAIT_OBJECT_0](w->opaque[ret - WAIT_OBJECT_0]);
+        /* Make sure that the definition of WAIT_OBJECT_0 did not change. */
+        assert(WAIT_OBJECT_0 == 0);
+        if (event < WAIT_OBJECT_0 + w->num) {
+            if (w->func[event]) {
+                w->func[event](w->opaque[event]);
             }
 
             /* Check for additional signaled events */
-            for (i = (ret - WAIT_OBJECT_0 + 1); i < w->num; i++) {
+            for (i = (event + 1); i < w->num; i++) {
                 /* Check if event is signaled */
-                ret2 = WaitForSingleObject(w->events[i], 0);
-                if (ret2 == WAIT_OBJECT_0) {
+                event = WaitForSingleObject(w->events[i], 0);
+                if (event == WAIT_OBJECT_0) {
                     if (w->func[i]) {
                         w->func[i](w->opaque[i]);
                     }
-                } else if (ret2 != WAIT_TIMEOUT) {
+                } else if (event != WAIT_TIMEOUT) {
                     err = GetLastError();
                     fprintf(stderr, "WaitForSingleObject error %d %d\n", i, err);
                 }
             }
-        } else if (ret != WAIT_TIMEOUT) {
+        } else if (event != WAIT_TIMEOUT) {
             err = GetLastError();
-            fprintf(stderr, "WaitForMultipleObjects error %d %d\n", ret, err);
+            fprintf(stderr, "WaitForMultipleObjects error %lu %d\n", event, err);
         }
     }
 
