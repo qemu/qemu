@@ -23,11 +23,14 @@
 #endif
 
 extern int kvm_allowed;
+extern bool kvm_kernel_irqchip;
 
 #if defined CONFIG_KVM || !defined NEED_CPU_H
-#define kvm_enabled() (kvm_allowed)
+#define kvm_enabled()           (kvm_allowed)
+#define kvm_irqchip_in_kernel() (kvm_kernel_irqchip)
 #else
-#define kvm_enabled() (0)
+#define kvm_enabled()           (0)
+#define kvm_irqchip_in_kernel() (false)
 #endif
 
 struct kvm_run;
@@ -80,7 +83,6 @@ int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset);
 #endif
 
 int kvm_pit_in_kernel(void);
-int kvm_irqchip_in_kernel(void);
 
 int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);

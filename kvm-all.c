@@ -74,7 +74,6 @@ struct KVMState
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
-    int irqchip_in_kernel;
     int pit_in_kernel;
     int xsave, xcrs;
     int many_ioeventfds;
@@ -88,6 +87,7 @@ struct KVMState
 };
 
 KVMState *kvm_state;
+bool kvm_kernel_irqchip;
 
 static const KVMCapabilityInfo kvm_required_capabilites[] = {
     KVM_CAP_INFO(USER_MEMORY),
@@ -191,11 +191,6 @@ static void kvm_reset_vcpu(void *opaque)
     CPUState *env = opaque;
 
     kvm_arch_reset_vcpu(env);
-}
-
-int kvm_irqchip_in_kernel(void)
-{
-    return kvm_state->irqchip_in_kernel;
 }
 
 int kvm_pit_in_kernel(void)
@@ -742,7 +737,7 @@ int kvm_irqchip_set_irq(KVMState *s, int irq, int level)
     struct kvm_irq_level event;
     int ret;
 
-    assert(s->irqchip_in_kernel);
+    assert(kvm_irqchip_in_kernel());
 
     event.level = level;
     event.irq = irq;
@@ -862,7 +857,7 @@ static int kvm_irqchip_create(KVMState *s)
     if (kvm_check_extension(s, KVM_CAP_IRQ_INJECT_STATUS)) {
         s->irqchip_inject_ioctl = KVM_IRQ_LINE_STATUS;
     }
-    s->irqchip_in_kernel = 1;
+    kvm_kernel_irqchip = true;
 
     kvm_init_irq_routing(s);
 
@@ -1315,7 +1310,7 @@ int kvm_has_gsi_routing(void)
 
 int kvm_allows_irq0_override(void)
 {
-    return !kvm_enabled() || !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
+    return !kvm_irqchip_in_kernel() || kvm_has_gsi_routing();
 }
 
 void kvm_setup_guest_memory(void *start, size_t size)

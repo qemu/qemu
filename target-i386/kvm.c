@@ -1356,7 +1356,7 @@ static int kvm_get_apic(CPUState *env)
     struct kvm_lapic_state kapic;
     int ret;
 
-    if (apic && kvm_enabled() && kvm_irqchip_in_kernel()) {
+    if (apic && kvm_irqchip_in_kernel()) {
         ret = kvm_vcpu_ioctl(env, KVM_GET_LAPIC, &kapic);
         if (ret < 0) {
             return ret;
@@ -1372,7 +1372,7 @@ static int kvm_put_apic(CPUState *env)
     DeviceState *apic = env->apic_state;
     struct kvm_lapic_state kapic;
 
-    if (apic && kvm_enabled() && kvm_irqchip_in_kernel()) {
+    if (apic && kvm_irqchip_in_kernel()) {
         kvm_put_apic_state(apic, &kapic);
 
         return kvm_vcpu_ioctl(env, KVM_SET_LAPIC, &kapic);
