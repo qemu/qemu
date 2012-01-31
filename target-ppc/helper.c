@@ -2698,22 +2698,10 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
                   "Performance counter exception is not implemented yet !\n");
         goto store_next;
     case POWERPC_EXCP_DOORI:     /* Embedded doorbell interrupt              */
-        /* XXX: TODO */
-        cpu_abort(env,
-                  "Embedded doorbell interrupt is not implemented yet !\n");
         goto store_next;
     case POWERPC_EXCP_DOORCI:    /* Embedded doorbell critical interrupt     */
-        switch (excp_model) {
-        case POWERPC_EXCP_BOOKE:
-            srr0 = SPR_BOOKE_CSRR0;
-            srr1 = SPR_BOOKE_CSRR1;
-            break;
-        default:
-            break;
-        }
-        /* XXX: TODO */
-        cpu_abort(env, "Embedded doorbell critical interrupt "
-                  "is not implemented yet !\n");
+        srr0 = SPR_BOOKE_CSRR0;
+        srr1 = SPR_BOOKE_CSRR1;
         goto store_next;
     case POWERPC_EXCP_RESET:     /* System reset exception                   */
         if (msr_pow) {
