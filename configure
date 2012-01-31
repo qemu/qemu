@@ -2528,11 +2528,16 @@ if test "$smartcard" != "no" ; then
     smartcard_cflags=""
     # TODO - what's the minimal nss version we support?
     if test "$smartcard_nss" != "no"; then
-        if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 ; then
+      cat > $TMPC << EOF
+#include <pk11pub.h>
+int main(void) { PK11_FreeSlot(0); return 0; }
+EOF
+        smartcard_cflags="-I\$(SRC_PATH)/libcacard"
+        libcacard_libs=$($pkg_config --libs nss 2>/dev/null)
+        libcacard_cflags=$($pkg_config --cflags nss 2>/dev/null)
+        if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
+          compile_prog "$smartcard_cflags $libcacard_cflags" "$libcacard_libs"; then
             smartcard_nss="yes"
-            smartcard_cflags="-I\$(SRC_PATH)/libcacard"
-            libcacard_libs=$($pkg_config --libs nss 2>/dev/null)
-            libcacard_cflags=$($pkg_config --cflags nss 2>/dev/null)
             QEMU_CFLAGS="$QEMU_CFLAGS $smartcard_cflags $libcacard_cflags"
             LIBS="$libcacard_libs $LIBS"
         else
