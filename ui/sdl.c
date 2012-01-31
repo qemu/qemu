@@ -483,12 +483,27 @@ static void sdl_grab_end(void)
     sdl_update_caption();
 }
 
+static void absolute_mouse_grab(void)
+{
+    int mouse_x, mouse_y;
+
+    if (SDL_GetAppState() & SDL_APPINPUTFOCUS) {
+        SDL_GetMouseState(&mouse_x, &mouse_y);
+        if (mouse_x > 0 && mouse_x < real_screen->w - 1 &&
+            mouse_y > 0 && mouse_y < real_screen->h - 1) {
+            sdl_grab_start();
+        }
+    }
+}
+
 static void sdl_mouse_mode_change(Notifier *notify, void *data)
 {
     if (kbd_mouse_is_absolute()) {
         if (!absolute_enabled) {
-            sdl_grab_start();
             absolute_enabled = 1;
+            if (is_graphic_console()) {
+                absolute_mouse_grab();
+            }
         }
     } else if (absolute_enabled) {
         if (!gui_fullscreen) {
@@ -569,19 +584,6 @@ static void toggle_full_screen(DisplayState *ds)
     }
     vga_hw_invalidate();
     vga_hw_update();
-}
-
-static void absolute_mouse_grab(void)
-{
-    int mouse_x, mouse_y;
-
-    if (SDL_GetAppState() & SDL_APPINPUTFOCUS) {
-        SDL_GetMouseState(&mouse_x, &mouse_y);
-        if (mouse_x > 0 && mouse_x < real_screen->w - 1 &&
-            mouse_y > 0 && mouse_y < real_screen->h - 1) {
-            sdl_grab_start();
-        }
-    }
 }
 
 static void handle_keydown(DisplayState *ds, SDL_Event *ev)
