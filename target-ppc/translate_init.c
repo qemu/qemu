@@ -4412,7 +4412,7 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |        \
                                 PPC_FLOAT_STFIWX | PPC_WAIT |               \
                                 PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
-#define POWERPC_INSNS2_e500mc  (PPC2_BOOKE206)
+#define POWERPC_INSNS2_e500mc  (PPC2_BOOKE206 | PPC2_PRCNTL)
 #define POWERPC_MSRM_e500mc    (0x000000001402FB36ULL)
 #define POWERPC_MMU_e500mc     (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e500mc    (POWERPC_EXCP_BOOKE)
