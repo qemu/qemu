@@ -4549,4 +4549,22 @@ void helper_msgclr(target_ulong rb)
     env->pending_interrupts &= ~(1 << irq);
 }
 
+void helper_msgsnd(target_ulong rb)
+{
+    int irq = dbell2irq(rb);
+    int pir = rb & DBELL_PIRTAG_MASK;
+    CPUState *cenv;
+
+    if (irq < 0) {
+        return;
+    }
+
+    for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
+        if ((rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir)) {
+            cenv->pending_interrupts |= 1 << irq;
+            cpu_interrupt(cenv, CPU_INTERRUPT_HARD);
+        }
+    }
+}
+
 #endif /* !CONFIG_USER_ONLY */

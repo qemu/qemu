@@ -358,6 +358,7 @@ DEF_HELPER_FLAGS_1(load_sr, TCG_CALL_CONST, tl, tl);
 DEF_HELPER_FLAGS_2(store_sr, TCG_CALL_CONST, void, tl, tl)
 
 DEF_HELPER_FLAGS_1(602_mfrom, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
+DEF_HELPER_1(msgsnd, void, tl)
 DEF_HELPER_1(msgclr, void, tl)
 #endif
 
