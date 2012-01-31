@@ -234,7 +234,11 @@ ld="${LD-${cross_prefix}ld}"
 libtool="${LIBTOOL-${cross_prefix}libtool}"
 strip="${STRIP-${cross_prefix}strip}"
 windres="${WINDRES-${cross_prefix}windres}"
-pkg_config="${PKG_CONFIG-${cross_prefix}pkg-config}"
+pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
+query_pkg_config() {
+    "${pkg_config_exe}" ${QEMU_PKG_CONFIG_FLAGS} "$@"
+}
+pkg_config=query_pkg_config
 sdl_config="${SDL_CONFIG-${cross_prefix}sdl-config}"
 
 # default flags for all hosts
@@ -553,6 +557,7 @@ for opt do
   --static)
     static="yes"
     LDFLAGS="-static $LDFLAGS"
+    QEMU_PKG_CONFIG_FLAGS="--static $QEMU_PKG_CONFIG_FLAGS"
   ;;
   --mandir=*) mandir="$optarg"
   ;;
@@ -1449,8 +1454,8 @@ fi
 ##########################################
 # pkg-config probe
 
-if ! has $pkg_config; then
-  echo "Error: pkg-config binary '$pkg_config' not found"
+if ! has "$pkg_config_exe"; then
+  echo "Error: pkg-config binary '$pkg_config_exe' not found"
   exit 1
 fi
 
