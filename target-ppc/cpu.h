@@ -1916,8 +1916,10 @@ enum {
     PPC2_VSX           = 0x0000000000000002ULL,
     /* Decimal Floating Point (DFP)                                          */
     PPC2_DFP           = 0x0000000000000004ULL,
+    /* Embedded.Processor Control                                            */
+    PPC2_PRCNTL        = 0x0000000000000008ULL,
 
-#define PPC_TCG_INSNS2 (PPC2_BOOKE206)
+#define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_PRCNTL)
 };
 
 /*****************************************************************************/
