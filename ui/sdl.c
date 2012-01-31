@@ -461,6 +461,14 @@ static void sdl_show_cursor(void)
 
 static void sdl_grab_start(void)
 {
+    /*
+     * If the application is not active, do not try to enter grab state. This
+     * prevents 'SDL_WM_GrabInput(SDL_GRAB_ON)' from blocking all the
+     * application (SDL bug).
+     */
+    if (!(SDL_GetAppState() & SDL_APPINPUTFOCUS)) {
+        return;
+    }
     if (guest_cursor) {
         SDL_SetCursor(guest_sprite);
         if (!kbd_mouse_is_absolute() && !absolute_enabled)
@@ -487,12 +495,10 @@ static void absolute_mouse_grab(void)
 {
     int mouse_x, mouse_y;
 
-    if (SDL_GetAppState() & SDL_APPINPUTFOCUS) {
-        SDL_GetMouseState(&mouse_x, &mouse_y);
-        if (mouse_x > 0 && mouse_x < real_screen->w - 1 &&
-            mouse_y > 0 && mouse_y < real_screen->h - 1) {
-            sdl_grab_start();
-        }
+    SDL_GetMouseState(&mouse_x, &mouse_y);
+    if (mouse_x > 0 && mouse_x < real_screen->w - 1 &&
+        mouse_y > 0 && mouse_y < real_screen->h - 1) {
+        sdl_grab_start();
     }
 }
 
@@ -745,11 +751,7 @@ static void handle_keyup(DisplayState *ds, SDL_Event *ev)
         if (gui_keysym == 0) {
             /* exit/enter grab if pressing Ctrl-Alt */
             if (!gui_grab) {
-                /* If the application is not active, do not try to enter grab
-                 * state. It prevents 'SDL_WM_GrabInput(SDL_GRAB_ON)' from
-                 * blocking all the application (SDL bug). */
-                if (is_graphic_console() &&
-                    SDL_GetAppState() & SDL_APPACTIVE) {
+                if (is_graphic_console()) {
                     sdl_grab_start();
                 }
             } else if (!gui_fullscreen) {
@@ -779,7 +781,7 @@ static void handle_mousemotion(DisplayState *ds, SDL_Event *ev)
             ev->motion.x == max_x || ev->motion.y == max_y)) {
             sdl_grab_end();
         }
-        if (!gui_grab && SDL_GetAppState() & SDL_APPINPUTFOCUS &&
+        if (!gui_grab &&
             (ev->motion.x > 0 && ev->motion.x < max_x &&
             ev->motion.y > 0 && ev->motion.y < max_y)) {
             sdl_grab_start();
