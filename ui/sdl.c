@@ -802,8 +802,7 @@ static void handle_mousebutton(DisplayState *ds, SDL_Event *ev)
 
     bev = &ev->button;
     if (!gui_grab && !kbd_mouse_is_absolute()) {
-        if (ev->type == SDL_MOUSEBUTTONDOWN &&
-            (bev->button == SDL_BUTTON_LEFT)) {
+        if (ev->type == SDL_MOUSEBUTTONUP && bev->button == SDL_BUTTON_LEFT) {
             /* start grabbing all events */
             sdl_grab_start();
         }
