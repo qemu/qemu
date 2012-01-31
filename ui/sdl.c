@@ -828,10 +828,14 @@ static void handle_mousebutton(DisplayState *ds, SDL_Event *ev)
 
 static void handle_activation(DisplayState *ds, SDL_Event *ev)
 {
+#ifdef _WIN32
+    /* Disable grab if the window no longer has the focus
+     * (Windows-only workaround) */
     if (gui_grab && ev->active.state == SDL_APPINPUTFOCUS &&
         !ev->active.gain && !gui_fullscreen) {
         sdl_grab_end();
     }
+#endif
     if (!gui_grab && ev->active.gain && is_graphic_console() &&
         (kbd_mouse_is_absolute() || absolute_enabled)) {
         absolute_mouse_grab();
