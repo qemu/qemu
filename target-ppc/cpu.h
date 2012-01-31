@@ -187,7 +187,10 @@ enum {
     POWERPC_EXCP_EPERFM   = 35, /* Embedded performance monitor interrupt    */
     POWERPC_EXCP_DOORI    = 36, /* Embedded doorbell interrupt               */
     POWERPC_EXCP_DOORCI   = 37, /* Embedded doorbell critical interrupt      */
-    /* Vectors 38 to 63 are reserved                                         */
+    POWERPC_EXCP_GDOORI   = 38, /* Embedded guest doorbell interrupt         */
+    POWERPC_EXCP_GDOORCI  = 39, /* Embedded guest doorbell critical interrupt*/
+    POWERPC_EXCP_HYPPRIV  = 41, /* Embedded hypervisor priv instruction      */
+    /* Vectors 42 to 63 are reserved                                         */
     /* Exceptions defined in the PowerPC server specification                */
     POWERPC_EXCP_RESET    = 64, /* System reset exception                    */
     POWERPC_EXCP_DSEG     = 65, /* Data segment exception                    */
