@@ -4514,4 +4514,39 @@ void helper_booke206_tlbflush(uint32_t type)
     booke206_flush_tlb(env, flags, 1);
 }
 
+/* Embedded.Processor Control */
+static int dbell2irq(target_ulong rb)
+{
+    int msg = rb & DBELL_TYPE_MASK;
+    int irq = -1;
+
+    switch (msg) {
+    case DBELL_TYPE_DBELL:
+        irq = PPC_INTERRUPT_DOORBELL;
+        break;
+    case DBELL_TYPE_DBELL_CRIT:
+        irq = PPC_INTERRUPT_CDOORBELL;
+        break;
+    case DBELL_TYPE_G_DBELL:
+    case DBELL_TYPE_G_DBELL_CRIT:
+    case DBELL_TYPE_G_DBELL_MC:
+        /* XXX implement */
+    default:
+        break;
+    }
+
+    return irq;
+}
+
+void helper_msgclr(target_ulong rb)
+{
+    int irq = dbell2irq(rb);
+
+    if (irq < 0) {
+        return;
+    }
+
+    env->pending_interrupts &= ~(1 << irq);
+}
+
 #endif /* !CONFIG_USER_ONLY */
