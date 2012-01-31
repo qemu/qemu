@@ -83,9 +83,9 @@ STRUCT(mixer_info,
 /* loop device ioctls */
 STRUCT(loop_info,
        TYPE_INT,                 /* lo_number */
-       TYPE_SHORT,               /* lo_device */
+       TYPE_OLDDEVT,             /* lo_device */
        TYPE_ULONG,               /* lo_inode */
-       TYPE_SHORT,               /* lo_rdevice */
+       TYPE_OLDDEVT,             /* lo_rdevice */
        TYPE_INT,                 /* lo_offset */
        TYPE_INT,                 /* lo_encrypt_type */
        TYPE_INT,                 /* lo_encrypt_key_size */
