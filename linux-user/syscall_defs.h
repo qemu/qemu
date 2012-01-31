@@ -832,9 +832,11 @@ struct target_pollfd {
 #define TARGET_BLKSECTGET TARGET_IO(0x12,103)/* get max sectors per request (ll_rw_blk.c) */
 #define TARGET_BLKSSZGET  TARGET_IO(0x12,104)/* get block device sector size */
 /* A jump here: 108-111 have been used for various private purposes. */
-#define TARGET_BLKBSZGET  TARGET_IOR(0x12,112,sizeof(int))
-#define TARGET_BLKBSZSET  TARGET_IOW(0x12,113,sizeof(int))
-#define TARGET_BLKGETSIZE64 TARGET_IOR(0x12,114,sizeof(uint64_t)) /* return device size in bytes (u64 *arg) */
+#define TARGET_BLKBSZGET  TARGET_IOR(0x12,112,int)
+#define TARGET_BLKBSZSET  TARGET_IOW(0x12,113,int)
+#define TARGET_BLKGETSIZE64 TARGET_IOR(0x12,114,abi_ulong)
+                                             /* return device size in bytes
+                                                (u64 *arg) */
 #define TARGET_FIBMAP     TARGET_IO(0x00,1)  /* bmap access */
 #define TARGET_FIGETBSZ   TARGET_IO(0x00,2)  /* get the block size used for bmap */
 #define TARGET_FS_IOC_FIEMAP TARGET_IOWR('f',11,struct fiemap)
