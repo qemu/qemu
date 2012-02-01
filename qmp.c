@@ -21,9 +21,8 @@
 #include "kvm.h"
 #include "arch_init.h"
 #include "hw/qdev.h"
-#include "qapi/qmp-input-visitor.h"
-#include "qapi/qmp-output-visitor.h"
 #include "blockdev.h"
+#include "qemu/qom-qobject.h"
 
 NameInfo *qmp_query_name(Error **errp)
 {
@@ -198,7 +197,6 @@ int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret)
     const char *property = qdict_get_str(qdict, "property");
     QObject *value = qdict_get(qdict, "value");
     Error *local_err = NULL;
-    QmpInputVisitor *mi;
     Object *obj;
 
     obj = object_resolve_path(path, NULL);
@@ -207,10 +205,7 @@ int qmp_qom_set(Monitor *mon, const QDict *qdict, QObject **ret)
         goto out;
     }
 
-    mi = qmp_input_visitor_new(value);
-    object_property_set(obj, qmp_input_get_visitor(mi), property, &local_err);
-
-    qmp_input_visitor_cleanup(mi);
+    object_property_set_qobject(obj, value, property, &local_err);
 
 out:
     if (local_err) {
@@ -227,7 +222,6 @@ int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret)
     const char *path = qdict_get_str(qdict, "path");
     const char *property = qdict_get_str(qdict, "property");
     Error *local_err = NULL;
-    QmpOutputVisitor *mo;
     Object *obj;
 
     obj = object_resolve_path(path, NULL);
@@ -236,13 +230,7 @@ int qmp_qom_get(Monitor *mon, const QDict *qdict, QObject **ret)
         goto out;
     }
 
-    mo = qmp_output_visitor_new();
-    object_property_get(obj, qmp_output_get_visitor(mo), property, &local_err);
-    if (!local_err) {
-        *ret = qmp_output_get_qobject(mo);
-    }
-
-    qmp_output_visitor_cleanup(mo);
+    *ret = object_property_get_qobject(obj, property, &local_err);
 
 out:
     if (local_err) {
