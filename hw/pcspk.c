@@ -75,12 +75,16 @@ static inline void generate_samples(PCSpkState *s)
 static void pcspk_callback(void *opaque, int free)
 {
     PCSpkState *s = opaque;
+    PITChannelInfo ch;
     unsigned int n;
 
-    if (pit_get_mode(s->pit, 2) != 3)
-        return;
+    pit_get_channel_info(s->pit, 2, &ch);
 
-    n = pit_get_initial_count(s->pit, 2);
+    if (ch.mode != 3) {
+        return;
+    }
+
+    n = ch.initial_count;
     /* avoid frequencies that are not reproducible with sample rate */
     if (n < PCSPK_MIN_COUNT)
         n = 0;
@@ -121,12 +125,14 @@ static uint64_t pcspk_io_read(void *opaque, target_phys_addr_t addr,
                               unsigned size)
 {
     PCSpkState *s = opaque;
-    int out;
+    PITChannelInfo ch;
+
+    pit_get_channel_info(s->pit, 2, &ch);
 
     s->dummy_refresh_clock ^= (1 << 4);
-    out = pit_get_out(s->pit, 2, qemu_get_clock_ns(vm_clock)) << 5;
 
-    return pit_get_gate(s->pit, 2) | (s->data_on << 1) | s->dummy_refresh_clock | out;
+    return ch.gate | (s->data_on << 1) | s->dummy_refresh_clock |
+       (ch.out << 5);
 }
 
 static void pcspk_io_write(void *opaque, target_phys_addr_t addr, uint64_t val,

@@ -90,7 +90,7 @@ static int pit_get_count(PITChannelState *s)
 }
 
 /* get pit output bit */
-static int pit_get_out1(PITChannelState *s, int64_t current_time)
+static int pit_get_out(PITChannelState *s, int64_t current_time)
 {
     uint64_t d;
     int out;
@@ -120,13 +120,6 @@ static int pit_get_out1(PITChannelState *s, int64_t current_time)
         break;
     }
     return out;
-}
-
-int pit_get_out(ISADevice *dev, int channel, int64_t current_time)
-{
-    PITState *pit = DO_UPCAST(PITState, dev, dev);
-    PITChannelState *s = &pit->channels[channel];
-    return pit_get_out1(s, current_time);
 }
 
 /* return -1 if no transition will occur.  */
@@ -215,25 +208,15 @@ void pit_set_gate(ISADevice *dev, int channel, int val)
     s->gate = val;
 }
 
-int pit_get_gate(ISADevice *dev, int channel)
+void pit_get_channel_info(ISADevice *dev, int channel, PITChannelInfo *info)
 {
     PITState *pit = DO_UPCAST(PITState, dev, dev);
     PITChannelState *s = &pit->channels[channel];
-    return s->gate;
-}
 
-int pit_get_initial_count(ISADevice *dev, int channel)
-{
-    PITState *pit = DO_UPCAST(PITState, dev, dev);
-    PITChannelState *s = &pit->channels[channel];
-    return s->count;
-}
-
-int pit_get_mode(ISADevice *dev, int channel)
-{
-    PITState *pit = DO_UPCAST(PITState, dev, dev);
-    PITChannelState *s = &pit->channels[channel];
-    return s->mode;
+    info->gate = s->gate;
+    info->mode = s->mode;
+    info->initial_count = s->count;
+    info->out = pit_get_out(s, qemu_get_clock_ns(vm_clock));
 }
 
 static inline void pit_load_count(PITChannelState *s, int val)
@@ -274,7 +257,9 @@ static void pit_ioport_write(void *opaque, uint32_t addr, uint32_t val)
                     if (!(val & 0x10) && !s->status_latched) {
                         /* status latch */
                         /* XXX: add BCD and null count */
-                        s->status =  (pit_get_out1(s, qemu_get_clock_ns(vm_clock)) << 7) |
+                        s->status =
+                            (pit_get_out(s,
+                                         qemu_get_clock_ns(vm_clock)) << 7) |
                             (s->rw_mode << 4) |
                             (s->mode << 1) |
                             s->bcd;
@@ -381,7 +366,7 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
         return;
     }
     expire_time = pit_get_next_transition_time(s, current_time);
-    irq_level = pit_get_out1(s, current_time);
+    irq_level = pit_get_out(s, current_time);
     qemu_set_irq(s->irq, irq_level);
 #ifdef DEBUG_PIT
     printf("irq_level=%d next_delay=%f\n",
