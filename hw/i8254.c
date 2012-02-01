@@ -52,6 +52,7 @@ typedef struct PITChannelState {
     int64_t next_transition_time;
     QEMUTimer *irq_timer;
     qemu_irq irq;
+    uint32_t irq_disabled;
 } PITChannelState;
 
 typedef struct PITState {
@@ -60,8 +61,6 @@ typedef struct PITState {
     uint32_t iobase;
     PITChannelState channels[3];
 } PITState;
-
-static PITState pit_state;
 
 static void pit_irq_timer_update(PITChannelState *s, int64_t current_time);
 
@@ -378,8 +377,9 @@ static void pit_irq_timer_update(PITChannelState *s, int64_t current_time)
     int64_t expire_time;
     int irq_level;
 
-    if (!s->irq_timer)
+    if (!s->irq_timer || s->irq_disabled) {
         return;
+    }
     expire_time = pit_get_next_transition_time(s, current_time);
     irq_level = pit_get_out1(s, current_time);
     qemu_set_irq(s->irq, irq_level);
@@ -450,6 +450,7 @@ static int pit_load_old(QEMUFile *f, void *opaque, int version_id)
         qemu_get_8s(f, &s->bcd);
         qemu_get_8s(f, &s->gate);
         s->count_load_time=qemu_get_be64(f);
+        s->irq_disabled = 0;
         if (s->irq_timer) {
             s->next_transition_time=qemu_get_be64(f);
             qemu_get_timer(f, s->irq_timer);
@@ -460,11 +461,12 @@ static int pit_load_old(QEMUFile *f, void *opaque, int version_id)
 
 static const VMStateDescription vmstate_pit = {
     .name = "i8254",
-    .version_id = 2,
+    .version_id = 3,
     .minimum_version_id = 2,
     .minimum_version_id_old = 1,
     .load_state_old = pit_load_old,
     .fields      = (VMStateField []) {
+        VMSTATE_UINT32_V(channels[0].irq_disabled, PITState, 3),
         VMSTATE_STRUCT_ARRAY(channels, PITState, 3, 2, vmstate_pit_channel, PITChannelState),
         VMSTATE_TIMER(channels[0].irq_timer, PITState),
         VMSTATE_END_OF_LIST()
@@ -483,7 +485,7 @@ static void pit_reset(DeviceState *dev)
         s->gate = (i != 2);
         s->count_load_time = qemu_get_clock_ns(vm_clock);
         s->count = 0x10000;
-        if (i == 0) {
+        if (i == 0 && !s->irq_disabled) {
             s->next_transition_time =
                 pit_get_next_transition_time(s, s->count_load_time);
             qemu_mod_timer(s->irq_timer, s->next_transition_time);
@@ -491,26 +493,20 @@ static void pit_reset(DeviceState *dev)
     }
 }
 
-/* When HPET is operating in legacy mode, i8254 timer0 is disabled */
-void hpet_pit_disable(void) {
-    PITChannelState *s;
-    s = &pit_state.channels[0];
-    if (s->irq_timer)
-        qemu_del_timer(s->irq_timer);
-}
-
-/* When HPET is reset or leaving legacy mode, it must reenable i8254
- * timer 0
- */
-
-void hpet_pit_enable(void)
+/* When HPET is operating in legacy mode, suppress the ignored timer IRQ,
+ * reenable it when legacy mode is left again. */
+static void pit_irq_control(void *opaque, int n, int enable)
 {
-    PITState *pit = &pit_state;
-    PITChannelState *s;
-    s = &pit->channels[0];
-    s->mode = 3;
-    s->gate = 1;
-    pit_load_count(s, 0);
+    PITState *pit = opaque;
+    PITChannelState *s = &pit->channels[0];
+
+    if (enable) {
+        s->irq_disabled = 0;
+        pit_irq_timer_update(s, qemu_get_clock_ns(vm_clock));
+    } else {
+        s->irq_disabled = 1;
+        qemu_del_timer(s->irq_timer);
+    }
 }
 
 static const MemoryRegionPortio pit_portio[] = {
@@ -535,6 +531,8 @@ static int pit_initfn(ISADevice *dev)
 
     memory_region_init_io(&pit->ioports, &pit_ioport_ops, pit, "pit", 4);
     isa_register_ioport(dev, &pit->ioports, pit->iobase);
+
+    qdev_init_gpio_in(&dev->qdev, pit_irq_control, 1);
 
     qdev_set_legacy_instance_id(&dev->qdev, pit->iobase, 2);
 

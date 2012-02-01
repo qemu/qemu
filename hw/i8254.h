@@ -50,7 +50,4 @@ int pit_get_initial_count(ISADevice *dev, int channel);
 int pit_get_mode(ISADevice *dev, int channel);
 int pit_get_out(ISADevice *dev, int channel, int64_t current_time);
 
-void hpet_pit_disable(void);
-void hpet_pit_enable(void);
-
 #endif /* !HW_I8254_H */
