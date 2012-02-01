@@ -12,6 +12,8 @@ max-code-length=80
 style=otbs
 brackets=linux
 indent=spaces=4
+max-code-length=80
+max-instatement-indent=60
 pad-oper
 pad-header
 unpad-paren
