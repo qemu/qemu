@@ -62,7 +62,12 @@ static const int tcg_target_reg_alloc_order[] = {
 };
 
 static const int tcg_target_call_iarg_regs[] = {
-#if TCG_TARGET_REG_BITS == 64
+#if defined(_WIN64)
+    TCG_REG_RCX,
+    TCG_REG_RDX,
+    TCG_REG_R8,
+    TCG_REG_R9,
+#elif TCG_TARGET_REG_BITS == 64
     TCG_REG_RDI,
     TCG_REG_RSI,
     TCG_REG_RDX,
