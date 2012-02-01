@@ -622,6 +622,76 @@ void object_property_get(Object *obj, struct Visitor *v, const char *name,
                          struct Error **errp);
 
 /**
+ * object_property_set_str:
+ * @value: the value to be written to the property
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Writes a string value to a property.
+ */
+void object_property_set_str(Object *obj, const char *value,
+                             const char *name, struct Error **errp);
+
+/**
+ * object_property_get_str:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns: the value of the property, converted to a C string, or NULL if
+ * an error occurs (including when the property value is not a string).
+ * The caller should free the string.
+ */
+char *object_property_get_str(Object *obj, const char *name,
+                              struct Error **errp);
+
+/**
+ * object_property_set_bool:
+ * @value: the value to be written to the property
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Writes a bool value to a property.
+ */
+void object_property_set_bool(Object *obj, bool value,
+                              const char *name, struct Error **errp);
+
+/**
+ * object_property_get_bool:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns: the value of the property, converted to a boolean, or NULL if
+ * an error occurs (including when the property value is not a bool).
+ */
+bool object_property_get_bool(Object *obj, const char *name,
+                              struct Error **errp);
+
+/**
+ * object_property_set_int:
+ * @value: the value to be written to the property
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Writes an integer value to a property.
+ */
+void object_property_set_int(Object *obj, int64_t value,
+                             const char *name, struct Error **errp);
+
+/**
+ * object_property_get_int:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns: the value of the property, converted to an integer, or NULL if
+ * an error occurs (including when the property value is not an integer).
+ */
+int64_t object_property_get_int(Object *obj, const char *name,
+                                struct Error **errp);
+
+/**
  * object_property_set:
  * @obj: the object
  * @v: the visitor that will be used to write the property value.  This should

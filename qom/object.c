@@ -14,6 +14,14 @@
 #include "qemu-common.h"
 #include "qapi/qapi-visit-core.h"
 
+/* TODO: replace QObject with a simpler visitor to avoid a dependency
+ * of the QOM core on QObject?  */
+#include "qemu/qom-qobject.h"
+#include "qobject.h"
+#include "qbool.h"
+#include "qint.h"
+#include "qstring.h"
+
 #define MAX_INTERFACES 32
 
 typedef struct InterfaceImpl InterfaceImpl;
@@ -657,6 +665,99 @@ void object_property_set(Object *obj, Visitor *v, const char *name,
     }
 }
 
+void object_property_set_str(Object *obj, const char *value,
+                             const char *name, Error **errp)
+{
+    QString *qstr = qstring_from_str(value);
+    object_property_set_qobject(obj, QOBJECT(qstr), name, errp);
+
+    QDECREF(qstr);
+}
+
+char *object_property_get_str(Object *obj, const char *name,
+                              Error **errp)
+{
+    QObject *ret = object_property_get_qobject(obj, name, errp);
+    QString *qstring;
+    char *retval;
+
+    if (!ret) {
+        return NULL;
+    }
+    qstring = qobject_to_qstring(ret);
+    if (!qstring) {
+        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "string");
+        retval = NULL;
+    } else {
+        retval = g_strdup(qstring_get_str(qstring));
+    }
+
+    QDECREF(qstring);
+    return retval;
+}
+
+void object_property_set_bool(Object *obj, bool value,
+                              const char *name, Error **errp)
+{
+    QBool *qbool = qbool_from_int(value);
+    object_property_set_qobject(obj, QOBJECT(qbool), name, errp);
+
+    QDECREF(qbool);
+}
+
+bool object_property_get_bool(Object *obj, const char *name,
+                              Error **errp)
+{
+    QObject *ret = object_property_get_qobject(obj, name, errp);
+    QBool *qbool;
+    bool retval;
+
+    if (!ret) {
+        return false;
+    }
+    qbool = qobject_to_qbool(ret);
+    if (!qbool) {
+        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "boolean");
+        retval = false;
+    } else {
+        retval = qbool_get_int(qbool);
+    }
+
+    QDECREF(qbool);
+    return retval;
+}
+
+void object_property_set_int(Object *obj, int64_t value,
+                             const char *name, Error **errp)
+{
+    QInt *qint = qint_from_int(value);
+    object_property_set_qobject(obj, QOBJECT(qint), name, errp);
+
+    QDECREF(qint);
+}
+
+int64_t object_property_get_int(Object *obj, const char *name,
+                                Error **errp)
+{
+    QObject *ret = object_property_get_qobject(obj, name, errp);
+    QInt *qint;
+    int64_t retval;
+
+    if (!ret) {
+        return -1;
+    }
+    qint = qobject_to_qint(ret);
+    if (!qint) {
+        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "int");
+        retval = -1;
+    } else {
+        retval = qint_get_int(qint);
+    }
+
+    QDECREF(qint);
+    return retval;
+}
+
 const char *object_property_get_type(Object *obj, const char *name, Error **errp)
 {
     ObjectProperty *prop = object_property_find(obj, name);
@@ -938,8 +1039,8 @@ typedef struct StringProperty
     void (*set)(Object *, const char *, Error **);
 } StringProperty;
 
-static void object_property_get_str(Object *obj, Visitor *v, void *opaque,
-                                    const char *name, Error **errp)
+static void property_get_str(Object *obj, Visitor *v, void *opaque,
+                             const char *name, Error **errp)
 {
     StringProperty *prop = opaque;
     char *value;
@@ -951,8 +1052,8 @@ static void object_property_get_str(Object *obj, Visitor *v, void *opaque,
     }
 }
 
-static void object_property_set_str(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void property_set_str(Object *obj, Visitor *v, void *opaque,
+                             const char *name, Error **errp)
 {
     StringProperty *prop = opaque;
     char *value;
@@ -968,8 +1069,8 @@ static void object_property_set_str(Object *obj, Visitor *v, void *opaque,
     g_free(value);
 }
 
-static void object_property_release_str(Object *obj, const char *name,
-                                      void *opaque)
+static void property_release_str(Object *obj, const char *name,
+                                 void *opaque)
 {
     StringProperty *prop = opaque;
     g_free(prop);
@@ -986,8 +1087,8 @@ void object_property_add_str(Object *obj, const char *name,
     prop->set = set;
 
     object_property_add(obj, name, "string",
-                        get ? object_property_get_str : NULL,
-                        set ? object_property_set_str : NULL,
-                        object_property_release_str,
+                        get ? property_get_str : NULL,
+                        set ? property_set_str : NULL,
+                        property_release_str,
                         prop, errp);
 }
