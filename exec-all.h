@@ -93,7 +93,7 @@ TranslationBlock *tb_gen_code(CPUState *env,
                               int cflags);
 void cpu_exec_init(CPUState *env);
 void QEMU_NORETURN cpu_loop_exit(CPUState *env1);
-int page_unprotect(target_ulong address, unsigned long pc, void *puc);
+int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access);
 void tlb_flush_page(CPUState *env, target_ulong addr);
@@ -150,7 +150,7 @@ struct TranslationBlock {
 #ifdef USE_DIRECT_JUMP
     uint16_t tb_jmp_offset[2]; /* offset of jump instruction */
 #else
-    unsigned long tb_next[2]; /* address of jump generated code */
+    uintptr_t tb_next[2]; /* address of jump generated code */
 #endif
     /* list of TBs jumping to this one. This is a circular list using
        the two least significant bits of the pointers to tell what is
@@ -199,17 +199,17 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
     /* no need to flush icache explicitly */
 }
 #elif defined(_ARCH_PPC)
-void ppc_tb_set_jmp_target(uintptr_t jmp_addr, unsigned long addr);
+void ppc_tb_set_jmp_target(uintptr_t jmp_addr, uintptr_t addr);
 #define tb_set_jmp_target1 ppc_tb_set_jmp_target
 #elif defined(__i386__) || defined(__x86_64__)
-static inline void tb_set_jmp_target1(uintptr_t jmp_addr, unsigned long addr)
+static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
     /* no need to flush icache explicitly */
 }
 #elif defined(__arm__)
-static inline void tb_set_jmp_target1(uintptr_t jmp_addr, unsigned long addr)
+static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
 #if !QEMU_GNUC_PREREQ(4, 1)
     register unsigned long _beg __asm ("a1");
@@ -237,9 +237,9 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, unsigned long addr)
 #endif
 
 static inline void tb_set_jmp_target(TranslationBlock *tb,
-                                     int n, unsigned long addr)
+                                     int n, uintptr_t addr)
 {
-    unsigned long offset;
+    uintptr_t offset;
 
     offset = tb->tb_jmp_offset[n];
     tb_set_jmp_target1((uintptr_t)(tb->tc_ptr + offset), addr);
@@ -249,7 +249,7 @@ static inline void tb_set_jmp_target(TranslationBlock *tb,
 
 /* set the jump target */
 static inline void tb_set_jmp_target(TranslationBlock *tb,
-                                     int n, unsigned long addr)
+                                     int n, uintptr_t addr)
 {
     tb->tb_next[n] = addr;
 }
@@ -270,7 +270,7 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     }
 }
 
-TranslationBlock *tb_find_pc(unsigned long pc_ptr);
+TranslationBlock *tb_find_pc(uintptr_t pc_ptr);
 
 #include "qemu-lock.h"
 

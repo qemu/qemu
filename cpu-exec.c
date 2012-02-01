@@ -57,7 +57,7 @@ void cpu_resume_from_signal(CPUState *env, void *puc)
 static void cpu_exec_nocache(CPUState *env, int max_cycles,
                              TranslationBlock *orig_tb)
 {
-    unsigned long next_tb;
+    uintptr_t next_tb;
     TranslationBlock *tb;
 
     /* Should never happen.

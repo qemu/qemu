@@ -260,7 +260,7 @@ typedef struct QEMUSGList QEMUSGList;
 
 typedef uint64_t pcibus_t;
 
-void tcg_exec_init(unsigned long tb_size);
+void tcg_exec_init(uintptr_t tb_size);
 bool tcg_enabled(void);
 
 void cpu_exec_init_all(void);

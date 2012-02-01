@@ -3,8 +3,8 @@
 
 #if defined(_ARCH_PPC) && !defined(CONFIG_TCG_INTERPRETER)
 struct qemu_cache_conf {
-    unsigned long dcache_bsize;
-    unsigned long icache_bsize;
+    uintptr_t dcache_bsize;
+    uintptr_t icache_bsize;
 };
 
 extern struct qemu_cache_conf qemu_cache_conf;
@@ -12,11 +12,11 @@ extern struct qemu_cache_conf qemu_cache_conf;
 void qemu_cache_utils_init(char **envp);
 
 /* mildly adjusted code from tcg-dyngen.c */
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
+static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
-    unsigned long p, start1, stop1;
-    unsigned long dsize = qemu_cache_conf.dcache_bsize;
-    unsigned long isize = qemu_cache_conf.icache_bsize;
+    uintptr_t p, start1, stop1;
+    uintptr_t dsize = qemu_cache_conf.dcache_bsize;
+    uintptr_t isize = qemu_cache_conf.icache_bsize;
 
     start1 = start & ~(dsize - 1);
     stop1 = (stop + dsize - 1) & ~(dsize - 1);

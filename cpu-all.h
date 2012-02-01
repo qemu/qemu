@@ -186,9 +186,9 @@ static inline void tswap64s(uint64_t *s)
  * This allows the guest address space to be offset to a convenient location.
  */
 #if defined(CONFIG_USE_GUEST_BASE)
-extern unsigned long guest_base;
+extern uintptr_t guest_base;
 extern int have_guest_base;
-extern unsigned long reserved_va;
+extern uintptr_t reserved_va;
 #define GUEST_BASE guest_base
 #define RESERVED_VA reserved_va
 #else
@@ -197,19 +197,19 @@ extern unsigned long reserved_va;
 #endif
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
-#define g2h(x) ((void *)((unsigned long)(x) + GUEST_BASE))
+#define g2h(x) ((void *)((uintptr_t)(x) + GUEST_BASE))
 
 #if HOST_LONG_BITS <= TARGET_VIRT_ADDR_SPACE_BITS
 #define h2g_valid(x) 1
 #else
 #define h2g_valid(x) ({ \
-    unsigned long __guest = (unsigned long)(x) - GUEST_BASE; \
+    uintptr_t __guest = (uintptr_t)(x) - GUEST_BASE; \
     __guest < (1ul << TARGET_VIRT_ADDR_SPACE_BITS); \
 })
 #endif
 
 #define h2g(x) ({ \
-    unsigned long __ret = (unsigned long)(x) - GUEST_BASE; \
+    uintptr_t __ret = (uintptr_t)(x) - GUEST_BASE; \
     /* Check if given address fits target address space */ \
     assert(h2g_valid(x)); \
     (abi_ulong)__ret; \
@@ -289,10 +289,9 @@ extern unsigned long reserved_va;
 #define TARGET_PAGE_MASK ~(TARGET_PAGE_SIZE - 1)
 #define TARGET_PAGE_ALIGN(addr) (((addr) + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK)
 
-/* ??? These should be the larger of unsigned long and target_ulong.  */
-extern unsigned long qemu_real_host_page_size;
-extern unsigned long qemu_host_page_size;
-extern unsigned long qemu_host_page_mask;
+extern uintptr_t qemu_real_host_page_size;
+extern uintptr_t qemu_host_page_size;
+extern uintptr_t qemu_host_page_mask;
 
 #define HOST_PAGE_ALIGN(addr) (((addr) + qemu_host_page_size - 1) & qemu_host_page_mask)
 
@@ -314,7 +313,7 @@ extern unsigned long qemu_host_page_mask;
 void page_dump(FILE *f);
 
 typedef int (*walk_memory_regions_fn)(void *, abi_ulong,
-                                      abi_ulong, unsigned long);
+                                      abi_ulong, uintptr_t);
 int walk_memory_regions(void *, walk_memory_regions_fn);
 
 int page_get_flags(target_ulong address);

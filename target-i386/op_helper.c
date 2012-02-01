@@ -2348,7 +2348,7 @@ void helper_load_seg(int seg_reg, int selector)
                        e2);
 #if 0
         qemu_log("load_seg: sel=0x%04x base=0x%08lx limit=0x%08lx flags=%08x\n",
-                selector, (unsigned long)sc->base, sc->limit, sc->flags);
+                selector, (uintptr_t)sc->base, sc->limit, sc->flags);
 #endif
     }
 }
