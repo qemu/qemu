@@ -192,7 +192,7 @@ static void i82378_init(DeviceState *dev, I82378State *s)
     isa_bus_irqs(isabus, s->i8259);
 
     /* 1 82C54 (pit) */
-    pit = pit_init(isabus, 0x40, 0);
+    pit = pit_init(isabus, 0x40, 0, NULL);
 
     /* speaker */
     pcspk_init(pit);

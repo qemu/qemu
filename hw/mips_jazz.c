@@ -192,7 +192,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
     isa_bus_irqs(isa_bus, i8259);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
-    pit = pit_init(isa_bus, 0x40, 0);
+    pit = pit_init(isa_bus, 0x40, 0, NULL);
     pcspk_init(pit);
 
     /* ISA IO space at 0x90000000 */

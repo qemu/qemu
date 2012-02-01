@@ -30,14 +30,16 @@
 
 #define PIT_FREQ 1193182
 
-static inline ISADevice *pit_init(ISABus *bus, int base, int irq)
+static inline ISADevice *pit_init(ISABus *bus, int base, int isa_irq,
+                                  qemu_irq alt_irq)
 {
     ISADevice *dev;
 
     dev = isa_create(bus, "isa-pit");
     qdev_prop_set_uint32(&dev->qdev, "iobase", base);
-    qdev_prop_set_uint32(&dev->qdev, "irq", irq);
     qdev_init_nofail(&dev->qdev);
+    qdev_connect_gpio_out(&dev->qdev, 0,
+                          isa_irq >= 0 ? isa_get_irq(dev, isa_irq) : alt_irq);
 
     return dev;
 }
