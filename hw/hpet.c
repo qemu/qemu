@@ -240,6 +240,24 @@ static int hpet_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool hpet_rtc_irq_level_needed(void *opaque)
+{
+    HPETState *s = opaque;
+
+    return s->rtc_irq_level != 0;
+}
+
+static const VMStateDescription vmstate_hpet_rtc_irq_level = {
+    .name = "hpet/rtc_irq_level",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(rtc_irq_level, HPETState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_hpet_timer = {
     .name = "hpet_timer",
     .version_id = 1,
@@ -273,6 +291,14 @@ static const VMStateDescription vmstate_hpet = {
         VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers, 0,
                                     vmstate_hpet_timer, HPETTimer),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_hpet_rtc_irq_level,
+            .needed = hpet_rtc_irq_level_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 
@@ -636,6 +662,9 @@ static void hpet_reset(DeviceState *d)
     hpet_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
     hpet_cfg.hpet[s->hpet_id].address = sysbus_from_qdev(d)->mmio[0].addr;
     count = 1;
+
+    /* to document that the RTC lowers its output on reset as well */
+    s->rtc_irq_level = 0;
 }
 
 static void hpet_handle_rtc_irq(void *opaque, int n, int level)
