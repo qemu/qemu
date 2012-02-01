@@ -1291,17 +1291,6 @@ esac
 
 fi
 
-# host long bits test, actually a pointer size test
-cat > $TMPC << EOF
-int sizeof_pointer_is_8[sizeof(void *) == 8 ? 1 : -1];
-EOF
-if compile_object; then
-hostlongbits=64
-else
-hostlongbits=32
-fi
-
-
 ##########################################
 # NPTL probe
 
@@ -2988,7 +2977,6 @@ fi
 if test "$bigendian" = "yes" ; then
   echo "HOST_WORDS_BIGENDIAN=y" >> $config_host_mak
 fi
-echo "HOST_LONG_BITS=$hostlongbits" >> $config_host_mak
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
   rc_version=`cat $source_path/VERSION`
