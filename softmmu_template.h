@@ -96,7 +96,7 @@ DATA_TYPE REGPARM glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
     int index;
     target_ulong tlb_addr;
     target_phys_addr_t ioaddr;
-    unsigned long addend;
+    uintptr_t addend;
     void *retaddr;
 
     /* test if there is match for unaligned or IO access */
@@ -154,7 +154,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
     DATA_TYPE res, res1, res2;
     int index, shift;
     target_phys_addr_t ioaddr;
-    unsigned long addend;
+    uintptr_t addend;
     target_ulong tlb_addr, addr1, addr2;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -239,7 +239,7 @@ void REGPARM glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                  int mmu_idx)
 {
     target_phys_addr_t ioaddr;
-    unsigned long addend;
+    uintptr_t addend;
     target_ulong tlb_addr;
     void *retaddr;
     int index;
@@ -294,7 +294,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
                                                    void *retaddr)
 {
     target_phys_addr_t ioaddr;
-    unsigned long addend;
+    uintptr_t addend;
     target_ulong tlb_addr;
     int index, i;
 
