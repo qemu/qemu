@@ -22,7 +22,6 @@
 #include "dyngen-exec.h"
 #include "host-utils.h"
 #include "ioport.h"
-#include "qemu-common.h"
 #include "qemu-log.h"
 #include "cpu-defs.h"
 #include "helper.h"
