@@ -23,19 +23,12 @@
  * The condition code translation is in need of attention.
  */
 
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
-
 #include "cpu.h"
 #include "disas.h"
 #include "tcg-op.h"
 #include "helper.h"
 #include "mmu.h"
 #include "crisv32-decode.h"
-#include "qemu-common.h"
 
 #define GEN_HELPER 1
 #include "helper.h"
