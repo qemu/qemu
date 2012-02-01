@@ -21,6 +21,7 @@
 #define __CPU_ALPHA_H__
 
 #include "config.h"
+#include "qemu-common.h"
 
 #define TARGET_LONG_BITS 64
 
