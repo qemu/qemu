@@ -24,6 +24,7 @@
 
 #define CPUState struct CPULM32State
 
+#include "config.h"
 #include "qemu-common.h"
 #include "cpu-defs.h"
 struct CPULM32State;
