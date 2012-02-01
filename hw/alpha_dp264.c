@@ -14,6 +14,7 @@
 #include "sysemu.h"
 #include "mc146818rtc.h"
 #include "ide.h"
+#include "i8254.h"
 
 #define MAX_IDE_BUS 2
 

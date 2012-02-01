@@ -27,6 +27,7 @@
 #include "isa.h"
 #include "audio/audio.h"
 #include "qemu-timer.h"
+#include "i8254.h"
 
 #define PCSPK_BUF_LEN 1792
 #define PCSPK_SAMPLE_RATE 32000

@@ -36,6 +36,7 @@
 #include "mips-bios.h"
 #include "loader.h"
 #include "mc146818rtc.h"
+#include "i8254.h"
 #include "blockdev.h"
 #include "sysbus.h"
 #include "exec-memory.h"

@@ -36,6 +36,7 @@
 #include "elf.h"
 #include "multiboot.h"
 #include "mc146818rtc.h"
+#include "i8254.h"
 #include "msi.h"
 #include "sysbus.h"
 #include "sysemu.h"

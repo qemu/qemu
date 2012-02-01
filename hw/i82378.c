@@ -19,6 +19,7 @@
 
 #include "pci.h"
 #include "pc.h"
+#include "i8254.h"
 
 //#define DEBUG_I82378
 

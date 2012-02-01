@@ -31,6 +31,7 @@
 #include "hpet_emul.h"
 #include "sysbus.h"
 #include "mc146818rtc.h"
+#include "i8254.h"
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG
