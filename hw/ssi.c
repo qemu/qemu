@@ -41,7 +41,7 @@ void ssi_register_slave(DeviceInfo *info)
     assert(info->size >= sizeof(SSISlave));
     info->init = ssi_slave_init;
     info->bus_info = &ssi_bus_info;
-    qdev_register(info);
+    qdev_register_subclass(info, TYPE_SSI_SLAVE);
 }
 
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name)

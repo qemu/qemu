@@ -258,9 +258,7 @@ struct DeviceInfo {
     qdev_event unplug;
     qdev_event exit;
     BusInfo *bus_info;
-    struct DeviceInfo *next;
 };
-extern DeviceInfo *device_info_list;
 
 void qdev_register(DeviceInfo *info);
 void qdev_register_subclass(DeviceInfo *info, const char *parent);

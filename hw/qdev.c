@@ -38,8 +38,6 @@ static bool qdev_hot_removed = false;
 static BusState *main_system_bus;
 static void main_system_bus_create(void);
 
-DeviceInfo *device_info_list;
-
 static BusState *qbus_find_recursive(BusState *bus, const char *name,
                                      const BusInfo *info);
 static BusState *qbus_find(const char *path);
@@ -125,7 +123,6 @@ static void qdev_do_register_subclass(DeviceInfo *info, const char *parent,
     TypeInfo type_info = {};
 
     assert(info->size >= sizeof(DeviceState));
-    assert(!info->next);
 
     type_info.name = name;
     type_info.parent = parent;
@@ -142,40 +139,11 @@ void qdev_register_subclass(DeviceInfo *info, const char *parent)
     if (info->alias) {
         qdev_do_register_subclass(info, parent, info->alias);
     }
-    info->next = device_info_list;
-    device_info_list = info;
-}
-
-void qdev_register(DeviceInfo *info)
-{
-    qdev_register_subclass(info, TYPE_DEVICE);
-}
-
-static DeviceInfo *qdev_find_info(BusInfo *bus_info, const char *name)
-{
-    DeviceInfo *info;
-
-    /* first check device names */
-    for (info = device_info_list; info != NULL; info = info->next) {
-        if (strcmp(info->name, name) != 0)
-            continue;
-        return info;
-    }
-
-    /* failing that check the aliases */
-    for (info = device_info_list; info != NULL; info = info->next) {
-        if (!info->alias)
-            continue;
-        if (strcmp(info->alias, name) != 0)
-            continue;
-        return info;
-    }
-    return NULL;
 }
 
 bool qdev_exists(const char *name)
 {
-    return !!qdev_find_info(NULL, name);
+    return !!object_class_by_name(name);
 }
 
 static void qdev_property_add_legacy(DeviceState *dev, Property *prop,
@@ -245,17 +213,28 @@ DeviceState *qdev_try_create(BusState *bus, const char *name)
     return qdev_create_from_info(bus, name);
 }
 
-static void qdev_print_devinfo(DeviceInfo *info)
+static void qdev_print_devinfo(ObjectClass *klass, void *opaque)
 {
-    error_printf("name \"%s\", bus %s",
-                 info->name, info->bus_info->name);
-    if (info->alias) {
-        error_printf(", alias \"%s\"", info->alias);
+    DeviceClass *dc;
+    bool *show_no_user = opaque;
+
+    dc = (DeviceClass *)object_class_dynamic_cast(klass, TYPE_DEVICE);
+
+    if (!dc || (show_no_user && !*show_no_user && dc->no_user)) {
+        return;
     }
-    if (info->desc) {
-        error_printf(", desc \"%s\"", info->desc);
+
+    error_printf("name \"%s\"", object_class_get_name(klass));
+    if (dc->bus_info) {
+        error_printf(", bus %s", dc->bus_info->name);
     }
-    if (info->no_user) {
+    if (dc->alias) {
+        error_printf(", alias \"%s\"", dc->alias);
+    }
+    if (dc->desc) {
+        error_printf(", desc \"%s\"", dc->desc);
+    }
+    if (dc->no_user) {
         error_printf(", no-user");
     }
     error_printf("\n");
@@ -279,17 +258,14 @@ static int set_property(const char *name, const char *value, void *opaque)
 int qdev_device_help(QemuOpts *opts)
 {
     const char *driver;
-    DeviceInfo *info;
     Property *prop;
+    ObjectClass *klass;
+    DeviceClass *info;
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && !strcmp(driver, "?")) {
-        for (info = device_info_list; info != NULL; info = info->next) {
-            if (info->no_user) {
-                continue;       /* not available, don't show */
-            }
-            qdev_print_devinfo(info);
-        }
+        bool show_no_user = false;
+        object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, &show_no_user);
         return 1;
     }
 
@@ -297,10 +273,11 @@ int qdev_device_help(QemuOpts *opts)
         return 0;
     }
 
-    info = qdev_find_info(NULL, driver);
-    if (!info) {
+    klass = object_class_by_name(driver);
+    if (!klass) {
         return 0;
     }
+    info = DEVICE_CLASS(klass);
 
     for (prop = info->props; prop && prop->name; prop++) {
         /*
@@ -312,14 +289,14 @@ int qdev_device_help(QemuOpts *opts)
         if (!prop->info->parse) {
             continue;           /* no way to set it, don't show */
         }
-        error_printf("%s.%s=%s\n", info->name, prop->name,
+        error_printf("%s.%s=%s\n", driver, prop->name,
                      prop->info->legacy_name ?: prop->info->name);
     }
     for (prop = info->bus_info->props; prop && prop->name; prop++) {
         if (!prop->info->parse) {
             continue;           /* no way to set it, don't show */
         }
-        error_printf("%s.%s=%s\n", info->name, prop->name,
+        error_printf("%s.%s=%s\n", driver, prop->name,
                      prop->info->legacy_name ?: prop->info->name);
     }
     return 1;
@@ -1085,11 +1062,7 @@ void do_info_qtree(Monitor *mon)
 
 void do_info_qdm(Monitor *mon)
 {
-    DeviceInfo *info;
-
-    for (info = device_info_list; info != NULL; info = info->next) {
-        qdev_print_devinfo(info);
-    }
+    object_class_foreach(qdev_print_devinfo, TYPE_DEVICE, false, NULL);
 }
 
 int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
