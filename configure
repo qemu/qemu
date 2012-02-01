@@ -1293,22 +1293,10 @@ esac
 
 fi
 
-# host long bits test, actually a pointer size test
-cat > $TMPC << EOF
-int sizeof_pointer_is_8[sizeof(void *) == 8 ? 1 : -1];
-EOF
-if compile_object; then
-hostlongbits=64
-else
-hostlongbits=32
-fi
-
-if echo $cc_macros | fgrep -q '#define __SIZEOF_LONG__ 4'; then
+if echo $cc_macros | fgrep -q '#define __SIZEOF_POINTER__ 4'; then
   hostlongbits=32
-elif echo $cc_macros | fgrep -q '#define __SIZEOF_LONG__ 8'; then
+elif echo $cc_macros | fgrep -q '#define __SIZEOF_POINTER__ 8'; then
   hostlongbits=64
-elif echo $cc_macros | fgrep -q '#define __LONG_MAX__ 2147483647'; then
-  hostlongbits=32
 else
   echo "ERROR: Unknown size of host long"
   exit 1
