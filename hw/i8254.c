@@ -481,7 +481,13 @@ static void pit_reset(DeviceState *dev)
         s = &pit->channels[i];
         s->mode = 3;
         s->gate = (i != 2);
-        pit_load_count(s, 0);
+        s->count_load_time = qemu_get_clock_ns(vm_clock);
+        s->count = 0x10000;
+        if (i == 0) {
+            s->next_transition_time =
+                pit_get_next_transition_time(s, s->count_load_time);
+            qemu_mod_timer(s->irq_timer, s->next_transition_time);
+        }
     }
 }
 
