@@ -344,6 +344,11 @@ void cpu_reset(CPUARMState *env)
     set_float_detect_tininess(float_tininess_before_rounding,
                               &env->vfp.standard_fp_status);
     tlb_flush(env, 1);
+    /* Reset is a state change for some CPUState fields which we
+     * bake assumptions about into translated code, so we need to
+     * tb_flush().
+     */
+    tb_flush(env);
 }
 
 static int vfp_gdb_get_reg(CPUState *env, uint8_t *buf, int reg)
