@@ -1073,24 +1073,18 @@ void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
 
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
 {
-    Property *prop;
-    int ret;
+    char *legacy_name;
+    Error *err = NULL;
 
-    prop = qdev_prop_find(dev, name);
-    /*
-     * TODO Properties without a parse method are just for dirty
-     * hacks.  qdev_prop_ptr is the only such PropertyInfo.  It's
-     * marked for removal.  The test !prop->info->parse should be
-     * removed along with it.
-     */
-    if (!prop || !prop->info->parse) {
-        qerror_report(QERR_PROPERTY_NOT_FOUND, object_get_typename(OBJECT(dev)), name);
-        return -1;
+    legacy_name = g_strdup_printf("legacy-%s", name);
+    if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
+        object_property_set_str(OBJECT(dev), value, legacy_name, &err);
+    } else {
+        object_property_set_str(OBJECT(dev), value, name, &err);
     }
-    ret = prop->info->parse(dev, prop, value);
-    if (ret < 0) {
-        Error *err;
-        error_set_from_qdev_prop_error(&err, ret, dev, prop, value);
+    g_free(legacy_name);
+
+    if (err) {
         qerror_report_err(err);
         error_free(err);
         return -1;
