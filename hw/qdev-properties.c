@@ -26,17 +26,6 @@ static void bit_prop_set(DeviceState *dev, Property *props, bool val)
         *p &= ~mask;
 }
 
-static void qdev_prop_cpy(DeviceState *dev, Property *props, void *src)
-{
-    if (props->info->type == PROP_TYPE_BIT) {
-        bool *defval = src;
-        bit_prop_set(dev, props, *defval);
-    } else {
-        char *dst = qdev_get_prop_ptr(dev, props);
-        memcpy(dst, src, props->info->size);
-    }
-}
-
 /* Bit */
 static int parse_bit(DeviceState *dev, Property *prop, const char *str)
 {
@@ -1241,13 +1230,23 @@ void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
 
 void qdev_prop_set_defaults(DeviceState *dev, Property *props)
 {
+    Object *obj = OBJECT(dev);
     if (!props)
         return;
-    while (props->name) {
-        if (props->defval) {
-            qdev_prop_cpy(dev, props, props->defval);
+    for (; props->name; props++) {
+        Error *errp = NULL;
+        if (props->qtype == QTYPE_NONE) {
+            continue;
         }
-        props++;
+        if (props->qtype == QTYPE_QBOOL) {
+            object_property_set_bool(obj, props->defval, props->name, &errp);
+        } else if (props->info->enum_table) {
+            object_property_set_str(obj, props->info->enum_table[props->defval],
+                                    props->name, &errp);
+        } else if (props->qtype == QTYPE_QINT) {
+            object_property_set_int(obj, props->defval, props->name, &errp);
+        }
+        assert(!errp);
     }
 }
 
