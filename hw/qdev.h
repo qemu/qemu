@@ -117,30 +117,9 @@ struct Property {
     int64_t      defval;
 };
 
-enum PropertyType {
-    PROP_TYPE_UNSPEC = 0,
-    PROP_TYPE_UINT8,
-    PROP_TYPE_UINT16,
-    PROP_TYPE_UINT32,
-    PROP_TYPE_INT32,
-    PROP_TYPE_UINT64,
-    PROP_TYPE_TADDR,
-    PROP_TYPE_MACADDR,
-    PROP_TYPE_LOSTTICKPOLICY,
-    PROP_TYPE_DRIVE,
-    PROP_TYPE_CHR,
-    PROP_TYPE_STRING,
-    PROP_TYPE_NETDEV,
-    PROP_TYPE_VLAN,
-    PROP_TYPE_PTR,
-    PROP_TYPE_BIT,
-};
-
 struct PropertyInfo {
     const char *name;
     const char *legacy_name;
-    size_t size;
-    enum PropertyType type;
     const char **enum_table;
     int64_t min;
     int64_t max;

@@ -61,8 +61,6 @@ static void set_taddr(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_taddr = {
     .name  = "taddr",
-    .type  = PROP_TYPE_TADDR,
-    .size  = sizeof(target_phys_addr_t),
     .parse = parse_taddr,
     .print = print_taddr,
     .get   = get_taddr,

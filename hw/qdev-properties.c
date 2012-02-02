@@ -12,7 +12,7 @@ void *qdev_get_prop_ptr(DeviceState *dev, Property *prop)
 
 static uint32_t qdev_get_prop_mask(Property *prop)
 {
-    assert(prop->info->type == PROP_TYPE_BIT);
+    assert(prop->info == &qdev_prop_bit);
     return 0x1 << prop->bitnr;
 }
 
@@ -79,8 +79,6 @@ static void set_bit(Object *obj, Visitor *v, void *opaque,
 PropertyInfo qdev_prop_bit = {
     .name  = "boolean",
     .legacy_name  = "on/off",
-    .type  = PROP_TYPE_BIT,
-    .size  = sizeof(uint32_t),
     .parse = parse_bit,
     .print = print_bit,
     .get   = get_bit,
@@ -151,8 +149,6 @@ static void set_int8(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint8 = {
     .name  = "uint8",
-    .type  = PROP_TYPE_UINT8,
-    .size  = sizeof(uint8_t),
     .parse = parse_uint8,
     .print = print_uint8,
     .get   = get_int8,
@@ -185,8 +181,6 @@ static int print_hex8(DeviceState *dev, Property *prop, char *dest, size_t len)
 PropertyInfo qdev_prop_hex8 = {
     .name  = "uint8",
     .legacy_name  = "hex8",
-    .type  = PROP_TYPE_UINT8,
-    .size  = sizeof(uint8_t),
     .parse = parse_hex8,
     .print = print_hex8,
     .get   = get_int8,
@@ -259,8 +253,6 @@ static void set_int16(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint16 = {
     .name  = "uint16",
-    .type  = PROP_TYPE_UINT16,
-    .size  = sizeof(uint16_t),
     .parse = parse_uint16,
     .print = print_uint16,
     .get   = get_int16,
@@ -333,8 +325,6 @@ static void set_int32(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint32 = {
     .name  = "uint32",
-    .type  = PROP_TYPE_UINT32,
-    .size  = sizeof(uint32_t),
     .parse = parse_uint32,
     .print = print_uint32,
     .get   = get_int32,
@@ -364,8 +354,6 @@ static int print_int32(DeviceState *dev, Property *prop, char *dest, size_t len)
 
 PropertyInfo qdev_prop_int32 = {
     .name  = "int32",
-    .type  = PROP_TYPE_INT32,
-    .size  = sizeof(int32_t),
     .parse = parse_int32,
     .print = print_int32,
     .get   = get_int32,
@@ -398,8 +386,6 @@ static int print_hex32(DeviceState *dev, Property *prop, char *dest, size_t len)
 PropertyInfo qdev_prop_hex32 = {
     .name  = "uint32",
     .legacy_name  = "hex32",
-    .type  = PROP_TYPE_UINT32,
-    .size  = sizeof(uint32_t),
     .parse = parse_hex32,
     .print = print_hex32,
     .get   = get_int32,
@@ -457,8 +443,6 @@ static void set_int64(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint64 = {
     .name  = "uint64",
-    .type  = PROP_TYPE_UINT64,
-    .size  = sizeof(uint64_t),
     .parse = parse_uint64,
     .print = print_uint64,
     .get   = get_int64,
@@ -489,8 +473,6 @@ static int print_hex64(DeviceState *dev, Property *prop, char *dest, size_t len)
 PropertyInfo qdev_prop_hex64 = {
     .name  = "uint64",
     .legacy_name  = "hex64",
-    .type  = PROP_TYPE_UINT64,
-    .size  = sizeof(uint64_t),
     .parse = parse_hex64,
     .print = print_hex64,
     .get   = get_int64,
@@ -559,8 +541,6 @@ static void set_string(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_string = {
     .name  = "string",
-    .type  = PROP_TYPE_STRING,
-    .size  = sizeof(char*),
     .print = print_string,
     .release = release_string,
     .get   = get_string,
@@ -655,8 +635,6 @@ static void set_drive(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_drive = {
     .name  = "drive",
-    .type  = PROP_TYPE_DRIVE,
-    .size  = sizeof(BlockDriverState *),
     .get   = get_drive,
     .set   = set_drive,
     .release = release_drive,
@@ -711,8 +689,6 @@ static void set_chr(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_chr = {
     .name  = "chr",
-    .type  = PROP_TYPE_CHR,
-    .size  = sizeof(CharDriverState*),
     .get   = get_chr,
     .set   = set_chr,
     .release = release_chr,
@@ -755,8 +731,6 @@ static void set_netdev(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_netdev = {
     .name  = "netdev",
-    .type  = PROP_TYPE_NETDEV,
-    .size  = sizeof(VLANClientState*),
     .get   = get_netdev,
     .set   = set_netdev,
 };
@@ -834,8 +808,6 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_vlan = {
     .name  = "vlan",
-    .type  = PROP_TYPE_VLAN,
-    .size  = sizeof(VLANClientState*),
     .parse = parse_vlan,
     .print = print_vlan,
     .get   = get_vlan,
@@ -847,8 +819,6 @@ PropertyInfo qdev_prop_vlan = {
 /* Not a proper property, just for dirty hacks.  TODO Remove it!  */
 PropertyInfo qdev_prop_ptr = {
     .name  = "ptr",
-    .type  = PROP_TYPE_PTR,
-    .size  = sizeof(void*),
 };
 
 /* --- mac address --- */
@@ -917,8 +887,6 @@ inval:
 
 PropertyInfo qdev_prop_macaddr = {
     .name  = "macaddr",
-    .type  = PROP_TYPE_MACADDR,
-    .size  = sizeof(MACAddr),
     .get   = get_mac,
     .set   = set_mac,
 };
@@ -965,8 +933,6 @@ static void set_enum(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_losttickpolicy = {
     .name  = "LostTickPolicy",
-    .type  = PROP_TYPE_LOSTTICKPOLICY,
-    .size  = sizeof(LostTickPolicy),
     .enum_table  = lost_tick_policy_table,
     .get   = get_enum,
     .set   = set_enum,
@@ -1012,8 +978,6 @@ static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t 
 PropertyInfo qdev_prop_pci_devfn = {
     .name  = "int32",
     .legacy_name  = "pci-devfn",
-    .type  = PROP_TYPE_UINT32,
-    .size  = sizeof(uint32_t),
     .parse = parse_pci_devfn,
     .print = print_pci_devfn,
     .get   = get_int32,
