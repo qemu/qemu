@@ -13,8 +13,6 @@
 #include "qemu/object.h"
 #include "qemu-common.h"
 #include "qapi/qapi-visit-core.h"
-#include "hw/qdev.h"
-// FIXME remove above
 
 #define MAX_INTERFACES 32
 
