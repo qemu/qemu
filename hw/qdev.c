@@ -550,21 +550,24 @@ static void qdev_set_legacy_property(Object *obj, Visitor *v, void *opaque,
  * Do not use this is new code!  Properties added through this interface will
  * be given names and types in the "legacy" namespace.
  *
- * Legacy properties are always processed as strings.  The format of the string
- * depends on the property type.
+ * Legacy properties are string versions of other OOM properties.  The format
+ * of the string depends on the property type.
  */
 void qdev_property_add_legacy(DeviceState *dev, Property *prop,
                               Error **errp)
 {
     gchar *name, *type;
 
+    if (!prop->info->print && !prop->info->parse) {
+        return;
+    }
     name = g_strdup_printf("legacy-%s", prop->name);
     type = g_strdup_printf("legacy<%s>",
                            prop->info->legacy_name ?: prop->info->name);
 
     object_property_add(OBJECT(dev), name, type,
-                        prop->info->print ? qdev_get_legacy_property : NULL,
-                        prop->info->parse ? qdev_set_legacy_property : NULL,
+                        prop->info->print ? qdev_get_legacy_property : prop->info->get,
+                        prop->info->parse ? qdev_set_legacy_property : prop->info->set,
                         NULL,
                         prop, errp);
 
