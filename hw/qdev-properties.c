@@ -848,46 +848,69 @@ PropertyInfo qdev_prop_ptr = {
  *   01:02:03:04:05:06
  *   01-02-03-04-05-06
  */
-static int parse_mac(DeviceState *dev, Property *prop, const char *str)
+static void get_mac(Object *obj, Visitor *v, void *opaque,
+                    const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
     MACAddr *mac = qdev_get_prop_ptr(dev, prop);
+    char buffer[2 * 6 + 5 + 1];
+    char *p = buffer;
+
+    snprintf(buffer, sizeof(buffer), "%02x:%02x:%02x:%02x:%02x:%02x",
+             mac->a[0], mac->a[1], mac->a[2],
+             mac->a[3], mac->a[4], mac->a[5]);
+
+    visit_type_str(v, &p, name, errp);
+}
+
+static void set_mac(Object *obj, Visitor *v, void *opaque,
+                    const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    MACAddr *mac = qdev_get_prop_ptr(dev, prop);
+    Error *local_err = NULL;
     int i, pos;
-    char *p;
+    char *str, *p;
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_str(v, &str, name, &local_err);
+    if (local_err) {
+        error_propagate(errp, local_err);
+        return;
+    }
 
     for (i = 0, pos = 0; i < 6; i++, pos += 3) {
         if (!qemu_isxdigit(str[pos]))
-            return -EINVAL;
+            goto inval;
         if (!qemu_isxdigit(str[pos+1]))
-            return -EINVAL;
+            goto inval;
         if (i == 5) {
             if (str[pos+2] != '\0')
-                return -EINVAL;
+                goto inval;
         } else {
             if (str[pos+2] != ':' && str[pos+2] != '-')
-                return -EINVAL;
+                goto inval;
         }
         mac->a[i] = strtol(str+pos, &p, 16);
     }
-    return 0;
-}
+    return;
 
-static int print_mac(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    MACAddr *mac = qdev_get_prop_ptr(dev, prop);
-
-    return snprintf(dest, len, "%02x:%02x:%02x:%02x:%02x:%02x",
-                    mac->a[0], mac->a[1], mac->a[2],
-                    mac->a[3], mac->a[4], mac->a[5]);
+inval:
+    error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
 }
 
 PropertyInfo qdev_prop_macaddr = {
     .name  = "macaddr",
     .type  = PROP_TYPE_MACADDR,
     .size  = sizeof(MACAddr),
-    .parse = parse_mac,
-    .print = print_mac,
-    .get   = get_generic,
-    .set   = set_generic,
+    .get   = get_mac,
+    .set   = set_mac,
 };
 
 
