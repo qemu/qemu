@@ -260,6 +260,13 @@ typedef struct QEMUSGList QEMUSGList;
 
 typedef uint64_t pcibus_t;
 
+typedef enum LostTickPolicy {
+    LOST_TICK_DISCARD,
+    LOST_TICK_DELAY,
+    LOST_TICK_MERGE,
+    LOST_TICK_SLEW,
+} LostTickPolicy;
+
 void tcg_exec_init(uintptr_t tb_size);
 bool tcg_enabled(void);
 

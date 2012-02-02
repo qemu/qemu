@@ -164,7 +164,7 @@ static int qemu_signal_init(void)
 
 #else /* _WIN32 */
 
-HANDLE qemu_event_handle;
+HANDLE qemu_event_handle = NULL;
 
 static void dummy_event_handler(void *opaque)
 {
@@ -183,6 +183,9 @@ static int qemu_event_init(void)
 
 void qemu_notify_event(void)
 {
+    if (!qemu_event_handle) {
+        return;
+    }
     if (!SetEvent(qemu_event_handle)) {
         fprintf(stderr, "qemu_notify_event: SetEvent failed: %ld\n",
                 GetLastError());
@@ -196,7 +199,7 @@ static int qemu_signal_init(void)
 }
 #endif
 
-int qemu_init_main_loop(void)
+int main_loop_init(void)
 {
     int ret;
 

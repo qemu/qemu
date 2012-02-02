@@ -101,6 +101,7 @@ typedef struct RTCState {
     QEMUTimer *second_timer;
     QEMUTimer *second_timer2;
     Notifier clock_reset_notifier;
+    LostTickPolicy lost_tick_policy;
 } RTCState;
 
 static void rtc_set_time(RTCState *s);
@@ -183,7 +184,7 @@ static void rtc_periodic_timer(void *opaque)
     if (s->cmos_data[RTC_REG_B] & REG_B_PIE) {
         s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
 #ifdef TARGET_I386
-        if(rtc_td_hack) {
+        if (s->lost_tick_policy == LOST_TICK_SLEW) {
             if (s->irq_reinject_on_ack_count >= RTC_REINJECT_ON_ACK_COUNT)
                 s->irq_reinject_on_ack_count = 0;		
             apic_reset_irq_delivered();
@@ -544,7 +545,7 @@ static int rtc_post_load(void *opaque, int version_id)
     RTCState *s = opaque;
 
     if (version_id >= 2) {
-        if (rtc_td_hack) {
+        if (s->lost_tick_policy == LOST_TICK_SLEW) {
             rtc_coalesced_timer_update(s);
         }
     }
@@ -589,7 +590,7 @@ static void rtc_notify_clock_reset(Notifier *notifier, void *data)
     qemu_mod_timer(s->second_timer2, s->next_second_time);
     rtc_timer_update(s, now);
 #ifdef TARGET_I386
-    if (rtc_td_hack) {
+    if (s->lost_tick_policy == LOST_TICK_SLEW) {
         rtc_coalesced_timer_update(s);
     }
 #endif
@@ -605,8 +606,9 @@ static void rtc_reset(void *opaque)
     qemu_irq_lower(s->irq);
 
 #ifdef TARGET_I386
-    if (rtc_td_hack)
-	    s->irq_coalesced = 0;
+    if (s->lost_tick_policy == LOST_TICK_SLEW) {
+        s->irq_coalesced = 0;
+    }
 #endif
 }
 
@@ -654,12 +656,20 @@ static int rtc_initfn(ISADevice *dev)
 
     rtc_set_date_from_host(dev);
 
-    s->periodic_timer = qemu_new_timer_ns(rtc_clock, rtc_periodic_timer, s);
 #ifdef TARGET_I386
-    if (rtc_td_hack)
+    switch (s->lost_tick_policy) {
+    case LOST_TICK_SLEW:
         s->coalesced_timer =
             qemu_new_timer_ns(rtc_clock, rtc_coalesced_timer, s);
+        break;
+    case LOST_TICK_DISCARD:
+        break;
+    default:
+        return -EINVAL;
+    }
 #endif
+
+    s->periodic_timer = qemu_new_timer_ns(rtc_clock, rtc_periodic_timer, s);
     s->second_timer = qemu_new_timer_ns(rtc_clock, rtc_update_second, s);
     s->second_timer2 = qemu_new_timer_ns(rtc_clock, rtc_update_second2, s);
 
@@ -713,6 +723,8 @@ static DeviceInfo mc146818rtc_info = {
     .class_init          = rtc_class_initfn,
     .props    = (Property[]) {
         DEFINE_PROP_INT32("base_year", RTCState, base_year, 1980),
+        DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", RTCState,
+                                   lost_tick_policy, LOST_TICK_DISCARD),
         DEFINE_PROP_END_OF_LIST(),
     }
 };

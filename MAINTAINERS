@@ -161,6 +161,26 @@ S: Supported
 F: xen-*
 F: */xen*
 
+Hosts:
+------
+
+LINUX
+L: qemu-devel@nongnu.org
+S: Maintained
+F: linux-*
+F: linux-headers/
+
+POSIX
+L: qemu-devel@nongnu.org
+S: Maintained
+F: *posix*
+
+W32, W64
+L: qemu-devel@nongnu.org
+M: Stefan Weil <sw@weilnetz.de>
+S: Maintained
+F: *win32*
+
 ARM Machines
 ------------
 Gumstix
@@ -408,9 +428,11 @@ S: Supported
 F: hw/virtio*
 
 virtio-9p
-M: Venkateswararao Jujjuri (JV) <jvrao@linux.vnet.ibm.com>
+M: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 S: Supported
-F: hw/virtio-9p*
+F: hw/9pfs/ fsdev/
+T: https://github.com/kvaneesh/QEMU
+
 
 virtio-blk
 M: Kevin Wolf <kwolf@redhat.com>

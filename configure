@@ -236,7 +236,11 @@ ld="${LD-${cross_prefix}ld}"
 libtool="${LIBTOOL-${cross_prefix}libtool}"
 strip="${STRIP-${cross_prefix}strip}"
 windres="${WINDRES-${cross_prefix}windres}"
-pkg_config="${PKG_CONFIG-${cross_prefix}pkg-config}"
+pkg_config_exe="${PKG_CONFIG-${cross_prefix}pkg-config}"
+query_pkg_config() {
+    "${pkg_config_exe}" ${QEMU_PKG_CONFIG_FLAGS} "$@"
+}
+pkg_config=query_pkg_config
 sdl_config="${SDL_CONFIG-${cross_prefix}sdl-config}"
 
 # default flags for all hosts
@@ -580,6 +584,7 @@ for opt do
   --static)
     static="yes"
     LDFLAGS="-static $LDFLAGS"
+    QEMU_PKG_CONFIG_FLAGS="--static $QEMU_PKG_CONFIG_FLAGS"
   ;;
   --mandir=*) mandir="$optarg"
   ;;
@@ -1480,8 +1485,8 @@ fi
 ##########################################
 # pkg-config probe
 
-if ! has $pkg_config; then
-  echo "Error: pkg-config binary '$pkg_config' not found"
+if ! has "$pkg_config_exe"; then
+  echo "Error: pkg-config binary '$pkg_config_exe' not found"
   exit 1
 fi
 
@@ -2565,11 +2570,16 @@ if test "$smartcard" != "no" ; then
     smartcard_cflags=""
     # TODO - what's the minimal nss version we support?
     if test "$smartcard_nss" != "no"; then
-        if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 ; then
+      cat > $TMPC << EOF
+#include <pk11pub.h>
+int main(void) { PK11_FreeSlot(0); return 0; }
+EOF
+        smartcard_cflags="-I\$(SRC_PATH)/libcacard"
+        libcacard_libs=$($pkg_config --libs nss 2>/dev/null)
+        libcacard_cflags=$($pkg_config --cflags nss 2>/dev/null)
+        if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
+          compile_prog "$smartcard_cflags $libcacard_cflags" "$libcacard_libs"; then
             smartcard_nss="yes"
-            smartcard_cflags="-I\$(SRC_PATH)/libcacard"
-            libcacard_libs=$($pkg_config --libs nss 2>/dev/null)
-            libcacard_cflags=$($pkg_config --cflags nss 2>/dev/null)
             QEMU_CFLAGS="$QEMU_CFLAGS $smartcard_cflags $libcacard_cflags"
             LIBS="$libcacard_libs $LIBS"
         else
