@@ -5,14 +5,10 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "cpu.h"
 #include "gdbstub.h"
 #include "helper.h"
-#include "qemu-common.h"
 #include "host-utils.h"
 
 static inline void set_feature(CPUState *env, int feature)
