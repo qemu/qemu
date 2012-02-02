@@ -840,6 +840,7 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
     bool ambiguous = false;
     const char *type;
     char *path;
+    gchar *target_type;
 
     type = object_property_get_type(obj, name, NULL);
 
@@ -847,28 +848,30 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
 
     if (*child) {
         object_unref(*child);
+        *child = NULL;
     }
 
     if (strcmp(path, "") != 0) {
         Object *target;
 
-        target = object_resolve_path(path, &ambiguous);
-        if (target) {
-            /* Go from link<FOO> to FOO.  */
-            gchar *target_type = g_strndup(&type[5], strlen(type) - 6);
-            if (object_dynamic_cast(target, target_type)) {
-                object_ref(target);
-                *child = target;
-            } else {
-                error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, type);
-            }
+        /* Go from link<FOO> to FOO.  */
+        target_type = g_strndup(&type[5], strlen(type) - 6);
+        target = object_resolve_path_type(path, target_type, &ambiguous);
 
-            g_free(target_type);
+        if (ambiguous) {
+            error_set(errp, QERR_AMBIGUOUS_PATH, path);
+        } else if (target) {
+            object_ref(target);
+            *child = target;
         } else {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+            target = object_resolve_path(path, &ambiguous);
+            if (target || ambiguous) {
+                error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, target_type);
+            } else {
+                error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+            }
         }
-    } else {
-        *child = NULL;
+        g_free(target_type);
     }
 
     g_free(path);
