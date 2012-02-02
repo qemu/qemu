@@ -140,6 +140,7 @@ struct PropertyInfo {
     const char *legacy_name;
     size_t size;
     enum PropertyType type;
+    const char **enum_table;
     int64_t min;
     int64_t max;
     int (*parse)(DeviceState *dev, Property *prop, const char *str);

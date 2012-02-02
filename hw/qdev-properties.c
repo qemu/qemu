@@ -893,50 +893,50 @@ PropertyInfo qdev_prop_macaddr = {
 
 /* --- lost tick policy --- */
 
-static const struct {
-    const char *name;
-    LostTickPolicy code;
-} lost_tick_policy_table[] = {
-    { .name = "discard", .code = LOST_TICK_DISCARD },
-    { .name = "delay", .code = LOST_TICK_DELAY },
-    { .name = "merge", .code = LOST_TICK_MERGE },
-    { .name = "slew", .code = LOST_TICK_SLEW },
+static const char *lost_tick_policy_table[LOST_TICK_MAX+1] = {
+    [LOST_TICK_DISCARD] = "discard",
+    [LOST_TICK_DELAY] = "delay",
+    [LOST_TICK_MERGE] = "merge",
+    [LOST_TICK_SLEW] = "slew",
+    [LOST_TICK_MAX] = NULL,
 };
 
-static int parse_lost_tick_policy(DeviceState *dev, Property *prop,
-                                  const char *str)
-{
-    LostTickPolicy *ptr = qdev_get_prop_ptr(dev, prop);
-    int i;
+QEMU_BUILD_BUG_ON(sizeof(LostTickPolicy) != sizeof(int));
 
-    for (i = 0; i < ARRAY_SIZE(lost_tick_policy_table); i++) {
-        if (!strcasecmp(str, lost_tick_policy_table[i].name)) {
-            *ptr = lost_tick_policy_table[i].code;
-            break;
-        }
-    }
-    if (i == ARRAY_SIZE(lost_tick_policy_table)) {
-        return -EINVAL;
-    }
-    return 0;
+static void get_enum(Object *obj, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    int *ptr = qdev_get_prop_ptr(dev, prop);
+
+    visit_type_enum(v, ptr, prop->info->enum_table,
+                    prop->info->name, prop->name, errp);
 }
 
-static int print_lost_tick_policy(DeviceState *dev, Property *prop, char *dest,
-                                  size_t len)
+static void set_enum(Object *obj, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
 {
-    LostTickPolicy *ptr = qdev_get_prop_ptr(dev, prop);
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
+    int *ptr = qdev_get_prop_ptr(dev, prop);
 
-    return snprintf(dest, len, "%s", lost_tick_policy_table[*ptr].name);
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_enum(v, ptr, prop->info->enum_table,
+                    prop->info->name, prop->name, errp);
 }
 
 PropertyInfo qdev_prop_losttickpolicy = {
-    .name  = "lost_tick_policy",
+    .name  = "LostTickPolicy",
     .type  = PROP_TYPE_LOSTTICKPOLICY,
     .size  = sizeof(LostTickPolicy),
-    .parse = parse_lost_tick_policy,
-    .print = print_lost_tick_policy,
-    .get   = get_generic,
-    .set   = set_generic,
+    .enum_table  = lost_tick_policy_table,
+    .get   = get_enum,
+    .set   = set_enum,
 };
 
 /* --- pci address --- */

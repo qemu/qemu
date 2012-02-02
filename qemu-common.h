@@ -255,6 +255,7 @@ typedef enum LostTickPolicy {
     LOST_TICK_DELAY,
     LOST_TICK_MERGE,
     LOST_TICK_SLEW,
+    LOST_TICK_MAX
 } LostTickPolicy;
 
 void tcg_exec_init(unsigned long tb_size);
