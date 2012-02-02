@@ -31,7 +31,11 @@
 #include "main-loop.h"
 
 #if defined(_WIN64)
+/* MinGW-w64 has a 32 bit off_t, but we want 64 bit off_t. */
 # define off_t off64_t
+
+/* MinGW-w64 stdio.h defines SYS_OPEN. Allow a redefinition in arm-semi.c. */
+# undef SYS_OPEN
 #endif
 
 /* Declaration of ffs() is missing in MinGW's strings.h. */
