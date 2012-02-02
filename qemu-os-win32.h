@@ -30,6 +30,10 @@
 #include <winsock2.h>
 #include "main-loop.h"
 
+#if defined(_WIN64)
+# define off_t off64_t
+#endif
+
 /* Declaration of ffs() is missing in MinGW's strings.h. */
 int ffs(int i);
 
