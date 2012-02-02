@@ -999,30 +999,20 @@ static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t 
     }
 }
 
-static void get_pci_devfn(Object *obj, Visitor *v, void *opaque,
-                          const char *name, Error **errp)
-{
-    DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
-    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char buffer[32];
-    char *p = buffer;
-
-    buffer[0] = 0;
-    if (*ptr != -1) {
-        snprintf(buffer, sizeof(buffer), "%02x.%x", *ptr >> 3, *ptr & 7);
-    }
-    visit_type_str(v, &p, name, errp);
-}
-
 PropertyInfo qdev_prop_pci_devfn = {
-    .name  = "pci-devfn",
+    .name  = "int32",
+    .legacy_name  = "pci-devfn",
     .type  = PROP_TYPE_UINT32,
     .size  = sizeof(uint32_t),
     .parse = parse_pci_devfn,
     .print = print_pci_devfn,
-    .get   = get_pci_devfn,
-    .set   = set_generic,
+    .get   = get_int32,
+    .set   = set_int32,
+    /* FIXME: this should be -1...255, but the address is stored
+     * into an uint32_t rather than int32_t.
+     */
+    .min   = 0,
+    .max   = 0xFFFFFFFFULL,
 };
 
 /* --- public helpers --- */
