@@ -310,7 +310,6 @@ extern PropertyInfo qdev_prop_pci_devfn;
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
 int qdev_prop_exists(DeviceState *dev, const char *name);
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value);
-void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type);
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value);
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value);
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
@@ -324,8 +323,7 @@ void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value);
 int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value) QEMU_WARN_UNUSED_RESULT;
 void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name, BlockDriverState *value);
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
-void qdev_prop_set_losttickpolicy(DeviceState *dev, const char *name,
-                                  LostTickPolicy *value);
+void qdev_prop_set_enum(DeviceState *dev, const char *name, int value);
 /* FIXME: Remove opaque pointer properties.  */
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_prop_set_defaults(DeviceState *dev, Property *props);

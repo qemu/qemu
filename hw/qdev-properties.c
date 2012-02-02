@@ -1115,7 +1115,7 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
     return 0;
 }
 
-void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type)
+static void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type)
 {
     Property *prop;
 
@@ -1135,52 +1135,63 @@ void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyT
 
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_BIT);
+    Error *errp = NULL;
+    object_property_set_bool(OBJECT(dev), value, name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_UINT8);
+    Error *errp = NULL;
+    object_property_set_int(OBJECT(dev), value, name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_UINT16);
+    Error *errp = NULL;
+    object_property_set_int(OBJECT(dev), value, name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_UINT32);
+    Error *errp = NULL;
+    object_property_set_int(OBJECT(dev), value, name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_INT32);
+    Error *errp = NULL;
+    object_property_set_int(OBJECT(dev), value, name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_UINT64);
+    Error *errp = NULL;
+    object_property_set_int(OBJECT(dev), value, name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_string(DeviceState *dev, const char *name, char *value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_STRING);
+    Error *errp = NULL;
+    object_property_set_str(OBJECT(dev), value, name, &errp);
+    assert(!errp);
 }
 
 int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value)
 {
-    int res;
-
-    res = bdrv_attach_dev(value, dev);
-    if (res < 0) {
-        error_report("Can't attach drive %s to %s.%s: %s",
-                     bdrv_get_device_name(value),
-                     dev->id ? dev->id : object_get_typename(OBJECT(dev)),
-                     name, strerror(-res));
+    Error *errp = NULL;
+    object_property_set_str(OBJECT(dev), bdrv_get_device_name(value),
+                            name, &errp);
+    if (errp) {
+        qerror_report_err(errp);
+        error_free(errp);
         return -1;
     }
-    qdev_prop_set(dev, name, &value, PROP_TYPE_DRIVE);
     return 0;
 }
 
@@ -1192,28 +1203,47 @@ void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name, BlockDriverS
 }
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_CHR);
+    Error *errp = NULL;
+    assert(value->label);
+    object_property_set_str(OBJECT(dev), value->label, name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_NETDEV);
+    Error *errp = NULL;
+    assert(value->name);
+    object_property_set_str(OBJECT(dev), value->name, name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_VLAN);
+    Error *errp = NULL;
+    object_property_set_int(OBJECT(dev), value ? value->id : -1, name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)
 {
-    qdev_prop_set(dev, name, value, PROP_TYPE_MACADDR);
+    Error *errp = NULL;
+    char str[2 * 6 + 5 + 1];
+    snprintf(str, sizeof(str), "%02x:%02x:%02x:%02x:%02x:%02x",
+             value[0], value[1], value[2], value[3], value[4], value[5]);
+
+    object_property_set_str(OBJECT(dev), str, name, &errp);
+    assert(!errp);
 }
 
-void qdev_prop_set_losttickpolicy(DeviceState *dev, const char *name,
-                                  LostTickPolicy *value)
+void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
 {
-    qdev_prop_set(dev, name, value, PROP_TYPE_LOSTTICKPOLICY);
+    Property *prop;
+    Error *errp = NULL;
+
+    prop = qdev_prop_find(dev, name);
+    object_property_set_str(OBJECT(dev), prop->info->enum_table[value],
+                            name, &errp);
+    assert(!errp);
 }
 
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)

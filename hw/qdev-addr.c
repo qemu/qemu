@@ -71,5 +71,8 @@ PropertyInfo qdev_prop_taddr = {
 
 void qdev_prop_set_taddr(DeviceState *dev, const char *name, target_phys_addr_t value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_TADDR);
+    Error *errp = NULL;
+    object_property_set_int(OBJECT(dev), value, name, &errp);
+    assert(!errp);
+
 }
