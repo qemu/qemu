@@ -204,7 +204,8 @@ extern unsigned long reserved_va;
 #else
 #define h2g_valid(x) ({ \
     unsigned long __guest = (unsigned long)(x) - GUEST_BASE; \
-    __guest < (1ul << TARGET_VIRT_ADDR_SPACE_BITS); \
+    (__guest < (1ul << TARGET_VIRT_ADDR_SPACE_BITS)) && \
+    (!RESERVED_VA || (__guest < RESERVED_VA)); \
 })
 #endif
 
