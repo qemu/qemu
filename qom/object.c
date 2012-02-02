@@ -696,6 +696,30 @@ char *object_property_get_str(Object *obj, const char *name,
     return retval;
 }
 
+void object_property_set_link(Object *obj, Object *value,
+                              const char *name, Error **errp)
+{
+    object_property_set_str(obj, object_get_canonical_path(value),
+                            name, errp);
+}
+
+Object *object_property_get_link(Object *obj, const char *name,
+                                 Error **errp)
+{
+    char *str = object_property_get_str(obj, name, errp);
+    Object *target = NULL;
+
+    if (str && *str) {
+        target = object_resolve_path(str, NULL);
+        if (!target) {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, str);
+        }
+    }
+
+    g_free(str);
+    return target;
+}
+
 void object_property_set_bool(Object *obj, bool value,
                               const char *name, Error **errp)
 {

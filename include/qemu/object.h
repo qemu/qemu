@@ -646,6 +646,30 @@ char *object_property_get_str(Object *obj, const char *name,
                               struct Error **errp);
 
 /**
+ * object_property_set_link:
+ * @value: the value to be written to the property
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Writes an object's canonical path to a property.
+ */
+void object_property_set_link(Object *obj, Object *value,
+                              const char *name, struct Error **errp);
+
+/**
+ * object_property_get_link:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns: the value of the property, resolved from a path to an Object,
+ * or NULL if an error occurs (including when the property value is not a
+ * string or not a valid object path).
+ */
+Object *object_property_get_link(Object *obj, const char *name,
+                                 struct Error **errp);
+
+/**
  * object_property_set_bool:
  * @value: the value to be written to the property
  * @name: the name of the property
