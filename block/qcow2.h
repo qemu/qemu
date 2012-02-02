@@ -178,6 +178,7 @@ static inline int64_t align_offset(int64_t offset, int n)
 /* qcow2.c functions */
 int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
                   int64_t sector_num, int nb_sectors);
+int qcow2_update_header(BlockDriverState *bs);
 
 /* qcow2-refcount.c functions */
 int qcow2_refcount_init(BlockDriverState *bs);
