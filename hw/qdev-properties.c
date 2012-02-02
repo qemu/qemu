@@ -510,16 +510,6 @@ PropertyInfo qdev_prop_hex64 = {
 
 /* --- string --- */
 
-static int parse_string(DeviceState *dev, Property *prop, const char *str)
-{
-    char **ptr = qdev_get_prop_ptr(dev, prop);
-
-    if (*ptr)
-        g_free(*ptr);
-    *ptr = g_strdup(str);
-    return 0;
-}
-
 static void free_string(DeviceState *dev, Property *prop)
 {
     g_free(*(char **)qdev_get_prop_ptr(dev, prop));
@@ -581,7 +571,6 @@ PropertyInfo qdev_prop_string = {
     .name  = "string",
     .type  = PROP_TYPE_STRING,
     .size  = sizeof(char*),
-    .parse = parse_string,
     .print = print_string,
     .free  = free_string,
     .get   = get_string,
