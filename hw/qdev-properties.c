@@ -579,9 +579,8 @@ PropertyInfo qdev_prop_string = {
 
 /* --- drive --- */
 
-static int parse_drive(DeviceState *dev, Property *prop, const char *str)
+static int parse_drive(DeviceState *dev, const char *str, void **ptr)
 {
-    BlockDriverState **ptr = qdev_get_prop_ptr(dev, prop);
     BlockDriverState *bs;
 
     bs = bdrv_find(str);
@@ -603,35 +602,30 @@ static void free_drive(DeviceState *dev, Property *prop)
     }
 }
 
-static int print_drive(DeviceState *dev, Property *prop, char *dest, size_t len)
+static const char *print_drive(void *ptr)
 {
-    BlockDriverState **ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "%s",
-                    *ptr ? bdrv_get_device_name(*ptr) : "<null>");
+    return bdrv_get_device_name(ptr);
 }
 
-static void get_generic(Object *obj, Visitor *v, void *opaque,
-                       const char *name, Error **errp)
-{
-    DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
-    void **ptr = qdev_get_prop_ptr(dev, prop);
-    char buffer[1024];
-    char *p = buffer;
-
-    buffer[0] = 0;
-    if (*ptr) {
-        prop->info->print(dev, prop, buffer, sizeof(buffer));
-    }
-    visit_type_str(v, &p, name, errp);
-}
-
-static void set_generic(Object *obj, Visitor *v, void *opaque,
+static void get_pointer(Object *obj, Visitor *v, Property *prop,
+                        const char *(*print)(void *ptr),
                         const char *name, Error **errp)
 {
     DeviceState *dev = DEVICE(obj);
-    Property *prop = opaque;
+    void **ptr = qdev_get_prop_ptr(dev, prop);
+    char *p;
+
+    p = (char *) (*ptr ? print(*ptr) : "");
+    visit_type_str(v, &p, name, errp);
+}
+
+static void set_pointer(Object *obj, Visitor *v, Property *prop,
+                        int (*parse)(DeviceState *dev, const char *str, void **ptr),
+                        const char *name, Error **errp)
+{
+    DeviceState *dev = DEVICE(obj);
     Error *local_err = NULL;
+    void **ptr = qdev_get_prop_ptr(dev, prop);
     char *str;
     int ret;
 
@@ -650,36 +644,45 @@ static void set_generic(Object *obj, Visitor *v, void *opaque,
         error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
         return;
     }
-    ret = prop->info->parse(dev, prop, str);
+    ret = parse(dev, str, ptr);
     error_set_from_qdev_prop_error(errp, ret, dev, prop, str);
     g_free(str);
+}
+
+static void get_drive(Object *obj, Visitor *v, void *opaque,
+                      const char *name, Error **errp)
+{
+    get_pointer(obj, v, opaque, print_drive, name, errp);
+}
+
+static void set_drive(Object *obj, Visitor *v, void *opaque,
+                      const char *name, Error **errp)
+{
+    set_pointer(obj, v, opaque, parse_drive, name, errp);
 }
 
 PropertyInfo qdev_prop_drive = {
     .name  = "drive",
     .type  = PROP_TYPE_DRIVE,
     .size  = sizeof(BlockDriverState *),
-    .parse = parse_drive,
-    .print = print_drive,
-    .get   = get_generic,
-    .set   = set_generic,
+    .get   = get_drive,
+    .set   = set_drive,
     .free  = free_drive,
 };
 
 /* --- character device --- */
 
-static int parse_chr(DeviceState *dev, Property *prop, const char *str)
+static int parse_chr(DeviceState *dev, const char *str, void **ptr)
 {
-    CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
-
-    *ptr = qemu_chr_find(str);
-    if (*ptr == NULL) {
+    CharDriverState *chr = qemu_chr_find(str);
+    if (chr == NULL) {
         return -ENOENT;
     }
-    if ((*ptr)->avail_connections < 1) {
+    if (chr->avail_connections < 1) {
         return -EEXIST;
     }
-    --(*ptr)->avail_connections;
+    *ptr = chr;
+    --chr->avail_connections;
     return 0;
 }
 
@@ -693,62 +696,75 @@ static void free_chr(DeviceState *dev, Property *prop)
 }
 
 
-static int print_chr(DeviceState *dev, Property *prop, char *dest, size_t len)
+static const char *print_chr(void *ptr)
 {
-    CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
+    CharDriverState *chr = ptr;
 
-    if (*ptr && (*ptr)->label) {
-        return snprintf(dest, len, "%s", (*ptr)->label);
-    } else {
-        return snprintf(dest, len, "<null>");
-    }
+    return chr->label ? chr->label : "";
+}
+
+static void get_chr(Object *obj, Visitor *v, void *opaque,
+                    const char *name, Error **errp)
+{
+    get_pointer(obj, v, opaque, print_chr, name, errp);
+}
+
+static void set_chr(Object *obj, Visitor *v, void *opaque,
+                    const char *name, Error **errp)
+{
+    set_pointer(obj, v, opaque, parse_chr, name, errp);
 }
 
 PropertyInfo qdev_prop_chr = {
     .name  = "chr",
     .type  = PROP_TYPE_CHR,
     .size  = sizeof(CharDriverState*),
-    .parse = parse_chr,
-    .print = print_chr,
-    .get   = get_generic,
-    .set   = set_generic,
+    .get   = get_chr,
+    .set   = set_chr,
     .free  = free_chr,
 };
 
 /* --- netdev device --- */
 
-static int parse_netdev(DeviceState *dev, Property *prop, const char *str)
+static int parse_netdev(DeviceState *dev, const char *str, void **ptr)
 {
-    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
+    VLANClientState *netdev = qemu_find_netdev(str);
 
-    *ptr = qemu_find_netdev(str);
-    if (*ptr == NULL)
+    if (netdev == NULL) {
         return -ENOENT;
-    if ((*ptr)->peer) {
+    }
+    if (netdev->peer) {
         return -EEXIST;
     }
+    *ptr = netdev;
     return 0;
 }
 
-static int print_netdev(DeviceState *dev, Property *prop, char *dest, size_t len)
+static const char *print_netdev(void *ptr)
 {
-    VLANClientState **ptr = qdev_get_prop_ptr(dev, prop);
+    VLANClientState *netdev = ptr;
 
-    if (*ptr && (*ptr)->name) {
-        return snprintf(dest, len, "%s", (*ptr)->name);
-    } else {
-        return snprintf(dest, len, "<null>");
-    }
+    return netdev->name ? netdev->name : "";
+}
+
+static void get_netdev(Object *obj, Visitor *v, void *opaque,
+                       const char *name, Error **errp)
+{
+    get_pointer(obj, v, opaque, print_netdev, name, errp);
+}
+
+static void set_netdev(Object *obj, Visitor *v, void *opaque,
+                       const char *name, Error **errp)
+{
+    set_pointer(obj, v, opaque, parse_netdev, name, errp);
 }
 
 PropertyInfo qdev_prop_netdev = {
     .name  = "netdev",
     .type  = PROP_TYPE_NETDEV,
     .size  = sizeof(VLANClientState*),
-    .parse = parse_netdev,
-    .print = print_netdev,
-    .get   = get_generic,
-    .set   = set_generic,
+    .get   = get_netdev,
+    .set   = set_netdev,
 };
 
 /* --- vlan --- */
