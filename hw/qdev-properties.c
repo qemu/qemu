@@ -1115,24 +1115,6 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
     return 0;
 }
 
-static void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type)
-{
-    Property *prop;
-
-    prop = qdev_prop_find(dev, name);
-    if (!prop) {
-        fprintf(stderr, "%s: property \"%s.%s\" not found\n",
-                __FUNCTION__, object_get_typename(OBJECT(dev)), name);
-        abort();
-    }
-    if (prop->info->type != type) {
-        fprintf(stderr, "%s: property \"%s.%s\" type mismatch\n",
-                __FUNCTION__, object_get_typename(OBJECT(dev)), name);
-        abort();
-    }
-    qdev_prop_cpy(dev, prop, src);
-}
-
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
 {
     Error *errp = NULL;
@@ -1248,7 +1230,13 @@ void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
 
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
 {
-    qdev_prop_set(dev, name, &value, PROP_TYPE_PTR);
+    Property *prop;
+    void **ptr;
+
+    prop = qdev_prop_find(dev, name);
+    assert(prop && prop->info == &qdev_prop_ptr);
+    ptr = qdev_get_prop_ptr(dev, prop);
+    *ptr = value;
 }
 
 void qdev_prop_set_defaults(DeviceState *dev, Property *props)
