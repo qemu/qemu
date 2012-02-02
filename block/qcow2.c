@@ -77,8 +77,10 @@ static int qcow2_probe(const uint8_t *buf, int buf_size, const char *filename)
 static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                                  uint64_t end_offset)
 {
+    BDRVQcowState *s = bs->opaque;
     QCowExtension ext;
     uint64_t offset;
+    int ret;
 
 #ifdef DEBUG_EXT
     printf("qcow2_read_extensions: start=%ld end=%ld\n", start_offset, end_offset);
@@ -129,8 +131,22 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
             break;
 
         default:
-            /* unknown magic -- just skip it */
-            offset = ((offset + ext.len + 7) & ~7);
+            /* unknown magic - save it in case we need to rewrite the header */
+            {
+                Qcow2UnknownHeaderExtension *uext;
+
+                uext = g_malloc0(sizeof(*uext)  + ext.len);
+                uext->magic = ext.magic;
+                uext->len = ext.len;
+                QLIST_INSERT_HEAD(&s->unknown_header_ext, uext, next);
+
+                ret = bdrv_pread(bs->file, offset , uext->data, uext->len);
+                if (ret < 0) {
+                    return ret;
+                }
+
+                offset = ((offset + ext.len + 7) & ~7);
+            }
             break;
         }
     }
@@ -138,6 +154,16 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
     return 0;
 }
 
+static void cleanup_unknown_header_ext(BlockDriverState *bs)
+{
+    BDRVQcowState *s = bs->opaque;
+    Qcow2UnknownHeaderExtension *uext, *next;
+
+    QLIST_FOREACH_SAFE(uext, &s->unknown_header_ext, next, next) {
+        QLIST_REMOVE(uext, next);
+        g_free(uext);
+    }
+}
 
 static int qcow2_open(BlockDriverState *bs, int flags)
 {
@@ -291,6 +317,7 @@ static int qcow2_open(BlockDriverState *bs, int flags)
     return ret;
 
  fail:
+    cleanup_unknown_header_ext(bs);
     qcow2_free_snapshots(bs);
     qcow2_refcount_close(bs);
     g_free(s->l1_table);
@@ -632,6 +659,7 @@ static void qcow2_close(BlockDriverState *bs)
     qcow2_cache_destroy(bs, s->l2_table_cache);
     qcow2_cache_destroy(bs, s->refcount_block_cache);
 
+    cleanup_unknown_header_ext(bs);
     g_free(s->cluster_cache);
     qemu_vfree(s->cluster_data);
     qcow2_refcount_close(bs);
@@ -705,6 +733,7 @@ int qcow2_update_header(BlockDriverState *bs)
     int ret;
     uint64_t total_size;
     uint32_t refcount_table_clusters;
+    Qcow2UnknownHeaderExtension *uext;
 
     buf = qemu_blockalign(bs, buflen);
     memset(buf, 0, s->cluster_size);
@@ -744,6 +773,17 @@ int qcow2_update_header(BlockDriverState *bs)
         ret = header_ext_add(buf, QCOW2_EXT_MAGIC_BACKING_FORMAT,
                              bs->backing_format, strlen(bs->backing_format),
                              buflen);
+        if (ret < 0) {
+            goto fail;
+        }
+
+        buf += ret;
+        buflen -= ret;
+    }
+
+    /* Keep unknown header extensions */
+    QLIST_FOREACH(uext, &s->unknown_header_ext, next) {
+        ret = header_ext_add(buf, uext->magic, uext->data, uext->len, buflen);
         if (ret < 0) {
             goto fail;
         }
