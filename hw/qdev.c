@@ -595,7 +595,7 @@ void qdev_property_add_static(DeviceState *dev, Property *prop,
 
     object_property_add(OBJECT(dev), prop->name, prop->info->name,
                         prop->info->get, prop->info->set,
-                        NULL,
+                        prop->info->release,
                         prop, errp);
 }
 
@@ -626,7 +626,6 @@ static void device_finalize(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     BusState *bus;
-    Property *prop;
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
     if (dev->state == DEV_STATE_INITIALIZED) {
@@ -645,11 +644,6 @@ static void device_finalize(Object *obj)
         }
     }
     QTAILQ_REMOVE(&dev->parent_bus->children, dev, sibling);
-    for (prop = qdev_get_props(dev); prop && prop->name; prop++) {
-        if (prop->info->free) {
-            prop->info->free(dev, prop);
-        }
-    }
 }
 
 void device_reset(DeviceState *dev)

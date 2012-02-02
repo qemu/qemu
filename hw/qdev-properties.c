@@ -510,9 +510,10 @@ PropertyInfo qdev_prop_hex64 = {
 
 /* --- string --- */
 
-static void free_string(DeviceState *dev, Property *prop)
+static void release_string(Object *obj, const char *name, void *opaque)
 {
-    g_free(*(char **)qdev_get_prop_ptr(dev, prop));
+    Property *prop = opaque;
+    g_free(*(char **)qdev_get_prop_ptr(DEVICE(obj), prop));
 }
 
 static int print_string(DeviceState *dev, Property *prop, char *dest, size_t len)
@@ -572,7 +573,7 @@ PropertyInfo qdev_prop_string = {
     .type  = PROP_TYPE_STRING,
     .size  = sizeof(char*),
     .print = print_string,
-    .free  = free_string,
+    .release = release_string,
     .get   = get_string,
     .set   = set_string,
 };
@@ -592,8 +593,10 @@ static int parse_drive(DeviceState *dev, const char *str, void **ptr)
     return 0;
 }
 
-static void free_drive(DeviceState *dev, Property *prop)
+static void release_drive(Object *obj, const char *name, void *opaque)
 {
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
     BlockDriverState **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
@@ -667,7 +670,7 @@ PropertyInfo qdev_prop_drive = {
     .size  = sizeof(BlockDriverState *),
     .get   = get_drive,
     .set   = set_drive,
-    .free  = free_drive,
+    .release = release_drive,
 };
 
 /* --- character device --- */
@@ -686,8 +689,10 @@ static int parse_chr(DeviceState *dev, const char *str, void **ptr)
     return 0;
 }
 
-static void free_chr(DeviceState *dev, Property *prop)
+static void release_chr(Object *obj, const char *name, void *opaque)
 {
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
     CharDriverState **ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr) {
@@ -721,7 +726,7 @@ PropertyInfo qdev_prop_chr = {
     .size  = sizeof(CharDriverState*),
     .get   = get_chr,
     .set   = set_chr,
-    .free  = free_chr,
+    .release = release_chr,
 };
 
 /* --- netdev device --- */
