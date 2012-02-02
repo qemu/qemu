@@ -151,7 +151,7 @@ static void set_int8(Object *obj, Visitor *v, void *opaque,
         error_propagate(errp, local_err);
         return;
     }
-    if (value > prop->info->min && value <= prop->info->max) {
+    if (value >= prop->info->min && value <= prop->info->max) {
         *ptr = value;
     } else {
         error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
@@ -259,7 +259,7 @@ static void set_int16(Object *obj, Visitor *v, void *opaque,
         error_propagate(errp, local_err);
         return;
     }
-    if (value > prop->info->min && value <= prop->info->max) {
+    if (value >= prop->info->min && value <= prop->info->max) {
         *ptr = value;
     } else {
         error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
@@ -333,7 +333,7 @@ static void set_int32(Object *obj, Visitor *v, void *opaque,
         error_propagate(errp, local_err);
         return;
     }
-    if (value > prop->info->min && value <= prop->info->max) {
+    if (value >= prop->info->min && value <= prop->info->max) {
         *ptr = value;
     } else {
         error_set(errp, QERR_PROPERTY_VALUE_OUT_OF_RANGE,
