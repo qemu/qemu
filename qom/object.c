@@ -805,6 +805,12 @@ void object_property_add_child(Object *obj, const char *name,
 {
     gchar *type;
 
+    /* Registering an interface object in the composition tree will mightily
+     * confuse object_get_canonical_path (which, on the other hand, knows how
+     * to get the canonical path of an interface object).
+     */
+    assert(!object_is_type(obj, type_interface));
+
     type = g_strdup_printf("child<%s>", object_get_typename(OBJECT(child)));
 
     object_property_add(obj, name, type, object_get_child_property,
@@ -897,6 +903,10 @@ gchar *object_get_canonical_path(Object *obj)
 {
     Object *root = object_get_root();
     char *newpath = NULL, *path = NULL;
+
+    if (object_is_type(obj, type_interface)) {
+        obj = INTERFACE(obj)->obj;
+    }
 
     while (obj != root) {
         ObjectProperty *prop = NULL;
