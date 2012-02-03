@@ -55,6 +55,9 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * #define TYPE_MY_DEVICE "my-device"
  *
+ * // No new virtual functions: we can reuse the typedef for the
+ * // superclass.
+ * typedef DeviceClass MyDeviceClass;
  * typedef struct MyDevice
  * {
  *     DeviceState parent;
@@ -88,8 +91,21 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * Using object_new(), a new #Object derivative will be instantiated.  You can
  * cast an #Object to a subclass (or base-class) type using
- * object_dynamic_cast().  You typically want to define a macro wrapper around
- * object_dynamic_cast_assert() to make it easier to convert to a specific type.
+ * object_dynamic_cast().  You typically want to define macro wrappers around
+ * OBJECT_CHECK() and OBJECT_CLASS_CHECK() to make it easier to convert to a
+ * specific type:
+ *
+ * <example>
+ *   <title>Typecasting macros</title>
+ *   <programlisting>
+ *    #define MY_DEVICE_GET_CLASS(obj) \
+ *       OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
+ *    #define MY_DEVICE_CLASS(klass) \
+ *       OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
+ *    #define MY_DEVICE(obj) \
+ *       OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
+ *   </programlisting>
+ * </example>
  *
  * # Class Initialization #
  *
@@ -108,7 +124,61 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * Once all of the parent classes have been initialized, #TypeInfo::class_init
  * is called to let the class being instantiated provide default initialize for
- * it's virtual functions.
+ * it's virtual functions.  Here is how the above example might be modified
+ * to introduce an overridden virtual function:
+ *
+ * <example>
+ *   <title>Overriding a virtual function</title>
+ *   <programlisting>
+ * #include "qdev.h"
+ *
+ * void my_device_class_init(ObjectClass *klass, void *class_data)
+ * {
+ *     DeviceClass *dc = DEVICE_CLASS(klass);
+ *     dc->reset = my_device_reset;
+ * }
+ *
+ * static TypeInfo my_device_info = {
+ *     .name = TYPE_MY_DEVICE,
+ *     .parent = TYPE_DEVICE,
+ *     .instance_size = sizeof(MyDevice),
+ *     .class_init = my_device_class_init,
+ * };
+ *   </programlisting>
+ * </example>
+ *
+ * Introducing new virtual functions requires a class to define its own
+ * struct and to add a .class_size member to the TypeInfo.  Each function
+ * will also have a wrapper to call it easily:
+ *
+ * <example>
+ *   <title>Defining an abstract class</title>
+ *   <programlisting>
+ * #include "qdev.h"
+ *
+ * typedef struct MyDeviceClass
+ * {
+ *     DeviceClass parent;
+ *
+ *     void (*frobnicate) (MyDevice *obj);
+ * } MyDeviceClass;
+ *
+ * static TypeInfo my_device_info = {
+ *     .name = TYPE_MY_DEVICE,
+ *     .parent = TYPE_DEVICE,
+ *     .instance_size = sizeof(MyDevice),
+ *     .abstract = true, // or set a default in my_device_class_init
+ *     .class_size = sizeof(MyDeviceClass),
+ * };
+ *
+ * void my_device_frobnicate(MyDevice *obj)
+ * {
+ *     MyDeviceClass *klass = MY_DEVICE_GET_CLASS(obj);
+ *
+ *     klass->frobnicate(obj);
+ * }
+ *   </programlisting>
+ * </example>
  *
  * # Interfaces #
  *
