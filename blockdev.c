@@ -18,6 +18,7 @@
 #include "block_int.h"
 #include "qmp-commands.h"
 #include "trace.h"
+#include "arch_init.h"
 
 static QTAILQ_HEAD(drivelist, DriveInfo) drives = QTAILQ_HEAD_INITIALIZER(drives);
 
