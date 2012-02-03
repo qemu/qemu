@@ -749,12 +749,33 @@ gchar *object_get_canonical_path(Object *obj);
  * specifying objects easy.  At each level of the composition tree, the partial
  * path is matched as an absolute path.  The first match is not returned.  At
  * least two matches are searched for.  A successful result is only returned if
- * only one match is founded.  If more than one match is found, a flag is
- * return to indicate that the match was ambiguous.
+ * only one match is found.  If more than one match is found, a flag is
+ * returned to indicate that the match was ambiguous.
  *
  * Returns: The matched object or NULL on path lookup failure.
  */
 Object *object_resolve_path(const char *path, bool *ambiguous);
+
+/**
+ * object_resolve_path_type:
+ * @path: the path to resolve
+ * @typename: the type to look for.
+ * @ambiguous: returns true if the path resolution failed because of an
+ *   ambiguous match
+ *
+ * This is similar to object_resolve_path.  However, when looking for a
+ * partial path only matches that implement the given type are considered.
+ * This restricts the search and avoids spuriously flagging matches as
+ * ambiguous.
+ *
+ * For both partial and absolute paths, the return value goes through
+ * a dynamic cast to @typename.  This is important if either the link,
+ * or the typename itself are of interface types.
+ *
+ * Returns: The matched object or NULL on path lookup failure.
+ */
+Object *object_resolve_path_type(const char *path, const char *typename,
+                                 bool *ambiguous);
 
 /**
  * object_property_add_child:

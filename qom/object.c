@@ -930,17 +930,18 @@ gchar *object_get_canonical_path(Object *obj)
 
 static Object *object_resolve_abs_path(Object *parent,
                                           gchar **parts,
+                                          const char *typename,
                                           int index)
 {
     ObjectProperty *prop;
     Object *child;
 
     if (parts[index] == NULL) {
-        return parent;
+        return object_dynamic_cast(parent, typename);
     }
 
     if (strcmp(parts[index], "") == 0) {
-        return object_resolve_abs_path(parent, parts, index + 1);
+        return object_resolve_abs_path(parent, parts, typename, index + 1);
     }
 
     prop = object_property_find(parent, parts[index]);
@@ -962,17 +963,18 @@ static Object *object_resolve_abs_path(Object *parent,
         return NULL;
     }
 
-    return object_resolve_abs_path(child, parts, index + 1);
+    return object_resolve_abs_path(child, parts, typename, index + 1);
 }
 
 static Object *object_resolve_partial_path(Object *parent,
                                               gchar **parts,
+                                              const char *typename,
                                               bool *ambiguous)
 {
     Object *obj;
     ObjectProperty *prop;
 
-    obj = object_resolve_abs_path(parent, parts, 0);
+    obj = object_resolve_abs_path(parent, parts, typename, 0);
 
     QTAILQ_FOREACH(prop, &parent->properties, node) {
         Object *found;
@@ -981,7 +983,8 @@ static Object *object_resolve_partial_path(Object *parent,
             continue;
         }
 
-        found = object_resolve_partial_path(prop->opaque, parts, ambiguous);
+        found = object_resolve_partial_path(prop->opaque, parts,
+                                            typename, ambiguous);
         if (found) {
             if (obj) {
                 if (ambiguous) {
@@ -1000,7 +1003,8 @@ static Object *object_resolve_partial_path(Object *parent,
     return obj;
 }
 
-Object *object_resolve_path(const char *path, bool *ambiguous)
+Object *object_resolve_path_type(const char *path, const char *typename,
+                                 bool *ambiguous)
 {
     bool partial_path = true;
     Object *obj;
@@ -1020,14 +1024,20 @@ Object *object_resolve_path(const char *path, bool *ambiguous)
         if (ambiguous) {
             *ambiguous = false;
         }
-        obj = object_resolve_partial_path(object_get_root(), parts, ambiguous);
+        obj = object_resolve_partial_path(object_get_root(), parts,
+                                          typename, ambiguous);
     } else {
-        obj = object_resolve_abs_path(object_get_root(), parts, 1);
+        obj = object_resolve_abs_path(object_get_root(), parts, typename, 1);
     }
 
     g_strfreev(parts);
 
     return obj;
+}
+
+Object *object_resolve_path(const char *path, bool *ambiguous)
+{
+    return object_resolve_path_type(path, TYPE_OBJECT, ambiguous);
 }
 
 typedef struct StringProperty
