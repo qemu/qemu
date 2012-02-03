@@ -259,6 +259,16 @@ struct TypeInfo
     ((Object *)(obj))
 
 /**
+ * OBJECT_CLASS:
+ * @class: A derivative of #ObjectClas.
+ *
+ * Converts a class to an #ObjectClass.  Since all objects are #Objects,
+ * this function will always succeed.
+ */
+#define OBJECT_CLASS(class) \
+    ((ObjectClass *)(class))
+
+/**
  * OBJECT_CHECK:
  * @type: The C type to use for the return value.
  * @obj: A derivative of @type to cast.
@@ -272,7 +282,7 @@ struct TypeInfo
  * generated.
  */
 #define OBJECT_CHECK(type, obj, name) \
-    ((type *)object_dynamic_cast_assert((Object *)(obj), (name)))
+    ((type *)object_dynamic_cast_assert(OBJECT(obj), (name)))
 
 /**
  * OBJECT_CLASS_CHECK:
@@ -280,11 +290,12 @@ struct TypeInfo
  * @obj: A derivative of @type to cast.
  * @name: the QOM typename of @class.
  *
- * A type safe version of @object_check_class.  This macro is typically wrapped
- * by each type to perform type safe casts of a class to a specific class type.
+ * A type safe version of @object_class_dynamic_cast_assert.  This macro is
+ * typically wrapped by each type to perform type safe casts of a class to a
+ * specific class type.
  */
 #define OBJECT_CLASS_CHECK(class, obj, name) \
-    ((class *)object_class_dynamic_cast_assert((ObjectClass *)(obj), (name)))
+    ((class *)object_class_dynamic_cast_assert(OBJECT_CLASS(obj), (name)))
 
 /**
  * OBJECT_GET_CLASS:
@@ -298,9 +309,6 @@ struct TypeInfo
  */
 #define OBJECT_GET_CLASS(class, obj, name) \
     OBJECT_CLASS_CHECK(class, object_get_class(OBJECT(obj)), name)
-
-#define OBJECT_CLASS(class) \
-    ((ObjectClass *)(class))
 
 /**
  * InterfaceClass:
