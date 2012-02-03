@@ -352,4 +352,6 @@ void qdev_set_parent_bus(DeviceState *dev, BusState *bus);
 
 extern int qdev_hotplug;
 
+char *qdev_get_dev_path(DeviceState *dev);
+
 #endif

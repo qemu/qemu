@@ -1453,12 +1453,10 @@ static char *scsibus_get_dev_path(DeviceState *dev)
 {
     SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
     DeviceState *hba = dev->parent_bus->parent;
-    char *id = NULL;
+    char *id;
     char *path;
 
-    if (hba && hba->parent_bus && hba->parent_bus->info->get_dev_path) {
-        id = hba->parent_bus->info->get_dev_path(hba);
-    }
+    id = qdev_get_dev_path(hba);
     if (id) {
         path = g_strdup_printf("%s/%d:%d:%d", id, d->channel, d->id, d->lun);
     } else {

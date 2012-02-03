@@ -494,6 +494,22 @@ char* qdev_get_fw_dev_path(DeviceState *dev)
     return strdup(path);
 }
 
+char *qdev_get_dev_path(DeviceState *dev)
+{
+    BusInfo *businfo;
+
+    if (!dev || !dev->parent_bus) {
+        return NULL;
+    }
+
+    businfo = dev->parent_bus->info;
+    if (businfo->get_dev_path) {
+        return businfo->get_dev_path(dev);
+    }
+
+    return NULL;
+}
+
 /**
  * Legacy property handling
  */
