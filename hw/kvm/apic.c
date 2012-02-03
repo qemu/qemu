@@ -135,6 +135,7 @@ static void kvm_apic_class_init(ObjectClass *klass, void *data)
 static TypeInfo kvm_apic_info = {
     .name = "kvm-apic",
     .parent = TYPE_APIC_COMMON,
+    .instance_size = sizeof(APICCommonState),
     .class_init = kvm_apic_class_init,
 };
 

@@ -126,6 +126,7 @@ static void kvm_i8259_class_init(ObjectClass *klass, void *data)
 static TypeInfo kvm_i8259_info = {
     .name  = "kvm-i8259",
     .parent = TYPE_PIC_COMMON,
+    .instance_size = sizeof(PICCommonState),
     .class_init = kvm_i8259_class_init,
 };
 
