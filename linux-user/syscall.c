@@ -7242,21 +7242,22 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         goto unimplemented;
 #endif
     case TARGET_NR_prctl:
-        switch (arg1)
-            {
-            case PR_GET_PDEATHSIG:
-                {
-                    int deathsig;
-                    ret = get_errno(prctl(arg1, &deathsig, arg3, arg4, arg5));
-                    if (!is_error(ret) && arg2
-                        && put_user_ual(deathsig, arg2))
-                        goto efault;
-                }
-                break;
-            default:
-                ret = get_errno(prctl(arg1, arg2, arg3, arg4, arg5));
-                break;
+        switch (arg1) {
+        case PR_GET_PDEATHSIG:
+        {
+            int deathsig;
+            ret = get_errno(prctl(arg1, &deathsig, arg3, arg4, arg5));
+            if (!is_error(ret) && arg2
+                && put_user_ual(deathsig, arg2)) {
+                goto efault;
             }
+            break;
+        }
+        default:
+            /* Most prctl options have no pointer arguments */
+            ret = get_errno(prctl(arg1, arg2, arg3, arg4, arg5));
+            break;
+        }
         break;
 #ifdef TARGET_NR_arch_prctl
     case TARGET_NR_arch_prctl:
