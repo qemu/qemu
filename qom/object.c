@@ -368,11 +368,9 @@ void object_delete(Object *obj)
     g_free(obj);
 }
 
-static bool object_is_type(Object *obj, const char *typename)
+static bool type_is_ancestor(TypeImpl *type, TypeImpl *target_type)
 {
-    TypeImpl *target_type = type_get_by_name(typename);
-    TypeImpl *type = obj->class->type;
-    GSList *i;
+    assert(target_type);
 
     /* Check if typename is a direct ancestor of type */
     while (type) {
@@ -383,24 +381,50 @@ static bool object_is_type(Object *obj, const char *typename)
         type = type_get_parent(type);
     }
 
-    /* Check if obj has an interface of typename */
-    for (i = obj->interfaces; i; i = i->next) {
-        Interface *iface = i->data;
-
-        if (object_is_type(OBJECT(iface), typename)) {
-            return true;
-        }
-    }
-
     return false;
+}
+
+static bool object_is_type(Object *obj, const char *typename)
+{
+    TypeImpl *target_type;
+
+    if (typename == TYPE_OBJECT) {
+        return true;
+    }
+    target_type = type_get_by_name(typename);
+    return type_is_ancestor(obj->class->type, target_type);
 }
 
 Object *object_dynamic_cast(Object *obj, const char *typename)
 {
     GSList *i;
 
-    /* Check if typename is a direct ancestor */
-    if (object_is_type(obj, typename)) {
+    /* Check if typename is a direct ancestor.  Special-case TYPE_OBJECT,
+     * we want to go back from interfaces to the parent.
+    */
+    if (typename && object_is_type(obj, typename)) {
+        return obj;
+    }
+
+    /* Check if obj is an interface and its containing object is a direct
+     * ancestor of typename.  In principle we could do this test at the very
+     * beginning of object_dynamic_cast, avoiding a second call to
+     * object_is_type.  However, casting between interfaces is relatively
+     * rare, and object_is_type(obj, TYPE_INTERFACE) would fail almost always.
+     *
+     * Perhaps we could add a magic value to the object header for increased
+     * (run-time) type safety and to speed up tests like this one.  If we ever
+     * do that we can revisit the order here.
+     */
+    if (object_is_type(obj, TYPE_INTERFACE)) {
+        assert(!obj->interfaces);
+        obj = INTERFACE(obj)->obj;
+        if (object_is_type(obj, typename)) {
+            return obj;
+        }
+    }
+
+    if (typename == TYPE_OBJECT) {
         return obj;
     }
 
@@ -410,16 +434,6 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
 
         if (object_is_type(OBJECT(iface), typename)) {
             return OBJECT(iface);
-        }
-    }
-
-    /* Check if obj is an interface and its containing object is a direct
-     * ancestor of typename */
-    if (object_is_type(obj, TYPE_INTERFACE)) {
-        Interface *iface = INTERFACE(obj);
-
-        if (object_is_type(iface->obj, typename)) {
-            return iface->obj;
         }
     }
 
