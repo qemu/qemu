@@ -565,7 +565,11 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     case IF_VIRTIO:
         /* add virtio block device */
         opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0);
-        qemu_opt_set(opts, "driver", "virtio-blk");
+        if (arch_type == QEMU_ARCH_S390X) {
+            qemu_opt_set(opts, "driver", "virtio-blk-s390");
+        } else {
+            qemu_opt_set(opts, "driver", "virtio-blk-pci");
+        }
         qemu_opt_set(opts, "drive", dinfo->id);
         if (devaddr)
             qemu_opt_set(opts, "addr", devaddr);
