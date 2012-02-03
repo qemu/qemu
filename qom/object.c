@@ -63,6 +63,8 @@ typedef struct Interface
 
 #define INTERFACE(obj) OBJECT_CHECK(Interface, obj, TYPE_INTERFACE)
 
+static Type type_interface;
+
 static GHashTable *type_table_get(void)
 {
     static GHashTable *type_table;
@@ -384,25 +386,20 @@ static bool type_is_ancestor(TypeImpl *type, TypeImpl *target_type)
     return false;
 }
 
-static bool object_is_type(Object *obj, const char *typename)
+static bool object_is_type(Object *obj, TypeImpl *target_type)
 {
-    TypeImpl *target_type;
-
-    if (typename == TYPE_OBJECT) {
-        return true;
-    }
-    target_type = type_get_by_name(typename);
-    return type_is_ancestor(obj->class->type, target_type);
+    return !target_type || type_is_ancestor(obj->class->type, target_type);
 }
 
 Object *object_dynamic_cast(Object *obj, const char *typename)
 {
+    TypeImpl *target_type = type_get_by_name(typename);
     GSList *i;
 
     /* Check if typename is a direct ancestor.  Special-case TYPE_OBJECT,
      * we want to go back from interfaces to the parent.
     */
-    if (typename && object_is_type(obj, typename)) {
+    if (target_type && object_is_type(obj, target_type)) {
         return obj;
     }
 
@@ -410,21 +407,21 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
      * ancestor of typename.  In principle we could do this test at the very
      * beginning of object_dynamic_cast, avoiding a second call to
      * object_is_type.  However, casting between interfaces is relatively
-     * rare, and object_is_type(obj, TYPE_INTERFACE) would fail almost always.
+     * rare, and object_is_type(obj, type_interface) would fail almost always.
      *
      * Perhaps we could add a magic value to the object header for increased
      * (run-time) type safety and to speed up tests like this one.  If we ever
      * do that we can revisit the order here.
      */
-    if (object_is_type(obj, TYPE_INTERFACE)) {
+    if (object_is_type(obj, type_interface)) {
         assert(!obj->interfaces);
         obj = INTERFACE(obj)->obj;
-        if (object_is_type(obj, typename)) {
+        if (object_is_type(obj, target_type)) {
             return obj;
         }
     }
 
-    if (typename == TYPE_OBJECT) {
+    if (!target_type) {
         return obj;
     }
 
@@ -432,7 +429,7 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
     for (i = obj->interfaces; i; i = i->next) {
         Interface *iface = i->data;
 
-        if (object_is_type(OBJECT(iface), typename)) {
+        if (object_is_type(OBJECT(iface), target_type)) {
             return OBJECT(iface);
         }
     }
@@ -449,7 +446,7 @@ static void register_interface(void)
         .abstract = true,
     };
 
-    type_register_static(&interface_info);
+    type_interface = type_register_static(&interface_info);
 }
 
 device_init(register_interface);
