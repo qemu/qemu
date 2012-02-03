@@ -1315,9 +1315,16 @@ static void usbredir_interrupt_packet(void *priv, uint32_t id,
     }
 }
 
+static Property usbredir_properties[] = {
+    DEFINE_PROP_CHR("chardev", USBRedirDevice, cs),
+    DEFINE_PROP_UINT8("debug", USBRedirDevice, debug, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void usbredir_class_initfn(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     uc->init           = usbredir_initfn;
     uc->product_desc   = "USB Redirection Device";
@@ -1327,21 +1334,18 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     uc->handle_reset   = usbredir_handle_reset;
     uc->handle_data    = usbredir_handle_data;
     uc->handle_control = usbredir_handle_control;
+    dc->props          = usbredir_properties;
 }
 
-static struct DeviceInfo usbredir_dev_info = {
-    .name      = "usb-redir",
-    .size      = sizeof(USBRedirDevice),
-    .class_init= usbredir_class_initfn,
-    .props     = (Property[]) {
-        DEFINE_PROP_CHR("chardev", USBRedirDevice, cs),
-        DEFINE_PROP_UINT8("debug", USBRedirDevice, debug, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo usbredir_dev_info = {
+    .name          = "usb-redir",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBRedirDevice),
+    .class_init    = usbredir_class_initfn,
 };
 
 static void usbredir_register_devices(void)
 {
-    usb_qdev_register(&usbredir_dev_info, NULL, NULL);
+    type_register_static(&usbredir_dev_info);
 }
 device_init(usbredir_register_devices);
