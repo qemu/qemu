@@ -265,12 +265,9 @@ struct kvm_debug_exit_arch {
 struct kvm_guest_debug_arch {
 };
 
-#define KVM_REG_MASK		0x001f
-#define KVM_REG_EXT_MASK	0xffe0
-#define KVM_REG_GPR		0x0000
-#define KVM_REG_FPR		0x0020
-#define KVM_REG_QPR		0x0040
-#define KVM_REG_FQPR		0x0060
+/* definition of registers in kvm_run */
+struct kvm_sync_regs {
+};
 
 #define KVM_INTERRUPT_SET	-1U
 #define KVM_INTERRUPT_UNSET	-2U
@@ -327,6 +324,6 @@ struct kvm_book3e_206_tlb_params {
 	__u32 reserved[8];
 };
 
-#define KVM_ONE_REG_PPC_HIOR	KVM_ONE_REG_PPC | 0x100
+#define KVM_REG_PPC_HIOR	(KVM_REG_PPC | KVM_REG_SIZE_U64 | 0x1)
 
 #endif /* __LINUX_KVM_POWERPC_H */

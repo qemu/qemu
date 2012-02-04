@@ -336,6 +336,9 @@ DEF_HELPER_0(booke206_tlbre, void)
 DEF_HELPER_0(booke206_tlbwe, void)
 DEF_HELPER_1(booke206_tlbsx, void, tl)
 DEF_HELPER_1(booke206_tlbivax, void, tl)
+DEF_HELPER_1(booke206_tlbilx0, void, tl)
+DEF_HELPER_1(booke206_tlbilx1, void, tl)
+DEF_HELPER_1(booke206_tlbilx3, void, tl)
 DEF_HELPER_1(booke206_tlbflush, void, i32)
 DEF_HELPER_2(booke_setpid, void, i32, tl)
 DEF_HELPER_1(6xx_tlbd, void, tl)
@@ -355,6 +358,8 @@ DEF_HELPER_FLAGS_1(load_sr, TCG_CALL_CONST, tl, tl);
 DEF_HELPER_FLAGS_2(store_sr, TCG_CALL_CONST, void, tl, tl)
 
 DEF_HELPER_FLAGS_1(602_mfrom, TCG_CALL_CONST | TCG_CALL_PURE, tl, tl)
+DEF_HELPER_1(msgsnd, void, tl)
+DEF_HELPER_1(msgclr, void, tl)
 #endif
 
 DEF_HELPER_3(dlmzb, tl, tl, tl, i32)

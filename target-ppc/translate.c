@@ -6088,6 +6088,7 @@ static void gen_tlbwe_booke206(DisasContext *ctx)
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
         return;
     }
+    gen_update_nip(ctx, ctx->nip - 4);
     gen_helper_booke206_tlbwe();
 #endif
 }
@@ -6107,6 +6108,39 @@ static void gen_tlbivax_booke206(DisasContext *ctx)
     gen_addr_reg_index(ctx, t0);
 
     gen_helper_booke206_tlbivax(t0);
+#endif
+}
+
+static void gen_tlbilx_booke206(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+#else
+    TCGv t0;
+    if (unlikely(!ctx->mem_idx)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return;
+    }
+
+    t0 = tcg_temp_new();
+    gen_addr_reg_index(ctx, t0);
+
+    switch((ctx->opcode >> 21) & 0x3) {
+    case 0:
+        gen_helper_booke206_tlbilx0(t0);
+        break;
+    case 1:
+        gen_helper_booke206_tlbilx1(t0);
+        break;
+    case 3:
+        gen_helper_booke206_tlbilx3(t0);
+        break;
+    default:
+        gen_inval_exception(ctx, POWERPC_EXCP_INVAL_INVAL);
+        break;
+    }
+
+    tcg_temp_free(t0);
 #endif
 }
 
@@ -6172,7 +6206,7 @@ static void gen_mbar(DisasContext *ctx)
 }
 
 /* msync replaces sync on 440 */
-static void gen_msync(DisasContext *ctx)
+static void gen_msync_4xx(DisasContext *ctx)
 {
     /* interpreted as no-op */
 }
@@ -6184,6 +6218,36 @@ static void gen_icbt_440(DisasContext *ctx)
     /* XXX: specification say this is treated as a load by the MMU
      *      but does not generate any exception
      */
+}
+
+/* Embedded.Processor Control */
+
+static void gen_msgclr(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+#else
+    if (unlikely(ctx->mem_idx == 0)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return;
+    }
+
+    gen_helper_msgclr(cpu_gpr[rB(ctx->opcode)]);
+#endif
+}
+
+static void gen_msgsnd(DisasContext *ctx)
+{
+#if defined(CONFIG_USER_ONLY)
+    gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+#else
+    if (unlikely(ctx->mem_idx == 0)) {
+        gen_inval_exception(ctx, POWERPC_EXCP_PRIV_OPC);
+        return;
+    }
+
+    gen_helper_msgsnd(cpu_gpr[rB(ctx->opcode)]);
+#endif
 }
 
 /***                      Altivec vector extension                         ***/
@@ -8574,13 +8638,18 @@ GEN_HANDLER2_E(tlbwe_booke206, "tlbwe", 0x1F, 0x12, 0x1E, 0x00000001,
                PPC_NONE, PPC2_BOOKE206),
 GEN_HANDLER2_E(tlbivax_booke206, "tlbivax", 0x1F, 0x12, 0x18, 0x00000001,
                PPC_NONE, PPC2_BOOKE206),
+GEN_HANDLER2_E(tlbilx_booke206, "tlbilx", 0x1F, 0x12, 0x00, 0x03800001,
+               PPC_NONE, PPC2_BOOKE206),
+GEN_HANDLER2_E(msgsnd, "msgsnd", 0x1F, 0x0E, 0x06, 0x03ff0001,
+               PPC_NONE, PPC2_PRCNTL),
+GEN_HANDLER2_E(msgclr, "msgclr", 0x1F, 0x0E, 0x07, 0x03ff0001,
+               PPC_NONE, PPC2_PRCNTL),
 GEN_HANDLER(wrtee, 0x1F, 0x03, 0x04, 0x000FFC01, PPC_WRTEE),
 GEN_HANDLER(wrteei, 0x1F, 0x03, 0x05, 0x000E7C01, PPC_WRTEE),
 GEN_HANDLER(dlmzb, 0x1F, 0x0E, 0x02, 0x00000000, PPC_440_SPEC),
 GEN_HANDLER_E(mbar, 0x1F, 0x16, 0x1a, 0x001FF801,
               PPC_BOOKE, PPC2_BOOKE206),
-GEN_HANDLER_E(msync, 0x1F, 0x16, 0x12, 0x03FFF801,
-              PPC_BOOKE, PPC2_BOOKE206),
+GEN_HANDLER(msync_4xx, 0x1F, 0x16, 0x12, 0x03FFF801, PPC_BOOKE),
 GEN_HANDLER2_E(icbt_440, "icbt", 0x1F, 0x16, 0x00, 0x03E00001,
                PPC_BOOKE, PPC2_BOOKE206),
 GEN_HANDLER(lvsl, 0x1f, 0x06, 0x00, 0x00000001, PPC_ALTIVEC),

@@ -1298,13 +1298,7 @@ target_phys_addr_t booke206_tlb_to_page_size(CPUState *env, ppcmas_tlb_t *tlb)
     int tlbm_size;
 
     tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
-
-    if (tlbncfg & TLBnCFG_AVAIL) {
-        tlbm_size = (tlb->mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
-    } else {
-        tlbm_size = (tlbncfg & TLBnCFG_MINSIZE) >> TLBnCFG_MINSIZE_SHIFT;
-        tlbm_size <<= 1;
-    }
+    tlbm_size = (tlb->mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
 
     return 1024ULL << tlbm_size;
 }
@@ -1338,7 +1332,10 @@ int ppcmas_tlb_check(CPUState *env, ppcmas_tlb_t *tlb,
     if ((address & mask) != (tlb->mas2 & MAS2_EPN_MASK)) {
         return -1;
     }
-    *raddrp = (tlb->mas7_3 & mask) | (address & ~mask);
+
+    if (raddrp) {
+        *raddrp = (tlb->mas7_3 & mask) | (address & ~mask);
+    }
 
     return 0;
 }
@@ -1445,6 +1442,9 @@ static int mmubooke206_get_physical_address(CPUState *env, mmu_ctx_t *ctx,
 
         for (j = 0; j < ways; j++) {
             tlb = booke206_get_tlbm(env, i, address, j);
+            if (!tlb) {
+                continue;
+            }
             ret = mmubooke206_check_tlb(env, tlb, &raddr, &ctx->prot, address,
                                         rw, access_type);
             if (ret != -1) {
@@ -2698,22 +2698,10 @@ static inline void powerpc_excp(CPUState *env, int excp_model, int excp)
                   "Performance counter exception is not implemented yet !\n");
         goto store_next;
     case POWERPC_EXCP_DOORI:     /* Embedded doorbell interrupt              */
-        /* XXX: TODO */
-        cpu_abort(env,
-                  "Embedded doorbell interrupt is not implemented yet !\n");
         goto store_next;
     case POWERPC_EXCP_DOORCI:    /* Embedded doorbell critical interrupt     */
-        switch (excp_model) {
-        case POWERPC_EXCP_BOOKE:
-            srr0 = SPR_BOOKE_CSRR0;
-            srr1 = SPR_BOOKE_CSRR1;
-            break;
-        default:
-            break;
-        }
-        /* XXX: TODO */
-        cpu_abort(env, "Embedded doorbell critical interrupt "
-                  "is not implemented yet !\n");
+        srr0 = SPR_BOOKE_CSRR0;
+        srr1 = SPR_BOOKE_CSRR1;
         goto store_next;
     case POWERPC_EXCP_RESET:     /* System reset exception                   */
         if (msr_pow) {

@@ -4228,6 +4228,7 @@ void helper_booke206_tlbwe(void)
 {
     uint32_t tlbncfg, tlbn;
     ppcmas_tlb_t *tlb;
+    uint32_t size_tlb, size_ps;
 
     switch (env->spr[SPR_BOOKE_MAS0] & MAS0_WQ_MASK) {
     case MAS0_WQ_ALWAYS:
@@ -4259,12 +4260,37 @@ void helper_booke206_tlbwe(void)
 
     tlb = booke206_cur_tlb(env);
 
+    if (!tlb) {
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL |
+                                   POWERPC_EXCP_INVAL_INVAL);
+    }
+
+    /* check that we support the targeted size */
+    size_tlb = (env->spr[SPR_BOOKE_MAS1] & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
+    size_ps = booke206_tlbnps(env, tlbn);
+    if ((env->spr[SPR_BOOKE_MAS1] & MAS1_VALID) && (tlbncfg & TLBnCFG_AVAIL) &&
+        !(size_ps & (1 << size_tlb))) {
+        helper_raise_exception_err(POWERPC_EXCP_PROGRAM,
+                                   POWERPC_EXCP_INVAL |
+                                   POWERPC_EXCP_INVAL_INVAL);
+    }
+
     if (msr_gs) {
         cpu_abort(env, "missing HV implementation\n");
     }
     tlb->mas7_3 = ((uint64_t)env->spr[SPR_BOOKE_MAS7] << 32) |
                   env->spr[SPR_BOOKE_MAS3];
     tlb->mas1 = env->spr[SPR_BOOKE_MAS1];
+
+    /* MAV 1.0 only */
+    if (!(tlbncfg & TLBnCFG_AVAIL)) {
+        /* force !AVAIL TLB entries to correct page size */
+        tlb->mas1 &= ~MAS1_TSIZE_MASK;
+        /* XXX can be configured in MMUCSR0 */
+        tlb->mas1 |= (tlbncfg & TLBnCFG_MINSIZE) >> 12;
+    }
+
     /* XXX needs to change when supporting 64-bit e500 */
     tlb->mas2 = env->spr[SPR_BOOKE_MAS2] & 0xffffffff;
 
@@ -4300,7 +4326,11 @@ void helper_booke206_tlbre(void)
     ppcmas_tlb_t *tlb = NULL;
 
     tlb = booke206_cur_tlb(env);
-    booke206_tlb_to_mas(env, tlb);
+    if (!tlb) {
+        env->spr[SPR_BOOKE_MAS1] = 0;
+    } else {
+        booke206_tlb_to_mas(env, tlb);
+    }
 }
 
 void helper_booke206_tlbsx(target_ulong address)
@@ -4318,6 +4348,10 @@ void helper_booke206_tlbsx(target_ulong address)
 
         for (j = 0; j < ways; j++) {
             tlb = booke206_get_tlbm(env, i, address, j);
+
+            if (!tlb) {
+                continue;
+            }
 
             if (ppcmas_tlb_check(env, tlb, &raddr, address, spid)) {
                 continue;
@@ -4362,6 +4396,9 @@ static inline void booke206_invalidate_ea_tlb(CPUState *env, int tlbn,
 
     for (i = 0; i < ways; i++) {
         ppcmas_tlb_t *tlb = booke206_get_tlbm(env, tlbn, ea, i);
+        if (!tlb) {
+            continue;
+        }
         mask = ~(booke206_tlb_to_page_size(env, tlb) - 1);
         if (((tlb->mas2 & MAS2_EPN_MASK) == (ea & mask)) &&
             !(tlb->mas1 & MAS1_IPROT)) {
@@ -4395,6 +4432,73 @@ void helper_booke206_tlbivax(target_ulong address)
     }
 }
 
+void helper_booke206_tlbilx0(target_ulong address)
+{
+    /* XXX missing LPID handling */
+    booke206_flush_tlb(env, -1, 1);
+}
+
+void helper_booke206_tlbilx1(target_ulong address)
+{
+    int i, j;
+    int tid = (env->spr[SPR_BOOKE_MAS6] & MAS6_SPID);
+    ppcmas_tlb_t *tlb = env->tlb.tlbm;
+    int tlb_size;
+
+    /* XXX missing LPID handling */
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        tlb_size = booke206_tlb_size(env, i);
+        for (j = 0; j < tlb_size; j++) {
+            if (!(tlb[j].mas1 & MAS1_IPROT) &&
+                ((tlb[j].mas1 & MAS1_TID_MASK) == tid)) {
+                tlb[j].mas1 &= ~MAS1_VALID;
+            }
+        }
+        tlb += booke206_tlb_size(env, i);
+    }
+    tlb_flush(env, 1);
+}
+
+void helper_booke206_tlbilx3(target_ulong address)
+{
+    int i, j;
+    ppcmas_tlb_t *tlb;
+    int tid = (env->spr[SPR_BOOKE_MAS6] & MAS6_SPID);
+    int pid = tid >> MAS6_SPID_SHIFT;
+    int sgs = env->spr[SPR_BOOKE_MAS5] & MAS5_SGS;
+    int ind = (env->spr[SPR_BOOKE_MAS6] & MAS6_SIND) ? MAS1_IND : 0;
+    /* XXX check for unsupported isize and raise an invalid opcode then */
+    int size = env->spr[SPR_BOOKE_MAS6] & MAS6_ISIZE_MASK;
+    /* XXX implement MAV2 handling */
+    bool mav2 = false;
+
+    /* XXX missing LPID handling */
+    /* flush by pid and ea */
+    for (i = 0; i < BOOKE206_MAX_TLBN; i++) {
+        int ways = booke206_tlb_ways(env, i);
+
+        for (j = 0; j < ways; j++) {
+            tlb = booke206_get_tlbm(env, i, address, j);
+            if (!tlb) {
+                continue;
+            }
+            if ((ppcmas_tlb_check(env, tlb, NULL, address, pid) != 0) ||
+                (tlb->mas1 & MAS1_IPROT) ||
+                ((tlb->mas1 & MAS1_IND) != ind) ||
+                ((tlb->mas8 & MAS8_TGS) != sgs)) {
+                continue;
+            }
+            if (mav2 && ((tlb->mas1 & MAS1_TSIZE_MASK) != size)) {
+                /* XXX only check when MMUCFG[TWC] || TLBnCFG[HES] */
+                continue;
+            }
+            /* XXX e500mc doesn't match SAS, but other cores might */
+            tlb->mas1 &= ~MAS1_VALID;
+        }
+    }
+    tlb_flush(env, 1);
+}
+
 void helper_booke206_tlbflush(uint32_t type)
 {
     int flags = 0;
@@ -4408,6 +4512,59 @@ void helper_booke206_tlbflush(uint32_t type)
     }
 
     booke206_flush_tlb(env, flags, 1);
+}
+
+/* Embedded.Processor Control */
+static int dbell2irq(target_ulong rb)
+{
+    int msg = rb & DBELL_TYPE_MASK;
+    int irq = -1;
+
+    switch (msg) {
+    case DBELL_TYPE_DBELL:
+        irq = PPC_INTERRUPT_DOORBELL;
+        break;
+    case DBELL_TYPE_DBELL_CRIT:
+        irq = PPC_INTERRUPT_CDOORBELL;
+        break;
+    case DBELL_TYPE_G_DBELL:
+    case DBELL_TYPE_G_DBELL_CRIT:
+    case DBELL_TYPE_G_DBELL_MC:
+        /* XXX implement */
+    default:
+        break;
+    }
+
+    return irq;
+}
+
+void helper_msgclr(target_ulong rb)
+{
+    int irq = dbell2irq(rb);
+
+    if (irq < 0) {
+        return;
+    }
+
+    env->pending_interrupts &= ~(1 << irq);
+}
+
+void helper_msgsnd(target_ulong rb)
+{
+    int irq = dbell2irq(rb);
+    int pir = rb & DBELL_PIRTAG_MASK;
+    CPUState *cenv;
+
+    if (irq < 0) {
+        return;
+    }
+
+    for (cenv = first_cpu; cenv != NULL; cenv = cenv->next_cpu) {
+        if ((rb & DBELL_BRDCAST) || (cenv->spr[SPR_BOOKE_PIR] == pir)) {
+            cenv->pending_interrupts |= 1 << irq;
+            cpu_interrupt(cenv, CPU_INTERRUPT_HARD);
+        }
+    }
 }
 
 #endif /* !CONFIG_USER_ONLY */

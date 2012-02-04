@@ -187,7 +187,10 @@ enum {
     POWERPC_EXCP_EPERFM   = 35, /* Embedded performance monitor interrupt    */
     POWERPC_EXCP_DOORI    = 36, /* Embedded doorbell interrupt               */
     POWERPC_EXCP_DOORCI   = 37, /* Embedded doorbell critical interrupt      */
-    /* Vectors 38 to 63 are reserved                                         */
+    POWERPC_EXCP_GDOORI   = 38, /* Embedded guest doorbell interrupt         */
+    POWERPC_EXCP_GDOORCI  = 39, /* Embedded guest doorbell critical interrupt*/
+    POWERPC_EXCP_HYPPRIV  = 41, /* Embedded hypervisor priv instruction      */
+    /* Vectors 42 to 63 are reserved                                         */
     /* Exceptions defined in the PowerPC server specification                */
     POWERPC_EXCP_RESET    = 64, /* System reset exception                    */
     POWERPC_EXCP_DSEG     = 65, /* Data segment exception                    */
@@ -855,6 +858,22 @@ enum {
 #define BOOKE206_MAX_TLBN      4
 
 /*****************************************************************************/
+/* Embedded.Processor Control */
+
+#define DBELL_TYPE_SHIFT               27
+#define DBELL_TYPE_MASK                (0x1f << DBELL_TYPE_SHIFT)
+#define DBELL_TYPE_DBELL               (0x00 << DBELL_TYPE_SHIFT)
+#define DBELL_TYPE_DBELL_CRIT          (0x01 << DBELL_TYPE_SHIFT)
+#define DBELL_TYPE_G_DBELL             (0x02 << DBELL_TYPE_SHIFT)
+#define DBELL_TYPE_G_DBELL_CRIT        (0x03 << DBELL_TYPE_SHIFT)
+#define DBELL_TYPE_G_DBELL_MC          (0x04 << DBELL_TYPE_SHIFT)
+
+#define DBELL_BRDCAST                  (1 << 26)
+#define DBELL_LPIDTAG_SHIFT            14
+#define DBELL_LPIDTAG_MASK             (0xfff << DBELL_LPIDTAG_SHIFT)
+#define DBELL_PIRTAG_MASK              0x3fff
+
+/*****************************************************************************/
 /* The whole PowerPC CPU context */
 #define NB_MMU_MODES 3
 
@@ -1355,6 +1374,10 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define SPR_BOOKE_DVC2        (0x13F)
 #define SPR_BOOKE_TSR         (0x150)
 #define SPR_BOOKE_TCR         (0x154)
+#define SPR_BOOKE_TLB0PS      (0x158)
+#define SPR_BOOKE_TLB1PS      (0x159)
+#define SPR_BOOKE_TLB2PS      (0x15A)
+#define SPR_BOOKE_TLB3PS      (0x15B)
 #define SPR_BOOKE_IVOR0       (0x190)
 #define SPR_BOOKE_IVOR1       (0x191)
 #define SPR_BOOKE_IVOR2       (0x192)
@@ -1371,6 +1394,11 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define SPR_BOOKE_IVOR13      (0x19D)
 #define SPR_BOOKE_IVOR14      (0x19E)
 #define SPR_BOOKE_IVOR15      (0x19F)
+#define SPR_BOOKE_IVOR38      (0x1B0)
+#define SPR_BOOKE_IVOR39      (0x1B1)
+#define SPR_BOOKE_IVOR40      (0x1B2)
+#define SPR_BOOKE_IVOR41      (0x1B3)
+#define SPR_BOOKE_IVOR42      (0x1B4)
 #define SPR_BOOKE_SPEFSCR     (0x200)
 #define SPR_Exxx_BBEAR        (0x201)
 #define SPR_Exxx_BBTAR        (0x202)
@@ -1888,8 +1916,10 @@ enum {
     PPC2_VSX           = 0x0000000000000002ULL,
     /* Decimal Floating Point (DFP)                                          */
     PPC2_DFP           = 0x0000000000000004ULL,
+    /* Embedded.Processor Control                                            */
+    PPC2_PRCNTL        = 0x0000000000000008ULL,
 
-#define PPC_TCG_INSNS2 (PPC2_BOOKE206)
+#define PPC_TCG_INSNS2 (PPC2_BOOKE206 | PPC2_PRCNTL)
 };
 
 /*****************************************************************************/
@@ -2103,12 +2133,37 @@ static inline ppcmas_tlb_t *booke206_get_tlbm(CPUState *env, const int tlbn,
     ea &= (1 << (tlb_bits - ways_bits)) - 1;
     r = (ea << ways_bits) | way;
 
+    if (r >= booke206_tlb_size(env, tlbn)) {
+        return NULL;
+    }
+
     /* bump up to tlbn index */
     for (i = 0; i < tlbn; i++) {
         r += booke206_tlb_size(env, i);
     }
 
     return &env->tlb.tlbm[r];
+}
+
+/* returns bitmap of supported page sizes for a given TLB */
+static inline uint32_t booke206_tlbnps(CPUState *env, const int tlbn)
+{
+    bool mav2 = false;
+    uint32_t ret = 0;
+
+    if (mav2) {
+        ret = env->spr[SPR_BOOKE_TLB0PS + tlbn];
+    } else {
+        uint32_t tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
+        uint32_t min = (tlbncfg & TLBnCFG_MINSIZE) >> TLBnCFG_MINSIZE_SHIFT;
+        uint32_t max = (tlbncfg & TLBnCFG_MAXSIZE) >> TLBnCFG_MAXSIZE_SHIFT;
+        int i;
+        for (i = min; i <= max; i++) {
+            ret |= (1 << (i << 1));
+        }
+    }
+
+    return ret;
 }
 
 #endif
