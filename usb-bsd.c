@@ -414,7 +414,7 @@ static TypeInfo usb_host_dev_info = {
     .name          = "usb-host",
     .parent        = TYPE_USB_DEVICE,
     .instance_size = sizeof(USBHostDevice),
-    .class_init    = usb_host_initfn,
+    .class_init    = usb_host_class_initfn,
 };
 
 static void usb_host_register_devices(void)
