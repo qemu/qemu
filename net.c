@@ -38,6 +38,11 @@
 #include "hw/qdev.h"
 #include "iov.h"
 
+/* Net bridge is currently not supported for W32. */
+#if !defined(_WIN32)
+# define CONFIG_NET_BRIDGE
+#endif
+
 static QTAILQ_HEAD(, VLANState) vlans;
 static QTAILQ_HEAD(, VLANClientState) non_vlan_clients;
 
@@ -952,10 +957,12 @@ static const struct {
                 .type = QEMU_OPT_STRING,
                 .help = "script to shut down the interface",
             }, {
+#ifdef CONFIG_NET_BRIDGE
                 .name = "helper",
                 .type = QEMU_OPT_STRING,
                 .help = "command to execute to configure bridge",
             }, {
+#endif
                 .name = "sndbuf",
                 .type = QEMU_OPT_SIZE,
                 .help = "send buffer limit"
@@ -1057,6 +1064,7 @@ static const struct {
             { /* end of list */ }
         },
     },
+#ifdef CONFIG_NET_BRIDGE
     [NET_CLIENT_TYPE_BRIDGE] = {
         .type = "bridge",
         .init = net_init_bridge,
@@ -1074,6 +1082,7 @@ static const struct {
             { /* end of list */ }
         },
     },
+#endif /* CONFIG_NET_BRIDGE */
 };
 
 int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
@@ -1090,14 +1099,16 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
 
     if (is_netdev) {
         if (strcmp(type, "tap") != 0 &&
+#ifdef CONFIG_NET_BRIDGE
+            strcmp(type, "bridge") != 0 &&
+#endif
 #ifdef CONFIG_SLIRP
             strcmp(type, "user") != 0 &&
 #endif
 #ifdef CONFIG_VDE
             strcmp(type, "vde") != 0 &&
 #endif
-            strcmp(type, "socket") != 0 &&
-            strcmp(type, "bridge") != 0) {
+            strcmp(type, "socket") != 0) {
             qerror_report(QERR_INVALID_PARAMETER_VALUE, "type",
                           "a netdev backend type");
             return -1;
@@ -1161,13 +1172,15 @@ static int net_host_check_device(const char *device)
 {
     int i;
     const char *valid_param_list[] = { "tap", "socket", "dump"
+#ifdef CONFIG_NET_BRIDGE
+                                       , "bridge"
+#endif
 #ifdef CONFIG_SLIRP
                                        ,"user"
 #endif
 #ifdef CONFIG_VDE
                                        ,"vde"
 #endif
-                                       , "bridge"
     };
     for (i = 0; i < sizeof(valid_param_list) / sizeof(char *); i++) {
         if (!strncmp(valid_param_list[i], device,
