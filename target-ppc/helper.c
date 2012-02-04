@@ -1293,11 +1293,8 @@ void booke206_flush_tlb(CPUState *env, int flags, const int check_iprot)
 
 target_phys_addr_t booke206_tlb_to_page_size(CPUState *env, ppcmas_tlb_t *tlb)
 {
-    uint32_t tlbncfg;
-    int tlbn = booke206_tlbm_to_tlbn(env, tlb);
     int tlbm_size;
 
-    tlbncfg = env->spr[SPR_BOOKE_TLB0CFG + tlbn];
     tlbm_size = (tlb->mas1 & MAS1_TSIZE_MASK) >> MAS1_TSIZE_SHIFT;
 
     return 1024ULL << tlbm_size;
