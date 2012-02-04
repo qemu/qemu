@@ -48,6 +48,7 @@ struct image_info {
         abi_ulong       code_offset;
         abi_ulong       data_offset;
         abi_ulong       saved_auxv;
+        abi_ulong       auxv_len;
         abi_ulong       arg_start;
         abi_ulong       arg_end;
 	int		personality;
@@ -123,10 +124,10 @@ typedef struct TaskState {
 #endif
 #if defined(TARGET_ARM) || defined(TARGET_M68K) || defined(TARGET_UNICORE32)
     /* Extra fields for semihosted binaries.  */
-    uint32_t stack_base;
     uint32_t heap_base;
     uint32_t heap_limit;
 #endif
+    uint32_t stack_base;
     int used; /* non zero if used */
     struct image_info *info;
     struct linux_binprm *bprm;

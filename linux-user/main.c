@@ -2945,6 +2945,11 @@ static void handle_arg_log(const char *arg)
     cpu_set_log(mask);
 }
 
+static void handle_arg_log_filename(const char *arg)
+{
+    cpu_set_log_filename(arg);
+}
+
 static void handle_arg_set_env(const char *arg)
 {
     char *r, *p, *token;
@@ -3125,6 +3130,8 @@ struct qemu_argument arg_table[] = {
 #endif
     {"d",          "QEMU_LOG",         true,  handle_arg_log,
      "options",    "activate log"},
+    {"D",          "QEMU_LOG_FILENAME", true, handle_arg_log_filename,
+     "logfile",     "override default logfile location"},
     {"p",          "QEMU_PAGESIZE",    true,  handle_arg_pagesize,
      "pagesize",   "set the host page size to 'pagesize'"},
     {"singlestep", "QEMU_SINGLESTEP",  false, handle_arg_singlestep,

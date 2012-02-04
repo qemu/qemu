@@ -218,4 +218,7 @@ struct target_pt_regs {
 
 
 
+/* Nasty hack: define a fake errno value for use by sigreturn. */
+#define TARGET_QEMU_ESIGRETURN 255
+
 #define UNAME_MACHINE "mips64"

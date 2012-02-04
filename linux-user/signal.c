@@ -587,7 +587,11 @@ int do_sigaction(int sig, const struct target_sigaction *act,
 #endif
     if (oact) {
         oact->_sa_handler = tswapal(k->_sa_handler);
+#if defined(TARGET_MIPS) || defined (TARGET_ALPHA)
+        oact->sa_flags = bswap32(k->sa_flags);
+#else
         oact->sa_flags = tswapal(k->sa_flags);
+#endif
 #if !defined(TARGET_MIPS)
         oact->sa_restorer = tswapal(k->sa_restorer);
 #endif
@@ -596,7 +600,11 @@ int do_sigaction(int sig, const struct target_sigaction *act,
     if (act) {
         /* FIXME: This is not threadsafe.  */
         k->_sa_handler = tswapal(act->_sa_handler);
+#if defined(TARGET_MIPS) || defined (TARGET_ALPHA)
+        k->sa_flags = bswap32(act->sa_flags);
+#else
         k->sa_flags = tswapal(act->sa_flags);
+#endif
 #if !defined(TARGET_MIPS)
         k->sa_restorer = tswapal(act->sa_restorer);
 #endif
