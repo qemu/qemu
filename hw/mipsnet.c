@@ -224,7 +224,7 @@ static NetClientInfo net_mipsnet_info = {
     .cleanup = mipsnet_cleanup,
 };
 
-static MemoryRegionOps mipsnet_ioport_ops = {
+static const MemoryRegionOps mipsnet_ioport_ops = {
     .read = mipsnet_ioport_read,
     .write = mipsnet_ioport_write,
     .impl.min_access_size = 1,

@@ -281,7 +281,7 @@ static void spapr_io_write(void *opaque, target_phys_addr_t addr,
     assert(0);
 }
 
-static MemoryRegionOps spapr_io_ops = {
+static const MemoryRegionOps spapr_io_ops = {
     .endianness = DEVICE_LITTLE_ENDIAN,
     .read = spapr_io_read,
     .write = spapr_io_write

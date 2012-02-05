@@ -692,12 +692,12 @@ static void open_eth_desc_write(void *opaque,
 }
 
 
-static MemoryRegionOps open_eth_reg_ops = {
+static const MemoryRegionOps open_eth_reg_ops = {
     .read = open_eth_reg_read,
     .write = open_eth_reg_write,
 };
 
-static MemoryRegionOps open_eth_desc_ops = {
+static const MemoryRegionOps open_eth_desc_ops = {
     .read = open_eth_desc_read,
     .write = open_eth_desc_write,
 };

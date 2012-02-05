@@ -4,6 +4,8 @@
  *
  * Copyright 2009 Daniel Silverstone and Vincent Sanders
  *
+ * Copyright 2010, 2012 Stefan Weil
+ *
  * This file is under the terms of the GNU General Public
  * License Version 2
  */
@@ -299,7 +301,7 @@ static void s3c24xx_adc_reset(DeviceState *d)
     //~ S3C24xxAdcState *s = FROM_SYSBUS(S3C24xxAdcState, sysbus_from_qdev(d));
 }
 
-static MemoryRegionOps s3c24xx_adc_ops = {
+static const MemoryRegionOps s3c24xx_adc_ops = {
     .read = s3c24xx_adc_read,
     .write = s3c24xx_adc_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
