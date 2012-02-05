@@ -16,8 +16,12 @@
 /* Number of 2k memory pages available.  */
 #define NUM_PACKETS 4
 
-#define logout(fmt, ...) \
+#if 0
+# define logout(fmt, ...) \
     fprintf(stderr, "SMC91C111\t%-24s %s:%u " fmt, __func__, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+# define logout(fmt, ...) (void)0
+#endif
 
 typedef enum {
     MII_WAITING,
@@ -350,9 +354,8 @@ the idle condition (at least 32 continuous 1's) is detected.
                     unsigned op = (mii->data >> 12) & 0x3;
                     unsigned phy = (mii->data >> 7) & 0x1f;
                     unsigned reg = (mii->data >> 2) & 0x1f;
-                    unsigned ta = mii->data & 0x3;
                     logout("mii got 14 bits (op=%u, phy=%u, reg=%u, ta=%u)\n",
-                           op, phy, reg, ta);
+                           op, phy, reg, mii->data & 0x3);
                     mii->reg = reg;
                     if (phy != 0) {
                         logout("Wrong phy %u, wait for idle\n", phy);
