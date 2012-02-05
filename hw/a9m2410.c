@@ -82,7 +82,7 @@ static const MemoryRegionOps cpld_ops = {
     .write = cpld_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 4
     }
 };
@@ -169,7 +169,7 @@ static const MemoryRegionOps stcb_ide_ops = {
     .write = stcb_ide_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 4
     }
 };
@@ -227,157 +227,12 @@ static void stcb_register_ide(STCBState *stcb)
 
 #define ASIXNET_BASE    (CPU_S3C2410X_CS5 + A9M2410_PA_ASIXNET)
 #define ASIXNET_SIZE    (0x400)
-#define AX88796_BASE    (CPU_S3C2410X_CS5 + A9M2410_PA_ASIXNET + (0x18 * 0x20))
-#define AX88796_SIZE    (3 * 0x20)
 
 //~ #define DM9000_BASE     (CPU_S3C2410X_CS5 + 0x05000000) // 0x2d000000)
 //~ #define DM9000_IRQ      10
 
 #define logout(fmt, ...) \
-    fprintf(stderr, "AX88796\t%-24s" fmt, __func__, ##__VA_ARGS__)
-
-typedef struct {
-    SysBusDevice busdev;
-    MemoryRegion mmio;
-    NICState *nic;
-    NICConf conf;
-} AX88796State;
-
-static uint64_t ax88796_read(void *opaque, target_phys_addr_t offset,
-                             unsigned size)
-{
-    //~ AX88796State *s = opaque;
-    uint32_t value = 0;
-
-    switch (offset) {
-        case 0x0000:
-        case 0x000d:
-        case 0x0020:
-        case 0x0040:
-        case 0x0060:
-        case 0x0080:
-        case 0x00a0:
-        case 0x00c0:
-        case 0x00e0:
-        case 0x02e0:
-        case 0x03e0:
-            ;
-            //~ return 0; // FIXME
-    }
-
-    logout("0x" TARGET_FMT_plx " 0x%08x\n", offset, value);
-    return value;
-}
-
-static void ax88796_write(void *opaque, target_phys_addr_t offset,
-                          uint64_t value, unsigned size)
-{
-    //~ AX88796State *s = opaque;
-    switch (offset) {
-        case 0x0000:
-        case 0x000d:
-        case 0x0020:
-        case 0x0040:
-        case 0x0060:
-        case 0x0080:
-        case 0x00a0:
-        case 0x00c0:
-        case 0x00e0:
-        case 0x02e0:
-        case 0x03e0:
-            ;
-            //~ return; // FIXME
-    }
-    logout("0x" TARGET_FMT_plx " 0x%08" PRIx64 "\n", offset, value);
-}
-
-static const MemoryRegionOps ax88796_ops = {
-    .read = ax88796_read,
-    .write = ax88796_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
-    .valid = {
-        .min_access_size = 4,
-        .max_access_size = 4
-    }
-};
-
-static int ax88796_init(SysBusDevice *dev)
-{
-    AX88796State *s = FROM_SYSBUS(AX88796State, dev);
-
-    logout("\n");
-
-    memory_region_init_io(&s->mmio, &ax88796_ops, s, "ax88796", ASIXNET_SIZE);
-    //~ sysbus_init_mmio(dev, AX88796_SIZE, iomemtype);
-    sysbus_init_mmio(dev, &s->mmio);
-    //~ sysbus_init_irq(dev, &s->irq);
-    //~ ax88796_reset(s);
-#if 0
-    isa_ne2000_init(ne2000_io[i], ne2000_irq[i], &nd_table[i]);
-    ISANE2000State *isa = DO_UPCAST(ISANE2000State, dev, dev);
-    NE2000State *s = &isa->ne2000;
-
-    register_ioport_write(isa->iobase, 16, 1, ne2000_ioport_write, s);
-    register_ioport_read(isa->iobase, 16, 1, ne2000_ioport_read, s);
-
-    register_ioport_write(isa->iobase + 0x10, 1, 1, ne2000_asic_ioport_write, s);
-    register_ioport_read(isa->iobase + 0x10, 1, 1, ne2000_asic_ioport_read, s);
-    register_ioport_write(isa->iobase + 0x10, 2, 2, ne2000_asic_ioport_write, s);
-    register_ioport_read(isa->iobase + 0x10, 2, 2, ne2000_asic_ioport_read, s);
-
-    register_ioport_write(isa->iobase + 0x1f, 1, 1, ne2000_reset_ioport_write, s);
-    register_ioport_read(isa->iobase + 0x1f, 1, 1, ne2000_reset_ioport_read, s);
-
-    isa_init_irq(dev, &s->irq, isa->isairq);
-
-    qemu_macaddr_default_if_unset(&s->c.macaddr);
-    ne2000_reset(s);
-
-    s->nic = qemu_new_nic(&net_ne2000_isa_info, &s->c,
-                          object_get_typename(OBJECT(dev)), dev->qdev.id, s);
-    qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
-#endif
-    return 0;
-}
-
-static const VMStateDescription ax88796_vmsd = {
-    .name = "ax88796",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .minimum_version_id_old = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_END_OF_LIST()
-    }
-};
-
-static Property ax88796_properties[] = {
-    DEFINE_NIC_PROPERTIES(AX88796State, conf),
-    DEFINE_PROP_END_OF_LIST()
-};
-
-static void ax88796_class_init(ObjectClass *klass, void *data)
-{
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-    dc->props = ax88796_properties;
-    dc->vmsd = &ax88796_vmsd;
-    k->init = ax88796_init;
-}
-
-static TypeInfo ax88796_info = {
-    .name = "ax88796",
-    .parent = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(AX88796State),
-    .class_init = ax88796_class_init
-};
-
-static void ax88796_register_device(void)
-{
-    type_register_static(&ax88796_info);
-}
-
-device_init(ax88796_register_device)
-
+    fprintf(stderr, "a9m2410\t%-24s" fmt, __func__, ##__VA_ARGS__)
 
 static void stcb_i2c_setup(STCBState *stcb)
 {
@@ -505,7 +360,6 @@ static void stcb_init(ram_addr_t _ram_size,
         s = sysbus_from_qdev(dev);
         sysbus_mmio_map(s, 0, ASIXNET_BASE);
         logout("ASIXNET_BASE = 0x%08x\n", ASIXNET_BASE);
-        logout("AX88796_BASE = 0x%08x\n", AX88796_BASE);
         //~ sysbus_connect_irq(s, 0, s3c24xx_get_eirq(stcb->soc->gpio, AX88796_IRQ));
     }
 #endif
