@@ -188,6 +188,7 @@ static void apic_reset_common(DeviceState *d)
 static int apic_load_old(QEMUFile *f, void *opaque, int version_id)
 {
     APICCommonState *s = opaque;
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
     int i;
 
     if (version_id > 2) {
@@ -220,7 +221,11 @@ static int apic_load_old(QEMUFile *f, void *opaque, int version_id)
     s->next_time = qemu_get_be64(f);
 
     if (version_id >= 2) {
-        qemu_get_timer(f, s->timer);
+        s->timer_expiry = qemu_get_be64(f);
+    }
+
+    if (info->post_load) {
+        info->post_load(s);
     }
     return 0;
 }
