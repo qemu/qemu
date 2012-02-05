@@ -117,7 +117,6 @@ struct APICCommonState {
 };
 
 void apic_report_irq_delivered(int delivered);
-void apic_qdev_register(DeviceInfo *info);
 bool apic_next_timer(APICCommonState *s, int64_t current_time);
 
 #endif /* !QEMU_APIC_INTERNAL_H */

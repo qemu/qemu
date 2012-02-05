@@ -703,24 +703,26 @@ static Property hpet_device_properties[] = {
 
 static void hpet_device_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = hpet_init;
+    dc->no_user = 1;
+    dc->reset = hpet_reset;
+    dc->vmsd = &vmstate_hpet;
+    dc->props = hpet_device_properties;
 }
 
-static DeviceInfo hpet_device_info = {
-    .name = "hpet",
-    .size = sizeof(HPETState),
-    .no_user = 1,
-    .vmsd = &vmstate_hpet,
-    .reset = hpet_reset,
-    .props = hpet_device_properties,
-    .class_init = hpet_device_class_init,
+static TypeInfo hpet_device_info = {
+    .name          = "hpet",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(HPETState),
+    .class_init    = hpet_device_class_init,
 };
 
 static void hpet_register_device(void)
 {
-    sysbus_register_withprop(&hpet_device_info);
+    type_register_static(&hpet_device_info);
 }
 
 device_init(hpet_register_device)

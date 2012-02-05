@@ -526,23 +526,25 @@ static Property milkymist_minimac2_properties[] = {
 
 static void milkymist_minimac2_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = milkymist_minimac2_init;
+    dc->reset = milkymist_minimac2_reset;
+    dc->vmsd = &vmstate_milkymist_minimac2;
+    dc->props = milkymist_minimac2_properties;
 }
 
-static DeviceInfo milkymist_minimac2_info = {
-    .name = "milkymist-minimac2",
-    .size = sizeof(MilkymistMinimac2State),
-    .vmsd = &vmstate_milkymist_minimac2,
-    .reset = milkymist_minimac2_reset,
-    .props = milkymist_minimac2_properties,
-    .class_init = milkymist_minimac2_class_init,
+static TypeInfo milkymist_minimac2_info = {
+    .name          = "milkymist-minimac2",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MilkymistMinimac2State),
+    .class_init    = milkymist_minimac2_class_init,
 };
 
 static void milkymist_minimac2_register(void)
 {
-    sysbus_register_withprop(&milkymist_minimac2_info);
+    type_register_static(&milkymist_minimac2_info);
 }
 
 device_init(milkymist_minimac2_register)

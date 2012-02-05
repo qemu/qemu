@@ -257,23 +257,25 @@ static const VMStateDescription vmstate_pl190 = {
 
 static void pl190_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl190_init;
+    dc->no_user = 1;
+    dc->reset = pl190_reset;
+    dc->vmsd = &vmstate_pl190;
 }
 
-static DeviceInfo pl190_info = {
-    .name = "pl190",
-    .size = sizeof(pl190_state),
-    .vmsd = &vmstate_pl190,
-    .reset = pl190_reset,
-    .no_user = 1,
-    .class_init = pl190_class_init,
+static TypeInfo pl190_info = {
+    .name          = "pl190",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(pl190_state),
+    .class_init    = pl190_class_init,
 };
 
 static void pl190_register_devices(void)
 {
-    sysbus_register_withprop(&pl190_info);
+    type_register_static(&pl190_info);
 }
 
 device_init(pl190_register_devices)

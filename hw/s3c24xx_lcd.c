@@ -569,20 +569,22 @@ static const VMStateDescription s3c24xx_lcd_vmsd = {
 
 static void s3c24xx_lcd_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->vmsd = &s3c24xx_lcd_vmsd;
     k->init = s3c24xx_lcd_init;
 }
 
-static DeviceInfo s3c24xx_lcd_info = {
+static TypeInfo s3c24xx_lcd_info = {
     .name = "s3c24xx_lcd",
-    .size = sizeof(S3C24xxLCD_State),
-    .vmsd = &s3c24xx_lcd_vmsd,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(S3C24xxLCD_State),
     .class_init = s3c24xx_lcd_class_init
 };
 
 static void s3c24xx_lcd_register_devices(void)
 {
-    sysbus_register_withprop(&s3c24xx_lcd_info);
+    type_register_static(&s3c24xx_lcd_info);
 }
 
 device_init(s3c24xx_lcd_register_devices)

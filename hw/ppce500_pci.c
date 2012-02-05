@@ -341,37 +341,41 @@ static int e500_pcihost_initfn(SysBusDevice *dev)
 
 static void e500_host_bridge_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->vendor_id = PCI_VENDOR_ID_FREESCALE;
     k->device_id = PCI_DEVICE_ID_MPC8533E;
     k->class_id = PCI_CLASS_PROCESSOR_POWERPC;
+    dc->desc = "Host bridge";
 }
 
-static DeviceInfo e500_host_bridge_info = {
-    .name = "e500-host-bridge",
-    .desc = "Host bridge",
-    .size = sizeof(PCIDevice),
-    .class_init = e500_host_bridge_class_init,
+static TypeInfo e500_host_bridge_info = {
+    .name          = "e500-host-bridge",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIDevice),
+    .class_init    = e500_host_bridge_class_init,
 };
 
 static void e500_pcihost_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = e500_pcihost_initfn;
+    dc->vmsd = &vmstate_ppce500_pci;
 }
 
-static DeviceInfo e500_pcihost_info = {
-    .name = "e500-pcihost",
-    .size = sizeof(PPCE500PCIState),
-    .vmsd = &vmstate_ppce500_pci,
-    .class_init = e500_pcihost_class_init,
+static TypeInfo e500_pcihost_info = {
+    .name          = "e500-pcihost",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PPCE500PCIState),
+    .class_init    = e500_pcihost_class_init,
 };
 
 static void e500_pci_register(void)
 {
-    sysbus_register_withprop(&e500_pcihost_info);
-    pci_qdev_register(&e500_host_bridge_info);
+    type_register_static(&e500_pcihost_info);
+    type_register_static(&e500_host_bridge_info);
 }
 device_init(e500_pci_register);

@@ -142,22 +142,24 @@ static Property nvram_sysbus_properties[] = {
 
 static void nvram_sysbus_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = nvram_sysbus_initfn;
+    dc->vmsd = &vmstate_nvram;
+    dc->props = nvram_sysbus_properties;
 }
 
-static DeviceInfo nvram_sysbus_info = {
-    .name = "ds1225y",
-    .size = sizeof(SysBusNvRamState),
-    .vmsd = &vmstate_nvram,
-    .props = nvram_sysbus_properties,
-    .class_init = nvram_sysbus_class_init,
+static TypeInfo nvram_sysbus_info = {
+    .name          = "ds1225y",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SysBusNvRamState),
+    .class_init    = nvram_sysbus_class_init,
 };
 
 static void nvram_register(void)
 {
-    sysbus_register_withprop(&nvram_sysbus_info);
+    type_register_static(&nvram_sysbus_info);
 }
 
 device_init(nvram_register)

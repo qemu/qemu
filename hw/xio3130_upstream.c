@@ -153,6 +153,7 @@ static Property xio3130_upstream_properties[] = {
 
 static void xio3130_upstream_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->is_express = 1;
@@ -163,21 +164,22 @@ static void xio3130_upstream_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_TI;
     k->device_id = PCI_DEVICE_ID_TI_XIO3130U;
     k->revision = XIO3130_REVISION;
+    dc->desc = "TI X3130 Upstream Port of PCI Express Switch";
+    dc->reset = xio3130_upstream_reset;
+    dc->vmsd = &vmstate_xio3130_upstream;
+    dc->props = xio3130_upstream_properties;
 }
 
-static DeviceInfo xio3130_upstream_info = {
-    .name = "x3130-upstream",
-    .desc = "TI X3130 Upstream Port of PCI Express Switch",
-    .size = sizeof(PCIEPort),
-    .reset = xio3130_upstream_reset,
-    .vmsd = &vmstate_xio3130_upstream,
-    .props = xio3130_upstream_properties,
-    .class_init = xio3130_upstream_class_init,
+static TypeInfo xio3130_upstream_info = {
+    .name          = "x3130-upstream",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIEPort),
+    .class_init    = xio3130_upstream_class_init,
 };
 
 static void xio3130_upstream_register(void)
 {
-    pci_qdev_register(&xio3130_upstream_info);
+    type_register_static(&xio3130_upstream_info);
 }
 
 device_init(xio3130_upstream_register);

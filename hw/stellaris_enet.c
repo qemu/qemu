@@ -427,21 +427,23 @@ static Property stellaris_enet_properties[] = {
 
 static void stellaris_enet_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = stellaris_enet_init;
+    dc->props = stellaris_enet_properties;
 }
 
-static DeviceInfo stellaris_enet_info = {
-    .name = "stellaris_enet",
-    .size = sizeof(stellaris_enet_state),
-    .props = stellaris_enet_properties,
-    .class_init = stellaris_enet_class_init,
+static TypeInfo stellaris_enet_info = {
+    .name          = "stellaris_enet",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(stellaris_enet_state),
+    .class_init    = stellaris_enet_class_init,
 };
 
 static void stellaris_enet_register_devices(void)
 {
-    sysbus_register_withprop(&stellaris_enet_info);
+    type_register_static(&stellaris_enet_info);
 }
 
 device_init(stellaris_enet_register_devices)

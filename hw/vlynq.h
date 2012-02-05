@@ -32,7 +32,6 @@ typedef struct _VLYNQSlaveInfo VLYNQSlaveInfo;
 #if 0
 /* Slave devices.  */
 typedef struct {
-    DeviceInfo qdev;
     int (*init)(VLYNQSlave *dev);
     uint32_t (*transfer)(VLYNQSlave *dev, uint32_t val);
 } VLYNQSlaveInfo;
@@ -56,7 +55,6 @@ typedef int (*vlynq_qdev_initfn)(VLYNQDevice *vlynq_dev);
 typedef int (*VLYNQUnregisterFunc)(VLYNQDevice *vlynq_dev);
 
 typedef struct {
-    DeviceInfo qdev;
     vlynq_qdev_initfn init;
     VLYNQUnregisterFunc exit;
 } VLYNQDeviceInfo;

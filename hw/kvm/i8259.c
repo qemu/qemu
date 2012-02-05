@@ -115,21 +115,23 @@ qemu_irq *kvm_i8259_init(ISABus *bus)
 static void kvm_i8259_class_init(ObjectClass *klass, void *data)
 {
     PICCommonClass *k = PIC_COMMON_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->reset     = kvm_pic_reset;
     k->init       = kvm_pic_init;
     k->pre_save   = kvm_pic_get;
     k->post_load  = kvm_pic_put;
 }
 
-static DeviceInfo kvm_i8259_info = {
+static TypeInfo kvm_i8259_info = {
     .name  = "kvm-i8259",
-    .reset = kvm_pic_reset,
+    .parent = TYPE_PIC_COMMON,
     .class_init = kvm_i8259_class_init,
 };
 
 static void kvm_pic_register(void)
 {
-    pic_qdev_register(&kvm_i8259_info);
+    type_register_static(&kvm_i8259_info);
 }
 
 device_init(kvm_pic_register)

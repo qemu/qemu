@@ -133,19 +133,14 @@ static Property pic_properties_common[] = {
     DEFINE_PROP_END_OF_LIST(),
 };
 
-void pic_qdev_register(DeviceInfo *info)
-{
-    info->size = sizeof(PICCommonState);
-    info->vmsd = &vmstate_pic_common;
-    info->no_user = 1;
-    info->props = pic_properties_common;
-    isa_qdev_register_subclass(info, TYPE_PIC_COMMON);
-}
-
 static void pic_common_class_init(ObjectClass *klass, void *data)
 {
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->vmsd = &vmstate_pic_common;
+    dc->no_user = 1;
+    dc->props = pic_properties_common;
     ic->init = pic_init_common;
 }
 

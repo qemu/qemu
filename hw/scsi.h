@@ -125,7 +125,6 @@ struct SCSIBus {
 };
 
 void scsi_bus_new(SCSIBus *bus, DeviceState *host, const SCSIBusInfo *info);
-void scsi_qdev_register(DeviceInfo *info);
 
 static inline SCSIBus *scsi_bus_from_device(SCSIDevice *d)
 {

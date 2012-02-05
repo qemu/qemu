@@ -374,6 +374,7 @@ static void platform_reset(DeviceState *dev)
 
 static void xen_platform_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = xen_platform_initfn;
@@ -383,20 +384,21 @@ static void xen_platform_class_init(ObjectClass *klass, void *data)
     k->subsystem_vendor_id = PCI_VENDOR_ID_XEN;
     k->subsystem_id = PCI_DEVICE_ID_XEN_PLATFORM;
     k->revision = 1;
+    dc->desc = "XEN platform pci device";
+    dc->reset = platform_reset;
+    dc->vmsd = &vmstate_xen_platform;
 }
 
-static DeviceInfo xen_platform_info = {
-    .name = "xen-platform",
-    .desc = "XEN platform pci device",
-    .size = sizeof(PCIXenPlatformState),
-    .vmsd = &vmstate_xen_platform,
-    .reset = platform_reset,
-    .class_init = xen_platform_class_init,
+static TypeInfo xen_platform_info = {
+    .name          = "xen-platform",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIXenPlatformState),
+    .class_init    = xen_platform_class_init,
 };
 
 static void xen_platform_register(void)
 {
-    pci_qdev_register(&xen_platform_info);
+    type_register_static(&xen_platform_info);
 }
 
 device_init(xen_platform_register);

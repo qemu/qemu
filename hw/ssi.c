@@ -21,7 +21,7 @@ static struct BusInfo ssi_bus_info = {
     .size = sizeof(SSIBus),
 };
 
-static int ssi_slave_init(DeviceState *dev, DeviceInfo *base_info)
+static int ssi_slave_init(DeviceState *dev)
 {
     SSISlave *s = SSI_SLAVE(dev);
     SSISlaveClass *ssc = SSI_SLAVE_GET_CLASS(s);
@@ -36,13 +36,20 @@ static int ssi_slave_init(DeviceState *dev, DeviceInfo *base_info)
     return ssc->init(s);
 }
 
-void ssi_register_slave(DeviceInfo *info)
+static void ssi_slave_class_init(ObjectClass *klass, void *data)
 {
-    assert(info->size >= sizeof(SSISlave));
-    info->init = ssi_slave_init;
-    info->bus_info = &ssi_bus_info;
-    qdev_register(info);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    dc->init = ssi_slave_init;
+    dc->bus_info = &ssi_bus_info;
 }
+
+static TypeInfo ssi_slave_info = {
+    .name = TYPE_SSI_SLAVE,
+    .parent = TYPE_DEVICE,
+    .class_init = ssi_slave_class_init,
+    .class_size = sizeof(SSISlaveClass),
+    .abstract = true,
+};
 
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name)
 {
@@ -72,3 +79,10 @@ uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
     ssc = SSI_SLAVE_GET_CLASS(slave);
     return ssc->transfer(slave, val);
 }
+
+static void register_ssi_slave(void)
+{
+    type_register_static(&ssi_slave_info);
+}
+
+device_init(register_ssi_slave);

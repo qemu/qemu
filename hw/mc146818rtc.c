@@ -628,10 +628,10 @@ static void visit_type_int32(Visitor *v, int *value, const char *name, Error **e
     visit_type_int(v, &val, name, errp);
 }
 
-static void rtc_get_date(DeviceState *dev, Visitor *v, void *opaque,
+static void rtc_get_date(Object *obj, Visitor *v, void *opaque,
                          const char *name, Error **errp)
 {
-    ISADevice *isa = ISA_DEVICE(dev);
+    ISADevice *isa = ISA_DEVICE(obj);
     RTCState *s = DO_UPCAST(RTCState, dev, isa);
 
     visit_start_struct(v, NULL, "struct tm", name, 0, errp);
@@ -686,8 +686,8 @@ static int rtc_initfn(ISADevice *dev)
     qdev_set_legacy_instance_id(&dev->qdev, base, 2);
     qemu_register_reset(rtc_reset, s);
 
-    qdev_property_add(&s->dev.qdev, "date", "struct tm",
-                      rtc_get_date, NULL, NULL, s, NULL);
+    object_property_add(OBJECT(s), "date", "struct tm",
+                        rtc_get_date, NULL, NULL, s, NULL);
 
     return 0;
 }
@@ -709,28 +709,32 @@ ISADevice *rtc_init(ISABus *bus, int base_year, qemu_irq intercept_irq)
     return dev;
 }
 
+static Property mc146818rtc_properties[] = {
+    DEFINE_PROP_INT32("base_year", RTCState, base_year, 1980),
+    DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", RTCState,
+                               lost_tick_policy, LOST_TICK_DISCARD),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void rtc_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = rtc_initfn;
+    dc->no_user = 1;
+    dc->vmsd = &vmstate_rtc;
+    dc->props = mc146818rtc_properties;
 }
 
-static DeviceInfo mc146818rtc_info = {
-    .name     = "mc146818rtc",
-    .size     = sizeof(RTCState),
-    .no_user  = 1,
-    .vmsd     = &vmstate_rtc,
-    .class_init          = rtc_class_initfn,
-    .props    = (Property[]) {
-        DEFINE_PROP_INT32("base_year", RTCState, base_year, 1980),
-        DEFINE_PROP_LOSTTICKPOLICY("lost_tick_policy", RTCState,
-                                   lost_tick_policy, LOST_TICK_DISCARD),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo mc146818rtc_info = {
+    .name          = "mc146818rtc",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(RTCState),
+    .class_init    = rtc_class_initfn,
 };
 
 static void mc146818rtc_register(void)
 {
-    isa_qdev_register(&mc146818rtc_info);
+    type_register_static(&mc146818rtc_info);
 }
 device_init(mc146818rtc_register)

@@ -126,24 +126,25 @@ static const VMStateDescription vmstate_stcpmu = {
 
 static void stcpmu_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
-
+    dc->vmsd = &vmstate_stcpmu;
     k->init = stcpmu_init;
     k->event = stcpmu_event;
     k->recv = stcpmu_rx;
     k->send = stcpmu_tx;
 }
 
-static DeviceInfo stcpmu_info = {
+static TypeInfo stcpmu_info = {
     .name ="stcpmu",
-    .size = sizeof(StcPMUState),
-    .vmsd = &vmstate_stcpmu,
+    .parent = TYPE_I2C_SLAVE,
+    .instance_size = sizeof(StcPMUState),
     .class_init = stcpmu_class_init
 };
 
 static void stcpmu_register_devices(void)
 {
-    i2c_register_slave(&stcpmu_info);
+    type_register_static(&stcpmu_info);
 }
 
 device_init(stcpmu_register_devices)

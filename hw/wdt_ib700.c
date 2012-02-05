@@ -122,22 +122,24 @@ static WatchdogTimerModel model = {
 
 static void wdt_ib700_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = wdt_ib700_init;
+    dc->reset = wdt_ib700_reset;
+    dc->vmsd = &vmstate_ib700;
 }
 
-static DeviceInfo wdt_ib700_info = {
-    .name  = "ib700",
-    .size  = sizeof(IB700State),
-    .vmsd  = &vmstate_ib700,
-    .reset = wdt_ib700_reset,
-    .class_init       = wdt_ib700_class_init,
+static TypeInfo wdt_ib700_info = {
+    .name          = "ib700",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(IB700State),
+    .class_init    = wdt_ib700_class_init,
 };
 
 static void wdt_ib700_register_devices(void)
 {
     watchdog_add_model(&model);
-    isa_qdev_register(&wdt_ib700_info);
+    type_register_static(&wdt_ib700_info);
 }
 
 device_init(wdt_ib700_register_devices);

@@ -1,1 +1,1 @@
-qom-y = object.o
+qom-y = object.o container.o

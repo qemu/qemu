@@ -90,15 +90,16 @@ static void macio_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_OTHERS << 8;
 }
 
-static DeviceInfo macio_info = {
-    .name = "macio",
-    .size = sizeof(MacIOState),
-    .class_init = macio_class_init,
+static TypeInfo macio_info = {
+    .name          = "macio",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(MacIOState),
+    .class_init    = macio_class_init,
 };
 
 static void macio_register(void)
 {
-    pci_qdev_register(&macio_info);
+    type_register_static(&macio_info);
 }
 
 device_init(macio_register);

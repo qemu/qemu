@@ -1826,6 +1826,7 @@ static Property qxl_properties[] = {
 
 static void qxl_primary_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->no_hotplug = 1;
@@ -1834,42 +1835,45 @@ static void qxl_primary_class_init(ObjectClass *klass, void *data)
     k->vendor_id = REDHAT_PCI_VENDOR_ID;
     k->device_id = QXL_DEVICE_ID_STABLE;
     k->class_id = PCI_CLASS_DISPLAY_VGA;
+    dc->desc = "Spice QXL GPU (primary, vga compatible)";
+    dc->reset = qxl_reset_handler;
+    dc->vmsd = &qxl_vmstate;
+    dc->props = qxl_properties;
 }
 
-static DeviceInfo qxl_primary_info = {
-    .name = "qxl-vga",
-    .desc = "Spice QXL GPU (primary, vga compatible)",
-    .size = sizeof(PCIQXLDevice),
-    .reset = qxl_reset_handler,
-    .vmsd = &qxl_vmstate,
-    .props = qxl_properties,
-    .class_init = qxl_primary_class_init,
+static TypeInfo qxl_primary_info = {
+    .name          = "qxl-vga",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIQXLDevice),
+    .class_init    = qxl_primary_class_init,
 };
 
 static void qxl_secondary_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = qxl_init_secondary;
     k->vendor_id = REDHAT_PCI_VENDOR_ID;
     k->device_id = QXL_DEVICE_ID_STABLE;
     k->class_id = PCI_CLASS_DISPLAY_OTHER;
+    dc->desc = "Spice QXL GPU (secondary)";
+    dc->reset = qxl_reset_handler;
+    dc->vmsd = &qxl_vmstate;
+    dc->props = qxl_properties;
 }
 
-static DeviceInfo qxl_secondary_info = {
-    .name = "qxl",
-    .desc = "Spice QXL GPU (secondary)",
-    .size = sizeof(PCIQXLDevice),
-    .reset = qxl_reset_handler,
-    .vmsd = &qxl_vmstate,
-    .props = qxl_properties,
-    .class_init = qxl_secondary_class_init,
+static TypeInfo qxl_secondary_info = {
+    .name          = "qxl",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIQXLDevice),
+    .class_init    = qxl_secondary_class_init,
 };
 
 static void qxl_register(void)
 {
-    pci_qdev_register(&qxl_primary_info);
-    pci_qdev_register(&qxl_secondary_info);
+    type_register_static(&qxl_primary_info);
+    type_register_static(&qxl_secondary_info);
 }
 
 device_init(qxl_register);

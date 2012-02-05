@@ -779,6 +779,7 @@ static Property ivshmem_properties[] = {
 
 static void ivshmem_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = pci_ivshmem_init;
@@ -786,19 +787,20 @@ static void ivshmem_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->device_id = 0x1110;
     k->class_id = PCI_CLASS_MEMORY_RAM;
+    dc->reset = ivshmem_reset;
+    dc->props = ivshmem_properties;
 }
 
-static DeviceInfo ivshmem_info = {
-    .name = "ivshmem",
-    .size = sizeof(IVShmemState),
-    .reset = ivshmem_reset,
-    .props = ivshmem_properties,
-    .class_init = ivshmem_class_init,
+static TypeInfo ivshmem_info = {
+    .name          = "ivshmem",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(IVShmemState),
+    .class_init    = ivshmem_class_init,
 };
 
 static void ivshmem_register_devices(void)
 {
-    pci_qdev_register(&ivshmem_info);
+    type_register_static(&ivshmem_info);
 }
 
 device_init(ivshmem_register_devices)

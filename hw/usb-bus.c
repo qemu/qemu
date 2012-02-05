@@ -156,7 +156,7 @@ void usb_device_set_interface(USBDevice *dev, int interface,
     }
 }
 
-static int usb_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int usb_qdev_init(DeviceState *qdev)
 {
     USBDevice *dev = USB_DEVICE(qdev);
     int rc;
@@ -208,19 +208,12 @@ typedef struct LegacyUSBFactory
 
 static GSList *legacy_usb_factory;
 
-void usb_qdev_register(DeviceInfo *info,
-                       const char *usbdevice_name,
-                       USBDevice *(*usbdevice_init)(const char *params))
+void usb_legacy_register(const char *typename, const char *usbdevice_name,
+                         USBDevice *(*usbdevice_init)(const char *params))
 {
-    info->bus_info = &usb_bus_info;
-    info->init     = usb_qdev_init;
-    info->unplug   = qdev_simple_unplug_cb;
-    info->exit     = usb_qdev_exit;
-    qdev_register_subclass(info, TYPE_USB_DEVICE);
-
     if (usbdevice_name) {
         LegacyUSBFactory *f = g_malloc0(sizeof(*f));
-        f->name = info->name;
+        f->name = typename;
         f->usbdevice_name = usbdevice_name;
         f->usbdevice_init = usbdevice_init;
         legacy_usb_factory = g_slist_append(legacy_usb_factory, f);
@@ -575,12 +568,22 @@ USBDevice *usbdevice_create(const char *cmdline)
     return f->usbdevice_init(params);
 }
 
+static void usb_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->bus_info = &usb_bus_info;
+    k->init     = usb_qdev_init;
+    k->unplug   = qdev_simple_unplug_cb;
+    k->exit     = usb_qdev_exit;
+}
+
 static TypeInfo usb_device_type_info = {
     .name = TYPE_USB_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(USBDevice),
     .abstract = true,
     .class_size = sizeof(USBDeviceClass),
+    .class_init = usb_device_class_init,
 };
 
 static void usb_register_devices(void)

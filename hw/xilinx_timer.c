@@ -227,21 +227,23 @@ static Property xilinx_timer_properties[] = {
 
 static void xilinx_timer_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = xilinx_timer_init;
+    dc->props = xilinx_timer_properties;
 }
 
-static DeviceInfo xilinx_timer_info = {
-    .name = "xilinx,timer",
-    .size = sizeof(struct timerblock),
-    .props = xilinx_timer_properties,
-    .class_init = xilinx_timer_class_init,
+static TypeInfo xilinx_timer_info = {
+    .name          = "xilinx,timer",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(struct timerblock),
+    .class_init    = xilinx_timer_class_init,
 };
 
 static void xilinx_timer_register(void)
 {
-    sysbus_register_withprop(&xilinx_timer_info);
+    type_register_static(&xilinx_timer_info);
 }
 
 device_init(xilinx_timer_register)

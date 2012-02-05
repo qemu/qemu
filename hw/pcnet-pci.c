@@ -355,6 +355,7 @@ static Property pcnet_properties[] = {
 
 static void pcnet_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = pci_pcnet_init;
@@ -363,20 +364,21 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_AMD_LANCE;
     k->revision = 0x10;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    dc->reset = pci_reset;
+    dc->vmsd = &vmstate_pci_pcnet;
+    dc->props = pcnet_properties;
 }
 
-static DeviceInfo pcnet_info = {
-    .name = "pcnet",
-    .size = sizeof(PCIPCNetState),
-    .reset = pci_reset,
-    .vmsd = &vmstate_pci_pcnet,
-    .props = pcnet_properties,
-    .class_init = pcnet_class_init,
+static TypeInfo pcnet_info = {
+    .name          = "pcnet",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIPCNetState),
+    .class_init    = pcnet_class_init,
 };
 
 static void pci_pcnet_register_devices(void)
 {
-    pci_qdev_register(&pcnet_info);
+    type_register_static(&pcnet_info);
 }
 
 device_init(pci_pcnet_register_devices)

@@ -54,7 +54,6 @@ void ccid_card_send_apdu_to_guest(CCIDCardState *card,
 void ccid_card_card_removed(CCIDCardState *card);
 void ccid_card_card_inserted(CCIDCardState *card);
 void ccid_card_card_error(CCIDCardState *card, uint64_t error);
-void ccid_card_qdev_register(DeviceInfo *card);
 
 /*
  * support guest visible insertion/removal of ccid devices based on actual

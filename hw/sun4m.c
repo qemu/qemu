@@ -616,15 +616,16 @@ static void idreg_class_init(ObjectClass *klass, void *data)
     k->init = idreg_init1;
 }
 
-static DeviceInfo idreg_info = {
-    .name = "macio_idreg",
-    .size = sizeof(IDRegState),
-    .class_init = idreg_class_init,
+static TypeInfo idreg_info = {
+    .name          = "macio_idreg",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(IDRegState),
+    .class_init    = idreg_class_init,
 };
 
 static void idreg_register_devices(void)
 {
-    sysbus_register_withprop(&idreg_info);
+    type_register_static(&idreg_info);
 }
 
 device_init(idreg_register_devices);
@@ -664,15 +665,16 @@ static void afx_class_init(ObjectClass *klass, void *data)
     k->init = afx_init1;
 }
 
-static DeviceInfo afx_info = {
-    .name = "tcx_afx",
-    .size = sizeof(AFXState),
-    .class_init = afx_class_init,
+static TypeInfo afx_info = {
+    .name          = "tcx_afx",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(AFXState),
+    .class_init    = afx_class_init,
 };
 
 static void afx_register_devices(void)
 {
-    sysbus_register_withprop(&afx_info);
+    type_register_static(&afx_info);
 }
 
 device_init(afx_register_devices);
@@ -740,21 +742,23 @@ static Property prom_properties[] = {
 
 static void prom_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = prom_init1;
+    dc->props = prom_properties;
 }
 
-static DeviceInfo prom_info = {
-    .name = "openprom",
-    .size = sizeof(PROMState),
-    .props = prom_properties,
-    .class_init = prom_class_init,
+static TypeInfo prom_info = {
+    .name          = "openprom",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PROMState),
+    .class_init    = prom_class_init,
 };
 
 static void prom_register_devices(void)
 {
-    sysbus_register_withprop(&prom_info);
+    type_register_static(&prom_info);
 }
 
 device_init(prom_register_devices);
@@ -809,21 +813,23 @@ static Property ram_properties[] = {
 
 static void ram_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = ram_init1;
+    dc->props = ram_properties;
 }
 
-static DeviceInfo ram_info = {
-    .name = "memory",
-    .size = sizeof(RamDevice),
-    .props = ram_properties,
-    .class_init = ram_class_init,
+static TypeInfo ram_info = {
+    .name          = "memory",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(RamDevice),
+    .class_init    = ram_class_init,
 };
 
 static void ram_register_devices(void)
 {
-    sysbus_register_withprop(&ram_info);
+    type_register_static(&ram_info);
 }
 
 device_init(ram_register_devices);

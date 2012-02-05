@@ -690,26 +690,30 @@ static const VMStateDescription dm9000_vmsd = {
     }
 };
 
+static Property dm9000_properties[] = {
+    DEFINE_NIC_PROPERTIES(dm9000_state, conf),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void dm9000_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->vmsd = &dm9000_vmsd;
+    dc->props = dm9000_properties;
     k->init = dm9000_init;
 }
 
-static DeviceInfo dm9000_info = {
+static TypeInfo dm9000_info = {
     .name = "dm9000",
-    .size = sizeof(dm9000_state),
-    .vmsd = &dm9000_vmsd,
-    .props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(dm9000_state, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(dm9000_state),
     .class_init = dm9000_class_init
 };
 
 static void dm9000_register_devices(void)
 {
-    sysbus_register_withprop(&dm9000_info);
+    type_register_static(&dm9000_info);
 }
 
 device_init(dm9000_register_devices)

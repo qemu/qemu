@@ -277,7 +277,7 @@ static PCIBus *i440fx_common_init(const char *device_name,
                     address_space_io, 0);
     s->bus = b;
     qdev_init_nofail(dev);
-    qdev_property_add_child(qdev_get_root(), "i440fx", dev, NULL);
+    object_property_add_child(object_get_root(), "i440fx", OBJECT(dev), NULL);
 
     d = pci_create_simple(b, 0, device_name);
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
@@ -316,7 +316,7 @@ static PCIBus *i440fx_common_init(const char *device_name,
         pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
                 PIIX_NUM_PIRQS);
     }
-    qdev_property_add_child(dev, "piix3", &piix3->dev.qdev, NULL);
+    object_property_add_child(OBJECT(dev), "piix3", OBJECT(piix3), NULL);
     piix3->pic = pic;
     *isa_bus = DO_UPCAST(ISABus, qbus,
                          qdev_get_child_bus(&piix3->dev.qdev, "isa.0"));
@@ -504,8 +504,12 @@ static int piix3_initfn(PCIDevice *dev)
 
 static void piix3_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    dc->desc        = "ISA bridge";
+    dc->vmsd        = &vmstate_piix3;
+    dc->no_user     = 1,
     k->no_hotplug   = 1;
     k->init         = piix3_initfn;
     k->config_write = piix3_write_config;
@@ -514,19 +518,21 @@ static void piix3_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 }
 
-static DeviceInfo piix3_info = {
-    .name    = "PIIX3",
-    .desc    = "ISA bridge",
-    .size    = sizeof(PIIX3State),
-    .vmsd    = &vmstate_piix3,
-    .no_user = 1,
-    .class_init = piix3_class_init,
+static TypeInfo piix3_info = {
+    .name          = "PIIX3",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PIIX3State),
+    .class_init    = piix3_class_init,
 };
 
 static void piix3_xen_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    dc->desc        = "ISA bridge";
+    dc->vmsd        = &vmstate_piix3;
+    dc->no_user     = 1;
     k->no_hotplug   = 1;
     k->init         = piix3_initfn;
     k->config_write = piix3_write_config_xen;
@@ -535,17 +541,16 @@ static void piix3_xen_class_init(ObjectClass *klass, void *data)
     k->class_id     = PCI_CLASS_BRIDGE_ISA;
 };
 
-static DeviceInfo piix3_xen_info = {
-    .name    = "PIIX3-xen",
-    .desc    = "ISA bridge",
-    .size    = sizeof(PIIX3State),
-    .vmsd    = &vmstate_piix3,
-    .no_user = 1,
-    .class_init = piix3_xen_class_init,
+static TypeInfo piix3_xen_info = {
+    .name          = "PIIX3-xen",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PIIX3State),
+    .class_init    = piix3_xen_class_init,
 };
 
 static void i440fx_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->no_hotplug = 1;
@@ -555,37 +560,40 @@ static void i440fx_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82441;
     k->revision = 0x02;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
+    dc->desc = "Host bridge";
+    dc->no_user = 1;
+    dc->vmsd = &vmstate_i440fx;
 }
 
-static DeviceInfo i440fx_info = {
-    .name = "i440FX",
-    .desc = "Host bridge",
-    .size = sizeof(PCII440FXState),
-    .vmsd = &vmstate_i440fx,
-    .no_user = 1,
-    .class_init = i440fx_class_init,
+static TypeInfo i440fx_info = {
+    .name          = "i440FX",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCII440FXState),
+    .class_init    = i440fx_class_init,
 };
 
 static void i440fx_pcihost_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = i440fx_pcihost_initfn;
+    dc->fw_name = "pci";
+    dc->no_user = 1;
 }
 
-static DeviceInfo i440fx_pcihost_info = {
-    .name = "i440FX-pcihost",
-    .fw_name = "pci",
-    .size = sizeof(I440FXState),
-    .no_user = 1,
-    .class_init = i440fx_pcihost_class_init,
+static TypeInfo i440fx_pcihost_info = {
+    .name          = "i440FX-pcihost",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(I440FXState),
+    .class_init    = i440fx_pcihost_class_init,
 };
 
 static void i440fx_register(void)
 {
-    pci_qdev_register(&i440fx_info);
-    pci_qdev_register(&piix3_info);
-    pci_qdev_register(&piix3_xen_info);
-    sysbus_register_withprop(&i440fx_pcihost_info);
+    type_register_static(&i440fx_info);
+    type_register_static(&piix3_info);
+    type_register_static(&piix3_xen_info);
+    type_register_static(&i440fx_pcihost_info);
 }
 device_init(i440fx_register);

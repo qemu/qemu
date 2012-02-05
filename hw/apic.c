@@ -774,14 +774,16 @@ static void apic_class_init(ObjectClass *klass, void *data)
     k->post_load = apic_post_load;
 }
 
-static DeviceInfo apic_info = {
-    .name = "apic",
-    .class_init = apic_class_init,
+static TypeInfo apic_info = {
+    .name          = "apic",
+    .instance_size = sizeof(APICCommonState),
+    .parent        = TYPE_APIC_COMMON,
+    .class_init    = apic_class_init,
 };
 
 static void apic_register_devices(void)
 {
-    apic_qdev_register(&apic_info);
+    type_register_static(&apic_info);
 }
 
 device_init(apic_register_devices)

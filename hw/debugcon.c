@@ -87,27 +87,31 @@ static int debugcon_isa_initfn(ISADevice *dev)
     return 0;
 }
 
+static Property debugcon_isa_properties[] = {
+    DEFINE_PROP_HEX32("iobase", ISADebugconState, iobase, 0xe9),
+    DEFINE_PROP_CHR("chardev",  ISADebugconState, state.chr),
+    DEFINE_PROP_HEX32("readback", ISADebugconState, state.readback, 0xe9),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void debugcon_isa_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = debugcon_isa_initfn;
+    dc->props = debugcon_isa_properties;
 }
 
-static DeviceInfo debugcon_isa_info = {
-    .name  = "isa-debugcon",
-    .size  = sizeof(ISADebugconState),
-    .class_init = debugcon_isa_class_initfn,
-    .props = (Property[]) {
-        DEFINE_PROP_HEX32("iobase", ISADebugconState, iobase, 0xe9),
-        DEFINE_PROP_CHR("chardev",  ISADebugconState, state.chr),
-        DEFINE_PROP_HEX32("readback", ISADebugconState, state.readback, 0xe9),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo debugcon_isa_info = {
+    .name          = "isa-debugcon",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(ISADebugconState),
+    .class_init    = debugcon_isa_class_initfn,
 };
 
 static void debugcon_register_devices(void)
 {
-    isa_qdev_register(&debugcon_isa_info);
+    type_register_static(&debugcon_isa_info);
 }
 
 device_init(debugcon_register_devices)

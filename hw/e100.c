@@ -537,7 +537,8 @@ typedef struct {
 } E100State;
 
 typedef struct {
-    DeviceInfo qdev;
+    const char *name;
+    const char *desc;
 
     uint16_t device_id;
     uint8_t revision;
@@ -2426,8 +2427,13 @@ static Property e100_properties[] = {
 
 static void e100_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    dc->desc = "Intel Ethernet";
+    dc->props = e100_properties;
+    //~ dc->reset = qdev_e100_reset;
+    //~ dc->vmsd = &vmstate_e100;
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     k->romfile = "pxe-eepro100.rom";
@@ -2439,19 +2445,16 @@ static void e100_class_init(ObjectClass *klass, void *data)
     //~ k->subsystem_id = info->subsystem_id;
 }
 
-static DeviceInfo e100_info = {
+static TypeInfo e100_info = {
     .name = "e100",
-    .desc = "Intel Ethernet",
-    .size = sizeof(E100State),
-    //~ .reset = qdev_e100_reset,
-    //~ .vmsd = &vmstate_e100,
-    .props = e100_properties,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(E100State),
     .class_init = e100_class_init,
 };
 
 static void e100_register_devices(void)
 {
-    pci_qdev_register(&e100_info);
+    type_register_static(&e100_info);
 }
 
 device_init(e100_register_devices)

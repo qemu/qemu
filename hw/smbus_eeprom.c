@@ -104,8 +104,14 @@ static int smbus_eeprom_initfn(SMBusDevice *dev)
     return 0;
 }
 
+static Property smbus_eeprom_properties[] = {
+    DEFINE_PROP_PTR("data", SMBusEEPROMDevice, data),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SMBusDeviceClass *sc = SMBUS_DEVICE_CLASS(klass);
 
     sc->init = smbus_eeprom_initfn;
@@ -114,21 +120,19 @@ static void smbus_eeprom_class_initfn(ObjectClass *klass, void *data)
     sc->receive_byte = eeprom_receive_byte;
     sc->write_data = eeprom_write_data;
     sc->read_data = eeprom_read_data;
+    dc->props = smbus_eeprom_properties;
 }
 
-static DeviceInfo smbus_eeprom_info = {
-    .name = "smbus-eeprom",
-    .size = sizeof(SMBusEEPROMDevice),
-    .class_init = smbus_eeprom_class_initfn,
-    .props = (Property[]) {
-        DEFINE_PROP_PTR("data", SMBusEEPROMDevice, data),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo smbus_eeprom_info = {
+    .name          = "smbus-eeprom",
+    .parent        = TYPE_SMBUS_DEVICE,
+    .instance_size = sizeof(SMBusEEPROMDevice),
+    .class_init    = smbus_eeprom_class_initfn,
 };
 
 static void smbus_eeprom_register_devices(void)
 {
-    smbus_register_device(&smbus_eeprom_info);
+    type_register_static(&smbus_eeprom_info);
 }
 
 device_init(smbus_eeprom_register_devices)

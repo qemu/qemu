@@ -1245,23 +1245,25 @@ static Property lan9118_properties[] = {
 
 static void lan9118_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = lan9118_init1;
+    dc->reset = lan9118_reset;
+    dc->props = lan9118_properties;
+    dc->vmsd = &vmstate_lan9118;
 }
 
-static DeviceInfo lan9118_info = {
-    .name = "lan9118",
-    .size = sizeof(lan9118_state),
-    .reset = lan9118_reset,
-    .vmsd = &vmstate_lan9118,
-    .props = lan9118_properties,
-    .class_init = lan9118_class_init,
+static TypeInfo lan9118_info = {
+    .name          = "lan9118",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(lan9118_state),
+    .class_init    = lan9118_class_init,
 };
 
 static void lan9118_register_devices(void)
 {
-    sysbus_register_withprop(&lan9118_info);
+    type_register_static(&lan9118_info);
 }
 
 /* Legacy helper function.  Should go away when machine config files are

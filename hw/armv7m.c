@@ -252,21 +252,23 @@ static Property bitband_properties[] = {
 
 static void bitband_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = bitband_init;
+    dc->props = bitband_properties;
 }
 
-static DeviceInfo bitband_info = {
-    .name = "ARM,bitband-memory",
-    .size = sizeof(BitBandState),
-    .props = bitband_properties,
-    .class_init = bitband_class_init,
+static TypeInfo bitband_info = {
+    .name          = "ARM,bitband-memory",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(BitBandState),
+    .class_init    = bitband_class_init,
 };
 
 static void armv7m_register_devices(void)
 {
-    sysbus_register_withprop(&bitband_info);
+    type_register_static(&bitband_info);
 }
 
 device_init(armv7m_register_devices)

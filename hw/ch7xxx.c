@@ -87,24 +87,25 @@ static const VMStateDescription vmstate_ch7xxx = {
 
 static void ch7xx_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     I2CSlaveClass *k = I2C_SLAVE_CLASS(klass);
-
+    dc->vmsd = &vmstate_ch7xxx;
     k->init = ch7xxx_init;
     k->event = ch7xxx_event;
     k->recv = ch7xxx_rx;
     k->send = ch7xxx_tx;
 }
 
-static DeviceInfo ch7xxx_info = {
+static TypeInfo ch7xxx_info = {
     .name ="ch7xxx",
-    .size = sizeof(CH7xxxState),
-    .vmsd = &vmstate_ch7xxx,
+    .parent = TYPE_I2C_SLAVE,
+    .instance_size = sizeof(CH7xxxState),
     .class_init = ch7xx_class_init,
 };
 
 static void ch7xxx_register_devices(void)
 {
-    i2c_register_slave(&ch7xxx_info);
+    type_register_static(&ch7xxx_info);
 }
 
 device_init(ch7xxx_register_devices)

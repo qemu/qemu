@@ -89,15 +89,16 @@ static void realview_i2c_class_init(ObjectClass *klass, void *data)
     k->init = realview_i2c_init;
 }
 
-static DeviceInfo realview_i2c_info = {
-    .name = "realview_i2c",
-    .size = sizeof(RealViewI2CState),
-    .class_init = realview_i2c_class_init,
+static TypeInfo realview_i2c_info = {
+    .name          = "realview_i2c",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(RealViewI2CState),
+    .class_init    = realview_i2c_class_init,
 };
 
 static void realview_register_devices(void)
 {
-    sysbus_register_withprop(&realview_i2c_info);
+    type_register_static(&realview_i2c_info);
 }
 
 /* Board init.  */

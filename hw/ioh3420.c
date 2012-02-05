@@ -213,6 +213,7 @@ static Property ioh3420_properties[] = {
 
 static void ioh3420_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->is_express = 1;
@@ -223,21 +224,22 @@ static void ioh3420_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->device_id = PCI_DEVICE_ID_IOH_EPORT;
     k->revision = PCI_DEVICE_ID_IOH_REV;
+    dc->desc = "Intel IOH device id 3420 PCIE Root Port";
+    dc->reset = ioh3420_reset;
+    dc->vmsd = &vmstate_ioh3420;
+    dc->props = ioh3420_properties;
 }
 
-static DeviceInfo ioh3420_info = {
-    .name = "ioh3420",
-    .desc = "Intel IOH device id 3420 PCIE Root Port",
-    .size = sizeof(PCIESlot),
-    .reset = ioh3420_reset,
-    .vmsd = &vmstate_ioh3420,
-    .props = ioh3420_properties,
-    .class_init = ioh3420_class_init,
+static TypeInfo ioh3420_info = {
+    .name          = "ioh3420",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIESlot),
+    .class_init    = ioh3420_class_init,
 };
 
 static void ioh3420_register(void)
 {
-    pci_qdev_register(&ioh3420_info);
+    type_register_static(&ioh3420_info);
 }
 
 device_init(ioh3420_register);

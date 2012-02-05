@@ -550,22 +550,24 @@ static Property pxa2xx_dma_properties[] = {
 
 static void pxa2xx_dma_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pxa2xx_dma_init;
+    dc->desc = "PXA2xx DMA controller";
+    dc->vmsd = &vmstate_pxa2xx_dma;
+    dc->props = pxa2xx_dma_properties;
 }
 
-static DeviceInfo pxa2xx_dma_info = {
-    .name = "pxa2xx-dma",
-    .desc = "PXA2xx DMA controller",
-    .size = sizeof(PXA2xxDMAState),
-    .vmsd = &vmstate_pxa2xx_dma,
-    .props = pxa2xx_dma_properties,
-    .class_init = pxa2xx_dma_class_init,
+static TypeInfo pxa2xx_dma_info = {
+    .name          = "pxa2xx-dma",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PXA2xxDMAState),
+    .class_init    = pxa2xx_dma_class_init,
 };
 
 static void pxa2xx_dma_register(void)
 {
-    sysbus_register_withprop(&pxa2xx_dma_info);
+    type_register_static(&pxa2xx_dma_info);
 }
 device_init(pxa2xx_dma_register);

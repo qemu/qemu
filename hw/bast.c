@@ -352,26 +352,30 @@ static const VMStateDescription ax88796_vmsd = {
     }
 };
 
+static Property ax88796_properties[] = {
+    DEFINE_NIC_PROPERTIES(AX88796State, conf),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void ax88796_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->vmsd = &ax88796_vmsd;
+    dc->props = ax88796_properties;
     k->init = ax88796_init;
 }
 
-static DeviceInfo ax88796_info = {
+static TypeInfo ax88796_info = {
     .name = "ax88796",
-    .size = sizeof(AX88796State),
-    .vmsd = &ax88796_vmsd,
-    .props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(AX88796State, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(AX88796State),
     .class_init = ax88796_class_init
 };
 
 static void ax88796_register_device(void)
 {
-    sysbus_register_withprop(&ax88796_info);
+    type_register_static(&ax88796_info);
 }
 
 device_init(ax88796_register_device)

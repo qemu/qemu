@@ -240,21 +240,23 @@ static VMStateDescription vmstate_mst_fpga_regs = {
 
 static void mst_fpga_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = mst_fpga_init;
+    dc->desc = "Mainstone II FPGA";
+    dc->vmsd = &vmstate_mst_fpga_regs;
 }
 
-static DeviceInfo mst_fpga_info = {
-    .name = "mainstone-fpga",
-    .desc = "Mainstone II FPGA",
-    .size = sizeof(mst_irq_state),
-    .vmsd = &vmstate_mst_fpga_regs,
-    .class_init = mst_fpga_class_init,
+static TypeInfo mst_fpga_info = {
+    .name          = "mainstone-fpga",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(mst_irq_state),
+    .class_init    = mst_fpga_class_init,
 };
 
 static void mst_fpga_register(void)
 {
-	sysbus_register_withprop(&mst_fpga_info);
+    type_register_static(&mst_fpga_info);
 }
 device_init(mst_fpga_register);

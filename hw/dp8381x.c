@@ -1420,9 +1420,18 @@ static const VMStateDescription vmstate_dp8381x = {
 
 static void dp8381x_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    k->romfile = "pxe-eepro100.rom";
+#if defined(DP83815)
+    dc->desc = "National Semiconductor DP83815";
+#else
+    dc->desc = "National Semiconductor DP83816",
+#endif
+    dc->props = dp8381x_properties;
+    dc->reset = qdev_dp8381x_reset;
+    dc->vmsd = &vmstate_dp8381x;
+    k->romfile = "pxe-dp83816.rom";
     k->init = dp8381x_init;
     k->exit = dp8381x_exit;
     /* National Semiconductor DP83815, DP83816 */
@@ -1435,30 +1444,24 @@ static void dp8381x_class_init(ObjectClass *klass, void *data)
 }
 
 #if defined(DP83815)
-static DeviceInfo dp8381x_info = {
+static TypeInfo dp8381x_info = {
     .name = "dp83815",
-    .desc = "National Semiconductor DP83815",
-    .props = dp8381x_properties,
-    .size = sizeof(DP8381xState),
-    .vmsd = &vmstate_dp8381x,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(DP8381xState),
     .class_init = dp8381x_class_init,
-    .reset = qdev_dp8381x_reset,
 };
 #else
-static DeviceInfo dp8381x_info = {
+static TypeInfo dp8381x_info = {
     .name = "dp83816",
-    .desc = "National Semiconductor DP83816",
-    .props = dp8381x_properties,
-    .size = sizeof(DP8381xState),
-    .vmsd = &vmstate_dp8381x,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(DP8381xState),
     .class_init = dp8381x_class_init,
-    .reset = qdev_dp8381x_reset,
 };
 #endif
 
 static void dp8381x_register_devices(void)
 {
-    pci_qdev_register(&dp8381x_info);
+    type_register_static(&dp8381x_info);
 }
 
 device_init(dp8381x_register_devices)

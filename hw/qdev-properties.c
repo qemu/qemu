@@ -55,9 +55,10 @@ static int print_bit(DeviceState *dev, Property *prop, char *dest, size_t len)
     return snprintf(dest, len, (*p & qdev_get_prop_mask(prop)) ? "on" : "off");
 }
 
-static void get_bit(DeviceState *dev, Visitor *v, void *opaque,
+static void get_bit(Object *obj, Visitor *v, void *opaque,
                     const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     uint32_t *p = qdev_get_prop_ptr(dev, prop);
     bool value = (*p & qdev_get_prop_mask(prop)) != 0;
@@ -65,9 +66,10 @@ static void get_bit(DeviceState *dev, Visitor *v, void *opaque,
     visit_type_bool(v, &value, name, errp);
 }
 
-static void set_bit(DeviceState *dev, Visitor *v, void *opaque,
+static void set_bit(Object *obj, Visitor *v, void *opaque,
                     const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     Error *local_err = NULL;
     bool value;
@@ -118,9 +120,10 @@ static int print_uint8(DeviceState *dev, Property *prop, char *dest, size_t len)
     return snprintf(dest, len, "%" PRIu8, *ptr);
 }
 
-static void get_int8(DeviceState *dev, Visitor *v, void *opaque,
+static void get_int8(Object *obj, Visitor *v, void *opaque,
                      const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int8_t *ptr = qdev_get_prop_ptr(dev, prop);
     int64_t value;
@@ -129,9 +132,10 @@ static void get_int8(DeviceState *dev, Visitor *v, void *opaque,
     visit_type_int(v, &value, name, errp);
 }
 
-static void set_int8(DeviceState *dev, Visitor *v, void *opaque,
-                      const char *name, Error **errp)
+static void set_int8(Object *obj, Visitor *v, void *opaque,
+                     const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int8_t *ptr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
@@ -224,9 +228,10 @@ static int print_uint16(DeviceState *dev, Property *prop, char *dest, size_t len
     return snprintf(dest, len, "%" PRIu16, *ptr);
 }
 
-static void get_int16(DeviceState *dev, Visitor *v, void *opaque,
+static void get_int16(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int16_t *ptr = qdev_get_prop_ptr(dev, prop);
     int64_t value;
@@ -235,9 +240,10 @@ static void get_int16(DeviceState *dev, Visitor *v, void *opaque,
     visit_type_int(v, &value, name, errp);
 }
 
-static void set_int16(DeviceState *dev, Visitor *v, void *opaque,
+static void set_int16(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int16_t *ptr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
@@ -296,9 +302,10 @@ static int print_uint32(DeviceState *dev, Property *prop, char *dest, size_t len
     return snprintf(dest, len, "%" PRIu32, *ptr);
 }
 
-static void get_int32(DeviceState *dev, Visitor *v, void *opaque,
+static void get_int32(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int32_t *ptr = qdev_get_prop_ptr(dev, prop);
     int64_t value;
@@ -307,9 +314,10 @@ static void get_int32(DeviceState *dev, Visitor *v, void *opaque,
     visit_type_int(v, &value, name, errp);
 }
 
-static void set_int32(DeviceState *dev, Visitor *v, void *opaque,
+static void set_int32(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int32_t *ptr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
@@ -433,18 +441,20 @@ static int print_uint64(DeviceState *dev, Property *prop, char *dest, size_t len
     return snprintf(dest, len, "%" PRIu64, *ptr);
 }
 
-static void get_int64(DeviceState *dev, Visitor *v, void *opaque,
+static void get_int64(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int64_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     visit_type_int(v, ptr, name, errp);
 }
 
-static void set_int64(DeviceState *dev, Visitor *v, void *opaque,
+static void set_int64(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     int64_t *ptr = qdev_get_prop_ptr(dev, prop);
 
@@ -523,9 +533,10 @@ static int print_string(DeviceState *dev, Property *prop, char *dest, size_t len
     return snprintf(dest, len, "\"%s\"", *ptr);
 }
 
-static void get_string(DeviceState *dev, Visitor *v, void *opaque,
+static void get_string(Object *obj, Visitor *v, void *opaque,
                        const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     char **ptr = qdev_get_prop_ptr(dev, prop);
 
@@ -537,9 +548,10 @@ static void get_string(DeviceState *dev, Visitor *v, void *opaque,
     }
 }
 
-static void set_string(DeviceState *dev, Visitor *v, void *opaque,
+static void set_string(Object *obj, Visitor *v, void *opaque,
                        const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     char **ptr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
@@ -609,9 +621,10 @@ static int print_drive(DeviceState *dev, Property *prop, char *dest, size_t len)
                     *ptr ? bdrv_get_device_name(*ptr) : "<null>");
 }
 
-static void get_generic(DeviceState *dev, Visitor *v, void *opaque,
+static void get_generic(Object *obj, Visitor *v, void *opaque,
                        const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     void **ptr = qdev_get_prop_ptr(dev, prop);
     char buffer[1024];
@@ -624,9 +637,10 @@ static void get_generic(DeviceState *dev, Visitor *v, void *opaque,
     visit_type_str(v, &p, name, errp);
 }
 
-static void set_generic(DeviceState *dev, Visitor *v, void *opaque,
+static void set_generic(Object *obj, Visitor *v, void *opaque,
                         const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     Error *local_err = NULL;
     char *str;
@@ -774,9 +788,10 @@ static int print_vlan(DeviceState *dev, Property *prop, char *dest, size_t len)
     }
 }
 
-static void get_vlan(DeviceState *dev, Visitor *v, void *opaque,
+static void get_vlan(Object *obj, Visitor *v, void *opaque,
                      const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     VLANState **ptr = qdev_get_prop_ptr(dev, prop);
     int64_t id;
@@ -785,9 +800,10 @@ static void get_vlan(DeviceState *dev, Visitor *v, void *opaque,
     visit_type_int(v, &id, name, errp);
 }
 
-static void set_vlan(DeviceState *dev, Visitor *v, void *opaque,
+static void set_vlan(Object *obj, Visitor *v, void *opaque,
                      const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     VLANState **ptr = qdev_get_prop_ptr(dev, prop);
     Error *local_err = NULL;
@@ -971,9 +987,10 @@ static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t 
     }
 }
 
-static void get_pci_devfn(DeviceState *dev, Visitor *v, void *opaque,
+static void get_pci_devfn(Object *obj, Visitor *v, void *opaque,
                           const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     char buffer[32];
@@ -1015,7 +1032,7 @@ static Property *qdev_prop_find(DeviceState *dev, const char *name)
     Property *prop;
 
     /* device properties */
-    prop = qdev_prop_walk(qdev_get_info(dev)->props, name);
+    prop = qdev_prop_walk(qdev_get_props(dev), name);
     if (prop)
         return prop;
 
@@ -1221,7 +1238,7 @@ void qdev_prop_set_globals(DeviceState *dev)
 
     QTAILQ_FOREACH(prop, &global_props, next) {
         if (strcmp(object_get_typename(OBJECT(dev)), prop->driver) != 0 &&
-            strcmp(qdev_get_info(dev)->bus_info->name, prop->driver) != 0) {
+            strcmp(qdev_get_bus_info(dev)->name, prop->driver) != 0) {
             continue;
         }
         if (qdev_prop_parse(dev, prop->property, prop->value) != 0) {

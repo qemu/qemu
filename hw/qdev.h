@@ -14,8 +14,6 @@ typedef struct PropertyInfo PropertyInfo;
 
 typedef struct CompatProperty CompatProperty;
 
-typedef struct DeviceInfo DeviceInfo;
-
 typedef struct BusState BusState;
 
 typedef struct BusInfo BusInfo;
@@ -29,53 +27,34 @@ enum {
     DEV_NVECTORS_UNSPECIFIED = -1,
 };
 
-/**
- * @DevicePropertyAccessor - called when trying to get/set a property
- *
- * @dev the device that owns the property
- * @v the visitor that contains the property data
- * @opaque the device property opaque
- * @name the name of the property
- * @errp a pointer to an Error that is filled if getting/setting fails.
- */
-typedef void (DevicePropertyAccessor)(DeviceState *dev,
-                                      Visitor *v,
-                                      void *opaque,
-                                      const char *name,
-                                      Error **errp);
-
-/**
- * @DevicePropertyRelease - called when a property is removed from a device
- *
- * @dev the device that owns the property
- * @name the name of the property
- * @opaque the opaque registered with the property
- */
-typedef void (DevicePropertyRelease)(DeviceState *dev,
-                                     const char *name,
-                                     void *opaque);
-
-typedef struct DeviceProperty
-{
-    gchar *name;
-    gchar *type;
-    DevicePropertyAccessor *get;
-    DevicePropertyAccessor *set;
-    DevicePropertyRelease *release;
-    void *opaque;
-
-    QTAILQ_ENTRY(DeviceProperty) node;
-} DeviceProperty;
-
 #define TYPE_DEVICE "device"
 #define DEVICE(obj) OBJECT_CHECK(DeviceState, (obj), TYPE_DEVICE)
 #define DEVICE_CLASS(klass) OBJECT_CLASS_CHECK(DeviceClass, (klass), TYPE_DEVICE)
 #define DEVICE_GET_CLASS(obj) OBJECT_GET_CLASS(DeviceClass, (obj), TYPE_DEVICE)
 
+typedef int (*qdev_initfn)(DeviceState *dev);
+typedef int (*qdev_event)(DeviceState *dev);
+typedef void (*qdev_resetfn)(DeviceState *dev);
+
 typedef struct DeviceClass {
     ObjectClass parent_class;
-    DeviceInfo *info;
+
+    const char *fw_name;
+    const char *desc;
+    Property *props;
+    int no_user;
+
+    /* callbacks */
     void (*reset)(DeviceState *dev);
+
+    /* device state */
+    const VMStateDescription *vmsd;
+
+    /* Private to qdev / bus.  */
+    qdev_initfn init;
+    qdev_event unplug;
+    qdev_event exit;
+    BusInfo *bus_info;
 } DeviceClass;
 
 /* This structure should not be accessed directly.  We declare it here
@@ -97,18 +76,6 @@ struct DeviceState {
     QTAILQ_ENTRY(DeviceState) sibling;
     int instance_id_alias;
     int alias_required_for_version;
-
-    /**
-     * This tracks the number of references between devices.  See @qdev_ref for
-     * more information.
-     */
-    uint32_t ref;
-
-    QTAILQ_HEAD(, DeviceProperty) properties;
-
-    /* Do not, under any circumstance, use this parent link below anywhere
-     * outside of qdev.c.  You have been warned. */
-    DeviceState *parent;
 };
 
 typedef void (*bus_dev_printfn)(Monitor *mon, DeviceState *dev, int indent);
@@ -178,8 +145,8 @@ struct PropertyInfo {
     int (*parse)(DeviceState *dev, Property *prop, const char *str);
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
     void (*free)(DeviceState *dev, Property *prop);
-    DevicePropertyAccessor *get;
-    DevicePropertyAccessor *set;
+    ObjectPropertyAccessor *get;
+    ObjectPropertyAccessor *set;
 };
 
 typedef struct GlobalProperty {
@@ -213,48 +180,10 @@ BusState *qdev_get_child_bus(DeviceState *dev, const char *name);
 
 /*** Device API.  ***/
 
-typedef int (*qdev_initfn)(DeviceState *dev, DeviceInfo *info);
-typedef int (*qdev_event)(DeviceState *dev);
-typedef void (*qdev_resetfn)(DeviceState *dev);
-
-struct DeviceInfo {
-    const char *name;
-    const char *fw_name;
-    const char *alias;
-    const char *desc;
-    size_t size;
-    Property *props;
-    int no_user;
-
-    /* callbacks */
-    qdev_resetfn reset;
-
-    /* device state */
-    const VMStateDescription *vmsd;
-
-    /**
-     * See #TypeInfo::class_init()
-     */
-    void (*class_init)(ObjectClass *klass, void *data);
-
-    /* Private to qdev / bus.  */
-    qdev_initfn init;
-    qdev_event unplug;
-    qdev_event exit;
-    BusInfo *bus_info;
-    struct DeviceInfo *next;
-};
-extern DeviceInfo *device_info_list;
-
-void qdev_register(DeviceInfo *info);
-void qdev_register_subclass(DeviceInfo *info, const char *parent);
-
 /* Register device properties.  */
 /* GPIO inputs also double as IRQ sinks.  */
 void qdev_init_gpio_in(DeviceState *dev, qemu_irq_handler handler, int n);
 void qdev_init_gpio_out(DeviceState *dev, qemu_irq *pins, int n);
-
-CharDriverState *qdev_init_chardev(DeviceState *dev);
 
 BusState *qdev_get_parent_bus(DeviceState *dev);
 
@@ -405,253 +334,16 @@ void qdev_prop_set_globals(DeviceState *dev);
 void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
                                     Property *prop, const char *value);
 
-DeviceInfo *qdev_get_info(DeviceState *dev);
-
-static inline const char *qdev_fw_name(DeviceState *dev)
-{
-    DeviceInfo *info = qdev_get_info(dev);
-
-    if (info->fw_name) {
-        return info->fw_name;
-    } else if (info->alias) {
-        return info->alias;
-    }
-
-    return object_get_typename(OBJECT(dev));
-}
-
 char *qdev_get_fw_dev_path(DeviceState *dev);
+
 /* This is a nasty hack to allow passing a NULL bus to qdev_create.  */
 extern struct BusInfo system_bus_info;
-
-/**
- * @qdev_ref
- *
- * Increase the reference count of a device.  A device cannot be freed as long
- * as its reference count is greater than zero.
- *
- * @dev - the device
- */
-void qdev_ref(DeviceState *dev);
-
-/**
- * @qdef_unref
- *
- * Decrease the reference count of a device.  A device cannot be freed as long
- * as its reference count is greater than zero.
- *
- * @dev - the device
- */
-void qdev_unref(DeviceState *dev);
-
-/**
- * @qdev_property_add - add a new property to a device
- *
- * @dev - the device to add a property to
- *
- * @name - the name of the property.  This can contain any character except for
- *         a forward slash.  In general, you should use hyphens '-' instead of
- *         underscores '_' when naming properties.
- *
- * @type - the type name of the property.  This namespace is pretty loosely
- *         defined.  Sub namespaces are constructed by using a prefix and then
- *         to angle brackets.  For instance, the type 'virtio-net-pci' in the
- *         'link' namespace would be 'link<virtio-net-pci>'.
- *
- * @get - the getter to be called to read a property.  If this is NULL, then
- *        the property cannot be read.
- *
- * @set - the setter to be called to write a property.  If this is NULL,
- *        then the property cannot be written.
- *
- * @release - called when the property is removed from the device.  This is
- *            meant to allow a property to free its opaque upon device
- *            destruction.  This may be NULL.
- *
- * @opaque - an opaque pointer to pass to the callbacks for the property
- *
- * @errp - returns an error if this function fails
- */
-void qdev_property_add(DeviceState *dev, const char *name, const char *type,
-                       DevicePropertyAccessor *get, DevicePropertyAccessor *set,
-                       DevicePropertyRelease *release,
-                       void *opaque, Error **errp);
-
-/**
- * @qdev_property_get - reads a property from a device
- *
- * @dev - the device
- *
- * @v - the visitor that will receive the property value.  This should be an
- *      Output visitor and the data will be written with @name as the name.
- *
- * @name - the name of the property
- *
- * @errp - returns an error if this function fails
- */
-void qdev_property_get(DeviceState *dev, Visitor *v, const char *name,
-                       Error **errp);
-
-/**
- * @qdev_property_set - writes a property to a device
- *
- * @dev - the device
- *
- * @v - the visitor that will be used to write the property value.  This should
- *      be an Input visitor and the data will be first read with @name as the
- *      name and then written as the property value.
- *
- * @name - the name of the property
- *
- * @errp - returns an error if this function fails
- */
-void qdev_property_set(DeviceState *dev, Visitor *v, const char *name,
-                       Error **errp);
-
-/**
- * @qdev_property_get_type - returns the type of a property
- *
- * @dev - the device
- *
- * @name - the name of the property
- *
- * @errp - returns an error if this function fails
- *
- * Returns:
- *   The type name of the property.
- */
-const char *qdev_property_get_type(DeviceState *dev, const char *name,
-                                   Error **errp);
 
 /**
  * @qdev_property_add_static - add a @Property to a device referencing a
  * field in a struct.
  */
 void qdev_property_add_static(DeviceState *dev, Property *prop, Error **errp);
-
-/**
- * @qdev_get_root - returns the root device of the composition tree
- *
- * Returns:
- *   The root of the composition tree.
- */
-DeviceState *qdev_get_root(void);
-
-/**
- * @qdev_get_canonical_path - returns the canonical path for a device.  This
- * is the path within the composition tree starting from the root.
- *
- * Returns:
- *   The canonical path in the composition tree.
- */
-gchar *qdev_get_canonical_path(DeviceState *dev);
-
-/**
- * @qdev_resolve_path - resolves a path returning a device
- *
- * There are two types of supported paths--absolute paths and partial paths.
- * 
- * Absolute paths are derived from the root device and can follow child<> or
- * link<> properties.  Since they can follow link<> properties, they can be
- * arbitrarily long.  Absolute paths look like absolute filenames and are
- * prefixed with a leading slash.
- * 
- * Partial paths look like relative filenames.  They do not begin with a
- * prefix.  The matching rules for partial paths are subtle but designed to make
- * specifying devices easy.  At each level of the composition tree, the partial
- * path is matched as an absolute path.  The first match is not returned.  At
- * least two matches are searched for.  A successful result is only returned if
- * only one match is founded.  If more than one match is found, a flag is
- * return to indicate that the match was ambiguous.
- *
- * @path - the path to resolve
- *
- * @ambiguous - returns true if the path resolution failed because of an
- *              ambiguous match
- *
- * Returns:
- *   The matched device or NULL on path lookup failure.
- */
-DeviceState *qdev_resolve_path(const char *path, bool *ambiguous);
-
-/**
- * @qdev_property_add_child - Add a child property to a device
- *
- * Child properties form the composition tree.  All devices need to be a child
- * of another device.  Devices can only be a child of one device.
- *
- * There is no way for a child to determine what its parent is.  It is not
- * a bidirectional relationship.  This is by design.
- *
- * @dev - the device to add a property to
- *
- * @name - the name of the property
- *
- * @child - the child device
- *
- * @errp - if an error occurs, a pointer to an area to store the area
- */
-void qdev_property_add_child(DeviceState *dev, const char *name,
-                             DeviceState *child, Error **errp);
-
-/**
- * @qdev_property_add_link - Add a link property to a device
- *
- * Links establish relationships between devices.  Links are unidirectional
- * although two links can be combined to form a bidirectional relationship
- * between devices.
- *
- * Links form the graph in the device model.
- *
- * @dev - the device to add a property to
- *
- * @name - the name of the property
- *
- * @type - the qdev type of the link
- *
- * @child - a pointer to where the link device reference is stored
- *
- * @errp - if an error occurs, a pointer to an area to store the area
- */
-void qdev_property_add_link(DeviceState *dev, const char *name,
-                            const char *type, DeviceState **child,
-                            Error **errp);
-
-/**
- * @qdev_property_add_str
- *
- * Add a string property using getters/setters.  This function will add a
- * property of type 'string'.
- *
- * @dev - the device to add a property to
- *
- * @name - the name of the property
- *
- * @get - the getter or NULL if the property is write-only.  This function must
- *        return a string to be freed by @g_free().
- *
- * @set - the setter or NULL if the property is read-only
- *
- * @errp - if an error occurs, a pointer to an area to store the error
- */
-void qdev_property_add_str(DeviceState *dev, const char *name,
-                           char *(*get)(DeviceState *, Error **),
-                           void (*set)(DeviceState *, const char *, Error **),
-                           Error **errp);
-
-/**
- * @qdev_get_type
- *
- * Returns the string representation of the type of this object.
- *
- * @dev - the device
- *
- * @errp - if an error occurs, a pointer to an area to store the error
- *
- * Returns: a string representing the type.  This must be freed by the caller
- *          with g_free().
- */
-char *qdev_get_type(DeviceState *dev, Error **errp);
 
 /**
  * @qdev_machine_init
@@ -667,5 +359,18 @@ void qdev_machine_init(void);
  * Reset a single device (by calling the reset method).
  */
 void device_reset(DeviceState *dev);
+
+const VMStateDescription *qdev_get_vmsd(DeviceState *dev);
+
+const char *qdev_fw_name(DeviceState *dev);
+
+BusInfo *qdev_get_bus_info(DeviceState *dev);
+
+Property *qdev_get_props(DeviceState *dev);
+
+/* FIXME: make this a link<> */
+void qdev_set_parent_bus(DeviceState *dev, BusState *bus);
+
+extern int qdev_hotplug;
 
 #endif

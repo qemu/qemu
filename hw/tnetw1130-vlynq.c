@@ -30,6 +30,8 @@
 #include "tnetw1130.h"
 #include "vlynq.h"
 
+#if defined(CONFIG_VLYNQ) // TODO
+
 /*****************************************************************************
  *
  * Common declarations.
@@ -182,13 +184,13 @@ static int vlynq_tnetw1130_uninit(VLYNQDevice *vlynq_dev)
 }
 
 static VLYNQDeviceInfo vlynq_tnetw1130_info = {
-    .qdev.name = "tnetw1130-vlynq",
-    .qdev.desc = "Texas Instruments TNETW1130 (VLYNQ)",
-    .qdev.size = sizeof(vlynq_tnetw1130_t),
-    .qdev.props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(vlynq_tnetw1130_t, tnetw1130.conf),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    //~ .name = "tnetw1130-vlynq",
+    //~ .desc = "Texas Instruments TNETW1130 (VLYNQ)",
+    //~ .instance_size = sizeof(vlynq_tnetw1130_t),
+    //~ .props = (Property[]) {
+        //~ DEFINE_NIC_PROPERTIES(vlynq_tnetw1130_t, tnetw1130.conf),
+        //~ DEFINE_PROP_END_OF_LIST(),
+    //~ },
     .init      = vlynq_tnetw1130_init,
     .exit      = vlynq_tnetw1130_uninit,
 };
@@ -199,5 +201,7 @@ static void tnetw1130_register_device(void)
 }
 
 device_init(tnetw1130_register_device)
+
+#endif // CONFIG_VLYNQ
 
 /* eof */

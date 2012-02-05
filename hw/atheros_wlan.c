@@ -347,8 +347,13 @@ static int Atheros_WLAN_exit(PCIDevice *pci_dev)
 
 static void atheros_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
+    dc->desc = "Atheros WLAN";
+    //~ dc->props = atheros_properties;
+    //~ dc->reset = qdev_atheros_reset;
+    //~ dc->vmsd = &vmstate_atheros;
     //~ k->vendor_id = PCI_VENDOR_ID_INTEL;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
     //~ k->romfile = "pxe-atheros.rom";
@@ -360,19 +365,16 @@ static void atheros_class_init(ObjectClass *klass, void *data)
     //~ k->subsystem_id = info->subsystem_id;
 }
 
-static DeviceInfo atheros_info = {
+static TypeInfo atheros_info = {
     .name = "Atheros_WLAN",
-    .desc = "Atheros WLAN",
-    .size = sizeof(PCIAtheros_WLANState),
-    //~ .reset = qdev_atheros_reset,
-    //~ .vmsd = &vmstate_atheros,
-    //~ .props = atheros_properties,
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIAtheros_WLANState),
     .class_init = atheros_class_init,
 };
 
 static void Atheros_WLAN_register_devices(void)
 {
-    pci_qdev_register(&atheros_info);
+    type_register_static(&atheros_info);
 }
 
 device_init(Atheros_WLAN_register_devices)

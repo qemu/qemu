@@ -810,20 +810,22 @@ static int typhoon_pcihost_init(SysBusDevice *dev)
 
 static void typhoon_pcihost_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = typhoon_pcihost_init;
+    dc->no_user = 1;
 }
 
-static DeviceInfo typhoon_pcihost_info = {
-    .name = "typhoon-pcihost",
-    .size = sizeof(TyphoonState),
-    .no_user = 1,
-    .class_init = typhoon_pcihost_class_init,
+static TypeInfo typhoon_pcihost_info = {
+    .name          = "typhoon-pcihost",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(TyphoonState),
+    .class_init    = typhoon_pcihost_class_init,
 };
 
 static void typhoon_register(void)
 {
-    sysbus_register_withprop(&typhoon_pcihost_info);
+    type_register_static(&typhoon_pcihost_info);
 }
 device_init(typhoon_register);

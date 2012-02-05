@@ -829,11 +829,21 @@ static const VMStateDescription vmstate_pci_tnetw1130 = {
     }
 };
 
+static Property tnetw1130_properties[] = {
+    DEFINE_NIC_PROPERTIES(TNETW1130State, tnetw1130.conf),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void tnetw1130_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
-    //~ k->romfile = "pxe-eepro100.rom";
+    dc->desc = "Texas Instruments TNETW1130";
+    dc->props = tnetw1130_properties;
+    //~ dc->reset = qdev_tnetw1130_reset;
+    dc->vmsd = &vmstate_pci_tnetw1130;
+    //~ k->romfile = "pxe-tnetw1130.rom";
     k->init = pci_tnetw1130_init;
     k->exit = pci_tnetw1130_uninit;
     k->vendor_id = PCI_VENDOR_ID_TI;
@@ -845,21 +855,16 @@ static void tnetw1130_class_init(ObjectClass *klass, void *data)
     k->subsystem_id = 0x9067;
 }
 
-static DeviceInfo pci_tnetw1130_info = {
+static TypeInfo pci_tnetw1130_info = {
     .name = "tnetw1130",
-    .desc = "Texas Instruments TNETW1130",
-    .size = sizeof(TNETW1130State),
-    .vmsd = &vmstate_pci_tnetw1130,
-    .props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(TNETW1130State, tnetw1130.conf),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(TNETW1130State),
     .class_init = tnetw1130_class_init,
 };
 
 static void tnetw1130_register_device(void)
 {
-    pci_qdev_register(&pci_tnetw1130_info);
+    type_register_static(&pci_tnetw1130_info);
 }
 
 device_init(tnetw1130_register_device)

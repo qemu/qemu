@@ -298,21 +298,23 @@ static int pxa2xx_pic_initfn(SysBusDevice *dev)
 
 static void pxa2xx_pic_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pxa2xx_pic_initfn;
+    dc->desc = "PXA2xx PIC";
+    dc->vmsd = &vmstate_pxa2xx_pic_regs;
 }
 
-static DeviceInfo pxa2xx_pic_info = {
-    .name = "pxa2xx_pic",
-    .desc = "PXA2xx PIC",
-    .size = sizeof(PXA2xxPICState),
-    .vmsd = &vmstate_pxa2xx_pic_regs,
-    .class_init = pxa2xx_pic_class_init,
+static TypeInfo pxa2xx_pic_info = {
+    .name          = "pxa2xx_pic",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(PXA2xxPICState),
+    .class_init    = pxa2xx_pic_class_init,
 };
 
 static void pxa2xx_pic_register(void)
 {
-    sysbus_register_withprop(&pxa2xx_pic_info);
+    type_register_static(&pxa2xx_pic_info);
 }
 device_init(pxa2xx_pic_register);

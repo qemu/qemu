@@ -115,7 +115,7 @@ common-obj-y += bt-hci-csr.o
 common-obj-y += buffered_file.o migration.o migration-tcp.o
 common-obj-y += qemu-char.o #aio.o
 common-obj-y += msmouse.o ps2.o
-common-obj-y += qdev.o qdev-properties.o
+common-obj-y += qdev.o qdev-properties.o qdev-monitor.o
 common-obj-y += block-migration.o iohandler.o
 common-obj-y += pflib.o
 common-obj-y += bitmap.o bitops.o
@@ -300,7 +300,7 @@ hw-obj-$(CONFIG_LSI_SCSI_PCI) += lsi53c895a.o
 hw-obj-$(CONFIG_ESP) += esp.o
 
 hw-obj-y += dma-helpers.o sysbus.o isa-bus.o
-hw-obj-y += qdev-addr.o container.o
+hw-obj-y += qdev-addr.o
 
 # VGA
 hw-obj-$(CONFIG_VGA_PCI) += vga-pci.o

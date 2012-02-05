@@ -2724,10 +2724,18 @@ static const VMStateDescription vmstate_xhci = {
     .unmigratable = 1,
 };
 
+static Property xhci_properties[] = {
+    DEFINE_PROP_UINT32("msi", XHCIState, msi, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void xhci_class_init(ObjectClass *klass, void *data)
 {
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
+    dc->vmsd    = &vmstate_xhci;
+    dc->props   = xhci_properties;
     k->init         = usb_xhci_initfn;
     k->vendor_id    = PCI_VENDOR_ID_NEC;
     k->device_id    = PCI_DEVICE_ID_NEC_UPD720200;
@@ -2737,20 +2745,15 @@ static void xhci_class_init(ObjectClass *klass, void *data)
     k->config_write = xhci_write_config;
 }
 
-static DeviceInfo xhci_info = {
-    .name    = "nec-usb-xhci",
-    .alias   = "xhci",
-    .size    = sizeof(XHCIState),
-    .vmsd    = &vmstate_xhci,
-    .class_init   = xhci_class_init,
-    .props   = (Property[]) {
-        DEFINE_PROP_UINT32("msi", XHCIState, msi, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo xhci_info = {
+    .name          = "nec-usb-xhci",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(XHCIState),
+    .class_init    = xhci_class_init,
 };
 
 static void xhci_register(void)
 {
-    pci_qdev_register(&xhci_info);
+    type_register_static(&xhci_info);
 }
 device_init(xhci_register);

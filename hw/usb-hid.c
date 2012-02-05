@@ -553,13 +553,10 @@ static const VMStateDescription vmstate_usb_kbd = {
     }
 };
 
-static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
+static void usb_hid_class_initfn(ObjectClass *klass, void *data)
 {
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
-    uc->init           = usb_tablet_initfn;
-    uc->product_desc   = "QEMU USB Tablet";
-    uc->usb_desc       = &desc_tablet;
     uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_hid_handle_reset;
     uc->handle_control = usb_hid_handle_control;
@@ -567,59 +564,70 @@ static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
     uc->handle_destroy = usb_hid_handle_destroy;
 }
 
-static struct DeviceInfo usb_tablet_info = {
-    .name      = "usb-tablet",
-    .size      = sizeof(USBHIDState),
-    .vmsd      = &vmstate_usb_ptr,
-    .class_init= usb_tablet_class_initfn,
+static void usb_tablet_class_initfn(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
+
+    usb_hid_class_initfn(klass, data);
+    uc->init           = usb_tablet_initfn;
+    uc->product_desc   = "QEMU USB Tablet";
+    uc->usb_desc       = &desc_tablet;
+    dc->vmsd = &vmstate_usb_ptr;
+}
+
+static TypeInfo usb_tablet_info = {
+    .name          = "usb-tablet",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBHIDState),
+    .class_init    = usb_tablet_class_initfn,
 };
 
 static void usb_mouse_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
+    usb_hid_class_initfn(klass, data);
     uc->init           = usb_mouse_initfn;
     uc->product_desc   = "QEMU USB Mouse";
     uc->usb_desc       = &desc_mouse;
-    uc->handle_packet  = usb_generic_handle_packet;
-    uc->handle_reset   = usb_hid_handle_reset;
-    uc->handle_control = usb_hid_handle_control;
-    uc->handle_data    = usb_hid_handle_data;
-    uc->handle_destroy = usb_hid_handle_destroy;
+    dc->vmsd = &vmstate_usb_ptr;
 }
 
-static struct DeviceInfo usb_mouse_info = {
-    .name      = "usb-mouse",
-    .size      = sizeof(USBHIDState),
-    .vmsd      = &vmstate_usb_ptr,
-    .class_init= usb_mouse_class_initfn,
+static TypeInfo usb_mouse_info = {
+    .name          = "usb-mouse",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBHIDState),
+    .class_init    = usb_mouse_class_initfn,
 };
 
 static void usb_keyboard_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     USBDeviceClass *uc = USB_DEVICE_CLASS(klass);
 
+    usb_hid_class_initfn(klass, data);
     uc->init           = usb_keyboard_initfn;
     uc->product_desc   = "QEMU USB Keyboard";
     uc->usb_desc       = &desc_keyboard;
-    uc->handle_packet  = usb_generic_handle_packet;
-    uc->handle_reset   = usb_hid_handle_reset;
-    uc->handle_control = usb_hid_handle_control;
-    uc->handle_data    = usb_hid_handle_data;
-    uc->handle_destroy = usb_hid_handle_destroy;
+    dc->vmsd = &vmstate_usb_kbd;
 }
 
-static struct DeviceInfo usb_keyboard_info = {
-    .name      = "usb-kbd",
-    .size      = sizeof(USBHIDState),
-    .vmsd      = &vmstate_usb_kbd,
-    .class_init= usb_keyboard_class_initfn,
+static TypeInfo usb_keyboard_info = {
+    .name          = "usb-kbd",
+    .parent        = TYPE_USB_DEVICE,
+    .instance_size = sizeof(USBHIDState),
+    .class_init    = usb_keyboard_class_initfn,
 };
 
 static void usb_hid_register_devices(void)
 {
-    usb_qdev_register(&usb_tablet_info, "tablet", NULL);
-    usb_qdev_register(&usb_mouse_info, "mouse", NULL);
-    usb_qdev_register(&usb_keyboard_info, "keyboard", NULL);
+    type_register_static(&usb_tablet_info);
+    usb_legacy_register("usb-tablet", "tablet", NULL);
+    type_register_static(&usb_mouse_info);
+    usb_legacy_register("usb-mouse", "mouse", NULL);
+    type_register_static(&usb_keyboard_info);
+    usb_legacy_register("usb-kbd", "keyboard", NULL);
 }
 device_init(usb_hid_register_devices)

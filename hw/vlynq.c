@@ -22,6 +22,8 @@
 
 #include "vlynq.h"
 
+#if 0 // TODO: Fix code for QOM API.
+
 struct _VLYNQBus {
     BusState qbus;
 };
@@ -138,3 +140,5 @@ uint32_t vlynq_transfer(VLYNQBus *bus, uint32_t val)
     return slave->info->transfer(slave, val);
 }
 #endif
+#endif // Fix code for QOM API.
+

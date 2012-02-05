@@ -197,25 +197,29 @@ static int syborg_keyboard_init(SysBusDevice *dev)
     return 0;
 }
 
+static Property syborg_keyboard_properties[] = {
+    DEFINE_PROP_UINT32("fifo-size", SyborgKeyboardState, fifo_size, 16),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void syborg_keyboard_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->props = syborg_keyboard_properties;
     k->init = syborg_keyboard_init;
 }
 
-static DeviceInfo syborg_keyboard_info = {
+static TypeInfo syborg_keyboard_info = {
     .name  = "syborg,keyboard",
-    .size  = sizeof(SyborgKeyboardState),
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("fifo-size", SyborgKeyboardState, fifo_size, 16),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size  = sizeof(SyborgKeyboardState),
     .class_init = syborg_keyboard_class_init
 };
 
 static void syborg_keyboard_register_devices(void)
 {
-    sysbus_register_withprop(&syborg_keyboard_info);
+    type_register_static(&syborg_keyboard_info);
 }
 
 device_init(syborg_keyboard_register_devices)

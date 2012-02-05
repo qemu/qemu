@@ -354,34 +354,39 @@ static void icp_pit_class_init(ObjectClass *klass, void *data)
     sdc->init = icp_pit_init;
 }
 
-static DeviceInfo icp_pit_info = {
-    .name = "integrator_pit",
-    .size = sizeof(icp_pit_state),
-    .class_init = icp_pit_class_init,
+static TypeInfo icp_pit_info = {
+    .name          = "integrator_pit",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(icp_pit_state),
+    .class_init    = icp_pit_class_init,
+};
+
+static Property sp804_properties[] = {
+    DEFINE_PROP_UINT32("freq0", sp804_state, freq0, 1000000),
+    DEFINE_PROP_UINT32("freq1", sp804_state, freq1, 1000000),
+    DEFINE_PROP_END_OF_LIST(),
 };
 
 static void sp804_class_init(ObjectClass *klass, void *data)
 {
     SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *k = DEVICE_CLASS(klass);
 
     sdc->init = sp804_init;
+    k->props = sp804_properties;
 }
 
-static DeviceInfo sp804_info = {
-    .name = "sp804",
-    .size = sizeof(sp804_state),
-    .class_init = sp804_class_init,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("freq0", sp804_state, freq0, 1000000),
-        DEFINE_PROP_UINT32("freq1", sp804_state, freq1, 1000000),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo sp804_info = {
+    .name          = "sp804",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(sp804_state),
+    .class_init    = sp804_class_init,
 };
 
 static void arm_timer_register_devices(void)
 {
-    sysbus_qdev_register(&icp_pit_info);
-    sysbus_qdev_register(&sp804_info);
+    type_register_static(&icp_pit_info);
+    type_register_static(&sp804_info);
 }
 
 device_init(arm_timer_register_devices)

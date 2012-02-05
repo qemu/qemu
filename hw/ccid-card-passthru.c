@@ -316,32 +316,36 @@ static VMStateDescription passthru_vmstate = {
     }
 };
 
+static Property passthru_card_properties[] = {
+    DEFINE_PROP_CHR("chardev", PassthruState, cs),
+    DEFINE_PROP_UINT8("debug", PassthruState, debug, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void passthru_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     CCIDCardClass *cc = CCID_CARD_CLASS(klass);
 
     cc->initfn = passthru_initfn;
     cc->exitfn = passthru_exitfn;
     cc->get_atr = passthru_get_atr;
     cc->apdu_from_guest = passthru_apdu_from_guest;
+    dc->desc = "passthrough smartcard";
+    dc->vmsd = &passthru_vmstate;
+    dc->props = passthru_card_properties;
 }
 
-static DeviceInfo passthru_card_info = {
-    .name = PASSTHRU_DEV_NAME,
-    .desc = "passthrough smartcard",
-    .size = sizeof(PassthruState),
-    .vmsd = &passthru_vmstate,
-    .class_init = passthru_class_initfn,
-    .props     = (Property[]) {
-        DEFINE_PROP_CHR("chardev", PassthruState, cs),
-        DEFINE_PROP_UINT8("debug", PassthruState, debug, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo passthru_card_info = {
+    .name          = PASSTHRU_DEV_NAME,
+    .parent        = TYPE_CCID_CARD,
+    .instance_size = sizeof(PassthruState),
+    .class_init    = passthru_class_initfn,
 };
 
 static void ccid_card_passthru_register_devices(void)
 {
-    ccid_card_qdev_register(&passthru_card_info);
+    type_register_static(&passthru_card_info);
 }
 
 device_init(ccid_card_passthru_register_devices)

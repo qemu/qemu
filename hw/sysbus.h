@@ -44,10 +44,6 @@ struct SysBusDevice {
 #define sysbus_from_qdev(dev) ((SysBusDevice *)(dev))
 #define FROM_SYSBUS(type, dev) DO_UPCAST(type, busdev, dev)
 
-#define sysbus_register_withprop(info) sysbus_qdev_register(info)
-void sysbus_qdev_register(DeviceInfo *info);
-void sysbus_qdev_register_subclass(DeviceInfo *info, const char *parent);
-
 void *sysbus_new(void);
 void sysbus_init_mmio(SysBusDevice *dev, MemoryRegion *memory);
 MemoryRegion *sysbus_mmio_get_region(SysBusDevice *dev, int n);

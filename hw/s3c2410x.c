@@ -141,21 +141,23 @@ static const VMStateDescription s3c24xx_wdg_vmsd = {
 
 static void s3c24xx_wdg_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->reset = s3c24xx_wdg_reset;
+    dc->vmsd = &s3c24xx_wdg_vmsd;
     k->init = s3c24xx_wdg_init;
 }
 
-static DeviceInfo s3c24xx_wdg_info = {
+static TypeInfo s3c24xx_wdg_info = {
     .name = "s3c24xx_wdg",
-    .size = sizeof(S3C24xxWdgState),
-    .vmsd = &s3c24xx_wdg_vmsd,
-    .reset = s3c24xx_wdg_reset,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(S3C24xxWdgState),
     .class_init = s3c24xx_wdg_class_init
 };
 
 static void s3c24xx_wdg_register(void)
 {
-    sysbus_register_withprop(&s3c24xx_wdg_info);
+    type_register_static(&s3c24xx_wdg_info);
 }
 
 device_init(s3c24xx_wdg_register)
@@ -245,21 +247,23 @@ static const VMStateDescription s3c24xx_adc_vmsd = {
 
 static void s3c24xx_adc_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->reset = s3c24xx_adc_reset;
+    dc->vmsd = &s3c24xx_adc_vmsd;
     k->init = s3c24xx_adc_init;
 }
 
-static DeviceInfo s3c24xx_adc_info = {
+static TypeInfo s3c24xx_adc_info = {
     .name = "s3c24xx_adc",
-    .size = sizeof(S3C24xxAdcState),
-    .reset = s3c24xx_adc_reset,
-    .vmsd = &s3c24xx_adc_vmsd,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(S3C24xxAdcState),
     .class_init = s3c24xx_adc_class_init
 };
 
 static void s3c24xx_adc_register(void)
 {
-    sysbus_register_withprop(&s3c24xx_adc_info);
+    type_register_static(&s3c24xx_adc_info);
 }
 
 device_init(s3c24xx_adc_register)

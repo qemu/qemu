@@ -748,7 +748,7 @@ static void remove_port(VirtIOSerial *vser, uint32_t port_id)
     send_control_event(port, VIRTIO_CONSOLE_PORT_REMOVE, 1);
 }
 
-static int virtser_port_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int virtser_port_qdev_init(DeviceState *qdev)
 {
     VirtIOSerialPort *port = DO_UPCAST(VirtIOSerialPort, dev, qdev);
     VirtIOSerialPortClass *vsc = VIRTIO_SERIAL_PORT_GET_CLASS(port);
@@ -835,15 +835,6 @@ static int virtser_port_qdev_exit(DeviceState *qdev)
         vsc->exit(port);
     }
     return 0;
-}
-
-void virtio_serial_port_qdev_register(DeviceInfo *info)
-{
-    info->init = virtser_port_qdev_init;
-    info->bus_info = &virtser_bus_info;
-    info->exit = virtser_port_qdev_exit;
-    info->unplug = qdev_simple_unplug_cb;
-    qdev_register_subclass(info, TYPE_VIRTIO_SERIAL_PORT);
 }
 
 VirtIODevice *virtio_serial_init(DeviceState *dev, virtio_serial_conf *conf)
@@ -940,12 +931,22 @@ void virtio_serial_exit(VirtIODevice *vdev)
     virtio_cleanup(vdev);
 }
 
+static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->init = virtser_port_qdev_init;
+    k->bus_info = &virtser_bus_info;
+    k->exit = virtser_port_qdev_exit;
+    k->unplug = qdev_simple_unplug_cb;
+}
+
 static TypeInfo virtio_serial_port_type_info = {
     .name = TYPE_VIRTIO_SERIAL_PORT,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(VirtIOSerialPort),
     .abstract = true,
     .class_size = sizeof(VirtIOSerialPortClass),
+    .class_init = virtio_serial_port_class_init,
 };
 
 static void virtio_serial_register_devices(void)

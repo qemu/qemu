@@ -411,23 +411,25 @@ static Property slavio_timer_properties[] = {
 
 static void slavio_timer_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = slavio_timer_init1;
+    dc->reset = slavio_timer_reset;
+    dc->vmsd = &vmstate_slavio_timer;
+    dc->props = slavio_timer_properties;
 }
 
-static DeviceInfo slavio_timer_info = {
-    .name = "slavio_timer",
-    .size = sizeof(SLAVIO_TIMERState),
-    .vmsd = &vmstate_slavio_timer,
-    .reset = slavio_timer_reset,
-    .props = slavio_timer_properties,
-    .class_init = slavio_timer_class_init,
+static TypeInfo slavio_timer_info = {
+    .name          = "slavio_timer",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SLAVIO_TIMERState),
+    .class_init    = slavio_timer_class_init,
 };
 
 static void slavio_timer_register_devices(void)
 {
-    sysbus_register_withprop(&slavio_timer_info);
+    type_register_static(&slavio_timer_info);
 }
 
 device_init(slavio_timer_register_devices)

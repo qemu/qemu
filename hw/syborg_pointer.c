@@ -179,6 +179,12 @@ static const VMStateDescription vmstate_syborg_pointer = {
     }
 };
 
+static Property syborg_pointer_properties[] = {
+    DEFINE_PROP_UINT32("fifo-size", SyborgPointerState, fifo_size, 16),
+    DEFINE_PROP_UINT32("absolute",  SyborgPointerState, absolute,   1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static int syborg_pointer_init(SysBusDevice *dev)
 {
     SyborgPointerState *s = FROM_SYSBUS(SyborgPointerState, dev);
@@ -203,24 +209,22 @@ static int syborg_pointer_init(SysBusDevice *dev)
 
 static void syborg_pointer_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->props = syborg_pointer_properties;
     k->init = syborg_pointer_init;
 }
 
-static DeviceInfo syborg_pointer_info = {
+static TypeInfo syborg_pointer_info = {
     .name  = "syborg,pointer",
-    .size  = sizeof(SyborgPointerState),
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("fifo-size", SyborgPointerState, fifo_size, 16),
-        DEFINE_PROP_UINT32("absolute",  SyborgPointerState, absolute,   1),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SyborgPointerState),
     .class_init = syborg_pointer_class_init
 };
 
 static void syborg_pointer_register_devices(void)
 {
-    sysbus_register_withprop(&syborg_pointer_info);
+    type_register_static(&syborg_pointer_info);
 }
 
 device_init(syborg_pointer_register_devices)

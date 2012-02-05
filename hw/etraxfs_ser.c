@@ -216,7 +216,7 @@ static int etraxfs_ser_init(SysBusDevice *dev)
     memory_region_init_io(&s->mmio, &ser_ops, s, "etraxfs-serial", R_MAX * 4);
     sysbus_init_mmio(dev, &s->mmio);
 
-    s->chr = qdev_init_chardev(&dev->qdev);
+    s->chr = qemu_char_get_next_serial();
     if (s->chr)
         qemu_chr_add_handlers(s->chr,
                       serial_can_receive, serial_receive,
@@ -226,21 +226,23 @@ static int etraxfs_ser_init(SysBusDevice *dev)
 
 static void etraxfs_ser_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = etraxfs_ser_init;
+    dc->reset = etraxfs_ser_reset;
 }
 
-static DeviceInfo etraxfs_ser_info = {
-    .name = "etraxfs,serial",
-    .size = sizeof(struct etrax_serial),
-    .reset = etraxfs_ser_reset,
-    .class_init = etraxfs_ser_class_init,
+static TypeInfo etraxfs_ser_info = {
+    .name          = "etraxfs,serial",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(struct etrax_serial),
+    .class_init    = etraxfs_ser_class_init,
 };
 
 static void etraxfs_serial_register(void)
 {
-    sysbus_register_withprop(&etraxfs_ser_info);
+    type_register_static(&etraxfs_ser_info);
 }
 
 device_init(etraxfs_serial_register)

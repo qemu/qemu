@@ -215,25 +215,29 @@ static int syborg_int_init(SysBusDevice *dev)
     return 0;
 }
 
+static Property syborg_fb_properties[] = {
+    DEFINE_PROP_UINT32("num-interrupts", SyborgIntState, num_irqs, 64),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void syborg_int_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->props = syborg_fb_properties;
     k->init = syborg_int_init;
 }
 
-static DeviceInfo syborg_int_info = {
+static TypeInfo syborg_int_info = {
     .name  = "syborg,interrupt",
-    .size  = sizeof(SyborgIntState),
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("num-interrupts", SyborgIntState, num_irqs, 64),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size  = sizeof(SyborgIntState),
     .class_init = syborg_int_class_init
 };
 
 static void syborg_interrupt_register_devices(void)
 {
-    sysbus_register_withprop(&syborg_int_info);
+    type_register_static(&syborg_int_info);
 }
 
 device_init(syborg_interrupt_register_devices)

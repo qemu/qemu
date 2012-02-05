@@ -350,9 +350,10 @@ static void unin_main_pci_host_class_init(ObjectClass *klass, void *data)
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
 }
 
-static DeviceInfo unin_main_pci_host_info = {
+static TypeInfo unin_main_pci_host_info = {
     .name = "uni-north-pci",
-    .size = sizeof(PCIDevice),
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIDevice),
     .class_init = unin_main_pci_host_class_init,
 };
 
@@ -367,9 +368,10 @@ static void u3_agp_pci_host_class_init(ObjectClass *klass, void *data)
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
 }
 
-static DeviceInfo u3_agp_pci_host_info = {
+static TypeInfo u3_agp_pci_host_info = {
     .name = "u3-agp",
-    .size = sizeof(PCIDevice),
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIDevice),
     .class_init = u3_agp_pci_host_class_init,
 };
 
@@ -384,9 +386,10 @@ static void unin_agp_pci_host_class_init(ObjectClass *klass, void *data)
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
 }
 
-static DeviceInfo unin_agp_pci_host_info = {
+static TypeInfo unin_agp_pci_host_info = {
     .name = "uni-north-agp",
-    .size = sizeof(PCIDevice),
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIDevice),
     .class_init = unin_agp_pci_host_class_init,
 };
 
@@ -401,9 +404,10 @@ static void unin_internal_pci_host_class_init(ObjectClass *klass, void *data)
     k->class_id  = PCI_CLASS_BRIDGE_HOST;
 }
 
-static DeviceInfo unin_internal_pci_host_info = {
+static TypeInfo unin_internal_pci_host_info = {
     .name = "uni-north-internal-pci",
-    .size = sizeof(PCIDevice),
+    .parent = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIDevice),
     .class_init = unin_internal_pci_host_class_init,
 };
 
@@ -414,10 +418,11 @@ static void pci_unin_main_class_init(ObjectClass *klass, void *data)
     sbc->init = pci_unin_main_init_device;
 }
 
-static DeviceInfo pci_unin_main_info = {
-    .name = "uni-north-pci-pcihost",
-    .size = sizeof(UNINState),
-    .class_init = pci_unin_main_class_init,
+static TypeInfo pci_unin_main_info = {
+    .name          = "uni-north-pci-pcihost",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(UNINState),
+    .class_init    = pci_unin_main_class_init,
 };
 
 static void pci_u3_agp_class_init(ObjectClass *klass, void *data)
@@ -427,10 +432,11 @@ static void pci_u3_agp_class_init(ObjectClass *klass, void *data)
     sbc->init = pci_u3_agp_init_device;
 }
 
-static DeviceInfo pci_u3_agp_info = {
-    .name = "u3-agp-pcihost",
-    .size = sizeof(UNINState),
-    .class_init = pci_u3_agp_class_init,
+static TypeInfo pci_u3_agp_info = {
+    .name          = "u3-agp-pcihost",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(UNINState),
+    .class_init    = pci_u3_agp_class_init,
 };
 
 static void pci_unin_agp_class_init(ObjectClass *klass, void *data)
@@ -440,10 +446,11 @@ static void pci_unin_agp_class_init(ObjectClass *klass, void *data)
     sbc->init = pci_unin_agp_init_device;
 }
 
-static DeviceInfo pci_unin_agp_info = {
-    .name = "uni-north-agp-pcihost",
-    .size = sizeof(UNINState),
-    .class_init = pci_unin_agp_class_init,
+static TypeInfo pci_unin_agp_info = {
+    .name          = "uni-north-agp-pcihost",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(UNINState),
+    .class_init    = pci_unin_agp_class_init,
 };
 
 static void pci_unin_internal_class_init(ObjectClass *klass, void *data)
@@ -453,23 +460,24 @@ static void pci_unin_internal_class_init(ObjectClass *klass, void *data)
     sbc->init = pci_unin_internal_init_device;
 }
 
-static DeviceInfo pci_unin_internal_info = {
-    .name = "uni-north-internal-pci-pcihost",
-    .size = sizeof(UNINState),
-    .class_init = pci_unin_internal_class_init,
+static TypeInfo pci_unin_internal_info = {
+    .name          = "uni-north-internal-pci-pcihost",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(UNINState),
+    .class_init    = pci_unin_internal_class_init,
 };
 
 static void unin_register_devices(void)
 {
-    pci_qdev_register(&unin_main_pci_host_info);
-    pci_qdev_register(&u3_agp_pci_host_info);
-    pci_qdev_register(&unin_agp_pci_host_info);
-    pci_qdev_register(&unin_internal_pci_host_info);
+    type_register_static(&unin_main_pci_host_info);
+    type_register_static(&u3_agp_pci_host_info);
+    type_register_static(&unin_agp_pci_host_info);
+    type_register_static(&unin_internal_pci_host_info);
 
-    sysbus_register_withprop(&pci_unin_main_info);
-    sysbus_register_withprop(&pci_u3_agp_info);
-    sysbus_register_withprop(&pci_unin_agp_info);
-    sysbus_register_withprop(&pci_unin_internal_info);
+    type_register_static(&pci_unin_main_info);
+    type_register_static(&pci_u3_agp_info);
+    type_register_static(&pci_unin_agp_info);
+    type_register_static(&pci_unin_internal_info);
 }
 
 device_init(unin_register_devices)

@@ -179,6 +179,7 @@ static Property xio3130_downstream_properties[] = {
 
 static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->is_express = 1;
@@ -189,21 +190,22 @@ static void xio3130_downstream_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_TI;
     k->device_id = PCI_DEVICE_ID_TI_XIO3130D;
     k->revision = XIO3130_REVISION;
+    dc->desc = "TI X3130 Downstream Port of PCI Express Switch";
+    dc->reset = xio3130_downstream_reset;
+    dc->vmsd = &vmstate_xio3130_downstream;
+    dc->props = xio3130_downstream_properties;
 }
 
-static DeviceInfo xio3130_downstream_info = {
-    .name = "xio3130-downstream",
-    .desc = "TI X3130 Downstream Port of PCI Express Switch",
-    .size = sizeof(PCIESlot),
-    .reset = xio3130_downstream_reset,
-    .vmsd = &vmstate_xio3130_downstream,
-    .props = xio3130_downstream_properties,
-    .class_init = xio3130_downstream_class_init,
+static TypeInfo xio3130_downstream_info = {
+    .name          = "xio3130-downstream",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIESlot),
+    .class_init    = xio3130_downstream_class_init,
 };
 
 static void xio3130_downstream_register(void)
 {
-    pci_qdev_register(&xio3130_downstream_info);
+    type_register_static(&xio3130_downstream_info);
 }
 
 device_init(xio3130_downstream_register);

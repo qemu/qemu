@@ -343,14 +343,19 @@ static const VMStateDescription tt_lcd_vmsd = {
 
 static void tt_lcd_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->desc = "TT LCD",
+    //~ dc->props = dp8381x_properties;
+    //~ dc->reset = qdev_dp8381x_reset;
+    dc->vmsd = &tt_lcd_vmsd;
     k->init = tt_lcd_init;
 }
 
-static DeviceInfo tt_lcd_info = {
+static TypeInfo tt_lcd_info = {
     .name = "tt_lcd",
-    .size = sizeof(tt_lcd_state),
-    .vmsd = &tt_lcd_vmsd,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(tt_lcd_state),
     .class_init = tt_lcd_class_init,
 };
 
@@ -462,16 +467,19 @@ static const VMStateDescription mv88w8618_pic_vmsd = {
 
 static void mv88w8618_pic_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->desc = "mv88w8618 PIC";
+    dc->reset = mv88w8618_pic_reset;
+    dc->vmsd = &mv88w8618_pic_vmsd;
     k->init = mv88w8618_pic_init;
 }
 
-static DeviceInfo mv88w8618_pic_info = {
+static TypeInfo mv88w8618_pic_info = {
     .name = "mv88w8618_pic",
-    .size = sizeof(mv88w8618_pic_state),
-    .vmsd = &mv88w8618_pic_vmsd,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(mv88w8618_pic_state),
     .class_init = mv88w8618_pic_class_init,
-    .reset = mv88w8618_pic_reset,
 };
 
 /* PIT register offsets */
@@ -640,16 +648,18 @@ static const VMStateDescription mv88w8618_pit_vmsd = {
 
 static void mv88w8618_pit_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->reset = mv88w8618_pit_reset;
+    dc->vmsd  = &mv88w8618_pit_vmsd;
     k->init = mv88w8618_pit_init;
 }
 
-static DeviceInfo mv88w8618_pit_info = {
+static TypeInfo mv88w8618_pit_info = {
     .name  = "mv88w8618_pit",
-    .size  = sizeof(mv88w8618_pit_state),
-    .vmsd  = &mv88w8618_pit_vmsd,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size  = sizeof(mv88w8618_pit_state),
     .class_init = mv88w8618_pit_class_init,
-    .reset = mv88w8618_pit_reset,
 };
 
 /* Flash config register offsets */
@@ -722,14 +732,16 @@ static const VMStateDescription mv88w8618_flashcfg_vmsd = {
 
 static void mv88w8618_flashcfg_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->vmsd = &mv88w8618_flashcfg_vmsd;
     k->init = mv88w8618_flashcfg_init;
 }
 
-static DeviceInfo mv88w8618_flashcfg_info = {
+static TypeInfo mv88w8618_flashcfg_info = {
     .name  = "mv88w8618_flashcfg",
-    .size  = sizeof(mv88w8618_flashcfg_state),
-    .vmsd  = &mv88w8618_flashcfg_vmsd,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size  = sizeof(mv88w8618_flashcfg_state),
     .class_init = mv88w8618_flashcfg_class_init,
 };
 
@@ -1118,16 +1130,18 @@ static const VMStateDescription tt_gpio_vmsd = {
 
 static void tt_gpio_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->reset = tt_gpio_reset;
+    dc->vmsd  = &tt_gpio_vmsd;
     k->init = tt_gpio_init;
 }
 
-static DeviceInfo tt_gpio_info = {
+static TypeInfo tt_gpio_info = {
     .name  = "tt_gpio",
-    .size  = sizeof(tt_gpio_state),
-    .vmsd  = &tt_gpio_vmsd,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(tt_gpio_state),
     .class_init = tt_gpio_class_init,
-    .reset = tt_gpio_reset,
 };
 
 /* Keyboard codes & masks */
@@ -1269,14 +1283,16 @@ static const VMStateDescription tt_key_vmsd = {
 
 static void tt_key_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->vmsd = &tt_key_vmsd;
     k->init = tt_key_init;
 }
 
-static DeviceInfo tt_key_info = {
+static TypeInfo tt_key_info = {
     .name  = "tt_key",
-    .size  = sizeof(tt_key_state),
-    .vmsd  = &tt_key_vmsd,
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size  = sizeof(tt_key_state),
     .class_init = tt_key_class_init,
 };
 
@@ -1453,12 +1469,12 @@ machine_init(tt_machine_init);
 
 static void tt_register_devices(void)
 {
-    sysbus_register_withprop(&mv88w8618_pic_info);
-    sysbus_register_withprop(&mv88w8618_pit_info);
-    sysbus_register_withprop(&mv88w8618_flashcfg_info);
-    sysbus_register_withprop(&tt_lcd_info);
-    sysbus_register_withprop(&tt_gpio_info);
-    sysbus_register_withprop(&tt_key_info);
+    type_register_static(&mv88w8618_pic_info);
+    type_register_static(&mv88w8618_pit_info);
+    type_register_static(&mv88w8618_flashcfg_info);
+    type_register_static(&tt_lcd_info);
+    type_register_static(&tt_gpio_info);
+    type_register_static(&tt_key_info);
 }
 
 device_init(tt_register_devices)

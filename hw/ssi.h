@@ -38,8 +38,6 @@ struct SSISlave {
 #define SSI_SLAVE_FROM_QDEV(dev) DO_UPCAST(SSISlave, qdev, dev)
 #define FROM_SSI_SLAVE(type, dev) DO_UPCAST(type, ssidev, dev)
 
-void ssi_register_slave(DeviceInfo *info);
-
 DeviceState *ssi_create_slave(SSIBus *bus, const char *name);
 
 /* Master interface.  */

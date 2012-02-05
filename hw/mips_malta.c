@@ -1046,6 +1046,10 @@ static const VMStateDescription vmstate_mips_malta = {
     }
 };
 
+static Property mips_malta_properties[] = {
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static int mips_malta_sysbus_device_init(SysBusDevice *sysbusdev)
 {
     /* TODO */
@@ -1055,20 +1059,19 @@ static int mips_malta_sysbus_device_init(SysBusDevice *sysbusdev)
 
 static void mips_malta_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
-
+    dc->props = mips_malta_properties;
+    dc->reset = mips_malta_reset;
+    dc->vmsd = &vmstate_mips_malta;
     k->init = mips_malta_sysbus_device_init;
 }
 
-static DeviceInfo mips_malta_device = {
-    .name  = "mips-malta",
-    .size  = sizeof(MaltaState),
-    .class_init = mips_malta_class_init,
-    .vmsd  = &vmstate_mips_malta,
-    .reset = mips_malta_reset,
-    .props = (Property[]) {
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo mips_malta_device = {
+    .name          = "mips-malta",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MaltaState),
+    .class_init    = mips_malta_class_init,
 };
 
 static QEMUMachine mips_malta_machine = {
@@ -1081,7 +1084,7 @@ static QEMUMachine mips_malta_machine = {
 
 static void mips_malta_device_init(void)
 {
-    sysbus_qdev_register(&mips_malta_device);
+    type_register_static(&mips_malta_device);
 }
 
 static void mips_malta_machine_init(void)

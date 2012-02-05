@@ -307,23 +307,25 @@ static Property milkymist_softusb_properties[] = {
 
 static void milkymist_softusb_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = milkymist_softusb_init;
+    dc->reset = milkymist_softusb_reset;
+    dc->vmsd = &vmstate_milkymist_softusb;
+    dc->props = milkymist_softusb_properties;
 }
 
-static DeviceInfo milkymist_softusb_info = {
-    .name = "milkymist-softusb",
-    .size = sizeof(MilkymistSoftUsbState),
-    .vmsd = &vmstate_milkymist_softusb,
-    .reset = milkymist_softusb_reset,
-    .props = milkymist_softusb_properties,
-    .class_init = milkymist_softusb_class_init,
+static TypeInfo milkymist_softusb_info = {
+    .name          = "milkymist-softusb",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MilkymistSoftUsbState),
+    .class_init    = milkymist_softusb_class_init,
 };
 
 static void milkymist_softusb_register(void)
 {
-    sysbus_register_withprop(&milkymist_softusb_info);
+    type_register_static(&milkymist_softusb_info);
 }
 
 device_init(milkymist_softusb_register)

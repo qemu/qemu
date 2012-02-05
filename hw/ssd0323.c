@@ -348,15 +348,16 @@ static void ssd0323_class_init(ObjectClass *klass, void *data)
     k->transfer = ssd0323_transfer;
 }
 
-static DeviceInfo ssd0323_info = {
-    .name = "ssd0323",
-    .size = sizeof(ssd0323_state),
-    .class_init = ssd0323_class_init,
+static TypeInfo ssd0323_info = {
+    .name          = "ssd0323",
+    .parent        = TYPE_SSI_SLAVE,
+    .instance_size = sizeof(ssd0323_state),
+    .class_init    = ssd0323_class_init,
 };
 
 static void ssd03232_register_devices(void)
 {
-    ssi_register_slave(&ssd0323_info);
+    type_register_static(&ssd0323_info);
 }
 
 device_init(ssd03232_register_devices)

@@ -296,7 +296,7 @@ static int syborg_serial_init(SysBusDevice *dev)
     memory_region_init_io(&s->iomem, &syborg_serial_ops, s,
                           "serial", 0x1000);
     sysbus_init_mmio(dev, &s->iomem);
-    s->chr = qdev_init_chardev(&dev->qdev);
+    s->chr = qemu_char_get_next_serial();
     if (s->chr) {
         qemu_chr_add_handlers(s->chr, syborg_serial_can_receive,
                               syborg_serial_receive, syborg_serial_event, s);
@@ -310,26 +310,30 @@ static int syborg_serial_init(SysBusDevice *dev)
     return 0;
 }
 
+static Property syborg_serial_properties[] = {
+    DEFINE_PROP_UINT32("fifo-size", SyborgSerialState, fifo_size, 16),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void syborg_serial_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->props = syborg_serial_properties;
+    dc->vmsd  = &vmstate_syborg_serial;
     k->init = syborg_serial_init;
 }
 
-static DeviceInfo syborg_serial_info = {
+static TypeInfo syborg_serial_info = {
     .name  = "syborg,serial",
-    .size  = sizeof(SyborgSerialState),
-    .vmsd  = &vmstate_syborg_serial,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("fifo-size", SyborgSerialState, fifo_size, 16),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SyborgSerialState),
     .class_init = syborg_serial_class_init
 };
 
 static void syborg_serial_register_devices(void)
 {
-    sysbus_register_withprop(&syborg_serial_info);
+    type_register_static(&syborg_serial_info);
 }
 
 device_init(syborg_serial_register_devices)

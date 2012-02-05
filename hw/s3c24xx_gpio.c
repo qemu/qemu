@@ -252,25 +252,29 @@ static const VMStateDescription s3c24xx_gpio_vmstate = {
     }
 };
 
+static Property s3c24xx_gpio_properties[] = {
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void s3c24xx_gpio_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->props = s3c24xx_gpio_properties;
+    dc->vmsd = &s3c24xx_gpio_vmstate;
     k->init = s3c24xx_gpio_init_;
 }
 
-static DeviceInfo s3c24xx_gpio_info = {
+static TypeInfo s3c24xx_gpio_info = {
     .name = "s3c24xx_gpio",
-    .size = sizeof(S3C24xxGpioState),
-    .vmsd = &s3c24xx_gpio_vmstate,
-    .props = (Property[]) {
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(S3C24xxGpioState),
     .class_init = s3c24xx_gpio_class_init
 };
 
 static void s3c24xx_register(void)
 {
-    sysbus_register_withprop(&s3c24xx_gpio_info);
+    type_register_static(&s3c24xx_gpio_info);
 }
 
 device_init(s3c24xx_register)

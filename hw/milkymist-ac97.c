@@ -321,22 +321,24 @@ static const VMStateDescription vmstate_milkymist_ac97 = {
 
 static void milkymist_ac97_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = milkymist_ac97_init;
+    dc->reset = milkymist_ac97_reset;
+    dc->vmsd = &vmstate_milkymist_ac97;
 }
 
-static DeviceInfo milkymist_ac97_info = {
-    .name = "milkymist-ac97",
-    .size = sizeof(MilkymistAC97State),
-    .vmsd = &vmstate_milkymist_ac97,
-    .reset = milkymist_ac97_reset,
-    .class_init = milkymist_ac97_class_init,
+static TypeInfo milkymist_ac97_info = {
+    .name          = "milkymist-ac97",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(MilkymistAC97State),
+    .class_init    = milkymist_ac97_class_init,
 };
 
 static void milkymist_ac97_register(void)
 {
-    sysbus_register_withprop(&milkymist_ac97_info);
+    type_register_static(&milkymist_ac97_info);
 }
 
 device_init(milkymist_ac97_register)

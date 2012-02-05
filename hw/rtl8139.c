@@ -3501,6 +3501,7 @@ static Property rtl8139_properties[] = {
 
 static void rtl8139_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = pci_rtl8139_init;
@@ -3510,20 +3511,21 @@ static void rtl8139_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_REALTEK_8139;
     k->revision = RTL8139_PCI_REVID; /* >=0x20 is for 8139C+ */
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
+    dc->reset = rtl8139_reset;
+    dc->vmsd = &vmstate_rtl8139;
+    dc->props = rtl8139_properties;
 }
 
-static DeviceInfo rtl8139_info = {
-    .name = "rtl8139",
-    .size = sizeof(RTL8139State),
-    .reset = rtl8139_reset,
-    .vmsd = &vmstate_rtl8139,
-    .props = rtl8139_properties,
-    .class_init = rtl8139_class_init,
+static TypeInfo rtl8139_info = {
+    .name          = "rtl8139",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(RTL8139State),
+    .class_init    = rtl8139_class_init,
 };
 
 static void rtl8139_register_devices(void)
 {
-    pci_qdev_register(&rtl8139_info);
+    type_register_static(&rtl8139_info);
 }
 
 device_init(rtl8139_register_devices)

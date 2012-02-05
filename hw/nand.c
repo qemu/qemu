@@ -426,23 +426,25 @@ static Property nand_properties[] = {
 
 static void nand_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = nand_device_init;
+    dc->reset = nand_reset;
+    dc->vmsd = &vmstate_nand;
+    dc->props = nand_properties;
 }
 
-static DeviceInfo nand_info = {
-    .name = "nand",
-    .size = sizeof(NANDFlashState),
-    .reset = nand_reset,
-    .vmsd = &vmstate_nand,
-    .props = nand_properties,
-    .class_init = nand_class_init,
+static TypeInfo nand_info = {
+    .name          = "nand",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(NANDFlashState),
+    .class_init    = nand_class_init,
 };
 
 static void nand_create_device(void)
 {
-    sysbus_register_withprop(&nand_info);
+    type_register_static(&nand_info);
 }
 
 /*

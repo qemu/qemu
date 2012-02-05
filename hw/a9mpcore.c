@@ -208,35 +208,39 @@ static const VMStateDescription vmstate_a9mp_priv = {
     }
 };
 
+static Property a9mp_priv_properties[] = {
+    DEFINE_PROP_UINT32("num-cpu", a9mp_priv_state, num_cpu, 1),
+    /* The Cortex-A9MP may have anything from 0 to 224 external interrupt
+     * IRQ lines (with another 32 internal). We default to 64+32, which
+     * is the number provided by the Cortex-A9MP test chip in the
+     * Realview PBX-A9 and Versatile Express A9 development boards.
+     * Other boards may differ and should set this property appropriately.
+     */
+    DEFINE_PROP_UINT32("num-irq", a9mp_priv_state, num_irq, 96),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void a9mp_priv_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = a9mp_priv_init;
+    dc->props = a9mp_priv_properties;
+    dc->vmsd = &vmstate_a9mp_priv;
+    dc->reset = a9mp_priv_reset;
 }
 
-static DeviceInfo a9mp_priv_info = {
-    .name = "a9mpcore_priv",
-    .size  = sizeof(a9mp_priv_state),
-    .vmsd = &vmstate_a9mp_priv,
-    .reset = a9mp_priv_reset,
-    .class_init = a9mp_priv_class_init,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("num-cpu", a9mp_priv_state, num_cpu, 1),
-        /* The Cortex-A9MP may have anything from 0 to 224 external interrupt
-         * IRQ lines (with another 32 internal). We default to 64+32, which
-         * is the number provided by the Cortex-A9MP test chip in the
-         * Realview PBX-A9 and Versatile Express A9 development boards.
-         * Other boards may differ and should set this property appropriately.
-         */
-        DEFINE_PROP_UINT32("num-irq", a9mp_priv_state, num_irq, 96),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+static TypeInfo a9mp_priv_info = {
+    .name          = "a9mpcore_priv",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(a9mp_priv_state),
+    .class_init    = a9mp_priv_class_init,
 };
 
 static void a9mp_register_devices(void)
 {
-    sysbus_register_withprop(&a9mp_priv_info);
+    type_register_static(&a9mp_priv_info);
 }
 
 device_init(a9mp_register_devices)

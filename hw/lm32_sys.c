@@ -148,23 +148,25 @@ static Property lm32_sys_properties[] = {
 
 static void lm32_sys_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = lm32_sys_init;
+    dc->reset = sys_reset;
+    dc->vmsd = &vmstate_lm32_sys;
+    dc->props = lm32_sys_properties;
 }
 
-static DeviceInfo lm32_sys_info = {
-    .name = "lm32-sys",
-    .size = sizeof(LM32SysState),
-    .vmsd = &vmstate_lm32_sys,
-    .reset = sys_reset,
-    .props = lm32_sys_properties,
-    .class_init = lm32_sys_class_init,
+static TypeInfo lm32_sys_info = {
+    .name          = "lm32-sys",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(LM32SysState),
+    .class_init    = lm32_sys_class_init,
 };
 
 static void lm32_sys_register(void)
 {
-    sysbus_register_withprop(&lm32_sys_info);
+    type_register_static(&lm32_sys_info);
 }
 
 device_init(lm32_sys_register)

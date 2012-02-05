@@ -621,24 +621,26 @@ static Property pl041_device_properties[] = {
 
 static void pl041_device_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl041_init;
+    dc->no_user = 1;
+    dc->reset = pl041_device_reset;
+    dc->vmsd = &vmstate_pl041;
+    dc->props = pl041_device_properties;
 }
 
-static DeviceInfo pl041_device_info = {
-    .name = "pl041",
-    .size = sizeof(pl041_state),
-    .vmsd = &vmstate_pl041,
-    .reset = pl041_device_reset,
-    .no_user = 1,
-    .props = pl041_device_properties,
-    .class_init = pl041_device_class_init,
+static TypeInfo pl041_device_info = {
+    .name          = "pl041",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(pl041_state),
+    .class_init    = pl041_device_class_init,
 };
 
 static void pl041_register_device(void)
 {
-    sysbus_register_withprop(&pl041_device_info);
+    type_register_static(&pl041_device_info);
 }
 
 device_init(pl041_register_device)

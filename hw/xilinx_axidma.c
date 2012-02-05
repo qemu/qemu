@@ -494,21 +494,23 @@ static Property axidma_properties[] = {
 
 static void axidma_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = xilinx_axidma_init;
+    dc->props = axidma_properties;
 }
 
-static DeviceInfo axidma_info = {
-    .name = "xilinx,axidma",
-    .size = sizeof(struct XilinxAXIDMA),
-    .props = axidma_properties,
-    .class_init = axidma_class_init,
+static TypeInfo axidma_info = {
+    .name          = "xilinx,axidma",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(struct XilinxAXIDMA),
+    .class_init    = axidma_class_init,
 };
 
 static void xilinx_axidma_register(void)
 {
-    sysbus_register_withprop(&axidma_info);
+    type_register_static(&axidma_info);
 }
 
 device_init(xilinx_axidma_register)

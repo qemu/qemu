@@ -97,7 +97,6 @@ struct IOAPICCommonState {
     uint64_t ioredtbl[IOAPIC_NUM_PINS];
 };
 
-void ioapic_qdev_register(DeviceInfo *info);
 void ioapic_reset_common(DeviceState *dev);
 
 #endif /* !QEMU_IOAPIC_INTERNAL_H */

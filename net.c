@@ -952,6 +952,10 @@ static const struct {
                 .type = QEMU_OPT_STRING,
                 .help = "script to shut down the interface",
             }, {
+                .name = "helper",
+                .type = QEMU_OPT_STRING,
+                .help = "command to execute to configure bridge",
+            }, {
                 .name = "sndbuf",
                 .type = QEMU_OPT_SIZE,
                 .help = "send buffer limit"
@@ -1053,6 +1057,23 @@ static const struct {
             { /* end of list */ }
         },
     },
+    [NET_CLIENT_TYPE_BRIDGE] = {
+        .type = "bridge",
+        .init = net_init_bridge,
+        .desc = {
+            NET_COMMON_PARAMS_DESC,
+            {
+                .name = "br",
+                .type = QEMU_OPT_STRING,
+                .help = "bridge name",
+            }, {
+                .name = "helper",
+                .type = QEMU_OPT_STRING,
+                .help = "command to execute to configure bridge",
+            },
+            { /* end of list */ }
+        },
+    },
 };
 
 int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
@@ -1075,7 +1096,8 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
 #ifdef CONFIG_VDE
             strcmp(type, "vde") != 0 &&
 #endif
-            strcmp(type, "socket") != 0) {
+            strcmp(type, "socket") != 0 &&
+            strcmp(type, "bridge") != 0) {
             qerror_report(QERR_INVALID_PARAMETER_VALUE, "type",
                           "a netdev backend type");
             return -1;
@@ -1145,6 +1167,7 @@ static int net_host_check_device(const char *device)
 #ifdef CONFIG_VDE
                                        ,"vde"
 #endif
+                                       , "bridge"
     };
     for (i = 0; i < sizeof(valid_param_list) / sizeof(char *); i++) {
         if (!strncmp(valid_param_list[i], device,

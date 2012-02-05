@@ -79,7 +79,7 @@
 
 #include "hw/pc.h"              /* serial_16550_init, ... */
 #include "hw/pflash.h"          /* pflash_device_register, ... */
-#include "hw/sysbus.h"          /* sysbus_register_withprop */
+#include "hw/sysbus.h"          /* SysBusDevice */
 #include "hw/vlynq.h"           /* vlynq_create_bus */
 
 #include "target-mips/cpu.h"    /* do_interrupt */
@@ -1562,7 +1562,7 @@ static void emac_update_interrupt(CpmacState *s)
 
 static void cpmac_reset(DeviceState *d)
 {
-    CpmacState *cpmac = FROM_SYSBUS(CpmacState, sysbus_from_qdev(d));
+    CpmacState *cpmac = DO_UPCAST(CpmacState, busdev.qdev, d);
     uint8_t *address = cpmac->addr;
     logout("%s:%u\n", __FILE__, __LINE__);
     memset(address, 0, sizeof(av.cpmac0));
@@ -3825,8 +3825,10 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     BlockDriverState *flash_driver = NULL;
     MemoryRegion *system_memory = get_system_memory();
     int rom_size;
+#if defined(CONFIG_VLYNQ) // TODO
     VLYNQBus *vlynq_bus0;
     VLYNQBus *vlynq_bus1;
+#endif
 
 #if defined(DEBUG_AR7)
     set_traceflags();
@@ -3859,10 +3861,12 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
     qdev_init_nofail(dev);
     ar7 = s = container_of(dev, AR7State, busdev.qdev);
 
+#if defined(CONFIG_VLYNQ) // TODO
     vlynq_bus0 = vlynq_create_bus(dev, "vlynq0");
     vlynq_bus1 = vlynq_create_bus(dev, "vlynq1");
     vlynq_create_slave(vlynq_bus0, "tnetw1130-vlynq");
     (void)vlynq_bus1;
+#endif
 
     loaderparams.ram_size = machine_ram_size;
     loaderparams.kernel_filename = kernel_filename;
@@ -4229,25 +4233,29 @@ static const VMStateDescription vmstate_ar7 = {
     }
 };
 
+static Property ar7_properties[] = {
+    DEFINE_PROP_UINT8("phy addr", AR7State, phyaddr, 31),
+    DEFINE_PROP_UINT8("vlynq tnetw1130", AR7State, vlynq_tnetw1130, 0),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void ar7_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->desc = "TI TNETD7xxx (AR7)";
+    dc->props = ar7_properties;
+    dc->reset = ar7_reset;
+    dc->vmsd = &vmstate_ar7;
     k->init = ar7_sysbus_device_init;
 }
 
-static DeviceInfo ar7_info = {
-    .name  = "ar7",
-    .alias = "tnetd7xxx",
-    .desc  = "TI TNETD7xxx (AR7)",
-    .size  = sizeof(AR7State),
-    .vmsd  = &vmstate_ar7,
+static TypeInfo ar7_info = {
+    .name = "ar7",
+    //~ .alias = "tnetd7xxx",
+    .parent = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(AR7State),
     .class_init = ar7_class_init,
-    .reset = ar7_reset,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT8("phy addr", AR7State, phyaddr, 31),
-        DEFINE_PROP_UINT8("vlynq tnetw1130", AR7State, vlynq_tnetw1130, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
 };
 
 static int cpmac_init(SysBusDevice *dev)
@@ -4273,25 +4281,29 @@ static const VMStateDescription cpmac_vmsd = {
     }
 };
 
+static Property ar7_cpmac_properties[] = {
+    DEFINE_NIC_PROPERTIES(CpmacState, conf),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static void ar7_cpmac_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+    dc->desc = "TI AR7 CPMAC";
+    dc->props = ar7_cpmac_properties;
+    dc->reset = cpmac_reset;
+    //~ dc->unplug = cpmac_unplug;
+    dc->vmsd = &cpmac_vmsd;
     k->init = cpmac_init;
     //~ k->exit = cpmac_exit;
 }
 
-static DeviceInfo ar7_cpmac_info = {
+static TypeInfo ar7_cpmac_info = {
     .name = "ar7-cpmac",
-    .alias = "cpmac",
-    .desc = "TI AR7 CPMAC",
-    .size = sizeof(CpmacState),
-    .reset = cpmac_reset,
-    //~ .unplug = cpmac_unplug,
-    .vmsd = &cpmac_vmsd,
-    .props = (Property[]) {
-        DEFINE_NIC_PROPERTIES(CpmacState, conf),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .parent = TYPE_SYS_BUS_DEVICE,
+    //~ .alias = "cpmac",
+    .instance_size = sizeof(CpmacState),
     .class_init = ar7_cpmac_class_init
 };
 
@@ -4307,8 +4319,8 @@ static void ar7_machine_init(void)
 
 static void ar7_device_init(void)
 {
-    sysbus_register_withprop(&ar7_info);
-    sysbus_register_withprop(&ar7_cpmac_info);
+    type_register_static(&ar7_info);
+    type_register_static(&ar7_cpmac_info);
 }
 
 machine_init(ar7_machine_init);

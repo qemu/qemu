@@ -238,20 +238,22 @@ static void ioapic_init(IOAPICCommonState *s, int instance_no)
 static void ioapic_class_init(ObjectClass *klass, void *data)
 {
     IOAPICCommonClass *k = IOAPIC_COMMON_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
 
     k->init = ioapic_init;
+    dc->reset = ioapic_reset_common;
 }
 
-static DeviceInfo ioapic_info = {
-    .name = "ioapic",
-    .size = sizeof(IOAPICCommonState),
-    .reset = ioapic_reset_common,
-    .class_init = ioapic_class_init,
+static TypeInfo ioapic_info = {
+    .name          = "ioapic",
+    .parent        = TYPE_IOAPIC_COMMON,
+    .instance_size = sizeof(IOAPICCommonState),
+    .class_init    = ioapic_class_init,
 };
 
 static void ioapic_register_devices(void)
 {
-    ioapic_qdev_register(&ioapic_info);
+    type_register_static(&ioapic_info);
 }
 
 device_init(ioapic_register_devices)

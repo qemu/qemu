@@ -1475,7 +1475,7 @@ PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
     return bus->devices[devfn];
 }
 
-static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
+static int pci_qdev_init(DeviceState *qdev)
 {
     PCIDevice *pci_dev = (PCIDevice *)qdev;
     PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(pci_dev);
@@ -1489,7 +1489,9 @@ static int pci_qdev_init(DeviceState *qdev, DeviceInfo *base)
     }
 
     bus = FROM_QBUS(PCIBus, qdev_get_parent_bus(qdev));
-    pci_dev = do_pci_register_device(pci_dev, bus, base->name, pci_dev->devfn);
+    pci_dev = do_pci_register_device(pci_dev, bus,
+                                     object_get_typename(OBJECT(qdev)),
+                                     pci_dev->devfn);
     if (pci_dev == NULL)
         return -1;
     if (qdev->hotplugged && pc->no_hotplug) {
@@ -1537,19 +1539,9 @@ static int pci_unplug_device(DeviceState *qdev)
         qerror_report(QERR_DEVICE_NO_HOTPLUG, object_get_typename(OBJECT(dev)));
         return -1;
     }
+    object_unparent(OBJECT(dev));
     return dev->bus->hotplug(dev->bus->hotplug_qdev, dev,
                              PCI_HOTPLUG_DISABLED);
-}
-
-void pci_qdev_register(DeviceInfo *info)
-{
-    info->init = pci_qdev_init;
-    if (!info->unplug) {
-        info->unplug = pci_unplug_device;
-    }
-    info->exit = pci_unregister_device;
-    info->bus_info = &pci_bus_info;
-    qdev_register_subclass(info, TYPE_PCI_DEVICE);
 }
 
 PCIDevice *pci_create_multifunction(PCIBus *bus, int devfn, bool multifunction,
@@ -1695,6 +1687,7 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
     char *path;
     void *ptr;
     char name[32];
+    const VMStateDescription *vmsd;
 
     if (!pdev->romfile)
         return 0;
@@ -1731,10 +1724,13 @@ static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom)
         size = 1 << qemu_fls(size);
     }
 
-    if (qdev_get_info(&pdev->qdev)->vmsd)
-        snprintf(name, sizeof(name), "%s.rom", qdev_get_info(&pdev->qdev)->vmsd->name);
-    else
+    vmsd = qdev_get_vmsd(DEVICE(pdev));
+
+    if (vmsd) {
+        snprintf(name, sizeof(name), "%s.rom", vmsd->name);
+    } else {
         snprintf(name, sizeof(name), "%s.rom", object_get_typename(OBJECT(pdev)));
+    }
     pdev->has_rom = true;
     memory_region_init_ram(&pdev->rom, name, size);
     vmstate_register_ram(&pdev->rom, &pdev->qdev);
@@ -1975,8 +1971,7 @@ static int pci_qdev_find_recursive(PCIBus *bus,
     }
 
     /* roughly check if given qdev is pci device */
-    if (qdev_get_info(qdev)->init == &pci_qdev_init &&
-        qdev->parent_bus->info == &pci_bus_info) {
+    if (object_dynamic_cast(OBJECT(qdev), TYPE_PCI_DEVICE)) {
         *pdev = PCI_DEVICE(qdev);
         return 0;
     }
@@ -2012,12 +2007,22 @@ MemoryRegion *pci_address_space_io(PCIDevice *dev)
     return dev->bus->address_space_io;
 }
 
+static void pci_device_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *k = DEVICE_CLASS(klass);
+    k->init = pci_qdev_init;
+    k->unplug = pci_unplug_device;
+    k->exit = pci_unregister_device;
+    k->bus_info = &pci_bus_info;
+}
+
 static TypeInfo pci_device_type_info = {
     .name = TYPE_PCI_DEVICE,
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(PCIDevice),
     .abstract = true,
     .class_size = sizeof(PCIDeviceClass),
+    .class_init = pci_device_class_init,
 };
 
 static void pci_register_devices(void)

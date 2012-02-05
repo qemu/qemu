@@ -157,23 +157,25 @@ static Property cs4231_properties[] = {
 
 static void cs4231_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = cs4231_init1;
+    dc->reset = cs_reset;
+    dc->vmsd = &vmstate_cs4231;
+    dc->props = cs4231_properties;
 }
 
-static DeviceInfo cs4231_info = {
-    .name = "SUNW,CS4231",
-    .size = sizeof(CSState),
-    .vmsd = &vmstate_cs4231,
-    .reset = cs_reset,
-    .props = cs4231_properties,
-    .class_init = cs4231_class_init,
+static TypeInfo cs4231_info = {
+    .name          = "SUNW,CS4231",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(CSState),
+    .class_init    = cs4231_class_init,
 };
 
 static void cs4231_register_devices(void)
 {
-    sysbus_register_withprop(&cs4231_info);
+    type_register_static(&cs4231_info);
 }
 
 device_init(cs4231_register_devices)

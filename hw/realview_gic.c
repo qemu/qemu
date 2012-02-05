@@ -53,15 +53,16 @@ static void realview_gic_class_init(ObjectClass *klass, void *data)
     sdc->init = realview_gic_init;
 }
 
-static DeviceInfo realview_gic_info = {
-    .name = "realview_gic",
-    .size = sizeof(RealViewGICState),
-    .class_init = realview_gic_class_init,
+static TypeInfo realview_gic_info = {
+    .name          = "realview_gic",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(RealViewGICState),
+    .class_init    = realview_gic_class_init,
 };
 
 static void realview_gic_register_devices(void)
 {
-    sysbus_qdev_register(&realview_gic_info);
+    type_register_static(&realview_gic_info);
 }
 
 device_init(realview_gic_register_devices)

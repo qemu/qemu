@@ -37,6 +37,7 @@ typedef enum {
     NET_CLIENT_TYPE_SOCKET,
     NET_CLIENT_TYPE_VDE,
     NET_CLIENT_TYPE_DUMP,
+    NET_CLIENT_TYPE_BRIDGE,
 
     NET_CLIENT_TYPE_MAX
 } net_client_type;
@@ -174,6 +175,8 @@ int do_netdev_del(Monitor *mon, const QDict *qdict, QObject **ret_data);
 
 #define DEFAULT_NETWORK_SCRIPT "/etc/qemu-ifup"
 #define DEFAULT_NETWORK_DOWN_SCRIPT "/etc/qemu-ifdown"
+#define DEFAULT_BRIDGE_HELPER CONFIG_QEMU_HELPERDIR "/qemu-bridge-helper"
+#define DEFAULT_BRIDGE_INTERFACE "br0"
 
 void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 

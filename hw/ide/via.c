@@ -215,6 +215,7 @@ void vt82c686b_ide_init(PCIBus *bus, DriveInfo **hd_table, int devfn)
 
 static void via_ide_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
 
     k->init = vt82c686b_ide_initfn;
@@ -223,17 +224,18 @@ static void via_ide_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_VIA_IDE;
     k->revision = 0x06;
     k->class_id = PCI_CLASS_STORAGE_IDE;
+    dc->no_user = 1;
 }
 
-static DeviceInfo via_ide_info = {
-    .name = "via-ide",
-    .size = sizeof(PCIIDEState),
-    .no_user = 1,
-    .class_init = via_ide_class_init,
+static TypeInfo via_ide_info = {
+    .name          = "via-ide",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(PCIIDEState),
+    .class_init    = via_ide_class_init,
 };
 
 static void via_ide_register(void)
 {
-    pci_qdev_register(&via_ide_info);
+    type_register_static(&via_ide_info);
 }
 device_init(via_ide_register);

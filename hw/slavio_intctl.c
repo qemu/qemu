@@ -448,22 +448,24 @@ static int slavio_intctl_init1(SysBusDevice *dev)
 
 static void slavio_intctl_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = slavio_intctl_init1;
+    dc->reset = slavio_intctl_reset;
+    dc->vmsd = &vmstate_intctl;
 }
 
-static DeviceInfo slavio_intctl_info = {
-    .name = "slavio_intctl",
-    .size = sizeof(SLAVIO_INTCTLState),
-    .vmsd = &vmstate_intctl,
-    .reset = slavio_intctl_reset,
-    .class_init = slavio_intctl_class_init,
+static TypeInfo slavio_intctl_info = {
+    .name          = "slavio_intctl",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(SLAVIO_INTCTLState),
+    .class_init    = slavio_intctl_class_init,
 };
 
 static void slavio_intctl_register_devices(void)
 {
-    sysbus_register_withprop(&slavio_intctl_info);
+    type_register_static(&slavio_intctl_info);
 }
 
 device_init(slavio_intctl_register_devices)

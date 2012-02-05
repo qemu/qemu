@@ -295,36 +295,40 @@ static int pl061_init_arm(SysBusDevice *dev)
 
 static void pl061_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl061_init_arm;
+    dc->vmsd = &vmstate_pl061;
 }
 
-static DeviceInfo pl061_info = {
-    .name = "pl061",
-    .size = sizeof(pl061_state),
-    .vmsd = &vmstate_pl061,
-    .class_init = pl061_class_init,
+static TypeInfo pl061_info = {
+    .name          = "pl061",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(pl061_state),
+    .class_init    = pl061_class_init,
 };
 
 static void pl061_luminary_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = pl061_init_luminary;
+    dc->vmsd = &vmstate_pl061;
 }
 
-static DeviceInfo pl061_luminary_info = {
-    .name = "pl061_luminary",
-    .size = sizeof(pl061_state),
-    .vmsd = &vmstate_pl061,
-    .class_init = pl061_luminary_class_init,
+static TypeInfo pl061_luminary_info = {
+    .name          = "pl061_luminary",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(pl061_state),
+    .class_init    = pl061_luminary_class_init,
 };
 
 static void pl061_register_devices(void)
 {
-    sysbus_register_withprop(&pl061_info);
-    sysbus_register_withprop(&pl061_luminary_info);
+    type_register_static(&pl061_info);
+    type_register_static(&pl061_luminary_info);
 }
 
 device_init(pl061_register_devices)

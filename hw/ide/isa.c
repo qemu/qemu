@@ -94,29 +94,33 @@ ISADevice *isa_ide_init(ISABus *bus, int iobase, int iobase2, int isairq,
     return dev;
 }
 
+static Property isa_ide_properties[] = {
+    DEFINE_PROP_HEX32("iobase",  ISAIDEState, iobase,  0x1f0),
+    DEFINE_PROP_HEX32("iobase2", ISAIDEState, iobase2, 0x3f6),
+    DEFINE_PROP_UINT32("irq",    ISAIDEState, isairq,  14),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void isa_ide_class_initfn(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
     ic->init = isa_ide_initfn;
+    dc->fw_name = "ide";
+    dc->reset = isa_ide_reset;
+    dc->props = isa_ide_properties;
 }
 
-static DeviceInfo isa_ide_info = {
-    .name  = "isa-ide",
-    .fw_name  = "ide",
-    .size  = sizeof(ISAIDEState),
-    .class_init       = isa_ide_class_initfn,
-    .reset = isa_ide_reset,
-    .props = (Property[]) {
-        DEFINE_PROP_HEX32("iobase",  ISAIDEState, iobase,  0x1f0),
-        DEFINE_PROP_HEX32("iobase2", ISAIDEState, iobase2, 0x3f6),
-        DEFINE_PROP_UINT32("irq",    ISAIDEState, isairq,  14),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+static TypeInfo isa_ide_info = {
+    .name          = "isa-ide",
+    .parent        = TYPE_ISA_DEVICE,
+    .instance_size = sizeof(ISAIDEState),
+    .class_init    = isa_ide_class_initfn,
 };
 
 static void isa_ide_register_devices(void)
 {
-    isa_qdev_register(&isa_ide_info);
+    type_register_static(&isa_ide_info);
 }
 
 device_init(isa_ide_register_devices)

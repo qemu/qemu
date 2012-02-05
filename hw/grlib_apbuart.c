@@ -249,21 +249,23 @@ static Property grlib_gptimer_properties[] = {
 
 static void grlib_gptimer_class_init(ObjectClass *klass, void *data)
 {
+    DeviceClass *dc = DEVICE_CLASS(klass);
     SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
 
     k->init = grlib_apbuart_init;
+    dc->props = grlib_gptimer_properties;
 }
 
-static DeviceInfo grlib_gptimer_info = {
-    .name = "grlib,apbuart",
-    .size = sizeof(UART),
-    .props = grlib_gptimer_properties,
-    .class_init = grlib_gptimer_class_init,
+static TypeInfo grlib_gptimer_info = {
+    .name          = "grlib,apbuart",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(UART),
+    .class_init    = grlib_gptimer_class_init,
 };
 
 static void grlib_gptimer_register(void)
 {
-    sysbus_register_withprop(&grlib_gptimer_info);
+    type_register_static(&grlib_gptimer_info);
 }
 
 device_init(grlib_gptimer_register)
