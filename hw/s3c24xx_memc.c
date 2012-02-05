@@ -7,6 +7,8 @@
  *
  * Copyright 2006, 2007 Daniel Silverstone and Vincent Sanders
  *
+ * Copyright 2010, 2012 Stefan Weil
+ *
  * This file is under the terms of the GNU General Public
  * License Version 2
  */
@@ -51,7 +53,7 @@ static const MemoryRegionOps s3c24xx_memc_ops = {
     .write = s3c24xx_memc_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 4
     }
 };

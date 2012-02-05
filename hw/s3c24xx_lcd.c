@@ -254,7 +254,7 @@ static const MemoryRegionOps s3c24xx_lcd_ops = {
     .write = s3c24xx_lcd_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 4
     }
 };

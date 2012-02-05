@@ -4,6 +4,8 @@
  *
  * Copyright 2009 Daniel Silverstone and Vincent Sanders
  *
+ * Copyright 2010, 2012 Stefan Weil
+ *
  * This file is under the terms of the GNU General Public
  * License Version 2
  */
@@ -151,7 +153,7 @@ static const MemoryRegionOps s3c24xx_timers_ops = {
     .write = s3c24xx_timers_write_f,
     .endianness = DEVICE_NATIVE_ENDIAN,
     .valid = {
-        .min_access_size = 4,
+        .min_access_size = 1,
         .max_access_size = 4
     }
 };
