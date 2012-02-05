@@ -65,7 +65,7 @@ static void cmd646_cmd_write(void *opaque, target_phys_addr_t addr,
     ide_cmd_write(cmd646bar->bus, addr + 2, data);
 }
 
-static MemoryRegionOps cmd646_cmd_ops = {
+static const MemoryRegionOps cmd646_cmd_ops = {
     .read = cmd646_cmd_read,
     .write = cmd646_cmd_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -104,7 +104,7 @@ static void cmd646_data_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static MemoryRegionOps cmd646_data_ops = {
+static const MemoryRegionOps cmd646_data_ops = {
     .read = cmd646_data_read,
     .write = cmd646_data_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -193,7 +193,7 @@ static void bmdma_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static MemoryRegionOps cmd646_bmdma_ops = {
+static const MemoryRegionOps cmd646_bmdma_ops = {
     .read = bmdma_read,
     .write = bmdma_write,
 };

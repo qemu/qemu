@@ -634,7 +634,7 @@ static uint32_t cuda_readl (void *opaque, target_phys_addr_t addr)
     return 0;
 }
 
-static MemoryRegionOps cuda_ops = {
+static const MemoryRegionOps cuda_ops = {
     .old_mmio = {
         .write = {
             cuda_writeb,

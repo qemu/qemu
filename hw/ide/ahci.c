@@ -367,7 +367,7 @@ static void ahci_mem_write(void *opaque, target_phys_addr_t addr,
 
 }
 
-static MemoryRegionOps ahci_mem_ops = {
+static const MemoryRegionOps ahci_mem_ops = {
     .read = ahci_mem_read,
     .write = ahci_mem_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
@@ -403,7 +403,7 @@ static void ahci_idp_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static MemoryRegionOps ahci_idp_ops = {
+static const MemoryRegionOps ahci_idp_ops = {
     .read = ahci_idp_read,
     .write = ahci_idp_write,
     .endianness = DEVICE_LITTLE_ENDIAN,

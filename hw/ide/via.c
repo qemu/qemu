@@ -82,7 +82,7 @@ static void bmdma_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static MemoryRegionOps via_bmdma_ops = {
+static const MemoryRegionOps via_bmdma_ops = {
     .read = bmdma_read,
     .write = bmdma_write,
 };

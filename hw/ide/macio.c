@@ -291,7 +291,7 @@ static uint32_t pmac_ide_readl (void *opaque,target_phys_addr_t addr)
     return retval;
 }
 
-static MemoryRegionOps pmac_ide_ops = {
+static const MemoryRegionOps pmac_ide_ops = {
     .old_mmio = {
         .write = {
             pmac_ide_writeb,
