@@ -300,6 +300,7 @@ enum {
 };
 
 enum {
+    FD_SR1_NW       = 0x02, /* Not writable */
     FD_SR1_EC       = 0x80, /* End of cylinder */
 };
 
@@ -1179,6 +1180,16 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
             break;
         case FD_DIR_WRITE:
             /* WRITE commands */
+            if (cur_drv->ro) {
+                /* Handle readonly medium early, no need to do DMA, touch the
+                 * LED or attempt any writes. A real floppy doesn't attempt
+                 * to write to readonly media either. */
+                fdctrl_stop_transfer(fdctrl,
+                                     FD_SR0_ABNTERM | FD_SR0_SEEK, FD_SR1_NW,
+                                     0x00);
+                goto transfer_error;
+            }
+
             DMA_read_memory (nchan, fdctrl->fifo + rel_pos,
                              fdctrl->data_pos, len);
             if (bdrv_write(cur_drv->bs, fd_sector(cur_drv),
