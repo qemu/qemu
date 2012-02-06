@@ -1622,13 +1622,16 @@ static void fdctrl_handle_seek(FDCtrl *fdctrl, int direction)
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     fdctrl_reset_fifo(fdctrl);
+    /* The seek command just sends step pulses to the drive and doesn't care if
+     * there is a medium inserted of if it's banging the head against the drive.
+     */
     if (fdctrl->fifo[2] > cur_drv->max_track) {
-        fdctrl_raise_irq(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK);
+        cur_drv->track = cur_drv->max_track;
     } else {
         cur_drv->track = fdctrl->fifo[2];
-        /* Raise Interrupt */
-        fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
     }
+    /* Raise Interrupt */
+    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
 }
 
 static void fdctrl_handle_perpendicular_mode(FDCtrl *fdctrl, int direction)
