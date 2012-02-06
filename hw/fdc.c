@@ -172,12 +172,13 @@ static void fd_revalidate(FDrive *drv)
 {
     int nb_heads, max_track, last_sect, ro;
     FDriveType drive;
+    FDriveRate rate;
 
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->bs != NULL && bdrv_is_inserted(drv->bs)) {
         ro = bdrv_is_read_only(drv->bs);
         bdrv_get_floppy_geometry_hint(drv->bs, &nb_heads, &max_track,
-                                      &last_sect, drv->drive, &drive);
+                                      &last_sect, drv->drive, &drive, &rate);
         if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
             FLOPPY_DPRINTF("User defined disk (%d %d %d)",
                            nb_heads - 1, max_track, last_sect);

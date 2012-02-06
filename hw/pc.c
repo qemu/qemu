@@ -335,6 +335,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
 {
     int val, nb, nb_heads, max_track, last_sect, i;
     FDriveType fd_type[2] = { FDRIVE_DRV_NONE, FDRIVE_DRV_NONE };
+    FDriveRate rate;
     BlockDriverState *fd[MAX_FD];
     static pc_cmos_init_late_arg arg;
 
@@ -383,7 +384,7 @@ void pc_cmos_init(ram_addr_t ram_size, ram_addr_t above_4g_mem_size,
             if (fd[i] && bdrv_is_inserted(fd[i])) {
                 bdrv_get_floppy_geometry_hint(fd[i], &nb_heads, &max_track,
                                               &last_sect, FDRIVE_DRV_NONE,
-                                              &fd_type[i]);
+                                              &fd_type[i], &rate);
             }
         }
     }

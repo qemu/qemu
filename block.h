@@ -252,9 +252,17 @@ typedef enum FDriveType {
     FDRIVE_DRV_NONE = 0x03,   /* No drive connected     */
 } FDriveType;
 
+typedef enum FDriveRate {
+    FDRIVE_RATE_500K = 0x00,  /* 500 Kbps */
+    FDRIVE_RATE_300K = 0x01,  /* 300 Kbps */
+    FDRIVE_RATE_250K = 0x02,  /* 250 Kbps */
+    FDRIVE_RATE_1M   = 0x03,  /*   1 Mbps */
+} FDriveRate;
+
 void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
                                    int *max_track, int *last_sect,
-                                   FDriveType drive_in, FDriveType *drive);
+                                   FDriveType drive_in, FDriveType *drive,
+                                   FDriveRate *rate);
 int bdrv_get_translation_hint(BlockDriverState *bs);
 void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
                        BlockErrorAction on_write_error);
