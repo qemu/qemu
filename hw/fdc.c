@@ -1348,7 +1348,7 @@ static void fdctrl_handle_lock(FDCtrl *fdctrl, int direction)
 {
     fdctrl->lock = (fdctrl->fifo[0] & 0x80) ? 1 : 0;
     fdctrl->fifo[0] = fdctrl->lock << 4;
-    fdctrl_set_fifo(fdctrl, 1, fdctrl->lock);
+    fdctrl_set_fifo(fdctrl, 1, 0);
 }
 
 static void fdctrl_handle_dumpreg(FDCtrl *fdctrl, int direction)
@@ -1380,7 +1380,7 @@ static void fdctrl_handle_version(FDCtrl *fdctrl, int direction)
 {
     /* Controller's version */
     fdctrl->fifo[0] = fdctrl->version;
-    fdctrl_set_fifo(fdctrl, 1, 1);
+    fdctrl_set_fifo(fdctrl, 1, 0);
 }
 
 static void fdctrl_handle_partid(FDCtrl *fdctrl, int direction)
@@ -1439,7 +1439,7 @@ static void fdctrl_handle_save(FDCtrl *fdctrl, int direction)
     fdctrl->fifo[12] = fdctrl->pwrd;
     fdctrl->fifo[13] = 0;
     fdctrl->fifo[14] = 0;
-    fdctrl_set_fifo(fdctrl, 15, 1);
+    fdctrl_set_fifo(fdctrl, 15, 0);
 }
 
 static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
@@ -1580,7 +1580,7 @@ static void fdctrl_handle_powerdown_mode(FDCtrl *fdctrl, int direction)
 {
     fdctrl->pwrd = fdctrl->fifo[1];
     fdctrl->fifo[0] = fdctrl->fifo[1];
-    fdctrl_set_fifo(fdctrl, 1, 1);
+    fdctrl_set_fifo(fdctrl, 1, 0);
 }
 
 static void fdctrl_handle_option(FDCtrl *fdctrl, int direction)
@@ -1599,7 +1599,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
             fdctrl->fifo[0] = fdctrl->fifo[1];
             fdctrl->fifo[2] = 0;
             fdctrl->fifo[3] = 0;
-            fdctrl_set_fifo(fdctrl, 4, 1);
+            fdctrl_set_fifo(fdctrl, 4, 0);
         } else {
             fdctrl_reset_fifo(fdctrl);
         }
@@ -1607,7 +1607,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
         /* ERROR */
         fdctrl->fifo[0] = 0x80 |
             (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
-        fdctrl_set_fifo(fdctrl, 1, 1);
+        fdctrl_set_fifo(fdctrl, 1, 0);
     }
 }
 
