@@ -62,12 +62,15 @@
 #define FD_SECTOR_SC           2   /* Sector size code */
 #define FD_RESET_SENSEI_COUNT  4   /* Number of sense interrupts on RESET */
 
+typedef struct FDCtrl FDCtrl;
+
 /* Floppy disk drive emulation */
 typedef enum FDiskFlags {
     FDISK_DBL_SIDES  = 0x01,
 } FDiskFlags;
 
 typedef struct FDrive {
+    FDCtrl *fdctrl;
     BlockDriverState *bs;
     /* Drive status */
     FDriveType drive;
@@ -83,6 +86,7 @@ typedef struct FDrive {
     uint16_t bps;             /* Bytes per sector       */
     uint8_t ro;               /* Is read-only           */
     uint8_t media_changed;    /* Is media changed       */
+    uint8_t media_rate;       /* Data rate of medium    */
 } FDrive;
 
 static void fd_init(FDrive *drv)
@@ -195,6 +199,7 @@ static void fd_revalidate(FDrive *drv)
         drv->last_sect = last_sect;
         drv->ro = ro;
         drv->drive = drive;
+        drv->media_rate = rate;
     } else {
         FLOPPY_DPRINTF("No disk in drive\n");
         drv->last_sect = 0;
@@ -205,8 +210,6 @@ static void fd_revalidate(FDrive *drv)
 
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */
-
-typedef struct FDCtrl FDCtrl;
 
 static void fdctrl_reset(FDCtrl *fdctrl, int do_irq);
 static void fdctrl_reset_fifo(FDCtrl *fdctrl);
@@ -303,6 +306,7 @@ enum {
 };
 
 enum {
+    FD_SR1_MA       = 0x01, /* Missing address mark */
     FD_SR1_NW       = 0x02, /* Not writable */
     FD_SR1_EC       = 0x80, /* End of cylinder */
 };
@@ -549,6 +553,24 @@ static const VMStateDescription vmstate_fdrive_media_changed = {
     }
 };
 
+static bool fdrive_media_rate_needed(void *opaque)
+{
+    FDrive *drive = opaque;
+
+    return drive->fdctrl->check_media_rate;
+}
+
+static const VMStateDescription vmstate_fdrive_media_rate = {
+    .name = "fdrive/media_rate",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(media_rate, FDrive),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_fdrive = {
     .name = "fdrive",
     .version_id = 1,
@@ -564,6 +586,9 @@ static const VMStateDescription vmstate_fdrive = {
         {
             .vmsd = &vmstate_fdrive_media_changed,
             .needed = &fdrive_media_changed_needed,
+        } , {
+            .vmsd = &vmstate_fdrive_media_rate,
+            .needed = &fdrive_media_rate_needed,
         } , {
             /* empty */
         }
@@ -1076,6 +1101,19 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         break;
     default:
         break;
+    }
+
+    /* Check the data rate. If the programmed data rate does not match
+     * the currently inserted medium, the operation has to fail. */
+    if (fdctrl->check_media_rate &&
+        (fdctrl->dsr & FD_DSR_DRATEMASK) != cur_drv->media_rate) {
+        FLOPPY_DPRINTF("data rate mismatch (fdc=%d, media=%d)\n",
+                       fdctrl->dsr & FD_DSR_DRATEMASK, cur_drv->media_rate);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
+        fdctrl->fifo[3] = kt;
+        fdctrl->fifo[4] = kh;
+        fdctrl->fifo[5] = ks;
+        return;
     }
 
     /* Set the FIFO state */
@@ -1800,7 +1838,15 @@ static void fdctrl_result_timer(void *opaque)
     if (cur_drv->last_sect != 0) {
         cur_drv->sect = (cur_drv->sect % cur_drv->last_sect) + 1;
     }
-    fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+    /* READ_ID can't automatically succeed! */
+    if (fdctrl->check_media_rate &&
+        (fdctrl->dsr & FD_DSR_DRATEMASK) != cur_drv->media_rate) {
+        FLOPPY_DPRINTF("read id rate mismatch (fdc=%d, media=%d)\n",
+                       fdctrl->dsr & FD_DSR_DRATEMASK, cur_drv->media_rate);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
+    } else {
+        fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+    }
 }
 
 static void fdctrl_change_cb(void *opaque, bool load)
@@ -1822,6 +1868,7 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
 
     for (i = 0; i < MAX_FD; i++) {
         drive = &fdctrl->drives[i];
+        drive->fdctrl = fdctrl;
 
         if (drive->bs) {
             if (bdrv_get_on_error(drive->bs, 0) != BLOCK_ERR_STOP_ENOSPC) {
