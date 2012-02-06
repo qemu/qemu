@@ -420,6 +420,7 @@ struct FDCtrl {
     int sun4m;
     FDrive drives[MAX_FD];
     int reset_sensei;
+    uint32_t check_media_rate;
     /* Timers state */
     uint8_t timer0;
     uint8_t timer1;
@@ -2003,6 +2004,8 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].bs),
     DEFINE_PROP_INT32("bootindexA", FDCtrlISABus, bootindexA, -1),
     DEFINE_PROP_INT32("bootindexB", FDCtrlISABus, bootindexB, -1),
+    DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
+                    0, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
