@@ -224,6 +224,7 @@ static void fdctrl_write_rate(FDCtrl *fdctrl, uint32_t value);
 static uint32_t fdctrl_read_data(FDCtrl *fdctrl);
 static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value);
 static uint32_t fdctrl_read_dir(FDCtrl *fdctrl);
+static void fdctrl_write_ccr(FDCtrl *fdctrl, uint32_t value);
 
 enum {
     FD_DIR_WRITE   = 0,
@@ -248,6 +249,7 @@ enum {
     FD_REG_DSR = 0x04,
     FD_REG_FIFO = 0x05,
     FD_REG_DIR = 0x07,
+    FD_REG_CCR = 0x07,
 };
 
 enum {
@@ -490,6 +492,9 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
         break;
     case FD_REG_FIFO:
         fdctrl_write_data(fdctrl, value);
+        break;
+    case FD_REG_CCR:
+        fdctrl_write_ccr(fdctrl, value);
         break;
     default:
         break;
@@ -879,6 +884,23 @@ static void fdctrl_write_rate(FDCtrl *fdctrl, uint32_t value)
         fdctrl_reset(fdctrl, 1);
     }
     fdctrl->dsr = value;
+}
+
+/* Configuration control register: 0x07 (write) */
+static void fdctrl_write_ccr(FDCtrl *fdctrl, uint32_t value)
+{
+    /* Reset mode */
+    if (!(fdctrl->dor & FD_DOR_nRESET)) {
+        FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
+        return;
+    }
+    FLOPPY_DPRINTF("configuration control register set to 0x%02x\n", value);
+
+    /* Only the rate selection bits used in AT mode, and we
+     * store those in the DSR.
+     */
+    fdctrl->dsr = (fdctrl->dsr & ~FD_DSR_DRATEMASK) |
+                  (value & FD_DSR_DRATEMASK);
 }
 
 static int fdctrl_media_changed(FDrive *drv)
