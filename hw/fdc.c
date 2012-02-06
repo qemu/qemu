@@ -1446,7 +1446,6 @@ static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv = get_cur_drv(fdctrl);
 
-    /* XXX: should set main status register to busy */
     cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
     qemu_mod_timer(fdctrl->result_timer,
                    qemu_get_clock_ns(vm_clock) + (get_ticks_per_sec() / 50));
@@ -1734,6 +1733,7 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
         pos = command_to_handler[value & 0xff];
         FLOPPY_DPRINTF("%s command\n", handlers[pos].name);
         fdctrl->data_len = handlers[pos].parameters + 1;
+        fdctrl->msr |= FD_MSR_CMDBUSY;
     }
 
     FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
