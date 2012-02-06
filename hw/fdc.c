@@ -216,6 +216,7 @@ static void fdctrl_reset_fifo(FDCtrl *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len);
 static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0);
+static FDrive *get_cur_drv(FDCtrl *fdctrl);
 
 static uint32_t fdctrl_read_statusA(FDCtrl *fdctrl);
 static uint32_t fdctrl_read_statusB(FDCtrl *fdctrl);
@@ -956,14 +957,9 @@ static uint32_t fdctrl_read_dir(FDCtrl *fdctrl)
 {
     uint32_t retval = 0;
 
-    if (fdctrl_media_changed(drv0(fdctrl))
-     || fdctrl_media_changed(drv1(fdctrl))
-#if MAX_FD == 4
-     || fdctrl_media_changed(drv2(fdctrl))
-     || fdctrl_media_changed(drv3(fdctrl))
-#endif
-        )
+    if (fdctrl_media_changed(get_cur_drv(fdctrl))) {
         retval |= FD_DIR_DSKCHG;
+    }
     if (retval != 0) {
         FLOPPY_DPRINTF("Floppy digital input register: 0x%02x\n", retval);
     }
