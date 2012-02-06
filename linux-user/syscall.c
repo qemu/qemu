@@ -8485,7 +8485,12 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #endif /* CONFIG_EVENTFD  */
 #if defined(CONFIG_FALLOCATE) && defined(TARGET_NR_fallocate)
     case TARGET_NR_fallocate:
+#if TARGET_ABI_BITS == 32
+        ret = get_errno(fallocate(arg1, arg2, target_offset64(arg3, arg4),
+                                  target_offset64(arg5, arg6)));
+#else
         ret = get_errno(fallocate(arg1, arg2, arg3, arg4));
+#endif
         break;
 #endif
 #if defined(CONFIG_SYNC_FILE_RANGE)
