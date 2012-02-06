@@ -429,6 +429,7 @@ static TypeInfo virtio_s390_device_info = {
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(VirtIOS390Device),
     .class_init = virtio_s390_device_class_init,
+    .class_size = sizeof(VirtIOS390DeviceClass),
     .abstract = true,
 };
 
