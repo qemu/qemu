@@ -53,7 +53,7 @@ static uint64_t bmdma_read(void *opaque, target_phys_addr_t addr, unsigned size)
         break;
     }
 #ifdef DEBUG_IDE
-    printf("bmdma: readb 0x%02x : 0x%02x\n", addr, val);
+    printf("bmdma: readb 0x%02x : 0x%02x\n", (uint8_t)addr, val);
 #endif
     return val;
 }
@@ -68,7 +68,7 @@ static void bmdma_write(void *opaque, target_phys_addr_t addr,
     }
 
 #ifdef DEBUG_IDE
-    printf("bmdma: writeb 0x%02x : 0x%02x\n", addr, val);
+    printf("bmdma: writeb 0x%02x : 0x%02x\n", (uint8_t)addr, (uint8_t)val);
 #endif
     switch(addr & 3) {
     case 0:

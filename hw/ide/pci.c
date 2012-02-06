@@ -336,7 +336,7 @@ static uint64_t bmdma_addr_read(void *opaque, target_phys_addr_t addr,
 
     data = (bm->addr >> (addr * 8)) & mask;
 #ifdef DEBUG_IDE
-    printf("%s: 0x%08x\n", __func__, (unsigned)*data);
+    printf("%s: 0x%08x\n", __func__, (unsigned)data);
 #endif
     return data;
 }
