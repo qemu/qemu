@@ -59,10 +59,21 @@ static inline int cpu_physical_memory_get_dirty_flags(ram_addr_t addr)
     return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS];
 }
 
-static inline int cpu_physical_memory_get_dirty(ram_addr_t addr,
+static inline int cpu_physical_memory_get_dirty(ram_addr_t start,
+                                                ram_addr_t length,
                                                 int dirty_flags)
 {
-    return ram_list.phys_dirty[addr >> TARGET_PAGE_BITS] & dirty_flags;
+    int ret = 0;
+    uint8_t *p;
+    ram_addr_t addr, end;
+
+    end = TARGET_PAGE_ALIGN(start + length);
+    start &= TARGET_PAGE_MASK;
+    p = ram_list.phys_dirty + (start >> TARGET_PAGE_BITS);
+    for (addr = start; addr < end; addr += TARGET_PAGE_SIZE) {
+        ret |= *p++ & dirty_flags;
+    }
+    return ret;
 }
 
 static inline void cpu_physical_memory_set_dirty(ram_addr_t addr)

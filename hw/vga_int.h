@@ -25,9 +25,6 @@
 #include <hw/hw.h>
 #include "memory.h"
 
-#define MSR_COLOR_EMULATION 0x01
-#define MSR_PAGE_SELECT     0x20
-
 #define ST01_V_RETRACE      0x08
 #define ST01_DISP_ENABLE    0x01
 
@@ -204,19 +201,6 @@ uint32_t vga_mem_readb(VGACommonState *s, target_phys_addr_t addr);
 void vga_mem_writeb(VGACommonState *s, target_phys_addr_t addr, uint32_t val);
 void vga_invalidate_scanlines(VGACommonState *s, int y1, int y2);
 int ppm_save(const char *filename, struct DisplaySurface *ds);
-
-void vga_draw_cursor_line_8(uint8_t *d1, const uint8_t *src1,
-                            int poffset, int w,
-                            unsigned int color0, unsigned int color1,
-                            unsigned int color_xor);
-void vga_draw_cursor_line_16(uint8_t *d1, const uint8_t *src1,
-                             int poffset, int w,
-                             unsigned int color0, unsigned int color1,
-                             unsigned int color_xor);
-void vga_draw_cursor_line_32(uint8_t *d1, const uint8_t *src1,
-                             int poffset, int w,
-                             unsigned int color0, unsigned int color1,
-                             unsigned int color_xor);
 
 int vga_ioport_invalid(VGACommonState *s, uint32_t addr);
 void vga_init_vbe(VGACommonState *s, MemoryRegion *address_space);

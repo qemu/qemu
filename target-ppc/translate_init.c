@@ -526,26 +526,27 @@ static void spr_write_excp_prefix (void *opaque, int sprn, int gprn)
 static void spr_write_excp_vector (void *opaque, int sprn, int gprn)
 {
     DisasContext *ctx = opaque;
+    int sprn_offs;
 
     if (sprn >= SPR_BOOKE_IVOR0 && sprn <= SPR_BOOKE_IVOR15) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, ivor_mask));
-        tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
-        tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_vectors[sprn - SPR_BOOKE_IVOR0]));
-        gen_store_spr(sprn, t0);
-        tcg_temp_free(t0);
+        sprn_offs = sprn - SPR_BOOKE_IVOR0;
     } else if (sprn >= SPR_BOOKE_IVOR32 && sprn <= SPR_BOOKE_IVOR37) {
-        TCGv t0 = tcg_temp_new();
-        tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, ivor_mask));
-        tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
-        tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_vectors[sprn - SPR_BOOKE_IVOR32 + 32]));
-        gen_store_spr(sprn, t0);
-        tcg_temp_free(t0);
+        sprn_offs = sprn - SPR_BOOKE_IVOR32 + 32;
+    } else if (sprn >= SPR_BOOKE_IVOR38 && sprn <= SPR_BOOKE_IVOR42) {
+        sprn_offs = sprn - SPR_BOOKE_IVOR38 + 38;
     } else {
         printf("Trying to write an unknown exception vector %d %03x\n",
                sprn, sprn);
         gen_inval_exception(ctx, POWERPC_EXCP_PRIV_REG);
+        return;
     }
+
+    TCGv t0 = tcg_temp_new();
+    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, ivor_mask));
+    tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_vectors[sprn_offs]));
+    gen_store_spr(sprn, t0);
+    tcg_temp_free(t0);
 }
 #endif
 
@@ -1434,8 +1435,8 @@ static void gen_spr_BookE (CPUPPCState *env, uint64_t ivor_mask)
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVOR32, SPR_BOOKE_IVOR33, SPR_BOOKE_IVOR34, SPR_BOOKE_IVOR35,
-        SPR_BOOKE_IVOR36, SPR_BOOKE_IVOR37, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
-        SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
+        SPR_BOOKE_IVOR36, SPR_BOOKE_IVOR37, SPR_BOOKE_IVOR38, SPR_BOOKE_IVOR39,
+        SPR_BOOKE_IVOR40, SPR_BOOKE_IVOR41, SPR_BOOKE_IVOR42, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
         SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx, SPR_BOOKE_IVORxx,
@@ -4370,7 +4371,7 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_WRTEE | PPC_RFDI |                  \
                                 PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
                                 PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX)
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
 #define POWERPC_INSNS2_e500v1  (PPC2_BOOKE206)
 #define POWERPC_MSRM_e500v1    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e500v1     (POWERPC_MMU_BOOKE206)
@@ -4389,7 +4390,7 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_WRTEE | PPC_RFDI |                  \
                                 PPC_CACHE | PPC_CACHE_LOCK | PPC_CACHE_ICBI | \
                                 PPC_CACHE_DCBZ | PPC_CACHE_DCBA |       \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX)
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
 #define POWERPC_INSNS2_e500v2  (PPC2_BOOKE206)
 #define POWERPC_MSRM_e500v2    (0x000000000606FF30ULL)
 #define POWERPC_MMU_e500v2     (POWERPC_MMU_BOOKE206)
@@ -4410,8 +4411,8 @@ static void init_proc_e300 (CPUPPCState *env)
                                 PPC_FLOAT | PPC_FLOAT_FRES |                \
                                 PPC_FLOAT_FRSQRTE | PPC_FLOAT_FSEL |        \
                                 PPC_FLOAT_STFIWX | PPC_WAIT |               \
-                                PPC_MEM_TLBSYNC | PPC_TLBIVAX)
-#define POWERPC_INSNS2_e500mc  (PPC2_BOOKE206)
+                                PPC_MEM_TLBSYNC | PPC_TLBIVAX | PPC_MEM_SYNC)
+#define POWERPC_INSNS2_e500mc  (PPC2_BOOKE206 | PPC2_PRCNTL)
 #define POWERPC_MSRM_e500mc    (0x000000001402FB36ULL)
 #define POWERPC_MMU_e500mc     (POWERPC_MMU_BOOKE206)
 #define POWERPC_EXCP_e500mc    (POWERPC_EXCP_BOOKE)
@@ -4432,6 +4433,9 @@ enum fsl_e500_version {
 static void init_proc_e500 (CPUPPCState *env, int version)
 {
     uint32_t tlbncfg[2];
+    uint64_t ivor_mask = 0x0000000F0000FFFFULL;
+    uint32_t l1cfg0 = 0x3800  /* 8 ways */
+                    | 0x0020; /* 32 kb */
 #if !defined(CONFIG_USER_ONLY)
     int i;
 #endif
@@ -4443,7 +4447,10 @@ static void init_proc_e500 (CPUPPCState *env, int version)
      *     complain when accessing them.
      * gen_spr_BookE(env, 0x0000000F0000FD7FULL);
      */
-    gen_spr_BookE(env, 0x0000000F0000FFFFULL);
+    if (version == fsl_e500mc) {
+        ivor_mask = 0x000003FE0000FFFFULL;
+    }
+    gen_spr_BookE(env, ivor_mask);
     /* Processor identification */
     spr_register(env, SPR_BOOKE_PIR, "PIR",
                  SPR_NOACCESS, SPR_NOACCESS,
@@ -4480,6 +4487,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
         tlbncfg[1] = gen_tlbncfg(64, 1, 12, TLBnCFG_AVAIL | TLBnCFG_IPROT, 64);
         env->dcache_line_size = 64;
         env->icache_line_size = 64;
+        l1cfg0 |= 0x1000000; /* 64 byte cache block size */
         break;
     default:
         cpu_abort(env, "Unknown CPU: " TARGET_FMT_lx "\n", env->spr[SPR_PVR]);
@@ -4530,7 +4538,7 @@ static void init_proc_e500 (CPUPPCState *env, int version)
     spr_register(env, SPR_Exxx_L1CFG0, "L1CFG0",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
-                 0x00000000);
+                 l1cfg0);
     /* XXX : not implemented */
     spr_register(env, SPR_Exxx_L1CSR0, "L1CSR0",
                  SPR_NOACCESS, SPR_NOACCESS,

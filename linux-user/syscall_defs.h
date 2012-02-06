@@ -2336,3 +2336,9 @@ struct target_rlimit64 {
     uint64_t rlim_cur;
     uint64_t rlim_max;
 };
+
+struct target_ucred {
+    uint32_t pid;
+    uint32_t uid;
+    uint32_t gid;
+};

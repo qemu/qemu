@@ -62,7 +62,8 @@ typedef struct G364State {
 
 static inline int check_dirty(G364State *s, ram_addr_t page)
 {
-    return memory_region_get_dirty(&s->mem_vram, page, DIRTY_MEMORY_VGA);
+    return memory_region_get_dirty(&s->mem_vram, page, G364_PAGE_SIZE,
+                                   DIRTY_MEMORY_VGA);
 }
 
 static inline void reset_dirty(G364State *s,

@@ -141,7 +141,8 @@ static int ram_save_block(QEMUFile *f)
 
     do {
         mr = block->mr;
-        if (memory_region_get_dirty(mr, offset, DIRTY_MEMORY_MIGRATION)) {
+        if (memory_region_get_dirty(mr, offset, TARGET_PAGE_SIZE,
+                                    DIRTY_MEMORY_MIGRATION)) {
             uint8_t *p;
             int cont = (block == last_block) ? RAM_SAVE_FLAG_CONTINUE : 0;
 
@@ -198,7 +199,7 @@ static ram_addr_t ram_save_remaining(void)
     QLIST_FOREACH(block, &ram_list.blocks, next) {
         ram_addr_t addr;
         for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
-            if (memory_region_get_dirty(block->mr, addr,
+            if (memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
                                         DIRTY_MEMORY_MIGRATION)) {
                 count++;
             }
@@ -283,7 +284,7 @@ int ram_save_live(Monitor *mon, QEMUFile *f, int stage, void *opaque)
         /* Make sure all dirty bits are set */
         QLIST_FOREACH(block, &ram_list.blocks, next) {
             for (addr = 0; addr < block->length; addr += TARGET_PAGE_SIZE) {
-                if (!memory_region_get_dirty(block->mr, addr,
+                if (!memory_region_get_dirty(block->mr, addr, TARGET_PAGE_SIZE,
                                              DIRTY_MEMORY_MIGRATION)) {
                     memory_region_set_dirty(block->mr, addr, TARGET_PAGE_SIZE);
                 }

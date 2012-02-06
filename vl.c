@@ -1990,7 +1990,11 @@ static int virtcon_parse(const char *devname)
     }
 
     bus_opts = qemu_opts_create(device, NULL, 0);
-    qemu_opt_set(bus_opts, "driver", "virtio-serial");
+    if (arch_type == QEMU_ARCH_S390X) {
+        qemu_opt_set(bus_opts, "driver", "virtio-serial-s390");
+    } else {
+        qemu_opt_set(bus_opts, "driver", "virtio-serial-pci");
+    }
 
     dev_opts = qemu_opts_create(device, NULL, 0);
     qemu_opt_set(dev_opts, "driver", "virtconsole");

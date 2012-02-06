@@ -2164,6 +2164,15 @@ static void cirrus_cursor_invalidate(VGACommonState *s1)
     }
 }
 
+#define DEPTH 8
+#include "cirrus_vga_template.h"
+
+#define DEPTH 16
+#include "cirrus_vga_template.h"
+
+#define DEPTH 32
+#include "cirrus_vga_template.h"
+
 static void cirrus_cursor_draw_line(VGACommonState *s1, uint8_t *d1, int scr_y)
 {
     CirrusVGAState *s = container_of(s1, CirrusVGAState, vga);

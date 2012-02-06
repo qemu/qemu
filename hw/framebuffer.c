@@ -87,15 +87,8 @@ void framebuffer_update_display(
     dest += i * dest_row_pitch;
 
     for (; i < rows; i++) {
-        target_phys_addr_t dirty_offset;
-        dirty = 0;
-        dirty_offset = 0;
-        while (addr + dirty_offset < TARGET_PAGE_ALIGN(addr + src_width)) {
-            dirty |= memory_region_get_dirty(mem, addr + dirty_offset,
+        dirty = memory_region_get_dirty(mem, addr, addr + src_width,
                                              DIRTY_MEMORY_VGA);
-            dirty_offset += TARGET_PAGE_SIZE;
-        }
-
         if (dirty || invalidate) {
             fn(opaque, dest, src, cols, dest_col_pitch);
             if (first == -1)
