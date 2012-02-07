@@ -685,24 +685,21 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
         return -EIO;
     }
 
+    /*
+     * Calculate matching total_size and geometry. Increase the number of
+     * sectors requested until we get enough (or fail). This ensures that
+     * qemu-img convert doesn't truncate images, but rather rounds up.
+     */
     total_sectors = total_size / BDRV_SECTOR_SIZE;
-    if (disk_type == VHD_DYNAMIC) {
-        /* Calculate matching total_size and geometry. Increase the number of
-           sectors requested until we get enough (or fail). */
-        for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl;
-             i++) {
-            if (calculate_geometry(total_sectors + i,
-                                   &cyls, &heads, &secs_per_cyl)) {
-                ret = -EFBIG;
-                goto fail;
-            }
-        }
-    } else {
-        if (calculate_geometry(total_sectors, &cyls, &heads, &secs_per_cyl)) {
+    for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
+        if (calculate_geometry(total_sectors + i, &cyls, &heads,
+                               &secs_per_cyl))
+        {
             ret = -EFBIG;
             goto fail;
         }
     }
+
     total_sectors = (int64_t) cyls * heads * secs_per_cyl;
 
     /* Prepare the Hard Disk Footer */
