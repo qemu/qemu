@@ -157,7 +157,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
          * and valid configurations; we don't model A9UP).
          */
         set_feature(env, ARM_FEATURE_V7MP);
-        env->vfp.xregs[ARM_VFP_FPSID] = 0x41034000; /* Guess */
+        env->vfp.xregs[ARM_VFP_FPSID] = 0x41033090;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11110222;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x01111111;
         memcpy(env->cp15.c0_c1, cortexa9_cp15_c0_c1, 8 * sizeof(uint32_t));
