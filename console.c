@@ -1441,9 +1441,6 @@ void console_color_init(DisplayState *ds)
     }
 }
 
-static int n_text_consoles;
-static CharDriverState *text_consoles[128];
-
 static void text_console_set_echo(CharDriverState *chr, bool echo)
 {
     TextConsole *s = chr->opaque;
@@ -1519,13 +1516,6 @@ CharDriverState *text_console_init(QemuOpts *opts)
 
     chr = g_malloc0(sizeof(CharDriverState));
 
-    if (n_text_consoles == 128) {
-        fprintf(stderr, "Too many text consoles\n");
-        exit(1);
-    }
-    text_consoles[n_text_consoles] = chr;
-    n_text_consoles++;
-
     width = qemu_opt_get_number(opts, "width", 0);
     if (width == 0)
         width = qemu_opt_get_number(opts, "cols", 0) * FONT_WIDTH;
@@ -1557,11 +1547,11 @@ void text_consoles_set_display(DisplayState *ds)
 {
     int i;
 
-    for (i = 0; i < n_text_consoles; i++) {
-        text_console_do_init(text_consoles[i], ds);
+    for (i = 0; i < nb_consoles; i++) {
+        if (consoles[i]->console_type != GRAPHIC_CONSOLE) {
+            text_console_do_init(consoles[i]->chr, ds);
+        }
     }
-
-    n_text_consoles = 0;
 }
 
 void qemu_console_resize(DisplayState *ds, int width, int height)
