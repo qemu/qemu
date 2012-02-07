@@ -1517,6 +1517,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
      */
     void *bounce_buffer;
 
+    BlockDriver *drv = bs->drv;
     struct iovec iov;
     QEMUIOVector bounce_qiov;
     int64_t cluster_sector_num;
@@ -1537,14 +1538,21 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
     iov.iov_base = bounce_buffer = qemu_blockalign(bs, iov.iov_len);
     qemu_iovec_init_external(&bounce_qiov, &iov, 1);
 
-    ret = bs->drv->bdrv_co_readv(bs, cluster_sector_num, cluster_nb_sectors,
-                                 &bounce_qiov);
+    ret = drv->bdrv_co_readv(bs, cluster_sector_num, cluster_nb_sectors,
+                             &bounce_qiov);
     if (ret < 0) {
         goto err;
     }
 
-    ret = bs->drv->bdrv_co_writev(bs, cluster_sector_num, cluster_nb_sectors,
+    if (drv->bdrv_co_write_zeroes &&
+        buffer_is_zero(bounce_buffer, iov.iov_len)) {
+        ret = drv->bdrv_co_write_zeroes(bs, cluster_sector_num,
+                                        cluster_nb_sectors);
+    } else {
+        ret = drv->bdrv_co_writev(bs, cluster_sector_num, cluster_nb_sectors,
                                   &bounce_qiov);
+    }
+
     if (ret < 0) {
         /* It might be okay to ignore write errors for guest requests.  If this
          * is a deliberate copy-on-read then we don't want to ignore the error.
