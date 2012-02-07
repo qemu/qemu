@@ -188,7 +188,7 @@ static void print_allowed_subtypes(void)
     fprintf(stderr, "\n");
 }
 
-int qemu_chr_open_spice(QemuOpts *opts, CharDriverState **_chr)
+CharDriverState *qemu_chr_open_spice(QemuOpts *opts)
 {
     CharDriverState *chr;
     SpiceCharDriver *s;
@@ -200,7 +200,7 @@ int qemu_chr_open_spice(QemuOpts *opts, CharDriverState **_chr)
     if (name == NULL) {
         fprintf(stderr, "spice-qemu-char: missing name parameter\n");
         print_allowed_subtypes();
-        return -EINVAL;
+        return NULL;
     }
     for(;*psubtype != NULL; ++psubtype) {
         if (strcmp(name, *psubtype) == 0) {
@@ -211,7 +211,7 @@ int qemu_chr_open_spice(QemuOpts *opts, CharDriverState **_chr)
     if (subtype == NULL) {
         fprintf(stderr, "spice-qemu-char: unsupported name\n");
         print_allowed_subtypes();
-        return -EINVAL;
+        return NULL;
     }
 
     chr = g_malloc0(sizeof(CharDriverState));
@@ -233,6 +233,5 @@ int qemu_chr_open_spice(QemuOpts *opts, CharDriverState **_chr)
     }
 #endif
 
-    *_chr = chr;
-    return 0;
+    return chr;
 }

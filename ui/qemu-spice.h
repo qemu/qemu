@@ -45,7 +45,7 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
 void do_info_spice_print(Monitor *mon, const QObject *data);
 void do_info_spice(Monitor *mon, QObject **ret_data);
 
-int qemu_chr_open_spice(QemuOpts *opts, CharDriverState **_chr);
+CharDriverState *qemu_chr_open_spice(QemuOpts *opts);
 
 #else  /* CONFIG_SPICE */
 #include "monitor.h"

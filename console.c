@@ -1510,7 +1510,7 @@ static void text_console_do_init(CharDriverState *chr, DisplayState *ds)
         chr->init(chr);
 }
 
-int text_console_init(QemuOpts *opts, CharDriverState **_chr)
+CharDriverState *text_console_init(QemuOpts *opts)
 {
     CharDriverState *chr;
     TextConsole *s;
@@ -1542,7 +1542,7 @@ int text_console_init(QemuOpts *opts, CharDriverState **_chr)
 
     if (!s) {
         g_free(chr);
-        return -EBUSY;
+        return NULL;
     }
 
     s->chr = chr;
@@ -1550,9 +1550,7 @@ int text_console_init(QemuOpts *opts, CharDriverState **_chr)
     s->g_height = height;
     chr->opaque = s;
     chr->chr_set_echo = text_console_set_echo;
-
-    *_chr = chr;
-    return 0;
+    return chr;
 }
 
 void text_consoles_set_display(DisplayState *ds)
