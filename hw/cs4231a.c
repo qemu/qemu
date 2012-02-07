@@ -622,13 +622,13 @@ static const VMStateDescription vmstate_cs4231a = {
     .pre_load = cs4231a_pre_load,
     .post_load = cs4231a_post_load,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT32_ARRAY(regs, CSState, CS_REGS),
-        VMSTATE_BUFFER(dregs, CSState),
-        VMSTATE_INT32(dma_running, CSState),
-        VMSTATE_INT32(audio_free, CSState),
-        VMSTATE_INT32(transferred, CSState),
-        VMSTATE_INT32(aci_counter, CSState),
-        VMSTATE_END_OF_LIST()
+        VMSTATE_UINT32_ARRAY (regs, CSState, CS_REGS),
+        VMSTATE_BUFFER (dregs, CSState),
+        VMSTATE_INT32 (dma_running, CSState),
+        VMSTATE_INT32 (audio_free, CSState),
+        VMSTATE_INT32 (transferred, CSState),
+        VMSTATE_INT32 (aci_counter, CSState),
+        VMSTATE_END_OF_LIST ()
     }
 };
 
@@ -672,10 +672,10 @@ static Property cs4231a_properties[] = {
     DEFINE_PROP_END_OF_LIST (),
 };
 
-static void cs4231a_class_initfn(ObjectClass *klass, void *data)
+static void cs4231a_class_initfn (ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS (klass);
+    ISADeviceClass *ic = ISA_DEVICE_CLASS (klass);
     ic->init = cs4231a_initfn;
     dc->desc = "Crystal Semiconductor CS4231A";
     dc->vmsd = &vmstate_cs4231a;
@@ -691,6 +691,6 @@ static TypeInfo cs4231a_info = {
 
 static void cs4231a_register (void)
 {
-    type_register_static(&cs4231a_info);
+    type_register_static (&cs4231a_info);
 }
 device_init (cs4231a_register)
