@@ -321,7 +321,7 @@ qed_need_check_timer_cb(void *s) "s %p"
 qed_start_need_check_timer(void *s) "s %p"
 qed_cancel_need_check_timer(void *s) "s %p"
 qed_aio_complete(void *s, void *acb, int ret) "s %p acb %p ret %d"
-qed_aio_setup(void *s, void *acb, int64_t sector_num, int nb_sectors, void *opaque, int is_write) "s %p acb %p sector_num %"PRId64" nb_sectors %d opaque %p is_write %d"
+qed_aio_setup(void *s, void *acb, int64_t sector_num, int nb_sectors, void *opaque, int flags) "s %p acb %p sector_num %"PRId64" nb_sectors %d opaque %p flags %#x"
 qed_aio_next_io(void *s, void *acb, int ret, uint64_t cur_pos) "s %p acb %p ret %d cur_pos %"PRIu64
 qed_aio_read_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"
 qed_aio_write_data(void *s, void *acb, int ret, uint64_t offset, size_t len) "s %p acb %p ret %d offset %"PRIu64" len %zu"

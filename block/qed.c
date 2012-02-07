@@ -1233,8 +1233,8 @@ static void qed_aio_next_io(void *opaque, int ret)
 {
     QEDAIOCB *acb = opaque;
     BDRVQEDState *s = acb_to_s(acb);
-    QEDFindClusterFunc *io_fn =
-        acb->is_write ? qed_aio_write_data : qed_aio_read_data;
+    QEDFindClusterFunc *io_fn = (acb->flags & QED_AIOCB_WRITE) ?
+                                qed_aio_write_data : qed_aio_read_data;
 
     trace_qed_aio_next_io(s, acb, ret, acb->cur_pos + acb->cur_qiov.size);
 
@@ -1264,14 +1264,14 @@ static BlockDriverAIOCB *qed_aio_setup(BlockDriverState *bs,
                                        int64_t sector_num,
                                        QEMUIOVector *qiov, int nb_sectors,
                                        BlockDriverCompletionFunc *cb,
-                                       void *opaque, bool is_write)
+                                       void *opaque, int flags)
 {
     QEDAIOCB *acb = qemu_aio_get(&qed_aio_pool, bs, cb, opaque);
 
     trace_qed_aio_setup(bs->opaque, acb, sector_num, nb_sectors,
-                         opaque, is_write);
+                        opaque, flags);
 
-    acb->is_write = is_write;
+    acb->flags = flags;
     acb->finished = NULL;
     acb->qiov = qiov;
     acb->qiov_offset = 0;
@@ -1291,7 +1291,7 @@ static BlockDriverAIOCB *bdrv_qed_aio_readv(BlockDriverState *bs,
                                             BlockDriverCompletionFunc *cb,
                                             void *opaque)
 {
-    return qed_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, false);
+    return qed_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, 0);
 }
 
 static BlockDriverAIOCB *bdrv_qed_aio_writev(BlockDriverState *bs,
@@ -1300,7 +1300,8 @@ static BlockDriverAIOCB *bdrv_qed_aio_writev(BlockDriverState *bs,
                                              BlockDriverCompletionFunc *cb,
                                              void *opaque)
 {
-    return qed_aio_setup(bs, sector_num, qiov, nb_sectors, cb, opaque, true);
+    return qed_aio_setup(bs, sector_num, qiov, nb_sectors, cb,
+                         opaque, QED_AIOCB_WRITE);
 }
 
 static BlockDriverAIOCB *bdrv_qed_aio_flush(BlockDriverState *bs,
