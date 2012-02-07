@@ -665,7 +665,7 @@ static CharDriverState *qemu_chr_open_pipe(QemuOpts *opts)
 	    close(fd_in);
 	if (fd_out >= 0)
 	    close(fd_out);
-        TFR(fd_in = fd_out = open(filename, O_RDWR | O_BINARY));
+        TFR(fd_in = fd_out = qemu_open(filename, O_RDWR | O_BINARY));
         if (fd_in < 0)
             return NULL;
     }
@@ -1217,7 +1217,7 @@ static CharDriverState *qemu_chr_open_tty(QemuOpts *opts)
     CharDriverState *chr;
     int fd;
 
-    TFR(fd = open(filename, O_RDWR | O_NONBLOCK));
+    TFR(fd = qemu_open(filename, O_RDWR | O_NONBLOCK));
     if (fd < 0) {
         return NULL;
     }
@@ -1355,7 +1355,7 @@ static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
     ParallelCharDriver *drv;
     int fd;
 
-    TFR(fd = open(filename, O_RDWR));
+    TFR(fd = qemu_open(filename, O_RDWR));
     if (fd < 0)
         return NULL;
 
@@ -1424,7 +1424,7 @@ static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
     CharDriverState *chr;
     int fd;
 
-    fd = open(filename, O_RDWR);
+    fd = qemu_open(filename, O_RDWR);
     if (fd < 0)
         return NULL;
 
