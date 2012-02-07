@@ -303,6 +303,41 @@ void qemu_iovec_memset_skip(QEMUIOVector *qiov, int c, size_t count,
     }
 }
 
+/*
+ * Checks if a buffer is all zeroes
+ *
+ * Attention! The len must be a multiple of 4 * sizeof(long) due to
+ * restriction of optimizations in this function.
+ */
+bool buffer_is_zero(const void *buf, size_t len)
+{
+    /*
+     * Use long as the biggest available internal data type that fits into the
+     * CPU register and unroll the loop to smooth out the effect of memory
+     * latency.
+     */
+
+    size_t i;
+    long d0, d1, d2, d3;
+    const long * const data = buf;
+
+    assert(len % (4 * sizeof(long)) == 0);
+    len /= sizeof(long);
+
+    for (i = 0; i < len; i += 4) {
+        d0 = data[i + 0];
+        d1 = data[i + 1];
+        d2 = data[i + 2];
+        d3 = data[i + 3];
+
+        if (d0 || d1 || d2 || d3) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 #ifndef _WIN32
 /* Sets a specific flag */
 int fcntl_setfl(int fd, int flag)
