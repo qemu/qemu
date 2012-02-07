@@ -1857,6 +1857,7 @@ struct device_config {
         DEV_PARALLEL,  /* -parallel      */
         DEV_VIRTCON,   /* -virtioconsole */
         DEV_DEBUGCON,  /* -debugcon */
+        DEV_GDB,       /* -gdb, -s */
     } type;
     const char *cmdline;
     Location loc;
@@ -2182,7 +2183,6 @@ int qemu_init_main_loop(void)
 
 int main(int argc, char **argv, char **envp)
 {
-    const char *gdbstub_dev = NULL;
     int i;
     int snapshot, linux_boot;
     const char *icount_option = NULL;
@@ -2607,10 +2607,10 @@ int main(int argc, char **argv, char **envp)
                 log_file = optarg;
                 break;
             case QEMU_OPTION_s:
-                gdbstub_dev = "tcp::" DEFAULT_GDBSTUB_PORT;
+                add_device_config(DEV_GDB, "tcp::" DEFAULT_GDBSTUB_PORT);
                 break;
             case QEMU_OPTION_gdb:
-                gdbstub_dev = optarg;
+                add_device_config(DEV_GDB, optarg);
                 break;
             case QEMU_OPTION_L:
                 data_dir = optarg;
@@ -3500,9 +3500,7 @@ int main(int argc, char **argv, char **envp)
     }
     text_consoles_set_display(ds);
 
-    if (gdbstub_dev && gdbserver_start(gdbstub_dev) < 0) {
-        fprintf(stderr, "qemu: could not open gdbserver on device '%s'\n",
-                gdbstub_dev);
+    if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);
     }
 
