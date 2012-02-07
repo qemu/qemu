@@ -107,7 +107,7 @@ int inet_listen_opts(QemuOpts *opts, int port_offset)
     char port[33];
     char uaddr[INET6_ADDRSTRLEN+1];
     char uport[33];
-    int slisten,rc,to,try_next;
+    int slisten, rc, to, port_min, port_max, p;
 
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
@@ -159,20 +159,18 @@ int inet_listen_opts(QemuOpts *opts, int port_offset)
         }
 #endif
 
-        for (;;) {
+        port_min = inet_getport(e);
+        port_max = to ? to + port_offset : port_min;
+        for (p = port_min; p <= port_max; p++) {
+            inet_setport(e, p);
             if (bind(slisten, e->ai_addr, e->ai_addrlen) == 0) {
                 goto listen;
             }
-            try_next = to && (inet_getport(e) <= to + port_offset);
-            if (!try_next)
+            if (p == port_max) {
                 fprintf(stderr,"%s: bind(%s,%s,%d): %s\n", __FUNCTION__,
                         inet_strfamily(e->ai_family), uaddr, inet_getport(e),
                         strerror(errno));
-            if (try_next) {
-                inet_setport(e, inet_getport(e) + 1);
-                continue;
             }
-            break;
         }
         closesocket(slisten);
     }
