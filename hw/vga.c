@@ -1777,10 +1777,11 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
         if (!(s->cr[VGA_CRTC_MODE] & 2)) {
             addr = (addr & ~0x8000) | ((y1 & 2) << 14);
         }
+        update = full_update;
         page0 = addr;
         page1 = addr + bwidth - 1;
-        update = memory_region_get_dirty(&s->vram, page0, page1 - page0,
-                                         DIRTY_MEMORY_VGA);
+        update |= memory_region_get_dirty(&s->vram, page0, page1 - page0,
+                                          DIRTY_MEMORY_VGA);
         /* explicit invalidation for the hardware cursor */
         update |= (s->invalidated_y_table[y >> 5] >> (y & 0x1f)) & 1;
         if (update) {
