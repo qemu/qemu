@@ -640,8 +640,9 @@ static CharDriverState *qemu_chr_open_file_out(QemuOpts *opts)
 
     TFR(fd_out = qemu_open(qemu_opt_get(opts, "path"),
                       O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, 0666));
-    if (fd_out < 0)
+    if (fd_out < 0) {
         return NULL;
+    }
     return qemu_chr_open_fd(-1, fd_out);
 }
 
@@ -666,8 +667,9 @@ static CharDriverState *qemu_chr_open_pipe(QemuOpts *opts)
 	if (fd_out >= 0)
 	    close(fd_out);
         TFR(fd_in = fd_out = qemu_open(filename, O_RDWR | O_BINARY));
-        if (fd_in < 0)
+        if (fd_in < 0) {
             return NULL;
+        }
     }
     return qemu_chr_open_fd(fd_in, fd_out);
 }
@@ -764,8 +766,9 @@ static CharDriverState *qemu_chr_open_stdio(QemuOpts *opts)
 {
     CharDriverState *chr;
 
-    if (stdio_nb_clients >= STDIO_MAX_CLIENTS)
+    if (stdio_nb_clients >= STDIO_MAX_CLIENTS) {
         return NULL;
+    }
     if (stdio_nb_clients == 0) {
         old_fd0_flags = fcntl(0, F_GETFL);
         tcgetattr (0, &oldtty);
@@ -1356,8 +1359,9 @@ static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
     int fd;
 
     TFR(fd = qemu_open(filename, O_RDWR));
-    if (fd < 0)
+    if (fd < 0) {
         return NULL;
+    }
 
     if (ioctl(fd, PPCLAIM) < 0) {
         close(fd);
@@ -1425,8 +1429,9 @@ static CharDriverState *qemu_chr_open_pp(QemuOpts *opts)
     int fd;
 
     fd = qemu_open(filename, O_RDWR);
-    if (fd < 0)
+    if (fd < 0) {
         return NULL;
+    }
 
     chr = g_malloc0(sizeof(CharDriverState));
     chr->opaque = (void *)(intptr_t)fd;
@@ -1795,8 +1800,9 @@ static CharDriverState *qemu_chr_open_win_file_out(QemuOpts *opts)
 
     fd_out = CreateFile(file_out, GENERIC_WRITE, FILE_SHARE_READ, NULL,
                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (fd_out == INVALID_HANDLE_VALUE)
+    if (fd_out == INVALID_HANDLE_VALUE) {
         return NULL;
+    }
 
     return qemu_chr_open_win_file(fd_out);
 }
@@ -2444,8 +2450,9 @@ static CharDriverState *qemu_chr_open_socket(QemuOpts *opts)
             fd = inet_connect_opts(opts);
         }
     }
-    if (fd < 0)
+    if (fd < 0) {
         goto fail;
+    }
 
     if (!is_waitconnect)
         socket_set_nonblock(fd);
