@@ -146,6 +146,14 @@ int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
 int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
     int nb_sectors, QEMUIOVector *qiov);
+/*
+ * Efficiently zero a region of the disk image.  Note that this is a regular
+ * I/O request like read or write and should have a reasonable size.  This
+ * function is not suitable for zeroing the entire image in a single request
+ * because it may allocate memory for the entire region.
+ */
+int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs, int64_t sector_num,
+    int nb_sectors);
 int coroutine_fn bdrv_co_is_allocated(BlockDriverState *bs, int64_t sector_num,
     int nb_sectors, int *pnum);
 BlockDriverState *bdrv_find_backing_image(BlockDriverState *bs,

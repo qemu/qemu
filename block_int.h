@@ -131,6 +131,14 @@ struct BlockDriver {
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
     int coroutine_fn (*bdrv_co_writev)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
+    /*
+     * Efficiently zero a region of the disk image.  Typically an image format
+     * would use a compact metadata representation to implement this.  This
+     * function pointer may be NULL and .bdrv_co_writev() will be called
+     * instead.
+     */
+    int coroutine_fn (*bdrv_co_write_zeroes)(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors);
     int coroutine_fn (*bdrv_co_discard)(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors);
     int coroutine_fn (*bdrv_co_is_allocated)(BlockDriverState *bs,
