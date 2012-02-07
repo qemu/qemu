@@ -41,6 +41,7 @@
 #define QGA_VIRTIO_PATH_DEFAULT "\\\\.\\Global\\org.qemu.guest_agent.0"
 #endif
 #define QGA_PIDFILE_DEFAULT "/var/run/qemu-ga.pid"
+#define QGA_SENTINEL_BYTE 0xFF
 
 struct GAState {
     JSONMessageParser parser;
@@ -54,9 +55,10 @@ struct GAState {
 #ifdef _WIN32
     GAService service;
 #endif
+    bool delimit_response;
 };
 
-static struct GAState *ga_state;
+struct GAState *ga_state;
 
 #ifdef _WIN32
 DWORD WINAPI service_ctrl_handler(DWORD ctrl, DWORD type, LPVOID data,
@@ -198,6 +200,11 @@ static void ga_log(const gchar *domain, GLogLevelFlags level,
     }
 }
 
+void ga_set_response_delimited(GAState *s)
+{
+    s->delimit_response = true;
+}
+
 #ifndef _WIN32
 static void become_daemon(const char *pidfile)
 {
@@ -254,7 +261,7 @@ fail:
 static int send_response(GAState *s, QObject *payload)
 {
     const char *buf;
-    QString *payload_qstr;
+    QString *payload_qstr, *response_qstr;
     GIOStatus status;
 
     g_assert(payload && s->channel);
@@ -264,10 +271,20 @@ static int send_response(GAState *s, QObject *payload)
         return -EINVAL;
     }
 
-    qstring_append_chr(payload_qstr, '\n');
-    buf = qstring_get_str(payload_qstr);
+    if (s->delimit_response) {
+        s->delimit_response = false;
+        response_qstr = qstring_new();
+        qstring_append_chr(response_qstr, QGA_SENTINEL_BYTE);
+        qstring_append(response_qstr, qstring_get_str(payload_qstr));
+        QDECREF(payload_qstr);
+    } else {
+        response_qstr = payload_qstr;
+    }
+
+    qstring_append_chr(response_qstr, '\n');
+    buf = qstring_get_str(response_qstr);
     status = ga_channel_write_all(s->channel, buf, strlen(buf));
-    QDECREF(payload_qstr);
+    QDECREF(response_qstr);
     if (status != G_IO_STATUS_NORMAL) {
         return -EIO;
     }

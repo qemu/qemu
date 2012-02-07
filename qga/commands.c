@@ -29,6 +29,12 @@ void slog(const gchar *fmt, ...)
     va_end(ap);
 }
 
+int64_t qmp_guest_sync_delimited(int64_t id, Error **errp)
+{
+    ga_set_response_delimited(ga_state);
+    return id;
+}
+
 int64_t qmp_guest_sync(int64_t id, Error **errp)
 {
     return id;

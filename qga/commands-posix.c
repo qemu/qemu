@@ -35,8 +35,6 @@
 #include "qemu-queue.h"
 #include "host-utils.h"
 
-static GAState *ga_state;
-
 static void reopen_fd_to_null(int fd)
 {
     int nullfd;
@@ -909,7 +907,6 @@ error:
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
-    ga_state = s;
 #if defined(CONFIG_FSFREEZE)
     ga_command_state_add(cs, guest_fsfreeze_init, guest_fsfreeze_cleanup);
 #endif
