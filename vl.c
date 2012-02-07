@@ -1859,6 +1859,7 @@ struct device_config {
         DEV_DEBUGCON,  /* -debugcon */
     } type;
     const char *cmdline;
+    Location loc;
     QTAILQ_ENTRY(device_config) next;
 };
 QTAILQ_HEAD(, device_config) device_configs = QTAILQ_HEAD_INITIALIZER(device_configs);
@@ -1870,6 +1871,7 @@ static void add_device_config(int type, const char *cmdline)
     conf = g_malloc0(sizeof(*conf));
     conf->type = type;
     conf->cmdline = cmdline;
+    loc_save(&conf->loc);
     QTAILQ_INSERT_TAIL(&device_configs, conf, next);
 }
 
@@ -1881,7 +1883,9 @@ static int foreach_device_config(int type, int (*func)(const char *cmdline))
     QTAILQ_FOREACH(conf, &device_configs, next) {
         if (conf->type != type)
             continue;
+        loc_push_restore(&conf->loc);
         rc = func(conf->cmdline);
+        loc_pop(&conf->loc);
         if (0 != rc)
             return rc;
     }
