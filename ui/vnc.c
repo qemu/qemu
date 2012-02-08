@@ -46,6 +46,7 @@ static VncDisplay *vnc_display; /* needed for info vnc */
 static DisplayChangeListener *dcl;
 
 static int vnc_cursor_define(VncState *vs);
+static void vnc_release_modifiers(VncState *vs);
 
 static void vnc_set_share_mode(VncState *vs, VncShareMode mode)
 {
@@ -1051,6 +1052,7 @@ static void vnc_disconnect_finish(VncState *vs)
     vnc_sasl_client_cleanup(vs);
 #endif /* CONFIG_VNC_SASL */
     audio_del(vs);
+    vnc_release_modifiers(vs);
 
     QTAILQ_REMOVE(&vs->vd->clients, vs, next);
 
@@ -1676,6 +1678,29 @@ static void do_key_event(VncState *vs, int down, int keycode, int sym)
                 break;
             }
         }
+    }
+}
+
+static void vnc_release_modifiers(VncState *vs)
+{
+    static const int keycodes[] = {
+        /* shift, control, alt keys, both left & right */
+        0x2a, 0x36, 0x1d, 0x9d, 0x38, 0xb8,
+    };
+    int i, keycode;
+
+    if (!is_graphic_console()) {
+        return;
+    }
+    for (i = 0; i < ARRAY_SIZE(keycodes); i++) {
+        keycode = keycodes[i];
+        if (!vs->modifiers_state[keycode]) {
+            continue;
+        }
+        if (keycode & SCANCODE_GREY) {
+            kbd_put_keycode(SCANCODE_EMUL0);
+        }
+        kbd_put_keycode(keycode | SCANCODE_UP);
     }
 }
 
