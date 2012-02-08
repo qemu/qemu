@@ -2238,11 +2238,8 @@ int main(int argc, char **argv, char **envp)
     module_call_init(MODULE_INIT_MACHINE);
     machine = find_default_machine();
     cpu_model = NULL;
-    initrd_filename = NULL;
     ram_size = 0;
     snapshot = 0;
-    kernel_filename = NULL;
-    kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
 
@@ -2317,9 +2314,6 @@ int main(int argc, char **argv, char **envp)
                 } else {
                     cpu_model = optarg;
                 }
-                break;
-            case QEMU_OPTION_initrd:
-                initrd_filename = optarg;
                 break;
             case QEMU_OPTION_hda:
                 {
@@ -2451,10 +2445,13 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_kernel:
-                kernel_filename = optarg;
+                qemu_opts_set(qemu_find_opts("machine"), 0, "kernel", optarg);
+                break;
+            case QEMU_OPTION_initrd:
+                qemu_opts_set(qemu_find_opts("machine"), 0, "initrd", optarg);
                 break;
             case QEMU_OPTION_append:
-                kernel_cmdline = optarg;
+                qemu_opts_set(qemu_find_opts("machine"), 0, "append", optarg);
                 break;
             case QEMU_OPTION_cdrom:
                 drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
@@ -3249,6 +3246,17 @@ int main(int argc, char **argv, char **envp)
         fprintf(stderr, "qemu_init_main_loop failed\n");
         exit(1);
     }
+
+    kernel_filename = qemu_opt_get(qemu_opts_find(qemu_find_opts("machine"),
+                                                  0), "kernel");
+    initrd_filename = qemu_opt_get(qemu_opts_find(qemu_find_opts("machine"),
+                                                  0), "initrd");
+    kernel_cmdline = qemu_opt_get(qemu_opts_find(qemu_find_opts("machine"),
+                                                 0), "append");
+    if (!kernel_cmdline) {
+        kernel_cmdline = "";
+    }
+
     linux_boot = (kernel_filename != NULL);
 
     if (!linux_boot && *kernel_cmdline != '\0') {
