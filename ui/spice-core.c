@@ -220,10 +220,23 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     }
 
     client = qdict_new();
-    add_addr_info(client, &info->paddr, info->plen);
-
     server = qdict_new();
-    add_addr_info(server, &info->laddr, info->llen);
+
+#ifdef SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT
+    if (info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
+        add_addr_info(client, (struct sockaddr *)&info->paddr_ext,
+                      info->plen_ext);
+        add_addr_info(server, (struct sockaddr *)&info->laddr_ext,
+                      info->llen_ext);
+    } else {
+        fprintf(stderr, "spice: %s, extended address is expected\n",
+                        __func__);
+#endif
+        add_addr_info(client, &info->paddr, info->plen);
+        add_addr_info(server, &info->laddr, info->llen);
+#ifdef SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT
+    }
+#endif
 
     if (event == SPICE_CHANNEL_EVENT_INITIALIZED) {
         qdict_put(server, "auth", qstring_from_str(auth));
@@ -376,16 +389,30 @@ static SpiceChannelList *qmp_query_spice_channels(void)
     QTAILQ_FOREACH(item, &channel_list, link) {
         SpiceChannelList *chan;
         char host[NI_MAXHOST], port[NI_MAXSERV];
+        struct sockaddr *paddr;
+        socklen_t plen;
 
         chan = g_malloc0(sizeof(*chan));
         chan->value = g_malloc0(sizeof(*chan->value));
 
-        getnameinfo(&item->info->paddr, item->info->plen,
+#ifdef SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT
+        if (item->info->flags & SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT) {
+            paddr = (struct sockaddr *)&item->info->paddr_ext;
+            plen = item->info->plen_ext;
+        } else {
+#endif
+            paddr = &item->info->paddr;
+            plen = item->info->plen;
+#ifdef SPICE_CHANNEL_EVENT_FLAG_ADDR_EXT
+        }
+#endif
+
+        getnameinfo(paddr, plen,
                     host, sizeof(host), port, sizeof(port),
                     NI_NUMERICHOST | NI_NUMERICSERV);
         chan->value->host = g_strdup(host);
         chan->value->port = g_strdup(port);
-        chan->value->family = g_strdup(inet_strfamily(item->info->paddr.sa_family));
+        chan->value->family = g_strdup(inet_strfamily(paddr->sa_family));
 
         chan->value->connection_id = item->info->connection_id;
         chan->value->channel_type = item->info->type;
