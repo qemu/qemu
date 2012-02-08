@@ -98,6 +98,7 @@ audio_pt_int=""
 audio_win_int=""
 cc_i386=i386-pc-linux-gnu-gcc
 libs_qga=""
+debug_info="yes"
 
 target_list=""
 
@@ -207,6 +208,10 @@ for opt do
   ;;
   --extra-ldflags=*) LDFLAGS="$optarg $LDFLAGS"
   ;;
+  --enable-debug-info) debug_info="yes"
+  ;;
+  --disable-debug-info) debug_info="no"
+  ;;
   --sparc_cpu=*)
     sparc_cpu="$optarg"
     case $sparc_cpu in
@@ -244,13 +249,15 @@ sdl_config="${SDL_CONFIG-${cross_prefix}sdl-config}"
 
 # default flags for all hosts
 QEMU_CFLAGS="-fno-strict-aliasing $QEMU_CFLAGS"
-CFLAGS="-g $CFLAGS"
 QEMU_CFLAGS="-Wall -Wundef -Wwrite-strings -Wmissing-prototypes $QEMU_CFLAGS"
 QEMU_CFLAGS="-Wstrict-prototypes -Wredundant-decls $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE $QEMU_CFLAGS"
 QEMU_CFLAGS="-D_FORTIFY_SOURCE=2 $QEMU_CFLAGS"
 QEMU_INCLUDES="-I. -I\$(SRC_PATH) -I\$(SRC_PATH)/fpu"
-LDFLAGS="-g $LDFLAGS"
+if test "$debug_info" = "yes"; then
+    CFLAGS="-g $CFLAGS"
+    LDFLAGS="-g $LDFLAGS"
+fi
 
 # make source path absolute
 source_path=`cd "$source_path"; pwd`
@@ -544,6 +551,10 @@ for opt do
   --extra-cflags=*)
   ;;
   --extra-ldflags=*)
+  ;;
+  --enable-debug-info)
+  ;;
+  --disable-debug-info)
   ;;
   --cpu=*)
   ;;
