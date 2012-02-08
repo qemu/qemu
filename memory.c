@@ -191,18 +191,10 @@ typedef struct AddressSpaceOps AddressSpaceOps;
 
 /* A system address space - I/O, memory, etc. */
 struct AddressSpace {
-    const AddressSpaceOps *ops;
     MemoryRegion *root;
     FlatView current_map;
     int ioeventfd_nb;
     MemoryRegionIoeventfd *ioeventfds;
-};
-
-struct AddressSpaceOps {
-    void (*range_add)(AddressSpace *as, FlatRange *fr);
-    void (*range_del)(AddressSpace *as, FlatRange *fr);
-    void (*log_start)(AddressSpace *as, FlatRange *fr);
-    void (*log_stop)(AddressSpace *as, FlatRange *fr);
 };
 
 #define FOR_EACH_FLAT_RANGE(var, view)          \
@@ -336,32 +328,7 @@ static void access_with_adjusted_size(target_phys_addr_t addr,
     }
 }
 
-static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
-{
-}
-
-static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
-{
-}
-
-static void as_memory_log_start(AddressSpace *as, FlatRange *fr)
-{
-}
-
-static void as_memory_log_stop(AddressSpace *as, FlatRange *fr)
-{
-}
-
-static const AddressSpaceOps address_space_ops_memory = {
-    .range_add = as_memory_range_add,
-    .range_del = as_memory_range_del,
-    .log_start = as_memory_log_start,
-    .log_stop = as_memory_log_stop,
-};
-
-static AddressSpace address_space_memory = {
-    .ops = &address_space_ops_memory,
-};
+static AddressSpace address_space_memory;
 
 static const MemoryRegionPortio *find_portio(MemoryRegion *mr, uint64_t offset,
                                              unsigned width, bool write)
@@ -437,22 +404,7 @@ const IORangeOps memory_region_iorange_ops = {
     .write = memory_region_iorange_write,
 };
 
-static void as_io_range_add(AddressSpace *as, FlatRange *fr)
-{
-}
-
-static void as_io_range_del(AddressSpace *as, FlatRange *fr)
-{
-}
-
-static const AddressSpaceOps address_space_ops_io = {
-    .range_add = as_io_range_add,
-    .range_del = as_io_range_del,
-};
-
-static AddressSpace address_space_io = {
-    .ops = &address_space_ops_io,
-};
+static AddressSpace address_space_io;
 
 static AddressSpace *memory_region_to_address_space(MemoryRegion *mr)
 {
@@ -685,7 +637,6 @@ static void address_space_update_topology_pass(AddressSpace *as,
 
             if (!adding) {
                 MEMORY_LISTENER_UPDATE_REGION(frold, as, Reverse, region_del);
-                as->ops->range_del(as, frold);
             }
 
             ++iold;
@@ -695,9 +646,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
             if (adding) {
                 if (frold->dirty_log_mask && !frnew->dirty_log_mask) {
                     MEMORY_LISTENER_UPDATE_REGION(frnew, as, Reverse, log_stop);
-                    as->ops->log_stop(as, frnew);
                 } else if (frnew->dirty_log_mask && !frold->dirty_log_mask) {
-                    as->ops->log_start(as, frnew);
                     MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, log_start);
                 }
             }
@@ -708,7 +657,6 @@ static void address_space_update_topology_pass(AddressSpace *as,
             /* In new */
 
             if (adding) {
-                as->ops->range_add(as, frnew);
                 MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_add);
             }
 
