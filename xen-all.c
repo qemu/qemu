@@ -495,6 +495,7 @@ static MemoryListener xen_memory_listener = {
     .log_sync = xen_log_sync,
     .log_global_start = xen_log_global_start,
     .log_global_stop = xen_log_global_stop,
+    .priority = 10,
 };
 
 /* VCPU Operations, MMIO, IO ring ... */

@@ -751,6 +751,7 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
         .log_sync = vhost_log_sync,
         .log_global_start = vhost_log_global_start,
         .log_global_stop = vhost_log_global_stop,
+        .priority = 10
     };
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
     hdev->n_mem_sections = 0;

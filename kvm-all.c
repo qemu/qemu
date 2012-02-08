@@ -726,6 +726,7 @@ static MemoryListener kvm_memory_listener = {
     .log_sync = kvm_log_sync,
     .log_global_start = kvm_log_global_start,
     .log_global_stop = kvm_log_global_stop,
+    .priority = 10,
 };
 
 static void kvm_handle_interrupt(CPUState *env, int mask)
