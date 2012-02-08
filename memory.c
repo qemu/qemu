@@ -84,7 +84,14 @@ static AddrRange addrrange_intersection(AddrRange r1, AddrRange r2)
 
 enum ListenerDirection { Forward, Reverse };
 
-#define MEMORY_LISTENER_CALL(_callback, _direction, _args...)           \
+static bool memory_listener_match(MemoryListener *listener,
+                                  MemoryRegionSection *section)
+{
+    return !listener->address_space_filter
+        || listener->address_space_filter == section->address_space;
+}
+
+#define MEMORY_LISTENER_CALL_GLOBAL(_callback, _direction, _args...)    \
     do {                                                                \
         MemoryListener *_listener;                                      \
                                                                         \
@@ -105,15 +112,40 @@ enum ListenerDirection { Forward, Reverse };
         }                                                               \
     } while (0)
 
+#define MEMORY_LISTENER_CALL(_callback, _direction, _section, _args...) \
+    do {                                                                \
+        MemoryListener *_listener;                                      \
+                                                                        \
+        switch (_direction) {                                           \
+        case Forward:                                                   \
+            QTAILQ_FOREACH(_listener, &memory_listeners, link) {        \
+                if (memory_listener_match(_listener, _section)) {       \
+                    _listener->_callback(_listener, _section, ##_args); \
+                }                                                       \
+            }                                                           \
+            break;                                                      \
+        case Reverse:                                                   \
+            QTAILQ_FOREACH_REVERSE(_listener, &memory_listeners,        \
+                                   memory_listeners, link) {            \
+                if (memory_listener_match(_listener, _section)) {       \
+                    _listener->_callback(_listener, _section, ##_args); \
+                }                                                       \
+            }                                                           \
+            break;                                                      \
+        default:                                                        \
+            abort();                                                    \
+        }                                                               \
+    } while (0)
+
 #define MEMORY_LISTENER_UPDATE_REGION(fr, as, dir, callback)            \
-    MEMORY_LISTENER_CALL(callback, dir, &(MemoryRegionSection) {        \
+    MEMORY_LISTENER_CALL(callback, dir, (&(MemoryRegionSection) {       \
         .mr = (fr)->mr,                                                 \
         .address_space = (as)->root,                                    \
         .offset_within_region = (fr)->offset_in_region,                 \
         .size = int128_get64((fr)->addr.size),                          \
         .offset_within_address_space = int128_get64((fr)->addr.start),  \
         .readonly = (fr)->readonly,                                     \
-                })
+              }))
 
 struct CoalescedMemoryRange {
     AddrRange addr;
@@ -1382,13 +1414,13 @@ void memory_global_sync_dirty_bitmap(MemoryRegion *address_space)
 void memory_global_dirty_log_start(void)
 {
     global_dirty_log = true;
-    MEMORY_LISTENER_CALL(log_global_start, Forward);
+    MEMORY_LISTENER_CALL_GLOBAL(log_global_start, Forward);
 }
 
 void memory_global_dirty_log_stop(void)
 {
     global_dirty_log = false;
-    MEMORY_LISTENER_CALL(log_global_stop, Reverse);
+    MEMORY_LISTENER_CALL_GLOBAL(log_global_stop, Reverse);
 }
 
 static void listener_add_address_space(MemoryListener *listener,
@@ -1412,10 +1444,11 @@ static void listener_add_address_space(MemoryListener *listener,
     }
 }
 
-void memory_listener_register(MemoryListener *listener)
+void memory_listener_register(MemoryListener *listener, MemoryRegion *filter)
 {
     MemoryListener *other = NULL;
 
+    listener->address_space_filter = filter;
     if (QTAILQ_EMPTY(&memory_listeners)
         || listener->priority >= QTAILQ_LAST(&memory_listeners,
                                              memory_listeners)->priority) {

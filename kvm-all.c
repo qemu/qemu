@@ -1049,7 +1049,7 @@ int kvm_init(void)
     }
 
     kvm_state = s;
-    memory_listener_register(&kvm_memory_listener);
+    memory_listener_register(&kvm_memory_listener, NULL);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
 

@@ -774,7 +774,7 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
     hdev->log_size = 0;
     hdev->log_enabled = false;
     hdev->started = false;
-    memory_listener_register(&hdev->memory_listener);
+    memory_listener_register(&hdev->memory_listener, NULL);
     hdev->force = force;
     return 0;
 fail:

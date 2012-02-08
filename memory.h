@@ -193,6 +193,7 @@ struct MemoryListener {
                         bool match_data, uint64_t data, int fd);
     /* Lower = earlier (during add), later (during del) */
     unsigned priority;
+    MemoryRegion *address_space_filter;
     QTAILQ_ENTRY(MemoryListener) link;
 };
 
@@ -685,8 +686,9 @@ void memory_region_transaction_commit(void);
  *                           space
  *
  * @listener: an object containing the callbacks to be called
+ * @filter: if non-%NULL, only regions in this address space will be observed
  */
-void memory_listener_register(MemoryListener *listener);
+void memory_listener_register(MemoryListener *listener, MemoryRegion *filter);
 
 /**
  * memory_listener_unregister: undo the effect of memory_listener_register()

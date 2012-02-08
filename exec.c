@@ -3571,7 +3571,7 @@ static void memory_map_init(void)
     memory_region_init(system_io, "io", 65536);
     set_system_io_map(system_io);
 
-    memory_listener_register(&core_memory_listener);
+    memory_listener_register(&core_memory_listener, NULL);
 }
 
 MemoryRegion *get_system_memory(void)

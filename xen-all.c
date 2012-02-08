@@ -989,7 +989,7 @@ int xen_hvm_init(void)
 
     state->memory_listener = xen_memory_listener;
     QLIST_INIT(&state->physmap);
-    memory_listener_register(&state->memory_listener);
+    memory_listener_register(&state->memory_listener, NULL);
     state->log_for_dirtybit = NULL;
 
     /* Initialize backend core & drivers */
