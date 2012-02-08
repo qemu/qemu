@@ -487,6 +487,18 @@ static void xen_log_global_stop(MemoryListener *listener)
 {
 }
 
+static void xen_eventfd_add(MemoryListener *listener,
+                            MemoryRegionSection *section,
+                            bool match_data, uint64_t data, int fd)
+{
+}
+
+static void xen_eventfd_del(MemoryListener *listener,
+                            MemoryRegionSection *section,
+                            bool match_data, uint64_t data, int fd)
+{
+}
+
 static MemoryListener xen_memory_listener = {
     .region_add = xen_region_add,
     .region_del = xen_region_del,
@@ -495,6 +507,8 @@ static MemoryListener xen_memory_listener = {
     .log_sync = xen_log_sync,
     .log_global_start = xen_log_global_start,
     .log_global_stop = xen_log_global_stop,
+    .eventfd_add = xen_eventfd_add,
+    .eventfd_del = xen_eventfd_del,
     .priority = 10,
 };
 

@@ -202,8 +202,6 @@ struct AddressSpaceOps {
     void (*range_del)(AddressSpace *as, FlatRange *fr);
     void (*log_start)(AddressSpace *as, FlatRange *fr);
     void (*log_stop)(AddressSpace *as, FlatRange *fr);
-    void (*ioeventfd_add)(AddressSpace *as, MemoryRegionIoeventfd *fd);
-    void (*ioeventfd_del)(AddressSpace *as, MemoryRegionIoeventfd *fd);
 };
 
 #define FOR_EACH_FLAT_RANGE(var, view)          \
@@ -369,37 +367,11 @@ static void as_memory_log_stop(AddressSpace *as, FlatRange *fr)
 {
 }
 
-static void as_memory_ioeventfd_add(AddressSpace *as, MemoryRegionIoeventfd *fd)
-{
-    int r;
-
-    assert(fd->match_data && int128_get64(fd->addr.size) == 4);
-
-    r = kvm_set_ioeventfd_mmio_long(fd->fd, int128_get64(fd->addr.start),
-                                    fd->data, true);
-    if (r < 0) {
-        abort();
-    }
-}
-
-static void as_memory_ioeventfd_del(AddressSpace *as, MemoryRegionIoeventfd *fd)
-{
-    int r;
-
-    r = kvm_set_ioeventfd_mmio_long(fd->fd, int128_get64(fd->addr.start),
-                                    fd->data, false);
-    if (r < 0) {
-        abort();
-    }
-}
-
 static const AddressSpaceOps address_space_ops_memory = {
     .range_add = as_memory_range_add,
     .range_del = as_memory_range_del,
     .log_start = as_memory_log_start,
     .log_stop = as_memory_log_stop,
-    .ioeventfd_add = as_memory_ioeventfd_add,
-    .ioeventfd_del = as_memory_ioeventfd_del,
 };
 
 static AddressSpace address_space_memory = {
@@ -493,35 +465,9 @@ static void as_io_range_del(AddressSpace *as, FlatRange *fr)
                         int128_get64(fr->addr.size));
 }
 
-static void as_io_ioeventfd_add(AddressSpace *as, MemoryRegionIoeventfd *fd)
-{
-    int r;
-
-    assert(fd->match_data && int128_get64(fd->addr.size) == 2);
-
-    r = kvm_set_ioeventfd_pio_word(fd->fd, int128_get64(fd->addr.start),
-                                   fd->data, true);
-    if (r < 0) {
-        abort();
-    }
-}
-
-static void as_io_ioeventfd_del(AddressSpace *as, MemoryRegionIoeventfd *fd)
-{
-    int r;
-
-    r = kvm_set_ioeventfd_pio_word(fd->fd, int128_get64(fd->addr.start),
-                                   fd->data, false);
-    if (r < 0) {
-        abort();
-    }
-}
-
 static const AddressSpaceOps address_space_ops_io = {
     .range_add = as_io_range_add,
     .range_del = as_io_range_del,
-    .ioeventfd_add = as_io_ioeventfd_add,
-    .ioeventfd_del = as_io_ioeventfd_del,
 };
 
 static AddressSpace address_space_io = {
@@ -653,6 +599,8 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
                                              unsigned fds_old_nb)
 {
     unsigned iold, inew;
+    MemoryRegionIoeventfd *fd;
+    MemoryRegionSection section;
 
     /* Generate a symmetric difference of the old and new fd sets, adding
      * and deleting as necessary.
@@ -664,13 +612,27 @@ static void address_space_add_del_ioeventfds(AddressSpace *as,
             && (inew == fds_new_nb
                 || memory_region_ioeventfd_before(fds_old[iold],
                                                   fds_new[inew]))) {
-            as->ops->ioeventfd_del(as, &fds_old[iold]);
+            fd = &fds_old[iold];
+            section = (MemoryRegionSection) {
+                .address_space = as->root,
+                .offset_within_address_space = int128_get64(fd->addr.start),
+                .size = int128_get64(fd->addr.size),
+            };
+            MEMORY_LISTENER_CALL(eventfd_del, Forward, &section,
+                                 fd->match_data, fd->data, fd->fd);
             ++iold;
         } else if (inew < fds_new_nb
                    && (iold == fds_old_nb
                        || memory_region_ioeventfd_before(fds_new[inew],
                                                          fds_old[iold]))) {
-            as->ops->ioeventfd_add(as, &fds_new[inew]);
+            fd = &fds_new[inew];
+            section = (MemoryRegionSection) {
+                .address_space = as->root,
+                .offset_within_address_space = int128_get64(fd->addr.start),
+                .size = int128_get64(fd->addr.size),
+            };
+            MEMORY_LISTENER_CALL(eventfd_add, Reverse, &section,
+                                 fd->match_data, fd->data, fd->fd);
             ++inew;
         } else {
             ++iold;

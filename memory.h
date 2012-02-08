@@ -185,6 +185,10 @@ struct MemoryListener {
     void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_global_start)(MemoryListener *listener);
     void (*log_global_stop)(MemoryListener *listener);
+    void (*eventfd_add)(MemoryListener *listener, MemoryRegionSection *section,
+                        bool match_data, uint64_t data, int fd);
+    void (*eventfd_del)(MemoryListener *listener, MemoryRegionSection *section,
+                        bool match_data, uint64_t data, int fd);
     /* Lower = earlier (during add), later (during del) */
     unsigned priority;
     QTAILQ_ENTRY(MemoryListener) link;

@@ -720,6 +720,18 @@ static void vhost_virtqueue_cleanup(struct vhost_dev *dev,
                               0, virtio_queue_get_desc_size(vdev, idx));
 }
 
+static void vhost_eventfd_add(MemoryListener *listener,
+                              MemoryRegionSection *section,
+                              bool match_data, uint64_t data, int fd)
+{
+}
+
+static void vhost_eventfd_del(MemoryListener *listener,
+                              MemoryRegionSection *section,
+                              bool match_data, uint64_t data, int fd)
+{
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
 {
     uint64_t features;
@@ -751,6 +763,8 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
         .log_sync = vhost_log_sync,
         .log_global_start = vhost_log_global_start,
         .log_global_stop = vhost_log_global_stop,
+        .eventfd_add = vhost_eventfd_add,
+        .eventfd_del = vhost_eventfd_del,
         .priority = 10
     };
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
