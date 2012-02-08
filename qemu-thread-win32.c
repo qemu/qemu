@@ -215,8 +215,6 @@ static unsigned __stdcall win32_start_routine(void *arg)
     if (data->mode == QEMU_THREAD_DETACHED) {
         g_free(data);
         data = NULL;
-    } else {
-        InitializeCriticalSection(&data->cs);
     }
     TlsSetValue(qemu_thread_tls_index, data);
     qemu_thread_exit(start_routine(thread_arg));
@@ -227,6 +225,7 @@ void qemu_thread_exit(void *arg)
 {
     QemuThreadData *data = TlsGetValue(qemu_thread_tls_index);
     if (data) {
+        assert(data->mode != QEMU_THREAD_DETACHED);
         data->ret = arg;
         EnterCriticalSection(&data->cs);
         data->exited = true;
@@ -258,6 +257,7 @@ void *qemu_thread_join(QemuThread *thread)
         CloseHandle(handle);
     }
     ret = data->ret;
+    assert(data->mode != QEMU_THREAD_DETACHED);
     DeleteCriticalSection(&data->cs);
     g_free(data);
     return ret;
@@ -288,6 +288,10 @@ void qemu_thread_create(QemuThread *thread,
     data->mode = mode;
     data->exited = false;
 
+    if (data->mode != QEMU_THREAD_DETACHED) {
+        InitializeCriticalSection(&data->cs);
+    }
+
     hThread = (HANDLE) _beginthreadex(NULL, 0, win32_start_routine,
                                       data, 0, &thread->tid);
     if (!hThread) {
@@ -314,6 +318,7 @@ HANDLE qemu_thread_get_handle(QemuThread *thread)
         return NULL;
     }
 
+    assert(data->mode != QEMU_THREAD_DETACHED);
     EnterCriticalSection(&data->cs);
     if (!data->exited) {
         handle = OpenThread(SYNCHRONIZE | THREAD_SUSPEND_RESUME, FALSE,
