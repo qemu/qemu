@@ -2529,7 +2529,7 @@ static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
    before calculating this offset.  This should not be a problem unless
    the low bits of start_addr and region_offset differ.  */
 void cpu_register_physical_memory_log(MemoryRegionSection *section,
-                                      bool readable, bool readonly)
+                                      bool readonly)
 {
     target_phys_addr_t start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;

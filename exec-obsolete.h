@@ -37,7 +37,7 @@ void cpu_unregister_io_memory(int table_address);
 
 struct MemoryRegionSection;
 void cpu_register_physical_memory_log(struct MemoryRegionSection *section,
-                                      bool readable, bool readonly);
+                                      bool readonly);
 
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);
 void qemu_unregister_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size);

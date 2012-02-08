@@ -346,7 +346,7 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
         .readonly = fr->readonly,
     };
 
-    cpu_register_physical_memory_log(&section, fr->readable, fr->readonly);
+    cpu_register_physical_memory_log(&section, fr->readonly);
 }
 
 static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
@@ -359,7 +359,7 @@ static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
         .readonly = fr->readonly,
     };
 
-    cpu_register_physical_memory_log(&section, true, false);
+    cpu_register_physical_memory_log(&section, false);
 }
 
 static void as_memory_log_start(AddressSpace *as, FlatRange *fr)
