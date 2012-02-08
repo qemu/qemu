@@ -3513,7 +3513,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 
 	env->pregs[PR_VR] = vr_by_name(cpu_model);
 	cpu_exec_init(env);
-	cpu_reset(env);
+    cpu_state_reset(env);
 	qemu_init_vcpu(env);
 
 	if (tcg_initialized)
@@ -3573,7 +3573,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 	return env;
 }
 
-void cpu_reset (CPUCRISState *env)
+void cpu_state_reset(CPUCRISState *env)
 {
 	uint32_t vr;
 

@@ -283,7 +283,7 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->halted = 0;
 }
 
@@ -291,7 +291,7 @@ static void secondary_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->halted = 1;
 }
 

@@ -35,7 +35,7 @@
 
 static void reset_mmu(CPUState *env);
 
-void cpu_reset(CPUXtensaState *env)
+void cpu_state_reset(CPUXtensaState *env)
 {
     env->exception_taken = 0;
     env->pc = env->config->exception_vector[EXC_RESET];

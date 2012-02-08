@@ -12708,12 +12708,12 @@ CPUMIPSState *cpu_mips_init (const char *cpu_model)
     fpu_init(env, def);
     mvp_init(env, def);
     mips_tcg_init();
-    cpu_reset(env);
+    cpu_state_reset(env);
     qemu_init_vcpu(env);
     return env;
 }
 
-void cpu_reset (CPUMIPSState *env)
+void cpu_state_reset(CPUMIPSState *env)
 {
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);

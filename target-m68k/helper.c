@@ -143,7 +143,7 @@ static int cpu_m68k_set_model(CPUM68KState *env, const char *name)
     return 0;
 }
 
-void cpu_reset(CPUM68KState *env)
+void cpu_state_reset(CPUM68KState *env)
 {
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
@@ -181,7 +181,7 @@ CPUM68KState *cpu_m68k_init(const char *cpu_model)
         return NULL;
     }
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     qemu_init_vcpu(env);
     return env;
 }

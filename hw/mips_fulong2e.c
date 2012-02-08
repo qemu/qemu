@@ -200,7 +200,7 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     /* TODO: 2E reset stuff */
     if (loaderparams.kernel_filename) {
         env->CP0_Status &= ~((1 << CP0St_BEV) | (1 << CP0St_ERL));

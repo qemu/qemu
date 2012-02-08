@@ -61,7 +61,7 @@ static void main_cpu_reset(void *opaque)
     ResetInfo *reset_info = opaque;
     CPUState *env = reset_info->env;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     /* init defaults */
     env->pc = reset_info->bootstrap_pc;

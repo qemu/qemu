@@ -376,7 +376,7 @@ static void main_cpu_reset(void *opaque)
     CPUState *env = s->env;
     static unsigned int nr_resets;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     cpu_timer_reset(env->tick);
     cpu_timer_reset(env->stick);

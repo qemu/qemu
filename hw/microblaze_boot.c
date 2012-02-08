@@ -45,7 +45,7 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->regs[5] = boot_info.cmdline;
     env->regs[7] = boot_info.fdt;
     env->sregs[SR_PC] = boot_info.bootstrap_pc;

@@ -109,7 +109,7 @@ static void main_cpu_reset(void *opaque)
     CPUState *env = opaque;
     struct boot_info *bi = env->load_info;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     /* Linux Kernel Parameters (passing device tree):
        *   r3: pointer to the fdt
        *   r4: 0

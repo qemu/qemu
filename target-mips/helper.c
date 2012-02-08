@@ -452,7 +452,7 @@ void do_interrupt (CPUState *env)
         set_hflags_for_handler(env);
         break;
     case EXCP_RESET:
-        cpu_reset(env);
+        cpu_state_reset(env);
         break;
     case EXCP_SRESET:
         env->CP0_Status |= (1 << CP0St_SR);

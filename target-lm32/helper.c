@@ -212,7 +212,7 @@ CPUState *cpu_lm32_init(const char *cpu_model)
     env->flags = 0;
 
     cpu_exec_init(env);
-    cpu_reset(env);
+    cpu_state_reset(env);
     qemu_init_vcpu(env);
 
     if (!tcg_initialized) {
@@ -235,7 +235,7 @@ void cpu_lm32_set_phys_msb_ignore(CPUState *env, int value)
     }
 }
 
-void cpu_reset(CPUState *env)
+void cpu_state_reset(CPUState *env)
 {
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);

@@ -34,7 +34,7 @@ static void main_cpu_reset(void *opaque)
 
     li = env->load_info;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     if (!li) {
         /* nothing more to do.  */

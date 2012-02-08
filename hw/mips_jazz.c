@@ -51,7 +51,7 @@ enum jazz_model_e
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
-    cpu_reset(env);
+    cpu_state_reset(env);
 }
 
 static uint64_t rtc_read(void *opaque, target_phys_addr_t addr, unsigned size)

@@ -65,6 +65,13 @@ static target_phys_addr_t round_page(target_phys_addr_t addr)
     return (addr + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
 }
 
+static void ppc_heathrow_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_state_reset(env);
+}
+
 static void ppc_heathrow_init (ram_addr_t ram_size,
                                const char *boot_device,
                                const char *kernel_filename,
@@ -104,7 +111,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
         }
         /* Set time-base frequency to 16.6 Mhz */
         cpu_ppc_tb_init(env,  16600000UL);
-        qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
+        qemu_register_reset(ppc_heathrow_reset, env);
     }
 
     /* allocate RAM */

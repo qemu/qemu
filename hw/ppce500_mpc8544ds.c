@@ -198,7 +198,7 @@ static void mpc8544ds_cpu_reset_sec(void *opaque)
 {
     CPUState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     /* Secondary CPU starts in halted state for now. Needs to change when
        implementing non-kernel boot. */
@@ -211,7 +211,7 @@ static void mpc8544ds_cpu_reset(void *opaque)
     CPUState *env = opaque;
     struct boot_info *bi = env->load_info;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     /* Set initial guest state. */
     env->halted = 0;

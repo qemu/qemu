@@ -745,7 +745,7 @@ static void malta_mips_config(CPUState *env)
 static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     /* The bootloader does not need to be rewritten as it is located in a
        read only location. The kernel location and the arguments table

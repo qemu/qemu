@@ -470,6 +470,13 @@ static void cpu_request_exit(void *opaque, int irq, int level)
     }
 }
 
+static void ppc_prep_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_state_reset(env);
+}
+
 /* PowerPC PREP hardware initialisation */
 static void ppc_prep_init (ram_addr_t ram_size,
                            const char *boot_device,
@@ -524,7 +531,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
             /* Set time-base frequency to 100 Mhz */
             cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
         }
-        qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
+        qemu_register_reset(ppc_prep_reset, env);
     }
 
     /* allocate RAM */

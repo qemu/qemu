@@ -3136,7 +3136,7 @@ void cpu_dump_rfi (target_ulong RA, target_ulong msr)
              TARGET_FMT_lx "\n", RA, msr);
 }
 
-void cpu_reset(CPUPPCState *env)
+void cpu_state_reset(CPUPPCState *env)
 {
     target_ulong msr;
 

@@ -3702,7 +3702,7 @@ static void omap1_mpu_reset(void *opaque)
     omap_lpg_reset(mpu->led[0]);
     omap_lpg_reset(mpu->led[1]);
     omap_clkm_reset(mpu);
-    cpu_reset(mpu->env);
+    cpu_state_reset(mpu->env);
 }
 
 static const struct omap_map_s {

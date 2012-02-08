@@ -502,6 +502,13 @@ static void spapr_reset(void *opaque)
 
 }
 
+static void spapr_cpu_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_state_reset(env);
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(ram_addr_t ram_size,
                            const char *boot_device,
@@ -560,7 +567,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         }
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
-        qemu_register_reset((QEMUResetHandler *)&cpu_reset, env);
+        qemu_register_reset(spapr_cpu_reset, env);
 
         env->hreset_vector = 0x60;
         env->hreset_excp_prefix = 0;

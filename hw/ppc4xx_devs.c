@@ -38,6 +38,13 @@
 #  define LOG_UIC(...) do { } while (0)
 #endif
 
+static void ppc4xx_reset(void *opaque)
+{
+    CPUState *env = opaque;
+
+    cpu_state_reset(env);
+}
+
 /*****************************************************************************/
 /* Generic PowerPC 4xx processor instantiation */
 CPUState *ppc4xx_init (const char *cpu_model,
@@ -60,7 +67,7 @@ CPUState *ppc4xx_init (const char *cpu_model,
     tb_clk->opaque = env;
     ppc_dcr_init(env, NULL, NULL);
     /* Register qemu callbacks */
-    qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
+    qemu_register_reset(ppc4xx_reset, env);
 
     return env;
 }

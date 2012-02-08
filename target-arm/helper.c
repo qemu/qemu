@@ -278,7 +278,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     }
 }
 
-void cpu_reset(CPUARMState *env)
+void cpu_state_reset(CPUARMState *env)
 {
     uint32_t id;
     uint32_t tmp = 0;
@@ -416,7 +416,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
 
     env->cpu_model_str = cpu_model;
     env->cp15.c0_cpuid = id;
-    cpu_reset(env);
+    cpu_state_reset(env);
     if (arm_feature(env, ARM_FEATURE_NEON)) {
         gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  51, "arm-neon.xml", 0);

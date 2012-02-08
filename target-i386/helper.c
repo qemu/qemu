@@ -27,7 +27,7 @@
 //#define DEBUG_MMU
 
 /* NOTE: must be called outside the CPU execute loop */
-void cpu_reset(CPUX86State *env)
+void cpu_state_reset(CPUState *env)
 {
     int i;
 
@@ -1282,7 +1282,7 @@ void do_cpu_init(CPUState *env)
     int sipi = env->interrupt_request & CPU_INTERRUPT_SIPI;
     uint64_t pat = env->pat;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->interrupt_request = sipi;
     env->pat = pat;
     apic_init_reset(env->apic_state);

@@ -433,7 +433,7 @@ void cpu_watchpoint_remove_all(CPUState *env, int mask);
 #define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
 
 void cpu_single_step(CPUState *env, int enabled);
-void cpu_reset(CPUState *s);
+void cpu_state_reset(CPUState *s);
 int cpu_is_stopped(CPUState *env);
 void run_on_cpu(CPUState *env, void (*func)(void *data), void *data);
 

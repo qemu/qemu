@@ -201,7 +201,7 @@ static void main_cpu_reset(void *opaque)
     ResetData *s = (ResetData *)opaque;
     CPUState *env = s->env;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->pc = s->vector;
 }
 

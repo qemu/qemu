@@ -147,7 +147,7 @@ static void main_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->gpr[1] = (16<<20) - 8;
     env->gpr[3] = FDT_ADDR;
     env->nip = entry;

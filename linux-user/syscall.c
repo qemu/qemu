@@ -4036,7 +4036,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
 #if defined(TARGET_I386) || defined(TARGET_SPARC) || defined(TARGET_PPC)
-        cpu_reset(new_env);
+        cpu_state_reset(new_env);
 #endif
         /* Init regs that differ from the parent.  */
         cpu_clone_regs(new_env, newsp);

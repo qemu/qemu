@@ -107,7 +107,7 @@ static void main_cpu_reset(void *opaque)
     ResetData *s = (ResetData *)opaque;
     CPUState *env = s->env;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->active_tc.PC = s->vector & ~(target_ulong)1;
     if (s->vector & 1) {
         env->hflags |= MIPS_HFLAG_M16;

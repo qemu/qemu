@@ -928,7 +928,7 @@ static void pc_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->halted = !cpu_is_bsp(env);
 }
 
