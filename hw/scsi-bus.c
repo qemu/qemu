@@ -791,7 +791,8 @@ static int scsi_req_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf)
     case MODE_SENSE:
         break;
     case WRITE_SAME_10:
-        cmd->xfer = 1;
+    case WRITE_SAME_16:
+        cmd->xfer = dev->blocksize;
         break;
     case READ_CAPACITY_10:
         cmd->xfer = 8;
@@ -909,6 +910,10 @@ static int scsi_req_stream_length(SCSICommand *cmd, SCSIDevice *dev, uint8_t *bu
 
 static void scsi_cmd_xfer_mode(SCSICommand *cmd)
 {
+    if (!cmd->xfer) {
+        cmd->mode = SCSI_XFER_NONE;
+        return;
+    }
     switch (cmd->buf[0]) {
     case WRITE_6:
     case WRITE_10:
@@ -934,6 +939,7 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
     case UPDATE_BLOCK:
     case WRITE_LONG_10:
     case WRITE_SAME_10:
+    case WRITE_SAME_16:
     case SEARCH_HIGH_12:
     case SEARCH_EQUAL_12:
     case SEARCH_LOW_12:
@@ -946,11 +952,7 @@ static void scsi_cmd_xfer_mode(SCSICommand *cmd)
         cmd->mode = SCSI_XFER_TO_DEV;
         break;
     default:
-        if (cmd->xfer)
-            cmd->mode = SCSI_XFER_FROM_DEV;
-        else {
-            cmd->mode = SCSI_XFER_NONE;
-        }
+        cmd->mode = SCSI_XFER_FROM_DEV;
         break;
     }
 }

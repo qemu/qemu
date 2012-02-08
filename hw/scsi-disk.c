@@ -1566,8 +1566,11 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         }
         break;
     case WRITE_SAME_10:
+        len = lduw_be_p(&buf[7]);
+        goto write_same;
     case WRITE_SAME_16:
-        len = r->req.cmd.xfer / s->qdev.blocksize;
+        len = ldl_be_p(&buf[10]) & 0xffffffffULL;
+    write_same:
 
         DPRINTF("WRITE SAME() (sector %" PRId64 ", count %d)\n",
                 r->req.cmd.lba, len);
