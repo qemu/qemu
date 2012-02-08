@@ -48,6 +48,10 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Could not add client",
     },
     {
+        .error_fmt = QERR_AMBIGUOUS_PATH,
+        .desc      = "Path '%(path)' does not uniquely identify a %(object)"
+    },
+    {
         .error_fmt = QERR_BAD_BUS_FOR_DEVICE,
         .desc      = "Device '%(device)' can't go on a %(bad_bus_type) bus",
     },

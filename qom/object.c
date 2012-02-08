@@ -13,8 +13,14 @@
 #include "qemu/object.h"
 #include "qemu-common.h"
 #include "qapi/qapi-visit-core.h"
-#include "hw/qdev.h"
-// FIXME remove above
+
+/* TODO: replace QObject with a simpler visitor to avoid a dependency
+ * of the QOM core on QObject?  */
+#include "qemu/qom-qobject.h"
+#include "qobject.h"
+#include "qbool.h"
+#include "qint.h"
+#include "qstring.h"
 
 #define MAX_INTERFACES 32
 
@@ -62,6 +68,8 @@ typedef struct Interface
 } Interface;
 
 #define INTERFACE(obj) OBJECT_CHECK(Interface, obj, TYPE_INTERFACE)
+
+static Type type_interface;
 
 static GHashTable *type_table_get(void)
 {
@@ -368,11 +376,9 @@ void object_delete(Object *obj)
     g_free(obj);
 }
 
-static bool object_is_type(Object *obj, const char *typename)
+static bool type_is_ancestor(TypeImpl *type, TypeImpl *target_type)
 {
-    TypeImpl *target_type = type_get_by_name(typename);
-    TypeImpl *type = obj->class->type;
-    GSList *i;
+    assert(target_type);
 
     /* Check if typename is a direct ancestor of type */
     while (type) {
@@ -383,24 +389,45 @@ static bool object_is_type(Object *obj, const char *typename)
         type = type_get_parent(type);
     }
 
-    /* Check if obj has an interface of typename */
-    for (i = obj->interfaces; i; i = i->next) {
-        Interface *iface = i->data;
-
-        if (object_is_type(OBJECT(iface), typename)) {
-            return true;
-        }
-    }
-
     return false;
+}
+
+static bool object_is_type(Object *obj, TypeImpl *target_type)
+{
+    return !target_type || type_is_ancestor(obj->class->type, target_type);
 }
 
 Object *object_dynamic_cast(Object *obj, const char *typename)
 {
+    TypeImpl *target_type = type_get_by_name(typename);
     GSList *i;
 
-    /* Check if typename is a direct ancestor */
-    if (object_is_type(obj, typename)) {
+    /* Check if typename is a direct ancestor.  Special-case TYPE_OBJECT,
+     * we want to go back from interfaces to the parent.
+    */
+    if (target_type && object_is_type(obj, target_type)) {
+        return obj;
+    }
+
+    /* Check if obj is an interface and its containing object is a direct
+     * ancestor of typename.  In principle we could do this test at the very
+     * beginning of object_dynamic_cast, avoiding a second call to
+     * object_is_type.  However, casting between interfaces is relatively
+     * rare, and object_is_type(obj, type_interface) would fail almost always.
+     *
+     * Perhaps we could add a magic value to the object header for increased
+     * (run-time) type safety and to speed up tests like this one.  If we ever
+     * do that we can revisit the order here.
+     */
+    if (object_is_type(obj, type_interface)) {
+        assert(!obj->interfaces);
+        obj = INTERFACE(obj)->obj;
+        if (object_is_type(obj, target_type)) {
+            return obj;
+        }
+    }
+
+    if (!target_type) {
         return obj;
     }
 
@@ -408,18 +435,8 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
     for (i = obj->interfaces; i; i = i->next) {
         Interface *iface = i->data;
 
-        if (object_is_type(OBJECT(iface), typename)) {
+        if (object_is_type(OBJECT(iface), target_type)) {
             return OBJECT(iface);
-        }
-    }
-
-    /* Check if obj is an interface and its containing object is a direct
-     * ancestor of typename */
-    if (object_is_type(obj, TYPE_INTERFACE)) {
-        Interface *iface = INTERFACE(obj);
-
-        if (object_is_type(iface->obj, typename)) {
-            return iface->obj;
         }
     }
 
@@ -435,7 +452,7 @@ static void register_interface(void)
         .abstract = true,
     };
 
-    type_register_static(&interface_info);
+    type_interface = type_register_static(&interface_info);
 }
 
 device_init(register_interface);
@@ -648,6 +665,123 @@ void object_property_set(Object *obj, Visitor *v, const char *name,
     }
 }
 
+void object_property_set_str(Object *obj, const char *value,
+                             const char *name, Error **errp)
+{
+    QString *qstr = qstring_from_str(value);
+    object_property_set_qobject(obj, QOBJECT(qstr), name, errp);
+
+    QDECREF(qstr);
+}
+
+char *object_property_get_str(Object *obj, const char *name,
+                              Error **errp)
+{
+    QObject *ret = object_property_get_qobject(obj, name, errp);
+    QString *qstring;
+    char *retval;
+
+    if (!ret) {
+        return NULL;
+    }
+    qstring = qobject_to_qstring(ret);
+    if (!qstring) {
+        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "string");
+        retval = NULL;
+    } else {
+        retval = g_strdup(qstring_get_str(qstring));
+    }
+
+    QDECREF(qstring);
+    return retval;
+}
+
+void object_property_set_link(Object *obj, Object *value,
+                              const char *name, Error **errp)
+{
+    object_property_set_str(obj, object_get_canonical_path(value),
+                            name, errp);
+}
+
+Object *object_property_get_link(Object *obj, const char *name,
+                                 Error **errp)
+{
+    char *str = object_property_get_str(obj, name, errp);
+    Object *target = NULL;
+
+    if (str && *str) {
+        target = object_resolve_path(str, NULL);
+        if (!target) {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, str);
+        }
+    }
+
+    g_free(str);
+    return target;
+}
+
+void object_property_set_bool(Object *obj, bool value,
+                              const char *name, Error **errp)
+{
+    QBool *qbool = qbool_from_int(value);
+    object_property_set_qobject(obj, QOBJECT(qbool), name, errp);
+
+    QDECREF(qbool);
+}
+
+bool object_property_get_bool(Object *obj, const char *name,
+                              Error **errp)
+{
+    QObject *ret = object_property_get_qobject(obj, name, errp);
+    QBool *qbool;
+    bool retval;
+
+    if (!ret) {
+        return false;
+    }
+    qbool = qobject_to_qbool(ret);
+    if (!qbool) {
+        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "boolean");
+        retval = false;
+    } else {
+        retval = qbool_get_int(qbool);
+    }
+
+    QDECREF(qbool);
+    return retval;
+}
+
+void object_property_set_int(Object *obj, int64_t value,
+                             const char *name, Error **errp)
+{
+    QInt *qint = qint_from_int(value);
+    object_property_set_qobject(obj, QOBJECT(qint), name, errp);
+
+    QDECREF(qint);
+}
+
+int64_t object_property_get_int(Object *obj, const char *name,
+                                Error **errp)
+{
+    QObject *ret = object_property_get_qobject(obj, name, errp);
+    QInt *qint;
+    int64_t retval;
+
+    if (!ret) {
+        return -1;
+    }
+    qint = qobject_to_qint(ret);
+    if (!qint) {
+        error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, "int");
+        retval = -1;
+    } else {
+        retval = qint_get_int(qint);
+    }
+
+    QDECREF(qint);
+    return retval;
+}
+
 const char *object_property_get_type(Object *obj, const char *name, Error **errp)
 {
     ObjectProperty *prop = object_property_find(obj, name);
@@ -695,6 +829,12 @@ void object_property_add_child(Object *obj, const char *name,
 {
     gchar *type;
 
+    /* Registering an interface object in the composition tree will mightily
+     * confuse object_get_canonical_path (which, on the other hand, knows how
+     * to get the canonical path of an interface object).
+     */
+    assert(!object_is_type(obj, type_interface));
+
     type = g_strdup_printf("child<%s>", object_get_typename(OBJECT(child)));
 
     object_property_add(obj, name, type, object_get_child_property,
@@ -730,6 +870,7 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
     bool ambiguous = false;
     const char *type;
     char *path;
+    gchar *target_type;
 
     type = object_property_get_type(obj, name, NULL);
 
@@ -737,31 +878,30 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
 
     if (*child) {
         object_unref(*child);
+        *child = NULL;
     }
 
     if (strcmp(path, "") != 0) {
         Object *target;
 
-        target = object_resolve_path(path, &ambiguous);
-        if (target) {
-            gchar *target_type;
+        /* Go from link<FOO> to FOO.  */
+        target_type = g_strndup(&type[5], strlen(type) - 6);
+        target = object_resolve_path_type(path, target_type, &ambiguous);
 
-            target_type = g_strdup(&type[5]);
-            target_type[strlen(target_type) - 2] = 0;
-
-            if (object_dynamic_cast(target, target_type)) {
-                object_ref(target);
-                *child = target;
-            } else {
-                error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, type);
-            }
-
-            g_free(target_type);
+        if (ambiguous) {
+            error_set(errp, QERR_AMBIGUOUS_PATH, path);
+        } else if (target) {
+            object_ref(target);
+            *child = target;
         } else {
-            error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+            target = object_resolve_path(path, &ambiguous);
+            if (target || ambiguous) {
+                error_set(errp, QERR_INVALID_PARAMETER_TYPE, name, target_type);
+            } else {
+                error_set(errp, QERR_DEVICE_NOT_FOUND, path);
+            }
         }
-    } else {
-        *child = NULL;
+        g_free(target_type);
     }
 
     g_free(path);
@@ -787,6 +927,10 @@ gchar *object_get_canonical_path(Object *obj)
 {
     Object *root = object_get_root();
     char *newpath = NULL, *path = NULL;
+
+    if (object_is_type(obj, type_interface)) {
+        obj = INTERFACE(obj)->obj;
+    }
 
     while (obj != root) {
         ObjectProperty *prop = NULL;
@@ -823,17 +967,18 @@ gchar *object_get_canonical_path(Object *obj)
 
 static Object *object_resolve_abs_path(Object *parent,
                                           gchar **parts,
+                                          const char *typename,
                                           int index)
 {
     ObjectProperty *prop;
     Object *child;
 
     if (parts[index] == NULL) {
-        return parent;
+        return object_dynamic_cast(parent, typename);
     }
 
     if (strcmp(parts[index], "") == 0) {
-        return object_resolve_abs_path(parent, parts, index + 1);
+        return object_resolve_abs_path(parent, parts, typename, index + 1);
     }
 
     prop = object_property_find(parent, parts[index]);
@@ -855,17 +1000,18 @@ static Object *object_resolve_abs_path(Object *parent,
         return NULL;
     }
 
-    return object_resolve_abs_path(child, parts, index + 1);
+    return object_resolve_abs_path(child, parts, typename, index + 1);
 }
 
 static Object *object_resolve_partial_path(Object *parent,
                                               gchar **parts,
+                                              const char *typename,
                                               bool *ambiguous)
 {
     Object *obj;
     ObjectProperty *prop;
 
-    obj = object_resolve_abs_path(parent, parts, 0);
+    obj = object_resolve_abs_path(parent, parts, typename, 0);
 
     QTAILQ_FOREACH(prop, &parent->properties, node) {
         Object *found;
@@ -874,7 +1020,8 @@ static Object *object_resolve_partial_path(Object *parent,
             continue;
         }
 
-        found = object_resolve_partial_path(prop->opaque, parts, ambiguous);
+        found = object_resolve_partial_path(prop->opaque, parts,
+                                            typename, ambiguous);
         if (found) {
             if (obj) {
                 if (ambiguous) {
@@ -893,7 +1040,8 @@ static Object *object_resolve_partial_path(Object *parent,
     return obj;
 }
 
-Object *object_resolve_path(const char *path, bool *ambiguous)
+Object *object_resolve_path_type(const char *path, const char *typename,
+                                 bool *ambiguous)
 {
     bool partial_path = true;
     Object *obj;
@@ -913,14 +1061,20 @@ Object *object_resolve_path(const char *path, bool *ambiguous)
         if (ambiguous) {
             *ambiguous = false;
         }
-        obj = object_resolve_partial_path(object_get_root(), parts, ambiguous);
+        obj = object_resolve_partial_path(object_get_root(), parts,
+                                          typename, ambiguous);
     } else {
-        obj = object_resolve_abs_path(object_get_root(), parts, 1);
+        obj = object_resolve_abs_path(object_get_root(), parts, typename, 1);
     }
 
     g_strfreev(parts);
 
     return obj;
+}
+
+Object *object_resolve_path(const char *path, bool *ambiguous)
+{
+    return object_resolve_path_type(path, TYPE_OBJECT, ambiguous);
 }
 
 typedef struct StringProperty
@@ -929,8 +1083,8 @@ typedef struct StringProperty
     void (*set)(Object *, const char *, Error **);
 } StringProperty;
 
-static void object_property_get_str(Object *obj, Visitor *v, void *opaque,
-                                    const char *name, Error **errp)
+static void property_get_str(Object *obj, Visitor *v, void *opaque,
+                             const char *name, Error **errp)
 {
     StringProperty *prop = opaque;
     char *value;
@@ -942,8 +1096,8 @@ static void object_property_get_str(Object *obj, Visitor *v, void *opaque,
     }
 }
 
-static void object_property_set_str(Object *obj, Visitor *v, void *opaque,
-                                  const char *name, Error **errp)
+static void property_set_str(Object *obj, Visitor *v, void *opaque,
+                             const char *name, Error **errp)
 {
     StringProperty *prop = opaque;
     char *value;
@@ -959,8 +1113,8 @@ static void object_property_set_str(Object *obj, Visitor *v, void *opaque,
     g_free(value);
 }
 
-static void object_property_release_str(Object *obj, const char *name,
-                                      void *opaque)
+static void property_release_str(Object *obj, const char *name,
+                                 void *opaque)
 {
     StringProperty *prop = opaque;
     g_free(prop);
@@ -977,8 +1131,8 @@ void object_property_add_str(Object *obj, const char *name,
     prop->set = set;
 
     object_property_add(obj, name, "string",
-                        get ? object_property_get_str : NULL,
-                        set ? object_property_set_str : NULL,
-                        object_property_release_str,
+                        get ? property_get_str : NULL,
+                        set ? property_set_str : NULL,
+                        property_release_str,
                         prop, errp);
 }
