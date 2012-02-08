@@ -15,8 +15,6 @@ QEMU_OBJS_LIB=$(addsuffix .lo,$(basename $(QEMU_OBJS)))
 
 QEMU_CFLAGS+=-I../
 
-QEMU_CFLAGS+=$(GLIB_CFLAGS)
-
 libcacard.lib-y=$(addsuffix .lo,$(basename $(libcacard-y)))
 
 vscclient: $(libcacard-y) $(QEMU_OBJS) vscclient.o

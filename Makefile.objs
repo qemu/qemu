@@ -323,8 +323,6 @@ hw-obj-$(CONFIG_SOUND) += $(sound-obj-y)
 9pfs-nested-$(CONFIG_VIRTFS) += virtio-9p-proxy.o
 
 hw-obj-$(CONFIG_REALLY_VIRTFS) += $(addprefix 9pfs/, $(9pfs-nested-y))
-$(addprefix 9pfs/, $(9pfs-nested-y)): QEMU_CFLAGS+=$(GLIB_CFLAGS)
-
 
 ######################################################################
 # libdis
