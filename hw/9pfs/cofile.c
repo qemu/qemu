@@ -76,6 +76,20 @@ int v9fs_co_fstat(V9fsPDU *pdu, V9fsFidState *fidp, struct stat *stbuf)
                 err = -errno;
             }
         });
+    /*
+     * Some FS driver (local:mapped-file) can't support fetching attributes
+     * using file descriptor. Use Path name in that case.
+     */
+    if (err == -EOPNOTSUPP) {
+        err = v9fs_co_lstat(pdu, &fidp->path, stbuf);
+        if (err == -ENOENT) {
+            /*
+             * fstat on an unlinked file. Work with partial results
+             * returned from s->ops->fstat
+             */
+            err = 0;
+        }
+    }
     return err;
 }
 

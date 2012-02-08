@@ -91,15 +91,6 @@ VirtIODevice *virtio_9p_init(DeviceState *dev, V9fsConf *conf)
         s->ctx.fs_root = NULL;
     }
     s->ctx.exops.get_st_gen = NULL;
-
-    if (fse->export_flags & V9FS_SM_PASSTHROUGH) {
-        s->ctx.xops = passthrough_xattr_ops;
-    } else if (fse->export_flags & V9FS_SM_MAPPED) {
-        s->ctx.xops = mapped_xattr_ops;
-    } else if (fse->export_flags & V9FS_SM_NONE) {
-        s->ctx.xops = none_xattr_ops;
-    }
-
     len = strlen(conf->tag);
     if (len > MAX_TAG_LEN - 1) {
         fprintf(stderr, "mount tag '%s' (%d bytes) is longer than "
