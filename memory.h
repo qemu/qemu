@@ -160,6 +160,7 @@ typedef struct MemoryRegionSection MemoryRegionSection;
  * @size: the size of the section; will not exceed @mr's boundaries
  * @offset_within_address_space: the address of the first byte of the section
  *     relative to the region's address space
+ * @readonly: writes to this section are ignored
  */
 struct MemoryRegionSection {
     MemoryRegion *mr;
@@ -167,6 +168,7 @@ struct MemoryRegionSection {
     target_phys_addr_t offset_within_region;
     uint64_t size;
     target_phys_addr_t offset_within_address_space;
+    bool readonly;
 };
 
 typedef struct MemoryListener MemoryListener;

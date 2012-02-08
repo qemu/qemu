@@ -112,6 +112,7 @@ enum ListenerDirection { Forward, Reverse };
         .offset_within_region = (fr)->offset_in_region,                 \
         .size = int128_get64((fr)->addr.size),                          \
         .offset_within_address_space = int128_get64((fr)->addr.start),  \
+        .readonly = (fr)->readonly,                                     \
                 })
 
 struct CoalescedMemoryRange {
@@ -342,6 +343,7 @@ static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
         .offset_within_address_space = int128_get64(fr->addr.start),
         .offset_within_region = fr->offset_in_region,
         .size = int128_get64(fr->addr.size),
+        .readonly = fr->readonly,
     };
 
     cpu_register_physical_memory_log(&section, fr->readable, fr->readonly);
@@ -354,6 +356,7 @@ static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
         .offset_within_address_space = int128_get64(fr->addr.start),
         .offset_within_region = int128_get64(fr->addr.start),
         .size = int128_get64(fr->addr.size),
+        .readonly = fr->readonly,
     };
 
     cpu_register_physical_memory_log(&section, true, false);
@@ -1437,6 +1440,7 @@ MemoryRegionSection memory_region_find(MemoryRegion *address_space,
                                                         fr->addr.start));
     ret.size = int128_get64(range.size);
     ret.offset_within_address_space = int128_get64(range.start);
+    ret.readonly = fr->readonly;
     return ret;
 }
 
@@ -1479,6 +1483,7 @@ static void listener_add_address_space(MemoryListener *listener,
             .offset_within_region = fr->offset_in_region,
             .size = int128_get64(fr->addr.size),
             .offset_within_address_space = int128_get64(fr->addr.start),
+            .readonly = fr->readonly,
         };
         listener->region_add(listener, &section);
     }
