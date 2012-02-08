@@ -330,14 +330,6 @@ static int pci_pcnet_init(PCIDevice *pci_dev)
     s->phys_mem_write = pci_physical_memory_write;
     s->dma_opaque = pci_dev;
 
-    if (!pci_dev->qdev.hotplugged) {
-        static int loaded = 0;
-        if (!loaded) {
-            rom_add_option("pxe-pcnet.rom", -1);
-            loaded = 1;
-        }
-    }
-
     return pcnet_common_init(&pci_dev->qdev, s, &net_pci_pcnet_info);
 }
 
@@ -360,6 +352,7 @@ static void pcnet_class_init(ObjectClass *klass, void *data)
 
     k->init = pci_pcnet_init;
     k->exit = pci_pcnet_uninit;
+    k->romfile = "pxe-pcnet.rom",
     k->vendor_id = PCI_VENDOR_ID_AMD;
     k->device_id = PCI_DEVICE_ID_AMD_LANCE;
     k->revision = 0x10;

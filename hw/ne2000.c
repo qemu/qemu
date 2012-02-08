@@ -763,14 +763,6 @@ static int pci_ne2000_init(PCIDevice *pci_dev)
                           object_get_typename(OBJECT(pci_dev)), pci_dev->qdev.id, s);
     qemu_format_nic_info_str(&s->nic->nc, s->c.macaddr.a);
 
-    if (!pci_dev->qdev.hotplugged) {
-        static int loaded = 0;
-        if (!loaded) {
-            rom_add_option("pxe-ne2k_pci.rom", -1);
-            loaded = 1;
-        }
-    }
-
     add_boot_device_path(s->c.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
 
     return 0;
@@ -798,6 +790,7 @@ static void ne2000_class_init(ObjectClass *klass, void *data)
 
     k->init = pci_ne2000_init;
     k->exit = pci_ne2000_exit;
+    k->romfile = "pxe-ne2k_pci.rom",
     k->vendor_id = PCI_VENDOR_ID_REALTEK;
     k->device_id = PCI_DEVICE_ID_REALTEK_8029;
     k->class_id = PCI_CLASS_NETWORK_ETHERNET;
