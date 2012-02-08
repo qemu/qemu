@@ -1262,14 +1262,39 @@ static int scsi_disk_emulate_start_stop(SCSIDiskReq *r)
     return 0;
 }
 
-static int scsi_disk_emulate_command(SCSIDiskReq *r)
+static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
 {
-    SCSIRequest *req = &r->req;
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     uint64_t nb_sectors;
     uint8_t *outbuf;
     int buflen = 0;
 
+    switch (req->cmd.buf[0]) {
+    case INQUIRY:
+    case MODE_SENSE:
+    case MODE_SENSE_10:
+    case RESERVE:
+    case RESERVE_10:
+    case RELEASE:
+    case RELEASE_10:
+    case START_STOP:
+    case ALLOW_MEDIUM_REMOVAL:
+    case GET_CONFIGURATION:
+    case GET_EVENT_STATUS_NOTIFICATION:
+    case MECHANISM_STATUS:
+    case REQUEST_SENSE:
+        break;
+
+    default:
+        if (s->tray_open || !bdrv_is_inserted(s->qdev.conf.bs)) {
+            scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
+            return 0;
+        }
+        break;
+    }
+
+    assert(req->cmd.mode != SCSI_XFER_TO_DEV);
     if (!r->iov.iov_base) {
         /*
          * FIXME: we shouldn't return anything bigger than 4k, but the code
@@ -1332,7 +1357,7 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
         break;
     case START_STOP:
         if (scsi_disk_emulate_start_stop(r) < 0) {
-            return -1;
+            return 0;
         }
         break;
     case ALLOW_MEDIUM_REMOVAL:
@@ -1503,18 +1528,23 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
                                         scsi_aio_complete, r);
         return 0;
     default:
+        DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
-        return -1;
+        return 0;
     }
-    assert(r->sector_count == 0);
-    buflen = MIN(buflen, req->cmd.xfer);
-    return buflen;
+    assert(!r->req.aiocb && r->sector_count == 0);
+    r->iov.iov_len = MIN(buflen, req->cmd.xfer);
+    r->sector_count = -1;
+    if (r->iov.iov_len == 0) {
+        scsi_req_complete(&r->req, GOOD);
+    }
+    return r->iov.iov_len;
 
 illegal_request:
     if (r->req.status == -1) {
         scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
     }
-    return -1;
+    return 0;
 
 illegal_lba:
     scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
@@ -1526,49 +1556,18 @@ illegal_lba:
    (eg. disk reads), negative for transfers to the device (eg. disk writes),
    and zero if the command does not transfer any data.  */
 
-static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
+static int32_t scsi_disk_dma_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     int32_t len;
     uint8_t command;
-    int rc;
 
     command = buf[0];
-    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", req->lun, req->tag, buf[0]);
 
-#ifdef DEBUG_SCSI
-    {
-        int i;
-        for (i = 1; i < r->req.cmd.len; i++) {
-            printf(" 0x%02x", buf[i]);
-        }
-        printf("\n");
-    }
-#endif
-
-    switch (command) {
-    case INQUIRY:
-    case MODE_SENSE:
-    case MODE_SENSE_10:
-    case RESERVE:
-    case RESERVE_10:
-    case RELEASE:
-    case RELEASE_10:
-    case START_STOP:
-    case ALLOW_MEDIUM_REMOVAL:
-    case GET_CONFIGURATION:
-    case GET_EVENT_STATUS_NOTIFICATION:
-    case MECHANISM_STATUS:
-    case REQUEST_SENSE:
-        break;
-
-    default:
-        if (s->tray_open || !bdrv_is_inserted(s->qdev.conf.bs)) {
-            scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
-            return 0;
-        }
-        break;
+    if (s->tray_open || !bdrv_is_inserted(s->qdev.conf.bs)) {
+        scsi_check_condition(r, SENSE_CODE(NO_MEDIUM));
+        return 0;
     }
 
     switch (command) {
@@ -1605,30 +1604,19 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         r->sector_count = len * (s->qdev.blocksize / 512);
         break;
     default:
-        rc = scsi_disk_emulate_command(r);
-        if (rc < 0) {
-            return 0;
-        }
-        if (r->req.aiocb) {
-            return 0;
-        }
-        r->iov.iov_len = rc;
-        break;
+        abort();
     illegal_lba:
         scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
         return 0;
     }
-    if (r->sector_count == 0 && r->iov.iov_len == 0) {
+    if (r->sector_count == 0) {
         scsi_req_complete(&r->req, GOOD);
     }
-    len = r->sector_count * 512 + r->iov.iov_len;
+    assert(r->iov.iov_len == 0);
     if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
-        return -len;
+        return -r->sector_count * 512;
     } else {
-        if (!r->sector_count) {
-            r->sector_count = -1;
-        }
-        return len;
+        return r->sector_count * 512;
     }
 }
 
@@ -1793,10 +1781,19 @@ static int scsi_disk_initfn(SCSIDevice *dev)
     }
 }
 
-static const SCSIReqOps scsi_disk_reqops = {
+static const SCSIReqOps scsi_disk_emulate_reqops = {
     .size         = sizeof(SCSIDiskReq),
     .free_req     = scsi_free_request,
-    .send_command = scsi_send_command,
+    .send_command = scsi_disk_emulate_command,
+    .read_data    = scsi_read_data,
+    .write_data   = scsi_write_data,
+    .get_buf      = scsi_get_buf,
+};
+
+static const SCSIReqOps scsi_disk_dma_reqops = {
+    .size         = sizeof(SCSIDiskReq),
+    .free_req     = scsi_free_request,
+    .send_command = scsi_disk_dma_command,
     .read_data    = scsi_read_data,
     .write_data   = scsi_write_data,
     .cancel_io    = scsi_cancel_io,
@@ -1805,13 +1802,72 @@ static const SCSIReqOps scsi_disk_reqops = {
     .save_request = scsi_disk_save_request,
 };
 
+static const SCSIReqOps *const scsi_disk_reqops_dispatch[256] = {
+    [TEST_UNIT_READY]                 = &scsi_disk_emulate_reqops,
+    [INQUIRY]                         = &scsi_disk_emulate_reqops,
+    [MODE_SENSE]                      = &scsi_disk_emulate_reqops,
+    [MODE_SENSE_10]                   = &scsi_disk_emulate_reqops,
+    [START_STOP]                      = &scsi_disk_emulate_reqops,
+    [ALLOW_MEDIUM_REMOVAL]            = &scsi_disk_emulate_reqops,
+    [READ_CAPACITY_10]                = &scsi_disk_emulate_reqops,
+    [READ_TOC]                        = &scsi_disk_emulate_reqops,
+    [READ_DVD_STRUCTURE]              = &scsi_disk_emulate_reqops,
+    [READ_DISC_INFORMATION]           = &scsi_disk_emulate_reqops,
+    [GET_CONFIGURATION]               = &scsi_disk_emulate_reqops,
+    [GET_EVENT_STATUS_NOTIFICATION]   = &scsi_disk_emulate_reqops,
+    [MECHANISM_STATUS]                = &scsi_disk_emulate_reqops,
+    [SERVICE_ACTION_IN_16]            = &scsi_disk_emulate_reqops,
+    [REQUEST_SENSE]                   = &scsi_disk_emulate_reqops,
+    [SYNCHRONIZE_CACHE]               = &scsi_disk_emulate_reqops,
+    [SEEK_10]                         = &scsi_disk_emulate_reqops,
+#if 0
+    [MODE_SELECT]                     = &scsi_disk_emulate_reqops,
+    [MODE_SELECT_10]                  = &scsi_disk_emulate_reqops,
+#endif
+    [WRITE_SAME_10]                   = &scsi_disk_emulate_reqops,
+    [WRITE_SAME_16]                   = &scsi_disk_emulate_reqops,
+
+    [READ_6]                          = &scsi_disk_dma_reqops,
+    [READ_10]                         = &scsi_disk_dma_reqops,
+    [READ_12]                         = &scsi_disk_dma_reqops,
+    [READ_16]                         = &scsi_disk_dma_reqops,
+    [VERIFY_10]                       = &scsi_disk_dma_reqops,
+    [VERIFY_12]                       = &scsi_disk_dma_reqops,
+    [VERIFY_16]                       = &scsi_disk_dma_reqops,
+    [WRITE_6]                         = &scsi_disk_dma_reqops,
+    [WRITE_10]                        = &scsi_disk_dma_reqops,
+    [WRITE_12]                        = &scsi_disk_dma_reqops,
+    [WRITE_16]                        = &scsi_disk_dma_reqops,
+    [WRITE_VERIFY_10]                 = &scsi_disk_dma_reqops,
+    [WRITE_VERIFY_12]                 = &scsi_disk_dma_reqops,
+    [WRITE_VERIFY_16]                 = &scsi_disk_dma_reqops,
+};
+
 static SCSIRequest *scsi_new_request(SCSIDevice *d, uint32_t tag, uint32_t lun,
                                      uint8_t *buf, void *hba_private)
 {
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, d);
     SCSIRequest *req;
+    const SCSIReqOps *ops;
+    uint8_t command;
 
-    req = scsi_req_alloc(&scsi_disk_reqops, &s->qdev, tag, lun, hba_private);
+#ifdef DEBUG_SCSI
+    DPRINTF("Command: lun=%d tag=0x%x data=0x%02x", lun, buf[0]);
+    {
+        int i;
+        for (i = 1; i < r->req.cmd.len; i++) {
+            printf(" 0x%02x", buf[i]);
+        }
+        printf("\n");
+    }
+#endif
+
+    command = buf[0];
+    ops = scsi_disk_reqops_dispatch[command];
+    if (!ops) {
+        ops = &scsi_disk_emulate_reqops;
+    }
+    req = scsi_req_alloc(ops, &s->qdev, tag, lun, hba_private);
     return req;
 }
 
@@ -1925,15 +1981,14 @@ static SCSIRequest *scsi_block_new_request(SCSIDevice *d, uint32_t tag,
          * unreliable, too.  It is even possible that reads deliver random data
          * from the host page cache (this is probably a Linux bug).
          *
-         * We might use scsi_disk_reqops as long as no writing commands are
+         * We might use scsi_disk_dma_reqops as long as no writing commands are
          * seen, but performance usually isn't paramount on optical media.  So,
          * just make scsi-block operate the same as scsi-generic for them.
          */
-        if (s->qdev.type == TYPE_ROM) {
-            break;
-	}
-        return scsi_req_alloc(&scsi_disk_reqops, &s->qdev, tag, lun,
-                              hba_private);
+        if (s->qdev.type != TYPE_ROM) {
+            return scsi_req_alloc(&scsi_disk_dma_reqops, &s->qdev, tag, lun,
+                                  hba_private);
+        }
     }
 
     return scsi_req_alloc(&scsi_generic_req_ops, &s->qdev, tag, lun,
