@@ -56,11 +56,15 @@ typedef struct extended_ops {
  * On failure ignore the error.
  */
 #define V9FS_SM_NONE                0x00000010
-#define V9FS_RDONLY                 0x00000020
-#define V9FS_PROXY_SOCK_FD          0x00000040
-#define V9FS_PROXY_SOCK_NAME        0x00000080
+/*
+ * uid/gid part of .virtfs_meatadata namespace
+ */
+#define V9FS_SM_MAPPED_FILE         0x00000020
+#define V9FS_RDONLY                 0x00000040
+#define V9FS_PROXY_SOCK_FD          0x00000080
+#define V9FS_PROXY_SOCK_NAME        0x00000100
 
-#define V9FS_SEC_MASK               0x0000001C
+#define V9FS_SEC_MASK               0x0000003C
 
 
 typedef struct FileOperations FileOperations;

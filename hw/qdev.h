@@ -112,41 +112,22 @@ struct Property {
     const char   *name;
     PropertyInfo *info;
     int          offset;
-    int          bitnr;
-    void         *defval;
-};
-
-enum PropertyType {
-    PROP_TYPE_UNSPEC = 0,
-    PROP_TYPE_UINT8,
-    PROP_TYPE_UINT16,
-    PROP_TYPE_UINT32,
-    PROP_TYPE_INT32,
-    PROP_TYPE_UINT64,
-    PROP_TYPE_TADDR,
-    PROP_TYPE_MACADDR,
-    PROP_TYPE_LOSTTICKPOLICY,
-    PROP_TYPE_DRIVE,
-    PROP_TYPE_CHR,
-    PROP_TYPE_STRING,
-    PROP_TYPE_NETDEV,
-    PROP_TYPE_VLAN,
-    PROP_TYPE_PTR,
-    PROP_TYPE_BIT,
+    uint8_t      bitnr;
+    uint8_t      qtype;
+    int64_t      defval;
 };
 
 struct PropertyInfo {
     const char *name;
     const char *legacy_name;
-    size_t size;
-    enum PropertyType type;
+    const char **enum_table;
     int64_t min;
     int64_t max;
     int (*parse)(DeviceState *dev, Property *prop, const char *str);
     int (*print)(DeviceState *dev, Property *prop, char *dest, size_t len);
-    void (*free)(DeviceState *dev, Property *prop);
     ObjectPropertyAccessor *get;
     ObjectPropertyAccessor *set;
+    ObjectPropertyRelease *release;
 };
 
 typedef struct GlobalProperty {
@@ -254,7 +235,8 @@ extern PropertyInfo qdev_prop_pci_devfn;
         .info      = &(_prop),                                          \
         .offset    = offsetof(_state, _field)                           \
             + type_check(_type,typeof_field(_state, _field)),           \
-        .defval    = (_type[]) { _defval },                             \
+        .qtype     = QTYPE_QINT,                                        \
+        .defval    = (_type)_defval,                                    \
         }
 #define DEFINE_PROP_BIT(_name, _state, _field, _bit, _defval) {  \
         .name      = (_name),                                    \
@@ -262,7 +244,8 @@ extern PropertyInfo qdev_prop_pci_devfn;
         .bitnr    = (_bit),                                      \
         .offset    = offsetof(_state, _field)                    \
             + type_check(uint32_t,typeof_field(_state, _field)), \
-        .defval    = (bool[]) { (_defval) },                     \
+        .qtype     = QTYPE_QBOOL,                                \
+        .defval    = (bool)_defval,                              \
         }
 
 #define DEFINE_PROP_UINT8(_n, _s, _f, _d)                       \
@@ -309,7 +292,6 @@ extern PropertyInfo qdev_prop_pci_devfn;
 void *qdev_get_prop_ptr(DeviceState *dev, Property *prop);
 int qdev_prop_exists(DeviceState *dev, const char *name);
 int qdev_prop_parse(DeviceState *dev, const char *name, const char *value);
-void qdev_prop_set(DeviceState *dev, const char *name, void *src, enum PropertyType type);
 void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value);
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value);
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value);
@@ -323,8 +305,7 @@ void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value);
 int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value) QEMU_WARN_UNUSED_RESULT;
 void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name, BlockDriverState *value);
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value);
-void qdev_prop_set_losttickpolicy(DeviceState *dev, const char *name,
-                                  LostTickPolicy *value);
+void qdev_prop_set_enum(DeviceState *dev, const char *name, int value);
 /* FIXME: Remove opaque pointer properties.  */
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value);
 void qdev_prop_set_defaults(DeviceState *dev, Property *props);

@@ -485,22 +485,26 @@ static void qbus_print(Monitor *mon, BusState *bus, int indent);
 static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
                              const char *prefix, int indent)
 {
-    char buf[64];
-
     if (!props)
         return;
-    while (props->name) {
-        /*
-         * TODO Properties without a print method are just for dirty
-         * hacks.  qdev_prop_ptr is the only such PropertyInfo.  It's
-         * marked for removal.  The test props->info->print should be
-         * removed along with it.
-         */
-        if (props->info->print) {
-            props->info->print(dev, props, buf, sizeof(buf));
-            qdev_printf("%s-prop: %s = %s\n", prefix, props->name, buf);
+    for (; props->name; props++) {
+        Error *err = NULL;
+        char *value;
+        char *legacy_name = g_strdup_printf("legacy-%s", props->name);
+        if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
+            value = object_property_get_str(OBJECT(dev), legacy_name, &err);
+        } else {
+            value = object_property_get_str(OBJECT(dev), props->name, &err);
         }
-        props++;
+        g_free(legacy_name);
+
+        if (err) {
+            error_free(err);
+            continue;
+        }
+        qdev_printf("%s-prop: %s = %s\n", prefix, props->name,
+                    value && *value ? value : "<null>");
+        g_free(value);
     }
 }
 

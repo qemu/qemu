@@ -54,6 +54,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_ADD_CLIENT_FAILED \
     "{ 'class': 'AddClientFailed', 'data': {} }"
 
+#define QERR_AMBIGUOUS_PATH \
+    "{ 'class': 'AmbiguousPath', 'data': { 'path': %s } }"
+
 #define QERR_BAD_BUS_FOR_DEVICE \
     "{ 'class': 'BadBusForDevice', 'data': { 'device': %s, 'bad_bus_type': %s } }"
 

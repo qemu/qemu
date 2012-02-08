@@ -554,7 +554,7 @@ DEFHEADING()
 DEFHEADING(File system options:)
 
 DEF("fsdev", HAS_ARG, QEMU_OPTION_fsdev,
-    "-fsdev fsdriver,id=id[,path=path,][security_model={mapped|passthrough|none}]\n"
+    "-fsdev fsdriver,id=id[,path=path,][security_model={mapped-xattr|mapped-file|passthrough|none}]\n"
     " [,writeout=immediate][,readonly][,socket=socket|sock_fd=sock_fd]\n",
     QEMU_ARCH_ALL)
 
@@ -574,12 +574,13 @@ Specifies the export path for the file system device. Files under
 this path will be available to the 9p client on the guest.
 @item security_model=@var{security_model}
 Specifies the security model to be used for this export path.
-Supported security models are "passthrough", "mapped" and "none".
+Supported security models are "passthrough", "mapped-xattr", "mapped-file" and "none".
 In "passthrough" security model, files are stored using the same
 credentials as they are created on the guest. This requires qemu
-to run as root. In "mapped" security model, some of the file
+to run as root. In "mapped-xattr" security model, some of the file
 attributes like uid, gid, mode bits and link target are stored as
-file attributes. Directories exported by this security model cannot
+file attributes. For "mapped-file" these attributes are stored in the
+hidden .virtfs_metadata directory. Directories exported by this security model cannot
 interact with other unix tools. "none" security model is same as
 passthrough except the sever won't report failures if it fails to
 set file attributes like ownership. Security model is mandatory
@@ -619,7 +620,7 @@ DEFHEADING()
 DEFHEADING(Virtual File system pass-through options:)
 
 DEF("virtfs", HAS_ARG, QEMU_OPTION_virtfs,
-    "-virtfs local,path=path,mount_tag=tag,security_model=[mapped|passthrough|none]\n"
+    "-virtfs local,path=path,mount_tag=tag,security_model=[mapped-xattr|mapped-file|passthrough|none]\n"
     "        [,writeout=immediate][,readonly][,socket=socket|sock_fd=sock_fd]\n",
     QEMU_ARCH_ALL)
 
@@ -640,12 +641,13 @@ Specifies the export path for the file system device. Files under
 this path will be available to the 9p client on the guest.
 @item security_model=@var{security_model}
 Specifies the security model to be used for this export path.
-Supported security models are "passthrough", "mapped" and "none".
+Supported security models are "passthrough", "mapped-xattr", "mapped-file" and "none".
 In "passthrough" security model, files are stored using the same
 credentials as they are created on the guest. This requires qemu
-to run as root. In "mapped" security model, some of the file
+to run as root. In "mapped-xattr" security model, some of the file
 attributes like uid, gid, mode bits and link target are stored as
-file attributes. Directories exported by this security model cannot
+file attributes. For "mapped-file" these attributes are stored in the
+hidden .virtfs_metadata directory. Directories exported by this security model cannot
 interact with other unix tools. "none" security model is same as
 passthrough except the sever won't report failures if it fails to
 set file attributes like ownership. Security model is mandatory only

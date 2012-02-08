@@ -221,14 +221,14 @@ static const VMStateDescription vmstate_gus = {
     .minimum_version_id = 2,
     .minimum_version_id_old = 2,
     .fields      = (VMStateField []) {
-        VMSTATE_INT32(pos, GUSState),
-        VMSTATE_INT32(left, GUSState),
-        VMSTATE_INT32(shift, GUSState),
-        VMSTATE_INT32(irqs, GUSState),
-        VMSTATE_INT32(samples, GUSState),
-        VMSTATE_INT64(last_ticks, GUSState),
-        VMSTATE_BUFFER(himem, GUSState),
-        VMSTATE_END_OF_LIST()
+        VMSTATE_INT32 (pos, GUSState),
+        VMSTATE_INT32 (left, GUSState),
+        VMSTATE_INT32 (shift, GUSState),
+        VMSTATE_INT32 (irqs, GUSState),
+        VMSTATE_INT32 (samples, GUSState),
+        VMSTATE_INT64 (last_ticks, GUSState),
+        VMSTATE_BUFFER (himem, GUSState),
+        VMSTATE_END_OF_LIST ()
     }
 };
 
@@ -239,13 +239,13 @@ static const MemoryRegionPortio gus_portio_list1[] = {
     {0x006, 10, 2, .read = gus_readw, .write = gus_writew },
     {0x100,  8, 1, .read = gus_readb, .write = gus_writeb },
     {0x100,  8, 2, .read = gus_readw, .write = gus_writew },
-    PORTIO_END_OF_LIST(),
+    PORTIO_END_OF_LIST (),
 };
 
 static const MemoryRegionPortio gus_portio_list2[] = {
     {0, 1, 1, .read = gus_readb },
     {0, 1, 2, .read = gus_readw },
-    PORTIO_END_OF_LIST(),
+    PORTIO_END_OF_LIST (),
 };
 
 static int gus_initfn (ISADevice *dev)
@@ -307,10 +307,10 @@ static Property gus_properties[] = {
     DEFINE_PROP_END_OF_LIST (),
 };
 
-static void gus_class_initfn(ObjectClass *klass, void *data)
+static void gus_class_initfn (ObjectClass *klass, void *data)
 {
-    DeviceClass *dc = DEVICE_CLASS(klass);
-    ISADeviceClass *ic = ISA_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS (klass);
+    ISADeviceClass *ic = ISA_DEVICE_CLASS (klass);
     ic->init = gus_initfn;
     dc->desc = "Gravis Ultrasound GF1";
     dc->vmsd = &vmstate_gus;
@@ -326,6 +326,6 @@ static TypeInfo gus_info = {
 
 static void gus_register (void)
 {
-    type_register_static(&gus_info);
+    type_register_static (&gus_info);
 }
 device_init (gus_register)

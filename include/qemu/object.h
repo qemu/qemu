@@ -55,6 +55,9 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * #define TYPE_MY_DEVICE "my-device"
  *
+ * // No new virtual functions: we can reuse the typedef for the
+ * // superclass.
+ * typedef DeviceClass MyDeviceClass;
  * typedef struct MyDevice
  * {
  *     DeviceState parent;
@@ -88,8 +91,21 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * Using object_new(), a new #Object derivative will be instantiated.  You can
  * cast an #Object to a subclass (or base-class) type using
- * object_dynamic_cast().  You typically want to define a macro wrapper around
- * object_dynamic_cast_assert() to make it easier to convert to a specific type.
+ * object_dynamic_cast().  You typically want to define macro wrappers around
+ * OBJECT_CHECK() and OBJECT_CLASS_CHECK() to make it easier to convert to a
+ * specific type:
+ *
+ * <example>
+ *   <title>Typecasting macros</title>
+ *   <programlisting>
+ *    #define MY_DEVICE_GET_CLASS(obj) \
+ *       OBJECT_GET_CLASS(MyDeviceClass, obj, TYPE_MY_DEVICE)
+ *    #define MY_DEVICE_CLASS(klass) \
+ *       OBJECT_CLASS_CHECK(MyDeviceClass, klass, TYPE_MY_DEVICE)
+ *    #define MY_DEVICE(obj) \
+ *       OBJECT_CHECK(MyDevice, obj, TYPE_MY_DEVICE)
+ *   </programlisting>
+ * </example>
  *
  * # Class Initialization #
  *
@@ -108,7 +124,61 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * Once all of the parent classes have been initialized, #TypeInfo::class_init
  * is called to let the class being instantiated provide default initialize for
- * it's virtual functions.
+ * it's virtual functions.  Here is how the above example might be modified
+ * to introduce an overridden virtual function:
+ *
+ * <example>
+ *   <title>Overriding a virtual function</title>
+ *   <programlisting>
+ * #include "qdev.h"
+ *
+ * void my_device_class_init(ObjectClass *klass, void *class_data)
+ * {
+ *     DeviceClass *dc = DEVICE_CLASS(klass);
+ *     dc->reset = my_device_reset;
+ * }
+ *
+ * static TypeInfo my_device_info = {
+ *     .name = TYPE_MY_DEVICE,
+ *     .parent = TYPE_DEVICE,
+ *     .instance_size = sizeof(MyDevice),
+ *     .class_init = my_device_class_init,
+ * };
+ *   </programlisting>
+ * </example>
+ *
+ * Introducing new virtual functions requires a class to define its own
+ * struct and to add a .class_size member to the TypeInfo.  Each function
+ * will also have a wrapper to call it easily:
+ *
+ * <example>
+ *   <title>Defining an abstract class</title>
+ *   <programlisting>
+ * #include "qdev.h"
+ *
+ * typedef struct MyDeviceClass
+ * {
+ *     DeviceClass parent;
+ *
+ *     void (*frobnicate) (MyDevice *obj);
+ * } MyDeviceClass;
+ *
+ * static TypeInfo my_device_info = {
+ *     .name = TYPE_MY_DEVICE,
+ *     .parent = TYPE_DEVICE,
+ *     .instance_size = sizeof(MyDevice),
+ *     .abstract = true, // or set a default in my_device_class_init
+ *     .class_size = sizeof(MyDeviceClass),
+ * };
+ *
+ * void my_device_frobnicate(MyDevice *obj)
+ * {
+ *     MyDeviceClass *klass = MY_DEVICE_GET_CLASS(obj);
+ *
+ *     klass->frobnicate(obj);
+ * }
+ *   </programlisting>
+ * </example>
  *
  * # Interfaces #
  *
@@ -259,6 +329,16 @@ struct TypeInfo
     ((Object *)(obj))
 
 /**
+ * OBJECT_CLASS:
+ * @class: A derivative of #ObjectClas.
+ *
+ * Converts a class to an #ObjectClass.  Since all objects are #Objects,
+ * this function will always succeed.
+ */
+#define OBJECT_CLASS(class) \
+    ((ObjectClass *)(class))
+
+/**
  * OBJECT_CHECK:
  * @type: The C type to use for the return value.
  * @obj: A derivative of @type to cast.
@@ -272,7 +352,7 @@ struct TypeInfo
  * generated.
  */
 #define OBJECT_CHECK(type, obj, name) \
-    ((type *)object_dynamic_cast_assert((Object *)(obj), (name)))
+    ((type *)object_dynamic_cast_assert(OBJECT(obj), (name)))
 
 /**
  * OBJECT_CLASS_CHECK:
@@ -280,11 +360,12 @@ struct TypeInfo
  * @obj: A derivative of @type to cast.
  * @name: the QOM typename of @class.
  *
- * A type safe version of @object_check_class.  This macro is typically wrapped
- * by each type to perform type safe casts of a class to a specific class type.
+ * A type safe version of @object_class_dynamic_cast_assert.  This macro is
+ * typically wrapped by each type to perform type safe casts of a class to a
+ * specific class type.
  */
 #define OBJECT_CLASS_CHECK(class, obj, name) \
-    ((class *)object_class_dynamic_cast_assert((ObjectClass *)(obj), (name)))
+    ((class *)object_class_dynamic_cast_assert(OBJECT_CLASS(obj), (name)))
 
 /**
  * OBJECT_GET_CLASS:
@@ -298,9 +379,6 @@ struct TypeInfo
  */
 #define OBJECT_GET_CLASS(class, obj, name) \
     OBJECT_CLASS_CHECK(class, object_get_class(OBJECT(obj)), name)
-
-#define OBJECT_CLASS(class) \
-    ((ObjectClass *)(class))
 
 /**
  * InterfaceClass:
@@ -544,6 +622,100 @@ void object_property_get(Object *obj, struct Visitor *v, const char *name,
                          struct Error **errp);
 
 /**
+ * object_property_set_str:
+ * @value: the value to be written to the property
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Writes a string value to a property.
+ */
+void object_property_set_str(Object *obj, const char *value,
+                             const char *name, struct Error **errp);
+
+/**
+ * object_property_get_str:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns: the value of the property, converted to a C string, or NULL if
+ * an error occurs (including when the property value is not a string).
+ * The caller should free the string.
+ */
+char *object_property_get_str(Object *obj, const char *name,
+                              struct Error **errp);
+
+/**
+ * object_property_set_link:
+ * @value: the value to be written to the property
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Writes an object's canonical path to a property.
+ */
+void object_property_set_link(Object *obj, Object *value,
+                              const char *name, struct Error **errp);
+
+/**
+ * object_property_get_link:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns: the value of the property, resolved from a path to an Object,
+ * or NULL if an error occurs (including when the property value is not a
+ * string or not a valid object path).
+ */
+Object *object_property_get_link(Object *obj, const char *name,
+                                 struct Error **errp);
+
+/**
+ * object_property_set_bool:
+ * @value: the value to be written to the property
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Writes a bool value to a property.
+ */
+void object_property_set_bool(Object *obj, bool value,
+                              const char *name, struct Error **errp);
+
+/**
+ * object_property_get_bool:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns: the value of the property, converted to a boolean, or NULL if
+ * an error occurs (including when the property value is not a bool).
+ */
+bool object_property_get_bool(Object *obj, const char *name,
+                              struct Error **errp);
+
+/**
+ * object_property_set_int:
+ * @value: the value to be written to the property
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Writes an integer value to a property.
+ */
+void object_property_set_int(Object *obj, int64_t value,
+                             const char *name, struct Error **errp);
+
+/**
+ * object_property_get_int:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns: the value of the property, converted to an integer, or NULL if
+ * an error occurs (including when the property value is not an integer).
+ */
+int64_t object_property_get_int(Object *obj, const char *name,
+                                struct Error **errp);
+
+/**
  * object_property_set:
  * @obj: the object
  * @v: the visitor that will be used to write the property value.  This should
@@ -601,12 +773,33 @@ gchar *object_get_canonical_path(Object *obj);
  * specifying objects easy.  At each level of the composition tree, the partial
  * path is matched as an absolute path.  The first match is not returned.  At
  * least two matches are searched for.  A successful result is only returned if
- * only one match is founded.  If more than one match is found, a flag is
- * return to indicate that the match was ambiguous.
+ * only one match is found.  If more than one match is found, a flag is
+ * returned to indicate that the match was ambiguous.
  *
  * Returns: The matched object or NULL on path lookup failure.
  */
 Object *object_resolve_path(const char *path, bool *ambiguous);
+
+/**
+ * object_resolve_path_type:
+ * @path: the path to resolve
+ * @typename: the type to look for.
+ * @ambiguous: returns true if the path resolution failed because of an
+ *   ambiguous match
+ *
+ * This is similar to object_resolve_path.  However, when looking for a
+ * partial path only matches that implement the given type are considered.
+ * This restricts the search and avoids spuriously flagging matches as
+ * ambiguous.
+ *
+ * For both partial and absolute paths, the return value goes through
+ * a dynamic cast to @typename.  This is important if either the link,
+ * or the typename itself are of interface types.
+ *
+ * Returns: The matched object or NULL on path lookup failure.
+ */
+Object *object_resolve_path_type(const char *path, const char *typename,
+                                 bool *ambiguous);
 
 /**
  * object_property_add_child:

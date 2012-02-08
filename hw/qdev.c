@@ -86,11 +86,11 @@ void qdev_set_parent_bus(DeviceState *dev, BusState *bus)
     dev->parent_bus = bus;
     QTAILQ_INSERT_HEAD(&bus->children, dev, sibling);
 
-    qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
     for (prop = qdev_get_bus_info(dev)->props; prop && prop->name; prop++) {
         qdev_property_add_legacy(dev, prop, NULL);
         qdev_property_add_static(dev, prop, NULL);
     }
+    qdev_prop_set_defaults(dev, dev->parent_bus->info->props);
 }
 
 /* Create a new device.  This only initializes the device state structure
@@ -550,21 +550,24 @@ static void qdev_set_legacy_property(Object *obj, Visitor *v, void *opaque,
  * Do not use this is new code!  Properties added through this interface will
  * be given names and types in the "legacy" namespace.
  *
- * Legacy properties are always processed as strings.  The format of the string
- * depends on the property type.
+ * Legacy properties are string versions of other OOM properties.  The format
+ * of the string depends on the property type.
  */
 void qdev_property_add_legacy(DeviceState *dev, Property *prop,
                               Error **errp)
 {
     gchar *name, *type;
 
+    if (!prop->info->print && !prop->info->parse) {
+        return;
+    }
     name = g_strdup_printf("legacy-%s", prop->name);
     type = g_strdup_printf("legacy<%s>",
                            prop->info->legacy_name ?: prop->info->name);
 
     object_property_add(OBJECT(dev), name, type,
-                        prop->info->print ? qdev_get_legacy_property : NULL,
-                        prop->info->parse ? qdev_set_legacy_property : NULL,
+                        prop->info->print ? qdev_get_legacy_property : prop->info->get,
+                        prop->info->parse ? qdev_set_legacy_property : prop->info->set,
                         NULL,
                         prop, errp);
 
@@ -581,9 +584,18 @@ void qdev_property_add_legacy(DeviceState *dev, Property *prop,
 void qdev_property_add_static(DeviceState *dev, Property *prop,
                               Error **errp)
 {
+    /*
+     * TODO qdev_prop_ptr does not have getters or setters.  It must
+     * go now that it can be replaced with links.  The test should be
+     * removed along with it: all static properties are read/write.
+     */
+    if (!prop->info->get && !prop->info->set) {
+        return;
+    }
+
     object_property_add(OBJECT(dev), prop->name, prop->info->name,
                         prop->info->get, prop->info->set,
-                        NULL,
+                        prop->info->release,
                         prop, errp);
 }
 
@@ -600,13 +612,13 @@ static void device_initfn(Object *obj)
     dev->instance_id_alias = -1;
     dev->state = DEV_STATE_CREATED;
 
-    qdev_prop_set_defaults(dev, qdev_get_props(dev));
     for (prop = qdev_get_props(dev); prop && prop->name; prop++) {
         qdev_property_add_legacy(dev, prop, NULL);
         qdev_property_add_static(dev, prop, NULL);
     }
 
     object_property_add_str(OBJECT(dev), "type", qdev_get_type, NULL, NULL);
+    qdev_prop_set_defaults(dev, qdev_get_props(dev));
 }
 
 /* Unlink device from bus and free the structure.  */
@@ -614,7 +626,6 @@ static void device_finalize(Object *obj)
 {
     DeviceState *dev = DEVICE(obj);
     BusState *bus;
-    Property *prop;
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
     if (dev->state == DEV_STATE_INITIALIZED) {
@@ -633,11 +644,6 @@ static void device_finalize(Object *obj)
         }
     }
     QTAILQ_REMOVE(&dev->parent_bus->children, dev, sibling);
-    for (prop = qdev_get_props(dev); prop && prop->name; prop++) {
-        if (prop->info->free) {
-            prop->info->free(dev, prop);
-        }
-    }
 }
 
 void device_reset(DeviceState *dev)
