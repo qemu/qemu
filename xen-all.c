@@ -394,6 +394,14 @@ static void xen_set_memory(struct MemoryListener *listener,
     }
 }
 
+static void xen_begin(MemoryListener *listener)
+{
+}
+
+static void xen_commit(MemoryListener *listener)
+{
+}
+
 static void xen_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
@@ -404,6 +412,11 @@ static void xen_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
     xen_set_memory(listener, section, false);
+}
+
+static void xen_region_nop(MemoryListener *listener,
+                           MemoryRegionSection *section)
+{
 }
 
 static void xen_sync_dirty_bitmap(XenIOState *state,
@@ -500,8 +513,11 @@ static void xen_eventfd_del(MemoryListener *listener,
 }
 
 static MemoryListener xen_memory_listener = {
+    .begin = xen_begin,
+    .commit = xen_commit,
     .region_add = xen_region_add,
     .region_del = xen_region_del,
+    .region_nop = xen_region_nop,
     .log_start = xen_log_start,
     .log_stop = xen_log_stop,
     .log_sync = xen_log_sync,

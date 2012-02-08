@@ -436,6 +436,14 @@ static bool vhost_section(MemoryRegionSection *section)
         && memory_region_is_ram(section->mr);
 }
 
+static void vhost_begin(MemoryListener *listener)
+{
+}
+
+static void vhost_commit(MemoryListener *listener)
+{
+}
+
 static void vhost_region_add(MemoryListener *listener,
                              MemoryRegionSection *section)
 {
@@ -474,6 +482,11 @@ static void vhost_region_del(MemoryListener *listener,
             break;
         }
     }
+}
+
+static void vhost_region_nop(MemoryListener *listener,
+                             MemoryRegionSection *section)
+{
 }
 
 static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
@@ -756,8 +769,11 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
     hdev->features = features;
 
     hdev->memory_listener = (MemoryListener) {
+        .begin = vhost_begin,
+        .commit = vhost_commit,
         .region_add = vhost_region_add,
         .region_del = vhost_region_del,
+        .region_nop = vhost_region_nop,
         .log_start = vhost_log_start,
         .log_stop = vhost_log_stop,
         .log_sync = vhost_log_sync,

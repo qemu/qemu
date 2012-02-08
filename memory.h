@@ -180,8 +180,11 @@ typedef struct MemoryListener MemoryListener;
  * Use with memory_listener_register() and memory_listener_unregister().
  */
 struct MemoryListener {
+    void (*begin)(MemoryListener *listener);
+    void (*commit)(MemoryListener *listener);
     void (*region_add)(MemoryListener *listener, MemoryRegionSection *section);
     void (*region_del)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*region_nop)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_start)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);

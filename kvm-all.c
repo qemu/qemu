@@ -680,6 +680,14 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     }
 }
 
+static void kvm_begin(MemoryListener *listener)
+{
+}
+
+static void kvm_commit(MemoryListener *listener)
+{
+}
+
 static void kvm_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
@@ -690,6 +698,11 @@ static void kvm_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
     kvm_set_phys_mem(section, false);
+}
+
+static void kvm_region_nop(MemoryListener *listener,
+                           MemoryRegionSection *section)
+{
 }
 
 static void kvm_log_sync(MemoryListener *listener,
@@ -795,8 +808,11 @@ static void kvm_eventfd_del(MemoryListener *listener,
 }
 
 static MemoryListener kvm_memory_listener = {
+    .begin = kvm_begin,
+    .commit = kvm_commit,
     .region_add = kvm_region_add,
     .region_del = kvm_region_del,
+    .region_nop = kvm_region_nop,
     .log_start = kvm_log_start,
     .log_stop = kvm_log_stop,
     .log_sync = kvm_log_sync,

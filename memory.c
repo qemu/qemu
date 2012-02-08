@@ -676,6 +676,7 @@ static void address_space_update_topology_pass(AddressSpace *as,
             /* In both (logging may have changed) */
 
             if (adding) {
+                MEMORY_LISTENER_UPDATE_REGION(frnew, as, Forward, region_nop);
                 if (frold->dirty_log_mask && !frnew->dirty_log_mask) {
                     MEMORY_LISTENER_UPDATE_REGION(frnew, as, Reverse, log_stop);
                 } else if (frnew->dirty_log_mask && !frold->dirty_log_mask) {
@@ -722,12 +723,16 @@ static void memory_region_update_topology(MemoryRegion *mr)
         return;
     }
 
+    MEMORY_LISTENER_CALL_GLOBAL(begin, Forward);
+
     if (address_space_memory.root) {
         address_space_update_topology(&address_space_memory);
     }
     if (address_space_io.root) {
         address_space_update_topology(&address_space_io);
     }
+
+    MEMORY_LISTENER_CALL_GLOBAL(commit, Forward);
 
     memory_region_update_pending = false;
 }
