@@ -343,13 +343,6 @@ static void scsi_read_data(SCSIRequest *req)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
     bool first;
 
-    if (r->sector_count == (uint32_t)-1) {
-        DPRINTF("Read buf_len=%zd\n", r->iov.iov_len);
-        r->sector_count = 0;
-        r->started = true;
-        scsi_req_data(&r->req, r->iov.iov_len);
-        return;
-    }
     DPRINTF("Read sector_count=%d\n", r->sector_count);
     if (r->sector_count == 0) {
         /* This also clears the sense buffer for REQUEST SENSE.  */
@@ -1262,6 +1255,28 @@ static int scsi_disk_emulate_start_stop(SCSIDiskReq *r)
     return 0;
 }
 
+static void scsi_disk_emulate_read_data(SCSIRequest *req)
+{
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
+    int buflen = r->iov.iov_len;
+
+    if (buflen) {
+        DPRINTF("Read buf_len=%zd\n", buflen);
+        r->iov.iov_len = 0;
+        r->started = true;
+        scsi_req_data(&r->req, buflen);
+        return;
+    }
+
+    /* This also clears the sense buffer for REQUEST SENSE.  */
+    scsi_req_complete(&r->req, GOOD);
+}
+
+static void scsi_disk_emulate_write_data(SCSIRequest *req)
+{
+    abort();
+}
+
 static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
 {
     SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
@@ -1532,9 +1547,8 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
         return 0;
     }
-    assert(!r->req.aiocb && r->sector_count == 0);
+    assert(!r->req.aiocb);
     r->iov.iov_len = MIN(buflen, req->cmd.xfer);
-    r->sector_count = -1;
     if (r->iov.iov_len == 0) {
         scsi_req_complete(&r->req, GOOD);
     }
@@ -1785,8 +1799,8 @@ static const SCSIReqOps scsi_disk_emulate_reqops = {
     .size         = sizeof(SCSIDiskReq),
     .free_req     = scsi_free_request,
     .send_command = scsi_disk_emulate_command,
-    .read_data    = scsi_read_data,
-    .write_data   = scsi_write_data,
+    .read_data    = scsi_disk_emulate_read_data,
+    .write_data   = scsi_disk_emulate_write_data,
     .get_buf      = scsi_get_buf,
 };
 
