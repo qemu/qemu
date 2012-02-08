@@ -2882,12 +2882,10 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_enable_kvm:
                 olist = qemu_find_opts("machine");
-                qemu_opts_reset(olist);
                 qemu_opts_parse(olist, "accel=kvm", 0);
                 break;
             case QEMU_OPTION_machine:
                 olist = qemu_find_opts("machine");
-                qemu_opts_reset(olist);
                 opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
                     fprintf(stderr, "parse error: %s\n", optarg);

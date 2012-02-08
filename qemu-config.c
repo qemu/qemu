@@ -547,6 +547,7 @@ QemuOptsList qemu_option_rom_opts = {
 static QemuOptsList qemu_machine_opts = {
     .name = "machine",
     .implied_opt_name = "type",
+    .merge_lists = true,
     .head = QTAILQ_HEAD_INITIALIZER(qemu_machine_opts.head),
     .desc = {
         {
