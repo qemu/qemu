@@ -3488,6 +3488,79 @@ static void io_mem_init(void)
                           "watch", UINT64_MAX);
 }
 
+static void core_region_add(MemoryListener *listener,
+                            MemoryRegionSection *section)
+{
+    if (section->address_space == get_system_memory()) {
+        cpu_register_physical_memory_log(section, section->readonly);
+    } else {
+        iorange_init(&section->mr->iorange, &memory_region_iorange_ops,
+                     section->offset_within_address_space, section->size);
+        ioport_register(&section->mr->iorange);
+    }
+}
+
+static void core_region_del(MemoryListener *listener,
+                            MemoryRegionSection *section)
+{
+    if (section->address_space == get_system_memory()) {
+        cpu_register_physical_memory_log(section, false);
+    } else {
+        isa_unassign_ioport(section->offset_within_address_space,
+                            section->size);
+    }
+}
+
+static void core_log_start(MemoryListener *listener,
+                           MemoryRegionSection *section)
+{
+}
+
+static void core_log_stop(MemoryListener *listener,
+                          MemoryRegionSection *section)
+{
+}
+
+static void core_log_sync(MemoryListener *listener,
+                          MemoryRegionSection *section)
+{
+}
+
+static void core_log_global_start(MemoryListener *listener)
+{
+    cpu_physical_memory_set_dirty_tracking(1);
+}
+
+static void core_log_global_stop(MemoryListener *listener)
+{
+    cpu_physical_memory_set_dirty_tracking(0);
+}
+
+static void core_eventfd_add(MemoryListener *listener,
+                             MemoryRegionSection *section,
+                             bool match_data, uint64_t data, int fd)
+{
+}
+
+static void core_eventfd_del(MemoryListener *listener,
+                             MemoryRegionSection *section,
+                             bool match_data, uint64_t data, int fd)
+{
+}
+
+static MemoryListener core_memory_listener = {
+    .region_add = core_region_add,
+    .region_del = core_region_del,
+    .log_start = core_log_start,
+    .log_stop = core_log_stop,
+    .log_sync = core_log_sync,
+    .log_global_start = core_log_global_start,
+    .log_global_stop = core_log_global_stop,
+    .eventfd_add = core_eventfd_add,
+    .eventfd_del = core_eventfd_del,
+    .priority = 0,
+};
+
 static void memory_map_init(void)
 {
     system_memory = g_malloc(sizeof(*system_memory));
@@ -3497,6 +3570,8 @@ static void memory_map_init(void)
     system_io = g_malloc(sizeof(*system_io));
     memory_region_init(system_io, "io", 65536);
     set_system_io_map(system_io);
+
+    memory_listener_register(&core_memory_listener);
 }
 
 MemoryRegion *get_system_memory(void)

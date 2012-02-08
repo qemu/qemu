@@ -338,28 +338,10 @@ static void access_with_adjusted_size(target_phys_addr_t addr,
 
 static void as_memory_range_add(AddressSpace *as, FlatRange *fr)
 {
-    MemoryRegionSection section = {
-        .mr = fr->mr,
-        .offset_within_address_space = int128_get64(fr->addr.start),
-        .offset_within_region = fr->offset_in_region,
-        .size = int128_get64(fr->addr.size),
-        .readonly = fr->readonly,
-    };
-
-    cpu_register_physical_memory_log(&section, fr->readonly);
 }
 
 static void as_memory_range_del(AddressSpace *as, FlatRange *fr)
 {
-    MemoryRegionSection section = {
-        .mr = &io_mem_unassigned,
-        .offset_within_address_space = int128_get64(fr->addr.start),
-        .offset_within_region = int128_get64(fr->addr.start),
-        .size = int128_get64(fr->addr.size),
-        .readonly = fr->readonly,
-    };
-
-    cpu_register_physical_memory_log(&section, false);
 }
 
 static void as_memory_log_start(AddressSpace *as, FlatRange *fr)
@@ -450,22 +432,17 @@ static void memory_region_iorange_write(IORange *iorange,
                               memory_region_write_accessor, mr);
 }
 
-static const IORangeOps memory_region_iorange_ops = {
+const IORangeOps memory_region_iorange_ops = {
     .read = memory_region_iorange_read,
     .write = memory_region_iorange_write,
 };
 
 static void as_io_range_add(AddressSpace *as, FlatRange *fr)
 {
-    iorange_init(&fr->mr->iorange, &memory_region_iorange_ops,
-                 int128_get64(fr->addr.start), int128_get64(fr->addr.size));
-    ioport_register(&fr->mr->iorange);
 }
 
 static void as_io_range_del(AddressSpace *as, FlatRange *fr)
 {
-    isa_unassign_ioport(int128_get64(fr->addr.start),
-                        int128_get64(fr->addr.size));
 }
 
 static const AddressSpaceOps address_space_ops_io = {
@@ -1456,7 +1433,6 @@ void memory_global_sync_dirty_bitmap(MemoryRegion *address_space)
 
 void memory_global_dirty_log_start(void)
 {
-    cpu_physical_memory_set_dirty_tracking(1);
     global_dirty_log = true;
     MEMORY_LISTENER_CALL(log_global_start, Forward);
 }
@@ -1465,7 +1441,6 @@ void memory_global_dirty_log_stop(void)
 {
     global_dirty_log = false;
     MEMORY_LISTENER_CALL(log_global_stop, Reverse);
-    cpu_physical_memory_set_dirty_tracking(0);
 }
 
 static void listener_add_address_space(MemoryListener *listener,
