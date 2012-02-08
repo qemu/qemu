@@ -1274,7 +1274,26 @@ static void scsi_disk_emulate_read_data(SCSIRequest *req)
 
 static void scsi_disk_emulate_write_data(SCSIRequest *req)
 {
-    abort();
+    SCSIDiskReq *r = DO_UPCAST(SCSIDiskReq, req, req);
+
+    if (r->iov.iov_len) {
+        int buflen = r->iov.iov_len;
+        DPRINTF("Write buf_len=%zd\n", buflen);
+        r->iov.iov_len = 0;
+        scsi_req_data(&r->req, buflen);
+        return;
+    }
+
+    switch (req->cmd.buf[0]) {
+    case MODE_SELECT:
+    case MODE_SELECT_10:
+        /* This also clears the sense buffer for REQUEST SENSE.  */
+        scsi_req_complete(&r->req, GOOD);
+        break;
+
+    default:
+        abort();
+    }
 }
 
 static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
@@ -1283,7 +1302,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
     uint64_t nb_sectors;
     uint8_t *outbuf;
-    int buflen = 0;
+    int buflen;
 
     switch (req->cmd.buf[0]) {
     case INQUIRY:
@@ -1309,7 +1328,6 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         break;
     }
 
-    assert(req->cmd.mode != SCSI_XFER_TO_DEV);
     if (!r->iov.iov_base) {
         /*
          * FIXME: we shouldn't return anything bigger than 4k, but the code
@@ -1326,6 +1344,7 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
         r->iov.iov_base = qemu_blockalign(s->qdev.conf.bs, r->buflen);
     }
 
+    buflen = req->cmd.xfer;
     outbuf = r->iov.iov_base;
     switch (req->cmd.buf[0]) {
     case TEST_UNIT_READY:
@@ -1500,7 +1519,6 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
             goto illegal_lba;
         }
         break;
-#if 0
     case MODE_SELECT:
         DPRINTF("Mode Select(6) (len %lu)\n", (long)r->req.cmd.xfer);
         /* We don't support mode parameter changes.
@@ -1517,7 +1535,6 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
             goto illegal_request;
         }
         break;
-#endif
     case WRITE_SAME_10:
         nb_sectors = lduw_be_p(&req->cmd.buf[7]);
         goto write_same;
@@ -1552,7 +1569,12 @@ static int32_t scsi_disk_emulate_command(SCSIRequest *req, uint8_t *buf)
     if (r->iov.iov_len == 0) {
         scsi_req_complete(&r->req, GOOD);
     }
-    return r->iov.iov_len;
+    if (r->req.cmd.mode == SCSI_XFER_TO_DEV) {
+        assert(r->iov.iov_len == req->cmd.xfer);
+        return -r->iov.iov_len;
+    } else {
+        return r->iov.iov_len;
+    }
 
 illegal_request:
     if (r->req.status == -1) {
@@ -1834,10 +1856,8 @@ static const SCSIReqOps *const scsi_disk_reqops_dispatch[256] = {
     [REQUEST_SENSE]                   = &scsi_disk_emulate_reqops,
     [SYNCHRONIZE_CACHE]               = &scsi_disk_emulate_reqops,
     [SEEK_10]                         = &scsi_disk_emulate_reqops,
-#if 0
     [MODE_SELECT]                     = &scsi_disk_emulate_reqops,
     [MODE_SELECT_10]                  = &scsi_disk_emulate_reqops,
-#endif
     [WRITE_SAME_10]                   = &scsi_disk_emulate_reqops,
     [WRITE_SAME_16]                   = &scsi_disk_emulate_reqops,
 
