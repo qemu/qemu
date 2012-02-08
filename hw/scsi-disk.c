@@ -169,7 +169,7 @@ static void scsi_disk_load_request(QEMUFile *f, SCSIRequest *req)
     qemu_iovec_init_external(&r->qiov, &r->iov, 1);
 }
 
-static void scsi_flush_complete(void * opaque, int ret)
+static void scsi_aio_complete(void *opaque, int ret)
 {
     SCSIDiskReq *r = (SCSIDiskReq *)opaque;
     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, r->req.dev);
@@ -222,7 +222,7 @@ static void scsi_write_do_fua(SCSIDiskReq *r)
 
     if (scsi_is_cmd_fua(&r->req.cmd)) {
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
-        r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_flush_complete, r);
+        r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
         return;
     }
 
@@ -1543,7 +1543,7 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         /* The request is used as the AIO opaque value, so add a ref.  */
         scsi_req_ref(&r->req);
         bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
-        r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_flush_complete, r);
+        r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
         return 0;
     case READ_6:
     case READ_10:
@@ -1620,15 +1620,13 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
             goto fail;
         }
 
-        rc = bdrv_discard(s->qdev.conf.bs,
-                          r->req.cmd.lba * (s->qdev.blocksize / 512),
-                          len * (s->qdev.blocksize / 512));
-        if (rc < 0) {
-            /* XXX: better error code ?*/
-            goto fail;
-        }
-
-        break;
+        /* The request is used as the AIO opaque value, so add a ref.  */
+        scsi_req_ref(&r->req);
+        r->req.aiocb = bdrv_aio_discard(s->qdev.conf.bs,
+                                        r->req.cmd.lba * (s->qdev.blocksize / 512),
+                                        len * (s->qdev.blocksize / 512),
+                                        scsi_aio_complete, r);
+        return 0;
     default:
         DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
