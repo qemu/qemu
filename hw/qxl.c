@@ -625,7 +625,7 @@ static void interface_release_resource(QXLInstance *sin,
 
     if (ext.group_id == MEMSLOT_GROUP_HOST) {
         /* host group -> vga mode update request */
-        qemu_spice_destroy_update(&qxl->ssd, (void*)ext.info->id);
+        qemu_spice_destroy_update(&qxl->ssd, (void *)(intptr_t)ext.info->id);
         return;
     }
 
@@ -748,7 +748,8 @@ static void interface_async_complete(QXLInstance *sin, uint64_t cookie)
     qxl->current_async = QXL_UNDEFINED_IO;
     qemu_mutex_unlock(&qxl->async_lock);
 
-    dprint(qxl, 2, "async_complete: %d (%ld) done\n", current_async, cookie);
+    dprint(qxl, 2, "async_complete: %d (%" PRId64 ") done\n",
+           current_async, cookie);
     switch (current_async) {
     case QXL_IO_CREATE_PRIMARY_ASYNC:
         qxl_create_guest_primary_complete(qxl);
@@ -1015,7 +1016,7 @@ void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
 
     switch (group_id) {
     case MEMSLOT_GROUP_HOST:
-        return (void*)offset;
+        return (void *)(intptr_t)offset;
     case MEMSLOT_GROUP_GUEST:
         PANIC_ON(slot >= NUM_MEMSLOTS);
         PANIC_ON(!qxl->guest_slots[slot].active);
