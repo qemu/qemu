@@ -239,6 +239,18 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     return res;
 }
 
+static int32_t scsi_invalid_field(SCSIRequest *req, uint8_t *buf)
+{
+    scsi_req_build_sense(req, SENSE_CODE(INVALID_FIELD));
+    scsi_req_complete(req, CHECK_CONDITION);
+    return 0;
+}
+
+static const struct SCSIReqOps reqops_invalid_field = {
+    .size         = sizeof(SCSIRequest),
+    .send_command = scsi_invalid_field
+};
+
 /* SCSIReqOps implementation for invalid commands.  */
 
 static int32_t scsi_invalid_command(SCSIRequest *req, uint8_t *buf)
@@ -517,18 +529,20 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
                                       cmd.lba);
         }
 
-        if ((d->unit_attention.key == UNIT_ATTENTION ||
-             bus->unit_attention.key == UNIT_ATTENTION) &&
-            (buf[0] != INQUIRY &&
-             buf[0] != REPORT_LUNS &&
-             buf[0] != GET_CONFIGURATION &&
-             buf[0] != GET_EVENT_STATUS_NOTIFICATION &&
+        if (cmd.xfer > INT32_MAX) {
+            req = scsi_req_alloc(&reqops_invalid_field, d, tag, lun, hba_private);
+        } else if ((d->unit_attention.key == UNIT_ATTENTION ||
+                   bus->unit_attention.key == UNIT_ATTENTION) &&
+                  (buf[0] != INQUIRY &&
+                   buf[0] != REPORT_LUNS &&
+                   buf[0] != GET_CONFIGURATION &&
+                   buf[0] != GET_EVENT_STATUS_NOTIFICATION &&
 
-             /*
-              * If we already have a pending unit attention condition,
-              * report this one before triggering another one.
-              */
-             !(buf[0] == REQUEST_SENSE && d->sense_is_ua))) {
+                   /*
+                    * If we already have a pending unit attention condition,
+                    * report this one before triggering another one.
+                    */
+                   !(buf[0] == REQUEST_SENSE && d->sense_is_ua))) {
             req = scsi_req_alloc(&reqops_unit_attention, d, tag, lun,
                                  hba_private);
         } else if (lun != d->lun ||
