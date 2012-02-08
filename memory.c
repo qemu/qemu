@@ -895,6 +895,8 @@ static bool memory_region_access_valid(MemoryRegion *mr,
     }
 
     if (!mr->ops->valid.unaligned && (addr & (size - 1))) {
+        fprintf(stderr, "Misaligned i/o with size %u for memory region %s\n",
+                size, mr->name);
         return false;
     }
 
@@ -905,6 +907,8 @@ static bool memory_region_access_valid(MemoryRegion *mr,
 
     if (size > mr->ops->valid.max_access_size
         || size < mr->ops->valid.min_access_size) {
+        fprintf(stderr, "Invalid i/o with size %u for memory region %s\n",
+                size, mr->name);
         return false;
     }
     return true;
