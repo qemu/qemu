@@ -82,6 +82,38 @@ static AddrRange addrrange_intersection(AddrRange r1, AddrRange r2)
     return addrrange_make(start, int128_sub(end, start));
 }
 
+enum ListenerDirection { Forward, Reverse };
+
+#define MEMORY_LISTENER_CALL(_callback, _direction, _args...)           \
+    do {                                                                \
+        MemoryListener *_listener;                                      \
+                                                                        \
+        switch (_direction) {                                           \
+        case Forward:                                                   \
+            QTAILQ_FOREACH(_listener, &memory_listeners, link) {        \
+                _listener->_callback(_listener, ##_args);               \
+            }                                                           \
+            break;                                                      \
+        case Reverse:                                                   \
+            QTAILQ_FOREACH_REVERSE(_listener, &memory_listeners,        \
+                                   memory_listeners, link) {            \
+                _listener->_callback(_listener, ##_args);               \
+            }                                                           \
+            break;                                                      \
+        default:                                                        \
+            abort();                                                    \
+        }                                                               \
+    } while (0)
+
+#define MEMORY_LISTENER_UPDATE_REGION(fr, as, dir, callback)            \
+    MEMORY_LISTENER_CALL(callback, dir, &(MemoryRegionSection) {        \
+        .mr = (fr)->mr,                                                 \
+        .address_space = (as)->root,                                    \
+        .offset_within_region = (fr)->offset_in_region,                 \
+        .size = int128_get64((fr)->addr.size),                          \
+        .offset_within_address_space = int128_get64((fr)->addr.start),  \
+                })
+
 struct CoalescedMemoryRange {
     AddrRange addr;
     QTAILQ_ENTRY(CoalescedMemoryRange) link;
@@ -677,38 +709,6 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     as->ioeventfds = ioeventfds;
     as->ioeventfd_nb = ioeventfd_nb;
 }
-
-enum ListenerDirection { Forward, Reverse };
-
-#define MEMORY_LISTENER_CALL(_callback, _direction, _args...)           \
-    do {                                                                \
-        MemoryListener *_listener;                                      \
-                                                                        \
-        switch (_direction) {                                           \
-        case Forward:                                                   \
-            QTAILQ_FOREACH(_listener, &memory_listeners, link) {        \
-                _listener->_callback(_listener, ##_args);               \
-            }                                                           \
-            break;                                                      \
-        case Reverse:                                                   \
-            QTAILQ_FOREACH_REVERSE(_listener, &memory_listeners,        \
-                                   memory_listeners, link) {            \
-                _listener->_callback(_listener, ##_args);               \
-            }                                                           \
-            break;                                                      \
-        default:                                                        \
-            abort();                                                    \
-        }                                                               \
-    } while (0)
-
-#define MEMORY_LISTENER_UPDATE_REGION(fr, as, dir, callback)            \
-    MEMORY_LISTENER_CALL(callback, dir, &(MemoryRegionSection) {        \
-        .mr = (fr)->mr,                                                 \
-        .address_space = (as)->root,                                    \
-        .offset_within_region = (fr)->offset_in_region,                 \
-        .size = int128_get64((fr)->addr.size),                          \
-        .offset_within_address_space = int128_get64((fr)->addr.start),  \
-                })
 
 static void address_space_update_topology_pass(AddressSpace *as,
                                                FlatView old_view,
