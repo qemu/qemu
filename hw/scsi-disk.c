@@ -1448,10 +1448,65 @@ static int scsi_disk_emulate_command(SCSIDiskReq *r)
         }
         DPRINTF("Unsupported Service Action In\n");
         goto illegal_request;
+    case SYNCHRONIZE_CACHE:
+        /* The request is used as the AIO opaque value, so add a ref.  */
+        scsi_req_ref(&r->req);
+        bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
+        r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
+        return 0;
+    case SEEK_10:
+        DPRINTF("Seek(10) (sector %" PRId64 ")\n", r->req.cmd.lba);
+        if (r->req.cmd.lba > s->qdev.max_lba) {
+            goto illegal_lba;
+        }
+        break;
+#if 0
+    case MODE_SELECT:
+        DPRINTF("Mode Select(6) (len %lu)\n", (long)r->req.cmd.xfer);
+        /* We don't support mode parameter changes.
+           Allow the mode parameter header + block descriptors only. */
+        if (r->req.cmd.xfer > 12) {
+            goto illegal_request;
+        }
+        break;
+    case MODE_SELECT_10:
+        DPRINTF("Mode Select(10) (len %lu)\n", (long)r->req.cmd.xfer);
+        /* We don't support mode parameter changes.
+           Allow the mode parameter header + block descriptors only. */
+        if (r->req.cmd.xfer > 16) {
+            goto illegal_request;
+        }
+        break;
+#endif
+    case WRITE_SAME_10:
+        nb_sectors = lduw_be_p(&req->cmd.buf[7]);
+        goto write_same;
+    case WRITE_SAME_16:
+        nb_sectors = ldl_be_p(&req->cmd.buf[10]) & 0xffffffffULL;
+    write_same:
+        if (r->req.cmd.lba > s->qdev.max_lba) {
+            goto illegal_lba;
+        }
+
+        /*
+         * We only support WRITE SAME with the unmap bit set for now.
+         */
+        if (!(req->cmd.buf[1] & 0x8)) {
+            goto illegal_request;
+        }
+
+        /* The request is used as the AIO opaque value, so add a ref.  */
+        scsi_req_ref(&r->req);
+        r->req.aiocb = bdrv_aio_discard(s->qdev.conf.bs,
+                                        r->req.cmd.lba * (s->qdev.blocksize / 512),
+                                        nb_sectors * (s->qdev.blocksize / 512),
+                                        scsi_aio_complete, r);
+        return 0;
     default:
         scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
         return -1;
     }
+    assert(r->sector_count == 0);
     buflen = MIN(buflen, req->cmd.xfer);
     return buflen;
 
@@ -1460,6 +1515,10 @@ illegal_request:
         scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
     }
     return -1;
+
+illegal_lba:
+    scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
+    return 0;
 }
 
 /* Execute a scsi command.  Returns the length of the data expected by the
@@ -1513,38 +1572,6 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
     }
 
     switch (command) {
-    case TEST_UNIT_READY:
-    case INQUIRY:
-    case MODE_SENSE:
-    case MODE_SENSE_10:
-    case RESERVE:
-    case RESERVE_10:
-    case RELEASE:
-    case RELEASE_10:
-    case START_STOP:
-    case ALLOW_MEDIUM_REMOVAL:
-    case READ_CAPACITY_10:
-    case READ_TOC:
-    case READ_DISC_INFORMATION:
-    case READ_DVD_STRUCTURE:
-    case GET_CONFIGURATION:
-    case GET_EVENT_STATUS_NOTIFICATION:
-    case MECHANISM_STATUS:
-    case SERVICE_ACTION_IN_16:
-    case REQUEST_SENSE:
-        rc = scsi_disk_emulate_command(r);
-        if (rc < 0) {
-            return 0;
-        }
-
-        r->iov.iov_len = rc;
-        break;
-    case SYNCHRONIZE_CACHE:
-        /* The request is used as the AIO opaque value, so add a ref.  */
-        scsi_req_ref(&r->req);
-        bdrv_acct_start(s->qdev.conf.bs, &r->acct, 0, BDRV_ACCT_FLUSH);
-        r->req.aiocb = bdrv_aio_flush(s->qdev.conf.bs, scsi_aio_complete, r);
-        return 0;
     case READ_6:
     case READ_10:
     case READ_12:
@@ -1577,63 +1604,16 @@ static int32_t scsi_send_command(SCSIRequest *req, uint8_t *buf)
         r->sector = r->req.cmd.lba * (s->qdev.blocksize / 512);
         r->sector_count = len * (s->qdev.blocksize / 512);
         break;
-    case MODE_SELECT:
-        DPRINTF("Mode Select(6) (len %lu)\n", (long)r->req.cmd.xfer);
-        /* We don't support mode parameter changes.
-           Allow the mode parameter header + block descriptors only. */
-        if (r->req.cmd.xfer > 12) {
-            goto fail;
-        }
-        break;
-    case MODE_SELECT_10:
-        DPRINTF("Mode Select(10) (len %lu)\n", (long)r->req.cmd.xfer);
-        /* We don't support mode parameter changes.
-           Allow the mode parameter header + block descriptors only. */
-        if (r->req.cmd.xfer > 16) {
-            goto fail;
-        }
-        break;
-    case SEEK_10:
-        DPRINTF("Seek(10) (sector %" PRId64 ")\n", r->req.cmd.lba);
-        if (r->req.cmd.lba > s->qdev.max_lba) {
-            goto illegal_lba;
-        }
-        break;
-    case WRITE_SAME_10:
-        len = lduw_be_p(&buf[7]);
-        goto write_same;
-    case WRITE_SAME_16:
-        len = ldl_be_p(&buf[10]) & 0xffffffffULL;
-    write_same:
-
-        DPRINTF("WRITE SAME() (sector %" PRId64 ", count %d)\n",
-                r->req.cmd.lba, len);
-
-        if (r->req.cmd.lba > s->qdev.max_lba) {
-            goto illegal_lba;
-        }
-
-        /*
-         * We only support WRITE SAME with the unmap bit set for now.
-         */
-        if (!(buf[1] & 0x8)) {
-            goto fail;
-        }
-
-        /* The request is used as the AIO opaque value, so add a ref.  */
-        scsi_req_ref(&r->req);
-        r->req.aiocb = bdrv_aio_discard(s->qdev.conf.bs,
-                                        r->req.cmd.lba * (s->qdev.blocksize / 512),
-                                        len * (s->qdev.blocksize / 512),
-                                        scsi_aio_complete, r);
-        return 0;
     default:
-        DPRINTF("Unknown SCSI command (%2.2x)\n", buf[0]);
-        scsi_check_condition(r, SENSE_CODE(INVALID_OPCODE));
-        return 0;
-    fail:
-        scsi_check_condition(r, SENSE_CODE(INVALID_FIELD));
-        return 0;
+        rc = scsi_disk_emulate_command(r);
+        if (rc < 0) {
+            return 0;
+        }
+        if (r->req.aiocb) {
+            return 0;
+        }
+        r->iov.iov_len = rc;
+        break;
     illegal_lba:
         scsi_check_condition(r, SENSE_CODE(LBA_OUT_OF_RANGE));
         return 0;
