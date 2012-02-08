@@ -678,31 +678,23 @@ static void address_space_update_ioeventfds(AddressSpace *as)
     as->ioeventfd_nb = ioeventfd_nb;
 }
 
-typedef void ListenerCallback(MemoryListener *listener,
-                              MemoryRegionSection *mrs);
+#define MEMORY_LISTENER_CALL(_callback, _args...)               \
+    do {                                                        \
+        MemoryListener *_listener;                              \
+                                                                \
+        QLIST_FOREACH(_listener, &memory_listeners, link) {     \
+            _listener->_callback(_listener, ##_args);           \
+        }                                                       \
+    } while (0)
 
-/* Want "void (&MemoryListener::*callback)(const MemoryRegionSection& s)" */
-static void memory_listener_update_region(FlatRange *fr, AddressSpace *as,
-                                          size_t callback_offset)
-{
-    MemoryRegionSection section = {
-        .mr = fr->mr,
-        .address_space = as->root,
-        .offset_within_region = fr->offset_in_region,
-        .size = int128_get64(fr->addr.size),
-        .offset_within_address_space = int128_get64(fr->addr.start),
-    };
-    MemoryListener *listener;
-
-    QLIST_FOREACH(listener, &memory_listeners, link) {
-        ListenerCallback *callback
-            = *(ListenerCallback **)((void *)listener + callback_offset);
-        callback(listener, &section);
-    }
-}
-
-#define MEMORY_LISTENER_UPDATE_REGION(fr, as, callback) \
-    memory_listener_update_region(fr, as, offsetof(MemoryListener, callback))
+#define MEMORY_LISTENER_UPDATE_REGION(fr, as, callback)                 \
+    MEMORY_LISTENER_CALL(callback, &(MemoryRegionSection) {             \
+        .mr = (fr)->mr,                                                 \
+        .address_space = (as)->root,                                    \
+        .offset_within_region = (fr)->offset_in_region,                 \
+        .size = int128_get64((fr)->addr.size),                          \
+        .offset_within_address_space = int128_get64((fr)->addr.start),  \
+                })
 
 static void address_space_update_topology_pass(AddressSpace *as,
                                                FlatView old_view,
@@ -1483,23 +1475,15 @@ void memory_global_sync_dirty_bitmap(MemoryRegion *address_space)
 
 void memory_global_dirty_log_start(void)
 {
-    MemoryListener *listener;
-
     cpu_physical_memory_set_dirty_tracking(1);
     global_dirty_log = true;
-    QLIST_FOREACH(listener, &memory_listeners, link) {
-        listener->log_global_start(listener);
-    }
+    MEMORY_LISTENER_CALL(log_global_start);
 }
 
 void memory_global_dirty_log_stop(void)
 {
-    MemoryListener *listener;
-
     global_dirty_log = false;
-    QLIST_FOREACH(listener, &memory_listeners, link) {
-        listener->log_global_stop(listener);
-    }
+    MEMORY_LISTENER_CALL(log_global_stop);
     cpu_physical_memory_set_dirty_tracking(0);
 }
 
