@@ -2569,7 +2569,7 @@ EOF
           compile_prog "$smartcard_cflags $libcacard_cflags" "$libcacard_libs"; then
             smartcard_nss="yes"
             QEMU_CFLAGS="$QEMU_CFLAGS $smartcard_cflags $libcacard_cflags"
-            LIBS="$libcacard_libs $LIBS"
+            libs_softmmu="$libcacard_libs $libs_softmmu"
         else
             if test "$smartcard_nss" = "yes"; then
                 feature_not_found "nss"
@@ -3209,6 +3209,8 @@ fi
 
 if test "$smartcard_nss" = "yes" ; then
   echo "CONFIG_SMARTCARD_NSS=y" >> $config_host_mak
+  echo "libcacard_libs=$libcacard_libs" >> $config_host_mak
+  echo "libcacard_cflags=$libcacard_cflags" >> $config_host_mak
 fi
 
 if test "$usb_redir" = "yes" ; then
@@ -3628,6 +3630,9 @@ if test "$target_softmmu" = "yes" ; then
   echo "LIBS+=$libs_softmmu $target_libs_softmmu" >> $config_target_mak
   echo "HWDIR=../libhw$target_phys_bits" >> $config_target_mak
   echo "subdir-$target: subdir-libhw$target_phys_bits" >> $config_host_mak
+  if test "$smartcard_nss" = "yes" ; then
+    echo "subdir-$target: subdir-libcacard" >> $config_host_mak
+  fi
 fi
 if test "$target_user_only" = "yes" ; then
   echo "CONFIG_USER_ONLY=y" >> $config_target_mak
@@ -3638,11 +3643,6 @@ if test "$target_linux_user" = "yes" ; then
 fi
 if test "$target_darwin_user" = "yes" ; then
   echo "CONFIG_DARWIN_USER=y" >> $config_target_mak
-fi
-if test "$smartcard_nss" = "yes" ; then
-  echo "subdir-$target: subdir-libcacard" >> $config_host_mak
-  echo "libcacard_libs=$libcacard_libs" >> $config_host_mak
-  echo "libcacard_cflags=$libcacard_cflags" >> $config_host_mak
 fi
 list=""
 if test ! -z "$gdb_xml_files" ; then
