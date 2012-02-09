@@ -2520,6 +2520,53 @@ static subpage_t *subpage_init (target_phys_addr_t base, ram_addr_t *phys,
         }                                                               \
     } while (0)
 
+static void destroy_page_desc(PhysPageDesc pd)
+{
+    unsigned io_index = pd.phys_offset & ~TARGET_PAGE_MASK;
+    MemoryRegion *mr = io_mem_region[io_index];
+
+    if (mr->subpage) {
+        subpage_t *subpage = container_of(mr, subpage_t, iomem);
+        memory_region_destroy(&subpage->iomem);
+        g_free(subpage);
+    }
+}
+
+static void destroy_l2_mapping(void **lp, unsigned level)
+{
+    unsigned i;
+    void **p;
+    PhysPageDesc *pd;
+
+    if (!*lp) {
+        return;
+    }
+
+    if (level > 0) {
+        p = *lp;
+        for (i = 0; i < L2_SIZE; ++i) {
+            destroy_l2_mapping(&p[i], level - 1);
+        }
+        g_free(p);
+    } else {
+        pd = *lp;
+        for (i = 0; i < L2_SIZE; ++i) {
+            destroy_page_desc(pd[i]);
+        }
+        g_free(pd);
+    }
+    *lp = NULL;
+}
+
+static void destroy_all_mappings(void)
+{
+    unsigned i;
+
+    for (i = 0; i < P_L1_SIZE; ++i) {
+        destroy_l2_mapping(&l1_phys_map[i], P_L1_SHIFT / L2_BITS - 1);
+    }
+}
+
 /* register physical memory.
    For RAM, 'size' must be a multiple of the target page size.
    If (phys_offset & ~TARGET_PAGE_MASK) != 0, then it is an
@@ -3490,6 +3537,7 @@ static void io_mem_init(void)
 
 static void core_begin(MemoryListener *listener)
 {
+    destroy_all_mappings();
 }
 
 static void core_commit(MemoryListener *listener)
@@ -3505,12 +3553,12 @@ static void core_region_add(MemoryListener *listener,
 static void core_region_del(MemoryListener *listener,
                             MemoryRegionSection *section)
 {
-    cpu_register_physical_memory_log(section, false);
 }
 
 static void core_region_nop(MemoryListener *listener,
                             MemoryRegionSection *section)
 {
+    cpu_register_physical_memory_log(section, section->readonly);
 }
 
 static void core_log_start(MemoryListener *listener,
