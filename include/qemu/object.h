@@ -730,6 +730,30 @@ void object_property_set(Object *obj, struct Visitor *v, const char *name,
                          struct Error **errp);
 
 /**
+ * object_property_parse:
+ * @obj: the object
+ * @string: the string that will be used to parse the property value.
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Parses a string and writes the result into a property of an object.
+ */
+void object_property_parse(Object *obj, const char *string,
+                           const char *name, struct Error **errp);
+
+/**
+ * object_property_print:
+ * @obj: the object
+ * @name: the name of the property
+ * @errp: returns an error if this function fails
+ *
+ * Returns a string representation of the value of the property.  The
+ * caller shall free the string.
+ */
+char *object_property_print(Object *obj, const char *name,
+                            struct Error **errp);
+
+/**
  * object_property_get_type:
  * @obj: the object
  * @name: the name of the property
