@@ -164,6 +164,10 @@ static int parse_hex8(DeviceState *dev, Property *prop, const char *str)
     uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
     char *end;
 
+    if (str[0] != '0' || str[1] != 'x') {
+        return -EINVAL;
+    }
+
     *ptr = strtoul(str, &end, 16);
     if ((*end != '\0') || (end == str)) {
         return -EINVAL;
@@ -369,6 +373,10 @@ static int parse_hex32(DeviceState *dev, Property *prop, const char *str)
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     char *end;
 
+    if (str[0] != '0' || str[1] != 'x') {
+        return -EINVAL;
+    }
+
     *ptr = strtoul(str, &end, 16);
     if ((*end != '\0') || (end == str)) {
         return -EINVAL;
@@ -455,6 +463,10 @@ static int parse_hex64(DeviceState *dev, Property *prop, const char *str)
 {
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
     char *end;
+
+    if (str[0] != '0' || str[1] != 'x') {
+        return -EINVAL;
+    }
 
     *ptr = strtoull(str, &end, 16);
     if ((*end != '\0') || (end == str)) {
