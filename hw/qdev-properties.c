@@ -943,25 +943,40 @@ PropertyInfo qdev_prop_losttickpolicy = {
 /*
  * bus-local address, i.e. "$slot" or "$slot.$fn"
  */
-static int parse_pci_devfn(DeviceState *dev, Property *prop, const char *str)
+static void set_pci_devfn(Object *obj, Visitor *v, void *opaque,
+                          const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     unsigned int slot, fn, n;
+    Error *local_err = NULL;
+    char *str = (char *)"";
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_str(v, &str, name, &local_err);
+    if (local_err) {
+        return set_int32(obj, v, opaque, name, errp);
+    }
 
     if (sscanf(str, "%x.%x%n", &slot, &fn, &n) != 2) {
         fn = 0;
         if (sscanf(str, "%x%n", &slot, &n) != 1) {
-            return -EINVAL;
+            goto invalid;
         }
     }
-    if (str[n] != '\0')
-        return -EINVAL;
-    if (fn > 7)
-        return -EINVAL;
-    if (slot > 31)
-        return -EINVAL;
+    if (str[n] != '\0' || fn > 7 || slot > 31) {
+        goto invalid;
+    }
     *ptr = slot << 3 | fn;
-    return 0;
+    return;
+
+invalid:
+    error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
 }
 
 static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t len)
@@ -978,10 +993,9 @@ static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t 
 PropertyInfo qdev_prop_pci_devfn = {
     .name  = "int32",
     .legacy_name  = "pci-devfn",
-    .parse = parse_pci_devfn,
     .print = print_pci_devfn,
     .get   = get_int32,
-    .set   = set_int32,
+    .set   = set_pci_devfn,
     /* FIXME: this should be -1...255, but the address is stored
      * into an uint32_t rather than int32_t.
      */
