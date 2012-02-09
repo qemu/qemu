@@ -1080,9 +1080,9 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
 
     legacy_name = g_strdup_printf("legacy-%s", name);
     if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
-        object_property_set_str(OBJECT(dev), value, legacy_name, &err);
+        object_property_parse(OBJECT(dev), value, legacy_name, &err);
     } else {
-        object_property_set_str(OBJECT(dev), value, name, &err);
+        object_property_parse(OBJECT(dev), value, name, &err);
     }
     g_free(legacy_name);
 
