@@ -12,6 +12,7 @@
  */
 
 #include "qmp-input-visitor.h"
+#include "qapi/qapi-visit-impl.h"
 #include "qemu-queue.h"
 #include "qemu-common.h"
 #include "qemu-objects.h"
@@ -217,37 +218,6 @@ static void qmp_input_type_number(Visitor *v, double *obj, const char *name,
     *obj = qfloat_get_double(qobject_to_qfloat(qobj));
 }
 
-static void qmp_input_type_enum(Visitor *v, int *obj, const char *strings[],
-                                const char *kind, const char *name,
-                                Error **errp)
-{
-    int64_t value = 0;
-    char *enum_str;
-
-    assert(strings);
-
-    qmp_input_type_str(v, &enum_str, name, errp);
-    if (error_is_set(errp)) {
-        return;
-    }
-
-    while (strings[value] != NULL) {
-        if (strcmp(strings[value], enum_str) == 0) {
-            break;
-        }
-        value++;
-    }
-
-    if (strings[value] == NULL) {
-        error_set(errp, QERR_INVALID_PARAMETER, name ? name : "null");
-        g_free(enum_str);
-        return;
-    }
-
-    g_free(enum_str);
-    *obj = value;
-}
-
 static void qmp_input_start_optional(Visitor *v, bool *present,
                                      const char *name, Error **errp)
 {
@@ -288,7 +258,7 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
     v->visitor.start_list = qmp_input_start_list;
     v->visitor.next_list = qmp_input_next_list;
     v->visitor.end_list = qmp_input_end_list;
-    v->visitor.type_enum = qmp_input_type_enum;
+    v->visitor.type_enum = input_type_enum;
     v->visitor.type_int = qmp_input_type_int;
     v->visitor.type_bool = qmp_input_type_bool;
     v->visitor.type_str = qmp_input_type_str;
