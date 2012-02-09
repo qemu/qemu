@@ -232,10 +232,6 @@ static void qmp_input_start_optional(Visitor *v, bool *present,
     *present = true;
 }
 
-static void qmp_input_end_optional(Visitor *v, Error **errp)
-{
-}
-
 Visitor *qmp_input_get_visitor(QmpInputVisitor *v)
 {
     return &v->visitor;
@@ -264,7 +260,6 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
     v->visitor.type_str = qmp_input_type_str;
     v->visitor.type_number = qmp_input_type_number;
     v->visitor.start_optional = qmp_input_start_optional;
-    v->visitor.end_optional = qmp_input_end_optional;
 
     v->obj = obj;
     qobject_incref(v->obj);
