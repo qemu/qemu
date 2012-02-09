@@ -316,10 +316,10 @@ static TypeInfo pl011_luminary_info = {
     .class_init    = pl011_luminary_class_init,
 };
 
-static void pl011_register_devices(void)
+static void pl011_register_types(void)
 {
     type_register_static(&pl011_arm_info);
     type_register_static(&pl011_luminary_info);
 }
 
-device_init(pl011_register_devices)
+type_init(pl011_register_types)

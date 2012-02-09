@@ -949,9 +949,9 @@ static TypeInfo virtio_serial_port_type_info = {
     .class_init = virtio_serial_port_class_init,
 };
 
-static void virtio_serial_register_devices(void)
+static void virtio_serial_register_types(void)
 {
     type_register_static(&virtio_serial_port_type_info);
 }
 
-device_init(virtio_serial_register_devices);
+type_init(virtio_serial_register_types)

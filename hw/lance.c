@@ -162,8 +162,9 @@ static TypeInfo lance_info = {
     .class_init    = lance_class_init,
 };
 
-static void lance_register_devices(void)
+static void lance_register_types(void)
 {
     type_register_static(&lance_info);
 }
-device_init(lance_register_devices)
+
+type_init(lance_register_types)

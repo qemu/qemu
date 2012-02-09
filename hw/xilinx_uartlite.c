@@ -225,9 +225,9 @@ static TypeInfo xilinx_uartlite_info = {
     .class_init    = xilinx_uartlite_class_init,
 };
 
-static void xilinx_uart_register(void)
+static void xilinx_uart_register_types(void)
 {
     type_register_static(&xilinx_uartlite_info);
 }
 
-device_init(xilinx_uart_register)
+type_init(xilinx_uart_register_types)

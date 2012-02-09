@@ -1227,9 +1227,9 @@ static TypeInfo e1000_info = {
     .class_init    = e1000_class_init,
 };
 
-static void e1000_register_devices(void)
+static void e1000_register_types(void)
 {
     type_register_static(&e1000_info);
 }
 
-device_init(e1000_register_devices)
+type_init(e1000_register_types)

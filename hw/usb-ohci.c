@@ -1886,9 +1886,10 @@ static TypeInfo ohci_sysbus_info = {
     .class_init    = ohci_sysbus_class_init,
 };
 
-static void ohci_register(void)
+static void ohci_register_types(void)
 {
     type_register_static(&ohci_pci_info);
     type_register_static(&ohci_sysbus_info);
 }
-device_init(ohci_register);
+
+type_init(ohci_register_types)

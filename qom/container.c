@@ -19,9 +19,9 @@ static TypeInfo container_info = {
     .parent        = TYPE_OBJECT,
 };
 
-static void container_init(void)
+static void container_register_types(void)
 {
     type_register_static(&container_info);
 }
 
-device_init(container_init);
+type_init(container_register_types)

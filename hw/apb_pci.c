@@ -493,11 +493,11 @@ static TypeInfo pbm_pci_bridge_info = {
     .class_init    = pbm_pci_bridge_class_init,
 };
 
-static void pbm_register_devices(void)
+static void pbm_register_types(void)
 {
     type_register_static(&pbm_host_info);
     type_register_static(&pbm_pci_host_info);
     type_register_static(&pbm_pci_bridge_info);
 }
 
-device_init(pbm_register_devices)
+type_init(pbm_register_types)

@@ -1287,12 +1287,13 @@ static TypeInfo hda_codec_device_type_info = {
     .class_init = hda_codec_device_class_init,
 };
 
-static void intel_hda_register(void)
+static void intel_hda_register_types(void)
 {
     type_register_static(&intel_hda_info);
     type_register_static(&hda_codec_device_type_info);
 }
-device_init(intel_hda_register);
+
+type_init(intel_hda_register_types)
 
 /*
  * create intel hda controller with codec attached to it,

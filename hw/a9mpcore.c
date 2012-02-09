@@ -238,9 +238,9 @@ static TypeInfo a9mp_priv_info = {
     .class_init    = a9mp_priv_class_init,
 };
 
-static void a9mp_register_devices(void)
+static void a9mp_register_types(void)
 {
     type_register_static(&a9mp_priv_info);
 }
 
-device_init(a9mp_register_devices)
+type_init(a9mp_register_types)

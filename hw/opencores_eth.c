@@ -750,9 +750,9 @@ static TypeInfo open_eth_info = {
     .class_init    = open_eth_class_init,
 };
 
-static void open_eth_register_devices(void)
+static void open_eth_register_types(void)
 {
     type_register_static(&open_eth_info);
 }
 
-device_init(open_eth_register_devices)
+type_init(open_eth_register_types)

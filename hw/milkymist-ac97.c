@@ -336,9 +336,9 @@ static TypeInfo milkymist_ac97_info = {
     .class_init    = milkymist_ac97_class_init,
 };
 
-static void milkymist_ac97_register(void)
+static void milkymist_ac97_register_types(void)
 {
     type_register_static(&milkymist_ac97_info);
 }
 
-device_init(milkymist_ac97_register)
+type_init(milkymist_ac97_register_types)

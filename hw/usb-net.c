@@ -1415,9 +1415,10 @@ static TypeInfo net_info = {
     .class_init    = usb_net_class_initfn,
 };
 
-static void usb_net_register_devices(void)
+static void usb_net_register_types(void)
 {
     type_register_static(&net_info);
     usb_legacy_register("usb-net", "net", usb_net_init);
 }
-device_init(usb_net_register_devices)
+
+type_init(usb_net_register_types)

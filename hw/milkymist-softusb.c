@@ -323,9 +323,9 @@ static TypeInfo milkymist_softusb_info = {
     .class_init    = milkymist_softusb_class_init,
 };
 
-static void milkymist_softusb_register(void)
+static void milkymist_softusb_register_types(void)
 {
     type_register_static(&milkymist_softusb_info);
 }
 
-device_init(milkymist_softusb_register)
+type_init(milkymist_softusb_register_types)

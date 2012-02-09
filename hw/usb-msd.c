@@ -669,9 +669,10 @@ static TypeInfo msd_info = {
     .class_init    = usb_msd_class_initfn,
 };
 
-static void usb_msd_register_devices(void)
+static void usb_msd_register_types(void)
 {
     type_register_static(&msd_info);
     usb_legacy_register("usb-storage", "disk", usb_msd_init);
 }
-device_init(usb_msd_register_devices)
+
+type_init(usb_msd_register_types)

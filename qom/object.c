@@ -444,7 +444,7 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
 }
 
 
-static void register_interface(void)
+static void register_types(void)
 {
     static TypeInfo interface_info = {
         .name = TYPE_INTERFACE,
@@ -455,7 +455,7 @@ static void register_interface(void)
     type_interface = type_register_static(&interface_info);
 }
 
-device_init(register_interface);
+type_init(register_types)
 
 Object *object_dynamic_cast_assert(Object *obj, const char *typename)
 {

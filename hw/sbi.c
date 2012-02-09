@@ -148,9 +148,9 @@ static TypeInfo sbi_info = {
     .class_init    = sbi_class_init,
 };
 
-static void sbi_register_devices(void)
+static void sbi_register_types(void)
 {
     type_register_static(&sbi_info);
 }
 
-device_init(sbi_register_devices)
+type_init(sbi_register_types)

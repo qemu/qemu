@@ -441,9 +441,9 @@ static TypeInfo stellaris_enet_info = {
     .class_init    = stellaris_enet_class_init,
 };
 
-static void stellaris_enet_register_devices(void)
+static void stellaris_enet_register_types(void)
 {
     type_register_static(&stellaris_enet_info);
 }
 
-device_init(stellaris_enet_register_devices)
+type_init(stellaris_enet_register_types)

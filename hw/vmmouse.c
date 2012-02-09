@@ -294,8 +294,9 @@ static TypeInfo vmmouse_info = {
     .class_init    = vmmouse_class_initfn,
 };
 
-static void vmmouse_dev_register(void)
+static void vmmouse_register_types(void)
 {
     type_register_static(&vmmouse_info);
 }
-device_init(vmmouse_dev_register)
+
+type_init(vmmouse_register_types)

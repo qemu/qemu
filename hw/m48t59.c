@@ -768,10 +768,10 @@ static TypeInfo m48t59_info = {
     .class_init    = m48t59_class_init,
 };
 
-static void m48t59_register_devices(void)
+static void m48t59_register_types(void)
 {
     type_register_static(&m48t59_info);
     type_register_static(&m48t59_isa_info);
 }
 
-device_init(m48t59_register_devices)
+type_init(m48t59_register_types)

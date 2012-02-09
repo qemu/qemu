@@ -177,10 +177,10 @@ static TypeInfo sh_pci_device_info = {
     .class_init    = sh_pci_device_class_init,
 };
 
-static void sh_pci_register_devices(void)
+static void sh_pci_register_types(void)
 {
     type_register_static(&sh_pci_device_info);
     type_register_static(&sh_pci_host_info);
 }
 
-device_init(sh_pci_register_devices)
+type_init(sh_pci_register_types)

@@ -140,11 +140,11 @@ static TypeInfo pci_dec_21154_device_info = {
     .class_init    = pci_dec_21154_device_class_init,
 };
 
-static void dec_register_devices(void)
+static void dec_register_types(void)
 {
     type_register_static(&pci_dec_21154_device_info);
     type_register_static(&dec_21154_pci_host_info);
     type_register_static(&dec_21154_pci_bridge_info);
 }
 
-device_init(dec_register_devices)
+type_init(dec_register_types)

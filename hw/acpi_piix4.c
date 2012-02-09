@@ -426,12 +426,12 @@ static TypeInfo piix4_pm_info = {
     .class_init    = piix4_pm_class_init,
 };
 
-static void piix4_pm_register(void)
+static void piix4_pm_register_types(void)
 {
     type_register_static(&piix4_pm_info);
 }
 
-device_init(piix4_pm_register);
+type_init(piix4_pm_register_types)
 
 static uint32_t gpe_readb(void *opaque, uint32_t addr)
 {

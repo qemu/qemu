@@ -151,9 +151,9 @@ static TypeInfo lm32_juart_info = {
     .class_init    = lm32_juart_class_init,
 };
 
-static void lm32_juart_register(void)
+static void lm32_juart_register_types(void)
 {
     type_register_static(&lm32_juart_info);
 }
 
-device_init(lm32_juart_register)
+type_init(lm32_juart_register_types)

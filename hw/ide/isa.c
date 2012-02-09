@@ -118,9 +118,9 @@ static TypeInfo isa_ide_info = {
     .class_init    = isa_ide_class_initfn,
 };
 
-static void isa_ide_register_devices(void)
+static void isa_ide_register_types(void)
 {
     type_register_static(&isa_ide_info);
 }
 
-device_init(isa_ide_register_devices)
+type_init(isa_ide_register_types)

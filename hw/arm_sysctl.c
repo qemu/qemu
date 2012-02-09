@@ -425,9 +425,9 @@ static TypeInfo arm_sysctl_info = {
     .class_init    = arm_sysctl_class_init,
 };
 
-static void arm_sysctl_register_devices(void)
+static void arm_sysctl_register_types(void)
 {
     type_register_static(&arm_sysctl_info);
 }
 
-device_init(arm_sysctl_register_devices)
+type_init(arm_sysctl_register_types)

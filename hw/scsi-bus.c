@@ -1431,9 +1431,9 @@ static TypeInfo scsi_device_type_info = {
     .class_init = scsi_device_class_init,
 };
 
-static void scsi_register_devices(void)
+static void scsi_register_types(void)
 {
     type_register_static(&scsi_device_type_info);
 }
 
-device_init(scsi_register_devices);
+type_init(scsi_register_types)

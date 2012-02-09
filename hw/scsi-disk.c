@@ -1823,7 +1823,7 @@ static TypeInfo scsi_disk_info = {
     .class_init    = scsi_disk_class_initfn,
 };
 
-static void scsi_disk_register_devices(void)
+static void scsi_disk_register_types(void)
 {
     type_register_static(&scsi_hd_info);
     type_register_static(&scsi_cd_info);
@@ -1832,4 +1832,5 @@ static void scsi_disk_register_devices(void)
 #endif
     type_register_static(&scsi_disk_info);
 }
-device_init(scsi_disk_register_devices)
+
+type_init(scsi_disk_register_types)

@@ -135,9 +135,9 @@ static TypeInfo ds1338_info = {
     .class_init    = ds1338_class_init,
 };
 
-static void ds1338_register_devices(void)
+static void ds1338_register_types(void)
 {
     type_register_static(&ds1338_info);
 }
 
-device_init(ds1338_register_devices)
+type_init(ds1338_register_types)

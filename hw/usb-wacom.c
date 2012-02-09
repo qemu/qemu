@@ -373,9 +373,10 @@ static TypeInfo wacom_info = {
     .class_init    = usb_wacom_class_init,
 };
 
-static void usb_wacom_register_devices(void)
+static void usb_wacom_register_types(void)
 {
     type_register_static(&wacom_info);
     usb_legacy_register("usb-wacom-tablet", "wacom-tablet", NULL);
 }
-device_init(usb_wacom_register_devices)
+
+type_init(usb_wacom_register_types)

@@ -325,10 +325,10 @@ static TypeInfo pl061_luminary_info = {
     .class_init    = pl061_luminary_class_init,
 };
 
-static void pl061_register_devices(void)
+static void pl061_register_types(void)
 {
     type_register_static(&pl061_info);
     type_register_static(&pl061_luminary_info);
 }
 
-device_init(pl061_register_devices)
+type_init(pl061_register_types)

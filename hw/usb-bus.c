@@ -586,9 +586,9 @@ static TypeInfo usb_device_type_info = {
     .class_init = usb_device_class_init,
 };
 
-static void usb_register_devices(void)
+static void usb_register_types(void)
 {
     type_register_static(&usb_device_type_info);
 }
 
-device_init(usb_register_devices);
+type_init(usb_register_types)

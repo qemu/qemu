@@ -508,9 +508,9 @@ static TypeInfo axidma_info = {
     .class_init    = axidma_class_init,
 };
 
-static void xilinx_axidma_register(void)
+static void xilinx_axidma_register_types(void)
 {
     type_register_static(&axidma_info);
 }
 
-device_init(xilinx_axidma_register)
+type_init(xilinx_axidma_register_types)

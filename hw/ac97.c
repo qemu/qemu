@@ -1372,9 +1372,9 @@ static TypeInfo ac97_info = {
     .class_init    = ac97_class_init,
 };
 
-static void ac97_register (void)
+static void ac97_register_types (void)
 {
     type_register_static (&ac97_info);
 }
-device_init (ac97_register);
 
+type_init (ac97_register_types)

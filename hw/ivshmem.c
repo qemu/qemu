@@ -798,9 +798,9 @@ static TypeInfo ivshmem_info = {
     .class_init    = ivshmem_class_init,
 };
 
-static void ivshmem_register_devices(void)
+static void ivshmem_register_types(void)
 {
     type_register_static(&ivshmem_info);
 }
 
-device_init(ivshmem_register_devices)
+type_init(ivshmem_register_types)

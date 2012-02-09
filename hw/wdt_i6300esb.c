@@ -448,10 +448,10 @@ static TypeInfo i6300esb_info = {
     .class_init    = i6300esb_class_init,
 };
 
-static void i6300esb_register_devices(void)
+static void i6300esb_register_types(void)
 {
     watchdog_add_model(&model);
     type_register_static(&i6300esb_info);
 }
 
-device_init(i6300esb_register_devices);
+type_init(i6300esb_register_types)

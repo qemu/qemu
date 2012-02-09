@@ -664,9 +664,9 @@ static TypeInfo tcx_info = {
     .class_init    = tcx_class_init,
 };
 
-static void tcx_register_devices(void)
+static void tcx_register_types(void)
 {
     type_register_static(&tcx_info);
 }
 
-device_init(tcx_register_devices)
+type_init(tcx_register_types)

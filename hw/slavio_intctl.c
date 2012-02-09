@@ -463,9 +463,9 @@ static TypeInfo slavio_intctl_info = {
     .class_init    = slavio_intctl_class_init,
 };
 
-static void slavio_intctl_register_devices(void)
+static void slavio_intctl_register_types(void)
 {
     type_register_static(&slavio_intctl_info);
 }
 
-device_init(slavio_intctl_register_devices)
+type_init(slavio_intctl_register_types)

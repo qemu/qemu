@@ -876,9 +876,9 @@ static TypeInfo twl92230_info = {
     .class_init    = twl92230_class_init,
 };
 
-static void twl92230_register_devices(void)
+static void twl92230_register_types(void)
 {
     type_register_static(&twl92230_info);
 }
 
-device_init(twl92230_register_devices)
+type_init(twl92230_register_types)

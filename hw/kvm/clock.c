@@ -119,11 +119,11 @@ void kvmclock_create(void)
     }
 }
 
-static void kvmclock_register_device(void)
+static void kvmclock_register_types(void)
 {
     if (kvm_enabled()) {
     type_register_static(&kvmclock_info);
     }
 }
 
-device_init(kvmclock_register_device);
+type_init(kvmclock_register_types)

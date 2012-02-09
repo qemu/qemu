@@ -210,7 +210,7 @@ static TypeInfo isa_device_type_info = {
     .class_init = isa_device_class_init,
 };
 
-static void isabus_register_devices(void)
+static void isabus_register_types(void)
 {
     type_register_static(&isabus_bridge_info);
     type_register_static(&isa_device_type_info);
@@ -235,4 +235,4 @@ MemoryRegion *isa_address_space(ISADevice *dev)
     return get_system_memory();
 }
 
-device_init(isabus_register_devices)
+type_init(isabus_register_types)

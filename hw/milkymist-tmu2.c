@@ -482,9 +482,9 @@ static TypeInfo milkymist_tmu2_info = {
     .class_init    = milkymist_tmu2_class_init,
 };
 
-static void milkymist_tmu2_register(void)
+static void milkymist_tmu2_register_types(void)
 {
     type_register_static(&milkymist_tmu2_info);
 }
 
-device_init(milkymist_tmu2_register)
+type_init(milkymist_tmu2_register_types)

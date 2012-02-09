@@ -203,12 +203,12 @@ static TypeInfo xio3130_downstream_info = {
     .class_init    = xio3130_downstream_class_init,
 };
 
-static void xio3130_downstream_register(void)
+static void xio3130_downstream_register_types(void)
 {
     type_register_static(&xio3130_downstream_info);
 }
 
-device_init(xio3130_downstream_register);
+type_init(xio3130_downstream_register_types)
 
 /*
  * Local variables:

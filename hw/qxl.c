@@ -1870,10 +1870,10 @@ static TypeInfo qxl_secondary_info = {
     .class_init    = qxl_secondary_class_init,
 };
 
-static void qxl_register(void)
+static void qxl_register_types(void)
 {
     type_register_static(&qxl_primary_info);
     type_register_static(&qxl_secondary_info);
 }
 
-device_init(qxl_register);
+type_init(qxl_register_types)

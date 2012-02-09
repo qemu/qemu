@@ -173,10 +173,10 @@ static TypeInfo raven_pcihost_info = {
     .class_init = raven_pcihost_class_init,
 };
 
-static void raven_register_devices(void)
+static void raven_register_types(void)
 {
     type_register_static(&raven_pcihost_info);
     type_register_static(&raven_info);
 }
 
-device_init(raven_register_devices)
+type_init(raven_register_types)

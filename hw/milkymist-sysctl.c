@@ -322,9 +322,9 @@ static TypeInfo milkymist_sysctl_info = {
     .class_init    = milkymist_sysctl_class_init,
 };
 
-static void milkymist_sysctl_register(void)
+static void milkymist_sysctl_register_types(void)
 {
     type_register_static(&milkymist_sysctl_info);
 }
 
-device_init(milkymist_sysctl_register)
+type_init(milkymist_sysctl_register_types)

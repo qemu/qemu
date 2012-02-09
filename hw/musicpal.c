@@ -1681,7 +1681,7 @@ static TypeInfo mv88w8618_wlan_info = {
     .class_init    = mv88w8618_wlan_class_init,
 };
 
-static void musicpal_register_devices(void)
+static void musicpal_register_types(void)
 {
     type_register_static(&mv88w8618_pic_info);
     type_register_static(&mv88w8618_pit_info);
@@ -1693,4 +1693,4 @@ static void musicpal_register_devices(void)
     type_register_static(&musicpal_key_info);
 }
 
-device_init(musicpal_register_devices)
+type_init(musicpal_register_types)

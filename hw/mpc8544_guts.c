@@ -135,8 +135,9 @@ static TypeInfo mpc8544_guts_info = {
     .class_init    = mpc8544_guts_class_init,
 };
 
-static void mpc8544_guts_register(void)
+static void mpc8544_guts_register_types(void)
 {
     type_register_static(&mpc8544_guts_info);
 }
-device_init(mpc8544_guts_register);
+
+type_init(mpc8544_guts_register_types)

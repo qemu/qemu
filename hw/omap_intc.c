@@ -640,10 +640,10 @@ static TypeInfo omap2_intc_info = {
     .class_init    = omap2_intc_class_init,
 };
 
-static void omap_intc_register_device(void)
+static void omap_intc_register_types(void)
 {
     type_register_static(&omap_intc_info);
     type_register_static(&omap2_intc_info);
 }
 
-device_init(omap_intc_register_device)
+type_init(omap_intc_register_types)

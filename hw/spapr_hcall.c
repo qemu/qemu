@@ -672,7 +672,7 @@ target_ulong spapr_hypercall(CPUState *env, target_ulong opcode,
     return H_FUNCTION;
 }
 
-static void hypercall_init(void)
+static void hypercall_register_types(void)
 {
     /* hcall-pft */
     spapr_register_hypercall(H_ENTER, h_enter);
@@ -704,4 +704,5 @@ static void hypercall_init(void)
     /* qemu/KVM-PPC specific hcalls */
     spapr_register_hypercall(KVMPPC_H_RTAS, h_rtas);
 }
-device_init(hypercall_init);
+
+type_init(hypercall_register_types)

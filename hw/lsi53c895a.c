@@ -2142,9 +2142,9 @@ static TypeInfo lsi_info = {
     .class_init    = lsi_class_init,
 };
 
-static void lsi53c895a_register_devices(void)
+static void lsi53c895a_register_types(void)
 {
     type_register_static(&lsi_info);
 }
 
-device_init(lsi53c895a_register_devices);
+type_init(lsi53c895a_register_types)

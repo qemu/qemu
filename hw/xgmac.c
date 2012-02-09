@@ -425,9 +425,9 @@ static TypeInfo xgmac_enet_info = {
     .class_init    = xgmac_enet_class_init,
 };
 
-static void xgmac_enet_register(void)
+static void xgmac_enet_register_types(void)
 {
     type_register_static(&xgmac_enet_info);
 }
 
-device_init(xgmac_enet_register)
+type_init(xgmac_enet_register_types)

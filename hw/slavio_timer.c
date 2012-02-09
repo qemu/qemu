@@ -427,9 +427,9 @@ static TypeInfo slavio_timer_info = {
     .class_init    = slavio_timer_class_init,
 };
 
-static void slavio_timer_register_devices(void)
+static void slavio_timer_register_types(void)
 {
     type_register_static(&slavio_timer_info);
 }
 
-device_init(slavio_timer_register_devices)
+type_init(slavio_timer_register_types)

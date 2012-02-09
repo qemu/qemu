@@ -3523,9 +3523,9 @@ static TypeInfo rtl8139_info = {
     .class_init    = rtl8139_class_init,
 };
 
-static void rtl8139_register_devices(void)
+static void rtl8139_register_types(void)
 {
     type_register_static(&rtl8139_info);
 }
 
-device_init(rtl8139_register_devices)
+type_init(rtl8139_register_types)

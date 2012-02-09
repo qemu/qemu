@@ -182,9 +182,9 @@ static TypeInfo xilinx_intc_info = {
     .class_init    = xilinx_intc_class_init,
 };
 
-static void xilinx_intc_register(void)
+static void xilinx_intc_register_types(void)
 {
     type_register_static(&xilinx_intc_info);
 }
 
-device_init(xilinx_intc_register)
+type_init(xilinx_intc_register_types)

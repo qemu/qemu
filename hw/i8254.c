@@ -559,8 +559,9 @@ static TypeInfo pit_info = {
     .class_init    = pit_class_initfn,
 };
 
-static void pit_register(void)
+static void pit_register_types(void)
 {
     type_register_static(&pit_info);
 }
-device_init(pit_register)
+
+type_init(pit_register_types)

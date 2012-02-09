@@ -343,9 +343,9 @@ static TypeInfo etraxfs_timer_info = {
     .class_init    = etraxfs_timer_class_init,
 };
 
-static void etraxfs_timer_register(void)
+static void etraxfs_timer_register_types(void)
 {
     type_register_static(&etraxfs_timer_info);
 }
 
-device_init(etraxfs_timer_register)
+type_init(etraxfs_timer_register_types)

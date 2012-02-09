@@ -557,8 +557,9 @@ static TypeInfo hub_info = {
     .class_init    = usb_hub_class_initfn,
 };
 
-static void usb_hub_register_devices(void)
+static void usb_hub_register_types(void)
 {
     type_register_static(&hub_info);
 }
-device_init(usb_hub_register_devices)
+
+type_init(usb_hub_register_types)

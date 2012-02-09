@@ -373,9 +373,10 @@ static TypeInfo e500_pcihost_info = {
     .class_init    = e500_pcihost_class_init,
 };
 
-static void e500_pci_register(void)
+static void e500_pci_register_types(void)
 {
     type_register_static(&e500_pcihost_info);
     type_register_static(&e500_host_bridge_info);
 }
-device_init(e500_pci_register);
+
+type_init(e500_pci_register_types)

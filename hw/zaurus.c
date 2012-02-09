@@ -243,11 +243,12 @@ static TypeInfo scoop_sysbus_info = {
     .class_init    = scoop_sysbus_class_init,
 };
 
-static void scoop_register(void)
+static void scoop_register_types(void)
 {
     type_register_static(&scoop_sysbus_info);
 }
-device_init(scoop_register);
+
+type_init(scoop_register_types)
 
 /* Write the bootloader parameters memory area.  */
 

@@ -252,10 +252,10 @@ static TypeInfo mpcore_priv_info = {
     .class_init    = mpcore_priv_class_init,
 };
 
-static void arm11mpcore_register_devices(void)
+static void arm11mpcore_register_types(void)
 {
     type_register_static(&mpcore_rirq_info);
     type_register_static(&mpcore_priv_info);
 }
 
-device_init(arm11mpcore_register_devices)
+type_init(arm11mpcore_register_types)

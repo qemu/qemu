@@ -1344,8 +1344,9 @@ static TypeInfo usbredir_dev_info = {
     .class_init    = usbredir_class_initfn,
 };
 
-static void usbredir_register_devices(void)
+static void usbredir_register_types(void)
 {
     type_register_static(&usbredir_dev_info);
 }
-device_init(usbredir_register_devices);
+
+type_init(usbredir_register_types)

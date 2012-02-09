@@ -804,9 +804,10 @@ static TypeInfo bonito_pcihost_info = {
     .class_init    = bonito_pcihost_class_init,
 };
 
-static void bonito_register(void)
+static void bonito_register_types(void)
 {
     type_register_static(&bonito_pcihost_info);
     type_register_static(&bonito_info);
 }
-device_init(bonito_register);
+
+type_init(bonito_register_types)

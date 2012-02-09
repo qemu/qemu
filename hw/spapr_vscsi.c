@@ -973,8 +973,9 @@ static TypeInfo spapr_vscsi_info = {
     .class_init    = spapr_vscsi_class_init,
 };
 
-static void spapr_vscsi_register(void)
+static void spapr_vscsi_register_types(void)
 {
     type_register_static(&spapr_vscsi_info);
 }
-device_init(spapr_vscsi_register);
+
+type_init(spapr_vscsi_register_types)

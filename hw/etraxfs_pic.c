@@ -172,9 +172,9 @@ static TypeInfo etraxfs_pic_info = {
     .class_init    = etraxfs_pic_class_init,
 };
 
-static void etraxfs_pic_register(void)
+static void etraxfs_pic_register_types(void)
 {
     type_register_static(&etraxfs_pic_info);
 }
 
-device_init(etraxfs_pic_register)
+type_init(etraxfs_pic_register_types)

@@ -623,13 +623,6 @@ static TypeInfo idreg_info = {
     .class_init    = idreg_class_init,
 };
 
-static void idreg_register_devices(void)
-{
-    type_register_static(&idreg_info);
-}
-
-device_init(idreg_register_devices);
-
 typedef struct AFXState {
     SysBusDevice busdev;
     MemoryRegion mem;
@@ -671,13 +664,6 @@ static TypeInfo afx_info = {
     .instance_size = sizeof(AFXState),
     .class_init    = afx_class_init,
 };
-
-static void afx_register_devices(void)
-{
-    type_register_static(&afx_info);
-}
-
-device_init(afx_register_devices);
 
 typedef struct PROMState {
     SysBusDevice busdev;
@@ -756,13 +742,6 @@ static TypeInfo prom_info = {
     .class_init    = prom_class_init,
 };
 
-static void prom_register_devices(void)
-{
-    type_register_static(&prom_info);
-}
-
-device_init(prom_register_devices);
-
 typedef struct RamDevice
 {
     SysBusDevice busdev;
@@ -826,13 +805,6 @@ static TypeInfo ram_info = {
     .instance_size = sizeof(RamDevice),
     .class_init    = ram_class_init,
 };
-
-static void ram_register_devices(void)
-{
-    type_register_static(&ram_info);
-}
-
-device_init(ram_register_devices);
 
 static void cpu_devinit(const char *cpu_model, unsigned int id,
                         uint64_t prom_addr, qemu_irq **cpu_irqs)
@@ -1865,6 +1837,14 @@ static QEMUMachine ss2_machine = {
     .use_scsi = 1,
 };
 
+static void sun4m_register_types(void)
+{
+    type_register_static(&idreg_info);
+    type_register_static(&afx_info);
+    type_register_static(&prom_info);
+    type_register_static(&ram_info);
+}
+
 static void ss2_machine_init(void)
 {
     qemu_register_machine(&ss5_machine);
@@ -1881,4 +1861,5 @@ static void ss2_machine_init(void)
     qemu_register_machine(&ss2_machine);
 }
 
+type_init(sun4m_register_types)
 machine_init(ss2_machine_init);

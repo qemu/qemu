@@ -894,9 +894,10 @@ static TypeInfo xilinx_enet_info = {
     .instance_size = sizeof(struct XilinxAXIEnet),
     .class_init    = xilinx_enet_class_init,
 };
-static void xilinx_enet_register(void)
+
+static void xilinx_enet_register_types(void)
 {
     type_register_static(&xilinx_enet_info);
 }
 
-device_init(xilinx_enet_register)
+type_init(xilinx_enet_register_types)

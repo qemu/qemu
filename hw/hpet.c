@@ -720,9 +720,9 @@ static TypeInfo hpet_device_info = {
     .class_init    = hpet_device_class_init,
 };
 
-static void hpet_register_device(void)
+static void hpet_register_types(void)
 {
     type_register_static(&hpet_device_info);
 }
 
-device_init(hpet_register_device)
+type_init(hpet_register_types)

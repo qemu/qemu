@@ -184,9 +184,9 @@ static TypeInfo l2x0_info = {
     .class_init = l2x0_class_init,
 };
 
-static void l2x0_register_device(void)
+static void l2x0_register_types(void)
 {
     type_register_static(&l2x0_info);
 }
 
-device_init(l2x0_register_device)
+type_init(l2x0_register_types)

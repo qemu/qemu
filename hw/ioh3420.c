@@ -237,12 +237,12 @@ static TypeInfo ioh3420_info = {
     .class_init    = ioh3420_class_init,
 };
 
-static void ioh3420_register(void)
+static void ioh3420_register_types(void)
 {
     type_register_static(&ioh3420_info);
 }
 
-device_init(ioh3420_register);
+type_init(ioh3420_register_types)
 
 /*
  * Local variables:

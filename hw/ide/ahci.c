@@ -1261,9 +1261,9 @@ static TypeInfo sysbus_ahci_info = {
     .class_init    = sysbus_ahci_class_init,
 };
 
-static void sysbus_ahci_register(void)
+static void sysbus_ahci_register_types(void)
 {
     type_register_static(&sysbus_ahci_info);
 }
 
-device_init(sysbus_ahci_register);
+type_init(sysbus_ahci_register_types)

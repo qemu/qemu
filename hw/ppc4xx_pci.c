@@ -400,9 +400,10 @@ static TypeInfo ppc4xx_pcihost_info = {
     .class_init    = ppc4xx_pcihost_class_init,
 };
 
-static void ppc4xx_pci_register(void)
+static void ppc4xx_pci_register_types(void)
 {
     type_register_static(&ppc4xx_pcihost_info);
     type_register_static(&ppc4xx_host_bridge_info);
 }
-device_init(ppc4xx_pci_register);
+
+type_init(ppc4xx_pci_register_types)

@@ -71,12 +71,12 @@ typedef struct InterfaceInfo InterfaceInfo;
  *     .instance_size = sizeof(MyDevice),
  * };
  *
- * static void my_device_module_init(void)
+ * static void my_device_register_types(void)
  * {
  *     type_register_static(&my_device_info);
  * }
  *
- * device_init(my_device_module_init);
+ * type_init(my_device_register_types)
  *   </programlisting>
  * </example>
  *

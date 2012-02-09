@@ -550,8 +550,9 @@ static TypeInfo bt_info = {
     .class_init    = usb_bt_class_initfn,
 };
 
-static void usb_bt_register_devices(void)
+static void usb_bt_register_types(void)
 {
     type_register_static(&bt_info);
 }
-device_init(usb_bt_register_devices)
+
+type_init(usb_bt_register_types)

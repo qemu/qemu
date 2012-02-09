@@ -332,9 +332,9 @@ static TypeInfo ecc_info = {
 };
 
 
-static void ecc_register_devices(void)
+static void ecc_register_types(void)
 {
     type_register_static(&ecc_info);
 }
 
-device_init(ecc_register_devices)
+type_init(ecc_register_types)

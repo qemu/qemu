@@ -327,9 +327,9 @@ static TypeInfo smbus_device_type_info = {
     .class_init = smbus_device_class_init,
 };
 
-static void smbus_device_register_devices(void)
+static void smbus_device_register_types(void)
 {
     type_register_static(&smbus_device_type_info);
 }
 
-device_init(smbus_device_register_devices);
+type_init(smbus_device_register_types)

@@ -335,9 +335,9 @@ static TypeInfo arm_mptimer_info = {
     .class_init    = arm_mptimer_class_init,
 };
 
-static void arm_mptimer_register_devices(void)
+static void arm_mptimer_register_types(void)
 {
     type_register_static(&arm_mptimer_info);
 }
 
-device_init(arm_mptimer_register_devices)
+type_init(arm_mptimer_register_types)

@@ -153,9 +153,9 @@ static TypeInfo pic_common_type = {
     .abstract = true,
 };
 
-static void register_devices(void)
+static void register_types(void)
 {
     type_register_static(&pic_common_type);
 }
 
-device_init(register_devices);
+type_init(register_types);

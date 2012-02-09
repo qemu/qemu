@@ -159,8 +159,9 @@ static TypeInfo vmport_info = {
     .class_init    = vmport_class_initfn,
 };
 
-static void vmport_dev_register(void)
+static void vmport_register_types(void)
 {
     type_register_static(&vmport_info);
 }
-device_init(vmport_dev_register)
+
+type_init(vmport_register_types)

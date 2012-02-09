@@ -805,9 +805,9 @@ static TypeInfo tusb6010_info = {
     .class_init    = tusb6010_class_init,
 };
 
-static void tusb6010_register_device(void)
+static void tusb6010_register_types(void)
 {
     type_register_static(&tusb6010_info);
 }
 
-device_init(tusb6010_register_device)
+type_init(tusb6010_register_types)

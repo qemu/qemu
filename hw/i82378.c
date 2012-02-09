@@ -267,9 +267,9 @@ static TypeInfo pci_i82378_info = {
     .class_init = pci_i82378_class_init,
 };
 
-static void i82378_register_devices(void)
+static void i82378_register_types(void)
 {
     type_register_static(&pci_i82378_info);
 }
 
-device_init(i82378_register_devices)
+type_init(i82378_register_types)

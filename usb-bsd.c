@@ -417,11 +417,12 @@ static TypeInfo usb_host_dev_info = {
     .class_init    = usb_host_class_initfn,
 };
 
-static void usb_host_register_devices(void)
+static void usb_host_register_types(void)
 {
     type_register_static(&usb_host_dev_info);
 }
-device_init(usb_host_register_devices)
+
+type_init(usb_host_register_types)
 
 static int usb_host_scan(void *opaque, USBScanFunc *func)
 {

@@ -2376,12 +2376,13 @@ static int usb_ehci_initfn(PCIDevice *dev)
     return 0;
 }
 
-static void ehci_register(void)
+static void ehci_register_types(void)
 {
     type_register_static(&ehci_info);
     type_register_static(&ich9_ehci_info);
 }
-device_init(ehci_register);
+
+type_init(ehci_register_types)
 
 /*
  * vim: expandtab ts=4

@@ -257,11 +257,12 @@ static TypeInfo ide_device_type_info = {
     .class_init = ide_device_class_init,
 };
 
-static void ide_dev_register(void)
+static void ide_register_types(void)
 {
     type_register_static(&ide_hd_info);
     type_register_static(&ide_cd_info);
     type_register_static(&ide_drive_info);
     type_register_static(&ide_device_type_info);
 }
-device_init(ide_dev_register);
+
+type_init(ide_register_types)

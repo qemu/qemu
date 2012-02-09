@@ -222,9 +222,9 @@ static TypeInfo lm32_timer_info = {
     .class_init    = lm32_timer_class_init,
 };
 
-static void lm32_timer_register(void)
+static void lm32_timer_register_types(void)
 {
     type_register_static(&lm32_timer_info);
 }
 
-device_init(lm32_timer_register)
+type_init(lm32_timer_register_types)

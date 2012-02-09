@@ -130,9 +130,9 @@ static TypeInfo kvm_i8259_info = {
     .class_init = kvm_i8259_class_init,
 };
 
-static void kvm_pic_register(void)
+static void kvm_pic_register_types(void)
 {
     type_register_static(&kvm_i8259_info);
 }
 
-device_init(kvm_pic_register)
+type_init(kvm_pic_register_types)

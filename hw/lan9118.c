@@ -1261,7 +1261,7 @@ static TypeInfo lan9118_info = {
     .class_init    = lan9118_class_init,
 };
 
-static void lan9118_register_devices(void)
+static void lan9118_register_types(void)
 {
     type_register_static(&lan9118_info);
 }
@@ -1282,4 +1282,4 @@ void lan9118_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     sysbus_connect_irq(s, 0, irq);
 }
 
-device_init(lan9118_register_devices)
+type_init(lan9118_register_types)

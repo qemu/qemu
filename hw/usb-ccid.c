@@ -1354,10 +1354,11 @@ static TypeInfo ccid_card_type_info = {
     .class_init = ccid_card_class_init,
 };
 
-static void ccid_register_devices(void)
+static void ccid_register_types(void)
 {
     type_register_static(&ccid_card_type_info);
     type_register_static(&ccid_info);
     usb_legacy_register(CCID_DEV_NAME, "ccid", NULL);
 }
-device_init(ccid_register_devices)
+
+type_init(ccid_register_types)

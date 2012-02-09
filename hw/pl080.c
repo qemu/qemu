@@ -409,10 +409,10 @@ static TypeInfo pl081_info = {
 
 /* The PL080 and PL081 are the same except for the number of channels
    they implement (8 and 2 respectively).  */
-static void pl080_register_devices(void)
+static void pl080_register_types(void)
 {
     type_register_static(&pl080_info);
     type_register_static(&pl081_info);
 }
 
-device_init(pl080_register_devices)
+type_init(pl080_register_types)

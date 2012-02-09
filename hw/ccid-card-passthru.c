@@ -343,9 +343,9 @@ static TypeInfo passthru_card_info = {
     .class_init    = passthru_class_initfn,
 };
 
-static void ccid_card_passthru_register_devices(void)
+static void ccid_card_passthru_register_types(void)
 {
     type_register_static(&passthru_card_info);
 }
 
-device_init(ccid_card_passthru_register_devices)
+type_init(ccid_card_passthru_register_types)

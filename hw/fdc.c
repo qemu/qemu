@@ -2043,11 +2043,11 @@ static TypeInfo sun4m_fdc_info = {
     .class_init    = sun4m_fdc_class_init,
 };
 
-static void fdc_register_devices(void)
+static void fdc_register_types(void)
 {
     type_register_static(&isa_fdc_info);
     type_register_static(&sysbus_fdc_info);
     type_register_static(&sun4m_fdc_info);
 }
 
-device_init(fdc_register_devices)
+type_init(fdc_register_types)

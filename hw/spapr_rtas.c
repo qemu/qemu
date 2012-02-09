@@ -288,7 +288,7 @@ int spapr_rtas_device_tree_setup(void *fdt, target_phys_addr_t rtas_addr,
     return 0;
 }
 
-static void register_core_rtas(void)
+static void core_rtas_register_types(void)
 {
     spapr_rtas_register("display-character", rtas_display_character);
     spapr_rtas_register("get-time-of-day", rtas_get_time_of_day);
@@ -298,4 +298,5 @@ static void register_core_rtas(void)
                         rtas_query_cpu_stopped_state);
     spapr_rtas_register("start-cpu", rtas_start_cpu);
 }
-device_init(register_core_rtas);
+
+type_init(core_rtas_register_types)

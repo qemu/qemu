@@ -212,10 +212,11 @@ static VIOsPAPRDevice *vty_lookup(sPAPREnvironment *spapr, target_ulong reg)
     return sdev;
 }
 
-static void spapr_vty_register(void)
+static void spapr_vty_register_types(void)
 {
     spapr_register_hypercall(H_PUT_TERM_CHAR, h_put_term_char);
     spapr_register_hypercall(H_GET_TERM_CHAR, h_get_term_char);
     type_register_static(&spapr_vty_info);
 }
-device_init(spapr_vty_register);
+
+type_init(spapr_vty_register_types)

@@ -177,12 +177,12 @@ static TypeInfo highbank_regs_info = {
     .class_init    = highbank_regs_class_init,
 };
 
-static void highbank_regs_register_device(void)
+static void highbank_regs_register_types(void)
 {
     type_register_static(&highbank_regs_info);
 }
 
-device_init(highbank_regs_register_device)
+type_init(highbank_regs_register_types)
 
 static struct arm_boot_info highbank_binfo;
 

@@ -256,9 +256,9 @@ static TypeInfo sysbus_device_type_info = {
     .class_init = sysbus_device_class_init,
 };
 
-static void sysbus_register(void)
+static void sysbus_register_types(void)
 {
     type_register_static(&sysbus_device_type_info);
 }
 
-device_init(sysbus_register);
+type_init(sysbus_register_types)

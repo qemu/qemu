@@ -2752,8 +2752,9 @@ static TypeInfo xhci_info = {
     .class_init    = xhci_class_init,
 };
 
-static void xhci_register(void)
+static void xhci_register_types(void)
 {
     type_register_static(&xhci_info);
 }
-device_init(xhci_register);
+
+type_init(xhci_register_types)

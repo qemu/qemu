@@ -706,10 +706,10 @@ static TypeInfo usb_audio_info = {
     .class_init    = usb_audio_class_init,
 };
 
-static void usb_audio_register_devices(void)
+static void usb_audio_register_types(void)
 {
     type_register_static(&usb_audio_info);
     usb_legacy_register("usb-audio", "audio", NULL);
 }
 
-device_init(usb_audio_register_devices)
+type_init(usb_audio_register_types)

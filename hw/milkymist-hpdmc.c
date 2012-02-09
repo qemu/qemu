@@ -162,9 +162,9 @@ static TypeInfo milkymist_hpdmc_info = {
     .class_init    = milkymist_hpdmc_class_init,
 };
 
-static void milkymist_hpdmc_register(void)
+static void milkymist_hpdmc_register_types(void)
 {
     type_register_static(&milkymist_hpdmc_info);
 }
 
-device_init(milkymist_hpdmc_register)
+type_init(milkymist_hpdmc_register_types)

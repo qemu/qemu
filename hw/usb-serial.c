@@ -628,11 +628,12 @@ static TypeInfo braille_info = {
     .class_init    = usb_braille_class_initfn,
 };
 
-static void usb_serial_register_devices(void)
+static void usb_serial_register_types(void)
 {
     type_register_static(&serial_info);
     usb_legacy_register("usb-serial", "serial", usb_serial_init);
     type_register_static(&braille_info);
     usb_legacy_register("usb-braille", "braille", usb_braille_init);
 }
-device_init(usb_serial_register_devices)
+
+type_init(usb_serial_register_types)

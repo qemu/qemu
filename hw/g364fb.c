@@ -574,9 +574,9 @@ static TypeInfo g364fb_sysbus_info = {
     .class_init    = g364fb_sysbus_class_init,
 };
 
-static void g364fb_register(void)
+static void g364fb_register_types(void)
 {
     type_register_static(&g364fb_sysbus_info);
 }
 
-device_init(g364fb_register);
+type_init(g364fb_register_types)

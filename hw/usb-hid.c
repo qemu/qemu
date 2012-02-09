@@ -621,7 +621,7 @@ static TypeInfo usb_keyboard_info = {
     .class_init    = usb_keyboard_class_initfn,
 };
 
-static void usb_hid_register_devices(void)
+static void usb_hid_register_types(void)
 {
     type_register_static(&usb_tablet_info);
     usb_legacy_register("usb-tablet", "tablet", NULL);
@@ -630,4 +630,5 @@ static void usb_hid_register_devices(void)
     type_register_static(&usb_keyboard_info);
     usb_legacy_register("usb-kbd", "keyboard", NULL);
 }
-device_init(usb_hid_register_devices)
+
+type_init(usb_hid_register_types)

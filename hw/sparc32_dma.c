@@ -307,9 +307,9 @@ static TypeInfo sparc32_dma_info = {
     .class_init    = sparc32_dma_class_init,
 };
 
-static void sparc32_dma_register_devices(void)
+static void sparc32_dma_register_types(void)
 {
     type_register_static(&sparc32_dma_info);
 }
 
-device_init(sparc32_dma_register_devices)
+type_init(sparc32_dma_register_types)

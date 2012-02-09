@@ -295,9 +295,9 @@ static TypeInfo milkymist_memcard_info = {
     .class_init    = milkymist_memcard_class_init,
 };
 
-static void milkymist_memcard_register(void)
+static void milkymist_memcard_register_types(void)
 {
     type_register_static(&milkymist_memcard_info);
 }
 
-device_init(milkymist_memcard_register)
+type_init(milkymist_memcard_register_types)

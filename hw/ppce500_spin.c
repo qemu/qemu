@@ -217,8 +217,9 @@ static TypeInfo ppce500_spin_info = {
     .class_init    = ppce500_spin_class_init,
 };
 
-static void ppce500_spin_register(void)
+static void ppce500_spin_register_types(void)
 {
     type_register_static(&ppce500_spin_info);
 }
-device_init(ppce500_spin_register);
+
+type_init(ppce500_spin_register_types)

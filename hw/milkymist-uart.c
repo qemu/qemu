@@ -235,9 +235,9 @@ static TypeInfo milkymist_uart_info = {
     .class_init    = milkymist_uart_class_init,
 };
 
-static void milkymist_uart_register(void)
+static void milkymist_uart_register_types(void)
 {
     type_register_static(&milkymist_uart_info);
 }
 
-device_init(milkymist_uart_register)
+type_init(milkymist_uart_register_types)

@@ -824,8 +824,9 @@ static TypeInfo typhoon_pcihost_info = {
     .class_init    = typhoon_pcihost_class_init,
 };
 
-static void typhoon_register(void)
+static void typhoon_register_types(void)
 {
     type_register_static(&typhoon_pcihost_info);
 }
-device_init(typhoon_register);
+
+type_init(typhoon_register_types)

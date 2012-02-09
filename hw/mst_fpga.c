@@ -255,8 +255,9 @@ static TypeInfo mst_fpga_info = {
     .class_init    = mst_fpga_class_init,
 };
 
-static void mst_fpga_register(void)
+static void mst_fpga_register_types(void)
 {
     type_register_static(&mst_fpga_info);
 }
-device_init(mst_fpga_register);
+
+type_init(mst_fpga_register_types)

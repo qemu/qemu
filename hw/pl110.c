@@ -520,11 +520,11 @@ static TypeInfo pl111_info = {
     .class_init    = pl111_class_init,
 };
 
-static void pl110_register_devices(void)
+static void pl110_register_types(void)
 {
     type_register_static(&pl110_info);
     type_register_static(&pl110_versatile_info);
     type_register_static(&pl111_info);
 }
 
-device_init(pl110_register_devices)
+type_init(pl110_register_types)

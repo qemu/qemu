@@ -295,9 +295,9 @@ static TypeInfo mv88w8618_audio_info = {
     .class_init    = mv88w8618_audio_class_init,
 };
 
-static void mv88w8618_register_devices(void)
+static void mv88w8618_register_types(void)
 {
     type_register_static(&mv88w8618_audio_info);
 }
 
-device_init(mv88w8618_register_devices)
+type_init(mv88w8618_register_types)

@@ -168,8 +168,9 @@ static TypeInfo ich_ahci_info = {
     .class_init    = ich_ahci_class_init,
 };
 
-static void ich_ahci_register(void)
+static void ich_ahci_register_types(void)
 {
     type_register_static(&ich_ahci_info);
 }
-device_init(ich_ahci_register);
+
+type_init(ich_ahci_register_types)

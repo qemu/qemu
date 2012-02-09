@@ -589,11 +589,12 @@ static TypeInfo i440fx_pcihost_info = {
     .class_init    = i440fx_pcihost_class_init,
 };
 
-static void i440fx_register(void)
+static void i440fx_register_types(void)
 {
     type_register_static(&i440fx_info);
     type_register_static(&piix3_info);
     type_register_static(&piix3_xen_info);
     type_register_static(&i440fx_pcihost_info);
 }
-device_init(i440fx_register);
+
+type_init(i440fx_register_types)

@@ -1417,8 +1417,9 @@ static TypeInfo sb16_info = {
     .class_init    = sb16_class_initfn,
 };
 
-static void sb16_register (void)
+static void sb16_register_types (void)
 {
     type_register_static (&sb16_info);
 }
-device_init (sb16_register)
+
+type_init (sb16_register_types)

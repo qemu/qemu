@@ -2003,9 +2003,9 @@ static TypeInfo pci_device_type_info = {
     .class_init = pci_device_class_init,
 };
 
-static void pci_register_devices(void)
+static void pci_register_types(void)
 {
     type_register_static(&pci_device_type_info);
 }
 
-device_init(pci_register_devices);
+type_init(pci_register_types)

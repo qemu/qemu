@@ -234,8 +234,9 @@ static TypeInfo via_ide_info = {
     .class_init    = via_ide_class_init,
 };
 
-static void via_ide_register(void)
+static void via_ide_register_types(void)
 {
     type_register_static(&via_ide_info);
 }
-device_init(via_ide_register);
+
+type_init(via_ide_register_types)

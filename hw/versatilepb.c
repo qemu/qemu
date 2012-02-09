@@ -382,9 +382,9 @@ static TypeInfo vpb_sic_info = {
     .class_init    = vpb_sic_class_init,
 };
 
-static void versatilepb_register_devices(void)
+static void versatilepb_register_types(void)
 {
     type_register_static(&vpb_sic_info);
 }
 
-device_init(versatilepb_register_devices)
+type_init(versatilepb_register_types)
