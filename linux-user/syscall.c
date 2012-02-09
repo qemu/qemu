@@ -756,14 +756,15 @@ abi_long do_brk(abi_ulong new_brk)
     abi_long mapped_addr;
     int	new_alloc_size;
 
-    DEBUGF_BRK("do_brk(%#010x) -> ", new_brk);
+    DEBUGF_BRK("do_brk(" TARGET_ABI_FMT_lx ") -> ", new_brk);
 
     if (!new_brk) {
-        DEBUGF_BRK("%#010x (!new_brk)\n", target_brk);
+        DEBUGF_BRK(TARGET_ABI_FMT_lx " (!new_brk)\n", target_brk);
         return target_brk;
     }
     if (new_brk < target_original_brk) {
-        DEBUGF_BRK("%#010x (new_brk < target_original_brk)\n", target_brk);
+        DEBUGF_BRK(TARGET_ABI_FMT_lx " (new_brk < target_original_brk)\n",
+                   target_brk);
         return target_brk;
     }
 
@@ -776,7 +777,7 @@ abi_long do_brk(abi_ulong new_brk)
             memset(g2h(target_brk), 0, new_brk - target_brk);
         }
 	target_brk = new_brk;
-        DEBUGF_BRK("%#010x (new_brk <= brk_page)\n", target_brk);
+        DEBUGF_BRK(TARGET_ABI_FMT_lx " (new_brk <= brk_page)\n", target_brk);
     	return target_brk;
     }
 
@@ -803,7 +804,8 @@ abi_long do_brk(abi_ulong new_brk)
 
         target_brk = new_brk;
         brk_page = HOST_PAGE_ALIGN(target_brk);
-        DEBUGF_BRK("%#010x (mapped_addr == brk_page)\n", target_brk);
+        DEBUGF_BRK(TARGET_ABI_FMT_lx " (mapped_addr == brk_page)\n",
+            target_brk);
         return target_brk;
     } else if (mapped_addr != -1) {
         /* Mapped but at wrong address, meaning there wasn't actually
@@ -811,10 +813,10 @@ abi_long do_brk(abi_ulong new_brk)
          */
         target_munmap(mapped_addr, new_alloc_size);
         mapped_addr = -1;
-        DEBUGF_BRK("%#010x (mapped_addr != -1)\n", target_brk);
+        DEBUGF_BRK(TARGET_ABI_FMT_lx " (mapped_addr != -1)\n", target_brk);
     }
     else {
-        DEBUGF_BRK("%#010x (otherwise)\n", target_brk);
+        DEBUGF_BRK(TARGET_ABI_FMT_lx " (otherwise)\n", target_brk);
     }
 
 #if defined(TARGET_ALPHA)
