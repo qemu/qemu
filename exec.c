@@ -192,9 +192,18 @@ typedef struct PhysPageDesc {
     ram_addr_t region_offset;
 } PhysPageDesc;
 
+typedef struct PhysPageEntry PhysPageEntry;
+
+struct PhysPageEntry {
+    union {
+        PhysPageDesc leaf;
+        PhysPageEntry *node;
+    } u;
+};
+
 /* This is a multi-level map on the physical address space.
    The bottom level has pointers to PhysPageDesc.  */
-static void *phys_map;
+static PhysPageEntry phys_map;
 
 static void io_mem_init(void);
 static void memory_map_init(void);
@@ -392,42 +401,31 @@ static inline PageDesc *page_find(tb_page_addr_t index)
 #if !defined(CONFIG_USER_ONLY)
 static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
 {
-    PhysPageDesc *pd;
-    void **lp;
-    int i;
+    PhysPageEntry *lp, *p;
+    int i, j;
 
     lp = &phys_map;
 
-    /* Level 1..N-1.  */
-    for (i = P_L2_LEVELS - 1; i > 0; i--) {
-        void **p = *lp;
-        if (p == NULL) {
+    /* Level 1..N.  */
+    for (i = P_L2_LEVELS - 1; i >= 0; i--) {
+        if (lp->u.node == NULL) {
             if (!alloc) {
                 return NULL;
             }
-            *lp = p = g_malloc0(sizeof(void *) * L2_SIZE);
+            lp->u.node = p = g_malloc0(sizeof(PhysPageEntry) * L2_SIZE);
+            if (i == 0) {
+                int first_index = index & ~(L2_SIZE - 1);
+                for (j = 0; j < L2_SIZE; j++) {
+                    p[j].u.leaf.phys_offset = io_mem_unassigned.ram_addr;
+                    p[j].u.leaf.region_offset
+                        = (first_index + j) << TARGET_PAGE_BITS;
+                }
+            }
         }
-        lp = p + ((index >> (i * L2_BITS)) & (L2_SIZE - 1));
+        lp = &lp->u.node[(index >> (i * L2_BITS)) & (L2_SIZE - 1)];
     }
 
-    pd = *lp;
-    if (pd == NULL) {
-        int i;
-        int first_index = index & ~(L2_SIZE - 1);
-
-        if (!alloc) {
-            return NULL;
-        }
-
-        *lp = pd = g_malloc(sizeof(PhysPageDesc) * L2_SIZE);
-
-        for (i = 0; i < L2_SIZE; i++) {
-            pd[i].phys_offset = io_mem_unassigned.ram_addr;
-            pd[i].region_offset = (first_index + i) << TARGET_PAGE_BITS;
-        }
-    }
-
-    return pd + (index & (L2_SIZE - 1));
+    return &lp->u.leaf;
 }
 
 static inline PhysPageDesc phys_page_find(target_phys_addr_t index)
@@ -2523,30 +2521,24 @@ static void destroy_page_desc(PhysPageDesc pd)
     }
 }
 
-static void destroy_l2_mapping(void **lp, unsigned level)
+static void destroy_l2_mapping(PhysPageEntry *lp, unsigned level)
 {
     unsigned i;
-    void **p;
-    PhysPageDesc *pd;
+    PhysPageEntry *p = lp->u.node;
 
-    if (!*lp) {
+    if (!p) {
         return;
     }
 
-    if (level > 0) {
-        p = *lp;
-        for (i = 0; i < L2_SIZE; ++i) {
+    for (i = 0; i < L2_SIZE; ++i) {
+        if (level > 0) {
             destroy_l2_mapping(&p[i], level - 1);
+        } else {
+            destroy_page_desc(p[i].u.leaf);
         }
-        g_free(p);
-    } else {
-        pd = *lp;
-        for (i = 0; i < L2_SIZE; ++i) {
-            destroy_page_desc(pd[i]);
-        }
-        g_free(pd);
     }
-    *lp = NULL;
+    g_free(p);
+    lp->u.node = NULL;
 }
 
 static void destroy_all_mappings(void)
