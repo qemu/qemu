@@ -1900,9 +1900,6 @@ if test "$curses" != "no" ; then
   curses_found=no
   cat > $TMPC << EOF
 #include <curses.h>
-#ifdef __OpenBSD__
-#define resize_term resizeterm
-#endif
 int main(void) {
   const char *s = curses_version();
   resize_term(0, 0);
