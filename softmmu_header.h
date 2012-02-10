@@ -95,7 +95,7 @@ static inline RES_TYPE glue(glue(ld, USUFFIX), MEMSUFFIX)(target_ulong ptr)
         res = glue(glue(__ld, SUFFIX), MMUSUFFIX)(addr, mmu_idx);
     } else {
         uintptr_t physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
-        res = glue(glue(ld, USUFFIX), _raw)((uint8_t *)physaddr);
+        res = glue(glue(ld, USUFFIX), _raw)(physaddr);
     }
     return res;
 }
@@ -105,7 +105,6 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
 {
     int res, page_index;
     target_ulong addr;
-    uintptr_t physaddr;
     int mmu_idx;
 
     addr = ptr;
@@ -115,8 +114,8 @@ static inline int glue(glue(lds, SUFFIX), MEMSUFFIX)(target_ulong ptr)
                  (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         res = (DATA_STYPE)glue(glue(__ld, SUFFIX), MMUSUFFIX)(addr, mmu_idx);
     } else {
-        physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
-        res = glue(glue(lds, SUFFIX), _raw)((uint8_t *)physaddr);
+        uintptr_t physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
+        res = glue(glue(lds, SUFFIX), _raw)(physaddr);
     }
     return res;
 }
@@ -130,7 +129,6 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
 {
     int page_index;
     target_ulong addr;
-    uintptr_t physaddr;
     int mmu_idx;
 
     addr = ptr;
@@ -140,8 +138,8 @@ static inline void glue(glue(st, SUFFIX), MEMSUFFIX)(target_ulong ptr, RES_TYPE 
                  (addr & (TARGET_PAGE_MASK | (DATA_SIZE - 1))))) {
         glue(glue(__st, SUFFIX), MMUSUFFIX)(addr, v, mmu_idx);
     } else {
-        physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
-        glue(glue(st, SUFFIX), _raw)((uint8_t *)physaddr, v);
+        uintptr_t physaddr = addr + env->tlb_table[mmu_idx][page_index].addend;
+        glue(glue(st, SUFFIX), _raw)(physaddr, v);
     }
 }
 

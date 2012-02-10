@@ -792,7 +792,7 @@ static void tb_invalidate_check(target_ulong address)
                   address >= tb->pc + tb->size)) {
                 printf("ERROR invalidate: address=" TARGET_FMT_lx
                        " PC=%08lx size=%04x\n",
-                       address, (long)tb->pc, tb->size);
+                       address, tb->pc, tb->size);
             }
         }
     }
@@ -810,7 +810,7 @@ static void tb_page_check(void)
             flags2 = page_get_flags(tb->pc + tb->size - 1);
             if ((flags1 & PAGE_WRITE) || (flags2 & PAGE_WRITE)) {
                 printf("ERROR page flags: PC=%08lx size=%04x f1=%x f2=%x\n",
-                       (long)tb->pc, tb->size, flags1, flags2);
+                       tb->pc, tb->size, flags1, flags2);
             }
         }
     }
@@ -1162,7 +1162,7 @@ static inline void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
         qemu_log("modifying code at 0x%x size=%d EIP=%x PC=%08x\n",
                   cpu_single_env->mem_io_vaddr, len,
                   cpu_single_env->eip,
-                  cpu_single_env->eip + (long)cpu_single_env->segs[R_CS].base);
+                  cpu_single_env->eip + cpu_single_env->segs[R_CS].base);
     }
 #endif
     p = page_find(start >> TARGET_PAGE_BITS);
@@ -1185,7 +1185,6 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
 {
     TranslationBlock *tb;
     PageDesc *p;
-    int n;
 #ifdef TARGET_HAS_PRECISE_SMC
     TranslationBlock *current_tb = NULL;
     CPUState *env = cpu_single_env;
@@ -1206,8 +1205,8 @@ static void tb_invalidate_phys_page(tb_page_addr_t addr,
     }
 #endif
     while (tb != NULL) {
-        n = (long)tb & 3;
-        tb = (TranslationBlock *)((long)tb & ~3);
+        unsigned n = (uintptr_t)tb & 3;
+        tb = (TranslationBlock *)((uintptr_t)tb & ~3);
 #ifdef TARGET_HAS_PRECISE_SMC
         if (current_tb == tb &&
             (current_tb->cflags & CF_COUNT_MASK) != 1) {
