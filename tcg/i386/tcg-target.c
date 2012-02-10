@@ -62,16 +62,16 @@ static const int tcg_target_reg_alloc_order[] = {
 };
 
 static const int tcg_target_call_iarg_regs[] = {
+#if TCG_TARGET_REG_BITS == 64
 #if defined(_WIN64)
     TCG_REG_RCX,
     TCG_REG_RDX,
-    TCG_REG_R8,
-    TCG_REG_R9,
-#elif TCG_TARGET_REG_BITS == 64
+#else
     TCG_REG_RDI,
     TCG_REG_RSI,
     TCG_REG_RDX,
     TCG_REG_RCX,
+#endif
     TCG_REG_R8,
     TCG_REG_R9,
 #else
@@ -191,8 +191,8 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         ct->ct |= TCG_CT_REG;
         if (TCG_TARGET_REG_BITS == 64) {
             tcg_regset_set32(ct->u.regs, 0, 0xffff);
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_RSI);
-            tcg_regset_reset_reg(ct->u.regs, TCG_REG_RDI);
+            tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[0]);
+            tcg_regset_reset_reg(ct->u.regs, tcg_target_call_iarg_regs[1]);
         } else {
             tcg_regset_set32(ct->u.regs, 0, 0xff);
             tcg_regset_reset_reg(ct->u.regs, TCG_REG_EAX);
@@ -1251,9 +1251,10 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
                use the ADDR32 prefix.  For now, do nothing.  */
 
             if (offset != GUEST_BASE) {
-                tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_RDI, GUEST_BASE);
-                tgen_arithr(s, ARITH_ADD + P_REXW, TCG_REG_RDI, base);
-                base = TCG_REG_RDI, offset = 0;
+                tcg_out_movi(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], GUEST_BASE);
+                tgen_arithr(s, ARITH_ADD + P_REXW, tcg_target_call_iarg_regs[0], base);
+                base = tcg_target_call_iarg_regs[0];
+                offset = 0;
             }
         }
 
@@ -1366,8 +1367,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     /* XXX: move that code at the end of the TB */
     if (TCG_TARGET_REG_BITS == 64) {
         tcg_out_mov(s, (opc == 3 ? TCG_TYPE_I64 : TCG_TYPE_I32),
-                    TCG_REG_RSI, data_reg);
-        tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_RDX, mem_index);
+                    tcg_target_call_iarg_regs[1], data_reg);
+        tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2], mem_index);
         stack_adjust = 0;
     } else if (TARGET_LONG_BITS == 32) {
         tcg_out_mov(s, TCG_TYPE_I32, TCG_REG_EDX, data_reg);
@@ -1428,9 +1429,10 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
                use the ADDR32 prefix.  For now, do nothing.  */
 
             if (offset != GUEST_BASE) {
-                tcg_out_movi(s, TCG_TYPE_I64, TCG_REG_RDI, GUEST_BASE);
-                tgen_arithr(s, ARITH_ADD + P_REXW, TCG_REG_RDI, base);
-                base = TCG_REG_RDI, offset = 0;
+                tcg_out_movi(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[0], GUEST_BASE);
+                tgen_arithr(s, ARITH_ADD + P_REXW, tcg_target_call_iarg_regs[0], base);
+                base = tcg_target_call_iarg_regs[0];
+                offset = 0;
             }
         }
 
@@ -1935,6 +1937,10 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_R13,
     TCG_REG_R14, /* Currently used for the global env. */
     TCG_REG_R15,
+#if defined(_WIN64)
+    TCG_REG_RDI,
+    TCG_REG_RSI
+#endif
 #else
     TCG_REG_EBP, /* Currently used for the global env. */
     TCG_REG_EBX,
@@ -2005,8 +2011,10 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_EDX);
     tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_ECX);
     if (TCG_TARGET_REG_BITS == 64) {
+#if !defined(_WIN64)
         tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_RDI);
         tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_RSI);
+#endif
         tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R8);
         tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R9);
         tcg_regset_set_reg(tcg_target_call_clobber_regs, TCG_REG_R10);
