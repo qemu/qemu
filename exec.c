@@ -160,18 +160,12 @@ typedef struct PageDesc {
 #define L2_BITS 10
 #define L2_SIZE (1 << L2_BITS)
 
+#define P_L2_LEVELS \
+    (((TARGET_PHYS_ADDR_SPACE_BITS - TARGET_PAGE_BITS - 1) / L2_BITS) + 1)
+
 /* The bits remaining after N lower levels of page tables.  */
-#define P_L1_BITS_REM \
-    ((TARGET_PHYS_ADDR_SPACE_BITS - TARGET_PAGE_BITS) % L2_BITS)
 #define V_L1_BITS_REM \
     ((L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS) % L2_BITS)
-
-/* Size of the L1 page table.  Avoid silly small sizes.  */
-#if P_L1_BITS_REM < 4
-#define P_L1_BITS  (P_L1_BITS_REM + L2_BITS)
-#else
-#define P_L1_BITS  P_L1_BITS_REM
-#endif
 
 #if V_L1_BITS_REM < 4
 #define V_L1_BITS  (V_L1_BITS_REM + L2_BITS)
@@ -179,10 +173,8 @@ typedef struct PageDesc {
 #define V_L1_BITS  V_L1_BITS_REM
 #endif
 
-#define P_L1_SIZE  ((target_phys_addr_t)1 << P_L1_BITS)
 #define V_L1_SIZE  ((target_ulong)1 << V_L1_BITS)
 
-#define P_L1_SHIFT (TARGET_PHYS_ADDR_SPACE_BITS - TARGET_PAGE_BITS - P_L1_BITS)
 #define V_L1_SHIFT (L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS - V_L1_BITS)
 
 unsigned long qemu_real_host_page_size;
@@ -202,7 +194,7 @@ typedef struct PhysPageDesc {
 
 /* This is a multi-level map on the physical address space.
    The bottom level has pointers to PhysPageDesc.  */
-static void *l1_phys_map[P_L1_SIZE];
+static void *phys_map;
 
 static void io_mem_init(void);
 static void memory_map_init(void);
@@ -404,11 +396,10 @@ static PhysPageDesc *phys_page_find_alloc(target_phys_addr_t index, int alloc)
     void **lp;
     int i;
 
-    /* Level 1.  Always allocated.  */
-    lp = l1_phys_map + ((index >> P_L1_SHIFT) & (P_L1_SIZE - 1));
+    lp = &phys_map;
 
-    /* Level 2..N-1.  */
-    for (i = P_L1_SHIFT / L2_BITS - 1; i > 0; i--) {
+    /* Level 1..N-1.  */
+    for (i = P_L2_LEVELS - 1; i > 0; i--) {
         void **p = *lp;
         if (p == NULL) {
             if (!alloc) {
@@ -2560,11 +2551,7 @@ static void destroy_l2_mapping(void **lp, unsigned level)
 
 static void destroy_all_mappings(void)
 {
-    unsigned i;
-
-    for (i = 0; i < P_L1_SIZE; ++i) {
-        destroy_l2_mapping(&l1_phys_map[i], P_L1_SHIFT / L2_BITS - 1);
-    }
+    destroy_l2_mapping(&phys_map, P_L2_LEVELS - 1);
 }
 
 /* register physical memory.
