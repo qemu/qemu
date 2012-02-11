@@ -267,13 +267,15 @@ static void cpu_register(CPUSH4State *env, const sh4_def_t *def)
 
 CPUSH4State *cpu_sh4_init(const char *cpu_model)
 {
+    SuperHCPU *cpu;
     CPUSH4State *env;
     const sh4_def_t *def;
 
     def = cpu_sh4_find_by_name(cpu_model);
     if (!def)
 	return NULL;
-    env = g_malloc0(sizeof(CPUSH4State));
+    cpu = SUPERH_CPU(object_new(TYPE_SUPERH_CPU));
+    env = &cpu->env;
     env->features = def->features;
     cpu_exec_init(env);
     env->movcal_backup_tail = &(env->movcal_backup);
