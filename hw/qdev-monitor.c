@@ -457,6 +457,16 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     id = qemu_opts_id(opts);
     if (id) {
         qdev->id = id;
+    }
+    if (qemu_opt_foreach(opts, set_property, qdev, 1) != 0) {
+        qdev_free(qdev);
+        return NULL;
+    }
+    if (qdev_init(qdev) < 0) {
+        qerror_report(QERR_DEVICE_INIT_FAILED, driver);
+        return NULL;
+    }
+    if (qdev->id) {
         object_property_add_child(qdev_get_peripheral(), qdev->id,
                                   OBJECT(qdev), NULL);
     } else {
@@ -466,14 +476,6 @@ DeviceState *qdev_device_add(QemuOpts *opts)
                                   OBJECT(qdev), NULL);
         g_free(name);
     }        
-    if (qemu_opt_foreach(opts, set_property, qdev, 1) != 0) {
-        qdev_free(qdev);
-        return NULL;
-    }
-    if (qdev_init(qdev) < 0) {
-        qerror_report(QERR_DEVICE_INIT_FAILED, driver);
-        return NULL;
-    }
     qdev->opts = opts;
     return qdev;
 }
