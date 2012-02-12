@@ -305,8 +305,8 @@ int pci_bridge_initfn(PCIDevice *dev)
     PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
     PCIBus *sec_bus = &br->sec_bus;
 
-    pci_set_word(dev->config + PCI_STATUS,
-                 PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
+    pci_word_test_and_set_mask(dev->config + PCI_STATUS,
+                               PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
     pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_PCI);
     dev->config[PCI_HEADER_TYPE] =
         (dev->config[PCI_HEADER_TYPE] & PCI_HEADER_TYPE_MULTI_FUNCTION) |
