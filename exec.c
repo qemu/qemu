@@ -2660,22 +2660,20 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
                 *p = section_index;
             }
         } else {
-            MemoryRegion *mr = section->mr;
+            target_phys_addr_t start_addr2, end_addr2;
+            int need_subpage = 0;
+
             p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
             *p = section_index;
-            if (!(memory_region_is_ram(mr) || mr->rom_device)) {
-                target_phys_addr_t start_addr2, end_addr2;
-                int need_subpage = 0;
 
-                CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr,
-                              end_addr2, need_subpage);
+            CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr,
+                          end_addr2, need_subpage);
 
-                if (need_subpage) {
-                    subpage = subpage_init((addr & TARGET_PAGE_MASK),
-                                           p, phys_section_unassigned);
-                    subpage_register(subpage, start_addr2, end_addr2,
-                                     section_index);
-                }
+            if (need_subpage) {
+                subpage = subpage_init((addr & TARGET_PAGE_MASK),
+                                       p, phys_section_unassigned);
+                subpage_register(subpage, start_addr2, end_addr2,
+                                 section_index);
             }
         }
         addr += TARGET_PAGE_SIZE;
