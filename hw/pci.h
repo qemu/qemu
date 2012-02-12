@@ -126,6 +126,9 @@ enum {
     /* command register SERR bit enabled */
 #define QEMU_PCI_CAP_SERR_BITNR 4
     QEMU_PCI_CAP_SERR = (1 << QEMU_PCI_CAP_SERR_BITNR),
+    /* Standard hot plug controller. */
+#define QEMU_PCI_SHPC_BITNR 5
+    QEMU_PCI_CAP_SHPC = (1 << QEMU_PCI_SHPC_BITNR),
 };
 
 #define TYPE_PCI_DEVICE "pci-device"
@@ -229,6 +232,9 @@ struct PCIDevice {
 
     /* PCI Express */
     PCIExpressDevice exp;
+
+    /* SHPC */
+    SHPCDevice *shpc;
 
     /* Location of option rom */
     char *romfile;
