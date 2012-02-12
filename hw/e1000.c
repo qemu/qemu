@@ -152,6 +152,29 @@ static const char phy_regcap[0x20] = {
     [PHY_ID2] = PHY_R,		[M88E1000_PHY_SPEC_STATUS] = PHY_R
 };
 
+static const uint16_t phy_reg_init[] = {
+    [PHY_CTRL] = 0x1140,			[PHY_STATUS] = 0x796d, // link initially up
+    [PHY_ID1] = 0x141,				[PHY_ID2] = PHY_ID2_INIT,
+    [PHY_1000T_CTRL] = 0x0e00,			[M88E1000_PHY_SPEC_CTRL] = 0x360,
+    [M88E1000_EXT_PHY_SPEC_CTRL] = 0x0d60,	[PHY_AUTONEG_ADV] = 0xde1,
+    [PHY_LP_ABILITY] = 0x1e0,			[PHY_1000T_STATUS] = 0x3c00,
+    [M88E1000_PHY_SPEC_STATUS] = 0xac00,
+};
+
+static const uint32_t mac_reg_init[] = {
+    [PBA] =     0x00100030,
+    [LEDCTL] =  0x602,
+    [CTRL] =    E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN0 |
+                E1000_CTRL_SPD_1000 | E1000_CTRL_SLU,
+    [STATUS] =  0x80000000 | E1000_STATUS_GIO_MASTER_ENABLE |
+                E1000_STATUS_ASDV | E1000_STATUS_MTXCKOK |
+                E1000_STATUS_SPEED_1000 | E1000_STATUS_FD |
+                E1000_STATUS_LU,
+    [MANC] =    E1000_MANC_EN_MNG2HOST | E1000_MANC_RCV_TCO_EN |
+                E1000_MANC_ARP_EN | E1000_MANC_0298_EN |
+                E1000_MANC_RMCP_EN,
+};
+
 static void
 set_interrupt_cause(E1000State *s, int index, uint32_t val)
 {
@@ -191,6 +214,23 @@ rxbufsize(uint32_t v)
         return 256;
     }
     return 2048;
+}
+
+static void e1000_reset(void *opaque)
+{
+    E1000State *d = opaque;
+
+    memset(d->phy_reg, 0, sizeof d->phy_reg);
+    memmove(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
+    memset(d->mac_reg, 0, sizeof d->mac_reg);
+    memmove(d->mac_reg, mac_reg_init, sizeof mac_reg_init);
+    d->rxbuf_min_shift = 1;
+    memset(&d->tx, 0, sizeof d->tx);
+
+    if (d->nic->nc.link_down) {
+        d->mac_reg[STATUS] &= ~E1000_STATUS_LU;
+        d->phy_reg[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
+    }
 }
 
 static void
@@ -1061,29 +1101,6 @@ static const uint16_t e1000_eeprom_template[64] = {
     0xffff, 0xffff, 0xffff, 0xffff,      0xffff, 0xffff,      0xffff, 0x0000,
 };
 
-static const uint16_t phy_reg_init[] = {
-    [PHY_CTRL] = 0x1140,			[PHY_STATUS] = 0x796d, // link initially up
-    [PHY_ID1] = 0x141,				[PHY_ID2] = PHY_ID2_INIT,
-    [PHY_1000T_CTRL] = 0x0e00,			[M88E1000_PHY_SPEC_CTRL] = 0x360,
-    [M88E1000_EXT_PHY_SPEC_CTRL] = 0x0d60,	[PHY_AUTONEG_ADV] = 0xde1,
-    [PHY_LP_ABILITY] = 0x1e0,			[PHY_1000T_STATUS] = 0x3c00,
-    [M88E1000_PHY_SPEC_STATUS] = 0xac00,
-};
-
-static const uint32_t mac_reg_init[] = {
-    [PBA] =     0x00100030,
-    [LEDCTL] =  0x602,
-    [CTRL] =    E1000_CTRL_SWDPIN2 | E1000_CTRL_SWDPIN0 |
-                E1000_CTRL_SPD_1000 | E1000_CTRL_SLU,
-    [STATUS] =  0x80000000 | E1000_STATUS_GIO_MASTER_ENABLE |
-                E1000_STATUS_ASDV | E1000_STATUS_MTXCKOK |
-                E1000_STATUS_SPEED_1000 | E1000_STATUS_FD |
-                E1000_STATUS_LU,
-    [MANC] =    E1000_MANC_EN_MNG2HOST | E1000_MANC_RCV_TCO_EN |
-                E1000_MANC_ARP_EN | E1000_MANC_0298_EN |
-                E1000_MANC_RMCP_EN,
-};
-
 /* PCI interface */
 
 static void
@@ -1121,23 +1138,6 @@ pci_e1000_uninit(PCIDevice *dev)
     memory_region_destroy(&d->io);
     qemu_del_vlan_client(&d->nic->nc);
     return 0;
-}
-
-static void e1000_reset(void *opaque)
-{
-    E1000State *d = opaque;
-
-    memset(d->phy_reg, 0, sizeof d->phy_reg);
-    memmove(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
-    memset(d->mac_reg, 0, sizeof d->mac_reg);
-    memmove(d->mac_reg, mac_reg_init, sizeof mac_reg_init);
-    d->rxbuf_min_shift = 1;
-    memset(&d->tx, 0, sizeof d->tx);
-
-    if (d->nic->nc.link_down) {
-        d->mac_reg[STATUS] &= ~E1000_STATUS_LU;
-        d->phy_reg[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
-    }
 }
 
 static NetClientInfo net_e1000_info = {
