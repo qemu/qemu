@@ -2625,7 +2625,6 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
     target_phys_addr_t start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
     target_phys_addr_t addr, end_addr;
-    CPUState *env;
     ram_addr_t orig_size = size;
     subpage_t *subpage;
     uint16_t section_index = phys_section_add(section);
@@ -2659,13 +2658,6 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
         }
         addr += TARGET_PAGE_SIZE;
     } while (addr != end_addr);
-
-    /* since each CPU stores ram addresses in its TLB cache, we must
-       reset the modified entries */
-    /* XXX: slow ! */
-    for(env = first_cpu; env != NULL; env = env->next_cpu) {
-        tlb_flush(env, 1);
-    }
 }
 
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
@@ -3563,6 +3555,14 @@ static void core_begin(MemoryListener *listener)
 
 static void core_commit(MemoryListener *listener)
 {
+    CPUState *env;
+
+    /* since each CPU stores ram addresses in its TLB cache, we must
+       reset the modified entries */
+    /* XXX: slow ! */
+    for(env = first_cpu; env != NULL; env = env->next_cpu) {
+        tlb_flush(env, 1);
+    }
 }
 
 static void core_region_add(MemoryListener *listener,
