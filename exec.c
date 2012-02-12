@@ -2625,7 +2625,6 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
     target_phys_addr_t start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
     target_phys_addr_t addr, end_addr;
-    uint16_t *p;
     CPUState *env;
     ram_addr_t orig_size = size;
     subpage_t *subpage;
@@ -2638,43 +2637,25 @@ void cpu_register_physical_memory_log(MemoryRegionSection *section,
 
     addr = start_addr;
     do {
-        p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 0);
-        if (p && *p != phys_section_unassigned) {
-            uint16_t orig_memory= *p;
-            target_phys_addr_t start_addr2, end_addr2;
-            int need_subpage = 0;
-            MemoryRegion *mr = phys_sections[orig_memory].mr;
+        uint16_t *p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
+        uint16_t orig_memory = *p;
+        target_phys_addr_t start_addr2, end_addr2;
+        int need_subpage = 0;
+        MemoryRegion *mr = phys_sections[orig_memory].mr;
 
-            CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2,
-                          need_subpage);
-            if (need_subpage) {
-                if (!(mr->subpage)) {
-                    subpage = subpage_init((addr & TARGET_PAGE_MASK),
-                                           p, orig_memory);
-                } else {
-                    subpage = container_of(mr, subpage_t, iomem);
-                }
-                subpage_register(subpage, start_addr2, end_addr2,
-                                 section_index);
-            } else {
-                *p = section_index;
-            }
-        } else {
-            target_phys_addr_t start_addr2, end_addr2;
-            int need_subpage = 0;
-
-            p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
-            *p = section_index;
-
-            CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr,
-                          end_addr2, need_subpage);
-
-            if (need_subpage) {
+        CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2,
+                      need_subpage);
+        if (need_subpage) {
+            if (!(mr->subpage)) {
                 subpage = subpage_init((addr & TARGET_PAGE_MASK),
-                                       p, phys_section_unassigned);
-                subpage_register(subpage, start_addr2, end_addr2,
-                                 section_index);
+                                       p, orig_memory);
+            } else {
+                subpage = container_of(mr, subpage_t, iomem);
             }
+            subpage_register(subpage, start_addr2, end_addr2,
+                             section_index);
+        } else {
+            *p = section_index;
         }
         addr += TARGET_PAGE_SIZE;
     } while (addr != end_addr);
