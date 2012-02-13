@@ -2538,28 +2538,7 @@ typedef struct subpage_t {
 
 static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
                              uint16_t section);
-static subpage_t *subpage_init (target_phys_addr_t base, uint16_t *section,
-                                uint16_t orig_section);
-#define CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2, \
-                      need_subpage)                                     \
-    do {                                                                \
-        if (addr > start_addr)                                          \
-            start_addr2 = 0;                                            \
-        else {                                                          \
-            start_addr2 = start_addr & ~TARGET_PAGE_MASK;               \
-            if (start_addr2 > 0)                                        \
-                need_subpage = 1;                                       \
-        }                                                               \
-                                                                        \
-        if ((start_addr + orig_size) - addr >= TARGET_PAGE_SIZE)        \
-            end_addr2 = TARGET_PAGE_SIZE - 1;                           \
-        else {                                                          \
-            end_addr2 = (start_addr + orig_size - 1) & ~TARGET_PAGE_MASK; \
-            if (end_addr2 < TARGET_PAGE_SIZE - 1)                       \
-                need_subpage = 1;                                       \
-        }                                                               \
-    } while (0)
-
+static subpage_t *subpage_init(target_phys_addr_t base);
 static void destroy_page_desc(uint16_t section_index)
 {
     MemoryRegionSection *section = &phys_sections[section_index];
@@ -2622,46 +2601,84 @@ static void phys_sections_clear(void)
    start_addr and region_offset are rounded down to a page boundary
    before calculating this offset.  This should not be a problem unless
    the low bits of start_addr and region_offset differ.  */
-void cpu_register_physical_memory_log(MemoryRegionSection *section,
-                                      bool readonly)
+static void register_subpage(MemoryRegionSection *section)
+{
+    subpage_t *subpage;
+    target_phys_addr_t base = section->offset_within_address_space
+        & TARGET_PAGE_MASK;
+    MemoryRegionSection existing = phys_page_find(base >> TARGET_PAGE_BITS);
+    MemoryRegionSection subsection = {
+        .offset_within_address_space = base,
+        .size = TARGET_PAGE_SIZE,
+    };
+    uint16_t *ptr;
+    target_phys_addr_t start, end;
+
+    assert(existing.mr->subpage || existing.mr == &io_mem_unassigned);
+
+    if (!(existing.mr->subpage)) {
+        subpage = subpage_init(base);
+        subsection.mr = &subpage->iomem;
+        ptr = phys_page_find_alloc(base >> TARGET_PAGE_BITS, 1);
+        *ptr = phys_section_add(&subsection);
+    } else {
+        subpage = container_of(existing.mr, subpage_t, iomem);
+    }
+    start = section->offset_within_address_space & ~TARGET_PAGE_MASK;
+    end = start + section->size;
+    subpage_register(subpage, start, end, phys_section_add(section));
+}
+
+
+static void register_multipage(MemoryRegionSection *section)
 {
     target_phys_addr_t start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
     target_phys_addr_t addr, end_addr;
-    ram_addr_t orig_size = size;
-    subpage_t *subpage;
     uint16_t section_index = phys_section_add(section);
 
     assert(size);
 
-    size = (size + TARGET_PAGE_SIZE - 1) & TARGET_PAGE_MASK;
     end_addr = start_addr + (target_phys_addr_t)size;
 
     addr = start_addr;
     do {
         uint16_t *p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
-        uint16_t orig_memory = *p;
-        target_phys_addr_t start_addr2, end_addr2;
-        int need_subpage = 0;
-        MemoryRegion *mr = phys_sections[orig_memory].mr;
-
-        CHECK_SUBPAGE(addr, start_addr, start_addr2, end_addr, end_addr2,
-                      need_subpage);
-        if (need_subpage) {
-            if (!(mr->subpage)) {
-                subpage = subpage_init((addr & TARGET_PAGE_MASK),
-                                       p, orig_memory);
-            } else {
-                subpage = container_of(mr, subpage_t, iomem);
-            }
-            subpage_register(subpage, start_addr2, end_addr2,
-                             section_index);
-        } else {
-            *p = section_index;
-        }
+        assert(*p == phys_section_unassigned);
+        *p = section_index;
         addr += TARGET_PAGE_SIZE;
     } while (addr != end_addr);
 }
+
+void cpu_register_physical_memory_log(MemoryRegionSection *section,
+                                      bool readonly)
+{
+    MemoryRegionSection now = *section, remain = *section;
+
+    if ((now.offset_within_address_space & ~TARGET_PAGE_MASK)
+        || (now.size < TARGET_PAGE_SIZE)) {
+        now.size = MIN(TARGET_PAGE_ALIGN(now.offset_within_address_space)
+                       - now.offset_within_address_space,
+                       now.size);
+        register_subpage(&now);
+        remain.size -= now.size;
+        remain.offset_within_address_space += now.size;
+        remain.offset_within_region += now.size;
+    }
+    now = remain;
+    now.size &= TARGET_PAGE_MASK;
+    if (now.size) {
+        register_multipage(&now);
+        remain.size -= now.size;
+        remain.offset_within_address_space += now.size;
+        remain.offset_within_region += now.size;
+    }
+    now = remain;
+    if (now.size) {
+        register_subpage(&now);
+    }
+}
+
 
 void qemu_register_coalesced_mmio(target_phys_addr_t addr, ram_addr_t size)
 {
@@ -3442,14 +3459,9 @@ static int subpage_register (subpage_t *mmio, uint32_t start, uint32_t end,
     return 0;
 }
 
-static subpage_t *subpage_init (target_phys_addr_t base, uint16_t *section_ind,
-                                uint16_t orig_section)
+static subpage_t *subpage_init(target_phys_addr_t base)
 {
     subpage_t *mmio;
-    MemoryRegionSection section = {
-        .offset_within_address_space = base,
-        .size = TARGET_PAGE_SIZE,
-    };
 
     mmio = g_malloc0(sizeof(subpage_t));
 
@@ -3457,13 +3469,11 @@ static subpage_t *subpage_init (target_phys_addr_t base, uint16_t *section_ind,
     memory_region_init_io(&mmio->iomem, &subpage_ops, mmio,
                           "subpage", TARGET_PAGE_SIZE);
     mmio->iomem.subpage = true;
-    section.mr = &mmio->iomem;
 #if defined(DEBUG_SUBPAGE)
     printf("%s: %p base " TARGET_FMT_plx " len %08x %d\n", __func__,
            mmio, base, TARGET_PAGE_SIZE, subpage_memory);
 #endif
-    *section_ind = phys_section_add(&section);
-    subpage_register(mmio, 0, TARGET_PAGE_SIZE-1, orig_section);
+    subpage_register(mmio, 0, TARGET_PAGE_SIZE-1, phys_section_unassigned);
 
     return mmio;
 }
