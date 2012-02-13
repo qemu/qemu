@@ -31,7 +31,7 @@
 #include <stddef.h>
 #include "cpu.h"
 #include "dyngen-exec.h"
-#include "helpers.h"
+#include "helper.h"
 #include "qemu-log.h"
 
 enum {

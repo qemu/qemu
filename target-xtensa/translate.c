@@ -37,9 +37,9 @@
 #include "qemu-log.h"
 #include "sysemu.h"
 
-#include "helpers.h"
+#include "helper.h"
 #define GEN_HELPER 1
-#include "helpers.h"
+#include "helper.h"
 
 typedef struct DisasContext {
     const XtensaConfig *config;
@@ -183,7 +183,7 @@ void xtensa_translate_init(void)
         }
     }
 #define GEN_HELPER 2
-#include "helpers.h"
+#include "helper.h"
 }
 
 static inline bool option_bits_enabled(DisasContext *dc, uint64_t opt)
