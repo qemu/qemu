@@ -436,8 +436,9 @@ static void phys_map_nodes_reset(void)
 }
 
 
-static void phys_page_set_level(PhysPageEntry *lp, target_phys_addr_t index,
-                                uint16_t leaf, int level)
+static void phys_page_set_level(PhysPageEntry *lp, target_phys_addr_t *index,
+                                target_phys_addr_t *nb, uint16_t leaf,
+                                int level)
 {
     PhysPageEntry *p;
     int i;
@@ -453,20 +454,27 @@ static void phys_page_set_level(PhysPageEntry *lp, target_phys_addr_t index,
     } else {
         p = phys_map_nodes[lp->u.node];
     }
-    lp = &p[(index >> (level * L2_BITS)) & (L2_SIZE - 1)];
+    lp = &p[(*index >> (level * L2_BITS)) & (L2_SIZE - 1)];
 
-    if (level == 0) {
-        lp->u.leaf = leaf;
-    } else {
-        phys_page_set_level(lp, index, leaf, level - 1);
+    while (*nb && lp < &p[L2_SIZE]) {
+        if (level == 0) {
+            lp->u.leaf = leaf;
+            ++*index;
+            --*nb;
+        } else {
+            phys_page_set_level(lp, index, nb, leaf, level - 1);
+        }
+        ++lp;
     }
 }
 
-static void phys_page_set(target_phys_addr_t index, uint16_t leaf)
+static void phys_page_set(target_phys_addr_t index, target_phys_addr_t nb,
+                          uint16_t leaf)
 {
-    phys_map_node_reserve(P_L2_LEVELS);
+    /* Wildly overreserve - it doesn't matter much. */
+    phys_map_node_reserve((nb + L2_SIZE - 1) / L2_SIZE * P_L2_LEVELS);
 
-    phys_page_set_level(&phys_map, index, leaf, P_L2_LEVELS - 1);
+    phys_page_set_level(&phys_map, &index, &nb, leaf, P_L2_LEVELS - 1);
 }
 
 static MemoryRegionSection phys_page_find(target_phys_addr_t index)
@@ -2630,7 +2638,8 @@ static void register_subpage(MemoryRegionSection *section)
     if (!(existing.mr->subpage)) {
         subpage = subpage_init(base);
         subsection.mr = &subpage->iomem;
-        phys_page_set(base >> TARGET_PAGE_BITS, phys_section_add(&subsection));
+        phys_page_set(base >> TARGET_PAGE_BITS, 1,
+                      phys_section_add(&subsection));
     } else {
         subpage = container_of(existing.mr, subpage_t, iomem);
     }
@@ -2644,18 +2653,14 @@ static void register_multipage(MemoryRegionSection *section)
 {
     target_phys_addr_t start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
-    target_phys_addr_t addr, end_addr;
+    target_phys_addr_t addr;
     uint16_t section_index = phys_section_add(section);
 
     assert(size);
 
-    end_addr = start_addr + (target_phys_addr_t)size;
-
     addr = start_addr;
-    do {
-        phys_page_set(addr >> TARGET_PAGE_BITS, section_index);
-        addr += TARGET_PAGE_SIZE;
-    } while (addr != end_addr);
+    phys_page_set(addr >> TARGET_PAGE_BITS, size >> TARGET_PAGE_BITS,
+                  section_index);
 }
 
 void cpu_register_physical_memory_log(MemoryRegionSection *section,
