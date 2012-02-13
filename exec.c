@@ -193,10 +193,8 @@ static unsigned phys_sections_nb, phys_sections_nb_alloc;
 static uint16_t phys_section_unassigned;
 
 struct PhysPageEntry {
-    union {
-        uint16_t leaf; /* index into phys_sections */
-        uint16_t node; /* index into phys_map_nodes */
-    } u;
+     /* index into phys_sections (last level) or phys_map_nodes (others) */
+    uint16_t ptr;
 };
 
 /* Simple allocator for PhysPageEntry nodes */
@@ -207,7 +205,7 @@ static unsigned phys_map_nodes_nb, phys_map_nodes_nb_alloc;
 
 /* This is a multi-level map on the physical address space.
    The bottom level has pointers to MemoryRegionSections.  */
-static PhysPageEntry phys_map = { .u.node = PHYS_MAP_NODE_NIL };
+static PhysPageEntry phys_map = { .ptr = PHYS_MAP_NODE_NIL };
 
 static void io_mem_init(void);
 static void memory_map_init(void);
@@ -425,7 +423,7 @@ static uint16_t phys_map_node_alloc(void)
     assert(ret != PHYS_MAP_NODE_NIL);
     assert(ret != phys_map_nodes_nb_alloc);
     for (i = 0; i < L2_SIZE; ++i) {
-        phys_map_nodes[ret][i].u.node = PHYS_MAP_NODE_NIL;
+        phys_map_nodes[ret][i].ptr = PHYS_MAP_NODE_NIL;
     }
     return ret;
 }
@@ -443,22 +441,22 @@ static void phys_page_set_level(PhysPageEntry *lp, target_phys_addr_t *index,
     PhysPageEntry *p;
     int i;
 
-    if (lp->u.node == PHYS_MAP_NODE_NIL) {
-        lp->u.node = phys_map_node_alloc();
-        p = phys_map_nodes[lp->u.node];
+    if (lp->ptr == PHYS_MAP_NODE_NIL) {
+        lp->ptr = phys_map_node_alloc();
+        p = phys_map_nodes[lp->ptr];
         if (level == 0) {
             for (i = 0; i < L2_SIZE; i++) {
-                p[i].u.leaf = phys_section_unassigned;
+                p[i].ptr = phys_section_unassigned;
             }
         }
     } else {
-        p = phys_map_nodes[lp->u.node];
+        p = phys_map_nodes[lp->ptr];
     }
     lp = &p[(*index >> (level * L2_BITS)) & (L2_SIZE - 1)];
 
     while (*nb && lp < &p[L2_SIZE]) {
         if (level == 0) {
-            lp->u.leaf = leaf;
+            lp->ptr = leaf;
             ++*index;
             --*nb;
         } else {
@@ -487,14 +485,14 @@ static MemoryRegionSection phys_page_find(target_phys_addr_t index)
     uint16_t s_index = phys_section_unassigned;
 
     for (i = P_L2_LEVELS - 1; i >= 0; i--) {
-        if (lp.u.node == PHYS_MAP_NODE_NIL) {
+        if (lp.ptr == PHYS_MAP_NODE_NIL) {
             goto not_found;
         }
-        p = phys_map_nodes[lp.u.node];
+        p = phys_map_nodes[lp.ptr];
         lp = p[(index >> (i * L2_BITS)) & (L2_SIZE - 1)];
     }
 
-    s_index = lp.u.leaf;
+    s_index = lp.ptr;
 not_found:
     section = phys_sections[s_index];
     index <<= TARGET_PAGE_BITS;
@@ -2576,19 +2574,19 @@ static void destroy_l2_mapping(PhysPageEntry *lp, unsigned level)
     unsigned i;
     PhysPageEntry *p;
 
-    if (lp->u.node == PHYS_MAP_NODE_NIL) {
+    if (lp->ptr == PHYS_MAP_NODE_NIL) {
         return;
     }
 
-    p = phys_map_nodes[lp->u.node];
+    p = phys_map_nodes[lp->ptr];
     for (i = 0; i < L2_SIZE; ++i) {
         if (level > 0) {
             destroy_l2_mapping(&p[i], level - 1);
         } else {
-            destroy_page_desc(p[i].u.leaf);
+            destroy_page_desc(p[i].ptr);
         }
     }
-    lp->u.node = PHYS_MAP_NODE_NIL;
+    lp->ptr = PHYS_MAP_NODE_NIL;
 }
 
 static void destroy_all_mappings(void)
@@ -3575,7 +3573,7 @@ static void core_begin(MemoryListener *listener)
 {
     destroy_all_mappings();
     phys_sections_clear();
-    phys_map.u.node = PHYS_MAP_NODE_NIL;
+    phys_map.ptr = PHYS_MAP_NODE_NIL;
     phys_section_unassigned = dummy_section(&io_mem_unassigned);
 }
 
