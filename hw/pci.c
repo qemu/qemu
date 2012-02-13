@@ -529,10 +529,6 @@ int pci_parse_devaddr(const char *addr, int *domp, int *busp,
     if (*e)
 	return -1;
 
-    /* Note: QEMU doesn't implement domains other than 0 */
-    if (!pci_find_bus(pci_find_root_bus(dom), bus))
-	return -1;
-
     *domp = dom;
     *busp = bus;
     *slotp = slot;
