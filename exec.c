@@ -404,24 +404,30 @@ static inline PageDesc *page_find(tb_page_addr_t index)
 
 #if !defined(CONFIG_USER_ONLY)
 
-static PhysPageEntry *phys_map_node_alloc(uint16_t *ptr)
+static void phys_map_node_reserve(unsigned nodes)
+{
+    if (phys_map_nodes_nb + nodes > phys_map_nodes_nb_alloc) {
+        typedef PhysPageEntry Node[L2_SIZE];
+        phys_map_nodes_nb_alloc = MAX(phys_map_nodes_nb_alloc * 2, 16);
+        phys_map_nodes_nb_alloc = MAX(phys_map_nodes_nb_alloc,
+                                      phys_map_nodes_nb + nodes);
+        phys_map_nodes = g_renew(Node, phys_map_nodes,
+                                 phys_map_nodes_nb_alloc);
+    }
+}
+
+static uint16_t phys_map_node_alloc(void)
 {
     unsigned i;
     uint16_t ret;
 
-    /* Assign early to avoid the pointer being invalidated by g_renew() */
-    *ptr = ret = phys_map_nodes_nb++;
+    ret = phys_map_nodes_nb++;
     assert(ret != PHYS_MAP_NODE_NIL);
-    if (ret == phys_map_nodes_nb_alloc) {
-        typedef PhysPageEntry Node[L2_SIZE];
-        phys_map_nodes_nb_alloc = MAX(phys_map_nodes_nb_alloc * 2, 16);
-        phys_map_nodes = g_renew(Node, phys_map_nodes,
-                                 phys_map_nodes_nb_alloc);
-    }
+    assert(ret != phys_map_nodes_nb_alloc);
     for (i = 0; i < L2_SIZE; ++i) {
         phys_map_nodes[ret][i].u.node = PHYS_MAP_NODE_NIL;
     }
-    return phys_map_nodes[ret];
+    return ret;
 }
 
 static void phys_map_nodes_reset(void)
@@ -429,29 +435,38 @@ static void phys_map_nodes_reset(void)
     phys_map_nodes_nb = 0;
 }
 
+
+static void phys_page_set_level(PhysPageEntry *lp, target_phys_addr_t index,
+                                uint16_t leaf, int level)
+{
+    PhysPageEntry *p;
+    int i;
+
+    if (lp->u.node == PHYS_MAP_NODE_NIL) {
+        lp->u.node = phys_map_node_alloc();
+        p = phys_map_nodes[lp->u.node];
+        if (level == 0) {
+            for (i = 0; i < L2_SIZE; i++) {
+                p[i].u.leaf = phys_section_unassigned;
+            }
+        }
+    } else {
+        p = phys_map_nodes[lp->u.node];
+    }
+    lp = &p[(index >> (level * L2_BITS)) & (L2_SIZE - 1)];
+
+    if (level == 0) {
+        lp->u.leaf = leaf;
+    } else {
+        phys_page_set_level(lp, index, leaf, level - 1);
+    }
+}
+
 static void phys_page_set(target_phys_addr_t index, uint16_t leaf)
 {
-    PhysPageEntry *lp, *p;
-    int i, j;
+    phys_map_node_reserve(P_L2_LEVELS);
 
-    lp = &phys_map;
-
-    /* Level 1..N.  */
-    for (i = P_L2_LEVELS - 1; i >= 0; i--) {
-        if (lp->u.node == PHYS_MAP_NODE_NIL) {
-            p = phys_map_node_alloc(&lp->u.node);
-            if (i == 0) {
-                for (j = 0; j < L2_SIZE; j++) {
-                    p[j].u.leaf = phys_section_unassigned;
-                }
-            }
-        } else {
-            p = phys_map_nodes[lp->u.node];
-        }
-        lp = &p[(index >> (i * L2_BITS)) & (L2_SIZE - 1)];
-    }
-
-    lp->u.leaf = leaf;
+    phys_page_set_level(&phys_map, index, leaf, P_L2_LEVELS - 1);
 }
 
 static MemoryRegionSection phys_page_find(target_phys_addr_t index)
