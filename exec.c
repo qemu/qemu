@@ -429,7 +429,7 @@ static void phys_map_nodes_reset(void)
     phys_map_nodes_nb = 0;
 }
 
-static uint16_t *phys_page_find_alloc(target_phys_addr_t index, int alloc)
+static void phys_page_set(target_phys_addr_t index, uint16_t leaf)
 {
     PhysPageEntry *lp, *p;
     int i, j;
@@ -439,9 +439,6 @@ static uint16_t *phys_page_find_alloc(target_phys_addr_t index, int alloc)
     /* Level 1..N.  */
     for (i = P_L2_LEVELS - 1; i >= 0; i--) {
         if (lp->u.node == PHYS_MAP_NODE_NIL) {
-            if (!alloc) {
-                return NULL;
-            }
             p = phys_map_node_alloc(&lp->u.node);
             if (i == 0) {
                 for (j = 0; j < L2_SIZE; j++) {
@@ -454,7 +451,7 @@ static uint16_t *phys_page_find_alloc(target_phys_addr_t index, int alloc)
         lp = &p[(index >> (i * L2_BITS)) & (L2_SIZE - 1)];
     }
 
-    return &lp->u.leaf;
+    lp->u.leaf = leaf;
 }
 
 static MemoryRegionSection phys_page_find(target_phys_addr_t index)
@@ -2611,7 +2608,6 @@ static void register_subpage(MemoryRegionSection *section)
         .offset_within_address_space = base,
         .size = TARGET_PAGE_SIZE,
     };
-    uint16_t *ptr;
     target_phys_addr_t start, end;
 
     assert(existing.mr->subpage || existing.mr == &io_mem_unassigned);
@@ -2619,8 +2615,7 @@ static void register_subpage(MemoryRegionSection *section)
     if (!(existing.mr->subpage)) {
         subpage = subpage_init(base);
         subsection.mr = &subpage->iomem;
-        ptr = phys_page_find_alloc(base >> TARGET_PAGE_BITS, 1);
-        *ptr = phys_section_add(&subsection);
+        phys_page_set(base >> TARGET_PAGE_BITS, phys_section_add(&subsection));
     } else {
         subpage = container_of(existing.mr, subpage_t, iomem);
     }
@@ -2643,9 +2638,7 @@ static void register_multipage(MemoryRegionSection *section)
 
     addr = start_addr;
     do {
-        uint16_t *p = phys_page_find_alloc(addr >> TARGET_PAGE_BITS, 1);
-        assert(*p == phys_section_unassigned);
-        *p = section_index;
+        phys_page_set(addr >> TARGET_PAGE_BITS, section_index);
         addr += TARGET_PAGE_SIZE;
     } while (addr != end_addr);
 }
