@@ -910,8 +910,8 @@ EQMP
 
     {
         .name       = "add_client",
-        .args_type  = "protocol:s,fdname:s,skipauth:b?",
-        .params     = "protocol fdname skipauth",
+        .args_type  = "protocol:s,fdname:s,skipauth:b?,tls:b?",
+        .params     = "protocol fdname skipauth tls",
         .help       = "add a graphics client",
         .user_print = monitor_user_noop,
         .mhandler.cmd_new = add_graphics_client,
@@ -927,6 +927,8 @@ Arguments:
 
 - "protocol": protocol name (json-string)
 - "fdname": file descriptor name (json-string)
+- "skipauth": whether to skip authentication (json-bool, optional)
+- "tls": whether to perform TLS (json-bool, optional)
 
 Example:
 

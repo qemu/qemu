@@ -823,13 +823,18 @@ static int add_graphics_client(Monitor *mon, const QDict *qdict, QObject **ret_d
     CharDriverState *s;
 
     if (strcmp(protocol, "spice") == 0) {
+        int fd = monitor_get_fd(mon, fdname);
+        int skipauth = qdict_get_try_bool(qdict, "skipauth", 0);
+        int tls = qdict_get_try_bool(qdict, "tls", 0);
         if (!using_spice) {
             /* correct one? spice isn't a device ,,, */
             qerror_report(QERR_DEVICE_NOT_ACTIVE, "spice");
             return -1;
         }
-	qerror_report(QERR_ADD_CLIENT_FAILED);
-	return -1;
+        if (qemu_spice_display_add_client(fd, skipauth, tls) < 0) {
+            close(fd);
+        }
+        return 0;
 #ifdef CONFIG_VNC
     } else if (strcmp(protocol, "vnc") == 0) {
 	int fd = monitor_get_fd(mon, fdname);

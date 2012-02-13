@@ -747,6 +747,19 @@ int qemu_spice_set_pw_expire(time_t expires)
     return qemu_spice_set_ticket(false, false);
 }
 
+int qemu_spice_display_add_client(int csock, int skipauth, int tls)
+{
+#if SPICE_SERVER_VERSION >= 0x000a01
+    if (tls) {
+        return spice_server_add_ssl_client(spice_server, csock, skipauth);
+    } else {
+        return spice_server_add_client(spice_server, csock, skipauth);
+    }
+#else
+    return -1;
+#endif
+}
+
 static void spice_register_config(void)
 {
     qemu_add_opts(&qemu_spice_opts);
