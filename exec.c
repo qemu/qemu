@@ -459,14 +459,23 @@ static uint16_t *phys_page_find_alloc(target_phys_addr_t index, int alloc)
 
 static MemoryRegionSection phys_page_find(target_phys_addr_t index)
 {
-    uint16_t *p = phys_page_find_alloc(index, 0);
-    uint16_t s_index = phys_section_unassigned;
+    PhysPageEntry lp = phys_map;
+    PhysPageEntry *p;
+    int i;
     MemoryRegionSection section;
     target_phys_addr_t delta;
+    uint16_t s_index = phys_section_unassigned;
 
-    if (p) {
-        s_index = *p;
+    for (i = P_L2_LEVELS - 1; i >= 0; i--) {
+        if (lp.u.node == PHYS_MAP_NODE_NIL) {
+            goto not_found;
+        }
+        p = phys_map_nodes[lp.u.node];
+        lp = p[(index >> (i * L2_BITS)) & (L2_SIZE - 1)];
     }
+
+    s_index = lp.u.leaf;
+not_found:
     section = phys_sections[s_index];
     index <<= TARGET_PAGE_BITS;
     assert(section.offset_within_address_space <= index
