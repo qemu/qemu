@@ -19,43 +19,20 @@ static inline void set_feature(CPUUniCore32State *env, int feature)
     env->features |= feature;
 }
 
-struct uc32_cpu_t {
-    uint32_t id;
-    const char *name;
-};
-
-static const struct uc32_cpu_t uc32_cpu_names[] = {
-    { UC32_CPUID_UCV2, "UniCore-II"},
-    { UC32_CPUID_ANY, "any"},
-    { 0, NULL}
-};
-
-/* return 0 if not found */
-static uint32_t uc32_cpu_find_by_name(const char *name)
-{
-    int i;
-    uint32_t id;
-
-    id = 0;
-    for (i = 0; uc32_cpu_names[i].name; i++) {
-        if (strcmp(name, uc32_cpu_names[i].name) == 0) {
-            id = uc32_cpu_names[i].id;
-            break;
-        }
-    }
-    return id;
-}
-
 CPUUniCore32State *uc32_cpu_init(const char *cpu_model)
 {
+    UniCore32CPU *cpu;
     CPUUniCore32State *env;
     uint32_t id;
     static int inited = 1;
 
-    env = g_malloc0(sizeof(CPUUniCore32State));
-    cpu_exec_init(env);
+    if (object_class_by_name(cpu_model) == NULL) {
+        return NULL;
+    }
+    cpu = UNICORE32_CPU(object_new(cpu_model));
+    env = &cpu->env;
 
-    id = uc32_cpu_find_by_name(cpu_model);
+    id = env->cp0.c0_cpuid;
     switch (id) {
     case UC32_CPUID_UCV2:
         set_feature(env, UC32_HWCAP_CMOV);
@@ -72,17 +49,11 @@ CPUUniCore32State *uc32_cpu_init(const char *cpu_model)
         cpu_abort(env, "Bad CPU ID: %x\n", id);
     }
 
-    env->cpu_model_str = cpu_model;
-    env->cp0.c0_cpuid = id;
-    env->uncached_asr = ASR_MODE_USER;
-    env->regs[31] = 0;
-
     if (inited) {
         inited = 0;
         uc32_translate_init();
     }
 
-    tlb_flush(env, 1);
     qemu_init_vcpu(env);
     return env;
 }
