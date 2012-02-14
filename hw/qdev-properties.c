@@ -1072,49 +1072,49 @@ void qdev_prop_set_bit(DeviceState *dev, const char *name, bool value)
 {
     Error *errp = NULL;
     object_property_set_bool(OBJECT(dev), value, name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_uint8(DeviceState *dev, const char *name, uint8_t value)
 {
     Error *errp = NULL;
     object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_uint16(DeviceState *dev, const char *name, uint16_t value)
 {
     Error *errp = NULL;
     object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_uint32(DeviceState *dev, const char *name, uint32_t value)
 {
     Error *errp = NULL;
     object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_int32(DeviceState *dev, const char *name, int32_t value)
 {
     Error *errp = NULL;
     object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_uint64(DeviceState *dev, const char *name, uint64_t value)
 {
     Error *errp = NULL;
     object_property_set_int(OBJECT(dev), value, name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_string(DeviceState *dev, const char *name, char *value)
 {
     Error *errp = NULL;
     object_property_set_str(OBJECT(dev), value, name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value)
@@ -1143,7 +1143,7 @@ void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *valu
     assert(!value || value->label);
     object_property_set_str(OBJECT(dev),
                             value ? value->label : "", name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *value)
@@ -1152,14 +1152,14 @@ void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *v
     assert(!value || value->name);
     object_property_set_str(OBJECT(dev),
                             value ? value->name : "", name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_vlan(DeviceState *dev, const char *name, VLANState *value)
 {
     Error *errp = NULL;
     object_property_set_int(OBJECT(dev), value ? value->id : -1, name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)
@@ -1170,7 +1170,7 @@ void qdev_prop_set_macaddr(DeviceState *dev, const char *name, uint8_t *value)
              value[0], value[1], value[2], value[3], value[4], value[5]);
 
     object_property_set_str(OBJECT(dev), str, name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
@@ -1181,7 +1181,7 @@ void qdev_prop_set_enum(DeviceState *dev, const char *name, int value)
     prop = qdev_prop_find(dev, name);
     object_property_set_str(OBJECT(dev), prop->info->enum_table[value],
                             name, &errp);
-    assert(!errp);
+    assert_no_error(errp);
 }
 
 void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
@@ -1213,7 +1213,7 @@ void qdev_prop_set_defaults(DeviceState *dev, Property *props)
         } else if (props->qtype == QTYPE_QINT) {
             object_property_set_int(obj, props->defval, props->name, &errp);
         }
-        assert(!errp);
+        assert_no_error(errp);
     }
 }
 
