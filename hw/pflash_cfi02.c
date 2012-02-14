@@ -102,6 +102,7 @@ static void pflash_setup_mappings(pflash_t *pfl)
 static void pflash_register_memory(pflash_t *pfl, int rom_mode)
 {
     memory_region_rom_device_set_readable(&pfl->orig_mem, rom_mode);
+    pfl->rom_mode = rom_mode;
 }
 
 static void pflash_timer (void *opaque)

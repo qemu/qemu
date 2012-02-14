@@ -87,7 +87,7 @@ void framebuffer_update_display(
     dest += i * dest_row_pitch;
 
     for (; i < rows; i++) {
-        dirty = memory_region_get_dirty(mem, addr, addr + src_width,
+        dirty = memory_region_get_dirty(mem, addr, src_width,
                                              DIRTY_MEMORY_VGA);
         if (dirty || invalidate) {
             fn(opaque, dest, src, cols, dest_col_pitch);

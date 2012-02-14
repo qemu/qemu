@@ -1327,8 +1327,8 @@ static void sm501_draw_crt(SM501State * s)
         ram_addr_t page1 = offset + width * src_bpp - 1;
 
 	/* check dirty flags for each line */
-        update = memory_region_get_dirty(&s->local_mem_region, page0, page1,
-                                         DIRTY_MEMORY_VGA);
+        update = memory_region_get_dirty(&s->local_mem_region, page0,
+                                         page1 - page0, DIRTY_MEMORY_VGA);
 
 	/* draw line and change status */
 	if (update) {
