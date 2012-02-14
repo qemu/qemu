@@ -613,7 +613,7 @@ static void set_pointer(Object *obj, Visitor *v, Property *prop,
     }
     if (!*str) {
         g_free(str);
-        error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
+        *ptr = NULL;
         return;
     }
     ret = parse(dev, str, ptr);
@@ -1120,7 +1120,8 @@ void qdev_prop_set_string(DeviceState *dev, const char *name, char *value)
 int qdev_prop_set_drive(DeviceState *dev, const char *name, BlockDriverState *value)
 {
     Error *errp = NULL;
-    object_property_set_str(OBJECT(dev), bdrv_get_device_name(value),
+    const char *bdrv_name = value ? bdrv_get_device_name(value) : "";
+    object_property_set_str(OBJECT(dev), bdrv_name,
                             name, &errp);
     if (errp) {
         qerror_report_err(errp);
@@ -1139,16 +1140,18 @@ void qdev_prop_set_drive_nofail(DeviceState *dev, const char *name, BlockDriverS
 void qdev_prop_set_chr(DeviceState *dev, const char *name, CharDriverState *value)
 {
     Error *errp = NULL;
-    assert(value->label);
-    object_property_set_str(OBJECT(dev), value->label, name, &errp);
+    assert(!value || value->label);
+    object_property_set_str(OBJECT(dev),
+                            value ? value->label : "", name, &errp);
     assert(!errp);
 }
 
 void qdev_prop_set_netdev(DeviceState *dev, const char *name, VLANClientState *value)
 {
     Error *errp = NULL;
-    assert(value->name);
-    object_property_set_str(OBJECT(dev), value->name, name, &errp);
+    assert(!value || value->name);
+    object_property_set_str(OBJECT(dev),
+                            value ? value->name : "", name, &errp);
     assert(!errp);
 }
 
