@@ -972,10 +972,30 @@ void bdrv_emit_qmp_error_event(const BlockDriverState *bdrv,
     qobject_decref(data);
 }
 
+static void bdrv_emit_qmp_eject_event(BlockDriverState *bs, bool ejected)
+{
+    QObject *data;
+
+    data = qobject_from_jsonf("{ 'device': %s, 'tray-open': %i }",
+                              bdrv_get_device_name(bs), ejected);
+    monitor_protocol_event(QEVENT_DEVICE_TRAY_MOVED, data);
+
+    qobject_decref(data);
+}
+
 static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load)
 {
     if (bs->dev_ops && bs->dev_ops->change_media_cb) {
+        bool tray_was_closed = !bdrv_dev_is_tray_open(bs);
         bs->dev_ops->change_media_cb(bs->dev_opaque, load);
+        if (tray_was_closed) {
+            /* tray open */
+            bdrv_emit_qmp_eject_event(bs, true);
+        }
+        if (load) {
+            /* tray close */
+            bdrv_emit_qmp_eject_event(bs, false);
+        }
     }
 }
 
@@ -3615,6 +3635,10 @@ void bdrv_eject(BlockDriverState *bs, bool eject_flag)
 
     if (drv && drv->bdrv_eject) {
         drv->bdrv_eject(bs, eject_flag);
+    }
+
+    if (bs->device_name[0] != '\0') {
+        bdrv_emit_qmp_eject_event(bs, eject_flag);
     }
 }
 
