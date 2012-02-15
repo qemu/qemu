@@ -380,7 +380,7 @@ static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
 
     /* PAGE CODE == 0 */
     if (r->req.cmd.xfer < 5) {
-        return -1;
+        return false;
     }
 
     r->len = MIN(r->req.cmd.xfer, 36);
