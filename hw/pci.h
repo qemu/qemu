@@ -129,6 +129,8 @@ enum {
     /* Standard hot plug controller. */
 #define QEMU_PCI_SHPC_BITNR 5
     QEMU_PCI_CAP_SHPC = (1 << QEMU_PCI_SHPC_BITNR),
+#define QEMU_PCI_SLOTID_BITNR 6
+    QEMU_PCI_CAP_SLOTID = (1 << QEMU_PCI_SLOTID_BITNR),
 };
 
 #define TYPE_PCI_DEVICE "pci-device"
