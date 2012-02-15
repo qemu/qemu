@@ -594,9 +594,6 @@ void tcg_register_helper(void *func, const char *name)
 void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
                    int sizemask, TCGArg ret, int nargs, TCGArg *args)
 {
-#if defined(TCG_TARGET_I386) && TCG_TARGET_REG_BITS < 64
-    int call_type;
-#endif
     int i;
     int real_args;
     int nb_rets;
@@ -621,9 +618,6 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
 
     *gen_opc_ptr++ = INDEX_op_call;
     nparam = gen_opparam_ptr++;
-#if defined(TCG_TARGET_I386) && TCG_TARGET_REG_BITS < 64
-    call_type = (flags & TCG_CALL_TYPE_MASK);
-#endif
     if (ret != TCG_CALL_DUMMY_ARG) {
 #if TCG_TARGET_REG_BITS < 64
         if (sizemask & 1) {
@@ -649,14 +643,6 @@ void tcg_gen_callN(TCGContext *s, TCGv_ptr func, unsigned int flags,
 #if TCG_TARGET_REG_BITS < 64
         int is_64bit = sizemask & (1 << (i+1)*2);
         if (is_64bit) {
-#ifdef TCG_TARGET_I386
-            /* REGPARM case: if the third parameter is 64 bit, it is
-               allocated on the stack */
-            if (i == 2 && call_type == TCG_CALL_TYPE_REGPARM) {
-                call_type = TCG_CALL_TYPE_REGPARM_2;
-                flags = (flags & ~TCG_CALL_TYPE_MASK) | call_type;
-            }
-#endif
 #ifdef TCG_TARGET_CALL_ALIGN_ARGS
             /* some targets want aligned 64 bit args */
             if (real_args & 1) {
