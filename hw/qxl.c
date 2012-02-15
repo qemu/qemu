@@ -1471,7 +1471,7 @@ static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
     intptr_t vram_start;
     int i;
 
-    if (qxl->mode != QXL_MODE_NATIVE) {
+    if (qxl->mode != QXL_MODE_NATIVE && qxl->mode != QXL_MODE_COMPAT) {
         return;
     }
 
