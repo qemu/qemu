@@ -465,4 +465,5 @@ qemu-io> read 512/512 bytes at offset 3221257728
 qemu-io> read 512/512 bytes at offset 3221258752
 512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
 qemu-io> No errors were found on the image.
+No errors were found on the image.
 *** done
