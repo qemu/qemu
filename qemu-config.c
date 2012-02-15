@@ -118,6 +118,32 @@ static QemuOptsList qemu_drive_opts = {
     },
 };
 
+static QemuOptsList qemu_iscsi_opts = {
+    .name = "iscsi",
+    .head = QTAILQ_HEAD_INITIALIZER(qemu_iscsi_opts.head),
+    .desc = {
+        {
+            .name = "user",
+            .type = QEMU_OPT_STRING,
+            .help = "username for CHAP authentication to target",
+        },{
+            .name = "password",
+            .type = QEMU_OPT_STRING,
+            .help = "password for CHAP authentication to target",
+        },{
+            .name = "header-digest",
+            .type = QEMU_OPT_STRING,
+            .help = "HeaderDigest setting. "
+                    "{CRC32C|CRC32C-NONE|NONE-CRC32C|NONE}",
+        },{
+            .name = "initiator-name",
+            .type = QEMU_OPT_STRING,
+            .help = "Initiator iqn name to use when connecting",
+        },
+        { /* end of list */ }
+    },
+};
+
 static QemuOptsList qemu_chardev_opts = {
     .name = "chardev",
     .implied_opt_name = "backend",
@@ -580,6 +606,7 @@ static QemuOptsList *vm_config_groups[32] = {
     &qemu_option_rom_opts,
     &qemu_machine_opts,
     &qemu_boot_opts,
+    &qemu_iscsi_opts,
     NULL,
 };
 
