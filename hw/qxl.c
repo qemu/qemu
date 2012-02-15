@@ -1007,7 +1007,7 @@ static void qxl_reset_surfaces(PCIQXLDevice *d)
     qxl_spice_destroy_surfaces(d, QXL_SYNC);
 }
 
-/* called from spice server thread context only */
+/* can be also called from spice server thread context */
 void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
 {
     uint64_t phys   = le64_to_cpu(pqxl);
@@ -1466,6 +1466,46 @@ static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
     }
 }
 
+static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
+{
+    intptr_t vram_start;
+    int i;
+
+    if (qxl->mode != QXL_MODE_NATIVE) {
+        return;
+    }
+
+    /* dirty the primary surface */
+    qxl_set_dirty(&qxl->vga.vram, qxl->shadow_rom.draw_area_offset,
+                  qxl->shadow_rom.surface0_area_size);
+
+    vram_start =  (intptr_t)memory_region_get_ram_ptr(&qxl->vram_bar);
+
+    /* dirty the off-screen surfaces */
+    for (i = 0; i < NUM_SURFACES; i++) {
+        QXLSurfaceCmd *cmd;
+        intptr_t surface_offset;
+        int surface_size;
+
+        if (qxl->guest_surfaces.cmds[i] == 0) {
+            continue;
+        }
+
+        cmd = qxl_phys2virt(qxl, qxl->guest_surfaces.cmds[i],
+                            MEMSLOT_GROUP_GUEST);
+        assert(cmd->type == QXL_SURFACE_CMD_CREATE);
+        surface_offset = (intptr_t)qxl_phys2virt(qxl,
+                                                 cmd->u.surface_create.data,
+                                                 MEMSLOT_GROUP_GUEST);
+        surface_offset -= vram_start;
+        surface_size = cmd->u.surface_create.height *
+                       abs(cmd->u.surface_create.stride);
+        dprint(qxl, 3, "%s: dirty surface %d, offset %d, size %d\n", __func__,
+               i, (int)surface_offset, surface_size);
+        qxl_set_dirty(&qxl->vram_bar, surface_offset, surface_size);
+    }
+}
+
 static void qxl_vm_change_state_handler(void *opaque, int running,
                                         RunState state)
 {
@@ -1479,14 +1519,9 @@ static void qxl_vm_change_state_handler(void *opaque, int running,
          * called
          */
          qxl_update_irq(qxl);
-    } else if (qxl->mode == QXL_MODE_NATIVE) {
-        /* dirty all vram (which holds surfaces) and devram (primary surface)
-         * to make sure they are saved */
-        /* FIXME #1: should go out during "live" stage */
-        /* FIXME #2: we only need to save the areas which are actually used */
-        qxl_set_dirty(&qxl->vram_bar, 0, qxl->vram_size);
-        qxl_set_dirty(&qxl->vga.vram, qxl->shadow_rom.draw_area_offset,
-                      qxl->shadow_rom.surface0_area_size);
+    } else {
+        /* make sure surfaces are saved before migration */
+        qxl_dirty_surfaces(qxl);
     }
 }
 
