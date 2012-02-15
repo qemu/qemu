@@ -18,7 +18,7 @@
 
 #define ELF_MACHINE             EM_UNICORE32
 
-#define CPUState                struct CPUState_UniCore32
+#define CPUState                struct CPUUniCore32State
 
 #include "config.h"
 #include "qemu-common.h"
@@ -27,7 +27,7 @@
 
 #define NB_MMU_MODES            2
 
-typedef struct CPUState_UniCore32 {
+typedef struct CPUUniCore32State {
     /* Regs for current mode.  */
     uint32_t regs[32];
     /* Frequently accessed ASR bits are stored separately for efficiently.
@@ -71,7 +71,7 @@ typedef struct CPUState_UniCore32 {
     /* Internal CPU feature flags.  */
     uint32_t features;
 
-} CPUState_UniCore32;
+} CPUUniCore32State;
 
 #define ASR_M                   (0x1f)
 #define ASR_MODE_USER           (0x10)
@@ -179,7 +179,7 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 
 void uc32_translate_init(void);
 void do_interrupt(CPUState *);
-void switch_mode(CPUState_UniCore32 *, int);
+void switch_mode(CPUUniCore32State *, int);
 
 static inline bool cpu_has_work(CPUState *env)
 {
