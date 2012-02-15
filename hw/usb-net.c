@@ -1210,7 +1210,7 @@ static int usb_net_handle_data(USBDevice *dev, USBPacket *p)
 
     switch(p->pid) {
     case USB_TOKEN_IN:
-        switch (p->devep) {
+        switch (p->ep->nr) {
         case 1:
             ret = usb_net_handle_statusin(s, p);
             break;
@@ -1225,7 +1225,7 @@ static int usb_net_handle_data(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_TOKEN_OUT:
-        switch (p->devep) {
+        switch (p->ep->nr) {
         case 2:
             ret = usb_net_handle_dataout(s, p);
             break;
@@ -1243,7 +1243,7 @@ static int usb_net_handle_data(USBDevice *dev, USBPacket *p)
     if (ret == USB_RET_STALL)
         fprintf(stderr, "usbnet: failed data transaction: "
                         "pid 0x%x ep 0x%x len 0x%zx\n",
-                        p->pid, p->devep, p->iov.size);
+                        p->pid, p->ep->nr, p->iov.size);
     return ret;
 }
 
@@ -1398,7 +1398,6 @@ static void usb_net_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_net_initfn;
     uc->product_desc   = "QEMU USB Network Interface";
     uc->usb_desc       = &desc_net;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_net_handle_reset;
     uc->handle_control = usb_net_handle_control;
     uc->handle_data    = usb_net_handle_data;

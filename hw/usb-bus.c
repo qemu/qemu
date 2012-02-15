@@ -74,21 +74,21 @@ static int usb_device_init(USBDevice *dev)
     return 0;
 }
 
+USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr)
+{
+    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
+    if (klass->find_device) {
+        return klass->find_device(dev, addr);
+    }
+    return NULL;
+}
+
 static void usb_device_handle_destroy(USBDevice *dev)
 {
     USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
     if (klass->handle_destroy) {
         klass->handle_destroy(dev);
     }
-}
-
-int usb_device_handle_packet(USBDevice *dev, USBPacket *p)
-{
-    USBDeviceClass *klass = USB_DEVICE_GET_CLASS(dev);
-    if (klass->handle_packet) {
-        return klass->handle_packet(dev, p);
-    }
-    return -ENOSYS;
 }
 
 void usb_device_cancel_packet(USBDevice *dev, USBPacket *p)

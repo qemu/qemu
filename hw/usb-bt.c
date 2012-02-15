@@ -423,7 +423,7 @@ static int usb_bt_handle_data(USBDevice *dev, USBPacket *p)
 
     switch (p->pid) {
     case USB_TOKEN_IN:
-        switch (p->devep & 0xf) {
+        switch (p->ep->nr) {
         case USB_EVT_EP:
             ret = usb_bt_fifo_dequeue(&s->evt, p);
             break;
@@ -442,7 +442,7 @@ static int usb_bt_handle_data(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_TOKEN_OUT:
-        switch (p->devep & 0xf) {
+        switch (p->ep->nr) {
         case USB_ACL_EP:
             usb_bt_fifo_out_enqueue(s, &s->outacl, s->hci->acl_send,
                             usb_bt_hci_acl_complete, p);
@@ -535,7 +535,6 @@ static void usb_bt_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_bt_initfn;
     uc->product_desc   = "QEMU BT dongle";
     uc->usb_desc       = &desc_bluetooth;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_bt_handle_reset;
     uc->handle_control = usb_bt_handle_control;
     uc->handle_data    = usb_bt_handle_data;

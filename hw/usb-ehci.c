@@ -715,8 +715,8 @@ static void ehci_queues_rip_device(EHCIState *ehci, USBDevice *dev)
     EHCIQueue *q, *tmp;
 
     QTAILQ_FOREACH_SAFE(q, &ehci->queues, next, tmp) {
-        if (q->packet.owner == NULL ||
-            q->packet.owner->dev != dev) {
+        if (!usb_packet_is_inflight(&q->packet) ||
+            q->packet.ep->dev != dev) {
             continue;
         }
         ehci_free_queue(q);
@@ -765,6 +765,11 @@ static void ehci_detach(USBPort *port)
         USBPort *companion = s->companion_ports[port->index];
         companion->ops->detach(companion);
         companion->dev = NULL;
+        /*
+         * EHCI spec 4.2.2: "When a disconnect occurs... On the event,
+         * the port ownership is returned immediately to the EHCI controller."
+         */
+        *portsc &= ~PORTSC_POWNER;
         return;
     }
 
@@ -845,6 +850,26 @@ static int ehci_register_companion(USBBus *bus, USBPort *ports[],
     return 0;
 }
 
+static USBDevice *ehci_find_device(EHCIState *ehci, uint8_t addr)
+{
+    USBDevice *dev;
+    USBPort *port;
+    int i;
+
+    for (i = 0; i < NB_PORTS; i++) {
+        port = &ehci->ports[i];
+        if (!(ehci->portsc[i] & PORTSC_PED)) {
+            DPRINTF("Port %d not enabled\n", i);
+            continue;
+        }
+        dev = usb_find_device(port, addr);
+        if (dev != NULL) {
+            return dev;
+        }
+    }
+    return NULL;
+}
+
 /* 4.1 host controller initialization */
 static void ehci_reset(void *opaque)
 {
@@ -883,7 +908,7 @@ static void ehci_reset(void *opaque)
         }
         if (devs[i] && devs[i]->attached) {
             usb_attach(&s->ports[i]);
-            usb_send_msg(devs[i], USB_MSG_RESET);
+            usb_device_reset(devs[i]);
         }
     }
     ehci_queues_rip_all(s);
@@ -982,7 +1007,7 @@ static void handle_port_status_write(EHCIState *s, int port, uint32_t val)
     if (!(val & PORTSC_PRESET) &&(*portsc & PORTSC_PRESET)) {
         trace_usb_ehci_port_reset(port, 0);
         if (dev && dev->attached) {
-            usb_reset(&s->ports[port]);
+            usb_port_reset(&s->ports[port]);
             *portsc &= ~PORTSC_CSC;
         }
 
@@ -1331,10 +1356,9 @@ err:
 
 static int ehci_execute(EHCIQueue *q)
 {
-    USBPort *port;
     USBDevice *dev;
+    USBEndpoint *ep;
     int ret;
-    int i;
     int endp;
     int devadr;
 
@@ -1364,33 +1388,18 @@ static int ehci_execute(EHCIQueue *q)
     endp = get_field(q->qh.epchar, QH_EPCHAR_EP);
     devadr = get_field(q->qh.epchar, QH_EPCHAR_DEVADDR);
 
-    ret = USB_RET_NODEV;
+    /* TODO: associating device with ehci port */
+    dev = ehci_find_device(q->ehci, devadr);
+    ep = usb_ep_get(dev, q->pid, endp);
 
-    usb_packet_setup(&q->packet, q->pid, devadr, endp);
+    usb_packet_setup(&q->packet, q->pid, ep);
     usb_packet_map(&q->packet, &q->sgl);
 
-    // TO-DO: associating device with ehci port
-    for(i = 0; i < NB_PORTS; i++) {
-        port = &q->ehci->ports[i];
-        dev = port->dev;
-
-        if (!(q->ehci->portsc[i] &(PORTSC_CONNECT))) {
-            DPRINTF("Port %d, no exec, not connected(%08X)\n",
-                    i, q->ehci->portsc[i]);
-            continue;
-        }
-
-        ret = usb_handle_packet(dev, &q->packet);
-
-        DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd "
-                "(total %d) endp %x ret %d\n",
-                q->qhaddr, q->qh.next, q->qtdaddr, q->pid,
-                q->packet.iov.size, q->tbytes, endp, ret);
-
-        if (ret != USB_RET_NODEV) {
-            break;
-        }
-    }
+    ret = usb_handle_packet(dev, &q->packet);
+    DPRINTF("submit: qh %x next %x qtd %x pid %x len %zd "
+            "(total %d) endp %x ret %d\n",
+            q->qhaddr, q->qh.next, q->qtdaddr, q->pid,
+            q->packet.iov.size, q->tbytes, endp, ret);
 
     if (ret > BUFF_SIZE) {
         fprintf(stderr, "ret from usb_handle_packet > BUFF_SIZE\n");
@@ -1406,10 +1415,10 @@ static int ehci_execute(EHCIQueue *q)
 static int ehci_process_itd(EHCIState *ehci,
                             EHCIitd *itd)
 {
-    USBPort *port;
     USBDevice *dev;
+    USBEndpoint *ep;
     int ret;
-    uint32_t i, j, len, pid, dir, devaddr, endp;
+    uint32_t i, len, pid, dir, devaddr, endp;
     uint32_t pg, off, ptr1, ptr2, max, mult;
 
     dir =(itd->bufptr[1] & ITD_BUFPTR_DIRECTION);
@@ -1447,24 +1456,12 @@ static int ehci_process_itd(EHCIState *ehci,
 
             pid = dir ? USB_TOKEN_IN : USB_TOKEN_OUT;
 
-            usb_packet_setup(&ehci->ipacket, pid, devaddr, endp);
+            dev = ehci_find_device(ehci, devaddr);
+            ep = usb_ep_get(dev, pid, endp);
+            usb_packet_setup(&ehci->ipacket, pid, ep);
             usb_packet_map(&ehci->ipacket, &ehci->isgl);
 
-            ret = USB_RET_NODEV;
-            for (j = 0; j < NB_PORTS; j++) {
-                port = &ehci->ports[j];
-                dev = port->dev;
-
-                if (!(ehci->portsc[j] &(PORTSC_CONNECT))) {
-                    continue;
-                }
-
-                ret = usb_handle_packet(dev, &ehci->ipacket);
-
-                if (ret != USB_RET_NODEV) {
-                    break;
-                }
-            }
+            ret = usb_handle_packet(dev, &ehci->ipacket);
 
             usb_packet_unmap(&ehci->ipacket);
             qemu_sglist_destroy(&ehci->isgl);

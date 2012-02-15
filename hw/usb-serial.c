@@ -353,7 +353,7 @@ static int usb_serial_handle_data(USBDevice *dev, USBPacket *p)
 {
     USBSerialState *s = (USBSerialState *)dev;
     int i, ret = 0;
-    uint8_t devep = p->devep;
+    uint8_t devep = p->ep->nr;
     struct iovec *iov;
     uint8_t header[2];
     int first_len, len;
@@ -583,7 +583,6 @@ static void usb_serial_class_initfn(ObjectClass *klass, void *data)
     uc->init = usb_serial_initfn;
     uc->product_desc   = "QEMU USB Serial";
     uc->usb_desc       = &desc_serial;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_serial_handle_reset;
     uc->handle_control = usb_serial_handle_control;
     uc->handle_data    = usb_serial_handle_data;
@@ -612,7 +611,6 @@ static void usb_braille_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_serial_initfn;
     uc->product_desc   = "QEMU USB Braille";
     uc->usb_desc       = &desc_braille;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_serial_handle_reset;
     uc->handle_control = usb_serial_handle_control;
     uc->handle_data    = usb_serial_handle_data;
