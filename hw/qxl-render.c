@@ -121,19 +121,17 @@ void qxl_render_update(PCIQXLDevice *qxl)
         dpy_resize(vga->ds);
     }
 
-    if (!qxl->guest_primary.commands) {
-        return;
-    }
-    qxl->guest_primary.commands = 0;
-
     update.left   = 0;
     update.right  = qxl->guest_primary.surface.width;
     update.top    = 0;
     update.bottom = qxl->guest_primary.surface.height;
 
     memset(dirty, 0, sizeof(dirty));
-    qxl_spice_update_area(qxl, 0, &update,
-                          dirty, ARRAY_SIZE(dirty), 1, QXL_SYNC);
+    if (runstate_is_running() && qxl->guest_primary.commands) {
+        qxl->guest_primary.commands = 0;
+        qxl_spice_update_area(qxl, 0, &update,
+                              dirty, ARRAY_SIZE(dirty), 1, QXL_SYNC);
+    }
     if (redraw) {
         memset(dirty, 0, sizeof(dirty));
         dirty[0] = update;
