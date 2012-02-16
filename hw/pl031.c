@@ -76,7 +76,7 @@ static void pl031_interrupt(void * opaque)
 {
     pl031_state *s = (pl031_state *)opaque;
 
-    s->im = 1;
+    s->is = 1;
     DPRINTF("Alarm raised\n");
     pl031_update(s);
 }
