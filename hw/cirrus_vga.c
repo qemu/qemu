@@ -2923,12 +2923,6 @@ static TypeInfo isa_cirrus_vga_info = {
     .class_init = isa_cirrus_vga_class_init,
 };
 
-static void isa_cirrus_vga_register(void)
-{
-    type_register_static(&isa_cirrus_vga_info);
-}
-device_init(isa_cirrus_vga_register)
-
 /***************************************
  *
  *  PCI bus support
@@ -2996,8 +2990,10 @@ static TypeInfo cirrus_vga_info = {
     .class_init    = cirrus_vga_class_init,
 };
 
-static void cirrus_vga_register(void)
+static void cirrus_vga_register_types(void)
 {
+    type_register_static(&isa_cirrus_vga_info);
     type_register_static(&cirrus_vga_info);
 }
-device_init(cirrus_vga_register);
+
+type_init(cirrus_vga_register_types)

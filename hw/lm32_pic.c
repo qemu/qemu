@@ -191,9 +191,9 @@ static TypeInfo lm32_pic_info = {
     .class_init    = lm32_pic_class_init,
 };
 
-static void lm32_pic_register(void)
+static void lm32_pic_register_types(void)
 {
     type_register_static(&lm32_pic_info);
 }
 
-device_init(lm32_pic_register)
+type_init(lm32_pic_register_types)

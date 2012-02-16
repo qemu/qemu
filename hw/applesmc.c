@@ -243,9 +243,9 @@ static TypeInfo applesmc_isa_info = {
     .class_init    = qdev_applesmc_class_init,
 };
 
-static void applesmc_register_devices(void)
+static void applesmc_register_types(void)
 {
     type_register_static(&applesmc_isa_info);
 }
 
-device_init(applesmc_register_devices)
+type_init(applesmc_register_types)

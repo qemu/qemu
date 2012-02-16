@@ -152,12 +152,12 @@ static TypeInfo s3c24xx_cam_info = {
     .class_init = s3c24xx_cam_class_init
 };
 
-static void s3c24xx_cam_register(void)
+static void s3c24xx_cam_register_types(void)
 {
     type_register_static(&s3c24xx_cam_info);
 }
 
-device_init(s3c24xx_cam_register)
+type_init(s3c24xx_cam_register_types)
 
 /*----------------------------------------------------------------------------*/
 
@@ -245,12 +245,12 @@ static TypeInfo s3c24xx_wdg_info = {
     .class_init = s3c24xx_wdg_class_init
 };
 
-static void s3c24xx_wdg_register(void)
+static void s3c24xx_wdg_register_types(void)
 {
     type_register_static(&s3c24xx_wdg_info);
 }
 
-device_init(s3c24xx_wdg_register)
+type_init(s3c24xx_wdg_register_types)
 
 /*----------------------------------------------------------------------------*/
 
@@ -350,12 +350,12 @@ static TypeInfo s3c24xx_adc_info = {
     .class_init = s3c24xx_adc_class_init
 };
 
-static void s3c24xx_adc_register(void)
+static void s3c24xx_adc_register_types(void)
 {
     type_register_static(&s3c24xx_adc_info);
 }
 
-device_init(s3c24xx_adc_register)
+type_init(s3c24xx_adc_register_types)
 
 /*----------------------------------------------------------------------------*/
 

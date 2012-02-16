@@ -637,9 +637,9 @@ static TypeInfo etraxfs_eth_info = {
     .class_init    = etraxfs_eth_class_init,
 };
 
-static void etraxfs_eth_register(void)
+static void etraxfs_eth_register_types(void)
 {
     type_register_static(&etraxfs_eth_info);
 }
 
-device_init(etraxfs_eth_register)
+type_init(etraxfs_eth_register_types)

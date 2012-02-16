@@ -288,9 +288,9 @@ static TypeInfo lm32_uart_info = {
     .class_init    = lm32_uart_class_init,
 };
 
-static void lm32_uart_register(void)
+static void lm32_uart_register_types(void)
 {
     type_register_static(&lm32_uart_info);
 }
 
-device_init(lm32_uart_register)
+type_init(lm32_uart_register_types)

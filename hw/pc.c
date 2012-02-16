@@ -514,11 +514,12 @@ static TypeInfo port92_info = {
     .class_init    = port92_class_initfn,
 };
 
-static void port92_register(void)
+static void port92_register_types(void)
 {
     type_register_static(&port92_info);
 }
-device_init(port92_register)
+
+type_init(port92_register_types)
 
 static void handle_a20_line_change(void *opaque, int irq, int level)
 {
@@ -889,7 +890,7 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
     DeviceState *dev;
     static int apic_mapped;
 
-    if (kvm_enabled() && kvm_irqchip_in_kernel()) {
+    if (kvm_irqchip_in_kernel()) {
         dev = qdev_create(NULL, "kvm-apic");
     } else {
         dev = qdev_create(NULL, "apic");
@@ -908,7 +909,7 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
     }
 
     /* KVM does not support MSI yet. */
-    if (!kvm_enabled() || !kvm_irqchip_in_kernel()) {
+    if (!kvm_irqchip_in_kernel()) {
         msi_supported = true;
     }
 

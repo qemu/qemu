@@ -183,10 +183,10 @@ static TypeInfo max1111_info = {
     .class_init    = max1111_class_init,
 };
 
-static void max111x_register_devices(void)
+static void max111x_register_types(void)
 {
     type_register_static(&max1110_info);
     type_register_static(&max1111_info);
 }
 
-device_init(max111x_register_devices)
+type_init(max111x_register_types)

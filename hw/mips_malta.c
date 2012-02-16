@@ -1082,7 +1082,7 @@ static QEMUMachine mips_malta_machine = {
     .is_default = 1,
 };
 
-static void mips_malta_device_init(void)
+static void mips_malta_register_types(void)
 {
     type_register_static(&mips_malta_device);
 }
@@ -1092,7 +1092,7 @@ static void mips_malta_machine_init(void)
     qemu_register_machine(&mips_malta_machine);
 }
 
-device_init(mips_malta_device_init);
+type_init(mips_malta_register_types)
 machine_init(mips_malta_machine_init);
 
 /*

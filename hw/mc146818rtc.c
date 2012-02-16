@@ -733,8 +733,9 @@ static TypeInfo mc146818rtc_info = {
     .class_init    = rtc_class_initfn,
 };
 
-static void mc146818rtc_register(void)
+static void mc146818rtc_register_types(void)
 {
     type_register_static(&mc146818rtc_info);
 }
-device_init(mc146818rtc_register)
+
+type_init(mc146818rtc_register_types)

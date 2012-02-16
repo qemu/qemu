@@ -355,9 +355,9 @@ static TypeInfo ssd0323_info = {
     .class_init    = ssd0323_class_init,
 };
 
-static void ssd03232_register_devices(void)
+static void ssd03232_register_types(void)
 {
     type_register_static(&ssd0323_info);
 }
 
-device_init(ssd03232_register_devices)
+type_init(ssd03232_register_types)

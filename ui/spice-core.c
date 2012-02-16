@@ -753,8 +753,9 @@ static void spice_register_config(void)
 }
 machine_init(spice_register_config);
 
-static void spice_initialize(void)
+static void spice_register_types(void)
 {
     qemu_spice_init();
 }
-device_init(spice_initialize);
+
+type_init(spice_register_types)

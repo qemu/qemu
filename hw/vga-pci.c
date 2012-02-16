@@ -96,8 +96,9 @@ static TypeInfo vga_info = {
     .class_init    = vga_class_init,
 };
 
-static void vga_register(void)
+static void vga_register_types(void)
 {
     type_register_static(&vga_info);
 }
-device_init(vga_register);
+
+type_init(vga_register_types)

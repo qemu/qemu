@@ -629,6 +629,9 @@ static void coroutine_fn aio_read_response(void *opaque)
 
     switch (acb->aiocb_type) {
     case AIOCB_WRITE_UDATA:
+        /* this coroutine context is no longer suitable for co_recv
+         * because we may send data to update vdi objects */
+        s->co_recv = NULL;
         if (!is_data_obj(aio_req->oid)) {
             break;
         }

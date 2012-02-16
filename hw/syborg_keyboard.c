@@ -217,9 +217,9 @@ static TypeInfo syborg_keyboard_info = {
     .class_init = syborg_keyboard_class_init
 };
 
-static void syborg_keyboard_register_devices(void)
+static void syborg_keyboard_register_types(void)
 {
     type_register_static(&syborg_keyboard_info);
 }
 
-device_init(syborg_keyboard_register_devices)
+type_init(syborg_keyboard_register_types)

@@ -383,10 +383,10 @@ static TypeInfo sp804_info = {
     .class_init    = sp804_class_init,
 };
 
-static void arm_timer_register_devices(void)
+static void arm_timer_register_types(void)
 {
     type_register_static(&icp_pit_info);
     type_register_static(&sp804_info);
 }
 
-device_init(arm_timer_register_devices)
+type_init(arm_timer_register_types)

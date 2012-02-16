@@ -948,9 +948,10 @@ static TypeInfo hda_audio_duplex_info = {
     .class_init    = hda_audio_duplex_class_init,
 };
 
-static void hda_audio_register(void)
+static void hda_audio_register_types(void)
 {
     type_register_static(&hda_audio_output_info);
     type_register_static(&hda_audio_duplex_info);
 }
-device_init(hda_audio_register);
+
+type_init(hda_audio_register_types)

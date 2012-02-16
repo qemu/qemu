@@ -396,9 +396,9 @@ static TypeInfo grlib_gptimer_info = {
     .class_init    = grlib_gptimer_class_init,
 };
 
-static void grlib_gptimer_register(void)
+static void grlib_gptimer_register_types(void)
 {
     type_register_static(&grlib_gptimer_info);
 }
 
-device_init(grlib_gptimer_register)
+type_init(grlib_gptimer_register_types)

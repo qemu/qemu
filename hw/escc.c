@@ -931,9 +931,9 @@ static TypeInfo escc_info = {
     .class_init    = escc_class_init,
 };
 
-static void escc_register_devices(void)
+static void escc_register_types(void)
 {
     type_register_static(&escc_info);
 }
 
-device_init(escc_register_devices)
+type_init(escc_register_types)

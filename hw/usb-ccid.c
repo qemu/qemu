@@ -267,6 +267,7 @@ typedef struct CCIDBus {
  */
 typedef struct USBCCIDState {
     USBDevice dev;
+    USBEndpoint *intr;
     CCIDBus bus;
     CCIDCardState *card;
     BulkIn bulk_in_pending[BULK_IN_PENDING_NUM]; /* circular */
@@ -839,7 +840,7 @@ static void ccid_on_slot_change(USBCCIDState *s, bool full)
         s->bmSlotICCState |= SLOT_0_CHANGED_MASK;
     }
     s->notify_slot_change = true;
-    usb_wakeup(&s->dev);
+    usb_wakeup(s->intr);
 }
 
 static void ccid_write_data_block_error(
@@ -995,7 +996,7 @@ static int ccid_handle_data(USBDevice *dev, USBPacket *p)
         break;
 
     case USB_TOKEN_IN:
-        switch (p->devep & 0xf) {
+        switch (p->ep->nr) {
         case CCID_BULK_IN_EP:
             if (!p->iov.size) {
                 ret = USB_RET_NAK;
@@ -1190,6 +1191,7 @@ static int ccid_initfn(USBDevice *dev)
 
     usb_desc_init(dev);
     qbus_create_inplace(&s->bus.qbus, &ccid_bus_info, &dev->qdev, NULL);
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, CCID_INT_IN_EP);
     s->bus.qbus.allow_hotplug = 1;
     s->card = NULL;
     s->migration_state = MIGRATION_NONE;
@@ -1320,7 +1322,6 @@ static void ccid_class_initfn(ObjectClass *klass, void *data)
     uc->init           = ccid_initfn;
     uc->product_desc   = "QEMU USB CCID";
     uc->usb_desc       = &desc_ccid;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = ccid_handle_reset;
     uc->handle_control = ccid_handle_control;
     uc->handle_data    = ccid_handle_data;
@@ -1354,10 +1355,11 @@ static TypeInfo ccid_card_type_info = {
     .class_init = ccid_card_class_init,
 };
 
-static void ccid_register_devices(void)
+static void ccid_register_types(void)
 {
     type_register_static(&ccid_card_type_info);
     type_register_static(&ccid_info);
     usb_legacy_register(CCID_DEV_NAME, "ccid", NULL);
 }
-device_init(ccid_register_devices)
+
+type_init(ccid_register_types)

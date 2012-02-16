@@ -396,9 +396,9 @@ static TypeInfo xen_platform_info = {
     .class_init    = xen_platform_class_init,
 };
 
-static void xen_platform_register(void)
+static void xen_platform_register_types(void)
 {
     type_register_static(&xen_platform_info);
 }
 
-device_init(xen_platform_register);
+type_init(xen_platform_register_types)

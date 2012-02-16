@@ -259,9 +259,9 @@ static TypeInfo ssi_sd_info = {
     .class_init    = ssi_sd_class_init,
 };
 
-static void ssi_sd_register_devices(void)
+static void ssi_sd_register_types(void)
 {
     type_register_static(&ssi_sd_info);
 }
 
-device_init(ssi_sd_register_devices)
+type_init(ssi_sd_register_types)

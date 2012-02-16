@@ -157,9 +157,9 @@ static TypeInfo nvram_sysbus_info = {
     .class_init    = nvram_sysbus_class_init,
 };
 
-static void nvram_register(void)
+static void nvram_register_types(void)
 {
     type_register_static(&nvram_sysbus_info);
 }
 
-device_init(nvram_register)
+type_init(nvram_register_types)

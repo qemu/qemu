@@ -189,10 +189,10 @@ static TypeInfo pl050_mouse_info = {
     .class_init    = pl050_mouse_class_init,
 };
 
-static void pl050_register_devices(void)
+static void pl050_register_types(void)
 {
     type_register_static(&pl050_kbd_info);
     type_register_static(&pl050_mouse_info);
 }
 
-device_init(pl050_register_devices)
+type_init(pl050_register_types)

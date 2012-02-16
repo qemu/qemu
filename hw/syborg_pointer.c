@@ -222,9 +222,9 @@ static TypeInfo syborg_pointer_info = {
     .class_init = syborg_pointer_class_init
 };
 
-static void syborg_pointer_register_devices(void)
+static void syborg_pointer_register_types(void)
 {
     type_register_static(&syborg_pointer_info);
 }
 
-device_init(syborg_pointer_register_devices)
+type_init(syborg_pointer_register_types)

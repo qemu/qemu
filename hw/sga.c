@@ -55,9 +55,9 @@ static TypeInfo sga_info = {
     .class_init    = sga_class_initfn,
 };
 
-static void sga_register(void)
+static void sga_register_types(void)
 {
     type_register_static(&sga_info);
 }
 
-device_init(sga_register);
+type_init(sga_register_types)

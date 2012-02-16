@@ -442,7 +442,7 @@ static TypeInfo nand_info = {
     .class_init    = nand_class_init,
 };
 
-static void nand_create_device(void)
+static void nand_register_types(void)
 {
     type_register_static(&nand_info);
 }
@@ -635,7 +635,7 @@ DeviceState *nand_init(BlockDriverState *bdrv, int manf_id, int chip_id)
     return dev;
 }
 
-device_init(nand_create_device)
+type_init(nand_register_types)
 
 #else
 

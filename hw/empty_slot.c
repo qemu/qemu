@@ -90,9 +90,9 @@ static TypeInfo empty_slot_info = {
     .class_init    = empty_slot_class_init,
 };
 
-static void empty_slot_register_devices(void)
+static void empty_slot_register_types(void)
 {
     type_register_static(&empty_slot_info);
 }
 
-device_init(empty_slot_register_devices);
+type_init(empty_slot_register_types)

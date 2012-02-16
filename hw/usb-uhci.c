@@ -73,7 +73,7 @@
 
 #define FRAME_TIMER_FREQ 1000
 
-#define FRAME_MAX_LOOPS  100
+#define FRAME_MAX_LOOPS  256
 
 #define NB_PORTS 2
 
@@ -92,15 +92,6 @@ static const char *pid2str(int pid)
 
 #else
 #define DPRINTF(...)
-#endif
-
-#ifdef DEBUG_DUMP_DATA
-static void dump_data(USBPacket *p, int ret)
-{
-    iov_hexdump(p->iov.iov, p->iov.niov, stderr, "uhci", ret);
-}
-#else
-static void dump_data(USBPacket *p, int ret) {}
 #endif
 
 typedef struct UHCIState UHCIState;
@@ -245,8 +236,8 @@ static void uhci_async_cancel_device(UHCIState *s, USBDevice *dev)
     UHCIAsync *curr, *n;
 
     QTAILQ_FOREACH_SAFE(curr, &s->async_pending, next, n) {
-        if (curr->packet.owner == NULL ||
-            curr->packet.owner->dev != dev) {
+        if (!usb_packet_is_inflight(&curr->packet) ||
+            curr->packet.ep->dev != dev) {
             continue;
         }
         uhci_async_unlink(s, curr);
@@ -342,7 +333,7 @@ static void uhci_reset(void *opaque)
         port = &s->ports[i];
         port->ctrl = 0x0080;
         if (port->port.dev && port->port.dev->attached) {
-            usb_reset(&port->port);
+            usb_port_reset(&port->port);
         }
     }
 
@@ -440,16 +431,12 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         }
         if (val & UHCI_CMD_GRESET) {
             UHCIPort *port;
-            USBDevice *dev;
             int i;
 
             /* send reset on the USB bus */
             for(i = 0; i < NB_PORTS; i++) {
                 port = &s->ports[i];
-                dev = port->port.dev;
-                if (dev && dev->attached) {
-                    usb_send_msg(dev, USB_MSG_RESET);
-                }
+                usb_device_reset(port->port.dev);
             }
             uhci_reset(s);
             return;
@@ -491,7 +478,7 @@ static void uhci_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
                 /* port reset */
                 if ( (val & UHCI_PORT_RESET) &&
                      !(port->ctrl & UHCI_PORT_RESET) ) {
-                    usb_send_msg(dev, USB_MSG_RESET);
+                    usb_device_reset(dev);
                 }
             }
             port->ctrl &= UHCI_PORT_READ_ONLY;
@@ -647,30 +634,22 @@ static void uhci_wakeup(USBPort *port1)
     }
 }
 
-static int uhci_broadcast_packet(UHCIState *s, USBPacket *p)
+static USBDevice *uhci_find_device(UHCIState *s, uint8_t addr)
 {
-    int i, ret;
+    USBDevice *dev;
+    int i;
 
-    DPRINTF("uhci: packet enter. pid %s addr 0x%02x ep %d len %zd\n",
-           pid2str(p->pid), p->devaddr, p->devep, p->iov.size);
-    if (p->pid == USB_TOKEN_OUT || p->pid == USB_TOKEN_SETUP)
-        dump_data(p, 0);
-
-    ret = USB_RET_NODEV;
-    for (i = 0; i < NB_PORTS && ret == USB_RET_NODEV; i++) {
+    for (i = 0; i < NB_PORTS; i++) {
         UHCIPort *port = &s->ports[i];
-        USBDevice *dev = port->port.dev;
-
-        if (dev && dev->attached && (port->ctrl & UHCI_PORT_EN)) {
-            ret = usb_handle_packet(dev, p);
+        if (!(port->ctrl & UHCI_PORT_EN)) {
+            continue;
+        }
+        dev = usb_find_device(&port->port, addr);
+        if (dev != NULL) {
+            return dev;
         }
     }
-
-    DPRINTF("uhci: packet exit. ret %d len %zd\n", ret, p->iov.size);
-    if (p->pid == USB_TOKEN_IN && ret > 0)
-        dump_data(p, ret);
-
-    return ret;
+    return NULL;
 }
 
 static void uhci_async_complete(USBPort *port, USBPacket *packet);
@@ -782,6 +761,8 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     int len = 0, max_len;
     uint8_t pid, isoc;
     uint32_t token;
+    USBDevice *dev;
+    USBEndpoint *ep;
 
     /* Is active ? */
     if (!(td->ctrl & TD_CTRL_ACTIVE))
@@ -826,21 +807,22 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     max_len = ((td->token >> 21) + 1) & 0x7ff;
     pid = td->token & 0xff;
 
-    usb_packet_setup(&async->packet, pid, (td->token >> 8) & 0x7f,
-                     (td->token >> 15) & 0xf);
+    dev = uhci_find_device(s, (td->token >> 8) & 0x7f);
+    ep = usb_ep_get(dev, pid, (td->token >> 15) & 0xf);
+    usb_packet_setup(&async->packet, pid, ep);
     qemu_sglist_add(&async->sgl, td->buffer, max_len);
     usb_packet_map(&async->packet, &async->sgl);
 
     switch(pid) {
     case USB_TOKEN_OUT:
     case USB_TOKEN_SETUP:
-        len = uhci_broadcast_packet(s, &async->packet);
+        len = usb_handle_packet(dev, &async->packet);
         if (len >= 0)
             len = max_len;
         break;
 
     case USB_TOKEN_IN:
-        len = uhci_broadcast_packet(s, &async->packet);
+        len = usb_handle_packet(dev, &async->packet);
         break;
 
     default:
@@ -942,7 +924,7 @@ static int qhdb_insert(QhDb *db, uint32_t addr)
 static void uhci_process_frame(UHCIState *s)
 {
     uint32_t frame_addr, link, old_td_ctrl, val, int_mask;
-    uint32_t curr_qh;
+    uint32_t curr_qh, td_count = 0, bytes_count = 0;
     int cnt, ret;
     UHCI_TD td;
     UHCI_QH qh;
@@ -967,13 +949,26 @@ static void uhci_process_frame(UHCIState *s)
             if (qhdb_insert(&qhdb, link)) {
                 /*
                  * We're going in circles. Which is not a bug because
-                 * HCD is allowed to do that as part of the BW management. 
-                 * In our case though it makes no sense to spin here. Sync transations 
-                 * are already done, and async completion handler will re-process 
-                 * the frame when something is ready.
+                 * HCD is allowed to do that as part of the BW management.
+                 *
+                 * Stop processing here if
+                 *  (a) no transaction has been done since we've been
+                 *      here last time, or
+                 *  (b) we've reached the usb 1.1 bandwidth, which is
+                 *      1280 bytes/frame.
                  */
                 DPRINTF("uhci: detected loop. qh 0x%x\n", link);
-                break;
+                if (td_count == 0) {
+                    DPRINTF("uhci: no transaction last round, stop\n");
+                    break;
+                } else if (bytes_count >= 1280) {
+                    DPRINTF("uhci: bandwidth limit reached, stop\n");
+                    break;
+                } else {
+                    td_count = 0;
+                    qhdb_reset(&qhdb);
+                    qhdb_insert(&qhdb, link);
+                }
             }
 
             pci_dma_read(&s->dev, link & ~0xf, &qh, sizeof(qh));
@@ -1033,6 +1028,8 @@ static void uhci_process_frame(UHCIState *s)
                 link, td.link, td.ctrl, td.token, curr_qh);
 
         link = td.link;
+        td_count++;
+        bytes_count += (td.ctrl & 0x7ff) + 1;
 
         if (curr_qh) {
 	    /* update QH element link */
@@ -1321,7 +1318,7 @@ static TypeInfo ich9_uhci3_info = {
     .class_init    = ich9_uhci3_class_init,
 };
 
-static void uhci_register(void)
+static void uhci_register_types(void)
 {
     type_register_static(&piix3_uhci_info);
     type_register_static(&piix4_uhci_info);
@@ -1330,7 +1327,8 @@ static void uhci_register(void)
     type_register_static(&ich9_uhci2_info);
     type_register_static(&ich9_uhci3_info);
 }
-device_init(uhci_register);
+
+type_init(uhci_register_types)
 
 void usb_uhci_piix3_init(PCIBus *bus, int devfn)
 {

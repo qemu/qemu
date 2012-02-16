@@ -505,9 +505,9 @@ static TypeInfo pl181_info = {
     .class_init    = pl181_class_init,
 };
 
-static void pl181_register_devices(void)
+static void pl181_register_types(void)
 {
     type_register_static(&pl181_info);
 }
 
-device_init(pl181_register_devices)
+type_init(pl181_register_types)

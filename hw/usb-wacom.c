@@ -306,7 +306,7 @@ static int usb_wacom_handle_data(USBDevice *dev, USBPacket *p)
 
     switch (p->pid) {
     case USB_TOKEN_IN:
-        if (p->devep == 1) {
+        if (p->ep->nr == 1) {
             if (!(s->changed || s->idle))
                 return USB_RET_NAK;
             s->changed = 0;
@@ -357,7 +357,6 @@ static void usb_wacom_class_init(ObjectClass *klass, void *data)
     uc->product_desc   = "QEMU PenPartner Tablet";
     uc->usb_desc       = &desc_wacom;
     uc->init           = usb_wacom_initfn;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->handle_reset   = usb_wacom_handle_reset;
     uc->handle_control = usb_wacom_handle_control;
     uc->handle_data    = usb_wacom_handle_data;
@@ -373,9 +372,10 @@ static TypeInfo wacom_info = {
     .class_init    = usb_wacom_class_init,
 };
 
-static void usb_wacom_register_devices(void)
+static void usb_wacom_register_types(void)
 {
     type_register_static(&wacom_info);
     usb_legacy_register("usb-wacom-tablet", "wacom-tablet", NULL);
 }
-device_init(usb_wacom_register_devices)
+
+type_init(usb_wacom_register_types)

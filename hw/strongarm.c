@@ -1609,7 +1609,7 @@ StrongARMState *sa1110_init(MemoryRegion *sysmem,
     return s;
 }
 
-static void strongarm_register_devices(void)
+static void strongarm_register_types(void)
 {
     type_register_static(&strongarm_pic_info);
     type_register_static(&strongarm_rtc_sysbus_info);
@@ -1618,4 +1618,5 @@ static void strongarm_register_devices(void)
     type_register_static(&strongarm_uart_info);
     type_register_static(&strongarm_ssp_info);
 }
-device_init(strongarm_register_devices)
+
+type_init(strongarm_register_types)

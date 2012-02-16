@@ -60,9 +60,9 @@ static TypeInfo realview_gic_info = {
     .class_init    = realview_gic_class_init,
 };
 
-static void realview_gic_register_devices(void)
+static void realview_gic_register_types(void)
 {
     type_register_static(&realview_gic_info);
 }
 
-device_init(realview_gic_register_devices)
+type_init(realview_gic_register_types)

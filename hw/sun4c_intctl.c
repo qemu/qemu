@@ -223,9 +223,9 @@ static TypeInfo sun4c_intctl_info = {
     .class_init    = sun4c_intctl_class_init,
 };
 
-static void sun4c_intctl_register_devices(void)
+static void sun4c_intctl_register_types(void)
 {
     type_register_static(&sun4c_intctl_info);
 }
 
-device_init(sun4c_intctl_register_devices)
+type_init(sun4c_intctl_register_types)

@@ -124,8 +124,9 @@ static TypeInfo piix4_info = {
     .class_init    = piix4_class_init,
 };
 
-static void piix4_register(void)
+static void piix4_register_types(void)
 {
     type_register_static(&piix4_info);
 }
-device_init(piix4_register);
+
+type_init(piix4_register_types)

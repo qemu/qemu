@@ -1055,9 +1055,10 @@ static TypeInfo es1370_info = {
     .class_init    = es1370_class_init,
 };
 
-static void es1370_register (void)
+static void es1370_register_types (void)
 {
     type_register_static (&es1370_info);
 }
-device_init (es1370_register);
+
+type_init (es1370_register_types)
 

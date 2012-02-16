@@ -273,9 +273,9 @@ static TypeInfo pl190_info = {
     .class_init    = pl190_class_init,
 };
 
-static void pl190_register_devices(void)
+static void pl190_register_types(void)
 {
     type_register_static(&pl190_info);
 }
 
-device_init(pl190_register_devices)
+type_init(pl190_register_types)

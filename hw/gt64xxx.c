@@ -1181,10 +1181,10 @@ static TypeInfo gt64120_info = {
     .class_init    = gt64120_class_init,
 };
 
-static void gt64120_pci_register_devices(void)
+static void gt64120_pci_register_types(void)
 {
     type_register_static(&gt64120_info);
     type_register_static(&gt64120_pci_info);
 }
 
-device_init(gt64120_pci_register_devices)
+type_init(gt64120_pci_register_types)

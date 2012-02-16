@@ -467,7 +467,7 @@ static TypeInfo pci_unin_internal_info = {
     .class_init    = pci_unin_internal_class_init,
 };
 
-static void unin_register_devices(void)
+static void unin_register_types(void)
 {
     type_register_static(&unin_main_pci_host_info);
     type_register_static(&u3_agp_pci_host_info);
@@ -480,4 +480,4 @@ static void unin_register_devices(void)
     type_register_static(&pci_unin_internal_info);
 }
 
-device_init(unin_register_devices)
+type_init(unin_register_types)

@@ -142,9 +142,9 @@ static TypeInfo stcpmu_info = {
     .class_init = stcpmu_class_init
 };
 
-static void stcpmu_register_devices(void)
+static void stcpmu_register_types(void)
 {
     type_register_static(&stcpmu_info);
 }
 
-device_init(stcpmu_register_devices)
+type_init(stcpmu_register_types)

@@ -341,7 +341,7 @@ static int usb_msd_handle_data(USBDevice *dev, USBPacket *p)
     uint32_t tag;
     int ret = 0;
     struct usb_msd_cbw cbw;
-    uint8_t devep = p->devep;
+    uint8_t devep = p->ep->nr;
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
@@ -651,7 +651,6 @@ static void usb_msd_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_msd_initfn;
     uc->product_desc   = "QEMU USB MSD";
     uc->usb_desc       = &desc;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->cancel_packet  = usb_msd_cancel_io;
     uc->handle_attach  = usb_desc_attach;
     uc->handle_reset   = usb_msd_handle_reset;
@@ -669,9 +668,10 @@ static TypeInfo msd_info = {
     .class_init    = usb_msd_class_initfn,
 };
 
-static void usb_msd_register_devices(void)
+static void usb_msd_register_types(void)
 {
     type_register_static(&msd_info);
     usb_legacy_register("usb-storage", "disk", usb_msd_init);
 }
-device_init(usb_msd_register_devices)
+
+type_init(usb_msd_register_types)

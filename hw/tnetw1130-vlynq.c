@@ -195,12 +195,12 @@ static VLYNQDeviceInfo vlynq_tnetw1130_info = {
     .exit      = vlynq_tnetw1130_uninit,
 };
 
-static void tnetw1130_register_device(void)
+static void tnetw1130_register_types(void)
 {
     vlynq_qdev_register(&vlynq_tnetw1130_info);
 }
 
-device_init(tnetw1130_register_device)
+type_init(tnetw1130_register_types)
 
 #endif // CONFIG_VLYNQ
 

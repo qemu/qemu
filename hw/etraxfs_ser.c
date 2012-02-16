@@ -240,9 +240,9 @@ static TypeInfo etraxfs_ser_info = {
     .class_init    = etraxfs_ser_class_init,
 };
 
-static void etraxfs_serial_register(void)
+static void etraxfs_serial_register_types(void)
 {
     type_register_static(&etraxfs_ser_info);
 }
 
-device_init(etraxfs_serial_register)
+type_init(etraxfs_serial_register_types)

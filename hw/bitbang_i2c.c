@@ -237,9 +237,9 @@ static TypeInfo gpio_i2c_info = {
     .class_init    = gpio_i2c_class_init,
 };
 
-static void bitbang_i2c_register(void)
+static void bitbang_i2c_register_types(void)
 {
     type_register_static(&gpio_i2c_info);
 }
 
-device_init(bitbang_i2c_register)
+type_init(bitbang_i2c_register_types)

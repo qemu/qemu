@@ -1109,7 +1109,7 @@ static TypeInfo smc91c111_info = {
     .class_init    = smc91c111_class_init,
 };
 
-static void smc91c111_register_devices(void)
+static void smc91c111_register_types(void)
 {
     type_register_static(&smc91c111_info);
 }
@@ -1130,4 +1130,4 @@ void smc91c111_init(NICInfo *nd, uint32_t base, qemu_irq irq)
     sysbus_connect_irq(s, 0, irq);
 }
 
-device_init(smc91c111_register_devices)
+type_init(smc91c111_register_types)

@@ -164,9 +164,9 @@ static TypeInfo lm32_sys_info = {
     .class_init    = lm32_sys_class_init,
 };
 
-static void lm32_sys_register(void)
+static void lm32_sys_register_types(void)
 {
     type_register_static(&lm32_sys_info);
 }
 
-device_init(lm32_sys_register)
+type_init(lm32_sys_register_types)

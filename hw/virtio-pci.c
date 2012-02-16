@@ -930,7 +930,7 @@ static TypeInfo virtio_balloon_info = {
     .class_init    = virtio_balloon_class_init,
 };
 
-static void virtio_pci_register_devices(void)
+static void virtio_pci_register_types(void)
 {
     type_register_static(&virtio_blk_info);
     type_register_static(&virtio_net_info);
@@ -938,4 +938,4 @@ static void virtio_pci_register_devices(void)
     type_register_static(&virtio_balloon_info);
 }
 
-device_init(virtio_pci_register_devices)
+type_init(virtio_pci_register_types)

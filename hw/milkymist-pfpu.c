@@ -536,9 +536,9 @@ static TypeInfo milkymist_pfpu_info = {
     .class_init    = milkymist_pfpu_class_init,
 };
 
-static void milkymist_pfpu_register(void)
+static void milkymist_pfpu_register_types(void)
 {
     type_register_static(&milkymist_pfpu_info);
 }
 
-device_init(milkymist_pfpu_register)
+type_init(milkymist_pfpu_register_types)

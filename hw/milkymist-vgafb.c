@@ -323,9 +323,9 @@ static TypeInfo milkymist_vgafb_info = {
     .class_init    = milkymist_vgafb_class_init,
 };
 
-static void milkymist_vgafb_register(void)
+static void milkymist_vgafb_register_types(void)
 {
     type_register_static(&milkymist_vgafb_info);
 }
 
-device_init(milkymist_vgafb_register)
+type_init(milkymist_vgafb_register_types)

@@ -488,9 +488,9 @@ static TypeInfo i8259_info = {
     .class_init = i8259_class_init,
 };
 
-static void pic_register(void)
+static void pic_register_types(void)
 {
     type_register_static(&i8259_info);
 }
 
-device_init(pic_register)
+type_init(pic_register_types)

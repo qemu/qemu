@@ -97,12 +97,12 @@ static TypeInfo macio_info = {
     .class_init    = macio_class_init,
 };
 
-static void macio_register(void)
+static void macio_register_types(void)
 {
     type_register_static(&macio_info);
 }
 
-device_init(macio_register);
+type_init(macio_register_types)
 
 void macio_init (PCIBus *bus, int device_id, int is_oldworld,
                  MemoryRegion *pic_mem, MemoryRegion *dbdma_mem,

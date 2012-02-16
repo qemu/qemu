@@ -708,9 +708,9 @@ static TypeInfo wm8750_info = {
     .class_init    = wm8750_class_init,
 };
 
-static void wm8750_register_devices(void)
+static void wm8750_register_types(void)
 {
     type_register_static(&wm8750_info);
 }
 
-device_init(wm8750_register_devices)
+type_init(wm8750_register_types)

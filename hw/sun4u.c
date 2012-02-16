@@ -580,13 +580,6 @@ static TypeInfo ebus_info = {
     .class_init    = ebus_class_init,
 };
 
-static void pci_ebus_register(void)
-{
-    type_register_static(&ebus_info);
-}
-
-device_init(pci_ebus_register);
-
 typedef struct PROMState {
     SysBusDevice busdev;
     MemoryRegion prom;
@@ -664,13 +657,6 @@ static TypeInfo prom_info = {
     .class_init    = prom_class_init,
 };
 
-static void prom_register_devices(void)
-{
-    type_register_static(&prom_info);
-}
-
-device_init(prom_register_devices);
-
 
 typedef struct RamDevice
 {
@@ -727,13 +713,6 @@ static TypeInfo ram_info = {
     .instance_size = sizeof(RamDevice),
     .class_init    = ram_class_init,
 };
-
-static void ram_register_devices(void)
-{
-    type_register_static(&ram_info);
-}
-
-device_init(ram_register_devices);
 
 static CPUState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
 {
@@ -957,6 +936,13 @@ static QEMUMachine niagara_machine = {
     .max_cpus = 1, // XXX for now
 };
 
+static void sun4u_register_types(void)
+{
+    type_register_static(&ebus_info);
+    type_register_static(&prom_info);
+    type_register_static(&ram_info);
+}
+
 static void sun4u_machine_init(void)
 {
     qemu_register_machine(&sun4u_machine);
@@ -964,4 +950,5 @@ static void sun4u_machine_init(void)
     qemu_register_machine(&niagara_machine);
 }
 
+type_init(sun4u_register_types)
 machine_init(sun4u_machine_init);

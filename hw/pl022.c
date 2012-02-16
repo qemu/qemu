@@ -299,9 +299,9 @@ static TypeInfo pl022_info = {
     .class_init    = pl022_class_init,
 };
 
-static void pl022_register_devices(void)
+static void pl022_register_types(void)
 {
     type_register_static(&pl022_info);
 }
 
-device_init(pl022_register_devices)
+type_init(pl022_register_types)

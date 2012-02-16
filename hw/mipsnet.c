@@ -276,9 +276,9 @@ static TypeInfo mipsnet_info = {
     .class_init    = mipsnet_class_init,
 };
 
-static void mipsnet_register_devices(void)
+static void mipsnet_register_types(void)
 {
     type_register_static(&mipsnet_info);
 }
 
-device_init(mipsnet_register_devices)
+type_init(mipsnet_register_types)

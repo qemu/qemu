@@ -80,9 +80,9 @@ uint32_t ssi_transfer(SSIBus *bus, uint32_t val)
     return ssc->transfer(slave, val);
 }
 
-static void register_ssi_slave(void)
+static void ssi_slave_register_types(void)
 {
     type_register_static(&ssi_slave_info);
 }
 
-device_init(register_ssi_slave);
+type_init(ssi_slave_register_types)

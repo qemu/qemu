@@ -218,6 +218,51 @@ static int do_pwrite(char *buf, int64_t offset, int count, int *total)
     return 1;
 }
 
+typedef struct {
+    int64_t offset;
+    int count;
+    int *total;
+    int ret;
+    bool done;
+} CoWriteZeroes;
+
+static void coroutine_fn co_write_zeroes_entry(void *opaque)
+{
+    CoWriteZeroes *data = opaque;
+
+    data->ret = bdrv_co_write_zeroes(bs, data->offset / BDRV_SECTOR_SIZE,
+                                     data->count / BDRV_SECTOR_SIZE);
+    data->done = true;
+    if (data->ret < 0) {
+        *data->total = data->ret;
+        return;
+    }
+
+    *data->total = data->count;
+}
+
+static int do_co_write_zeroes(int64_t offset, int count, int *total)
+{
+    Coroutine *co;
+    CoWriteZeroes data = {
+        .offset = offset,
+        .count  = count,
+        .total  = total,
+        .done   = false,
+    };
+
+    co = qemu_coroutine_create(co_write_zeroes_entry);
+    qemu_coroutine_enter(co, &data);
+    while (!data.done) {
+        qemu_aio_wait();
+    }
+    if (data.ret < 0) {
+        return data.ret;
+    } else {
+        return 1;
+    }
+}
+
 static int do_load_vmstate(char *buf, int64_t offset, int count, int *total)
 {
     *total = bdrv_load_vmstate(bs, (uint8_t *)buf, offset, count);
@@ -643,6 +688,7 @@ static void write_help(void)
 " -P, -- use different pattern to fill file\n"
 " -C, -- report statistics in a machine parsable format\n"
 " -q, -- quiet mode, do not show I/O statistics\n"
+" -z, -- write zeroes using bdrv_co_write_zeroes\n"
 "\n");
 }
 
@@ -654,7 +700,7 @@ static const cmdinfo_t write_cmd = {
     .cfunc      = write_f,
     .argmin     = 2,
     .argmax     = -1,
-    .args       = "[-abCpq] [-P pattern ] off len",
+    .args       = "[-bCpqz] [-P pattern ] off len",
     .oneline    = "writes a number of bytes at a specified offset",
     .help       = write_help,
 };
@@ -662,16 +708,16 @@ static const cmdinfo_t write_cmd = {
 static int write_f(int argc, char **argv)
 {
     struct timeval t1, t2;
-    int Cflag = 0, pflag = 0, qflag = 0, bflag = 0;
+    int Cflag = 0, pflag = 0, qflag = 0, bflag = 0, Pflag = 0, zflag = 0;
     int c, cnt;
-    char *buf;
+    char *buf = NULL;
     int64_t offset;
     int count;
     /* Some compilers get confused and warn if this is not initialized.  */
     int total = 0;
     int pattern = 0xcd;
 
-    while ((c = getopt(argc, argv, "bCpP:q")) != EOF) {
+    while ((c = getopt(argc, argv, "bCpP:qz")) != EOF) {
         switch (c) {
         case 'b':
             bflag = 1;
@@ -683,6 +729,7 @@ static int write_f(int argc, char **argv)
             pflag = 1;
             break;
         case 'P':
+            Pflag = 1;
             pattern = parse_pattern(optarg);
             if (pattern < 0) {
                 return 0;
@@ -690,6 +737,9 @@ static int write_f(int argc, char **argv)
             break;
         case 'q':
             qflag = 1;
+            break;
+        case 'z':
+            zflag = 1;
             break;
         default:
             return command_usage(&write_cmd);
@@ -700,8 +750,13 @@ static int write_f(int argc, char **argv)
         return command_usage(&write_cmd);
     }
 
-    if (bflag && pflag) {
-        printf("-b and -p cannot be specified at the same time\n");
+    if (bflag + pflag + zflag > 1) {
+        printf("-b, -p, or -z cannot be specified at the same time\n");
+        return 0;
+    }
+
+    if (zflag && Pflag) {
+        printf("-z and -P cannot be specified at the same time\n");
         return 0;
     }
 
@@ -732,13 +787,17 @@ static int write_f(int argc, char **argv)
         }
     }
 
-    buf = qemu_io_alloc(count, pattern);
+    if (!zflag) {
+        buf = qemu_io_alloc(count, pattern);
+    }
 
     gettimeofday(&t1, NULL);
     if (pflag) {
         cnt = do_pwrite(buf, offset, count, &total);
     } else if (bflag) {
         cnt = do_save_vmstate(buf, offset, count, &total);
+    } else if (zflag) {
+        cnt = do_co_write_zeroes(offset, count, &total);
     } else {
         cnt = do_write(buf, offset, count, &total);
     }
@@ -758,7 +817,9 @@ static int write_f(int argc, char **argv)
     print_report("wrote", &t2, offset, count, total, cnt, Cflag);
 
 out:
-    qemu_io_free(buf);
+    if (!zflag) {
+        qemu_io_free(buf);
+    }
 
     return 0;
 }

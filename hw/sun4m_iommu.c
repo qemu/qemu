@@ -380,9 +380,9 @@ static TypeInfo iommu_info = {
     .class_init    = iommu_class_init,
 };
 
-static void iommu_register_devices(void)
+static void iommu_register_types(void)
 {
     type_register_static(&iommu_info);
 }
 
-device_init(iommu_register_devices)
+type_init(iommu_register_types)

@@ -594,9 +594,9 @@ static TypeInfo emulated_card_info = {
     .class_init    = emulated_class_initfn,
 };
 
-static void ccid_card_emulated_register_devices(void)
+static void ccid_card_emulated_register_types(void)
 {
     type_register_static(&emulated_card_info);
 }
 
-device_init(ccid_card_emulated_register_devices)
+type_init(ccid_card_emulated_register_types)

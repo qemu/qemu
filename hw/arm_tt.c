@@ -1070,11 +1070,11 @@ static void tt_machine_init(void)
 
 machine_init(tt_machine_init);
 
-static void tt_register_devices(void)
+static void tt_register_types(void)
 {
     type_register_static(&tt_lcd_info);
     type_register_static(&tt_gpio_info);
     type_register_static(&tt_key_info);
 }
 
-device_init(tt_register_devices)
+type_init(tt_register_types)

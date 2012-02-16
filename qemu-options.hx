@@ -32,7 +32,8 @@ DEF("machine", HAS_ARG, QEMU_OPTION_machine, \
     "                selects emulated machine (-machine ? for list)\n"
     "                property accel=accel1[:accel2[:...]] selects accelerator\n"
     "                supported accelerators are kvm, xen, tcg (default: tcg)\n"
-    "                kernel_irqchip=on|off controls accelerated irqchip support\n",
+    "                kernel_irqchip=on|off controls accelerated irqchip support\n"
+    "                kvm_shadow_mem=size of KVM shadow MMU\n",
     QEMU_ARCH_ALL)
 STEXI
 @item -machine [type=]@var{name}[,prop=@var{value}[,...]]
@@ -47,6 +48,8 @@ than one accelerator specified, the next one is used if the previous one fails
 to initialize.
 @item kernel_irqchip=on|off
 Enables in-kernel irqchip support for the chosen accelerator when available.
+@item kvm_shadow_mem=size
+Defines the size of the KVM shadow MMU.
 @end table
 ETEXI
 
@@ -1095,6 +1098,19 @@ This can be really helpful to save bandwidth when playing videos. Disabling
 adaptive encodings allows to restore the original static behavior of encodings
 like Tight.
 
+@item share=[allow-exclusive|force-shared|ignore]
+
+Set display sharing policy.  'allow-exclusive' allows clients to ask
+for exclusive access.  As suggested by the rfb spec this is
+implemented by dropping other connections.  Connecting multiple
+clients in parallel requires all clients asking for a shared session
+(vncviewer: -shared switch).  This is the default.  'force-shared'
+disables exclusive client access.  Useful for shared desktop sessions,
+where you don't want someone forgetting specify -shared disconnect
+everybody else.  'ignore' completely ignores the shared flag and
+allows everybody connect unconditionally.  Doesn't conform to the rfb
+spec but is traditional qemu behavior.
+
 @end table
 ETEXI
 
@@ -1829,24 +1845,32 @@ Syntax for specifying iSCSI LUNs is
 
 Example (without authentication):
 @example
-qemu -cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
---drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+qemu -iscsi initiator-name=iqn.2001-04.com.example:my-initiator \
+-cdrom iscsi://192.0.2.1/iqn.2001-04.com.example/2 \
+-drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 Example (CHAP username/password via URL):
 @example
-qemu --drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
+qemu -drive file=iscsi://user%password@@192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 Example (CHAP username/password via environment variables):
 @example
 LIBISCSI_CHAP_USERNAME="user" \
 LIBISCSI_CHAP_PASSWORD="password" \
-qemu --drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
+qemu -drive file=iscsi://192.0.2.1/iqn.2001-04.com.example/1
 @end example
 
 iSCSI support is an optional feature of QEMU and only available when
 compiled and linked against libiscsi.
+ETEXI
+DEF("iscsi", HAS_ARG, QEMU_OPTION_iscsi,
+    "-iscsi [user=user][,password=password]\n"
+    "       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE\n"
+    "       [,initiator-name=iqn]\n"
+    "                iSCSI session parameters\n", QEMU_ARCH_ALL)
+STEXI
 
 @item NBD
 QEMU supports NBD (Network Block Devices) both using TCP protocol as well

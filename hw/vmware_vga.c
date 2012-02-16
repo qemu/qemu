@@ -1223,8 +1223,9 @@ static TypeInfo vmsvga_info = {
     .class_init    = vmsvga_class_init,
 };
 
-static void vmsvga_register(void)
+static void vmsvga_register_types(void)
 {
     type_register_static(&vmsvga_info);
 }
-device_init(vmsvga_register);
+
+type_init(vmsvga_register_types)

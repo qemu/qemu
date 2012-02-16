@@ -527,9 +527,10 @@ static TypeInfo pxa27x_timer_dev_info = {
     .class_init    = pxa27x_timer_dev_class_init,
 };
 
-static void pxa2xx_timer_register(void)
+static void pxa2xx_timer_register_types(void)
 {
     type_register_static(&pxa25x_timer_dev_info);
     type_register_static(&pxa27x_timer_dev_info);
-};
-device_init(pxa2xx_timer_register);
+}
+
+type_init(pxa2xx_timer_register_types)

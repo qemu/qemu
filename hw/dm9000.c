@@ -711,9 +711,9 @@ static TypeInfo dm9000_info = {
     .class_init = dm9000_class_init
 };
 
-static void dm9000_register_devices(void)
+static void dm9000_register_types(void)
 {
     type_register_static(&dm9000_info);
 }
 
-device_init(dm9000_register_devices)
+type_init(dm9000_register_types)

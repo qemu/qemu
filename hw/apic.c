@@ -781,9 +781,9 @@ static TypeInfo apic_info = {
     .class_init    = apic_class_init,
 };
 
-static void apic_register_devices(void)
+static void apic_register_types(void)
 {
     type_register_static(&apic_info);
 }
 
-device_init(apic_register_devices)
+type_init(apic_register_types)

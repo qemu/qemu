@@ -50,6 +50,7 @@
 
 typedef enum {
     BDRV_REQ_COPY_ON_READ = 0x1,
+    BDRV_REQ_ZERO_WRITE   = 0x2,
 } BdrvRequestFlags;
 
 static void bdrv_dev_change_media_cb(BlockDriverState *bs, bool load);
@@ -69,7 +70,8 @@ static int coroutine_fn bdrv_co_do_readv(BlockDriverState *bs,
     int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
     BdrvRequestFlags flags);
 static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov);
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+    BdrvRequestFlags flags);
 static BlockDriverAIOCB *bdrv_co_aio_rw_vector(BlockDriverState *bs,
                                                int64_t sector_num,
                                                QEMUIOVector *qiov,
@@ -1300,7 +1302,7 @@ static void coroutine_fn bdrv_rw_co_entry(void *opaque)
                                      rwco->nb_sectors, rwco->qiov, 0);
     } else {
         rwco->ret = bdrv_co_do_writev(rwco->bs, rwco->sector_num,
-                                      rwco->nb_sectors, rwco->qiov);
+                                      rwco->nb_sectors, rwco->qiov, 0);
     }
 }
 
@@ -1515,6 +1517,7 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
      */
     void *bounce_buffer;
 
+    BlockDriver *drv = bs->drv;
     struct iovec iov;
     QEMUIOVector bounce_qiov;
     int64_t cluster_sector_num;
@@ -1535,14 +1538,21 @@ static int coroutine_fn bdrv_co_do_copy_on_readv(BlockDriverState *bs,
     iov.iov_base = bounce_buffer = qemu_blockalign(bs, iov.iov_len);
     qemu_iovec_init_external(&bounce_qiov, &iov, 1);
 
-    ret = bs->drv->bdrv_co_readv(bs, cluster_sector_num, cluster_nb_sectors,
-                                 &bounce_qiov);
+    ret = drv->bdrv_co_readv(bs, cluster_sector_num, cluster_nb_sectors,
+                             &bounce_qiov);
     if (ret < 0) {
         goto err;
     }
 
-    ret = bs->drv->bdrv_co_writev(bs, cluster_sector_num, cluster_nb_sectors,
+    if (drv->bdrv_co_write_zeroes &&
+        buffer_is_zero(bounce_buffer, iov.iov_len)) {
+        ret = drv->bdrv_co_write_zeroes(bs, cluster_sector_num,
+                                        cluster_nb_sectors);
+    } else {
+        ret = drv->bdrv_co_writev(bs, cluster_sector_num, cluster_nb_sectors,
                                   &bounce_qiov);
+    }
+
     if (ret < 0) {
         /* It might be okay to ignore write errors for guest requests.  If this
          * is a deliberate copy-on-read then we don't want to ignore the error.
@@ -1639,11 +1649,37 @@ int coroutine_fn bdrv_co_copy_on_readv(BlockDriverState *bs,
                             BDRV_REQ_COPY_ON_READ);
 }
 
+static int coroutine_fn bdrv_co_do_write_zeroes(BlockDriverState *bs,
+    int64_t sector_num, int nb_sectors)
+{
+    BlockDriver *drv = bs->drv;
+    QEMUIOVector qiov;
+    struct iovec iov;
+    int ret;
+
+    /* First try the efficient write zeroes operation */
+    if (drv->bdrv_co_write_zeroes) {
+        return drv->bdrv_co_write_zeroes(bs, sector_num, nb_sectors);
+    }
+
+    /* Fall back to bounce buffer if write zeroes is unsupported */
+    iov.iov_len  = nb_sectors * BDRV_SECTOR_SIZE;
+    iov.iov_base = qemu_blockalign(bs, iov.iov_len);
+    memset(iov.iov_base, 0, iov.iov_len);
+    qemu_iovec_init_external(&qiov, &iov, 1);
+
+    ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, &qiov);
+
+    qemu_vfree(iov.iov_base);
+    return ret;
+}
+
 /*
  * Handle a write request in coroutine context
  */
 static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
-    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
+    int64_t sector_num, int nb_sectors, QEMUIOVector *qiov,
+    BdrvRequestFlags flags)
 {
     BlockDriver *drv = bs->drv;
     BdrvTrackedRequest req;
@@ -1670,7 +1706,11 @@ static int coroutine_fn bdrv_co_do_writev(BlockDriverState *bs,
 
     tracked_request_begin(&req, bs, sector_num, nb_sectors, true);
 
-    ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
+    if (flags & BDRV_REQ_ZERO_WRITE) {
+        ret = bdrv_co_do_write_zeroes(bs, sector_num, nb_sectors);
+    } else {
+        ret = drv->bdrv_co_writev(bs, sector_num, nb_sectors, qiov);
+    }
 
     if (bs->dirty_bitmap) {
         set_dirty_bitmap(bs, sector_num, nb_sectors, 1);
@@ -1690,7 +1730,16 @@ int coroutine_fn bdrv_co_writev(BlockDriverState *bs, int64_t sector_num,
 {
     trace_bdrv_co_writev(bs, sector_num, nb_sectors);
 
-    return bdrv_co_do_writev(bs, sector_num, nb_sectors, qiov);
+    return bdrv_co_do_writev(bs, sector_num, nb_sectors, qiov, 0);
+}
+
+int coroutine_fn bdrv_co_write_zeroes(BlockDriverState *bs,
+                                      int64_t sector_num, int nb_sectors)
+{
+    trace_bdrv_co_write_zeroes(bs, sector_num, nb_sectors);
+
+    return bdrv_co_do_writev(bs, sector_num, nb_sectors, NULL,
+                             BDRV_REQ_ZERO_WRITE);
 }
 
 /**
@@ -3192,7 +3241,7 @@ static void coroutine_fn bdrv_co_do_rw(void *opaque)
             acb->req.nb_sectors, acb->req.qiov, 0);
     } else {
         acb->req.error = bdrv_co_do_writev(bs, acb->req.sector,
-            acb->req.nb_sectors, acb->req.qiov);
+            acb->req.nb_sectors, acb->req.qiov, 0);
     }
 
     acb->bh = qemu_bh_new(bdrv_co_em_bh, acb);

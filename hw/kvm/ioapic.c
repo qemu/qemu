@@ -117,9 +117,9 @@ static TypeInfo kvm_ioapic_info = {
     .class_init = kvm_ioapic_class_init,
 };
 
-static void kvm_ioapic_register_device(void)
+static void kvm_ioapic_register_types(void)
 {
     type_register_static(&kvm_ioapic_info);
 }
 
-device_init(kvm_ioapic_register_device)
+type_init(kvm_ioapic_register_types)

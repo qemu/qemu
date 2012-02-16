@@ -161,13 +161,27 @@ static int vpc_open(BlockDriverState *bs, int flags)
     uint8_t buf[HEADER_SIZE];
     uint32_t checksum;
     int err = -1;
+    int disk_type = VHD_DYNAMIC;
 
     if (bdrv_pread(bs->file, 0, s->footer_buf, HEADER_SIZE) != HEADER_SIZE)
         goto fail;
 
     footer = (struct vhd_footer*) s->footer_buf;
-    if (strncmp(footer->creator, "conectix", 8))
-        goto fail;
+    if (strncmp(footer->creator, "conectix", 8)) {
+        int64_t offset = bdrv_getlength(bs->file);
+        if (offset < HEADER_SIZE) {
+            goto fail;
+        }
+        /* If a fixed disk, the footer is found only at the end of the file */
+        if (bdrv_pread(bs->file, offset-HEADER_SIZE, s->footer_buf, HEADER_SIZE)
+                != HEADER_SIZE) {
+            goto fail;
+        }
+        if (strncmp(footer->creator, "conectix", 8)) {
+            goto fail;
+        }
+        disk_type = VHD_FIXED;
+    }
 
     checksum = be32_to_cpu(footer->checksum);
     footer->checksum = 0;
@@ -186,49 +200,54 @@ static int vpc_open(BlockDriverState *bs, int flags)
         goto fail;
     }
 
-    if (bdrv_pread(bs->file, be64_to_cpu(footer->data_offset), buf, HEADER_SIZE)
-            != HEADER_SIZE)
-        goto fail;
-
-    dyndisk_header = (struct vhd_dyndisk_header*) buf;
-
-    if (strncmp(dyndisk_header->magic, "cxsparse", 8))
-        goto fail;
-
-
-    s->block_size = be32_to_cpu(dyndisk_header->block_size);
-    s->bitmap_size = ((s->block_size / (8 * 512)) + 511) & ~511;
-
-    s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
-    s->pagetable = g_malloc(s->max_table_entries * 4);
-
-    s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
-    if (bdrv_pread(bs->file, s->bat_offset, s->pagetable,
-            s->max_table_entries * 4) != s->max_table_entries * 4)
-	    goto fail;
-
-    s->free_data_block_offset =
-        (s->bat_offset + (s->max_table_entries * 4) + 511) & ~511;
-
-    for (i = 0; i < s->max_table_entries; i++) {
-        be32_to_cpus(&s->pagetable[i]);
-        if (s->pagetable[i] != 0xFFFFFFFF) {
-            int64_t next = (512 * (int64_t) s->pagetable[i]) +
-                s->bitmap_size + s->block_size;
-
-            if (next> s->free_data_block_offset)
-                s->free_data_block_offset = next;
+    if (disk_type == VHD_DYNAMIC) {
+        if (bdrv_pread(bs->file, be64_to_cpu(footer->data_offset), buf,
+                HEADER_SIZE) != HEADER_SIZE) {
+            goto fail;
         }
-    }
 
-    s->last_bitmap_offset = (int64_t) -1;
+        dyndisk_header = (struct vhd_dyndisk_header *) buf;
+
+        if (strncmp(dyndisk_header->magic, "cxsparse", 8)) {
+            goto fail;
+        }
+
+        s->block_size = be32_to_cpu(dyndisk_header->block_size);
+        s->bitmap_size = ((s->block_size / (8 * 512)) + 511) & ~511;
+
+        s->max_table_entries = be32_to_cpu(dyndisk_header->max_table_entries);
+        s->pagetable = g_malloc(s->max_table_entries * 4);
+
+        s->bat_offset = be64_to_cpu(dyndisk_header->table_offset);
+        if (bdrv_pread(bs->file, s->bat_offset, s->pagetable,
+                s->max_table_entries * 4) != s->max_table_entries * 4) {
+            goto fail;
+        }
+
+        s->free_data_block_offset =
+            (s->bat_offset + (s->max_table_entries * 4) + 511) & ~511;
+
+        for (i = 0; i < s->max_table_entries; i++) {
+            be32_to_cpus(&s->pagetable[i]);
+            if (s->pagetable[i] != 0xFFFFFFFF) {
+                int64_t next = (512 * (int64_t) s->pagetable[i]) +
+                    s->bitmap_size + s->block_size;
+
+                if (next > s->free_data_block_offset) {
+                    s->free_data_block_offset = next;
+                }
+            }
+        }
+
+        s->last_bitmap_offset = (int64_t) -1;
 
 #ifdef CACHE
-    s->pageentry_u8 = g_malloc(512);
-    s->pageentry_u32 = s->pageentry_u8;
-    s->pageentry_u16 = s->pageentry_u8;
-    s->last_pagetable = -1;
+        s->pageentry_u8 = g_malloc(512);
+        s->pageentry_u32 = s->pageentry_u8;
+        s->pageentry_u16 = s->pageentry_u8;
+        s->last_pagetable = -1;
 #endif
+    }
 
     qemu_co_mutex_init(&s->lock);
 
@@ -395,7 +414,11 @@ static int vpc_read(BlockDriverState *bs, int64_t sector_num,
     int ret;
     int64_t offset;
     int64_t sectors, sectors_per_block;
+    struct vhd_footer *footer = (struct vhd_footer *) s->footer_buf;
 
+    if (cpu_to_be32(footer->type) == VHD_FIXED) {
+        return bdrv_read(bs->file, sector_num, buf, nb_sectors);
+    }
     while (nb_sectors > 0) {
         offset = get_sector_offset(bs, sector_num, 0);
 
@@ -440,7 +463,11 @@ static int vpc_write(BlockDriverState *bs, int64_t sector_num,
     int64_t offset;
     int64_t sectors, sectors_per_block;
     int ret;
+    struct vhd_footer *footer =  (struct vhd_footer *) s->footer_buf;
 
+    if (cpu_to_be32(footer->type) == VHD_FIXED) {
+        return bdrv_write(bs->file, sector_num, buf, nb_sectors);
+    }
     while (nb_sectors > 0) {
         offset = get_sector_offset(bs, sector_num, 1);
 
@@ -533,69 +560,13 @@ static int calculate_geometry(int64_t total_sectors, uint16_t* cyls,
     return 0;
 }
 
-static int vpc_create(const char *filename, QEMUOptionParameter *options)
+static int create_dynamic_disk(int fd, uint8_t *buf, int64_t total_sectors)
 {
-    uint8_t buf[1024];
-    struct vhd_footer* footer = (struct vhd_footer*) buf;
     struct vhd_dyndisk_header* dyndisk_header =
         (struct vhd_dyndisk_header*) buf;
-    int fd, i;
-    uint16_t cyls = 0;
-    uint8_t heads = 0;
-    uint8_t secs_per_cyl = 0;
     size_t block_size, num_bat_entries;
-    int64_t total_sectors = 0;
+    int i;
     int ret = -EIO;
-
-    // Read out options
-    total_sectors = get_option_parameter(options, BLOCK_OPT_SIZE)->value.n /
-                    BDRV_SECTOR_SIZE;
-
-    // Create the file
-    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
-    if (fd < 0)
-        return -EIO;
-
-    /* Calculate matching total_size and geometry. Increase the number of
-       sectors requested until we get enough (or fail). */
-    for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
-        if (calculate_geometry(total_sectors + i,
-                               &cyls, &heads, &secs_per_cyl)) {
-            ret = -EFBIG;
-            goto fail;
-        }
-    }
-    total_sectors = (int64_t) cyls * heads * secs_per_cyl;
-
-    // Prepare the Hard Disk Footer
-    memset(buf, 0, 1024);
-
-    memcpy(footer->creator, "conectix", 8);
-    // TODO Check if "qemu" creator_app is ok for VPC
-    memcpy(footer->creator_app, "qemu", 4);
-    memcpy(footer->creator_os, "Wi2k", 4);
-
-    footer->features = be32_to_cpu(0x02);
-    footer->version = be32_to_cpu(0x00010000);
-    footer->data_offset = be64_to_cpu(HEADER_SIZE);
-    footer->timestamp = be32_to_cpu(time(NULL) - VHD_TIMESTAMP_BASE);
-
-    // Version of Virtual PC 2007
-    footer->major = be16_to_cpu(0x0005);
-    footer->minor =be16_to_cpu(0x0003);
-
-    footer->orig_size = be64_to_cpu(total_sectors * 512);
-    footer->size = be64_to_cpu(total_sectors * 512);
-
-    footer->cyls = be16_to_cpu(cyls);
-    footer->heads = heads;
-    footer->secs_per_cyl = secs_per_cyl;
-
-    footer->type = be32_to_cpu(VHD_DYNAMIC);
-
-    // TODO uuid is missing
-
-    footer->checksum = be32_to_cpu(vpc_checksum(buf, HEADER_SIZE));
 
     // Write the footer (twice: at the beginning and at the end)
     block_size = 0x200000;
@@ -623,7 +594,6 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
             goto fail;
         }
     }
-
 
     // Prepare the Dynamic Disk Header
     memset(buf, 0, 1024);
@@ -653,6 +623,129 @@ static int vpc_create(const char *filename, QEMUOptionParameter *options)
     ret = 0;
 
  fail:
+    return ret;
+}
+
+static int create_fixed_disk(int fd, uint8_t *buf, int64_t total_size)
+{
+    int ret = -EIO;
+
+    /* Add footer to total size */
+    total_size += 512;
+    if (ftruncate(fd, total_size) != 0) {
+        ret = -errno;
+        goto fail;
+    }
+    if (lseek(fd, -512, SEEK_END) < 0) {
+        goto fail;
+    }
+    if (write(fd, buf, HEADER_SIZE) != HEADER_SIZE) {
+        goto fail;
+    }
+
+    ret = 0;
+
+ fail:
+    return ret;
+}
+
+static int vpc_create(const char *filename, QEMUOptionParameter *options)
+{
+    uint8_t buf[1024];
+    struct vhd_footer *footer = (struct vhd_footer *) buf;
+    QEMUOptionParameter *disk_type_param;
+    int fd, i;
+    uint16_t cyls = 0;
+    uint8_t heads = 0;
+    uint8_t secs_per_cyl = 0;
+    int64_t total_sectors;
+    int64_t total_size;
+    int disk_type;
+    int ret = -EIO;
+
+    /* Read out options */
+    total_size = get_option_parameter(options, BLOCK_OPT_SIZE)->value.n;
+
+    disk_type_param = get_option_parameter(options, BLOCK_OPT_SUBFMT);
+    if (disk_type_param && disk_type_param->value.s) {
+        if (!strcmp(disk_type_param->value.s, "dynamic")) {
+            disk_type = VHD_DYNAMIC;
+        } else if (!strcmp(disk_type_param->value.s, "fixed")) {
+            disk_type = VHD_FIXED;
+        } else {
+            return -EINVAL;
+        }
+    } else {
+        disk_type = VHD_DYNAMIC;
+    }
+
+    /* Create the file */
+    fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644);
+    if (fd < 0) {
+        return -EIO;
+    }
+
+    /*
+     * Calculate matching total_size and geometry. Increase the number of
+     * sectors requested until we get enough (or fail). This ensures that
+     * qemu-img convert doesn't truncate images, but rather rounds up.
+     */
+    total_sectors = total_size / BDRV_SECTOR_SIZE;
+    for (i = 0; total_sectors > (int64_t)cyls * heads * secs_per_cyl; i++) {
+        if (calculate_geometry(total_sectors + i, &cyls, &heads,
+                               &secs_per_cyl))
+        {
+            ret = -EFBIG;
+            goto fail;
+        }
+    }
+
+    total_sectors = (int64_t) cyls * heads * secs_per_cyl;
+
+    /* Prepare the Hard Disk Footer */
+    memset(buf, 0, 1024);
+
+    memcpy(footer->creator, "conectix", 8);
+    /* TODO Check if "qemu" creator_app is ok for VPC */
+    memcpy(footer->creator_app, "qemu", 4);
+    memcpy(footer->creator_os, "Wi2k", 4);
+
+    footer->features = be32_to_cpu(0x02);
+    footer->version = be32_to_cpu(0x00010000);
+    if (disk_type == VHD_DYNAMIC) {
+        footer->data_offset = be64_to_cpu(HEADER_SIZE);
+    } else {
+        footer->data_offset = be64_to_cpu(0xFFFFFFFFFFFFFFFFULL);
+    }
+    footer->timestamp = be32_to_cpu(time(NULL) - VHD_TIMESTAMP_BASE);
+
+    /* Version of Virtual PC 2007 */
+    footer->major = be16_to_cpu(0x0005);
+    footer->minor = be16_to_cpu(0x0003);
+    if (disk_type == VHD_DYNAMIC) {
+        footer->orig_size = be64_to_cpu(total_sectors * 512);
+        footer->size = be64_to_cpu(total_sectors * 512);
+    } else {
+        footer->orig_size = be64_to_cpu(total_size);
+        footer->size = be64_to_cpu(total_size);
+    }
+    footer->cyls = be16_to_cpu(cyls);
+    footer->heads = heads;
+    footer->secs_per_cyl = secs_per_cyl;
+
+    footer->type = be32_to_cpu(disk_type);
+
+    /* TODO uuid is missing */
+
+    footer->checksum = be32_to_cpu(vpc_checksum(buf, HEADER_SIZE));
+
+    if (disk_type == VHD_DYNAMIC) {
+        ret = create_dynamic_disk(fd, buf, total_sectors);
+    } else {
+        ret = create_fixed_disk(fd, buf, total_size);
+    }
+
+ fail:
     close(fd);
     return ret;
 }
@@ -674,6 +767,13 @@ static QEMUOptionParameter vpc_create_options[] = {
         .name = BLOCK_OPT_SIZE,
         .type = OPT_SIZE,
         .help = "Virtual disk size"
+    },
+    {
+        .name = BLOCK_OPT_SUBFMT,
+        .type = OPT_STRING,
+        .help =
+            "Type of virtual hard disk format. Supported formats are "
+            "{dynamic (default) | fixed} "
     },
     { NULL }
 };

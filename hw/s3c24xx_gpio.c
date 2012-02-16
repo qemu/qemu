@@ -272,9 +272,9 @@ static TypeInfo s3c24xx_gpio_info = {
     .class_init = s3c24xx_gpio_class_init
 };
 
-static void s3c24xx_register(void)
+static void s3c24xx_register_types(void)
 {
     type_register_static(&s3c24xx_gpio_info);
 }
 
-device_init(s3c24xx_register)
+type_init(s3c24xx_register_types)

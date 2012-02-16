@@ -157,9 +157,9 @@ static TypeInfo i82374_isa_info = {
     .class_init = i82374_class_init,
 };
 
-static void i82374_register_devices(void)
+static void i82374_register_types(void)
 {
     type_register_static(&i82374_isa_info);
 }
 
-device_init(i82374_register_devices)
+type_init(i82374_register_types)

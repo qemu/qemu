@@ -340,8 +340,9 @@ static TypeInfo pxa2xx_gpio_info = {
     .class_init    = pxa2xx_gpio_class_init,
 };
 
-static void pxa2xx_gpio_register(void)
+static void pxa2xx_gpio_register_types(void)
 {
     type_register_static(&pxa2xx_gpio_info);
 }
-device_init(pxa2xx_gpio_register);
+
+type_init(pxa2xx_gpio_register_types)

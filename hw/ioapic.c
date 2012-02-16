@@ -251,9 +251,9 @@ static TypeInfo ioapic_info = {
     .class_init    = ioapic_class_init,
 };
 
-static void ioapic_register_devices(void)
+static void ioapic_register_types(void)
 {
     type_register_static(&ioapic_info);
 }
 
-device_init(ioapic_register_devices)
+type_init(ioapic_register_types)

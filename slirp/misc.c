@@ -113,7 +113,6 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(addr);
 	int opt;
-        int master = -1;
 	const char *argv[256];
 	/* don't want to clobber the original */
 	char *bptr;
@@ -148,32 +147,23 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 	 case -1:
 		lprint("Error: fork failed: %s\n", strerror(errno));
 		close(s);
-		if (do_pty == 2)
-		   close(master);
 		return 0;
 
 	 case 0:
                 setsid();
 
 		/* Set the DISPLAY */
-		if (do_pty == 2) {
-			(void) close(master);
-#ifdef TIOCSCTTY /* XXXXX */
-			ioctl(s, TIOCSCTTY, (char *)NULL);
-#endif
-		} else {
-			getsockname(s, (struct sockaddr *)&addr, &addrlen);
-			close(s);
-			/*
-			 * Connect to the socket
-			 * XXX If any of these fail, we're in trouble!
-	 		 */
-			s = qemu_socket(AF_INET, SOCK_STREAM, 0);
-			addr.sin_addr = loopback_addr;
-                        do {
-                            ret = connect(s, (struct sockaddr *)&addr, addrlen);
-                        } while (ret < 0 && errno == EINTR);
-		}
+                getsockname(s, (struct sockaddr *)&addr, &addrlen);
+                close(s);
+                /*
+                 * Connect to the socket
+                 * XXX If any of these fail, we're in trouble!
+                 */
+                s = qemu_socket(AF_INET, SOCK_STREAM, 0);
+                addr.sin_addr = loopback_addr;
+                do {
+                    ret = connect(s, (struct sockaddr *)&addr, addrlen);
+                } while (ret < 0 && errno == EINTR);
 
 		dup2(s, 0);
 		dup2(s, 1);
@@ -210,26 +200,21 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
 
 	 default:
 		qemu_add_child_watch(pid);
-		if (do_pty == 2) {
-			close(s);
-			so->s = master;
-		} else {
-			/*
-			 * XXX this could block us...
-			 * XXX Should set a timer here, and if accept() doesn't
-		 	 * return after X seconds, declare it a failure
-		 	 * The only reason this will block forever is if socket()
-		 	 * of connect() fail in the child process
-		 	 */
-                        do {
-                            so->s = accept(s, (struct sockaddr *)&addr, &addrlen);
-                        } while (so->s < 0 && errno == EINTR);
-                        closesocket(s);
-			opt = 1;
-			setsockopt(so->s,SOL_SOCKET,SO_REUSEADDR,(char *)&opt,sizeof(int));
-			opt = 1;
-			setsockopt(so->s,SOL_SOCKET,SO_OOBINLINE,(char *)&opt,sizeof(int));
-		}
+                /*
+                 * XXX this could block us...
+                 * XXX Should set a timer here, and if accept() doesn't
+                 * return after X seconds, declare it a failure
+                 * The only reason this will block forever is if socket()
+                 * of connect() fail in the child process
+                 */
+                do {
+                    so->s = accept(s, (struct sockaddr *)&addr, &addrlen);
+                } while (so->s < 0 && errno == EINTR);
+                closesocket(s);
+                opt = 1;
+                setsockopt(so->s, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
+                opt = 1;
+                setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
 		fd_nonblock(so->s);
 
 		/* Append the telnet options now */

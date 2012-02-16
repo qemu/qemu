@@ -146,6 +146,7 @@ static void ahci_check_irq(AHCIState *s)
 
     DPRINTF(-1, "check irq %#x\n", s->control_regs.irqstatus);
 
+    s->control_regs.irqstatus = 0;
     for (i = 0; i < s->ports; i++) {
         AHCIPortRegs *pr = &s->dev[i].port_regs;
         if (pr->irq_stat & pr->irq_mask) {
@@ -216,6 +217,7 @@ static void  ahci_port_write(AHCIState *s, int port, int offset, uint32_t val)
             break;
         case PORT_IRQ_STAT:
             pr->irq_stat &= ~val;
+            ahci_check_irq(s);
             break;
         case PORT_IRQ_MASK:
             pr->irq_mask = val & 0xfdc000ff;
@@ -558,6 +560,11 @@ static void ahci_reset_port(AHCIState *s, int port)
         if (ncq_tfs->aiocb) {
             bdrv_aio_cancel(ncq_tfs->aiocb);
             ncq_tfs->aiocb = NULL;
+        }
+
+        /* Maybe we just finished the request thanks to bdrv_aio_cancel() */
+        if (!ncq_tfs->used) {
+            continue;
         }
 
         qemu_sglist_destroy(&ncq_tfs->sglist);
@@ -1261,9 +1268,9 @@ static TypeInfo sysbus_ahci_info = {
     .class_init    = sysbus_ahci_class_init,
 };
 
-static void sysbus_ahci_register(void)
+static void sysbus_ahci_register_types(void)
 {
     type_register_static(&sysbus_ahci_info);
 }
 
-device_init(sysbus_ahci_register);
+type_init(sysbus_ahci_register_types)

@@ -1459,11 +1459,11 @@ static TypeInfo dp8381x_info = {
 };
 #endif
 
-static void dp8381x_register_devices(void)
+static void dp8381x_register_types(void)
 {
     type_register_static(&dp8381x_info);
 }
 
-device_init(dp8381x_register_devices)
+type_init(dp8381x_register_types)
 
 /* eof */

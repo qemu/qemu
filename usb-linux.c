@@ -137,7 +137,7 @@ static int usb_host_usbfs_type(USBHostDevice *s, USBPacket *p)
         [USB_ENDPOINT_XFER_BULK]    = USBDEVFS_URB_TYPE_BULK,
         [USB_ENDPOINT_XFER_INT]     = USBDEVFS_URB_TYPE_INTERRUPT,
     };
-    uint8_t type = usb_ep_get_type(&s->dev, p->pid, p->devep);
+    uint8_t type = p->ep->type;
     assert(type < ARRAY_SIZE(usbfs));
     return usbfs[type];
 }
@@ -360,7 +360,7 @@ static void async_complete(void *opaque)
                 break;
 
             case -EPIPE:
-                set_halt(s, p->pid, p->devep);
+                set_halt(s, p->pid, p->ep->nr);
                 p->result = USB_RET_STALL;
                 break;
 
@@ -733,16 +733,16 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
     int i, j, ret, max_packet_size, offset, len = 0;
     uint8_t *buf;
 
-    max_packet_size = usb_ep_get_max_packet_size(&s->dev, p->pid, p->devep);
+    max_packet_size = p->ep->max_packet_size;
     if (max_packet_size == 0)
         return USB_RET_NAK;
 
-    aurb = get_iso_urb(s, p->pid, p->devep);
+    aurb = get_iso_urb(s, p->pid, p->ep->nr);
     if (!aurb) {
-        aurb = usb_host_alloc_iso(s, p->pid, p->devep);
+        aurb = usb_host_alloc_iso(s, p->pid, p->ep->nr);
     }
 
-    i = get_iso_urb_idx(s, p->pid, p->devep);
+    i = get_iso_urb_idx(s, p->pid, p->ep->nr);
     j = aurb[i].iso_frame_idx;
     if (j >= 0 && j < ISO_FRAME_DESC_PER_URB) {
         if (in) {
@@ -769,7 +769,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
             }
         } else {
             len = p->iov.size;
-            offset = (j == 0) ? 0 : get_iso_buffer_used(s, p->pid, p->devep);
+            offset = (j == 0) ? 0 : get_iso_buffer_used(s, p->pid, p->ep->nr);
 
             /* Check the frame fits */
             if (len > max_packet_size) {
@@ -781,27 +781,27 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
             usb_packet_copy(p, aurb[i].urb.buffer + offset, len);
             aurb[i].urb.iso_frame_desc[j].length = len;
             offset += len;
-            set_iso_buffer_used(s, p->pid, p->devep, offset);
+            set_iso_buffer_used(s, p->pid, p->ep->nr, offset);
 
             /* Start the stream once we have buffered enough data */
-            if (!is_iso_started(s, p->pid, p->devep) && i == 1 && j == 8) {
-                set_iso_started(s, p->pid, p->devep);
+            if (!is_iso_started(s, p->pid, p->ep->nr) && i == 1 && j == 8) {
+                set_iso_started(s, p->pid, p->ep->nr);
             }
         }
         aurb[i].iso_frame_idx++;
         if (aurb[i].iso_frame_idx == ISO_FRAME_DESC_PER_URB) {
             i = (i + 1) % s->iso_urb_count;
-            set_iso_urb_idx(s, p->pid, p->devep, i);
+            set_iso_urb_idx(s, p->pid, p->ep->nr, i);
         }
     } else {
         if (in) {
-            set_iso_started(s, p->pid, p->devep);
+            set_iso_started(s, p->pid, p->ep->nr);
         } else {
             DPRINTF("hubs: iso out error no free buffer, dropping packet\n");
         }
     }
 
-    if (is_iso_started(s, p->pid, p->devep)) {
+    if (is_iso_started(s, p->pid, p->ep->nr)) {
         /* (Re)-submit all fully consumed / filled urbs */
         for (i = 0; i < s->iso_urb_count; i++) {
             if (aurb[i].iso_frame_idx == ISO_FRAME_DESC_PER_URB) {
@@ -821,7 +821,7 @@ static int usb_host_handle_iso_data(USBHostDevice *s, USBPacket *p, int in)
                     break;
                 }
                 aurb[i].iso_frame_idx = -1;
-                change_iso_inflight(s, p->pid, p->devep, 1);
+                change_iso_inflight(s, p->pid, p->ep->nr, 1);
             }
         }
     }
@@ -840,20 +840,20 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
 
     trace_usb_host_req_data(s->bus_num, s->addr,
                             p->pid == USB_TOKEN_IN,
-                            p->devep, p->iov.size);
+                            p->ep->nr, p->iov.size);
 
-    if (!is_valid(s, p->pid, p->devep)) {
+    if (!is_valid(s, p->pid, p->ep->nr)) {
         trace_usb_host_req_complete(s->bus_num, s->addr, USB_RET_NAK);
         return USB_RET_NAK;
     }
 
     if (p->pid == USB_TOKEN_IN) {
-        ep = p->devep | 0x80;
+        ep = p->ep->nr | 0x80;
     } else {
-        ep = p->devep;
+        ep = p->ep->nr;
     }
 
-    if (is_halted(s, p->pid, p->devep)) {
+    if (is_halted(s, p->pid, p->ep->nr)) {
         unsigned int arg = ep;
         ret = ioctl(s->fd, USBDEVFS_CLEAR_HALT, &arg);
         if (ret < 0) {
@@ -861,10 +861,10 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
             trace_usb_host_req_complete(s->bus_num, s->addr, USB_RET_NAK);
             return USB_RET_NAK;
         }
-        clear_halt(s, p->pid, p->devep);
+        clear_halt(s, p->pid, p->ep->nr);
     }
 
-    if (is_isoc(s, p->pid, p->devep)) {
+    if (is_isoc(s, p->pid, p->ep->nr)) {
         return usb_host_handle_iso_data(s, p, p->pid == USB_TOKEN_IN);
     }
 
@@ -1057,7 +1057,7 @@ static int usb_host_handle_control(USBDevice *dev, USBPacket *p,
     urb = &aurb->urb;
 
     urb->type     = USBDEVFS_URB_TYPE_CONTROL;
-    urb->endpoint = p->devep;
+    urb->endpoint = p->ep->nr;
 
     urb->buffer        = &dev->setup_buf;
     urb->buffer_length = length + 8;
@@ -1419,7 +1419,6 @@ static void usb_host_class_initfn(ObjectClass *klass, void *data)
 
     uc->init           = usb_host_initfn;
     uc->product_desc   = "USB Host Device";
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->cancel_packet  = usb_host_async_cancel;
     uc->handle_data    = usb_host_handle_data;
     uc->handle_control = usb_host_handle_control;
@@ -1436,12 +1435,13 @@ static TypeInfo usb_host_dev_info = {
     .class_init    = usb_host_class_initfn,
 };
 
-static void usb_host_register_devices(void)
+static void usb_host_register_types(void)
 {
     type_register_static(&usb_host_dev_info);
     usb_legacy_register("usb-host", "host", usb_host_device_open);
 }
-device_init(usb_host_register_devices)
+
+type_init(usb_host_register_types)
 
 USBDevice *usb_host_device_open(const char *devname)
 {

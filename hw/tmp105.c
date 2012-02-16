@@ -245,9 +245,9 @@ static TypeInfo tmp105_info = {
     .class_init    = tmp105_class_init,
 };
 
-static void tmp105_register_devices(void)
+static void tmp105_register_types(void)
 {
     type_register_static(&tmp105_info);
 }
 
-device_init(tmp105_register_devices)
+type_init(tmp105_register_types)

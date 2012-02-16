@@ -2580,6 +2580,14 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 break;
+#ifdef CONFIG_LIBISCSI
+            case QEMU_OPTION_iscsi:
+                opts = qemu_opts_parse(qemu_find_opts("iscsi"), optarg, 0);
+                if (!opts) {
+                    exit(1);
+                }
+                break;
+#endif
 #ifdef CONFIG_SLIRP
             case QEMU_OPTION_tftp:
                 legacy_tftp_prefix = optarg;
@@ -3415,7 +3423,7 @@ int main(int argc, char **argv, char **envp)
     if (foreach_device_config(DEV_DEBUGCON, debugcon_parse) < 0)
         exit(1);
 
-    module_call_init(MODULE_INIT_DEVICE);
+    module_call_init(MODULE_INIT_QOM);
 
     /* must be after qdev registration but before machine init */
     if (vga_model) {

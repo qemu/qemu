@@ -173,9 +173,9 @@ static TypeInfo cs4231_info = {
     .class_init    = cs4231_class_init,
 };
 
-static void cs4231_register_devices(void)
+static void cs4231_register_types(void)
 {
     type_register_static(&cs4231_info);
 }
 
-device_init(cs4231_register_devices)
+type_init(cs4231_register_types)

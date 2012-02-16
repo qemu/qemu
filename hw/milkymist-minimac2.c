@@ -542,9 +542,9 @@ static TypeInfo milkymist_minimac2_info = {
     .class_init    = milkymist_minimac2_class_init,
 };
 
-static void milkymist_minimac2_register(void)
+static void milkymist_minimac2_register_types(void)
 {
     type_register_static(&milkymist_minimac2_info);
 }
 
-device_init(milkymist_minimac2_register)
+type_init(milkymist_minimac2_register_types)

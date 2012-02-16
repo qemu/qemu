@@ -783,10 +783,10 @@ static TypeInfo omap2_gpio_info = {
     .class_init    = omap2_gpio_class_init,
 };
 
-static void omap_gpio_register_device(void)
+static void omap_gpio_register_types(void)
 {
     type_register_static(&omap_gpio_info);
     type_register_static(&omap2_gpio_info);
 }
 
-device_init(omap_gpio_register_device)
+type_init(omap_gpio_register_types)

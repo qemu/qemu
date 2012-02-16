@@ -556,9 +556,9 @@ static TypeInfo syborg_fb_info = {
     .class_init = syborg_fb_class_init
 };
 
-static void syborg_fb_register_devices(void)
+static void syborg_fb_register_types(void)
 {
     type_register_static(&syborg_fb_info);
 }
 
-device_init(syborg_fb_register_devices)
+type_init(syborg_fb_register_types)

@@ -376,9 +376,9 @@ static TypeInfo pcnet_info = {
     .class_init    = pcnet_class_init,
 };
 
-static void pci_pcnet_register_devices(void)
+static void pci_pcnet_register_types(void)
 {
     type_register_static(&pcnet_info);
 }
 
-device_init(pci_pcnet_register_devices)
+type_init(pci_pcnet_register_types)

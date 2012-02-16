@@ -605,6 +605,8 @@ static int musb_timeout(int ttype, int speed, int val)
 static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
                 int epnum, int pid, int len, USBCallback cb, int dir)
 {
+    USBDevice *dev;
+    USBEndpoint *uep;
     int ret;
     int idx = epnum && dir;
     int ttype;
@@ -622,16 +624,14 @@ static void musb_packet(MUSBState *s, MUSBEndPoint *ep,
     ep->delayed_cb[dir] = cb;
 
     /* A wild guess on the FADDR semantics... */
-    usb_packet_setup(&ep->packey[dir].p, pid, ep->faddr[idx],
-                     ep->type[idx] & 0xf);
+    dev = usb_find_device(&s->port, ep->faddr[idx]);
+    uep = usb_ep_get(dev, pid, ep->type[idx] & 0xf);
+    usb_packet_setup(&ep->packey[dir].p, pid, uep);
     usb_packet_addbuf(&ep->packey[dir].p, ep->buf[idx], len);
     ep->packey[dir].ep = ep;
     ep->packey[dir].dir = dir;
 
-    if (s->port.dev)
-        ret = usb_handle_packet(s->port.dev, &ep->packey[dir].p);
-    else
-        ret = USB_RET_NODEV;
+    ret = usb_handle_packet(dev, &ep->packey[dir].p);
 
     if (ret == USB_RET_ASYNC) {
         ep->status[dir] = len;
@@ -812,8 +812,8 @@ static void musb_async_cancel_device(MUSBState *s, USBDevice *dev)
 
     for (ep = 0; ep < 16; ep++) {
         for (dir = 0; dir < 2; dir++) {
-            if (s->ep[ep].packey[dir].p.owner == NULL ||
-                s->ep[ep].packey[dir].p.owner->dev != dev) {
+            if (!usb_packet_is_inflight(&s->ep[ep].packey[dir].p) ||
+                s->ep[ep].packey[dir].p.ep->dev != dev) {
                 continue;
             }
             usb_cancel_packet(&s->ep[ep].packey[dir].p);
@@ -1310,7 +1310,7 @@ static void musb_writeb(void *opaque, target_phys_addr_t addr, uint32_t value)
         s->power = (value & 0xef) | (s->power & 0x10);
         /* MGC_M_POWER_RESET is also read-only in Peripheral Mode */
         if ((value & MGC_M_POWER_RESET) && s->port.dev) {
-            usb_send_msg(s->port.dev, USB_MSG_RESET);
+            usb_device_reset(s->port.dev);
             /* Negotiate high-speed operation if MGC_M_POWER_HSENAB is set.  */
             if ((value & MGC_M_POWER_HSENAB) &&
                             s->port.dev->speed == USB_SPEED_HIGH)

@@ -157,10 +157,10 @@ static TypeInfo grackle_pci_host_info = {
     .class_init    = pci_grackle_class_init,
 };
 
-static void grackle_register_devices(void)
+static void grackle_register_types(void)
 {
     type_register_static(&grackle_pci_info);
     type_register_static(&grackle_pci_host_info);
 }
 
-device_init(grackle_register_devices)
+type_init(grackle_register_types)

@@ -606,9 +606,9 @@ static TypeInfo parallel_isa_info = {
     .class_init    = parallel_isa_class_initfn,
 };
 
-static void parallel_register_devices(void)
+static void parallel_register_types(void)
 {
     type_register_static(&parallel_isa_info);
 }
 
-device_init(parallel_register_devices)
+type_init(parallel_register_types)

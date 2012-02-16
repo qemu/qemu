@@ -299,10 +299,11 @@ static TypeInfo piix4_ide_info = {
     .class_init    = piix4_ide_class_init,
 };
 
-static void piix_ide_register(void)
+static void piix_ide_register_types(void)
 {
     type_register_static(&piix3_ide_info);
     type_register_static(&piix3_ide_xen_info);
     type_register_static(&piix4_ide_info);
 }
-device_init(piix_ide_register);
+
+type_init(piix_ide_register_types)

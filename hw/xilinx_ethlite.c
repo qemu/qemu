@@ -249,9 +249,9 @@ static TypeInfo xilinx_ethlite_info = {
     .class_init    = xilinx_ethlite_class_init,
 };
 
-static void xilinx_ethlite_register(void)
+static void xilinx_ethlite_register_types(void)
 {
     type_register_static(&xilinx_ethlite_info);
 }
 
-device_init(xilinx_ethlite_register)
+type_init(xilinx_ethlite_register_types)

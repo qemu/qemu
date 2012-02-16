@@ -39,11 +39,6 @@
 #define USB_TOKEN_IN    0x69 /* device -> host */
 #define USB_TOKEN_OUT   0xe1 /* host -> device */
 
-/* specific usb messages, also sent in the 'pid' parameter */
-#define USB_MSG_ATTACH   0x100
-#define USB_MSG_DETACH   0x101
-#define USB_MSG_RESET    0x102
-
 #define USB_RET_NODEV  (-1)
 #define USB_RET_NAK    (-2)
 #define USB_RET_STALL  (-3)
@@ -176,10 +171,13 @@ struct USBDescString {
 #define USB_MAX_INTERFACES 16
 
 struct USBEndpoint {
+    uint8_t nr;
+    uint8_t pid;
     uint8_t type;
     uint8_t ifnum;
     int max_packet_size;
     USBDevice *dev;
+    QTAILQ_HEAD(, USBPacket) queue;
 };
 
 /* definition of a USB device */
@@ -234,13 +232,10 @@ typedef struct USBDeviceClass {
     int (*init)(USBDevice *dev);
 
     /*
-     * Process USB packet.
-     * Called by the HC (Host Controller).
-     *
-     * Returns length of the transaction
-     * or one of the USB_RET_XXX codes.
+     * Walk (enabled) downstream ports, check for a matching device.
+     * Only hubs implement this.
      */
-    int (*handle_packet)(USBDevice *dev, USBPacket *p);
+    USBDevice *(*find_device)(USBDevice *dev, uint8_t addr);
 
     /*
      * Called when a packet is canceled.
@@ -297,8 +292,7 @@ typedef struct USBPortOps {
     void (*wakeup)(USBPort *port);
     /*
      * Note that port->dev will be different then the device from which
-     * the packet originated when a hub is involved, if you want the orginating
-     * device use p->owner
+     * the packet originated when a hub is involved.
      */
     void (*complete)(USBPort *port, USBPacket *p);
 } USBPortOps;
@@ -316,26 +310,44 @@ struct USBPort {
 
 typedef void USBCallback(USBPacket * packet, void *opaque);
 
+typedef enum USBPacketState {
+    USB_PACKET_UNDEFINED = 0,
+    USB_PACKET_SETUP,
+    USB_PACKET_QUEUED,
+    USB_PACKET_ASYNC,
+    USB_PACKET_COMPLETE,
+    USB_PACKET_CANCELED,
+} USBPacketState;
+
 /* Structure used to hold information about an active USB packet.  */
 struct USBPacket {
     /* Data fields for use by the driver.  */
     int pid;
-    uint8_t devaddr;
-    uint8_t devep;
+    USBEndpoint *ep;
     QEMUIOVector iov;
     int result; /* transfer length or USB_RET_* status code */
     /* Internal use by the USB layer.  */
-    USBEndpoint *owner;
+    USBPacketState state;
+    QTAILQ_ENTRY(USBPacket) queue;
 };
 
 void usb_packet_init(USBPacket *p);
-void usb_packet_setup(USBPacket *p, int pid, uint8_t addr, uint8_t ep);
+void usb_packet_set_state(USBPacket *p, USBPacketState state);
+void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep);
 void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len);
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl);
 void usb_packet_unmap(USBPacket *p);
 void usb_packet_copy(USBPacket *p, void *ptr, size_t bytes);
 void usb_packet_skip(USBPacket *p, size_t bytes);
 void usb_packet_cleanup(USBPacket *p);
+
+static inline bool usb_packet_is_inflight(USBPacket *p)
+{
+    return (p->state == USB_PACKET_QUEUED ||
+            p->state == USB_PACKET_ASYNC);
+}
+
+USBDevice *usb_find_device(USBPort *port, uint8_t addr);
 
 int usb_handle_packet(USBDevice *dev, USBPacket *p);
 void usb_packet_complete(USBDevice *dev, USBPacket *p);
@@ -354,12 +366,11 @@ int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
 
 void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);
-void usb_reset(USBPort *port);
-void usb_wakeup(USBDevice *dev);
-int usb_generic_handle_packet(USBDevice *s, USBPacket *p);
+void usb_port_reset(USBPort *port);
+void usb_device_reset(USBDevice *dev);
+void usb_wakeup(USBEndpoint *ep);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
-void usb_send_msg(USBDevice *dev, int msg);
 
 /* usb-linux.c */
 USBDevice *usb_host_device_open(const char *devname);
@@ -414,6 +425,7 @@ struct USBBus {
 struct USBBusOps {
     int (*register_companion)(USBBus *bus, USBPort *ports[],
                               uint32_t portcount, uint32_t firstport);
+    void (*wakeup_endpoint)(USBBus *bus, USBEndpoint *ep);
 };
 
 void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);
@@ -451,7 +463,7 @@ extern const VMStateDescription vmstate_usb_device;
     .offset     = vmstate_offset_value(_state, _field, USBDevice),   \
 }
 
-int usb_device_handle_packet(USBDevice *dev, USBPacket *p);
+USBDevice *usb_device_find_device(USBDevice *dev, uint8_t addr);
 
 void usb_device_cancel_packet(USBDevice *dev, USBPacket *p);
 

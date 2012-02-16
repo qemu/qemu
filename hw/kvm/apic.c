@@ -139,9 +139,9 @@ static TypeInfo kvm_apic_info = {
     .class_init = kvm_apic_class_init,
 };
 
-static void kvm_apic_register_device(void)
+static void kvm_apic_register_types(void)
 {
     type_register_static(&kvm_apic_info);
 }
 
-device_init(kvm_apic_register_device)
+type_init(kvm_apic_register_types)

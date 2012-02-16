@@ -373,12 +373,12 @@ static TypeInfo ax88796_info = {
     .class_init = ax88796_class_init
 };
 
-static void ax88796_register_device(void)
+static void ax88796_register_types(void)
 {
     type_register_static(&ax88796_info);
 }
 
-device_init(ax88796_register_device)
+type_init(ax88796_register_types)
 
 
 static void stcb_i2c_setup(STCBState *stcb)

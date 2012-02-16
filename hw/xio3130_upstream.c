@@ -177,12 +177,12 @@ static TypeInfo xio3130_upstream_info = {
     .class_init    = xio3130_upstream_class_init,
 };
 
-static void xio3130_upstream_register(void)
+static void xio3130_upstream_register_types(void)
 {
     type_register_static(&xio3130_upstream_info);
 }
 
-device_init(xio3130_upstream_register);
+type_init(xio3130_upstream_register_types)
 
 
 /*

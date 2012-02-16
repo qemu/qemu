@@ -291,10 +291,10 @@ static TypeInfo tosa_ssp_info = {
     .class_init    = tosa_ssp_class_init,
 };
 
-static void tosa_register_devices(void)
+static void tosa_register_types(void)
 {
     type_register_static(&tosa_dac_info);
     type_register_static(&tosa_ssp_info);
 }
 
-device_init(tosa_register_devices)
+type_init(tosa_register_types)

@@ -433,15 +433,6 @@ static TypeInfo virtio_s390_device_info = {
     .abstract = true,
 };
 
-static void s390_virtio_register(void)
-{
-    type_register_static(&virtio_s390_device_info);
-    type_register_static(&s390_virtio_serial);
-    type_register_static(&s390_virtio_blk);
-    type_register_static(&s390_virtio_net);
-}
-device_init(s390_virtio_register);
-
 
 /***************** S390 Virtio Bus Bridge Device *******************/
 /* Only required to have the virtio bus as child in the system bus */
@@ -468,9 +459,13 @@ static TypeInfo s390_virtio_bridge_info = {
     .class_init    = s390_virtio_bridge_class_init,
 };
 
-static void s390_virtio_register_devices(void)
+static void s390_virtio_register_types(void)
 {
+    type_register_static(&virtio_s390_device_info);
+    type_register_static(&s390_virtio_serial);
+    type_register_static(&s390_virtio_blk);
+    type_register_static(&s390_virtio_net);
     type_register_static(&s390_virtio_bridge_info);
 }
 
-device_init(s390_virtio_register_devices)
+type_init(s390_virtio_register_types)

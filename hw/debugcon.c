@@ -109,9 +109,9 @@ static TypeInfo debugcon_isa_info = {
     .class_init    = debugcon_isa_class_initfn,
 };
 
-static void debugcon_register_devices(void)
+static void debugcon_register_types(void)
 {
     type_register_static(&debugcon_isa_info);
 }
 
-device_init(debugcon_register_devices)
+type_init(debugcon_register_types)

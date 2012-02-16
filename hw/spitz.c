@@ -1138,7 +1138,7 @@ static TypeInfo spitz_lcdtg_info = {
     .class_init    = spitz_lcdtg_class_init,
 };
 
-static void spitz_register_devices(void)
+static void spitz_register_types(void)
 {
     type_register_static(&corgi_ssp_info);
     type_register_static(&spitz_lcdtg_info);
@@ -1146,4 +1146,4 @@ static void spitz_register_devices(void)
     type_register_static(&sl_nand_info);
 }
 
-device_init(spitz_register_devices)
+type_init(spitz_register_types)

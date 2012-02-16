@@ -499,10 +499,10 @@ static TypeInfo apc_info = {
     .class_init    = apc_class_init,
 };
 
-static void slavio_misc_register_devices(void)
+static void slavio_misc_register_types(void)
 {
     type_register_static(&slavio_misc_info);
     type_register_static(&apc_info);
 }
 
-device_init(slavio_misc_register_devices)
+type_init(slavio_misc_register_types)

@@ -96,7 +96,7 @@ static TypeInfo realview_i2c_info = {
     .class_init    = realview_i2c_class_init,
 };
 
-static void realview_register_devices(void)
+static void realview_register_types(void)
 {
     type_register_static(&realview_i2c_info);
 }
@@ -491,4 +491,4 @@ static void realview_machine_init(void)
 }
 
 machine_init(realview_machine_init);
-device_init(realview_register_devices)
+type_init(realview_register_types)

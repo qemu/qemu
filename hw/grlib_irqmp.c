@@ -377,9 +377,9 @@ static TypeInfo grlib_irqmp_info = {
     .class_init    = grlib_irqmp_class_init,
 };
 
-static void grlib_irqmp_register(void)
+static void grlib_irqmp_register_types(void)
 {
     type_register_static(&grlib_irqmp_info);
 }
 
-device_init(grlib_irqmp_register)
+type_init(grlib_irqmp_register_types)

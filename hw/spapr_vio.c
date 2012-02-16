@@ -778,13 +778,13 @@ static TypeInfo spapr_vio_type_info = {
     .class_init = vio_spapr_device_class_init,
 };
 
-static void spapr_vio_register_devices(void)
+static void spapr_vio_register_types(void)
 {
     type_register_static(&spapr_vio_bridge_info);
     type_register_static(&spapr_vio_type_info);
 }
 
-device_init(spapr_vio_register_devices)
+type_init(spapr_vio_register_types)
 
 #ifdef CONFIG_FDT
 static int compare_reg(const void *p1, const void *p2)

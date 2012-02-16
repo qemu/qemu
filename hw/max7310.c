@@ -205,9 +205,9 @@ static TypeInfo max7310_info = {
     .class_init    = max7310_class_init,
 };
 
-static void max7310_register_devices(void)
+static void max7310_register_types(void)
 {
     type_register_static(&max7310_info);
 }
 
-device_init(max7310_register_devices)
+type_init(max7310_register_types)

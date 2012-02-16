@@ -35,7 +35,8 @@ void usb_attach(USBPort *port)
     assert(dev->attached);
     assert(dev->state == USB_STATE_NOTATTACHED);
     port->ops->attach(port);
-    usb_send_msg(dev, USB_MSG_ATTACH);
+    dev->state = USB_STATE_ATTACHED;
+    usb_device_handle_attach(dev);
 }
 
 void usb_detach(USBPort *port)
@@ -45,23 +46,40 @@ void usb_detach(USBPort *port)
     assert(dev != NULL);
     assert(dev->state != USB_STATE_NOTATTACHED);
     port->ops->detach(port);
-    usb_send_msg(dev, USB_MSG_DETACH);
+    dev->state = USB_STATE_NOTATTACHED;
 }
 
-void usb_reset(USBPort *port)
+void usb_port_reset(USBPort *port)
 {
     USBDevice *dev = port->dev;
 
     assert(dev != NULL);
     usb_detach(port);
     usb_attach(port);
-    usb_send_msg(dev, USB_MSG_RESET);
+    usb_device_reset(dev);
 }
 
-void usb_wakeup(USBDevice *dev)
+void usb_device_reset(USBDevice *dev)
 {
+    if (dev == NULL || !dev->attached) {
+        return;
+    }
+    dev->remote_wakeup = 0;
+    dev->addr = 0;
+    dev->state = USB_STATE_DEFAULT;
+    usb_device_handle_reset(dev);
+}
+
+void usb_wakeup(USBEndpoint *ep)
+{
+    USBDevice *dev = ep->dev;
+    USBBus *bus = usb_bus_from_device(dev);
+
     if (dev->remote_wakeup && dev->port && dev->port->ops->wakeup) {
         dev->port->ops->wakeup(dev->port);
+    }
+    if (bus->ops->wakeup_endpoint) {
+        bus->ops->wakeup_endpoint(bus, ep);
     }
 }
 
@@ -128,8 +146,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
     int request, value, index;
     int ret = 0;
 
-    if (p->devep != 0)
-        return usb_device_handle_data(s, p);
+    assert(p->ep->nr == 0);
 
     request = (s->setup_buf[0] << 8) | s->setup_buf[1];
     value   = (s->setup_buf[3] << 8) | s->setup_buf[2];
@@ -175,8 +192,7 @@ static int do_token_in(USBDevice *s, USBPacket *p)
 
 static int do_token_out(USBDevice *s, USBPacket *p)
 {
-    if (p->devep != 0)
-        return usb_device_handle_data(s, p);
+    assert(p->ep->nr == 0);
 
     switch(s->setup_state) {
     case SETUP_STATE_ACK:
@@ -204,51 +220,6 @@ static int do_token_out(USBDevice *s, USBPacket *p)
         s->setup_state = SETUP_STATE_IDLE;
         return USB_RET_STALL;
 
-    default:
-        return USB_RET_STALL;
-    }
-}
-
-/*
- * Generic packet handler.
- * Called by the HC (host controller).
- *
- * Returns length of the transaction or one of the USB_RET_XXX codes.
- */
-int usb_generic_handle_packet(USBDevice *s, USBPacket *p)
-{
-    switch(p->pid) {
-    case USB_MSG_ATTACH:
-        s->state = USB_STATE_ATTACHED;
-        usb_device_handle_attach(s);
-        return 0;
-
-    case USB_MSG_DETACH:
-        s->state = USB_STATE_NOTATTACHED;
-        return 0;
-
-    case USB_MSG_RESET:
-        s->remote_wakeup = 0;
-        s->addr = 0;
-        s->state = USB_STATE_DEFAULT;
-        usb_device_handle_reset(s);
-        return 0;
-    }
-
-    /* Rest of the PIDs must match our address */
-    if (s->state < USB_STATE_DEFAULT || p->devaddr != s->addr)
-        return USB_RET_NODEV;
-
-    switch (p->pid) {
-    case USB_TOKEN_SETUP:
-        return do_token_setup(s, p);
-
-    case USB_TOKEN_IN:
-        return do_token_in(s, p);
-
-    case USB_TOKEN_OUT:
-        return do_token_out(s, p);
- 
     default:
         return USB_RET_STALL;
     }
@@ -301,17 +272,39 @@ int set_usb_string(uint8_t *buf, const char *str)
     return q - buf;
 }
 
-/* Send an internal message to a USB device.  */
-void usb_send_msg(USBDevice *dev, int msg)
+USBDevice *usb_find_device(USBPort *port, uint8_t addr)
 {
-    USBPacket p;
-    int ret;
+    USBDevice *dev = port->dev;
 
-    memset(&p, 0, sizeof(p));
-    p.pid = msg;
-    ret = usb_handle_packet(dev, &p);
-    /* This _must_ be synchronous */
-    assert(ret != USB_RET_ASYNC);
+    if (dev == NULL || !dev->attached || dev->state != USB_STATE_DEFAULT) {
+        return NULL;
+    }
+    if (dev->addr == addr) {
+        return dev;
+    }
+    return usb_device_find_device(dev, addr);
+}
+
+static int usb_process_one(USBPacket *p)
+{
+    USBDevice *dev = p->ep->dev;
+
+    if (p->ep->nr == 0) {
+        /* control pipe */
+        switch (p->pid) {
+        case USB_TOKEN_SETUP:
+            return do_token_setup(dev, p);
+        case USB_TOKEN_IN:
+            return do_token_in(dev, p);
+        case USB_TOKEN_OUT:
+            return do_token_out(dev, p);
+        default:
+            return USB_RET_STALL;
+        }
+    } else {
+        /* data pipe */
+        return usb_device_handle_data(dev, p);
+    }
 }
 
 /* Hand over a packet to a device for processing.  Return value
@@ -321,17 +314,27 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
 {
     int ret;
 
-    assert(p->owner == NULL);
-    ret = usb_device_handle_packet(dev, p);
-    if (ret == USB_RET_ASYNC) {
-        if (p->owner == NULL) {
-            p->owner = usb_ep_get(dev, p->pid, p->devep);
+    if (dev == NULL) {
+        return USB_RET_NODEV;
+    }
+    assert(dev == p->ep->dev);
+    assert(dev->state == USB_STATE_DEFAULT);
+    assert(p->state == USB_PACKET_SETUP);
+    assert(p->ep != NULL);
+
+    if (QTAILQ_EMPTY(&p->ep->queue)) {
+        ret = usb_process_one(p);
+        if (ret == USB_RET_ASYNC) {
+            usb_packet_set_state(p, USB_PACKET_ASYNC);
+            QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
         } else {
-            /* We'll end up here when usb_handle_packet is called
-             * recursively due to a hub being in the chain.  Nothing
-             * to do.  Leave p->owner pointing to the device, not the
-             * hub. */;
+            p->result = ret;
+            usb_packet_set_state(p, USB_PACKET_COMPLETE);
         }
+    } else {
+        ret = USB_RET_ASYNC;
+        usb_packet_set_state(p, USB_PACKET_QUEUED);
+        QTAILQ_INSERT_TAIL(&p->ep->queue, p, queue);
     }
     return ret;
 }
@@ -341,10 +344,28 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
    handle_packet. */
 void usb_packet_complete(USBDevice *dev, USBPacket *p)
 {
-    /* Note: p->owner != dev is possible in case dev is a hub */
-    assert(p->owner != NULL);
-    p->owner = NULL;
+    USBEndpoint *ep = p->ep;
+    int ret;
+
+    assert(p->state == USB_PACKET_ASYNC);
+    assert(QTAILQ_FIRST(&ep->queue) == p);
+    usb_packet_set_state(p, USB_PACKET_COMPLETE);
+    QTAILQ_REMOVE(&ep->queue, p, queue);
     dev->port->ops->complete(dev->port, p);
+
+    while (!QTAILQ_EMPTY(&ep->queue)) {
+        p = QTAILQ_FIRST(&ep->queue);
+        assert(p->state == USB_PACKET_QUEUED);
+        ret = usb_process_one(p);
+        if (ret == USB_RET_ASYNC) {
+            usb_packet_set_state(p, USB_PACKET_ASYNC);
+            break;
+        }
+        p->result = ret;
+        usb_packet_set_state(p, USB_PACKET_COMPLETE);
+        QTAILQ_REMOVE(&ep->queue, p, queue);
+        dev->port->ops->complete(dev->port, p);
+    }
 }
 
 /* Cancel an active packet.  The packed must have been deferred by
@@ -352,9 +373,13 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
    completed.  */
 void usb_cancel_packet(USBPacket * p)
 {
-    assert(p->owner != NULL);
-    usb_device_cancel_packet(p->owner->dev, p);
-    p->owner = NULL;
+    bool callback = (p->state == USB_PACKET_ASYNC);
+    assert(usb_packet_is_inflight(p));
+    usb_packet_set_state(p, USB_PACKET_CANCELED);
+    QTAILQ_REMOVE(&p->ep->queue, p, queue);
+    if (callback) {
+        usb_device_cancel_packet(p->ep->dev, p);
+    }
 }
 
 
@@ -363,13 +388,50 @@ void usb_packet_init(USBPacket *p)
     qemu_iovec_init(&p->iov, 1);
 }
 
-void usb_packet_setup(USBPacket *p, int pid, uint8_t addr, uint8_t ep)
+void usb_packet_set_state(USBPacket *p, USBPacketState state)
 {
+#ifdef DEBUG
+    static const char *name[] = {
+        [USB_PACKET_UNDEFINED] = "undef",
+        [USB_PACKET_SETUP]     = "setup",
+        [USB_PACKET_QUEUED]    = "queued",
+        [USB_PACKET_ASYNC]     = "async",
+        [USB_PACKET_COMPLETE]  = "complete",
+        [USB_PACKET_CANCELED]  = "canceled",
+    };
+    static const char *rets[] = {
+        [-USB_RET_NODEV]  = "NODEV",
+        [-USB_RET_NAK]    = "NAK",
+        [-USB_RET_STALL]  = "STALL",
+        [-USB_RET_BABBLE] = "BABBLE",
+        [-USB_RET_ASYNC]  = "ASYNC",
+    };
+    char add[16] = "";
+
+    if (state == USB_PACKET_COMPLETE) {
+        if (p->result < 0) {
+            snprintf(add, sizeof(add), " - %s", rets[-p->result]);
+        } else {
+            snprintf(add, sizeof(add), " - %d", p->result);
+        }
+    }
+    fprintf(stderr, "bus %s, port %s, dev %d, ep %d: packet %p: %s -> %s%s\n",
+            p->ep->dev->qdev.parent_bus->name,
+            p->ep->dev->port->path,
+            p->ep->dev->addr, p->ep->nr,
+            p, name[p->state], name[state], add);
+#endif
+    p->state = state;
+}
+
+void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep)
+{
+    assert(!usb_packet_is_inflight(p));
     p->pid = pid;
-    p->devaddr = addr;
-    p->devep = ep;
+    p->ep = ep;
     p->result = 0;
     qemu_iovec_reset(&p->iov);
+    usb_packet_set_state(p, USB_PACKET_SETUP);
 }
 
 void usb_packet_addbuf(USBPacket *p, void *ptr, size_t len)
@@ -408,6 +470,7 @@ void usb_packet_skip(USBPacket *p, size_t bytes)
 
 void usb_packet_cleanup(USBPacket *p)
 {
+    assert(!usb_packet_is_inflight(p));
     qemu_iovec_destroy(&p->iov);
 }
 
@@ -415,16 +478,24 @@ void usb_ep_init(USBDevice *dev)
 {
     int ep;
 
+    dev->ep_ctl.nr = 0;
     dev->ep_ctl.type = USB_ENDPOINT_XFER_CONTROL;
     dev->ep_ctl.ifnum = 0;
     dev->ep_ctl.dev = dev;
+    QTAILQ_INIT(&dev->ep_ctl.queue);
     for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
+        dev->ep_in[ep].nr = ep + 1;
+        dev->ep_out[ep].nr = ep + 1;
+        dev->ep_in[ep].pid = USB_TOKEN_IN;
+        dev->ep_out[ep].pid = USB_TOKEN_OUT;
         dev->ep_in[ep].type = USB_ENDPOINT_XFER_INVALID;
         dev->ep_out[ep].type = USB_ENDPOINT_XFER_INVALID;
         dev->ep_in[ep].ifnum = 0;
         dev->ep_out[ep].ifnum = 0;
         dev->ep_in[ep].dev = dev;
         dev->ep_out[ep].dev = dev;
+        QTAILQ_INIT(&dev->ep_in[ep].queue);
+        QTAILQ_INIT(&dev->ep_out[ep].queue);
     }
 }
 
@@ -472,7 +543,12 @@ void usb_ep_dump(USBDevice *dev)
 
 struct USBEndpoint *usb_ep_get(USBDevice *dev, int pid, int ep)
 {
-    struct USBEndpoint *eps = pid == USB_TOKEN_IN ? dev->ep_in : dev->ep_out;
+    struct USBEndpoint *eps;
+
+    if (dev == NULL) {
+        return NULL;
+    }
+    eps = (pid == USB_TOKEN_IN) ? dev->ep_in : dev->ep_out;
     if (ep == 0) {
         return &dev->ep_ctl;
     }

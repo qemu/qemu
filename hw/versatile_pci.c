@@ -154,11 +154,11 @@ static TypeInfo pci_realview_info = {
     .class_init    = pci_realview_class_init,
 };
 
-static void versatile_pci_register_devices(void)
+static void versatile_pci_register_types(void)
 {
     type_register_static(&pci_vpb_info);
     type_register_static(&pci_realview_info);
     type_register_static(&versatile_pci_host_info);
 }
 
-device_init(versatile_pci_register_devices)
+type_init(versatile_pci_register_types)

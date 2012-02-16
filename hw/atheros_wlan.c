@@ -372,11 +372,11 @@ static TypeInfo atheros_info = {
     .class_init = atheros_class_init,
 };
 
-static void Atheros_WLAN_register_devices(void)
+static void Atheros_WLAN_register_types(void)
 {
     type_register_static(&atheros_info);
 }
 
-device_init(Atheros_WLAN_register_devices)
+type_init(Atheros_WLAN_register_types)
 
 #endif /* CONFIG_WIN32 */

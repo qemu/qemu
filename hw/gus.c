@@ -324,8 +324,9 @@ static TypeInfo gus_info = {
     .class_init    = gus_class_initfn,
 };
 
-static void gus_register (void)
+static void gus_register_types (void)
 {
     type_register_static (&gus_info);
 }
-device_init (gus_register)
+
+type_init (gus_register_types)

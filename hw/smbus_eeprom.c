@@ -130,12 +130,12 @@ static TypeInfo smbus_eeprom_info = {
     .class_init    = smbus_eeprom_class_initfn,
 };
 
-static void smbus_eeprom_register_devices(void)
+static void smbus_eeprom_register_types(void)
 {
     type_register_static(&smbus_eeprom_info);
 }
 
-device_init(smbus_eeprom_register_devices)
+type_init(smbus_eeprom_register_types)
 
 void smbus_eeprom_init(i2c_bus *smbus, int nb_eeprom,
                        const uint8_t *eeprom_spd, int eeprom_spd_size)

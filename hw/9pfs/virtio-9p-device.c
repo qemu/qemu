@@ -184,10 +184,10 @@ static TypeInfo virtio_9p_info = {
     .class_init    = virtio_9p_class_init,
 };
 
-static void virtio_9p_register_devices(void)
+static void virtio_9p_register_types(void)
 {
     type_register_static(&virtio_9p_info);
     virtio_9p_set_fd_limit();
 }
 
-device_init(virtio_9p_register_devices)
+type_init(virtio_9p_register_types)

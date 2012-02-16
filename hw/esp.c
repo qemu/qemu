@@ -775,9 +775,9 @@ static TypeInfo esp_info = {
     .class_init    = esp_class_init,
 };
 
-static void esp_register_devices(void)
+static void esp_register_types(void)
 {
     type_register_static(&esp_info);
 }
 
-device_init(esp_register_devices)
+type_init(esp_register_types)

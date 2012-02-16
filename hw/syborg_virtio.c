@@ -309,9 +309,9 @@ static TypeInfo syborg_virtio_net_info = {
     .class_init = syborg_virtio_net_class_init
 };
 
-static void syborg_virtio_register_devices(void)
+static void syborg_virtio_register_types(void)
 {
     type_register_static(&syborg_virtio_net_info);
 }
 
-device_init(syborg_virtio_register_devices)
+type_init(syborg_virtio_register_types)

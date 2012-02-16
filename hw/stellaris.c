@@ -1451,7 +1451,7 @@ static TypeInfo stellaris_adc_info = {
     .class_init    = stellaris_adc_class_init,
 };
 
-static void stellaris_register_devices(void)
+static void stellaris_register_types(void)
 {
     type_register_static(&stellaris_i2c_info);
     type_register_static(&stellaris_gptm_info);
@@ -1459,4 +1459,4 @@ static void stellaris_register_devices(void)
     type_register_static(&stellaris_ssi_bus_info);
 }
 
-device_init(stellaris_register_devices)
+type_init(stellaris_register_types)

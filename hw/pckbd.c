@@ -513,8 +513,9 @@ static TypeInfo i8042_info = {
     .class_init    = i8042_class_initfn,
 };
 
-static void i8042_register(void)
+static void i8042_register_types(void)
 {
     type_register_static(&i8042_info);
 }
-device_init(i8042_register)
+
+type_init(i8042_register_types)

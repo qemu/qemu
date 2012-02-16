@@ -917,9 +917,9 @@ static TypeInfo serial_isa_info = {
     .class_init    = serial_isa_class_initfn,
 };
 
-static void serial_register_devices(void)
+static void serial_register_types(void)
 {
     type_register_static(&serial_isa_info);
 }
 
-device_init(serial_register_devices)
+type_init(serial_register_types)

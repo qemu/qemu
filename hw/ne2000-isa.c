@@ -104,9 +104,9 @@ static TypeInfo ne2000_isa_info = {
     .class_init    = isa_ne2000_class_initfn,
 };
 
-static void ne2000_isa_register_devices(void)
+static void ne2000_isa_register_types(void)
 {
     type_register_static(&ne2000_isa_info);
 }
 
-device_init(ne2000_isa_register_devices)
+type_init(ne2000_isa_register_types)

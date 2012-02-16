@@ -607,7 +607,7 @@ static int usb_audio_handle_data(USBDevice *dev, USBPacket *p)
 
     switch (p->pid) {
     case USB_TOKEN_OUT:
-        switch (p->devep) {
+        switch (p->ep->nr) {
         case 1:
             ret = usb_audio_handle_dataout(s, p);
             break;
@@ -624,7 +624,7 @@ fail:
     if (ret == USB_RET_STALL && s->debug) {
         fprintf(stderr, "usb-audio: failed data transaction: "
                         "pid 0x%x ep 0x%x len 0x%zx\n",
-                        p->pid, p->devep, p->iov.size);
+                        p->pid, p->ep->nr, p->iov.size);
     }
     return ret;
 }
@@ -691,7 +691,6 @@ static void usb_audio_class_init(ObjectClass *klass, void *data)
     k->product_desc   = "QEMU USB Audio Interface";
     k->usb_desc       = &desc_audio;
     k->init           = usb_audio_initfn;
-    k->handle_packet  = usb_generic_handle_packet;
     k->handle_reset   = usb_audio_handle_reset;
     k->handle_control = usb_audio_handle_control;
     k->handle_data    = usb_audio_handle_data;
@@ -706,10 +705,10 @@ static TypeInfo usb_audio_info = {
     .class_init    = usb_audio_class_init,
 };
 
-static void usb_audio_register_devices(void)
+static void usb_audio_register_types(void)
 {
     type_register_static(&usb_audio_info);
     usb_legacy_register("usb-audio", "audio", NULL);
 }
 
-device_init(usb_audio_register_devices)
+type_init(usb_audio_register_types)

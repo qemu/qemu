@@ -242,13 +242,13 @@ static TypeInfo spapr_phb_info = {
     .class_init    = spapr_phb_class_init,
 };
 
-static void spapr_register_devices(void)
+static void spapr_register_types(void)
 {
     type_register_static(&spapr_phb_info);
     type_register_static(&spapr_main_pci_host_info);
 }
 
-device_init(spapr_register_devices)
+type_init(spapr_register_types)
 
 static uint64_t spapr_io_read(void *opaque, target_phys_addr_t addr,
                               unsigned size)

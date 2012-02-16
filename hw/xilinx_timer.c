@@ -241,9 +241,9 @@ static TypeInfo xilinx_timer_info = {
     .class_init    = xilinx_timer_class_init,
 };
 
-static void xilinx_timer_register(void)
+static void xilinx_timer_register_types(void)
 {
     type_register_static(&xilinx_timer_info);
 }
 
-device_init(xilinx_timer_register)
+type_init(xilinx_timer_register_types)

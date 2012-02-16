@@ -235,9 +235,9 @@ static TypeInfo syborg_int_info = {
     .class_init = syborg_int_class_init
 };
 
-static void syborg_interrupt_register_devices(void)
+static void syborg_interrupt_register_types(void)
 {
     type_register_static(&syborg_int_info);
 }
 
-device_init(syborg_interrupt_register_devices)
+type_init(syborg_interrupt_register_types)

@@ -2330,7 +2330,7 @@ static TypeInfo pxa2xx_ssp_info = {
     .class_init    = pxa2xx_ssp_class_init,
 };
 
-static void pxa2xx_register_devices(void)
+static void pxa2xx_register_types(void)
 {
     type_register_static(&pxa2xx_i2c_slave_info);
     type_register_static(&pxa2xx_ssp_info);
@@ -2338,4 +2338,4 @@ static void pxa2xx_register_devices(void)
     type_register_static(&pxa2xx_rtc_sysbus_info);
 }
 
-device_init(pxa2xx_register_devices)
+type_init(pxa2xx_register_types)

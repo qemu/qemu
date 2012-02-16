@@ -553,10 +553,10 @@ static TypeInfo icp_pic_info = {
     .class_init    = icp_pic_class_init,
 };
 
-static void integratorcp_register_devices(void)
+static void integratorcp_register_types(void)
 {
     type_register_static(&icp_pic_info);
     type_register_static(&core_info);
 }
 
-device_init(integratorcp_register_devices)
+type_init(integratorcp_register_types)

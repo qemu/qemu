@@ -556,9 +556,9 @@ static TypeInfo fw_cfg_info = {
     .class_init    = fw_cfg_class_init,
 };
 
-static void fw_cfg_register_devices(void)
+static void fw_cfg_register_types(void)
 {
     type_register_static(&fw_cfg_info);
 }
 
-device_init(fw_cfg_register_devices)
+type_init(fw_cfg_register_types)

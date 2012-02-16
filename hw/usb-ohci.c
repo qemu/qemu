@@ -408,6 +408,23 @@ static void ohci_child_detach(USBPort *port1, USBDevice *child)
     ohci_async_cancel_device(s, child);
 }
 
+static USBDevice *ohci_find_device(OHCIState *ohci, uint8_t addr)
+{
+    USBDevice *dev;
+    int i;
+
+    for (i = 0; i < ohci->num_ports; i++) {
+        if ((ohci->rhport[i].ctrl & OHCI_PORT_PES) == 0) {
+            continue;
+        }
+        dev = usb_find_device(&ohci->rhport[i].port, addr);
+        if (dev != NULL) {
+            return dev;
+        }
+    }
+    return NULL;
+}
+
 /* Reset the controller */
 static void ohci_reset(void *opaque)
 {
@@ -449,7 +466,7 @@ static void ohci_reset(void *opaque)
         port = &ohci->rhport[i];
         port->ctrl = 0;
         if (port->port.dev && port->port.dev->attached) {
-            usb_reset(&port->port);
+            usb_port_reset(&port->port);
         }
       }
     if (ohci->async_td) {
@@ -640,6 +657,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     int ret;
     int i;
     USBDevice *dev;
+    USBEndpoint *ep;
     struct ohci_iso_td iso_td;
     uint32_t addr;
     uint16_t starting_frame;
@@ -779,20 +797,11 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
     if (completion) {
         ret = ohci->usb_packet.result;
     } else {
-        ret = USB_RET_NODEV;
-        for (i = 0; i < ohci->num_ports; i++) {
-            dev = ohci->rhport[i].port.dev;
-            if ((ohci->rhport[i].ctrl & OHCI_PORT_PES) == 0)
-                continue;
-            usb_packet_setup(&ohci->usb_packet, pid,
-                             OHCI_BM(ed->flags, ED_FA),
-                             OHCI_BM(ed->flags, ED_EN));
-            usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
-            ret = usb_handle_packet(dev, &ohci->usb_packet);
-            if (ret != USB_RET_NODEV)
-                break;
-        }
-    
+        dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
+        ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
+        usb_packet_setup(&ohci->usb_packet, pid, ep);
+        usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, len);
+        ret = usb_handle_packet(dev, &ohci->usb_packet);
         if (ret == USB_RET_ASYNC) {
             return 1;
         }
@@ -880,6 +889,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
     int ret;
     int i;
     USBDevice *dev;
+    USBEndpoint *ep;
     struct ohci_td td;
     uint32_t addr;
     int flag_r;
@@ -972,31 +982,22 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
         ohci->async_td = 0;
         ohci->async_complete = 0;
     } else {
-        ret = USB_RET_NODEV;
-        for (i = 0; i < ohci->num_ports; i++) {
-            dev = ohci->rhport[i].port.dev;
-            if ((ohci->rhport[i].ctrl & OHCI_PORT_PES) == 0)
-                continue;
-
-            if (ohci->async_td) {
-                /* ??? The hardware should allow one active packet per
-                   endpoint.  We only allow one active packet per controller.
-                   This should be sufficient as long as devices respond in a
-                   timely manner.
-                 */
+        if (ohci->async_td) {
+            /* ??? The hardware should allow one active packet per
+               endpoint.  We only allow one active packet per controller.
+               This should be sufficient as long as devices respond in a
+               timely manner.
+            */
 #ifdef DEBUG_PACKET
-                DPRINTF("Too many pending packets\n");
+            DPRINTF("Too many pending packets\n");
 #endif
-                return 1;
-            }
-            usb_packet_setup(&ohci->usb_packet, pid,
-                             OHCI_BM(ed->flags, ED_FA),
-                             OHCI_BM(ed->flags, ED_EN));
-            usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, pktlen);
-            ret = usb_handle_packet(dev, &ohci->usb_packet);
-            if (ret != USB_RET_NODEV)
-                break;
+            return 1;
         }
+        dev = ohci_find_device(ohci, OHCI_BM(ed->flags, ED_FA));
+        ep = usb_ep_get(dev, pid, OHCI_BM(ed->flags, ED_EN));
+        usb_packet_setup(&ohci->usb_packet, pid, ep);
+        usb_packet_addbuf(&ohci->usb_packet, ohci->usb_buf, pktlen);
+        ret = usb_handle_packet(dev, &ohci->usb_packet);
 #ifdef DEBUG_PACKET
         DPRINTF("ret=%d\n", ret);
 #endif
@@ -1435,7 +1436,7 @@ static void ohci_port_set_status(OHCIState *ohci, int portnum, uint32_t val)
 
     if (ohci_port_set_if_connected(ohci, portnum, val & OHCI_PORT_PRS)) {
         DPRINTF("usb-ohci: port %d: RESET\n", portnum);
-        usb_send_msg(port->port.dev, USB_MSG_RESET);
+        usb_device_reset(port->port.dev);
         port->ctrl &= ~OHCI_PORT_PRS;
         /* ??? Should this also set OHCI_PORT_PESC.  */
         port->ctrl |= OHCI_PORT_PES | OHCI_PORT_PRSC;
@@ -1708,8 +1709,8 @@ static void ohci_mem_write(void *opaque,
 static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev)
 {
     if (ohci->async_td &&
-        ohci->usb_packet.owner != NULL &&
-        ohci->usb_packet.owner->dev == dev) {
+        usb_packet_is_inflight(&ohci->usb_packet) &&
+        ohci->usb_packet.ep->dev == dev) {
         usb_cancel_packet(&ohci->usb_packet);
         ohci->async_td = 0;
     }
@@ -1886,9 +1887,10 @@ static TypeInfo ohci_sysbus_info = {
     .class_init    = ohci_sysbus_class_init,
 };
 
-static void ohci_register(void)
+static void ohci_register_types(void)
 {
     type_register_static(&ohci_pci_info);
     type_register_static(&ohci_sysbus_info);
 }
-device_init(ohci_register);
+
+type_init(ohci_register_types)

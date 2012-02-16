@@ -103,9 +103,9 @@ static TypeInfo ch7xxx_info = {
     .class_init = ch7xx_class_init,
 };
 
-static void ch7xxx_register_devices(void)
+static void ch7xxx_register_types(void)
 {
     type_register_static(&ch7xxx_info);
 }
 
-device_init(ch7xxx_register_devices)
+type_init(ch7xxx_register_types)

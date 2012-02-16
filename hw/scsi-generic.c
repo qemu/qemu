@@ -483,10 +483,11 @@ static TypeInfo scsi_generic_info = {
     .class_init    = scsi_generic_class_initfn,
 };
 
-static void scsi_generic_register_devices(void)
+static void scsi_generic_register_types(void)
 {
     type_register_static(&scsi_generic_info);
 }
-device_init(scsi_generic_register_devices)
+
+type_init(scsi_generic_register_types)
 
 #endif /* __linux__ */

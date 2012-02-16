@@ -37,6 +37,7 @@ typedef struct USBHubPort {
 
 typedef struct USBHubState {
     USBDevice dev;
+    USBEndpoint *intr;
     USBHubPort ports[NUM_PORTS];
 } USBHubState;
 
@@ -163,7 +164,7 @@ static void usb_hub_attach(USBPort *port1)
     } else {
         port->wPortStatus &= ~PORT_STAT_LOW_SPEED;
     }
-    usb_wakeup(&s->dev);
+    usb_wakeup(s->intr);
 }
 
 static void usb_hub_detach(USBPort *port1)
@@ -171,7 +172,7 @@ static void usb_hub_detach(USBPort *port1)
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
 
-    usb_wakeup(&s->dev);
+    usb_wakeup(s->intr);
 
     /* Let upstream know the device on this port is gone */
     s->dev.port->ops->child_detach(s->dev.port, port1->dev);
@@ -199,7 +200,7 @@ static void usb_hub_wakeup(USBPort *port1)
 
     if (port->wPortStatus & PORT_STAT_SUSPEND) {
         port->wPortChange |= PORT_STAT_C_SUSPEND;
-        usb_wakeup(&s->dev);
+        usb_wakeup(s->intr);
     }
 }
 
@@ -218,6 +219,26 @@ static void usb_hub_complete(USBPort *port, USBPacket *packet)
      * instead.
      */
     s->dev.port->ops->complete(s->dev.port, packet);
+}
+
+static USBDevice *usb_hub_find_device(USBDevice *dev, uint8_t addr)
+{
+    USBHubState *s = DO_UPCAST(USBHubState, dev, dev);
+    USBHubPort *port;
+    USBDevice *downstream;
+    int i;
+
+    for (i = 0; i < NUM_PORTS; i++) {
+        port = &s->ports[i];
+        if (!(port->wPortStatus & PORT_STAT_ENABLE)) {
+            continue;
+        }
+        downstream = usb_find_device(&port->port, addr);
+        if (downstream != NULL) {
+            return downstream;
+        }
+    }
+    return NULL;
 }
 
 static void usb_hub_handle_reset(USBDevice *dev)
@@ -305,7 +326,7 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                 break;
             case PORT_RESET:
                 if (dev && dev->attached) {
-                    usb_send_msg(dev, USB_MSG_RESET);
+                    usb_device_reset(dev);
                     port->wPortChange |= PORT_STAT_C_RESET;
                     /* set enable bit */
                     port->wPortStatus |= PORT_STAT_ENABLE;
@@ -396,7 +417,7 @@ static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
 
     switch(p->pid) {
     case USB_TOKEN_IN:
-        if (p->devep == 1) {
+        if (p->ep->nr == 1) {
             USBHubPort *port;
             unsigned int status;
             uint8_t buf[4];
@@ -435,44 +456,6 @@ static int usb_hub_handle_data(USBDevice *dev, USBPacket *p)
     return ret;
 }
 
-static int usb_hub_broadcast_packet(USBHubState *s, USBPacket *p)
-{
-    USBHubPort *port;
-    USBDevice *dev;
-    int i, ret;
-
-    for(i = 0; i < NUM_PORTS; i++) {
-        port = &s->ports[i];
-        dev = port->port.dev;
-        if (dev && dev->attached && (port->wPortStatus & PORT_STAT_ENABLE)) {
-            ret = usb_handle_packet(dev, p);
-            if (ret != USB_RET_NODEV) {
-                return ret;
-            }
-        }
-    }
-    return USB_RET_NODEV;
-}
-
-static int usb_hub_handle_packet(USBDevice *dev, USBPacket *p)
-{
-    USBHubState *s = (USBHubState *)dev;
-
-#if defined(DEBUG) && 0
-    printf("usb_hub: pid=0x%x\n", pid);
-#endif
-    if (dev->state == USB_STATE_DEFAULT &&
-        dev->addr != 0 &&
-        p->devaddr != dev->addr &&
-        (p->pid == USB_TOKEN_SETUP ||
-         p->pid == USB_TOKEN_OUT ||
-         p->pid == USB_TOKEN_IN)) {
-        /* broadcast the packet to the devices */
-        return usb_hub_broadcast_packet(s, p);
-    }
-    return usb_generic_handle_packet(dev, p);
-}
-
 static void usb_hub_handle_destroy(USBDevice *dev)
 {
     USBHubState *s = (USBHubState *)dev;
@@ -499,6 +482,7 @@ static int usb_hub_initfn(USBDevice *dev)
     int i;
 
     usb_desc_init(dev);
+    s->intr = usb_ep_get(dev, USB_TOKEN_IN, 1);
     for (i = 0; i < NUM_PORTS; i++) {
         port = &s->ports[i];
         usb_register_port(usb_bus_from_device(dev),
@@ -541,7 +525,7 @@ static void usb_hub_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usb_hub_initfn;
     uc->product_desc   = "QEMU USB Hub";
     uc->usb_desc       = &desc_hub;
-    uc->handle_packet  = usb_hub_handle_packet;
+    uc->find_device    = usb_hub_find_device;
     uc->handle_reset   = usb_hub_handle_reset;
     uc->handle_control = usb_hub_handle_control;
     uc->handle_data    = usb_hub_handle_data;
@@ -557,8 +541,9 @@ static TypeInfo hub_info = {
     .class_init    = usb_hub_class_initfn,
 };
 
-static void usb_hub_register_devices(void)
+static void usb_hub_register_types(void)
 {
     type_register_static(&hub_info);
 }
-device_init(usb_hub_register_devices)
+
+type_init(usb_hub_register_types)

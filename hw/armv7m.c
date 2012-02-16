@@ -266,9 +266,9 @@ static TypeInfo bitband_info = {
     .class_init    = bitband_class_init,
 };
 
-static void armv7m_register_devices(void)
+static void armv7m_register_types(void)
 {
     type_register_static(&bitband_info);
 }
 
-device_init(armv7m_register_devices)
+type_init(armv7m_register_types)

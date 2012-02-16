@@ -136,10 +136,10 @@ static TypeInfo wdt_ib700_info = {
     .class_init    = wdt_ib700_class_init,
 };
 
-static void wdt_ib700_register_devices(void)
+static void wdt_ib700_register_types(void)
 {
     watchdog_add_model(&model);
     type_register_static(&wdt_ib700_info);
 }
 
-device_init(wdt_ib700_register_devices);
+type_init(wdt_ib700_register_types)

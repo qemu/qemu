@@ -501,7 +501,7 @@ static TypeInfo spapr_vlan_info = {
     .class_init    = spapr_vlan_class_init,
 };
 
-static void spapr_vlan_register(void)
+static void spapr_vlan_register_types(void)
 {
     spapr_register_hypercall(H_REGISTER_LOGICAL_LAN, h_register_logical_lan);
     spapr_register_hypercall(H_FREE_LOGICAL_LAN, h_free_logical_lan);
@@ -511,4 +511,5 @@ static void spapr_vlan_register(void)
     spapr_register_hypercall(H_MULTICAST_CTRL, h_multicast_ctrl);
     type_register_static(&spapr_vlan_info);
 }
-device_init(spapr_vlan_register);
+
+type_init(spapr_vlan_register_types)

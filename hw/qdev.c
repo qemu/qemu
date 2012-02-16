@@ -665,9 +665,9 @@ static TypeInfo device_type_info = {
     .class_size = sizeof(DeviceClass),
 };
 
-static void init_qdev(void)
+static void qdev_register_types(void)
 {
     type_register_static(&device_type_info);
 }
 
-device_init(init_qdev);
+type_init(qdev_register_types)

@@ -828,7 +828,7 @@ static TypeInfo onenand_info = {
     .class_init    = onenand_class_init,
 };
 
-static void onenand_register_device(void)
+static void onenand_register_types(void)
 {
     type_register_static(&onenand_info);
 }
@@ -838,4 +838,4 @@ void *onenand_raw_otp(DeviceState *onenand_device)
     return FROM_SYSBUS(OneNANDState, sysbus_from_qdev(onenand_device))->otp;
 }
 
-device_init(onenand_register_device)
+type_init(onenand_register_types)

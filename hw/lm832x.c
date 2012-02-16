@@ -513,9 +513,9 @@ static TypeInfo lm8323_info = {
     .class_init    = lm8323_class_init,
 };
 
-static void lm832x_register_devices(void)
+static void lm832x_register_types(void)
 {
     type_register_static(&lm8323_info);
 }
 
-device_init(lm832x_register_devices)
+type_init(lm832x_register_types)

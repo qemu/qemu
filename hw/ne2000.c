@@ -813,9 +813,9 @@ static TypeInfo ne2000_info = {
     .class_init    = ne2000_class_init,
 };
 
-static void ne2000_register_devices(void)
+static void ne2000_register_types(void)
 {
     type_register_static(&ne2000_info);
 }
 
-device_init(ne2000_register_devices)
+type_init(ne2000_register_types)

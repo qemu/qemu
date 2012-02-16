@@ -230,9 +230,9 @@ static TypeInfo i2c_slave_type_info = {
     .class_init = i2c_slave_class_init,
 };
 
-static void i2c_slave_register_devices(void)
+static void i2c_slave_register_types(void)
 {
     type_register_static(&i2c_slave_type_info);
 }
 
-device_init(i2c_slave_register_devices);
+type_init(i2c_slave_register_types)

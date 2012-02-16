@@ -4317,13 +4317,13 @@ static void ar7_machine_init(void)
     }
 }
 
-static void ar7_device_init(void)
+static void ar7_register_types(void)
 {
     type_register_static(&ar7_info);
     type_register_static(&ar7_cpmac_info);
 }
 
 machine_init(ar7_machine_init);
-device_init(ar7_device_init);
+type_init(ar7_register_types);
 
 /* eof */

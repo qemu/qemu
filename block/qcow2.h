@@ -87,6 +87,13 @@ typedef struct QCowSnapshot {
 struct Qcow2Cache;
 typedef struct Qcow2Cache Qcow2Cache;
 
+typedef struct Qcow2UnknownHeaderExtension {
+    uint32_t magic;
+    uint32_t len;
+    QLIST_ENTRY(Qcow2UnknownHeaderExtension) next;
+    uint8_t data[];
+} Qcow2UnknownHeaderExtension;
+
 typedef struct BDRVQcowState {
     int cluster_bits;
     int cluster_size;
@@ -127,6 +134,7 @@ typedef struct BDRVQcowState {
     QCowSnapshot *snapshots;
 
     int flags;
+    QLIST_HEAD(, Qcow2UnknownHeaderExtension) unknown_header_ext;
 } BDRVQcowState;
 
 /* XXX: use std qcow open function ? */
@@ -178,6 +186,7 @@ static inline int64_t align_offset(int64_t offset, int n)
 /* qcow2.c functions */
 int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
                   int64_t sector_num, int nb_sectors);
+int qcow2_update_header(BlockDriverState *bs);
 
 /* qcow2-refcount.c functions */
 int qcow2_refcount_init(BlockDriverState *bs);

@@ -862,12 +862,12 @@ static TypeInfo pci_tnetw1130_info = {
     .class_init = tnetw1130_class_init,
 };
 
-static void tnetw1130_register_device(void)
+static void tnetw1130_register_types(void)
 {
     type_register_static(&pci_tnetw1130_info);
 }
 
-device_init(tnetw1130_register_device)
+type_init(tnetw1130_register_types)
 
 /*
 

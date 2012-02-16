@@ -582,9 +582,9 @@ static TypeInfo s3c24xx_lcd_info = {
     .class_init = s3c24xx_lcd_class_init
 };
 
-static void s3c24xx_lcd_register_devices(void)
+static void s3c24xx_lcd_register_types(void)
 {
     type_register_static(&s3c24xx_lcd_info);
 }
 
-device_init(s3c24xx_lcd_register_devices)
+type_init(s3c24xx_lcd_register_types)

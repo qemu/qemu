@@ -34,6 +34,7 @@
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <usbredirparser.h>
+#include <usbredirfilter.h>
 
 #include "hw/usb.h"
 
@@ -72,6 +73,7 @@ struct USBRedirDevice {
     /* Properties */
     CharDriverState *cs;
     uint8_t debug;
+    char *filter_str;
     /* Data passed from chardev the fd_read cb to the usbredirparser read cb */
     const uint8_t *read_buf;
     int read_buf_size;
@@ -84,6 +86,11 @@ struct USBRedirDevice {
     struct endp_data endpoint[MAX_ENDPOINTS];
     uint32_t packet_id;
     QTAILQ_HEAD(, AsyncURB) asyncq;
+    /* Data for device filtering */
+    struct usb_redir_device_connect_header device_info;
+    struct usb_redir_interface_info_header interface_info;
+    struct usbredirfilter_rule *filter_rules;
+    int filter_rules_count;
 };
 
 struct AsyncURB {
@@ -603,7 +610,7 @@ static int usbredir_handle_data(USBDevice *udev, USBPacket *p)
     USBRedirDevice *dev = DO_UPCAST(USBRedirDevice, dev, udev);
     uint8_t ep;
 
-    ep = p->devep;
+    ep = p->ep->nr;
     if (p->pid == USB_TOKEN_IN) {
         ep |= USB_DIR_IN;
     }
@@ -780,6 +787,7 @@ static int usbredir_handle_control(USBDevice *udev, USBPacket *p,
 static void usbredir_open_close_bh(void *opaque)
 {
     USBRedirDevice *dev = opaque;
+    uint32_t caps[USB_REDIR_CAPS_SIZE] = { 0, };
 
     usbredir_device_disconnect(dev);
 
@@ -810,7 +818,9 @@ static void usbredir_open_close_bh(void *opaque)
         dev->parser->interrupt_packet_func = usbredir_interrupt_packet;
         dev->read_buf = NULL;
         dev->read_buf_size = 0;
-        usbredirparser_init(dev->parser, VERSION, NULL, 0, 0);
+
+        usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
+        usbredirparser_init(dev->parser, VERSION, caps, USB_REDIR_CAPS_SIZE, 0);
         usbredirparser_do_write(dev->parser);
     }
 }
@@ -880,6 +890,17 @@ static int usbredir_initfn(USBDevice *udev)
         return -1;
     }
 
+    if (dev->filter_str) {
+        i = usbredirfilter_string_to_rules(dev->filter_str, ":", "|",
+                                           &dev->filter_rules,
+                                           &dev->filter_rules_count);
+        if (i) {
+            qerror_report(QERR_INVALID_PARAMETER_VALUE, "filter",
+                          "a usb device filter string");
+            return -1;
+        }
+    }
+
     dev->open_close_bh = qemu_bh_new(usbredir_open_close_bh, dev);
     dev->attach_timer = qemu_new_timer_ms(vm_clock, usbredir_do_attach, dev);
 
@@ -929,6 +950,44 @@ static void usbredir_handle_destroy(USBDevice *udev)
     if (dev->parser) {
         usbredirparser_destroy(dev->parser);
     }
+
+    free(dev->filter_rules);
+}
+
+static int usbredir_check_filter(USBRedirDevice *dev)
+{
+    if (dev->interface_info.interface_count == 0) {
+        ERROR("No interface info for device\n");
+        return -1;
+    }
+
+    if (dev->filter_rules) {
+        if (!usbredirparser_peer_has_cap(dev->parser,
+                                    usb_redir_cap_connect_device_version)) {
+            ERROR("Device filter specified and peer does not have the "
+                  "connect_device_version capability\n");
+            return -1;
+        }
+
+        if (usbredirfilter_check(
+                dev->filter_rules,
+                dev->filter_rules_count,
+                dev->device_info.device_class,
+                dev->device_info.device_subclass,
+                dev->device_info.device_protocol,
+                dev->interface_info.interface_class,
+                dev->interface_info.interface_subclass,
+                dev->interface_info.interface_protocol,
+                dev->interface_info.interface_count,
+                dev->device_info.vendor_id,
+                dev->device_info.product_id,
+                dev->device_info.device_version_bcd,
+                0) != 0) {
+            return -1;
+        }
+    }
+
+    return 0;
 }
 
 /*
@@ -957,6 +1016,7 @@ static void usbredir_device_connect(void *priv,
     struct usb_redir_device_connect_header *device_connect)
 {
     USBRedirDevice *dev = priv;
+    const char *speed;
 
     if (qemu_timer_pending(dev->attach_timer) || dev->dev.attached) {
         ERROR("Received device connect while already connected\n");
@@ -965,26 +1025,48 @@ static void usbredir_device_connect(void *priv,
 
     switch (device_connect->speed) {
     case usb_redir_speed_low:
-        DPRINTF("attaching low speed device\n");
+        speed = "low speed";
         dev->dev.speed = USB_SPEED_LOW;
         break;
     case usb_redir_speed_full:
-        DPRINTF("attaching full speed device\n");
+        speed = "full speed";
         dev->dev.speed = USB_SPEED_FULL;
         break;
     case usb_redir_speed_high:
-        DPRINTF("attaching high speed device\n");
+        speed = "high speed";
         dev->dev.speed = USB_SPEED_HIGH;
         break;
     case usb_redir_speed_super:
-        DPRINTF("attaching super speed device\n");
+        speed = "super speed";
         dev->dev.speed = USB_SPEED_SUPER;
         break;
     default:
-        DPRINTF("attaching unknown speed device, assuming full speed\n");
+        speed = "unknown speed";
         dev->dev.speed = USB_SPEED_FULL;
     }
+
+    if (usbredirparser_peer_has_cap(dev->parser,
+                                    usb_redir_cap_connect_device_version)) {
+        INFO("attaching %s device %04x:%04x version %d.%d class %02x\n",
+             speed, device_connect->vendor_id, device_connect->product_id,
+             device_connect->device_version_bcd >> 8,
+             device_connect->device_version_bcd & 0xff,
+             device_connect->device_class);
+    } else {
+        INFO("attaching %s device %04x:%04x class %02x\n", speed,
+             device_connect->vendor_id, device_connect->product_id,
+             device_connect->device_class);
+    }
+
     dev->dev.speedmask = (1 << dev->dev.speed);
+    dev->device_info = *device_connect;
+
+    if (usbredir_check_filter(dev)) {
+        WARNING("Device %04x:%04x rejected by device filter, not attaching\n",
+                device_connect->vendor_id, device_connect->product_id);
+        return;
+    }
+
     qemu_mod_timer(dev->attach_timer, dev->next_attach_time);
 }
 
@@ -1011,15 +1093,27 @@ static void usbredir_device_disconnect(void *priv)
     for (i = 0; i < MAX_ENDPOINTS; i++) {
         QTAILQ_INIT(&dev->endpoint[i].bufpq);
     }
+    dev->interface_info.interface_count = 0;
 }
 
 static void usbredir_interface_info(void *priv,
     struct usb_redir_interface_info_header *interface_info)
 {
-    /* The intention is to allow specifying acceptable interface classes
-       for redirection on the cmdline and in the future verify this here,
-       and disconnect (or never connect) the device if a not accepted
-       interface class is detected */
+    USBRedirDevice *dev = priv;
+
+    dev->interface_info = *interface_info;
+
+    /*
+     * If we receive interface info after the device has already been
+     * connected (ie on a set_config), re-check the filter.
+     */
+    if (qemu_timer_pending(dev->attach_timer) || dev->dev.attached) {
+        if (usbredir_check_filter(dev)) {
+            ERROR("Device no longer matches filter after interface info "
+                  "change, disconnecting!\n");
+            usbredir_device_disconnect(dev);
+        }
+    }
 }
 
 static void usbredir_ep_info(void *priv,
@@ -1318,6 +1412,7 @@ static void usbredir_interrupt_packet(void *priv, uint32_t id,
 static Property usbredir_properties[] = {
     DEFINE_PROP_CHR("chardev", USBRedirDevice, cs),
     DEFINE_PROP_UINT8("debug", USBRedirDevice, debug, 0),
+    DEFINE_PROP_STRING("filter", USBRedirDevice, filter_str),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -1329,7 +1424,6 @@ static void usbredir_class_initfn(ObjectClass *klass, void *data)
     uc->init           = usbredir_initfn;
     uc->product_desc   = "USB Redirection Device";
     uc->handle_destroy = usbredir_handle_destroy;
-    uc->handle_packet  = usb_generic_handle_packet;
     uc->cancel_packet  = usbredir_cancel_packet;
     uc->handle_reset   = usbredir_handle_reset;
     uc->handle_data    = usbredir_handle_data;
@@ -1344,8 +1438,9 @@ static TypeInfo usbredir_dev_info = {
     .class_init    = usbredir_class_initfn,
 };
 
-static void usbredir_register_devices(void)
+static void usbredir_register_types(void)
 {
     type_register_static(&usbredir_dev_info);
 }
-device_init(usbredir_register_devices);
+
+type_init(usbredir_register_types)
