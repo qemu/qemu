@@ -330,7 +330,7 @@ struct TypeInfo
 
 /**
  * OBJECT_CLASS:
- * @class: A derivative of #ObjectClas.
+ * @class: A derivative of #ObjectClass.
  *
  * Converts a class to an #ObjectClass.  Since all objects are #Objects,
  * this function will always succeed.
