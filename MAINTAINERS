@@ -191,6 +191,12 @@ M: Dmitry Solodkiy <d.solodkiy@samsung.com>
 S: Maintained
 F: hw/exynos*
 
+Calxeda Highbank
+M: Mark Langsdorf <mark.langsdorf@calxeda.com>
+S: Supported
+F: hw/highbank.c
+F: hw/xgmac.c
+
 Gumstix
 M: qemu-devel@nongnu.org
 S: Orphan
