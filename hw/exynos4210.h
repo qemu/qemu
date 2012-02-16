@@ -31,6 +31,28 @@
 
 #define EXYNOS4210_NCPUS                    2
 
+#define EXYNOS4210_DRAM0_BASE_ADDR          0x40000000
+#define EXYNOS4210_DRAM1_BASE_ADDR          0xa0000000
+#define EXYNOS4210_DRAM_MAX_SIZE            0x60000000  /* 1.5 GB */
+
+#define EXYNOS4210_IROM_BASE_ADDR           0x00000000
+#define EXYNOS4210_IROM_SIZE                0x00010000  /* 64 KB */
+#define EXYNOS4210_IROM_MIRROR_BASE_ADDR    0x02000000
+#define EXYNOS4210_IROM_MIRROR_SIZE         0x00010000  /* 64 KB */
+
+#define EXYNOS4210_IRAM_BASE_ADDR           0x02020000
+#define EXYNOS4210_IRAM_SIZE                0x00020000  /* 128 KB */
+
+/* Secondary CPU startup code is in IROM memory */
+#define EXYNOS4210_SMP_BOOT_ADDR            EXYNOS4210_IROM_BASE_ADDR
+#define EXYNOS4210_SMP_BOOT_SIZE            0x1000
+#define EXYNOS4210_BASE_BOOT_ADDR           EXYNOS4210_DRAM0_BASE_ADDR
+/* Secondary CPU polling address to get loader start from */
+#define EXYNOS4210_SECOND_CPU_BOOTREG       0x10020814
+
+#define EXYNOS4210_SMP_PRIVATE_BASE_ADDR    0x10500000
+#define EXYNOS4210_L2X0_BASE_ADDR           0x10502000
+
 /*
  * exynos4210 IRQ subsystem stub definitions.
  */
@@ -59,6 +81,24 @@ typedef struct Exynos4210Irq {
     qemu_irq ext_gic_irq[EXYNOS4210_EXT_GIC_NIRQ];
     qemu_irq board_irqs[EXYNOS4210_MAX_INT_COMBINER_IN_IRQ];
 } Exynos4210Irq;
+
+typedef struct Exynos4210State {
+    CPUState * env[EXYNOS4210_NCPUS];
+    Exynos4210Irq irqs;
+    qemu_irq *irq_table;
+
+    MemoryRegion chipid_mem;
+    MemoryRegion iram_mem;
+    MemoryRegion irom_mem;
+    MemoryRegion irom_alias_mem;
+    MemoryRegion dram0_mem;
+    MemoryRegion dram1_mem;
+    MemoryRegion boot_secondary;
+    MemoryRegion bootreg_mem;
+} Exynos4210State;
+
+Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
+        unsigned long ram_size);
 
 /* Initialize exynos4210 IRQ subsystem stub */
 qemu_irq *exynos4210_init_irq(Exynos4210Irq *env);
