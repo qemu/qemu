@@ -222,21 +222,23 @@ static void realview_init(ram_addr_t ram_size,
     sysbus_mmio_map(sysbus_from_qdev(sysctl), 0, 0x10000000);
 
     if (is_mpcore) {
+        target_phys_addr_t periphbase;
         dev = qdev_create(NULL, is_pb ? "a9mpcore_priv": "realview_mpcore");
         qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
         qdev_init_nofail(dev);
         busdev = sysbus_from_qdev(dev);
         if (is_pb) {
-            realview_binfo.smp_priv_base = 0x1f000000;
+            periphbase = 0x1f000000;
         } else {
-            realview_binfo.smp_priv_base = 0x10100000;
+            periphbase = 0x10100000;
         }
-        sysbus_mmio_map(busdev, 0, realview_binfo.smp_priv_base);
+        sysbus_mmio_map(busdev, 0, periphbase);
         for (n = 0; n < smp_cpus; n++) {
             sysbus_connect_irq(busdev, n, cpu_irq[n]);
         }
-        sysbus_create_varargs("l2x0", realview_binfo.smp_priv_base + 0x2000,
-                              NULL);
+        sysbus_create_varargs("l2x0", periphbase + 0x2000, NULL);
+        /* Both A9 and 11MPCore put the GIC CPU i/f at base + 0x100 */
+        realview_binfo.gic_cpu_if_addr = periphbase + 0x100;
     } else {
         uint32_t gic_addr = is_pb ? 0x1e000000 : 0x10040000;
         /* For now just create the nIRQ GIC, and ignore the others.  */

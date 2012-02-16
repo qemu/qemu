@@ -115,6 +115,7 @@ typedef void DBoardInitFn(const VEDBoardInfo *daughterboard,
 struct VEDBoardInfo {
     const target_phys_addr_t *motherboard_map;
     target_phys_addr_t loader_start;
+    const target_phys_addr_t gic_cpu_if_addr;
     DBoardInitFn *init;
 };
 
@@ -175,8 +176,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
     qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
     qdev_init_nofail(dev);
     busdev = sysbus_from_qdev(dev);
-    vexpress_binfo.smp_priv_base = 0x1e000000;
-    sysbus_mmio_map(busdev, 0, vexpress_binfo.smp_priv_base);
+    sysbus_mmio_map(busdev, 0, 0x1e000000);
     for (n = 0; n < smp_cpus; n++) {
         sysbus_connect_irq(busdev, n, cpu_irq[n]);
     }
@@ -214,6 +214,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
 static const VEDBoardInfo a9_daughterboard = {
     .motherboard_map = motherboard_legacy_map,
     .loader_start = 0x60000000,
+    .gic_cpu_if_addr = 0x1e000100,
     .init = a9_daughterboard_init,
 };
 
@@ -316,6 +317,7 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
     vexpress_binfo.loader_start = daughterboard->loader_start;
     vexpress_binfo.smp_loader_start = map[VE_SRAM];
     vexpress_binfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
+    vexpress_binfo.gic_cpu_if_addr = daughterboard->gic_cpu_if_addr;
     arm_load_kernel(first_cpu, &vexpress_binfo);
 }
 

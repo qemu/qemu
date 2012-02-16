@@ -112,7 +112,8 @@ static Exynos4210State *exynos4_boards_init_common(
     exynos4_board_binfo.kernel_filename = kernel_filename;
     exynos4_board_binfo.initrd_filename = initrd_filename;
     exynos4_board_binfo.kernel_cmdline = kernel_cmdline;
-    exynos4_board_binfo.smp_priv_base = EXYNOS4210_SMP_PRIVATE_BASE_ADDR;
+    exynos4_board_binfo.gic_cpu_if_addr =
+            EXYNOS4210_SMP_PRIVATE_BASE_ADDR + 0x100;
 
     PRINT_DEBUG("\n ram_size: %luMiB [0x%08lx]\n"
             " kernel_filename: %s\n"
