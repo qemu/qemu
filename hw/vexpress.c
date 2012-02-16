@@ -282,7 +282,7 @@ static void vexpress_common_init(const VEDBoardInfo *daughterboard,
 
     /* VE_COMPACTFLASH: not modelled */
 
-    /* VE_CLCD: not modelled (we use the daughterboard CLCD only) */
+    sysbus_create_simple("pl111", map[VE_CLCD], pic[14]);
 
     /* VE_NORFLASH0: not modelled */
     /* VE_NORFLASH0ALIAS: not modelled */
