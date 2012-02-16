@@ -58,6 +58,9 @@
 /* PMU SFR base address */
 #define EXYNOS4210_PMU_BASE_ADDR            0x10020000
 
+/* Display controllers (FIMD) */
+#define EXYNOS4210_FIMD0_BASE_ADDR          0x11C00000
+
 static uint8_t chipid_and_omr[] = { 0x11, 0x02, 0x21, 0x43,
                                     0x09, 0x00, 0x00, 0x00 };
 
@@ -255,6 +258,13 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     exynos4210_uart_create(EXYNOS4210_UART3_BASE_ADDR,
                            EXYNOS4210_UART3_FIFO_SIZE, 3, NULL,
                   s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 3)]);
+
+    /*** Display controller (FIMD) ***/
+    sysbus_create_varargs("exynos4210.fimd", EXYNOS4210_FIMD0_BASE_ADDR,
+            s->irq_table[exynos4210_get_irq(11, 0)],
+            s->irq_table[exynos4210_get_irq(11, 1)],
+            s->irq_table[exynos4210_get_irq(11, 2)],
+            NULL);
 
     return s;
 }
