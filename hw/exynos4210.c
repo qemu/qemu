@@ -52,6 +52,9 @@
 #define EXYNOS4210_EXT_COMBINER_BASE_ADDR   0x10440000
 #define EXYNOS4210_INT_COMBINER_BASE_ADDR   0x10448000
 
+/* PMU SFR base address */
+#define EXYNOS4210_PMU_BASE_ADDR            0x10020000
+
 static uint8_t chipid_and_omr[] = { 0x11, 0x02, 0x21, 0x43,
                                     0x09, 0x00, 0x00, 0x00 };
 
@@ -201,6 +204,12 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     vmstate_register_ram_global(&s->dram0_mem);
     memory_region_add_subregion(system_mem, EXYNOS4210_DRAM0_BASE_ADDR,
             &s->dram0_mem);
+
+   /* PMU.
+    * The only reason of existence at the moment is that secondary CPU boot
+    * loader uses PMU INFORM5 register as a holding pen.
+    */
+    sysbus_create_simple("exynos4210.pmu", EXYNOS4210_PMU_BASE_ADDR, NULL);
 
     /* PWM */
     sysbus_create_varargs("exynos4210.pwm", EXYNOS4210_PWM_BASE_ADDR,
