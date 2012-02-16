@@ -29,6 +29,9 @@
 
 #define EXYNOS4210_CHIPID_ADDR         0x10000000
 
+/* PWM */
+#define EXYNOS4210_PWM_BASE_ADDR       0x139D0000
+
 /* UART's definitions */
 #define EXYNOS4210_UART0_BASE_ADDR     0x13800000
 #define EXYNOS4210_UART1_BASE_ADDR     0x13810000
@@ -198,6 +201,15 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     vmstate_register_ram_global(&s->dram0_mem);
     memory_region_add_subregion(system_mem, EXYNOS4210_DRAM0_BASE_ADDR,
             &s->dram0_mem);
+
+    /* PWM */
+    sysbus_create_varargs("exynos4210.pwm", EXYNOS4210_PWM_BASE_ADDR,
+                          s->irq_table[exynos4210_get_irq(22, 0)],
+                          s->irq_table[exynos4210_get_irq(22, 1)],
+                          s->irq_table[exynos4210_get_irq(22, 2)],
+                          s->irq_table[exynos4210_get_irq(22, 3)],
+                          s->irq_table[exynos4210_get_irq(22, 4)],
+                          NULL);
 
     /*** UARTs ***/
     exynos4210_uart_create(EXYNOS4210_UART0_BASE_ADDR,
