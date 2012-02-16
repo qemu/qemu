@@ -103,6 +103,41 @@ static target_phys_addr_t motherboard_legacy_map[] = {
     [VE_USB] = 0x4f000000,
 };
 
+static target_phys_addr_t motherboard_aseries_map[] = {
+    /* CS0: 0x00000000 .. 0x0c000000 */
+    [VE_NORFLASH0] = 0x00000000,
+    [VE_NORFLASH0ALIAS] = 0x08000000,
+    /* CS4: 0x0c000000 .. 0x10000000 */
+    [VE_NORFLASH1] = 0x0c000000,
+    /* CS5: 0x10000000 .. 0x14000000 */
+    /* CS1: 0x14000000 .. 0x18000000 */
+    [VE_SRAM] = 0x14000000,
+    /* CS2: 0x18000000 .. 0x1c000000 */
+    [VE_VIDEORAM] = 0x18000000,
+    [VE_ETHERNET] = 0x1a000000,
+    [VE_USB] = 0x1b000000,
+    /* CS3: 0x1c000000 .. 0x20000000 */
+    [VE_DAPROM] = 0x1c000000,
+    [VE_SYSREGS] = 0x1c010000,
+    [VE_SP810] = 0x1c020000,
+    [VE_SERIALPCI] = 0x1c030000,
+    [VE_PL041] = 0x1c040000,
+    [VE_MMCI] = 0x1c050000,
+    [VE_KMI0] = 0x1c060000,
+    [VE_KMI1] = 0x1c070000,
+    [VE_UART0] = 0x1c090000,
+    [VE_UART1] = 0x1c0a0000,
+    [VE_UART2] = 0x1c0b0000,
+    [VE_UART3] = 0x1c0c0000,
+    [VE_WDT] = 0x1c0f0000,
+    [VE_TIMER01] = 0x1c110000,
+    [VE_TIMER23] = 0x1c120000,
+    [VE_SERIALDVI] = 0x1c160000,
+    [VE_RTC] = 0x1c170000,
+    [VE_COMPACTFLASH] = 0x1c1a0000,
+    [VE_CLCD] = 0x1c1f0000,
+};
+
 /* Structure defining the peculiarities of a specific daughterboard */
 
 typedef struct VEDBoardInfo VEDBoardInfo;
@@ -216,6 +251,91 @@ static const VEDBoardInfo a9_daughterboard = {
     .loader_start = 0x60000000,
     .gic_cpu_if_addr = 0x1e000100,
     .init = a9_daughterboard_init,
+};
+
+static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
+                                   ram_addr_t ram_size,
+                                   const char *cpu_model,
+                                   qemu_irq *pic, uint32_t *proc_id)
+{
+    int n;
+    CPUState *env = NULL;
+    MemoryRegion *sysmem = get_system_memory();
+    MemoryRegion *ram = g_new(MemoryRegion, 1);
+    MemoryRegion *sram = g_new(MemoryRegion, 1);
+    qemu_irq cpu_irq[4];
+    DeviceState *dev;
+    SysBusDevice *busdev;
+
+    if (!cpu_model) {
+        cpu_model = "cortex-a15";
+    }
+
+    *proc_id = 0x14000217;
+
+    for (n = 0; n < smp_cpus; n++) {
+        qemu_irq *irqp;
+        env = cpu_init(cpu_model);
+        if (!env) {
+            fprintf(stderr, "Unable to find CPU definition\n");
+            exit(1);
+        }
+        irqp = arm_pic_init_cpu(env);
+        cpu_irq[n] = irqp[ARM_PIC_CPU_IRQ];
+    }
+
+    if (ram_size > 0x80000000) {
+        fprintf(stderr, "vexpress-a15: cannot model more than 2GB RAM\n");
+        exit(1);
+    }
+
+    memory_region_init_ram(ram, "vexpress.highmem", ram_size);
+    vmstate_register_ram_global(ram);
+    /* RAM is from 0x80000000 upwards; there is no low-memory alias for it. */
+    memory_region_add_subregion(sysmem, 0x80000000, ram);
+
+    /* 0x2c000000 A15MPCore private memory region (GIC) */
+    dev = qdev_create(NULL, "a15mpcore_priv");
+    qdev_prop_set_uint32(dev, "num-cpu", smp_cpus);
+    qdev_init_nofail(dev);
+    busdev = sysbus_from_qdev(dev);
+    sysbus_mmio_map(busdev, 0, 0x2c000000);
+    for (n = 0; n < smp_cpus; n++) {
+        sysbus_connect_irq(busdev, n, cpu_irq[n]);
+    }
+    /* Interrupts [42:0] are from the motherboard;
+     * [47:43] are reserved; [63:48] are daughterboard
+     * peripherals. Note that some documentation numbers
+     * external interrupts starting from 32 (because there
+     * are internal interrupts 0..31).
+     */
+    for (n = 0; n < 64; n++) {
+        pic[n] = qdev_get_gpio_in(dev, n);
+    }
+
+    /* A15 daughterboard peripherals: */
+
+    /* 0x20000000: CoreSight interfaces: not modelled */
+    /* 0x2a000000: PL301 AXI interconnect: not modelled */
+    /* 0x2a420000: SCC: not modelled */
+    /* 0x2a430000: system counter: not modelled */
+    /* 0x2b000000: HDLCD controller: not modelled */
+    /* 0x2b060000: SP805 watchdog: not modelled */
+    /* 0x2b0a0000: PL341 dynamic memory controller: not modelled */
+    /* 0x2e000000: system SRAM */
+    memory_region_init_ram(sram, "vexpress.a15sram", 0x10000);
+    vmstate_register_ram_global(sram);
+    memory_region_add_subregion(sysmem, 0x2e000000, sram);
+
+    /* 0x7ffb0000: DMA330 DMA controller: not modelled */
+    /* 0x7ffd0000: PL354 static memory controller: not modelled */
+}
+
+static const VEDBoardInfo a15_daughterboard = {
+    .motherboard_map = motherboard_aseries_map,
+    .loader_start = 0x80000000,
+    .gic_cpu_if_addr = 0x2c002000,
+    .init = a15_daughterboard_init,
 };
 
 static void vexpress_common_init(const VEDBoardInfo *daughterboard,
@@ -333,6 +453,18 @@ static void vexpress_a9_init(ram_addr_t ram_size,
                          kernel_cmdline, initrd_filename, cpu_model);
 }
 
+static void vexpress_a15_init(ram_addr_t ram_size,
+                              const char *boot_device,
+                              const char *kernel_filename,
+                              const char *kernel_cmdline,
+                              const char *initrd_filename,
+                              const char *cpu_model)
+{
+    vexpress_common_init(&a15_daughterboard,
+                         ram_size, boot_device, kernel_filename,
+                         kernel_cmdline, initrd_filename, cpu_model);
+}
+
 static QEMUMachine vexpress_a9_machine = {
     .name = "vexpress-a9",
     .desc = "ARM Versatile Express for Cortex-A9",
@@ -341,9 +473,18 @@ static QEMUMachine vexpress_a9_machine = {
     .max_cpus = 4,
 };
 
+static QEMUMachine vexpress_a15_machine = {
+    .name = "vexpress-a15",
+    .desc = "ARM Versatile Express for Cortex-A15",
+    .init = vexpress_a15_init,
+    .use_scsi = 1,
+    .max_cpus = 4,
+};
+
 static void vexpress_machine_init(void)
 {
     qemu_register_machine(&vexpress_a9_machine);
+    qemu_register_machine(&vexpress_a15_machine);
 }
 
 machine_init(vexpress_machine_init);
