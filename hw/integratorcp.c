@@ -8,7 +8,6 @@
  */
 
 #include "sysbus.h"
-#include "primecell.h"
 #include "devices.h"
 #include "boards.h"
 #include "arm-misc.h"
