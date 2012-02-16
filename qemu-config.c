@@ -561,6 +561,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "kernel_irqchip",
             .type = QEMU_OPT_BOOL,
             .help = "use KVM in-kernel irqchip",
+        }, {
+            .name = "kvm_shadow_mem",
+            .type = QEMU_OPT_SIZE,
+            .help = "KVM shadow MMU size",
         },
         { /* End of list */ }
     },

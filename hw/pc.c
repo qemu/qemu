@@ -890,7 +890,7 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
     DeviceState *dev;
     static int apic_mapped;
 
-    if (kvm_enabled() && kvm_irqchip_in_kernel()) {
+    if (kvm_irqchip_in_kernel()) {
         dev = qdev_create(NULL, "kvm-apic");
     } else {
         dev = qdev_create(NULL, "apic");
@@ -909,7 +909,7 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
     }
 
     /* KVM does not support MSI yet. */
-    if (!kvm_enabled() || !kvm_irqchip_in_kernel()) {
+    if (!kvm_irqchip_in_kernel()) {
         msi_supported = true;
     }
 

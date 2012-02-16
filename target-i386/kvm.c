@@ -646,7 +646,9 @@ static int kvm_get_supported_msrs(KVMState *s)
 
 int kvm_arch_init(KVMState *s)
 {
+    QemuOptsList *list = qemu_find_opts("machine");
     uint64_t identity_base = 0xfffbc000;
+    uint64_t shadow_mem;
     int ret;
     struct utsname utsname;
 
@@ -693,6 +695,17 @@ int kvm_arch_init(KVMState *s)
     }
     qemu_register_reset(kvm_unpoison_all, NULL);
 
+    if (!QTAILQ_EMPTY(&list->head)) {
+        shadow_mem = qemu_opt_get_size(QTAILQ_FIRST(&list->head),
+                                       "kvm_shadow_mem", -1);
+        if (shadow_mem != -1) {
+            shadow_mem /= 4096;
+            ret = kvm_vm_ioctl(s, KVM_SET_NR_MMU_PAGES, shadow_mem);
+            if (ret < 0) {
+                return ret;
+            }
+        }
+    }
     return 0;
 }
 
@@ -1343,7 +1356,7 @@ static int kvm_get_apic(CPUState *env)
     struct kvm_lapic_state kapic;
     int ret;
 
-    if (apic && kvm_enabled() && kvm_irqchip_in_kernel()) {
+    if (apic && kvm_irqchip_in_kernel()) {
         ret = kvm_vcpu_ioctl(env, KVM_GET_LAPIC, &kapic);
         if (ret < 0) {
             return ret;
@@ -1359,7 +1372,7 @@ static int kvm_put_apic(CPUState *env)
     DeviceState *apic = env->apic_state;
     struct kvm_lapic_state kapic;
 
-    if (apic && kvm_enabled() && kvm_irqchip_in_kernel()) {
+    if (apic && kvm_irqchip_in_kernel()) {
         kvm_put_apic_state(apic, &kapic);
 
         return kvm_vcpu_ioctl(env, KVM_SET_LAPIC, &kapic);

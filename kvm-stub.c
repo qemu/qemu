@@ -16,11 +16,6 @@
 #include "gdbstub.h"
 #include "kvm.h"
 
-int kvm_irqchip_in_kernel(void)
-{
-    return 0;
-}
-
 int kvm_pit_in_kernel(void)
 {
     return 0;
