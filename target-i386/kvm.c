@@ -1987,6 +1987,7 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
 
 bool kvm_arch_stop_on_emulation_error(CPUState *env)
 {
+    kvm_cpu_synchronize_state(env);
     return !(env->cr[0] & CR0_PE_MASK) ||
            ((env->segs[R_CS].selector  & 3) != 3);
 }
