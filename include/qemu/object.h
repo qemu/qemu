@@ -486,7 +486,7 @@ void object_finalize(void *obj);
 Object *object_dynamic_cast(Object *obj, const char *typename);
 
 /**
- * @object_dynamic_cast_assert:
+ * object_dynamic_cast_assert:
  *
  * See object_dynamic_cast() for a description of the parameters of this
  * function.  The only difference in behavior is that this function asserts
@@ -730,7 +730,7 @@ void object_property_set(Object *obj, struct Visitor *v, const char *name,
                          struct Error **errp);
 
 /**
- * @object_property_get_type:
+ * object_property_get_type:
  * @obj: the object
  * @name: the name of the property
  * @errp: returns an error if this function fails
