@@ -5,9 +5,6 @@
 /* Also includes some devices that are currently only used by the
    ARM boards.  */
 
-/* pl080.c */
-void *pl080_init(uint32_t base, qemu_irq irq, int nchannels);
-
 /* arm_sysctl GPIO lines */
 #define ARM_SYSCTL_GPIO_MMC_WPROT 0
 #define ARM_SYSCTL_GPIO_MMC_CARDIN 1
