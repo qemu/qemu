@@ -262,6 +262,11 @@ icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
 #endif
   if(ip->ip_off & IP_OFFMASK) goto end_error;    /* Only reply to fragment 0 */
 
+  /* Do not reply to source-only IPs */
+  if ((ip->ip_src.s_addr & htonl(~(0xf << 28))) == 0) {
+      goto end_error;
+  }
+
   shlen=ip->ip_hl << 2;
   s_ip_len=ip->ip_len;
   if(ip->ip_p == IPPROTO_ICMP) {
