@@ -119,4 +119,13 @@ uint32_t exynos4210_get_irq(uint32_t grp, uint32_t bit);
 void exynos4210_combiner_get_gpioin(Exynos4210Irq *irqs, DeviceState *dev,
         int ext);
 
+/*
+ * exynos4210 UART
+ */
+DeviceState *exynos4210_uart_create(target_phys_addr_t addr,
+                                    int fifo_size,
+                                    int channel,
+                                    CharDriverState *chr,
+                                    qemu_irq irq);
+
 #endif /* EXYNOS4210_H_ */

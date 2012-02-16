@@ -29,6 +29,18 @@
 
 #define EXYNOS4210_CHIPID_ADDR         0x10000000
 
+/* UART's definitions */
+#define EXYNOS4210_UART0_BASE_ADDR     0x13800000
+#define EXYNOS4210_UART1_BASE_ADDR     0x13810000
+#define EXYNOS4210_UART2_BASE_ADDR     0x13820000
+#define EXYNOS4210_UART3_BASE_ADDR     0x13830000
+#define EXYNOS4210_UART0_FIFO_SIZE     256
+#define EXYNOS4210_UART1_FIFO_SIZE     64
+#define EXYNOS4210_UART2_FIFO_SIZE     16
+#define EXYNOS4210_UART3_FIFO_SIZE     16
+/* Interrupt Group of External Interrupt Combiner for UART */
+#define EXYNOS4210_UART_INT_GRP        26
+
 /* External GIC */
 #define EXYNOS4210_EXT_GIC_CPU_BASE_ADDR    0x10480000
 #define EXYNOS4210_EXT_GIC_DIST_BASE_ADDR   0x10490000
@@ -186,6 +198,23 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
     vmstate_register_ram_global(&s->dram0_mem);
     memory_region_add_subregion(system_mem, EXYNOS4210_DRAM0_BASE_ADDR,
             &s->dram0_mem);
+
+    /*** UARTs ***/
+    exynos4210_uart_create(EXYNOS4210_UART0_BASE_ADDR,
+                           EXYNOS4210_UART0_FIFO_SIZE, 0, NULL,
+                  s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 0)]);
+
+    exynos4210_uart_create(EXYNOS4210_UART1_BASE_ADDR,
+                           EXYNOS4210_UART1_FIFO_SIZE, 1, NULL,
+                  s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 1)]);
+
+    exynos4210_uart_create(EXYNOS4210_UART2_BASE_ADDR,
+                           EXYNOS4210_UART2_FIFO_SIZE, 2, NULL,
+                  s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 2)]);
+
+    exynos4210_uart_create(EXYNOS4210_UART3_BASE_ADDR,
+                           EXYNOS4210_UART3_FIFO_SIZE, 3, NULL,
+                  s->irq_table[exynos4210_get_irq(EXYNOS4210_UART_INT_GRP, 3)]);
 
     return s;
 }
