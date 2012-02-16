@@ -32,6 +32,9 @@
 /* PWM */
 #define EXYNOS4210_PWM_BASE_ADDR       0x139D0000
 
+/* MCT */
+#define EXYNOS4210_MCT_BASE_ADDR       0x10050000
+
 /* UART's definitions */
 #define EXYNOS4210_UART0_BASE_ADDR     0x13800000
 #define EXYNOS4210_UART1_BASE_ADDR     0x13810000
@@ -219,6 +222,22 @@ Exynos4210State *exynos4210_init(MemoryRegion *system_mem,
                           s->irq_table[exynos4210_get_irq(22, 3)],
                           s->irq_table[exynos4210_get_irq(22, 4)],
                           NULL);
+
+    /* Multi Core Timer */
+    dev = qdev_create(NULL, "exynos4210.mct");
+    qdev_init_nofail(dev);
+    busdev = sysbus_from_qdev(dev);
+    for (n = 0; n < 4; n++) {
+        /* Connect global timer interrupts to Combiner gpio_in */
+        sysbus_connect_irq(busdev, n,
+                s->irq_table[exynos4210_get_irq(1, 4 + n)]);
+    }
+    /* Connect local timer interrupts to Combiner gpio_in */
+    sysbus_connect_irq(busdev, 4,
+            s->irq_table[exynos4210_get_irq(51, 0)]);
+    sysbus_connect_irq(busdev, 5,
+            s->irq_table[exynos4210_get_irq(35, 3)]);
+    sysbus_mmio_map(busdev, 0, EXYNOS4210_MCT_BASE_ADDR);
 
     /*** UARTs ***/
     exynos4210_uart_create(EXYNOS4210_UART0_BASE_ADDR,
