@@ -31,13 +31,80 @@
 #include "exec-memory.h"
 
 #define SMP_BOOT_ADDR 0xe0000000
-#define SMP_BOOTREG_ADDR 0x10000030
 
 #define VEXPRESS_BOARD_ID 0x8e0
 
 static struct arm_boot_info vexpress_binfo = {
     .smp_loader_start = SMP_BOOT_ADDR,
-    .smp_bootreg_addr = SMP_BOOTREG_ADDR,
+};
+
+/* Address maps for peripherals:
+ * the Versatile Express motherboard has two possible maps,
+ * the "legacy" one (used for A9) and the "Cortex-A Series"
+ * map (used for newer cores).
+ * Individual daughterboards can also have different maps for
+ * their peripherals.
+ */
+
+enum {
+    VE_SYSREGS,
+    VE_SP810,
+    VE_SERIALPCI,
+    VE_PL041,
+    VE_MMCI,
+    VE_KMI0,
+    VE_KMI1,
+    VE_UART0,
+    VE_UART1,
+    VE_UART2,
+    VE_UART3,
+    VE_WDT,
+    VE_TIMER01,
+    VE_TIMER23,
+    VE_SERIALDVI,
+    VE_RTC,
+    VE_COMPACTFLASH,
+    VE_CLCD,
+    VE_NORFLASH0,
+    VE_NORFLASH0ALIAS,
+    VE_NORFLASH1,
+    VE_SRAM,
+    VE_VIDEORAM,
+    VE_ETHERNET,
+    VE_USB,
+    VE_DAPROM,
+};
+
+static target_phys_addr_t motherboard_legacy_map[] = {
+    /* CS7: 0x10000000 .. 0x10020000 */
+    [VE_SYSREGS] = 0x10000000,
+    [VE_SP810] = 0x10001000,
+    [VE_SERIALPCI] = 0x10002000,
+    [VE_PL041] = 0x10004000,
+    [VE_MMCI] = 0x10005000,
+    [VE_KMI0] = 0x10006000,
+    [VE_KMI1] = 0x10007000,
+    [VE_UART0] = 0x10009000,
+    [VE_UART1] = 0x1000a000,
+    [VE_UART2] = 0x1000b000,
+    [VE_UART3] = 0x1000c000,
+    [VE_WDT] = 0x1000f000,
+    [VE_TIMER01] = 0x10011000,
+    [VE_TIMER23] = 0x10012000,
+    [VE_SERIALDVI] = 0x10016000,
+    [VE_RTC] = 0x10017000,
+    [VE_COMPACTFLASH] = 0x1001a000,
+    [VE_CLCD] = 0x1001f000,
+    /* CS0: 0x40000000 .. 0x44000000 */
+    [VE_NORFLASH0] = 0x40000000,
+    /* CS1: 0x44000000 .. 0x48000000 */
+    [VE_NORFLASH1] = 0x44000000,
+    /* CS2: 0x48000000 .. 0x4a000000 */
+    [VE_SRAM] = 0x48000000,
+    /* CS3: 0x4c000000 .. 0x50000000 */
+    [VE_VIDEORAM] = 0x4c000000,
+    [VE_ETHERNET] = 0x4e000000,
+    [VE_USB] = 0x4f000000,
 };
 
 static void vexpress_a9_init(ram_addr_t ram_size,
@@ -61,6 +128,7 @@ static void vexpress_a9_init(ram_addr_t ram_size,
     uint32_t proc_id;
     uint32_t sys_id;
     ram_addr_t low_ram_size, vram_size, sram_size;
+    target_phys_addr_t *map = motherboard_legacy_map;
 
     if (!cpu_model) {
         cpu_model = "cortex-a9";
@@ -116,53 +184,53 @@ static void vexpress_a9_init(ram_addr_t ram_size,
         pic[n] = qdev_get_gpio_in(dev, n);
     }
 
-    /* Motherboard peripherals CS7 : 0x10000000 .. 0x10020000 */
+    /* Motherboard peripherals: the wiring is the same but the
+     * addresses vary between the legacy and A-Series memory maps.
+     */
+
     sys_id = 0x1190f500;
     proc_id = 0x0c000191;
 
-    /* 0x10000000 System registers */
     sysctl = qdev_create(NULL, "realview_sysctl");
     qdev_prop_set_uint32(sysctl, "sys_id", sys_id);
     qdev_prop_set_uint32(sysctl, "proc_id", proc_id);
     qdev_init_nofail(sysctl);
-    sysbus_mmio_map(sysbus_from_qdev(sysctl), 0, 0x10000000);
+    sysbus_mmio_map(sysbus_from_qdev(sysctl), 0, map[VE_SYSREGS]);
 
-    /* 0x10001000 SP810 system control */
-    /* 0x10002000 serial bus PCI */
-    /* 0x10004000 PL041 audio */
+    /* VE_SP810: not modelled */
+    /* VE_SERIALPCI: not modelled */
+
     pl041 = qdev_create(NULL, "pl041");
     qdev_prop_set_uint32(pl041, "nc_fifo_depth", 512);
     qdev_init_nofail(pl041);
-    sysbus_mmio_map(sysbus_from_qdev(pl041), 0, 0x10004000);
+    sysbus_mmio_map(sysbus_from_qdev(pl041), 0, map[VE_PL041]);
     sysbus_connect_irq(sysbus_from_qdev(pl041), 0, pic[11]);
 
-    dev = sysbus_create_varargs("pl181", 0x10005000, pic[9], pic[10], NULL);
+    dev = sysbus_create_varargs("pl181", map[VE_MMCI], pic[9], pic[10], NULL);
     /* Wire up MMC card detect and read-only signals */
     qdev_connect_gpio_out(dev, 0,
                           qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_WPROT));
     qdev_connect_gpio_out(dev, 1,
                           qdev_get_gpio_in(sysctl, ARM_SYSCTL_GPIO_MMC_CARDIN));
 
-    sysbus_create_simple("pl050_keyboard", 0x10006000, pic[12]);
-    sysbus_create_simple("pl050_mouse", 0x10007000, pic[13]);
+    sysbus_create_simple("pl050_keyboard", map[VE_KMI0], pic[12]);
+    sysbus_create_simple("pl050_mouse", map[VE_KMI1], pic[13]);
 
-    sysbus_create_simple("pl011", 0x10009000, pic[5]);
-    sysbus_create_simple("pl011", 0x1000a000, pic[6]);
-    sysbus_create_simple("pl011", 0x1000b000, pic[7]);
-    sysbus_create_simple("pl011", 0x1000c000, pic[8]);
+    sysbus_create_simple("pl011", map[VE_UART0], pic[5]);
+    sysbus_create_simple("pl011", map[VE_UART1], pic[6]);
+    sysbus_create_simple("pl011", map[VE_UART2], pic[7]);
+    sysbus_create_simple("pl011", map[VE_UART3], pic[8]);
 
-    /* 0x1000f000 SP805 WDT */
+    sysbus_create_simple("sp804", map[VE_TIMER01], pic[2]);
+    sysbus_create_simple("sp804", map[VE_TIMER23], pic[3]);
 
-    sysbus_create_simple("sp804", 0x10011000, pic[2]);
-    sysbus_create_simple("sp804", 0x10012000, pic[3]);
+    /* VE_SERIALDVI: not modelled */
 
-    /* 0x10016000 Serial Bus DVI */
+    sysbus_create_simple("pl031", map[VE_RTC], pic[4]); /* RTC */
 
-    sysbus_create_simple("pl031", 0x10017000, pic[4]); /* RTC */
+    /* VE_COMPACTFLASH: not modelled */
 
-    /* 0x1001a000 Compact Flash */
-
-    /* 0x1001f000 PL111 CLCD (motherboard) */
+    /* VE_CLCD: not modelled (we use the daughterboard CLCD only) */
 
     /* Daughterboard peripherals : 0x10020000 .. 0x20000000 */
 
@@ -184,28 +252,28 @@ static void vexpress_a9_init(ram_addr_t ram_size,
     /* 0x1e00a000 PL310 L2 Cache Controller */
     sysbus_create_varargs("l2x0", 0x1e00a000, NULL);
 
-    /* CS0: NOR0 flash          : 0x40000000 .. 0x44000000 */
-    /* CS4: NOR1 flash          : 0x44000000 .. 0x48000000 */
-    /* CS2: SRAM                : 0x48000000 .. 0x4a000000 */
+    /* VE_NORFLASH0: not modelled */
+    /* VE_NORFLASH0ALIAS: not modelled */
+    /* VE_NORFLASH1: not modelled */
+
     sram_size = 0x2000000;
     memory_region_init_ram(sram, "vexpress.sram", sram_size);
     vmstate_register_ram_global(sram);
-    memory_region_add_subregion(sysmem, 0x48000000, sram);
+    memory_region_add_subregion(sysmem, map[VE_SRAM], sram);
 
-    /* CS3: USB, ethernet, VRAM : 0x4c000000 .. 0x50000000 */
-
-    /* 0x4c000000 Video RAM */
     vram_size = 0x800000;
     memory_region_init_ram(vram, "vexpress.vram", vram_size);
     vmstate_register_ram_global(vram);
-    memory_region_add_subregion(sysmem, 0x4c000000, vram);
+    memory_region_add_subregion(sysmem, map[VE_VIDEORAM], vram);
 
     /* 0x4e000000 LAN9118 Ethernet */
     if (nd_table[0].vlan) {
-        lan9118_init(&nd_table[0], 0x4e000000, pic[15]);
+        lan9118_init(&nd_table[0], map[VE_ETHERNET], pic[15]);
     }
 
-    /* 0x4f000000 ISP1761 USB */
+    /* VE_USB: not modelled */
+
+    /* VE_DAPROM: not modelled */
 
     /* ??? Hack to map an additional page of ram for the secondary CPU
        startup code.  I guess this works on real hardware because the
@@ -222,6 +290,7 @@ static void vexpress_a9_init(ram_addr_t ram_size,
     vexpress_binfo.nb_cpus = smp_cpus;
     vexpress_binfo.board_id = VEXPRESS_BOARD_ID;
     vexpress_binfo.loader_start = 0x60000000;
+    vexpress_binfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
     arm_load_kernel(first_cpu, &vexpress_binfo);
 }
 
