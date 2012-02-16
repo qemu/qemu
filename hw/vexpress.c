@@ -30,13 +30,9 @@
 #include "boards.h"
 #include "exec-memory.h"
 
-#define SMP_BOOT_ADDR 0xe0000000
-
 #define VEXPRESS_BOARD_ID 0x8e0
 
-static struct arm_boot_info vexpress_binfo = {
-    .smp_loader_start = SMP_BOOT_ADDR,
-};
+static struct arm_boot_info vexpress_binfo;
 
 /* Address maps for peripherals:
  * the Versatile Express motherboard has two possible maps,
@@ -118,7 +114,6 @@ static void vexpress_a9_init(ram_addr_t ram_size,
     MemoryRegion *lowram = g_new(MemoryRegion, 1);
     MemoryRegion *vram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);
-    MemoryRegion *hackram = g_new(MemoryRegion, 1);
     DeviceState *dev, *sysctl, *pl041;
     SysBusDevice *busdev;
     qemu_irq *irqp;
@@ -275,14 +270,6 @@ static void vexpress_a9_init(ram_addr_t ram_size,
 
     /* VE_DAPROM: not modelled */
 
-    /* ??? Hack to map an additional page of ram for the secondary CPU
-       startup code.  I guess this works on real hardware because the
-       BootROM happens to be in ROM/flash or in memory that isn't clobbered
-       until after Linux boots the secondary CPUs.  */
-    memory_region_init_ram(hackram, "vexpress.hack", 0x1000);
-    vmstate_register_ram_global(hackram);
-    memory_region_add_subregion(sysmem, SMP_BOOT_ADDR, hackram);
-
     vexpress_binfo.ram_size = ram_size;
     vexpress_binfo.kernel_filename = kernel_filename;
     vexpress_binfo.kernel_cmdline = kernel_cmdline;
@@ -290,6 +277,7 @@ static void vexpress_a9_init(ram_addr_t ram_size,
     vexpress_binfo.nb_cpus = smp_cpus;
     vexpress_binfo.board_id = VEXPRESS_BOARD_ID;
     vexpress_binfo.loader_start = 0x60000000;
+    vexpress_binfo.smp_loader_start = map[VE_SRAM];
     vexpress_binfo.smp_bootreg_addr = map[VE_SYSREGS] + 0x30;
     arm_load_kernel(first_cpu, &vexpress_binfo);
 }
