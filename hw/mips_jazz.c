@@ -37,6 +37,7 @@
 #include "loader.h"
 #include "mc146818rtc.h"
 #include "i8254.h"
+#include "pcspk.h"
 #include "blockdev.h"
 #include "sysbus.h"
 #include "exec-memory.h"
@@ -193,7 +194,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
     pit = pit_init(isa_bus, 0x40, 0, NULL);
-    pcspk_init(pit);
+    pcspk_init(isa_bus, pit);
 
     /* ISA IO space at 0x90000000 */
     isa_mmio_init(0x90000000, 0x01000000);

@@ -20,6 +20,7 @@
 #include "pci.h"
 #include "pc.h"
 #include "i8254.h"
+#include "pcspk.h"
 
 //#define DEBUG_I82378
 
@@ -195,7 +196,7 @@ static void i82378_init(DeviceState *dev, I82378State *s)
     pit = pit_init(isabus, 0x40, 0, NULL);
 
     /* speaker */
-    pcspk_init(pit);
+    pcspk_init(isabus, pit);
 
     /* 2 82C37 (dma) */
     DMA_init(1, &s->out[1]);

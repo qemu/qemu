@@ -149,10 +149,6 @@ void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 /* hpet.c */
 extern int no_hpet;
 
-/* pcspk.c */
-void pcspk_init(ISADevice *pit);
-int pcspk_audio_init(ISABus *bus);
-
 /* piix_pci.c */
 struct PCII440FXState;
 typedef struct PCII440FXState PCII440FXState;

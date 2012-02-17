@@ -37,6 +37,7 @@
 #include "multiboot.h"
 #include "mc146818rtc.h"
 #include "i8254.h"
+#include "pcspk.h"
 #include "msi.h"
 #include "sysbus.h"
 #include "sysemu.h"
@@ -1172,7 +1173,7 @@ void pc_basic_device_init(ISABus *isa_bus, qemu_irq *gsi,
         /* connect PIT to output control line of the HPET */
         qdev_connect_gpio_out(hpet, 0, qdev_get_gpio_in(&pit->qdev, 0));
     }
-    pcspk_init(pit);
+    pcspk_init(isa_bus, pit);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {
