@@ -26,17 +26,7 @@
 #include "mips.h"
 #include "console.h"
 #include "pixel_ops.h"
-
-//#define DEBUG_LED
-
-#ifdef DEBUG_LED
-#define DPRINTF(fmt, ...) \
-do { printf("jazz led: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while (0)
-#endif
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "jazz led ERROR: " fmt , ## __VA_ARGS__);} while (0)
+#include "trace.h"
 
 typedef enum {
     REDRAW_NONE = 0, REDRAW_SEGMENTS = 1, REDRAW_BACKGROUND = 2,
@@ -52,18 +42,18 @@ typedef struct LedState {
 static uint32_t led_readb(void *opaque, target_phys_addr_t addr)
 {
     LedState *s = opaque;
-    uint32_t val;
+    uint8_t val;
 
     switch (addr) {
         case 0:
             val = s->segments;
             break;
         default:
-            BADF("invalid read at [" TARGET_FMT_plx "]\n", addr);
+            error_report("invalid read at [" TARGET_FMT_plx "]\n", addr);
             val = 0;
     }
 
-    DPRINTF("read addr=" TARGET_FMT_plx " val=0x%02x\n", addr, val);
+    trace_jazz_led_read(addr, val);
 
     return val;
 }
@@ -101,16 +91,18 @@ static uint32_t led_readl(void *opaque, target_phys_addr_t addr)
 static void led_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
 {
     LedState *s = opaque;
+    uint8_t new_val = val & 0xff;
 
-    DPRINTF("write addr=" TARGET_FMT_plx " val=0x%02x\n", addr, val);
+    trace_jazz_led_write(addr, new_val);
 
     switch (addr) {
         case 0:
-            s->segments = val;
+            s->segments = new_val;
             s->state |= REDRAW_SEGMENTS;
             break;
         default:
-            BADF("invalid write of 0x%08x at [" TARGET_FMT_plx "]\n", val, addr);
+            error_report("invalid write of 0x%x at [" TARGET_FMT_plx "]\n",
+                         new_val, addr);
             break;
     }
 }
