@@ -853,7 +853,7 @@ static int all_vcpus_paused(void)
         if (!penv->stopped) {
             return 0;
         }
-        penv = (CPUState *)penv->next_cpu;
+        penv = penv->next_cpu;
     }
 
     return 1;
@@ -867,7 +867,7 @@ void pause_all_vcpus(void)
     while (penv) {
         penv->stop = 1;
         qemu_cpu_kick(penv);
-        penv = (CPUState *)penv->next_cpu;
+        penv = penv->next_cpu;
     }
 
     while (!all_vcpus_paused()) {
@@ -875,7 +875,7 @@ void pause_all_vcpus(void)
         penv = first_cpu;
         while (penv) {
             qemu_cpu_kick(penv);
-            penv = (CPUState *)penv->next_cpu;
+            penv = penv->next_cpu;
         }
     }
 }
@@ -889,7 +889,7 @@ void resume_all_vcpus(void)
         penv->stop = 0;
         penv->stopped = 0;
         qemu_cpu_kick(penv);
-        penv = (CPUState *)penv->next_cpu;
+        penv = penv->next_cpu;
     }
 }
 
