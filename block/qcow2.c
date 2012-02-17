@@ -89,7 +89,6 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
     while (offset < end_offset) {
 
 #ifdef DEBUG_EXT
-        BDRVQcowState *s = bs->opaque;
         /* Sanity check */
         if (offset > s->cluster_size)
             printf("qcow2_read_extension: suspicious offset %lu\n", offset);
