@@ -37,7 +37,6 @@
 
 static NBDExport *exp;
 static int verbose;
-static char *device;
 static char *srcpath;
 static char *sockpath;
 static bool sigterm_reported;
@@ -178,6 +177,7 @@ static void termsig_handler(int signum)
 
 static void *show_parts(void *arg)
 {
+    char *device = arg;
     int nbd;
 
     /* linux just needs an open() to trigger
@@ -194,11 +194,11 @@ static void *show_parts(void *arg)
 
 static void *nbd_client_thread(void *arg)
 {
-    int fd = *(int *)arg;
+    char *device = arg;
     off_t size;
     size_t blocksize;
     uint32_t nbdflags;
-    int sock;
+    int fd, sock;
     int ret;
     pthread_t show_parts_thread;
 
@@ -213,13 +213,20 @@ static void *nbd_client_thread(void *arg)
         goto out;
     }
 
+    fd = open(device, O_RDWR);
+    if (fd == -1) {
+        /* Linux-only, we can use %m in printf.  */
+        fprintf(stderr, "Failed to open %s: %m", device);
+        goto out;
+    }
+
     ret = nbd_init(fd, sock, nbdflags, size, blocksize);
     if (ret == -1) {
         goto out;
     }
 
     /* update partition table */
-    pthread_create(&show_parts_thread, NULL, show_parts, NULL);
+    pthread_create(&show_parts_thread, NULL, show_parts, device);
 
     if (verbose) {
         fprintf(stderr, "NBD device %s is now connected to %s\n",
@@ -273,6 +280,7 @@ int main(int argc, char **argv)
     uint32_t nbdflags = 0;
     bool disconnect = false;
     const char *bindto = "0.0.0.0";
+    char *device = NULL;
     int port = NBD_DEFAULT_PORT;
     off_t fd_size;
     const char *sopt = "hVb:o:p:rsnP:c:dvk:e:t";
@@ -429,7 +437,7 @@ int main(int argc, char **argv)
         pid = fork();
         if (pid == 0) {
             close(stderr_fd[0]);
-            ret = qemu_daemon(0, 0);
+            ret = qemu_daemon(1, 0);
 
             /* Temporarily redirect stderr to the parent's pipe...  */
             dup2(stderr_fd[1], STDERR_FILENO);
@@ -466,19 +474,9 @@ int main(int argc, char **argv)
         }
     }
 
-    if (device) {
-        /* Open before spawning new threads.  In the future, we may
-         * drop privileges after opening.
-         */
-        fd = open(device, O_RDWR);
-        if (fd == -1) {
-            err(EXIT_FAILURE, "Failed to open %s", device);
-        }
-
-        if (sockpath == NULL) {
-            sockpath = g_malloc(128);
-            snprintf(sockpath, 128, SOCKET_PATH, basename(device));
-        }
+    if (device != NULL && sockpath == NULL) {
+        sockpath = g_malloc(128);
+        snprintf(sockpath, 128, SOCKET_PATH, basename(device));
     }
 
     bdrv_init();
@@ -513,7 +511,7 @@ int main(int argc, char **argv)
     if (device) {
         int ret;
 
-        ret = pthread_create(&client_thread, NULL, nbd_client_thread, &fd);
+        ret = pthread_create(&client_thread, NULL, nbd_client_thread, device);
         if (ret != 0) {
             errx(EXIT_FAILURE, "Failed to create client thread: %s",
                  strerror(ret));
@@ -526,6 +524,12 @@ int main(int argc, char **argv)
     qemu_init_main_loop();
     qemu_set_fd_handler2(fd, nbd_can_accept, nbd_accept, NULL,
                          (void *)(uintptr_t)fd);
+
+    /* now when the initialization is (almost) complete, chdir("/")
+     * to free any busy filesystems */
+    if (chdir("/") < 0) {
+        err(EXIT_FAILURE, "Could not chdir to root directory");
+    }
 
     do {
         main_loop_wait(false);
