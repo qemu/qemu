@@ -875,6 +875,18 @@ void pause_all_vcpus(void)
         penv = penv->next_cpu;
     }
 
+    if (!qemu_thread_is_self(&io_thread)) {
+        cpu_stop_current();
+        if (!kvm_enabled()) {
+            while (penv) {
+                penv->stop = 0;
+                penv->stopped = 1;
+                penv = penv->next_cpu;
+            }
+            return;
+        }
+    }
+
     while (!all_vcpus_paused()) {
         qemu_cond_wait(&qemu_pause_cond, &qemu_global_mutex);
         penv = first_cpu;
