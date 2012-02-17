@@ -59,9 +59,9 @@ static const char *ext2_feature_name[] = {
     "cx8" /* AMD CMPXCHG8B */, "apic", NULL, "syscall",
     "mtrr", "pge", "mca", "cmov",
     "pat", "pse36", NULL, NULL /* Linux mp */,
-    "nx" /* Intel xd */, NULL, "mmxext", "mmx",
+    "nx|xd", NULL, "mmxext", "mmx",
     "fxsr", "fxsr_opt|ffxsr", "pdpe1gb" /* AMD Page1GB */, "rdtscp",
-    NULL, "lm" /* Intel 64 */, "3dnowext", "3dnow",
+    NULL, "lm|i64", "3dnowext", "3dnow",
 };
 static const char *ext3_feature_name[] = {
     "lahf_lm" /* AMD LahfSahf */, "cmp_legacy", "svm", "extapic" /* AMD ExtApicSpace */,
