@@ -1592,8 +1592,8 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     init_qxl_rom(qxl);
     init_qxl_ram(qxl);
 
-    if (qxl->vram_size < 16 * 1024 * 1024) {
-        qxl->vram_size = 16 * 1024 * 1024;
+    if (qxl->vram_size < 4096) {
+        qxl->vram_size = 4096;
     }
     if (qxl->revision == 1) {
         qxl->vram_size = 4096;
