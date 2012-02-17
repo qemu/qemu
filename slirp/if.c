@@ -154,6 +154,7 @@ if_start(Slirp *slirp)
 {
     uint64_t now = qemu_get_clock_ns(rt_clock);
     int requeued = 0;
+    bool from_batchq = false;
 	struct mbuf *ifm, *ifqt;
 
 	DEBUG_CALL("if_start");
@@ -179,13 +180,26 @@ if_start(Slirp *slirp)
 		else
 		   ifm = slirp->if_batchq.ifq_next;
 
-		/* Set which packet to send on next iteration */
-		slirp->next_m = ifm->ifq_next;
+                from_batchq = true;
 	}
+
+        slirp->if_queued--;
+
+        /* Try to send packet unless it already expired */
+        if (ifm->expiration_date >= now && !if_encap(slirp, ifm)) {
+            /* Packet is delayed due to pending ARP resolution */
+            requeued++;
+            goto out;
+        }
+
+        if (from_batchq) {
+            /* Set which packet to send on next iteration */
+            slirp->next_m = ifm->ifq_next;
+        }
+
 	/* Remove it from the queue */
 	ifqt = ifm->ifq_prev;
 	remque(ifm);
-	slirp->if_queued--;
 
 	/* If there are more packets for this session, re-queue them */
 	if (ifm->ifs_next != /* ifm->ifs_prev != */ ifm) {
@@ -200,20 +214,9 @@ if_start(Slirp *slirp)
 		   ifm->ifq_so->so_nqueued = 0;
 	}
 
-        if (ifm->expiration_date < now) {
-            /* Expired */
-            m_free(ifm);
-        } else {
-            /* Encapsulate the packet for sending */
-            if (if_encap(slirp, ifm)) {
-                m_free(ifm);
-            } else {
-                /* re-queue */
-                insque(ifm, ifqt);
-                requeued++;
-            }
-        }
+        m_free(ifm);
 
+ out:
 	if (slirp->if_queued)
 	   goto again;
 
