@@ -117,6 +117,9 @@ DeviceState *qdev_try_create(BusState *bus, const char *name)
 {
     DeviceState *dev;
 
+    if (object_class_by_name(name) == NULL) {
+        return NULL;
+    }
     dev = DEVICE(object_new(name));
     if (!dev) {
         return NULL;
