@@ -9,12 +9,10 @@
 # option) any later version.  See the COPYING file in the top-level directory.
 #
 
-	.text 0
-	.code16
-.global _start
-_start:
-	.short 0xaa55
-	.byte (_end - _start) / 512
+#include "optionrom.h"
+
+OPTION_ROM_START
+
 	# clear vapic area: firmware load using rep insb may cause
 	# stale tpr/isr/irr data to corrupt the vapic area.
 	push %es
@@ -26,8 +24,11 @@ _start:
 	cld
 	rep stosw
 	pop %es
+
+	# announce presence to the hypervisor
 	mov $vapic_base, %ax
 	out %ax, $0x7e
+
 	lret
 
 	.code32
@@ -331,7 +332,4 @@ up_set_tpr_poll_irq:
 vapic:
 . = . + vapic_size
 
-.byte 0  # reserve space for signature
-.align 512, 0
-
-_end:
+OPTION_ROM_END
