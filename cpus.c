@@ -761,6 +761,11 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     /* wait for initial kick-off after machine start */
     while (first_cpu->stopped) {
         qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
+
+        /* process any pending work */
+        for (env = first_cpu; env != NULL; env = env->next_cpu) {
+            qemu_wait_io_event_common(env);
+        }
     }
 
     while (1) {
