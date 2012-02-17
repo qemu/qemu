@@ -202,7 +202,6 @@ mp_isr_is_bigger:
 	mov %bh, %bl
 mp_tpr_is_bigger:
 	/* %bl = ppr */
-	mov %bl, %ch   /* ch = ppr */
 	rol $8, %ebx
 	/* now: %bl = irr, %bh = ppr */
 	cmp %bh, %bl
@@ -276,7 +275,6 @@ up_set_tpr_eax:
 up_set_tpr:
 	pushf
 	push %eax
-	push %ecx
 	push %ebx
 	reenable_vtpr
 
@@ -284,7 +282,7 @@ up_set_tpr_failed:
 	mov vapic, %eax	; fixup
 
 	mov %eax, %ebx
-	mov 20(%esp), %bl
+	mov 16(%esp), %bl
 
 	/* %ebx = new vapic (%bl = tpr, %bh = isr, %b3 = irr) */
 
@@ -298,7 +296,6 @@ up_isr_is_bigger:
 	mov %bh, %bl
 up_tpr_is_bigger:
 	/* %bl = ppr */
-	mov %bl, %ch   /* ch = ppr */
 	rol $8, %ebx
 	/* now: %bl = irr, %bh = ppr */
 	cmp %bh, %bl
@@ -306,7 +303,6 @@ up_tpr_is_bigger:
 
 up_set_tpr_out:
 	pop %ebx
-	pop %ecx
 	pop %eax
 	popf
 	ret $4
