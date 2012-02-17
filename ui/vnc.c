@@ -2794,7 +2794,9 @@ int vnc_display_disable_login(DisplayState *ds)
     }
 
     vs->password = NULL;
-    vs->auth = VNC_AUTH_VNC;
+    if (vs->auth == VNC_AUTH_NONE) {
+        vs->auth = VNC_AUTH_VNC;
+    }
 
     return 0;
 }
@@ -2818,7 +2820,9 @@ int vnc_display_password(DisplayState *ds, const char *password)
         vs->password = NULL;
     }
     vs->password = g_strdup(password);
-    vs->auth = VNC_AUTH_VNC;
+    if (vs->auth == VNC_AUTH_NONE) {
+        vs->auth = VNC_AUTH_VNC;
+    }
 
     return 0;
 }

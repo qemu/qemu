@@ -85,31 +85,6 @@ typedef struct GSIState {
 
 void gsi_handler(void *opaque, int n, int level);
 
-/* i8254.c */
-
-#define PIT_FREQ 1193182
-
-static inline ISADevice *pit_init(ISABus *bus, int base, int irq)
-{
-    ISADevice *dev;
-
-    dev = isa_create(bus, "isa-pit");
-    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
-    qdev_prop_set_uint32(&dev->qdev, "irq", irq);
-    qdev_init_nofail(&dev->qdev);
-
-    return dev;
-}
-
-void pit_set_gate(ISADevice *dev, int channel, int val);
-int pit_get_gate(ISADevice *dev, int channel);
-int pit_get_initial_count(ISADevice *dev, int channel);
-int pit_get_mode(ISADevice *dev, int channel);
-int pit_get_out(ISADevice *dev, int channel, int64_t current_time);
-
-void hpet_pit_disable(void);
-void hpet_pit_enable(void);
-
 /* vmport.c */
 static inline void vmport_init(ISABus *bus)
 {
@@ -177,10 +152,6 @@ void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 
 /* hpet.c */
 extern int no_hpet;
-
-/* pcspk.c */
-void pcspk_init(ISADevice *pit);
-int pcspk_audio_init(ISABus *bus);
 
 /* piix_pci.c */
 struct PCII440FXState;

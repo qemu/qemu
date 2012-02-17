@@ -14,6 +14,7 @@
 #include "sysemu.h"
 #include "mc146818rtc.h"
 #include "ide.h"
+#include "i8254.h"
 
 #define MAX_IDE_BUS 2
 
@@ -72,7 +73,7 @@ static void clipper_init(ram_addr_t ram_size,
                            clipper_pci_map_irq);
 
     rtc_init(isa_bus, 1980, rtc_irq);
-    pit_init(isa_bus, 0x40, 0);
+    pit_init(isa_bus, 0x40, 0, NULL);
     isa_create_simple(isa_bus, "i8042");
 
     /* VGA setup.  Don't bother loading the bios.  */

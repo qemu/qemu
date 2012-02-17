@@ -40,6 +40,7 @@
 #include "elf.h"
 #include "vt82c686.h"
 #include "mc146818rtc.h"
+#include "i8254.h"
 #include "blockdev.h"
 #include "exec-memory.h"
 
@@ -363,7 +364,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     smbus_eeprom_init(smbus, 1, eeprom_spd, sizeof(eeprom_spd));
 
     /* init other devices */
-    pit = pit_init(isa_bus, 0x40, 0);
+    pit = pit_init(isa_bus, 0x40, 0, NULL);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
 

@@ -31,6 +31,7 @@
 #include "hpet_emul.h"
 #include "sysbus.h"
 #include "mc146818rtc.h"
+#include "i8254.h"
 
 //#define HPET_DEBUG
 #ifdef HPET_DEBUG
@@ -64,6 +65,7 @@ typedef struct HPETState {
     qemu_irq irqs[HPET_NUM_IRQ_ROUTES];
     uint32_t flags;
     uint8_t rtc_irq_level;
+    qemu_irq pit_enabled;
     uint8_t num_timers;
     HPETTimer timer[HPET_MAX_TIMERS];
 
@@ -240,6 +242,24 @@ static int hpet_post_load(void *opaque, int version_id)
     return 0;
 }
 
+static bool hpet_rtc_irq_level_needed(void *opaque)
+{
+    HPETState *s = opaque;
+
+    return s->rtc_irq_level != 0;
+}
+
+static const VMStateDescription vmstate_hpet_rtc_irq_level = {
+    .name = "hpet/rtc_irq_level",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(rtc_irq_level, HPETState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_hpet_timer = {
     .name = "hpet_timer",
     .version_id = 1,
@@ -273,6 +293,14 @@ static const VMStateDescription vmstate_hpet = {
         VMSTATE_STRUCT_VARRAY_UINT8(timer, HPETState, num_timers, 0,
                                     vmstate_hpet_timer, HPETTimer),
         VMSTATE_END_OF_LIST()
+    },
+    .subsections = (VMStateSubsection[]) {
+        {
+            .vmsd = &vmstate_hpet_rtc_irq_level,
+            .needed = hpet_rtc_irq_level_needed,
+        }, {
+            /* empty */
+        }
     }
 };
 
@@ -546,12 +574,15 @@ static void hpet_ram_write(void *opaque, target_phys_addr_t addr,
                     hpet_del_timer(&s->timer[i]);
                 }
             }
-            /* i8254 and RTC are disabled when HPET is in legacy mode */
+            /* i8254 and RTC output pins are disabled
+             * when HPET is in legacy mode */
             if (activating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
-                hpet_pit_disable();
+                qemu_set_irq(s->pit_enabled, 0);
+                qemu_irq_lower(s->irqs[0]);
                 qemu_irq_lower(s->irqs[RTC_ISA_IRQ]);
             } else if (deactivating_bit(old_val, new_val, HPET_CFG_LEGACY)) {
-                hpet_pit_enable();
+                qemu_irq_lower(s->irqs[0]);
+                qemu_set_irq(s->pit_enabled, 1);
                 qemu_set_irq(s->irqs[RTC_ISA_IRQ], s->rtc_irq_level);
             }
             break;
@@ -605,7 +636,6 @@ static void hpet_reset(DeviceState *d)
 {
     HPETState *s = FROM_SYSBUS(HPETState, sysbus_from_qdev(d));
     int i;
-    static int count = 0;
 
     for (i = 0; i < s->num_timers; i++) {
         HPETTimer *timer = &s->timer[i];
@@ -622,29 +652,30 @@ static void hpet_reset(DeviceState *d)
         timer->wrap_flag = 0;
     }
 
+    qemu_set_irq(s->pit_enabled, 1);
     s->hpet_counter = 0ULL;
     s->hpet_offset = 0ULL;
     s->config = 0ULL;
-    if (count > 0) {
-        /* we don't enable pit when hpet_reset is first called (by hpet_init)
-         * because hpet is taking over for pit here. On subsequent invocations,
-         * hpet_reset is called due to system reset. At this point control must
-         * be returned to pit until SW reenables hpet.
-         */
-        hpet_pit_enable();
-    }
     hpet_cfg.hpet[s->hpet_id].event_timer_block_id = (uint32_t)s->capability;
     hpet_cfg.hpet[s->hpet_id].address = sysbus_from_qdev(d)->mmio[0].addr;
-    count = 1;
+
+    /* to document that the RTC lowers its output on reset as well */
+    s->rtc_irq_level = 0;
 }
 
-static void hpet_handle_rtc_irq(void *opaque, int n, int level)
+static void hpet_handle_legacy_irq(void *opaque, int n, int level)
 {
     HPETState *s = FROM_SYSBUS(HPETState, opaque);
 
-    s->rtc_irq_level = level;
-    if (!hpet_in_legacy_mode(s)) {
-        qemu_set_irq(s->irqs[RTC_ISA_IRQ], level);
+    if (n == HPET_LEGACY_PIT_INT) {
+        if (!hpet_in_legacy_mode(s)) {
+            qemu_set_irq(s->irqs[0], level);
+        }
+    } else {
+        s->rtc_irq_level = level;
+        if (!hpet_in_legacy_mode(s)) {
+            qemu_set_irq(s->irqs[RTC_ISA_IRQ], level);
+        }
     }
 }
 
@@ -687,7 +718,8 @@ static int hpet_init(SysBusDevice *dev)
     s->capability |= (s->num_timers - 1) << HPET_ID_NUM_TIM_SHIFT;
     s->capability |= ((HPET_CLK_PERIOD) << 32);
 
-    qdev_init_gpio_in(&dev->qdev, hpet_handle_rtc_irq, 1);
+    qdev_init_gpio_in(&dev->qdev, hpet_handle_legacy_irq, 2);
+    qdev_init_gpio_out(&dev->qdev, &s->pit_enabled, 1);
 
     /* HPET Area */
     memory_region_init_io(&s->iomem, &hpet_ram_ops, s, "hpet", 0x400);

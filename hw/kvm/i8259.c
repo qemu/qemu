@@ -84,8 +84,8 @@ static void kvm_pic_reset(DeviceState *dev)
 {
     PICCommonState *s = DO_UPCAST(PICCommonState, dev.qdev, dev);
 
-    pic_reset_common(s);
     s->elcr = 0;
+    pic_reset_common(s);
 
     kvm_pic_put(s);
 }

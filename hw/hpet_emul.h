@@ -22,6 +22,9 @@
 
 #define HPET_NUM_IRQ_ROUTES     32
 
+#define HPET_LEGACY_PIT_INT     0
+#define HPET_LEGACY_RTC_INT     1
+
 #define HPET_CFG_ENABLE 0x001
 #define HPET_CFG_LEGACY 0x002
 

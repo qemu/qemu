@@ -453,7 +453,7 @@ void qemu_register_clock_reset_notifier(QEMUClock *clock, Notifier *notifier)
 
 void qemu_unregister_clock_reset_notifier(QEMUClock *clock, Notifier *notifier)
 {
-    notifier_list_remove(&clock->reset_notifiers, notifier);
+    notifier_remove(notifier);
 }
 
 void init_clocks(void)

@@ -1,7 +1,7 @@
 /*
- * Coroutine internals
+ * QEMU 8253/8254 interval timer emulation
  *
- * Copyright (c) 2011 Kevin Wolf <kwolf@redhat.com>
+ * Copyright (c) 2003-2004 Fabrice Bellard
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,36 @@
  * THE SOFTWARE.
  */
 
-#ifndef QEMU_COROUTINE_INT_H
-#define QEMU_COROUTINE_INT_H
+#ifndef HW_I8254_H
+#define HW_I8254_H
 
-#include "qemu-queue.h"
-#include "qemu-coroutine.h"
+#include "hw.h"
+#include "isa.h"
 
-typedef enum {
-    COROUTINE_YIELD = 1,
-    COROUTINE_TERMINATE = 2,
-} CoroutineAction;
+#define PIT_FREQ 1193182
 
-struct Coroutine {
-    CoroutineEntry *entry;
-    void *entry_arg;
-    Coroutine *caller;
-    QSLIST_ENTRY(Coroutine) pool_next;
-    QTAILQ_ENTRY(Coroutine) co_queue_next;
-};
+typedef struct PITChannelInfo {
+    int gate;
+    int mode;
+    int initial_count;
+    int out;
+} PITChannelInfo;
 
-Coroutine *qemu_coroutine_new(void);
-void qemu_coroutine_delete(Coroutine *co);
-CoroutineAction qemu_coroutine_switch(Coroutine *from, Coroutine *to,
-                                      CoroutineAction action);
+static inline ISADevice *pit_init(ISABus *bus, int base, int isa_irq,
+                                  qemu_irq alt_irq)
+{
+    ISADevice *dev;
 
-#endif
+    dev = isa_create(bus, "isa-pit");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
+    qdev_init_nofail(&dev->qdev);
+    qdev_connect_gpio_out(&dev->qdev, 0,
+                          isa_irq >= 0 ? isa_get_irq(dev, isa_irq) : alt_irq);
+
+    return dev;
+}
+
+void pit_set_gate(ISADevice *dev, int channel, int val);
+void pit_get_channel_info(ISADevice *dev, int channel, PITChannelInfo *info);
+
+#endif /* !HW_I8254_H */

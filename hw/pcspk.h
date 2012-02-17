@@ -1,7 +1,7 @@
 /*
- * Coroutine internals
+ * QEMU PC speaker emulation
  *
- * Copyright (c) 2011 Kevin Wolf <kwolf@redhat.com>
+ * Copyright (c) 2006 Joachim Henke
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,24 @@
  * THE SOFTWARE.
  */
 
-#ifndef QEMU_COROUTINE_INT_H
-#define QEMU_COROUTINE_INT_H
+#ifndef HW_PCSPK_H
+#define HW_PCSPK_H
 
-#include "qemu-queue.h"
-#include "qemu-coroutine.h"
+#include "hw.h"
+#include "isa.h"
 
-typedef enum {
-    COROUTINE_YIELD = 1,
-    COROUTINE_TERMINATE = 2,
-} CoroutineAction;
+static inline ISADevice *pcspk_init(ISABus *bus, ISADevice *pit)
+{
+    ISADevice *dev;
 
-struct Coroutine {
-    CoroutineEntry *entry;
-    void *entry_arg;
-    Coroutine *caller;
-    QSLIST_ENTRY(Coroutine) pool_next;
-    QTAILQ_ENTRY(Coroutine) co_queue_next;
-};
+    dev = isa_create(bus, "isa-pcspk");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", 0x61);
+    qdev_prop_set_ptr(&dev->qdev, "pit", pit);
+    qdev_init_nofail(&dev->qdev);
 
-Coroutine *qemu_coroutine_new(void);
-void qemu_coroutine_delete(Coroutine *co);
-CoroutineAction qemu_coroutine_switch(Coroutine *from, Coroutine *to,
-                                      CoroutineAction action);
+    return dev;
+}
 
-#endif
+int pcspk_audio_init(ISABus *bus);
+
+#endif /* !HW_PCSPK_H */

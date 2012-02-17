@@ -36,7 +36,7 @@ enum {
 };
 
 /** Free list to speed up creation */
-static QLIST_HEAD(, Coroutine) pool = QLIST_HEAD_INITIALIZER(pool);
+static QSLIST_HEAD(, Coroutine) pool = QSLIST_HEAD_INITIALIZER(pool);
 static unsigned int pool_size;
 
 typedef struct {
@@ -92,7 +92,7 @@ static void __attribute__((destructor)) coroutine_cleanup(void)
     Coroutine *co;
     Coroutine *tmp;
 
-    QLIST_FOREACH_SAFE(co, &pool, pool_next, tmp) {
+    QSLIST_FOREACH_SAFE(co, &pool, pool_next, tmp) {
         g_free(DO_UPCAST(CoroutineUContext, base, co)->stack);
         g_free(co);
     }
@@ -175,9 +175,9 @@ Coroutine *qemu_coroutine_new(void)
 {
     Coroutine *co;
 
-    co = QLIST_FIRST(&pool);
+    co = QSLIST_FIRST(&pool);
     if (co) {
-        QLIST_REMOVE(co, pool_next);
+        QSLIST_REMOVE_HEAD(&pool, pool_next);
         pool_size--;
     } else {
         co = coroutine_new();
@@ -190,7 +190,7 @@ void qemu_coroutine_delete(Coroutine *co_)
     CoroutineUContext *co = DO_UPCAST(CoroutineUContext, base, co_);
 
     if (pool_size < POOL_MAX_SIZE) {
-        QLIST_INSERT_HEAD(&pool, &co->base, pool_next);
+        QSLIST_INSERT_HEAD(&pool, &co->base, pool_next);
         co->base.caller = NULL;
         pool_size++;
         return;

@@ -42,6 +42,7 @@
 #include "gdbstub.h"
 #include "hw/smbios.h"
 #include "exec-memory.h"
+#include "hw/pcspk.h"
 
 #ifdef TARGET_SPARC
 int graphic_width = 1024;

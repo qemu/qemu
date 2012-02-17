@@ -24,6 +24,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "mc146818rtc.h"
+#include "i8254.h"
 #include "blockdev.h"
 #include "exec-memory.h"
 
@@ -273,7 +274,7 @@ static void mips_init(ram_addr_t ram_size,
     isa_mmio_init(0x14000000, 0x00010000);
     isa_mem_base = 0x10000000;
 
-    pit = pit_init(isa_bus, 0x40, 0);
+    pit = pit_init(isa_bus, 0x40, 0, NULL);
 
     for(i = 0; i < MAX_SERIAL_PORTS; i++) {
         if (serial_hds[i]) {

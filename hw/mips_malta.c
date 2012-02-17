@@ -45,6 +45,7 @@
 #include "loader.h"
 #include "elf.h"
 #include "mc146818rtc.h"
+#include "i8254.h"
 #include "blockdev.h"
 #include "exec-memory.h"
 #include "sysbus.h"             /* SysBusDevice */
@@ -990,7 +991,7 @@ void mips_malta_init (ram_addr_t ram_size,
                           isa_get_irq(NULL, 9), NULL, NULL, 0);
     /* TODO: Populate SPD eeprom data.  */
     smbus_eeprom_init(smbus, 8, NULL, 0);
-    pit = pit_init(isa_bus, 0x40, 0);
+    pit = pit_init(isa_bus, 0x40, 0, NULL);
     cpu_exit_irq = qemu_allocate_irqs(cpu_request_exit, NULL, 1);
     DMA_init(0, cpu_exit_irq);
 
