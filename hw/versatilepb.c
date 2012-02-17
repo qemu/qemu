@@ -9,7 +9,6 @@
 
 #include "sysbus.h"
 #include "arm-misc.h"
-#include "primecell.h"
 #include "devices.h"
 #include "net.h"
 #include "sysemu.h"

@@ -37,7 +37,7 @@ struct arm_boot_info {
      */
     target_phys_addr_t smp_loader_start;
     target_phys_addr_t smp_bootreg_addr;
-    target_phys_addr_t smp_priv_base;
+    target_phys_addr_t gic_cpu_if_addr;
     int nb_cpus;
     int board_id;
     int (*atag_board)(const struct arm_boot_info *info, void *p);

@@ -61,9 +61,7 @@ typedef struct {
     } rtc;
     uint16_t rtc_next_vmstate;
     qemu_irq out[4];
-    qemu_irq *in;
     uint8_t pwrbtn_state;
-    qemu_irq pwrbtn;
 } MenelausState;
 
 static inline void menelaus_update(MenelausState *s)
@@ -186,14 +184,12 @@ static void menelaus_gpio_set(void *opaque, int line, int level)
 {
     MenelausState *s = (MenelausState *) opaque;
 
-    /* No interrupt generated */
-    s->inputs &= ~(1 << line);
-    s->inputs |= level << line;
-}
-
-static void menelaus_pwrbtn_set(void *opaque, int line, int level)
-{
-    MenelausState *s = (MenelausState *) opaque;
+    if (line < 3) {
+        /* No interrupt generated */
+        s->inputs &= ~(1 << line);
+        s->inputs |= level << line;
+        return;
+    }
 
     if (!s->pwrbtn_state && level) {
         s->status |= 1 << 11;					/* PSHBTN */
@@ -849,8 +845,9 @@ static int twl92230_init(I2CSlave *i2c)
     s->rtc.hz_tm = qemu_new_timer_ms(rt_clock, menelaus_rtc_hz, s);
     /* Three output pins plus one interrupt pin.  */
     qdev_init_gpio_out(&i2c->qdev, s->out, 4);
-    qdev_init_gpio_in(&i2c->qdev, menelaus_gpio_set, 3);
-    s->pwrbtn = qemu_allocate_irqs(menelaus_pwrbtn_set, s, 1)[0];
+
+    /* Three input pins plus one power-button pin.  */
+    qdev_init_gpio_in(&i2c->qdev, menelaus_gpio_set, 4);
 
     menelaus_reset(&s->i2c);
 

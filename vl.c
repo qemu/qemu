@@ -2073,7 +2073,7 @@ static int configure_accelerator(void)
     const char *p = NULL;
     char buf[10];
     int i, ret;
-    bool accel_initalised = 0;
+    bool accel_initialised = 0;
     bool init_failed = 0;
 
     QemuOptsList *list = qemu_find_opts("machine");
@@ -2086,7 +2086,7 @@ static int configure_accelerator(void)
         p = "tcg";
     }
 
-    while (!accel_initalised && *p != '\0') {
+    while (!accel_initialised && *p != '\0') {
         if (*p == ':') {
             p++;
         }
@@ -2107,7 +2107,7 @@ static int configure_accelerator(void)
                     }
                     *(accel_list[i].allowed) = 0;
                 } else {
-                    accel_initalised = 1;
+                    accel_initialised = 1;
                 }
                 break;
             }
@@ -2117,7 +2117,7 @@ static int configure_accelerator(void)
         }
     }
 
-    if (!accel_initalised) {
+    if (!accel_initialised) {
         fprintf(stderr, "No accelerator found!\n");
         exit(1);
     }
@@ -2126,7 +2126,7 @@ static int configure_accelerator(void)
         fprintf(stderr, "Back to %s accelerator.\n", accel_list[i].name);
     }
 
-    return !accel_initalised;
+    return !accel_initialised;
 }
 
 void qemu_add_exit_notifier(Notifier *notify)
@@ -2933,12 +2933,10 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_enable_kvm:
                 olist = qemu_find_opts("machine");
-                qemu_opts_reset(olist);
                 qemu_opts_parse(olist, "accel=kvm", 0);
                 break;
             case QEMU_OPTION_machine:
                 olist = qemu_find_opts("machine");
-                qemu_opts_reset(olist);
                 opts = qemu_opts_parse(olist, optarg, 1);
                 if (!opts) {
                     fprintf(stderr, "parse error: %s\n", optarg);

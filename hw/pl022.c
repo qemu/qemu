@@ -9,7 +9,6 @@
 
 #include "sysbus.h"
 #include "ssi.h"
-#include "primecell.h"
 
 //#define DEBUG_PL022 1
 

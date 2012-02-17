@@ -160,7 +160,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
          * and valid configurations; we don't model A9UP).
          */
         set_feature(env, ARM_FEATURE_V7MP);
-        env->vfp.xregs[ARM_VFP_FPSID] = 0x41034000; /* Guess */
+        env->vfp.xregs[ARM_VFP_FPSID] = 0x41033090;
         env->vfp.xregs[ARM_VFP_MVFR0] = 0x11110222;
         env->vfp.xregs[ARM_VFP_MVFR1] = 0x01111111;
         memcpy(env->cp15.c0_c1, cortexa9_cp15_c0_c1, 8 * sizeof(uint32_t));
@@ -347,6 +347,11 @@ void cpu_reset(CPUARMState *env)
     set_float_detect_tininess(float_tininess_before_rounding,
                               &env->vfp.standard_fp_status);
     tlb_flush(env, 1);
+    /* Reset is a state change for some CPUState fields which we
+     * bake assumptions about into translated code, so we need to
+     * tb_flush().
+     */
+    tb_flush(env);
 }
 
 static int vfp_gdb_get_reg(CPUState *env, uint8_t *buf, int reg)
