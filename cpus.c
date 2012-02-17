@@ -714,6 +714,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_get_self(env->thread);
     env->thread_id = qemu_get_thread_id();
+    cpu_single_env = env;
 
     r = kvm_init_vcpu(env);
     if (r < 0) {
