@@ -44,7 +44,8 @@ Rationale:
 3. Naming
 
 Variables are lower_case_with_underscores; easy to type and read.  Structured
-type names are in CamelCase; harder to type but standing out.  Scalar type
+type names are in CamelCase; harder to type but standing out.  Enum type
+names and function type names should also be in CamelCase.  Scalar type
 names are lower_case_with_underscores_ending_with_a_t, like the POSIX
 uint64_t and family.  Note that this last convention contradicts POSIX
 and is therefore likely to be changed.

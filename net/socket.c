@@ -664,8 +664,8 @@ int net_init_socket(QemuOpts *opts,
             qemu_opt_get(opts, "connect") ||
             qemu_opt_get(opts, "listen") ||
             qemu_opt_get(opts, "mcast")) {
-            error_report("fd=, connect=, listen=\
-                         and mcast= is invalid with udp=");
+            error_report("fd=, connect=, listen="
+                         " and mcast= is invalid with udp=");
             return -1;
         }
 
@@ -680,8 +680,8 @@ int net_init_socket(QemuOpts *opts,
             return -1;
         }
     } else {
-        error_report("-socket requires fd=, listen=, \
-                     connect=, mcast= or udp=");
+        error_report("-socket requires fd=, listen=,"
+                     " connect=, mcast= or udp=");
         return -1;
     }
     return 0;

@@ -1,5 +1,5 @@
 /*
- *  i386 emulator main execution loop
+ *  emulator main execution loop
  *
  *  Copyright (c) 2003-2005 Fabrice Bellard
  *
@@ -304,7 +304,7 @@ int cpu_exec(CPUState *env)
                             env->hflags2 |= HF2_NMI_MASK;
                             do_interrupt_x86_hardirq(env, EXCP02_NMI, 1);
                             next_tb = 0;
-			} else if (interrupt_request & CPU_INTERRUPT_MCE) {
+                        } else if (interrupt_request & CPU_INTERRUPT_MCE) {
                             env->interrupt_request &= ~CPU_INTERRUPT_MCE;
                             do_interrupt_x86_hardirq(env, EXCP12_MCHK, 0);
                             next_tb = 0;
@@ -390,7 +390,7 @@ int cpu_exec(CPUState *env)
                                 next_tb = 0;
                             }
                         }
-		    }
+                    }
 #elif defined(TARGET_ARM)
                     if (interrupt_request & CPU_INTERRUPT_FIQ
                         && !(env->uncached_cpsr & CPSR_F)) {
@@ -429,7 +429,7 @@ int cpu_exec(CPUState *env)
                     {
                         int idx = -1;
                         /* ??? This hard-codes the OSF/1 interrupt levels.  */
-		        switch (env->pal_mode ? 7 : env->ps & PS_INT_MASK) {
+                        switch (env->pal_mode ? 7 : env->ps & PS_INT_MASK) {
                         case 0 ... 3:
                             if (interrupt_request & CPU_INTERRUPT_HARD) {
                                 idx = EXCP_DEV_INTERRUPT;
@@ -562,7 +562,7 @@ int cpu_exec(CPUState *env)
                 barrier();
                 if (likely(!env->exit_request)) {
                     tc_ptr = tb->tc_ptr;
-                /* execute the generated code */
+                    /* execute the generated code */
                     next_tb = tcg_qemu_tb_exec(env, tc_ptr);
                     if ((next_tb & 3) == 2) {
                         /* Instruction counter expired.  */

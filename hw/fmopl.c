@@ -733,7 +733,7 @@ INLINE void CSMKeyControll(OPL_CH *CH)
 }
 
 /* ---------- opl initialize ---------- */
-static void OPL_initalize(FM_OPL *OPL)
+static void OPL_initialize(FM_OPL *OPL)
 {
 	int fn;
 
@@ -1239,7 +1239,7 @@ FM_OPL *OPLCreate(int type, int clock, int rate)
 	OPL->rate  = rate;
 	OPL->max_ch = max_ch;
 	/* init grobal tables */
-	OPL_initalize(OPL);
+	OPL_initialize(OPL);
 	/* reset chip */
 	OPLResetChip(OPL);
 #ifdef OPL_OUTPUT_LOG
