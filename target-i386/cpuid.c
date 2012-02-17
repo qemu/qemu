@@ -607,6 +607,12 @@ static void x86_cpuid_version_set_family(CPUX86State *env, int family)
     }
 }
 
+static void x86_cpuid_version_set_model(CPUX86State *env, int model)
+{
+    env->cpuid_version &= ~0xf00f0;
+    env->cpuid_version |= ((model & 0xf) << 4) | ((model >> 4) << 16);
+}
+
 static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
 {
     unsigned int i;
@@ -894,7 +900,7 @@ int cpu_x86_register (CPUX86State *env, const char *cpu_model)
     env->cpuid_vendor_override = def->vendor_override;
     env->cpuid_level = def->level;
     x86_cpuid_version_set_family(env, def->family);
-    env->cpuid_version |= ((def->model & 0xf) << 4) | ((def->model >> 4) << 16);
+    x86_cpuid_version_set_model(env, def->model);
     env->cpuid_version |= def->stepping;
     env->cpuid_features = def->features;
     env->cpuid_ext_features = def->ext_features;
