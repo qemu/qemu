@@ -2077,15 +2077,6 @@ static bool ide_drive_pio_state_needed(void *opaque)
         || (s->bus->error_status & BM_STATUS_PIO_RETRY);
 }
 
-static int ide_tray_state_post_load(void *opaque, int version_id)
-{
-    IDEState *s = opaque;
-
-    bdrv_eject(s->bs, s->tray_open);
-    bdrv_lock_medium(s->bs, s->tray_locked);
-    return 0;
-}
-
 static bool ide_tray_state_needed(void *opaque)
 {
     IDEState *s = opaque;
@@ -2125,7 +2116,6 @@ static const VMStateDescription vmstate_ide_tray_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .post_load = ide_tray_state_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(tray_open, IDEState),
         VMSTATE_BOOL(tray_locked, IDEState),
