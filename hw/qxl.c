@@ -1557,11 +1557,17 @@ static DisplayChangeListener display_listener = {
 static void qxl_init_ramsize(PCIQXLDevice *qxl, uint32_t ram_min_mb)
 {
     /* vga ram (bar 0) */
+    if (qxl->ram_size_mb != -1) {
+        qxl->vga.vram_size = qxl->ram_size_mb * 1024 * 1024;
+    }
     if (qxl->vga.vram_size < ram_min_mb * 1024 * 1024) {
         qxl->vga.vram_size = ram_min_mb * 1024 * 1024;
     }
 
     /* vram (surfaces, bar 1) */
+    if (qxl->vram_size_mb != -1) {
+        qxl->vram_size = qxl->vram_size_mb * 1024 * 1024;
+    }
     if (qxl->vram_size < 4096) {
         qxl->vram_size = 4096;
     }
@@ -1860,6 +1866,8 @@ static Property qxl_properties[] = {
         DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
         DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
         DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
+        DEFINE_PROP_UINT32("ram_size_mb",  PCIQXLDevice, ram_size_mb, -1),
+        DEFINE_PROP_UINT32("vram_size_mb", PCIQXLDevice, vram_size_mb, -1),
         DEFINE_PROP_END_OF_LIST(),
 };
 
