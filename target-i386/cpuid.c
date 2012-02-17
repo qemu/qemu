@@ -619,6 +619,24 @@ static void x86_cpuid_version_set_stepping(CPUX86State *env, int stepping)
     env->cpuid_version |= stepping & 0xf;
 }
 
+static void x86_cpuid_set_model_id(CPUX86State *env, const char *model_id)
+{
+    int c, len, i;
+
+    if (model_id == NULL) {
+        model_id = "";
+    }
+    len = strlen(model_id);
+    for (i = 0; i < 48; i++) {
+        if (i >= len) {
+            c = '\0';
+        } else {
+            c = (uint8_t)model_id[i];
+        }
+        env->cpuid_model[i >> 2] |= c << (8 * (i & 3));
+    }
+}
+
 static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
 {
     unsigned int i;
@@ -929,20 +947,7 @@ int cpu_x86_register (CPUX86State *env, const char *cpu_model)
         env->cpuid_ext3_features &= TCG_EXT3_FEATURES;
         env->cpuid_svm_features &= TCG_SVM_FEATURES;
     }
-    {
-        const char *model_id = def->model_id;
-        int c, len, i;
-        if (!model_id)
-            model_id = "";
-        len = strlen(model_id);
-        for(i = 0; i < 48; i++) {
-            if (i >= len)
-                c = '\0';
-            else
-                c = (uint8_t)model_id[i];
-            env->cpuid_model[i >> 2] |= c << (8 * (i & 3));
-        }
-    }
+    x86_cpuid_set_model_id(env, def->model_id);
     return 0;
 }
 
