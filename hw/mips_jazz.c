@@ -295,7 +295,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
     sysbus_mmio_map(sysbus, 0, 0x80009000);
 
     /* LED indicator */
-    jazz_led_init(address_space, 0x8000f000);
+    sysbus_create_simple("jazz-led", 0x8000f000, NULL);
 }
 
 static
