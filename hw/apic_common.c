@@ -68,6 +68,11 @@ uint8_t cpu_get_apic_tpr(DeviceState *d)
     return s ? s->tpr >> 4 : 0;
 }
 
+void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
+                                   TPRAccess access)
+{
+}
+
 void apic_report_irq_delivered(int delivered)
 {
     apic_irq_delivered += delivered;

@@ -1635,8 +1635,10 @@ void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
     }
 
     if (!kvm_irqchip_in_kernel()) {
-        /* Force the VCPU out of its inner loop to process the INIT request */
-        if (env->interrupt_request & CPU_INTERRUPT_INIT) {
+        /* Force the VCPU out of its inner loop to process any INIT requests
+         * or pending TPR access reports. */
+        if (env->interrupt_request &
+            (CPU_INTERRUPT_INIT | CPU_INTERRUPT_TPR)) {
             env->exit_request = 1;
         }
 
@@ -1730,6 +1732,12 @@ int kvm_arch_process_async_events(CPUState *env)
         kvm_cpu_synchronize_state(env);
         do_cpu_sipi(env);
     }
+    if (env->interrupt_request & CPU_INTERRUPT_TPR) {
+        env->interrupt_request &= ~CPU_INTERRUPT_TPR;
+        kvm_cpu_synchronize_state(env);
+        apic_handle_tpr_access_report(env->apic_state, env->eip,
+                                      env->tpr_access_type);
+    }
 
     return env->halted;
 }
@@ -1744,6 +1752,16 @@ static int kvm_handle_halt(CPUState *env)
     }
 
     return 0;
+}
+
+static int kvm_handle_tpr_access(CPUState *env)
+{
+    struct kvm_run *run = env->kvm_run;
+
+    apic_handle_tpr_access_report(env->apic_state, run->tpr_access.rip,
+                                  run->tpr_access.is_write ? TPR_ACCESS_WRITE
+                                                           : TPR_ACCESS_READ);
+    return 1;
 }
 
 int kvm_arch_insert_sw_breakpoint(CPUState *env, struct kvm_sw_breakpoint *bp)
@@ -1949,6 +1967,9 @@ int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
         break;
     case KVM_EXIT_SET_TPR:
         ret = 0;
+        break;
+    case KVM_EXIT_TPR_ACCESS:
+        ret = kvm_handle_tpr_access(env);
         break;
     case KVM_EXIT_FAIL_ENTRY:
         code = run->fail_entry.hardware_entry_failure_reason;
