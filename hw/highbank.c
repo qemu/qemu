@@ -19,7 +19,6 @@
 
 #include "sysbus.h"
 #include "arm-misc.h"
-#include "primecell.h"
 #include "devices.h"
 #include "loader.h"
 #include "net.h"

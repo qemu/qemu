@@ -43,16 +43,16 @@ static uint32_t bootloader[] = {
  * location for the kernel secondary CPU entry point.
  */
 static uint32_t smpboot[] = {
-  0xe59f201c, /* ldr r2, privbase */
+  0xe59f201c, /* ldr r2, gic_cpu_if */
   0xe59f001c, /* ldr r0, startaddr */
   0xe3a01001, /* mov r1, #1 */
-  0xe5821100, /* str r1, [r2, #256] */
+  0xe5821000, /* str r1, [r2] */
   0xe320f003, /* wfi */
   0xe5901000, /* ldr     r1, [r0] */
   0xe1110001, /* tst     r1, r1 */
   0x0afffffb, /* beq     <wfi> */
   0xe12fff11, /* bx      r1 */
-  0,          /* privbase: Private memory region base address.  */
+  0,          /* gic_cpu_if: base address of GIC CPU interface */
   0           /* bootreg: Boot register address is held here */
 };
 
@@ -61,7 +61,7 @@ static void default_write_secondary(CPUState *env,
 {
     int n;
     smpboot[ARRAY_SIZE(smpboot) - 1] = info->smp_bootreg_addr;
-    smpboot[ARRAY_SIZE(smpboot) - 2] = info->smp_priv_base;
+    smpboot[ARRAY_SIZE(smpboot) - 2] = info->gic_cpu_if_addr;
     for (n = 0; n < ARRAY_SIZE(smpboot); n++) {
         smpboot[n] = tswap32(smpboot[n]);
     }
