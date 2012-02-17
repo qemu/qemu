@@ -8,8 +8,6 @@
 #include <slirp.h>
 #include "qemu-timer.h"
 
-#define ifs_init(ifm) ((ifm)->ifs_next = (ifm)->ifs_prev = (ifm))
-
 static void
 ifs_insque(struct mbuf *ifm, struct mbuf *ifmhead)
 {

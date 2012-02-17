@@ -20,6 +20,4 @@
 /* 2 for alignment, 14 for ethernet, 40 for TCP/IP */
 #define IF_MAXLINKHDR (2 + 14 + 40)
 
-#define ifs_init(ifm) ((ifm)->ifs_next = (ifm)->ifs_prev = (ifm))
-
 #endif
