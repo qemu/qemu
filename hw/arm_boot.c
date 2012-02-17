@@ -87,7 +87,7 @@ static void set_kernel_args(const struct arm_boot_info *info)
     target_phys_addr_t base = info->loader_start;
     target_phys_addr_t p;
 
-    p = info->loader_start + KERNEL_ARGS_ADDR;
+    p = base + KERNEL_ARGS_ADDR;
     /* ATAG_CORE */
     WRITE_WORD(p, 5);
     WRITE_WORD(p, 0x54410001);
@@ -100,12 +100,12 @@ static void set_kernel_args(const struct arm_boot_info *info)
     WRITE_WORD(p, 0x54410002);
     WRITE_WORD(p, info->ram_size);
     WRITE_WORD(p, info->loader_start);
-    if (info->initrd_size) {
+    if (initrd_size) {
         /* ATAG_INITRD2 */
         WRITE_WORD(p, 4);
         WRITE_WORD(p, 0x54420005);
         WRITE_WORD(p, info->loader_start + INITRD_LOAD_ADDR);
-        WRITE_WORD(p, info->initrd_size);
+        WRITE_WORD(p, initrd_size);
     }
     if (info->atag_revision) {
         /* ATAG REVISION. */
@@ -149,7 +149,7 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     target_phys_addr_t base = info->loader_start;
 
     /* see linux/include/asm-arm/setup.h */
-    p = info->loader_start + KERNEL_ARGS_ADDR;
+    p = base + KERNEL_ARGS_ADDR;
     /* page_size */
     WRITE_WORD(p, 4096);
     /* nr_pages */
@@ -186,12 +186,12 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     /* pages_in_vram */
     WRITE_WORD(p, 0);
     /* initrd_start */
-    if (info->initrd_size)
+    if (initrd_size)
         WRITE_WORD(p, info->loader_start + INITRD_LOAD_ADDR);
     else
         WRITE_WORD(p, 0);
     /* initrd_size */
-    WRITE_WORD(p, info->initrd_size);
+    WRITE_WORD(p, initrd_size);
     /* rd_start */
     WRITE_WORD(p, 0);
     /* system_rev */
@@ -203,7 +203,7 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     /* mem_fclk_21285 */
     WRITE_WORD(p, 0);
     /* zero unused fields */
-    while (p < info->loader_start + KERNEL_ARGS_ADDR + 256 + 1024) {
+    while (p < base + KERNEL_ARGS_ADDR + 256 + 1024) {
         WRITE_WORD(p, 0);
     }
     s = info->kernel_cmdline;
