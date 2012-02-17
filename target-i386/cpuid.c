@@ -613,6 +613,12 @@ static void x86_cpuid_version_set_model(CPUX86State *env, int model)
     env->cpuid_version |= ((model & 0xf) << 4) | ((model >> 4) << 16);
 }
 
+static void x86_cpuid_version_set_stepping(CPUX86State *env, int stepping)
+{
+    env->cpuid_version &= ~0xf;
+    env->cpuid_version |= stepping & 0xf;
+}
+
 static int cpu_x86_find_by_name(x86_def_t *x86_cpu_def, const char *cpu_model)
 {
     unsigned int i;
@@ -901,7 +907,7 @@ int cpu_x86_register (CPUX86State *env, const char *cpu_model)
     env->cpuid_level = def->level;
     x86_cpuid_version_set_family(env, def->family);
     x86_cpuid_version_set_model(env, def->model);
-    env->cpuid_version |= def->stepping;
+    x86_cpuid_version_set_stepping(env, def->stepping);
     env->cpuid_features = def->features;
     env->cpuid_ext_features = def->ext_features;
     env->cpuid_ext2_features = def->ext2_features;
