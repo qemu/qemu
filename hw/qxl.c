@@ -1554,6 +1554,25 @@ static DisplayChangeListener display_listener = {
     .dpy_refresh = display_refresh,
 };
 
+static void qxl_init_ramsize(PCIQXLDevice *qxl, uint32_t ram_min_mb)
+{
+    /* vga ram (bar 0) */
+    if (qxl->vga.vram_size < ram_min_mb * 1024 * 1024) {
+        qxl->vga.vram_size = ram_min_mb * 1024 * 1024;
+    }
+
+    /* vram (surfaces, bar 1) */
+    if (qxl->vram_size < 4096) {
+        qxl->vram_size = 4096;
+    }
+    if (qxl->revision == 1) {
+        qxl->vram_size = 4096;
+    }
+
+    qxl->vga.vram_size = msb_mask(qxl->vga.vram_size * 2 - 1);
+    qxl->vram_size = msb_mask(qxl->vram_size * 2 - 1);
+}
+
 static int qxl_init_common(PCIQXLDevice *qxl)
 {
     uint8_t* config = qxl->pci.config;
@@ -1592,13 +1611,6 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     init_qxl_rom(qxl);
     init_qxl_ram(qxl);
 
-    if (qxl->vram_size < 4096) {
-        qxl->vram_size = 4096;
-    }
-    if (qxl->revision == 1) {
-        qxl->vram_size = 4096;
-    }
-    qxl->vram_size = msb_mask(qxl->vram_size * 2 - 1);
     memory_region_init_ram(&qxl->vram_bar, "qxl.vram", qxl->vram_size);
     vmstate_register_ram(&qxl->vram_bar, &qxl->pci.qdev);
 
@@ -1641,15 +1653,11 @@ static int qxl_init_primary(PCIDevice *dev)
 {
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
     VGACommonState *vga = &qxl->vga;
-    ram_addr_t ram_size = msb_mask(qxl->vga.vram_size * 2 - 1);
     PortioList *qxl_vga_port_list = g_new(PortioList, 1);
 
     qxl->id = 0;
-
-    if (ram_size < 32 * 1024 * 1024) {
-        ram_size = 32 * 1024 * 1024;
-    }
-    vga_common_init(vga, ram_size);
+    qxl_init_ramsize(qxl, 32);
+    vga_common_init(vga, qxl->vga.vram_size);
     vga_init(vga, pci_address_space(dev), pci_address_space_io(dev), false);
     portio_list_init(qxl_vga_port_list, qxl_vga_portio_list, vga, "vga");
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
@@ -1668,14 +1676,9 @@ static int qxl_init_secondary(PCIDevice *dev)
 {
     static int device_id = 1;
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
-    ram_addr_t ram_size = msb_mask(qxl->vga.vram_size * 2 - 1);
 
     qxl->id = device_id++;
-
-    if (ram_size < 16 * 1024 * 1024) {
-        ram_size = 16 * 1024 * 1024;
-    }
-    qxl->vga.vram_size = ram_size;
+    qxl_init_ramsize(qxl, 16);
     memory_region_init_ram(&qxl->vga.vram, "qxl.vgavram", qxl->vga.vram_size);
     vmstate_register_ram(&qxl->vga.vram, &qxl->pci.qdev);
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
