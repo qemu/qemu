@@ -1856,6 +1856,8 @@ int main(int argc, char **argv)
 
     bdrv_init();
 
+    qemu_init_main_loop();
+
     /* initialize commands */
     quit_init();
     help_init();
