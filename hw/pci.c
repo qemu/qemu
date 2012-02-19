@@ -63,6 +63,7 @@ struct BusInfo pci_bus_info = {
     }
 };
 
+static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num);
 static void pci_update_mappings(PCIDevice *d);
 static void pci_set_irq(void *opaque, int irq_num, int level);
 static int pci_add_option_rom(PCIDevice *pdev, bool is_default_rom);
@@ -558,7 +559,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
 
     if (!devaddr) {
         *devfnp = -1;
-        return pci_find_bus(pci_find_root_bus(0), 0);
+        return pci_find_bus_nr(pci_find_root_bus(0), 0);
     }
 
     if (pci_parse_devaddr(devaddr, &dom, &bus, &slot, NULL) < 0) {
@@ -566,7 +567,7 @@ PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr)
     }
 
     *devfnp = PCI_DEVFN(slot, 0);
-    return pci_find_bus(pci_find_root_bus(dom), bus);
+    return pci_find_bus_nr(pci_find_root_bus(dom), bus);
 }
 
 static void pci_init_cmask(PCIDevice *dev)
@@ -1140,7 +1141,7 @@ static void pci_for_each_device_under_bus(PCIBus *bus,
 void pci_for_each_device(PCIBus *bus, int bus_num,
                          void (*fn)(PCIBus *b, PCIDevice *d))
 {
-    bus = pci_find_bus(bus, bus_num);
+    bus = pci_find_bus_nr(bus, bus_num);
 
     if (bus) {
         pci_for_each_device_under_bus(bus, fn);
@@ -1227,7 +1228,7 @@ static PciBridgeInfo *qmp_query_pci_bridge(PCIDevice *dev, PCIBus *bus,
     info->bus.prefetchable_range->limit = pci_bridge_get_limit(dev, PCI_BASE_ADDRESS_MEM_PREFETCH);
 
     if (dev->config[PCI_SECONDARY_BUS] != 0) {
-        PCIBus *child_bus = pci_find_bus(bus, dev->config[PCI_SECONDARY_BUS]);
+        PCIBus *child_bus = pci_find_bus_nr(bus, dev->config[PCI_SECONDARY_BUS]);
         if (child_bus) {
             info->has_devices = true;
             info->devices = qmp_query_pci_devices(child_bus, dev->config[PCI_SECONDARY_BUS]);
@@ -1306,7 +1307,7 @@ static PciInfo *qmp_query_pci_bus(PCIBus *bus, int bus_num)
 {
     PciInfo *info = NULL;
 
-    bus = pci_find_bus(bus, bus_num);
+    bus = pci_find_bus_nr(bus, bus_num);
     if (bus) {
         info = g_malloc0(sizeof(*info));
         info->bus = bus_num;
@@ -1416,7 +1417,7 @@ static bool pci_secondary_bus_in_range(PCIDevice *dev, int bus_num)
         bus_num <= dev->config[PCI_SUBORDINATE_BUS];
 }
 
-PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
+static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num)
 {
     PCIBus *sec;
 
@@ -1452,7 +1453,7 @@ PCIBus *pci_find_bus(PCIBus *bus, int bus_num)
 
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn)
 {
-    bus = pci_find_bus(bus, bus_num);
+    bus = pci_find_bus_nr(bus, bus_num);
 
     if (!bus)
         return NULL;
