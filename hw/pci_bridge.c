@@ -314,6 +314,16 @@ int pci_bridge_initfn(PCIDevice *dev)
     pci_set_word(dev->config + PCI_SEC_STATUS,
                  PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
 
+    /*
+     * If we don't specify the name, the bus will be addressed as <id>.0, where
+     * id is the device id.
+     * Since PCI Bridge devices have a single bus each, we don't need the index:
+     * let users address the bus using the device name.
+     */
+    if (!br->bus_name && dev->qdev.id && *dev->qdev.id) {
+	    br->bus_name = dev->qdev.id;
+    }
+
     qbus_create_inplace(&sec_bus->qbus, &pci_bus_info, &dev->qdev,
                         br->bus_name);
     sec_bus->parent_dev = dev;
