@@ -264,7 +264,7 @@ void object_initialize_with_type(void *data, TypeImpl *type)
     Object *obj = data;
 
     g_assert(type != NULL);
-    g_assert(type->instance_size >= sizeof(ObjectClass));
+    g_assert(type->instance_size >= sizeof(Object));
 
     type_class_init(type);
     g_assert(type->abstract == false);
