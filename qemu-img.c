@@ -1655,6 +1655,8 @@ int main(int argc, char **argv)
     cmdname = argv[1];
     argc--; argv++;
 
+    qemu_init_main_loop();
+
     /* find the command */
     for(cmd = img_cmds; cmd->name != NULL; cmd++) {
         if (!strcmp(cmdname, cmd->name)) {
