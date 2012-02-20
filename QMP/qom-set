@@ -1,0 +1,64 @@
+#!/usr/bin/python
+##
+# QEMU Object Model test tools
+#
+# Copyright IBM, Corp. 2011
+#
+# Authors:
+#  Anthony Liguori   <aliguori@us.ibm.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2 or later.  See
+# the COPYING file in the top-level directory.
+##
+
+import sys
+import os
+from qmp import QEMUMonitorProtocol
+
+cmd, args = sys.argv[0], sys.argv[1:]
+socket_path = None
+path = None
+prop = None
+value = None
+
+def usage():
+    return '''environment variables:
+    QMP_SOCKET=<path | addr:port>
+usage:
+    %s [-h] [-s <QMP socket path | addr:port>] <path>.<property> <value>
+''' % cmd
+
+def usage_error(error_msg = "unspecified error"):
+    sys.stderr.write('%s\nERROR: %s\n' % (usage(), error_msg))
+    exit(1)
+
+if len(args) > 0:
+    if args[0] == "-h":
+        print usage()
+        exit(0);
+    elif args[0] == "-s":
+        try:
+            socket_path = args[1]
+        except:
+            usage_error("missing argument: QMP socket path or address");
+        args = args[2:]
+
+if not socket_path:
+    if os.environ.has_key('QMP_SOCKET'):
+        socket_path = os.environ['QMP_SOCKET']
+    else:
+        usage_error("no QMP socket path or address given");
+
+if len(args) > 1:
+    try:
+        path, prop = args[0].rsplit('.', 1)
+    except:
+        usage_error("invalid format for path/property/value")
+    value = args[1]
+else:
+    usage_error("not enough arguments")
+
+srv = QEMUMonitorProtocol(socket_path)
+srv.connect()
+
+print srv.command('qom-set', path=path, property=prop, value=sys.argv[2])
