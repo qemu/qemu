@@ -128,6 +128,12 @@ class QEMUMonitorProtocol:
             qmp_cmd['id'] = id
         return self.cmd_obj(qmp_cmd)
 
+    def command(self, cmd, **kwds):
+        ret = self.cmd(cmd, kwds)
+        if ret.has_key('error'):
+            raise Exception(ret['error']['desc'])
+        return ret['return']
+
     def get_events(self, wait=False):
         """
         Get a list of available QMP events.
