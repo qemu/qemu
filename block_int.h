@@ -259,10 +259,6 @@ struct BlockDriverState {
     /* number of in-flight copy-on-read requests */
     unsigned int copy_on_read_in_flight;
 
-    /* async read/write emulation */
-
-    void *sync_aiocb;
-
     /* the time for latest disk I/O */
     int64_t slice_time;
     int64_t slice_start;
@@ -299,7 +295,6 @@ struct BlockDriverState {
     int64_t dirty_count;
     int in_use; /* users other than guest access, eg. block migration */
     QTAILQ_ENTRY(BlockDriverState) list;
-    void *private;
 
     QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
 
