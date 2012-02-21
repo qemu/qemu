@@ -162,12 +162,6 @@ struct BlockDriver {
      */
     int coroutine_fn (*bdrv_co_flush_to_os)(BlockDriverState *bs);
 
-    int (*bdrv_aio_multiwrite)(BlockDriverState *bs, BlockRequest *reqs,
-        int num_reqs);
-    int (*bdrv_merge_requests)(BlockDriverState *bs, BlockRequest* a,
-        BlockRequest *b);
-
-
     const char *protocol_name;
     int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset);
     int64_t (*bdrv_getlength)(BlockDriverState *bs);

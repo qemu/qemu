@@ -2791,7 +2791,6 @@ typedef struct MultiwriteCB {
         BlockDriverCompletionFunc *cb;
         void *opaque;
         QEMUIOVector *free_qiov;
-        void *free_buf;
     } callbacks[];
 } MultiwriteCB;
 
@@ -2805,7 +2804,6 @@ static void multiwrite_user_cb(MultiwriteCB *mcb)
             qemu_iovec_destroy(mcb->callbacks[i].free_qiov);
         }
         g_free(mcb->callbacks[i].free_qiov);
-        qemu_vfree(mcb->callbacks[i].free_buf);
     }
 }
 
@@ -2862,18 +2860,9 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
         int merge = 0;
         int64_t oldreq_last = reqs[outidx].sector + reqs[outidx].nb_sectors;
 
-        // This handles the cases that are valid for all block drivers, namely
-        // exactly sequential writes and overlapping writes.
+        // Handle exactly sequential writes and overlapping writes.
         if (reqs[i].sector <= oldreq_last) {
             merge = 1;
-        }
-
-        // The block driver may decide that it makes sense to combine requests
-        // even if there is a gap of some sectors between them. In this case,
-        // the gap is filled with zeros (therefore only applicable for yet
-        // unused space in format like qcow2).
-        if (!merge && bs->drv->bdrv_merge_requests) {
-            merge = bs->drv->bdrv_merge_requests(bs, &reqs[outidx], &reqs[i]);
         }
 
         if (reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1 > IOV_MAX) {
@@ -2891,14 +2880,8 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
             size = (reqs[i].sector - reqs[outidx].sector) << 9;
             qemu_iovec_concat(qiov, reqs[outidx].qiov, size);
 
-            // We might need to add some zeros between the two requests
-            if (reqs[i].sector > oldreq_last) {
-                size_t zero_bytes = (reqs[i].sector - oldreq_last) << 9;
-                uint8_t *buf = qemu_blockalign(bs, zero_bytes);
-                memset(buf, 0, zero_bytes);
-                qemu_iovec_add(qiov, buf, zero_bytes);
-                mcb->callbacks[i].free_buf = buf;
-            }
+            // We should need to add any zeros between the two requests
+            assert (reqs[i].sector <= oldreq_last);
 
             // Add the second request
             qemu_iovec_concat(qiov, reqs[i].qiov, reqs[i].qiov->size);
