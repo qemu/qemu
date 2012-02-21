@@ -1769,13 +1769,7 @@ void ppc40x_core_reset (CPUState *env)
     target_ulong dbsr;
 
     printf("Reset PowerPC core\n");
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-    /* XXX: TOFIX */
-#if 0
-    cpu_reset(env);
-#else
-    qemu_system_reset_request();
-#endif
+    cpu_interrupt(env, CPU_INTERRUPT_RESET);
     dbsr = env->spr[SPR_40x_DBSR];
     dbsr &= ~0x00000300;
     dbsr |= 0x00000100;
@@ -1787,13 +1781,7 @@ void ppc40x_chip_reset (CPUState *env)
     target_ulong dbsr;
 
     printf("Reset PowerPC chip\n");
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-    /* XXX: TOFIX */
-#if 0
-    cpu_reset(env);
-#else
-    qemu_system_reset_request();
-#endif
+    cpu_interrupt(env, CPU_INTERRUPT_RESET);
     /* XXX: TODO reset all internal peripherals */
     dbsr = env->spr[SPR_40x_DBSR];
     dbsr &= ~0x00000300;

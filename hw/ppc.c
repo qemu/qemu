@@ -131,13 +131,7 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
             /* Level sensitive - active low */
             if (level) {
                 LOG_IRQ("%s: reset the CPU\n", __func__);
-                env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-                /* XXX: TOFIX */
-#if 0
-                cpu_reset(env);
-#else
-                qemu_system_reset_request();
-#endif
+                cpu_interrupt(env, CPU_INTERRUPT_RESET);
             }
             break;
         case PPC6xx_INPUT_SRESET:
@@ -214,10 +208,7 @@ static void ppc970_set_irq (void *opaque, int pin, int level)
         case PPC970_INPUT_HRESET:
             /* Level sensitive - active low */
             if (level) {
-#if 0 // XXX: TOFIX
-                LOG_IRQ("%s: reset the CPU\n", __func__);
-                cpu_reset(env);
-#endif
+                cpu_interrupt(env, CPU_INTERRUPT_RESET);
             }
             break;
         case PPC970_INPUT_SRESET:

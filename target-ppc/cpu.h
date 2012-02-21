@@ -2051,6 +2051,9 @@ enum {
     PPC_INTERRUPT_PERFM,          /* Performance monitor interrupt        */
 };
 
+/* CPU should be reset next, restart from scratch afterwards */
+#define CPU_INTERRUPT_RESET       CPU_INTERRUPT_TGT_INT_0
+
 /*****************************************************************************/
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,

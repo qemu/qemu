@@ -339,11 +339,9 @@ int cpu_exec(CPUState *env)
                         }
                     }
 #elif defined(TARGET_PPC)
-#if 0
                     if ((interrupt_request & CPU_INTERRUPT_RESET)) {
                         cpu_reset(env);
                     }
-#endif
                     if (interrupt_request & CPU_INTERRUPT_HARD) {
                         ppc_hw_interrupt(env);
                         if (env->pending_interrupts == 0)
