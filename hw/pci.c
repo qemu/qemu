@@ -663,7 +663,10 @@ static void pci_init_mask_bridge(PCIDevice *d)
     pci_set_word(d->w1cmask + PCI_BRIDGE_CONTROL,
                  PCI_BRIDGE_CTL_DISCARD_STATUS);
     d->cmask[PCI_IO_BASE] |= PCI_IO_RANGE_TYPE_MASK;
+    d->cmask[PCI_IO_LIMIT] |= PCI_IO_RANGE_TYPE_MASK;
     pci_word_test_and_set_mask(d->cmask + PCI_PREF_MEMORY_BASE,
+                               PCI_PREF_RANGE_TYPE_MASK);
+    pci_word_test_and_set_mask(d->cmask + PCI_PREF_MEMORY_LIMIT,
                                PCI_PREF_RANGE_TYPE_MASK);
 }
 
