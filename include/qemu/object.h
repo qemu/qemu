@@ -837,6 +837,10 @@ Object *object_resolve_path_type(const char *path, const char *typename,
  *
  * There is no way for a child to determine what its parent is.  It is not
  * a bidirectional relationship.  This is by design.
+ *
+ * The value of a child property as a C string will be the child object's
+ * canonical path. It can be retrieved using object_property_get_str().
+ * The child object itself can be retrieved using object_property_get_link().
  */
 void object_property_add_child(Object *obj, const char *name,
                                Object *child, struct Error **errp);
