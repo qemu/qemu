@@ -19,6 +19,8 @@
 #include "qemu-objects.h"
 #include "qapi/qmp-input-visitor.h"
 #include "qapi/qmp-output-visitor.h"
+#include "qapi/string-input-visitor.h"
+#include "qapi/string-output-visitor.h"
 
 typedef struct PrimitiveType {
     union {
@@ -666,6 +668,37 @@ static void qmp_cleanup(void *datap)
     qmp_input_visitor_cleanup(d->qiv);
 }
 
+typedef struct StringSerializeData {
+    StringOutputVisitor *sov;
+    StringInputVisitor *siv;
+} StringSerializeData;
+
+static void string_serialize(void *native_in, void **datap,
+                             VisitorFunc visit, Error **errp)
+{
+    StringSerializeData *d = g_malloc0(sizeof(*d));
+
+    d->sov = string_output_visitor_new();
+    visit(string_output_get_visitor(d->sov), &native_in, errp);
+    *datap = d;
+}
+
+static void string_deserialize(void **native_out, void *datap,
+                               VisitorFunc visit, Error **errp)
+{
+    StringSerializeData *d = datap;
+
+    d->siv = string_input_visitor_new(string_output_get_string(d->sov));
+    visit(string_input_get_visitor(d->siv), native_out, errp);
+}
+
+static void string_cleanup(void *datap)
+{
+    StringSerializeData *d = datap;
+    string_output_visitor_cleanup(d->sov);
+    string_input_visitor_cleanup(d->siv);
+}
+
 /* visitor registration, test harness */
 
 /* note: to function interchangeably as a serialization mechanism your
@@ -679,6 +712,13 @@ static const SerializeOps visitors[] = {
         .deserialize = qmp_deserialize,
         .cleanup = qmp_cleanup,
         .caps = VCAP_PRIMITIVES | VCAP_STRUCTURES | VCAP_LISTS
+    },
+    {
+        .type = "String",
+        .serialize = string_serialize,
+        .deserialize = string_deserialize,
+        .cleanup = string_cleanup,
+        .caps = VCAP_PRIMITIVES
     },
     { NULL }
 };
