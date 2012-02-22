@@ -2261,7 +2261,7 @@ int main(int argc, char **argv, char **envp)
     DisplayState *ds;
     DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
-    QemuOpts *hda_opts = NULL, *opts;
+    QemuOpts *hda_opts = NULL, *opts, *machine_opts;
     QemuOptsList *olist;
     int optind;
     const char *optarg;
@@ -3320,12 +3320,15 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 
-    kernel_filename = qemu_opt_get(qemu_opts_find(qemu_find_opts("machine"),
-                                                  0), "kernel");
-    initrd_filename = qemu_opt_get(qemu_opts_find(qemu_find_opts("machine"),
-                                                  0), "initrd");
-    kernel_cmdline = qemu_opt_get(qemu_opts_find(qemu_find_opts("machine"),
-                                                 0), "append");
+    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        kernel_filename = qemu_opt_get(machine_opts, "kernel");
+        initrd_filename = qemu_opt_get(machine_opts, "initrd");
+        kernel_cmdline = qemu_opt_get(machine_opts, "append");
+    } else {
+        kernel_filename = initrd_filename = kernel_cmdline = NULL;
+    }
+
     if (!kernel_cmdline) {
         kernel_cmdline = "";
     }
