@@ -892,6 +892,7 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
     Object **child = opaque;
+    Object *old_target;
     bool ambiguous = false;
     const char *type;
     char *path;
@@ -901,10 +902,8 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
 
     visit_type_str(v, &path, name, errp);
 
-    if (*child) {
-        object_unref(*child);
-        *child = NULL;
-    }
+    old_target = *child;
+    *child = NULL;
 
     if (strcmp(path, "") != 0) {
         Object *target;
@@ -930,6 +929,10 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
     }
 
     g_free(path);
+
+    if (old_target != NULL) {
+        object_unref(old_target);
+    }
 }
 
 void object_property_add_link(Object *obj, const char *name,
