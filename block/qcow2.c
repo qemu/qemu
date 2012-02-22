@@ -126,7 +126,6 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 #ifdef DEBUG_EXT
             printf("Qcow2: Got format extension %s\n", bs->backing_format);
 #endif
-            offset = ((offset + ext.len + 7) & ~7);
             break;
 
         default:
@@ -143,11 +142,11 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
                 if (ret < 0) {
                     return ret;
                 }
-
-                offset = ((offset + ext.len + 7) & ~7);
             }
             break;
         }
+
+        offset += ((ext.len + 7) & ~7);
     }
 
     return 0;
