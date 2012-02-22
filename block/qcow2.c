@@ -108,6 +108,11 @@ static int qcow2_read_extensions(BlockDriverState *bs, uint64_t start_offset,
 #ifdef DEBUG_EXT
         printf("ext.magic = 0x%x\n", ext.magic);
 #endif
+        if (ext.len > end_offset - offset) {
+            error_report("Header extension too large");
+            return -EINVAL;
+        }
+
         switch (ext.magic) {
         case QCOW2_EXT_MAGIC_END:
             return 0;
