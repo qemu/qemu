@@ -1187,7 +1187,7 @@ static QEMUMachine *find_machine(const char *name)
     return NULL;
 }
 
-static QEMUMachine *find_default_machine(void)
+QEMUMachine *find_default_machine(void)
 {
     QEMUMachine *m;
 
