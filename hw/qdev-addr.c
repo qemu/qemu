@@ -27,7 +27,7 @@ static void get_taddr(Object *obj, Visitor *v, void *opaque,
     int64_t value;
 
     value = *ptr;
-    visit_type_int(v, &value, name, errp);
+    visit_type_int64(v, &value, name, errp);
 }
 
 static void set_taddr(Object *obj, Visitor *v, void *opaque,
@@ -44,7 +44,7 @@ static void set_taddr(Object *obj, Visitor *v, void *opaque,
         return;
     }
 
-    visit_type_int(v, &value, name, &local_err);
+    visit_type_int64(v, &value, name, &local_err);
     if (local_err) {
         error_propagate(errp, local_err);
         return;
