@@ -385,6 +385,14 @@ static QEMUMachine pc_machine_v1_0 = {
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        {
+            .driver   = "pc-sysfw",
+            .property = "rom_only",
+            .value    = stringify(1),
+        },
+        { /* end of list */ }
+    },
 };
 
 static QEMUMachine pc_machine_v0_15 = {
@@ -392,6 +400,14 @@ static QEMUMachine pc_machine_v0_15 = {
     .desc = "Standard PC",
     .init = pc_init_pci,
     .max_cpus = 255,
+    .compat_props = (GlobalProperty[]) {
+        {
+            .driver   = "pc-sysfw",
+            .property = "rom_only",
+            .value    = stringify(1),
+        },
+        { /* end of list */ }
+    },
 };
 
 static QEMUMachine pc_machine_v0_14 = {
@@ -424,6 +440,11 @@ static QEMUMachine pc_machine_v0_14 = {
             .driver   = "virtio-balloon-pci",
             .property = "event_idx",
             .value    = "off",
+        },
+        {
+            .driver   = "pc-sysfw",
+            .property = "rom_only",
+            .value    = stringify(1),
         },
         { /* end of list */ }
     },
@@ -470,6 +491,11 @@ static QEMUMachine pc_machine_v0_13 = {
         },{
             .driver   = "AC97",
             .property = "use_broken_id",
+            .value    = stringify(1),
+        },
+        {
+            .driver   = "pc-sysfw",
+            .property = "rom_only",
             .value    = stringify(1),
         },
         { /* end of list */ }
@@ -521,6 +547,11 @@ static QEMUMachine pc_machine_v0_12 = {
         },{
             .driver   = "AC97",
             .property = "use_broken_id",
+            .value    = stringify(1),
+        },
+        {
+            .driver   = "pc-sysfw",
+            .property = "rom_only",
             .value    = stringify(1),
         },
         { /* end of list */ }
@@ -580,6 +611,11 @@ static QEMUMachine pc_machine_v0_11 = {
         },{
             .driver   = "AC97",
             .property = "use_broken_id",
+            .value    = stringify(1),
+        },
+        {
+            .driver   = "pc-sysfw",
+            .property = "rom_only",
             .value    = stringify(1),
         },
         { /* end of list */ }
@@ -653,6 +689,11 @@ static QEMUMachine pc_machine_v0_10 = {
             .property = "use_broken_id",
             .value    = stringify(1),
         },
+        {
+            .driver   = "pc-sysfw",
+            .property = "rom_only",
+            .value    = stringify(1),
+        },
         { /* end of list */ }
     },
 };
@@ -662,6 +703,14 @@ static QEMUMachine isapc_machine = {
     .desc = "ISA-only PC",
     .init = pc_init_isa,
     .max_cpus = 1,
+    .compat_props = (GlobalProperty[]) {
+        {
+            .driver   = "pc-sysfw",
+            .property = "rom_only",
+            .value    = stringify(1),
+        },
+        { /* end of list */ }
+    },
 };
 
 #ifdef CONFIG_XEN
