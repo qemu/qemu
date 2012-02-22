@@ -27,16 +27,6 @@ static void bit_prop_set(DeviceState *dev, Property *props, bool val)
 }
 
 /* Bit */
-static int parse_bit(DeviceState *dev, Property *prop, const char *str)
-{
-    if (!strcasecmp(str, "on"))
-        bit_prop_set(dev, prop, true);
-    else if (!strcasecmp(str, "off"))
-        bit_prop_set(dev, prop, false);
-    else
-        return -EINVAL;
-    return 0;
-}
 
 static int print_bit(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
@@ -79,33 +69,12 @@ static void set_bit(Object *obj, Visitor *v, void *opaque,
 PropertyInfo qdev_prop_bit = {
     .name  = "boolean",
     .legacy_name  = "on/off",
-    .parse = parse_bit,
     .print = print_bit,
     .get   = get_bit,
     .set   = set_bit,
 };
 
 /* --- 8bit integer --- */
-
-static int parse_uint8(DeviceState *dev, Property *prop, const char *str)
-{
-    uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    /* accept both hex and decimal */
-    *ptr = strtoul(str, &end, 0);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int print_uint8(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "%" PRIu8, *ptr);
-}
 
 static void get_int8(Object *obj, Visitor *v, void *opaque,
                      const char *name, Error **errp)
@@ -149,8 +118,6 @@ static void set_int8(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint8 = {
     .name  = "uint8",
-    .parse = parse_uint8,
-    .print = print_uint8,
     .get   = get_int8,
     .set   = set_int8,
     .min   = 0,
@@ -163,6 +130,10 @@ static int parse_hex8(DeviceState *dev, Property *prop, const char *str)
 {
     uint8_t *ptr = qdev_get_prop_ptr(dev, prop);
     char *end;
+
+    if (str[0] != '0' || str[1] != 'x') {
+        return -EINVAL;
+    }
 
     *ptr = strtoul(str, &end, 16);
     if ((*end != '\0') || (end == str)) {
@@ -190,26 +161,6 @@ PropertyInfo qdev_prop_hex8 = {
 };
 
 /* --- 16bit integer --- */
-
-static int parse_uint16(DeviceState *dev, Property *prop, const char *str)
-{
-    uint16_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    /* accept both hex and decimal */
-    *ptr = strtoul(str, &end, 0);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int print_uint16(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint16_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "%" PRIu16, *ptr);
-}
 
 static void get_int16(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
@@ -253,8 +204,6 @@ static void set_int16(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint16 = {
     .name  = "uint16",
-    .parse = parse_uint16,
-    .print = print_uint16,
     .get   = get_int16,
     .set   = set_int16,
     .min   = 0,
@@ -262,26 +211,6 @@ PropertyInfo qdev_prop_uint16 = {
 };
 
 /* --- 32bit integer --- */
-
-static int parse_uint32(DeviceState *dev, Property *prop, const char *str)
-{
-    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    /* accept both hex and decimal */
-    *ptr = strtoul(str, &end, 0);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int print_uint32(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "%" PRIu32, *ptr);
-}
 
 static void get_int32(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
@@ -325,37 +254,14 @@ static void set_int32(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint32 = {
     .name  = "uint32",
-    .parse = parse_uint32,
-    .print = print_uint32,
     .get   = get_int32,
     .set   = set_int32,
     .min   = 0,
     .max   = 0xFFFFFFFFULL,
 };
 
-static int parse_int32(DeviceState *dev, Property *prop, const char *str)
-{
-    int32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    *ptr = strtol(str, &end, 10);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int print_int32(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    int32_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "%" PRId32, *ptr);
-}
-
 PropertyInfo qdev_prop_int32 = {
     .name  = "int32",
-    .parse = parse_int32,
-    .print = print_int32,
     .get   = get_int32,
     .set   = set_int32,
     .min   = -0x80000000LL,
@@ -368,6 +274,10 @@ static int parse_hex32(DeviceState *dev, Property *prop, const char *str)
 {
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     char *end;
+
+    if (str[0] != '0' || str[1] != 'x') {
+        return -EINVAL;
+    }
 
     *ptr = strtoul(str, &end, 16);
     if ((*end != '\0') || (end == str)) {
@@ -396,26 +306,6 @@ PropertyInfo qdev_prop_hex32 = {
 
 /* --- 64bit integer --- */
 
-static int parse_uint64(DeviceState *dev, Property *prop, const char *str)
-{
-    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-    char *end;
-
-    /* accept both hex and decimal */
-    *ptr = strtoull(str, &end, 0);
-    if ((*end != '\0') || (end == str)) {
-        return -EINVAL;
-    }
-
-    return 0;
-}
-
-static int print_uint64(DeviceState *dev, Property *prop, char *dest, size_t len)
-{
-    uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
-    return snprintf(dest, len, "%" PRIu64, *ptr);
-}
-
 static void get_int64(Object *obj, Visitor *v, void *opaque,
                       const char *name, Error **errp)
 {
@@ -443,8 +333,6 @@ static void set_int64(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_uint64 = {
     .name  = "uint64",
-    .parse = parse_uint64,
-    .print = print_uint64,
     .get   = get_int64,
     .set   = set_int64,
 };
@@ -455,6 +343,10 @@ static int parse_hex64(DeviceState *dev, Property *prop, const char *str)
 {
     uint64_t *ptr = qdev_get_prop_ptr(dev, prop);
     char *end;
+
+    if (str[0] != '0' || str[1] != 'x') {
+        return -EINVAL;
+    }
 
     *ptr = strtoull(str, &end, 16);
     if ((*end != '\0') || (end == str)) {
@@ -737,19 +629,6 @@ PropertyInfo qdev_prop_netdev = {
 
 /* --- vlan --- */
 
-static int parse_vlan(DeviceState *dev, Property *prop, const char *str)
-{
-    VLANState **ptr = qdev_get_prop_ptr(dev, prop);
-    int id;
-
-    if (sscanf(str, "%d", &id) != 1)
-        return -EINVAL;
-    *ptr = qemu_find_vlan(id, 1);
-    if (*ptr == NULL)
-        return -ENOENT;
-    return 0;
-}
-
 static int print_vlan(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
     VLANState **ptr = qdev_get_prop_ptr(dev, prop);
@@ -808,7 +687,6 @@ static void set_vlan(Object *obj, Visitor *v, void *opaque,
 
 PropertyInfo qdev_prop_vlan = {
     .name  = "vlan",
-    .parse = parse_vlan,
     .print = print_vlan,
     .get   = get_vlan,
     .set   = set_vlan,
@@ -943,25 +821,40 @@ PropertyInfo qdev_prop_losttickpolicy = {
 /*
  * bus-local address, i.e. "$slot" or "$slot.$fn"
  */
-static int parse_pci_devfn(DeviceState *dev, Property *prop, const char *str)
+static void set_pci_devfn(Object *obj, Visitor *v, void *opaque,
+                          const char *name, Error **errp)
 {
+    DeviceState *dev = DEVICE(obj);
+    Property *prop = opaque;
     uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
     unsigned int slot, fn, n;
+    Error *local_err = NULL;
+    char *str = (char *)"";
+
+    if (dev->state != DEV_STATE_CREATED) {
+        error_set(errp, QERR_PERMISSION_DENIED);
+        return;
+    }
+
+    visit_type_str(v, &str, name, &local_err);
+    if (local_err) {
+        return set_int32(obj, v, opaque, name, errp);
+    }
 
     if (sscanf(str, "%x.%x%n", &slot, &fn, &n) != 2) {
         fn = 0;
         if (sscanf(str, "%x%n", &slot, &n) != 1) {
-            return -EINVAL;
+            goto invalid;
         }
     }
-    if (str[n] != '\0')
-        return -EINVAL;
-    if (fn > 7)
-        return -EINVAL;
-    if (slot > 31)
-        return -EINVAL;
+    if (str[n] != '\0' || fn > 7 || slot > 31) {
+        goto invalid;
+    }
     *ptr = slot << 3 | fn;
-    return 0;
+    return;
+
+invalid:
+    error_set_from_qdev_prop_error(errp, EINVAL, dev, prop, str);
 }
 
 static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t len)
@@ -978,10 +871,9 @@ static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t 
 PropertyInfo qdev_prop_pci_devfn = {
     .name  = "int32",
     .legacy_name  = "pci-devfn",
-    .parse = parse_pci_devfn,
     .print = print_pci_devfn,
     .get   = get_int32,
-    .set   = set_int32,
+    .set   = set_pci_devfn,
     /* FIXME: this should be -1...255, but the address is stored
      * into an uint32_t rather than int32_t.
      */
@@ -1054,9 +946,9 @@ int qdev_prop_parse(DeviceState *dev, const char *name, const char *value)
 
     legacy_name = g_strdup_printf("legacy-%s", name);
     if (object_property_get_type(OBJECT(dev), legacy_name, NULL)) {
-        object_property_set_str(OBJECT(dev), value, legacy_name, &err);
+        object_property_parse(OBJECT(dev), value, legacy_name, &err);
     } else {
-        object_property_set_str(OBJECT(dev), value, name, &err);
+        object_property_parse(OBJECT(dev), value, name, &err);
     }
     g_free(legacy_name);
 
