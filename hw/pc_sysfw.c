@@ -23,11 +23,18 @@
  * THE SOFTWARE.
  */
 
+#include "sysbus.h"
+#include "hw.h"
 #include "pc.h"
 #include "loader.h"
 #include "sysemu.h"
 
 #define BIOS_FILENAME "bios.bin"
+
+typedef struct PcSysFwDevice {
+    SysBusDevice busdev;
+    uint8_t rom_only;
+} PcSysFwDevice;
 
 static void pc_system_rom_init(MemoryRegion *rom_memory)
 {
@@ -86,7 +93,37 @@ static void pc_system_rom_init(MemoryRegion *rom_memory)
 
 void pc_system_firmware_init(MemoryRegion *rom_memory)
 {
+    PcSysFwDevice *sysfw_dev;
+
+    sysfw_dev = (PcSysFwDevice*) qdev_create(NULL, "pc-sysfw");
+
     pc_system_rom_init(rom_memory);
 }
 
+static Property pcsysfw_properties[] = {
+    DEFINE_PROP_UINT8("rom_only", PcSysFwDevice, rom_only, 1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void pcsysfw_class_init (ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS (klass);
+
+    dc->desc = "PC System Firmware";
+    dc->props = pcsysfw_properties;
+}
+
+static TypeInfo pcsysfw_info = {
+    .name          = "pc-sysfw",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof (PcSysFwDevice),
+    .class_init    = pcsysfw_class_init,
+};
+
+static void pcsysfw_register (void)
+{
+    type_register_static (&pcsysfw_info);
+}
+
+type_init (pcsysfw_register);
 
