@@ -595,7 +595,8 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
         /* CDROM is fine for any interface, don't check.  */
         ro = 1;
     } else if (ro == 1) {
-        if (type != IF_SCSI && type != IF_VIRTIO && type != IF_FLOPPY && type != IF_NONE) {
+        if (type != IF_SCSI && type != IF_VIRTIO && type != IF_FLOPPY &&
+            type != IF_NONE && type != IF_PFLASH) {
             error_report("readonly not supported by this bus type");
             goto err;
         }
