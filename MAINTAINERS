@@ -420,11 +420,16 @@ F: hw/pci*
 F: hw/piix*
 
 SCSI
+M: Paolo Bonzini <pbonzini@redhat.com>
+S: Supported
+F: hw/virtio-scsi.*
+F: hw/scsi*
+T: git://github.com/bonzini/qemu.git scsi-next
+
+LSI53C895A
 M: Paul Brook <paul@codesourcery.com>
-M: Kevin Wolf <kwolf@redhat.com>
 S: Odd Fixes
 F: hw/lsi53c895a.c
-F: hw/scsi*
 
 USB
 M: Gerd Hoffmann <kraxel@redhat.com>
