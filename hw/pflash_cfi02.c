@@ -330,35 +330,37 @@ static void pflash_write (pflash_t *pfl, target_phys_addr_t offset,
             DPRINTF("%s: write data offset " TARGET_FMT_plx " %08x %d\n",
                     __func__, offset, value, width);
             p = pfl->storage;
-            switch (width) {
-            case 1:
-                p[offset] &= value;
-                pflash_update(pfl, offset, 1);
-                break;
-            case 2:
-                if (be) {
-                    p[offset] &= value >> 8;
-                    p[offset + 1] &= value;
-                } else {
+            if (!pfl->ro) {
+                switch (width) {
+                case 1:
                     p[offset] &= value;
-                    p[offset + 1] &= value >> 8;
+                    pflash_update(pfl, offset, 1);
+                    break;
+                case 2:
+                    if (be) {
+                        p[offset] &= value >> 8;
+                        p[offset + 1] &= value;
+                    } else {
+                        p[offset] &= value;
+                        p[offset + 1] &= value >> 8;
+                    }
+                    pflash_update(pfl, offset, 2);
+                    break;
+                case 4:
+                    if (be) {
+                        p[offset] &= value >> 24;
+                        p[offset + 1] &= value >> 16;
+                        p[offset + 2] &= value >> 8;
+                        p[offset + 3] &= value;
+                    } else {
+                        p[offset] &= value;
+                        p[offset + 1] &= value >> 8;
+                        p[offset + 2] &= value >> 16;
+                        p[offset + 3] &= value >> 24;
+                    }
+                    pflash_update(pfl, offset, 4);
+                    break;
                 }
-                pflash_update(pfl, offset, 2);
-                break;
-            case 4:
-                if (be) {
-                    p[offset] &= value >> 24;
-                    p[offset + 1] &= value >> 16;
-                    p[offset + 2] &= value >> 8;
-                    p[offset + 3] &= value;
-                } else {
-                    p[offset] &= value;
-                    p[offset + 1] &= value >> 8;
-                    p[offset + 2] &= value >> 16;
-                    p[offset + 3] &= value >> 24;
-                }
-                pflash_update(pfl, offset, 4);
-                break;
             }
             pfl->status = 0x00 | ~(value & 0x80);
             /* Let's pretend write is immediate */
@@ -404,9 +406,11 @@ static void pflash_write (pflash_t *pfl, target_phys_addr_t offset,
             }
             /* Chip erase */
             DPRINTF("%s: start chip erase\n", __func__);
-            memset(pfl->storage, 0xFF, pfl->chip_len);
+            if (!pfl->ro) {
+                memset(pfl->storage, 0xFF, pfl->chip_len);
+                pflash_update(pfl, 0, pfl->chip_len);
+            }
             pfl->status = 0x00;
-            pflash_update(pfl, 0, pfl->chip_len);
             /* Let's wait 5 seconds before chip erase is done */
             qemu_mod_timer(pfl->timer,
                            qemu_get_clock_ns(vm_clock) + (get_ticks_per_sec() * 5));
@@ -417,8 +421,10 @@ static void pflash_write (pflash_t *pfl, target_phys_addr_t offset,
             offset &= ~(pfl->sector_len - 1);
             DPRINTF("%s: start sector erase at " TARGET_FMT_plx "\n", __func__,
                     offset);
-            memset(p + offset, 0xFF, pfl->sector_len);
-            pflash_update(pfl, offset, pfl->sector_len);
+            if (!pfl->ro) {
+                memset(p + offset, 0xFF, pfl->sector_len);
+                pflash_update(pfl, offset, pfl->sector_len);
+            }
             pfl->status = 0x00;
             /* Let's wait 1/2 second before sector erase is done */
             qemu_mod_timer(pfl->timer,
@@ -645,16 +651,17 @@ pflash_t *pflash_cfi02_register(target_phys_addr_t base,
         }
         bdrv_attach_dev_nofail(pfl->bs, pfl);
     }
+
     pflash_setup_mappings(pfl);
     pfl->rom_mode = 1;
     memory_region_add_subregion(get_system_memory(), pfl->base, &pfl->mem);
-#if 0 /* XXX: there should be a bit to set up read-only,
-       *      the same way the hardware does (with WP pin).
-       */
-    pfl->ro = 1;
-#else
-    pfl->ro = 0;
-#endif
+
+    if (pfl->bs) {
+        pfl->ro = bdrv_is_read_only(pfl->bs);
+    } else {
+        pfl->ro = 0;
+    }
+
     pfl->timer = qemu_new_timer_ns(vm_clock, pflash_timer, pfl);
     pfl->sector_len = sector_len;
     pfl->width = width;
