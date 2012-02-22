@@ -216,6 +216,9 @@ static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)
     return true;
 }
 
+/* pc_sysfw.c */
+void pc_system_firmware_init(MemoryRegion *rom_memory);
+
 /* e820 types */
 #define E820_RAM        1
 #define E820_RESERVED   2

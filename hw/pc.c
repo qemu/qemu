@@ -60,10 +60,6 @@
 #define DPRINTF(fmt, ...)
 #endif
 
-#define BIOS_FILENAME "bios.bin"
-
-#define PC_MAX_BIOS_SIZE (4 * 1024 * 1024)
-
 /* Leave a chunk of memory at the top of RAM for the BIOS ACPI tables.  */
 #define ACPI_DATA_SIZE       0x10000
 #define BIOS_CFG_IOPORT 0x510
@@ -990,11 +986,9 @@ void pc_memory_init(MemoryRegion *system_memory,
                     MemoryRegion *rom_memory,
                     MemoryRegion **ram_memory)
 {
-    char *filename;
-    int ret, linux_boot, i;
-    MemoryRegion *ram, *bios, *isa_bios, *option_rom_mr;
+    int linux_boot, i;
+    MemoryRegion *ram, *option_rom_mr;
     MemoryRegion *ram_below_4g, *ram_above_4g;
-    int bios_size, isa_bios_size;
     void *fw_cfg;
 
     linux_boot = (kernel_filename != NULL);
@@ -1020,44 +1014,9 @@ void pc_memory_init(MemoryRegion *system_memory,
                                     ram_above_4g);
     }
 
-    /* BIOS load */
-    if (bios_name == NULL)
-        bios_name = BIOS_FILENAME;
-    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, bios_name);
-    if (filename) {
-        bios_size = get_image_size(filename);
-    } else {
-        bios_size = -1;
-    }
-    if (bios_size <= 0 ||
-        (bios_size % 65536) != 0) {
-        goto bios_error;
-    }
-    bios = g_malloc(sizeof(*bios));
-    memory_region_init_ram(bios, "pc.bios", bios_size);
-    vmstate_register_ram_global(bios);
-    memory_region_set_readonly(bios, true);
-    ret = rom_add_file_fixed(bios_name, (uint32_t)(-bios_size), -1);
-    if (ret != 0) {
-    bios_error:
-        fprintf(stderr, "qemu: could not load PC BIOS '%s'\n", bios_name);
-        exit(1);
-    }
-    if (filename) {
-        g_free(filename);
-    }
-    /* map the last 128KB of the BIOS in ISA space */
-    isa_bios_size = bios_size;
-    if (isa_bios_size > (128 * 1024))
-        isa_bios_size = 128 * 1024;
-    isa_bios = g_malloc(sizeof(*isa_bios));
-    memory_region_init_alias(isa_bios, "isa-bios", bios,
-                             bios_size - isa_bios_size, isa_bios_size);
-    memory_region_add_subregion_overlap(rom_memory,
-                                        0x100000 - isa_bios_size,
-                                        isa_bios,
-                                        1);
-    memory_region_set_readonly(isa_bios, true);
+
+    /* Initialize PC system firmware */
+    pc_system_firmware_init(rom_memory);
 
     option_rom_mr = g_malloc(sizeof(*option_rom_mr));
     memory_region_init_ram(option_rom_mr, "pc.rom", PC_ROM_SIZE);
@@ -1066,11 +1025,6 @@ void pc_memory_init(MemoryRegion *system_memory,
                                         PC_ROM_MIN_VGA,
                                         option_rom_mr,
                                         1);
-
-    /* map all the bios at the top of memory */
-    memory_region_add_subregion(rom_memory,
-                                (uint32_t)(-bios_size),
-                                bios);
 
     fw_cfg = bochs_bios_init();
     rom_set_fw(fw_cfg);
