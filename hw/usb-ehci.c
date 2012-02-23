@@ -912,6 +912,7 @@ static void ehci_reset(void *opaque)
         }
     }
     ehci_queues_rip_all(s);
+    qemu_del_timer(s->frame_timer);
 }
 
 static uint32_t ehci_mem_readb(void *ptr, target_phys_addr_t addr)
@@ -1070,7 +1071,7 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 
         if (val & USBCMD_HCRESET) {
             ehci_reset(s);
-            val &= ~USBCMD_HCRESET;
+            val = s->usbcmd;
         }
 
         /* not supporting dynamic frame list size at the moment */
