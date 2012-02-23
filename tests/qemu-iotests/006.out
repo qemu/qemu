@@ -1,0 +1,6 @@
+QA output created by 006
+
+creating 128GB image
+qemu-img: The image size is too large for file format 'vpc'
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=137438953472 
+*** done

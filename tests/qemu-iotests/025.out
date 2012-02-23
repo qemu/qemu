@@ -1,0 +1,27 @@
+QA output created by 025
+=== Creating image
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+
+=== Writing whole image
+=== IO: pattern 0xc5
+qemu-io> wrote 134217728/134217728 bytes at offset 0
+128 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> No errors were found on the image.
+
+=== Resizing image
+qemu-io> 128 MiB
+qemu-io> qemu-io> 384 MiB
+qemu-io> No errors were found on the image.
+
+=== Verifying image size after reopen
+384 MiB
+
+=== Verifying resized image
+=== IO: pattern 0xc5
+qemu-io> read 134217728/134217728 bytes at offset 0
+128 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> === IO: pattern 0
+qemu-io> read 268435456/268435456 bytes at offset 134217728
+256 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+qemu-io> *** done

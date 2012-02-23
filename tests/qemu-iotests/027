@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+# Test that sub-cluster allocating writes zero the rest of the cluster
+#
+# Copyright (C) 2010 IBM, Corp.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=stefanha@linux.vnet.ibm.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt vmdk qcow qcow2 qed
+_supported_proto generic
+_supported_os Linux
+
+
+size=128M
+cluster_size=65536
+subcluster_offset=1024
+subcluster_size=2048
+_make_test_img $size
+
+# This first write causes an L2 table to be allocated so that the next write
+# doesn't need to allocate one and is therefore at the end of the image file.
+# Otherwise an L2 table could get in the way after the data cluster.
+echo
+echo "== writing first cluster to populate metadata =="
+$QEMU_IO -c "write -pP 0xde $cluster_size $cluster_size" $TEST_IMG | _filter_qemu_io
+
+echo
+echo "== writing at sub-cluster granularity =="
+$QEMU_IO -c "write -pP 0xa $subcluster_offset $subcluster_size" $TEST_IMG | _filter_qemu_io
+
+echo
+echo "== verify pattern =="
+$QEMU_IO -c "read -pP 0xa $subcluster_offset $subcluster_size" $TEST_IMG | _filter_qemu_io
+
+echo
+echo "== verify zeroes before sub-cluster pattern =="
+$QEMU_IO -c "read -pP 0 -l $subcluster_offset 0 $subcluster_size" $TEST_IMG | _filter_qemu_io
+
+echo
+echo "== verify zeroes after sub-cluster pattern =="
+$QEMU_IO -c "read -pP 0 -l 512 -s $subcluster_size $subcluster_offset $(( subcluster_size + 512 ))" $TEST_IMG | _filter_qemu_io
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

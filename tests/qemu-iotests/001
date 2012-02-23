@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# Test simple read/write using plain bdrv_read/bdrv_write
+#
+# Copyright (C) 2009 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=hch@lst.de
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+
+_supported_fmt generic
+_supported_proto generic
+_supported_os Linux
+
+
+size=128M
+_make_test_img $size
+
+echo
+echo "== reading whole image =="
+$QEMU_IO -c "read 0 $size" $TEST_IMG | _filter_qemu_io
+
+echo
+echo "== rewriting whole image =="
+$QEMU_IO -c "write -P 0xa 0 $size" $TEST_IMG | _filter_qemu_io
+
+echo
+echo "== verify pattern =="
+$QEMU_IO -c "read -P 0xa 0 $size" $TEST_IMG | _filter_qemu_io
+
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

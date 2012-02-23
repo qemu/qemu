@@ -1,0 +1,309 @@
+#!/bin/bash
+#
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (c) 2000-2006 Silicon Graphics, Inc.  All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+dd()
+{
+   if [ "$HOSTOS" == "Linux" ]
+   then	
+	command dd --help | grep noxfer > /dev/null 2>&1
+	
+	if [ "$?" -eq 0 ]
+	    then
+		command dd status=noxfer $@
+	    else
+		command dd $@
+    	fi
+   else
+	command dd $@
+   fi
+}
+
+# we need common.config
+if [ "$iam" != "check" ]
+then
+    if ! . ./common.config
+        then
+        echo "$iam: failed to source common.config"
+        exit 1
+    fi
+fi
+
+# make sure we have a standard umask
+umask 022
+
+if [ "$IMGPROTO" = "file" ]; then
+    TEST_IMG=$TEST_DIR/t.$IMGFMT
+else
+    TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
+fi
+
+_make_test_img()
+{
+    # extra qemu-img options can be added by tests
+    # at least one argument (the image size) needs to be added
+    local extra_img_options=$*
+    local cluster_size_filter="s# cluster_size=[0-9]\\+##g"
+
+    if [ \( "$IMGFMT" = "qcow2" -o "$IMGFMT" = "qed" \) -a -n "$CLUSTER_SIZE" ]; then
+        extra_img_options="-o cluster_size=$CLUSTER_SIZE $extra_img_options"
+        cluster_size_filter=""
+    fi
+
+    # XXX(hch): have global image options?
+    $QEMU_IMG create -f $IMGFMT $TEST_IMG $extra_img_options | \
+    	sed -e "s#$IMGPROTO:$TEST_DIR#TEST_DIR#g" | \
+    	sed -e "s#$TEST_DIR#TEST_DIR#g" | \
+    	sed -e "s#$IMGFMT#IMGFMT#g" | \
+	sed -e "s# encryption=off##g" | \
+	sed -e "$cluster_size_filter" | \
+	sed -e "s# table_size=0##g" | \
+	sed -e "s# compat6=off##g" | \
+	sed -e "s# static=off##g"
+}
+
+_cleanup_test_img()
+{
+    case "$IMGPROTO" in
+
+        file)
+            rm -f $TEST_DIR/t.$IMGFMT
+            rm -f $TEST_DIR/t.$IMGFMT.orig
+            rm -f $TEST_DIR/t.$IMGFMT.base
+            ;;
+
+        rbd)
+            rbd rm $TEST_DIR/t.$IMGFMT > /dev/null
+            ;;
+
+        sheepdog)
+            collie vdi delete $TEST_DIR/t.$IMGFMT
+            ;;
+
+    esac
+}
+
+_check_test_img()
+{
+    $QEMU_IMG check -f $IMGFMT $TEST_IMG 2>&1 | \
+    	sed -e 's/qemu-img\: This image format does not support checks/No errors were found on the image./'
+}
+
+_get_pids_by_name()
+{
+    if [ $# -ne 1 ]
+    then
+	echo "Usage: _get_pids_by_name process-name" 1>&2
+	exit 1
+    fi
+
+    # Algorithm ... all ps(1) variants have a time of the form MM:SS or
+    # HH:MM:SS before the psargs field, use this as the search anchor.
+    #
+    # Matches with $1 (process-name) occur if the first psarg is $1
+    # or ends in /$1 ... the matching uses sed's regular expressions,
+    # so passing a regex into $1 will work.
+
+    ps $PS_ALL_FLAGS \
+    | sed -n \
+	-e 's/$/ /' \
+	-e 's/[ 	][ 	]*/ /g' \
+	-e 's/^ //' \
+	-e 's/^[^ ]* //' \
+	-e "/[0-9]:[0-9][0-9]  *[^ ]*\/$1 /s/ .*//p" \
+	-e "/[0-9]:[0-9][0-9]  *$1 /s/ .*//p"
+}
+
+# fqdn for localhost
+#
+_get_fqdn()
+{
+    host=`hostname`
+    $NSLOOKUP_PROG $host | $AWK_PROG '{ if ($1 == "Name:") print $2 }'
+}
+
+# check if run as root
+#
+_need_to_be_root()
+{
+    id=`id | $SED_PROG -e 's/(.*//' -e 's/.*=//'`
+    if [ "$id" -ne 0 ]
+    then
+	echo "Arrgh ... you need to be root (not uid=$id) to run this test"
+	exit 1
+    fi
+}
+
+
+# Do a command, log it to $seq.full, optionally test return status
+# and die if command fails. If called with one argument _do executes the
+# command, logs it, and returns its exit status. With two arguments _do
+# first prints the message passed in the first argument, and then "done"
+# or "fail" depending on the return status of the command passed in the
+# second argument. If the command fails and the variable _do_die_on_error
+# is set to "always" or the two argument form is used and _do_die_on_error
+# is set to "message_only" _do will print an error message to
+# $seq.out and exit.
+
+_do()
+{
+    if [ $# -eq 1 ]; then
+	_cmd=$1
+    elif [ $# -eq 2 ]; then
+	_note=$1
+	_cmd=$2
+	echo -n "$_note... "
+    else
+	echo "Usage: _do [note] cmd" 1>&2
+	status=1; exit
+    fi
+
+    (eval "echo '---' \"$_cmd\"") >>$here/$seq.full
+    (eval "$_cmd") >$tmp._out 2>&1; ret=$?
+    cat $tmp._out >>$here/$seq.full
+    if [ $# -eq 2 ]; then
+	if [ $ret -eq 0 ]; then
+	    echo "done"
+	else
+	    echo "fail"
+	fi
+    fi
+    if [ $ret -ne 0  ] \
+	&& [ "$_do_die_on_error" = "always" \
+	    -o \( $# -eq 2 -a "$_do_die_on_error" = "message_only" \) ]
+    then
+	[ $# -ne 2 ] && echo
+	eval "echo \"$_cmd\" failed \(returned $ret\): see $seq.full"
+	status=1; exit
+    fi
+
+    return $ret
+}
+
+# bail out, setting up .notrun file
+#
+_notrun()
+{
+    echo "$*" >$seq.notrun
+    echo "$seq not run: $*"
+    status=0
+    exit
+}
+
+# just plain bail out
+#
+_fail()
+{
+    echo "$*" | tee -a $here/$seq.full
+    echo "(see $seq.full for details)"
+    status=1
+    exit 1
+}
+
+# tests whether $IMGFMT is one of the supported image formats for a test
+#
+_supported_fmt()
+{
+    for f; do
+	if [ "$f" = "$IMGFMT" -o "$f" = "generic" ]; then
+	    return
+	fi
+    done
+
+    _notrun "not suitable for this image format: $IMGFMT"
+}
+
+# tests whether $IMGPROTO is one of the supported image protocols for a test
+#
+_supported_proto()
+{
+    for f; do
+	if [ "$f" = "$IMGPROTO" -o "$f" = "generic" ]; then
+	    return
+	fi
+    done
+
+    _notrun "not suitable for this image protocol: $IMGPROTO"
+}
+
+# tests whether the host OS is one of the supported OSes for a test
+#
+_supported_os()
+{
+    for h
+    do
+	if [ "$h" = "$HOSTOS" ]
+	then
+	    return
+	fi
+    done
+
+    _notrun "not suitable for this OS: $HOSTOS"
+}
+
+# this test requires that a specified command (executable) exists
+#
+_require_command()
+{
+    [ -x "$1" ] || _notrun "$1 utility required, skipped this test"
+}
+
+_full_imgfmt_details()
+{
+    echo "$IMGFMT"
+}
+
+_full_imgproto_details()
+{
+    echo "$IMGPROTO"
+}
+
+_full_platform_details()
+{
+    os=`uname -s`
+    host=`hostname -s`
+    kernel=`uname -r`
+    platform=`uname -m`
+    echo "$os/$platform $host $kernel"
+}
+
+_link_out_file()
+{
+   if [ -z "$1" ]; then
+      echo Error must pass \$seq.
+      exit
+   fi
+   rm -f $1
+   if [ "`uname`" == "IRIX64" ] || [ "`uname`" == "IRIX" ]; then
+      ln -s $1.irix $1
+   elif [ "`uname`" == "Linux" ]; then
+      ln -s $1.linux $1
+   else
+      echo Error test $seq does not run on the operating system: `uname`
+      exit
+   fi
+}
+
+_die()
+{
+        echo $@
+        exit 1
+}
+
+# make sure this script returns success
+/bin/true
