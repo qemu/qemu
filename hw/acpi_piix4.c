@@ -117,7 +117,7 @@ static void pm_ioport_write(IORange *ioport, uint64_t addr, unsigned width,
         pm_update_sci(s);
         break;
     case 0x02:
-        s->ar.pm1.evt.en = val;
+        acpi_pm1_evt_write_en(&s->ar, val);
         pm_update_sci(s);
         break;
     case 0x04:

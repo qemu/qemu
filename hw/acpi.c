@@ -268,6 +268,11 @@ void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
     ar->pm1.evt.sts &= ~val;
 }
 
+void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val)
+{
+    ar->pm1.evt.en = val;
+}
+
 void acpi_pm1_evt_power_down(ACPIREGS *ar)
 {
     if (ar->pm1.evt.en & ACPI_BITMASK_POWER_BUTTON_ENABLE) {

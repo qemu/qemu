@@ -206,7 +206,7 @@ static void pm_ioport_writew(void *opaque, uint32_t addr, uint32_t val)
         pm_update_sci(s);
         break;
     case 0x02:
-        s->ar.pm1.evt.en = val;
+        acpi_pm1_evt_write_en(&s->ar, val);
         pm_update_sci(s);
         break;
     case 0x04:
