@@ -24,6 +24,7 @@
 #include "hw.h"
 #include "ps2.h"
 #include "console.h"
+#include "sysemu.h"
 
 /* debug PC keyboard */
 //#define DEBUG_KBD
@@ -154,6 +155,7 @@ static void ps2_put_keycode(void *opaque, int keycode)
 {
     PS2KbdState *s = opaque;
 
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
     /* XXX: add support for scancode set 1 */
     if (!s->translate && keycode < 0xe0 && s->scancode_set > 1) {
         if (keycode & 0x80) {
@@ -367,6 +369,10 @@ static void ps2_mouse_event(void *opaque,
         s->mouse_buttons == buttons_state)
 	return;
     s->mouse_buttons = buttons_state;
+
+    if (buttons_state) {
+        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+    }
 
     if (!(s->mouse_status & MOUSE_STATUS_REMOTE) &&
         (s->common.queue.count < (PS2_QUEUE_SIZE - 16))) {
