@@ -430,7 +430,7 @@ static int vt82c686b_pm_initfn(PCIDevice *dev)
     apm_init(&s->apm, NULL, s);
 
     acpi_pm_tmr_init(&s->ar, pm_tmr_timer);
-    acpi_pm1_cnt_init(&s->ar, NULL);
+    acpi_pm1_cnt_init(&s->ar);
 
     pm_smbus_init(&s->dev.qdev, &s->smb);
 

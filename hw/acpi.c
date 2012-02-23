@@ -248,6 +248,22 @@ int acpi_table_add(const char *t)
 
 }
 
+static void acpi_notify_wakeup(Notifier *notifier, void *data)
+{
+    ACPIREGS *ar = container_of(notifier, ACPIREGS, wakeup);
+    WakeupReason *reason = data;
+
+    switch (*reason) {
+    case QEMU_WAKEUP_REASON_OTHER:
+    default:
+        /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
+           Pretend that resume was caused by power button */
+        ar->pm1.evt.sts |=
+            (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_POWER_BUTTON_STATUS);
+        break;
+    }
+}
+
 /* ACPI PM1a EVT */
 uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar)
 {
@@ -333,9 +349,10 @@ void acpi_pm_tmr_reset(ACPIREGS *ar)
 }
 
 /* ACPI PM1aCNT */
-void acpi_pm1_cnt_init(ACPIREGS *ar, qemu_irq cmos_s3)
+void acpi_pm1_cnt_init(ACPIREGS *ar)
 {
-    ar->pm1.cnt.cmos_s3 = cmos_s3;
+    ar->wakeup.notify = acpi_notify_wakeup;
+    qemu_register_wakeup_notifier(&ar->wakeup);
 }
 
 void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val)
@@ -350,12 +367,8 @@ void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val)
             qemu_system_shutdown_request();
             break;
         case 1:
-            /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
-               Pretend that resume was caused by power button */
-            ar->pm1.evt.sts |=
-                (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_POWER_BUTTON_STATUS);
-            qemu_system_reset_request();
-            qemu_irq_raise(ar->pm1.cnt.cmos_s3);
+            qemu_system_suspend_request();
+            break;
         default:
             break;
         }
@@ -376,9 +389,6 @@ void acpi_pm1_cnt_update(ACPIREGS *ar,
 void acpi_pm1_cnt_reset(ACPIREGS *ar)
 {
     ar->pm1.cnt.cnt = 0;
-    if (ar->pm1.cnt.cmos_s3) {
-        qemu_irq_lower(ar->pm1.cnt.cmos_s3);
-    }
 }
 
 /* ACPI GPE */

@@ -139,7 +139,6 @@ static void pc_init1(MemoryRegion *system_memory,
     qemu_irq *cpu_irq;
     qemu_irq *gsi;
     qemu_irq *i8259;
-    qemu_irq *cmos_s3;
     qemu_irq *smi_irq;
     GSIState *gsi_state;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
@@ -291,15 +290,10 @@ static void pc_init1(MemoryRegion *system_memory,
     if (pci_enabled && acpi_enabled) {
         i2c_bus *smbus;
 
-        if (!xen_enabled()) {
-            cmos_s3 = qemu_allocate_irqs(pc_cmos_set_s3_resume, rtc_state, 1);
-        } else {
-            cmos_s3 = qemu_allocate_irqs(xen_cmos_set_s3_resume, rtc_state, 1);
-        }
         smi_irq = qemu_allocate_irqs(pc_acpi_smi_interrupt, first_cpu, 1);
         /* TODO: Populate SPD eeprom data.  */
         smbus = piix4_pm_init(pci_bus, piix3_devfn + 3, 0xb100,
-                              gsi[9], *cmos_s3, *smi_irq,
+                              gsi[9], *smi_irq,
                               kvm_enabled());
         smbus_eeprom_init(smbus, 8, NULL, 0);
     }

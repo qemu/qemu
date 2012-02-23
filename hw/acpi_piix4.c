@@ -372,7 +372,7 @@ static int piix4_pm_initfn(PCIDevice *dev)
 }
 
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                       qemu_irq sci_irq, qemu_irq cmos_s3, qemu_irq smi_irq,
+                       qemu_irq sci_irq, qemu_irq smi_irq,
                        int kvm_enabled)
 {
     PCIDevice *dev;
@@ -383,7 +383,7 @@ i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
 
     s = DO_UPCAST(PIIX4PMState, dev, dev);
     s->irq = sci_irq;
-    acpi_pm1_cnt_init(&s->ar, cmos_s3);
+    acpi_pm1_cnt_init(&s->ar);
     s->smi_irq = smi_irq;
     s->kvm_enabled = kvm_enabled;
 

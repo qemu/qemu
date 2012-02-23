@@ -96,7 +96,6 @@ struct ACPIPM1EVT {
 
 struct ACPIPM1CNT {
     uint16_t cnt;
-    qemu_irq cmos_s3;
 };
 
 struct ACPIGPE {
@@ -114,6 +113,7 @@ struct ACPIREGS {
         ACPIPM1EVT  evt;
         ACPIPM1CNT  cnt;
     } pm1;
+    Notifier wakeup;
 };
 
 /* PM_TMR */
@@ -138,7 +138,7 @@ void acpi_pm1_evt_power_down(ACPIREGS *ar);
 void acpi_pm1_evt_reset(ACPIREGS *ar);
 
 /* PM1a_CNT: piix and ich9 don't implement PM1b CNT. */
-void acpi_pm1_cnt_init(ACPIREGS *ar, qemu_irq cmos_s3);
+void acpi_pm1_cnt_init(ACPIREGS *ar);
 void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val);
 void acpi_pm1_cnt_update(ACPIREGS *ar,
                          bool sci_enable, bool sci_disable);

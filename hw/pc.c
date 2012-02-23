@@ -914,17 +914,6 @@ static DeviceState *apic_init(void *env, uint8_t apic_id)
     return dev;
 }
 
-/* set CMOS shutdown status register (index 0xF) as S3_resume(0xFE)
-   BIOS will read it and start S3 resume at POST Entry */
-void pc_cmos_set_s3_resume(void *opaque, int irq, int level)
-{
-    ISADevice *s = opaque;
-
-    if (level) {
-        rtc_set_memory(s, 0xF, 0xFE);
-    }
-}
-
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level)
 {
     CPUState *s = opaque;
