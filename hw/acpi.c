@@ -258,6 +258,10 @@ static void acpi_notify_wakeup(Notifier *notifier, void *data)
         ar->pm1.evt.sts |=
             (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_RT_CLOCK_STATUS);
         break;
+    case QEMU_WAKEUP_REASON_PMTIMER:
+        ar->pm1.evt.sts |=
+            (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_TIMER_STATUS);
+        break;
     case QEMU_WAKEUP_REASON_OTHER:
     default:
         /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
@@ -293,6 +297,8 @@ void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val)
     ar->pm1.evt.en = val;
     qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC,
                               val & ACPI_BITMASK_RT_CLOCK_ENABLE);
+    qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_PMTIMER,
+                              val & ACPI_BITMASK_TIMER_ENABLE);
 }
 
 void acpi_pm1_evt_power_down(ACPIREGS *ar)
@@ -308,6 +314,7 @@ void acpi_pm1_evt_reset(ACPIREGS *ar)
     ar->pm1.evt.sts = 0;
     ar->pm1.evt.en = 0;
     qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC, 0);
+    qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_PMTIMER, 0);
 }
 
 /* ACPI PM_TMR */
@@ -340,6 +347,7 @@ uint32_t acpi_pm_tmr_get(ACPIREGS *ar)
 static void acpi_pm_tmr_timer(void *opaque)
 {
     ACPIREGS *ar = opaque;
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_PMTIMER);
     ar->tmr.update_sci(ar);
 }
 
