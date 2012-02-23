@@ -249,10 +249,10 @@ int acpi_table_add(const char *t)
 }
 
 /* ACPI PM1a EVT */
-uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar, int64_t overflow_time)
+uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar)
 {
     int64_t d = acpi_pm_tmr_get_clock();
-    if (d >= overflow_time) {
+    if (d >= ar->tmr.overflow_time) {
         ar->pm1.evt.sts |= ACPI_BITMASK_TIMER_STATUS;
     }
     return ar->pm1.evt.sts;
@@ -260,7 +260,7 @@ uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar, int64_t overflow_time)
 
 void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
 {
-    uint16_t pm1_sts = acpi_pm1_evt_get_sts(ar, ar->tmr.overflow_time);
+    uint16_t pm1_sts = acpi_pm1_evt_get_sts(ar);
     if (pm1_sts & val & ACPI_BITMASK_TIMER_STATUS) {
         /* if TMRSTS is reset, then compute the new overflow time */
         acpi_pm_tmr_calc_overflow_time(ar);

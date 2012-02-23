@@ -131,7 +131,7 @@ static inline int64_t acpi_pm_tmr_get_clock(void)
 }
 
 /* PM1a_EVT: piix and ich9 don't implement PM1b. */
-uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar, int64_t overflow_time);
+uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar);
 void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val);
 void acpi_pm1_evt_power_down(ACPIREGS *ar);
 void acpi_pm1_evt_reset(ACPIREGS *ar);

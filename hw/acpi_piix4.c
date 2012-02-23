@@ -80,7 +80,7 @@ static void pm_update_sci(PIIX4PMState *s)
 {
     int sci_level, pmsts;
 
-    pmsts = acpi_pm1_evt_get_sts(&s->ar, s->ar.tmr.overflow_time);
+    pmsts = acpi_pm1_evt_get_sts(&s->ar);
     sci_level = (((pmsts & s->ar.pm1.evt.en) &
                   (ACPI_BITMASK_RT_CLOCK_ENABLE |
                    ACPI_BITMASK_POWER_BUTTON_ENABLE |
@@ -138,7 +138,7 @@ static void pm_ioport_read(IORange *ioport, uint64_t addr, unsigned width,
 
     switch(addr) {
     case 0x00:
-        val = acpi_pm1_evt_get_sts(&s->ar, s->ar.tmr.overflow_time);
+        val = acpi_pm1_evt_get_sts(&s->ar);
         break;
     case 0x02:
         val = s->ar.pm1.evt.en;

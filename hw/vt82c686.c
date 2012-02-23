@@ -177,7 +177,7 @@ static void pm_update_sci(VT686PMState *s)
 {
     int sci_level, pmsts;
 
-    pmsts = acpi_pm1_evt_get_sts(&s->ar, s->ar.tmr.overflow_time);
+    pmsts = acpi_pm1_evt_get_sts(&s->ar);
     sci_level = (((pmsts & s->ar.pm1.evt.en) &
                   (ACPI_BITMASK_RT_CLOCK_ENABLE |
                    ACPI_BITMASK_POWER_BUTTON_ENABLE |
@@ -226,7 +226,7 @@ static uint32_t pm_ioport_readw(void *opaque, uint32_t addr)
     addr &= 0x0f;
     switch (addr) {
     case 0x00:
-        val = acpi_pm1_evt_get_sts(&s->ar, s->ar.tmr.overflow_time);
+        val = acpi_pm1_evt_get_sts(&s->ar);
         break;
     case 0x02:
         val = s->ar.pm1.evt.en;
