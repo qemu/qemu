@@ -488,6 +488,12 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         case QEVENT_DEVICE_TRAY_MOVED:
              event_name = "DEVICE_TRAY_MOVED";
             break;
+        case QEVENT_SUSPEND:
+            event_name = "SUSPEND";
+            break;
+        case QEVENT_WAKEUP:
+            event_name = "WAKEUP";
+            break;
         default:
             abort();
             break;

@@ -1416,6 +1416,7 @@ static void qemu_system_suspend(void)
 {
     pause_all_vcpus();
     notifier_list_notify(&suspend_notifiers, NULL);
+    monitor_protocol_event(QEVENT_SUSPEND, NULL);
     is_suspended = true;
 }
 
@@ -1442,6 +1443,7 @@ void qemu_system_wakeup_request(WakeupReason reason)
     if (!(wakeup_reason_mask & (1 << reason))) {
         return;
     }
+    monitor_protocol_event(QEVENT_WAKEUP, NULL);
     notifier_list_notify(&wakeup_notifiers, &reason);
     reset_requested = 1;
     qemu_notify_event();
