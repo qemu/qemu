@@ -43,7 +43,7 @@ coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 
 block-obj-y = iov.o cache-utils.o qemu-option.o module.o async.o
 block-obj-y += nbd.o block.o blockjob.o aes.o qemu-config.o
-block-obj-y += qemu-progress.o qemu-sockets.o uri.o notify.o
+block-obj-y += thread-pool.o qemu-progress.o qemu-sockets.o uri.o notify.o
 block-obj-y += $(coroutine-obj-y) $(qobject-obj-y) $(version-obj-y)
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
 block-obj-$(CONFIG_POSIX) += event_notifier-posix.o aio-posix.o
