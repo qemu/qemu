@@ -2723,11 +2723,15 @@ fi
 
 ##########################################
 # check if we have makecontext
+# (and that it's not a glibc stub which always returns -1)
 
 ucontext_coroutine=no
 if test "$darwin" != "yes"; then
   cat > $TMPC << EOF
 #include <ucontext.h>
+#ifdef __stub_makecontext
+#error Ignoring glibc stub makecontext which will always fail
+#endif
 int main(void) { makecontext(0, 0, 0); return 0; }
 EOF
   if compile_prog "" "" ; then
