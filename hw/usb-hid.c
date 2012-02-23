@@ -466,6 +466,9 @@ static int usb_hid_handle_data(USBDevice *dev, USBPacket *p)
     case USB_TOKEN_IN:
         if (p->ep->nr == 1) {
             int64_t curtime = qemu_get_clock_ns(vm_clock);
+            if (hs->kind == HID_MOUSE || hs->kind == HID_TABLET) {
+                hid_pointer_activate(hs);
+            }
             if (!hid_has_events(hs) &&
                 (!hs->idle || hs->next_idle_clock - curtime > 0)) {
                 return USB_RET_NAK;
