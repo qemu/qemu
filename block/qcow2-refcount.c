@@ -702,9 +702,8 @@ void qcow2_free_any_clusters(BlockDriverState *bs,
         return;
     }
 
-    qcow2_free_clusters(bs, cluster_offset, nb_clusters << s->cluster_bits);
-
-    return;
+    qcow2_free_clusters(bs, cluster_offset & L2E_OFFSET_MASK,
+                        nb_clusters << s->cluster_bits);
 }
 
 
@@ -764,7 +763,7 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
         l2_offset = l1_table[i];
         if (l2_offset) {
             old_l2_offset = l2_offset;
-            l2_offset &= ~QCOW_OFLAG_COPIED;
+            l2_offset &= L1E_OFFSET_MASK;
 
             ret = qcow2_cache_get(bs, s->l2_table_cache, l2_offset,
                 (void**) &l2_table);
@@ -796,10 +795,11 @@ int qcow2_update_snapshot_refcount(BlockDriverState *bs,
                         /* compressed clusters are never modified */
                         refcount = 2;
                     } else {
+                        uint64_t cluster_index = (offset & L2E_OFFSET_MASK) >> s->cluster_bits;
                         if (addend != 0) {
-                            refcount = update_cluster_refcount(bs, offset >> s->cluster_bits, addend);
+                            refcount = update_cluster_refcount(bs, cluster_index, addend);
                         } else {
-                            refcount = get_refcount(bs, offset >> s->cluster_bits);
+                            refcount = get_refcount(bs, cluster_index);
                         }
 
                         if (refcount < 0) {
