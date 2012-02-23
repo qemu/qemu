@@ -38,7 +38,16 @@ void vm_start(void);
 void vm_stop(RunState state);
 void vm_stop_force_state(RunState state);
 
+typedef enum WakeupReason {
+    QEMU_WAKEUP_REASON_OTHER = 0,
+} WakeupReason;
+
 void qemu_system_reset_request(void);
+void qemu_system_suspend_request(void);
+void qemu_register_suspend_notifier(Notifier *notifier);
+void qemu_system_wakeup_request(WakeupReason reason);
+void qemu_system_wakeup_enable(WakeupReason reason, bool enabled);
+void qemu_register_wakeup_notifier(Notifier *notifier);
 void qemu_system_shutdown_request(void);
 void qemu_system_powerdown_request(void);
 void qemu_system_debug_request(void);
