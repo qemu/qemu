@@ -999,6 +999,17 @@
 { 'command': 'cont' }
 
 ##
+# @system_wakeup:
+#
+# Wakeup guest from suspend.  Does nothing in case the guest isn't suspended.
+#
+# Since:  1.1
+#
+# Returns:  nothing.
+##
+{ 'command': 'system_wakeup' }
+
+##
 # @inject-nmi:
 #
 # Injects an Non-Maskable Interrupt into all guest's VCPUs.

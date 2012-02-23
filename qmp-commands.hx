@@ -212,6 +212,27 @@ Example:
 EQMP
 
     {
+        .name       = "system_wakeup",
+        .args_type  = "",
+        .mhandler.cmd_new = qmp_marshal_input_system_wakeup,
+    },
+
+SQMP
+system_wakeup
+-------------
+
+Wakeup guest from suspend.
+
+Arguments: None.
+
+Example:
+
+-> { "execute": "system_wakeup" }
+<- { "return": {} }
+
+EQMP
+
+    {
         .name       = "system_reset",
         .args_type  = "",
         .mhandler.cmd_new = qmp_marshal_input_system_reset,

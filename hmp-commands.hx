@@ -352,6 +352,20 @@ Resume emulation.
 ETEXI
 
     {
+        .name       = "system_wakeup",
+        .args_type  = "",
+        .params     = "",
+        .help       = "wakeup guest from suspend",
+        .mhandler.cmd = hmp_system_wakeup,
+    },
+
+STEXI
+@item system_wakeup
+@findex system_wakeup
+Wakeup guest from suspend.
+ETEXI
+
+    {
         .name       = "gdbserver",
         .args_type  = "device:s?",
         .params     = "[device]",

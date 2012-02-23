@@ -163,6 +163,11 @@ void qmp_cont(Error **errp)
     vm_start();
 }
 
+void qmp_system_wakeup(Error **errp)
+{
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+}
+
 ObjectPropertyInfoList *qmp_qom_list(const char *path, Error **errp)
 {
     Object *obj;
