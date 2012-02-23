@@ -254,6 +254,10 @@ static void acpi_notify_wakeup(Notifier *notifier, void *data)
     WakeupReason *reason = data;
 
     switch (*reason) {
+    case QEMU_WAKEUP_REASON_RTC:
+        ar->pm1.evt.sts |=
+            (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_RT_CLOCK_STATUS);
+        break;
     case QEMU_WAKEUP_REASON_OTHER:
     default:
         /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
@@ -287,6 +291,8 @@ void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
 void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val)
 {
     ar->pm1.evt.en = val;
+    qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC,
+                              val & ACPI_BITMASK_RT_CLOCK_ENABLE);
 }
 
 void acpi_pm1_evt_power_down(ACPIREGS *ar)
@@ -301,6 +307,7 @@ void acpi_pm1_evt_reset(ACPIREGS *ar)
 {
     ar->pm1.evt.sts = 0;
     ar->pm1.evt.en = 0;
+    qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC, 0);
 }
 
 /* ACPI PM_TMR */

@@ -437,6 +437,7 @@ static void rtc_update_second2(void *opaque)
 
         s->cmos_data[RTC_REG_C] |= REG_C_AF;
         if (s->cmos_data[RTC_REG_B] & REG_B_AIE) {
+            qemu_system_wakeup_request(QEMU_WAKEUP_REASON_RTC);
             qemu_irq_raise(s->irq);
             s->cmos_data[RTC_REG_C] |= REG_C_IRQF;
         }
