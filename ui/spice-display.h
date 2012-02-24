@@ -50,6 +50,7 @@ typedef enum qxl_async_io {
 
 enum {
     QXL_COOKIE_TYPE_IO,
+    QXL_COOKIE_TYPE_RENDER_UPDATE_AREA,
 };
 
 typedef struct QXLCookie {
@@ -57,6 +58,11 @@ typedef struct QXLCookie {
     uint64_t io;
     union {
         uint32_t surface_id;
+        QXLRect area;
+        struct {
+            QXLRect area;
+            int redraw;
+        } render;
     } u;
 } QXLCookie;
 

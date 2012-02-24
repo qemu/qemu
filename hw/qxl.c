@@ -747,6 +747,11 @@ static void interface_async_complete_io(PCIQXLDevice *qxl, QXLCookie *cookie)
                 __func__, current_async, cookie->io);
     }
     switch (current_async) {
+    case QXL_IO_MEMSLOT_ADD_ASYNC:
+    case QXL_IO_DESTROY_PRIMARY_ASYNC:
+    case QXL_IO_UPDATE_AREA_ASYNC:
+    case QXL_IO_FLUSH_SURFACES_ASYNC:
+        break;
     case QXL_IO_CREATE_PRIMARY_ASYNC:
         qxl_create_guest_primary_complete(qxl);
         break;
@@ -756,8 +761,51 @@ static void interface_async_complete_io(PCIQXLDevice *qxl, QXLCookie *cookie)
     case QXL_IO_DESTROY_SURFACE_ASYNC:
         qxl_spice_destroy_surface_wait_complete(qxl, cookie->u.surface_id);
         break;
+    default:
+        fprintf(stderr, "qxl: %s: unexpected current_async %d\n", __func__,
+                current_async);
     }
     qxl_send_events(qxl, QXL_INTERRUPT_IO_CMD);
+}
+
+/* called from spice server thread context only */
+static void interface_update_area_complete(QXLInstance *sin,
+        uint32_t surface_id,
+        QXLRect *dirty, uint32_t num_updated_rects)
+{
+    PCIQXLDevice *qxl = container_of(sin, PCIQXLDevice, ssd.qxl);
+    int i;
+    int qxl_i;
+
+    qemu_mutex_lock(&qxl->ssd.lock);
+    if (surface_id != 0 || !qxl->render_update_cookie_num) {
+        qemu_mutex_unlock(&qxl->ssd.lock);
+        return;
+    }
+    if (qxl->num_dirty_rects + num_updated_rects > QXL_NUM_DIRTY_RECTS) {
+        /*
+         * overflow - treat this as a full update. Not expected to be common.
+         */
+        dprint(qxl, 1, "%s: overflow of dirty rects\n", __func__);
+        qxl->guest_primary.resized = 1;
+    }
+    if (qxl->guest_primary.resized) {
+        /*
+         * Don't bother copying or scheduling the bh since we will flip
+         * the whole area anyway on completion of the update_area async call
+         */
+        qemu_mutex_unlock(&qxl->ssd.lock);
+        return;
+    }
+    qxl_i = qxl->num_dirty_rects;
+    for (i = 0; i < num_updated_rects; i++) {
+        qxl->dirty[qxl_i++] = dirty[i];
+    }
+    qxl->num_dirty_rects += num_updated_rects;
+    dprint(qxl, 1, "%s: scheduling update_area_bh, #dirty %d\n",
+           __func__, qxl->num_dirty_rects);
+    qemu_bh_schedule(qxl->update_area_bh);
+    qemu_mutex_unlock(&qxl->ssd.lock);
 }
 
 /* called from spice server thread context only */
@@ -769,12 +817,16 @@ static void interface_async_complete(QXLInstance *sin, uint64_t cookie_token)
     switch (cookie->type) {
     case QXL_COOKIE_TYPE_IO:
         interface_async_complete_io(qxl, cookie);
+        g_free(cookie);
+        break;
+    case QXL_COOKIE_TYPE_RENDER_UPDATE_AREA:
+        qxl_render_update_area_done(qxl, cookie);
         break;
     default:
         fprintf(stderr, "qxl: %s: unexpected cookie type %d\n",
                 __func__, cookie->type);
+        g_free(cookie);
     }
-    g_free(cookie);
 }
 
 static const QXLInterface qxl_interface = {
@@ -797,6 +849,7 @@ static const QXLInterface qxl_interface = {
     .notify_update           = interface_notify_update,
     .flush_resources         = interface_flush_resources,
     .async_complete          = interface_async_complete,
+    .update_area_complete    = interface_update_area_complete,
 };
 
 static void qxl_enter_vga_mode(PCIQXLDevice *d)
@@ -1213,11 +1266,17 @@ async_common:
     switch (io_port) {
     case QXL_IO_UPDATE_AREA:
     {
+        QXLCookie *cookie = NULL;
         QXLRect update = d->ram->update_area;
+
+        if (async == QXL_ASYNC) {
+            cookie = qxl_cookie_new(QXL_COOKIE_TYPE_IO,
+                                    QXL_IO_UPDATE_AREA_ASYNC);
+            cookie->u.area = update;
+        }
         qxl_spice_update_area(d, d->ram->update_surface,
-                              &update, NULL, 0, 0, async,
-                              qxl_cookie_new(QXL_COOKIE_TYPE_IO,
-                                             QXL_IO_UPDATE_AREA_ASYNC));
+                              cookie ? &cookie->u.area : &update,
+                              NULL, 0, 0, async, cookie);
         break;
     }
     case QXL_IO_NOTIFY_CMD:
@@ -1648,6 +1707,8 @@ static int qxl_init_common(PCIQXLDevice *qxl)
 
     init_pipe_signaling(qxl);
     qxl_reset_state(qxl);
+
+    qxl->update_area_bh = qemu_bh_new(qxl_render_update_area_bh, qxl);
 
     return 0;
 }
