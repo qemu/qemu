@@ -52,7 +52,7 @@ typedef struct PCIQXLDevice {
         uint32_t       abs_stride;
         uint32_t       bits_pp;
         uint32_t       bytes_pp;
-        uint8_t        *data, *flipped;
+        uint8_t        *data;
     } guest_primary;
 
     struct surfaces {
