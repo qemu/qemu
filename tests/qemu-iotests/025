@@ -1,0 +1,78 @@
+#!/bin/bash
+#
+# Resizing images
+#
+# Copyright (C) 2010 IBM, Corp.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=stefanha@linux.vnet.ibm.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+_supported_fmt raw qcow2 qed
+_supported_proto file sheepdog rbd
+_supported_os Linux
+
+echo "=== Creating image"
+echo
+small_size=$((128 * 1024 * 1024))
+big_size=$((384 * 1024 * 1024))
+_make_test_img $small_size
+
+echo
+echo "=== Writing whole image"
+io_pattern write 0 $small_size 0 1 0xc5
+_check_test_img
+
+echo
+echo "=== Resizing image"
+$QEMU_IO $TEST_IMG <<EOF
+length
+truncate $big_size
+length
+EOF
+_check_test_img
+
+echo
+echo "=== Verifying image size after reopen"
+$QEMU_IO -c "length" $TEST_IMG
+
+echo
+echo "=== Verifying resized image"
+io_pattern read 0 $small_size 0 1 0xc5
+io_pattern read $small_size $(($big_size - $small_size)) 0 1 0
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

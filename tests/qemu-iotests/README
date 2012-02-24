@@ -1,0 +1,20 @@
+
+=== This is the QEMU I/O test suite ===
+
+* Intro
+
+This package contains a simple test suite for the I/O layer of qemu.
+It does not require a guest, but only the qemu, qemu-img and qemu-io
+binaries.  This does limit it to exercise the low-level I/O path only
+but no actual block drivers like ide, scsi or virtio.
+
+* Usage
+
+Just run ./check to run all tests for the raw image format, or ./check
+-qcow2 to test the qcow2 image format.  The output of ./check -h explains
+additional options to test further image formats or I/O methods.
+
+* Feedback and patches
+
+Please send improvements to the test suite, general feedback or just
+reports of failing tests cases to qemu-devel@savannah.nongnu.org.

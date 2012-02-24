@@ -1,0 +1,330 @@
+#!/bin/bash
+#
+# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation.
+#
+# This program is distributed in the hope that it would be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#
+# common procedures for QA scripts
+#
+
+_setenvironment()
+{
+    MSGVERB="text:action"
+    export MSGVERB
+}
+
+here=`pwd`
+rm -f $here/$iam.out
+_setenvironment
+
+check=${check-true}
+
+diff="diff -u"
+verbose=false
+group=false
+xgroup=false
+showme=false
+sortme=false
+expunge=true
+have_test_arg=false
+randomize=false
+rm -f $tmp.list $tmp.tmp $tmp.sed
+
+export IMGFMT=raw
+export IMGPROTO=file
+export QEMU_IO_OPTIONS=""
+
+for r
+do
+
+    if $group
+    then
+	# arg after -g
+	group_list=`sed -n <group -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
+s/ .*//p
+}'`
+	if [ -z "$group_list" ]
+	then
+	    echo "Group \"$r\" is empty or not defined?"
+	    exit 1
+	fi
+	[ ! -s $tmp.list ] && touch $tmp.list
+	for t in $group_list
+	do
+	    if grep -s "^$t\$" $tmp.list >/dev/null
+	    then
+		:
+	    else
+		echo "$t" >>$tmp.list
+	    fi
+	done
+	group=false
+	continue
+
+    elif $xgroup
+    then
+	# arg after -x
+	[ ! -s $tmp.list ] && ls [0-9][0-9][0-9] [0-9][0-9][0-9][0-9] >$tmp.list 2>/dev/null
+	group_list=`sed -n <group -e 's/$/ /' -e "/^[0-9][0-9][0-9].* $r /"'{
+s/ .*//p
+}'`
+	if [ -z "$group_list" ]
+	then
+	    echo "Group \"$r\" is empty or not defined?"
+	    exit 1
+	fi
+	numsed=0
+	rm -f $tmp.sed
+	for t in $group_list
+	do
+	    if [ $numsed -gt 100 ]
+	    then
+		sed -f $tmp.sed <$tmp.list >$tmp.tmp
+		mv $tmp.tmp $tmp.list
+		numsed=0
+		rm -f $tmp.sed
+	    fi
+	    echo "/^$t\$/d" >>$tmp.sed
+	    numsed=`expr $numsed + 1`
+	done
+	sed -f $tmp.sed <$tmp.list >$tmp.tmp
+	mv $tmp.tmp $tmp.list
+	xgroup=false
+	continue
+    fi
+
+    xpand=true
+    case "$r"
+    in
+
+	-\? | -h | --help)	# usage
+	    echo "Usage: $0 [options] [testlist]"'
+
+common options
+    -v			verbose
+
+check options
+    -raw                test raw (default)
+    -cow                test cow
+    -qcow               test qcow
+    -qcow2              test qcow2
+    -qed                test qed
+    -vdi                test vdi
+    -vpc                test vpc
+    -vmdk               test vmdk
+    -rbd                test rbd
+    -sheepdog           test sheepdog
+    -xdiff		graphical mode diff
+    -nocache		use O_DIRECT on backing file
+    -misalign		misalign memory allocations
+    -n			show me, do not run tests
+    -T			output timestamps
+    -r 			randomize test order
+    
+testlist options
+    -g group[,group...]	include tests from these groups
+    -x group[,group...]	exclude tests from these groups
+    NNN			include test NNN
+    NNN-NNN		include test range (eg. 012-021)
+'
+	    exit 0
+	    ;;
+
+	-raw)
+	    IMGFMT=raw
+	    xpand=false
+	    ;;
+
+	-cow)
+	    IMGFMT=cow
+	    xpand=false
+	    ;;
+
+	-qcow)
+	    IMGFMT=qcow
+	    xpand=false
+	    ;;
+
+	-qcow2)
+	    IMGFMT=qcow2
+	    xpand=false
+	    ;;
+
+	-qed)
+	    IMGFMT=qed
+	    xpand=false
+	    ;;
+
+	-vdi)
+	    IMGFMT=vdi
+	    xpand=false
+	    ;;
+
+	-vmdk)
+	    IMGFMT=vmdk
+	    xpand=false
+	    ;;
+
+	-vpc)
+	    IMGFMT=vpc
+	    xpand=false
+	    ;;
+
+	-rbd)
+	    IMGPROTO=rbd
+	    xpand=false
+	    ;;
+
+	-sheepdog)
+	    IMGPROTO=sheepdog
+	    xpand=false
+	    ;;
+
+	-nocache)
+	    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --nocache"
+	    xpand=false
+	    ;;
+
+	-misalign)
+	    QEMU_IO_OPTIONS="$QEMU_IO_OPTIONS --misalign"
+	    xpand=false
+	    ;;
+
+	-g)	# -g group ... pick from group file
+	    group=true
+	    xpand=false
+	    ;;
+
+	-xdiff)	# graphical diff mode
+	    xpand=false
+
+	    if [ ! -z "$DISPLAY" ]
+	    then
+		which xdiff >/dev/null 2>&1 && diff=xdiff
+		which gdiff >/dev/null 2>&1 && diff=gdiff
+		which tkdiff >/dev/null 2>&1 && diff=tkdiff
+		which xxdiff >/dev/null 2>&1 && diff=xxdiff
+	    fi
+	    ;;
+
+	-n)	# show me, don't do it
+	    showme=true
+	    xpand=false
+	    ;;
+        -r)	# randomize test order
+	    randomize=true
+	    xpand=false
+	    ;;
+
+	-T)	# turn on timestamp output
+	    timestamp=true
+	    xpand=false
+	    ;;
+
+	-v)
+	    verbose=true
+	    xpand=false
+	    ;;
+	-x)	# -x group ... exclude from group file
+	    xgroup=true
+	    xpand=false
+	    ;;
+	'[0-9][0-9][0-9] [0-9][0-9][0-9][0-9]')
+	    echo "No tests?"
+	    status=1
+	    exit $status
+	    ;;
+
+	[0-9]*-[0-9]*)
+	    eval `echo $r | sed -e 's/^/start=/' -e 's/-/ end=/'`
+	    ;;
+
+	[0-9]*-)
+	    eval `echo $r | sed -e 's/^/start=/' -e 's/-//'`
+	    end=`echo [0-9][0-9][0-9] [0-9][0-9][0-9][0-9] | sed -e 's/\[0-9]//g' -e 's/  *$//' -e 's/.* //'`
+	    if [ -z "$end" ]
+	    then
+		echo "No tests in range \"$r\"?"
+		status=1
+		exit $status
+	    fi
+	    ;;
+
+	*)
+	    start=$r
+	    end=$r
+	    ;;
+
+    esac
+
+    # get rid of leading 0s as can be interpreted as octal
+    start=`echo $start | sed 's/^0*//'`
+    end=`echo $end | sed 's/^0*//'`
+
+    if $xpand
+    then
+	have_test_arg=true
+	$AWK_PROG </dev/null '
+BEGIN	{ for (t='$start'; t<='$end'; t++) printf "%03d\n",t }' \
+	| while read id
+	do
+	    if grep -s "^$id " group >/dev/null
+	    then
+		# in group file ... OK
+		echo $id >>$tmp.list
+	    else
+		if [ -f expunged ] && $expunge && egrep "^$id([ 	]|\$)" expunged >/dev/null
+		then
+		    # expunged ... will be reported, but not run, later
+		    echo $id >>$tmp.list
+		else
+		    # oops
+		    echo "$id - unknown test, ignored"
+		fi
+	    fi
+	done
+    fi
+
+done
+
+if [ -s $tmp.list ]
+then
+    # found some valid test numbers ... this is good
+    :
+else
+    if $have_test_arg
+    then
+	# had test numbers, but none in group file ... do nothing
+	touch $tmp.list
+    else
+	# no test numbers, do everything from group file
+	sed -n -e '/^[0-9][0-9][0-9]*/s/[ 	].*//p' <group >$tmp.list
+    fi
+fi
+
+# should be sort -n, but this did not work for Linux when this
+# was ported from IRIX
+#
+list=`sort $tmp.list`
+rm -f $tmp.list $tmp.tmp $tmp.sed
+
+if $randomize
+then
+    list=`echo $list | awk -f randomize.awk`
+fi
+
+[ "$QEMU" = "" ] && _fatal "qemu not found"
+[ "$QEMU_IMG" = "" ] && _fatal "qemu-img not found"
+[ "$QEMU_IO" = "" ] && _fatal "qemu-img not found"

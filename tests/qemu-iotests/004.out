@@ -1,0 +1,41 @@
+QA output created by 004
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+
+write before image boundary
+wrote 1048576/1048576 bytes at offset 133169152
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+write into image boundary
+write failed: Input/output error
+
+write at image boundary
+write failed: Input/output error
+
+write past image boundary
+write failed: Input/output error
+
+pwrite past image boundary
+write failed: Input/output error
+
+writev past image boundary
+writev failed: Input/output error
+
+read before image boundary
+read 1048576/1048576 bytes at offset 133169152
+1 MiB, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+read into image boundary
+read failed: Input/output error
+
+read at image boundary
+read failed: Input/output error
+
+read past image boundary
+read failed: Input/output error
+
+pread past image boundary
+read failed: Input/output error
+
+readv past image boundary
+readv failed: Input/output error
+*** done

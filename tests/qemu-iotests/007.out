@@ -1,0 +1,18 @@
+QA output created by 007
+
+creating image
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=1048576 
+savevm 1
+savevm 2
+savevm 3
+savevm 4
+savevm 5
+savevm 6
+savevm 7
+savevm 8
+savevm 9
+savevm 10
+
+checking image for errors
+No errors were found on the image.
+*** done
