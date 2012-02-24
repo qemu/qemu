@@ -48,6 +48,20 @@ typedef enum qxl_async_io {
     QXL_ASYNC,
 } qxl_async_io;
 
+enum {
+    QXL_COOKIE_TYPE_IO,
+};
+
+typedef struct QXLCookie {
+    int      type;
+    uint64_t io;
+    union {
+        uint32_t surface_id;
+    } u;
+} QXLCookie;
+
+QXLCookie *qxl_cookie_new(int type, uint64_t io);
+
 typedef struct SimpleSpiceDisplay SimpleSpiceDisplay;
 typedef struct SimpleSpiceUpdate SimpleSpiceUpdate;
 

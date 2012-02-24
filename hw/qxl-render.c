@@ -127,7 +127,7 @@ void qxl_render_update(PCIQXLDevice *qxl)
     if (runstate_is_running() && qxl->guest_primary.commands) {
         qxl->guest_primary.commands = 0;
         qxl_spice_update_area(qxl, 0, &update,
-                              dirty, ARRAY_SIZE(dirty), 1, QXL_SYNC);
+                              dirty, ARRAY_SIZE(dirty), 1, QXL_SYNC, NULL);
     }
     if (redraw) {
         memset(dirty, 0, sizeof(dirty));

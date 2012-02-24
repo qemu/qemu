@@ -118,7 +118,7 @@ void qxl_spice_update_area(PCIQXLDevice *qxl, uint32_t surface_id,
                            struct QXLRect *area, struct QXLRect *dirty_rects,
                            uint32_t num_dirty_rects,
                            uint32_t clear_dirty_region,
-                           qxl_async_io async);
+                           qxl_async_io async, QXLCookie *cookie);
 void qxl_spice_loadvm_commands(PCIQXLDevice *qxl, struct QXLCommandExt *ext,
                                uint32_t count);
 void qxl_spice_oom(PCIQXLDevice *qxl);
