@@ -15,6 +15,7 @@
 #define QJSON_H
 
 #include <stdarg.h>
+#include "compiler.h"
 #include "qobject.h"
 #include "qstring.h"
 
