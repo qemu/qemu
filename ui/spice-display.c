@@ -317,16 +317,8 @@ void qemu_spice_display_resize(SimpleSpiceDisplay *ssd)
     ssd->notify++;
 }
 
-void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
+void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
 {
-    dprint(3, "%s:\n", __FUNCTION__);
-    vga_hw_update();
-
-    qemu_mutex_lock(&ssd->lock);
-    if (ssd->update == NULL) {
-        ssd->update = qemu_spice_create_update(ssd);
-        ssd->notify++;
-    }
     if (ssd->cursor) {
         ssd->ds->cursor_define(ssd->cursor);
         cursor_put(ssd->cursor);
@@ -337,6 +329,19 @@ void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
         ssd->mouse_x = -1;
         ssd->mouse_y = -1;
     }
+}
+
+void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
+{
+    dprint(3, "%s:\n", __func__);
+    vga_hw_update();
+
+    qemu_mutex_lock(&ssd->lock);
+    if (ssd->update == NULL) {
+        ssd->update = qemu_spice_create_update(ssd);
+        ssd->notify++;
+    }
+    qemu_spice_cursor_refresh_unlocked(ssd);
     qemu_mutex_unlock(&ssd->lock);
 
     if (ssd->notify) {

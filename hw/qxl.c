@@ -1545,6 +1545,10 @@ static void display_refresh(struct DisplayState *ds)
 {
     if (qxl0->mode == QXL_MODE_VGA) {
         qemu_spice_display_refresh(&qxl0->ssd);
+    } else {
+        qemu_mutex_lock(&qxl0->ssd.lock);
+        qemu_spice_cursor_refresh_unlocked(&qxl0->ssd);
+        qemu_mutex_unlock(&qxl0->ssd.lock);
     }
 }
 
