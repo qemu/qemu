@@ -28,6 +28,7 @@
 #include "qemu-common.h"
 #include "cpu-defs.h"
 struct CPULM32State;
+typedef struct CPULM32State CPULM32State;
 
 #define TARGET_HAS_ICE 1
 

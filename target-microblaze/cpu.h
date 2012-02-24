@@ -29,6 +29,7 @@
 #include "cpu-defs.h"
 #include "softfloat.h"
 struct CPUMBState;
+typedef struct CPUMBState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
 #endif
