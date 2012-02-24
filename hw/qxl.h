@@ -138,9 +138,3 @@ void qxl_log_command(PCIQXLDevice *qxl, const char *ring, QXLCommandExt *ext);
 void qxl_render_resize(PCIQXLDevice *qxl);
 void qxl_render_update(PCIQXLDevice *qxl);
 void qxl_render_cursor(PCIQXLDevice *qxl, QXLCommandExt *ext);
-#if SPICE_INTERFACE_QXL_MINOR >= 1
-void qxl_spice_update_area_async(PCIQXLDevice *qxl, uint32_t surface_id,
-                                 struct QXLRect *area,
-                                 uint32_t clear_dirty_region,
-                                 int is_vga);
-#endif
