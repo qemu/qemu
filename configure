@@ -509,7 +509,7 @@ if test "$mingw32" = "yes" ; then
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
   confsuffix=""
-  guest_agent="no"
+  libs_qga="-lws2_32 -lwinmm $lib_qga"
 fi
 
 werror=""
