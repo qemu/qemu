@@ -289,7 +289,7 @@ static void g364fb_reset(G364State *s)
     g364fb_invalidate_display(s);
 }
 
-static void g364fb_screen_dump(void *opaque, const char *filename)
+static void g364fb_screen_dump(void *opaque, const char *filename, bool cswitch)
 {
     G364State *s = opaque;
     int y, x;

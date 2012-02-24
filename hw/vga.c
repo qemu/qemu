@@ -162,7 +162,7 @@ static uint32_t expand4[256];
 static uint16_t expand2[256];
 static uint8_t expand4to8[16];
 
-static void vga_screen_dump(void *opaque, const char *filename);
+static void vga_screen_dump(void *opaque, const char *filename, bool cswitch);
 
 static void vga_update_memory_access(VGACommonState *s)
 {
@@ -2407,11 +2407,13 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
 
 /* save the vga display in a PPM image even if no display is
    available */
-static void vga_screen_dump(void *opaque, const char *filename)
+static void vga_screen_dump(void *opaque, const char *filename, bool cswitch)
 {
     VGACommonState *s = opaque;
 
-    vga_invalidate_display(s);
-    vga_hw_update();
+    if (cswitch) {
+        vga_invalidate_display(s);
+        vga_hw_update();
+    }
     ppm_save(filename, s->ds->surface);
 }

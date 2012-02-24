@@ -176,19 +176,23 @@ void vga_hw_invalidate(void)
 void vga_hw_screen_dump(const char *filename)
 {
     TextConsole *previous_active_console;
+    bool cswitch;
 
     previous_active_console = active_console;
+    cswitch = previous_active_console && previous_active_console->index != 0;
 
     /* There is currently no way of specifying which screen we want to dump,
        so always dump the first one.  */
-    console_select(0);
+    if (cswitch) {
+        console_select(0);
+    }
     if (consoles[0] && consoles[0]->hw_screen_dump) {
-        consoles[0]->hw_screen_dump(consoles[0]->hw, filename);
+        consoles[0]->hw_screen_dump(consoles[0]->hw, filename, cswitch);
     } else {
         error_report("screen dump not implemented");
     }
 
-    if (previous_active_console) {
+    if (cswitch) {
         console_select(previous_active_console->index);
     }
 }

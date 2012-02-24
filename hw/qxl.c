@@ -1436,7 +1436,7 @@ static void qxl_hw_invalidate(void *opaque)
     vga->invalidate(vga);
 }
 
-static void qxl_hw_screen_dump(void *opaque, const char *filename)
+static void qxl_hw_screen_dump(void *opaque, const char *filename, bool cswitch)
 {
     PCIQXLDevice *qxl = opaque;
     VGACommonState *vga = &qxl->vga;
@@ -1448,7 +1448,7 @@ static void qxl_hw_screen_dump(void *opaque, const char *filename)
         ppm_save(filename, qxl->ssd.ds->surface);
         break;
     case QXL_MODE_VGA:
-        vga->screen_dump(vga, filename);
+        vga->screen_dump(vga, filename, cswitch);
         break;
     default:
         break;

@@ -56,8 +56,8 @@ typedef struct TCXState {
     uint8_t dac_index, dac_state;
 } TCXState;
 
-static void tcx_screen_dump(void *opaque, const char *filename);
-static void tcx24_screen_dump(void *opaque, const char *filename);
+static void tcx_screen_dump(void *opaque, const char *filename, bool cswitch);
+static void tcx24_screen_dump(void *opaque, const char *filename, bool cswitch);
 
 static void tcx_set_dirty(TCXState *s)
 {
@@ -574,7 +574,7 @@ static int tcx_init1(SysBusDevice *dev)
     return 0;
 }
 
-static void tcx_screen_dump(void *opaque, const char *filename)
+static void tcx_screen_dump(void *opaque, const char *filename, bool cswitch)
 {
     TCXState *s = opaque;
     FILE *f;
@@ -601,7 +601,7 @@ static void tcx_screen_dump(void *opaque, const char *filename)
     return;
 }
 
-static void tcx24_screen_dump(void *opaque, const char *filename)
+static void tcx24_screen_dump(void *opaque, const char *filename, bool cswitch)
 {
     TCXState *s = opaque;
     FILE *f;
