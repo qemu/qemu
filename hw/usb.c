@@ -26,6 +26,7 @@
 #include "qemu-common.h"
 #include "usb.h"
 #include "iov.h"
+#include "trace.h"
 
 void usb_attach(USBPort *port)
 {
@@ -390,7 +391,6 @@ void usb_packet_init(USBPacket *p)
 
 void usb_packet_set_state(USBPacket *p, USBPacketState state)
 {
-#ifdef DEBUG
     static const char *name[] = {
         [USB_PACKET_UNDEFINED] = "undef",
         [USB_PACKET_SETUP]     = "setup",
@@ -399,28 +399,11 @@ void usb_packet_set_state(USBPacket *p, USBPacketState state)
         [USB_PACKET_COMPLETE]  = "complete",
         [USB_PACKET_CANCELED]  = "canceled",
     };
-    static const char *rets[] = {
-        [-USB_RET_NODEV]  = "NODEV",
-        [-USB_RET_NAK]    = "NAK",
-        [-USB_RET_STALL]  = "STALL",
-        [-USB_RET_BABBLE] = "BABBLE",
-        [-USB_RET_ASYNC]  = "ASYNC",
-    };
-    char add[16] = "";
+    USBDevice *dev = p->ep->dev;
+    USBBus *bus = usb_bus_from_device(dev);
 
-    if (state == USB_PACKET_COMPLETE) {
-        if (p->result < 0) {
-            snprintf(add, sizeof(add), " - %s", rets[-p->result]);
-        } else {
-            snprintf(add, sizeof(add), " - %d", p->result);
-        }
-    }
-    fprintf(stderr, "bus %s, port %s, dev %d, ep %d: packet %p: %s -> %s%s\n",
-            p->ep->dev->qdev.parent_bus->name,
-            p->ep->dev->port->path,
-            p->ep->dev->addr, p->ep->nr,
-            p, name[p->state], name[state], add);
-#endif
+    trace_usb_packet_state_change(bus->busnr, dev->port->path, p->ep->nr,
+                                  p, name[p->state], name[state]);
     p->state = state;
 }
 
