@@ -46,8 +46,11 @@ struct SCSIRequest {
     uint32_t          tag;
     uint32_t          lun;
     uint32_t          status;
+    size_t            resid;
     SCSICommand       cmd;
     BlockDriverAIOCB  *aiocb;
+    QEMUSGList        *sg;
+    bool              dma_started;
     uint8_t sense[SCSI_SENSE_BUF_SIZE];
     uint32_t sense_len;
     bool enqueued;
@@ -93,6 +96,16 @@ struct SCSIDevice
     uint64_t max_lba;
 };
 
+extern const VMStateDescription vmstate_scsi_device;
+
+#define VMSTATE_SCSI_DEVICE(_field, _state) {                        \
+    .name       = (stringify(_field)),                               \
+    .size       = sizeof(SCSIDevice),                                \
+    .vmsd       = &vmstate_scsi_device,                              \
+    .flags      = VMS_STRUCT,                                        \
+    .offset     = vmstate_offset_value(_state, _field, SCSIDevice),  \
+}
+
 /* cdrom.c */
 int cdrom_read_toc(int nb_sectors, uint8_t *buf, int msf, int start_track);
 int cdrom_read_toc_raw(int nb_sectors, uint8_t *buf, int msf, int session_num);
@@ -106,14 +119,21 @@ struct SCSIReqOps {
     void (*write_data)(SCSIRequest *req);
     void (*cancel_io)(SCSIRequest *req);
     uint8_t *(*get_buf)(SCSIRequest *req);
+
+    void (*save_request)(QEMUFile *f, SCSIRequest *req);
+    void (*load_request)(QEMUFile *f, SCSIRequest *req);
 };
 
 struct SCSIBusInfo {
     int tcq;
     int max_channel, max_target, max_lun;
     void (*transfer_data)(SCSIRequest *req, uint32_t arg);
-    void (*complete)(SCSIRequest *req, uint32_t arg);
+    void (*complete)(SCSIRequest *req, uint32_t arg, size_t resid);
     void (*cancel)(SCSIRequest *req);
+    QEMUSGList *(*get_sg_list)(SCSIRequest *req);
+
+    void (*save_request)(QEMUFile *f, SCSIRequest *req);
+    void *(*load_request)(QEMUFile *f, SCSIRequest *req);
 };
 
 struct SCSIBus {

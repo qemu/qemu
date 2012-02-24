@@ -19,6 +19,7 @@
 
 #include "virtio-net.h"
 #include "virtio-serial.h"
+#include "virtio-scsi.h"
 
 #define VIRTIO_DEV_OFFS_TYPE		0	/* 8 bits */
 #define VIRTIO_DEV_OFFS_NUM_VQ		1	/* 8 bits */
@@ -67,6 +68,7 @@ struct VirtIOS390Device {
     uint32_t host_features;
     virtio_serial_conf serial;
     virtio_net_conf net;
+    VirtIOSCSIConf scsi;
 };
 
 typedef struct VirtIOS390Bus {

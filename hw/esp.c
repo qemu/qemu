@@ -390,7 +390,8 @@ static void esp_do_dma(ESPState *s)
     esp_dma_done(s);
 }
 
-static void esp_command_complete(SCSIRequest *req, uint32_t status)
+static void esp_command_complete(SCSIRequest *req, uint32_t status,
+                                 size_t resid)
 {
     ESPState *s = DO_UPCAST(ESPState, busdev.qdev, req->bus->qbus.parent);
 
