@@ -205,11 +205,6 @@ static void jazz_led_invalidate_display(void *opaque)
     s->state |= REDRAW_SEGMENTS | REDRAW_BACKGROUND;
 }
 
-static void jazz_led_screen_dump(void *opaque, const char *filename)
-{
-    printf("jazz_led_screen_dump() not implemented\n");
-}
-
 static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
 {
     LedState *s = opaque;
@@ -255,7 +250,7 @@ static int jazz_led_init(SysBusDevice *dev)
 
     s->ds = graphic_console_init(jazz_led_update_display,
                                  jazz_led_invalidate_display,
-                                 jazz_led_screen_dump,
+                                 NULL,
                                  jazz_led_text_update, s);
 
     return 0;
