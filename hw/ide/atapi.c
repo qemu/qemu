@@ -883,8 +883,11 @@ static void cmd_start_stop_unit(IDEState *s, uint8_t* buf)
             ide_atapi_cmd_error(s, sense, ASC_MEDIA_REMOVAL_PREVENTED);
             return;
         }
-        bdrv_eject(s->bs, !start);
-        s->tray_open = !start;
+
+        if (s->tray_open != !start) {
+            bdrv_eject(s->bs, !start);
+            s->tray_open = !start;
+        }
     }
 
     ide_atapi_cmd_ok(s);

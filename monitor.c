@@ -485,6 +485,9 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
         case QEVENT_BLOCK_JOB_CANCELLED:
             event_name = "BLOCK_JOB_CANCELLED";
             break;
+        case QEVENT_DEVICE_TRAY_MOVED:
+             event_name = "DEVICE_TRAY_MOVED";
+            break;
         default:
             abort();
             break;
