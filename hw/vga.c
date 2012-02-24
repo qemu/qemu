@@ -163,8 +163,6 @@ static uint16_t expand2[256];
 static uint8_t expand4to8[16];
 
 static void vga_screen_dump(void *opaque, const char *filename);
-static const char *screen_dump_filename;
-static DisplayChangeListener *screen_dump_dcl;
 
 static void vga_update_memory_access(VGACommonState *s)
 {
@@ -2364,22 +2362,6 @@ void vga_init_vbe(VGACommonState *s, MemoryRegion *system_memory)
 /********************************************************/
 /* vga screen dump */
 
-static void vga_save_dpy_update(DisplayState *ds,
-                                int x, int y, int w, int h)
-{
-    if (screen_dump_filename) {
-        ppm_save(screen_dump_filename, ds->surface);
-    }
-}
-
-static void vga_save_dpy_resize(DisplayState *s)
-{
-}
-
-static void vga_save_dpy_refresh(DisplayState *s)
-{
-}
-
 int ppm_save(const char *filename, struct DisplaySurface *ds)
 {
     FILE *f;
@@ -2423,29 +2405,13 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
     return 0;
 }
 
-static DisplayChangeListener* vga_screen_dump_init(DisplayState *ds)
-{
-    DisplayChangeListener *dcl;
-
-    dcl = g_malloc0(sizeof(DisplayChangeListener));
-    dcl->dpy_update = vga_save_dpy_update;
-    dcl->dpy_resize = vga_save_dpy_resize;
-    dcl->dpy_refresh = vga_save_dpy_refresh;
-    register_displaychangelistener(ds, dcl);
-    return dcl;
-}
-
 /* save the vga display in a PPM image even if no display is
    available */
 static void vga_screen_dump(void *opaque, const char *filename)
 {
     VGACommonState *s = opaque;
 
-    if (!screen_dump_dcl)
-        screen_dump_dcl = vga_screen_dump_init(s->ds);
-
-    screen_dump_filename = filename;
     vga_invalidate_display(s);
     vga_hw_update();
-    screen_dump_filename = NULL;
+    ppm_save(filename, s->ds->surface);
 }
