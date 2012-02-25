@@ -584,6 +584,23 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
     g_hash_table_foreach(type_table_get(), object_class_foreach_tramp, &data);
 }
 
+static void object_class_get_list_tramp(ObjectClass *klass, void *opaque)
+{
+    GSList **list = opaque;
+
+    *list = g_slist_prepend(*list, klass);
+}
+
+GSList *object_class_get_list(const char *implements_type,
+                              bool include_abstract)
+{
+    GSList *list = NULL;
+
+    object_class_foreach(object_class_get_list_tramp,
+                         implements_type, include_abstract, &list);
+    return list;
+}
+
 void object_ref(Object *obj)
 {
     obj->ref++;

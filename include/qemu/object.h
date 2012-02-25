@@ -560,6 +560,17 @@ ObjectClass *object_class_by_name(const char *typename);
 void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
                           const char *implements_type, bool include_abstract,
                           void *opaque);
+
+/**
+ * object_class_get_list:
+ * @implements_type: The type to filter for, including its derivatives.
+ * @include_abstract: Whether to include abstract classes.
+ *
+ * Returns: A singly-linked list of the classes in reverse hashtable order.
+ */
+GSList *object_class_get_list(const char *implements_type,
+                              bool include_abstract);
+
 /**
  * object_ref:
  * @obj: the object
