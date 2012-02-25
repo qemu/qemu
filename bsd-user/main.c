@@ -63,7 +63,7 @@ void gemu_log(const char *fmt, ...)
 }
 
 #if defined(TARGET_I386)
-int cpu_get_pic_interrupt(CPUState *env)
+int cpu_get_pic_interrupt(CPUX86State *env)
 {
     return -1;
 }
@@ -109,7 +109,7 @@ void cpu_list_unlock(void)
 /***********************************************************/
 /* CPUX86 core interface */
 
-void cpu_smm_update(CPUState *env)
+void cpu_smm_update(CPUX86State *env)
 {
 }
 
