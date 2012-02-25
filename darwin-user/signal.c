@@ -315,7 +315,7 @@ get_sigframe(struct emulated_sigaction *ka, CPUX86State *env, size_t frame_size)
 }
 
 static void setup_frame(int sig, struct emulated_sigaction *ka,
-			void *set, CPUState *env)
+                        void *set, CPUX86State *env)
 {
 	void *frame;
 
@@ -336,7 +336,7 @@ give_sigsegv:
 	force_sig(SIGSEGV /* , current */);
 }
 
-long do_sigreturn(CPUState *env, int num)
+long do_sigreturn(CPUX86State *env, int num)
 {
     int i = 0;
     struct target_sigcontext *scp = get_int_arg(&i, env);

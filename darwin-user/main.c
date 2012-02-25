@@ -77,38 +77,38 @@ int cpu_get_pic_interrupt(CPUState *env)
 }
 #ifdef TARGET_PPC
 
-static inline uint64_t cpu_ppc_get_tb (CPUState *env)
+static inline uint64_t cpu_ppc_get_tb(CPUPPCState *env)
 {
     /* TO FIX */
     return 0;
 }
 
-uint64_t cpu_ppc_load_tbl (CPUState *env)
+uint64_t cpu_ppc_load_tbl(CPUPPCState *env)
 {
     return cpu_ppc_get_tb(env);
 }
 
-uint32_t cpu_ppc_load_tbu (CPUState *env)
+uint32_t cpu_ppc_load_tbu(CPUPPCState *env)
 {
     return cpu_ppc_get_tb(env) >> 32;
 }
 
-uint64_t cpu_ppc_load_atbl (CPUState *env)
+uint64_t cpu_ppc_load_atbl(CPUPPCState *env)
 {
     return cpu_ppc_get_tb(env);
 }
 
-uint32_t cpu_ppc_load_atbu (CPUState *env)
+uint32_t cpu_ppc_load_atbu(CPUPPCState *env)
 {
     return cpu_ppc_get_tb(env) >> 32;
 }
 
-uint32_t cpu_ppc601_load_rtcu (CPUState *env)
+uint32_t cpu_ppc601_load_rtcu(CPUPPCState *env)
 {
     cpu_ppc_load_tbu(env);
 }
 
-uint32_t cpu_ppc601_load_rtcl (CPUState *env)
+uint32_t cpu_ppc601_load_rtcl(CPUPPCState *env)
 {
     return cpu_ppc_load_tbl(env) & 0x3FFFFF80;
 }
