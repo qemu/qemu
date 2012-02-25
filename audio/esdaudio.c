@@ -201,7 +201,7 @@ static int qesd_init_out (HWVoiceOut *hw, struct audsettings *as)
     case AUD_FMT_S32:
     case AUD_FMT_U32:
         dolog ("Will use 16 instead of 32 bit samples\n");
-
+        /* fall through */
     case AUD_FMT_S16:
     case AUD_FMT_U16:
     deffmt:

@@ -585,17 +585,20 @@ static int audio_pcm_info_eq (struct audio_pcm_info *info, struct audsettings *a
     switch (as->fmt) {
     case AUD_FMT_S8:
         sign = 1;
+        /* fall through */
     case AUD_FMT_U8:
         break;
 
     case AUD_FMT_S16:
         sign = 1;
+        /* fall through */
     case AUD_FMT_U16:
         bits = 16;
         break;
 
     case AUD_FMT_S32:
         sign = 1;
+        /* fall through */
     case AUD_FMT_U32:
         bits = 32;
         break;
