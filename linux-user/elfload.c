@@ -157,7 +157,7 @@ typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *env)
 {
     (*regs)[0] = env->regs[15];
     (*regs)[1] = env->regs[14];
@@ -229,7 +229,7 @@ typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
  *
  * See linux kernel: arch/x86/include/asm/elf.h
  */
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUX86State *env)
 {
     (*regs)[0] = env->regs[R_EBX];
     (*regs)[1] = env->regs[R_ECX];
@@ -288,7 +288,7 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_NREG    18
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUARMState *env)
 {
     (*regs)[0] = tswapl(env->regs[0]);
     (*regs)[1] = tswapl(env->regs[1]);
@@ -307,7 +307,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
     (*regs)[14] = tswapl(env->regs[14]);
     (*regs)[15] = tswapl(env->regs[15]);
 
-    (*regs)[16] = tswapl(cpsr_read((CPUState *)env));
+    (*regs)[16] = tswapl(cpsr_read((CPUARMState *)env));
     (*regs)[17] = tswapl(env->regs[0]); /* XXX */
 }
 
@@ -410,7 +410,7 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_NREG    34
 typedef target_elf_greg_t  target_elf_gregset_t[ELF_NREG];
 
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUUniCore32State *env)
 {
     (*regs)[0] = env->regs[0];
     (*regs)[1] = env->regs[1];
@@ -445,7 +445,7 @@ static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
     (*regs)[30] = env->regs[30];
     (*regs)[31] = env->regs[31];
 
-    (*regs)[32] = cpu_asr_read((CPUState *)env);
+    (*regs)[32] = cpu_asr_read((CPUUniCore32State *)env);
     (*regs)[33] = env->regs[0]; /* XXX */
 }
 
@@ -572,7 +572,7 @@ enum {
 
 static uint32_t get_elf_hwcap(void)
 {
-    CPUState *e = thread_env;
+    CPUPPCState *e = thread_env;
     uint32_t features = 0;
 
     /* We don't have to be terribly complete here; the high points are
@@ -628,7 +628,7 @@ static inline void init_thread(struct target_pt_regs *_regs, struct image_info *
 #define ELF_NREG 48
 typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
 
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUPPCState *env)
 {
     int i;
     target_ulong ccr = 0;
@@ -697,7 +697,7 @@ enum {
 };
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMIPSState *env)
 {
     int i;
 
@@ -749,7 +749,7 @@ static inline void init_thread(struct target_pt_regs *regs,
 typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
 
 /* See linux kernel: arch/mips/kernel/process.c:elf_dump_regs.  */
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUMBState *env)
 {
     int i, pos = 0;
 
@@ -797,7 +797,7 @@ enum {
 };
 
 static inline void elf_core_copy_regs(target_elf_gregset_t *regs,
-                                      const CPUState *env)
+                                      const CPUSH4State *env)
 {
     int i;
 
@@ -862,7 +862,7 @@ static inline void init_thread(struct target_pt_regs *regs,
 #define ELF_NREG 20
 typedef target_elf_greg_t target_elf_gregset_t[ELF_NREG];
 
-static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUState *env)
+static void elf_core_copy_regs(target_elf_gregset_t *regs, const CPUM68KState *env)
 {
     (*regs)[0] = tswapl(env->dregs[1]);
     (*regs)[1] = tswapl(env->dregs[2]);
