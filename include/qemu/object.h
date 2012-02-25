@@ -288,7 +288,7 @@ struct Object
  *   implementing an explicit class type if they are not adding additional
  *   virtual functions.
  * @class_init: This function is called after all parent class initialization
- *   has occured to allow a class to set its default virtual method pointers.  
+ *   has occurred to allow a class to set its default virtual method pointers.
  *   This is also the function to use to override virtual methods from a parent
  *   class.
  * @class_finalize: This function is called during class destruction and is
