@@ -712,7 +712,7 @@ static void sh7750_mmct_write(void *opaque, target_phys_addr_t addr,
     }
 }
 
-static const struct MemoryRegionOps sh7750_mmct_ops = {
+static const MemoryRegionOps sh7750_mmct_ops = {
     .read = sh7750_mmct_read,
     .write = sh7750_mmct_write,
     .endianness = DEVICE_NATIVE_ENDIAN,

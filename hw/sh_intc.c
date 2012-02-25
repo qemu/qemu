@@ -283,7 +283,7 @@ static void sh_intc_write(void *opaque, target_phys_addr_t offset,
 #endif
 }
 
-static const struct MemoryRegionOps sh_intc_ops = {
+static const MemoryRegionOps sh_intc_ops = {
     .read = sh_intc_read,
     .write = sh_intc_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
