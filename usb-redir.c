@@ -548,7 +548,10 @@ static int usbredir_handle_interrupt_data(USBRedirDevice *dev,
             /* Check interrupt_error for stream errors */
             status = dev->endpoint[EP2I(ep)].interrupt_error;
             dev->endpoint[EP2I(ep)].interrupt_error = 0;
-            return usbredir_handle_status(dev, status, 0);
+            if (status) {
+                return usbredir_handle_status(dev, status, 0);
+            }
+            return USB_RET_NAK;
         }
         DPRINTF("interrupt-token-in ep %02X status %d len %d\n", ep,
                 intp->status, intp->len);
