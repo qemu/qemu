@@ -958,7 +958,7 @@ static int usbredir_check_filter(USBRedirDevice *dev)
 {
     if (dev->interface_info.interface_count == 0) {
         ERROR("No interface info for device\n");
-        return -1;
+        goto error;
     }
 
     if (dev->filter_rules) {
@@ -966,7 +966,7 @@ static int usbredir_check_filter(USBRedirDevice *dev)
                                     usb_redir_cap_connect_device_version)) {
             ERROR("Device filter specified and peer does not have the "
                   "connect_device_version capability\n");
-            return -1;
+            goto error;
         }
 
         if (usbredirfilter_check(
@@ -983,11 +983,15 @@ static int usbredir_check_filter(USBRedirDevice *dev)
                 dev->device_info.product_id,
                 dev->device_info.device_version_bcd,
                 0) != 0) {
-            return -1;
+            goto error;
         }
     }
 
     return 0;
+
+error:
+    usbredir_device_disconnect(dev);
+    return -1;
 }
 
 /*
@@ -1113,7 +1117,6 @@ static void usbredir_interface_info(void *priv,
         if (usbredir_check_filter(dev)) {
             ERROR("Device no longer matches filter after interface info "
                   "change, disconnecting!\n");
-            usbredir_device_disconnect(dev);
         }
     }
 }
