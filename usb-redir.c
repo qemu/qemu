@@ -106,6 +106,7 @@ struct AsyncURB {
     QTAILQ_ENTRY(AsyncURB)next;
 };
 
+static void usbredir_hello(void *priv, struct usb_redir_hello_header *h);
 static void usbredir_device_connect(void *priv,
     struct usb_redir_device_connect_header *device_connect);
 static void usbredir_device_disconnect(void *priv);
@@ -802,6 +803,7 @@ static void usbredir_open_close_bh(void *opaque)
         dev->parser->log_func = usbredir_log;
         dev->parser->read_func = usbredir_read;
         dev->parser->write_func = usbredir_write;
+        dev->parser->hello_func = usbredir_hello;
         dev->parser->device_connect_func = usbredir_device_connect;
         dev->parser->device_disconnect_func = usbredir_device_disconnect;
         dev->parser->interface_info_func = usbredir_interface_info;
@@ -820,6 +822,7 @@ static void usbredir_open_close_bh(void *opaque)
         dev->read_buf_size = 0;
 
         usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
+        usbredirparser_caps_set_cap(caps, usb_redir_cap_filter);
         usbredirparser_init(dev->parser, VERSION, caps, USB_REDIR_CAPS_SIZE, 0);
         usbredirparser_do_write(dev->parser);
     }
@@ -991,6 +994,10 @@ static int usbredir_check_filter(USBRedirDevice *dev)
 
 error:
     usbredir_device_disconnect(dev);
+    if (usbredirparser_peer_has_cap(dev->parser, usb_redir_cap_filter)) {
+        usbredirparser_send_filter_reject(dev->parser);
+        usbredirparser_do_write(dev->parser);
+    }
     return -1;
 }
 
@@ -1013,6 +1020,19 @@ static int usbredir_handle_status(USBRedirDevice *dev,
     case usb_redir_timeout:
     default:
         return USB_RET_NAK;
+    }
+}
+
+static void usbredir_hello(void *priv, struct usb_redir_hello_header *h)
+{
+    USBRedirDevice *dev = priv;
+
+    /* Try to send the filter info now that we've the usb-host's caps */
+    if (usbredirparser_peer_has_cap(dev->parser, usb_redir_cap_filter) &&
+            dev->filter_rules) {
+        usbredirparser_send_filter_filter(dev->parser, dev->filter_rules,
+                                          dev->filter_rules_count);
+        usbredirparser_do_write(dev->parser);
     }
 }
 
