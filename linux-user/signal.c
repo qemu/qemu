@@ -2700,7 +2700,7 @@ get_sigframe(struct target_sigaction *ka, CPUState *regs, size_t frame_size)
     sp = regs->active_tc.gpr[29];
 
     /*
-     * FPU emulator may have it's own trampoline active just
+     * FPU emulator may have its own trampoline active just
      * above the user stack, 16-bytes before the next lowest
      * 16 byte boundary.  Try to avoid trashing it.
      */

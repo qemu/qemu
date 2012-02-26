@@ -129,7 +129,7 @@ event_thread(void *arg)
                 vevent_delete(event);
                 continue;
             }
-            /* this reader hasn't been told it's status from qemu yet, wait for
+            /* this reader hasn't been told its status from qemu yet, wait for
              * that status */
             while (pending_reader != NULL) {
                 qemu_cond_wait(&pending_reader_condition, &pending_reader_lock);

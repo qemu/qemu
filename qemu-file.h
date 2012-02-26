@@ -47,7 +47,7 @@ typedef int (QEMUFileGetBufferFunc)(void *opaque, uint8_t *buf,
  */
 typedef int (QEMUFileCloseFunc)(void *opaque);
 
-/* Called to determine if the file has exceeded it's bandwidth allocation.  The
+/* Called to determine if the file has exceeded its bandwidth allocation.  The
  * bandwidth capping is a soft limit, not a hard limit.
  */
 typedef int (QEMUFileRateLimit)(void *opaque);
