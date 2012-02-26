@@ -431,7 +431,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
             /* Check iso_error for stream errors, otherwise its an underrun */
             status = dev->endpoint[EP2I(ep)].iso_error;
             dev->endpoint[EP2I(ep)].iso_error = 0;
-            return usbredir_handle_status(dev, status, 0);
+            return status ? USB_RET_NAK : 0;
         }
         DPRINTF2("iso-token-in ep %02X status %d len %d queue-size: %d\n", ep,
                  isop->status, isop->len, dev->endpoint[EP2I(ep)].bufpq_size);
@@ -439,7 +439,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
         status = isop->status;
         if (status != usb_redir_success) {
             bufp_free(dev, isop, ep);
-            return usbredir_handle_status(dev, status, 0);
+            return USB_RET_NAK;
         }
 
         len = isop->len;
