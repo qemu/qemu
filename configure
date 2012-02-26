@@ -2571,8 +2571,8 @@ if test "$smartcard" != "no" ; then
 int main(void) { PK11_FreeSlot(0); return 0; }
 EOF
         smartcard_cflags="-I\$(SRC_PATH)/libcacard"
-        libcacard_libs=$($pkg_config --libs nss 2>/dev/null)
-        libcacard_cflags=$($pkg_config --cflags nss 2>/dev/null)
+        libcacard_libs="$($pkg_config --libs nss 2>/dev/null) $glib_libs"
+        libcacard_cflags="$($pkg_config --cflags nss 2>/dev/null) $glib_cflags"
         if $pkg_config --atleast-version=3.12.8 nss >/dev/null 2>&1 && \
           compile_prog "$smartcard_cflags $libcacard_cflags" "$libcacard_libs"; then
             smartcard_nss="yes"
