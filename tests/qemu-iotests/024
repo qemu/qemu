@@ -1,0 +1,125 @@
+#!/bin/bash
+#
+# Rebasing COW images
+#
+# Copyright (C) 2009 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# creator
+owner=kwolf@redhat.com
+
+seq=`basename $0`
+echo "QA output created by $seq"
+
+here=`pwd`
+tmp=/tmp/$$
+status=1	# failure is the default!
+
+_cleanup()
+{
+	_cleanup_test_img
+	rm -f $TEST_DIR/t.$IMGFMT.base_old
+	rm -f $TEST_DIR/t.$IMGFMT.base_new
+}
+trap "_cleanup; exit \$status" 0 1 2 3 15
+
+# get standard environment, filters and checks
+. ./common.rc
+. ./common.filter
+. ./common.pattern
+
+# Currently only qcow2 and qed support rebasing
+_supported_fmt qcow2 qed
+_supported_proto generic
+_supported_os Linux
+
+CLUSTER_SIZE=65536
+
+# Cluster allocations to be tested:
+#
+# Backing (old) 11  --  11  --  11  --  11  --
+# Backing (new) 22  22  --  --  22  22  --  --
+# COW image     33  33  33  33  --  --  --  --
+#
+# The pattern is written twice to have both an alloc -> non-alloc and a
+# non-alloc -> alloc transition in the COW image.
+
+echo "Creating backing file"
+echo
+
+_make_test_img 1G
+io_pattern writev 0 $CLUSTER_SIZE $((2 * CLUSTER_SIZE)) 8 0x11
+mv $TEST_IMG $TEST_IMG.base_old
+
+echo "Creating new backing file"
+echo
+
+_make_test_img 1G
+io_pattern writev 0 $((2 * CLUSTER_SIZE)) $((4 * CLUSTER_SIZE)) 4 0x22
+mv $TEST_IMG $TEST_IMG.base_new
+
+echo "Creating COW image"
+echo
+
+_make_test_img -b $TEST_IMG.base_old 1G
+io_pattern writev 0 $((4 * CLUSTER_SIZE)) 0 1 0x33
+io_pattern writev $((8 * CLUSTER_SIZE)) $((4 * CLUSTER_SIZE)) 0 1 0x33
+
+echo "Read before the rebase to make sure everything is set up correctly"
+echo
+io_pattern readv $((0 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((1 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((2 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((3 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((4 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((5 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((6 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((7 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((8 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((9 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((10 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((11 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((12 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((13 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((14 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((15 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+
+echo
+echo Rebase and test again
+echo
+$QEMU_IMG rebase -b $TEST_IMG.base_new $TEST_IMG
+io_pattern readv $((0 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((1 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((2 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((3 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((4 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((5 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((6 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((7 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((8 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((9 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((10 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((11 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x33
+io_pattern readv $((12 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((13 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+io_pattern readv $((14 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x11
+io_pattern readv $((15 * CLUSTER_SIZE)) $CLUSTER_SIZE 0 1 0x00
+
+
+# success, all done
+echo "*** done"
+rm -f $seq.full
+status=0

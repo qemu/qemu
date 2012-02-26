@@ -333,7 +333,6 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
     struct socket *so;
     const char *state;
     char buf[20];
-    int n;
 
     monitor_printf(mon, "  Protocol[State]    FD  Source Address  Port   "
                         "Dest. Address  Port RecvQ SendQ\n");
@@ -357,10 +356,8 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
             dst_addr = so->so_faddr;
             dst_port = so->so_fport;
         }
-        n = snprintf(buf, sizeof(buf), "  TCP[%s]", state);
-        memset(&buf[n], ' ', 19 - n);
-        buf[19] = 0;
-        monitor_printf(mon, "%s %3d %15s %5d ", buf, so->s,
+        snprintf(buf, sizeof(buf), "  TCP[%s]", state);
+        monitor_printf(mon, "%-19s %3d %15s %5d ", buf, so->s,
                        src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*",
                        ntohs(src.sin_port));
         monitor_printf(mon, "%15s %5d %5d %5d\n",
@@ -370,22 +367,20 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
 
     for (so = slirp->udb.so_next; so != &slirp->udb; so = so->so_next) {
         if (so->so_state & SS_HOSTFWD) {
-            n = snprintf(buf, sizeof(buf), "  UDP[HOST_FORWARD]");
+            snprintf(buf, sizeof(buf), "  UDP[HOST_FORWARD]");
             src_len = sizeof(src);
             getsockname(so->s, (struct sockaddr *)&src, &src_len);
             dst_addr = so->so_laddr;
             dst_port = so->so_lport;
         } else {
-            n = snprintf(buf, sizeof(buf), "  UDP[%d sec]",
+            snprintf(buf, sizeof(buf), "  UDP[%d sec]",
                          (so->so_expire - curtime) / 1000);
             src.sin_addr = so->so_laddr;
             src.sin_port = so->so_lport;
             dst_addr = so->so_faddr;
             dst_port = so->so_fport;
         }
-        memset(&buf[n], ' ', 19 - n);
-        buf[19] = 0;
-        monitor_printf(mon, "%s %3d %15s %5d ", buf, so->s,
+        monitor_printf(mon, "%-19s %3d %15s %5d ", buf, so->s,
                        src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*",
                        ntohs(src.sin_port));
         monitor_printf(mon, "%15s %5d %5d %5d\n",
@@ -394,13 +389,11 @@ void slirp_connection_info(Slirp *slirp, Monitor *mon)
     }
 
     for (so = slirp->icmp.so_next; so != &slirp->icmp; so = so->so_next) {
-        n = snprintf(buf, sizeof(buf), "  ICMP[%d sec]",
+        snprintf(buf, sizeof(buf), "  ICMP[%d sec]",
                      (so->so_expire - curtime) / 1000);
         src.sin_addr = so->so_laddr;
         dst_addr = so->so_faddr;
-        memset(&buf[n], ' ', 19 - n);
-        buf[19] = 0;
-        monitor_printf(mon, "%s %3d %15s  -    ", buf, so->s,
+        monitor_printf(mon, "%-19s %3d %15s  -    ", buf, so->s,
                        src.sin_addr.s_addr ? inet_ntoa(src.sin_addr) : "*");
         monitor_printf(mon, "%15s  -    %5d %5d\n", inet_ntoa(dst_addr),
                        so->so_rcv.sb_cc, so->so_snd.sb_cc);

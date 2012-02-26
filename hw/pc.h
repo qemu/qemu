@@ -107,7 +107,6 @@ void i8042_setup_a20_line(ISADevice *dev, qemu_irq *a20_out);
 extern int fd_bootchk;
 
 void pc_register_ferr_irq(qemu_irq irq);
-void pc_cmos_set_s3_resume(void *opaque, int irq, int level);
 void pc_acpi_smi_interrupt(void *opaque, int irq, int level);
 
 void pc_cpus_init(const char *cpu_model);
@@ -146,7 +145,7 @@ int acpi_table_add(const char *table_desc);
 /* acpi_piix.c */
 
 i2c_bus *piix4_pm_init(PCIBus *bus, int devfn, uint32_t smb_io_base,
-                       qemu_irq sci_irq, qemu_irq cmos_s3, qemu_irq smi_irq,
+                       qemu_irq sci_irq, qemu_irq smi_irq,
                        int kvm_enabled);
 void piix4_smbus_register_device(SMBusDevice *dev, uint8_t addr);
 
@@ -219,6 +218,9 @@ static inline bool isa_ne2000_init(ISABus *bus, int base, int irq, NICInfo *nd)
     qdev_init_nofail(&dev->qdev);
     return true;
 }
+
+/* pc_sysfw.c */
+void pc_system_firmware_init(MemoryRegion *rom_memory);
 
 /* e820 types */
 #define E820_RAM        1

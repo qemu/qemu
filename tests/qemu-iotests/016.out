@@ -1,0 +1,23 @@
+QA output created by 016
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+
+== reading at EOF ==
+read 512/512 bytes at offset 134217728
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== reading far past EOF ==
+read 512/512 bytes at offset 268435456
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== writing at EOF ==
+wrote 512/512 bytes at offset 134217728
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 134217728
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+
+== writing far past EOF ==
+wrote 512/512 bytes at offset 268435456
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+read 512/512 bytes at offset 268435456
+512.000000 bytes, X ops; XX:XX:XX.X (XXX YYY/sec and XXX ops/sec)
+*** done

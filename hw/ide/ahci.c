@@ -428,55 +428,6 @@ static void ahci_reg_init(AHCIState *s)
     }
 }
 
-static uint32_t read_from_sglist(uint8_t *buffer, uint32_t len,
-                                 QEMUSGList *sglist)
-{
-    uint32_t i = 0;
-    uint32_t total = 0, once;
-    ScatterGatherEntry *cur_prd;
-    uint32_t sgcount;
-
-    cur_prd = sglist->sg;
-    sgcount = sglist->nsg;
-    for (i = 0; len && sgcount; i++) {
-        once = MIN(cur_prd->len, len);
-        cpu_physical_memory_read(cur_prd->base, buffer, once);
-        cur_prd++;
-        sgcount--;
-        len -= once;
-        buffer += once;
-        total += once;
-    }
-
-    return total;
-}
-
-static uint32_t write_to_sglist(uint8_t *buffer, uint32_t len,
-                                QEMUSGList *sglist)
-{
-    uint32_t i = 0;
-    uint32_t total = 0, once;
-    ScatterGatherEntry *cur_prd;
-    uint32_t sgcount;
-
-    DPRINTF(-1, "total: 0x%x bytes\n", len);
-
-    cur_prd = sglist->sg;
-    sgcount = sglist->nsg;
-    for (i = 0; len && sgcount; i++) {
-        once = MIN(cur_prd->len, len);
-        DPRINTF(-1, "write 0x%x bytes to 0x%lx\n", once, (long)cur_prd->base);
-        cpu_physical_memory_write(cur_prd->base, buffer, once);
-        cur_prd++;
-        sgcount--;
-        len -= once;
-        buffer += once;
-        total += once;
-    }
-
-    return total;
-}
-
 static void check_cmd(AHCIState *s, int port)
 {
     AHCIPortRegs *pr = &s->dev[port].port_regs;
@@ -802,9 +753,8 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
             DPRINTF(port, "tag %d aio read %"PRId64"\n",
                     ncq_tfs->tag, ncq_tfs->lba);
 
-            bdrv_acct_start(ncq_tfs->drive->port.ifs[0].bs, &ncq_tfs->acct,
-                            (ncq_tfs->sector_count-1) * BDRV_SECTOR_SIZE,
-                            BDRV_ACCT_READ);
+            dma_acct_start(ncq_tfs->drive->port.ifs[0].bs, &ncq_tfs->acct,
+                           &ncq_tfs->sglist, BDRV_ACCT_READ);
             ncq_tfs->aiocb = dma_bdrv_read(ncq_tfs->drive->port.ifs[0].bs,
                                            &ncq_tfs->sglist, ncq_tfs->lba,
                                            ncq_cb, ncq_tfs);
@@ -816,9 +766,8 @@ static void process_ncq_command(AHCIState *s, int port, uint8_t *cmd_fis,
             DPRINTF(port, "tag %d aio write %"PRId64"\n",
                     ncq_tfs->tag, ncq_tfs->lba);
 
-            bdrv_acct_start(ncq_tfs->drive->port.ifs[0].bs, &ncq_tfs->acct,
-                            (ncq_tfs->sector_count-1) * BDRV_SECTOR_SIZE,
-                            BDRV_ACCT_WRITE);
+            dma_acct_start(ncq_tfs->drive->port.ifs[0].bs, &ncq_tfs->acct,
+                           &ncq_tfs->sglist, BDRV_ACCT_WRITE);
             ncq_tfs->aiocb = dma_bdrv_write(ncq_tfs->drive->port.ifs[0].bs,
                                             &ncq_tfs->sglist, ncq_tfs->lba,
                                             ncq_cb, ncq_tfs);
@@ -1023,12 +972,12 @@ static int ahci_start_transfer(IDEDMA *dma)
             is_write ? "writ" : "read", size, is_atapi ? "atapi" : "ata",
             has_sglist ? "" : "o");
 
-    if (is_write && has_sglist && (s->data_ptr < s->data_end)) {
-        read_from_sglist(s->data_ptr, size, &s->sg);
-    }
-
-    if (!is_write && has_sglist && (s->data_ptr < s->data_end)) {
-        write_to_sglist(s->data_ptr, size, &s->sg);
+    if (has_sglist && size) {
+        if (is_write) {
+            dma_buf_write(s->data_ptr, size, &s->sg);
+        } else {
+            dma_buf_read(s->data_ptr, size, &s->sg);
+        }
     }
 
     /* update number of transferred bytes */
@@ -1067,14 +1016,9 @@ static int ahci_dma_prepare_buf(IDEDMA *dma, int is_write)
 {
     AHCIDevice *ad = DO_UPCAST(AHCIDevice, dma, dma);
     IDEState *s = &ad->port.ifs[0];
-    int i;
 
     ahci_populate_sglist(ad, &s->sg);
-
-    s->io_buffer_size = 0;
-    for (i = 0; i < s->sg.nsg; i++) {
-        s->io_buffer_size += s->sg.sg[i].len;
-    }
+    s->io_buffer_size = s->sg.size;
 
     DPRINTF(ad->port_no, "len=%#x\n", s->io_buffer_size);
     return s->io_buffer_size != 0;
@@ -1092,9 +1036,9 @@ static int ahci_dma_rw_buf(IDEDMA *dma, int is_write)
     }
 
     if (is_write) {
-        write_to_sglist(p, l, &s->sg);
+        dma_buf_read(p, l, &s->sg);
     } else {
-        read_from_sglist(p, l, &s->sg);
+        dma_buf_write(p, l, &s->sg);
     }
 
     /* update number of transferred bytes */

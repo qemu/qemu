@@ -23,4 +23,4 @@
  */
 
 /* char device */
-int chr_baum_init(QemuOpts *opts, CharDriverState **_chr);
+CharDriverState *chr_baum_init(QemuOpts *opts);

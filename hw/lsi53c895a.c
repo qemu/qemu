@@ -699,7 +699,7 @@ static int lsi_queue_req(LSIState *s, SCSIRequest *req, uint32_t len)
 }
 
  /* Callback to indicate that the SCSI layer has completed a command.  */
-static void lsi_command_complete(SCSIRequest *req, uint32_t status)
+static void lsi_command_complete(SCSIRequest *req, uint32_t status, size_t resid)
 {
     LSIState *s = DO_UPCAST(LSIState, dev.qdev, req->bus->qbus.parent);
     int out;

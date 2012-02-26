@@ -614,7 +614,7 @@ static void pci_init_w1cmask(PCIDevice *dev)
                  PCI_STATUS_SIG_SYSTEM_ERROR | PCI_STATUS_DETECTED_PARITY);
 }
 
-static void pci_init_wmask_bridge(PCIDevice *d)
+static void pci_init_mask_bridge(PCIDevice *d)
 {
     /* PCI_PRIMARY_BUS, PCI_SECONDARY_BUS, PCI_SUBORDINATE_BUS and
        PCI_SEC_LETENCY_TIMER */
@@ -634,6 +634,14 @@ static void pci_init_wmask_bridge(PCIDevice *d)
 
     /* PCI_PREF_BASE_UPPER32 and PCI_PREF_LIMIT_UPPER32 */
     memset(d->wmask + PCI_PREF_BASE_UPPER32, 0xff, 8);
+
+    /* Supported memory and i/o types */
+    d->config[PCI_IO_BASE] |= PCI_IO_RANGE_TYPE_32;
+    d->config[PCI_IO_LIMIT] |= PCI_IO_RANGE_TYPE_32;
+    pci_word_test_and_set_mask(d->config + PCI_PREF_MEMORY_BASE,
+                               PCI_PREF_RANGE_TYPE_64);
+    pci_word_test_and_set_mask(d->config + PCI_PREF_MEMORY_LIMIT,
+                               PCI_PREF_RANGE_TYPE_64);
 
 /* TODO: add this define to pci_regs.h in linux and then in qemu. */
 #define  PCI_BRIDGE_CTL_VGA_16BIT	0x10	/* VGA 16-bit decode */
@@ -657,6 +665,9 @@ static void pci_init_wmask_bridge(PCIDevice *d)
      * completeness. */
     pci_set_word(d->w1cmask + PCI_BRIDGE_CONTROL,
                  PCI_BRIDGE_CTL_DISCARD_STATUS);
+    d->cmask[PCI_IO_BASE] |= PCI_IO_RANGE_TYPE_MASK;
+    pci_word_test_and_set_mask(d->cmask + PCI_PREF_MEMORY_BASE,
+                               PCI_PREF_RANGE_TYPE_MASK);
 }
 
 static int pci_init_multifunction(PCIBus *bus, PCIDevice *dev)
@@ -778,7 +789,7 @@ static PCIDevice *do_pci_register_device(PCIDevice *pci_dev, PCIBus *bus,
     pci_init_wmask(pci_dev);
     pci_init_w1cmask(pci_dev);
     if (pc->is_bridge) {
-        pci_init_wmask_bridge(pci_dev);
+        pci_init_mask_bridge(pci_dev);
     }
     if (pci_init_multifunction(bus, pci_dev)) {
         pci_config_free(pci_dev);

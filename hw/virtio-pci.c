@@ -21,6 +21,7 @@
 #include "virtio-blk.h"
 #include "virtio-net.h"
 #include "virtio-serial.h"
+#include "virtio-scsi.h"
 #include "pci.h"
 #include "qemu-error.h"
 #include "msix.h"
@@ -930,12 +931,67 @@ static TypeInfo virtio_balloon_info = {
     .class_init    = virtio_balloon_class_init,
 };
 
+static int virtio_scsi_init_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+    VirtIODevice *vdev;
+
+    vdev = virtio_scsi_init(&pci_dev->qdev, &proxy->scsi);
+    if (!vdev) {
+        return -EINVAL;
+    }
+
+    vdev->nvectors = proxy->nvectors;
+    virtio_init_pci(proxy, vdev);
+
+    /* make the actual value visible */
+    proxy->nvectors = vdev->nvectors;
+    return 0;
+}
+
+static int virtio_scsi_exit_pci(PCIDevice *pci_dev)
+{
+    VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
+
+    virtio_scsi_exit(proxy->vdev);
+    return virtio_exit_pci(pci_dev);
+}
+
+static Property virtio_scsi_properties[] = {
+    DEFINE_PROP_UINT32("vectors", VirtIOPCIProxy, nvectors, 2),
+    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOPCIProxy, host_features, scsi),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void virtio_scsi_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
+
+    k->init = virtio_scsi_init_pci;
+    k->exit = virtio_scsi_exit_pci;
+    k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
+    k->device_id = PCI_DEVICE_ID_VIRTIO_SCSI;
+    k->revision = 0x00;
+    k->class_id = PCI_CLASS_STORAGE_SCSI;
+    dc->reset = virtio_pci_reset;
+    dc->props = virtio_scsi_properties;
+}
+
+static TypeInfo virtio_scsi_info = {
+    .name          = "virtio-scsi-pci",
+    .parent        = TYPE_PCI_DEVICE,
+    .instance_size = sizeof(VirtIOPCIProxy),
+    .class_init    = virtio_scsi_class_init,
+};
+
 static void virtio_pci_register_types(void)
 {
     type_register_static(&virtio_blk_info);
     type_register_static(&virtio_net_info);
     type_register_static(&virtio_serial_info);
     type_register_static(&virtio_balloon_info);
+    type_register_static(&virtio_scsi_info);
 }
 
 type_init(virtio_pci_register_types)

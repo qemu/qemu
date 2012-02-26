@@ -32,6 +32,7 @@ typedef struct QEMUMachine {
 } QEMUMachine;
 
 int qemu_register_machine(QEMUMachine *m);
+QEMUMachine *find_default_machine(void);
 
 extern QEMUMachine *current_machine;
 

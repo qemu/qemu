@@ -625,7 +625,7 @@ static void interface_release_resource(QXLInstance *sin,
 
     if (ext.group_id == MEMSLOT_GROUP_HOST) {
         /* host group -> vga mode update request */
-        qemu_spice_destroy_update(&qxl->ssd, (void*)ext.info->id);
+        qemu_spice_destroy_update(&qxl->ssd, (void *)(intptr_t)ext.info->id);
         return;
     }
 
@@ -748,7 +748,8 @@ static void interface_async_complete(QXLInstance *sin, uint64_t cookie)
     qxl->current_async = QXL_UNDEFINED_IO;
     qemu_mutex_unlock(&qxl->async_lock);
 
-    dprint(qxl, 2, "async_complete: %d (%ld) done\n", current_async, cookie);
+    dprint(qxl, 2, "async_complete: %d (%" PRId64 ") done\n",
+           current_async, cookie);
     switch (current_async) {
     case QXL_IO_CREATE_PRIMARY_ASYNC:
         qxl_create_guest_primary_complete(qxl);
@@ -1006,7 +1007,7 @@ static void qxl_reset_surfaces(PCIQXLDevice *d)
     qxl_spice_destroy_surfaces(d, QXL_SYNC);
 }
 
-/* called from spice server thread context only */
+/* can be also called from spice server thread context */
 void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
 {
     uint64_t phys   = le64_to_cpu(pqxl);
@@ -1015,7 +1016,7 @@ void *qxl_phys2virt(PCIQXLDevice *qxl, QXLPHYSICAL pqxl, int group_id)
 
     switch (group_id) {
     case MEMSLOT_GROUP_HOST:
-        return (void*)offset;
+        return (void *)(intptr_t)offset;
     case MEMSLOT_GROUP_GUEST:
         PANIC_ON(slot >= NUM_MEMSLOTS);
         PANIC_ON(!qxl->guest_slots[slot].active);
@@ -1435,7 +1436,7 @@ static void qxl_hw_invalidate(void *opaque)
     vga->invalidate(vga);
 }
 
-static void qxl_hw_screen_dump(void *opaque, const char *filename)
+static void qxl_hw_screen_dump(void *opaque, const char *filename, bool cswitch)
 {
     PCIQXLDevice *qxl = opaque;
     VGACommonState *vga = &qxl->vga;
@@ -1447,7 +1448,7 @@ static void qxl_hw_screen_dump(void *opaque, const char *filename)
         ppm_save(filename, qxl->ssd.ds->surface);
         break;
     case QXL_MODE_VGA:
-        vga->screen_dump(vga, filename);
+        vga->screen_dump(vga, filename, cswitch);
         break;
     default:
         break;
@@ -1465,6 +1466,46 @@ static void qxl_hw_text_update(void *opaque, console_ch_t *chardata)
     }
 }
 
+static void qxl_dirty_surfaces(PCIQXLDevice *qxl)
+{
+    intptr_t vram_start;
+    int i;
+
+    if (qxl->mode != QXL_MODE_NATIVE && qxl->mode != QXL_MODE_COMPAT) {
+        return;
+    }
+
+    /* dirty the primary surface */
+    qxl_set_dirty(&qxl->vga.vram, qxl->shadow_rom.draw_area_offset,
+                  qxl->shadow_rom.surface0_area_size);
+
+    vram_start =  (intptr_t)memory_region_get_ram_ptr(&qxl->vram_bar);
+
+    /* dirty the off-screen surfaces */
+    for (i = 0; i < NUM_SURFACES; i++) {
+        QXLSurfaceCmd *cmd;
+        intptr_t surface_offset;
+        int surface_size;
+
+        if (qxl->guest_surfaces.cmds[i] == 0) {
+            continue;
+        }
+
+        cmd = qxl_phys2virt(qxl, qxl->guest_surfaces.cmds[i],
+                            MEMSLOT_GROUP_GUEST);
+        assert(cmd->type == QXL_SURFACE_CMD_CREATE);
+        surface_offset = (intptr_t)qxl_phys2virt(qxl,
+                                                 cmd->u.surface_create.data,
+                                                 MEMSLOT_GROUP_GUEST);
+        surface_offset -= vram_start;
+        surface_size = cmd->u.surface_create.height *
+                       abs(cmd->u.surface_create.stride);
+        dprint(qxl, 3, "%s: dirty surface %d, offset %d, size %d\n", __func__,
+               i, (int)surface_offset, surface_size);
+        qxl_set_dirty(&qxl->vram_bar, surface_offset, surface_size);
+    }
+}
+
 static void qxl_vm_change_state_handler(void *opaque, int running,
                                         RunState state)
 {
@@ -1478,14 +1519,9 @@ static void qxl_vm_change_state_handler(void *opaque, int running,
          * called
          */
          qxl_update_irq(qxl);
-    } else if (qxl->mode == QXL_MODE_NATIVE) {
-        /* dirty all vram (which holds surfaces) and devram (primary surface)
-         * to make sure they are saved */
-        /* FIXME #1: should go out during "live" stage */
-        /* FIXME #2: we only need to save the areas which are actually used */
-        qxl_set_dirty(&qxl->vram_bar, 0, qxl->vram_size);
-        qxl_set_dirty(&qxl->vga.vram, qxl->shadow_rom.draw_area_offset,
-                      qxl->shadow_rom.surface0_area_size);
+    } else {
+        /* make sure surfaces are saved before migration */
+        qxl_dirty_surfaces(qxl);
     }
 }
 
@@ -1517,6 +1553,31 @@ static DisplayChangeListener display_listener = {
     .dpy_resize  = display_resize,
     .dpy_refresh = display_refresh,
 };
+
+static void qxl_init_ramsize(PCIQXLDevice *qxl, uint32_t ram_min_mb)
+{
+    /* vga ram (bar 0) */
+    if (qxl->ram_size_mb != -1) {
+        qxl->vga.vram_size = qxl->ram_size_mb * 1024 * 1024;
+    }
+    if (qxl->vga.vram_size < ram_min_mb * 1024 * 1024) {
+        qxl->vga.vram_size = ram_min_mb * 1024 * 1024;
+    }
+
+    /* vram (surfaces, bar 1) */
+    if (qxl->vram_size_mb != -1) {
+        qxl->vram_size = qxl->vram_size_mb * 1024 * 1024;
+    }
+    if (qxl->vram_size < 4096) {
+        qxl->vram_size = 4096;
+    }
+    if (qxl->revision == 1) {
+        qxl->vram_size = 4096;
+    }
+
+    qxl->vga.vram_size = msb_mask(qxl->vga.vram_size * 2 - 1);
+    qxl->vram_size = msb_mask(qxl->vram_size * 2 - 1);
+}
 
 static int qxl_init_common(PCIQXLDevice *qxl)
 {
@@ -1556,13 +1617,6 @@ static int qxl_init_common(PCIQXLDevice *qxl)
     init_qxl_rom(qxl);
     init_qxl_ram(qxl);
 
-    if (qxl->vram_size < 16 * 1024 * 1024) {
-        qxl->vram_size = 16 * 1024 * 1024;
-    }
-    if (qxl->revision == 1) {
-        qxl->vram_size = 4096;
-    }
-    qxl->vram_size = msb_mask(qxl->vram_size * 2 - 1);
     memory_region_init_ram(&qxl->vram_bar, "qxl.vram", qxl->vram_size);
     vmstate_register_ram(&qxl->vram_bar, &qxl->pci.qdev);
 
@@ -1605,15 +1659,11 @@ static int qxl_init_primary(PCIDevice *dev)
 {
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
     VGACommonState *vga = &qxl->vga;
-    ram_addr_t ram_size = msb_mask(qxl->vga.vram_size * 2 - 1);
     PortioList *qxl_vga_port_list = g_new(PortioList, 1);
 
     qxl->id = 0;
-
-    if (ram_size < 32 * 1024 * 1024) {
-        ram_size = 32 * 1024 * 1024;
-    }
-    vga_common_init(vga, ram_size);
+    qxl_init_ramsize(qxl, 32);
+    vga_common_init(vga, qxl->vga.vram_size);
     vga_init(vga, pci_address_space(dev), pci_address_space_io(dev), false);
     portio_list_init(qxl_vga_port_list, qxl_vga_portio_list, vga, "vga");
     portio_list_add(qxl_vga_port_list, pci_address_space_io(dev), 0x3b0);
@@ -1632,14 +1682,9 @@ static int qxl_init_secondary(PCIDevice *dev)
 {
     static int device_id = 1;
     PCIQXLDevice *qxl = DO_UPCAST(PCIQXLDevice, pci, dev);
-    ram_addr_t ram_size = msb_mask(qxl->vga.vram_size * 2 - 1);
 
     qxl->id = device_id++;
-
-    if (ram_size < 16 * 1024 * 1024) {
-        ram_size = 16 * 1024 * 1024;
-    }
-    qxl->vga.vram_size = ram_size;
+    qxl_init_ramsize(qxl, 16);
     memory_region_init_ram(&qxl->vga.vram, "qxl.vgavram", qxl->vga.vram_size);
     vmstate_register_ram(&qxl->vga.vram, &qxl->pci.qdev);
     qxl->vga.vram_ptr = memory_region_get_ram_ptr(&qxl->vga.vram);
@@ -1821,6 +1866,8 @@ static Property qxl_properties[] = {
         DEFINE_PROP_UINT32("debug", PCIQXLDevice, debug, 0),
         DEFINE_PROP_UINT32("guestdebug", PCIQXLDevice, guestdebug, 0),
         DEFINE_PROP_UINT32("cmdlog", PCIQXLDevice, cmdlog, 0),
+        DEFINE_PROP_UINT32("ram_size_mb",  PCIQXLDevice, ram_size_mb, -1),
+        DEFINE_PROP_UINT32("vram_size_mb", PCIQXLDevice, vram_size_mb, -1),
         DEFINE_PROP_END_OF_LIST(),
 };
 

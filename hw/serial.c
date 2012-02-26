@@ -140,6 +140,7 @@ struct SerialState {
     int it_shift;
     int baudbase;
     int tsr_retry;
+    uint32_t wakeup;
 
     uint64_t last_xmit_ts;              /* Time when the last byte was successfully sent out of the tsr */
     SerialFIFO recv_fifo;
@@ -645,6 +646,10 @@ static int serial_can_receive1(void *opaque)
 static void serial_receive1(void *opaque, const uint8_t *buf, int size)
 {
     SerialState *s = opaque;
+
+    if (s->wakeup) {
+        qemu_system_wakeup_request(QEMU_WAKEUP_REASON_OTHER);
+    }
     if(s->fcr & UART_FCR_FE) {
         int i;
         for (i = 0; i < size; i++) {
@@ -898,6 +903,7 @@ static Property serial_isa_properties[] = {
     DEFINE_PROP_HEX32("iobase", ISASerialState, iobase,  -1),
     DEFINE_PROP_UINT32("irq",   ISASerialState, isairq,  -1),
     DEFINE_PROP_CHR("chardev",  ISASerialState, state.chr),
+    DEFINE_PROP_UINT32("wakeup", ISASerialState, state.wakeup, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 

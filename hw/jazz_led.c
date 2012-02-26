@@ -1,7 +1,7 @@
 /*
  * QEMU JAZZ LED emulator.
  *
- * Copyright (c) 2007 Hervé Poussineau
+ * Copyright (c) 2007-2012 Herve Poussineau
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,131 +22,53 @@
  * THE SOFTWARE.
  */
 
-#include "hw.h"
-#include "mips.h"
 #include "console.h"
 #include "pixel_ops.h"
-
-//#define DEBUG_LED
-
-#ifdef DEBUG_LED
-#define DPRINTF(fmt, ...) \
-do { printf("jazz led: " fmt , ## __VA_ARGS__); } while (0)
-#else
-#define DPRINTF(fmt, ...) do {} while (0)
-#endif
-#define BADF(fmt, ...) \
-do { fprintf(stderr, "jazz led ERROR: " fmt , ## __VA_ARGS__);} while (0)
+#include "trace.h"
+#include "sysbus.h"
 
 typedef enum {
     REDRAW_NONE = 0, REDRAW_SEGMENTS = 1, REDRAW_BACKGROUND = 2,
 } screen_state_t;
 
 typedef struct LedState {
+    SysBusDevice busdev;
     MemoryRegion iomem;
     uint8_t segments;
     DisplayState *ds;
     screen_state_t state;
 } LedState;
 
-static uint32_t led_readb(void *opaque, target_phys_addr_t addr)
+static uint64_t jazz_led_read(void *opaque, target_phys_addr_t addr,
+                              unsigned int size)
 {
     LedState *s = opaque;
-    uint32_t val;
+    uint8_t val;
 
-    switch (addr) {
-        case 0:
-            val = s->segments;
-            break;
-        default:
-            BADF("invalid read at [" TARGET_FMT_plx "]\n", addr);
-            val = 0;
-    }
-
-    DPRINTF("read addr=" TARGET_FMT_plx " val=0x%02x\n", addr, val);
+    val = s->segments;
+    trace_jazz_led_read(addr, val);
 
     return val;
 }
 
-static uint32_t led_readw(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = led_readb(opaque, addr) << 8;
-    v |= led_readb(opaque, addr + 1);
-#else
-    v = led_readb(opaque, addr);
-    v |= led_readb(opaque, addr + 1) << 8;
-#endif
-    return v;
-}
-
-static uint32_t led_readl(void *opaque, target_phys_addr_t addr)
-{
-    uint32_t v;
-#ifdef TARGET_WORDS_BIGENDIAN
-    v = led_readb(opaque, addr) << 24;
-    v |= led_readb(opaque, addr + 1) << 16;
-    v |= led_readb(opaque, addr + 2) << 8;
-    v |= led_readb(opaque, addr + 3);
-#else
-    v = led_readb(opaque, addr);
-    v |= led_readb(opaque, addr + 1) << 8;
-    v |= led_readb(opaque, addr + 2) << 16;
-    v |= led_readb(opaque, addr + 3) << 24;
-#endif
-    return v;
-}
-
-static void led_writeb(void *opaque, target_phys_addr_t addr, uint32_t val)
+static void jazz_led_write(void *opaque, target_phys_addr_t addr,
+                           uint64_t val, unsigned int size)
 {
     LedState *s = opaque;
+    uint8_t new_val = val & 0xff;
 
-    DPRINTF("write addr=" TARGET_FMT_plx " val=0x%02x\n", addr, val);
+    trace_jazz_led_write(addr, new_val);
 
-    switch (addr) {
-        case 0:
-            s->segments = val;
-            s->state |= REDRAW_SEGMENTS;
-            break;
-        default:
-            BADF("invalid write of 0x%08x at [" TARGET_FMT_plx "]\n", val, addr);
-            break;
-    }
-}
-
-static void led_writew(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-#ifdef TARGET_WORDS_BIGENDIAN
-    led_writeb(opaque, addr, (val >> 8) & 0xff);
-    led_writeb(opaque, addr + 1, val & 0xff);
-#else
-    led_writeb(opaque, addr, val & 0xff);
-    led_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-#endif
-}
-
-static void led_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
-{
-#ifdef TARGET_WORDS_BIGENDIAN
-    led_writeb(opaque, addr, (val >> 24) & 0xff);
-    led_writeb(opaque, addr + 1, (val >> 16) & 0xff);
-    led_writeb(opaque, addr + 2, (val >> 8) & 0xff);
-    led_writeb(opaque, addr + 3, val & 0xff);
-#else
-    led_writeb(opaque, addr, val & 0xff);
-    led_writeb(opaque, addr + 1, (val >> 8) & 0xff);
-    led_writeb(opaque, addr + 2, (val >> 16) & 0xff);
-    led_writeb(opaque, addr + 3, (val >> 24) & 0xff);
-#endif
+    s->segments = new_val;
+    s->state |= REDRAW_SEGMENTS;
 }
 
 static const MemoryRegionOps led_ops = {
-    .old_mmio = {
-        .read = { led_readb, led_readw, led_readl, },
-        .write = { led_writeb, led_writew, led_writel, },
-    },
+    .read = jazz_led_read,
+    .write = jazz_led_write,
     .endianness = DEVICE_NATIVE_ENDIAN,
+    .impl.min_access_size = 1,
+    .impl.max_access_size = 1,
 };
 
 /***********************************************************/
@@ -283,11 +205,6 @@ static void jazz_led_invalidate_display(void *opaque)
     s->state |= REDRAW_SEGMENTS | REDRAW_BACKGROUND;
 }
 
-static void jazz_led_screen_dump(void *opaque, const char *filename)
-{
-    printf("jazz_led_screen_dump() not implemented\n");
-}
-
 static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
 {
     LedState *s = opaque;
@@ -304,20 +221,71 @@ static void jazz_led_text_update(void *opaque, console_ch_t *chardata)
     dpy_update(s->ds, 0, 0, 2, 1);
 }
 
-void jazz_led_init(MemoryRegion *address_space, target_phys_addr_t base)
+static int jazz_led_post_load(void *opaque, int version_id)
 {
-    LedState *s;
+    /* force refresh */
+    jazz_led_invalidate_display(opaque);
 
-    s = g_malloc0(sizeof(LedState));
+    return 0;
+}
 
-    s->state = REDRAW_SEGMENTS | REDRAW_BACKGROUND;
+static const VMStateDescription vmstate_jazz_led = {
+    .name = "jazz-led",
+    .version_id = 0,
+    .minimum_version_id = 0,
+    .minimum_version_id_old = 0,
+    .post_load = jazz_led_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(segments, LedState),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
+static int jazz_led_init(SysBusDevice *dev)
+{
+    LedState *s = FROM_SYSBUS(LedState, dev);
 
     memory_region_init_io(&s->iomem, &led_ops, s, "led", 1);
-    memory_region_add_subregion(address_space, base, &s->iomem);
+    sysbus_init_mmio(dev, &s->iomem);
 
     s->ds = graphic_console_init(jazz_led_update_display,
                                  jazz_led_invalidate_display,
-                                 jazz_led_screen_dump,
+                                 NULL,
                                  jazz_led_text_update, s);
+
+    return 0;
+}
+
+static void jazz_led_reset(DeviceState *d)
+{
+    LedState *s = DO_UPCAST(LedState, busdev.qdev, d);
+
+    s->segments = 0;
+    s->state = REDRAW_SEGMENTS | REDRAW_BACKGROUND;
     qemu_console_resize(s->ds, 60, 80);
 }
+
+static void jazz_led_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    SysBusDeviceClass *k = SYS_BUS_DEVICE_CLASS(klass);
+
+    k->init = jazz_led_init;
+    dc->desc = "Jazz LED display",
+    dc->vmsd = &vmstate_jazz_led;
+    dc->reset = jazz_led_reset;
+}
+
+static TypeInfo jazz_led_info = {
+    .name          = "jazz-led",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(LedState),
+    .class_init    = jazz_led_class_init,
+};
+
+static void jazz_led_register(void)
+{
+    type_register_static(&jazz_led_info);
+}
+
+type_init(jazz_led_register);

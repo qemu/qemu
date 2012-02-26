@@ -33,18 +33,6 @@
 #define NDEBUG
 #endif
 
-#include <stdarg.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
-#ifdef _WIN32
-#include <malloc.h>
-#endif
-#ifdef _AIX
-#include <alloca.h>
-#endif
-
 #include "qemu-common.h"
 #include "cache-utils.h"
 #include "host-utils.h"

@@ -1,0 +1,195 @@
+/*
+ * String Input Visitor unit-tests.
+ *
+ * Copyright (C) 2012 Red Hat Inc.
+ *
+ * Authors:
+ *  Paolo Bonzini <pbonzini@redhat.com> (based on test-qmp-input-visitor)
+ *
+ * This work is licensed under the terms of the GNU GPL, version 2 or later.
+ * See the COPYING file in the top-level directory.
+ */
+
+#include <glib.h>
+#include <stdarg.h>
+
+#include "qapi/string-input-visitor.h"
+#include "test-qapi-types.h"
+#include "test-qapi-visit.h"
+#include "qemu-objects.h"
+
+typedef struct TestInputVisitorData {
+    StringInputVisitor *siv;
+} TestInputVisitorData;
+
+static void visitor_input_teardown(TestInputVisitorData *data,
+                                   const void *unused)
+{
+    if (data->siv) {
+        string_input_visitor_cleanup(data->siv);
+        data->siv = NULL;
+    }
+}
+
+/* This is provided instead of a test setup function so that the JSON
+   string used by the tests are kept in the test functions (and not
+   int main()) */
+static
+Visitor *visitor_input_test_init(TestInputVisitorData *data,
+                                 const char *string)
+{
+    Visitor *v;
+
+    data->siv = string_input_visitor_new(string);
+    g_assert(data->siv != NULL);
+
+    v = string_input_get_visitor(data->siv);
+    g_assert(v != NULL);
+
+    return v;
+}
+
+static void test_visitor_in_int(TestInputVisitorData *data,
+                                const void *unused)
+{
+    int64_t res = 0, value = -42;
+    Error *errp = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "-42");
+
+    visit_type_int(v, &res, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    g_assert_cmpint(res, ==, value);
+}
+
+static void test_visitor_in_bool(TestInputVisitorData *data,
+                                 const void *unused)
+{
+    Error *errp = NULL;
+    bool res = false;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "true");
+
+    visit_type_bool(v, &res, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    g_assert_cmpint(res, ==, true);
+    visitor_input_teardown(data, unused);
+
+    v = visitor_input_test_init(data, "yes");
+
+    visit_type_bool(v, &res, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    g_assert_cmpint(res, ==, true);
+    visitor_input_teardown(data, unused);
+
+    v = visitor_input_test_init(data, "on");
+
+    visit_type_bool(v, &res, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    g_assert_cmpint(res, ==, true);
+    visitor_input_teardown(data, unused);
+
+    v = visitor_input_test_init(data, "false");
+
+    visit_type_bool(v, &res, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    g_assert_cmpint(res, ==, false);
+    visitor_input_teardown(data, unused);
+
+    v = visitor_input_test_init(data, "no");
+
+    visit_type_bool(v, &res, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    g_assert_cmpint(res, ==, false);
+    visitor_input_teardown(data, unused);
+
+    v = visitor_input_test_init(data, "off");
+
+    visit_type_bool(v, &res, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    g_assert_cmpint(res, ==, false);
+}
+
+static void test_visitor_in_number(TestInputVisitorData *data,
+                                   const void *unused)
+{
+    double res = 0, value = 3.14;
+    Error *errp = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "3.14");
+
+    visit_type_number(v, &res, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    g_assert_cmpfloat(res, ==, value);
+}
+
+static void test_visitor_in_string(TestInputVisitorData *data,
+                                   const void *unused)
+{
+    char *res = NULL, *value = (char *) "Q E M U";
+    Error *errp = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, value);
+
+    visit_type_str(v, &res, NULL, &errp);
+    g_assert(!error_is_set(&errp));
+    g_assert_cmpstr(res, ==, value);
+
+    g_free(res);
+}
+
+static void test_visitor_in_enum(TestInputVisitorData *data,
+                                 const void *unused)
+{
+    Error *errp = NULL;
+    Visitor *v;
+    EnumOne i;
+
+    for (i = 0; EnumOne_lookup[i]; i++) {
+        EnumOne res = -1;
+
+        v = visitor_input_test_init(data, EnumOne_lookup[i]);
+
+        visit_type_EnumOne(v, &res, NULL, &errp);
+        g_assert(!error_is_set(&errp));
+        g_assert_cmpint(i, ==, res);
+
+        visitor_input_teardown(data, NULL);
+    }
+
+    data->siv = NULL;
+}
+
+static void input_visitor_test_add(const char *testpath,
+                                   TestInputVisitorData *data,
+                                   void (*test_func)(TestInputVisitorData *data, const void *user_data))
+{
+    g_test_add(testpath, TestInputVisitorData, data, NULL, test_func,
+               visitor_input_teardown);
+}
+
+int main(int argc, char **argv)
+{
+    TestInputVisitorData in_visitor_data;
+
+    g_test_init(&argc, &argv, NULL);
+
+    input_visitor_test_add("/string-visitor/input/int",
+                           &in_visitor_data, test_visitor_in_int);
+    input_visitor_test_add("/string-visitor/input/bool",
+                           &in_visitor_data, test_visitor_in_bool);
+    input_visitor_test_add("/string-visitor/input/number",
+                           &in_visitor_data, test_visitor_in_number);
+    input_visitor_test_add("/string-visitor/input/string",
+                            &in_visitor_data, test_visitor_in_string);
+    input_visitor_test_add("/string-visitor/input/enum",
+                            &in_visitor_data, test_visitor_in_enum);
+
+    g_test_run();
+
+    return 0;
+}

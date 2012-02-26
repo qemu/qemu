@@ -254,6 +254,7 @@ hw-obj-$(CONFIG_PPCE500_PCI) += ppce500_pci.o
 # MIPS devices
 hw-obj-$(CONFIG_PIIX4) += piix4.o
 hw-obj-$(CONFIG_G364FB) += g364fb.o
+hw-obj-$(CONFIG_JAZZ_LED) += jazz_led.o
 
 # PCI watchdog devices
 hw-obj-$(CONFIG_PCI) += wdt_i6300esb.o
@@ -426,8 +427,9 @@ libcacard-y = cac.o event.o vcard.o vreader.o vcard_emul_nss.o vcard_emul_type.o
 ######################################################################
 # qapi
 
-qapi-nested-y = qapi-visit-core.o qmp-input-visitor.o qmp-output-visitor.o qapi-dealloc-visitor.o
-qapi-nested-y += qmp-registry.o qmp-dispatch.o
+qapi-nested-y = qapi-visit-core.o qapi-dealloc-visitor.o qmp-input-visitor.o
+qapi-nested-y += qmp-output-visitor.o qmp-registry.o qmp-dispatch.o
+qapi-nested-y += string-input-visitor.o string-output-visitor.o
 qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
 
 common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o $(qapi-obj-y)
@@ -436,11 +438,13 @@ common-obj-y += qmp.o hmp.o
 ######################################################################
 # guest agent
 
-qga-nested-y = guest-agent-commands.o guest-agent-command-state.o
+qga-nested-y = commands.o guest-agent-command-state.o
+qga-nested-$(CONFIG_POSIX) += commands-posix.o channel-posix.o
+qga-nested-$(CONFIG_WIN32) += commands-win32.o channel-win32.o service-win32.o
 qga-obj-y = $(addprefix qga/, $(qga-nested-y))
-qga-obj-y += qemu-ga.o qemu-sockets.o module.o qemu-option.o
+qga-obj-y += qemu-ga.o module.o
 qga-obj-$(CONFIG_WIN32) += oslib-win32.o
-qga-obj-$(CONFIG_POSIX) += oslib-posix.o
+qga-obj-$(CONFIG_POSIX) += oslib-posix.o qemu-sockets.o qemu-option.o
 
 vl.o: QEMU_CFLAGS+=$(GPROF_CFLAGS)
 

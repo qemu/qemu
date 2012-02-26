@@ -89,6 +89,10 @@ typedef struct PCIQXLDevice {
 
     /* io bar */
     MemoryRegion       io_bar;
+
+    /* user-friendly properties (in megabytes) */
+    uint32_t          ram_size_mb;
+    uint32_t          vram_size_mb;
 } PCIQXLDevice;
 
 #define PANIC_ON(x) if ((x)) {                         \

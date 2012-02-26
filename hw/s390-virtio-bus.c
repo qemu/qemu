@@ -169,6 +169,18 @@ static int s390_virtio_serial_init(VirtIOS390Device *dev)
     return r;
 }
 
+static int s390_virtio_scsi_init(VirtIOS390Device *dev)
+{
+    VirtIODevice *vdev;
+
+    vdev = virtio_scsi_init((DeviceState *)dev, &dev->scsi);
+    if (!vdev) {
+        return -1;
+    }
+
+    return s390_virtio_device_init(dev, vdev);
+}
+
 static uint64_t s390_virtio_device_vq_token(VirtIOS390Device *dev, int vq)
 {
     ram_addr_t token_off;
@@ -433,6 +445,26 @@ static TypeInfo virtio_s390_device_info = {
     .abstract = true,
 };
 
+static Property s390_virtio_scsi_properties[] = {
+    DEFINE_VIRTIO_SCSI_PROPERTIES(VirtIOS390Device, host_features, scsi),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void s390_virtio_scsi_class_init(ObjectClass *klass, void *data)
+{
+    DeviceClass *dc = DEVICE_CLASS(klass);
+    VirtIOS390DeviceClass *k = VIRTIO_S390_DEVICE_CLASS(klass);
+
+    k->init = s390_virtio_scsi_init;
+    dc->props = s390_virtio_scsi_properties;
+}
+
+static TypeInfo s390_virtio_scsi = {
+    .name          = "virtio-scsi-s390",
+    .parent        = TYPE_VIRTIO_S390_DEVICE,
+    .instance_size = sizeof(VirtIOS390Device),
+    .class_init    = s390_virtio_scsi_class_init,
+};
 
 /***************** S390 Virtio Bus Bridge Device *******************/
 /* Only required to have the virtio bus as child in the system bus */
@@ -465,6 +497,7 @@ static void s390_virtio_register_types(void)
     type_register_static(&s390_virtio_serial);
     type_register_static(&s390_virtio_blk);
     type_register_static(&s390_virtio_net);
+    type_register_static(&s390_virtio_scsi);
     type_register_static(&s390_virtio_bridge_info);
 }
 

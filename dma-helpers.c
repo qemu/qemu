@@ -204,3 +204,40 @@ BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
 {
     return dma_bdrv_io(bs, sg, sector, bdrv_aio_writev, cb, opaque, true);
 }
+
+
+static uint64_t dma_buf_rw(uint8_t *ptr, int32_t len, QEMUSGList *sg, bool to_dev)
+{
+    uint64_t resid;
+    int sg_cur_index;
+
+    resid = sg->size;
+    sg_cur_index = 0;
+    len = MIN(len, resid);
+    while (len > 0) {
+        ScatterGatherEntry entry = sg->sg[sg_cur_index++];
+        int32_t xfer = MIN(len, entry.len);
+        cpu_physical_memory_rw(entry.base, ptr, xfer, !to_dev);
+        ptr += xfer;
+        len -= xfer;
+        resid -= xfer;
+    }
+
+    return resid;
+}
+
+uint64_t dma_buf_read(uint8_t *ptr, int32_t len, QEMUSGList *sg)
+{
+    return dma_buf_rw(ptr, len, sg, 0);
+}
+
+uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg)
+{
+    return dma_buf_rw(ptr, len, sg, 1);
+}
+
+void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
+                    QEMUSGList *sg, enum BlockAcctType type)
+{
+    bdrv_acct_start(bs, cookie, sg->size, type);
+}

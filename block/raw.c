@@ -61,7 +61,7 @@ static int raw_media_changed(BlockDriverState *bs)
     return bdrv_media_changed(bs->file);
 }
 
-static void raw_eject(BlockDriverState *bs, int eject_flag)
+static void raw_eject(BlockDriverState *bs, bool eject_flag)
 {
     bdrv_eject(bs->file, eject_flag);
 }

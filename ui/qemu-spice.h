@@ -33,6 +33,7 @@ void qemu_spice_init(void);
 void qemu_spice_input_init(void);
 void qemu_spice_audio_init(void);
 void qemu_spice_display_init(DisplayState *ds);
+int qemu_spice_display_add_client(int csock, int skipauth, int tls);
 int qemu_spice_add_interface(SpiceBaseInstance *sin);
 int qemu_spice_set_passwd(const char *passwd,
                           bool fail_if_connected, bool disconnect_if_connected);
@@ -44,7 +45,7 @@ int qemu_spice_migrate_info(const char *hostname, int port, int tls_port,
 void do_info_spice_print(Monitor *mon, const QObject *data);
 void do_info_spice(Monitor *mon, QObject **ret_data);
 
-int qemu_chr_open_spice(QemuOpts *opts, CharDriverState **_chr);
+CharDriverState *qemu_chr_open_spice(QemuOpts *opts);
 
 #else  /* CONFIG_SPICE */
 #include "monitor.h"
@@ -65,6 +66,12 @@ static inline int qemu_spice_migrate_info(const char *h, int p, int t,
                                           MonitorCompletion cb, void *opaque)
 {
     cb(opaque, NULL);
+    return -1;
+}
+
+static inline int qemu_spice_display_add_client(int csock, int skipauth,
+                                                int tls)
+{
     return -1;
 }
 

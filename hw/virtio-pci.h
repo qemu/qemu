@@ -17,6 +17,7 @@
 
 #include "virtio-net.h"
 #include "virtio-serial.h"
+#include "virtio-scsi.h"
 
 /* Performance improves when virtqueue kick processing is decoupled from the
  * vcpu thread using ioeventfd for some devices. */
@@ -40,6 +41,7 @@ typedef struct {
 #endif
     virtio_serial_conf serial;
     virtio_net_conf net;
+    VirtIOSCSIConf scsi;
     bool ioeventfd_disabled;
     bool ioeventfd_started;
 } VirtIOPCIProxy;

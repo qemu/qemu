@@ -13,6 +13,8 @@
 #include "qemu/object.h"
 #include "qemu-common.h"
 #include "qapi/qapi-visit-core.h"
+#include "qapi/string-input-visitor.h"
+#include "qapi/string-output-visitor.h"
 
 /* TODO: replace QObject with a simpler visitor to avoid a dependency
  * of the QOM core on QObject?  */
@@ -262,7 +264,7 @@ void object_initialize_with_type(void *data, TypeImpl *type)
     Object *obj = data;
 
     g_assert(type != NULL);
-    g_assert(type->instance_size >= sizeof(ObjectClass));
+    g_assert(type->instance_size >= sizeof(Object));
 
     type_class_init(type);
     g_assert(type->abstract == false);
@@ -782,6 +784,29 @@ int64_t object_property_get_int(Object *obj, const char *name,
     return retval;
 }
 
+void object_property_parse(Object *obj, const char *string,
+                           const char *name, Error **errp)
+{
+    StringInputVisitor *mi;
+    mi = string_input_visitor_new(string);
+    object_property_set(obj, string_input_get_visitor(mi), name, errp);
+
+    string_input_visitor_cleanup(mi);
+}
+
+char *object_property_print(Object *obj, const char *name,
+                            Error **errp)
+{
+    StringOutputVisitor *mo;
+    char *string;
+
+    mo = string_output_visitor_new();
+    object_property_get(obj, string_output_get_visitor(mo), name, NULL);
+    string = string_output_get_string(mo);
+    string_output_visitor_cleanup(mo);
+    return string;
+}
+
 const char *object_property_get_type(Object *obj, const char *name, Error **errp)
 {
     ObjectProperty *prop = object_property_find(obj, name);
@@ -867,6 +892,7 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
                                      const char *name, Error **errp)
 {
     Object **child = opaque;
+    Object *old_target;
     bool ambiguous = false;
     const char *type;
     char *path;
@@ -876,10 +902,8 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
 
     visit_type_str(v, &path, name, errp);
 
-    if (*child) {
-        object_unref(*child);
-        *child = NULL;
-    }
+    old_target = *child;
+    *child = NULL;
 
     if (strcmp(path, "") != 0) {
         Object *target;
@@ -905,6 +929,10 @@ static void object_set_link_property(Object *obj, Visitor *v, void *opaque,
     }
 
     g_free(path);
+
+    if (old_target != NULL) {
+        object_unref(old_target);
+    }
 }
 
 void object_property_add_link(Object *obj, const char *name,

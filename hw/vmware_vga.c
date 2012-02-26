@@ -1003,11 +1003,11 @@ static void vmsvga_invalidate_display(void *opaque)
 
 /* save the vga display in a PPM image even if no display is
    available */
-static void vmsvga_screen_dump(void *opaque, const char *filename)
+static void vmsvga_screen_dump(void *opaque, const char *filename, bool cswitch)
 {
     struct vmsvga_state_s *s = opaque;
     if (!s->enable) {
-        s->vga.screen_dump(&s->vga, filename);
+        s->vga.screen_dump(&s->vga, filename, cswitch);
         return;
     }
 

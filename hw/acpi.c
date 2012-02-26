@@ -248,64 +248,97 @@ int acpi_table_add(const char *t)
 
 }
 
+static void acpi_notify_wakeup(Notifier *notifier, void *data)
+{
+    ACPIREGS *ar = container_of(notifier, ACPIREGS, wakeup);
+    WakeupReason *reason = data;
+
+    switch (*reason) {
+    case QEMU_WAKEUP_REASON_RTC:
+        ar->pm1.evt.sts |=
+            (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_RT_CLOCK_STATUS);
+        break;
+    case QEMU_WAKEUP_REASON_PMTIMER:
+        ar->pm1.evt.sts |=
+            (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_TIMER_STATUS);
+        break;
+    case QEMU_WAKEUP_REASON_OTHER:
+    default:
+        /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
+           Pretend that resume was caused by power button */
+        ar->pm1.evt.sts |=
+            (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_POWER_BUTTON_STATUS);
+        break;
+    }
+}
+
 /* ACPI PM1a EVT */
-uint16_t acpi_pm1_evt_get_sts(ACPIPM1EVT *pm1, int64_t overflow_time)
+uint16_t acpi_pm1_evt_get_sts(ACPIREGS *ar)
 {
     int64_t d = acpi_pm_tmr_get_clock();
-    if (d >= overflow_time) {
-        pm1->sts |= ACPI_BITMASK_TIMER_STATUS;
+    if (d >= ar->tmr.overflow_time) {
+        ar->pm1.evt.sts |= ACPI_BITMASK_TIMER_STATUS;
     }
-    return pm1->sts;
+    return ar->pm1.evt.sts;
 }
 
-void acpi_pm1_evt_write_sts(ACPIPM1EVT *pm1, ACPIPMTimer *tmr, uint16_t val)
+void acpi_pm1_evt_write_sts(ACPIREGS *ar, uint16_t val)
 {
-    uint16_t pm1_sts = acpi_pm1_evt_get_sts(pm1, tmr->overflow_time);
+    uint16_t pm1_sts = acpi_pm1_evt_get_sts(ar);
     if (pm1_sts & val & ACPI_BITMASK_TIMER_STATUS) {
         /* if TMRSTS is reset, then compute the new overflow time */
-        acpi_pm_tmr_calc_overflow_time(tmr);
+        acpi_pm_tmr_calc_overflow_time(ar);
     }
-    pm1->sts &= ~val;
+    ar->pm1.evt.sts &= ~val;
 }
 
-void acpi_pm1_evt_power_down(ACPIPM1EVT *pm1, ACPIPMTimer *tmr)
+void acpi_pm1_evt_write_en(ACPIREGS *ar, uint16_t val)
 {
-    if (!pm1) {
-        qemu_system_shutdown_request();
-    } else if (pm1->en & ACPI_BITMASK_POWER_BUTTON_ENABLE) {
-        pm1->sts |= ACPI_BITMASK_POWER_BUTTON_STATUS;
-        tmr->update_sci(tmr);
+    ar->pm1.evt.en = val;
+    qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC,
+                              val & ACPI_BITMASK_RT_CLOCK_ENABLE);
+    qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_PMTIMER,
+                              val & ACPI_BITMASK_TIMER_ENABLE);
+}
+
+void acpi_pm1_evt_power_down(ACPIREGS *ar)
+{
+    if (ar->pm1.evt.en & ACPI_BITMASK_POWER_BUTTON_ENABLE) {
+        ar->pm1.evt.sts |= ACPI_BITMASK_POWER_BUTTON_STATUS;
+        ar->tmr.update_sci(ar);
     }
 }
 
-void acpi_pm1_evt_reset(ACPIPM1EVT *pm1)
+void acpi_pm1_evt_reset(ACPIREGS *ar)
 {
-    pm1->sts = 0;
-    pm1->en = 0;
+    ar->pm1.evt.sts = 0;
+    ar->pm1.evt.en = 0;
+    qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_RTC, 0);
+    qemu_system_wakeup_enable(QEMU_WAKEUP_REASON_PMTIMER, 0);
 }
 
 /* ACPI PM_TMR */
-void acpi_pm_tmr_update(ACPIPMTimer *tmr, bool enable)
+void acpi_pm_tmr_update(ACPIREGS *ar, bool enable)
 {
     int64_t expire_time;
 
     /* schedule a timer interruption if needed */
     if (enable) {
-        expire_time = muldiv64(tmr->overflow_time, get_ticks_per_sec(),
+        expire_time = muldiv64(ar->tmr.overflow_time, get_ticks_per_sec(),
                                PM_TIMER_FREQUENCY);
-        qemu_mod_timer(tmr->timer, expire_time);
+        qemu_mod_timer(ar->tmr.timer, expire_time);
     } else {
-        qemu_del_timer(tmr->timer);
+        qemu_del_timer(ar->tmr.timer);
     }
 }
 
-void acpi_pm_tmr_calc_overflow_time(ACPIPMTimer *tmr)
+void acpi_pm_tmr_calc_overflow_time(ACPIREGS *ar)
 {
     int64_t d = acpi_pm_tmr_get_clock();
-    tmr->overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
+    ar->tmr.overflow_time = (d + 0x800000LL) & ~0x7fffffLL;
 }
 
-uint32_t acpi_pm_tmr_get(ACPIPMTimer *tmr)
+uint32_t acpi_pm_tmr_get(ACPIREGS *ar)
 {
     uint32_t d = acpi_pm_tmr_get_clock();
     return d & 0xffffff;
@@ -313,31 +346,33 @@ uint32_t acpi_pm_tmr_get(ACPIPMTimer *tmr)
 
 static void acpi_pm_tmr_timer(void *opaque)
 {
-    ACPIPMTimer *tmr = opaque;
-    tmr->update_sci(tmr);
+    ACPIREGS *ar = opaque;
+    qemu_system_wakeup_request(QEMU_WAKEUP_REASON_PMTIMER);
+    ar->tmr.update_sci(ar);
 }
 
-void acpi_pm_tmr_init(ACPIPMTimer *tmr, acpi_update_sci_fn update_sci)
+void acpi_pm_tmr_init(ACPIREGS *ar, acpi_update_sci_fn update_sci)
 {
-    tmr->update_sci = update_sci;
-    tmr->timer = qemu_new_timer_ns(vm_clock, acpi_pm_tmr_timer, tmr);
+    ar->tmr.update_sci = update_sci;
+    ar->tmr.timer = qemu_new_timer_ns(vm_clock, acpi_pm_tmr_timer, ar);
 }
 
-void acpi_pm_tmr_reset(ACPIPMTimer *tmr)
+void acpi_pm_tmr_reset(ACPIREGS *ar)
 {
-    tmr->overflow_time = 0;
-    qemu_del_timer(tmr->timer);
+    ar->tmr.overflow_time = 0;
+    qemu_del_timer(ar->tmr.timer);
 }
 
 /* ACPI PM1aCNT */
-void acpi_pm1_cnt_init(ACPIPM1CNT *pm1_cnt, qemu_irq cmos_s3)
+void acpi_pm1_cnt_init(ACPIREGS *ar)
 {
-    pm1_cnt->cmos_s3 = cmos_s3;
+    ar->wakeup.notify = acpi_notify_wakeup;
+    qemu_register_wakeup_notifier(&ar->wakeup);
 }
 
-void acpi_pm1_cnt_write(ACPIPM1EVT *pm1a, ACPIPM1CNT *pm1_cnt, uint16_t val)
+void acpi_pm1_cnt_write(ACPIREGS *ar, uint16_t val)
 {
-    pm1_cnt->cnt = val & ~(ACPI_BITMASK_SLEEP_ENABLE);
+    ar->pm1.cnt.cnt = val & ~(ACPI_BITMASK_SLEEP_ENABLE);
 
     if (val & ACPI_BITMASK_SLEEP_ENABLE) {
         /* change suspend type */
@@ -347,64 +382,57 @@ void acpi_pm1_cnt_write(ACPIPM1EVT *pm1a, ACPIPM1CNT *pm1_cnt, uint16_t val)
             qemu_system_shutdown_request();
             break;
         case 1:
-            /* ACPI_BITMASK_WAKE_STATUS should be set on resume.
-               Pretend that resume was caused by power button */
-            pm1a->sts |=
-                (ACPI_BITMASK_WAKE_STATUS | ACPI_BITMASK_POWER_BUTTON_STATUS);
-            qemu_system_reset_request();
-            qemu_irq_raise(pm1_cnt->cmos_s3);
+            qemu_system_suspend_request();
+            break;
         default:
             break;
         }
     }
 }
 
-void acpi_pm1_cnt_update(ACPIPM1CNT *pm1_cnt,
+void acpi_pm1_cnt_update(ACPIREGS *ar,
                          bool sci_enable, bool sci_disable)
 {
     /* ACPI specs 3.0, 4.7.2.5 */
     if (sci_enable) {
-        pm1_cnt->cnt |= ACPI_BITMASK_SCI_ENABLE;
+        ar->pm1.cnt.cnt |= ACPI_BITMASK_SCI_ENABLE;
     } else if (sci_disable) {
-        pm1_cnt->cnt &= ~ACPI_BITMASK_SCI_ENABLE;
+        ar->pm1.cnt.cnt &= ~ACPI_BITMASK_SCI_ENABLE;
     }
 }
 
-void acpi_pm1_cnt_reset(ACPIPM1CNT *pm1_cnt)
+void acpi_pm1_cnt_reset(ACPIREGS *ar)
 {
-    pm1_cnt->cnt = 0;
-    if (pm1_cnt->cmos_s3) {
-        qemu_irq_lower(pm1_cnt->cmos_s3);
-    }
+    ar->pm1.cnt.cnt = 0;
 }
 
 /* ACPI GPE */
-void acpi_gpe_init(ACPIGPE *gpe, uint8_t len)
+void acpi_gpe_init(ACPIREGS *ar, uint8_t len)
 {
-    gpe->len = len;
-    gpe->sts = g_malloc0(len / 2);
-    gpe->en = g_malloc0(len / 2);
+    ar->gpe.len = len;
+    ar->gpe.sts = g_malloc0(len / 2);
+    ar->gpe.en = g_malloc0(len / 2);
 }
 
-void acpi_gpe_blk(ACPIGPE *gpe, uint32_t blk)
+void acpi_gpe_blk(ACPIREGS *ar, uint32_t blk)
 {
-    gpe->blk = blk;
+    ar->gpe.blk = blk;
 }
 
-void acpi_gpe_reset(ACPIGPE *gpe)
+void acpi_gpe_reset(ACPIREGS *ar)
 {
-    memset(gpe->sts, 0, gpe->len / 2);
-    memset(gpe->en, 0, gpe->len / 2);
+    memset(ar->gpe.sts, 0, ar->gpe.len / 2);
+    memset(ar->gpe.en, 0, ar->gpe.len / 2);
 }
 
-static uint8_t *acpi_gpe_ioport_get_ptr(ACPIGPE *gpe, uint32_t addr)
+static uint8_t *acpi_gpe_ioport_get_ptr(ACPIREGS *ar, uint32_t addr)
 {
     uint8_t *cur = NULL;
 
-    if (addr < gpe->len / 2) {
-        cur = gpe->sts + addr;
-    } else if (addr < gpe->len) {
-        cur = gpe->en + addr - gpe->len / 2;
+    if (addr < ar->gpe.len / 2) {
+        cur = ar->gpe.sts + addr;
+    } else if (addr < ar->gpe.len) {
+        cur = ar->gpe.en + addr - ar->gpe.len / 2;
     } else {
         abort();
     }
@@ -412,16 +440,16 @@ static uint8_t *acpi_gpe_ioport_get_ptr(ACPIGPE *gpe, uint32_t addr)
     return cur;
 }
 
-void acpi_gpe_ioport_writeb(ACPIGPE *gpe, uint32_t addr, uint32_t val)
+void acpi_gpe_ioport_writeb(ACPIREGS *ar, uint32_t addr, uint32_t val)
 {
     uint8_t *cur;
 
-    addr -= gpe->blk;
-    cur = acpi_gpe_ioport_get_ptr(gpe, addr);
-    if (addr < gpe->len / 2) {
+    addr -= ar->gpe.blk;
+    cur = acpi_gpe_ioport_get_ptr(ar, addr);
+    if (addr < ar->gpe.len / 2) {
         /* GPE_STS */
         *cur = (*cur) & ~val;
-    } else if (addr < gpe->len) {
+    } else if (addr < ar->gpe.len) {
         /* GPE_EN */
         *cur = val;
     } else {
@@ -429,13 +457,13 @@ void acpi_gpe_ioport_writeb(ACPIGPE *gpe, uint32_t addr, uint32_t val)
     }
 }
 
-uint32_t acpi_gpe_ioport_readb(ACPIGPE *gpe, uint32_t addr)
+uint32_t acpi_gpe_ioport_readb(ACPIREGS *ar, uint32_t addr)
 {
     uint8_t *cur;
     uint32_t val;
 
-    addr -= gpe->blk;
-    cur = acpi_gpe_ioport_get_ptr(gpe, addr);
+    addr -= ar->gpe.blk;
+    cur = acpi_gpe_ioport_get_ptr(ar, addr);
     val = 0;
     if (cur != NULL) {
         val = *cur;

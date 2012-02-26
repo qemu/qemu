@@ -17,6 +17,13 @@
 
 typedef struct ScatterGatherEntry ScatterGatherEntry;
 
+struct QEMUSGList {
+    ScatterGatherEntry *sg;
+    int nsg;
+    int nalloc;
+    size_t size;
+};
+
 #if defined(TARGET_PHYS_ADDR_BITS)
 typedef target_phys_addr_t dma_addr_t;
 
@@ -30,13 +37,6 @@ typedef enum {
 struct ScatterGatherEntry {
     dma_addr_t base;
     dma_addr_t len;
-};
-
-struct QEMUSGList {
-    ScatterGatherEntry *sg;
-    int nsg;
-    int nalloc;
-    dma_addr_t size;
 };
 
 void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint);
@@ -58,4 +58,10 @@ BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
 BlockDriverAIOCB *dma_bdrv_write(BlockDriverState *bs,
                                  QEMUSGList *sg, uint64_t sector,
                                  BlockDriverCompletionFunc *cb, void *opaque);
+uint64_t dma_buf_read(uint8_t *ptr, int32_t len, QEMUSGList *sg);
+uint64_t dma_buf_write(uint8_t *ptr, int32_t len, QEMUSGList *sg);
+
+void dma_acct_start(BlockDriverState *bs, BlockAcctCookie *cookie,
+                    QEMUSGList *sg, enum BlockAcctType type);
+
 #endif

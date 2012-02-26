@@ -1194,7 +1194,7 @@ static QEMUMachine *find_machine(const char *name)
     return NULL;
 }
 
-static QEMUMachine *find_default_machine(void)
+QEMUMachine *find_default_machine(void)
 {
     QEMUMachine *m;
 
@@ -1290,6 +1290,13 @@ static int shutdown_requested, shutdown_signal = -1;
 static pid_t shutdown_pid;
 static int powerdown_requested;
 static int debug_requested;
+static int suspend_requested;
+static bool is_suspended;
+static NotifierList suspend_notifiers =
+    NOTIFIER_LIST_INITIALIZER(suspend_notifiers);
+static NotifierList wakeup_notifiers =
+    NOTIFIER_LIST_INITIALIZER(wakeup_notifiers);
+static uint32_t wakeup_reason_mask = ~0;
 static RunState vmstop_requested = RUN_STATE_MAX;
 
 int qemu_shutdown_requested_get(void)
@@ -1329,6 +1336,13 @@ int qemu_reset_requested(void)
 {
     int r = reset_requested;
     reset_requested = 0;
+    return r;
+}
+
+static int qemu_suspend_requested(void)
+{
+    int r = suspend_requested;
+    suspend_requested = 0;
     return r;
 }
 
@@ -1405,6 +1419,58 @@ void qemu_system_reset_request(void)
     qemu_notify_event();
 }
 
+static void qemu_system_suspend(void)
+{
+    pause_all_vcpus();
+    notifier_list_notify(&suspend_notifiers, NULL);
+    monitor_protocol_event(QEVENT_SUSPEND, NULL);
+    is_suspended = true;
+}
+
+void qemu_system_suspend_request(void)
+{
+    if (is_suspended) {
+        return;
+    }
+    suspend_requested = 1;
+    cpu_stop_current();
+    qemu_notify_event();
+}
+
+void qemu_register_suspend_notifier(Notifier *notifier)
+{
+    notifier_list_add(&suspend_notifiers, notifier);
+}
+
+void qemu_system_wakeup_request(WakeupReason reason)
+{
+    if (!is_suspended) {
+        return;
+    }
+    if (!(wakeup_reason_mask & (1 << reason))) {
+        return;
+    }
+    monitor_protocol_event(QEVENT_WAKEUP, NULL);
+    notifier_list_notify(&wakeup_notifiers, &reason);
+    reset_requested = 1;
+    qemu_notify_event();
+    is_suspended = false;
+}
+
+void qemu_system_wakeup_enable(WakeupReason reason, bool enabled)
+{
+    if (enabled) {
+        wakeup_reason_mask |= (1 << reason);
+    } else {
+        wakeup_reason_mask &= ~(1 << reason);
+    }
+}
+
+void qemu_register_wakeup_notifier(Notifier *notifier)
+{
+    notifier_list_add(&wakeup_notifiers, notifier);
+}
+
 void qemu_system_killed(int signal, pid_t pid)
 {
     shutdown_signal = signal;
@@ -1444,6 +1510,9 @@ static bool main_loop_should_exit(void)
     RunState r;
     if (qemu_debug_requested()) {
         vm_stop(RUN_STATE_DEBUG);
+    }
+    if (qemu_suspend_requested()) {
+        qemu_system_suspend();
     }
     if (qemu_shutdown_requested()) {
         qemu_kill_report();
@@ -1900,8 +1969,10 @@ struct device_config {
         DEV_PARALLEL,  /* -parallel      */
         DEV_VIRTCON,   /* -virtioconsole */
         DEV_DEBUGCON,  /* -debugcon */
+        DEV_GDB,       /* -gdb, -s */
     } type;
     const char *cmdline;
+    Location loc;
     QTAILQ_ENTRY(device_config) next;
 };
 QTAILQ_HEAD(, device_config) device_configs = QTAILQ_HEAD_INITIALIZER(device_configs);
@@ -1913,6 +1984,7 @@ static void add_device_config(int type, const char *cmdline)
     conf = g_malloc0(sizeof(*conf));
     conf->type = type;
     conf->cmdline = cmdline;
+    loc_save(&conf->loc);
     QTAILQ_INSERT_TAIL(&device_configs, conf, next);
 }
 
@@ -1924,7 +1996,9 @@ static int foreach_device_config(int type, int (*func)(const char *cmdline))
     QTAILQ_FOREACH(conf, &device_configs, next) {
         if (conf->type != type)
             continue;
+        loc_push_restore(&conf->loc);
         rc = func(conf->cmdline);
+        loc_pop(&conf->loc);
         if (0 != rc)
             return rc;
     }
@@ -2042,9 +2116,9 @@ static QEMUMachine *machine_parse(const char *name)
     printf("Supported machines are:\n");
     for (m = first_machine; m != NULL; m = m->next) {
         if (m->alias) {
-            printf("%-10s %s (alias of %s)\n", m->alias, m->desc, m->name);
+            printf("%-20s %s (alias of %s)\n", m->alias, m->desc, m->name);
         }
-        printf("%-10s %s%s\n", m->name, m->desc,
+        printf("%-20s %s%s\n", m->name, m->desc,
                m->is_default ? " (default)" : "");
     }
     exit(!name || *name != '?');
@@ -2221,7 +2295,6 @@ int qemu_init_main_loop(void)
 
 int main(int argc, char **argv, char **envp)
 {
-    const char *gdbstub_dev = NULL;
     int i;
     int snapshot, linux_boot;
     const char *icount_option = NULL;
@@ -2231,7 +2304,7 @@ int main(int argc, char **argv, char **envp)
     DisplayState *ds;
     DisplayChangeListener *dcl;
     int cyls, heads, secs, translation;
-    QemuOpts *hda_opts = NULL, *opts;
+    QemuOpts *hda_opts = NULL, *opts, *machine_opts;
     QemuOptsList *olist;
     int optind;
     const char *optarg;
@@ -2289,11 +2362,8 @@ int main(int argc, char **argv, char **envp)
         machine = find_default_machine();
     }
     cpu_model = NULL;
-    initrd_filename = NULL;
     ram_size = 0;
     snapshot = 0;
-    kernel_filename = NULL;
-    kernel_cmdline = "";
     cyls = heads = secs = 0;
     translation = BIOS_ATA_TRANSLATION_AUTO;
 
@@ -2368,9 +2438,6 @@ int main(int argc, char **argv, char **envp)
                 } else {
                     cpu_model = optarg;
                 }
-                break;
-            case QEMU_OPTION_initrd:
-                initrd_filename = optarg;
                 break;
             case QEMU_OPTION_hda:
                 {
@@ -2502,10 +2569,13 @@ int main(int argc, char **argv, char **envp)
                 }
                 break;
             case QEMU_OPTION_kernel:
-                kernel_filename = optarg;
+                qemu_opts_set(qemu_find_opts("machine"), 0, "kernel", optarg);
+                break;
+            case QEMU_OPTION_initrd:
+                qemu_opts_set(qemu_find_opts("machine"), 0, "initrd", optarg);
                 break;
             case QEMU_OPTION_append:
-                kernel_cmdline = optarg;
+                qemu_opts_set(qemu_find_opts("machine"), 0, "append", optarg);
                 break;
             case QEMU_OPTION_cdrom:
                 drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
@@ -2657,10 +2727,10 @@ int main(int argc, char **argv, char **envp)
                 log_file = optarg;
                 break;
             case QEMU_OPTION_s:
-                gdbstub_dev = "tcp::" DEFAULT_GDBSTUB_PORT;
+                add_device_config(DEV_GDB, "tcp::" DEFAULT_GDBSTUB_PORT);
                 break;
             case QEMU_OPTION_gdb:
-                gdbstub_dev = optarg;
+                add_device_config(DEV_GDB, optarg);
                 break;
             case QEMU_OPTION_L:
                 data_dir = optarg;
@@ -3303,6 +3373,20 @@ int main(int argc, char **argv, char **envp)
         fprintf(stderr, "qemu_init_main_loop failed\n");
         exit(1);
     }
+
+    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        kernel_filename = qemu_opt_get(machine_opts, "kernel");
+        initrd_filename = qemu_opt_get(machine_opts, "initrd");
+        kernel_cmdline = qemu_opt_get(machine_opts, "append");
+    } else {
+        kernel_filename = initrd_filename = kernel_cmdline = NULL;
+    }
+
+    if (!kernel_cmdline) {
+        kernel_cmdline = "";
+    }
+
     linux_boot = (kernel_filename != NULL);
 
     if (!linux_boot && *kernel_cmdline != '\0') {
@@ -3542,9 +3626,7 @@ int main(int argc, char **argv, char **envp)
     }
     text_consoles_set_display(ds);
 
-    if (gdbstub_dev && gdbserver_start(gdbstub_dev) < 0) {
-        fprintf(stderr, "qemu: could not open gdbserver on device '%s'\n",
-                gdbstub_dev);
+    if (foreach_device_config(DEV_GDB, gdbserver_start) < 0) {
         exit(1);
     }
 

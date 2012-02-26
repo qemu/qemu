@@ -89,6 +89,7 @@ typedef struct XenIOState {
     const XenPhysmap *log_for_dirtybit;
 
     Notifier exit;
+    Notifier suspend;
 } XenIOState;
 
 /* Xen specific function for piix pci */
@@ -121,12 +122,9 @@ void xen_piix_pci_write_config_client(uint32_t address, uint32_t val, int len)
     }
 }
 
-void xen_cmos_set_s3_resume(void *opaque, int irq, int level)
+static void xen_suspend_notifier(Notifier *notifier, void *data)
 {
-    pc_cmos_set_s3_resume(opaque, irq, level);
-    if (level) {
-        xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 3);
-    }
+    xc_set_hvm_param(xen_xc, xen_domid, HVM_PARAM_ACPI_S_STATE, 3);
 }
 
 /* Xen Interrupt Controller */
@@ -935,6 +933,9 @@ int xen_hvm_init(void)
 
     state->exit.notify = xen_exit_notifier;
     qemu_add_exit_notifier(&state->exit);
+
+    state->suspend.notify = xen_suspend_notifier;
+    qemu_register_suspend_notifier(&state->suspend);
 
     xc_get_hvm_param(xen_xc, xen_domid, HVM_PARAM_IOREQ_PFN, &ioreq_pfn);
     DPRINTF("shared page at pfn %lx\n", ioreq_pfn);

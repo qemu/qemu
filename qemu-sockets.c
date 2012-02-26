@@ -26,7 +26,6 @@
 # define AI_ADDRCONFIG 0
 #endif
 
-static int sockets_debug = 0;
 static const int on=1, off=0;
 
 /* used temporarely until all users are converted to QemuOpts */
@@ -101,21 +100,6 @@ const char *inet_strfamily(int family)
     return "unknown";
 }
 
-static void inet_print_addrinfo(const char *tag, struct addrinfo *res)
-{
-    struct addrinfo *e;
-    char uaddr[INET6_ADDRSTRLEN+1];
-    char uport[33];
-
-    for (e = res; e != NULL; e = e->ai_next) {
-        getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
-                    uaddr,INET6_ADDRSTRLEN,uport,32,
-                    NI_NUMERICHOST | NI_NUMERICSERV);
-        fprintf(stderr,"%s: getaddrinfo: family %s, host %s, port %s\n",
-                tag, inet_strfamily(e->ai_family), uaddr, uport);
-    }
-}
-
 int inet_listen_opts(QemuOpts *opts, int port_offset)
 {
     struct addrinfo ai,*res,*e;
@@ -123,7 +107,7 @@ int inet_listen_opts(QemuOpts *opts, int port_offset)
     char port[33];
     char uaddr[INET6_ADDRSTRLEN+1];
     char uport[33];
-    int slisten,rc,to,try_next;
+    int slisten, rc, to, port_min, port_max, p;
 
     memset(&ai,0, sizeof(ai));
     ai.ai_flags = AI_PASSIVE | AI_ADDRCONFIG;
@@ -153,8 +137,6 @@ int inet_listen_opts(QemuOpts *opts, int port_offset)
                 gai_strerror(rc));
         return -1;
     }
-    if (sockets_debug)
-        inet_print_addrinfo(__FUNCTION__, res);
 
     /* create socket + bind */
     for (e = res; e != NULL; e = e->ai_next) {
@@ -177,23 +159,18 @@ int inet_listen_opts(QemuOpts *opts, int port_offset)
         }
 #endif
 
-        for (;;) {
+        port_min = inet_getport(e);
+        port_max = to ? to + port_offset : port_min;
+        for (p = port_min; p <= port_max; p++) {
+            inet_setport(e, p);
             if (bind(slisten, e->ai_addr, e->ai_addrlen) == 0) {
-                if (sockets_debug)
-                    fprintf(stderr,"%s: bind(%s,%s,%d): OK\n", __FUNCTION__,
-                        inet_strfamily(e->ai_family), uaddr, inet_getport(e));
                 goto listen;
             }
-            try_next = to && (inet_getport(e) <= to + port_offset);
-            if (!try_next || sockets_debug)
+            if (p == port_max) {
                 fprintf(stderr,"%s: bind(%s,%s,%d): %s\n", __FUNCTION__,
                         inet_strfamily(e->ai_family), uaddr, inet_getport(e),
                         strerror(errno));
-            if (try_next) {
-                inet_setport(e, inet_getport(e) + 1);
-                continue;
             }
-            break;
         }
         closesocket(slisten);
     }
@@ -249,8 +226,6 @@ int inet_connect_opts(QemuOpts *opts)
                 gai_strerror(rc));
 	return -1;
     }
-    if (sockets_debug)
-        inet_print_addrinfo(__FUNCTION__, res);
 
     for (e = res; e != NULL; e = e->ai_next) {
         if (getnameinfo((struct sockaddr*)e->ai_addr,e->ai_addrlen,
@@ -269,17 +244,13 @@ int inet_connect_opts(QemuOpts *opts)
 
         /* connect to peer */
         if (connect(sock,e->ai_addr,e->ai_addrlen) < 0) {
-            if (sockets_debug || NULL == e->ai_next)
+            if (NULL == e->ai_next)
                 fprintf(stderr, "%s: connect(%s,%s,%s,%s): %s\n", __FUNCTION__,
                         inet_strfamily(e->ai_family),
                         e->ai_canonname, uaddr, uport, strerror(errno));
             closesocket(sock);
             continue;
         }
-        if (sockets_debug)
-            fprintf(stderr, "%s: connect(%s,%s,%s,%s): OK\n", __FUNCTION__,
-                    inet_strfamily(e->ai_family),
-                    e->ai_canonname, uaddr, uport);
         freeaddrinfo(res);
         return sock;
     }
@@ -322,10 +293,6 @@ int inet_dgram_opts(QemuOpts *opts)
                 gai_strerror(rc));
 	return -1;
     }
-    if (sockets_debug) {
-        fprintf(stderr, "%s: peer (%s:%s)\n", __FUNCTION__, addr, port);
-        inet_print_addrinfo(__FUNCTION__, peer);
-    }
 
     /* lookup local addr */
     memset(&ai,0, sizeof(ai));
@@ -345,10 +312,6 @@ int inet_dgram_opts(QemuOpts *opts)
         fprintf(stderr,"getaddrinfo(%s,%s): %s\n", addr, port,
                 gai_strerror(rc));
         return -1;
-    }
-    if (sockets_debug) {
-        fprintf(stderr, "%s: local (%s:%s)\n", __FUNCTION__, addr, port);
-        inet_print_addrinfo(__FUNCTION__, local);
     }
 
     /* create socket */
@@ -541,8 +504,6 @@ int unix_listen_opts(QemuOpts *opts)
         goto err;
     }
 
-    if (sockets_debug)
-        fprintf(stderr, "bind(unix:%s): OK\n", un.sun_path);
     return sock;
 
 err:
@@ -576,8 +537,6 @@ int unix_connect_opts(QemuOpts *opts)
 	return -1;
     }
 
-    if (sockets_debug)
-        fprintf(stderr, "connect(unix:%s): OK\n", path);
     return sock;
 }
 

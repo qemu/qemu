@@ -340,7 +340,7 @@ static inline void console_write_ch(console_ch_t *dest, uint32_t ch)
 
 typedef void (*vga_hw_update_ptr)(void *);
 typedef void (*vga_hw_invalidate_ptr)(void *);
-typedef void (*vga_hw_screen_dump_ptr)(void *, const char *);
+typedef void (*vga_hw_screen_dump_ptr)(void *, const char *, bool cswitch);
 typedef void (*vga_hw_text_update_ptr)(void *, console_ch_t *);
 
 DisplayState *graphic_console_init(vga_hw_update_ptr update,
@@ -356,7 +356,7 @@ void vga_hw_text_update(console_ch_t *chardata);
 
 int is_graphic_console(void);
 int is_fixedsize_console(void);
-int text_console_init(QemuOpts *opts, CharDriverState **_chr);
+CharDriverState *text_console_init(QemuOpts *opts);
 void text_consoles_set_display(DisplayState *ds);
 void console_select(unsigned int index);
 void console_color_init(DisplayState *ds);

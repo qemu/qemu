@@ -1,0 +1,93 @@
+QA output created by 021
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=134217728 
+
+== testing writev -P -1 ==
+-1 is not a valid pattern byte
+
+== testing read -P -1 ==
+-1 is not a valid pattern byte
+
+== testing write -P -1 ==
+-1 is not a valid pattern byte
+
+== testing readv -P -1 ==
+-1 is not a valid pattern byte
+
+== testing aio_read -P -1 ==
+-1 is not a valid pattern byte
+
+== testing aio_write -P -1 ==
+-1 is not a valid pattern byte
+
+== testing writev -P 300 ==
+300 is not a valid pattern byte
+
+== testing read -P 300 ==
+300 is not a valid pattern byte
+
+== testing write -P 300 ==
+300 is not a valid pattern byte
+
+== testing readv -P 300 ==
+300 is not a valid pattern byte
+
+== testing aio_read -P 300 ==
+300 is not a valid pattern byte
+
+== testing aio_write -P 300 ==
+300 is not a valid pattern byte
+
+== testing writev -P 12m ==
+12m is not a valid pattern byte
+
+== testing read -P 12m ==
+12m is not a valid pattern byte
+
+== testing write -P 12m ==
+12m is not a valid pattern byte
+
+== testing readv -P 12m ==
+12m is not a valid pattern byte
+
+== testing aio_read -P 12m ==
+12m is not a valid pattern byte
+
+== testing aio_write -P 12m ==
+12m is not a valid pattern byte
+
+== testing writev -P 4k ==
+4k is not a valid pattern byte
+
+== testing read -P 4k ==
+4k is not a valid pattern byte
+
+== testing write -P 4k ==
+4k is not a valid pattern byte
+
+== testing readv -P 4k ==
+4k is not a valid pattern byte
+
+== testing aio_read -P 4k ==
+4k is not a valid pattern byte
+
+== testing aio_write -P 4k ==
+4k is not a valid pattern byte
+
+== testing writev -P route66 ==
+route66 is not a valid pattern byte
+
+== testing read -P route66 ==
+route66 is not a valid pattern byte
+
+== testing write -P route66 ==
+route66 is not a valid pattern byte
+
+== testing readv -P route66 ==
+route66 is not a valid pattern byte
+
+== testing aio_read -P route66 ==
+route66 is not a valid pattern byte
+
+== testing aio_write -P route66 ==
+route66 is not a valid pattern byte
+*** done

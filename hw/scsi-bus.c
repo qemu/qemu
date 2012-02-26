@@ -5,6 +5,7 @@
 #include "qdev.h"
 #include "blockdev.h"
 #include "trace.h"
+#include "dma.h"
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
@@ -86,6 +87,7 @@ static void scsi_dma_restart_bh(void *opaque)
                 scsi_req_continue(req);
                 break;
             case SCSI_XFER_NONE:
+                assert(!req->sg);
                 scsi_req_dequeue(req);
                 scsi_req_enqueue(req);
                 break;
@@ -130,6 +132,10 @@ static int scsi_qdev_init(DeviceState *qdev)
         error_report("bad scsi device id: %d", dev->id);
         goto err;
     }
+    if (dev->lun != -1 && dev->lun > bus->info->max_lun) {
+        error_report("bad scsi device lun: %d", dev->lun);
+        goto err;
+    }
 
     if (dev->id == -1) {
         int id = -1;
@@ -138,8 +144,8 @@ static int scsi_qdev_init(DeviceState *qdev)
         }
         do {
             d = scsi_device_find(bus, dev->channel, ++id, dev->lun);
-        } while (d && d->lun == dev->lun && id <= bus->info->max_target);
-        if (id > bus->info->max_target) {
+        } while (d && d->lun == dev->lun && id < bus->info->max_target);
+        if (d && d->lun == dev->lun) {
             error_report("no free target");
             goto err;
         }
@@ -149,14 +155,15 @@ static int scsi_qdev_init(DeviceState *qdev)
         do {
             d = scsi_device_find(bus, dev->channel, dev->id, ++lun);
         } while (d && d->lun == lun && lun < bus->info->max_lun);
-        if (lun > bus->info->max_lun) {
+        if (d && d->lun == lun) {
             error_report("no free lun");
             goto err;
         }
         dev->lun = lun;
     } else {
         d = scsi_device_find(bus, dev->channel, dev->id, dev->lun);
-        if (dev->lun == d->lun && dev != d) {
+        assert(d);
+        if (d->lun == dev->lun && dev != d) {
             qdev_free(&d->qdev);
         }
     }
@@ -215,7 +222,7 @@ int scsi_bus_legacy_handle_cmdline(SCSIBus *bus)
     int res = 0, unit;
 
     loc_push_none(&loc);
-    for (unit = 0; unit < bus->info->max_target; unit++) {
+    for (unit = 0; unit <= bus->info->max_target; unit++) {
         dinfo = drive_get(IF_SCSI, bus->busnr, unit);
         if (dinfo == NULL) {
             continue;
@@ -378,7 +385,7 @@ static bool scsi_target_emulate_inquiry(SCSITargetReq *r)
 
     /* PAGE CODE == 0 */
     if (r->req.cmd.xfer < 5) {
-        return -1;
+        return false;
     }
 
     r->len = MIN(r->req.cmd.xfer, 36);
@@ -533,6 +540,8 @@ SCSIRequest *scsi_req_new(SCSIDevice *d, uint32_t tag, uint32_t lun,
     }
 
     req->cmd = cmd;
+    req->resid = req->cmd.xfer;
+
     switch (buf[0]) {
     case INQUIRY:
         trace_scsi_inquiry(d->id, lun, tag, cmd.buf[1], cmd.buf[2]);
@@ -643,15 +652,25 @@ void scsi_req_build_sense(SCSIRequest *req, SCSISense sense)
     req->sense_len = 18;
 }
 
+static void scsi_req_enqueue_internal(SCSIRequest *req)
+{
+    assert(!req->enqueued);
+    scsi_req_ref(req);
+    if (req->bus->info->get_sg_list) {
+        req->sg = req->bus->info->get_sg_list(req);
+    } else {
+        req->sg = NULL;
+    }
+    req->enqueued = true;
+    QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
+}
+
 int32_t scsi_req_enqueue(SCSIRequest *req)
 {
     int32_t rc;
 
-    assert(!req->enqueued);
-    scsi_req_ref(req);
-    req->enqueued = true;
-    QTAILQ_INSERT_TAIL(&req->dev->requests, req, next);
-
+    assert(!req->retry);
+    scsi_req_enqueue_internal(req);
     scsi_req_ref(req);
     rc = req->ops->send_command(req, req->cmd.buf);
     scsi_req_unref(req);
@@ -1273,12 +1292,32 @@ void scsi_req_continue(SCSIRequest *req)
    Once it completes, calling scsi_req_continue will restart I/O.  */
 void scsi_req_data(SCSIRequest *req, int len)
 {
+    uint8_t *buf;
     if (req->io_canceled) {
         trace_scsi_req_data_canceled(req->dev->id, req->lun, req->tag, len);
-    } else {
-        trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
-        req->bus->info->transfer_data(req, len);
+        return;
     }
+    trace_scsi_req_data(req->dev->id, req->lun, req->tag, len);
+    assert(req->cmd.mode != SCSI_XFER_NONE);
+    if (!req->sg) {
+        req->resid -= len;
+        req->bus->info->transfer_data(req, len);
+        return;
+    }
+
+    /* If the device calls scsi_req_data and the HBA specified a
+     * scatter/gather list, the transfer has to happen in a single
+     * step.  */
+    assert(!req->dma_started);
+    req->dma_started = true;
+
+    buf = scsi_req_get_buf(req);
+    if (req->cmd.mode == SCSI_XFER_FROM_DEV) {
+        req->resid = dma_buf_read(buf, len, req->sg);
+    } else {
+        req->resid = dma_buf_write(buf, len, req->sg);
+    }
+    scsi_req_continue(req);
 }
 
 void scsi_req_print(SCSIRequest *req)
@@ -1337,7 +1376,7 @@ void scsi_req_complete(SCSIRequest *req, int status)
 
     scsi_req_ref(req);
     scsi_req_dequeue(req);
-    req->bus->info->complete(req, req->status);
+    req->bus->info->complete(req, req->status, req->resid);
     scsi_req_unref(req);
 }
 
@@ -1412,6 +1451,102 @@ SCSIDevice *scsi_device_find(SCSIBus *bus, int channel, int id, int lun)
     }
     return target_dev;
 }
+
+/* SCSI request list.  For simplicity, pv points to the whole device */
+
+static void put_scsi_requests(QEMUFile *f, void *pv, size_t size)
+{
+    SCSIDevice *s = pv;
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, s->qdev.parent_bus);
+    SCSIRequest *req;
+
+    QTAILQ_FOREACH(req, &s->requests, next) {
+        assert(!req->io_canceled);
+        assert(req->status == -1);
+        assert(req->retry);
+        assert(req->enqueued);
+
+        qemu_put_sbyte(f, 1);
+        qemu_put_buffer(f, req->cmd.buf, sizeof(req->cmd.buf));
+        qemu_put_be32s(f, &req->tag);
+        qemu_put_be32s(f, &req->lun);
+        if (bus->info->save_request) {
+            bus->info->save_request(f, req);
+        }
+        if (req->ops->save_request) {
+            req->ops->save_request(f, req);
+        }
+    }
+    qemu_put_sbyte(f, 0);
+}
+
+static int get_scsi_requests(QEMUFile *f, void *pv, size_t size)
+{
+    SCSIDevice *s = pv;
+    SCSIBus *bus = DO_UPCAST(SCSIBus, qbus, s->qdev.parent_bus);
+
+    while (qemu_get_sbyte(f)) {
+        uint8_t buf[SCSI_CMD_BUF_SIZE];
+        uint32_t tag;
+        uint32_t lun;
+        SCSIRequest *req;
+
+        qemu_get_buffer(f, buf, sizeof(buf));
+        qemu_get_be32s(f, &tag);
+        qemu_get_be32s(f, &lun);
+        req = scsi_req_new(s, tag, lun, buf, NULL);
+        if (bus->info->load_request) {
+            req->hba_private = bus->info->load_request(f, req);
+        }
+        if (req->ops->load_request) {
+            req->ops->load_request(f, req);
+        }
+
+        /* Just restart it later.  */
+        req->retry = true;
+        scsi_req_enqueue_internal(req);
+
+        /* At this point, the request will be kept alive by the reference
+         * added by scsi_req_enqueue_internal, so we can release our reference.
+         * The HBA of course will add its own reference in the load_request
+         * callback if it needs to hold on the SCSIRequest.
+         */
+        scsi_req_unref(req);
+    }
+
+    return 0;
+}
+
+const VMStateInfo vmstate_info_scsi_requests = {
+    .name = "scsi-requests",
+    .get  = get_scsi_requests,
+    .put  = put_scsi_requests,
+};
+
+const VMStateDescription vmstate_scsi_device = {
+    .name = "SCSIDevice",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT8(unit_attention.key, SCSIDevice),
+        VMSTATE_UINT8(unit_attention.asc, SCSIDevice),
+        VMSTATE_UINT8(unit_attention.ascq, SCSIDevice),
+        VMSTATE_BOOL(sense_is_ua, SCSIDevice),
+        VMSTATE_UINT8_ARRAY(sense, SCSIDevice, SCSI_SENSE_BUF_SIZE),
+        VMSTATE_UINT32(sense_len, SCSIDevice),
+        {
+            .name         = "requests",
+            .version_id   = 0,
+            .field_exists = NULL,
+            .size         = 0,   /* ouch */
+            .info         = &vmstate_info_scsi_requests,
+            .flags        = VMS_SINGLE,
+            .offset       = 0,
+        },
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void scsi_device_class_init(ObjectClass *klass, void *data)
 {

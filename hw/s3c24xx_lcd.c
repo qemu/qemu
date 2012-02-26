@@ -431,7 +431,8 @@ static void s3c24xx_invalidate_display(void *opaque)
     s->invalidate = 1;
 }
 
-static void s3c24xx_screen_dump(void *opaque, const char *filename)
+static void s3c24xx_screen_dump(void *opaque, const char *filename,
+                                bool cswitch)
 {
     /* TODO */
 }

@@ -494,7 +494,7 @@ static void vscsi_transfer_data(SCSIRequest *sreq, uint32_t len)
 }
 
 /* Callback to indicate that the SCSI layer has completed a transfer.  */
-static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status)
+static void vscsi_command_complete(SCSIRequest *sreq, uint32_t status, size_t resid)
 {
     VSCSIState *s = DO_UPCAST(VSCSIState, vdev.qdev, sreq->bus->qbus.parent);
     vscsi_req *req = sreq->hba_private;

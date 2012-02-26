@@ -519,7 +519,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
     BlockErrorAction action = bdrv_get_on_error(s->bs, is_read);
 
     if (action == BLOCK_ERR_IGNORE) {
-        bdrv_mon_event(s->bs, BDRV_ACTION_IGNORE, is_read);
+        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_IGNORE, is_read);
         return 0;
     }
 
@@ -527,7 +527,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
             || action == BLOCK_ERR_STOP_ANY) {
         s->bus->dma->ops->set_unit(s->bus->dma, s->unit);
         s->bus->error_status = op;
-        bdrv_mon_event(s->bs, BDRV_ACTION_STOP, is_read);
+        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_STOP, is_read);
         vm_stop(RUN_STATE_IO_ERROR);
         bdrv_iostatus_set_err(s->bs, error);
     } else {
@@ -537,7 +537,7 @@ static int ide_handle_rw_error(IDEState *s, int error, int op)
         } else {
             ide_rw_error(s);
         }
-        bdrv_mon_event(s->bs, BDRV_ACTION_REPORT, is_read);
+        bdrv_emit_qmp_error_event(s->bs, BDRV_ACTION_REPORT, is_read);
     }
 
     return 1;
@@ -2077,15 +2077,6 @@ static bool ide_drive_pio_state_needed(void *opaque)
         || (s->bus->error_status & BM_STATUS_PIO_RETRY);
 }
 
-static int ide_tray_state_post_load(void *opaque, int version_id)
-{
-    IDEState *s = opaque;
-
-    bdrv_eject(s->bs, s->tray_open);
-    bdrv_lock_medium(s->bs, s->tray_locked);
-    return 0;
-}
-
 static bool ide_tray_state_needed(void *opaque)
 {
     IDEState *s = opaque;
@@ -2125,7 +2116,6 @@ static const VMStateDescription vmstate_ide_tray_state = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
-    .post_load = ide_tray_state_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_BOOL(tray_open, IDEState),
         VMSTATE_BOOL(tray_locked, IDEState),
