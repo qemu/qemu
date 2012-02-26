@@ -1049,8 +1049,10 @@ static void usbredir_device_connect(void *priv,
                                     usb_redir_cap_connect_device_version)) {
         INFO("attaching %s device %04x:%04x version %d.%d class %02x\n",
              speed, device_connect->vendor_id, device_connect->product_id,
-             device_connect->device_version_bcd >> 8,
-             device_connect->device_version_bcd & 0xff,
+             ((device_connect->device_version_bcd & 0xf000) >> 12) * 10 +
+             ((device_connect->device_version_bcd & 0x0f00) >>  8),
+             ((device_connect->device_version_bcd & 0x00f0) >>  4) * 10 +
+             ((device_connect->device_version_bcd & 0x000f) >>  0),
              device_connect->device_class);
     } else {
         INFO("attaching %s device %04x:%04x class %02x\n", speed,
