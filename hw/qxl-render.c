@@ -21,25 +21,31 @@
 
 #include "qxl.h"
 
-static void qxl_flip(PCIQXLDevice *qxl, QXLRect *rect)
+static void qxl_blit(PCIQXLDevice *qxl, QXLRect *rect)
 {
     uint8_t *src;
     uint8_t *dst = qxl->vga.ds->surface->data;
     int len, i;
 
-    if (qxl->guest_primary.qxl_stride > 0) {
+    if (is_buffer_shared(qxl->vga.ds->surface)) {
         return;
     }
     if (!qxl->guest_primary.data) {
         dprint(qxl, 1, "%s: initializing guest_primary.data\n", __func__);
         qxl->guest_primary.data = memory_region_get_ram_ptr(&qxl->vga.vram);
     }
-    dprint(qxl, 1, "%s: stride %d, [%d, %d, %d, %d]\n", __func__,
+    dprint(qxl, 2, "%s: stride %d, [%d, %d, %d, %d]\n", __func__,
             qxl->guest_primary.qxl_stride,
             rect->left, rect->right, rect->top, rect->bottom);
     src = qxl->guest_primary.data;
-    src += (qxl->guest_primary.surface.height - rect->top - 1) *
-        qxl->guest_primary.abs_stride;
+    if (qxl->guest_primary.qxl_stride < 0) {
+        /* qxl surface is upside down, walk src scanlines
+         * in reverse order to flip it */
+        src += (qxl->guest_primary.surface.height - rect->top - 1) *
+            qxl->guest_primary.abs_stride;
+    } else {
+        src += rect->top * qxl->guest_primary.abs_stride;
+    }
     dst += rect->top  * qxl->guest_primary.abs_stride;
     src += rect->left * qxl->guest_primary.bytes_pp;
     dst += rect->left * qxl->guest_primary.bytes_pp;
@@ -48,7 +54,7 @@ static void qxl_flip(PCIQXLDevice *qxl, QXLRect *rect)
     for (i = rect->top; i < rect->bottom; i++) {
         memcpy(dst, src, len);
         dst += qxl->guest_primary.abs_stride;
-        src -= qxl->guest_primary.abs_stride;
+        src += qxl->guest_primary.qxl_stride;
     }
 }
 
@@ -132,7 +138,7 @@ static void qxl_render_update_area_unlocked(PCIQXLDevice *qxl)
         if (qemu_spice_rect_is_empty(qxl->dirty+i)) {
             break;
         }
-        qxl_flip(qxl, qxl->dirty+i);
+        qxl_blit(qxl, qxl->dirty+i);
         dpy_update(vga->ds,
                    qxl->dirty[i].left, qxl->dirty[i].top,
                    qxl->dirty[i].right - qxl->dirty[i].left,
