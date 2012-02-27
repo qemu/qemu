@@ -32,13 +32,6 @@
 
 #include "hw/pci_internals.h"
 
-static const uint32_t bars[] = {
-    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_1,
-    PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3,
-    PCI_BASE_ADDRESS_4, PCI_BASE_ADDRESS_5
-    /*, PCI_ROM_ADDRESS*/
-};
-
 static PCIDevice *find_dev(sPAPREnvironment *spapr,
                            uint64_t buid, uint32_t config_addr)
 {
