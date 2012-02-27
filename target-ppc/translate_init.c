@@ -6571,7 +6571,7 @@ static void init_proc_970MP (CPUPPCState *env)
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_SEGMENT_64B | PPC_SLBI |                    \
                               PPC_POPCNTB | PPC_POPCNTWD)
-#define POWERPC_INSNS2_POWER7 (PPC2_VSX | PPC2_DFP)
+#define POWERPC_INSNS2_POWER7 (PPC2_VSX | PPC2_DFP | PPC2_DBRX)
 #define POWERPC_MSRM_POWER7   (0x800000000204FF36ULL)
 #define POWERPC_MMU_POWER7    (POWERPC_MMU_2_06)
 #define POWERPC_EXCP_POWER7   (POWERPC_EXCP_POWER7)
