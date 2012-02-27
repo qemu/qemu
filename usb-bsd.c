@@ -298,7 +298,7 @@ static int usb_host_initfn(USBDevice *dev)
     return 0;
 }
 
-USBDevice *usb_host_device_open(const char *devname)
+USBDevice *usb_host_device_open(USBBus *guest_bus, const char *devname)
 {
     struct usb_device_info bus_info, dev_info;
     USBDevice *d = NULL, *ret = NULL;
@@ -358,7 +358,7 @@ USBDevice *usb_host_device_open(const char *devname)
         goto fail_dfd;
     }
 
-    d = usb_create(NULL /* FIXME */, "usb-host");
+    d = usb_create(guest_bus, "usb-host");
     dev = DO_UPCAST(USBHostDevice, dev, d);
 
     if (dev_info.udi_speed == 1) {

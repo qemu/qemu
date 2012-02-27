@@ -1443,13 +1443,13 @@ static void usb_host_register_types(void)
 
 type_init(usb_host_register_types)
 
-USBDevice *usb_host_device_open(const char *devname)
+USBDevice *usb_host_device_open(USBBus *bus, const char *devname)
 {
     struct USBAutoFilter filter;
     USBDevice *dev;
     char *p;
 
-    dev = usb_create(NULL /* FIXME */, "usb-host");
+    dev = usb_create(bus, "usb-host");
 
     if (strstr(devname, "auto:")) {
         if (parse_filter(devname, &filter) < 0) {

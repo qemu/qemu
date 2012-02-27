@@ -492,7 +492,7 @@ static int usb_serial_initfn(USBDevice *dev)
     return 0;
 }
 
-static USBDevice *usb_serial_init(const char *filename)
+static USBDevice *usb_serial_init(USBBus *bus, const char *filename)
 {
     USBDevice *dev;
     CharDriverState *cdrv;
@@ -535,7 +535,7 @@ static USBDevice *usb_serial_init(const char *filename)
     if (!cdrv)
         return NULL;
 
-    dev = usb_create(NULL /* FIXME */, "usb-serial");
+    dev = usb_create(bus, "usb-serial");
     if (!dev) {
         return NULL;
     }
@@ -549,7 +549,7 @@ static USBDevice *usb_serial_init(const char *filename)
     return dev;
 }
 
-static USBDevice *usb_braille_init(const char *unused)
+static USBDevice *usb_braille_init(USBBus *bus, const char *unused)
 {
     USBDevice *dev;
     CharDriverState *cdrv;
@@ -558,7 +558,7 @@ static USBDevice *usb_braille_init(const char *unused)
     if (!cdrv)
         return NULL;
 
-    dev = usb_create(NULL /* FIXME */, "usb-braille");
+    dev = usb_create(bus, "usb-braille");
     qdev_prop_set_chr(&dev->qdev, "chardev", cdrv);
     qdev_init_nofail(&dev->qdev);
 

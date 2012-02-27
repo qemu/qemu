@@ -498,14 +498,14 @@ static int usb_bt_initfn(USBDevice *dev)
     return 0;
 }
 
-USBDevice *usb_bt_init(HCIInfo *hci)
+USBDevice *usb_bt_init(USBBus *bus, HCIInfo *hci)
 {
     USBDevice *dev;
     struct USBBtState *s;
 
     if (!hci)
         return NULL;
-    dev = usb_create_simple(NULL /* FIXME */, "usb-bt-dongle");
+    dev = usb_create_simple(bus, "usb-bt-dongle");
     if (!dev) {
         return NULL;
     }
