@@ -122,6 +122,7 @@ docs=""
 fdt=""
 nptl=""
 sdl=""
+virtfs=""
 vnc="yes"
 sparse="no"
 uuid=""
@@ -597,6 +598,10 @@ for opt do
   ;;
   --enable-sdl) sdl="yes"
   ;;
+  --disable-virtfs) virtfs="no"
+  ;;
+  --enable-virtfs) virtfs="yes"
+  ;;
   --disable-vnc) vnc="no"
   ;;
   --enable-vnc) vnc="yes"
@@ -1004,6 +1009,8 @@ echo "  --disable-strip          disable stripping binaries"
 echo "  --disable-werror         disable compilation abort on warning"
 echo "  --disable-sdl            disable SDL"
 echo "  --enable-sdl             enable SDL"
+echo "  --disable-virtfs         disable VirtFS"
+echo "  --enable-virtfs          enable VirtFS"
 echo "  --disable-vnc            disable VNC"
 echo "  --enable-vnc             enable VNC"
 echo "  --enable-cocoa           enable COCOA (Mac OS X only)"
@@ -2820,8 +2827,15 @@ confdir=$sysconfdir$confsuffix
 tools=
 if test "$softmmu" = yes ; then
   tools="qemu-img\$(EXESUF) qemu-io\$(EXESUF) $tools"
-  if [ "$cap" = "yes" -a "$linux" = "yes" ] ; then
-      tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
+  if test "$virtfs" != no ; then
+      if test "$cap" = yes && test "$linux" = yes && test "$attr" = yes ; then
+	  virtfs=yes
+	  tools="$tools fsdev/virtfs-proxy-helper\$(EXESUF)"
+      else
+	  if test "$virtfs" = yes; then
+	      feature_not_found "virtfs"
+	  fi
+      fi
   fi
   if [ "$linux" = "yes" -o "$bsd" = "yes" -o "$solaris" = "yes" ] ; then
       tools="qemu-nbd\$(EXESUF) $tools"
@@ -2886,6 +2900,7 @@ echo "Audio drivers     $audio_drv_list"
 echo "Extra audio cards $audio_card_list"
 echo "Block whitelist   $block_drv_whitelist"
 echo "Mixer emulation   $mixemu"
+echo "VirtFS support    $virtfs"
 echo "VNC support       $vnc"
 if test "$vnc" = "yes" ; then
     echo "VNC TLS support   $vnc_tls"
@@ -3175,10 +3190,8 @@ fi
 if test "$libattr" = "yes" ; then
   echo "CONFIG_LIBATTR=y" >> $config_host_mak
 fi
-if test "$linux" = "yes" ; then
-  if test "$attr" = "yes" ; then
-    echo "CONFIG_VIRTFS=y" >> $config_host_mak
-  fi
+if test "$virtfs" = "yes" ; then
+  echo "CONFIG_VIRTFS=y" >> $config_host_mak
 fi
 if test "$blobs" = "yes" ; then
   echo "INSTALL_BLOBS=yes" >> $config_host_mak

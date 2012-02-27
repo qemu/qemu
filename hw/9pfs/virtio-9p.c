@@ -1349,7 +1349,9 @@ static void v9fs_open(void *opaque)
     if (s->proto_version == V9FS_PROTO_2000L) {
         err = pdu_unmarshal(pdu, offset, "dd", &fid, &mode);
     } else {
-        err = pdu_unmarshal(pdu, offset, "db", &fid, &mode);
+        uint8_t modebyte;
+        err = pdu_unmarshal(pdu, offset, "db", &fid, &modebyte);
+        mode = modebyte;
     }
     if (err < 0) {
         goto out_nofid;
@@ -3260,9 +3262,9 @@ void handle_9p_output(VirtIODevice *vdev, VirtQueue *vq)
 
         ptr = pdu->elem.out_sg[0].iov_base;
 
-        memcpy(&pdu->size, ptr, 4);
+        pdu->size = le32_to_cpu(*(uint32_t *)ptr);
         pdu->id = ptr[4];
-        memcpy(&pdu->tag, ptr + 5, 2);
+        pdu->tag = le16_to_cpu(*(uint16_t *)(ptr + 5));
         qemu_co_queue_init(&pdu->complete);
         submit_pdu(s, pdu);
     }
