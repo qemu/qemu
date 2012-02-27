@@ -1471,36 +1471,10 @@ static int ehci_process_itd(EHCIState *ehci,
             }
             qemu_sglist_destroy(&ehci->isgl);
 
-#if 0
-            /*  In isoch, there is no facility to indicate a NAK so let's
-             *  instead just complete a zero-byte transaction.  Setting
-             *  DBERR seems too draconian.
-             */
-
             if (ret == USB_RET_NAK) {
-                if (ehci->isoch_pause > 0) {
-                    DPRINTF("ISOCH: received a NAK but paused so returning\n");
-                    ehci->isoch_pause--;
-                    return 0;
-                } else if (ehci->isoch_pause == -1) {
-                    DPRINTF("ISOCH: recv NAK & isoch pause inactive, setting\n");
-                    // Pause frindex for up to 50 msec waiting for data from
-                    // remote
-                    ehci->isoch_pause = 50;
-                    return 0;
-                } else {
-                    DPRINTF("ISOCH: isoch pause timeout! return 0\n");
-                    ret = 0;
-                }
-            } else {
-                DPRINTF("ISOCH: received ACK, clearing pause\n");
-                ehci->isoch_pause = -1;
-            }
-#else
-            if (ret == USB_RET_NAK) {
+                /* no data for us, so do a zero-length transfer */
                 ret = 0;
             }
-#endif
 
             if (ret >= 0) {
                 if (!dir) {
@@ -2388,8 +2362,6 @@ static int usb_ehci_initfn(PCIDevice *dev)
 
     memory_region_init_io(&s->mem, &ehci_mem_ops, s, "ehci", MMIO_SIZE);
     pci_register_bar(&s->dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->mem);
-
-    fprintf(stderr, "*** EHCI support is under development ***\n");
 
     return 0;
 }
