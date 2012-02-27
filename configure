@@ -39,7 +39,7 @@ compile_prog() {
 
 # symbolically link $1 to $2.  Portable version of "ln -sf".
 symlink() {
-  rm -f $2
+  rm -rf $2
   ln -s $1 $2
 }
 
@@ -3472,7 +3472,6 @@ case "$target" in
     ;;
 esac
 
-mkdir -p $target_dir
 mkdir -p $target_dir/fpu
 mkdir -p $target_dir/tcg
 mkdir -p $target_dir/ide
@@ -3911,7 +3910,7 @@ do
 done
 mkdir -p $DIRS
 for f in $FILES ; do
-    if [ -e "$source_path/$f" ] && ! [ -e "$f" ]; then
+    if [ -e "$source_path/$f" ] && [ "$source_path" != `pwd` ]; then
         symlink "$source_path/$f" "$f"
     fi
 done
@@ -3931,7 +3930,6 @@ done
 
 for hwlib in 32 64; do
   d=libhw$hwlib
-  mkdir -p $d
   mkdir -p $d/ide
   symlink $source_path/Makefile.hw $d/Makefile
   mkdir -p $d/9pfs
@@ -3941,12 +3939,10 @@ done
 if [ "$source_path" != `pwd` ]; then
     # out of tree build
     mkdir -p libcacard
-    rm -f libcacard/Makefile
     symlink "$source_path/libcacard/Makefile" libcacard/Makefile
 fi
 
 d=libuser
-mkdir -p $d
 mkdir -p $d/trace
 symlink $source_path/Makefile.user $d/Makefile
 
