@@ -951,7 +951,6 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
     UHCI_TD ptd;
     int ret;
 
-    fprintf(stderr, "%s: -- %x\n", __func__, token);
     while (is_valid(plink)) {
         pci_dma_read(&s->dev, plink & ~0xf, &ptd, sizeof(ptd));
         le32_to_cpus(&ptd.link);
