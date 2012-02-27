@@ -1459,12 +1459,16 @@ static int ehci_process_itd(EHCIState *ehci,
 
             dev = ehci_find_device(ehci, devaddr);
             ep = usb_ep_get(dev, pid, endp);
-            usb_packet_setup(&ehci->ipacket, pid, ep);
-            usb_packet_map(&ehci->ipacket, &ehci->isgl);
-
-            ret = usb_handle_packet(dev, &ehci->ipacket);
-
-            usb_packet_unmap(&ehci->ipacket);
+            if (ep->type == USB_ENDPOINT_XFER_ISOC) {
+                usb_packet_setup(&ehci->ipacket, pid, ep);
+                usb_packet_map(&ehci->ipacket, &ehci->isgl);
+                ret = usb_handle_packet(dev, &ehci->ipacket);
+                assert(ret != USB_RET_ASYNC);
+                usb_packet_unmap(&ehci->ipacket);
+            } else {
+                DPRINTF("ISOCH: attempt to addess non-iso endpoint\n");
+                ret = USB_RET_NAK;
+            }
             qemu_sglist_destroy(&ehci->isgl);
 
 #if 0
