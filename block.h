@@ -114,6 +114,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
 int bdrv_create_file(const char* filename, QEMUOptionParameter *options);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_make_anon(BlockDriverState *bs);
+void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);

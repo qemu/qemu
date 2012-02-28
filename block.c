@@ -882,6 +882,87 @@ void bdrv_make_anon(BlockDriverState *bs)
     bs->device_name[0] = '\0';
 }
 
+/*
+ * Add new bs contents at the top of an image chain while the chain is
+ * live, while keeping required fields on the top layer.
+ *
+ * This will modify the BlockDriverState fields, and swap contents
+ * between bs_new and bs_top. Both bs_new and bs_top are modified.
+ *
+ * This function does not create any image files.
+ */
+void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
+{
+    BlockDriverState tmp;
+
+    /* the new bs must not be in bdrv_states */
+    bdrv_make_anon(bs_new);
+
+    tmp = *bs_new;
+
+    /* there are some fields that need to stay on the top layer: */
+
+    /* dev info */
+    tmp.dev_ops           = bs_top->dev_ops;
+    tmp.dev_opaque        = bs_top->dev_opaque;
+    tmp.dev               = bs_top->dev;
+    tmp.buffer_alignment  = bs_top->buffer_alignment;
+    tmp.copy_on_read      = bs_top->copy_on_read;
+
+    /* i/o timing parameters */
+    tmp.slice_time        = bs_top->slice_time;
+    tmp.slice_start       = bs_top->slice_start;
+    tmp.slice_end         = bs_top->slice_end;
+    tmp.io_limits         = bs_top->io_limits;
+    tmp.io_base           = bs_top->io_base;
+    tmp.throttled_reqs    = bs_top->throttled_reqs;
+    tmp.block_timer       = bs_top->block_timer;
+    tmp.io_limits_enabled = bs_top->io_limits_enabled;
+
+    /* geometry */
+    tmp.cyls              = bs_top->cyls;
+    tmp.heads             = bs_top->heads;
+    tmp.secs              = bs_top->secs;
+    tmp.translation       = bs_top->translation;
+
+    /* r/w error */
+    tmp.on_read_error     = bs_top->on_read_error;
+    tmp.on_write_error    = bs_top->on_write_error;
+
+    /* i/o status */
+    tmp.iostatus_enabled  = bs_top->iostatus_enabled;
+    tmp.iostatus          = bs_top->iostatus;
+
+    /* keep the same entry in bdrv_states */
+    pstrcpy(tmp.device_name, sizeof(tmp.device_name), bs_top->device_name);
+    tmp.list = bs_top->list;
+
+    /* The contents of 'tmp' will become bs_top, as we are
+     * swapping bs_new and bs_top contents. */
+    tmp.backing_hd = bs_new;
+    pstrcpy(tmp.backing_file, sizeof(tmp.backing_file), bs_top->filename);
+
+    /* swap contents of the fixed new bs and the current top */
+    *bs_new = *bs_top;
+    *bs_top = tmp;
+
+    /* clear the copied fields in the new backing file */
+    bdrv_detach_dev(bs_new, bs_new->dev);
+
+    qemu_co_queue_init(&bs_new->throttled_reqs);
+    memset(&bs_new->io_base,   0, sizeof(bs_new->io_base));
+    memset(&bs_new->io_limits, 0, sizeof(bs_new->io_limits));
+    bdrv_iostatus_disable(bs_new);
+
+    /* we don't use bdrv_io_limits_disable() for this, because we don't want
+     * to affect or delete the block_timer, as it has been moved to bs_top */
+    bs_new->io_limits_enabled = false;
+    bs_new->block_timer       = NULL;
+    bs_new->slice_time        = 0;
+    bs_new->slice_start       = 0;
+    bs_new->slice_end         = 0;
+}
+
 void bdrv_delete(BlockDriverState *bs)
 {
     assert(!bs->dev);

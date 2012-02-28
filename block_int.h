@@ -221,6 +221,12 @@ struct BlockDriver {
     QLIST_ENTRY(BlockDriver) list;
 };
 
+/*
+ * Note: the function bdrv_append() copies and swaps contents of
+ * BlockDriverStates, so if you add new fields to this struct, please
+ * inspect bdrv_append() to determine if the new fields need to be
+ * copied as well.
+ */
 struct BlockDriverState {
     int64_t total_sectors; /* if we are reading a disk image, give its
                               size in sectors */
