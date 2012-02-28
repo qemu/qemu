@@ -319,3 +319,31 @@
 # Since: 1.1
 ##
 { 'command': 'guest-suspend-disk' }
+
+##
+# @guest-suspend-ram
+#
+# Suspend guest to ram.
+#
+# This command tries to execute the scripts provided by the pm-utils package.
+# If it's not available, the suspend operation will be performed by manually
+# writing to a sysfs file.
+#
+# For the best results it's strongly recommended to have the pm-utils
+# package installed in the guest.
+#
+# IMPORTANT: guest-suspend-ram requires QEMU to support the 'system_wakeup'
+# command.  Thus, it's *required* to query QEMU for the presence of the
+# 'system_wakeup' command before issuing guest-suspend-ram.
+#
+# Returns: nothing on success
+#          If suspend to ram is not supported, Unsupported
+#
+# Notes: o This is an asynchronous request. There's no guarantee a response
+#          will be sent
+#        o It's strongly recommended to issue the guest-sync command before
+#          sending commands when the guest resumes
+#
+# Since: 1.1
+##
+{ 'command': 'guest-suspend-ram' }

@@ -705,6 +705,16 @@ void qmp_guest_suspend_disk(Error **err)
     guest_suspend("pm-hibernate", "disk", err);
 }
 
+void qmp_guest_suspend_ram(Error **err)
+{
+    bios_supports_mode("pm-is-supported", "--suspend", "mem", err);
+    if (error_is_set(err)) {
+        return;
+    }
+
+    guest_suspend("pm-suspend", "mem", err);
+}
+
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
