@@ -124,4 +124,9 @@ void m_adj(struct mbuf *, int);
 int m_copy(struct mbuf *, struct mbuf *, int, int);
 struct mbuf * dtom(Slirp *, void *);
 
+static inline void ifs_init(struct mbuf *ifm)
+{
+    ifm->ifs_next = ifm->ifs_prev = ifm;
+}
+
 #endif

@@ -200,7 +200,8 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
             daddr.sin_addr = preq_addr;
             memcpy(bc->macaddr, client_ethaddr, ETH_ALEN);
         } else {
-            daddr.sin_addr.s_addr = 0;
+            /* DHCPNAKs should be sent to broadcast */
+            daddr.sin_addr.s_addr = 0xffffffff;
         }
     } else {
         bc = find_addr(slirp, &daddr.sin_addr, bp->bp_hwaddr);
