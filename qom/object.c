@@ -177,6 +177,19 @@ static size_t type_class_get_size(TypeImpl *ti)
     return sizeof(ObjectClass);
 }
 
+static size_t type_object_get_size(TypeImpl *ti)
+{
+    if (ti->instance_size) {
+        return ti->instance_size;
+    }
+
+    if (type_has_parent(ti)) {
+        return type_object_get_size(type_get_parent(ti));
+    }
+
+    return 0;
+}
+
 static void type_class_interface_init(TypeImpl *ti, InterfaceImpl *iface)
 {
     TypeInfo info = {
@@ -203,6 +216,7 @@ static void type_class_init(TypeImpl *ti)
     }
 
     ti->class_size = type_class_get_size(ti);
+    ti->instance_size = type_object_get_size(ti);
 
     ti->class = g_malloc0(ti->class_size);
     ti->class->type = ti;
@@ -264,9 +278,9 @@ void object_initialize_with_type(void *data, TypeImpl *type)
     Object *obj = data;
 
     g_assert(type != NULL);
-    g_assert(type->instance_size >= sizeof(Object));
-
     type_class_init(type);
+
+    g_assert(type->instance_size >= sizeof(Object));
     g_assert(type->abstract == false);
 
     memset(obj, 0, type->instance_size);
@@ -353,6 +367,7 @@ Object *object_new_with_type(Type type)
     Object *obj;
 
     g_assert(type != NULL);
+    type_class_init(type);
 
     obj = g_malloc(type->instance_size);
     object_initialize_with_type(obj, type);
