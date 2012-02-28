@@ -356,6 +356,9 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
 
     while (!QTAILQ_EMPTY(&ep->queue)) {
         p = QTAILQ_FIRST(&ep->queue);
+        if (p->state == USB_PACKET_ASYNC) {
+            break;
+        }
         assert(p->state == USB_PACKET_QUEUED);
         ret = usb_process_one(p);
         if (ret == USB_RET_ASYNC) {
