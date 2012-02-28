@@ -17,6 +17,7 @@
 #include <getopt.h>
 #ifndef _WIN32
 #include <syslog.h>
+#include <sys/wait.h>
 #endif
 #include "json-streamer.h"
 #include "json-parser.h"
@@ -73,9 +74,16 @@ static void quit_handler(int sig)
 }
 
 #ifndef _WIN32
+/* reap _all_ terminated children */
+static void child_handler(int sig)
+{
+    int status;
+    while (waitpid(-1, &status, WNOHANG) > 0) /* NOTHING */;
+}
+
 static gboolean register_signal_handlers(void)
 {
-    struct sigaction sigact;
+    struct sigaction sigact, sigact_chld;
     int ret;
 
     memset(&sigact, 0, sizeof(struct sigaction));
@@ -91,6 +99,15 @@ static gboolean register_signal_handlers(void)
         g_error("error configuring signal handler: %s", strerror(errno));
         return false;
     }
+
+    memset(&sigact_chld, 0, sizeof(struct sigaction));
+    sigact_chld.sa_handler = child_handler;
+    sigact_chld.sa_flags = SA_NOCLDSTOP;
+    ret = sigaction(SIGCHLD, &sigact_chld, NULL);
+    if (ret == -1) {
+        g_error("error configuring signal handler: %s", strerror(errno));
+    }
+
     return true;
 }
 #endif

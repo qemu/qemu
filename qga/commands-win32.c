@@ -124,6 +124,11 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
     return 0;
 }
 
+void qmp_guest_suspend_disk(Error **err)
+{
+    error_set(err, QERR_UNSUPPORTED);
+}
+
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {
