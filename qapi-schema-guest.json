@@ -347,3 +347,26 @@
 # Since: 1.1
 ##
 { 'command': 'guest-suspend-ram' }
+
+##
+# @guest-suspend-hybrid
+#
+# Save guest state to disk and suspend to ram.
+#
+# This command requires the pm-utils package to be installed in the guest.
+#
+# IMPORTANT: guest-suspend-hybrid requires QEMU to support the 'system_wakeup'
+# command.  Thus, it's *required* to query QEMU for the presence of the
+# 'system_wakeup' command before issuing guest-suspend-hybrid.
+#
+# Returns: nothing on success
+#          If hybrid suspend is not supported, Unsupported
+#
+# Notes: o This is an asynchronous request. There's no guarantee a response
+#          will be sent
+#        o It's strongly recommended to issue the guest-sync command before
+#          sending commands when the guest resumes
+#
+# Since: 1.1
+##
+{ 'command': 'guest-suspend-hybrid' }
