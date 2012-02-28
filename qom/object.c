@@ -206,7 +206,7 @@ static void type_class_interface_init(TypeImpl *ti, InterfaceImpl *iface)
     g_free(name);
 }
 
-static void type_class_init(TypeImpl *ti)
+static void type_initialize(TypeImpl *ti)
 {
     size_t class_size = sizeof(ObjectClass);
     int i;
@@ -224,7 +224,7 @@ static void type_class_init(TypeImpl *ti)
     if (type_has_parent(ti)) {
         TypeImpl *parent = type_get_parent(ti);
 
-        type_class_init(parent);
+        type_initialize(parent);
 
         class_size = parent->class_size;
         g_assert(parent->class_size <= ti->class_size);
@@ -278,7 +278,7 @@ void object_initialize_with_type(void *data, TypeImpl *type)
     Object *obj = data;
 
     g_assert(type != NULL);
-    type_class_init(type);
+    type_initialize(type);
 
     g_assert(type->instance_size >= sizeof(Object));
     g_assert(type->abstract == false);
@@ -367,7 +367,7 @@ Object *object_new_with_type(Type type)
     Object *obj;
 
     g_assert(type != NULL);
-    type_class_init(type);
+    type_initialize(type);
 
     obj = g_malloc(type->instance_size);
     object_initialize_with_type(obj, type);
@@ -540,7 +540,7 @@ ObjectClass *object_class_by_name(const char *typename)
         return NULL;
     }
 
-    type_class_init(type);
+    type_initialize(type);
 
     return type->class;
 }
@@ -560,7 +560,7 @@ static void object_class_foreach_tramp(gpointer key, gpointer value,
     TypeImpl *type = value;
     ObjectClass *k;
 
-    type_class_init(type);
+    type_initialize(type);
     k = type->class;
 
     if (!data->include_abstract && type->abstract) {
