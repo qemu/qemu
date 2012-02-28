@@ -304,12 +304,9 @@ static void object_property_del_child(Object *obj, Object *child, Error **errp)
     ObjectProperty *prop;
 
     QTAILQ_FOREACH(prop, &obj->properties, node) {
-        if (!strstart(prop->type, "child<", NULL)) {
-            continue;
-        }
-
-        if (prop->opaque == child) {
+        if (strstart(prop->type, "child<", NULL) && prop->opaque == child) {
             object_property_del(obj, prop->name, errp);
+            break;
         }
     }
 }
