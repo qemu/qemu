@@ -1114,7 +1114,7 @@ echo "  --enable-usb-redir       enable usb network redirection support"
 echo "  --disable-guest-agent    disable building of the QEMU Guest Agent"
 echo "  --enable-guest-agent     enable building of the QEMU Guest Agent"
 echo "  --with-coroutine=BACKEND coroutine backend. Supported options:"
-echo "                           gthread, ucontext, windows"
+echo "                           gthread, ucontext, sigaltstack, windows"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2745,6 +2745,8 @@ elif test "$coroutine" = "gthread" ; then
   coroutine_backend=gthread
 elif test "$coroutine" = "windows" ; then
   coroutine_backend=windows
+elif test "$coroutine" = "sigaltstack" ; then
+  coroutine_backend=sigaltstack
 else
   echo
   echo "Error: unknown coroutine backend $coroutine"
@@ -3269,6 +3271,8 @@ fi
 
 if test "$coroutine_backend" = "ucontext" ; then
   echo "CONFIG_UCONTEXT_COROUTINE=y" >> $config_host_mak
+elif test "$coroutine_backend" = "sigaltstack" ; then
+  echo "CONFIG_SIGALTSTACK_COROUTINE=y" >> $config_host_mak
 fi
 
 if test "$open_by_handle_at" = "yes" ; then
