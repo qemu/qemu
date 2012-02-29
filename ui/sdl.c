@@ -167,10 +167,6 @@ static PixelFormat sdl_to_qemu_pixelformat(SDL_PixelFormat *sdl_pf)
 static DisplaySurface* sdl_create_displaysurface(int width, int height)
 {
     DisplaySurface *surface = (DisplaySurface*) g_malloc0(sizeof(DisplaySurface));
-    if (surface == NULL) {
-        fprintf(stderr, "sdl_create_displaysurface: malloc failed\n");
-        exit(1);
-    }
 
     surface->width = width;
     surface->height = height;

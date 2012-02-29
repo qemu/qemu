@@ -60,15 +60,23 @@ void qemu_spice_rect_union(QXLRect *dest, const QXLRect *r)
     dest->right = MAX(dest->right, r->right);
 }
 
+QXLCookie *qxl_cookie_new(int type, uint64_t io)
+{
+    QXLCookie *cookie;
+
+    cookie = g_malloc0(sizeof(*cookie));
+    cookie->type = type;
+    cookie->io = io;
+    return cookie;
+}
+
 void qemu_spice_add_memslot(SimpleSpiceDisplay *ssd, QXLDevMemSlot *memslot,
                             qxl_async_io async)
 {
     if (async != QXL_SYNC) {
-#if SPICE_INTERFACE_QXL_MINOR >= 1
-        spice_qxl_add_memslot_async(&ssd->qxl, memslot, 0);
-#else
-        abort();
-#endif
+        spice_qxl_add_memslot_async(&ssd->qxl, memslot,
+                (uint64_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
+                                         QXL_IO_MEMSLOT_ADD_ASYNC));
     } else {
         ssd->worker->add_memslot(ssd->worker, memslot);
     }
@@ -84,11 +92,9 @@ void qemu_spice_create_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id,
                                        qxl_async_io async)
 {
     if (async != QXL_SYNC) {
-#if SPICE_INTERFACE_QXL_MINOR >= 1
-        spice_qxl_create_primary_surface_async(&ssd->qxl, id, surface, 0);
-#else
-        abort();
-#endif
+        spice_qxl_create_primary_surface_async(&ssd->qxl, id, surface,
+                (uint64_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
+                                         QXL_IO_CREATE_PRIMARY_ASYNC));
     } else {
         ssd->worker->create_primary_surface(ssd->worker, id, surface);
     }
@@ -99,11 +105,9 @@ void qemu_spice_destroy_primary_surface(SimpleSpiceDisplay *ssd,
                                         uint32_t id, qxl_async_io async)
 {
     if (async != QXL_SYNC) {
-#if SPICE_INTERFACE_QXL_MINOR >= 1
-        spice_qxl_destroy_primary_surface_async(&ssd->qxl, id, 0);
-#else
-        abort();
-#endif
+        spice_qxl_destroy_primary_surface_async(&ssd->qxl, id,
+                (uint64_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
+                                         QXL_IO_DESTROY_PRIMARY_ASYNC));
     } else {
         ssd->worker->destroy_primary_surface(ssd->worker, id);
     }
@@ -317,16 +321,8 @@ void qemu_spice_display_resize(SimpleSpiceDisplay *ssd)
     ssd->notify++;
 }
 
-void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
+void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd)
 {
-    dprint(3, "%s:\n", __FUNCTION__);
-    vga_hw_update();
-
-    qemu_mutex_lock(&ssd->lock);
-    if (ssd->update == NULL) {
-        ssd->update = qemu_spice_create_update(ssd);
-        ssd->notify++;
-    }
     if (ssd->cursor) {
         ssd->ds->cursor_define(ssd->cursor);
         cursor_put(ssd->cursor);
@@ -337,6 +333,19 @@ void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
         ssd->mouse_x = -1;
         ssd->mouse_y = -1;
     }
+}
+
+void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd)
+{
+    dprint(3, "%s:\n", __func__);
+    vga_hw_update();
+
+    qemu_mutex_lock(&ssd->lock);
+    if (ssd->update == NULL) {
+        ssd->update = qemu_spice_create_update(ssd);
+        ssd->notify++;
+    }
+    qemu_spice_cursor_refresh_unlocked(ssd);
     qemu_mutex_unlock(&ssd->lock);
 
     if (ssd->notify) {

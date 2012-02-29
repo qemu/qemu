@@ -139,8 +139,6 @@ static void watch_remove(SpiceWatch *watch)
     g_free(watch);
 }
 
-#if SPICE_INTERFACE_CORE_MINOR >= 3
-
 typedef struct ChannelList ChannelList;
 struct ChannelList {
     SpiceChannelEventInfo *info;
@@ -229,8 +227,8 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
         add_addr_info(server, (struct sockaddr *)&info->laddr_ext,
                       info->llen_ext);
     } else {
-        fprintf(stderr, "spice: %s, extended address is expected\n",
-                        __func__);
+        error_report("spice: %s, extended address is expected",
+                     __func__);
 #endif
         add_addr_info(client, &info->paddr, info->plen);
         add_addr_info(server, &info->laddr, info->llen);
@@ -257,15 +255,6 @@ static void channel_event(int event, SpiceChannelEventInfo *info)
     }
 }
 
-#else /* SPICE_INTERFACE_CORE_MINOR >= 3 */
-
-static QList *channel_list_get(void)
-{
-    return NULL;
-}
-
-#endif /* SPICE_INTERFACE_CORE_MINOR >= 3 */
-
 static SpiceCoreInterface core_interface = {
     .base.type          = SPICE_INTERFACE_CORE,
     .base.description   = "qemu core services",
@@ -281,9 +270,7 @@ static SpiceCoreInterface core_interface = {
     .watch_update_mask  = watch_update_mask,
     .watch_remove       = watch_remove,
 
-#if SPICE_INTERFACE_CORE_MINOR >= 3
     .channel_event      = channel_event,
-#endif
 };
 
 #ifdef SPICE_INTERFACE_MIGRATION
@@ -346,7 +333,7 @@ static int parse_name(const char *string, const char *optname,
     if (value != -1) {
         return value;
     }
-    fprintf(stderr, "spice: invalid %s: %s\n", optname, string);
+    error_report("spice: invalid %s: %s", optname, string);
     exit(1);
 }
 
@@ -490,14 +477,12 @@ static void migration_state_notifier(Notifier *notifier, void *data)
         spice_server_migrate_start(spice_server);
 #endif
     } else if (migration_has_finished(s)) {
-#if SPICE_SERVER_VERSION >= 0x000701 /* 0.7.1 */
 #ifndef SPICE_INTERFACE_MIGRATION
         spice_server_migrate_switch(spice_server);
 #else
         spice_server_migrate_end(spice_server, true);
     } else if (migration_has_failed(s)) {
         spice_server_migrate_end(spice_server, false);
-#endif
 #endif
     }
 }
@@ -526,6 +511,12 @@ static int add_channel(const char *name, const char *value, void *opaque)
     int rc;
 
     if (strcmp(name, "tls-channel") == 0) {
+        int *tls_port = opaque;
+        if (!*tls_port) {
+            error_report("spice: tried to setup tls-channel"
+                         " without specifying a TLS port");
+            exit(1);
+        }
         security = SPICE_CHANNEL_SECURITY_SSL;
     }
     if (strcmp(name, "plaintext-channel") == 0) {
@@ -540,7 +531,7 @@ static int add_channel(const char *name, const char *value, void *opaque)
         rc = spice_server_set_channel_security(spice_server, value, security);
     }
     if (rc != 0) {
-        fprintf(stderr, "spice: failed to set channel security for %s\n", value);
+        error_report("spice: failed to set channel security for %s", value);
         exit(1);
     }
     return 0;
@@ -568,15 +559,15 @@ void qemu_spice_init(void)
     port = qemu_opt_get_number(opts, "port", 0);
     tls_port = qemu_opt_get_number(opts, "tls-port", 0);
     if (!port && !tls_port) {
-        fprintf(stderr, "neither port nor tls-port specified for spice.");
+        error_report("neither port nor tls-port specified for spice");
         exit(1);
     }
     if (port < 0 || port > 65535) {
-        fprintf(stderr, "spice port is out of range");
+        error_report("spice port is out of range");
         exit(1);
     }
     if (tls_port < 0 || tls_port > 65535) {
-        fprintf(stderr, "spice tls-port is out of range");
+        error_report("spice tls-port is out of range");
         exit(1);
     }
     password = qemu_opt_get(opts, "password");
@@ -646,11 +637,11 @@ void qemu_spice_init(void)
 #if SPICE_SERVER_VERSION >= 0x000900 /* 0.9.0 */
         if (spice_server_set_sasl_appname(spice_server, "qemu") == -1 ||
             spice_server_set_sasl(spice_server, 1) == -1) {
-            fprintf(stderr, "spice: failed to enable sasl\n");
+            error_report("spice: failed to enable sasl");
             exit(1);
         }
 #else
-        fprintf(stderr, "spice: sasl is not available (spice >= 0.9 required)\n");
+        error_report("spice: sasl is not available (spice >= 0.9 required)");
         exit(1);
 #endif
     }
@@ -659,11 +650,9 @@ void qemu_spice_init(void)
         spice_server_set_noauth(spice_server);
     }
 
-#if SPICE_SERVER_VERSION >= 0x000801
     if (qemu_opt_get_bool(opts, "disable-copy-paste", 0)) {
         spice_server_set_agent_copypaste(spice_server, false);
     }
-#endif
 
     compression = SPICE_IMAGE_COMPRESS_AUTO_GLZ;
     str = qemu_opt_get(opts, "image-compression");
@@ -697,10 +686,10 @@ void qemu_spice_init(void)
     spice_server_set_playback_compression
         (spice_server, qemu_opt_get_bool(opts, "playback-compression", 1));
 
-    qemu_opt_foreach(opts, add_channel, NULL, 0);
+    qemu_opt_foreach(opts, add_channel, &tls_port, 0);
 
     if (0 != spice_server_init(spice_server, &core_interface)) {
-        fprintf(stderr, "failed to initialize spice server");
+        error_report("failed to initialize spice server");
         exit(1);
     };
     using_spice = 1;
@@ -725,7 +714,7 @@ int qemu_spice_add_interface(SpiceBaseInstance *sin)
 {
     if (!spice_server) {
         if (QTAILQ_FIRST(&qemu_spice_opts.head) != NULL) {
-            fprintf(stderr, "Oops: spice configured but not active\n");
+            error_report("Oops: spice configured but not active");
             exit(1);
         }
         /*

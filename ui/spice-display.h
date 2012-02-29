@@ -48,6 +48,26 @@ typedef enum qxl_async_io {
     QXL_ASYNC,
 } qxl_async_io;
 
+enum {
+    QXL_COOKIE_TYPE_IO,
+    QXL_COOKIE_TYPE_RENDER_UPDATE_AREA,
+};
+
+typedef struct QXLCookie {
+    int      type;
+    uint64_t io;
+    union {
+        uint32_t surface_id;
+        QXLRect area;
+        struct {
+            QXLRect area;
+            int redraw;
+        } render;
+    } u;
+} QXLCookie;
+
+QXLCookie *qxl_cookie_new(int type, uint64_t io);
+
 typedef struct SimpleSpiceDisplay SimpleSpiceDisplay;
 typedef struct SimpleSpiceUpdate SimpleSpiceUpdate;
 
@@ -97,6 +117,7 @@ void qemu_spice_display_update(SimpleSpiceDisplay *ssd,
                                int x, int y, int w, int h);
 void qemu_spice_display_resize(SimpleSpiceDisplay *ssd);
 void qemu_spice_display_refresh(SimpleSpiceDisplay *ssd);
+void qemu_spice_cursor_refresh_unlocked(SimpleSpiceDisplay *ssd);
 
 void qemu_spice_add_memslot(SimpleSpiceDisplay *ssd, QXLDevMemSlot *memslot,
                             qxl_async_io async);
