@@ -263,6 +263,12 @@ void qmp_guest_suspend_hybrid(Error **err)
     error_set(err, QERR_UNSUPPORTED);
 }
 
+GuestNetworkInterfaceList *qmp_guest_network_get_interfaces(Error **err)
+{
+    error_set(err, QERR_UNSUPPORTED);
+    return NULL;
+}
+
 /* register init/cleanup routines for stateful command groups */
 void ga_command_state_init(GAState *s, GACommandState *cs)
 {

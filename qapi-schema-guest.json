@@ -370,3 +370,62 @@
 # Since: 1.1
 ##
 { 'command': 'guest-suspend-hybrid' }
+
+##
+# @GuestIpAddressType:
+#
+# An enumeration of supported IP address types
+#
+# @ipv4: IP version 4
+#
+# @ipv6: IP version 6
+#
+# Since: 1.1
+##
+{ 'enum': 'GuestIpAddressType',
+  'data': [ 'ipv4', 'ipv6' ] }
+
+##
+# @GuestIpAddress:
+#
+# @ip-address: IP address
+#
+# @ip-address-type: Type of @ip-address (e.g. ipv4, ipv6)
+#
+# @prefix: Network prefix length of @ip-address
+#
+# Since: 1.1
+##
+{ 'type': 'GuestIpAddress',
+  'data': {'ip-address': 'str',
+           'ip-address-type': 'GuestIpAddressType',
+           'prefix': 'int'} }
+
+##
+# @GuestNetworkInterface:
+#
+# @name: The name of interface for which info are being delivered
+#
+# @hardware-address: Hardware address of @name
+#
+# @ip-addresses: List of addresses assigned to @name
+#
+# Since: 1.1
+##
+{ 'type': 'GuestNetworkInterface',
+  'data': {'name': 'str',
+           '*hardware-address': 'str',
+           '*ip-addresses': ['GuestIpAddress'] } }
+
+##
+# @guest-network-get-interfaces:
+#
+# Get list of guest IP addresses, MAC addresses
+# and netmasks.
+#
+# Returns: List of GuestNetworkInfo on success.
+#
+# Since: 1.1
+##
+{ 'command': 'guest-network-get-interfaces',
+  'returns': ['GuestNetworkInterface'] }
