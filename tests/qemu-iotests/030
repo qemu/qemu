@@ -1,0 +1,151 @@
+#!/usr/bin/env python
+#
+# Tests for image streaming.
+#
+# Copyright (C) 2012 IBM Corp.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+import os
+import iotests
+from iotests import qemu_img, qemu_io
+
+backing_img = os.path.join(iotests.test_dir, 'backing.img')
+test_img = os.path.join(iotests.test_dir, 'test.img')
+
+class ImageStreamingTestCase(iotests.QMPTestCase):
+    '''Abstract base class for image streaming test cases'''
+
+    def assert_no_active_streams(self):
+        result = self.vm.qmp('query-block-jobs')
+        self.assert_qmp(result, 'return', [])
+
+class TestSingleDrive(ImageStreamingTestCase):
+    image_len = 1 * 1024 * 1024 # MB
+
+    def setUp(self):
+        qemu_img('create', backing_img, str(TestSingleDrive.image_len))
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(backing_img)
+
+    def test_stream(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block_stream', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+
+        self.assertFalse('sectors not allocated' in qemu_io('-c', 'map', test_img),
+                         'image file not fully populated after streaming')
+
+    def test_device_not_found(self):
+        result = self.vm.qmp('block_stream', device='nonexistent')
+        self.assert_qmp(result, 'error/class', 'DeviceNotFound')
+
+class TestStreamStop(ImageStreamingTestCase):
+    image_len = 8 * 1024 * 1024 * 1024 # GB
+
+    def setUp(self):
+        qemu_img('create', backing_img, str(TestStreamStop.image_len))
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(backing_img)
+
+    def test_stream_stop(self):
+        import time
+
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block_stream', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        time.sleep(1)
+        events = self.vm.get_qmp_events(wait=False)
+        self.assertEqual(events, [], 'unexpected QMP event: %s' % events)
+
+        self.vm.qmp('block_job_cancel', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        cancelled = False
+        while not cancelled:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_CANCELLED':
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    cancelled = True
+
+        self.assert_no_active_streams()
+
+# This is a short performance test which is not run by default.
+# Invoke "IMGFMT=qed ./030 TestSetSpeed.perf_test_set_speed"
+class TestSetSpeed(ImageStreamingTestCase):
+    image_len = 80 * 1024 * 1024 # MB
+
+    def setUp(self):
+        qemu_img('create', backing_img, str(TestSetSpeed.image_len))
+        qemu_img('create', '-f', iotests.imgfmt, '-o', 'backing_file=%s' % backing_img, test_img)
+        self.vm = iotests.VM().add_drive(test_img)
+        self.vm.launch()
+
+    def tearDown(self):
+        self.vm.shutdown()
+        os.remove(test_img)
+        os.remove(backing_img)
+
+    def perf_test_set_speed(self):
+        self.assert_no_active_streams()
+
+        result = self.vm.qmp('block_stream', device='drive0')
+        self.assert_qmp(result, 'return', {})
+
+        result = self.vm.qmp('block_job_set_speed', device='drive0', value=8 * 1024 * 1024)
+        self.assert_qmp(result, 'return', {})
+
+        completed = False
+        while not completed:
+            for event in self.vm.get_qmp_events(wait=True):
+                if event['event'] == 'BLOCK_JOB_COMPLETED':
+                    self.assert_qmp(event, 'data/type', 'stream')
+                    self.assert_qmp(event, 'data/device', 'drive0')
+                    self.assert_qmp(event, 'data/offset', self.image_len)
+                    self.assert_qmp(event, 'data/len', self.image_len)
+                    completed = True
+
+        self.assert_no_active_streams()
+
+if __name__ == '__main__':
+    iotests.main(supported_fmts=['qcow2', 'qed'])

@@ -1353,7 +1353,7 @@ static int usb_net_initfn(USBDevice *dev)
     return 0;
 }
 
-static USBDevice *usb_net_init(const char *cmdline)
+static USBDevice *usb_net_init(USBBus *bus, const char *cmdline)
 {
     USBDevice *dev;
     QemuOpts *opts;
@@ -1371,7 +1371,7 @@ static USBDevice *usb_net_init(const char *cmdline)
         return NULL;
     }
 
-    dev = usb_create(NULL /* FIXME */, "usb-net");
+    dev = usb_create(bus, "usb-net");
     if (!dev) {
         return NULL;
     }

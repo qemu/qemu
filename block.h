@@ -114,6 +114,7 @@ int bdrv_create(BlockDriver *drv, const char* filename,
 int bdrv_create_file(const char* filename, QEMUOptionParameter *options);
 BlockDriverState *bdrv_new(const char *device_name);
 void bdrv_make_anon(BlockDriverState *bs);
+void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top);
 void bdrv_delete(BlockDriverState *bs);
 int bdrv_parse_cache_flags(const char *mode, int *flags);
 int bdrv_file_open(BlockDriverState **pbs, const char *filename, int flags);
@@ -252,9 +253,17 @@ typedef enum FDriveType {
     FDRIVE_DRV_NONE = 0x03,   /* No drive connected     */
 } FDriveType;
 
+typedef enum FDriveRate {
+    FDRIVE_RATE_500K = 0x00,  /* 500 Kbps */
+    FDRIVE_RATE_300K = 0x01,  /* 300 Kbps */
+    FDRIVE_RATE_250K = 0x02,  /* 250 Kbps */
+    FDRIVE_RATE_1M   = 0x03,  /*   1 Mbps */
+} FDriveRate;
+
 void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
                                    int *max_track, int *last_sect,
-                                   FDriveType drive_in, FDriveType *drive);
+                                   FDriveType drive_in, FDriveType *drive,
+                                   FDriveRate *rate);
 int bdrv_get_translation_hint(BlockDriverState *bs);
 void bdrv_set_on_error(BlockDriverState *bs, BlockErrorAction on_read_error,
                        BlockErrorAction on_write_error);

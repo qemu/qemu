@@ -1059,12 +1059,13 @@ static int usb_device_add(const char *devname)
 #ifndef CONFIG_LINUX
     /* only the linux version is qdev-ified, usb-bsd still needs this */
     if (strstart(devname, "host:", &p)) {
-        dev = usb_host_device_open(p);
+        dev = usb_host_device_open(usb_bus_find(-1), p);
     } else
 #endif
     if (!strcmp(devname, "bt") || strstart(devname, "bt:", &p)) {
-        dev = usb_bt_init(devname[2] ? hci_init(p) :
-                        bt_new_hci(qemu_find_bt_vlan(0)));
+        dev = usb_bt_init(usb_bus_find(-1),
+                          devname[2] ? hci_init(p)
+                                     : bt_new_hci(qemu_find_bt_vlan(0)));
     } else {
         return -1;
     }

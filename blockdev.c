@@ -714,6 +714,137 @@ void qmp_blockdev_snapshot_sync(const char *device, const char *snapshot_file,
     }
 }
 
+
+/* New and old BlockDriverState structs for group snapshots */
+typedef struct BlkGroupSnapshotStates {
+    BlockDriverState *old_bs;
+    BlockDriverState *new_bs;
+    QSIMPLEQ_ENTRY(BlkGroupSnapshotStates) entry;
+} BlkGroupSnapshotStates;
+
+/*
+ * 'Atomic' group snapshots.  The snapshots are taken as a set, and if any fail
+ *  then we do not pivot any of the devices in the group, and abandon the
+ *  snapshots
+ */
+void qmp_blockdev_group_snapshot_sync(SnapshotDevList *dev_list,
+                                      Error **errp)
+{
+    int ret = 0;
+    SnapshotDevList *dev_entry = dev_list;
+    SnapshotDev *dev_info = NULL;
+    BlkGroupSnapshotStates *states;
+    BlockDriver *proto_drv;
+    BlockDriver *drv;
+    int flags;
+    const char *format;
+    const char *snapshot_file;
+
+    QSIMPLEQ_HEAD(snap_bdrv_states, BlkGroupSnapshotStates) snap_bdrv_states;
+    QSIMPLEQ_INIT(&snap_bdrv_states);
+
+    /* drain all i/o before any snapshots */
+    bdrv_drain_all();
+
+    /* We don't do anything in this loop that commits us to the snapshot */
+    while (NULL != dev_entry) {
+        dev_info = dev_entry->value;
+        dev_entry = dev_entry->next;
+
+        states = g_malloc0(sizeof(BlkGroupSnapshotStates));
+        QSIMPLEQ_INSERT_TAIL(&snap_bdrv_states, states, entry);
+
+        states->old_bs = bdrv_find(dev_info->device);
+
+        if (!states->old_bs) {
+            error_set(errp, QERR_DEVICE_NOT_FOUND, dev_info->device);
+            goto delete_and_fail;
+        }
+
+        if (bdrv_in_use(states->old_bs)) {
+            error_set(errp, QERR_DEVICE_IN_USE, dev_info->device);
+            goto delete_and_fail;
+        }
+
+        if (!bdrv_is_read_only(states->old_bs) &&
+             bdrv_is_inserted(states->old_bs)) {
+
+            if (bdrv_flush(states->old_bs)) {
+                error_set(errp, QERR_IO_ERROR);
+                goto delete_and_fail;
+            }
+        }
+
+        snapshot_file = dev_info->snapshot_file;
+
+        flags = states->old_bs->open_flags;
+
+        if (!dev_info->has_format) {
+            format = "qcow2";
+        } else {
+            format = dev_info->format;
+        }
+
+        drv = bdrv_find_format(format);
+        if (!drv) {
+            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            goto delete_and_fail;
+        }
+
+        proto_drv = bdrv_find_protocol(snapshot_file);
+        if (!proto_drv) {
+            error_set(errp, QERR_INVALID_BLOCK_FORMAT, format);
+            goto delete_and_fail;
+        }
+
+        /* create new image w/backing file */
+        ret = bdrv_img_create(snapshot_file, format,
+                              states->old_bs->filename,
+                              drv->format_name, NULL, -1, flags);
+        if (ret) {
+            error_set(errp, QERR_OPEN_FILE_FAILED, snapshot_file);
+            goto delete_and_fail;
+        }
+
+        /* We will manually add the backing_hd field to the bs later */
+        states->new_bs = bdrv_new("");
+        ret = bdrv_open(states->new_bs, snapshot_file,
+                        flags | BDRV_O_NO_BACKING, drv);
+        if (ret != 0) {
+            error_set(errp, QERR_OPEN_FILE_FAILED, snapshot_file);
+            goto delete_and_fail;
+        }
+    }
+
+
+    /* Now we are going to do the actual pivot.  Everything up to this point
+     * is reversible, but we are committed at this point */
+    QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
+        /* This removes our old bs from the bdrv_states, and adds the new bs */
+        bdrv_append(states->new_bs, states->old_bs);
+    }
+
+    /* success */
+    goto exit;
+
+delete_and_fail:
+    /*
+    * failure, and it is all-or-none; abandon each new bs, and keep using
+    * the original bs for all images
+    */
+    QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
+        if (states->new_bs) {
+             bdrv_delete(states->new_bs);
+        }
+    }
+exit:
+    QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
+        g_free(states);
+    }
+    return;
+}
+
+
 static void eject_device(BlockDriverState *bs, int force, Error **errp)
 {
     if (bdrv_in_use(bs)) {
