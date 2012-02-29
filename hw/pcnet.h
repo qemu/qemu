@@ -20,6 +20,7 @@
 #define BCR_SWS      20
 #define BCR_PLAT     22
 
+#define BCR_TMAULOOP(S)  !!((S)->bcr[BCR_MC  ] & 0x4000)
 #define BCR_APROMWE(S)   !!((S)->bcr[BCR_MC  ] & 0x0100)
 #define BCR_DWIO(S)      !!((S)->bcr[BCR_BSBC] & 0x0080)
 #define BCR_SSIZE32(S)   !!((S)->bcr[BCR_SWS ] & 0x0100)
