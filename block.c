@@ -882,6 +882,87 @@ void bdrv_make_anon(BlockDriverState *bs)
     bs->device_name[0] = '\0';
 }
 
+/*
+ * Add new bs contents at the top of an image chain while the chain is
+ * live, while keeping required fields on the top layer.
+ *
+ * This will modify the BlockDriverState fields, and swap contents
+ * between bs_new and bs_top. Both bs_new and bs_top are modified.
+ *
+ * This function does not create any image files.
+ */
+void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
+{
+    BlockDriverState tmp;
+
+    /* the new bs must not be in bdrv_states */
+    bdrv_make_anon(bs_new);
+
+    tmp = *bs_new;
+
+    /* there are some fields that need to stay on the top layer: */
+
+    /* dev info */
+    tmp.dev_ops           = bs_top->dev_ops;
+    tmp.dev_opaque        = bs_top->dev_opaque;
+    tmp.dev               = bs_top->dev;
+    tmp.buffer_alignment  = bs_top->buffer_alignment;
+    tmp.copy_on_read      = bs_top->copy_on_read;
+
+    /* i/o timing parameters */
+    tmp.slice_time        = bs_top->slice_time;
+    tmp.slice_start       = bs_top->slice_start;
+    tmp.slice_end         = bs_top->slice_end;
+    tmp.io_limits         = bs_top->io_limits;
+    tmp.io_base           = bs_top->io_base;
+    tmp.throttled_reqs    = bs_top->throttled_reqs;
+    tmp.block_timer       = bs_top->block_timer;
+    tmp.io_limits_enabled = bs_top->io_limits_enabled;
+
+    /* geometry */
+    tmp.cyls              = bs_top->cyls;
+    tmp.heads             = bs_top->heads;
+    tmp.secs              = bs_top->secs;
+    tmp.translation       = bs_top->translation;
+
+    /* r/w error */
+    tmp.on_read_error     = bs_top->on_read_error;
+    tmp.on_write_error    = bs_top->on_write_error;
+
+    /* i/o status */
+    tmp.iostatus_enabled  = bs_top->iostatus_enabled;
+    tmp.iostatus          = bs_top->iostatus;
+
+    /* keep the same entry in bdrv_states */
+    pstrcpy(tmp.device_name, sizeof(tmp.device_name), bs_top->device_name);
+    tmp.list = bs_top->list;
+
+    /* The contents of 'tmp' will become bs_top, as we are
+     * swapping bs_new and bs_top contents. */
+    tmp.backing_hd = bs_new;
+    pstrcpy(tmp.backing_file, sizeof(tmp.backing_file), bs_top->filename);
+
+    /* swap contents of the fixed new bs and the current top */
+    *bs_new = *bs_top;
+    *bs_top = tmp;
+
+    /* clear the copied fields in the new backing file */
+    bdrv_detach_dev(bs_new, bs_new->dev);
+
+    qemu_co_queue_init(&bs_new->throttled_reqs);
+    memset(&bs_new->io_base,   0, sizeof(bs_new->io_base));
+    memset(&bs_new->io_limits, 0, sizeof(bs_new->io_limits));
+    bdrv_iostatus_disable(bs_new);
+
+    /* we don't use bdrv_io_limits_disable() for this, because we don't want
+     * to affect or delete the block_timer, as it has been moved to bs_top */
+    bs_new->io_limits_enabled = false;
+    bs_new->block_timer       = NULL;
+    bs_new->slice_time        = 0;
+    bs_new->slice_start       = 0;
+    bs_new->slice_end         = 0;
+}
+
 void bdrv_delete(BlockDriverState *bs)
 {
     assert(!bs->dev);
@@ -2013,58 +2094,60 @@ typedef struct FDFormat {
     uint8_t last_sect;
     uint8_t max_track;
     uint8_t max_head;
+    FDriveRate rate;
 } FDFormat;
 
 static const FDFormat fd_formats[] = {
     /* First entry is default format */
     /* 1.44 MB 3"1/2 floppy disks */
-    { FDRIVE_DRV_144, 18, 80, 1, },
-    { FDRIVE_DRV_144, 20, 80, 1, },
-    { FDRIVE_DRV_144, 21, 80, 1, },
-    { FDRIVE_DRV_144, 21, 82, 1, },
-    { FDRIVE_DRV_144, 21, 83, 1, },
-    { FDRIVE_DRV_144, 22, 80, 1, },
-    { FDRIVE_DRV_144, 23, 80, 1, },
-    { FDRIVE_DRV_144, 24, 80, 1, },
+    { FDRIVE_DRV_144, 18, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 20, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 21, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 21, 82, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 21, 83, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 22, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 23, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_144, 24, 80, 1, FDRIVE_RATE_500K, },
     /* 2.88 MB 3"1/2 floppy disks */
-    { FDRIVE_DRV_288, 36, 80, 1, },
-    { FDRIVE_DRV_288, 39, 80, 1, },
-    { FDRIVE_DRV_288, 40, 80, 1, },
-    { FDRIVE_DRV_288, 44, 80, 1, },
-    { FDRIVE_DRV_288, 48, 80, 1, },
+    { FDRIVE_DRV_288, 36, 80, 1, FDRIVE_RATE_1M, },
+    { FDRIVE_DRV_288, 39, 80, 1, FDRIVE_RATE_1M, },
+    { FDRIVE_DRV_288, 40, 80, 1, FDRIVE_RATE_1M, },
+    { FDRIVE_DRV_288, 44, 80, 1, FDRIVE_RATE_1M, },
+    { FDRIVE_DRV_288, 48, 80, 1, FDRIVE_RATE_1M, },
     /* 720 kB 3"1/2 floppy disks */
-    { FDRIVE_DRV_144,  9, 80, 1, },
-    { FDRIVE_DRV_144, 10, 80, 1, },
-    { FDRIVE_DRV_144, 10, 82, 1, },
-    { FDRIVE_DRV_144, 10, 83, 1, },
-    { FDRIVE_DRV_144, 13, 80, 1, },
-    { FDRIVE_DRV_144, 14, 80, 1, },
+    { FDRIVE_DRV_144,  9, 80, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 10, 80, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 10, 82, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 10, 83, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 13, 80, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_144, 14, 80, 1, FDRIVE_RATE_250K, },
     /* 1.2 MB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120, 15, 80, 1, },
-    { FDRIVE_DRV_120, 18, 80, 1, },
-    { FDRIVE_DRV_120, 18, 82, 1, },
-    { FDRIVE_DRV_120, 18, 83, 1, },
-    { FDRIVE_DRV_120, 20, 80, 1, },
+    { FDRIVE_DRV_120, 15, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_120, 18, 80, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_120, 18, 82, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_120, 18, 83, 1, FDRIVE_RATE_500K, },
+    { FDRIVE_DRV_120, 20, 80, 1, FDRIVE_RATE_500K, },
     /* 720 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120,  9, 80, 1, },
-    { FDRIVE_DRV_120, 11, 80, 1, },
+    { FDRIVE_DRV_120,  9, 80, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_120, 11, 80, 1, FDRIVE_RATE_250K, },
     /* 360 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120,  9, 40, 1, },
-    { FDRIVE_DRV_120,  9, 40, 0, },
-    { FDRIVE_DRV_120, 10, 41, 1, },
-    { FDRIVE_DRV_120, 10, 42, 1, },
+    { FDRIVE_DRV_120,  9, 40, 1, FDRIVE_RATE_300K, },
+    { FDRIVE_DRV_120,  9, 40, 0, FDRIVE_RATE_300K, },
+    { FDRIVE_DRV_120, 10, 41, 1, FDRIVE_RATE_300K, },
+    { FDRIVE_DRV_120, 10, 42, 1, FDRIVE_RATE_300K, },
     /* 320 kB 5"1/4 floppy disks */
-    { FDRIVE_DRV_120,  8, 40, 1, },
-    { FDRIVE_DRV_120,  8, 40, 0, },
+    { FDRIVE_DRV_120,  8, 40, 1, FDRIVE_RATE_250K, },
+    { FDRIVE_DRV_120,  8, 40, 0, FDRIVE_RATE_250K, },
     /* 360 kB must match 5"1/4 better than 3"1/2... */
-    { FDRIVE_DRV_144,  9, 80, 0, },
+    { FDRIVE_DRV_144,  9, 80, 0, FDRIVE_RATE_250K, },
     /* end */
-    { FDRIVE_DRV_NONE, -1, -1, 0, },
+    { FDRIVE_DRV_NONE, -1, -1, 0, 0, },
 };
 
 void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
                                    int *max_track, int *last_sect,
-                                   FDriveType drive_in, FDriveType *drive)
+                                   FDriveType drive_in, FDriveType *drive,
+                                   FDriveRate *rate)
 {
     const FDFormat *parse;
     uint64_t nb_sectors, size;
@@ -2073,6 +2156,7 @@ void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
     bdrv_get_geometry_hint(bs, nb_heads, max_track, last_sect);
     if (*nb_heads != 0 && *max_track != 0 && *last_sect != 0) {
         /* User defined disk */
+        *rate = FDRIVE_RATE_500K;
     } else {
         bdrv_get_geometry(bs, &nb_sectors);
         match = -1;
@@ -2107,6 +2191,7 @@ void bdrv_get_floppy_geometry_hint(BlockDriverState *bs, int *nb_heads,
         *max_track = parse->max_track;
         *last_sect = parse->last_sect;
         *drive = parse->drive;
+        *rate = parse->rate;
     }
 }
 
@@ -2787,7 +2872,6 @@ typedef struct MultiwriteCB {
         BlockDriverCompletionFunc *cb;
         void *opaque;
         QEMUIOVector *free_qiov;
-        void *free_buf;
     } callbacks[];
 } MultiwriteCB;
 
@@ -2801,7 +2885,6 @@ static void multiwrite_user_cb(MultiwriteCB *mcb)
             qemu_iovec_destroy(mcb->callbacks[i].free_qiov);
         }
         g_free(mcb->callbacks[i].free_qiov);
-        qemu_vfree(mcb->callbacks[i].free_buf);
     }
 }
 
@@ -2858,18 +2941,9 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
         int merge = 0;
         int64_t oldreq_last = reqs[outidx].sector + reqs[outidx].nb_sectors;
 
-        // This handles the cases that are valid for all block drivers, namely
-        // exactly sequential writes and overlapping writes.
+        // Handle exactly sequential writes and overlapping writes.
         if (reqs[i].sector <= oldreq_last) {
             merge = 1;
-        }
-
-        // The block driver may decide that it makes sense to combine requests
-        // even if there is a gap of some sectors between them. In this case,
-        // the gap is filled with zeros (therefore only applicable for yet
-        // unused space in format like qcow2).
-        if (!merge && bs->drv->bdrv_merge_requests) {
-            merge = bs->drv->bdrv_merge_requests(bs, &reqs[outidx], &reqs[i]);
         }
 
         if (reqs[outidx].qiov->niov + reqs[i].qiov->niov + 1 > IOV_MAX) {
@@ -2887,14 +2961,8 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
             size = (reqs[i].sector - reqs[outidx].sector) << 9;
             qemu_iovec_concat(qiov, reqs[outidx].qiov, size);
 
-            // We might need to add some zeros between the two requests
-            if (reqs[i].sector > oldreq_last) {
-                size_t zero_bytes = (reqs[i].sector - oldreq_last) << 9;
-                uint8_t *buf = qemu_blockalign(bs, zero_bytes);
-                memset(buf, 0, zero_bytes);
-                qemu_iovec_add(qiov, buf, zero_bytes);
-                mcb->callbacks[i].free_buf = buf;
-            }
+            // We should need to add any zeros between the two requests
+            assert (reqs[i].sector <= oldreq_last);
 
             // Add the second request
             qemu_iovec_concat(qiov, reqs[i].qiov, reqs[i].qiov->size);

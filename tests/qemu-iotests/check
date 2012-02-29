@@ -243,7 +243,7 @@ do
 		echo " - no qualified output"
 		err=true
 	    else
-		if diff $seq.out $tmp.out >/dev/null 2>&1
+		if diff -w $seq.out $tmp.out >/dev/null 2>&1
 		then
 		    echo ""
 		    if $err
@@ -255,7 +255,7 @@ do
 		else
 		    echo " - output mismatch (see $seq.out.bad)"
 		    mv $tmp.out $seq.out.bad
-		    $diff $seq.out $seq.out.bad
+		    $diff -w $seq.out $seq.out.bad
 		    err=true
 		fi
 	    fi

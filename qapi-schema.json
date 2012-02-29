@@ -1118,6 +1118,44 @@
 { 'command': 'block_resize', 'data': { 'device': 'str', 'size': 'int' }}
 
 ##
+# @SnapshotDev
+#
+# @device:  the name of the device to generate the snapshot from.
+#
+# @snapshot-file: the target of the new image. A new file will be created.
+#
+# @format: #optional the format of the snapshot image, default is 'qcow2'.
+##
+{ 'type': 'SnapshotDev',
+  'data': {'device': 'str', 'snapshot-file': 'str', '*format': 'str' } }
+
+##
+# @blockdev-group-snapshot-sync
+#
+# Generates a synchronous snapshot of a group of one or more block devices,
+# as atomically as possible.  If the snapshot of any device in the group
+# fails, then the entire group snapshot will be abandoned and the
+# appropriate error returned.
+#
+#  List of:
+#  @SnapshotDev: information needed for the device snapshot
+#
+# Returns: nothing on success
+#          If @device is not a valid block device, DeviceNotFound
+#          If @device is busy, DeviceInUse will be returned
+#          If @snapshot-file can't be created, OpenFileFailed
+#          If @snapshot-file can't be opened, OpenFileFailed
+#          If @format is invalid, InvalidBlockFormat
+#
+# Note: The group snapshot attempt returns failure on the first snapshot
+# device failure.  Therefore, there will be only one device or snapshot file
+# returned in an error condition, and subsequent devices will not have been
+# attempted.
+##
+{ 'command': 'blockdev-group-snapshot-sync',
+  'data': { 'devlist': [ 'SnapshotDev' ] } }
+
+##
 # @blockdev-snapshot-sync
 #
 # Generates a synchronous snapshot of a block device.

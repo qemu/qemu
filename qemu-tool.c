@@ -61,7 +61,7 @@ void monitor_protocol_event(MonitorEvent event, QObject *data)
 
 int64_t cpu_get_clock(void)
 {
-    abort();
+    return 0;
 }
 
 int64_t cpu_get_icount(void)

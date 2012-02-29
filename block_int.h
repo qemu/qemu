@@ -162,12 +162,6 @@ struct BlockDriver {
      */
     int coroutine_fn (*bdrv_co_flush_to_os)(BlockDriverState *bs);
 
-    int (*bdrv_aio_multiwrite)(BlockDriverState *bs, BlockRequest *reqs,
-        int num_reqs);
-    int (*bdrv_merge_requests)(BlockDriverState *bs, BlockRequest* a,
-        BlockRequest *b);
-
-
     const char *protocol_name;
     int (*bdrv_truncate)(BlockDriverState *bs, int64_t offset);
     int64_t (*bdrv_getlength)(BlockDriverState *bs);
@@ -227,6 +221,12 @@ struct BlockDriver {
     QLIST_ENTRY(BlockDriver) list;
 };
 
+/*
+ * Note: the function bdrv_append() copies and swaps contents of
+ * BlockDriverStates, so if you add new fields to this struct, please
+ * inspect bdrv_append() to determine if the new fields need to be
+ * copied as well.
+ */
 struct BlockDriverState {
     int64_t total_sectors; /* if we are reading a disk image, give its
                               size in sectors */
@@ -258,10 +258,6 @@ struct BlockDriverState {
 
     /* number of in-flight copy-on-read requests */
     unsigned int copy_on_read_in_flight;
-
-    /* async read/write emulation */
-
-    void *sync_aiocb;
 
     /* the time for latest disk I/O */
     int64_t slice_time;
@@ -299,7 +295,6 @@ struct BlockDriverState {
     int64_t dirty_count;
     int in_use; /* users other than guest access, eg. block migration */
     QTAILQ_ENTRY(BlockDriverState) list;
-    void *private;
 
     QLIST_HEAD(, BdrvTrackedRequest) tracked_requests;
 

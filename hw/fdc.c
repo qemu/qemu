@@ -62,12 +62,15 @@
 #define FD_SECTOR_SC           2   /* Sector size code */
 #define FD_RESET_SENSEI_COUNT  4   /* Number of sense interrupts on RESET */
 
+typedef struct FDCtrl FDCtrl;
+
 /* Floppy disk drive emulation */
 typedef enum FDiskFlags {
     FDISK_DBL_SIDES  = 0x01,
 } FDiskFlags;
 
 typedef struct FDrive {
+    FDCtrl *fdctrl;
     BlockDriverState *bs;
     /* Drive status */
     FDriveType drive;
@@ -83,6 +86,7 @@ typedef struct FDrive {
     uint16_t bps;             /* Bytes per sector       */
     uint8_t ro;               /* Is read-only           */
     uint8_t media_changed;    /* Is media changed       */
+    uint8_t media_rate;       /* Data rate of medium    */
 } FDrive;
 
 static void fd_init(FDrive *drv)
@@ -95,16 +99,19 @@ static void fd_init(FDrive *drv)
     drv->max_track = 0;
 }
 
+#define NUM_SIDES(drv) ((drv)->flags & FDISK_DBL_SIDES ? 2 : 1)
+
 static int fd_sector_calc(uint8_t head, uint8_t track, uint8_t sect,
-                          uint8_t last_sect)
+                          uint8_t last_sect, uint8_t num_sides)
 {
-    return (((track * 2) + head) * last_sect) + sect - 1;
+    return (((track * num_sides) + head) * last_sect) + sect - 1;
 }
 
 /* Returns current position, in sectors, for given drive */
 static int fd_sector(FDrive *drv)
 {
-    return fd_sector_calc(drv->head, drv->track, drv->sect, drv->last_sect);
+    return fd_sector_calc(drv->head, drv->track, drv->sect, drv->last_sect,
+                          NUM_SIDES(drv));
 }
 
 /* Seek to a new position:
@@ -135,7 +142,7 @@ static int fd_seek(FDrive *drv, uint8_t head, uint8_t track, uint8_t sect,
                        drv->max_track, drv->last_sect);
         return 3;
     }
-    sector = fd_sector_calc(head, track, sect, drv->last_sect);
+    sector = fd_sector_calc(head, track, sect, drv->last_sect, NUM_SIDES(drv));
     ret = 0;
     if (sector != fd_sector(drv)) {
 #if 0
@@ -169,12 +176,13 @@ static void fd_revalidate(FDrive *drv)
 {
     int nb_heads, max_track, last_sect, ro;
     FDriveType drive;
+    FDriveRate rate;
 
     FLOPPY_DPRINTF("revalidate\n");
     if (drv->bs != NULL && bdrv_is_inserted(drv->bs)) {
         ro = bdrv_is_read_only(drv->bs);
         bdrv_get_floppy_geometry_hint(drv->bs, &nb_heads, &max_track,
-                                      &last_sect, drv->drive, &drive);
+                                      &last_sect, drv->drive, &drive, &rate);
         if (nb_heads != 0 && max_track != 0 && last_sect != 0) {
             FLOPPY_DPRINTF("User defined disk (%d %d %d)",
                            nb_heads - 1, max_track, last_sect);
@@ -191,6 +199,7 @@ static void fd_revalidate(FDrive *drv)
         drv->last_sect = last_sect;
         drv->ro = ro;
         drv->drive = drive;
+        drv->media_rate = rate;
     } else {
         FLOPPY_DPRINTF("No disk in drive\n");
         drv->last_sect = 0;
@@ -202,13 +211,12 @@ static void fd_revalidate(FDrive *drv)
 /********************************************************/
 /* Intel 82078 floppy disk controller emulation          */
 
-typedef struct FDCtrl FDCtrl;
-
 static void fdctrl_reset(FDCtrl *fdctrl, int do_irq);
 static void fdctrl_reset_fifo(FDCtrl *fdctrl);
 static int fdctrl_transfer_handler (void *opaque, int nchan,
                                     int dma_pos, int dma_len);
 static void fdctrl_raise_irq(FDCtrl *fdctrl, uint8_t status0);
+static FDrive *get_cur_drv(FDCtrl *fdctrl);
 
 static uint32_t fdctrl_read_statusA(FDCtrl *fdctrl);
 static uint32_t fdctrl_read_statusB(FDCtrl *fdctrl);
@@ -221,6 +229,7 @@ static void fdctrl_write_rate(FDCtrl *fdctrl, uint32_t value);
 static uint32_t fdctrl_read_data(FDCtrl *fdctrl);
 static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value);
 static uint32_t fdctrl_read_dir(FDCtrl *fdctrl);
+static void fdctrl_write_ccr(FDCtrl *fdctrl, uint32_t value);
 
 enum {
     FD_DIR_WRITE   = 0,
@@ -245,6 +254,7 @@ enum {
     FD_REG_DSR = 0x04,
     FD_REG_FIFO = 0x05,
     FD_REG_DIR = 0x07,
+    FD_REG_CCR = 0x07,
 };
 
 enum {
@@ -297,6 +307,8 @@ enum {
 };
 
 enum {
+    FD_SR1_MA       = 0x01, /* Missing address mark */
+    FD_SR1_NW       = 0x02, /* Not writable */
     FD_SR1_EC       = 0x80, /* End of cylinder */
 };
 
@@ -413,6 +425,7 @@ struct FDCtrl {
     int sun4m;
     FDrive drives[MAX_FD];
     int reset_sensei;
+    uint32_t check_media_rate;
     /* Timers state */
     uint8_t timer0;
     uint8_t timer1;
@@ -487,6 +500,9 @@ static void fdctrl_write (void *opaque, uint32_t reg, uint32_t value)
     case FD_REG_FIFO:
         fdctrl_write_data(fdctrl, value);
         break;
+    case FD_REG_CCR:
+        fdctrl_write_ccr(fdctrl, value);
+        break;
     default:
         break;
     }
@@ -538,6 +554,24 @@ static const VMStateDescription vmstate_fdrive_media_changed = {
     }
 };
 
+static bool fdrive_media_rate_needed(void *opaque)
+{
+    FDrive *drive = opaque;
+
+    return drive->fdctrl->check_media_rate;
+}
+
+static const VMStateDescription vmstate_fdrive_media_rate = {
+    .name = "fdrive/media_rate",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .minimum_version_id_old = 1,
+    .fields      = (VMStateField[]) {
+        VMSTATE_UINT8(media_rate, FDrive),
+        VMSTATE_END_OF_LIST()
+    }
+};
+
 static const VMStateDescription vmstate_fdrive = {
     .name = "fdrive",
     .version_id = 1,
@@ -553,6 +587,9 @@ static const VMStateDescription vmstate_fdrive = {
         {
             .vmsd = &vmstate_fdrive_media_changed,
             .needed = &fdrive_media_changed_needed,
+        } , {
+            .vmsd = &vmstate_fdrive_media_rate,
+            .needed = &fdrive_media_rate_needed,
         } , {
             /* empty */
         }
@@ -877,6 +914,23 @@ static void fdctrl_write_rate(FDCtrl *fdctrl, uint32_t value)
     fdctrl->dsr = value;
 }
 
+/* Configuration control register: 0x07 (write) */
+static void fdctrl_write_ccr(FDCtrl *fdctrl, uint32_t value)
+{
+    /* Reset mode */
+    if (!(fdctrl->dor & FD_DOR_nRESET)) {
+        FLOPPY_DPRINTF("Floppy controller in RESET state !\n");
+        return;
+    }
+    FLOPPY_DPRINTF("configuration control register set to 0x%02x\n", value);
+
+    /* Only the rate selection bits used in AT mode, and we
+     * store those in the DSR.
+     */
+    fdctrl->dsr = (fdctrl->dsr & ~FD_DSR_DRATEMASK) |
+                  (value & FD_DSR_DRATEMASK);
+}
+
 static int fdctrl_media_changed(FDrive *drv)
 {
     int ret;
@@ -903,14 +957,9 @@ static uint32_t fdctrl_read_dir(FDCtrl *fdctrl)
 {
     uint32_t retval = 0;
 
-    if (fdctrl_media_changed(drv0(fdctrl))
-     || fdctrl_media_changed(drv1(fdctrl))
-#if MAX_FD == 4
-     || fdctrl_media_changed(drv2(fdctrl))
-     || fdctrl_media_changed(drv3(fdctrl))
-#endif
-        )
+    if (fdctrl_media_changed(get_cur_drv(fdctrl))) {
         retval |= FD_DIR_DSKCHG;
+    }
     if (retval != 0) {
         FLOPPY_DPRINTF("Floppy digital input register: 0x%02x\n", retval);
     }
@@ -1019,7 +1068,8 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
     ks = fdctrl->fifo[4];
     FLOPPY_DPRINTF("Start transfer at %d %d %02x %02x (%d)\n",
                    GET_CUR_DRV(fdctrl), kh, kt, ks,
-                   fd_sector_calc(kh, kt, ks, cur_drv->last_sect));
+                   fd_sector_calc(kh, kt, ks, cur_drv->last_sect,
+                                  NUM_SIDES(cur_drv)));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
         /* sect too big */
@@ -1047,6 +1097,19 @@ static void fdctrl_start_transfer(FDCtrl *fdctrl, int direction)
         break;
     default:
         break;
+    }
+
+    /* Check the data rate. If the programmed data rate does not match
+     * the currently inserted medium, the operation has to fail. */
+    if (fdctrl->check_media_rate &&
+        (fdctrl->dsr & FD_DSR_DRATEMASK) != cur_drv->media_rate) {
+        FLOPPY_DPRINTF("data rate mismatch (fdc=%d, media=%d)\n",
+                       fdctrl->dsr & FD_DSR_DRATEMASK, cur_drv->media_rate);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
+        fdctrl->fifo[3] = kt;
+        fdctrl->fifo[4] = kh;
+        fdctrl->fifo[5] = ks;
+        return;
     }
 
     /* Set the FIFO state */
@@ -1175,6 +1238,16 @@ static int fdctrl_transfer_handler (void *opaque, int nchan,
             break;
         case FD_DIR_WRITE:
             /* WRITE commands */
+            if (cur_drv->ro) {
+                /* Handle readonly medium early, no need to do DMA, touch the
+                 * LED or attempt any writes. A real floppy doesn't attempt
+                 * to write to readonly media either. */
+                fdctrl_stop_transfer(fdctrl,
+                                     FD_SR0_ABNTERM | FD_SR0_SEEK, FD_SR1_NW,
+                                     0x00);
+                goto transfer_error;
+            }
+
             DMA_read_memory (nchan, fdctrl->fifo + rel_pos,
                              fdctrl->data_pos, len);
             if (bdrv_write(cur_drv->bs, fd_sector(cur_drv),
@@ -1289,7 +1362,8 @@ static void fdctrl_format_sector(FDCtrl *fdctrl)
     ks = fdctrl->fifo[8];
     FLOPPY_DPRINTF("format sector at %d %d %02x %02x (%d)\n",
                    GET_CUR_DRV(fdctrl), kh, kt, ks,
-                   fd_sector_calc(kh, kt, ks, cur_drv->last_sect));
+                   fd_sector_calc(kh, kt, ks, cur_drv->last_sect,
+                                  NUM_SIDES(cur_drv)));
     switch (fd_seek(cur_drv, kh, kt, ks, fdctrl->config & FD_CONFIG_EIS)) {
     case 2:
         /* sect too big */
@@ -1343,7 +1417,7 @@ static void fdctrl_handle_lock(FDCtrl *fdctrl, int direction)
 {
     fdctrl->lock = (fdctrl->fifo[0] & 0x80) ? 1 : 0;
     fdctrl->fifo[0] = fdctrl->lock << 4;
-    fdctrl_set_fifo(fdctrl, 1, fdctrl->lock);
+    fdctrl_set_fifo(fdctrl, 1, 0);
 }
 
 static void fdctrl_handle_dumpreg(FDCtrl *fdctrl, int direction)
@@ -1375,7 +1449,7 @@ static void fdctrl_handle_version(FDCtrl *fdctrl, int direction)
 {
     /* Controller's version */
     fdctrl->fifo[0] = fdctrl->version;
-    fdctrl_set_fifo(fdctrl, 1, 1);
+    fdctrl_set_fifo(fdctrl, 1, 0);
 }
 
 static void fdctrl_handle_partid(FDCtrl *fdctrl, int direction)
@@ -1434,14 +1508,13 @@ static void fdctrl_handle_save(FDCtrl *fdctrl, int direction)
     fdctrl->fifo[12] = fdctrl->pwrd;
     fdctrl->fifo[13] = 0;
     fdctrl->fifo[14] = 0;
-    fdctrl_set_fifo(fdctrl, 15, 1);
+    fdctrl_set_fifo(fdctrl, 15, 0);
 }
 
 static void fdctrl_handle_readid(FDCtrl *fdctrl, int direction)
 {
     FDrive *cur_drv = get_cur_drv(fdctrl);
 
-    /* XXX: should set main status register to busy */
     cur_drv->head = (fdctrl->fifo[1] >> 2) & 1;
     qemu_mod_timer(fdctrl->result_timer,
                    qemu_get_clock_ns(vm_clock) + (get_ticks_per_sec() / 50));
@@ -1545,13 +1618,16 @@ static void fdctrl_handle_seek(FDCtrl *fdctrl, int direction)
     SET_CUR_DRV(fdctrl, fdctrl->fifo[1] & FD_DOR_SELMASK);
     cur_drv = get_cur_drv(fdctrl);
     fdctrl_reset_fifo(fdctrl);
+    /* The seek command just sends step pulses to the drive and doesn't care if
+     * there is a medium inserted of if it's banging the head against the drive.
+     */
     if (fdctrl->fifo[2] > cur_drv->max_track) {
-        fdctrl_raise_irq(fdctrl, FD_SR0_ABNTERM | FD_SR0_SEEK);
+        cur_drv->track = cur_drv->max_track;
     } else {
         cur_drv->track = fdctrl->fifo[2];
-        /* Raise Interrupt */
-        fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
     }
+    /* Raise Interrupt */
+    fdctrl_raise_irq(fdctrl, FD_SR0_SEEK);
 }
 
 static void fdctrl_handle_perpendicular_mode(FDCtrl *fdctrl, int direction)
@@ -1576,7 +1652,7 @@ static void fdctrl_handle_powerdown_mode(FDCtrl *fdctrl, int direction)
 {
     fdctrl->pwrd = fdctrl->fifo[1];
     fdctrl->fifo[0] = fdctrl->fifo[1];
-    fdctrl_set_fifo(fdctrl, 1, 1);
+    fdctrl_set_fifo(fdctrl, 1, 0);
 }
 
 static void fdctrl_handle_option(FDCtrl *fdctrl, int direction)
@@ -1595,7 +1671,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
             fdctrl->fifo[0] = fdctrl->fifo[1];
             fdctrl->fifo[2] = 0;
             fdctrl->fifo[3] = 0;
-            fdctrl_set_fifo(fdctrl, 4, 1);
+            fdctrl_set_fifo(fdctrl, 4, 0);
         } else {
             fdctrl_reset_fifo(fdctrl);
         }
@@ -1603,7 +1679,7 @@ static void fdctrl_handle_drive_specification_command(FDCtrl *fdctrl, int direct
         /* ERROR */
         fdctrl->fifo[0] = 0x80 |
             (cur_drv->head << 2) | GET_CUR_DRV(fdctrl);
-        fdctrl_set_fifo(fdctrl, 1, 1);
+        fdctrl_set_fifo(fdctrl, 1, 0);
     }
 }
 
@@ -1729,6 +1805,7 @@ static void fdctrl_write_data(FDCtrl *fdctrl, uint32_t value)
         pos = command_to_handler[value & 0xff];
         FLOPPY_DPRINTF("%s command\n", handlers[pos].name);
         fdctrl->data_len = handlers[pos].parameters + 1;
+        fdctrl->msr |= FD_MSR_CMDBUSY;
     }
 
     FLOPPY_DPRINTF("%s: %02x\n", __func__, value);
@@ -1760,7 +1837,15 @@ static void fdctrl_result_timer(void *opaque)
     if (cur_drv->last_sect != 0) {
         cur_drv->sect = (cur_drv->sect % cur_drv->last_sect) + 1;
     }
-    fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+    /* READ_ID can't automatically succeed! */
+    if (fdctrl->check_media_rate &&
+        (fdctrl->dsr & FD_DSR_DRATEMASK) != cur_drv->media_rate) {
+        FLOPPY_DPRINTF("read id rate mismatch (fdc=%d, media=%d)\n",
+                       fdctrl->dsr & FD_DSR_DRATEMASK, cur_drv->media_rate);
+        fdctrl_stop_transfer(fdctrl, FD_SR0_ABNTERM, FD_SR1_MA, 0x00);
+    } else {
+        fdctrl_stop_transfer(fdctrl, 0x00, 0x00, 0x00);
+    }
 }
 
 static void fdctrl_change_cb(void *opaque, bool load)
@@ -1782,6 +1867,7 @@ static int fdctrl_connect_drives(FDCtrl *fdctrl)
 
     for (i = 0; i < MAX_FD; i++) {
         drive = &fdctrl->drives[i];
+        drive->fdctrl = fdctrl;
 
         if (drive->bs) {
             if (bdrv_get_on_error(drive->bs, 0) != BLOCK_ERR_STOP_ENOSPC) {
@@ -1964,6 +2050,8 @@ static Property isa_fdc_properties[] = {
     DEFINE_PROP_DRIVE("driveB", FDCtrlISABus, state.drives[1].bs),
     DEFINE_PROP_INT32("bootindexA", FDCtrlISABus, bootindexA, -1),
     DEFINE_PROP_INT32("bootindexB", FDCtrlISABus, bootindexB, -1),
+    DEFINE_PROP_BIT("check_media_rate", FDCtrlISABus, state.check_media_rate,
+                    0, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

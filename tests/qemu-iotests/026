@@ -87,6 +87,12 @@ _make_test_img 1G
 
 echo
 echo "Event: $event; errno: $errno; imm: $imm; once: $once; write $vmstate"
+
+# We want to catch a simple L2 update, not the allocation of the first L2 table
+if [ "$event" == "l2_update" ]; then
+    $QEMU_IO -c "write $vmstate 0 512" $TEST_IMG > /dev/null 2>&1
+fi
+
 $QEMU_IO -c "write $vmstate 0 128k " $BLKDBG_TEST_IMG | _filter_qemu_io
 
 # l2_load is not called on allocation, so issue a second write
