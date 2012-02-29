@@ -315,6 +315,7 @@ void if_output(struct socket *, struct mbuf *);
 
 /* ip_input.c */
 void ip_init(Slirp *);
+void ip_cleanup(Slirp *);
 void ip_input(struct mbuf *);
 void ip_slowtimo(Slirp *);
 void ip_stripoptions(register struct mbuf *, struct mbuf *);
@@ -332,6 +333,7 @@ void tcp_setpersist(register struct tcpcb *);
 
 /* tcp_subr.c */
 void tcp_init(Slirp *);
+void tcp_cleanup(Slirp *);
 void tcp_template(struct tcpcb *);
 void tcp_respond(struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int);
 struct tcpcb * tcp_newtcpcb(struct socket *);

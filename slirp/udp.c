@@ -49,6 +49,14 @@ udp_init(Slirp *slirp)
     slirp->udb.so_next = slirp->udb.so_prev = &slirp->udb;
     slirp->udp_last_so = &slirp->udb;
 }
+
+void udp_cleanup(Slirp *slirp)
+{
+    while (slirp->udb.so_next != &slirp->udb) {
+        udp_detach(slirp->udb.so_next);
+    }
+}
+
 /* m->m_data  points at ip packet header
  * m->m_len   length ip packet
  * ip->ip_len length data (IPDU)

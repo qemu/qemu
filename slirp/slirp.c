@@ -246,6 +246,9 @@ void slirp_cleanup(Slirp *slirp)
 
     unregister_savevm(NULL, "slirp", slirp);
 
+    ip_cleanup(slirp);
+    m_cleanup(slirp);
+
     g_free(slirp->tftp_prefix);
     g_free(slirp->bootp_filename);
     g_free(slirp);
