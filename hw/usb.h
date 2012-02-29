@@ -373,12 +373,12 @@ void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 int set_usb_string(uint8_t *buf, const char *str);
 
 /* usb-linux.c */
-USBDevice *usb_host_device_open(const char *devname);
+USBDevice *usb_host_device_open(USBBus *bus, const char *devname);
 int usb_host_device_close(const char *devname);
 void usb_host_info(Monitor *mon);
 
 /* usb-bt.c */
-USBDevice *usb_bt_init(HCIInfo *hci);
+USBDevice *usb_bt_init(USBBus *bus, HCIInfo *hci);
 
 /* usb ports of the VM */
 
@@ -431,7 +431,8 @@ struct USBBusOps {
 void usb_bus_new(USBBus *bus, USBBusOps *ops, DeviceState *host);
 USBBus *usb_bus_find(int busnr);
 void usb_legacy_register(const char *typename, const char *usbdevice_name,
-                         USBDevice *(*usbdevice_init)(const char *params));
+                         USBDevice *(*usbdevice_init)(USBBus *bus,
+                                                      const char *params));
 USBDevice *usb_create(USBBus *bus, const char *name);
 USBDevice *usb_create_simple(USBBus *bus, const char *name);
 USBDevice *usbdevice_create(const char *cmdline);

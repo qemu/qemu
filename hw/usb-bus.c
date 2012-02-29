@@ -203,13 +203,14 @@ typedef struct LegacyUSBFactory
 {
     const char *name;
     const char *usbdevice_name;
-    USBDevice *(*usbdevice_init)(const char *params);
+    USBDevice *(*usbdevice_init)(USBBus *bus, const char *params);
 } LegacyUSBFactory;
 
 static GSList *legacy_usb_factory;
 
 void usb_legacy_register(const char *typename, const char *usbdevice_name,
-                         USBDevice *(*usbdevice_init)(const char *params))
+                         USBDevice *(*usbdevice_init)(USBBus *bus,
+                                                      const char *params))
 {
     if (usbdevice_name) {
         LegacyUSBFactory *f = g_malloc0(sizeof(*f));
@@ -223,17 +224,6 @@ void usb_legacy_register(const char *typename, const char *usbdevice_name,
 USBDevice *usb_create(USBBus *bus, const char *name)
 {
     DeviceState *dev;
-
-#if 1
-    /* temporary stopgap until all usb is properly qdev-ified */
-    if (!bus) {
-        bus = usb_bus_find(-1);
-        if (!bus)
-            return NULL;
-        error_report("%s: no bus specified, using \"%s\" for \"%s\"",
-                __FUNCTION__, bus->qbus.name, name);
-    }
-#endif
 
     dev = qdev_create(&bus->qbus, name);
     return USB_DEVICE(dev);
@@ -565,7 +555,7 @@ USBDevice *usbdevice_create(const char *cmdline)
         }
         return usb_create_simple(bus, f->name);
     }
-    return f->usbdevice_init(params);
+    return f->usbdevice_init(bus, params);
 }
 
 static void usb_device_class_init(ObjectClass *klass, void *data)

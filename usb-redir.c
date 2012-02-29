@@ -106,6 +106,7 @@ struct AsyncURB {
     QTAILQ_ENTRY(AsyncURB)next;
 };
 
+static void usbredir_hello(void *priv, struct usb_redir_hello_header *h);
 static void usbredir_device_connect(void *priv,
     struct usb_redir_device_connect_header *device_connect);
 static void usbredir_device_disconnect(void *priv);
@@ -430,7 +431,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
             /* Check iso_error for stream errors, otherwise its an underrun */
             status = dev->endpoint[EP2I(ep)].iso_error;
             dev->endpoint[EP2I(ep)].iso_error = 0;
-            return usbredir_handle_status(dev, status, 0);
+            return status ? USB_RET_NAK : 0;
         }
         DPRINTF2("iso-token-in ep %02X status %d len %d queue-size: %d\n", ep,
                  isop->status, isop->len, dev->endpoint[EP2I(ep)].bufpq_size);
@@ -438,7 +439,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
         status = isop->status;
         if (status != usb_redir_success) {
             bufp_free(dev, isop, ep);
-            return usbredir_handle_status(dev, status, 0);
+            return USB_RET_NAK;
         }
 
         len = isop->len;
@@ -547,7 +548,10 @@ static int usbredir_handle_interrupt_data(USBRedirDevice *dev,
             /* Check interrupt_error for stream errors */
             status = dev->endpoint[EP2I(ep)].interrupt_error;
             dev->endpoint[EP2I(ep)].interrupt_error = 0;
-            return usbredir_handle_status(dev, status, 0);
+            if (status) {
+                return usbredir_handle_status(dev, status, 0);
+            }
+            return USB_RET_NAK;
         }
         DPRINTF("interrupt-token-in ep %02X status %d len %d\n", ep,
                 intp->status, intp->len);
@@ -802,6 +806,7 @@ static void usbredir_open_close_bh(void *opaque)
         dev->parser->log_func = usbredir_log;
         dev->parser->read_func = usbredir_read;
         dev->parser->write_func = usbredir_write;
+        dev->parser->hello_func = usbredir_hello;
         dev->parser->device_connect_func = usbredir_device_connect;
         dev->parser->device_disconnect_func = usbredir_device_disconnect;
         dev->parser->interface_info_func = usbredir_interface_info;
@@ -820,6 +825,7 @@ static void usbredir_open_close_bh(void *opaque)
         dev->read_buf_size = 0;
 
         usbredirparser_caps_set_cap(caps, usb_redir_cap_connect_device_version);
+        usbredirparser_caps_set_cap(caps, usb_redir_cap_filter);
         usbredirparser_init(dev->parser, VERSION, caps, USB_REDIR_CAPS_SIZE, 0);
         usbredirparser_do_write(dev->parser);
     }
@@ -958,7 +964,7 @@ static int usbredir_check_filter(USBRedirDevice *dev)
 {
     if (dev->interface_info.interface_count == 0) {
         ERROR("No interface info for device\n");
-        return -1;
+        goto error;
     }
 
     if (dev->filter_rules) {
@@ -966,7 +972,7 @@ static int usbredir_check_filter(USBRedirDevice *dev)
                                     usb_redir_cap_connect_device_version)) {
             ERROR("Device filter specified and peer does not have the "
                   "connect_device_version capability\n");
-            return -1;
+            goto error;
         }
 
         if (usbredirfilter_check(
@@ -983,11 +989,19 @@ static int usbredir_check_filter(USBRedirDevice *dev)
                 dev->device_info.product_id,
                 dev->device_info.device_version_bcd,
                 0) != 0) {
-            return -1;
+            goto error;
         }
     }
 
     return 0;
+
+error:
+    usbredir_device_disconnect(dev);
+    if (usbredirparser_peer_has_cap(dev->parser, usb_redir_cap_filter)) {
+        usbredirparser_send_filter_reject(dev->parser);
+        usbredirparser_do_write(dev->parser);
+    }
+    return -1;
 }
 
 /*
@@ -1009,6 +1023,19 @@ static int usbredir_handle_status(USBRedirDevice *dev,
     case usb_redir_timeout:
     default:
         return USB_RET_NAK;
+    }
+}
+
+static void usbredir_hello(void *priv, struct usb_redir_hello_header *h)
+{
+    USBRedirDevice *dev = priv;
+
+    /* Try to send the filter info now that we've the usb-host's caps */
+    if (usbredirparser_peer_has_cap(dev->parser, usb_redir_cap_filter) &&
+            dev->filter_rules) {
+        usbredirparser_send_filter_filter(dev->parser, dev->filter_rules,
+                                          dev->filter_rules_count);
+        usbredirparser_do_write(dev->parser);
     }
 }
 
@@ -1049,8 +1076,10 @@ static void usbredir_device_connect(void *priv,
                                     usb_redir_cap_connect_device_version)) {
         INFO("attaching %s device %04x:%04x version %d.%d class %02x\n",
              speed, device_connect->vendor_id, device_connect->product_id,
-             device_connect->device_version_bcd >> 8,
-             device_connect->device_version_bcd & 0xff,
+             ((device_connect->device_version_bcd & 0xf000) >> 12) * 10 +
+             ((device_connect->device_version_bcd & 0x0f00) >>  8),
+             ((device_connect->device_version_bcd & 0x00f0) >>  4) * 10 +
+             ((device_connect->device_version_bcd & 0x000f) >>  0),
              device_connect->device_class);
     } else {
         INFO("attaching %s device %04x:%04x class %02x\n", speed,
@@ -1111,7 +1140,6 @@ static void usbredir_interface_info(void *priv,
         if (usbredir_check_filter(dev)) {
             ERROR("Device no longer matches filter after interface info "
                   "change, disconnecting!\n");
-            usbredir_device_disconnect(dev);
         }
     }
 }

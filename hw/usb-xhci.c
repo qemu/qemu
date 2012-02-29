@@ -1769,12 +1769,6 @@ static void xhci_kick_ep(XHCIState *xhci, unsigned int slotid, unsigned int epid
             epctx->retry = xfer;
             break;
         }
-
-        /*
-         * Qemu usb can't handle multiple in-flight xfers.
-         * Stop here for now.
-         */
-        break;
     }
 }
 

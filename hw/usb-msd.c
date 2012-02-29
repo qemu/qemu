@@ -568,7 +568,7 @@ static int usb_msd_initfn(USBDevice *dev)
     return 0;
 }
 
-static USBDevice *usb_msd_init(const char *filename)
+static USBDevice *usb_msd_init(USBBus *bus, const char *filename)
 {
     static int nr=0;
     char id[8];
@@ -611,7 +611,7 @@ static USBDevice *usb_msd_init(const char *filename)
     }
 
     /* create guest device */
-    dev = usb_create(NULL /* FIXME */, "usb-storage");
+    dev = usb_create(bus, "usb-storage");
     if (!dev) {
         return NULL;
     }

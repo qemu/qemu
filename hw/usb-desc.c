@@ -536,7 +536,11 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         break;
 
     case DeviceRequest | USB_REQ_GET_CONFIGURATION:
-        data[0] = dev->config->bConfigurationValue;
+        /*
+         * 9.4.2: 0 should be returned if the device is unconfigured, otherwise
+         * the non zero value of bConfigurationValue.
+         */
+        data[0] = dev->config ? dev->config->bConfigurationValue : 0;
         ret = 1;
         break;
     case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
@@ -544,9 +548,18 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         trace_usb_set_config(dev->addr, value, ret);
         break;
 
-    case DeviceRequest | USB_REQ_GET_STATUS:
+    case DeviceRequest | USB_REQ_GET_STATUS: {
+        const USBDescConfig *config = dev->config ?
+            dev->config : &dev->device->confs[0];
+
         data[0] = 0;
-        if (dev->config->bmAttributes & 0x40) {
+        /*
+         * Default state: Device behavior when this request is received while
+         *                the device is in the Default state is not specified.
+         * We return the same value that a configured device would return if
+         * it used the first configuration.
+         */
+        if (config->bmAttributes & 0x40) {
             data[0] |= 1 << USB_DEVICE_SELF_POWERED;
         }
         if (dev->remote_wakeup) {
@@ -555,6 +568,7 @@ int usb_desc_handle_control(USBDevice *dev, USBPacket *p,
         data[1] = 0x00;
         ret = 2;
         break;
+    }
     case DeviceOutRequest | USB_REQ_CLEAR_FEATURE:
         if (value == USB_DEVICE_REMOTE_WAKEUP) {
             dev->remote_wakeup = 0;
