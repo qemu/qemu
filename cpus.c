@@ -714,6 +714,7 @@ static void *qemu_kvm_cpu_thread_fn(void *arg)
     qemu_mutex_lock(&qemu_global_mutex);
     qemu_thread_get_self(env->thread);
     env->thread_id = qemu_get_thread_id();
+    cpu_single_env = env;
 
     r = kvm_init_vcpu(env);
     if (r < 0) {
@@ -760,6 +761,11 @@ static void *qemu_tcg_cpu_thread_fn(void *arg)
     /* wait for initial kick-off after machine start */
     while (first_cpu->stopped) {
         qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
+
+        /* process any pending work */
+        for (env = first_cpu; env != NULL; env = env->next_cpu) {
+            qemu_wait_io_event_common(env);
+        }
     }
 
     while (1) {
@@ -852,7 +858,7 @@ static int all_vcpus_paused(void)
         if (!penv->stopped) {
             return 0;
         }
-        penv = (CPUState *)penv->next_cpu;
+        penv = penv->next_cpu;
     }
 
     return 1;
@@ -866,7 +872,19 @@ void pause_all_vcpus(void)
     while (penv) {
         penv->stop = 1;
         qemu_cpu_kick(penv);
-        penv = (CPUState *)penv->next_cpu;
+        penv = penv->next_cpu;
+    }
+
+    if (!qemu_thread_is_self(&io_thread)) {
+        cpu_stop_current();
+        if (!kvm_enabled()) {
+            while (penv) {
+                penv->stop = 0;
+                penv->stopped = 1;
+                penv = penv->next_cpu;
+            }
+            return;
+        }
     }
 
     while (!all_vcpus_paused()) {
@@ -874,7 +892,7 @@ void pause_all_vcpus(void)
         penv = first_cpu;
         while (penv) {
             qemu_cpu_kick(penv);
-            penv = (CPUState *)penv->next_cpu;
+            penv = penv->next_cpu;
         }
     }
 }
@@ -888,7 +906,7 @@ void resume_all_vcpus(void)
         penv->stop = 0;
         penv->stopped = 0;
         qemu_cpu_kick(penv);
-        penv = (CPUState *)penv->next_cpu;
+        penv = penv->next_cpu;
     }
 }
 

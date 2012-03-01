@@ -482,6 +482,7 @@
 #define CPU_INTERRUPT_VIRQ      CPU_INTERRUPT_TGT_INT_0
 #define CPU_INTERRUPT_INIT      CPU_INTERRUPT_TGT_INT_1
 #define CPU_INTERRUPT_SIPI      CPU_INTERRUPT_TGT_INT_2
+#define CPU_INTERRUPT_TPR       CPU_INTERRUPT_TGT_INT_3
 
 
 enum {
@@ -612,6 +613,11 @@ typedef struct {
 #endif
 
 #define NB_MMU_MODES 2
+
+typedef enum TPRAccess {
+    TPR_ACCESS_READ,
+    TPR_ACCESS_WRITE,
+} TPRAccess;
 
 typedef struct CPUX86State {
     /* standard registers */
@@ -772,6 +778,8 @@ typedef struct CPUX86State {
     XMMReg ymmh_regs[CPU_NB_REGS];
 
     uint64_t xcr0;
+
+    TPRAccess tpr_access_type;
 } CPUX86State;
 
 CPUX86State *cpu_x86_init(const char *cpu_model);
@@ -1063,5 +1071,7 @@ void do_smm_enter(CPUState *env1);
 void svm_check_intercept(CPUState *env1, uint32_t type);
 
 uint32_t cpu_cc_compute_all(CPUState *env1, int op);
+
+void cpu_report_tpr_access(CPUState *env, TPRAccess access);
 
 #endif /* CPU_I386_H */

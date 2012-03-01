@@ -256,7 +256,7 @@ pxe-e1000.rom pxe-eepro100.rom pxe-ne2k_pci.rom \
 pxe-pcnet.rom pxe-rtl8139.rom pxe-virtio.rom \
 bamboo.dtb petalogix-s3adsp1800.dtb petalogix-ml605.dtb \
 mpc8544ds.dtb \
-multiboot.bin linuxboot.bin \
+multiboot.bin linuxboot.bin kvmvapic.bin \
 s390-zipl.rom \
 spapr-rtas.bin slof.bin \
 palcode-clipper

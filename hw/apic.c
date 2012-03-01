@@ -35,6 +35,10 @@
 #define MSI_ADDR_DEST_ID_SHIFT		12
 #define	MSI_ADDR_DEST_ID_MASK		0x00ffff0
 
+#define SYNC_FROM_VAPIC                 0x1
+#define SYNC_TO_VAPIC                   0x2
+#define SYNC_ISR_IRR_TO_VAPIC           0x4
+
 static APICCommonState *local_apics[MAX_APICS + 1];
 
 static void apic_set_irq(APICCommonState *s, int vector_num, int trigger_mode);
@@ -76,6 +80,70 @@ static inline int get_bit(uint32_t *tab, int index)
     i = index >> 5;
     mask = 1 << (index & 0x1f);
     return !!(tab[i] & mask);
+}
+
+/* return -1 if no bit is set */
+static int get_highest_priority_int(uint32_t *tab)
+{
+    int i;
+    for (i = 7; i >= 0; i--) {
+        if (tab[i] != 0) {
+            return i * 32 + fls_bit(tab[i]);
+        }
+    }
+    return -1;
+}
+
+static void apic_sync_vapic(APICCommonState *s, int sync_type)
+{
+    VAPICState vapic_state;
+    size_t length;
+    off_t start;
+    int vector;
+
+    if (!s->vapic_paddr) {
+        return;
+    }
+    if (sync_type & SYNC_FROM_VAPIC) {
+        cpu_physical_memory_rw(s->vapic_paddr, (void *)&vapic_state,
+                               sizeof(vapic_state), 0);
+        s->tpr = vapic_state.tpr;
+    }
+    if (sync_type & (SYNC_TO_VAPIC | SYNC_ISR_IRR_TO_VAPIC)) {
+        start = offsetof(VAPICState, isr);
+        length = offsetof(VAPICState, enabled) - offsetof(VAPICState, isr);
+
+        if (sync_type & SYNC_TO_VAPIC) {
+            assert(qemu_cpu_is_self(s->cpu_env));
+
+            vapic_state.tpr = s->tpr;
+            vapic_state.enabled = 1;
+            start = 0;
+            length = sizeof(VAPICState);
+        }
+
+        vector = get_highest_priority_int(s->isr);
+        if (vector < 0) {
+            vector = 0;
+        }
+        vapic_state.isr = vector & 0xf0;
+
+        vapic_state.zero = 0;
+
+        vector = get_highest_priority_int(s->irr);
+        if (vector < 0) {
+            vector = 0;
+        }
+        vapic_state.irr = vector & 0xff;
+
+        cpu_physical_memory_write_rom(s->vapic_paddr + start,
+                                      ((void *)&vapic_state) + start, length);
+    }
+}
+
+static void apic_vapic_base_update(APICCommonState *s)
+{
+    apic_sync_vapic(s, SYNC_TO_VAPIC);
 }
 
 static void apic_local_deliver(APICCommonState *s, int vector)
@@ -239,20 +307,17 @@ static void apic_set_base(APICCommonState *s, uint64_t val)
 
 static void apic_set_tpr(APICCommonState *s, uint8_t val)
 {
-    s->tpr = (val & 0x0f) << 4;
-    apic_update_irq(s);
+    /* Updates from cr8 are ignored while the VAPIC is active */
+    if (!s->vapic_paddr) {
+        s->tpr = val << 4;
+        apic_update_irq(s);
+    }
 }
 
-/* return -1 if no bit is set */
-static int get_highest_priority_int(uint32_t *tab)
+static uint8_t apic_get_tpr(APICCommonState *s)
 {
-    int i;
-    for(i = 7; i >= 0; i--) {
-        if (tab[i] != 0) {
-            return i * 32 + fls_bit(tab[i]);
-        }
-    }
-    return -1;
+    apic_sync_vapic(s, SYNC_FROM_VAPIC);
+    return s->tpr >> 4;
 }
 
 static int apic_get_ppr(APICCommonState *s)
@@ -312,6 +377,14 @@ static void apic_update_irq(APICCommonState *s)
     }
 }
 
+void apic_poll_irq(DeviceState *d)
+{
+    APICCommonState *s = APIC_COMMON(d);
+
+    apic_sync_vapic(s, SYNC_FROM_VAPIC);
+    apic_update_irq(s);
+}
+
 static void apic_set_irq(APICCommonState *s, int vector_num, int trigger_mode)
 {
     apic_report_irq_delivered(!get_bit(s->irr, vector_num));
@@ -321,6 +394,16 @@ static void apic_set_irq(APICCommonState *s, int vector_num, int trigger_mode)
         set_bit(s->tmr, vector_num);
     else
         reset_bit(s->tmr, vector_num);
+    if (s->vapic_paddr) {
+        apic_sync_vapic(s, SYNC_ISR_IRR_TO_VAPIC);
+        /*
+         * The vcpu thread needs to see the new IRR before we pull its current
+         * TPR value. That way, if we miss a lowering of the TRP, the guest
+         * has the chance to notice the new IRR and poll for IRQs on its own.
+         */
+        smp_wmb();
+        apic_sync_vapic(s, SYNC_FROM_VAPIC);
+    }
     apic_update_irq(s);
 }
 
@@ -334,6 +417,7 @@ static void apic_eoi(APICCommonState *s)
     if (!(s->spurious_vec & APIC_SV_DIRECTED_IO) && get_bit(s->tmr, isrv)) {
         ioapic_eoi_broadcast(isrv);
     }
+    apic_sync_vapic(s, SYNC_FROM_VAPIC | SYNC_TO_VAPIC);
     apic_update_irq(s);
 }
 
@@ -471,15 +555,19 @@ int apic_get_interrupt(DeviceState *d)
     if (!(s->spurious_vec & APIC_SV_ENABLE))
         return -1;
 
+    apic_sync_vapic(s, SYNC_FROM_VAPIC);
     intno = apic_irq_pending(s);
 
     if (intno == 0) {
+        apic_sync_vapic(s, SYNC_TO_VAPIC);
         return -1;
     } else if (intno < 0) {
+        apic_sync_vapic(s, SYNC_TO_VAPIC);
         return s->spurious_vec & 0xff;
     }
     reset_bit(s->irr, intno);
     set_bit(s->isr, intno);
+    apic_sync_vapic(s, SYNC_TO_VAPIC);
     apic_update_irq(s);
     return intno;
 }
@@ -576,6 +664,10 @@ static uint32_t apic_mem_readl(void *opaque, target_phys_addr_t addr)
         val = 0x11 | ((APIC_LVT_NB - 1) << 16); /* version 0x11 */
         break;
     case 0x08:
+        apic_sync_vapic(s, SYNC_FROM_VAPIC);
+        if (apic_report_tpr_access) {
+            cpu_report_tpr_access(s->cpu_env, TPR_ACCESS_READ);
+        }
         val = s->tpr;
         break;
     case 0x09:
@@ -675,7 +767,11 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     case 0x03:
         break;
     case 0x08:
+        if (apic_report_tpr_access) {
+            cpu_report_tpr_access(s->cpu_env, TPR_ACCESS_WRITE);
+        }
         s->tpr = val;
+        apic_sync_vapic(s, SYNC_TO_VAPIC);
         apic_update_irq(s);
         break;
     case 0x09:
@@ -737,6 +833,11 @@ static void apic_mem_writel(void *opaque, target_phys_addr_t addr, uint32_t val)
     }
 }
 
+static void apic_pre_save(APICCommonState *s)
+{
+    apic_sync_vapic(s, SYNC_FROM_VAPIC);
+}
+
 static void apic_post_load(APICCommonState *s)
 {
     if (s->timer_expiry != -1) {
@@ -770,7 +871,10 @@ static void apic_class_init(ObjectClass *klass, void *data)
     k->init = apic_init;
     k->set_base = apic_set_base;
     k->set_tpr = apic_set_tpr;
+    k->get_tpr = apic_get_tpr;
+    k->vapic_base_update = apic_vapic_base_update;
     k->external_nmi = apic_external_nmi;
+    k->pre_save = apic_pre_save;
     k->post_load = apic_post_load;
 }
 

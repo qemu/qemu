@@ -375,8 +375,9 @@ DECLARE_TLS(CPUState *,cpu_single_env);
 #define CPU_INTERRUPT_TGT_INT_0   0x0100
 #define CPU_INTERRUPT_TGT_INT_1   0x0400
 #define CPU_INTERRUPT_TGT_INT_2   0x0800
+#define CPU_INTERRUPT_TGT_INT_3   0x2000
 
-/* First unused bit: 0x2000.  */
+/* First unused bit: 0x4000.  */
 
 /* The set of all bits that should be masked when single-stepping.  */
 #define CPU_INTERRUPT_SSTEP_MASK \

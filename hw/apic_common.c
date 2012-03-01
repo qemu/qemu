@@ -20,8 +20,10 @@
 #include "apic.h"
 #include "apic_internal.h"
 #include "trace.h"
+#include "kvm.h"
 
 static int apic_irq_delivered;
+bool apic_report_tpr_access;
 
 void cpu_set_apic_base(DeviceState *d, uint64_t val)
 {
@@ -63,9 +65,45 @@ void cpu_set_apic_tpr(DeviceState *d, uint8_t val)
 
 uint8_t cpu_get_apic_tpr(DeviceState *d)
 {
+    APICCommonState *s;
+    APICCommonClass *info;
+
+    if (!d) {
+        return 0;
+    }
+
+    s = APIC_COMMON(d);
+    info = APIC_COMMON_GET_CLASS(s);
+
+    return info->get_tpr(s);
+}
+
+void apic_enable_tpr_access_reporting(DeviceState *d, bool enable)
+{
+    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+
+    apic_report_tpr_access = enable;
+    if (info->enable_tpr_reporting) {
+        info->enable_tpr_reporting(s, enable);
+    }
+}
+
+void apic_enable_vapic(DeviceState *d, target_phys_addr_t paddr)
+{
+    APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+
+    s->vapic_paddr = paddr;
+    info->vapic_base_update(s);
+}
+
+void apic_handle_tpr_access_report(DeviceState *d, target_ulong ip,
+                                   TPRAccess access)
+{
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
 
-    return s ? s->tpr >> 4 : 0;
+    vapic_report_tpr_access(s->vapic, s->cpu_env, ip, access);
 }
 
 void apic_report_irq_delivered(int delivered)
@@ -166,11 +204,15 @@ void apic_init_reset(DeviceState *d)
 static void apic_reset_common(DeviceState *d)
 {
     APICCommonState *s = DO_UPCAST(APICCommonState, busdev.qdev, d);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
     bool bsp;
 
     bsp = cpu_is_bsp(s->cpu_env);
     s->apicbase = 0xfee00000 |
         (bsp ? MSR_IA32_APICBASE_BSP : 0) | MSR_IA32_APICBASE_ENABLE;
+
+    s->vapic_paddr = 0;
+    info->vapic_base_update(s);
 
     apic_init_reset(d);
 
@@ -234,6 +276,7 @@ static int apic_init_common(SysBusDevice *dev)
 {
     APICCommonState *s = APIC_COMMON(dev);
     APICCommonClass *info;
+    static DeviceState *vapic;
     static int apic_no;
 
     if (apic_no >= MAX_APICS) {
@@ -244,8 +287,27 @@ static int apic_init_common(SysBusDevice *dev)
     info = APIC_COMMON_GET_CLASS(s);
     info->init(s);
 
-    sysbus_init_mmio(&s->busdev, &s->io_memory);
+    sysbus_init_mmio(dev, &s->io_memory);
+
+    if (!vapic && s->vapic_control & VAPIC_ENABLE_MASK) {
+        vapic = sysbus_create_simple("kvmvapic", -1, NULL);
+    }
+    s->vapic = vapic;
+    if (apic_report_tpr_access && info->enable_tpr_reporting) {
+        info->enable_tpr_reporting(s, true);
+    }
+
     return 0;
+}
+
+static void apic_dispatch_pre_save(void *opaque)
+{
+    APICCommonState *s = APIC_COMMON(opaque);
+    APICCommonClass *info = APIC_COMMON_GET_CLASS(s);
+
+    if (info->pre_save) {
+        info->pre_save(s);
+    }
 }
 
 static int apic_dispatch_post_load(void *opaque, int version_id)
@@ -265,6 +327,7 @@ static const VMStateDescription vmstate_apic_common = {
     .minimum_version_id = 3,
     .minimum_version_id_old = 1,
     .load_state_old = apic_load_old,
+    .pre_save = apic_dispatch_pre_save,
     .post_load = apic_dispatch_post_load,
     .fields = (VMStateField[]) {
         VMSTATE_UINT32(apicbase, APICCommonState),
@@ -294,6 +357,8 @@ static const VMStateDescription vmstate_apic_common = {
 static Property apic_properties_common[] = {
     DEFINE_PROP_UINT8("id", APICCommonState, id, -1),
     DEFINE_PROP_PTR("cpu_env", APICCommonState, cpu_env),
+    DEFINE_PROP_BIT("vapic", APICCommonState, vapic_control, VAPIC_ENABLE_BIT,
+                    true),
     DEFINE_PROP_END_OF_LIST(),
 };
 

@@ -61,6 +61,9 @@
 #define APIC_SV_DIRECTED_IO             (1<<12)
 #define APIC_SV_ENABLE                  (1<<8)
 
+#define VAPIC_ENABLE_BIT                0
+#define VAPIC_ENABLE_MASK               (1 << VAPIC_ENABLE_BIT)
+
 #define MAX_APICS 255
 
 #define MSI_SPACE_SIZE                  0x100000
@@ -82,7 +85,11 @@ typedef struct APICCommonClass
     void (*init)(APICCommonState *s);
     void (*set_base)(APICCommonState *s, uint64_t val);
     void (*set_tpr)(APICCommonState *s, uint8_t val);
+    uint8_t (*get_tpr)(APICCommonState *s);
+    void (*enable_tpr_reporting)(APICCommonState *s, bool enable);
+    void (*vapic_base_update)(APICCommonState *s);
     void (*external_nmi)(APICCommonState *s);
+    void (*pre_save)(APICCommonState *s);
     void (*post_load)(APICCommonState *s);
 } APICCommonClass;
 
@@ -114,9 +121,29 @@ struct APICCommonState {
     int64_t timer_expiry;
     int sipi_vector;
     int wait_for_sipi;
+
+    uint32_t vapic_control;
+    DeviceState *vapic;
+    target_phys_addr_t vapic_paddr; /* note: persistence via kvmvapic */
 };
+
+typedef struct VAPICState {
+    uint8_t tpr;
+    uint8_t isr;
+    uint8_t zero;
+    uint8_t irr;
+    uint8_t enabled;
+} QEMU_PACKED VAPICState;
+
+extern bool apic_report_tpr_access;
 
 void apic_report_irq_delivered(int delivered);
 bool apic_next_timer(APICCommonState *s, int64_t current_time);
+void apic_enable_tpr_access_reporting(DeviceState *d, bool enable);
+void apic_enable_vapic(DeviceState *d, target_phys_addr_t paddr);
+void apic_poll_irq(DeviceState *d);
+
+void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
+                             TPRAccess access);
 
 #endif /* !QEMU_APIC_INTERNAL_H */
