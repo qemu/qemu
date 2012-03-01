@@ -542,17 +542,26 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     target_phys_addr_t start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
     void *ram = NULL;
+    unsigned delta;
 
     /* kvm works in page size chunks, but the function may be called
        with sub-page size and unaligned start address. */
-    size = TARGET_PAGE_ALIGN(size);
-    start_addr = TARGET_PAGE_ALIGN(start_addr);
+    delta = TARGET_PAGE_ALIGN(size) - size;
+    if (delta > size) {
+        return;
+    }
+    start_addr += delta;
+    size -= delta;
+    size &= TARGET_PAGE_MASK;
+    if (!size || (start_addr & ~TARGET_PAGE_MASK)) {
+        return;
+    }
 
     if (!memory_region_is_ram(mr)) {
         return;
     }
 
-    ram = memory_region_get_ram_ptr(mr) + section->offset_within_region;
+    ram = memory_region_get_ram_ptr(mr) + section->offset_within_region + delta;
 
     while (1) {
         mem = kvm_lookup_overlapping_slot(s, start_addr, start_addr + size);
