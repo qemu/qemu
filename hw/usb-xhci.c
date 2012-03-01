@@ -1470,8 +1470,8 @@ static USBDevice *xhci_find_device(XHCIPort *port, uint8_t addr)
 static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
 {
     XHCITRB *trb_setup, *trb_status;
-    uint8_t bmRequestType, bRequest;
-    uint16_t wValue, wLength, wIndex;
+    uint8_t bmRequestType;
+    uint16_t wLength;
     XHCIPort *port;
     USBDevice *dev;
     int ret;
@@ -1508,9 +1508,6 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     }
 
     bmRequestType = trb_setup->parameter;
-    bRequest = trb_setup->parameter >> 8;
-    wValue = trb_setup->parameter >> 16;
-    wIndex = trb_setup->parameter >> 32;
     wLength = trb_setup->parameter >> 48;
 
     if (xfer->data && xfer->data_alloced < wLength) {
@@ -1537,12 +1534,12 @@ static int xhci_fire_ctl_transfer(XHCIState *xhci, XHCITransfer *xfer)
     xfer->iso_xfer = false;
 
     xhci_setup_packet(xfer, dev);
+    xfer->packet.parameter = trb_setup->parameter;
     if (!xfer->in_xfer) {
         xhci_xfer_data(xfer, xfer->data, wLength, 0, 1, 0);
     }
-    ret = usb_device_handle_control(dev, &xfer->packet,
-                                    (bmRequestType << 8) | bRequest,
-                                    wValue, wIndex, wLength, xfer->data);
+
+    ret = usb_handle_packet(dev, &xfer->packet);
 
     xhci_complete_packet(xfer, ret);
     if (!xfer->running_async && !xfer->running_retry) {
