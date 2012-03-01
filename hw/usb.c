@@ -323,7 +323,7 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     assert(p->state == USB_PACKET_SETUP);
     assert(p->ep != NULL);
 
-    if (QTAILQ_EMPTY(&p->ep->queue)) {
+    if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline) {
         ret = usb_process_one(p);
         if (ret == USB_RET_ASYNC) {
             usb_packet_set_state(p, USB_PACKET_ASYNC);
@@ -468,6 +468,7 @@ void usb_ep_init(USBDevice *dev)
     dev->ep_ctl.type = USB_ENDPOINT_XFER_CONTROL;
     dev->ep_ctl.ifnum = 0;
     dev->ep_ctl.dev = dev;
+    dev->ep_ctl.pipeline = false;
     QTAILQ_INIT(&dev->ep_ctl.queue);
     for (ep = 0; ep < USB_MAX_ENDPOINTS; ep++) {
         dev->ep_in[ep].nr = ep + 1;
@@ -480,6 +481,8 @@ void usb_ep_init(USBDevice *dev)
         dev->ep_out[ep].ifnum = 0;
         dev->ep_in[ep].dev = dev;
         dev->ep_out[ep].dev = dev;
+        dev->ep_in[ep].pipeline = false;
+        dev->ep_out[ep].pipeline = false;
         QTAILQ_INIT(&dev->ep_in[ep].queue);
         QTAILQ_INIT(&dev->ep_out[ep].queue);
     }
@@ -592,4 +595,10 @@ int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep)
 {
     struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
     return uep->max_packet_size;
+}
+
+void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled)
+{
+    struct USBEndpoint *uep = usb_ep_get(dev, pid, ep);
+    uep->pipeline = enabled;
 }
