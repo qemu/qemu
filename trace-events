@@ -312,6 +312,30 @@ scsi_request_sense(int target, int lun, int tag) "target %d lun %d tag %d"
 # vl.c
 vm_state_notify(int running, int reason) "running %d reason %d"
 
+# block/qcow2.c
+qcow2_writev_start_req(void *co, int64_t sector, int nb_sectors) "co %p sector %" PRIx64 " nb_sectors %d"
+qcow2_writev_done_req(void *co, int ret) "co %p ret %d"
+qcow2_writev_start_part(void *co) "co %p"
+qcow2_writev_done_part(void *co, int cur_nr_sectors) "co %p cur_nr_sectors %d"
+qcow2_writev_data(void *co, uint64_t offset) "co %p offset %" PRIx64
+
+qcow2_alloc_clusters_offset(void *co, uint64_t offset, int n_start, int n_end) "co %p offet %" PRIx64 " n_start %d n_end %d"
+qcow2_cluster_alloc_phys(void *co) "co %p"
+qcow2_cluster_link_l2(void *co, int nb_clusters) "co %p nb_clusters %d"
+
+qcow2_l2_allocate(void *bs, int l1_index) "bs %p l1_index %d"
+qcow2_l2_allocate_get_empty(void *bs, int l1_index) "bs %p l1_index %d"
+qcow2_l2_allocate_write_l2(void *bs, int l1_index) "bs %p l1_index %d"
+qcow2_l2_allocate_write_l1(void *bs, int l1_index) "bs %p l1_index %d"
+qcow2_l2_allocate_done(void *bs, int l1_index, int ret) "bs %p l1_index %d ret %d"
+
+qcow2_cache_get(void *co, int c, uint64_t offset, bool read_from_disk) "co %p is_l2_cache %d offset %" PRIx64 " read_from_disk %d"
+qcow2_cache_get_replace_entry(void *co, int c, int i) "co %p is_l2_cache %d index %d"
+qcow2_cache_get_read(void *co, int c, int i) "co %p is_l2_cache %d index %d"
+qcow2_cache_get_done(void *co, int c, int i) "co %p is_l2_cache %d index %d"
+qcow2_cache_flush(void *co, int c) "co %p is_l2_cache %d"
+qcow2_cache_entry_flush(void *co, int c, int i) "co %p is_l2_cache %d index %d"
+
 # block/qed-l2-cache.c
 qed_alloc_l2_cache_entry(void *l2_cache, void *entry) "l2_cache %p entry %p"
 qed_unref_l2_cache_entry(void *entry, int ref) "entry %p ref %d"

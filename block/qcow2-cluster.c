@@ -27,6 +27,7 @@
 #include "qemu-common.h"
 #include "block_int.h"
 #include "block/qcow2.h"
+#include "trace.h"
 
 int qcow2_grow_l1_table(BlockDriverState *bs, int min_size, bool exact_size)
 {
@@ -170,6 +171,8 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
     old_l2_offset = s->l1_table[l1_index];
 
+    trace_qcow2_l2_allocate(bs, l1_index);
+
     /* allocate a new l2 entry */
 
     l2_offset = qcow2_alloc_clusters(bs, s->l2_size * sizeof(uint64_t));
@@ -184,6 +187,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
 
     /* allocate a new entry in the l2 cache */
 
+    trace_qcow2_l2_allocate_get_empty(bs, l1_index);
     ret = qcow2_cache_get_empty(bs, s->l2_table_cache, l2_offset, (void**) table);
     if (ret < 0) {
         return ret;
@@ -216,6 +220,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     /* write the l2 table to the file */
     BLKDBG_EVENT(bs->file, BLKDBG_L2_ALLOC_WRITE);
 
+    trace_qcow2_l2_allocate_write_l2(bs, l1_index);
     qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
     ret = qcow2_cache_flush(bs, s->l2_table_cache);
     if (ret < 0) {
@@ -223,6 +228,7 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     }
 
     /* update the L1 entry */
+    trace_qcow2_l2_allocate_write_l1(bs, l1_index);
     s->l1_table[l1_index] = l2_offset | QCOW_OFLAG_COPIED;
     ret = write_l1_entry(bs, l1_index);
     if (ret < 0) {
@@ -230,9 +236,11 @@ static int l2_allocate(BlockDriverState *bs, int l1_index, uint64_t **table)
     }
 
     *table = l2_table;
+    trace_qcow2_l2_allocate_done(bs, l1_index, 0);
     return 0;
 
 fail:
+    trace_qcow2_l2_allocate_done(bs, l1_index, ret);
     qcow2_cache_put(bs, s->l2_table_cache, (void**) table);
     s->l1_table[l1_index] = old_l2_offset;
     return ret;
@@ -584,6 +592,8 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     uint64_t cluster_offset = m->cluster_offset;
     bool cow = false;
 
+    trace_qcow2_cluster_link_l2(qemu_coroutine_self(), m->nb_clusters);
+
     if (m->nb_clusters == 0)
         return 0;
 
@@ -695,6 +705,9 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
     unsigned int nb_clusters, i = 0;
     QCowL2Meta *old_alloc;
 
+    trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset,
+                                      n_start, n_end);
+
     ret = get_cluster_table(bs, offset, &l2_table, &l2_offset, &l2_index);
     if (ret < 0) {
         return ret;
@@ -793,7 +806,7 @@ again:
     QLIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);
 
     /* allocate a new cluster */
-
+    trace_qcow2_cluster_alloc_phys(qemu_coroutine_self());
     cluster_offset = qcow2_alloc_clusters(bs, nb_clusters * s->cluster_size);
     if (cluster_offset < 0) {
         ret = cluster_offset;
