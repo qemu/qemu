@@ -937,9 +937,7 @@ static void blizzard_screen_dump(void *opaque, const char *filename,
 {
     BlizzardState *s = (BlizzardState *) opaque;
 
-    if (cswitch) {
-        blizzard_update_display(opaque);
-    }
+    blizzard_update_display(opaque);
     if (s && ds_get_data(s->state))
         ppm_save(filename, s->state->surface);
 }

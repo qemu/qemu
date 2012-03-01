@@ -267,9 +267,8 @@ static int ppm_save(const char *filename, uint8_t *data,
 static void omap_screen_dump(void *opaque, const char *filename, bool cswitch)
 {
     struct omap_lcd_panel_s *omap_lcd = opaque;
-    if (cswitch) {
-        omap_update_display(opaque);
-    }
+
+    omap_update_display(opaque);
     if (omap_lcd && ds_get_data(omap_lcd->state))
         ppm_save(filename, ds_get_data(omap_lcd->state),
                 omap_lcd->width, omap_lcd->height,
