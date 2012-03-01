@@ -800,7 +800,8 @@ void qmp_blockdev_group_snapshot_sync(SnapshotDevList *dev_list,
         /* create new image w/backing file */
         ret = bdrv_img_create(snapshot_file, format,
                               states->old_bs->filename,
-                              drv->format_name, NULL, -1, flags);
+                              states->old_bs->drv->format_name,
+                              NULL, -1, flags);
         if (ret) {
             error_set(errp, QERR_OPEN_FILE_FAILED, snapshot_file);
             goto delete_and_fail;
