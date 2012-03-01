@@ -436,6 +436,14 @@ static bool vhost_section(MemoryRegionSection *section)
         && memory_region_is_ram(section->mr);
 }
 
+static void vhost_begin(MemoryListener *listener)
+{
+}
+
+static void vhost_commit(MemoryListener *listener)
+{
+}
+
 static void vhost_region_add(MemoryListener *listener,
                              MemoryRegionSection *section)
 {
@@ -474,6 +482,11 @@ static void vhost_region_del(MemoryListener *listener,
             break;
         }
     }
+}
+
+static void vhost_region_nop(MemoryListener *listener,
+                             MemoryRegionSection *section)
+{
 }
 
 static int vhost_virtqueue_set_addr(struct vhost_dev *dev,
@@ -720,6 +733,18 @@ static void vhost_virtqueue_cleanup(struct vhost_dev *dev,
                               0, virtio_queue_get_desc_size(vdev, idx));
 }
 
+static void vhost_eventfd_add(MemoryListener *listener,
+                              MemoryRegionSection *section,
+                              bool match_data, uint64_t data, int fd)
+{
+}
+
+static void vhost_eventfd_del(MemoryListener *listener,
+                              MemoryRegionSection *section,
+                              bool match_data, uint64_t data, int fd)
+{
+}
+
 int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
 {
     uint64_t features;
@@ -744,13 +769,19 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
     hdev->features = features;
 
     hdev->memory_listener = (MemoryListener) {
+        .begin = vhost_begin,
+        .commit = vhost_commit,
         .region_add = vhost_region_add,
         .region_del = vhost_region_del,
+        .region_nop = vhost_region_nop,
         .log_start = vhost_log_start,
         .log_stop = vhost_log_stop,
         .log_sync = vhost_log_sync,
         .log_global_start = vhost_log_global_start,
         .log_global_stop = vhost_log_global_stop,
+        .eventfd_add = vhost_eventfd_add,
+        .eventfd_del = vhost_eventfd_del,
+        .priority = 10
     };
     hdev->mem = g_malloc0(offsetof(struct vhost_memory, regions));
     hdev->n_mem_sections = 0;
@@ -759,7 +790,7 @@ int vhost_dev_init(struct vhost_dev *hdev, int devfd, bool force)
     hdev->log_size = 0;
     hdev->log_enabled = false;
     hdev->started = false;
-    memory_listener_register(&hdev->memory_listener);
+    memory_listener_register(&hdev->memory_listener, NULL);
     hdev->force = force;
     return 0;
 fail:
