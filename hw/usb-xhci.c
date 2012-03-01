@@ -2279,7 +2279,7 @@ static void xhci_update_port(XHCIState *xhci, XHCIPort *port, int is_detach)
     int nr = port->port.index + 1;
 
     port->portsc = PORTSC_PP;
-    if (port->port.dev && !is_detach) {
+    if (port->port.dev && port->port.dev->attached && !is_detach) {
         port->portsc |= PORTSC_CCS;
         switch (port->port.dev->speed) {
         case USB_SPEED_LOW:
