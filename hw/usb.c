@@ -95,6 +95,7 @@ void usb_wakeup(USBEndpoint *ep)
 #define SETUP_STATE_SETUP 1
 #define SETUP_STATE_DATA  2
 #define SETUP_STATE_ACK   3
+#define SETUP_STATE_PARAM 4
 
 static int do_token_setup(USBDevice *s, USBPacket *p)
 {
@@ -226,6 +227,50 @@ static int do_token_out(USBDevice *s, USBPacket *p)
     }
 }
 
+static int do_parameter(USBDevice *s, USBPacket *p)
+{
+    int request, value, index;
+    int i, ret = 0;
+
+    for (i = 0; i < 8; i++) {
+        s->setup_buf[i] = p->parameter >> (i*8);
+    }
+
+    s->setup_state = SETUP_STATE_PARAM;
+    s->setup_len   = (s->setup_buf[7] << 8) | s->setup_buf[6];
+    s->setup_index = 0;
+
+    request = (s->setup_buf[0] << 8) | s->setup_buf[1];
+    value   = (s->setup_buf[3] << 8) | s->setup_buf[2];
+    index   = (s->setup_buf[5] << 8) | s->setup_buf[4];
+
+    if (s->setup_len > sizeof(s->data_buf)) {
+        fprintf(stderr,
+                "usb_generic_handle_packet: ctrl buffer too small (%d > %zu)\n",
+                s->setup_len, sizeof(s->data_buf));
+        return USB_RET_STALL;
+    }
+
+    if (p->pid == USB_TOKEN_OUT) {
+        usb_packet_copy(p, s->data_buf, s->setup_len);
+    }
+
+    ret = usb_device_handle_control(s, p, request, value, index,
+                                    s->setup_len, s->data_buf);
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (ret < s->setup_len) {
+        s->setup_len = ret;
+    }
+    if (p->pid == USB_TOKEN_IN) {
+        usb_packet_copy(p, s->data_buf, s->setup_len);
+    }
+
+    return ret;
+}
+
 /* ctrl complete function for devices which use usb_generic_handle_packet and
    may return USB_RET_ASYNC from their handle_control callback. Device code
    which does this *must* call this function instead of the normal
@@ -248,6 +293,16 @@ void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p)
     case SETUP_STATE_ACK:
         s->setup_state = SETUP_STATE_IDLE;
         p->result = 0;
+        break;
+
+    case SETUP_STATE_PARAM:
+        if (p->result < s->setup_len) {
+            s->setup_len = p->result;
+        }
+        if (p->pid == USB_TOKEN_IN) {
+            p->result = 0;
+            usb_packet_copy(p, s->data_buf, s->setup_len);
+        }
         break;
 
     default:
@@ -292,6 +347,9 @@ static int usb_process_one(USBPacket *p)
 
     if (p->ep->nr == 0) {
         /* control pipe */
+        if (p->parameter) {
+            return do_parameter(dev, p);
+        }
         switch (p->pid) {
         case USB_TOKEN_SETUP:
             return do_token_setup(dev, p);
@@ -416,6 +474,7 @@ void usb_packet_setup(USBPacket *p, int pid, USBEndpoint *ep)
     p->pid = pid;
     p->ep = ep;
     p->result = 0;
+    p->parameter = 0;
     qemu_iovec_reset(&p->iov);
     usb_packet_set_state(p, USB_PACKET_SETUP);
 }

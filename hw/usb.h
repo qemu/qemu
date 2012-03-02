@@ -327,6 +327,7 @@ struct USBPacket {
     int pid;
     USBEndpoint *ep;
     QEMUIOVector iov;
+    uint64_t parameter; /* control transfers */
     int result; /* transfer length or USB_RET_* status code */
     /* Internal use by the USB layer.  */
     USBPacketState state;
