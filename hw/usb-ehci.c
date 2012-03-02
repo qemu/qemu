@@ -1466,20 +1466,7 @@ static int ehci_process_itd(EHCIState *ehci,
             }
             qemu_sglist_destroy(&ehci->isgl);
 
-            if (ret == USB_RET_NAK) {
-                /* no data for us, so do a zero-length transfer */
-                ret = 0;
-            }
-
-            if (ret >= 0) {
-                if (!dir) {
-                    /* OUT */
-                    set_field(&itd->transact[i], len - ret, ITD_XACT_LENGTH);
-                } else {
-                    /* IN */
-                    set_field(&itd->transact[i], ret, ITD_XACT_LENGTH);
-                }
-            } else {
+            if (ret < 0) {
                 switch (ret) {
                 default:
                     fprintf(stderr, "Unexpected iso usb result: %d\n", ret);
@@ -1495,6 +1482,19 @@ static int ehci_process_itd(EHCIState *ehci,
                     itd->transact[i] |= ITD_XACT_BABBLE;
                     ehci_record_interrupt(ehci, USBSTS_ERRINT);
                     break;
+                case USB_RET_NAK:
+                    /* no data for us, so do a zero-length transfer */
+                    ret = 0;
+                    break;
+                }
+            }
+            if (ret >= 0) {
+                if (!dir) {
+                    /* OUT */
+                    set_field(&itd->transact[i], len - ret, ITD_XACT_LENGTH);
+                } else {
+                    /* IN */
+                    set_field(&itd->transact[i], ret, ITD_XACT_LENGTH);
                 }
             }
             if (itd->transact[i] & ITD_XACT_IOC) {
