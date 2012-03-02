@@ -589,7 +589,7 @@ int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m)
     BDRVQcowState *s = bs->opaque;
     int i, j = 0, l2_index, ret;
     uint64_t *old_cluster, start_sect, l2_offset, *l2_table;
-    uint64_t cluster_offset = m->cluster_offset;
+    uint64_t cluster_offset = m->alloc_offset;
     bool cow = false;
 
     trace_qcow2_cluster_link_l2(qemu_coroutine_self(), m->nb_clusters);
@@ -712,12 +712,94 @@ static int count_cow_clusters(BDRVQcowState *s, int nb_clusters,
 }
 
 /*
+ * Allocates new clusters for the given guest_offset.
+ *
+ * At most *nb_clusters are allocated, and on return *nb_clusters is updated to
+ * contain the number of clusters that have been allocated and are contiguous
+ * in the image file.
+ *
+ * If *host_offset is non-zero, it specifies the offset in the image file at
+ * which the new clusters must start. *nb_clusters can be 0 on return in this
+ * case if the cluster at host_offset is already in use. If *host_offset is
+ * zero, the clusters can be allocated anywhere in the image file.
+ *
+ * *host_offset is updated to contain the offset into the image file at which
+ * the first allocated cluster starts.
+ *
+ * Return 0 on success and -errno in error cases. -EAGAIN means that the
+ * function has been waiting for another request and the allocation must be
+ * restarted, but the whole request should not be failed.
+ */
+static int do_alloc_cluster_offset(BlockDriverState *bs, uint64_t guest_offset,
+    uint64_t *host_offset, unsigned int *nb_clusters, uint64_t *l2_table)
+{
+    BDRVQcowState *s = bs->opaque;
+    int64_t cluster_offset;
+    QCowL2Meta *old_alloc;
+
+    trace_qcow2_do_alloc_clusters_offset(qemu_coroutine_self(), guest_offset,
+                                         *host_offset, *nb_clusters);
+
+    /*
+     * Check if there already is an AIO write request in flight which allocates
+     * the same cluster. In this case we need to wait until the previous
+     * request has completed and updated the L2 table accordingly.
+     */
+    QLIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
+
+        uint64_t start = guest_offset >> s->cluster_bits;
+        uint64_t end = start + *nb_clusters;
+        uint64_t old_start = old_alloc->offset >> s->cluster_bits;
+        uint64_t old_end = old_start + old_alloc->nb_clusters;
+
+        if (end < old_start || start > old_end) {
+            /* No intersection */
+        } else {
+            if (start < old_start) {
+                /* Stop at the start of a running allocation */
+                *nb_clusters = old_start - start;
+            } else {
+                *nb_clusters = 0;
+            }
+
+            if (*nb_clusters == 0) {
+                /* Wait for the dependency to complete. We need to recheck
+                 * the free/allocated clusters when we continue. */
+                qemu_co_mutex_unlock(&s->lock);
+                qemu_co_queue_wait(&old_alloc->dependent_requests);
+                qemu_co_mutex_lock(&s->lock);
+                return -EAGAIN;
+            }
+        }
+    }
+
+    if (!*nb_clusters) {
+        abort();
+    }
+
+    /* Allocate new clusters */
+    trace_qcow2_cluster_alloc_phys(qemu_coroutine_self());
+    if (*host_offset == 0) {
+        cluster_offset = qcow2_alloc_clusters(bs, *nb_clusters * s->cluster_size);
+    } else {
+        cluster_offset = *host_offset;
+        *nb_clusters = qcow2_alloc_clusters_at(bs, cluster_offset, *nb_clusters);
+    }
+
+    if (cluster_offset < 0) {
+        return cluster_offset;
+    }
+    *host_offset = cluster_offset;
+    return 0;
+}
+
+/*
  * alloc_cluster_offset
  *
- * For a given offset of the disk image, return cluster offset in qcow2 file.
- * If the offset is not found, allocate a new cluster.
+ * For a given offset on the virtual disk, find the cluster offset in qcow2
+ * file. If the offset is not found, allocate a new cluster.
  *
- * If the cluster was already allocated, m->nb_clusters is set to 0,
+ * If the cluster was already allocated, m->nb_clusters is set to 0 and
  * other fields in m are meaningless.
  *
  * If the cluster is newly allocated, m->nb_clusters is set to the number of
@@ -734,119 +816,126 @@ int qcow2_alloc_cluster_offset(BlockDriverState *bs, uint64_t offset,
     int n_start, int n_end, int *num, QCowL2Meta *m)
 {
     BDRVQcowState *s = bs->opaque;
-    int l2_index, ret;
+    int l2_index, ret, sectors;
     uint64_t l2_offset, *l2_table;
-    int64_t cluster_offset;
-    unsigned int nb_clusters, i = 0;
-    QCowL2Meta *old_alloc;
+    unsigned int nb_clusters, keep_clusters;
+    uint64_t cluster_offset;
 
     trace_qcow2_alloc_clusters_offset(qemu_coroutine_self(), offset,
                                       n_start, n_end);
 
+    /* Find L2 entry for the first involved cluster */
     ret = get_cluster_table(bs, offset, &l2_table, &l2_offset, &l2_index);
     if (ret < 0) {
         return ret;
     }
 
+    /*
+     * Calculate the number of clusters to look for. We stop at L2 table
+     * boundaries to keep things simple.
+     */
 again:
-    nb_clusters = size_to_clusters(s, n_end << 9);
-
-    nb_clusters = MIN(nb_clusters, s->l2_size - l2_index);
+    nb_clusters = MIN(size_to_clusters(s, n_end << BDRV_SECTOR_BITS),
+                      s->l2_size - l2_index);
 
     cluster_offset = be64_to_cpu(l2_table[l2_index]);
 
-    /* We keep all QCOW_OFLAG_COPIED clusters */
-
+    /*
+     * Check how many clusters are already allocated and don't need COW, and how
+     * many need a new allocation.
+     */
     if (cluster_offset & QCOW_OFLAG_COPIED) {
-        nb_clusters = count_contiguous_clusters(nb_clusters, s->cluster_size,
-                &l2_table[l2_index], 0, 0);
+        /* We keep all QCOW_OFLAG_COPIED clusters */
+        keep_clusters = count_contiguous_clusters(nb_clusters, s->cluster_size,
+                                                  &l2_table[l2_index], 0, 0);
+        assert(keep_clusters <= nb_clusters);
+        nb_clusters -= keep_clusters;
+    } else {
+        /* For the moment, overwrite compressed clusters one by one */
+        if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
+            nb_clusters = 1;
+        } else {
+            nb_clusters = count_cow_clusters(s, nb_clusters, l2_table, l2_index);
+        }
 
-        cluster_offset &= ~QCOW_OFLAG_COPIED;
-        m->nb_clusters = 0;
-
-        goto out;
+        keep_clusters = 0;
+        cluster_offset = 0;
     }
 
-    /* for the moment, multiple compressed clusters are not managed */
+    cluster_offset &= ~QCOW_OFLAG_COPIED;
 
-    if (cluster_offset & QCOW_OFLAG_COMPRESSED)
-        nb_clusters = 1;
+    /* If there is something left to allocate, do that now */
+    *m = (QCowL2Meta) {
+        .cluster_offset     = cluster_offset,
+        .nb_clusters        = 0,
+    };
+    qemu_co_queue_init(&m->dependent_requests);
 
-    /* how many available clusters ? */
+    if (nb_clusters > 0) {
+        uint64_t alloc_offset;
+        uint64_t alloc_cluster_offset;
+        uint64_t keep_bytes = keep_clusters * s->cluster_size;
 
-    i = count_cow_clusters(s, nb_clusters, l2_table, l2_index);
-    assert(i <= nb_clusters);
-    nb_clusters = i;
+        /* Calculate start and size of allocation */
+        alloc_offset = offset + keep_bytes;
 
-    /*
-     * Check if there already is an AIO write request in flight which allocates
-     * the same cluster. In this case we need to wait until the previous
-     * request has completed and updated the L2 table accordingly.
-     */
-    QLIST_FOREACH(old_alloc, &s->cluster_allocs, next_in_flight) {
-
-        uint64_t start = offset >> s->cluster_bits;
-        uint64_t end = start + nb_clusters;
-        uint64_t old_start = old_alloc->offset >> s->cluster_bits;
-        uint64_t old_end = old_start + old_alloc->nb_clusters;
-
-        if (end < old_start || start > old_end) {
-            /* No intersection */
+        if (keep_clusters == 0) {
+            alloc_cluster_offset = 0;
         } else {
-            if (start < old_start) {
-                /* Stop at the start of a running allocation */
-                nb_clusters = old_start - start;
-            } else {
-                nb_clusters = 0;
-            }
+            alloc_cluster_offset = cluster_offset + keep_bytes;
+        }
 
-            if (nb_clusters == 0) {
-                /* Wait for the dependency to complete. We need to recheck
-                 * the free/allocated clusters when we continue. */
-                qemu_co_mutex_unlock(&s->lock);
-                qemu_co_queue_wait(&old_alloc->dependent_requests);
-                qemu_co_mutex_lock(&s->lock);
-                goto again;
-            }
+        /* Allocate, if necessary at a given offset in the image file */
+        ret = do_alloc_cluster_offset(bs, alloc_offset, &alloc_cluster_offset,
+                                      &nb_clusters, l2_table);
+        if (ret == -EAGAIN) {
+            goto again;
+        } else if (ret < 0) {
+            goto fail;
+        }
+
+        /* save info needed for meta data update */
+        if (nb_clusters > 0) {
+            int requested_sectors = n_end - keep_clusters * s->cluster_sectors;
+            int avail_sectors = (keep_clusters + nb_clusters)
+                                << (s->cluster_bits - BDRV_SECTOR_BITS);
+
+            *m = (QCowL2Meta) {
+                .cluster_offset = keep_clusters == 0 ?
+                                  alloc_cluster_offset : cluster_offset,
+                .alloc_offset   = alloc_cluster_offset,
+                .offset         = alloc_offset,
+                .n_start        = keep_clusters == 0 ? n_start : 0,
+                .nb_clusters    = nb_clusters,
+                .nb_available   = MIN(requested_sectors, avail_sectors),
+            };
+            qemu_co_queue_init(&m->dependent_requests);
+            QLIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);
         }
     }
 
-    if (!nb_clusters) {
-        abort();
-    }
-
-    /* save info needed for meta data update */
-    m->offset = offset;
-    m->n_start = n_start;
-    m->nb_clusters = nb_clusters;
-
-    QLIST_INSERT_HEAD(&s->cluster_allocs, m, next_in_flight);
-
-    /* allocate a new cluster */
-    trace_qcow2_cluster_alloc_phys(qemu_coroutine_self());
-    cluster_offset = qcow2_alloc_clusters(bs, nb_clusters * s->cluster_size);
-    if (cluster_offset < 0) {
-        ret = cluster_offset;
-        goto fail;
-    }
-
-out:
+    /* Some cleanup work */
     ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
     if (ret < 0) {
         goto fail_put;
     }
 
-    m->nb_available = MIN(nb_clusters << (s->cluster_bits - 9), n_end);
-    m->cluster_offset = cluster_offset;
+    sectors = (keep_clusters + nb_clusters) << (s->cluster_bits - 9);
+    if (sectors > n_end) {
+        sectors = n_end;
+    }
 
-    *num = m->nb_available - n_start;
+    assert(sectors > n_start);
+    *num = sectors - n_start;
 
     return 0;
 
 fail:
     qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
 fail_put:
-    QLIST_REMOVE(m, next_in_flight);
+    if (nb_clusters > 0) {
+        QLIST_REMOVE(m, next_in_flight);
+    }
     return ret;
 }
 

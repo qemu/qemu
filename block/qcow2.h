@@ -155,6 +155,7 @@ typedef struct QCowL2Meta
 {
     uint64_t offset;
     uint64_t cluster_offset;
+    uint64_t alloc_offset;
     int n_start;
     int nb_available;
     int nb_clusters;
