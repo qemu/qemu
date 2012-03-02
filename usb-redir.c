@@ -1122,6 +1122,7 @@ static void usbredir_device_disconnect(void *priv)
     for (i = 0; i < MAX_ENDPOINTS; i++) {
         QTAILQ_INIT(&dev->endpoint[i].bufpq);
     }
+    usb_ep_init(&dev->dev);
     dev->interface_info.interface_count = 0;
 }
 
@@ -1148,6 +1149,7 @@ static void usbredir_ep_info(void *priv,
     struct usb_redir_ep_info_header *ep_info)
 {
     USBRedirDevice *dev = priv;
+    struct USBEndpoint *usb_ep;
     int i;
 
     for (i = 0; i < MAX_ENDPOINTS; i++) {
@@ -1172,7 +1174,13 @@ static void usbredir_ep_info(void *priv,
         default:
             ERROR("Received invalid endpoint type\n");
             usbredir_device_disconnect(dev);
+            return;
         }
+        usb_ep = usb_ep_get(&dev->dev,
+                            (i & 0x10) ? USB_TOKEN_IN : USB_TOKEN_OUT,
+                            i & 0x0f);
+        usb_ep->type = dev->endpoint[i].type;
+        usb_ep->ifnum = dev->endpoint[i].interface;
     }
 }
 
