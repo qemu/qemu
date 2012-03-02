@@ -1615,7 +1615,6 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
 {
     uint32_t entry;
     EHCIQueue *q;
-    int reload;
 
     entry = ehci_get_fetch_addr(ehci, async);
     q = ehci_find_queue_by_qh(ehci, entry, async);
@@ -1672,11 +1671,6 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
                q->qh.next);
     }
 #endif
-
-    reload = get_field(q->qh.epchar, QH_EPCHAR_RL);
-    if (reload) {
-        set_field(&q->qh.altnext_qtd, reload, QH_ALTNEXT_NAKCNT);
-    }
 
     if (q->qh.token & QTD_TOKEN_HALT) {
         ehci_set_state(ehci, async, EST_HORIZONTALQH);
@@ -1837,23 +1831,9 @@ static void ehci_flush_qh(EHCIQueue *q)
 static int ehci_state_execute(EHCIQueue *q, int async)
 {
     int again = 0;
-    int reload, nakcnt;
-    int smask;
 
     if (ehci_qh_do_overlay(q) != 0) {
         return -1;
-    }
-
-    smask = get_field(q->qh.epcap, QH_EPCAP_SMASK);
-
-    if (!smask) {
-        reload = get_field(q->qh.epchar, QH_EPCHAR_RL);
-        nakcnt = get_field(q->qh.altnext_qtd, QH_ALTNEXT_NAKCNT);
-        if (reload && !nakcnt) {
-            ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
-            again = 1;
-            goto out;
-        }
     }
 
     // TODO verify enough time remains in the uframe as in 4.4.1.1
