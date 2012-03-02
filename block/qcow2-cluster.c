@@ -677,6 +677,41 @@ err:
  }
 
 /*
+ * Returns the number of contiguous clusters that can be used for an allocating
+ * write, but require COW to be performed (this includes yet unallocated space,
+ * which must copy from the backing file)
+ */
+static int count_cow_clusters(BDRVQcowState *s, int nb_clusters,
+    uint64_t *l2_table, int l2_index)
+{
+    int i = 0;
+    uint64_t cluster_offset;
+
+    while (i < nb_clusters) {
+        i += count_contiguous_clusters(nb_clusters - i, s->cluster_size,
+                &l2_table[l2_index], i, 0);
+        if ((i >= nb_clusters) || be64_to_cpu(l2_table[l2_index + i])) {
+            break;
+        }
+
+        i += count_contiguous_free_clusters(nb_clusters - i,
+                &l2_table[l2_index + i]);
+        if (i >= nb_clusters) {
+            break;
+        }
+
+        cluster_offset = be64_to_cpu(l2_table[l2_index + i]);
+
+        if ((cluster_offset & QCOW_OFLAG_COPIED) ||
+                (cluster_offset & QCOW_OFLAG_COMPRESSED))
+            break;
+    }
+
+    assert(i <= nb_clusters);
+    return i;
+}
+
+/*
  * alloc_cluster_offset
  *
  * For a given offset of the disk image, return cluster offset in qcow2 file.
@@ -739,25 +774,7 @@ again:
 
     /* how many available clusters ? */
 
-    while (i < nb_clusters) {
-        i += count_contiguous_clusters(nb_clusters - i, s->cluster_size,
-                &l2_table[l2_index], i, 0);
-        if ((i >= nb_clusters) || be64_to_cpu(l2_table[l2_index + i])) {
-            break;
-        }
-
-        i += count_contiguous_free_clusters(nb_clusters - i,
-                &l2_table[l2_index + i]);
-        if (i >= nb_clusters) {
-            break;
-        }
-
-        cluster_offset = be64_to_cpu(l2_table[l2_index + i]);
-
-        if ((cluster_offset & QCOW_OFLAG_COPIED) ||
-                (cluster_offset & QCOW_OFLAG_COMPRESSED))
-            break;
-    }
+    i = count_cow_clusters(s, nb_clusters, l2_table, l2_index);
     assert(i <= nb_clusters);
     nb_clusters = i;
 
