@@ -1360,7 +1360,7 @@ err:
     q->qh.token ^= QTD_TOKEN_DTOGGLE;
     q->qh.token &= ~QTD_TOKEN_ACTIVE;
 
-    if ((q->usb_status >= 0) && (q->qh.token & QTD_TOKEN_IOC)) {
+    if ((q->usb_status != USB_RET_NAK) && (q->qh.token & QTD_TOKEN_IOC)) {
         ehci_record_interrupt(q->ehci, USBSTS_INT);
     }
 }
