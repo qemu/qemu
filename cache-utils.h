@@ -12,7 +12,7 @@ extern struct qemu_cache_conf qemu_cache_conf;
 void qemu_cache_utils_init(char **envp);
 
 /* mildly adjusted code from tcg-dyngen.c */
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
+static inline void flush_icache_range(uintptr_t start, uintptr_t stop)
 {
     unsigned long p, start1, stop1;
     unsigned long dsize = qemu_cache_conf.dcache_bsize;
