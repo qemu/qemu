@@ -1291,8 +1291,6 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
 
 static void ehci_execute_complete(EHCIQueue *q)
 {
-    int reload;
-
     assert(q->async != EHCI_ASYNC_INFLIGHT);
     q->async = EHCI_ASYNC_NONE;
 
@@ -1311,16 +1309,8 @@ static void ehci_execute_complete(EHCIQueue *q)
             ehci_record_interrupt(q->ehci, USBSTS_ERRINT);
             break;
         case USB_RET_NAK:
-            /* 4.10.3 */
-            reload = get_field(q->qh.epchar, QH_EPCHAR_RL);
-            if ((q->pid == USB_TOKEN_IN) && reload) {
-                int nakcnt = get_field(q->qh.altnext_qtd, QH_ALTNEXT_NAKCNT);
-                nakcnt--;
-                set_field(&q->qh.altnext_qtd, nakcnt, QH_ALTNEXT_NAKCNT);
-            } else if (!reload) {
-                return;
-            }
-            break;
+            set_field(&q->qh.altnext_qtd, 0, QH_ALTNEXT_NAKCNT);
+            return; /* We're not done yet with this transaction */
         case USB_RET_BABBLE:
             q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_BABBLE);
             ehci_record_interrupt(q->ehci, USBSTS_ERRINT);
@@ -1353,7 +1343,7 @@ static void ehci_execute_complete(EHCIQueue *q)
     q->qh.token ^= QTD_TOKEN_DTOGGLE;
     q->qh.token &= ~QTD_TOKEN_ACTIVE;
 
-    if ((q->usb_status != USB_RET_NAK) && (q->qh.token & QTD_TOKEN_IOC)) {
+    if (q->qh.token & QTD_TOKEN_IOC) {
         ehci_record_interrupt(q->ehci, USBSTS_INT);
     }
 }
@@ -1877,7 +1867,6 @@ out:
 static int ehci_state_executing(EHCIQueue *q, int async)
 {
     int again = 0;
-    int reload, nakcnt;
 
     ehci_execute_complete(q);
     if (q->usb_status == USB_RET_ASYNC) {
@@ -1897,21 +1886,8 @@ static int ehci_state_executing(EHCIQueue *q, int async)
         // counter decrements to 0
     }
 
-    reload = get_field(q->qh.epchar, QH_EPCHAR_RL);
-    if (reload) {
-        nakcnt = get_field(q->qh.altnext_qtd, QH_ALTNEXT_NAKCNT);
-        if (q->usb_status == USB_RET_NAK) {
-            if (nakcnt) {
-                nakcnt--;
-            }
-        } else {
-            nakcnt = reload;
-        }
-        set_field(&q->qh.altnext_qtd, nakcnt, QH_ALTNEXT_NAKCNT);
-    }
-
     /* 4.10.5 */
-    if ((q->usb_status == USB_RET_NAK) || (q->qh.token & QTD_TOKEN_ACTIVE)) {
+    if (q->usb_status == USB_RET_NAK) {
         ehci_set_state(q->ehci, async, EST_HORIZONTALQH);
     } else {
         ehci_set_state(q->ehci, async, EST_WRITEBACK);
