@@ -28,9 +28,9 @@ typedef uint64_t ram_addr_t;
 #  define RAM_ADDR_MAX UINT64_MAX
 #  define RAM_ADDR_FMT "%" PRIx64
 #else
-typedef unsigned long ram_addr_t;
-#  define RAM_ADDR_MAX ULONG_MAX
-#  define RAM_ADDR_FMT "%lx"
+typedef uintptr_t ram_addr_t;
+#  define RAM_ADDR_MAX UINTPTR_MAX
+#  define RAM_ADDR_FMT "%" PRIxPTR
 #endif
 
 /* memory API */
