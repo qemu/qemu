@@ -1568,8 +1568,7 @@ static int ehci_state_fetchentry(EHCIState *ehci, int async)
     int again = 0;
     uint32_t entry = ehci_get_fetch_addr(ehci, async);
 
-    if (entry < 0x1000) {
-        DPRINTF("fetchentry: entry invalid (0x%08x)\n", entry);
+    if (NLPTR_TBIT(entry)) {
         ehci_set_state(ehci, async, EST_ACTIVE);
         goto out;
     }
@@ -1677,7 +1676,8 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     if (q->qh.token & QTD_TOKEN_HALT) {
         ehci_set_state(ehci, async, EST_HORIZONTALQH);
 
-    } else if ((q->qh.token & QTD_TOKEN_ACTIVE) && (q->qh.current_qtd > 0x1000)) {
+    } else if ((q->qh.token & QTD_TOKEN_ACTIVE) &&
+               (NLPTR_TBIT(q->qh.current_qtd) == 0)) {
         q->qtdaddr = q->qh.current_qtd;
         ehci_set_state(ehci, async, EST_FETCHQTD);
 
@@ -1756,7 +1756,6 @@ static int ehci_state_advqueue(EHCIQueue *q, int async)
      * want data and alt-next qTD is valid
      */
     if (((q->qh.token & QTD_TOKEN_TBYTES_MASK) != 0) &&
-        (q->qh.altnext_qtd > 0x1000) &&
         (NLPTR_TBIT(q->qh.altnext_qtd) == 0)) {
         q->qtdaddr = q->qh.altnext_qtd;
         ehci_set_state(q->ehci, async, EST_FETCHQTD);
@@ -1764,8 +1763,7 @@ static int ehci_state_advqueue(EHCIQueue *q, int async)
     /*
      *  next qTD is valid
      */
-    } else if ((q->qh.next_qtd > 0x1000) &&
-               (NLPTR_TBIT(q->qh.next_qtd) == 0)) {
+    } else if (NLPTR_TBIT(q->qh.next_qtd) == 0) {
         q->qtdaddr = q->qh.next_qtd;
         ehci_set_state(q->ehci, async, EST_FETCHQTD);
 
