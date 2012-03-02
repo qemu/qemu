@@ -51,6 +51,17 @@ static inline ISADevice *pit_init(ISABus *bus, int base, int isa_irq,
     return dev;
 }
 
+static inline ISADevice *kvm_pit_init(ISABus *bus, int base)
+{
+    ISADevice *dev;
+
+    dev = isa_create(bus, "kvm-pit");
+    qdev_prop_set_uint32(&dev->qdev, "iobase", base);
+    qdev_init_nofail(&dev->qdev);
+
+    return dev;
+}
+
 void pit_set_gate(ISADevice *dev, int channel, int val);
 void pit_get_channel_info(ISADevice *dev, int channel, PITChannelInfo *info);
 
