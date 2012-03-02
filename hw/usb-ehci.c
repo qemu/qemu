@@ -1291,7 +1291,7 @@ static void ehci_async_complete_packet(USBPort *port, USBPacket *packet)
 
 static void ehci_execute_complete(EHCIQueue *q)
 {
-    int c_err, reload;
+    int reload;
 
     assert(q->async != EHCI_ASYNC_INFLIGHT);
     q->async = EHCI_ASYNC_NONE;
@@ -1300,15 +1300,10 @@ static void ehci_execute_complete(EHCIQueue *q)
             q->qhaddr, q->qh.next, q->qtdaddr, q->usb_status);
 
     if (q->usb_status < 0) {
-err:
-        /* TO-DO: put this is in a function that can be invoked below as well */
-        c_err = get_field(q->qh.token, QTD_TOKEN_CERR);
-        c_err--;
-        set_field(&q->qh.token, c_err, QTD_TOKEN_CERR);
-
         switch(q->usb_status) {
         case USB_RET_NODEV:
             q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_XACTERR);
+            set_field(&q->qh.token, 0, QTD_TOKEN_CERR);
             ehci_record_interrupt(q->ehci, USBSTS_ERRINT);
             break;
         case USB_RET_STALL:
@@ -1336,14 +1331,12 @@ err:
             assert(0);
             break;
         }
+    } else if ((q->usb_status > q->tbytes) && (q->pid == USB_TOKEN_IN)) {
+        q->usb_status = USB_RET_BABBLE;
+        q->qh.token |= (QTD_TOKEN_HALT | QTD_TOKEN_BABBLE);
+        ehci_record_interrupt(q->ehci, USBSTS_ERRINT);
     } else {
-        // DPRINTF("Short packet condition\n");
         // TODO check 4.12 for splits
-
-        if ((q->usb_status > q->tbytes) && (q->pid == USB_TOKEN_IN)) {
-            q->usb_status = USB_RET_BABBLE;
-            goto err;
-        }
 
         if (q->tbytes && q->pid == USB_TOKEN_IN) {
             q->tbytes -= q->usb_status;
