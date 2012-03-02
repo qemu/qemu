@@ -2167,6 +2167,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
         ehci_set_fetch_addr(ehci, async,entry);
         ehci_set_state(ehci, async, EST_FETCHENTRY);
         ehci_advance_state(ehci, async);
+        ehci_queues_rip_unused(ehci, async);
         break;
 
     default:
