@@ -28,6 +28,7 @@
 #include "kvm.h"
 #include "bswap.h"
 #include "memory.h"
+#include "exec-memory.h"
 
 /* This check must be after config-host.h is included */
 #ifdef CONFIG_EVENTFD
@@ -541,17 +542,26 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     target_phys_addr_t start_addr = section->offset_within_address_space;
     ram_addr_t size = section->size;
     void *ram = NULL;
+    unsigned delta;
 
     /* kvm works in page size chunks, but the function may be called
        with sub-page size and unaligned start address. */
-    size = TARGET_PAGE_ALIGN(size);
-    start_addr = TARGET_PAGE_ALIGN(start_addr);
+    delta = TARGET_PAGE_ALIGN(size) - size;
+    if (delta > size) {
+        return;
+    }
+    start_addr += delta;
+    size -= delta;
+    size &= TARGET_PAGE_MASK;
+    if (!size || (start_addr & ~TARGET_PAGE_MASK)) {
+        return;
+    }
 
     if (!memory_region_is_ram(mr)) {
         return;
     }
 
-    ram = memory_region_get_ram_ptr(mr) + section->offset_within_region;
+    ram = memory_region_get_ram_ptr(mr) + section->offset_within_region + delta;
 
     while (1) {
         mem = kvm_lookup_overlapping_slot(s, start_addr, start_addr + size);
@@ -674,6 +684,14 @@ static void kvm_set_phys_mem(MemoryRegionSection *section, bool add)
     }
 }
 
+static void kvm_begin(MemoryListener *listener)
+{
+}
+
+static void kvm_commit(MemoryListener *listener)
+{
+}
+
 static void kvm_region_add(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
@@ -684,6 +702,11 @@ static void kvm_region_del(MemoryListener *listener,
                            MemoryRegionSection *section)
 {
     kvm_set_phys_mem(section, false);
+}
+
+static void kvm_region_nop(MemoryListener *listener,
+                           MemoryRegionSection *section)
+{
 }
 
 static void kvm_log_sync(MemoryListener *listener,
@@ -713,14 +736,95 @@ static void kvm_log_global_stop(struct MemoryListener *listener)
     assert(r >= 0);
 }
 
+static void kvm_mem_ioeventfd_add(MemoryRegionSection *section,
+                                  bool match_data, uint64_t data, int fd)
+{
+    int r;
+
+    assert(match_data && section->size == 4);
+
+    r = kvm_set_ioeventfd_mmio_long(fd, section->offset_within_address_space,
+                                    data, true);
+    if (r < 0) {
+        abort();
+    }
+}
+
+static void kvm_mem_ioeventfd_del(MemoryRegionSection *section,
+                                  bool match_data, uint64_t data, int fd)
+{
+    int r;
+
+    r = kvm_set_ioeventfd_mmio_long(fd, section->offset_within_address_space,
+                                    data, false);
+    if (r < 0) {
+        abort();
+    }
+}
+
+static void kvm_io_ioeventfd_add(MemoryRegionSection *section,
+                                 bool match_data, uint64_t data, int fd)
+{
+    int r;
+
+    assert(match_data && section->size == 2);
+
+    r = kvm_set_ioeventfd_pio_word(fd, section->offset_within_address_space,
+                                   data, true);
+    if (r < 0) {
+        abort();
+    }
+}
+
+static void kvm_io_ioeventfd_del(MemoryRegionSection *section,
+                                 bool match_data, uint64_t data, int fd)
+
+{
+    int r;
+
+    r = kvm_set_ioeventfd_pio_word(fd, section->offset_within_address_space,
+                                   data, false);
+    if (r < 0) {
+        abort();
+    }
+}
+
+static void kvm_eventfd_add(MemoryListener *listener,
+                            MemoryRegionSection *section,
+                            bool match_data, uint64_t data, int fd)
+{
+    if (section->address_space == get_system_memory()) {
+        kvm_mem_ioeventfd_add(section, match_data, data, fd);
+    } else {
+        kvm_io_ioeventfd_add(section, match_data, data, fd);
+    }
+}
+
+static void kvm_eventfd_del(MemoryListener *listener,
+                            MemoryRegionSection *section,
+                            bool match_data, uint64_t data, int fd)
+{
+    if (section->address_space == get_system_memory()) {
+        kvm_mem_ioeventfd_del(section, match_data, data, fd);
+    } else {
+        kvm_io_ioeventfd_del(section, match_data, data, fd);
+    }
+}
+
 static MemoryListener kvm_memory_listener = {
+    .begin = kvm_begin,
+    .commit = kvm_commit,
     .region_add = kvm_region_add,
     .region_del = kvm_region_del,
+    .region_nop = kvm_region_nop,
     .log_start = kvm_log_start,
     .log_stop = kvm_log_stop,
     .log_sync = kvm_log_sync,
     .log_global_start = kvm_log_global_start,
     .log_global_stop = kvm_log_global_stop,
+    .eventfd_add = kvm_eventfd_add,
+    .eventfd_del = kvm_eventfd_del,
+    .priority = 10,
 };
 
 static void kvm_handle_interrupt(CPUState *env, int mask)
@@ -965,7 +1069,7 @@ int kvm_init(void)
     }
 
     kvm_state = s;
-    memory_listener_register(&kvm_memory_listener);
+    memory_listener_register(&kvm_memory_listener, NULL);
 
     s->many_ioeventfds = kvm_check_many_ioeventfds();
 
@@ -1118,8 +1222,6 @@ int kvm_cpu_exec(CPUState *env)
         return EXCP_HLT;
     }
 
-    cpu_single_env = env;
-
     do {
         if (env->kvm_vcpu_dirty) {
             kvm_arch_put_registers(env, KVM_PUT_RUNTIME_STATE);
@@ -1136,13 +1238,11 @@ int kvm_cpu_exec(CPUState *env)
              */
             qemu_cpu_kick_self();
         }
-        cpu_single_env = NULL;
         qemu_mutex_unlock_iothread();
 
         run_ret = kvm_vcpu_ioctl(env, KVM_RUN, 0);
 
         qemu_mutex_lock_iothread();
-        cpu_single_env = env;
         kvm_arch_post_run(env, run);
 
         kvm_flush_coalesced_mmio_buffer();
@@ -1206,7 +1306,6 @@ int kvm_cpu_exec(CPUState *env)
     }
 
     env->exit_request = 0;
-    cpu_single_env = NULL;
     return ret;
 }
 

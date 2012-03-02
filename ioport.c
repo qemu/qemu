@@ -328,6 +328,7 @@ void portio_list_init(PortioList *piolist,
     piolist->ports = callbacks;
     piolist->nr = 0;
     piolist->regions = g_new0(MemoryRegion *, n);
+    piolist->aliases = g_new0(MemoryRegion *, n);
     piolist->address_space = NULL;
     piolist->opaque = opaque;
     piolist->name = name;
@@ -336,6 +337,7 @@ void portio_list_init(PortioList *piolist,
 void portio_list_destroy(PortioList *piolist)
 {
     g_free(piolist->regions);
+    g_free(piolist->aliases);
 }
 
 static void portio_list_add_1(PortioList *piolist,
@@ -345,7 +347,7 @@ static void portio_list_add_1(PortioList *piolist,
 {
     MemoryRegionPortio *pio;
     MemoryRegionOps *ops;
-    MemoryRegion *region;
+    MemoryRegion *region, *alias;
     unsigned i;
 
     /* Copy the sub-list and null-terminate it.  */
@@ -362,12 +364,20 @@ static void portio_list_add_1(PortioList *piolist,
     ops->old_portio = pio;
 
     region = g_new(MemoryRegion, 1);
+    alias = g_new(MemoryRegion, 1);
+    /*
+     * Use an alias so that the callback is called with an absolute address,
+     * rather than an offset relative to to start + off_low.
+     */
     memory_region_init_io(region, ops, piolist->opaque, piolist->name,
-                          off_high - off_low);
-    memory_region_set_offset(region, start + off_low);
+                          UINT64_MAX);
+    memory_region_init_alias(alias, piolist->name,
+                             region, start + off_low, off_high - off_low);
     memory_region_add_subregion(piolist->address_space,
-                                start + off_low, region);
-    piolist->regions[piolist->nr++] = region;
+                                start + off_low, alias);
+    piolist->regions[piolist->nr] = region;
+    piolist->aliases[piolist->nr] = alias;
+    ++piolist->nr;
 }
 
 void portio_list_add(PortioList *piolist,
@@ -409,15 +419,19 @@ void portio_list_add(PortioList *piolist,
 
 void portio_list_del(PortioList *piolist)
 {
-    MemoryRegion *mr;
+    MemoryRegion *mr, *alias;
     unsigned i;
 
     for (i = 0; i < piolist->nr; ++i) {
         mr = piolist->regions[i];
-        memory_region_del_subregion(piolist->address_space, mr);
+        alias = piolist->aliases[i];
+        memory_region_del_subregion(piolist->address_space, alias);
+        memory_region_destroy(alias);
         memory_region_destroy(mr);
         g_free((MemoryRegionOps *)mr->ops);
         g_free(mr);
+        g_free(alias);
         piolist->regions[i] = NULL;
+        piolist->aliases[i] = NULL;
     }
 }

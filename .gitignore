@@ -77,6 +77,7 @@ pc-bios/vgabios-pq/status
 pc-bios/optionrom/linuxboot.bin
 pc-bios/optionrom/multiboot.bin
 pc-bios/optionrom/multiboot.raw
+pc-bios/optionrom/kvmvapic.bin
 .stgit-*
 cscope.*
 tags

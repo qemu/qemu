@@ -124,7 +124,8 @@
 	movw		%ax, %ds;
 
 #define OPTION_ROM_END					\
-    .align 512, 0;					\
+	.byte		0;				\
+	.align		512, 0;				\
     _end:
 
 #define BOOT_ROM_END					\

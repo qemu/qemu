@@ -115,7 +115,6 @@ struct MemoryRegion {
     MemoryRegion *parent;
     Int128 size;
     target_phys_addr_t addr;
-    target_phys_addr_t offset;
     void (*destructor)(MemoryRegion *mr);
     ram_addr_t ram_addr;
     IORange iorange;
@@ -161,6 +160,7 @@ typedef struct MemoryRegionSection MemoryRegionSection;
  * @size: the size of the section; will not exceed @mr's boundaries
  * @offset_within_address_space: the address of the first byte of the section
  *     relative to the region's address space
+ * @readonly: writes to this section are ignored
  */
 struct MemoryRegionSection {
     MemoryRegion *mr;
@@ -168,6 +168,7 @@ struct MemoryRegionSection {
     target_phys_addr_t offset_within_region;
     uint64_t size;
     target_phys_addr_t offset_within_address_space;
+    bool readonly;
 };
 
 typedef struct MemoryListener MemoryListener;
@@ -179,14 +180,24 @@ typedef struct MemoryListener MemoryListener;
  * Use with memory_listener_register() and memory_listener_unregister().
  */
 struct MemoryListener {
+    void (*begin)(MemoryListener *listener);
+    void (*commit)(MemoryListener *listener);
     void (*region_add)(MemoryListener *listener, MemoryRegionSection *section);
     void (*region_del)(MemoryListener *listener, MemoryRegionSection *section);
+    void (*region_nop)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_start)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_stop)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_sync)(MemoryListener *listener, MemoryRegionSection *section);
     void (*log_global_start)(MemoryListener *listener);
     void (*log_global_stop)(MemoryListener *listener);
-    QLIST_ENTRY(MemoryListener) link;
+    void (*eventfd_add)(MemoryListener *listener, MemoryRegionSection *section,
+                        bool match_data, uint64_t data, int fd);
+    void (*eventfd_del)(MemoryListener *listener, MemoryRegionSection *section,
+                        bool match_data, uint64_t data, int fd);
+    /* Lower = earlier (during add), later (during del) */
+    unsigned priority;
+    MemoryRegion *address_space_filter;
+    QTAILQ_ENTRY(MemoryListener) link;
 };
 
 /**
@@ -357,14 +368,6 @@ bool memory_region_is_rom(MemoryRegion *mr);
  * @mr: the memory region being queried.
  */
 void *memory_region_get_ram_ptr(MemoryRegion *mr);
-
-/**
- * memory_region_set_offset: Sets an offset to be added to MemoryRegionOps
- *                           callbacks.
- *
- * This function is deprecated and should not be used in new code.
- */
-void memory_region_set_offset(MemoryRegion *mr, target_phys_addr_t offset);
 
 /**
  * memory_region_set_log: Turn dirty logging on or off for a region.
@@ -686,8 +689,9 @@ void memory_region_transaction_commit(void);
  *                           space
  *
  * @listener: an object containing the callbacks to be called
+ * @filter: if non-%NULL, only regions in this address space will be observed
  */
-void memory_listener_register(MemoryListener *listener);
+void memory_listener_register(MemoryListener *listener, MemoryRegion *filter);
 
 /**
  * memory_listener_unregister: undo the effect of memory_listener_register()

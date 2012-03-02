@@ -25,9 +25,12 @@
 #include "qemu-timer.h"
 #include "sysemu.h"
 #include "pc.h"
-#include "apic.h"
 #include "isa.h"
 #include "mc146818rtc.h"
+
+#ifdef TARGET_I386
+#include "apic.h"
+#endif
 
 //#define DEBUG_CMOS
 //#define DEBUG_COALESCED
