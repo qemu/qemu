@@ -337,7 +337,7 @@ typedef struct TCGContext TCGContext;
 
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
-    TCGPool *pool_first, *pool_current;
+    TCGPool *pool_first, *pool_current, *pool_first_large;
     TCGLabel *labels;
     int nb_labels;
     TCGTemp *temps; /* globals first, temps after */
