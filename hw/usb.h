@@ -39,11 +39,12 @@
 #define USB_TOKEN_IN    0x69 /* device -> host */
 #define USB_TOKEN_OUT   0xe1 /* host -> device */
 
-#define USB_RET_NODEV  (-1)
-#define USB_RET_NAK    (-2)
-#define USB_RET_STALL  (-3)
-#define USB_RET_BABBLE (-4)
-#define USB_RET_ASYNC  (-5)
+#define USB_RET_NODEV   (-1)
+#define USB_RET_NAK     (-2)
+#define USB_RET_STALL   (-3)
+#define USB_RET_BABBLE  (-4)
+#define USB_RET_IOERROR (-5)
+#define USB_RET_ASYNC   (-6)
 
 #define USB_SPEED_LOW   0
 #define USB_SPEED_FULL  1

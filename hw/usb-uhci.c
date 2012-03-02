@@ -765,6 +765,7 @@ out:
             break;
 	return 1;
 
+    case USB_RET_IOERROR:
     case USB_RET_NODEV:
     default:
 	break;

@@ -431,7 +431,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
             /* Check iso_error for stream errors, otherwise its an underrun */
             status = dev->endpoint[EP2I(ep)].iso_error;
             dev->endpoint[EP2I(ep)].iso_error = 0;
-            return status ? USB_RET_NAK : 0;
+            return status ? USB_RET_IOERROR : 0;
         }
         DPRINTF2("iso-token-in ep %02X status %d len %d queue-size: %d\n", ep,
                  isop->status, isop->len, dev->endpoint[EP2I(ep)].bufpq_size);
@@ -439,7 +439,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
         status = isop->status;
         if (status != usb_redir_success) {
             bufp_free(dev, isop, ep);
-            return USB_RET_NAK;
+            return USB_RET_IOERROR;
         }
 
         len = isop->len;
@@ -1018,11 +1018,14 @@ static int usbredir_handle_status(USBRedirDevice *dev,
         return USB_RET_STALL;
     case usb_redir_cancelled:
         WARNING("returning cancelled packet to HC?\n");
+        return USB_RET_NAK;
     case usb_redir_inval:
+        WARNING("got invalid param error from usb-host?\n");
+        return USB_RET_NAK;
     case usb_redir_ioerror:
     case usb_redir_timeout:
     default:
-        return USB_RET_NAK;
+        return USB_RET_IOERROR;
     }
 }
 
