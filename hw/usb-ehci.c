@@ -347,7 +347,6 @@ enum async_state {
 struct EHCIQueue {
     EHCIState *ehci;
     QTAILQ_ENTRY(EHCIQueue) next;
-    bool async_schedule;
     uint32_t seen;
     uint64_t ts;
 
@@ -366,6 +365,8 @@ struct EHCIQueue {
     enum async_state async;
     int usb_status;
 };
+
+typedef QTAILQ_HEAD(EHCIQueueHead, EHCIQueue) EHCIQueueHead;
 
 struct EHCIState {
     PCIDevice dev;
@@ -410,7 +411,8 @@ struct EHCIState {
     USBPort ports[NB_PORTS];
     USBPort *companion_ports[NB_PORTS];
     uint32_t usbsts_pending;
-    QTAILQ_HEAD(, EHCIQueue) queues;
+    EHCIQueueHead aqueues;
+    EHCIQueueHead pqueues;
 
     uint32_t a_fetch_addr;   // which address to look at next
     uint32_t p_fetch_addr;   // which address to look at next
@@ -660,31 +662,34 @@ static void ehci_trace_sitd(EHCIState *s, target_phys_addr_t addr,
 
 static EHCIQueue *ehci_alloc_queue(EHCIState *ehci, int async)
 {
+    EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q;
 
     q = g_malloc0(sizeof(*q));
     q->ehci = ehci;
-    q->async_schedule = async;
-    QTAILQ_INSERT_HEAD(&ehci->queues, q, next);
+    QTAILQ_INSERT_HEAD(head, q, next);
     trace_usb_ehci_queue_action(q, "alloc");
     return q;
 }
 
-static void ehci_free_queue(EHCIQueue *q)
+static void ehci_free_queue(EHCIQueue *q, int async)
 {
+    EHCIQueueHead *head = async ? &q->ehci->aqueues : &q->ehci->pqueues;
     trace_usb_ehci_queue_action(q, "free");
     if (q->async == EHCI_ASYNC_INFLIGHT) {
         usb_cancel_packet(&q->packet);
     }
-    QTAILQ_REMOVE(&q->ehci->queues, q, next);
+    QTAILQ_REMOVE(head, q, next);
     g_free(q);
 }
 
-static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr)
+static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr,
+                                        int async)
 {
+    EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q;
 
-    QTAILQ_FOREACH(q, &ehci->queues, next) {
+    QTAILQ_FOREACH(q, head, next) {
         if (addr == q->qhaddr) {
             return q;
         }
@@ -692,11 +697,12 @@ static EHCIQueue *ehci_find_queue_by_qh(EHCIState *ehci, uint32_t addr)
     return NULL;
 }
 
-static void ehci_queues_rip_unused(EHCIState *ehci)
+static void ehci_queues_rip_unused(EHCIState *ehci, int async)
 {
+    EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q, *tmp;
 
-    QTAILQ_FOREACH_SAFE(q, &ehci->queues, next, tmp) {
+    QTAILQ_FOREACH_SAFE(q, head, next, tmp) {
         if (q->seen) {
             q->seen = 0;
             q->ts = ehci->last_run_ns;
@@ -706,29 +712,31 @@ static void ehci_queues_rip_unused(EHCIState *ehci)
             /* allow 0.25 sec idle */
             continue;
         }
-        ehci_free_queue(q);
+        ehci_free_queue(q, async);
     }
 }
 
-static void ehci_queues_rip_device(EHCIState *ehci, USBDevice *dev)
+static void ehci_queues_rip_device(EHCIState *ehci, USBDevice *dev, int async)
 {
+    EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q, *tmp;
 
-    QTAILQ_FOREACH_SAFE(q, &ehci->queues, next, tmp) {
+    QTAILQ_FOREACH_SAFE(q, head, next, tmp) {
         if (!usb_packet_is_inflight(&q->packet) ||
             q->packet.ep->dev != dev) {
             continue;
         }
-        ehci_free_queue(q);
+        ehci_free_queue(q, async);
     }
 }
 
-static void ehci_queues_rip_all(EHCIState *ehci)
+static void ehci_queues_rip_all(EHCIState *ehci, int async)
 {
+    EHCIQueueHead *head = async ? &ehci->aqueues : &ehci->pqueues;
     EHCIQueue *q, *tmp;
 
-    QTAILQ_FOREACH_SAFE(q, &ehci->queues, next, tmp) {
-        ehci_free_queue(q);
+    QTAILQ_FOREACH_SAFE(q, head, next, tmp) {
+        ehci_free_queue(q, async);
     }
 }
 
@@ -773,7 +781,8 @@ static void ehci_detach(USBPort *port)
         return;
     }
 
-    ehci_queues_rip_device(s, port->dev);
+    ehci_queues_rip_device(s, port->dev, 0);
+    ehci_queues_rip_device(s, port->dev, 1);
 
     *portsc &= ~(PORTSC_CONNECT|PORTSC_PED);
     *portsc |= PORTSC_CSC;
@@ -793,7 +802,8 @@ static void ehci_child_detach(USBPort *port, USBDevice *child)
         return;
     }
 
-    ehci_queues_rip_device(s, child);
+    ehci_queues_rip_device(s, child, 0);
+    ehci_queues_rip_device(s, child, 1);
 }
 
 static void ehci_wakeup(USBPort *port)
@@ -911,7 +921,8 @@ static void ehci_reset(void *opaque)
             usb_device_reset(devs[i]);
         }
     }
-    ehci_queues_rip_all(s);
+    ehci_queues_rip_all(s, 0);
+    ehci_queues_rip_all(s, 1);
     qemu_del_timer(s->frame_timer);
 }
 
@@ -1526,7 +1537,7 @@ static int ehci_state_waitlisthead(EHCIState *ehci,  int async)
         ehci_set_usbsts(ehci, USBSTS_REC);
     }
 
-    ehci_queues_rip_unused(ehci);
+    ehci_queues_rip_unused(ehci, async);
 
     /*  Find the head of the list (4.9.1.1) */
     for(i = 0; i < MAX_QH; i++) {
@@ -1613,7 +1624,7 @@ static EHCIQueue *ehci_state_fetchqh(EHCIState *ehci, int async)
     int reload;
 
     entry = ehci_get_fetch_addr(ehci, async);
-    q = ehci_find_queue_by_qh(ehci, entry);
+    q = ehci_find_queue_by_qh(ehci, entry, async);
     if (NULL == q) {
         q = ehci_alloc_queue(ehci, async);
     }
@@ -2064,7 +2075,7 @@ static void ehci_advance_state(EHCIState *ehci,
 
 static void ehci_advance_async_state(EHCIState *ehci)
 {
-    int async = 1;
+    const int async = 1;
 
     switch(ehci_get_state(ehci, async)) {
     case EST_INACTIVE:
@@ -2121,7 +2132,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
 {
     uint32_t entry;
     uint32_t list;
-    int async = 0;
+    const int async = 0;
 
     // 4.6
 
@@ -2354,7 +2365,8 @@ static int usb_ehci_initfn(PCIDevice *dev)
     }
 
     s->frame_timer = qemu_new_timer_ns(vm_clock, ehci_frame_timer, s);
-    QTAILQ_INIT(&s->queues);
+    QTAILQ_INIT(&s->aqueues);
+    QTAILQ_INIT(&s->pqueues);
 
     qemu_register_reset(ehci_reset, s);
 
