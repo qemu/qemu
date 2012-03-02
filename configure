@@ -3485,6 +3485,7 @@ case "$target_arch2" in
     gdb_xml_files="arm-core.xml arm-vfp.xml arm-vfp3.xml arm-neon.xml"
     target_phys_bits=32
     target_llong_alignment=4
+    target_libs_softmmu="$fdt_libs"
   ;;
   cris)
     target_nptl="yes"

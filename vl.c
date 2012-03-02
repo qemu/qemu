@@ -2527,6 +2527,9 @@ int main(int argc, char **argv, char **envp)
             case QEMU_OPTION_append:
                 qemu_opts_set(qemu_find_opts("machine"), 0, "append", optarg);
                 break;
+            case QEMU_OPTION_dtb:
+                qemu_opts_set(qemu_find_opts("machine"), 0, "dtb", optarg);
+                break;
             case QEMU_OPTION_cdrom:
                 drive_add(IF_DEFAULT, 2, optarg, CDROM_OPTS);
                 break;
@@ -3343,6 +3346,11 @@ int main(int argc, char **argv, char **envp)
 
     if (!linux_boot && initrd_filename != NULL) {
         fprintf(stderr, "-initrd only allowed with -kernel option\n");
+        exit(1);
+    }
+
+    if (!linux_boot && machine_opts && qemu_opt_get(machine_opts, "dtb")) {
+        fprintf(stderr, "-dtb only allowed with -kernel option\n");
         exit(1);
     }
 

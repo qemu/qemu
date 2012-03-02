@@ -578,6 +578,10 @@ static QemuOptsList qemu_machine_opts = {
             .name = "append",
             .type = QEMU_OPT_STRING,
             .help = "Linux kernel command line",
+        }, {
+            .name = "dtb",
+            .type = QEMU_OPT_STRING,
+            .help = "Linux kernel device tree file",
         },
         { /* End of list */ }
     },
