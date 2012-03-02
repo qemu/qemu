@@ -1076,7 +1076,8 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 
         if (!(val & USBCMD_RUNSTOP) && (s->usbcmd & USBCMD_RUNSTOP)) {
             qemu_del_timer(s->frame_timer);
-            // TODO - should finish out some stuff before setting halt
+            ehci_queues_rip_all(s, 0);
+            ehci_queues_rip_all(s, 1);
             ehci_set_usbsts(s, USBSTS_HALT);
         }
 
@@ -2088,6 +2089,7 @@ static void ehci_advance_async_state(EHCIState *ehci)
 
     case EST_ACTIVE:
         if ( !(ehci->usbcmd & USBCMD_ASE)) {
+            ehci_queues_rip_all(ehci, async);
             ehci_clear_usbsts(ehci, USBSTS_ASS);
             ehci_set_state(ehci, async, EST_INACTIVE);
             break;
@@ -2148,6 +2150,7 @@ static void ehci_advance_periodic_state(EHCIState *ehci)
 
     case EST_ACTIVE:
         if ( !(ehci->frindex & 7) && !(ehci->usbcmd & USBCMD_PSE)) {
+            ehci_queues_rip_all(ehci, async);
             ehci_clear_usbsts(ehci, USBSTS_PSS);
             ehci_set_state(ehci, async, EST_INACTIVE);
             break;
