@@ -819,6 +819,15 @@ static void gic_init(gic_state *s, int num_irq)
         hw_error("requested %u interrupt lines exceeds GIC maximum %d\n",
                  num_irq, GIC_MAXIRQ);
     }
+    /* ITLinesNumber is represented as (N / 32) - 1 (see
+     * gic_dist_readb) so this is an implementation imposed
+     * restriction, not an architectural one:
+     */
+    if (s->num_irq < 32 || (s->num_irq % 32)) {
+        hw_error("%d interrupt lines unsupported: not divisible by 32\n",
+                 num_irq);
+    }
+
     qdev_init_gpio_in(&s->busdev.qdev, gic_set_irq, s->num_irq - GIC_INTERNAL);
     for (i = 0; i < NUM_CPU(s); i++) {
         sysbus_init_irq(&s->busdev, &s->parent_irq[i]);
