@@ -300,6 +300,17 @@ static const MemoryRegionOps pit_ioport_ops = {
     .old_portio = pit_portio
 };
 
+static void pit_post_load(PITCommonState *s)
+{
+    PITChannelState *sc = &s->channels[0];
+
+    if (sc->next_transition_time != -1) {
+        qemu_mod_timer(sc->irq_timer, sc->next_transition_time);
+    } else {
+        qemu_del_timer(sc->irq_timer);
+    }
+}
+
 static int pit_initfn(PITCommonState *pit)
 {
     PITChannelState *s;
@@ -329,6 +340,7 @@ static void pit_class_initfn(ObjectClass *klass, void *data)
     k->init = pit_initfn;
     k->set_channel_gate = pit_set_channel_gate;
     k->get_channel_info = pit_get_channel_info_common;
+    k->post_load = pit_post_load;
     dc->reset = pit_reset;
     dc->props = pit_properties;
 }

@@ -211,6 +211,7 @@ static const VMStateDescription vmstate_pit_channel = {
 static int pit_load_old(QEMUFile *f, void *opaque, int version_id)
 {
     PITCommonState *pit = opaque;
+    PITCommonClass *c = PIT_COMMON_GET_CLASS(pit);
     PITChannelState *s;
     int i;
 
@@ -234,10 +235,12 @@ static int pit_load_old(QEMUFile *f, void *opaque, int version_id)
         qemu_get_8s(f, &s->gate);
         s->count_load_time = qemu_get_be64(f);
         s->irq_disabled = 0;
-        if (s->irq_timer) {
+        if (i == 0) {
             s->next_transition_time = qemu_get_be64(f);
-            qemu_get_timer(f, s->irq_timer);
         }
+    }
+    if (c->post_load) {
+        c->post_load(pit);
     }
     return 0;
 }
@@ -275,7 +278,8 @@ static const VMStateDescription vmstate_pit_common = {
         VMSTATE_UINT32_V(channels[0].irq_disabled, PITCommonState, 3),
         VMSTATE_STRUCT_ARRAY(channels, PITCommonState, 3, 2,
                              vmstate_pit_channel, PITChannelState),
-        VMSTATE_TIMER(channels[0].irq_timer, PITCommonState),
+        VMSTATE_INT64(channels[0].next_transition_time,
+                      PITCommonState), /* formerly irq_timer */
         VMSTATE_END_OF_LIST()
     }
 };
