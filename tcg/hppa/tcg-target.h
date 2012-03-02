@@ -107,7 +107,9 @@ typedef enum {
 /* Note: must be synced with dyngen-exec.h */
 #define TCG_AREG0 TCG_REG_R17
 
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
+
+static inline void flush_icache_range(tcg_target_ulong start,
+                                      tcg_target_ulong stop)
 {
     start &= ~31;
     while (start <= stop) {

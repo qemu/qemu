@@ -134,7 +134,8 @@ typedef enum {
 #define TCG_AREG0 TCG_REG_G6
 #endif
 
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
+static inline void flush_icache_range(tcg_target_ulong start,
+                                      tcg_target_ulong stop)
 {
     unsigned long p;
 

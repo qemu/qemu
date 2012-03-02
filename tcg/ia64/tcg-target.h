@@ -146,7 +146,8 @@ typedef enum {
 /* Guest base is supported */
 #define TCG_TARGET_HAS_GUEST_BASE
 
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
+static inline void flush_icache_range(tcg_target_ulong start,
+                                      tcg_target_ulong stop)
 {
     start = start & ~(32UL - 1UL);
     stop = (stop + (32UL - 1UL)) & ~(32UL - 1UL);

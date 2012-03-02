@@ -108,7 +108,8 @@ typedef enum {
 #include <sys/cachectl.h>
 #endif
 
-static inline void flush_icache_range(unsigned long start, unsigned long stop)
+static inline void flush_icache_range(tcg_target_ulong start,
+                                      tcg_target_ulong stop)
 {
     cacheflush ((void *)start, stop-start, ICACHE);
 }
