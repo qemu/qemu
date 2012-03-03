@@ -114,6 +114,7 @@
         [EXC_KERNEL] = XCHAL_KERNEL_VECTOR_VADDR, \
         [EXC_USER] = XCHAL_USER_VECTOR_VADDR, \
         [EXC_DOUBLE] = XCHAL_DOUBLEEXC_VECTOR_VADDR, \
+        [EXC_DEBUG] = XCHAL_DEBUG_VECTOR_VADDR, \
     }
 
 #define INTERRUPT_VECTORS { \
@@ -251,6 +252,8 @@
     .nextint = XCHAL_NUM_EXTINTERRUPTS, \
     .extint = EXTINTS
 
+#if XCHAL_HAVE_PTP_MMU
+
 #define TLB_TEMPLATE(ways, refill_way_size, way56) { \
         .nways = ways, \
         .way_size = { \
@@ -268,11 +271,23 @@
 #define DTLB(varway56) \
     TLB_TEMPLATE(10, 1 << XCHAL_DTLB_ARF_ENTRIES_LOG2, varway56)
 
-#if XCHAL_HAVE_PTP_MMU
 #define TLB_SECTION \
     .itlb = ITLB(XCHAL_HAVE_SPANNING_WAY), \
     .dtlb = DTLB(XCHAL_HAVE_SPANNING_WAY)
-#else
+
+#elif XCHAL_HAVE_XLT_CACHEATTR || XCHAL_HAVE_MIMIC_CACHEATTR
+
+#define TLB_TEMPLATE { \
+        .nways = 1, \
+        .way_size = { \
+            8, \
+        } \
+    }
+
+#define TLB_SECTION \
+    .itlb = TLB_TEMPLATE, \
+    .dtlb = TLB_TEMPLATE
+
 #endif
 
 #if (defined(TARGET_WORDS_BIGENDIAN) != 0) == (XCHAL_HAVE_BE != 0)
@@ -288,6 +303,10 @@
 #define REGISTER_CORE(core)
 #endif
 
+#define DEBUG_SECTION \
+    .debug_level = XCHAL_DEBUGLEVEL, \
+    .nibreak = XCHAL_NUM_IBREAK, \
+    .ndbreak = XCHAL_NUM_DBREAK
 
 #if XCHAL_NUM_INTLEVELS + XCHAL_HAVE_NMI + 1 <= 2
 #define XCHAL_INTLEVEL2_VECTOR_VADDR 0

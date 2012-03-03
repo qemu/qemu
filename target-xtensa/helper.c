@@ -44,6 +44,7 @@ void cpu_reset(CPUXtensaState *env)
     env->sregs[PS] = xtensa_option_enabled(env->config,
             XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;
     env->sregs[VECBASE] = env->config->vecbase;
+    env->sregs[IBREAKENABLE] = 0;
 
     env->pending_irq_level = 0;
     reset_mmu(env);
@@ -57,9 +58,44 @@ void xtensa_register_core(XtensaConfigList *node)
     xtensa_cores = node;
 }
 
+static uint32_t check_hw_breakpoints(CPUState *env)
+{
+    unsigned i;
+
+    for (i = 0; i < env->config->ndbreak; ++i) {
+        if (env->cpu_watchpoint[i] &&
+                env->cpu_watchpoint[i]->flags & BP_WATCHPOINT_HIT) {
+            return DEBUGCAUSE_DB | (i << DEBUGCAUSE_DBNUM_SHIFT);
+        }
+    }
+    return 0;
+}
+
+static CPUDebugExcpHandler *prev_debug_excp_handler;
+
+static void breakpoint_handler(CPUState *env)
+{
+    if (env->watchpoint_hit) {
+        if (env->watchpoint_hit->flags & BP_CPU) {
+            uint32_t cause;
+
+            env->watchpoint_hit = NULL;
+            cause = check_hw_breakpoints(env);
+            if (cause) {
+                debug_exception_env(env, cause);
+            }
+            cpu_resume_from_signal(env, NULL);
+        }
+    }
+    if (prev_debug_excp_handler) {
+        prev_debug_excp_handler(env);
+    }
+}
+
 CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
 {
     static int tcg_inited;
+    static int debug_handler_inited;
     CPUXtensaState *env;
     const XtensaConfig *config = NULL;
     XtensaConfigList *core = xtensa_cores;
@@ -81,6 +117,12 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
     if (!tcg_inited) {
         tcg_inited = 1;
         xtensa_translate_init();
+    }
+
+    if (!debug_handler_inited && tcg_enabled()) {
+        debug_handler_inited = 1;
+        prev_debug_excp_handler =
+            cpu_set_debug_excp_handler(breakpoint_handler);
     }
 
     xtensa_irq_init(env);
@@ -193,6 +235,7 @@ void do_interrupt(CPUState *env)
     case EXC_KERNEL:
     case EXC_USER:
     case EXC_DOUBLE:
+    case EXC_DEBUG:
         qemu_log_mask(CPU_LOG_INT, "%s(%d) "
                 "pc = %08x, a0 = %08x, ps = %08x, ccount = %08x\n",
                 __func__, env->exception_index,
@@ -538,5 +581,72 @@ int xtensa_get_physical_addr(CPUState *env,
         *page_size = TARGET_PAGE_SIZE;
         *access = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         return 0;
+    }
+}
+
+static void dump_tlb(FILE *f, fprintf_function cpu_fprintf,
+        CPUState *env, bool dtlb)
+{
+    unsigned wi, ei;
+    const xtensa_tlb *conf =
+        dtlb ? &env->config->dtlb : &env->config->itlb;
+    unsigned (*attr_to_access)(uint32_t) =
+        xtensa_option_enabled(env->config, XTENSA_OPTION_MMU) ?
+        mmu_attr_to_access : region_attr_to_access;
+
+    for (wi = 0; wi < conf->nways; ++wi) {
+        uint32_t sz = ~xtensa_tlb_get_addr_mask(env, dtlb, wi) + 1;
+        const char *sz_text;
+        bool print_header = true;
+
+        if (sz >= 0x100000) {
+            sz >>= 20;
+            sz_text = "MB";
+        } else {
+            sz >>= 10;
+            sz_text = "KB";
+        }
+
+        for (ei = 0; ei < conf->way_size[wi]; ++ei) {
+            const xtensa_tlb_entry *entry =
+                xtensa_tlb_get_entry(env, dtlb, wi, ei);
+
+            if (entry->asid) {
+                unsigned access = attr_to_access(entry->attr);
+
+                if (print_header) {
+                    print_header = false;
+                    cpu_fprintf(f, "Way %u (%d %s)\n", wi, sz, sz_text);
+                    cpu_fprintf(f,
+                            "\tVaddr       Paddr       ASID  Attr RWX\n"
+                            "\t----------  ----------  ----  ---- ---\n");
+                }
+                cpu_fprintf(f,
+                        "\t0x%08x  0x%08x  0x%02x  0x%02x %c%c%c\n",
+                        entry->vaddr,
+                        entry->paddr,
+                        entry->asid,
+                        entry->attr,
+                        (access & PAGE_READ) ? 'R' : '-',
+                        (access & PAGE_WRITE) ? 'W' : '-',
+                        (access & PAGE_EXEC) ? 'X' : '-');
+            }
+        }
+    }
+}
+
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env)
+{
+    if (xtensa_option_bits_enabled(env->config,
+                XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_PROTECTION) |
+                XTENSA_OPTION_BIT(XTENSA_OPTION_REGION_TRANSLATION) |
+                XTENSA_OPTION_BIT(XTENSA_OPTION_MMU))) {
+
+        cpu_fprintf(f, "ITLB:\n");
+        dump_tlb(f, cpu_fprintf, env, false);
+        cpu_fprintf(f, "\nDTLB:\n");
+        dump_tlb(f, cpu_fprintf, env, true);
+    } else {
+        cpu_fprintf(f, "No TLB for this CPU core\n");
     }
 }

@@ -1355,7 +1355,7 @@ show i8259 (PIC) state
 @item info pci
 show emulated PCI device info
 @item info tlb
-show virtual to physical memory mappings (i386, SH4, SPARC, and PPC only)
+show virtual to physical memory mappings (i386, SH4, SPARC, PPC, and Xtensa only)
 @item info mem
 show the active virtual memory mappings (i386 only)
 @item info jit
