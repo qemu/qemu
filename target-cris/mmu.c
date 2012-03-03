@@ -20,11 +20,6 @@
 
 #ifndef CONFIG_USER_ONLY
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-
-#include "config.h"
 #include "cpu.h"
 #include "mmu.h"
 

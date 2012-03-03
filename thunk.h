@@ -99,7 +99,7 @@ static inline int thunk_type_size(const argtype *type_ptr, int is_host)
     case TYPE_PTRVOID:
     case TYPE_PTR:
         if (is_host) {
-            return HOST_LONG_SIZE;
+            return sizeof(void *);
         } else {
             return TARGET_ABI_BITS / 8;
         }
@@ -136,7 +136,7 @@ static inline int thunk_type_align(const argtype *type_ptr, int is_host)
     case TYPE_PTRVOID:
     case TYPE_PTR:
         if (is_host) {
-            return HOST_LONG_SIZE;
+            return sizeof(void *);
         } else {
             return TARGET_ABI_BITS / 8;
         }

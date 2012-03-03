@@ -20,6 +20,8 @@
 
 #define CPUState                struct CPUState_UniCore32
 
+#include "config.h"
+#include "qemu-common.h"
 #include "cpu-defs.h"
 #include "softfloat.h"
 

@@ -1,11 +1,6 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "cpu.h"
 #include "gdbstub.h"
 #include "helper.h"
-#include "qemu-common.h"
 #include "host-utils.h"
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/loader.h"
