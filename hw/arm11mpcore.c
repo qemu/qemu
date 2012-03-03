@@ -202,16 +202,7 @@ static int realview_mpcore_init(SysBusDevice *dev)
 }
 
 static Property mpcore_rirq_properties[] = {
-    DEFINE_PROP_UINT32("num-cpu", mpcore_priv_state, num_cpu, 1),
-    /* The ARM11 MPCORE TRM says the on-chip controller may have
-     * anything from 0 to 224 external interrupt IRQ lines (with another
-     * 32 internal). We default to 32+32, which is the number provided by
-     * the ARM11 MPCore test chip in the Realview Versatile Express
-     * coretile. Other boards may differ and should set this property
-     * appropriately. Some Linux kernels may not boot if the hardware
-     * has more IRQ lines than the kernel expects.
-     */
-    DEFINE_PROP_UINT32("num-irq", mpcore_priv_state, num_irq, 64),
+    DEFINE_PROP_UINT32("num-cpu", mpcore_rirq_state, num_cpu, 1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -233,6 +224,15 @@ static TypeInfo mpcore_rirq_info = {
 
 static Property mpcore_priv_properties[] = {
     DEFINE_PROP_UINT32("num-cpu", mpcore_priv_state, num_cpu, 1),
+    /* The ARM11 MPCORE TRM says the on-chip controller may have
+     * anything from 0 to 224 external interrupt IRQ lines (with another
+     * 32 internal). We default to 32+32, which is the number provided by
+     * the ARM11 MPCore test chip in the Realview Versatile Express
+     * coretile. Other boards may differ and should set this property
+     * appropriately. Some Linux kernels may not boot if the hardware
+     * has more IRQ lines than the kernel expects.
+     */
+    DEFINE_PROP_UINT32("num-irq", mpcore_priv_state, num_irq, 64),
     DEFINE_PROP_END_OF_LIST(),
 };
 
