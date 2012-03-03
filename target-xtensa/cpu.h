@@ -126,6 +126,10 @@ enum {
     RASID = 90,
     ITLBCFG = 91,
     DTLBCFG = 92,
+    IBREAKENABLE = 96,
+    IBREAKA = 128,
+    DBREAKA = 144,
+    DBREAKC = 160,
     EPC1 = 177,
     DEPC = 192,
     EPS2 = 194,
@@ -137,8 +141,11 @@ enum {
     PS = 230,
     VECBASE = 231,
     EXCCAUSE = 232,
+    DEBUGCAUSE = 233,
     CCOUNT = 234,
     PRID = 235,
+    ICOUNT = 236,
+    ICOUNTLEVEL = 237,
     EXCVADDR = 238,
     CCOMPARE = 240,
 };
@@ -161,12 +168,27 @@ enum {
 
 #define PS_WOE 0x40000
 
+#define DEBUGCAUSE_IC 0x1
+#define DEBUGCAUSE_IB 0x2
+#define DEBUGCAUSE_DB 0x4
+#define DEBUGCAUSE_BI 0x8
+#define DEBUGCAUSE_BN 0x10
+#define DEBUGCAUSE_DI 0x20
+#define DEBUGCAUSE_DBNUM 0xf00
+#define DEBUGCAUSE_DBNUM_SHIFT 8
+
+#define DBREAKC_SB 0x80000000
+#define DBREAKC_LB 0x40000000
+#define DBREAKC_SB_LB (DBREAKC_SB | DBREAKC_LB)
+#define DBREAKC_MASK 0x3f
+
 #define MAX_NAREG 64
 #define MAX_NINTERRUPT 32
 #define MAX_NLEVEL 6
 #define MAX_NNMI 1
 #define MAX_NCCOMPARE 3
 #define MAX_TLB_WAY_SIZE 8
+#define MAX_NDBREAK 2
 
 #define REGION_PAGE_MASK 0xe0000000
 
@@ -186,6 +208,7 @@ enum {
     EXC_KERNEL,
     EXC_USER,
     EXC_DOUBLE,
+    EXC_DEBUG,
     EXC_MAX
 };
 
@@ -279,6 +302,11 @@ typedef struct XtensaConfig {
     uint32_t timerint[MAX_NCCOMPARE];
     unsigned nextint;
     unsigned extint[MAX_NINTERRUPT];
+
+    unsigned debug_level;
+    unsigned nibreak;
+    unsigned ndbreak;
+
     uint32_t clock_freq_khz;
 
     xtensa_tlb itlb;
@@ -309,6 +337,9 @@ typedef struct CPUXtensaState {
     int64_t halt_clock;
 
     int exception_taken;
+
+    /* Watchpoints for DBREAK registers */
+    CPUWatchpoint *cpu_watchpoint[MAX_NDBREAK];
 
     CPU_COMMON
 } CPUXtensaState;
@@ -344,6 +375,8 @@ void xtensa_tlb_set_entry(CPUState *env, bool dtlb,
 int xtensa_get_physical_addr(CPUState *env,
         uint32_t vaddr, int is_write, int mmu_idx,
         uint32_t *paddr, uint32_t *page_size, unsigned *access);
+void dump_mmu(FILE *f, fprintf_function cpu_fprintf, CPUState *env);
+void debug_exception_env(CPUState *new_env, uint32_t cause);
 
 
 #define XTENSA_OPTION_BIT(opt) (((uint64_t)1) << (opt))
@@ -409,6 +442,8 @@ static inline int cpu_mmu_index(CPUState *env)
 #define XTENSA_TBFLAG_RING_MASK 0x3
 #define XTENSA_TBFLAG_EXCM 0x4
 #define XTENSA_TBFLAG_LITBASE 0x8
+#define XTENSA_TBFLAG_DEBUG 0x10
+#define XTENSA_TBFLAG_ICOUNT 0x20
 
 static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
         target_ulong *cs_base, int *flags)
@@ -423,6 +458,14 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_EXTENDED_L32R) &&
             (env->sregs[LITBASE] & 1)) {
         *flags |= XTENSA_TBFLAG_LITBASE;
+    }
+    if (xtensa_option_enabled(env->config, XTENSA_OPTION_DEBUG)) {
+        if (xtensa_get_cintlevel(env) < env->config->debug_level) {
+            *flags |= XTENSA_TBFLAG_DEBUG;
+        }
+        if (xtensa_get_cintlevel(env) < env->sregs[ICOUNTLEVEL]) {
+            *flags |= XTENSA_TBFLAG_ICOUNT;
+        }
     }
 }
 

@@ -1519,7 +1519,8 @@ int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
     CPUWatchpoint *wp;
 
     /* sanity checks: allow power-of-2 lengths, deny unaligned watchpoints */
-    if ((len != 1 && len != 2 && len != 4 && len != 8) || (addr & ~len_mask)) {
+    if ((len & (len - 1)) || (addr & ~len_mask) ||
+            len == 0 || len > TARGET_PAGE_SIZE) {
         fprintf(stderr, "qemu: tried to set invalid watchpoint at "
                 TARGET_FMT_lx ", len=" TARGET_FMT_lu "\n", addr, len);
         return -EINVAL;
@@ -3391,11 +3392,12 @@ static void check_watchpoint(int offset, int len_mask, int flags)
                 tb_phys_invalidate(tb, -1);
                 if (wp->flags & BP_STOP_BEFORE_ACCESS) {
                     env->exception_index = EXCP_DEBUG;
+                    cpu_loop_exit(env);
                 } else {
                     cpu_get_tb_cpu_state(env, &pc, &cs_base, &cpu_flags);
                     tb_gen_code(env, pc, cs_base, cpu_flags, 1);
+                    cpu_resume_from_signal(env, NULL);
                 }
-                cpu_resume_from_signal(env, NULL);
             }
         } else {
             wp->flags &= ~BP_WATCHPOINT_HIT;
@@ -3423,9 +3425,15 @@ static void watch_mem_write(void *opaque, target_phys_addr_t addr,
 {
     check_watchpoint(addr & ~TARGET_PAGE_MASK, ~(size - 1), BP_MEM_WRITE);
     switch (size) {
-    case 1: stb_phys(addr, val);
-    case 2: stw_phys(addr, val);
-    case 4: stl_phys(addr, val);
+    case 1:
+        stb_phys(addr, val);
+        break;
+    case 2:
+        stw_phys(addr, val);
+        break;
+    case 4:
+        stl_phys(addr, val);
+        break;
     default: abort();
     }
 }

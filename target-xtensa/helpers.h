@@ -3,6 +3,8 @@
 DEF_HELPER_1(exception, void, i32)
 DEF_HELPER_2(exception_cause, void, i32, i32)
 DEF_HELPER_3(exception_cause_vaddr, void, i32, i32, i32)
+DEF_HELPER_2(debug_exception, void, i32, i32)
+
 DEF_HELPER_1(nsa, i32, i32)
 DEF_HELPER_1(nsau, i32, i32)
 DEF_HELPER_1(wsr_windowbase, void, i32)
@@ -28,5 +30,10 @@ DEF_HELPER_2(rtlb1, i32, i32, i32)
 DEF_HELPER_2(itlb, void, i32, i32)
 DEF_HELPER_2(ptlb, i32, i32, i32)
 DEF_HELPER_3(wtlb, void, i32, i32, i32)
+
+DEF_HELPER_1(wsr_ibreakenable, void, i32)
+DEF_HELPER_2(wsr_ibreaka, void, i32, i32)
+DEF_HELPER_2(wsr_dbreaka, void, i32, i32)
+DEF_HELPER_2(wsr_dbreakc, void, i32, i32)
 
 #include "def-helper.h"

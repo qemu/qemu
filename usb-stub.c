@@ -41,7 +41,7 @@ void usb_host_info(Monitor *mon)
 }
 
 /* XXX: modify configure to compile the right host driver */
-USBDevice *usb_host_device_open(const char *devname)
+USBDevice *usb_host_device_open(USBBus *bus, const char *devname)
 {
     return NULL;
 }

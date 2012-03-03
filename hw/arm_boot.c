@@ -7,11 +7,14 @@
  * This code is licensed under the GPL.
  */
 
+#include "config.h"
 #include "hw.h"
 #include "arm-misc.h"
 #include "sysemu.h"
+#include "boards.h"
 #include "loader.h"
 #include "elf.h"
+#include "device_tree.h"
 
 #define KERNEL_ARGS_ADDR 0x100
 #define KERNEL_LOAD_ADDR 0x00010000
@@ -214,6 +217,67 @@ static void set_kernel_args_old(const struct arm_boot_info *info)
     }
 }
 
+static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
+{
+#ifdef CONFIG_FDT
+    uint32_t mem_reg_property[] = { cpu_to_be32(binfo->loader_start),
+                                    cpu_to_be32(binfo->ram_size) };
+    void *fdt = NULL;
+    char *filename;
+    int size, rc;
+
+    filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, binfo->dtb_filename);
+    if (!filename) {
+        fprintf(stderr, "Couldn't open dtb file %s\n", binfo->dtb_filename);
+        return -1;
+    }
+
+    fdt = load_device_tree(filename, &size);
+    if (!fdt) {
+        fprintf(stderr, "Couldn't open dtb file %s\n", filename);
+        g_free(filename);
+        return -1;
+    }
+    g_free(filename);
+
+    rc = qemu_devtree_setprop(fdt, "/memory", "reg", mem_reg_property,
+                               sizeof(mem_reg_property));
+    if (rc < 0) {
+        fprintf(stderr, "couldn't set /memory/reg\n");
+    }
+
+    rc = qemu_devtree_setprop_string(fdt, "/chosen", "bootargs",
+                                      binfo->kernel_cmdline);
+    if (rc < 0) {
+        fprintf(stderr, "couldn't set /chosen/bootargs\n");
+    }
+
+    if (binfo->initrd_size) {
+        rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-start",
+                binfo->loader_start + INITRD_LOAD_ADDR);
+        if (rc < 0) {
+            fprintf(stderr, "couldn't set /chosen/linux,initrd-start\n");
+        }
+
+        rc = qemu_devtree_setprop_cell(fdt, "/chosen", "linux,initrd-end",
+                    binfo->loader_start + INITRD_LOAD_ADDR +
+                    binfo->initrd_size);
+        if (rc < 0) {
+            fprintf(stderr, "couldn't set /chosen/linux,initrd-end\n");
+        }
+    }
+
+    cpu_physical_memory_write(addr, fdt, size);
+
+    return 0;
+
+#else
+    fprintf(stderr, "Device tree requested, "
+                "but qemu was compiled without fdt support\n");
+    return -1;
+#endif
+}
+
 static void do_cpu_reset(void *opaque)
 {
     CPUState *env = opaque;
@@ -228,10 +292,12 @@ static void do_cpu_reset(void *opaque)
         } else {
             if (env == first_cpu) {
                 env->regs[15] = info->loader_start;
-                if (old_param) {
-                    set_kernel_args_old(info);
-                } else {
-                    set_kernel_args(info);
+                if (!info->dtb_filename) {
+                    if (old_param) {
+                        set_kernel_args_old(info);
+                    } else {
+                        set_kernel_args(info);
+                    }
                 }
             } else {
                 info->secondary_cpu_reset_hook(env, info);
@@ -248,11 +314,19 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
     int is_linux;
     uint64_t elf_entry;
     target_phys_addr_t entry;
+    QemuOpts *machine_opts;
 
     /* Load the kernel.  */
     if (!info->kernel_filename) {
         fprintf(stderr, "Kernel image must be specified\n");
         exit(1);
+    }
+
+    machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
+    if (machine_opts) {
+        info->dtb_filename = qemu_opt_get(machine_opts, "dtb");
+    } else {
+        info->dtb_filename = NULL;
     }
 
     if (!info->secondary_cpu_reset_hook) {
@@ -301,8 +375,25 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         } else {
             initrd_size = 0;
         }
+        info->initrd_size = initrd_size;
+
         bootloader[4] = info->board_id;
-        bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
+
+        /* for device tree boot, we pass the DTB directly in r2. Otherwise
+         * we point to the kernel args.
+         */
+        if (info->dtb_filename) {
+            /* Place the DTB after the initrd in memory */
+            target_phys_addr_t dtb_start = TARGET_PAGE_ALIGN(info->loader_start
+                                                             + INITRD_LOAD_ADDR
+                                                             + initrd_size);
+            if (load_dtb(dtb_start, info)) {
+                exit(1);
+            }
+            bootloader[5] = dtb_start;
+        } else {
+            bootloader[5] = info->loader_start + KERNEL_ARGS_ADDR;
+        }
         bootloader[6] = entry;
         for (n = 0; n < sizeof(bootloader) / 4; n++) {
             bootloader[n] = tswap32(bootloader[n]);
@@ -312,7 +403,6 @@ void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
         if (info->nb_cpus > 1) {
             info->write_secondary_boot(env, info);
         }
-        info->initrd_size = initrd_size;
     }
     info->is_linux = is_linux;
 
