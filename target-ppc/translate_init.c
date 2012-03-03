@@ -6588,6 +6588,11 @@ static void init_proc_POWER7 (CPUPPCState *env)
     gen_spr_7xx(env);
     /* Time base */
     gen_tbl(env);
+    /* Processor identification */
+    spr_register(env, SPR_PIR, "PIR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_pir,
+                 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     /* PURR & SPURR: Hack - treat these as aliases for the TB for now */
     spr_register(env, SPR_PURR,   "PURR",
