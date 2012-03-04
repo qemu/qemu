@@ -121,9 +121,7 @@ void kvmclock_create(void)
 
 static void kvmclock_register_types(void)
 {
-    if (kvm_enabled()) {
     type_register_static(&kvmclock_info);
-    }
 }
 
 type_init(kvmclock_register_types)
