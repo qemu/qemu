@@ -2038,7 +2038,7 @@ first module.
 ETEXI
 
 DEF("dtb", HAS_ARG, QEMU_OPTION_dtb, \
-    "-dtb    file    use 'file' as device tree image\n", QEMU_ARCH_ARM)
+    "-dtb    file    use 'file' as device tree image\n", QEMU_ARCH_ALL)
 STEXI
 @item -dtb @var{file}
 @findex -dtb
