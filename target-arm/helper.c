@@ -1,4 +1,3 @@
-#include "qemu-common.h"
 #include "cpu.h"
 #include "gdbstub.h"
 #include "helper.h"

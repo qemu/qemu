@@ -1325,16 +1325,6 @@ esac
 
 fi
 
-if echo $cc_macros | fgrep -q '#define __SIZEOF_POINTER__ 4'; then
-  hostlongbits=32
-elif echo $cc_macros | fgrep -q '#define __SIZEOF_POINTER__ 8'; then
-  hostlongbits=64
-else
-  echo "ERROR: Unknown size of host long"
-  exit 1
-fi
-
-
 ##########################################
 # NPTL probe
 
@@ -3033,7 +3023,6 @@ fi
 if test "$bigendian" = "yes" ; then
   echo "HOST_WORDS_BIGENDIAN=y" >> $config_host_mak
 fi
-echo "HOST_LONG_BITS=$hostlongbits" >> $config_host_mak
 if test "$mingw32" = "yes" ; then
   echo "CONFIG_WIN32=y" >> $config_host_mak
   echo "CONFIG_INSTALLER=y" >> $config_host_mak

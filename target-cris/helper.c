@@ -18,10 +18,6 @@
  * License along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <string.h>
-
-#include "config.h"
 #include "cpu.h"
 #include "mmu.h"
 #include "host-utils.h"

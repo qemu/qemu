@@ -60,8 +60,6 @@ typedef uint64_t target_ulong __attribute__((aligned(TARGET_LONG_ALIGNMENT)));
 #error TARGET_LONG_SIZE undefined
 #endif
 
-#define HOST_LONG_SIZE (HOST_LONG_BITS / 8)
-
 #define EXCP_INTERRUPT 	0x10000 /* async interruption */
 #define EXCP_HLT        0x10001 /* hlt instruction reached */
 #define EXCP_DEBUG      0x10002 /* cpu stopped after a breakpoint or singlestep */
