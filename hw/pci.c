@@ -633,8 +633,8 @@ static void pci_init_mask_bridge(PCIDevice *d)
     memset(d->wmask + PCI_PREF_BASE_UPPER32, 0xff, 8);
 
     /* Supported memory and i/o types */
-    d->config[PCI_IO_BASE] |= PCI_IO_RANGE_TYPE_32;
-    d->config[PCI_IO_LIMIT] |= PCI_IO_RANGE_TYPE_32;
+    d->config[PCI_IO_BASE] |= PCI_IO_RANGE_TYPE_16;
+    d->config[PCI_IO_LIMIT] |= PCI_IO_RANGE_TYPE_16;
     pci_word_test_and_set_mask(d->config + PCI_PREF_MEMORY_BASE,
                                PCI_PREF_RANGE_TYPE_64);
     pci_word_test_and_set_mask(d->config + PCI_PREF_MEMORY_LIMIT,
