@@ -824,7 +824,7 @@ static void set_pci_devfn(Object *obj, Visitor *v, void *opaque,
 {
     DeviceState *dev = DEVICE(obj);
     Property *prop = opaque;
-    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
+    int32_t *ptr = qdev_get_prop_ptr(dev, prop);
     unsigned int slot, fn, n;
     Error *local_err = NULL;
     char *str;
@@ -860,7 +860,7 @@ invalid:
 
 static int print_pci_devfn(DeviceState *dev, Property *prop, char *dest, size_t len)
 {
-    uint32_t *ptr = qdev_get_prop_ptr(dev, prop);
+    int32_t *ptr = qdev_get_prop_ptr(dev, prop);
 
     if (*ptr == -1) {
         return snprintf(dest, len, "<unset>");
@@ -875,11 +875,8 @@ PropertyInfo qdev_prop_pci_devfn = {
     .print = print_pci_devfn,
     .get   = get_int32,
     .set   = set_pci_devfn,
-    /* FIXME: this should be -1...255, but the address is stored
-     * into an uint32_t rather than int32_t.
-     */
-    .min   = 0,
-    .max   = 0xFFFFFFFFULL,
+    .min   = -1,
+    .max   = 255,
 };
 
 /* --- blocksize --- */

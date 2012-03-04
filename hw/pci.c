@@ -1537,7 +1537,7 @@ PCIDevice *pci_create_multifunction(PCIBus *bus, int devfn, bool multifunction,
     DeviceState *dev;
 
     dev = qdev_create(&bus->qbus, name);
-    qdev_prop_set_uint32(dev, "addr", devfn);
+    qdev_prop_set_int32(dev, "addr", devfn);
     qdev_prop_set_bit(dev, "multifunction", multifunction);
     return PCI_DEVICE(dev);
 }
