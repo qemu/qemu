@@ -42,6 +42,13 @@
 
 #define BINARY_DEVICE_TREE_FILE "petalogix-s3adsp1800.dtb"
 
+#define MEMORY_BASEADDR 0x90000000
+#define FLASH_BASEADDR 0xa0000000
+#define INTC_BASEADDR 0x81800000
+#define TIMER_BASEADDR 0x83c00000
+#define UARTLITE_BASEADDR 0x84000000
+#define ETHLITE_BASEADDR 0x81000000
+
 static void machine_cpu_reset(CPUState *env)
 {
     /* FIXME: move to machine specfic cpu reset */
@@ -59,8 +66,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     CPUState *env;
     DriveInfo *dinfo;
     int i;
-    /* FIXME: remove harcoded magic numbers */
-    target_phys_addr_t ddr_base = 0x90000000;
+    target_phys_addr_t ddr_base = MEMORY_BASEADDR;
     MemoryRegion *phys_lmb_bram = g_new(MemoryRegion, 1);
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
     qemu_irq irq[32], *cpu_irq;
@@ -83,22 +89,22 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     memory_region_add_subregion(sysmem, ddr_base, phys_ram);
 
     dinfo = drive_get(IF_PFLASH, 0, 0);
-    pflash_cfi01_register(0xa0000000,
+    pflash_cfi01_register(FLASH_BASEADDR,
                           NULL, "petalogix_s3adsp1800.flash", FLASH_SIZE,
                           dinfo ? dinfo->bdrv : NULL, (64 * 1024),
                           FLASH_SIZE >> 16,
                           1, 0x89, 0x18, 0x0000, 0x0, 1);
 
     cpu_irq = microblaze_pic_init_cpu(env);
-    dev = xilinx_intc_create(0x81800000, cpu_irq[0], 2);
+    dev = xilinx_intc_create(INTC_BASEADDR, cpu_irq[0], 2);
     for (i = 0; i < 32; i++) {
         irq[i] = qdev_get_gpio_in(dev, i);
     }
 
-    sysbus_create_simple("xilinx,uartlite", 0x84000000, irq[3]);
+    sysbus_create_simple("xilinx,uartlite", UARTLITE_BASEADDR, irq[3]);
     /* 2 timers at irq 2 @ 62 Mhz.  */
-    xilinx_timer_create(0x83c00000, irq[0], 2, 62 * 1000000);
-    xilinx_ethlite_create(&nd_table[0], 0x81000000, irq[1], 0, 0);
+    xilinx_timer_create(TIMER_BASEADDR, irq[0], 2, 62 * 1000000);
+    xilinx_ethlite_create(&nd_table[0], ETHLITE_BASEADDR, irq[1], 0, 0);
 
     microblaze_load_kernel(env, ddr_base, ram_size,
                     BINARY_DEVICE_TREE_FILE, machine_cpu_reset);
