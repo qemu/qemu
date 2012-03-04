@@ -59,23 +59,16 @@ static int microblaze_load_dtb(target_phys_addr_t addr,
                                       const char *kernel_cmdline,
                                       const char *dtb_filename)
 {
-    char *path;
     int fdt_size;
 #ifdef CONFIG_FDT
-    void *fdt;
+    void *fdt = NULL;
     int r;
 
-    /* Try the local "mb.dtb" override.  */
-    fdt = load_device_tree("mb.dtb", &fdt_size);
+    if (dtb_filename) {
+        fdt = load_device_tree(dtb_filename, &fdt_size);
+    }
     if (!fdt) {
-        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, dtb_filename);
-        if (path) {
-            fdt = load_device_tree(path, &fdt_size);
-            g_free(path);
-        }
-        if (!fdt) {
-            return 0;
-        }
+        return 0;
     }
 
     if (kernel_cmdline) {
@@ -90,15 +83,9 @@ static int microblaze_load_dtb(target_phys_addr_t addr,
 #else
     /* We lack libfdt so we cannot manipulate the fdt. Just pass on the blob
        to the kernel.  */
-    fdt_size = load_image_targphys("mb.dtb", addr, 0x10000);
-    if (fdt_size < 0) {
-        path = qemu_find_file(QEMU_FILE_TYPE_BIOS, BINARY_DEVICE_TREE_FILE);
-        if (path) {
-            fdt_size = load_image_targphys(path, addr, 0x10000);
-            g_free(path);
-        }
+    if (dtb_filename) {
+        fdt_size = load_image_targphys(dtb_filename, addr, 0x10000);
     }
-
     if (kernel_cmdline) {
         fprintf(stderr,
                 "Warning: missing libfdt, cannot pass cmdline to kernel!\n");
@@ -123,8 +110,15 @@ void microblaze_load_kernel(CPUState *env, target_phys_addr_t ddr_base,
 
     machine_opts = qemu_opts_find(qemu_find_opts("machine"), 0);
     if (machine_opts) {
+        const char *dtb_arg;
         kernel_filename = qemu_opt_get(machine_opts, "kernel");
         kernel_cmdline = qemu_opt_get(machine_opts, "append");
+        dtb_arg = qemu_opt_get(machine_opts, "dtb");
+        if (dtb_arg) { /* Preference a -dtb argument */
+            dtb_filename = dtb_arg;
+        } else { /* default to pcbios dtb as passed by machine_init */
+            dtb_filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, dtb_filename);
+        }
     }
 
     boot_info.machine_cpu_reset = machine_cpu_reset;
