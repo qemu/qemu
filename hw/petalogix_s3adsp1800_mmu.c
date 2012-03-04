@@ -42,6 +42,12 @@
 
 #define BINARY_DEVICE_TREE_FILE "petalogix-s3adsp1800.dtb"
 
+static void machine_cpu_reset(CPUState *env)
+{
+    /* FIXME: move to machine specfic cpu reset */
+    env->pvr.regs[10] = 0x0c000000; /* spartan 3a dsp family.  */
+}
+
 static void
 petalogix_s3adsp1800_init(ram_addr_t ram_size,
                           const char *boot_device,
@@ -53,6 +59,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     CPUState *env;
     DriveInfo *dinfo;
     int i;
+    /* FIXME: remove harcoded magic numbers */
     target_phys_addr_t ddr_base = 0x90000000;
     MemoryRegion *phys_lmb_bram = g_new(MemoryRegion, 1);
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
@@ -64,9 +71,6 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
         cpu_model = "microblaze";
     }
     env = cpu_init(cpu_model);
-
-    /* FIXME: move to machine specfic cpu reset */
-    env->pvr.regs[10] = 0x0c000000; /* spartan 3a dsp family.  */
 
     /* Attach emulated BRAM through the LMB.  */
     memory_region_init_ram(phys_lmb_bram,
@@ -97,7 +101,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
     xilinx_ethlite_create(&nd_table[0], 0x81000000, irq[1], 0, 0);
 
     microblaze_load_kernel(env, ddr_base, ram_size,
-                    BINARY_DEVICE_TREE_FILE, NULL);
+                    BINARY_DEVICE_TREE_FILE, machine_cpu_reset);
 }
 
 static QEMUMachine petalogix_s3adsp1800_machine = {
