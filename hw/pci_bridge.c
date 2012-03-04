@@ -249,8 +249,8 @@ void pci_bridge_disable_base_limit(PCIDevice *dev)
                                PCI_PREF_RANGE_MASK & 0xffff);
     pci_word_test_and_clear_mask(conf + PCI_PREF_MEMORY_LIMIT,
                                  PCI_PREF_RANGE_MASK & 0xffff);
-    pci_set_word(conf + PCI_PREF_BASE_UPPER32, 0);
-    pci_set_word(conf + PCI_PREF_LIMIT_UPPER32, 0);
+    pci_set_long(conf + PCI_PREF_BASE_UPPER32, 0);
+    pci_set_long(conf + PCI_PREF_LIMIT_UPPER32, 0);
 }
 
 /* reset bridge specific configuration registers */
@@ -285,8 +285,8 @@ void pci_bridge_reset_reg(PCIDevice *dev)
                                  PCI_PREF_RANGE_MASK & 0xffff);
     pci_word_test_and_clear_mask(conf + PCI_PREF_MEMORY_LIMIT,
                                  PCI_PREF_RANGE_MASK & 0xffff);
-    pci_set_word(conf + PCI_PREF_BASE_UPPER32, 0);
-    pci_set_word(conf + PCI_PREF_LIMIT_UPPER32, 0);
+    pci_set_long(conf + PCI_PREF_BASE_UPPER32, 0);
+    pci_set_long(conf + PCI_PREF_LIMIT_UPPER32, 0);
 
     pci_set_word(conf + PCI_BRIDGE_CONTROL, 0);
 }
