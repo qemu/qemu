@@ -1,8 +1,21 @@
 #######################################################################
+# Target-independent parts used in system and user emulation
+universal-obj-y =
+
+#######################################################################
 # QObject
 qobject-obj-y = qint.o qstring.o qdict.o qlist.o qfloat.o qbool.o
 qobject-obj-y += qjson.o json-lexer.o json-streamer.o json-parser.o
 qobject-obj-y += qerror.o error.o qemu-error.o
+
+universal-obj-y += $(qobject-obj-y)
+
+#######################################################################
+# QOM
+include $(SRC_PATH)/qom/Makefile
+qom-obj-y = $(addprefix qom/, $(qom-y))
+
+universal-obj-y += $(qom-obj-y)
 
 #######################################################################
 # oslib-obj-y is code depending on the OS (win32 vs posix)
@@ -80,7 +93,6 @@ fsdev-obj-$(CONFIG_VIRTFS) += $(addprefix fsdev/, $(fsdev-nested-y))
 
 common-obj-y = $(block-obj-y) blockdev.o
 common-obj-y += $(net-obj-y)
-common-obj-y += $(qobject-obj-y)
 common-obj-$(CONFIG_LINUX) += $(fsdev-obj-$(CONFIG_LINUX))
 common-obj-y += readline.o console.o cursor.o
 common-obj-y += $(oslib-obj-y)
@@ -127,9 +139,6 @@ common-obj-$(CONFIG_POSIX) += migration-exec.o migration-unix.o migration-fd.o
 common-obj-$(CONFIG_WIN32) += version.o
 
 common-obj-$(CONFIG_SPICE) += ui/spice-core.o ui/spice-input.o ui/spice-display.o spice-qemu-char.o
-
-include $(SRC_PATH)/qom/Makefile
-common-obj-y += $(addprefix qom/, $(qom-y))
 
 audio-obj-y = audio.o noaudio.o wavaudio.o mixeng.o
 audio-obj-$(CONFIG_SDL) += sdlaudio.o
@@ -186,6 +195,8 @@ user-obj-y =
 user-obj-y += envlist.o path.o
 user-obj-y += tcg-runtime.o host-utils.o
 user-obj-y += cutils.o cache-utils.o
+user-obj-y += module.o
+user-obj-y += qemu-user.o
 user-obj-y += $(trace-obj-y)
 
 ######################################################################
@@ -422,8 +433,10 @@ qapi-nested-y += qmp-output-visitor.o qmp-registry.o qmp-dispatch.o
 qapi-nested-y += string-input-visitor.o string-output-visitor.o
 qapi-obj-y = $(addprefix qapi/, $(qapi-nested-y))
 
-common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o $(qapi-obj-y)
+common-obj-y += qmp-marshal.o qapi-visit.o qapi-types.o
 common-obj-y += qmp.o hmp.o
+
+universal-obj-y += $(qapi-obj-y)
 
 ######################################################################
 # guest agent

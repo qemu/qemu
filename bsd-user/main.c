@@ -748,6 +748,8 @@ int main(int argc, char **argv)
     if (argc <= 1)
         usage();
 
+    module_call_init(MODULE_INIT_QOM);
+
     if ((envlist = envlist_create()) == NULL) {
         (void) fprintf(stderr, "Unable to allocate envlist\n");
         exit(1);
