@@ -19,6 +19,7 @@
 #include <spice-experimental.h>
 
 #include <netdb.h>
+#include "sysemu.h"
 
 #include "qemu-common.h"
 #include "qemu-spice.h"
@@ -687,6 +688,11 @@ void qemu_spice_init(void)
         (spice_server, qemu_opt_get_bool(opts, "playback-compression", 1));
 
     qemu_opt_foreach(opts, add_channel, &tls_port, 0);
+
+#if SPICE_SERVER_VERSION >= 0x000a02 /* 0.10.2 */
+    spice_server_set_name(spice_server, qemu_name);
+    spice_server_set_uuid(spice_server, qemu_uuid);
+#endif
 
     if (0 != spice_server_init(spice_server, &core_interface)) {
         error_report("failed to initialize spice server");
