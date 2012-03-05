@@ -616,11 +616,12 @@
 # @connection-id: SPICE connection id number.  All channels with the same id
 #                 belong to the same SPICE session.
 #
-# @connection-type: SPICE channel type number.  "1" is the main control channel,
-#                   filter for this one if you want track spice sessions only
+# @connection-type: SPICE channel type number.  "1" is the main control
+#                   channel, filter for this one if you want to track spice
+#                   sessions only
 #
-# @channel-id: SPICE channel ID number.  Usually "0", might be different needed
-#              when multiple channels of the same type exist, such as multiple
+# @channel-id: SPICE channel ID number.  Usually "0", might be different when
+#              multiple channels of the same type exist, such as multiple
 #              display channels in a multihead setup
 #
 # @tls: true if the channel is encrypted, false otherwise.
@@ -649,8 +650,9 @@
 # @tls-port: #optional The SPICE server's TLS port number.
 #
 # @auth: #optional the current authentication type used by the server
-#        'none' if no authentication is being used
-#        'spice' (TODO: describe)
+#        'none'  if no authentication is being used
+#        'spice' uses SASL or direct TLS authentication, depending on command
+#                line options
 #
 # @channels: a list of @SpiceChannel for each active spice channel
 #
