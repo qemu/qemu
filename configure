@@ -2524,17 +2524,6 @@ if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaris" != yes -a \
 fi
 
 ##########################################
-# check if the compiler defines offsetof
-
-need_offsetof=yes
-cat > $TMPC << EOF
-#include <stddef.h>
-int main(void) { struct s { int f; }; return offsetof(struct s, f); }
-EOF
-if compile_prog "" "" ; then
-    need_offsetof=no
-fi
-
 # spice probe
 if test "$spice" != "no" ; then
   cat > $TMPC << EOF
@@ -3198,9 +3187,6 @@ if test "$signalfd" = "yes" ; then
 fi
 if test "$tcg_interpreter" = "yes" ; then
   echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
-fi
-if test "$need_offsetof" = "yes" ; then
-  echo "CONFIG_NEED_OFFSETOF=y" >> $config_host_mak
 fi
 if test "$fdatasync" = "yes" ; then
   echo "CONFIG_FDATASYNC=y" >> $config_host_mak
