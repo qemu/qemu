@@ -581,12 +581,7 @@ void slirp_select_poll(fd_set *readfds, fd_set *writefds, fd_set *xfds,
                 }
 	}
 
-	/*
-	 * See if we can start outputting
-	 */
-	if (slirp->if_queued) {
-	    if_start(slirp);
-	}
+        if_start(slirp);
     }
 
 	/* clear global file descriptor sets.
