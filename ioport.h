@@ -36,6 +36,7 @@ typedef uint32_t pio_addr_t;
 /* These should really be in isa.h, but are here to make pc.h happy.  */
 typedef void (IOPortWriteFunc)(void *opaque, uint32_t address, uint32_t data);
 typedef uint32_t (IOPortReadFunc)(void *opaque, uint32_t address);
+typedef void (IOPortDestructor)(void *opaque);
 
 void ioport_register(IORange *iorange);
 int register_ioport_read(pio_addr_t start, int length, int size,
