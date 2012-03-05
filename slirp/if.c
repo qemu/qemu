@@ -163,10 +163,17 @@ void if_start(Slirp *slirp)
 
     DEBUG_CALL("if_start");
 
+    if (slirp->if_start_busy) {
+        return;
+    }
+    slirp->if_start_busy = true;
+
     while (slirp->if_queued) {
         /* check if we can really output */
-        if (!slirp_can_output(slirp->opaque))
+        if (!slirp_can_output(slirp->opaque)) {
+            slirp->if_start_busy = false;
             return;
+        }
 
         /*
          * See which queue to get next packet from
@@ -221,4 +228,6 @@ void if_start(Slirp *slirp)
     }
 
     slirp->if_queued = requeued;
+
+    slirp->if_start_busy = false;
 }
