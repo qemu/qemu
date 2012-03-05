@@ -346,6 +346,7 @@ endif
 obj-arm-y = integratorcp.o versatilepb.o arm_pic.o arm_timer.o
 obj-arm-y += arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
 obj-arm-y += versatile_pci.o
+obj-arm-y += cadence_uart.o
 obj-arm-y += realview_gic.o realview.o arm_sysctl.o arm11mpcore.o a9mpcore.o
 obj-arm-y += exynos4210_gic.o exynos4210_combiner.o exynos4210.o
 obj-arm-y += exynos4_boards.o exynos4210_uart.o exynos4210_pwm.o
