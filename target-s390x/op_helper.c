@@ -21,7 +21,7 @@
 #include "cpu.h"
 #include "dyngen-exec.h"
 #include "host-utils.h"
-#include "helpers.h"
+#include "helper.h"
 #include <string.h>
 #include "kvm.h"
 #include "qemu-timer.h"

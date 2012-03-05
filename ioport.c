@@ -52,6 +52,7 @@
 static void *ioport_opaque[MAX_IOPORTS];
 static IOPortReadFunc *ioport_read_table[3][MAX_IOPORTS];
 static IOPortWriteFunc *ioport_write_table[3][MAX_IOPORTS];
+static IOPortDestructor *ioport_destructor_table[MAX_IOPORTS];
 
 static IOPortReadFunc default_ioport_readb, default_ioport_readw, default_ioport_readl;
 static IOPortWriteFunc default_ioport_writeb, default_ioport_writew, default_ioport_writel;
@@ -225,6 +226,15 @@ static void ioport_writel_thunk(void *opaque, uint32_t addr, uint32_t data)
     ioport->ops->write(ioport, addr - ioport->base, 4, data);
 }
 
+static void iorange_destructor_thunk(void *opaque)
+{
+    IORange *iorange = opaque;
+
+    if (iorange->ops->destructor) {
+        iorange->ops->destructor(iorange);
+    }
+}
+
 void ioport_register(IORange *ioport)
 {
     register_ioport_read(ioport->base, ioport->len, 1,
@@ -239,12 +249,17 @@ void ioport_register(IORange *ioport)
                           ioport_writew_thunk, ioport);
     register_ioport_write(ioport->base, ioport->len, 4,
                           ioport_writel_thunk, ioport);
+    ioport_destructor_table[ioport->base] = iorange_destructor_thunk;
 }
 
 void isa_unassign_ioport(pio_addr_t start, int length)
 {
     int i;
 
+    if (ioport_destructor_table[start]) {
+        ioport_destructor_table[start](ioport_opaque[start]);
+        ioport_destructor_table[start] = NULL;
+    }
     for(i = start; i < start + length; i++) {
         ioport_read_table[0][i] = NULL;
         ioport_read_table[1][i] = NULL;

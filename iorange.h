@@ -11,6 +11,7 @@ struct IORangeOps {
                  uint64_t *data);
     void (*write)(IORange *iorange, uint64_t offset, unsigned width,
                   uint64_t data);
+    void (*destructor)(IORange *iorange);
 };
 
 struct IORange {

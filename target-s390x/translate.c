@@ -38,9 +38,9 @@
 static TCGv_ptr cpu_env;
 
 #include "gen-icount.h"
-#include "helpers.h"
+#include "helper.h"
 #define GEN_HELPER 1
-#include "helpers.h"
+#include "helper.h"
 
 typedef struct DisasContext DisasContext;
 struct DisasContext {
