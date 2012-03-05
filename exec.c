@@ -3668,9 +3668,13 @@ static void io_commit(MemoryListener *listener)
 static void io_region_add(MemoryListener *listener,
                           MemoryRegionSection *section)
 {
-    iorange_init(&section->mr->iorange, &memory_region_iorange_ops,
+    MemoryRegionIORange *mrio = g_new(MemoryRegionIORange, 1);
+
+    mrio->mr = section->mr;
+    mrio->offset = section->offset_within_region;
+    iorange_init(&mrio->iorange, &memory_region_iorange_ops,
                  section->offset_within_address_space, section->size);
-    ioport_register(&section->mr->iorange);
+    ioport_register(&mrio->iorange);
 }
 
 static void io_region_del(MemoryListener *listener,

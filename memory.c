@@ -382,16 +382,20 @@ static void memory_region_iorange_read(IORange *iorange,
                                        unsigned width,
                                        uint64_t *data)
 {
-    MemoryRegion *mr = container_of(iorange, MemoryRegion, iorange);
+    MemoryRegionIORange *mrio
+        = container_of(iorange, MemoryRegionIORange, iorange);
+    MemoryRegion *mr = mrio->mr;
 
+    offset += mrio->offset;
     if (mr->ops->old_portio) {
-        const MemoryRegionPortio *mrp = find_portio(mr, offset, width, false);
+        const MemoryRegionPortio *mrp = find_portio(mr, offset - mrio->offset,
+                                                    width, false);
 
         *data = ((uint64_t)1 << (width * 8)) - 1;
         if (mrp) {
             *data = mrp->read(mr->opaque, offset);
         } else if (width == 2) {
-            mrp = find_portio(mr, offset, 1, false);
+            mrp = find_portio(mr, offset - mrio->offset, 1, false);
             assert(mrp);
             *data = mrp->read(mr->opaque, offset) |
                     (mrp->read(mr->opaque, offset + 1) << 8);
@@ -410,15 +414,19 @@ static void memory_region_iorange_write(IORange *iorange,
                                         unsigned width,
                                         uint64_t data)
 {
-    MemoryRegion *mr = container_of(iorange, MemoryRegion, iorange);
+    MemoryRegionIORange *mrio
+        = container_of(iorange, MemoryRegionIORange, iorange);
+    MemoryRegion *mr = mrio->mr;
 
+    offset += mrio->offset;
     if (mr->ops->old_portio) {
-        const MemoryRegionPortio *mrp = find_portio(mr, offset, width, true);
+        const MemoryRegionPortio *mrp = find_portio(mr, offset - mrio->offset,
+                                                    width, true);
 
         if (mrp) {
             mrp->write(mr->opaque, offset, data);
         } else if (width == 2) {
-            mrp = find_portio(mr, offset, 1, false);
+            mrp = find_portio(mr, offset - mrio->offset, 1, false);
             assert(mrp);
             mrp->write(mr->opaque, offset, data & 0xff);
             mrp->write(mr->opaque, offset + 1, data >> 8);
@@ -431,9 +439,15 @@ static void memory_region_iorange_write(IORange *iorange,
                               memory_region_write_accessor, mr);
 }
 
+static void memory_region_iorange_destructor(IORange *iorange)
+{
+    g_free(container_of(iorange, MemoryRegionIORange, iorange));
+}
+
 const IORangeOps memory_region_iorange_ops = {
     .read = memory_region_iorange_read,
     .write = memory_region_iorange_write,
+    .destructor = memory_region_iorange_destructor,
 };
 
 static AddressSpace address_space_io;

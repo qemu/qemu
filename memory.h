@@ -43,6 +43,14 @@ struct MemoryRegionMmio {
     CPUWriteMemoryFunc *write[3];
 };
 
+/* Internal use; thunks between old-style IORange and MemoryRegions. */
+typedef struct MemoryRegionIORange MemoryRegionIORange;
+struct MemoryRegionIORange {
+    IORange iorange;
+    MemoryRegion *mr;
+    target_phys_addr_t offset;
+};
+
 /*
  * Memory region callbacks
  */
@@ -117,7 +125,6 @@ struct MemoryRegion {
     target_phys_addr_t addr;
     void (*destructor)(MemoryRegion *mr);
     ram_addr_t ram_addr;
-    IORange iorange;
     bool subpage;
     bool terminates;
     bool readable;
