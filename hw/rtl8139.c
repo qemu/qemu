@@ -2495,11 +2495,30 @@ static void rtl8139_TxStatus_write(RTL8139State *s, uint32_t txRegOffset, uint32
     rtl8139_transmit(s);
 }
 
-static uint32_t rtl8139_TxStatus_read(RTL8139State *s, uint32_t txRegOffset)
+static uint32_t rtl8139_TxStatus_read(RTL8139State *s, uint8_t addr, int size)
 {
-    uint32_t ret = s->TxStatus[txRegOffset/4];
+    uint32_t reg = (addr - TxStatus0) / 4;
+    uint32_t offset = addr & 0x3;
+    uint32_t ret = 0;
 
-    DPRINTF("TxStatus read offset=0x%x val=0x%08x\n", txRegOffset, ret);
+    if (addr & (size - 1)) {
+        DPRINTF("not implemented read for TxStatus addr=0x%x size=0x%x\n", addr,
+                size);
+        return ret;
+    }
+
+    switch (size) {
+    case 1: /* fall through */
+    case 2: /* fall through */
+    case 4:
+        ret = (s->TxStatus[reg] >> offset * 8) & ((1 << (size * 8)) - 1);
+        DPRINTF("TxStatus[%d] read addr=0x%x size=0x%x val=0x%08x\n", reg, addr,
+                size, ret);
+        break;
+    default:
+        DPRINTF("unsupported size 0x%x of TxStatus reading\n", size);
+        break;
+    }
 
     return ret;
 }
@@ -2970,6 +2989,9 @@ static uint32_t rtl8139_io_readb(void *opaque, uint8_t addr)
         case MAR0 ... MAR0+7:
             ret = s->mult[addr - MAR0];
             break;
+        case TxStatus0 ... TxStatus0+4*4-1:
+            ret = rtl8139_TxStatus_read(s, addr, 1);
+            break;
         case ChipCmd:
             ret = rtl8139_ChipCmd_read(s);
             break;
@@ -3033,6 +3055,9 @@ static uint32_t rtl8139_io_readw(void *opaque, uint8_t addr)
 
     switch (addr)
     {
+        case TxAddr0 ... TxAddr0+4*4-1:
+            ret = rtl8139_TxStatus_read(s, addr, 2);
+            break;
         case IntrMask:
             ret = rtl8139_IntrMask_read(s);
             break;
@@ -3123,7 +3148,7 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
             break;
 
         case TxStatus0 ... TxStatus0+4*4-1:
-            ret = rtl8139_TxStatus_read(s, addr-TxStatus0);
+            ret = rtl8139_TxStatus_read(s, addr, 4);
             break;
 
         case TxAddr0 ... TxAddr0+4*4-1:
