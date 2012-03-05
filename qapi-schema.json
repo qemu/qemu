@@ -1256,7 +1256,7 @@
 { 'command': 'migrate_set_speed', 'data': {'value': 'int'} }
 
 ##
-# @DevicePropertyInfo:
+# @ObjectPropertyInfo:
 #
 # @name: the name of the property
 #
