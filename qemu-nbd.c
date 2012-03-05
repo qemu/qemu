@@ -126,8 +126,7 @@ static int find_partition(BlockDriverState *bs, int partition,
     }
 
     if (data[510] != 0x55 || data[511] != 0xaa) {
-        errno = -EINVAL;
-        return -1;
+        return -EINVAL;
     }
 
     for (i = 0; i < 4; i++) {
@@ -165,8 +164,7 @@ static int find_partition(BlockDriverState *bs, int partition,
         }
     }
 
-    errno = -ENOENT;
-    return -1;
+    return -ENOENT;
 }
 
 static void termsig_handler(int signum)
@@ -491,9 +489,12 @@ int main(int argc, char **argv)
 
     fd_size = bs->total_sectors * 512;
 
-    if (partition != -1 &&
-        find_partition(bs, partition, &dev_offset, &fd_size)) {
-        err(EXIT_FAILURE, "Could not find partition %d", partition);
+    if (partition != -1) {
+        ret = find_partition(bs, partition, &dev_offset, &fd_size);
+        if (ret < 0) {
+            errno = -ret;
+            err(EXIT_FAILURE, "Could not find partition %d", partition);
+        }
     }
 
     exp = nbd_export_new(bs, dev_offset, fd_size, nbdflags);

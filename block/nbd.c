@@ -200,8 +200,7 @@ static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
     if (rc >= 0 && iov) {
         ret = qemu_co_sendv(s->sock, iov, request->len, offset);
         if (ret != request->len) {
-            errno = -EIO;
-            rc = -1;
+            return -EIO;
         }
     }
     qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, NULL,
@@ -271,7 +270,7 @@ static int nbd_establish_connection(BlockDriverState *bs)
     if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         closesocket(sock);
-        return -errno;
+        return ret;
     }
 
     /* Now that we're connected, set the socket to be non-blocking and
@@ -340,7 +339,7 @@ static int nbd_co_readv_1(BlockDriverState *bs, int64_t sector_num,
     nbd_coroutine_start(s, &request);
     ret = nbd_co_send_request(s, &request, NULL, 0);
     if (ret < 0) {
-        reply.error = errno;
+        reply.error = -ret;
     } else {
         nbd_co_receive_reply(s, &request, &reply, qiov->iov, offset);
     }
@@ -369,7 +368,7 @@ static int nbd_co_writev_1(BlockDriverState *bs, int64_t sector_num,
     nbd_coroutine_start(s, &request);
     ret = nbd_co_send_request(s, &request, qiov->iov, offset);
     if (ret < 0) {
-        reply.error = errno;
+        reply.error = -ret;
     } else {
         nbd_co_receive_reply(s, &request, &reply, NULL, 0);
     }
@@ -437,7 +436,7 @@ static int nbd_co_flush(BlockDriverState *bs)
     nbd_coroutine_start(s, &request);
     ret = nbd_co_send_request(s, &request, NULL, 0);
     if (ret < 0) {
-        reply.error = errno;
+        reply.error = -ret;
     } else {
         nbd_co_receive_reply(s, &request, &reply, NULL, 0);
     }
@@ -463,7 +462,7 @@ static int nbd_co_discard(BlockDriverState *bs, int64_t sector_num,
     nbd_coroutine_start(s, &request);
     ret = nbd_co_send_request(s, &request, NULL, 0);
     if (ret < 0) {
-        reply.error = errno;
+        reply.error = -ret;
     } else {
         nbd_co_receive_reply(s, &request, &reply, NULL, 0);
     }

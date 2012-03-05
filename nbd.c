@@ -81,9 +81,10 @@
 #define read_sync(fd, buffer, size) nbd_wr_sync(fd, buffer, size, true)
 #define write_sync(fd, buffer, size) nbd_wr_sync(fd, buffer, size, false)
 
-size_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
+ssize_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
 {
     size_t offset = 0;
+    int err;
 
     if (qemu_in_coroutine()) {
         if (do_read) {
@@ -103,15 +104,15 @@ size_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
         }
 
         if (len < 0) {
-            errno = socket_error();
+            err = socket_error();
 
             /* recoverable error */
-            if (errno == EINTR || errno == EAGAIN) {
+            if (err == EINTR || err == EAGAIN) {
                 continue;
             }
 
             /* unrecoverable error */
-            return 0;
+            return -err;
         }
 
         /* eof */
@@ -192,6 +193,7 @@ int unix_socket_outgoing(const char *path)
 static int nbd_send_negotiate(int csock, off_t size, uint32_t flags)
 {
     char buf[8 + 8 + 8 + 128];
+    int rc;
 
     /* Negotiate
         [ 0 ..   7]   passwd   ("NBDMAGIC")
@@ -200,6 +202,8 @@ static int nbd_send_negotiate(int csock, off_t size, uint32_t flags)
         [24 ..  27]   flags
         [28 .. 151]   reserved (0)
      */
+
+    rc = -EINVAL;
 
     TRACE("Beginning negotiation.");
     memcpy(buf, "NBDMAGIC", 8);
@@ -212,13 +216,13 @@ static int nbd_send_negotiate(int csock, off_t size, uint32_t flags)
 
     if (write_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
         LOG("write failed");
-        errno = EINVAL;
-        return -1;
+        goto fail;
     }
 
     TRACE("Negotiation succeeded.");
-
-    return 0;
+    rc = 0;
+fail:
+    return rc;
 }
 
 int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
@@ -227,20 +231,21 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
     char buf[256];
     uint64_t magic, s;
     uint16_t tmp;
+    int rc;
 
     TRACE("Receiving negotiation.");
 
+    rc = -EINVAL;
+
     if (read_sync(csock, buf, 8) != 8) {
         LOG("read failed");
-        errno = EINVAL;
-        return -1;
+        goto fail;
     }
 
     buf[8] = '\0';
     if (strlen(buf) == 0) {
         LOG("server connection closed");
-        errno = EINVAL;
-        return -1;
+        goto fail;
     }
 
     TRACE("Magic is %c%c%c%c%c%c%c%c",
@@ -255,14 +260,12 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
 
     if (memcmp(buf, "NBDMAGIC", 8) != 0) {
         LOG("Invalid magic received");
-        errno = EINVAL;
-        return -1;
+        goto fail;
     }
 
     if (read_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
         LOG("read failed");
-        errno = EINVAL;
-        return -1;
+        goto fail;
     }
     magic = be64_to_cpu(magic);
     TRACE("Magic is 0x%" PRIx64, magic);
@@ -275,61 +278,52 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
         TRACE("Checking magic (opts_magic)");
         if (magic != 0x49484156454F5054LL) {
             LOG("Bad magic received");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
         if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
             LOG("flags read failed");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
         *flags = be16_to_cpu(tmp) << 16;
         /* reserved for future use */
         if (write_sync(csock, &reserved, sizeof(reserved)) !=
             sizeof(reserved)) {
             LOG("write failed (reserved)");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
         /* write the export name */
         magic = cpu_to_be64(magic);
         if (write_sync(csock, &magic, sizeof(magic)) != sizeof(magic)) {
             LOG("write failed (magic)");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
         opt = cpu_to_be32(NBD_OPT_EXPORT_NAME);
         if (write_sync(csock, &opt, sizeof(opt)) != sizeof(opt)) {
             LOG("write failed (opt)");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
         namesize = cpu_to_be32(strlen(name));
         if (write_sync(csock, &namesize, sizeof(namesize)) !=
             sizeof(namesize)) {
             LOG("write failed (namesize)");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
         if (write_sync(csock, (char*)name, strlen(name)) != strlen(name)) {
             LOG("write failed (name)");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
     } else {
         TRACE("Checking magic (cli_magic)");
 
         if (magic != 0x00420281861253LL) {
             LOG("Bad magic received");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
     }
 
     if (read_sync(csock, &s, sizeof(s)) != sizeof(s)) {
         LOG("read failed");
-        errno = EINVAL;
-        return -1;
+        goto fail;
     }
     *size = be64_to_cpu(s);
     *blocksize = 1024;
@@ -338,24 +332,24 @@ int nbd_receive_negotiate(int csock, const char *name, uint32_t *flags,
     if (!name) {
         if (read_sync(csock, flags, sizeof(*flags)) != sizeof(*flags)) {
             LOG("read failed (flags)");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
         *flags = be32_to_cpup(flags);
     } else {
         if (read_sync(csock, &tmp, sizeof(tmp)) != sizeof(tmp)) {
             LOG("read failed (tmp)");
-            errno = EINVAL;
-            return -1;
+            goto fail;
         }
         *flags |= be32_to_cpu(tmp);
     }
     if (read_sync(csock, &buf, 124) != 124) {
         LOG("read failed (buf)");
-        errno = EINVAL;
-        return -1;
+        goto fail;
     }
-        return 0;
+    rc = 0;
+
+fail:
+    return rc;
 }
 
 #ifdef __linux__
@@ -366,8 +360,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
     if (ioctl(fd, NBD_SET_SOCK, csock) < 0) {
         int serrno = errno;
         LOG("Failed to set NBD socket");
-        errno = serrno;
-        return -1;
+        return -serrno;
     }
 
     TRACE("Setting block size to %lu", (unsigned long)blocksize);
@@ -375,8 +368,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
     if (ioctl(fd, NBD_SET_BLKSIZE, blocksize) < 0) {
         int serrno = errno;
         LOG("Failed setting NBD block size");
-        errno = serrno;
-        return -1;
+        return -serrno;
     }
 
         TRACE("Setting size to %zd block(s)", (size_t)(size / blocksize));
@@ -384,8 +376,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
     if (ioctl(fd, NBD_SET_SIZE_BLOCKS, size / blocksize) < 0) {
         int serrno = errno;
         LOG("Failed setting size (in blocks)");
-        errno = serrno;
-        return -1;
+        return -serrno;
     }
 
     if (flags & NBD_FLAG_READ_ONLY) {
@@ -395,8 +386,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
         if (ioctl(fd, BLKROSET, (unsigned long) &read_only) < 0) {
             int serrno = errno;
             LOG("Failed setting read-only attribute");
-            errno = serrno;
-            return -1;
+            return -serrno;
         }
     }
 
@@ -404,8 +394,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
         && errno != ENOTTY) {
         int serrno = errno;
         LOG("Failed setting flags");
-        errno = serrno;
-        return -1;
+        return -serrno;
     }
 
     TRACE("Negotiation ended");
@@ -452,26 +441,24 @@ int nbd_client(int fd)
 #else
 int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
 {
-    errno = ENOTSUP;
-    return -1;
+    return -ENOTSUP;
 }
 
 int nbd_disconnect(int fd)
 {
-    errno = ENOTSUP;
-    return -1;
+    return -ENOTSUP;
 }
 
 int nbd_client(int fd)
 {
-    errno = ENOTSUP;
-    return -1;
+    return -ENOTSUP;
 }
 #endif
 
 ssize_t nbd_send_request(int csock, struct nbd_request *request)
 {
     uint8_t buf[4 + 4 + 8 + 8 + 4];
+    ssize_t ret;
 
     cpu_to_be32w((uint32_t*)buf, NBD_REQUEST_MAGIC);
     cpu_to_be32w((uint32_t*)(buf + 4), request->type);
@@ -483,10 +470,14 @@ ssize_t nbd_send_request(int csock, struct nbd_request *request)
           "{ .from = %" PRIu64", .len = %u, .handle = %" PRIu64", .type=%i}",
           request->from, request->len, request->handle, request->type);
 
-    if (write_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
+    ret = write_sync(csock, buf, sizeof(buf));
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (ret != sizeof(buf)) {
         LOG("writing to socket failed");
-        errno = EINVAL;
-        return -1;
+        return -EINVAL;
     }
     return 0;
 }
@@ -495,11 +486,16 @@ static ssize_t nbd_receive_request(int csock, struct nbd_request *request)
 {
     uint8_t buf[4 + 4 + 8 + 8 + 4];
     uint32_t magic;
+    ssize_t ret;
 
-    if (read_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
+    ret = read_sync(csock, buf, sizeof(buf));
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (ret != sizeof(buf)) {
         LOG("read failed");
-        errno = EINVAL;
-        return -1;
+        return -EINVAL;
     }
 
     /* Request
@@ -522,8 +518,7 @@ static ssize_t nbd_receive_request(int csock, struct nbd_request *request)
 
     if (magic != NBD_REQUEST_MAGIC) {
         LOG("invalid magic (got 0x%x)", magic);
-        errno = EINVAL;
-        return -1;
+        return -EINVAL;
     }
     return 0;
 }
@@ -532,11 +527,16 @@ ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     uint32_t magic;
+    ssize_t ret;
 
-    if (read_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
+    ret = read_sync(csock, buf, sizeof(buf));
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (ret != sizeof(buf)) {
         LOG("read failed");
-        errno = EINVAL;
-        return -1;
+        return -EINVAL;
     }
 
     /* Reply
@@ -555,8 +555,7 @@ ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply)
 
     if (magic != NBD_REPLY_MAGIC) {
         LOG("invalid magic (got 0x%x)", magic);
-        errno = EINVAL;
-        return -1;
+        return -EINVAL;
     }
     return 0;
 }
@@ -564,6 +563,7 @@ ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply)
 static ssize_t nbd_send_reply(int csock, struct nbd_reply *reply)
 {
     uint8_t buf[4 + 4 + 8];
+    ssize_t ret;
 
     /* Reply
        [ 0 ..  3]    magic   (NBD_REPLY_MAGIC)
@@ -576,10 +576,14 @@ static ssize_t nbd_send_reply(int csock, struct nbd_reply *reply)
 
     TRACE("Sending response to client");
 
-    if (write_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
+    ret = write_sync(csock, buf, sizeof(buf));
+    if (ret < 0) {
+        return ret;
+    }
+
+    if (ret != sizeof(buf)) {
         LOG("writing to socket failed");
-        errno = EINVAL;
-        return -1;
+        return -EINVAL;
     }
     return 0;
 }
@@ -713,21 +717,14 @@ static ssize_t nbd_co_send_reply(NBDRequest *req, struct nbd_reply *reply,
 
     if (!len) {
         rc = nbd_send_reply(csock, reply);
-        if (rc < 0) {
-            rc = -errno;
-        }
     } else {
         socket_set_cork(csock, 1);
         rc = nbd_send_reply(csock, reply);
         if (rc >= 0) {
             ret = qemu_co_send(csock, req->data, len);
             if (ret != len) {
-                errno = EIO;
-                rc = -1;
+                rc = -EIO;
             }
-        }
-        if (rc < 0) {
-            rc = -errno;
         }
         socket_set_cork(csock, 0);
     }
