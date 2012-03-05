@@ -1244,13 +1244,17 @@ ro_cleanup:
     return ret;
 }
 
-void bdrv_commit_all(void)
+int bdrv_commit_all(void)
 {
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        bdrv_commit(bs);
+        int ret = bdrv_commit(bs);
+        if (ret < 0) {
+            return ret;
+        }
     }
+    return 0;
 }
 
 struct BdrvTrackedRequest {
