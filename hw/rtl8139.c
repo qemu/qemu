@@ -65,9 +65,6 @@
 
 #define PCI_FREQUENCY 33000000L
 
-/* debug RTL8139 card C+ mode only */
-//#define DEBUG_RTL8139CP 1
-
 #define SET_MASKED(input, mask, curr) \
     ( ( (input) & ~(mask) ) | ( (curr) & (mask) ) )
 
