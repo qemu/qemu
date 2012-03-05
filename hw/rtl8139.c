@@ -332,8 +332,10 @@ enum CSCRBits {
 };
 
 enum Cfg9346Bits {
-    Cfg9346_Lock = 0x00,
-    Cfg9346_Unlock = 0xC0,
+    Cfg9346_Normal = 0x00,
+    Cfg9346_Autoload = 0x40,
+    Cfg9346_Programming = 0x80,
+    Cfg9346_ConfigWrite = 0xC0,
 };
 
 typedef enum {
@@ -1451,7 +1453,7 @@ static uint32_t rtl8139_IntrMitigate_read(RTL8139State *s)
 
 static int rtl8139_config_writable(RTL8139State *s)
 {
-    if (s->Cfg9346 & Cfg9346_Unlock)
+    if ((s->Cfg9346 & Chip9346_op_mask) == Cfg9346_ConfigWrite)
     {
         return 1;
     }
