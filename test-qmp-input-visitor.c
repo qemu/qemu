@@ -234,6 +234,22 @@ static void test_visitor_in_list(TestInputVisitorData *data,
     qapi_free_UserDefOneList(head);
 }
 
+static void test_visitor_in_union(TestInputVisitorData *data,
+                                  const void *unused)
+{
+    Visitor *v;
+    Error *err = NULL;
+    UserDefUnion *tmp;
+
+    v = visitor_input_test_init(data, "{ 'type': 'b', 'data' : { 'integer': 42 } }");
+
+    visit_type_UserDefUnion(v, &tmp, NULL, &err);
+    g_assert(err == NULL);
+    g_assert_cmpint(tmp->kind, ==, USER_DEF_UNION_KIND_B);
+    g_assert_cmpint(tmp->b->integer, ==, 42);
+    qapi_free_UserDefUnion(tmp);
+}
+
 static void input_visitor_test_add(const char *testpath,
                                    TestInputVisitorData *data,
                                    void (*test_func)(TestInputVisitorData *data, const void *user_data))
@@ -264,6 +280,8 @@ int main(int argc, char **argv)
                             &in_visitor_data, test_visitor_in_struct_nested);
     input_visitor_test_add("/visitor/input/list",
                             &in_visitor_data, test_visitor_in_list);
+    input_visitor_test_add("/visitor/input/union",
+                            &in_visitor_data, test_visitor_in_union);
 
     g_test_run();
 

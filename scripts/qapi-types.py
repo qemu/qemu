@@ -117,6 +117,7 @@ struct %(name)s
 {
     %(name)sKind kind;
     union {
+        void *data;
 ''',
                 name=name)
 
@@ -269,6 +270,7 @@ for expr in exprs:
     elif expr.has_key('union'):
         ret += generate_fwd_struct(expr['union'], expr['data']) + "\n"
         ret += generate_enum('%sKind' % expr['union'], expr['data'].keys())
+        fdef.write(generate_enum_lookup('%sKind' % expr['union'], expr['data'].keys()))
     else:
         continue
     fdecl.write(ret)
@@ -283,6 +285,10 @@ for expr in exprs:
         fdef.write(generate_type_cleanup(expr['type']) + "\n")
     elif expr.has_key('union'):
         ret += generate_union(expr['union'], expr['data'])
+        ret += generate_type_cleanup_decl(expr['union'] + "List")
+        fdef.write(generate_type_cleanup(expr['union'] + "List") + "\n")
+        ret += generate_type_cleanup_decl(expr['union'])
+        fdef.write(generate_type_cleanup(expr['union']) + "\n")
     else:
         continue
     fdecl.write(ret)
