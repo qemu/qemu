@@ -578,8 +578,10 @@ static void vapic_map_rom_writable(VAPICROMState *s)
     rom_size = ram[rom_paddr + 2] * ROM_BLOCK_SIZE;
     s->rom_size = rom_size;
 
-    /* We need to round up to avoid creating subpages
+    /* We need to round to avoid creating subpages
      * from which we cannot run code. */
+    rom_size += rom_paddr & ~TARGET_PAGE_MASK;
+    rom_paddr &= TARGET_PAGE_MASK;
     rom_size = TARGET_PAGE_ALIGN(rom_size);
 
     memory_region_init_alias(&s->rom, "kvmvapic-rom", section.mr, rom_paddr,
