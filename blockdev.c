@@ -736,7 +736,7 @@ void qmp_blockdev_group_snapshot_sync(SnapshotDevList *dev_list,
     int ret = 0;
     SnapshotDevList *dev_entry = dev_list;
     SnapshotDev *dev_info = NULL;
-    BlkGroupSnapshotStates *states;
+    BlkGroupSnapshotStates *states, *next;
     BlockDriver *proto_drv;
     BlockDriver *drv;
     int flags;
@@ -842,7 +842,7 @@ delete_and_fail:
         }
     }
 exit:
-    QSIMPLEQ_FOREACH(states, &snap_bdrv_states, entry) {
+    QSIMPLEQ_FOREACH_SAFE(states, &snap_bdrv_states, entry, next) {
         g_free(states);
     }
     return;
