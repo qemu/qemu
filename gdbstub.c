@@ -2062,9 +2062,11 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             goto unknown_command;
         }
     case 'k':
+#ifdef CONFIG_USER_ONLY
         /* Kill the target */
         fprintf(stderr, "\nQEMU: Terminated via GDBstub\n");
         exit(0);
+#endif
     case 'D':
         /* Detach packet */
         gdb_breakpoint_remove_all();
