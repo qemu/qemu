@@ -1141,6 +1141,9 @@
 # @snapshot-file: the target of the new image. A new file will be created.
 #
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
+#
+# @mode: #optional whether and how QEMU should create a new image, default is
+# 'absolute-paths'.
 ##
 { 'type': 'BlockdevSnapshot',
   'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
@@ -1197,21 +1200,19 @@
 #
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 #
+# @mode: #optional whether and how QEMU should create a new image, default is
+# 'absolute-paths'.
+#
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
 #          If @snapshot-file can't be opened, OpenFileFailed
 #          If @format is invalid, InvalidBlockFormat
 #
-# Notes: One of the last steps taken by this command is to close the current
-#        image being used by @device and open the @snapshot-file one. If that
-#        fails, the command will try to reopen the original image file. If
-#        that also fails OpenFileFailed will be returned and the guest may get
-#        unexpected errors.
-#
 # Since 0.14.0
 ##
 { 'command': 'blockdev-snapshot-sync',
-  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str' } }
+  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
+            '*mode': 'NewImageMode'} }
 
 ##
 # @human-monitor-command:

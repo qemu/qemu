@@ -760,6 +760,8 @@ Arguments:
 
 - "device": device name to snapshot (json-string)
 - "snapshot-file": name of new image file (json-string)
+- "mode": whether and how QEMU should create the snapshot file
+  (NewImageMode, optional, default "absolute-paths")
 - "format": format of new image (json-string, optional)
 
 Example:
