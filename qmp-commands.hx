@@ -705,6 +705,13 @@ A list of dictionaries is accepted, that contains the actions to be performed.
 For snapshots this is the device, the file to use for the new snapshot,
 and the format.  The default format, if not specified, is qcow2.
 
+Each new snapshot defaults to being created by QEMU (wiping any
+contents if the file already exists), but it is also possible to reuse
+an externally-created file.  In the latter case, you should ensure that
+the new image file has the same contents as the current one; QEMU cannot
+perform any meaningful check.  Typically this is achieved by using the
+current image file as the backing file for the new image.
+
 Arguments:
 
 actions array:
@@ -715,6 +722,8 @@ actions array:
       - "device": device name to snapshot (json-string)
       - "snapshot-file": name of new image file (json-string)
       - "format": format of new image (json-string, optional)
+      - "mode": whether and how QEMU should create the snapshot file
+        (NewImageMode, optional, default "absolute-paths")
 
 Example:
 
@@ -725,6 +734,7 @@ Example:
                                          "format": "qcow2" } },
          { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd1",
                                          "snapshot-file": "/some/place/my-image2",
+                                         "mode": "existing",
                                          "format": "qcow2" } } ] } }
 <- { "return": {} }
 

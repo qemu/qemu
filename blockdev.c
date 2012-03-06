@@ -748,9 +748,10 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
         BlockDriver *proto_drv;
         BlockDriver *drv;
         int flags;
+        enum NewImageMode mode;
+        const char *new_image_file;
         const char *device;
         const char *format = "qcow2";
-        const char *new_image_file = NULL;
 
         dev_info = dev_entry->value;
         dev_entry = dev_entry->next;
@@ -761,10 +762,14 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
         switch (dev_info->kind) {
         case BLOCKDEV_ACTION_KIND_BLOCKDEV_SNAPSHOT_SYNC:
             device = dev_info->blockdev_snapshot_sync->device;
+            if (!dev_info->blockdev_snapshot_sync->has_mode) {
+                dev_info->blockdev_snapshot_sync->mode = NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+            }
+            new_image_file = dev_info->blockdev_snapshot_sync->snapshot_file;
             if (dev_info->blockdev_snapshot_sync->has_format) {
                 format = dev_info->blockdev_snapshot_sync->format;
             }
-            new_image_file = dev_info->blockdev_snapshot_sync->snapshot_file;
+            mode = dev_info->blockdev_snapshot_sync->mode;
             break;
         default:
             abort();
@@ -805,13 +810,15 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
         }
 
         /* create new image w/backing file */
-        ret = bdrv_img_create(new_image_file, format,
-                              states->old_bs->filename,
-                              states->old_bs->drv->format_name,
-                              NULL, -1, flags);
-        if (ret) {
-            error_set(errp, QERR_OPEN_FILE_FAILED, new_image_file);
-            goto delete_and_fail;
+        if (mode != NEW_IMAGE_MODE_EXISTING) {
+            ret = bdrv_img_create(new_image_file, format,
+                                  states->old_bs->filename,
+                                  states->old_bs->drv->format_name,
+                                  NULL, -1, flags);
+            if (ret) {
+                error_set(errp, QERR_OPEN_FILE_FAILED, new_image_file);
+                goto delete_and_fail;
+            }
         }
 
         /* We will manually add the backing_hd field to the bs later */

@@ -1118,6 +1118,22 @@
 { 'command': 'block_resize', 'data': { 'device': 'str', 'size': 'int' }}
 
 ##
+# @NewImageMode
+#
+# An enumeration that tells QEMU how to set the backing file path in
+# a new image file.
+#
+# @existing: QEMU should look for an existing image file.
+#
+# @absolute-paths: QEMU should create a new image with absolute paths
+# for the backing file.
+#
+# Since: 1.1
+##
+{ 'enum': 'NewImageMode'
+  'data': [ 'existing', 'absolute-paths' ] }
+
+##
 # @BlockdevSnapshot
 #
 # @device:  the name of the device to generate the snapshot from.
@@ -1127,7 +1143,8 @@
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 ##
 { 'type': 'BlockdevSnapshot',
-  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str' } }
+  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str',
+            '*mode': 'NewImageMode' } }
 
 ##
 # @BlockdevAction
