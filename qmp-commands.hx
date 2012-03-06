@@ -687,41 +687,45 @@ EQMP
         .mhandler.cmd_new = qmp_marshal_input_block_job_cancel,
     },
     {
-        .name       = "blockdev-group-snapshot-sync",
-        .args_type  = "devlist:O",
-        .params  = "device:B,snapshot-file:s,format:s?",
-        .mhandler.cmd_new = qmp_marshal_input_blockdev_group_snapshot_sync,
+        .name       = "transaction",
+        .args_type  = "actions:O",
+        .mhandler.cmd_new = qmp_marshal_input_transaction,
     },
 
 SQMP
-blockdev-group-snapshot-sync
-----------------------
+transaction
+-----------
 
-Synchronous snapshot of one or more block devices.  A list array input
-is accepted, that contains the device and snapshot file information for
-each device in group. The default format, if not specified, is qcow2.
+Atomically operate on one or more block devices.  The only supported
+operation for now is snapshotting.  If there is any failure performing
+any of the operations, all snapshots for the group are abandoned, and
+the original disks pre-snapshot attempt are used.
 
-If there is any failure creating or opening a new snapshot, all snapshots
-for the group are abandoned, and the original disks pre-snapshot attempt
-are used.
-
+A list of dictionaries is accepted, that contains the actions to be performed.
+For snapshots this is the device, the file to use for the new snapshot,
+and the format.  The default format, if not specified, is qcow2.
 
 Arguments:
 
-devlist array:
-    - "device": device name to snapshot (json-string)
-    - "snapshot-file": name of new image file (json-string)
-    - "format": format of new image (json-string, optional)
+actions array:
+    - "type": the operation to perform.  The only supported
+      value is "blockdev-snapshot-sync". (json-string)
+    - "data": a dictionary.  The contents depend on the value
+      of "type".  When "type" is "blockdev-snapshot-sync":
+      - "device": device name to snapshot (json-string)
+      - "snapshot-file": name of new image file (json-string)
+      - "format": format of new image (json-string, optional)
 
 Example:
 
--> { "execute": "blockdev-group-snapshot-sync", "arguments":
-                      { "devlist": [{ "device": "ide-hd0",
-                                      "snapshot-file": "/some/place/my-image",
-                                      "format": "qcow2" },
-                                    { "device": "ide-hd1",
-                                      "snapshot-file": "/some/place/my-image2",
-                                      "format": "qcow2" }] } }
+-> { "execute": "transaction",
+     "arguments": { "actions": [
+         { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd0",
+                                         "snapshot-file": "/some/place/my-image",
+                                         "format": "qcow2" } },
+         { 'type': 'blockdev-snapshot-sync', 'data' : { "device": "ide-hd1",
+                                         "snapshot-file": "/some/place/my-image2",
+                                         "format": "qcow2" } } ] } }
 <- { "return": {} }
 
 EQMP

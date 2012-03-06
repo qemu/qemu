@@ -1118,7 +1118,7 @@
 { 'command': 'block_resize', 'data': { 'device': 'str', 'size': 'int' }}
 
 ##
-# @SnapshotDev
+# @BlockdevSnapshot
 #
 # @device:  the name of the device to generate the snapshot from.
 #
@@ -1126,19 +1126,30 @@
 #
 # @format: #optional the format of the snapshot image, default is 'qcow2'.
 ##
-{ 'type': 'SnapshotDev',
-  'data': {'device': 'str', 'snapshot-file': 'str', '*format': 'str' } }
+{ 'type': 'BlockdevSnapshot',
+  'data': { 'device': 'str', 'snapshot-file': 'str', '*format': 'str' } }
 
 ##
-# @blockdev-group-snapshot-sync
+# @BlockdevAction
 #
-# Generates a synchronous snapshot of a group of one or more block devices,
-# as atomically as possible.  If the snapshot of any device in the group
-# fails, then the entire group snapshot will be abandoned and the
-# appropriate error returned.
+# A discriminated record of operations that can be performed with
+# @transaction.
+##
+{ 'union': 'BlockdevAction',
+  'data': {
+       'blockdev-snapshot-sync': 'BlockdevSnapshot',
+   } }
+
+##
+# @transaction
+#
+# Atomically operate on a group of one or more block devices.  If
+# any operation fails, then the entire set of actions will be
+# abandoned and the appropriate error returned.  The only operation
+# supported is currently blockdev-snapshot-sync.
 #
 #  List of:
-#  @SnapshotDev: information needed for the device snapshot
+#  @BlockdevAction: information needed for the device snapshot
 #
 # Returns: nothing on success
 #          If @device is not a valid block device, DeviceNotFound
@@ -1147,13 +1158,14 @@
 #          If @snapshot-file can't be opened, OpenFileFailed
 #          If @format is invalid, InvalidBlockFormat
 #
-# Note: The group snapshot attempt returns failure on the first snapshot
-# device failure.  Therefore, there will be only one device or snapshot file
-# returned in an error condition, and subsequent devices will not have been
-# attempted.
+# Note: The transaction aborts on the first failure.  Therefore, there will
+# be only one device or snapshot file returned in an error condition, and
+# subsequent actions will not have been attempted.
+#
+# Since 1.1
 ##
-{ 'command': 'blockdev-group-snapshot-sync',
-  'data': { 'devlist': [ 'SnapshotDev' ] } }
+{ 'command': 'transaction',
+  'data': { 'actions': [ 'BlockdevAction' ] } }
 
 ##
 # @blockdev-snapshot-sync
