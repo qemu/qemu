@@ -1120,16 +1120,19 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
     int ret, new_l1_size;
 
     if (offset & 511) {
+        error_report("The new size must be a multiple of 512");
         return -EINVAL;
     }
 
     /* cannot proceed if image has snapshots */
     if (s->nb_snapshots) {
+        error_report("Can't resize an image which has snapshots");
         return -ENOTSUP;
     }
 
     /* shrinking is currently not supported */
     if (offset < bs->total_sectors * 512) {
+        error_report("qcow2 doesn't support shrinking images yet");
         return -ENOTSUP;
     }
 
