@@ -3,13 +3,7 @@
 # Always point to the root of the build tree (needs GNU make).
 BUILD_DIR=$(CURDIR)
 
-GENERATED_HEADERS = config-host.h trace.h qemu-options.def
-ifeq ($(TRACE_BACKEND),dtrace)
-GENERATED_HEADERS += trace-dtrace.h
-endif
-GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h
-GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c
-
+# All following code might depend on configuration variables
 ifneq ($(wildcard config-host.mak),)
 # Put the all: rule here so that config-host.mak can contain dependencies.
 all: build-all
@@ -23,6 +17,13 @@ config-host.mak:
 	@echo "Please call configure before running make!"
 	@exit 1
 endif
+
+GENERATED_HEADERS = config-host.h trace.h qemu-options.def
+ifeq ($(TRACE_BACKEND),dtrace)
+GENERATED_HEADERS += trace-dtrace.h
+endif
+GENERATED_HEADERS += qmp-commands.h qapi-types.h qapi-visit.h
+GENERATED_SOURCES += qmp-marshal.c qapi-types.c qapi-visit.c
 
 # Don't try to regenerate Makefile or configure
 # We don't generate any of them
