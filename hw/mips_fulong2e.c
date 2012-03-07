@@ -29,7 +29,6 @@
 #include "mips.h"
 #include "mips_cpudevs.h"
 #include "pci.h"
-#include "usb-uhci.h"
 #include "qemu-char.h"
 #include "sysemu.h"
 #include "audio/audio.h"
@@ -355,8 +354,10 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     isa_bus_irqs(isa_bus, i8259);
 
     vt82c686b_ide_init(pci_bus, hd, PCI_DEVFN(FULONG2E_VIA_SLOT, 1));
-    usb_uhci_vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 2));
-    usb_uhci_vt82c686b_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 3));
+    pci_create_simple(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 2),
+                      "vt82c686b-usb-uhci");
+    pci_create_simple(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 3),
+                      "vt82c686b-usb-uhci");
 
     smbus = vt82c686b_pm_init(pci_bus, PCI_DEVFN(FULONG2E_VIA_SLOT, 4),
                               0xeee1, NULL);

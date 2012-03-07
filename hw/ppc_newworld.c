@@ -54,7 +54,6 @@
 #include "nvram.h"
 #include "pc.h"
 #include "pci.h"
-#include "usb-ohci.h"
 #include "net.h"
 #include "sysemu.h"
 #include "boards.h"
@@ -352,7 +351,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
                dbdma_mem, cuda_mem, NULL, 3, ide_mem, escc_bar);
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1);
+        pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 
     /* U3 needs to use USB for input because Linux doesn't support via-cuda

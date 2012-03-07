@@ -30,7 +30,6 @@
 #include "qemu-timer.h"
 #include "hw/usb.h"
 #include "hw/pci.h"
-#include "hw/usb-ohci.h"
 #include "hw/sysbus.h"
 #include "hw/qdev-addr.h"
 
@@ -1813,11 +1812,6 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     /* TODO: avoid cast below by using dev */
     pci_register_bar(&ohci->pci_dev, 0, 0, &ohci->state.mem);
     return 0;
-}
-
-void usb_ohci_init_pci(struct PCIBus *bus, int devfn)
-{
-    pci_create_simple(bus, devfn, "pci-ohci");
 }
 
 typedef struct {

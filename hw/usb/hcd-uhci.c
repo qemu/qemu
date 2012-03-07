@@ -29,7 +29,6 @@
 #include "hw/usb.h"
 #include "hw/pci.h"
 #include "qemu-timer.h"
-#include "hw/usb-uhci.h"
 #include "iov.h"
 #include "dma.h"
 
@@ -1391,18 +1390,3 @@ static void uhci_register_types(void)
 }
 
 type_init(uhci_register_types)
-
-void usb_uhci_piix3_init(PCIBus *bus, int devfn)
-{
-    pci_create_simple(bus, devfn, "piix3-usb-uhci");
-}
-
-void usb_uhci_piix4_init(PCIBus *bus, int devfn)
-{
-    pci_create_simple(bus, devfn, "piix4-usb-uhci");
-}
-
-void usb_uhci_vt82c686b_init(PCIBus *bus, int devfn)
-{
-    pci_create_simple(bus, devfn, "vt82c686b-usb-uhci");
-}
