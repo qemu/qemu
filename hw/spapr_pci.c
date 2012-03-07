@@ -190,7 +190,7 @@ static int spapr_phb_init(SysBusDevice *s)
         qemu_irq qirq;
         uint32_t num;
 
-        qirq = spapr_allocate_irq(0, &num);
+        qirq = spapr_allocate_lsi(0, &num);
         if (!qirq) {
             return -1;
         }
