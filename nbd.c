@@ -470,7 +470,7 @@ int nbd_client(int fd)
 }
 #endif
 
-int nbd_send_request(int csock, struct nbd_request *request)
+ssize_t nbd_send_request(int csock, struct nbd_request *request)
 {
     uint8_t buf[4 + 4 + 8 + 8 + 4];
 
@@ -492,7 +492,7 @@ int nbd_send_request(int csock, struct nbd_request *request)
     return 0;
 }
 
-static int nbd_receive_request(int csock, struct nbd_request *request)
+static ssize_t nbd_receive_request(int csock, struct nbd_request *request)
 {
     uint8_t buf[4 + 4 + 8 + 8 + 4];
     uint32_t magic;
@@ -529,12 +529,10 @@ static int nbd_receive_request(int csock, struct nbd_request *request)
     return 0;
 }
 
-int nbd_receive_reply(int csock, struct nbd_reply *reply)
+ssize_t nbd_receive_reply(int csock, struct nbd_reply *reply)
 {
     uint8_t buf[NBD_REPLY_SIZE];
     uint32_t magic;
-
-    memset(buf, 0xAA, sizeof(buf));
 
     if (read_sync(csock, buf, sizeof(buf)) != sizeof(buf)) {
         LOG("read failed");
@@ -564,7 +562,7 @@ int nbd_receive_reply(int csock, struct nbd_reply *reply)
     return 0;
 }
 
-static int nbd_send_reply(int csock, struct nbd_reply *reply)
+static ssize_t nbd_send_reply(int csock, struct nbd_reply *reply)
 {
     uint8_t buf[4 + 4 + 8];
 
@@ -702,12 +700,12 @@ static int nbd_can_read(void *opaque);
 static void nbd_read(void *opaque);
 static void nbd_restart_write(void *opaque);
 
-static int nbd_co_send_reply(NBDRequest *req, struct nbd_reply *reply,
-                             int len)
+static ssize_t nbd_co_send_reply(NBDRequest *req, struct nbd_reply *reply,
+                                 int len)
 {
     NBDClient *client = req->client;
     int csock = client->sock;
-    int rc, ret;
+    ssize_t rc, ret;
 
     qemu_co_mutex_lock(&client->send_lock);
     qemu_set_fd_handler2(csock, nbd_can_read, nbd_read,
@@ -741,11 +739,11 @@ static int nbd_co_send_reply(NBDRequest *req, struct nbd_reply *reply,
     return rc;
 }
 
-static int nbd_co_receive_request(NBDRequest *req, struct nbd_request *request)
+static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *request)
 {
     NBDClient *client = req->client;
     int csock = client->sock;
-    int rc;
+    ssize_t rc;
 
     client->recv_coroutine = qemu_coroutine_self();
     if (nbd_receive_request(csock, request) == -1) {
@@ -792,7 +790,7 @@ static void nbd_trip(void *opaque)
     NBDExport *exp = client->exp;
     struct nbd_request request;
     struct nbd_reply reply;
-    int ret;
+    ssize_t ret;
 
     TRACE("Reading request.");
 
