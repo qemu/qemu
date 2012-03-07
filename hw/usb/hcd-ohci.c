@@ -26,13 +26,13 @@
  *  o BIOS work to boot from USB storage
 */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu-timer.h"
-#include "usb.h"
-#include "pci.h"
-#include "usb-ohci.h"
-#include "sysbus.h"
-#include "qdev-addr.h"
+#include "hw/usb.h"
+#include "hw/pci.h"
+#include "hw/usb-ohci.h"
+#include "hw/sysbus.h"
+#include "hw/qdev-addr.h"
 
 //#define DEBUG_OHCI
 /* Dump packet contents.  */

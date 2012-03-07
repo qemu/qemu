@@ -22,10 +22,10 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu-timer.h"
-#include "usb.h"
-#include "pci.h"
+#include "hw/usb.h"
+#include "hw/pci.h"
 #include "monitor.h"
 #include "trace.h"
 #include "dma.h"

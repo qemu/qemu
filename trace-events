@@ -227,16 +227,16 @@ sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "get flags
 sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva %"PRIx64" => pa %"PRIx64" iopte = %x"
 sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64
 
-# hw/usb.c
+# hw/usb/core.c
 usb_packet_state_change(int bus, const char *port, int ep, void *p, const char *o, const char *n) "bus %d, port %s, ep %d, packet %p, state %s -> %s"
 
-# hw/usb-bus.c
+# hw/usb/bus.c
 usb_port_claim(int bus, const char *port) "bus %d, port %s"
 usb_port_attach(int bus, const char *port) "bus %d, port %s"
 usb_port_detach(int bus, const char *port) "bus %d, port %s"
 usb_port_release(int bus, const char *port) "bus %d, port %s"
 
-# hw/usb-ehci.c
+# hw/usb/hcd-ehci.c
 usb_ehci_reset(void) "=== RESET ==="
 usb_ehci_mmio_readl(uint32_t addr, const char *str, uint32_t val) "rd mmio %04x [%s] = %x"
 usb_ehci_mmio_writel(uint32_t addr, const char *str, uint32_t val) "wr mmio %04x [%s] = %x"
@@ -269,7 +269,7 @@ usb_set_interface(int addr, int iface, int alt, int ret) "dev %d, interface %d, 
 usb_clear_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 
-# usb-linux.c
+# hw/usb/host-linux.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"
 usb_host_open_success(int bus, int addr) "dev %d:%d"
 usb_host_open_failure(int bus, int addr) "dev %d:%d"

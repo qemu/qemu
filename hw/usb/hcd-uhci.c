@@ -25,11 +25,11 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
-#include "usb.h"
-#include "pci.h"
+#include "hw/hw.h"
+#include "hw/usb.h"
+#include "hw/pci.h"
 #include "qemu-timer.h"
-#include "usb-uhci.h"
+#include "hw/usb-uhci.h"
 #include "iov.h"
 #include "dma.h"
 
