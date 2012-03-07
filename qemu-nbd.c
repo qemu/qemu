@@ -186,7 +186,7 @@ static void *show_parts(void *arg)
      *     modprobe nbd max_part=63
      */
     nbd = open(device, O_RDWR);
-    if (nbd != -1) {
+    if (nbd >= 0) {
         close(nbd);
     }
     return NULL;
@@ -203,25 +203,25 @@ static void *nbd_client_thread(void *arg)
     pthread_t show_parts_thread;
 
     sock = unix_socket_outgoing(sockpath);
-    if (sock == -1) {
+    if (sock < 0) {
         goto out;
     }
 
     ret = nbd_receive_negotiate(sock, NULL, &nbdflags,
                                 &size, &blocksize);
-    if (ret == -1) {
+    if (ret < 0) {
         goto out;
     }
 
     fd = open(device, O_RDWR);
-    if (fd == -1) {
+    if (fd < 0) {
         /* Linux-only, we can use %m in printf.  */
         fprintf(stderr, "Failed to open %s: %m", device);
         goto out;
     }
 
     ret = nbd_init(fd, sock, nbdflags, size, blocksize);
-    if (ret == -1) {
+    if (ret < 0) {
         goto out;
     }
 
@@ -268,7 +268,7 @@ static void nbd_accept(void *opaque)
 
     int fd = accept(server_fd, (struct sockaddr *)&addr, &addr_len);
     nbd_started = true;
-    if (fd != -1 && nbd_client_new(exp, fd, nbd_client_closed)) {
+    if (fd >= 0 && nbd_client_new(exp, fd, nbd_client_closed)) {
         nb_fds++;
     }
 }
@@ -410,9 +410,9 @@ int main(int argc, char **argv)
 
     if (disconnect) {
         fd = open(argv[optind], O_RDWR);
-        if (fd == -1)
+        if (fd < 0) {
             err(EXIT_FAILURE, "Cannot open %s", argv[optind]);
-
+        }
         nbd_disconnect(fd);
 
         close(fd);
@@ -427,7 +427,7 @@ int main(int argc, char **argv)
         pid_t pid;
         int ret;
 
-        if (qemu_pipe(stderr_fd) == -1) {
+        if (qemu_pipe(stderr_fd) < 0) {
             err(EXIT_FAILURE, "Error setting up communication pipe");
         }
 
@@ -441,7 +441,7 @@ int main(int argc, char **argv)
 
             /* Temporarily redirect stderr to the parent's pipe...  */
             dup2(stderr_fd[1], STDERR_FILENO);
-            if (ret == -1) {
+            if (ret < 0) {
                 err(EXIT_FAILURE, "Failed to daemonize");
             }
 
@@ -459,11 +459,11 @@ int main(int argc, char **argv)
             while ((ret = read(stderr_fd[0], buf, 1024)) > 0) {
                 errors = true;
                 ret = qemu_write_full(STDERR_FILENO, buf, ret);
-                if (ret == -1) {
+                if (ret < 0) {
                     exit(EXIT_FAILURE);
                 }
             }
-            if (ret == -1) {
+            if (ret < 0) {
                 err(EXIT_FAILURE, "Cannot read from daemon");
             }
 
@@ -504,7 +504,7 @@ int main(int argc, char **argv)
         fd = tcp_socket_incoming(bindto, port);
     }
 
-    if (fd == -1) {
+    if (fd < 0) {
         return 1;
     }
 

@@ -102,22 +102,21 @@ size_t nbd_wr_sync(int fd, void *buffer, size_t size, bool do_read)
             len = send(fd, buffer + offset, size - offset, 0);
         }
 
-        if (len == -1)
+        if (len < 0) {
             errno = socket_error();
 
-        /* recoverable error */
-        if (len == -1 && (errno == EAGAIN || errno == EINTR)) {
-            continue;
+            /* recoverable error */
+            if (errno == EINTR || errno == EAGAIN) {
+                continue;
+            }
+
+            /* unrecoverable error */
+            return 0;
         }
 
         /* eof */
         if (len == 0) {
             break;
-        }
-
-        /* unrecoverable error */
-        if (len == -1) {
-            return 0;
         }
 
         offset += len;
@@ -364,7 +363,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
 {
     TRACE("Setting NBD socket");
 
-    if (ioctl(fd, NBD_SET_SOCK, csock) == -1) {
+    if (ioctl(fd, NBD_SET_SOCK, csock) < 0) {
         int serrno = errno;
         LOG("Failed to set NBD socket");
         errno = serrno;
@@ -373,7 +372,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
 
     TRACE("Setting block size to %lu", (unsigned long)blocksize);
 
-    if (ioctl(fd, NBD_SET_BLKSIZE, blocksize) == -1) {
+    if (ioctl(fd, NBD_SET_BLKSIZE, blocksize) < 0) {
         int serrno = errno;
         LOG("Failed setting NBD block size");
         errno = serrno;
@@ -382,7 +381,7 @@ int nbd_init(int fd, int csock, uint32_t flags, off_t size, size_t blocksize)
 
         TRACE("Setting size to %zd block(s)", (size_t)(size / blocksize));
 
-    if (ioctl(fd, NBD_SET_SIZE_BLOCKS, size / blocksize) == -1) {
+    if (ioctl(fd, NBD_SET_SIZE_BLOCKS, size / blocksize) < 0) {
         int serrno = errno;
         LOG("Failed setting size (in blocks)");
         errno = serrno;
@@ -430,7 +429,7 @@ int nbd_client(int fd)
     TRACE("Doing NBD loop");
 
     ret = ioctl(fd, NBD_DO_IT);
-    if (ret == -1 && errno == EPIPE) {
+    if (ret < 0 && errno == EPIPE) {
         /* NBD_DO_IT normally returns EPIPE when someone has disconnected
          * the socket via NBD_DISCONNECT.  We do not want to return 1 in
          * that case.
@@ -714,20 +713,20 @@ static ssize_t nbd_co_send_reply(NBDRequest *req, struct nbd_reply *reply,
 
     if (!len) {
         rc = nbd_send_reply(csock, reply);
-        if (rc == -1) {
+        if (rc < 0) {
             rc = -errno;
         }
     } else {
         socket_set_cork(csock, 1);
         rc = nbd_send_reply(csock, reply);
-        if (rc != -1) {
+        if (rc >= 0) {
             ret = qemu_co_send(csock, req->data, len);
             if (ret != len) {
                 errno = EIO;
                 rc = -1;
             }
         }
-        if (rc == -1) {
+        if (rc < 0) {
             rc = -errno;
         }
         socket_set_cork(csock, 0);
@@ -746,7 +745,7 @@ static ssize_t nbd_co_receive_request(NBDRequest *req, struct nbd_request *reque
     ssize_t rc;
 
     client->recv_coroutine = qemu_coroutine_self();
-    if (nbd_receive_request(csock, request) == -1) {
+    if (nbd_receive_request(csock, request) < 0) {
         rc = -EIO;
         goto out;
     }
@@ -860,8 +859,9 @@ static void nbd_trip(void *opaque)
             }
         }
 
-        if (nbd_co_send_reply(req, &reply, 0) < 0)
+        if (nbd_co_send_reply(req, &reply, 0) < 0) {
             goto out;
+        }
         break;
     case NBD_CMD_DISC:
         TRACE("Request type is DISCONNECT");
@@ -875,9 +875,9 @@ static void nbd_trip(void *opaque)
             LOG("flush failed");
             reply.error = -ret;
         }
-
-        if (nbd_co_send_reply(req, &reply, 0) < 0)
+        if (nbd_co_send_reply(req, &reply, 0) < 0) {
             goto out;
+        }
         break;
     case NBD_CMD_TRIM:
         TRACE("Request type is TRIM");
@@ -887,16 +887,18 @@ static void nbd_trip(void *opaque)
             LOG("discard failed");
             reply.error = -ret;
         }
-        if (nbd_co_send_reply(req, &reply, 0) < 0)
+        if (nbd_co_send_reply(req, &reply, 0) < 0) {
             goto out;
+        }
         break;
     default:
         LOG("invalid request type (%u) received", request.type);
     invalid_request:
         reply.error = -EINVAL;
     error_reply:
-        if (nbd_co_send_reply(req, &reply, 0) == -1)
+        if (nbd_co_send_reply(req, &reply, 0) < 0) {
             goto out;
+        }
         break;
     }
 
@@ -939,7 +941,7 @@ NBDClient *nbd_client_new(NBDExport *exp, int csock,
                           void (*close)(NBDClient *))
 {
     NBDClient *client;
-    if (nbd_send_negotiate(csock, exp->size, exp->nbdflags) == -1) {
+    if (nbd_send_negotiate(csock, exp->size, exp->nbdflags) < 0) {
         return NULL;
     }
     client = g_malloc0(sizeof(NBDClient));

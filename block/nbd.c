@@ -197,7 +197,7 @@ static int nbd_co_send_request(BDRVNBDState *s, struct nbd_request *request,
     qemu_aio_set_fd_handler(s->sock, nbd_reply_ready, nbd_restart_write,
                             nbd_have_request, NULL, s);
     rc = nbd_send_request(s->sock, request);
-    if (rc != -1 && iov) {
+    if (rc >= 0 && iov) {
         ret = qemu_co_sendv(s->sock, iov, request->len, offset);
         if (ret != request->len) {
             errno = -EIO;
@@ -260,7 +260,7 @@ static int nbd_establish_connection(BlockDriverState *bs)
     }
 
     /* Failed to establish connection */
-    if (sock == -1) {
+    if (sock < 0) {
         logout("Failed to establish connection to NBD server\n");
         return -errno;
     }
@@ -268,7 +268,7 @@ static int nbd_establish_connection(BlockDriverState *bs)
     /* NBD handshake */
     ret = nbd_receive_negotiate(sock, s->export_name, &s->nbdflags, &size,
                                 &blocksize);
-    if (ret == -1) {
+    if (ret < 0) {
         logout("Failed to negotiate with the NBD server\n");
         closesocket(sock);
         return -errno;
@@ -331,13 +331,15 @@ static int nbd_co_readv_1(BlockDriverState *bs, int64_t sector_num,
     BDRVNBDState *s = bs->opaque;
     struct nbd_request request;
     struct nbd_reply reply;
+    ssize_t ret;
 
     request.type = NBD_CMD_READ;
     request.from = sector_num * 512;
     request.len = nb_sectors * 512;
 
     nbd_coroutine_start(s, &request);
-    if (nbd_co_send_request(s, &request, NULL, 0) == -1) {
+    ret = nbd_co_send_request(s, &request, NULL, 0);
+    if (ret < 0) {
         reply.error = errno;
     } else {
         nbd_co_receive_reply(s, &request, &reply, qiov->iov, offset);
@@ -354,6 +356,7 @@ static int nbd_co_writev_1(BlockDriverState *bs, int64_t sector_num,
     BDRVNBDState *s = bs->opaque;
     struct nbd_request request;
     struct nbd_reply reply;
+    ssize_t ret;
 
     request.type = NBD_CMD_WRITE;
     if (!bdrv_enable_write_cache(bs) && (s->nbdflags & NBD_FLAG_SEND_FUA)) {
@@ -364,7 +367,8 @@ static int nbd_co_writev_1(BlockDriverState *bs, int64_t sector_num,
     request.len = nb_sectors * 512;
 
     nbd_coroutine_start(s, &request);
-    if (nbd_co_send_request(s, &request, qiov->iov, offset) == -1) {
+    ret = nbd_co_send_request(s, &request, qiov->iov, offset);
+    if (ret < 0) {
         reply.error = errno;
     } else {
         nbd_co_receive_reply(s, &request, &reply, NULL, 0);
@@ -416,6 +420,7 @@ static int nbd_co_flush(BlockDriverState *bs)
     BDRVNBDState *s = bs->opaque;
     struct nbd_request request;
     struct nbd_reply reply;
+    ssize_t ret;
 
     if (!(s->nbdflags & NBD_FLAG_SEND_FLUSH)) {
         return 0;
@@ -430,7 +435,8 @@ static int nbd_co_flush(BlockDriverState *bs)
     request.len = 0;
 
     nbd_coroutine_start(s, &request);
-    if (nbd_co_send_request(s, &request, NULL, 0) == -1) {
+    ret = nbd_co_send_request(s, &request, NULL, 0);
+    if (ret < 0) {
         reply.error = errno;
     } else {
         nbd_co_receive_reply(s, &request, &reply, NULL, 0);
@@ -445,6 +451,7 @@ static int nbd_co_discard(BlockDriverState *bs, int64_t sector_num,
     BDRVNBDState *s = bs->opaque;
     struct nbd_request request;
     struct nbd_reply reply;
+    ssize_t ret;
 
     if (!(s->nbdflags & NBD_FLAG_SEND_TRIM)) {
         return 0;
@@ -454,7 +461,8 @@ static int nbd_co_discard(BlockDriverState *bs, int64_t sector_num,
     request.len = nb_sectors * 512;
 
     nbd_coroutine_start(s, &request);
-    if (nbd_co_send_request(s, &request, NULL, 0) == -1) {
+    ret = nbd_co_send_request(s, &request, NULL, 0);
+    if (ret < 0) {
         reply.error = errno;
     } else {
         nbd_co_receive_reply(s, &request, &reply, NULL, 0);
