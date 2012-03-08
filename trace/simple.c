@@ -363,7 +363,7 @@ static GThread *trace_thread_create(GThreadFunc fn)
     sigfillset(&set);
     pthread_sigmask(SIG_SETMASK, &set, &oldset);
 #endif
-    thread = g_thread_create(writeout_thread, NULL, FALSE, NULL);
+    thread = g_thread_create(fn, NULL, FALSE, NULL);
 #ifndef _WIN32
     pthread_sigmask(SIG_SETMASK, &oldset, NULL);
 #endif
