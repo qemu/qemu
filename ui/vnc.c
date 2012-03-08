@@ -1936,7 +1936,10 @@ static void pixel_format_message (VncState *vs) {
 
 static void vnc_dpy_setdata(DisplayState *ds)
 {
-    /* We don't have to do anything */
+    VncDisplay *vd = ds->opaque;
+
+    *(vd->guest.ds) = *(ds->surface);
+    vnc_dpy_update(ds, 0, 0, ds_get_width(ds), ds_get_height(ds));
 }
 
 static void vnc_colordepth(VncState *vs)
