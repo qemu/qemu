@@ -299,6 +299,7 @@ extern void *tci_tb_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
 
+target_phys_addr_t section_to_ioaddr(target_phys_addr_t section_io_addr);
 uint64_t io_mem_read(int index, target_phys_addr_t addr, unsigned size);
 void io_mem_write(int index, target_phys_addr_t addr, uint64_t value,
                   unsigned size);

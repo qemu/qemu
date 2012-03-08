@@ -191,6 +191,9 @@ typedef struct PhysPageEntry PhysPageEntry;
 static MemoryRegionSection *phys_sections;
 static unsigned phys_sections_nb, phys_sections_nb_alloc;
 static uint16_t phys_section_unassigned;
+static uint16_t phys_section_notdirty;
+static uint16_t phys_section_rom;
+static uint16_t phys_section_watch;
 
 struct PhysPageEntry {
     uint16_t is_leaf : 1;
@@ -2214,9 +2217,9 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
         iotlb = (memory_region_get_ram_addr(section->mr) & TARGET_PAGE_MASK)
             + section_addr(section, paddr);
         if (!section->readonly)
-            iotlb |= io_mem_notdirty.ram_addr;
+            iotlb |= phys_section_notdirty;
         else
-            iotlb |= io_mem_rom.ram_addr;
+            iotlb |= phys_section_rom;
     } else {
         /* IO handlers are currently passed a physical address.
            It would be nice to pass an offset from the base address
@@ -2224,7 +2227,7 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
            and avoid full address decoding in every device.
            We can't use the high bits of pd for this because
            IO_MEM_ROMD uses these as a ram address.  */
-        iotlb = memory_region_get_ram_addr(section->mr) & ~TARGET_PAGE_MASK;
+        iotlb = section - phys_sections;
         iotlb += section_addr(section, paddr);
     }
 
@@ -2235,7 +2238,7 @@ void tlb_set_page(CPUState *env, target_ulong vaddr,
         if (vaddr == (wp->vaddr & TARGET_PAGE_MASK)) {
             /* Avoid trapping reads of pages with a write breakpoint. */
             if ((prot & PAGE_WRITE) || (wp->flags & BP_MEM_READ)) {
-                iotlb = io_mem_watch.ram_addr + paddr;
+                iotlb = phys_section_watch + paddr;
                 address |= TLB_MMIO;
                 break;
             }
@@ -3559,6 +3562,15 @@ static uint16_t dummy_section(MemoryRegion *mr)
     return phys_section_add(&section);
 }
 
+target_phys_addr_t section_to_ioaddr(target_phys_addr_t section_io_addr)
+{
+    MemoryRegionSection *section;
+
+    section = &phys_sections[section_io_addr & ~TARGET_PAGE_MASK];
+    return (section_io_addr & TARGET_PAGE_MASK)
+        | (section->mr->ram_addr & ~TARGET_PAGE_MASK);
+}
+
 static void io_mem_init(void)
 {
     int i;
@@ -3586,6 +3598,9 @@ static void core_begin(MemoryListener *listener)
     phys_sections_clear();
     phys_map.ptr = PHYS_MAP_NODE_NIL;
     phys_section_unassigned = dummy_section(&io_mem_unassigned);
+    phys_section_notdirty = dummy_section(&io_mem_notdirty);
+    phys_section_rom = dummy_section(&io_mem_rom);
+    phys_section_watch = dummy_section(&io_mem_watch);
 }
 
 static void core_commit(MemoryListener *listener)
