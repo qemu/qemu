@@ -62,27 +62,27 @@ static inline DATA_TYPE glue(io_read, SUFFIX)(target_phys_addr_t physaddr,
                                               void *retaddr)
 {
     DATA_TYPE res;
-    int index;
-    index = physaddr & (IO_MEM_NB_ENTRIES - 1);
+    MemoryRegion *mr = iotlb_to_region(physaddr);
+
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
     env->mem_io_pc = (unsigned long)retaddr;
-    if (index != io_mem_ram.ram_addr && index != io_mem_rom.ram_addr
-        && index != io_mem_unassigned.ram_addr
-        && index != io_mem_notdirty.ram_addr
+    if (mr != &io_mem_ram && mr != &io_mem_rom
+        && mr != &io_mem_unassigned
+        && mr != &io_mem_notdirty
             && !can_do_io(env)) {
         cpu_io_recompile(env, retaddr);
     }
 
     env->mem_io_vaddr = addr;
 #if SHIFT <= 2
-    res = io_mem_read(index, physaddr, 1 << SHIFT);
+    res = io_mem_read(mr, physaddr, 1 << SHIFT);
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
-    res = io_mem_read(index, physaddr, 4) << 32;
-    res |= io_mem_read(index, physaddr + 4, 4);
+    res = io_mem_read(mr, physaddr, 4) << 32;
+    res |= io_mem_read(mr, physaddr + 4, 4);
 #else
-    res = io_mem_read(index, physaddr, 4);
-    res |= io_mem_read(index, physaddr + 4, 4) << 32;
+    res = io_mem_read(mr, physaddr, 4);
+    res |= io_mem_read(mr, physaddr + 4, 4) << 32;
 #endif
 #endif /* SHIFT > 2 */
     return res;
@@ -110,7 +110,7 @@ DATA_TYPE REGPARM glue(glue(__ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
             retaddr = GETPC();
-            ioaddr = section_to_ioaddr(env->iotlb[mmu_idx][index]);
+            ioaddr = env->iotlb[mmu_idx][index];
             res = glue(io_read, SUFFIX)(ioaddr, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
             /* slow unaligned access (it spans two pages or IO) */
@@ -164,7 +164,7 @@ static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(target_ulong addr,
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-            ioaddr = section_to_ioaddr(env->iotlb[mmu_idx][index]);
+            ioaddr = env->iotlb[mmu_idx][index];
             res = glue(io_read, SUFFIX)(ioaddr, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
@@ -207,12 +207,12 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
                                           target_ulong addr,
                                           void *retaddr)
 {
-    int index;
-    index = physaddr & (IO_MEM_NB_ENTRIES - 1);
+    MemoryRegion *mr = iotlb_to_region(physaddr);
+
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    if (index != io_mem_ram.ram_addr && index != io_mem_rom.ram_addr
-        && index != io_mem_unassigned.ram_addr
-        && index != io_mem_notdirty.ram_addr
+    if (mr != &io_mem_ram && mr != &io_mem_rom
+        && mr != &io_mem_unassigned
+        && mr != &io_mem_notdirty
             && !can_do_io(env)) {
         cpu_io_recompile(env, retaddr);
     }
@@ -220,14 +220,14 @@ static inline void glue(io_write, SUFFIX)(target_phys_addr_t physaddr,
     env->mem_io_vaddr = addr;
     env->mem_io_pc = (unsigned long)retaddr;
 #if SHIFT <= 2
-    io_mem_write(index, physaddr, val, 1 << SHIFT);
+    io_mem_write(mr, physaddr, val, 1 << SHIFT);
 #else
 #ifdef TARGET_WORDS_BIGENDIAN
-    io_mem_write(index, physaddr, (val >> 32), 4);
-    io_mem_write(index, physaddr + 4, (uint32_t)val, 4);
+    io_mem_write(mr, physaddr, (val >> 32), 4);
+    io_mem_write(mr, physaddr + 4, (uint32_t)val, 4);
 #else
-    io_mem_write(index, physaddr, (uint32_t)val, 4);
-    io_mem_write(index, physaddr + 4, val >> 32, 4);
+    io_mem_write(mr, physaddr, (uint32_t)val, 4);
+    io_mem_write(mr, physaddr + 4, val >> 32, 4);
 #endif
 #endif /* SHIFT > 2 */
 }
@@ -251,7 +251,7 @@ void REGPARM glue(glue(__st, SUFFIX), MMUSUFFIX)(target_ulong addr,
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
             retaddr = GETPC();
-            ioaddr = section_to_ioaddr(env->iotlb[mmu_idx][index]);
+            ioaddr = env->iotlb[mmu_idx][index];
             glue(io_write, SUFFIX)(ioaddr, val, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
@@ -303,7 +303,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(target_ulong addr,
             /* IO access */
             if ((addr & (DATA_SIZE - 1)) != 0)
                 goto do_unaligned_access;
-            ioaddr = section_to_ioaddr(env->iotlb[mmu_idx][index]);
+            ioaddr = env->iotlb[mmu_idx][index];
             glue(io_write, SUFFIX)(ioaddr, val, addr, retaddr);
         } else if (((addr & ~TARGET_PAGE_MASK) + DATA_SIZE - 1) >= TARGET_PAGE_SIZE) {
         do_unaligned_access:
