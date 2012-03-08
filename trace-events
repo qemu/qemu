@@ -229,6 +229,7 @@ sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64
 
 # hw/usb/core.c
 usb_packet_state_change(int bus, const char *port, int ep, void *p, const char *o, const char *n) "bus %d, port %s, ep %d, packet %p, state %s -> %s"
+usb_packet_state_fault(int bus, const char *port, int ep, void *p, const char *o, const char *n) "bus %d, port %s, ep %d, packet %p, state %s, expected %s"
 
 # hw/usb/bus.c
 usb_port_claim(int bus, const char *port) "bus %d, port %s"

@@ -378,7 +378,7 @@ int usb_handle_packet(USBDevice *dev, USBPacket *p)
     }
     assert(dev == p->ep->dev);
     assert(dev->state == USB_STATE_DEFAULT);
-    assert(p->state == USB_PACKET_SETUP);
+    usb_packet_check_state(p, USB_PACKET_SETUP);
     assert(p->ep != NULL);
 
     if (QTAILQ_EMPTY(&p->ep->queue) || p->ep->pipeline) {
@@ -406,7 +406,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
     USBEndpoint *ep = p->ep;
     int ret;
 
-    assert(p->state == USB_PACKET_ASYNC);
+    usb_packet_check_state(p, USB_PACKET_ASYNC);
     assert(QTAILQ_FIRST(&ep->queue) == p);
     usb_packet_set_state(p, USB_PACKET_COMPLETE);
     QTAILQ_REMOVE(&ep->queue, p, queue);
@@ -417,7 +417,7 @@ void usb_packet_complete(USBDevice *dev, USBPacket *p)
         if (p->state == USB_PACKET_ASYNC) {
             break;
         }
-        assert(p->state == USB_PACKET_QUEUED);
+        usb_packet_check_state(p, USB_PACKET_QUEUED);
         ret = usb_process_one(p);
         if (ret == USB_RET_ASYNC) {
             usb_packet_set_state(p, USB_PACKET_ASYNC);
@@ -450,7 +450,7 @@ void usb_packet_init(USBPacket *p)
     qemu_iovec_init(&p->iov, 1);
 }
 
-void usb_packet_set_state(USBPacket *p, USBPacketState state)
+static const char *usb_packet_state_name(USBPacketState state)
 {
     static const char *name[] = {
         [USB_PACKET_UNDEFINED] = "undef",
@@ -460,11 +460,36 @@ void usb_packet_set_state(USBPacket *p, USBPacketState state)
         [USB_PACKET_COMPLETE]  = "complete",
         [USB_PACKET_CANCELED]  = "canceled",
     };
+    if (state < ARRAY_SIZE(name)) {
+        return name[state];
+    }
+    return "INVALID";
+}
+
+void usb_packet_check_state(USBPacket *p, USBPacketState expected)
+{
+    USBDevice *dev;
+    USBBus *bus;
+
+    if (p->state == expected) {
+        return;
+    }
+    dev = p->ep->dev;
+    bus = usb_bus_from_device(dev);
+    trace_usb_packet_state_fault(bus->busnr, dev->port->path, p->ep->nr, p,
+                                 usb_packet_state_name(p->state),
+                                 usb_packet_state_name(expected));
+    assert(!"usb packet state check failed");
+}
+
+void usb_packet_set_state(USBPacket *p, USBPacketState state)
+{
     USBDevice *dev = p->ep->dev;
     USBBus *bus = usb_bus_from_device(dev);
 
-    trace_usb_packet_state_change(bus->busnr, dev->port->path, p->ep->nr,
-                                  p, name[p->state], name[state]);
+    trace_usb_packet_state_change(bus->busnr, dev->port->path, p->ep->nr, p,
+                                  usb_packet_state_name(p->state),
+                                  usb_packet_state_name(state));
     p->state = state;
 }
 
