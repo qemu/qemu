@@ -304,7 +304,6 @@ uint64_t io_mem_read(struct MemoryRegion *mr, target_phys_addr_t addr,
                      unsigned size);
 void io_mem_write(struct MemoryRegion *mr, target_phys_addr_t addr,
                   uint64_t value, unsigned size);
-extern struct MemoryRegion *io_mem_region[IO_MEM_NB_ENTRIES];
 
 void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr);

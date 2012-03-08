@@ -781,13 +781,11 @@ static void memory_region_destructor_ram_from_ptr(MemoryRegion *mr)
 
 static void memory_region_destructor_iomem(MemoryRegion *mr)
 {
-    cpu_unregister_io_memory(mr->ram_addr);
 }
 
 static void memory_region_destructor_rom_device(MemoryRegion *mr)
 {
     qemu_ram_free(mr->ram_addr & TARGET_PAGE_MASK);
-    cpu_unregister_io_memory(mr->ram_addr & ~TARGET_PAGE_MASK);
 }
 
 static bool memory_region_wrong_endianness(MemoryRegion *mr)
@@ -942,7 +940,7 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->opaque = opaque;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_iomem;
-    mr->ram_addr = cpu_register_io_memory(mr);
+    mr->ram_addr = ~(ram_addr_t)0;
 }
 
 void memory_region_init_ram(MemoryRegion *mr,
@@ -992,7 +990,6 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->rom_device = true;
     mr->destructor = memory_region_destructor_rom_device;
     mr->ram_addr = qemu_ram_alloc(size, mr);
-    mr->ram_addr |= cpu_register_io_memory(mr);
 }
 
 static uint64_t invalid_read(void *opaque, target_phys_addr_t addr,

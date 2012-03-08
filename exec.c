@@ -214,9 +214,6 @@ static PhysPageEntry phys_map = { .ptr = PHYS_MAP_NODE_NIL, .is_leaf = 0 };
 static void io_mem_init(void);
 static void memory_map_init(void);
 
-/* io memory support */
-MemoryRegion *io_mem_region[IO_MEM_NB_ENTRIES];
-static char io_mem_used[IO_MEM_NB_ENTRIES];
 static MemoryRegion io_mem_watch;
 #endif
 
@@ -3503,53 +3500,6 @@ static subpage_t *subpage_init(target_phys_addr_t base)
     return mmio;
 }
 
-static int get_free_io_mem_idx(void)
-{
-    int i;
-
-    for (i = 0; i<IO_MEM_NB_ENTRIES; i++)
-        if (!io_mem_used[i]) {
-            io_mem_used[i] = 1;
-            return i;
-        }
-    fprintf(stderr, "RAN out out io_mem_idx, max %d !\n", IO_MEM_NB_ENTRIES);
-    return -1;
-}
-
-/* mem_read and mem_write are arrays of functions containing the
-   function to access byte (index 0), word (index 1) and dword (index
-   2). Functions can be omitted with a NULL function pointer.
-   If io_index is non zero, the corresponding io zone is
-   modified. If it is zero, a new io zone is allocated. The return
-   value can be used with cpu_register_physical_memory(). (-1) is
-   returned if error. */
-static int cpu_register_io_memory_fixed(int io_index, MemoryRegion *mr)
-{
-    if (io_index <= 0) {
-        io_index = get_free_io_mem_idx();
-        if (io_index == -1)
-            return io_index;
-    } else {
-        if (io_index >= IO_MEM_NB_ENTRIES)
-            return -1;
-    }
-
-    io_mem_region[io_index] = mr;
-
-    return io_index;
-}
-
-int cpu_register_io_memory(MemoryRegion *mr)
-{
-    return cpu_register_io_memory_fixed(0, mr);
-}
-
-void cpu_unregister_io_memory(int io_index)
-{
-    io_mem_region[io_index] = NULL;
-    io_mem_used[io_index] = 0;
-}
-
 static uint16_t dummy_section(MemoryRegion *mr)
 {
     MemoryRegionSection section = {
@@ -3569,11 +3519,7 @@ MemoryRegion *iotlb_to_region(target_phys_addr_t index)
 
 static void io_mem_init(void)
 {
-    int i;
-
-    /* Must be first: */
     memory_region_init_io(&io_mem_ram, &error_mem_ops, NULL, "ram", UINT64_MAX);
-    assert(io_mem_ram.ram_addr == 0);
     memory_region_init_io(&io_mem_rom, &rom_mem_ops, NULL, "rom", UINT64_MAX);
     memory_region_init_io(&io_mem_unassigned, &unassigned_mem_ops, NULL,
                           "unassigned", UINT64_MAX);
@@ -3581,9 +3527,6 @@ static void io_mem_init(void)
                           "notdirty", UINT64_MAX);
     memory_region_init_io(&io_mem_subpage_ram, &subpage_ram_ops, NULL,
                           "subpage-ram", UINT64_MAX);
-    for (i=0; i<5; i++)
-        io_mem_used[i] = 1;
-
     memory_region_init_io(&io_mem_watch, &watch_mem_ops, NULL,
                           "watch", UINT64_MAX);
 }
