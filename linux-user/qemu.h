@@ -251,6 +251,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                        abi_ulong new_addr);
 int target_msync(abi_ulong start, abi_ulong len, int flags);
 extern unsigned long last_brk;
+extern abi_ulong mmap_next_start;
 void mmap_lock(void);
 void mmap_unlock(void);
 abi_ulong mmap_find_vma(abi_ulong, abi_ulong);

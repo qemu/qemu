@@ -212,7 +212,7 @@ static int mmap_frag(abi_ulong real_start,
 #else
 # define TASK_UNMAPPED_BASE  0x40000000
 #endif
-static abi_ulong mmap_next_start = TASK_UNMAPPED_BASE;
+abi_ulong mmap_next_start = TASK_UNMAPPED_BASE;
 
 unsigned long last_brk;
 
@@ -222,7 +222,7 @@ unsigned long last_brk;
 static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size)
 {
     abi_ulong addr;
-    abi_ulong last_addr;
+    abi_ulong end_addr;
     int prot;
     int looped = 0;
 
@@ -230,25 +230,38 @@ static abi_ulong mmap_find_vma_reserved(abi_ulong start, abi_ulong size)
         return (abi_ulong)-1;
     }
 
-    last_addr = start;
-    for (addr = start; last_addr + size != addr; addr += qemu_host_page_size) {
-        if (last_addr + size >= RESERVED_VA
-            || (abi_ulong)(last_addr + size) < last_addr) {
+    size = HOST_PAGE_ALIGN(size);
+    end_addr = start + size;
+    if (end_addr > RESERVED_VA) {
+        end_addr = RESERVED_VA;
+    }
+    addr = end_addr - qemu_host_page_size;
+
+    while (1) {
+        if (addr > end_addr) {
             if (looped) {
                 return (abi_ulong)-1;
             }
-            last_addr = qemu_host_page_size;
-            addr = 0;
+            end_addr = RESERVED_VA;
+            addr = end_addr - qemu_host_page_size;
             looped = 1;
             continue;
         }
         prot = page_get_flags(addr);
         if (prot) {
-            last_addr = addr + qemu_host_page_size;
+            end_addr = addr;
         }
+        if (addr + size == end_addr) {
+            break;
+        }
+        addr -= qemu_host_page_size;
     }
-    mmap_next_start = addr;
-    return last_addr;
+
+    if (start == mmap_next_start) {
+        mmap_next_start = addr;
+    }
+
+    return addr;
 }
 #endif
 

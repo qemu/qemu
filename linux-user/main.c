@@ -3420,6 +3420,7 @@ int main(int argc, char **argv, char **envp)
             guest_base = HOST_PAGE_ALIGN((unsigned long)p);
         }
         qemu_log("Reserved 0x%lx bytes of guest address space\n", reserved_va);
+        mmap_next_start = reserved_va;
     }
 
     if (reserved_va || have_guest_base) {
