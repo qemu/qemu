@@ -4685,7 +4685,7 @@ tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong addr)
                  (addr & TARGET_PAGE_MASK))) {
         ldub_code(addr);
     }
-    pd = env1->tlb_table[mmu_idx][page_index].addr_code & ~TARGET_PAGE_MASK;
+    pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
     if (pd != io_mem_ram.ram_addr && pd != io_mem_rom.ram_addr
         && !io_mem_region[pd]->rom_device) {
 #if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SPARC)
