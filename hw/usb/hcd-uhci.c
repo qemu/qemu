@@ -300,6 +300,7 @@ static void uhci_async_cancel_all(UHCIState *s)
             uhci_async_unlink(curr);
             uhci_async_cancel(curr);
         }
+        uhci_queue_free(queue);
     }
 }
 
