@@ -78,10 +78,10 @@
 #define NB_PORTS 2
 
 enum {
-    TD_RESULT_STOP_FRAME = -1,
-    TD_RESULT_COMPLETE   = 0,
-    TD_RESULT_NEXT_QH    = 1,
-    TD_RESULT_ASYNC      = 2,
+    TD_RESULT_STOP_FRAME = 10,
+    TD_RESULT_COMPLETE,
+    TD_RESULT_NEXT_QH,
+    TD_RESULT_ASYNC,
 };
 
 typedef struct UHCIState UHCIState;
