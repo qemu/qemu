@@ -77,6 +77,13 @@
 
 #define NB_PORTS 2
 
+enum {
+    TD_RESULT_STOP_FRAME = -1,
+    TD_RESULT_COMPLETE   = 0,
+    TD_RESULT_NEXT_QH    = 1,
+    TD_RESULT_ASYNC      = 2,
+};
+
 typedef struct UHCIState UHCIState;
 typedef struct UHCIAsync UHCIAsync;
 typedef struct UHCIQueue UHCIQueue;
@@ -721,13 +728,13 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, UHCIAsync *async, uint32_
             /* short packet: do not update QH */
             trace_usb_uhci_packet_complete_shortxfer(async->queue->token,
                                                     async->td);
-            return 1;
+            return TD_RESULT_NEXT_QH;
         }
     }
 
     /* success */
     trace_usb_uhci_packet_complete_success(async->queue->token, async->td);
-    return 0;
+    return TD_RESULT_COMPLETE;
 
 out:
     switch(ret) {
@@ -740,7 +747,7 @@ out:
         }
         uhci_update_irq(s);
         trace_usb_uhci_packet_complete_stall(async->queue->token, async->td);
-        return 1;
+        return TD_RESULT_NEXT_QH;
 
     case USB_RET_BABBLE:
         td->ctrl |= TD_CTRL_BABBLE | TD_CTRL_STALL;
@@ -752,13 +759,13 @@ out:
         uhci_update_irq(s);
         /* frame interrupted */
         trace_usb_uhci_packet_complete_babble(async->queue->token, async->td);
-        return -1;
+        return TD_RESULT_STOP_FRAME;
 
     case USB_RET_NAK:
         td->ctrl |= TD_CTRL_NAK;
         if (pid == USB_TOKEN_SETUP)
             break;
-	return 1;
+        return TD_RESULT_NEXT_QH;
 
     case USB_RET_IOERROR:
     case USB_RET_NODEV:
@@ -784,7 +791,7 @@ out:
     }
     td->ctrl = (td->ctrl & ~(3 << TD_CTRL_ERROR_SHIFT)) |
         (err << TD_CTRL_ERROR_SHIFT);
-    return 1;
+    return TD_RESULT_NEXT_QH;
 }
 
 static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *int_mask)
@@ -797,7 +804,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
 
     /* Is active ? */
     if (!(td->ctrl & TD_CTRL_ACTIVE))
-        return 1;
+        return TD_RESULT_NEXT_QH;
 
     async = uhci_async_find_td(s, addr, td);
     if (async) {
@@ -805,7 +812,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
         async->queue->valid = 32;
 
         if (!async->done)
-            return 1;
+            return TD_RESULT_NEXT_QH;
 
         uhci_async_unlink(async);
         goto done;
@@ -814,7 +821,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
     /* Allocate new packet */
     async = uhci_async_alloc(uhci_queue_get(s, td), addr);
     if (!async)
-        return 1;
+        return TD_RESULT_NEXT_QH;
 
     /* valid needs to be large enough to handle 10 frame delay
      * for initial isochronous requests
@@ -848,12 +855,12 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
         uhci_async_free(async);
         s->status |= UHCI_STS_HCPERR;
         uhci_update_irq(s);
-        return -1;
+        return TD_RESULT_STOP_FRAME;
     }
  
     if (len == USB_RET_ASYNC) {
         uhci_async_link(async);
-        return 2;
+        return TD_RESULT_ASYNC;
     }
 
     async->packet.result = len;
@@ -959,7 +966,7 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
         }
         trace_usb_uhci_td_queue(plink & ~0xf, ptd.ctrl, ptd.token);
         ret = uhci_handle_td(s, plink, &ptd, &int_mask);
-        assert(ret == 2); /* got USB_RET_ASYNC */
+        assert(ret == TD_RESULT_ASYNC);
         assert(int_mask == 0);
         plink = ptd.link;
     }
@@ -1047,15 +1054,15 @@ static void uhci_process_frame(UHCIState *s)
         }
 
         switch (ret) {
-        case -1: /* interrupted frame */
+        case TD_RESULT_STOP_FRAME: /* interrupted frame */
             goto out;
 
-        case 1: /* goto next queue */
+        case TD_RESULT_NEXT_QH:
             trace_usb_uhci_td_nextqh(curr_qh & ~0xf, link & ~0xf);
             link = curr_qh ? qh.link : td.link;
             continue;
 
-        case 2: /* got USB_RET_ASYNC */
+        case TD_RESULT_ASYNC:
             trace_usb_uhci_td_async(curr_qh & ~0xf, link & ~0xf);
             if (is_valid(td.link)) {
                 uhci_fill_queue(s, &td);
@@ -1063,7 +1070,7 @@ static void uhci_process_frame(UHCIState *s)
             link = curr_qh ? qh.link : td.link;
             continue;
 
-        case 0: /* completed TD */
+        case TD_RESULT_COMPLETE:
             trace_usb_uhci_td_complete(curr_qh & ~0xf, link & ~0xf);
             link = td.link;
             td_count++;
