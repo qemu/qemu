@@ -47,6 +47,11 @@ test-qmp-commands: test-qmp-commands.o $(qobject-obj-y) $(qapi-obj-y) $(tools-ob
 
 $(SRC_PATH)/tests/qemu-iotests-quick.sh: qemu-img qemu-io
 
-.PHONY: check
+
+.PHONY: check check-block
+
 check: $(CHECKS)
 	$(call quiet-command, gtester $(CHECKS), "  CHECK")
+
+check-block:
+	$(call quiet-command, $(SHELL) $(SRC_PATH)/tests/check-block.sh , "  CHECK")
