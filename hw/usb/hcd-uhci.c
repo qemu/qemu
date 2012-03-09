@@ -821,8 +821,6 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
 
     /* Allocate new packet */
     async = uhci_async_alloc(uhci_queue_get(s, td), addr);
-    if (!async)
-        return TD_RESULT_NEXT_QH;
 
     /* valid needs to be large enough to handle 10 frame delay
      * for initial isochronous requests
