@@ -10,7 +10,7 @@ such as signing, card removal/insertion, etc. are mapped to real, physical
 cards which are shared with the client machine the emulator is running on, or
 the cards could be pure software constructs.
 
-The emulator is structured to allow multiple replacable or additional pieces,
+The emulator is structured to allow multiple replaceable or additional pieces,
 so it can be easily modified for future requirements. The primary envisioned
 modifications are:
 
@@ -32,7 +32,7 @@ be emulated as well, including PIV, newer versions of CAC, PKCS #15, etc.
 --------------------
 Replacing the Socket Based Virtual Reader Interface.
 
-The current implementation contains a replacable module vscclient.c. The
+The current implementation contains a replaceable module vscclient.c. The
 current vscclient.c implements a sockets interface to the virtual ccid reader
 on the guest. CCID commands that are pertinent to emulation are passed
 across the socket, and their responses are passed back along that same socket.
@@ -42,7 +42,7 @@ implements a program with a main entry. It also handles argument parsing for
 the emulator.
 
 An application that wants to use the virtual reader can replace vscclient.c
-with it's own implementation that connects to it's own CCID reader.  The calls
+with its own implementation that connects to its own CCID reader.  The calls
 that the CCID reader can call are:
 
       VReaderList * vreader_get_reader_list();
@@ -72,12 +72,12 @@ that the CCID reader can call are:
       VReader * vreader_list_get_reader(VReaderListEntry *)
 
   This function returns the reader stored in the reader List entry. Caller gets
-  a new reference to a reader. The caller must free it's reference when it is
+  a new reference to a reader. The caller must free its reference when it is
   finished with vreader_free().
 
       void vreader_free(VReader *reader);
 
-   This function frees a reference to a reader. Reader's are reference counted
+   This function frees a reference to a reader. Readers are reference counted
    and are automatically deleted when the last reference is freed.
 
       void vreader_list_delete(VReaderList *list);
@@ -87,7 +87,7 @@ that the CCID reader can call are:
 
       VReaderStatus vreader_power_on(VReader *reader, char *atr, int *len);
 
-  This functions simulates a card power on. Virtual cards do not care about
+  This function simulates a card power on. A virtual card does not care about
   the actual voltage and other physical parameters, but it does care that the
   card is actually on or off. Cycling the card causes the card to reset. If
   the caller provides enough space, vreader_power_on will return the ATR of
@@ -104,7 +104,7 @@ that the CCID reader can call are:
                                        unsigned char *receive_buf,
                                        int receive_buf_len);
 
-  This functions send a raw apdu to a card and returns the card's response.
+  This function sends a raw apdu to a card and returns the card's response.
   The CCID front end should return the response back. Most of the emulation
   is driven from these APDUs.
 
@@ -217,10 +217,10 @@ the card using the following functions:
          VCardStatus vcard_add_applet(VCard *card, VCardApplet *applet);
 
   Add an applet onto the list of applets attached to the card. Once an applet
-  has been added, it can be selected by it's aid, and then commands will be
-  routed to it VCardProcessAPDU function. This function adopts the applet the
-  passed int applet. Note: 2 applets with the same AID should not be added to
-  the same card. It's permissible to add more than one applet. Multiple applets
+  has been added, it can be selected by its AID, and then commands will be
+  routed to it VCardProcessAPDU function. This function adopts the applet that
+  is passed into it. Note: 2 applets with the same AID should not be added to
+  the same card. It is permissible to add more than one applet. Multiple applets
   may have the same VCardPRocessAPDU entry point.
 
 The certs and keys should be attached to private data associated with one or
@@ -335,7 +335,7 @@ and applet.
          VCard7816Status vcard_emul_login(VCard *card, unsigned char *pin,
                                           int pin_len);
 
-    This function logins into the card and return the standard 7816 status
+    This function logs into the card and returns the standard 7816 status
     word depending on the success or failure of the call.
 
          void vcard_emul_delete_key(VCardKey *key);
@@ -424,7 +424,7 @@ functions:
       cert_len, and keys are all arrays of length cert_count. These are the
       the same of the parameters xxxx_card_init() accepts.
 
-   Finally the card is associated with it's reader by the call:
+   Finally the card is associated with its reader by the call:
 
             VReaderStatus vreader_insert_card(VReader *vreader, VCard *vcard);
 

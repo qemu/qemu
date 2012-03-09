@@ -26,9 +26,6 @@
 #define unlikely(x)   __builtin_expect(!!(x), 0)
 #endif
 
-#ifdef CONFIG_NEED_OFFSETOF
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *) 0)->MEMBER)
-#endif
 #ifndef container_of
 #define container_of(ptr, type, member) ({                      \
         const typeof(((type *) 0)->member) *__mptr = (ptr);     \

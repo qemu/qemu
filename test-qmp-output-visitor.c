@@ -221,8 +221,8 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     QObject *obj;
     QDict *qdict, *dict1, *dict2, *dict3, *userdef;
     const char *string = "user def string";
-    const char *strings[] = { "fourty two", "fourty three", "fourty four",
-                              "fourty five" };
+    const char *strings[] = { "forty two", "forty three", "forty four",
+                              "forty five" };
 
     ud2 = g_malloc0(sizeof(*ud2));
     ud2->string0 = g_strdup(strings[0]);

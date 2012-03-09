@@ -124,7 +124,7 @@ typedef struct InterfaceInfo InterfaceInfo;
  *
  * Once all of the parent classes have been initialized, #TypeInfo::class_init
  * is called to let the class being instantiated provide default initialize for
- * it's virtual functions.  Here is how the above example might be modified
+ * its virtual functions.  Here is how the above example might be modified
  * to introduce an overridden virtual function:
  *
  * <example>
@@ -288,7 +288,7 @@ struct Object
  *   implementing an explicit class type if they are not adding additional
  *   virtual functions.
  * @class_init: This function is called after all parent class initialization
- *   has occured to allow a class to set its default virtual method pointers.  
+ *   has occurred to allow a class to set its default virtual method pointers.
  *   This is also the function to use to override virtual methods from a parent
  *   class.
  * @class_finalize: This function is called during class destruction and is
@@ -527,7 +527,7 @@ Type type_register_static(const TypeInfo *info);
  * type_register:
  * @info: The #TypeInfo of the new type
  *
- * Unlike type_register_static(), this call does not require @info or it's
+ * Unlike type_register_static(), this call does not require @info or its
  * string members to continue to exist after the call returns.
  *
  * Returns: 0 on failure, the new #Type on success.

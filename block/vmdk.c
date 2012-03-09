@@ -453,7 +453,7 @@ static int vmdk_open_vmdk4(BlockDriverState *bs,
     }
     l1_entry_sectors = le32_to_cpu(header.num_gtes_per_gte)
                         * le64_to_cpu(header.granularity);
-    if (l1_entry_sectors <= 0) {
+    if (l1_entry_sectors == 0) {
         return -EINVAL;
     }
     l1_size = (le64_to_cpu(header.capacity) + l1_entry_sectors - 1)

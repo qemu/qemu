@@ -175,6 +175,7 @@ static void CONCAT(send_hextile_tile_, NAME)(VncState *vs,
 	    /* we really don't have to invalidate either the bg or fg
 	       but we've lost the old values.  oh well. */
 	}
+        break;
     default:
 	break;
     }

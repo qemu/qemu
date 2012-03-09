@@ -22,7 +22,9 @@ rm -f config.log
 
 # Print a helpful header at the top of config.log
 echo "# QEMU configure log $(date)" >> config.log
-echo "# produced by $0 $*" >> config.log
+printf "# Configured with:" >> config.log
+printf " '%s'" "$0" "$@" >> config.log
+echo >> config.log
 echo "#" >> config.log
 
 compile_object() {
@@ -232,7 +234,7 @@ for opt do
 done
 # OS specific
 # Using uname is really, really broken.  Once we have the right set of checks
-# we can eliminate it's usage altogether
+# we can eliminate its usage altogether.
 
 cc="${CC-${cross_prefix}gcc}"
 ar="${AR-${cross_prefix}ar}"
@@ -2524,17 +2526,6 @@ if test "$darwin" != "yes" -a "$mingw32" != "yes" -a "$solaris" != yes -a \
 fi
 
 ##########################################
-# check if the compiler defines offsetof
-
-need_offsetof=yes
-cat > $TMPC << EOF
-#include <stddef.h>
-int main(void) { struct s { int f; }; return offsetof(struct s, f); }
-EOF
-if compile_prog "" "" ; then
-    need_offsetof=no
-fi
-
 # spice probe
 if test "$spice" != "no" ; then
   cat > $TMPC << EOF
@@ -3198,9 +3189,6 @@ if test "$signalfd" = "yes" ; then
 fi
 if test "$tcg_interpreter" = "yes" ; then
   echo "CONFIG_TCG_INTERPRETER=y" >> $config_host_mak
-fi
-if test "$need_offsetof" = "yes" ; then
-  echo "CONFIG_NEED_OFFSETOF=y" >> $config_host_mak
 fi
 if test "$fdatasync" = "yes" ; then
   echo "CONFIG_FDATASYNC=y" >> $config_host_mak
