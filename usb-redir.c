@@ -431,7 +431,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
             /* Check iso_error for stream errors, otherwise its an underrun */
             status = dev->endpoint[EP2I(ep)].iso_error;
             dev->endpoint[EP2I(ep)].iso_error = 0;
-            return status ? USB_RET_NAK : 0;
+            return status ? USB_RET_IOERROR : 0;
         }
         DPRINTF2("iso-token-in ep %02X status %d len %d queue-size: %d\n", ep,
                  isop->status, isop->len, dev->endpoint[EP2I(ep)].bufpq_size);
@@ -439,7 +439,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
         status = isop->status;
         if (status != usb_redir_success) {
             bufp_free(dev, isop, ep);
-            return USB_RET_NAK;
+            return USB_RET_IOERROR;
         }
 
         len = isop->len;
@@ -447,7 +447,7 @@ static int usbredir_handle_iso_data(USBRedirDevice *dev, USBPacket *p,
             ERROR("received iso data is larger then packet ep %02X (%d > %d)\n",
                   ep, len, (int)p->iov.size);
             bufp_free(dev, isop, ep);
-            return USB_RET_NAK;
+            return USB_RET_BABBLE;
         }
         usb_packet_copy(p, isop->data, len);
         bufp_free(dev, isop, ep);
@@ -566,7 +566,7 @@ static int usbredir_handle_interrupt_data(USBRedirDevice *dev,
         if (len > p->iov.size) {
             ERROR("received int data is larger then packet ep %02X\n", ep);
             bufp_free(dev, intp, ep);
-            return USB_RET_NAK;
+            return USB_RET_BABBLE;
         }
         usb_packet_copy(p, intp->data, len);
         bufp_free(dev, intp, ep);
@@ -1018,11 +1018,14 @@ static int usbredir_handle_status(USBRedirDevice *dev,
         return USB_RET_STALL;
     case usb_redir_cancelled:
         WARNING("returning cancelled packet to HC?\n");
+        return USB_RET_NAK;
     case usb_redir_inval:
+        WARNING("got invalid param error from usb-host?\n");
+        return USB_RET_NAK;
     case usb_redir_ioerror:
     case usb_redir_timeout:
     default:
-        return USB_RET_NAK;
+        return USB_RET_IOERROR;
     }
 }
 
@@ -1122,6 +1125,7 @@ static void usbredir_device_disconnect(void *priv)
     for (i = 0; i < MAX_ENDPOINTS; i++) {
         QTAILQ_INIT(&dev->endpoint[i].bufpq);
     }
+    usb_ep_init(&dev->dev);
     dev->interface_info.interface_count = 0;
 }
 
@@ -1148,6 +1152,7 @@ static void usbredir_ep_info(void *priv,
     struct usb_redir_ep_info_header *ep_info)
 {
     USBRedirDevice *dev = priv;
+    struct USBEndpoint *usb_ep;
     int i;
 
     for (i = 0; i < MAX_ENDPOINTS; i++) {
@@ -1172,7 +1177,13 @@ static void usbredir_ep_info(void *priv,
         default:
             ERROR("Received invalid endpoint type\n");
             usbredir_device_disconnect(dev);
+            return;
         }
+        usb_ep = usb_ep_get(&dev->dev,
+                            (i & 0x10) ? USB_TOKEN_IN : USB_TOKEN_OUT,
+                            i & 0x0f);
+        usb_ep->type = dev->endpoint[i].type;
+        usb_ep->ifnum = dev->endpoint[i].interface;
     }
 }
 
