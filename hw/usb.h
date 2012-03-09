@@ -39,11 +39,12 @@
 #define USB_TOKEN_IN    0x69 /* device -> host */
 #define USB_TOKEN_OUT   0xe1 /* host -> device */
 
-#define USB_RET_NODEV  (-1)
-#define USB_RET_NAK    (-2)
-#define USB_RET_STALL  (-3)
-#define USB_RET_BABBLE (-4)
-#define USB_RET_ASYNC  (-5)
+#define USB_RET_NODEV   (-1)
+#define USB_RET_NAK     (-2)
+#define USB_RET_STALL   (-3)
+#define USB_RET_BABBLE  (-4)
+#define USB_RET_IOERROR (-5)
+#define USB_RET_ASYNC   (-6)
 
 #define USB_SPEED_LOW   0
 #define USB_SPEED_FULL  1
@@ -176,6 +177,7 @@ struct USBEndpoint {
     uint8_t type;
     uint8_t ifnum;
     int max_packet_size;
+    bool pipeline;
     USBDevice *dev;
     QTAILQ_HEAD(, USBPacket) queue;
 };
@@ -325,6 +327,7 @@ struct USBPacket {
     int pid;
     USBEndpoint *ep;
     QEMUIOVector iov;
+    uint64_t parameter; /* control transfers */
     int result; /* transfer length or USB_RET_* status code */
     /* Internal use by the USB layer.  */
     USBPacketState state;
@@ -363,6 +366,7 @@ void usb_ep_set_ifnum(USBDevice *dev, int pid, int ep, uint8_t ifnum);
 void usb_ep_set_max_packet_size(USBDevice *dev, int pid, int ep,
                                 uint16_t raw);
 int usb_ep_get_max_packet_size(USBDevice *dev, int pid, int ep);
+void usb_ep_set_pipeline(USBDevice *dev, int pid, int ep, bool enabled);
 
 void usb_attach(USBPort *port);
 void usb_detach(USBPort *port);

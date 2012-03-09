@@ -260,7 +260,7 @@ obj-i386-y += pci-hotplug.o smbios.o wdt_ib700.o
 obj-i386-y += debugcon.o multiboot.o
 obj-i386-y += pc_piix.o
 obj-i386-y += pc_sysfw.o
-obj-i386-$(CONFIG_KVM) += kvm/clock.o kvm/apic.o kvm/i8259.o kvm/ioapic.o
+obj-i386-$(CONFIG_KVM) += kvm/clock.o kvm/apic.o kvm/i8259.o kvm/ioapic.o kvm/i8254.o
 obj-i386-$(CONFIG_SPICE) += qxl.o qxl-logger.o qxl-render.o
 
 # shared objects
@@ -363,6 +363,10 @@ endif
 obj-arm-y = integratorcp.o versatilepb.o arm_pic.o arm_timer.o
 obj-arm-y += arm_boot.o pl011.o pl031.o pl050.o pl080.o pl110.o pl181.o pl190.o
 obj-arm-y += versatile_pci.o
+obj-arm-y += cadence_uart.o
+obj-arm-y += cadence_ttc.o
+obj-arm-y += cadence_gem.o
+obj-arm-y += xilinx_zynq.o zynq_slcr.o
 obj-arm-y += realview_gic.o realview.o arm_sysctl.o arm11mpcore.o a9mpcore.o
 obj-arm-y += exynos4210_gic.o exynos4210_combiner.o exynos4210.o
 obj-arm-y += exynos4_boards.o exynos4210_uart.o exynos4210_pwm.o

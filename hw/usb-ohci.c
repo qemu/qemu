@@ -837,6 +837,7 @@ static int ohci_service_iso_td(OHCIState *ohci, struct ohci_ed *ed,
                         OHCI_CC_DATAUNDERRUN);
         } else {
             switch (ret) {
+            case USB_RET_IOERROR:
             case USB_RET_NODEV:
                 OHCI_SET_BM(iso_td.offset[relative_frame_number], TD_PSW_CC,
                             OHCI_CC_DEVICENOTRESPONDING);
@@ -1052,6 +1053,7 @@ static int ohci_service_td(OHCIState *ohci, struct ohci_ed *ed)
             OHCI_SET_BM(td.flags, TD_CC, OHCI_CC_DATAUNDERRUN);
         } else {
             switch (ret) {
+            case USB_RET_IOERROR:
             case USB_RET_NODEV:
                 OHCI_SET_BM(td.flags, TD_CC, OHCI_CC_DEVICENOTRESPONDING);
             case USB_RET_NAK:

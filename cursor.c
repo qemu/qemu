@@ -15,7 +15,8 @@ static QEMUCursor *cursor_parse_xpm(const char *xpm[])
     uint8_t idx;
 
     /* parse header line: width, height, #colors, #chars */
-    if (sscanf(xpm[line], "%d %d %d %d", &width, &height, &colors, &chars) != 4) {
+    if (sscanf(xpm[line], "%u %u %u %u",
+               &width, &height, &colors, &chars) != 4) {
         fprintf(stderr, "%s: header parse error: \"%s\"\n",
                 __FUNCTION__, xpm[line]);
         return NULL;

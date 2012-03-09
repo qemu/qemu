@@ -66,7 +66,7 @@ send_msg(
     qemu_mutex_lock(&write_lock);
 
     if (verbose > 10) {
-        printf("sending type=%d id=%d, len =%d (0x%x)\n",
+        printf("sending type=%d id=%u, len =%u (0x%x)\n",
                type, reader_id, length, length);
     }
 
@@ -129,7 +129,7 @@ event_thread(void *arg)
                 vevent_delete(event);
                 continue;
             }
-            /* this reader hasn't been told it's status from qemu yet, wait for
+            /* this reader hasn't been told its status from qemu yet, wait for
              * that status */
             while (pending_reader != NULL) {
                 qemu_cond_wait(&pending_reader_condition, &pending_reader_lock);
@@ -167,7 +167,7 @@ event_thread(void *arg)
         case VEVENT_READER_REMOVE:
             /* future, tell qemu that an old CCID reader has been removed */
             if (verbose > 10) {
-                printf(" READER REMOVE: %d\n", reader_id);
+                printf(" READER REMOVE: %u\n", reader_id);
             }
             send_msg(VSC_ReaderRemove, reader_id, NULL, 0);
             break;
@@ -178,7 +178,7 @@ event_thread(void *arg)
             vreader_power_on(event->reader, atr, &atr_len);
             /* ATR call functions as a Card Insert event */
             if (verbose > 10) {
-                printf(" CARD INSERT %d: ", reader_id);
+                printf(" CARD INSERT %u: ", reader_id);
                 print_byte_array(atr, atr_len);
             }
             send_msg(VSC_ATR, reader_id, atr, atr_len);
@@ -186,7 +186,7 @@ event_thread(void *arg)
         case VEVENT_CARD_REMOVE:
             /* Card removed */
             if (verbose > 10) {
-                printf(" CARD REMOVE %d:\n", reader_id);
+                printf(" CARD REMOVE %u:\n", reader_id);
             }
             send_msg(VSC_CardRemove, reader_id, NULL, 0);
             break;
@@ -256,7 +256,7 @@ do_command(void)
                        reader ? vreader_get_name(reader)
                        : "invalid reader", error);
             } else {
-                printf("no reader by id %d found\n", reader_id);
+                printf("no reader by id %u found\n", reader_id);
             }
         } else if (strncmp(string, "remove", 6) == 0) {
             if (string[6] == ' ') {
@@ -269,7 +269,7 @@ do_command(void)
                         reader ? vreader_get_name(reader)
                         : "invalid reader", error);
             } else {
-                printf("no reader by id %d found\n", reader_id);
+                printf("no reader by id %u found\n", reader_id);
             }
         } else if (strncmp(string, "select", 6) == 0) {
             if (string[6] == ' ') {
@@ -280,11 +280,11 @@ do_command(void)
                 reader = vreader_get_reader_by_id(reader_id);
             }
             if (reader) {
-                printf("Selecting reader %d, %s\n", reader_id,
+                printf("Selecting reader %u, %s\n", reader_id,
                         vreader_get_name(reader));
                 default_reader_id = reader_id;
             } else {
-                printf("Reader with id %d not found\n", reader_id);
+                printf("Reader with id %u not found\n", reader_id);
             }
         } else if (strncmp(string, "debug", 5) == 0) {
             if (string[5] == ' ') {
@@ -303,7 +303,7 @@ do_command(void)
                 if (reader_id == -1) {
                     continue;
                 }
-                printf("%3d %s %s\n", reader_id,
+                printf("%3u %s %s\n", reader_id,
                        vreader_card_is_present(reader) == VREADER_OK ?
                        "CARD_PRESENT" : "            ",
                        vreader_get_name(reader));
@@ -563,7 +563,7 @@ main(
         mhHeader.reader_id = ntohl(mhHeader.reader_id);
         mhHeader.length = ntohl(mhHeader.length);
         if (verbose) {
-            printf("Header: type=%d, reader_id=%d length=%d (0x%x)\n",
+            printf("Header: type=%d, reader_id=%u length=%d (0x%x)\n",
                     mhHeader.type, mhHeader.reader_id, mhHeader.length,
                                                mhHeader.length);
         }

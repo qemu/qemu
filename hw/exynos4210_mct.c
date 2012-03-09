@@ -888,7 +888,7 @@ static void exynos4210_ltick_event(void *opaque)
     static uint64_t time2[2] = {0};
 #endif
 
-    /* Call tick_timer event handler, it will update it's tcntb and icntb */
+    /* Call tick_timer event handler, it will update its tcntb and icntb. */
     exynos4210_ltick_timer_event(&s->tick_timer);
 
     /* get tick_timer cnt */

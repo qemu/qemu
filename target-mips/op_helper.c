@@ -1931,7 +1931,7 @@ target_ulong helper_evpe(void)
 
     do {
         if (other_cpu != env
-           /* If the VPE is WFI, dont distrub it's sleep.  */
+           /* If the VPE is WFI, don't disturb its sleep.  */
            && !mips_vpe_is_wfi(other_cpu)) {
             /* Enable the VPE.  */
             other_cpu->mvp->CP0_MVPControl |= (1 << CP0MVPCo_EVP);

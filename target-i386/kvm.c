@@ -558,6 +558,7 @@ int kvm_arch_init_vcpu(CPUState *env)
 
     qemu_add_vm_change_state_handler(cpu_update_state, env);
 
+    cpuid_data.cpuid.padding = 0;
     r = kvm_vcpu_ioctl(env, KVM_SET_CPUID2, &cpuid_data);
     if (r) {
         return r;
@@ -743,6 +744,7 @@ static void set_seg(struct kvm_segment *lhs, const SegmentCache *rhs)
     lhs->g = (flags & DESC_G_MASK) != 0;
     lhs->avl = (flags & DESC_AVL_MASK) != 0;
     lhs->unusable = 0;
+    lhs->padding = 0;
 }
 
 static void get_seg(SegmentCache *lhs, const struct kvm_segment *rhs)
@@ -922,8 +924,10 @@ static int kvm_put_sregs(CPUState *env)
 
     sregs.idt.limit = env->idt.limit;
     sregs.idt.base = env->idt.base;
+    memset(sregs.idt.padding, 0, sizeof sregs.idt.padding);
     sregs.gdt.limit = env->gdt.limit;
     sregs.gdt.base = env->gdt.base;
+    memset(sregs.gdt.padding, 0, sizeof sregs.gdt.padding);
 
     sregs.cr0 = env->cr[0];
     sregs.cr2 = env->cr[2];
@@ -1395,6 +1399,7 @@ static int kvm_put_vcpu_events(CPUState *env, int level)
     events.exception.nr = env->exception_injected;
     events.exception.has_error_code = env->has_error_code;
     events.exception.error_code = env->error_code;
+    events.exception.pad = 0;
 
     events.interrupt.injected = (env->interrupt_injected >= 0);
     events.interrupt.nr = env->interrupt_injected;
@@ -1403,6 +1408,7 @@ static int kvm_put_vcpu_events(CPUState *env, int level)
     events.nmi.injected = env->nmi_injected;
     events.nmi.pending = env->nmi_pending;
     events.nmi.masked = !!(env->hflags2 & HF2_NMI_MASK);
+    events.nmi.pad = 0;
 
     events.sipi_vector = env->sipi_vector;
 
