@@ -78,6 +78,11 @@ int kvm_allows_irq0_override(void)
     return 1;
 }
 
+int kvm_has_pit_state2(void)
+{
+    return 0;
+}
+
 void kvm_setup_guest_memory(void *start, size_t size)
 {
 }
