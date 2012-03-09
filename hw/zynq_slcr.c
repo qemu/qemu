@@ -311,7 +311,7 @@ static inline uint32_t zynq_slcr_read_imp(void *opaque,
     case 0xA50:
         return s->dmac_ram;
     case 0xA60 ... 0xA8C:
-        return s->afi[0][(offset - 0x700) / 4];
+        return s->afi[0][(offset - 0xA60) / 4];
     case 0xA90 ... 0xA98:
         return s->ocm[(offset - 0xA90) / 4];
     case 0xAA0:
@@ -454,7 +454,7 @@ static void zynq_slcr_write(void *opaque, target_phys_addr_t offset,
             s->dmac_ram = val;
             break;
         case 0xA60 ... 0xA8C:
-            s->afi[0][(offset - 0x700) / 4] = val;
+            s->afi[0][(offset - 0xA60) / 4] = val;
             break;
         case 0xA90:
             s->ocm[0] = val;
