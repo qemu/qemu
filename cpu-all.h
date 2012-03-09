@@ -197,7 +197,7 @@ extern unsigned long reserved_va;
 #endif
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
-#define g2h(x) ((void *)((unsigned long)(x) + GUEST_BASE))
+#define g2h(x) ((void *)((unsigned long)(target_ulong)(x) + GUEST_BASE))
 
 #if HOST_LONG_BITS <= TARGET_VIRT_ADDR_SPACE_BITS
 #define h2g_valid(x) 1
