@@ -81,7 +81,8 @@ enum {
     TD_RESULT_STOP_FRAME = 10,
     TD_RESULT_COMPLETE,
     TD_RESULT_NEXT_QH,
-    TD_RESULT_ASYNC,
+    TD_RESULT_ASYNC_START,
+    TD_RESULT_ASYNC_CONT,
 };
 
 typedef struct UHCIState UHCIState;
@@ -812,7 +813,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
         async->queue->valid = 32;
 
         if (!async->done)
-            return TD_RESULT_NEXT_QH;
+            return TD_RESULT_ASYNC_CONT;
 
         uhci_async_unlink(async);
         goto done;
@@ -860,7 +861,7 @@ static int uhci_handle_td(UHCIState *s, uint32_t addr, UHCI_TD *td, uint32_t *in
  
     if (len == USB_RET_ASYNC) {
         uhci_async_link(async);
-        return TD_RESULT_ASYNC;
+        return TD_RESULT_ASYNC_START;
     }
 
     async->packet.result = len;
@@ -966,7 +967,7 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
         }
         trace_usb_uhci_td_queue(plink & ~0xf, ptd.ctrl, ptd.token);
         ret = uhci_handle_td(s, plink, &ptd, &int_mask);
-        assert(ret == TD_RESULT_ASYNC);
+        assert(ret == TD_RESULT_ASYNC_START);
         assert(int_mask == 0);
         plink = ptd.link;
     }
@@ -1058,11 +1059,12 @@ static void uhci_process_frame(UHCIState *s)
             goto out;
 
         case TD_RESULT_NEXT_QH:
+        case TD_RESULT_ASYNC_CONT:
             trace_usb_uhci_td_nextqh(curr_qh & ~0xf, link & ~0xf);
             link = curr_qh ? qh.link : td.link;
             continue;
 
-        case TD_RESULT_ASYNC:
+        case TD_RESULT_ASYNC_START:
             trace_usb_uhci_td_async(curr_qh & ~0xf, link & ~0xf);
             if (is_valid(td.link)) {
                 uhci_fill_queue(s, &td);
