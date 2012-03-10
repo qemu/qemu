@@ -205,9 +205,6 @@ int qemu_pipe(int pipefd[2]);
 #define qemu_recv(sockfd, buf, len, flags) recv(sockfd, buf, len, flags)
 #endif
 
-int qemu_recvv(int sockfd, struct iovec *iov, int len, int iov_offset);
-int qemu_sendv(int sockfd, struct iovec *iov, int len, int iov_offset);
-
 /* Error handling.  */
 
 void QEMU_NORETURN hw_error(const char *fmt, ...) GCC_FMT_ATTR(1, 2);

@@ -25,6 +25,7 @@
 #include "qemu-common.h"
 #include "qemu_socket.h"
 #include "qemu-coroutine.h"
+#include "iov.h"
 
 int coroutine_fn qemu_co_recvv(int sockfd, struct iovec *iov,
                                int len, int iov_offset)
@@ -32,7 +33,7 @@ int coroutine_fn qemu_co_recvv(int sockfd, struct iovec *iov,
     int total = 0;
     int ret;
     while (len) {
-        ret = qemu_recvv(sockfd, iov, len, iov_offset + total);
+        ret = iov_recv(sockfd, iov, iov_offset + total, len);
         if (ret < 0) {
             if (errno == EAGAIN) {
                 qemu_coroutine_yield();
@@ -58,7 +59,7 @@ int coroutine_fn qemu_co_sendv(int sockfd, struct iovec *iov,
     int total = 0;
     int ret;
     while (len) {
-        ret = qemu_sendv(sockfd, iov, len, iov_offset + total);
+        ret = iov_send(sockfd, iov, iov_offset + total, len);
         if (ret < 0) {
             if (errno == EAGAIN) {
                 qemu_coroutine_yield();

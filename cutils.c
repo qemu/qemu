@@ -376,43 +376,28 @@ int qemu_parse_fd(const char *param)
     return fd;
 }
 
-/*
- * Send/recv data with iovec buffers
- *
- * This function send/recv data from/to the iovec buffer directly.
- * The first `offset' bytes in the iovec buffer are skipped and next
- * `len' bytes are used.
- *
- * For example,
- *
- *   do_sendv_recvv(sockfd, iov, len, offset, 1);
- *
- * is equal to
- *
- *   char *buf = malloc(size);
- *   iov_to_buf(iov, iovcnt, buf, offset, size);
- *   send(sockfd, buf, size, 0);
- *   free(buf);
- */
-static int do_sendv_recvv(int sockfd, struct iovec *iov, int len, int offset,
+static ssize_t do_sendv_recvv(int sockfd, struct iovec *iov,
+                          size_t offset, size_t bytes,
                           int do_sendv)
 {
-    int ret, diff, iovlen;
+    int iovlen;
+    ssize_t ret;
+    size_t diff;
     struct iovec *last_iov;
 
     /* last_iov is inclusive, so count from one.  */
     iovlen = 1;
     last_iov = iov;
-    len += offset;
+    bytes += offset;
 
-    while (last_iov->iov_len < len) {
-        len -= last_iov->iov_len;
+    while (last_iov->iov_len < bytes) {
+        bytes -= last_iov->iov_len;
 
         last_iov++;
         iovlen++;
     }
 
-    diff = last_iov->iov_len - len;
+    diff = last_iov->iov_len - bytes;
     last_iov->iov_len -= diff;
 
     while (iov->iov_len <= offset) {
@@ -474,13 +459,13 @@ static int do_sendv_recvv(int sockfd, struct iovec *iov, int len, int offset,
     return ret;
 }
 
-int qemu_recvv(int sockfd, struct iovec *iov, int len, int iov_offset)
+ssize_t iov_recv(int sockfd, struct iovec *iov, size_t offset, size_t bytes)
 {
-    return do_sendv_recvv(sockfd, iov, len, iov_offset, 0);
+    return do_sendv_recvv(sockfd, iov, offset, bytes, 0);
 }
 
-int qemu_sendv(int sockfd, struct iovec *iov, int len, int iov_offset)
+ssize_t iov_send(int sockfd, struct iovec *iov, size_t offset, size_t bytes)
 {
-    return do_sendv_recvv(sockfd, iov, len, iov_offset, 1);
+    return do_sendv_recvv(sockfd, iov, offset, bytes, 1);
 }
 

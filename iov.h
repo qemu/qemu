@@ -54,6 +54,24 @@ size_t iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
 size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
                   size_t offset, int fillc, size_t bytes);
 
+/*
+ * Send/recv data from/to iovec buffers directly
+ *
+ * `offset' bytes in the beginning of iovec buffer are skipped and
+ * next `bytes' bytes are used, which must be within data of iovec.
+ *
+ *   r = iov_send(sockfd, iov, offset, bytes);
+ *
+ * is logically equivalent to
+ *
+ *   char *buf = malloc(bytes);
+ *   iov_to_buf(iov, iovcnt, offset, buf, bytes);
+ *   r = send(sockfd, buf, bytes, 0);
+ *   free(buf);
+ */
+ssize_t iov_recv(int sockfd, struct iovec *iov, size_t offset, size_t bytes);
+ssize_t iov_send(int sockfd, struct iovec *iov, size_t offset, size_t bytes);
+
 /**
  * Produce a text hexdump of iovec `iov' with `iov_cnt' number of elements
  * in file `fp', prefixing each line with `prefix' and processing not more
