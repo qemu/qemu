@@ -582,7 +582,7 @@ static void tcg_out_brcond2_i32(TCGContext *s, TCGCond cond,
     }
     tcg_out_nop(s);
 
-    tcg_out_label(s, label_next, (tcg_target_long)s->code_ptr);
+    tcg_out_label(s, label_next, s->code_ptr);
 }
 #endif
 
@@ -628,7 +628,7 @@ static void tcg_out_setcond_i32(TCGContext *s, TCGCond cond, TCGArg ret,
         tcg_out_branch_i32(s, INSN_COND(tcg_cond_to_bcond[cond], 1), t);
         tcg_out_movi_imm13(s, ret, 1);
         tcg_out_movi_imm13(s, ret, 0);
-        tcg_out_label(s, t, (tcg_target_long)s->code_ptr);
+        tcg_out_label(s, t, s->code_ptr);
 #endif
         return;
     }
@@ -683,7 +683,7 @@ static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
 
         tcg_out_setcond_i32(s, tcg_unsigned_cond(cond), ret, al, bl, blconst);
 
-        tcg_out_label(s, lab, (tcg_target_long)s->code_ptr);
+        tcg_out_label(s, lab, s->code_ptr);
         break;
     }
 }
