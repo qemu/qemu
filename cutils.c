@@ -26,6 +26,7 @@
 #include <math.h>
 
 #include "qemu_socket.h"
+#include "iov.h"
 
 void pstrcpy(char *buf, int buf_size, const char *str)
 {
@@ -260,47 +261,10 @@ void qemu_iovec_from_buffer(QEMUIOVector *qiov, const void *buf, size_t count)
     }
 }
 
-void qemu_iovec_memset(QEMUIOVector *qiov, int c, size_t count)
+size_t qemu_iovec_memset(QEMUIOVector *qiov, size_t offset,
+                         int fillc, size_t bytes)
 {
-    size_t n;
-    int i;
-
-    for (i = 0; i < qiov->niov && count; ++i) {
-        n = MIN(count, qiov->iov[i].iov_len);
-        memset(qiov->iov[i].iov_base, c, n);
-        count -= n;
-    }
-}
-
-void qemu_iovec_memset_skip(QEMUIOVector *qiov, int c, size_t count,
-                            size_t skip)
-{
-    int i;
-    size_t done;
-    void *iov_base;
-    uint64_t iov_len;
-
-    done = 0;
-    for (i = 0; (i < qiov->niov) && (done != count); i++) {
-        if (skip >= qiov->iov[i].iov_len) {
-            /* Skip the whole iov */
-            skip -= qiov->iov[i].iov_len;
-            continue;
-        } else {
-            /* Skip only part (or nothing) of the iov */
-            iov_base = (uint8_t*) qiov->iov[i].iov_base + skip;
-            iov_len = qiov->iov[i].iov_len - skip;
-            skip = 0;
-        }
-
-        if (done + iov_len > count) {
-            memset(iov_base, c, count - done);
-            break;
-        } else {
-            memset(iov_base, c, iov_len);
-        }
-        done += iov_len;
-    }
+    return iov_memset(qiov->iov, qiov->niov, offset, fillc, bytes);
 }
 
 /*

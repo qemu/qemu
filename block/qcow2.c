@@ -510,7 +510,7 @@ int qcow2_backing_read1(BlockDriverState *bs, QEMUIOVector *qiov,
     else
         n1 = bs->total_sectors - sector_num;
 
-    qemu_iovec_memset_skip(qiov, 0, 512 * (nb_sectors - n1), 512 * n1);
+    qemu_iovec_memset(qiov, 512 * n1, 0, 512 * (nb_sectors - n1));
 
     return n1;
 }
@@ -571,7 +571,7 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 }
             } else {
                 /* Note: in this case, no need to wait */
-                qemu_iovec_memset(&hd_qiov, 0, 512 * cur_nr_sectors);
+                qemu_iovec_memset(&hd_qiov, 0, 0, 512 * cur_nr_sectors);
             }
             break;
 
@@ -580,7 +580,7 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 ret = -EIO;
                 goto fail;
             }
-            qemu_iovec_memset(&hd_qiov, 0, 512 * cur_nr_sectors);
+            qemu_iovec_memset(&hd_qiov, 0, 0, 512 * cur_nr_sectors);
             break;
 
         case QCOW2_CLUSTER_COMPRESSED:

@@ -42,7 +42,7 @@ coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 #######################################################################
 # block-obj-y is code used by both qemu system emulation and qemu-img
 
-block-obj-y = cutils.o cache-utils.o qemu-option.o module.o async.o
+block-obj-y = cutils.o iov.o cache-utils.o qemu-option.o module.o async.o
 block-obj-y += nbd.o block.o aio.o aes.o qemu-config.o qemu-progress.o qemu-sockets.o
 block-obj-y += $(coroutine-obj-y) $(qobject-obj-y) $(version-obj-y)
 block-obj-$(CONFIG_POSIX) += posix-aio-compat.o
@@ -198,7 +198,7 @@ common-obj-$(CONFIG_XEN_BACKEND) += xen_console.o xenfb.o xen_disk.o xen_nic.o
 user-obj-y =
 user-obj-y += envlist.o path.o
 user-obj-y += tcg-runtime.o host-utils.o
-user-obj-y += cutils.o cache-utils.o
+user-obj-y += cutils.o iov.o cache-utils.o
 user-obj-y += module.o
 user-obj-y += qemu-user.o
 user-obj-y += $(trace-obj-y)

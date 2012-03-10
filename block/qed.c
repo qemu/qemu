@@ -736,7 +736,7 @@ static void qed_read_backing_file(BDRVQEDState *s, uint64_t pos,
     /* Zero all sectors if reading beyond the end of the backing file */
     if (pos >= backing_length ||
         pos + qiov->size > backing_length) {
-        qemu_iovec_memset(qiov, 0, qiov->size);
+        qemu_iovec_memset(qiov, 0, 0, qiov->size);
     }
 
     /* Complete now if there are no backing file sectors to read */
@@ -1251,7 +1251,7 @@ static void qed_aio_read_data(void *opaque, int ret,
 
     /* Handle zero cluster and backing file reads */
     if (ret == QED_CLUSTER_ZERO) {
-        qemu_iovec_memset(&acb->cur_qiov, 0, acb->cur_qiov.size);
+        qemu_iovec_memset(&acb->cur_qiov, 0, 0, acb->cur_qiov.size);
         qed_aio_next_io(acb, 0);
         return;
     } else if (ret != QED_CLUSTER_FOUND) {

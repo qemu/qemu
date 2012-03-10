@@ -154,7 +154,8 @@ qemu-img.o: qemu-img-cmds.h
 qemu-img.o qemu-tool.o qemu-nbd.o qemu-io.o cmd.o qemu-ga.o: $(GENERATED_HEADERS)
 
 tools-obj-y = $(oslib-obj-y) $(trace-obj-y) qemu-tool.o qemu-timer.o \
-	qemu-timer-common.o main-loop.o notify.o iohandler.o cutils.o async.o
+	qemu-timer-common.o main-loop.o notify.o \
+	iohandler.o cutils.o iov.o async.o
 tools-obj-$(CONFIG_POSIX) += compatfd.o
 
 qemu-img$(EXESUF): qemu-img.o $(tools-obj-y) $(block-obj-y)
