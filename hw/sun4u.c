@@ -81,7 +81,7 @@
 #define FW_CFG_SPARC64_HEIGHT (FW_CFG_ARCH_LOCAL + 0x01)
 #define FW_CFG_SPARC64_DEPTH (FW_CFG_ARCH_LOCAL + 0x02)
 
-#define MAX_PILS 16
+#define IVEC_MAX             0x30
 
 #define TICK_MAX             0x7fffffffffffffffULL
 
@@ -304,18 +304,24 @@ static void cpu_kick_irq(CPUSPARCState *env)
     qemu_cpu_kick(env);
 }
 
-static void cpu_set_irq(void *opaque, int irq, int level)
+static void cpu_set_ivec_irq(void *opaque, int irq, int level)
 {
     CPUSPARCState *env = opaque;
 
     if (level) {
-        CPUIRQ_DPRINTF("Raise CPU IRQ %d\n", irq);
-        env->pil_in |= 1 << irq;
-        cpu_kick_irq(env);
-    } else {
-        CPUIRQ_DPRINTF("Lower CPU IRQ %d\n", irq);
-        env->pil_in &= ~(1 << irq);
-        cpu_check_irqs(env);
+        CPUIRQ_DPRINTF("Raise IVEC IRQ %d\n", irq);
+        env->interrupt_index = TT_IVEC;
+        env->pil_in |= 1 << 5;
+        env->ivec_status |= 0x20;
+        env->ivec_data[0] = (0x1f << 6) | irq;
+        env->ivec_data[1] = 0;
+        env->ivec_data[2] = 0;
+        cpu_interrupt(env, CPU_INTERRUPT_HARD);
+      } else {
+        CPUIRQ_DPRINTF("Lower IVEC IRQ %d\n", irq);
+        env->pil_in &= ~(1 << 5);
+        env->ivec_status &= ~0x20;
+        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
     }
 }
 
@@ -521,13 +527,29 @@ void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit)
     }
 }
 
-static void dummy_isa_irq_handler(void *opaque, int n, int level)
+static void isa_irq_handler(void *opaque, int n, int level)
 {
+    static const int isa_irq_to_ivec[16] = {
+        [1] = 0x29, /* keyboard */
+        [4] = 0x2b, /* serial */
+        [6] = 0x27, /* floppy */
+        [7] = 0x22, /* parallel */
+        [12] = 0x2a, /* mouse */
+    };
+    qemu_irq *irqs = opaque;
+    int ivec;
+
+    assert(n < 16);
+    ivec = isa_irq_to_ivec[n];
+    EBUS_DPRINTF("Set ISA IRQ %d level %d -> ivec 0x%x\n", n, level, ivec);
+    if (ivec) {
+        qemu_set_irq(irqs[ivec], level);
+    }
 }
 
 /* EBUS (Eight bit bus) bridge */
 static ISABus *
-pci_ebus_init(PCIBus *bus, int devfn)
+pci_ebus_init(PCIBus *bus, int devfn, qemu_irq *irqs)
 {
     qemu_irq *isa_irq;
     PCIDevice *pci_dev;
@@ -536,7 +558,7 @@ pci_ebus_init(PCIBus *bus, int devfn)
     pci_dev = pci_create_simple(bus, devfn, "ebus");
     isa_bus = DO_UPCAST(ISABus, qbus,
                         qdev_get_child_bus(&pci_dev->qdev, "isa.0"));
-    isa_irq = qemu_allocate_irqs(dummy_isa_irq_handler, NULL, 16);
+    isa_irq = qemu_allocate_irqs(isa_irq_handler, irqs, 16);
     isa_bus_irqs(isa_bus, isa_irq);
     return isa_bus;
 }
@@ -761,7 +783,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
     long initrd_size, kernel_size;
     PCIBus *pci_bus, *pci_bus2, *pci_bus3;
     ISABus *isa_bus;
-    qemu_irq *irq;
+    qemu_irq *ivec_irqs, *pbm_irqs;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
     DriveInfo *fd[MAX_FD];
     void *fw_cfg;
@@ -774,14 +796,13 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
 
     prom_init(hwdef->prom_addr, bios_name);
 
-
-    irq = qemu_allocate_irqs(cpu_set_irq, env, MAX_PILS);
-    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, irq, &pci_bus2,
-                           &pci_bus3);
+    ivec_irqs = qemu_allocate_irqs(cpu_set_ivec_irq, env, IVEC_MAX);
+    pci_bus = pci_apb_init(APB_SPECIAL_BASE, APB_MEM_BASE, ivec_irqs, &pci_bus2,
+                           &pci_bus3, &pbm_irqs);
     pci_vga_init(pci_bus);
 
     // XXX Should be pci_bus3
-    isa_bus = pci_ebus_init(pci_bus, -1);
+    isa_bus = pci_ebus_init(pci_bus, -1, pbm_irqs);
 
     i = 0;
     if (hwdef->console_serial_base) {

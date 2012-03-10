@@ -493,6 +493,9 @@ struct CPUSPARCState {
     /* UA 2005 hyperprivileged registers */
     uint64_t hpstate, htstate[MAXTL_MAX], hintp, htba, hver, hstick_cmpr, ssr;
     CPUTimer *hstick; // UA 2005
+    /* Interrupt vector registers */
+    uint64_t ivec_status;
+    uint64_t ivec_data[3];
     uint32_t softint;
 #define SOFTINT_TIMER   1
 #define SOFTINT_STIMER  (1 << 16)

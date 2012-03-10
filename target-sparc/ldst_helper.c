@@ -1526,6 +1526,19 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
             ret = env->dtlb[reg].tag;
             break;
         }
+    case 0x48: /* Interrupt dispatch, RO */
+        break;
+    case 0x49: /* Interrupt data receive */
+        ret = env->ivec_status;
+        break;
+    case 0x7f: /* Incoming interrupt vector, RO */
+        {
+            int reg = (addr >> 4) & 0x3;
+            if (reg < 3) {
+                ret = env->ivec_data[reg];
+            }
+            break;
+        }
     case 0x46: /* D-cache data */
     case 0x47: /* D-cache tag access */
     case 0x4b: /* E-cache error enable */
@@ -1540,11 +1553,6 @@ uint64_t helper_ld_asi(target_ulong addr, int asi, int size, int sign)
     case 0x7e: /* E-cache tag */
         break;
     case 0x5b: /* D-MMU data pointer */
-    case 0x48: /* Interrupt dispatch, RO */
-    case 0x49: /* Interrupt data receive */
-    case 0x7f: /* Incoming interrupt vector, RO */
-        /* XXX */
-        break;
     case 0x54: /* I-MMU data in, WO */
     case 0x57: /* I-MMU demap, WO */
     case 0x5c: /* D-MMU data in, WO */
@@ -1954,7 +1962,7 @@ void helper_st_asi(target_ulong addr, target_ulong val, int asi, int size)
         demap_tlb(env->dtlb, addr, "dmmu", env);
         return;
     case 0x49: /* Interrupt data receive */
-        /* XXX */
+        env->ivec_status = val & 0x20;
         return;
     case 0x46: /* D-cache data */
     case 0x47: /* D-cache tag access */
