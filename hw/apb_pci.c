@@ -444,7 +444,6 @@ static void pbm_pci_host_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_SABRE;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
-    k->is_bridge = 1;
 }
 
 static TypeInfo pbm_pci_host_info = {
