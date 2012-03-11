@@ -5,6 +5,7 @@
 #include "qdict.h"
 #include "notify.h"
 #include "monitor.h"
+#include "trace.h"
 
 /* keyboard/mouse support */
 
@@ -202,11 +203,13 @@ static inline DisplaySurface* qemu_create_displaysurface(DisplayState *ds, int w
 
 static inline DisplaySurface* qemu_resize_displaysurface(DisplayState *ds, int width, int height)
 {
+    trace_displaysurface_resize(ds, ds->surface, width, height);
     return ds->allocator->resize_displaysurface(ds->surface, width, height);
 }
 
 static inline void qemu_free_displaysurface(DisplayState *ds)
 {
+    trace_displaysurface_free(ds, ds->surface);
     ds->allocator->free_displaysurface(ds->surface);
 }
 

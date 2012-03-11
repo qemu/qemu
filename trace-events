@@ -658,3 +658,7 @@ dma_aio_cancel(void *dbs) "dbs=%p"
 dma_complete(void *dbs, int ret, void *cb) "dbs=%p ret=%d cb=%p"
 dma_bdrv_cb(void *dbs, int ret) "dbs=%p ret=%d"
 dma_map_wait(void *dbs) "dbs=%p"
+
+# console.h
+displaysurface_free(void *display_state, void *display_surface) "state=%p surface=%p"
+displaysurface_resize(void *display_state, void *display_surface, int width, int height) "state=%p surface=%p %dx%d"
