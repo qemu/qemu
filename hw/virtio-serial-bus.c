@@ -106,8 +106,8 @@ static size_t write_to_port(VirtIOSerialPort *port,
             break;
         }
 
-        len = iov_from_buf(elem.in_sg, elem.in_num,
-                           buf + offset, 0, size - offset);
+        len = iov_from_buf(elem.in_sg, elem.in_num, 0,
+                           buf + offset, size - offset);
         offset += len;
 
         virtqueue_push(vq, &elem, len);
@@ -467,7 +467,7 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
             buf = g_malloc(cur_len);
             len = cur_len;
         }
-        iov_to_buf(elem.out_sg, elem.out_num, buf, 0, cur_len);
+        iov_to_buf(elem.out_sg, elem.out_num, 0, buf, cur_len);
 
         handle_control_message(vser, buf, cur_len);
         virtqueue_push(vq, &elem, 0);

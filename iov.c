@@ -17,8 +17,8 @@
 
 #include "iov.h"
 
-size_t iov_from_buf(struct iovec *iov, unsigned int iov_cnt,
-                    const void *buf, size_t iov_off, size_t size)
+size_t iov_from_buf(struct iovec *iov, unsigned int iov_cnt, size_t iov_off,
+                    const void *buf, size_t size)
 {
     size_t iovec_off, buf_off;
     unsigned int i;
@@ -40,8 +40,8 @@ size_t iov_from_buf(struct iovec *iov, unsigned int iov_cnt,
     return buf_off;
 }
 
-size_t iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
-                  void *buf, size_t iov_off, size_t size)
+size_t iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt, size_t iov_off,
+                  void *buf, size_t size)
 {
     uint8_t *ptr;
     size_t iovec_off, buf_off;
@@ -65,8 +65,8 @@ size_t iov_to_buf(const struct iovec *iov, const unsigned int iov_cnt,
     return buf_off;
 }
 
-size_t iov_clear(const struct iovec *iov, const unsigned int iov_cnt,
-                 size_t iov_off, size_t size)
+size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
+                 size_t iov_off, int fillc, size_t size)
 {
     size_t iovec_off, buf_off;
     unsigned int i;
@@ -77,7 +77,7 @@ size_t iov_clear(const struct iovec *iov, const unsigned int iov_cnt,
         if (iov_off < (iovec_off + iov[i].iov_len)) {
             size_t len = MIN((iovec_off + iov[i].iov_len) - iov_off , size);
 
-            memset(iov[i].iov_base + (iov_off - iovec_off), 0, len);
+            memset(iov[i].iov_base + (iov_off - iovec_off), fillc, len);
 
             buf_off += len;
             iov_off += len;
