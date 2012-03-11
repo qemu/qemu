@@ -30,6 +30,7 @@
 #include "pixel_ops.h"
 #include "qemu-timer.h"
 #include "xen.h"
+#include "trace.h"
 
 //#define DEBUG_VGA
 //#define DEBUG_VGA_MEM
@@ -2372,6 +2373,7 @@ int ppm_save(const char *filename, struct DisplaySurface *ds)
     int ret;
     char *linebuf, *pbuf;
 
+    trace_ppm_save(filename, ds);
     f = fopen(filename, "wb");
     if (!f)
         return -1;
