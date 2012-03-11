@@ -885,8 +885,8 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
             if (!(pml4e & PG_PRESENT_MASK))
                 return -1;
 
-            pdpe_addr = ((pml4e & ~0xfff) + (((addr >> 30) & 0x1ff) << 3)) &
-                env->a20_mask;
+            pdpe_addr = ((pml4e & ~0xfff & ~(PG_NX_MASK | PG_HI_USER_MASK)) +
+                         (((addr >> 30) & 0x1ff) << 3)) & env->a20_mask;
             pdpe = ldq_phys(pdpe_addr);
             if (!(pdpe & PG_PRESENT_MASK))
                 return -1;
@@ -900,8 +900,8 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
                 return -1;
         }
 
-        pde_addr = ((pdpe & ~0xfff) + (((addr >> 21) & 0x1ff) << 3)) &
-            env->a20_mask;
+        pde_addr = ((pdpe & ~0xfff & ~(PG_NX_MASK | PG_HI_USER_MASK)) +
+                    (((addr >> 21) & 0x1ff) << 3)) & env->a20_mask;
         pde = ldq_phys(pde_addr);
         if (!(pde & PG_PRESENT_MASK)) {
             return -1;
@@ -912,11 +912,12 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
             pte = pde & ~( (page_size - 1) & ~0xfff); /* align to page_size */
         } else {
             /* 4 KB page */
-            pte_addr = ((pde & ~0xfff) + (((addr >> 12) & 0x1ff) << 3)) &
-                env->a20_mask;
+            pte_addr = ((pde & ~0xfff & ~(PG_NX_MASK | PG_HI_USER_MASK)) +
+                        (((addr >> 12) & 0x1ff) << 3)) & env->a20_mask;
             page_size = 4096;
             pte = ldq_phys(pte_addr);
         }
+        pte &= ~(PG_NX_MASK | PG_HI_USER_MASK);
         if (!(pte & PG_PRESENT_MASK))
             return -1;
     } else {

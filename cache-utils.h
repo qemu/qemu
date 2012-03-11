@@ -2,6 +2,9 @@
 #define QEMU_CACHE_UTILS_H
 
 #if defined(_ARCH_PPC) && !defined(CONFIG_TCG_INTERPRETER)
+
+#include <stdint.h> /* uintptr_t */
+
 struct qemu_cache_conf {
     uintptr_t dcache_bsize;
     uintptr_t icache_bsize;

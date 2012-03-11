@@ -1052,7 +1052,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 
     /* TLB Miss.  */
     /* label1: */
-    tcg_out_label(s, lab1, (tcg_target_long)s->code_ptr);
+    tcg_out_label(s, lab1, s->code_ptr);
 
     argreg = TCG_REG_R26;
     tcg_out_mov(s, TCG_TYPE_I32, argreg--, addrlo_reg);
@@ -1089,7 +1089,7 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     }
 
     /* label2: */
-    tcg_out_label(s, lab2, (tcg_target_long)s->code_ptr);
+    tcg_out_label(s, lab2, s->code_ptr);
 #else
     tcg_out_qemu_ld_direct(s, datalo_reg, datahi_reg, addrlo_reg,
                            (GUEST_BASE ? TCG_GUEST_BASE_REG : TCG_REG_R0), opc);
@@ -1171,7 +1171,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 
     /* TLB Miss.  */
     /* label1: */
-    tcg_out_label(s, lab1, (tcg_target_long)s->code_ptr);
+    tcg_out_label(s, lab1, s->code_ptr);
 
     argreg = TCG_REG_R26;
     tcg_out_mov(s, TCG_TYPE_I32, argreg--, addrlo_reg);
@@ -1215,7 +1215,7 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     tcg_out_call(s, qemu_st_helpers[opc]);
 
     /* label2: */
-    tcg_out_label(s, lab2, (tcg_target_long)s->code_ptr);
+    tcg_out_label(s, lab2, s->code_ptr);
 #else
     /* There are no indexed stores, so if GUEST_BASE is set we must do the add
        explicitly.  Careful to avoid R20, which is used for the bswaps to follow.  */

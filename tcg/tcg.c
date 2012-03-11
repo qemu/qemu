@@ -146,11 +146,11 @@ static void tcg_out_reloc(TCGContext *s, uint8_t *code_ptr, int type,
     }
 }
 
-static void tcg_out_label(TCGContext *s, int label_index,
-                          tcg_target_long value)
+static void tcg_out_label(TCGContext *s, int label_index, void *ptr)
 {
     TCGLabel *l;
     TCGRelocation *r;
+    tcg_target_long value = (tcg_target_long)ptr;
 
     l = &s->labels[label_index];
     if (l->has_value)
@@ -2127,7 +2127,7 @@ static inline int tcg_gen_code_common(TCGContext *s, uint8_t *gen_code_buf,
             break;
         case INDEX_op_set_label:
             tcg_reg_alloc_bb_end(s, s->reserved_regs);
-            tcg_out_label(s, args[0], (uintptr_t)s->code_ptr);
+            tcg_out_label(s, args[0], s->code_ptr);
             break;
         case INDEX_op_call:
             dead_args = s->op_dead_args[op_index];

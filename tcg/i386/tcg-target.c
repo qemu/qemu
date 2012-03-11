@@ -880,7 +880,7 @@ static void tcg_out_brcond2(TCGContext *s, const TCGArg *args,
     default:
         tcg_abort();
     }
-    tcg_out_label(s, label_next, (tcg_target_long)s->code_ptr);
+    tcg_out_label(s, label_next, s->code_ptr);
 }
 #endif
 
@@ -922,10 +922,10 @@ static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
 
         tcg_out_movi(s, TCG_TYPE_I32, args[0], 0);
         tcg_out_jxx(s, JCC_JMP, label_over, 1);
-        tcg_out_label(s, label_true, (tcg_target_long)s->code_ptr);
+        tcg_out_label(s, label_true, s->code_ptr);
 
         tcg_out_movi(s, TCG_TYPE_I32, args[0], 1);
-        tcg_out_label(s, label_over, (tcg_target_long)s->code_ptr);
+        tcg_out_label(s, label_over, s->code_ptr);
     } else {
         /* When the destination does not overlap one of the arguments,
            clear the destination first, jump if cond false, and emit an
@@ -939,7 +939,7 @@ static void tcg_out_setcond2(TCGContext *s, const TCGArg *args,
         tcg_out_brcond2(s, new_args, const_args+1, 1);
 
         tgen_arithi(s, ARITH_ADD, args[0], 1, 0);
-        tcg_out_label(s, label_over, (tcg_target_long)s->code_ptr);
+        tcg_out_label(s, label_over, s->code_ptr);
     }
 }
 #endif
