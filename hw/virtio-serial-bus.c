@@ -454,7 +454,7 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
     len = 0;
     buf = NULL;
     while (virtqueue_pop(vq, &elem)) {
-        size_t cur_len, copied;
+        size_t cur_len;
 
         cur_len = iov_size(elem.out_sg, elem.out_num);
         /*
@@ -467,9 +467,9 @@ static void control_out(VirtIODevice *vdev, VirtQueue *vq)
             buf = g_malloc(cur_len);
             len = cur_len;
         }
-        copied = iov_to_buf(elem.out_sg, elem.out_num, buf, 0, len);
+        iov_to_buf(elem.out_sg, elem.out_num, buf, 0, cur_len);
 
-        handle_control_message(vser, buf, copied);
+        handle_control_message(vser, buf, cur_len);
         virtqueue_push(vq, &elem, 0);
     }
     g_free(buf);
