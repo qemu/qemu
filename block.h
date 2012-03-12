@@ -180,8 +180,6 @@ typedef struct BdrvCheckResult {
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res);
 
 /* async block I/O */
-typedef struct BlockDriverAIOCB BlockDriverAIOCB;
-typedef void BlockDriverCompletionFunc(void *opaque, int ret);
 typedef void BlockDriverDirtyHandler(BlockDriverState *bs, int64_t sector,
                                      int sector_num);
 BlockDriverAIOCB *bdrv_aio_readv(BlockDriverState *bs, int64_t sector_num,

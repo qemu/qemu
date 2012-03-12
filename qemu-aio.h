@@ -17,6 +17,27 @@
 #include "qemu-common.h"
 #include "qemu-char.h"
 
+typedef struct BlockDriverAIOCB BlockDriverAIOCB;
+typedef void BlockDriverCompletionFunc(void *opaque, int ret);
+
+typedef struct AIOPool {
+    void (*cancel)(BlockDriverAIOCB *acb);
+    int aiocb_size;
+    BlockDriverAIOCB *free_aiocb;
+} AIOPool;
+
+struct BlockDriverAIOCB {
+    AIOPool *pool;
+    BlockDriverState *bs;
+    BlockDriverCompletionFunc *cb;
+    void *opaque;
+    BlockDriverAIOCB *next;
+};
+
+void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
+                   BlockDriverCompletionFunc *cb, void *opaque);
+void qemu_aio_release(void *p);
+
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
 typedef int (AioFlushHandler)(void *opaque);
 

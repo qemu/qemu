@@ -9,7 +9,6 @@
  */
 #include "qemu-common.h"
 #include "qemu-aio.h"
-#include "block_int.h"
 #include "block/raw-posix-aio.h"
 
 #include <sys/eventfd.h>

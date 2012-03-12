@@ -53,12 +53,6 @@
 
 typedef struct BdrvTrackedRequest BdrvTrackedRequest;
 
-typedef struct AIOPool {
-    void (*cancel)(BlockDriverAIOCB *acb);
-    int aiocb_size;
-    BlockDriverAIOCB *free_aiocb;
-} AIOPool;
-
 typedef struct BlockIOLimit {
     int64_t bps[3];
     int64_t iops[3];
@@ -302,19 +296,7 @@ struct BlockDriverState {
     BlockJob *job;
 };
 
-struct BlockDriverAIOCB {
-    AIOPool *pool;
-    BlockDriverState *bs;
-    BlockDriverCompletionFunc *cb;
-    void *opaque;
-    BlockDriverAIOCB *next;
-};
-
 void get_tmp_filename(char *filename, int size);
-
-void *qemu_aio_get(AIOPool *pool, BlockDriverState *bs,
-                   BlockDriverCompletionFunc *cb, void *opaque);
-void qemu_aio_release(void *p);
 
 void bdrv_set_io_limits(BlockDriverState *bs,
                         BlockIOLimit *io_limits);

@@ -8,7 +8,6 @@
  */
 
 #include "dma.h"
-#include "block_int.h"
 #include "trace.h"
 
 void qemu_sglist_init(QEMUSGList *qsg, int alloc_hint)
