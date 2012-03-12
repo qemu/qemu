@@ -2331,9 +2331,7 @@ void bdrv_flush_all(void)
     BlockDriverState *bs;
 
     QTAILQ_FOREACH(bs, &bdrv_states, list) {
-        if (!bdrv_is_read_only(bs) && bdrv_is_inserted(bs)) {
-            bdrv_flush(bs);
-        }
+        bdrv_flush(bs);
     }
 }
 
@@ -3520,7 +3518,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 {
     int ret;
 
-    if (!bs->drv) {
+    if (!bs || !bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
         return 0;
     }
 
@@ -3538,7 +3536,7 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
     }
 
     if (bs->drv->bdrv_co_flush_to_disk) {
-        return bs->drv->bdrv_co_flush_to_disk(bs);
+        ret = bs->drv->bdrv_co_flush_to_disk(bs);
     } else if (bs->drv->bdrv_aio_flush) {
         BlockDriverAIOCB *acb;
         CoroutineIOCompletion co = {
@@ -3547,10 +3545,10 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
 
         acb = bs->drv->bdrv_aio_flush(bs, bdrv_co_io_em_complete, &co);
         if (acb == NULL) {
-            return -EIO;
+            ret = -EIO;
         } else {
             qemu_coroutine_yield();
-            return co.ret;
+            ret = co.ret;
         }
     } else {
         /*
@@ -3564,8 +3562,16 @@ int coroutine_fn bdrv_co_flush(BlockDriverState *bs)
          *
          * Let's hope the user knows what he's doing.
          */
-        return 0;
+        ret = 0;
     }
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* Now flush the underlying protocol.  It will also have BDRV_O_NO_FLUSH
+     * in the case of cache=unsafe, so there are no useless flushes.
+     */
+    return bdrv_co_flush(bs->file);
 }
 
 void bdrv_invalidate_cache(BlockDriverState *bs)

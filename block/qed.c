@@ -1350,13 +1350,6 @@ static BlockDriverAIOCB *bdrv_qed_aio_writev(BlockDriverState *bs,
                          opaque, QED_AIOCB_WRITE);
 }
 
-static BlockDriverAIOCB *bdrv_qed_aio_flush(BlockDriverState *bs,
-                                            BlockDriverCompletionFunc *cb,
-                                            void *opaque)
-{
-    return bdrv_aio_flush(bs->file, cb, opaque);
-}
-
 typedef struct {
     Coroutine *co;
     int ret;
@@ -1562,7 +1555,6 @@ static BlockDriver bdrv_qed = {
     .bdrv_make_empty          = bdrv_qed_make_empty,
     .bdrv_aio_readv           = bdrv_qed_aio_readv,
     .bdrv_aio_writev          = bdrv_qed_aio_writev,
-    .bdrv_aio_flush           = bdrv_qed_aio_flush,
     .bdrv_co_write_zeroes     = bdrv_qed_co_write_zeroes,
     .bdrv_truncate            = bdrv_qed_truncate,
     .bdrv_getlength           = bdrv_qed_getlength,

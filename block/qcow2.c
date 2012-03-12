@@ -1253,11 +1253,6 @@ static coroutine_fn int qcow2_co_flush_to_os(BlockDriverState *bs)
     return 0;
 }
 
-static coroutine_fn int qcow2_co_flush_to_disk(BlockDriverState *bs)
-{
-    return bdrv_co_flush(bs->file);
-}
-
 static int64_t qcow2_vm_state_offset(BDRVQcowState *s)
 {
 	return (int64_t)s->l1_vm_state_index << (s->cluster_bits + s->l2_bits);
@@ -1377,7 +1372,6 @@ static BlockDriver bdrv_qcow2 = {
     .bdrv_co_readv          = qcow2_co_readv,
     .bdrv_co_writev         = qcow2_co_writev,
     .bdrv_co_flush_to_os    = qcow2_co_flush_to_os,
-    .bdrv_co_flush_to_disk  = qcow2_co_flush_to_disk,
 
     .bdrv_co_discard        = qcow2_co_discard,
     .bdrv_truncate          = qcow2_truncate,

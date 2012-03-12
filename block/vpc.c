@@ -507,11 +507,6 @@ static coroutine_fn int vpc_co_write(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
-static coroutine_fn int vpc_co_flush(BlockDriverState *bs)
-{
-    return bdrv_co_flush(bs->file);
-}
-
 /*
  * Calculates the number of cylinders, heads and sectors per cylinder
  * based on a given number of sectors. This is the algorithm described
@@ -789,7 +784,6 @@ static BlockDriver bdrv_vpc = {
 
     .bdrv_read              = vpc_co_read,
     .bdrv_write             = vpc_co_write,
-    .bdrv_co_flush_to_disk  = vpc_co_flush,
 
     .create_options = vpc_create_options,
 };

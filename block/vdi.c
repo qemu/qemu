@@ -930,13 +930,6 @@ static void vdi_close(BlockDriverState *bs)
     error_free(s->migration_blocker);
 }
 
-static coroutine_fn int vdi_co_flush(BlockDriverState *bs)
-{
-    logout("\n");
-    return bdrv_co_flush(bs->file);
-}
-
-
 static QEMUOptionParameter vdi_create_options[] = {
     {
         .name = BLOCK_OPT_SIZE,
@@ -969,7 +962,6 @@ static BlockDriver bdrv_vdi = {
     .bdrv_open = vdi_open,
     .bdrv_close = vdi_close,
     .bdrv_create = vdi_create,
-    .bdrv_co_flush_to_disk = vdi_co_flush,
     .bdrv_co_is_allocated = vdi_co_is_allocated,
     .bdrv_make_empty = vdi_make_empty,
 
