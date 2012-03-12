@@ -17,6 +17,7 @@
 #include "qemu-common.h"
 #include "block_int.h"
 #include "cmd.h"
+#include "trace/control.h"
 
 #define VERSION	"0.0.1"
 
@@ -1783,6 +1784,7 @@ static void usage(const char *name)
 "  -g, --growable       allow file to grow (only applies to protocols)\n"
 "  -m, --misalign       misalign allocations for O_DIRECT\n"
 "  -k, --native-aio     use kernel AIO implementation (on Linux only)\n"
+"  -T, --trace FILE     enable trace events listed in the given file\n"
 "  -h, --help           display this help and exit\n"
 "  -V, --version        output version information and exit\n"
 "\n",
@@ -1794,7 +1796,7 @@ int main(int argc, char **argv)
 {
     int readonly = 0;
     int growable = 0;
-    const char *sopt = "hVc:rsnmgk";
+    const char *sopt = "hVc:rsnmgkT:";
     const struct option lopt[] = {
         { "help", 0, NULL, 'h' },
         { "version", 0, NULL, 'V' },
@@ -1806,6 +1808,7 @@ int main(int argc, char **argv)
         { "misalign", 0, NULL, 'm' },
         { "growable", 0, NULL, 'g' },
         { "native-aio", 0, NULL, 'k' },
+        { "trace", 1, NULL, 'T' },
         { NULL, 0, NULL, 0 }
     };
     int c;
@@ -1836,6 +1839,11 @@ int main(int argc, char **argv)
             break;
         case 'k':
             flags |= BDRV_O_NATIVE_AIO;
+            break;
+        case 'T':
+            if (!trace_backend_init(optarg, NULL)) {
+                exit(1); /* error message will have been printed */
+            }
             break;
         case 'V':
             printf("%s version %s\n", progname, VERSION);
