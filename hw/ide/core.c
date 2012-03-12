@@ -100,7 +100,7 @@ static void ide_identify(IDEState *s)
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
     padstr((char *)(p + 23), s->version, 8); /* firmware version */
-    padstr((char *)(p + 27), "QEMU HARDDISK", 40); /* model */
+    padstr((char *)(p + 27), s->drive_model_str, 40); /* model */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #endif
@@ -188,7 +188,7 @@ static void ide_atapi_identify(IDEState *s)
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
     padstr((char *)(p + 23), s->version, 8); /* firmware version */
-    padstr((char *)(p + 27), "QEMU DVD-ROM", 40); /* model */
+    padstr((char *)(p + 27), s->drive_model_str, 40); /* model */
     put_le16(p + 48, 1); /* dword I/O (XXX: should not be set on CDROM) */
 #ifdef USE_DMA_CDROM
     put_le16(p + 49, 1 << 9 | 1 << 8); /* DMA and LBA supported */
@@ -245,7 +245,7 @@ static void ide_cfata_identify(IDEState *s)
     padstr((char *)(p + 10), s->drive_serial_str, 20); /* serial number */
     put_le16(p + 22, 0x0004);			/* ECC bytes */
     padstr((char *) (p + 23), s->version, 8);	/* Firmware Revision */
-    padstr((char *) (p + 27), "QEMU MICRODRIVE", 40);/* Model number */
+    padstr((char *) (p + 27), s->drive_model_str, 40);/* Model number */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #else
@@ -1833,7 +1833,7 @@ static const BlockDevOps ide_cd_block_ops = {
 };
 
 int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
-                   const char *version, const char *serial)
+                   const char *version, const char *serial, const char *model)
 {
     int cylinders, heads, secs;
     uint64_t nb_sectors;
@@ -1884,6 +1884,22 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
         snprintf(s->drive_serial_str, sizeof(s->drive_serial_str),
                  "QM%05d", s->drive_serial);
     }
+    if (model) {
+        pstrcpy(s->drive_model_str, sizeof(s->drive_model_str), model);
+    } else {
+        switch (kind) {
+        case IDE_CD:
+            strcpy(s->drive_model_str, "QEMU DVD-ROM");
+            break;
+        case IDE_CFATA:
+            strcpy(s->drive_model_str, "QEMU MICRODRIVE");
+            break;
+        default:
+            strcpy(s->drive_model_str, "QEMU HARDDISK");
+            break;
+        }
+    }
+
     if (version) {
         pstrcpy(s->version, sizeof(s->version), version);
     } else {
@@ -1976,7 +1992,8 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
         if (dinfo) {
             if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
                                dinfo->media_cd ? IDE_CD : IDE_HD, NULL,
-                               *dinfo->serial ? dinfo->serial : NULL) < 0) {
+                               *dinfo->serial ? dinfo->serial : NULL,
+                               NULL) < 0) {
                 error_report("Can't set up IDE drive %s", dinfo->id);
                 exit(1);
             }
