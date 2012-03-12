@@ -174,7 +174,8 @@ int64_t qmp_guest_fsfreeze_thaw(Error **err)
 }
 
 typedef enum {
-    GUEST_SUSPEND_MODE_DISK
+    GUEST_SUSPEND_MODE_DISK,
+    GUEST_SUSPEND_MODE_RAM
 } GuestSuspendMode;
 
 static void check_suspend_mode(GuestSuspendMode mode, Error **err)
@@ -192,18 +193,24 @@ static void check_suspend_mode(GuestSuspendMode mode, Error **err)
         goto out;
     }
 
-    if (mode == GUEST_SUSPEND_MODE_DISK) {
-        if (sys_pwr_caps.SystemS4) {
-            return;
+    switch (mode) {
+    case GUEST_SUSPEND_MODE_DISK:
+        if (!sys_pwr_caps.SystemS4) {
+            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
+                      "suspend-to-disk not supported by OS");
         }
-    } else {
+        break;
+    case GUEST_SUSPEND_MODE_RAM:
+        if (!sys_pwr_caps.SystemS3) {
+            error_set(&local_err, QERR_QGA_COMMAND_FAILED,
+                      "suspend-to-ram not supported by OS");
+        }
+        break;
+    default:
         error_set(&local_err, QERR_INVALID_PARAMETER_VALUE, "mode",
                   "GuestSuspendMode");
-        goto out;
     }
 
-    error_set(&local_err, QERR_QGA_COMMAND_FAILED,
-              "suspend mode not supported by OS");
 out:
     if (local_err) {
         error_propagate(err, local_err);
@@ -239,7 +246,16 @@ void qmp_guest_suspend_disk(Error **err)
 
 void qmp_guest_suspend_ram(Error **err)
 {
-    error_set(err, QERR_UNSUPPORTED);
+    GuestSuspendMode *mode = g_malloc(sizeof(GuestSuspendMode));
+
+    *mode = GUEST_SUSPEND_MODE_RAM;
+    check_suspend_mode(*mode, err);
+    acquire_privilege(SE_SHUTDOWN_NAME, err);
+    execute_async(do_suspend, mode, err);
+
+    if (error_is_set(err)) {
+        g_free(mode);
+    }
 }
 
 void qmp_guest_suspend_hybrid(Error **err)
