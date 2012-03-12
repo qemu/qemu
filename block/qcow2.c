@@ -549,7 +549,7 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
 
         qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_copy(&hd_qiov, qiov, bytes_done,
+        qemu_iovec_concat(&hd_qiov, qiov, bytes_done,
             cur_nr_sectors * 512);
 
         switch (ret) {
@@ -720,7 +720,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         assert((cluster_offset & 511) == 0);
 
         qemu_iovec_reset(&hd_qiov);
-        qemu_iovec_copy(&hd_qiov, qiov, bytes_done,
+        qemu_iovec_concat(&hd_qiov, qiov, bytes_done,
             cur_nr_sectors * 512);
 
         if (s->crypt_method) {

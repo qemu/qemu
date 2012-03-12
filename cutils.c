@@ -172,48 +172,34 @@ void qemu_iovec_add(QEMUIOVector *qiov, void *base, size_t len)
 }
 
 /*
- * Copies iovecs from src to the end of dst. It starts copying after skipping
- * the given number of bytes in src and copies until src is completely copied
- * or the total size of the copied iovec reaches size.The size of the last
- * copied iovec is changed in order to fit the specified total size if it isn't
- * a perfect fit already.
+ * Concatenates (partial) iovecs from src to the end of dst.
+ * It starts copying after skipping `soffset' bytes at the
+ * beginning of src and adds individual vectors from src to
+ * dst copies up to `sbytes' bytes total, or up to the end
+ * of src if it comes first.  This way, it is okay to specify
+ * very large value for `sbytes' to indicate "up to the end
+ * of src".
+ * Only vector pointers are processed, not the actual data buffers.
  */
-void qemu_iovec_copy(QEMUIOVector *dst, QEMUIOVector *src, uint64_t skip,
-    size_t size)
+void qemu_iovec_concat(QEMUIOVector *dst,
+                       QEMUIOVector *src, size_t soffset, size_t sbytes)
 {
     int i;
     size_t done;
-    void *iov_base;
-    uint64_t iov_len;
-
+    struct iovec *siov = src->iov;
     assert(dst->nalloc != -1);
-
-    done = 0;
-    for (i = 0; (i < src->niov) && (done != size); i++) {
-        if (skip >= src->iov[i].iov_len) {
-            /* Skip the whole iov */
-            skip -= src->iov[i].iov_len;
-            continue;
+    assert(src->size >= soffset);
+    for (i = 0, done = 0; done < sbytes && i < src->niov; i++) {
+        if (soffset < siov[i].iov_len) {
+            size_t len = MIN(siov[i].iov_len - soffset, sbytes - done);
+            qemu_iovec_add(dst, siov[i].iov_base + soffset, len);
+            done += len;
+            soffset = 0;
         } else {
-            /* Skip only part (or nothing) of the iov */
-            iov_base = (uint8_t*) src->iov[i].iov_base + skip;
-            iov_len = src->iov[i].iov_len - skip;
-            skip = 0;
+            soffset -= siov[i].iov_len;
         }
-
-        if (done + iov_len > size) {
-            qemu_iovec_add(dst, iov_base, size - done);
-            break;
-        } else {
-            qemu_iovec_add(dst, iov_base, iov_len);
-        }
-        done += iov_len;
     }
-}
-
-void qemu_iovec_concat(QEMUIOVector *dst, QEMUIOVector *src, size_t size)
-{
-    qemu_iovec_copy(dst, src, 0, size);
+    /* return done; */
 }
 
 void qemu_iovec_destroy(QEMUIOVector *qiov)

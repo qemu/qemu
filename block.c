@@ -3101,13 +3101,13 @@ static int multiwrite_merge(BlockDriverState *bs, BlockRequest *reqs,
             // Add the first request to the merged one. If the requests are
             // overlapping, drop the last sectors of the first request.
             size = (reqs[i].sector - reqs[outidx].sector) << 9;
-            qemu_iovec_concat(qiov, reqs[outidx].qiov, size);
+            qemu_iovec_concat(qiov, reqs[outidx].qiov, 0, size);
 
             // We should need to add any zeros between the two requests
             assert (reqs[i].sector <= oldreq_last);
 
             // Add the second request
-            qemu_iovec_concat(qiov, reqs[i].qiov, reqs[i].qiov->size);
+            qemu_iovec_concat(qiov, reqs[i].qiov, 0, reqs[i].qiov->size);
 
             reqs[outidx].nb_sectors = qiov->size >> 9;
             reqs[outidx].qiov = qiov;
