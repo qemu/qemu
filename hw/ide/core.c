@@ -1879,7 +1879,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
         }
     }
     if (serial) {
-        strncpy(s->drive_serial_str, serial, sizeof(s->drive_serial_str));
+        pstrcpy(s->drive_serial_str, sizeof(s->drive_serial_str), serial);
     } else {
         snprintf(s->drive_serial_str, sizeof(s->drive_serial_str),
                  "QM%05d", s->drive_serial);
