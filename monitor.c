@@ -128,7 +128,6 @@ typedef struct mon_cmd_t {
         int  (*cmd_async)(Monitor *mon, const QDict *params,
                           MonitorCompletion *cb, void *opaque);
     } mhandler;
-    bool qapi;
     int flags;
 } mon_cmd_t;
 
