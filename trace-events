@@ -562,7 +562,7 @@ qemu_coroutine_terminate(void *co) "self %p"
 
 # qemu-coroutine-lock.c
 qemu_co_queue_next_bh(void) ""
-qemu_co_queue_next(void *next) "next %p"
+qemu_co_queue_next(void *nxt) "next %p"
 qemu_co_mutex_lock_entry(void *mutex, void *self) "mutex %p self %p"
 qemu_co_mutex_lock_return(void *mutex, void *self) "mutex %p self %p"
 qemu_co_mutex_unlock_entry(void *mutex, void *self) "mutex %p self %p"
