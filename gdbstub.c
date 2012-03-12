@@ -1903,8 +1903,8 @@ static void gdb_breakpoint_remove_all(void)
 
 static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 {
-#if defined(TARGET_I386)
     cpu_synchronize_state(s->c_cpu);
+#if defined(TARGET_I386)
     s->c_cpu->eip = pc;
 #elif defined (TARGET_PPC)
     s->c_cpu->nip = pc;
@@ -1929,7 +1929,6 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 #elif defined (TARGET_ALPHA)
     s->c_cpu->pc = pc;
 #elif defined (TARGET_S390X)
-    cpu_synchronize_state(s->c_cpu);
     s->c_cpu->psw.addr = pc;
 #elif defined (TARGET_LM32)
     s->c_cpu->pc = pc;
