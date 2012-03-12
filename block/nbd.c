@@ -150,7 +150,7 @@ static int nbd_have_request(void *opaque)
 static void nbd_reply_ready(void *opaque)
 {
     BDRVNBDState *s = opaque;
-    int i;
+    uint64_t i;
 
     if (s->reply.handle == 0) {
         /* No reply already in flight.  Fetch a header.  */
@@ -164,6 +164,10 @@ static void nbd_reply_ready(void *opaque)
      * handler acts as a synchronization point and ensures that only
      * one coroutine is called until the reply finishes.  */
     i = HANDLE_TO_INDEX(s, s->reply.handle);
+    if (i >= MAX_NBD_REQUESTS) {
+        goto fail;
+    }
+
     if (s->recv_coroutine[i]) {
         qemu_coroutine_enter(s->recv_coroutine[i], NULL);
         return;
