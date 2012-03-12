@@ -18,7 +18,6 @@
 
 #include "nbd.h"
 #include "block.h"
-#include "block_int.h"
 
 #include "qemu-coroutine.h"
 
@@ -703,7 +702,7 @@ NBDExport *nbd_export_new(BlockDriverState *bs, off_t dev_offset,
     exp->bs = bs;
     exp->dev_offset = dev_offset;
     exp->nbdflags = nbdflags;
-    exp->size = size == -1 ? exp->bs->total_sectors * 512 : size;
+    exp->size = size == -1 ? bdrv_getlength(bs) : size;
     return exp;
 }
 

@@ -17,7 +17,7 @@
  */
 
 #include "qemu-common.h"
-#include "block_int.h"
+#include "block.h"
 #include "nbd.h"
 
 #include <stdarg.h>
@@ -487,7 +487,7 @@ int main(int argc, char **argv)
         err(EXIT_FAILURE, "Failed to bdrv_open '%s'", argv[optind]);
     }
 
-    fd_size = bs->total_sectors * 512;
+    fd_size = bdrv_getlength(bs);
 
     if (partition != -1) {
         ret = find_partition(bs, partition, &dev_offset, &fd_size);
