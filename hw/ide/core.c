@@ -150,7 +150,7 @@ static void ide_identify(IDEState *s)
     else
          put_le16(p + 85, (1 << 14) | 1);
     /* 13=flush_cache_ext,12=flush_cache,10=lba48 */
-    put_le16(p + 86, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
+    put_le16(p + 86, (1 << 13) | (1 <<12) | (1 << 10));
     /* 14=set to 1, 1=smart self test, 0=smart error logging */
     put_le16(p + 87, (1 << 14) | 0);
     put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
