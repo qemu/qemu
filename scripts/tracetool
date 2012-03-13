@@ -415,9 +415,7 @@ linetoh_dtrace()
     # Define an empty function for the trace event
     cat <<EOF
 static inline void trace_$name($args) {
-    if (QEMU_${nameupper}_ENABLED()) {
-        QEMU_${nameupper}($argnames);
-    }
+    QEMU_${nameupper}($argnames);
 }
 EOF
 }
@@ -519,7 +517,7 @@ linetostap_end_dtrace()
 # Process stdin by calling begin, line, and end functions for the backend
 convert()
 {
-    local begin process_line end str disable
+    local begin process_line end str name NAME enabled
     begin="lineto$1_begin_$backend"
     process_line="lineto$1_$backend"
     end="lineto$1_end_$backend"
@@ -534,8 +532,15 @@ convert()
         # Process the line.  The nop backend handles disabled lines.
         if has_property "$str" "disable"; then
             "lineto$1_nop" "$str"
+            enabled=0
         else
             "$process_line" "$str"
+            enabled=1
+        fi
+        if [ "$1" = "h" ]; then
+            name=$(get_name "$str")
+            NAME=$(echo $name | tr '[:lower:]' '[:upper:]')
+            echo "#define TRACE_${NAME}_ENABLED ${enabled}"
         fi
     done
 

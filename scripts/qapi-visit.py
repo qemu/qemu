@@ -110,9 +110,37 @@ def generate_visit_union(name, members):
 
 void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp)
 {
-}
+    Error *err = NULL;
+
+    visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+    visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
+    if (err) {
+        error_propagate(errp, err);
+        goto end;
+    }
+    switch ((*obj)->kind) {
 ''',
                  name=name)
+
+    for key in members:
+        ret += mcgen('''
+    case %(abbrev)s_KIND_%(enum)s:
+        visit_type_%(c_type)s(m, &(*obj)->%(c_name)s, "data", errp);
+        break;
+''',
+                abbrev = de_camel_case(name).upper(),
+                enum = de_camel_case(key).upper(),
+                c_type=members[key],
+                c_name=c_var(key))
+
+    ret += mcgen('''
+    default:
+        abort();
+    }
+end:
+    visit_end_struct(m, errp);
+}
+''')
 
     return ret
 
@@ -242,6 +270,7 @@ for expr in exprs:
         fdecl.write(ret)
     elif expr.has_key('union'):
         ret = generate_visit_union(expr['union'], expr['data'])
+        ret += generate_visit_list(expr['union'], expr['data'])
         fdef.write(ret)
 
         ret = generate_decl_enum('%sKind' % expr['union'], expr['data'].keys())

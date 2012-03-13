@@ -421,10 +421,6 @@ static void set_string(Object *obj, Visitor *v, void *opaque,
         error_propagate(errp, local_err);
         return;
     }
-    if (!*str) {
-        g_free(str);
-        str = NULL;
-    }
     if (*ptr) {
         g_free(*ptr);
     }

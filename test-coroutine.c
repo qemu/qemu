@@ -177,6 +177,32 @@ static void perf_lifecycle(void)
     g_test_message("Lifecycle %u iterations: %f s\n", max, duration);
 }
 
+static void perf_nesting(void)
+{
+    unsigned int i, maxcycles, maxnesting;
+    double duration;
+
+    maxcycles = 100000000;
+    maxnesting = 20000;
+    Coroutine *root;
+    NestData nd = {
+        .n_enter  = 0,
+        .n_return = 0,
+        .max      = maxnesting,
+    };
+
+    g_test_timer_start();
+    for (i = 0; i < maxcycles; i++) {
+        root = qemu_coroutine_create(nest);
+        qemu_coroutine_enter(root, &nd);
+    }
+    duration = g_test_timer_elapsed();
+
+    g_test_message("Nesting %u iterations of %u depth each: %f s\n",
+        maxcycles, maxnesting, duration);
+}
+
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -187,6 +213,7 @@ int main(int argc, char **argv)
     g_test_add_func("/basic/in_coroutine", test_in_coroutine);
     if (g_test_perf()) {
         g_test_add_func("/perf/lifecycle", perf_lifecycle);
+        g_test_add_func("/perf/nesting", perf_nesting);
     }
     return g_test_run();
 }

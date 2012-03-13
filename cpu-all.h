@@ -197,7 +197,7 @@ extern uintptr_t reserved_va;
 #endif
 
 /* All direct uses of g2h and h2g need to go away for usermode softmmu.  */
-#define g2h(x) ((void *)((uintptr_t)(x) + GUEST_BASE))
+#define g2h(x) ((void *)((uintptr_t)(target_ulong)(x) + GUEST_BASE))
 
 #if HOST_LONG_BITS <= TARGET_VIRT_ADDR_SPACE_BITS
 #define h2g_valid(x) 1
@@ -496,14 +496,6 @@ extern RAMList ram_list;
 
 extern const char *mem_path;
 extern int mem_prealloc;
-
-/* physical memory access */
-
-/* MMIO pages are identified by a combination of an IO device index and
-   3 flags.  The ROMD code stores the page ram offset in iotlb entry,
-   so only a limited number of ids are avaiable.  */
-
-#define IO_MEM_NB_ENTRIES  (1 << TARGET_PAGE_BITS)
 
 /* Flags stored in the low bits of the TLB virtual address.  These are
    defined so that fast path ram access is all zeros.  */

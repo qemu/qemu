@@ -2410,7 +2410,6 @@ int main(int argc, char **argv, char **envp)
             exit(1);
         }
     }
-    cpudef_init();
 
     /* second pass of option parsing */
     optind = 1;
@@ -2433,12 +2432,7 @@ int main(int argc, char **argv, char **envp)
                 break;
             case QEMU_OPTION_cpu:
                 /* hw initialization will check this */
-                if (*optarg == '?') {
-                    list_cpus(stdout, &fprintf, optarg);
-                    exit(0);
-                } else {
-                    cpu_model = optarg;
-                }
+                cpu_model = optarg;
                 break;
             case QEMU_OPTION_hda:
                 {
@@ -3244,6 +3238,18 @@ int main(int argc, char **argv, char **envp)
         }
     }
     loc_set_none();
+
+    /* Init CPU def lists, based on config
+     * - Must be called after all the qemu_read_config_file() calls
+     * - Must be called before list_cpus()
+     * - Must be called before machine->init()
+     */
+    cpudef_init();
+
+    if (cpu_model && *cpu_model == '?') {
+        list_cpus(stdout, &fprintf, optarg);
+        exit(0);
+    }
 
     /* Open the logfile at this point, if necessary. We can't open the logfile
      * when encountering either of the logging options (-d or -D) because the

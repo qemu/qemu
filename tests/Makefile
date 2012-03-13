@@ -1,6 +1,9 @@
+export SRC_PATH
+
 CHECKS = check-qdict check-qfloat check-qint check-qstring check-qlist
 CHECKS += check-qjson test-qmp-output-visitor test-qmp-input-visitor
 CHECKS += test-string-input-visitor test-string-output-visitor test-coroutine
+CHECKS += $(SRC_PATH)/tests/qemu-iotests-quick.sh
 
 check-qint.o check-qstring.o check-qdict.o check-qlist.o check-qfloat.o check-qjson.o test-coroutine.o: $(GENERATED_HEADERS)
 
@@ -42,6 +45,13 @@ test-qmp-input-visitor: test-qmp-input-visitor.o $(qobject-obj-y) $(qapi-obj-y) 
 test-qmp-commands.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h test-qmp-marshal.c test-qmp-commands.h) $(qapi-obj-y)
 test-qmp-commands: test-qmp-commands.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o $(qapi-dir)/test-qmp-marshal.o module.o
 
-.PHONY: check
+$(SRC_PATH)/tests/qemu-iotests-quick.sh: qemu-img qemu-io
+
+
+.PHONY: check check-block
+
 check: $(CHECKS)
 	$(call quiet-command, gtester $(CHECKS), "  CHECK")
+
+check-block:
+	$(call quiet-command, $(SHELL) $(SRC_PATH)/tests/check-block.sh , "  CHECK")
