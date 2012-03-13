@@ -194,6 +194,7 @@ opengl=""
 zlib="yes"
 guest_agent="yes"
 libiscsi=""
+coroutine=""
 
 # parse CC options first
 for opt do
@@ -784,6 +785,8 @@ for opt do
   ;;
   --with-pkgversion=*) pkgversion=" ($optarg)"
   ;;
+  --with-coroutine=*) coroutine="$optarg"
+  ;;
   --disable-docs) docs="no"
   ;;
   --enable-docs) docs="yes"
@@ -1110,6 +1113,8 @@ echo "  --disable-usb-redir      disable usb network redirection support"
 echo "  --enable-usb-redir       enable usb network redirection support"
 echo "  --disable-guest-agent    disable building of the QEMU Guest Agent"
 echo "  --enable-guest-agent     enable building of the QEMU Guest Agent"
+echo "  --with-coroutine=BACKEND coroutine backend. Supported options:"
+echo "                           gthread, ucontext, sigaltstack, windows"
 echo ""
 echo "NOTE: The object files are built at the place where configure is launched"
 exit 1
@@ -2715,21 +2720,38 @@ EOF
 fi
 
 ##########################################
-# check if we have makecontext
-# (and that it's not a glibc stub which always returns -1)
+# check and set a backend for coroutine
 
-ucontext_coroutine=no
-if test "$darwin" != "yes"; then
-  cat > $TMPC << EOF
+# default is ucontext, but always fallback to gthread
+# windows autodetected by make
+if test "$coroutine" = "" -o "$coroutine" = "ucontext"; then
+  if test "$darwin" != "yes"; then
+    cat > $TMPC << EOF
 #include <ucontext.h>
 #ifdef __stub_makecontext
 #error Ignoring glibc stub makecontext which will always fail
 #endif
 int main(void) { makecontext(0, 0, 0); return 0; }
 EOF
-  if compile_prog "" "" ; then
-      ucontext_coroutine=yes
+    if compile_prog "" "" ; then
+        coroutine_backend=ucontext
+    else
+	coroutine_backend=gthread
+    fi
+  else
+    echo "Silently falling back into gthread backend under darwin"
   fi
+elif test "$coroutine" = "gthread" ; then
+  coroutine_backend=gthread
+elif test "$coroutine" = "windows" ; then
+  coroutine_backend=windows
+elif test "$coroutine" = "sigaltstack" ; then
+  coroutine_backend=sigaltstack
+else
+  echo
+  echo "Error: unknown coroutine backend $coroutine"
+  echo
+  exit 1
 fi
 
 ##########################################
@@ -2931,6 +2953,7 @@ echo "usb net redir     $usb_redir"
 echo "OpenGL support    $opengl"
 echo "libiscsi support  $libiscsi"
 echo "build guest agent $guest_agent"
+echo "coroutine backend $coroutine_backend"
 
 if test "$sdl_too_old" = "yes"; then
 echo "-> Your SDL version is too old - please upgrade to have SDL support"
@@ -3246,8 +3269,10 @@ if test "$rbd" = "yes" ; then
   echo "CONFIG_RBD=y" >> $config_host_mak
 fi
 
-if test "$ucontext_coroutine" = "yes" ; then
+if test "$coroutine_backend" = "ucontext" ; then
   echo "CONFIG_UCONTEXT_COROUTINE=y" >> $config_host_mak
+elif test "$coroutine_backend" = "sigaltstack" ; then
+  echo "CONFIG_SIGALTSTACK_COROUTINE=y" >> $config_host_mak
 fi
 
 if test "$open_by_handle_at" = "yes" ; then

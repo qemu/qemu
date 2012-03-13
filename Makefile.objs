@@ -17,7 +17,11 @@ coroutine-obj-y += qemu-coroutine-sleep.o
 ifeq ($(CONFIG_UCONTEXT_COROUTINE),y)
 coroutine-obj-$(CONFIG_POSIX) += coroutine-ucontext.o
 else
+ifeq ($(CONFIG_SIGALTSTACK_COROUTINE),y)
+coroutine-obj-$(CONFIG_POSIX) += coroutine-sigaltstack.o
+else
 coroutine-obj-$(CONFIG_POSIX) += coroutine-gthread.o
+endif
 endif
 coroutine-obj-$(CONFIG_WIN32) += coroutine-win32.o
 

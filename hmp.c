@@ -692,6 +692,8 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
     const char *device = qdict_get_str(qdict, "device");
     const char *filename = qdict_get_try_str(qdict, "snapshot-file");
     const char *format = qdict_get_try_str(qdict, "format");
+    int reuse = qdict_get_try_bool(qdict, "reuse", 0);
+    enum NewImageMode mode;
     Error *errp = NULL;
 
     if (!filename) {
@@ -702,7 +704,9 @@ void hmp_snapshot_blkdev(Monitor *mon, const QDict *qdict)
         return;
     }
 
-    qmp_blockdev_snapshot_sync(device, filename, !!format, format, &errp);
+    mode = reuse ? NEW_IMAGE_MODE_EXISTING : NEW_IMAGE_MODE_ABSOLUTE_PATHS;
+    qmp_blockdev_snapshot_sync(device, filename, !!format, format,
+                               true, mode, &errp);
     hmp_handle_error(mon, &errp);
 }
 

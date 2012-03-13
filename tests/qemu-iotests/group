@@ -8,32 +8,32 @@
 # test-group association ... one line per test
 #
 001 rw auto
-002 rw auto
+002 rw auto quick
 003 rw auto
-004 rw auto
+004 rw auto quick
 005 img auto
 006 img auto
 007 snapshot auto
 008 rw auto
 009 rw auto
 010 rw auto
-011 rw auto
-012 auto
+011 rw auto quick
+012 auto quick
 013 rw auto
 014 rw auto
 015 rw snapshot auto
-016 rw auto
-017 rw backing auto
+016 rw auto quick
+017 rw backing auto quick
 018 rw backing auto
-019 rw backing auto
-020 rw backing auto
+019 rw backing auto quick
+020 rw backing auto quick
 021 io auto
 022 rw snapshot auto
 023 rw auto
-024 rw backing auto
-025 rw auto
+024 rw backing auto quick
+025 rw auto quick
 026 rw blkdbg auto
-027 rw auto
+027 rw auto quick
 028 rw backing auto
-029 rw auto
+029 rw auto quick
 030 rw auto

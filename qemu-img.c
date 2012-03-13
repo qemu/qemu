@@ -1614,7 +1614,7 @@ static int img_resize(int argc, char **argv)
         printf("Image resized.\n");
         break;
     case -ENOTSUP:
-        error_report("This image format does not support resize");
+        error_report("This image does not support resize");
         break;
     case -EACCES:
         error_report("Image is read-only");

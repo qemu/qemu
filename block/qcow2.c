@@ -29,6 +29,7 @@
 #include "block/qcow2.h"
 #include "qemu-error.h"
 #include "qerror.h"
+#include "trace.h"
 
 /*
   Differences with QCOW:
@@ -569,6 +570,9 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         .nb_clusters = 0,
     };
 
+    trace_qcow2_writev_start_req(qemu_coroutine_self(), sector_num,
+                                 remaining_sectors);
+
     qemu_co_queue_init(&l2meta.dependent_requests);
 
     qemu_iovec_init(&hd_qiov, qiov->niov);
@@ -579,6 +583,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 
     while (remaining_sectors != 0) {
 
+        trace_qcow2_writev_start_part(qemu_coroutine_self());
         index_in_cluster = sector_num & (s->cluster_sectors - 1);
         n_end = index_in_cluster + remaining_sectors;
         if (s->crypt_method &&
@@ -619,6 +624,8 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
 
         BLKDBG_EVENT(bs->file, BLKDBG_WRITE_AIO);
         qemu_co_mutex_unlock(&s->lock);
+        trace_qcow2_writev_data(qemu_coroutine_self(),
+                                (cluster_offset >> 9) + index_in_cluster);
         ret = bdrv_co_writev(bs->file,
                              (cluster_offset >> 9) + index_in_cluster,
                              cur_nr_sectors, &hd_qiov);
@@ -637,6 +644,7 @@ static coroutine_fn int qcow2_co_writev(BlockDriverState *bs,
         remaining_sectors -= cur_nr_sectors;
         sector_num += cur_nr_sectors;
         bytes_done += cur_nr_sectors * 512;
+        trace_qcow2_writev_done_part(qemu_coroutine_self(), cur_nr_sectors);
     }
     ret = 0;
 
@@ -647,6 +655,7 @@ fail:
 
     qemu_iovec_destroy(&hd_qiov);
     qemu_vfree(cluster_data);
+    trace_qcow2_writev_done_req(qemu_coroutine_self(), ret);
 
     return ret;
 }
@@ -1111,16 +1120,19 @@ static int qcow2_truncate(BlockDriverState *bs, int64_t offset)
     int ret, new_l1_size;
 
     if (offset & 511) {
+        error_report("The new size must be a multiple of 512");
         return -EINVAL;
     }
 
     /* cannot proceed if image has snapshots */
     if (s->nb_snapshots) {
+        error_report("Can't resize an image which has snapshots");
         return -ENOTSUP;
     }
 
     /* shrinking is currently not supported */
     if (offset < bs->total_sectors * 512) {
+        error_report("qcow2 doesn't support shrinking images yet");
         return -ENOTSUP;
     }
 

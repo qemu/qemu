@@ -882,14 +882,17 @@ ETEXI
 
     {
         .name       = "snapshot_blkdev",
-        .args_type  = "device:B,snapshot-file:s?,format:s?",
-        .params     = "device [new-image-file] [format]",
+        .args_type  = "reuse:-n,device:B,snapshot-file:s?,format:s?",
+        .params     = "[-n] device [new-image-file] [format]",
         .help       = "initiates a live snapshot\n\t\t\t"
                       "of device. If a new image file is specified, the\n\t\t\t"
                       "new image file will become the new root image.\n\t\t\t"
                       "If format is specified, the snapshot file will\n\t\t\t"
                       "be created in that format. Otherwise the\n\t\t\t"
-                      "snapshot will be internal! (currently unsupported)",
+                      "snapshot will be internal! (currently unsupported).\n\t\t\t"
+                      "The default format is qcow2.  The -n flag requests QEMU\n\t\t\t"
+                      "to reuse the image found in new-image-file, instead of\n\t\t\t"
+                      "recreating it from scratch.",
         .mhandler.cmd = hmp_snapshot_blkdev,
     },
 
