@@ -9319,6 +9319,8 @@ void cpu_dump_state (CPUPPCState *env, FILE *f, fprintf_function cpu_fprintf,
 
     int i;
 
+    cpu_synchronize_state(env);
+
     cpu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
                 TARGET_FMT_lx " XER " TARGET_FMT_lx "\n",
                 env->nip, env->lr, env->ctr, env->xer);
