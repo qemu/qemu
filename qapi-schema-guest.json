@@ -1,6 +1,41 @@
 # *-*- Mode: Python -*-*
 
 ##
+#
+# Echo back a unique integer value, and prepend to response a
+# leading sentinel byte (0xFF) the client can check scan for.
+#
+# This is used by clients talking to the guest agent over the
+# wire to ensure the stream is in sync and doesn't contain stale
+# data from previous client. It must be issued upon initial
+# connection, and after any client-side timeouts (including
+# timeouts on receiving a response to this command).
+#
+# After issuing this request, all guest agent responses should be
+# ignored until the response containing the unique integer value
+# the client passed in is returned. Receival of the 0xFF sentinel
+# byte must be handled as an indication that the client's
+# lexer/tokenizer/parser state should be flushed/reset in
+# preparation for reliably receiving the subsequent response. As
+# an optimization, clients may opt to ignore all data until a
+# sentinel value is receiving to avoid unecessary processing of
+# stale data.
+#
+# Similarly, clients should also precede this *request*
+# with a 0xFF byte to make sure the guest agent flushes any
+# partially read JSON data from a previous client connection.
+#
+# @id: randomly generated 64-bit integer
+#
+# Returns: The unique integer id passed in by the client
+#
+# Since: 1.1
+# ##
+{ 'command': 'guest-sync-delimited'
+  'data':    { 'id': 'int' },
+  'returns': 'int' }
+
+##
 # @guest-sync:
 #
 # Echo back a unique integer value
@@ -13,8 +48,19 @@
 # partially-delivered JSON text in such a way that this response
 # can be obtained.
 #
+# In cases where a partial stale response was previously
+# received by the client, this cannot always be done reliably.
+# One particular scenario being if qemu-ga responses are fed
+# character-by-character into a JSON parser. In these situations,
+# using guest-sync-delimited may be optimal.
+#
+# For clients that fetch responses line by line and convert them
+# to JSON objects, guest-sync should be sufficient, but note that
+# in cases where the channel is dirty some attempts at parsing the
+# response may result in a parser error.
+#
 # Such clients should also precede this command
-# with a 0xFF byte to make such the guest agent flushes any
+# with a 0xFF byte to make sure the guest agent flushes any
 # partially read JSON data from a previous session.
 #
 # @id: randomly generated 64-bit integer
@@ -295,3 +341,137 @@
 ##
 { 'command': 'guest-fsfreeze-thaw',
   'returns': 'int' }
+
+##
+# @guest-suspend-disk
+#
+# Suspend guest to disk.
+#
+# This command tries to execute the scripts provided by the pm-utils package.
+# If it's not available, the suspend operation will be performed by manually
+# writing to a sysfs file.
+#
+# For the best results it's strongly recommended to have the pm-utils
+# package installed in the guest.
+#
+# Returns: nothing on success
+#          If suspend to disk is not supported, Unsupported
+#
+# Notes: o This is an asynchronous request. There's no guarantee a response
+#          will be sent
+#        o It's strongly recommended to issue the guest-sync command before
+#          sending commands when the guest resumes
+#
+# Since: 1.1
+##
+{ 'command': 'guest-suspend-disk' }
+
+##
+# @guest-suspend-ram
+#
+# Suspend guest to ram.
+#
+# This command tries to execute the scripts provided by the pm-utils package.
+# If it's not available, the suspend operation will be performed by manually
+# writing to a sysfs file.
+#
+# For the best results it's strongly recommended to have the pm-utils
+# package installed in the guest.
+#
+# IMPORTANT: guest-suspend-ram requires QEMU to support the 'system_wakeup'
+# command.  Thus, it's *required* to query QEMU for the presence of the
+# 'system_wakeup' command before issuing guest-suspend-ram.
+#
+# Returns: nothing on success
+#          If suspend to ram is not supported, Unsupported
+#
+# Notes: o This is an asynchronous request. There's no guarantee a response
+#          will be sent
+#        o It's strongly recommended to issue the guest-sync command before
+#          sending commands when the guest resumes
+#
+# Since: 1.1
+##
+{ 'command': 'guest-suspend-ram' }
+
+##
+# @guest-suspend-hybrid
+#
+# Save guest state to disk and suspend to ram.
+#
+# This command requires the pm-utils package to be installed in the guest.
+#
+# IMPORTANT: guest-suspend-hybrid requires QEMU to support the 'system_wakeup'
+# command.  Thus, it's *required* to query QEMU for the presence of the
+# 'system_wakeup' command before issuing guest-suspend-hybrid.
+#
+# Returns: nothing on success
+#          If hybrid suspend is not supported, Unsupported
+#
+# Notes: o This is an asynchronous request. There's no guarantee a response
+#          will be sent
+#        o It's strongly recommended to issue the guest-sync command before
+#          sending commands when the guest resumes
+#
+# Since: 1.1
+##
+{ 'command': 'guest-suspend-hybrid' }
+
+##
+# @GuestIpAddressType:
+#
+# An enumeration of supported IP address types
+#
+# @ipv4: IP version 4
+#
+# @ipv6: IP version 6
+#
+# Since: 1.1
+##
+{ 'enum': 'GuestIpAddressType',
+  'data': [ 'ipv4', 'ipv6' ] }
+
+##
+# @GuestIpAddress:
+#
+# @ip-address: IP address
+#
+# @ip-address-type: Type of @ip-address (e.g. ipv4, ipv6)
+#
+# @prefix: Network prefix length of @ip-address
+#
+# Since: 1.1
+##
+{ 'type': 'GuestIpAddress',
+  'data': {'ip-address': 'str',
+           'ip-address-type': 'GuestIpAddressType',
+           'prefix': 'int'} }
+
+##
+# @GuestNetworkInterface:
+#
+# @name: The name of interface for which info are being delivered
+#
+# @hardware-address: Hardware address of @name
+#
+# @ip-addresses: List of addresses assigned to @name
+#
+# Since: 1.1
+##
+{ 'type': 'GuestNetworkInterface',
+  'data': {'name': 'str',
+           '*hardware-address': 'str',
+           '*ip-addresses': ['GuestIpAddress'] } }
+
+##
+# @guest-network-get-interfaces:
+#
+# Get list of guest IP addresses, MAC addresses
+# and netmasks.
+#
+# Returns: List of GuestNetworkInfo on success.
+#
+# Since: 1.1
+##
+{ 'command': 'guest-network-get-interfaces',
+  'returns': ['GuestNetworkInterface'] }
