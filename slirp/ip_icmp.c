@@ -66,6 +66,13 @@ void icmp_init(Slirp *slirp)
     slirp->icmp_last_so = &slirp->icmp;
 }
 
+void icmp_cleanup(Slirp *slirp)
+{
+    while (slirp->icmp.so_next != &slirp->icmp) {
+        icmp_detach(slirp->icmp.so_next);
+    }
+}
+
 static int icmp_send(struct socket *so, struct mbuf *m, int hlen)
 {
     struct ip *ip = mtod(m, struct ip *);

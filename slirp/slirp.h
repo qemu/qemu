@@ -235,10 +235,10 @@ struct Slirp {
     int mbuf_alloced;
 
     /* if states */
-    int if_queued;          /* number of packets queued so far */
     struct mbuf if_fastq;   /* fast queue (for interactive data) */
     struct mbuf if_batchq;  /* queue for non-interactive data */
     struct mbuf *next_m;    /* pointer to next mbuf to output */
+    bool if_start_busy;     /* avoid if_start recursion */
 
     /* ip states */
     struct ipq ipq;         /* ip reass. queue */
@@ -315,6 +315,7 @@ void if_output(struct socket *, struct mbuf *);
 
 /* ip_input.c */
 void ip_init(Slirp *);
+void ip_cleanup(Slirp *);
 void ip_input(struct mbuf *);
 void ip_slowtimo(Slirp *);
 void ip_stripoptions(register struct mbuf *, struct mbuf *);
@@ -332,6 +333,7 @@ void tcp_setpersist(register struct tcpcb *);
 
 /* tcp_subr.c */
 void tcp_init(Slirp *);
+void tcp_cleanup(Slirp *);
 void tcp_template(struct tcpcb *);
 void tcp_respond(struct tcpcb *, register struct tcpiphdr *, register struct mbuf *, tcp_seq, tcp_seq, int);
 struct tcpcb * tcp_newtcpcb(struct socket *);

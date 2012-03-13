@@ -74,6 +74,7 @@ struct udpiphdr {
 struct mbuf;
 
 void udp_init(Slirp *);
+void udp_cleanup(Slirp *);
 void udp_input(register struct mbuf *, int);
 int udp_output(struct socket *, struct mbuf *, struct sockaddr_in *);
 int udp_attach(struct socket *);

@@ -55,6 +55,13 @@ tcp_init(Slirp *slirp)
     slirp->tcp_last_so = &slirp->tcb;
 }
 
+void tcp_cleanup(Slirp *slirp)
+{
+    while (slirp->tcb.so_next != &slirp->tcb) {
+        tcp_close(sototcpcb(slirp->tcb.so_next));
+    }
+}
+
 /*
  * Create template to be used to send tcp packets on a connection.
  * Call after host entry created, fills
