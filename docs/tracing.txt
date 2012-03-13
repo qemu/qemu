@@ -9,7 +9,7 @@ for debugging, profiling, and observing execution.
 
 1. Build with the 'simple' trace backend:
 
-    ./configure --trace-backend=simple
+    ./configure --enable-trace-backend=simple
     make
 
 2. Create a file with the events you want to trace:
@@ -97,12 +97,6 @@ respectively.  This ensures portability between 32- and 64-bit platforms.
 
 4. Name trace events after their function.  If there are multiple trace events
    in one function, append a unique distinguisher at the end of the name.
-
-5. If specific trace events are going to be called a huge number of times, this
-   might have a noticeable performance impact even when the trace events are
-   programmatically disabled. In this case you should declare the trace event
-   with the "disable" property, which will effectively disable it at compile
-   time (using the "nop" backend).
 
 == Generic interface and monitor commands ==
 
@@ -234,3 +228,43 @@ probes:
                       --target-type system \
                       --target-arch x86_64 \
                       <trace-events >qemu.stp
+
+== Trace event properties ==
+
+Each event in the "trace-events" file can be prefixed with a space-separated
+list of zero or more of the following event properties.
+
+=== "disable" ===
+
+If a specific trace event is going to be invoked a huge number of times, this
+might have a noticeable performance impact even when the event is
+programmatically disabled.
+
+In this case you should declare such event with the "disable" property. This
+will effectively disable the event at compile time (by using the "nop" backend),
+thus having no performance impact at all on regular builds (i.e., unless you
+edit the "trace-events" file).
+
+In addition, there might be cases where relatively complex computations must be
+performed to generate values that are only used as arguments for a trace
+function. In these cases you can use the macro 'TRACE_${EVENT_NAME}_ENABLED' to
+guard such computations and avoid its compilation when the event is disabled:
+
+    #include "trace.h"  /* needed for trace event prototype */
+    
+    void *qemu_vmalloc(size_t size)
+    {
+        void *ptr;
+        size_t align = QEMU_VMALLOC_ALIGN;
+    
+        if (size < align) {
+            align = getpagesize();
+        }
+        ptr = qemu_memalign(align, size);
+        if (TRACE_QEMU_VMALLOC_ENABLED) { /* preprocessor macro */
+            void *complex;
+            /* some complex computations to produce the 'complex' value */
+            trace_qemu_vmalloc(size, ptr, complex);
+        }
+        return ptr;
+    }
