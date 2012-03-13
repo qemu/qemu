@@ -36,8 +36,8 @@
 
 #include "qemu-common.h"
 #include "qemu-error.h"
-#include "usb.h"
-#include "usb-desc.h"
+#include "hw/usb.h"
+#include "hw/usb/desc.h"
 #include "monitor.h"
 
 #include "hw/ccid.h"

@@ -227,16 +227,17 @@ sun4m_iommu_page_get_flags(uint64_t pa, uint64_t iopte, uint32_t ret) "get flags
 sun4m_iommu_translate_pa(uint64_t addr, uint64_t pa, uint32_t iopte) "xlate dva %"PRIx64" => pa %"PRIx64" iopte = %x"
 sun4m_iommu_bad_addr(uint64_t addr) "bad addr %"PRIx64
 
-# hw/usb.c
+# hw/usb/core.c
 usb_packet_state_change(int bus, const char *port, int ep, void *p, const char *o, const char *n) "bus %d, port %s, ep %d, packet %p, state %s -> %s"
+usb_packet_state_fault(int bus, const char *port, int ep, void *p, const char *o, const char *n) "bus %d, port %s, ep %d, packet %p, state %s, expected %s"
 
-# hw/usb-bus.c
+# hw/usb/bus.c
 usb_port_claim(int bus, const char *port) "bus %d, port %s"
 usb_port_attach(int bus, const char *port) "bus %d, port %s"
 usb_port_detach(int bus, const char *port) "bus %d, port %s"
 usb_port_release(int bus, const char *port) "bus %d, port %s"
 
-# hw/usb-ehci.c
+# hw/usb/hcd-ehci.c
 usb_ehci_reset(void) "=== RESET ==="
 usb_ehci_mmio_readl(uint32_t addr, const char *str, uint32_t val) "rd mmio %04x [%s] = %x"
 usb_ehci_mmio_writel(uint32_t addr, const char *str, uint32_t val) "wr mmio %04x [%s] = %x"
@@ -257,6 +258,37 @@ usb_ehci_port_reset(uint32_t port, int enable) "reset port #%d - %d"
 usb_ehci_data(int rw, uint32_t cpage, uint32_t offset, uint32_t addr, uint32_t len, uint32_t bufpos) "write %d, cpage %d, offset 0x%03x, addr 0x%08x, len %d, bufpos %d"
 usb_ehci_queue_action(void *q, const char *action) "q %p: %s"
 
+# hw/usb/hcd-uhci.c
+usb_uhci_reset(void) "=== RESET ==="
+usb_uhci_schedule_start(void) ""
+usb_uhci_schedule_stop(void) ""
+usb_uhci_frame_start(uint32_t num) "nr %d"
+usb_uhci_frame_loop_stop_idle(void) ""
+usb_uhci_frame_loop_stop_bandwidth(void) ""
+usb_uhci_frame_loop_continue(void) ""
+usb_uhci_mmio_readw(uint32_t addr, uint32_t val) "addr %04x, ret 0x04%x"
+usb_uhci_mmio_writew(uint32_t addr, uint32_t val) "addr %04x, val 0x04%x"
+usb_uhci_mmio_readl(uint32_t addr, uint32_t val) "addr %04x, ret 0x08%x"
+usb_uhci_mmio_writel(uint32_t addr, uint32_t val) "addr %04x, val 0x08%x"
+usb_uhci_queue_add(uint32_t token) "token 0x%x"
+usb_uhci_queue_del(uint32_t token) "token 0x%x"
+usb_uhci_packet_add(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
+usb_uhci_packet_link_async(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
+usb_uhci_packet_unlink_async(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
+usb_uhci_packet_cancel(uint32_t token, uint32_t addr, int done) "token 0x%x, td 0x%x, done %d"
+usb_uhci_packet_complete_success(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
+usb_uhci_packet_complete_shortxfer(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
+usb_uhci_packet_complete_stall(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
+usb_uhci_packet_complete_babble(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
+usb_uhci_packet_complete_error(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
+usb_uhci_packet_del(uint32_t token, uint32_t addr) "token 0x%x, td 0x%x"
+usb_uhci_qh_load(uint32_t qh) "qh 0x%x"
+usb_uhci_td_load(uint32_t qh, uint32_t td, uint32_t ctrl, uint32_t token) "qh 0x%x, td 0x%x, ctrl 0x%x, token 0x%x"
+usb_uhci_td_queue(uint32_t td, uint32_t ctrl, uint32_t token) "td 0x%x, ctrl 0x%x, token 0x%x"
+usb_uhci_td_nextqh(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
+usb_uhci_td_async(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
+usb_uhci_td_complete(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
+
 # hw/usb-desc.c
 usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
 usb_desc_device_qualifier(int addr, int len, int ret) "dev %d query device qualifier, len %d, ret %d"
@@ -269,7 +301,7 @@ usb_set_interface(int addr, int iface, int alt, int ret) "dev %d, interface %d, 
 usb_clear_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 
-# usb-linux.c
+# hw/usb/host-linux.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"
 usb_host_open_success(int bus, int addr) "dev %d:%d"
 usb_host_open_failure(int bus, int addr) "dev %d:%d"

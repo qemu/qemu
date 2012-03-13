@@ -8,7 +8,6 @@
 #include "ide.h"
 #include "net.h"
 #include "pc.h"
-#include "usb-ohci.h"
 #include "irq.h"
 
 

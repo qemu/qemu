@@ -30,7 +30,6 @@
 #include "isa.h"
 #include "pci.h"
 #include "pci_host.h"
-#include "usb-ohci.h"
 #include "ppc.h"
 #include "boards.h"
 #include "qemu-log.h"
@@ -688,7 +687,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
 #endif
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1);
+        pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 
     m48t59 = m48t59_init_isa(isa_bus, 0x0074, NVRAM_SIZE, 59);

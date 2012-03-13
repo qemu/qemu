@@ -28,8 +28,6 @@
 #include "pc.h"
 #include "apic.h"
 #include "pci.h"
-#include "usb-uhci.h"
-#include "usb-ohci.h"
 #include "net.h"
 #include "boards.h"
 #include "ide.h"
@@ -284,7 +282,7 @@ static void pc_init1(MemoryRegion *system_memory,
                  floppy, idebus[0], idebus[1], rtc_state);
 
     if (pci_enabled && usb_enabled) {
-        usb_uhci_piix3_init(pci_bus, piix3_devfn + 2);
+        pci_create_simple(pci_bus, piix3_devfn + 2, "piix3-usb-uhci");
     }
 
     if (pci_enabled && acpi_enabled) {

@@ -22,10 +22,10 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu-timer.h"
-#include "usb.h"
-#include "pci.h"
+#include "hw/usb.h"
+#include "hw/pci.h"
 #include "monitor.h"
 #include "trace.h"
 #include "dma.h"
@@ -419,7 +419,6 @@ struct EHCIState {
 
     USBPacket ipacket;
     QEMUSGList isgl;
-    int isoch_pause;
 
     uint64_t last_run_ns;
 };
@@ -907,7 +906,6 @@ static void ehci_reset(void *opaque)
 
     s->astate = EST_INACTIVE;
     s->pstate = EST_INACTIVE;
-    s->isoch_pause = -1;
     s->attach_poll_counter = 0;
 
     for(i = 0; i < NB_PORTS; i++) {
@@ -2150,9 +2148,7 @@ static void ehci_frame_timer(void *opaque)
 
     for (i = 0; i < frames; i++) {
         if ( !(ehci->usbsts & USBSTS_HALT)) {
-            if (ehci->isoch_pause <= 0) {
-                ehci->frindex += 8;
-            }
+            ehci->frindex += 8;
 
             if (ehci->frindex > 0x00001fff) {
                 ehci->frindex = 0;

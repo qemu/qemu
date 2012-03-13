@@ -25,10 +25,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "hw.h"
+#include "hw/hw.h"
 #include "console.h"
-#include "usb.h"
-#include "usb-desc.h"
+#include "hw/usb.h"
+#include "hw/usb/desc.h"
 
 /* Interface requests */
 #define WACOM_GET_REPORT	0x2101

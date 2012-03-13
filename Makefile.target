@@ -373,7 +373,7 @@ obj-arm-y += omap1.o omap_lcdc.o omap_dma.o omap_clk.o omap_mmc.o omap_i2c.o \
 obj-arm-y += omap2.o omap_dss.o soc_dma.o omap_gptimer.o omap_synctimer.o \
 		omap_gpmc.o omap_sdrc.o omap_spi.o omap_tap.o omap_l4.o
 obj-arm-y += omap_sx1.o palm.o tsc210x.o
-obj-arm-y += nseries.o blizzard.o onenand.o cbus.o tusb6010.o usb-musb.o
+obj-arm-y += nseries.o blizzard.o onenand.o cbus.o tusb6010.o usb/hcd-musb.o
 obj-arm-y += mst_fpga.o mainstone.o
 obj-arm-y += z2.o
 obj-arm-y += musicpal.o bitbang_i2c.o marvell_88w8618_audio.o

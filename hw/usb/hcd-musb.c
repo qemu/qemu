@@ -22,9 +22,9 @@
  */
 #include "qemu-common.h"
 #include "qemu-timer.h"
-#include "usb.h"
-#include "irq.h"
-#include "hw.h"
+#include "hw/usb.h"
+#include "hw/irq.h"
+#include "hw/hw.h"
 
 /* Common USB registers */
 #define MUSB_HDRC_FADDR		0x00	/* 8-bit */
