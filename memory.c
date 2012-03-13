@@ -781,13 +781,11 @@ static void memory_region_destructor_ram_from_ptr(MemoryRegion *mr)
 
 static void memory_region_destructor_iomem(MemoryRegion *mr)
 {
-    cpu_unregister_io_memory(mr->ram_addr);
 }
 
 static void memory_region_destructor_rom_device(MemoryRegion *mr)
 {
     qemu_ram_free(mr->ram_addr & TARGET_PAGE_MASK);
-    cpu_unregister_io_memory(mr->ram_addr & ~TARGET_PAGE_MASK);
 }
 
 static bool memory_region_wrong_endianness(MemoryRegion *mr)
@@ -942,7 +940,7 @@ void memory_region_init_io(MemoryRegion *mr,
     mr->opaque = opaque;
     mr->terminates = true;
     mr->destructor = memory_region_destructor_iomem;
-    mr->ram_addr = cpu_register_io_memory(mr);
+    mr->ram_addr = ~(ram_addr_t)0;
 }
 
 void memory_region_init_ram(MemoryRegion *mr,
@@ -992,7 +990,6 @@ void memory_region_init_rom_device(MemoryRegion *mr,
     mr->rom_device = true;
     mr->destructor = memory_region_destructor_rom_device;
     mr->ram_addr = qemu_ram_alloc(size, mr);
-    mr->ram_addr |= cpu_register_io_memory(mr);
 }
 
 static uint64_t invalid_read(void *opaque, target_phys_addr_t addr,
@@ -1501,15 +1498,15 @@ void set_system_io_map(MemoryRegion *mr)
     memory_region_update_topology(NULL);
 }
 
-uint64_t io_mem_read(int io_index, target_phys_addr_t addr, unsigned size)
+uint64_t io_mem_read(MemoryRegion *mr, target_phys_addr_t addr, unsigned size)
 {
-    return memory_region_dispatch_read(io_mem_region[io_index], addr, size);
+    return memory_region_dispatch_read(mr, addr, size);
 }
 
-void io_mem_write(int io_index, target_phys_addr_t addr,
+void io_mem_write(MemoryRegion *mr, target_phys_addr_t addr,
                   uint64_t val, unsigned size)
 {
-    memory_region_dispatch_write(io_mem_region[io_index], addr, val, size);
+    memory_region_dispatch_write(mr, addr, val, size);
 }
 
 typedef struct MemoryRegionList MemoryRegionList;

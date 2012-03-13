@@ -498,14 +498,6 @@ extern RAMList ram_list;
 extern const char *mem_path;
 extern int mem_prealloc;
 
-/* physical memory access */
-
-/* MMIO pages are identified by a combination of an IO device index and
-   3 flags.  The ROMD code stores the page ram offset in iotlb entry, 
-   so only a limited number of ids are avaiable.  */
-
-#define IO_MEM_NB_ENTRIES  (1 << TARGET_PAGE_BITS)
-
 /* Flags stored in the low bits of the TLB virtual address.  These are
    defined so that fast path ram access is all zeros.  */
 /* Zero if TLB entry is valid.  */

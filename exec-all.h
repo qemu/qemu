@@ -299,10 +299,11 @@ extern void *tci_tb_ptr;
 
 #if !defined(CONFIG_USER_ONLY)
 
-uint64_t io_mem_read(int index, target_phys_addr_t addr, unsigned size);
-void io_mem_write(int index, target_phys_addr_t addr, uint64_t value,
-                  unsigned size);
-extern struct MemoryRegion *io_mem_region[IO_MEM_NB_ENTRIES];
+struct MemoryRegion *iotlb_to_region(target_phys_addr_t index);
+uint64_t io_mem_read(struct MemoryRegion *mr, target_phys_addr_t addr,
+                     unsigned size);
+void io_mem_write(struct MemoryRegion *mr, target_phys_addr_t addr,
+                  uint64_t value, unsigned size);
 
 void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr);

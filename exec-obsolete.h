@@ -32,9 +32,6 @@ void qemu_ram_free(ram_addr_t addr);
 void qemu_ram_free_from_ptr(ram_addr_t addr);
 
 struct MemoryRegion;
-int cpu_register_io_memory(MemoryRegion *mr);
-void cpu_unregister_io_memory(int table_address);
-
 struct MemoryRegionSection;
 void cpu_register_physical_memory_log(struct MemoryRegionSection *section,
                                       bool readonly);
