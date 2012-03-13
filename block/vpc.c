@@ -189,6 +189,9 @@ static int vpc_open(BlockDriverState *bs, int flags)
         fprintf(stderr, "block-vpc: The header checksum of '%s' is "
             "incorrect.\n", bs->filename);
 
+    /* Write 'checksum' back to footer, or else will leave it with zero. */
+    footer->checksum = be32_to_cpu(checksum);
+
     // The visible size of a image in Virtual PC depends on the geometry
     // rather than on the size stored in the footer (the size in the footer
     // is too large usually)
