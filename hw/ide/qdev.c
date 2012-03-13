@@ -137,7 +137,7 @@ static int ide_dev_initfn(IDEDevice *dev, IDEDriveKind kind)
     }
 
     if (ide_init_drive(s, dev->conf.bs, kind,
-                       dev->version, serial, dev->model) < 0) {
+                       dev->version, serial, dev->model, dev->wwn) < 0) {
         return -1;
     }
 
@@ -174,6 +174,7 @@ static int ide_drive_initfn(IDEDevice *dev)
 #define DEFINE_IDE_DEV_PROPERTIES()                     \
     DEFINE_BLOCK_PROPERTIES(IDEDrive, dev.conf),        \
     DEFINE_PROP_STRING("ver",  IDEDrive, dev.version),  \
+    DEFINE_PROP_HEX64("wwn",  IDEDrive, dev.wwn, 0),    \
     DEFINE_PROP_STRING("serial",  IDEDrive, dev.serial),\
     DEFINE_PROP_STRING("model", IDEDrive, dev.model)
 
