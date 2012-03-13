@@ -21,7 +21,7 @@
  */
 #include "qemu-common.h"
 #include "cpu-common.h"
-#include "usb.h"
+#include "hw/usb.h"
 #include "dma.h"
 
 int usb_packet_map(USBPacket *p, QEMUSGList *sgl)

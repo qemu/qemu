@@ -61,6 +61,13 @@ ip_init(Slirp *slirp)
     icmp_init(slirp);
 }
 
+void ip_cleanup(Slirp *slirp)
+{
+    udp_cleanup(slirp);
+    tcp_cleanup(slirp);
+    icmp_cleanup(slirp);
+}
+
 /*
  * Ip input routine.  Checksum and byte swap header.  If fragmented
  * try to reassemble.  Process options.  Pass to next level.

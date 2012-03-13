@@ -34,7 +34,6 @@
 #include "net.h"
 #include "isa.h"
 #include "pci.h"
-#include "usb-ohci.h"
 #include "boards.h"
 #include "fw_cfg.h"
 #include "escc.h"
@@ -278,7 +277,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
                dbdma_mem, cuda_mem, nvr, 2, ide_mem, escc_bar);
 
     if (usb_enabled) {
-        usb_ohci_init_pci(pci_bus, -1);
+        pci_create_simple(pci_bus, -1, "pci-ohci");
     }
 
     if (graphic_depth != 15 && graphic_depth != 32 && graphic_depth != 8)

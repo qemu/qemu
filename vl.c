@@ -2342,6 +2342,8 @@ int main(int argc, char **argv, char **envp)
 #endif
     }
 
+    module_call_init(MODULE_INIT_QOM);
+
     runstate_init();
 
     init_clocks();
@@ -3519,8 +3521,6 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     if (foreach_device_config(DEV_DEBUGCON, debugcon_parse) < 0)
         exit(1);
-
-    module_call_init(MODULE_INIT_QOM);
 
     /* must be after qdev registration but before machine init */
     if (vga_model) {

@@ -10,9 +10,9 @@
 #include "qemu-common.h"
 #include "qemu-option.h"
 #include "qemu-config.h"
-#include "usb.h"
-#include "usb-desc.h"
-#include "scsi.h"
+#include "hw/usb.h"
+#include "hw/usb/desc.h"
+#include "hw/scsi.h"
 #include "console.h"
 #include "monitor.h"
 #include "sysemu.h"
@@ -193,9 +193,9 @@ static void usb_msd_send_status(MSDState *s, USBPacket *p)
     int len;
 
     DPRINTF("Command status %d tag 0x%x, len %zd\n",
-            s->csw.status, s->csw.tag, p->iov.size);
+            s->csw.status, le32_to_cpu(s->csw.tag), p->iov.size);
 
-    assert(s->csw.sig == 0x53425355);
+    assert(s->csw.sig == cpu_to_le32(0x53425355));
     len = MIN(sizeof(s->csw), p->iov.size);
     usb_packet_copy(p, &s->csw, len);
     memset(&s->csw, 0, sizeof(s->csw));
@@ -233,7 +233,7 @@ static void usb_msd_command_complete(SCSIRequest *req, uint32_t status, size_t r
 
     s->csw.sig = cpu_to_le32(0x53425355);
     s->csw.tag = cpu_to_le32(req->tag);
-    s->csw.residue = s->residue;
+    s->csw.residue = cpu_to_le32(s->residue);
     s->csw.status = status != 0;
 
     if (s->packet) {

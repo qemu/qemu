@@ -154,6 +154,7 @@ struct icmp {
 	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
 
 void icmp_init(Slirp *slirp);
+void icmp_cleanup(Slirp *slirp);
 void icmp_input(struct mbuf *, int);
 void icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
                 const char *message);

@@ -116,6 +116,7 @@ struct mbuf {
 					 * it rather than putting it on the free list */
 
 void m_init(Slirp *);
+void m_cleanup(Slirp *slirp);
 struct mbuf * m_get(Slirp *);
 void m_free(struct mbuf *);
 void m_cat(register struct mbuf *, register struct mbuf *);

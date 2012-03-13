@@ -1,5 +1,5 @@
-#include "usb.h"
-#include "usb-desc.h"
+#include "hw/usb.h"
+#include "hw/usb/desc.h"
 #include "trace.h"
 
 /* ------------------------------------------------------------------ */

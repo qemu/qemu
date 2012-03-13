@@ -26,13 +26,12 @@
  *  o BIOS work to boot from USB storage
 */
 
-#include "hw.h"
+#include "hw/hw.h"
 #include "qemu-timer.h"
-#include "usb.h"
-#include "pci.h"
-#include "usb-ohci.h"
-#include "sysbus.h"
-#include "qdev-addr.h"
+#include "hw/usb.h"
+#include "hw/pci.h"
+#include "hw/sysbus.h"
+#include "hw/qdev-addr.h"
 
 //#define DEBUG_OHCI
 /* Dump packet contents.  */
@@ -122,6 +121,11 @@ struct ohci_hcca {
     uint16_t frame, pad;
     uint32_t done;
 };
+#define HCCA_WRITEBACK_OFFSET   offsetof(struct ohci_hcca, frame)
+#define HCCA_WRITEBACK_SIZE     8 /* frame, pad, done */
+
+#define ED_WBACK_OFFSET offsetof(struct ohci_ed, head)
+#define ED_WBACK_SIZE   4
 
 static void ohci_bus_stop(OHCIState *ohci);
 static void ohci_async_cancel_device(OHCIState *ohci, USBDevice *dev);
@@ -569,7 +573,13 @@ static inline int ohci_read_hcca(OHCIState *ohci,
 static inline int ohci_put_ed(OHCIState *ohci,
                               uint32_t addr, struct ohci_ed *ed)
 {
-    return put_dwords(ohci, addr, (uint32_t *)ed, sizeof(*ed) >> 2);
+    /* ed->tail is under control of the HCD.
+     * Since just ed->head is changed by HC, just write back this
+     */
+
+    return put_dwords(ohci, addr + ED_WBACK_OFFSET,
+                      (uint32_t *)((char *)ed + ED_WBACK_OFFSET),
+                      ED_WBACK_SIZE >> 2);
 }
 
 static inline int ohci_put_td(OHCIState *ohci,
@@ -588,7 +598,9 @@ static inline int ohci_put_iso_td(OHCIState *ohci,
 static inline int ohci_put_hcca(OHCIState *ohci,
                                 uint32_t addr, struct ohci_hcca *hcca)
 {
-    cpu_physical_memory_write(addr + ohci->localmem_base, hcca, sizeof(*hcca));
+    cpu_physical_memory_write(addr + ohci->localmem_base + HCCA_WRITEBACK_OFFSET,
+                              (char *)hcca + HCCA_WRITEBACK_OFFSET,
+                              HCCA_WRITEBACK_SIZE);
     return 1;
 }
 
@@ -1813,11 +1825,6 @@ static int usb_ohci_initfn_pci(struct PCIDevice *dev)
     /* TODO: avoid cast below by using dev */
     pci_register_bar(&ohci->pci_dev, 0, 0, &ohci->state.mem);
     return 0;
-}
-
-void usb_ohci_init_pci(struct PCIBus *bus, int devfn)
-{
-    pci_create_simple(bus, devfn, "pci-ohci");
 }
 
 typedef struct {

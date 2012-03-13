@@ -3490,6 +3490,7 @@ esac
 mkdir -p $target_dir/fpu
 mkdir -p $target_dir/tcg
 mkdir -p $target_dir/ide
+mkdir -p $target_dir/usb
 mkdir -p $target_dir/9pfs
 mkdir -p $target_dir/kvm
 if test "$target" = "arm-linux-user" -o "$target" = "armeb-linux-user" -o "$target" = "arm-bsd-user" -o "$target" = "armeb-bsd-user" ; then
@@ -3906,7 +3907,7 @@ done # for target in $targets
 DIRS="tests tests/tcg tests/tcg/cris slirp audio block net pc-bios/optionrom"
 DIRS="$DIRS pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
-DIRS="$DIRS fsdev ui"
+DIRS="$DIRS fsdev ui usb"
 DIRS="$DIRS qapi qapi-generated"
 DIRS="$DIRS qga trace qom"
 FILES="Makefile tests/tcg/Makefile qdict-test-data.txt"
@@ -3947,6 +3948,7 @@ done
 for hwlib in 32 64; do
   d=libhw$hwlib
   mkdir -p $d/ide
+  mkdir -p $d/usb
   symlink $source_path/Makefile.hw $d/Makefile
   mkdir -p $d/9pfs
   echo "QEMU_CFLAGS+=-DTARGET_PHYS_ADDR_BITS=$hwlib" > $d/config.mak

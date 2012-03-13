@@ -30,10 +30,10 @@
  */
 
 #include "qemu-common.h"
-#include "usb.h"
-#include "usb-desc.h"
-#include "hw.h"
-#include "audiodev.h"
+#include "hw/usb.h"
+#include "hw/usb/desc.h"
+#include "hw/hw.h"
+#include "hw/audiodev.h"
 #include "audio/audio.h"
 
 #define USBAUDIO_VENDOR_NUM     0x46f4 /* CRC16() of "QEMU" */

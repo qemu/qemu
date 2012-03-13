@@ -32,6 +32,27 @@ m_init(Slirp *slirp)
     slirp->m_usedlist.m_next = slirp->m_usedlist.m_prev = &slirp->m_usedlist;
 }
 
+void m_cleanup(Slirp *slirp)
+{
+    struct mbuf *m, *next;
+
+    m = slirp->m_usedlist.m_next;
+    while (m != &slirp->m_usedlist) {
+        next = m->m_next;
+        if (m->m_flags & M_EXT) {
+            free(m->m_ext);
+        }
+        free(m);
+        m = next;
+    }
+    m = slirp->m_freelist.m_next;
+    while (m != &slirp->m_freelist) {
+        next = m->m_next;
+        free(m);
+        m = next;
+    }
+}
+
 /*
  * Get an mbuf from the free list, if there are none
  * malloc one

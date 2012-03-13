@@ -28,6 +28,7 @@
 #include <sys/mman.h>
 
 #include "qemu.h"
+#include "qemu-common.h"
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
@@ -748,6 +749,8 @@ int main(int argc, char **argv)
 
     if (argc <= 1)
         usage();
+
+    module_call_init(MODULE_INIT_QOM);
 
     optind = 1;
     for(;;) {

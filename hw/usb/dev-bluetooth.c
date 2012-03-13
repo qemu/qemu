@@ -19,10 +19,10 @@
  */
 
 #include "qemu-common.h"
-#include "usb.h"
-#include "usb-desc.h"
+#include "hw/usb.h"
+#include "hw/usb/desc.h"
 #include "net.h"
-#include "bt.h"
+#include "hw/bt.h"
 
 struct USBBtState {
     USBDevice dev;

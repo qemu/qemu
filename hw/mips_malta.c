@@ -33,7 +33,6 @@
 #include "mips.h"
 #include "mips_cpudevs.h"
 #include "pci.h"
-#include "usb-uhci.h"
 #include "vmware_vga.h"
 #include "qemu-char.h"
 #include "sysemu.h"
@@ -986,7 +985,7 @@ void mips_malta_init (ram_addr_t ram_size,
 
     isa_bus_irqs(isa_bus, s->i8259);
     pci_piix4_ide_init(pci_bus, hd, piix4_devfn + 1);
-    usb_uhci_piix4_init(pci_bus, piix4_devfn + 2);
+    pci_create_simple(pci_bus, piix4_devfn + 2, "piix4-usb-uhci");
     smbus = piix4_pm_init(pci_bus, piix4_devfn + 3, 0x1100,
                           isa_get_irq(NULL, 9), NULL, 0);
     /* TODO: Populate SPD eeprom data.  */
