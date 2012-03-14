@@ -75,11 +75,11 @@ uint32_t HELPER(neon_tbl)(uint32_t ireg, uint32_t def,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUARMState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr)
 {
     TranslationBlock *tb;
-    CPUState *saved_env;
+    CPUARMState *saved_env;
     unsigned long pc;
     int ret;
 
@@ -103,7 +103,7 @@ void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
 }
 #endif
 
-/* FIXME: Pass an axplicit pointer to QF to CPUState, and move saturating
+/* FIXME: Pass an axplicit pointer to QF to CPUARMState, and move saturating
    instructions into helper.c  */
 uint32_t HELPER(add_setq)(uint32_t a, uint32_t b)
 {
