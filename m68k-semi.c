@@ -104,7 +104,7 @@ static int translate_openflags(int flags)
     return hf;
 }
 
-static void translate_stat(CPUState *env, target_ulong addr, struct stat *s)
+static void translate_stat(CPUM68KState *env, target_ulong addr, struct stat *s)
 {
     struct m68k_gdb_stat *p;
 
@@ -135,7 +135,7 @@ static void translate_stat(CPUState *env, target_ulong addr, struct stat *s)
 
 static int m68k_semi_is_fseek;
 
-static void m68k_semi_cb(CPUState *env, target_ulong ret, target_ulong err)
+static void m68k_semi_cb(CPUM68KState *env, target_ulong ret, target_ulong err)
 {
     target_ulong args;
 
