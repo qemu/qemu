@@ -64,7 +64,7 @@ enum {
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
-    CPUState *env;
+    CPULM32State *env;
     target_ulong pc;
 
     /* Decoder.  */
@@ -987,7 +987,7 @@ static inline void decode(DisasContext *dc)
     decinfo[dc->opcode](dc);
 }
 
-static void check_breakpoint(CPUState *env, DisasContext *dc)
+static void check_breakpoint(CPULM32State *env, DisasContext *dc)
 {
     CPUBreakpoint *bp;
 
@@ -1003,7 +1003,7 @@ static void check_breakpoint(CPUState *env, DisasContext *dc)
 }
 
 /* generate intermediate code for basic block 'tb'.  */
-static void gen_intermediate_code_internal(CPUState *env,
+static void gen_intermediate_code_internal(CPULM32State *env,
         TranslationBlock *tb, int search_pc)
 {
     struct DisasContext ctx, *dc = &ctx;
@@ -1129,17 +1129,17 @@ static void gen_intermediate_code_internal(CPUState *env,
 #endif
 }
 
-void gen_intermediate_code(CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code(CPULM32State *env, struct TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 0);
 }
 
-void gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code_pc(CPULM32State *env, struct TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_state(CPULM32State *env, FILE *f, fprintf_function cpu_fprintf,
                      int flags)
 {
     int i;
@@ -1171,7 +1171,7 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
     cpu_fprintf(f, "\n\n");
 }
 
-void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPULM32State *env, TranslationBlock *tb, int pc_pos)
 {
     env->pc = gen_opc_pc[pc_pos];
 }
@@ -1184,48 +1184,48 @@ void lm32_translate_init(void)
 
     for (i = 0; i < ARRAY_SIZE(cpu_R); i++) {
         cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
-                          offsetof(CPUState, regs[i]),
+                          offsetof(CPULM32State, regs[i]),
                           regnames[i]);
     }
 
     for (i = 0; i < ARRAY_SIZE(cpu_bp); i++) {
         cpu_bp[i] = tcg_global_mem_new(TCG_AREG0,
-                          offsetof(CPUState, bp[i]),
+                          offsetof(CPULM32State, bp[i]),
                           regnames[32+i]);
     }
 
     for (i = 0; i < ARRAY_SIZE(cpu_wp); i++) {
         cpu_wp[i] = tcg_global_mem_new(TCG_AREG0,
-                          offsetof(CPUState, wp[i]),
+                          offsetof(CPULM32State, wp[i]),
                           regnames[36+i]);
     }
 
     cpu_pc = tcg_global_mem_new(TCG_AREG0,
-                    offsetof(CPUState, pc),
+                    offsetof(CPULM32State, pc),
                     "pc");
     cpu_ie = tcg_global_mem_new(TCG_AREG0,
-                    offsetof(CPUState, ie),
+                    offsetof(CPULM32State, ie),
                     "ie");
     cpu_icc = tcg_global_mem_new(TCG_AREG0,
-                    offsetof(CPUState, icc),
+                    offsetof(CPULM32State, icc),
                     "icc");
     cpu_dcc = tcg_global_mem_new(TCG_AREG0,
-                    offsetof(CPUState, dcc),
+                    offsetof(CPULM32State, dcc),
                     "dcc");
     cpu_cc = tcg_global_mem_new(TCG_AREG0,
-                    offsetof(CPUState, cc),
+                    offsetof(CPULM32State, cc),
                     "cc");
     cpu_cfg = tcg_global_mem_new(TCG_AREG0,
-                    offsetof(CPUState, cfg),
+                    offsetof(CPULM32State, cfg),
                     "cfg");
     cpu_eba = tcg_global_mem_new(TCG_AREG0,
-                    offsetof(CPUState, eba),
+                    offsetof(CPULM32State, eba),
                     "eba");
     cpu_dc = tcg_global_mem_new(TCG_AREG0,
-                    offsetof(CPUState, dc),
+                    offsetof(CPULM32State, dc),
                     "dc");
     cpu_deba = tcg_global_mem_new(TCG_AREG0,
-                    offsetof(CPUState, deba),
+                    offsetof(CPULM32State, deba),
                     "deba");
 }
 
