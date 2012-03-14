@@ -177,6 +177,19 @@ static size_t type_class_get_size(TypeImpl *ti)
     return sizeof(ObjectClass);
 }
 
+static size_t type_object_get_size(TypeImpl *ti)
+{
+    if (ti->instance_size) {
+        return ti->instance_size;
+    }
+
+    if (type_has_parent(ti)) {
+        return type_object_get_size(type_get_parent(ti));
+    }
+
+    return 0;
+}
+
 static void type_class_interface_init(TypeImpl *ti, InterfaceImpl *iface)
 {
     TypeInfo info = {
@@ -193,7 +206,7 @@ static void type_class_interface_init(TypeImpl *ti, InterfaceImpl *iface)
     g_free(name);
 }
 
-static void type_class_init(TypeImpl *ti)
+static void type_initialize(TypeImpl *ti)
 {
     size_t class_size = sizeof(ObjectClass);
     int i;
@@ -203,6 +216,7 @@ static void type_class_init(TypeImpl *ti)
     }
 
     ti->class_size = type_class_get_size(ti);
+    ti->instance_size = type_object_get_size(ti);
 
     ti->class = g_malloc0(ti->class_size);
     ti->class->type = ti;
@@ -210,7 +224,7 @@ static void type_class_init(TypeImpl *ti)
     if (type_has_parent(ti)) {
         TypeImpl *parent = type_get_parent(ti);
 
-        type_class_init(parent);
+        type_initialize(parent);
 
         class_size = parent->class_size;
         g_assert(parent->class_size <= ti->class_size);
@@ -264,9 +278,9 @@ void object_initialize_with_type(void *data, TypeImpl *type)
     Object *obj = data;
 
     g_assert(type != NULL);
-    g_assert(type->instance_size >= sizeof(Object));
+    type_initialize(type);
 
-    type_class_init(type);
+    g_assert(type->instance_size >= sizeof(Object));
     g_assert(type->abstract == false);
 
     memset(obj, 0, type->instance_size);
@@ -353,6 +367,7 @@ Object *object_new_with_type(Type type)
     Object *obj;
 
     g_assert(type != NULL);
+    type_initialize(type);
 
     obj = g_malloc(type->instance_size);
     object_initialize_with_type(obj, type);
@@ -525,7 +540,7 @@ ObjectClass *object_class_by_name(const char *typename)
         return NULL;
     }
 
-    type_class_init(type);
+    type_initialize(type);
 
     return type->class;
 }
@@ -545,7 +560,7 @@ static void object_class_foreach_tramp(gpointer key, gpointer value,
     TypeImpl *type = value;
     ObjectClass *k;
 
-    type_class_init(type);
+    type_initialize(type);
     k = type->class;
 
     if (!data->include_abstract && type->abstract) {
@@ -567,6 +582,23 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
     OCFData data = { fn, implements_type, include_abstract, opaque };
 
     g_hash_table_foreach(type_table_get(), object_class_foreach_tramp, &data);
+}
+
+static void object_class_get_list_tramp(ObjectClass *klass, void *opaque)
+{
+    GSList **list = opaque;
+
+    *list = g_slist_prepend(*list, klass);
+}
+
+GSList *object_class_get_list(const char *implements_type,
+                              bool include_abstract)
+{
+    GSList *list = NULL;
+
+    object_class_foreach(object_class_get_list_tramp,
+                         implements_type, include_abstract, &list);
+    return list;
 }
 
 void object_ref(Object *obj)
