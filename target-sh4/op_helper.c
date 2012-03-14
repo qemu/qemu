@@ -55,10 +55,10 @@ static void cpu_restore_state_from_retaddr(void *retaddr)
 #define SHIFT 3
 #include "softmmu_template.h"
 
-void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUSH4State *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr)
 {
-    CPUState *saved_env;
+    CPUSH4State *saved_env;
     int ret;
 
     saved_env = env;
