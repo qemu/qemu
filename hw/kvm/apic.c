@@ -124,7 +124,7 @@ static void kvm_apic_vapic_base_update(APICCommonState *s)
 static void do_inject_external_nmi(void *data)
 {
     APICCommonState *s = data;
-    CPUState *env = s->cpu_env;
+    CPUX86State *env = s->cpu_env;
     uint32_t lvt;
     int ret;
 

@@ -142,7 +142,7 @@ static void update_guest_rom_state(VAPICROMState *s)
     write_guest_rom_state(s);
 }
 
-static int find_real_tpr_addr(VAPICROMState *s, CPUState *env)
+static int find_real_tpr_addr(VAPICROMState *s, CPUX86State *env)
 {
     target_phys_addr_t paddr;
     target_ulong addr;
@@ -185,7 +185,7 @@ static bool opcode_matches(uint8_t *opcode, const TPRInstruction *instr)
          modrm_reg(opcode[1]) == instr->modrm_reg);
 }
 
-static int evaluate_tpr_instruction(VAPICROMState *s, CPUState *env,
+static int evaluate_tpr_instruction(VAPICROMState *s, CPUX86State *env,
                                     target_ulong *pip, TPRAccess access)
 {
     const TPRInstruction *instr;
@@ -267,7 +267,7 @@ instruction_ok:
     return 0;
 }
 
-static int update_rom_mapping(VAPICROMState *s, CPUState *env, target_ulong ip)
+static int update_rom_mapping(VAPICROMState *s, CPUX86State *env, target_ulong ip)
 {
     target_phys_addr_t paddr;
     uint32_t rom_state_vaddr;
@@ -330,7 +330,7 @@ static int update_rom_mapping(VAPICROMState *s, CPUState *env, target_ulong ip)
  * cannot be accessed or is considered invalid. This also ensures that we are
  * not patching the wrong guest.
  */
-static int get_kpcr_number(CPUState *env)
+static int get_kpcr_number(CPUX86State *env)
 {
     struct kpcr {
         uint8_t  fill1[0x1c];
@@ -347,7 +347,7 @@ static int get_kpcr_number(CPUState *env)
     return kpcr.number;
 }
 
-static int vapic_enable(VAPICROMState *s, CPUState *env)
+static int vapic_enable(VAPICROMState *s, CPUX86State *env)
 {
     int cpu_number = get_kpcr_number(env);
     target_phys_addr_t vapic_paddr;
@@ -367,12 +367,12 @@ static int vapic_enable(VAPICROMState *s, CPUState *env)
     return 0;
 }
 
-static void patch_byte(CPUState *env, target_ulong addr, uint8_t byte)
+static void patch_byte(CPUX86State *env, target_ulong addr, uint8_t byte)
 {
     cpu_memory_rw_debug(env, addr, &byte, 1, 1);
 }
 
-static void patch_call(VAPICROMState *s, CPUState *env, target_ulong ip,
+static void patch_call(VAPICROMState *s, CPUX86State *env, target_ulong ip,
                        uint32_t target)
 {
     uint32_t offset;
@@ -382,7 +382,7 @@ static void patch_call(VAPICROMState *s, CPUState *env, target_ulong ip,
     cpu_memory_rw_debug(env, ip + 1, (void *)&offset, sizeof(offset), 1);
 }
 
-static void patch_instruction(VAPICROMState *s, CPUState *env, target_ulong ip)
+static void patch_instruction(VAPICROMState *s, CPUX86State *env, target_ulong ip)
 {
     target_phys_addr_t paddr;
     VAPICHandlers *handlers;
@@ -439,7 +439,7 @@ void vapic_report_tpr_access(DeviceState *dev, void *cpu, target_ulong ip,
                              TPRAccess access)
 {
     VAPICROMState *s = DO_UPCAST(VAPICROMState, busdev.qdev, dev);
-    CPUState *env = cpu;
+    CPUX86State *env = cpu;
 
     cpu_synchronize_state(env);
 
@@ -475,7 +475,7 @@ static void vapic_enable_tpr_reporting(bool enable)
     VAPICEnableTPRReporting info = {
         .enable = enable,
     };
-    CPUState *env;
+    CPUX86State *env;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         info.apic = env->apic_state;
@@ -606,7 +606,7 @@ static int vapic_prepare(VAPICROMState *s)
 static void vapic_write(void *opaque, target_phys_addr_t addr, uint64_t data,
                         unsigned int size)
 {
-    CPUState *env = cpu_single_env;
+    CPUX86State *env = cpu_single_env;
     target_phys_addr_t rom_paddr;
     VAPICROMState *s = opaque;
 

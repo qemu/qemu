@@ -57,7 +57,7 @@ void vmport_register(unsigned char command, IOPortReadFunc *func, void *opaque)
 static uint32_t vmport_ioport_read(void *opaque, uint32_t addr)
 {
     VMPortState *s = opaque;
-    CPUState *env = cpu_single_env;
+    CPUX86State *env = cpu_single_env;
     unsigned char command;
     uint32_t eax;
 
@@ -83,21 +83,21 @@ static uint32_t vmport_ioport_read(void *opaque, uint32_t addr)
 
 static void vmport_ioport_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    CPUState *env = cpu_single_env;
+    CPUX86State *env = cpu_single_env;
 
     env->regs[R_EAX] = vmport_ioport_read(opaque, addr);
 }
 
 static uint32_t vmport_cmd_get_version(void *opaque, uint32_t addr)
 {
-    CPUState *env = cpu_single_env;
+    CPUX86State *env = cpu_single_env;
     env->regs[R_EBX] = VMPORT_MAGIC;
     return 6;
 }
 
 static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 {
-    CPUState *env = cpu_single_env;
+    CPUX86State *env = cpu_single_env;
     env->regs[R_EBX] = 0x1177;
     return ram_size;
 }
@@ -105,7 +105,7 @@ static uint32_t vmport_cmd_ram_size(void *opaque, uint32_t addr)
 /* vmmouse helpers */
 void vmmouse_get_data(uint32_t *data)
 {
-    CPUState *env = cpu_single_env;
+    CPUX86State *env = cpu_single_env;
 
     data[0] = env->regs[R_EAX]; data[1] = env->regs[R_EBX];
     data[2] = env->regs[R_ECX]; data[3] = env->regs[R_EDX];
@@ -114,7 +114,7 @@ void vmmouse_get_data(uint32_t *data)
 
 void vmmouse_set_data(const uint32_t *data)
 {
-    CPUState *env = cpu_single_env;
+    CPUX86State *env = cpu_single_env;
 
     env->regs[R_EAX] = data[0]; env->regs[R_EBX] = data[1];
     env->regs[R_ECX] = data[2]; env->regs[R_EDX] = data[3];
