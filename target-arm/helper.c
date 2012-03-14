@@ -2025,7 +2025,7 @@ uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
             return env->cp15.c5_data;
         case 1:
             if (arm_feature(env, ARM_FEATURE_MPU))
-                return simple_mpu_ap_bits(env->cp15.c5_data);
+                return simple_mpu_ap_bits(env->cp15.c5_insn);
             return env->cp15.c5_insn;
         case 2:
             if (!arm_feature(env, ARM_FEATURE_MPU))
