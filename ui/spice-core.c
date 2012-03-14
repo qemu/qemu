@@ -554,7 +554,7 @@ void qemu_spice_init(void)
 
     qemu_thread_get_self(&me);
 
-   if (!opts) {
+    if (!opts) {
         return;
     }
     port = qemu_opt_get_number(opts, "port", 0);
@@ -787,10 +787,3 @@ static void spice_register_config(void)
     qemu_add_opts(&qemu_spice_opts);
 }
 machine_init(spice_register_config);
-
-static void spice_register_types(void)
-{
-    qemu_spice_init();
-}
-
-type_init(spice_register_types)
