@@ -55,7 +55,7 @@ enum {
     SELECT_ONE_EXCEPT = 3,
 };
 
-void HELPER(simcall)(CPUState *env)
+void HELPER(simcall)(CPUXtensaState *env)
 {
     uint32_t *regs = env->regs;
 
