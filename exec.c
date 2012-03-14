@@ -2031,14 +2031,19 @@ static void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr,
     cpu_physical_memory_set_dirty_flags(ram_addr, CODE_DIRTY_FLAG);
 }
 
+static bool tlb_is_dirty_ram(CPUTLBEntry *tlbe)
+{
+    return (tlbe->addr_write & (TLB_INVALID_MASK|TLB_MMIO|TLB_NOTDIRTY)) == 0;
+}
+
 static inline void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry,
                                          unsigned long start, unsigned long length)
 {
     unsigned long addr;
-    if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == io_mem_ram.ram_addr) {
+    if (tlb_is_dirty_ram(tlb_entry)) {
         addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend;
         if ((addr - start) < length) {
-            tlb_entry->addr_write = (tlb_entry->addr_write & TARGET_PAGE_MASK) | TLB_NOTDIRTY;
+            tlb_entry->addr_write |= TLB_NOTDIRTY;
         }
     }
 }
@@ -2091,7 +2096,7 @@ static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
     ram_addr_t ram_addr;
     void *p;
 
-    if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == io_mem_ram.ram_addr) {
+    if (tlb_is_dirty_ram(tlb_entry)) {
         p = (void *)(unsigned long)((tlb_entry->addr_write & TARGET_PAGE_MASK)
             + tlb_entry->addend);
         ram_addr = qemu_ram_addr_from_host_nofail(p);
