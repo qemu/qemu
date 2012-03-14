@@ -25,13 +25,13 @@
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt (CPUState *env)
+void do_interrupt (CPUMBState *env)
 {
     env->exception_index = -1;
     env->regs[14] = env->sregs[SR_PC];
 }
 
-int cpu_mb_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
+int cpu_mb_handle_mmu_fault(CPUMBState * env, target_ulong address, int rw,
                             int mmu_idx)
 {
     env->exception_index = 0xaa;
@@ -41,7 +41,7 @@ int cpu_mb_handle_mmu_fault(CPUState * env, target_ulong address, int rw,
 
 #else /* !CONFIG_USER_ONLY */
 
-int cpu_mb_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+int cpu_mb_handle_mmu_fault (CPUMBState *env, target_ulong address, int rw,
                              int mmu_idx)
 {
     unsigned int hit;
@@ -107,7 +107,7 @@ int cpu_mb_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return r;
 }
 
-void do_interrupt(CPUState *env)
+void do_interrupt(CPUMBState *env)
 {
     uint32_t t;
 
@@ -255,7 +255,7 @@ void do_interrupt(CPUState *env)
     }
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState * env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUMBState * env, target_ulong addr)
 {
     target_ulong vaddr, paddr = 0;
     struct microblaze_mmu_lookup lu;

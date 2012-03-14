@@ -82,10 +82,10 @@ struct microblaze_mmu_lookup
     } err;
 };
 
-void mmu_flip_um(CPUState *env, unsigned int um);
+void mmu_flip_um(CPUMBState *env, unsigned int um);
 unsigned int mmu_translate(struct microblaze_mmu *mmu,
                            struct microblaze_mmu_lookup *lu,
                            target_ulong vaddr, int rw, int mmu_idx);
-uint32_t mmu_read(CPUState *env, uint32_t rn);
-void mmu_write(CPUState *env, uint32_t rn, uint32_t v);
+uint32_t mmu_read(CPUMBState *env, uint32_t rn);
+void mmu_write(CPUMBState *env, uint32_t rn, uint32_t v);
 void mmu_init(struct microblaze_mmu *mmu);
