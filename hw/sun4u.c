@@ -243,7 +243,7 @@ static unsigned long sun4u_load_kernel(const char *kernel_filename,
     return kernel_size;
 }
 
-void cpu_check_irqs(CPUState *env)
+void cpu_check_irqs(CPUSPARCState *env)
 {
     uint32_t pil = env->pil_in |
                   (env->softint & ~(SOFTINT_TIMER | SOFTINT_STIMER));
@@ -297,7 +297,7 @@ void cpu_check_irqs(CPUState *env)
     }
 }
 
-static void cpu_kick_irq(CPUState *env)
+static void cpu_kick_irq(CPUSPARCState *env)
 {
     env->halted = 0;
     cpu_check_irqs(env);
@@ -306,7 +306,7 @@ static void cpu_kick_irq(CPUState *env)
 
 static void cpu_set_irq(void *opaque, int irq, int level)
 {
-    CPUState *env = opaque;
+    CPUSPARCState *env = opaque;
 
     if (level) {
         CPUIRQ_DPRINTF("Raise CPU IRQ %d\n", irq);
@@ -320,7 +320,7 @@ static void cpu_set_irq(void *opaque, int irq, int level)
 }
 
 typedef struct ResetData {
-    CPUState *env;
+    CPUSPARCState *env;
     uint64_t prom_addr;
 } ResetData;
 
@@ -344,7 +344,7 @@ void cpu_get_timer(QEMUFile *f, CPUTimer *s)
     qemu_get_timer(f, s->qtimer);
 }
 
-static CPUTimer* cpu_timer_create(const char* name, CPUState *env,
+static CPUTimer* cpu_timer_create(const char* name, CPUSPARCState *env,
                                   QEMUBHFunc *cb, uint32_t frequency,
                                   uint64_t disabled_mask)
 {
@@ -373,10 +373,10 @@ static void cpu_timer_reset(CPUTimer *timer)
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s = (ResetData *)opaque;
-    CPUState *env = s->env;
+    CPUSPARCState *env = s->env;
     static unsigned int nr_resets;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     cpu_timer_reset(env->tick);
     cpu_timer_reset(env->stick);
@@ -396,7 +396,7 @@ static void main_cpu_reset(void *opaque)
 
 static void tick_irq(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUSPARCState *env = opaque;
 
     CPUTimer* timer = env->tick;
 
@@ -413,7 +413,7 @@ static void tick_irq(void *opaque)
 
 static void stick_irq(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUSPARCState *env = opaque;
 
     CPUTimer* timer = env->stick;
 
@@ -430,7 +430,7 @@ static void stick_irq(void *opaque)
 
 static void hstick_irq(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUSPARCState *env = opaque;
 
     CPUTimer* timer = env->hstick;
 
@@ -714,9 +714,9 @@ static TypeInfo ram_info = {
     .class_init    = ram_class_init,
 };
 
-static CPUState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
+static CPUSPARCState *cpu_devinit(const char *cpu_model, const struct hwdef *hwdef)
 {
-    CPUState *env;
+    CPUSPARCState *env;
     ResetData *reset_info;
 
     uint32_t   tick_frequency = 100*1000000;
@@ -755,7 +755,7 @@ static void sun4uv_init(MemoryRegion *address_space_mem,
                         const char *initrd_filename, const char *cpu_model,
                         const struct hwdef *hwdef)
 {
-    CPUState *env;
+    CPUSPARCState *env;
     M48t59State *nvram;
     unsigned int i;
     long initrd_size, kernel_size;

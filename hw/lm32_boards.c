@@ -31,7 +31,7 @@
 #include "exec-memory.h"
 
 typedef struct {
-    CPUState *env;
+    CPULM32State *env;
     target_phys_addr_t bootstrap_pc;
     target_phys_addr_t flash_base;
     target_phys_addr_t hwsetup_base;
@@ -42,7 +42,7 @@ typedef struct {
 
 static void cpu_irq_handler(void *opaque, int irq, int level)
 {
-    CPUState *env = opaque;
+    CPULM32State *env = opaque;
 
     if (level) {
         cpu_interrupt(env, CPU_INTERRUPT_HARD);
@@ -54,9 +54,9 @@ static void cpu_irq_handler(void *opaque, int irq, int level)
 static void main_cpu_reset(void *opaque)
 {
     ResetInfo *reset_info = opaque;
-    CPUState *env = reset_info->env;
+    CPULM32State *env = reset_info->env;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     /* init defaults */
     env->pc = (uint32_t)reset_info->bootstrap_pc;
@@ -75,7 +75,7 @@ static void lm32_evr_init(ram_addr_t ram_size_not_used,
                           const char *kernel_cmdline,
                           const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env;
+    CPULM32State *env;
     DriveInfo *dinfo;
     MemoryRegion *address_space_mem =  get_system_memory();
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);
@@ -163,7 +163,7 @@ static void lm32_uclinux_init(ram_addr_t ram_size_not_used,
                           const char *kernel_cmdline,
                           const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env;
+    CPULM32State *env;
     DriveInfo *dinfo;
     MemoryRegion *address_space_mem =  get_system_memory();
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);

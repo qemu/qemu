@@ -17,7 +17,7 @@ void mcf_uart_mm_init(struct MemoryRegion *sysmem,
 /* mcf_intc.c */
 qemu_irq *mcf_intc_init(struct MemoryRegion *sysmem,
                         target_phys_addr_t base,
-                        CPUState *env);
+                        CPUM68KState *env);
 
 /* mcf_fec.c */
 void mcf_fec_init(struct MemoryRegion *sysmem, NICInfo *nd,
@@ -25,6 +25,6 @@ void mcf_fec_init(struct MemoryRegion *sysmem, NICInfo *nd,
 
 /* mcf5206.c */
 qemu_irq *mcf5206_init(struct MemoryRegion *sysmem,
-                       uint32_t base, CPUState *env);
+                       uint32_t base, CPUM68KState *env);
 
 #endif

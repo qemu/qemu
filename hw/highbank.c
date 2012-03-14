@@ -37,12 +37,12 @@
 /* Board init.  */
 static void highbank_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUARMState *env = opaque;
 
     env->cp15.c15_config_base_address = GIC_BASE_ADDR;
 }
 
-static void hb_write_secondary(CPUState *env, const struct arm_boot_info *info)
+static void hb_write_secondary(CPUARMState *env, const struct arm_boot_info *info)
 {
     int n;
     uint32_t smpboot[] = {
@@ -66,7 +66,7 @@ static void hb_write_secondary(CPUState *env, const struct arm_boot_info *info)
     rom_add_blob_fixed("smpboot", smpboot, sizeof(smpboot), SMP_BOOT_ADDR);
 }
 
-static void hb_reset_secondary(CPUState *env, const struct arm_boot_info *info)
+static void hb_reset_secondary(CPUARMState *env, const struct arm_boot_info *info)
 {
     switch (info->nb_cpus) {
     case 4:
@@ -196,7 +196,7 @@ static void highbank_init(ram_addr_t ram_size,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env = NULL;
+    CPUARMState *env = NULL;
     DeviceState *dev;
     SysBusDevice *busdev;
     qemu_irq *irqp;

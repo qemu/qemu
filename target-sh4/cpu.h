@@ -37,7 +37,7 @@
 #define SH_CPU_SH7750_ALL (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7750R)
 #define SH_CPU_SH7751_ALL (SH_CPU_SH7751 | SH_CPU_SH7751R)
 
-#define CPUState struct CPUSH4State
+#define CPUArchState struct CPUSH4State
 
 #include "cpu-defs.h"
 
@@ -240,13 +240,13 @@ void cpu_load_tlb(CPUSH4State * env);
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user
 #define MMU_USER_IDX 1
-static inline int cpu_mmu_index (CPUState *env)
+static inline int cpu_mmu_index (CPUSH4State *env)
 {
     return (env->sr & SR_MD) == 0 ? 1 : 0;
 }
 
 #if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPUSH4State *env, target_ulong newsp)
 {
     if (newsp)
         env->gregs[15] = newsp;
@@ -348,7 +348,7 @@ static inline int cpu_ptel_pr (uint32_t ptel)
 
 #define TB_FLAG_PENDING_MOVCA  (1 << 4)
 
-static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
+static inline void cpu_get_tb_cpu_state(CPUSH4State *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
     *pc = env->pc;
@@ -361,14 +361,14 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
             | (env->movcal_backup ? TB_FLAG_PENDING_MOVCA : 0); /* Bit 4 */
 }
 
-static inline bool cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUSH4State *env)
 {
     return env->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
 #include "exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+static inline void cpu_pc_from_tb(CPUSH4State *env, TranslationBlock *tb)
 {
     env->pc = tb->pc;
     env->flags = tb->flags;

@@ -49,7 +49,7 @@ typedef struct spin_state {
 } SpinState;
 
 typedef struct spin_kick {
-    CPUState *env;
+    CPUPPCState *env;
     SpinInfo *spin;
 } SpinKick;
 
@@ -73,7 +73,7 @@ static inline target_phys_addr_t booke206_page_size_to_tlb(uint64_t size)
     return (ffs(size >> 10) - 1) >> 1;
 }
 
-static void mmubooke_create_initial_mapping(CPUState *env,
+static void mmubooke_create_initial_mapping(CPUPPCState *env,
                                      target_ulong va,
                                      target_phys_addr_t pa,
                                      target_phys_addr_t len)
@@ -91,7 +91,7 @@ static void mmubooke_create_initial_mapping(CPUState *env,
 static void spin_kick(void *data)
 {
     SpinKick *kick = data;
-    CPUState *env = kick->env;
+    CPUPPCState *env = kick->env;
     SpinInfo *curspin = kick->spin;
     target_phys_addr_t map_size = 64 * 1024 * 1024;
     target_phys_addr_t map_start;
@@ -121,7 +121,7 @@ static void spin_write(void *opaque, target_phys_addr_t addr, uint64_t value,
 {
     SpinState *s = opaque;
     int env_idx = addr / sizeof(SpinInfo);
-    CPUState *env;
+    CPUPPCState *env;
     SpinInfo *curspin = &s->spin[env_idx];
     uint8_t *curspin_p = (uint8_t*)curspin;
 

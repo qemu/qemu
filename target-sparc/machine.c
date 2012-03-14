@@ -6,7 +6,7 @@
 
 void cpu_save(QEMUFile *f, void *opaque)
 {
-    CPUState *env = opaque;
+    CPUSPARCState *env = opaque;
     int i;
     uint32_t tmp;
 
@@ -111,7 +111,7 @@ void cpu_save(QEMUFile *f, void *opaque)
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
-    CPUState *env = opaque;
+    CPUSPARCState *env = opaque;
     int i;
     uint32_t tmp;
 

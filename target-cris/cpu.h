@@ -25,7 +25,7 @@
 
 #define TARGET_LONG_BITS 32
 
-#define CPUState struct CPUCRISState
+#define CPUArchState struct CPUCRISState
 
 #include "cpu-defs.h"
 
@@ -225,17 +225,17 @@ enum {
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user
 #define MMU_USER_IDX 1
-static inline int cpu_mmu_index (CPUState *env)
+static inline int cpu_mmu_index (CPUCRISState *env)
 {
 	return !!(env->pregs[PR_CCS] & U_FLAG);
 }
 
-int cpu_cris_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+int cpu_cris_handle_mmu_fault(CPUCRISState *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_cris_handle_mmu_fault
 
 #if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPUCRISState *env, target_ulong newsp)
 {
     if (newsp)
         env->regs[14] = newsp;
@@ -260,7 +260,7 @@ static inline void cpu_set_tls(CPUCRISState *env, target_ulong newtls)
 
 #include "cpu-all.h"
 
-static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
+static inline void cpu_get_tb_cpu_state(CPUCRISState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
     *pc = env->pc;
@@ -273,14 +273,14 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 #define cpu_list cris_cpu_list
 void cris_cpu_list(FILE *f, fprintf_function cpu_fprintf);
 
-static inline bool cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUCRISState *env)
 {
     return env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
 #include "exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+static inline void cpu_pc_from_tb(CPUCRISState *env, TranslationBlock *tb)
 {
     env->pc = tb->pc;
 }

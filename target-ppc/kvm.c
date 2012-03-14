@@ -93,7 +93,7 @@ int kvm_arch_init(KVMState *s)
     return 0;
 }
 
-static int kvm_arch_sync_sregs(CPUState *cenv)
+static int kvm_arch_sync_sregs(CPUPPCState *cenv)
 {
     struct kvm_sregs sregs;
     int ret;
@@ -121,7 +121,7 @@ static int kvm_arch_sync_sregs(CPUState *cenv)
 }
 
 /* Set up a shared TLB array with KVM */
-static int kvm_booke206_tlb_init(CPUState *env)
+static int kvm_booke206_tlb_init(CPUPPCState *env)
 {
     struct kvm_book3e_206_tlb_params params = {};
     struct kvm_config_tlb cfg = {};
@@ -166,7 +166,7 @@ static int kvm_booke206_tlb_init(CPUState *env)
     return 0;
 }
 
-int kvm_arch_init_vcpu(CPUState *cenv)
+int kvm_arch_init_vcpu(CPUPPCState *cenv)
 {
     int ret;
 
@@ -189,11 +189,11 @@ int kvm_arch_init_vcpu(CPUState *cenv)
     return ret;
 }
 
-void kvm_arch_reset_vcpu(CPUState *env)
+void kvm_arch_reset_vcpu(CPUPPCState *env)
 {
 }
 
-static void kvm_sw_tlb_put(CPUState *env)
+static void kvm_sw_tlb_put(CPUPPCState *env)
 {
     struct kvm_dirty_tlb dirty_tlb;
     unsigned char *bitmap;
@@ -218,7 +218,7 @@ static void kvm_sw_tlb_put(CPUState *env)
     g_free(bitmap);
 }
 
-int kvm_arch_put_registers(CPUState *env, int level)
+int kvm_arch_put_registers(CPUPPCState *env, int level)
 {
     struct kvm_regs regs;
     int ret;
@@ -263,7 +263,7 @@ int kvm_arch_put_registers(CPUState *env, int level)
     return ret;
 }
 
-int kvm_arch_get_registers(CPUState *env)
+int kvm_arch_get_registers(CPUPPCState *env)
 {
     struct kvm_regs regs;
     struct kvm_sregs sregs;
@@ -440,7 +440,7 @@ int kvm_arch_get_registers(CPUState *env)
     return 0;
 }
 
-int kvmppc_set_interrupt(CPUState *env, int irq, int level)
+int kvmppc_set_interrupt(CPUPPCState *env, int irq, int level)
 {
     unsigned virq = level ? KVM_INTERRUPT_SET_LEVEL : KVM_INTERRUPT_UNSET;
 
@@ -465,7 +465,7 @@ int kvmppc_set_interrupt(CPUState *env, int irq, int level)
 #define PPC_INPUT_INT PPC6xx_INPUT_INT
 #endif
 
-void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_pre_run(CPUPPCState *env, struct kvm_run *run)
 {
     int r;
     unsigned irq;
@@ -498,16 +498,16 @@ void kvm_arch_pre_run(CPUState *env, struct kvm_run *run)
      * anyways, so we will get a chance to deliver the rest. */
 }
 
-void kvm_arch_post_run(CPUState *env, struct kvm_run *run)
+void kvm_arch_post_run(CPUPPCState *env, struct kvm_run *run)
 {
 }
 
-int kvm_arch_process_async_events(CPUState *env)
+int kvm_arch_process_async_events(CPUPPCState *env)
 {
     return env->halted;
 }
 
-static int kvmppc_handle_halt(CPUState *env)
+static int kvmppc_handle_halt(CPUPPCState *env)
 {
     if (!(env->interrupt_request & CPU_INTERRUPT_HARD) && (msr_ee)) {
         env->halted = 1;
@@ -518,7 +518,7 @@ static int kvmppc_handle_halt(CPUState *env)
 }
 
 /* map dcr access to existing qemu dcr emulation */
-static int kvmppc_handle_dcr_read(CPUState *env, uint32_t dcrn, uint32_t *data)
+static int kvmppc_handle_dcr_read(CPUPPCState *env, uint32_t dcrn, uint32_t *data)
 {
     if (ppc_dcr_read(env->dcr_env, dcrn, data) < 0)
         fprintf(stderr, "Read to unhandled DCR (0x%x)\n", dcrn);
@@ -526,7 +526,7 @@ static int kvmppc_handle_dcr_read(CPUState *env, uint32_t dcrn, uint32_t *data)
     return 0;
 }
 
-static int kvmppc_handle_dcr_write(CPUState *env, uint32_t dcrn, uint32_t data)
+static int kvmppc_handle_dcr_write(CPUPPCState *env, uint32_t dcrn, uint32_t data)
 {
     if (ppc_dcr_write(env->dcr_env, dcrn, data) < 0)
         fprintf(stderr, "Write to unhandled DCR (0x%x)\n", dcrn);
@@ -534,7 +534,7 @@ static int kvmppc_handle_dcr_write(CPUState *env, uint32_t dcrn, uint32_t data)
     return 0;
 }
 
-int kvm_arch_handle_exit(CPUState *env, struct kvm_run *run)
+int kvm_arch_handle_exit(CPUPPCState *env, struct kvm_run *run)
 {
     int ret;
 
@@ -704,7 +704,7 @@ uint32_t kvmppc_get_dfp(void)
     return kvmppc_read_int_cpu_dt("ibm,dfp");
 }
 
-int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
+int kvmppc_get_hypercall(CPUPPCState *env, uint8_t *buf, int buf_len)
 {
     uint32_t *hc = (uint32_t*)buf;
 
@@ -734,7 +734,7 @@ int kvmppc_get_hypercall(CPUState *env, uint8_t *buf, int buf_len)
     return 0;
 }
 
-void kvmppc_set_papr(CPUState *env)
+void kvmppc_set_papr(CPUPPCState *env)
 {
     struct kvm_enable_cap cap = {};
     struct kvm_one_reg reg = {};
@@ -930,12 +930,12 @@ const ppc_def_t *kvmppc_host_cpu_def(void)
     return spec;
 }
 
-bool kvm_arch_stop_on_emulation_error(CPUState *env)
+bool kvm_arch_stop_on_emulation_error(CPUPPCState *env)
 {
     return true;
 }
 
-int kvm_arch_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+int kvm_arch_on_sigbus_vcpu(CPUPPCState *env, int code, void *addr)
 {
     return 1;
 }

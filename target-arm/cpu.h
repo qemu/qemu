@@ -23,7 +23,7 @@
 
 #define ELF_MACHINE	EM_ARM
 
-#define CPUState struct CPUARMState
+#define CPUArchState struct CPUARMState
 
 #include "config.h"
 #include "qemu-common.h"
@@ -461,13 +461,13 @@ void cpu_arm_set_cp_io(CPUARMState *env, int cpnum,
 #define MMU_MODE0_SUFFIX _kernel
 #define MMU_MODE1_SUFFIX _user
 #define MMU_USER_IDX 1
-static inline int cpu_mmu_index (CPUState *env)
+static inline int cpu_mmu_index (CPUARMState *env)
 {
     return (env->uncached_cpsr & CPSR_M) == ARM_CPU_MODE_USR ? 1 : 0;
 }
 
 #if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
 {
     if (newsp)
         env->regs[13] = newsp;
@@ -506,7 +506,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define ARM_TBFLAG_CONDEXEC(F) \
     (((F) & ARM_TBFLAG_CONDEXEC_MASK) >> ARM_TBFLAG_CONDEXEC_SHIFT)
 
-static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
+static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
     int privmode;
@@ -529,7 +529,7 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     }
 }
 
-static inline bool cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUARMState *env)
 {
     return env->interrupt_request &
         (CPU_INTERRUPT_FIQ | CPU_INTERRUPT_HARD | CPU_INTERRUPT_EXITTB);
@@ -537,7 +537,7 @@ static inline bool cpu_has_work(CPUState *env)
 
 #include "exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
 {
     env->regs[15] = tb->pc;
 }

@@ -23,7 +23,7 @@
 #define QT0 (env->qt0)
 #define QT1 (env->qt1)
 
-static void check_ieee_exceptions(CPUState *env)
+static void check_ieee_exceptions(CPUSPARCState *env)
 {
     target_ulong status;
 
@@ -57,15 +57,15 @@ static void check_ieee_exceptions(CPUState *env)
     }
 }
 
-static inline void clear_float_exceptions(CPUState *env)
+static inline void clear_float_exceptions(CPUSPARCState *env)
 {
     set_float_exception_flags(0, &env->fp_status);
 }
 
-#define F_HELPER(name, p) void helper_f##name##p(CPUState *env)
+#define F_HELPER(name, p) void helper_f##name##p(CPUSPARCState *env)
 
 #define F_BINOP(name)                                           \
-    float32 helper_f ## name ## s (CPUState *env, float32 src1, \
+    float32 helper_f ## name ## s (CPUSPARCState *env, float32 src1, \
                                    float32 src2)                \
     {                                                           \
         float32 ret;                                            \
@@ -74,7 +74,7 @@ static inline void clear_float_exceptions(CPUState *env)
         check_ieee_exceptions(env);                             \
         return ret;                                             \
     }                                                           \
-    float64 helper_f ## name ## d (CPUState * env, float64 src1,\
+    float64 helper_f ## name ## d (CPUSPARCState * env, float64 src1,\
                                    float64 src2)                \
     {                                                           \
         float64 ret;                                            \
@@ -96,7 +96,7 @@ F_BINOP(mul);
 F_BINOP(div);
 #undef F_BINOP
 
-float64 helper_fsmuld(CPUState *env, float32 src1, float32 src2)
+float64 helper_fsmuld(CPUSPARCState *env, float32 src1, float32 src2)
 {
     float64 ret;
     clear_float_exceptions(env);
@@ -107,7 +107,7 @@ float64 helper_fsmuld(CPUState *env, float32 src1, float32 src2)
     return ret;
 }
 
-void helper_fdmulq(CPUState *env, float64 src1, float64 src2)
+void helper_fdmulq(CPUSPARCState *env, float64 src1, float64 src2)
 {
     clear_float_exceptions(env);
     QT0 = float128_mul(float64_to_float128(src1, &env->fp_status),
@@ -134,7 +134,7 @@ F_HELPER(neg, q)
 #endif
 
 /* Integer to float conversion.  */
-float32 helper_fitos(CPUState *env, int32_t src)
+float32 helper_fitos(CPUSPARCState *env, int32_t src)
 {
     /* Inexact error possible converting int to float.  */
     float32 ret;
@@ -144,20 +144,20 @@ float32 helper_fitos(CPUState *env, int32_t src)
     return ret;
 }
 
-float64 helper_fitod(CPUState *env, int32_t src)
+float64 helper_fitod(CPUSPARCState *env, int32_t src)
 {
     /* No possible exceptions converting int to double.  */
     return int32_to_float64(src, &env->fp_status);
 }
 
-void helper_fitoq(CPUState *env, int32_t src)
+void helper_fitoq(CPUSPARCState *env, int32_t src)
 {
     /* No possible exceptions converting int to long double.  */
     QT0 = int32_to_float128(src, &env->fp_status);
 }
 
 #ifdef TARGET_SPARC64
-float32 helper_fxtos(CPUState *env, int64_t src)
+float32 helper_fxtos(CPUSPARCState *env, int64_t src)
 {
     float32 ret;
     clear_float_exceptions(env);
@@ -166,7 +166,7 @@ float32 helper_fxtos(CPUState *env, int64_t src)
     return ret;
 }
 
-float64 helper_fxtod(CPUState *env, int64_t src)
+float64 helper_fxtod(CPUSPARCState *env, int64_t src)
 {
     float64 ret;
     clear_float_exceptions(env);
@@ -175,7 +175,7 @@ float64 helper_fxtod(CPUState *env, int64_t src)
     return ret;
 }
 
-void helper_fxtoq(CPUState *env, int64_t src)
+void helper_fxtoq(CPUSPARCState *env, int64_t src)
 {
     /* No possible exceptions converting long long to long double.  */
     QT0 = int64_to_float128(src, &env->fp_status);
@@ -184,7 +184,7 @@ void helper_fxtoq(CPUState *env, int64_t src)
 #undef F_HELPER
 
 /* floating point conversion */
-float32 helper_fdtos(CPUState *env, float64 src)
+float32 helper_fdtos(CPUSPARCState *env, float64 src)
 {
     float32 ret;
     clear_float_exceptions(env);
@@ -193,7 +193,7 @@ float32 helper_fdtos(CPUState *env, float64 src)
     return ret;
 }
 
-float64 helper_fstod(CPUState *env, float32 src)
+float64 helper_fstod(CPUSPARCState *env, float32 src)
 {
     float64 ret;
     clear_float_exceptions(env);
@@ -202,7 +202,7 @@ float64 helper_fstod(CPUState *env, float32 src)
     return ret;
 }
 
-float32 helper_fqtos(CPUState *env)
+float32 helper_fqtos(CPUSPARCState *env)
 {
     float32 ret;
     clear_float_exceptions(env);
@@ -211,14 +211,14 @@ float32 helper_fqtos(CPUState *env)
     return ret;
 }
 
-void helper_fstoq(CPUState *env, float32 src)
+void helper_fstoq(CPUSPARCState *env, float32 src)
 {
     clear_float_exceptions(env);
     QT0 = float32_to_float128(src, &env->fp_status);
     check_ieee_exceptions(env);
 }
 
-float64 helper_fqtod(CPUState *env)
+float64 helper_fqtod(CPUSPARCState *env)
 {
     float64 ret;
     clear_float_exceptions(env);
@@ -227,7 +227,7 @@ float64 helper_fqtod(CPUState *env)
     return ret;
 }
 
-void helper_fdtoq(CPUState *env, float64 src)
+void helper_fdtoq(CPUSPARCState *env, float64 src)
 {
     clear_float_exceptions(env);
     QT0 = float64_to_float128(src, &env->fp_status);
@@ -235,7 +235,7 @@ void helper_fdtoq(CPUState *env, float64 src)
 }
 
 /* Float to integer conversion.  */
-int32_t helper_fstoi(CPUState *env, float32 src)
+int32_t helper_fstoi(CPUSPARCState *env, float32 src)
 {
     int32_t ret;
     clear_float_exceptions(env);
@@ -244,7 +244,7 @@ int32_t helper_fstoi(CPUState *env, float32 src)
     return ret;
 }
 
-int32_t helper_fdtoi(CPUState *env, float64 src)
+int32_t helper_fdtoi(CPUSPARCState *env, float64 src)
 {
     int32_t ret;
     clear_float_exceptions(env);
@@ -253,7 +253,7 @@ int32_t helper_fdtoi(CPUState *env, float64 src)
     return ret;
 }
 
-int32_t helper_fqtoi(CPUState *env)
+int32_t helper_fqtoi(CPUSPARCState *env)
 {
     int32_t ret;
     clear_float_exceptions(env);
@@ -263,7 +263,7 @@ int32_t helper_fqtoi(CPUState *env)
 }
 
 #ifdef TARGET_SPARC64
-int64_t helper_fstox(CPUState *env, float32 src)
+int64_t helper_fstox(CPUSPARCState *env, float32 src)
 {
     int64_t ret;
     clear_float_exceptions(env);
@@ -272,7 +272,7 @@ int64_t helper_fstox(CPUState *env, float32 src)
     return ret;
 }
 
-int64_t helper_fdtox(CPUState *env, float64 src)
+int64_t helper_fdtox(CPUSPARCState *env, float64 src)
 {
     int64_t ret;
     clear_float_exceptions(env);
@@ -281,7 +281,7 @@ int64_t helper_fdtox(CPUState *env, float64 src)
     return ret;
 }
 
-int64_t helper_fqtox(CPUState *env)
+int64_t helper_fqtox(CPUSPARCState *env)
 {
     int64_t ret;
     clear_float_exceptions(env);
@@ -302,13 +302,13 @@ float64 helper_fabsd(float64 src)
     return float64_abs(src);
 }
 
-void helper_fabsq(CPUState *env)
+void helper_fabsq(CPUSPARCState *env)
 {
     QT0 = float128_abs(QT1);
 }
 #endif
 
-float32 helper_fsqrts(CPUState *env, float32 src)
+float32 helper_fsqrts(CPUSPARCState *env, float32 src)
 {
     float32 ret;
     clear_float_exceptions(env);
@@ -317,7 +317,7 @@ float32 helper_fsqrts(CPUState *env, float32 src)
     return ret;
 }
 
-float64 helper_fsqrtd(CPUState *env, float64 src)
+float64 helper_fsqrtd(CPUSPARCState *env, float64 src)
 {
     float64 ret;
     clear_float_exceptions(env);
@@ -326,7 +326,7 @@ float64 helper_fsqrtd(CPUState *env, float64 src)
     return ret;
 }
 
-void helper_fsqrtq(CPUState *env)
+void helper_fsqrtq(CPUSPARCState *env)
 {
     clear_float_exceptions(env);
     QT0 = float128_sqrt(QT1, &env->fp_status);
@@ -334,7 +334,7 @@ void helper_fsqrtq(CPUState *env)
 }
 
 #define GEN_FCMP(name, size, reg1, reg2, FS, E)                         \
-    void glue(helper_, name) (CPUState *env)                            \
+    void glue(helper_, name) (CPUSPARCState *env)                            \
     {                                                                   \
         env->fsr &= FSR_FTT_NMASK;                                      \
         if (E && (glue(size, _is_any_nan)(reg1) ||                      \
@@ -370,7 +370,7 @@ void helper_fsqrtq(CPUState *env)
         }                                                               \
     }
 #define GEN_FCMP_T(name, size, FS, E)                                   \
-    void glue(helper_, name)(CPUState *env, size src1, size src2)       \
+    void glue(helper_, name)(CPUSPARCState *env, size src1, size src2)       \
     {                                                                   \
         env->fsr &= FSR_FTT_NMASK;                                      \
         if (E && (glue(size, _is_any_nan)(src1) ||                      \
@@ -443,7 +443,7 @@ GEN_FCMP(fcmpeq_fcc3, float128, QT0, QT1, 26, 1);
 #undef GEN_FCMP_T
 #undef GEN_FCMP
 
-static inline void set_fsr(CPUState *env)
+static inline void set_fsr(CPUSPARCState *env)
 {
     int rnd_mode;
 
@@ -465,14 +465,14 @@ static inline void set_fsr(CPUState *env)
     set_float_rounding_mode(rnd_mode, &env->fp_status);
 }
 
-void helper_ldfsr(CPUState *env, uint32_t new_fsr)
+void helper_ldfsr(CPUSPARCState *env, uint32_t new_fsr)
 {
     env->fsr = (new_fsr & FSR_LDFSR_MASK) | (env->fsr & FSR_LDFSR_OLDMASK);
     set_fsr(env);
 }
 
 #ifdef TARGET_SPARC64
-void helper_ldxfsr(CPUState *env, uint64_t new_fsr)
+void helper_ldxfsr(CPUSPARCState *env, uint64_t new_fsr)
 {
     env->fsr = (new_fsr & FSR_LDXFSR_MASK) | (env->fsr & FSR_LDXFSR_OLDMASK);
     set_fsr(env);

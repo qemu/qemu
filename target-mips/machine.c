@@ -42,7 +42,7 @@ static void save_fpu(QEMUFile *f, CPUMIPSFPUContext *fpu)
 
 void cpu_save(QEMUFile *f, void *opaque)
 {
-    CPUState *env = opaque;
+    CPUMIPSState *env = opaque;
     int i;
 
     /* Save active TC */
@@ -190,7 +190,7 @@ static void load_fpu(QEMUFile *f, CPUMIPSFPUContext *fpu)
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
-    CPUState *env = opaque;
+    CPUMIPSState *env = opaque;
     int i;
 
     if (version_id != 3)

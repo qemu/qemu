@@ -1479,8 +1479,8 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
 
     /* Read the TLB entry */
     tcg_out_qemu_tlb(s, addr_reg, s_bits,
-                     offsetof(CPUState, tlb_table[mem_index][0].addr_read),
-                     offsetof(CPUState, tlb_table[mem_index][0].addend));
+                     offsetof(CPUArchState, tlb_table[mem_index][0].addr_read),
+                     offsetof(CPUArchState, tlb_table[mem_index][0].addend));
 
     /* P6 is the fast path, and P7 the slow path */
     tcg_out_bundle(s, mLX,
@@ -1570,8 +1570,8 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
 #endif
 
     tcg_out_qemu_tlb(s, addr_reg, opc,
-                     offsetof(CPUState, tlb_table[mem_index][0].addr_write),
-                     offsetof(CPUState, tlb_table[mem_index][0].addend));
+                     offsetof(CPUArchState, tlb_table[mem_index][0].addr_write),
+                     offsetof(CPUArchState, tlb_table[mem_index][0].addend));
 
     /* P6 is the fast path, and P7 the slow path */
     tcg_out_bundle(s, mLX,
@@ -2368,6 +2368,6 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R6);
 
     tcg_add_target_add_op_defs(ia64_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
+    tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 }

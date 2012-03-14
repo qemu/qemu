@@ -83,7 +83,7 @@ typedef struct Exynos4210Irq {
 } Exynos4210Irq;
 
 typedef struct Exynos4210State {
-    CPUState * env[EXYNOS4210_NCPUS];
+    CPUARMState * env[EXYNOS4210_NCPUS];
     Exynos4210Irq irqs;
     qemu_irq *irq_table;
 

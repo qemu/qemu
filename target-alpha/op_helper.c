@@ -1329,7 +1329,7 @@ static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
     helper_excp(EXCP_UNALIGN, 0);
 }
 
-void QEMU_NORETURN cpu_unassigned_access(CPUState *env1,
+void QEMU_NORETURN cpu_unassigned_access(CPUAlphaState *env1,
                                          target_phys_addr_t addr, int is_write,
                                          int is_exec, int unused, int size)
 {
@@ -1360,10 +1360,10 @@ void QEMU_NORETURN cpu_unassigned_access(CPUState *env1,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUAlphaState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr)
 {
-    CPUState *saved_env;
+    CPUAlphaState *saved_env;
     int ret;
 
     saved_env = env;

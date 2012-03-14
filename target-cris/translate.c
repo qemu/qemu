@@ -74,7 +74,7 @@ static TCGv env_pc;
 
 /* This is the state at translation time.  */
 typedef struct DisasContext {
-	CPUState *env;
+	CPUCRISState *env;
 	target_ulong pc, ppc;
 
 	/* Decoder.  */
@@ -160,9 +160,9 @@ static int preg_sizes[] = {
 };
 
 #define t_gen_mov_TN_env(tn, member) \
- _t_gen_mov_TN_env((tn), offsetof(CPUState, member))
+ _t_gen_mov_TN_env((tn), offsetof(CPUCRISState, member))
 #define t_gen_mov_env_TN(member, tn) \
- _t_gen_mov_env_TN(offsetof(CPUState, member), (tn))
+ _t_gen_mov_env_TN(offsetof(CPUCRISState, member), (tn))
 
 static inline void t_gen_mov_TN_reg(TCGv tn, int r)
 {
@@ -179,13 +179,13 @@ static inline void t_gen_mov_reg_TN(int r, TCGv tn)
 
 static inline void _t_gen_mov_TN_env(TCGv tn, int offset)
 {
-	if (offset > sizeof (CPUState))
+	if (offset > sizeof (CPUCRISState))
 		fprintf(stderr, "wrong load from env from off=%d\n", offset);
 	tcg_gen_ld_tl(tn, cpu_env, offset);
 }
 static inline void _t_gen_mov_env_TN(int offset, TCGv tn)
 {
-	if (offset > sizeof (CPUState))
+	if (offset > sizeof (CPUCRISState))
 		fprintf(stderr, "wrong store to env at off=%d\n", offset);
 	tcg_gen_st_tl(tn, cpu_env, offset);
 }
@@ -3114,7 +3114,7 @@ static unsigned int crisv32_decoder(DisasContext *dc)
 	return insn_len;
 }
 
-static void check_breakpoint(CPUState *env, DisasContext *dc)
+static void check_breakpoint(CPUCRISState *env, DisasContext *dc)
 {
 	CPUBreakpoint *bp;
 
@@ -3168,7 +3168,7 @@ static void check_breakpoint(CPUState *env, DisasContext *dc)
 
 /* generate intermediate code for basic block 'tb'.  */
 static void
-gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
+gen_intermediate_code_internal(CPUCRISState *env, TranslationBlock *tb,
                                int search_pc)
 {
 	uint16_t *gen_opc_end;
@@ -3419,17 +3419,17 @@ gen_intermediate_code_internal(CPUState *env, TranslationBlock *tb,
 #endif
 }
 
-void gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code (CPUCRISState *env, struct TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 0);
 }
 
-void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code_pc (CPUCRISState *env, struct TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_state (CPUCRISState *env, FILE *f, fprintf_function cpu_fprintf,
                      int flags)
 {
 	int i;
@@ -3513,7 +3513,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 
 	env->pregs[PR_VR] = vr_by_name(cpu_model);
 	cpu_exec_init(env);
-	cpu_reset(env);
+    cpu_state_reset(env);
 	qemu_init_vcpu(env);
 
 	if (tcg_initialized)
@@ -3532,48 +3532,48 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
 
 	cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 	cc_x = tcg_global_mem_new(TCG_AREG0,
-				  offsetof(CPUState, cc_x), "cc_x");
+				  offsetof(CPUCRISState, cc_x), "cc_x");
 	cc_src = tcg_global_mem_new(TCG_AREG0,
-				    offsetof(CPUState, cc_src), "cc_src");
+				    offsetof(CPUCRISState, cc_src), "cc_src");
 	cc_dest = tcg_global_mem_new(TCG_AREG0,
-				     offsetof(CPUState, cc_dest),
+				     offsetof(CPUCRISState, cc_dest),
 				     "cc_dest");
 	cc_result = tcg_global_mem_new(TCG_AREG0,
-				       offsetof(CPUState, cc_result),
+				       offsetof(CPUCRISState, cc_result),
 				       "cc_result");
 	cc_op = tcg_global_mem_new(TCG_AREG0,
-				   offsetof(CPUState, cc_op), "cc_op");
+				   offsetof(CPUCRISState, cc_op), "cc_op");
 	cc_size = tcg_global_mem_new(TCG_AREG0,
-				     offsetof(CPUState, cc_size),
+				     offsetof(CPUCRISState, cc_size),
 				     "cc_size");
 	cc_mask = tcg_global_mem_new(TCG_AREG0,
-				     offsetof(CPUState, cc_mask),
+				     offsetof(CPUCRISState, cc_mask),
 				     "cc_mask");
 
 	env_pc = tcg_global_mem_new(TCG_AREG0, 
-				    offsetof(CPUState, pc),
+				    offsetof(CPUCRISState, pc),
 				    "pc");
 	env_btarget = tcg_global_mem_new(TCG_AREG0,
-					 offsetof(CPUState, btarget),
+					 offsetof(CPUCRISState, btarget),
 					 "btarget");
 	env_btaken = tcg_global_mem_new(TCG_AREG0,
-					 offsetof(CPUState, btaken),
+					 offsetof(CPUCRISState, btaken),
 					 "btaken");
 	for (i = 0; i < 16; i++) {
 		cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
-					      offsetof(CPUState, regs[i]),
+					      offsetof(CPUCRISState, regs[i]),
 					      regnames[i]);
 	}
 	for (i = 0; i < 16; i++) {
 		cpu_PR[i] = tcg_global_mem_new(TCG_AREG0,
-					       offsetof(CPUState, pregs[i]),
+					       offsetof(CPUCRISState, pregs[i]),
 					       pregnames[i]);
 	}
 
 	return env;
 }
 
-void cpu_reset (CPUCRISState *env)
+void cpu_state_reset(CPUCRISState *env)
 {
 	uint32_t vr;
 
@@ -3596,7 +3596,7 @@ void cpu_reset (CPUCRISState *env)
 #endif
 }
 
-void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUCRISState *env, TranslationBlock *tb, int pc_pos)
 {
 	env->pc = gen_opc_pc[pc_pos];
 }

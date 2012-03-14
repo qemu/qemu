@@ -105,35 +105,35 @@ static void alpha_translate_init(void)
     for (i = 0; i < 31; i++) {
         sprintf(p, "ir%d", i);
         cpu_ir[i] = tcg_global_mem_new_i64(TCG_AREG0,
-                                           offsetof(CPUState, ir[i]), p);
+                                           offsetof(CPUAlphaState, ir[i]), p);
         p += (i < 10) ? 4 : 5;
 
         sprintf(p, "fir%d", i);
         cpu_fir[i] = tcg_global_mem_new_i64(TCG_AREG0,
-                                            offsetof(CPUState, fir[i]), p);
+                                            offsetof(CPUAlphaState, fir[i]), p);
         p += (i < 10) ? 5 : 6;
     }
 
     cpu_pc = tcg_global_mem_new_i64(TCG_AREG0,
-                                    offsetof(CPUState, pc), "pc");
+                                    offsetof(CPUAlphaState, pc), "pc");
 
     cpu_lock_addr = tcg_global_mem_new_i64(TCG_AREG0,
-					   offsetof(CPUState, lock_addr),
+					   offsetof(CPUAlphaState, lock_addr),
 					   "lock_addr");
     cpu_lock_st_addr = tcg_global_mem_new_i64(TCG_AREG0,
-					      offsetof(CPUState, lock_st_addr),
+					      offsetof(CPUAlphaState, lock_st_addr),
 					      "lock_st_addr");
     cpu_lock_value = tcg_global_mem_new_i64(TCG_AREG0,
-					    offsetof(CPUState, lock_value),
+					    offsetof(CPUAlphaState, lock_value),
 					    "lock_value");
 
     cpu_unique = tcg_global_mem_new_i64(TCG_AREG0,
-                                        offsetof(CPUState, unique), "unique");
+                                        offsetof(CPUAlphaState, unique), "unique");
 #ifndef CONFIG_USER_ONLY
     cpu_sysval = tcg_global_mem_new_i64(TCG_AREG0,
-                                        offsetof(CPUState, sysval), "sysval");
+                                        offsetof(CPUAlphaState, sysval), "sysval");
     cpu_usp = tcg_global_mem_new_i64(TCG_AREG0,
-                                     offsetof(CPUState, usp), "usp");
+                                     offsetof(CPUAlphaState, usp), "usp");
 #endif
 
     /* register helpers */
@@ -611,7 +611,7 @@ static void gen_qual_roundmode(DisasContext *ctx, int fn11)
         tcg_gen_movi_i32(tmp, float_round_down);
         break;
     case QUAL_RM_D:
-        tcg_gen_ld8u_i32(tmp, cpu_env, offsetof(CPUState, fpcr_dyn_round));
+        tcg_gen_ld8u_i32(tmp, cpu_env, offsetof(CPUAlphaState, fpcr_dyn_round));
         break;
     }
 
@@ -620,7 +620,7 @@ static void gen_qual_roundmode(DisasContext *ctx, int fn11)
        With CONFIG_SOFTFLOAT that expands to an out-of-line call that just
        sets the one field.  */
     tcg_gen_st8_i32(tmp, cpu_env,
-                    offsetof(CPUState, fp_status.float_rounding_mode));
+                    offsetof(CPUAlphaState, fp_status.float_rounding_mode));
 #else
     gen_helper_setroundmode(tmp);
 #endif
@@ -641,7 +641,7 @@ static void gen_qual_flushzero(DisasContext *ctx, int fn11)
     tmp = tcg_temp_new_i32();
     if (fn11) {
         /* Underflow is enabled, use the FPCR setting.  */
-        tcg_gen_ld8u_i32(tmp, cpu_env, offsetof(CPUState, fpcr_flush_to_zero));
+        tcg_gen_ld8u_i32(tmp, cpu_env, offsetof(CPUAlphaState, fpcr_flush_to_zero));
     } else {
         /* Underflow is disabled, force flush-to-zero.  */
         tcg_gen_movi_i32(tmp, 1);
@@ -649,7 +649,7 @@ static void gen_qual_flushzero(DisasContext *ctx, int fn11)
 
 #if defined(CONFIG_SOFTFLOAT_INLINE)
     tcg_gen_st8_i32(tmp, cpu_env,
-                    offsetof(CPUState, fp_status.flush_to_zero));
+                    offsetof(CPUAlphaState, fp_status.flush_to_zero));
 #else
     gen_helper_setflushzero(tmp);
 #endif
@@ -677,7 +677,7 @@ static void gen_fp_exc_clear(void)
 #if defined(CONFIG_SOFTFLOAT_INLINE)
     TCGv_i32 zero = tcg_const_i32(0);
     tcg_gen_st8_i32(zero, cpu_env,
-                    offsetof(CPUState, fp_status.float_exception_flags));
+                    offsetof(CPUAlphaState, fp_status.float_exception_flags));
     tcg_temp_free_i32(zero);
 #else
     gen_helper_fp_exc_clear();
@@ -696,7 +696,7 @@ static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
 
 #if defined(CONFIG_SOFTFLOAT_INLINE)
     tcg_gen_ld8u_i32(exc, cpu_env,
-                     offsetof(CPUState, fp_status.float_exception_flags));
+                     offsetof(CPUAlphaState, fp_status.float_exception_flags));
 #else
     gen_helper_fp_exc_get(exc);
 #endif
@@ -1456,11 +1456,11 @@ static void gen_rx(int ra, int set)
     TCGv_i32 tmp;
 
     if (ra != 31) {
-        tcg_gen_ld8u_i64(cpu_ir[ra], cpu_env, offsetof(CPUState, intr_flag));
+        tcg_gen_ld8u_i64(cpu_ir[ra], cpu_env, offsetof(CPUAlphaState, intr_flag));
     }
 
     tmp = tcg_const_i32(set);
-    tcg_gen_st8_i32(tmp, cpu_env, offsetof(CPUState, intr_flag));
+    tcg_gen_st8_i32(tmp, cpu_env, offsetof(CPUAlphaState, intr_flag));
     tcg_temp_free_i32(tmp);
 }
 
@@ -1504,7 +1504,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
             break;
         case 0x2D:
             /* WRVPTPTR */
-            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env, offsetof(CPUState, vptptr));
+            tcg_gen_st_i64(cpu_ir[IR_A0], cpu_env, offsetof(CPUAlphaState, vptptr));
             break;
         case 0x31:
             /* WRVAL */
@@ -1521,19 +1521,19 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
 
             /* Note that we already know we're in kernel mode, so we know
                that PS only contains the 3 IPL bits.  */
-            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env, offsetof(CPUState, ps));
+            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env, offsetof(CPUAlphaState, ps));
 
             /* But make sure and store only the 3 IPL bits from the user.  */
             tmp = tcg_temp_new();
             tcg_gen_andi_i64(tmp, cpu_ir[IR_A0], PS_INT_MASK);
-            tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUState, ps));
+            tcg_gen_st8_i64(tmp, cpu_env, offsetof(CPUAlphaState, ps));
             tcg_temp_free(tmp);
             break;
         }
 
         case 0x36:
             /* RDPS */
-            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env, offsetof(CPUState, ps));
+            tcg_gen_ld8u_i64(cpu_ir[IR_V0], cpu_env, offsetof(CPUAlphaState, ps));
             break;
         case 0x38:
             /* WRUSP */
@@ -1546,7 +1546,7 @@ static ExitStatus gen_call_pal(DisasContext *ctx, int palcode)
         case 0x3C:
             /* WHAMI */
             tcg_gen_ld32s_i64(cpu_ir[IR_V0], cpu_env,
-                              offsetof(CPUState, cpu_index));
+                              offsetof(CPUAlphaState, cpu_index));
             break;
 
         default:
@@ -1654,7 +1654,7 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
     case 253:
         /* WAIT */
         tmp = tcg_const_i64(1);
-        tcg_gen_st32_i64(tmp, cpu_env, offsetof(CPUState, halted));
+        tcg_gen_st32_i64(tmp, cpu_env, offsetof(CPUAlphaState, halted));
         return gen_excp(ctx, EXCP_HLT, 0);
 
     case 252:
@@ -3107,7 +3107,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                    address from EXC_ADDR.  This turns out to be useful for our
                    emulation PALcode, so continue to accept it.  */
                 TCGv tmp = tcg_temp_new();
-                tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUState, exc_addr));
+                tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUAlphaState, exc_addr));
                 gen_helper_hw_ret(tmp);
                 tcg_temp_free(tmp);
             } else {
@@ -3325,7 +3325,7 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
     return ret;
 }
 
-static inline void gen_intermediate_code_internal(CPUState *env,
+static inline void gen_intermediate_code_internal(CPUAlphaState *env,
                                                   TranslationBlock *tb,
                                                   int search_pc)
 {
@@ -3450,12 +3450,12 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 #endif
 }
 
-void gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code (CPUAlphaState *env, struct TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 0);
 }
 
-void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code_pc (CPUAlphaState *env, struct TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 1);
 }
@@ -3522,7 +3522,7 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     return env;
 }
 
-void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUAlphaState *env, TranslationBlock *tb, int pc_pos)
 {
     env->pc = gen_opc_pc[pc_pos];
 }

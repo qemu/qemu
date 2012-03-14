@@ -463,11 +463,18 @@ static const MemoryRegionOps PPC_prep_io_ops = {
 
 static void cpu_request_exit(void *opaque, int irq, int level)
 {
-    CPUState *env = cpu_single_env;
+    CPUPPCState *env = cpu_single_env;
 
     if (env && level) {
         cpu_exit(env);
     }
+}
+
+static void ppc_prep_reset(void *opaque)
+{
+    CPUPPCState *env = opaque;
+
+    cpu_state_reset(env);
 }
 
 /* PowerPC PREP hardware initialisation */
@@ -479,7 +486,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
                            const char *cpu_model)
 {
     MemoryRegion *sysmem = get_system_memory();
-    CPUState *env = NULL;
+    CPUPPCState *env = NULL;
     char *filename;
     nvram_t nvram;
     M48t59State *m48t59;
@@ -524,7 +531,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
             /* Set time-base frequency to 100 Mhz */
             cpu_ppc_tb_init(env, 100UL * 1000UL * 1000UL);
         }
-        qemu_register_reset((QEMUResetHandler*)&cpu_reset, env);
+        qemu_register_reset(ppc_prep_reset, env);
     }
 
     /* allocate RAM */

@@ -990,10 +990,10 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     tcg_out_dat_reg(s, COND_AL, ARITH_ADD, TCG_REG_R0, TCG_AREG0,
                     TCG_REG_R0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
     /* In the
-     *  ldr r1 [r0, #(offsetof(CPUState, tlb_table[mem_index][0].addr_read))]
+     *  ldr r1 [r0, #(offsetof(CPUArchState, tlb_table[mem_index][0].addr_read))]
      * below, the offset is likely to exceed 12 bits if mem_index != 0 and
      * not exceed otherwise, so use an
-     *  add r0, r0, #(mem_index * sizeof *CPUState.tlb_table)
+     *  add r0, r0, #(mem_index * sizeof *CPUArchState.tlb_table)
      * before.
      */
     if (mem_index)
@@ -1001,7 +1001,7 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
                         (mem_index << (TLB_SHIFT & 1)) |
                         ((16 - (TLB_SHIFT >> 1)) << 8));
     tcg_out_ld32_12(s, COND_AL, TCG_REG_R1, TCG_REG_R0,
-                    offsetof(CPUState, tlb_table[0][0].addr_read));
+                    offsetof(CPUArchState, tlb_table[0][0].addr_read));
     tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0, TCG_REG_R1,
                     TCG_REG_R8, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
     /* Check alignment.  */
@@ -1012,12 +1012,12 @@ static inline void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     /* XXX: possibly we could use a block data load or writeback in
      * the first access.  */
     tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0,
-                    offsetof(CPUState, tlb_table[0][0].addr_read) + 4);
+                    offsetof(CPUArchState, tlb_table[0][0].addr_read) + 4);
     tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
                     TCG_REG_R1, addr_reg2, SHIFT_IMM_LSL(0));
 #  endif
     tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0,
-                    offsetof(CPUState, tlb_table[0][0].addend));
+                    offsetof(CPUArchState, tlb_table[0][0].addend));
 
     switch (opc) {
     case 0:
@@ -1210,10 +1210,10 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     tcg_out_dat_reg(s, COND_AL, ARITH_ADD, TCG_REG_R0,
                     TCG_AREG0, TCG_REG_R0, SHIFT_IMM_LSL(CPU_TLB_ENTRY_BITS));
     /* In the
-     *  ldr r1 [r0, #(offsetof(CPUState, tlb_table[mem_index][0].addr_write))]
+     *  ldr r1 [r0, #(offsetof(CPUArchState, tlb_table[mem_index][0].addr_write))]
      * below, the offset is likely to exceed 12 bits if mem_index != 0 and
      * not exceed otherwise, so use an
-     *  add r0, r0, #(mem_index * sizeof *CPUState.tlb_table)
+     *  add r0, r0, #(mem_index * sizeof *CPUArchState.tlb_table)
      * before.
      */
     if (mem_index)
@@ -1221,7 +1221,7 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
                         (mem_index << (TLB_SHIFT & 1)) |
                         ((16 - (TLB_SHIFT >> 1)) << 8));
     tcg_out_ld32_12(s, COND_AL, TCG_REG_R1, TCG_REG_R0,
-                    offsetof(CPUState, tlb_table[0][0].addr_write));
+                    offsetof(CPUArchState, tlb_table[0][0].addr_write));
     tcg_out_dat_reg(s, COND_AL, ARITH_CMP, 0, TCG_REG_R1,
                     TCG_REG_R8, SHIFT_IMM_LSL(TARGET_PAGE_BITS));
     /* Check alignment.  */
@@ -1232,12 +1232,12 @@ static inline void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
     /* XXX: possibly we could use a block data load or writeback in
      * the first access.  */
     tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0,
-                    offsetof(CPUState, tlb_table[0][0].addr_write) + 4);
+                    offsetof(CPUArchState, tlb_table[0][0].addr_write) + 4);
     tcg_out_dat_reg(s, COND_EQ, ARITH_CMP, 0,
                     TCG_REG_R1, addr_reg2, SHIFT_IMM_LSL(0));
 #  endif
     tcg_out_ld32_12(s, COND_EQ, TCG_REG_R1, TCG_REG_R0,
-                    offsetof(CPUState, tlb_table[0][0].addend));
+                    offsetof(CPUArchState, tlb_table[0][0].addend));
 
     switch (opc) {
     case 0:
@@ -1797,7 +1797,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_PC);
 
     tcg_add_target_add_op_defs(arm_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
+    tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 

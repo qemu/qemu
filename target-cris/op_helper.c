@@ -56,11 +56,11 @@
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUCRISState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr)
 {
     TranslationBlock *tb;
-    CPUState *saved_env;
+    CPUCRISState *saved_env;
     unsigned long pc;
     int ret;
 
@@ -201,7 +201,7 @@ void helper_movl_reg_sreg (uint32_t reg, uint32_t sreg)
 	env->regs[reg] = env->sregs[srs][sreg];
 }
 
-static void cris_ccs_rshift(CPUState *env)
+static void cris_ccs_rshift(CPUCRISState *env)
 {
 	uint32_t ccs;
 

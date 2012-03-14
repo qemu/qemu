@@ -171,7 +171,7 @@ struct linux_binprm {
         char **argv;
         char **envp;
         char * filename;        /* Name of binary */
-        int (*core_dump)(int, const CPUState *); /* coredump routine */
+        int (*core_dump)(int, const CPUArchState *); /* coredump routine */
 };
 
 void do_init_thread(struct target_pt_regs *regs, struct image_info *infop);
@@ -196,8 +196,8 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
                     abi_long arg5, abi_long arg6, abi_long arg7,
                     abi_long arg8);
 void gemu_log(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
-extern THREAD CPUState *thread_env;
-void cpu_loop(CPUState *env);
+extern THREAD CPUArchState *thread_env;
+void cpu_loop(CPUArchState *env);
 char *target_strerror(int err);
 int get_osversion(void);
 void fork_start(void);
@@ -219,15 +219,15 @@ void print_syscall_ret(int num, abi_long arg1);
 extern int do_strace;
 
 /* signal.c */
-void process_pending_signals(CPUState *cpu_env);
+void process_pending_signals(CPUArchState *cpu_env);
 void signal_init(void);
-int queue_signal(CPUState *env, int sig, target_siginfo_t *info);
+int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info);
 void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
 int target_to_host_signal(int sig);
 int host_to_target_signal(int sig);
-long do_sigreturn(CPUState *env);
-long do_rt_sigreturn(CPUState *env);
+long do_sigreturn(CPUArchState *env);
+long do_rt_sigreturn(CPUArchState *env);
 abi_long do_sigaltstack(abi_ulong uss_addr, abi_ulong uoss_addr, abi_ulong sp);
 
 #ifdef TARGET_I386

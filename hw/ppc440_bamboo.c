@@ -121,7 +121,7 @@ out:
 }
 
 /* Create reset TLB entries for BookE, spanning the 32bit addr space.  */
-static void mmubooke_create_initial_mapping(CPUState *env,
+static void mmubooke_create_initial_mapping(CPUPPCState *env,
                                      target_ulong va,
                                      target_phys_addr_t pa)
 {
@@ -145,9 +145,9 @@ static void mmubooke_create_initial_mapping(CPUState *env,
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->gpr[1] = (16<<20) - 8;
     env->gpr[3] = FDT_ADDR;
     env->nip = entry;
@@ -172,7 +172,7 @@ static void bamboo_init(ram_addr_t ram_size,
     qemu_irq *pic;
     qemu_irq *irqs;
     PCIBus *pcibus;
-    CPUState *env;
+    CPUPPCState *env;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
     target_phys_addr_t loadaddr = 0;

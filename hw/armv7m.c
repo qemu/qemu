@@ -149,7 +149,7 @@ static void armv7m_bitband_init(void)
 
 static void armv7m_reset(void *opaque)
 {
-    cpu_reset((CPUState *)opaque);
+    cpu_state_reset((CPUARMState *)opaque);
 }
 
 /* Init CPU and memory for a v7-M based board.
@@ -160,7 +160,7 @@ qemu_irq *armv7m_init(MemoryRegion *address_space_mem,
                       int flash_size, int sram_size,
                       const char *kernel_filename, const char *cpu_model)
 {
-    CPUState *env;
+    CPUARMState *env;
     DeviceState *nvic;
     /* FIXME: make this local state.  */
     static qemu_irq pic[64];

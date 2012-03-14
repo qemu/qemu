@@ -20,7 +20,7 @@
 #include "cpu.h"
 #include "host-utils.h"
 
-int cpu_lm32_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
                               int mmu_idx)
 {
     int prot;
@@ -37,12 +37,12 @@ int cpu_lm32_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
     return 0;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPULM32State *env, target_ulong addr)
 {
     return addr & TARGET_PAGE_MASK;
 }
 
-void do_interrupt(CPUState *env)
+void do_interrupt(CPULM32State *env)
 {
     qemu_log_mask(CPU_LOG_INT,
             "exception at pc=%x type=%x\n", env->pc, env->exception_index);
@@ -192,9 +192,9 @@ static uint32_t cfg_by_def(const LM32Def *def)
     return cfg;
 }
 
-CPUState *cpu_lm32_init(const char *cpu_model)
+CPULM32State *cpu_lm32_init(const char *cpu_model)
 {
-    CPUState *env;
+    CPULM32State *env;
     const LM32Def *def;
     static int tcg_initialized;
 
@@ -203,7 +203,7 @@ CPUState *cpu_lm32_init(const char *cpu_model)
         return NULL;
     }
 
-    env = g_malloc0(sizeof(CPUState));
+    env = g_malloc0(sizeof(CPULM32State));
 
     env->features = def->features;
     env->num_bps = def->num_breakpoints;
@@ -212,7 +212,7 @@ CPUState *cpu_lm32_init(const char *cpu_model)
     env->flags = 0;
 
     cpu_exec_init(env);
-    cpu_reset(env);
+    cpu_state_reset(env);
     qemu_init_vcpu(env);
 
     if (!tcg_initialized) {
@@ -226,7 +226,7 @@ CPUState *cpu_lm32_init(const char *cpu_model)
 /* Some soc ignores the MSB on the address bus. Thus creating a shadow memory
  * area. As a general rule, 0x00000000-0x7fffffff is cached, whereas
  * 0x80000000-0xffffffff is not cached and used to access IO devices. */
-void cpu_lm32_set_phys_msb_ignore(CPUState *env, int value)
+void cpu_lm32_set_phys_msb_ignore(CPULM32State *env, int value)
 {
     if (value) {
         env->flags |= LM32_FLAG_IGNORE_MSB;
@@ -235,7 +235,7 @@ void cpu_lm32_set_phys_msb_ignore(CPUState *env, int value)
     }
 }
 
-void cpu_reset(CPUState *env)
+void cpu_state_reset(CPULM32State *env)
 {
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);

@@ -1031,7 +1031,7 @@ static inline void tcg_out_tlb_load(TCGContext *s, int addrlo_idx,
                 (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS, 0);
 
     tcg_out_modrm_sib_offset(s, OPC_LEA + P_REXW, r1, TCG_AREG0, r1, 0,
-                             offsetof(CPUState, tlb_table[mem_index][0])
+                             offsetof(CPUArchState, tlb_table[mem_index][0])
                              + which);
 
     /* cmp 0(r1), r0 */

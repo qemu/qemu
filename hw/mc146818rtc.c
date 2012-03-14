@@ -24,8 +24,6 @@
 #include "hw.h"
 #include "qemu-timer.h"
 #include "sysemu.h"
-#include "pc.h"
-#include "isa.h"
 #include "mc146818rtc.h"
 
 #ifdef TARGET_I386

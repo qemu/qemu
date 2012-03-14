@@ -11,7 +11,7 @@
 #include "helper.h"
 #include "host-utils.h"
 
-static inline void set_feature(CPUState *env, int feature)
+static inline void set_feature(CPUUniCore32State *env, int feature)
 {
     env->features |= feature;
 }
@@ -43,13 +43,13 @@ static uint32_t uc32_cpu_find_by_name(const char *name)
     return id;
 }
 
-CPUState *uc32_cpu_init(const char *cpu_model)
+CPUUniCore32State *uc32_cpu_init(const char *cpu_model)
 {
-    CPUState *env;
+    CPUUniCore32State *env;
     uint32_t id;
     static int inited = 1;
 
-    env = g_malloc0(sizeof(CPUState));
+    env = g_malloc0(sizeof(CPUUniCore32State));
     cpu_exec_init(env);
 
     id = uc32_cpu_find_by_name(cpu_model);
@@ -94,12 +94,12 @@ uint32_t HELPER(clz)(uint32_t x)
     return clz32(x);
 }
 
-void do_interrupt(CPUState *env)
+void do_interrupt(CPUUniCore32State *env)
 {
     env->exception_index = -1;
 }
 
-int uc32_cpu_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+int uc32_cpu_handle_mmu_fault(CPUUniCore32State *env, target_ulong address, int rw,
                               int mmu_idx)
 {
     env->exception_index = UC32_EXCP_TRAP;
@@ -108,44 +108,44 @@ int uc32_cpu_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp)(CPUUniCore32State *env, uint32_t insn, uint32_t val)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
     return;
 }
 
-uint32_t HELPER(get_cp)(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp)(CPUUniCore32State *env, uint32_t insn)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
     return 0;
 }
 
-void HELPER(set_cp0)(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp0)(CPUUniCore32State *env, uint32_t insn, uint32_t val)
 {
     cpu_abort(env, "cp0 insn %08x\n", insn);
 }
 
-uint32_t HELPER(get_cp0)(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp0)(CPUUniCore32State *env, uint32_t insn)
 {
     cpu_abort(env, "cp0 insn %08x\n", insn);
     return 0;
 }
 
-void switch_mode(CPUState *env, int mode)
+void switch_mode(CPUUniCore32State *env, int mode)
 {
     if (mode != ASR_MODE_USER) {
         cpu_abort(env, "Tried to switch out of user mode\n");
     }
 }
 
-void HELPER(set_r29_banked)(CPUState *env, uint32_t mode, uint32_t val)
+void HELPER(set_r29_banked)(CPUUniCore32State *env, uint32_t mode, uint32_t val)
 {
     cpu_abort(env, "banked r29 write\n");
 }
 
-uint32_t HELPER(get_r29_banked)(CPUState *env, uint32_t mode)
+uint32_t HELPER(get_r29_banked)(CPUUniCore32State *env, uint32_t mode)
 {
     cpu_abort(env, "banked r29 read\n");
     return 0;
@@ -178,7 +178,7 @@ static inline int ucf64_exceptbits_from_host(int host_bits)
     return target_bits;
 }
 
-uint32_t HELPER(ucf64_get_fpscr)(CPUState *env)
+uint32_t HELPER(ucf64_get_fpscr)(CPUUniCore32State *env)
 {
     int i;
     uint32_t fpscr;
@@ -212,7 +212,7 @@ static inline int ucf64_exceptbits_to_host(int target_bits)
     return host_bits;
 }
 
-void HELPER(ucf64_set_fpscr)(CPUState *env, uint32_t val)
+void HELPER(ucf64_set_fpscr)(CPUUniCore32State *env, uint32_t val)
 {
     int i;
     uint32_t changed;
@@ -246,42 +246,42 @@ void HELPER(ucf64_set_fpscr)(CPUState *env, uint32_t val)
     set_float_exception_flags(i, &env->ucf64.fp_status);
 }
 
-float32 HELPER(ucf64_adds)(float32 a, float32 b, CPUState *env)
+float32 HELPER(ucf64_adds)(float32 a, float32 b, CPUUniCore32State *env)
 {
     return float32_add(a, b, &env->ucf64.fp_status);
 }
 
-float64 HELPER(ucf64_addd)(float64 a, float64 b, CPUState *env)
+float64 HELPER(ucf64_addd)(float64 a, float64 b, CPUUniCore32State *env)
 {
     return float64_add(a, b, &env->ucf64.fp_status);
 }
 
-float32 HELPER(ucf64_subs)(float32 a, float32 b, CPUState *env)
+float32 HELPER(ucf64_subs)(float32 a, float32 b, CPUUniCore32State *env)
 {
     return float32_sub(a, b, &env->ucf64.fp_status);
 }
 
-float64 HELPER(ucf64_subd)(float64 a, float64 b, CPUState *env)
+float64 HELPER(ucf64_subd)(float64 a, float64 b, CPUUniCore32State *env)
 {
     return float64_sub(a, b, &env->ucf64.fp_status);
 }
 
-float32 HELPER(ucf64_muls)(float32 a, float32 b, CPUState *env)
+float32 HELPER(ucf64_muls)(float32 a, float32 b, CPUUniCore32State *env)
 {
     return float32_mul(a, b, &env->ucf64.fp_status);
 }
 
-float64 HELPER(ucf64_muld)(float64 a, float64 b, CPUState *env)
+float64 HELPER(ucf64_muld)(float64 a, float64 b, CPUUniCore32State *env)
 {
     return float64_mul(a, b, &env->ucf64.fp_status);
 }
 
-float32 HELPER(ucf64_divs)(float32 a, float32 b, CPUState *env)
+float32 HELPER(ucf64_divs)(float32 a, float32 b, CPUUniCore32State *env)
 {
     return float32_div(a, b, &env->ucf64.fp_status);
 }
 
-float64 HELPER(ucf64_divd)(float64 a, float64 b, CPUState *env)
+float64 HELPER(ucf64_divd)(float64 a, float64 b, CPUUniCore32State *env)
 {
     return float64_div(a, b, &env->ucf64.fp_status);
 }
@@ -307,7 +307,7 @@ float64 HELPER(ucf64_absd)(float64 a)
 }
 
 /* XXX: check quiet/signaling case */
-void HELPER(ucf64_cmps)(float32 a, float32 b, uint32_t c, CPUState *env)
+void HELPER(ucf64_cmps)(float32 a, float32 b, uint32_t c, CPUUniCore32State *env)
 {
     int flag;
     flag = float32_compare_quiet(a, b, &env->ucf64.fp_status);
@@ -355,7 +355,7 @@ void HELPER(ucf64_cmps)(float32 a, float32 b, uint32_t c, CPUState *env)
                     | (env->ucf64.xregs[UC32_UCF64_FPSCR] & 0x0fffffff);
 }
 
-void HELPER(ucf64_cmpd)(float64 a, float64 b, uint32_t c, CPUState *env)
+void HELPER(ucf64_cmpd)(float64 a, float64 b, uint32_t c, CPUUniCore32State *env)
 {
     int flag;
     flag = float64_compare_quiet(a, b, &env->ucf64.fp_status);
@@ -449,34 +449,34 @@ static inline uint64_t ucf64_dtoi(float64 d)
 }
 
 /* Integer to float conversion.  */
-float32 HELPER(ucf64_si2sf)(float32 x, CPUState *env)
+float32 HELPER(ucf64_si2sf)(float32 x, CPUUniCore32State *env)
 {
     return int32_to_float32(ucf64_stoi(x), &env->ucf64.fp_status);
 }
 
-float64 HELPER(ucf64_si2df)(float32 x, CPUState *env)
+float64 HELPER(ucf64_si2df)(float32 x, CPUUniCore32State *env)
 {
     return int32_to_float64(ucf64_stoi(x), &env->ucf64.fp_status);
 }
 
 /* Float to integer conversion.  */
-float32 HELPER(ucf64_sf2si)(float32 x, CPUState *env)
+float32 HELPER(ucf64_sf2si)(float32 x, CPUUniCore32State *env)
 {
     return ucf64_itos(float32_to_int32(x, &env->ucf64.fp_status));
 }
 
-float32 HELPER(ucf64_df2si)(float64 x, CPUState *env)
+float32 HELPER(ucf64_df2si)(float64 x, CPUUniCore32State *env)
 {
     return ucf64_itos(float64_to_int32(x, &env->ucf64.fp_status));
 }
 
 /* floating point conversion */
-float64 HELPER(ucf64_sf2df)(float32 x, CPUState *env)
+float64 HELPER(ucf64_sf2df)(float32 x, CPUUniCore32State *env)
 {
     return float32_to_float64(x, &env->ucf64.fp_status);
 }
 
-float32 HELPER(ucf64_df2sf)(float64 x, CPUState *env)
+float32 HELPER(ucf64_df2sf)(float64 x, CPUUniCore32State *env)
 {
     return float64_to_float32(x, &env->ucf64.fp_status);
 }

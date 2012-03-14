@@ -42,7 +42,7 @@ void grlib_irqmp_ack(DeviceState *dev, int intno);
 
 static inline
 DeviceState *grlib_irqmp_create(target_phys_addr_t   base,
-                                CPUState            *env,
+                                CPUSPARCState            *env,
                                 qemu_irq           **cpu_irqs,
                                 uint32_t             nr_irqs,
                                 set_pil_in_fn        set_pil_in)

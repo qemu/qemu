@@ -59,7 +59,7 @@ static uint32_t smpboot[] = {
   0           /* bootreg: Boot register address is held here */
 };
 
-static void default_write_secondary(CPUState *env,
+static void default_write_secondary(CPUARMState *env,
                                     const struct arm_boot_info *info)
 {
     int n;
@@ -72,7 +72,7 @@ static void default_write_secondary(CPUState *env,
                        info->smp_loader_start);
 }
 
-static void default_reset_secondary(CPUState *env,
+static void default_reset_secondary(CPUARMState *env,
                                     const struct arm_boot_info *info)
 {
     stl_phys_notdirty(info->smp_bootreg_addr, 0);
@@ -274,10 +274,10 @@ static int load_dtb(target_phys_addr_t addr, const struct arm_boot_info *binfo)
 
 static void do_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUARMState *env = opaque;
     const struct arm_boot_info *info = env->boot_info;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     if (info) {
         if (!info->is_linux) {
             /* Jump to the entry point.  */
@@ -300,7 +300,7 @@ static void do_cpu_reset(void *opaque)
     }
 }
 
-void arm_load_kernel(CPUState *env, struct arm_boot_info *info)
+void arm_load_kernel(CPUARMState *env, struct arm_boot_info *info)
 {
     int kernel_size;
     int initrd_size;

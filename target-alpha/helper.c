@@ -24,7 +24,7 @@
 #include "cpu.h"
 #include "softfloat.h"
 
-uint64_t cpu_alpha_load_fpcr (CPUState *env)
+uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env)
 {
     uint64_t r = 0;
     uint8_t t;
@@ -94,7 +94,7 @@ uint64_t cpu_alpha_load_fpcr (CPUState *env)
     return r;
 }
 
-void cpu_alpha_store_fpcr (CPUState *env, uint64_t val)
+void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val)
 {
     uint8_t t;
 
@@ -159,7 +159,7 @@ void cpu_alpha_store_fpcr (CPUState *env, uint64_t val)
 }
 
 #if defined(CONFIG_USER_ONLY)
-int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+int cpu_alpha_handle_mmu_fault (CPUAlphaState *env, target_ulong address, int rw,
                                 int mmu_idx)
 {
     env->exception_index = EXCP_MMFAULT;
@@ -167,7 +167,7 @@ int cpu_alpha_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
     return 1;
 }
 #else
-void swap_shadow_regs(CPUState *env)
+void swap_shadow_regs(CPUAlphaState *env)
 {
     uint64_t i0, i1, i2, i3, i4, i5, i6, i7;
 
@@ -200,7 +200,7 @@ void swap_shadow_regs(CPUState *env)
 }
 
 /* Returns the OSF/1 entMM failure indication, or -1 on success.  */
-static int get_physical_address(CPUState *env, target_ulong addr,
+static int get_physical_address(CPUAlphaState *env, target_ulong addr,
                                 int prot_need, int mmu_idx,
                                 target_ulong *pphys, int *pprot)
 {
@@ -306,7 +306,7 @@ static int get_physical_address(CPUState *env, target_ulong addr,
     return ret;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUAlphaState *env, target_ulong addr)
 {
     target_ulong phys;
     int prot, fail;
@@ -315,7 +315,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     return (fail >= 0 ? -1 : phys);
 }
 
-int cpu_alpha_handle_mmu_fault(CPUState *env, target_ulong addr, int rw,
+int cpu_alpha_handle_mmu_fault(CPUAlphaState *env, target_ulong addr, int rw,
                                int mmu_idx)
 {
     target_ulong phys;
@@ -336,7 +336,7 @@ int cpu_alpha_handle_mmu_fault(CPUState *env, target_ulong addr, int rw,
 }
 #endif /* USER_ONLY */
 
-void do_interrupt (CPUState *env)
+void do_interrupt (CPUAlphaState *env)
 {
     int i = env->exception_index;
 
@@ -453,7 +453,7 @@ void do_interrupt (CPUState *env)
 #endif /* !USER_ONLY */
 }
 
-void cpu_dump_state (CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_state (CPUAlphaState *env, FILE *f, fprintf_function cpu_fprintf,
                      int flags)
 {
     static const char *linux_reg_names[] = {

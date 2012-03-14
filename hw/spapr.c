@@ -110,7 +110,7 @@ qemu_irq spapr_allocate_irq(uint32_t hint, uint32_t *irq_num)
 static int spapr_set_associativity(void *fdt, sPAPREnvironment *spapr)
 {
     int ret = 0, offset;
-    CPUState *env;
+    CPUPPCState *env;
     char cpu_model[32];
     int smt = kvmppc_smt_threads();
 
@@ -155,7 +155,7 @@ static void *spapr_create_fdt_skel(const char *cpu_model,
                                    long hash_shift)
 {
     void *fdt;
-    CPUState *env;
+    CPUPPCState *env;
     uint64_t mem_reg_property[2];
     uint32_t start_prop = cpu_to_be32(initrd_base);
     uint32_t end_prop = cpu_to_be32(initrd_base + initrd_size);
@@ -476,7 +476,7 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return (addr & 0x0fffffff) + KERNEL_LOAD_ADDR;
 }
 
-static void emulate_spapr_hypercall(CPUState *env)
+static void emulate_spapr_hypercall(CPUPPCState *env)
 {
     env->gpr[3] = spapr_hypercall(env, env->gpr[3], &env->gpr[4]);
 }
@@ -502,6 +502,13 @@ static void spapr_reset(void *opaque)
 
 }
 
+static void spapr_cpu_reset(void *opaque)
+{
+    CPUPPCState *env = opaque;
+
+    cpu_state_reset(env);
+}
+
 /* pSeries LPAR / sPAPR hardware init */
 static void ppc_spapr_init(ram_addr_t ram_size,
                            const char *boot_device,
@@ -510,7 +517,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
                            const char *initrd_filename,
                            const char *cpu_model)
 {
-    CPUState *env;
+    CPUPPCState *env;
     int i;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
@@ -560,7 +567,7 @@ static void ppc_spapr_init(ram_addr_t ram_size,
         }
         /* Set time-base frequency to 512 MHz */
         cpu_ppc_tb_init(env, TIMEBASE_FREQ);
-        qemu_register_reset((QEMUResetHandler *)&cpu_reset, env);
+        qemu_register_reset(spapr_cpu_reset, env);
 
         env->hreset_vector = 0x60;
         env->hreset_excp_prefix = 0;

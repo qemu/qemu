@@ -41,7 +41,7 @@
 #define DEBUG_CLOCKS
 //#define DEBUG_CLOCKS_LL
 
-ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
+ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
                                 uint32_t flags)
 {
     ram_addr_t bdloc;
@@ -169,7 +169,7 @@ static void ppc4xx_plb_reset (void *opaque)
     plb->besr = 0x00000000;
 }
 
-static void ppc4xx_plb_init(CPUState *env)
+static void ppc4xx_plb_init(CPUPPCState *env)
 {
     ppc4xx_plb_t *plb;
 
@@ -245,7 +245,7 @@ static void ppc4xx_pob_reset (void *opaque)
     pob->besr[1] = 0x0000000;
 }
 
-static void ppc4xx_pob_init(CPUState *env)
+static void ppc4xx_pob_init(CPUPPCState *env)
 {
     ppc4xx_pob_t *pob;
 
@@ -574,7 +574,7 @@ static void ebc_reset (void *opaque)
     ebc->cfg = 0x80400000;
 }
 
-static void ppc405_ebc_init(CPUState *env)
+static void ppc405_ebc_init(CPUPPCState *env)
 {
     ppc4xx_ebc_t *ebc;
 
@@ -657,7 +657,7 @@ static void ppc405_dma_reset (void *opaque)
     dma->pol = 0x00000000;
 }
 
-static void ppc405_dma_init(CPUState *env, qemu_irq irqs[4])
+static void ppc405_dma_init(CPUPPCState *env, qemu_irq irqs[4])
 {
     ppc405_dma_t *dma;
 
@@ -960,7 +960,7 @@ static void ocm_reset (void *opaque)
     ocm->dsacntl = dsacntl;
 }
 
-static void ppc405_ocm_init(CPUState *env)
+static void ppc405_ocm_init(CPUPPCState *env)
 {
     ppc405_ocm_t *ocm;
 
@@ -1713,7 +1713,7 @@ static void ppc40x_mal_reset (void *opaque)
     mal->txeobisr = 0x00000000;
 }
 
-static void ppc405_mal_init(CPUState *env, qemu_irq irqs[4])
+static void ppc405_mal_init(CPUPPCState *env, qemu_irq irqs[4])
 {
     ppc40x_mal_t *mal;
     int i;
@@ -1764,36 +1764,24 @@ static void ppc405_mal_init(CPUState *env, qemu_irq irqs[4])
 
 /*****************************************************************************/
 /* SPR */
-void ppc40x_core_reset (CPUState *env)
+void ppc40x_core_reset (CPUPPCState *env)
 {
     target_ulong dbsr;
 
     printf("Reset PowerPC core\n");
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-    /* XXX: TOFIX */
-#if 0
-    cpu_reset(env);
-#else
-    qemu_system_reset_request();
-#endif
+    cpu_interrupt(env, CPU_INTERRUPT_RESET);
     dbsr = env->spr[SPR_40x_DBSR];
     dbsr &= ~0x00000300;
     dbsr |= 0x00000100;
     env->spr[SPR_40x_DBSR] = dbsr;
 }
 
-void ppc40x_chip_reset (CPUState *env)
+void ppc40x_chip_reset (CPUPPCState *env)
 {
     target_ulong dbsr;
 
     printf("Reset PowerPC chip\n");
-    env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-    /* XXX: TOFIX */
-#if 0
-    cpu_reset(env);
-#else
-    qemu_system_reset_request();
-#endif
+    cpu_interrupt(env, CPU_INTERRUPT_RESET);
     /* XXX: TODO reset all internal peripherals */
     dbsr = env->spr[SPR_40x_DBSR];
     dbsr &= ~0x00000300;
@@ -1801,13 +1789,13 @@ void ppc40x_chip_reset (CPUState *env)
     env->spr[SPR_40x_DBSR] = dbsr;
 }
 
-void ppc40x_system_reset (CPUState *env)
+void ppc40x_system_reset (CPUPPCState *env)
 {
     printf("Reset PowerPC system\n");
     qemu_system_reset_request();
 }
 
-void store_40x_dbcr0 (CPUState *env, uint32_t val)
+void store_40x_dbcr0 (CPUPPCState *env, uint32_t val)
 {
     switch ((val >> 28) & 0x3) {
     case 0x0:
@@ -2078,7 +2066,7 @@ static void ppc405cr_clk_init (ppc405cr_cpc_t *cpc)
     cpc->psr |= D << 17;
 }
 
-static void ppc405cr_cpc_init (CPUState *env, clk_setup_t clk_setup[7],
+static void ppc405cr_cpc_init (CPUPPCState *env, clk_setup_t clk_setup[7],
                                uint32_t sysclk)
 {
     ppc405cr_cpc_t *cpc;
@@ -2108,7 +2096,7 @@ static void ppc405cr_cpc_init (CPUState *env, clk_setup_t clk_setup[7],
     qemu_register_reset(ppc405cr_cpc_reset, cpc);
 }
 
-CPUState *ppc405cr_init(MemoryRegion *address_space_mem,
+CPUPPCState *ppc405cr_init(MemoryRegion *address_space_mem,
                         MemoryRegion ram_memories[4],
                         target_phys_addr_t ram_bases[4],
                         target_phys_addr_t ram_sizes[4],
@@ -2117,7 +2105,7 @@ CPUState *ppc405cr_init(MemoryRegion *address_space_mem,
 {
     clk_setup_t clk_setup[PPC405CR_CLK_NB];
     qemu_irq dma_irqs[4];
-    CPUState *env;
+    CPUPPCState *env;
     qemu_irq *pic, *irqs;
 
     memset(clk_setup, 0, sizeof(clk_setup));
@@ -2420,7 +2408,7 @@ static void ppc405ep_cpc_reset (void *opaque)
 }
 
 /* XXX: sysclk should be between 25 and 100 MHz */
-static void ppc405ep_cpc_init (CPUState *env, clk_setup_t clk_setup[8],
+static void ppc405ep_cpc_init (CPUPPCState *env, clk_setup_t clk_setup[8],
                                uint32_t sysclk)
 {
     ppc405ep_cpc_t *cpc;
@@ -2457,7 +2445,7 @@ static void ppc405ep_cpc_init (CPUState *env, clk_setup_t clk_setup[8],
 #endif
 }
 
-CPUState *ppc405ep_init(MemoryRegion *address_space_mem,
+CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
                         MemoryRegion ram_memories[2],
                         target_phys_addr_t ram_bases[2],
                         target_phys_addr_t ram_sizes[2],
@@ -2466,7 +2454,7 @@ CPUState *ppc405ep_init(MemoryRegion *address_space_mem,
 {
     clk_setup_t clk_setup[PPC405EP_CLK_NB], tlb_clk_setup;
     qemu_irq dma_irqs[4], gpt_irqs[5], mal_irqs[4];
-    CPUState *env;
+    CPUPPCState *env;
     qemu_irq *pic, *irqs;
 
     memset(clk_setup, 0, sizeof(clk_setup));

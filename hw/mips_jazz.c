@@ -50,8 +50,8 @@ enum jazz_model_e
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
-    cpu_reset(env);
+    CPUMIPSState *env = opaque;
+    cpu_state_reset(env);
 }
 
 static uint64_t rtc_read(void *opaque, target_phys_addr_t addr, unsigned size)
@@ -97,7 +97,7 @@ static const MemoryRegionOps dma_dummy_ops = {
 
 static void cpu_request_exit(void *opaque, int irq, int level)
 {
-    CPUState *env = cpu_single_env;
+    CPUMIPSState *env = cpu_single_env;
 
     if (env && level) {
         cpu_exit(env);
@@ -112,7 +112,7 @@ static void mips_jazz_init(MemoryRegion *address_space,
 {
     char *filename;
     int bios_size, n;
-    CPUState *env;
+    CPUMIPSState *env;
     qemu_irq *rc4030, *i8259;
     rc4030_dma *dmas;
     void* rc4030_opaque;

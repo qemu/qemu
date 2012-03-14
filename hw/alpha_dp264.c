@@ -49,7 +49,7 @@ static void clipper_init(ram_addr_t ram_size,
                          const char *initrd_filename,
                          const char *cpu_model)
 {
-    CPUState *cpus[4];
+    CPUAlphaState *cpus[4];
     PCIBus *pci_bus;
     ISABus *isa_bus;
     qemu_irq rtc_irq;

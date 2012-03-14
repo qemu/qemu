@@ -564,7 +564,7 @@ static void tcg_out_qemu_ld (TCGContext *s, const TCGArg *args, int opc)
     tcg_out32 (s, (LWZU
                    | RT (r1)
                    | RA (r0)
-                   | offsetof (CPUState, tlb_table[mem_index][0].addr_read)
+                   | offsetof (CPUArchState, tlb_table[mem_index][0].addr_read)
                    )
         );
     tcg_out32 (s, (RLWINM
@@ -760,7 +760,7 @@ static void tcg_out_qemu_st (TCGContext *s, const TCGArg *args, int opc)
     tcg_out32 (s, (LWZU
                    | RT (r1)
                    | RA (r0)
-                   | offsetof (CPUState, tlb_table[mem_index][0].addr_write)
+                   | offsetof (CPUArchState, tlb_table[mem_index][0].addr_write)
                    )
         );
     tcg_out32 (s, (RLWINM

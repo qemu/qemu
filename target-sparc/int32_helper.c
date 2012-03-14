@@ -58,7 +58,7 @@ static const char * const excp_names[0x80] = {
 };
 #endif
 
-void do_interrupt(CPUState *env)
+void do_interrupt(CPUSPARCState *env)
 {
     int cwp, intno = env->exception_index;
 
@@ -132,7 +132,7 @@ void do_interrupt(CPUState *env)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-static void leon3_cache_control_int(CPUState *env)
+static void leon3_cache_control_int(CPUSPARCState *env)
 {
     uint32_t state = 0;
 
@@ -161,7 +161,7 @@ static void leon3_cache_control_int(CPUState *env)
     }
 }
 
-void leon3_irq_manager(CPUState *env, void *irq_manager, int intno)
+void leon3_irq_manager(CPUSPARCState *env, void *irq_manager, int intno)
 {
     leon3_irq_ack(irq_manager, intno);
     leon3_cache_control_int(env);

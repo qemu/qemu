@@ -42,11 +42,11 @@
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUMBState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr)
 {
     TranslationBlock *tb;
-    CPUState *saved_env;
+    CPUMBState *saved_env;
     unsigned long pc;
     int ret;
 
@@ -506,10 +506,10 @@ void helper_mmu_write(uint32_t rn, uint32_t v)
     mmu_write(env, rn, v);
 }
 
-void cpu_unassigned_access(CPUState *env1, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUMBState *env1, target_phys_addr_t addr,
                            int is_write, int is_exec, int is_asi, int size)
 {
-    CPUState *saved_env;
+    CPUMBState *saved_env;
 
     saved_env = env;
     env = env1;

@@ -104,8 +104,8 @@ void qerror(const char *fmt, ...) GCC_FMT_ATTR(1, 2);
 
 void write_dt(void *ptr, unsigned long addr, unsigned long limit, int flags);
 
-extern CPUState *global_env;
-void cpu_loop(CPUState *env);
+extern CPUArchState *global_env;
+void cpu_loop(CPUArchState *env);
 void init_paths(const char *prefix);
 const char *path(const char *pathname);
 
@@ -122,7 +122,7 @@ void signal_init(void);
 int queue_signal(int sig, target_siginfo_t *info);
 void host_to_target_siginfo(target_siginfo_t *tinfo, const siginfo_t *info);
 void target_to_host_siginfo(siginfo_t *info, const target_siginfo_t *tinfo);
-long do_sigreturn(CPUState *env, int num);
+long do_sigreturn(CPUArchState *env, int num);
 
 /* machload.c */
 int mach_exec(const char * filename, char ** argv, char ** envp,

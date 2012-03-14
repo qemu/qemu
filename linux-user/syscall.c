@@ -3955,7 +3955,7 @@ static abi_long do_arch_prctl(CPUX86State *env, int code, abi_ulong addr)
 
 static pthread_mutex_t clone_lock = PTHREAD_MUTEX_INITIALIZER;
 typedef struct {
-    CPUState *env;
+    CPUArchState *env;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     pthread_t thread;
@@ -3968,7 +3968,7 @@ typedef struct {
 static void *clone_func(void *arg)
 {
     new_thread_info *info = arg;
-    CPUState *env;
+    CPUArchState *env;
     TaskState *ts;
 
     env = info->env;
@@ -3998,7 +3998,7 @@ static void *clone_func(void *arg)
 
 static int clone_func(void *arg)
 {
-    CPUState *env = arg;
+    CPUArchState *env = arg;
     cpu_loop(env);
     /* never exits */
     return 0;
@@ -4007,13 +4007,13 @@ static int clone_func(void *arg)
 
 /* do_fork() Must return host values and target errnos (unlike most
    do_*() functions). */
-static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
+static int do_fork(CPUArchState *env, unsigned int flags, abi_ulong newsp,
                    abi_ulong parent_tidptr, target_ulong newtls,
                    abi_ulong child_tidptr)
 {
     int ret;
     TaskState *ts;
-    CPUState *new_env;
+    CPUArchState *new_env;
 #if defined(CONFIG_USE_NPTL)
     unsigned int nptl_flags;
     sigset_t sigmask;
@@ -4036,7 +4036,7 @@ static int do_fork(CPUState *env, unsigned int flags, abi_ulong newsp,
         /* we create a new CPU instance. */
         new_env = cpu_copy(env);
 #if defined(TARGET_I386) || defined(TARGET_SPARC) || defined(TARGET_PPC)
-        cpu_reset(new_env);
+        cpu_state_reset(new_env);
 #endif
         /* Init regs that differ from the parent.  */
         cpu_clone_regs(new_env, newsp);
@@ -4640,7 +4640,7 @@ int get_osversion(void)
 
 static int open_self_maps(void *cpu_env, int fd)
 {
-    TaskState *ts = ((CPUState *)cpu_env)->opaque;
+    TaskState *ts = ((CPUArchState *)cpu_env)->opaque;
 
     dprintf(fd, "%08llx-%08llx rw-p %08llx 00:00 0          [stack]\n",
                 (unsigned long long)ts->info->stack_limit,
@@ -4653,7 +4653,7 @@ static int open_self_maps(void *cpu_env, int fd)
 
 static int open_self_stat(void *cpu_env, int fd)
 {
-    TaskState *ts = ((CPUState *)cpu_env)->opaque;
+    TaskState *ts = ((CPUArchState *)cpu_env)->opaque;
     abi_ulong start_stack = ts->info->start_stack;
     int i;
 
@@ -4678,7 +4678,7 @@ static int open_self_stat(void *cpu_env, int fd)
 
 static int open_self_auxv(void *cpu_env, int fd)
 {
-    TaskState *ts = ((CPUState *)cpu_env)->opaque;
+    TaskState *ts = ((CPUArchState *)cpu_env)->opaque;
     abi_ulong auxv = ts->info->saved_auxv;
     abi_ulong len = ts->info->auxv_len;
     char *ptr;
@@ -4784,13 +4784,13 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
          be disabling signals.  */
       if (first_cpu->next_cpu) {
           TaskState *ts;
-          CPUState **lastp;
-          CPUState *p;
+          CPUArchState **lastp;
+          CPUArchState *p;
 
           cpu_list_lock();
           lastp = &first_cpu;
           p = first_cpu;
-          while (p && p != (CPUState *)cpu_env) {
+          while (p && p != (CPUArchState *)cpu_env) {
               lastp = &p->next_cpu;
               p = p->next_cpu;
           }
@@ -4801,7 +4801,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
           /* Remove the CPU from the list.  */
           *lastp = p->next_cpu;
           cpu_list_unlock();
-          ts = ((CPUState *)cpu_env)->opaque;
+          ts = ((CPUArchState *)cpu_env)->opaque;
           if (ts->child_tidptr) {
               put_user_u32(0, ts->child_tidptr);
               sys_futex(g2h(ts->child_tidptr), FUTEX_WAKE, INT_MAX,
@@ -6091,7 +6091,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
         break;
     case TARGET_NR_mprotect:
         {
-            TaskState *ts = ((CPUState *)cpu_env)->opaque;
+            TaskState *ts = ((CPUArchState *)cpu_env)->opaque;
             /* Special hack to detect libc making the stack executable.  */
             if ((arg3 & PROT_GROWSDOWN)
                 && arg1 >= ts->info->stack_limit
@@ -7076,7 +7076,7 @@ abi_long do_syscall(void *cpu_env, int num, abi_long arg1,
 #if defined(TARGET_I386) || defined(TARGET_ARM) || defined(TARGET_MIPS) || \
     defined(TARGET_SPARC) || defined(TARGET_PPC) || defined(TARGET_ALPHA) || \
     defined(TARGET_M68K) || defined(TARGET_S390X)
-        ret = do_sigaltstack(arg1, arg2, get_sp_from_cpustate((CPUState *)cpu_env));
+        ret = do_sigaltstack(arg1, arg2, get_sp_from_cpustate((CPUArchState *)cpu_env));
         break;
 #else
         goto unimplemented;

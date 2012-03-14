@@ -71,7 +71,7 @@ struct booke_timer_t {
     uint32_t flags;
 };
 
-static void booke_update_irq(CPUState *env)
+static void booke_update_irq(CPUPPCState *env)
 {
     ppc_set_irq(env, PPC_INTERRUPT_DECR,
                 (env->spr[SPR_BOOKE_TSR] & TSR_DIS
@@ -88,7 +88,7 @@ static void booke_update_irq(CPUState *env)
 
 /* Return the location of the bit of time base at which the FIT will raise an
    interrupt */
-static uint8_t booke_get_fit_target(CPUState *env, ppc_tb_t *tb_env)
+static uint8_t booke_get_fit_target(CPUPPCState *env, ppc_tb_t *tb_env)
 {
     uint8_t fp = (env->spr[SPR_BOOKE_TCR] & TCR_FP_MASK) >> TCR_FP_SHIFT;
 
@@ -106,7 +106,7 @@ static uint8_t booke_get_fit_target(CPUState *env, ppc_tb_t *tb_env)
 
 /* Return the location of the bit of time base at which the WDT will raise an
    interrupt */
-static uint8_t booke_get_wdt_target(CPUState *env, ppc_tb_t *tb_env)
+static uint8_t booke_get_wdt_target(CPUPPCState *env, ppc_tb_t *tb_env)
 {
     uint8_t wp = (env->spr[SPR_BOOKE_TCR] & TCR_WP_MASK) >> TCR_WP_SHIFT;
 
@@ -122,7 +122,7 @@ static uint8_t booke_get_wdt_target(CPUState *env, ppc_tb_t *tb_env)
     return wp;
 }
 
-static void booke_update_fixed_timer(CPUState         *env,
+static void booke_update_fixed_timer(CPUPPCState         *env,
                                      uint8_t           target_bit,
                                      uint64_t          *next,
                                      struct QEMUTimer *timer)
@@ -153,7 +153,7 @@ static void booke_update_fixed_timer(CPUState         *env,
 
 static void booke_decr_cb(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
 
     env->spr[SPR_BOOKE_TSR] |= TSR_DIS;
     booke_update_irq(env);
@@ -166,7 +166,7 @@ static void booke_decr_cb(void *opaque)
 
 static void booke_fit_cb(void *opaque)
 {
-    CPUState *env;
+    CPUPPCState *env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
@@ -185,7 +185,7 @@ static void booke_fit_cb(void *opaque)
 
 static void booke_wdt_cb(void *opaque)
 {
-    CPUState *env;
+    CPUPPCState *env;
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;
 
@@ -203,13 +203,13 @@ static void booke_wdt_cb(void *opaque)
                              booke_timer->wdt_timer);
 }
 
-void store_booke_tsr(CPUState *env, target_ulong val)
+void store_booke_tsr(CPUPPCState *env, target_ulong val)
 {
     env->spr[SPR_BOOKE_TSR] &= ~val;
     booke_update_irq(env);
 }
 
-void store_booke_tcr(CPUState *env, target_ulong val)
+void store_booke_tcr(CPUPPCState *env, target_ulong val)
 {
     ppc_tb_t *tb_env = env->tb_env;
     booke_timer_t *booke_timer = tb_env->opaque;
@@ -231,7 +231,7 @@ void store_booke_tcr(CPUState *env, target_ulong val)
 
 }
 
-void ppc_booke_timers_init(CPUState *env, uint32_t freq, uint32_t flags)
+void ppc_booke_timers_init(CPUPPCState *env, uint32_t freq, uint32_t flags)
 {
     ppc_tb_t *tb_env;
     booke_timer_t *booke_timer;

@@ -171,14 +171,14 @@ static const VMStateInfo vmstate_fpreg_1_no_mmx = {
 
 static bool fpregs_is_0(void *opaque, int version_id)
 {
-    CPUState *env = opaque;
+    CPUX86State *env = opaque;
 
     return (env->fpregs_format_vmstate == 0);
 }
 
 static bool fpregs_is_1_mmx(void *opaque, int version_id)
 {
-    CPUState *env = opaque;
+    CPUX86State *env = opaque;
     int guess_mmx;
 
     guess_mmx = ((env->fptag_vmstate == 0xff) &&
@@ -188,7 +188,7 @@ static bool fpregs_is_1_mmx(void *opaque, int version_id)
 
 static bool fpregs_is_1_no_mmx(void *opaque, int version_id)
 {
-    CPUState *env = opaque;
+    CPUX86State *env = opaque;
     int guess_mmx;
 
     guess_mmx = ((env->fptag_vmstate == 0xff) &&
@@ -237,7 +237,7 @@ static const VMStateInfo vmstate_hack_uint64_as_uint32 = {
 
 static void cpu_pre_save(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUX86State *env = opaque;
     int i;
 
     /* FPU */
@@ -252,7 +252,7 @@ static void cpu_pre_save(void *opaque)
 
 static int cpu_post_load(void *opaque, int version_id)
 {
-    CPUState *env = opaque;
+    CPUX86State *env = opaque;
     int i;
 
     /* XXX: restore FPU round state */
@@ -274,7 +274,7 @@ static int cpu_post_load(void *opaque, int version_id)
 
 static bool async_pf_msr_needed(void *opaque)
 {
-    CPUState *cpu = opaque;
+    CPUX86State *cpu = opaque;
 
     return cpu->async_pf_en_msr != 0;
 }
@@ -285,14 +285,14 @@ static const VMStateDescription vmstate_async_pf_msr = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT64(async_pf_en_msr, CPUState),
+        VMSTATE_UINT64(async_pf_en_msr, CPUX86State),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static bool fpop_ip_dp_needed(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUX86State *env = opaque;
 
     return env->fpop != 0 || env->fpip != 0 || env->fpdp != 0;
 }
@@ -303,16 +303,16 @@ static const VMStateDescription vmstate_fpop_ip_dp = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT16(fpop, CPUState),
-        VMSTATE_UINT64(fpip, CPUState),
-        VMSTATE_UINT64(fpdp, CPUState),
+        VMSTATE_UINT16(fpop, CPUX86State),
+        VMSTATE_UINT64(fpip, CPUX86State),
+        VMSTATE_UINT64(fpdp, CPUX86State),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static bool tscdeadline_needed(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUX86State *env = opaque;
 
     return env->tsc_deadline != 0;
 }
@@ -323,14 +323,14 @@ static const VMStateDescription vmstate_msr_tscdeadline = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT64(tsc_deadline, CPUState),
+        VMSTATE_UINT64(tsc_deadline, CPUX86State),
         VMSTATE_END_OF_LIST()
     }
 };
 
 static bool misc_enable_needed(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUX86State *env = opaque;
 
     return env->msr_ia32_misc_enable != MSR_IA32_MISC_ENABLE_DEFAULT;
 }
@@ -341,7 +341,7 @@ static const VMStateDescription vmstate_msr_ia32_misc_enable = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields      = (VMStateField []) {
-        VMSTATE_UINT64(msr_ia32_misc_enable, CPUState),
+        VMSTATE_UINT64(msr_ia32_misc_enable, CPUX86State),
         VMSTATE_END_OF_LIST()
     }
 };
@@ -354,98 +354,98 @@ static const VMStateDescription vmstate_cpu = {
     .pre_save = cpu_pre_save,
     .post_load = cpu_post_load,
     .fields      = (VMStateField []) {
-        VMSTATE_UINTTL_ARRAY(regs, CPUState, CPU_NB_REGS),
-        VMSTATE_UINTTL(eip, CPUState),
-        VMSTATE_UINTTL(eflags, CPUState),
-        VMSTATE_UINT32(hflags, CPUState),
+        VMSTATE_UINTTL_ARRAY(regs, CPUX86State, CPU_NB_REGS),
+        VMSTATE_UINTTL(eip, CPUX86State),
+        VMSTATE_UINTTL(eflags, CPUX86State),
+        VMSTATE_UINT32(hflags, CPUX86State),
         /* FPU */
-        VMSTATE_UINT16(fpuc, CPUState),
-        VMSTATE_UINT16(fpus_vmstate, CPUState),
-        VMSTATE_UINT16(fptag_vmstate, CPUState),
-        VMSTATE_UINT16(fpregs_format_vmstate, CPUState),
-        VMSTATE_FP_REGS(fpregs, CPUState, 8),
+        VMSTATE_UINT16(fpuc, CPUX86State),
+        VMSTATE_UINT16(fpus_vmstate, CPUX86State),
+        VMSTATE_UINT16(fptag_vmstate, CPUX86State),
+        VMSTATE_UINT16(fpregs_format_vmstate, CPUX86State),
+        VMSTATE_FP_REGS(fpregs, CPUX86State, 8),
 
-        VMSTATE_SEGMENT_ARRAY(segs, CPUState, 6),
-        VMSTATE_SEGMENT(ldt, CPUState),
-        VMSTATE_SEGMENT(tr, CPUState),
-        VMSTATE_SEGMENT(gdt, CPUState),
-        VMSTATE_SEGMENT(idt, CPUState),
+        VMSTATE_SEGMENT_ARRAY(segs, CPUX86State, 6),
+        VMSTATE_SEGMENT(ldt, CPUX86State),
+        VMSTATE_SEGMENT(tr, CPUX86State),
+        VMSTATE_SEGMENT(gdt, CPUX86State),
+        VMSTATE_SEGMENT(idt, CPUX86State),
 
-        VMSTATE_UINT32(sysenter_cs, CPUState),
+        VMSTATE_UINT32(sysenter_cs, CPUX86State),
 #ifdef TARGET_X86_64
         /* Hack: In v7 size changed from 32 to 64 bits on x86_64 */
-        VMSTATE_HACK_UINT32(sysenter_esp, CPUState, less_than_7),
-        VMSTATE_HACK_UINT32(sysenter_eip, CPUState, less_than_7),
-        VMSTATE_UINTTL_V(sysenter_esp, CPUState, 7),
-        VMSTATE_UINTTL_V(sysenter_eip, CPUState, 7),
+        VMSTATE_HACK_UINT32(sysenter_esp, CPUX86State, less_than_7),
+        VMSTATE_HACK_UINT32(sysenter_eip, CPUX86State, less_than_7),
+        VMSTATE_UINTTL_V(sysenter_esp, CPUX86State, 7),
+        VMSTATE_UINTTL_V(sysenter_eip, CPUX86State, 7),
 #else
-        VMSTATE_UINTTL(sysenter_esp, CPUState),
-        VMSTATE_UINTTL(sysenter_eip, CPUState),
+        VMSTATE_UINTTL(sysenter_esp, CPUX86State),
+        VMSTATE_UINTTL(sysenter_eip, CPUX86State),
 #endif
 
-        VMSTATE_UINTTL(cr[0], CPUState),
-        VMSTATE_UINTTL(cr[2], CPUState),
-        VMSTATE_UINTTL(cr[3], CPUState),
-        VMSTATE_UINTTL(cr[4], CPUState),
-        VMSTATE_UINTTL_ARRAY(dr, CPUState, 8),
+        VMSTATE_UINTTL(cr[0], CPUX86State),
+        VMSTATE_UINTTL(cr[2], CPUX86State),
+        VMSTATE_UINTTL(cr[3], CPUX86State),
+        VMSTATE_UINTTL(cr[4], CPUX86State),
+        VMSTATE_UINTTL_ARRAY(dr, CPUX86State, 8),
         /* MMU */
-        VMSTATE_INT32(a20_mask, CPUState),
+        VMSTATE_INT32(a20_mask, CPUX86State),
         /* XMM */
-        VMSTATE_UINT32(mxcsr, CPUState),
-        VMSTATE_XMM_REGS(xmm_regs, CPUState, CPU_NB_REGS),
+        VMSTATE_UINT32(mxcsr, CPUX86State),
+        VMSTATE_XMM_REGS(xmm_regs, CPUX86State, CPU_NB_REGS),
 
 #ifdef TARGET_X86_64
-        VMSTATE_UINT64(efer, CPUState),
-        VMSTATE_UINT64(star, CPUState),
-        VMSTATE_UINT64(lstar, CPUState),
-        VMSTATE_UINT64(cstar, CPUState),
-        VMSTATE_UINT64(fmask, CPUState),
-        VMSTATE_UINT64(kernelgsbase, CPUState),
+        VMSTATE_UINT64(efer, CPUX86State),
+        VMSTATE_UINT64(star, CPUX86State),
+        VMSTATE_UINT64(lstar, CPUX86State),
+        VMSTATE_UINT64(cstar, CPUX86State),
+        VMSTATE_UINT64(fmask, CPUX86State),
+        VMSTATE_UINT64(kernelgsbase, CPUX86State),
 #endif
-        VMSTATE_UINT32_V(smbase, CPUState, 4),
+        VMSTATE_UINT32_V(smbase, CPUX86State, 4),
 
-        VMSTATE_UINT64_V(pat, CPUState, 5),
-        VMSTATE_UINT32_V(hflags2, CPUState, 5),
+        VMSTATE_UINT64_V(pat, CPUX86State, 5),
+        VMSTATE_UINT32_V(hflags2, CPUX86State, 5),
 
-        VMSTATE_UINT32_TEST(halted, CPUState, version_is_5),
-        VMSTATE_UINT64_V(vm_hsave, CPUState, 5),
-        VMSTATE_UINT64_V(vm_vmcb, CPUState, 5),
-        VMSTATE_UINT64_V(tsc_offset, CPUState, 5),
-        VMSTATE_UINT64_V(intercept, CPUState, 5),
-        VMSTATE_UINT16_V(intercept_cr_read, CPUState, 5),
-        VMSTATE_UINT16_V(intercept_cr_write, CPUState, 5),
-        VMSTATE_UINT16_V(intercept_dr_read, CPUState, 5),
-        VMSTATE_UINT16_V(intercept_dr_write, CPUState, 5),
-        VMSTATE_UINT32_V(intercept_exceptions, CPUState, 5),
-        VMSTATE_UINT8_V(v_tpr, CPUState, 5),
+        VMSTATE_UINT32_TEST(halted, CPUX86State, version_is_5),
+        VMSTATE_UINT64_V(vm_hsave, CPUX86State, 5),
+        VMSTATE_UINT64_V(vm_vmcb, CPUX86State, 5),
+        VMSTATE_UINT64_V(tsc_offset, CPUX86State, 5),
+        VMSTATE_UINT64_V(intercept, CPUX86State, 5),
+        VMSTATE_UINT16_V(intercept_cr_read, CPUX86State, 5),
+        VMSTATE_UINT16_V(intercept_cr_write, CPUX86State, 5),
+        VMSTATE_UINT16_V(intercept_dr_read, CPUX86State, 5),
+        VMSTATE_UINT16_V(intercept_dr_write, CPUX86State, 5),
+        VMSTATE_UINT32_V(intercept_exceptions, CPUX86State, 5),
+        VMSTATE_UINT8_V(v_tpr, CPUX86State, 5),
         /* MTRRs */
-        VMSTATE_UINT64_ARRAY_V(mtrr_fixed, CPUState, 11, 8),
-        VMSTATE_UINT64_V(mtrr_deftype, CPUState, 8),
-        VMSTATE_MTRR_VARS(mtrr_var, CPUState, 8, 8),
+        VMSTATE_UINT64_ARRAY_V(mtrr_fixed, CPUX86State, 11, 8),
+        VMSTATE_UINT64_V(mtrr_deftype, CPUX86State, 8),
+        VMSTATE_MTRR_VARS(mtrr_var, CPUX86State, 8, 8),
         /* KVM-related states */
-        VMSTATE_INT32_V(interrupt_injected, CPUState, 9),
-        VMSTATE_UINT32_V(mp_state, CPUState, 9),
-        VMSTATE_UINT64_V(tsc, CPUState, 9),
-        VMSTATE_INT32_V(exception_injected, CPUState, 11),
-        VMSTATE_UINT8_V(soft_interrupt, CPUState, 11),
-        VMSTATE_UINT8_V(nmi_injected, CPUState, 11),
-        VMSTATE_UINT8_V(nmi_pending, CPUState, 11),
-        VMSTATE_UINT8_V(has_error_code, CPUState, 11),
-        VMSTATE_UINT32_V(sipi_vector, CPUState, 11),
+        VMSTATE_INT32_V(interrupt_injected, CPUX86State, 9),
+        VMSTATE_UINT32_V(mp_state, CPUX86State, 9),
+        VMSTATE_UINT64_V(tsc, CPUX86State, 9),
+        VMSTATE_INT32_V(exception_injected, CPUX86State, 11),
+        VMSTATE_UINT8_V(soft_interrupt, CPUX86State, 11),
+        VMSTATE_UINT8_V(nmi_injected, CPUX86State, 11),
+        VMSTATE_UINT8_V(nmi_pending, CPUX86State, 11),
+        VMSTATE_UINT8_V(has_error_code, CPUX86State, 11),
+        VMSTATE_UINT32_V(sipi_vector, CPUX86State, 11),
         /* MCE */
-        VMSTATE_UINT64_V(mcg_cap, CPUState, 10),
-        VMSTATE_UINT64_V(mcg_status, CPUState, 10),
-        VMSTATE_UINT64_V(mcg_ctl, CPUState, 10),
-        VMSTATE_UINT64_ARRAY_V(mce_banks, CPUState, MCE_BANKS_DEF *4, 10),
+        VMSTATE_UINT64_V(mcg_cap, CPUX86State, 10),
+        VMSTATE_UINT64_V(mcg_status, CPUX86State, 10),
+        VMSTATE_UINT64_V(mcg_ctl, CPUX86State, 10),
+        VMSTATE_UINT64_ARRAY_V(mce_banks, CPUX86State, MCE_BANKS_DEF *4, 10),
         /* rdtscp */
-        VMSTATE_UINT64_V(tsc_aux, CPUState, 11),
+        VMSTATE_UINT64_V(tsc_aux, CPUX86State, 11),
         /* KVM pvclock msr */
-        VMSTATE_UINT64_V(system_time_msr, CPUState, 11),
-        VMSTATE_UINT64_V(wall_clock_msr, CPUState, 11),
+        VMSTATE_UINT64_V(system_time_msr, CPUX86State, 11),
+        VMSTATE_UINT64_V(wall_clock_msr, CPUX86State, 11),
         /* XSAVE related fields */
-        VMSTATE_UINT64_V(xcr0, CPUState, 12),
-        VMSTATE_UINT64_V(xstate_bv, CPUState, 12),
-        VMSTATE_YMMH_REGS_VARS(ymmh_regs, CPUState, CPU_NB_REGS, 12),
+        VMSTATE_UINT64_V(xcr0, CPUX86State, 12),
+        VMSTATE_UINT64_V(xstate_bv, CPUX86State, 12),
+        VMSTATE_YMMH_REGS_VARS(ymmh_regs, CPUX86State, CPU_NB_REGS, 12),
         VMSTATE_END_OF_LIST()
         /* The above list is not sorted /wrt version numbers, watch out! */
     },

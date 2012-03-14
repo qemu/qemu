@@ -13,7 +13,7 @@
 /* Input 0 is IRQ and input 1 is FIQ.  */
 static void arm_pic_cpu_handler(void *opaque, int irq, int level)
 {
-    CPUState *env = (CPUState *)opaque;
+    CPUARMState *env = (CPUARMState *)opaque;
     switch (irq) {
     case ARM_PIC_CPU_IRQ:
         if (level)
@@ -32,7 +32,7 @@ static void arm_pic_cpu_handler(void *opaque, int irq, int level)
     }
 }
 
-qemu_irq *arm_pic_init_cpu(CPUState *env)
+qemu_irq *arm_pic_init_cpu(CPUARMState *env)
 {
     return qemu_allocate_irqs(arm_pic_cpu_handler, env, 2);
 }

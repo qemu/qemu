@@ -813,7 +813,7 @@ struct omap_mpu_state_s {
         omap3630,
     } mpu_model;
 
-    CPUState *env;
+    CPUARMState *env;
 
     qemu_irq *drq;
 
