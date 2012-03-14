@@ -18,9 +18,9 @@
 #define PXA2XX_DMA_NUM_REQUESTS 75
 
 typedef struct {
-    target_phys_addr_t descr;
-    target_phys_addr_t src;
-    target_phys_addr_t dest;
+    uint32_t descr;
+    uint32_t src;
+    uint32_t dest;
     uint32_t cmd;
     uint32_t state;
     int request;
@@ -512,9 +512,9 @@ static VMStateDescription vmstate_pxa2xx_dma_chan = {
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
     .fields = (VMStateField[]) {
-        VMSTATE_UINTTL(descr, PXA2xxDMAChannel),
-        VMSTATE_UINTTL(src, PXA2xxDMAChannel),
-        VMSTATE_UINTTL(dest, PXA2xxDMAChannel),
+        VMSTATE_UINT32(descr, PXA2xxDMAChannel),
+        VMSTATE_UINT32(src, PXA2xxDMAChannel),
+        VMSTATE_UINT32(dest, PXA2xxDMAChannel),
         VMSTATE_UINT32(cmd, PXA2xxDMAChannel),
         VMSTATE_UINT32(state, PXA2xxDMAChannel),
         VMSTATE_INT32(request, PXA2xxDMAChannel),
