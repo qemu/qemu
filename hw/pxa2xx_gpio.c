@@ -20,7 +20,7 @@ struct PXA2xxGPIOInfo {
     qemu_irq irq0, irq1, irqX;
     int lines;
     int ncpu;
-    CPUState *cpu_env;
+    CPUARMState *cpu_env;
 
     /* XXX: GNU C vectors are more suitable */
     uint32_t ilevel[PXA2XX_GPIO_BANKS];
@@ -249,7 +249,7 @@ static const MemoryRegionOps pxa_gpio_ops = {
 };
 
 DeviceState *pxa2xx_gpio_init(target_phys_addr_t base,
-                CPUState *env, DeviceState *pic, int lines)
+                CPUARMState *env, DeviceState *pic, int lines)
 {
     DeviceState *dev;
 

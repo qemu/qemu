@@ -34,7 +34,7 @@
 typedef struct {
     SysBusDevice busdev;
     MemoryRegion iomem;
-    CPUState *cpu_env;
+    CPUARMState *cpu_env;
     uint32_t int_enabled[2];
     uint32_t int_pending[2];
     uint32_t is_fiq[2];
@@ -245,7 +245,7 @@ static int pxa2xx_pic_post_load(void *opaque, int version_id)
     return 0;
 }
 
-DeviceState *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env)
+DeviceState *pxa2xx_pic_init(target_phys_addr_t base, CPUARMState *env)
 {
     DeviceState *dev = qdev_create(NULL, "pxa2xx_pic");
     PXA2xxPICState *s = FROM_SYSBUS(PXA2xxPICState, sysbus_from_qdev(dev));

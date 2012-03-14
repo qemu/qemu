@@ -167,7 +167,7 @@ static void versatile_init(ram_addr_t ram_size,
                      const char *initrd_filename, const char *cpu_model,
                      int board_id)
 {
-    CPUState *env;
+    CPUARMState *env;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     qemu_irq *cpu_pic;

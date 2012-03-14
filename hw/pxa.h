@@ -65,11 +65,11 @@
 # define PXA2XX_INTERNAL_SIZE	0x40000
 
 /* pxa2xx_pic.c */
-DeviceState *pxa2xx_pic_init(target_phys_addr_t base, CPUState *env);
+DeviceState *pxa2xx_pic_init(target_phys_addr_t base, CPUARMState *env);
 
 /* pxa2xx_gpio.c */
 DeviceState *pxa2xx_gpio_init(target_phys_addr_t base,
-                CPUState *env, DeviceState *pic, int lines);
+                CPUARMState *env, DeviceState *pic, int lines);
 void pxa2xx_gpio_read_notifier(DeviceState *dev, qemu_irq handler);
 
 /* pxa2xx_dma.c */
@@ -122,7 +122,7 @@ typedef struct PXA2xxI2SState PXA2xxI2SState;
 typedef struct PXA2xxFIrState PXA2xxFIrState;
 
 typedef struct {
-    CPUState *env;
+    CPUARMState *env;
     DeviceState *pic;
     qemu_irq reset;
     MemoryRegion sdram;
