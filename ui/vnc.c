@@ -2562,6 +2562,9 @@ static int vnc_refresh_server_surface(VncDisplay *vd)
      * Update server dirty map.
      */
     cmp_bytes = 16 * ds_get_bytes_per_pixel(vd->ds);
+    if (cmp_bytes > vd->ds->surface->linesize) {
+        cmp_bytes = vd->ds->surface->linesize;
+    }
     guest_row  = vd->guest.ds->data;
     server_row = vd->server->data;
     for (y = 0; y < vd->guest.ds->height; y++) {
