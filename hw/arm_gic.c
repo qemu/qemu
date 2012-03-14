@@ -658,14 +658,14 @@ static uint64_t gic_thiscpu_read(void *opaque, target_phys_addr_t addr,
                                  unsigned size)
 {
     gic_state *s = (gic_state *)opaque;
-    return gic_cpu_read(s, gic_get_current_cpu(), addr & 0xff);
+    return gic_cpu_read(s, gic_get_current_cpu(), addr);
 }
 
 static void gic_thiscpu_write(void *opaque, target_phys_addr_t addr,
                               uint64_t value, unsigned size)
 {
     gic_state *s = (gic_state *)opaque;
-    gic_cpu_write(s, gic_get_current_cpu(), addr & 0xff, value);
+    gic_cpu_write(s, gic_get_current_cpu(), addr, value);
 }
 
 /* Wrappers to read/write the GIC CPU interface for a specific CPU.
@@ -677,7 +677,7 @@ static uint64_t gic_do_cpu_read(void *opaque, target_phys_addr_t addr,
     gic_state **backref = (gic_state **)opaque;
     gic_state *s = *backref;
     int id = (backref - s->backref);
-    return gic_cpu_read(s, id, addr & 0xff);
+    return gic_cpu_read(s, id, addr);
 }
 
 static void gic_do_cpu_write(void *opaque, target_phys_addr_t addr,
@@ -686,7 +686,7 @@ static void gic_do_cpu_write(void *opaque, target_phys_addr_t addr,
     gic_state **backref = (gic_state **)opaque;
     gic_state *s = *backref;
     int id = (backref - s->backref);
-    gic_cpu_write(s, id, addr & 0xff, value);
+    gic_cpu_write(s, id, addr, value);
 }
 
 static const MemoryRegionOps gic_thiscpu_ops = {

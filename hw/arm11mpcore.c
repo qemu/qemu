@@ -42,7 +42,6 @@ static uint64_t mpcore_scu_read(void *opaque, target_phys_addr_t offset,
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
     int id;
-    offset &= 0xff;
     /* SCU */
     switch (offset) {
     case 0x00: /* Control.  */
@@ -63,7 +62,6 @@ static void mpcore_scu_write(void *opaque, target_phys_addr_t offset,
                              uint64_t value, unsigned size)
 {
     mpcore_priv_state *s = (mpcore_priv_state *)opaque;
-    offset &= 0xff;
     /* SCU */
     switch (offset) {
     case 0: /* Control register.  */
