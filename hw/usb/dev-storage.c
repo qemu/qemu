@@ -499,7 +499,7 @@ static void usb_msd_password_cb(void *opaque, int err)
         err = usb_device_attach(&s->dev);
 
     if (err)
-        qdev_unplug(&s->dev.qdev);
+        qdev_unplug(&s->dev.qdev, NULL);
 }
 
 static const struct SCSIBusInfo usb_msd_scsi_info = {

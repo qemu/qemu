@@ -573,6 +573,7 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
 int do_device_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
 {
     const char *id = qdict_get_str(qdict, "id");
+    Error *local_err = NULL;
     DeviceState *dev;
 
     dev = qdev_find_recursive(sysbus_get_default(), id);
@@ -580,7 +581,15 @@ int do_device_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
         qerror_report(QERR_DEVICE_NOT_FOUND, id);
         return -1;
     }
-    return qdev_unplug(dev);
+
+    qdev_unplug(dev, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -1;
+    }
+
+    return 0;
 }
 
 void qdev_machine_init(void)

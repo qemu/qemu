@@ -32,6 +32,7 @@
 #include "virtio-blk.h"
 #include "qemu-config.h"
 #include "blockdev.h"
+#include "error.h"
 
 #if defined(TARGET_I386)
 static PCIDevice *qemu_pci_hot_add_nic(Monitor *mon,
@@ -191,7 +192,7 @@ static PCIDevice *qemu_pci_hot_add_storage(Monitor *mon,
             dev = NULL;
         if (dev && dinfo) {
             if (scsi_hot_add(mon, &dev->qdev, dinfo, 0) != 0) {
-                qdev_unplug(&dev->qdev);
+                qdev_unplug(&dev->qdev, NULL);
                 dev = NULL;
             }
         }
@@ -258,6 +259,7 @@ static int pci_device_hot_remove(Monitor *mon, const char *pci_addr)
     PCIDevice *d;
     int dom, bus;
     unsigned slot;
+    Error *local_err = NULL;
 
     if (pci_read_devaddr(mon, pci_addr, &dom, &bus, &slot)) {
         return -1;
@@ -268,7 +270,15 @@ static int pci_device_hot_remove(Monitor *mon, const char *pci_addr)
         monitor_printf(mon, "slot %d empty\n", slot);
         return -1;
     }
-    return qdev_unplug(&d->qdev);
+
+    qdev_unplug(&d->qdev, &local_err);
+    if (error_is_set(&local_err)) {
+        monitor_printf(mon, "%s\n", error_get_pretty(local_err));
+        error_free(local_err);
+        return -1;
+    }
+
+    return 0;
 }
 
 void do_pci_device_hot_remove(Monitor *mon, const QDict *qdict)
