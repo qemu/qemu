@@ -18,6 +18,14 @@
 
 #include "iov.h"
 
+#ifdef _WIN32
+# include <windows.h>
+# include <winsock2.h>
+#else
+# include <sys/types.h>
+# include <sys/socket.h>
+#endif
+
 size_t iov_from_buf(struct iovec *iov, unsigned int iov_cnt,
                     size_t offset, const void *buf, size_t bytes)
 {
@@ -86,6 +94,101 @@ size_t iov_size(const struct iovec *iov, const unsigned int iov_cnt)
     }
     return len;
 }
+
+/* helper function for iov_send_recv() */
+static ssize_t
+do_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt, bool do_send)
+{
+#if defined CONFIG_IOVEC && defined CONFIG_POSIX
+    ssize_t ret;
+    struct msghdr msg;
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = iov;
+    msg.msg_iovlen = iov_cnt;
+    do {
+        ret = do_send
+            ? sendmsg(sockfd, &msg, 0)
+            : recvmsg(sockfd, &msg, 0);
+    } while (ret < 0 && errno == EINTR);
+    return ret;
+#else
+    /* else send piece-by-piece */
+    /*XXX Note: windows has WSASend() and WSARecv() */
+    unsigned i;
+    size_t count = 0;
+    for (i = 0; i < iov_cnt; ++i) {
+        ssize_t r = do_send
+            ? send(sockfd, iov[i].iov_base, iov[i].iov_len, 0)
+            : recv(sockfd, iov[i].iov_base, iov[i].iov_len, 0);
+        if (r > 0) {
+            ret += r;
+        } else if (!r) {
+            break;
+        } else if (errno == EINTR) {
+            continue;
+        } else {
+            /* else it is some "other" error,
+             * only return if there was no data processed. */
+            if (ret == 0) {
+                return -1;
+            }
+            break;
+        }
+    }
+    return count;
+#endif
+}
+
+ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
+                      size_t offset, size_t bytes,
+                      bool do_send)
+{
+    ssize_t ret;
+    unsigned si, ei;            /* start and end indexes */
+
+    /* Find the start position, skipping `offset' bytes:
+     * first, skip all full-sized vector elements, */
+    for (si = 0; si < iov_cnt && offset >= iov[si].iov_len; ++si) {
+        offset -= iov[si].iov_len;
+    }
+    if (offset) {
+        assert(si < iov_cnt);
+        /* second, skip `offset' bytes from the (now) first element,
+         * undo it on exit */
+        iov[si].iov_base += offset;
+        iov[si].iov_len -= offset;
+    }
+    /* Find the end position skipping `bytes' bytes: */
+    /* first, skip all full-sized elements */
+    for (ei = si; ei < iov_cnt && iov[ei].iov_len <= bytes; ++ei) {
+        bytes -= iov[ei].iov_len;
+    }
+    if (bytes) {
+        /* second, fixup the last element, and remember
+         * the length we've cut from the end of it in `bytes' */
+        size_t tail;
+        assert(ei < iov_cnt);
+        assert(iov[ei].iov_len > bytes);
+        tail = iov[ei].iov_len - bytes;
+        iov[ei].iov_len = bytes;
+        bytes = tail;  /* bytes is now equal to the tail size */
+        ++ei;
+    }
+
+    ret = do_send_recv(sockfd, iov + si, ei - si, do_send);
+
+    /* Undo the changes above */
+    if (offset) {
+        iov[si].iov_base -= offset;
+        iov[si].iov_len += offset;
+    }
+    if (bytes) {
+        iov[ei-1].iov_len += bytes;
+    }
+
+    return ret;
+}
+
 
 void iov_hexdump(const struct iovec *iov, const unsigned int iov_cnt,
                  FILE *fp, const char *prefix, size_t limit)

@@ -34,7 +34,7 @@ qemu_co_sendv_recvv(int sockfd, struct iovec *iov, unsigned iov_cnt,
     size_t done = 0;
     ssize_t ret;
     while (done < bytes) {
-        ret = iov_send_recv(sockfd, iov,
+        ret = iov_send_recv(sockfd, iov, iov_cnt,
                             offset + done, bytes - done, do_send);
         if (ret > 0) {
             done += ret;

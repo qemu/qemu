@@ -60,7 +60,7 @@ size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
  * `offset' bytes in the beginning of iovec buffer are skipped and
  * next `bytes' bytes are used, which must be within data of iovec.
  *
- *   r = iov_send_recv(sockfd, iov, offset, bytes, true);
+ *   r = iov_send_recv(sockfd, iov, iovcnt, offset, bytes, true);
  *
  * is logically equivalent to
  *
@@ -68,13 +68,16 @@ size_t iov_memset(const struct iovec *iov, const unsigned int iov_cnt,
  *   iov_to_buf(iov, iovcnt, offset, buf, bytes);
  *   r = send(sockfd, buf, bytes, 0);
  *   free(buf);
+ *
+ * For iov_send_recv() _whole_ area being sent or received
+ * should be within the iovec, not only beginning of it.
  */
-ssize_t iov_send_recv(int sockfd, struct iovec *iov,
+ssize_t iov_send_recv(int sockfd, struct iovec *iov, unsigned iov_cnt,
                       size_t offset, size_t bytes, bool do_send);
-#define iov_recv(sockfd, iov, offset, bytes) \
-  iov_send_recv(sockfd, iov, offset, bytes, false)
-#define iov_send(sockfd, iov, offset, bytes) \
-  iov_send_recv(sockfd, iov, offset, bytes, true)
+#define iov_recv(sockfd, iov, iov_cnt, offset, bytes) \
+  iov_send_recv(sockfd, iov, iov_cnt, offset, bytes, false)
+#define iov_send(sockfd, iov, iov_cnt, offset, bytes) \
+  iov_send_recv(sockfd, iov, iov_cnt, offset, bytes, true)
 
 /**
  * Produce a text hexdump of iovec `iov' with `iov_cnt' number of elements
