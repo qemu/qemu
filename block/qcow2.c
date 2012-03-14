@@ -449,7 +449,8 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
         qemu_iovec_copy(&hd_qiov, qiov, bytes_done,
             cur_nr_sectors * 512);
 
-        if (!cluster_offset) {
+        switch (ret) {
+        case QCOW2_CLUSTER_UNALLOCATED:
 
             if (bs->backing_hd) {
                 /* read from the base image */
@@ -469,7 +470,9 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 /* Note: in this case, no need to wait */
                 qemu_iovec_memset(&hd_qiov, 0, 512 * cur_nr_sectors);
             }
-        } else if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
+            break;
+
+        case QCOW2_CLUSTER_COMPRESSED:
             /* add AIO support for compressed blocks ? */
             ret = qcow2_decompress_cluster(bs, cluster_offset);
             if (ret < 0) {
@@ -479,7 +482,9 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
             qemu_iovec_from_buffer(&hd_qiov,
                 s->cluster_cache + index_in_cluster * 512,
                 512 * cur_nr_sectors);
-        } else {
+            break;
+
+        case QCOW2_CLUSTER_NORMAL:
             if ((cluster_offset & 511) != 0) {
                 ret = -EIO;
                 goto fail;
@@ -520,6 +525,12 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
                 qemu_iovec_from_buffer(&hd_qiov, cluster_data,
                     512 * cur_nr_sectors);
             }
+            break;
+
+        default:
+            g_assert_not_reached();
+            ret = -EIO;
+            goto fail;
         }
 
         remaining_sectors -= cur_nr_sectors;
