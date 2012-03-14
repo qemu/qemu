@@ -268,12 +268,12 @@ static void spr_read_purr (void *opaque, int gprn, int sprn)
 /* IBAT0L...IBAT7L */
 static void spr_read_ibat (void *opaque, int gprn, int sprn)
 {
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, IBAT[sprn & 1][(sprn - SPR_IBAT0U) / 2]));
+    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, IBAT[sprn & 1][(sprn - SPR_IBAT0U) / 2]));
 }
 
 static void spr_read_ibat_h (void *opaque, int gprn, int sprn)
 {
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, IBAT[sprn & 1][(sprn - SPR_IBAT4U) / 2]));
+    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, IBAT[sprn & 1][(sprn - SPR_IBAT4U) / 2]));
 }
 
 static void spr_write_ibatu (void *opaque, int sprn, int gprn)
@@ -308,12 +308,12 @@ static void spr_write_ibatl_h (void *opaque, int sprn, int gprn)
 /* DBAT0L...DBAT7L */
 static void spr_read_dbat (void *opaque, int gprn, int sprn)
 {
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, DBAT[sprn & 1][(sprn - SPR_DBAT0U) / 2]));
+    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, DBAT[sprn & 1][(sprn - SPR_DBAT0U) / 2]));
 }
 
 static void spr_read_dbat_h (void *opaque, int gprn, int sprn)
 {
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, DBAT[sprn & 1][((sprn - SPR_DBAT4U) / 2) + 4]));
+    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, DBAT[sprn & 1][((sprn - SPR_DBAT4U) / 2) + 4]));
 }
 
 static void spr_write_dbatu (void *opaque, int sprn, int gprn)
@@ -355,20 +355,20 @@ static void spr_write_sdr1 (void *opaque, int sprn, int gprn)
 #if defined(TARGET_PPC64)
 static void spr_read_hior (void *opaque, int gprn, int sprn)
 {
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, excp_prefix));
+    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, excp_prefix));
 }
 
 static void spr_write_hior (void *opaque, int sprn, int gprn)
 {
     TCGv t0 = tcg_temp_new();
     tcg_gen_andi_tl(t0, cpu_gpr[gprn], 0x3FFFFF00000ULL);
-    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_prefix));
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUPPCState, excp_prefix));
     tcg_temp_free(t0);
 }
 
 static void spr_read_asr (void *opaque, int gprn, int sprn)
 {
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, asr));
+    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, asr));
 }
 
 static void spr_write_asr (void *opaque, int sprn, int gprn)
@@ -415,7 +415,7 @@ static void spr_write_hid0_601 (void *opaque, int sprn, int gprn)
 #if !defined(CONFIG_USER_ONLY)
 static void spr_read_601_ubat (void *opaque, int gprn, int sprn)
 {
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, IBAT[sprn & 1][(sprn - SPR_IBAT0U) / 2]));
+    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, IBAT[sprn & 1][(sprn - SPR_IBAT0U) / 2]));
 }
 
 static void spr_write_601_ubatu (void *opaque, int sprn, int gprn)
@@ -475,7 +475,7 @@ static void spr_write_booke_tsr (void *opaque, int sprn, int gprn)
 #if !defined(CONFIG_USER_ONLY)
 static void spr_read_403_pbr (void *opaque, int gprn, int sprn)
 {
-    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUState, pb[sprn - SPR_403_PBL1]));
+    tcg_gen_ld_tl(cpu_gpr[gprn], cpu_env, offsetof(CPUPPCState, pb[sprn - SPR_403_PBL1]));
 }
 
 static void spr_write_403_pbr (void *opaque, int sprn, int gprn)
@@ -498,7 +498,7 @@ static void spr_write_pir (void *opaque, int sprn, int gprn)
 static void spr_read_spefscr (void *opaque, int gprn, int sprn)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
-    tcg_gen_ld_i32(t0, cpu_env, offsetof(CPUState, spe_fscr));
+    tcg_gen_ld_i32(t0, cpu_env, offsetof(CPUPPCState, spe_fscr));
     tcg_gen_extu_i32_tl(cpu_gpr[gprn], t0);
     tcg_temp_free_i32(t0);
 }
@@ -507,7 +507,7 @@ static void spr_write_spefscr (void *opaque, int sprn, int gprn)
 {
     TCGv_i32 t0 = tcg_temp_new_i32();
     tcg_gen_trunc_tl_i32(t0, cpu_gpr[gprn]);
-    tcg_gen_st_i32(t0, cpu_env, offsetof(CPUState, spe_fscr));
+    tcg_gen_st_i32(t0, cpu_env, offsetof(CPUPPCState, spe_fscr));
     tcg_temp_free_i32(t0);
 }
 
@@ -516,9 +516,9 @@ static void spr_write_spefscr (void *opaque, int sprn, int gprn)
 static void spr_write_excp_prefix (void *opaque, int sprn, int gprn)
 {
     TCGv t0 = tcg_temp_new();
-    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, ivpr_mask));
+    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUPPCState, ivpr_mask));
     tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
-    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_prefix));
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUPPCState, excp_prefix));
     gen_store_spr(sprn, t0);
     tcg_temp_free(t0);
 }
@@ -542,9 +542,9 @@ static void spr_write_excp_vector (void *opaque, int sprn, int gprn)
     }
 
     TCGv t0 = tcg_temp_new();
-    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUState, ivor_mask));
+    tcg_gen_ld_tl(t0, cpu_env, offsetof(CPUPPCState, ivor_mask));
     tcg_gen_and_tl(t0, t0, cpu_gpr[gprn]);
-    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUState, excp_vectors[sprn_offs]));
+    tcg_gen_st_tl(t0, cpu_env, offsetof(CPUPPCState, excp_vectors[sprn_offs]));
     gen_store_spr(sprn, t0);
     tcg_temp_free(t0);
 }
@@ -9768,7 +9768,7 @@ static void dump_ppc_insns (CPUPPCState *env)
 }
 #endif
 
-static int gdb_get_float_reg(CPUState *env, uint8_t *mem_buf, int n)
+static int gdb_get_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
         stfq_p(mem_buf, env->fpr[n]);
@@ -9781,7 +9781,7 @@ static int gdb_get_float_reg(CPUState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int gdb_set_float_reg(CPUState *env, uint8_t *mem_buf, int n)
+static int gdb_set_float_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
         env->fpr[n] = ldfq_p(mem_buf);
@@ -9794,7 +9794,7 @@ static int gdb_set_float_reg(CPUState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int gdb_get_avr_reg(CPUState *env, uint8_t *mem_buf, int n)
+static int gdb_get_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
 #ifdef HOST_WORDS_BIGENDIAN
@@ -9817,7 +9817,7 @@ static int gdb_get_avr_reg(CPUState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int gdb_set_avr_reg(CPUState *env, uint8_t *mem_buf, int n)
+static int gdb_set_avr_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
 #ifdef HOST_WORDS_BIGENDIAN
@@ -9840,7 +9840,7 @@ static int gdb_set_avr_reg(CPUState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int gdb_get_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
+static int gdb_get_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
 #if defined(TARGET_PPC64)
@@ -9861,7 +9861,7 @@ static int gdb_get_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
     return 0;
 }
 
-static int gdb_set_spe_reg(CPUState *env, uint8_t *mem_buf, int n)
+static int gdb_set_spe_reg(CPUPPCState *env, uint8_t *mem_buf, int n)
 {
     if (n < 32) {
 #if defined(TARGET_PPC64)

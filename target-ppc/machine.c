@@ -4,7 +4,7 @@
 
 void cpu_save(QEMUFile *f, void *opaque)
 {
-    CPUState *env = (CPUState *)opaque;
+    CPUPPCState *env = (CPUPPCState *)opaque;
     unsigned int i, j;
 
     for (i = 0; i < 32; i++)
@@ -91,7 +91,7 @@ void cpu_save(QEMUFile *f, void *opaque)
 
 int cpu_load(QEMUFile *f, void *opaque, int version_id)
 {
-    CPUState *env = (CPUState *)opaque;
+    CPUPPCState *env = (CPUPPCState *)opaque;
     unsigned int i, j;
     target_ulong sdr1;
 

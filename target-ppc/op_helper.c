@@ -3714,11 +3714,11 @@ uint32_t helper_efdcmpeq (uint64_t op1, uint64_t op2)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUPPCState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr)
 {
     TranslationBlock *tb;
-    CPUState *saved_env;
+    CPUPPCState *saved_env;
     unsigned long pc;
     int ret;
 
@@ -4200,7 +4200,7 @@ target_ulong helper_440_tlbsx (target_ulong address)
 
 /* PowerPC BookE 2.06 TLB management */
 
-static ppcmas_tlb_t *booke206_cur_tlb(CPUState *env)
+static ppcmas_tlb_t *booke206_cur_tlb(CPUPPCState *env)
 {
     uint32_t tlbncfg = 0;
     int esel = (env->spr[SPR_BOOKE_MAS0] & MAS0_ESEL_MASK) >> MAS0_ESEL_SHIFT;
@@ -4306,7 +4306,7 @@ void helper_booke206_tlbwe(void)
     }
 }
 
-static inline void booke206_tlb_to_mas(CPUState *env, ppcmas_tlb_t *tlb)
+static inline void booke206_tlb_to_mas(CPUPPCState *env, ppcmas_tlb_t *tlb)
 {
     int tlbn = booke206_tlbm_to_tlbn(env, tlb);
     int way = booke206_tlbm_to_way(env, tlb);
@@ -4387,7 +4387,7 @@ void helper_booke206_tlbsx(target_ulong address)
     env->spr[SPR_BOOKE_MAS0] |= env->last_way << MAS0_NV_SHIFT;
 }
 
-static inline void booke206_invalidate_ea_tlb(CPUState *env, int tlbn,
+static inline void booke206_invalidate_ea_tlb(CPUPPCState *env, int tlbn,
                                               uint32_t ea)
 {
     int i;
@@ -4553,7 +4553,7 @@ void helper_msgsnd(target_ulong rb)
 {
     int irq = dbell2irq(rb);
     int pir = rb & DBELL_PIRTAG_MASK;
-    CPUState *cenv;
+    CPUPPCState *cenv;
 
     if (irq < 0) {
         return;
