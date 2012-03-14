@@ -61,9 +61,9 @@
 #define MAX_BLK_DEVS                    10
 
 static VirtIOS390Bus *s390_bus;
-static CPUState **ipi_states;
+static CPUS390XState **ipi_states;
 
-CPUState *s390_cpu_addr2state(uint16_t cpu_addr)
+CPUS390XState *s390_cpu_addr2state(uint16_t cpu_addr)
 {
     if (cpu_addr >= smp_cpus) {
         return NULL;
@@ -72,7 +72,7 @@ CPUState *s390_cpu_addr2state(uint16_t cpu_addr)
     return ipi_states[cpu_addr];
 }
 
-int s390_virtio_hypercall(CPUState *env, uint64_t mem, uint64_t hypercall)
+int s390_virtio_hypercall(CPUS390XState *env, uint64_t mem, uint64_t hypercall)
 {
     int r = 0, i;
 
@@ -129,7 +129,7 @@ int s390_virtio_hypercall(CPUState *env, uint64_t mem, uint64_t hypercall)
  */
 static unsigned s390_running_cpus;
 
-void s390_add_running_cpu(CPUState *env)
+void s390_add_running_cpu(CPUS390XState *env)
 {
     if (env->halted) {
         s390_running_cpus++;
@@ -138,7 +138,7 @@ void s390_add_running_cpu(CPUState *env)
     }
 }
 
-unsigned s390_del_running_cpu(CPUState *env)
+unsigned s390_del_running_cpu(CPUS390XState *env)
 {
     if (env->halted == 0) {
         assert(s390_running_cpus >= 1);
@@ -157,7 +157,7 @@ static void s390_init(ram_addr_t my_ram_size,
                       const char *initrd_filename,
                       const char *cpu_model)
 {
-    CPUState *env = NULL;
+    CPUS390XState *env = NULL;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     ram_addr_t kernel_size = 0;
@@ -205,10 +205,10 @@ static void s390_init(ram_addr_t my_ram_size,
         cpu_model = "host";
     }
 
-    ipi_states = g_malloc(sizeof(CPUState *) * smp_cpus);
+    ipi_states = g_malloc(sizeof(CPUS390XState *) * smp_cpus);
 
     for (i = 0; i < smp_cpus; i++) {
-        CPUState *tmp_env;
+        CPUS390XState *tmp_env;
 
         tmp_env = cpu_init(cpu_model);
         if (!env) {
