@@ -877,7 +877,8 @@ static void do_interrupt_v7m(CPUARMState *env)
     v7m_push(env, env->regs[1]);
     v7m_push(env, env->regs[0]);
     switch_v7m_sp(env, 0);
-    env->uncached_cpsr &= ~CPSR_IT;
+    /* Clear IT bits */
+    env->condexec_bits = 0;
     env->regs[14] = lr;
     addr = ldl_phys(env->v7m.vecbase + env->v7m.exception * 4);
     env->regs[15] = addr & 0xfffffffe;
