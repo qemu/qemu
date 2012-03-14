@@ -3694,7 +3694,6 @@ static void omap1_mpu_reset(void *opaque)
     omap_uwire_reset(mpu->microwire);
     omap_pwl_reset(mpu->pwl);
     omap_pwt_reset(mpu->pwt);
-    omap_i2c_reset(mpu->i2c[0]);
     omap_rtc_reset(mpu->rtc);
     omap_mcbsp_reset(mpu->mcbsp1);
     omap_mcbsp_reset(mpu->mcbsp2);
@@ -3993,9 +3992,15 @@ struct omap_mpu_state_s *omap310_mpu_init(MemoryRegion *system_memory,
     s->pwt = omap_pwt_init(system_memory, 0xfffb6000,
                            omap_findclk(s, "armxor_ck"));
 
-    s->i2c[0] = omap_i2c_init(system_memory, 0xfffb3800,
-                              qdev_get_gpio_in(s->ih[1], OMAP_INT_I2C),
-                    &s->drq[OMAP_DMA_I2C_RX], omap_findclk(s, "mpuper_ck"));
+    s->i2c[0] = qdev_create(NULL, "omap_i2c");
+    qdev_prop_set_uint8(s->i2c[0], "revision", 0x11);
+    qdev_prop_set_ptr(s->i2c[0], "fclk", omap_findclk(s, "mpuper_ck"));
+    qdev_init_nofail(s->i2c[0]);
+    busdev = sysbus_from_qdev(s->i2c[0]);
+    sysbus_connect_irq(busdev, 0, qdev_get_gpio_in(s->ih[1], OMAP_INT_I2C));
+    sysbus_connect_irq(busdev, 1, s->drq[OMAP_DMA_I2C_TX]);
+    sysbus_connect_irq(busdev, 2, s->drq[OMAP_DMA_I2C_RX]);
+    sysbus_mmio_map(busdev, 0, 0xfffb3800);
 
     s->rtc = omap_rtc_init(system_memory, 0xfffb4800,
                            qdev_get_gpio_in(s->ih[1], OMAP_INT_RTC_TIMER),
