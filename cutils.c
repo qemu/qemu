@@ -376,9 +376,9 @@ int qemu_parse_fd(const char *param)
     return fd;
 }
 
-static ssize_t do_sendv_recvv(int sockfd, struct iovec *iov,
-                          size_t offset, size_t bytes,
-                          int do_sendv)
+ssize_t iov_send_recv(int sockfd, struct iovec *iov,
+                      size_t offset, size_t bytes,
+                      bool do_sendv)
 {
     int iovlen;
     ssize_t ret;
@@ -458,14 +458,3 @@ static ssize_t do_sendv_recvv(int sockfd, struct iovec *iov,
     last_iov->iov_len += diff;
     return ret;
 }
-
-ssize_t iov_recv(int sockfd, struct iovec *iov, size_t offset, size_t bytes)
-{
-    return do_sendv_recvv(sockfd, iov, offset, bytes, 0);
-}
-
-ssize_t iov_send(int sockfd, struct iovec *iov, size_t offset, size_t bytes)
-{
-    return do_sendv_recvv(sockfd, iov, offset, bytes, 1);
-}
-
