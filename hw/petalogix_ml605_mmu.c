@@ -54,7 +54,7 @@
 #define AXIENET_BASEADDR 0x82780000
 #define AXIDMA_BASEADDR 0x84600000
 
-static void machine_cpu_reset(CPUState *env)
+static void machine_cpu_reset(CPUMBState *env)
 {
     env->pvr.regs[10] = 0x0e000000; /* virtex 6 */
     /* setup pvr to match kernel setting */
@@ -75,7 +75,7 @@ petalogix_ml605_init(ram_addr_t ram_size,
 {
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
-    CPUState *env;
+    CPUMBState *env;
     DriveInfo *dinfo;
     int i;
     target_phys_addr_t ddr_base = MEMORY_BASEADDR;

@@ -3,6 +3,6 @@
 
 #include "qemu-common.h"
 
-qemu_irq *microblaze_pic_init_cpu(CPUState *env);
+qemu_irq *microblaze_pic_init_cpu(CPUMBState *env);
 
 #endif /*  MICROBLAZE_PIC_CPU_H */

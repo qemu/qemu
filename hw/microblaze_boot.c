@@ -35,7 +35,7 @@
 
 static struct
 {
-    void (*machine_cpu_reset)(CPUState *);
+    void (*machine_cpu_reset)(CPUMBState *);
     uint32_t bootstrap_pc;
     uint32_t cmdline;
     uint32_t fdt;
@@ -43,7 +43,7 @@ static struct
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUMBState *env = opaque;
 
     cpu_state_reset(env);
     env->regs[5] = boot_info.cmdline;
@@ -99,9 +99,9 @@ static uint64_t translate_kernel_address(void *opaque, uint64_t addr)
     return addr - 0x30000000LL;
 }
 
-void microblaze_load_kernel(CPUState *env, target_phys_addr_t ddr_base,
+void microblaze_load_kernel(CPUMBState *env, target_phys_addr_t ddr_base,
                             uint32_t ramsize, const char *dtb_filename,
-                                  void (*machine_cpu_reset)(CPUState *))
+                                  void (*machine_cpu_reset)(CPUMBState *))
 {
 
     QemuOpts *machine_opts;

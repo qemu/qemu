@@ -49,7 +49,7 @@
 #define UARTLITE_BASEADDR 0x84000000
 #define ETHLITE_BASEADDR 0x81000000
 
-static void machine_cpu_reset(CPUState *env)
+static void machine_cpu_reset(CPUMBState *env)
 {
     /* FIXME: move to machine specfic cpu reset */
     env->pvr.regs[10] = 0x0c000000; /* spartan 3a dsp family.  */
@@ -63,7 +63,7 @@ petalogix_s3adsp1800_init(ram_addr_t ram_size,
                           const char *initrd_filename, const char *cpu_model)
 {
     DeviceState *dev;
-    CPUState *env;
+    CPUMBState *env;
     DriveInfo *dinfo;
     int i;
     target_phys_addr_t ddr_base = MEMORY_BASEADDR;
