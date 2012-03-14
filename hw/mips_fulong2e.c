@@ -102,7 +102,7 @@ static void GCC_FMT_ATTR(3, 4) prom_set(uint32_t* prom_buf, int index,
     va_end(ap);
 }
 
-static int64_t load_kernel (CPUState *env)
+static int64_t load_kernel (CPUMIPSState *env)
 {
     int64_t kernel_entry, kernel_low, kernel_high;
     int index = 0;
@@ -168,7 +168,7 @@ static int64_t load_kernel (CPUState *env)
     return kernel_entry;
 }
 
-static void write_bootloader (CPUState *env, uint8_t *base, int64_t kernel_addr)
+static void write_bootloader (CPUMIPSState *env, uint8_t *base, int64_t kernel_addr)
 {
     uint32_t *p;
 
@@ -198,7 +198,7 @@ static void write_bootloader (CPUState *env, uint8_t *base, int64_t kernel_addr)
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUMIPSState *env = opaque;
 
     cpu_state_reset(env);
     /* TODO: 2E reset stuff */
@@ -248,7 +248,7 @@ static void network_init (void)
 
 static void cpu_request_exit(void *opaque, int irq, int level)
 {
-    CPUState *env = cpu_single_env;
+    CPUMIPSState *env = cpu_single_env;
 
     if (env && level) {
         cpu_exit(env);
@@ -272,7 +272,7 @@ static void mips_fulong2e_init(ram_addr_t ram_size, const char *boot_device,
     i2c_bus *smbus;
     int i;
     DriveInfo *hd[MAX_IDE_BUS * MAX_IDE_DEVS];
-    CPUState *env;
+    CPUMIPSState *env;
 
     /* init CPUs */
     if (cpu_model == NULL) {
