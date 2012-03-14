@@ -129,7 +129,7 @@ static uint64_t ultrasparc_tag_target(uint64_t tag_access_register)
 
 static void replace_tlb_entry(SparcTLBEntry *tlb,
                               uint64_t tlb_tag, uint64_t tlb_tte,
-                              CPUState *env1)
+                              CPUSPARCState *env1)
 {
     target_ulong mask, size, va, offset;
 
@@ -152,7 +152,7 @@ static void replace_tlb_entry(SparcTLBEntry *tlb,
 }
 
 static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
-                      const char *strmmu, CPUState *env1)
+                      const char *strmmu, CPUSPARCState *env1)
 {
     unsigned int i;
     target_ulong mask;
@@ -213,7 +213,7 @@ static void demap_tlb(SparcTLBEntry *tlb, target_ulong demap_addr,
 
 static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
                                  uint64_t tlb_tag, uint64_t tlb_tte,
-                                 const char *strmmu, CPUState *env1)
+                                 const char *strmmu, CPUSPARCState *env1)
 {
     unsigned int i, replace_used;
 
@@ -263,7 +263,7 @@ static void replace_tlb_1bit_lru(SparcTLBEntry *tlb,
 
 #endif
 
-static inline target_ulong address_mask(CPUState *env1, target_ulong addr)
+static inline target_ulong address_mask(CPUSPARCState *env1, target_ulong addr)
 {
 #ifdef TARGET_SPARC64
     if (AM_CHECK(env1)) {
@@ -300,7 +300,7 @@ static inline int is_translating_asi(int asi)
 #endif
 }
 
-static inline target_ulong asi_address_mask(CPUState *env1,
+static inline target_ulong asi_address_mask(CPUSPARCState *env1,
                                             int asi, target_ulong addr)
 {
     if (is_translating_asi(asi)) {
@@ -323,7 +323,7 @@ void helper_check_align(target_ulong addr, uint32_t align)
 
 #if !defined(TARGET_SPARC64) && !defined(CONFIG_USER_ONLY) &&   \
     defined(DEBUG_MXCC)
-static void dump_mxcc(CPUState *env)
+static void dump_mxcc(CPUSPARCState *env)
 {
     printf("mxccdata: %016" PRIx64 " %016" PRIx64 " %016" PRIx64 " %016" PRIx64
            "\n",
@@ -2358,10 +2358,10 @@ static void do_unassigned_access(target_phys_addr_t addr, int is_write,
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_unassigned_access(CPUState *env1, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUSPARCState *env1, target_phys_addr_t addr,
                            int is_write, int is_exec, int is_asi, int size)
 {
-    CPUState *saved_env;
+    CPUSPARCState *saved_env;
 
     saved_env = env;
     env = env1;

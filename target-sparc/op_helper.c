@@ -54,11 +54,11 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUSPARCState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr)
 {
     int ret;
-    CPUState *saved_env;
+    CPUSPARCState *saved_env;
 
     saved_env = env;
     env = env1;

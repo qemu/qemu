@@ -780,7 +780,7 @@ static void cpu_print_cc(FILE *f, fprintf_function cpu_fprintf,
 #define REGS_PER_LINE 8
 #endif
 
-void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
     int i, x;
