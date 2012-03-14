@@ -52,7 +52,7 @@
 #define dh_ctype_tl target_ulong
 #define dh_ctype_ptr void *
 #define dh_ctype_void void
-#define dh_ctype_env CPUState *
+#define dh_ctype_env CPUArchState *
 #define dh_ctype(t) dh_ctype_##t
 
 /* We can't use glue() here because it falls foul of C preprocessor

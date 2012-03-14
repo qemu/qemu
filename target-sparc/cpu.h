@@ -23,7 +23,7 @@
 # endif
 #endif
 
-#define CPUState struct CPUSPARCState
+#define CPUArchState struct CPUSPARCState
 
 #include "cpu-defs.h"
 

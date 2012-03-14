@@ -7,7 +7,7 @@
 
 #define ELF_MACHINE	EM_MIPS
 
-#define CPUState struct CPUMIPSState
+#define CPUArchState struct CPUMIPSState
 
 #include "config.h"
 #include "qemu-common.h"

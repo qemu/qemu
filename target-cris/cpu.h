@@ -25,7 +25,7 @@
 
 #define TARGET_LONG_BITS 32
 
-#define CPUState struct CPUCRISState
+#define CPUArchState struct CPUCRISState
 
 #include "cpu-defs.h"
 

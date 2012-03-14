@@ -70,11 +70,11 @@ int cpu_get_pic_interrupt(CPUX86State *env)
 #endif
 
 /* These are no-ops because we are not threadsafe.  */
-static inline void cpu_exec_start(CPUState *env)
+static inline void cpu_exec_start(CPUArchState *env)
 {
 }
 
-static inline void cpu_exec_end(CPUState *env)
+static inline void cpu_exec_end(CPUArchState *env)
 {
 }
 
@@ -713,7 +713,7 @@ static void usage(void)
     exit(1);
 }
 
-THREAD CPUState *thread_env;
+THREAD CPUArchState *thread_env;
 
 /* Assumes contents are already zeroed.  */
 void init_task_state(TaskState *ts)
@@ -737,7 +737,7 @@ int main(int argc, char **argv)
     struct target_pt_regs regs1, *regs = &regs1;
     struct image_info info1, *info = &info1;
     TaskState ts1, *ts = &ts1;
-    CPUState *env;
+    CPUArchState *env;
     int optind;
     const char *r;
     int gdbstub_port = 0;

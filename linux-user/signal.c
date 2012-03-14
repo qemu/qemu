@@ -347,7 +347,7 @@ void signal_init(void)
 
 /* signal queue handling */
 
-static inline struct sigqueue *alloc_sigqueue(CPUState *env)
+static inline struct sigqueue *alloc_sigqueue(CPUArchState *env)
 {
     TaskState *ts = env->opaque;
     struct sigqueue *q = ts->first_free;
@@ -357,7 +357,7 @@ static inline struct sigqueue *alloc_sigqueue(CPUState *env)
     return q;
 }
 
-static inline void free_sigqueue(CPUState *env, struct sigqueue *q)
+static inline void free_sigqueue(CPUArchState *env, struct sigqueue *q)
 {
     TaskState *ts = env->opaque;
     q->next = ts->first_free;
@@ -415,7 +415,7 @@ static void QEMU_NORETURN force_sig(int target_sig)
 
 /* queue a signal so that it will be send to the virtual CPU as soon
    as possible */
-int queue_signal(CPUState *env, int sig, target_siginfo_t *info)
+int queue_signal(CPUArchState *env, int sig, target_siginfo_t *info)
 {
     TaskState *ts = env->opaque;
     struct emulated_sigtable *k;
@@ -5214,25 +5214,25 @@ long do_rt_sigreturn(CPUAlphaState *env)
 #else
 
 static void setup_frame(int sig, struct target_sigaction *ka,
-			target_sigset_t *set, CPUState *env)
+			target_sigset_t *set, CPUArchState *env)
 {
     fprintf(stderr, "setup_frame: not implemented\n");
 }
 
 static void setup_rt_frame(int sig, struct target_sigaction *ka,
                            target_siginfo_t *info,
-			   target_sigset_t *set, CPUState *env)
+			   target_sigset_t *set, CPUArchState *env)
 {
     fprintf(stderr, "setup_rt_frame: not implemented\n");
 }
 
-long do_sigreturn(CPUState *env)
+long do_sigreturn(CPUArchState *env)
 {
     fprintf(stderr, "do_sigreturn: not implemented\n");
     return -TARGET_ENOSYS;
 }
 
-long do_rt_sigreturn(CPUState *env)
+long do_rt_sigreturn(CPUArchState *env)
 {
     fprintf(stderr, "do_rt_sigreturn: not implemented\n");
     return -TARGET_ENOSYS;
@@ -5240,7 +5240,7 @@ long do_rt_sigreturn(CPUState *env)
 
 #endif
 
-void process_pending_signals(CPUState *cpu_env)
+void process_pending_signals(CPUArchState *cpu_env)
 {
     int sig;
     abi_ulong handler;

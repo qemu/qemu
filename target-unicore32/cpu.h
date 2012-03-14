@@ -18,7 +18,7 @@
 
 #define ELF_MACHINE             EM_UNICORE32
 
-#define CPUState                struct CPUUniCore32State
+#define CPUArchState                struct CPUUniCore32State
 
 #include "config.h"
 #include "qemu-common.h"

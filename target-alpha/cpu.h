@@ -25,7 +25,7 @@
 
 #define TARGET_LONG_BITS 64
 
-#define CPUState struct CPUAlphaState
+#define CPUArchState struct CPUAlphaState
 
 #include "cpu-defs.h"
 

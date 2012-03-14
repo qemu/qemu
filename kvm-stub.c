@@ -22,7 +22,7 @@ int kvm_pit_in_kernel(void)
 }
 
 
-int kvm_init_vcpu(CPUState *env)
+int kvm_init_vcpu(CPUArchState *env)
 {
     return -ENOSYS;
 }
@@ -46,19 +46,19 @@ void kvm_flush_coalesced_mmio_buffer(void)
 {
 }
 
-void kvm_cpu_synchronize_state(CPUState *env)
+void kvm_cpu_synchronize_state(CPUArchState *env)
 {
 }
 
-void kvm_cpu_synchronize_post_reset(CPUState *env)
+void kvm_cpu_synchronize_post_reset(CPUArchState *env)
 {
 }
 
-void kvm_cpu_synchronize_post_init(CPUState *env)
+void kvm_cpu_synchronize_post_init(CPUArchState *env)
 {
 }
 
-int kvm_cpu_exec(CPUState *env)
+int kvm_cpu_exec(CPUArchState *env)
 {
     abort ();
 }
@@ -87,29 +87,29 @@ void kvm_setup_guest_memory(void *start, size_t size)
 {
 }
 
-int kvm_update_guest_debug(CPUState *env, unsigned long reinject_trap)
+int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap)
 {
     return -ENOSYS;
 }
 
-int kvm_insert_breakpoint(CPUState *current_env, target_ulong addr,
+int kvm_insert_breakpoint(CPUArchState *current_env, target_ulong addr,
                           target_ulong len, int type)
 {
     return -EINVAL;
 }
 
-int kvm_remove_breakpoint(CPUState *current_env, target_ulong addr,
+int kvm_remove_breakpoint(CPUArchState *current_env, target_ulong addr,
                           target_ulong len, int type)
 {
     return -EINVAL;
 }
 
-void kvm_remove_all_breakpoints(CPUState *current_env)
+void kvm_remove_all_breakpoints(CPUArchState *current_env)
 {
 }
 
 #ifndef _WIN32
-int kvm_set_signal_mask(CPUState *env, const sigset_t *sigset)
+int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset)
 {
     abort();
 }
@@ -125,7 +125,7 @@ int kvm_set_ioeventfd_mmio_long(int fd, uint32_t adr, uint32_t val, bool assign)
     return -ENOSYS;
 }
 
-int kvm_on_sigbus_vcpu(CPUState *env, int code, void *addr)
+int kvm_on_sigbus_vcpu(CPUArchState *env, int code, void *addr)
 {
     return 1;
 }

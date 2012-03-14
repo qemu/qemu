@@ -377,12 +377,12 @@ long do_sigreturn(CPUX86State *env, int num)
 #else
 
 static void setup_frame(int sig, struct emulated_sigaction *ka,
-			void *set, CPUState *env)
+			void *set, CPUArchState *env)
 {
     fprintf(stderr, "setup_frame: not implemented\n");
 }
 
-long do_sigreturn(CPUState *env, int num)
+long do_sigreturn(CPUArchState *env, int num)
 {
     int i = 0;
     struct target_sigcontext *scp = get_int_arg(&i, env);

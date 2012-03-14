@@ -146,7 +146,7 @@ static inline void exclusive_idle(void)
    Must only be called from outside cpu_arm_exec.   */
 static inline void start_exclusive(void)
 {
-    CPUState *other;
+    CPUArchState *other;
     pthread_mutex_lock(&exclusive_lock);
     exclusive_idle();
 
@@ -172,7 +172,7 @@ static inline void end_exclusive(void)
 }
 
 /* Wait for exclusive ops to finish, and begin cpu execution.  */
-static inline void cpu_exec_start(CPUState *env)
+static inline void cpu_exec_start(CPUArchState *env)
 {
     pthread_mutex_lock(&exclusive_lock);
     exclusive_idle();
@@ -181,7 +181,7 @@ static inline void cpu_exec_start(CPUState *env)
 }
 
 /* Mark cpu as not executing, and release pending exclusive ops.  */
-static inline void cpu_exec_end(CPUState *env)
+static inline void cpu_exec_end(CPUArchState *env)
 {
     pthread_mutex_lock(&exclusive_lock);
     env->running = 0;
@@ -206,11 +206,11 @@ void cpu_list_unlock(void)
 }
 #else /* if !CONFIG_USE_NPTL */
 /* These are no-ops because we are not threadsafe.  */
-static inline void cpu_exec_start(CPUState *env)
+static inline void cpu_exec_start(CPUArchState *env)
 {
 }
 
-static inline void cpu_exec_end(CPUState *env)
+static inline void cpu_exec_end(CPUArchState *env)
 {
 }
 
@@ -2888,7 +2888,7 @@ void cpu_loop(CPUS390XState *env)
 
 #endif /* TARGET_S390X */
 
-THREAD CPUState *thread_env;
+THREAD CPUArchState *thread_env;
 
 void task_settid(TaskState *ts)
 {
@@ -3277,7 +3277,7 @@ int main(int argc, char **argv, char **envp)
     struct image_info info1, *info = &info1;
     struct linux_binprm bprm;
     TaskState *ts;
-    CPUState *env;
+    CPUArchState *env;
     int optind;
     char **target_environ, **wrk;
     char **target_argv;

@@ -42,7 +42,7 @@
 #include "kvm.h"
 
 #ifndef TARGET_CPU_MEMORY_RW_DEBUG
-static inline int target_memory_rw_debug(CPUState *env, target_ulong addr,
+static inline int target_memory_rw_debug(CPUArchState *env, target_ulong addr,
                                          uint8_t *buf, int len, int is_write)
 {
     return cpu_memory_rw_debug(env, addr, buf, len, is_write);
@@ -287,9 +287,9 @@ enum RSState {
     RS_SYSCALL,
 };
 typedef struct GDBState {
-    CPUState *c_cpu; /* current CPU for step/continue ops */
-    CPUState *g_cpu; /* current CPU for other ops */
-    CPUState *query_cpu; /* for q{f|s}ThreadInfo */
+    CPUArchState *c_cpu; /* current CPU for step/continue ops */
+    CPUArchState *g_cpu; /* current CPU for other ops */
+    CPUArchState *query_cpu; /* for q{f|s}ThreadInfo */
     enum RSState state; /* parsing state */
     char line_buf[MAX_PACKET_LENGTH];
     int line_buf_index;
@@ -1655,12 +1655,12 @@ static int cpu_gdb_write_register(CPUXtensaState *env, uint8_t *mem_buf, int n)
 
 #define NUM_CORE_REGS 0
 
-static int cpu_gdb_read_register(CPUState *env, uint8_t *mem_buf, int n)
+static int cpu_gdb_read_register(CPUArchState *env, uint8_t *mem_buf, int n)
 {
     return 0;
 }
 
-static int cpu_gdb_write_register(CPUState *env, uint8_t *mem_buf, int n)
+static int cpu_gdb_write_register(CPUArchState *env, uint8_t *mem_buf, int n)
 {
     return 0;
 }
@@ -1736,7 +1736,7 @@ static const char *get_feature_xml(const char *p, const char **newp)
 }
 #endif
 
-static int gdb_read_register(CPUState *env, uint8_t *mem_buf, int reg)
+static int gdb_read_register(CPUArchState *env, uint8_t *mem_buf, int reg)
 {
     GDBRegisterState *r;
 
@@ -1751,7 +1751,7 @@ static int gdb_read_register(CPUState *env, uint8_t *mem_buf, int reg)
     return 0;
 }
 
-static int gdb_write_register(CPUState *env, uint8_t *mem_buf, int reg)
+static int gdb_write_register(CPUArchState *env, uint8_t *mem_buf, int reg)
 {
     GDBRegisterState *r;
 
@@ -1773,7 +1773,7 @@ static int gdb_write_register(CPUState *env, uint8_t *mem_buf, int reg)
    gdb reading a CPU register, and set_reg is gdb modifying a CPU register.
  */
 
-void gdb_register_coprocessor(CPUState * env,
+void gdb_register_coprocessor(CPUArchState * env,
                              gdb_reg_cb get_reg, gdb_reg_cb set_reg,
                              int num_regs, const char *xml, int g_pos)
 {
@@ -1820,7 +1820,7 @@ static const int xlat_gdb_type[] = {
 
 static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
 {
-    CPUState *env;
+    CPUArchState *env;
     int err = 0;
 
     if (kvm_enabled())
@@ -1854,7 +1854,7 @@ static int gdb_breakpoint_insert(target_ulong addr, target_ulong len, int type)
 
 static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
 {
-    CPUState *env;
+    CPUArchState *env;
     int err = 0;
 
     if (kvm_enabled())
@@ -1887,7 +1887,7 @@ static int gdb_breakpoint_remove(target_ulong addr, target_ulong len, int type)
 
 static void gdb_breakpoint_remove_all(void)
 {
-    CPUState *env;
+    CPUArchState *env;
 
     if (kvm_enabled()) {
         kvm_remove_all_breakpoints(gdbserver_state->c_cpu);
@@ -1939,7 +1939,7 @@ static void gdb_set_cpu_pc(GDBState *s, target_ulong pc)
 #endif
 }
 
-static inline int gdb_id(CPUState *env)
+static inline int gdb_id(CPUArchState *env)
 {
 #if defined(CONFIG_USER_ONLY) && defined(CONFIG_USE_NPTL)
     return env->host_tid;
@@ -1948,9 +1948,9 @@ static inline int gdb_id(CPUState *env)
 #endif
 }
 
-static CPUState *find_cpu(uint32_t thread_id)
+static CPUArchState *find_cpu(uint32_t thread_id)
 {
-    CPUState *env;
+    CPUArchState *env;
 
     for (env = first_cpu; env != NULL; env = env->next_cpu) {
         if (gdb_id(env) == thread_id) {
@@ -1963,7 +1963,7 @@ static CPUState *find_cpu(uint32_t thread_id)
 
 static int gdb_handle_packet(GDBState *s, const char *line_buf)
 {
-    CPUState *env;
+    CPUArchState *env;
     const char *p;
     uint32_t thread;
     int ch, reg_size, type, res;
@@ -2383,7 +2383,7 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
     return RS_IDLE;
 }
 
-void gdb_set_stop_cpu(CPUState *env)
+void gdb_set_stop_cpu(CPUArchState *env)
 {
     gdbserver_state->c_cpu = env;
     gdbserver_state->g_cpu = env;
@@ -2393,7 +2393,7 @@ void gdb_set_stop_cpu(CPUState *env)
 static void gdb_vm_state_change(void *opaque, int running, RunState state)
 {
     GDBState *s = gdbserver_state;
-    CPUState *env = s->c_cpu;
+    CPUArchState *env = s->c_cpu;
     char buf[256];
     const char *type;
     int ret;
@@ -2602,7 +2602,7 @@ static void gdb_read_byte(GDBState *s, int ch)
 }
 
 /* Tell the remote gdb that the process has exited.  */
-void gdb_exit(CPUState *env, int code)
+void gdb_exit(CPUArchState *env, int code)
 {
   GDBState *s;
   char buf[4];
@@ -2642,7 +2642,7 @@ gdb_queuesig (void)
 }
 
 int
-gdb_handlesig (CPUState *env, int sig)
+gdb_handlesig (CPUArchState *env, int sig)
 {
   GDBState *s;
   char buf[256];
@@ -2691,7 +2691,7 @@ gdb_handlesig (CPUState *env, int sig)
 }
 
 /* Tell the remote gdb that the process has exited due to SIG.  */
-void gdb_signalled(CPUState *env, int sig)
+void gdb_signalled(CPUArchState *env, int sig)
 {
   GDBState *s;
   char buf[4];
@@ -2787,7 +2787,7 @@ int gdbserver_start(int port)
 }
 
 /* Disable gdb stub for child processes.  */
-void gdbserver_fork(CPUState *env)
+void gdbserver_fork(CPUArchState *env)
 {
     GDBState *s = gdbserver_state;
     if (gdbserver_fd < 0 || s->fd < 0)

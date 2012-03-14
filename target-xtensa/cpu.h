@@ -31,7 +31,7 @@
 #define TARGET_LONG_BITS 32
 #define ELF_MACHINE EM_XTENSA
 
-#define CPUState struct CPUXtensaState
+#define CPUArchState struct CPUXtensaState
 
 #include "config.h"
 #include "qemu-common.h"

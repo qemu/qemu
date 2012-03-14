@@ -71,7 +71,7 @@
 
 #endif /* defined (TARGET_PPC64) */
 
-#define CPUState struct CPUPPCState
+#define CPUArchState struct CPUPPCState
 
 #include "cpu-defs.h"
 

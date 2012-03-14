@@ -33,6 +33,6 @@ void signal_init(void)
 {
 }
 
-void process_pending_signals(CPUState *cpu_env)
+void process_pending_signals(CPUArchState *cpu_env)
 {
 }

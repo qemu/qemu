@@ -23,7 +23,7 @@
 
 #define ELF_MACHINE	EM_ARM
 
-#define CPUState struct CPUARMState
+#define CPUArchState struct CPUARMState
 
 #include "config.h"
 #include "qemu-common.h"

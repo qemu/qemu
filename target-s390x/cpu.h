@@ -26,7 +26,7 @@
 
 #define ELF_MACHINE	EM_S390
 
-#define CPUState struct CPUS390XState
+#define CPUArchState struct CPUS390XState
 
 #include "cpu-defs.h"
 #define TARGET_PAGE_BITS 12

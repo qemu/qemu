@@ -76,30 +76,30 @@ extern uint16_t gen_opc_icount[OPC_BUF_SIZE];
 
 #include "qemu-log.h"
 
-void gen_intermediate_code(CPUState *env, struct TranslationBlock *tb);
-void gen_intermediate_code_pc(CPUState *env, struct TranslationBlock *tb);
-void restore_state_to_opc(CPUState *env, struct TranslationBlock *tb,
+void gen_intermediate_code(CPUArchState *env, struct TranslationBlock *tb);
+void gen_intermediate_code_pc(CPUArchState *env, struct TranslationBlock *tb);
+void restore_state_to_opc(CPUArchState *env, struct TranslationBlock *tb,
                           int pc_pos);
 
 void cpu_gen_init(void);
-int cpu_gen_code(CPUState *env, struct TranslationBlock *tb,
+int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb,
-                      CPUState *env, unsigned long searched_pc);
-void cpu_resume_from_signal(CPUState *env1, void *puc);
-void cpu_io_recompile(CPUState *env, void *retaddr);
-TranslationBlock *tb_gen_code(CPUState *env, 
+                      CPUArchState *env, unsigned long searched_pc);
+void cpu_resume_from_signal(CPUArchState *env1, void *puc);
+void cpu_io_recompile(CPUArchState *env, void *retaddr);
+TranslationBlock *tb_gen_code(CPUArchState *env, 
                               target_ulong pc, target_ulong cs_base, int flags,
                               int cflags);
-void cpu_exec_init(CPUState *env);
-void QEMU_NORETURN cpu_loop_exit(CPUState *env1);
+void cpu_exec_init(CPUArchState *env);
+void QEMU_NORETURN cpu_loop_exit(CPUArchState *env1);
 int page_unprotect(target_ulong address, unsigned long pc, void *puc);
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access);
-void tlb_flush_page(CPUState *env, target_ulong addr);
-void tlb_flush(CPUState *env, int flush_global);
+void tlb_flush_page(CPUArchState *env, target_ulong addr);
+void tlb_flush(CPUArchState *env, int flush_global);
 #if !defined(CONFIG_USER_ONLY)
-void tlb_set_page(CPUState *env, target_ulong vaddr,
+void tlb_set_page(CPUArchState *env, target_ulong vaddr,
                   target_phys_addr_t paddr, int prot,
                   int mmu_idx, target_ulong size);
 #endif
@@ -182,7 +182,7 @@ static inline unsigned int tb_phys_hash_func(tb_page_addr_t pc)
 }
 
 void tb_free(TranslationBlock *tb);
-void tb_flush(CPUState *env);
+void tb_flush(CPUArchState *env);
 void tb_link_page(TranslationBlock *tb,
                   tb_page_addr_t phys_pc, tb_page_addr_t phys_page2);
 void tb_phys_invalidate(TranslationBlock *tb, tb_page_addr_t page_addr);
@@ -305,7 +305,7 @@ uint64_t io_mem_read(struct MemoryRegion *mr, target_phys_addr_t addr,
 void io_mem_write(struct MemoryRegion *mr, target_phys_addr_t addr,
                   uint64_t value, unsigned size);
 
-void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUArchState *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr);
 
 #include "softmmu_defs.h"
@@ -333,15 +333,15 @@ void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
 #endif
 
 #if defined(CONFIG_USER_ONLY)
-static inline tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong addr)
+static inline tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
 {
     return addr;
 }
 #else
-tb_page_addr_t get_page_addr_code(CPUState *env1, target_ulong addr);
+tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
 #endif
 
-typedef void (CPUDebugExcpHandler)(CPUState *env);
+typedef void (CPUDebugExcpHandler)(CPUArchState *env);
 
 CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler);
 
@@ -353,7 +353,7 @@ extern volatile sig_atomic_t exit_request;
 
 /* Deterministic execution requires that IO only be performed on the last
    instruction of a TB so that interrupts take effect immediately.  */
-static inline int can_do_io(CPUState *env)
+static inline int can_do_io(CPUArchState *env)
 {
     if (!use_icount) {
         return 1;

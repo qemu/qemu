@@ -42,7 +42,7 @@
 #define ELF_MACHINE	EM_386
 #endif
 
-#define CPUState struct CPUX86State
+#define CPUArchState struct CPUX86State
 
 #include "cpu-defs.h"
 

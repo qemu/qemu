@@ -1044,7 +1044,7 @@ static inline void bswap_sym(struct elf_sym *sym) { }
 #endif
 
 #ifdef USE_ELF_CORE_DUMP
-static int elf_core_dump(int, const CPUState *);
+static int elf_core_dump(int, const CPUArchState *);
 #endif /* USE_ELF_CORE_DUMP */
 static void load_symbols(struct elfhdr *hdr, int fd, abi_ulong load_bias);
 
@@ -1930,7 +1930,7 @@ int load_elf_binary(struct linux_binprm * bprm, struct target_pt_regs * regs,
  * from given cpu into just specified register set.  Prototype is:
  *
  * static void elf_core_copy_regs(taret_elf_gregset_t *regs,
- *                                const CPUState *env);
+ *                                const CPUArchState *env);
  *
  * Parameters:
  *     regs - copy register values into here (allocated and zeroed by caller)
@@ -2054,8 +2054,8 @@ static void fill_auxv_note(struct memelfnote *, const TaskState *);
 static void fill_elf_note_phdr(struct elf_phdr *, int, off_t);
 static size_t note_size(const struct memelfnote *);
 static void free_note_info(struct elf_note_info *);
-static int fill_note_info(struct elf_note_info *, long, const CPUState *);
-static void fill_thread_info(struct elf_note_info *, const CPUState *);
+static int fill_note_info(struct elf_note_info *, long, const CPUArchState *);
+static void fill_thread_info(struct elf_note_info *, const CPUArchState *);
 static int core_dump_filename(const TaskState *, char *, size_t);
 
 static int dump_write(int, const void *, size_t);
@@ -2448,7 +2448,7 @@ static int write_note(struct memelfnote *men, int fd)
     return (0);
 }
 
-static void fill_thread_info(struct elf_note_info *info, const CPUState *env)
+static void fill_thread_info(struct elf_note_info *info, const CPUArchState *env)
 {
     TaskState *ts = (TaskState *)env->opaque;
     struct elf_thread_status *ets;
@@ -2466,10 +2466,10 @@ static void fill_thread_info(struct elf_note_info *info, const CPUState *env)
 }
 
 static int fill_note_info(struct elf_note_info *info,
-                          long signr, const CPUState *env)
+                          long signr, const CPUArchState *env)
 {
 #define NUMNOTES 3
-    CPUState *cpu = NULL;
+    CPUArchState *cpu = NULL;
     TaskState *ts = (TaskState *)env->opaque;
     int i;
 
@@ -2595,7 +2595,7 @@ static int write_note_info(struct elf_note_info *info, int fd)
  * handler (provided that target process haven't registered
  * handler for that) that does the dump when signal is received.
  */
-static int elf_core_dump(int signr, const CPUState *env)
+static int elf_core_dump(int signr, const CPUArchState *env)
 {
     const TaskState *ts = (const TaskState *)env->opaque;
     struct vm_area_struct *vma = NULL;

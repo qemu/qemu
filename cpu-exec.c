@@ -26,12 +26,12 @@ int tb_invalidated_flag;
 
 //#define CONFIG_DEBUG_EXEC
 
-bool qemu_cpu_has_work(CPUState *env)
+bool qemu_cpu_has_work(CPUArchState *env)
 {
     return cpu_has_work(env);
 }
 
-void cpu_loop_exit(CPUState *env)
+void cpu_loop_exit(CPUArchState *env)
 {
     env->current_tb = NULL;
     longjmp(env->jmp_env, 1);
@@ -41,7 +41,7 @@ void cpu_loop_exit(CPUState *env)
    restored in a state compatible with the CPU emulator
  */
 #if defined(CONFIG_SOFTMMU)
-void cpu_resume_from_signal(CPUState *env, void *puc)
+void cpu_resume_from_signal(CPUArchState *env, void *puc)
 {
     /* XXX: restore cpu registers saved in host registers */
 
@@ -52,7 +52,7 @@ void cpu_resume_from_signal(CPUState *env, void *puc)
 
 /* Execute the code without caching the generated code. An interpreter
    could be used if available. */
-static void cpu_exec_nocache(CPUState *env, int max_cycles,
+static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
                              TranslationBlock *orig_tb)
 {
     unsigned long next_tb;
@@ -79,7 +79,7 @@ static void cpu_exec_nocache(CPUState *env, int max_cycles,
     tb_free(tb);
 }
 
-static TranslationBlock *tb_find_slow(CPUState *env,
+static TranslationBlock *tb_find_slow(CPUArchState *env,
                                       target_ulong pc,
                                       target_ulong cs_base,
                                       uint64_t flags)
@@ -135,7 +135,7 @@ static TranslationBlock *tb_find_slow(CPUState *env,
     return tb;
 }
 
-static inline TranslationBlock *tb_find_fast(CPUState *env)
+static inline TranslationBlock *tb_find_fast(CPUArchState *env)
 {
     TranslationBlock *tb;
     target_ulong cs_base, pc;
@@ -163,7 +163,7 @@ CPUDebugExcpHandler *cpu_set_debug_excp_handler(CPUDebugExcpHandler *handler)
     return old_handler;
 }
 
-static void cpu_handle_debug_exception(CPUState *env)
+static void cpu_handle_debug_exception(CPUArchState *env)
 {
     CPUWatchpoint *wp;
 
@@ -181,7 +181,7 @@ static void cpu_handle_debug_exception(CPUState *env)
 
 volatile sig_atomic_t exit_request;
 
-int cpu_exec(CPUState *env)
+int cpu_exec(CPUArchState *env)
 {
     int ret, interrupt_request;
     TranslationBlock *tb;

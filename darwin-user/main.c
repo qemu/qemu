@@ -71,7 +71,7 @@ void gemu_log(const char *fmt, ...)
     va_end(ap);
 }
 
-int cpu_get_pic_interrupt(CPUState *env)
+int cpu_get_pic_interrupt(CPUArchState *env)
 {
     return -1;
 }
@@ -729,7 +729,7 @@ static void usage(void)
 }
 
 /* XXX: currently only used for async signals (see signal.c) */
-CPUState *global_env;
+CPUArchState *global_env;
 
 /* used to free thread contexts */
 TaskState *first_task_state;
@@ -741,7 +741,7 @@ int main(int argc, char **argv)
     const char *log_mask = NULL;
     struct target_pt_regs regs1, *regs = &regs1;
     TaskState ts1, *ts = &ts1;
-    CPUState *env;
+    CPUArchState *env;
     int optind;
     short use_gdbstub = 0;
     const char *r;

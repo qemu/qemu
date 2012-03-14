@@ -530,14 +530,14 @@ static MemoryListener xen_memory_listener = {
 
 static void xen_reset_vcpu(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUArchState *env = opaque;
 
     env->halted = 1;
 }
 
 void xen_vcpu_init(void)
 {
-    CPUState *first_cpu;
+    CPUArchState *first_cpu;
 
     if ((first_cpu = qemu_get_cpu(0))) {
         qemu_register_reset(xen_reset_vcpu, first_cpu);

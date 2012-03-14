@@ -61,10 +61,10 @@
 #endif
 
 #if defined(AREG0)
-register CPUState *env asm(AREG0);
+register CPUArchState *env asm(AREG0);
 #else
 /* TODO: Try env = cpu_single_env. */
-extern CPUState *env;
+extern CPUArchState *env;
 #endif
 
 #endif /* !defined(__DYNGEN_EXEC_H__) */

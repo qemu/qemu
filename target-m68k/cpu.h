@@ -22,7 +22,7 @@
 
 #define TARGET_LONG_BITS 32
 
-#define CPUState struct CPUM68KState
+#define CPUArchState struct CPUM68KState
 
 #include "config.h"
 #include "qemu-common.h"

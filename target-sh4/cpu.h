@@ -37,7 +37,7 @@
 #define SH_CPU_SH7750_ALL (SH_CPU_SH7750 | SH_CPU_SH7750S | SH_CPU_SH7750R)
 #define SH_CPU_SH7751_ALL (SH_CPU_SH7751 | SH_CPU_SH7751R)
 
-#define CPUState struct CPUSH4State
+#define CPUArchState struct CPUSH4State
 
 #include "cpu-defs.h"
 

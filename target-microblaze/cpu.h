@@ -24,7 +24,7 @@
 
 #define TARGET_LONG_BITS 32
 
-#define CPUState struct CPUMBState
+#define CPUArchState struct CPUMBState
 
 #include "cpu-defs.h"
 #include "softfloat.h"
