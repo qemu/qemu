@@ -243,7 +243,7 @@ static const QErrorStringTable qerror_table[] = {
     {
         .error_fmt = QERR_PROPERTY_VALUE_OUT_OF_RANGE,
         .desc      = "Property '%(device).%(property)' doesn't take "
-                     "value %(value) (minimum: %(min), maximum: %(max)'",
+                     "value %(value) (minimum: %(min), maximum: %(max))",
     },
     {
         .error_fmt = QERR_QGA_COMMAND_FAILED,
