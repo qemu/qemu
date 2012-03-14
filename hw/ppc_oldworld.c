@@ -67,7 +67,7 @@ static target_phys_addr_t round_page(target_phys_addr_t addr)
 
 static void ppc_heathrow_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
 
     cpu_state_reset(env);
 }
@@ -80,7 +80,7 @@ static void ppc_heathrow_init (ram_addr_t ram_size,
                                const char *cpu_model)
 {
     MemoryRegion *sysmem = get_system_memory();
-    CPUState *env = NULL;
+    CPUPPCState *env = NULL;
     char *filename;
     qemu_irq *pic, **heathrow_irqs;
     int linux_boot, i;

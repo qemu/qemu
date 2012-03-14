@@ -40,18 +40,18 @@
 
 static void ppc4xx_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
 
     cpu_state_reset(env);
 }
 
 /*****************************************************************************/
 /* Generic PowerPC 4xx processor instantiation */
-CPUState *ppc4xx_init (const char *cpu_model,
+CPUPPCState *ppc4xx_init (const char *cpu_model,
                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
                        uint32_t sysclk)
 {
-    CPUState *env;
+    CPUPPCState *env;
 
     /* init CPUs */
     env = cpu_init(cpu_model);
@@ -295,7 +295,7 @@ static void ppcuic_reset (void *opaque)
     }
 }
 
-qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
+qemu_irq *ppcuic_init (CPUPPCState *env, qemu_irq *irqs,
                        uint32_t dcr_base, int has_ssr, int has_vr)
 {
     ppcuic_t *uic;
@@ -641,7 +641,7 @@ static void sdram_reset (void *opaque)
     sdram->cfg = 0x00800000;
 }
 
-void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
+void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
                         MemoryRegion *ram_memories,
                         target_phys_addr_t *ram_bases,
                         target_phys_addr_t *ram_sizes,

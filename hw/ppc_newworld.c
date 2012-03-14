@@ -123,7 +123,7 @@ static target_phys_addr_t round_page(target_phys_addr_t addr)
 
 static void ppc_core99_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
 
     cpu_state_reset(env);
 }
@@ -136,7 +136,7 @@ static void ppc_core99_init (ram_addr_t ram_size,
                              const char *initrd_filename,
                              const char *cpu_model)
 {
-    CPUState *env = NULL;
+    CPUPPCState *env = NULL;
     char *filename;
     qemu_irq *pic, **openpic_irqs;
     MemoryRegion *unin_memory = g_new(MemoryRegion, 1);
