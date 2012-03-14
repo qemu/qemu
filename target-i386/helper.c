@@ -27,7 +27,7 @@
 //#define DEBUG_MMU
 
 /* NOTE: must be called outside the CPU execute loop */
-void cpu_state_reset(CPUState *env)
+void cpu_state_reset(CPUX86State *env)
 {
     int i;
 
@@ -106,7 +106,7 @@ void cpu_x86_close(CPUX86State *env)
     g_free(env);
 }
 
-static void cpu_x86_version(CPUState *env, int *family, int *model)
+static void cpu_x86_version(CPUX86State *env, int *family, int *model)
 {
     int cpuver = env->cpuid_version;
 
@@ -119,7 +119,7 @@ static void cpu_x86_version(CPUState *env, int *family, int *model)
 }
 
 /* Broadcast MCA signal for processor version 06H_EH and above */
-int cpu_x86_support_mca_broadcast(CPUState *env)
+int cpu_x86_support_mca_broadcast(CPUX86State *env)
 {
     int family = 0;
     int model = 0;
@@ -191,7 +191,7 @@ static const char *cc_op_str[] = {
 };
 
 static void
-cpu_x86_dump_seg_cache(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+cpu_x86_dump_seg_cache(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf,
                        const char *name, struct SegmentCache *sc)
 {
 #ifdef TARGET_X86_64
@@ -248,7 +248,7 @@ done:
 #define DUMP_CODE_BYTES_TOTAL    50
 #define DUMP_CODE_BYTES_BACKWARD 20
 
-void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_state(CPUX86State *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
     int eflags, i, nb;
@@ -857,7 +857,7 @@ int cpu_x86_handle_mmu_fault(CPUX86State *env, target_ulong addr,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUX86State *env, target_ulong addr)
 {
     target_ulong pde_addr, pte_addr;
     uint64_t pte;
@@ -952,7 +952,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     return paddr;
 }
 
-void hw_breakpoint_insert(CPUState *env, int index)
+void hw_breakpoint_insert(CPUX86State *env, int index)
 {
     int type, err = 0;
 
@@ -980,7 +980,7 @@ void hw_breakpoint_insert(CPUState *env, int index)
         env->cpu_breakpoint[index] = NULL;
 }
 
-void hw_breakpoint_remove(CPUState *env, int index)
+void hw_breakpoint_remove(CPUX86State *env, int index)
 {
     if (!env->cpu_breakpoint[index])
         return;
@@ -999,7 +999,7 @@ void hw_breakpoint_remove(CPUState *env, int index)
     }
 }
 
-int check_hw_breakpoints(CPUState *env, int force_dr6_update)
+int check_hw_breakpoints(CPUX86State *env, int force_dr6_update)
 {
     target_ulong dr6;
     int reg, type;
@@ -1023,7 +1023,7 @@ int check_hw_breakpoints(CPUState *env, int force_dr6_update)
 
 static CPUDebugExcpHandler *prev_debug_excp_handler;
 
-static void breakpoint_handler(CPUState *env)
+static void breakpoint_handler(CPUX86State *env)
 {
     CPUBreakpoint *bp;
 
@@ -1051,7 +1051,7 @@ static void breakpoint_handler(CPUState *env)
 
 typedef struct MCEInjectionParams {
     Monitor *mon;
-    CPUState *env;
+    CPUX86State *env;
     int bank;
     uint64_t status;
     uint64_t mcg_status;
@@ -1063,7 +1063,7 @@ typedef struct MCEInjectionParams {
 static void do_inject_x86_mce(void *data)
 {
     MCEInjectionParams *params = data;
-    CPUState *cenv = params->env;
+    CPUX86State *cenv = params->env;
     uint64_t *banks = cenv->mce_banks + 4 * params->bank;
 
     cpu_synchronize_state(cenv);
@@ -1133,7 +1133,7 @@ static void do_inject_x86_mce(void *data)
     }
 }
 
-void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
+void cpu_x86_inject_mce(Monitor *mon, CPUX86State *cenv, int bank,
                         uint64_t status, uint64_t mcg_status, uint64_t addr,
                         uint64_t misc, int flags)
 {
@@ -1148,7 +1148,7 @@ void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
         .flags = flags,
     };
     unsigned bank_num = cenv->mcg_cap & 0xff;
-    CPUState *env;
+    CPUX86State *env;
 
     if (!cenv->mcg_cap) {
         monitor_printf(mon, "MCE injection not supported\n");
@@ -1185,7 +1185,7 @@ void cpu_x86_inject_mce(Monitor *mon, CPUState *cenv, int bank,
     }
 }
 
-void cpu_report_tpr_access(CPUState *env, TPRAccess access)
+void cpu_report_tpr_access(CPUX86State *env, TPRAccess access)
 {
     TranslationBlock *tb;
 
@@ -1277,7 +1277,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void do_cpu_init(CPUState *env)
+void do_cpu_init(CPUX86State *env)
 {
     int sipi = env->interrupt_request & CPU_INTERRUPT_SIPI;
     uint64_t pat = env->pat;
@@ -1289,15 +1289,15 @@ void do_cpu_init(CPUState *env)
     env->halted = !cpu_is_bsp(env);
 }
 
-void do_cpu_sipi(CPUState *env)
+void do_cpu_sipi(CPUX86State *env)
 {
     apic_sipi(env->apic_state);
 }
 #else
-void do_cpu_init(CPUState *env)
+void do_cpu_init(CPUX86State *env)
 {
 }
-void do_cpu_sipi(CPUState *env)
+void do_cpu_sipi(CPUX86State *env)
 {
 }
 #endif

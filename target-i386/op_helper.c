@@ -125,7 +125,7 @@ static inline void load_eflags(int eflags, int update_mask)
 
 /* load efer and update the corresponding hflags. XXX: do consistency
    checks with cpuid bits ? */
-static inline void cpu_load_efer(CPUState *env, uint64_t val)
+static inline void cpu_load_efer(CPUX86State *env, uint64_t val)
 {
     env->efer = val;
     env->hflags &= ~(HF_LMA_MASK | HF_SVME_MASK);
@@ -1376,9 +1376,9 @@ static void do_interrupt_all(int intno, int is_int, int error_code,
 #endif
 }
 
-void do_interrupt(CPUState *env1)
+void do_interrupt(CPUX86State *env1)
 {
-    CPUState *saved_env;
+    CPUX86State *saved_env;
 
     saved_env = env;
     env = env1;
@@ -1406,9 +1406,9 @@ void do_interrupt(CPUState *env1)
     env = saved_env;
 }
 
-void do_interrupt_x86_hardirq(CPUState *env1, int intno, int is_hw)
+void do_interrupt_x86_hardirq(CPUX86State *env1, int intno, int is_hw)
 {
-    CPUState *saved_env;
+    CPUX86State *saved_env;
 
     saved_env = env;
     env = env1;
@@ -1492,7 +1492,7 @@ static void QEMU_NORETURN raise_exception_err(int exception_index,
     raise_interrupt(exception_index, 0, error_code, 0);
 }
 
-void raise_exception_err_env(CPUState *nenv, int exception_index,
+void raise_exception_err_env(CPUX86State *nenv, int exception_index,
                              int error_code)
 {
     env = nenv;
@@ -1504,7 +1504,7 @@ static void QEMU_NORETURN raise_exception(int exception_index)
     raise_interrupt(exception_index, 0, 0, 0);
 }
 
-void raise_exception_env(int exception_index, CPUState *nenv)
+void raise_exception_env(int exception_index, CPUX86State *nenv)
 {
     env = nenv;
     raise_exception(exception_index);
@@ -1513,7 +1513,7 @@ void raise_exception_env(int exception_index, CPUState *nenv)
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_smm_enter(CPUState *env1)
+void do_smm_enter(CPUX86State *env1)
 {
 }
 
@@ -1529,12 +1529,12 @@ void helper_rsm(void)
 #define SMM_REVISION_ID 0x00020000
 #endif
 
-void do_smm_enter(CPUState *env1)
+void do_smm_enter(CPUX86State *env1)
 {
     target_ulong sm_state;
     SegmentCache *dt;
     int i, offset;
-    CPUState *saved_env;
+    CPUX86State *saved_env;
 
     saved_env = env;
     env = env1;
@@ -5002,7 +5002,7 @@ void helper_boundl(target_ulong a0, int v)
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUState *env1, target_ulong addr, int is_write, int mmu_idx,
+void tlb_fill(CPUX86State *env1, target_ulong addr, int is_write, int mmu_idx,
               void *retaddr)
 {
     TranslationBlock *tb;
@@ -5066,7 +5066,7 @@ void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
 {
 }
 
-void svm_check_intercept(CPUState *env1, uint32_t type)
+void svm_check_intercept(CPUX86State *env1, uint32_t type)
 {
 }
 
@@ -5101,7 +5101,7 @@ static inline void svm_load_seg(target_phys_addr_t addr, SegmentCache *sc)
 }
 
 static inline void svm_load_seg_cache(target_phys_addr_t addr, 
-                                      CPUState *env, int seg_reg)
+                                      CPUX86State *env, int seg_reg)
 {
     SegmentCache sc1, *sc = &sc1;
     svm_load_seg(addr, sc);
@@ -5460,9 +5460,9 @@ void helper_svm_check_intercept_param(uint32_t type, uint64_t param)
     }
 }
 
-void svm_check_intercept(CPUState *env1, uint32_t type)
+void svm_check_intercept(CPUX86State *env1, uint32_t type)
 {
-    CPUState *saved_env;
+    CPUX86State *saved_env;
 
     saved_env = env;
     env = env1;
@@ -5840,9 +5840,9 @@ uint32_t helper_cc_compute_all(int op)
     }
 }
 
-uint32_t cpu_cc_compute_all(CPUState *env1, int op)
+uint32_t cpu_cc_compute_all(CPUX86State *env1, int op)
 {
-    CPUState *saved_env;
+    CPUX86State *saved_env;
     uint32_t ret;
 
     saved_env = env;
