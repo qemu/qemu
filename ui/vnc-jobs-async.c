@@ -28,6 +28,7 @@
 
 #include "vnc.h"
 #include "vnc-jobs.h"
+#include "qemu_socket.h"
 
 /*
  * Locking:
@@ -155,6 +156,24 @@ void vnc_jobs_join(VncState *vs)
         qemu_cond_wait(&queue->cond, &queue->mutex);
     }
     vnc_unlock_queue(queue);
+    vnc_jobs_consume_buffer(vs);
+}
+
+void vnc_jobs_consume_buffer(VncState *vs)
+{
+    bool flush;
+
+    vnc_lock_output(vs);
+    if (vs->jobs_buffer.offset) {
+        vnc_write(vs, vs->jobs_buffer.buffer, vs->jobs_buffer.offset);
+        buffer_reset(&vs->jobs_buffer);
+    }
+    flush = vs->csock != -1 && vs->abort != true;
+    vnc_unlock_output(vs);
+
+    if (flush) {
+      vnc_flush(vs);
+    }
 }
 
 /*
@@ -197,7 +216,6 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
     VncState vs;
     int n_rectangles;
     int saved_offset;
-    bool flush;
 
     vnc_lock_queue(queue);
     while (QTAILQ_EMPTY(&queue->jobs) && !queue->exit) {
@@ -213,6 +231,7 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
 
     vnc_lock_output(job->vs);
     if (job->vs->csock == -1 || job->vs->abort == true) {
+        vnc_unlock_output(job->vs);
         goto disconnected;
     }
     vnc_unlock_output(job->vs);
@@ -233,10 +252,6 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
 
         if (job->vs->csock == -1) {
             vnc_unlock_display(job->vs->vd);
-            /* output mutex must be locked before going to
-             * disconnected:
-             */
-            vnc_lock_output(job->vs);
             goto disconnected;
         }
 
@@ -254,24 +269,19 @@ static int vnc_worker_thread_loop(VncJobQueue *queue)
     vs.output.buffer[saved_offset] = (n_rectangles >> 8) & 0xFF;
     vs.output.buffer[saved_offset + 1] = n_rectangles & 0xFF;
 
-    /* Switch back buffers */
     vnc_lock_output(job->vs);
-    if (job->vs->csock == -1) {
-        goto disconnected;
+    if (job->vs->csock != -1) {
+        buffer_reserve(&job->vs->jobs_buffer, vs.output.offset);
+        buffer_append(&job->vs->jobs_buffer, vs.output.buffer,
+                      vs.output.offset);
+        /* Copy persistent encoding data */
+        vnc_async_encoding_end(job->vs, &vs);
+
+	qemu_bh_schedule(job->vs->bh);
     }
-
-    vnc_write(job->vs, vs.output.buffer, vs.output.offset);
-
-disconnected:
-    /* Copy persistent encoding data */
-    vnc_async_encoding_end(job->vs, &vs);
-    flush = (job->vs->csock != -1 && job->vs->abort != true);
     vnc_unlock_output(job->vs);
 
-    if (flush) {
-        vnc_flush(job->vs);
-    }
-
+disconnected:
     vnc_lock_queue(queue);
     QTAILQ_REMOVE(&queue->jobs, job, next);
     vnc_unlock_queue(queue);

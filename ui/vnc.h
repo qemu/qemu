@@ -304,6 +304,8 @@ struct VncState
     VncJob job;
 #else
     QemuMutex output_mutex;
+    QEMUBH *bh;
+    Buffer jobs_buffer;
 #endif
 
     /* Encoding specific, if you add something here, don't forget to

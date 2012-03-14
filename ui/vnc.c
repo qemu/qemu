@@ -1068,7 +1068,10 @@ static void vnc_disconnect_finish(VncState *vs)
 
 #ifdef CONFIG_VNC_THREAD
     qemu_mutex_destroy(&vs->output_mutex);
+    qemu_bh_delete(vs->bh);
+    buffer_free(&vs->jobs_buffer);
 #endif
+
     for (i = 0; i < VNC_STAT_ROWS; ++i) {
         g_free(vs->lossy_rect[i]);
     }
@@ -1283,6 +1286,14 @@ static long vnc_client_read_plain(VncState *vs)
     return ret;
 }
 
+#ifdef CONFIG_VNC_THREAD
+static void vnc_jobs_bh(void *opaque)
+{
+    VncState *vs = opaque;
+
+    vnc_jobs_consume_buffer(vs);
+}
+#endif
 
 /*
  * First function called whenever there is more data to be read from
@@ -2687,6 +2698,7 @@ static void vnc_connect(VncDisplay *vd, int csock, int skipauth)
 
 #ifdef CONFIG_VNC_THREAD
     qemu_mutex_init(&vs->output_mutex);
+    vs->bh = qemu_bh_new(vnc_jobs_bh, vs);
 #endif
 
     QTAILQ_INSERT_HEAD(&vd->clients, vs, next);
