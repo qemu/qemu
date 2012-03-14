@@ -16,7 +16,7 @@ typedef struct {
     uint64_t ifr;
     uint64_t enabled;
     uint8_t icr[64];
-    CPUState *env;
+    CPUM68KState *env;
     int active_vector;
 } mcf_intc_state;
 
@@ -139,7 +139,7 @@ static const MemoryRegionOps mcf_intc_ops = {
 
 qemu_irq *mcf_intc_init(MemoryRegion *sysmem,
                         target_phys_addr_t base,
-                        CPUState *env)
+                        CPUM68KState *env)
 {
     mcf_intc_state *s;
 
