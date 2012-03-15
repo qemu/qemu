@@ -64,7 +64,7 @@ void uc32_translate_init(void)
 
     for (i = 0; i < 32; i++) {
         cpu_R[i] = tcg_global_mem_new_i32(TCG_AREG0,
-                                offsetof(CPUState, regs[i]), regnames[i]);
+                                offsetof(CPUUniCore32State, regs[i]), regnames[i]);
     }
 
 #define GEN_HELPER 2
@@ -94,7 +94,7 @@ static inline TCGv load_cpu_offset(int offset)
     return tmp;
 }
 
-#define load_cpu_field(name) load_cpu_offset(offsetof(CPUState, name))
+#define load_cpu_field(name) load_cpu_offset(offsetof(CPUUniCore32State, name))
 
 static inline void store_cpu_offset(TCGv var, int offset)
 {
@@ -103,7 +103,7 @@ static inline void store_cpu_offset(TCGv var, int offset)
 }
 
 #define store_cpu_field(var, name) \
-    store_cpu_offset(var, offsetof(CPUState, name))
+    store_cpu_offset(var, offsetof(CPUUniCore32State, name))
 
 /* Set a variable to the value of a CPU register.  */
 static void load_reg_var(DisasContext *s, TCGv var, int reg)
@@ -223,7 +223,7 @@ static TCGv_i64 gen_muls_i64_i32(TCGv a, TCGv b)
     return tmp1;
 }
 
-#define gen_set_CF(var) tcg_gen_st_i32(var, cpu_env, offsetof(CPUState, CF))
+#define gen_set_CF(var) tcg_gen_st_i32(var, cpu_env, offsetof(CPUUniCore32State, CF))
 
 /* Set CF to the top bit of var.  */
 static void gen_set_CF_bit31(TCGv var)
@@ -237,8 +237,8 @@ static void gen_set_CF_bit31(TCGv var)
 /* Set N and Z flags from var.  */
 static inline void gen_logic_CC(TCGv var)
 {
-    tcg_gen_st_i32(var, cpu_env, offsetof(CPUState, NF));
-    tcg_gen_st_i32(var, cpu_env, offsetof(CPUState, ZF));
+    tcg_gen_st_i32(var, cpu_env, offsetof(CPUUniCore32State, NF));
+    tcg_gen_st_i32(var, cpu_env, offsetof(CPUUniCore32State, ZF));
 }
 
 /* dest = T0 + T1 + CF. */
@@ -634,10 +634,10 @@ static inline void gen_add_datah_offset(DisasContext *s, unsigned int insn,
 static inline long ucf64_reg_offset(int reg)
 {
     if (reg & 1) {
-        return offsetof(CPUState, ucf64.regs[reg >> 1])
+        return offsetof(CPUUniCore32State, ucf64.regs[reg >> 1])
           + offsetof(CPU_DoubleU, l.upper);
     } else {
-        return offsetof(CPUState, ucf64.regs[reg >> 1])
+        return offsetof(CPUUniCore32State, ucf64.regs[reg >> 1])
           + offsetof(CPU_DoubleU, l.lower);
     }
 }
@@ -646,7 +646,7 @@ static inline long ucf64_reg_offset(int reg)
 #define ucf64_gen_st32(var, reg) store_cpu_offset(var, ucf64_reg_offset(reg))
 
 /* UniCore-F64 single load/store I_offset */
-static void do_ucf64_ldst_i(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_ucf64_ldst_i(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     int offset;
     TCGv tmp;
@@ -692,7 +692,7 @@ static void do_ucf64_ldst_i(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* UniCore-F64 load/store multiple words */
-static void do_ucf64_ldst_m(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_ucf64_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     unsigned int i;
     int j, n, freg;
@@ -777,7 +777,7 @@ static void do_ucf64_ldst_m(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* UniCore-F64 mrc/mcr */
-static void do_ucf64_trans(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_ucf64_trans(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     TCGv tmp;
 
@@ -841,7 +841,7 @@ static void do_ucf64_trans(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* UniCore-F64 convert instructions */
-static void do_ucf64_fcvt(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_ucf64_fcvt(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     if (UCOP_UCF64_FMT == 3) {
         ILLEGAL;
@@ -907,7 +907,7 @@ static void do_ucf64_fcvt(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* UniCore-F64 compare instructions */
-static void do_ucf64_fcmp(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_ucf64_fcmp(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     if (UCOP_SET(25)) {
         ILLEGAL;
@@ -985,7 +985,7 @@ static void do_ucf64_fcmp(CPUState *env, DisasContext *s, uint32_t insn)
     } while (0)
 
 /* UniCore-F64 data processing */
-static void do_ucf64_datap(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_ucf64_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     if (UCOP_UCF64_FMT == 3) {
         ILLEGAL;
@@ -1018,7 +1018,7 @@ static void do_ucf64_datap(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* Disassemble an F64 instruction */
-static void disas_ucf64_insn(CPUState *env, DisasContext *s, uint32_t insn)
+static void disas_ucf64_insn(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     if (!UCOP_SET(29)) {
         if (UCOP_SET(26)) {
@@ -1123,7 +1123,7 @@ static void gen_exception_return(DisasContext *s, TCGv pc)
     s->is_jmp = DISAS_UPDATE;
 }
 
-static void disas_coproc_insn(CPUState *env, DisasContext *s, uint32_t insn)
+static void disas_coproc_insn(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     switch (UCOP_CPNUM) {
     case 2:
@@ -1168,7 +1168,7 @@ static void gen_addq(DisasContext *s, TCGv_i64 val, int rlow, int rhigh)
 }
 
 /* data processing instructions */
-static void do_datap(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_datap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     TCGv tmp;
     TCGv tmp2;
@@ -1359,7 +1359,7 @@ static void do_datap(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* multiply */
-static void do_mult(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_mult(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     TCGv tmp;
     TCGv tmp2;
@@ -1399,7 +1399,7 @@ static void do_mult(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* miscellaneous instructions */
-static void do_misc(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_misc(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     unsigned int val;
     TCGv tmp;
@@ -1475,7 +1475,7 @@ static void do_misc(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* load/store I_offset and R_offset */
-static void do_ldst_ir(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_ldst_ir(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     unsigned int i;
     TCGv tmp;
@@ -1524,7 +1524,7 @@ static void do_ldst_ir(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* SWP instruction */
-static void do_swap(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_swap(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     TCGv addr;
     TCGv tmp;
@@ -1551,7 +1551,7 @@ static void do_swap(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* load/store hw/sb */
-static void do_ldst_hwsb(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_ldst_hwsb(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     TCGv addr;
     TCGv tmp;
@@ -1603,7 +1603,7 @@ static void do_ldst_hwsb(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* load/store multiple words */
-static void do_ldst_m(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_ldst_m(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     unsigned int val, i;
     int j, n, reg, user, loaded_base;
@@ -1743,7 +1743,7 @@ static void do_ldst_m(CPUState *env, DisasContext *s, uint32_t insn)
 }
 
 /* branch (and link) */
-static void do_branch(CPUState *env, DisasContext *s, uint32_t insn)
+static void do_branch(CPUUniCore32State *env, DisasContext *s, uint32_t insn)
 {
     unsigned int val;
     int32_t offset;
@@ -1772,7 +1772,7 @@ static void do_branch(CPUState *env, DisasContext *s, uint32_t insn)
     gen_jmp(s, val);
 }
 
-static void disas_uc32_insn(CPUState *env, DisasContext *s)
+static void disas_uc32_insn(CPUUniCore32State *env, DisasContext *s)
 {
     unsigned int insn;
 
@@ -1850,7 +1850,7 @@ static void disas_uc32_insn(CPUState *env, DisasContext *s)
 /* generate intermediate code in gen_opc_buf and gen_opparam_buf for
    basic block 'tb'. If search_pc is TRUE, also generate PC
    information for each intermediate instruction. */
-static inline void gen_intermediate_code_internal(CPUState *env,
+static inline void gen_intermediate_code_internal(CPUUniCore32State *env,
         TranslationBlock *tb, int search_pc)
 {
     DisasContext dc1, *dc = &dc1;
@@ -2030,12 +2030,12 @@ done_generating:
     }
 }
 
-void gen_intermediate_code(CPUState *env, TranslationBlock *tb)
+void gen_intermediate_code(CPUUniCore32State *env, TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 0);
 }
 
-void gen_intermediate_code_pc(CPUState *env, TranslationBlock *tb)
+void gen_intermediate_code_pc(CPUUniCore32State *env, TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 1);
 }
@@ -2046,7 +2046,7 @@ static const char *cpu_mode_names[16] = {
 };
 
 #define UCF64_DUMP_STATE
-void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_state(CPUUniCore32State *env, FILE *f, fprintf_function cpu_fprintf,
         int flags)
 {
     int i;
@@ -2097,7 +2097,7 @@ void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
 #endif
 }
 
-void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUUniCore32State *env, TranslationBlock *tb, int pc_pos)
 {
     env->regs[31] = gen_opc_pc[pc_pos];
 }

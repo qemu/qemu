@@ -285,7 +285,7 @@ static void cpu_reset_model_id(CPUARMState *env, uint32_t id)
     }
 }
 
-void cpu_reset(CPUARMState *env)
+void cpu_state_reset(CPUARMState *env)
 {
     uint32_t id;
     uint32_t tmp = 0;
@@ -346,14 +346,14 @@ void cpu_reset(CPUARMState *env)
     set_float_detect_tininess(float_tininess_before_rounding,
                               &env->vfp.standard_fp_status);
     tlb_flush(env, 1);
-    /* Reset is a state change for some CPUState fields which we
+    /* Reset is a state change for some CPUARMState fields which we
      * bake assumptions about into translated code, so we need to
      * tb_flush().
      */
     tb_flush(env);
 }
 
-static int vfp_gdb_get_reg(CPUState *env, uint8_t *buf, int reg)
+static int vfp_gdb_get_reg(CPUARMState *env, uint8_t *buf, int reg)
 {
     int nregs;
 
@@ -380,7 +380,7 @@ static int vfp_gdb_get_reg(CPUState *env, uint8_t *buf, int reg)
     return 0;
 }
 
-static int vfp_gdb_set_reg(CPUState *env, uint8_t *buf, int reg)
+static int vfp_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg)
 {
     int nregs;
 
@@ -423,7 +423,7 @@ CPUARMState *cpu_arm_init(const char *cpu_model)
 
     env->cpu_model_str = cpu_model;
     env->cp15.c0_cpuid = id;
-    cpu_reset(env);
+    cpu_state_reset(env);
     if (arm_feature(env, ARM_FEATURE_NEON)) {
         gdb_register_coprocessor(env, vfp_gdb_get_reg, vfp_gdb_set_reg,
                                  51, "arm-neon.xml", 0);
@@ -506,7 +506,7 @@ void cpu_arm_close(CPUARMState *env)
     g_free(env);
 }
 
-static int bad_mode_switch(CPUState *env, int mode)
+static int bad_mode_switch(CPUARMState *env, int mode)
 {
     /* Return true if it is not valid for us to switch to
      * this CPU mode (ie all the UNPREDICTABLE cases in
@@ -636,12 +636,12 @@ uint32_t HELPER(abs)(uint32_t x)
 
 #if defined(CONFIG_USER_ONLY)
 
-void do_interrupt (CPUState *env)
+void do_interrupt (CPUARMState *env)
 {
     env->exception_index = -1;
 }
 
-int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
+int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address, int rw,
                               int mmu_idx)
 {
     if (rw == 2) {
@@ -655,53 +655,53 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address, int rw,
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void QEMU_NORETURN HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
+void QEMU_NORETURN HELPER(set_cp)(CPUARMState *env, uint32_t insn, uint32_t val)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
 }
 
-uint32_t QEMU_NORETURN HELPER(get_cp)(CPUState *env, uint32_t insn)
+uint32_t QEMU_NORETURN HELPER(get_cp)(CPUARMState *env, uint32_t insn)
 {
     int op1 = (insn >> 8) & 0xf;
     cpu_abort(env, "cp%i insn %08x\n", op1, insn);
     //~ return 0;
 }
 
-void QEMU_NORETURN HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
+void QEMU_NORETURN HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
 }
 
-uint32_t QEMU_NORETURN HELPER(get_cp15)(CPUState *env, uint32_t insn)
+uint32_t QEMU_NORETURN HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
 {
     cpu_abort(env, "cp15 insn %08x\n", insn);
 }
 
 /* These should probably raise undefined insn exceptions.  */
-void QEMU_NORETURN HELPER(v7m_msr)(CPUState *env, uint32_t reg, uint32_t val)
+void QEMU_NORETURN HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
 }
 
-uint32_t QEMU_NORETURN HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
+uint32_t QEMU_NORETURN HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
     cpu_abort(env, "v7m_mrs %d\n", reg);
     //~ return 0;
 }
 
-void switch_mode(CPUState *env, int mode)
+void switch_mode(CPUARMState *env, int mode)
 {
     if (mode != ARM_CPU_MODE_USR)
         cpu_abort(env, "Tried to switch out of user mode\n");
 }
 
-void QEMU_NORETURN HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
+void QEMU_NORETURN HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
 {
     cpu_abort(env, "banked r13 write\n");
 }
 
-uint32_t QEMU_NORETURN HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
+uint32_t QEMU_NORETURN HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 {
     cpu_abort(env, "banked r13 read\n");
     //~ return 0;
@@ -710,7 +710,7 @@ uint32_t QEMU_NORETURN HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
 #else
 
 /* Map CPU modes onto saved register banks.  */
-static inline int bank_number(CPUState *env, int mode)
+static inline int bank_number(CPUARMState *env, int mode)
 {
     switch (mode) {
     case ARM_CPU_MODE_USR:
@@ -731,7 +731,7 @@ static inline int bank_number(CPUState *env, int mode)
     return -1;
 }
 
-void switch_mode(CPUState *env, int mode)
+void switch_mode(CPUARMState *env, int mode)
 {
     int old_mode;
     int i;
@@ -1004,7 +1004,7 @@ void do_interrupt(CPUARMState *env)
 /* Check section/page access permissions.
    Returns the page protection flags, or zero if the access is not
    permitted.  */
-static inline int check_ap(CPUState *env, int ap, int domain_prot,
+static inline int check_ap(CPUARMState *env, int ap, int domain_prot,
                            int access_type, int is_user)
 {
   int prot_ro;
@@ -1054,7 +1054,7 @@ static inline int check_ap(CPUState *env, int ap, int domain_prot,
   }
 }
 
-static uint32_t get_level1_table_address(CPUState *env, uint32_t address)
+static uint32_t get_level1_table_address(CPUARMState *env, uint32_t address)
 {
     uint32_t table;
 
@@ -1067,7 +1067,7 @@ static uint32_t get_level1_table_address(CPUState *env, uint32_t address)
     return table;
 }
 
-static int get_phys_addr_v5(CPUState *env, uint32_t address, int access_type,
+static int get_phys_addr_v5(CPUARMState *env, uint32_t address, int access_type,
 			    int is_user, uint32_t *phys_ptr, int *prot,
                             target_ulong *page_size)
 {
@@ -1162,7 +1162,7 @@ do_fault:
     return code | (domain << 4);
 }
 
-static int get_phys_addr_v6(CPUState *env, uint32_t address, int access_type,
+static int get_phys_addr_v6(CPUARMState *env, uint32_t address, int access_type,
 			    int is_user, uint32_t *phys_ptr, int *prot,
                             target_ulong *page_size)
 {
@@ -1266,7 +1266,7 @@ do_fault:
     return code | (domain << 4);
 }
 
-static int get_phys_addr_mpu(CPUState *env, uint32_t address, int access_type,
+static int get_phys_addr_mpu(CPUARMState *env, uint32_t address, int access_type,
 			     int is_user, uint32_t *phys_ptr, int *prot)
 {
     int n;
@@ -1326,7 +1326,7 @@ static int get_phys_addr_mpu(CPUState *env, uint32_t address, int access_type,
     return 0;
 }
 
-static inline int get_phys_addr(CPUState *env, uint32_t address,
+static inline int get_phys_addr(CPUARMState *env, uint32_t address,
                                 int access_type, int is_user,
                                 uint32_t *phys_ptr, int *prot,
                                 target_ulong *page_size)
@@ -1354,7 +1354,7 @@ static inline int get_phys_addr(CPUState *env, uint32_t address,
     }
 }
 
-int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address,
+int cpu_arm_handle_mmu_fault (CPUARMState *env, target_ulong address,
                               int access_type, int mmu_idx)
 {
     uint32_t phys_addr;
@@ -1387,7 +1387,7 @@ int cpu_arm_handle_mmu_fault (CPUState *env, target_ulong address,
     return 1;
 }
 
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
+target_phys_addr_t cpu_get_phys_page_debug(CPUARMState *env, target_ulong addr)
 {
     uint32_t phys_addr;
     target_ulong page_size;
@@ -1402,7 +1402,7 @@ target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr)
     return phys_addr;
 }
 
-void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp)(CPUARMState *env, uint32_t insn, uint32_t val)
 {
     int cp_num = (insn >> 8) & 0xf;
     int cp_info = (insn >> 5) & 7;
@@ -1414,7 +1414,7 @@ void HELPER(set_cp)(CPUState *env, uint32_t insn, uint32_t val)
                                  cp_info, src, operand, val);
 }
 
-uint32_t HELPER(get_cp)(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp)(CPUARMState *env, uint32_t insn)
 {
     int cp_num = (insn >> 8) & 0xf;
     int cp_info = (insn >> 5) & 7;
@@ -1457,7 +1457,7 @@ static uint32_t extended_mpu_ap_bits(uint32_t val)
     return ret;
 }
 
-void HELPER(set_cp15)(CPUState *env, uint32_t insn, uint32_t val)
+void HELPER(set_cp15)(CPUARMState *env, uint32_t insn, uint32_t val)
 {
     int op1;
     int op2;
@@ -1867,7 +1867,7 @@ bad_reg:
               (insn >> 16) & 0xf, crm, op1, op2);
 }
 
-uint32_t HELPER(get_cp15)(CPUState *env, uint32_t insn)
+uint32_t HELPER(get_cp15)(CPUARMState *env, uint32_t insn)
 {
     int op1;
     int op2;
@@ -2268,7 +2268,7 @@ bad_reg:
     return 0;
 }
 
-void HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
+void HELPER(set_r13_banked)(CPUARMState *env, uint32_t mode, uint32_t val)
 {
     if ((env->uncached_cpsr & CPSR_M) == mode) {
         env->regs[13] = val;
@@ -2277,7 +2277,7 @@ void HELPER(set_r13_banked)(CPUState *env, uint32_t mode, uint32_t val)
     }
 }
 
-uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
+uint32_t HELPER(get_r13_banked)(CPUARMState *env, uint32_t mode)
 {
     if ((env->uncached_cpsr & CPSR_M) == mode) {
         return env->regs[13];
@@ -2286,7 +2286,7 @@ uint32_t HELPER(get_r13_banked)(CPUState *env, uint32_t mode)
     }
 }
 
-uint32_t HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
+uint32_t HELPER(v7m_mrs)(CPUARMState *env, uint32_t reg)
 {
     switch (reg) {
     case 0: /* APSR */
@@ -2323,7 +2323,7 @@ uint32_t HELPER(v7m_mrs)(CPUState *env, uint32_t reg)
     }
 }
 
-void HELPER(v7m_msr)(CPUState *env, uint32_t reg, uint32_t val)
+void HELPER(v7m_msr)(CPUARMState *env, uint32_t reg, uint32_t val)
 {
     switch (reg) {
     case 0: /* APSR */
@@ -2679,7 +2679,7 @@ static inline int vfp_exceptbits_from_host(int host_bits)
     return target_bits;
 }
 
-uint32_t HELPER(vfp_get_fpscr)(CPUState *env)
+uint32_t HELPER(vfp_get_fpscr)(CPUARMState *env)
 {
     int i;
     uint32_t fpscr;
@@ -2693,7 +2693,7 @@ uint32_t HELPER(vfp_get_fpscr)(CPUState *env)
     return fpscr;
 }
 
-uint32_t vfp_get_fpscr(CPUState *env)
+uint32_t vfp_get_fpscr(CPUARMState *env)
 {
     return HELPER(vfp_get_fpscr)(env);
 }
@@ -2718,7 +2718,7 @@ static inline int vfp_exceptbits_to_host(int target_bits)
     return host_bits;
 }
 
-void HELPER(vfp_set_fpscr)(CPUState *env, uint32_t val)
+void HELPER(vfp_set_fpscr)(CPUARMState *env, uint32_t val)
 {
     int i;
     uint32_t changed;
@@ -2759,7 +2759,7 @@ void HELPER(vfp_set_fpscr)(CPUState *env, uint32_t val)
     set_float_exception_flags(0, &env->vfp.standard_fp_status);
 }
 
-void vfp_set_fpscr(CPUState *env, uint32_t val)
+void vfp_set_fpscr(CPUARMState *env, uint32_t val)
 {
     HELPER(vfp_set_fpscr)(env, val);
 }
@@ -2803,19 +2803,19 @@ float64 VFP_HELPER(abs, d)(float64 a)
     return float64_abs(a);
 }
 
-float32 VFP_HELPER(sqrt, s)(float32 a, CPUState *env)
+float32 VFP_HELPER(sqrt, s)(float32 a, CPUARMState *env)
 {
     return float32_sqrt(a, &env->vfp.fp_status);
 }
 
-float64 VFP_HELPER(sqrt, d)(float64 a, CPUState *env)
+float64 VFP_HELPER(sqrt, d)(float64 a, CPUARMState *env)
 {
     return float64_sqrt(a, &env->vfp.fp_status);
 }
 
 /* XXX: check quiet/signaling case */
 #define DO_VFP_cmp(p, type) \
-void VFP_HELPER(cmp, p)(type a, type b, CPUState *env)  \
+void VFP_HELPER(cmp, p)(type a, type b, CPUARMState *env)  \
 { \
     uint32_t flags; \
     switch(type ## _compare_quiet(a, b, &env->vfp.fp_status)) { \
@@ -2827,7 +2827,7 @@ void VFP_HELPER(cmp, p)(type a, type b, CPUState *env)  \
     env->vfp.xregs[ARM_VFP_FPSCR] = (flags << 28) \
         | (env->vfp.xregs[ARM_VFP_FPSCR] & 0x0fffffff); \
 } \
-void VFP_HELPER(cmpe, p)(type a, type b, CPUState *env) \
+void VFP_HELPER(cmpe, p)(type a, type b, CPUARMState *env) \
 { \
     uint32_t flags; \
     switch(type ## _compare(a, b, &env->vfp.fp_status)) { \
@@ -2878,7 +2878,7 @@ FLOAT_CONVS(ui, d, 64, u)
 #undef FLOAT_CONVS
 
 /* floating point conversion */
-float64 VFP_HELPER(fcvtd, s)(float32 x, CPUState *env)
+float64 VFP_HELPER(fcvtd, s)(float32 x, CPUARMState *env)
 {
     float64 r = float32_to_float64(x, &env->vfp.fp_status);
     /* ARM requires that S<->D conversion of any kind of NaN generates
@@ -2887,7 +2887,7 @@ float64 VFP_HELPER(fcvtd, s)(float32 x, CPUState *env)
     return float64_maybe_silence_nan(r);
 }
 
-float32 VFP_HELPER(fcvts, d)(float64 x, CPUState *env)
+float32 VFP_HELPER(fcvts, d)(float64 x, CPUARMState *env)
 {
     float32 r =  float64_to_float32(x, &env->vfp.fp_status);
     /* ARM requires that S<->D conversion of any kind of NaN generates
@@ -2930,7 +2930,7 @@ VFP_CONV_FIX(ul, s, 32, uint32, u)
 #undef VFP_CONV_FIX
 
 /* Half precision conversions.  */
-static float32 do_fcvt_f16_to_f32(uint32_t a, CPUState *env, float_status *s)
+static float32 do_fcvt_f16_to_f32(uint32_t a, CPUARMState *env, float_status *s)
 {
     int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
     float32 r = float16_to_float32(make_float16(a), ieee, s);
@@ -2940,7 +2940,7 @@ static float32 do_fcvt_f16_to_f32(uint32_t a, CPUState *env, float_status *s)
     return r;
 }
 
-static uint32_t do_fcvt_f32_to_f16(float32 a, CPUState *env, float_status *s)
+static uint32_t do_fcvt_f32_to_f16(float32 a, CPUARMState *env, float_status *s)
 {
     int ieee = (env->vfp.xregs[ARM_VFP_FPSCR] & (1 << 26)) == 0;
     float16 r = float32_to_float16(a, ieee, s);
@@ -2950,22 +2950,22 @@ static uint32_t do_fcvt_f32_to_f16(float32 a, CPUState *env, float_status *s)
     return float16_val(r);
 }
 
-float32 HELPER(neon_fcvt_f16_to_f32)(uint32_t a, CPUState *env)
+float32 HELPER(neon_fcvt_f16_to_f32)(uint32_t a, CPUARMState *env)
 {
     return do_fcvt_f16_to_f32(a, env, &env->vfp.standard_fp_status);
 }
 
-uint32_t HELPER(neon_fcvt_f32_to_f16)(float32 a, CPUState *env)
+uint32_t HELPER(neon_fcvt_f32_to_f16)(float32 a, CPUARMState *env)
 {
     return do_fcvt_f32_to_f16(a, env, &env->vfp.standard_fp_status);
 }
 
-float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUState *env)
+float32 HELPER(vfp_fcvt_f16_to_f32)(uint32_t a, CPUARMState *env)
 {
     return do_fcvt_f16_to_f32(a, env, &env->vfp.fp_status);
 }
 
-uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUState *env)
+uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUARMState *env)
 {
     return do_fcvt_f32_to_f16(a, env, &env->vfp.fp_status);
 }
@@ -2974,7 +2974,7 @@ uint32_t HELPER(vfp_fcvt_f32_to_f16)(float32 a, CPUState *env)
 #define float32_three make_float32(0x40400000)
 #define float32_one_point_five make_float32(0x3fc00000)
 
-float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
+float32 HELPER(recps_f32)(float32 a, float32 b, CPUARMState *env)
 {
     float_status *s = &env->vfp.standard_fp_status;
     if ((float32_is_infinity(a) && float32_is_zero_or_denormal(b)) ||
@@ -2987,7 +2987,7 @@ float32 HELPER(recps_f32)(float32 a, float32 b, CPUState *env)
     return float32_sub(float32_two, float32_mul(a, b, s), s);
 }
 
-float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
+float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUARMState *env)
 {
     float_status *s = &env->vfp.standard_fp_status;
     float32 product;
@@ -3012,7 +3012,7 @@ float32 HELPER(rsqrts_f32)(float32 a, float32 b, CPUState *env)
 /* The algorithm that must be used to calculate the estimate
  * is specified by the ARM ARM.
  */
-static float64 recip_estimate(float64 a, CPUState *env)
+static float64 recip_estimate(float64 a, CPUARMState *env)
 {
     /* These calculations mustn't set any fp exception flags,
      * so we use a local copy of the fp_status.
@@ -3038,7 +3038,7 @@ static float64 recip_estimate(float64 a, CPUState *env)
     return float64_div(int64_to_float64(q_int, s), float64_256, s);
 }
 
-float32 HELPER(recpe_f32)(float32 a, CPUState *env)
+float32 HELPER(recpe_f32)(float32 a, CPUARMState *env)
 {
     float_status *s = &env->vfp.standard_fp_status;
     float64 f64;
@@ -3082,7 +3082,7 @@ float32 HELPER(recpe_f32)(float32 a, CPUState *env)
 /* The algorithm that must be used to calculate the estimate
  * is specified by the ARM ARM.
  */
-static float64 recip_sqrt_estimate(float64 a, CPUState *env)
+static float64 recip_sqrt_estimate(float64 a, CPUARMState *env)
 {
     /* These calculations mustn't set any fp exception flags,
      * so we use a local copy of the fp_status.
@@ -3134,7 +3134,7 @@ static float64 recip_sqrt_estimate(float64 a, CPUState *env)
     return float64_div(int64_to_float64(q_int, s), float64_256, s);
 }
 
-float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
+float32 HELPER(rsqrte_f32)(float32 a, CPUARMState *env)
 {
     float_status *s = &env->vfp.standard_fp_status;
     int result_exp;
@@ -3185,7 +3185,7 @@ float32 HELPER(rsqrte_f32)(float32 a, CPUState *env)
     return make_float32(val);
 }
 
-uint32_t HELPER(recpe_u32)(uint32_t a, CPUState *env)
+uint32_t HELPER(recpe_u32)(uint32_t a, CPUARMState *env)
 {
     float64 f64;
 
@@ -3201,7 +3201,7 @@ uint32_t HELPER(recpe_u32)(uint32_t a, CPUState *env)
     return 0x80000000 | ((float64_val(f64) >> 21) & 0x7fffffff);
 }
 
-uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUState *env)
+uint32_t HELPER(rsqrte_u32)(uint32_t a, CPUARMState *env)
 {
     float64 f64;
 
@@ -3235,7 +3235,7 @@ float64 VFP_HELPER(muladd, d)(float64 a, float64 b, float64 c, void *fpstp)
     return float64_muladd(a, b, c, 0, fpst);
 }
 
-void HELPER(set_teecr)(CPUState *env, uint32_t val)
+void HELPER(set_teecr)(CPUARMState *env, uint32_t val)
 {
     val &= 1;
     if (env->teecr != val) {

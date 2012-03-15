@@ -1513,7 +1513,7 @@ static void musicpal_init(ram_addr_t ram_size,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env;
+    CPUARMState *env;
     qemu_irq *cpu_pic;
     qemu_irq pic[32];
     DeviceState *dev;

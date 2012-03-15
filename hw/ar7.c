@@ -638,7 +638,7 @@ static void ar7_update_interrupt(void)
 {
     static int intset;
 
-    CPUState *env = first_cpu;
+    CPUMIPSState *env = first_cpu;
     uint32_t masked_int1;
     uint32_t masked_int2;
 
@@ -687,7 +687,7 @@ static void ar7_update_interrupt(void)
 static void ar7_primary_irq(void *opaque, int channel, int level)
 {
     /* AR7 primary interrupt. */
-    CPUState *env = opaque;
+    CPUMIPSState *env = opaque;
     unsigned irq_num = channel + MIPS_EXCEPTION_OFFSET;
     unsigned cindex = channel / 32;
     unsigned offset = channel % 32;
@@ -2247,7 +2247,7 @@ static void ar7_reset_write(uint32_t offset, uint32_t val)
     } else if (offset == 4) {
         TRACE(RESET, logout("reset\n"));
         qemu_system_reset_request();
-        //~ CPUState *env = first_cpu;
+        //~ CPUMIPSState *env = first_cpu;
         //~ env->active_tc.PC = 0xbfc00000;
     } else {
         TRACE(RESET, logout("reset[%u]=0x%08x\n", offset, val));
@@ -2898,7 +2898,7 @@ static void ar7_wdt_write(unsigned offset, uint32_t val)
 
 static void watchdog_cb(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUMIPSState *env = opaque;
 
     logout("watchdog expired\n");
     env->exception_index = EXCP_NMI;
@@ -3321,7 +3321,7 @@ static const MemoryRegionOps ar7_io_ops = {
     }
 };
 
-static void ar7_serial_init(CPUState * env)
+static void ar7_serial_init(CPUMIPSState * env)
 {
     /* By default, QEMU only opens one serial console.
      * In this case we open a second console here because
@@ -3592,7 +3592,7 @@ static void ar7_gpio_display_init(CharDriverState *chr)
     ar7_gpio_display();
 }
 
-static void ar7_display_init(CPUState *env)
+static void ar7_display_init(CPUMIPSState *env)
 {
     ar7->gpio_display = qemu_chr_new("gpio", "vc:400x300",
                                      ar7_gpio_display_init);
@@ -3606,7 +3606,7 @@ static void ar7_reset(DeviceState *d)
 {
     /* TODO: fix code. */
     //~ AR7State *s = container_of(d, AR7State, busdev.qdev);
-    //~ CPUState *env = opaque;
+    //~ CPUMIPSState *env = opaque;
     logout("%s:%u\n", __FILE__, __LINE__);
     //~ env->exception_index = EXCP_RESET;
     //~ env->exception_index = EXCP_SRESET;
@@ -3615,7 +3615,7 @@ static void ar7_reset(DeviceState *d)
     //~ cpu_interrupt(env, CPU_INTERRUPT_RESET);
 }
 
-static void ar7_init(AR7State *s, CPUState *env)
+static void ar7_init(AR7State *s, CPUMIPSState *env)
 {
     MemoryRegion *system_memory = get_system_memory();
     //~ target_phys_addr_t addr = (0x08610000 & 0xffff);
@@ -3670,7 +3670,7 @@ static void ar7_init(AR7State *s, CPUState *env)
 }
 
 /* Kernel */
-static void kernel_load(CPUState *env)
+static void kernel_load(CPUMIPSState *env)
 {
     uint64_t kernel_addr = 0;
     uint64_t kernel_low, kernel_high;
@@ -3699,7 +3699,7 @@ static void kernel_load(CPUState *env)
     }
 }
 
-static void kernel_init(CPUState *env)
+static void kernel_init(CPUMIPSState *env)
 {
     env->active_tc.PC = loaderparams.kernel_addr;
 
@@ -3757,7 +3757,7 @@ static void kernel_init(CPUState *env)
     }
 }
 
-static void ar7_mips_init(CPUState *env)
+static void ar7_mips_init(CPUMIPSState *env)
 {
 #if !defined(UR8)
     /* AR7 cpu revision is 2.2. */
@@ -3798,7 +3798,7 @@ static void ar7_mips_init(CPUState *env)
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUMIPSState *env = opaque;
     ar7_mips_init(env);
     /* AR7 is MIPS32 release 1. */
     assert(!(env->CP0_Config0 & (7 << CP0C0_AR)));
@@ -3818,7 +3818,7 @@ static void ar7_common_init(ram_addr_t machine_ram_size,
                             const char *initrd_filename, const char *cpu_model)
 {
     char *filename;
-    CPUState *env;
+    CPUMIPSState *env;
     AR7State *s;
     DeviceState *dev;
     DriveInfo *dinfo;

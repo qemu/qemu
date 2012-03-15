@@ -3962,6 +3962,7 @@ fi
 
 d=libuser
 mkdir -p $d/trace
+mkdir -p $d/qom
 symlink $source_path/Makefile.user $d/Makefile
 
 if test "$docs" = "yes" ; then

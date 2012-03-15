@@ -22,12 +22,13 @@
 
 #define TARGET_LONG_BITS 32
 
-#define CPUState struct CPULM32State
+#define CPUArchState struct CPULM32State
 
 #include "config.h"
 #include "qemu-common.h"
 #include "cpu-defs.h"
 struct CPULM32State;
+typedef struct CPULM32State CPULM32State;
 
 #define TARGET_HAS_ICE 1
 
@@ -35,7 +36,7 @@ struct CPULM32State;
 
 #define NB_MMU_MODES 1
 #define TARGET_PAGE_BITS 12
-static inline int cpu_mmu_index(CPUState *env)
+static inline int cpu_mmu_index(CPULM32State *env)
 {
     return 0;
 }
@@ -148,7 +149,7 @@ enum {
     LM32_FLAG_IGNORE_MSB = 1,
 };
 
-typedef struct CPULM32State {
+struct CPULM32State {
     /* general registers */
     uint32_t regs[32];
 
@@ -181,21 +182,21 @@ typedef struct CPULM32State {
     uint8_t num_bps;
     uint8_t num_wps;
 
-} CPULM32State;
+};
 
 
-CPUState *cpu_lm32_init(const char *cpu_model);
+CPULM32State *cpu_lm32_init(const char *cpu_model);
 void cpu_lm32_list(FILE *f, fprintf_function cpu_fprintf);
-int cpu_lm32_exec(CPUState *s);
-void cpu_lm32_close(CPUState *s);
-void do_interrupt(CPUState *env);
+int cpu_lm32_exec(CPULM32State *s);
+void cpu_lm32_close(CPULM32State *s);
+void do_interrupt(CPULM32State *env);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
 int cpu_lm32_signal_handler(int host_signum, void *pinfo,
                           void *puc);
 void lm32_translate_init(void);
-void cpu_lm32_set_phys_msb_ignore(CPUState *env, int value);
+void cpu_lm32_set_phys_msb_ignore(CPULM32State *env, int value);
 
 #define cpu_list cpu_lm32_list
 #define cpu_init cpu_lm32_init
@@ -205,12 +206,12 @@ void cpu_lm32_set_phys_msb_ignore(CPUState *env, int value);
 
 #define CPU_SAVE_VERSION 1
 
-int cpu_lm32_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+int cpu_lm32_handle_mmu_fault(CPULM32State *env, target_ulong address, int rw,
                               int mmu_idx);
 #define cpu_handle_mmu_fault cpu_lm32_handle_mmu_fault
 
 #if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPULM32State *env, target_ulong newsp)
 {
     if (newsp) {
         env->regs[R_SP] = newsp;
@@ -219,23 +220,23 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 #endif
 
-static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
+static inline void cpu_set_tls(CPULM32State *env, target_ulong newtls)
 {
 }
 
-static inline int cpu_interrupts_enabled(CPUState *env)
+static inline int cpu_interrupts_enabled(CPULM32State *env)
 {
     return env->ie & IE_IE;
 }
 
 #include "cpu-all.h"
 
-static inline target_ulong cpu_get_pc(CPUState *env)
+static inline target_ulong cpu_get_pc(CPULM32State *env)
 {
     return env->pc;
 }
 
-static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
+static inline void cpu_get_tb_cpu_state(CPULM32State *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
     *pc = env->pc;
@@ -243,14 +244,14 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
     *flags = 0;
 }
 
-static inline bool cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPULM32State *env)
 {
     return env->interrupt_request & CPU_INTERRUPT_HARD;
 }
 
 #include "exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+static inline void cpu_pc_from_tb(CPULM32State *env, TranslationBlock *tb)
 {
     env->pc = tb->pc;
 }

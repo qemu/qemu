@@ -68,7 +68,7 @@ void gemu_log(const char *fmt, ...)
 }
 
 #if defined(TARGET_I386)
-int cpu_get_pic_interrupt(CPUState *env)
+int cpu_get_pic_interrupt(CPUX86State *env)
 {
     return -1;
 }
@@ -143,7 +143,7 @@ static inline void exclusive_idle(void)
    Must only be called from outside cpu_arm_exec.   */
 static inline void start_exclusive(void)
 {
-    CPUState *other;
+    CPUArchState *other;
     pthread_mutex_lock(&exclusive_lock);
     exclusive_idle();
 
@@ -169,7 +169,7 @@ static inline void end_exclusive(void)
 }
 
 /* Wait for exclusive ops to finish, and begin cpu execution.  */
-static inline void cpu_exec_start(CPUState *env)
+static inline void cpu_exec_start(CPUArchState *env)
 {
     pthread_mutex_lock(&exclusive_lock);
     exclusive_idle();
@@ -178,7 +178,7 @@ static inline void cpu_exec_start(CPUState *env)
 }
 
 /* Mark cpu as not executing, and release pending exclusive ops.  */
-static inline void cpu_exec_end(CPUState *env)
+static inline void cpu_exec_end(CPUArchState *env)
 {
     pthread_mutex_lock(&exclusive_lock);
     env->running = 0;
@@ -203,11 +203,11 @@ void cpu_list_unlock(void)
 }
 #else /* if !CONFIG_USE_NPTL */
 /* These are no-ops because we are not threadsafe.  */
-static inline void cpu_exec_start(CPUState *env)
+static inline void cpu_exec_start(CPUArchState *env)
 {
 }
 
-static inline void cpu_exec_end(CPUState *env)
+static inline void cpu_exec_end(CPUArchState *env)
 {
 }
 
@@ -244,7 +244,7 @@ void cpu_list_unlock(void)
 /***********************************************************/
 /* CPUX86 core interface */
 
-void cpu_smm_update(CPUState *env)
+void cpu_smm_update(CPUX86State *env)
 {
 }
 
@@ -926,7 +926,7 @@ void cpu_loop(CPUARMState *env)
 
 #ifdef TARGET_UNICORE32
 
-void cpu_loop(CPUState *env)
+void cpu_loop(CPUUniCore32State *env)
 {
     int trapnr;
     unsigned int n, insn;
@@ -1263,36 +1263,36 @@ void cpu_loop (CPUSPARCState *env)
 #endif
 
 #ifdef TARGET_PPC
-static inline uint64_t cpu_ppc_get_tb (CPUState *env)
+static inline uint64_t cpu_ppc_get_tb(CPUPPCState *env)
 {
     /* TO FIX */
     return 0;
 }
 
-uint64_t cpu_ppc_load_tbl (CPUState *env)
+uint64_t cpu_ppc_load_tbl(CPUPPCState *env)
 {
     return cpu_ppc_get_tb(env);
 }
 
-uint32_t cpu_ppc_load_tbu (CPUState *env)
+uint32_t cpu_ppc_load_tbu(CPUPPCState *env)
 {
     return cpu_ppc_get_tb(env) >> 32;
 }
 
-uint64_t cpu_ppc_load_atbl (CPUState *env)
+uint64_t cpu_ppc_load_atbl(CPUPPCState *env)
 {
     return cpu_ppc_get_tb(env);
 }
 
-uint32_t cpu_ppc_load_atbu (CPUState *env)
+uint32_t cpu_ppc_load_atbu(CPUPPCState *env)
 {
     return cpu_ppc_get_tb(env) >> 32;
 }
 
-uint32_t cpu_ppc601_load_rtcu (CPUState *env)
+uint32_t cpu_ppc601_load_rtcu(CPUPPCState *env)
 __attribute__ (( alias ("cpu_ppc_load_tbu") ));
 
-uint32_t cpu_ppc601_load_rtcl (CPUState *env)
+uint32_t cpu_ppc601_load_rtcl(CPUPPCState *env)
 {
     return cpu_ppc_load_tbl(env) & 0x3FFFFF80;
 }
@@ -2313,7 +2313,7 @@ done_syscall:
 #endif
 
 #ifdef TARGET_SH4
-void cpu_loop (CPUState *env)
+void cpu_loop(CPUSH4State *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
@@ -2372,7 +2372,7 @@ void cpu_loop (CPUState *env)
 #endif
 
 #ifdef TARGET_CRIS
-void cpu_loop (CPUState *env)
+void cpu_loop(CPUCRISState *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
@@ -2430,7 +2430,7 @@ void cpu_loop (CPUState *env)
 #endif
 
 #ifdef TARGET_MICROBLAZE
-void cpu_loop (CPUState *env)
+void cpu_loop(CPUMBState *env)
 {
     int trapnr, ret;
     target_siginfo_t info;
@@ -2667,7 +2667,7 @@ static void do_store_exclusive(CPUAlphaState *env, int reg, int quad)
     queue_signal(env, TARGET_SIGSEGV, &info);
 }
 
-void cpu_loop (CPUState *env)
+void cpu_loop(CPUAlphaState *env)
 {
     int trapnr;
     target_siginfo_t info;
@@ -2925,7 +2925,7 @@ void cpu_loop(CPUS390XState *env)
 
 #endif /* TARGET_S390X */
 
-THREAD CPUState *thread_env;
+THREAD CPUArchState *thread_env;
 
 void task_settid(TaskState *ts)
 {
@@ -3317,7 +3317,7 @@ int main(int argc, char **argv, char **envp)
     struct image_info info1, *info = &info1;
     struct linux_binprm bprm;
     TaskState *ts;
-    CPUState *env;
+    CPUArchState *env;
     int optind;
     char **target_environ, **wrk;
     char **target_argv;
@@ -3415,7 +3415,7 @@ int main(int argc, char **argv, char **envp)
         exit(1);
     }
 #if defined(TARGET_I386) || defined(TARGET_SPARC) || defined(TARGET_PPC)
-    cpu_reset(env);
+    cpu_state_reset(env);
 #endif
 
     thread_env = env;

@@ -268,7 +268,7 @@ qemu_irq xics_find_qirq(struct icp_state *icp, int irq)
     return icp->ics->qirqs[irq - icp->ics->offset];
 }
 
-static target_ulong h_cppr(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_cppr(CPUPPCState *env, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     target_ulong cppr = args[0];
@@ -277,7 +277,7 @@ static target_ulong h_cppr(CPUState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_ipi(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_ipi(CPUPPCState *env, sPAPREnvironment *spapr,
                           target_ulong opcode, target_ulong *args)
 {
     target_ulong server = args[0];
@@ -292,7 +292,7 @@ static target_ulong h_ipi(CPUState *env, sPAPREnvironment *spapr,
 
 }
 
-static target_ulong h_xirr(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_xirr(CPUPPCState *env, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     uint32_t xirr = icp_accept(spapr->icp->ss + env->cpu_index);
@@ -301,7 +301,7 @@ static target_ulong h_xirr(CPUState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_eoi(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_eoi(CPUPPCState *env, sPAPREnvironment *spapr,
                           target_ulong opcode, target_ulong *args)
 {
     target_ulong xirr = args[0];
@@ -424,7 +424,7 @@ static void rtas_int_on(sPAPREnvironment *spapr, uint32_t token,
 
 struct icp_state *xics_system_init(int nr_irqs)
 {
-    CPUState *env;
+    CPUPPCState *env;
     int max_server_num;
     int i;
     struct icp_state *icp;

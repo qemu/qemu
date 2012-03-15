@@ -1439,9 +1439,9 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
     tgen64_andi_tmp(s, arg1, (CPU_TLB_SIZE - 1) << CPU_TLB_ENTRY_BITS);
 
     if (is_store) {
-        ofs = offsetof(CPUState, tlb_table[mem_index][0].addr_write);
+        ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addr_write);
     } else {
-        ofs = offsetof(CPUState, tlb_table[mem_index][0].addr_read);
+        ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addr_read);
     }
     assert(ofs < 0x80000);
 
@@ -1515,7 +1515,7 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
     *(label1_ptr + 1) = ((unsigned long)s->code_ptr -
                          (unsigned long)label1_ptr) >> 1;
 
-    ofs = offsetof(CPUState, tlb_table[mem_index][0].addend);
+    ofs = offsetof(CPUArchState, tlb_table[mem_index][0].addend);
     assert(ofs < 0x80000);
 
     tcg_out_mem(s, 0, RXY_AG, arg0, arg1, TCG_AREG0, ofs);
@@ -2293,7 +2293,7 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_CALL_STACK);
 
     tcg_add_target_add_op_defs(s390_op_defs);
-    tcg_set_frame(s, TCG_AREG0, offsetof(CPUState, temp_buf),
+    tcg_set_frame(s, TCG_AREG0, offsetof(CPUArchState, temp_buf),
                   CPU_TEMP_BUF_NLONGS * sizeof(long));
 }
 

@@ -146,9 +146,11 @@ static uint64_t translate_phys_addr(void *env, uint64_t addr)
     return cpu_get_phys_page_debug(env, addr);
 }
 
-static void lx60_reset(void *env)
+static void lx60_reset(void *opaque)
 {
-    cpu_reset(env);
+    CPUXtensaState *env = opaque;
+
+    cpu_state_reset(env);
 }
 
 static void lx_init(const LxBoardDesc *board,
@@ -162,7 +164,7 @@ static void lx_init(const LxBoardDesc *board,
     int be = 0;
 #endif
     MemoryRegion *system_memory = get_system_memory();
-    CPUState *env = NULL;
+    CPUXtensaState *env = NULL;
     MemoryRegion *ram, *rom, *system_io;
     DriveInfo *dinfo;
     pflash_t *flash = NULL;
@@ -183,7 +185,7 @@ static void lx_init(const LxBoardDesc *board,
         /* Need MMU initialized prior to ELF loading,
          * so that ELF gets loaded into virtual addresses
          */
-        cpu_reset(env);
+        cpu_state_reset(env);
     }
 
     ram = g_malloc(sizeof(*ram));

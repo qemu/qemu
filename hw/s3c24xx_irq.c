@@ -35,7 +35,7 @@
 /* Interrupt controller state */
 struct s3c24xx_irq_state_s {
     MemoryRegion mmio;
-    CPUState *cpu_env;
+    CPUARMState *cpu_env;
 
     qemu_irq *irqs;
 

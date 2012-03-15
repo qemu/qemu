@@ -85,7 +85,7 @@ VirtIOS390Bus *s390_virtio_bus_init(ram_addr_t *ram_size)
     return bus;
 }
 
-static void s390_virtio_irq(CPUState *env, int config_change, uint64_t token)
+static void s390_virtio_irq(CPUS390XState *env, int config_change, uint64_t token)
 {
     if (kvm_enabled()) {
         kvm_s390_virtio_irq(env, config_change, token);
@@ -116,7 +116,7 @@ static int s390_virtio_device_init(VirtIOS390Device *dev, VirtIODevice *vdev)
     s390_virtio_device_sync(dev);
 
     if (dev->qdev.hotplugged) {
-        CPUState *env = s390_cpu_addr2state(0);
+        CPUS390XState *env = s390_cpu_addr2state(0);
         s390_virtio_irq(env, VIRTIO_PARAM_DEV_ADD, dev->dev_offs);
     }
 
@@ -331,7 +331,7 @@ static void virtio_s390_notify(void *opaque, uint16_t vector)
 {
     VirtIOS390Device *dev = (VirtIOS390Device*)opaque;
     uint64_t token = s390_virtio_device_vq_token(dev, vector);
-    CPUState *env = s390_cpu_addr2state(0);
+    CPUS390XState *env = s390_cpu_addr2state(0);
 
     s390_virtio_irq(env, 0, token);
 }

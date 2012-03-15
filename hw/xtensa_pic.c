@@ -29,7 +29,7 @@
 #include "qemu-log.h"
 #include "qemu-timer.h"
 
-void xtensa_advance_ccount(CPUState *env, uint32_t d)
+void xtensa_advance_ccount(CPUXtensaState *env, uint32_t d)
 {
     uint32_t old_ccount = env->sregs[CCOUNT];
 
@@ -45,7 +45,7 @@ void xtensa_advance_ccount(CPUState *env, uint32_t d)
     }
 }
 
-void check_interrupts(CPUState *env)
+void check_interrupts(CPUXtensaState *env)
 {
     int minlevel = xtensa_get_cintlevel(env);
     uint32_t int_set_enabled = env->sregs[INTSET] & env->sregs[INTENABLE];
@@ -84,7 +84,7 @@ void check_interrupts(CPUState *env)
 
 static void xtensa_set_irq(void *opaque, int irq, int active)
 {
-    CPUState *env = opaque;
+    CPUXtensaState *env = opaque;
 
     if (irq >= env->config->ninterrupt) {
         qemu_log("%s: bad IRQ %d\n", __func__, irq);
@@ -101,12 +101,12 @@ static void xtensa_set_irq(void *opaque, int irq, int active)
     }
 }
 
-void xtensa_timer_irq(CPUState *env, uint32_t id, uint32_t active)
+void xtensa_timer_irq(CPUXtensaState *env, uint32_t id, uint32_t active)
 {
     qemu_set_irq(env->irq_inputs[env->config->timerint[id]], active);
 }
 
-void xtensa_rearm_ccompare_timer(CPUState *env)
+void xtensa_rearm_ccompare_timer(CPUXtensaState *env)
 {
     int i;
     uint32_t wake_ccount = env->sregs[CCOUNT] - 1;
@@ -125,7 +125,7 @@ void xtensa_rearm_ccompare_timer(CPUState *env)
 
 static void xtensa_ccompare_cb(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUXtensaState *env = opaque;
 
     if (env->halted) {
         env->halt_clock = qemu_get_clock_ns(vm_clock);
@@ -137,7 +137,7 @@ static void xtensa_ccompare_cb(void *opaque)
     }
 }
 
-void xtensa_irq_init(CPUState *env)
+void xtensa_irq_init(CPUXtensaState *env)
 {
     env->irq_inputs = (void **)qemu_allocate_irqs(
             xtensa_set_irq, env, env->config->ninterrupt);
@@ -148,7 +148,7 @@ void xtensa_irq_init(CPUState *env)
     }
 }
 
-void *xtensa_get_extint(CPUState *env, unsigned extint)
+void *xtensa_get_extint(CPUXtensaState *env, unsigned extint)
 {
     if (extint < env->config->nextint) {
         unsigned irq = env->config->extint[extint];

@@ -145,7 +145,7 @@ static m5206_timer_state *m5206_timer_init(qemu_irq irq)
 /* System Integration Module.  */
 
 typedef struct {
-    CPUState *env;
+    CPUM68KState *env;
     MemoryRegion iomem;
     m5206_timer_state *timer[2];
     void *uart[2];
@@ -525,7 +525,7 @@ static const MemoryRegionOps m5206_mbar_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, CPUState *env)
+qemu_irq *mcf5206_init(MemoryRegion *sysmem, uint32_t base, CPUM68KState *env)
 {
     m5206_mbar_state *s;
     qemu_irq *pic;

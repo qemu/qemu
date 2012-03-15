@@ -2224,7 +2224,7 @@ static void omap2_mpu_reset(void *opaque)
     omap_mcspi_reset(mpu->mcspi[1]);
     omap_i2c_reset(mpu->i2c[0]);
     omap_i2c_reset(mpu->i2c[1]);
-    cpu_reset(mpu->env);
+    cpu_state_reset(mpu->env);
 }
 
 static int omap2_validate_addr(struct omap_mpu_state_s *s,

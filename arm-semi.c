@@ -103,7 +103,7 @@ static inline uint32_t set_swi_errno(TaskState *ts, uint32_t code)
     return code;
 }
 #else
-static inline uint32_t set_swi_errno(CPUState *env, uint32_t code)
+static inline uint32_t set_swi_errno(CPUARMState *env, uint32_t code)
 {
     return code;
 }
@@ -117,7 +117,7 @@ static target_ulong arm_semi_syscall_len;
 static target_ulong syscall_err;
 #endif
 
-static void arm_semi_cb(CPUState *env, target_ulong ret, target_ulong err)
+static void arm_semi_cb(CPUARMState *env, target_ulong ret, target_ulong err)
 {
 #ifdef CONFIG_USER_ONLY
     TaskState *ts = env->opaque;
@@ -147,7 +147,7 @@ static void arm_semi_cb(CPUState *env, target_ulong ret, target_ulong err)
     }
 }
 
-static void arm_semi_flen_cb(CPUState *env, target_ulong ret, target_ulong err)
+static void arm_semi_flen_cb(CPUARMState *env, target_ulong ret, target_ulong err)
 {
     /* The size is always stored in big-endian order, extract
        the value. We assume the size always fit in 32 bits.  */
@@ -169,7 +169,7 @@ static void arm_semi_flen_cb(CPUState *env, target_ulong ret, target_ulong err)
     __arg;					\
 })
 #define SET_ARG(n, val) put_user_ual(val, args + (n) * 4)
-uint32_t do_arm_semihosting(CPUState *env)
+uint32_t do_arm_semihosting(CPUARMState *env)
 {
     target_ulong args;
     char * s;
@@ -179,7 +179,7 @@ uint32_t do_arm_semihosting(CPUState *env)
 #ifdef CONFIG_USER_ONLY
     TaskState *ts = env->opaque;
 #else
-    CPUState *ts = env;
+    CPUARMState *ts = env;
 #endif
 
     nr = env->regs[0];

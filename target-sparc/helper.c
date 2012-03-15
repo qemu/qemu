@@ -22,13 +22,13 @@
 #include "helper.h"
 #include "sysemu.h"
 
-void helper_raise_exception(CPUState *env, int tt)
+void helper_raise_exception(CPUSPARCState *env, int tt)
 {
     env->exception_index = tt;
     cpu_loop_exit(env);
 }
 
-void helper_debug(CPUState *env)
+void helper_debug(CPUSPARCState *env)
 {
     env->exception_index = EXCP_DEBUG;
     cpu_loop_exit(env);
@@ -64,7 +64,7 @@ void helper_tick_set_limit(void *opaque, uint64_t limit)
 }
 #endif
 
-static target_ulong helper_udiv_common(CPUState *env, target_ulong a,
+static target_ulong helper_udiv_common(CPUSPARCState *env, target_ulong a,
                                        target_ulong b, int cc)
 {
     int overflow = 0;
@@ -92,17 +92,17 @@ static target_ulong helper_udiv_common(CPUState *env, target_ulong a,
     return x0;
 }
 
-target_ulong helper_udiv(CPUState *env, target_ulong a, target_ulong b)
+target_ulong helper_udiv(CPUSPARCState *env, target_ulong a, target_ulong b)
 {
     return helper_udiv_common(env, a, b, 0);
 }
 
-target_ulong helper_udiv_cc(CPUState *env, target_ulong a, target_ulong b)
+target_ulong helper_udiv_cc(CPUSPARCState *env, target_ulong a, target_ulong b)
 {
     return helper_udiv_common(env, a, b, 1);
 }
 
-static target_ulong helper_sdiv_common(CPUState *env, target_ulong a,
+static target_ulong helper_sdiv_common(CPUSPARCState *env, target_ulong a,
                                        target_ulong b, int cc)
 {
     int overflow = 0;
@@ -130,12 +130,12 @@ static target_ulong helper_sdiv_common(CPUState *env, target_ulong a,
     return x0;
 }
 
-target_ulong helper_sdiv(CPUState *env, target_ulong a, target_ulong b)
+target_ulong helper_sdiv(CPUSPARCState *env, target_ulong a, target_ulong b)
 {
     return helper_sdiv_common(env, a, b, 0);
 }
 
-target_ulong helper_sdiv_cc(CPUState *env, target_ulong a, target_ulong b)
+target_ulong helper_sdiv_cc(CPUSPARCState *env, target_ulong a, target_ulong b)
 {
     return helper_sdiv_common(env, a, b, 1);
 }

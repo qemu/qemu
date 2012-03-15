@@ -58,7 +58,7 @@ struct boot_info
     uint32_t entry;
 };
 
-static int mpc8544_load_device_tree(CPUState *env,
+static int mpc8544_load_device_tree(CPUPPCState *env,
                                     target_phys_addr_t addr,
                                     uint32_t ramsize,
                                     target_phys_addr_t initrd_base,
@@ -178,7 +178,7 @@ static inline target_phys_addr_t booke206_page_size_to_tlb(uint64_t size)
     return ffs(size >> 10) - 1;
 }
 
-static void mmubooke_create_initial_mapping(CPUState *env,
+static void mmubooke_create_initial_mapping(CPUPPCState *env,
                                      target_ulong va,
                                      target_phys_addr_t pa)
 {
@@ -196,9 +196,9 @@ static void mmubooke_create_initial_mapping(CPUState *env,
 
 static void mpc8544ds_cpu_reset_sec(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     /* Secondary CPU starts in halted state for now. Needs to change when
        implementing non-kernel boot. */
@@ -208,10 +208,10 @@ static void mpc8544ds_cpu_reset_sec(void *opaque)
 
 static void mpc8544ds_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
     struct boot_info *bi = env->load_info;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     /* Set initial guest state. */
     env->halted = 0;
@@ -231,7 +231,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     PCIBus *pci_bus;
-    CPUState *env = NULL;
+    CPUPPCState *env = NULL;
     uint64_t elf_entry;
     uint64_t elf_lowaddr;
     target_phys_addr_t entry=0;
@@ -244,7 +244,7 @@ static void mpc8544ds_init(ram_addr_t ram_size,
     unsigned int pci_irq_nrs[4] = {1, 2, 3, 4};
     qemu_irq **irqs, *mpic;
     DeviceState *dev;
-    CPUState *firstenv = NULL;
+    CPUPPCState *firstenv = NULL;
 
     /* Setup CPUs */
     if (cpu_model == NULL) {

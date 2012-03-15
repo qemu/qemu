@@ -118,7 +118,7 @@ static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
                                          uint32_t nret, target_ulong rets)
 {
     target_ulong id;
-    CPUState *env;
+    CPUPPCState *env;
 
     if (nargs != 1 || nret != 2) {
         rtas_st(rets, 0, -3);
@@ -151,7 +151,7 @@ static void rtas_start_cpu(sPAPREnvironment *spapr,
                            uint32_t nret, target_ulong rets)
 {
     target_ulong id, start, r3;
-    CPUState *env;
+    CPUPPCState *env;
 
     if (nargs != 3 || nret != 1) {
         rtas_st(rets, 0, -3);

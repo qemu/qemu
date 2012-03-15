@@ -154,7 +154,7 @@ typedef enum {
 
 void tci_disas(uint8_t opc);
 
-unsigned long tcg_qemu_tb_exec(CPUState *env, uint8_t *tb_ptr);
+unsigned long tcg_qemu_tb_exec(CPUArchState *env, uint8_t *tb_ptr);
 #define tcg_qemu_tb_exec tcg_qemu_tb_exec
 
 static inline void flush_icache_range(tcg_target_ulong start,

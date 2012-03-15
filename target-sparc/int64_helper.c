@@ -59,7 +59,7 @@ static const char * const excp_names[0x80] = {
 };
 #endif
 
-void do_interrupt(CPUState *env)
+void do_interrupt(CPUSPARCState *env)
 {
     int intno = env->exception_index;
     trap_state *tsptr;
@@ -160,12 +160,12 @@ void do_interrupt(CPUState *env)
     env->exception_index = -1;
 }
 
-trap_state *cpu_tsptr(CPUState* env)
+trap_state *cpu_tsptr(CPUSPARCState* env)
 {
     return &env->ts[env->tl & MAXTL_MASK];
 }
 
-static bool do_modify_softint(CPUState *env, uint32_t value)
+static bool do_modify_softint(CPUSPARCState *env, uint32_t value)
 {
     if (env->softint != value) {
         env->softint = value;
@@ -179,21 +179,21 @@ static bool do_modify_softint(CPUState *env, uint32_t value)
     return false;
 }
 
-void helper_set_softint(CPUState *env, uint64_t value)
+void helper_set_softint(CPUSPARCState *env, uint64_t value)
 {
     if (do_modify_softint(env, env->softint | (uint32_t)value)) {
         trace_int_helper_set_softint(env->softint);
     }
 }
 
-void helper_clear_softint(CPUState *env, uint64_t value)
+void helper_clear_softint(CPUSPARCState *env, uint64_t value)
 {
     if (do_modify_softint(env, env->softint & (uint32_t)~value)) {
         trace_int_helper_clear_softint(env->softint);
     }
 }
 
-void helper_write_softint(CPUState *env, uint64_t value)
+void helper_write_softint(CPUSPARCState *env, uint64_t value)
 {
     if (do_modify_softint(env, (uint32_t)value)) {
         trace_int_helper_write_softint(env->softint);

@@ -228,7 +228,7 @@ void sun4m_irq_info(Monitor *mon)
         slavio_irq_info(mon, slavio_intctl);
 }
 
-void cpu_check_irqs(CPUState *env)
+void cpu_check_irqs(CPUSPARCState *env)
 {
     if (env->pil_in && (env->interrupt_index == 0 ||
                         (env->interrupt_index & ~15) == TT_EXTINT)) {
@@ -253,7 +253,7 @@ void cpu_check_irqs(CPUState *env)
     }
 }
 
-static void cpu_kick_irq(CPUState *env)
+static void cpu_kick_irq(CPUSPARCState *env)
 {
     env->halted = 0;
     cpu_check_irqs(env);
@@ -262,7 +262,7 @@ static void cpu_kick_irq(CPUState *env)
 
 static void cpu_set_irq(void *opaque, int irq, int level)
 {
-    CPUState *env = opaque;
+    CPUSPARCState *env = opaque;
 
     if (level) {
         trace_sun4m_cpu_set_irq_raise(irq);
@@ -281,17 +281,17 @@ static void dummy_cpu_set_irq(void *opaque, int irq, int level)
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUSPARCState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->halted = 0;
 }
 
 static void secondary_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUSPARCState *env = opaque;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->halted = 1;
 }
 
@@ -809,7 +809,7 @@ static TypeInfo ram_info = {
 static void cpu_devinit(const char *cpu_model, unsigned int id,
                         uint64_t prom_addr, qemu_irq **cpu_irqs)
 {
-    CPUState *env;
+    CPUSPARCState *env;
 
     env = cpu_init(cpu_model);
     if (!env) {

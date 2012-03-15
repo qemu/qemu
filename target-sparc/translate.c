@@ -2204,7 +2204,7 @@ static inline void gen_load_trap_state_at_tl(TCGv_ptr r_tsptr, TCGv_ptr cpu_env)
 
     /* calculate offset to current trap state from env->ts, reuse r_tl */
     tcg_gen_muli_i32(r_tl, r_tl, sizeof (trap_state));
-    tcg_gen_addi_ptr(r_tsptr, cpu_env, offsetof(CPUState, ts));
+    tcg_gen_addi_ptr(r_tsptr, cpu_env, offsetof(CPUSPARCState, ts));
 
     /* tsptr = env->ts[env->tl & MAXTL_MASK] */
     {
@@ -2595,7 +2595,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                         r_tickptr = tcg_temp_new_ptr();
                         tcg_gen_ld_ptr(r_tickptr, cpu_env,
-                                       offsetof(CPUState, tick));
+                                       offsetof(CPUSPARCState, tick));
                         gen_helper_tick_get_count(cpu_dst, r_tickptr);
                         tcg_temp_free_ptr(r_tickptr);
                         gen_movl_TN_reg(rd, cpu_dst);
@@ -2634,7 +2634,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                         r_tickptr = tcg_temp_new_ptr();
                         tcg_gen_ld_ptr(r_tickptr, cpu_env,
-                                       offsetof(CPUState, stick));
+                                       offsetof(CPUSPARCState, stick));
                         gen_helper_tick_get_count(cpu_dst, r_tickptr);
                         tcg_temp_free_ptr(r_tickptr);
                         gen_movl_TN_reg(rd, cpu_dst);
@@ -2747,7 +2747,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                         r_tickptr = tcg_temp_new_ptr();
                         tcg_gen_ld_ptr(r_tickptr, cpu_env,
-                                       offsetof(CPUState, tick));
+                                       offsetof(CPUSPARCState, tick));
                         gen_helper_tick_get_count(cpu_tmp0, r_tickptr);
                         gen_movl_TN_reg(rd, cpu_tmp0);
                         tcg_temp_free_ptr(r_tickptr);
@@ -3707,7 +3707,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                                    cpu_src2);
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
-                                                   offsetof(CPUState, tick));
+                                                   offsetof(CPUSPARCState, tick));
                                     gen_helper_tick_set_limit(r_tickptr,
                                                               cpu_tick_cmpr);
                                     tcg_temp_free_ptr(r_tickptr);
@@ -3725,7 +3725,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                                    cpu_src2);
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
-                                                   offsetof(CPUState, stick));
+                                                   offsetof(CPUSPARCState, stick));
                                     gen_helper_tick_set_count(r_tickptr,
                                                               cpu_dst);
                                     tcg_temp_free_ptr(r_tickptr);
@@ -3743,7 +3743,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                                    cpu_src2);
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
-                                                   offsetof(CPUState, stick));
+                                                   offsetof(CPUSPARCState, stick));
                                     gen_helper_tick_set_limit(r_tickptr,
                                                               cpu_stick_cmpr);
                                     tcg_temp_free_ptr(r_tickptr);
@@ -3852,7 +3852,7 @@ static void disas_sparc_insn(DisasContext * dc)
 
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
-                                                   offsetof(CPUState, tick));
+                                                   offsetof(CPUSPARCState, tick));
                                     gen_helper_tick_set_count(r_tickptr,
                                                               cpu_tmp0);
                                     tcg_temp_free_ptr(r_tickptr);
@@ -3980,7 +3980,7 @@ static void disas_sparc_insn(DisasContext * dc)
                                     tcg_gen_mov_tl(cpu_hstick_cmpr, cpu_tmp0);
                                     r_tickptr = tcg_temp_new_ptr();
                                     tcg_gen_ld_ptr(r_tickptr, cpu_env,
-                                                   offsetof(CPUState, hstick));
+                                                   offsetof(CPUSPARCState, hstick));
                                     gen_helper_tick_set_limit(r_tickptr,
                                                               cpu_hstick_cmpr);
                                     tcg_temp_free_ptr(r_tickptr);
@@ -5040,13 +5040,13 @@ static void disas_sparc_insn(DisasContext * dc)
                 case 0x25: /* stfsr, V9 stxfsr */
 #ifdef TARGET_SPARC64
                     gen_address_mask(dc, cpu_addr);
-                    tcg_gen_ld_i64(cpu_tmp64, cpu_env, offsetof(CPUState, fsr));
+                    tcg_gen_ld_i64(cpu_tmp64, cpu_env, offsetof(CPUSPARCState, fsr));
                     if (rd == 1)
                         tcg_gen_qemu_st64(cpu_tmp64, cpu_addr, dc->mem_idx);
                     else
                         tcg_gen_qemu_st32(cpu_tmp64, cpu_addr, dc->mem_idx);
 #else
-                    tcg_gen_ld_i32(cpu_tmp32, cpu_env, offsetof(CPUState, fsr));
+                    tcg_gen_ld_i32(cpu_tmp32, cpu_env, offsetof(CPUSPARCState, fsr));
                     tcg_gen_qemu_st32(cpu_tmp32, cpu_addr, dc->mem_idx);
 #endif
                     break;
@@ -5398,75 +5398,75 @@ void gen_intermediate_code_init(CPUSPARCState *env)
 
         cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
         cpu_regwptr = tcg_global_mem_new_ptr(TCG_AREG0,
-                                             offsetof(CPUState, regwptr),
+                                             offsetof(CPUSPARCState, regwptr),
                                              "regwptr");
 #ifdef TARGET_SPARC64
-        cpu_xcc = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUState, xcc),
+        cpu_xcc = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, xcc),
                                          "xcc");
-        cpu_asi = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUState, asi),
+        cpu_asi = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, asi),
                                          "asi");
-        cpu_fprs = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUState, fprs),
+        cpu_fprs = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, fprs),
                                           "fprs");
-        cpu_gsr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, gsr),
+        cpu_gsr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, gsr),
                                      "gsr");
         cpu_tick_cmpr = tcg_global_mem_new(TCG_AREG0,
-                                           offsetof(CPUState, tick_cmpr),
+                                           offsetof(CPUSPARCState, tick_cmpr),
                                            "tick_cmpr");
         cpu_stick_cmpr = tcg_global_mem_new(TCG_AREG0,
-                                            offsetof(CPUState, stick_cmpr),
+                                            offsetof(CPUSPARCState, stick_cmpr),
                                             "stick_cmpr");
         cpu_hstick_cmpr = tcg_global_mem_new(TCG_AREG0,
-                                             offsetof(CPUState, hstick_cmpr),
+                                             offsetof(CPUSPARCState, hstick_cmpr),
                                              "hstick_cmpr");
-        cpu_hintp = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, hintp),
+        cpu_hintp = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, hintp),
                                        "hintp");
-        cpu_htba = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, htba),
+        cpu_htba = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, htba),
                                       "htba");
-        cpu_hver = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, hver),
+        cpu_hver = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, hver),
                                       "hver");
         cpu_ssr = tcg_global_mem_new(TCG_AREG0,
-                                     offsetof(CPUState, ssr), "ssr");
+                                     offsetof(CPUSPARCState, ssr), "ssr");
         cpu_ver = tcg_global_mem_new(TCG_AREG0,
-                                     offsetof(CPUState, version), "ver");
+                                     offsetof(CPUSPARCState, version), "ver");
         cpu_softint = tcg_global_mem_new_i32(TCG_AREG0,
-                                             offsetof(CPUState, softint),
+                                             offsetof(CPUSPARCState, softint),
                                              "softint");
 #else
-        cpu_wim = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, wim),
+        cpu_wim = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, wim),
                                      "wim");
 #endif
-        cpu_cond = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, cond),
+        cpu_cond = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, cond),
                                       "cond");
-        cpu_cc_src = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, cc_src),
+        cpu_cc_src = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, cc_src),
                                         "cc_src");
         cpu_cc_src2 = tcg_global_mem_new(TCG_AREG0,
-                                         offsetof(CPUState, cc_src2),
+                                         offsetof(CPUSPARCState, cc_src2),
                                          "cc_src2");
-        cpu_cc_dst = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, cc_dst),
+        cpu_cc_dst = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, cc_dst),
                                         "cc_dst");
-        cpu_cc_op = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUState, cc_op),
+        cpu_cc_op = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, cc_op),
                                            "cc_op");
-        cpu_psr = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUState, psr),
+        cpu_psr = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUSPARCState, psr),
                                          "psr");
-        cpu_fsr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, fsr),
+        cpu_fsr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, fsr),
                                      "fsr");
-        cpu_pc = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, pc),
+        cpu_pc = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, pc),
                                     "pc");
-        cpu_npc = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, npc),
+        cpu_npc = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, npc),
                                      "npc");
-        cpu_y = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, y), "y");
+        cpu_y = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, y), "y");
 #ifndef CONFIG_USER_ONLY
-        cpu_tbr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUState, tbr),
+        cpu_tbr = tcg_global_mem_new(TCG_AREG0, offsetof(CPUSPARCState, tbr),
                                      "tbr");
 #endif
         for (i = 1; i < 8; i++) {
             cpu_gregs[i] = tcg_global_mem_new(TCG_AREG0,
-                                              offsetof(CPUState, gregs[i]),
+                                              offsetof(CPUSPARCState, gregs[i]),
                                               gregnames[i]);
         }
         for (i = 0; i < TARGET_DPREGS; i++) {
             cpu_fpr[i] = tcg_global_mem_new_i64(TCG_AREG0,
-                                                offsetof(CPUState, fpr[i]),
+                                                offsetof(CPUSPARCState, fpr[i]),
                                                 fregnames[i]);
         }
 
@@ -5477,7 +5477,7 @@ void gen_intermediate_code_init(CPUSPARCState *env)
     }
 }
 
-void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUSPARCState *env, TranslationBlock *tb, int pc_pos)
 {
     target_ulong npc;
     env->pc = gen_opc_pc[pc_pos];

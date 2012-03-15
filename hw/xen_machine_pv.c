@@ -36,7 +36,7 @@ static void xen_init_pv(ram_addr_t ram_size,
 			const char *initrd_filename,
 			const char *cpu_model)
 {
-    CPUState *env;
+    CPUX86State *env;
     DriveInfo *dinfo;
     int i;
 

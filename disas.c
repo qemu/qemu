@@ -339,7 +339,7 @@ const char *lookup_symbol(target_ulong orig_addr)
 #include "monitor.h"
 
 static int monitor_disas_is_physical;
-static CPUState *monitor_disas_env;
+static CPUArchState *monitor_disas_env;
 
 static int
 monitor_read_memory (bfd_vma memaddr, bfd_byte *myaddr, int length,
@@ -363,7 +363,7 @@ monitor_fprintf(FILE *stream, const char *fmt, ...)
     return 0;
 }
 
-void monitor_disas(Monitor *mon, CPUState *env,
+void monitor_disas(Monitor *mon, CPUArchState *env,
                    target_ulong pc, int nb_insn, int is_physical, int flags)
 {
     int count, i;

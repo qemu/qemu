@@ -69,7 +69,7 @@ static const MemoryRegionOps mips_qemu_ops = {
 };
 
 typedef struct ResetData {
-    CPUState *env;
+    CPUMIPSState *env;
     uint64_t vector;
 } ResetData;
 
@@ -150,9 +150,9 @@ static int64_t load_kernel(void)
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s = (ResetData *)opaque;
-    CPUState *env = s->env;
+    CPUMIPSState *env = s->env;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     env->active_tc.PC = s->vector;
 }
 
@@ -168,7 +168,7 @@ static void mips_init(ram_addr_t ram_size,
     MemoryRegion *bios;
     MemoryRegion *iomem = g_new(MemoryRegion, 1);
     int bios_size;
-    CPUState *env;
+    CPUMIPSState *env;
     ResetData *reset_info;
     int i;
     qemu_irq *i8259;

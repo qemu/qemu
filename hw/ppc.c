@@ -47,10 +47,10 @@
 #  define LOG_TB(...) do { } while (0)
 #endif
 
-static void cpu_ppc_tb_stop (CPUState *env);
-static void cpu_ppc_tb_start (CPUState *env);
+static void cpu_ppc_tb_stop (CPUPPCState *env);
+static void cpu_ppc_tb_start (CPUPPCState *env);
 
-void ppc_set_irq(CPUState *env, int n_IRQ, int level)
+void ppc_set_irq(CPUPPCState *env, int n_IRQ, int level)
 {
     unsigned int old_pending = env->pending_interrupts;
 
@@ -77,7 +77,7 @@ void ppc_set_irq(CPUState *env, int n_IRQ, int level)
 /* PowerPC 6xx / 7xx internal IRQ controller */
 static void ppc6xx_set_irq (void *opaque, int pin, int level)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
     int cur_level;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
@@ -131,13 +131,7 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
             /* Level sensitive - active low */
             if (level) {
                 LOG_IRQ("%s: reset the CPU\n", __func__);
-                env->interrupt_request |= CPU_INTERRUPT_EXITTB;
-                /* XXX: TOFIX */
-#if 0
-                cpu_reset(env);
-#else
-                qemu_system_reset_request();
-#endif
+                cpu_interrupt(env, CPU_INTERRUPT_RESET);
             }
             break;
         case PPC6xx_INPUT_SRESET:
@@ -157,7 +151,7 @@ static void ppc6xx_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppc6xx_irq_init (CPUState *env)
+void ppc6xx_irq_init (CPUPPCState *env)
 {
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc6xx_set_irq, env,
                                                   PPC6xx_INPUT_NB);
@@ -167,7 +161,7 @@ void ppc6xx_irq_init (CPUState *env)
 /* PowerPC 970 internal IRQ controller */
 static void ppc970_set_irq (void *opaque, int pin, int level)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
     int cur_level;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
@@ -214,10 +208,7 @@ static void ppc970_set_irq (void *opaque, int pin, int level)
         case PPC970_INPUT_HRESET:
             /* Level sensitive - active low */
             if (level) {
-#if 0 // XXX: TOFIX
-                LOG_IRQ("%s: reset the CPU\n", __func__);
-                cpu_reset(env);
-#endif
+                cpu_interrupt(env, CPU_INTERRUPT_RESET);
             }
             break;
         case PPC970_INPUT_SRESET:
@@ -242,7 +233,7 @@ static void ppc970_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppc970_irq_init (CPUState *env)
+void ppc970_irq_init (CPUPPCState *env)
 {
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc970_set_irq, env,
                                                   PPC970_INPUT_NB);
@@ -251,7 +242,7 @@ void ppc970_irq_init (CPUState *env)
 /* POWER7 internal IRQ controller */
 static void power7_set_irq (void *opaque, int pin, int level)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
                 env, pin, level);
@@ -275,7 +266,7 @@ static void power7_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppcPOWER7_irq_init (CPUState *env)
+void ppcPOWER7_irq_init (CPUPPCState *env)
 {
     env->irq_inputs = (void **)qemu_allocate_irqs(&power7_set_irq, env,
                                                   POWER7_INPUT_NB);
@@ -285,7 +276,7 @@ void ppcPOWER7_irq_init (CPUState *env)
 /* PowerPC 40x internal IRQ controller */
 static void ppc40x_set_irq (void *opaque, int pin, int level)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
     int cur_level;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
@@ -355,7 +346,7 @@ static void ppc40x_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppc40x_irq_init (CPUState *env)
+void ppc40x_irq_init (CPUPPCState *env)
 {
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppc40x_set_irq,
                                                   env, PPC40x_INPUT_NB);
@@ -364,7 +355,7 @@ void ppc40x_irq_init (CPUState *env)
 /* PowerPC E500 internal IRQ controller */
 static void ppce500_set_irq (void *opaque, int pin, int level)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
     int cur_level;
 
     LOG_IRQ("%s: env %p pin %d level %d\n", __func__,
@@ -416,7 +407,7 @@ static void ppce500_set_irq (void *opaque, int pin, int level)
     }
 }
 
-void ppce500_irq_init (CPUState *env)
+void ppce500_irq_init (CPUPPCState *env)
 {
     env->irq_inputs = (void **)qemu_allocate_irqs(&ppce500_set_irq,
                                         env, PPCE500_INPUT_NB);
@@ -430,7 +421,7 @@ uint64_t cpu_ppc_get_tb(ppc_tb_t *tb_env, uint64_t vmclk, int64_t tb_offset)
     return muldiv64(vmclk, tb_env->tb_freq, get_ticks_per_sec()) + tb_offset;
 }
 
-uint64_t cpu_ppc_load_tbl (CPUState *env)
+uint64_t cpu_ppc_load_tbl (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -445,7 +436,7 @@ uint64_t cpu_ppc_load_tbl (CPUState *env)
     return tb;
 }
 
-static inline uint32_t _cpu_ppc_load_tbu(CPUState *env)
+static inline uint32_t _cpu_ppc_load_tbu(CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -456,7 +447,7 @@ static inline uint32_t _cpu_ppc_load_tbu(CPUState *env)
     return tb >> 32;
 }
 
-uint32_t cpu_ppc_load_tbu (CPUState *env)
+uint32_t cpu_ppc_load_tbu (CPUPPCState *env)
 {
     if (kvm_enabled()) {
         return env->spr[SPR_TBU];
@@ -473,7 +464,7 @@ static inline void cpu_ppc_store_tb(ppc_tb_t *tb_env, uint64_t vmclk,
                 __func__, value, *tb_offsetp);
 }
 
-void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
+void cpu_ppc_store_tbl (CPUPPCState *env, uint32_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -484,7 +475,7 @@ void cpu_ppc_store_tbl (CPUState *env, uint32_t value)
                      &tb_env->tb_offset, tb | (uint64_t)value);
 }
 
-static inline void _cpu_ppc_store_tbu(CPUState *env, uint32_t value)
+static inline void _cpu_ppc_store_tbu(CPUPPCState *env, uint32_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -495,12 +486,12 @@ static inline void _cpu_ppc_store_tbu(CPUState *env, uint32_t value)
                      &tb_env->tb_offset, ((uint64_t)value << 32) | tb);
 }
 
-void cpu_ppc_store_tbu (CPUState *env, uint32_t value)
+void cpu_ppc_store_tbu (CPUPPCState *env, uint32_t value)
 {
     _cpu_ppc_store_tbu(env, value);
 }
 
-uint64_t cpu_ppc_load_atbl (CPUState *env)
+uint64_t cpu_ppc_load_atbl (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -511,7 +502,7 @@ uint64_t cpu_ppc_load_atbl (CPUState *env)
     return tb;
 }
 
-uint32_t cpu_ppc_load_atbu (CPUState *env)
+uint32_t cpu_ppc_load_atbu (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -522,7 +513,7 @@ uint32_t cpu_ppc_load_atbu (CPUState *env)
     return tb >> 32;
 }
 
-void cpu_ppc_store_atbl (CPUState *env, uint32_t value)
+void cpu_ppc_store_atbl (CPUPPCState *env, uint32_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -533,7 +524,7 @@ void cpu_ppc_store_atbl (CPUState *env, uint32_t value)
                      &tb_env->atb_offset, tb | (uint64_t)value);
 }
 
-void cpu_ppc_store_atbu (CPUState *env, uint32_t value)
+void cpu_ppc_store_atbu (CPUPPCState *env, uint32_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb;
@@ -544,7 +535,7 @@ void cpu_ppc_store_atbu (CPUState *env, uint32_t value)
                      &tb_env->atb_offset, ((uint64_t)value << 32) | tb);
 }
 
-static void cpu_ppc_tb_stop (CPUState *env)
+static void cpu_ppc_tb_stop (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb, atb, vmclk;
@@ -566,7 +557,7 @@ static void cpu_ppc_tb_stop (CPUState *env)
     }
 }
 
-static void cpu_ppc_tb_start (CPUState *env)
+static void cpu_ppc_tb_start (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t tb, atb, vmclk;
@@ -587,7 +578,7 @@ static void cpu_ppc_tb_start (CPUState *env)
     }
 }
 
-static inline uint32_t _cpu_ppc_load_decr(CPUState *env, uint64_t next)
+static inline uint32_t _cpu_ppc_load_decr(CPUPPCState *env, uint64_t next)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint32_t decr;
@@ -606,7 +597,7 @@ static inline uint32_t _cpu_ppc_load_decr(CPUState *env, uint64_t next)
     return decr;
 }
 
-uint32_t cpu_ppc_load_decr (CPUState *env)
+uint32_t cpu_ppc_load_decr (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
@@ -617,14 +608,14 @@ uint32_t cpu_ppc_load_decr (CPUState *env)
     return _cpu_ppc_load_decr(env, tb_env->decr_next);
 }
 
-uint32_t cpu_ppc_load_hdecr (CPUState *env)
+uint32_t cpu_ppc_load_hdecr (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
     return _cpu_ppc_load_decr(env, tb_env->hdecr_next);
 }
 
-uint64_t cpu_ppc_load_purr (CPUState *env)
+uint64_t cpu_ppc_load_purr (CPUPPCState *env)
 {
     ppc_tb_t *tb_env = env->tb_env;
     uint64_t diff;
@@ -637,23 +628,23 @@ uint64_t cpu_ppc_load_purr (CPUState *env)
 /* When decrementer expires,
  * all we need to do is generate or queue a CPU exception
  */
-static inline void cpu_ppc_decr_excp(CPUState *env)
+static inline void cpu_ppc_decr_excp(CPUPPCState *env)
 {
     /* Raise it */
     LOG_TB("raise decrementer exception\n");
     ppc_set_irq(env, PPC_INTERRUPT_DECR, 1);
 }
 
-static inline void cpu_ppc_hdecr_excp(CPUState *env)
+static inline void cpu_ppc_hdecr_excp(CPUPPCState *env)
 {
     /* Raise it */
     LOG_TB("raise decrementer exception\n");
     ppc_set_irq(env, PPC_INTERRUPT_HDECR, 1);
 }
 
-static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
+static void __cpu_ppc_store_decr (CPUPPCState *env, uint64_t *nextp,
                                   struct QEMUTimer *timer,
-                                  void (*raise_excp)(CPUState *),
+                                  void (*raise_excp)(CPUPPCState *),
                                   uint32_t decr, uint32_t value,
                                   int is_excp)
 {
@@ -690,7 +681,7 @@ static void __cpu_ppc_store_decr (CPUState *env, uint64_t *nextp,
     }
 }
 
-static inline void _cpu_ppc_store_decr(CPUState *env, uint32_t decr,
+static inline void _cpu_ppc_store_decr(CPUPPCState *env, uint32_t decr,
                                        uint32_t value, int is_excp)
 {
     ppc_tb_t *tb_env = env->tb_env;
@@ -699,7 +690,7 @@ static inline void _cpu_ppc_store_decr(CPUState *env, uint32_t decr,
                          &cpu_ppc_decr_excp, decr, value, is_excp);
 }
 
-void cpu_ppc_store_decr (CPUState *env, uint32_t value)
+void cpu_ppc_store_decr (CPUPPCState *env, uint32_t value)
 {
     _cpu_ppc_store_decr(env, cpu_ppc_load_decr(env), value, 0);
 }
@@ -709,7 +700,7 @@ static void cpu_ppc_decr_cb (void *opaque)
     _cpu_ppc_store_decr(opaque, 0x00000000, 0xFFFFFFFF, 1);
 }
 
-static inline void _cpu_ppc_store_hdecr(CPUState *env, uint32_t hdecr,
+static inline void _cpu_ppc_store_hdecr(CPUPPCState *env, uint32_t hdecr,
                                         uint32_t value, int is_excp)
 {
     ppc_tb_t *tb_env = env->tb_env;
@@ -720,7 +711,7 @@ static inline void _cpu_ppc_store_hdecr(CPUState *env, uint32_t hdecr,
     }
 }
 
-void cpu_ppc_store_hdecr (CPUState *env, uint32_t value)
+void cpu_ppc_store_hdecr (CPUPPCState *env, uint32_t value)
 {
     _cpu_ppc_store_hdecr(env, cpu_ppc_load_hdecr(env), value, 0);
 }
@@ -730,7 +721,7 @@ static void cpu_ppc_hdecr_cb (void *opaque)
     _cpu_ppc_store_hdecr(opaque, 0x00000000, 0xFFFFFFFF, 1);
 }
 
-void cpu_ppc_store_purr (CPUState *env, uint64_t value)
+void cpu_ppc_store_purr (CPUPPCState *env, uint64_t value)
 {
     ppc_tb_t *tb_env = env->tb_env;
 
@@ -740,7 +731,7 @@ void cpu_ppc_store_purr (CPUState *env, uint64_t value)
 
 static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
     ppc_tb_t *tb_env = env->tb_env;
 
     tb_env->tb_freq = freq;
@@ -755,7 +746,7 @@ static void cpu_ppc_set_tb_clk (void *opaque, uint32_t freq)
 }
 
 /* Set up (once) timebase frequency (in Hz) */
-clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq)
+clk_setup_cb cpu_ppc_tb_init (CPUPPCState *env, uint32_t freq)
 {
     ppc_tb_t *tb_env;
 
@@ -778,28 +769,28 @@ clk_setup_cb cpu_ppc_tb_init (CPUState *env, uint32_t freq)
 
 /* Specific helpers for POWER & PowerPC 601 RTC */
 #if 0
-static clk_setup_cb cpu_ppc601_rtc_init (CPUState *env)
+static clk_setup_cb cpu_ppc601_rtc_init (CPUPPCState *env)
 {
     return cpu_ppc_tb_init(env, 7812500);
 }
 #endif
 
-void cpu_ppc601_store_rtcu (CPUState *env, uint32_t value)
+void cpu_ppc601_store_rtcu (CPUPPCState *env, uint32_t value)
 {
     _cpu_ppc_store_tbu(env, value);
 }
 
-uint32_t cpu_ppc601_load_rtcu (CPUState *env)
+uint32_t cpu_ppc601_load_rtcu (CPUPPCState *env)
 {
     return _cpu_ppc_load_tbu(env);
 }
 
-void cpu_ppc601_store_rtcl (CPUState *env, uint32_t value)
+void cpu_ppc601_store_rtcl (CPUPPCState *env, uint32_t value)
 {
     cpu_ppc_store_tbl(env, value & 0x3FFFFF80);
 }
 
-uint32_t cpu_ppc601_load_rtcl (CPUState *env)
+uint32_t cpu_ppc601_load_rtcl (CPUPPCState *env)
 {
     return cpu_ppc_load_tbl(env) & 0x3FFFFF80;
 }
@@ -823,7 +814,7 @@ struct ppc40x_timer_t {
 /* Fixed interval timer */
 static void cpu_4xx_fit_cb (void *opaque)
 {
-    CPUState *env;
+    CPUPPCState *env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
@@ -862,7 +853,7 @@ static void cpu_4xx_fit_cb (void *opaque)
 }
 
 /* Programmable interval timer */
-static void start_stop_pit (CPUState *env, ppc_tb_t *tb_env, int is_excp)
+static void start_stop_pit (CPUPPCState *env, ppc_tb_t *tb_env, int is_excp)
 {
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
@@ -891,7 +882,7 @@ static void start_stop_pit (CPUState *env, ppc_tb_t *tb_env, int is_excp)
 
 static void cpu_4xx_pit_cb (void *opaque)
 {
-    CPUState *env;
+    CPUPPCState *env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
 
@@ -913,7 +904,7 @@ static void cpu_4xx_pit_cb (void *opaque)
 /* Watchdog timer */
 static void cpu_4xx_wdt_cb (void *opaque)
 {
-    CPUState *env;
+    CPUPPCState *env;
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
     uint64_t now, next;
@@ -978,7 +969,7 @@ static void cpu_4xx_wdt_cb (void *opaque)
     }
 }
 
-void store_40x_pit (CPUState *env, target_ulong val)
+void store_40x_pit (CPUPPCState *env, target_ulong val)
 {
     ppc_tb_t *tb_env;
     ppc40x_timer_t *ppc40x_timer;
@@ -990,14 +981,14 @@ void store_40x_pit (CPUState *env, target_ulong val)
     start_stop_pit(env, tb_env, 0);
 }
 
-target_ulong load_40x_pit (CPUState *env)
+target_ulong load_40x_pit (CPUPPCState *env)
 {
     return cpu_ppc_load_decr(env);
 }
 
 static void ppc_40x_set_tb_clk (void *opaque, uint32_t freq)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
     ppc_tb_t *tb_env = env->tb_env;
 
     LOG_TB("%s set new frequency to %" PRIu32 "\n", __func__,
@@ -1007,7 +998,7 @@ static void ppc_40x_set_tb_clk (void *opaque, uint32_t freq)
     /* XXX: we should also update all timers */
 }
 
-clk_setup_cb ppc_40x_timers_init (CPUState *env, uint32_t freq,
+clk_setup_cb ppc_40x_timers_init (CPUPPCState *env, uint32_t freq,
                                   unsigned int decr_excp)
 {
     ppc_tb_t *tb_env;
@@ -1093,7 +1084,7 @@ int ppc_dcr_write (ppc_dcr_t *dcr_env, int dcrn, uint32_t val)
     return -1;
 }
 
-int ppc_dcr_register (CPUState *env, int dcrn, void *opaque,
+int ppc_dcr_register (CPUPPCState *env, int dcrn, void *opaque,
                       dcr_read_cb dcr_read, dcr_write_cb dcr_write)
 {
     ppc_dcr_t *dcr_env;
@@ -1116,7 +1107,7 @@ int ppc_dcr_register (CPUState *env, int dcrn, void *opaque,
     return 0;
 }
 
-int ppc_dcr_init (CPUState *env, int (*read_error)(int dcrn),
+int ppc_dcr_init (CPUPPCState *env, int (*read_error)(int dcrn),
                   int (*write_error)(int dcrn))
 {
     ppc_dcr_t *dcr_env;

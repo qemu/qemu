@@ -28,7 +28,7 @@
 #include "pci.h"
 
 /* PowerPC 4xx core initialization */
-CPUState *ppc4xx_init (const char *cpu_model,
+CPUPPCState *ppc4xx_init (const char *cpu_model,
                        clk_setup_t *cpu_clk, clk_setup_t *tb_clk,
                        uint32_t sysclk);
 
@@ -38,7 +38,7 @@ enum {
     PPCUIC_OUTPUT_CINT = 1,
     PPCUIC_OUTPUT_NB,
 };
-qemu_irq *ppcuic_init (CPUState *env, qemu_irq *irqs,
+qemu_irq *ppcuic_init (CPUPPCState *env, qemu_irq *irqs,
                        uint32_t dcr_base, int has_ssr, int has_vr);
 
 ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
@@ -47,13 +47,13 @@ ram_addr_t ppc4xx_sdram_adjust(ram_addr_t ram_size, int nr_banks,
                                target_phys_addr_t ram_sizes[],
                                const unsigned int sdram_bank_sizes[]);
 
-void ppc4xx_sdram_init (CPUState *env, qemu_irq irq, int nbanks,
+void ppc4xx_sdram_init (CPUPPCState *env, qemu_irq irq, int nbanks,
                         MemoryRegion ram_memories[],
                         target_phys_addr_t *ram_bases,
                         target_phys_addr_t *ram_sizes,
                         int do_init);
 
-PCIBus *ppc4xx_pci_init(CPUState *env, qemu_irq pci_irqs[4],
+PCIBus *ppc4xx_pci_init(CPUPPCState *env, qemu_irq pci_irqs[4],
                         target_phys_addr_t config_space,
                         target_phys_addr_t int_ack,
                         target_phys_addr_t special_cycle,

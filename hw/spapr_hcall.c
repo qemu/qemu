@@ -92,7 +92,7 @@ static target_ulong compute_tlbie_rb(target_ulong v, target_ulong r,
     return rb;
 }
 
-static target_ulong h_enter(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_enter(CPUPPCState *env, sPAPREnvironment *spapr,
                             target_ulong opcode, target_ulong *args)
 {
     target_ulong flags = args[0];
@@ -181,7 +181,7 @@ enum {
     REMOVE_HW = 3,
 };
 
-static target_ulong remove_hpte(CPUState *env, target_ulong ptex,
+static target_ulong remove_hpte(CPUPPCState *env, target_ulong ptex,
                                 target_ulong avpn,
                                 target_ulong flags,
                                 target_ulong *vp, target_ulong *rp)
@@ -219,7 +219,7 @@ static target_ulong remove_hpte(CPUState *env, target_ulong ptex,
     return REMOVE_SUCCESS;
 }
 
-static target_ulong h_remove(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_remove(CPUPPCState *env, sPAPREnvironment *spapr,
                              target_ulong opcode, target_ulong *args)
 {
     target_ulong flags = args[0];
@@ -265,7 +265,7 @@ static target_ulong h_remove(CPUState *env, sPAPREnvironment *spapr,
 
 #define H_BULK_REMOVE_MAX_BATCH        4
 
-static target_ulong h_bulk_remove(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_bulk_remove(CPUPPCState *env, sPAPREnvironment *spapr,
                                   target_ulong opcode, target_ulong *args)
 {
     int i;
@@ -311,7 +311,7 @@ static target_ulong h_bulk_remove(CPUState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_protect(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_protect(CPUPPCState *env, sPAPREnvironment *spapr,
                               target_ulong opcode, target_ulong *args)
 {
     target_ulong flags = args[0];
@@ -356,7 +356,7 @@ static target_ulong h_protect(CPUState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_set_dabr(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_set_dabr(CPUPPCState *env, sPAPREnvironment *spapr,
                                target_ulong opcode, target_ulong *args)
 {
     /* FIXME: actually implement this */
@@ -375,7 +375,7 @@ static target_ulong h_set_dabr(CPUState *env, sPAPREnvironment *spapr,
 #define VPA_SHARED_PROC_OFFSET 0x9
 #define VPA_SHARED_PROC_VAL    0x2
 
-static target_ulong register_vpa(CPUState *env, target_ulong vpa)
+static target_ulong register_vpa(CPUPPCState *env, target_ulong vpa)
 {
     uint16_t size;
     uint8_t tmp;
@@ -410,7 +410,7 @@ static target_ulong register_vpa(CPUState *env, target_ulong vpa)
     return H_SUCCESS;
 }
 
-static target_ulong deregister_vpa(CPUState *env, target_ulong vpa)
+static target_ulong deregister_vpa(CPUPPCState *env, target_ulong vpa)
 {
     if (env->slb_shadow) {
         return H_RESOURCE;
@@ -424,7 +424,7 @@ static target_ulong deregister_vpa(CPUState *env, target_ulong vpa)
     return H_SUCCESS;
 }
 
-static target_ulong register_slb_shadow(CPUState *env, target_ulong addr)
+static target_ulong register_slb_shadow(CPUPPCState *env, target_ulong addr)
 {
     uint32_t size;
 
@@ -451,13 +451,13 @@ static target_ulong register_slb_shadow(CPUState *env, target_ulong addr)
     return H_SUCCESS;
 }
 
-static target_ulong deregister_slb_shadow(CPUState *env, target_ulong addr)
+static target_ulong deregister_slb_shadow(CPUPPCState *env, target_ulong addr)
 {
     env->slb_shadow = 0;
     return H_SUCCESS;
 }
 
-static target_ulong register_dtl(CPUState *env, target_ulong addr)
+static target_ulong register_dtl(CPUPPCState *env, target_ulong addr)
 {
     uint32_t size;
 
@@ -482,7 +482,7 @@ static target_ulong register_dtl(CPUState *env, target_ulong addr)
     return H_SUCCESS;
 }
 
-static target_ulong deregister_dtl(CPUState *emv, target_ulong addr)
+static target_ulong deregister_dtl(CPUPPCState *emv, target_ulong addr)
 {
     env->dispatch_trace_log = 0;
     env->dtl_size = 0;
@@ -490,14 +490,14 @@ static target_ulong deregister_dtl(CPUState *emv, target_ulong addr)
     return H_SUCCESS;
 }
 
-static target_ulong h_register_vpa(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_register_vpa(CPUPPCState *env, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     target_ulong flags = args[0];
     target_ulong procno = args[1];
     target_ulong vpa = args[2];
     target_ulong ret = H_PARAMETER;
-    CPUState *tenv;
+    CPUPPCState *tenv;
 
     for (tenv = first_cpu; tenv; tenv = tenv->next_cpu) {
         if (tenv->cpu_index == procno) {
@@ -538,7 +538,7 @@ static target_ulong h_register_vpa(CPUState *env, sPAPREnvironment *spapr,
     return ret;
 }
 
-static target_ulong h_cede(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_cede(CPUPPCState *env, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     env->msr |= (1ULL << MSR_EE);
@@ -549,7 +549,7 @@ static target_ulong h_cede(CPUState *env, sPAPREnvironment *spapr,
     return H_SUCCESS;
 }
 
-static target_ulong h_rtas(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_rtas(CPUPPCState *env, sPAPREnvironment *spapr,
                            target_ulong opcode, target_ulong *args)
 {
     target_ulong rtas_r3 = args[0];
@@ -561,7 +561,7 @@ static target_ulong h_rtas(CPUState *env, sPAPREnvironment *spapr,
                            nret, rtas_r3 + 12 + 4*nargs);
 }
 
-static target_ulong h_logical_load(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_logical_load(CPUPPCState *env, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     target_ulong size = args[0];
@@ -584,7 +584,7 @@ static target_ulong h_logical_load(CPUState *env, sPAPREnvironment *spapr,
     return H_PARAMETER;
 }
 
-static target_ulong h_logical_store(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_logical_store(CPUPPCState *env, sPAPREnvironment *spapr,
                                     target_ulong opcode, target_ulong *args)
 {
     target_ulong size = args[0];
@@ -608,14 +608,14 @@ static target_ulong h_logical_store(CPUState *env, sPAPREnvironment *spapr,
     return H_PARAMETER;
 }
 
-static target_ulong h_logical_icbi(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_logical_icbi(CPUPPCState *env, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     /* Nothing to do on emulation, KVM will trap this in the kernel */
     return H_SUCCESS;
 }
 
-static target_ulong h_logical_dcbf(CPUState *env, sPAPREnvironment *spapr,
+static target_ulong h_logical_dcbf(CPUPPCState *env, sPAPREnvironment *spapr,
                                    target_ulong opcode, target_ulong *args)
 {
     /* Nothing to do on emulation, KVM will trap this in the kernel */
@@ -644,7 +644,7 @@ void spapr_register_hypercall(target_ulong opcode, spapr_hcall_fn fn)
     *slot = fn;
 }
 
-target_ulong spapr_hypercall(CPUState *env, target_ulong opcode,
+target_ulong spapr_hypercall(CPUPPCState *env, target_ulong opcode,
                              target_ulong *args)
 {
     if (msr_pr) {

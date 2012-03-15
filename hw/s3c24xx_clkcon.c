@@ -39,7 +39,7 @@
 /* Clock controller state */
 struct s3c24xx_clkcon_state_s {
     MemoryRegion mmio;
-    CPUState *cpu_env;
+    CPUARMState *cpu_env;
     uint32_t ref_freq; /* frequency of reference xtal or extclock */
     uint32_t clkcon_reg[7];
 };

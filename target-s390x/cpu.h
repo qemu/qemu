@@ -26,7 +26,7 @@
 
 #define ELF_MACHINE	EM_S390
 
-#define CPUState struct CPUS390XState
+#define CPUArchState struct CPUS390XState
 
 #include "cpu-defs.h"
 #define TARGET_PAGE_BITS 12
@@ -106,7 +106,7 @@ typedef struct CPUS390XState {
 } CPUS390XState;
 
 #if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPUS390XState *env, target_ulong newsp)
 {
     if (newsp) {
         env->regs[15] = newsp;
@@ -233,7 +233,7 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 #define FLAG_MASK_64            (PSW_MASK_64     >> 32)
 #define FLAG_MASK_32            0x00001000
 
-static inline int cpu_mmu_index (CPUState *env)
+static inline int cpu_mmu_index (CPUS390XState *env)
 {
     if (env->psw.mask & PSW_MASK_PSTATE) {
         return 1;
@@ -242,7 +242,7 @@ static inline int cpu_mmu_index (CPUState *env)
     return 0;
 }
 
-static inline void cpu_get_tb_cpu_state(CPUState* env, target_ulong *pc,
+static inline void cpu_get_tb_cpu_state(CPUS390XState* env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
     *pc = env->psw.addr;
@@ -275,7 +275,7 @@ CPUS390XState *cpu_s390x_init(const char *cpu_model);
 void s390x_translate_init(void);
 int cpu_s390x_exec(CPUS390XState *s);
 void cpu_s390x_close(CPUS390XState *s);
-void do_interrupt (CPUState *env);
+void do_interrupt (CPUS390XState *env);
 
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
@@ -288,42 +288,42 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 
 
 #ifndef CONFIG_USER_ONLY
-int s390_virtio_hypercall(CPUState *env, uint64_t mem, uint64_t hypercall);
+int s390_virtio_hypercall(CPUS390XState *env, uint64_t mem, uint64_t hypercall);
 
 #ifdef CONFIG_KVM
-void kvm_s390_interrupt(CPUState *env, int type, uint32_t code);
-void kvm_s390_virtio_irq(CPUState *env, int config_change, uint64_t token);
-void kvm_s390_interrupt_internal(CPUState *env, int type, uint32_t parm,
+void kvm_s390_interrupt(CPUS390XState *env, int type, uint32_t code);
+void kvm_s390_virtio_irq(CPUS390XState *env, int config_change, uint64_t token);
+void kvm_s390_interrupt_internal(CPUS390XState *env, int type, uint32_t parm,
                                  uint64_t parm64, int vm);
 #else
-static inline void kvm_s390_interrupt(CPUState *env, int type, uint32_t code)
+static inline void kvm_s390_interrupt(CPUS390XState *env, int type, uint32_t code)
 {
 }
 
-static inline void kvm_s390_virtio_irq(CPUState *env, int config_change,
+static inline void kvm_s390_virtio_irq(CPUS390XState *env, int config_change,
                                        uint64_t token)
 {
 }
 
-static inline void kvm_s390_interrupt_internal(CPUState *env, int type,
+static inline void kvm_s390_interrupt_internal(CPUS390XState *env, int type,
                                                uint32_t parm, uint64_t parm64,
                                                int vm)
 {
 }
 #endif
-CPUState *s390_cpu_addr2state(uint16_t cpu_addr);
-void s390_add_running_cpu(CPUState *env);
-unsigned s390_del_running_cpu(CPUState *env);
+CPUS390XState *s390_cpu_addr2state(uint16_t cpu_addr);
+void s390_add_running_cpu(CPUS390XState *env);
+unsigned s390_del_running_cpu(CPUS390XState *env);
 
 /* from s390-virtio-bus */
 extern const target_phys_addr_t virtio_size;
 
 #else
-static inline void s390_add_running_cpu(CPUState *env)
+static inline void s390_add_running_cpu(CPUS390XState *env)
 {
 }
 
-static inline unsigned s390_del_running_cpu(CPUState *env)
+static inline unsigned s390_del_running_cpu(CPUS390XState *env)
 {
     return 0;
 }
@@ -944,11 +944,11 @@ static inline void ebcdic_put(uint8_t *p, const char *ascii, int len)
 #define SIGP_STAT_INVALID_ORDER     0x00000002UL
 #define SIGP_STAT_RECEIVER_CHECK    0x00000001UL
 
-void load_psw(CPUState *env, uint64_t mask, uint64_t addr);
-int mmu_translate(CPUState *env, target_ulong vaddr, int rw, uint64_t asc,
+void load_psw(CPUS390XState *env, uint64_t mask, uint64_t addr);
+int mmu_translate(CPUS390XState *env, target_ulong vaddr, int rw, uint64_t asc,
                   target_ulong *raddr, int *flags);
-int sclp_service_call(CPUState *env, uint32_t sccb, uint64_t code);
-uint32_t calc_cc(CPUState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
+int sclp_service_call(CPUS390XState *env, uint32_t sccb, uint64_t code);
+uint32_t calc_cc(CPUS390XState *env, uint32_t cc_op, uint64_t src, uint64_t dst,
                  uint64_t vr);
 
 #define TARGET_HAS_ICE 1
@@ -961,7 +961,7 @@ static inline uint64_t time2tod(uint64_t ns) {
     return (ns << 9) / 125;
 }
 
-static inline void cpu_inject_ext(CPUState *env, uint32_t code, uint32_t param,
+static inline void cpu_inject_ext(CPUS390XState *env, uint32_t code, uint32_t param,
                                   uint64_t param64)
 {
     if (env->ext_index == MAX_EXT_QUEUE - 1) {
@@ -980,13 +980,13 @@ static inline void cpu_inject_ext(CPUState *env, uint32_t code, uint32_t param,
     cpu_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
-static inline bool cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUS390XState *env)
 {
     return (env->interrupt_request & CPU_INTERRUPT_HARD) &&
         (env->psw.mask & PSW_MASK_EXT);
 }
 
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock* tb)
+static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
 {
     env->psw.addr = tb->pc;
 }

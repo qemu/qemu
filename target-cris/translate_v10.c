@@ -1253,47 +1253,47 @@ static unsigned int crisv10_decoder(DisasContext *dc)
     return insn_len;
 }
 
-static CPUCRISState *cpu_crisv10_init (CPUState *env)
+static CPUCRISState *cpu_crisv10_init (CPUCRISState *env)
 {
 	int i;
 
 	cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
 	cc_x = tcg_global_mem_new(TCG_AREG0,
-				  offsetof(CPUState, cc_x), "cc_x");
+				  offsetof(CPUCRISState, cc_x), "cc_x");
 	cc_src = tcg_global_mem_new(TCG_AREG0,
-				    offsetof(CPUState, cc_src), "cc_src");
+				    offsetof(CPUCRISState, cc_src), "cc_src");
 	cc_dest = tcg_global_mem_new(TCG_AREG0,
-				     offsetof(CPUState, cc_dest),
+				     offsetof(CPUCRISState, cc_dest),
 				     "cc_dest");
 	cc_result = tcg_global_mem_new(TCG_AREG0,
-				       offsetof(CPUState, cc_result),
+				       offsetof(CPUCRISState, cc_result),
 				       "cc_result");
 	cc_op = tcg_global_mem_new(TCG_AREG0,
-				   offsetof(CPUState, cc_op), "cc_op");
+				   offsetof(CPUCRISState, cc_op), "cc_op");
 	cc_size = tcg_global_mem_new(TCG_AREG0,
-				     offsetof(CPUState, cc_size),
+				     offsetof(CPUCRISState, cc_size),
 				     "cc_size");
 	cc_mask = tcg_global_mem_new(TCG_AREG0,
-				     offsetof(CPUState, cc_mask),
+				     offsetof(CPUCRISState, cc_mask),
 				     "cc_mask");
 
 	env_pc = tcg_global_mem_new(TCG_AREG0, 
-				    offsetof(CPUState, pc),
+				    offsetof(CPUCRISState, pc),
 				    "pc");
 	env_btarget = tcg_global_mem_new(TCG_AREG0,
-					 offsetof(CPUState, btarget),
+					 offsetof(CPUCRISState, btarget),
 					 "btarget");
 	env_btaken = tcg_global_mem_new(TCG_AREG0,
-					 offsetof(CPUState, btaken),
+					 offsetof(CPUCRISState, btaken),
 					 "btaken");
 	for (i = 0; i < 16; i++) {
 		cpu_R[i] = tcg_global_mem_new(TCG_AREG0,
-					      offsetof(CPUState, regs[i]),
+					      offsetof(CPUCRISState, regs[i]),
 					      regnames_v10[i]);
 	}
 	for (i = 0; i < 16; i++) {
 		cpu_PR[i] = tcg_global_mem_new(TCG_AREG0,
-					       offsetof(CPUState, pregs[i]),
+					       offsetof(CPUCRISState, pregs[i]),
 					       pregnames_v10[i]);
 	}
 

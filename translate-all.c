@@ -47,7 +47,7 @@ void cpu_gen_init(void)
    '*gen_code_size_ptr' contains the size of the generated code (host
    code).
 */
-int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
+int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 {
     TCGContext *s = &tcg_ctx;
     uint8_t *gen_code_buf;
@@ -105,7 +105,7 @@ int cpu_gen_code(CPUState *env, TranslationBlock *tb, int *gen_code_size_ptr)
 /* The cpu state corresponding to 'searched_pc' is restored.
  */
 int cpu_restore_state(TranslationBlock *tb,
-                      CPUState *env, uintptr_t searched_pc)
+                      CPUArchState *env, uintptr_t searched_pc)
 {
     TCGContext *s = &tcg_ctx;
     int j;

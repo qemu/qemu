@@ -56,7 +56,7 @@ static struct boot_info
 } boot_info;
 
 /* Create reset TLB entries for BookE, spanning the 32bit addr space.  */
-static void mmubooke_create_initial_mapping(CPUState *env,
+static void mmubooke_create_initial_mapping(CPUPPCState *env,
                                      target_ulong va,
                                      target_phys_addr_t pa)
 {
@@ -78,12 +78,12 @@ static void mmubooke_create_initial_mapping(CPUState *env,
     tlb->PID = 0;
 }
 
-static CPUState *ppc440_init_xilinx(ram_addr_t *ram_size,
+static CPUPPCState *ppc440_init_xilinx(ram_addr_t *ram_size,
                                     int do_init,
                                     const char *cpu_model,
                                     uint32_t sysclk)
 {
-    CPUState *env;
+    CPUPPCState *env;
     qemu_irq *irqs;
 
     env = cpu_init(cpu_model);
@@ -106,10 +106,10 @@ static CPUState *ppc440_init_xilinx(ram_addr_t *ram_size,
 
 static void main_cpu_reset(void *opaque)
 {
-    CPUState *env = opaque;
+    CPUPPCState *env = opaque;
     struct boot_info *bi = env->load_info;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
     /* Linux Kernel Parameters (passing device tree):
        *   r3: pointer to the fdt
        *   r4: 0
@@ -188,7 +188,7 @@ static void virtex_init(ram_addr_t ram_size,
 {
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev;
-    CPUState *env;
+    CPUPPCState *env;
     target_phys_addr_t ram_base = 0;
     DriveInfo *dinfo;
     MemoryRegion *phys_ram = g_new(MemoryRegion, 1);

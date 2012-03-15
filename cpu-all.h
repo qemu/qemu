@@ -321,20 +321,20 @@ void page_set_flags(target_ulong start, target_ulong end, int flags);
 int page_check_range(target_ulong start, target_ulong len, int flags);
 #endif
 
-CPUState *cpu_copy(CPUState *env);
-CPUState *qemu_get_cpu(int cpu);
+CPUArchState *cpu_copy(CPUArchState *env);
+CPUArchState *qemu_get_cpu(int cpu);
 
 #define CPU_DUMP_CODE 0x00010000
 
-void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_state(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags);
-void cpu_dump_statistics(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_statistics(CPUArchState *env, FILE *f, fprintf_function cpu_fprintf,
                          int flags);
 
-void QEMU_NORETURN cpu_abort(CPUState *env, const char *fmt, ...)
+void QEMU_NORETURN cpu_abort(CPUArchState *env, const char *fmt, ...)
     GCC_FMT_ATTR(2, 3);
-extern CPUState *first_cpu;
-DECLARE_TLS(CPUState *,cpu_single_env);
+extern CPUArchState *first_cpu;
+DECLARE_TLS(CPUArchState *,cpu_single_env);
 #define cpu_single_env tls_var(cpu_single_env)
 
 /* Flags for use in ENV->INTERRUPT_PENDING.
@@ -388,23 +388,23 @@ DECLARE_TLS(CPUState *,cpu_single_env);
      | CPU_INTERRUPT_TGT_EXT_4)
 
 #ifndef CONFIG_USER_ONLY
-typedef void (*CPUInterruptHandler)(CPUState *, int);
+typedef void (*CPUInterruptHandler)(CPUArchState *, int);
 
 extern CPUInterruptHandler cpu_interrupt_handler;
 
-static inline void cpu_interrupt(CPUState *s, int mask)
+static inline void cpu_interrupt(CPUArchState *s, int mask)
 {
     cpu_interrupt_handler(s, mask);
 }
 #else /* USER_ONLY */
-void cpu_interrupt(CPUState *env, int mask);
+void cpu_interrupt(CPUArchState *env, int mask);
 #endif /* USER_ONLY */
 
-void cpu_reset_interrupt(CPUState *env, int mask);
+void cpu_reset_interrupt(CPUArchState *env, int mask);
 
-void cpu_exit(CPUState *s);
+void cpu_exit(CPUArchState *s);
 
-bool qemu_cpu_has_work(CPUState *env);
+bool qemu_cpu_has_work(CPUArchState *env);
 
 /* Breakpoint/watchpoint flags */
 #define BP_MEM_READ           0x01
@@ -415,26 +415,26 @@ bool qemu_cpu_has_work(CPUState *env);
 #define BP_GDB                0x10
 #define BP_CPU                0x20
 
-int cpu_breakpoint_insert(CPUState *env, target_ulong pc, int flags,
+int cpu_breakpoint_insert(CPUArchState *env, target_ulong pc, int flags,
                           CPUBreakpoint **breakpoint);
-int cpu_breakpoint_remove(CPUState *env, target_ulong pc, int flags);
-void cpu_breakpoint_remove_by_ref(CPUState *env, CPUBreakpoint *breakpoint);
-void cpu_breakpoint_remove_all(CPUState *env, int mask);
-int cpu_watchpoint_insert(CPUState *env, target_ulong addr, target_ulong len,
+int cpu_breakpoint_remove(CPUArchState *env, target_ulong pc, int flags);
+void cpu_breakpoint_remove_by_ref(CPUArchState *env, CPUBreakpoint *breakpoint);
+void cpu_breakpoint_remove_all(CPUArchState *env, int mask);
+int cpu_watchpoint_insert(CPUArchState *env, target_ulong addr, target_ulong len,
                           int flags, CPUWatchpoint **watchpoint);
-int cpu_watchpoint_remove(CPUState *env, target_ulong addr,
+int cpu_watchpoint_remove(CPUArchState *env, target_ulong addr,
                           target_ulong len, int flags);
-void cpu_watchpoint_remove_by_ref(CPUState *env, CPUWatchpoint *watchpoint);
-void cpu_watchpoint_remove_all(CPUState *env, int mask);
+void cpu_watchpoint_remove_by_ref(CPUArchState *env, CPUWatchpoint *watchpoint);
+void cpu_watchpoint_remove_all(CPUArchState *env, int mask);
 
 #define SSTEP_ENABLE  0x1  /* Enable simulated HW single stepping */
 #define SSTEP_NOIRQ   0x2  /* Do not use IRQ while single stepping */
 #define SSTEP_NOTIMER 0x4  /* Do not Timers while single stepping */
 
-void cpu_single_step(CPUState *env, int enabled);
-void cpu_reset(CPUState *s);
-int cpu_is_stopped(CPUState *env);
-void run_on_cpu(CPUState *env, void (*func)(void *data), void *data);
+void cpu_single_step(CPUArchState *env, int enabled);
+void cpu_state_reset(CPUArchState *s);
+int cpu_is_stopped(CPUArchState *env);
+void run_on_cpu(CPUArchState *env, void (*func)(void *data), void *data);
 
 #define CPU_LOG_TB_OUT_ASM (1 << 0)
 #define CPU_LOG_TB_IN_ASM  (1 << 1)
@@ -465,7 +465,7 @@ int cpu_str_to_log_mask(const char *str);
 /* Return the physical page corresponding to a virtual one. Use it
    only for debugging because no protection checks are done. Return -1
    if no page found. */
-target_phys_addr_t cpu_get_phys_page_debug(CPUState *env, target_ulong addr);
+target_phys_addr_t cpu_get_phys_page_debug(CPUArchState *env, target_ulong addr);
 
 /* memory API */
 
@@ -507,12 +507,12 @@ extern int mem_prealloc;
 /* Set if TLB entry is an IO callback.  */
 #define TLB_MMIO        (1 << 5)
 
-void cpu_tlb_update_dirty(CPUState *env);
+void cpu_tlb_update_dirty(CPUArchState *env);
 
 void dump_exec_info(FILE *f, fprintf_function cpu_fprintf);
 #endif /* !CONFIG_USER_ONLY */
 
-int cpu_memory_rw_debug(CPUState *env, target_ulong addr,
+int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
                         uint8_t *buf, int len, int is_write);
 
 #endif /* CPU_ALL_H */

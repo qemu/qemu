@@ -23,7 +23,7 @@
 
 static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
 
-void cpu_reset(CPUSPARCState *env)
+void cpu_state_reset(CPUSPARCState *env)
 {
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
@@ -780,7 +780,7 @@ static void cpu_print_cc(FILE *f, fprintf_function cpu_fprintf,
 #define REGS_PER_LINE 8
 #endif
 
-void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
     int i, x;

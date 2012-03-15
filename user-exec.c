@@ -38,7 +38,7 @@
 
 //#define DEBUG_SIGNAL
 
-static void exception_action(CPUState *env1)
+static void exception_action(CPUArchState *env1)
 {
 #if defined(TARGET_I386)
     raise_exception_err_env(env1, env1->exception_index, env1->error_code);
@@ -50,7 +50,7 @@ static void exception_action(CPUState *env1)
 /* exit the current TB from a signal handler. The host registers are
    restored in a state compatible with the CPU emulator
  */
-void cpu_resume_from_signal(CPUState *env1, void *puc)
+void cpu_resume_from_signal(CPUArchState *env1, void *puc)
 {
 #ifdef __linux__
     struct ucontext *uc = puc;

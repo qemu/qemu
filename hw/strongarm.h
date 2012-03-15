@@ -53,7 +53,7 @@ enum {
 };
 
 typedef struct {
-    CPUState *env;
+    CPUARMState *env;
     MemoryRegion sdram;
     DeviceState *pic;
     DeviceState *gpio;

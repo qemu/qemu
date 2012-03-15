@@ -24,11 +24,12 @@
 
 #define TARGET_LONG_BITS 32
 
-#define CPUState struct CPUMBState
+#define CPUArchState struct CPUMBState
 
 #include "cpu-defs.h"
 #include "softfloat.h"
 struct CPUMBState;
+typedef struct CPUMBState CPUMBState;
 #if !defined(CONFIG_USER_ONLY)
 #include "mmu.h"
 #endif
@@ -229,7 +230,7 @@ struct CPUMBState;
 #define STREAM_CONTROL   (1 << 3)
 #define STREAM_NONBLOCK  (1 << 4)
 
-typedef struct CPUMBState {
+struct CPUMBState {
     uint32_t debug;
     uint32_t btaken;
     uint32_t btarget;
@@ -249,7 +250,7 @@ typedef struct CPUMBState {
 #define DRTE_FLAG	(1 << 17)
 #define DRTB_FLAG	(1 << 18)
 #define D_FLAG		(1 << 19)  /* Bit in ESR.  */
-/* TB dependent CPUState.  */
+/* TB dependent CPUMBState.  */
 #define IFLAGS_TB_MASK  (D_FLAG | IMM_FLAG | DRTI_FLAG | DRTE_FLAG | DRTB_FLAG)
     uint32_t iflags;
 
@@ -263,12 +264,12 @@ typedef struct CPUMBState {
 #endif
 
     CPU_COMMON
-} CPUMBState;
+};
 
-CPUState *cpu_mb_init(const char *cpu_model);
-int cpu_mb_exec(CPUState *s);
-void cpu_mb_close(CPUState *s);
-void do_interrupt(CPUState *env);
+CPUMBState *cpu_mb_init(const char *cpu_model);
+int cpu_mb_exec(CPUMBState *s);
+void cpu_mb_close(CPUMBState *s);
+void do_interrupt(CPUMBState *env);
 /* you can call this signal handler from your SIGBUS and SIGSEGV
    signal handlers to inform the virtual CPU of exceptions. non zero
    is returned if the signal was handled by the virtual CPU.  */
@@ -304,7 +305,7 @@ enum {
 #define MMU_USER_IDX    2
 /* See NB_MMU_MODES further up the file.  */
 
-static inline int cpu_mmu_index (CPUState *env)
+static inline int cpu_mmu_index (CPUMBState *env)
 {
         /* Are we in nommu mode?.  */
         if (!(env->sregs[SR_MSR] & MSR_VM))
@@ -315,12 +316,12 @@ static inline int cpu_mmu_index (CPUState *env)
         return MMU_KERNEL_IDX;
 }
 
-int cpu_mb_handle_mmu_fault(CPUState *env, target_ulong address, int rw,
+int cpu_mb_handle_mmu_fault(CPUMBState *env, target_ulong address, int rw,
                             int mmu_idx);
 #define cpu_handle_mmu_fault cpu_mb_handle_mmu_fault
 
 #if defined(CONFIG_USER_ONLY)
-static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
+static inline void cpu_clone_regs(CPUMBState *env, target_ulong newsp)
 {
     if (newsp)
         env->regs[R_SP] = newsp;
@@ -328,23 +329,23 @@ static inline void cpu_clone_regs(CPUState *env, target_ulong newsp)
 }
 #endif
 
-static inline void cpu_set_tls(CPUState *env, target_ulong newtls)
+static inline void cpu_set_tls(CPUMBState *env, target_ulong newtls)
 {
 }
 
-static inline int cpu_interrupts_enabled(CPUState *env)
+static inline int cpu_interrupts_enabled(CPUMBState *env)
 {
     return env->sregs[SR_MSR] & MSR_IE;
 }
 
 #include "cpu-all.h"
 
-static inline target_ulong cpu_get_pc(CPUState *env)
+static inline target_ulong cpu_get_pc(CPUMBState *env)
 {
     return env->sregs[SR_PC];
 }
 
-static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
+static inline void cpu_get_tb_cpu_state(CPUMBState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
 {
     *pc = env->sregs[SR_PC];
@@ -354,18 +355,18 @@ static inline void cpu_get_tb_cpu_state(CPUState *env, target_ulong *pc,
 }
 
 #if !defined(CONFIG_USER_ONLY)
-void cpu_unassigned_access(CPUState *env1, target_phys_addr_t addr,
+void cpu_unassigned_access(CPUMBState *env1, target_phys_addr_t addr,
                            int is_write, int is_exec, int is_asi, int size);
 #endif
 
-static inline bool cpu_has_work(CPUState *env)
+static inline bool cpu_has_work(CPUMBState *env)
 {
     return env->interrupt_request & (CPU_INTERRUPT_HARD | CPU_INTERRUPT_NMI);
 }
 
 #include "exec-all.h"
 
-static inline void cpu_pc_from_tb(CPUState *env, TranslationBlock *tb)
+static inline void cpu_pc_from_tb(CPUMBState *env, TranslationBlock *tb)
 {
     env->sregs[SR_PC] = tb->pc;
 }

@@ -42,16 +42,16 @@
 #define MAX_PILS 16
 
 typedef struct ResetData {
-    CPUState *env;
+    CPUSPARCState *env;
     uint32_t  entry;            /* save kernel entry in case of reset */
 } ResetData;
 
 static void main_cpu_reset(void *opaque)
 {
     ResetData *s   = (ResetData *)opaque;
-    CPUState  *env = s->env;
+    CPUSPARCState  *env = s->env;
 
-    cpu_reset(env);
+    cpu_state_reset(env);
 
     env->halted = 0;
     env->pc     = s->entry;
@@ -65,7 +65,7 @@ void leon3_irq_ack(void *irq_manager, int intno)
 
 static void leon3_set_pil_in(void *opaque, uint32_t pil_in)
 {
-    CPUState *env = (CPUState *)opaque;
+    CPUSPARCState *env = (CPUSPARCState *)opaque;
 
     assert(env != NULL);
 
@@ -101,7 +101,7 @@ static void leon3_generic_hw_init(ram_addr_t  ram_size,
                                   const char *initrd_filename,
                                   const char *cpu_model)
 {
-    CPUState   *env;
+    CPUSPARCState   *env;
     MemoryRegion *address_space_mem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *prom = g_new(MemoryRegion, 1);

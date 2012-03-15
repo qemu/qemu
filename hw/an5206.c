@@ -24,7 +24,7 @@ static void an5206_init(ram_addr_t ram_size,
                      const char *kernel_filename, const char *kernel_cmdline,
                      const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env;
+    CPUM68KState *env;
     int kernel_size;
     uint64_t elf_entry;
     target_phys_addr_t entry;

@@ -21,7 +21,7 @@ typedef struct TyphoonCchip {
     uint64_t drir;
     uint64_t dim[4];
     uint32_t iic[4];
-    CPUState *cpu[4];
+    CPUAlphaState *cpu[4];
 } TyphoonCchip;
 
 typedef struct TyphoonWindow {
@@ -52,7 +52,7 @@ typedef struct TyphoonState {
 } TyphoonState;
 
 /* Called when one of DRIR or DIM changes.  */
-static void cpu_irq_change(CPUState *env, uint64_t req)
+static void cpu_irq_change(CPUAlphaState *env, uint64_t req)
 {
     /* If there are any non-masked interrupts, tell the cpu.  */
     if (env) {
@@ -66,7 +66,7 @@ static void cpu_irq_change(CPUState *env, uint64_t req)
 
 static uint64_t cchip_read(void *opaque, target_phys_addr_t addr, unsigned size)
 {
-    CPUState *env = cpu_single_env;
+    CPUAlphaState *env = cpu_single_env;
     TyphoonState *s = opaque;
     uint64_t ret = 0;
 
@@ -347,7 +347,7 @@ static void cchip_write(void *opaque, target_phys_addr_t addr,
         if ((newval ^ oldval) & 0xff0) {
             int i;
             for (i = 0; i < 4; ++i) {
-                CPUState *env = s->cchip.cpu[i];
+                CPUAlphaState *env = s->cchip.cpu[i];
                 if (env) {
                     /* IPI can be either cleared or set by the write.  */
                     if (newval & (1 << (i + 8))) {
@@ -655,7 +655,7 @@ static void typhoon_set_timer_irq(void *opaque, int irq, int level)
 
     /* Deliver the interrupt to each CPU, considering each CPU's IIC.  */
     for (i = 0; i < 4; ++i) {
-        CPUState *env = s->cchip.cpu[i];
+        CPUAlphaState *env = s->cchip.cpu[i];
         if (env) {
             uint32_t iic = s->cchip.iic[i];
 
@@ -693,7 +693,7 @@ static void typhoon_alarm_timer(void *opaque)
 
 PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
                      qemu_irq *p_rtc_irq,
-                     CPUState *cpus[4], pci_map_irq_fn sys_map_irq)
+                     CPUAlphaState *cpus[4], pci_map_irq_fn sys_map_irq)
 {
     const uint64_t MB = 1024 * 1024;
     const uint64_t GB = 1024 * MB;
@@ -713,7 +713,7 @@ PCIBus *typhoon_init(ram_addr_t ram_size, ISABus **isa_bus,
 
     /* Remember the CPUs so that we can deliver interrupts to them.  */
     for (i = 0; i < 4; i++) {
-        CPUState *env = cpus[i];
+        CPUAlphaState *env = cpus[i];
         s->cchip.cpu[i] = env;
         if (env) {
             env->alarm_timer = qemu_new_timer_ns(rtc_clock,

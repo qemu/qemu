@@ -35,7 +35,7 @@ static void syborg_init(ram_addr_t ram_size,
                         const char *kernel_filename, const char *kernel_cmdline,
                         const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env;
+    CPUARMState *env;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     qemu_irq *cpu_pic;

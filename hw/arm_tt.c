@@ -912,7 +912,7 @@ static void tt_init(ram_addr_t ram_size,
                const char *kernel_filename, const char *kernel_cmdline,
                const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env;
+    CPUARMState *env;
     TTState *s;
 #if 0
     qemu_irq *cpu_pic;

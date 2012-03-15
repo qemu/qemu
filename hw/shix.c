@@ -43,7 +43,7 @@ static void shix_init(ram_addr_t ram_size,
 	       const char *initrd_filename, const char *cpu_model)
 {
     int ret;
-    CPUState *env;
+    CPUSH4State *env;
     struct SH7750State *s;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *rom = g_new(MemoryRegion, 1);

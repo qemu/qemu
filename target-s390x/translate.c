@@ -74,7 +74,7 @@ static inline uint64_t pc_to_link_info(DisasContext *s, uint64_t pc)
     return pc;
 }
 
-void cpu_dump_state(CPUState *env, FILE *f, fprintf_function cpu_fprintf,
+void cpu_dump_state(CPUS390XState *env, FILE *f, fprintf_function cpu_fprintf,
                     int flags)
 {
     int i;
@@ -148,25 +148,25 @@ void s390x_translate_init(void)
     char *p;
 
     cpu_env = tcg_global_reg_new_ptr(TCG_AREG0, "env");
-    psw_addr = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUState, psw.addr),
+    psw_addr = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUS390XState, psw.addr),
                                       "psw_addr");
-    psw_mask = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUState, psw.mask),
+    psw_mask = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUS390XState, psw.mask),
                                       "psw_mask");
 
-    cc_op = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUState, cc_op),
+    cc_op = tcg_global_mem_new_i32(TCG_AREG0, offsetof(CPUS390XState, cc_op),
                                    "cc_op");
-    cc_src = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUState, cc_src),
+    cc_src = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUS390XState, cc_src),
                                     "cc_src");
-    cc_dst = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUState, cc_dst),
+    cc_dst = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUS390XState, cc_dst),
                                     "cc_dst");
-    cc_vr = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUState, cc_vr),
+    cc_vr = tcg_global_mem_new_i64(TCG_AREG0, offsetof(CPUS390XState, cc_vr),
                                    "cc_vr");
 
     p = cpu_reg_names;
     for (i = 0; i < 16; i++) {
         snprintf(p, cpu_reg_names_size, "r%d", i);
         regs[i] = tcg_global_mem_new(TCG_AREG0,
-                                     offsetof(CPUState, regs[i]), p);
+                                     offsetof(CPUS390XState, regs[i]), p);
         p += (i < 10) ? 3 : 4;
         cpu_reg_names_size -= (i < 10) ? 3 : 4;
     }
@@ -182,14 +182,14 @@ static inline TCGv_i64 load_reg(int reg)
 static inline TCGv_i64 load_freg(int reg)
 {
     TCGv_i64 r = tcg_temp_new_i64();
-    tcg_gen_ld_i64(r, cpu_env, offsetof(CPUState, fregs[reg].d));
+    tcg_gen_ld_i64(r, cpu_env, offsetof(CPUS390XState, fregs[reg].d));
     return r;
 }
 
 static inline TCGv_i32 load_freg32(int reg)
 {
     TCGv_i32 r = tcg_temp_new_i32();
-    tcg_gen_ld_i32(r, cpu_env, offsetof(CPUState, fregs[reg].l.upper));
+    tcg_gen_ld_i32(r, cpu_env, offsetof(CPUS390XState, fregs[reg].l.upper));
     return r;
 }
 
@@ -214,7 +214,7 @@ static inline void store_reg(int reg, TCGv_i64 v)
 
 static inline void store_freg(int reg, TCGv_i64 v)
 {
-    tcg_gen_st_i64(v, cpu_env, offsetof(CPUState, fregs[reg].d));
+    tcg_gen_st_i64(v, cpu_env, offsetof(CPUS390XState, fregs[reg].d));
 }
 
 static inline void store_reg32(int reg, TCGv_i32 v)
@@ -257,7 +257,7 @@ static inline void store_reg8(int reg, TCGv_i64 v)
 
 static inline void store_freg32(int reg, TCGv_i32 v)
 {
-    tcg_gen_st_i32(v, cpu_env, offsetof(CPUState, fregs[reg].l.upper));
+    tcg_gen_st_i32(v, cpu_env, offsetof(CPUS390XState, fregs[reg].l.upper));
 }
 
 static inline void update_psw_addr(DisasContext *s)
@@ -361,11 +361,11 @@ static void gen_program_exception(DisasContext *s, int ilc, int code)
 
     /* remember what pgm exeption this was */
     tmp = tcg_const_i32(code);
-    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, int_pgm_code));
+    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUS390XState, int_pgm_code));
     tcg_temp_free_i32(tmp);
 
     tmp = tcg_const_i32(ilc);
-    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUState, int_pgm_ilc));
+    tcg_gen_st_i32(tmp, cpu_env, offsetof(CPUS390XState, int_pgm_ilc));
     tcg_temp_free_i32(tmp);
 
     /* advance past instruction */
@@ -2647,12 +2647,12 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         break;
     case 0x4e: /* SAR     R1,R2     [RRE] */
         tmp32_1 = load_reg32(r2);
-        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUState, aregs[r1]));
+        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, aregs[r1]));
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x4f: /* EAR     R1,R2     [RRE] */
         tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUState, aregs[r2]));
+        tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, aregs[r2]));
         store_reg32(r1, tmp32_1);
         tcg_temp_free_i32(tmp32_1);
         break;
@@ -2807,7 +2807,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         decode_rs(s, insn, &r1, &r3, &b2, &d2);
         tmp = get_address(s, 0, b2, d2);
         tmp2 = tcg_temp_new_i64();
-        tcg_gen_ld_i64(tmp2, cpu_env, offsetof(CPUState, psa));
+        tcg_gen_ld_i64(tmp2, cpu_env, offsetof(CPUS390XState, psa));
         tcg_gen_qemu_st32(tmp2, tmp, get_mem_index(s));
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
@@ -2819,7 +2819,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tmp = get_address(s, 0, b2, d2);
         tmp2 = tcg_temp_new_i64();
         tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUState, cpu_num));
+        tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, cpu_num));
         tcg_gen_extu_i32_i64(tmp2, tmp32_1);
         tcg_gen_qemu_st32(tmp2, tmp, get_mem_index(s));
         tcg_temp_free_i64(tmp);
@@ -2948,7 +2948,7 @@ static void disas_b2(DisasContext *s, int op, uint32_t insn)
         tmp32_1 = tcg_temp_new_i32();
         tcg_gen_qemu_ld32u(tmp2, tmp, get_mem_index(s));
         tcg_gen_trunc_i64_i32(tmp32_1, tmp2);
-        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUState, fpc));
+        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
         tcg_temp_free_i64(tmp);
         tcg_temp_free_i64(tmp2);
         tcg_temp_free_i32(tmp32_1);
@@ -3158,12 +3158,12 @@ static void disas_b3(DisasContext *s, int op, int m3, int r1, int r2)
         break;
     case 0x84: /* SFPC        R1                [RRE] */
         tmp32_1 = load_reg32(r1);
-        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUState, fpc));
+        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
         tcg_temp_free_i32(tmp32_1);
         break;
     case 0x8c: /* EFPC        R1                [RRE] */
         tmp32_1 = tcg_temp_new_i32();
-        tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUState, fpc));
+        tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
         store_reg32(r1, tmp32_1);
         tcg_temp_free_i32(tmp32_1);
         break;
@@ -3929,8 +3929,8 @@ static void disas_s390_insn(DisasContext *s)
         tmp32_1 = tcg_const_i32(i);
         tmp32_2 = tcg_const_i32(ilc * 2);
         tmp32_3 = tcg_const_i32(EXCP_SVC);
-        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUState, int_svc_code));
-        tcg_gen_st_i32(tmp32_2, cpu_env, offsetof(CPUState, int_svc_ilc));
+        tcg_gen_st_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, int_svc_code));
+        tcg_gen_st_i32(tmp32_2, cpu_env, offsetof(CPUS390XState, int_svc_ilc));
         gen_helper_exception(tmp32_3);
         s->is_jmp = DISAS_EXCP;
         tcg_temp_free_i32(tmp32_1);
@@ -4810,7 +4810,7 @@ static void disas_s390_insn(DisasContext *s)
             tmp32_1 = tcg_temp_new_i32();
             tmp = tcg_temp_new_i64();
             tmp2 = get_address(s, 0, b2, d2);
-            tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUState, fpc));
+            tcg_gen_ld_i32(tmp32_1, cpu_env, offsetof(CPUS390XState, fpc));
             tcg_gen_extu_i32_i64(tmp, tmp32_1);
             tcg_gen_qemu_st32(tmp, tmp2, get_mem_index(s));
             tcg_temp_free_i32(tmp32_1);
@@ -5107,7 +5107,7 @@ static void disas_s390_insn(DisasContext *s)
     s->pc += (ilc * 2);
 }
 
-static inline void gen_intermediate_code_internal(CPUState *env,
+static inline void gen_intermediate_code_internal(CPUS390XState *env,
                                                   TranslationBlock *tb,
                                                   int search_pc)
 {
@@ -5223,17 +5223,17 @@ static inline void gen_intermediate_code_internal(CPUState *env,
 #endif
 }
 
-void gen_intermediate_code (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code (CPUS390XState *env, struct TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 0);
 }
 
-void gen_intermediate_code_pc (CPUState *env, struct TranslationBlock *tb)
+void gen_intermediate_code_pc (CPUS390XState *env, struct TranslationBlock *tb)
 {
     gen_intermediate_code_internal(env, tb, 1);
 }
 
-void restore_state_to_opc(CPUState *env, TranslationBlock *tb, int pc_pos)
+void restore_state_to_opc(CPUS390XState *env, TranslationBlock *tb, int pc_pos)
 {
     int cc_op;
     env->psw.addr = gen_opc_pc[pc_pos];

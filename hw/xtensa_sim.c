@@ -39,7 +39,7 @@ static uint64_t translate_phys_addr(void *env, uint64_t addr)
 
 static void sim_reset(void *env)
 {
-    cpu_reset(env);
+    cpu_state_reset(env);
 }
 
 static void sim_init(ram_addr_t ram_size,
@@ -47,7 +47,7 @@ static void sim_init(ram_addr_t ram_size,
         const char *kernel_filename, const char *kernel_cmdline,
         const char *initrd_filename, const char *cpu_model)
 {
-    CPUState *env = NULL;
+    CPUXtensaState *env = NULL;
     MemoryRegion *ram, *rom;
     int n;
 

@@ -34,7 +34,7 @@
 #pragma GCC poison TARGET_PAGE_BITS
 #pragma GCC poison TARGET_PAGE_ALIGN
 
-#pragma GCC poison CPUState
+#pragma GCC poison CPUArchState
 #pragma GCC poison env
 
 #pragma GCC poison lduw_phys

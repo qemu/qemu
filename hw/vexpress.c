@@ -159,7 +159,7 @@ static void a9_daughterboard_init(const VEDBoardInfo *daughterboard,
                                   const char *cpu_model,
                                   qemu_irq *pic, uint32_t *proc_id)
 {
-    CPUState *env = NULL;
+    CPUARMState *env = NULL;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *lowram = g_new(MemoryRegion, 1);
@@ -259,7 +259,7 @@ static void a15_daughterboard_init(const VEDBoardInfo *daughterboard,
                                    qemu_irq *pic, uint32_t *proc_id)
 {
     int n;
-    CPUState *env = NULL;
+    CPUARMState *env = NULL;
     MemoryRegion *sysmem = get_system_memory();
     MemoryRegion *ram = g_new(MemoryRegion, 1);
     MemoryRegion *sram = g_new(MemoryRegion, 1);

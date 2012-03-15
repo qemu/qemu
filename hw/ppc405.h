@@ -56,23 +56,23 @@ struct ppc4xx_bd_info_t {
 };
 
 /* PowerPC 405 core */
-ram_addr_t ppc405_set_bootinfo (CPUState *env, ppc4xx_bd_info_t *bd,
+ram_addr_t ppc405_set_bootinfo (CPUPPCState *env, ppc4xx_bd_info_t *bd,
                                 uint32_t flags);
 
-CPUState *ppc405cr_init(MemoryRegion *address_space_mem,
+CPUPPCState *ppc405cr_init(MemoryRegion *address_space_mem,
                         MemoryRegion ram_memories[4],
                         target_phys_addr_t ram_bases[4],
                         target_phys_addr_t ram_sizes[4],
                         uint32_t sysclk, qemu_irq **picp,
                         int do_init);
-CPUState *ppc405ep_init(MemoryRegion *address_space_mem,
+CPUPPCState *ppc405ep_init(MemoryRegion *address_space_mem,
                         MemoryRegion ram_memories[2],
                         target_phys_addr_t ram_bases[2],
                         target_phys_addr_t ram_sizes[2],
                         uint32_t sysclk, qemu_irq **picp,
                         int do_init);
 /* IBM STBxxx microcontrollers */
-CPUState *ppc_stb025_init (MemoryRegion ram_memories[2],
+CPUPPCState *ppc_stb025_init (MemoryRegion ram_memories[2],
                            target_phys_addr_t ram_bases[2],
                            target_phys_addr_t ram_sizes[2],
                            uint32_t sysclk, qemu_irq **picp,

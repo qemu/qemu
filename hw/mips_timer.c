@@ -39,7 +39,7 @@ static int cpu_mips_timer_triggered;
 #endif
 
 /* XXX: do not use a global */
-uint32_t cpu_mips_get_random (CPUState *env)
+uint32_t cpu_mips_get_random (CPUMIPSState *env)
 {
     static uint32_t lfsr = 1;
     static uint32_t prev_idx = 0;
@@ -55,13 +55,13 @@ uint32_t cpu_mips_get_random (CPUState *env)
 
 /* MIPS R4K timer */
 
-static int cpu_mips_timer_disabled(CPUState *env)
+static int cpu_mips_timer_disabled(CPUMIPSState *env)
 {
   return env->CP0_Cause & (1 << CP0Ca_DC);
 }
 
 #if 0
-uint32_t cpu_mips_get_count (CPUState *env)
+uint32_t cpu_mips_get_count (CPUMIPSState *env)
 {
     uint32_t value = env->CP0_Count;
     if (!cpu_mips_timer_disabled(env)) {
@@ -78,7 +78,7 @@ uint32_t cpu_mips_get_count (CPUState *env)
 }
 #endif
 
-static void cpu_mips_timer_update(CPUState *env)
+static void cpu_mips_timer_update(CPUMIPSState *env)
 {
     uint64_t now, next;
     uint32_t wait;
@@ -90,8 +90,8 @@ static void cpu_mips_timer_update(CPUState *env)
     qemu_mod_timer(env->timer, next);
 }
 
-/* Expire the timer. */
-static void cpu_mips_timer_expire(CPUState *env)
+/* Expire the timer.  */
+static void cpu_mips_timer_expire(CPUMIPSState *env)
 {
     cpu_mips_timer_update(env);
     if (env->insn_flags & ISA_MIPS32R2) {
@@ -100,7 +100,7 @@ static void cpu_mips_timer_expire(CPUState *env)
     qemu_irq_raise(env->irq[(env->CP0_IntCtl >> CP0IntCtl_IPTI) & 0x7]);
 }
 
-uint32_t cpu_mips_get_count (CPUState *env)
+uint32_t cpu_mips_get_count (CPUMIPSState *env)
 {
     uint32_t value = env->CP0_Count;
     if (!cpu_mips_timer_disabled(env)) {
@@ -115,7 +115,7 @@ uint32_t cpu_mips_get_count (CPUState *env)
     return value;
 }
 
-void cpu_mips_store_count (CPUState *env, uint32_t count)
+void cpu_mips_store_count (CPUMIPSState *env, uint32_t count)
 {
     if (cpu_mips_timer_disabled(env)) {
         env->CP0_Count = count;
@@ -132,7 +132,7 @@ void cpu_mips_store_count (CPUState *env, uint32_t count)
     }
 }
 
-void cpu_mips_store_compare (CPUState *env, uint32_t value)
+void cpu_mips_store_compare (CPUMIPSState *env, uint32_t value)
 {
     env->CP0_Compare = value;
     if (!cpu_mips_timer_disabled(env)) {
@@ -146,12 +146,12 @@ void cpu_mips_store_compare (CPUState *env, uint32_t value)
 #endif
 }
 
-void cpu_mips_start_count(CPUState *env)
+void cpu_mips_start_count(CPUMIPSState *env)
 {
     cpu_mips_store_count(env, env->CP0_Count);
 }
 
-void cpu_mips_stop_count(CPUState *env)
+void cpu_mips_stop_count(CPUMIPSState *env)
 {
     /* Store the current value */
     env->CP0_Count += (uint32_t)muldiv64(qemu_get_clock_ns(vm_clock),
@@ -160,7 +160,7 @@ void cpu_mips_stop_count(CPUState *env)
 
 static void mips_timer_cb(void *opaque)
 {
-    CPUState *env;
+    CPUMIPSState *env;
 
     env = opaque;
 #if 0
@@ -185,7 +185,7 @@ static void mips_timer_cb(void *opaque)
 #endif
 }
 
-void cpu_mips_clock_init (CPUState *env)
+void cpu_mips_clock_init (CPUMIPSState *env)
 {
     env->timer = qemu_new_timer_ns(vm_clock, &mips_timer_cb, env);
     env->CP0_Compare = 0;

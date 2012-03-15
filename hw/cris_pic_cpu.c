@@ -30,7 +30,7 @@
 
 static void cris_pic_cpu_handler(void *opaque, int irq, int level)
 {
-    CPUState *env = (CPUState *)opaque;
+    CPUCRISState *env = (CPUCRISState *)opaque;
     int type = irq ? CPU_INTERRUPT_NMI : CPU_INTERRUPT_HARD;
 
     if (level)
@@ -39,7 +39,7 @@ static void cris_pic_cpu_handler(void *opaque, int irq, int level)
         cpu_reset_interrupt(env, type);
 }
 
-qemu_irq *cris_pic_init_cpu(CPUState *env)
+qemu_irq *cris_pic_init_cpu(CPUCRISState *env)
 {
     return qemu_allocate_irqs(cris_pic_cpu_handler, env, 2);
 }
