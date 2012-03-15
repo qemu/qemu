@@ -1132,6 +1132,9 @@ static int img_info(int argc, char **argv)
         if (bdi.cluster_size != 0) {
             printf("cluster_size: %d\n", bdi.cluster_size);
         }
+        if (bdi.is_dirty) {
+            printf("cleanly shut down: no\n");
+        }
     }
     bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));
     if (backing_filename[0] != '\0') {
