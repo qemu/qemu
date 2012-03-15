@@ -17,6 +17,12 @@ typedef struct BlockDriverInfo {
     int64_t vm_state_offset;
 } BlockDriverInfo;
 
+typedef struct BlockFragInfo {
+    uint64_t allocated_clusters;
+    uint64_t total_clusters;
+    uint64_t fragmented_clusters;
+} BlockFragInfo;
+
 typedef struct QEMUSnapshotInfo {
     char id_str[128]; /* unique snapshot id */
     /* the following fields are informative. They are not needed for
@@ -175,6 +181,7 @@ typedef struct BdrvCheckResult {
     int corruptions;
     int leaks;
     int check_errors;
+    BlockFragInfo bfi;
 } BdrvCheckResult;
 
 int bdrv_check(BlockDriverState *bs, BdrvCheckResult *res);
