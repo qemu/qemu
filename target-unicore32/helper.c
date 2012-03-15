@@ -4,6 +4,9 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * Contributions from 2012-04-01 on are considered under GPL version 2,
+ * or (at your option) any later version.
  */
 
 #include "cpu.h"
