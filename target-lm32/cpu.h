@@ -149,7 +149,7 @@ enum {
     LM32_FLAG_IGNORE_MSB = 1,
 };
 
-typedef struct CPULM32State {
+struct CPULM32State {
     /* general registers */
     uint32_t regs[32];
 
@@ -182,7 +182,7 @@ typedef struct CPULM32State {
     uint8_t num_bps;
     uint8_t num_wps;
 
-} CPULM32State;
+};
 
 
 CPULM32State *cpu_lm32_init(const char *cpu_model);

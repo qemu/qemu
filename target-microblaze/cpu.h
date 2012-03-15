@@ -230,7 +230,7 @@ typedef struct CPUMBState CPUMBState;
 #define STREAM_CONTROL   (1 << 3)
 #define STREAM_NONBLOCK  (1 << 4)
 
-typedef struct CPUMBState {
+struct CPUMBState {
     uint32_t debug;
     uint32_t btaken;
     uint32_t btarget;
@@ -264,7 +264,7 @@ typedef struct CPUMBState {
 #endif
 
     CPU_COMMON
-} CPUMBState;
+};
 
 CPUMBState *cpu_mb_init(const char *cpu_model);
 int cpu_mb_exec(CPUMBState *s);
