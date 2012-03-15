@@ -72,5 +72,8 @@ run-test_fail.tst: test_fail.tst
 debug-%.tst: %.tst
 	$(SIM) $(SIMDEBUG) $(SIMFLAGS) ./$<
 
+host-debug-%.tst: %.tst
+	gdb --args $(SIM) $(SIMFLAGS) ./$<
+
 clean:
 	$(RM) -fr $(TESTCASES) $(CRT)
