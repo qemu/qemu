@@ -177,9 +177,9 @@ typedef struct PageDesc {
 
 #define V_L1_SHIFT (L1_MAP_ADDR_SPACE_BITS - TARGET_PAGE_BITS - V_L1_BITS)
 
-unsigned long qemu_real_host_page_size;
-unsigned long qemu_host_page_size;
-unsigned long qemu_host_page_mask;
+uintptr_t qemu_real_host_page_size;
+uintptr_t qemu_host_page_size;
+uintptr_t qemu_host_page_mask;
 
 /* This is a multi-level map on the virtual address space.
    The bottom level has pointers to PageDesc.  */
