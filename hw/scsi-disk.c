@@ -471,8 +471,9 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
 
         case 0x83: /* Device identification page, mandatory */
         {
-            int max_len = 255 - 8;
-            int id_len = strlen(bdrv_get_device_name(s->qdev.conf.bs));
+            const char *str = s->serial ?: bdrv_get_device_name(s->qdev.conf.bs);
+            int max_len = s->serial ? 20 : 255 - 8;
+            int id_len = strlen(str);
 
             if (id_len > max_len) {
                 id_len = max_len;
@@ -486,7 +487,7 @@ static int scsi_disk_emulate_inquiry(SCSIRequest *req, uint8_t *outbuf)
             outbuf[buflen++] = 0;   // reserved
             outbuf[buflen++] = id_len; // length of data following
 
-            memcpy(outbuf+buflen, bdrv_get_device_name(s->qdev.conf.bs), id_len);
+            memcpy(outbuf+buflen, str, id_len);
             buflen += id_len;
             break;
         }
