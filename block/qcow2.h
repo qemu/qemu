@@ -43,6 +43,8 @@
 #define QCOW_OFLAG_COPIED     (1LL << 63)
 /* indicate that the cluster is compressed (they never have the copied flag) */
 #define QCOW_OFLAG_COMPRESSED (1LL << 62)
+/* The cluster reads as all zeros */
+#define QCOW_OFLAG_ZERO (1LL << 0)
 
 #define REFCOUNT_SHIFT 1 /* refcount size is 2 bytes */
 
@@ -184,6 +186,7 @@ enum {
     QCOW2_CLUSTER_UNALLOCATED,
     QCOW2_CLUSTER_NORMAL,
     QCOW2_CLUSTER_COMPRESSED,
+    QCOW2_CLUSTER_ZERO
 };
 
 #define L1E_OFFSET_MASK 0x00ffffffffffff00ULL
@@ -213,6 +216,8 @@ static inline int qcow2_get_cluster_type(uint64_t l2_entry)
 {
     if (l2_entry & QCOW_OFLAG_COMPRESSED) {
         return QCOW2_CLUSTER_COMPRESSED;
+    } else if (l2_entry & QCOW_OFLAG_ZERO) {
+        return QCOW2_CLUSTER_ZERO;
     } else if (!(l2_entry & L2E_OFFSET_MASK)) {
         return QCOW2_CLUSTER_UNALLOCATED;
     } else {

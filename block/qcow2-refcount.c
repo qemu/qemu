@@ -703,6 +703,7 @@ void qcow2_free_any_clusters(BlockDriverState *bs,
                             nb_clusters << s->cluster_bits);
         break;
     case QCOW2_CLUSTER_UNALLOCATED:
+    case QCOW2_CLUSTER_ZERO:
         break;
     default:
         abort();
@@ -972,6 +973,12 @@ static int check_refcounts_l2(BlockDriverState *bs, BdrvCheckResult *res,
             inc_refcounts(bs, res, refcount_table, refcount_table_size,
                 l2_entry & ~511, nb_csectors * 512);
             break;
+
+        case QCOW2_CLUSTER_ZERO:
+            if ((l2_entry & L2E_OFFSET_MASK) == 0) {
+                break;
+            }
+            /* fall through */
 
         case QCOW2_CLUSTER_NORMAL:
         {

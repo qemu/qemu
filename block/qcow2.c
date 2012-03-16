@@ -536,6 +536,14 @@ static coroutine_fn int qcow2_co_readv(BlockDriverState *bs, int64_t sector_num,
             }
             break;
 
+        case QCOW2_CLUSTER_ZERO:
+            if (s->qcow_version < 3) {
+                ret = -EIO;
+                goto fail;
+            }
+            qemu_iovec_memset(&hd_qiov, 0, 512 * cur_nr_sectors);
+            break;
+
         case QCOW2_CLUSTER_COMPRESSED:
             /* add AIO support for compressed blocks ? */
             ret = qcow2_decompress_cluster(bs, cluster_offset);
