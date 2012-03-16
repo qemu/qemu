@@ -589,5 +589,5 @@ extern uint8_t code_gen_prologue[];
 /* TCG targets may use a different definition of tcg_qemu_tb_exec. */
 #if !defined(tcg_qemu_tb_exec)
 # define tcg_qemu_tb_exec(env, tb_ptr) \
-    ((long REGPARM (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
+    ((tcg_target_ulong REGPARM (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
 #endif

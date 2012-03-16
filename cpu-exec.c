@@ -55,7 +55,7 @@ void cpu_resume_from_signal(CPUArchState *env, void *puc)
 static void cpu_exec_nocache(CPUArchState *env, int max_cycles,
                              TranslationBlock *orig_tb)
 {
-    unsigned long next_tb;
+    tcg_target_ulong next_tb;
     TranslationBlock *tb;
 
     /* Should never happen.
@@ -186,7 +186,7 @@ int cpu_exec(CPUArchState *env)
     int ret, interrupt_request;
     TranslationBlock *tb;
     uint8_t *tc_ptr;
-    unsigned long next_tb;
+    tcg_target_ulong next_tb;
 
     if (env->halted) {
         if (!cpu_has_work(env)) {
@@ -565,7 +565,7 @@ int cpu_exec(CPUArchState *env)
                     if ((next_tb & 3) == 2) {
                         /* Instruction counter expired.  */
                         int insns_left;
-                        tb = (TranslationBlock *)(long)(next_tb & ~3);
+                        tb = (TranslationBlock *)(next_tb & ~3);
                         /* Restore PC.  */
                         cpu_pc_from_tb(env, tb);
                         insns_left = env->icount_decr.u32;
