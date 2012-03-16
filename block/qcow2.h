@@ -175,6 +175,8 @@ enum {
 #define L2E_OFFSET_MASK 0x00ffffffffffff00ULL
 #define L2E_COMPRESSED_OFFSET_SIZE_MASK 0x3fffffffffffffffULL
 
+#define REFT_OFFSET_MASK 0xffffffffffffff00ULL
+
 static inline int size_to_clusters(BDRVQcowState *s, int64_t size)
 {
     return (size + (s->cluster_size - 1)) >> s->cluster_bits;

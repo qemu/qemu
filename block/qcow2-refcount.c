@@ -167,7 +167,7 @@ static int alloc_refcount_block(BlockDriverState *bs,
     if (refcount_table_index < s->refcount_table_size) {
 
         uint64_t refcount_block_offset =
-            s->refcount_table[refcount_table_index];
+            s->refcount_table[refcount_table_index] & REFT_OFFSET_MASK;
 
         /* If it's already there, we're done */
         if (refcount_block_offset) {
