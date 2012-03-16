@@ -177,6 +177,7 @@ void qemu_chr_accept_input(CharDriverState *s)
 {
     if (s->chr_accept_input)
         s->chr_accept_input(s);
+    qemu_notify_event();
 }
 
 void qemu_chr_fe_printf(CharDriverState *s, const char *fmt, ...)
