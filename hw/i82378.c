@@ -170,6 +170,7 @@ static void i82378_init(DeviceState *dev, I82378State *s)
 {
     ISABus *isabus = DO_UPCAST(ISABus, qbus, qdev_get_child_bus(dev, "isa.0"));
     ISADevice *pit;
+    ISADevice *isa;
     qemu_irq *out0_irq;
 
     /* This device has:
@@ -199,8 +200,8 @@ static void i82378_init(DeviceState *dev, I82378State *s)
     pcspk_init(isabus, pit);
 
     /* 2 82C37 (dma) */
-    DMA_init(1, &s->out[1]);
-    isa_create_simple(isabus, "i82374");
+    isa = isa_create_simple(isabus, "i82374");
+    qdev_connect_gpio_out(&isa->qdev, 0, s->out[1]);
 
     /* timer */
     isa_create_simple(isabus, "mc146818rtc");
