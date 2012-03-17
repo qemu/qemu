@@ -45,7 +45,6 @@ struct n800_s {
         uint32_t (*txrx)(void *opaque, uint32_t value, int len);
         uWireSlave *chip;
     } ts;
-    i2c_bus *i2c;
 
     int keymap[0x80];
     DeviceState *kbd;
@@ -194,12 +193,10 @@ static void n8x0_i2c_setup(struct n800_s *s)
 {
     DeviceState *dev;
     qemu_irq tmp_irq = qdev_get_gpio_in(s->cpu->gpio, N8X0_TMP105_GPIO);
-
-    /* Attach the CPU on one end of our I2C bus.  */
-    s->i2c = omap_i2c_bus(s->cpu->i2c[0]);
+    i2c_bus *i2c = omap_i2c_bus(s->cpu->i2c[0]);
 
     /* Attach a menelaus PM chip */
-    dev = i2c_create_slave(s->i2c, "twl92230", N8X0_MENELAUS_ADDR);
+    dev = i2c_create_slave(i2c, "twl92230", N8X0_MENELAUS_ADDR);
     qdev_connect_gpio_out(dev, 3,
                           qdev_get_gpio_in(s->cpu->ih[0],
                                            OMAP_INT_24XX_SYS_NIRQ));
@@ -207,7 +204,7 @@ static void n8x0_i2c_setup(struct n800_s *s)
     qemu_system_powerdown = qdev_get_gpio_in(dev, 3);
 
     /* Attach a TMP105 PM chip (A0 wired to ground) */
-    dev = i2c_create_slave(s->i2c, "tmp105", N8X0_TMP105_ADDR);
+    dev = i2c_create_slave(i2c, "tmp105", N8X0_TMP105_ADDR);
     qdev_connect_gpio_out(dev, 0, tmp_irq);
 }
 
@@ -391,7 +388,8 @@ static void n810_kbd_setup(struct n800_s *s)
 
     /* Attach the LM8322 keyboard to the I2C bus,
      * should happen in n8x0_i2c_setup and s->kbd be initialised here.  */
-    s->kbd = i2c_create_slave(s->i2c, "lm8323", N810_LM8323_ADDR);
+    s->kbd = i2c_create_slave(omap_i2c_bus(s->cpu->i2c[0]),
+                           "lm8323", N810_LM8323_ADDR);
     qdev_connect_gpio_out(s->kbd, 0, kbd_irq);
 }
 

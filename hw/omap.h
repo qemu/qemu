@@ -764,16 +764,7 @@ void omap_mmc_handlers(struct omap_mmc_s *s, qemu_irq ro, qemu_irq cover);
 void omap_mmc_enable(struct omap_mmc_s *s, int enable);
 
 /* omap_i2c.c */
-struct omap_i2c_s;
-struct omap_i2c_s *omap_i2c_init(MemoryRegion *sysmem,
-                                 target_phys_addr_t base,
-                                 qemu_irq irq,
-                                 qemu_irq *dma,
-                                 omap_clk clk);
-struct omap_i2c_s *omap2_i2c_init(struct omap_target_agent_s *ta,
-                qemu_irq irq, qemu_irq *dma, omap_clk fclk, omap_clk iclk);
-void omap_i2c_reset(struct omap_i2c_s *s);
-i2c_bus *omap_i2c_bus(struct omap_i2c_s *s);
+i2c_bus *omap_i2c_bus(DeviceState *omap_i2c);
 
 # define cpu_is_omap310(cpu)		(cpu->mpu_model == omap310)
 # define cpu_is_omap1510(cpu)		(cpu->mpu_model == omap1510)
@@ -867,7 +858,7 @@ struct omap_mpu_state_s {
 
     struct omap_pwl_s *pwl;
     struct omap_pwt_s *pwt;
-    struct omap_i2c_s *i2c[2];
+    DeviceState *i2c[2];
 
     struct omap_rtc_s *rtc;
 
