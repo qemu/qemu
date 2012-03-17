@@ -79,7 +79,10 @@ struct KVMState
     int pit_state2;
     int xsave, xcrs;
     int many_ioeventfds;
-    int irqchip_inject_ioctl;
+    /* The man page (and posix) say ioctl numbers are signed int, but
+     * they're not.  Linux, glibc and *BSD all treat ioctl numbers as
+     * unsigned, and treating them as signed here can break things */
+    unsigned irqchip_inject_ioctl;
 #ifdef KVM_CAP_IRQ_ROUTING
     struct kvm_irq_routing *irq_routes;
     int nr_allocated_irq_routes;
