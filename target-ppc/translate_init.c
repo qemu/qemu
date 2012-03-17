@@ -6571,7 +6571,7 @@ static void init_proc_970MP (CPUPPCState *env)
                               PPC_64B | PPC_ALTIVEC |                         \
                               PPC_SEGMENT_64B | PPC_SLBI |                    \
                               PPC_POPCNTB | PPC_POPCNTWD)
-#define POWERPC_INSNS2_POWER7 (PPC2_VSX | PPC2_DFP)
+#define POWERPC_INSNS2_POWER7 (PPC2_VSX | PPC2_DFP | PPC2_DBRX)
 #define POWERPC_MSRM_POWER7   (0x800000000204FF36ULL)
 #define POWERPC_MMU_POWER7    (POWERPC_MMU_2_06)
 #define POWERPC_EXCP_POWER7   (POWERPC_EXCP_POWER7)
@@ -6588,6 +6588,11 @@ static void init_proc_POWER7 (CPUPPCState *env)
     gen_spr_7xx(env);
     /* Time base */
     gen_tbl(env);
+    /* Processor identification */
+    spr_register(env, SPR_PIR, "PIR",
+                 SPR_NOACCESS, SPR_NOACCESS,
+                 &spr_read_generic, &spr_write_pir,
+                 0x00000000);
 #if !defined(CONFIG_USER_ONLY)
     /* PURR & SPURR: Hack - treat these as aliases for the TB for now */
     spr_register(env, SPR_PURR,   "PURR",
@@ -6713,7 +6718,7 @@ static void init_proc_620 (CPUPPCState *env)
 #if defined (TARGET_PPC64) && 0 // XXX: TODO
 #define CPU_POWERPC_DEFAULT    CPU_POWERPC_PPC64
 #define POWERPC_INSNS_DEFAULT  POWERPC_INSNS_PPC64
-#define POWERPC_INSNS2_DEFAULT POWERPC_INSNS_PPC64
+#define POWERPC_INSNS2_DEFAULT POWERPC_INSNS2_PPC64
 #define POWERPC_MSRM_DEFAULT   POWERPC_MSRM_PPC64
 #define POWERPC_MMU_DEFAULT    POWERPC_MMU_PPC64
 #define POWERPC_EXCP_DEFAULT   POWERPC_EXCP_PPC64
@@ -6725,7 +6730,7 @@ static void init_proc_620 (CPUPPCState *env)
 #else
 #define CPU_POWERPC_DEFAULT    CPU_POWERPC_PPC32
 #define POWERPC_INSNS_DEFAULT  POWERPC_INSNS_PPC32
-#define POWERPC_INSNS2_DEFAULT POWERPC_INSNS_PPC32
+#define POWERPC_INSNS2_DEFAULT POWERPC_INSNS2_PPC32
 #define POWERPC_MSRM_DEFAULT   POWERPC_MSRM_PPC32
 #define POWERPC_MMU_DEFAULT    POWERPC_MMU_PPC32
 #define POWERPC_EXCP_DEFAULT   POWERPC_EXCP_PPC32

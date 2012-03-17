@@ -191,11 +191,9 @@ void *tcg_malloc_internal(TCGContext *s, int size)
         /* big malloc: insert a new pool (XXX: could optimize) */
         p = g_malloc(sizeof(TCGPool) + size);
         p->size = size;
-        if (s->pool_current)
-            s->pool_current->next = p;
-        else
-            s->pool_first = p;
-        p->next = s->pool_current;
+        p->next = s->pool_first_large;
+        s->pool_first_large = p;
+        return p->data;
     } else {
         p = s->pool_current;
         if (!p) {
@@ -226,6 +224,12 @@ void *tcg_malloc_internal(TCGContext *s, int size)
 
 void tcg_pool_reset(TCGContext *s)
 {
+    TCGPool *p, *t;
+    for (p = s->pool_first_large; p; p = t) {
+        t = p->next;
+        g_free(p);
+    }
+    s->pool_first_large = NULL;
     s->pool_cur = s->pool_end = NULL;
     s->pool_current = NULL;
 }

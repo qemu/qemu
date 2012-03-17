@@ -415,13 +415,14 @@ struct CPUSPARCState {
 #if !defined(TARGET_SPARC64)
     int      psref;    /* enable fpu */
 #endif
-    target_ulong version;
     int interrupt_index;
-    uint32_t nwindows;
     /* NOTE: we allow 8 more registers to handle wrapping */
     target_ulong regbase[MAX_NWINDOWS * 16 + 8];
 
     CPU_COMMON
+
+    target_ulong version;
+    uint32_t nwindows;
 
     /* MMU regs */
 #if defined(TARGET_SPARC64)
@@ -492,6 +493,9 @@ struct CPUSPARCState {
     /* UA 2005 hyperprivileged registers */
     uint64_t hpstate, htstate[MAXTL_MAX], hintp, htba, hver, hstick_cmpr, ssr;
     CPUTimer *hstick; // UA 2005
+    /* Interrupt vector registers */
+    uint64_t ivec_status;
+    uint64_t ivec_data[3];
     uint32_t softint;
 #define SOFTINT_TIMER   1
 #define SOFTINT_STIMER  (1 << 16)

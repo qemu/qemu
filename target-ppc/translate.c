@@ -2651,7 +2651,7 @@ static void glue(gen_, name##ux)(DisasContext *ctx)                             
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_LDX(name, ldop, opc2, opc3, type)                                 \
+#define GEN_LDX_E(name, ldop, opc2, opc3, type, type2)                        \
 static void glue(gen_, name##x)(DisasContext *ctx)                            \
 {                                                                             \
     TCGv EA;                                                                  \
@@ -2661,6 +2661,8 @@ static void glue(gen_, name##x)(DisasContext *ctx)                            \
     gen_qemu_##ldop(ctx, cpu_gpr[rD(ctx->opcode)], EA);                       \
     tcg_temp_free(EA);                                                        \
 }
+#define GEN_LDX(name, ldop, opc2, opc3, type)                                 \
+    GEN_LDX_E(name, ldop, opc2, opc3, type, PPC_NONE)
 
 #define GEN_LDS(name, ldop, op, type)                                         \
 GEN_LD(name, ldop, op | 0x20, type);                                          \
@@ -2794,8 +2796,8 @@ static void glue(gen_, name##ux)(DisasContext *ctx)                             
     tcg_temp_free(EA);                                                        \
 }
 
-#define GEN_STX(name, stop, opc2, opc3, type)                                 \
-static void glue(gen_, name##x)(DisasContext *ctx)                                    \
+#define GEN_STX_E(name, stop, opc2, opc3, type, type2)                        \
+static void glue(gen_, name##x)(DisasContext *ctx)                            \
 {                                                                             \
     TCGv EA;                                                                  \
     gen_set_access_type(ctx, ACCESS_INT);                                     \
@@ -2804,6 +2806,8 @@ static void glue(gen_, name##x)(DisasContext *ctx)                              
     gen_qemu_##stop(ctx, cpu_gpr[rS(ctx->opcode)], EA);                       \
     tcg_temp_free(EA);                                                        \
 }
+#define GEN_STX(name, stop, opc2, opc3, type)                                 \
+    GEN_STX_E(name, stop, opc2, opc3, type, PPC_NONE)
 
 #define GEN_STS(name, stop, op, type)                                         \
 GEN_ST(name, stop, op | 0x20, type);                                          \
@@ -2892,6 +2896,18 @@ static inline void gen_qemu_ld32ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
 }
 GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER);
 
+#if defined(TARGET_PPC64)
+/* ldbrx */
+static inline void gen_qemu_ld64ur(DisasContext *ctx, TCGv arg1, TCGv arg2)
+{
+    tcg_gen_qemu_ld64(arg1, arg2, ctx->mem_idx);
+    if (likely(!ctx->le_mode)) {
+        tcg_gen_bswap64_tl(arg1, arg1);
+    }
+}
+GEN_LDX_E(ldbr, ld64ur, 0x14, 0x10, PPC_NONE, PPC2_DBRX);
+#endif  /* TARGET_PPC64 */
+
 /* sthbrx */
 static inline void gen_qemu_st16r(DisasContext *ctx, TCGv arg1, TCGv arg2)
 {
@@ -2921,6 +2937,22 @@ static inline void gen_qemu_st32r(DisasContext *ctx, TCGv arg1, TCGv arg2)
     }
 }
 GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER);
+
+#if defined(TARGET_PPC64)
+/* stdbrx */
+static inline void gen_qemu_st64r(DisasContext *ctx, TCGv arg1, TCGv arg2)
+{
+    if (likely(!ctx->le_mode)) {
+        TCGv t0 = tcg_temp_new();
+        tcg_gen_bswap64_tl(t0, arg1);
+        tcg_gen_qemu_st64(t0, arg2, ctx->mem_idx);
+        tcg_temp_free(t0);
+    } else {
+        tcg_gen_qemu_st64(arg1, arg2, ctx->mem_idx);
+    }
+}
+GEN_STX_E(stdbr, st64r, 0x14, 0x14, PPC_NONE, PPC2_DBRX);
+#endif  /* TARGET_PPC64 */
 
 /***                    Integer load and store multiple                    ***/
 
@@ -8819,7 +8851,7 @@ GEN_FLOAT_B(neg, 0x08, 0x01, 0, PPC_FLOAT),
 #undef GEN_LD
 #undef GEN_LDU
 #undef GEN_LDUX
-#undef GEN_LDX
+#undef GEN_LDX_E
 #undef GEN_LDS
 #define GEN_LD(name, ldop, opc, type)                                         \
 GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
@@ -8827,8 +8859,8 @@ GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
 GEN_HANDLER(name##u, opc, 0xFF, 0xFF, 0x00000000, type),
 #define GEN_LDUX(name, ldop, opc2, opc3, type)                                \
 GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type),
-#define GEN_LDX(name, ldop, opc2, opc3, type)                                 \
-GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type),
+#define GEN_LDX_E(name, ldop, opc2, opc3, type, type2)                        \
+GEN_HANDLER_E(name##x, 0x1F, opc2, opc3, 0x00000001, type, type2),
 #define GEN_LDS(name, ldop, op, type)                                         \
 GEN_LD(name, ldop, op | 0x20, type)                                           \
 GEN_LDU(name, ldop, op | 0x21, type)                                          \
@@ -8844,6 +8876,7 @@ GEN_LDUX(lwa, ld32s, 0x15, 0x0B, PPC_64B)
 GEN_LDX(lwa, ld32s, 0x15, 0x0A, PPC_64B)
 GEN_LDUX(ld, ld64, 0x15, 0x01, PPC_64B)
 GEN_LDX(ld, ld64, 0x15, 0x00, PPC_64B)
+GEN_LDX_E(ldbr, ld64ur, 0x14, 0x10, PPC_NONE, PPC2_DBRX)
 #endif
 GEN_LDX(lhbr, ld16ur, 0x16, 0x18, PPC_INTEGER)
 GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER)
@@ -8851,7 +8884,7 @@ GEN_LDX(lwbr, ld32ur, 0x16, 0x10, PPC_INTEGER)
 #undef GEN_ST
 #undef GEN_STU
 #undef GEN_STUX
-#undef GEN_STX
+#undef GEN_STX_E
 #undef GEN_STS
 #define GEN_ST(name, stop, opc, type)                                         \
 GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
@@ -8859,8 +8892,8 @@ GEN_HANDLER(name, opc, 0xFF, 0xFF, 0x00000000, type),
 GEN_HANDLER(stop##u, opc, 0xFF, 0xFF, 0x00000000, type),
 #define GEN_STUX(name, stop, opc2, opc3, type)                                \
 GEN_HANDLER(name##ux, 0x1F, opc2, opc3, 0x00000001, type),
-#define GEN_STX(name, stop, opc2, opc3, type)                                 \
-GEN_HANDLER(name##x, 0x1F, opc2, opc3, 0x00000001, type),
+#define GEN_STX_E(name, stop, opc2, opc3, type, type2)                        \
+GEN_HANDLER_E(name##x, 0x1F, opc2, opc3, 0x00000001, type, type2),
 #define GEN_STS(name, stop, op, type)                                         \
 GEN_ST(name, stop, op | 0x20, type)                                           \
 GEN_STU(name, stop, op | 0x21, type)                                          \
@@ -8873,6 +8906,7 @@ GEN_STS(stw, st32, 0x04, PPC_INTEGER)
 #if defined(TARGET_PPC64)
 GEN_STUX(std, st64, 0x15, 0x05, PPC_64B)
 GEN_STX(std, st64, 0x15, 0x04, PPC_64B)
+GEN_STX_E(stdbr, st64r, 0x14, 0x14, PPC_NONE, PPC2_DBRX)
 #endif
 GEN_STX(sthbr, st16r, 0x16, 0x1C, PPC_INTEGER)
 GEN_STX(stwbr, st32r, 0x16, 0x14, PPC_INTEGER)
@@ -9285,6 +9319,8 @@ void cpu_dump_state (CPUPPCState *env, FILE *f, fprintf_function cpu_fprintf,
 #define RFPL  4
 
     int i;
+
+    cpu_synchronize_state(env);
 
     cpu_fprintf(f, "NIP " TARGET_FMT_lx "   LR " TARGET_FMT_lx " CTR "
                 TARGET_FMT_lx " XER " TARGET_FMT_lx "\n",

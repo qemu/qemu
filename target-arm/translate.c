@@ -9700,32 +9700,49 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
             store_reg(s, rd, tmp);
             break;
 
-        case 6: /* cps */
-            ARCH(6);
-            if (IS_USER(s))
+        case 6:
+            switch ((insn >> 5) & 7) {
+            case 2:
+                /* setend */
+                ARCH(6);
+                if (insn & (1 << 3)) {
+                    /* BE8 mode not implemented.  */
+                    goto illegal_op;
+                }
                 break;
-            if (IS_M(env)) {
-                tmp = tcg_const_i32((insn & (1 << 4)) != 0);
-                /* FAULTMASK */
-                if (insn & 1) {
-                    addr = tcg_const_i32(19);
-                    gen_helper_v7m_msr(cpu_env, addr, tmp);
-                    tcg_temp_free_i32(addr);
+            case 3:
+                /* cps */
+                ARCH(6);
+                if (IS_USER(s)) {
+                    break;
                 }
-                /* PRIMASK */
-                if (insn & 2) {
-                    addr = tcg_const_i32(16);
-                    gen_helper_v7m_msr(cpu_env, addr, tmp);
-                    tcg_temp_free_i32(addr);
+                if (IS_M(env)) {
+                    tmp = tcg_const_i32((insn & (1 << 4)) != 0);
+                    /* FAULTMASK */
+                    if (insn & 1) {
+                        addr = tcg_const_i32(19);
+                        gen_helper_v7m_msr(cpu_env, addr, tmp);
+                        tcg_temp_free_i32(addr);
+                    }
+                    /* PRIMASK */
+                    if (insn & 2) {
+                        addr = tcg_const_i32(16);
+                        gen_helper_v7m_msr(cpu_env, addr, tmp);
+                        tcg_temp_free_i32(addr);
+                    }
+                    tcg_temp_free_i32(tmp);
+                    gen_lookup_tb(s);
+                } else {
+                    if (insn & (1 << 4)) {
+                        shift = CPSR_A | CPSR_I | CPSR_F;
+                    } else {
+                        shift = 0;
+                    }
+                    gen_set_psr_im(s, ((insn & 7) << 6), 0, shift);
                 }
-                tcg_temp_free_i32(tmp);
-                gen_lookup_tb(s);
-            } else {
-                if (insn & (1 << 4))
-                    shift = CPSR_A | CPSR_I | CPSR_F;
-                else
-                    shift = 0;
-                gen_set_psr_im(s, ((insn & 7) << 6), 0, shift);
+                break;
+            default:
+                goto undef;
             }
             break;
 

@@ -66,6 +66,8 @@ do { printf("APB: " fmt , ## __VA_ARGS__); } while (0)
 #define RESET_WCMASK 0x98000000
 #define RESET_WMASK  0x60000000
 
+#define MAX_IVEC 0x30
+
 typedef struct APBState {
     SysBusDevice busdev;
     PCIBus      *bus;
@@ -77,7 +79,8 @@ typedef struct APBState {
     uint32_t pci_control[16];
     uint32_t pci_irq_map[8];
     uint32_t obio_irq_map[32];
-    qemu_irq pci_irqs[32];
+    qemu_irq *pbm_irqs;
+    qemu_irq *ivec_irqs;
     uint32_t reset_control;
     unsigned int nr_resets;
 } APBState;
@@ -87,7 +90,7 @@ static void apb_config_writel (void *opaque, target_phys_addr_t addr,
 {
     APBState *s = opaque;
 
-    APB_DPRINTF("%s: addr " TARGET_FMT_lx " val %x\n", __func__, addr, val);
+    APB_DPRINTF("%s: addr " TARGET_FMT_lx " val %" PRIx64 "\n", __func__, addr, val);
 
     switch (addr & 0xffff) {
     case 0x30 ... 0x4f: /* DMA error registers */
@@ -102,6 +105,12 @@ static void apb_config_writel (void *opaque, target_phys_addr_t addr,
         if (addr & 4) {
             s->pci_irq_map[(addr & 0x3f) >> 3] &= PBM_PCI_IMR_MASK;
             s->pci_irq_map[(addr & 0x3f) >> 3] |= val & ~PBM_PCI_IMR_MASK;
+        }
+        break;
+    case 0x1000 ... 0x1080: /* OBIO interrupt control */
+        if (addr & 4) {
+            s->obio_irq_map[(addr & 0xff) >> 3] &= PBM_PCI_IMR_MASK;
+            s->obio_irq_map[(addr & 0xff) >> 3] |= val & ~PBM_PCI_IMR_MASK;
         }
         break;
     case 0x2000 ... 0x202f: /* PCI control */
@@ -154,6 +163,13 @@ static uint64_t apb_config_readl (void *opaque,
             val = 0;
         }
         break;
+    case 0x1000 ... 0x1080: /* OBIO interrupt control */
+        if (addr & 4) {
+            val = s->obio_irq_map[(addr & 0xff) >> 3];
+        } else {
+            val = 0;
+        }
+        break;
     case 0x2000 ... 0x202f: /* PCI control */
         val = s->pci_control[(addr & 0x3f) >> 2];
         break;
@@ -190,7 +206,7 @@ static void apb_pci_config_write(void *opaque, target_phys_addr_t addr,
     APBState *s = opaque;
 
     val = qemu_bswap_len(val, size);
-    APB_DPRINTF("%s: addr " TARGET_FMT_lx " val %x\n", __func__, addr, val);
+    APB_DPRINTF("%s: addr " TARGET_FMT_lx " val %" PRIx64 "\n", __func__, addr, val);
     pci_data_write(s->bus, addr, val, size);
 }
 
@@ -280,10 +296,19 @@ static void pci_apb_set_irq(void *opaque, int irq_num, int level)
     if (irq_num < 32) {
         if (s->pci_irq_map[irq_num >> 2] & PBM_PCI_IMR_ENABLED) {
             APB_DPRINTF("%s: set irq %d level %d\n", __func__, irq_num, level);
-            qemu_set_irq(s->pci_irqs[irq_num], level);
+            qemu_set_irq(s->ivec_irqs[irq_num], level);
         } else {
             APB_DPRINTF("%s: not enabled: lower irq %d\n", __func__, irq_num);
-            qemu_irq_lower(s->pci_irqs[irq_num]);
+            qemu_irq_lower(s->ivec_irqs[irq_num]);
+        }
+    } else {
+        /* OBIO IRQ map onto the next 16 INO.  */
+        if (s->obio_irq_map[irq_num - 32] & PBM_PCI_IMR_ENABLED) {
+            APB_DPRINTF("%s: set irq %d level %d\n", __func__, irq_num, level);
+            qemu_set_irq(s->ivec_irqs[irq_num], level);
+        } else {
+            APB_DPRINTF("%s: not enabled: lower irq %d\n", __func__, irq_num);
+            qemu_irq_lower(s->ivec_irqs[irq_num]);
         }
     }
 }
@@ -316,12 +341,12 @@ static int apb_pci_bridge_initfn(PCIDevice *dev)
 
 PCIBus *pci_apb_init(target_phys_addr_t special_base,
                      target_phys_addr_t mem_base,
-                     qemu_irq *pic, PCIBus **bus2, PCIBus **bus3)
+                     qemu_irq *ivec_irqs, PCIBus **bus2, PCIBus **bus3,
+                     qemu_irq **pbm_irqs)
 {
     DeviceState *dev;
     SysBusDevice *s;
     APBState *d;
-    unsigned int i;
     PCIDevice *pci_dev;
     PCIBridge *br;
 
@@ -346,9 +371,8 @@ PCIBus *pci_apb_init(target_phys_addr_t special_base,
                               get_system_io(),
                               0, 32);
 
-    for (i = 0; i < 32; i++) {
-        sysbus_connect_irq(s, i, pic[i]);
-    }
+    *pbm_irqs = d->pbm_irqs;
+    d->ivec_irqs = ivec_irqs;
 
     pci_create_simple(d->bus, 0, "pbm-pci");
 
@@ -402,9 +426,7 @@ static int pci_pbm_init_device(SysBusDevice *dev)
     for (i = 0; i < 8; i++) {
         s->pci_irq_map[i] = (0x1f << 6) | (i << 2);
     }
-    for (i = 0; i < 32; i++) {
-        sysbus_init_irq(dev, &s->pci_irqs[i]);
-    }
+    s->pbm_irqs = qemu_allocate_irqs(pci_apb_set_irq, s, MAX_IVEC);
 
     /* apb_config */
     memory_region_init_io(&s->apb_config, &apb_config_ops, s, "apb-config",
@@ -444,7 +466,6 @@ static void pbm_pci_host_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_SUN;
     k->device_id = PCI_DEVICE_ID_SUN_SABRE;
     k->class_id = PCI_CLASS_BRIDGE_HOST;
-    k->is_bridge = 1;
 }
 
 static TypeInfo pbm_pci_host_info = {

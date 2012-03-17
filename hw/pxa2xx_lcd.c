@@ -19,15 +19,15 @@
 #include "framebuffer.h"
 
 struct DMAChannel {
-    target_phys_addr_t branch;
+    uint32_t branch;
     uint8_t up;
     uint8_t palette[1024];
     uint8_t pbuffer[1024];
     void (*redraw)(PXA2xxLCDState *s, target_phys_addr_t addr,
                    int *miny, int *maxy);
 
-    target_phys_addr_t descriptor;
-    target_phys_addr_t source;
+    uint32_t descriptor;
+    uint32_t source;
     uint32_t id;
     uint32_t command;
 };
@@ -929,11 +929,11 @@ static const VMStateDescription vmstate_dma_channel = {
     .minimum_version_id = 0,
     .minimum_version_id_old = 0,
     .fields      = (VMStateField[]) {
-        VMSTATE_UINTTL(branch, struct DMAChannel),
+        VMSTATE_UINT32(branch, struct DMAChannel),
         VMSTATE_UINT8(up, struct DMAChannel),
         VMSTATE_BUFFER(pbuffer, struct DMAChannel),
-        VMSTATE_UINTTL(descriptor, struct DMAChannel),
-        VMSTATE_UINTTL(source, struct DMAChannel),
+        VMSTATE_UINT32(descriptor, struct DMAChannel),
+        VMSTATE_UINT32(source, struct DMAChannel),
         VMSTATE_UINT32(id, struct DMAChannel),
         VMSTATE_UINT32(command, struct DMAChannel),
         VMSTATE_END_OF_LIST()

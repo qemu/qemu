@@ -592,12 +592,6 @@ static inline int _find_pte(CPUPPCState *env, mmu_ctx_t *ctx, int is_64b, int h,
                 pte1 = ldq_phys(env->htab_base + pteg_off + (i * 16) + 8);
             }
 
-            /* We have a TLB that saves 4K pages, so let's
-             * split a huge page to 4k chunks */
-            if (target_page_bits != TARGET_PAGE_BITS)
-                pte1 |= (ctx->eaddr & (( 1 << target_page_bits ) - 1))
-                        & TARGET_PAGE_MASK;
-
             r = pte64_check(ctx, pte0, pte1, h, rw, type);
             LOG_MMU("Load pte from " TARGET_FMT_lx " => " TARGET_FMT_lx " "
                     TARGET_FMT_lx " %d %d %d " TARGET_FMT_lx "\n",
@@ -673,6 +667,12 @@ static inline int _find_pte(CPUPPCState *env, mmu_ctx_t *ctx, int is_64b, int h,
         }
     }
 
+    /* We have a TLB that saves 4K pages, so let's
+     * split a huge page to 4k chunks */
+    if (target_page_bits != TARGET_PAGE_BITS) {
+        ctx->raddr |= (ctx->eaddr & ((1 << target_page_bits) - 1))
+                      & TARGET_PAGE_MASK;
+    }
     return ret;
 }
 
