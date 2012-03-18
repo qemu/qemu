@@ -1452,16 +1452,17 @@ static void qxl_send_events(PCIQXLDevice *d, uint32_t events)
 
 static void init_pipe_signaling(PCIQXLDevice *d)
 {
-   if (pipe(d->pipe) < 0) {
-       dprint(d, 1, "%s: pipe creation failed\n", __FUNCTION__);
-       return;
-   }
-   fcntl(d->pipe[0], F_SETFL, O_NONBLOCK);
-   fcntl(d->pipe[1], F_SETFL, O_NONBLOCK);
-   fcntl(d->pipe[0], F_SETOWN, getpid());
+    if (pipe(d->pipe) < 0) {
+        fprintf(stderr, "%s:%s: qxl pipe creation failed\n",
+                __FILE__, __func__);
+        exit(1);
+    }
+    fcntl(d->pipe[0], F_SETFL, O_NONBLOCK);
+    fcntl(d->pipe[1], F_SETFL, O_NONBLOCK);
+    fcntl(d->pipe[0], F_SETOWN, getpid());
 
-   qemu_thread_get_self(&d->main);
-   qemu_set_fd_handler(d->pipe[0], pipe_read, NULL, d);
+    qemu_thread_get_self(&d->main);
+    qemu_set_fd_handler(d->pipe[0], pipe_read, NULL, d);
 }
 
 /* graphics console */
