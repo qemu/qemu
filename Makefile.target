@@ -58,7 +58,7 @@ else
 TARGET_TYPE=system
 endif
 
-$(QEMU_PROG).stp:
+$(QEMU_PROG).stp: $(SRC_PATH)/trace-events
 	$(call quiet-command,sh $(SRC_PATH)/scripts/tracetool \
 		--$(TRACE_BACKEND) \
 		--binary $(bindir)/$(QEMU_PROG) \
