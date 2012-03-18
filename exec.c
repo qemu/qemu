@@ -4609,7 +4609,8 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
     mr = iotlb_to_region(pd);
     if (mr != &io_mem_ram && mr != &io_mem_rom
-        && mr != &io_mem_notdirty && !mr->rom_device) {
+        && mr != &io_mem_notdirty && !mr->rom_device
+        && mr != &io_mem_watch) {
 #if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SPARC)
         cpu_unassigned_access(env1, addr, 0, 1, 0, 4);
 #else
