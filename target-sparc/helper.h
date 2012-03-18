@@ -78,7 +78,7 @@ DEF_HELPER_1(fcmpeq_fcc1, void, env)
 DEF_HELPER_1(fcmpeq_fcc2, void, env)
 DEF_HELPER_1(fcmpeq_fcc3, void, env)
 #endif
-DEF_HELPER_2(raise_exception, void, env, int)
+DEF_HELPER_2(raise_exception, noreturn, env, int)
 #define F_HELPER_0_1(name) DEF_HELPER_1(f ## name, void, env)
 
 DEF_HELPER_3(faddd, f64, env, f64, f64)
