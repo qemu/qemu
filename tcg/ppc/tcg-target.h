@@ -98,5 +98,5 @@ typedef enum {
 #define TCG_TARGET_HAS_GUEST_BASE
 
 #define tcg_qemu_tb_exec(env, tb_ptr) \
-    ((long REGPARM __attribute__ ((longcall)) \
+    ((long __attribute__ ((longcall)) \
       (*)(void *, void *))code_gen_prologue)(env, tb_ptr)

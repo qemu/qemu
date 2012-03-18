@@ -586,7 +586,6 @@ void cpu_unassigned_access(CPUSPARCState *env1, target_phys_addr_t addr,
 #if defined(TARGET_SPARC64)
 target_phys_addr_t cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
                                            int mmu_idx);
-
 #endif
 #endif
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
@@ -700,6 +699,8 @@ uint64_t cpu_tick_get_count(CPUTimer *timer);
 void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit);
 trap_state* cpu_tsptr(CPUSPARCState* env);
 #endif
+void do_unaligned_access(CPUSPARCState *env, target_ulong addr, int is_write,
+                         int is_user, void *retaddr);
 
 #define TB_FLAG_FPU_ENABLED (1 << 4)
 #define TB_FLAG_AM_ENABLED (1 << 5)

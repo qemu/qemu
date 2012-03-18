@@ -70,12 +70,6 @@
 #define inline always_inline
 #endif
 
-#ifdef __i386__
-#define REGPARM __attribute((regparm(3)))
-#else
-#define REGPARM
-#endif
-
 #define qemu_printf printf
 
 int qemu_daemon(int nochdir, int noclose);

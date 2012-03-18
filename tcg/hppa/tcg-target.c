@@ -882,6 +882,27 @@ static void tcg_out_setcond2(TCGContext *s, int cond, TCGArg ret,
 #if defined(CONFIG_SOFTMMU)
 #include "../../softmmu_defs.h"
 
+#ifdef CONFIG_TCG_PASS_AREG0
+/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
+   int mmu_idx) */
+static const void * const qemu_ld_helpers[4] = {
+    helper_ldb_mmu,
+    helper_ldw_mmu,
+    helper_ldl_mmu,
+    helper_ldq_mmu,
+};
+
+/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
+   uintxx_t val, int mmu_idx) */
+static const void * const qemu_st_helpers[4] = {
+    helper_stb_mmu,
+    helper_stw_mmu,
+    helper_stl_mmu,
+    helper_stq_mmu,
+};
+#else
+/* legacy helper signature: __ld_mmu(target_ulong addr, int
+   mmu_idx) */
 static void *qemu_ld_helpers[4] = {
     __ldb_mmu,
     __ldw_mmu,
@@ -889,12 +910,15 @@ static void *qemu_ld_helpers[4] = {
     __ldq_mmu,
 };
 
+/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
+   int mmu_idx) */
 static void *qemu_st_helpers[4] = {
     __stb_mmu,
     __stw_mmu,
     __stl_mmu,
     __stq_mmu,
 };
+#endif
 
 /* Load and compare a TLB entry, and branch if TLB miss.  OFFSET is set to
    the offset of the first ADDR_READ or ADDR_WRITE member of the appropriate
@@ -1061,6 +1085,15 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int opc)
     }
     tcg_out_movi(s, TCG_TYPE_I32, argreg, mem_index);
 
+#ifdef CONFIG_TCG_PASS_AREG0
+    /* XXX/FIXME: suboptimal */
+    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
+                tcg_target_call_iarg_regs[1]);
+    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                tcg_target_call_iarg_regs[0]);
+    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                TCG_AREG0);
+#endif
     tcg_out_call(s, qemu_ld_helpers[opc & 3]);
 
     switch (opc) {
@@ -1212,6 +1245,17 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int opc)
         tcg_abort();
     }
 
+#ifdef CONFIG_TCG_PASS_AREG0
+    /* XXX/FIXME: suboptimal */
+    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
+                tcg_target_call_iarg_regs[2]);
+    tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
+                tcg_target_call_iarg_regs[1]);
+    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                tcg_target_call_iarg_regs[0]);
+    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                TCG_AREG0);
+#endif
     tcg_out_call(s, qemu_st_helpers[opc]);
 
     /* label2: */
