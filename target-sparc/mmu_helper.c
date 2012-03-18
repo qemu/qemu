@@ -150,18 +150,17 @@ static int get_physical_address(CPUSPARCState *env, target_phys_addr_t *physical
                 case 3: /* Reserved */
                     return (3 << 8) | (4 << 2);
                 case 2: /* L3 PTE */
-                    page_offset = (address & TARGET_PAGE_MASK) &
-                        (TARGET_PAGE_SIZE - 1);
+                    page_offset = 0;
                 }
                 *page_size = TARGET_PAGE_SIZE;
                 break;
             case 2: /* L2 PTE */
-                page_offset = address & 0x3ffff;
+                page_offset = address & 0x3f000;
                 *page_size = 0x40000;
             }
             break;
         case 2: /* L1 PTE */
-            page_offset = address & 0xffffff;
+            page_offset = address & 0xfff000;
             *page_size = 0x1000000;
         }
     }
@@ -206,11 +205,11 @@ int cpu_sparc_handle_mmu_fault(CPUSPARCState *env, target_ulong address, int rw,
     target_ulong page_size;
     int error_code = 0, prot, access_index;
 
+    address &= TARGET_PAGE_MASK;
     error_code = get_physical_address(env, &paddr, &prot, &access_index,
                                       address, rw, mmu_idx, &page_size);
+    vaddr = address;
     if (error_code == 0) {
-        vaddr = address & TARGET_PAGE_MASK;
-        paddr &= TARGET_PAGE_MASK;
 #ifdef DEBUG_MMU
         printf("Translate at " TARGET_FMT_lx " -> " TARGET_FMT_plx ", vaddr "
                TARGET_FMT_lx "\n", address, paddr, vaddr);
@@ -230,7 +229,6 @@ int cpu_sparc_handle_mmu_fault(CPUSPARCState *env, target_ulong address, int rw,
            permissions. If no mapping is available, redirect accesses to
            neverland. Fake/overridden mappings will be flushed when
            switching to normal mode. */
-        vaddr = address & TARGET_PAGE_MASK;
         prot = PAGE_READ | PAGE_WRITE | PAGE_EXEC;
         tlb_set_page(env, vaddr, paddr, prot, mmu_idx, TARGET_PAGE_SIZE);
         return 0;
@@ -704,17 +702,16 @@ static int get_physical_address(CPUSPARCState *env, target_phys_addr_t *physical
 int cpu_sparc_handle_mmu_fault(CPUSPARCState *env, target_ulong address, int rw,
                                int mmu_idx)
 {
-    target_ulong virt_addr, vaddr;
+    target_ulong vaddr;
     target_phys_addr_t paddr;
     target_ulong page_size;
     int error_code = 0, prot, access_index;
 
+    address &= TARGET_PAGE_MASK;
     error_code = get_physical_address(env, &paddr, &prot, &access_index,
                                       address, rw, mmu_idx, &page_size);
     if (error_code == 0) {
-        virt_addr = address & TARGET_PAGE_MASK;
-        vaddr = virt_addr + ((address & TARGET_PAGE_MASK) &
-                             (TARGET_PAGE_SIZE - 1));
+        vaddr = address;
 
         trace_mmu_helper_mmu_fault(address, paddr, mmu_idx, env->tl,
                                    env->dmmu.mmu_primary_context,
