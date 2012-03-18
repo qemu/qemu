@@ -2292,7 +2292,8 @@ void helper_wait (void)
 
 #if !defined(CONFIG_USER_ONLY)
 
-static void do_unaligned_access (target_ulong addr, int is_write, int is_user, void *retaddr);
+static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
+                                              int is_user, void *retaddr);
 
 #define MMUSUFFIX _mmu
 #define ALIGNED_ONLY
