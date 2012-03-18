@@ -39,6 +39,7 @@
 #endif
 #define dh_alias_ptr ptr
 #define dh_alias_void void
+#define dh_alias_noreturn noreturn
 #define dh_alias_env ptr
 #define dh_alias(t) glue(dh_alias_, t)
 
@@ -52,36 +53,42 @@
 #define dh_ctype_tl target_ulong
 #define dh_ctype_ptr void *
 #define dh_ctype_void void
+#define dh_ctype_noreturn void QEMU_NORETURN
 #define dh_ctype_env CPUArchState *
 #define dh_ctype(t) dh_ctype_##t
 
 /* We can't use glue() here because it falls foul of C preprocessor
    recursive expansion rules.  */
 #define dh_retvar_decl0_void void
+#define dh_retvar_decl0_noreturn void
 #define dh_retvar_decl0_i32 TCGv_i32 retval
 #define dh_retvar_decl0_i64 TCGv_i64 retval
 #define dh_retvar_decl0_ptr TCGv_ptr retval
 #define dh_retvar_decl0(t) glue(dh_retvar_decl0_, dh_alias(t))
 
 #define dh_retvar_decl_void
+#define dh_retvar_decl_noreturn
 #define dh_retvar_decl_i32 TCGv_i32 retval,
 #define dh_retvar_decl_i64 TCGv_i64 retval,
 #define dh_retvar_decl_ptr TCGv_ptr retval,
 #define dh_retvar_decl(t) glue(dh_retvar_decl_, dh_alias(t))
 
 #define dh_retvar_void TCG_CALL_DUMMY_ARG
+#define dh_retvar_noreturn TCG_CALL_DUMMY_ARG
 #define dh_retvar_i32 GET_TCGV_i32(retval)
 #define dh_retvar_i64 GET_TCGV_i64(retval)
 #define dh_retvar_ptr GET_TCGV_ptr(retval)
 #define dh_retvar(t) glue(dh_retvar_, dh_alias(t))
 
 #define dh_is_64bit_void 0
+#define dh_is_64bit_noreturn 0
 #define dh_is_64bit_i32 0
 #define dh_is_64bit_i64 1
 #define dh_is_64bit_ptr (TCG_TARGET_REG_BITS == 64)
 #define dh_is_64bit(t) glue(dh_is_64bit_, dh_alias(t))
 
 #define dh_is_signed_void 0
+#define dh_is_signed_noreturn 0
 #define dh_is_signed_i32 0
 #define dh_is_signed_s32 1
 #define dh_is_signed_i64 0
