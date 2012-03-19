@@ -7,6 +7,7 @@
 #include "trace.h"
 #include "dma.h"
 
+static char *scsibus_get_dev_path(DeviceState *dev);
 static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
 static void scsi_req_dequeue(SCSIRequest *req);
@@ -14,6 +15,7 @@ static void scsi_req_dequeue(SCSIRequest *req);
 static struct BusInfo scsi_bus_info = {
     .name  = "SCSI",
     .size  = sizeof(SCSIBus),
+    .get_dev_path = scsibus_get_dev_path,
     .get_fw_dev_path = scsibus_get_fw_dev_path,
     .props = (Property[]) {
         DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
@@ -1421,6 +1423,22 @@ void scsi_device_purge_requests(SCSIDevice *sdev, SCSISense sense)
         scsi_req_cancel(req);
     }
     sdev->unit_attention = sense;
+}
+
+static char *scsibus_get_dev_path(DeviceState *dev)
+{
+    SCSIDevice *d = DO_UPCAST(SCSIDevice, qdev, dev);
+    DeviceState *hba = dev->parent_bus->parent;
+    char *id = NULL;
+
+    if (hba && hba->parent_bus && hba->parent_bus->info->get_dev_path) {
+        id = hba->parent_bus->info->get_dev_path(hba);
+    }
+    if (id) {
+        return g_strdup_printf("%s/%d:%d:%d", id, d->channel, d->id, d->lun);
+    } else {
+        return g_strdup_printf("%d:%d:%d", d->channel, d->id, d->lun);
+    }
 }
 
 static char *scsibus_get_fw_dev_path(DeviceState *dev)
