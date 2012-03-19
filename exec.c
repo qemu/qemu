@@ -2046,14 +2046,19 @@ static void tlb_unprotect_code_phys(CPUArchState *env, ram_addr_t ram_addr,
     cpu_physical_memory_set_dirty_flags(ram_addr, CODE_DIRTY_FLAG);
 }
 
+static bool tlb_is_dirty_ram(CPUTLBEntry *tlbe)
+{
+    return (tlbe->addr_write & (TLB_INVALID_MASK|TLB_MMIO|TLB_NOTDIRTY)) == 0;
+}
+
 static inline void tlb_reset_dirty_range(CPUTLBEntry *tlb_entry,
                                          uintptr_t start, uintptr_t length)
 {
     uintptr_t addr;
-    if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == io_mem_ram.ram_addr) {
+    if (tlb_is_dirty_ram(tlb_entry)) {
         addr = (tlb_entry->addr_write & TARGET_PAGE_MASK) + tlb_entry->addend;
         if ((addr - start) < length) {
-            tlb_entry->addr_write = (tlb_entry->addr_write & TARGET_PAGE_MASK) | TLB_NOTDIRTY;
+            tlb_entry->addr_write |= TLB_NOTDIRTY;
         }
     }
 }
@@ -2106,7 +2111,7 @@ static inline void tlb_update_dirty(CPUTLBEntry *tlb_entry)
     ram_addr_t ram_addr;
     void *p;
 
-    if ((tlb_entry->addr_write & ~TARGET_PAGE_MASK) == io_mem_ram.ram_addr) {
+    if (tlb_is_dirty_ram(tlb_entry)) {
         p = (void *)(uintptr_t)((tlb_entry->addr_write & TARGET_PAGE_MASK)
             + tlb_entry->addend);
         ram_addr = qemu_ram_addr_from_host_nofail(p);
@@ -4663,7 +4668,8 @@ tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr)
     pd = env1->iotlb[mmu_idx][page_index] & ~TARGET_PAGE_MASK;
     mr = iotlb_to_region(pd);
     if (mr != &io_mem_ram && mr != &io_mem_rom
-        && mr != &io_mem_notdirty && !mr->rom_device) {
+        && mr != &io_mem_notdirty && !mr->rom_device
+        && mr != &io_mem_watch) {
 #if defined(TARGET_ALPHA) || defined(TARGET_MIPS) || defined(TARGET_SPARC)
         cpu_unassigned_access(env1, addr, 0, 1, 0, 4);
 #else

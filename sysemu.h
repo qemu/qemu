@@ -76,12 +76,11 @@ void do_info_snapshots(Monitor *mon);
 
 void qemu_announce_self(void);
 
-bool qemu_savevm_state_blocked(Monitor *mon);
-int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
-                            int shared);
-int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f);
-int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f);
-void qemu_savevm_state_cancel(Monitor *mon, QEMUFile *f);
+bool qemu_savevm_state_blocked(Error **errp);
+int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared);
+int qemu_savevm_state_iterate(QEMUFile *f);
+int qemu_savevm_state_complete(QEMUFile *f);
+void qemu_savevm_state_cancel(QEMUFile *f);
 int qemu_loadvm_state(QEMUFile *f);
 
 /* SLIRP */

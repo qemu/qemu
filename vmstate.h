@@ -28,8 +28,7 @@
 
 typedef void SaveSetParamsHandler(int blk_enable, int shared, void * opaque);
 typedef void SaveStateHandler(QEMUFile *f, void *opaque);
-typedef int SaveLiveStateHandler(Monitor *mon, QEMUFile *f, int stage,
-                                 void *opaque);
+typedef int SaveLiveStateHandler(QEMUFile *f, int stage, void *opaque);
 typedef int LoadStateHandler(QEMUFile *f, void *opaque, int version_id);
 
 int register_savevm(DeviceState *dev,

@@ -1542,22 +1542,20 @@ static void vmstate_save(QEMUFile *f, SaveStateEntry *se)
 #define QEMU_VM_SECTION_FULL         0x04
 #define QEMU_VM_SUBSECTION           0x05
 
-bool qemu_savevm_state_blocked(Monitor *mon)
+bool qemu_savevm_state_blocked(Error **errp)
 {
     SaveStateEntry *se;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->no_migrate) {
-            monitor_printf(mon, "state blocked by non-migratable device '%s'\n",
-                           se->idstr);
+            error_set(errp, QERR_MIGRATION_NOT_SUPPORTED, se->idstr);
             return true;
         }
     }
     return false;
 }
 
-int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
-                            int shared)
+int qemu_savevm_state_begin(QEMUFile *f, int blk_enable, int shared)
 {
     SaveStateEntry *se;
     int ret;
@@ -1590,15 +1588,15 @@ int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
         qemu_put_be32(f, se->instance_id);
         qemu_put_be32(f, se->version_id);
 
-        ret = se->save_live_state(mon, f, QEMU_VM_SECTION_START, se->opaque);
+        ret = se->save_live_state(f, QEMU_VM_SECTION_START, se->opaque);
         if (ret < 0) {
-            qemu_savevm_state_cancel(mon, f);
+            qemu_savevm_state_cancel(f);
             return ret;
         }
     }
     ret = qemu_file_get_error(f);
     if (ret != 0) {
-        qemu_savevm_state_cancel(mon, f);
+        qemu_savevm_state_cancel(f);
     }
 
     return ret;
@@ -1611,7 +1609,7 @@ int qemu_savevm_state_begin(Monitor *mon, QEMUFile *f, int blk_enable,
  *   0 : We haven't finished, caller have to go again
  *   1 : We have finished, we can go to complete phase
  */
-int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f)
+int qemu_savevm_state_iterate(QEMUFile *f)
 {
     SaveStateEntry *se;
     int ret = 1;
@@ -1624,7 +1622,7 @@ int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f)
         qemu_put_byte(f, QEMU_VM_SECTION_PART);
         qemu_put_be32(f, se->section_id);
 
-        ret = se->save_live_state(mon, f, QEMU_VM_SECTION_PART, se->opaque);
+        ret = se->save_live_state(f, QEMU_VM_SECTION_PART, se->opaque);
         if (ret <= 0) {
             /* Do not proceed to the next vmstate before this one reported
                completion of the current stage. This serializes the migration
@@ -1638,12 +1636,12 @@ int qemu_savevm_state_iterate(Monitor *mon, QEMUFile *f)
     }
     ret = qemu_file_get_error(f);
     if (ret != 0) {
-        qemu_savevm_state_cancel(mon, f);
+        qemu_savevm_state_cancel(f);
     }
     return ret;
 }
 
-int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
+int qemu_savevm_state_complete(QEMUFile *f)
 {
     SaveStateEntry *se;
     int ret;
@@ -1658,7 +1656,7 @@ int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
         qemu_put_byte(f, QEMU_VM_SECTION_END);
         qemu_put_be32(f, se->section_id);
 
-        ret = se->save_live_state(mon, f, QEMU_VM_SECTION_END, se->opaque);
+        ret = se->save_live_state(f, QEMU_VM_SECTION_END, se->opaque);
         if (ret < 0) {
             return ret;
         }
@@ -1690,37 +1688,37 @@ int qemu_savevm_state_complete(Monitor *mon, QEMUFile *f)
     return qemu_file_get_error(f);
 }
 
-void qemu_savevm_state_cancel(Monitor *mon, QEMUFile *f)
+void qemu_savevm_state_cancel(QEMUFile *f)
 {
     SaveStateEntry *se;
 
     QTAILQ_FOREACH(se, &savevm_handlers, entry) {
         if (se->save_live_state) {
-            se->save_live_state(mon, f, -1, se->opaque);
+            se->save_live_state(f, -1, se->opaque);
         }
     }
 }
 
-static int qemu_savevm_state(Monitor *mon, QEMUFile *f)
+static int qemu_savevm_state(QEMUFile *f)
 {
     int ret;
 
-    if (qemu_savevm_state_blocked(mon)) {
+    if (qemu_savevm_state_blocked(NULL)) {
         ret = -EINVAL;
         goto out;
     }
 
-    ret = qemu_savevm_state_begin(mon, f, 0, 0);
+    ret = qemu_savevm_state_begin(f, 0, 0);
     if (ret < 0)
         goto out;
 
     do {
-        ret = qemu_savevm_state_iterate(mon, f);
+        ret = qemu_savevm_state_iterate(f);
         if (ret < 0)
             goto out;
     } while (ret == 0);
 
-    ret = qemu_savevm_state_complete(mon, f);
+    ret = qemu_savevm_state_complete(f);
 
 out:
     if (ret == 0) {
@@ -1839,7 +1837,7 @@ int qemu_loadvm_state(QEMUFile *f)
     unsigned int v;
     int ret;
 
-    if (qemu_savevm_state_blocked(default_mon)) {
+    if (qemu_savevm_state_blocked(NULL)) {
         return -EINVAL;
     }
 
@@ -2084,7 +2082,7 @@ void do_savevm(Monitor *mon, const QDict *qdict)
         monitor_printf(mon, "Could not open VM state file\n");
         goto the_end;
     }
-    ret = qemu_savevm_state(mon, f);
+    ret = qemu_savevm_state(f);
     vm_state_size = qemu_ftell(f);
     qemu_fclose(f);
     if (ret < 0) {
