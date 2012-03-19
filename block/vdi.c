@@ -523,15 +523,19 @@ static VdiAIOCB *vdi_aio_setup(BlockDriverState *bs, int64_t sector_num,
     return acb;
 }
 
-static int vdi_aio_read_cb(void *opaque, int ret)
+static int vdi_co_readv(BlockDriverState *bs,
+        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
 {
-    VdiAIOCB *acb = opaque;
-    BlockDriverState *bs = acb->common.bs;
+    VdiAIOCB *acb;
     BDRVVdiState *s = bs->opaque;
     uint32_t bmap_entry;
     uint32_t block_index;
     uint32_t sector_in_block;
     uint32_t n_sectors;
+    int ret;
+
+    logout("\n");
+    acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, 0);
 
 restart:
     block_index = acb->sector_num / s->block_sectors;
@@ -578,27 +582,19 @@ restart:
     return ret;
 }
 
-static int vdi_co_readv(BlockDriverState *bs,
+static int vdi_co_writev(BlockDriverState *bs,
         int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
 {
     VdiAIOCB *acb;
-    int ret;
-
-    logout("\n");
-    acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, 0);
-    ret = vdi_aio_read_cb(acb, 0);
-    return ret;
-}
-
-static int vdi_aio_write_cb(void *opaque, int ret)
-{
-    VdiAIOCB *acb = opaque;
-    BlockDriverState *bs = acb->common.bs;
     BDRVVdiState *s = bs->opaque;
     uint32_t bmap_entry;
     uint32_t block_index;
     uint32_t sector_in_block;
     uint32_t n_sectors;
+    int ret;
+
+    logout("\n");
+    acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, 1);
 
 restart:
     block_index = acb->sector_num / s->block_sectors;
@@ -707,18 +703,6 @@ restart:
         qemu_vfree(acb->orig_buf);
     }
     qemu_aio_release(acb);
-    return ret;
-}
-
-static int vdi_co_writev(BlockDriverState *bs,
-        int64_t sector_num, int nb_sectors, QEMUIOVector *qiov)
-{
-    VdiAIOCB *acb;
-    int ret;
-
-    logout("\n");
-    acb = vdi_aio_setup(bs, sector_num, qiov, nb_sectors, 1);
-    ret = vdi_aio_write_cb(acb, 0);
     return ret;
 }
 
