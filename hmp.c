@@ -14,6 +14,7 @@
  */
 
 #include "hmp.h"
+#include "qemu-timer.h"
 #include "qmp-commands.h"
 
 static void hmp_handle_error(Monitor *mon, Error **errp)
@@ -859,4 +860,77 @@ void hmp_block_job_cancel(Monitor *mon, const QDict *qdict)
     qmp_block_job_cancel(device, &error);
 
     hmp_handle_error(mon, &error);
+}
+
+typedef struct MigrationStatus
+{
+    QEMUTimer *timer;
+    Monitor *mon;
+    bool is_block_migration;
+} MigrationStatus;
+
+static void hmp_migrate_status_cb(void *opaque)
+{
+    MigrationStatus *status = opaque;
+    MigrationInfo *info;
+
+    info = qmp_query_migrate(NULL);
+    if (!info->has_status || strcmp(info->status, "active") == 0) {
+        if (info->has_disk) {
+            int progress;
+
+            if (info->disk->remaining) {
+                progress = info->disk->transferred * 100 / info->disk->total;
+            } else {
+                progress = 100;
+            }
+
+            monitor_printf(status->mon, "Completed %d %%\r", progress);
+            monitor_flush(status->mon);
+        }
+
+        qemu_mod_timer(status->timer, qemu_get_clock_ms(rt_clock) + 1000);
+    } else {
+        if (status->is_block_migration) {
+            monitor_printf(status->mon, "\n");
+        }
+        monitor_resume(status->mon);
+        qemu_del_timer(status->timer);
+        g_free(status);
+    }
+
+    qapi_free_MigrationInfo(info);
+}
+
+void hmp_migrate(Monitor *mon, const QDict *qdict)
+{
+    int detach = qdict_get_try_bool(qdict, "detach", 0);
+    int blk = qdict_get_try_bool(qdict, "blk", 0);
+    int inc = qdict_get_try_bool(qdict, "inc", 0);
+    const char *uri = qdict_get_str(qdict, "uri");
+    Error *err = NULL;
+
+    qmp_migrate(uri, !!blk, blk, !!inc, inc, false, false, &err);
+    if (err) {
+        monitor_printf(mon, "migrate: %s\n", error_get_pretty(err));
+        error_free(err);
+        return;
+    }
+
+    if (!detach) {
+        MigrationStatus *status;
+
+        if (monitor_suspend(mon) < 0) {
+            monitor_printf(mon, "terminal does not allow synchronous "
+                           "migration, continuing detached\n");
+            return;
+        }
+
+        status = g_malloc0(sizeof(*status));
+        status->mon = mon;
+        status->is_block_migration = blk || inc;
+        status->timer = qemu_new_timer_ms(rt_clock, hmp_migrate_status_cb,
+                                          status);
+        qemu_mod_timer(status->timer, qemu_get_clock_ms(rt_clock));
+    }
 }

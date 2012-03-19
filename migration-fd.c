@@ -75,7 +75,7 @@ static int fd_close(MigrationState *s)
 
 int fd_start_outgoing_migration(MigrationState *s, const char *fdname)
 {
-    s->fd = monitor_get_fd(s->mon, fdname);
+    s->fd = monitor_get_fd(cur_mon, fdname);
     if (s->fd == -1) {
         DPRINTF("fd_migration: invalid file descriptor identifier\n");
         goto err_after_get_fd;

@@ -43,6 +43,19 @@ void error_set(Error **errp, const char *fmt, ...)
     *errp = err;
 }
 
+Error *error_copy(const Error *err)
+{
+    Error *err_new;
+
+    err_new = g_malloc0(sizeof(*err));
+    err_new->msg = g_strdup(err->msg);
+    err_new->fmt = err->fmt;
+    err_new->obj = err->obj;
+    QINCREF(err_new->obj);
+
+    return err_new;
+}
+
 bool error_is_set(Error **errp)
 {
     return (errp && *errp);

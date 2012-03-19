@@ -35,6 +35,11 @@ void error_set(Error **err, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
 bool error_is_set(Error **err);
 
 /**
+ * Returns an exact copy of the error passed as an argument.
+ */
+Error *error_copy(const Error *err);
+
+/**
  * Get a human readable representation of an error object.
  */
 const char *error_get_pretty(Error *err);

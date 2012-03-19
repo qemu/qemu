@@ -193,6 +193,14 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Using KVM without %(capability), %(feature) unavailable",
     },
     {
+        .error_fmt = QERR_MIGRATION_ACTIVE,
+        .desc      = "There's a migration process in progress",
+    },
+    {
+        .error_fmt = QERR_MIGRATION_NOT_SUPPORTED,
+        .desc      = "State blocked by non-migratable device '%(device)'",
+    },
+    {
         .error_fmt = QERR_MIGRATION_EXPECTED,
         .desc      = "An incoming migration is expected before this command can be executed",
     },

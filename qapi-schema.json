@@ -1663,3 +1663,24 @@
 { 'command': 'qom-list-types',
   'data': { '*implements': 'str', '*abstract': 'bool' },
   'returns': [ 'ObjectTypeInfo' ] }
+
+##
+# @migrate
+#
+# Migrates the current running guest to another Virtual Machine.
+#
+# @uri: the Uniform Resource Identifier of the destination VM
+#
+# @blk: #optional do block migration (full disk copy)
+#
+# @inc: #optional incremental disk copy migration
+#
+# @detach: this argument exists only for compatibility reasons and
+#          is ignored by QEMU
+#
+# Returns: nothing on success
+#
+# Since: 0.14.0
+##
+{ 'command': 'migrate',
+  'data': {'uri': 'str', '*blk': 'bool', '*inc': 'bool', '*detach': 'bool' } }
