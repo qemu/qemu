@@ -586,3 +586,5 @@ extern uint8_t code_gen_prologue[];
 # define tcg_qemu_tb_exec(env, tb_ptr) \
     ((tcg_target_ulong (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
 #endif
+
+void tcg_register_jit(void *buf, size_t buf_size);

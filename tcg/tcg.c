@@ -28,6 +28,9 @@
 
 #include "config.h"
 
+/* Define to jump the ELF file used to communicate with GDB.  */
+#undef DEBUG_JIT
+
 #if !defined(CONFIG_DEBUG_TCG) && !defined(NDEBUG)
 /* define it to suppress various consistency checks (faster) */
 #define NDEBUG
@@ -45,6 +48,18 @@
 #include "cpu.h"
 
 #include "tcg-op.h"
+
+#if TCG_TARGET_REG_BITS == 64
+# define ELF_CLASS  ELFCLASS64
+#else
+# define ELF_CLASS  ELFCLASS32
+#endif
+#ifdef HOST_WORDS_BIGENDIAN
+# define ELF_DATA   ELFDATA2MSB
+#else
+# define ELF_DATA   ELFDATA2LSB
+#endif
+
 #include "elf.h"
 
 #if defined(CONFIG_USE_GUEST_BASE) && !defined(TCG_TARGET_HAS_GUEST_BASE)
@@ -56,6 +71,10 @@ static void tcg_target_init(TCGContext *s);
 static void tcg_target_qemu_prologue(TCGContext *s);
 static void patch_reloc(uint8_t *code_ptr, int type, 
                         tcg_target_long value, tcg_target_long addend);
+
+static void tcg_register_jit_int(void *buf, size_t size,
+                                 void *debug_frame, size_t debug_frame_size)
+    __attribute__((unused));
 
 /* Forward declarations for functions declared and used in tcg-target.c. */
 static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str);
@@ -2231,3 +2250,178 @@ void tcg_dump_info(FILE *f, fprintf_function cpu_fprintf)
     cpu_fprintf(f, "[TCG profiler not compiled]\n");
 }
 #endif
+
+#ifdef ELF_HOST_MACHINE
+/* The backend should define ELF_HOST_MACHINE to indicate both what value to
+   put into the ELF image and to indicate support for the feature.  */
+
+/* Begin GDB interface.  THE FOLLOWING MUST MATCH GDB DOCS.  */
+typedef enum {
+    JIT_NOACTION = 0,
+    JIT_REGISTER_FN,
+    JIT_UNREGISTER_FN
+} jit_actions_t;
+
+struct jit_code_entry {
+    struct jit_code_entry *next_entry;
+    struct jit_code_entry *prev_entry;
+    const void *symfile_addr;
+    uint64_t symfile_size;
+};
+
+struct jit_descriptor {
+    uint32_t version;
+    uint32_t action_flag;
+    struct jit_code_entry *relevant_entry;
+    struct jit_code_entry *first_entry;
+};
+
+void __jit_debug_register_code(void) __attribute__((noinline));
+void __jit_debug_register_code(void)
+{
+    asm("");
+}
+
+/* Must statically initialize the version, because GDB may check
+   the version before we can set it.  */
+struct jit_descriptor __jit_debug_descriptor = { 1, 0, 0, 0 };
+
+/* End GDB interface.  */
+
+static int find_string(const char *strtab, const char *str)
+{
+    const char *p = strtab + 1;
+
+    while (1) {
+        if (strcmp(p, str) == 0) {
+            return p - strtab;
+        }
+        p += strlen(p) + 1;
+    }
+}
+
+static void tcg_register_jit_int(void *buf, size_t buf_size,
+                                 void *debug_frame, size_t debug_frame_size)
+{
+    static const char strings[64] =
+        "\0"
+        ".text\0"
+        ".debug_frame\0"
+        ".symtab\0"
+        ".strtab\0"
+        "code_gen_buffer";
+
+    struct ElfImage {
+        ElfW(Ehdr) ehdr;
+        ElfW(Phdr) phdr;
+        ElfW(Shdr) shdr[5];
+        ElfW(Sym)  sym[1];
+        char       str[64];
+    };
+
+    /* We only need a single jit entry; statically allocate it.  */
+    static struct jit_code_entry one_entry;
+
+    size_t img_size = sizeof(struct ElfImage) + debug_frame_size;
+    struct ElfImage *img = g_malloc0(img_size);
+
+    img->ehdr.e_ident[EI_MAG0] = ELFMAG0;
+    img->ehdr.e_ident[EI_MAG1] = ELFMAG1;
+    img->ehdr.e_ident[EI_MAG2] = ELFMAG2;
+    img->ehdr.e_ident[EI_MAG3] = ELFMAG3;
+    img->ehdr.e_ident[EI_CLASS] = ELF_CLASS;
+    img->ehdr.e_ident[EI_DATA] = ELF_DATA;
+    img->ehdr.e_ident[EI_VERSION] = EV_CURRENT;
+    img->ehdr.e_type = ET_EXEC;
+    img->ehdr.e_machine = ELF_HOST_MACHINE;
+    img->ehdr.e_version = EV_CURRENT;
+    img->ehdr.e_phoff = offsetof(struct ElfImage, phdr);
+    img->ehdr.e_shoff = offsetof(struct ElfImage, shdr);
+    img->ehdr.e_ehsize = sizeof(ElfW(Shdr));
+    img->ehdr.e_phentsize = sizeof(ElfW(Phdr));
+    img->ehdr.e_phnum = 1;
+    img->ehdr.e_shentsize = sizeof(img->shdr[0]);
+    img->ehdr.e_shnum = ARRAY_SIZE(img->shdr);
+    img->ehdr.e_shstrndx = ARRAY_SIZE(img->shdr) - 1;
+
+    img->phdr.p_type = PT_LOAD;
+    img->phdr.p_offset = (char *)buf - (char *)img;
+    img->phdr.p_vaddr = (ElfW(Addr))buf;
+    img->phdr.p_paddr = img->phdr.p_vaddr;
+    img->phdr.p_filesz = 0;
+    img->phdr.p_memsz = buf_size;
+    img->phdr.p_flags = PF_X;
+
+    memcpy(img->str, strings, sizeof(img->str));
+
+    img->shdr[0].sh_type = SHT_NULL;
+
+    /* Trick: The contents of code_gen_buffer are not present in this fake
+       ELF file; that got allocated elsewhere, discontiguously.  Therefore
+       we mark .text as SHT_NOBITS (similar to .bss) so that readers will
+       not look for contents.  We can record any address at will.  */
+    img->shdr[1].sh_name = find_string(img->str, ".text");
+    img->shdr[1].sh_type = SHT_NOBITS;
+    img->shdr[1].sh_flags = SHF_EXECINSTR | SHF_ALLOC;
+    img->shdr[1].sh_addr = (ElfW(Addr))buf;
+    img->shdr[1].sh_size = buf_size;
+
+    img->shdr[2].sh_name = find_string(img->str, ".debug_frame");
+    img->shdr[2].sh_type = SHT_PROGBITS;
+    img->shdr[2].sh_offset = sizeof(*img);
+    img->shdr[2].sh_size = debug_frame_size;
+    memcpy(img + 1, debug_frame, debug_frame_size);
+
+    img->shdr[3].sh_name = find_string(img->str, ".symtab");
+    img->shdr[3].sh_type = SHT_SYMTAB;
+    img->shdr[3].sh_offset = offsetof(struct ElfImage, sym);
+    img->shdr[3].sh_size = sizeof(img->sym);
+    img->shdr[3].sh_info = ARRAY_SIZE(img->sym);
+    img->shdr[3].sh_link = img->ehdr.e_shstrndx;
+    img->shdr[3].sh_entsize = sizeof(ElfW(Sym));
+
+    img->shdr[4].sh_name = find_string(img->str, ".strtab");
+    img->shdr[4].sh_type = SHT_STRTAB;
+    img->shdr[4].sh_offset = offsetof(struct ElfImage, str);
+    img->shdr[4].sh_size = sizeof(img->str);
+
+    img->sym[0].st_name = find_string(img->str, "code_gen_buffer");
+    img->sym[0].st_info = ELF_ST_INFO(STB_GLOBAL, STT_FUNC);
+    img->sym[0].st_shndx = 1;
+    img->sym[0].st_value = (ElfW(Addr))buf;
+    img->sym[0].st_size = buf_size;
+
+#ifdef DEBUG_JIT
+    /* Enable this block to be able to debug the ELF image file creation.
+       One can use readelf, objdump, or other inspection utilities.  */
+    {
+        FILE *f = fopen("/tmp/qemu.jit", "w+b");
+        if (f) {
+            if (fwrite(img, img_size, 1, f) != buf_size) {
+                /* Avoid stupid unused return value warning for fwrite.  */
+            }
+            fclose(f);
+        }
+    }
+#endif
+
+    one_entry.symfile_addr = img;
+    one_entry.symfile_size = img_size;
+
+    __jit_debug_descriptor.action_flag = JIT_REGISTER_FN;
+    __jit_debug_descriptor.relevant_entry = &one_entry;
+    __jit_debug_descriptor.first_entry = &one_entry;
+    __jit_debug_register_code();
+}
+#else
+/* No support for the feature.  Provide the entry point expected by exec.c.  */
+
+static void tcg_register_jit_int(void *buf, size_t size,
+                                 void *debug_frame, size_t debug_frame_size)
+{
+}
+
+void tcg_register_jit(void *buf, size_t buf_size)
+{
+}
+#endif /* ELF_HOST_MACHINE */
