@@ -1061,6 +1061,17 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     /* mov */
     tcg_out_movi(s, TCG_TYPE_I32, arg2, mem_index);
 
+#ifdef CONFIG_TCG_PASS_AREG0
+    /* XXX/FIXME: suboptimal */
+    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
+                tcg_target_call_iarg_regs[2]);
+    tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
+                tcg_target_call_iarg_regs[1]);
+    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                tcg_target_call_iarg_regs[0]);
+    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                TCG_AREG0);
+#endif
     /* XXX: move that code at the end of the TB */
     /* qemu_st_helper[s_bits](arg0, arg1, arg2) */
     tcg_out32(s, CALL | ((((tcg_target_ulong)qemu_st_helpers[s_bits]
