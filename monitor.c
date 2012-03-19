@@ -128,7 +128,6 @@ typedef struct mon_cmd_t {
         int  (*cmd_async)(Monitor *mon, const QDict *params,
                           MonitorCompletion *cb, void *opaque);
     } mhandler;
-    bool qapi;
     int flags;
 } mon_cmd_t;
 
@@ -877,6 +876,11 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
     if (strcmp(protocol, "spice") == 0) {
         if (!using_spice) {
             qerror_report(QERR_DEVICE_NOT_ACTIVE, "spice");
+            return -1;
+        }
+
+        if (port == -1 && tls_port == -1) {
+            qerror_report(QERR_MISSING_PARAMETER, "port/tls-port");
             return -1;
         }
 

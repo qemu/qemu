@@ -100,6 +100,7 @@ static int ds1338_send(I2CSlave *i2c, uint8_t data)
             break;
         case 5:
             s->now.tm_mon = from_bcd(data & 0x1f) - 1;
+            break;
         case 6:
             s->now.tm_year = from_bcd(data) + 100;
             break;

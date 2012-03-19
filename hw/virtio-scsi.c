@@ -613,5 +613,7 @@ VirtIODevice *virtio_scsi_init(DeviceState *dev, VirtIOSCSIConf *proxyconf)
 
 void virtio_scsi_exit(VirtIODevice *vdev)
 {
+    VirtIOSCSI *s = (VirtIOSCSI *)vdev;
+    unregister_savevm(s->qdev, "virtio-scsi", s);
     virtio_cleanup(vdev);
 }

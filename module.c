@@ -19,7 +19,6 @@
 
 typedef struct ModuleEntry
 {
-    module_init_type type;
     void (*init)(void);
     QTAILQ_ENTRY(ModuleEntry) node;
 } ModuleEntry;

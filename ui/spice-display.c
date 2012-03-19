@@ -22,6 +22,7 @@
 #include "monitor.h"
 #include "console.h"
 #include "sysemu.h"
+#include "trace.h"
 
 #include "spice-display.h"
 
@@ -73,6 +74,10 @@ QXLCookie *qxl_cookie_new(int type, uint64_t io)
 void qemu_spice_add_memslot(SimpleSpiceDisplay *ssd, QXLDevMemSlot *memslot,
                             qxl_async_io async)
 {
+    trace_qemu_spice_add_memslot(ssd->qxl.id, memslot->slot_id,
+                                memslot->virt_start, memslot->virt_end,
+                                async);
+
     if (async != QXL_SYNC) {
         spice_qxl_add_memslot_async(&ssd->qxl, memslot,
                 (uint64_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
@@ -84,6 +89,7 @@ void qemu_spice_add_memslot(SimpleSpiceDisplay *ssd, QXLDevMemSlot *memslot,
 
 void qemu_spice_del_memslot(SimpleSpiceDisplay *ssd, uint32_t gid, uint32_t sid)
 {
+    trace_qemu_spice_del_memslot(ssd->qxl.id, gid, sid);
     ssd->worker->del_memslot(ssd->worker, gid, sid);
 }
 
@@ -91,6 +97,7 @@ void qemu_spice_create_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id,
                                        QXLDevSurfaceCreate *surface,
                                        qxl_async_io async)
 {
+    trace_qemu_spice_create_primary_surface(ssd->qxl.id, id, surface, async);
     if (async != QXL_SYNC) {
         spice_qxl_create_primary_surface_async(&ssd->qxl, id, surface,
                 (uint64_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
@@ -100,10 +107,10 @@ void qemu_spice_create_primary_surface(SimpleSpiceDisplay *ssd, uint32_t id,
     }
 }
 
-
 void qemu_spice_destroy_primary_surface(SimpleSpiceDisplay *ssd,
                                         uint32_t id, qxl_async_io async)
 {
+    trace_qemu_spice_destroy_primary_surface(ssd->qxl.id, id, async);
     if (async != QXL_SYNC) {
         spice_qxl_destroy_primary_surface_async(&ssd->qxl, id,
                 (uint64_t)qxl_cookie_new(QXL_COOKIE_TYPE_IO,
@@ -115,16 +122,19 @@ void qemu_spice_destroy_primary_surface(SimpleSpiceDisplay *ssd,
 
 void qemu_spice_wakeup(SimpleSpiceDisplay *ssd)
 {
+    trace_qemu_spice_wakeup(ssd->qxl.id);
     ssd->worker->wakeup(ssd->worker);
 }
 
 void qemu_spice_start(SimpleSpiceDisplay *ssd)
 {
+    trace_qemu_spice_start(ssd->qxl.id);
     ssd->worker->start(ssd->worker);
 }
 
 void qemu_spice_stop(SimpleSpiceDisplay *ssd)
 {
+    trace_qemu_spice_stop(ssd->qxl.id);
     ssd->worker->stop(ssd->worker);
 }
 
@@ -142,7 +152,7 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
         return NULL;
     };
 
-    dprint(2, "%s: lr %d -> %d,  tb -> %d -> %d\n", __FUNCTION__,
+    trace_qemu_spice_create_update(
            ssd->dirty.left, ssd->dirty.right,
            ssd->dirty.top, ssd->dirty.bottom);
 
