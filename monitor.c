@@ -880,6 +880,11 @@ static int client_migrate_info(Monitor *mon, const QDict *qdict,
             return -1;
         }
 
+        if (port == -1 && tls_port == -1) {
+            qerror_report(QERR_MISSING_PARAMETER, "port/tls-port");
+            return -1;
+        }
+
         ret = qemu_spice_migrate_info(hostname, port, tls_port, subject,
                                       cb, opaque);
         if (ret != 0) {
