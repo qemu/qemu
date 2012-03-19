@@ -32,13 +32,6 @@
 
 #include "hw/pci_internals.h"
 
-static const uint32_t bars[] = {
-    PCI_BASE_ADDRESS_0, PCI_BASE_ADDRESS_1,
-    PCI_BASE_ADDRESS_2, PCI_BASE_ADDRESS_3,
-    PCI_BASE_ADDRESS_4, PCI_BASE_ADDRESS_5
-    /*, PCI_ROM_ADDRESS*/
-};
-
 static PCIDevice *find_dev(sPAPREnvironment *spapr,
                            uint64_t buid, uint32_t config_addr)
 {
@@ -187,69 +180,6 @@ static void pci_spapr_set_irq(void *opaque, int irq_num, int level)
     qemu_set_irq(phb->lsi_table[irq_num].qirq, level);
 }
 
-static int spapr_phb_init(SysBusDevice *s)
-{
-    sPAPRPHBState *phb = FROM_SYSBUS(sPAPRPHBState, s);
-    int i;
-
-    /* Initialize the LSI table */
-    for (i = 0; i < SPAPR_PCI_NUM_LSI; i++) {
-        qemu_irq qirq;
-        uint32_t num;
-
-        qirq = spapr_allocate_irq(0, &num);
-        if (!qirq) {
-            return -1;
-        }
-
-        phb->lsi_table[i].dt_irq = num;
-        phb->lsi_table[i].qirq = qirq;
-    }
-
-    return 0;
-}
-
-static int spapr_main_pci_host_init(PCIDevice *d)
-{
-    return 0;
-}
-
-static void spapr_main_pci_host_class_init(ObjectClass *klass, void *data)
-{
-    PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
-
-    k->init = spapr_main_pci_host_init;
-}
-
-static TypeInfo spapr_main_pci_host_info = {
-    .name          = "spapr-pci-host-bridge-pci",
-    .parent        = TYPE_PCI_DEVICE,
-    .instance_size = sizeof(PCIDevice),
-    .class_init    = spapr_main_pci_host_class_init,
-};
-
-static void spapr_phb_class_init(ObjectClass *klass, void *data)
-{
-    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
-
-    sdc->init = spapr_phb_init;
-}
-
-static TypeInfo spapr_phb_info = {
-    .name          = "spapr-pci-host-bridge",
-    .parent        = TYPE_SYS_BUS_DEVICE,
-    .instance_size = sizeof(sPAPRPHBState),
-    .class_init    = spapr_phb_class_init,
-};
-
-static void spapr_register_types(void)
-{
-    type_register_static(&spapr_phb_info);
-    type_register_static(&spapr_main_pci_host_info);
-}
-
-type_init(spapr_register_types)
-
 static uint64_t spapr_io_read(void *opaque, target_phys_addr_t addr,
                               unsigned size)
 {
@@ -287,34 +217,28 @@ static const MemoryRegionOps spapr_io_ops = {
     .write = spapr_io_write
 };
 
-void spapr_create_phb(sPAPREnvironment *spapr,
-                      const char *busname, uint64_t buid,
-                      uint64_t mem_win_addr, uint64_t mem_win_size,
-                      uint64_t io_win_addr)
+/*
+ * PHB PCI device
+ */
+static int spapr_phb_init(SysBusDevice *s)
 {
-    DeviceState *dev;
-    SysBusDevice *s;
-    sPAPRPHBState *phb;
+    sPAPRPHBState *phb = FROM_SYSBUS(sPAPRPHBState, s);
+    char *namebuf;
+    int i;
     PCIBus *bus;
-    char namebuf[strlen(busname)+11];
 
-    dev = qdev_create(NULL, "spapr-pci-host-bridge");
-    qdev_init_nofail(dev);
-    s = sysbus_from_qdev(dev);
-    phb = FROM_SYSBUS(sPAPRPHBState, s);
+    phb->dtbusname = g_strdup_printf("pci@%" PRIx64, phb->buid);
+    namebuf = alloca(strlen(phb->dtbusname) + 32);
 
-    phb->mem_win_addr = mem_win_addr;
-
-    sprintf(namebuf, "%s-mem", busname);
+    /* Initialize memory regions */
+    sprintf(namebuf, "%s.mmio", phb->dtbusname);
     memory_region_init(&phb->memspace, namebuf, INT64_MAX);
 
-    sprintf(namebuf, "%s-memwindow", busname);
+    sprintf(namebuf, "%s.mmio-alias", phb->dtbusname);
     memory_region_init_alias(&phb->memwindow, namebuf, &phb->memspace,
-                             SPAPR_PCI_MEM_WIN_BUS_OFFSET, mem_win_size);
-    memory_region_add_subregion(get_system_memory(), mem_win_addr,
+                             SPAPR_PCI_MEM_WIN_BUS_OFFSET, phb->mem_win_size);
+    memory_region_add_subregion(get_system_memory(), phb->mem_win_addr,
                                 &phb->memwindow);
-
-    phb->io_win_addr = io_win_addr;
 
     /* On ppc, we only have MMIO no specific IO space from the CPU
      * perspective.  In theory we ought to be able to embed the PCI IO
@@ -324,33 +248,92 @@ void spapr_create_phb(sPAPREnvironment *spapr,
      * system io address space.  This hack to bounce things via
      * system_io works around the problem until all the users of
      * old_portion are updated */
-    sprintf(namebuf, "%s-io", busname);
+    sprintf(namebuf, "%s.io", phb->dtbusname);
     memory_region_init(&phb->iospace, namebuf, SPAPR_PCI_IO_WIN_SIZE);
     /* FIXME: fix to support multiple PHBs */
     memory_region_add_subregion(get_system_io(), 0, &phb->iospace);
 
-    sprintf(namebuf, "%s-iowindow", busname);
+    sprintf(namebuf, "%s.io-alias", phb->dtbusname);
     memory_region_init_io(&phb->iowindow, &spapr_io_ops, phb,
                           namebuf, SPAPR_PCI_IO_WIN_SIZE);
-    memory_region_add_subregion(get_system_memory(), io_win_addr,
+    memory_region_add_subregion(get_system_memory(), phb->io_win_addr,
                                 &phb->iowindow);
 
-    phb->host_state.bus = bus = pci_register_bus(&phb->busdev.qdev, busname,
-                                                 pci_spapr_set_irq,
-                                                 pci_spapr_map_irq,
-                                                 phb,
-                                                 &phb->memspace, &phb->iospace,
-                                                 PCI_DEVFN(0, 0),
-                                                 SPAPR_PCI_NUM_LSI);
+    bus = pci_register_bus(&phb->busdev.qdev,
+                           phb->busname ? phb->busname : phb->dtbusname,
+                           pci_spapr_set_irq, pci_spapr_map_irq, phb,
+                           &phb->memspace, &phb->iospace,
+                           PCI_DEVFN(0, 0), SPAPR_PCI_NUM_LSI);
+    phb->host_state.bus = bus;
+
+    QLIST_INSERT_HEAD(&spapr->phbs, phb, list);
+
+    /* Initialize the LSI table */
+    for (i = 0; i < SPAPR_PCI_NUM_LSI; i++) {
+        qemu_irq qirq;
+        uint32_t num;
+
+        qirq = spapr_allocate_lsi(0, &num);
+        if (!qirq) {
+            return -1;
+        }
+
+        phb->lsi_table[i].dt_irq = num;
+        phb->lsi_table[i].qirq = qirq;
+    }
+
+    return 0;
+}
+
+static Property spapr_phb_properties[] = {
+    DEFINE_PROP_HEX64("buid", sPAPRPHBState, buid, 0),
+    DEFINE_PROP_STRING("busname", sPAPRPHBState, busname),
+    DEFINE_PROP_HEX64("mem_win_addr", sPAPRPHBState, mem_win_addr, 0),
+    DEFINE_PROP_HEX64("mem_win_size", sPAPRPHBState, mem_win_size, 0x20000000),
+    DEFINE_PROP_HEX64("io_win_addr", sPAPRPHBState, io_win_addr, 0),
+    DEFINE_PROP_HEX64("io_win_size", sPAPRPHBState, io_win_size, 0x10000),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
+static void spapr_phb_class_init(ObjectClass *klass, void *data)
+{
+    SysBusDeviceClass *sdc = SYS_BUS_DEVICE_CLASS(klass);
+    DeviceClass *dc = DEVICE_CLASS(klass);
+
+    sdc->init = spapr_phb_init;
+    dc->props = spapr_phb_properties;
 
     spapr_rtas_register("read-pci-config", rtas_read_pci_config);
     spapr_rtas_register("write-pci-config", rtas_write_pci_config);
     spapr_rtas_register("ibm,read-pci-config", rtas_ibm_read_pci_config);
     spapr_rtas_register("ibm,write-pci-config", rtas_ibm_write_pci_config);
+}
 
-    QLIST_INSERT_HEAD(&spapr->phbs, phb, list);
+static TypeInfo spapr_phb_info = {
+    .name          = "spapr-pci-host-bridge",
+    .parent        = TYPE_SYS_BUS_DEVICE,
+    .instance_size = sizeof(sPAPRPHBState),
+    .class_init    = spapr_phb_class_init,
+};
 
-    /* pci_bus_set_mem_base(bus, mem_va_start - SPAPR_PCI_MEM_BAR_START); */
+void spapr_create_phb(sPAPREnvironment *spapr,
+                      const char *busname, uint64_t buid,
+                      uint64_t mem_win_addr, uint64_t mem_win_size,
+                      uint64_t io_win_addr)
+{
+    DeviceState *dev;
+
+    dev = qdev_create(NULL, spapr_phb_info.name);
+
+    if (busname) {
+        qdev_prop_set_string(dev, "busname", g_strdup(busname));
+    }
+    qdev_prop_set_uint64(dev, "buid", buid);
+    qdev_prop_set_uint64(dev, "mem_win_addr", mem_win_addr);
+    qdev_prop_set_uint64(dev, "mem_win_size", mem_win_size);
+    qdev_prop_set_uint64(dev, "io_win_addr", io_win_addr);
+
+    qdev_init_nofail(dev);
 }
 
 /* Macros to operate with address in OF binding to PCI */
@@ -442,3 +425,9 @@ int spapr_populate_pci_devices(sPAPRPHBState *phb,
 
     return 0;
 }
+
+static void register_types(void)
+{
+    type_register_static(&spapr_phb_info);
+}
+type_init(register_types)

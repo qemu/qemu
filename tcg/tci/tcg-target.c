@@ -798,6 +798,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
     case INDEX_op_qemu_st8:
     case INDEX_op_qemu_st16:
     case INDEX_op_qemu_st32:
+#ifdef CONFIG_TCG_PASS_AREG0
+        tcg_out_r(s, TCG_AREG0);
+#endif
         tcg_out_r(s, *args++);
         tcg_out_r(s, *args++);
 #if TARGET_LONG_BITS > TCG_TARGET_REG_BITS
@@ -808,6 +811,9 @@ static void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
 #endif
         break;
     case INDEX_op_qemu_st64:
+#ifdef CONFIG_TCG_PASS_AREG0
+        tcg_out_r(s, TCG_AREG0);
+#endif
         tcg_out_r(s, *args++);
 #if TCG_TARGET_REG_BITS == 32
         tcg_out_r(s, *args++);

@@ -415,13 +415,14 @@ struct CPUSPARCState {
 #if !defined(TARGET_SPARC64)
     int      psref;    /* enable fpu */
 #endif
-    target_ulong version;
     int interrupt_index;
-    uint32_t nwindows;
     /* NOTE: we allow 8 more registers to handle wrapping */
     target_ulong regbase[MAX_NWINDOWS * 16 + 8];
 
     CPU_COMMON
+
+    target_ulong version;
+    uint32_t nwindows;
 
     /* MMU regs */
 #if defined(TARGET_SPARC64)
@@ -492,6 +493,9 @@ struct CPUSPARCState {
     /* UA 2005 hyperprivileged registers */
     uint64_t hpstate, htstate[MAXTL_MAX], hintp, htba, hver, hstick_cmpr, ssr;
     CPUTimer *hstick; // UA 2005
+    /* Interrupt vector registers */
+    uint64_t ivec_status;
+    uint64_t ivec_data[3];
     uint32_t softint;
 #define SOFTINT_TIMER   1
 #define SOFTINT_STIMER  (1 << 16)
@@ -582,7 +586,6 @@ void cpu_unassigned_access(CPUSPARCState *env1, target_phys_addr_t addr,
 #if defined(TARGET_SPARC64)
 target_phys_addr_t cpu_get_phys_page_nofault(CPUSPARCState *env, target_ulong addr,
                                            int mmu_idx);
-
 #endif
 #endif
 int cpu_sparc_signal_handler(int host_signum, void *pinfo, void *puc);
@@ -696,6 +699,8 @@ uint64_t cpu_tick_get_count(CPUTimer *timer);
 void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit);
 trap_state* cpu_tsptr(CPUSPARCState* env);
 #endif
+void do_unaligned_access(CPUSPARCState *env, target_ulong addr, int is_write,
+                         int is_user, void *retaddr);
 
 #define TB_FLAG_FPU_ENABLED (1 << 4)
 #define TB_FLAG_AM_ENABLED (1 << 5)

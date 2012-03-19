@@ -301,6 +301,27 @@ static const uint8_t tcg_cond_to_ltr_cond[10] = {
 
 #include "../../softmmu_defs.h"
 
+#ifdef CONFIG_TCG_PASS_AREG0
+/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
+   int mmu_idx) */
+static const void * const qemu_ld_helpers[4] = {
+    helper_ldb_mmu,
+    helper_ldw_mmu,
+    helper_ldl_mmu,
+    helper_ldq_mmu,
+};
+
+/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
+   uintxx_t val, int mmu_idx) */
+static const void * const qemu_st_helpers[4] = {
+    helper_stb_mmu,
+    helper_stw_mmu,
+    helper_stl_mmu,
+    helper_stq_mmu,
+};
+#else
+/* legacy helper signature: __ld_mmu(target_ulong addr, int
+   mmu_idx) */
 static void *qemu_ld_helpers[4] = {
     __ldb_mmu,
     __ldw_mmu,
@@ -308,12 +329,15 @@ static void *qemu_ld_helpers[4] = {
     __ldq_mmu,
 };
 
+/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
+   int mmu_idx) */
 static void *qemu_st_helpers[4] = {
     __stb_mmu,
     __stw_mmu,
     __stl_mmu,
     __stq_mmu,
 };
+#endif
 #endif
 
 static uint8_t *tb_ret_addr;
@@ -1483,9 +1507,29 @@ static void tcg_prepare_qemu_ldst(TCGContext* s, TCGReg data_reg,
             tcg_abort();
         }
         tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_R4, mem_index);
+#ifdef CONFIG_TCG_PASS_AREG0
+        /* XXX/FIXME: suboptimal */
+        tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
+                    tcg_target_call_iarg_regs[1]);
+        tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                    tcg_target_call_iarg_regs[0]);
+        tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                    TCG_AREG0);
+#endif
         tgen_calli(s, (tcg_target_ulong)qemu_st_helpers[s_bits]);
     } else {
         tcg_out_movi(s, TCG_TYPE_I32, arg1, mem_index);
+#ifdef CONFIG_TCG_PASS_AREG0
+        /* XXX/FIXME: suboptimal */
+        tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
+                    tcg_target_call_iarg_regs[2]);
+        tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
+                    tcg_target_call_iarg_regs[1]);
+        tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                    tcg_target_call_iarg_regs[0]);
+        tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                    TCG_AREG0);
+#endif
         tgen_calli(s, (tcg_target_ulong)qemu_ld_helpers[s_bits]);
 
         /* sign extension */

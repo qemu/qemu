@@ -670,7 +670,7 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
         dev->qdev.id = id;
     }
 
-    dev->qirq = spapr_allocate_irq(dev->vio_irq_num, &dev->vio_irq_num);
+    dev->qirq = spapr_allocate_msi(dev->vio_irq_num, &dev->vio_irq_num);
     if (!dev->qirq) {
         return -1;
     }

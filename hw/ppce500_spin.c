@@ -182,7 +182,7 @@ static uint64_t spin_read(void *opaque, target_phys_addr_t addr, unsigned len)
     }
 }
 
-const MemoryRegionOps spin_rw_ops = {
+static const MemoryRegionOps spin_rw_ops = {
     .read = spin_read,
     .write = spin_write,
     .endianness = DEVICE_BIG_ENDIAN,

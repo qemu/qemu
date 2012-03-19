@@ -30,6 +30,7 @@ void cpu_state_reset(CPUSPARCState *env)
         log_cpu_state(env, 0);
     }
 
+    memset(env, 0, offsetof(CPUSPARCState, breakpoints));
     tlb_flush(env, 1);
     env->cwp = 0;
 #ifndef TARGET_SPARC64

@@ -252,11 +252,6 @@ typedef int TCGv_i64;
 #define TCGV_UNUSED_I64(x) x = MAKE_TCGV_I64(-1)
 
 /* call flags */
-#define TCG_CALL_TYPE_MASK      0x000f
-#define TCG_CALL_TYPE_STD       0x0000 /* standard C call */
-#define TCG_CALL_TYPE_REGPARM_1 0x0001 /* i386 style regparm call (1 reg) */
-#define TCG_CALL_TYPE_REGPARM_2 0x0002 /* i386 style regparm call (2 regs) */
-#define TCG_CALL_TYPE_REGPARM   0x0003 /* i386 style regparm call (3 regs) */
 /* A pure function only reads its arguments and TCG global variables
    and cannot raise exceptions. Hence a call to a pure function can be
    safely suppressed if the return value is not used. */
@@ -337,7 +332,7 @@ typedef struct TCGContext TCGContext;
 
 struct TCGContext {
     uint8_t *pool_cur, *pool_end;
-    TCGPool *pool_first, *pool_current;
+    TCGPool *pool_first, *pool_current, *pool_first_large;
     TCGLabel *labels;
     int nb_labels;
     TCGTemp *temps; /* globals first, temps after */
@@ -589,5 +584,5 @@ extern uint8_t code_gen_prologue[];
 /* TCG targets may use a different definition of tcg_qemu_tb_exec. */
 #if !defined(tcg_qemu_tb_exec)
 # define tcg_qemu_tb_exec(env, tb_ptr) \
-    ((long REGPARM (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
+    ((tcg_target_ulong (*)(void *, void *))code_gen_prologue)(env, tb_ptr)
 #endif

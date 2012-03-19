@@ -750,6 +750,27 @@ static void tcg_out_setcond2(TCGContext *s, TCGCond cond, int ret,
 
 #include "../../softmmu_defs.h"
 
+#ifdef CONFIG_TCG_PASS_AREG0
+/* helper signature: helper_ld_mmu(CPUState *env, target_ulong addr,
+   int mmu_idx) */
+static const void * const qemu_ld_helpers[4] = {
+    helper_ldb_mmu,
+    helper_ldw_mmu,
+    helper_ldl_mmu,
+    helper_ldq_mmu,
+};
+
+/* helper signature: helper_st_mmu(CPUState *env, target_ulong addr,
+   uintxx_t val, int mmu_idx) */
+static const void * const qemu_st_helpers[4] = {
+    helper_stb_mmu,
+    helper_stw_mmu,
+    helper_stl_mmu,
+    helper_stq_mmu,
+};
+#else
+/* legacy helper signature: __ld_mmu(target_ulong addr, int
+   mmu_idx) */
 static void *qemu_ld_helpers[4] = {
     __ldb_mmu,
     __ldw_mmu,
@@ -757,12 +778,15 @@ static void *qemu_ld_helpers[4] = {
     __ldq_mmu,
 };
 
+/* legacy helper signature: __st_mmu(target_ulong addr, uintxx_t val,
+   int mmu_idx) */
 static void *qemu_st_helpers[4] = {
     __stb_mmu,
     __stw_mmu,
     __stl_mmu,
     __stq_mmu,
 };
+#endif
 #endif
 
 static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
@@ -858,6 +882,15 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args,
 # endif
     tcg_out_movi(s, TCG_TYPE_I32, sp_args++, mem_index);
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_T9, (tcg_target_long)qemu_ld_helpers[s_bits]);
+#ifdef CONFIG_TCG_PASS_AREG0
+    /* XXX/FIXME: suboptimal and incorrect for 64 on 32 bit */
+    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2],
+                tcg_target_call_iarg_regs[1]);
+    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                tcg_target_call_iarg_regs[0]);
+    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                TCG_AREG0);
+#endif
     tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, TCG_REG_T9, 0);
     tcg_out_nop(s);
 
@@ -1069,6 +1102,17 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
     }
 
     tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_T9, (tcg_target_long)qemu_st_helpers[s_bits]);
+#ifdef CONFIG_TCG_PASS_AREG0
+    /* XXX/FIXME: suboptimal and incorrect for 64 on 32 bit */
+    tcg_out_mov(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[3],
+                tcg_target_call_iarg_regs[2]);
+    tcg_out_mov(s, TCG_TYPE_I64, tcg_target_call_iarg_regs[2],
+                tcg_target_call_iarg_regs[1]);
+    tcg_out_mov(s, TCG_TYPE_TL, tcg_target_call_iarg_regs[1],
+                tcg_target_call_iarg_regs[0]);
+    tcg_out_mov(s, TCG_TYPE_PTR, tcg_target_call_iarg_regs[0],
+                TCG_AREG0);
+#endif
     tcg_out_opc_reg(s, OPC_JALR, TCG_REG_RA, TCG_REG_T9, 0);
     tcg_out_nop(s);
 
