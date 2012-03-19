@@ -3856,8 +3856,8 @@ void cpu_physical_memory_rw(target_phys_addr_t addr, uint8_t *buf,
                 }
             } else {
                 /* RAM case */
-                ptr = qemu_get_ram_ptr(section->mr->ram_addr)
-                    + section_addr(section, addr);
+                ptr = qemu_get_ram_ptr(section->mr->ram_addr
+                                       + section_addr(section, addr));
                 memcpy(buf, ptr, l);
                 qemu_put_ram_ptr(ptr);
             }
