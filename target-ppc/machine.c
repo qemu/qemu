@@ -32,7 +32,6 @@ void cpu_save(QEMUFile *f, void *opaque)
     }
     qemu_put_be32s(f, &env->fpscr);
     qemu_put_sbe32s(f, &env->access_type);
-#if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
     qemu_put_betls(f, &env->asr);
     qemu_put_sbe32s(f, &env->slb_nr);
@@ -62,7 +61,6 @@ void cpu_save(QEMUFile *f, void *opaque)
     }
     for (i = 0; i < 4; i++)
         qemu_put_betls(f, &env->pb[i]);
-#endif
     for (i = 0; i < 1024; i++)
         qemu_put_betls(f, &env->spr[i]);
     qemu_put_be32s(f, &env->vscr);
@@ -72,7 +70,6 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_be32s(f, &env->flags);
     qemu_put_sbe32s(f, &env->error_code);
     qemu_put_be32s(f, &env->pending_interrupts);
-#if !defined(CONFIG_USER_ONLY)
     qemu_put_be32s(f, &env->irq_input_state);
     for (i = 0; i < POWERPC_EXCP_NB; i++)
         qemu_put_betls(f, &env->excp_vectors[i]);
@@ -81,7 +78,6 @@ void cpu_save(QEMUFile *f, void *opaque)
     qemu_put_betls(f, &env->ivor_mask);
     qemu_put_betls(f, &env->ivpr_mask);
     qemu_put_betls(f, &env->hreset_vector);
-#endif
     qemu_put_betls(f, &env->nip);
     qemu_put_betls(f, &env->hflags);
     qemu_put_betls(f, &env->hflags_nmsr);
@@ -120,7 +116,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     }
     qemu_get_be32s(f, &env->fpscr);
     qemu_get_sbe32s(f, &env->access_type);
-#if !defined(CONFIG_USER_ONLY)
 #if defined(TARGET_PPC64)
     qemu_get_betls(f, &env->asr);
     qemu_get_sbe32s(f, &env->slb_nr);
@@ -150,7 +145,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     }
     for (i = 0; i < 4; i++)
         qemu_get_betls(f, &env->pb[i]);
-#endif
     for (i = 0; i < 1024; i++)
         qemu_get_betls(f, &env->spr[i]);
     ppc_store_sdr1(env, sdr1);
@@ -161,7 +155,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_be32s(f, &env->flags);
     qemu_get_sbe32s(f, &env->error_code);
     qemu_get_be32s(f, &env->pending_interrupts);
-#if !defined(CONFIG_USER_ONLY)
     qemu_get_be32s(f, &env->irq_input_state);
     for (i = 0; i < POWERPC_EXCP_NB; i++)
         qemu_get_betls(f, &env->excp_vectors[i]);
@@ -170,7 +163,6 @@ int cpu_load(QEMUFile *f, void *opaque, int version_id)
     qemu_get_betls(f, &env->ivor_mask);
     qemu_get_betls(f, &env->ivpr_mask);
     qemu_get_betls(f, &env->hreset_vector);
-#endif
     qemu_get_betls(f, &env->nip);
     qemu_get_betls(f, &env->hflags);
     qemu_get_betls(f, &env->hflags_nmsr);
