@@ -84,6 +84,7 @@
 #include "qemu-timer.h"
 #include "cpus.h"
 #include "memory.h"
+#include "qmp-commands.h"
 
 #define SELF_ANNOUNCE_ROUNDS 5
 
@@ -1177,6 +1178,7 @@ typedef struct SaveStateEntry {
     void *opaque;
     CompatEntry *compat;
     int no_migrate;
+    int is_ram;
 } SaveStateEntry;
 
 
@@ -1241,6 +1243,10 @@ int register_savevm_live(DeviceState *dev,
     se->opaque = opaque;
     se->vmsd = NULL;
     se->no_migrate = 0;
+    /* if this is a live_savem then set is_ram */
+    if (save_live_state != NULL) {
+        se->is_ram = 1;
+    }
 
     if (dev && dev->parent_bus && dev->parent_bus->info->get_dev_path) {
         char *id = dev->parent_bus->info->get_dev_path(dev);
@@ -1728,6 +1734,45 @@ out:
     return ret;
 }
 
+static int qemu_save_device_state(QEMUFile *f)
+{
+    SaveStateEntry *se;
+
+    qemu_put_be32(f, QEMU_VM_FILE_MAGIC);
+    qemu_put_be32(f, QEMU_VM_FILE_VERSION);
+
+    cpu_synchronize_all_states();
+
+    QTAILQ_FOREACH(se, &savevm_handlers, entry) {
+        int len;
+
+        if (se->is_ram) {
+            continue;
+        }
+        if (se->save_state == NULL && se->vmsd == NULL) {
+            continue;
+        }
+
+        /* Section type */
+        qemu_put_byte(f, QEMU_VM_SECTION_FULL);
+        qemu_put_be32(f, se->section_id);
+
+        /* ID string */
+        len = strlen(se->idstr);
+        qemu_put_byte(f, len);
+        qemu_put_buffer(f, (uint8_t *)se->idstr, len);
+
+        qemu_put_be32(f, se->instance_id);
+        qemu_put_be32(f, se->version_id);
+
+        vmstate_save(f, se);
+    }
+
+    qemu_put_byte(f, QEMU_VM_EOF);
+
+    return qemu_file_get_error(f);
+}
+
 static SaveStateEntry *find_se(const char *idstr, int instance_id)
 {
     SaveStateEntry *se;
@@ -2107,6 +2152,32 @@ void do_savevm(Monitor *mon, const QDict *qdict)
  the_end:
     if (saved_vm_running)
         vm_start();
+}
+
+void qmp_xen_save_devices_state(const char *filename, Error **errp)
+{
+    QEMUFile *f;
+    int saved_vm_running;
+    int ret;
+
+    saved_vm_running = runstate_is_running();
+    vm_stop(RUN_STATE_SAVE_VM);
+
+    f = qemu_fopen(filename, "wb");
+    if (!f) {
+        error_set(errp, QERR_OPEN_FILE_FAILED, filename);
+        goto the_end;
+    }
+    ret = qemu_save_device_state(f);
+    qemu_fclose(f);
+    if (ret < 0) {
+        error_set(errp, QERR_IO_ERROR);
+    }
+
+ the_end:
+    if (saved_vm_running)
+        vm_start();
+    return;
 }
 
 int load_vmstate(const char *name)

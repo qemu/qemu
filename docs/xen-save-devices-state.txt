@@ -1,0 +1,34 @@
+= Save Devices =
+
+QEMU has code to load/save the state of the guest that it is running.
+These are two complementary operations.  Saving the state just does
+that, saves the state for each device that the guest is running.
+
+These operations are normally used with migration (see migration.txt),
+however it is also possible to save the state of all devices to file,
+without saving the RAM or the block devices of the VM.
+
+This operation is called "xen-save-devices-state" (see
+QMP/qmp-commands.txt)
+
+
+The binary format used in the file is the following:
+
+
+-------------------------------------------
+
+32 bit big endian: QEMU_VM_FILE_MAGIC
+32 bit big endian: QEMU_VM_FILE_VERSION
+
+for_each_device
+{
+    8 bit:              QEMU_VM_SECTION_FULL
+    32 bit big endian:  section_id
+    8 bit:              idstr (ID string) length
+    string:             idstr (ID string)
+    32 bit big endian:  instance_id
+    32 bit big endian:  version_id
+    buffer:             device specific data
+}
+
+8 bit: QEMU_VM_EOF
