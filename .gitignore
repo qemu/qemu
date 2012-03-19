@@ -39,6 +39,7 @@ qemu-img-cmds.texi
 qemu-img-cmds.h
 qemu-io
 qemu-ga
+qemu-bridge-helper
 qemu-monitor.texi
 QMP/qmp-commands.txt
 test-coroutine
@@ -75,9 +76,14 @@ patches
 pc-bios/bios-pq/status
 pc-bios/vgabios-pq/status
 pc-bios/optionrom/linuxboot.bin
+pc-bios/optionrom/linuxboot.raw
+pc-bios/optionrom/linuxboot.img
 pc-bios/optionrom/multiboot.bin
 pc-bios/optionrom/multiboot.raw
+pc-bios/optionrom/multiboot.img
 pc-bios/optionrom/kvmvapic.bin
+pc-bios/optionrom/kvmvapic.raw
+pc-bios/optionrom/kvmvapic.img
 .stgit-*
 cscope.*
 tags

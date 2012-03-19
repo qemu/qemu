@@ -259,6 +259,10 @@ static GIOStatus ga_channel_write(GAChannel *c, const char *buf, size_t size,
         *count = written;
     }
 
+    if (ov.hEvent) {
+        CloseHandle(ov.hEvent);
+        ov.hEvent = NULL;
+    }
     return status;
 }
 

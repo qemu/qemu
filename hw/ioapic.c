@@ -195,7 +195,7 @@ ioapic_mem_write(void *opaque, target_phys_addr_t addr, uint64_t val,
         if (size != 4) {
             break;
         }
-        DPRINTF("write: %08x = %08x\n", s->ioregsel, val);
+        DPRINTF("write: %08x = %08" PRIx64 "\n", s->ioregsel, val);
         switch (s->ioregsel) {
         case IOAPIC_REG_ID:
             s->id = (val >> IOAPIC_ID_SHIFT) & IOAPIC_ID_MASK;
