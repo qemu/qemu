@@ -161,6 +161,18 @@ linetoc_nop()
     return
 }
 
+linetod_nop()
+{
+    # Used when "disabled" events are processed
+    return
+}
+
+linetostap_nop()
+{
+    # Used when "disabled" events are processed
+    return
+}
+
 linetoc_end_nop()
 {
     return
