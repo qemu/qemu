@@ -2584,10 +2584,14 @@ QemuOpts *qemu_chr_parse_compat(const char *label, const char *filename)
     int pos;
     const char *p;
     QemuOpts *opts;
+    Error *local_err = NULL;
 
-    opts = qemu_opts_create(qemu_find_opts("chardev"), label, 1);
-    if (NULL == opts)
+    opts = qemu_opts_create(qemu_find_opts("chardev"), label, 1, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return NULL;
+    }
 
     if (strstart(filename, "mon:", &p)) {
         filename = p;

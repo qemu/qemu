@@ -1786,7 +1786,7 @@ static int balloon_parse(const char *arg)
                 return  -1;
         } else {
             /* create empty opts */
-            opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0);
+            opts = qemu_opts_create(qemu_find_opts("device"), NULL, 0, NULL);
         }
         qemu_opt_set(opts, "driver", "virtio-balloon");
         return 0;
@@ -1921,7 +1921,7 @@ static void monitor_parse(const char *optarg, const char *mode)
         }
     }
 
-    opts = qemu_opts_create(qemu_find_opts("mon"), label, 1);
+    opts = qemu_opts_create(qemu_find_opts("mon"), label, 1, NULL);
     if (!opts) {
         fprintf(stderr, "duplicate chardev: %s\n", label);
         exit(1);
@@ -2035,14 +2035,14 @@ static int virtcon_parse(const char *devname)
         exit(1);
     }
 
-    bus_opts = qemu_opts_create(device, NULL, 0);
+    bus_opts = qemu_opts_create(device, NULL, 0, NULL);
     if (arch_type == QEMU_ARCH_S390X) {
         qemu_opt_set(bus_opts, "driver", "virtio-serial-s390");
     } else {
         qemu_opt_set(bus_opts, "driver", "virtio-serial-pci");
     } 
 
-    dev_opts = qemu_opts_create(device, NULL, 0);
+    dev_opts = qemu_opts_create(device, NULL, 0, NULL);
     qemu_opt_set(dev_opts, "driver", "virtconsole");
 
     snprintf(label, sizeof(label), "virtcon%d", index);
@@ -2065,7 +2065,7 @@ static int debugcon_parse(const char *devname)
     if (!qemu_chr_new("debugcon", devname, NULL)) {
         exit(1);
     }
-    opts = qemu_opts_create(qemu_find_opts("device"), "debugcon", 1);
+    opts = qemu_opts_create(qemu_find_opts("device"), "debugcon", 1, NULL);
     if (!opts) {
         fprintf(stderr, "qemu: already have a debugcon device\n");
         exit(1);
@@ -2813,7 +2813,8 @@ int main(int argc, char **argv, char **envp)
                     exit(1);
                 }
                 fsdev = qemu_opts_create(qemu_find_opts("fsdev"),
-                                         qemu_opt_get(opts, "mount_tag"), 1);
+                                         qemu_opt_get(opts, "mount_tag"),
+                                         1, NULL);
                 if (!fsdev) {
                     fprintf(stderr, "duplicate fsdev id: %s\n",
                             qemu_opt_get(opts, "mount_tag"));
@@ -2845,7 +2846,8 @@ int main(int argc, char **argv, char **envp)
 
                 qemu_opt_set_bool(fsdev, "readonly",
                                 qemu_opt_get_bool(opts, "readonly", 0));
-                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0);
+                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
+                                          NULL);
                 qemu_opt_set(device, "driver", "virtio-9p-pci");
                 qemu_opt_set(device, "fsdev",
                              qemu_opt_get(opts, "mount_tag"));
@@ -2857,14 +2859,16 @@ int main(int argc, char **argv, char **envp)
                 QemuOpts *fsdev;
                 QemuOpts *device;
 
-                fsdev = qemu_opts_create(qemu_find_opts("fsdev"), "v_synth", 1);
+                fsdev = qemu_opts_create(qemu_find_opts("fsdev"), "v_synth",
+                                         1, NULL);
                 if (!fsdev) {
                     fprintf(stderr, "duplicate option: %s\n", "virtfs_synth");
                     exit(1);
                 }
                 qemu_opt_set(fsdev, "fsdriver", "synth");
 
-                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0);
+                device = qemu_opts_create(qemu_find_opts("device"), NULL, 0,
+                                          NULL);
                 qemu_opt_set(device, "driver", "virtio-9p-pci");
                 qemu_opt_set(device, "fsdev", "v_synth");
                 qemu_opt_set(device, "mount_tag", "v_synth");
