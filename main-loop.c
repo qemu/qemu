@@ -221,11 +221,10 @@ int main_loop_init(void)
 static fd_set rfds, wfds, xfds;
 static int nfds;
 static GPollFD poll_fds[1024 * 2]; /* this is probably overkill */
-
-#ifndef _WIN32
 static int n_poll_fds;
 static int max_priority;
 
+#ifndef _WIN32
 static void glib_select_fill(int *max_fd, fd_set *rfds, fd_set *wfds,
                              fd_set *xfds, int *cur_timeout)
 {
@@ -403,6 +402,7 @@ void qemu_fd_register(int fd)
 
 static int os_host_main_loop_wait(int timeout)
 {
+    GMainContext *context = g_main_context_default();
     int ret, i;
     PollingEntry *pe;
     WaitObjects *w = &wait_objects;
@@ -424,23 +424,32 @@ static int os_host_main_loop_wait(int timeout)
         }
     }
 
+    g_main_context_prepare(context, &max_priority);
+    n_poll_fds = g_main_context_query(context, max_priority, &timeout,
+                                      poll_fds, ARRAY_SIZE(poll_fds));
+    g_assert(n_poll_fds <= ARRAY_SIZE(poll_fds));
+
     for (i = 0; i < w->num; i++) {
-        poll_fds[i].fd = (DWORD) w->events[i];
-        poll_fds[i].events = G_IO_IN;
+        poll_fds[n_poll_fds + i].fd = (DWORD) w->events[i];
+        poll_fds[n_poll_fds + i].events = G_IO_IN;
     }
 
     qemu_mutex_unlock_iothread();
-    ret = g_poll(poll_fds, w->num, timeout);
+    ret = g_poll(poll_fds, n_poll_fds + w->num, timeout);
     qemu_mutex_lock_iothread();
     if (ret > 0) {
         for (i = 0; i < w->num; i++) {
-            w->revents[i] = poll_fds[i].revents;
+            w->revents[i] = poll_fds[n_poll_fds + i].revents;
         }
         for (i = 0; i < w->num; i++) {
             if (w->revents[i] && w->func[i]) {
                 w->func[i](w->opaque[i]);
             }
         }
+    }
+
+    if (g_main_context_check(context, max_priority, poll_fds, n_poll_fds)) {
+        g_main_context_dispatch(context);
     }
 
     /* If an edge-triggered socket event occurred, select will return a
