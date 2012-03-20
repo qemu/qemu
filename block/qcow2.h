@@ -283,6 +283,7 @@ uint64_t qcow2_alloc_compressed_cluster_offset(BlockDriverState *bs,
 int qcow2_alloc_cluster_link_l2(BlockDriverState *bs, QCowL2Meta *m);
 int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
     int nb_sectors);
+int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors);
 
 /* qcow2-snapshot.c functions */
 int qcow2_snapshot_create(BlockDriverState *bs, QEMUSnapshotInfo *sn_info);

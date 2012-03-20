@@ -1102,3 +1102,75 @@ int qcow2_discard_clusters(BlockDriverState *bs, uint64_t offset,
 
     return 0;
 }
+
+/*
+ * This zeroes as many clusters of nb_clusters as possible at once (i.e.
+ * all clusters in the same L2 table) and returns the number of zeroed
+ * clusters.
+ */
+static int zero_single_l2(BlockDriverState *bs, uint64_t offset,
+    unsigned int nb_clusters)
+{
+    BDRVQcowState *s = bs->opaque;
+    uint64_t *l2_table;
+    int l2_index;
+    int ret;
+    int i;
+
+    ret = get_cluster_table(bs, offset, &l2_table, &l2_index);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* Limit nb_clusters to one L2 table */
+    nb_clusters = MIN(nb_clusters, s->l2_size - l2_index);
+
+    for (i = 0; i < nb_clusters; i++) {
+        uint64_t old_offset;
+
+        old_offset = be64_to_cpu(l2_table[l2_index + i]);
+
+        /* Update L2 entries */
+        qcow2_cache_entry_mark_dirty(s->l2_table_cache, l2_table);
+        if (old_offset & QCOW_OFLAG_COMPRESSED) {
+            l2_table[l2_index + i] = cpu_to_be64(QCOW_OFLAG_ZERO);
+            qcow2_free_any_clusters(bs, old_offset, 1);
+        } else {
+            l2_table[l2_index + i] |= cpu_to_be64(QCOW_OFLAG_ZERO);
+        }
+    }
+
+    ret = qcow2_cache_put(bs, s->l2_table_cache, (void**) &l2_table);
+    if (ret < 0) {
+        return ret;
+    }
+
+    return nb_clusters;
+}
+
+int qcow2_zero_clusters(BlockDriverState *bs, uint64_t offset, int nb_sectors)
+{
+    BDRVQcowState *s = bs->opaque;
+    unsigned int nb_clusters;
+    int ret;
+
+    /* The zero flag is only supported by version 3 and newer */
+    if (s->qcow_version < 3) {
+        return -ENOTSUP;
+    }
+
+    /* Each L2 table is handled by its own loop iteration */
+    nb_clusters = size_to_clusters(s, nb_sectors << BDRV_SECTOR_BITS);
+
+    while (nb_clusters > 0) {
+        ret = zero_single_l2(bs, offset, nb_clusters);
+        if (ret < 0) {
+            return ret;
+        }
+
+        nb_clusters -= ret;
+        offset += (ret * s->cluster_size);
+    }
+
+    return 0;
+}
