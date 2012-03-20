@@ -120,7 +120,7 @@ int kvm_set_ioeventfd_pio_word(int fd, uint16_t addr, uint16_t val, bool assign)
     return -ENOSYS;
 }
 
-int kvm_set_ioeventfd_mmio_long(int fd, uint32_t adr, uint32_t val, bool assign)
+int kvm_set_ioeventfd_mmio(int fd, uint32_t adr, uint32_t val, bool assign, uint32_t len)
 {
     return -ENOSYS;
 }

@@ -354,8 +354,8 @@ static void close_guest_eventfds(IVShmemState *s, int posn)
     guest_curr_max = s->peers[posn].nb_eventfds;
 
     for (i = 0; i < guest_curr_max; i++) {
-        kvm_set_ioeventfd_mmio_long(s->peers[posn].eventfds[i],
-                    s->mmio_addr + DOORBELL, (posn << 16) | i, 0);
+        kvm_set_ioeventfd_mmio(s->peers[posn].eventfds[i],
+                    s->mmio_addr + DOORBELL, (posn << 16) | i, 0, 4);
         close(s->peers[posn].eventfds[i]);
     }
 
@@ -500,8 +500,8 @@ static void ivshmem_read(void *opaque, const uint8_t * buf, int flags)
     }
 
     if (ivshmem_has_feature(s, IVSHMEM_IOEVENTFD)) {
-        if (kvm_set_ioeventfd_mmio_long(incoming_fd, s->mmio_addr + DOORBELL,
-                        (incoming_posn << 16) | guest_max_eventfd, 1) < 0) {
+        if (kvm_set_ioeventfd_mmio(incoming_fd, s->mmio_addr + DOORBELL,
+                        (incoming_posn << 16) | guest_max_eventfd, 1, 4) < 0) {
             fprintf(stderr, "ivshmem: ioeventfd not available\n");
         }
     }
