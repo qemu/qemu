@@ -199,14 +199,16 @@ void qmp_output_visitor_cleanup(QmpOutputVisitor *v)
 {
     QStackEntry *e, *tmp;
 
+    /* The bottom QStackEntry, if any, owns the root QObject. See the
+     * qmp_output_push_obj() invocations in qmp_output_add_obj(). */
+    QObject *root = QTAILQ_EMPTY(&v->stack) ? NULL : qmp_output_first(v);
+
     QTAILQ_FOREACH_SAFE(e, &v->stack, node, tmp) {
         QTAILQ_REMOVE(&v->stack, e, node);
-        if (e->value) {
-            qobject_decref(e->value);
-        }
         g_free(e);
     }
 
+    qobject_decref(root);
     g_free(v);
 }
 
