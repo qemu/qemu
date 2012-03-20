@@ -392,10 +392,18 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
     }
 }
 
+void qemu_fd_register(int fd)
+{
+    WSAEventSelect(fd, qemu_event_handle, FD_READ | FD_ACCEPT | FD_CLOSE |
+                   FD_CONNECT | FD_WRITE | FD_OOB);
+}
+
 static int os_host_main_loop_wait(int timeout)
 {
     int ret, ret2, i;
     PollingEntry *pe;
+    int err;
+    WaitObjects *w = &wait_objects;
     static struct timeval tv0;
 
     /* XXX: need to suppress polling by better using win32 events */
@@ -403,38 +411,49 @@ static int os_host_main_loop_wait(int timeout)
     for (pe = first_polling_entry; pe != NULL; pe = pe->next) {
         ret |= pe->func(pe->opaque);
     }
-    if (ret == 0) {
-        int err;
-        WaitObjects *w = &wait_objects;
+    if (ret != 0) {
+        return ret;
+    }
 
-        qemu_mutex_unlock_iothread();
-        ret = WaitForMultipleObjects(w->num, w->events, FALSE, timeout);
-        qemu_mutex_lock_iothread();
-        if (WAIT_OBJECT_0 + 0 <= ret && ret <= WAIT_OBJECT_0 + w->num - 1) {
-            if (w->func[ret - WAIT_OBJECT_0]) {
-                w->func[ret - WAIT_OBJECT_0](w->opaque[ret - WAIT_OBJECT_0]);
-            }
-
-            /* Check for additional signaled events */
-            for (i = (ret - WAIT_OBJECT_0 + 1); i < w->num; i++) {
-                /* Check if event is signaled */
-                ret2 = WaitForSingleObject(w->events[i], 0);
-                if (ret2 == WAIT_OBJECT_0) {
-                    if (w->func[i]) {
-                        w->func[i](w->opaque[i]);
-                    }
-                } else if (ret2 != WAIT_TIMEOUT) {
-                    err = GetLastError();
-                    fprintf(stderr, "WaitForSingleObject error %d %d\n", i, err);
-                }
-            }
-        } else if (ret != WAIT_TIMEOUT) {
-            err = GetLastError();
-            fprintf(stderr, "WaitForMultipleObjects error %d %d\n", ret, err);
+    if (nfds >= 0) {
+        ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
+        if (ret != 0) {
+            timeout = 0;
         }
     }
 
-    ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
+    qemu_mutex_unlock_iothread();
+    ret = WaitForMultipleObjects(w->num, w->events, FALSE, timeout);
+    qemu_mutex_lock_iothread();
+    if (WAIT_OBJECT_0 + 0 <= ret && ret <= WAIT_OBJECT_0 + w->num - 1) {
+        if (w->func[ret - WAIT_OBJECT_0]) {
+            w->func[ret - WAIT_OBJECT_0](w->opaque[ret - WAIT_OBJECT_0]);
+        }
+
+        /* Check for additional signaled events */
+        for (i = (ret - WAIT_OBJECT_0 + 1); i < w->num; i++) {
+            /* Check if event is signaled */
+            ret2 = WaitForSingleObject(w->events[i], 0);
+            if (ret2 == WAIT_OBJECT_0) {
+                if (w->func[i]) {
+                    w->func[i](w->opaque[i]);
+                }
+            } else if (ret2 != WAIT_TIMEOUT) {
+                err = GetLastError();
+                fprintf(stderr, "WaitForSingleObject error %d %d\n", i, err);
+            }
+        }
+    } else if (ret != WAIT_TIMEOUT) {
+        err = GetLastError();
+        fprintf(stderr, "WaitForMultipleObjects error %d %d\n", ret, err);
+    }
+
+
+    /* If an edge-triggered socket event occurred, select will return a
+     * positive result on the next iteration.  We do not need to do anything
+     * here.
+     */
+
     return ret;
 }
 #endif
