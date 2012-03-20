@@ -220,9 +220,9 @@ int main_loop_init(void)
 
 static fd_set rfds, wfds, xfds;
 static int nfds;
+static GPollFD poll_fds[1024 * 2]; /* this is probably overkill */
 
 #ifndef _WIN32
-static GPollFD poll_fds[1024 * 2]; /* this is probably overkill */
 static int n_poll_fds;
 static int max_priority;
 
@@ -351,6 +351,7 @@ void qemu_del_polling_cb(PollingFunc *func, void *opaque)
 /* Wait objects support */
 typedef struct WaitObjects {
     int num;
+    int revents[MAXIMUM_WAIT_OBJECTS + 1];
     HANDLE events[MAXIMUM_WAIT_OBJECTS + 1];
     WaitObjectFunc *func[MAXIMUM_WAIT_OBJECTS + 1];
     void *opaque[MAXIMUM_WAIT_OBJECTS + 1];
@@ -367,6 +368,7 @@ int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
     w->events[w->num] = handle;
     w->func[w->num] = func;
     w->opaque[w->num] = opaque;
+    w->revents[w->num] = 0;
     w->num++;
     return 0;
 }
@@ -385,6 +387,7 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
             w->events[i] = w->events[i + 1];
             w->func[i] = w->func[i + 1];
             w->opaque[i] = w->opaque[i + 1];
+            w->revents[i] = w->revents[i + 1];
         }
     }
     if (found) {
@@ -400,9 +403,8 @@ void qemu_fd_register(int fd)
 
 static int os_host_main_loop_wait(int timeout)
 {
-    int ret, ret2, i;
+    int ret, i;
     PollingEntry *pe;
-    int err;
     WaitObjects *w = &wait_objects;
     static struct timeval tv0;
 
@@ -422,32 +424,24 @@ static int os_host_main_loop_wait(int timeout)
         }
     }
 
-    qemu_mutex_unlock_iothread();
-    ret = WaitForMultipleObjects(w->num, w->events, FALSE, timeout);
-    qemu_mutex_lock_iothread();
-    if (WAIT_OBJECT_0 + 0 <= ret && ret <= WAIT_OBJECT_0 + w->num - 1) {
-        if (w->func[ret - WAIT_OBJECT_0]) {
-            w->func[ret - WAIT_OBJECT_0](w->opaque[ret - WAIT_OBJECT_0]);
-        }
-
-        /* Check for additional signaled events */
-        for (i = (ret - WAIT_OBJECT_0 + 1); i < w->num; i++) {
-            /* Check if event is signaled */
-            ret2 = WaitForSingleObject(w->events[i], 0);
-            if (ret2 == WAIT_OBJECT_0) {
-                if (w->func[i]) {
-                    w->func[i](w->opaque[i]);
-                }
-            } else if (ret2 != WAIT_TIMEOUT) {
-                err = GetLastError();
-                fprintf(stderr, "WaitForSingleObject error %d %d\n", i, err);
-            }
-        }
-    } else if (ret != WAIT_TIMEOUT) {
-        err = GetLastError();
-        fprintf(stderr, "WaitForMultipleObjects error %d %d\n", ret, err);
+    for (i = 0; i < w->num; i++) {
+        poll_fds[i].fd = (DWORD) w->events[i];
+        poll_fds[i].events = G_IO_IN;
     }
 
+    qemu_mutex_unlock_iothread();
+    ret = g_poll(poll_fds, w->num, timeout);
+    qemu_mutex_lock_iothread();
+    if (ret > 0) {
+        for (i = 0; i < w->num; i++) {
+            w->revents[i] = poll_fds[i].revents;
+        }
+        for (i = 0; i < w->num; i++) {
+            if (w->revents[i] && w->func[i]) {
+                w->func[i](w->opaque[i]);
+            }
+        }
+    }
 
     /* If an edge-triggered socket event occurred, select will return a
      * positive result on the next iteration.  We do not need to do anything
