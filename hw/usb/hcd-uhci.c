@@ -965,6 +965,9 @@ static void uhci_fill_queue(UHCIState *s, UHCI_TD *td)
         }
         trace_usb_uhci_td_queue(plink & ~0xf, ptd.ctrl, ptd.token);
         ret = uhci_handle_td(s, plink, &ptd, &int_mask);
+        if (ret == TD_RESULT_ASYNC_CONT) {
+            break;
+        }
         assert(ret == TD_RESULT_ASYNC_START);
         assert(int_mask == 0);
         plink = ptd.link;
