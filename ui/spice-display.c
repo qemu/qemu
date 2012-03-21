@@ -168,7 +168,7 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     drawable->bbox            = ssd->dirty;
     drawable->clip.type       = SPICE_CLIP_TYPE_NONE;
     drawable->effect          = QXL_EFFECT_OPAQUE;
-    drawable->release_info.id = (intptr_t)update;
+    drawable->release_info.id = (uintptr_t)update;
     drawable->type            = QXL_DRAW_COPY;
     drawable->surfaces_dest[0] = -1;
     drawable->surfaces_dest[1] = -1;
@@ -179,7 +179,7 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
                       + time_space.tv_nsec / 1000 / 1000;
 
     drawable->u.copy.rop_descriptor  = SPICE_ROPD_OP_PUT;
-    drawable->u.copy.src_bitmap      = (intptr_t)image;
+    drawable->u.copy.src_bitmap      = (uintptr_t)image;
     drawable->u.copy.src_area.right  = bw;
     drawable->u.copy.src_area.bottom = bh;
 
@@ -189,7 +189,7 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     image->bitmap.stride     = bw * 4;
     image->descriptor.width  = image->bitmap.x = bw;
     image->descriptor.height = image->bitmap.y = bh;
-    image->bitmap.data = (intptr_t)(update->bitmap);
+    image->bitmap.data = (uintptr_t)(update->bitmap);
     image->bitmap.palette = 0;
     image->bitmap.format = SPICE_BITMAP_FMT_32BIT;
 
@@ -210,7 +210,7 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
     }
 
     cmd->type = QXL_CMD_DRAW;
-    cmd->data = (intptr_t)drawable;
+    cmd->data = (uintptr_t)drawable;
 
     memset(&ssd->dirty, 0, sizeof(ssd->dirty));
     return update;
@@ -254,7 +254,7 @@ void qemu_spice_create_host_primary(SimpleSpiceDisplay *ssd)
     surface.mouse_mode = true;
     surface.flags      = 0;
     surface.type       = 0;
-    surface.mem        = (intptr_t)ssd->buf;
+    surface.mem        = (uintptr_t)ssd->buf;
     surface.group_id   = MEMSLOT_GROUP_HOST;
 
     qemu_spice_create_primary_surface(ssd, 0, &surface, QXL_SYNC);
