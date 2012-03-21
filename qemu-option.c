@@ -581,38 +581,27 @@ uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval)
     return opt->value.uint;
 }
 
-static int qemu_opt_parse(QemuOpt *opt)
+static void qemu_opt_parse(QemuOpt *opt, Error **errp)
 {
-    Error *local_err = NULL;
-
     if (opt->desc == NULL)
-        return 0;
+        return;
 
     switch (opt->desc->type) {
     case QEMU_OPT_STRING:
         /* nothing */
-        return 0;
+        return;
     case QEMU_OPT_BOOL:
-        parse_option_bool(opt->name, opt->str, &opt->value.boolean, &local_err);
+        parse_option_bool(opt->name, opt->str, &opt->value.boolean, errp);
         break;
     case QEMU_OPT_NUMBER:
-        parse_option_number(opt->name, opt->str, &opt->value.uint,
-                            &local_err);
+        parse_option_number(opt->name, opt->str, &opt->value.uint, errp);
         break;
     case QEMU_OPT_SIZE:
-        parse_option_size(opt->name, opt->str, &opt->value.uint, &local_err);
+        parse_option_size(opt->name, opt->str, &opt->value.uint, errp);
         break;
     default:
         abort();
     }
-
-    if (error_is_set(&local_err)) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    return 0;
 }
 
 static void qemu_opt_del(QemuOpt *opt)
@@ -628,6 +617,7 @@ static int opt_set(QemuOpts *opts, const char *name, const char *value,
 {
     QemuOpt *opt;
     const QemuOptDesc *desc = opts->list->desc;
+    Error *local_err = NULL;
     int i;
 
     for (i = 0; desc[i].name != NULL; i++) {
@@ -658,10 +648,14 @@ static int opt_set(QemuOpts *opts, const char *name, const char *value,
     if (value) {
         opt->str = g_strdup(value);
     }
-    if (qemu_opt_parse(opt) < 0) {
+    qemu_opt_parse(opt, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         qemu_opt_del(opt);
         return -1;
     }
+
     return 0;
 }
 
@@ -1050,6 +1044,7 @@ QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
 int qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc)
 {
     QemuOpt *opt;
+    Error *local_err = NULL;
 
     assert(opts->list->desc[0].name == NULL);
 
@@ -1068,7 +1063,10 @@ int qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc)
 
         opt->desc = &desc[i];
 
-        if (qemu_opt_parse(opt) < 0) {
+        qemu_opt_parse(opt, &local_err);
+        if (error_is_set(&local_err)) {
+            qerror_report_err(local_err);
+            error_free(local_err);
             return -1;
         }
     }
