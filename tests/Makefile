@@ -17,7 +17,7 @@ test-coroutine: test-coroutine.o qemu-timer-common.o async.o $(coroutine-obj-y) 
 
 test-qmp-input-visitor.o test-qmp-output-visitor.o \
 test-string-input-visitor.o test-string-output-visitor.o \
-	test-qmp-commands.o qemu-ga$(EXESUF): QEMU_CFLAGS += -I $(qapi-dir)
+	test-qmp-commands.o: QEMU_CFLAGS += -I $(qapi-dir)
 
 $(qapi-dir)/test-qapi-types.c $(qapi-dir)/test-qapi-types.h :\
 $(SRC_PATH)/qapi-schema-test.json $(SRC_PATH)/scripts/qapi-types.py
