@@ -669,6 +669,12 @@ int qemu_opt_set(QemuOpts *opts, const char *name, const char *value)
     return 0;
 }
 
+void qemu_opt_set_err(QemuOpts *opts, const char *name, const char *value,
+                      Error **errp)
+{
+    opt_set(opts, name, value, false, errp);
+}
+
 int qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val)
 {
     QemuOpt *opt;
