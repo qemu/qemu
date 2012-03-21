@@ -75,7 +75,6 @@ struct KVMState
 #ifdef KVM_CAP_SET_GUEST_DEBUG
     struct kvm_sw_breakpoint_head kvm_sw_breakpoints;
 #endif
-    int pit_in_kernel;
     int pit_state2;
     int xsave, xcrs;
     int many_ioeventfds;
@@ -196,11 +195,6 @@ static void kvm_reset_vcpu(void *opaque)
     CPUArchState *env = opaque;
 
     kvm_arch_reset_vcpu(env);
-}
-
-int kvm_pit_in_kernel(void)
-{
-    return kvm_state->pit_in_kernel;
 }
 
 int kvm_init_vcpu(CPUArchState *env)

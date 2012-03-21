@@ -83,8 +83,6 @@ int kvm_update_guest_debug(CPUArchState *env, unsigned long reinject_trap);
 int kvm_set_signal_mask(CPUArchState *env, const sigset_t *sigset);
 #endif
 
-int kvm_pit_in_kernel(void);
-
 int kvm_on_sigbus_vcpu(CPUArchState *env, int code, void *addr);
 int kvm_on_sigbus(int code, void *addr);
 

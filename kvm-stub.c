@@ -16,12 +16,6 @@
 #include "gdbstub.h"
 #include "kvm.h"
 
-int kvm_pit_in_kernel(void)
-{
-    return 0;
-}
-
-
 int kvm_init_vcpu(CPUArchState *env)
 {
     return -ENOSYS;
