@@ -169,7 +169,8 @@ QEMUOptionParameter *get_option_parameter(QEMUOptionParameter *list,
     return NULL;
 }
 
-static int parse_option_bool(const char *name, const char *value, bool *ret)
+static void parse_option_bool(const char *name, const char *value, bool *ret,
+                              Error **errp)
 {
     if (value != NULL) {
         if (!strcmp(value, "on")) {
@@ -177,13 +178,11 @@ static int parse_option_bool(const char *name, const char *value, bool *ret)
         } else if (!strcmp(value, "off")) {
             *ret = 0;
         } else {
-            qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "'on' or 'off'");
-            return -1;
+            error_set(errp,QERR_INVALID_PARAMETER_VALUE, name, "'on' or 'off'");
         }
     } else {
         *ret = 1;
     }
-    return 0;
 }
 
 static void parse_option_number(const char *name, const char *value,
@@ -263,6 +262,7 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
     const char *value)
 {
     bool flag;
+    Error *local_err = NULL;
 
     // Find a matching parameter
     list = get_option_parameter(list, name);
@@ -274,9 +274,10 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
     // Process parameter
     switch (list->type) {
     case OPT_FLAG:
-        if (parse_option_bool(name, value, &flag) == -1)
-            return -1;
-        list->value.n = flag;
+        parse_option_bool(name, value, &flag, &local_err);
+        if (!error_is_set(&local_err)) {
+            list->value.n = flag;
+        }
         break;
 
     case OPT_STRING:
@@ -295,6 +296,12 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
 
     default:
         fprintf(stderr, "Bug: Option '%s' has an unknown type\n", name);
+        return -1;
+    }
+
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
         return -1;
     }
 
@@ -588,7 +595,8 @@ static int qemu_opt_parse(QemuOpt *opt)
         /* nothing */
         return 0;
     case QEMU_OPT_BOOL:
-        return parse_option_bool(opt->name, opt->str, &opt->value.boolean);
+        parse_option_bool(opt->name, opt->str, &opt->value.boolean, &local_err);
+        break;
     case QEMU_OPT_NUMBER:
         parse_option_number(opt->name, opt->str, &opt->value.uint,
                             &local_err);
