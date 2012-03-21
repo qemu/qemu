@@ -612,8 +612,8 @@ static void qemu_opt_del(QemuOpt *opt)
     g_free(opt);
 }
 
-static int opt_set(QemuOpts *opts, const char *name, const char *value,
-                   bool prepend)
+static void opt_set(QemuOpts *opts, const char *name, const char *value,
+                    bool prepend, Error **errp)
 {
     QemuOpt *opt;
     const QemuOptDesc *desc = opts->list->desc;
@@ -629,8 +629,8 @@ static int opt_set(QemuOpts *opts, const char *name, const char *value,
         if (i == 0) {
             /* empty list -> allow any */;
         } else {
-            qerror_report(QERR_INVALID_PARAMETER, name);
-            return -1;
+            error_set(errp, QERR_INVALID_PARAMETER, name);
+            return;
         }
     }
 
@@ -650,18 +650,23 @@ static int opt_set(QemuOpts *opts, const char *name, const char *value,
     }
     qemu_opt_parse(opt, &local_err);
     if (error_is_set(&local_err)) {
-        qerror_report_err(local_err);
-        error_free(local_err);
+        error_propagate(errp, local_err);
         qemu_opt_del(opt);
-        return -1;
     }
-
-    return 0;
 }
 
 int qemu_opt_set(QemuOpts *opts, const char *name, const char *value)
 {
-    return opt_set(opts, name, value, false);
+    Error *local_err = NULL;
+
+    opt_set(opts, name, value, false, &local_err);
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -1;
+    }
+
+    return 0;
 }
 
 int qemu_opt_set_bool(QemuOpts *opts, const char *name, bool val)
@@ -847,6 +852,7 @@ static int opts_do_parse(QemuOpts *opts, const char *params,
 {
     char option[128], value[1024];
     const char *p,*pe,*pc;
+    Error *local_err = NULL;
 
     for (p = params; *p != '\0'; p++) {
         pe = strchr(p, '=');
@@ -878,7 +884,10 @@ static int opts_do_parse(QemuOpts *opts, const char *params,
         }
         if (strcmp(option, "id") != 0) {
             /* store and parse */
-            if (opt_set(opts, option, value, prepend) == -1) {
+            opt_set(opts, option, value, prepend, &local_err);
+            if (error_is_set(&local_err)) {
+                qerror_report_err(local_err);
+                error_free(local_err);
                 return -1;
             }
         }
