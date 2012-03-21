@@ -203,7 +203,8 @@ static void parse_option_number(const char *name, const char *value,
     }
 }
 
-static int parse_option_size(const char *name, const char *value, uint64_t *ret)
+static void parse_option_size(const char *name, const char *value,
+                              uint64_t *ret, Error **errp)
 {
     char *postfix;
     double sizef;
@@ -229,16 +230,14 @@ static int parse_option_size(const char *name, const char *value, uint64_t *ret)
             *ret = (uint64_t) sizef;
             break;
         default:
-            qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "a size");
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name, "a size");
             error_printf_unless_qmp("You may use k, M, G or T suffixes for "
                     "kilobytes, megabytes, gigabytes and terabytes.\n");
-            return -1;
+            return;
         }
     } else {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "a size");
-        return -1;
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, name, "a size");
     }
-    return 0;
 }
 
 /*
@@ -290,8 +289,7 @@ int set_option_parameter(QEMUOptionParameter *list, const char *name,
         break;
 
     case OPT_SIZE:
-        if (parse_option_size(name, value, &list->value.n) == -1)
-            return -1;
+        parse_option_size(name, value, &list->value.n, &local_err);
         break;
 
     default:
@@ -602,7 +600,8 @@ static int qemu_opt_parse(QemuOpt *opt)
                             &local_err);
         break;
     case QEMU_OPT_SIZE:
-        return parse_option_size(opt->name, opt->str, &opt->value.uint);
+        parse_option_size(opt->name, opt->str, &opt->value.uint, &local_err);
+        break;
     default:
         abort();
     }
