@@ -186,7 +186,8 @@ static int parse_option_bool(const char *name, const char *value, bool *ret)
     return 0;
 }
 
-static int parse_option_number(const char *name, const char *value, uint64_t *ret)
+static void parse_option_number(const char *name, const char *value,
+                                uint64_t *ret, Error **errp)
 {
     char *postfix;
     uint64_t number;
@@ -194,15 +195,13 @@ static int parse_option_number(const char *name, const char *value, uint64_t *re
     if (value != NULL) {
         number = strtoull(value, &postfix, 0);
         if (*postfix != '\0') {
-            qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "a number");
-            return -1;
+            error_set(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
+            return;
         }
         *ret = number;
     } else {
-        qerror_report(QERR_INVALID_PARAMETER_VALUE, name, "a number");
-        return -1;
+        error_set(errp, QERR_INVALID_PARAMETER_VALUE, name, "a number");
     }
-    return 0;
 }
 
 static int parse_option_size(const char *name, const char *value, uint64_t *ret)
@@ -579,8 +578,11 @@ uint64_t qemu_opt_get_size(QemuOpts *opts, const char *name, uint64_t defval)
 
 static int qemu_opt_parse(QemuOpt *opt)
 {
+    Error *local_err = NULL;
+
     if (opt->desc == NULL)
         return 0;
+
     switch (opt->desc->type) {
     case QEMU_OPT_STRING:
         /* nothing */
@@ -588,12 +590,22 @@ static int qemu_opt_parse(QemuOpt *opt)
     case QEMU_OPT_BOOL:
         return parse_option_bool(opt->name, opt->str, &opt->value.boolean);
     case QEMU_OPT_NUMBER:
-        return parse_option_number(opt->name, opt->str, &opt->value.uint);
+        parse_option_number(opt->name, opt->str, &opt->value.uint,
+                            &local_err);
+        break;
     case QEMU_OPT_SIZE:
         return parse_option_size(opt->name, opt->str, &opt->value.uint);
     default:
         abort();
     }
+
+    if (error_is_set(&local_err)) {
+        qerror_report_err(local_err);
+        error_free(local_err);
+        return -1;
+    }
+
+    return 0;
 }
 
 static void qemu_opt_del(QemuOpt *opt)
