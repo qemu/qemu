@@ -349,6 +349,18 @@
 #define M88E1000_PHY_VCO_REG_BIT8  0x100 /* Bits 8 & 11 are adjusted for */
 #define M88E1000_PHY_VCO_REG_BIT11 0x800    /* improved BER performance */
 
+/* PHY Control Register */
+#define MII_CR_SPEED_SELECT_MSB 0x0040 /* bits 6,13: 10=1000, 01=100, 00=10 */
+#define MII_CR_COLL_TEST_ENABLE 0x0080 /* Collision test enable */
+#define MII_CR_FULL_DUPLEX      0x0100 /* FDX =1, half duplex =0 */
+#define MII_CR_RESTART_AUTO_NEG 0x0200 /* Restart auto negotiation */
+#define MII_CR_ISOLATE          0x0400 /* Isolate PHY from MII */
+#define MII_CR_POWER_DOWN       0x0800 /* Power down */
+#define MII_CR_AUTO_NEG_EN      0x1000 /* Auto Neg Enable */
+#define MII_CR_SPEED_SELECT_LSB 0x2000 /* bits 6,13: 10=1000, 01=100, 00=10 */
+#define MII_CR_LOOPBACK         0x4000 /* 0 = normal, 1 = loopback */
+#define MII_CR_RESET            0x8000 /* 0 = normal, 1 = PHY reset */
+
 /* PHY Status Register */
 #define MII_SR_EXTENDED_CAPS     0x0001	/* Extended register capabilities */
 #define MII_SR_JABBER_DETECT     0x0002	/* Jabber Detected */
