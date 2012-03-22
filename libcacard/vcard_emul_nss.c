@@ -1018,6 +1018,16 @@ vcard_emul_init(const VCardEmulOptions *options)
             if (slot == NULL || !PK11_IsRemovable(slot) || !PK11_IsHW(slot)) {
                 continue;
             }
+            if (strcmp("E-Gate 0 0", PK11_GetSlotName(slot)) == 0) {
+                /*
+                 * coolkey <= 1.1.0-20 emulates this reader if it can't find
+                 * any hardware readers. This causes problems, warn user of
+                 * problems.
+                 */
+                fprintf(stderr, "known bad coolkey version - see "
+                        "https://bugzilla.redhat.com/show_bug.cgi?id=802435\n");
+                continue;
+            }
             vreader_emul = vreader_emul_new(slot, options->hw_card_type,
                                             options->hw_type_params);
             vreader = vreader_new(PK11_GetSlotName(slot), vreader_emul,
