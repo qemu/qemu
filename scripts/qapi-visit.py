@@ -61,6 +61,9 @@ def generate_visit_struct(name, members):
 
 void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **errp)
 {
+    if (error_is_set(errp)) {
+        return;
+    }
     visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), errp);
 ''',
                 name=name)
@@ -81,6 +84,9 @@ void visit_type_%(name)sList(Visitor *m, %(name)sList ** obj, const char *name, 
 {
     GenericList *i, **head = (GenericList **)obj;
 
+    if (error_is_set(errp)) {
+        return;
+    }
     visit_start_list(m, name, errp);
 
     for (*head = i = visit_next_list(m, head, errp); i; i = visit_next_list(m, &i, errp)) {
@@ -112,6 +118,9 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
 {
     Error *err = NULL;
 
+    if (error_is_set(errp)) {
+        return;
+    }
     visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
     visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
     if (err) {
