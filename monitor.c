@@ -4157,6 +4157,9 @@ static int check_client_args_type(const QDict *client_args,
         case 'O':
             assert(flags & QMP_ACCEPT_UNKNOWNS);
             break;
+        case 'q':
+            /* Any QObject can be passed.  */
+            break;
         case '/':
         case '.':
             /*
