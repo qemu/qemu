@@ -682,8 +682,19 @@ vcard_emul_event_thread(void *arg)
     SECMODModule *module = (SECMODModule *)arg;
 
     do {
+        /*
+         * XXX - the latency value doesn't matter one bit. you only get no
+         * blocking (flags |= CKF_DONT_BLOCK) or PKCS11_WAIT_LATENCY (==500),
+         * hard coded in coolkey.  And it isn't coolkey's fault - the timeout
+         * value we pass get's dropped on the floor before C_WaitForSlotEvent
+         * is called.
+         */
         slot = SECMOD_WaitForAnyTokenEvent(module, 0, 500);
         if (slot == NULL) {
+            /* this could be just a no event indication */
+            if (PORT_GetError() == SEC_ERROR_NO_EVENT) {
+                continue;
+            }
             break;
         }
         vreader = vcard_emul_find_vreader_from_slot(slot);
