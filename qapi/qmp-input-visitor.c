@@ -64,9 +64,7 @@ static const QObject *qmp_input_get_object(QmpInputVisitor *qiv,
 static void qmp_input_push(QmpInputVisitor *qiv, const QObject *obj, Error **errp)
 {
     qiv->stack[qiv->nb_stack].obj = obj;
-    if (qobject_type(obj) == QTYPE_QLIST) {
-        qiv->stack[qiv->nb_stack].entry = qlist_first(qobject_to_qlist(obj));
-    }
+    qiv->stack[qiv->nb_stack].entry = NULL;
     qiv->nb_stack++;
 
     if (qiv->nb_stack >= QIV_STACK_SIZE) {
@@ -132,18 +130,24 @@ static GenericList *qmp_input_next_list(Visitor *v, GenericList **list,
     QmpInputVisitor *qiv = to_qiv(v);
     GenericList *entry;
     StackObject *so = &qiv->stack[qiv->nb_stack - 1];
+    bool first;
+
+    if (so->entry == NULL) {
+        so->entry = qlist_first(qobject_to_qlist(so->obj));
+        first = true;
+    } else {
+        so->entry = qlist_next(so->entry);
+        first = false;
+    }
 
     if (so->entry == NULL) {
         return NULL;
     }
 
     entry = g_malloc0(sizeof(*entry));
-    if (*list) {
-        so->entry = qlist_next(so->entry);
-        if (so->entry == NULL) {
-            g_free(entry);
-            return NULL;
-        }
+    if (first) {
+        *list = entry;
+    } else {
         (*list)->next = entry;
     }
 
