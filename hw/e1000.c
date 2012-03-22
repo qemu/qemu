@@ -125,6 +125,8 @@ typedef struct E1000State_st {
         uint16_t reading;
         uint32_t old_eecd;
     } eecd_state;
+
+    QEMUTimer *autoneg_timer;
 } E1000State;
 
 #define	defreg(x)	x = (E1000_##x>>2)
@@ -156,6 +158,34 @@ e1000_link_up(E1000State *s)
     s->phy_reg[PHY_STATUS] |= MII_SR_LINK_STATUS;
 }
 
+static void
+set_phy_ctrl(E1000State *s, int index, uint16_t val)
+{
+    if ((val & MII_CR_AUTO_NEG_EN) && (val & MII_CR_RESTART_AUTO_NEG)) {
+        s->nic->nc.link_down = true;
+        e1000_link_down(s);
+        s->phy_reg[PHY_STATUS] &= ~MII_SR_AUTONEG_COMPLETE;
+        DBGOUT(PHY, "Start link auto negotiation\n");
+        qemu_mod_timer(s->autoneg_timer, qemu_get_clock_ms(vm_clock) + 500);
+    }
+}
+
+static void
+e1000_autoneg_timer(void *opaque)
+{
+    E1000State *s = opaque;
+    s->nic->nc.link_down = false;
+    e1000_link_up(s);
+    s->phy_reg[PHY_STATUS] |= MII_SR_AUTONEG_COMPLETE;
+    DBGOUT(PHY, "Auto negotiation is completed\n");
+}
+
+static void (*phyreg_writeops[])(E1000State *, int, uint16_t) = {
+    [PHY_CTRL] = set_phy_ctrl,
+};
+
+enum { NPHYWRITEOPS = ARRAY_SIZE(phyreg_writeops) };
+
 enum { PHY_R = 1, PHY_W = 2, PHY_RW = PHY_R | PHY_W };
 static const char phy_regcap[0x20] = {
     [PHY_STATUS] = PHY_R,	[M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
@@ -167,7 +197,8 @@ static const char phy_regcap[0x20] = {
 };
 
 static const uint16_t phy_reg_init[] = {
-    [PHY_CTRL] = 0x1140,			[PHY_STATUS] = 0x796d, // link initially up
+    [PHY_CTRL] = 0x1140,
+    [PHY_STATUS] = 0x794d, /* link initially up with not completed autoneg */
     [PHY_ID1] = 0x141,				[PHY_ID2] = PHY_ID2_INIT,
     [PHY_1000T_CTRL] = 0x0e00,			[M88E1000_PHY_SPEC_CTRL] = 0x360,
     [M88E1000_EXT_PHY_SPEC_CTRL] = 0x0d60,	[PHY_AUTONEG_ADV] = 0xde1,
@@ -234,6 +265,7 @@ static void e1000_reset(void *opaque)
 {
     E1000State *d = opaque;
 
+    qemu_del_timer(d->autoneg_timer);
     memset(d->phy_reg, 0, sizeof d->phy_reg);
     memmove(d->phy_reg, phy_reg_init, sizeof phy_reg_init);
     memset(d->mac_reg, 0, sizeof d->mac_reg);
@@ -283,8 +315,12 @@ set_mdic(E1000State *s, int index, uint32_t val)
         if (!(phy_regcap[addr] & PHY_W)) {
             DBGOUT(MDIC, "MDIC write reg %x unhandled\n", addr);
             val |= E1000_MDIC_ERROR;
-        } else
+        } else {
+            if (addr < NPHYWRITEOPS && phyreg_writeops[addr]) {
+                phyreg_writeops[addr](s, index, data);
+            }
             s->phy_reg[addr] = data;
+        }
     }
     s->mac_reg[MDIC] = val | E1000_MDIC_READY;
 
@@ -965,6 +1001,7 @@ static void (*macreg_writeops[])(E1000State *, int, uint32_t) = {
     [MTA ... MTA+127] = &mac_writereg,
     [VFTA ... VFTA+127] = &mac_writereg,
 };
+
 enum { NWRITEOPS = ARRAY_SIZE(macreg_writeops) };
 
 static void
@@ -1158,6 +1195,8 @@ pci_e1000_uninit(PCIDevice *dev)
 {
     E1000State *d = DO_UPCAST(E1000State, dev, dev);
 
+    qemu_del_timer(d->autoneg_timer);
+    qemu_free_timer(d->autoneg_timer);
     memory_region_destroy(&d->mmio);
     memory_region_destroy(&d->io);
     qemu_del_vlan_client(&d->nic->nc);
@@ -1211,6 +1250,8 @@ static int pci_e1000_init(PCIDevice *pci_dev)
     qemu_format_nic_info_str(&d->nic->nc, macaddr);
 
     add_boot_device_path(d->conf.bootindex, &pci_dev->qdev, "/ethernet-phy@0");
+
+    d->autoneg_timer = qemu_new_timer_ms(vm_clock, e1000_autoneg_timer, d);
 
     return 0;
 }
