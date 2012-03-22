@@ -1035,13 +1035,19 @@ static int usb_host_handle_control(USBDevice *dev, USBPacket *p,
 
     switch (request) {
     case DeviceOutRequest | USB_REQ_SET_ADDRESS:
-        return usb_host_set_address(s, value);
+        ret = usb_host_set_address(s, value);
+        trace_usb_host_req_emulated(s->bus_num, s->addr, ret);
+        return ret;
 
     case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
-        return usb_host_set_config(s, value & 0xff);
+        ret = usb_host_set_config(s, value & 0xff);
+        trace_usb_host_req_emulated(s->bus_num, s->addr, ret);
+        return ret;
 
     case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
-        return usb_host_set_interface(s, index, value);
+        ret = usb_host_set_interface(s, index, value);
+        trace_usb_host_req_emulated(s->bus_num, s->addr, ret);
+        return ret;
     }
 
     /* The rest are asynchronous */
