@@ -142,6 +142,20 @@ enum {
     defreg(VET),
 };
 
+static void
+e1000_link_down(E1000State *s)
+{
+    s->mac_reg[STATUS] &= ~E1000_STATUS_LU;
+    s->phy_reg[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
+}
+
+static void
+e1000_link_up(E1000State *s)
+{
+    s->mac_reg[STATUS] |= E1000_STATUS_LU;
+    s->phy_reg[PHY_STATUS] |= MII_SR_LINK_STATUS;
+}
+
 enum { PHY_R = 1, PHY_W = 2, PHY_RW = PHY_R | PHY_W };
 static const char phy_regcap[0x20] = {
     [PHY_STATUS] = PHY_R,	[M88E1000_EXT_PHY_SPEC_CTRL] = PHY_RW,
@@ -228,8 +242,7 @@ static void e1000_reset(void *opaque)
     memset(&d->tx, 0, sizeof d->tx);
 
     if (d->nic->nc.link_down) {
-        d->mac_reg[STATUS] &= ~E1000_STATUS_LU;
-        d->phy_reg[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
+        e1000_link_down(d);
     }
 }
 
@@ -675,11 +688,9 @@ e1000_set_link_status(VLANClientState *nc)
     uint32_t old_status = s->mac_reg[STATUS];
 
     if (nc->link_down) {
-        s->mac_reg[STATUS] &= ~E1000_STATUS_LU;
-        s->phy_reg[PHY_STATUS] &= ~MII_SR_LINK_STATUS;
+        e1000_link_down(s);
     } else {
-        s->mac_reg[STATUS] |= E1000_STATUS_LU;
-        s->phy_reg[PHY_STATUS] |= MII_SR_LINK_STATUS;
+        e1000_link_up(s);
     }
 
     if (s->mac_reg[STATUS] != old_status)
