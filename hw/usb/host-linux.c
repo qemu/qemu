@@ -115,6 +115,7 @@ typedef struct USBHostDevice {
     int addr;
     char port[MAX_PORTLEN];
     struct USBAutoFilter match;
+    int32_t bootindex;
     int seen, errcount;
 
     QTAILQ_ENTRY(USBHostDevice) next;
@@ -1403,6 +1404,7 @@ static int usb_host_initfn(USBDevice *dev)
     if (s->match.bus_num != 0 && s->match.port != NULL) {
         usb_host_claim_port(s);
     }
+    add_boot_device_path(s->bootindex, &dev->qdev, NULL);
     return 0;
 }
 
@@ -1418,6 +1420,7 @@ static Property usb_host_dev_properties[] = {
     DEFINE_PROP_HEX32("vendorid",  USBHostDevice, match.vendor_id,  0),
     DEFINE_PROP_HEX32("productid", USBHostDevice, match.product_id, 0),
     DEFINE_PROP_UINT32("isobufs",  USBHostDevice, iso_urb_count,    4),
+    DEFINE_PROP_INT32("bootindex", USBHostDevice, bootindex,        -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 

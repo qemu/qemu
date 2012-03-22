@@ -74,6 +74,7 @@ struct USBRedirDevice {
     CharDriverState *cs;
     uint8_t debug;
     char *filter_str;
+    int32_t bootindex;
     /* Data passed from chardev the fd_read cb to the usbredirparser read cb */
     const uint8_t *read_buf;
     int read_buf_size;
@@ -923,6 +924,7 @@ static int usbredir_initfn(USBDevice *udev)
     qemu_chr_add_handlers(dev->cs, usbredir_chardev_can_read,
                           usbredir_chardev_read, usbredir_chardev_event, dev);
 
+    add_boot_device_path(dev->bootindex, &udev->qdev, NULL);
     return 0;
 }
 
@@ -1452,6 +1454,7 @@ static Property usbredir_properties[] = {
     DEFINE_PROP_CHR("chardev", USBRedirDevice, cs),
     DEFINE_PROP_UINT8("debug", USBRedirDevice, debug, 0),
     DEFINE_PROP_STRING("filter", USBRedirDevice, filter_str),
+    DEFINE_PROP_INT32("bootindex", USBRedirDevice, bootindex, -1),
     DEFINE_PROP_END_OF_LIST(),
 };
 
