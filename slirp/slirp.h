@@ -88,10 +88,6 @@ void *malloc(size_t arg);
 void free(void *ptr);
 #endif
 
-#ifndef HAVE_INET_ATON
-int inet_aton(const char *cp, struct in_addr *ia);
-#endif
-
 #include <fcntl.h>
 #ifndef NO_UNIX_SOCKETS
 #include <sys/un.h>
@@ -144,6 +140,7 @@ int inet_aton(const char *cp, struct in_addr *ia);
 #include "debug.h"
 
 #include "qemu-queue.h"
+#include "qemu_socket.h"
 
 #include "libslirp.h"
 #include "ip.h"
@@ -166,9 +163,6 @@ int inet_aton(const char *cp, struct in_addr *ia);
 
 #include "bootp.h"
 #include "tftp.h"
-
-/* osdep.c */
-int qemu_socket(int domain, int type, int protocol);
 
 #define ETH_ALEN 6
 #define ETH_HLEN 14
