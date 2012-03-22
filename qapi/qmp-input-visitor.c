@@ -24,6 +24,7 @@ typedef struct StackObject
 {
     QObject *obj;
     const QListEntry *entry;
+    GHashTable *h;
 } StackObject;
 
 struct QmpInputVisitor
@@ -31,6 +32,7 @@ struct QmpInputVisitor
     Visitor visitor;
     StackObject stack[QIV_STACK_SIZE];
     int nb_stack;
+    bool strict;
 };
 
 static QmpInputVisitor *to_qiv(Visitor *v)
@@ -45,6 +47,9 @@ static QObject *qmp_input_get_object(QmpInputVisitor *qiv,
 
     if (qobj) {
         if (name && qobject_type(qobj) == QTYPE_QDICT) {
+            if (qiv->stack[qiv->nb_stack - 1].h) {
+                g_hash_table_remove(qiv->stack[qiv->nb_stack - 1].h, name);
+            }
             return qdict_get(qobject_to_qdict(qobj), name);
         } else if (qiv->stack[qiv->nb_stack - 1].entry) {
             return qlist_entry_obj(qiv->stack[qiv->nb_stack - 1].entry);
@@ -54,20 +59,47 @@ static QObject *qmp_input_get_object(QmpInputVisitor *qiv,
     return qobj;
 }
 
+static void qdict_add_key(const char *key, QObject *obj, void *opaque)
+{
+    GHashTable *h = opaque;
+    g_hash_table_insert(h, (gpointer) key, NULL);
+}
+
 static void qmp_input_push(QmpInputVisitor *qiv, QObject *obj, Error **errp)
 {
-    qiv->stack[qiv->nb_stack].obj = obj;
-    qiv->stack[qiv->nb_stack].entry = NULL;
-    qiv->nb_stack++;
+    GHashTable *h;
 
     if (qiv->nb_stack >= QIV_STACK_SIZE) {
         error_set(errp, QERR_BUFFER_OVERRUN);
         return;
     }
+
+    qiv->stack[qiv->nb_stack].obj = obj;
+    qiv->stack[qiv->nb_stack].entry = NULL;
+    qiv->stack[qiv->nb_stack].h = NULL;
+
+    if (qiv->strict && qobject_type(obj) == QTYPE_QDICT) {
+        h = g_hash_table_new(g_str_hash, g_str_equal);
+        qdict_iter(qobject_to_qdict(obj), qdict_add_key, h);
+        qiv->stack[qiv->nb_stack].h = h;
+    }
+
+    qiv->nb_stack++;
 }
 
 static void qmp_input_pop(QmpInputVisitor *qiv, Error **errp)
 {
+    GHashTableIter iter;
+    gpointer key;
+
+    if (qiv->strict && qiv->stack[qiv->nb_stack - 1].h) {
+        g_hash_table_iter_init(&iter, qiv->stack[qiv->nb_stack - 1].h);
+        if (g_hash_table_iter_next(&iter, &key, NULL)) {
+            error_set(errp, QERR_QMP_EXTRA_MEMBER, (char *) key);
+        }
+        g_hash_table_unref(qiv->stack[qiv->nb_stack - 1].h);
+    }
+
     assert(qiv->nb_stack > 0);
     qiv->nb_stack--;
 }
@@ -259,6 +291,16 @@ QmpInputVisitor *qmp_input_visitor_new(QObject *obj)
 
     qmp_input_push(v, obj, NULL);
     qobject_incref(obj);
+
+    return v;
+}
+
+QmpInputVisitor *qmp_input_visitor_new_strict(QObject *obj)
+{
+    QmpInputVisitor *v;
+
+    v = qmp_input_visitor_new(obj);
+    v->strict = true;
 
     return v;
 }

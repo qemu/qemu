@@ -16,7 +16,7 @@ check-qfloat: check-qfloat.o qfloat.o $(tools-obj-y)
 check-qjson: check-qjson.o $(qobject-obj-y) $(tools-obj-y)
 test-coroutine: test-coroutine.o qemu-timer-common.o async.o $(coroutine-obj-y) $(tools-obj-y)
 
-test-qmp-input-visitor.o test-qmp-output-visitor.o \
+test-qmp-input-visitor.o test-qmp-output-visitor.o test-qmp-input-strict.o \
 test-string-input-visitor.o test-string-output-visitor.o \
 	test-qmp-commands.o: QEMU_CFLAGS += -I $(qapi-dir)
 
@@ -36,6 +36,9 @@ test-string-output-visitor: test-string-output-visitor.o $(qobject-obj-y) $(qapi
 
 test-string-input-visitor.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h) $(qapi-obj-y)
 test-string-input-visitor: test-string-input-visitor.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o
+
+test-qmp-input-strict.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h) $(qapi-obj-y)
+test-qmp-input-strict: test-qmp-input-strict.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o
 
 test-qmp-output-visitor.o: $(addprefix $(qapi-dir)/, test-qapi-types.c test-qapi-types.h test-qapi-visit.c test-qapi-visit.h) $(qapi-obj-y)
 test-qmp-output-visitor: test-qmp-output-visitor.o $(qobject-obj-y) $(qapi-obj-y) $(tools-obj-y) $(qapi-dir)/test-qapi-visit.o $(qapi-dir)/test-qapi-types.o
