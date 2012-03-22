@@ -1005,10 +1005,10 @@ vcard_emul_init(const VCardEmulOptions *options)
     SECMOD_GetReadLock(module_lock);
     for (mlp = module_list; mlp; mlp = mlp->next) {
         SECMODModule *module = mlp->module;
-        PRBool has_emul_slots = PR_FALSE;
 
-        if (module == NULL) {
-                continue;
+        /* Ignore the internal module */
+        if (module == NULL || module == SECMOD_GetInternalModule()) {
+            continue;
         }
 
         for (i = 0; i < module->slotCount; i++) {
@@ -1024,9 +1024,6 @@ vcard_emul_init(const VCardEmulOptions *options)
                                   vreader_emul_delete);
             vreader_add_reader(vreader);
 
-            has_readers = PR_TRUE;
-            has_emul_slots = PR_TRUE;
-
             if (PK11_IsPresent(slot)) {
                 VCard *vcard;
                 vcard = vcard_emul_mirror_card(vreader);
@@ -1035,12 +1032,10 @@ vcard_emul_init(const VCardEmulOptions *options)
                 vcard_free(vcard);
             }
         }
-        if (has_emul_slots) {
-            vcard_emul_new_event_thread(module);
-        }
+        vcard_emul_new_event_thread(module);
     }
     SECMOD_ReleaseReadLock(module_lock);
-    nss_emul_init = has_readers;
+    nss_emul_init = PR_TRUE;
 
     return VCARD_EMUL_OK;
 }
