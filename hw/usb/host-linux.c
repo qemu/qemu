@@ -94,6 +94,10 @@ struct USBAutoFilter {
     uint32_t product_id;
 };
 
+enum USBHostDeviceOptions {
+    USB_HOST_OPT_PIPELINE,
+};
+
 typedef struct USBHostDevice {
     USBDevice dev;
     int       fd;
@@ -104,6 +108,7 @@ typedef struct USBHostDevice {
     int       descr_len;
     int       closing;
     uint32_t  iso_urb_count;
+    uint32_t  options;
     Notifier  exit;
 
     struct endp_data ep_in[USB_MAX_ENDPOINTS];
@@ -1203,7 +1208,8 @@ static int usb_linux_update_endp_table(USBHostDevice *s)
                    USB_ENDPOINT_XFER_INVALID);
             usb_ep_set_type(&s->dev, pid, ep, type);
             usb_ep_set_ifnum(&s->dev, pid, ep, interface);
-            if (type == USB_ENDPOINT_XFER_BULK) {
+            if ((s->options & (1 << USB_HOST_OPT_PIPELINE)) &&
+                (type == USB_ENDPOINT_XFER_BULK)) {
                 usb_ep_set_pipeline(&s->dev, pid, ep, true);
             }
 
@@ -1431,6 +1437,8 @@ static Property usb_host_dev_properties[] = {
     DEFINE_PROP_HEX32("productid", USBHostDevice, match.product_id, 0),
     DEFINE_PROP_UINT32("isobufs",  USBHostDevice, iso_urb_count,    4),
     DEFINE_PROP_INT32("bootindex", USBHostDevice, bootindex,        -1),
+    DEFINE_PROP_BIT("pipeline",    USBHostDevice, options,
+                    USB_HOST_OPT_PIPELINE, true),
     DEFINE_PROP_END_OF_LIST(),
 };
 
