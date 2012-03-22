@@ -65,6 +65,9 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
         return;
     }
     visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), errp);
+    if (obj && !*obj) {
+        goto end;
+    }
 ''',
                 name=name)
     push_indent()
@@ -72,6 +75,7 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
     pop_indent()
 
     ret += mcgen('''
+end:
     visit_end_struct(m, errp);
 }
 ''')
@@ -122,6 +126,9 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
         return;
     }
     visit_start_struct(m, (void **)obj, "%(name)s", name, sizeof(%(name)s), &err);
+    if (obj && !*obj) {
+        goto end;
+    }
     visit_type_%(name)sKind(m, &(*obj)->kind, "type", &err);
     if (err) {
         error_propagate(errp, err);
