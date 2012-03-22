@@ -274,7 +274,10 @@ set_mdic(E1000State *s, int index, uint32_t val)
             s->phy_reg[addr] = data;
     }
     s->mac_reg[MDIC] = val | E1000_MDIC_READY;
-    set_ics(s, 0, E1000_ICR_MDAC);
+
+    if (val & E1000_MDIC_INT_EN) {
+        set_ics(s, 0, E1000_ICR_MDAC);
+    }
 }
 
 static uint32_t
