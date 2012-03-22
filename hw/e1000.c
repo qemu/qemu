@@ -392,6 +392,16 @@ fcs_len(E1000State *s)
 }
 
 static void
+e1000_send_packet(E1000State *s, const uint8_t *buf, int size)
+{
+    if (s->phy_reg[PHY_CTRL] & MII_CR_LOOPBACK) {
+        s->nic->nc.info->receive(&s->nic->nc, buf, size);
+    } else {
+        qemu_send_packet(&s->nic->nc, buf, size);
+    }
+}
+
+static void
 xmit_seg(E1000State *s)
 {
     uint16_t len, *sp;
@@ -440,9 +450,9 @@ xmit_seg(E1000State *s)
         memmove(tp->vlan, tp->data, 4);
         memmove(tp->data, tp->data + 4, 8);
         memcpy(tp->data + 8, tp->vlan_header, 4);
-        qemu_send_packet(&s->nic->nc, tp->vlan, tp->size + 4);
+        e1000_send_packet(s, tp->vlan, tp->size + 4);
     } else
-        qemu_send_packet(&s->nic->nc, tp->data, tp->size);
+        e1000_send_packet(s, tp->data, tp->size);
     s->mac_reg[TPT]++;
     s->mac_reg[GPTC]++;
     n = s->mac_reg[TOTL];
