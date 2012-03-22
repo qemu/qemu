@@ -77,11 +77,8 @@ static void qmp_input_push(QmpInputVisitor *qiv, const QObject *obj, Error **err
 
 static void qmp_input_pop(QmpInputVisitor *qiv, Error **errp)
 {
+    assert(qiv->nb_stack > 0);
     qiv->nb_stack--;
-    if (qiv->nb_stack < 0) {
-        error_set(errp, QERR_BUFFER_OVERRUN);
-        return;
-    }
 }
 
 static void qmp_input_start_struct(Visitor *v, void **obj, const char *kind,
