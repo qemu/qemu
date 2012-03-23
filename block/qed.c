@@ -1510,6 +1510,15 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     return ret;
 }
 
+static void bdrv_qed_invalidate_cache(BlockDriverState *bs)
+{
+    BDRVQEDState *s = bs->opaque;
+
+    bdrv_qed_close(bs);
+    memset(s, 0, sizeof(BDRVQEDState));
+    bdrv_qed_open(bs, bs->open_flags);
+}
+
 static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result)
 {
     BDRVQEDState *s = bs->opaque;
@@ -1561,6 +1570,7 @@ static BlockDriver bdrv_qed = {
     .bdrv_getlength           = bdrv_qed_getlength,
     .bdrv_get_info            = bdrv_qed_get_info,
     .bdrv_change_backing_file = bdrv_qed_change_backing_file,
+    .bdrv_invalidate_cache    = bdrv_qed_invalidate_cache,
     .bdrv_check               = bdrv_qed_check,
 };
 
