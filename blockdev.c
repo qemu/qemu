@@ -595,6 +595,10 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
         bdrv_flags |= BDRV_O_COPY_ON_READ;
     }
 
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        bdrv_flags |= BDRV_O_INCOMING;
+    }
+
     if (media == MEDIA_CDROM) {
         /* CDROM is fine for any interface, don't check.  */
         ro = 1;
