@@ -797,7 +797,6 @@ static void ehci_child_detach(USBPort *port, USBDevice *child)
     if (portsc & PORTSC_POWNER) {
         USBPort *companion = s->companion_ports[port->index];
         companion->ops->child_detach(companion, child);
-        companion->dev = NULL;
         return;
     }
 
