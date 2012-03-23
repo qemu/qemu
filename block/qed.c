@@ -450,7 +450,7 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
      * feature is no longer valid.
      */
     if ((s->header.autoclear_features & ~QED_AUTOCLEAR_FEATURE_MASK) != 0 &&
-        !bdrv_is_read_only(bs->file)) {
+        !bdrv_is_read_only(bs->file) && !(flags & BDRV_O_INCOMING)) {
         s->header.autoclear_features &= QED_AUTOCLEAR_FEATURE_MASK;
 
         ret = qed_write_header_sync(s);
@@ -477,7 +477,8 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
          * potentially inconsistent images to be opened read-only.  This can
          * aid data recovery from an otherwise inconsistent image.
          */
-        if (!bdrv_is_read_only(bs->file)) {
+        if (!bdrv_is_read_only(bs->file) &&
+            !(flags & BDRV_O_INCOMING)) {
             BdrvCheckResult result = {0};
 
             ret = qed_check(s, &result, true);
