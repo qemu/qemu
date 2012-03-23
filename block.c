@@ -3624,6 +3624,15 @@ void bdrv_invalidate_cache_all(void)
     }
 }
 
+void bdrv_clear_incoming_migration_all(void)
+{
+    BlockDriverState *bs;
+
+    QTAILQ_FOREACH(bs, &bdrv_states, list) {
+        bs->open_flags = bs->open_flags & ~(BDRV_O_INCOMING);
+    }
+}
+
 int bdrv_flush(BlockDriverState *bs)
 {
     Coroutine *co;
