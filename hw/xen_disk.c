@@ -330,6 +330,9 @@ static void qemu_aio_complete(void *opaque, int ret)
     if (ioreq->aio_inflight > 0) {
         return;
     }
+    if (ioreq->postsync) {
+        bdrv_flush(ioreq->blkdev->bs);
+    }
 
     ioreq->status = ioreq->aio_errors ? BLKIF_RSP_ERROR : BLKIF_RSP_OKAY;
     ioreq_unmap(ioreq);
@@ -376,9 +379,6 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
         goto err;
     }
 
-    if (ioreq->postsync) {
-        bdrv_flush(blkdev->bs); /* FIXME: aio_flush() ??? */
-    }
     qemu_aio_complete(ioreq, 0);
 
     return 0;
