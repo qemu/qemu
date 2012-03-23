@@ -236,7 +236,7 @@ static inline int tcg_target_const_match(tcg_target_long val,
 #define ARITH_XOR  (INSN_OP(2) | INSN_OP3(0x03))
 #define ARITH_SUB  (INSN_OP(2) | INSN_OP3(0x04))
 #define ARITH_SUBCC (INSN_OP(2) | INSN_OP3(0x14))
-#define ARITH_ADDX (INSN_OP(2) | INSN_OP3(0x10))
+#define ARITH_ADDX (INSN_OP(2) | INSN_OP3(0x08))
 #define ARITH_SUBX (INSN_OP(2) | INSN_OP3(0x0c))
 #define ARITH_UMUL (INSN_OP(2) | INSN_OP3(0x0a))
 #define ARITH_UDIV (INSN_OP(2) | INSN_OP3(0x0e))
