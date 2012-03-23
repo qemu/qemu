@@ -289,7 +289,7 @@ usb_uhci_td_nextqh(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 usb_uhci_td_async(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 usb_uhci_td_complete(uint32_t qh, uint32_t td) "qh 0x%x, td 0x%x"
 
-# hw/usb-desc.c
+# hw/usb/desc.c
 usb_desc_device(int addr, int len, int ret) "dev %d query device, len %d, ret %d"
 usb_desc_device_qualifier(int addr, int len, int ret) "dev %d query device qualifier, len %d, ret %d"
 usb_desc_config(int addr, int index, int len, int ret) "dev %d query config %d, len %d, ret %d"
@@ -300,6 +300,15 @@ usb_set_config(int addr, int config, int ret) "dev %d, config %d, ret %d"
 usb_set_interface(int addr, int iface, int alt, int ret) "dev %d, interface %d, altsetting %d, ret %d"
 usb_clear_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
 usb_set_device_feature(int addr, int feature, int ret) "dev %d, feature %d, ret %d"
+
+# hw/usb/dev-hub.c
+usb_hub_reset(int addr) "dev %d"
+usb_hub_control(int addr, int request, int value, int index, int length) "dev %d, req 0x%x, value %d, index %d, langth %d"
+usb_hub_get_port_status(int addr, int nr, int status, int changed) "dev %d, port %d, status 0x%x, changed 0x%x"
+usb_hub_set_port_feature(int addr, int nr, const char *f) "dev %d, port %d, feature %s"
+usb_hub_clear_port_feature(int addr, int nr, const char *f) "dev %d, port %d, feature %s"
+usb_hub_attach(int addr, int nr) "dev %d, port %d"
+usb_hub_detach(int addr, int nr) "dev %d, port %d"
 
 # hw/usb/host-linux.c
 usb_host_open_started(int bus, int addr) "dev %d:%d"

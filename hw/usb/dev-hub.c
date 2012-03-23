@@ -22,10 +22,9 @@
  * THE SOFTWARE.
  */
 #include "qemu-common.h"
+#include "trace.h"
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
-
-//#define DEBUG
 
 #define NUM_PORTS 8
 
@@ -157,6 +156,7 @@ static void usb_hub_attach(USBPort *port1)
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
 
+    trace_usb_hub_attach(s->dev.addr, port1->index + 1);
     port->wPortStatus |= PORT_STAT_CONNECTION;
     port->wPortChange |= PORT_STAT_C_CONNECTION;
     if (port->port.dev->speed == USB_SPEED_LOW) {
@@ -172,6 +172,7 @@ static void usb_hub_detach(USBPort *port1)
     USBHubState *s = port1->opaque;
     USBHubPort *port = &s->ports[port1->index];
 
+    trace_usb_hub_detach(s->dev.addr, port1->index + 1);
     usb_wakeup(s->intr);
 
     /* Let upstream know the device on this port is gone */
@@ -247,6 +248,7 @@ static void usb_hub_handle_reset(USBDevice *dev)
     USBHubPort *port;
     int i;
 
+    trace_usb_hub_reset(s->dev.addr);
     for (i = 0; i < NUM_PORTS; i++) {
         port = s->ports + i;
         port->wPortStatus = PORT_STAT_POWER;
@@ -261,11 +263,38 @@ static void usb_hub_handle_reset(USBDevice *dev)
     }
 }
 
+static const char *feature_name(int feature)
+{
+    static const char *name[] = {
+        [PORT_CONNECTION]    = "connection",
+        [PORT_ENABLE]        = "enable",
+        [PORT_SUSPEND]       = "suspend",
+        [PORT_OVERCURRENT]   = "overcurrent",
+        [PORT_RESET]         = "reset",
+        [PORT_POWER]         = "power",
+        [PORT_LOWSPEED]      = "lowspeed",
+        [PORT_HIGHSPEED]     = "highspeed",
+        [PORT_C_CONNECTION]  = "change connection",
+        [PORT_C_ENABLE]      = "change enable",
+        [PORT_C_SUSPEND]     = "change suspend",
+        [PORT_C_OVERCURRENT] = "change overcurrent",
+        [PORT_C_RESET]       = "change reset",
+        [PORT_TEST]          = "test",
+        [PORT_INDICATOR]     = "indicator",
+    };
+    if (feature < 0 || feature >= ARRAY_SIZE(name)) {
+        return "?";
+    }
+    return name[feature] ?: "?";
+}
+
 static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                int request, int value, int index, int length, uint8_t *data)
 {
     USBHubState *s = (USBHubState *)dev;
     int ret;
+
+    trace_usb_hub_control(s->dev.addr, request, value, index, length);
 
     ret = usb_desc_handle_control(dev, p, request, value, index, length, data);
     if (ret >= 0) {
@@ -295,6 +324,9 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
                 goto fail;
             }
             port = &s->ports[n];
+            trace_usb_hub_get_port_status(s->dev.addr, index,
+                                          port->wPortStatus,
+                                          port->wPortChange);
             data[0] = port->wPortStatus;
             data[1] = port->wPortStatus >> 8;
             data[2] = port->wPortChange;
@@ -315,6 +347,10 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
             unsigned int n = index - 1;
             USBHubPort *port;
             USBDevice *dev;
+
+            trace_usb_hub_set_port_feature(s->dev.addr, index,
+                                           feature_name(value));
+
             if (n >= NUM_PORTS) {
                 goto fail;
             }
@@ -344,6 +380,9 @@ static int usb_hub_handle_control(USBDevice *dev, USBPacket *p,
         {
             unsigned int n = index - 1;
             USBHubPort *port;
+
+            trace_usb_hub_clear_port_feature(s->dev.addr, index,
+                                             feature_name(value));
 
             if (n >= NUM_PORTS) {
                 goto fail;
