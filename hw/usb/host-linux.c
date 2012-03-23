@@ -375,10 +375,10 @@ static void async_complete(void *opaque)
             }
 
             if (aurb->urb.type == USBDEVFS_URB_TYPE_CONTROL) {
-                trace_usb_host_req_complete(s->bus_num, s->addr, p->result);
+                trace_usb_host_req_complete(s->bus_num, s->addr, p, p->result);
                 usb_generic_async_ctrl_complete(&s->dev, p);
             } else if (!aurb->more) {
-                trace_usb_host_req_complete(s->bus_num, s->addr, p->result);
+                trace_usb_host_req_complete(s->bus_num, s->addr, p, p->result);
                 usb_packet_complete(&s->dev, p);
             }
         }
@@ -392,7 +392,7 @@ static void usb_host_async_cancel(USBDevice *dev, USBPacket *p)
     USBHostDevice *s = DO_UPCAST(USBHostDevice, dev, dev);
     AsyncURB *aurb;
 
-    trace_usb_host_req_canceled(s->bus_num, s->addr);
+    trace_usb_host_req_canceled(s->bus_num, s->addr, p);
 
     QLIST_FOREACH(aurb, &s->aurbs, next) {
         if (p != aurb->packet) {
@@ -847,12 +847,12 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
     uint8_t *pbuf;
     uint8_t ep;
 
-    trace_usb_host_req_data(s->bus_num, s->addr,
+    trace_usb_host_req_data(s->bus_num, s->addr, p,
                             p->pid == USB_TOKEN_IN,
                             p->ep->nr, p->iov.size);
 
     if (!is_valid(s, p->pid, p->ep->nr)) {
-        trace_usb_host_req_complete(s->bus_num, s->addr, USB_RET_NAK);
+        trace_usb_host_req_complete(s->bus_num, s->addr, p, USB_RET_NAK);
         return USB_RET_NAK;
     }
 
@@ -867,7 +867,7 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
         ret = ioctl(s->fd, USBDEVFS_CLEAR_HALT, &arg);
         if (ret < 0) {
             perror("USBDEVFS_CLEAR_HALT");
-            trace_usb_host_req_complete(s->bus_num, s->addr, USB_RET_NAK);
+            trace_usb_host_req_complete(s->bus_num, s->addr, p, USB_RET_NAK);
             return USB_RET_NAK;
         }
         clear_halt(s, p->pid, p->ep->nr);
@@ -922,11 +922,13 @@ static int usb_host_handle_data(USBDevice *dev, USBPacket *p)
 
             switch(errno) {
             case ETIMEDOUT:
-                trace_usb_host_req_complete(s->bus_num, s->addr, USB_RET_NAK);
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            USB_RET_NAK);
                 return USB_RET_NAK;
             case EPIPE:
             default:
-                trace_usb_host_req_complete(s->bus_num, s->addr, USB_RET_STALL);
+                trace_usb_host_req_complete(s->bus_num, s->addr, p,
+                                            USB_RET_STALL);
                 return USB_RET_STALL;
             }
         }
@@ -1033,22 +1035,22 @@ static int usb_host_handle_control(USBDevice *dev, USBPacket *p,
      */
 
     /* Note request is (bRequestType << 8) | bRequest */
-    trace_usb_host_req_control(s->bus_num, s->addr, request, value, index);
+    trace_usb_host_req_control(s->bus_num, s->addr, p, request, value, index);
 
     switch (request) {
     case DeviceOutRequest | USB_REQ_SET_ADDRESS:
         ret = usb_host_set_address(s, value);
-        trace_usb_host_req_emulated(s->bus_num, s->addr, ret);
+        trace_usb_host_req_emulated(s->bus_num, s->addr, p, ret);
         return ret;
 
     case DeviceOutRequest | USB_REQ_SET_CONFIGURATION:
         ret = usb_host_set_config(s, value & 0xff);
-        trace_usb_host_req_emulated(s->bus_num, s->addr, ret);
+        trace_usb_host_req_emulated(s->bus_num, s->addr, p, ret);
         return ret;
 
     case InterfaceOutRequest | USB_REQ_SET_INTERFACE:
         ret = usb_host_set_interface(s, index, value);
-        trace_usb_host_req_emulated(s->bus_num, s->addr, ret);
+        trace_usb_host_req_emulated(s->bus_num, s->addr, p, ret);
         return ret;
     }
 
