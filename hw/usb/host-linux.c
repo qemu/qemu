@@ -392,12 +392,14 @@ static void usb_host_async_cancel(USBDevice *dev, USBPacket *p)
     USBHostDevice *s = DO_UPCAST(USBHostDevice, dev, dev);
     AsyncURB *aurb;
 
+    trace_usb_host_req_canceled(s->bus_num, s->addr);
+
     QLIST_FOREACH(aurb, &s->aurbs, next) {
         if (p != aurb->packet) {
             continue;
         }
 
-        DPRINTF("husb: async cancel: packet %p, aurb %p\n", p, aurb);
+        trace_usb_host_urb_canceled(s->bus_num, s->addr, aurb);
 
         /* Mark it as dead (see async_complete above) */
         aurb->packet = NULL;
