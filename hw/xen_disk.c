@@ -584,10 +584,10 @@ static int blk_init(struct XenDevice *xendev)
     }
 
     /* read-only ? */
+    qflags = BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NATIVE_AIO;
     if (strcmp(blkdev->mode, "w") == 0) {
-        qflags = BDRV_O_RDWR;
+        qflags |= BDRV_O_RDWR;
     } else {
-        qflags = 0;
         info  |= VDISK_READONLY;
     }
 
