@@ -3513,7 +3513,8 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 #if defined (CONFIG_USER_ONLY)
     env->ps = PS_USER_MODE;
     cpu_alpha_store_fpcr(env, (FPCR_INVD | FPCR_DZED | FPCR_OVFD
-                               | FPCR_UNFD | FPCR_INED | FPCR_DNOD));
+                               | FPCR_UNFD | FPCR_INED | FPCR_DNOD
+                               | FPCR_DYN_NORMAL));
 #endif
     env->lock_addr = -1;
     env->fen = 1;
