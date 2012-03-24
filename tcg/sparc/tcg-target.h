@@ -128,6 +128,8 @@ typedef enum {
 #define TCG_TARGET_HAS_movcond_i64      0
 #endif
 
+#define TCG_TARGET_HAS_GUEST_BASE
+
 #ifdef CONFIG_SOLARIS
 #define TCG_AREG0 TCG_REG_G2
 #elif HOST_LONG_BITS == 64

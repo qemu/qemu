@@ -862,6 +862,7 @@ case "$cpu" in
            if test "$solaris" = "no" ; then
              QEMU_CFLAGS="-ffixed-g1 -ffixed-g6 $QEMU_CFLAGS"
            fi
+           host_guest_base="yes"
            ;;
     sparc64)
            LDFLAGS="-m64 $LDFLAGS"
@@ -870,6 +871,7 @@ case "$cpu" in
            if test "$solaris" != "no" ; then
              QEMU_CFLAGS="-ffixed-g1 $QEMU_CFLAGS"
            fi
+           host_guest_base="yes"
            ;;
     s390)
            QEMU_CFLAGS="-m31 -march=z990 $QEMU_CFLAGS"

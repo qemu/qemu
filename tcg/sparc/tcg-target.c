@@ -59,6 +59,12 @@ static const char * const tcg_target_reg_names[TCG_TARGET_NB_REGS] = {
 };
 #endif
 
+#ifdef CONFIG_USE_GUEST_BASE
+# define TCG_GUEST_BASE_REG TCG_REG_I3
+#else
+# define TCG_GUEST_BASE_REG TCG_REG_G0
+#endif
+
 static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_L0,
     TCG_REG_L1,
@@ -680,6 +686,14 @@ static void tcg_target_qemu_prologue(TCGContext *s)
     tcg_out32(s, SAVE | INSN_RD(TCG_REG_O6) | INSN_RS1(TCG_REG_O6) |
               INSN_IMM13(-(TCG_TARGET_STACK_MINFRAME +
                            CPU_TEMP_BUF_NLONGS * (int)sizeof(long))));
+
+#ifdef CONFIG_USE_GUEST_BASE
+    if (GUEST_BASE != 0) {
+        tcg_out_movi(s, TCG_TYPE_PTR, TCG_GUEST_BASE_REG, GUEST_BASE);
+        tcg_regset_set_reg(s->reserved_regs, TCG_GUEST_BASE_REG);
+    }
+#endif
+
     tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_I1) |
               INSN_RS2(TCG_REG_G0));
     tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, TCG_REG_I0);
@@ -925,14 +939,18 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int sizeop)
     if (TCG_TARGET_REG_BITS == 32 && sizeop == 3) {
         int reg64 = (datalo < 16 ? datalo : TCG_REG_O0);
 
-        tcg_out_ldst_rr(s, reg64, addr_reg, TCG_REG_G0, qemu_ld_opc[sizeop]);
+        tcg_out_ldst_rr(s, reg64, addr_reg,
+                        (GUEST_BASE ? TCG_GUEST_BASE_REG : TCG_REG_G0),
+                        qemu_ld_opc[sizeop]);
 
         tcg_out_arithi(s, datahi, reg64, 32, SHIFT_SRLX);
         if (reg64 != datalo) {
             tcg_out_mov(s, TCG_TYPE_I32, datalo, reg64);
         }
     } else {
-        tcg_out_ldst_rr(s, datalo, addr_reg, TCG_REG_G0, qemu_ld_opc[sizeop]);
+        tcg_out_ldst_rr(s, datalo, addr_reg,
+                        (GUEST_BASE ? TCG_GUEST_BASE_REG : TCG_REG_G0),
+                        qemu_ld_opc[sizeop]);
     }
 #endif /* CONFIG_SOFTMMU */
 }
@@ -1026,7 +1044,9 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int sizeop)
         tcg_out_arith(s, TCG_REG_G1, TCG_REG_G1, TCG_REG_O2, ARITH_OR);
         datalo = TCG_REG_G1;
     }
-    tcg_out_ldst_rr(s, datalo, addr_reg, TCG_REG_G0, qemu_st_opc[sizeop]);
+    tcg_out_ldst_rr(s, datalo, addr_reg,
+                    (GUEST_BASE ? TCG_GUEST_BASE_REG : TCG_REG_G0),
+                    qemu_st_opc[sizeop]);
 #endif /* CONFIG_SOFTMMU */
 }
 
