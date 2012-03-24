@@ -1,6 +1,6 @@
 #include "def-helper.h"
 
-DEF_HELPER_3(excp, void, env, int, int)
+DEF_HELPER_3(excp, noreturn, env, int, int)
 DEF_HELPER_FLAGS_1(load_pcc, TCG_CALL_CONST | TCG_CALL_PURE, i64, env)
 
 DEF_HELPER_3(addqv, i64, env, i64, i64)
