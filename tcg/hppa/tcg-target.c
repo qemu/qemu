@@ -336,7 +336,7 @@ static int tcg_target_const_match(tcg_target_long val,
 #define INSN_COMIBF     (INSN_OP(0x23))
 
 /* supplied by libgcc */
-extern void *__canonicalize_funcptr_for_compare(void *);
+extern void *__canonicalize_funcptr_for_compare(const void *);
 
 static void tcg_out_mov(TCGContext *s, TCGType type, TCGReg ret, TCGReg arg)
 {
@@ -628,7 +628,7 @@ static void tcg_out_bswap32(TCGContext *s, int ret, int arg, int temp)
     tcg_out_shd(s, ret, arg, temp, 8);    /* ret =  DCBA */
 }
 
-static void tcg_out_call(TCGContext *s, void *func)
+static void tcg_out_call(TCGContext *s, const void *func)
 {
     tcg_target_long val, hi, lo, disp;
 
@@ -1661,23 +1661,18 @@ static int tcg_target_callee_save_regs[] = {
     TCG_REG_R18
 };
 
+#define FRAME_SIZE ((-TCG_TARGET_CALL_STACK_OFFSET \
+                     + TCG_TARGET_STATIC_CALL_ARGS_SIZE \
+                     + ARRAY_SIZE(tcg_target_callee_save_regs) * 4 \
+                     + CPU_TEMP_BUF_NLONGS * sizeof(long) \
+                     + TCG_TARGET_STACK_ALIGN - 1) \
+                    & -TCG_TARGET_STACK_ALIGN)
+
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
     int frame_size, i;
 
-    /* Allocate space for the fixed frame marker.  */
-    frame_size = -TCG_TARGET_CALL_STACK_OFFSET;
-    frame_size += TCG_TARGET_STATIC_CALL_ARGS_SIZE;
-
-    /* Allocate space for the saved registers.  */
-    frame_size += ARRAY_SIZE(tcg_target_callee_save_regs) * 4;
-
-    /* Allocate space for the TCG temps. */
-    frame_size += CPU_TEMP_BUF_NLONGS * sizeof(long);
-
-    /* Align the allocated space.  */
-    frame_size = ((frame_size + TCG_TARGET_STACK_ALIGN - 1)
-                  & -TCG_TARGET_STACK_ALIGN);
+    frame_size = FRAME_SIZE;
 
     /* The return address is stored in the caller's frame.  */
     tcg_out_st(s, TCG_TYPE_PTR, TCG_REG_RP, TCG_REG_CALL_STACK, -20);
@@ -1751,4 +1746,82 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_R31); /* ble link reg */
 
     tcg_add_target_add_op_defs(hppa_op_defs);
+}
+
+typedef struct {
+    uint32_t len __attribute__((aligned((sizeof(void *)))));
+    uint32_t id;
+    uint8_t version;
+    char augmentation[1];
+    uint8_t code_align;
+    uint8_t data_align;
+    uint8_t return_column;
+} DebugFrameCIE;
+
+typedef struct {
+    uint32_t len __attribute__((aligned((sizeof(void *)))));
+    uint32_t cie_offset;
+    tcg_target_long func_start __attribute__((packed));
+    tcg_target_long func_len __attribute__((packed));
+    uint8_t def_cfa[4];
+    uint8_t ret_ofs[3];
+    uint8_t reg_ofs[ARRAY_SIZE(tcg_target_callee_save_regs) * 2];
+} DebugFrameFDE;
+
+typedef struct {
+    DebugFrameCIE cie;
+    DebugFrameFDE fde;
+} DebugFrame;
+
+#define ELF_HOST_MACHINE  EM_PARISC
+#define ELF_HOST_FLAGS    EFA_PARISC_1_1
+
+/* ??? BFD (and thus GDB) wants very much to distinguish between HPUX
+   and other extensions.  We don't really care, but if we don't set this
+   to *something* then the object file won't be properly matched.  */
+#define ELF_OSABI         ELFOSABI_LINUX
+
+static DebugFrame debug_frame = {
+    .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
+    .cie.id = -1,
+    .cie.version = 1,
+    .cie.code_align = 1,
+    .cie.data_align = 1,
+    .cie.return_column = 2,
+
+    .fde.len = sizeof(DebugFrameFDE)-4, /* length after .len member */
+    .fde.def_cfa = {
+        0x12, 30,                       /* DW_CFA_def_cfa_sf sp, ... */
+        (-FRAME_SIZE & 0x7f) | 0x80,     /* ... sleb128 -FRAME_SIZE */
+        (-FRAME_SIZE >> 7) & 0x7f
+    },
+    .fde.ret_ofs = {
+        0x11, 2, (-20 / 4) & 0x7f       /* DW_CFA_offset_extended_sf r2, 20 */
+    },
+    .fde.reg_ofs = {
+        /* This must match the ordering in tcg_target_callee_save_regs.  */
+        0x80 + 4, 0,                    /* DW_CFA_offset r4, 0 */
+        0x80 + 5, 4,                    /* DW_CFA_offset r5, 4 */
+        0x80 + 6, 8,                    /* DW_CFA_offset r6, 8 */
+        0x80 + 7, 12,                    /* ... */
+        0x80 + 8, 16,
+        0x80 + 9, 20,
+        0x80 + 10, 24,
+        0x80 + 11, 28,
+        0x80 + 12, 32,
+        0x80 + 13, 36,
+        0x80 + 14, 40,
+        0x80 + 15, 44,
+        0x80 + 16, 48,
+        0x80 + 17, 52,
+        0x80 + 18, 56,
+    }
+};
+
+void tcg_register_jit(void *buf, size_t buf_size)
+{
+    debug_frame.fde.func_start = (tcg_target_long) buf;
+    debug_frame.fde.func_len = buf_size;
+
+    tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
