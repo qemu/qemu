@@ -30,43 +30,6 @@
 /*****************************************************************************/
 /* Exceptions processing helpers */
 
-/* This should only be called from translate, via gen_excp.
-   We expect that ENV->PC has already been updated.  */
-void QEMU_NORETURN helper_excp(int excp, int error)
-{
-    env->exception_index = excp;
-    env->error_code = error;
-    cpu_loop_exit(env);
-}
-
-static void do_restore_state(void *retaddr)
-{
-    unsigned long pc = (unsigned long)retaddr;
-
-    if (pc) {
-        TranslationBlock *tb = tb_find_pc(pc);
-        if (tb) {
-            cpu_restore_state(tb, env, pc);
-        }
-    }
-}
-
-/* This may be called from any of the helpers to set up EXCEPTION_INDEX.  */
-static void QEMU_NORETURN dynamic_excp(int excp, int error)
-{
-    env->exception_index = excp;
-    env->error_code = error;
-    do_restore_state(GETPC());
-    cpu_loop_exit(env);
-}
-
-static void QEMU_NORETURN arith_excp(int exc, uint64_t mask)
-{
-    env->trap_arg0 = exc;
-    env->trap_arg1 = mask;
-    dynamic_excp(EXCP_ARITH, 0);
-}
-
 uint64_t helper_load_pcc (void)
 {
 #ifndef CONFIG_USER_ONLY
@@ -97,7 +60,7 @@ uint64_t helper_addqv (uint64_t op1, uint64_t op2)
     uint64_t tmp = op1;
     op1 += op2;
     if (unlikely((tmp ^ op2 ^ (-1ULL)) & (tmp ^ op1) & (1ULL << 63))) {
-        arith_excp(EXC_M_IOV, 0);
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
     }
     return op1;
 }
@@ -107,7 +70,7 @@ uint64_t helper_addlv (uint64_t op1, uint64_t op2)
     uint64_t tmp = op1;
     op1 = (uint32_t)(op1 + op2);
     if (unlikely((tmp ^ op2 ^ (-1UL)) & (tmp ^ op1) & (1UL << 31))) {
-        arith_excp(EXC_M_IOV, 0);
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
     }
     return op1;
 }
@@ -117,7 +80,7 @@ uint64_t helper_subqv (uint64_t op1, uint64_t op2)
     uint64_t res;
     res = op1 - op2;
     if (unlikely((op1 ^ op2) & (res ^ op1) & (1ULL << 63))) {
-        arith_excp(EXC_M_IOV, 0);
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
     }
     return res;
 }
@@ -127,7 +90,7 @@ uint64_t helper_sublv (uint64_t op1, uint64_t op2)
     uint32_t res;
     res = op1 - op2;
     if (unlikely((op1 ^ op2) & (res ^ op1) & (1UL << 31))) {
-        arith_excp(EXC_M_IOV, 0);
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
     }
     return res;
 }
@@ -137,7 +100,7 @@ uint64_t helper_mullv (uint64_t op1, uint64_t op2)
     int64_t res = (int64_t)op1 * (int64_t)op2;
 
     if (unlikely((int32_t)res != res)) {
-        arith_excp(EXC_M_IOV, 0);
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
     }
     return (int64_t)((int32_t)res);
 }
@@ -149,7 +112,7 @@ uint64_t helper_mulqv (uint64_t op1, uint64_t op2)
     muls64(&tl, &th, op1, op2);
     /* If th != 0 && th != -1, then we had an overflow */
     if (unlikely((th + 1) > 1)) {
-        arith_excp(EXC_M_IOV, 0);
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
     }
     return tl;
 }
@@ -200,7 +163,7 @@ void helper_fp_exc_raise(uint32_t exc, uint32_t regno)
             hw_exc |= EXC_M_INE;
         }
 
-        arith_excp(hw_exc, 1ull << regno);
+        arith_excp(env, GETPC(), hw_exc, 1ull << regno);
     }
 }
 
@@ -230,7 +193,7 @@ uint64_t helper_ieee_input(uint64_t val)
             if (env->fpcr_dnz) {
                 val &= 1ull << 63;
             } else {
-                arith_excp(EXC_M_UNF, 0);
+                arith_excp(env, GETPC(), EXC_M_UNF, 0);
             }
         }
     } else if (exp == 0x7ff) {
@@ -238,7 +201,7 @@ uint64_t helper_ieee_input(uint64_t val)
         /* ??? I'm not sure these exception bit flags are correct.  I do
            know that the Linux kernel, at least, doesn't rely on them and
            just emulates the insn to figure out what exception to use.  */
-        arith_excp(frac ? EXC_M_INV : EXC_M_FOV, 0);
+        arith_excp(env, GETPC(), frac ? EXC_M_INV : EXC_M_FOV, 0);
     }
     return val;
 }
@@ -255,12 +218,12 @@ uint64_t helper_ieee_input_cmp(uint64_t val)
             if (env->fpcr_dnz) {
                 val &= 1ull << 63;
             } else {
-                arith_excp(EXC_M_UNF, 0);
+                arith_excp(env, GETPC(), EXC_M_UNF, 0);
             }
         }
     } else if (exp == 0x7ff && frac) {
         /* NaN.  */
-        arith_excp(EXC_M_INV, 0);
+        arith_excp(env, GETPC(), EXC_M_INV, 0);
     }
     return val;
 }
@@ -323,7 +286,7 @@ static inline float32 f_to_float32(uint64_t a)
 
     if (unlikely(!exp && mant_sig)) {
         /* Reserved operands / Dirty zero */
-        dynamic_excp(EXCP_OPCDEC, 0);
+        dynamic_excp(env, GETPC(), EXCP_OPCDEC, 0);
     }
 
     if (exp < 3) {
@@ -453,7 +416,7 @@ static inline float64 g_to_float64(uint64_t a)
 
     if (!exp && mant_sig) {
         /* Reserved operands / Dirty zero */
-        dynamic_excp(EXCP_OPCDEC, 0);
+        dynamic_excp(env, GETPC(), EXCP_OPCDEC, 0);
     }
 
     if (exp < 3) {
@@ -1085,7 +1048,7 @@ static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
     uint64_t pc;
     uint32_t insn;
 
-    do_restore_state(retaddr);
+    do_restore_state(env, retaddr);
 
     pc = env->pc;
     insn = ldl_code(pc);
@@ -1093,7 +1056,9 @@ static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
     env->trap_arg0 = addr;
     env->trap_arg1 = insn >> 26;                /* opcode */
     env->trap_arg2 = (insn >> 21) & 31;         /* dest regno */
-    helper_excp(EXCP_UNALIGN, 0);
+    env->exception_index = EXCP_UNALIGN;
+    env->error_code = 0;
+    cpu_loop_exit(env);
 }
 
 void QEMU_NORETURN cpu_unassigned_access(CPUAlphaState *env1,
@@ -1103,7 +1068,7 @@ void QEMU_NORETURN cpu_unassigned_access(CPUAlphaState *env1,
     env = env1;
     env->trap_arg0 = addr;
     env->trap_arg1 = is_write;
-    dynamic_excp(EXCP_MCHK, 0);
+    dynamic_excp(env1, GETPC(), EXCP_MCHK, 0);
 }
 
 #include "softmmu_exec.h"
@@ -1137,7 +1102,7 @@ void tlb_fill(CPUAlphaState *env1, target_ulong addr, int is_write, int mmu_idx,
     env = env1;
     ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
-        do_restore_state(retaddr);
+        do_restore_state(env, retaddr);
         /* Exception index and error code are already set */
         cpu_loop_exit(env);
     }

@@ -149,7 +149,7 @@ static void gen_excp_1(int exception, int error_code)
 
     tmp1 = tcg_const_i32(exception);
     tmp2 = tcg_const_i32(error_code);
-    gen_helper_excp(tmp1, tmp2);
+    gen_helper_excp(cpu_env, tmp1, tmp2);
     tcg_temp_free_i32(tmp2);
     tcg_temp_free_i32(tmp1);
 }

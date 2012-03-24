@@ -23,6 +23,7 @@
 
 #include "cpu.h"
 #include "softfloat.h"
+#include "helper.h"
 
 uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env)
 {
@@ -483,4 +484,42 @@ void cpu_dump_state (CPUAlphaState *env, FILE *f, fprintf_function cpu_fprintf,
             cpu_fprintf(f, "\n");
     }
     cpu_fprintf(f, "\n");
+}
+
+void do_restore_state(CPUAlphaState *env, void *retaddr)
+{
+    uintptr_t pc = (uintptr_t)retaddr;
+    if (pc) {
+        TranslationBlock *tb = tb_find_pc(pc);
+        if (tb) {
+            cpu_restore_state(tb, env, pc);
+        }
+    }
+}
+
+/* This should only be called from translate, via gen_excp.
+   We expect that ENV->PC has already been updated.  */
+void QEMU_NORETURN helper_excp(CPUAlphaState *env, int excp, int error)
+{
+    env->exception_index = excp;
+    env->error_code = error;
+    cpu_loop_exit(env);
+}
+
+/* This may be called from any of the helpers to set up EXCEPTION_INDEX.  */
+void QEMU_NORETURN dynamic_excp(CPUAlphaState *env, void *retaddr,
+                                int excp, int error)
+{
+    env->exception_index = excp;
+    env->error_code = error;
+    do_restore_state(env, retaddr);
+    cpu_loop_exit(env);
+}
+
+void QEMU_NORETURN arith_excp(CPUAlphaState *env, void *retaddr,
+                              int exc, uint64_t mask)
+{
+    env->trap_arg0 = exc;
+    env->trap_arg1 = mask;
+    dynamic_excp(env, retaddr, EXCP_ARITH, 0);
 }
