@@ -1,7 +1,7 @@
 #include "def-helper.h"
 
 DEF_HELPER_3(excp, void, env, int, int)
-DEF_HELPER_FLAGS_0(load_pcc, TCG_CALL_CONST | TCG_CALL_PURE, i64)
+DEF_HELPER_FLAGS_1(load_pcc, TCG_CALL_CONST | TCG_CALL_PURE, i64, env)
 
 DEF_HELPER_3(addqv, i64, env, i64, i64)
 DEF_HELPER_3(addlv, i64, env, i64, i64)
@@ -100,7 +100,7 @@ DEF_HELPER_2(ieee_input_cmp, i64, env, i64)
 DEF_HELPER_2(ieee_input_s, i64, env, i64)
 
 #if !defined (CONFIG_USER_ONLY)
-DEF_HELPER_1(hw_ret, void, i64)
+DEF_HELPER_2(hw_ret, void, env, i64)
 
 DEF_HELPER_1(ldl_phys, i64, i64)
 DEF_HELPER_1(ldq_phys, i64, i64)
@@ -111,13 +111,13 @@ DEF_HELPER_2(stq_phys, void, i64, i64)
 DEF_HELPER_2(stl_c_phys, i64, i64, i64)
 DEF_HELPER_2(stq_c_phys, i64, i64, i64)
 
-DEF_HELPER_FLAGS_0(tbia, TCG_CALL_CONST, void)
-DEF_HELPER_FLAGS_1(tbis, TCG_CALL_CONST, void, i64)
+DEF_HELPER_FLAGS_1(tbia, TCG_CALL_CONST, void, env)
+DEF_HELPER_FLAGS_2(tbis, TCG_CALL_CONST, void, env, i64)
 
 DEF_HELPER_1(halt, void, i64);
 
 DEF_HELPER_FLAGS_0(get_time, TCG_CALL_CONST, i64)
-DEF_HELPER_FLAGS_1(set_alarm, TCG_CALL_CONST, void, i64)
+DEF_HELPER_FLAGS_2(set_alarm, TCG_CALL_CONST, void, env, i64)
 #endif
 
 #include "def-helper.h"

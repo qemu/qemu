@@ -1678,12 +1678,12 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
     switch (regno) {
     case 255:
         /* TBIA */
-        gen_helper_tbia();
+        gen_helper_tbia(cpu_env);
         break;
 
     case 254:
         /* TBIS */
-        gen_helper_tbis(tmp);
+        gen_helper_tbis(cpu_env, tmp);
         break;
 
     case 253:
@@ -1699,7 +1699,7 @@ static ExitStatus gen_mtpr(DisasContext *ctx, int rb, int regno)
 
     case 251:
         /* ALARM */
-        gen_helper_set_alarm(tmp);
+        gen_helper_set_alarm(cpu_env, tmp);
         break;
 
     default:
@@ -2793,11 +2793,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
             if (ra != 31) {
                 if (use_icount) {
                     gen_io_start();
-                    gen_helper_load_pcc(cpu_ir[ra]);
+                    gen_helper_load_pcc(cpu_ir[ra], cpu_env);
                     gen_io_end();
                     ret = EXIT_PC_STALE;
                 } else {
-                    gen_helper_load_pcc(cpu_ir[ra]);
+                    gen_helper_load_pcc(cpu_ir[ra], cpu_env);
                 }
             }
             break;
@@ -3143,10 +3143,10 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                    emulation PALcode, so continue to accept it.  */
                 TCGv tmp = tcg_temp_new();
                 tcg_gen_ld_i64(tmp, cpu_env, offsetof(CPUAlphaState, exc_addr));
-                gen_helper_hw_ret(tmp);
+                gen_helper_hw_ret(cpu_env, tmp);
                 tcg_temp_free(tmp);
             } else {
-                gen_helper_hw_ret(cpu_ir[rb]);
+                gen_helper_hw_ret(cpu_env, cpu_ir[rb]);
             }
             ret = EXIT_PC_UPDATED;
             break;

@@ -96,7 +96,7 @@ libobj-y += cpu_init.o
 endif
 libobj-$(TARGET_SPARC) += int32_helper.o
 libobj-$(TARGET_SPARC64) += int64_helper.o
-libobj-$(TARGET_ALPHA) += int_helper.o fpu_helper.o
+libobj-$(TARGET_ALPHA) += int_helper.o fpu_helper.o sys_helper.o
 
 libobj-y += disas.o
 libobj-$(CONFIG_TCI_DIS) += tci-dis.o
