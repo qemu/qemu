@@ -1624,3 +1624,66 @@ static void tcg_target_init(TCGContext *s)
     tcg_regset_set_reg(s->reserved_regs, TCG_REG_O7);
     tcg_add_target_add_op_defs(sparc_op_defs);
 }
+
+#if TCG_TARGET_REG_BITS == 64
+# define ELF_HOST_MACHINE  EM_SPARCV9
+#elif defined(__sparc_v8plus__)
+# define ELF_HOST_MACHINE  EM_SPARC32PLUS
+# define ELF_HOST_FLAGS    EF_SPARC_32PLUS
+#else
+# define ELF_HOST_MACHINE  EM_SPARC
+#endif
+
+typedef struct {
+    uint32_t len __attribute__((aligned((sizeof(void *)))));
+    uint32_t id;
+    uint8_t version;
+    char augmentation[1];
+    uint8_t code_align;
+    uint8_t data_align;
+    uint8_t return_column;
+} DebugFrameCIE;
+
+typedef struct {
+    uint32_t len __attribute__((aligned((sizeof(void *)))));
+    uint32_t cie_offset;
+    tcg_target_long func_start __attribute__((packed));
+    tcg_target_long func_len __attribute__((packed));
+    uint8_t def_cfa[TCG_TARGET_REG_BITS == 64 ? 4 : 2];
+    uint8_t win_save;
+    uint8_t ret_save[3];
+} DebugFrameFDE;
+
+typedef struct {
+    DebugFrameCIE cie;
+    DebugFrameFDE fde;
+} DebugFrame;
+
+static DebugFrame debug_frame = {
+    .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
+    .cie.id = -1,
+    .cie.version = 1,
+    .cie.code_align = 1,
+    .cie.data_align = -sizeof(void *) & 0x7f,
+    .cie.return_column = 15,            /* o7 */
+
+    .fde.len = sizeof(DebugFrameFDE)-4, /* length after .len member */
+    .fde.def_cfa = {
+#if TCG_TARGET_REG_BITS == 64
+        12, 30,                         /* DW_CFA_def_cfa i6, 2047 */
+        (2047 & 0x7f) | 0x80, (2047 >> 7)
+#else
+        13, 30                          /* DW_CFA_def_cfa_register i6 */
+#endif
+    },
+    .fde.win_save = 0x2d,               /* DW_CFA_GNU_window_save */
+    .fde.ret_save = { 9, 15, 31 },      /* DW_CFA_register o7, i7 */
+};
+
+void tcg_register_jit(void *buf, size_t buf_size)
+{
+    debug_frame.fde.func_start = (tcg_target_long) buf;
+    debug_frame.fde.func_len = buf_size;
+
+    tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
+}
