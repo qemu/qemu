@@ -2867,11 +2867,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 break;
             case 0x2:
                 /* Longword physical access with lock (hw_ldl_l/p) */
-                gen_helper_ldl_l_phys(cpu_ir[ra], addr);
+                gen_helper_ldl_l_phys(cpu_ir[ra], cpu_env, addr);
                 break;
             case 0x3:
                 /* Quadword physical access with lock (hw_ldq_l/p) */
-                gen_helper_ldq_l_phys(cpu_ir[ra], addr);
+                gen_helper_ldq_l_phys(cpu_ir[ra], cpu_env, addr);
                 break;
             case 0x4:
                 /* Longword virtual PTE fetch (hw_ldl/v) */
@@ -3180,11 +3180,11 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
                 break;
             case 0x2:
                 /* Longword physical access with lock */
-                gen_helper_stl_c_phys(val, addr, val);
+                gen_helper_stl_c_phys(val, cpu_env, addr, val);
                 break;
             case 0x3:
                 /* Quadword physical access with lock */
-                gen_helper_stq_c_phys(val, addr, val);
+                gen_helper_stq_c_phys(val, cpu_env, addr, val);
                 break;
             case 0x4:
                 /* Longword virtual access */
@@ -3420,7 +3420,7 @@ static inline void gen_intermediate_code_internal(CPUAlphaState *env,
         }
         if (num_insns + 1 == max_insns && (tb->cflags & CF_LAST_IO))
             gen_io_start();
-        insn = ldl_code(ctx.pc);
+        insn = cpu_ldl_code(env, ctx.pc);
         num_insns++;
 
 	if (unlikely(qemu_loglevel_mask(CPU_LOG_TB_OP))) {

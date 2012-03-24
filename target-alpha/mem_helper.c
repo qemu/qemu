@@ -1,5 +1,5 @@
 /*
- *  Alpha emulation cpu micro-operations helpers for qemu.
+ *  Helpers for loads and stores
  *
  *  Copyright (c) 2007 Jocelyn Mayer
  *
@@ -18,17 +18,12 @@
  */
 
 #include "cpu.h"
-#include "dyngen-exec.h"
-#include "host-utils.h"
-#include "softfloat.h"
 #include "helper.h"
-#include "sysemu.h"
-#include "qemu-timer.h"
 
 
-/*****************************************************************************/
 /* Softmmu support */
-#if !defined (CONFIG_USER_ONLY)
+#ifndef CONFIG_USER_ONLY
+
 uint64_t helper_ldl_phys(uint64_t p)
 {
     return (int32_t)ldl_phys(p);
@@ -39,16 +34,16 @@ uint64_t helper_ldq_phys(uint64_t p)
     return ldq_phys(p);
 }
 
-uint64_t helper_ldl_l_phys(uint64_t p)
+uint64_t helper_ldl_l_phys(CPUAlphaState *env, uint64_t p)
 {
     env->lock_addr = p;
     return env->lock_value = (int32_t)ldl_phys(p);
 }
 
-uint64_t helper_ldq_l_phys(uint64_t p)
+uint64_t helper_ldq_l_phys(CPUAlphaState *env, uint64_t p)
 {
     env->lock_addr = p;
-    return env->lock_value = ldl_phys(p);
+    return env->lock_value = ldq_phys(p);
 }
 
 void helper_stl_phys(uint64_t p, uint64_t v)
@@ -61,7 +56,7 @@ void helper_stq_phys(uint64_t p, uint64_t v)
     stq_phys(p, v);
 }
 
-uint64_t helper_stl_c_phys(uint64_t p, uint64_t v)
+uint64_t helper_stl_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
     uint64_t ret = 0;
 
@@ -77,7 +72,7 @@ uint64_t helper_stl_c_phys(uint64_t p, uint64_t v)
     return ret;
 }
 
-uint64_t helper_stq_c_phys(uint64_t p, uint64_t v)
+uint64_t helper_stq_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 {
     uint64_t ret = 0;
 
@@ -93,8 +88,8 @@ uint64_t helper_stq_c_phys(uint64_t p, uint64_t v)
     return ret;
 }
 
-static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
-                                              int is_user, void *retaddr)
+static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
+                                int is_write, int is_user, void *retaddr)
 {
     uint64_t pc;
     uint32_t insn;
@@ -102,7 +97,7 @@ static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
     do_restore_state(env, retaddr);
 
     pc = env->pc;
-    insn = ldl_code(pc);
+    insn = cpu_ldl_code(env, pc);
 
     env->trap_arg0 = addr;
     env->trap_arg1 = insn >> 26;                /* opcode */
@@ -112,14 +107,12 @@ static void QEMU_NORETURN do_unaligned_access(target_ulong addr, int is_write,
     cpu_loop_exit(env);
 }
 
-void QEMU_NORETURN cpu_unassigned_access(CPUAlphaState *env1,
-                                         target_phys_addr_t addr, int is_write,
-                                         int is_exec, int unused, int size)
+void cpu_unassigned_access(CPUAlphaState *env, target_phys_addr_t addr,
+                           int is_write, int is_exec, int unused, int size)
 {
-    env = env1;
     env->trap_arg0 = addr;
     env->trap_arg1 = is_write;
-    dynamic_excp(env1, GETPC(), EXCP_MCHK, 0);
+    dynamic_excp(env, NULL, EXCP_MCHK, 0);
 }
 
 #include "softmmu_exec.h"
@@ -143,20 +136,16 @@ void QEMU_NORETURN cpu_unassigned_access(CPUAlphaState *env1,
    NULL, it means that the function was called in C code (i.e. not
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
-void tlb_fill(CPUAlphaState *env1, target_ulong addr, int is_write, int mmu_idx,
-              void *retaddr)
+void tlb_fill(CPUAlphaState *env, target_ulong addr, int is_write,
+              int mmu_idx, void *retaddr)
 {
-    CPUAlphaState *saved_env;
     int ret;
 
-    saved_env = env;
-    env = env1;
     ret = cpu_alpha_handle_mmu_fault(env, addr, is_write, mmu_idx);
     if (unlikely(ret != 0)) {
         do_restore_state(env, retaddr);
         /* Exception index and error code are already set */
         cpu_loop_exit(env);
     }
-    env = saved_env;
 }
-#endif
+#endif /* CONFIG_USER_ONLY */
