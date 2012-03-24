@@ -82,7 +82,7 @@ uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env)
         break;
     }
 
-    if (env->fpcr_dnz) {
+    if (env->fp_status.flush_inputs_to_zero) {
         r |= FPCR_DNZ;
     }
     if (env->fpcr_dnod) {
@@ -151,12 +151,10 @@ void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val)
     }
     env->fpcr_dyn_round = t;
 
-    env->fpcr_flush_to_zero
-      = (val & (FPCR_UNDZ|FPCR_UNFD)) == (FPCR_UNDZ|FPCR_UNFD);
-
-    env->fpcr_dnz = (val & FPCR_DNZ) != 0;
     env->fpcr_dnod = (val & FPCR_DNOD) != 0;
     env->fpcr_undz = (val & FPCR_UNDZ) != 0;
+    env->fpcr_flush_to_zero = env->fpcr_dnod & env->fpcr_undz;
+    env->fp_status.flush_inputs_to_zero = (val & FPCR_DNZ) != 0;
 }
 
 uint64_t helper_load_fpcr(CPUAlphaState *env)

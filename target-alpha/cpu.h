@@ -234,7 +234,6 @@ struct CPUAlphaState {
     uint8_t fpcr_exc_mask;
     uint8_t fpcr_dyn_round;
     uint8_t fpcr_flush_to_zero;
-    uint8_t fpcr_dnz;
     uint8_t fpcr_dnod;
     uint8_t fpcr_undz;
 

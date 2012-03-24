@@ -95,9 +95,8 @@ DEF_HELPER_FLAGS_1(fp_exc_get, TCG_CALL_CONST | TCG_CALL_PURE, i32, env)
 DEF_HELPER_3(fp_exc_raise, void, env, i32, i32)
 DEF_HELPER_3(fp_exc_raise_s, void, env, i32, i32)
 
-DEF_HELPER_2(ieee_input, i64, env, i64)
-DEF_HELPER_2(ieee_input_cmp, i64, env, i64)
-DEF_HELPER_2(ieee_input_s, i64, env, i64)
+DEF_HELPER_2(ieee_input, void, env, i64)
+DEF_HELPER_2(ieee_input_cmp, void, env, i64)
 
 #if !defined (CONFIG_USER_ONLY)
 DEF_HELPER_2(hw_ret, void, env, i64)

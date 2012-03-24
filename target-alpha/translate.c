@@ -661,15 +661,19 @@ static void gen_qual_flushzero(DisasContext *ctx, int fn11)
 
 static TCGv gen_ieee_input(int reg, int fn11, int is_cmp)
 {
-    TCGv val = tcg_temp_new();
+    TCGv val;
     if (reg == 31) {
-        tcg_gen_movi_i64(val, 0);
-    } else if (fn11 & QUAL_S) {
-        gen_helper_ieee_input_s(val, cpu_env, cpu_fir[reg]);
-    } else if (is_cmp) {
-        gen_helper_ieee_input_cmp(val, cpu_env, cpu_fir[reg]);
+        val = tcg_const_i64(0);
     } else {
-        gen_helper_ieee_input(val, cpu_env, cpu_fir[reg]);
+        if ((fn11 & QUAL_S) == 0) {
+            if (is_cmp) {
+                gen_helper_ieee_input_cmp(cpu_env, cpu_fir[reg]);
+            } else {
+                gen_helper_ieee_input(cpu_env, cpu_fir[reg]);
+            }
+        }
+        val = tcg_temp_new();
+        tcg_gen_mov_i64(val, cpu_fir[reg]);
     }
     return val;
 }

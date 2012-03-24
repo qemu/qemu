@@ -88,21 +88,17 @@ void helper_fp_exc_raise_s(CPUAlphaState *env, uint32_t exc, uint32_t regno)
     }
 }
 
-/* Input remapping without software completion.  Handle denormal-map-to-zero
-   and trap for all other non-finite numbers.  */
-uint64_t helper_ieee_input(CPUAlphaState *env, uint64_t val)
+/* Input handing without software completion.  Trap for all
+   non-finite numbers.  */
+void helper_ieee_input(CPUAlphaState *env, uint64_t val)
 {
     uint32_t exp = (uint32_t)(val >> 52) & 0x7ff;
     uint64_t frac = val & 0xfffffffffffffull;
 
     if (exp == 0) {
-        if (frac != 0) {
-            /* If DNZ is set flush denormals to zero on input.  */
-            if (env->fpcr_dnz) {
-                val &= 1ull << 63;
-            } else {
-                arith_excp(env, GETPC(), EXC_M_UNF, 0);
-            }
+        /* Denormals without DNZ set raise an exception.  */
+        if (frac != 0 && !env->fp_status.flush_inputs_to_zero) {
+            arith_excp(env, GETPC(), EXC_M_UNF, 0);
         }
     } else if (exp == 0x7ff) {
         /* Infinity or NaN.  */
@@ -111,43 +107,23 @@ uint64_t helper_ieee_input(CPUAlphaState *env, uint64_t val)
            just emulates the insn to figure out what exception to use.  */
         arith_excp(env, GETPC(), frac ? EXC_M_INV : EXC_M_FOV, 0);
     }
-    return val;
 }
 
 /* Similar, but does not trap for infinities.  Used for comparisons.  */
-uint64_t helper_ieee_input_cmp(CPUAlphaState *env, uint64_t val)
+void helper_ieee_input_cmp(CPUAlphaState *env, uint64_t val)
 {
     uint32_t exp = (uint32_t)(val >> 52) & 0x7ff;
     uint64_t frac = val & 0xfffffffffffffull;
 
     if (exp == 0) {
-        if (frac != 0) {
-            /* If DNZ is set flush denormals to zero on input.  */
-            if (env->fpcr_dnz) {
-                val &= 1ull << 63;
-            } else {
-                arith_excp(env, GETPC(), EXC_M_UNF, 0);
-            }
+        /* Denormals without DNZ set raise an exception.  */
+        if (frac != 0 && !env->fp_status.flush_inputs_to_zero) {
+            arith_excp(env, GETPC(), EXC_M_UNF, 0);
         }
     } else if (exp == 0x7ff && frac) {
         /* NaN.  */
         arith_excp(env, GETPC(), EXC_M_INV, 0);
     }
-    return val;
-}
-
-/* Input remapping with software completion enabled.  All we have to do
-   is handle denormal-map-to-zero; all other inputs get exceptions as
-   needed from the actual operation.  */
-uint64_t helper_ieee_input_s(CPUAlphaState *env, uint64_t val)
-{
-    if (env->fpcr_dnz) {
-        uint32_t exp = (uint32_t)(val >> 52) & 0x7ff;
-        if (exp == 0) {
-            val &= 1ull << 63;
-        }
-    }
-    return val;
 }
 
 /* F floating (VAX) */
