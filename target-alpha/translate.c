@@ -611,7 +611,8 @@ static void gen_qual_roundmode(DisasContext *ctx, int fn11)
         tcg_gen_movi_i32(tmp, float_round_down);
         break;
     case QUAL_RM_D:
-        tcg_gen_ld8u_i32(tmp, cpu_env, offsetof(CPUAlphaState, fpcr_dyn_round));
+        tcg_gen_ld8u_i32(tmp, cpu_env,
+                         offsetof(CPUAlphaState, fpcr_dyn_round));
         break;
     }
 
@@ -641,7 +642,8 @@ static void gen_qual_flushzero(DisasContext *ctx, int fn11)
     tmp = tcg_temp_new_i32();
     if (fn11) {
         /* Underflow is enabled, use the FPCR setting.  */
-        tcg_gen_ld8u_i32(tmp, cpu_env, offsetof(CPUAlphaState, fpcr_flush_to_zero));
+        tcg_gen_ld8u_i32(tmp, cpu_env,
+                         offsetof(CPUAlphaState, fpcr_flush_to_zero));
     } else {
         /* Underflow is disabled, force flush-to-zero.  */
         tcg_gen_movi_i32(tmp, 1);
@@ -663,11 +665,11 @@ static TCGv gen_ieee_input(int reg, int fn11, int is_cmp)
     if (reg == 31) {
         tcg_gen_movi_i64(val, 0);
     } else if (fn11 & QUAL_S) {
-        gen_helper_ieee_input_s(val, cpu_fir[reg]);
+        gen_helper_ieee_input_s(val, cpu_env, cpu_fir[reg]);
     } else if (is_cmp) {
-        gen_helper_ieee_input_cmp(val, cpu_fir[reg]);
+        gen_helper_ieee_input_cmp(val, cpu_env, cpu_fir[reg]);
     } else {
-        gen_helper_ieee_input(val, cpu_fir[reg]);
+        gen_helper_ieee_input(val, cpu_env, cpu_fir[reg]);
     }
     return val;
 }
@@ -680,7 +682,7 @@ static void gen_fp_exc_clear(void)
                     offsetof(CPUAlphaState, fp_status.float_exception_flags));
     tcg_temp_free_i32(zero);
 #else
-    gen_helper_fp_exc_clear();
+    gen_helper_fp_exc_clear(cpu_env);
 #endif
 }
 
@@ -698,7 +700,7 @@ static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
     tcg_gen_ld8u_i32(exc, cpu_env,
                      offsetof(CPUAlphaState, fp_status.float_exception_flags));
 #else
-    gen_helper_fp_exc_get(exc);
+    gen_helper_fp_exc_get(exc, cpu_env);
 #endif
 
     if (ignore) {
@@ -713,9 +715,9 @@ static void gen_fp_exc_raise_ignore(int rc, int fn11, int ignore)
     reg = tcg_const_i32(rc + 32);
 
     if (fn11 & QUAL_S) {
-        gen_helper_fp_exc_raise_s(exc, reg);
+        gen_helper_fp_exc_raise_s(cpu_env, exc, reg);
     } else {
-        gen_helper_fp_exc_raise(exc, reg);
+        gen_helper_fp_exc_raise(cpu_env, exc, reg);
     }
 
     tcg_temp_free_i32(reg);
@@ -784,20 +786,20 @@ static void gen_fcvtql_v(DisasContext *ctx, int rb, int rc)
     gen_fcvtql(rb, rc);
 }
 
-#define FARITH2(name)                                   \
-static inline void glue(gen_f, name)(int rb, int rc)    \
-{                                                       \
-    if (unlikely(rc == 31)) {                           \
-        return;                                         \
-    }                                                   \
-    if (rb != 31) {                                     \
-        gen_helper_ ## name (cpu_fir[rc], cpu_fir[rb]); \
-    } else {						\
-        TCGv tmp = tcg_const_i64(0);                    \
-        gen_helper_ ## name (cpu_fir[rc], tmp);         \
-        tcg_temp_free(tmp);                             \
-    }                                                   \
-}
+#define FARITH2(name)                                                   \
+    static inline void glue(gen_f, name)(int rb, int rc)                \
+    {                                                                   \
+        if (unlikely(rc == 31)) {                                       \
+            return;                                                     \
+        }                                                               \
+        if (rb != 31) {                                                 \
+            gen_helper_ ## name(cpu_fir[rc], cpu_env, cpu_fir[rb]);     \
+        } else {                                                        \
+            TCGv tmp = tcg_const_i64(0);                                \
+            gen_helper_ ## name(cpu_fir[rc], cpu_env, tmp);             \
+            tcg_temp_free(tmp);                                         \
+        }                                                               \
+    }
 
 /* ??? VAX instruction qualifiers ignored.  */
 FARITH2(sqrtf)
@@ -807,7 +809,8 @@ FARITH2(cvtgq)
 FARITH2(cvtqf)
 FARITH2(cvtqg)
 
-static void gen_ieee_arith2(DisasContext *ctx, void (*helper)(TCGv, TCGv),
+static void gen_ieee_arith2(DisasContext *ctx,
+                            void (*helper)(TCGv, TCGv_ptr, TCGv),
                             int rb, int rc, int fn11)
 {
     TCGv vb;
@@ -823,7 +826,7 @@ static void gen_ieee_arith2(DisasContext *ctx, void (*helper)(TCGv, TCGv),
     gen_fp_exc_clear();
 
     vb = gen_ieee_input(rb, fn11, 0);
-    helper(cpu_fir[rc], vb);
+    helper(cpu_fir[rc], cpu_env, vb);
     tcg_temp_free(vb);
 
     gen_fp_exc_raise(rc, fn11);
@@ -859,18 +862,18 @@ static void gen_fcvttq(DisasContext *ctx, int rb, int rc, int fn11)
        also do not have integer overflow enabled.  Special case that.  */
     switch (fn11) {
     case QUAL_RM_C:
-        gen_helper_cvttq_c(cpu_fir[rc], vb);
+        gen_helper_cvttq_c(cpu_fir[rc], cpu_env, vb);
         break;
     case QUAL_V | QUAL_RM_C:
     case QUAL_S | QUAL_V | QUAL_RM_C:
         ignore = float_flag_inexact;
         /* FALLTHRU */
     case QUAL_S | QUAL_V | QUAL_I | QUAL_RM_C:
-        gen_helper_cvttq_svic(cpu_fir[rc], vb);
+        gen_helper_cvttq_svic(cpu_fir[rc], cpu_env, vb);
         break;
     default:
         gen_qual_roundmode(ctx, fn11);
-        gen_helper_cvttq(cpu_fir[rc], vb);
+        gen_helper_cvttq(cpu_fir[rc], cpu_env, vb);
         ignore |= (fn11 & QUAL_V ? 0 : float_flag_overflow);
         ignore |= (fn11 & QUAL_I ? 0 : float_flag_inexact);
         break;
@@ -880,7 +883,8 @@ static void gen_fcvttq(DisasContext *ctx, int rb, int rc, int fn11)
     gen_fp_exc_raise_ignore(rc, fn11, ignore);
 }
 
-static void gen_ieee_intcvt(DisasContext *ctx, void (*helper)(TCGv, TCGv),
+static void gen_ieee_intcvt(DisasContext *ctx,
+                            void (*helper)(TCGv, TCGv_ptr, TCGv),
 			    int rb, int rc, int fn11)
 {
     TCGv vb;
@@ -904,10 +908,10 @@ static void gen_ieee_intcvt(DisasContext *ctx, void (*helper)(TCGv, TCGv),
        inexact handling is requested.  */
     if (fn11 & QUAL_I) {
         gen_fp_exc_clear();
-        helper(cpu_fir[rc], vb);
+        helper(cpu_fir[rc], cpu_env, vb);
         gen_fp_exc_raise(rc, fn11);
     } else {
-        helper(cpu_fir[rc], vb);
+        helper(cpu_fir[rc], cpu_env, vb);
     }
 
     if (rb == 31) {
@@ -999,34 +1003,34 @@ static inline void gen_fcpyse(int ra, int rb, int rc)
     gen_cpys_internal(ra, rb, rc, 0, 0xFFF0000000000000ULL);
 }
 
-#define FARITH3(name)                                           \
-static inline void glue(gen_f, name)(int ra, int rb, int rc)    \
-{                                                               \
-    TCGv va, vb;                                                \
-                                                                \
-    if (unlikely(rc == 31)) {                                   \
-        return;                                                 \
-    }                                                           \
-    if (ra == 31) {                                             \
-        va = tcg_const_i64(0);                                  \
-    } else {                                                    \
-        va = cpu_fir[ra];                                       \
-    }                                                           \
-    if (rb == 31) {                                             \
-        vb = tcg_const_i64(0);                                  \
-    } else {                                                    \
-        vb = cpu_fir[rb];                                       \
-    }                                                           \
-                                                                \
-    gen_helper_ ## name (cpu_fir[rc], va, vb);                  \
-                                                                \
-    if (ra == 31) {                                             \
-        tcg_temp_free(va);                                      \
-    }                                                           \
-    if (rb == 31) {                                             \
-        tcg_temp_free(vb);                                      \
-    }                                                           \
-}
+#define FARITH3(name)                                                   \
+    static inline void glue(gen_f, name)(int ra, int rb, int rc)        \
+    {                                                                   \
+        TCGv va, vb;                                                    \
+                                                                        \
+        if (unlikely(rc == 31)) {                                       \
+            return;                                                     \
+        }                                                               \
+        if (ra == 31) {                                                 \
+            va = tcg_const_i64(0);                                      \
+        } else {                                                        \
+            va = cpu_fir[ra];                                           \
+        }                                                               \
+        if (rb == 31) {                                                 \
+            vb = tcg_const_i64(0);                                      \
+        } else {                                                        \
+            vb = cpu_fir[rb];                                           \
+        }                                                               \
+                                                                        \
+        gen_helper_ ## name(cpu_fir[rc], cpu_env, va, vb);              \
+                                                                        \
+        if (ra == 31) {                                                 \
+            tcg_temp_free(va);                                          \
+        }                                                               \
+        if (rb == 31) {                                                 \
+            tcg_temp_free(vb);                                          \
+        }                                                               \
+    }
 
 /* ??? VAX instruction qualifiers ignored.  */
 FARITH3(addf)
@@ -1042,7 +1046,7 @@ FARITH3(cmpglt)
 FARITH3(cmpgle)
 
 static void gen_ieee_arith3(DisasContext *ctx,
-                            void (*helper)(TCGv, TCGv, TCGv),
+                            void (*helper)(TCGv, TCGv_ptr, TCGv, TCGv),
                             int ra, int rb, int rc, int fn11)
 {
     TCGv va, vb;
@@ -1059,7 +1063,7 @@ static void gen_ieee_arith3(DisasContext *ctx,
 
     va = gen_ieee_input(ra, fn11, 0);
     vb = gen_ieee_input(rb, fn11, 0);
-    helper(cpu_fir[rc], va, vb);
+    helper(cpu_fir[rc], cpu_env, va, vb);
     tcg_temp_free(va);
     tcg_temp_free(vb);
 
@@ -1082,7 +1086,7 @@ IEEE_ARITH3(mult)
 IEEE_ARITH3(divt)
 
 static void gen_ieee_compare(DisasContext *ctx,
-                             void (*helper)(TCGv, TCGv, TCGv),
+                             void (*helper)(TCGv, TCGv_ptr, TCGv, TCGv),
                              int ra, int rb, int rc, int fn11)
 {
     TCGv va, vb;
@@ -1097,7 +1101,7 @@ static void gen_ieee_compare(DisasContext *ctx,
 
     va = gen_ieee_input(ra, fn11, 1);
     vb = gen_ieee_input(rb, fn11, 1);
-    helper(cpu_fir[rc], va, vb);
+    helper(cpu_fir[rc], cpu_env, va, vb);
     tcg_temp_free(va);
     tcg_temp_free(vb);
 
