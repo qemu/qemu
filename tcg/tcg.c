@@ -2360,6 +2360,12 @@ static void tcg_register_jit_int(void *buf_ptr, size_t buf_size,
             .e_shentsize = sizeof(ElfW(Shdr)),
             .e_shnum = ARRAY_SIZE(img->shdr),
             .e_shstrndx = ARRAY_SIZE(img->shdr) - 1,
+#ifdef ELF_HOST_FLAGS
+            .e_flags = ELF_HOST_FLAGS,
+#endif
+#ifdef ELF_OSABI
+            .e_ident[EI_OSABI] = ELF_OSABI,
+#endif
         },
         .phdr = {
             .p_type = PT_LOAD,
