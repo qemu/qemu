@@ -3,12 +3,12 @@
 DEF_HELPER_3(excp, void, env, int, int)
 DEF_HELPER_FLAGS_0(load_pcc, TCG_CALL_CONST | TCG_CALL_PURE, i64)
 
-DEF_HELPER_2(addqv, i64, i64, i64)
-DEF_HELPER_2(addlv, i64, i64, i64)
-DEF_HELPER_2(subqv, i64, i64, i64)
-DEF_HELPER_2(sublv, i64, i64, i64)
-DEF_HELPER_2(mullv, i64, i64, i64)
-DEF_HELPER_2(mulqv, i64, i64, i64)
+DEF_HELPER_3(addqv, i64, env, i64, i64)
+DEF_HELPER_3(addlv, i64, env, i64, i64)
+DEF_HELPER_3(subqv, i64, env, i64, i64)
+DEF_HELPER_3(sublv, i64, env, i64, i64)
+DEF_HELPER_3(mullv, i64, env, i64, i64)
+DEF_HELPER_3(mulqv, i64, env, i64, i64)
 DEF_HELPER_FLAGS_2(umulh, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64, i64)
 
 DEF_HELPER_FLAGS_1(ctpop, TCG_CALL_CONST | TCG_CALL_PURE, i64, i64)

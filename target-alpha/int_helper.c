@@ -255,3 +255,65 @@ uint64_t helper_unpkbw(uint64_t op1)
             | ((op1 & 0xff0000) << 16)
             | ((op1 & 0xff000000) << 24));
 }
+
+uint64_t helper_addqv(CPUAlphaState *env, uint64_t op1, uint64_t op2)
+{
+    uint64_t tmp = op1;
+    op1 += op2;
+    if (unlikely((tmp ^ op2 ^ (-1ULL)) & (tmp ^ op1) & (1ULL << 63))) {
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
+    }
+    return op1;
+}
+
+uint64_t helper_addlv(CPUAlphaState *env, uint64_t op1, uint64_t op2)
+{
+    uint64_t tmp = op1;
+    op1 = (uint32_t)(op1 + op2);
+    if (unlikely((tmp ^ op2 ^ (-1UL)) & (tmp ^ op1) & (1UL << 31))) {
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
+    }
+    return op1;
+}
+
+uint64_t helper_subqv(CPUAlphaState *env, uint64_t op1, uint64_t op2)
+{
+    uint64_t res;
+    res = op1 - op2;
+    if (unlikely((op1 ^ op2) & (res ^ op1) & (1ULL << 63))) {
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
+    }
+    return res;
+}
+
+uint64_t helper_sublv(CPUAlphaState *env, uint64_t op1, uint64_t op2)
+{
+    uint32_t res;
+    res = op1 - op2;
+    if (unlikely((op1 ^ op2) & (res ^ op1) & (1UL << 31))) {
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
+    }
+    return res;
+}
+
+uint64_t helper_mullv(CPUAlphaState *env, uint64_t op1, uint64_t op2)
+{
+    int64_t res = (int64_t)op1 * (int64_t)op2;
+
+    if (unlikely((int32_t)res != res)) {
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
+    }
+    return (int64_t)((int32_t)res);
+}
+
+uint64_t helper_mulqv(CPUAlphaState *env, uint64_t op1, uint64_t op2)
+{
+    uint64_t tl, th;
+
+    muls64(&tl, &th, op1, op2);
+    /* If th != 0 && th != -1, then we had an overflow */
+    if (unlikely((th + 1) > 1)) {
+        arith_excp(env, GETPC(), EXC_M_IOV, 0);
+    }
+    return tl;
+}

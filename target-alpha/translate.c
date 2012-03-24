@@ -1392,14 +1392,8 @@ static inline void glue(gen_, name)(int ra, int rb, int rc, int islit,\
         tcg_temp_free(tmp1);                                          \
     }                                                                 \
 }
-ARITH3(cmpbge)
-ARITH3(addlv)
-ARITH3(sublv)
-ARITH3(addqv)
-ARITH3(subqv)
 ARITH3(umulh)
-ARITH3(mullv)
-ARITH3(mulqv)
+ARITH3(cmpbge)
 ARITH3(minub8)
 ARITH3(minsb8)
 ARITH3(minuw4)
@@ -1409,6 +1403,43 @@ ARITH3(maxsb8)
 ARITH3(maxuw4)
 ARITH3(maxsw4)
 ARITH3(perr)
+
+/* Code to call arith3 helpers */
+#define ARITH3_EX(name)                                                 \
+    static inline void glue(gen_, name)(int ra, int rb, int rc,         \
+                                        int islit, uint8_t lit)         \
+    {                                                                   \
+        if (unlikely(rc == 31)) {                                       \
+            return;                                                     \
+        }                                                               \
+        if (ra != 31) {                                                 \
+            if (islit) {                                                \
+                TCGv tmp = tcg_const_i64(lit);                          \
+                gen_helper_ ## name(cpu_ir[rc], cpu_env,                \
+                                    cpu_ir[ra], tmp);                   \
+                tcg_temp_free(tmp);                                     \
+            } else {                                                    \
+                gen_helper_ ## name(cpu_ir[rc], cpu_env,                \
+                                    cpu_ir[ra], cpu_ir[rb]);            \
+            }                                                           \
+        } else {                                                        \
+            TCGv tmp1 = tcg_const_i64(0);                               \
+            if (islit) {                                                \
+                TCGv tmp2 = tcg_const_i64(lit);                         \
+                gen_helper_ ## name(cpu_ir[rc], cpu_env, tmp1, tmp2);   \
+                tcg_temp_free(tmp2);                                    \
+            } else {                                                    \
+                gen_helper_ ## name(cpu_ir[rc], cpu_env, tmp1, cpu_ir[rb]); \
+            }                                                           \
+            tcg_temp_free(tmp1);                                        \
+        }                                                               \
+    }
+ARITH3_EX(addlv)
+ARITH3_EX(sublv)
+ARITH3_EX(addqv)
+ARITH3_EX(subqv)
+ARITH3_EX(mullv)
+ARITH3_EX(mulqv)
 
 #define MVIOP2(name)                                    \
 static inline void glue(gen_, name)(int rb, int rc)     \
