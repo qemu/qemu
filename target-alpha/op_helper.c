@@ -43,16 +43,6 @@ uint64_t helper_load_pcc (void)
 #endif
 }
 
-uint64_t helper_load_fpcr (void)
-{
-    return cpu_alpha_load_fpcr (env);
-}
-
-void helper_store_fpcr (uint64_t val)
-{
-    cpu_alpha_store_fpcr (env, val);
-}
-
 uint64_t helper_addqv (uint64_t op1, uint64_t op2)
 {
     uint64_t tmp = op1;

@@ -2678,17 +2678,17 @@ static ExitStatus translate_one(DisasContext *ctx, uint32_t insn)
         case 0x024:
             /* MT_FPCR */
             if (likely(ra != 31))
-                gen_helper_store_fpcr(cpu_fir[ra]);
+                gen_helper_store_fpcr(cpu_env, cpu_fir[ra]);
             else {
                 TCGv tmp = tcg_const_i64(0);
-                gen_helper_store_fpcr(tmp);
+                gen_helper_store_fpcr(cpu_env, tmp);
                 tcg_temp_free(tmp);
             }
             break;
         case 0x025:
             /* MF_FPCR */
             if (likely(ra != 31))
-                gen_helper_load_fpcr(cpu_fir[ra]);
+                gen_helper_load_fpcr(cpu_fir[ra], cpu_env);
             break;
         case 0x02A:
             /* FCMOVEQ */

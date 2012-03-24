@@ -159,9 +159,19 @@ void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val)
     env->fpcr_undz = (val & FPCR_UNDZ) != 0;
 }
 
+uint64_t helper_load_fpcr(CPUAlphaState *env)
+{
+    return cpu_alpha_load_fpcr(env);
+}
+
+void helper_store_fpcr(CPUAlphaState *env, uint64_t val)
+{
+    cpu_alpha_store_fpcr(env, val);
+}
+
 #if defined(CONFIG_USER_ONLY)
-int cpu_alpha_handle_mmu_fault (CPUAlphaState *env, target_ulong address, int rw,
-                                int mmu_idx)
+int cpu_alpha_handle_mmu_fault(CPUAlphaState *env, target_ulong address,
+                               int rw, int mmu_idx)
 {
     env->exception_index = EXCP_MMFAULT;
     env->trap_arg0 = address;
