@@ -696,7 +696,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
 
     tcg_out32(s, JMPL | INSN_RD(TCG_REG_G0) | INSN_RS1(TCG_REG_I1) |
               INSN_RS2(TCG_REG_G0));
-    tcg_out_mov(s, TCG_TYPE_PTR, TCG_AREG0, TCG_REG_I0);
+    /* delay slot */
+    tcg_out_nop(s);
 }
 
 #if defined(CONFIG_SOFTMMU)
