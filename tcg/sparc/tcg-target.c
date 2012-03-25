@@ -161,7 +161,6 @@ static int target_parse_constraint(TCGArgConstraint *ct, const char **pct_str)
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O0);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O1);
         tcg_regset_reset_reg(ct->u.regs, TCG_REG_O2);
-        tcg_regset_reset_reg(ct->u.regs, TCG_REG_O3);
         break;
     case 'I':
         ct->ct |= TCG_CT_CONST_S11;
@@ -681,11 +680,22 @@ static void tcg_out_setcond2_i32(TCGContext *s, TCGCond cond, TCGArg ret,
 /* Generate global QEMU prologue and epilogue code */
 static void tcg_target_qemu_prologue(TCGContext *s)
 {
-    tcg_set_frame(s, TCG_REG_I6, TCG_TARGET_CALL_STACK_OFFSET,
-                  CPU_TEMP_BUF_NLONGS * (int)sizeof(long));
+    int tmp_buf_size, frame_size;
+
+    /* The TCG temp buffer is at the top of the frame, immediately
+       below the frame pointer.  */
+    tmp_buf_size = CPU_TEMP_BUF_NLONGS * (int)sizeof(long);
+    tcg_set_frame(s, TCG_REG_I6, TCG_TARGET_STACK_BIAS - tmp_buf_size,
+                  tmp_buf_size);
+
+    /* TCG_TARGET_CALL_STACK_OFFSET includes the stack bias, but is
+       otherwise the minimal frame usable by callees.  */
+    frame_size = TCG_TARGET_CALL_STACK_OFFSET - TCG_TARGET_STACK_BIAS;
+    frame_size += TCG_STATIC_CALL_ARGS_SIZE + tmp_buf_size;
+    frame_size += TCG_TARGET_STACK_ALIGN - 1;
+    frame_size &= -TCG_TARGET_STACK_ALIGN;
     tcg_out32(s, SAVE | INSN_RD(TCG_REG_O6) | INSN_RS1(TCG_REG_O6) |
-              INSN_IMM13(-(TCG_TARGET_STACK_MINFRAME +
-                           CPU_TEMP_BUF_NLONGS * (int)sizeof(long))));
+              INSN_IMM13(-frame_size));
 
 #ifdef CONFIG_USE_GUEST_BASE
     if (GUEST_BASE != 0) {
@@ -698,6 +708,8 @@ static void tcg_target_qemu_prologue(TCGContext *s)
               INSN_RS2(TCG_REG_G0));
     /* delay slot */
     tcg_out_nop(s);
+
+    /* No epilogue required.  We issue ret + restore directly in the TB.  */
 }
 
 #if defined(CONFIG_SOFTMMU)
@@ -880,23 +892,12 @@ static void tcg_out_qemu_ld(TCGContext *s, const TCGArg *args, int sizeop)
     tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++],
                 args[addrlo_idx]);
 
-    /* Store AREG0 in stack to avoid ugly glibc bugs that mangle
-       global registers */
-    tcg_out_st(s, TCG_TYPE_REG, TCG_AREG0, TCG_REG_CALL_STACK,
-               TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
-               sizeof(long));
-
     /* qemu_ld_helper[s_bits](arg0, arg1) */
     tcg_out32(s, CALL | ((((tcg_target_ulong)qemu_ld_helpers[s_bits]
                            - (tcg_target_ulong)s->code_ptr) >> 2)
                          & 0x3fffffff));
     /* delay slot */
     tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[n], memi);
-
-    /* Reload AREG0.  */
-    tcg_out_ld(s, TCG_TYPE_REG, TCG_AREG0, TCG_REG_CALL_STACK,
-               TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
-               sizeof(long));
 
     n = tcg_target_call_oarg_regs[0];
     /* datalo = sign_extend(arg0) */
@@ -1011,23 +1012,12 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args, int sizeop)
     }
     tcg_out_mov(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n++], datalo);
 
-    /* Store AREG0 in stack to avoid ugly glibc bugs that mangle
-       global registers */
-    tcg_out_st(s, TCG_TYPE_REG, TCG_AREG0, TCG_REG_CALL_STACK,
-               TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
-               sizeof(long));
-
     /* qemu_st_helper[s_bits](arg0, arg1, arg2) */
     tcg_out32(s, CALL | ((((tcg_target_ulong)qemu_st_helpers[sizeop]
                            - (tcg_target_ulong)s->code_ptr) >> 2)
                          & 0x3fffffff));
     /* delay slot */
     tcg_out_movi(s, TCG_TYPE_REG, tcg_target_call_iarg_regs[n], memi);
-
-    /* Reload AREG0.  */
-    tcg_out_ld(s, TCG_TYPE_REG, TCG_AREG0, TCG_REG_CALL_STACK,
-               TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
-               sizeof(long));
 
     *label_ptr |= INSN_OFF19((unsigned long)s->code_ptr -
                              (unsigned long)label_ptr);
@@ -1091,15 +1081,8 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
             tcg_out32(s, JMPL | INSN_RD(TCG_REG_O7) | INSN_RS1(TCG_REG_I5) |
                       INSN_RS2(TCG_REG_G0));
         }
-        /* Store AREG0 in stack to avoid ugly glibc bugs that mangle
-           global registers */
-        // delay slot
-        tcg_out_st(s, TCG_TYPE_REG, TCG_AREG0, TCG_REG_CALL_STACK,
-                   TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
-                   sizeof(long));
-        tcg_out_ld(s, TCG_TYPE_REG, TCG_AREG0, TCG_REG_CALL_STACK,
-                   TCG_TARGET_CALL_STACK_OFFSET - TCG_STATIC_CALL_ARGS_SIZE -
-                   sizeof(long));
+        /* delay slot */
+        tcg_out_nop(s);
         break;
     case INDEX_op_jmp:
     case INDEX_op_br:

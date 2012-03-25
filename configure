@@ -858,19 +858,11 @@ case "$cpu" in
     sparc)
            LDFLAGS="-m32 $LDFLAGS"
            QEMU_CFLAGS="-m32 -mcpu=ultrasparc $QEMU_CFLAGS"
-           QEMU_CFLAGS="-ffixed-g2 -ffixed-g3 $QEMU_CFLAGS"
-           if test "$solaris" = "no" ; then
-             QEMU_CFLAGS="-ffixed-g1 -ffixed-g6 $QEMU_CFLAGS"
-           fi
            host_guest_base="yes"
            ;;
     sparc64)
            LDFLAGS="-m64 $LDFLAGS"
            QEMU_CFLAGS="-m64 -mcpu=ultrasparc $QEMU_CFLAGS"
-           QEMU_CFLAGS="-ffixed-g5 -ffixed-g6 -ffixed-g7 $QEMU_CFLAGS"
-           if test "$solaris" != "no" ; then
-             QEMU_CFLAGS="-ffixed-g1 $QEMU_CFLAGS"
-           fi
            host_guest_base="yes"
            ;;
     s390)
@@ -4044,10 +4036,6 @@ fi
 
 if test "$target_linux_user" = "yes" -o "$target_bsd_user" = "yes" ; then
   case "$ARCH" in
-  sparc)
-    # -static is used to avoid g1/g3 usage by the dynamic linker
-    ldflags="$linker_script -static $ldflags"
-    ;;
   alpha | s390x)
     # The default placement of the application is fine.
     ;;
