@@ -130,13 +130,7 @@ typedef enum {
 
 #define TCG_TARGET_HAS_GUEST_BASE
 
-#ifdef CONFIG_SOLARIS
-#define TCG_AREG0 TCG_REG_G2
-#elif HOST_LONG_BITS == 64
-#define TCG_AREG0 TCG_REG_G5
-#else
-#define TCG_AREG0 TCG_REG_G6
-#endif
+#define TCG_AREG0 TCG_REG_I0
 
 static inline void flush_icache_range(tcg_target_ulong start,
                                       tcg_target_ulong stop)
