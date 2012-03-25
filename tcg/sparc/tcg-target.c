@@ -1154,13 +1154,16 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         goto gen_arith;
     case INDEX_op_shl_i32:
         c = SHIFT_SLL;
-        goto gen_arith;
+    do_shift32:
+        /* Limit immediate shift count lest we create an illegal insn.  */
+        tcg_out_arithc(s, args[0], args[1], args[2] & 31, const_args[2], c);
+        break;
     case INDEX_op_shr_i32:
         c = SHIFT_SRL;
-        goto gen_arith;
+        goto do_shift32;
     case INDEX_op_sar_i32:
         c = SHIFT_SRA;
-        goto gen_arith;
+        goto do_shift32;
     case INDEX_op_mul_i32:
         c = ARITH_UMUL;
         goto gen_arith;
@@ -1281,13 +1284,16 @@ static inline void tcg_out_op(TCGContext *s, TCGOpcode opc, const TCGArg *args,
         break;
     case INDEX_op_shl_i64:
         c = SHIFT_SLLX;
-        goto gen_arith;
+    do_shift64:
+        /* Limit immediate shift count lest we create an illegal insn.  */
+        tcg_out_arithc(s, args[0], args[1], args[2] & 63, const_args[2], c);
+        break;
     case INDEX_op_shr_i64:
         c = SHIFT_SRLX;
-        goto gen_arith;
+        goto do_shift64;
     case INDEX_op_sar_i64:
         c = SHIFT_SRAX;
-        goto gen_arith;
+        goto do_shift64;
     case INDEX_op_mul_i64:
         c = ARITH_MULX;
         goto gen_arith;
