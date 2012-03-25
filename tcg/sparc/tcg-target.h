@@ -66,20 +66,16 @@ typedef enum {
 #define TCG_CT_CONST_S13 0x200
 
 /* used for function call generation */
-#define TCG_REG_CALL_STACK TCG_REG_I6
+#define TCG_REG_CALL_STACK TCG_REG_O6
 
 #if TCG_TARGET_REG_BITS == 64
-// Reserve space for AREG0
-#define TCG_TARGET_STACK_MINFRAME (176 + 4 * (int)sizeof(long) + \
-                                   TCG_STATIC_CALL_ARGS_SIZE)
-#define TCG_TARGET_CALL_STACK_OFFSET (2047 - 16)
-#define TCG_TARGET_STACK_ALIGN 16
+#define TCG_TARGET_STACK_BIAS           2047
+#define TCG_TARGET_STACK_ALIGN          16
+#define TCG_TARGET_CALL_STACK_OFFSET    (128 + 6*8 + TCG_TARGET_STACK_BIAS)
 #else
-// AREG0 + one word for alignment
-#define TCG_TARGET_STACK_MINFRAME (92 + (2 + 1) * (int)sizeof(long) + \
-                                   TCG_STATIC_CALL_ARGS_SIZE)
-#define TCG_TARGET_CALL_STACK_OFFSET TCG_TARGET_STACK_MINFRAME
-#define TCG_TARGET_STACK_ALIGN 8
+#define TCG_TARGET_STACK_BIAS           0
+#define TCG_TARGET_STACK_ALIGN          8
+#define TCG_TARGET_CALL_STACK_OFFSET    (64 + 4 + 6*4)
 #endif
 
 #if TCG_TARGET_REG_BITS == 64
