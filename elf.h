@@ -216,6 +216,7 @@ typedef int64_t  Elf64_Sxword;
 
 #define ELF_ST_BIND(x)		((x) >> 4)
 #define ELF_ST_TYPE(x)		(((unsigned int) x) & 0xf)
+#define ELF_ST_INFO(bind, type) (((bind) << 4) | ((type) & 0xf))
 #define ELF32_ST_BIND(x)	ELF_ST_BIND(x)
 #define ELF32_ST_TYPE(x)	ELF_ST_TYPE(x)
 #define ELF64_ST_BIND(x)	ELF_ST_BIND(x)
@@ -344,6 +345,21 @@ typedef struct {
 #define R_MIPS_LOVENDOR		100
 #define R_MIPS_HIVENDOR		127
 
+
+/* SUN SPARC specific definitions.  */
+
+/* Values for Elf64_Ehdr.e_flags.  */
+
+#define EF_SPARCV9_MM           3
+#define EF_SPARCV9_TSO          0
+#define EF_SPARCV9_PSO          1
+#define EF_SPARCV9_RMO          2
+#define EF_SPARC_LEDATA         0x800000 /* little endian data */
+#define EF_SPARC_EXT_MASK       0xFFFF00
+#define EF_SPARC_32PLUS         0x000100 /* generic V8+ features */
+#define EF_SPARC_SUN_US1        0x000200 /* Sun UltraSPARC1 extensions */
+#define EF_SPARC_HAL_R1         0x000400 /* HAL R1 extensions */
+#define EF_SPARC_SUN_US3        0x000800 /* Sun UltraSPARCIII extensions */
 
 /*
  * Sparc ELF relocation types

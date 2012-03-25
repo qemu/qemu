@@ -1,7 +1,7 @@
 #include "def-helper.h"
 
-DEF_HELPER_2(raise_exception_err, void, i32, int)
-DEF_HELPER_1(raise_exception, void, i32)
+DEF_HELPER_2(raise_exception_err, noreturn, i32, int)
+DEF_HELPER_1(raise_exception, noreturn, i32)
 
 #ifdef TARGET_MIPS64
 DEF_HELPER_3(ldl, tl, tl, tl, int)

@@ -92,7 +92,9 @@ libobj-y += tcg/tcg.o tcg/optimize.o
 libobj-$(CONFIG_TCG_INTERPRETER) += tci.o
 libobj-y += fpu/softfloat.o
 ifneq ($(TARGET_BASE_ARCH), sparc)
+ifneq ($(TARGET_BASE_ARCH), alpha)
 libobj-y += op_helper.o
+endif
 endif
 libobj-y += helper.o
 ifeq ($(TARGET_BASE_ARCH), i386)
@@ -107,6 +109,7 @@ libobj-y += cpu_init.o
 endif
 libobj-$(TARGET_SPARC) += int32_helper.o
 libobj-$(TARGET_SPARC64) += int64_helper.o
+libobj-$(TARGET_ALPHA) += int_helper.o fpu_helper.o sys_helper.o mem_helper.o
 
 libobj-$(CONFIG_SCU2) += scu2.o
 

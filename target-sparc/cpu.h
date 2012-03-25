@@ -699,8 +699,9 @@ uint64_t cpu_tick_get_count(CPUTimer *timer);
 void cpu_tick_set_limit(CPUTimer *timer, uint64_t limit);
 trap_state* cpu_tsptr(CPUSPARCState* env);
 #endif
-void do_unaligned_access(CPUSPARCState *env, target_ulong addr, int is_write,
-                         int is_user, void *retaddr);
+void QEMU_NORETURN do_unaligned_access(CPUSPARCState *env, target_ulong addr,
+                                       int is_write, int is_user,
+                                       void *retaddr);
 
 #define TB_FLAG_FPU_ENABLED (1 << 4)
 #define TB_FLAG_AM_ENABLED (1 << 5)

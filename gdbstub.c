@@ -284,7 +284,6 @@ enum RSState {
     RS_GETLINE,
     RS_CHKSUM1,
     RS_CHKSUM2,
-    RS_SYSCALL,
 };
 typedef struct GDBState {
     CPUArchState *c_cpu; /* current CPU for step/continue ops */
@@ -304,6 +303,8 @@ typedef struct GDBState {
     CharDriverState *chr;
     CharDriverState *mon_chr;
 #endif
+    char syscall_buf[256];
+    gdb_syscall_complete_cb current_syscall_cb;
 } GDBState;
 
 /* By default use no IRQs and no timers while single stepping so as to
@@ -345,8 +346,6 @@ static int get_char(GDBState *s)
     return ch;
 }
 #endif
-
-static gdb_syscall_complete_cb gdb_current_syscall_cb;
 
 static enum {
     GDB_SYS_UNKNOWN,
@@ -2097,8 +2096,10 @@ static int gdb_handle_packet(GDBState *s, const char *line_buf)
             if (*p == ',')
                 p++;
             type = *p;
-            if (gdb_current_syscall_cb)
-                gdb_current_syscall_cb(s->c_cpu, ret, err);
+            if (s->current_syscall_cb) {
+                s->current_syscall_cb(s->c_cpu, ret, err);
+                s->current_syscall_cb = NULL;
+            }
             if (type == 'C') {
                 put_packet(s, "T02");
             } else {
@@ -2398,7 +2399,12 @@ static void gdb_vm_state_change(void *opaque, int running, RunState state)
     const char *type;
     int ret;
 
-    if (running || s->state == RS_INACTIVE || s->state == RS_SYSCALL) {
+    if (running || s->state == RS_INACTIVE) {
+        return;
+    }
+    /* Is there a GDB syscall waiting to be sent?  */
+    if (s->current_syscall_cb) {
+        put_packet(s, s->syscall_buf);
         return;
     }
     switch (state) {
@@ -2468,8 +2474,8 @@ send_packet:
 void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
 {
     va_list va;
-    char buf[256];
     char *p;
+    char *p_end;
     target_ulong addr;
     uint64_t i64;
     GDBState *s;
@@ -2477,14 +2483,13 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
     s = gdbserver_state;
     if (!s)
         return;
-    gdb_current_syscall_cb = cb;
-    s->state = RS_SYSCALL;
+    s->current_syscall_cb = cb;
 #ifndef CONFIG_USER_ONLY
     vm_stop(RUN_STATE_DEBUG);
 #endif
-    s->state = RS_IDLE;
     va_start(va, fmt);
-    p = buf;
+    p = s->syscall_buf;
+    p_end = &s->syscall_buf[sizeof(s->syscall_buf)];
     *(p++) = 'F';
     while (*fmt) {
         if (*fmt == '%') {
@@ -2492,17 +2497,17 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
             switch (*fmt++) {
             case 'x':
                 addr = va_arg(va, target_ulong);
-                p += snprintf(p, &buf[sizeof(buf)] - p, TARGET_FMT_lx, addr);
+                p += snprintf(p, p_end - p, TARGET_FMT_lx, addr);
                 break;
             case 'l':
                 if (*(fmt++) != 'x')
                     goto bad_format;
                 i64 = va_arg(va, uint64_t);
-                p += snprintf(p, &buf[sizeof(buf)] - p, "%" PRIx64, i64);
+                p += snprintf(p, p_end - p, "%" PRIx64, i64);
                 break;
             case 's':
                 addr = va_arg(va, target_ulong);
-                p += snprintf(p, &buf[sizeof(buf)] - p, TARGET_FMT_lx "/%x",
+                p += snprintf(p, p_end - p, TARGET_FMT_lx "/%x",
                               addr, va_arg(va, int));
                 break;
             default:
@@ -2517,10 +2522,16 @@ void gdb_do_syscall(gdb_syscall_complete_cb cb, const char *fmt, ...)
     }
     *p = 0;
     va_end(va);
-    put_packet(s, buf);
 #ifdef CONFIG_USER_ONLY
+    put_packet(s, s->syscall_buf);
     gdb_handlesig(s->c_cpu, 0);
 #else
+    /* In this case wait to send the syscall packet until notification that
+       the CPU has stopped.  This must be done because if the packet is sent
+       now the reply from the syscall request could be received while the CPU
+       is still in the running state, which can cause packets to be dropped
+       and state transition 'T' packets to be sent while the syscall is still
+       being processed.  */
     cpu_exit(s->c_cpu);
 #endif
 }
@@ -2919,6 +2930,7 @@ int gdbserver_start(const char *device)
     s->chr = chr;
     s->state = chr ? RS_IDLE : RS_INACTIVE;
     s->mon_chr = mon_chr;
+    s->current_syscall_cb = NULL;
 
     return 0;
 }

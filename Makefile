@@ -360,28 +360,29 @@ QMP/qmp-commands.txt: $(SRC_PATH)/qmp-commands.hx
 qemu-img-cmds.texi: $(SRC_PATH)/qemu-img-cmds.hx
 	$(call quiet-command,sh $(SRC_PATH)/scripts/hxtool -t < $< > $@,"  GEN   $@")
 
+POD2MAN = pod2man --utf8
 qemu.1: qemu-doc.texi qemu-options.texi qemu-monitor.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu.pod && \
-	  pod2man --section=1 --center=" " --release=" " qemu.pod > $@, \
+	  $(POD2MAN) --section=1 --center=" " --release=" " qemu.pod > $@, \
 	  "  GEN   $@")
 
 qemu-img.1: qemu-img.texi qemu-img-cmds.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-img.pod && \
-	  pod2man --section=1 --center=" " --release=" " qemu-img.pod > $@, \
+	  $(POD2MAN) --section=1 --center=" " --release=" " qemu-img.pod > $@, \
 	  "  GEN   $@")
 
 fsdev/virtfs-proxy-helper.1: fsdev/virtfs-proxy-helper.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< fsdev/virtfs-proxy-helper.pod && \
-	  pod2man --section=1 --center=" " --release=" " fsdev/virtfs-proxy-helper.pod > $@, \
+	  $(POD2MAN) --section=1 --center=" " --release=" " fsdev/virtfs-proxy-helper.pod > $@, \
 	  "  GEN   $@")
 
 qemu-nbd.8: qemu-nbd.texi
 	$(call quiet-command, \
 	  perl -Ww -- $(SRC_PATH)/scripts/texi2pod.pl $< qemu-nbd.pod && \
-	  pod2man --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \
+	  $(POD2MAN) --section=8 --center=" " --release=" " qemu-nbd.pod > $@, \
 	  "  GEN   $@")
 
 dvi: qemu-doc.dvi qemu-tech.dvi
