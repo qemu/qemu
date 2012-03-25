@@ -78,12 +78,25 @@ static const int tcg_target_reg_alloc_order[] = {
     TCG_REG_L5,
     TCG_REG_L6,
     TCG_REG_L7,
+
     TCG_REG_I0,
     TCG_REG_I1,
     TCG_REG_I2,
     TCG_REG_I3,
     TCG_REG_I4,
     TCG_REG_I5,
+
+    TCG_REG_G2,
+    TCG_REG_G3,
+    TCG_REG_G4,
+    TCG_REG_G5,
+
+    TCG_REG_O0,
+    TCG_REG_O1,
+    TCG_REG_O2,
+    TCG_REG_O3,
+    TCG_REG_O4,
+    TCG_REG_O5,
 };
 
 static const int tcg_target_call_iarg_regs[6] = {
