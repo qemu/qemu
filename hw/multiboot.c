@@ -202,10 +202,16 @@ int load_multiboot(void *fw_cfg,
         uint32_t mh_bss_end_addr = ldl_p(header+i+24);
         mh_load_addr = ldl_p(header+i+16);
         uint32_t mb_kernel_text_offset = i - (mh_header_addr - mh_load_addr);
-        uint32_t mb_load_size = mh_load_end_addr - mh_load_addr;
-
+        uint32_t mb_load_size = 0;
         mh_entry_addr = ldl_p(header+i+28);
-        mb_kernel_size = mh_bss_end_addr - mh_load_addr;
+
+        if (mh_load_end_addr) {
+            mb_kernel_size = mh_bss_end_addr - mh_load_addr;
+            mb_load_size = mh_load_end_addr - mh_load_addr;
+        } else {
+            mb_kernel_size = kernel_file_size - mb_kernel_text_offset;
+            mb_load_size = mb_kernel_size;
+        }
 
         /* Valid if mh_flags sets MULTIBOOT_HEADER_HAS_VBE.
         uint32_t mh_mode_type = ldl_p(header+i+32);
