@@ -46,7 +46,6 @@ static void test_dispatch_cmd(void)
     resp = qmp_dispatch(QOBJECT(req));
     assert(resp != NULL);
     assert(!qdict_haskey(qobject_to_qdict(resp), "error"));
-    g_print("\nresp: %s\n", qstring_get_str(qobject_to_json(resp)));
 
     qobject_decref(resp);
     QDECREF(req);
@@ -63,7 +62,6 @@ static void test_dispatch_cmd_error(void)
     resp = qmp_dispatch(QOBJECT(req));
     assert(resp != NULL);
     assert(qdict_haskey(qobject_to_qdict(resp), "error"));
-    g_print("\nresp: %s\n", qstring_get_str(qobject_to_json_pretty(resp)));
 
     qobject_decref(resp);
     QDECREF(req);
@@ -92,7 +90,6 @@ static void test_dispatch_cmd_io(void)
     resp = qmp_dispatch(QOBJECT(req));
     assert(resp != NULL);
     assert(!qdict_haskey(qobject_to_qdict(resp), "error"));
-    g_print("\nresp: %s\n", qstring_get_str(qobject_to_json_pretty(resp)));
 
     qobject_decref(resp);
     QDECREF(req);

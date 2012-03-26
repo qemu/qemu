@@ -3196,7 +3196,7 @@ int main(int argc, char **argv, char **envp)
     cpudef_init();
 
     if (cpu_model && *cpu_model == '?') {
-        list_cpus(stdout, &fprintf, optarg);
+        list_cpus(stdout, &fprintf, cpu_model);
         exit(0);
     }
 

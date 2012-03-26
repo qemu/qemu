@@ -3,6 +3,7 @@ export SRC_PATH
 CHECKS = check-qdict check-qfloat check-qint check-qstring check-qlist
 CHECKS += check-qjson test-qmp-output-visitor test-qmp-input-visitor
 CHECKS += test-string-input-visitor test-string-output-visitor test-coroutine
+CHECKS += test-qmp-commands
 CHECKS += $(SRC_PATH)/tests/qemu-iotests-quick.sh
 
 check-qint.o check-qstring.o check-qdict.o check-qlist.o check-qfloat.o check-qjson.o test-coroutine.o: $(GENERATED_HEADERS)
