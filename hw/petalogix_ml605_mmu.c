@@ -36,6 +36,7 @@
 #include "blockdev.h"
 #include "pc.h"
 #include "exec-memory.h"
+#include "ssi.h"
 
 #include "microblaze_boot.h"
 #include "microblaze_pic_cpu.h"
@@ -46,6 +47,8 @@
 #define FLASH_SIZE     (32 * 1024 * 1024)
 
 #define BINARY_DEVICE_TREE_FILE "petalogix-ml605.dtb"
+
+#define NUM_SPI_FLASHES 4
 
 #define MEMORY_BASEADDR 0x50000000
 #define FLASH_BASEADDR 0x86000000
@@ -79,6 +82,7 @@ petalogix_ml605_init(ram_addr_t ram_size,
     MemoryRegion *address_space_mem = get_system_memory();
     DeviceState *dev, *dma, *eth0;
     MicroBlazeCPU *cpu;
+    SysBusDevice *busdev;
     CPUMBState *env;
     DriveInfo *dinfo;
     int i;
@@ -138,6 +142,29 @@ petalogix_ml605_init(ram_addr_t ram_size,
 
     xilinx_axiethernetdma_init(dma, STREAM_SLAVE(eth0),
                                0x84600000, irq[1], irq[0], 100 * 1000000);
+
+    {
+        SSIBus *spi;
+
+        dev = qdev_create(NULL, "xlnx.xps-spi");
+        qdev_prop_set_uint8(dev, "num-ss-bits", NUM_SPI_FLASHES);
+        qdev_init_nofail(dev);
+        busdev = sysbus_from_qdev(dev);
+        sysbus_mmio_map(busdev, 0, 0x40a00000);
+        sysbus_connect_irq(busdev, 0, irq[4]);
+
+        spi = (SSIBus *)qdev_get_child_bus(dev, "spi");
+
+        for (i = 0; i < NUM_SPI_FLASHES; i++) {
+            qemu_irq cs_line;
+
+            dev = ssi_create_slave_no_init(spi, "m25p80");
+            qdev_prop_set_string(dev, "partname", "n25q128");
+            qdev_init_nofail(dev);
+            cs_line = qdev_get_gpio_in(dev, 0);
+            sysbus_connect_irq(busdev, i+1, cs_line);
+        }
+    }
 
     microblaze_load_kernel(cpu, ddr_base, ram_size, BINARY_DEVICE_TREE_FILE,
                                                             machine_cpu_reset);
