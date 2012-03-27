@@ -2960,7 +2960,7 @@ static inline void powerpc_excp(CPUPPCState *env, int excp_model, int excp)
     if (asrr1 != -1)
         env->spr[asrr1] = env->spr[srr1];
     /* If we disactivated any translation, flush TLBs */
-    if (new_msr & ((1 << MSR_IR) | (1 << MSR_DR)))
+    if (msr & ((1 << MSR_IR) | (1 << MSR_DR)))
         tlb_flush(env, 1);
 
     if (msr_ile) {
