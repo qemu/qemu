@@ -1440,8 +1440,8 @@ static void tcg_out_qemu_st(TCGContext *s, const TCGArg *args,
 #endif
 #else
     tcg_out_mov(s, (opc == 3 ? TCG_TYPE_I64 : TCG_TYPE_I32),
-                TCG_REG_RSI, data_reg);
-    tcg_out_movi(s, TCG_TYPE_I32, TCG_REG_RDX, mem_index);
+                tcg_target_call_iarg_regs[1], data_reg);
+    tcg_out_movi(s, TCG_TYPE_I32, tcg_target_call_iarg_regs[2], mem_index);
     stack_adjust = 0;
 #ifdef CONFIG_TCG_PASS_AREG0
     /* XXX/FIXME: suboptimal */
