@@ -679,31 +679,34 @@ void qcow2_free_clusters(BlockDriverState *bs,
 }
 
 /*
- * free_any_clusters
- *
- * free clusters according to its type: compressed or not
- *
+ * Free a cluster using its L2 entry (handles clusters of all types, e.g.
+ * normal cluster, compressed cluster, etc.)
  */
-
 void qcow2_free_any_clusters(BlockDriverState *bs,
-    uint64_t cluster_offset, int nb_clusters)
+    uint64_t l2_entry, int nb_clusters)
 {
     BDRVQcowState *s = bs->opaque;
 
-    /* free the cluster */
-
-    if (cluster_offset & QCOW_OFLAG_COMPRESSED) {
-        int nb_csectors;
-        nb_csectors = ((cluster_offset >> s->csize_shift) &
-                       s->csize_mask) + 1;
-        qcow2_free_clusters(bs,
-            (cluster_offset & s->cluster_offset_mask) & ~511,
-            nb_csectors * 512);
-        return;
+    switch (qcow2_get_cluster_type(l2_entry)) {
+    case QCOW2_CLUSTER_COMPRESSED:
+        {
+            int nb_csectors;
+            nb_csectors = ((l2_entry >> s->csize_shift) &
+                           s->csize_mask) + 1;
+            qcow2_free_clusters(bs,
+                (l2_entry & s->cluster_offset_mask) & ~511,
+                nb_csectors * 512);
+        }
+        break;
+    case QCOW2_CLUSTER_NORMAL:
+        qcow2_free_clusters(bs, l2_entry & L2E_OFFSET_MASK,
+                            nb_clusters << s->cluster_bits);
+        break;
+    case QCOW2_CLUSTER_UNALLOCATED:
+        break;
+    default:
+        abort();
     }
-
-    qcow2_free_clusters(bs, cluster_offset & L2E_OFFSET_MASK,
-                        nb_clusters << s->cluster_bits);
 }
 
 
