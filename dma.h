@@ -17,6 +17,11 @@
 
 typedef struct ScatterGatherEntry ScatterGatherEntry;
 
+typedef enum {
+    DMA_DIRECTION_TO_DEVICE = 0,
+    DMA_DIRECTION_FROM_DEVICE = 1,
+} DMADirection;
+
 struct QEMUSGList {
     ScatterGatherEntry *sg;
     int nsg;
@@ -28,11 +33,6 @@ struct QEMUSGList {
 typedef target_phys_addr_t dma_addr_t;
 
 #define DMA_ADDR_FMT TARGET_FMT_plx
-
-typedef enum {
-    DMA_DIRECTION_TO_DEVICE = 0,
-    DMA_DIRECTION_FROM_DEVICE = 1,
-} DMADirection;
 
 struct ScatterGatherEntry {
     dma_addr_t base;
@@ -51,7 +51,7 @@ typedef BlockDriverAIOCB *DMAIOFunc(BlockDriverState *bs, int64_t sector_num,
 BlockDriverAIOCB *dma_bdrv_io(BlockDriverState *bs,
                               QEMUSGList *sg, uint64_t sector_num,
                               DMAIOFunc *io_func, BlockDriverCompletionFunc *cb,
-                              void *opaque, bool to_dev);
+                              void *opaque, DMADirection dir);
 BlockDriverAIOCB *dma_bdrv_read(BlockDriverState *bs,
                                 QEMUSGList *sg, uint64_t sector,
                                 BlockDriverCompletionFunc *cb, void *opaque);
