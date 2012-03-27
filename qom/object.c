@@ -1022,12 +1022,27 @@ gchar *object_get_canonical_path(Object *obj)
     return newpath;
 }
 
+Object *object_resolve_path_component(Object *parent, gchar *part)
+{
+    ObjectProperty *prop = object_property_find(parent, part);
+    if (prop == NULL) {
+        return NULL;
+    }
+
+    if (strstart(prop->type, "link<", NULL)) {
+        return *(Object **)prop->opaque;
+    } else if (strstart(prop->type, "child<", NULL)) {
+        return prop->opaque;
+    } else {
+        return NULL;
+    }
+}
+
 static Object *object_resolve_abs_path(Object *parent,
                                           gchar **parts,
                                           const char *typename,
                                           int index)
 {
-    ObjectProperty *prop;
     Object *child;
 
     if (parts[index] == NULL) {
@@ -1038,21 +1053,7 @@ static Object *object_resolve_abs_path(Object *parent,
         return object_resolve_abs_path(parent, parts, typename, index + 1);
     }
 
-    prop = object_property_find(parent, parts[index]);
-    if (prop == NULL) {
-        return NULL;
-    }
-
-    child = NULL;
-    if (strstart(prop->type, "link<", NULL)) {
-        Object **pchild = prop->opaque;
-        if (*pchild) {
-            child = *pchild;
-        }
-    } else if (strstart(prop->type, "child<", NULL)) {
-        child = prop->opaque;
-    }
-
+    child = object_resolve_path_component(parent, parts[index]);
     if (!child) {
         return NULL;
     }

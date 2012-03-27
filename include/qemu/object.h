@@ -837,6 +837,18 @@ Object *object_resolve_path_type(const char *path, const char *typename,
                                  bool *ambiguous);
 
 /**
+ * object_resolve_path_component:
+ * @parent: the object in which to resolve the path
+ * @part: the component to resolve.
+ *
+ * This is similar to object_resolve_path with an absolute path, but it
+ * only resolves one element (@part) and takes the others from @parent.
+ *
+ * Returns: The resolved object or NULL on path lookup failure.
+ */
+Object *object_resolve_path_component(Object *parent, gchar *part);
+
+/**
  * object_property_add_child:
  * @obj: the object to add a property to
  * @name: the name of the property
@@ -890,5 +902,17 @@ void object_property_add_str(Object *obj, const char *name,
                              char *(*get)(Object *, struct Error **),
                              void (*set)(Object *, const char *, struct Error **),
                              struct Error **errp);
+
+/**
+ * container_get:
+ * @path: path to the container
+ *
+ * Return a container object whose path is @path.  Create more containers
+ * along the path if necessary.
+ *
+ * Returns: the container object.
+ */
+Object *container_get(const char *path);
+
 
 #endif
