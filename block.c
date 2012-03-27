@@ -892,14 +892,16 @@ void bdrv_make_anon(BlockDriverState *bs)
  * This will modify the BlockDriverState fields, and swap contents
  * between bs_new and bs_top. Both bs_new and bs_top are modified.
  *
+ * bs_new is required to be anonymous.
+ *
  * This function does not create any image files.
  */
 void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
 {
     BlockDriverState tmp;
 
-    /* the new bs must not be in bdrv_states */
-    bdrv_make_anon(bs_new);
+    /* bs_new must be anonymous */
+    assert(bs_new->device_name[0] == '\0');
 
     tmp = *bs_new;
 
@@ -944,10 +946,17 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
      * swapping bs_new and bs_top contents. */
     tmp.backing_hd = bs_new;
     pstrcpy(tmp.backing_file, sizeof(tmp.backing_file), bs_top->filename);
+    bdrv_get_format(bs_top, tmp.backing_format, sizeof(tmp.backing_format));
 
     /* swap contents of the fixed new bs and the current top */
     *bs_new = *bs_top;
     *bs_top = tmp;
+
+    /* device_name[] was carried over from the old bs_top.  bs_new
+     * shouldn't be in bdrv_states, so we need to make device_name[]
+     * reflect the anonymity of bs_new
+     */
+    bs_new->device_name[0] = '\0';
 
     /* clear the copied fields in the new backing file */
     bdrv_detach_dev(bs_new, bs_new->dev);
