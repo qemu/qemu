@@ -410,7 +410,7 @@ linetoh_dtrace()
     args=$(get_args "$1")
     argnames=$(get_argnames "$1", ",")
 
-    nameupper=`echo $name | tr '[:lower:]' '[:upper:]'`
+    nameupper=`echo $name | LC_ALL=C tr '[a-z]' '[A-Z]'`
 
     # Define an empty function for the trace event
     cat <<EOF
@@ -539,7 +539,7 @@ convert()
         fi
         if [ "$1" = "h" ]; then
             name=$(get_name "$str")
-            NAME=$(echo $name | tr '[:lower:]' '[:upper:]')
+            NAME=$(echo $name | LC_ALL=C tr '[a-z]' '[A-Z]')
             echo "#define TRACE_${NAME}_ENABLED ${enabled}"
         fi
     done
