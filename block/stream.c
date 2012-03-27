@@ -76,6 +76,39 @@ static int coroutine_fn stream_populate(BlockDriverState *bs,
     return bdrv_co_copy_on_readv(bs, sector_num, nb_sectors, &qiov);
 }
 
+static void close_unused_images(BlockDriverState *top, BlockDriverState *base,
+                                const char *base_id)
+{
+    BlockDriverState *intermediate;
+    intermediate = top->backing_hd;
+
+    while (intermediate) {
+        BlockDriverState *unused;
+
+        /* reached base */
+        if (intermediate == base) {
+            break;
+        }
+
+        unused = intermediate;
+        intermediate = intermediate->backing_hd;
+        unused->backing_hd = NULL;
+        bdrv_delete(unused);
+    }
+    top->backing_hd = base;
+
+    pstrcpy(top->backing_file, sizeof(top->backing_file), "");
+    pstrcpy(top->backing_format, sizeof(top->backing_format), "");
+    if (base_id) {
+        pstrcpy(top->backing_file, sizeof(top->backing_file), base_id);
+        if (base->drv) {
+            pstrcpy(top->backing_format, sizeof(top->backing_format),
+                    base->drv->format_name);
+        }
+    }
+
+}
+
 /*
  * Given an image chain: [BASE] -> [INTER1] -> [INTER2] -> [TOP]
  *
@@ -223,6 +256,7 @@ retry:
             base_id = s->backing_file_id;
         }
         ret = bdrv_change_backing_file(bs, base_id, NULL);
+        close_unused_images(bs, base, base_id);
     }
 
     qemu_vfree(buf);
