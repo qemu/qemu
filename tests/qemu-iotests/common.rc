@@ -53,19 +53,44 @@ else
     TEST_IMG=$IMGPROTO:$TEST_DIR/t.$IMGFMT
 fi
 
+_optstr_add()
+{
+    if [ -n "$1" ]; then
+        echo "$1,$2"
+    else
+        echo "$2"
+    fi
+}
+
+_set_default_imgopts()
+{
+    if [ "$IMGFMT" == "qcow2" ] && ! (echo "$IMGOPTS" | grep "compat=" > /dev/null); then
+        IMGOPTS=$(_optstr_add "$IMGOPTS" "compat=1.1")
+    fi
+}
+
 _make_test_img()
 {
     # extra qemu-img options can be added by tests
     # at least one argument (the image size) needs to be added
     local extra_img_options=""
     local image_size=$*
+    local optstr=""
+
+    if [ -n "$IMGOPTS" ]; then
+        optstr=$(_optstr_add "$optstr" "$IMGOPTS")
+    fi
 
     if [ "$1" = "-b" ]; then
         extra_img_options="$1 $2"
         image_size=$3
     fi
     if [ \( "$IMGFMT" = "qcow2" -o "$IMGFMT" = "qed" \) -a -n "$CLUSTER_SIZE" ]; then
-        extra_img_options="-o cluster_size=$CLUSTER_SIZE $extra_img_options"
+        optstr=$(_optstr_add "$optstr" "cluster_size=$CLUSTER_SIZE")
+    fi
+
+    if [ -n "$optstr" ]; then
+        extra_img_options="-o $optstr $extra_img_options"
     fi
 
     # XXX(hch): have global image options?
@@ -76,6 +101,7 @@ _make_test_img()
 	sed -e "s# encryption=off##g" | \
 	sed -e "s# cluster_size=[0-9]\\+##g" | \
 	sed -e "s# table_size=0##g" | \
+	sed -e "s# compat='[^']*'##g" | \
 	sed -e "s# compat6=off##g" | \
 	sed -e "s# static=off##g"
 }
@@ -268,7 +294,11 @@ _require_command()
 
 _full_imgfmt_details()
 {
-    echo "$IMGFMT"
+    if [ -n "$IMGOPTS" ]; then
+        echo "$IMGFMT ($IMGOPTS)"
+    else
+        echo "$IMGFMT"
+    fi
 }
 
 _full_imgproto_details()
