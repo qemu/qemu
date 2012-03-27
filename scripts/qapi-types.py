@@ -100,7 +100,7 @@ typedef enum %(name)s
     %(abbrev)s_%(value)s = %(i)d,
 ''',
                      abbrev=de_camel_case(name).upper(),
-                     value=c_var(value).upper(),
+                     value=c_fun(value).upper(),
                      i=i)
         i += 1
 
@@ -126,7 +126,7 @@ struct %(name)s
         %(c_type)s %(c_name)s;
 ''',
                      c_type=c_type(typeinfo[key]),
-                     c_name=c_var(key))
+                     c_name=c_fun(key))
 
     ret += mcgen('''
     };

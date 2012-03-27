@@ -42,7 +42,7 @@ def generate_command_decl(name, args, ret_type):
     return mcgen('''
 %(ret_type)s qmp_%(name)s(%(args)sError **errp);
 ''',
-                 ret_type=c_type(ret_type), name=c_var(name), args=arglist).strip()
+                 ret_type=c_type(ret_type), name=c_fun(name), args=arglist).strip()
 
 def gen_sync_call(name, args, ret_type, indent=0):
     ret = ""
@@ -59,7 +59,7 @@ def gen_sync_call(name, args, ret_type, indent=0):
 %(retval)sqmp_%(name)s(%(args)serrp);
 
 ''',
-                name=c_var(name), args=arglist, retval=retval).rstrip()
+                name=c_fun(name), args=arglist, retval=retval).rstrip()
     if ret_type:
         ret += "\n" + mcgen(''''
 if (!error_is_set(errp)) {
@@ -74,7 +74,7 @@ if (!error_is_set(errp)) {
 def gen_marshal_output_call(name, ret_type):
     if not ret_type:
         return ""
-    return "qmp_marshal_output_%s(retval, ret, errp);" % c_var(name)
+    return "qmp_marshal_output_%s(retval, ret, errp);" % c_fun(name)
 
 def gen_visitor_output_containers_decl(ret_type):
     ret = ""
@@ -198,16 +198,16 @@ static void qmp_marshal_output_%(c_name)s(%(c_ret_type)s ret_in, QObject **ret_o
     qapi_dealloc_visitor_cleanup(md);
 }
 ''',
-                c_ret_type=c_type(ret_type), c_name=c_var(name),
+                c_ret_type=c_type(ret_type), c_name=c_fun(name),
                 visitor=type_visitor(ret_type))
 
     return ret
 
 def gen_marshal_input_decl(name, args, ret_type, middle_mode):
     if middle_mode:
-        return 'int qmp_marshal_input_%s(Monitor *mon, const QDict *qdict, QObject **ret)' % c_var(name)
+        return 'int qmp_marshal_input_%s(Monitor *mon, const QDict *qdict, QObject **ret)' % c_fun(name)
     else:
-        return 'static void qmp_marshal_input_%s(QDict *args, QObject **ret, Error **errp)' % c_var(name)
+        return 'static void qmp_marshal_input_%s(QDict *args, QObject **ret, Error **errp)' % c_fun(name)
 
 
 
@@ -298,7 +298,7 @@ def gen_registry(commands):
         registry += mcgen('''
 qmp_register_command("%(name)s", qmp_marshal_input_%(c_name)s);
 ''',
-                     name=cmd['command'], c_name=c_var(cmd['command']))
+                     name=cmd['command'], c_name=c_fun(cmd['command']))
     pop_indent()
     ret = mcgen('''
 static void qmp_init_marshal(void)

@@ -129,9 +129,9 @@ void visit_type_%(name)s(Visitor *m, %(name)s ** obj, const char *name, Error **
         break;
 ''',
                 abbrev = de_camel_case(name).upper(),
-                enum = de_camel_case(key).upper(),
+                enum = c_fun(de_camel_case(key)).upper(),
                 c_type=members[key],
-                c_name=c_var(key))
+                c_name=c_fun(key))
 
     ret += mcgen('''
     default:

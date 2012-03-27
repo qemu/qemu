@@ -131,7 +131,10 @@ def camel_case(name):
     return new_name
 
 def c_var(name):
-    return '_'.join(name.split('-')).lstrip("*")
+    return name.replace('-', '_').lstrip("*")
+
+def c_fun(name):
+    return c_var(name).replace('.', '_')
 
 def c_list_type(name):
     return '%sList' % name
