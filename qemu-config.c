@@ -661,6 +661,11 @@ QemuOptsList *qemu_find_opts(const char *group)
     return ret;
 }
 
+QemuOptsList *qemu_find_opts_err(const char *group, Error **errp)
+{
+    return find_list(vm_config_groups, group, errp);
+}
+
 void qemu_add_opts(QemuOptsList *list)
 {
     int entries, i;
