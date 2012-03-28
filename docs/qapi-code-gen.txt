@@ -194,11 +194,11 @@ Example:
 
     void visit_type_UserDefOneList(Visitor *m, UserDefOneList ** obj, const char *name, Error **errp)
     {
-        GenericList *i;
+        GenericList *i, **prev = (GenericList **)obj;
 
         visit_start_list(m, name, errp);
 
-        for (i = visit_next_list(m, (GenericList **)obj, errp); i; i = visit_next_list(m, &i, errp)) {
+        for (; (i = visit_next_list(m, prev, errp)) != NULL; prev = &i) {
             UserDefOneList *native_i = (UserDefOneList *)i;
             visit_type_UserDefOne(m, &native_i->value, NULL, errp);
         }

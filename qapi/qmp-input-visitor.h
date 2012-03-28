@@ -20,6 +20,8 @@
 typedef struct QmpInputVisitor QmpInputVisitor;
 
 QmpInputVisitor *qmp_input_visitor_new(QObject *obj);
+QmpInputVisitor *qmp_input_visitor_new_strict(QObject *obj);
+
 void qmp_input_visitor_cleanup(QmpInputVisitor *v);
 
 Visitor *qmp_input_get_visitor(QmpInputVisitor *v);

@@ -140,7 +140,7 @@ v = qapi_dealloc_get_visitor(md);
 ''')
     else:
         ret += mcgen('''
-mi = qmp_input_visitor_new(%(obj)s);
+mi = qmp_input_visitor_new_strict(%(obj)s);
 v = qmp_input_get_visitor(mi);
 ''',
                      obj=obj)

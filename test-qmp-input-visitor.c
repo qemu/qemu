@@ -258,6 +258,23 @@ static void input_visitor_test_add(const char *testpath,
                visitor_input_teardown);
 }
 
+static void test_visitor_in_errors(TestInputVisitorData *data,
+                                   const void *unused)
+{
+    TestStruct *p = NULL;
+    Error *errp = NULL;
+    Visitor *v;
+
+    v = visitor_input_test_init(data, "{ 'integer': false, 'boolean': 'foo', 'string': -42 }");
+
+    visit_type_TestStruct(v, &p, NULL, &errp);
+    g_assert(error_is_set(&errp));
+    g_assert(p->string == NULL);
+
+    g_free(p->string);
+    g_free(p);
+}
+
 int main(int argc, char **argv)
 {
     TestInputVisitorData in_visitor_data;
@@ -282,6 +299,8 @@ int main(int argc, char **argv)
                             &in_visitor_data, test_visitor_in_list);
     input_visitor_test_add("/visitor/input/union",
                             &in_visitor_data, test_visitor_in_union);
+    input_visitor_test_add("/visitor/input/errors",
+                            &in_visitor_data, test_visitor_in_errors);
 
     g_test_run();
 

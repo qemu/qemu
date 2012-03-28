@@ -274,6 +274,24 @@ static void test_visitor_out_struct_nested(TestOutputVisitorData *data,
     qapi_free_UserDefNested(ud2);
 }
 
+static void test_visitor_out_struct_errors(TestOutputVisitorData *data,
+                                           const void *unused)
+{
+    EnumOne bad_values[] = { ENUM_ONE_MAX, -1 };
+    UserDefOne u = { 0 }, *pu = &u;
+    Error *errp;
+    int i;
+
+    for (i = 0; i < ARRAY_SIZE(bad_values) ; i++) {
+        errp = NULL;
+        u.has_enum1 = true;
+        u.enum1 = bad_values[i];
+        visit_type_UserDefOne(data->ov, &pu, "unused", &errp);
+        g_assert(error_is_set(&errp) == true);
+        error_free(errp);
+    }
+}
+
 typedef struct TestStructList
 {
     TestStruct *value;
@@ -444,6 +462,8 @@ int main(int argc, char **argv)
                             &out_visitor_data, test_visitor_out_struct);
     output_visitor_test_add("/visitor/output/struct-nested",
                             &out_visitor_data, test_visitor_out_struct_nested);
+    output_visitor_test_add("/visitor/output/struct-errors",
+                            &out_visitor_data, test_visitor_out_struct_errors);
     output_visitor_test_add("/visitor/output/list",
                             &out_visitor_data, test_visitor_out_list);
     output_visitor_test_add("/visitor/output/list-qapi-free",
