@@ -34,6 +34,7 @@
 
 #include "qemu-thread.h"
 #include "cpus.h"
+#include "qtest.h"
 #include "main-loop.h"
 
 #ifndef _WIN32
@@ -238,6 +239,20 @@ static void icount_warp_rt(void *opaque)
     vm_clock_warp_start = -1;
 }
 
+void qtest_clock_warp(int64_t dest)
+{
+    int64_t clock = qemu_get_clock_ns(vm_clock);
+    assert(qtest_enabled());
+    while (clock < dest) {
+        int64_t deadline = qemu_clock_deadline(vm_clock);
+        int64_t warp = MIN(dest - clock, deadline);
+        qemu_icount_bias += warp;
+        qemu_run_timers(vm_clock);
+        clock = qemu_get_clock_ns(vm_clock);
+    }
+    qemu_notify_event();
+}
+
 void qemu_clock_warp(QEMUClock *clock)
 {
     int64_t deadline;
@@ -262,6 +277,11 @@ void qemu_clock_warp(QEMUClock *clock)
     if (!all_cpu_threads_idle() || !qemu_clock_has_timers(vm_clock)) {
         qemu_del_timer(icount_warp_timer);
         return;
+    }
+
+    if (qtest_enabled()) {
+        /* When testing, qtest commands advance icount.  */
+	return;
     }
 
     vm_clock_warp_start = qemu_get_clock_ns(rt_clock);

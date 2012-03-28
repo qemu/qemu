@@ -18,6 +18,7 @@
 #include "memory.h"
 #include "hw/irq.h"
 #include "sysemu.h"
+#include "cpus.h"
 
 #define MAX_IRQ 256
 
@@ -43,6 +44,30 @@ static bool qtest_opened;
  * comes in.
  *
  * Valid requests
+ *
+ * Clock management:
+ *
+ * The qtest client is completely in charge of the vm_clock.  qtest commands
+ * let you adjust the value of the clock (monotonically).  All the commands
+ * return the current value of the clock in nanoseconds.
+ *
+ *  > clock_step
+ *  < OK VALUE
+ *
+ *     Advance the clock to the next deadline.  Useful when waiting for
+ *     asynchronous events.
+ *
+ *  > clock_step NS
+ *  < OK VALUE
+ *
+ *     Advance the clock by NS nanoseconds.
+ *
+ *  > clock_set NS
+ *  < OK VALUE
+ *
+ *     Advance the clock to NS nanoseconds (do nothing if it's already past).
+ *
+ * PIO and memory access:
  *
  *  > outb ADDR VALUE
  *  < OK
@@ -299,6 +324,25 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
 
         qtest_send_prefix(chr);
         qtest_send(chr, "OK\n");
+    } else if (strcmp(words[0], "clock_step") == 0) {
+        int64_t ns;
+
+        if (words[1]) {
+            ns = strtoll(words[1], NULL, 0);
+        } else {
+            ns = qemu_clock_deadline(vm_clock);
+        }
+        qtest_clock_warp(qemu_get_clock_ns(vm_clock) + ns);
+        qtest_send_prefix(chr);
+        qtest_send(chr, "OK %"PRIi64"\n", (int64_t)qemu_get_clock_ns(vm_clock));
+    } else if (strcmp(words[0], "clock_set") == 0) {
+        int64_t ns;
+
+        g_assert(words[1]);
+        ns = strtoll(words[1], NULL, 0);
+        qtest_clock_warp(ns);
+        qtest_send_prefix(chr);
+        qtest_send(chr, "OK %"PRIi64"\n", (int64_t)qemu_get_clock_ns(vm_clock));
     } else {
         qtest_send_prefix(chr);
         qtest_send(chr, "FAIL Unknown command `%s'\n", words[0]);
@@ -377,6 +421,7 @@ int qtest_init(void)
 
     g_assert(qtest_chrdev != NULL);
 
+    configure_icount("0");
     chr = qemu_chr_new("qtest", qtest_chrdev, NULL);
 
     qemu_chr_add_handlers(chr, qtest_can_read, qtest_read, qtest_event, chr);
