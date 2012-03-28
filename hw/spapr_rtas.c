@@ -112,6 +112,19 @@ static void rtas_power_off(sPAPREnvironment *spapr,
     rtas_st(rets, 0, 0);
 }
 
+static void rtas_system_reboot(sPAPREnvironment *spapr,
+                               uint32_t token, uint32_t nargs,
+                               target_ulong args,
+                               uint32_t nret, target_ulong rets)
+{
+    if (nargs != 0 || nret != 1) {
+        rtas_st(rets, 0, -3);
+        return;
+    }
+    qemu_system_reset_request();
+    rtas_st(rets, 0, 0);
+}
+
 static void rtas_query_cpu_stopped_state(sPAPREnvironment *spapr,
                                          uint32_t token, uint32_t nargs,
                                          target_ulong args,
@@ -294,6 +307,7 @@ static void core_rtas_register_types(void)
     spapr_rtas_register("get-time-of-day", rtas_get_time_of_day);
     spapr_rtas_register("set-time-of-day", rtas_set_time_of_day);
     spapr_rtas_register("power-off", rtas_power_off);
+    spapr_rtas_register("system-reboot", rtas_system_reboot);
     spapr_rtas_register("query-cpu-stopped-state",
                         rtas_query_cpu_stopped_state);
     spapr_rtas_register("start-cpu", rtas_start_cpu);
