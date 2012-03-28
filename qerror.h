@@ -139,6 +139,9 @@ QError *qobject_to_qerror(const QObject *obj);
 #define QERR_INVALID_BLOCK_FORMAT \
     "{ 'class': 'InvalidBlockFormat', 'data': { 'name': %s } }"
 
+#define QERR_INVALID_OPTION_GROUP \
+    "{ 'class': 'InvalidOptionGroup', 'data': { 'group': %s } }"
+
 #define QERR_INVALID_PARAMETER \
     "{ 'class': 'InvalidParameter', 'data': { 'name': %s } }"
 
