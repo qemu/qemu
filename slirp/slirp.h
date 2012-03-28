@@ -15,6 +15,12 @@ typedef char *caddr_t;
 # include <sys/timeb.h>
 # include <iphlpapi.h>
 
+# undef EWOULDBLOCK
+# undef EINPROGRESS
+# undef ENOTCONN
+# undef EHOSTUNREACH
+# undef ENETUNREACH
+# undef ECONNREFUSED
 # define EWOULDBLOCK WSAEWOULDBLOCK
 # define EINPROGRESS WSAEINPROGRESS
 # define ENOTCONN WSAENOTCONN
