@@ -431,12 +431,13 @@ static target_ulong h_reg_crq(CPUPPCState *env, sPAPREnvironment *spapr,
 
     /* Check if device supports CRQs */
     if (!dev->crq.SendFunc) {
+        hcall_dprintf("Device does not support CRQ\n");
         return H_NOT_FOUND;
     }
 
-
     /* Already a queue ? */
     if (dev->crq.qsize) {
+        hcall_dprintf("CRQ already registered\n");
         return H_RESOURCE;
     }
     dev->crq.qladdr = queue_addr;
@@ -446,6 +447,17 @@ static target_ulong h_reg_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     dprintf("CRQ for dev 0x" TARGET_FMT_lx " registered at 0x"
             TARGET_FMT_lx "/0x" TARGET_FMT_lx "\n",
             reg, queue_addr, queue_len);
+    return H_SUCCESS;
+}
+
+static target_ulong free_crq(VIOsPAPRDevice *dev)
+{
+    dev->crq.qladdr = 0;
+    dev->crq.qsize = 0;
+    dev->crq.qnext = 0;
+
+    dprintf("CRQ for dev 0x%" PRIx32 " freed\n", dev->reg);
+
     return H_SUCCESS;
 }
 
@@ -460,13 +472,7 @@ static target_ulong h_free_crq(CPUPPCState *env, sPAPREnvironment *spapr,
         return H_PARAMETER;
     }
 
-    dev->crq.qladdr = 0;
-    dev->crq.qsize = 0;
-    dev->crq.qnext = 0;
-
-    dprintf("CRQ for dev 0x" TARGET_FMT_lx " freed\n", reg);
-
-    return H_SUCCESS;
+    return free_crq(dev);
 }
 
 static target_ulong h_send_crq(CPUPPCState *env, sPAPREnvironment *spapr,
@@ -642,6 +648,15 @@ static int spapr_vio_check_reg(VIOsPAPRDevice *sdev)
     return 0;
 }
 
+static void spapr_vio_busdev_reset(void *opaque)
+{
+    VIOsPAPRDevice *dev = (VIOsPAPRDevice *)opaque;
+
+    if (dev->crq.qsize) {
+        free_crq(dev);
+    }
+}
+
 static int spapr_vio_busdev_init(DeviceState *qdev)
 {
     VIOsPAPRDevice *dev = (VIOsPAPRDevice *)qdev;
@@ -669,6 +684,8 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
     }
 
     rtce_init(dev);
+
+    qemu_register_reset(spapr_vio_busdev_reset, dev);
 
     return pc->init(dev);
 }
