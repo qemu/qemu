@@ -58,11 +58,22 @@ tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qap
 tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y)
 tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y)
 
+# QTest rules
+
+TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
+QTEST_TARGETS=$(foreach TARGET,$(TARGETS), $(if $(check-qtest-$(TARGET)-y), $(TARGET),))
+check-qtest-$(CONFIG_POSIX)=$(foreach TARGET,$(TARGETS), $(check-qtest-$(TARGET)-y))
+
+qtest-obj-y = tests/libqtest.o $(oslib-obj-y)
+$(check-qtest-y): $(qtest-obj-y)
+
 .PHONY: check-help
 check-help:
 	@echo "Regression testing targets:"
 	@echo
 	@echo " make check                Run all tests"
+	@echo " make check-qtest-TARGET   Run qtest tests for given target"
+	@echo " make check-qtest          Run qtest tests"
 	@echo " make check-unit           Run qobject tests"
 	@echo " make check-block          Run block tests"
 	@echo " make check-report.html    Generates an HTML test report"
@@ -81,18 +92,27 @@ GTESTER_OPTIONS = -k $(if $(V),--verbose,-q)
 
 # gtester tests, possibly with verbose output
 
+.PHONY: $(patsubst %, check-qtest-%, $(QTEST_TARGETS))
+$(patsubst %, check-qtest-%, $(QTEST_TARGETS)): check-qtest-%: $(check-qtest-y)
+	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
+		gtester $(GTESTER_OPTIONS) -m=$(SPEED) $(check-qtest-$*-y),"GTESTER $@")
+
 .PHONY: $(patsubst %, check-%, $(check-unit-y))
 $(patsubst %, check-%, $(check-unit-y)): check-%: %
 	$(call quiet-command,gtester $(GTESTER_OPTIONS) -m=$(SPEED) $*,"GTESTER $*")
 
 # gtester tests with XML output
 
+$(patsubst %, check-report-qtest-%.xml, $(QTEST_TARGETS)): check-report-qtest-%.xml: $(check-qtest-y)
+	$(call quiet-command,QTEST_QEMU_BINARY=$*-softmmu/qemu-system-$* \
+	  gtester -q $(GTESTER_OPTIONS) -o $@ -m=$(SPEED) $(check-qtest-$*-y),"GTESTER $@")
+
 check-report-unit.xml: $(check-unit-y)
 	$(call quiet-command,gtester -q $(GTESTER_OPTIONS) -o $@ -m=$(SPEED) $^, "GTESTER $@")
 
 # Reports and overall runs
 
-check-report.xml: check-report-unit.xml
+check-report.xml: $(patsubst %,check-report-qtest-%.xml, $(QTEST_TARGETS)) check-report-unit.xml
 	$(call quiet-command,$(SRC_PATH)/scripts/gtester-cat $^ > $@, "  GEN    $@")
 
 check-report.html: check-report.xml
@@ -107,7 +127,8 @@ check-tests/qemu-iotests-quick.sh: tests/qemu-iotests-quick.sh qemu-img$(EXESUF)
 
 # Consolidated targets
 
-.PHONY: check-unit check
+.PHONY: check-qtest check-unit check
+check-qtest: $(patsubst %,check-qtest-%, $(QTEST_TARGETS))
 check-unit: $(patsubst %,check-%, $(check-unit-y))
 check-block: $(patsubst %,check-%, $(check-block-y))
-check: check-unit
+check: check-unit check-qtest
