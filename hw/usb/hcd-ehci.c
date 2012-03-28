@@ -2149,9 +2149,13 @@ static void ehci_frame_timer(void *opaque)
         if ( !(ehci->usbsts & USBSTS_HALT)) {
             ehci->frindex += 8;
 
-            if (ehci->frindex > 0x00001fff) {
-                ehci->frindex = 0;
+            if (ehci->frindex == 0x00002000) {
                 ehci_set_interrupt(ehci, USBSTS_FLR);
+            }
+
+            if (ehci->frindex == 0x00004000) {
+                ehci_set_interrupt(ehci, USBSTS_FLR);
+                ehci->frindex = 0;
             }
 
             ehci->sofv = (ehci->frindex - 1) >> 3;
