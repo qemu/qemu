@@ -204,8 +204,7 @@ static target_ulong h_put_tce(CPUPPCState *env, sPAPREnvironment *spapr,
     VIOsPAPR_RTCE *rtce;
 
     if (!dev) {
-        hcall_dprintf("spapr_vio_put_tce on non-existent LIOBN "
-                      TARGET_FMT_lx "\n", liobn);
+        hcall_dprintf("LIOBN 0x" TARGET_FMT_lx " does not exist\n", liobn);
         return H_PARAMETER;
     }
 
@@ -217,8 +216,7 @@ static target_ulong h_put_tce(CPUPPCState *env, sPAPREnvironment *spapr,
 #endif
 
     if (ioba >= dev->rtce_window_size) {
-        hcall_dprintf("spapr_vio_put_tce on out-of-boards IOBA 0x"
-                      TARGET_FMT_lx "\n", ioba);
+        hcall_dprintf("Out-of-bounds IOBA 0x" TARGET_FMT_lx "\n", ioba);
         return H_PARAMETER;
     }
 
@@ -414,22 +412,20 @@ static target_ulong h_reg_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
 
     if (!dev) {
-        hcall_dprintf("h_reg_crq on non-existent unit 0x"
-                      TARGET_FMT_lx "\n", reg);
+        hcall_dprintf("Unit 0x" TARGET_FMT_lx " does not exist\n", reg);
         return H_PARAMETER;
     }
 
     /* We can't grok a queue size bigger than 256M for now */
     if (queue_len < 0x1000 || queue_len > 0x10000000) {
-        hcall_dprintf("h_reg_crq, queue size too small or too big (0x%llx)\n",
-                      (unsigned long long)queue_len);
+        hcall_dprintf("Queue size too small or too big (0x" TARGET_FMT_lx
+                      ")\n", queue_len);
         return H_PARAMETER;
     }
 
     /* Check queue alignment */
     if (queue_addr & 0xfff) {
-        hcall_dprintf("h_reg_crq, queue not aligned (0x%llx)\n",
-                      (unsigned long long)queue_addr);
+        hcall_dprintf("Queue not aligned (0x" TARGET_FMT_lx ")\n", queue_addr);
         return H_PARAMETER;
     }
 
@@ -460,8 +456,7 @@ static target_ulong h_free_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
 
     if (!dev) {
-        hcall_dprintf("h_free_crq on non-existent unit 0x"
-                      TARGET_FMT_lx "\n", reg);
+        hcall_dprintf("Unit 0x" TARGET_FMT_lx " does not exist\n", reg);
         return H_PARAMETER;
     }
 
@@ -484,8 +479,7 @@ static target_ulong h_send_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     uint64_t crq_mangle[2];
 
     if (!dev) {
-        hcall_dprintf("h_send_crq on non-existent unit 0x"
-                      TARGET_FMT_lx "\n", reg);
+        hcall_dprintf("Unit 0x" TARGET_FMT_lx " does not exist\n", reg);
         return H_PARAMETER;
     }
     crq_mangle[0] = cpu_to_be64(msg_hi);
@@ -505,8 +499,7 @@ static target_ulong h_enable_crq(CPUPPCState *env, sPAPREnvironment *spapr,
     VIOsPAPRDevice *dev = spapr_vio_find_by_reg(spapr->vio_bus, reg);
 
     if (!dev) {
-        hcall_dprintf("h_enable_crq on non-existent unit 0x"
-                      TARGET_FMT_lx "\n", reg);
+        hcall_dprintf("Unit 0x" TARGET_FMT_lx " does not exist\n", reg);
         return H_PARAMETER;
     }
 

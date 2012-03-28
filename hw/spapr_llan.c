@@ -279,21 +279,19 @@ static target_ulong h_register_logical_lan(CPUPPCState *env,
 
     if (check_bd(dev, VLAN_VALID_BD(buf_list, SPAPR_VIO_TCE_PAGE_SIZE),
                  SPAPR_VIO_TCE_PAGE_SIZE) < 0) {
-        hcall_dprintf("Bad buf_list 0x" TARGET_FMT_lx " for "
-                      "H_REGISTER_LOGICAL_LAN\n", buf_list);
+        hcall_dprintf("Bad buf_list 0x" TARGET_FMT_lx "\n", buf_list);
         return H_PARAMETER;
     }
 
     filter_list_bd = VLAN_VALID_BD(filter_list, SPAPR_VIO_TCE_PAGE_SIZE);
     if (check_bd(dev, filter_list_bd, SPAPR_VIO_TCE_PAGE_SIZE) < 0) {
-        hcall_dprintf("Bad filter_list 0x" TARGET_FMT_lx " for "
-                      "H_REGISTER_LOGICAL_LAN\n", filter_list);
+        hcall_dprintf("Bad filter_list 0x" TARGET_FMT_lx "\n", filter_list);
         return H_PARAMETER;
     }
 
     if (!(rec_queue & VLAN_BD_VALID)
         || (check_bd(dev, rec_queue, VLAN_RQ_ALIGNMENT) < 0)) {
-        hcall_dprintf("Bad receive queue for H_REGISTER_LOGICAL_LAN\n");
+        hcall_dprintf("Bad receive queue\n");
         return H_PARAMETER;
     }
 
@@ -358,13 +356,13 @@ static target_ulong h_add_logical_lan_buffer(CPUPPCState *env,
             ", 0x" TARGET_FMT_lx ")\n", reg, buf);
 
     if (!sdev) {
-        hcall_dprintf("Wrong device in h_add_logical_lan_buffer\n");
+        hcall_dprintf("Bad device\n");
         return H_PARAMETER;
     }
 
     if ((check_bd(dev, buf, 4) < 0)
         || (VLAN_BD_LEN(buf) < 16)) {
-        hcall_dprintf("Bad buffer enqueued in h_add_logical_lan_buffer\n");
+        hcall_dprintf("Bad buffer enqueued\n");
         return H_PARAMETER;
     }
 
