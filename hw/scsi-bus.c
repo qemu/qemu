@@ -12,17 +12,19 @@ static char *scsibus_get_fw_dev_path(DeviceState *dev);
 static int scsi_req_parse(SCSICommand *cmd, SCSIDevice *dev, uint8_t *buf);
 static void scsi_req_dequeue(SCSIRequest *req);
 
+static Property scsi_props[] = {
+    DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
+    DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
+    DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static struct BusInfo scsi_bus_info = {
     .name  = "SCSI",
     .size  = sizeof(SCSIBus),
     .get_dev_path = scsibus_get_dev_path,
     .get_fw_dev_path = scsibus_get_fw_dev_path,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("channel", SCSIDevice, channel, 0),
-        DEFINE_PROP_UINT32("scsi-id", SCSIDevice, id, -1),
-        DEFINE_PROP_UINT32("lun", SCSIDevice, lun, -1),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .props = scsi_props,
 };
 static int next_scsi_bus;
 

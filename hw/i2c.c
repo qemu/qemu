@@ -17,13 +17,15 @@ struct i2c_bus
     uint8_t saved_address;
 };
 
+static Property i2c_props[] = {
+    DEFINE_PROP_UINT8("address", struct I2CSlave, address, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static struct BusInfo i2c_bus_info = {
     .name = "I2C",
     .size = sizeof(i2c_bus),
-    .props = (Property[]) {
-        DEFINE_PROP_UINT8("address", struct I2CSlave, address, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+    .props = i2c_props,
 };
 
 static void i2c_bus_pre_save(void *opaque)

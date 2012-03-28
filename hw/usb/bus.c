@@ -11,19 +11,22 @@ static char *usb_get_dev_path(DeviceState *dev);
 static char *usb_get_fw_dev_path(DeviceState *qdev);
 static int usb_qdev_exit(DeviceState *qdev);
 
+static Property usb_props[] = {
+    DEFINE_PROP_STRING("port", USBDevice, port_path),
+    DEFINE_PROP_BIT("full-path", USBDevice, flags,
+                    USB_DEV_FLAG_FULL_PATH, true),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static struct BusInfo usb_bus_info = {
     .name      = "USB",
     .size      = sizeof(USBBus),
     .print_dev = usb_bus_dev_print,
     .get_dev_path = usb_get_dev_path,
     .get_fw_dev_path = usb_get_fw_dev_path,
-    .props      = (Property[]) {
-        DEFINE_PROP_STRING("port", USBDevice, port_path),
-        DEFINE_PROP_BIT("full-path", USBDevice, flags,
-                        USB_DEV_FLAG_FULL_PATH, true),
-        DEFINE_PROP_END_OF_LIST()
-    },
+    .props     = usb_props,
 };
+
 static int next_usb_bus = 0;
 static QTAILQ_HEAD(, USBBus) busses = QTAILQ_HEAD_INITIALIZER(busses);
 

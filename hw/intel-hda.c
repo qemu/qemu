@@ -29,13 +29,15 @@
 /* --------------------------------------------------------------------- */
 /* hda bus                                                               */
 
+static Property hda_props[] = {
+    DEFINE_PROP_UINT32("cad", HDACodecDevice, cad, -1),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 static struct BusInfo hda_codec_bus_info = {
     .name      = "HDA",
     .size      = sizeof(HDACodecBus),
-    .props     = (Property[]) {
-        DEFINE_PROP_UINT32("cad", HDACodecDevice, cad, -1),
-        DEFINE_PROP_END_OF_LIST()
-    }
+    .props     = hda_props,
 };
 
 void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus,

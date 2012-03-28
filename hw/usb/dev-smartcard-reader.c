@@ -1055,13 +1055,15 @@ static Answer *ccid_peek_next_answer(USBCCIDState *s)
         : &s->pending_answers[s->pending_answers_start % PENDING_ANSWERS_NUM];
 }
 
+static Property ccid_props[] = {
+    DEFINE_PROP_UINT32("slot", struct CCIDCardState, slot, 0),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static struct BusInfo ccid_bus_info = {
     .name = "ccid-bus",
     .size = sizeof(CCIDBus),
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("slot", struct CCIDCardState, slot, 0),
-        DEFINE_PROP_END_OF_LIST(),
-    }
+    .props = ccid_props,
 };
 
 void ccid_card_send_apdu_to_guest(CCIDCardState *card,

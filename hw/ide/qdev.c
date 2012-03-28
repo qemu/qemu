@@ -27,14 +27,16 @@
 
 static char *idebus_get_fw_dev_path(DeviceState *dev);
 
+static Property ide_props[] = {
+    DEFINE_PROP_UINT32("unit", IDEDevice, unit, -1),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static struct BusInfo ide_bus_info = {
     .name  = "IDE",
     .size  = sizeof(IDEBus),
     .get_fw_dev_path = idebus_get_fw_dev_path,
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("unit", IDEDevice, unit, -1),
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .props = ide_props,
 };
 
 void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id)

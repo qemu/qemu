@@ -44,6 +44,17 @@ static char *pcibus_get_dev_path(DeviceState *dev);
 static char *pcibus_get_fw_dev_path(DeviceState *dev);
 static int pcibus_reset(BusState *qbus);
 
+static Property pci_props[] = {
+    DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
+    DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
+    DEFINE_PROP_UINT32("rombar",  PCIDevice, rom_bar, 1),
+    DEFINE_PROP_BIT("multifunction", PCIDevice, cap_present,
+                    QEMU_PCI_CAP_MULTIFUNCTION_BITNR, false),
+    DEFINE_PROP_BIT("command_serr_enable", PCIDevice, cap_present,
+                    QEMU_PCI_CAP_SERR_BITNR, true),
+    DEFINE_PROP_END_OF_LIST()
+};
+
 struct BusInfo pci_bus_info = {
     .name       = "PCI",
     .size       = sizeof(PCIBus),
@@ -51,16 +62,7 @@ struct BusInfo pci_bus_info = {
     .get_dev_path = pcibus_get_dev_path,
     .get_fw_dev_path = pcibus_get_fw_dev_path,
     .reset      = pcibus_reset,
-    .props      = (Property[]) {
-        DEFINE_PROP_PCI_DEVFN("addr", PCIDevice, devfn, -1),
-        DEFINE_PROP_STRING("romfile", PCIDevice, romfile),
-        DEFINE_PROP_UINT32("rombar",  PCIDevice, rom_bar, 1),
-        DEFINE_PROP_BIT("multifunction", PCIDevice, cap_present,
-                        QEMU_PCI_CAP_MULTIFUNCTION_BITNR, false),
-        DEFINE_PROP_BIT("command_serr_enable", PCIDevice, cap_present,
-                        QEMU_PCI_CAP_SERR_BITNR, true),
-        DEFINE_PROP_END_OF_LIST()
-    }
+    .props      = pci_props,
 };
 
 static PCIBus *pci_find_bus_nr(PCIBus *bus, int bus_num);

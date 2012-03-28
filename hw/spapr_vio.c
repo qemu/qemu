@@ -49,13 +49,15 @@
     do { } while (0)
 #endif
 
+static Property spapr_vio_props[] = {
+    DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, vio_irq_num, 0), \
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static struct BusInfo spapr_vio_bus_info = {
     .name       = "spapr-vio",
     .size       = sizeof(VIOsPAPRBus),
-    .props = (Property[]) {
-        DEFINE_PROP_UINT32("irq", VIOsPAPRDevice, vio_irq_num, 0), \
-        DEFINE_PROP_END_OF_LIST(),
-    },
+    .props      = spapr_vio_props,
 };
 
 VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
