@@ -16,6 +16,11 @@ check-unit-y += tests/test-coroutine$(EXESUF)
 
 check-block-$(CONFIG_POSIX) += tests/qemu-iotests-quick.sh
 
+# All QTests for now are POSIX-only, but the dependencies are
+# really in libqtest, not in the testcases themselves.
+check-qtest-i386-y = tests/rtc-test
+check-qtest-x86_64-y = $(check-qtest-i386-y)
+
 GENERATED_HEADERS += tests/test-qapi-types.h tests/test-qapi-visit.h tests/test-qmp-commands.h
 
 test-obj-y = tests/check-qint.o tests/check-qstring.o tests/check-qdict.o \
