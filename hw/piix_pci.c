@@ -276,7 +276,7 @@ static PCIBus *i440fx_common_init(const char *device_name,
     b = pci_bus_new(&s->busdev.qdev, NULL, pci_address_space,
                     address_space_io, 0);
     s->bus = b;
-    object_property_add_child(object_get_root(), "i440fx", OBJECT(dev), NULL);
+    object_property_add_child(qdev_get_machine(), "i440fx", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
 
     d = pci_create_simple(b, 0, device_name);

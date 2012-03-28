@@ -157,7 +157,7 @@ int qdev_init(DeviceState *dev)
         static int unattached_count = 0;
         gchar *name = g_strdup_printf("device[%d]", unattached_count++);
 
-        object_property_add_child(container_get("/unattached"), name,
+        object_property_add_child(container_get("/machine/unattached"), name,
                                   OBJECT(dev), NULL);
         g_free(name);
     }
@@ -666,6 +666,17 @@ void device_reset(DeviceState *dev)
     if (klass->reset) {
         klass->reset(dev);
     }
+}
+
+Object *qdev_get_machine(void)
+{
+    static Object *dev;
+
+    if (dev == NULL) {
+        dev = container_get("/machine");
+    }
+
+    return dev;
 }
 
 static TypeInfo device_type_info = {

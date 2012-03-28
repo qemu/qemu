@@ -615,7 +615,7 @@ static void ppc_prep_init (ram_addr_t ram_size,
     sys = sysbus_from_qdev(dev);
     pcihost = DO_UPCAST(PCIHostState, busdev, sys);
     pcihost->address_space = get_system_memory();
-    object_property_add_child(object_get_root(), "raven", OBJECT(dev), NULL);
+    object_property_add_child(qdev_get_machine(), "raven", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
     pci_bus = (PCIBus *)qdev_get_child_bus(dev, "pci.0");
     if (pci_bus == NULL) {

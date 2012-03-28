@@ -180,7 +180,7 @@ static Object *qdev_get_peripheral(void)
     static Object *dev;
 
     if (dev == NULL) {
-        dev = container_get("/peripheral");
+        dev = container_get("/machine/peripheral");
     }
 
     return dev;
@@ -191,7 +191,7 @@ static Object *qdev_get_peripheral_anon(void)
     static Object *dev;
 
     if (dev == NULL) {
-        dev = container_get("/peripheral-anon");
+        dev = container_get("/machine/peripheral-anon");
     }
 
     return dev;
