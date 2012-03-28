@@ -24,7 +24,6 @@ static struct BusInfo usb_bus_info = {
     .print_dev = usb_bus_dev_print,
     .get_dev_path = usb_get_dev_path,
     .get_fw_dev_path = usb_get_fw_dev_path,
-    .props     = usb_props,
 };
 
 static int next_usb_bus = 0;
@@ -583,6 +582,7 @@ static void usb_device_class_init(ObjectClass *klass, void *data)
     k->init     = usb_qdev_init;
     k->unplug   = qdev_simple_unplug_cb;
     k->exit     = usb_qdev_exit;
+    k->props    = usb_props;
 }
 
 static TypeInfo usb_device_type_info = {

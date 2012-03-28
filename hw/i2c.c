@@ -25,7 +25,6 @@ static Property i2c_props[] = {
 static struct BusInfo i2c_bus_info = {
     .name = "I2C",
     .size = sizeof(i2c_bus),
-    .props = i2c_props,
 };
 
 static void i2c_bus_pre_save(void *opaque)
@@ -221,6 +220,7 @@ static void i2c_slave_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = i2c_slave_qdev_init;
     k->bus_info = &i2c_bus_info;
+    k->props = i2c_props;
 }
 
 static TypeInfo i2c_slave_type_info = {

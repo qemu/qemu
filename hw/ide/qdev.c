@@ -36,7 +36,6 @@ static struct BusInfo ide_bus_info = {
     .name  = "IDE",
     .size  = sizeof(IDEBus),
     .get_fw_dev_path = idebus_get_fw_dev_path,
-    .props = ide_props,
 };
 
 void ide_bus_new(IDEBus *idebus, DeviceState *dev, int bus_id)
@@ -251,6 +250,7 @@ static void ide_device_class_init(ObjectClass *klass, void *data)
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = ide_qdev_init;
     k->bus_info = &ide_bus_info;
+    k->props = ide_props;
 }
 
 static TypeInfo ide_device_type_info = {

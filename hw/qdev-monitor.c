@@ -123,7 +123,6 @@ int qdev_device_help(QemuOpts *opts)
     const char *driver;
     Property *prop;
     ObjectClass *klass;
-    DeviceClass *info;
 
     driver = qemu_opt_get(opts, "driver");
     if (driver && !strcmp(driver, "?")) {
@@ -149,30 +148,22 @@ int qdev_device_help(QemuOpts *opts)
     if (!klass) {
         return 0;
     }
-    info = DEVICE_CLASS(klass);
-
-    for (prop = info->props; prop && prop->name; prop++) {
-        /*
-         * TODO Properties without a parser are just for dirty hacks.
-         * qdev_prop_ptr is the only such PropertyInfo.  It's marked
-         * for removal.  This conditional should be removed along with
-         * it.
-         */
-        if (!prop->info->set) {
-            continue;           /* no way to set it, don't show */
-        }
-        error_printf("%s.%s=%s\n", driver, prop->name,
-                     prop->info->legacy_name ?: prop->info->name);
-    }
-    if (info->bus_info) {
-        for (prop = info->bus_info->props; prop && prop->name; prop++) {
+    do {
+        for (prop = DEVICE_CLASS(klass)->props; prop && prop->name; prop++) {
+            /*
+             * TODO Properties without a parser are just for dirty hacks.
+             * qdev_prop_ptr is the only such PropertyInfo.  It's marked
+             * for removal.  This conditional should be removed along with
+             * it.
+             */
             if (!prop->info->set) {
                 continue;           /* no way to set it, don't show */
             }
             error_printf("%s.%s=%s\n", driver, prop->name,
                          prop->info->legacy_name ?: prop->info->name);
         }
-    }
+        klass = object_class_get_parent(klass);
+    } while (klass != object_class_by_name(TYPE_DEVICE));
     return 1;
 }
 
@@ -482,7 +473,7 @@ DeviceState *qdev_device_add(QemuOpts *opts)
 static void qbus_print(Monitor *mon, BusState *bus, int indent);
 
 static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
-                             const char *prefix, int indent)
+                             int indent)
 {
     if (!props)
         return;
@@ -501,7 +492,7 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
             error_free(err);
             continue;
         }
-        qdev_printf("%s-prop: %s = %s\n", prefix, props->name,
+        qdev_printf("%s = %s\n", props->name,
                     value && *value ? value : "<null>");
         g_free(value);
     }
@@ -509,6 +500,7 @@ static void qdev_print_props(Monitor *mon, DeviceState *dev, Property *props,
 
 static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
 {
+    ObjectClass *class;
     BusState *child;
     qdev_printf("dev: %s, id \"%s\"\n", object_get_typename(OBJECT(dev)),
                 dev->id ? dev->id : "");
@@ -519,8 +511,11 @@ static void qdev_print(Monitor *mon, DeviceState *dev, int indent)
     if (dev->num_gpio_out) {
         qdev_printf("gpio-out %d\n", dev->num_gpio_out);
     }
-    qdev_print_props(mon, dev, qdev_get_props(dev), "dev", indent);
-    qdev_print_props(mon, dev, dev->parent_bus->info->props, "bus", indent);
+    class = object_get_class(OBJECT(dev));
+    do {
+        qdev_print_props(mon, dev, DEVICE_CLASS(class)->props, indent);
+        class = object_class_get_parent(class);
+    } while (class != object_class_by_name(TYPE_DEVICE));
     if (dev->parent_bus->info->print_dev)
         dev->parent_bus->info->print_dev(mon, dev, indent);
     QLIST_FOREACH(child, &dev->child_bus, sibling) {

@@ -24,7 +24,6 @@ static struct BusInfo scsi_bus_info = {
     .size  = sizeof(SCSIBus),
     .get_dev_path = scsibus_get_dev_path,
     .get_fw_dev_path = scsibus_get_fw_dev_path,
-    .props = scsi_props,
 };
 static int next_scsi_bus;
 
@@ -1601,6 +1600,7 @@ static void scsi_device_class_init(ObjectClass *klass, void *data)
     k->init     = scsi_qdev_init;
     k->unplug   = qdev_simple_unplug_cb;
     k->exit     = scsi_qdev_exit;
+    k->props    = scsi_props;
 }
 
 static TypeInfo scsi_device_type_info = {

@@ -738,7 +738,6 @@ static struct BusInfo virtser_bus_info = {
     .name      = "virtio-serial-bus",
     .size      = sizeof(VirtIOSerialBus),
     .print_dev = virtser_bus_dev_print,
-    .props     = virtser_props,
 };
 
 static void virtser_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent)
@@ -985,6 +984,7 @@ static void virtio_serial_port_class_init(ObjectClass *klass, void *data)
     k->bus_info = &virtser_bus_info;
     k->exit = virtser_port_qdev_exit;
     k->unplug = qdev_simple_unplug_cb;
+    k->props = virtser_props;
 }
 
 static TypeInfo virtio_serial_port_type_info = {

@@ -57,7 +57,6 @@ static Property spapr_vio_props[] = {
 static struct BusInfo spapr_vio_bus_info = {
     .name       = "spapr-vio",
     .size       = sizeof(VIOsPAPRBus),
-    .props      = spapr_vio_props,
 };
 
 VIOsPAPRDevice *spapr_vio_find_by_reg(VIOsPAPRBus *bus, uint32_t reg)
@@ -797,6 +796,7 @@ static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
     k->init = spapr_vio_busdev_init;
     k->reset = spapr_vio_busdev_reset;
     k->bus_info = &spapr_vio_bus_info;
+    k->props = spapr_vio_props;
 }
 
 static TypeInfo spapr_vio_type_info = {

@@ -1063,7 +1063,6 @@ static Property ccid_props[] = {
 static struct BusInfo ccid_bus_info = {
     .name = "ccid-bus",
     .size = sizeof(CCIDBus),
-    .props = ccid_props,
 };
 
 void ccid_card_send_apdu_to_guest(CCIDCardState *card,
@@ -1347,6 +1346,7 @@ static void ccid_card_class_init(ObjectClass *klass, void *data)
     k->bus_info = &ccid_bus_info;
     k->init = ccid_card_init;
     k->exit = ccid_card_exit;
+    k->props = ccid_props;
 }
 
 static TypeInfo ccid_card_type_info = {

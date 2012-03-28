@@ -37,7 +37,6 @@ static Property hda_props[] = {
 static struct BusInfo hda_codec_bus_info = {
     .name      = "HDA",
     .size      = sizeof(HDACodecBus),
-    .props     = hda_props,
 };
 
 void hda_codec_bus_init(DeviceState *dev, HDACodecBus *bus,
@@ -1278,6 +1277,7 @@ static void hda_codec_device_class_init(ObjectClass *klass, void *data)
     k->init = hda_codec_dev_init;
     k->exit = hda_codec_dev_exit;
     k->bus_info = &hda_codec_bus_info;
+    k->props = hda_props;
 }
 
 static TypeInfo hda_codec_device_type_info = {
