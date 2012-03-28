@@ -3,6 +3,7 @@
 #include "qemu-option.h"
 #include "qemu-config.h"
 #include "hw/qdev.h"
+#include "error.h"
 
 static QemuOptsList qemu_drive_opts = {
     .name = "drive",
@@ -631,7 +632,8 @@ static QemuOptsList *vm_config_groups[32] = {
     NULL,
 };
 
-static QemuOptsList *find_list(QemuOptsList **lists, const char *group)
+static QemuOptsList *find_list(QemuOptsList **lists, const char *group,
+                               Error **errp)
 {
     int i;
 
@@ -640,14 +642,23 @@ static QemuOptsList *find_list(QemuOptsList **lists, const char *group)
             break;
     }
     if (lists[i] == NULL) {
-        error_report("there is no option group \"%s\"", group);
+        error_set(errp, QERR_INVALID_OPTION_GROUP, group);
     }
     return lists[i];
 }
 
 QemuOptsList *qemu_find_opts(const char *group)
 {
-    return find_list(vm_config_groups, group);
+    QemuOptsList *ret;
+    Error *local_err = NULL;
+
+    ret = find_list(vm_config_groups, group, &local_err);
+    if (error_is_set(&local_err)) {
+        error_report("%s\n", error_get_pretty(local_err));
+        error_free(local_err);
+    }
+
+    return ret;
 }
 
 void qemu_add_opts(QemuOptsList *list)
@@ -762,6 +773,7 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
     char line[1024], group[64], id[64], arg[64], value[1024];
     Location loc;
     QemuOptsList *list = NULL;
+    Error *local_err = NULL;
     QemuOpts *opts = NULL;
     int res = -1, lno = 0;
 
@@ -778,17 +790,23 @@ int qemu_config_parse(FILE *fp, QemuOptsList **lists, const char *fname)
         }
         if (sscanf(line, "[%63s \"%63[^\"]\"]", group, id) == 2) {
             /* group with id */
-            list = find_list(lists, group);
-            if (list == NULL)
+            list = find_list(lists, group, &local_err);
+            if (error_is_set(&local_err)) {
+                error_report("%s\n", error_get_pretty(local_err));
+                error_free(local_err);
                 goto out;
+            }
             opts = qemu_opts_create(list, id, 1, NULL);
             continue;
         }
         if (sscanf(line, "[%63[^]]]", group) == 1) {
             /* group without id */
-            list = find_list(lists, group);
-            if (list == NULL)
+            list = find_list(lists, group, &local_err);
+            if (error_is_set(&local_err)) {
+                error_report("%s\n", error_get_pretty(local_err));
+                error_free(local_err);
                 goto out;
+            }
             opts = qemu_opts_create(list, NULL, 0, NULL);
             continue;
         }
