@@ -152,6 +152,7 @@ int main(int argc, char **argv)
 #ifdef CONFIG_VIRTFS
 #include "fsdev/qemu-fsdev.h"
 #endif
+#include "qtest.h"
 
 #include "disas.h"
 
@@ -1312,7 +1313,7 @@ int qemu_shutdown_requested(void)
 
 void qemu_kill_report(void)
 {
-    if (shutdown_signal != -1) {
+    if (!qtest_enabled() && shutdown_signal != -1) {
         fprintf(stderr, "qemu: terminating on signal %d", shutdown_signal);
         if (shutdown_pid == 0) {
             /* This happens for eg ^C at the terminal, so it's worth
@@ -2098,6 +2099,7 @@ static struct {
     { "tcg", "tcg", tcg_available, tcg_init, &tcg_allowed },
     { "xen", "Xen", xen_available, xen_init, &xen_allowed },
     { "kvm", "KVM", kvm_available, kvm_init, &kvm_allowed },
+    { "qtest", "QTest", qtest_available, qtest_init, &qtest_allowed },
 };
 
 static int configure_accelerator(void)
@@ -3181,6 +3183,12 @@ int main(int argc, char **argv, char **envp)
                     fclose(fp);
                     break;
                 }
+            case QEMU_OPTION_qtest:
+                qtest_chrdev = optarg;
+                break;
+            case QEMU_OPTION_qtest_log:
+                qtest_log = optarg;
+                break;
             default:
                 os_parse_cmd_args(popt->index, optarg);
             }

@@ -322,6 +322,8 @@ hw-obj-$(CONFIG_DP8393X) += dp8393x.o
 hw-obj-$(CONFIG_DS1225Y) += ds1225y.o
 hw-obj-$(CONFIG_MIPSNET) += mipsnet.o
 
+hw-obj-y += qtest.o
+
 # Sound
 sound-obj-y =
 sound-obj-$(CONFIG_SB16) += sb16.o

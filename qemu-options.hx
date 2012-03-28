@@ -2715,6 +2715,14 @@ the @var{simple} tracing backend.
 @end table
 ETEXI
 
+DEF("qtest", HAS_ARG, QEMU_OPTION_qtest,
+    "-qtest CHR      specify tracing options\n",
+    QEMU_ARCH_ALL)
+
+DEF("qtest-log", HAS_ARG, QEMU_OPTION_qtest_log,
+    "-qtest-log LOG  specify tracing options\n",
+    QEMU_ARCH_ALL)
+
 HXCOMM This is the last statement. Insert new options before this line!
 STEXI
 @end table
