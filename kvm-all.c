@@ -871,7 +871,7 @@ static void kvm_init_irq_routing(KVMState *s)
         unsigned int gsi_bits, i;
 
         /* Round up so we can search ints using ffs */
-        gsi_bits = (gsi_count + 31) / 32;
+        gsi_bits = ALIGN(gsi_count, 32);
         s->used_gsi_bitmap = g_malloc0(gsi_bits / 8);
         s->max_gsi = gsi_bits;
 
