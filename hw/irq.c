@@ -104,3 +104,20 @@ qemu_irq *qemu_irq_proxy(qemu_irq **target, int n)
 {
     return qemu_allocate_irqs(proxy_irq_handler, target, n);
 }
+
+void qemu_irq_intercept_in(qemu_irq *gpio_in, qemu_irq_handler handler, int n)
+{
+    int i;
+    qemu_irq *old_irqs = qemu_allocate_irqs(NULL, NULL, n);
+    for (i = 0; i < n; i++) {
+        *old_irqs[i] = *gpio_in[i];
+        gpio_in[i]->handler = handler;
+        gpio_in[i]->opaque = old_irqs;
+    }
+}
+
+void qemu_irq_intercept_out(qemu_irq **gpio_out, qemu_irq_handler handler, int n)
+{
+    qemu_irq *old_irqs = *gpio_out;
+    *gpio_out = qemu_allocate_irqs(handler, old_irqs, n);
+}

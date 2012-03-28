@@ -12,6 +12,7 @@
  */
 
 #include "qtest.h"
+#include "hw/qdev.h"
 #include "qemu-char.h"
 #include "ioport.h"
 #include "memory.h"
@@ -24,6 +25,7 @@ const char *qtest_chrdev;
 const char *qtest_log;
 int qtest_allowed = 0;
 
+static DeviceState *irq_intercept_dev;
 static FILE *qtest_log_fp;
 static CharDriverState *qtest_chr;
 static GString *inbuf;
@@ -66,18 +68,30 @@ static bool qtest_opened;
  *  > write ADDR SIZE DATA
  *  < OK
  *
- * Valid async messages:
- *
- *  IRQ raise NUM
- *  IRQ lower NUM
- *
  * ADDR, SIZE, VALUE are all integers parsed with strtoul() with a base of 0.
  *
  * DATA is an arbitrarily long hex number prefixed with '0x'.  If it's smaller
  * than the expected size, the value will be zero filled at the end of the data
  * sequence.
  *
- * NUM is an IRQ number.
+ * IRQ management:
+ *
+ *  > irq_intercept_in QOM-PATH
+ *  < OK
+ *
+ *  > irq_intercept_out QOM-PATH
+ *  < OK
+ *
+ * Attach to the gpio-in (resp. gpio-out) pins exported by the device at
+ * QOM-PATH.  When the pin is triggered, one of the following async messages
+ * will be printed to the qtest stream:
+ *
+ *  IRQ raise NUM
+ *  IRQ lower NUM
+ *
+ * where NUM is an IRQ number.  For the PC, interrupts can be intercepted
+ * simply with "irq_intercept_in ioapic" (note that IRQ0 comes out with
+ * NUM=0 even though it is remapped to GSI 2).
  */
 
 static int hex2nib(char ch)
@@ -133,6 +147,20 @@ static void qtest_send(CharDriverState *chr, const char *fmt, ...)
     }
 }
 
+static void qtest_irq_handler(void *opaque, int n, int level)
+{
+    qemu_irq *old_irqs = opaque;
+    qemu_set_irq(old_irqs[n], level);
+
+    if (irq_levels[n] != level) {
+        CharDriverState *chr = qtest_chr;
+        irq_levels[n] = level;
+        qtest_send_prefix(chr);
+        qtest_send(chr, "IRQ %s %d\n",
+                   level ? "raise" : "lower", n);
+    }
+}
+
 static void qtest_process_command(CharDriverState *chr, gchar **words)
 {
     const gchar *command;
@@ -155,9 +183,40 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
     }
 
     g_assert(command);
-    if (strcmp(words[0], "outb") == 0 ||
-        strcmp(words[0], "outw") == 0 ||
-        strcmp(words[0], "outl") == 0) {
+    if (strcmp(words[0], "irq_intercept_out") == 0
+        || strcmp(words[0], "irq_intercept_in") == 0) {
+	DeviceState *dev;
+
+        g_assert(words[1]);
+        dev = DEVICE(object_resolve_path(words[1], NULL));
+        if (!dev) {
+            qtest_send_prefix(chr);
+            qtest_send(chr, "FAIL Unknown device\n");
+	    return;
+        }
+
+        if (irq_intercept_dev) {
+            qtest_send_prefix(chr);
+            if (irq_intercept_dev != dev) {
+                qtest_send(chr, "FAIL IRQ intercept already enabled\n");
+            } else {
+                qtest_send(chr, "OK\n");
+            }
+	    return;
+        }
+
+        if (words[0][14] == 'o') {
+            qemu_irq_intercept_out(&dev->gpio_out, qtest_irq_handler, dev->num_gpio_out);
+        } else {
+            qemu_irq_intercept_in(dev->gpio_in, qtest_irq_handler, dev->num_gpio_in);
+        }
+        irq_intercept_dev = dev;
+        qtest_send_prefix(chr);
+        qtest_send(chr, "OK\n");
+
+    } else if (strcmp(words[0], "outb") == 0 ||
+               strcmp(words[0], "outw") == 0 ||
+               strcmp(words[0], "outl") == 0) {
         uint16_t addr;
         uint32_t value;
 
@@ -309,21 +368,6 @@ static void qtest_event(void *opaque, int event)
         break;
     default:
         break;
-    }
-}
-
-static void qtest_set_irq(void *opaque, int irq, int level)
-{
-    CharDriverState *chr = qtest_chr;
-    bool changed;
-
-    changed = (irq_levels[irq] != level);
-    irq_levels[irq] = level;
-
-    if (changed) {
-        qtest_send_prefix(chr);
-        qtest_send(chr, "IRQ %s %d\n",
-                   level ? "raise" : "lower", irq);
     }
 }
 
