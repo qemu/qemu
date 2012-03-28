@@ -726,6 +726,7 @@ static void blk_disconnect(struct XenDevice *xendev)
         if (!blkdev->dinfo) {
             /* close/delete only if we created it ourself */
             bdrv_close(blkdev->bs);
+            bdrv_detach_dev(blkdev->bs, blkdev);
             bdrv_delete(blkdev->bs);
         }
         blkdev->bs = NULL;
