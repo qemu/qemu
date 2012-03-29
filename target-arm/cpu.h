@@ -475,6 +475,7 @@ static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
 #endif
 
 #include "cpu-all.h"
+#include "cpu-qom.h"
 
 /* Bit usage in the TB flags field: */
 #define ARM_TBFLAG_THUMB_SHIFT      0
