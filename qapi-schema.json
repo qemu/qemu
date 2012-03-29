@@ -634,6 +634,25 @@
            'tls': 'bool'} }
 
 ##
+# @SpiceQueryMouseMode
+#
+# An enumation of Spice mouse states.
+#
+# @client: Mouse cursor position is determined by the client.
+#
+# @server: Mouse cursor position is determined by the server.
+#
+# @unknown: No information is available about mouse mode used by
+#           the spice server.
+#
+# Note: spice/enums.h has a SpiceMouseMode already, hence the name.
+#
+# Since: 1.1
+##
+{ 'enum': 'SpiceQueryMouseMode',
+  'data': [ 'client', 'server', 'unknown' ] }
+
+##
 # @SpiceInfo
 #
 # Information about the SPICE session.
@@ -654,6 +673,12 @@
 #        'spice' uses SASL or direct TLS authentication, depending on command
 #                line options
 #
+# @mouse-mode: The mode in which the mouse cursor is displayed currently. Can
+#              be determined by the client or the server, or unknown if spice
+#              server doesn't provide this information.
+#
+#              Since: 1.1
+#
 # @channels: a list of @SpiceChannel for each active spice channel
 #
 # Since: 0.14.0
@@ -661,7 +686,7 @@
 { 'type': 'SpiceInfo',
   'data': {'enabled': 'bool', '*host': 'str', '*port': 'int',
            '*tls-port': 'int', '*auth': 'str', '*compiled-version': 'str',
-           '*channels': ['SpiceChannel']} }
+           'mouse-mode': 'SpiceQueryMouseMode', '*channels': ['SpiceChannel']} }
 
 ##
 # @query-spice
