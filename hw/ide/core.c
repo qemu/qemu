@@ -471,40 +471,68 @@ static void ide_rw_error(IDEState *s) {
     ide_set_irq(s->bus);
 }
 
+static void ide_sector_read_cb(void *opaque, int ret)
+{
+    IDEState *s = opaque;
+    int n;
+
+    s->pio_aiocb = NULL;
+    s->status &= ~BUSY_STAT;
+
+    bdrv_acct_done(s->bs, &s->acct);
+    if (ret != 0) {
+        if (ide_handle_rw_error(s, -ret, BM_STATUS_PIO_RETRY |
+                                BM_STATUS_RETRY_READ)) {
+            return;
+        }
+    }
+
+    n = s->nsector;
+    if (n > s->req_nb_sectors) {
+        n = s->req_nb_sectors;
+    }
+
+    /* Allow the guest to read the io_buffer */
+    ide_transfer_start(s, s->io_buffer, n * BDRV_SECTOR_SIZE, ide_sector_read);
+
+    ide_set_irq(s->bus);
+
+    ide_set_sector(s, ide_get_sector(s) + n);
+    s->nsector -= n;
+}
+
 void ide_sector_read(IDEState *s)
 {
     int64_t sector_num;
-    int ret, n;
+    int n;
 
     s->status = READY_STAT | SEEK_STAT;
     s->error = 0; /* not needed by IDE spec, but needed by Windows */
     sector_num = ide_get_sector(s);
     n = s->nsector;
-    if (n == 0) {
-        /* no more sector to read from disk */
-        ide_transfer_stop(s);
-    } else {
-#if defined(DEBUG_IDE)
-        printf("read sector=%" PRId64 "\n", sector_num);
-#endif
-        if (n > s->req_nb_sectors)
-            n = s->req_nb_sectors;
 
-        bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
-        ret = bdrv_read(s->bs, sector_num, s->io_buffer, n);
-        bdrv_acct_done(s->bs, &s->acct);
-        if (ret != 0) {
-            if (ide_handle_rw_error(s, -ret,
-                BM_STATUS_PIO_RETRY | BM_STATUS_RETRY_READ))
-            {
-                return;
-            }
-        }
-        ide_transfer_start(s, s->io_buffer, 512 * n, ide_sector_read);
-        ide_set_irq(s->bus);
-        ide_set_sector(s, sector_num + n);
-        s->nsector -= n;
+    if (n == 0) {
+        ide_transfer_stop(s);
+        return;
     }
+
+    s->status |= BUSY_STAT;
+
+    if (n > s->req_nb_sectors) {
+        n = s->req_nb_sectors;
+    }
+
+#if defined(DEBUG_IDE)
+    printf("sector=%" PRId64 "\n", sector_num);
+#endif
+
+    s->iov.iov_base = s->io_buffer;
+    s->iov.iov_len  = n * BDRV_SECTOR_SIZE;
+    qemu_iovec_init_external(&s->qiov, &s->iov, 1);
+
+    bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
+    s->pio_aiocb = bdrv_aio_readv(s->bs, sector_num, &s->qiov, n,
+                                  ide_sector_read_cb, s);
 }
 
 static void dma_buf_commit(IDEState *s)
@@ -1765,6 +1793,12 @@ static void ide_reset(IDEState *s)
 #ifdef DEBUG_IDE
     printf("ide: reset\n");
 #endif
+
+    if (s->pio_aiocb) {
+        bdrv_aio_cancel(s->pio_aiocb);
+        s->pio_aiocb = NULL;
+    }
+
     if (s->drive_kind == IDE_CFATA)
         s->mult_sectors = 0;
     else
