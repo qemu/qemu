@@ -54,6 +54,15 @@ typedef struct USBDescriptor {
             uint8_t           bInterfaceProtocol;
             uint8_t           iInterface;
         } interface;
+        struct {
+            uint8_t           bEndpointAddress;
+            uint8_t           bmAttributes;
+            uint8_t           wMaxPacketSize_lo;
+            uint8_t           wMaxPacketSize_hi;
+            uint8_t           bInterval;
+            uint8_t           bRefresh;        /* only audio ep */
+            uint8_t           bSynchAddress;   /* only audio ep */
+        } endpoint;
     } u;
 } QEMU_PACKED USBDescriptor;
 
