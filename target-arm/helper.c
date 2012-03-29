@@ -493,11 +493,6 @@ static uint32_t cpu_arm_find_by_name(const char *name)
     return id;
 }
 
-void cpu_arm_close(CPUARMState *env)
-{
-    g_free(env);
-}
-
 static int bad_mode_switch(CPUARMState *env, int mode)
 {
     /* Return true if it is not valid for us to switch to
