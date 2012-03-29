@@ -78,22 +78,24 @@ int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len)
 {
     uint8_t  bLength = 0x09;
     uint16_t wTotalLength = 0;
+    USBDescriptor *d = (void *)dest;
     int i, rc;
 
     if (len < bLength) {
         return -1;
     }
 
-    dest[0x00] = bLength;
-    dest[0x01] = USB_DT_CONFIG;
-    dest[0x04] = conf->bNumInterfaces;
-    dest[0x05] = conf->bConfigurationValue;
-    dest[0x06] = conf->iConfiguration;
-    dest[0x07] = conf->bmAttributes;
-    dest[0x08] = conf->bMaxPower;
+    d->bLength                      = bLength;
+    d->bDescriptorType              = USB_DT_CONFIG;
+
+    d->u.config.bNumInterfaces      = conf->bNumInterfaces;
+    d->u.config.bConfigurationValue = conf->bConfigurationValue;
+    d->u.config.iConfiguration      = conf->iConfiguration;
+    d->u.config.bmAttributes        = conf->bmAttributes;
+    d->u.config.bMaxPower           = conf->bMaxPower;
     wTotalLength += bLength;
 
-    /* handle grouped interfaces if any*/
+    /* handle grouped interfaces if any */
     for (i = 0; i < conf->nif_groups; i++) {
         rc = usb_desc_iface_group(&(conf->if_groups[i]),
                                   dest + wTotalLength,
@@ -113,8 +115,8 @@ int usb_desc_config(const USBDescConfig *conf, uint8_t *dest, size_t len)
         wTotalLength += rc;
     }
 
-    dest[0x02] = usb_lo(wTotalLength);
-    dest[0x03] = usb_hi(wTotalLength);
+    d->u.config.wTotalLength_lo = usb_lo(wTotalLength);
+    d->u.config.wTotalLength_hi = usb_hi(wTotalLength);
     return wTotalLength;
 }
 
