@@ -1656,7 +1656,6 @@ static const TCGTargetOpDef ppc_op_defs[] = {
     { INDEX_op_ld16s_i64, { "r", "r" } },
     { INDEX_op_ld32u_i64, { "r", "r" } },
     { INDEX_op_ld32s_i64, { "r", "r" } },
-    { INDEX_op_ld_i64, { "r", "r" } },
 
     { INDEX_op_add_i32, { "r", "r", "ri" } },
     { INDEX_op_mul_i32, { "r", "r", "ri" } },
