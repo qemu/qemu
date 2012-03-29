@@ -373,6 +373,10 @@ static QEMUMachine pc_machine_v1_0 = {
             .driver   = "isa-fdc",
             .property = "check_media_rate",
             .value    = "off",
+        },{
+            .driver   = "apic",
+            .property = "vapic",
+            .value    = "off",
         },
         { /* end of list */ }
     },
@@ -391,6 +395,10 @@ static QEMUMachine pc_machine_v0_15 = {
         }, {
             .driver   = "isa-fdc",
             .property = "check_media_rate",
+            .value    = "off",
+        },{
+            .driver   = "apic",
+            .property = "vapic",
             .value    = "off",
         },
         { /* end of list */ }
@@ -431,11 +439,14 @@ static QEMUMachine pc_machine_v0_14 = {
             .driver   = "isa-fdc",
             .property = "check_media_rate",
             .value    = "off",
-        },
-        {
+        },{
             .driver   = "pc-sysfw",
             .property = "rom_only",
             .value    = stringify(1),
+        },{
+            .driver   = "apic",
+            .property = "vapic",
+            .value    = "off",
         },
         { /* end of list */ }
     },
@@ -487,11 +498,14 @@ static QEMUMachine pc_machine_v0_13 = {
             .driver   = "isa-fdc",
             .property = "check_media_rate",
             .value    = "off",
-        },
-        {
+        },{
             .driver   = "pc-sysfw",
             .property = "rom_only",
             .value    = stringify(1),
+        },{
+            .driver   = "apic",
+            .property = "vapic",
+            .value    = "off",
         },
         { /* end of list */ }
     },
@@ -547,11 +561,14 @@ static QEMUMachine pc_machine_v0_12 = {
             .driver   = "isa-fdc",
             .property = "check_media_rate",
             .value    = "off",
-        },
-        {
+        },{
             .driver   = "pc-sysfw",
             .property = "rom_only",
             .value    = stringify(1),
+        },{
+            .driver   = "apic",
+            .property = "vapic",
+            .value    = "off",
         },
         { /* end of list */ }
     }
@@ -615,11 +632,14 @@ static QEMUMachine pc_machine_v0_11 = {
             .driver   = "isa-fdc",
             .property = "check_media_rate",
             .value    = "off",
-        },
-        {
+        },{
             .driver   = "pc-sysfw",
             .property = "rom_only",
             .value    = stringify(1),
+        },{
+            .driver   = "apic",
+            .property = "vapic",
+            .value    = "off",
         },
         { /* end of list */ }
     }
@@ -695,11 +715,14 @@ static QEMUMachine pc_machine_v0_10 = {
             .driver   = "isa-fdc",
             .property = "check_media_rate",
             .value    = "off",
-        },
-        {
+        },{
             .driver   = "pc-sysfw",
             .property = "rom_only",
             .value    = stringify(1),
+        },{
+            .driver   = "apic",
+            .property = "vapic",
+            .value    = "off",
         },
         { /* end of list */ }
     },
