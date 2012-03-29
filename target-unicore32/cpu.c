@@ -15,6 +15,11 @@
 #include "cpu-qom.h"
 #include "qemu-common.h"
 
+static inline void set_feature(CPUUniCore32State *env, int feature)
+{
+    env->features |= feature;
+}
+
 /* CPU models */
 
 typedef struct UniCore32CPUInfo {
@@ -28,6 +33,12 @@ static void unicore_ii_cpu_initfn(Object *obj)
     CPUUniCore32State *env = &cpu->env;
 
     env->cp0.c0_cpuid = 0x40010863;
+
+    set_feature(env, UC32_HWCAP_CMOV);
+    set_feature(env, UC32_HWCAP_UCF64);
+    env->ucf64.xregs[UC32_UCF64_FPSCR] = 0;
+    env->cp0.c0_cachetype = 0x1dd20d2;
+    env->cp0.c1_sys = 0x00090078;
 }
 
 static void uc32_any_cpu_initfn(Object *obj)
@@ -36,6 +47,9 @@ static void uc32_any_cpu_initfn(Object *obj)
     CPUUniCore32State *env = &cpu->env;
 
     env->cp0.c0_cpuid = 0xffffffff;
+
+    set_feature(env, UC32_HWCAP_CMOV);
+    set_feature(env, UC32_HWCAP_UCF64);
 }
 
 static const UniCore32CPUInfo uc32_cpus[] = {
