@@ -159,20 +159,22 @@ int usb_desc_iface(const USBDescIface *iface, uint8_t *dest, size_t len)
 {
     uint8_t bLength = 0x09;
     int i, rc, pos = 0;
+    USBDescriptor *d = (void *)dest;
 
     if (len < bLength) {
         return -1;
     }
 
-    dest[0x00] = bLength;
-    dest[0x01] = USB_DT_INTERFACE;
-    dest[0x02] = iface->bInterfaceNumber;
-    dest[0x03] = iface->bAlternateSetting;
-    dest[0x04] = iface->bNumEndpoints;
-    dest[0x05] = iface->bInterfaceClass;
-    dest[0x06] = iface->bInterfaceSubClass;
-    dest[0x07] = iface->bInterfaceProtocol;
-    dest[0x08] = iface->iInterface;
+    d->bLength                        = bLength;
+    d->bDescriptorType                = USB_DT_INTERFACE;
+
+    d->u.interface.bInterfaceNumber   = iface->bInterfaceNumber;
+    d->u.interface.bAlternateSetting  = iface->bAlternateSetting;
+    d->u.interface.bNumEndpoints      = iface->bNumEndpoints;
+    d->u.interface.bInterfaceClass    = iface->bInterfaceClass;
+    d->u.interface.bInterfaceSubClass = iface->bInterfaceSubClass;
+    d->u.interface.bInterfaceProtocol = iface->bInterfaceProtocol;
+    d->u.interface.iInterface         = iface->iInterface;
     pos += bLength;
 
     for (i = 0; i < iface->ndesc; i++) {
