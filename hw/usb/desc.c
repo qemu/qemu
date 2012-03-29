@@ -18,32 +18,33 @@ int usb_desc_device(const USBDescID *id, const USBDescDevice *dev,
                     uint8_t *dest, size_t len)
 {
     uint8_t bLength = 0x12;
+    USBDescriptor *d = (void *)dest;
 
     if (len < bLength) {
         return -1;
     }
 
-    dest[0x00] = bLength;
-    dest[0x01] = USB_DT_DEVICE;
+    d->bLength                     = bLength;
+    d->bDescriptorType             = USB_DT_DEVICE;
 
-    dest[0x02] = usb_lo(dev->bcdUSB);
-    dest[0x03] = usb_hi(dev->bcdUSB);
-    dest[0x04] = dev->bDeviceClass;
-    dest[0x05] = dev->bDeviceSubClass;
-    dest[0x06] = dev->bDeviceProtocol;
-    dest[0x07] = dev->bMaxPacketSize0;
+    d->u.device.bcdUSB_lo          = usb_lo(dev->bcdUSB);
+    d->u.device.bcdUSB_hi          = usb_hi(dev->bcdUSB);
+    d->u.device.bDeviceClass       = dev->bDeviceClass;
+    d->u.device.bDeviceSubClass    = dev->bDeviceSubClass;
+    d->u.device.bDeviceProtocol    = dev->bDeviceProtocol;
+    d->u.device.bMaxPacketSize0    = dev->bMaxPacketSize0;
 
-    dest[0x08] = usb_lo(id->idVendor);
-    dest[0x09] = usb_hi(id->idVendor);
-    dest[0x0a] = usb_lo(id->idProduct);
-    dest[0x0b] = usb_hi(id->idProduct);
-    dest[0x0c] = usb_lo(id->bcdDevice);
-    dest[0x0d] = usb_hi(id->bcdDevice);
-    dest[0x0e] = id->iManufacturer;
-    dest[0x0f] = id->iProduct;
-    dest[0x10] = id->iSerialNumber;
+    d->u.device.idVendor_lo        = usb_lo(id->idVendor);
+    d->u.device.idVendor_hi        = usb_hi(id->idVendor);
+    d->u.device.idProduct_lo       = usb_lo(id->idProduct);
+    d->u.device.idProduct_hi       = usb_hi(id->idProduct);
+    d->u.device.bcdDevice_lo       = usb_lo(id->bcdDevice);
+    d->u.device.bcdDevice_hi       = usb_hi(id->bcdDevice);
+    d->u.device.iManufacturer      = id->iManufacturer;
+    d->u.device.iProduct           = id->iProduct;
+    d->u.device.iSerialNumber      = id->iSerialNumber;
 
-    dest[0x11] = dev->bNumConfigurations;
+    d->u.device.bNumConfigurations = dev->bNumConfigurations;
 
     return bLength;
 }

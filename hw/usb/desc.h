@@ -3,6 +3,32 @@
 
 #include <inttypes.h>
 
+/* binary representation */
+typedef struct USBDescriptor {
+    uint8_t                   bLength;
+    uint8_t                   bDescriptorType;
+    union {
+        struct {
+            uint8_t           bcdUSB_lo;
+            uint8_t           bcdUSB_hi;
+            uint8_t           bDeviceClass;
+            uint8_t           bDeviceSubClass;
+            uint8_t           bDeviceProtocol;
+            uint8_t           bMaxPacketSize0;
+            uint8_t           idVendor_lo;
+            uint8_t           idVendor_hi;
+            uint8_t           idProduct_lo;
+            uint8_t           idProduct_hi;
+            uint8_t           bcdDevice_lo;
+            uint8_t           bcdDevice_hi;
+            uint8_t           iManufacturer;
+            uint8_t           iProduct;
+            uint8_t           iSerialNumber;
+            uint8_t           bNumConfigurations;
+        } device;
+    } u;
+} QEMU_PACKED USBDescriptor;
+
 struct USBDescID {
     uint16_t                  idVendor;
     uint16_t                  idProduct;
