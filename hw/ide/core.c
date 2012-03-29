@@ -688,40 +688,39 @@ static void ide_sector_write_timer_cb(void *opaque)
     ide_set_irq(s->bus);
 }
 
-void ide_sector_write(IDEState *s)
+static void ide_sector_write_cb(void *opaque, int ret)
 {
-    int64_t sector_num;
-    int ret, n, n1;
+    IDEState *s = opaque;
+    int n;
 
-    s->status = READY_STAT | SEEK_STAT;
-    sector_num = ide_get_sector(s);
-#if defined(DEBUG_IDE)
-    printf("write sector=%" PRId64 "\n", sector_num);
-#endif
-    n = s->nsector;
-    if (n > s->req_nb_sectors)
-        n = s->req_nb_sectors;
-
-    bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
-    ret = bdrv_write(s->bs, sector_num, s->io_buffer, n);
     bdrv_acct_done(s->bs, &s->acct);
 
+    s->pio_aiocb = NULL;
+    s->status &= ~BUSY_STAT;
+
     if (ret != 0) {
-        if (ide_handle_rw_error(s, -ret, BM_STATUS_PIO_RETRY))
+        if (ide_handle_rw_error(s, -ret, BM_STATUS_PIO_RETRY)) {
             return;
+        }
     }
 
+    n = s->nsector;
+    if (n > s->req_nb_sectors) {
+        n = s->req_nb_sectors;
+    }
     s->nsector -= n;
     if (s->nsector == 0) {
         /* no more sectors to write */
         ide_transfer_stop(s);
     } else {
-        n1 = s->nsector;
-        if (n1 > s->req_nb_sectors)
+        int n1 = s->nsector;
+        if (n1 > s->req_nb_sectors) {
             n1 = s->req_nb_sectors;
-        ide_transfer_start(s, s->io_buffer, 512 * n1, ide_sector_write);
+        }
+        ide_transfer_start(s, s->io_buffer, n1 * BDRV_SECTOR_SIZE,
+                           ide_sector_write);
     }
-    ide_set_sector(s, sector_num + n);
+    ide_set_sector(s, ide_get_sector(s) + n);
 
     if (win2k_install_hack && ((++s->irq_count % 16) == 0)) {
         /* It seems there is a bug in the Windows 2000 installer HDD
@@ -735,6 +734,30 @@ void ide_sector_write(IDEState *s)
     } else {
         ide_set_irq(s->bus);
     }
+}
+
+void ide_sector_write(IDEState *s)
+{
+    int64_t sector_num;
+    int n;
+
+    s->status = READY_STAT | SEEK_STAT | BUSY_STAT;
+    sector_num = ide_get_sector(s);
+#if defined(DEBUG_IDE)
+    printf("sector=%" PRId64 "\n", sector_num);
+#endif
+    n = s->nsector;
+    if (n > s->req_nb_sectors) {
+        n = s->req_nb_sectors;
+    }
+
+    s->iov.iov_base = s->io_buffer;
+    s->iov.iov_len  = n * BDRV_SECTOR_SIZE;
+    qemu_iovec_init_external(&s->qiov, &s->iov, 1);
+
+    bdrv_acct_start(s->bs, &s->acct, n * BDRV_SECTOR_SIZE, BDRV_ACCT_READ);
+    s->pio_aiocb = bdrv_aio_writev(s->bs, sector_num, &s->qiov, n,
+                                   ide_sector_write_cb, s);
 }
 
 static void ide_flush_cb(void *opaque, int ret)
