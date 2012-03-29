@@ -2906,7 +2906,7 @@ static int disas_vfp_insn(CPUARMState * env, DisasContext *s, uint32_t insn)
                         case ARM_VFP_MVFR0:
                         case ARM_VFP_MVFR1:
                             if (IS_USER(s)
-                                || !arm_feature(env, ARM_FEATURE_VFP3))
+                                || !arm_feature(env, ARM_FEATURE_MVFR))
                                 return 1;
                             tmp = load_cpu_field(vfp.xregs[rn]);
                             break;
