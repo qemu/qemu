@@ -53,22 +53,23 @@ int usb_desc_device_qualifier(const USBDescDevice *dev,
                               uint8_t *dest, size_t len)
 {
     uint8_t bLength = 0x0a;
+    USBDescriptor *d = (void *)dest;
 
     if (len < bLength) {
         return -1;
     }
 
-    dest[0x00] = bLength;
-    dest[0x01] = USB_DT_DEVICE_QUALIFIER;
+    d->bLength                               = bLength;
+    d->bDescriptorType                       = USB_DT_DEVICE_QUALIFIER;
 
-    dest[0x02] = usb_lo(dev->bcdUSB);
-    dest[0x03] = usb_hi(dev->bcdUSB);
-    dest[0x04] = dev->bDeviceClass;
-    dest[0x05] = dev->bDeviceSubClass;
-    dest[0x06] = dev->bDeviceProtocol;
-    dest[0x07] = dev->bMaxPacketSize0;
-    dest[0x08] = dev->bNumConfigurations;
-    dest[0x09] = 0; /* reserved */
+    d->u.device_qualifier.bcdUSB_lo          = usb_lo(dev->bcdUSB);
+    d->u.device_qualifier.bcdUSB_hi          = usb_hi(dev->bcdUSB);
+    d->u.device_qualifier.bDeviceClass       = dev->bDeviceClass;
+    d->u.device_qualifier.bDeviceSubClass    = dev->bDeviceSubClass;
+    d->u.device_qualifier.bDeviceProtocol    = dev->bDeviceProtocol;
+    d->u.device_qualifier.bMaxPacketSize0    = dev->bMaxPacketSize0;
+    d->u.device_qualifier.bNumConfigurations = dev->bNumConfigurations;
+    d->u.device_qualifier.bReserved          = 0;
 
     return bLength;
 }

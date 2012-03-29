@@ -26,6 +26,16 @@ typedef struct USBDescriptor {
             uint8_t           iSerialNumber;
             uint8_t           bNumConfigurations;
         } device;
+        struct {
+            uint8_t           bcdUSB_lo;
+            uint8_t           bcdUSB_hi;
+            uint8_t           bDeviceClass;
+            uint8_t           bDeviceSubClass;
+            uint8_t           bDeviceProtocol;
+            uint8_t           bMaxPacketSize0;
+            uint8_t           bNumConfigurations;
+            uint8_t           bReserved;
+        } device_qualifier;
     } u;
 } QEMU_PACKED USBDescriptor;
 
