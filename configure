@@ -2821,6 +2821,13 @@ if test "$solaris" = "no" ; then
     fi
 fi
 
+# test if pod2man has --utf8 option
+if pod2man --help | grep -q utf8; then
+    POD2MAN="pod2man --utf8"
+else
+    POD2MAN="pod2man"
+fi
+
 # Use ASLR, no-SEH and DEP if available
 if test "$mingw32" = "yes" ; then
     for flag in --dynamicbase --no-seh --nxcompat; do
@@ -3358,6 +3365,7 @@ echo "LIBS+=$LIBS" >> $config_host_mak
 echo "LIBS_TOOLS+=$libs_tools" >> $config_host_mak
 echo "EXESUF=$EXESUF" >> $config_host_mak
 echo "LIBS_QGA+=$libs_qga" >> $config_host_mak
+echo "POD2MAN=$POD2MAN" >> $config_host_mak
 
 # generate list of library paths for linker script
 
