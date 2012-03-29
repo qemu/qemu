@@ -19,6 +19,7 @@
 
 #include "qdev.h"
 #include "monitor.h"
+#include "qmp-commands.h"
 
 /*
  * Aliases were a bad idea from the start.  Let's keep them
@@ -570,26 +571,17 @@ int do_device_add(Monitor *mon, const QDict *qdict, QObject **ret_data)
     return 0;
 }
 
-int do_device_del(Monitor *mon, const QDict *qdict, QObject **ret_data)
+void qmp_device_del(const char *id, Error **errp)
 {
-    const char *id = qdict_get_str(qdict, "id");
-    Error *local_err = NULL;
     DeviceState *dev;
 
     dev = qdev_find_recursive(sysbus_get_default(), id);
     if (NULL == dev) {
-        qerror_report(QERR_DEVICE_NOT_FOUND, id);
-        return -1;
+        error_set(errp, QERR_DEVICE_NOT_FOUND, id);
+        return;
     }
 
-    qdev_unplug(dev, &local_err);
-    if (error_is_set(&local_err)) {
-        qerror_report_err(local_err);
-        error_free(local_err);
-        return -1;
-    }
-
-    return 0;
+    qdev_unplug(dev, errp);
 }
 
 void qdev_machine_init(void)
