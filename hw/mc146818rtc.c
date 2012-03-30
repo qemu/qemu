@@ -47,39 +47,6 @@
 
 #define RTC_REINJECT_ON_ACK_COUNT 20
 
-#define RTC_SECONDS             0
-#define RTC_SECONDS_ALARM       1
-#define RTC_MINUTES             2
-#define RTC_MINUTES_ALARM       3
-#define RTC_HOURS               4
-#define RTC_HOURS_ALARM         5
-#define RTC_ALARM_DONT_CARE    0xC0
-
-#define RTC_DAY_OF_WEEK         6
-#define RTC_DAY_OF_MONTH        7
-#define RTC_MONTH               8
-#define RTC_YEAR                9
-
-#define RTC_REG_A               10
-#define RTC_REG_B               11
-#define RTC_REG_C               12
-#define RTC_REG_D               13
-
-#define REG_A_UIP 0x80
-
-#define REG_B_SET  0x80
-#define REG_B_PIE  0x40
-#define REG_B_AIE  0x20
-#define REG_B_UIE  0x10
-#define REG_B_SQWE 0x08
-#define REG_B_DM   0x04
-#define REG_B_24H  0x02
-
-#define REG_C_UF   0x10
-#define REG_C_IRQF 0x80
-#define REG_C_PF   0x40
-#define REG_C_AF   0x20
-
 typedef struct RTCState {
     ISADevice dev;
     MemoryRegion io;

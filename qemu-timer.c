@@ -397,7 +397,7 @@ int qemu_timer_expired(QEMUTimer *timer_head, int64_t current_time)
     return qemu_timer_expired_ns(timer_head, current_time * timer_head->scale);
 }
 
-static void qemu_run_timers(QEMUClock *clock)
+void qemu_run_timers(QEMUClock *clock)
 {
     QEMUTimer **ptimer_head, *ts;
     int64_t current_time;

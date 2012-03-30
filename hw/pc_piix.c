@@ -107,6 +107,9 @@ static void ioapic_init(GSIState *gsi_state)
     } else {
         dev = qdev_create(NULL, "ioapic");
     }
+    /* FIXME: this should be under the piix3.  */
+    object_property_add_child(object_resolve_path("i440fx", NULL),
+                              "ioapic", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
     d = sysbus_from_qdev(dev);
     sysbus_mmio_map(d, 0, 0xfec00000);

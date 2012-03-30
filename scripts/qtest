@@ -1,0 +1,5 @@
+#!/bin/sh
+
+export QTEST_QEMU_BINARY=$1
+shift
+"$@"
