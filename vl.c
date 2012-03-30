@@ -529,6 +529,8 @@ static void configure_rtc(QemuOpts *opts)
     if (value) {
         if (!strcmp(value, "host")) {
             rtc_clock = host_clock;
+        } else if (!strcmp(value, "rt")) {
+            rtc_clock = rt_clock;
         } else if (!strcmp(value, "vm")) {
             rtc_clock = vm_clock;
         } else {

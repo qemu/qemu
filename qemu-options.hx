@@ -2453,7 +2453,7 @@ DEF("localtime", 0, QEMU_OPTION_localtime, "", QEMU_ARCH_ALL)
 DEF("startdate", HAS_ARG, QEMU_OPTION_startdate, "", QEMU_ARCH_ALL)
 
 DEF("rtc", HAS_ARG, QEMU_OPTION_rtc, \
-    "-rtc [base=utc|localtime|date][,clock=host|vm][,driftfix=none|slew]\n" \
+    "-rtc [base=utc|localtime|date][,clock=host|rt|vm][,driftfix=none|slew]\n" \
     "                set the RTC base and clock, enable drift fix for clock ticks (x86 only)\n",
     QEMU_ARCH_ALL)
 
@@ -2469,8 +2469,9 @@ format @code{2006-06-17T16:01:21} or @code{2006-06-17}. The default base is UTC.
 By default the RTC is driven by the host system time. This allows to use the
 RTC as accurate reference clock inside the guest, specifically if the host
 time is smoothly following an accurate external reference clock, e.g. via NTP.
-If you want to isolate the guest time from the host, even prevent it from
-progressing during suspension, you can set @option{clock} to @code{vm} instead.
+If you want to isolate the guest time from the host, you can set @option{clock}
+to @code{rt} instead.  To even prevent it from progressing during suspension,
+you can set it to @code{vm}.
 
 Enable @option{driftfix} (i386 targets only) if you experience time drift problems,
 specifically with Windows' ACPI HAL. This option will try to figure out how
