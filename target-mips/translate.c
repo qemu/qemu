@@ -8111,7 +8111,11 @@ gen_rdhwr (CPUMIPSState *env, DisasContext *ctx, int rt, int rd)
 {
     TCGv t0;
 
+#if !defined(CONFIG_USER_ONLY)
+    /* The Linux kernel will emulate rdhwr if it's not supported natively.
+       Therefore only check the ISA in system mode.  */
     check_insn(env, ctx, ISA_MIPS32R2);
+#endif
     t0 = tcg_temp_new();
 
     switch (rd) {
