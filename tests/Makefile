@@ -63,6 +63,8 @@ tests/test-qmp-input-visitor$(EXESUF): tests/test-qmp-input-visitor.o $(test-qap
 tests/test-qmp-input-strict$(EXESUF): tests/test-qmp-input-strict.o $(test-qapi-obj-y)
 tests/test-qmp-commands$(EXESUF): tests/test-qmp-commands.o tests/test-qmp-marshal.o $(test-qapi-obj-y)
 
+tests/rtc-test$(EXESUF): tests/rtc-test.o $(trace-obj-y)
+
 # QTest rules
 
 TARGETS=$(patsubst %-softmmu,%, $(filter %-softmmu,$(TARGET_DIRS)))
