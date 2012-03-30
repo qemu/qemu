@@ -813,6 +813,9 @@ unlink_and_fail:
 void bdrv_close(BlockDriverState *bs)
 {
     if (bs->drv) {
+        if (bs->job) {
+            block_job_cancel_sync(bs->job);
+        }
         if (bs == bs_snapshots) {
             bs_snapshots = NULL;
         }
@@ -966,6 +969,8 @@ void bdrv_append(BlockDriverState *bs_new, BlockDriverState *bs_top)
 void bdrv_delete(BlockDriverState *bs)
 {
     assert(!bs->dev);
+    assert(!bs->job);
+    assert(!bs->in_use);
 
     /* remove from list, if necessary */
     bdrv_make_anon(bs);
@@ -4094,4 +4099,15 @@ void block_job_cancel(BlockJob *job)
 bool block_job_is_cancelled(BlockJob *job)
 {
     return job->cancelled;
+}
+
+void block_job_cancel_sync(BlockJob *job)
+{
+    BlockDriverState *bs = job->bs;
+
+    assert(bs->job == job);
+    block_job_cancel(job);
+    while (bs->job != NULL && bs->job->busy) {
+        qemu_aio_wait();
+    }
 }

@@ -175,7 +175,7 @@ retry:
             break;
         }
 
-
+        s->common.busy = true;
         if (base) {
             ret = is_allocated_base(bs, base, sector_num,
                                     STREAM_BUFFER_SIZE / BDRV_SECTOR_SIZE, &n);
@@ -189,6 +189,7 @@ retry:
             if (s->common.speed) {
                 uint64_t delay_ns = ratelimit_calculate_delay(&s->limit, n);
                 if (delay_ns > 0) {
+                    s->common.busy = false;
                     co_sleep_ns(rt_clock, delay_ns);
 
                     /* Recheck cancellation and that sectors are unallocated */
@@ -208,6 +209,7 @@ retry:
         /* Note that even when no rate limit is applied we need to yield
          * with no pending I/O here so that qemu_aio_flush() returns.
          */
+        s->common.busy = false;
         co_sleep_ns(rt_clock, 0);
     }
 
@@ -215,7 +217,7 @@ retry:
         bdrv_disable_copy_on_read(bs);
     }
 
-    if (sector_num == end && ret == 0) {
+    if (!block_job_is_cancelled(&s->common) && sector_num == end && ret == 0) {
         const char *base_id = NULL;
         if (base) {
             base_id = s->backing_file_id;

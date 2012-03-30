@@ -83,6 +83,7 @@ struct BlockJob {
     const BlockJobType *job_type;
     BlockDriverState *bs;
     bool cancelled;
+    bool busy;
 
     /* These fields are published by the query-block-jobs QMP API */
     int64_t offset;
@@ -311,6 +312,7 @@ void block_job_complete(BlockJob *job, int ret);
 int block_job_set_speed(BlockJob *job, int64_t value);
 void block_job_cancel(BlockJob *job);
 bool block_job_is_cancelled(BlockJob *job);
+void block_job_cancel_sync(BlockJob *job);
 
 int stream_start(BlockDriverState *bs, BlockDriverState *base,
                  const char *base_id, BlockDriverCompletionFunc *cb,
