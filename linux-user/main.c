@@ -33,6 +33,7 @@
 #include "tcg.h"
 #include "qemu-timer.h"
 #include "envlist.h"
+#include "elf.h"
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
@@ -474,6 +475,22 @@ void cpu_loop(CPUX86State *env)
 
 #ifdef TARGET_ARM
 
+#define get_user_code_u32(x, gaddr, doswap)             \
+    ({ abi_long __r = get_user_u32((x), (gaddr));       \
+        if (!__r && (doswap)) {                         \
+            (x) = bswap32(x);                           \
+        }                                               \
+        __r;                                            \
+    })
+
+#define get_user_code_u16(x, gaddr, doswap)             \
+    ({ abi_long __r = get_user_u16((x), (gaddr));       \
+        if (!__r && (doswap)) {                         \
+            (x) = bswap16(x);                           \
+        }                                               \
+        __r;                                            \
+    })
+
 /*
  * See the Linux kernel's Documentation/arm/kernel_user_helpers.txt
  * Input:
@@ -707,7 +724,7 @@ void cpu_loop(CPUARMState *env)
                 /* we handle the FPU emulation here, as Linux */
                 /* we get the opcode */
                 /* FIXME - what to do if get_user() fails? */
-                get_user_u32(opcode, env->regs[15]);
+                get_user_code_u32(opcode, env->regs[15], env->bswap_code);
 
                 rc = EmulateAll(opcode, &ts->fpa, env);
                 if (rc == 0) { /* illegal instruction */
@@ -777,23 +794,25 @@ void cpu_loop(CPUARMState *env)
                 if (trapnr == EXCP_BKPT) {
                     if (env->thumb) {
                         /* FIXME - what to do if get_user() fails? */
-                        get_user_u16(insn, env->regs[15]);
+                        get_user_code_u16(insn, env->regs[15], env->bswap_code);
                         n = insn & 0xff;
                         env->regs[15] += 2;
                     } else {
                         /* FIXME - what to do if get_user() fails? */
-                        get_user_u32(insn, env->regs[15]);
+                        get_user_code_u32(insn, env->regs[15], env->bswap_code);
                         n = (insn & 0xf) | ((insn >> 4) & 0xff0);
                         env->regs[15] += 4;
                     }
                 } else {
                     if (env->thumb) {
                         /* FIXME - what to do if get_user() fails? */
-                        get_user_u16(insn, env->regs[15] - 2);
+                        get_user_code_u16(insn, env->regs[15] - 2,
+                                          env->bswap_code);
                         n = insn & 0xff;
                     } else {
                         /* FIXME - what to do if get_user() fails? */
-                        get_user_u32(insn, env->regs[15] - 4);
+                        get_user_code_u32(insn, env->regs[15] - 4,
+                                          env->bswap_code);
                         n = insn & 0xffffff;
                     }
                 }
@@ -3656,6 +3675,11 @@ int main(int argc, char **argv, char **envp)
         cpsr_write(env, regs->uregs[16], 0xffffffff);
         for(i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];
+        }
+        /* Enable BE8.  */
+        if (EF_ARM_EABI_VERSION(info->elf_flags) >= EF_ARM_EABI_VER4
+            && (info->elf_flags & EF_ARM_BE8)) {
+            env->bswap_code = 1;
         }
     }
 #elif defined(TARGET_UNICORE32)
