@@ -403,7 +403,6 @@ struct EHCIState {
     /*
      *  Internal states, shadow registers, etc
      */
-    uint32_t sofv;
     QEMUTimer *frame_timer;
     int attach_poll_counter;
     int astate;                        // Current state in asynchronous schedule
@@ -1100,10 +1099,6 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
 
     case USBINTR:
         val &= USBINTR_MASK;
-        break;
-
-    case FRINDEX:
-        s->sofv = val >> 3;
         break;
 
     case CONFIGFLAG:
@@ -2157,9 +2152,6 @@ static void ehci_frame_timer(void *opaque)
                 ehci_set_interrupt(ehci, USBSTS_FLR);
                 ehci->frindex = 0;
             }
-
-            ehci->sofv = (ehci->frindex - 1) >> 3;
-            ehci->sofv &= 0x000003ff;
         }
 
         if (frames - i > ehci->maxframes) {
