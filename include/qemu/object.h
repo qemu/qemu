@@ -635,6 +635,15 @@ void object_property_add(Object *obj, const char *name, const char *type,
 
 void object_property_del(Object *obj, const char *name, struct Error **errp);
 
+/**
+ * object_property_find:
+ * @obj: the object
+ * @name: the name of the property
+ *
+ * Look up a property for an object and return its #ObjectProperty if found.
+ */
+ObjectProperty *object_property_find(Object *obj, const char *name);
+
 void object_unparent(Object *obj);
 
 /**

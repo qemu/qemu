@@ -672,7 +672,7 @@ void object_property_add(Object *obj, const char *name, const char *type,
     QTAILQ_INSERT_TAIL(&obj->properties, prop, node);
 }
 
-static ObjectProperty *object_property_find(Object *obj, const char *name)
+ObjectProperty *object_property_find(Object *obj, const char *name)
 {
     ObjectProperty *prop;
 

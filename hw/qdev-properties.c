@@ -931,11 +931,6 @@ static Property *qdev_prop_find(DeviceState *dev, const char *name)
     return NULL;
 }
 
-int qdev_prop_exists(DeviceState *dev, const char *name)
-{
-    return qdev_prop_find(dev, name) ? true : false;
-}
-
 void error_set_from_qdev_prop_error(Error **errp, int ret, DeviceState *dev,
                                     Property *prop, const char *value)
 {
