@@ -34,7 +34,7 @@ static int irq_levels[MAX_IRQ];
 static struct timeval start_time;
 static bool qtest_opened;
 
-#define FMT_timeval "%" PRId64 ".%06" PRId64
+#define FMT_timeval "%ld.%06ld"
 
 /**
  * QTest Protocol
