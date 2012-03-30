@@ -161,12 +161,12 @@ static void check_time(int wiggle)
     }
 
     if (!(tm_cmp(&start, datep) <= 0 && tm_cmp(datep, &end) <= 0)) {
-        time_t t, s;
+        long t, s;
 
         start.tm_isdst = datep->tm_isdst;
 
-        t = mktime(datep);
-        s = mktime(&start);
+        t = (long)mktime(datep);
+        s = (long)mktime(&start);
         if (t < s) {
             g_test_message("RTC is %ld second(s) behind wall-clock\n", (s - t));
         } else {
