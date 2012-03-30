@@ -836,7 +836,13 @@ static void usbredir_do_attach(void *opaque)
 {
     USBRedirDevice *dev = opaque;
 
-    usb_device_attach(&dev->dev);
+    if (usb_device_attach(&dev->dev) != 0) {
+        usbredir_device_disconnect(dev);
+        if (usbredirparser_peer_has_cap(dev->parser, usb_redir_cap_filter)) {
+            usbredirparser_send_filter_reject(dev->parser);
+            usbredirparser_do_write(dev->parser);
+        }
+    }
 }
 
 /*
