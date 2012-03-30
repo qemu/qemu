@@ -64,6 +64,9 @@ void blockdev_mark_auto_del(BlockDriverState *bs)
 {
     DriveInfo *dinfo = drive_get_by_blockdev(bs);
 
+    if (bs->job) {
+        block_job_cancel(bs->job);
+    }
     if (dinfo) {
         dinfo->auto_del = 1;
     }
