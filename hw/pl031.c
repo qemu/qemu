@@ -47,21 +47,6 @@ typedef struct {
     uint32_t is;
 } pl031_state;
 
-static const VMStateDescription vmstate_pl031 = {
-    .name = "pl031",
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (VMStateField[]) {
-        VMSTATE_UINT32(tick_offset, pl031_state),
-        VMSTATE_UINT32(mr, pl031_state),
-        VMSTATE_UINT32(lr, pl031_state),
-        VMSTATE_UINT32(cr, pl031_state),
-        VMSTATE_UINT32(im, pl031_state),
-        VMSTATE_UINT32(is, pl031_state),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static const unsigned char pl031_id[] = {
     0x31, 0x10, 0x14, 0x00,         /* Device ID        */
     0x0d, 0xf0, 0x05, 0xb1          /* Cell ID      */
@@ -212,6 +197,30 @@ static int pl031_init(SysBusDevice *dev)
     s->timer = qemu_new_timer_ns(vm_clock, pl031_interrupt, s);
     return 0;
 }
+
+static int pl031_post_load(void *opaque, int version_id)
+{
+    pl031_state *s = opaque;
+
+    pl031_set_alarm(s);
+    return 0;
+}
+
+static const VMStateDescription vmstate_pl031 = {
+    .name = "pl031",
+    .version_id = 1,
+    .minimum_version_id = 1,
+    .post_load = pl031_post_load,
+    .fields = (VMStateField[]) {
+        VMSTATE_UINT32(tick_offset, pl031_state),
+        VMSTATE_UINT32(mr, pl031_state),
+        VMSTATE_UINT32(lr, pl031_state),
+        VMSTATE_UINT32(cr, pl031_state),
+        VMSTATE_UINT32(im, pl031_state),
+        VMSTATE_UINT32(is, pl031_state),
+        VMSTATE_END_OF_LIST()
+    }
+};
 
 static void pl031_class_init(ObjectClass *klass, void *data)
 {
