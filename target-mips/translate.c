@@ -7742,8 +7742,7 @@ static void gen_flt3_ldst (DisasContext *ctx, uint32_t opc,
     } else if (index == 0) {
         gen_load_gpr(t0, base);
     } else {
-        gen_load_gpr(t0, index);
-        gen_op_addr_add(ctx, t0, cpu_gpr[base], t0);
+        gen_op_addr_add(ctx, t0, cpu_gpr[base], cpu_gpr[index]);
     }
     /* Don't do NOP if destination is zero: we must perform the actual
        memory access. */
