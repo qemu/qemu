@@ -31,7 +31,7 @@ static FILE *qtest_log_fp;
 static CharDriverState *qtest_chr;
 static GString *inbuf;
 static int irq_levels[MAX_IRQ];
-static struct timeval start_time;
+static qemu_timeval start_time;
 static bool qtest_opened;
 
 #define FMT_timeval "%ld.%06ld"
@@ -132,9 +132,9 @@ static int hex2nib(char ch)
     }
 }
 
-static void qtest_get_time(struct timeval *tv)
+static void qtest_get_time(qemu_timeval *tv)
 {
-    gettimeofday(tv, NULL);
+    qemu_gettimeofday(tv);
     tv->tv_sec -= start_time.tv_sec;
     tv->tv_usec -= start_time.tv_usec;
     if (tv->tv_usec < 0) {
@@ -145,7 +145,7 @@ static void qtest_get_time(struct timeval *tv)
 
 static void qtest_send_prefix(CharDriverState *chr)
 {
-    struct timeval tv;
+    qemu_timeval tv;
 
     if (!qtest_log_fp || !qtest_opened) {
         return;
@@ -195,7 +195,7 @@ static void qtest_process_command(CharDriverState *chr, gchar **words)
     command = words[0];
 
     if (qtest_log_fp) {
-        struct timeval tv;
+        qemu_timeval tv;
         int i;
 
         qtest_get_time(&tv);
@@ -394,7 +394,7 @@ static void qtest_event(void *opaque, int event)
         for (i = 0; i < ARRAY_SIZE(irq_levels); i++) {
             irq_levels[i] = 0;
         }
-        gettimeofday(&start_time, NULL);
+        qemu_gettimeofday(&start_time);
         qtest_opened = true;
         if (qtest_log_fp) {
             fprintf(qtest_log_fp, "[I " FMT_timeval "] OPENED\n",
@@ -404,7 +404,7 @@ static void qtest_event(void *opaque, int event)
     case CHR_EVENT_CLOSED:
         qtest_opened = false;
         if (qtest_log_fp) {
-            struct timeval tv;
+            qemu_timeval tv;
             qtest_get_time(&tv);
             fprintf(qtest_log_fp, "[I +" FMT_timeval "] CLOSED\n",
                     tv.tv_sec, tv.tv_usec);
