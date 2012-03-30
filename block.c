@@ -4085,10 +4085,16 @@ void block_job_complete(BlockJob *job, int ret)
 
 int block_job_set_speed(BlockJob *job, int64_t value)
 {
+    int rc;
+
     if (!job->job_type->set_speed) {
         return -ENOTSUP;
     }
-    return job->job_type->set_speed(job, value);
+    rc = job->job_type->set_speed(job, value);
+    if (rc == 0) {
+        job->speed = value;
+    }
+    return rc;
 }
 
 void block_job_cancel(BlockJob *job)

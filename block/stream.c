@@ -236,7 +236,6 @@ static int stream_set_speed(BlockJob *job, int64_t value)
     if (value < 0) {
         return -EINVAL;
     }
-    job->speed = value;
     ratelimit_set_speed(&s->limit, value / BDRV_SECTOR_SIZE);
     return 0;
 }
