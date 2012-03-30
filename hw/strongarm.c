@@ -255,7 +255,7 @@ static inline void strongarm_rtc_int_update(StrongARMRTCState *s)
 
 static void strongarm_rtc_hzupdate(StrongARMRTCState *s)
 {
-    int64_t rt = qemu_get_clock_ms(rt_clock);
+    int64_t rt = qemu_get_clock_ms(rtc_clock);
     s->last_rcnr += ((rt - s->last_hz) << 15) /
             (1000 * ((s->rttr & 0xffff) + 1));
     s->last_hz = rt;
@@ -308,7 +308,7 @@ static uint64_t strongarm_rtc_read(void *opaque, target_phys_addr_t addr,
         return s->rtar;
     case RCNR:
         return s->last_rcnr +
-                ((qemu_get_clock_ms(rt_clock) - s->last_hz) << 15) /
+                ((qemu_get_clock_ms(rtc_clock) - s->last_hz) << 15) /
                 (1000 * ((s->rttr & 0xffff) + 1));
     default:
         printf("%s: Bad register 0x" TARGET_FMT_plx "\n", __func__, addr);
@@ -374,10 +374,10 @@ static int strongarm_rtc_init(SysBusDevice *dev)
     qemu_get_timedate(&tm, 0);
 
     s->last_rcnr = (uint32_t) mktimegm(&tm);
-    s->last_hz = qemu_get_clock_ms(rt_clock);
+    s->last_hz = qemu_get_clock_ms(rtc_clock);
 
-    s->rtc_alarm = qemu_new_timer_ms(rt_clock, strongarm_rtc_alarm_tick, s);
-    s->rtc_hz = qemu_new_timer_ms(rt_clock, strongarm_rtc_hz_tick, s);
+    s->rtc_alarm = qemu_new_timer_ms(rtc_clock, strongarm_rtc_alarm_tick, s);
+    s->rtc_hz = qemu_new_timer_ms(rtc_clock, strongarm_rtc_hz_tick, s);
 
     sysbus_init_irq(dev, &s->rtc_irq);
     sysbus_init_irq(dev, &s->rtc_hz_irq);

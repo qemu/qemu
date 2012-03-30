@@ -875,7 +875,7 @@ static inline void pxa2xx_rtc_int_update(PXA2xxRTCState *s)
 
 static void pxa2xx_rtc_hzupdate(PXA2xxRTCState *s)
 {
-    int64_t rt = qemu_get_clock_ms(rt_clock);
+    int64_t rt = qemu_get_clock_ms(rtc_clock);
     s->last_rcnr += ((rt - s->last_hz) << 15) /
             (1000 * ((s->rttr & 0xffff) + 1));
     s->last_rdcr += ((rt - s->last_hz) << 15) /
@@ -885,7 +885,7 @@ static void pxa2xx_rtc_hzupdate(PXA2xxRTCState *s)
 
 static void pxa2xx_rtc_swupdate(PXA2xxRTCState *s)
 {
-    int64_t rt = qemu_get_clock_ms(rt_clock);
+    int64_t rt = qemu_get_clock_ms(rtc_clock);
     if (s->rtsr & (1 << 12))
         s->last_swcr += (rt - s->last_sw) / 10;
     s->last_sw = rt;
@@ -893,7 +893,7 @@ static void pxa2xx_rtc_swupdate(PXA2xxRTCState *s)
 
 static void pxa2xx_rtc_piupdate(PXA2xxRTCState *s)
 {
-    int64_t rt = qemu_get_clock_ms(rt_clock);
+    int64_t rt = qemu_get_clock_ms(rtc_clock);
     if (s->rtsr & (1 << 15))
         s->last_swcr += rt - s->last_pi;
     s->last_pi = rt;
@@ -1019,16 +1019,16 @@ static uint64_t pxa2xx_rtc_read(void *opaque, target_phys_addr_t addr,
     case PIAR:
         return s->piar;
     case RCNR:
-        return s->last_rcnr + ((qemu_get_clock_ms(rt_clock) - s->last_hz) << 15) /
+        return s->last_rcnr + ((qemu_get_clock_ms(rtc_clock) - s->last_hz) << 15) /
                 (1000 * ((s->rttr & 0xffff) + 1));
     case RDCR:
-        return s->last_rdcr + ((qemu_get_clock_ms(rt_clock) - s->last_hz) << 15) /
+        return s->last_rdcr + ((qemu_get_clock_ms(rtc_clock) - s->last_hz) << 15) /
                 (1000 * ((s->rttr & 0xffff) + 1));
     case RYCR:
         return s->last_rycr;
     case SWCR:
         if (s->rtsr & (1 << 12))
-            return s->last_swcr + (qemu_get_clock_ms(rt_clock) - s->last_sw) / 10;
+            return s->last_swcr + (qemu_get_clock_ms(rtc_clock) - s->last_sw) / 10;
         else
             return s->last_swcr;
     default:
@@ -1168,14 +1168,14 @@ static int pxa2xx_rtc_init(SysBusDevice *dev)
     s->last_swcr = (tm.tm_hour << 19) |
             (tm.tm_min << 13) | (tm.tm_sec << 7);
     s->last_rtcpicr = 0;
-    s->last_hz = s->last_sw = s->last_pi = qemu_get_clock_ms(rt_clock);
+    s->last_hz = s->last_sw = s->last_pi = qemu_get_clock_ms(rtc_clock);
 
-    s->rtc_hz    = qemu_new_timer_ms(rt_clock, pxa2xx_rtc_hz_tick,    s);
-    s->rtc_rdal1 = qemu_new_timer_ms(rt_clock, pxa2xx_rtc_rdal1_tick, s);
-    s->rtc_rdal2 = qemu_new_timer_ms(rt_clock, pxa2xx_rtc_rdal2_tick, s);
-    s->rtc_swal1 = qemu_new_timer_ms(rt_clock, pxa2xx_rtc_swal1_tick, s);
-    s->rtc_swal2 = qemu_new_timer_ms(rt_clock, pxa2xx_rtc_swal2_tick, s);
-    s->rtc_pi    = qemu_new_timer_ms(rt_clock, pxa2xx_rtc_pi_tick,    s);
+    s->rtc_hz    = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_hz_tick,    s);
+    s->rtc_rdal1 = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_rdal1_tick, s);
+    s->rtc_rdal2 = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_rdal2_tick, s);
+    s->rtc_swal1 = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_swal1_tick, s);
+    s->rtc_swal2 = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_swal2_tick, s);
+    s->rtc_pi    = qemu_new_timer_ms(rtc_clock, pxa2xx_rtc_pi_tick,    s);
 
     sysbus_init_irq(dev, &s->rtc_irq);
 
