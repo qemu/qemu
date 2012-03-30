@@ -330,6 +330,9 @@ static void qemu_aio_complete(void *opaque, int ret)
     if (ioreq->aio_inflight > 0) {
         return;
     }
+    if (ioreq->postsync) {
+        bdrv_flush(ioreq->blkdev->bs);
+    }
 
     ioreq->status = ioreq->aio_errors ? BLKIF_RSP_ERROR : BLKIF_RSP_OKAY;
     ioreq_unmap(ioreq);
@@ -376,9 +379,6 @@ static int ioreq_runio_qemu_aio(struct ioreq *ioreq)
         goto err;
     }
 
-    if (ioreq->postsync) {
-        bdrv_flush(blkdev->bs); /* FIXME: aio_flush() ??? */
-    }
     qemu_aio_complete(ioreq, 0);
 
     return 0;
@@ -584,10 +584,10 @@ static int blk_init(struct XenDevice *xendev)
     }
 
     /* read-only ? */
+    qflags = BDRV_O_NOCACHE | BDRV_O_CACHE_WB | BDRV_O_NATIVE_AIO;
     if (strcmp(blkdev->mode, "w") == 0) {
-        qflags = BDRV_O_RDWR;
+        qflags |= BDRV_O_RDWR;
     } else {
-        qflags = 0;
         info  |= VDISK_READONLY;
     }
 
@@ -726,6 +726,7 @@ static void blk_disconnect(struct XenDevice *xendev)
         if (!blkdev->dinfo) {
             /* close/delete only if we created it ourself */
             bdrv_close(blkdev->bs);
+            bdrv_detach_dev(blkdev->bs, blkdev);
             bdrv_delete(blkdev->bs);
         }
         blkdev->bs = NULL;

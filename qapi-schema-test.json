@@ -8,7 +8,7 @@
 
 # for testing nested structs
 { 'type': 'UserDefOne',
-  'data': { 'integer': 'int', 'string': 'str' } }
+  'data': { 'integer': 'int', 'string': 'str', '*enum1': 'EnumOne' } }
 
 { 'type': 'UserDefTwo',
   'data': { 'string': 'str',

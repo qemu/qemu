@@ -708,7 +708,7 @@ EQMP
     },
     {
         .name       = "transaction",
-        .args_type  = "actions:O",
+        .args_type  = "actions:q",
         .mhandler.cmd_new = qmp_marshal_input_transaction,
     },
 
@@ -2125,7 +2125,7 @@ EQMP
 
     {
         .name       = "qom-set",
-	.args_type  = "path:s,property:s,opts:O",
+	.args_type  = "path:s,property:s,value:q",
 	.mhandler.cmd_new = qmp_qom_set,
     },
 
