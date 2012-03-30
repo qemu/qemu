@@ -2009,7 +2009,6 @@ static void ehci_advance_state(EHCIState *ehci,
             fprintf(stderr, "processing error - resetting ehci HC\n");
             ehci_reset(ehci);
             again = 0;
-            assert(0);
         }
     }
     while (again);
