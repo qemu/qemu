@@ -215,7 +215,7 @@ CPULM32State *cpu_lm32_init(const char *cpu_model)
     cpu_state_reset(env);
     qemu_init_vcpu(env);
 
-    if (!tcg_initialized) {
+    if (tcg_enabled() && !tcg_initialized) {
         tcg_initialized = 1;
         lm32_translate_init();
     }
