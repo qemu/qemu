@@ -277,7 +277,7 @@ static AsyncURB *async_find(USBRedirDevice *dev, uint32_t packet_id)
             return aurb;
         }
     }
-    ERROR("could not find async urb for packet_id %u\n", packet_id);
+    DPRINTF("could not find async urb for packet_id %u\n", packet_id);
     return NULL;
 }
 
