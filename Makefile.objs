@@ -365,6 +365,7 @@ libdis-$(CONFIG_PPC_DIS) += ppc-dis.o
 libdis-$(CONFIG_S390_DIS) += s390-dis.o
 libdis-$(CONFIG_SH4_DIS) += sh4-dis.o
 libdis-$(CONFIG_SPARC_DIS) += sparc-dis.o
+libdis-$(CONFIG_LM32_DIS) += lm32-dis.o
 
 ######################################################################
 # trace
