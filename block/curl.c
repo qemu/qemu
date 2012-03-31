@@ -282,7 +282,7 @@ static CURLState *curl_init_state(BDRVCURLState *s)
             break;
         }
         if (!state) {
-            usleep(100);
+            g_usleep(100);
             curl_multi_do(s);
         }
     } while(!state);
