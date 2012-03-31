@@ -210,7 +210,7 @@ static void type_class_interface_init(TypeImpl *ti, InterfaceImpl *iface)
 
 static void type_initialize(TypeImpl *ti)
 {
-    size_t class_size = sizeof(ObjectClass);
+    TypeImpl *parent;
     int i;
 
     if (ti->class) {
@@ -221,29 +221,23 @@ static void type_initialize(TypeImpl *ti)
     ti->instance_size = type_object_get_size(ti);
 
     ti->class = g_malloc0(ti->class_size);
-    ti->class->type = ti;
 
-    if (type_has_parent(ti)) {
-        TypeImpl *parent = type_get_parent(ti);
-
+    parent = type_get_parent(ti);
+    if (parent) {
         type_initialize(parent);
 
-        class_size = parent->class_size;
         g_assert(parent->class_size <= ti->class_size);
-
-        memcpy((void *)ti->class + sizeof(ObjectClass),
-               (void *)parent->class + sizeof(ObjectClass),
-               parent->class_size - sizeof(ObjectClass));
-
-        while (parent) {
-            if (parent->class_base_init) {
-                parent->class_base_init(ti->class, ti->class_data);
-            }
-            parent = type_get_parent(parent);
-        }
+        memcpy(ti->class, parent->class, parent->class_size);
     }
 
-    memset((void *)ti->class + class_size, 0, ti->class_size - class_size);
+    ti->class->type = ti;
+
+    while (parent) {
+        if (parent->class_base_init) {
+            parent->class_base_init(ti->class, ti->class_data);
+        }
+        parent = type_get_parent(parent);
+    }
 
     for (i = 0; i < ti->num_interfaces; i++) {
         type_class_interface_init(ti, &ti->interfaces[i]);
@@ -476,19 +470,6 @@ Object *object_dynamic_cast(Object *obj, const char *typename)
     return NULL;
 }
 
-
-static void register_types(void)
-{
-    static TypeInfo interface_info = {
-        .name = TYPE_INTERFACE,
-        .instance_size = sizeof(Interface),
-        .abstract = true,
-    };
-
-    type_interface = type_register_static(&interface_info);
-}
-
-type_init(register_types)
 
 Object *object_dynamic_cast_assert(Object *obj, const char *typename)
 {
@@ -1243,3 +1224,23 @@ void object_property_add_str(Object *obj, const char *name,
                         property_release_str,
                         prop, errp);
 }
+
+static void register_types(void)
+{
+    static TypeInfo interface_info = {
+        .name = TYPE_INTERFACE,
+        .instance_size = sizeof(Interface),
+        .abstract = true,
+    };
+
+    static TypeInfo object_info = {
+        .name = TYPE_OBJECT,
+        .instance_size = sizeof(Object),
+        .abstract = true,
+    };
+
+    type_interface = type_register_static(&interface_info);
+    type_register_static(&object_info);
+}
+
+type_init(register_types)

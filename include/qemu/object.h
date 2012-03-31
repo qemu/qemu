@@ -33,7 +33,7 @@ typedef struct TypeInfo TypeInfo;
 typedef struct InterfaceClass InterfaceClass;
 typedef struct InterfaceInfo InterfaceInfo;
 
-#define TYPE_OBJECT NULL
+#define TYPE_OBJECT "object"
 
 /**
  * SECTION:object.h
