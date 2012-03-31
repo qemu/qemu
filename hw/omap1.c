@@ -2888,7 +2888,7 @@ static void omap_rtc_reset(struct omap_rtc_s *s)
     s->pm_am = 0;
     s->auto_comp = 0;
     s->round = 0;
-    s->tick = qemu_get_clock_ms(rt_clock);
+    s->tick = qemu_get_clock_ms(rtc_clock);
     memset(&s->alarm_tm, 0, sizeof(s->alarm_tm));
     s->alarm_tm.tm_mday = 0x01;
     s->status = 1 << 7;
@@ -2909,7 +2909,7 @@ static struct omap_rtc_s *omap_rtc_init(MemoryRegion *system_memory,
 
     s->irq = timerirq;
     s->alarm = alarmirq;
-    s->clk = qemu_new_timer_ms(rt_clock, omap_rtc_tick, s);
+    s->clk = qemu_new_timer_ms(rtc_clock, omap_rtc_tick, s);
 
     omap_rtc_reset(s);
 
@@ -3497,9 +3497,9 @@ static void omap_lpg_tick(void *opaque)
     struct omap_lpg_s *s = opaque;
 
     if (s->cycle)
-        qemu_mod_timer(s->tm, qemu_get_clock_ms(rt_clock) + s->period - s->on);
+        qemu_mod_timer(s->tm, qemu_get_clock_ms(vm_clock) + s->period - s->on);
     else
-        qemu_mod_timer(s->tm, qemu_get_clock_ms(rt_clock) + s->on);
+        qemu_mod_timer(s->tm, qemu_get_clock_ms(vm_clock) + s->on);
 
     s->cycle = !s->cycle;
     printf("%s: LED is %s\n", __FUNCTION__, s->cycle ? "on" : "off");
@@ -3617,7 +3617,7 @@ static struct omap_lpg_s *omap_lpg_init(MemoryRegion *system_memory,
     struct omap_lpg_s *s = (struct omap_lpg_s *)
             g_malloc0(sizeof(struct omap_lpg_s));
 
-    s->tm = qemu_new_timer_ms(rt_clock, omap_lpg_tick, s);
+    s->tm = qemu_new_timer_ms(vm_clock, omap_lpg_tick, s);
 
     omap_lpg_reset(s);
 

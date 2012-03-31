@@ -16,7 +16,7 @@ case $line in
  prefix=* | [a-z]*dir=*) # directory configuration
     name=${line%=*}
     value=${line#*=}
-    define_name=`echo $name | tr '[:lower:]' '[:upper:]'`
+    define_name=`echo $name | LC_ALL=C tr '[a-z]' '[A-Z]'`
     eval "define_value=\"$value\""
     echo "#define CONFIG_QEMU_$define_name \"$define_value\""
     # save for the next definitions
@@ -48,7 +48,7 @@ case $line in
     ;;
  ARCH=*) # configuration
     arch=${line#*=}
-    arch_name=`echo $arch | tr '[:lower:]' '[:upper:]'`
+    arch_name=`echo $arch | LC_ALL=C tr '[a-z]' '[A-Z]'`
     echo "#define HOST_$arch_name 1"
     ;;
  HOST_USB=*)
@@ -73,7 +73,7 @@ case $line in
  TARGET_BASE_ARCH=*) # configuration
     target_base_arch=${line#*=}
     if [ "$target_base_arch" != "$target_arch" ]; then
-      base_arch_name=`echo $target_base_arch | tr '[:lower:]' '[:upper:]'`
+      base_arch_name=`echo $target_base_arch | LC_ALL=C tr '[a-z]' '[A-Z]'`
       echo "#define TARGET_$base_arch_name 1"
     fi
     ;;

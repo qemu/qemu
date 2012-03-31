@@ -4,6 +4,9 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ * Contributions from 2012-04-01 on are considered under GPL version 2,
+ * or (at your option) any later version.
  */
 
 #include "cpu.h"
@@ -11,75 +14,23 @@
 #include "helper.h"
 #include "host-utils.h"
 
-static inline void set_feature(CPUUniCore32State *env, int feature)
-{
-    env->features |= feature;
-}
-
-struct uc32_cpu_t {
-    uint32_t id;
-    const char *name;
-};
-
-static const struct uc32_cpu_t uc32_cpu_names[] = {
-    { UC32_CPUID_UCV2, "UniCore-II"},
-    { UC32_CPUID_ANY, "any"},
-    { 0, NULL}
-};
-
-/* return 0 if not found */
-static uint32_t uc32_cpu_find_by_name(const char *name)
-{
-    int i;
-    uint32_t id;
-
-    id = 0;
-    for (i = 0; uc32_cpu_names[i].name; i++) {
-        if (strcmp(name, uc32_cpu_names[i].name) == 0) {
-            id = uc32_cpu_names[i].id;
-            break;
-        }
-    }
-    return id;
-}
-
 CPUUniCore32State *uc32_cpu_init(const char *cpu_model)
 {
+    UniCore32CPU *cpu;
     CPUUniCore32State *env;
-    uint32_t id;
     static int inited = 1;
 
-    env = g_malloc0(sizeof(CPUUniCore32State));
-    cpu_exec_init(env);
-
-    id = uc32_cpu_find_by_name(cpu_model);
-    switch (id) {
-    case UC32_CPUID_UCV2:
-        set_feature(env, UC32_HWCAP_CMOV);
-        set_feature(env, UC32_HWCAP_UCF64);
-        env->ucf64.xregs[UC32_UCF64_FPSCR] = 0;
-        env->cp0.c0_cachetype = 0x1dd20d2;
-        env->cp0.c1_sys = 0x00090078;
-        break;
-    case UC32_CPUID_ANY: /* For userspace emulation.  */
-        set_feature(env, UC32_HWCAP_CMOV);
-        set_feature(env, UC32_HWCAP_UCF64);
-        break;
-    default:
-        cpu_abort(env, "Bad CPU ID: %x\n", id);
+    if (object_class_by_name(cpu_model) == NULL) {
+        return NULL;
     }
-
-    env->cpu_model_str = cpu_model;
-    env->cp0.c0_cpuid = id;
-    env->uncached_asr = ASR_MODE_USER;
-    env->regs[31] = 0;
+    cpu = UNICORE32_CPU(object_new(cpu_model));
+    env = &cpu->env;
 
     if (inited) {
         inited = 0;
         uc32_translate_init();
     }
 
-    tlb_flush(env, 1);
     qemu_init_vcpu(env);
     return env;
 }

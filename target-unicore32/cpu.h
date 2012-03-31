@@ -5,7 +5,8 @@
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation, or (at your option) any
+ * later version. See the COPYING file in the top-level directory.
  */
 #ifndef __CPU_UC32_H__
 #define __CPU_UC32_H__
@@ -159,6 +160,7 @@ static inline void cpu_set_tls(CPUUniCore32State *env, target_ulong newtls)
 }
 
 #include "cpu-all.h"
+#include "cpu-qom.h"
 #include "exec-all.h"
 
 static inline void cpu_pc_from_tb(CPUUniCore32State *env, TranslationBlock *tb)
