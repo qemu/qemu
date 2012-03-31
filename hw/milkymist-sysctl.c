@@ -1,7 +1,7 @@
 /*
  *  QEMU model of the Milkymist System Controller.
  *
- *  Copyright (c) 2010 Michael Walle <michael@walle.cc>
+ *  Copyright (c) 2010-2012 Michael Walle <michael@walle.cc>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -39,20 +39,19 @@ enum {
 };
 
 enum {
-    R_GPIO_IN = 0,
+    R_GPIO_IN         = 0,
     R_GPIO_OUT,
     R_GPIO_INTEN,
-    R_RESERVED0,
-    R_TIMER0_CONTROL,
+    R_TIMER0_CONTROL  = 4,
     R_TIMER0_COMPARE,
     R_TIMER0_COUNTER,
-    R_RESERVED1,
-    R_TIMER1_CONTROL,
+    R_TIMER1_CONTROL  = 8,
     R_TIMER1_COMPARE,
     R_TIMER1_COUNTER,
-    R_RESERVED2,
-    R_RESERVED3,
-    R_ICAP,
+    R_ICAP = 16,
+    R_DBG_SCRATCHPAD  = 20,
+    R_DBG_WRITE_LOCK,
+    R_CLK_FREQUENCY   = 29,
     R_CAPABILITIES,
     R_SYSTEM_ID,
     R_MAX
@@ -116,6 +115,9 @@ static uint64_t sysctl_read(void *opaque, target_phys_addr_t addr,
     case R_TIMER1_CONTROL:
     case R_TIMER1_COMPARE:
     case R_ICAP:
+    case R_DBG_SCRATCHPAD:
+    case R_DBG_WRITE_LOCK:
+    case R_CLK_FREQUENCY:
     case R_CAPABILITIES:
     case R_SYSTEM_ID:
         r = s->regs[addr];
@@ -145,6 +147,7 @@ static void sysctl_write(void *opaque, target_phys_addr_t addr, uint64_t value,
     case R_GPIO_INTEN:
     case R_TIMER0_COUNTER:
     case R_TIMER1_COUNTER:
+    case R_DBG_SCRATCHPAD:
         s->regs[addr] = value;
         break;
     case R_TIMER0_COMPARE:
@@ -182,11 +185,15 @@ static void sysctl_write(void *opaque, target_phys_addr_t addr, uint64_t value,
     case R_ICAP:
         sysctl_icap_write(s, value);
         break;
+    case R_DBG_WRITE_LOCK:
+        s->regs[addr] = 1;
+        break;
     case R_SYSTEM_ID:
         qemu_system_reset_request();
         break;
 
     case R_GPIO_IN:
+    case R_CLK_FREQUENCY:
     case R_CAPABILITIES:
         error_report("milkymist_sysctl: write to read-only register 0x"
                 TARGET_FMT_plx, addr << 2);
@@ -253,6 +260,7 @@ static void milkymist_sysctl_reset(DeviceState *d)
     /* defaults */
     s->regs[R_ICAP] = ICAP_READY;
     s->regs[R_SYSTEM_ID] = s->systemid;
+    s->regs[R_CLK_FREQUENCY] = s->freq_hz;
     s->regs[R_CAPABILITIES] = s->capabilities;
     s->regs[R_GPIO_IN] = s->strappings;
 }
