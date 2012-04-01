@@ -35,6 +35,7 @@ static void vhost_dev_sync_region(struct vhost_dev *dev,
         return;
     }
     assert(end / VHOST_LOG_CHUNK < dev->log_size);
+    assert(start / VHOST_LOG_CHUNK < dev->log_size);
 
     for (;from < to; ++from) {
         vhost_log_chunk_t log;
