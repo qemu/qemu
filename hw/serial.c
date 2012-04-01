@@ -332,6 +332,7 @@ static void serial_xmit(void *opaque)
         } else {
             s->tsr = s->thr;
             s->lsr |= UART_LSR_THRE;
+            s->lsr &= ~UART_LSR_TEMT;
         }
     }
 
