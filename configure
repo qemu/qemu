@@ -3813,6 +3813,10 @@ for i in $ARCH $TARGET_BASE_ARCH ; do
     echo "CONFIG_IA64_DIS=y"  >> $config_target_mak
     echo "CONFIG_IA64_DIS=y"  >> $libdis_config_mak
   ;;
+  lm32)
+    echo "CONFIG_LM32_DIS=y"  >> $config_target_mak
+    echo "CONFIG_LM32_DIS=y"  >> $libdis_config_mak
+  ;;
   m68k)
     echo "CONFIG_M68K_DIS=y"  >> $config_target_mak
     echo "CONFIG_M68K_DIS=y"  >> $libdis_config_mak
@@ -3919,7 +3923,8 @@ echo "QEMU_INCLUDES+=$includes" >> $config_target_mak
 done # for target in $targets
 
 # build tree in object directory in case the source is not in the current directory
-DIRS="tests tests/tcg tests/tcg/cris slirp audio block net pc-bios/optionrom"
+DIRS="tests tests/tcg tests/tcg/cris tests/tcg/lm32"
+DIRS="$DIRS slirp audio block net pc-bios/optionrom"
 DIRS="$DIRS pc-bios/spapr-rtas"
 DIRS="$DIRS roms/seabios roms/vgabios"
 DIRS="$DIRS fsdev ui usb"
@@ -3927,6 +3932,7 @@ DIRS="$DIRS qapi qapi-generated"
 DIRS="$DIRS qga trace qom"
 FILES="Makefile tests/tcg/Makefile qdict-test-data.txt"
 FILES="$FILES tests/tcg/cris/Makefile tests/tcg/cris/.gdbinit"
+FILES="$FILES tests/tcg/lm32/Makefile"
 FILES="$FILES pc-bios/qemu-icon.bmp"
 FILES="$FILES pc-bios/optionrom/Makefile pc-bios/keymaps"
 FILES="$FILES pc-bios/spapr-rtas/Makefile"

@@ -1,4 +1,4 @@
--include ../../config-host.mak
+-include ../../../config-host.mak
 
 CROSS=lm32-elf-
 
@@ -12,7 +12,10 @@ SIZE    = $(CROSS)size
 LD      = $(CC)
 OBJCOPY = $(CROSS)objcopy
 
-LDFLAGS = -Tlinker.ld
+TSRC_PATH = $(SRC_PATH)/tests/tcg/lm32
+
+LDFLAGS = -T$(TSRC_PATH)/linker.ld
+ASFLAGS += -Wa,-I,$(TSRC_PATH)/
 
 CRT        = crt.o
 TESTCASES += test_add.tst
@@ -82,13 +85,13 @@ TESTCASES += test_xori.tst
 
 all: build
 
-%.o: $(SRC_PATH)/tests/lm32/%.c
+%.o: $(TSRC_PATH)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-%.o: $(SRC_PATH)/tests/lm32/%.S
+%.o: $(TSRC_PATH)/%.S
 	$(AS) $(ASFLAGS) -c $< -o $@
 
-%.tst: %.o macros.inc $(CRT)
+%.tst: %.o $(TSRC_PATH)/macros.inc $(CRT)
 	$(LD) $(LDFLAGS) $(NOSTDFLAGS) $(CRT) $< -o $@
 
 build: $(CRT) $(TESTCASES)

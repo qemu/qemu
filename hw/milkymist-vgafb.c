@@ -2,7 +2,7 @@
 /*
  *  QEMU model of the Milkymist VGA framebuffer.
  *
- *  Copyright (c) 2010 Michael Walle <michael@walle.cc>
+ *  Copyright (c) 2010-2012 Michael Walle <michael@walle.cc>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -54,6 +54,7 @@ enum {
     R_BASEADDRESS,
     R_BASEADDRESS_ACT,
     R_BURST_COUNT,
+    R_DDC,
     R_SOURCE_CLOCK,
     R_MAX
 };
@@ -173,6 +174,7 @@ static uint64_t vgafb_read(void *opaque, target_phys_addr_t addr,
     case R_VSCAN:
     case R_BASEADDRESS:
     case R_BURST_COUNT:
+    case R_DDC:
     case R_SOURCE_CLOCK:
         r = s->regs[addr];
     break;
@@ -211,6 +213,7 @@ static void vgafb_write(void *opaque, target_phys_addr_t addr, uint64_t value,
     case R_VSYNC_END:
     case R_VSCAN:
     case R_BURST_COUNT:
+    case R_DDC:
     case R_SOURCE_CLOCK:
         s->regs[addr] = value;
         break;
