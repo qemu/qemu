@@ -1370,7 +1370,7 @@ async_common:
     case QXL_IO_DESTROY_SURFACE_WAIT:
         if (val >= NUM_SURFACES) {
             qxl_guest_bug(d, "QXL_IO_DESTROY_SURFACE (async=%d):"
-                             "%d >= NUM_SURFACES", async, val);
+                             "%" PRIu64 " >= NUM_SURFACES", async, val);
             goto cancel_async;
         }
         qxl_spice_destroy_surface_wait(d, val, async);
