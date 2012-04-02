@@ -1197,21 +1197,6 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-static void mce_init(CPUX86State *cenv)
-{
-    unsigned int bank;
-
-    if (((cenv->cpuid_version >> 8) & 0xf) >= 6
-        && (cenv->cpuid_features & (CPUID_MCE | CPUID_MCA)) ==
-            (CPUID_MCE | CPUID_MCA)) {
-        cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF;
-        cenv->mcg_ctl = ~(uint64_t)0;
-        for (bank = 0; bank < MCE_BANKS_DEF; bank++) {
-            cenv->mce_banks[bank * 4] = ~(uint64_t)0;
-        }
-    }
-}
-
 int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
                             target_ulong *base, unsigned int *limit,
                             unsigned int *flags)
@@ -1249,7 +1234,6 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 
     cpu = X86_CPU(object_new(TYPE_X86_CPU));
     env = &cpu->env;
-    cpu_exec_init(env);
     env->cpu_model_str = cpu_model;
 
     /* init various static tables used in TCG mode */
@@ -1265,8 +1249,6 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
         object_delete(OBJECT(cpu));
         return NULL;
     }
-    env->cpuid_apic_id = env->cpu_index;
-    mce_init(env);
 
     qemu_init_vcpu(env);
 

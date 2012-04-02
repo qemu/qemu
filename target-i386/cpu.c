@@ -1380,6 +1380,32 @@ static void x86_cpu_reset(CPUState *s)
     cpu_state_reset(env);
 }
 
+static void mce_init(X86CPU *cpu)
+{
+    CPUX86State *cenv = &cpu->env;
+    unsigned int bank;
+
+    if (((cenv->cpuid_version >> 8) & 0xf) >= 6
+        && (cenv->cpuid_features & (CPUID_MCE | CPUID_MCA)) ==
+            (CPUID_MCE | CPUID_MCA)) {
+        cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF;
+        cenv->mcg_ctl = ~(uint64_t)0;
+        for (bank = 0; bank < MCE_BANKS_DEF; bank++) {
+            cenv->mce_banks[bank * 4] = ~(uint64_t)0;
+        }
+    }
+}
+
+static void x86_cpu_initfn(Object *obj)
+{
+    X86CPU *cpu = X86_CPU(obj);
+    CPUX86State *env = &cpu->env;
+
+    cpu_exec_init(env);
+    env->cpuid_apic_id = env->cpu_index;
+    mce_init(cpu);
+}
+
 static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
 {
     X86CPUClass *xcc = X86_CPU_CLASS(oc);
@@ -1393,6 +1419,7 @@ static const TypeInfo x86_cpu_type_info = {
     .name = TYPE_X86_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(X86CPU),
+    .instance_init = x86_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(X86CPUClass),
     .class_init = x86_cpu_common_class_init,
