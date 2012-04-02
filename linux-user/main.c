@@ -43,9 +43,9 @@ envlist_t *envlist;
 const char *cpu_model;
 unsigned long mmap_min_addr;
 #if defined(CONFIG_USE_GUEST_BASE)
-unsigned long guest_base;
+uintptr_t guest_base;
 int have_guest_base;
-unsigned long reserved_va;
+uintptr_t reserved_va;
 #endif
 
 static void usage(void);

@@ -39,7 +39,7 @@
 int singlestep;
 #if defined(CONFIG_USE_GUEST_BASE)
 unsigned long mmap_min_addr;
-unsigned long guest_base;
+uintptr_t guest_base;
 int have_guest_base;
 #endif
 
