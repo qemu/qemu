@@ -1106,28 +1106,6 @@ void qdev_prop_set_ptr(DeviceState *dev, const char *name, void *value)
     *ptr = value;
 }
 
-void qdev_prop_set_defaults(DeviceState *dev, Property *props)
-{
-    Object *obj = OBJECT(dev);
-    if (!props)
-        return;
-    for (; props->name; props++) {
-        Error *errp = NULL;
-        if (props->qtype == QTYPE_NONE) {
-            continue;
-        }
-        if (props->qtype == QTYPE_QBOOL) {
-            object_property_set_bool(obj, props->defval, props->name, &errp);
-        } else if (props->info->enum_table) {
-            object_property_set_str(obj, props->info->enum_table[props->defval],
-                                    props->name, &errp);
-        } else if (props->qtype == QTYPE_QINT) {
-            object_property_set_int(obj, props->defval, props->name, &errp);
-        }
-        assert_no_error(errp);
-    }
-}
-
 static QTAILQ_HEAD(, GlobalProperty) global_props = QTAILQ_HEAD_INITIALIZER(global_props);
 
 static void qdev_prop_register_global(GlobalProperty *prop)
