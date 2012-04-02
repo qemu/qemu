@@ -1463,6 +1463,17 @@ static int bdrv_rw_co(BlockDriverState *bs, int64_t sector_num, uint8_t *buf,
 
     qemu_iovec_init_external(&qiov, &iov, 1);
 
+    /**
+     * In sync call context, when the vcpu is blocked, this throttling timer
+     * will not fire; so the I/O throttling function has to be disabled here
+     * if it has been enabled.
+     */
+    if (bs->io_limits_enabled) {
+        fprintf(stderr, "Disabling I/O throttling on '%s' due "
+                        "to synchronous I/O.\n", bdrv_get_device_name(bs));
+        bdrv_io_limits_disable(bs);
+    }
+
     if (qemu_in_coroutine()) {
         /* Fast-path if already in coroutine context */
         bdrv_rw_co_entry(&rwco);
@@ -1969,10 +1980,19 @@ static int guess_disk_lchs(BlockDriverState *bs,
     struct partition *p;
     uint32_t nr_sects;
     uint64_t nb_sectors;
+    bool enabled;
 
     bdrv_get_geometry(bs, &nb_sectors);
 
+    /**
+     * The function will be invoked during startup not only in sync I/O mode,
+     * but also in async I/O mode. So the I/O throttling function has to
+     * be disabled temporarily here, not permanently.
+     */
+    enabled = bs->io_limits_enabled;
+    bs->io_limits_enabled = false;
     ret = bdrv_read(bs, 0, buf, 1);
+    bs->io_limits_enabled = enabled;
     if (ret < 0)
         return -1;
     /* test msdos magic */
