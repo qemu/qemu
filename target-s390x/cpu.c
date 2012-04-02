@@ -45,6 +45,30 @@ static void s390_cpu_reset(CPUState *s)
     s390_add_running_cpu(env);
 }
 
+static void s390_cpu_initfn(Object *obj)
+{
+    S390CPU *cpu = S390_CPU(obj);
+    CPUS390XState *env = &cpu->env;
+    static int cpu_num = 0;
+#if !defined(CONFIG_USER_ONLY)
+    struct tm tm;
+#endif
+
+    cpu_exec_init(env);
+#if !defined(CONFIG_USER_ONLY)
+    qemu_get_timedate(&tm, 0);
+    env->tod_offset = TOD_UNIX_EPOCH +
+                      (time2tod(mktimegm(&tm)) * 1000000000ULL);
+    env->tod_basetime = 0;
+    env->tod_timer = qemu_new_timer_ns(vm_clock, s390x_tod_timer, env);
+    env->cpu_timer = qemu_new_timer_ns(vm_clock, s390x_cpu_timer, env);
+#endif
+    env->cpu_num = cpu_num++;
+    env->ext_index = -1;
+
+    cpu_reset(CPU(cpu));
+}
+
 static void s390_cpu_class_init(ObjectClass *oc, void *data)
 {
     S390CPUClass *scc = S390_CPU_CLASS(oc);
@@ -58,6 +82,7 @@ static const TypeInfo s390_cpu_type_info = {
     .name = TYPE_S390_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(S390CPU),
+    .instance_init = s390_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(S390CPUClass),
     .class_init = s390_cpu_class_init,
