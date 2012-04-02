@@ -2672,7 +2672,7 @@ if test "$trace_backend" = "ust"; then
 int main(void) { return 0; }
 EOF
   if compile_prog "" "" ; then
-    LIBS="-lust $LIBS"
+    LIBS="-lust -lurcu-bp $LIBS"
   else
     echo
     echo "Error: Trace backend 'ust' missing libust header files"
