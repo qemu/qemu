@@ -57,26 +57,38 @@ static PCIDevice *find_dev(sPAPREnvironment *spapr,
 
 static uint32_t rtas_pci_cfgaddr(uint32_t arg)
 {
+    /* This handles the encoding of extended config space addresses */
     return ((arg >> 20) & 0xf00) | (arg & 0xff);
 }
 
-static uint32_t rtas_read_pci_config_do(PCIDevice *pci_dev, uint32_t addr,
-                                        uint32_t limit, uint32_t len)
+static void finish_read_pci_config(sPAPREnvironment *spapr, uint64_t buid,
+                                   uint32_t addr, uint32_t size,
+                                   target_ulong rets)
 {
-    if ((addr + len) <= limit) {
-        return pci_host_config_read_common(pci_dev, addr, limit, len);
-    } else {
-        return ~0x0;
-    }
-}
+    PCIDevice *pci_dev;
+    uint32_t val;
 
-static void rtas_write_pci_config_do(PCIDevice *pci_dev, uint32_t addr,
-                                     uint32_t limit, uint32_t val,
-                                     uint32_t len)
-{
-    if ((addr + len) <= limit) {
-        pci_host_config_write_common(pci_dev, addr, limit, val, len);
+    if ((size != 1) && (size != 2) && (size != 4)) {
+        /* access must be 1, 2 or 4 bytes */
+        rtas_st(rets, 0, -1);
+        return;
     }
+
+    pci_dev = find_dev(spapr, buid, addr);
+    addr = rtas_pci_cfgaddr(addr);
+
+    if (!pci_dev || (addr % size) || (addr >= pci_config_size(pci_dev))) {
+        /* Access must be to a valid device, within bounds and
+         * naturally aligned */
+        rtas_st(rets, 0, -1);
+        return;
+    }
+
+    val = pci_host_config_read_common(pci_dev, addr,
+                                      pci_config_size(pci_dev), size);
+
+    rtas_st(rets, 0, 0);
+    rtas_st(rets, 1, val);
 }
 
 static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
@@ -84,19 +96,19 @@ static void rtas_ibm_read_pci_config(sPAPREnvironment *spapr,
                                      target_ulong args,
                                      uint32_t nret, target_ulong rets)
 {
-    uint32_t val, size, addr;
-    uint64_t buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
-    PCIDevice *dev = find_dev(spapr, buid, rtas_ld(args, 0));
+    uint64_t buid;
+    uint32_t size, addr;
 
-    if (!dev) {
+    if ((nargs != 4) || (nret != 2)) {
         rtas_st(rets, 0, -1);
         return;
     }
+
+    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
     size = rtas_ld(args, 3);
-    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    val = rtas_read_pci_config_do(dev, addr, pci_config_size(dev), size);
-    rtas_st(rets, 0, 0);
-    rtas_st(rets, 1, val);
+    addr = rtas_ld(args, 0);
+
+    finish_read_pci_config(spapr, buid, addr, size, rets);
 }
 
 static void rtas_read_pci_config(sPAPREnvironment *spapr,
@@ -104,18 +116,45 @@ static void rtas_read_pci_config(sPAPREnvironment *spapr,
                                  target_ulong args,
                                  uint32_t nret, target_ulong rets)
 {
-    uint32_t val, size, addr;
-    PCIDevice *dev = find_dev(spapr, 0, rtas_ld(args, 0));
+    uint32_t size, addr;
 
-    if (!dev) {
+    if ((nargs != 2) || (nret != 2)) {
         rtas_st(rets, 0, -1);
         return;
     }
+
     size = rtas_ld(args, 1);
-    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    val = rtas_read_pci_config_do(dev, addr, pci_config_size(dev), size);
+    addr = rtas_ld(args, 0);
+
+    finish_read_pci_config(spapr, 0, addr, size, rets);
+}
+
+static void finish_write_pci_config(sPAPREnvironment *spapr, uint64_t buid,
+                                    uint32_t addr, uint32_t size,
+                                    uint32_t val, target_ulong rets)
+{
+    PCIDevice *pci_dev;
+
+    if ((size != 1) && (size != 2) && (size != 4)) {
+        /* access must be 1, 2 or 4 bytes */
+        rtas_st(rets, 0, -1);
+        return;
+    }
+
+    pci_dev = find_dev(spapr, buid, addr);
+    addr = rtas_pci_cfgaddr(addr);
+
+    if (!pci_dev || (addr % size) || (addr >= pci_config_size(pci_dev))) {
+        /* Access must be to a valid device, within bounds and
+         * naturally aligned */
+        rtas_st(rets, 0, -1);
+        return;
+    }
+
+    pci_host_config_write_common(pci_dev, addr, pci_config_size(pci_dev),
+                                 val, size);
+
     rtas_st(rets, 0, 0);
-    rtas_st(rets, 1, val);
 }
 
 static void rtas_ibm_write_pci_config(sPAPREnvironment *spapr,
@@ -123,19 +162,20 @@ static void rtas_ibm_write_pci_config(sPAPREnvironment *spapr,
                                       target_ulong args,
                                       uint32_t nret, target_ulong rets)
 {
+    uint64_t buid;
     uint32_t val, size, addr;
-    uint64_t buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
-    PCIDevice *dev = find_dev(spapr, buid, rtas_ld(args, 0));
 
-    if (!dev) {
+    if ((nargs != 5) || (nret != 1)) {
         rtas_st(rets, 0, -1);
         return;
     }
+
+    buid = ((uint64_t)rtas_ld(args, 1) << 32) | rtas_ld(args, 2);
     val = rtas_ld(args, 4);
     size = rtas_ld(args, 3);
-    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    rtas_write_pci_config_do(dev, addr, pci_config_size(dev), val, size);
-    rtas_st(rets, 0, 0);
+    addr = rtas_ld(args, 0);
+
+    finish_write_pci_config(spapr, buid, addr, size, val, rets);
 }
 
 static void rtas_write_pci_config(sPAPREnvironment *spapr,
@@ -144,17 +184,18 @@ static void rtas_write_pci_config(sPAPREnvironment *spapr,
                                   uint32_t nret, target_ulong rets)
 {
     uint32_t val, size, addr;
-    PCIDevice *dev = find_dev(spapr, 0, rtas_ld(args, 0));
 
-    if (!dev) {
+    if ((nargs != 3) || (nret != 1)) {
         rtas_st(rets, 0, -1);
         return;
     }
+
+
     val = rtas_ld(args, 2);
     size = rtas_ld(args, 1);
-    addr = rtas_pci_cfgaddr(rtas_ld(args, 0));
-    rtas_write_pci_config_do(dev, addr, pci_config_size(dev), val, size);
-    rtas_st(rets, 0, 0);
+    addr = rtas_ld(args, 0);
+
+    finish_write_pci_config(spapr, 0, addr, size, val, rets);
 }
 
 static int pci_spapr_map_irq(PCIDevice *pci_dev, int irq_num)
