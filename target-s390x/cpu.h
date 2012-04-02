@@ -991,4 +991,6 @@ static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
     env->psw.addr = tb->pc;
 }
 
+#include "cpu-qom.h"
+
 #endif

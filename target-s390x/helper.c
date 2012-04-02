@@ -70,6 +70,7 @@ static void s390x_cpu_timer(void *opaque)
 
 CPUS390XState *cpu_s390x_init(const char *cpu_model)
 {
+    S390CPU *cpu;
     CPUS390XState *env;
 #if !defined (CONFIG_USER_ONLY)
     struct tm tm;
@@ -77,7 +78,8 @@ CPUS390XState *cpu_s390x_init(const char *cpu_model)
     static int inited = 0;
     static int cpu_num = 0;
 
-    env = g_malloc0(sizeof(CPUS390XState));
+    cpu = S390_CPU(object_new(TYPE_S390_CPU));
+    env = &cpu->env;
     cpu_exec_init(env);
     if (tcg_enabled() && !inited) {
         inited = 1;
