@@ -1367,3 +1367,40 @@ void cpu_x86_cpuid(CPUX86State *env, uint32_t index, uint32_t count,
         break;
     }
 }
+
+/* CPUClass::reset() */
+static void x86_cpu_reset(CPUState *s)
+{
+    X86CPU *cpu = X86_CPU(s);
+    X86CPUClass *xcc = X86_CPU_GET_CLASS(cpu);
+    CPUX86State *env = &cpu->env;
+
+    xcc->parent_reset(s);
+
+    cpu_state_reset(env);
+}
+
+static void x86_cpu_common_class_init(ObjectClass *oc, void *data)
+{
+    X86CPUClass *xcc = X86_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
+
+    xcc->parent_reset = cc->reset;
+    cc->reset = x86_cpu_reset;
+}
+
+static const TypeInfo x86_cpu_type_info = {
+    .name = TYPE_X86_CPU,
+    .parent = TYPE_CPU,
+    .instance_size = sizeof(X86CPU),
+    .abstract = false,
+    .class_size = sizeof(X86CPUClass),
+    .class_init = x86_cpu_common_class_init,
+};
+
+static void x86_cpu_register_types(void)
+{
+    type_register_static(&x86_cpu_type_info);
+}
+
+type_init(x86_cpu_register_types)

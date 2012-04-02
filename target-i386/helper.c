@@ -101,11 +101,6 @@ void cpu_state_reset(CPUX86State *env)
     cpu_watchpoint_remove_all(env, BP_CPU);
 }
 
-void cpu_x86_close(CPUX86State *env)
-{
-    g_free(env);
-}
-
 static void cpu_x86_version(CPUX86State *env, int *family, int *model)
 {
     int cpuver = env->cpuid_version;
@@ -1248,10 +1243,12 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
 
 CPUX86State *cpu_x86_init(const char *cpu_model)
 {
+    X86CPU *cpu;
     CPUX86State *env;
     static int inited;
 
-    env = g_malloc0(sizeof(CPUX86State));
+    cpu = X86_CPU(object_new(TYPE_X86_CPU));
+    env = &cpu->env;
     cpu_exec_init(env);
     env->cpu_model_str = cpu_model;
 
@@ -1265,7 +1262,7 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 #endif
     }
     if (cpu_x86_register(env, cpu_model) < 0) {
-        cpu_x86_close(env);
+        object_delete(OBJECT(cpu));
         return NULL;
     }
     env->cpuid_apic_id = env->cpu_index;
