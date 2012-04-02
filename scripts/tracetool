@@ -161,6 +161,18 @@ linetoc_nop()
     return
 }
 
+linetod_nop()
+{
+    # Used when "disabled" events are processed
+    return
+}
+
+linetostap_nop()
+{
+    # Used when "disabled" events are processed
+    return
+}
+
 linetoc_end_nop()
 {
     return
@@ -494,10 +506,12 @@ EOF
     i=1
     for arg in $arglist
     do
-        # 'limit' is a reserved keyword
-        if [ "$arg" = "limit" ]; then
-          arg="_limit"
-        fi
+        # postfix reserved words with '_'
+        case "$arg" in
+            limit|in|next|self)
+                arg="${arg}_"
+                ;;
+        esac
         cat <<EOF
   $arg = \$arg$i;
 EOF
