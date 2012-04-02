@@ -3459,7 +3459,7 @@ int main(int argc, char **argv, char **envp)
             }
             guest_base = HOST_PAGE_ALIGN((unsigned long)p);
         }
-        qemu_log("Reserved 0x%lx bytes of guest address space\n", reserved_va);
+        qemu_log("Reserved 0x%" PRIxPTR " bytes of guest address space\n", reserved_va);
     }
 
     if (reserved_va || have_guest_base) {
@@ -3539,7 +3539,7 @@ int main(int argc, char **argv, char **envp)
 
     if (qemu_log_enabled()) {
 #if defined(CONFIG_USE_GUEST_BASE)
-        qemu_log("guest_base  0x%lx\n", guest_base);
+        qemu_log("guest_base  0x%" PRIxPTR "\n", guest_base);
 #endif
         log_page_dump();
 
