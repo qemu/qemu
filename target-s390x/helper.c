@@ -97,7 +97,7 @@ CPUS390XState *cpu_s390x_init(const char *cpu_model)
     env->cpu_model_str = cpu_model;
     env->cpu_num = cpu_num++;
     env->ext_index = -1;
-    cpu_state_reset(env);
+    cpu_reset(CPU(cpu));
     qemu_init_vcpu(env);
     return env;
 }
@@ -123,15 +123,7 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 
 void cpu_state_reset(CPUS390XState *env)
 {
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
-    memset(env, 0, offsetof(CPUS390XState, breakpoints));
-    /* FIXME: reset vector? */
-    tlb_flush(env, 1);
-    s390_add_running_cpu(env);
+    cpu_reset(ENV_GET_CPU(env));
 }
 
 #ifndef CONFIG_USER_ONLY

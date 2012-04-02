@@ -1,6 +1,8 @@
 /*
  * QEMU S/390 CPU
  *
+ * Copyright (c) 2009 Ulrich Hecht
+ * Copyright (c) 2011 Alexander Graf
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
  * This library is free software; you can redistribute it and/or
@@ -23,15 +25,24 @@
 #include "qemu-timer.h"
 
 
+/* CPUClass::reset() */
 static void s390_cpu_reset(CPUState *s)
 {
     S390CPU *cpu = S390_CPU(s);
     S390CPUClass *scc = S390_CPU_GET_CLASS(cpu);
     CPUS390XState *env = &cpu->env;
 
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
+
     scc->parent_reset(s);
 
-    cpu_state_reset(env);
+    memset(env, 0, offsetof(CPUS390XState, breakpoints));
+    /* FIXME: reset vector? */
+    tlb_flush(env, 1);
+    s390_add_running_cpu(env);
 }
 
 static void s390_cpu_class_init(ObjectClass *oc, void *data)
