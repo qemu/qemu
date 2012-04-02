@@ -1231,6 +1231,16 @@ void object_property_add_str(Object *obj, const char *name,
                         prop, errp);
 }
 
+static char *qdev_get_type(Object *obj, Error **errp)
+{
+    return g_strdup(object_get_typename(obj));
+}
+
+static void object_instance_init(Object *obj)
+{
+    object_property_add_str(obj, "type", qdev_get_type, NULL, NULL);
+}
+
 static void register_types(void)
 {
     static TypeInfo interface_info = {
@@ -1242,6 +1252,7 @@ static void register_types(void)
     static TypeInfo object_info = {
         .name = TYPE_OBJECT,
         .instance_size = sizeof(Object),
+        .instance_init = object_instance_init,
         .abstract = true,
     };
 

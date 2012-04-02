@@ -515,11 +515,6 @@ char* qdev_get_fw_dev_path(DeviceState *dev)
     return strdup(path);
 }
 
-static char *qdev_get_type(Object *obj, Error **errp)
-{
-    return g_strdup(object_get_typename(obj));
-}
-
 /**
  * Legacy property handling
  */
@@ -638,7 +633,6 @@ static void device_initfn(Object *obj)
         qdev_property_add_static(dev, prop, NULL);
     }
 
-    object_property_add_str(OBJECT(dev), "type", qdev_get_type, NULL, NULL);
     qdev_prop_set_defaults(dev, qdev_get_props(dev));
 }
 
