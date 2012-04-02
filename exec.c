@@ -2394,8 +2394,8 @@ int walk_memory_regions(void *priv, walk_memory_regions_fn fn)
     return walk_memory_regions_end(&data, 0, 0);
 }
 
-static int dump_region(void *priv, abi_ulong start,
-    abi_ulong end, unsigned long prot)
+static int dump_region(void *priv, abi_ulong start, abi_ulong end,
+                       abi_ulong prot)
 {
     FILE *f = (FILE *)priv;
 
