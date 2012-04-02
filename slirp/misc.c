@@ -215,7 +215,7 @@ fork_exec(struct socket *so, const char *ex, int do_pty)
                 setsockopt(so->s, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(int));
                 opt = 1;
                 setsockopt(so->s, SOL_SOCKET, SO_OOBINLINE, (char *)&opt, sizeof(int));
-		fd_nonblock(so->s);
+		socket_set_nonblock(so->s);
 
 		/* Append the telnet options now */
                 if (so->so_m != NULL && do_pty == 1)  {
@@ -265,50 +265,6 @@ u_sleep(int usec)
 	t.tv_usec = usec * 1000;
 
 	select(0, &fdset, &fdset, &fdset, &t);
-}
-
-/*
- * Set fd blocking and non-blocking
- */
-
-void
-fd_nonblock(int fd)
-{
-#ifdef FIONBIO
-#ifdef _WIN32
-        unsigned long opt = 1;
-#else
-        int opt = 1;
-#endif
-
-	ioctlsocket(fd, FIONBIO, &opt);
-#else
-	int opt;
-
-	opt = fcntl(fd, F_GETFL, 0);
-	opt |= O_NONBLOCK;
-	fcntl(fd, F_SETFL, opt);
-#endif
-}
-
-void
-fd_block(int fd)
-{
-#ifdef FIONBIO
-#ifdef _WIN32
-        unsigned long opt = 0;
-#else
-	int opt = 0;
-#endif
-
-	ioctlsocket(fd, FIONBIO, &opt);
-#else
-	int opt;
-
-	opt = fcntl(fd, F_GETFL, 0);
-	opt &= ~O_NONBLOCK;
-	fcntl(fd, F_SETFL, opt);
-#endif
 }
 
 void slirp_connection_info(Slirp *slirp, Monitor *mon)
