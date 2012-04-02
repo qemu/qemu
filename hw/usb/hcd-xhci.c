@@ -501,7 +501,7 @@ static void xhci_irq_update(XHCIState *xhci)
     int level = 0;
 
     if (xhci->iman & IMAN_IP && xhci->iman & IMAN_IE &&
-        xhci->usbcmd && USBCMD_INTE) {
+        xhci->usbcmd & USBCMD_INTE) {
         level = 1;
     }
 
