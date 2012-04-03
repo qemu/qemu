@@ -180,9 +180,7 @@ static Object *qdev_get_peripheral(void)
     static Object *dev;
 
     if (dev == NULL) {
-        dev = object_new("container");
-        object_property_add_child(object_get_root(), "peripheral",
-                                  OBJECT(dev), NULL);
+        dev = container_get("/machine/peripheral");
     }
 
     return dev;
@@ -193,9 +191,7 @@ static Object *qdev_get_peripheral_anon(void)
     static Object *dev;
 
     if (dev == NULL) {
-        dev = object_new("container");
-        object_property_add_child(object_get_root(), "peripheral-anon",
-                                  OBJECT(dev), NULL);
+        dev = container_get("/machine/peripheral-anon");
     }
 
     return dev;
@@ -462,10 +458,6 @@ DeviceState *qdev_device_add(QemuOpts *opts)
         qdev_free(qdev);
         return NULL;
     }
-    if (qdev_init(qdev) < 0) {
-        qerror_report(QERR_DEVICE_INIT_FAILED, driver);
-        return NULL;
-    }
     if (qdev->id) {
         object_property_add_child(qdev_get_peripheral(), qdev->id,
                                   OBJECT(qdev), NULL);
@@ -476,6 +468,10 @@ DeviceState *qdev_device_add(QemuOpts *opts)
                                   OBJECT(qdev), NULL);
         g_free(name);
     }        
+    if (qdev_init(qdev) < 0) {
+        qerror_report(QERR_DEVICE_INIT_FAILED, driver);
+        return NULL;
+    }
     qdev->opts = opts;
     return qdev;
 }

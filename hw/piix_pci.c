@@ -276,8 +276,8 @@ static PCIBus *i440fx_common_init(const char *device_name,
     b = pci_bus_new(&s->busdev.qdev, NULL, pci_address_space,
                     address_space_io, 0);
     s->bus = b;
+    object_property_add_child(qdev_get_machine(), "i440fx", OBJECT(dev), NULL);
     qdev_init_nofail(dev);
-    object_property_add_child(object_get_root(), "i440fx", OBJECT(dev), NULL);
 
     d = pci_create_simple(b, 0, device_name);
     *pi440fx_state = DO_UPCAST(PCII440FXState, dev, d);
@@ -316,7 +316,6 @@ static PCIBus *i440fx_common_init(const char *device_name,
         pci_bus_irqs(b, piix3_set_irq, pci_slot_get_pirq, piix3,
                 PIIX_NUM_PIRQS);
     }
-    object_property_add_child(OBJECT(dev), "piix3", OBJECT(piix3), NULL);
     piix3->pic = pic;
     *isa_bus = DO_UPCAST(ISABus, qbus,
                          qdev_get_child_bus(&piix3->dev.qdev, "isa.0"));

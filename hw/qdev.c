@@ -113,14 +113,14 @@ DeviceState *qdev_create(BusState *bus, const char *name)
     return dev;
 }
 
-DeviceState *qdev_try_create(BusState *bus, const char *name)
+DeviceState *qdev_try_create(BusState *bus, const char *type)
 {
     DeviceState *dev;
 
-    if (object_class_by_name(name) == NULL) {
+    if (object_class_by_name(type) == NULL) {
         return NULL;
     }
-    dev = DEVICE(object_new(name));
+    dev = DEVICE(object_new(type));
     if (!dev) {
         return NULL;
     }
@@ -152,6 +152,16 @@ int qdev_init(DeviceState *dev)
         qdev_free(dev);
         return rc;
     }
+
+    if (!OBJECT(dev)->parent) {
+        static int unattached_count = 0;
+        gchar *name = g_strdup_printf("device[%d]", unattached_count++);
+
+        object_property_add_child(container_get("/machine/unattached"), name,
+                                  OBJECT(dev), NULL);
+        g_free(name);
+    }
+
     if (qdev_get_vmsd(dev)) {
         vmstate_register_with_alias_id(dev, -1, qdev_get_vmsd(dev), dev,
                                        dev->instance_id_alias,
@@ -656,6 +666,17 @@ void device_reset(DeviceState *dev)
     if (klass->reset) {
         klass->reset(dev);
     }
+}
+
+Object *qdev_get_machine(void)
+{
+    static Object *dev;
+
+    if (dev == NULL) {
+        dev = container_get("/machine");
+    }
+
+    return dev;
 }
 
 static TypeInfo device_type_info = {
