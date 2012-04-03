@@ -248,6 +248,10 @@ void cpu_check_irqs(CPUSPARCState *env)
     uint32_t pil = env->pil_in |
                   (env->softint & ~(SOFTINT_TIMER | SOFTINT_STIMER));
 
+    /* TT_IVEC has a higher priority (16) than TT_EXTINT (31..17) */
+    if (env->ivec_status & 0x20) {
+        return;
+    }
     /* check if TM or SM in SOFTINT are set
        setting these also causes interrupt 14 */
     if (env->softint & (SOFTINT_TIMER | SOFTINT_STIMER)) {
@@ -275,7 +279,8 @@ void cpu_check_irqs(CPUSPARCState *env)
                 int old_interrupt = env->interrupt_index;
                 int new_interrupt = TT_EXTINT | i;
 
-                if (env->tl > 0 && cpu_tsptr(env)->tt > new_interrupt) {
+                if (unlikely(env->tl > 0 && cpu_tsptr(env)->tt > new_interrupt
+                  && ((cpu_tsptr(env)->tt & 0x1f0) == TT_EXTINT))) {
                     CPUIRQ_DPRINTF("Not setting CPU IRQ: TL=%d "
                                    "current %x >= pending %x\n",
                                    env->tl, cpu_tsptr(env)->tt, new_interrupt);
