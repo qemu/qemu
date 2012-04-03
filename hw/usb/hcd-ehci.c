@@ -1101,6 +1101,10 @@ static void ehci_mem_writel(void *ptr, target_phys_addr_t addr, uint32_t val)
         val &= USBINTR_MASK;
         break;
 
+    case FRINDEX:
+        val &= 0x00003ff8; /* frindex is 14bits and always a multiple of 8 */
+        break;
+
     case CONFIGFLAG:
         val &= 0x1;
         if (val) {
