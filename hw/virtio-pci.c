@@ -790,6 +790,11 @@ static int virtio_balloon_init_pci(PCIDevice *pci_dev)
     VirtIOPCIProxy *proxy = DO_UPCAST(VirtIOPCIProxy, pci_dev, pci_dev);
     VirtIODevice *vdev;
 
+    if (proxy->class_code != PCI_CLASS_OTHERS &&
+        proxy->class_code != PCI_CLASS_MEMORY_RAM) { /* qemu < 1.1 */
+        proxy->class_code = PCI_CLASS_OTHERS;
+    }
+
     vdev = virtio_balloon_init(&pci_dev->qdev);
     if (!vdev) {
         return -1;
@@ -906,6 +911,7 @@ static TypeInfo virtio_serial_info = {
 
 static Property virtio_balloon_properties[] = {
     DEFINE_VIRTIO_COMMON_FEATURES(VirtIOPCIProxy, host_features),
+    DEFINE_PROP_HEX32("class", VirtIOPCIProxy, class_code, 0),
     DEFINE_PROP_END_OF_LIST(),
 };
 
@@ -919,7 +925,7 @@ static void virtio_balloon_class_init(ObjectClass *klass, void *data)
     k->vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET;
     k->device_id = PCI_DEVICE_ID_VIRTIO_BALLOON;
     k->revision = VIRTIO_PCI_ABI_VERSION;
-    k->class_id = PCI_CLASS_MEMORY_RAM;
+    k->class_id = PCI_CLASS_OTHERS;
     dc->reset = virtio_pci_reset;
     dc->props = virtio_balloon_properties;
 }

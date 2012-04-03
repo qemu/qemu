@@ -28,6 +28,7 @@
 #include "pc.h"
 #include "apic.h"
 #include "pci.h"
+#include "pci_ids.h"
 #include "net.h"
 #include "boards.h"
 #include "ide.h"
@@ -368,6 +369,10 @@ static QEMUMachine pc_machine_v1_1 = {
             .driver   = "isa-fdc",\
             .property = "check_media_rate",\
             .value    = "off",\
+        }, {\
+            .driver   = "virtio-balloon-pci",\
+            .property = "class",\
+            .value    = stringify(PCI_CLASS_MEMORY_RAM),\
         }
 
 static QEMUMachine pc_machine_v1_0 = {
