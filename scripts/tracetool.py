@@ -44,6 +44,11 @@ Options:
     --help                   This help message.
     --list-backends          Print list of available backends.
     --check-backend          Check if the given backend is valid.
+    --binary <path>          Full path to QEMU binary.
+    --target-type <type>     QEMU emulator target type ('system' or 'user').
+    --target-arch <arch>     QEMU emulator target arch.
+    --probe-prefix <prefix>  Prefix for dtrace probe names
+                             (default: qemu-<target-type>-<target-arch>).\
 """ % {
             "script" : _SCRIPT,
             "backends" : backend_descr,
@@ -71,6 +76,10 @@ def main(args):
     check_backend = False
     arg_backend = ""
     arg_format = ""
+    binary = None
+    target_type = None
+    target_arch = None
+    probe_prefix = None
     for opt, arg in opts:
         if opt == "--help":
             error_opt()
@@ -87,6 +96,15 @@ def main(args):
         elif opt == "--check-backend":
             check_backend = True
 
+        elif opt == "--binary":
+            binary = arg
+        elif opt == '--target-type':
+            target_type = arg
+        elif opt == '--target-arch':
+            target_arch = arg
+        elif opt == '--probe-prefix':
+            probe_prefix = arg
+
         else:
             error_opt("unhandled option: %s" % opt)
 
@@ -99,8 +117,20 @@ def main(args):
         else:
             sys.exit(1)
 
+    if arg_format == "stap":
+        if binary is None:
+            error_opt("--binary is required for SystemTAP tapset generator")
+        if probe_prefix is None and target_type is None:
+            error_opt("--target-type is required for SystemTAP tapset generator")
+        if probe_prefix is None and target_arch is None:
+            error_opt("--target-arch is required for SystemTAP tapset generator")
+
+        if probe_prefix is None:
+            probe_prefix = ".".join([ "qemu", target_type, target_arch ])
+
     try:
-        tracetool.generate(sys.stdin, arg_format, arg_backend)
+        tracetool.generate(sys.stdin, arg_format, arg_backend,
+                           binary = binary, probe_prefix = probe_prefix)
     except tracetool.TracetoolError as e:
         error_opt(str(e))
 

@@ -212,7 +212,8 @@ def try_import(mod_name, attr_name = None, attr_default = None):
         return False, None
 
 
-def generate(fevents, format, backend):
+def generate(fevents, format, backend,
+             binary = None, probe_prefix = None):
     """Generate the output for the given (format, backend) pair.
 
     Parameters
@@ -223,6 +224,10 @@ def generate(fevents, format, backend):
         Output format name.
     backend : str
         Output backend name.
+    binary : str or None
+        See tracetool.backend.dtrace.BINARY.
+    probe_prefix : str or None
+        See tracetool.backend.dtrace.PROBEPREFIX.
     """
     # fix strange python error (UnboundLocalError tracetool)
     import tracetool
@@ -244,6 +249,10 @@ def generate(fevents, format, backend):
     if not tracetool.backend.compatible(mbackend, mformat):
         raise TracetoolError("backend '%s' not compatible with format '%s'" %
                              (backend, format))
+
+    import tracetool.backend.dtrace
+    tracetool.backend.dtrace.BINARY = binary
+    tracetool.backend.dtrace.PROBEPREFIX = probe_prefix
 
     events = _read_events(fevents)
 
