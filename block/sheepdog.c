@@ -510,6 +510,7 @@ static int send_req(int sockfd, SheepdogReq *hdr, void *data,
     ret = qemu_send_full(sockfd, hdr, sizeof(*hdr), 0);
     if (ret < sizeof(*hdr)) {
         error_report("failed to send a req, %s", strerror(errno));
+        return ret;
     }
 
     ret = qemu_send_full(sockfd, data, *wlen, 0);
@@ -528,6 +529,7 @@ static int send_co_req(int sockfd, SheepdogReq *hdr, void *data,
     ret = qemu_co_send(sockfd, hdr, sizeof(*hdr));
     if (ret < sizeof(*hdr)) {
         error_report("failed to send a req, %s", strerror(errno));
+        return ret;
     }
 
     ret = qemu_co_send(sockfd, data, *wlen);
