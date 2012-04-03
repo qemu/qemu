@@ -111,7 +111,6 @@ DeviceState *qdev_try_create(BusState *bus, const char *type)
     }
 
     qdev_set_parent_bus(dev, bus);
-    qdev_prop_set_globals(dev);
 
     return dev;
 }
@@ -618,6 +617,7 @@ static void device_initfn(Object *obj)
         qdev_prop_set_defaults(dev, DEVICE_CLASS(class)->props);
         class = object_class_get_parent(class);
     } while (class != object_class_by_name(TYPE_DEVICE));
+    qdev_prop_set_globals(dev);
 }
 
 /* Unlink device from bus and free the structure.  */

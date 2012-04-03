@@ -440,7 +440,6 @@ DeviceState *qdev_device_add(QemuOpts *opts)
     /* create device, set properties */
     qdev = DEVICE(object_new(driver));
     qdev_set_parent_bus(qdev, bus);
-    qdev_prop_set_globals(qdev);
 
     id = qemu_opts_id(opts);
     if (id) {
