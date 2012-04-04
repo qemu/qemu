@@ -3198,15 +3198,6 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
     if (tcg_enabled()) {
         ppc_translate_init();
     }
-    /* Adjust cpu index for SMT */
-#if !defined(CONFIG_USER_ONLY)
-    if (kvm_enabled()) {
-        int smt = kvmppc_smt_threads();
-
-        env->cpu_index = (env->cpu_index / smp_threads)*smt
-            + (env->cpu_index % smp_threads);
-    }
-#endif /* !CONFIG_USER_ONLY */
     env->cpu_model_str = cpu_model;
     cpu_ppc_register_internal(env, def);
 
