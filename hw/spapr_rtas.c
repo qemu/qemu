@@ -44,8 +44,7 @@ static void rtas_display_character(sPAPREnvironment *spapr,
                                    uint32_t nret, target_ulong rets)
 {
     uint8_t c = rtas_ld(args, 0);
-    VIOsPAPRDevice *sdev = spapr_vio_find_by_reg(spapr->vio_bus,
-                                                 SPAPR_VTY_BASE_ADDRESS);
+    VIOsPAPRDevice *sdev = vty_lookup(spapr, 0);
 
     if (!sdev) {
         rtas_st(rets, 0, -1);
