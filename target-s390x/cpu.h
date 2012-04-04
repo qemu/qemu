@@ -288,6 +288,9 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 
 
 #ifndef CONFIG_USER_ONLY
+void s390x_tod_timer(void *opaque);
+void s390x_cpu_timer(void *opaque);
+
 int s390_virtio_hypercall(CPUS390XState *env, uint64_t mem, uint64_t hypercall);
 
 #ifdef CONFIG_KVM
@@ -990,5 +993,7 @@ static inline void cpu_pc_from_tb(CPUS390XState *env, TranslationBlock* tb)
 {
     env->psw.addr = tb->pc;
 }
+
+#include "cpu-qom.h"
 
 #endif
