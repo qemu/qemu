@@ -93,8 +93,7 @@ spinlock_t tb_lock = SPIN_LOCK_UNLOCKED;
 #define code_gen_section                                \
     __attribute__((__section__(".gen_code")))           \
     __attribute__((aligned (32)))
-#elif defined(_WIN32)
-/* Maximum alignment for Win32 is 16. */
+#elif defined(_WIN32) && !defined(_WIN64)
 #define code_gen_section                                \
     __attribute__((aligned (16)))
 #else
