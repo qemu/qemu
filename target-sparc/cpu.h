@@ -691,6 +691,7 @@ static inline void cpu_clone_regs(CPUSPARCState *env, target_ulong newsp)
 #endif
 
 #include "cpu-all.h"
+#include "cpu-qom.h"
 
 #ifdef TARGET_SPARC64
 /* sun4u.c */
