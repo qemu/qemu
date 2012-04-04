@@ -95,7 +95,7 @@ static TypeImpl *type_table_lookup(const char *name)
     return g_hash_table_lookup(type_table_get(), name);
 }
 
-TypeImpl *type_register(const TypeInfo *info)
+static TypeImpl *type_register_internal(const TypeInfo *info)
 {
     TypeImpl *ti = g_malloc0(sizeof(*ti));
 
@@ -135,6 +135,12 @@ TypeImpl *type_register(const TypeInfo *info)
     type_table_add(ti);
 
     return ti;
+}
+
+TypeImpl *type_register(const TypeInfo *info)
+{
+    assert(info->parent);
+    return type_register_internal(info);
 }
 
 TypeImpl *type_register_static(const TypeInfo *info)
@@ -204,7 +210,7 @@ static void type_class_interface_init(TypeImpl *ti, InterfaceImpl *iface)
     char *name = g_strdup_printf("<%s::%s>", ti->name, iface->parent);
 
     info.name = name;
-    iface->type = type_register(&info);
+    iface->type = type_register_internal(&info);
     g_free(name);
 }
 
@@ -1239,8 +1245,8 @@ static void register_types(void)
         .abstract = true,
     };
 
-    type_interface = type_register_static(&interface_info);
-    type_register_static(&object_info);
+    type_interface = type_register_internal(&interface_info);
+    type_register_internal(&object_info);
 }
 
 type_init(register_types)
