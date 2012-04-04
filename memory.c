@@ -1444,6 +1444,11 @@ static void listener_add_address_space(MemoryListener *listener,
 {
     FlatRange *fr;
 
+    if (listener->address_space_filter
+        && listener->address_space_filter != as->root) {
+        return;
+    }
+
     if (global_dirty_log) {
         listener->log_global_start(listener);
     }
