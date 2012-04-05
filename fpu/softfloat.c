@@ -117,7 +117,7 @@ static int32 roundAndPackInt32( flag zSign, uint64_t absZ STATUS_PARAM)
     int8 roundingMode;
     flag roundNearestEven;
     int8 roundIncrement, roundBits;
-    int32 z;
+    int32_t z;
 
     roundingMode = STATUS(float_rounding_mode);
     roundNearestEven = ( roundingMode == float_round_nearest_even );
@@ -166,7 +166,7 @@ static int64 roundAndPackInt64( flag zSign, uint64_t absZ0, uint64_t absZ1 STATU
 {
     int8 roundingMode;
     flag roundNearestEven, increment;
-    int64 z;
+    int64_t z;
 
     roundingMode = STATUS(float_rounding_mode);
     roundNearestEven = ( roundingMode == float_round_nearest_even );
