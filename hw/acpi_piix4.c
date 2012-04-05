@@ -511,9 +511,10 @@ static uint32_t pci_down_read(void *opaque, uint32_t addr)
     return val;
 }
 
-static uint32_t pciej_read(void *opaque, uint32_t addr)
+static uint32_t pci_features_read(void *opaque, uint32_t addr)
 {
-    PIIX4_DPRINTF("pciej read %x\n", addr);
+    /* No feature defined yet */
+    PIIX4_DPRINTF("pci_features_read %x\n", 0);
     return 0;
 }
 
@@ -545,7 +546,7 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
     register_ioport_read(PCI_DOWN_BASE, 4, 4, pci_down_read, s);
 
     register_ioport_write(PCI_EJ_BASE, 4, 4, pciej_write, s);
-    register_ioport_read(PCI_EJ_BASE, 4, 4,  pciej_read, s);
+    register_ioport_read(PCI_EJ_BASE, 4, 4,  pci_features_read, s);
 
     register_ioport_read(PCI_RMV_BASE, 4, 4,  pcirmv_read, s);
 

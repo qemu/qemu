@@ -27,8 +27,16 @@ events.  Read-only.
 PCI device eject (IO port 0xae08-0xae0b, 4-byte access):
 ----------------------------------------
 
-Used by ACPI BIOS _EJ0 method to request device removal. One bit per slot.
-Reads return 0.
+Write: Used by ACPI BIOS _EJ0 method to request device removal.
+One bit per slot.
+
+Read: Hotplug features register.  Used by platform to identify features
+available.  Current base feature set (no bits set):
+ - Read-only "up" register @0xae00, 4-byte access, bit per slot
+ - Read-only "down" register @0xae04, 4-byte access, bit per slot
+ - Read/write "eject" register @0xae08, 4-byte access,
+   write: bit per slot eject, read: hotplug feature set
+ - Read-only hotplug capable register @0xae0c, 4-byte access, bit per slot
 
 PCI removability status (IO port 0xae0c-0xae0f, 4-byte access):
 -----------------------------------------------
