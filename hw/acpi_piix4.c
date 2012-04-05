@@ -48,7 +48,7 @@
 #define PIIX4_PCI_HOTPLUG_STATUS 2
 
 struct pci_status {
-    uint32_t up;
+    uint32_t up; /* deprecated, maintained for migration compatibility */
     uint32_t down;
 };
 
@@ -70,6 +70,7 @@ typedef struct PIIX4PMState {
     /* for pci hotplug */
     struct pci_status pci0_status;
     uint32_t pci0_hotplug_enable;
+    uint32_t pci0_slot_device_present;
 } PIIX4PMState;
 
 static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s);
@@ -205,6 +206,17 @@ static void pm_write_config(PCIDevice *d,
         pm_io_space_update((PIIX4PMState *)d);
 }
 
+static void vmstate_pci_status_pre_save(void *opaque)
+{
+    struct pci_status *pci0_status = opaque;
+    PIIX4PMState *s = container_of(pci0_status, PIIX4PMState, pci0_status);
+
+    /* We no longer track up, so build a safe value for migrating
+     * to a version that still does... of course these might get lost
+     * by an old buggy implementation, but we try. */
+    pci0_status->up = s->pci0_slot_device_present & s->pci0_hotplug_enable;
+}
+
 static int vmstate_acpi_post_load(void *opaque, int version_id)
 {
     PIIX4PMState *s = opaque;
@@ -241,6 +253,7 @@ static const VMStateDescription vmstate_pci_status = {
     .version_id = 1,
     .minimum_version_id = 1,
     .minimum_version_id_old = 1,
+    .pre_save = vmstate_pci_status_pre_save,
     .fields      = (VMStateField []) {
         VMSTATE_UINT32(up, struct pci_status),
         VMSTATE_UINT32(down, struct pci_status),
@@ -269,13 +282,38 @@ static const VMStateDescription vmstate_acpi = {
     }
 };
 
+static void acpi_piix_eject_slot(PIIX4PMState *s, unsigned slots)
+{
+    DeviceState *qdev, *next;
+    BusState *bus = qdev_get_parent_bus(&s->dev.qdev);
+    int slot = ffs(slots) - 1;
+
+    /* Mark request as complete */
+    s->pci0_status.down &= ~(1U << slot);
+
+    QTAILQ_FOREACH_SAFE(qdev, &bus->children, sibling, next) {
+        PCIDevice *dev = PCI_DEVICE(qdev);
+        PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
+        if (PCI_SLOT(dev->devfn) == slot && !pc->no_hotplug) {
+            s->pci0_slot_device_present &= ~(1U << slot);
+            qdev_free(qdev);
+        }
+    }
+}
+
 static void piix4_update_hotplug(PIIX4PMState *s)
 {
     PCIDevice *dev = &s->dev;
     BusState *bus = qdev_get_parent_bus(&dev->qdev);
     DeviceState *qdev, *next;
 
+    /* Execute any pending removes during reset */
+    while (s->pci0_status.down) {
+        acpi_piix_eject_slot(s, s->pci0_status.down);
+    }
+
     s->pci0_hotplug_enable = ~0;
+    s->pci0_slot_device_present = 0;
 
     QTAILQ_FOREACH_SAFE(qdev, &bus->children, sibling, next) {
         PCIDevice *pdev = PCI_DEVICE(qdev);
@@ -283,8 +321,10 @@ static void piix4_update_hotplug(PIIX4PMState *s)
         int slot = PCI_SLOT(pdev->devfn);
 
         if (pc->no_hotplug) {
-            s->pci0_hotplug_enable &= ~(1 << slot);
+            s->pci0_hotplug_enable &= ~(1U << slot);
         }
+
+        s->pci0_slot_device_present |= (1U << slot);
     }
 }
 
@@ -452,7 +492,11 @@ static void gpe_writeb(void *opaque, uint32_t addr, uint32_t val)
 static uint32_t pci_up_read(void *opaque, uint32_t addr)
 {
     PIIX4PMState *s = opaque;
-    uint32_t val = s->pci0_status.up;
+    uint32_t val;
+
+    /* Manufacture an "up" value to cause a device check on any hotplug
+     * slot with a device.  Extra device checks are harmless. */
+    val = s->pci0_slot_device_present & s->pci0_hotplug_enable;
 
     PIIX4_DPRINTF("pci_up_read %x\n", val);
     return val;
@@ -475,18 +519,7 @@ static uint32_t pciej_read(void *opaque, uint32_t addr)
 
 static void pciej_write(void *opaque, uint32_t addr, uint32_t val)
 {
-    BusState *bus = opaque;
-    DeviceState *qdev, *next;
-    int slot = ffs(val) - 1;
-
-    QTAILQ_FOREACH_SAFE(qdev, &bus->children, sibling, next) {
-        PCIDevice *dev = PCI_DEVICE(qdev);
-        PCIDeviceClass *pc = PCI_DEVICE_GET_CLASS(dev);
-        if (PCI_SLOT(dev->devfn) == slot && !pc->no_hotplug) {
-            qdev_free(qdev);
-        }
-    }
-
+    acpi_piix_eject_slot(opaque, val);
 
     PIIX4_DPRINTF("pciej write %x <== %d\n", addr, val);
 }
@@ -516,8 +549,8 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
     register_ioport_read(PCI_UP_BASE, 4, 4, pci_up_read, s);
     register_ioport_read(PCI_DOWN_BASE, 4, 4, pci_down_read, s);
 
-    register_ioport_write(PCI_EJ_BASE, 4, 4, pciej_write, bus);
-    register_ioport_read(PCI_EJ_BASE, 4, 4,  pciej_read, bus);
+    register_ioport_write(PCI_EJ_BASE, 4, 4, pciej_write, s);
+    register_ioport_read(PCI_EJ_BASE, 4, 4,  pciej_read, s);
 
     register_ioport_write(PCI_RMV_BASE, 4, 4, pcirmv_write, s);
     register_ioport_read(PCI_RMV_BASE, 4, 4,  pcirmv_read, s);
@@ -528,13 +561,13 @@ static void piix4_acpi_system_hot_add_init(PCIBus *bus, PIIX4PMState *s)
 static void enable_device(PIIX4PMState *s, int slot)
 {
     s->ar.gpe.sts[0] |= PIIX4_PCI_HOTPLUG_STATUS;
-    s->pci0_status.up |= (1 << slot);
+    s->pci0_slot_device_present |= (1U << slot);
 }
 
 static void disable_device(PIIX4PMState *s, int slot)
 {
     s->ar.gpe.sts[0] |= PIIX4_PCI_HOTPLUG_STATUS;
-    s->pci0_status.down |= (1 << slot);
+    s->pci0_status.down |= (1U << slot);
 }
 
 static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
@@ -548,11 +581,10 @@ static int piix4_device_hotplug(DeviceState *qdev, PCIDevice *dev,
      * it is present on boot, no hotplug event is necessary. We do send an
      * event when the device is disabled later. */
     if (state == PCI_COLDPLUG_ENABLED) {
+        s->pci0_slot_device_present |= (1U << slot);
         return 0;
     }
 
-    s->pci0_status.up = 0;
-    s->pci0_status.down = 0;
     if (state == PCI_HOTPLUG_ENABLED) {
         enable_device(s, slot);
     } else {
