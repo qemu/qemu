@@ -34,4 +34,4 @@ PCI removability status (IO port 0xae0c-0xae0f, 4-byte access):
 -----------------------------------------------
 
 Used by ACPI BIOS _RMV method to indicate removability status to OS. One
-bit per slot.
+bit per slot.  Read-only
