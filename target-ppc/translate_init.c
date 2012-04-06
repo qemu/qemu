@@ -10217,6 +10217,14 @@ static void ppc_cpu_reset(CPUState *s)
     cpu_state_reset(env);
 }
 
+static void ppc_cpu_initfn(Object *obj)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(obj);
+    CPUPPCState *env = &cpu->env;
+
+    cpu_exec_init(env);
+}
+
 static void ppc_cpu_class_init(ObjectClass *oc, void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
@@ -10230,6 +10238,7 @@ static const TypeInfo ppc_cpu_type_info = {
     .name = TYPE_POWERPC_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(PowerPCCPU),
+    .instance_init = ppc_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(PowerPCCPUClass),
     .class_init = ppc_cpu_class_init,

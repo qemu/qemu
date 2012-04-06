@@ -3196,10 +3196,11 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
 
     cpu = POWERPC_CPU(object_new(TYPE_POWERPC_CPU));
     env = &cpu->env;
-    cpu_exec_init(env);
+
     if (tcg_enabled()) {
         ppc_translate_init();
     }
+
     env->cpu_model_str = cpu_model;
     cpu_ppc_register_internal(env, def);
 
