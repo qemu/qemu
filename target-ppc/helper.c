@@ -3186,6 +3186,7 @@ void cpu_state_reset(CPUPPCState *env)
 
 CPUPPCState *cpu_ppc_init (const char *cpu_model)
 {
+    PowerPCCPU *cpu;
     CPUPPCState *env;
     const ppc_def_t *def;
 
@@ -3193,7 +3194,8 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
     if (!def)
         return NULL;
 
-    env = g_malloc0(sizeof(CPUPPCState));
+    cpu = POWERPC_CPU(object_new(TYPE_POWERPC_CPU));
+    env = &cpu->env;
     cpu_exec_init(env);
     if (tcg_enabled()) {
         ppc_translate_init();

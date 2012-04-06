@@ -1096,6 +1096,8 @@ struct mmu_ctx_t {
 };
 #endif
 
+#include "cpu-qom.h"
+
 /*****************************************************************************/
 CPUPPCState *cpu_ppc_init (const char *cpu_model);
 void ppc_translate_init(void);

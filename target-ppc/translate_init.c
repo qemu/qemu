@@ -10204,3 +10204,40 @@ void ppc_cpu_list (FILE *f, fprintf_function cpu_fprintf)
                        ppc_defs[i].name, ppc_defs[i].pvr);
     }
 }
+
+/* CPUClass::reset() */
+static void ppc_cpu_reset(CPUState *s)
+{
+    PowerPCCPU *cpu = POWERPC_CPU(s);
+    PowerPCCPUClass *pcc = POWERPC_CPU_GET_CLASS(cpu);
+    CPUPPCState *env = &cpu->env;
+
+    pcc->parent_reset(s);
+
+    cpu_state_reset(env);
+}
+
+static void ppc_cpu_class_init(ObjectClass *oc, void *data)
+{
+    PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
+
+    pcc->parent_reset = cc->reset;
+    cc->reset = ppc_cpu_reset;
+}
+
+static const TypeInfo ppc_cpu_type_info = {
+    .name = TYPE_POWERPC_CPU,
+    .parent = TYPE_CPU,
+    .instance_size = sizeof(PowerPCCPU),
+    .abstract = false,
+    .class_size = sizeof(PowerPCCPUClass),
+    .class_init = ppc_cpu_class_init,
+};
+
+static void ppc_cpu_register_types(void)
+{
+    type_register_static(&ppc_cpu_type_info);
+}
+
+type_init(ppc_cpu_register_types)
