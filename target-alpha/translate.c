@@ -3531,9 +3531,8 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 
     cpu = ALPHA_CPU(object_new(TYPE_ALPHA_CPU));
     env = &cpu->env;
-    cpu_exec_init(env);
+
     alpha_translate_init();
-    tlb_flush(env, 1);
 
     /* Default to ev67; no reason not to emulate insns by default.  */
     implver = IMPLVER_21264;
@@ -3550,15 +3549,6 @@ CPUAlphaState * cpu_alpha_init (const char *cpu_model)
     }
     env->implver = implver;
     env->amask = amask;
-
-#if defined (CONFIG_USER_ONLY)
-    env->ps = PS_USER_MODE;
-    cpu_alpha_store_fpcr(env, (FPCR_INVD | FPCR_DZED | FPCR_OVFD
-                               | FPCR_UNFD | FPCR_INED | FPCR_DNOD
-                               | FPCR_DYN_NORMAL));
-#endif
-    env->lock_addr = -1;
-    env->fen = 1;
 
     qemu_init_vcpu(env);
     return env;

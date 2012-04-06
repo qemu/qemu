@@ -1,6 +1,7 @@
 /*
  * QEMU Alpha CPU
  *
+ * Copyright (c) 2007 Jocelyn Mayer
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
  * This library is free software; you can redistribute it and/or
@@ -22,10 +23,29 @@
 #include "qemu-common.h"
 
 
+static void alpha_cpu_initfn(Object *obj)
+{
+    AlphaCPU *cpu = ALPHA_CPU(obj);
+    CPUAlphaState *env = &cpu->env;
+
+    cpu_exec_init(env);
+    tlb_flush(env, 1);
+
+#if defined(CONFIG_USER_ONLY)
+    env->ps = PS_USER_MODE;
+    cpu_alpha_store_fpcr(env, (FPCR_INVD | FPCR_DZED | FPCR_OVFD
+                               | FPCR_UNFD | FPCR_INED | FPCR_DNOD
+                               | FPCR_DYN_NORMAL));
+#endif
+    env->lock_addr = -1;
+    env->fen = 1;
+}
+
 static const TypeInfo alpha_cpu_type_info = {
     .name = TYPE_ALPHA_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(AlphaCPU),
+    .instance_init = alpha_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(AlphaCPUClass),
 };
