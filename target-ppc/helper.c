@@ -3214,9 +3214,3 @@ CPUPPCState *cpu_ppc_init (const char *cpu_model)
 
     return env;
 }
-
-void cpu_ppc_close (CPUPPCState *env)
-{
-    /* Should also remove all opcode tables... */
-    g_free(env);
-}
