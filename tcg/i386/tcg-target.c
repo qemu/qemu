@@ -2102,7 +2102,9 @@ typedef struct {
     DebugFrameFDE fde;
 } DebugFrame;
 
-#if TCG_TARGET_REG_BITS == 64
+#if !defined(__ELF__)
+    /* Host machine without ELF. */
+#elif TCG_TARGET_REG_BITS == 64
 #define ELF_HOST_MACHINE EM_X86_64
 static DebugFrame debug_frame = {
     .cie.len = sizeof(DebugFrameCIE)-4, /* length after .len member */
@@ -2156,6 +2158,7 @@ static DebugFrame debug_frame = {
 };
 #endif
 
+#if defined(ELF_HOST_MACHINE)
 void tcg_register_jit(void *buf, size_t buf_size)
 {
     /* We're expecting a 2 byte uleb128 encoded value.  */
@@ -2166,3 +2169,4 @@ void tcg_register_jit(void *buf, size_t buf_size)
 
     tcg_register_jit_int(buf, buf_size, &debug_frame, sizeof(debug_frame));
 }
+#endif
