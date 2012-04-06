@@ -9306,8 +9306,8 @@ GEN_SPEOP_LDST(evstwwe, 0x1C, 2),
 GEN_SPEOP_LDST(evstwwo, 0x1E, 2),
 };
 
-#include "translate_init.c"
 #include "helper_regs.h"
+#include "translate_init.c"
 
 /*****************************************************************************/
 /* Misc PowerPC helpers */
