@@ -51,17 +51,19 @@
 #endif
 
 #ifndef CONFIG_USER_ONLY
-static void s390x_tod_timer(void *opaque)
+void s390x_tod_timer(void *opaque)
 {
-    CPUS390XState *env = opaque;
+    S390CPU *cpu = opaque;
+    CPUS390XState *env = &cpu->env;
 
     env->pending_int |= INTERRUPT_TOD;
     cpu_interrupt(env, CPU_INTERRUPT_HARD);
 }
 
-static void s390x_cpu_timer(void *opaque)
+void s390x_cpu_timer(void *opaque)
 {
-    CPUS390XState *env = opaque;
+    S390CPU *cpu = opaque;
+    CPUS390XState *env = &cpu->env;
 
     env->pending_int |= INTERRUPT_CPUTIMER;
     cpu_interrupt(env, CPU_INTERRUPT_HARD);
@@ -70,32 +72,19 @@ static void s390x_cpu_timer(void *opaque)
 
 CPUS390XState *cpu_s390x_init(const char *cpu_model)
 {
+    S390CPU *cpu;
     CPUS390XState *env;
-#if !defined (CONFIG_USER_ONLY)
-    struct tm tm;
-#endif
     static int inited = 0;
-    static int cpu_num = 0;
 
-    env = g_malloc0(sizeof(CPUS390XState));
-    cpu_exec_init(env);
+    cpu = S390_CPU(object_new(TYPE_S390_CPU));
+    env = &cpu->env;
+
     if (tcg_enabled() && !inited) {
         inited = 1;
         s390x_translate_init();
     }
 
-#if !defined(CONFIG_USER_ONLY)
-    qemu_get_timedate(&tm, 0);
-    env->tod_offset = TOD_UNIX_EPOCH +
-                      (time2tod(mktimegm(&tm)) * 1000000000ULL);
-    env->tod_basetime = 0;
-    env->tod_timer = qemu_new_timer_ns(vm_clock, s390x_tod_timer, env);
-    env->cpu_timer = qemu_new_timer_ns(vm_clock, s390x_cpu_timer, env);
-#endif
     env->cpu_model_str = cpu_model;
-    env->cpu_num = cpu_num++;
-    env->ext_index = -1;
-    cpu_state_reset(env);
     qemu_init_vcpu(env);
     return env;
 }
@@ -121,15 +110,7 @@ int cpu_s390x_handle_mmu_fault (CPUS390XState *env, target_ulong address, int rw
 
 void cpu_state_reset(CPUS390XState *env)
 {
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
-    memset(env, 0, offsetof(CPUS390XState, breakpoints));
-    /* FIXME: reset vector? */
-    tlb_flush(env, 1);
-    s390_add_running_cpu(env);
+    cpu_reset(ENV_GET_CPU(env));
 }
 
 #ifndef CONFIG_USER_ONLY

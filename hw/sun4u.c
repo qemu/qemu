@@ -248,6 +248,10 @@ void cpu_check_irqs(CPUSPARCState *env)
     uint32_t pil = env->pil_in |
                   (env->softint & ~(SOFTINT_TIMER | SOFTINT_STIMER));
 
+    /* TT_IVEC has a higher priority (16) than TT_EXTINT (31..17) */
+    if (env->ivec_status & 0x20) {
+        return;
+    }
     /* check if TM or SM in SOFTINT are set
        setting these also causes interrupt 14 */
     if (env->softint & (SOFTINT_TIMER | SOFTINT_STIMER)) {
@@ -275,7 +279,8 @@ void cpu_check_irqs(CPUSPARCState *env)
                 int old_interrupt = env->interrupt_index;
                 int new_interrupt = TT_EXTINT | i;
 
-                if (env->tl > 0 && cpu_tsptr(env)->tt > new_interrupt) {
+                if (unlikely(env->tl > 0 && cpu_tsptr(env)->tt > new_interrupt
+                  && ((cpu_tsptr(env)->tt & 0x1f0) == TT_EXTINT))) {
                     CPUIRQ_DPRINTF("Not setting CPU IRQ: TL=%d "
                                    "current %x >= pending %x\n",
                                    env->tl, cpu_tsptr(env)->tt, new_interrupt);
@@ -309,19 +314,22 @@ static void cpu_set_ivec_irq(void *opaque, int irq, int level)
     CPUSPARCState *env = opaque;
 
     if (level) {
-        CPUIRQ_DPRINTF("Raise IVEC IRQ %d\n", irq);
-        env->interrupt_index = TT_IVEC;
-        env->pil_in |= 1 << 5;
-        env->ivec_status |= 0x20;
-        env->ivec_data[0] = (0x1f << 6) | irq;
-        env->ivec_data[1] = 0;
-        env->ivec_data[2] = 0;
-        cpu_interrupt(env, CPU_INTERRUPT_HARD);
-      } else {
-        CPUIRQ_DPRINTF("Lower IVEC IRQ %d\n", irq);
-        env->pil_in &= ~(1 << 5);
-        env->ivec_status &= ~0x20;
-        cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        if (!(env->ivec_status & 0x20)) {
+            CPUIRQ_DPRINTF("Raise IVEC IRQ %d\n", irq);
+            env->halted = 0;
+            env->interrupt_index = TT_IVEC;
+            env->ivec_status |= 0x20;
+            env->ivec_data[0] = (0x1f << 6) | irq;
+            env->ivec_data[1] = 0;
+            env->ivec_data[2] = 0;
+            cpu_interrupt(env, CPU_INTERRUPT_HARD);
+        }
+    } else {
+        if (env->ivec_status & 0x20) {
+            CPUIRQ_DPRINTF("Lower IVEC IRQ %d\n", irq);
+            env->ivec_status &= ~0x20;
+            cpu_reset_interrupt(env, CPU_INTERRUPT_HARD);
+        }
     }
 }
 
