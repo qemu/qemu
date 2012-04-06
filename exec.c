@@ -1380,7 +1380,7 @@ void tb_link_page(TranslationBlock *tb,
 
 /* find the TB 'tb' such that tb[0].tc_ptr <= tc_ptr <
    tb[1].tc_ptr. Return NULL if not found */
-TranslationBlock *tb_find_pc(unsigned long tc_ptr)
+TranslationBlock *tb_find_pc(uintptr_t tc_ptr)
 {
     int m_min, m_max, m;
     unsigned long v;
@@ -2502,7 +2502,7 @@ int page_check_range(target_ulong start, target_ulong len, int flags)
 
 /* called from signal handler: invalidate the code and unprotect the
    page. Return TRUE if the fault was successfully handled. */
-int page_unprotect(target_ulong address, unsigned long pc, void *puc)
+int page_unprotect(target_ulong address, uintptr_t pc, void *puc)
 {
     unsigned int prot;
     PageDesc *p;
@@ -4484,7 +4484,7 @@ void cpu_io_recompile(CPUArchState *env, void *retaddr)
     target_ulong pc, cs_base;
     uint64_t flags;
 
-    tb = tb_find_pc((unsigned long)retaddr);
+    tb = tb_find_pc((uintptr_t)retaddr);
     if (!tb) {
         cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p", 
                   retaddr);

@@ -109,11 +109,11 @@ int cpu_gen_code(CPUArchState *env, TranslationBlock *tb, int *gen_code_size_ptr
 /* The cpu state corresponding to 'searched_pc' is restored.
  */
 int cpu_restore_state(TranslationBlock *tb,
-                      CPUArchState *env, unsigned long searched_pc)
+                      CPUArchState *env, uintptr_t searched_pc)
 {
     TCGContext *s = &tcg_ctx;
     int j;
-    unsigned long tc_ptr;
+    uintptr_t tc_ptr;
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
@@ -133,7 +133,7 @@ int cpu_restore_state(TranslationBlock *tb,
     }
 
     /* find opc index corresponding to search_pc */
-    tc_ptr = (unsigned long)tb->tc_ptr;
+    tc_ptr = (uintptr_t)tb->tc_ptr;
     if (searched_pc < tc_ptr)
         return -1;
 

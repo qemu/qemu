@@ -85,7 +85,7 @@ void cpu_gen_init(void);
 int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb,
-                      CPUArchState *env, unsigned long searched_pc);
+                      CPUArchState *env, uintptr_t searched_pc);
 void cpu_resume_from_signal(CPUArchState *env1, void *puc);
 void cpu_io_recompile(CPUArchState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUArchState *env, 
@@ -93,7 +93,7 @@ TranslationBlock *tb_gen_code(CPUArchState *env,
                               int cflags);
 void cpu_exec_init(CPUArchState *env);
 void QEMU_NORETURN cpu_loop_exit(CPUArchState *env1);
-int page_unprotect(target_ulong address, unsigned long pc, void *puc);
+int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access);
 void tlb_flush_page(CPUArchState *env, target_ulong addr);
@@ -150,7 +150,7 @@ struct TranslationBlock {
 #ifdef USE_DIRECT_JUMP
     uint16_t tb_jmp_offset[2]; /* offset of jump instruction */
 #else
-    unsigned long tb_next[2]; /* address of jump generated code */
+    uintptr_t tb_next[2]; /* address of jump generated code */
 #endif
     /* list of TBs jumping to this one. This is a circular list using
        the two least significant bits of the pointers to tell what is
@@ -202,14 +202,14 @@ static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 void ppc_tb_set_jmp_target(unsigned long jmp_addr, unsigned long addr);
 #define tb_set_jmp_target1 ppc_tb_set_jmp_target
 #elif defined(__i386__) || defined(__x86_64__)
-static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
     /* patch the branch destination */
     *(uint32_t *)jmp_addr = addr - (jmp_addr + 4);
     /* no need to flush icache explicitly */
 }
 #elif defined(__arm__)
-static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr)
+static inline void tb_set_jmp_target1(uintptr_t jmp_addr, uintptr_t addr)
 {
 #if !QEMU_GNUC_PREREQ(4, 1)
     register unsigned long _beg __asm ("a1");
@@ -237,19 +237,17 @@ static inline void tb_set_jmp_target1(unsigned long jmp_addr, unsigned long addr
 #endif
 
 static inline void tb_set_jmp_target(TranslationBlock *tb,
-                                     int n, unsigned long addr)
+                                     int n, uintptr_t addr)
 {
-    unsigned long offset;
-
-    offset = tb->tb_jmp_offset[n];
-    tb_set_jmp_target1((unsigned long)(tb->tc_ptr + offset), addr);
+    uint16_t offset = tb->tb_jmp_offset[n];
+    tb_set_jmp_target1((uintptr_t)(tb->tc_ptr + offset), addr);
 }
 
 #else
 
 /* set the jump target */
 static inline void tb_set_jmp_target(TranslationBlock *tb,
-                                     int n, unsigned long addr)
+                                     int n, uintptr_t addr)
 {
     tb->tb_next[n] = addr;
 }
@@ -262,15 +260,15 @@ static inline void tb_add_jump(TranslationBlock *tb, int n,
     /* NOTE: this test is only needed for thread safety */
     if (!tb->jmp_next[n]) {
         /* patch the native jump address */
-        tb_set_jmp_target(tb, n, (unsigned long)tb_next->tc_ptr);
+        tb_set_jmp_target(tb, n, (uintptr_t)tb_next->tc_ptr);
 
         /* add in TB jmp circular list */
         tb->jmp_next[n] = tb_next->jmp_first;
-        tb_next->jmp_first = (TranslationBlock *)((long)(tb) | (n));
+        tb_next->jmp_first = (TranslationBlock *)((uintptr_t)(tb) | (n));
     }
 }
 
-TranslationBlock *tb_find_pc(unsigned long pc_ptr);
+TranslationBlock *tb_find_pc(uintptr_t pc_ptr);
 
 #include "qemu-lock.h"
 
@@ -288,13 +286,14 @@ extern void *tci_tb_ptr;
 #  define GETPC() tci_tb_ptr
 # endif
 #elif defined(__s390__) && !defined(__s390x__)
-# define GETPC() ((void*)(((unsigned long)__builtin_return_address(0) & 0x7fffffffUL) - 1))
+# define GETPC() \
+    ((void *)(((uintptr_t)__builtin_return_address(0) & 0x7fffffffUL) - 1))
 #elif defined(__arm__)
 /* Thumb return addresses have the low bit set, so we need to subtract two.
    This is still safe in ARM mode because instructions are 4 bytes.  */
-# define GETPC() ((void *)((unsigned long)__builtin_return_address(0) - 2))
+# define GETPC() ((void *)((uintptr_t)__builtin_return_address(0) - 2))
 #else
-# define GETPC() ((void *)((unsigned long)__builtin_return_address(0) - 1))
+# define GETPC() ((void *)((uintptr_t)__builtin_return_address(0) - 1))
 #endif
 
 #if !defined(CONFIG_USER_ONLY)
