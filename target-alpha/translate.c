@@ -3525,10 +3525,12 @@ static const struct cpu_def_t cpu_defs[] = {
 
 CPUAlphaState * cpu_alpha_init (const char *cpu_model)
 {
+    AlphaCPU *cpu;
     CPUAlphaState *env;
     int implver, amask, i, max;
 
-    env = g_malloc0(sizeof(CPUAlphaState));
+    cpu = ALPHA_CPU(object_new(TYPE_ALPHA_CPU));
+    env = &cpu->env;
     cpu_exec_init(env);
     alpha_translate_init();
     tlb_flush(env, 1);
