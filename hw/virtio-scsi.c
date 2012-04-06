@@ -240,7 +240,9 @@ static VirtIOSCSIReq *virtio_scsi_pop_req(VirtIOSCSI *s, VirtQueue *vq)
 static void virtio_scsi_save_request(QEMUFile *f, SCSIRequest *sreq)
 {
     VirtIOSCSIReq *req = sreq->hba_private;
+    uint32_t n = 0;
 
+    qemu_put_be32s(f, &n);
     qemu_put_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
 }
 
@@ -249,8 +251,11 @@ static void *virtio_scsi_load_request(QEMUFile *f, SCSIRequest *sreq)
     SCSIBus *bus = sreq->bus;
     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
     VirtIOSCSIReq *req;
+    uint32_t n;
 
     req = g_malloc(sizeof(*req));
+    qemu_get_be32s(f, &n);
+    assert(n == 0);
     qemu_get_buffer(f, (unsigned char *)&req->elem, sizeof(req->elem));
     virtio_scsi_parse_req(s, s->cmd_vq, req);
 
