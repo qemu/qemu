@@ -2624,7 +2624,7 @@ int main(void) {
 #if defined(_POSIX_SYNCHRONIZED_IO) && _POSIX_SYNCHRONIZED_IO > 0
 return fdatasync(0);
 #else
-#abort Not supported
+#error Not supported
 #endif
 }
 EOF
