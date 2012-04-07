@@ -470,7 +470,7 @@ void kvm_arch_pre_run(CPUPPCState *env, struct kvm_run *run)
     int r;
     unsigned irq;
 
-    /* PowerPC Qemu tracks the various core input pins (interrupt, critical
+    /* PowerPC QEMU tracks the various core input pins (interrupt, critical
      * interrupt, reset, etc) in PPC-specific env->irq_input_state. */
     if (!cap_interrupt_level &&
         run->ready_for_interrupt_injection &&

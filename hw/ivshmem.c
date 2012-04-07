@@ -565,7 +565,7 @@ static void ivshmem_setup_msi(IVShmemState * s) {
         msix_vector_use(&s->dev, i);
     }
 
-    /* allocate Qemu char devices for receiving interrupts */
+    /* allocate QEMU char devices for receiving interrupts */
     s->eventfd_table = g_malloc0(s->vectors * sizeof(EventfdEntry));
 }
 

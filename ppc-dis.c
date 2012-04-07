@@ -5152,7 +5152,7 @@ powerpc_dialect (struct disassemble_info *info)
   return dialect;
 }
 
-/* Qemu default */
+/* QEMU default */
 int
 print_insn_ppc (bfd_vma memaddr, struct disassemble_info *info)
 {

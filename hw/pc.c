@@ -776,7 +776,7 @@ static void load_linux(void *fw_cfg,
     }
 
     /* loader type */
-    /* High nybble = B reserved for Qemu; low nybble is revision number.
+    /* High nybble = B reserved for QEMU; low nybble is revision number.
        If this code is substantially changed, you may want to consider
        incrementing the revision. */
     if (protocol >= 0x200)

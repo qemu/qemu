@@ -1,5 +1,5 @@
 /*
- * Qemu PowerPC 440 Bamboo board emulation
+ * QEMU PowerPC 440 Bamboo board emulation
  *
  * Copyright 2007 IBM Corporation.
  * Authors:

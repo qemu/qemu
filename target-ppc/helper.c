@@ -365,7 +365,7 @@ void ppc6xx_tlb_store (CPUPPCState *env, target_ulong EPN, int way, int is_code,
     tlb = &env->tlb.tlb6[nr];
     LOG_SWTLB("Set TLB %d/%d EPN " TARGET_FMT_lx " PTE0 " TARGET_FMT_lx
               " PTE1 " TARGET_FMT_lx "\n", nr, env->nb_tlb, EPN, pte0, pte1);
-    /* Invalidate any pending reference in Qemu for this virtual address */
+    /* Invalidate any pending reference in QEMU for this virtual address */
     __ppc6xx_tlb_invalidate_virt(env, EPN, is_code, 1);
     tlb->pte0 = pte0;
     tlb->pte1 = pte1;
@@ -729,7 +729,7 @@ void ppc_slb_invalidate_all (CPUPPCState *env)
             slb->esid &= ~SLB_ESID_V;
             /* XXX: given the fact that segment size is 256 MB or 1TB,
              *      and we still don't have a tlb_flush_mask(env, n, mask)
-             *      in Qemu, we just invalidate all TLBs
+             *      in QEMU, we just invalidate all TLBs
              */
             do_invalidate = 1;
         }
@@ -752,7 +752,7 @@ void ppc_slb_invalidate_one (CPUPPCState *env, uint64_t T0)
 
         /* XXX: given the fact that segment size is 256 MB or 1TB,
          *      and we still don't have a tlb_flush_mask(env, n, mask)
-         *      in Qemu, we just invalidate all TLBs
+         *      in QEMU, we just invalidate all TLBs
          */
         tlb_flush(env, 1);
     }
@@ -2319,7 +2319,7 @@ void ppc_tlb_invalidate_one (CPUPPCState *env, target_ulong addr)
     case POWERPC_MMU_2_06:
         /* tlbie invalidate TLBs for all segments */
         /* XXX: given the fact that there are too many segments to invalidate,
-         *      and we still don't have a tlb_flush_mask(env, n, mask) in Qemu,
+         *      and we still don't have a tlb_flush_mask(env, n, mask) in QEMU,
          *      we just invalidate all TLBs
          */
         tlb_flush(env, 1);
