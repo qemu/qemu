@@ -968,7 +968,7 @@ monitor (@pxref{pcsys_keys}).
 
 QEMU emulates a PCI UHCI USB controller. You can virtually plug
 virtual USB devices or real host USB devices (experimental, works only
-on Linux hosts).  Qemu will automatically create and connect virtual USB hubs
+on Linux hosts).  QEMU will automatically create and connect virtual USB hubs
 as necessary to connect multiple USB devices.
 
 @menu
