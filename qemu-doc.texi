@@ -2709,9 +2709,9 @@ MinGW's default header and linker search paths.
 @file{make}.  If you have problems using SDL, verify that
 @file{sdl-config} can be launched from the MSYS command line.
 
-@item You can install QEMU in @file{Program Files/Qemu} by typing
+@item You can install QEMU in @file{Program Files/QEMU} by typing
 @file{make install}. Don't forget to copy @file{SDL.dll} in
-@file{Program Files/Qemu}.
+@file{Program Files/QEMU}.
 
 @end itemize
 
@@ -2745,7 +2745,7 @@ The example assumes @file{sdl-config} is installed under @file{/usr/i686-pc-ming
 MinGW cross compilation tools have names like @file{i686-pc-mingw32-gcc} and @file{i686-pc-mingw32-strip}.
 We set the @code{PATH} environment variable to ensure the MinGW version of @file{sdl-config} is used and
 use --cross-prefix to specify the name of the cross compiler.
-You can also use --prefix to set the Win32 install path which defaults to @file{c:/Program Files/Qemu}.
+You can also use --prefix to set the Win32 install path which defaults to @file{c:/Program Files/QEMU}.
 
 Under Fedora Linux, you can run:
 @example

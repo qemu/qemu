@@ -519,7 +519,7 @@ EOF
   if compile_prog "" "-liberty" ; then
     LIBS="-liberty $LIBS"
   fi
-  prefix="c:/Program Files/Qemu"
+  prefix="c:/Program Files/QEMU"
   mandir="\${prefix}"
   datadir="\${prefix}"
   docdir="\${prefix}"
