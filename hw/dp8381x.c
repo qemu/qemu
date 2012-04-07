@@ -1186,7 +1186,7 @@ static uint64_t dp8381x_read(void *opaque, target_phys_addr_t addr,
                              unsigned size)
 {
     DP8381xState *s = opaque;
-    uint64_t val;
+    uint64_t val = 0;
     switch (size) {
     case 1:
         val = dp8381x_readb(s, addr);
