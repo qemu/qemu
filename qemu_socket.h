@@ -8,10 +8,6 @@
 #include <ws2tcpip.h>
 
 #define socket_error() WSAGetLastError()
-#undef EINTR
-#define EWOULDBLOCK WSAEWOULDBLOCK
-#define EINTR       WSAEINTR
-#define EINPROGRESS WSAEINPROGRESS
 
 int inet_aton(const char *cp, struct in_addr *ia);
 
