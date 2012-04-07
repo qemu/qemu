@@ -538,6 +538,27 @@ typedef struct {
 #define EF_ALIGN8          0x40		/* 8-bit structure alignment is in use */
 #define EF_NEW_ABI         0x80
 #define EF_OLD_ABI         0x100
+#define EF_ARM_SOFT_FLOAT  0x200
+#define EF_ARM_VFP_FLOAT   0x400
+#define EF_ARM_MAVERICK_FLOAT 0x800
+
+/* Other constants defined in the ARM ELF spec. version B-01.  */
+#define EF_ARM_SYMSARESORTED 0x04       /* NB conflicts with EF_INTERWORK */
+#define EF_ARM_DYNSYMSUSESEGIDX 0x08    /* NB conflicts with EF_APCS26 */
+#define EF_ARM_MAPSYMSFIRST 0x10        /* NB conflicts with EF_APCS_FLOAT */
+#define EF_ARM_EABIMASK      0xFF000000
+
+/* Constants defined in AAELF.  */
+#define EF_ARM_BE8          0x00800000
+#define EF_ARM_LE8          0x00400000
+
+#define EF_ARM_EABI_VERSION(flags) ((flags) & EF_ARM_EABIMASK)
+#define EF_ARM_EABI_UNKNOWN  0x00000000
+#define EF_ARM_EABI_VER1     0x01000000
+#define EF_ARM_EABI_VER2     0x02000000
+#define EF_ARM_EABI_VER3     0x03000000
+#define EF_ARM_EABI_VER4     0x04000000
+#define EF_ARM_EABI_VER5     0x05000000
 
 /* Additional symbol types for Thumb */
 #define STT_ARM_TFUNC      0xd

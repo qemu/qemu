@@ -33,6 +33,7 @@
 #include "tcg.h"
 #include "qemu-timer.h"
 #include "envlist.h"
+#include "elf.h"
 
 #define DEBUG_LOGFILE "/tmp/qemu.log"
 
@@ -48,7 +49,18 @@ unsigned long mmap_min_addr;
 #if defined(CONFIG_USE_GUEST_BASE)
 unsigned long guest_base;
 int have_guest_base;
+#if (TARGET_LONG_BITS == 32) && (HOST_LONG_BITS == 64)
+/*
+ * When running 32-on-64 we should make sure we can fit all of the possible
+ * guest address space into a contiguous chunk of virtual host memory.
+ *
+ * This way we will never overlap with our own libraries or binaries or stack
+ * or anything else that QEMU maps.
+ */
+unsigned long reserved_va = 0xf7000000;
+#else
 unsigned long reserved_va;
+#endif
 #endif
 
 static void usage(void);
@@ -463,6 +475,22 @@ void cpu_loop(CPUX86State *env)
 
 #ifdef TARGET_ARM
 
+#define get_user_code_u32(x, gaddr, doswap)             \
+    ({ abi_long __r = get_user_u32((x), (gaddr));       \
+        if (!__r && (doswap)) {                         \
+            (x) = bswap32(x);                           \
+        }                                               \
+        __r;                                            \
+    })
+
+#define get_user_code_u16(x, gaddr, doswap)             \
+    ({ abi_long __r = get_user_u16((x), (gaddr));       \
+        if (!__r && (doswap)) {                         \
+            (x) = bswap16(x);                           \
+        }                                               \
+        __r;                                            \
+    })
+
 /*
  * See the Linux kernel's Documentation/arm/kernel_user_helpers.txt
  * Input:
@@ -696,7 +724,7 @@ void cpu_loop(CPUARMState *env)
                 /* we handle the FPU emulation here, as Linux */
                 /* we get the opcode */
                 /* FIXME - what to do if get_user() fails? */
-                get_user_u32(opcode, env->regs[15]);
+                get_user_code_u32(opcode, env->regs[15], env->bswap_code);
 
                 rc = EmulateAll(opcode, &ts->fpa, env);
                 if (rc == 0) { /* illegal instruction */
@@ -766,23 +794,25 @@ void cpu_loop(CPUARMState *env)
                 if (trapnr == EXCP_BKPT) {
                     if (env->thumb) {
                         /* FIXME - what to do if get_user() fails? */
-                        get_user_u16(insn, env->regs[15]);
+                        get_user_code_u16(insn, env->regs[15], env->bswap_code);
                         n = insn & 0xff;
                         env->regs[15] += 2;
                     } else {
                         /* FIXME - what to do if get_user() fails? */
-                        get_user_u32(insn, env->regs[15]);
+                        get_user_code_u32(insn, env->regs[15], env->bswap_code);
                         n = (insn & 0xf) | ((insn >> 4) & 0xff0);
                         env->regs[15] += 4;
                     }
                 } else {
                     if (env->thumb) {
                         /* FIXME - what to do if get_user() fails? */
-                        get_user_u16(insn, env->regs[15] - 2);
+                        get_user_code_u16(insn, env->regs[15] - 2,
+                                          env->bswap_code);
                         n = insn & 0xff;
                     } else {
                         /* FIXME - what to do if get_user() fails? */
-                        get_user_u32(insn, env->regs[15] - 4);
+                        get_user_code_u32(insn, env->regs[15] - 4,
+                                          env->bswap_code);
                         n = insn & 0xffffff;
                     }
                 }
@@ -3420,6 +3450,7 @@ int main(int argc, char **argv, char **envp)
             guest_base = HOST_PAGE_ALIGN((unsigned long)p);
         }
         qemu_log("Reserved 0x%lx bytes of guest address space\n", reserved_va);
+        mmap_next_start = reserved_va;
     }
 
     if (reserved_va || have_guest_base) {
@@ -3485,11 +3516,6 @@ int main(int argc, char **argv, char **envp)
         printf("Error %d while loading %s\n", ret, filename);
         _exit(1);
     }
-
-    for (i = 0; i < target_argc; i++) {
-        free(target_argv[i]);
-    }
-    free(target_argv);
 
     for (wrk = target_environ; *wrk; wrk++) {
         free(*wrk);
@@ -3649,6 +3675,11 @@ int main(int argc, char **argv, char **envp)
         cpsr_write(env, regs->uregs[16], 0xffffffff);
         for(i = 0; i < 16; i++) {
             env->regs[i] = regs->uregs[i];
+        }
+        /* Enable BE8.  */
+        if (EF_ARM_EABI_VERSION(info->elf_flags) >= EF_ARM_EABI_VER4
+            && (info->elf_flags & EF_ARM_BE8)) {
+            env->bswap_code = 1;
         }
     }
 #elif defined(TARGET_UNICORE32)

@@ -51,6 +51,7 @@ struct image_info {
         abi_ulong       auxv_len;
         abi_ulong       arg_start;
         abi_ulong       arg_end;
+        uint32_t        elf_flags;
 	int		personality;
 #ifdef CONFIG_USE_FDPIC
         abi_ulong       loadmap_addr;
@@ -251,6 +252,7 @@ abi_long target_mremap(abi_ulong old_addr, abi_ulong old_size,
                        abi_ulong new_addr);
 int target_msync(abi_ulong start, abi_ulong len, int flags);
 extern unsigned long last_brk;
+extern abi_ulong mmap_next_start;
 void mmap_lock(void);
 void mmap_unlock(void);
 abi_ulong mmap_find_vma(abi_ulong, abi_ulong);

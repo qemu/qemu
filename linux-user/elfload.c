@@ -375,10 +375,33 @@ bool guest_validate_base(unsigned long guest_base)
     return 1; /* All good */
 }
 
-#define ELF_HWCAP (ARM_HWCAP_ARM_SWP | ARM_HWCAP_ARM_HALF               \
-                   | ARM_HWCAP_ARM_THUMB | ARM_HWCAP_ARM_FAST_MULT      \
-                   | ARM_HWCAP_ARM_FPA | ARM_HWCAP_ARM_VFP              \
-                   | ARM_HWCAP_ARM_NEON | ARM_HWCAP_ARM_VFPv3 )
+
+#define ELF_HWCAP get_elf_hwcap()
+
+static uint32_t get_elf_hwcap(void)
+{
+    CPUARMState *e = thread_env;
+    uint32_t hwcaps = 0;
+
+    hwcaps |= ARM_HWCAP_ARM_SWP;
+    hwcaps |= ARM_HWCAP_ARM_HALF;
+    hwcaps |= ARM_HWCAP_ARM_THUMB;
+    hwcaps |= ARM_HWCAP_ARM_FAST_MULT;
+    hwcaps |= ARM_HWCAP_ARM_FPA;
+
+    /* probe for the extra features */
+#define GET_FEATURE(feat, hwcap) \
+    do {if (arm_feature(e, feat)) { hwcaps |= hwcap; } } while (0)
+    GET_FEATURE(ARM_FEATURE_VFP, ARM_HWCAP_ARM_VFP);
+    GET_FEATURE(ARM_FEATURE_IWMMXT, ARM_HWCAP_ARM_IWMMXT);
+    GET_FEATURE(ARM_FEATURE_THUMB2EE, ARM_HWCAP_ARM_THUMBEE);
+    GET_FEATURE(ARM_FEATURE_NEON, ARM_HWCAP_ARM_NEON);
+    GET_FEATURE(ARM_FEATURE_VFP3, ARM_HWCAP_ARM_VFPv3);
+    GET_FEATURE(ARM_FEATURE_VFP_FP16, ARM_HWCAP_ARM_VFPv3D16);
+#undef GET_FEATURE
+
+    return hwcaps;
+}
 
 #endif
 
@@ -1553,6 +1576,7 @@ static void load_elf_image(const char *image_name, int image_fd,
     info->start_data = -1;
     info->end_data = 0;
     info->brk = 0;
+    info->elf_flags = ehdr->e_flags;
 
     for (i = 0; i < ehdr->e_phnum; i++) {
         struct elf_phdr *eppnt = phdr + i;

@@ -216,6 +216,9 @@ typedef struct CPUARMState {
         uint32_t cregs[16];
     } iwmmxt;
 
+    /* For mixed endian mode.  */
+    bool bswap_code;
+
 #if defined(CONFIG_USER_ONLY)
     /* For usermode syscall translation.  */
     int eabi;
@@ -491,7 +494,9 @@ static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
 #define ARM_TBFLAG_VFPEN_MASK       (1 << ARM_TBFLAG_VFPEN_SHIFT)
 #define ARM_TBFLAG_CONDEXEC_SHIFT   8
 #define ARM_TBFLAG_CONDEXEC_MASK    (0xff << ARM_TBFLAG_CONDEXEC_SHIFT)
-/* Bits 31..16 are currently unused. */
+#define ARM_TBFLAG_BSWAP_CODE_SHIFT 16
+#define ARM_TBFLAG_BSWAP_CODE_MASK  (1 << ARM_TBFLAG_BSWAP_CODE_SHIFT)
+/* Bits 31..17 are currently unused. */
 
 /* some convenience accessor macros */
 #define ARM_TBFLAG_THUMB(F) \
@@ -506,6 +511,8 @@ static inline void cpu_clone_regs(CPUARMState *env, target_ulong newsp)
     (((F) & ARM_TBFLAG_VFPEN_MASK) >> ARM_TBFLAG_VFPEN_SHIFT)
 #define ARM_TBFLAG_CONDEXEC(F) \
     (((F) & ARM_TBFLAG_CONDEXEC_MASK) >> ARM_TBFLAG_CONDEXEC_SHIFT)
+#define ARM_TBFLAG_BSWAP_CODE(F) \
+    (((F) & ARM_TBFLAG_BSWAP_CODE_MASK) >> ARM_TBFLAG_BSWAP_CODE_SHIFT)
 
 static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
                                         target_ulong *cs_base, int *flags)
@@ -516,7 +523,8 @@ static inline void cpu_get_tb_cpu_state(CPUARMState *env, target_ulong *pc,
     *flags = (env->thumb << ARM_TBFLAG_THUMB_SHIFT)
         | (env->vfp.vec_len << ARM_TBFLAG_VECLEN_SHIFT)
         | (env->vfp.vec_stride << ARM_TBFLAG_VECSTRIDE_SHIFT)
-        | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT);
+        | (env->condexec_bits << ARM_TBFLAG_CONDEXEC_SHIFT)
+        | (env->bswap_code << ARM_TBFLAG_BSWAP_CODE_SHIFT);
     if (arm_feature(env, ARM_FEATURE_M)) {
         privmode = !((env->v7m.exception == 0) && (env->v7m.control & 1));
     } else {
@@ -541,6 +549,26 @@ static inline bool cpu_has_work(CPUARMState *env)
 static inline void cpu_pc_from_tb(CPUARMState *env, TranslationBlock *tb)
 {
     env->regs[15] = tb->pc;
+}
+
+/* Load an instruction and return it in the standard little-endian order */
+static inline uint32_t arm_ldl_code(uint32_t addr, bool do_swap)
+{
+    uint32_t insn = ldl_code(addr);
+    if (do_swap) {
+        return bswap32(insn);
+    }
+    return insn;
+}
+
+/* Ditto, for a halfword (Thumb) instruction */
+static inline uint16_t arm_lduw_code(uint32_t addr, bool do_swap)
+{
+    uint16_t insn = lduw_code(addr);
+    if (do_swap) {
+        return bswap16(insn);
+    }
+    return insn;
 }
 
 #endif

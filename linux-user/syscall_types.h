@@ -83,9 +83,9 @@ STRUCT(mixer_info,
 /* loop device ioctls */
 STRUCT(loop_info,
        TYPE_INT,                 /* lo_number */
-       TYPE_SHORT,               /* lo_device */
+       TYPE_OLDDEVT,             /* lo_device */
        TYPE_ULONG,               /* lo_inode */
-       TYPE_SHORT,               /* lo_rdevice */
+       TYPE_OLDDEVT,             /* lo_rdevice */
        TYPE_INT,                 /* lo_offset */
        TYPE_INT,                 /* lo_encrypt_type */
        TYPE_INT,                 /* lo_encrypt_key_size */
@@ -185,6 +185,42 @@ STRUCT(vt_mode,
        TYPE_SHORT, /* relsig */
        TYPE_SHORT, /* acqsig */
        TYPE_SHORT) /* frsig  */
+
+STRUCT(dm_ioctl,
+       MK_ARRAY(TYPE_INT, 3), /* version */
+       TYPE_INT, /* data_size */
+       TYPE_INT, /* data_start */
+       TYPE_INT, /* target_count*/
+       TYPE_INT, /* open_count */
+       TYPE_INT, /* flags */
+       TYPE_INT, /* event_nr */
+       TYPE_INT, /* padding */
+       TYPE_ULONGLONG, /* dev */
+       MK_ARRAY(TYPE_CHAR, 128), /* name */
+       MK_ARRAY(TYPE_CHAR, 129), /* uuid */
+       MK_ARRAY(TYPE_CHAR, 7)) /* data */
+
+STRUCT(dm_target_spec,
+       TYPE_ULONGLONG, /* sector_start */
+       TYPE_ULONGLONG, /* length */
+       TYPE_INT, /* status */
+       TYPE_INT, /* next */
+       MK_ARRAY(TYPE_CHAR, 16)) /* target_type */
+
+STRUCT(dm_target_deps,
+       TYPE_INT, /* count */
+       TYPE_INT) /* padding */
+
+STRUCT(dm_name_list,
+       TYPE_ULONGLONG, /* dev */
+       TYPE_INT) /* next */
+
+STRUCT(dm_target_versions,
+       TYPE_INT, /* next */
+       MK_ARRAY(TYPE_INT, 3)) /* version*/
+
+STRUCT(dm_target_msg,
+       TYPE_ULONGLONG) /* sector */
 
 STRUCT(fiemap_extent,
        TYPE_ULONGLONG, /* fe_logical */

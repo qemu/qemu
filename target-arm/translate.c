@@ -59,6 +59,7 @@ typedef struct DisasContext {
     struct TranslationBlock *tb;
     int singlestep_enabled;
     int thumb;
+    int bswap_code;
 #if !defined(CONFIG_USER_ONLY)
     int user;
 #endif
@@ -6705,7 +6706,7 @@ static void disas_arm_insn(CPUARMState * env, DisasContext *s)
     TCGv addr;
     TCGv_i64 tmp64;
 
-    insn = ldl_code(s->pc);
+    insn = arm_ldl_code(s->pc, s->bswap_code);
     s->pc += 4;
 
     /* M variants do not implement ARM mode.  */
@@ -8133,7 +8134,7 @@ static int disas_thumb2_insn(CPUARMState *env, DisasContext *s, uint16_t insn_hw
         /* Fall through to 32-bit decode.  */
     }
 
-    insn = lduw_code(s->pc);
+    insn = arm_lduw_code(s->pc, s->bswap_code);
     s->pc += 2;
     insn |= (uint32_t)insn_hw1 << 16;
 
@@ -9163,7 +9164,7 @@ static void disas_thumb_insn(CPUARMState *env, DisasContext *s)
         }
     }
 
-    insn = lduw_code(s->pc);
+    insn = arm_lduw_code(s->pc, s->bswap_code);
     s->pc += 2;
 
     switch (insn >> 12) {
@@ -9872,6 +9873,7 @@ static inline void gen_intermediate_code_internal(CPUARMState *env,
     dc->singlestep_enabled = env->singlestep_enabled;
     dc->condjmp = 0;
     dc->thumb = ARM_TBFLAG_THUMB(tb->flags);
+    dc->bswap_code = ARM_TBFLAG_BSWAP_CODE(tb->flags);
     dc->condexec_mask = (ARM_TBFLAG_CONDEXEC(tb->flags) & 0xf) << 1;
     dc->condexec_cond = ARM_TBFLAG_CONDEXEC(tb->flags) >> 4;
 #if !defined(CONFIG_USER_ONLY)
@@ -10105,7 +10107,8 @@ done_generating:
     if (qemu_loglevel_mask(CPU_LOG_TB_IN_ASM)) {
         qemu_log("----------------\n");
         qemu_log("IN: %s\n", lookup_symbol(pc_start));
-        log_target_disas(pc_start, dc->pc - pc_start, dc->thumb);
+        log_target_disas(pc_start, dc->pc - pc_start,
+                         dc->thumb | (dc->bswap_code << 1));
         qemu_log("\n");
     }
 #endif

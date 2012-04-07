@@ -832,9 +832,11 @@ struct target_pollfd {
 #define TARGET_BLKSECTGET TARGET_IO(0x12,103)/* get max sectors per request (ll_rw_blk.c) */
 #define TARGET_BLKSSZGET  TARGET_IO(0x12,104)/* get block device sector size */
 /* A jump here: 108-111 have been used for various private purposes. */
-#define TARGET_BLKBSZGET  TARGET_IOR(0x12,112,sizeof(int))
-#define TARGET_BLKBSZSET  TARGET_IOW(0x12,113,sizeof(int))
-#define TARGET_BLKGETSIZE64 TARGET_IOR(0x12,114,sizeof(uint64_t)) /* return device size in bytes (u64 *arg) */
+#define TARGET_BLKBSZGET  TARGET_IOR(0x12,112,int)
+#define TARGET_BLKBSZSET  TARGET_IOW(0x12,113,int)
+#define TARGET_BLKGETSIZE64 TARGET_IOR(0x12,114,abi_ulong)
+                                             /* return device size in bytes
+                                                (u64 *arg) */
 #define TARGET_FIBMAP     TARGET_IO(0x00,1)  /* bmap access */
 #define TARGET_FIGETBSZ   TARGET_IO(0x00,2)  /* get the block size used for bmap */
 #define TARGET_FS_IOC_FIEMAP TARGET_IOWR('f',11,struct fiemap)
@@ -988,6 +990,24 @@ struct target_pollfd {
 #define TARGET_VT_SETMODE             0x5602
 #define TARGET_VT_RELDISP             0x5605
 #define TARGET_VT_DISALLOCATE         0x5608
+
+/* device mapper */
+#define TARGET_DM_VERSION             TARGET_IOWRU(0xfd, 0x00)
+#define TARGET_DM_REMOVE_ALL          TARGET_IOWRU(0xfd, 0x01)
+#define TARGET_DM_LIST_DEVICES        TARGET_IOWRU(0xfd, 0x02)
+#define TARGET_DM_DEV_CREATE          TARGET_IOWRU(0xfd, 0x03)
+#define TARGET_DM_DEV_REMOVE          TARGET_IOWRU(0xfd, 0x04)
+#define TARGET_DM_DEV_RENAME          TARGET_IOWRU(0xfd, 0x05)
+#define TARGET_DM_DEV_SUSPEND         TARGET_IOWRU(0xfd, 0x06)
+#define TARGET_DM_DEV_STATUS          TARGET_IOWRU(0xfd, 0x07)
+#define TARGET_DM_DEV_WAIT            TARGET_IOWRU(0xfd, 0x08)
+#define TARGET_DM_TABLE_LOAD          TARGET_IOWRU(0xfd, 0x09)
+#define TARGET_DM_TABLE_CLEAR         TARGET_IOWRU(0xfd, 0x0a)
+#define TARGET_DM_TABLE_DEPS          TARGET_IOWRU(0xfd, 0x0b)
+#define TARGET_DM_TABLE_STATUS        TARGET_IOWRU(0xfd, 0x0c)
+#define TARGET_DM_LIST_VERSIONS       TARGET_IOWRU(0xfd, 0x0d)
+#define TARGET_DM_TARGET_MSG          TARGET_IOWRU(0xfd, 0x0e)
+#define TARGET_DM_DEV_SET_GEOMETRY    TARGET_IOWRU(0xfd, 0x0f)
 
 /* from asm/termbits.h */
 
