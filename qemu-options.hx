@@ -1310,7 +1310,7 @@ and a @var{name} can be assigned for use in monitor commands.
 Optionally, for PCI cards, you can specify the number @var{v} of MSI-X vectors
 that the card should have; this option currently only affects virtio cards; set
 @var{v} = 0 to disable MSI-X. If no @option{-net} option is specified, a single
-NIC is created.  Qemu can emulate several different models of network card.
+NIC is created.  QEMU can emulate several different models of network card.
 Valid values for @var{type} are
 @code{virtio}, @code{i82551}, @code{i82557b}, @code{i82559er},
 @code{ne2k_pci}, @code{ne2k_isa}, @code{pcnet}, @code{rtl8139},
@@ -2133,7 +2133,7 @@ activates telnet remote echo and single char transfer, then you can
 use the following options to step up a netcat redirector to allow
 telnet on port 5555 to access the qemu port.
 @table @code
-@item Qemu Options:
+@item QEMU Options:
 -serial udp::4555@@:4556
 @item netcat options:
 -u -P 4555 -L 0.0.0.0:4556 -t -p 5555 -I -T

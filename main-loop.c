@@ -218,17 +218,19 @@ int main_loop_init(void)
     return 0;
 }
 
-
+static fd_set rfds, wfds, xfds;
+static int nfds;
 static GPollFD poll_fds[1024 * 2]; /* this is probably overkill */
 static int n_poll_fds;
 static int max_priority;
 
+#ifndef _WIN32
 static void glib_select_fill(int *max_fd, fd_set *rfds, fd_set *wfds,
-                             fd_set *xfds, struct timeval *tv)
+                             fd_set *xfds, int *cur_timeout)
 {
     GMainContext *context = g_main_context_default();
     int i;
-    int timeout = 0, cur_timeout;
+    int timeout = 0;
 
     g_main_context_prepare(context, &max_priority);
 
@@ -253,10 +255,8 @@ static void glib_select_fill(int *max_fd, fd_set *rfds, fd_set *wfds,
         }
     }
 
-    cur_timeout = (tv->tv_sec * 1000) + ((tv->tv_usec + 500) / 1000);
-    if (timeout >= 0 && timeout < cur_timeout) {
-        tv->tv_sec = timeout / 1000;
-        tv->tv_usec = (timeout % 1000) * 1000;
+    if (timeout >= 0 && timeout < *cur_timeout) {
+        *cur_timeout = timeout;
     }
 }
 
@@ -288,7 +288,29 @@ static void glib_select_poll(fd_set *rfds, fd_set *wfds, fd_set *xfds,
     }
 }
 
-#ifdef _WIN32
+static int os_host_main_loop_wait(int timeout)
+{
+    struct timeval tv;
+    int ret;
+
+    glib_select_fill(&nfds, &rfds, &wfds, &xfds, &timeout);
+
+    if (timeout > 0) {
+        qemu_mutex_unlock_iothread();
+    }
+
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout % 1000) * 1000;
+    ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
+
+    if (timeout > 0) {
+        qemu_mutex_lock_iothread();
+    }
+
+    glib_select_poll(&rfds, &wfds, &xfds, (ret < 0));
+    return ret;
+}
+#else
 /***********************************************************/
 /* Polling handling */
 
@@ -328,6 +350,7 @@ void qemu_del_polling_cb(PollingFunc *func, void *opaque)
 /* Wait objects support */
 typedef struct WaitObjects {
     int num;
+    int revents[MAXIMUM_WAIT_OBJECTS + 1];
     HANDLE events[MAXIMUM_WAIT_OBJECTS + 1];
     WaitObjectFunc *func[MAXIMUM_WAIT_OBJECTS + 1];
     void *opaque[MAXIMUM_WAIT_OBJECTS + 1];
@@ -344,6 +367,7 @@ int qemu_add_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
     w->events[w->num] = handle;
     w->func[w->num] = func;
     w->opaque[w->num] = opaque;
+    w->revents[w->num] = 0;
     w->num++;
     return 0;
 }
@@ -362,6 +386,7 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
             w->events[i] = w->events[i + 1];
             w->func[i] = w->func[i + 1];
             w->opaque[i] = w->opaque[i + 1];
+            w->revents[i] = w->revents[i + 1];
         }
     }
     if (found) {
@@ -369,64 +394,76 @@ void qemu_del_wait_object(HANDLE handle, WaitObjectFunc *func, void *opaque)
     }
 }
 
-static void os_host_main_loop_wait(int *timeout)
+void qemu_fd_register(int fd)
 {
+    WSAEventSelect(fd, qemu_event_handle, FD_READ | FD_ACCEPT | FD_CLOSE |
+                   FD_CONNECT | FD_WRITE | FD_OOB);
+}
+
+static int os_host_main_loop_wait(int timeout)
+{
+    GMainContext *context = g_main_context_default();
     int ret, i;
     PollingEntry *pe;
+    WaitObjects *w = &wait_objects;
+    static struct timeval tv0;
 
     /* XXX: need to suppress polling by better using win32 events */
     ret = 0;
     for (pe = first_polling_entry; pe != NULL; pe = pe->next) {
         ret |= pe->func(pe->opaque);
     }
-    if (ret == 0) {
-        DWORD event;
-        int err;
-        WaitObjects *w = &wait_objects;
+    if (ret != 0) {
+        return ret;
+    }
 
-        qemu_mutex_unlock_iothread();
-        event = WaitForMultipleObjects(w->num, w->events, FALSE, *timeout);
-        qemu_mutex_lock_iothread();
-        /* Make sure that the definition of WAIT_OBJECT_0 did not change. */
-        assert(WAIT_OBJECT_0 == 0);
-        if (event < WAIT_OBJECT_0 + w->num) {
-            if (w->func[event]) {
-                w->func[event](w->opaque[event]);
-            }
-
-            /* Check for additional signaled events */
-            for (i = (event + 1); i < w->num; i++) {
-                /* Check if event is signaled */
-                event = WaitForSingleObject(w->events[i], 0);
-                if (event == WAIT_OBJECT_0) {
-                    if (w->func[i]) {
-                        w->func[i](w->opaque[i]);
-                    }
-                } else if (event != WAIT_TIMEOUT) {
-                    err = GetLastError();
-                    fprintf(stderr, "WaitForSingleObject error %d %d\n", i, err);
-                }
-            }
-        } else if (event != WAIT_TIMEOUT) {
-            err = GetLastError();
-            fprintf(stderr, "WaitForMultipleObjects error %lu %d\n", event, err);
+    if (nfds >= 0) {
+        ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv0);
+        if (ret != 0) {
+            timeout = 0;
         }
     }
 
-    *timeout = 0;
-}
-#else
-static inline void os_host_main_loop_wait(int *timeout)
-{
+    g_main_context_prepare(context, &max_priority);
+    n_poll_fds = g_main_context_query(context, max_priority, &timeout,
+                                      poll_fds, ARRAY_SIZE(poll_fds));
+    g_assert(n_poll_fds <= ARRAY_SIZE(poll_fds));
+
+    for (i = 0; i < w->num; i++) {
+        poll_fds[n_poll_fds + i].fd = (DWORD) w->events[i];
+        poll_fds[n_poll_fds + i].events = G_IO_IN;
+    }
+
+    qemu_mutex_unlock_iothread();
+    ret = g_poll(poll_fds, n_poll_fds + w->num, timeout);
+    qemu_mutex_lock_iothread();
+    if (ret > 0) {
+        for (i = 0; i < w->num; i++) {
+            w->revents[i] = poll_fds[n_poll_fds + i].revents;
+        }
+        for (i = 0; i < w->num; i++) {
+            if (w->revents[i] && w->func[i]) {
+                w->func[i](w->opaque[i]);
+            }
+        }
+    }
+
+    if (g_main_context_check(context, max_priority, poll_fds, n_poll_fds)) {
+        g_main_context_dispatch(context);
+    }
+
+    /* If an edge-triggered socket event occurred, select will return a
+     * positive result on the next iteration.  We do not need to do anything
+     * here.
+     */
+
+    return ret;
 }
 #endif
 
 int main_loop_wait(int nonblocking)
 {
-    fd_set rfds, wfds, xfds;
-    int ret, nfds;
-    struct timeval tv;
-    int timeout;
+    int ret, timeout;
 
     if (nonblocking) {
         timeout = 0;
@@ -434,11 +471,6 @@ int main_loop_wait(int nonblocking)
         timeout = qemu_calculate_timeout();
         qemu_bh_update_timeout(&timeout);
     }
-
-    os_host_main_loop_wait(&timeout);
-
-    tv.tv_sec = timeout / 1000;
-    tv.tv_usec = (timeout % 1000) * 1000;
 
     /* poll any events */
     /* XXX: separate device handlers from system ones */
@@ -451,19 +483,7 @@ int main_loop_wait(int nonblocking)
     slirp_select_fill(&nfds, &rfds, &wfds, &xfds);
 #endif
     qemu_iohandler_fill(&nfds, &rfds, &wfds, &xfds);
-    glib_select_fill(&nfds, &rfds, &wfds, &xfds, &tv);
-
-    if (timeout > 0) {
-        qemu_mutex_unlock_iothread();
-    }
-
-    ret = select(nfds + 1, &rfds, &wfds, &xfds, &tv);
-
-    if (timeout > 0) {
-        qemu_mutex_lock_iothread();
-    }
-
-    glib_select_poll(&rfds, &wfds, &xfds, (ret < 0));
+    ret = os_host_main_loop_wait(timeout);
     qemu_iohandler_poll(&rfds, &wfds, &xfds, ret);
 #ifdef CONFIG_SLIRP
     slirp_select_poll(&rfds, &wfds, &xfds, (ret < 0));

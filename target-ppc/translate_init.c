@@ -1796,17 +1796,17 @@ static void gen_spr_440 (CPUPPCState *env)
 static void gen_spr_40x (CPUPPCState *env)
 {
     /* Cache */
-    /* not emulated, as Qemu do not emulate caches */
+    /* not emulated, as QEMU do not emulate caches */
     spr_register(env, SPR_40x_DCCR, "DCCR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
-    /* not emulated, as Qemu do not emulate caches */
+    /* not emulated, as QEMU do not emulate caches */
     spr_register(env, SPR_40x_ICCR, "ICCR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0x00000000);
-    /* not emulated, as Qemu do not emulate caches */
+    /* not emulated, as QEMU do not emulate caches */
     spr_register(env, SPR_BOOKE_ICDBDR, "ICDBDR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, SPR_NOACCESS,
@@ -1974,7 +1974,7 @@ static void gen_spr_401_403 (CPUPPCState *env)
                  SPR_NOACCESS, &spr_write_tbu,
                  0x00000000);
     /* Debug */
-    /* not emulated, as Qemu do not emulate caches */
+    /* not emulated, as QEMU do not emulate caches */
     spr_register(env, SPR_403_CDBCR, "CDBCR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -2012,12 +2012,12 @@ static void gen_spr_401 (CPUPPCState *env)
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_40x_sler,
                  0x00000000);
-    /* not emulated, as Qemu never does speculative access */
+    /* not emulated, as QEMU never does speculative access */
     spr_register(env, SPR_40x_SGR, "SGR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0xFFFFFFFF);
-    /* not emulated, as Qemu do not emulate caches */
+    /* not emulated, as QEMU do not emulate caches */
     spr_register(env, SPR_40x_DCWR, "DCWR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -3436,12 +3436,12 @@ static void init_proc_403GCX (CPUPPCState *env)
     gen_spr_403_real(env);
     gen_spr_403_mmu(env);
     /* Bus access control */
-    /* not emulated, as Qemu never does speculative access */
+    /* not emulated, as QEMU never does speculative access */
     spr_register(env, SPR_40x_SGR, "SGR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0xFFFFFFFF);
-    /* not emulated, as Qemu do not emulate caches */
+    /* not emulated, as QEMU do not emulate caches */
     spr_register(env, SPR_40x_DCWR, "DCWR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -3488,12 +3488,12 @@ static void init_proc_405 (CPUPPCState *env)
     gen_spr_40x(env);
     gen_spr_405(env);
     /* Bus access control */
-    /* not emulated, as Qemu never does speculative access */
+    /* not emulated, as QEMU never does speculative access */
     spr_register(env, SPR_40x_SGR, "SGR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
                  0xFFFFFFFF);
-    /* not emulated, as Qemu do not emulate caches */
+    /* not emulated, as QEMU do not emulate caches */
     spr_register(env, SPR_40x_DCWR, "DCWR",
                  SPR_NOACCESS, SPR_NOACCESS,
                  &spr_read_generic, &spr_write_generic,
@@ -9442,13 +9442,13 @@ static void init_ppc_proc (CPUPPCState *env, const ppc_def_t *def)
     }
     if (env->irq_inputs == NULL) {
         fprintf(stderr, "WARNING: no internal IRQ controller registered.\n"
-                " Attempt Qemu to crash very soon !\n");
+                " Attempt QEMU to crash very soon !\n");
     }
 #endif
     if (env->check_pow == NULL) {
         fprintf(stderr, "WARNING: no power management check handler "
                 "registered.\n"
-                " Attempt Qemu to crash very soon !\n");
+                " Attempt QEMU to crash very soon !\n");
     }
 }
 

@@ -1,5 +1,5 @@
 /*
- * Qemu PowerPC MPC8544DS board emualtion
+ * QEMU PowerPC MPC8544DS board emulation
  *
  * Copyright (C) 2009 Freescale Semiconductor, Inc. All rights reserved.
  *

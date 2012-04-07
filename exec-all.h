@@ -286,7 +286,8 @@ extern void *tci_tb_ptr;
 #  define GETPC() tci_tb_ptr
 # endif
 #elif defined(__s390__) && !defined(__s390x__)
-# define GETPC() ((void*)(((uintptr_t)__builtin_return_address(0) & 0x7fffffffUL) - 1))
+# define GETPC() \
+    ((void *)(((uintptr_t)__builtin_return_address(0) & 0x7fffffffUL) - 1))
 #elif defined(__arm__)
 /* Thumb return addresses have the low bit set, so we need to subtract two.
    This is still safe in ARM mode because instructions are 4 bytes.  */

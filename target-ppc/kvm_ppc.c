@@ -31,7 +31,7 @@ void kvmppc_init(void)
 {
     /* XXX The only reason KVM yields control back to qemu is device IO. Since
      * an idle guest does no IO, qemu's device model will never get a chance to
-     * run. So, until Qemu gains IO threads, we create this timer to ensure
+     * run. So, until QEMU gains IO threads, we create this timer to ensure
      * that the device model gets a chance to run. */
     kvmppc_timer_rate = get_ticks_per_sec() / 10;
     kvmppc_timer = qemu_new_timer_ns(vm_clock, &kvmppc_timer_hack, NULL);

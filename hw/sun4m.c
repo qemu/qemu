@@ -932,8 +932,8 @@ static void sun4m_hw_init(const struct sun4m_hwdef *hwdef, ram_addr_t RAM_size,
 
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[14],
                               display_type == DT_NOGRAPHIC, ESCC_CLOCK, 1);
-    // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
-    // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
+    /* Slavio TTYA (base+4, Linux ttyS0) is the first QEMU serial device
+       Slavio TTYB (base+0, Linux ttyS1) is the second QEMU serial device */
     escc_init(hwdef->serial_base, slavio_irq[15], slavio_irq[15],
               serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
 
@@ -1581,8 +1581,8 @@ static void sun4d_hw_init(const struct sun4d_hwdef *hwdef, ram_addr_t RAM_size,
 
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, sbi_irq[12],
                               display_type == DT_NOGRAPHIC, ESCC_CLOCK, 1);
-    // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
-    // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
+    /* Slavio TTYA (base+4, Linux ttyS0) is the first QEMU serial device
+       Slavio TTYB (base+0, Linux ttyS1) is the second QEMU serial device */
     escc_init(hwdef->serial_base, sbi_irq[12], sbi_irq[12],
               serial_hds[0], serial_hds[1], ESCC_CLOCK, 1);
 
@@ -1762,8 +1762,8 @@ static void sun4c_hw_init(const struct sun4c_hwdef *hwdef, ram_addr_t RAM_size,
 
     slavio_serial_ms_kbd_init(hwdef->ms_kb_base, slavio_irq[1],
                               display_type == DT_NOGRAPHIC, ESCC_CLOCK, 1);
-    // Slavio TTYA (base+4, Linux ttyS0) is the first Qemu serial device
-    // Slavio TTYB (base+0, Linux ttyS1) is the second Qemu serial device
+    /* Slavio TTYA (base+4, Linux ttyS0) is the first QEMU serial device
+       Slavio TTYB (base+0, Linux ttyS1) is the second QEMU serial device */
     escc_init(hwdef->serial_base, slavio_irq[1],
               slavio_irq[1], serial_hds[0], serial_hds[1],
               ESCC_CLOCK, 1);

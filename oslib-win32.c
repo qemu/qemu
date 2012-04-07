@@ -28,6 +28,7 @@
 #include <windows.h>
 #include "config-host.h"
 #include "sysemu.h"
+#include "main-loop.h"
 #include "trace.h"
 #include "qemu_socket.h"
 
@@ -76,6 +77,7 @@ void qemu_vfree(void *ptr)
 void socket_set_block(int fd)
 {
     unsigned long opt = 0;
+    WSAEventSelect(fd, NULL, 0);
     ioctlsocket(fd, FIONBIO, &opt);
 }
 
@@ -83,6 +85,7 @@ void socket_set_nonblock(int fd)
 {
     unsigned long opt = 1;
     ioctlsocket(fd, FIONBIO, &opt);
+    qemu_fd_register(fd);
 }
 
 int inet_aton(const char *cp, struct in_addr *ia)

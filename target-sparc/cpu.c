@@ -25,10 +25,22 @@ static int cpu_sparc_find_by_name(sparc_def_t *cpu_def, const char *cpu_model);
 
 void cpu_state_reset(CPUSPARCState *env)
 {
+    cpu_reset(ENV_GET_CPU(env));
+}
+
+/* CPUClass::reset() */
+static void sparc_cpu_reset(CPUState *s)
+{
+    SPARCCPU *cpu = SPARC_CPU(s);
+    SPARCCPUClass *scc = SPARC_CPU_GET_CLASS(cpu);
+    CPUSPARCState *env = &cpu->env;
+
     if (qemu_loglevel_mask(CPU_LOG_RESET)) {
         qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
         log_cpu_state(env, 0);
     }
+
+    scc->parent_reset(s);
 
     memset(env, 0, offsetof(CPUSPARCState, breakpoints));
     tlb_flush(env, 1);
@@ -99,23 +111,18 @@ static int cpu_sparc_register(CPUSPARCState *env, const char *cpu_model)
     return 0;
 }
 
-static void cpu_sparc_close(CPUSPARCState *env)
-{
-    g_free(env->def);
-    g_free(env);
-}
-
 CPUSPARCState *cpu_sparc_init(const char *cpu_model)
 {
+    SPARCCPU *cpu;
     CPUSPARCState *env;
 
-    env = g_new0(CPUSPARCState, 1);
-    cpu_exec_init(env);
+    cpu = SPARC_CPU(object_new(TYPE_SPARC_CPU));
+    env = &cpu->env;
 
     gen_intermediate_code_init(env);
 
     if (cpu_sparc_register(env, cpu_model) < 0) {
-        cpu_sparc_close(env);
+        object_delete(OBJECT(cpu));
         return NULL;
     }
     qemu_init_vcpu(env);
@@ -847,3 +854,46 @@ void cpu_dump_state(CPUSPARCState *env, FILE *f, fprintf_function cpu_fprintf,
                 env->fsr, env->y);
 #endif
 }
+
+static void sparc_cpu_initfn(Object *obj)
+{
+    SPARCCPU *cpu = SPARC_CPU(obj);
+    CPUSPARCState *env = &cpu->env;
+
+    cpu_exec_init(env);
+}
+
+static void sparc_cpu_uninitfn(Object *obj)
+{
+    SPARCCPU *cpu = SPARC_CPU(obj);
+    CPUSPARCState *env = &cpu->env;
+
+    g_free(env->def);
+}
+
+static void sparc_cpu_class_init(ObjectClass *oc, void *data)
+{
+    SPARCCPUClass *scc = SPARC_CPU_CLASS(oc);
+    CPUClass *cc = CPU_CLASS(oc);
+
+    scc->parent_reset = cc->reset;
+    cc->reset = sparc_cpu_reset;
+}
+
+static const TypeInfo sparc_cpu_type_info = {
+    .name = TYPE_SPARC_CPU,
+    .parent = TYPE_CPU,
+    .instance_size = sizeof(SPARCCPU),
+    .instance_init = sparc_cpu_initfn,
+    .instance_finalize = sparc_cpu_uninitfn,
+    .abstract = false,
+    .class_size = sizeof(SPARCCPUClass),
+    .class_init = sparc_cpu_class_init,
+};
+
+static void sparc_cpu_register_types(void)
+{
+    type_register_static(&sparc_cpu_type_info);
+}
+
+type_init(sparc_cpu_register_types)

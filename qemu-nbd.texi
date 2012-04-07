@@ -6,7 +6,7 @@ usage: qemu-nbd [OPTION]...  @var{filename}
 
 @c man begin DESCRIPTION
 
-Export Qemu disk image using NBD protocol.
+Export QEMU disk image using NBD protocol.
 
 @c man end
 

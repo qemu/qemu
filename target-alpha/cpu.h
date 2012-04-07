@@ -276,7 +276,7 @@ struct CPUAlphaState {
     target_ulong t0, t1;
 #endif
 
-    /* Those resources are used only in Qemu core */
+    /* Those resources are used only in QEMU core */
     CPU_COMMON
 
     int error_code;

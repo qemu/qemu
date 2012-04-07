@@ -88,7 +88,7 @@ typedef struct {
 typedef struct {
     PS2State common;
     int scan_enabled;
-    /* Qemu uses translated PC scancodes internally.  To avoid multiple
+    /* QEMU uses translated PC scancodes internally.  To avoid multiple
        conversions we do the translation (if any) in the PS/2 emulation
        not the keyboard controller.  */
     int translate;

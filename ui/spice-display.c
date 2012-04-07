@@ -219,7 +219,7 @@ static SimpleSpiceUpdate *qemu_spice_create_update(SimpleSpiceDisplay *ssd)
 /*
  * Called from spice server thread context (via interface_release_ressource)
  * We do *not* hold the global qemu mutex here, so extra care is needed
- * when calling qemu functions.  Qemu interfaces used:
+ * when calling qemu functions.  QEMU interfaces used:
  *    - g_free (underlying glibc free is re-entrant).
  */
 void qemu_spice_destroy_update(SimpleSpiceDisplay *sdpy, SimpleSpiceUpdate *update)

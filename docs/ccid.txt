@@ -1,4 +1,4 @@
-Qemu CCID Device Documentation.
+QEMU CCID Device Documentation.
 
 Contents
 1. USB CCID device

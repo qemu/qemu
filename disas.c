@@ -138,7 +138,7 @@ print_insn_thumb1(bfd_vma pc, disassemble_info *info)
 /* Disassemble this for me please... (debugging). 'flags' has the following
    values:
     i386 - 1 means 16 bit code, 2 means 64 bit code
-    arm  - nonzero means thumb code
+    arm  - bit 0 = thumb, bit 1 = reverse endian
     ppc  - nonzero means little endian
     other targets - unused
  */
@@ -169,10 +169,18 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
         disasm_info.mach = bfd_mach_i386_i386;
     print_insn = print_insn_i386;
 #elif defined(TARGET_ARM)
-    if (flags)
-	print_insn = print_insn_thumb1;
-    else
-	print_insn = print_insn_arm;
+    if (flags & 1) {
+        print_insn = print_insn_thumb1;
+    } else {
+        print_insn = print_insn_arm;
+    }
+    if (flags & 2) {
+#ifdef TARGET_WORDS_BIGENDIAN
+        disasm_info.endian = BFD_ENDIAN_LITTLE;
+#else
+        disasm_info.endian = BFD_ENDIAN_BIG;
+#endif
+    }
 #elif defined(TARGET_SPARC)
     print_insn = print_insn_sparc;
 #ifdef TARGET_SPARC64

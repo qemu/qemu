@@ -772,7 +772,7 @@ QemuCocoaView *cocoaView;
               modalForWindow:normalWindow modalDelegate:self
               didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:) contextInfo:NULL];
     } else {
-        // or Launch Qemu, with the global args
+        // or launch QEMU, with the global args
         [self startEmulationWithArgc:gArgc argv:(char **)gArgv];
     }
 }

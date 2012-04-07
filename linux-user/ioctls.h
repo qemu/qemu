@@ -74,6 +74,8 @@
      IOCTL(BLKFLSBUF, 0, TYPE_NULL)
      IOCTL(BLKRASET, 0, TYPE_INT)
      IOCTL(BLKRAGET, IOC_R, MK_PTR(TYPE_LONG))
+     IOCTL(BLKSSZGET, IOC_R, MK_PTR(TYPE_LONG))
+     IOCTL(BLKBSZGET, IOC_R, MK_PTR(TYPE_INT))
 #ifdef FIBMAP
      IOCTL(FIBMAP, IOC_W | IOC_R, MK_PTR(TYPE_LONG))
 #endif
@@ -345,3 +347,35 @@
   IOCTL(VT_SETMODE, IOC_RW, MK_PTR(MK_STRUCT(STRUCT_vt_mode)))
   IOCTL(VT_RELDISP, 0, TYPE_INT)
   IOCTL(VT_DISALLOCATE, 0, TYPE_INT)
+
+  IOCTL(DM_VERSION, IOC_RW, MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_REMOVE_ALL,   IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_LIST_DEVICES, IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_DEV_CREATE,   IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_DEV_REMOVE,   IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_DEV_RENAME,   IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_DEV_SUSPEND,  IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_DEV_STATUS,   IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_DEV_WAIT,     IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_TABLE_LOAD,   IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_TABLE_CLEAR,  IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_TABLE_DEPS,   IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_TABLE_STATUS, IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_LIST_VERSIONS,IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_TARGET_MSG,   IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))
+  IOCTL_SPECIAL(DM_DEV_SET_GEOMETRY, IOC_RW, do_ioctl_dm,
+                MK_PTR(MK_STRUCT(STRUCT_dm_ioctl)))

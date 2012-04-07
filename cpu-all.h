@@ -204,7 +204,8 @@ extern uintptr_t reserved_va;
 #else
 #define h2g_valid(x) ({ \
     uintptr_t __guest = (uintptr_t)(x) - GUEST_BASE; \
-    __guest < (1ul << TARGET_VIRT_ADDR_SPACE_BITS); \
+    (__guest < (1ul << TARGET_VIRT_ADDR_SPACE_BITS)) && \
+    (!RESERVED_VA || (__guest < RESERVED_VA)); \
 })
 #endif
 

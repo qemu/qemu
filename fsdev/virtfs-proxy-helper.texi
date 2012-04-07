@@ -24,7 +24,7 @@ in non-root mode, but doing privileged operations using socket IO.
 Proxy helper(a stand alone binary part of qemu) is invoked with
 root privileges. Proxy helper chroots into 9p export path and creates
 a socket pair or a named socket based on the command line parameter.
-Qemu and proxy helper communicate using this socket. QEMU proxy fs
+QEMU and proxy helper communicate using this socket. QEMU proxy fs
 driver sends filesystem request to proxy helper and receives the
 response from it.
 

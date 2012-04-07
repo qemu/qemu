@@ -117,7 +117,7 @@ static int32 roundAndPackInt32( flag zSign, uint64_t absZ STATUS_PARAM)
     int8 roundingMode;
     flag roundNearestEven;
     int8 roundIncrement, roundBits;
-    int32 z;
+    int32_t z;
 
     roundingMode = STATUS(float_rounding_mode);
     roundNearestEven = ( roundingMode == float_round_nearest_even );
@@ -166,7 +166,7 @@ static int64 roundAndPackInt64( flag zSign, uint64_t absZ0, uint64_t absZ1 STATU
 {
     int8 roundingMode;
     flag roundNearestEven, increment;
-    int64 z;
+    int64_t z;
 
     roundingMode = STATUS(float_rounding_mode);
     roundNearestEven = ( roundingMode == float_round_nearest_even );
@@ -1378,7 +1378,7 @@ int32 float32_to_int32_round_to_zero( float32 a STATUS_PARAM )
     flag aSign;
     int16 aExp, shiftCount;
     uint32_t aSig;
-    int32 z;
+    int32_t z;
     a = float32_squash_input_denormal(a STATUS_VAR);
 
     aSig = extractFloat32Frac( a );
@@ -2762,7 +2762,7 @@ int32 float64_to_int32_round_to_zero( float64 a STATUS_PARAM )
     flag aSign;
     int16 aExp, shiftCount;
     uint64_t aSig, savedASig;
-    int32 z;
+    int32_t z;
     a = float64_squash_input_denormal(a STATUS_VAR);
 
     aSig = extractFloat64Frac( a );
@@ -4248,7 +4248,7 @@ int32 floatx80_to_int32_round_to_zero( floatx80 a STATUS_PARAM )
     flag aSign;
     int32 aExp, shiftCount;
     uint64_t aSig, savedASig;
-    int32 z;
+    int32_t z;
 
     aSig = extractFloatx80Frac( a );
     aExp = extractFloatx80Exp( a );
@@ -5277,7 +5277,7 @@ int32 float128_to_int32_round_to_zero( float128 a STATUS_PARAM )
     flag aSign;
     int32 aExp, shiftCount;
     uint64_t aSig0, aSig1, savedASig;
-    int32 z;
+    int32_t z;
 
     aSig1 = extractFloat128Frac1( a );
     aSig0 = extractFloat128Frac0( a );
