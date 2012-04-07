@@ -63,6 +63,17 @@ void *tci_tb_ptr;
 
 static tcg_target_ulong tci_reg[TCG_TARGET_NB_REGS];
 
+#if !defined(CONFIG_TCG_PASS_AREG0)
+# define helper_ldb_mmu(env, addr, mmu_idx) __ldb_mmu(addr, mmu_idx)
+# define helper_ldw_mmu(env, addr, mmu_idx) __ldw_mmu(addr, mmu_idx)
+# define helper_ldl_mmu(env, addr, mmu_idx) __ldl_mmu(addr, mmu_idx)
+# define helper_ldq_mmu(env, addr, mmu_idx) __ldq_mmu(addr, mmu_idx)
+# define helper_stb_mmu(env, addr, val, mmu_idx) __stb_mmu(addr, val, mmu_idx)
+# define helper_stw_mmu(env, addr, val, mmu_idx) __stw_mmu(addr, val, mmu_idx)
+# define helper_stl_mmu(env, addr, val, mmu_idx) __stl_mmu(addr, val, mmu_idx)
+# define helper_stq_mmu(env, addr, val, mmu_idx) __stq_mmu(addr, val, mmu_idx)
+#endif /* !CONFIG_TCG_PASS_AREG0 */
+
 static tcg_target_ulong tci_read_reg(TCGReg index)
 {
     assert(index < ARRAY_SIZE(tci_reg));
@@ -1049,7 +1060,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
-            tmp8 = __ldb_mmu(taddr, tci_read_i(&tb_ptr));
+            tmp8 = helper_ldb_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1061,7 +1072,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
-            tmp8 = __ldb_mmu(taddr, tci_read_i(&tb_ptr));
+            tmp8 = helper_ldb_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1073,7 +1084,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
-            tmp16 = __ldw_mmu(taddr, tci_read_i(&tb_ptr));
+            tmp16 = helper_ldw_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1085,7 +1096,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
-            tmp16 = __ldw_mmu(taddr, tci_read_i(&tb_ptr));
+            tmp16 = helper_ldw_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1098,7 +1109,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
-            tmp32 = __ldl_mmu(taddr, tci_read_i(&tb_ptr));
+            tmp32 = helper_ldl_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1110,7 +1121,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
-            tmp32 = __ldl_mmu(taddr, tci_read_i(&tb_ptr));
+            tmp32 = helper_ldl_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1123,7 +1134,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             t0 = *tb_ptr++;
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
-            tmp32 = __ldl_mmu(taddr, tci_read_i(&tb_ptr));
+            tmp32 = helper_ldl_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1138,7 +1149,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
 #endif
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
-            tmp64 = __ldq_mmu(taddr, tci_read_i(&tb_ptr));
+            tmp64 = helper_ldq_mmu(env, taddr, tci_read_i(&tb_ptr));
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1154,7 +1165,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
             t2 = tci_read_i(&tb_ptr);
-            __stb_mmu(taddr, t0, t2);
+            helper_stb_mmu(env, taddr, t0, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1166,7 +1177,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
             t2 = tci_read_i(&tb_ptr);
-            __stw_mmu(taddr, t0, t2);
+            helper_stw_mmu(env, taddr, t0, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1178,7 +1189,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
             t2 = tci_read_i(&tb_ptr);
-            __stl_mmu(taddr, t0, t2);
+            helper_stl_mmu(env, taddr, t0, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
@@ -1190,7 +1201,7 @@ tcg_target_ulong tcg_qemu_tb_exec(CPUArchState *cpustate, uint8_t *tb_ptr)
             taddr = tci_read_ulong(&tb_ptr);
 #ifdef CONFIG_SOFTMMU
             t2 = tci_read_i(&tb_ptr);
-            __stq_mmu(taddr, tmp64, t2);
+            helper_stq_mmu(env, taddr, tmp64, t2);
 #else
             host_addr = (tcg_target_ulong)taddr;
             assert(taddr == host_addr);
