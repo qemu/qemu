@@ -4,7 +4,7 @@ Alpha emulation structure:
 cpu.h           : CPU definitions globally exported
 exec.h          : CPU definitions used only for translated code execution
 helper.c        : helpers that can be called either by the translated code
-                  or the Qemu core, including the exception handler.
+                  or the QEMU core, including the exception handler.
 op_helper.c     : helpers that can be called only from TCG
 helper.h        : TCG helpers prototypes
 translate.c     : Alpha instructions to micro-operations translator

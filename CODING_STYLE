@@ -1,4 +1,4 @@
-Qemu Coding Style
+QEMU Coding Style
 =================
 
 Please use the script checkpatch.pl in the scripts directory to check

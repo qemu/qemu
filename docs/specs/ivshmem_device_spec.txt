@@ -24,7 +24,7 @@ The device currently supports 4 registers of 32-bits each.  Registers
 are used for synchronization between guests sharing the same memory object when
 interrupts are supported (this requires using the shared memory server).
 
-The server assigns each VM an ID number and sends this ID number to the Qemu
+The server assigns each VM an ID number and sends this ID number to the QEMU
 process when the guest starts.
 
 enum ivshmem_registers {
