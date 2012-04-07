@@ -86,7 +86,7 @@ int cpu_gen_code(CPUArchState *env, struct TranslationBlock *tb,
                  int *gen_code_size_ptr);
 int cpu_restore_state(struct TranslationBlock *tb,
                       CPUArchState *env, uintptr_t searched_pc);
-void cpu_resume_from_signal(CPUArchState *env1, void *puc);
+void QEMU_NORETURN cpu_resume_from_signal(CPUArchState *env1, void *puc);
 void cpu_io_recompile(CPUArchState *env, void *retaddr);
 TranslationBlock *tb_gen_code(CPUArchState *env, 
                               target_ulong pc, target_ulong cs_base, int flags,
