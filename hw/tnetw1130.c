@@ -542,7 +542,7 @@ static uint64_t tnetw1130_read0(void *opaque, target_phys_addr_t addr,
 {
     TNETW1130State *d = opaque;
     tnetw1130_t *s = &d->tnetw1130;
-    uint64_t val;
+    uint64_t val = 0;
     switch (size) {
     case 1:
         val = tnetw1130_read0b(s, addr);
@@ -590,7 +590,7 @@ static uint64_t tnetw1130_read1(void *opaque, target_phys_addr_t addr,
 {
     TNETW1130State *d = opaque;
     tnetw1130_t *s = &d->tnetw1130;
-    uint64_t val;
+    uint64_t val = 0;
     switch (size) {
     case 1:
         val = tnetw1130_read1b(s, addr);
