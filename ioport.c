@@ -385,7 +385,7 @@ static void portio_list_add_1(PortioList *piolist,
      * rather than an offset relative to to start + off_low.
      */
     memory_region_init_io(region, ops, piolist->opaque, piolist->name,
-                          UINT64_MAX);
+                          INT64_MAX);
     memory_region_init_alias(alias, piolist->name,
                              region, start + off_low, off_high - off_low);
     memory_region_add_subregion(piolist->address_space,
