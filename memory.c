@@ -1444,6 +1444,11 @@ static void listener_add_address_space(MemoryListener *listener,
 {
     FlatRange *fr;
 
+    if (listener->address_space_filter
+        && listener->address_space_filter != as->root) {
+        return;
+    }
+
     if (global_dirty_log) {
         listener->log_global_start(listener);
     }
@@ -1621,6 +1626,13 @@ void mtree_info(fprintf_function mon_printf, void *f)
     mon_printf(f, "memory\n");
     mtree_print_mr(mon_printf, f, address_space_memory.root, 0, 0, &ml_head);
 
+    if (address_space_io.root &&
+        !QTAILQ_EMPTY(&address_space_io.root->subregions)) {
+        mon_printf(f, "I/O\n");
+        mtree_print_mr(mon_printf, f, address_space_io.root, 0, 0, &ml_head);
+    }
+
+    mon_printf(f, "aliases\n");
     /* print aliased regions */
     QTAILQ_FOREACH(ml, &ml_head, queue) {
         if (!ml->printed) {
@@ -1631,12 +1643,5 @@ void mtree_info(fprintf_function mon_printf, void *f)
 
     QTAILQ_FOREACH_SAFE(ml, &ml_head, queue, ml2) {
         g_free(ml);
-    }
-
-    if (address_space_io.root &&
-        !QTAILQ_EMPTY(&address_space_io.root->subregions)) {
-        QTAILQ_INIT(&ml_head);
-        mon_printf(f, "I/O\n");
-        mtree_print_mr(mon_printf, f, address_space_io.root, 0, 0, &ml_head);
     }
 }
