@@ -89,7 +89,7 @@ uint64_t helper_stq_c_phys(CPUAlphaState *env, uint64_t p, uint64_t v)
 }
 
 static void do_unaligned_access(CPUAlphaState *env, target_ulong addr,
-                                int is_write, int is_user, void *retaddr)
+                                int is_write, int is_user, uintptr_t retaddr)
 {
     uint64_t pc;
     uint32_t insn;
@@ -112,7 +112,7 @@ void cpu_unassigned_access(CPUAlphaState *env, target_phys_addr_t addr,
 {
     env->trap_arg0 = addr;
     env->trap_arg1 = is_write;
-    dynamic_excp(env, NULL, EXCP_MCHK, 0);
+    dynamic_excp(env, 0, EXCP_MCHK, 0);
 }
 
 #include "softmmu_exec.h"
@@ -137,7 +137,7 @@ void cpu_unassigned_access(CPUAlphaState *env, target_phys_addr_t addr,
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
 void tlb_fill(CPUAlphaState *env, target_ulong addr, int is_write,
-              int mmu_idx, void *retaddr)
+              int mmu_idx, uintptr_t retaddr)
 {
     int ret;
 

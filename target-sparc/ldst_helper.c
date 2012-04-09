@@ -2376,25 +2376,23 @@ void cpu_unassigned_access(CPUSPARCState *env, target_phys_addr_t addr,
 
 #if !defined(CONFIG_USER_ONLY)
 /* XXX: make it generic ? */
-static void cpu_restore_state2(CPUSPARCState *env, void *retaddr)
+static void cpu_restore_state2(CPUSPARCState *env, uintptr_t retaddr)
 {
     TranslationBlock *tb;
-    unsigned long pc;
 
     if (retaddr) {
         /* now we have a real cpu fault */
-        pc = (unsigned long)retaddr;
-        tb = tb_find_pc(pc);
+        tb = tb_find_pc(retaddr);
         if (tb) {
             /* the PC is inside the translated code. It means that we have
                a virtual CPU fault */
-            cpu_restore_state(tb, env, pc);
+            cpu_restore_state(tb, env, retaddr);
         }
     }
 }
 
 void do_unaligned_access(CPUSPARCState *env, target_ulong addr, int is_write,
-                         int is_user, void *retaddr)
+                         int is_user, uintptr_t retaddr)
 {
 #ifdef DEBUG_UNALIGNED
     printf("Unaligned access to 0x" TARGET_FMT_lx " from 0x" TARGET_FMT_lx
@@ -2409,7 +2407,7 @@ void do_unaligned_access(CPUSPARCState *env, target_ulong addr, int is_write,
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
 void tlb_fill(CPUSPARCState *env, target_ulong addr, int is_write, int mmu_idx,
-              void *retaddr)
+              uintptr_t retaddr)
 {
     int ret;
 

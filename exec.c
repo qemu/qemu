@@ -1221,7 +1221,7 @@ static inline void tb_invalidate_phys_page_fast(tb_page_addr_t start, int len)
 
 #if !defined(CONFIG_SOFTMMU)
 static void tb_invalidate_phys_page(tb_page_addr_t addr,
-                                    unsigned long pc, void *puc)
+                                    uintptr_t pc, void *puc)
 {
     TranslationBlock *tb;
     PageDesc *p;
@@ -4477,20 +4477,20 @@ int cpu_memory_rw_debug(CPUArchState *env, target_ulong addr,
 
 /* in deterministic execution mode, instructions doing device I/Os
    must be at the end of the TB */
-void cpu_io_recompile(CPUArchState *env, void *retaddr)
+void cpu_io_recompile(CPUArchState *env, uintptr_t retaddr)
 {
     TranslationBlock *tb;
     uint32_t n, cflags;
     target_ulong pc, cs_base;
     uint64_t flags;
 
-    tb = tb_find_pc((uintptr_t)retaddr);
+    tb = tb_find_pc(retaddr);
     if (!tb) {
         cpu_abort(env, "cpu_io_recompile: could not find TB for pc=%p", 
-                  retaddr);
+                  (void *)retaddr);
     }
     n = env->icount_decr.u16.low + tb->icount;
-    cpu_restore_state(tb, env, (unsigned long)retaddr);
+    cpu_restore_state(tb, env, retaddr);
     /* Calculate how many instructions had been executed before the fault
        occurred.  */
     n = n - env->icount_decr.u16.low;
@@ -4638,7 +4638,7 @@ bool virtio_is_big_endian(void)
 
 #define MMUSUFFIX _cmmu
 #undef GETPC
-#define GETPC() NULL
+#define GETPC() ((uintptr_t)0)
 #define env cpu_single_env
 #define SOFTMMU_CODE_ACCESS
 

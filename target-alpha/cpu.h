@@ -433,9 +433,9 @@ int cpu_alpha_handle_mmu_fault (CPUAlphaState *env, uint64_t address, int rw,
                                 int mmu_idx);
 #define cpu_handle_mmu_fault cpu_alpha_handle_mmu_fault
 void do_interrupt (CPUAlphaState *env);
-void do_restore_state(CPUAlphaState *, void *retaddr);
-void QEMU_NORETURN dynamic_excp(CPUAlphaState *, void *, int, int);
-void QEMU_NORETURN arith_excp(CPUAlphaState *, void *, int, uint64_t);
+void do_restore_state(CPUAlphaState *, uintptr_t retaddr);
+void QEMU_NORETURN dynamic_excp(CPUAlphaState *, uintptr_t, int, int);
+void QEMU_NORETURN arith_excp(CPUAlphaState *, uintptr_t, int, uint64_t);
 
 uint64_t cpu_alpha_load_fpcr (CPUAlphaState *env);
 void cpu_alpha_store_fpcr (CPUAlphaState *env, uint64_t val);

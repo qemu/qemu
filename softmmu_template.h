@@ -69,17 +69,17 @@
 static DATA_TYPE glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM
                                                         target_ulong addr,
                                                         int mmu_idx,
-                                                        void *retaddr);
+                                                        uintptr_t retaddr);
 static inline DATA_TYPE glue(io_read, SUFFIX)(ENV_PARAM
                                               target_phys_addr_t physaddr,
                                               target_ulong addr,
-                                              void *retaddr)
+                                              uintptr_t retaddr)
 {
     DATA_TYPE res;
     MemoryRegion *mr = iotlb_to_region(physaddr);
 
     physaddr = (physaddr & TARGET_PAGE_MASK) + addr;
-    env->mem_io_pc = (unsigned long)retaddr;
+    env->mem_io_pc = retaddr;
     if (mr != &io_mem_ram && mr != &io_mem_rom
         && mr != &io_mem_unassigned
         && mr != &io_mem_notdirty
@@ -113,7 +113,7 @@ glue(glue(glue(HELPER_PREFIX, ld), SUFFIX), MMUSUFFIX)(ENV_PARAM
     target_ulong tlb_addr;
     target_phys_addr_t ioaddr;
     unsigned long addend;
-    void *retaddr;
+    uintptr_t retaddr;
 
     /* test if there is match for unaligned or IO access */
     /* XXX: could done more in memory macro in a non portable way */
@@ -166,7 +166,7 @@ static DATA_TYPE
 glue(glue(slow_ld, SUFFIX), MMUSUFFIX)(ENV_PARAM
                                        target_ulong addr,
                                        int mmu_idx,
-                                       void *retaddr)
+                                       uintptr_t retaddr)
 {
     DATA_TYPE res, res1, res2;
     int index, shift;
@@ -219,13 +219,13 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM
                                                    target_ulong addr,
                                                    DATA_TYPE val,
                                                    int mmu_idx,
-                                                   void *retaddr);
+                                                   uintptr_t retaddr);
 
 static inline void glue(io_write, SUFFIX)(ENV_PARAM
                                           target_phys_addr_t physaddr,
                                           DATA_TYPE val,
                                           target_ulong addr,
-                                          void *retaddr)
+                                          uintptr_t retaddr)
 {
     MemoryRegion *mr = iotlb_to_region(physaddr);
 
@@ -238,7 +238,7 @@ static inline void glue(io_write, SUFFIX)(ENV_PARAM
     }
 
     env->mem_io_vaddr = addr;
-    env->mem_io_pc = (unsigned long)retaddr;
+    env->mem_io_pc = retaddr;
 #if SHIFT <= 2
     io_mem_write(mr, physaddr, val, 1 << SHIFT);
 #else
@@ -260,7 +260,7 @@ void glue(glue(glue(HELPER_PREFIX, st), SUFFIX), MMUSUFFIX)(ENV_PARAM
     target_phys_addr_t ioaddr;
     unsigned long addend;
     target_ulong tlb_addr;
-    void *retaddr;
+    uintptr_t retaddr;
     int index;
 
     index = (addr >> TARGET_PAGE_BITS) & (CPU_TLB_SIZE - 1);
@@ -310,7 +310,7 @@ static void glue(glue(slow_st, SUFFIX), MMUSUFFIX)(ENV_PARAM
                                                    target_ulong addr,
                                                    DATA_TYPE val,
                                                    int mmu_idx,
-                                                   void *retaddr)
+                                                   uintptr_t retaddr)
 {
     target_phys_addr_t ioaddr;
     unsigned long addend;

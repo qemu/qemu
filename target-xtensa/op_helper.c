@@ -31,7 +31,7 @@
 #include "host-utils.h"
 
 static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
-        void *retaddr);
+                                uintptr_t retaddr);
 
 #define ALIGNED_ONLY
 #define MMUSUFFIX _mmu
@@ -48,10 +48,9 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 #define SHIFT 3
 #include "softmmu_template.h"
 
-static void do_restore_state(void *pc_ptr)
+static void do_restore_state(uintptr_t pc)
 {
     TranslationBlock *tb;
-    uint32_t pc = (uint32_t)(intptr_t)pc_ptr;
 
     tb = tb_find_pc(pc);
     if (tb) {
@@ -60,7 +59,7 @@ static void do_restore_state(void *pc_ptr)
 }
 
 static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
-        void *retaddr)
+                                uintptr_t retaddr)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_UNALIGNED_EXCEPTION) &&
             !xtensa_option_enabled(env->config, XTENSA_OPTION_HW_ALIGNMENT)) {
@@ -71,7 +70,7 @@ static void do_unaligned_access(target_ulong addr, int is_write, int is_user,
 }
 
 void tlb_fill(CPUXtensaState *env1, target_ulong vaddr, int is_write, int mmu_idx,
-              void *retaddr)
+              uintptr_t retaddr)
 {
     CPUXtensaState *saved_env = env;
 

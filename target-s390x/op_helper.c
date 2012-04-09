@@ -57,11 +57,10 @@
    from generated code or from helper.c) */
 /* XXX: fix it to restore all registers */
 void tlb_fill(CPUS390XState *env1, target_ulong addr, int is_write, int mmu_idx,
-              void *retaddr)
+              uintptr_t retaddr)
 {
     TranslationBlock *tb;
     CPUS390XState *saved_env;
-    unsigned long pc;
     int ret;
 
     saved_env = env;
@@ -70,12 +69,11 @@ void tlb_fill(CPUS390XState *env1, target_ulong addr, int is_write, int mmu_idx,
     if (unlikely(ret != 0)) {
         if (likely(retaddr)) {
             /* now we have a real cpu fault */
-            pc = (unsigned long)retaddr;
-            tb = tb_find_pc(pc);
+            tb = tb_find_pc(retaddr);
             if (likely(tb)) {
                 /* the PC is inside the translated code. It means that we have
                    a virtual CPU fault */
-                cpu_restore_state(tb, env, pc);
+                cpu_restore_state(tb, env, retaddr);
             }
         }
         cpu_loop_exit(env);
