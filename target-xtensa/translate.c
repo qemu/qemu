@@ -459,11 +459,13 @@ static void gen_rsr(DisasContext *dc, TCGv_i32 d, uint32_t sr)
 static void gen_wsr_lbeg(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 {
     gen_helper_wsr_lbeg(s);
+    gen_jumpi_check_loop_end(dc, 0);
 }
 
 static void gen_wsr_lend(DisasContext *dc, uint32_t sr, TCGv_i32 s)
 {
     gen_helper_wsr_lend(s);
+    gen_jumpi_check_loop_end(dc, 0);
 }
 
 static void gen_wsr_sar(DisasContext *dc, uint32_t sr, TCGv_i32 s)
