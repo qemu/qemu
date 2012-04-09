@@ -503,14 +503,6 @@ bool memory_region_is_unassigned(MemoryRegion *mr)
         && mr != &io_mem_watch;
 }
 
-target_phys_addr_t memory_region_section_addr(MemoryRegionSection *section,
-                                              target_phys_addr_t addr)
-{
-    addr -= section->offset_within_address_space;
-    addr += section->offset_within_region;
-    return addr;
-}
-
 #define mmap_lock() do { } while(0)
 #define mmap_unlock() do { } while(0)
 #endif

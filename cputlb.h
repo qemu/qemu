@@ -32,8 +32,6 @@ void tlb_set_dirty(CPUArchState *env, target_ulong vaddr);
 extern int tlb_flush_count;
 
 /* exec.c */
-target_phys_addr_t memory_region_section_addr(MemoryRegionSection *section,
-                                              target_phys_addr_t addr);
 void tb_flush_jmp_cache(CPUArchState *env, target_ulong addr);
 target_phys_addr_t memory_region_section_get_iotlb(CPUArchState *env,
                                                    MemoryRegionSection *section,
@@ -43,9 +41,5 @@ target_phys_addr_t memory_region_section_get_iotlb(CPUArchState *env,
                                                    target_ulong *address);
 bool memory_region_is_unassigned(MemoryRegion *mr);
 
-static inline bool memory_region_is_romd(MemoryRegion *mr)
-{
-    return mr->rom_device && mr->readable;
-}
 #endif
 #endif
