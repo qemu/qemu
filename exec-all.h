@@ -102,6 +102,7 @@ void tlb_flush(CPUArchState *env, int flush_global);
 void tlb_set_page(CPUArchState *env, target_ulong vaddr,
                   target_phys_addr_t paddr, int prot,
                   int mmu_idx, target_ulong size);
+void tb_invalidate_phys_addr(target_phys_addr_t addr);
 #endif
 
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
