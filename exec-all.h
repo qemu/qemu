@@ -96,13 +96,22 @@ void QEMU_NORETURN cpu_loop_exit(CPUArchState *env1);
 int page_unprotect(target_ulong address, uintptr_t pc, void *puc);
 void tb_invalidate_phys_page_range(tb_page_addr_t start, tb_page_addr_t end,
                                    int is_cpu_write_access);
+#if !defined(CONFIG_USER_ONLY)
+/* cputlb.c */
 void tlb_flush_page(CPUArchState *env, target_ulong addr);
 void tlb_flush(CPUArchState *env, int flush_global);
-#if !defined(CONFIG_USER_ONLY)
 void tlb_set_page(CPUArchState *env, target_ulong vaddr,
                   target_phys_addr_t paddr, int prot,
                   int mmu_idx, target_ulong size);
 void tb_invalidate_phys_addr(target_phys_addr_t addr);
+#else
+static inline void tlb_flush_page(CPUArchState *env, target_ulong addr)
+{
+}
+
+static inline void tlb_flush(CPUArchState *env, int flush_global)
+{
+}
 #endif
 
 #define CODE_GEN_ALIGN           16 /* must be >= of the size of a icache line */
@@ -340,6 +349,7 @@ static inline tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong
     return addr;
 }
 #else
+/* cputlb.c */
 tb_page_addr_t get_page_addr_code(CPUArchState *env1, target_ulong addr);
 #endif
 
