@@ -4462,7 +4462,10 @@ static void init_proc_e500 (CPUPPCState *env, int version)
                  &spr_read_spefscr, &spr_write_spefscr,
                  0x00000000);
     /* Memory management */
-#if !defined(CONFIG_USER_ONLY)
+#if defined(CONFIG_USER_ONLY)
+    env->dcache_line_size = 32;
+    env->icache_line_size = 32;
+#else /* !defined(CONFIG_USER_ONLY) */
     env->nb_pids = 3;
     env->nb_ways = 2;
     env->id_tlbs = 0;
