@@ -156,7 +156,8 @@ static void qtest_send_prefix(CharDriverState *chr)
             tv.tv_sec, tv.tv_usec);
 }
 
-static void qtest_send(CharDriverState *chr, const char *fmt, ...)
+static void GCC_FMT_ATTR(2, 3) qtest_send(CharDriverState *chr,
+                                          const char *fmt, ...)
 {
     va_list ap;
     char buffer[1024];

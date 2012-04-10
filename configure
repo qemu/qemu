@@ -526,7 +526,7 @@ EOF
   bindir="\${prefix}"
   sysconfdir="\${prefix}"
   confsuffix=""
-  libs_qga="-lws2_32 -lwinmm -lpowrprof $lib_qga"
+  libs_qga="-lws2_32 -lwinmm -lpowrprof $libs_qga"
 fi
 
 werror=""
@@ -2680,7 +2680,8 @@ if test "$trace_backend" = "ust"; then
 int main(void) { return 0; }
 EOF
   if compile_prog "" "" ; then
-    LIBS="-lust $LIBS"
+    LIBS="-lust -lurcu-bp $LIBS"
+    libs_qga="-lust -lurcu-bp $libs_qga"
   else
     echo
     echo "Error: Trace backend 'ust' missing libust header files"
