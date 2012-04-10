@@ -28,6 +28,7 @@
 #include "net.h"
 #include "qdev.h"
 #include "sysemu.h"
+#include "error.h"
 
 int qdev_hotplug = 0;
 static bool qdev_hot_added = false;
@@ -182,19 +183,22 @@ void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
     dev->alias_required_for_version = required_for_version;
 }
 
-int qdev_unplug(DeviceState *dev)
+void qdev_unplug(DeviceState *dev, Error **errp)
 {
     DeviceClass *dc = DEVICE_GET_CLASS(dev);
 
     if (!dev->parent_bus->allow_hotplug) {
-        qerror_report(QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
-        return -1;
+        error_set(errp, QERR_BUS_NO_HOTPLUG, dev->parent_bus->name);
+        return;
     }
     assert(dc->unplug != NULL);
 
     qdev_hot_removed = true;
 
-    return dc->unplug(dev);
+    if (dc->unplug(dev) < 0) {
+        error_set(errp, QERR_UNDEFINED_ERROR);
+        return;
+    }
 }
 
 static int qdev_reset_one(DeviceState *dev, void *opaque)

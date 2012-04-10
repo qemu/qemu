@@ -1701,3 +1701,23 @@
 # Since: 1.1
 ##
 { 'command': 'xen-save-devices-state', 'data': {'filename': 'str'} }
+
+##
+# @device_del:
+#
+# Remove a device from a guest
+#
+# @id: the name of the device
+#
+# Returns: Nothing on success
+#          If @id is not a valid device, DeviceNotFound
+#          If the device does not support unplug, BusNoHotplug
+#
+# Notes: When this command completes, the device may not be removed from the
+#        guest.  Hot removal is an operation that requires guest cooperation.
+#        This command merely requests that the guest begin the hot removal
+#        process.
+#
+# Since: 0.14.0
+##
+{ 'command': 'device_del', 'data': {'id': 'str'} }
