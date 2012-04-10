@@ -189,6 +189,9 @@ static int vpc_open(BlockDriverState *bs, int flags)
         fprintf(stderr, "block-vpc: The header checksum of '%s' is "
             "incorrect.\n", bs->filename);
 
+    /* Write 'checksum' back to footer, or else will leave it with zero. */
+    footer->checksum = be32_to_cpu(checksum);
+
     // The visible size of a image in Virtual PC depends on the geometry
     // rather than on the size stored in the footer (the size in the footer
     // is too large usually)
@@ -507,11 +510,6 @@ static coroutine_fn int vpc_co_write(BlockDriverState *bs, int64_t sector_num,
     return ret;
 }
 
-static coroutine_fn int vpc_co_flush(BlockDriverState *bs)
-{
-    return bdrv_co_flush(bs->file);
-}
-
 /*
  * Calculates the number of cylinders, heads and sectors per cylinder
  * based on a given number of sectors. This is the algorithm described
@@ -789,7 +787,6 @@ static BlockDriver bdrv_vpc = {
 
     .bdrv_read              = vpc_co_read,
     .bdrv_write             = vpc_co_write,
-    .bdrv_co_flush_to_disk  = vpc_co_flush,
 
     .create_options = vpc_create_options,
 };

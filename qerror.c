@@ -241,9 +241,14 @@ static const QErrorStringTable qerror_table[] = {
         .desc      = "Property '%(device).%(property)' can't find value '%(value)'",
     },
     {
+        .error_fmt = QERR_PROPERTY_VALUE_NOT_POWER_OF_2,
+        .desc      = "Property '%(device).%(property)' doesn't take "
+                     "value '%(value)', it's not a power of 2",
+    },
+    {
         .error_fmt = QERR_PROPERTY_VALUE_OUT_OF_RANGE,
         .desc      = "Property '%(device).%(property)' doesn't take "
-                     "value %(value) (minimum: %(min), maximum: %(max)'",
+                     "value %(value) (minimum: %(min), maximum: %(max))",
     },
     {
         .error_fmt = QERR_QGA_COMMAND_FAILED,

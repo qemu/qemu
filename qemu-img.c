@@ -428,6 +428,13 @@ static int img_check(int argc, char **argv)
         }
     }
 
+    if (result.bfi.total_clusters != 0 && result.bfi.allocated_clusters != 0) {
+        printf("%" PRId64 "/%" PRId64 "= %0.2f%% allocated, %0.2f%% fragmented\n",
+        result.bfi.allocated_clusters, result.bfi.total_clusters,
+        result.bfi.allocated_clusters * 100.0 / result.bfi.total_clusters,
+        result.bfi.fragmented_clusters * 100.0 / result.bfi.allocated_clusters);
+    }
+
     bdrv_delete(bs);
 
     if (ret < 0 || result.check_errors) {
@@ -716,7 +723,7 @@ static int img_convert(int argc, char **argv)
         ret = -1;
         goto out;
     }
-        
+
     qemu_progress_init(progress, 2.0);
     qemu_progress_print(0, 100);
 
@@ -1124,6 +1131,9 @@ static int img_info(int argc, char **argv)
     if (bdrv_get_info(bs, &bdi) >= 0) {
         if (bdi.cluster_size != 0) {
             printf("cluster_size: %d\n", bdi.cluster_size);
+        }
+        if (bdi.is_dirty) {
+            printf("cleanly shut down: no\n");
         }
     }
     bdrv_get_backing_filename(bs, backing_filename, sizeof(backing_filename));

@@ -450,7 +450,7 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
      * feature is no longer valid.
      */
     if ((s->header.autoclear_features & ~QED_AUTOCLEAR_FEATURE_MASK) != 0 &&
-        !bdrv_is_read_only(bs->file)) {
+        !bdrv_is_read_only(bs->file) && !(flags & BDRV_O_INCOMING)) {
         s->header.autoclear_features &= QED_AUTOCLEAR_FEATURE_MASK;
 
         ret = qed_write_header_sync(s);
@@ -477,7 +477,8 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
          * potentially inconsistent images to be opened read-only.  This can
          * aid data recovery from an otherwise inconsistent image.
          */
-        if (!bdrv_is_read_only(bs->file)) {
+        if (!bdrv_is_read_only(bs->file) &&
+            !(flags & BDRV_O_INCOMING)) {
             BdrvCheckResult result = {0};
 
             ret = qed_check(s, &result, true);
@@ -497,12 +498,6 @@ static int bdrv_qed_open(BlockDriverState *bs, int flags)
     s->need_check_timer = qemu_new_timer_ns(vm_clock,
                                             qed_need_check_timer_cb, s);
 
-    error_set(&s->migration_blocker,
-              QERR_BLOCK_FORMAT_FEATURE_NOT_SUPPORTED,
-              "qed", bs->device_name, "live migration");
-    migrate_add_blocker(s->migration_blocker);
-
-
 out:
     if (ret) {
         qed_free_l2_cache(&s->l2_cache);
@@ -514,9 +509,6 @@ out:
 static void bdrv_qed_close(BlockDriverState *bs)
 {
     BDRVQEDState *s = bs->opaque;
-
-    migrate_del_blocker(s->migration_blocker);
-    error_free(s->migration_blocker);
 
     qed_cancel_need_check_timer(s);
     qemu_free_timer(s->need_check_timer);
@@ -1350,13 +1342,6 @@ static BlockDriverAIOCB *bdrv_qed_aio_writev(BlockDriverState *bs,
                          opaque, QED_AIOCB_WRITE);
 }
 
-static BlockDriverAIOCB *bdrv_qed_aio_flush(BlockDriverState *bs,
-                                            BlockDriverCompletionFunc *cb,
-                                            void *opaque)
-{
-    return bdrv_aio_flush(bs->file, cb, opaque);
-}
-
 typedef struct {
     Coroutine *co;
     int ret;
@@ -1441,6 +1426,7 @@ static int bdrv_qed_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
 
     memset(bdi, 0, sizeof(*bdi));
     bdi->cluster_size = s->header.cluster_size;
+    bdi->is_dirty = s->header.features & QED_F_NEED_CHECK;
     return 0;
 }
 
@@ -1516,6 +1502,15 @@ static int bdrv_qed_change_backing_file(BlockDriverState *bs,
     return ret;
 }
 
+static void bdrv_qed_invalidate_cache(BlockDriverState *bs)
+{
+    BDRVQEDState *s = bs->opaque;
+
+    bdrv_qed_close(bs);
+    memset(s, 0, sizeof(BDRVQEDState));
+    bdrv_qed_open(bs, bs->open_flags);
+}
+
 static int bdrv_qed_check(BlockDriverState *bs, BdrvCheckResult *result)
 {
     BDRVQEDState *s = bs->opaque;
@@ -1562,12 +1557,12 @@ static BlockDriver bdrv_qed = {
     .bdrv_make_empty          = bdrv_qed_make_empty,
     .bdrv_aio_readv           = bdrv_qed_aio_readv,
     .bdrv_aio_writev          = bdrv_qed_aio_writev,
-    .bdrv_aio_flush           = bdrv_qed_aio_flush,
     .bdrv_co_write_zeroes     = bdrv_qed_co_write_zeroes,
     .bdrv_truncate            = bdrv_qed_truncate,
     .bdrv_getlength           = bdrv_qed_getlength,
     .bdrv_get_info            = bdrv_qed_get_info,
     .bdrv_change_backing_file = bdrv_qed_change_backing_file,
+    .bdrv_invalidate_cache    = bdrv_qed_invalidate_cache,
     .bdrv_check               = bdrv_qed_check,
 };
 

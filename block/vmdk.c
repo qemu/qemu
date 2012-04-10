@@ -1525,10 +1525,10 @@ static void vmdk_close(BlockDriverState *bs)
 
 static coroutine_fn int vmdk_co_flush(BlockDriverState *bs)
 {
-    int i, ret, err;
     BDRVVmdkState *s = bs->opaque;
+    int i, err;
+    int ret = 0;
 
-    ret = bdrv_co_flush(bs->file);
     for (i = 0; i < s->num_extents; i++) {
         err = bdrv_co_flush(s->extents[i].file);
         if (err < 0) {

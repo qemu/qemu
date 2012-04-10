@@ -64,6 +64,9 @@ void blockdev_mark_auto_del(BlockDriverState *bs)
 {
     DriveInfo *dinfo = drive_get_by_blockdev(bs);
 
+    if (bs->job) {
+        block_job_cancel(bs->job);
+    }
     if (dinfo) {
         dinfo->auto_del = 1;
     }
@@ -532,8 +535,9 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
     dinfo->unit = unit_id;
     dinfo->opts = opts;
     dinfo->refcount = 1;
-    if (serial)
-        strncpy(dinfo->serial, serial, sizeof(dinfo->serial) - 1);
+    if (serial) {
+        pstrcpy(dinfo->serial, sizeof(dinfo->serial), serial);
+    }
     QTAILQ_INSERT_TAIL(&drives, dinfo, next);
 
     bdrv_set_on_error(dinfo->bdrv, on_read_error, on_write_error);
@@ -589,6 +593,10 @@ DriveInfo *drive_init(QemuOpts *opts, int default_to_scsi)
 
     if (copy_on_read) {
         bdrv_flags |= BDRV_O_COPY_ON_READ;
+    }
+
+    if (runstate_check(RUN_STATE_INMIGRATE)) {
+        bdrv_flags |= BDRV_O_INCOMING;
     }
 
     if (media == MEDIA_CDROM) {

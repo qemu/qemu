@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Nolan I qcow2 corruption - incorrectly reports free clusters
+# Test that all qcow2 header extensions survive a header rewrite
 #
-# Copyright (C) 2009 Red Hat, Inc.
+# Copyright (C) 2011 Red Hat, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,31 +37,34 @@ trap "_cleanup; exit \$status" 0 1 2 3 15
 # get standard environment, filters and checks
 . ./common.rc
 . ./common.filter
+. ./common.pattern
 
-_supported_fmt generic
+# This tests qcow2-specific low-level functionality
+_supported_fmt qcow2
 _supported_proto generic
 _supported_os Linux
 
-
-size=6G
-
+CLUSTER_SIZE=65536
 echo
-echo "creating image"
-_make_test_img $size
-
-
+echo === Create image with unknown header extension ===
 echo
-echo "creating pattern"
-$QEMU_IO \
-	-c "write -P 65 2048k 4k" \
-	-c "write 4k 4k" \
-	-c "write 9M 4k" \
-	-c "read -P 65 -s 4k -l 4k 2044k 8k" \
-$TEST_IMG | _filter_qemu_io
-
-echo
-echo "checking image for errors"
+_make_test_img 64M
+./qcow2.py $TEST_IMG add-header-ext 0x12345678 "This is a test header extension"
+./qcow2.py $TEST_IMG dump-header
 _check_test_img
+
+echo
+echo === Rewrite header with no backing file ===
+echo
+$QEMU_IMG rebase -u -b "" $TEST_IMG
+./qcow2.py $TEST_IMG dump-header
+_check_test_img
+
+echo
+echo === Add a backing file and format ===
+echo
+$QEMU_IMG rebase -u -b "/some/backing/file/path" -F host_device $TEST_IMG
+./qcow2.py $TEST_IMG dump-header
 
 # success, all done
 echo "*** done"

@@ -1,0 +1,76 @@
+QA output created by 031
+
+=== Create image with unknown header extension ===
+
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 cluster_size=65536 
+magic                     0x514649fb
+version                   2
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+
+Header extension:
+magic                     0x12345678
+length                    31
+data                      'This is a test header extension'
+
+No errors were found on the image.
+
+=== Rewrite header with no backing file ===
+
+magic                     0x514649fb
+version                   2
+backing_file_offset       0x0
+backing_file_size         0x0
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+
+Header extension:
+magic                     0x12345678
+length                    31
+data                      'This is a test header extension'
+
+No errors were found on the image.
+
+=== Add a backing file and format ===
+
+magic                     0x514649fb
+version                   2
+backing_file_offset       0x90
+backing_file_size         0x17
+cluster_bits              16
+size                      67108864
+crypt_method              0
+l1_size                   1
+l1_table_offset           0x30000
+refcount_table_offset     0x10000
+refcount_table_clusters   1
+nb_snapshots              0
+snapshot_offset           0x0
+
+Header extension:
+magic                     0xe2792aca
+length                    11
+data                      'host_device'
+
+Header extension:
+magic                     0x12345678
+length                    31
+data                      'This is a test header extension'
+
+*** done

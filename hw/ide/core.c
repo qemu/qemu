@@ -31,7 +31,6 @@
 #include "sysemu.h"
 #include "dma.h"
 #include "blockdev.h"
-#include "block_int.h"
 
 #include <hw/ide/internal.h>
 
@@ -101,7 +100,7 @@ static void ide_identify(IDEState *s)
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
     padstr((char *)(p + 23), s->version, 8); /* firmware version */
-    padstr((char *)(p + 27), "QEMU HARDDISK", 40); /* model */
+    padstr((char *)(p + 27), s->drive_model_str, 40); /* model */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #endif
@@ -143,17 +142,25 @@ static void ide_identify(IDEState *s)
     put_le16(p + 82, (1 << 14) | (1 << 5) | 1);
     /* 13=flush_cache_ext,12=flush_cache,10=lba48 */
     put_le16(p + 83, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
-    /* 14=set to 1, 1=SMART self test, 0=SMART error logging */
-    put_le16(p + 84, (1 << 14) | 0);
+    /* 14=set to 1, 8=has WWN, 1=SMART self test, 0=SMART error logging */
+    if (s->wwn) {
+        put_le16(p + 84, (1 << 14) | (1 << 8) | 0);
+    } else {
+        put_le16(p + 84, (1 << 14) | 0);
+    }
     /* 14 = NOP supported, 5=WCACHE enabled, 0=SMART feature set enabled */
     if (bdrv_enable_write_cache(s->bs))
          put_le16(p + 85, (1 << 14) | (1 << 5) | 1);
     else
          put_le16(p + 85, (1 << 14) | 1);
     /* 13=flush_cache_ext,12=flush_cache,10=lba48 */
-    put_le16(p + 86, (1 << 14) | (1 << 13) | (1 <<12) | (1 << 10));
-    /* 14=set to 1, 1=smart self test, 0=smart error logging */
-    put_le16(p + 87, (1 << 14) | 0);
+    put_le16(p + 86, (1 << 13) | (1 <<12) | (1 << 10));
+    /* 14=set to 1, 8=has WWN, 1=SMART self test, 0=SMART error logging */
+    if (s->wwn) {
+        put_le16(p + 87, (1 << 14) | (1 << 8) | 0);
+    } else {
+        put_le16(p + 87, (1 << 14) | 0);
+    }
     put_le16(p + 88, 0x3f | (1 << 13)); /* udma5 set and supported */
     put_le16(p + 93, 1 | (1 << 14) | 0x2000);
     put_le16(p + 100, s->nb_sectors);
@@ -163,6 +170,13 @@ static void ide_identify(IDEState *s)
 
     if (dev && dev->conf.physical_block_size)
         put_le16(p + 106, 0x6000 | get_physical_block_exp(&dev->conf));
+    if (s->wwn) {
+        /* LE 16-bit words 111-108 contain 64-bit World Wide Name */
+        put_le16(p + 108, s->wwn >> 48);
+        put_le16(p + 109, s->wwn >> 32);
+        put_le16(p + 110, s->wwn >> 16);
+        put_le16(p + 111, s->wwn);
+    }
     if (dev && dev->conf.discard_granularity) {
         put_le16(p + 169, 1); /* TRIM support */
     }
@@ -189,7 +203,7 @@ static void ide_atapi_identify(IDEState *s)
     put_le16(p + 21, 512); /* cache size in sectors */
     put_le16(p + 22, 4); /* ecc bytes */
     padstr((char *)(p + 23), s->version, 8); /* firmware version */
-    padstr((char *)(p + 27), "QEMU DVD-ROM", 40); /* model */
+    padstr((char *)(p + 27), s->drive_model_str, 40); /* model */
     put_le16(p + 48, 1); /* dword I/O (XXX: should not be set on CDROM) */
 #ifdef USE_DMA_CDROM
     put_le16(p + 49, 1 << 9 | 1 << 8); /* DMA and LBA supported */
@@ -246,7 +260,7 @@ static void ide_cfata_identify(IDEState *s)
     padstr((char *)(p + 10), s->drive_serial_str, 20); /* serial number */
     put_le16(p + 22, 0x0004);			/* ECC bytes */
     padstr((char *) (p + 23), s->version, 8);	/* Firmware Revision */
-    padstr((char *) (p + 27), "QEMU MICRODRIVE", 40);/* Model number */
+    padstr((char *) (p + 27), s->drive_model_str, 40);/* Model number */
 #if MAX_MULT_SECTORS > 1
     put_le16(p + 47, 0x8000 | MAX_MULT_SECTORS);
 #else
@@ -604,7 +618,8 @@ void ide_dma_cb(void *opaque, int ret)
         break;
     case IDE_DMA_TRIM:
         s->bus->dma->aiocb = dma_bdrv_io(s->bs, &s->sg, sector_num,
-                                         ide_issue_trim, ide_dma_cb, s, true);
+                                         ide_issue_trim, ide_dma_cb, s,
+                                         DMA_DIRECTION_TO_DEVICE);
         break;
     }
     return;
@@ -1834,7 +1849,8 @@ static const BlockDevOps ide_cd_block_ops = {
 };
 
 int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
-                   const char *version, const char *serial)
+                   const char *version, const char *serial, const char *model,
+                   uint64_t wwn)
 {
     int cylinders, heads, secs;
     uint64_t nb_sectors;
@@ -1860,6 +1876,7 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
     s->heads = heads;
     s->sectors = secs;
     s->nb_sectors = nb_sectors;
+    s->wwn = wwn;
     /* The SMART values should be preserved across power cycles
        but they aren't.  */
     s->smart_enabled = 1;
@@ -1880,11 +1897,27 @@ int ide_init_drive(IDEState *s, BlockDriverState *bs, IDEDriveKind kind,
         }
     }
     if (serial) {
-        strncpy(s->drive_serial_str, serial, sizeof(s->drive_serial_str));
+        pstrcpy(s->drive_serial_str, sizeof(s->drive_serial_str), serial);
     } else {
         snprintf(s->drive_serial_str, sizeof(s->drive_serial_str),
                  "QM%05d", s->drive_serial);
     }
+    if (model) {
+        pstrcpy(s->drive_model_str, sizeof(s->drive_model_str), model);
+    } else {
+        switch (kind) {
+        case IDE_CD:
+            strcpy(s->drive_model_str, "QEMU DVD-ROM");
+            break;
+        case IDE_CFATA:
+            strcpy(s->drive_model_str, "QEMU MICRODRIVE");
+            break;
+        default:
+            strcpy(s->drive_model_str, "QEMU HARDDISK");
+            break;
+        }
+    }
+
     if (version) {
         pstrcpy(s->version, sizeof(s->version), version);
     } else {
@@ -1977,7 +2010,8 @@ void ide_init2_with_non_qdev_drives(IDEBus *bus, DriveInfo *hd0,
         if (dinfo) {
             if (ide_init_drive(&bus->ifs[i], dinfo->bdrv,
                                dinfo->media_cd ? IDE_CD : IDE_HD, NULL,
-                               *dinfo->serial ? dinfo->serial : NULL) < 0) {
+                               *dinfo->serial ? dinfo->serial : NULL,
+                               NULL, 0) < 0) {
                 error_report("Can't set up IDE drive %s", dinfo->id);
                 exit(1);
             }
