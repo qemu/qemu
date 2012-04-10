@@ -211,10 +211,7 @@ CPULM32State *cpu_lm32_init(const char *cpu_model)
     env->num_bps = def->num_breakpoints;
     env->num_wps = def->num_watchpoints;
     env->cfg = cfg_by_def(def);
-    env->flags = 0;
 
-    cpu_exec_init(env);
-    cpu_state_reset(env);
     qemu_init_vcpu(env);
 
     if (tcg_enabled() && !tcg_initialized) {

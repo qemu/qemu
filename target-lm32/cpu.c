@@ -34,6 +34,18 @@ static void lm32_cpu_reset(CPUState *s)
     cpu_state_reset(env);
 }
 
+static void lm32_cpu_initfn(Object *obj)
+{
+    LM32CPU *cpu = LM32_CPU(obj);
+    CPULM32State *env = &cpu->env;
+
+    cpu_exec_init(env);
+
+    env->flags = 0;
+
+    cpu_reset(CPU(cpu));
+}
+
 static void lm32_cpu_class_init(ObjectClass *oc, void *data)
 {
     LM32CPUClass *lcc = LM32_CPU_CLASS(oc);
@@ -47,6 +59,7 @@ static const TypeInfo lm32_cpu_type_info = {
     .name = TYPE_LM32_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(LM32CPU),
+    .instance_init = lm32_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(LM32CPUClass),
     .class_init = lm32_cpu_class_init,
