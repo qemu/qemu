@@ -53,11 +53,11 @@ _make_test_img $size
 echo
 echo "creating pattern"
 $QEMU_IO \
-	-c "write 2048k 4k -P 165" \
+	-c "write -P 165 2048k 4k" \
 	-c "write 64k 4k" \
 	-c "write 9M 4k" \
-	-c "write 2044k 4k -P 165" \
-	-c "write 8M 4k -P 99" \
+	-c "write -P 165 2044k 4k" \
+	-c "write -P 99 8M 4k" \
 	-c "read -P 165 2044k 8k" \
 $TEST_IMG | _filter_qemu_io
 

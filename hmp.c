@@ -934,3 +934,12 @@ void hmp_migrate(Monitor *mon, const QDict *qdict)
         qemu_mod_timer(status->timer, qemu_get_clock_ms(rt_clock));
     }
 }
+
+void hmp_device_del(Monitor *mon, const QDict *qdict)
+{
+    const char *id = qdict_get_str(qdict, "id");
+    Error *err = NULL;
+
+    qmp_device_del(id, &err);
+    hmp_handle_error(mon, &err);
+}

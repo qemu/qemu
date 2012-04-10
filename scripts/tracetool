@@ -81,6 +81,10 @@ get_args()
     args=${1#*\(}
     args=${args%%\)*}
     echo "$args"
+
+    if (echo "$args" | grep "[ *]next\($\|[, ]\)" > /dev/null 2>&1); then
+        echo -e "\n#error 'next' is a bad argument name (clash with systemtap keyword)\n "
+    fi
 }
 
 # Get the argument name list of a trace event

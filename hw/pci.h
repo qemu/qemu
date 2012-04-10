@@ -126,6 +126,11 @@ enum {
     /* command register SERR bit enabled */
 #define QEMU_PCI_CAP_SERR_BITNR 4
     QEMU_PCI_CAP_SERR = (1 << QEMU_PCI_CAP_SERR_BITNR),
+    /* Standard hot plug controller. */
+#define QEMU_PCI_SHPC_BITNR 5
+    QEMU_PCI_CAP_SHPC = (1 << QEMU_PCI_SHPC_BITNR),
+#define QEMU_PCI_SLOTID_BITNR 6
+    QEMU_PCI_CAP_SLOTID = (1 << QEMU_PCI_SLOTID_BITNR),
 };
 
 #define TYPE_PCI_DEVICE "pci-device"
@@ -230,6 +235,9 @@ struct PCIDevice {
     /* PCI Express */
     PCIExpressDevice exp;
 
+    /* SHPC */
+    SHPCDevice *shpc;
+
     /* Location of option rom */
     char *romfile;
     bool has_rom;
@@ -299,13 +307,10 @@ int pci_bus_num(PCIBus *s);
 void pci_for_each_device(PCIBus *bus, int bus_num, void (*fn)(PCIBus *bus, PCIDevice *d));
 PCIBus *pci_find_root_bus(int domain);
 int pci_find_domain(const PCIBus *bus);
-PCIBus *pci_find_bus(PCIBus *bus, int bus_num);
 PCIDevice *pci_find_device(PCIBus *bus, int bus_num, uint8_t devfn);
 int pci_qdev_find_device(const char *id, PCIDevice **pdev);
 PCIBus *pci_get_bus_devfn(int *devfnp, const char *devaddr);
 
-int pci_parse_devaddr(const char *addr, int *domp, int *busp,
-                      unsigned int *slotp, unsigned int *funcp);
 int pci_read_devaddr(Monitor *mon, const char *addr, int *domp, int *busp,
                      unsigned *slotp);
 

@@ -60,7 +60,7 @@ for i in `seq 1 10`; do
     # Note that we filter away the actual offset.  That's because qemu
     # may re-order the two aio requests.  We only want to make sure the
     # filesystem isn't corrupted afterwards anyway.
-    $QEMU_IO $TEST_IMG -c "aio_write $off1 1M" -c "aio_write $off2 1M" | \
+    $QEMU_IO -c "aio_write $off1 1M" -c "aio_write $off2 1M" $TEST_IMG | \
     	_filter_qemu_io | \
 	sed -e 's/bytes at offset [0-9]*/bytes at offset XXX/g'
 done

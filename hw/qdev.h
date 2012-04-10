@@ -7,6 +7,7 @@
 #include "qemu-option.h"
 #include "qapi/qapi-visit-core.h"
 #include "qemu/object.h"
+#include "error.h"
 
 typedef struct Property Property;
 
@@ -148,7 +149,7 @@ int qdev_init(DeviceState *dev) QEMU_WARN_UNUSED_RESULT;
 void qdev_init_nofail(DeviceState *dev);
 void qdev_set_legacy_instance_id(DeviceState *dev, int alias_id,
                                  int required_for_version);
-int qdev_unplug(DeviceState *dev);
+void qdev_unplug(DeviceState *dev, Error **errp);
 void qdev_free(DeviceState *dev);
 int qdev_simple_unplug_cb(DeviceState *dev);
 void qdev_machine_creation_done(void);
@@ -223,6 +224,7 @@ extern PropertyInfo qdev_prop_drive;
 extern PropertyInfo qdev_prop_netdev;
 extern PropertyInfo qdev_prop_vlan;
 extern PropertyInfo qdev_prop_pci_devfn;
+extern PropertyInfo qdev_prop_blocksize;
 
 #define DEFINE_PROP(_name, _state, _field, _prop, _type) { \
         .name      = (_name),                                    \
@@ -284,6 +286,8 @@ extern PropertyInfo qdev_prop_pci_devfn;
 #define DEFINE_PROP_LOSTTICKPOLICY(_n, _s, _f, _d) \
     DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_losttickpolicy, \
                         LostTickPolicy)
+#define DEFINE_PROP_BLOCKSIZE(_n, _s, _f, _d) \
+    DEFINE_PROP_DEFAULT(_n, _s, _f, _d, qdev_prop_blocksize, uint16_t)
 
 #define DEFINE_PROP_END_OF_LIST()               \
     {}

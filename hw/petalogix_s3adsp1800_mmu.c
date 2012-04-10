@@ -51,7 +51,6 @@
 
 static void machine_cpu_reset(CPUMBState *env)
 {
-    /* FIXME: move to machine specfic cpu reset */
     env->pvr.regs[10] = 0x0c000000; /* spartan 3a dsp family.  */
 }
 

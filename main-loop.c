@@ -164,7 +164,7 @@ static int qemu_signal_init(void)
 
 #else /* _WIN32 */
 
-HANDLE qemu_event_handle = NULL;
+static HANDLE qemu_event_handle = NULL;
 
 static void dummy_event_handler(void *opaque)
 {
