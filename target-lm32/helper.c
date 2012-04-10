@@ -236,14 +236,6 @@ void cpu_lm32_set_phys_msb_ignore(CPULM32State *env, int value)
 
 void cpu_state_reset(CPULM32State *env)
 {
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
-        log_cpu_state(env, 0);
-    }
-
-    tlb_flush(env, 1);
-
-    /* reset cpu state */
-    memset(env, 0, offsetof(CPULM32State, breakpoints));
+    cpu_reset(ENV_GET_CPU(env));
 }
 
