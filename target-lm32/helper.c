@@ -194,6 +194,7 @@ static uint32_t cfg_by_def(const LM32Def *def)
 
 CPULM32State *cpu_lm32_init(const char *cpu_model)
 {
+    LM32CPU *cpu;
     CPULM32State *env;
     const LM32Def *def;
     static int tcg_initialized;
@@ -203,7 +204,8 @@ CPULM32State *cpu_lm32_init(const char *cpu_model)
         return NULL;
     }
 
-    env = g_malloc0(sizeof(CPULM32State));
+    cpu = LM32_CPU(object_new(TYPE_LM32_CPU));
+    env = &cpu->env;
 
     env->features = def->features;
     env->num_bps = def->num_breakpoints;

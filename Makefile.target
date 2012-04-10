@@ -93,6 +93,7 @@ libobj-$(TARGET_SPARC64) += vis_helper.o
 libobj-$(CONFIG_NEED_MMU) += mmu.o
 libobj-$(TARGET_ARM) += neon_helper.o iwmmxt_helper.o
 libobj-$(TARGET_ARM) += cpu.o
+libobj-$(TARGET_LM32) += cpu.o
 libobj-$(TARGET_S390X) += cpu.o
 ifeq ($(TARGET_BASE_ARCH), sparc)
 libobj-y += fop_helper.o cc_helper.o win_helper.o mmu_helper.o ldst_helper.o
