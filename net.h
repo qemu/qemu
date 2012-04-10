@@ -182,6 +182,9 @@ void qdev_set_nic_properties(DeviceState *dev, NICInfo *nd);
 
 int net_handle_fd_param(Monitor *mon, const char *param);
 
+#define POLYNOMIAL 0x04c11db6
+unsigned compute_mcast_idx(const uint8_t *ep);
+
 #define vmstate_offset_macaddr(_state, _field)                       \
     vmstate_offset_array(_state, _field.a, uint8_t,                \
                          sizeof(typeof_field(_state, _field)))

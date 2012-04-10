@@ -65,9 +65,6 @@
 
 #define PCI_FREQUENCY 33000000L
 
-/* debug RTL8139 card C+ mode only */
-//#define DEBUG_RTL8139CP 1
-
 #define SET_MASKED(input, mask, curr) \
     ( ( (input) & ~(mask) ) | ( (curr) & (mask) ) )
 
@@ -335,8 +332,10 @@ enum CSCRBits {
 };
 
 enum Cfg9346Bits {
-    Cfg9346_Lock = 0x00,
-    Cfg9346_Unlock = 0xC0,
+    Cfg9346_Normal = 0x00,
+    Cfg9346_Autoload = 0x40,
+    Cfg9346_Programming = 0x80,
+    Cfg9346_ConfigWrite = 0xC0,
 };
 
 typedef enum {
@@ -711,30 +710,6 @@ static void rtl8139_update_irq(RTL8139State *s)
     qemu_set_irq(s->dev.irq[0], (isr != 0));
 }
 
-#define POLYNOMIAL 0x04c11db6
-
-/* From FreeBSD */
-/* XXX: optimize */
-static int compute_mcast_idx(const uint8_t *ep)
-{
-    uint32_t crc;
-    int carry, i, j;
-    uint8_t b;
-
-    crc = 0xffffffff;
-    for (i = 0; i < 6; i++) {
-        b = *ep++;
-        for (j = 0; j < 8; j++) {
-            carry = ((crc & 0x80000000L) ? 1 : 0) ^ (b & 0x01);
-            crc <<= 1;
-            b >>= 1;
-            if (carry)
-                crc = ((crc ^ POLYNOMIAL) | carry);
-        }
-    }
-    return (crc >> 26);
-}
-
 static int rtl8139_RxWrap(RTL8139State *s)
 {
     /* wrapping enabled; assume 1.5k more buffer space if size < 65536 */
@@ -816,6 +791,9 @@ static int rtl8139_can_receive(VLANClientState *nc)
       return 1;
     if (!rtl8139_receiver_enabled(s))
       return 1;
+    /* network/host communication happens only in normal mode */
+    if ((s->Cfg9346 & Chip9346_op_mask) != Cfg9346_Normal)
+	return 0;
 
     if (rtl8139_cp_receiver_enabled(s)) {
         /* ??? Flow control not implemented in c+ mode.
@@ -855,6 +833,12 @@ static ssize_t rtl8139_do_receive(VLANClientState *nc, const uint8_t *buf, size_
     if (!rtl8139_receiver_enabled(s))
     {
         DPRINTF("receiver disabled ================\n");
+        return -1;
+    }
+
+    /* check whether we are in normal mode */
+    if ((s->Cfg9346 & Chip9346_op_mask) != Cfg9346_Normal) {
+        DPRINTF("not in normal op mode\n");
         return -1;
     }
 
@@ -1478,7 +1462,7 @@ static uint32_t rtl8139_IntrMitigate_read(RTL8139State *s)
 
 static int rtl8139_config_writable(RTL8139State *s)
 {
-    if (s->Cfg9346 & Cfg9346_Unlock)
+    if ((s->Cfg9346 & Chip9346_op_mask) == Cfg9346_ConfigWrite)
     {
         return 1;
     }
@@ -2061,13 +2045,12 @@ static int rtl8139_cplus_transmit_one(RTL8139State *s)
             s->cplus_txbuffer_len);
     }
 
-    while (s->cplus_txbuffer && s->cplus_txbuffer_offset + txsize >= s->cplus_txbuffer_len)
+    if (s->cplus_txbuffer_offset + txsize >= s->cplus_txbuffer_len)
     {
-        s->cplus_txbuffer_len += CP_TX_BUFFER_SIZE;
-        s->cplus_txbuffer = g_realloc(s->cplus_txbuffer, s->cplus_txbuffer_len);
-
-        DPRINTF("+++ C+ mode transmission buffer space changed to %d\n",
-            s->cplus_txbuffer_len);
+        /* The spec didn't tell the maximum size, stick to CP_TX_BUFFER_SIZE */
+        txsize = s->cplus_txbuffer_len - s->cplus_txbuffer_offset;
+        DPRINTF("+++ C+ mode transmission buffer overrun, truncated descriptor"
+                "length to %d\n", txsize);
     }
 
     if (!s->cplus_txbuffer)
@@ -2499,11 +2482,30 @@ static void rtl8139_TxStatus_write(RTL8139State *s, uint32_t txRegOffset, uint32
     rtl8139_transmit(s);
 }
 
-static uint32_t rtl8139_TxStatus_read(RTL8139State *s, uint32_t txRegOffset)
+static uint32_t rtl8139_TxStatus_read(RTL8139State *s, uint8_t addr, int size)
 {
-    uint32_t ret = s->TxStatus[txRegOffset/4];
+    uint32_t reg = (addr - TxStatus0) / 4;
+    uint32_t offset = addr & 0x3;
+    uint32_t ret = 0;
 
-    DPRINTF("TxStatus read offset=0x%x val=0x%08x\n", txRegOffset, ret);
+    if (addr & (size - 1)) {
+        DPRINTF("not implemented read for TxStatus addr=0x%x size=0x%x\n", addr,
+                size);
+        return ret;
+    }
+
+    switch (size) {
+    case 1: /* fall through */
+    case 2: /* fall through */
+    case 4:
+        ret = (s->TxStatus[reg] >> offset * 8) & ((1 << (size * 8)) - 1);
+        DPRINTF("TxStatus[%d] read addr=0x%x size=0x%x val=0x%08x\n", reg, addr,
+                size, ret);
+        break;
+    default:
+        DPRINTF("unsupported size 0x%x of TxStatus reading\n", size);
+        break;
+    }
 
     return ret;
 }
@@ -2974,6 +2976,9 @@ static uint32_t rtl8139_io_readb(void *opaque, uint8_t addr)
         case MAR0 ... MAR0+7:
             ret = s->mult[addr - MAR0];
             break;
+        case TxStatus0 ... TxStatus0+4*4-1:
+            ret = rtl8139_TxStatus_read(s, addr, 1);
+            break;
         case ChipCmd:
             ret = rtl8139_ChipCmd_read(s);
             break;
@@ -3037,6 +3042,9 @@ static uint32_t rtl8139_io_readw(void *opaque, uint8_t addr)
 
     switch (addr)
     {
+        case TxAddr0 ... TxAddr0+4*4-1:
+            ret = rtl8139_TxStatus_read(s, addr, 2);
+            break;
         case IntrMask:
             ret = rtl8139_IntrMask_read(s);
             break;
@@ -3127,7 +3135,7 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
             break;
 
         case TxStatus0 ... TxStatus0+4*4-1:
-            ret = rtl8139_TxStatus_read(s, addr-TxStatus0);
+            ret = rtl8139_TxStatus_read(s, addr, 4);
             break;
 
         case TxAddr0 ... TxAddr0+4*4-1:

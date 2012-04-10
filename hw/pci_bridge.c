@@ -249,8 +249,8 @@ void pci_bridge_disable_base_limit(PCIDevice *dev)
                                PCI_PREF_RANGE_MASK & 0xffff);
     pci_word_test_and_clear_mask(conf + PCI_PREF_MEMORY_LIMIT,
                                  PCI_PREF_RANGE_MASK & 0xffff);
-    pci_set_word(conf + PCI_PREF_BASE_UPPER32, 0);
-    pci_set_word(conf + PCI_PREF_LIMIT_UPPER32, 0);
+    pci_set_long(conf + PCI_PREF_BASE_UPPER32, 0);
+    pci_set_long(conf + PCI_PREF_LIMIT_UPPER32, 0);
 }
 
 /* reset bridge specific configuration registers */
@@ -285,8 +285,8 @@ void pci_bridge_reset_reg(PCIDevice *dev)
                                  PCI_PREF_RANGE_MASK & 0xffff);
     pci_word_test_and_clear_mask(conf + PCI_PREF_MEMORY_LIMIT,
                                  PCI_PREF_RANGE_MASK & 0xffff);
-    pci_set_word(conf + PCI_PREF_BASE_UPPER32, 0);
-    pci_set_word(conf + PCI_PREF_LIMIT_UPPER32, 0);
+    pci_set_long(conf + PCI_PREF_BASE_UPPER32, 0);
+    pci_set_long(conf + PCI_PREF_LIMIT_UPPER32, 0);
 
     pci_set_word(conf + PCI_BRIDGE_CONTROL, 0);
 }
@@ -305,14 +305,24 @@ int pci_bridge_initfn(PCIDevice *dev)
     PCIBridge *br = DO_UPCAST(PCIBridge, dev, dev);
     PCIBus *sec_bus = &br->sec_bus;
 
-    pci_set_word(dev->config + PCI_STATUS,
-                 PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
+    pci_word_test_and_set_mask(dev->config + PCI_STATUS,
+                               PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
     pci_config_set_class(dev->config, PCI_CLASS_BRIDGE_PCI);
     dev->config[PCI_HEADER_TYPE] =
         (dev->config[PCI_HEADER_TYPE] & PCI_HEADER_TYPE_MULTI_FUNCTION) |
         PCI_HEADER_TYPE_BRIDGE;
     pci_set_word(dev->config + PCI_SEC_STATUS,
                  PCI_STATUS_66MHZ | PCI_STATUS_FAST_BACK);
+
+    /*
+     * If we don't specify the name, the bus will be addressed as <id>.0, where
+     * id is the device id.
+     * Since PCI Bridge devices have a single bus each, we don't need the index:
+     * let users address the bus using the device name.
+     */
+    if (!br->bus_name && dev->qdev.id && *dev->qdev.id) {
+	    br->bus_name = dev->qdev.id;
+    }
 
     qbus_create_inplace(&sec_bus->qbus, &pci_bus_info, &dev->qdev,
                         br->bus_name);
