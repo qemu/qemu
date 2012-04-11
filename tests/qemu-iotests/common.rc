@@ -58,7 +58,6 @@ _make_test_img()
     # extra qemu-img options can be added by tests
     # at least one argument (the image size) needs to be added
     local extra_img_options=""
-    local cluster_size_filter="s# cluster_size=[0-9]\\+##g"
     local image_size=$*
 
     if [ "$1" = "-b" ]; then
@@ -67,7 +66,6 @@ _make_test_img()
     fi
     if [ \( "$IMGFMT" = "qcow2" -o "$IMGFMT" = "qed" \) -a -n "$CLUSTER_SIZE" ]; then
         extra_img_options="-o cluster_size=$CLUSTER_SIZE $extra_img_options"
-        cluster_size_filter=""
     fi
 
     # XXX(hch): have global image options?
@@ -76,7 +74,7 @@ _make_test_img()
     	sed -e "s#$TEST_DIR#TEST_DIR#g" | \
     	sed -e "s#$IMGFMT#IMGFMT#g" | \
 	sed -e "s# encryption=off##g" | \
-	sed -e "$cluster_size_filter" | \
+	sed -e "s# cluster_size=[0-9]\\+##g" | \
 	sed -e "s# table_size=0##g" | \
 	sed -e "s# compat6=off##g" | \
 	sed -e "s# static=off##g"

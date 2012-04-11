@@ -2,7 +2,7 @@ QA output created by 031
 
 === Create image with unknown header extension ===
 
-Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 cluster_size=65536 
+Formatting 'TEST_DIR/t.IMGFMT', fmt=IMGFMT size=67108864 
 magic                     0x514649fb
 version                   2
 backing_file_offset       0x0
