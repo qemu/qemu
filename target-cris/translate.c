@@ -3514,7 +3514,7 @@ CPUCRISState *cpu_cris_init (const char *cpu_model)
     env = &cpu->env;
 
 	env->pregs[PR_VR] = vr_by_name(cpu_model);
-	cpu_exec_init(env);
+
     cpu_reset(CPU(cpu));
 	qemu_init_vcpu(env);
 

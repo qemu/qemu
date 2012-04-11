@@ -55,6 +55,14 @@ static void cris_cpu_reset(CPUState *s)
 #endif
 }
 
+static void cris_cpu_initfn(Object *obj)
+{
+    CRISCPU *cpu = CRIS_CPU(obj);
+    CPUCRISState *env = &cpu->env;
+
+    cpu_exec_init(env);
+}
+
 static void cris_cpu_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
@@ -68,6 +76,7 @@ static const TypeInfo cris_cpu_type_info = {
     .name = TYPE_CRIS_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(CRISCPU),
+    .instance_init = cris_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(CRISCPUClass),
     .class_init = cris_cpu_class_init,
