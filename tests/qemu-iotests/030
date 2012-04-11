@@ -49,7 +49,7 @@ class TestSingleDrive(ImageStreamingTestCase):
     def test_stream(self):
         self.assert_no_active_streams()
 
-        result = self.vm.qmp('block_stream', device='drive0')
+        result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
         completed = False
@@ -68,7 +68,7 @@ class TestSingleDrive(ImageStreamingTestCase):
                          'image file not fully populated after streaming')
 
     def test_device_not_found(self):
-        result = self.vm.qmp('block_stream', device='nonexistent')
+        result = self.vm.qmp('block-stream', device='nonexistent')
         self.assert_qmp(result, 'error/class', 'DeviceNotFound')
 
 class TestStreamStop(ImageStreamingTestCase):
@@ -90,14 +90,14 @@ class TestStreamStop(ImageStreamingTestCase):
 
         self.assert_no_active_streams()
 
-        result = self.vm.qmp('block_stream', device='drive0')
+        result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
         time.sleep(1)
         events = self.vm.get_qmp_events(wait=False)
         self.assertEqual(events, [], 'unexpected QMP event: %s' % events)
 
-        self.vm.qmp('block_job_cancel', device='drive0')
+        self.vm.qmp('block-job-cancel', device='drive0')
         self.assert_qmp(result, 'return', {})
 
         cancelled = False
@@ -129,10 +129,10 @@ class TestSetSpeed(ImageStreamingTestCase):
     def perf_test_set_speed(self):
         self.assert_no_active_streams()
 
-        result = self.vm.qmp('block_stream', device='drive0')
+        result = self.vm.qmp('block-stream', device='drive0')
         self.assert_qmp(result, 'return', {})
 
-        result = self.vm.qmp('block_job_set_speed', device='drive0', value=8 * 1024 * 1024)
+        result = self.vm.qmp('block-job-set-speed', device='drive0', value=8 * 1024 * 1024)
         self.assert_qmp(result, 'return', {})
 
         completed = False
