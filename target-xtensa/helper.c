@@ -102,7 +102,6 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
     cpu = XTENSA_CPU(object_new(TYPE_XTENSA_CPU));
     env = &cpu->env;
     env->config = config;
-    cpu_exec_init(env);
 
     if (!tcg_inited) {
         tcg_inited = 1;

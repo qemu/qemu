@@ -53,6 +53,14 @@ static void xtensa_cpu_reset(CPUState *s)
     reset_mmu(env);
 }
 
+static void xtensa_cpu_initfn(Object *obj)
+{
+    XtensaCPU *cpu = XTENSA_CPU(obj);
+    CPUXtensaState *env = &cpu->env;
+
+    cpu_exec_init(env);
+}
+
 static void xtensa_cpu_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
@@ -66,6 +74,7 @@ static const TypeInfo xtensa_cpu_type_info = {
     .name = TYPE_XTENSA_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(XtensaCPU),
+    .instance_init = xtensa_cpu_initfn,
     .abstract = false,
     .class_size = sizeof(XtensaCPUClass),
     .class_init = xtensa_cpu_class_init,
