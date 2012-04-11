@@ -29,81 +29,7 @@
 /* NOTE: must be called outside the CPU execute loop */
 void cpu_state_reset(CPUX86State *env)
 {
-    int i;
-
-    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
-        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
-        log_cpu_state(env, X86_DUMP_FPU | X86_DUMP_CCOP);
-    }
-
-    memset(env, 0, offsetof(CPUX86State, breakpoints));
-
-    tlb_flush(env, 1);
-
-    env->old_exception = -1;
-
-    /* init to reset state */
-
-#ifdef CONFIG_SOFTMMU
-    env->hflags |= HF_SOFTMMU_MASK;
-#endif
-    env->hflags2 |= HF2_GIF_MASK;
-
-    cpu_x86_update_cr0(env, 0x60000010);
-    env->a20_mask = ~0x0;
-    env->smbase = 0x30000;
-
-    env->idt.limit = 0xffff;
-    env->gdt.limit = 0xffff;
-    env->ldt.limit = 0xffff;
-    env->ldt.flags = DESC_P_MASK | (2 << DESC_TYPE_SHIFT);
-    env->tr.limit = 0xffff;
-    env->tr.flags = DESC_P_MASK | (11 << DESC_TYPE_SHIFT);
-
-    cpu_x86_load_seg_cache(env, R_CS, 0xf000, 0xffff0000, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_CS_MASK |
-                           DESC_R_MASK | DESC_A_MASK);
-    cpu_x86_load_seg_cache(env, R_DS, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
-                           DESC_A_MASK);
-    cpu_x86_load_seg_cache(env, R_ES, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
-                           DESC_A_MASK);
-    cpu_x86_load_seg_cache(env, R_SS, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
-                           DESC_A_MASK);
-    cpu_x86_load_seg_cache(env, R_FS, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
-                           DESC_A_MASK);
-    cpu_x86_load_seg_cache(env, R_GS, 0, 0, 0xffff,
-                           DESC_P_MASK | DESC_S_MASK | DESC_W_MASK |
-                           DESC_A_MASK);
-
-    env->eip = 0xfff0;
-    env->regs[R_EDX] = env->cpuid_version;
-
-    env->eflags = 0x2;
-
-    /* FPU init */
-    for(i = 0;i < 8; i++)
-        env->fptags[i] = 1;
-    env->fpuc = 0x37f;
-
-    env->mxcsr = 0x1f80;
-
-    env->pat = 0x0007040600070406ULL;
-    env->msr_ia32_misc_enable = MSR_IA32_MISC_ENABLE_DEFAULT;
-
-    memset(env->dr, 0, sizeof(env->dr));
-    env->dr[6] = DR6_FIXED_1;
-    env->dr[7] = DR7_FIXED_1;
-    cpu_breakpoint_remove_all(env, BP_CPU);
-    cpu_watchpoint_remove_all(env, BP_CPU);
-}
-
-void cpu_x86_close(CPUX86State *env)
-{
-    g_free(env);
+    cpu_reset(ENV_GET_CPU(env));
 }
 
 static void cpu_x86_version(CPUX86State *env, int *family, int *model)
@@ -1202,21 +1128,6 @@ void cpu_report_tpr_access(CPUX86State *env, TPRAccess access)
 }
 #endif /* !CONFIG_USER_ONLY */
 
-static void mce_init(CPUX86State *cenv)
-{
-    unsigned int bank;
-
-    if (((cenv->cpuid_version >> 8) & 0xf) >= 6
-        && (cenv->cpuid_features & (CPUID_MCE | CPUID_MCA)) ==
-            (CPUID_MCE | CPUID_MCA)) {
-        cenv->mcg_cap = MCE_CAP_DEF | MCE_BANKS_DEF;
-        cenv->mcg_ctl = ~(uint64_t)0;
-        for (bank = 0; bank < MCE_BANKS_DEF; bank++) {
-            cenv->mce_banks[bank * 4] = ~(uint64_t)0;
-        }
-    }
-}
-
 int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
                             target_ulong *base, unsigned int *limit,
                             unsigned int *flags)
@@ -1248,11 +1159,12 @@ int cpu_x86_get_descr_debug(CPUX86State *env, unsigned int selector,
 
 CPUX86State *cpu_x86_init(const char *cpu_model)
 {
+    X86CPU *cpu;
     CPUX86State *env;
     static int inited;
 
-    env = g_malloc0(sizeof(CPUX86State));
-    cpu_exec_init(env);
+    cpu = X86_CPU(object_new(TYPE_X86_CPU));
+    env = &cpu->env;
     env->cpu_model_str = cpu_model;
 
     /* init various static tables used in TCG mode */
@@ -1265,11 +1177,9 @@ CPUX86State *cpu_x86_init(const char *cpu_model)
 #endif
     }
     if (cpu_x86_register(env, cpu_model) < 0) {
-        cpu_x86_close(env);
+        object_delete(OBJECT(cpu));
         return NULL;
     }
-    env->cpuid_apic_id = env->cpu_index;
-    mce_init(env);
 
     qemu_init_vcpu(env);
 
