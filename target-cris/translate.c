@@ -3505,11 +3505,13 @@ static uint32_t vr_by_name(const char *name)
 
 CPUCRISState *cpu_cris_init (const char *cpu_model)
 {
+    CRISCPU *cpu;
 	CPUCRISState *env;
 	static int tcg_initialized = 0;
 	int i;
 
-	env = g_malloc0(sizeof(CPUCRISState));
+    cpu = CRIS_CPU(object_new(TYPE_CRIS_CPU));
+    env = &cpu->env;
 
 	env->pregs[PR_VR] = vr_by_name(cpu_model);
 	cpu_exec_init(env);
