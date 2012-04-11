@@ -607,6 +607,23 @@ void object_class_foreach(void (*fn)(ObjectClass *klass, void *opaque),
     g_hash_table_foreach(type_table_get(), object_class_foreach_tramp, &data);
 }
 
+int object_child_foreach(Object *obj, int (*fn)(Object *child, void *opaque),
+                         void *opaque)
+{
+    ObjectProperty *prop;
+    int ret = 0;
+
+    QTAILQ_FOREACH(prop, &obj->properties, node) {
+        if (object_property_is_child(prop)) {
+            ret = fn(prop->opaque, opaque);
+            if (ret != 0) {
+                break;
+            }
+        }
+    }
+    return ret;
+}
+
 static void object_class_get_list_tramp(ObjectClass *klass, void *opaque)
 {
     GSList **list = opaque;
