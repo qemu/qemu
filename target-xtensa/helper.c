@@ -95,6 +95,7 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
 {
     static int tcg_inited;
     static int debug_handler_inited;
+    XtensaCPU *cpu;
     CPUXtensaState *env;
     const XtensaConfig *config = NULL;
     XtensaConfigList *core = xtensa_cores;
@@ -109,7 +110,8 @@ CPUXtensaState *cpu_xtensa_init(const char *cpu_model)
         return NULL;
     }
 
-    env = g_malloc0(sizeof(*env));
+    cpu = XTENSA_CPU(object_new(TYPE_XTENSA_CPU));
+    env = &cpu->env;
     env->config = config;
     cpu_exec_init(env);
 
