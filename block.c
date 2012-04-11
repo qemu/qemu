@@ -816,6 +816,8 @@ void bdrv_close(BlockDriverState *bs)
         if (bs->job) {
             block_job_cancel_sync(bs->job);
         }
+        bdrv_drain_all();
+
         if (bs == bs_snapshots) {
             bs_snapshots = NULL;
         }
