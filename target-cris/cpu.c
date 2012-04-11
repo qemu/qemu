@@ -1,6 +1,9 @@
 /*
  * QEMU CRIS CPU
  *
+ * Copyright (c) 2008 AXIS Communications AB
+ * Written by Edgar E. Iglesias.
+ *
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  *
  * This library is free software; you can redistribute it and/or
@@ -20,6 +23,7 @@
 
 #include "cpu.h"
 #include "qemu-common.h"
+#include "mmu.h"
 
 
 /* CPUClass::reset() */
@@ -28,10 +32,27 @@ static void cris_cpu_reset(CPUState *s)
     CRISCPU *cpu = CRIS_CPU(s);
     CRISCPUClass *ccc = CRIS_CPU_GET_CLASS(cpu);
     CPUCRISState *env = &cpu->env;
+    uint32_t vr;
+
+    if (qemu_loglevel_mask(CPU_LOG_RESET)) {
+        qemu_log("CPU Reset (CPU %d)\n", env->cpu_index);
+        log_cpu_state(env, 0);
+    }
 
     ccc->parent_reset(s);
 
-    cpu_state_reset(env);
+    vr = env->pregs[PR_VR];
+    memset(env, 0, offsetof(CPUCRISState, breakpoints));
+    env->pregs[PR_VR] = vr;
+    tlb_flush(env, 1);
+
+#if defined(CONFIG_USER_ONLY)
+    /* start in user mode with interrupts enabled.  */
+    env->pregs[PR_CCS] |= U_FLAG | I_FLAG | P_FLAG;
+#else
+    cris_mmu_init(env);
+    env->pregs[PR_CCS] = 0;
+#endif
 }
 
 static void cris_cpu_class_init(ObjectClass *oc, void *data)
