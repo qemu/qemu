@@ -1,6 +1,7 @@
 /*
  * QEMU Xtensa CPU
  *
+ * Copyright (c) 2011, Max Filippov, Open Source and Linux Lab.
  * Copyright (c) 2012 SUSE LINUX Products GmbH
  * All rights reserved.
  *
@@ -40,7 +41,16 @@ static void xtensa_cpu_reset(CPUState *s)
 
     xcc->parent_reset(s);
 
-    cpu_state_reset(env);
+    env->exception_taken = 0;
+    env->pc = env->config->exception_vector[EXC_RESET];
+    env->sregs[LITBASE] &= ~1;
+    env->sregs[PS] = xtensa_option_enabled(env->config,
+            XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;
+    env->sregs[VECBASE] = env->config->vecbase;
+    env->sregs[IBREAKENABLE] = 0;
+
+    env->pending_irq_level = 0;
+    reset_mmu(env);
 }
 
 static void xtensa_cpu_class_init(ObjectClass *oc, void *data)

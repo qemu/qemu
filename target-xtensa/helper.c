@@ -33,20 +33,9 @@
 #include "hw/loader.h"
 #endif
 
-static void reset_mmu(CPUXtensaState *env);
-
 void cpu_state_reset(CPUXtensaState *env)
 {
-    env->exception_taken = 0;
-    env->pc = env->config->exception_vector[EXC_RESET];
-    env->sregs[LITBASE] &= ~1;
-    env->sregs[PS] = xtensa_option_enabled(env->config,
-            XTENSA_OPTION_INTERRUPT) ? 0x1f : 0x10;
-    env->sregs[VECBASE] = env->config->vecbase;
-    env->sregs[IBREAKENABLE] = 0;
-
-    env->pending_irq_level = 0;
-    reset_mmu(env);
+    cpu_reset(ENV_GET_CPU(env));
 }
 
 static struct XtensaConfigList *xtensa_cores;
@@ -336,7 +325,7 @@ static void reset_tlb_region_way0(CPUXtensaState *env,
     }
 }
 
-static void reset_mmu(CPUXtensaState *env)
+void reset_mmu(CPUXtensaState *env)
 {
     if (xtensa_option_enabled(env->config, XTENSA_OPTION_MMU)) {
         env->sregs[RASID] = 0x04030201;
