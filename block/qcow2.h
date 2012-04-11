@@ -78,6 +78,7 @@ typedef struct QCowSnapshot {
     uint32_t l1_size;
     char *id_str;
     char *name;
+    uint64_t disk_size;
     uint64_t vm_state_size;
     uint32_t date_sec;
     uint32_t date_nsec;
