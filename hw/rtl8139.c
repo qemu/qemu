@@ -2482,15 +2482,17 @@ static void rtl8139_TxStatus_write(RTL8139State *s, uint32_t txRegOffset, uint32
     rtl8139_transmit(s);
 }
 
-static uint32_t rtl8139_TxStatus_read(RTL8139State *s, uint8_t addr, int size)
+static uint32_t rtl8139_TxStatus_TxAddr_read(RTL8139State *s, uint32_t regs[],
+                                             uint32_t base, uint8_t addr,
+                                             int size)
 {
-    uint32_t reg = (addr - TxStatus0) / 4;
+    uint32_t reg = (addr - base) / 4;
     uint32_t offset = addr & 0x3;
     uint32_t ret = 0;
 
     if (addr & (size - 1)) {
-        DPRINTF("not implemented read for TxStatus addr=0x%x size=0x%x\n", addr,
-                size);
+        DPRINTF("not implemented read for TxStatus/TxAddr "
+                "addr=0x%x size=0x%x\n", addr, size);
         return ret;
     }
 
@@ -2498,12 +2500,12 @@ static uint32_t rtl8139_TxStatus_read(RTL8139State *s, uint8_t addr, int size)
     case 1: /* fall through */
     case 2: /* fall through */
     case 4:
-        ret = (s->TxStatus[reg] >> offset * 8) & ((1 << (size * 8)) - 1);
-        DPRINTF("TxStatus[%d] read addr=0x%x size=0x%x val=0x%08x\n", reg, addr,
-                size, ret);
+        ret = (regs[reg] >> offset * 8) & ((1 << (size * 8)) - 1);
+        DPRINTF("TxStatus/TxAddr[%d] read addr=0x%x size=0x%x val=0x%08x\n",
+                reg, addr, size, ret);
         break;
     default:
-        DPRINTF("unsupported size 0x%x of TxStatus reading\n", size);
+        DPRINTF("unsupported size 0x%x of TxStatus/TxAddr reading\n", size);
         break;
     }
 
@@ -2977,7 +2979,8 @@ static uint32_t rtl8139_io_readb(void *opaque, uint8_t addr)
             ret = s->mult[addr - MAR0];
             break;
         case TxStatus0 ... TxStatus0+4*4-1:
-            ret = rtl8139_TxStatus_read(s, addr, 1);
+            ret = rtl8139_TxStatus_TxAddr_read(s, s->TxStatus, TxStatus0,
+                                               addr, 1);
             break;
         case ChipCmd:
             ret = rtl8139_ChipCmd_read(s);
@@ -3043,7 +3046,7 @@ static uint32_t rtl8139_io_readw(void *opaque, uint8_t addr)
     switch (addr)
     {
         case TxAddr0 ... TxAddr0+4*4-1:
-            ret = rtl8139_TxStatus_read(s, addr, 2);
+            ret = rtl8139_TxStatus_TxAddr_read(s, s->TxAddr, TxAddr0, addr, 2);
             break;
         case IntrMask:
             ret = rtl8139_IntrMask_read(s);
@@ -3135,7 +3138,8 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
             break;
 
         case TxStatus0 ... TxStatus0+4*4-1:
-            ret = rtl8139_TxStatus_read(s, addr, 4);
+            ret = rtl8139_TxStatus_TxAddr_read(s, s->TxStatus, TxStatus0,
+                                               addr, 4);
             break;
 
         case TxAddr0 ... TxAddr0+4*4-1:
