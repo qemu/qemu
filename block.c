@@ -1460,6 +1460,11 @@ int bdrv_change_backing_file(BlockDriverState *bs,
 {
     BlockDriver *drv = bs->drv;
 
+    /* Backing file format doesn't make sense without a backing file */
+    if (backing_fmt && !backing_file) {
+        return -EINVAL;
+    }
+
     if (drv->bdrv_change_backing_file != NULL) {
         return drv->bdrv_change_backing_file(bs, backing_file, backing_fmt);
     } else {
