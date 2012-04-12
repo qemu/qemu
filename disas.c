@@ -268,7 +268,7 @@ void target_disas(FILE *out, target_ulong code, target_ulong size, int flags)
 /* Disassemble this for me please... (debugging). */
 void disas(FILE *out, void *code, unsigned long size)
 {
-    unsigned long pc;
+    uintptr_t pc;
     int count;
     struct disassemble_info disasm_info;
     int (*print_insn)(bfd_vma pc, disassemble_info *info);
@@ -276,7 +276,7 @@ void disas(FILE *out, void *code, unsigned long size)
     INIT_DISASSEMBLE_INFO(disasm_info, out, fprintf);
 
     disasm_info.buffer = code;
-    disasm_info.buffer_vma = (unsigned long)code;
+    disasm_info.buffer_vma = (uintptr_t)code;
     disasm_info.buffer_length = size;
 
 #ifdef HOST_WORDS_BIGENDIAN
@@ -320,8 +320,8 @@ void disas(FILE *out, void *code, unsigned long size)
 	    (long) code);
     return;
 #endif
-    for (pc = (unsigned long)code; size > 0; pc += count, size -= count) {
-	fprintf(out, "0x%08lx:  ", pc);
+    for (pc = (uintptr_t)code; size > 0; pc += count, size -= count) {
+        fprintf(out, "0x%08" PRIxPTR ":  ", pc);
 	count = print_insn(pc, &disasm_info);
 	fprintf(out, "\n");
 	if (count < 0)
