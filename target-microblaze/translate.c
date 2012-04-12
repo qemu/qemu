@@ -1899,10 +1899,8 @@ CPUMBState *cpu_mb_init (const char *cpu_model)
     cpu = MICROBLAZE_CPU(object_new(TYPE_MICROBLAZE_CPU));
     env = &cpu->env;
 
-    cpu_exec_init(env);
     cpu_reset(CPU(cpu));
     qemu_init_vcpu(env);
-    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
 
     if (tcg_initialized)
         return env;

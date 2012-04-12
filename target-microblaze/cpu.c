@@ -83,6 +83,16 @@ static void mb_cpu_reset(CPUState *s)
 #endif
 }
 
+static void mb_cpu_initfn(Object *obj)
+{
+    MicroBlazeCPU *cpu = MICROBLAZE_CPU(obj);
+    CPUMBState *env = &cpu->env;
+
+    cpu_exec_init(env);
+
+    set_float_rounding_mode(float_round_nearest_even, &env->fp_status);
+}
+
 static void mb_cpu_class_init(ObjectClass *oc, void *data)
 {
     CPUClass *cc = CPU_CLASS(oc);
@@ -96,6 +106,7 @@ static const TypeInfo mb_cpu_type_info = {
     .name = TYPE_MICROBLAZE_CPU,
     .parent = TYPE_CPU,
     .instance_size = sizeof(MicroBlazeCPU),
+    .instance_init = mb_cpu_initfn,
     .class_size = sizeof(MicroBlazeCPUClass),
     .class_init = mb_cpu_class_init,
 };
