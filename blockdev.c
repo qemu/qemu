@@ -756,14 +756,17 @@ void qmp_transaction(BlockdevActionList *dev_list, Error **errp)
             goto delete_and_fail;
         }
 
+        if (!bdrv_is_inserted(states->old_bs)) {
+            error_set(errp, QERR_DEVICE_HAS_NO_MEDIUM, device);
+            goto delete_and_fail;
+        }
+
         if (bdrv_in_use(states->old_bs)) {
             error_set(errp, QERR_DEVICE_IN_USE, device);
             goto delete_and_fail;
         }
 
-        if (!bdrv_is_read_only(states->old_bs) &&
-             bdrv_is_inserted(states->old_bs)) {
-
+        if (!bdrv_is_read_only(states->old_bs)) {
             if (bdrv_flush(states->old_bs)) {
                 error_set(errp, QERR_IO_ERROR);
                 goto delete_and_fail;
