@@ -99,41 +99,26 @@ int qemu_aio_set_fd_handler(int fd,
 
 void qemu_aio_flush(void)
 {
-    AioHandler *node;
-    int ret;
-
-    do {
-        ret = 0;
-
-	/*
-	 * If there are pending emulated aio start them now so flush
-	 * will be able to return 1.
-	 */
-        qemu_aio_wait();
-
-        QLIST_FOREACH(node, &aio_handlers, node) {
-            if (node->io_flush) {
-                ret |= node->io_flush(node->opaque);
-            }
-        }
-    } while (qemu_bh_poll() || ret > 0);
+    while (qemu_aio_wait());
 }
 
-void qemu_aio_wait(void)
+bool qemu_aio_wait(void)
 {
     int ret;
 
     /*
      * If there are callbacks left that have been queued, we need to call then.
-     * Return afterwards to avoid waiting needlessly in select().
+     * Do not call select in this case, because it is possible that the caller
+     * does not need a complete flush (as is the case for qemu_aio_wait loops).
      */
     if (qemu_bh_poll()) {
-        return;
+        return true;
     }
 
     do {
         AioHandler *node;
         fd_set rdfds, wrfds;
+        bool busy;
         int max_fd = -1;
 
         walking_handlers = 1;
@@ -142,14 +127,18 @@ void qemu_aio_wait(void)
         FD_ZERO(&wrfds);
 
         /* fill fd sets */
+        busy = false;
         QLIST_FOREACH(node, &aio_handlers, node) {
             /* If there aren't pending AIO operations, don't invoke callbacks.
              * Otherwise, if there are no AIO requests, qemu_aio_wait() would
              * wait indefinitely.
              */
-            if (node->io_flush && node->io_flush(node->opaque) == 0)
-                continue;
-
+            if (node->io_flush) {
+                if (node->io_flush(node->opaque) == 0) {
+                    continue;
+                }
+                busy = true;
+            }
             if (!node->deleted && node->io_read) {
                 FD_SET(node->fd, &rdfds);
                 max_fd = MAX(max_fd, node->fd + 1);
@@ -163,8 +152,9 @@ void qemu_aio_wait(void)
         walking_handlers = 0;
 
         /* No AIO operations?  Get us out of here */
-        if (max_fd == -1)
-            break;
+        if (!busy) {
+            return false;
+        }
 
         /* wait until next event */
         ret = select(max_fd, &rdfds, &wrfds, NULL, NULL);
@@ -204,4 +194,6 @@ void qemu_aio_wait(void)
             walking_handlers = 0;
         }
     } while (ret == 0);
+
+    return true;
 }

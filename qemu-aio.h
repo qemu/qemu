@@ -48,8 +48,10 @@ void qemu_aio_flush(void);
 /* Wait for a single AIO completion to occur.  This function will wait
  * until a single AIO event has completed and it will ensure something
  * has moved before returning. This can issue new pending aio as
- * result of executing I/O completion or bh callbacks. */
-void qemu_aio_wait(void);
+ * result of executing I/O completion or bh callbacks.
+ *
+ * Return whether there is still any pending AIO operation.  */
+bool qemu_aio_wait(void);
 
 /* Register a file descriptor and associated callbacks.  Behaves very similarly
  * to qemu_set_fd_handler2.  Unlike qemu_set_fd_handler2, these callbacks will
