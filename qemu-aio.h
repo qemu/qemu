@@ -41,11 +41,6 @@ void qemu_aio_release(void *p);
 /* Returns 1 if there are still outstanding AIO requests; 0 otherwise */
 typedef int (AioFlushHandler)(void *opaque);
 
-/* Runs all currently allowed AIO callbacks of completed requests in the
- * respective AIO backend. Returns 0 if no requests was handled, non-zero
- * if at least one queued request was handled. */
-typedef int (AioProcessQueue)(void *opaque);
-
 /* Flush any pending AIO operation. This function will block until all
  * outstanding AIO operations have been completed or cancelled. */
 void qemu_aio_flush(void);
@@ -55,13 +50,6 @@ void qemu_aio_flush(void);
  * has moved before returning. This can issue new pending aio as
  * result of executing I/O completion or bh callbacks. */
 void qemu_aio_wait(void);
-
-/*
- * Runs all currently allowed AIO callbacks of completed requests. Returns 0
- * if no requests were handled, non-zero if at least one request was
- * processed.
- */
-int qemu_aio_process_queue(void);
 
 /* Register a file descriptor and associated callbacks.  Behaves very similarly
  * to qemu_set_fd_handler2.  Unlike qemu_set_fd_handler2, these callbacks will
@@ -74,7 +62,6 @@ int qemu_aio_set_fd_handler(int fd,
                             IOHandler *io_read,
                             IOHandler *io_write,
                             AioFlushHandler *io_flush,
-                            AioProcessQueue *io_process_queue,
                             void *opaque);
 
 #endif
