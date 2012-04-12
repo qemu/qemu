@@ -1242,6 +1242,14 @@ if ! has $python; then
   exit 1
 fi
 
+# Note that if the Python conditional here evaluates True we will exit
+# with status 1 which is a shell 'false' value.
+if ! "$python" -c 'import sys; sys.exit(sys.version_info[0] >= 3)'; then
+  echo "Python 2 required but '$python' is version 3 or better."
+  echo "Use --python=/path/to/python to specify a Python 2."
+  exit 1
+fi
+
 if test -z "$target_list" ; then
     target_list="$default_target_list"
 else
