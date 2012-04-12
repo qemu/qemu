@@ -64,6 +64,7 @@ typedef struct VIOsPAPRDeviceClass {
     const char *dt_name, *dt_type, *dt_compatible;
     target_ulong signal_mask;
     int (*init)(VIOsPAPRDevice *dev);
+    void (*reset)(VIOsPAPRDevice *dev);
     int (*devnode)(VIOsPAPRDevice *dev, void *fdt, int node_off);
 } VIOsPAPRDeviceClass;
 

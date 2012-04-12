@@ -648,12 +648,17 @@ static int spapr_vio_check_reg(VIOsPAPRDevice *sdev)
     return 0;
 }
 
-static void spapr_vio_busdev_reset(void *opaque)
+static void spapr_vio_busdev_reset(DeviceState *qdev)
 {
-    VIOsPAPRDevice *dev = (VIOsPAPRDevice *)opaque;
+    VIOsPAPRDevice *dev = DO_UPCAST(VIOsPAPRDevice, qdev, qdev);
+    VIOsPAPRDeviceClass *pc = VIO_SPAPR_DEVICE_GET_CLASS(dev);
 
     if (dev->crq.qsize) {
         free_crq(dev);
+    }
+
+    if (pc->reset) {
+        pc->reset(dev);
     }
 }
 
@@ -684,8 +689,6 @@ static int spapr_vio_busdev_init(DeviceState *qdev)
     }
 
     rtce_init(dev);
-
-    qemu_register_reset(spapr_vio_busdev_reset, dev);
 
     return pc->init(dev);
 }
@@ -776,6 +779,7 @@ static void vio_spapr_device_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->init = spapr_vio_busdev_init;
+    k->reset = spapr_vio_busdev_reset;
     k->bus_info = &spapr_vio_bus_info;
 }
 
