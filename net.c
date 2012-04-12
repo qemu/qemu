@@ -1136,10 +1136,14 @@ int net_client_init(Monitor *mon, QemuOpts *opts, int is_netdev)
     for (i = 0; i < NET_CLIENT_TYPE_MAX; i++) {
         if (net_client_types[i].type != NULL &&
             !strcmp(net_client_types[i].type, type)) {
+            Error *local_err = NULL;
             VLANState *vlan = NULL;
             int ret;
 
-            if (qemu_opts_validate(opts, &net_client_types[i].desc[0]) == -1) {
+            qemu_opts_validate(opts, &net_client_types[i].desc[0], &local_err);
+            if (error_is_set(&local_err)) {
+                qerror_report_err(local_err);
+                error_free(local_err);
                 return -1;
             }
 

@@ -1041,7 +1041,7 @@ QDict *qemu_opts_to_qdict(QemuOpts *opts, QDict *qdict)
 /* Validate parsed opts against descriptions where no
  * descriptions were provided in the QemuOptsList.
  */
-int qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc)
+void qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc, Error **errp)
 {
     QemuOpt *opt;
     Error *local_err = NULL;
@@ -1057,21 +1057,18 @@ int qemu_opts_validate(QemuOpts *opts, const QemuOptDesc *desc)
             }
         }
         if (desc[i].name == NULL) {
-            qerror_report(QERR_INVALID_PARAMETER, opt->name);
-            return -1;
+            error_set(errp, QERR_INVALID_PARAMETER, opt->name);
+            return;
         }
 
         opt->desc = &desc[i];
 
         qemu_opt_parse(opt, &local_err);
         if (error_is_set(&local_err)) {
-            qerror_report_err(local_err);
-            error_free(local_err);
-            return -1;
+            error_propagate(errp, local_err);
+            return;
         }
     }
-
-    return 0;
 }
 
 int qemu_opts_foreach(QemuOptsList *list, qemu_opts_loopfunc func, void *opaque,
